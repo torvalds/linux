@@ -51,5 +51,8 @@ void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
 			     struct xdp_sock **map_entry);
 int xsk_map_inc(struct xsk_map *map);
 void xsk_map_put(struct xsk_map *map);
+void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id);
+int xsk_reg_pool_at_qid(struct net_device *dev, struct xsk_buff_pool *pool,
+			u16 queue_id);
 
 #endif /* XSK_H_ */

@@ -47,139 +47,6 @@ void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 	spin_unlock_irqrestore(&umem->xsk_tx_list_lock, flags);
 }
 
-/* The umem is stored both in the _rx struct and the _tx struct as we do
- * not know if the device has more tx queues than rx, or the opposite.
- * This might also change during run time.
- */
-static int xsk_reg_pool_at_qid(struct net_device *dev,
-			       struct xsk_buff_pool *pool,
-			       u16 queue_id)
-{
-	if (queue_id >= max_t(unsigned int,
-			      dev->real_num_rx_queues,
-			      dev->real_num_tx_queues))
-		return -EINVAL;
-
-	if (queue_id < dev->real_num_rx_queues)
-		dev->_rx[queue_id].pool = pool;
-	if (queue_id < dev->real_num_tx_queues)
-		dev->_tx[queue_id].pool = pool;
-
-	return 0;
-}
-
-struct xsk_buff_pool *xsk_get_pool_from_qid(struct net_device *dev,
-					    u16 queue_id)
-{
-	if (queue_id < dev->real_num_rx_queues)
-		return dev->_rx[queue_id].pool;
-	if (queue_id < dev->real_num_tx_queues)
-		return dev->_tx[queue_id].pool;
-
-	return NULL;
-}
-EXPORT_SYMBOL(xsk_get_pool_from_qid);
-
-static void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
-{
-	if (queue_id < dev->real_num_rx_queues)
-		dev->_rx[queue_id].pool = NULL;
-	if (queue_id < dev->real_num_tx_queues)
-		dev->_tx[queue_id].pool = NULL;
-}
-
-int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
-			u16 queue_id, u16 flags)
-{
-	bool force_zc, force_copy;
-	struct netdev_bpf bpf;
-	int err = 0;
-
-	ASSERT_RTNL();
-
-	force_zc = flags & XDP_ZEROCOPY;
-	force_copy = flags & XDP_COPY;
-
-	if (force_zc && force_copy)
-		return -EINVAL;
-
-	if (xsk_get_pool_from_qid(dev, queue_id))
-		return -EBUSY;
-
-	err = xsk_reg_pool_at_qid(dev, umem->pool, queue_id);
-	if (err)
-		return err;
-
-	umem->dev = dev;
-	umem->queue_id = queue_id;
-
-	if (flags & XDP_USE_NEED_WAKEUP) {
-		umem->flags |= XDP_UMEM_USES_NEED_WAKEUP;
-		/* Tx needs to be explicitly woken up the first time.
-		 * Also for supporting drivers that do not implement this
-		 * feature. They will always have to call sendto().
-		 */
-		xsk_set_tx_need_wakeup(umem->pool);
-	}
-
-	dev_hold(dev);
-
-	if (force_copy)
-		/* For copy-mode, we are done. */
-		return 0;
-
-	if (!dev->netdev_ops->ndo_bpf || !dev->netdev_ops->ndo_xsk_wakeup) {
-		err = -EOPNOTSUPP;
-		goto err_unreg_umem;
-	}
-
-	bpf.command = XDP_SETUP_XSK_POOL;
-	bpf.xsk.pool = umem->pool;
-	bpf.xsk.queue_id = queue_id;
-
-	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
-	if (err)
-		goto err_unreg_umem;
-
-	umem->zc = true;
-	return 0;
-
-err_unreg_umem:
-	if (!force_zc)
-		err = 0; /* fallback to copy mode */
-	if (err)
-		xsk_clear_pool_at_qid(dev, queue_id);
-	return err;
-}
-
-void xdp_umem_clear_dev(struct xdp_umem *umem)
-{
-	struct netdev_bpf bpf;
-	int err;
-
-	ASSERT_RTNL();
-
-	if (!umem->dev)
-		return;
-
-	if (umem->zc) {
-		bpf.command = XDP_SETUP_XSK_POOL;
-		bpf.xsk.pool = NULL;
-		bpf.xsk.queue_id = umem->queue_id;
-
-		err = umem->dev->netdev_ops->ndo_bpf(umem->dev, &bpf);
-
-		if (err)
-			WARN(1, "failed to disable umem!\n");
-	}
-
-	xsk_clear_pool_at_qid(umem->dev, umem->queue_id);
-
-	dev_put(umem->dev);
-	umem->dev = NULL;
-	umem->zc = false;
-}
-
 static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 {
 	unpin_user_pages_dirty_lock(umem->pgs, umem->npgs, true);
@@ -196,11 +63,25 @@ static void xdp_umem_unaccount_pages(struct xdp_umem *umem)
 	}
 }
 
+void xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
+			 u16 queue_id)
+{
+	umem->dev = dev;
+	umem->queue_id = queue_id;
+
+	dev_hold(dev);
+}
+
+void xdp_umem_clear_dev(struct xdp_umem *umem)
+{
+	dev_put(umem->dev);
+	umem->dev = NULL;
+	umem->zc = false;
+}
+
 static void xdp_umem_release(struct xdp_umem *umem)
 {
-	rtnl_lock();
 	xdp_umem_clear_dev(umem);
-	rtnl_unlock();
 
 	ida_simple_remove(&umem_ida, umem->id);
 
@@ -214,18 +95,10 @@ static void xdp_umem_release(struct xdp_umem *umem)
 		umem->cq = NULL;
 	}
 
-	xp_destroy(umem->pool);
 	xdp_umem_unpin_pages(umem);
 
 	xdp_umem_unaccount_pages(umem);
 	kfree(umem);
-}
-
-static void xdp_umem_release_deferred(struct work_struct *work)
-{
-	struct xdp_umem *umem = container_of(work, struct xdp_umem, work);
-
-	xdp_umem_release(umem);
 }
 
 void xdp_get_umem(struct xdp_umem *umem)
@@ -238,10 +111,8 @@ void xdp_put_umem(struct xdp_umem *umem)
 	if (!umem)
 		return;
 
-	if (refcount_dec_and_test(&umem->users)) {
-		INIT_WORK(&umem->work, xdp_umem_release_deferred);
-		schedule_work(&umem->work);
-	}
+	if (refcount_dec_and_test(&umem->users))
+		xdp_umem_release(umem);
 }
 
 static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
@@ -357,6 +228,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	umem->size = size;
 	umem->headroom = headroom;
 	umem->chunk_size = chunk_size;
+	umem->chunks = chunks;
 	umem->npgs = (u32)npgs;
 	umem->pgs = NULL;
 	umem->user = NULL;
@@ -374,16 +246,8 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (err)
 		goto out_account;
 
-	umem->pool = xp_create(umem, chunks, chunk_size, headroom, size,
-			       unaligned_chunks);
-	if (!umem->pool) {
-		err = -ENOMEM;
-		goto out_pin;
-	}
 	return 0;
 
-out_pin:
-	xdp_umem_unpin_pages(umem);
 out_account:
 	xdp_umem_unaccount_pages(umem);
 	return err;

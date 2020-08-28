@@ -14,6 +14,7 @@ struct xdp_rxq_info;
 struct xsk_queue;
 struct xdp_desc;
 struct xdp_umem;
+struct xdp_sock;
 struct device;
 struct page;
 
@@ -46,16 +47,22 @@ struct xsk_buff_pool {
 	struct xdp_umem *umem;
 	void *addrs;
 	struct device *dev;
+	refcount_t users;
+	struct work_struct work;
 	struct xdp_buff_xsk *free_heads[];
 };
 
 /* AF_XDP core. */
-struct xsk_buff_pool *xp_create(struct xdp_umem *umem, u32 chunks,
-				u32 chunk_size, u32 headroom, u64 size,
-				bool unaligned);
+struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
+						struct xdp_umem *umem);
+int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *dev,
+		  u16 queue_id, u16 flags);
 void xp_set_fq(struct xsk_buff_pool *pool, struct xsk_queue *fq);
 void xp_destroy(struct xsk_buff_pool *pool);
 void xp_release(struct xdp_buff_xsk *xskb);
+void xp_get_pool(struct xsk_buff_pool *pool);
+void xp_put_pool(struct xsk_buff_pool *pool);
+void xp_clear_dev(struct xsk_buff_pool *pool);
 
 /* AF_XDP, and XDP core. */
 void xp_free(struct xdp_buff_xsk *xskb);

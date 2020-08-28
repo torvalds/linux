@@ -2,8 +2,14 @@
 
 #include <net/xsk_buff_pool.h>
 #include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
+#include <linux/dma-direct.h>
+#include <linux/dma-noncoherent.h>
+#include <linux/swiotlb.h>
 
 #include "xsk_queue.h"
+#include "xdp_umem.h"
+#include "xsk.h"
 
 static void xp_addr_unmap(struct xsk_buff_pool *pool)
 {
@@ -29,38 +35,40 @@ void xp_destroy(struct xsk_buff_pool *pool)
 	kvfree(pool);
 }
 
-struct xsk_buff_pool *xp_create(struct xdp_umem *umem, u32 chunks,
-				u32 chunk_size, u32 headroom, u64 size,
-				bool unaligned)
+struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
+						struct xdp_umem *umem)
 {
 	struct xsk_buff_pool *pool;
 	struct xdp_buff_xsk *xskb;
 	int err;
 	u32 i;
 
-	pool = kvzalloc(struct_size(pool, free_heads, chunks), GFP_KERNEL);
+	pool = kvzalloc(struct_size(pool, free_heads, umem->chunks),
+			GFP_KERNEL);
 	if (!pool)
 		goto out;
 
-	pool->heads = kvcalloc(chunks, sizeof(*pool->heads), GFP_KERNEL);
+	pool->heads = kvcalloc(umem->chunks, sizeof(*pool->heads), GFP_KERNEL);
 	if (!pool->heads)
 		goto out;
 
-	pool->chunk_mask = ~((u64)chunk_size - 1);
-	pool->addrs_cnt = size;
-	pool->heads_cnt = chunks;
-	pool->free_heads_cnt = chunks;
-	pool->headroom = headroom;
-	pool->chunk_size = chunk_size;
-	pool->unaligned = unaligned;
-	pool->frame_len = chunk_size - headroom - XDP_PACKET_HEADROOM;
+	pool->chunk_mask = ~((u64)umem->chunk_size - 1);
+	pool->addrs_cnt = umem->size;
+	pool->heads_cnt = umem->chunks;
+	pool->free_heads_cnt = umem->chunks;
+	pool->headroom = umem->headroom;
+	pool->chunk_size = umem->chunk_size;
+	pool->unaligned = umem->flags & XDP_UMEM_UNALIGNED_CHUNK_FLAG;
+	pool->frame_len = umem->chunk_size - umem->headroom -
+		XDP_PACKET_HEADROOM;
 	pool->umem = umem;
 	INIT_LIST_HEAD(&pool->free_list);
+	refcount_set(&pool->users, 1);
 
 	for (i = 0; i < pool->free_heads_cnt; i++) {
 		xskb = &pool->heads[i];
 		xskb->pool = pool;
-		xskb->xdp.frame_sz = chunk_size - headroom;
+		xskb->xdp.frame_sz = umem->chunk_size - umem->headroom;
 		pool->free_heads[i] = xskb;
 	}
 
@@ -86,6 +94,120 @@ void xp_set_rxq_info(struct xsk_buff_pool *pool, struct xdp_rxq_info *rxq)
 		pool->heads[i].xdp.rxq = rxq;
 }
 EXPORT_SYMBOL(xp_set_rxq_info);
+
+int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *dev,
+		  u16 queue_id, u16 flags)
+{
+	struct xdp_umem *umem = pool->umem;
+	bool force_zc, force_copy;
+	struct netdev_bpf bpf;
+	int err = 0;
+
+	ASSERT_RTNL();
+
+	force_zc = flags & XDP_ZEROCOPY;
+	force_copy = flags & XDP_COPY;
+
+	if (force_zc && force_copy)
+		return -EINVAL;
+
+	if (xsk_get_pool_from_qid(dev, queue_id))
+		return -EBUSY;
+
+	err = xsk_reg_pool_at_qid(dev, pool, queue_id);
+	if (err)
+		return err;
+
+	if (flags & XDP_USE_NEED_WAKEUP) {
+		umem->flags |= XDP_UMEM_USES_NEED_WAKEUP;
+		/* Tx needs to be explicitly woken up the first time.
+		 * Also for supporting drivers that do not implement this
+		 * feature. They will always have to call sendto().
+		 */
+		umem->need_wakeup = XDP_WAKEUP_TX;
+	}
+
+	if (force_copy)
+		/* For copy-mode, we are done. */
+		return 0;
+
+	if (!dev->netdev_ops->ndo_bpf || !dev->netdev_ops->ndo_xsk_wakeup) {
+		err = -EOPNOTSUPP;
+		goto err_unreg_pool;
+	}
+
+	bpf.command = XDP_SETUP_XSK_POOL;
+	bpf.xsk.pool = pool;
+	bpf.xsk.queue_id = queue_id;
+
+	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
+	if (err)
+		goto err_unreg_pool;
+
+	umem->zc = true;
+	return 0;
+
+err_unreg_pool:
+	if (!force_zc)
+		err = 0; /* fallback to copy mode */
+	if (err)
+		xsk_clear_pool_at_qid(dev, queue_id);
+	return err;
+}
+
+void xp_clear_dev(struct xsk_buff_pool *pool)
+{
+	struct xdp_umem *umem = pool->umem;
+	struct netdev_bpf bpf;
+	int err;
+
+	ASSERT_RTNL();
+
+	if (!umem->dev)
+		return;
+
+	if (umem->zc) {
+		bpf.command = XDP_SETUP_XSK_POOL;
+		bpf.xsk.pool = NULL;
+		bpf.xsk.queue_id = umem->queue_id;
+
+		err = umem->dev->netdev_ops->ndo_bpf(umem->dev, &bpf);
+
+		if (err)
+			WARN(1, "failed to disable umem!\n");
+	}
+
+	xsk_clear_pool_at_qid(umem->dev, umem->queue_id);
+}
+
+static void xp_release_deferred(struct work_struct *work)
+{
+	struct xsk_buff_pool *pool = container_of(work, struct xsk_buff_pool,
+						  work);
+
+	rtnl_lock();
+	xp_clear_dev(pool);
+	rtnl_unlock();
+
+	xdp_put_umem(pool->umem);
+	xp_destroy(pool);
+}
+
+void xp_get_pool(struct xsk_buff_pool *pool)
+{
+	refcount_inc(&pool->users);
+}
+
+void xp_put_pool(struct xsk_buff_pool *pool)
+{
+	if (!pool)
+		return;
+
+	if (refcount_dec_and_test(&pool->users)) {
+		INIT_WORK(&pool->work, xp_release_deferred);
+		schedule_work(&pool->work);
+	}
+}
 
 void xp_dma_unmap(struct xsk_buff_pool *pool, unsigned long attrs)
 {

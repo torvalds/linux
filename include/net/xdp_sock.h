@@ -20,13 +20,12 @@ struct xdp_buff;
 struct xdp_umem {
 	struct xsk_queue *fq;
 	struct xsk_queue *cq;
-	struct xsk_buff_pool *pool;
 	u64 size;
 	u32 headroom;
 	u32 chunk_size;
+	u32 chunks;
 	struct user_struct *user;
 	refcount_t users;
-	struct work_struct work;
 	struct page **pgs;
 	u32 npgs;
 	u16 queue_id;

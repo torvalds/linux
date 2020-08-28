@@ -105,6 +105,46 @@ bool xsk_uses_need_wakeup(struct xsk_buff_pool *pool)
 }
 EXPORT_SYMBOL(xsk_uses_need_wakeup);
 
+struct xsk_buff_pool *xsk_get_pool_from_qid(struct net_device *dev,
+					    u16 queue_id)
+{
+	if (queue_id < dev->real_num_rx_queues)
+		return dev->_rx[queue_id].pool;
+	if (queue_id < dev->real_num_tx_queues)
+		return dev->_tx[queue_id].pool;
+
+	return NULL;
+}
+EXPORT_SYMBOL(xsk_get_pool_from_qid);
+
+void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
+{
+	if (queue_id < dev->real_num_rx_queues)
+		dev->_rx[queue_id].pool = NULL;
+	if (queue_id < dev->real_num_tx_queues)
+		dev->_tx[queue_id].pool = NULL;
+}
+
+/* The buffer pool is stored both in the _rx struct and the _tx struct as we do
+ * not know if the device has more tx queues than rx, or the opposite.
+ * This might also change during run time.
+ */
+int xsk_reg_pool_at_qid(struct net_device *dev, struct xsk_buff_pool *pool,
+			u16 queue_id)
+{
+	if (queue_id >= max_t(unsigned int,
+			      dev->real_num_rx_queues,
+			      dev->real_num_tx_queues))
+		return -EINVAL;
+
+	if (queue_id < dev->real_num_rx_queues)
+		dev->_rx[queue_id].pool = pool;
+	if (queue_id < dev->real_num_tx_queues)
+		dev->_tx[queue_id].pool = pool;
+
+	return 0;
+}
+
 void xp_release(struct xdp_buff_xsk *xskb)
 {
 	xskb->pool->free_heads[xskb->pool->free_heads_cnt++] = xskb;
@@ -281,7 +321,7 @@ bool xsk_tx_peek_desc(struct xsk_buff_pool *pool, struct xdp_desc *desc)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(xs, &umem->xsk_tx_list, list) {
-		if (!xskq_cons_peek_desc(xs->tx, desc, umem)) {
+		if (!xskq_cons_peek_desc(xs->tx, desc, pool)) {
 			xs->tx->queue_empty_descs++;
 			continue;
 		}
@@ -349,7 +389,7 @@ static int xsk_generic_xmit(struct sock *sk)
 	if (xs->queue_id >= xs->dev->real_num_tx_queues)
 		goto out;
 
-	while (xskq_cons_peek_desc(xs->tx, &desc, xs->umem)) {
+	while (xskq_cons_peek_desc(xs->tx, &desc, xs->pool)) {
 		char *buffer;
 		u64 addr;
 		u32 len;
@@ -667,6 +707,9 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 			goto out_unlock;
 		}
 
+		/* Share the buffer pool with the other socket. */
+		xp_get_pool(umem_xs->pool);
+		xs->pool = umem_xs->pool;
 		xdp_get_umem(umem_xs->umem);
 		WRITE_ONCE(xs->umem, umem_xs->umem);
 		sockfd_put(sock);
@@ -675,9 +718,21 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		goto out_unlock;
 	} else {
 		/* This xsk has its own umem. */
-		err = xdp_umem_assign_dev(xs->umem, dev, qid, flags);
-		if (err)
+		xdp_umem_assign_dev(xs->umem, dev, qid);
+		xs->pool = xp_create_and_assign_umem(xs, xs->umem);
+		if (!xs->pool) {
+			err = -ENOMEM;
+			xdp_umem_clear_dev(xs->umem);
 			goto out_unlock;
+		}
+
+		err = xp_assign_dev(xs->pool, dev, qid, flags);
+		if (err) {
+			xp_destroy(xs->pool);
+			xs->pool = NULL;
+			xdp_umem_clear_dev(xs->umem);
+			goto out_unlock;
+		}
 	}
 
 	xs->dev = dev;
@@ -769,8 +824,6 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			return PTR_ERR(umem);
 		}
 
-		xs->pool = umem->pool;
-
 		/* Make sure umem is ready before it can be seen by others */
 		smp_wmb();
 		WRITE_ONCE(xs->umem, umem);
@@ -800,7 +853,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			&xs->umem->cq;
 		err = xsk_init_queue(entries, q, true);
 		if (optname == XDP_UMEM_FILL_RING)
-			xp_set_fq(xs->umem->pool, *q);
+			xp_set_fq(xs->pool, *q);
 		mutex_unlock(&xs->mutex);
 		return err;
 	}
@@ -1028,7 +1081,8 @@ static int xsk_notifier(struct notifier_block *this,
 
 				xsk_unbind_dev(xs);
 
-				/* Clear device references in umem. */
+				/* Clear device references. */
+				xp_clear_dev(xs->pool);
 				xdp_umem_clear_dev(xs->umem);
 			}
 			mutex_unlock(&xs->mutex);
@@ -1073,7 +1127,7 @@ static void xsk_destruct(struct sock *sk)
 	if (!sock_flag(sk, SOCK_DEAD))
 		return;
 
-	xdp_put_umem(xs->umem);
+	xp_put_pool(xs->pool);
 
 	sk_refcnt_debug_dec(sk);
 }
@@ -1081,8 +1135,8 @@ static void xsk_destruct(struct sock *sk)
 static int xsk_create(struct net *net, struct socket *sock, int protocol,
 		      int kern)
 {
-	struct sock *sk;
 	struct xdp_sock *xs;
+	struct sock *sk;
 
 	if (!ns_capable(net->user_ns, CAP_NET_RAW))
 		return -EPERM;

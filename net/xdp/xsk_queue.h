@@ -166,9 +166,9 @@ static inline bool xp_validate_desc(struct xsk_buff_pool *pool,
 
 static inline bool xskq_cons_is_valid_desc(struct xsk_queue *q,
 					   struct xdp_desc *d,
-					   struct xdp_umem *umem)
+					   struct xsk_buff_pool *pool)
 {
-	if (!xp_validate_desc(umem->pool, d)) {
+	if (!xp_validate_desc(pool, d)) {
 		q->invalid_descs++;
 		return false;
 	}
@@ -177,14 +177,14 @@ static inline bool xskq_cons_is_valid_desc(struct xsk_queue *q,
 
 static inline bool xskq_cons_read_desc(struct xsk_queue *q,
 				       struct xdp_desc *desc,
-				       struct xdp_umem *umem)
+				       struct xsk_buff_pool *pool)
 {
 	while (q->cached_cons != q->cached_prod) {
 		struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
 		u32 idx = q->cached_cons & q->ring_mask;
 
 		*desc = ring->desc[idx];
-		if (xskq_cons_is_valid_desc(q, desc, umem))
+		if (xskq_cons_is_valid_desc(q, desc, pool))
 			return true;
 
 		q->cached_cons++;
@@ -236,11 +236,11 @@ static inline bool xskq_cons_peek_addr_unchecked(struct xsk_queue *q, u64 *addr)
 
 static inline bool xskq_cons_peek_desc(struct xsk_queue *q,
 				       struct xdp_desc *desc,
-				       struct xdp_umem *umem)
+				       struct xsk_buff_pool *pool)
 {
 	if (q->cached_prod == q->cached_cons)
 		xskq_cons_get_entries(q);
-	return xskq_cons_read_desc(q, desc, umem);
+	return xskq_cons_read_desc(q, desc, pool);
 }
 
 static inline void xskq_cons_release(struct xsk_queue *q)
