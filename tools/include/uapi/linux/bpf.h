@@ -346,6 +346,14 @@ enum bpf_link_type {
 /* The verifier internal test flag. Behavior is undefined */
 #define BPF_F_TEST_STATE_FREQ	(1U << 3)
 
+/* If BPF_F_SLEEPABLE is used in BPF_PROG_LOAD command, the verifier will
+ * restrict map and helper usage for such programs. Sleepable BPF programs can
+ * only be attached to hooks where kernel execution context allows sleeping.
+ * Such programs are allowed to use helpers that may sleep like
+ * bpf_copy_from_user().
+ */
+#define BPF_F_SLEEPABLE		(1U << 4)
+
 /* When BPF ldimm64's insn[0].src_reg != 0 then this can have
  * two extensions:
  *
@@ -3561,6 +3569,13 @@ union bpf_attr {
  *		On success, the strictly positive length of the string,
  *		including the trailing NUL character. On error, a negative
  *		value.
+ *
+ * long bpf_copy_from_user(void *dst, u32 size, const void *user_ptr)
+ * 	Description
+ * 		Read *size* bytes from user space address *user_ptr* and store
+ * 		the data in *dst*. This is a wrapper of copy_from_user().
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -3711,6 +3726,7 @@ union bpf_attr {
 	FN(inode_storage_get),		\
 	FN(inode_storage_delete),	\
 	FN(d_path),			\
+	FN(copy_from_user),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
