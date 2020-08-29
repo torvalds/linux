@@ -183,7 +183,7 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	 * idr is 32-bit so we can safely OR it with a mask that is above
 	 * 32 bit
 	 */
-	*handle = cb->id | HL_MMAP_CB_MASK;
+	*handle = cb->id | HL_MMAP_TYPE_CB;
 	*handle <<= PAGE_SHIFT;
 
 	hl_debugfs_add_cb(cb);

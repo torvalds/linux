@@ -123,9 +123,13 @@ static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
+	unsigned long vm_pgoff;
 
-	if ((vma->vm_pgoff & HL_MMAP_CB_MASK) == HL_MMAP_CB_MASK) {
-		vma->vm_pgoff ^= HL_MMAP_CB_MASK;
+	vm_pgoff = vma->vm_pgoff;
+	vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
+
+	switch (vm_pgoff & HL_MMAP_TYPE_MASK) {
+	case HL_MMAP_TYPE_CB:
 		return hl_cb_mmap(hpriv, vma);
 	}
 

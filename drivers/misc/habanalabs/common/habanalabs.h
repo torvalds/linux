@@ -22,7 +22,19 @@
 
 #define HL_NAME				"habanalabs"
 
-#define HL_MMAP_CB_MASK			(0x8000000000000000ull >> PAGE_SHIFT)
+/* Use upper bits of mmap offset to store habana driver specific information.
+ * bits[63:62] - Encode mmap type
+ * bits[45:0]  - mmap offset value
+ *
+ * NOTE: struct vm_area_struct.vm_pgoff uses offset in pages. Hence, these
+ *  defines are w.r.t to PAGE_SIZE
+ */
+#define HL_MMAP_TYPE_SHIFT		(62 - PAGE_SHIFT)
+#define HL_MMAP_TYPE_MASK		(0x3ull << HL_MMAP_TYPE_SHIFT)
+#define HL_MMAP_TYPE_CB			(0x2ull << HL_MMAP_TYPE_SHIFT)
+
+#define HL_MMAP_OFFSET_VALUE_MASK	(0x3FFFFFFFFFFFull >> PAGE_SHIFT)
+#define HL_MMAP_OFFSET_VALUE_GET(off)	(off & HL_MMAP_OFFSET_VALUE_MASK)
 
 #define HL_PENDING_RESET_PER_SEC	30
 
