@@ -304,7 +304,11 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	u32 handle, user_cb_size;
 	int rc;
 
+	/* We use the page offset to hold the idr and thus we need to clear
+	 * it before doing the mmap itself
+	 */
 	handle = vma->vm_pgoff;
+	vma->vm_pgoff = 0;
 
 	/* reference was taken here */
 	cb = hl_cb_get(hdev, &hpriv->cb_mgr, handle);
