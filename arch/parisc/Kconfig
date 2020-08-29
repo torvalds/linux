@@ -376,5 +376,6 @@ config KEXEC_FILE
 
 endmenu
 
+source "drivers/firmware/Kconfig"
 
 source "drivers/parisc/Kconfig"
