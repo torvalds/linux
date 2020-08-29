@@ -1413,6 +1413,76 @@ struct wcn36xx_hal_config_sta_req_msg {
 	struct wcn36xx_hal_config_sta_params sta_params;
 } __packed;
 
+struct wcn36xx_hal_supported_rates_v1 {
+	/* For Self STA Entry: this represents Self Mode.
+	 * For Peer Stations, this represents the mode of the peer.
+	 * On Station:
+	 *
+	 * --this mode is updated when PE adds the Self Entry.
+	 *
+	 * -- OR when PE sends 'ADD_BSS' message and station context in BSS
+	 *    is used to indicate the mode of the AP.
+	 *
+	 * ON AP:
+	 *
+	 * -- this mode is updated when PE sends 'ADD_BSS' and Sta entry
+	 *     for that BSS is used to indicate the self mode of the AP.
+	 *
+	 * -- OR when a station is associated, PE sends 'ADD_STA' message
+	 *    with this mode updated.
+	 */
+
+	enum sta_rate_mode op_rate_mode;
+
+	/* 11b, 11a and aniLegacyRates are IE rates which gives rate in
+	 * unit of 500Kbps
+	 */
+	u16 dsss_rates[WCN36XX_HAL_NUM_DSSS_RATES];
+	u16 ofdm_rates[WCN36XX_HAL_NUM_OFDM_RATES];
+	u16 legacy_rates[WCN36XX_HAL_NUM_POLARIS_RATES];
+	u16 reserved;
+
+	/* Taurus only supports 26 Titan Rates(no ESF/concat Rates will be
+	 * supported) First 26 bits are reserved for those Titan rates and
+	 * the last 4 bits(bit28-31) for Taurus, 2(bit26-27) bits are
+	 * reserved
+	 * Titan and Taurus Rates
+	 */
+	u32 enhanced_rate_bitmap;
+
+	/* 0-76 bits used, remaining reserved
+	 * bits 0-15 and 32 should be set.
+	 */
+	u8 supported_mcs_set[WCN36XX_HAL_MAC_MAX_SUPPORTED_MCS_SET];
+
+	/* RX Highest Supported Data Rate defines the highest data
+	 * rate that the STA is able to receive, in unites of 1Mbps.
+	 * This value is derived from "Supported MCS Set field" inside
+	 * the HT capability element.
+	 */
+	u16 rx_highest_data_rate;
+
+	/* Indicates the Maximum MCS that can be received for each spatial
+	 * stream.
+	 */
+	u16 vht_rx_mcs_map;
+
+	/* Indicates the highest VHT data rate that the STA is able to
+	 * receive.
+	 */
+	u16 vht_rx_highest_data_rate;
+
+	/* Indicates the Maximum MCS that can be transmitted for each spatial
+	 * stream.
+	 */
+	u16 vht_tx_mcs_map;
+
+	/* Indicates the highest VHT data rate that the STA is able to
+	 * transmit.
+	 */
+	u16 vht_tx_highest_data_rate;
+} __packed;
+
 struct wcn36xx_hal_config_sta_params_v1 {
 	/* BSSID of STA */
 	u8 bssid[ETH_ALEN];
