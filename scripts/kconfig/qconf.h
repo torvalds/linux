@@ -44,6 +44,7 @@ class ConfigList : public QTreeWidget {
 	typedef class QTreeWidget Parent;
 public:
 	ConfigList(ConfigView* p, const char *name = 0);
+	~ConfigList();
 	void reinit(void);
 	ConfigItem* findConfigItem(struct menu *);
 	ConfigView* parent(void) const
@@ -107,6 +108,10 @@ public:
 	QPalette disabledColorGroup;
 	QPalette inactivedColorGroup;
 	QMenu* headerPopup;
+
+	static QList<ConfigList *> allLists;
+	static void updateListForAll();
+	static void updateListAllForAll();
 
 	static QAction *showNormalAction, *showAllAction, *showPromptAction;
 };
@@ -188,9 +193,6 @@ class ConfigView : public QWidget {
 	typedef class QWidget Parent;
 public:
 	ConfigView(QWidget* parent, const char *name = 0);
-	~ConfigView(void);
-	static void updateList();
-	static void updateListAll(void);
 
 	bool showName(void) const { return list->showName; }
 	bool showRange(void) const { return list->showRange; }
@@ -206,9 +208,6 @@ signals:
 public:
 	ConfigList* list;
 	ConfigLineEdit* lineEdit;
-
-	static ConfigView* viewList;
-	ConfigView* nextView;
 };
 
 class ConfigInfoView : public QTextBrowser {

@@ -274,7 +274,7 @@ void ConfigLineEdit::keyPressEvent(QKeyEvent* e)
 	case Qt::Key_Return:
 	case Qt::Key_Enter:
 		sym_set_string_value(item->menu->sym, text().toLatin1());
-		parent()->updateList();
+		ConfigList::updateListForAll();
 		break;
 	default:
 		Parent::keyPressEvent(e);
@@ -315,7 +315,14 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 
 	showColumn(promptColIdx);
 
+	allLists.append(this);
+
 	reinit();
+}
+
+ConfigList::~ConfigList()
+{
+	allLists.removeOne(this);
 }
 
 bool ConfigList::menuSkip(struct menu *menu)
@@ -454,6 +461,28 @@ update:
 	resizeColumnToContents(0);
 }
 
+void ConfigList::updateListForAll()
+{
+	QListIterator<ConfigList *> it(allLists);
+
+	while (it.hasNext()) {
+		ConfigList *list = it.next();
+
+		list->updateList();
+	}
+}
+
+void ConfigList::updateListAllForAll()
+{
+	QListIterator<ConfigList *> it(allLists);
+
+	while (it.hasNext()) {
+		ConfigList *list = it.next();
+
+		list->updateList();
+	}
+}
+
 void ConfigList::setValue(ConfigItem* item, tristate val)
 {
 	struct symbol* sym;
@@ -474,7 +503,7 @@ void ConfigList::setValue(ConfigItem* item, tristate val)
 			return;
 		if (oldval == no && item->menu->list)
 			item->setExpanded(true);
-		parent()->updateList();
+		ConfigList::updateListForAll();
 		break;
 	}
 }
@@ -508,7 +537,7 @@ void ConfigList::changeValue(ConfigItem* item)
 				item->setExpanded(true);
 		}
 		if (oldexpr != newexpr)
-			parent()->updateList();
+			ConfigList::updateListForAll();
 		break;
 	case S_INT:
 	case S_HEX:
@@ -904,7 +933,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 	e->accept();
 }
 
-ConfigView*ConfigView::viewList;
+QList<ConfigList *> ConfigList::allLists;
 QAction *ConfigList::showNormalAction;
 QAction *ConfigList::showAllAction;
 QAction *ConfigList::showPromptAction;
@@ -921,21 +950,6 @@ ConfigView::ConfigView(QWidget* parent, const char *name)
 	lineEdit = new ConfigLineEdit(this);
 	lineEdit->hide();
 	verticalLayout->addWidget(lineEdit);
-
-	this->nextView = viewList;
-	viewList = this;
-}
-
-ConfigView::~ConfigView(void)
-{
-	ConfigView** vp;
-
-	for (vp = &viewList; *vp; vp = &(*vp)->nextView) {
-		if (*vp == this) {
-			*vp = nextView;
-			break;
-		}
-	}
 }
 
 void ConfigView::setShowName(bool b)
@@ -974,22 +988,6 @@ void ConfigList::setAllOpen(bool open)
 
 		++it;
 	}
-}
-
-void ConfigView::updateList()
-{
-	ConfigView* v;
-
-	for (v = viewList; v; v = v->nextView)
-		v->list->updateList();
-}
-
-void ConfigView::updateListAll(void)
-{
-	ConfigView* v;
-
-	for (v = viewList; v; v = v->nextView)
-		v->list->updateListAll();
 }
 
 ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
@@ -1605,7 +1603,7 @@ void ConfigMainWindow::loadConfig(void)
 	free(configname);
 	configname = xstrdup(name);
 
-	ConfigView::updateListAll();
+	ConfigList::updateListAllForAll();
 }
 
 bool ConfigMainWindow::saveConfig(void)
