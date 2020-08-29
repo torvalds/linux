@@ -139,9 +139,6 @@ void ConfigItem::updateMenu(void)
 
 		if (!sym_is_changeable(sym) && list->optMode == normalOpt) {
 			setIcon(promptColIdx, QIcon());
-			setText(noColIdx, QString());
-			setText(modColIdx, QString());
-			setText(yesColIdx, QString());
 			break;
 		}
 		expr = sym_get_tristate_value(sym);
@@ -151,12 +148,10 @@ void ConfigItem::updateMenu(void)
 				setIcon(promptColIdx, choiceYesIcon);
 			else
 				setIcon(promptColIdx, symbolYesIcon);
-			setText(yesColIdx, "Y");
 			ch = 'Y';
 			break;
 		case mod:
 			setIcon(promptColIdx, symbolModIcon);
-			setText(modColIdx, "M");
 			ch = 'M';
 			break;
 		default:
@@ -164,16 +159,9 @@ void ConfigItem::updateMenu(void)
 				setIcon(promptColIdx, choiceNoIcon);
 			else
 				setIcon(promptColIdx, symbolNoIcon);
-			setText(noColIdx, "N");
 			ch = 'N';
 			break;
 		}
-		if (expr != no)
-			setText(noColIdx, sym_tristate_within_range(sym, no) ? "_" : 0);
-		if (expr != mod)
-			setText(modColIdx, sym_tristate_within_range(sym, mod) ? "_" : 0);
-		if (expr != yes)
-			setText(yesColIdx, sym_tristate_within_range(sym, yes) ? "_" : 0);
 
 		setText(dataColIdx, QChar(ch));
 		break;
@@ -310,7 +298,7 @@ parent:
 ConfigList::ConfigList(QWidget *parent, const char *name)
 	: QTreeWidget(parent),
 	  updateAll(false),
-	  showName(false), showRange(false), mode(singleMode), optMode(normalOpt),
+	  showName(false), mode(singleMode), optMode(normalOpt),
 	  rootEntry(0), headerPopup(0)
 {
 	setObjectName(name);
@@ -320,7 +308,7 @@ ConfigList::ConfigList(QWidget *parent, const char *name)
 	setVerticalScrollMode(ScrollPerPixel);
 	setHorizontalScrollMode(ScrollPerPixel);
 
-	setHeaderLabels(QStringList() << "Option" << "Name" << "N" << "M" << "Y" << "Value");
+	setHeaderLabels(QStringList() << "Option" << "Name" << "Value");
 
 	connect(this, SIGNAL(itemSelectionChanged(void)),
 		SLOT(updateSelection(void)));
@@ -328,7 +316,6 @@ ConfigList::ConfigList(QWidget *parent, const char *name)
 	if (name) {
 		configSettings->beginGroup(name);
 		showName = configSettings->value("/showName", false).toBool();
-		showRange = configSettings->value("/showRange", false).toBool();
 		optMode = (enum optionMode)configSettings->value("/optionMode", 0).toInt();
 		configSettings->endGroup();
 		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
@@ -361,18 +348,10 @@ bool ConfigList::menuSkip(struct menu *menu)
 
 void ConfigList::reinit(void)
 {
-	hideColumn(yesColIdx);
-	hideColumn(modColIdx);
-	hideColumn(noColIdx);
 	hideColumn(nameColIdx);
 
 	if (showName)
 		showColumn(nameColIdx);
-	if (showRange) {
-		showColumn(noColIdx);
-		showColumn(modColIdx);
-		showColumn(yesColIdx);
-	}
 
 	updateListAll();
 }
@@ -394,7 +373,6 @@ void ConfigList::saveSettings(void)
 	if (!objectName().isEmpty()) {
 		configSettings->beginGroup(objectName());
 		configSettings->setValue("/showName", showName);
-		configSettings->setValue("/showRange", showRange);
 		configSettings->setValue("/optionMode", (int)optMode);
 		configSettings->endGroup();
 	}
@@ -841,15 +819,6 @@ void ConfigList::mouseReleaseEvent(QMouseEvent* e)
 			}
 		}
 		break;
-	case noColIdx:
-		setValue(item, no);
-		break;
-	case modColIdx:
-		setValue(item, mod);
-		break;
-	case yesColIdx:
-		setValue(item, yes);
-		break;
 	case dataColIdx:
 		changeValue(item);
 		break;
@@ -925,15 +894,6 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 			action, SLOT(setChecked(bool)));
 		action->setChecked(showName);
 		headerPopup->addAction(action);
-
-		action = new QAction("Show Range", this);
-		action->setCheckable(true);
-		connect(action, SIGNAL(toggled(bool)),
-			SLOT(setShowRange(bool)));
-		connect(this, SIGNAL(showRangeChanged(bool)),
-			action, SLOT(setChecked(bool)));
-		action->setChecked(showRange);
-		headerPopup->addAction(action);
 	}
 
 	headerPopup->exec(e->globalPos());
@@ -948,16 +908,6 @@ void ConfigList::setShowName(bool on)
 	showName = on;
 	reinit();
 	emit showNameChanged(on);
-}
-
-void ConfigList::setShowRange(bool on)
-{
-	if (showRange == on)
-		return;
-
-	showRange = on;
-	reinit();
-	emit showRangeChanged(on);
 }
 
 QList<ConfigList *> ConfigList::allLists;
@@ -1457,10 +1407,6 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(showNameAction, SIGNAL(toggled(bool)), configList, SLOT(setShowName(bool)));
 	showNameAction->setChecked(configList->showName);
 
-	QAction *showRangeAction = new QAction("Show Range", this);
-	  showRangeAction->setCheckable(true);
-	connect(showRangeAction, SIGNAL(toggled(bool)), configList, SLOT(setShowRange(bool)));
-
 	QActionGroup *optGroup = new QActionGroup(this);
 	optGroup->setExclusive(true);
 	connect(optGroup, SIGNAL(triggered(QAction*)), configList,
@@ -1511,7 +1457,6 @@ ConfigMainWindow::ConfigMainWindow(void)
 	// create options menu
 	menu = menuBar()->addMenu("&Option");
 	menu->addAction(showNameAction);
-	menu->addAction(showRangeAction);
 	menu->addSeparator();
 	menu->addActions(optGroup->actions());
 	menu->addSeparator();

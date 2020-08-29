@@ -29,7 +29,7 @@ public:
 };
 
 enum colIdx {
-	promptColIdx, nameColIdx, noColIdx, modColIdx, yesColIdx, dataColIdx
+	promptColIdx, nameColIdx, dataColIdx
 };
 enum listMode {
 	singleMode, menuMode, symbolMode, fullMode, listMode
@@ -72,7 +72,6 @@ public slots:
 	void saveSettings(void);
 	void setOptionMode(QAction *action);
 	void setShowName(bool on);
-	void setShowRange(bool on);
 
 signals:
 	void menuChanged(struct menu *menu);
@@ -81,7 +80,6 @@ signals:
 	void parentSelected(void);
 	void gotFocus(struct menu *);
 	void showNameChanged(bool on);
-	void showRangeChanged(bool on);
 
 public:
 	void updateListAll(void)
@@ -100,7 +98,7 @@ public:
 
 	bool updateAll;
 
-	bool showName, showRange;
+	bool showName;
 	enum listMode mode;
 	enum optionMode optMode;
 	struct menu *rootEntry;
