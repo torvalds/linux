@@ -131,7 +131,6 @@ public:
 	}
 	~ConfigItem(void);
 	void init(void);
-	void okRename(int col);
 	void updateMenu(void);
 	void testUpdateMenu(bool v);
 	ConfigList* listView() const

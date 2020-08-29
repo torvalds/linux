@@ -83,14 +83,6 @@ QIcon ConfigItem::menuIcon;
 QIcon ConfigItem::menubackIcon;
 
 /*
- * set the new data
- * TODO check the value
- */
-void ConfigItem::okRename(int col)
-{
-}
-
-/*
  * update the displayed of a menu entry
  */
 void ConfigItem::updateMenu(void)
