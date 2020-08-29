@@ -216,11 +216,6 @@ enum {
 #define TIPC_BC_RETR_LIM  (jiffies + msecs_to_jiffies(10))
 #define TIPC_UC_RETR_TIME (jiffies + msecs_to_jiffies(1))
 
-/*
- * Interval between NACKs when packets arrive out of order
- */
-#define TIPC_NACK_INTV (TIPC_MIN_LINK_WIN * 2)
-
 /* Link FSM states:
  */
 enum {
