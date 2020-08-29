@@ -24,8 +24,6 @@
 #include "protocol.h"
 #include "mib.h"
 
-#define MPTCP_SAME_STATE TCP_MAX_STATES
-
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 struct mptcp6_sock {
 	struct mptcp_sock msk;
