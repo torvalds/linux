@@ -1836,17 +1836,24 @@ void ConfigMainWindow::closeEvent(QCloseEvent* e)
 
 void ConfigMainWindow::showIntro(void)
 {
-	static const QString str = "Welcome to the qconf graphical configuration tool.\n\n"
-		"For each option, a blank box indicates the feature is disabled, a check\n"
-		"indicates it is enabled, and a dot indicates that it is to be compiled\n"
-		"as a module.  Clicking on the box will cycle through the three states.\n\n"
-		"If you do not see an option (e.g., a device driver) that you believe\n"
-		"should be present, try turning on Show All Options under the Options menu.\n"
-		"Although there is no cross reference yet to help you figure out what other\n"
-		"options must be enabled to support the option you are interested in, you can\n"
-		"still view the help of a grayed-out option.\n\n"
-		"Toggling Show Debug Info under the Options menu will show the dependencies,\n"
-		"which you can then match by examining other options.\n\n";
+	static const QString str =
+		"Welcome to the qconf graphical configuration tool.\n"
+		"\n"
+		"For each option, a blank box indicates the feature is "
+		"disabled, a check indicates it is enabled, and a dot "
+		"indicates that it is to be compiled as a module. Clicking on "
+		"the box will cycle through the three states.\n"
+		"\n"
+		"If you do not see an option (e.g., a device driver) that you "
+		"believe should be present, try turning on Show All Options "
+		"under the Options menu. Although there is no cross reference "
+		"yet to help you figure out what other options must be enabled "
+		"to support the option you are interested in, you can still "
+		"view the help of a grayed-out option.\n"
+		"\n"
+		"Toggling Show Debug Info under the Options menu will show the "
+		"dependencies, which you can then match by examining other "
+		"options.\n";
 
 	QMessageBox::information(this, "qconf", str);
 }
