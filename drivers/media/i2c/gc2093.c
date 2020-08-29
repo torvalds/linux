@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 Add HDR support.
  */
 
 #include <linux/clk.h>
@@ -18,6 +19,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/version.h>
 #include <linux/rk-camera-module.h>
+#include <linux/rk-preisp.h>
 
 #include <media/v4l2-async.h>
 #include <media/media-entity.h>
@@ -26,20 +28,22 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x01)
 #define GC2093_NAME		"gc2093"
 #define GC2093_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SRGGB10_1X10
 
 #define MIPI_FREQ_297M		297000000
-/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-#define GC2093_PIXEL_RATE	(MIPI_FREQ_297M * 2 * 2 / 10)
+#define MIPI_FREQ_396M		396000000
+
 #define GC2093_XVCLK_FREQ	27000000
 
 #define GC2093_REG_CHIP_ID_H	0x03F0
 #define GC2093_REG_CHIP_ID_L	0x03F1
 
-#define GC2093_REG_EXP_H	0x0003
-#define GC2093_REG_EXP_L	0x0004
+#define GC2093_REG_EXP_SHORT_H	0x0001
+#define GC2093_REG_EXP_SHORT_L	0x0002
+#define GC2093_REG_EXP_LONG_H	0x0003
+#define GC2093_REG_EXP_LONG_L	0x0004
 
 #define GC2093_MIRROR_FLIP_REG	0x0017
 #define MIRROR_MASK		BIT(0)
@@ -48,8 +52,6 @@
 #define GC2093_REG_CTRL_MODE	0x003E
 #define GC2093_MODE_SW_STANDBY	0x11
 #define GC2093_MODE_STREAMING	0x91
-
-#define REG_NULL		0xFFFF
 
 #define GC2093_CHIP_ID		0x2093
 
@@ -77,16 +79,25 @@ static const char * const gc2093_supply_names[] = {
 
 #define to_gc2093(sd) container_of(sd, struct gc2093, subdev)
 
-enum gc2093_max_pad {
+enum {
 	PAD0,
+	PAD1,
+	PAD2,
+	PAD3,
 	PAD_MAX,
 };
 
+enum {
+	LINK_FREQ_297M_INDEX,
+	LINK_FREQ_396M_INDEX,
+};
+
 struct gain_reg_config {
-	u32  value;
-	u16  analog_gain;
-	u16  col_gain;
-	u8   dacin;
+	u32 value;
+	u16 analog_gain;
+	u16 col_gain;
+	u16 analog_sw;
+	u16 ram_width;
 };
 
 struct gc2093_mode {
@@ -96,6 +107,7 @@ struct gc2093_mode {
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
+	u32 link_freq_index;
 	const struct reg_sequence *reg_list;
 	u32 reg_num;
 	u32 hdr_mode;
@@ -119,29 +131,38 @@ struct gc2093 {
 	struct v4l2_ctrl    *vblank;
 	struct v4l2_ctrl    *h_flip;
 	struct v4l2_ctrl    *v_flip;
+	struct v4l2_ctrl    *link_freq;
 	struct v4l2_ctrl    *pixel_rate;
 
 	struct mutex        lock;
 	bool		    streaming;
+	bool		    power_on;
 	unsigned int        cfg_num;
 	const struct gc2093_mode *cur_mode;
 
-	u8		flip;
 	u32		module_index;
 	const char      *module_facing;
 	const char      *module_name;
 	const char      *len_name;
+
+	bool			  has_init_exp;
+	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
 static const struct regmap_config gc2093_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
-	.max_register = 0x0420,
+	.max_register = 0x04f0,
+};
+
+static const s64 link_freq_menu_items[] = {
+	MIPI_FREQ_297M,
+	MIPI_FREQ_396M,
 };
 
 /*
- * window_size=1920*1080 mipi@2lane
- * mclk=24mhz mipi_clk=594Mbps
+ * window size=1920*1080 mipi@2lane
+ * mclk=27M mipi_clk=594Mbps
  * pixel_line_total=2200 line_frame_total=1125
  * row_time=29.62us frame_rate=30fps
  */
@@ -155,12 +176,12 @@ static const struct reg_sequence gc2093_1080p_liner_settings[] = {
 	{0x03f3, 0x00},
 	{0x03f4, 0x36},
 	{0x03f5, 0xc0},
-	{0x03f6, 0x0A},
+	{0x03f6, 0x0a},
 	{0x03f7, 0x01},
-	{0x03f8, 0x2C},
+	{0x03f8, 0x2c},
 	{0x03f9, 0x10},
 	{0x03fc, 0x8e},
-	/* Cisctl & analog */
+	/* Cisctl & Analog */
 	{0x0087, 0x18},
 	{0x00ee, 0x30},
 	{0x00d0, 0xb7},
@@ -206,9 +227,8 @@ static const struct reg_sequence gc2093_1080p_liner_settings[] = {
 	{0x0068, 0x20},
 	{0x0069, 0x20},
 	{0x0077, 0x00},
-	{0x0078, 0x04},
-	{0x007c, 0x91},
-	{0x00ce, 0x7c},
+	{0x0078, 0x20},
+	{0x007c, 0xa1},
 	{0x00d3, 0xdc},
 	{0x00e6, 0x50},
 	/* Gain */
@@ -248,6 +268,136 @@ static const struct reg_sequence gc2093_1080p_liner_settings[] = {
 	{0x003e, 0x91},
 };
 
+/*
+ * window size=1920*1080 mipi@2lane
+ * mclk=27M mipi_clk=792Mbps
+ * pixel_line_total=2640 line_frame_total=1250
+ * row_time=13.33us frame_rate=60fps
+ */
+static const struct reg_sequence gc2093_1080p_hdr_settings[] = {
+	/* System */
+	{0x03fe, 0x80},
+	{0x03fe, 0x80},
+	{0x03fe, 0x80},
+	{0x03fe, 0x00},
+	{0x03f2, 0x00},
+	{0x03f3, 0x00},
+	{0x03f4, 0x36},
+	{0x03f5, 0xc0},
+	{0x03f6, 0x0B},
+	{0x03f7, 0x01},
+	{0x03f8, 0x58},
+	{0x03f9, 0x40},
+	{0x03fc, 0x8e},
+	/* Cisctl & Analog */
+	{0x0087, 0x18},
+	{0x00ee, 0x30},
+	{0x00d0, 0xbf},
+	{0x01a0, 0x00},
+	{0x01a4, 0x40},
+	{0x01a5, 0x40},
+	{0x01a6, 0x40},
+	{0x01af, 0x09},
+	{0x0001, 0x00},
+	{0x0002, 0x02},
+	{0x0003, 0x04},
+	{0x0004, 0x02},
+	{0x0005, 0x02},
+	{0x0006, 0x94},
+	{0x0007, 0x00},
+	{0x0008, 0x11},
+	{0x0009, 0x00},
+	{0x000a, 0x02},
+	{0x000b, 0x00},
+	{0x000c, 0x04},
+	{0x000d, 0x04},
+	{0x000e, 0x40},
+	{0x000f, 0x07},
+	{0x0010, 0x8c},
+	{0x0013, 0x15},
+	{0x0019, 0x0c},
+	{0x0041, 0x04},
+	{0x0042, 0xe2},
+	{0x0053, 0x60},
+	{0x008d, 0x92},
+	{0x0090, 0x00},
+	{0x00c7, 0xe1},
+	{0x001b, 0x73},
+	{0x0028, 0x0d},
+	{0x0029, 0x24},
+	{0x002b, 0x04},
+	{0x002e, 0x23},
+	{0x0037, 0x03},
+	{0x0043, 0x04},
+	{0x0044, 0x20},
+	{0x004a, 0x01},
+	{0x004b, 0x20},
+	{0x0055, 0x30},
+	{0x006b, 0x44},
+	{0x0077, 0x00},
+	{0x0078, 0x20},
+	{0x007c, 0xa1},
+	{0x00d3, 0xd4},
+	{0x00e6, 0x50},
+	/* Gain */
+	{0x00b6, 0xc0},
+	{0x00b0, 0x60},
+	/* Isp */
+	{0x0102, 0x89},
+	{0x0104, 0x01},
+	{0x010e, 0x01},
+	{0x0158, 0x00},
+	/* Dark sun*/
+	{0x0123, 0x08},
+	{0x0123, 0x00},
+	{0x0120, 0x01},
+	{0x0121, 0x00},
+	{0x0122, 0x10},
+	{0x0124, 0x03},
+	{0x0125, 0xff},
+	{0x0126, 0x3c},
+	{0x001a, 0x8c},
+	{0x00c6, 0xe0},
+	/* Blk */
+	{0x0026, 0x30},
+	{0x0142, 0x00},
+	{0x0149, 0x1e},
+	{0x014a, 0x0f},
+	{0x014b, 0x00},
+	{0x0155, 0x00},
+	{0x0414, 0x78},
+	{0x0415, 0x78},
+	{0x0416, 0x78},
+	{0x0417, 0x78},
+	{0x0454, 0x78},
+	{0x0455, 0x78},
+	{0x0456, 0x78},
+	{0x0457, 0x78},
+	{0x04e0, 0x18},
+	/* Window */
+	{0x0192, 0x02},
+	{0x0194, 0x03},
+	{0x0195, 0x04},
+	{0x0196, 0x38},
+	{0x0197, 0x07},
+	{0x0198, 0x80},
+	/* MIPI */
+	{0x019a, 0x06},
+	{0x007b, 0x2a},
+	{0x0023, 0x2d},
+	{0x0201, 0x27},
+	{0x0202, 0x56},
+	{0x0203, 0xb6},
+	{0x0212, 0x80},
+	{0x0213, 0x07},
+	{0x0215, 0x12},
+	{0x003e, 0x91},
+	/* HDR En */
+	{0x0027, 0x71},
+	{0x0215, 0x92},
+	{0x024d, 0x01},
+};
+
 static const struct gc2093_mode supported_modes[] = {
 	{
 		.width = 1920,
@@ -259,16 +409,42 @@ static const struct gc2093_mode supported_modes[] = {
 		.exp_def = 0x460,
 		.hts_def = 0x898,
 		.vts_def = 0x465,
+		.link_freq_index = LINK_FREQ_297M_INDEX,
 		.reg_list = gc2093_1080p_liner_settings,
 		.reg_num = ARRAY_SIZE(gc2093_1080p_liner_settings),
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
+	{
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x460,
+		.hts_def = 0xa50,
+		.vts_def = 0x4e2,
+		.link_freq_index = LINK_FREQ_396M_INDEX,
+		.reg_list = gc2093_1080p_hdr_settings,
+		.reg_num = ARRAY_SIZE(gc2093_1080p_hdr_settings),
+		.hdr_mode = HDR_X2,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	},
 };
 
-static const s64 link_freq_menu_items[] = {
-	MIPI_FREQ_297M
-};
+/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
+static u64 to_pixel_rate(u32 index)
+{
+	u64 pixel_rate = link_freq_menu_items[index] * 2 * GC2093_LANES;
+
+	do_div(pixel_rate, 10);
+
+	return pixel_rate;
+}
 
 static inline int gc2093_read_reg(struct gc2093 *gc2093, u16 addr, u8 *value)
 {
@@ -300,36 +476,31 @@ static inline int gc2093_write_reg(struct gc2093 *gc2093, u16 addr, u8 value)
 }
 
 static const struct gain_reg_config gain_reg_configs[] = {
-	{  64, 0x0000, 0x0100, 0x04},
-	{  74, 0x0010, 0x010c, 0x04},
-	{  89, 0x0020, 0x011b, 0x04},
-	{ 104, 0x0030, 0x012c, 0x04},
-	{ 126, 0x0040, 0x013f, 0x2c},
-	{ 146, 0x0050, 0x0216, 0x2c},
-	{ 179, 0x0060, 0x0235, 0x2c},
-	{ 209, 0x0070, 0x0316, 0x2c},
-	{ 254, 0x0080, 0x0402, 0x28},
-	{ 295, 0x0090, 0x0431, 0x28},
-	{ 339, 0x00a0, 0x0532, 0x28},
-	{ 394, 0x00b0, 0x0635, 0x28},
-	{ 479, 0x00c0, 0x0804, 0x24},
-	{ 566, 0x005a, 0x0919, 0x24},
-	{ 682, 0x0083, 0x0b0f, 0x24},
-	{ 793, 0x0093, 0x0d12, 0x24},
-	{ 963, 0x0084, 0x1000, 0x20},
-	{1119, 0x0094, 0x123a, 0x20},
-	{1407, 0x012c, 0x1a02, 0x20},
-	{1634, 0x013c, 0x1b20, 0x20},
-	{1927, 0x008c, 0x200f, 0x14},
-	{2239, 0x009c, 0x2607, 0x14},
-	{2619, 0x0264, 0x3621, 0x14},
-	{2966, 0x0274, 0x373a, 0x14},
-	{3438, 0x00c6, 0x3d02, 0x08},
-	{3994, 0x00dc, 0x3f3f, 0x08},
-	{4828, 0x0285, 0x3f3f, 0x08},
-	{4678, 0x0295, 0x3f3f, 0x04},
-	{6875, 0x00ce, 0x3f3f, 0x04},
-	{8192, 0x00ce, 0x3f3f, 0x04},
+	{  64, 0x0000, 0x0100, 0x6807, 0x00f8},
+	{  75, 0x0010, 0x010c, 0x6807, 0x00f8},
+	{  90, 0x0020, 0x011b, 0x6c08, 0x00f9},
+	{ 105, 0x0030, 0x012c, 0x6c0a, 0x00fa},
+	{ 122, 0x0040, 0x013f, 0x7c0b, 0x00fb},
+	{ 142, 0x0050, 0x0216, 0x7c0d, 0x00fe},
+	{ 167, 0x0060, 0x0235, 0x7c0e, 0x00ff},
+	{ 193, 0x0070, 0x0316, 0x7c10, 0x0801},
+	{ 223, 0x0080, 0x0402, 0x7c12, 0x0802},
+	{ 257, 0x0090, 0x0431, 0x7c13, 0x0803},
+	{ 299, 0x00a0, 0x0532, 0x7c15, 0x0805},
+	{ 346, 0x00b0, 0x0635, 0x7c17, 0x0807},
+	{ 397, 0x00c0, 0x0804, 0x7c18, 0x0808},
+	{ 444, 0x005a, 0x0919, 0x7c17, 0x0807},
+	{ 523, 0x0083, 0x0b0f, 0x7c17, 0x0807},
+	{ 607, 0x0093, 0x0d12, 0x7c19, 0x0809},
+	{ 700, 0x0084, 0x1000, 0x7c1b, 0x080c},
+	{ 817, 0x0094, 0x123a, 0x7c1e, 0x080f},
+	{1131, 0x005d, 0x1a02, 0x7c23, 0x0814},
+	{1142, 0x009b, 0x1b20, 0x7c25, 0x0816},
+	{1334, 0x008c, 0x200f, 0x7c27, 0x0818},
+	{1568, 0x009c, 0x2607, 0x7c2a, 0x081b},
+	{2195, 0x00b6, 0x3621, 0x7c32, 0x0823},
+	{2637, 0x00ad, 0x373a, 0x7c36, 0x0827},
+	{3121, 0x00bd, 0x3d02, 0x7c3a, 0x082b},
 };
 
 static int gc2093_set_gain(struct gc2093 *gc2093, u32 gain)
@@ -345,7 +516,10 @@ static int gc2093_set_gain(struct gc2093 *gc2093, u32 gain)
 	ret |= gc2093_write_reg(gc2093, 0x00b3, gain_reg_configs[i].analog_gain & 0xff);
 	ret |= gc2093_write_reg(gc2093, 0x00b8, gain_reg_configs[i].col_gain >> 8);
 	ret |= gc2093_write_reg(gc2093, 0x00b9, gain_reg_configs[i].col_gain & 0xff);
-	ret |= gc2093_write_reg(gc2093, 0x0078, gain_reg_configs[i].dacin);
+	ret |= gc2093_write_reg(gc2093, 0x00ce, gain_reg_configs[i].analog_sw >> 8);
+	ret |= gc2093_write_reg(gc2093, 0x00c2, gain_reg_configs[i].analog_sw & 0xff);
+	ret |= gc2093_write_reg(gc2093, 0x00cf, gain_reg_configs[i].ram_width >> 8);
+	ret |= gc2093_write_reg(gc2093, 0x00d9, gain_reg_configs[i].ram_width & 0xff);
 
 	pre_gain = 64 * gain / gain_reg_configs[i].value;
 
@@ -378,10 +552,10 @@ static int gc2093_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		ret = gc2093_write_reg(gc2093, GC2093_REG_EXP_H,
-					   (ctrl->val >> 8) & 0x3f);
-		ret |= gc2093_write_reg(gc2093, GC2093_REG_EXP_L,
-					   ctrl->val & 0xff);
+		ret = gc2093_write_reg(gc2093, GC2093_REG_EXP_LONG_H,
+				       (ctrl->val >> 8) & 0x3f);
+		ret |= gc2093_write_reg(gc2093, GC2093_REG_EXP_LONG_L,
+					ctrl->val & 0xff);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		gc2093_set_gain(gc2093, ctrl->val);
@@ -390,20 +564,12 @@ static int gc2093_set_ctrl(struct v4l2_ctrl *ctrl)
 		/* The exposure goes up and reduces the frame rate, no need to write vb */
 		break;
 	case V4L2_CID_HFLIP:
-		if (ctrl->val)
 			regmap_update_bits(gc2093->regmap, GC2093_MIRROR_FLIP_REG,
-					   MIRROR_MASK, MIRROR_MASK);
-		else
-			regmap_update_bits(gc2093->regmap, GC2093_MIRROR_FLIP_REG,
-					   MIRROR_MASK, 0);
+					   MIRROR_MASK, ctrl->val ? MIRROR_MASK : 0);
 		break;
 	case V4L2_CID_VFLIP:
-		if (ctrl->val)
 			regmap_update_bits(gc2093->regmap, GC2093_MIRROR_FLIP_REG,
-					   FLIP_MASK, FLIP_MASK);
-		else
-			regmap_update_bits(gc2093->regmap, GC2093_MIRROR_FLIP_REG,
-					   FLIP_MASK, 0);
+					   FLIP_MASK,  ctrl->val ? FLIP_MASK : 0);
 		break;
 	default:
 		dev_warn(gc2093->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -427,15 +593,14 @@ static int gc2093_get_regulators(struct gc2093 *gc2093)
 		gc2093->supplies[i].supply = gc2093_supply_names[i];
 
 	return devm_regulator_bulk_get(gc2093->dev,
-					   GC2093_NUM_SUPPLIES,
-					   gc2093->supplies);
+				       GC2093_NUM_SUPPLIES,
+				       gc2093->supplies);
 }
 
 static int gc2093_initialize_controls(struct gc2093 *gc2093)
 {
 	const struct gc2093_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
@@ -447,43 +612,42 @@ static int gc2093_initialize_controls(struct gc2093 *gc2093)
 		return ret;
 	handler->lock = &gc2093->lock;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-					  0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	gc2093->link_freq = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+						   ARRAY_SIZE(link_freq_menu_items) - 1, 0,
+						   link_freq_menu_items);
 
 	gc2093->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-			  0, GC2093_PIXEL_RATE, 1, GC2093_PIXEL_RATE);
+					       0, to_pixel_rate(LINK_FREQ_396M_INDEX),
+					       1, to_pixel_rate(LINK_FREQ_297M_INDEX));
 
 	h_blank = mode->hts_def - mode->width;
 	gc2093->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
-				h_blank, h_blank, 1, h_blank);
+					   h_blank, h_blank, 1, h_blank);
 	if (gc2093->hblank)
 		gc2093->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	vblank_def = mode->vts_def - mode->height;
 	gc2093->vblank = v4l2_ctrl_new_std(handler, &gc2093_ctrl_ops,
-				V4L2_CID_VBLANK, vblank_def,
-				GC2093_VTS_MAX - mode->height,
-				1, vblank_def);
+					   V4L2_CID_VBLANK, vblank_def,
+					   GC2093_VTS_MAX - mode->height,
+					   1, vblank_def);
 
 	exposure_max = mode->vts_def - 4;
 	gc2093->exposure = v4l2_ctrl_new_std(handler, &gc2093_ctrl_ops,
-				V4L2_CID_EXPOSURE, GC2093_EXPOSURE_MIN,
-				exposure_max, GC2093_EXPOSURE_STEP,
-				mode->exp_def);
+					     V4L2_CID_EXPOSURE, GC2093_EXPOSURE_MIN,
+					     exposure_max, GC2093_EXPOSURE_STEP,
+					     mode->exp_def);
 
 	gc2093->anal_gain = v4l2_ctrl_new_std(handler, &gc2093_ctrl_ops,
-				V4L2_CID_ANALOGUE_GAIN, GC2093_GAIN_MIN,
-				GC2093_GAIN_MAX, GC2093_GAIN_STEP,
-				GC2093_GAIN_DEFAULT);
+					      V4L2_CID_ANALOGUE_GAIN, GC2093_GAIN_MIN,
+					      GC2093_GAIN_MAX, GC2093_GAIN_STEP,
+					      GC2093_GAIN_DEFAULT);
 
 	gc2093->h_flip = v4l2_ctrl_new_std(handler, &gc2093_ctrl_ops,
-				V4L2_CID_HFLIP, 0, 1, 1, 0);
+					   V4L2_CID_HFLIP, 0, 1, 1, 0);
 
 	gc2093->v_flip = v4l2_ctrl_new_std(handler, &gc2093_ctrl_ops,
-				V4L2_CID_VFLIP, 0, 1, 1, 0);
-	gc2093->flip = 0;
+					   V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	if (handler->error) {
 		ret = handler->error;
@@ -492,6 +656,8 @@ static int gc2093_initialize_controls(struct gc2093 *gc2093)
 	}
 
 	gc2093->subdev.ctrl_handler = handler;
+	gc2093->has_init_exp = false;
+
 	return 0;
 
 err_free_handler:
@@ -576,6 +742,84 @@ static int gc2093_check_sensor_id(struct gc2093 *gc2093)
 	return 0;
 }
 
+static void gc2093_get_module_inf(struct gc2093 *gc2093,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.lens, gc2093->len_name, sizeof(inf->base.lens));
+	strlcpy(inf->base.sensor, GC2093_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, gc2093->module_name, sizeof(inf->base.module));
+}
+
+static long gc2093_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct gc2093 *gc2093 = to_gc2093(sd);
+	struct preisp_hdrae_exp_s *hdrae_exp = arg;
+	struct rkmodule_hdr_cfg *hdr_cfg;
+	long ret = 0;
+	u32 i, h, w;
+
+	switch (cmd) {
+	case PREISP_CMD_SET_HDRAE_EXP:
+		if (!gc2093->has_init_exp && !gc2093->streaming) {
+			gc2093->init_hdrae_exp = *hdrae_exp;
+			gc2093->has_init_exp = true;
+			dev_info(gc2093->dev, "don't streaming, record hdrae\n");
+			break;
+		}
+
+		ret = gc2093_set_gain(gc2093, hdrae_exp->short_gain_reg);
+		ret |= gc2093_write_reg(gc2093, GC2093_REG_EXP_LONG_H,
+					(hdrae_exp->middle_exp_reg >> 8) & 0x3f);
+		ret |= gc2093_write_reg(gc2093, GC2093_REG_EXP_LONG_L,
+					hdrae_exp->middle_exp_reg & 0xff);
+		ret |= gc2093_write_reg(gc2093, GC2093_REG_EXP_SHORT_H,
+					(hdrae_exp->short_exp_reg >> 8) & 0x3f);
+		ret |= gc2093_write_reg(gc2093, GC2093_REG_EXP_SHORT_L,
+					hdrae_exp->short_exp_reg & 0xff);
+		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr_cfg = (struct rkmodule_hdr_cfg *)arg;
+		hdr_cfg->esp.mode = HDR_NORMAL_VC;
+		hdr_cfg->hdr_mode = gc2093->cur_mode->hdr_mode;
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr_cfg = (struct rkmodule_hdr_cfg *)arg;
+		w = gc2093->cur_mode->width;
+		h = gc2093->cur_mode->height;
+		for (i = 0; i < gc2093->cfg_num; i++) {
+			if (w == supported_modes[i].width &&
+			h == supported_modes[i].height &&
+			supported_modes[i].hdr_mode == hdr_cfg->hdr_mode) {
+				gc2093->cur_mode = &supported_modes[i];
+				break;
+			}
+		}
+		if (i == gc2093->cfg_num) {
+			dev_err(gc2093->dev, "not find hdr mode:%d %dx%d config\n",
+				hdr_cfg->hdr_mode, w, h);
+			ret = -EINVAL;
+		} else {
+			w = gc2093->cur_mode->hts_def - gc2093->cur_mode->width;
+			h = gc2093->cur_mode->vts_def - gc2093->cur_mode->height;
+			__v4l2_ctrl_modify_range(gc2093->hblank, w, w, 1, w);
+			__v4l2_ctrl_modify_range(gc2093->vblank, h,
+						 GC2093_VTS_MAX - gc2093->cur_mode->height,
+						 1, h);
+			dev_info(gc2093->dev, "sensor mode: %d\n",
+				 gc2093->cur_mode->hdr_mode);
+		}
+		break;
+	case RKMODULE_GET_MODULE_INFO:
+		gc2093_get_module_inf(gc2093, (struct rkmodule_inf *)arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+	return ret;
+}
+
 static int __gc2093_start_stream(struct gc2093 *gc2093)
 {
 	int ret;
@@ -591,43 +835,24 @@ static int __gc2093_start_stream(struct gc2093 *gc2093)
 	v4l2_ctrl_handler_setup(&gc2093->ctrl_handler);
 	mutex_lock(&gc2093->lock);
 
+	if (gc2093->has_init_exp && gc2093->cur_mode->hdr_mode != NO_HDR) {
+		ret = gc2093_ioctl(&gc2093->subdev, PREISP_CMD_SET_HDRAE_EXP,
+				   &gc2093->init_hdrae_exp);
+		if (ret) {
+			dev_err(gc2093->dev, "init exp fail in hdr mode\n");
+			return ret;
+		}
+	}
+
 	return gc2093_write_reg(gc2093, GC2093_REG_CTRL_MODE,
 				GC2093_MODE_STREAMING);
 }
 
 static int __gc2093_stop_stream(struct gc2093 *gc2093)
 {
+	gc2093->has_init_exp = false;
 	return gc2093_write_reg(gc2093, GC2093_REG_CTRL_MODE,
 				GC2093_MODE_SW_STANDBY);
-}
-
-static void gc2093_get_module_inf(struct gc2093 *gc2093,
-				  struct rkmodule_inf *inf)
-{
-	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.lens, gc2093->len_name, sizeof(inf->base.lens));
-	strlcpy(inf->base.sensor, GC2093_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc2093->module_name, sizeof(inf->base.module));
-}
-
-static long gc2093_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
-{
-	struct gc2093 *gc2093 = to_gc2093(sd);
-	long ret = 0;
-
-	switch (cmd) {
-	case RKMODULE_GET_HDR_CFG:
-	case RKMODULE_SET_HDR_CFG:
-	case RKMODULE_SET_CONVERSION_GAIN:
-		break;
-	case RKMODULE_GET_MODULE_INFO:
-		gc2093_get_module_inf(gc2093, (struct rkmodule_inf *)arg);
-		break;
-	default:
-		ret = -ENOIOCTLCMD;
-		break;
-	}
-	return ret;
 }
 
 #ifdef CONFIG_COMPAT
@@ -637,8 +862,8 @@ static long gc2093_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_hdr_cfg *hdr;
+	struct preisp_hdrae_exp_s *hdrae;
 	long ret = 0;
-	u32 cg = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -677,10 +902,17 @@ static long gc2093_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = gc2093_ioctl(sd, cmd, hdr);
 		kfree(hdr);
 		break;
-	case RKMODULE_SET_CONVERSION_GAIN:
-		ret = copy_from_user(&cg, up, sizeof(cg));
+	case PREISP_CMD_SET_HDRAE_EXP:
+		hdrae = kzalloc(sizeof(*hdrae), GFP_KERNEL);
+		if (!hdrae) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
 		if (!ret)
-			ret = gc2093_ioctl(sd, cmd, &cg);
+			ret = gc2093_ioctl(sd, cmd, hdrae);
+		kfree(hdrae);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -742,18 +974,16 @@ static int gc2093_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *config)
 {
 	struct gc2093 *gc2093 = to_gc2093(sd);
-	const struct gc2093_mode *mode = gc2093->cur_mode;
-	u32 val = 0;
-
-	if (mode->hdr_mode == NO_HDR)
-		val = 1 << (GC2093_LANES - 1) |
-		V4L2_MBUS_CSI2_CHANNEL_0 |
-		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	u32 val = 1 << (GC2093_LANES - 1) | V4L2_MBUS_CSI2_CHANNEL_0 |
+		  V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
 	config->type = V4L2_MBUS_CSI2;
-	config->flags = val;
+	config->flags = (gc2093->cur_mode->hdr_mode == NO_HDR) ?
+			val : (val | V4L2_MBUS_CSI2_CHANNEL_1);
+
 	return 0;
 }
+
 static int gc2093_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
@@ -828,6 +1058,9 @@ static int gc2093_set_fmt(struct v4l2_subdev *sd,
 #endif
 	} else {
 		gc2093->cur_mode = mode;
+		__v4l2_ctrl_s_ctrl(gc2093->link_freq, mode->link_freq_index);
+		__v4l2_ctrl_s_ctrl_int64(gc2093->pixel_rate,
+					 to_pixel_rate(mode->link_freq_index));
 		h_blank = mode->hts_def - mode->width;
 		__v4l2_ctrl_modify_range(gc2093->hblank, h_blank,
 					 h_blank, 1, h_blank);
@@ -899,7 +1132,36 @@ static const struct v4l2_subdev_internal_ops gc2093_internal_ops = {
 };
 #endif
 
+static int gc2093_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct gc2093 *gc2093 = to_gc2093(sd);
+	int ret = 0;
+
+	mutex_lock(&gc2093->lock);
+
+	if (gc2093->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(gc2093->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(gc2093->dev);
+			goto unlock_and_return;
+		}
+		gc2093->power_on = true;
+	} else {
+		pm_runtime_put(gc2093->dev);
+		gc2093->power_on = false;
+	}
+
+unlock_and_return:
+	mutex_unlock(&gc2093->lock);
+
+	return ret;
+}
+
 static const struct v4l2_subdev_core_ops gc2093_core_ops = {
+	.s_power = gc2093_s_power,
 	.ioctl = gc2093_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = gc2093_compat_ioctl32,
