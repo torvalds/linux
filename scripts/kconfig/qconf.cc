@@ -1851,7 +1851,6 @@ int main(int ac, char** av)
 	const char *name;
 
 	progname = av[0];
-	configApp = new QApplication(ac, av);
 	if (ac > 1 && av[1][0] == '-') {
 		switch (av[1][1]) {
 		case 's':
@@ -1871,6 +1870,8 @@ int main(int ac, char** av)
 	fixup_rootmenu(&rootmenu);
 	conf_read(NULL);
 	//zconfdump(stdout);
+
+	configApp = new QApplication(ac, av);
 
 	configSettings = new ConfigSettings();
 	configSettings->beginGroup("/kconfig/qconf");
