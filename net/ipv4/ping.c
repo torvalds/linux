@@ -293,7 +293,8 @@ EXPORT_SYMBOL_GPL(ping_close);
 
 /* Checks the bind address and possibly modifies sk->sk_bound_dev_if. */
 static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
-				struct sockaddr *uaddr, int addr_len) {
+				struct sockaddr *uaddr, int addr_len)
+{
 	struct net *net = sock_net(sk);
 	if (sk->sk_family == AF_INET) {
 		struct sockaddr_in *addr = (struct sockaddr_in *) uaddr;
@@ -634,7 +635,8 @@ static int ping_v4_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh,
 }
 
 int ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
-			void *user_icmph, size_t icmph_len) {
+			void *user_icmph, size_t icmph_len)
+{
 	u8 type, code;
 
 	if (len > 0xFFFF)

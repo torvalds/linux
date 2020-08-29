@@ -784,7 +784,7 @@ EXPORT_SYMBOL(icmp_ndo_send);
 
 static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
 {
-	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const struct net_protocol *ipprot;
 	int protocol = iph->protocol;
 

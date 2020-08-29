@@ -1536,7 +1536,7 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	ip_select_ident(net, skb, sk);
 
 	if (opt) {
-		iph->ihl += opt->optlen>>2;
+		iph->ihl += opt->optlen >> 2;
 		ip_options_build(skb, opt, cork->addr, rt, 0);
 	}
 

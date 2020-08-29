@@ -1478,7 +1478,7 @@ sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
 {
 	if (!sk_has_account(sk))
 		return true;
-	return size<= sk->sk_forward_alloc ||
+	return size <= sk->sk_forward_alloc ||
 		__sk_mem_schedule(sk, size, SK_MEM_RECV) ||
 		skb_pfmemalloc(skb);
 }
