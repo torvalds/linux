@@ -103,14 +103,31 @@ gen_xchg()
 	local xchg="$1"; shift
 	local mult="$1"; shift
 
+	if [ "${xchg%${xchg#try_cmpxchg}}" = "try_cmpxchg" ] ; then
+
 cat <<EOF
-#define ${xchg}(ptr, ...)						\\
-({									\\
-	typeof(ptr) __ai_ptr = (ptr);					\\
-	instrument_atomic_write(__ai_ptr, ${mult}sizeof(*__ai_ptr));		\\
-	arch_${xchg}(__ai_ptr, __VA_ARGS__);				\\
+#define ${xchg}(ptr, oldp, ...) \\
+({ \\
+	typeof(ptr) __ai_ptr = (ptr); \\
+	typeof(oldp) __ai_oldp = (oldp); \\
+	instrument_atomic_write(__ai_ptr, ${mult}sizeof(*__ai_ptr)); \\
+	instrument_atomic_write(__ai_oldp, ${mult}sizeof(*__ai_oldp)); \\
+	arch_${xchg}(__ai_ptr, __ai_oldp, __VA_ARGS__); \\
 })
 EOF
+
+	else
+
+cat <<EOF
+#define ${xchg}(ptr, ...) \\
+({ \\
+	typeof(ptr) __ai_ptr = (ptr); \\
+	instrument_atomic_write(__ai_ptr, ${mult}sizeof(*__ai_ptr)); \\
+	arch_${xchg}(__ai_ptr, __VA_ARGS__); \\
+})
+EOF
+
+	fi
 }
 
 gen_optional_xchg()
@@ -160,7 +177,7 @@ grep '^[a-z]' "$1" | while read name meta args; do
 	gen_proto "${meta}" "${name}" "atomic64" "s64" ${args}
 done
 
-for xchg in "xchg" "cmpxchg" "cmpxchg64"; do
+for xchg in "xchg" "cmpxchg" "cmpxchg64" "try_cmpxchg"; do
 	for order in "" "_acquire" "_release" "_relaxed"; do
 		gen_optional_xchg "${xchg}" "${order}"
 	done
