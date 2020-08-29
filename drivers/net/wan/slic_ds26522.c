@@ -22,8 +22,6 @@
 #include <linux/io.h>
 #include "slic_ds26522.h"
 
-#define DRV_NAME "ds26522"
-
 #define SLIC_TRANS_LEN 1
 #define SLIC_TWO_LEN 2
 #define SLIC_THREE_LEN 3
