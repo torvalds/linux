@@ -7,7 +7,6 @@
 
 */
 
-#define DRV_NAME	"DL2000/TC902x-based linux driver"
 #include "dl2k.h"
 #include <linux/dma-mapping.h>
 
