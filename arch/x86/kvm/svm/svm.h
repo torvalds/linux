@@ -339,7 +339,7 @@ static inline bool gif_set(struct vcpu_svm *svm)
 /* svm.c */
 #define MSR_CR3_LEGACY_RESERVED_MASK		0xfe7U
 #define MSR_CR3_LEGACY_PAE_RESERVED_MASK	0x7U
-#define MSR_CR3_LONG_RESERVED_MASK		0xfff0000000000fe7U
+#define MSR_CR3_LONG_MBZ_MASK			0xfff0000000000000U
 #define MSR_INVALID				0xffffffffU
 
 u32 svm_msrpm_offset(u32 msr);

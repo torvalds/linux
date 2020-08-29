@@ -237,7 +237,7 @@ static bool nested_vmcb_checks(struct vcpu_svm *svm, struct vmcb *vmcb12)
 	} else {
 		if (!(vmcb12->save.cr4 & X86_CR4_PAE) ||
 		    !(vmcb12->save.cr0 & X86_CR0_PE) ||
-		    (vmcb12->save.cr3 & MSR_CR3_LONG_RESERVED_MASK))
+		    (vmcb12->save.cr3 & MSR_CR3_LONG_MBZ_MASK))
 			return false;
 	}
 	if (kvm_valid_cr4(&svm->vcpu, vmcb12->save.cr4))
