@@ -25,6 +25,10 @@ properties:
           - const: gpio-usb-b-connector
           - const: usb-b-connector
 
+      - items:
+          - const: samsung,usb-connector-11pin
+          - const: usb-b-connector
+
   label:
     description: Symbolic name for the connector.
 
@@ -158,6 +162,16 @@ allOf:
         - required:
             - id-gpios
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,usb-connector-11pin
+    then:
+      properties:
+        type:
+          const: micro
+
 examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).
   - |
@@ -231,5 +245,35 @@ examples:
         type = "micro";
         id-gpios = <&pio 12 GPIO_ACTIVE_HIGH>;
         vbus-supply = <&usb_p0_vbus>;
+      };
+    };
+
+  # Micro-USB connector with HS lines routed via controller (MUIC) and MHL
+  # lines connected to HDMI-MHL bridge (sii8620) on Samsung Exynos5433-based
+  # mobile phone
+  - |
+    muic-max77843 {
+      usb_con4: connector {
+        compatible = "samsung,usb-connector-11pin", "usb-b-connector";
+        label = "micro-USB";
+        type = "micro";
+
+        ports {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          port@0 {
+            reg = <0>;
+            muic_to_usb: endpoint {
+              remote-endpoint = <&usb_to_muic>;
+            };
+          };
+          port@3 {
+            reg = <3>;
+            usb_con_mhl: endpoint {
+              remote-endpoint = <&sii8620_mhl>;
+            };
+          };
+        };
       };
     };
