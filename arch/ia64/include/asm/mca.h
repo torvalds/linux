@@ -83,7 +83,7 @@ struct ia64_sal_os_state {
 	/* common */
 	unsigned long		sal_ra;			/* Return address in SAL, physical */
 	unsigned long		sal_gp;			/* GP of the SAL - physical */
-	pal_min_state_area_t	*pal_min_state;		/* from R17.  physical in asm, virtual in C */
+	struct pal_min_state_area *pal_min_state;	/* from R17.  physical in asm, virtual in C */
 	/* Previous values of IA64_KR(CURRENT) and IA64_KR(CURRENT_STACK).
 	 * Note: if the MCA/INIT recovery code wants to resume to a new context
 	 * then it must change these values to reflect the new kernel stack.
