@@ -180,15 +180,7 @@ void ConfigItem::updateMenu(void)
 	case S_INT:
 	case S_HEX:
 	case S_STRING:
-		const char* data;
-
-		data = sym_get_string_value(sym);
-
-		setText(dataColIdx, data);
-		if (type == S_STRING)
-			prompt = QString("%1: %2").arg(prompt).arg(data);
-		else
-			prompt = QString("(%2) %1").arg(prompt).arg(data);
+		setText(dataColIdx, sym_get_string_value(sym));
 		break;
 	}
 	if (!sym_has_value(sym) && visible)
@@ -229,6 +221,17 @@ void ConfigItem::init(void)
 		if (list->mode != fullMode)
 			setExpanded(true);
 		sym_calc_value(menu->sym);
+
+		if (menu->sym) {
+			enum symbol_type type = menu->sym->type;
+
+			// Allow to edit "int", "hex", and "string" in-place in
+			// the data column. Unfortunately, you cannot specify
+			// the flags per column. Set ItemIsEditable for all
+			// columns here, and check the column in createEditor().
+			if (type == S_INT || type == S_HEX || type == S_STRING)
+				setFlags(flags() | Qt::ItemIsEditable);
+		}
 	}
 	updateMenu();
 }
@@ -247,6 +250,61 @@ ConfigItem::~ConfigItem(void)
 			}
 		}
 	}
+}
+
+QWidget *ConfigItemDelegate::createEditor(QWidget *parent,
+					  const QStyleOptionViewItem &option,
+					  const QModelIndex &index) const
+{
+	ConfigItem *item;
+
+	// Only the data column is editable
+	if (index.column() != dataColIdx)
+		return nullptr;
+
+	// You cannot edit invisible menus
+	item = static_cast<ConfigItem *>(index.internalPointer());
+	if (!item || !item->menu || !menu_is_visible(item->menu))
+		return nullptr;
+
+	return QStyledItemDelegate::createEditor(parent, option, index);
+}
+
+void ConfigItemDelegate::setModelData(QWidget *editor,
+				      QAbstractItemModel *model,
+				      const QModelIndex &index) const
+{
+	QLineEdit *lineEdit;
+	ConfigItem *item;
+	struct symbol *sym;
+	bool success;
+
+	lineEdit = qobject_cast<QLineEdit *>(editor);
+	// If this is not a QLineEdit, use the parent's default.
+	// (does this happen?)
+	if (!lineEdit)
+		goto parent;
+
+	item = static_cast<ConfigItem *>(index.internalPointer());
+	if (!item || !item->menu)
+		goto parent;
+
+	sym = item->menu->sym;
+	if (!sym)
+		goto parent;
+
+	success = sym_set_string_value(sym, lineEdit->text().toUtf8().data());
+	if (success) {
+		ConfigList::updateListForAll();
+	} else {
+		QMessageBox::information(editor, "qconf",
+			"Cannot set the data (maybe due to out of range).\n"
+			"Setting the old value.");
+		lineEdit->setText(sym_get_string_value(sym));
+	}
+
+parent:
+	QStyledItemDelegate::setModelData(editor, model, index);
 }
 
 ConfigLineEdit::ConfigLineEdit(ConfigView* parent)
@@ -313,6 +371,8 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 	}
 
 	showColumn(promptColIdx);
+
+	setItemDelegate(new ConfigItemDelegate(this));
 
 	allLists.append(this);
 
@@ -534,10 +594,7 @@ void ConfigList::changeValue(ConfigItem* item)
 		if (oldexpr != newexpr)
 			ConfigList::updateListForAll();
 		break;
-	case S_INT:
-	case S_HEX:
-	case S_STRING:
-		parent()->lineEdit->show(item);
+	default:
 		break;
 	}
 }
@@ -1802,10 +1859,12 @@ void ConfigMainWindow::showIntro(void)
 	static const QString str =
 		"Welcome to the qconf graphical configuration tool.\n"
 		"\n"
-		"For each option, a blank box indicates the feature is "
-		"disabled, a check indicates it is enabled, and a dot "
-		"indicates that it is to be compiled as a module. Clicking on "
-		"the box will cycle through the three states.\n"
+		"For bool and tristate options, a blank box indicates the "
+		"feature is disabled, a check indicates it is enabled, and a "
+		"dot indicates that it is to be compiled as a module. Clicking "
+		"on the box will cycle through the three states. For int, hex, "
+		"and string options, double-clicking or pressing F2 on the "
+		"Value cell will allow you to edit the value.\n"
 		"\n"
 		"If you do not see an option (e.g., a device driver) that you "
 		"believe should be present, try turning on Show All Options "

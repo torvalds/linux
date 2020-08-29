@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSplitter>
+#include <QStyledItemDelegate>
 #include <QTextBrowser>
 #include <QTreeWidget>
 
@@ -170,6 +171,20 @@ public:
 	static QIcon symbolYesIcon, symbolModIcon, symbolNoIcon;
 	static QIcon choiceYesIcon, choiceNoIcon;
 	static QIcon menuIcon, menubackIcon;
+};
+
+class ConfigItemDelegate : public QStyledItemDelegate
+{
+private:
+	struct menu *menu;
+public:
+	ConfigItemDelegate(QObject *parent = nullptr)
+		: QStyledItemDelegate(parent) {}
+	QWidget *createEditor(QWidget *parent,
+			      const QStyleOptionViewItem &option,
+			      const QModelIndex &index) const override;
+	void setModelData(QWidget *editor, QAbstractItemModel *model,
+			  const QModelIndex &index) const override;
 };
 
 class ConfigLineEdit : public QLineEdit {
