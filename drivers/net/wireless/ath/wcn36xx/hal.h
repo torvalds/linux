@@ -1515,7 +1515,11 @@ struct wcn36xx_hal_config_sta_params_v1 {
 	u8 p2p;
 
 	/* Reserved to align next field on a dword boundary */
-	u8 reserved;
+	u8 ht_ldpc_enabled:1;
+	u8 vht_ldpc_enabled:1;
+	u8 vht_tx_bf_enabled:1;
+	u8 vht_tx_mu_beamformee_capable:1;
+	u8 reserved:4;
 
 	/* These rates are the intersection of peer and self capabilities. */
 	struct wcn36xx_hal_supported_rates supported_rates;
