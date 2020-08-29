@@ -1299,87 +1299,71 @@ static int wcn36xx_smd_config_bss_v1(struct wcn36xx *wcn,
 	sta = &bss->sta;
 
 	/* convert orig to v1 */
-	memcpy(&msg_body->bss_params.bssid,
-	       &orig->bss_params.bssid, ETH_ALEN);
-	memcpy(&msg_body->bss_params.self_mac_addr,
-	       &orig->bss_params.self_mac_addr, ETH_ALEN);
+	memcpy(bss->bssid, &orig->bss_params.bssid, ETH_ALEN);
+	memcpy(bss->self_mac_addr, &orig->bss_params.self_mac_addr, ETH_ALEN);
 
-	msg_body->bss_params.bss_type = orig->bss_params.bss_type;
-	msg_body->bss_params.oper_mode = orig->bss_params.oper_mode;
-	msg_body->bss_params.nw_type = orig->bss_params.nw_type;
+	bss->bss_type = orig->bss_params.bss_type;
+	bss->oper_mode = orig->bss_params.oper_mode;
+	bss->nw_type = orig->bss_params.nw_type;
 
-	msg_body->bss_params.short_slot_time_supported =
+	bss->short_slot_time_supported =
 		orig->bss_params.short_slot_time_supported;
-	msg_body->bss_params.lla_coexist = orig->bss_params.lla_coexist;
-	msg_body->bss_params.llb_coexist = orig->bss_params.llb_coexist;
-	msg_body->bss_params.llg_coexist = orig->bss_params.llg_coexist;
-	msg_body->bss_params.ht20_coexist = orig->bss_params.ht20_coexist;
-	msg_body->bss_params.lln_non_gf_coexist =
-		orig->bss_params.lln_non_gf_coexist;
+	bss->lla_coexist = orig->bss_params.lla_coexist;
+	bss->llb_coexist = orig->bss_params.llb_coexist;
+	bss->llg_coexist = orig->bss_params.llg_coexist;
+	bss->ht20_coexist = orig->bss_params.ht20_coexist;
+	bss->lln_non_gf_coexist = orig->bss_params.lln_non_gf_coexist;
 
-	msg_body->bss_params.lsig_tx_op_protection_full_support =
+	bss->lsig_tx_op_protection_full_support =
 		orig->bss_params.lsig_tx_op_protection_full_support;
-	msg_body->bss_params.rifs_mode = orig->bss_params.rifs_mode;
-	msg_body->bss_params.beacon_interval = orig->bss_params.beacon_interval;
-	msg_body->bss_params.dtim_period = orig->bss_params.dtim_period;
-	msg_body->bss_params.tx_channel_width_set =
-		orig->bss_params.tx_channel_width_set;
-	msg_body->bss_params.oper_channel = orig->bss_params.oper_channel;
-	msg_body->bss_params.ext_channel = orig->bss_params.ext_channel;
+	bss->rifs_mode = orig->bss_params.rifs_mode;
+	bss->beacon_interval = orig->bss_params.beacon_interval;
+	bss->dtim_period = orig->bss_params.dtim_period;
+	bss->tx_channel_width_set = orig->bss_params.tx_channel_width_set;
+	bss->oper_channel = orig->bss_params.oper_channel;
+	bss->ext_channel = orig->bss_params.ext_channel;
 
-	msg_body->bss_params.reserved = orig->bss_params.reserved;
+	bss->reserved = orig->bss_params.reserved;
 
-	memcpy(&msg_body->bss_params.ssid,
-	       &orig->bss_params.ssid,
+	memcpy(&bss->ssid, &orig->bss_params.ssid,
 	       sizeof(orig->bss_params.ssid));
 
-	msg_body->bss_params.action = orig->bss_params.action;
-	msg_body->bss_params.rateset = orig->bss_params.rateset;
-	msg_body->bss_params.ht = orig->bss_params.ht;
-	msg_body->bss_params.obss_prot_enabled =
-		orig->bss_params.obss_prot_enabled;
-	msg_body->bss_params.rmf = orig->bss_params.rmf;
-	msg_body->bss_params.ht_oper_mode = orig->bss_params.ht_oper_mode;
-	msg_body->bss_params.dual_cts_protection =
-		orig->bss_params.dual_cts_protection;
+	bss->action = orig->bss_params.action;
+	bss->rateset = orig->bss_params.rateset;
+	bss->ht = orig->bss_params.ht;
+	bss->obss_prot_enabled = orig->bss_params.obss_prot_enabled;
+	bss->rmf = orig->bss_params.rmf;
+	bss->ht_oper_mode = orig->bss_params.ht_oper_mode;
+	bss->dual_cts_protection = orig->bss_params.dual_cts_protection;
 
-	msg_body->bss_params.max_probe_resp_retry_limit =
+	bss->max_probe_resp_retry_limit =
 		orig->bss_params.max_probe_resp_retry_limit;
-	msg_body->bss_params.hidden_ssid = orig->bss_params.hidden_ssid;
-	msg_body->bss_params.proxy_probe_resp =
-		orig->bss_params.proxy_probe_resp;
-	msg_body->bss_params.edca_params_valid =
-		orig->bss_params.edca_params_valid;
+	bss->hidden_ssid = orig->bss_params.hidden_ssid;
+	bss->proxy_probe_resp =	orig->bss_params.proxy_probe_resp;
+	bss->edca_params_valid = orig->bss_params.edca_params_valid;
 
-	memcpy(&msg_body->bss_params.acbe,
-	       &orig->bss_params.acbe,
+	memcpy(&bss->acbe, &orig->bss_params.acbe,
 	       sizeof(orig->bss_params.acbe));
-	memcpy(&msg_body->bss_params.acbk,
-	       &orig->bss_params.acbk,
+	memcpy(&bss->acbk, &orig->bss_params.acbk,
 	       sizeof(orig->bss_params.acbk));
-	memcpy(&msg_body->bss_params.acvi,
-	       &orig->bss_params.acvi,
+	memcpy(&bss->acvi, &orig->bss_params.acvi,
 	       sizeof(orig->bss_params.acvi));
-	memcpy(&msg_body->bss_params.acvo,
-	       &orig->bss_params.acvo,
+	memcpy(&bss->acvo, &orig->bss_params.acvo,
 	       sizeof(orig->bss_params.acvo));
 
-	msg_body->bss_params.ext_set_sta_key_param_valid =
+	bss->ext_set_sta_key_param_valid =
 		orig->bss_params.ext_set_sta_key_param_valid;
 
-	memcpy(&msg_body->bss_params.ext_set_sta_key_param,
+	memcpy(&bss->ext_set_sta_key_param,
 	       &orig->bss_params.ext_set_sta_key_param,
 	       sizeof(orig->bss_params.acvo));
 
-	msg_body->bss_params.wcn36xx_hal_persona =
-		orig->bss_params.wcn36xx_hal_persona;
-	msg_body->bss_params.spectrum_mgt_enable =
-		orig->bss_params.spectrum_mgt_enable;
-	msg_body->bss_params.tx_mgmt_power = orig->bss_params.tx_mgmt_power;
-	msg_body->bss_params.max_tx_power = orig->bss_params.max_tx_power;
+	bss->wcn36xx_hal_persona = orig->bss_params.wcn36xx_hal_persona;
+	bss->spectrum_mgt_enable = orig->bss_params.spectrum_mgt_enable;
+	bss->tx_mgmt_power = orig->bss_params.tx_mgmt_power;
+	bss->max_tx_power = orig->bss_params.max_tx_power;
 
-	wcn36xx_smd_convert_sta_to_v1(wcn, &orig->bss_params.sta,
-				      &msg_body->bss_params.sta);
+	wcn36xx_smd_convert_sta_to_v1(wcn, &orig->bss_params.sta, sta);
 
 	PREPARE_HAL_BUF(wcn->hal_buf, (*msg_body));
 
