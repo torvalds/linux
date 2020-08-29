@@ -272,6 +272,7 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		status.bw = rate->bw;
 		status.rate_idx = rate->mcs_or_legacy_index;
 		sband = wcn->hw->wiphy->bands[status.band];
+		status.nss = 1;
 
 		if (status.band == NL80211_BAND_5GHZ &&
 		    status.encoding == RX_ENC_LEGACY &&
