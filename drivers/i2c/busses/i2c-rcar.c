@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -221,18 +222,18 @@ static void rcar_i2c_init(struct rcar_i2c_priv *priv)
 
 static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
 {
-	int i;
+	int ret;
+	u32 val;
 
-	for (i = 0; i < LOOP_TIMEOUT; i++) {
-		/* make sure that bus is not busy */
-		if (!(rcar_i2c_read(priv, ICMCR) & FSDA))
-			return 0;
-		udelay(1);
+	ret = readl_poll_timeout(priv->io + ICMCR, val, !(val & FSDA), 10,
+				 priv->adap.timeout);
+	if (ret) {
+		/* Waiting did not help, try to recover */
+		priv->recovery_icmcr = MDBS | OBPC | FSDA | FSCL;
+		ret = i2c_recover_bus(&priv->adap);
 	}
 
-	/* Waiting did not help, try to recover */
-	priv->recovery_icmcr = MDBS | OBPC | FSDA | FSCL;
-	return i2c_recover_bus(&priv->adap);
+	return ret;
 }
 
 static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
