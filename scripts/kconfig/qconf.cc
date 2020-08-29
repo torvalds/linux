@@ -307,42 +307,6 @@ parent:
 	QStyledItemDelegate::setModelData(editor, model, index);
 }
 
-ConfigLineEdit::ConfigLineEdit(ConfigView* parent)
-	: Parent(parent)
-{
-	connect(this, SIGNAL(editingFinished()), SLOT(hide()));
-}
-
-void ConfigLineEdit::show(ConfigItem* i)
-{
-	item = i;
-	if (sym_get_string_value(item->menu->sym))
-		setText(sym_get_string_value(item->menu->sym));
-	else
-		setText(QString());
-	Parent::show();
-	setFocus();
-}
-
-void ConfigLineEdit::keyPressEvent(QKeyEvent* e)
-{
-	switch (e->key()) {
-	case Qt::Key_Escape:
-		break;
-	case Qt::Key_Return:
-	case Qt::Key_Enter:
-		sym_set_string_value(item->menu->sym, text().toLatin1());
-		ConfigList::updateListForAll();
-		break;
-	default:
-		Parent::keyPressEvent(e);
-		return;
-	}
-	e->accept();
-	parent()->list->setFocus();
-	hide();
-}
-
 ConfigList::ConfigList(ConfigView* p, const char *name)
 	: Parent(p),
 	  updateAll(false),
@@ -990,9 +954,6 @@ ConfigView::ConfigView(QWidget* parent, const char *name)
 
 	list = new ConfigList(this);
 	verticalLayout->addWidget(list);
-	lineEdit = new ConfigLineEdit(this);
-	lineEdit->hide();
-	verticalLayout->addWidget(lineEdit);
 }
 
 void ConfigView::setShowName(bool b)
