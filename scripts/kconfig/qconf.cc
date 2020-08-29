@@ -288,7 +288,7 @@ void ConfigLineEdit::keyPressEvent(QKeyEvent* e)
 ConfigList::ConfigList(ConfigView* p, const char *name)
 	: Parent(p),
 	  updateAll(false),
-	  showName(false), showRange(false), showData(false), mode(singleMode), optMode(normalOpt),
+	  showName(false), showRange(false), mode(singleMode), optMode(normalOpt),
 	  rootEntry(0), headerPopup(0)
 {
 	setObjectName(name);
@@ -307,7 +307,6 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 		configSettings->beginGroup(name);
 		showName = configSettings->value("/showName", false).toBool();
 		showRange = configSettings->value("/showRange", false).toBool();
-		showData = configSettings->value("/showData", false).toBool();
 		optMode = (enum optionMode)configSettings->value("/optionMode", 0).toInt();
 		configSettings->endGroup();
 		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
@@ -338,7 +337,6 @@ bool ConfigList::menuSkip(struct menu *menu)
 
 void ConfigList::reinit(void)
 {
-	hideColumn(dataColIdx);
 	hideColumn(yesColIdx);
 	hideColumn(modColIdx);
 	hideColumn(noColIdx);
@@ -351,8 +349,6 @@ void ConfigList::reinit(void)
 		showColumn(modColIdx);
 		showColumn(yesColIdx);
 	}
-	if (showData)
-		showColumn(dataColIdx);
 
 	updateListAll();
 }
@@ -375,7 +371,6 @@ void ConfigList::saveSettings(void)
 		configSettings->beginGroup(objectName());
 		configSettings->setValue("/showName", showName);
 		configSettings->setValue("/showRange", showRange);
-		configSettings->setValue("/showData", showData);
 		configSettings->setValue("/optionMode", (int)optMode);
 		configSettings->endGroup();
 	}
@@ -918,15 +913,6 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 			action, SLOT(setChecked(bool)));
 		action->setChecked(showRange);
 		headerPopup->addAction(action);
-
-		action = new QAction("Show Data", this);
-		action->setCheckable(true);
-		connect(action, SIGNAL(toggled(bool)),
-			parent(), SLOT(setShowData(bool)));
-		connect(parent(), SIGNAL(showDataChanged(bool)),
-			action, SLOT(setChecked(bool)));
-		action->setChecked(showData);
-		headerPopup->addAction(action);
 	}
 
 	headerPopup->exec(e->globalPos());
@@ -967,15 +953,6 @@ void ConfigView::setShowRange(bool b)
 		list->showRange = b;
 		list->reinit();
 		emit showRangeChanged(b);
-	}
-}
-
-void ConfigView::setShowData(bool b)
-{
-	if (list->showData != b) {
-		list->showData = b;
-		list->reinit();
-		emit showDataChanged(b);
 	}
 }
 
@@ -1475,9 +1452,6 @@ ConfigMainWindow::ConfigMainWindow(void)
 	QAction *showRangeAction = new QAction("Show Range", this);
 	  showRangeAction->setCheckable(true);
 	  connect(showRangeAction, SIGNAL(toggled(bool)), configView, SLOT(setShowRange(bool)));
-	QAction *showDataAction = new QAction("Show Data", this);
-	  showDataAction->setCheckable(true);
-	  connect(showDataAction, SIGNAL(toggled(bool)), configView, SLOT(setShowData(bool)));
 
 	QActionGroup *optGroup = new QActionGroup(this);
 	optGroup->setExclusive(true);
@@ -1530,7 +1504,6 @@ ConfigMainWindow::ConfigMainWindow(void)
 	menu = menuBar()->addMenu("&Option");
 	menu->addAction(showNameAction);
 	menu->addAction(showRangeAction);
-	menu->addAction(showDataAction);
 	menu->addSeparator();
 	menu->addActions(optGroup->actions());
 	menu->addSeparator();

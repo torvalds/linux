@@ -101,7 +101,7 @@ public:
 
 	bool updateAll;
 
-	bool showName, showRange, showData;
+	bool showName, showRange;
 	enum listMode mode;
 	enum optionMode optMode;
 	struct menu *rootEntry;
@@ -196,15 +196,12 @@ public:
 
 	bool showName(void) const { return list->showName; }
 	bool showRange(void) const { return list->showRange; }
-	bool showData(void) const { return list->showData; }
 public slots:
 	void setShowName(bool);
 	void setShowRange(bool);
-	void setShowData(bool);
 signals:
 	void showNameChanged(bool);
 	void showRangeChanged(bool);
-	void showDataChanged(bool);
 public:
 	ConfigList* list;
 	ConfigLineEdit* lineEdit;
