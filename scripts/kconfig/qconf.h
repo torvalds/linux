@@ -76,6 +76,8 @@ public slots:
 	void updateSelection(void);
 	void saveSettings(void);
 	void setOptionMode(QAction *action);
+	void setShowName(bool on);
+	void setShowRange(bool on);
 
 signals:
 	void menuChanged(struct menu *menu);
@@ -83,6 +85,8 @@ signals:
 	void itemSelected(struct menu *menu);
 	void parentSelected(void);
 	void gotFocus(struct menu *);
+	void showNameChanged(bool on);
+	void showRangeChanged(bool on);
 
 public:
 	void updateListAll(void)
@@ -192,14 +196,6 @@ class ConfigView : public QWidget {
 public:
 	ConfigView(QWidget* parent, const char *name = 0);
 
-	bool showName(void) const { return list->showName; }
-	bool showRange(void) const { return list->showRange; }
-public slots:
-	void setShowName(bool);
-	void setShowRange(bool);
-signals:
-	void showNameChanged(bool);
-	void showRangeChanged(bool);
 public:
 	ConfigList* list;
 };

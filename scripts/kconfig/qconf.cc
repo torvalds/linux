@@ -920,8 +920,8 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 		action = new QAction("Show Name", this);
 		action->setCheckable(true);
 		connect(action, SIGNAL(toggled(bool)),
-			parent(), SLOT(setShowName(bool)));
-		connect(parent(), SIGNAL(showNameChanged(bool)),
+			SLOT(setShowName(bool)));
+		connect(this, SIGNAL(showNameChanged(bool)),
 			action, SLOT(setChecked(bool)));
 		action->setChecked(showName);
 		headerPopup->addAction(action);
@@ -929,8 +929,8 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 		action = new QAction("Show Range", this);
 		action->setCheckable(true);
 		connect(action, SIGNAL(toggled(bool)),
-			parent(), SLOT(setShowRange(bool)));
-		connect(parent(), SIGNAL(showRangeChanged(bool)),
+			SLOT(setShowRange(bool)));
+		connect(this, SIGNAL(showRangeChanged(bool)),
 			action, SLOT(setChecked(bool)));
 		action->setChecked(showRange);
 		headerPopup->addAction(action);
@@ -938,6 +938,26 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 
 	headerPopup->exec(e->globalPos());
 	e->accept();
+}
+
+void ConfigList::setShowName(bool on)
+{
+	if (showName == on)
+		return;
+
+	showName = on;
+	reinit();
+	emit showNameChanged(on);
+}
+
+void ConfigList::setShowRange(bool on)
+{
+	if (showRange == on)
+		return;
+
+	showRange = on;
+	reinit();
+	emit showRangeChanged(on);
 }
 
 QList<ConfigList *> ConfigList::allLists;
@@ -954,24 +974,6 @@ ConfigView::ConfigView(QWidget* parent, const char *name)
 
 	list = new ConfigList(this);
 	verticalLayout->addWidget(list);
-}
-
-void ConfigView::setShowName(bool b)
-{
-	if (list->showName != b) {
-		list->showName = b;
-		list->reinit();
-		emit showNameChanged(b);
-	}
-}
-
-void ConfigView::setShowRange(bool b)
-{
-	if (list->showRange != b) {
-		list->showRange = b;
-		list->reinit();
-		emit showRangeChanged(b);
-	}
 }
 
 void ConfigList::setAllOpen(bool open)
@@ -1465,11 +1467,12 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 	QAction *showNameAction = new QAction("Show Name", this);
 	  showNameAction->setCheckable(true);
-	  connect(showNameAction, SIGNAL(toggled(bool)), configView, SLOT(setShowName(bool)));
-	  showNameAction->setChecked(configView->showName());
+	connect(showNameAction, SIGNAL(toggled(bool)), configList, SLOT(setShowName(bool)));
+	showNameAction->setChecked(configList->showName);
+
 	QAction *showRangeAction = new QAction("Show Range", this);
 	  showRangeAction->setCheckable(true);
-	  connect(showRangeAction, SIGNAL(toggled(bool)), configView, SLOT(setShowRange(bool)));
+	connect(showRangeAction, SIGNAL(toggled(bool)), configList, SLOT(setShowRange(bool)));
 
 	QActionGroup *optGroup = new QActionGroup(this);
 	optGroup->setExclusive(true);
