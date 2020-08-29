@@ -14,13 +14,10 @@
 
 #if !defined(__ASSEMBLY__)
 
-#include <linux/interrupt.h>
+#include <linux/percpu.h>
+#include <linux/threads.h>
 #include <linux/types.h>
-
-#include <asm/param.h>
-#include <asm/sal.h>
-#include <asm/processor.h>
-#include <asm/mca_asm.h>
+#include <asm/ptrace.h>
 
 #define IA64_MCA_RENDEZ_TIMEOUT		(20 * 1000)	/* value in milliseconds - 20 seconds */
 
