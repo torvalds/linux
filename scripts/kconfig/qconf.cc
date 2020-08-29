@@ -307,8 +307,8 @@ parent:
 	QStyledItemDelegate::setModelData(editor, model, index);
 }
 
-ConfigList::ConfigList(ConfigView* p, const char *name)
-	: Parent(p),
+ConfigList::ConfigList(QWidget *parent, const char *name)
+	: QTreeWidget(parent),
 	  updateAll(false),
 	  showName(false), showRange(false), mode(singleMode), optMode(normalOpt),
 	  rootEntry(0), headerPopup(0)
@@ -965,17 +965,6 @@ QAction *ConfigList::showNormalAction;
 QAction *ConfigList::showAllAction;
 QAction *ConfigList::showPromptAction;
 
-ConfigView::ConfigView(QWidget* parent, const char *name)
-	: Parent(parent)
-{
-	setObjectName(name);
-	QVBoxLayout *verticalLayout = new QVBoxLayout(this);
-	verticalLayout->setContentsMargins(0, 0, 0, 0);
-
-	list = new ConfigList(this);
-	verticalLayout->addWidget(list);
-}
-
 void ConfigList::setAllOpen(bool open)
 {
 	QTreeWidgetItemIterator it(this);
@@ -1302,12 +1291,12 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow *parent)
 
 	split = new QSplitter(this);
 	split->setOrientation(Qt::Vertical);
-	list = new ConfigView(split, "search");
-	list->list->mode = listMode;
+	list = new ConfigList(split, "search");
+	list->mode = listMode;
 	info = new ConfigInfoView(split, "search");
-	connect(list->list, SIGNAL(menuChanged(struct menu *)),
+	connect(list, SIGNAL(menuChanged(struct menu *)),
 		info, SLOT(setInfo(struct menu *)));
-	connect(list->list, SIGNAL(menuChanged(struct menu *)),
+	connect(list, SIGNAL(menuChanged(struct menu *)),
 		parent, SLOT(setMenuLink(struct menu *)));
 
 	layout1->addWidget(split);
@@ -1351,7 +1340,7 @@ void ConfigSearchWindow::search(void)
 	ConfigItem *lastItem = NULL;
 
 	free(result);
-	list->list->clear();
+	list->clear();
 	info->clear();
 
 	result = sym_re_search(editField->text().toLatin1());
@@ -1359,7 +1348,7 @@ void ConfigSearchWindow::search(void)
 		return;
 	for (p = result; *p; p++) {
 		for_all_prompts((*p), prop)
-			lastItem = new ConfigItem(list->list, lastItem, prop->menu,
+			lastItem = new ConfigItem(list, lastItem, prop->menu,
 						  menu_is_visible(prop->menu));
 	}
 }
@@ -1407,23 +1396,21 @@ ConfigMainWindow::ConfigMainWindow(void)
 	split1->setOrientation(Qt::Horizontal);
 	split1->setChildrenCollapsible(false);
 
-	menuView = new ConfigView(widget, "menu");
-	menuList = menuView->list;
+	menuList = new ConfigList(widget, "menu");
 
 	split2 = new QSplitter(widget);
 	split2->setChildrenCollapsible(false);
 	split2->setOrientation(Qt::Vertical);
 
 	// create config tree
-	configView = new ConfigView(widget, "config");
-	configList = configView->list;
+	configList = new ConfigList(widget, "config");
 
 	helpText = new ConfigInfoView(widget, "help");
 
 	layout->addWidget(split2);
 	split2->addWidget(split1);
-	split1->addWidget(configView);
-	split1->addWidget(menuView);
+	split1->addWidget(configList);
+	split1->addWidget(menuList);
 	split2->addWidget(helpText);
 
 	setTabOrder(configList, helpText);
@@ -1732,7 +1719,7 @@ void ConfigMainWindow::showSingleView(void)
 
 	backAction->setEnabled(true);
 
-	menuView->hide();
+	menuList->hide();
 	menuList->setRootMenu(0);
 	configList->mode = singleMode;
 	if (configList->rootEntry == &rootmenu)
@@ -1763,7 +1750,7 @@ void ConfigMainWindow::showSplitView(void)
 	menuList->mode = symbolMode;
 	menuList->setRootMenu(&rootmenu);
 	menuList->setAllOpen(true);
-	menuView->show();
+	menuList->show();
 	menuList->setFocus();
 }
 
@@ -1778,7 +1765,7 @@ void ConfigMainWindow::showFullView(void)
 
 	backAction->setEnabled(false);
 
-	menuView->hide();
+	menuList->hide();
 	menuList->setRootMenu(0);
 	configList->mode = fullMode;
 	if (configList->rootEntry == &rootmenu)

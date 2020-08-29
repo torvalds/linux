@@ -17,7 +17,6 @@
 
 #include "expr.h"
 
-class ConfigView;
 class ConfigList;
 class ConfigItem;
 class ConfigMainWindow;
@@ -43,14 +42,10 @@ class ConfigList : public QTreeWidget {
 	Q_OBJECT
 	typedef class QTreeWidget Parent;
 public:
-	ConfigList(ConfigView* p, const char *name = 0);
+	ConfigList(QWidget *parent, const char *name = 0);
 	~ConfigList();
 	void reinit(void);
 	ConfigItem* findConfigItem(struct menu *);
-	ConfigView* parent(void) const
-	{
-		return (ConfigView*)Parent::parent();
-	}
 	void setSelected(QTreeWidgetItem *item, bool enable) {
 		for (int i = 0; i < selectedItems().size(); i++)
 			selectedItems().at(i)->setSelected(false);
@@ -190,16 +185,6 @@ public:
 			  const QModelIndex &index) const override;
 };
 
-class ConfigView : public QWidget {
-	Q_OBJECT
-	typedef class QWidget Parent;
-public:
-	ConfigView(QWidget* parent, const char *name = 0);
-
-public:
-	ConfigList* list;
-};
-
 class ConfigInfoView : public QTextBrowser {
 	Q_OBJECT
 	typedef class QTextBrowser Parent;
@@ -245,7 +230,7 @@ protected:
 	QLineEdit* editField;
 	QPushButton* searchButton;
 	QSplitter* split;
-	ConfigView* list;
+	ConfigList *list;
 	ConfigInfoView* info;
 
 	struct symbol **result;
@@ -280,9 +265,7 @@ protected:
 	void closeEvent(QCloseEvent *e);
 
 	ConfigSearchWindow *searchWindow;
-	ConfigView *menuView;
 	ConfigList *menuList;
-	ConfigView *configView;
 	ConfigList *configList;
 	ConfigInfoView *helpText;
 	QAction *backAction;
