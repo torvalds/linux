@@ -522,12 +522,12 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 	vdda_video-supply = <&ldo5_reg>;
 };
 
 &hdmi {
-	status = "ok";
+	status = "okay";
 
 	vdda-supply = <&ldo1_reg>;
 
