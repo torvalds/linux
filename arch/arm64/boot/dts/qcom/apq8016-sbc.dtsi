@@ -585,7 +585,7 @@
 };
 
 &camss {
-	status = "ok";
+	status = "okay";
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -602,7 +602,7 @@
 };
 
 &cci {
-	status = "ok";
+	status = "okay";
 };
 
 &cci_i2c0 {

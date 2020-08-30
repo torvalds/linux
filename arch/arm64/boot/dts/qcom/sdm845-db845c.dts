@@ -1103,7 +1103,7 @@
 };
 
 &cci {
-	status = "ok";
+	status = "okay";
 };
 
 &cci_i2c0 {
