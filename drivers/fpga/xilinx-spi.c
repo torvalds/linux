@@ -77,7 +77,7 @@ static int xilinx_spi_write_init(struct fpga_manager *mgr,
 	int err;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration not supported\n");
 		return -EINVAL;
 	}
 
@@ -169,7 +169,7 @@ static int xilinx_spi_write_complete(struct fpga_manager *mgr,
 			return xilinx_spi_apply_cclk_cycles(conf);
 	}
 
-	dev_err(&mgr->dev, "Timeout after config data transfer.\n");
+	dev_err(&mgr->dev, "Timeout after config data transfer\n");
 	return -ETIMEDOUT;
 }
 
