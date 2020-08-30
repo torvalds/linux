@@ -172,14 +172,13 @@ calls the associated methods.
 
 To illustrate::
 
-    #define to_dev(obj) container_of(obj, struct device, kobj)
     #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 
     static ssize_t dev_attr_show(struct kobject *kobj, struct attribute *attr,
 				char *buf)
     {
 	    struct device_attribute *dev_attr = to_dev_attr(attr);
-	    struct device *dev = to_dev(kobj);
+	    struct device *dev = kobj_to_dev(kobj);
 	    ssize_t ret = -EIO;
 
 	    if (dev_attr->show)
