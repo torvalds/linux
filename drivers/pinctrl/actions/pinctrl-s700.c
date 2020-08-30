@@ -1685,7 +1685,7 @@ static PAD_PULLCTL_CONF(I2C2_SDATA, 2, 8, 1);
 static PAD_PULLCTL_CONF(I2C2_SCLK, 2, 7, 1);
 
 /* Pad info table for the pinmux subsystem */
-static struct owl_padinfo s700_padinfo[NUM_PADS] = {
+static const struct owl_padinfo s700_padinfo[NUM_PADS] = {
 	[ETH_TXD0] = PAD_INFO_ST(ETH_TXD0),
 	[ETH_TXD1] = PAD_INFO_ST(ETH_TXD1),
 	[ETH_TXEN] = PAD_INFO_ST(ETH_TXEN),
