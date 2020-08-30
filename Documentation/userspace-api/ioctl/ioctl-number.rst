@@ -356,8 +356,6 @@ Code  Seq#    Include File                                           Comments
 0xEC  00-01  drivers/platform/chrome/cros_ec_dev.h                   ChromeOS EC driver
 0xF3  00-3F  drivers/usb/misc/sisusbvga/sisusb.h                     sisfb (in development)
                                                                      <mailto:thomas@winischhofer.net>
-0xF4  00-1F  video/mbxfb.h                                           mbxfb
-                                                                     <mailto:raph@8d.com>
 0xF6  all                                                            LTTng Linux Trace Toolkit Next Generation
                                                                      <mailto:mathieu.desnoyers@efficios.com>
 0xFD  all    linux/dm-ioctl.h
