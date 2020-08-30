@@ -247,8 +247,11 @@ mlx5_eswitch_set_rule_flow_source(struct mlx5_eswitch *esw,
 				  struct mlx5_esw_flow_attr *attr)
 {
 	if (MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source) &&
-	    attr && attr->in_rep && attr->in_rep->vport == MLX5_VPORT_UPLINK)
-		spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
+	    attr && attr->in_rep)
+		spec->flow_context.flow_source =
+			attr->in_rep->vport == MLX5_VPORT_UPLINK ?
+				MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK :
+				MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
 }
 
 static void
