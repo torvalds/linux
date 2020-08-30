@@ -19,6 +19,7 @@
 #include <linux/of_net.h>
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <linux/pcs-lynx.h>
 #include <net/pkt_sched.h>
 #include <net/dsa.h>
 #include "felix.h"
@@ -196,27 +197,16 @@ static void felix_phylink_validate(struct dsa_switch *ds, int port,
 		felix->info->phylink_validate(ocelot, port, supported, state);
 }
 
-static int felix_phylink_mac_pcs_get_state(struct dsa_switch *ds, int port,
-					   struct phylink_link_state *state)
-{
-	struct ocelot *ocelot = ds->priv;
-	struct felix *felix = ocelot_to_felix(ocelot);
-
-	if (felix->info->pcs_link_state)
-		felix->info->pcs_link_state(ocelot, port, state);
-
-	return 0;
-}
-
 static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
 				     unsigned int link_an_mode,
 				     const struct phylink_link_state *state)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 
-	if (felix->info->pcs_config)
-		felix->info->pcs_config(ocelot, port, link_an_mode, state);
+	if (felix->pcs[port])
+		phylink_set_pcs(dp->pl, &felix->pcs[port]->pcs);
 }
 
 static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,
@@ -305,10 +295,6 @@ static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	/* Core: Enable port for frame transfer */
 	ocelot_fields_write(ocelot, port,
 			    QSYS_SWITCH_PORT_MODE_PORT_ENA, 1);
-
-	if (felix->info->pcs_link_up)
-		felix->info->pcs_link_up(ocelot, port, link_an_mode, interface,
-					 speed, duplex);
 
 	if (felix->info->port_sched_speed_set)
 		felix->info->port_sched_speed_set(ocelot, port, speed);
@@ -626,11 +612,6 @@ static int felix_setup(struct dsa_switch *ds)
 
 	ds->mtu_enforcement_ingress = true;
 	ds->configure_vlan_while_not_filtering = true;
-	/* It looks like the MAC/PCS interrupt register - PM0_IEVENT (0x8040)
-	 * isn't instantiated for the Felix PF.
-	 * In-band AN may take a few ms to complete, so we need to poll.
-	 */
-	ds->pcs_poll = true;
 
 	return 0;
 }
@@ -786,7 +767,6 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.get_sset_count		= felix_get_sset_count,
 	.get_ts_info		= felix_get_ts_info,
 	.phylink_validate	= felix_phylink_validate,
-	.phylink_mac_link_state	= felix_phylink_mac_pcs_get_state,
 	.phylink_mac_config	= felix_phylink_mac_config,
 	.phylink_mac_link_down	= felix_phylink_mac_link_down,
 	.phylink_mac_link_up	= felix_phylink_mac_link_up,
