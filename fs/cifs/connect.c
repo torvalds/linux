@@ -4909,7 +4909,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 		if (!tcon)
 			continue;
 		/* Make sure that requests go through new root servers */
-		if (tcon->share_flags & (SHI1005_FLAGS_DFS | SHI1005_FLAGS_DFS_ROOT)) {
+		if (is_tcon_dfs(tcon)) {
 			put_root_ses(root_ses);
 			set_root_ses(cifs_sb, ses, &root_ses);
 		}
