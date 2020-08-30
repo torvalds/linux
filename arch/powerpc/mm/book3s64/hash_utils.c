@@ -232,6 +232,8 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 		rflags |= HPTE_R_I;
 	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_NON_IDEMPOTENT)
 		rflags |= (HPTE_R_I | HPTE_R_G);
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_SAO)
+		rflags |= (HPTE_R_W | HPTE_R_I | HPTE_R_M);
 	else
 		/*
 		 * Add memory coherence if cache inhibited is not set
