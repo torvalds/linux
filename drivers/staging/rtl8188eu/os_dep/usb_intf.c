@@ -141,7 +141,7 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 
 void usb_intf_stop(struct adapter *padapter)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_stop\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+%s\n", __func__));
 
 	/* disable_hw_interrupt */
 	if (!padapter->bSurpriseRemoved) {
@@ -159,15 +159,15 @@ void usb_intf_stop(struct adapter *padapter)
 
 	/* todo:cancel other irps */
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_stop\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-%s\n", __func__));
 }
 
 static void rtw_dev_unload(struct adapter *padapter)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_dev_unload\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+%s\n", __func__));
 
 	if (padapter->bup) {
-		pr_debug("===> rtw_dev_unload\n");
+		pr_debug("===> %s\n", __func__);
 		padapter->bDriverStopped = true;
 		if (padapter->xmitpriv.ack_tx)
 			rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_DRV_STOP);
@@ -189,9 +189,9 @@ static void rtw_dev_unload(struct adapter *padapter)
 			 ("r871x_dev_unload():padapter->bup == false\n"));
 	}
 
-	pr_debug("<=== rtw_dev_unload\n");
+	pr_debug("<=== %s\n", __func__);
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-rtw_dev_unload\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-%s\n", __func__));
 }
 
 static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
@@ -486,7 +486,7 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf)
 	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
 	struct adapter *padapter = dvobj->if1;
 
-	pr_debug("+rtw_dev_remove\n");
+	pr_debug("+%s\n", __func__);
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+dev_remove()\n"));
 
 	if (!pusb_intf->unregistering)
