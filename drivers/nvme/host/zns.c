@@ -133,28 +133,6 @@ static void *nvme_zns_alloc_report_buffer(struct nvme_ns *ns,
 	return NULL;
 }
 
-static int __nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
-				  struct nvme_zone_report *report,
-				  size_t buflen)
-{
-	struct nvme_command c = { };
-	int ret;
-
-	c.zmr.opcode = nvme_cmd_zone_mgmt_recv;
-	c.zmr.nsid = cpu_to_le32(ns->head->ns_id);
-	c.zmr.slba = cpu_to_le64(nvme_sect_to_lba(ns, sector));
-	c.zmr.numd = cpu_to_le32(nvme_bytes_to_numd(buflen));
-	c.zmr.zra = NVME_ZRA_ZONE_REPORT;
-	c.zmr.zrasf = NVME_ZRASF_ZONE_REPORT_ALL;
-	c.zmr.pr = NVME_REPORT_ZONE_PARTIAL;
-
-	ret = nvme_submit_sync_cmd(ns->queue, &c, report, buflen);
-	if (ret)
-		return ret;
-
-	return le64_to_cpu(report->nr_zones);
-}
-
 static int nvme_zone_parse_entry(struct nvme_ns *ns,
 				 struct nvme_zone_descriptor *entry,
 				 unsigned int idx, report_zones_cb cb,
@@ -182,6 +160,7 @@ static int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data)
 {
 	struct nvme_zone_report *report;
+	struct nvme_command c = { };
 	int ret, zone_idx = 0;
 	unsigned int nz, i;
 	size_t buflen;
@@ -190,14 +169,26 @@ static int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
 	if (!report)
 		return -ENOMEM;
 
+	c.zmr.opcode = nvme_cmd_zone_mgmt_recv;
+	c.zmr.nsid = cpu_to_le32(ns->head->ns_id);
+	c.zmr.numd = cpu_to_le32(nvme_bytes_to_numd(buflen));
+	c.zmr.zra = NVME_ZRA_ZONE_REPORT;
+	c.zmr.zrasf = NVME_ZRASF_ZONE_REPORT_ALL;
+	c.zmr.pr = NVME_REPORT_ZONE_PARTIAL;
+
 	sector &= ~(ns->zsze - 1);
 	while (zone_idx < nr_zones && sector < get_capacity(ns->disk)) {
 		memset(report, 0, buflen);
-		ret = __nvme_ns_report_zones(ns, sector, report, buflen);
-		if (ret < 0)
-			goto out_free;
 
-		nz = min_t(unsigned int, ret, nr_zones);
+		c.zmr.slba = cpu_to_le64(nvme_sect_to_lba(ns, sector));
+		ret = nvme_submit_sync_cmd(ns->queue, &c, report, buflen);
+		if (ret) {
+			if (ret > 0)
+				ret = -EIO;
+			goto out_free;
+		}
+
+		nz = min((unsigned int)le64_to_cpu(report->nr_zones), nr_zones);
 		if (!nz)
 			break;
 
