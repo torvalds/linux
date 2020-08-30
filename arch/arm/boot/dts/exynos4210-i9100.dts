@@ -304,8 +304,6 @@
 	status = "okay";
 
 	mali-supply = <&vg3d_breg>;
-	regulator-microvolt-offset = <50000>;
-	regulator-microsecs-delay = <50>;
 };
 
 &hsotg {
@@ -524,6 +522,7 @@
 				regulator-name = "G3D_1.1V";
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1200000>;
+				regulator-microvolt-offset = <50000>;
 				regulator-always-on;
 			};
 
