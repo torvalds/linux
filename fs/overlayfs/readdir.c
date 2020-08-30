@@ -1051,7 +1051,9 @@ int ovl_check_d_type_supported(struct path *realpath)
 	return rdd.d_type_supported;
 }
 
-static void ovl_workdir_cleanup_recurse(struct path *path, int level)
+#define OVL_INCOMPATDIR_NAME "incompat"
+
+static int ovl_workdir_cleanup_recurse(struct path *path, int level)
 {
 	int err;
 	struct inode *dir = path->dentry->d_inode;
@@ -1065,6 +1067,19 @@ static void ovl_workdir_cleanup_recurse(struct path *path, int level)
 		.root = &root,
 		.is_lowest = false,
 	};
+	bool incompat = false;
+
+	/*
+	 * The "work/incompat" directory is treated specially - if it is not
+	 * empty, instead of printing a generic error and mounting read-only,
+	 * we will error about incompat features and fail the mount.
+	 *
+	 * When called from ovl_indexdir_cleanup(), path->dentry->d_name.name
+	 * starts with '#'.
+	 */
+	if (level == 2 &&
+	    !strcmp(path->dentry->d_name.name, OVL_INCOMPATDIR_NAME))
+		incompat = true;
 
 	err = ovl_dir_read(path, &rdd);
 	if (err)
@@ -1079,17 +1094,25 @@ static void ovl_workdir_cleanup_recurse(struct path *path, int level)
 				continue;
 			if (p->len == 2 && p->name[1] == '.')
 				continue;
+		} else if (incompat) {
+			pr_err("overlay with incompat feature '%s' cannot be mounted\n",
+				p->name);
+			err = -EINVAL;
+			break;
 		}
 		dentry = lookup_one_len(p->name, path->dentry, p->len);
 		if (IS_ERR(dentry))
 			continue;
 		if (dentry->d_inode)
-			ovl_workdir_cleanup(dir, path->mnt, dentry, level);
+			err = ovl_workdir_cleanup(dir, path->mnt, dentry, level);
 		dput(dentry);
+		if (err)
+			break;
 	}
 	inode_unlock(dir);
 out:
 	ovl_cache_free(&list);
+	return err;
 }
 
 int ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
@@ -1106,9 +1129,10 @@ int ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 		struct path path = { .mnt = mnt, .dentry = dentry };
 
 		inode_unlock(dir);
-		ovl_workdir_cleanup_recurse(&path, level + 1);
+		err = ovl_workdir_cleanup_recurse(&path, level + 1);
 		inode_lock_nested(dir, I_MUTEX_PARENT);
-		err = ovl_cleanup(dir, dentry);
+		if (!err)
+			err = ovl_cleanup(dir, dentry);
 	}
 
 	return err;

@@ -705,8 +705,12 @@ retry:
 				goto out_unlock;
 
 			retried = true;
-			ovl_workdir_cleanup(dir, mnt, work, 0);
+			err = ovl_workdir_cleanup(dir, mnt, work, 0);
 			dput(work);
+			if (err == -EINVAL) {
+				work = ERR_PTR(err);
+				goto out_unlock;
+			}
 			goto retry;
 		}
 
@@ -1203,7 +1207,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 			    struct path *workpath)
 {
 	struct vfsmount *mnt = ovl_upper_mnt(ofs);
-	struct dentry *temp;
+	struct dentry *temp, *workdir;
 	bool rename_whiteout;
 	bool d_type;
 	int fh_type;
@@ -1213,9 +1217,12 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 	if (err)
 		return err;
 
-	ofs->workdir = ovl_workdir_create(ofs, OVL_WORKDIR_NAME, false);
-	if (!ofs->workdir)
+	workdir = ovl_workdir_create(ofs, OVL_WORKDIR_NAME, false);
+	err = PTR_ERR(workdir);
+	if (IS_ERR_OR_NULL(workdir))
 		goto out;
+
+	ofs->workdir = workdir;
 
 	err = ovl_setup_trap(sb, ofs->workdir, &ofs->workdir_trap, "workdir");
 	if (err)
@@ -1347,6 +1354,7 @@ static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
 			    struct ovl_entry *oe, struct path *upperpath)
 {
 	struct vfsmount *mnt = ovl_upper_mnt(ofs);
+	struct dentry *indexdir;
 	int err;
 
 	err = mnt_want_write(mnt);
@@ -1366,9 +1374,12 @@ static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
 	ofs->workdir_trap = NULL;
 	dput(ofs->workdir);
 	ofs->workdir = NULL;
-	ofs->indexdir = ovl_workdir_create(ofs, OVL_INDEXDIR_NAME, true);
-	if (ofs->indexdir) {
-		ofs->workdir = dget(ofs->indexdir);
+	indexdir = ovl_workdir_create(ofs, OVL_INDEXDIR_NAME, true);
+	if (IS_ERR(indexdir)) {
+		err = PTR_ERR(indexdir);
+	} else if (indexdir) {
+		ofs->indexdir = indexdir;
+		ofs->workdir = dget(indexdir);
 
 		err = ovl_setup_trap(sb, ofs->indexdir, &ofs->indexdir_trap,
 				     "indexdir");
