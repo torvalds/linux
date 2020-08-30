@@ -2768,6 +2768,9 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 	if (IS_ENCRYPTED(src) || IS_ENCRYPTED(dst))
 		return -EOPNOTSUPP;
 
+	if (pos_out < 0 || pos_in < 0)
+		return -EINVAL;
+
 	if (src == dst) {
 		if (pos_in == pos_out)
 			return 0;
