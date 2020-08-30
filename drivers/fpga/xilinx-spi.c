@@ -151,22 +151,29 @@ static int xilinx_spi_write_complete(struct fpga_manager *mgr,
 				     struct fpga_image_info *info)
 {
 	struct xilinx_spi_conf *conf = mgr->priv;
-	unsigned long timeout;
+	unsigned long timeout = jiffies + usecs_to_jiffies(info->config_complete_timeout_us);
+	bool expired = false;
+	int done;
 	int ret;
 
-	if (gpiod_get_value(conf->done))
-		return xilinx_spi_apply_cclk_cycles(conf);
+	/*
+	 * This loop is carefully written such that if the driver is
+	 * scheduled out for more than 'timeout', we still check for DONE
+	 * before giving up and we apply 8 extra CCLK cycles in all cases.
+	 */
+	while (!expired) {
+		expired = time_after(jiffies, timeout);
 
-	timeout = jiffies + usecs_to_jiffies(info->config_complete_timeout_us);
-
-	while (time_before(jiffies, timeout)) {
+		done = get_done_gpio(mgr);
+		if (done < 0)
+			return done;
 
 		ret = xilinx_spi_apply_cclk_cycles(conf);
 		if (ret)
 			return ret;
 
-		if (gpiod_get_value(conf->done))
-			return xilinx_spi_apply_cclk_cycles(conf);
+		if (done)
+			return 0;
 	}
 
 	dev_err(&mgr->dev, "Timeout after config data transfer\n");
