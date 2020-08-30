@@ -27,11 +27,22 @@ struct xilinx_spi_conf {
 	struct gpio_desc *done;
 };
 
-static enum fpga_mgr_states xilinx_spi_state(struct fpga_manager *mgr)
+static int get_done_gpio(struct fpga_manager *mgr)
 {
 	struct xilinx_spi_conf *conf = mgr->priv;
+	int ret;
 
-	if (!gpiod_get_value(conf->done))
+	ret = gpiod_get_value(conf->done);
+
+	if (ret < 0)
+		dev_err(&mgr->dev, "Error reading DONE (%d)\n", ret);
+
+	return ret;
+}
+
+static enum fpga_mgr_states xilinx_spi_state(struct fpga_manager *mgr)
+{
+	if (!get_done_gpio(mgr))
 		return FPGA_MGR_STATE_RESET;
 
 	return FPGA_MGR_STATE_UNKNOWN;
@@ -57,10 +68,21 @@ static int wait_for_init_b(struct fpga_manager *mgr, int value,
 
 	if (conf->init_b) {
 		while (time_before(jiffies, timeout)) {
-			if (gpiod_get_value(conf->init_b) == value)
+			int ret = gpiod_get_value(conf->init_b);
+
+			if (ret == value)
 				return 0;
+
+			if (ret < 0) {
+				dev_err(&mgr->dev, "Error reading INIT_B (%d)\n", ret);
+				return ret;
+			}
+
 			usleep_range(100, 400);
 		}
+
+		dev_err(&mgr->dev, "Timeout waiting for INIT_B to %s\n",
+			value ? "assert" : "deassert");
 		return -ETIMEDOUT;
 	}
 
@@ -85,7 +107,6 @@ static int xilinx_spi_write_init(struct fpga_manager *mgr,
 
 	err = wait_for_init_b(mgr, 1, 1); /* min is 500 ns */
 	if (err) {
-		dev_err(&mgr->dev, "INIT_B pin did not go low\n");
 		gpiod_set_value(conf->prog_b, 0);
 		return err;
 	}
@@ -93,12 +114,10 @@ static int xilinx_spi_write_init(struct fpga_manager *mgr,
 	gpiod_set_value(conf->prog_b, 0);
 
 	err = wait_for_init_b(mgr, 0, 0);
-	if (err) {
-		dev_err(&mgr->dev, "INIT_B pin did not go high\n");
+	if (err)
 		return err;
-	}
 
-	if (gpiod_get_value(conf->done)) {
+	if (get_done_gpio(mgr)) {
 		dev_err(&mgr->dev, "Unexpected DONE pin state...\n");
 		return -EIO;
 	}
