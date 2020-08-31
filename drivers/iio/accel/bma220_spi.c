@@ -289,8 +289,7 @@ static int bma220_remove(struct spi_device *spi)
 #ifdef CONFIG_PM_SLEEP
 static int bma220_suspend(struct device *dev)
 {
-	struct bma220_data *data =
-			iio_priv(spi_get_drvdata(to_spi_device(dev)));
+	struct bma220_data *data = iio_priv(dev_get_drvdata(dev));
 
 	/* The chip can be suspended/woken up by a simple register read. */
 	return bma220_read_reg(data->spi_device, BMA220_REG_SUSPEND);
@@ -298,8 +297,7 @@ static int bma220_suspend(struct device *dev)
 
 static int bma220_resume(struct device *dev)
 {
-	struct bma220_data *data =
-			iio_priv(spi_get_drvdata(to_spi_device(dev)));
+	struct bma220_data *data = iio_priv(dev_get_drvdata(dev));
 
 	return bma220_read_reg(data->spi_device, BMA220_REG_SUSPEND);
 }
