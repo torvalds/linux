@@ -9,7 +9,6 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/openvswitch.h>
-#include <linux/netfilter_ipv6.h>
 #include <linux/sctp.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
@@ -848,12 +847,8 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
-		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 		unsigned long orig_dst;
 		struct rt6_info ovs_rt;
-
-		if (!v6ops)
-			goto err;
 
 		prepare_frag(vport, skb, orig_network_offset,
 			     ovs_key_mac_proto(key));
@@ -866,7 +861,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		skb_dst_set_noref(skb, &ovs_rt.dst);
 		IP6CB(skb)->frag_max_size = mru;
 
-		v6ops->fragment(net, skb->sk, skb, ovs_vport_output);
+		ipv6_stub->ipv6_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
 	} else {
 		WARN_ONCE(1, "Failed fragment ->%s: eth=%04x, MRU=%d, MTU=%d.",
