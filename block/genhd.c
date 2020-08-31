@@ -110,8 +110,7 @@ static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
 	}
 }
 
-static unsigned int part_in_flight(struct request_queue *q,
-		struct hd_struct *part)
+static unsigned int part_in_flight(struct hd_struct *part)
 {
 	unsigned int inflight = 0;
 	int cpu;
@@ -126,8 +125,7 @@ static unsigned int part_in_flight(struct request_queue *q,
 	return inflight;
 }
 
-static void part_in_flight_rw(struct request_queue *q, struct hd_struct *part,
-		unsigned int inflight[2])
+static void part_in_flight_rw(struct hd_struct *part, unsigned int inflight[2])
 {
 	int cpu;
 
@@ -1301,7 +1299,7 @@ ssize_t part_stat_show(struct device *dev,
 	if (queue_is_mq(q))
 		inflight = blk_mq_in_flight(q, p);
 	else
-		inflight = part_in_flight(q, p);
+		inflight = part_in_flight(p);
 
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
@@ -1343,7 +1341,7 @@ ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 	if (queue_is_mq(q))
 		blk_mq_in_flight_rw(q, p, inflight);
 	else
-		part_in_flight_rw(q, p, inflight);
+		part_in_flight_rw(p, inflight);
 
 	return sprintf(buf, "%8u %8u\n", inflight[0], inflight[1]);
 }
@@ -1623,7 +1621,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 		if (queue_is_mq(gp->queue))
 			inflight = blk_mq_in_flight(gp->queue, hd);
 		else
-			inflight = part_in_flight(gp->queue, hd);
+			inflight = part_in_flight(hd);
 
 		seq_printf(seqf, "%4d %7d %s "
 			   "%lu %lu %lu %u "
