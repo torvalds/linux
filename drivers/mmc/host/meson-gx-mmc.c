@@ -521,7 +521,7 @@ static int meson_mmc_resampling_tuning(struct mmc_host *mmc, u32 opcode)
 	val |= ADJUST_ADJ_EN;
 	writel(val, host->regs + host->data->adjust);
 
-	if (mmc->doing_retune)
+	if (mmc_doing_retune(mmc))
 		dly = FIELD_GET(ADJUST_ADJ_DELAY_MASK, val) + 1;
 	else
 		dly = 0;
