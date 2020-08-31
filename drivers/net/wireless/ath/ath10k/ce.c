@@ -481,14 +481,37 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
 	ath10k_ce_write32(ar, ce_ctrl_addr + wm_regs->addr, mask);
 }
 
-static inline bool ath10k_ce_engine_int_status_check(struct ath10k *ar,
-						     u32 ce_ctrl_addr,
-						     unsigned int mask)
+static bool ath10k_ce_engine_int_status_check(struct ath10k *ar, u32 ce_ctrl_addr,
+					      unsigned int mask)
 {
 	struct ath10k_hw_ce_host_wm_regs *wm_regs = ar->hw_ce_regs->wm_regs;
 
 	return ath10k_ce_read32(ar, ce_ctrl_addr + wm_regs->addr) & mask;
 }
+
+u32 ath10k_ce_gen_interrupt_summary(struct ath10k *ar)
+{
+	struct ath10k_hw_ce_host_wm_regs *wm_regs = ar->hw_ce_regs->wm_regs;
+	struct ath10k_ce_pipe *ce_state;
+	struct ath10k_ce *ce;
+	u32 irq_summary = 0;
+	u32 ctrl_addr;
+	u32 ce_id;
+
+	ce = ath10k_ce_priv(ar);
+
+	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
+		ce_state = &ce->ce_states[ce_id];
+		ctrl_addr = ce_state->ctrl_addr;
+		if (ath10k_ce_engine_int_status_check(ar, ctrl_addr,
+						      wm_regs->cc_mask)) {
+			irq_summary |= BIT(ce_id);
+		}
+	}
+
+	return irq_summary;
+}
+EXPORT_SYMBOL(ath10k_ce_gen_interrupt_summary);
 
 /*
  * Guts of ath10k_ce_send.
@@ -1308,32 +1331,24 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 	struct ath10k_hw_ce_host_wm_regs *wm_regs = ar->hw_ce_regs->wm_regs;
 	u32 ctrl_addr = ce_state->ctrl_addr;
 
-	spin_lock_bh(&ce->ce_lock);
-
-	if (ath10k_ce_engine_int_status_check(ar, ctrl_addr,
-					      wm_regs->cc_mask)) {
-		/* Clear before handling */
-		ath10k_ce_engine_int_status_clear(ar, ctrl_addr,
-						  wm_regs->cc_mask);
-
-		spin_unlock_bh(&ce->ce_lock);
-
-		if (ce_state->recv_cb)
-			ce_state->recv_cb(ce_state);
-
-		if (ce_state->send_cb)
-			ce_state->send_cb(ce_state);
-
-		spin_lock_bh(&ce->ce_lock);
-	}
-
 	/*
+	 * Clear before handling
+	 *
 	 * Misc CE interrupts are not being handled, but still need
 	 * to be cleared.
+	 *
+	 * NOTE: When the last copy engine interrupt is cleared the
+	 * hardware will go to sleep.  Once this happens any access to
+	 * the CE registers can cause a hardware fault.
 	 */
-	ath10k_ce_engine_int_status_clear(ar, ctrl_addr, wm_regs->wm_mask);
+	ath10k_ce_engine_int_status_clear(ar, ctrl_addr,
+					  wm_regs->cc_mask | wm_regs->wm_mask);
 
-	spin_unlock_bh(&ce->ce_lock);
+	if (ce_state->recv_cb)
+		ce_state->recv_cb(ce_state);
+
+	if (ce_state->send_cb)
+		ce_state->send_cb(ce_state);
 }
 EXPORT_SYMBOL(ath10k_ce_per_engine_service);
 
