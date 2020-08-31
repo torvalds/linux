@@ -47,6 +47,7 @@
 #include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_csum.h>
 #include <net/tc_act/tc_mpls.h>
+#include <net/psample.h>
 #include <net/arp.h>
 #include <net/ipv6_stubs.h>
 #include <net/bareudp.h>
@@ -1481,6 +1482,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	if (flow_flag_test(flow, L3_TO_L2_DECAP))
 		mlx5e_detach_decap(priv, flow);
 
+	kfree(flow->attr->esw_attr->sample);
 	kfree(flow->attr);
 }
 
@@ -3627,6 +3629,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	bool ft_flow = mlx5e_is_ft_flow(flow);
 	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
+	struct mlx5_sample_attr sample = {};
 	bool encap = false, decap = false;
 	u32 action = attr->action;
 	int err, i, if_count = 0;
@@ -3881,12 +3884,27 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			attr->dest_chain = act->chain_index;
 			break;
 		case FLOW_ACTION_CT:
+			if (flow_flag_test(flow, SAMPLE)) {
+				NL_SET_ERR_MSG_MOD(extack, "Sample action with connection tracking is not supported");
+				return -EOPNOTSUPP;
+			}
 			err = mlx5_tc_ct_parse_action(get_ct_priv(priv), attr, act, extack);
 			if (err)
 				return err;
 
 			flow_flag_set(flow, CT);
 			esw_attr->split_count = esw_attr->out_count;
+			break;
+		case FLOW_ACTION_SAMPLE:
+			if (flow_flag_test(flow, CT)) {
+				NL_SET_ERR_MSG_MOD(extack, "Sample action with connection tracking is not supported");
+				return -EOPNOTSUPP;
+			}
+			sample.rate = act->sample.rate;
+			sample.group_num = act->sample.psample_group->group_num;
+			if (act->sample.truncate)
+				sample.trunc_size = act->sample.trunc_size;
+			flow_flag_set(flow, SAMPLE);
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "The offload action is not supported");
@@ -3964,6 +3982,16 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				   "current firmware doesn't support split rule for port mirroring");
 		netdev_warn_once(priv->netdev, "current firmware doesn't support split rule for port mirroring\n");
 		return -EOPNOTSUPP;
+	}
+
+	/* Allocate sample attribute only when there is a sample action and
+	 * no errors after parsing.
+	 */
+	if (flow_flag_test(flow, SAMPLE)) {
+		esw_attr->sample = kzalloc(sizeof(*esw_attr->sample), GFP_KERNEL);
+		if (!esw_attr->sample)
+			return -ENOMEM;
+		*esw_attr->sample = sample;
 	}
 
 	return 0;
