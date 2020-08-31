@@ -3566,14 +3566,31 @@ static int ibmvnic_send_crq(struct ibmvnic_adapter *adapter,
 
 static int ibmvnic_send_crq_init(struct ibmvnic_adapter *adapter)
 {
+	struct device *dev = &adapter->vdev->dev;
 	union ibmvnic_crq crq;
+	int retries = 100;
+	int rc;
 
 	memset(&crq, 0, sizeof(crq));
 	crq.generic.first = IBMVNIC_CRQ_INIT_CMD;
 	crq.generic.cmd = IBMVNIC_CRQ_INIT;
 	netdev_dbg(adapter->netdev, "Sending CRQ init\n");
 
-	return ibmvnic_send_crq(adapter, &crq);
+	do {
+		rc = ibmvnic_send_crq(adapter, &crq);
+		if (rc != H_CLOSED)
+			break;
+		retries--;
+		msleep(50);
+
+	} while (retries > 0);
+
+	if (rc) {
+		dev_err(dev, "Failed to send init request, rc = %d\n", rc);
+		return rc;
+	}
+
+	return 0;
 }
 
 static int send_version_xchg(struct ibmvnic_adapter *adapter)
