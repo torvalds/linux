@@ -1036,7 +1036,7 @@ static void pdp_context_delete(struct pdp_ctx *pctx)
 	call_rcu(&pctx->rcu_head, pdp_context_free);
 }
 
-static int gtp_tunnel_notify(struct pdp_ctx *pctx, u8 cmd);
+static int gtp_tunnel_notify(struct pdp_ctx *pctx, u8 cmd, gfp_t allocation);
 
 static int gtp_genl_new_pdp(struct sk_buff *skb, struct genl_info *info)
 {
@@ -1071,7 +1071,6 @@ static int gtp_genl_new_pdp(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rtnl_lock();
-	rcu_read_lock();
 
 	gtp = gtp_find_dev(sock_net(skb->sk), info->attrs);
 	if (!gtp) {
@@ -1095,12 +1094,11 @@ static int gtp_genl_new_pdp(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(pctx)) {
 		err = PTR_ERR(pctx);
 	} else {
-		gtp_tunnel_notify(pctx, GTP_CMD_NEWPDP);
+		gtp_tunnel_notify(pctx, GTP_CMD_NEWPDP, GFP_KERNEL);
 		err = 0;
 	}
 
 out_unlock:
-	rcu_read_unlock();
 	rtnl_unlock();
 	return err;
 }
@@ -1168,7 +1166,7 @@ static int gtp_genl_del_pdp(struct sk_buff *skb, struct genl_info *info)
 		netdev_dbg(pctx->dev, "GTPv1-U: deleting tunnel id = %x/%x (pdp %p)\n",
 			   pctx->u.v1.i_tei, pctx->u.v1.o_tei, pctx);
 
-	gtp_tunnel_notify(pctx, GTP_CMD_DELPDP);
+	gtp_tunnel_notify(pctx, GTP_CMD_DELPDP, GFP_ATOMIC);
 	pdp_context_delete(pctx);
 
 out_unlock:
@@ -1222,12 +1220,12 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int gtp_tunnel_notify(struct pdp_ctx *pctx, u8 cmd)
+static int gtp_tunnel_notify(struct pdp_ctx *pctx, u8 cmd, gfp_t allocation)
 {
 	struct sk_buff *msg;
 	int ret;
 
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, allocation);
 	if (!msg)
 		return -ENOMEM;
 
