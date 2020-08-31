@@ -233,13 +233,6 @@ struct ep_pqueue {
 	struct epitem *epi;
 };
 
-/* Used by the ep_send_events() function as callback private data */
-struct ep_send_events_data {
-	int maxevents;
-	struct epoll_event __user *events;
-	int res;
-};
-
 /*
  * Configuration options available inside /proc/sys/fs/epoll/
  */
@@ -1570,18 +1563,17 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 	return 0;
 }
 
-static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
-			       void *priv)
+static int ep_send_events(struct eventpoll *ep,
+			  struct epoll_event __user *events, int maxevents)
 {
-	struct ep_send_events_data *esed = priv;
-	__poll_t revents;
 	struct epitem *epi, *tmp;
-	struct epoll_event __user *uevent = esed->events;
-	struct wakeup_source *ws;
+	LIST_HEAD(txlist);
 	poll_table pt;
+	int res = 0;
 
 	init_poll_funcptr(&pt, NULL);
-	esed->res = 0;
+
+	ep_start_scan(ep, 0, false, &txlist);
 
 	/*
 	 * We can loop without lock because we are passed a task private list.
@@ -1590,8 +1582,11 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 	 */
 	lockdep_assert_held(&ep->mtx);
 
-	list_for_each_entry_safe(epi, tmp, head, rdllink) {
-		if (esed->res >= esed->maxevents)
+	list_for_each_entry_safe(epi, tmp, &txlist, rdllink) {
+		struct wakeup_source *ws;
+		__poll_t revents;
+
+		if (res >= maxevents)
 			break;
 
 		/*
@@ -1622,16 +1617,16 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 		if (!revents)
 			continue;
 
-		if (__put_user(revents, &uevent->events) ||
-		    __put_user(epi->event.data, &uevent->data)) {
-			list_add(&epi->rdllink, head);
+		if (__put_user(revents, &events->events) ||
+		    __put_user(epi->event.data, &events->data)) {
+			list_add(&epi->rdllink, &txlist);
 			ep_pm_stay_awake(epi);
-			if (!esed->res)
-				esed->res = -EFAULT;
-			return 0;
+			if (!res)
+				res = -EFAULT;
+			break;
 		}
-		esed->res++;
-		uevent++;
+		res++;
+		events++;
 		if (epi->event.events & EPOLLONESHOT)
 			epi->event.events &= EP_PRIVATE_BITS;
 		else if (!(epi->event.events & EPOLLET)) {
@@ -1650,24 +1645,9 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 			ep_pm_stay_awake(epi);
 		}
 	}
-
-	return 0;
-}
-
-static int ep_send_events(struct eventpoll *ep,
-			  struct epoll_event __user *events, int maxevents)
-{
-	struct ep_send_events_data esed;
-	LIST_HEAD(txlist);
-
-	esed.maxevents = maxevents;
-	esed.events = events;
-
-	ep_start_scan(ep, 0, false, &txlist);
-	ep_send_events_proc(ep, &txlist, &esed);
 	ep_done_scan(ep, 0, false, &txlist);
 
-	return esed.res;
+	return res;
 }
 
 static inline struct timespec64 ep_set_mstimeout(long ms)
