@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x08aa15e57
+#define DMUB_FW_VERSION_GIT_HASH 0x82f998da6
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 31
+#define DMUB_FW_VERSION_REVISION 32
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -97,6 +97,7 @@ union dmub_psr_debug_flags {
 	struct {
 		uint32_t visual_confirm : 1;
 		uint32_t use_hw_lock_mgr : 1;
+		uint32_t log_line_nums : 1;
 	} bitfields;
 
 	uint32_t u32All;
