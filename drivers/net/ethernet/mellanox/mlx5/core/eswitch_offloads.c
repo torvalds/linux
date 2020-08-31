@@ -1080,6 +1080,81 @@ void mlx5_eswitch_del_send_to_vport_rule(struct mlx5_flow_handle *rule)
 	mlx5_del_flow_rules(rule);
 }
 
+static void mlx5_eswitch_del_send_to_vport_meta_rules(struct mlx5_eswitch *esw)
+{
+	struct mlx5_flow_handle **flows = esw->fdb_table.offloads.send_to_vport_meta_rules;
+	int i = 0, num_vfs = esw->esw_funcs.num_vfs, vport_num;
+
+	if (!num_vfs || !flows)
+		return;
+
+	mlx5_esw_for_each_vf_vport_num(esw, vport_num, num_vfs)
+		mlx5_del_flow_rules(flows[i++]);
+
+	kvfree(flows);
+}
+
+static int
+mlx5_eswitch_add_send_to_vport_meta_rules(struct mlx5_eswitch *esw)
+{
+	int num_vfs, vport_num, rule_idx = 0, err = 0;
+	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_act flow_act = {0};
+	struct mlx5_flow_handle *flow_rule;
+	struct mlx5_flow_handle **flows;
+	struct mlx5_flow_spec *spec;
+
+	num_vfs = esw->esw_funcs.num_vfs;
+	flows = kvzalloc(num_vfs * sizeof(*flows), GFP_KERNEL);
+	if (!flows)
+		return -ENOMEM;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec) {
+		err = -ENOMEM;
+		goto alloc_err;
+	}
+
+	MLX5_SET(fte_match_param, spec->match_criteria,
+		 misc_parameters_2.metadata_reg_c_0, mlx5_eswitch_get_vport_metadata_mask());
+	MLX5_SET(fte_match_param, spec->match_criteria,
+		 misc_parameters_2.metadata_reg_c_1, ESW_TUN_MASK);
+	MLX5_SET(fte_match_param, spec->match_value, misc_parameters_2.metadata_reg_c_1,
+		 ESW_TUN_SLOW_TABLE_GOTO_VPORT_MARK);
+
+	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+
+	mlx5_esw_for_each_vf_vport_num(esw, vport_num, num_vfs) {
+		MLX5_SET(fte_match_param, spec->match_value, misc_parameters_2.metadata_reg_c_0,
+			 mlx5_eswitch_get_vport_metadata_for_match(esw, vport_num));
+		dest.vport.num = vport_num;
+
+		flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb,
+						spec, &flow_act, &dest, 1);
+		if (IS_ERR(flow_rule)) {
+			err = PTR_ERR(flow_rule);
+			esw_warn(esw->dev, "FDB: Failed to add send to vport meta rule idx %d, err %ld\n",
+				 rule_idx, PTR_ERR(flow_rule));
+			goto rule_err;
+		}
+		flows[rule_idx++] = flow_rule;
+	}
+
+	esw->fdb_table.offloads.send_to_vport_meta_rules = flows;
+	kvfree(spec);
+	return 0;
+
+rule_err:
+	while (--rule_idx >= 0)
+		mlx5_del_flow_rules(flows[rule_idx]);
+	kvfree(spec);
+alloc_err:
+	kvfree(flows);
+	return err;
+}
+
 static bool mlx5_eswitch_reg_c1_loopback_supported(struct mlx5_eswitch *esw)
 {
 	return MLX5_CAP_ESW_FLOWTABLE(esw->dev, fdb_to_vport_reg_c_id) &
@@ -1562,11 +1637,11 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_table_attr ft_attr = {};
+	int num_vfs, table_size, ix, err = 0;
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *fdb = NULL;
 	u32 flags = 0, *flow_group_in;
-	int table_size, ix, err = 0;
 	struct mlx5_flow_group *g;
 	void *match_criteria;
 	u8 *dmac;
@@ -1592,7 +1667,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw)
 	}
 
 	table_size = esw->total_vports * MAX_SQ_NVPORTS + MAX_PF_SQ +
-		MLX5_ESW_MISS_FLOWS + esw->total_vports;
+		MLX5_ESW_MISS_FLOWS + esw->total_vports + esw->esw_funcs.num_vfs;
 
 	/* create the slow path fdb with encap set, so further table instances
 	 * can be created at run time while VFs are probed if the FW allows that.
@@ -1639,6 +1714,38 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw)
 		goto send_vport_err;
 	}
 	esw->fdb_table.offloads.send_to_vport_grp = g;
+
+	/* meta send to vport */
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
+		 MLX5_MATCH_MISC_PARAMETERS_2);
+
+	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
+
+	MLX5_SET(fte_match_param, match_criteria,
+		 misc_parameters_2.metadata_reg_c_0, mlx5_eswitch_get_vport_metadata_mask());
+	MLX5_SET(fte_match_param, match_criteria,
+		 misc_parameters_2.metadata_reg_c_1, ESW_TUN_MASK);
+
+	num_vfs = esw->esw_funcs.num_vfs;
+	if (num_vfs) {
+		MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, ix);
+		MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ix + num_vfs - 1);
+		ix += num_vfs;
+
+		g = mlx5_create_flow_group(fdb, flow_group_in);
+		if (IS_ERR(g)) {
+			err = PTR_ERR(g);
+			esw_warn(dev, "Failed to create send-to-vport meta flow group err(%d)\n",
+				 err);
+			goto send_vport_meta_err;
+		}
+		esw->fdb_table.offloads.send_to_vport_meta_grp = g;
+
+		err = mlx5_eswitch_add_send_to_vport_meta_rules(esw);
+		if (err)
+			goto meta_rule_err;
+	}
 
 	if (MLX5_CAP_ESW(esw->dev, merged_eswitch)) {
 		/* create peer esw miss group */
@@ -1707,6 +1814,11 @@ miss_err:
 	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
 		mlx5_destroy_flow_group(esw->fdb_table.offloads.peer_miss_grp);
 peer_miss_err:
+	mlx5_eswitch_del_send_to_vport_meta_rules(esw);
+meta_rule_err:
+	if (esw->fdb_table.offloads.send_to_vport_meta_grp)
+		mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_meta_grp);
+send_vport_meta_err:
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
 send_vport_err:
 	esw_chains_destroy(esw, esw_chains(esw));
@@ -1728,7 +1840,10 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 	esw_debug(esw->dev, "Destroy offloads FDB Tables\n");
 	mlx5_del_flow_rules(esw->fdb_table.offloads.miss_rule_multi);
 	mlx5_del_flow_rules(esw->fdb_table.offloads.miss_rule_uni);
+	mlx5_eswitch_del_send_to_vport_meta_rules(esw);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
+	if (esw->fdb_table.offloads.send_to_vport_meta_grp)
+		mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_meta_grp);
 	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
 		mlx5_destroy_flow_group(esw->fdb_table.offloads.peer_miss_grp);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.miss_grp);

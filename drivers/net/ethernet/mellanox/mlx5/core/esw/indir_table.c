@@ -162,7 +162,7 @@ static int mlx5_esw_indir_table_rule_get(struct mlx5_eswitch *esw,
 			 (attr->ip_version == 4 ? ETH_P_IP : ETH_P_IPV6));
 	} else {
 		err = -EOPNOTSUPP;
-		goto err_mod_hdr;
+		goto err_ethertype;
 	}
 
 	if (attr->ip_version == 4) {
@@ -198,13 +198,18 @@ static int mlx5_esw_indir_table_rule_get(struct mlx5_eswitch *esw,
 	err = mlx5e_tc_match_to_reg_set(esw->dev, &mod_acts, MLX5_FLOW_NAMESPACE_FDB,
 					VPORT_TO_REG, data);
 	if (err)
-		goto err_mod_hdr;
+		goto err_mod_hdr_regc0;
+
+	err = mlx5e_tc_match_to_reg_set(esw->dev, &mod_acts, MLX5_FLOW_NAMESPACE_FDB,
+					TUNNEL_TO_REG, ESW_TUN_SLOW_TABLE_GOTO_VPORT);
+	if (err)
+		goto err_mod_hdr_regc1;
 
 	flow_act.modify_hdr = mlx5_modify_header_alloc(esw->dev, MLX5_FLOW_NAMESPACE_FDB,
 						       mod_acts.num_actions, mod_acts.actions);
 	if (IS_ERR(flow_act.modify_hdr)) {
 		err = PTR_ERR(flow_act.modify_hdr);
-		goto err_mod_hdr;
+		goto err_mod_hdr_alloc;
 	}
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
@@ -236,7 +241,11 @@ err_handle:
 	mlx5_chains_put_table(chains, 0, 1, 0);
 err_table:
 	mlx5_modify_header_dealloc(esw->dev, flow_act.modify_hdr);
-err_mod_hdr:
+err_mod_hdr_alloc:
+err_mod_hdr_regc1:
+	dealloc_mod_hdr_actions(&mod_acts);
+err_mod_hdr_regc0:
+err_ethertype:
 	kfree(rule);
 out:
 	kfree(rule_spec);

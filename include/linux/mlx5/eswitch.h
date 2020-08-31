@@ -114,8 +114,16 @@ u32 mlx5_eswitch_get_vport_metadata_for_set(struct mlx5_eswitch *esw,
 #define ESW_ZONE_ID_BITS 8
 #define ESW_TUN_OPTS_BITS 12
 #define ESW_TUN_ID_BITS 12
-#define ESW_TUN_OFFSET ESW_ZONE_ID_BITS
+#define ESW_TUN_OPTS_OFFSET ESW_ZONE_ID_BITS
+#define ESW_TUN_OFFSET ESW_TUN_OPTS_OFFSET
 #define ESW_ZONE_ID_MASK GENMASK(ESW_ZONE_ID_BITS - 1, 0)
+#define ESW_TUN_OPTS_MASK GENMASK(32 - ESW_TUN_ID_BITS - 1, ESW_TUN_OPTS_OFFSET)
+#define ESW_TUN_MASK GENMASK(31, ESW_TUN_OFFSET)
+#define ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT 0 /* 0 is not a valid tunnel id */
+#define ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT 0xFFF /* 0xFFF is a reserved mapping */
+#define ESW_TUN_SLOW_TABLE_GOTO_VPORT ((ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT << ESW_TUN_OPTS_BITS) | \
+				       ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT)
+#define ESW_TUN_SLOW_TABLE_GOTO_VPORT_MARK ESW_TUN_OPTS_MASK
 
 u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev);
 #else  /* CONFIG_MLX5_ESWITCH */
