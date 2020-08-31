@@ -11,7 +11,7 @@
 	model = "Atmel AT91SAM9G20 family SoC";
 	compatible = "atmel,at91sam9g20";
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x08000000>;
 	};
 

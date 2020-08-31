@@ -22,7 +22,7 @@
 		bootargs = "console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootwait";
 	};
 
-	memory {
+	memory@20000000 {
 		/* 128 MB, change this for 256 MB revision */
 		reg = <0x20000000 0x8000000>;
 	};

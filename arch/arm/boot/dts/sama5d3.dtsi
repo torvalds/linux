@@ -55,7 +55,7 @@
 		interrupts = <46 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
-	memory {
+	memory@20000000 {
 		device_type = "memory";
 		reg = <0x20000000 0x8000000>;
 	};

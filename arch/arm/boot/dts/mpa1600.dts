@@ -11,7 +11,7 @@
 	model = "Phontech MPA 1600";
 	compatible = "phontech,mpa1600", "atmel,at91rm9200";
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 

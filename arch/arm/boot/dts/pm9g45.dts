@@ -15,7 +15,7 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
-	memory {
+	memory@70000000 {
 		reg = <0x70000000 0x8000000>;
 	};
 
