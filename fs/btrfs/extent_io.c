@@ -4552,10 +4552,10 @@ next:
  * helper function for fiemap, which doesn't want to see any holes.
  * This maps until we find something past 'last'
  */
-static struct extent_map *get_extent_skip_holes(struct inode *inode,
+static struct extent_map *get_extent_skip_holes(struct btrfs_inode *inode,
 						u64 offset, u64 last)
 {
-	u64 sectorsize = btrfs_inode_sectorsize(BTRFS_I(inode));
+	u64 sectorsize = btrfs_inode_sectorsize(inode);
 	struct extent_map *em;
 	u64 len;
 
@@ -4567,7 +4567,7 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 		if (len == 0)
 			break;
 		len = ALIGN(len, sectorsize);
-		em = btrfs_get_extent_fiemap(BTRFS_I(inode), offset, len);
+		em = btrfs_get_extent_fiemap(inode, offset, len);
 		if (IS_ERR_OR_NULL(em))
 			return em;
 
@@ -4787,7 +4787,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, start, start + len - 1,
 			 &cached_state);
 
-	em = get_extent_skip_holes(inode, start, last_for_get_extent);
+	em = get_extent_skip_holes(BTRFS_I(inode), start, last_for_get_extent);
 	if (!em)
 		goto out;
 	if (IS_ERR(em)) {
@@ -4876,7 +4876,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		}
 
 		/* now scan forward to see if this is really the last extent. */
-		em = get_extent_skip_holes(inode, off, last_for_get_extent);
+		em = get_extent_skip_holes(BTRFS_I(inode), off,
+					   last_for_get_extent);
 		if (IS_ERR(em)) {
 			ret = PTR_ERR(em);
 			goto out;
