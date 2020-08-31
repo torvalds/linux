@@ -378,17 +378,16 @@ out:
  * test_and_set_bit on a flag in the struct btrfs_ordered_extent is used
  * to make sure this function only returns 1 once for a given ordered extent.
  */
-int btrfs_dec_test_ordered_pending(struct inode *inode,
+int btrfs_dec_test_ordered_pending(struct btrfs_inode *inode,
 				   struct btrfs_ordered_extent **cached,
 				   u64 file_offset, u64 io_size, int uptodate)
 {
-	struct btrfs_ordered_inode_tree *tree;
+	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry = NULL;
 	unsigned long flags;
 	int ret;
 
-	tree = &BTRFS_I(inode)->ordered_tree;
 	spin_lock_irqsave(&tree->lock, flags);
 	if (cached && *cached) {
 		entry = *cached;
@@ -409,7 +408,7 @@ have_entry:
 	}
 
 	if (io_size > entry->bytes_left) {
-		btrfs_crit(BTRFS_I(inode)->root->fs_info,
+		btrfs_crit(inode->root->fs_info,
 			   "bad ordered accounting left %llu size %llu",
 		       entry->bytes_left, io_size);
 	}

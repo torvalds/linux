@@ -2781,8 +2781,8 @@ void btrfs_writepage_endio_finish_ordered(struct page *page, u64 start,
 	trace_btrfs_writepage_end_io_hook(page, start, end, uptodate);
 
 	ClearPagePrivate2(page);
-	if (!btrfs_dec_test_ordered_pending(inode, &ordered_extent, start,
-					    end - start + 1, uptodate))
+	if (!btrfs_dec_test_ordered_pending(BTRFS_I(inode), &ordered_extent,
+					    start, end - start + 1, uptodate))
 		return;
 
 	if (btrfs_is_free_space_inode(BTRFS_I(inode)))
@@ -8184,8 +8184,8 @@ again:
 				ordered->truncated_len = new_len;
 			spin_unlock_irq(&tree->lock);
 
-			if (btrfs_dec_test_ordered_pending(inode, &ordered,
-							   start,
+			if (btrfs_dec_test_ordered_pending(BTRFS_I(inode),
+							   &ordered, start,
 							   end - start + 1, 1))
 				btrfs_finish_ordered_io(ordered);
 		}
