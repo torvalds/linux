@@ -831,7 +831,6 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 	struct sk_buff *skb;
 	struct fc_frame *fp;
 	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
-	unsigned int eth_hdrs_stripped;
 	u8 type, color, eop, sop, ingress_port, vlan_stripped;
 	u8 fcoe = 0, fcoe_sof, fcoe_eof;
 	u8 fcoe_fc_crc_ok = 1, fcoe_enc_error = 0;
@@ -861,7 +860,6 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 				   &ingress_port, &packet_error,
 				   &fcoe_enc_error, &fcs_ok, &vlan_stripped,
 				   &vlan);
-		eth_hdrs_stripped = 1;
 		skb_trim(skb, fcp_bytes_written);
 		fr_sof(fp) = sof;
 		fr_eof(fp) = eof;
@@ -878,7 +876,6 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 				    &tcp_udp_csum_ok, &udp, &tcp,
 				    &ipv4_csum_ok, &ipv6, &ipv4,
 				    &ipv4_fragment, &fcs_ok);
-		eth_hdrs_stripped = 0;
 		skb_trim(skb, bytes_written);
 		if (!fcs_ok) {
 			atomic64_inc(&fnic_stats->misc_stats.frame_errors);
