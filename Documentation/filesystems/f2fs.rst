@@ -315,7 +315,7 @@ mkfs.f2fs
 The mkfs.f2fs is for the use of formatting a partition as the f2fs filesystem,
 which builds a basic on-disk layout.
 
-The options consist of:
+The quick options consist of:
 
 ===============    ===========================================================
 ``-l [label]``     Give a volume label, up to 512 unicode name.
@@ -337,6 +337,8 @@ The options consist of:
                    1 is set by default, which conducts discard.
 ===============    ===========================================================
 
+Note that, please refer manpage of mkfs.f2fs(8) to get full option list.
+
 fsck.f2fs
 ---------
 The fsck.f2fs is a tool to check the consistency of an f2fs-formatted
@@ -344,9 +346,11 @@ partition, which examines whether the filesystem metadata and user-made data
 are cross-referenced correctly or not.
 Note that, initial version of the tool does not fix any inconsistency.
 
-The options consist of::
+The quick options consist of::
 
   -d debug level [default:0]
+
+Note that, please refer manpage of fsck.f2fs(8) to get full option list.
 
 dump.f2fs
 ---------
@@ -370,6 +374,44 @@ Examples::
     # dump.f2fs -i [ino] /dev/sdx
     # dump.f2fs -s 0~-1 /dev/sdx (SIT dump)
     # dump.f2fs -a 0~-1 /dev/sdx (SSA dump)
+
+Note that, please refer manpage of dump.f2fs(8) to get full option list.
+
+sload.f2fs
+----------
+The sload.f2fs gives a way to insert files and directories in the exisiting disk
+image. This tool is useful when building f2fs images given compiled files.
+
+Note that, please refer manpage of sload.f2fs(8) to get full option list.
+
+resize.f2fs
+-----------
+The resize.f2fs can be used when user want to resize the f2fs-formatted disk
+image, while keeping the stored files and directories.
+
+Note that, please refer manpage of resize.f2fs(8) to get full option list.
+
+resize.f2fs
+-----------
+The resize.f2fs let user resize the f2fs-formatted disk image, while preserving
+all the files and directories stored in the image.
+
+Note that, please refer manpage of resize.f2fs(8) to get full option list.
+
+defrag.f2fs
+-----------
+The defrag.f2fs can be used to defragmente scattered writtend data as well as
+filesystem metadata across the disk. This can improve the write speed by giving
+more free consecutive space.
+
+Note that, please refer manpage of defrag.f2fs(8) to get full option list.
+
+f2fs_io
+-------
+The f2fs_io is a simple tool to issue various filesystem APIs as well as
+f2fs-specific ones, which is very useful for QA tests.
+
+Note that, please refer manpage of f2fs_io(8) to get full option list.
 
 Design
 ======
