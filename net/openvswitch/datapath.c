@@ -2481,13 +2481,19 @@ error:
 static int __net_init ovs_init_net(struct net *net)
 {
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
+	int err;
 
 	INIT_LIST_HEAD(&ovs_net->dps);
 	INIT_WORK(&ovs_net->dp_notify_work, ovs_dp_notify_wq);
 	INIT_DELAYED_WORK(&ovs_net->masks_rebalance, ovs_dp_masks_rebalance);
+
+	err = ovs_ct_init(net);
+	if (err)
+		return err;
+
 	schedule_delayed_work(&ovs_net->masks_rebalance,
 			      msecs_to_jiffies(DP_MASKS_REBALANCE_INTERVAL));
-	return ovs_ct_init(net);
+	return 0;
 }
 
 static void __net_exit list_vports_from_net(struct net *net, struct net *dnet,
