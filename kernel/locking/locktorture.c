@@ -60,6 +60,7 @@ static struct task_struct **reader_tasks;
 
 static bool lock_is_write_held;
 static bool lock_is_read_held;
+static unsigned long last_lock_release;
 
 struct lock_stress_stats {
 	long n_lock_fail;
@@ -632,6 +633,7 @@ static int lock_torture_writer(void *arg)
 		lwsp->n_lock_acquired++;
 		cxt.cur_ops->write_delay(&rand);
 		lock_is_write_held = false;
+		WRITE_ONCE(last_lock_release, jiffies);
 		cxt.cur_ops->writeunlock();
 
 		stutter_wait("lock_torture_writer");
