@@ -8,8 +8,8 @@
 #include <linux/vmalloc.h>
 
 #ifdef CONFIG_RTLWIFI_DEBUG
-void _rtl_dbg_trace(struct rtl_priv *rtlpriv, u64 comp, int level,
-		    const char *fmt, ...)
+void _rtl_dbg_out(struct rtl_priv *rtlpriv, u64 comp, int level,
+		  const char *fmt, ...)
 {
 	if (unlikely((comp & rtlpriv->cfg->mod_params->debug_mask) &&
 		     level <= rtlpriv->cfg->mod_params->debug_level)) {
@@ -26,7 +26,7 @@ void _rtl_dbg_trace(struct rtl_priv *rtlpriv, u64 comp, int level,
 		va_end(args);
 	}
 }
-EXPORT_SYMBOL_GPL(_rtl_dbg_trace);
+EXPORT_SYMBOL_GPL(_rtl_dbg_out);
 
 void _rtl_dbg_print(struct rtl_priv *rtlpriv, u64 comp, int level,
 		    const char *fmt, ...)
