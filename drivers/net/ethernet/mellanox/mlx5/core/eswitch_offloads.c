@@ -1861,7 +1861,17 @@ int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num)
 	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
 		return 0;
 
+	err = mlx5_esw_offloads_devlink_port_register(esw, vport_num);
+	if (err)
+		return err;
+
 	err = mlx5_esw_offloads_rep_load(esw, vport_num);
+	if (err)
+		goto load_err;
+	return err;
+
+load_err:
+	mlx5_esw_offloads_devlink_port_unregister(esw, vport_num);
 	return err;
 }
 
@@ -1871,6 +1881,7 @@ void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num)
 		return;
 
 	mlx5_esw_offloads_rep_unload(esw, vport_num);
+	mlx5_esw_offloads_devlink_port_unregister(esw, vport_num);
 }
 
 #define ESW_OFFLOADS_DEVCOM_PAIR	(0)
