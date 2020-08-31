@@ -102,26 +102,15 @@ static int sun8i_codec_runtime_resume(struct device *dev)
 	struct sun8i_codec *scodec = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(scodec->clk_module);
-	if (ret) {
-		dev_err(dev, "Failed to enable the module clock\n");
-		return ret;
-	}
-
 	regcache_cache_only(scodec->regmap, false);
 
 	ret = regcache_sync(scodec->regmap);
 	if (ret) {
 		dev_err(dev, "Failed to sync regmap cache\n");
-		goto err_disable_clk;
+		return ret;
 	}
 
 	return 0;
-
-err_disable_clk:
-	clk_disable_unprepare(scodec->clk_module);
-
-	return ret;
 }
 
 static int sun8i_codec_runtime_suspend(struct device *dev)
@@ -130,8 +119,6 @@ static int sun8i_codec_runtime_suspend(struct device *dev)
 
 	regcache_cache_only(scodec->regmap, true);
 	regcache_mark_dirty(scodec->regmap);
-
-	clk_disable_unprepare(scodec->clk_module);
 
 	return 0;
 }
@@ -379,6 +366,8 @@ static const struct snd_kcontrol_new sun8i_input_mixer_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
+	SND_SOC_DAPM_CLOCK_SUPPLY("mod"),
+
 	/* Digital parts of the DACs and ADC */
 	SND_SOC_DAPM_SUPPLY("DAC", SUN8I_DAC_DIG_CTRL, SUN8I_DAC_DIG_CTRL_ENDA,
 			    0, NULL, 0),
@@ -448,6 +437,8 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	/* Clock Routes */
+	{ "AIF1", NULL, "mod" },
+
 	{ "AIF1", NULL, "SYSCLK AIF1" },
 	{ "AIF1 PLL", NULL, "AIF1" },
 	{ "SYSCLK", NULL, "AIF1 PLL" },
