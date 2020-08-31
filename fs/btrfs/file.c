@@ -3105,15 +3105,15 @@ enum {
 	RANGE_BOUNDARY_HOLE,
 };
 
-static int btrfs_zero_range_check_range_boundary(struct inode *inode,
+static int btrfs_zero_range_check_range_boundary(struct btrfs_inode *inode,
 						 u64 offset)
 {
-	const u64 sectorsize = btrfs_inode_sectorsize(BTRFS_I(inode));
+	const u64 sectorsize = btrfs_inode_sectorsize(inode);
 	struct extent_map *em;
 	int ret;
 
 	offset = round_down(offset, sectorsize);
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(inode, NULL, 0, offset, sectorsize);
 	if (IS_ERR(em))
 		return PTR_ERR(em);
 
@@ -3228,7 +3228,8 @@ static int btrfs_zero_range(struct inode *inode,
 	 * to cover them.
 	 */
 	if (!IS_ALIGNED(offset, sectorsize)) {
-		ret = btrfs_zero_range_check_range_boundary(inode, offset);
+		ret = btrfs_zero_range_check_range_boundary(BTRFS_I(inode),
+							    offset);
 		if (ret < 0)
 			goto out;
 		if (ret == RANGE_BOUNDARY_HOLE) {
@@ -3244,7 +3245,7 @@ static int btrfs_zero_range(struct inode *inode,
 	}
 
 	if (!IS_ALIGNED(offset + len, sectorsize)) {
-		ret = btrfs_zero_range_check_range_boundary(inode,
+		ret = btrfs_zero_range_check_range_boundary(BTRFS_I(inode),
 							    offset + len);
 		if (ret < 0)
 			goto out;
