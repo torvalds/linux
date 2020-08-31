@@ -238,7 +238,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 					ast->dp501_fw_addr = NULL;
 				}
 			}
-			/* fallthrough */
+			fallthrough;
 		case 0x0c:
 			ast->tx_chip_type = AST_TX_DP501;
 		}

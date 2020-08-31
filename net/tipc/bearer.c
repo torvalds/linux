@@ -652,7 +652,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 			test_and_set_bit_lock(0, &b->up);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case NETDEV_GOING_DOWN:
 		clear_bit_unlock(0, &b->up);
 		tipc_reset_bearer(net, b);

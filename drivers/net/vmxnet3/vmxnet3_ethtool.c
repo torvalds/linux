@@ -743,7 +743,7 @@ vmxnet3_get_rss_hash_opts(struct vmxnet3_adapter *adapter,
 	case ESP_V4_FLOW:
 		if (rss_fields & VMXNET3_RSS_FIELDS_ESPIP4)
 			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			/* fallthrough */
+		fallthrough;
 	case SCTP_V4_FLOW:
 	case IPV4_FLOW:
 		info->data |= RXH_IP_SRC | RXH_IP_DST;

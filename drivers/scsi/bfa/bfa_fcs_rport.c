@@ -419,13 +419,13 @@ bfa_fcs_rport_sm_plogi(struct bfa_fcs_rport_s *rport, enum rport_event event)
 
 	case RPSM_EVENT_LOGO_RCVD:
 		bfa_fcs_rport_send_logo_acc(rport);
-		/* fall through */
+		fallthrough;
 	case RPSM_EVENT_PRLO_RCVD:
 		if (rport->prlo == BFA_TRUE)
 			bfa_fcs_rport_send_prlo_acc(rport);
 
 		bfa_fcxp_discard(rport->fcxp);
-		/* fall through */
+		fallthrough;
 	case RPSM_EVENT_FAILED:
 		if (rport->plogi_retries < BFA_FCS_RPORT_MAX_RETRIES) {
 			rport->plogi_retries++;
@@ -856,7 +856,7 @@ bfa_fcs_rport_sm_adisc_online(struct bfa_fcs_rport_s *rport,
 		 * At least go offline when a PLOGI is received.
 		 */
 		bfa_fcxp_discard(rport->fcxp);
-		/* fall through */
+		fallthrough;
 
 	case RPSM_EVENT_FAILED:
 	case RPSM_EVENT_ADDRESS_CHANGE:
@@ -1042,7 +1042,7 @@ bfa_fcs_rport_sm_fc4_logosend(struct bfa_fcs_rport_s *rport,
 
 	case RPSM_EVENT_LOGO_RCVD:
 		bfa_fcs_rport_send_logo_acc(rport);
-		/* fall through */
+		fallthrough;
 	case RPSM_EVENT_PRLO_RCVD:
 		if (rport->prlo == BFA_TRUE)
 			bfa_fcs_rport_send_prlo_acc(rport);
@@ -1131,7 +1131,7 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 			bfa_fcs_rport_send_plogiacc(rport, NULL);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 
 	case RPSM_EVENT_ADDRESS_CHANGE:
 		if (!bfa_fcs_lport_is_online(rport->port)) {
@@ -1288,7 +1288,7 @@ bfa_fcs_rport_sm_hcb_logosend(struct bfa_fcs_rport_s *rport,
 
 	case RPSM_EVENT_LOGO_RCVD:
 		bfa_fcs_rport_send_logo_acc(rport);
-		/* fall through */
+		fallthrough;
 	case RPSM_EVENT_PRLO_RCVD:
 		if (rport->prlo == BFA_TRUE)
 			bfa_fcs_rport_send_prlo_acc(rport);
@@ -1332,7 +1332,7 @@ bfa_fcs_rport_sm_logo_sending(struct bfa_fcs_rport_s *rport,
 
 	case RPSM_EVENT_LOGO_RCVD:
 		bfa_fcs_rport_send_logo_acc(rport);
-		/* fall through */
+		fallthrough;
 	case RPSM_EVENT_PRLO_RCVD:
 		if (rport->prlo == BFA_TRUE)
 			bfa_fcs_rport_send_prlo_acc(rport);

@@ -1895,7 +1895,7 @@ struct regulator *_regulator_get(struct device *dev, const char *id,
 		case EXCLUSIVE_GET:
 			dev_warn(dev,
 				 "dummy supplies not allowed for exclusive requests\n");
-			/* fall through */
+			fallthrough;
 
 		default:
 			return ERR_PTR(-ENODEV);

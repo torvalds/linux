@@ -67,7 +67,7 @@ static void cpsw_gmii_sel_am3352(struct cpsw_phy_sel_priv *priv,
 		dev_warn(priv->dev,
 			 "Unsupported PHY mode: \"%s\". Defaulting to MII.\n",
 			phy_modes(phy_mode));
-		/* fallthrough */
+		fallthrough;
 	case PHY_INTERFACE_MODE_MII:
 		mode = AM33XX_GMII_SEL_MODE_MII;
 		break;
@@ -122,7 +122,7 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 		dev_warn(priv->dev,
 			 "Unsupported PHY mode: \"%s\". Defaulting to MII.\n",
 			phy_modes(phy_mode));
-		/* fallthrough */
+		fallthrough;
 	case PHY_INTERFACE_MODE_MII:
 		mode = AM33XX_GMII_SEL_MODE_MII;
 		break;

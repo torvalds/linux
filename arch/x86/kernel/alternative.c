@@ -239,7 +239,7 @@ void __init arch_init_ideal_nops(void)
 			return;
 		}
 
-		/* fall through */
+		fallthrough;
 
 	default:
 #ifdef CONFIG_X86_64

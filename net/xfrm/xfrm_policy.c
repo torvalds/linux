@@ -3410,7 +3410,7 @@ decode_session6(struct sk_buff *skb, struct flowi *fl, bool reverse)
 		switch (nexthdr) {
 		case NEXTHDR_FRAGMENT:
 			onlyproto = 1;
-			/* fall through */
+			fallthrough;
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_HOP:
 		case NEXTHDR_DEST:

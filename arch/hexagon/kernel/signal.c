@@ -155,7 +155,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->r00 = -EINTR;
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->r06 = regs->syscall_nr;
 			pt_set_elr(regs, pt_elr(regs) - 4);

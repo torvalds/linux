@@ -151,7 +151,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 			break;
 		}
 		pr_crit("CPU%u: may not have shut down cleanly\n", cpu);
-		/* Fall through */
+		fallthrough;
 	case CPU_STUCK_IN_KERNEL:
 		pr_crit("CPU%u: is stuck in kernel\n", cpu);
 		if (status & CPU_STUCK_REASON_52_BIT_VA)

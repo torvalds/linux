@@ -137,7 +137,7 @@ static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
 				val;
 		case NN_LM_MOD_DEC:
 			lm_dec = true;
-			/* fall through */
+			fallthrough;
 		case NN_LM_MOD_INC:
 			if (val) {
 				pr_err("LM offset in inc/dev mode\n");

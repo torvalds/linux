@@ -238,7 +238,7 @@ static void dw_mci_hs_set_timing(struct dw_mci *host, int timing,
 		if (smpl_phase >= USE_DLY_MIN_SMPL &&
 				smpl_phase <= USE_DLY_MAX_SMPL)
 			use_smpl_dly = 1;
-			/* fallthrough */
+		fallthrough;
 	case MMC_TIMING_UHS_SDR50:
 		if (smpl_phase >= ENABLE_SHIFT_MIN_SMPL &&
 				smpl_phase <= ENABLE_SHIFT_MAX_SMPL)

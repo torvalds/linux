@@ -3528,7 +3528,7 @@ static int __qedr_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		break;
 	case IB_WR_RDMA_READ_WITH_INV:
 		SET_FIELD2(wqe->flags, RDMA_SQ_RDMA_WQE_1ST_READ_INV_FLG, 1);
-		/* fallthrough -- same is identical to RDMA READ */
+		fallthrough;	/* same is identical to RDMA READ */
 
 	case IB_WR_RDMA_READ:
 		wqe->req_type = RDMA_SQ_REQ_TYPE_RDMA_RD;

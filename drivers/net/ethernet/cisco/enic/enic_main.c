@@ -272,7 +272,7 @@ static netdev_features_t enic_features_check(struct sk_buff *skb,
 	case ntohs(ETH_P_IPV6):
 		if (!(enic->vxlan.flags & ENIC_VXLAN_INNER_IPV6))
 			goto out;
-		/* Fall through */
+		fallthrough;
 	case ntohs(ETH_P_IP):
 		break;
 	default:

@@ -8835,7 +8835,7 @@ static int walk_phys(struct niu *np, struct niu_parent *parent)
 			else
 				goto unknown_vg_1g_port;
 
-			/* fallthru */
+			fallthrough;
 		case 0x22:
 			val = (phy_encode(PORT_TYPE_10G, 0) |
 			       phy_encode(PORT_TYPE_10G, 1) |
@@ -8860,7 +8860,7 @@ static int walk_phys(struct niu *np, struct niu_parent *parent)
 			else
 				goto unknown_vg_1g_port;
 
-			/* fallthru */
+			fallthrough;
 		case 0x13:
 			if ((lowest_10g & 0x7) == 0)
 				val = (phy_encode(PORT_TYPE_10G, 0) |

@@ -1181,7 +1181,7 @@ int nfs_lookup_verify_inode(struct inode *inode, unsigned int flags)
 			/* A NFSv4 OPEN will revalidate later */
 			if (server->caps & NFS_CAP_ATOMIC_OPEN)
 				goto out;
-			/* Fallthrough */
+			fallthrough;
 		case S_IFDIR:
 			if (server->flags & NFS_MOUNT_NOCTO)
 				break;

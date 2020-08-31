@@ -55,6 +55,8 @@ static DEFINE_SPINLOCK(ghes_lock);
 static bool __read_mostly force_load;
 module_param(force_load, bool, 0);
 
+static bool system_scanned;
+
 /* Memory Device - Type 17 of SMBIOS spec */
 struct memdev_dmi_entry {
 	u8 type;
@@ -225,14 +227,12 @@ static void enumerate_dimms(const struct dmi_header *dh, void *arg)
 
 static void ghes_scan_system(void)
 {
-	static bool scanned;
-
-	if (scanned)
+	if (system_scanned)
 		return;
 
 	dmi_walk(enumerate_dimms, &ghes_hw);
 
-	scanned = true;
+	system_scanned = true;
 }
 
 void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
@@ -630,6 +630,8 @@ void ghes_edac_unregister(struct ghes *ghes)
 	unsigned long flags;
 
 	mutex_lock(&ghes_reg_mutex);
+
+	system_scanned = false;
 
 	if (!refcount_dec_and_test(&ghes_refcount))
 		goto unlock;

@@ -857,7 +857,7 @@ static void acornfb_parse_dram(char *opt)
 		case 'M':
 		case 'm':
 			size *= 1024;
-			/* Fall through */
+			fallthrough;
 		case 'K':
 		case 'k':
 			size *= 1024;

@@ -1985,7 +1985,7 @@ void stmmac_selftest_run(struct net_device *dev,
 				ret = phy_loopback(dev->phydev, true);
 			if (!ret)
 				break;
-			/* Fallthrough */
+			fallthrough;
 		case STMMAC_LOOPBACK_MAC:
 			ret = stmmac_set_mac_loopback(priv, priv->ioaddr, true);
 			break;
@@ -2018,7 +2018,7 @@ void stmmac_selftest_run(struct net_device *dev,
 				ret = phy_loopback(dev->phydev, false);
 			if (!ret)
 				break;
-			/* Fallthrough */
+			fallthrough;
 		case STMMAC_LOOPBACK_MAC:
 			stmmac_set_mac_loopback(priv, priv->ioaddr, false);
 			break;

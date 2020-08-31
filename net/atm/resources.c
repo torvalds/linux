@@ -266,7 +266,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 				goto done;
 			}
 	}
-	/* fall through */
+		fallthrough;
 	case ATM_SETESIF:
 	{
 		unsigned char esi[ESI_LEN];
@@ -288,7 +288,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 			error = -EPERM;
 			goto done;
 		}
-		/* fall through */
+		fallthrough;
 	case ATM_GETSTAT:
 		size = sizeof(struct atm_dev_stats);
 		error = fetch_stats(dev, buf, cmd == ATM_GETSTATZ);
@@ -361,7 +361,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 			error = -EINVAL;
 			goto done;
 		}
-		/* fall through */
+		fallthrough;
 	case ATM_SETCIRANGE:
 	case SONET_GETSTATZ:
 	case SONET_SETDIAG:
@@ -371,7 +371,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 			error = -EPERM;
 			goto done;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		if (IS_ENABLED(CONFIG_COMPAT) && compat) {
 #ifdef CONFIG_COMPAT
