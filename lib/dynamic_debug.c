@@ -525,7 +525,7 @@ static int ddebug_exec_query(char *query_string, const char *modname)
    last error or number of matching callsites.  Module name is either
    in param (for boot arg) or perhaps in query string.
 */
-int ddebug_exec_queries(char *query, const char *modname)
+static int ddebug_exec_queries(char *query, const char *modname)
 {
 	char *split;
 	int i, errs = 0, exitcode = 0, rc, nfound = 0;
@@ -557,7 +557,30 @@ int ddebug_exec_queries(char *query, const char *modname)
 		return exitcode;
 	return nfound;
 }
-EXPORT_SYMBOL_GPL(ddebug_exec_queries);
+
+/**
+ * dynamic_debug_exec_queries - select and change dynamic-debug prints
+ * @query: query-string described in admin-guide/dynamic-debug-howto
+ * @modname: string containing module name, usually &module.mod_name
+ *
+ * This uses the >/proc/dynamic_debug/control reader, allowing module
+ * authors to modify their dynamic-debug callsites. The modname is
+ * canonically struct module.mod_name, but can also be null or a
+ * module-wildcard, for example: "drm*".
+ */
+int dynamic_debug_exec_queries(const char *query, const char *modname)
+{
+	int rc;
+	char *qry = kstrndup(query, PAGE_SIZE, GFP_KERNEL);
+
+	if (!query)
+		return -ENOMEM;
+
+	rc = ddebug_exec_queries(qry, modname);
+	kfree(qry);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(dynamic_debug_exec_queries);
 
 #define PREFIX_SIZE 64
 
