@@ -213,7 +213,7 @@ static void wacom_handle_model_response(struct wacom *wacom)
 		case 0x3731: /* PL-710 */
 			wacom->res_x = 2540;
 			wacom->res_y = 2540;
-			/* fall through */
+			fallthrough;
 		case 0x3535: /* PL-550 */
 		case 0x3830: /* PL-800 */
 			wacom->extra_z_bits = 2;

@@ -2825,7 +2825,7 @@ int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	case MMC_TIMING_UHS_SDR50:
 		if (host->flags & SDHCI_SDR50_NEEDS_TUNING)
 			break;
-		/* FALLTHROUGH */
+		fallthrough;
 
 	default:
 		goto out;

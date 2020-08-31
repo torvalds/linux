@@ -484,7 +484,7 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 			delay_max = 10000; /* large range optimises sleepmode */
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		ctrl1 |= AB8500_GPADC_CTRL1_BUF_ENA;
 		break;

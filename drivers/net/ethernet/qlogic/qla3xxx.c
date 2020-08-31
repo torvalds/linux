@@ -1542,7 +1542,7 @@ static void ql_link_state_machine_work(struct work_struct *work)
 		if (test_bit(QL_LINK_MASTER, &qdev->flags))
 			ql_port_start(qdev);
 		qdev->port_link_state = LS_DOWN;
-		/* Fall Through */
+		fallthrough;
 
 	case LS_DOWN:
 		if (curr_link_state == LS_UP) {

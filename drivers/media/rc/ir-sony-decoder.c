@@ -102,7 +102,7 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		}
 
 		data->state = STATE_FINISHED;
-		/* Fall through */
+		fallthrough;
 
 	case STATE_FINISHED:
 		if (ev.pulse)

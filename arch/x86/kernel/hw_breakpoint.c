@@ -349,7 +349,7 @@ static int arch_build_bp_info(struct perf_event *bp,
 			hw->len = X86_BREAKPOINT_LEN_X;
 			return 0;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}

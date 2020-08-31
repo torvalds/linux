@@ -1189,7 +1189,7 @@ static int net_dm_alert_mode_get_from_info(struct genl_info *info,
 	val = nla_get_u8(info->attrs[NET_DM_ATTR_ALERT_MODE]);
 
 	switch (val) {
-	case NET_DM_ALERT_MODE_SUMMARY: /* fall-through */
+	case NET_DM_ALERT_MODE_SUMMARY:
 	case NET_DM_ALERT_MODE_PACKET:
 		*p_alert_mode = val;
 		break;

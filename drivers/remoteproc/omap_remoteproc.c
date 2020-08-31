@@ -511,7 +511,6 @@ static void omap_rproc_mbox_callback(struct mbox_client *client, void *data)
 		dev_info(dev, "received echo reply from %s\n", name);
 		break;
 	case RP_MBOX_SUSPEND_ACK:
-		/* Fall through */
 	case RP_MBOX_SUSPEND_CANCEL:
 		oproc->suspend_acked = msg == RP_MBOX_SUSPEND_ACK;
 		complete(&oproc->pm_comp);

@@ -231,7 +231,7 @@ static int nct7904_read_fan(struct device *dev, u32 attr, int channel,
 		if (ret < 0)
 			return ret;
 		cnt = ((ret & 0xff00) >> 3) | (ret & 0x1f);
-		if (cnt == 0x1fff)
+		if (cnt == 0 || cnt == 0x1fff)
 			rpm = 0;
 		else
 			rpm = 1350000 / cnt;
@@ -243,7 +243,7 @@ static int nct7904_read_fan(struct device *dev, u32 attr, int channel,
 		if (ret < 0)
 			return ret;
 		cnt = ((ret & 0xff00) >> 3) | (ret & 0x1f);
-		if (cnt == 0x1fff)
+		if (cnt == 0 || cnt == 0x1fff)
 			rpm = 0;
 		else
 			rpm = 1350000 / cnt;

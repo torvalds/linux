@@ -1578,12 +1578,12 @@ static struct ib_qp *_mlx4_ib_create_qp(struct ib_pd *pd,
 		pd = to_mxrcd(init_attr->xrcd)->pd;
 		xrcdn = to_mxrcd(init_attr->xrcd)->xrcdn;
 		init_attr->send_cq = to_mxrcd(init_attr->xrcd)->cq;
-		/* fall through */
+		fallthrough;
 	case IB_QPT_XRC_INI:
 		if (!(to_mdev(pd->device)->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC))
 			return ERR_PTR(-ENOSYS);
 		init_attr->recv_cq = init_attr->send_cq;
-		/* fall through */
+		fallthrough;
 	case IB_QPT_RC:
 	case IB_QPT_UC:
 	case IB_QPT_RAW_PACKET:
@@ -1592,7 +1592,7 @@ static struct ib_qp *_mlx4_ib_create_qp(struct ib_pd *pd,
 			return ERR_PTR(-ENOMEM);
 		qp->pri.vid = 0xFFFF;
 		qp->alt.vid = 0xFFFF;
-		/* fall through */
+		fallthrough;
 	case IB_QPT_UD:
 	{
 		err = create_qp_common(pd, init_attr, udata, 0, &qp);

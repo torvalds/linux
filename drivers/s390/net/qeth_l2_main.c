@@ -488,7 +488,7 @@ static void qeth_l2_rx_mode_work(struct work_struct *work)
 				kfree(mac);
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			/* for next call to set_rx_mode(): */
 			mac->disp_flag = QETH_DISP_ADDR_DELETE;

@@ -711,7 +711,7 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 	case FLUSH_COND_STABLE:
 		if (nfs_reqs_to_commit(cinfo))
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		hdr->args.stable = NFS_FILE_SYNC;
 	}

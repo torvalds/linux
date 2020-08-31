@@ -566,7 +566,7 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
 		id_mode_dis = 1;
-		/* fallthrough */
+		fallthrough;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		port_mode = EXT_GPHY;
 		break;

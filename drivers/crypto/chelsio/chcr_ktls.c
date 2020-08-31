@@ -135,7 +135,7 @@ static int chcr_ktls_update_connection_state(struct chcr_ktls_info *tx_info,
 			break;
 		/* update to the next state and also initialize TCB */
 		tx_info->connection_state = new_state;
-		/* FALLTHRU */
+		fallthrough;
 	case KTLS_CONN_ACT_OPEN_RPL:
 		/* if we are stuck in this state, means tcb init might not
 		 * received by HW, try sending it again.
@@ -150,7 +150,7 @@ static int chcr_ktls_update_connection_state(struct chcr_ktls_info *tx_info,
 			break;
 		/* update to the next state and check if l2t_state is valid  */
 		tx_info->connection_state = new_state;
-		/* FALLTHRU */
+		fallthrough;
 	case KTLS_CONN_SET_TCB_RPL:
 		/* Check if l2t state is valid, then move to ready state. */
 		if (cxgb4_check_l2t_valid(tx_info->l2te)) {

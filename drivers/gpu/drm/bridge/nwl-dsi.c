@@ -409,7 +409,6 @@ static bool nwl_dsi_read_packet(struct nwl_dsi *dsi, u32 status)
 
 		switch (data_type) {
 		case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE:
-			fallthrough;
 		case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE:
 			if (xfer->msg->rx_len > 1) {
 				/* read second byte */
@@ -418,7 +417,6 @@ static bool nwl_dsi_read_packet(struct nwl_dsi *dsi, u32 status)
 			}
 			fallthrough;
 		case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
-			fallthrough;
 		case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
 			if (xfer->msg->rx_len > 0) {
 				/* read first byte */

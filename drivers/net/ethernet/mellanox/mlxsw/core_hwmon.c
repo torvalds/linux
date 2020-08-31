@@ -259,8 +259,8 @@ static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,
 		 */
 		fault = 1;
 		break;
-	case MLXSW_REG_MTBR_NO_CONN: /* fall-through */
-	case MLXSW_REG_MTBR_NO_TEMP_SENS: /* fall-through */
+	case MLXSW_REG_MTBR_NO_CONN:
+	case MLXSW_REG_MTBR_NO_TEMP_SENS:
 	case MLXSW_REG_MTBR_INDEX_NA:
 	default:
 		fault = 0;

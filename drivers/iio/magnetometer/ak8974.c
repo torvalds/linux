@@ -499,7 +499,7 @@ static int ak8974_detect(struct ak8974 *ak8974)
 	switch (whoami) {
 	case AK8974_WHOAMI_VALUE_AMI306:
 		name = "ami306";
-		/* fall-through */
+		fallthrough;
 	case AK8974_WHOAMI_VALUE_AMI305:
 		ret = regmap_read(ak8974->map, AMI305_VER, &fw);
 		if (ret)

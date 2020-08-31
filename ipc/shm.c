@@ -1179,7 +1179,7 @@ static long ksys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf, int ver
 	case IPC_SET:
 		if (copy_shmid_from_user(&sem64, buf, version))
 			return -EFAULT;
-		/* fallthru */
+		fallthrough;
 	case IPC_RMID:
 		return shmctl_down(ns, shmid, cmd, &sem64);
 	case SHM_LOCK:
@@ -1374,7 +1374,7 @@ static long compat_ksys_shmctl(int shmid, int cmd, void __user *uptr, int versio
 	case IPC_SET:
 		if (copy_compat_shmid_from_user(&sem64, uptr, version))
 			return -EFAULT;
-		/* fallthru */
+		fallthrough;
 	case IPC_RMID:
 		return shmctl_down(ns, shmid, cmd, &sem64);
 	case SHM_LOCK:

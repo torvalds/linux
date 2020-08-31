@@ -227,7 +227,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka)
 			regs->er0 = -EINTR;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case -ERESTARTNOINTR:
 do_restart:
 		regs->er0 = regs->orig_er0;

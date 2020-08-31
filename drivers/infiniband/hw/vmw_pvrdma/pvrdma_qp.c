@@ -238,7 +238,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			ret = -EINVAL;
 			goto err_qp;
 		}
-		/* fall through */
+		fallthrough;
 	case IB_QPT_RC:
 	case IB_QPT_UD:
 		qp = kzalloc(sizeof(*qp), GFP_KERNEL);

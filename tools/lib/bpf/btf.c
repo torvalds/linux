@@ -41,6 +41,7 @@ struct btf {
 	__u32 types_size;
 	__u32 data_size;
 	int fd;
+	int ptr_sz;
 };
 
 static inline __u64 ptr_to_u64(const void *ptr)
@@ -221,6 +222,70 @@ const struct btf_type *btf__type_by_id(const struct btf *btf, __u32 type_id)
 	return btf->types[type_id];
 }
 
+static int determine_ptr_size(const struct btf *btf)
+{
+	const struct btf_type *t;
+	const char *name;
+	int i;
+
+	for (i = 1; i <= btf->nr_types; i++) {
+		t = btf__type_by_id(btf, i);
+		if (!btf_is_int(t))
+			continue;
+
+		name = btf__name_by_offset(btf, t->name_off);
+		if (!name)
+			continue;
+
+		if (strcmp(name, "long int") == 0 ||
+		    strcmp(name, "long unsigned int") == 0) {
+			if (t->size != 4 && t->size != 8)
+				continue;
+			return t->size;
+		}
+	}
+
+	return -1;
+}
+
+static size_t btf_ptr_sz(const struct btf *btf)
+{
+	if (!btf->ptr_sz)
+		((struct btf *)btf)->ptr_sz = determine_ptr_size(btf);
+	return btf->ptr_sz < 0 ? sizeof(void *) : btf->ptr_sz;
+}
+
+/* Return pointer size this BTF instance assumes. The size is heuristically
+ * determined by looking for 'long' or 'unsigned long' integer type and
+ * recording its size in bytes. If BTF type information doesn't have any such
+ * type, this function returns 0. In the latter case, native architecture's
+ * pointer size is assumed, so will be either 4 or 8, depending on
+ * architecture that libbpf was compiled for. It's possible to override
+ * guessed value by using btf__set_pointer_size() API.
+ */
+size_t btf__pointer_size(const struct btf *btf)
+{
+	if (!btf->ptr_sz)
+		((struct btf *)btf)->ptr_sz = determine_ptr_size(btf);
+
+	if (btf->ptr_sz < 0)
+		/* not enough BTF type info to guess */
+		return 0;
+
+	return btf->ptr_sz;
+}
+
+/* Override or set pointer size in bytes. Only values of 4 and 8 are
+ * supported.
+ */
+int btf__set_pointer_size(struct btf *btf, size_t ptr_sz)
+{
+	if (ptr_sz != 4 && ptr_sz != 8)
+		return -EINVAL;
+	btf->ptr_sz = ptr_sz;
+	return 0;
+}
+
 static bool btf_type_is_void(const struct btf_type *t)
 {
 	return t == &btf_void || btf_is_fwd(t);
@@ -253,7 +318,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 			size = t->size;
 			goto done;
 		case BTF_KIND_PTR:
-			size = sizeof(void *);
+			size = btf_ptr_sz(btf);
 			goto done;
 		case BTF_KIND_TYPEDEF:
 		case BTF_KIND_VOLATILE:
@@ -293,9 +358,9 @@ int btf__align_of(const struct btf *btf, __u32 id)
 	switch (kind) {
 	case BTF_KIND_INT:
 	case BTF_KIND_ENUM:
-		return min(sizeof(void *), (size_t)t->size);
+		return min(btf_ptr_sz(btf), (size_t)t->size);
 	case BTF_KIND_PTR:
-		return sizeof(void *);
+		return btf_ptr_sz(btf);
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_CONST:
@@ -532,6 +597,18 @@ struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext)
 	btf = btf__new(btf_data->d_buf, btf_data->d_size);
 	if (IS_ERR(btf))
 		goto done;
+
+	switch (gelf_getclass(elf)) {
+	case ELFCLASS32:
+		btf__set_pointer_size(btf, 4);
+		break;
+	case ELFCLASS64:
+		btf__set_pointer_size(btf, 8);
+		break;
+	default:
+		pr_warn("failed to get ELF class (bitness) for %s\n", path);
+		break;
+	}
 
 	if (btf_ext && btf_ext_data) {
 		*btf_ext = btf_ext__new(btf_ext_data->d_buf,

@@ -898,7 +898,7 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi *ssi, unsigned int fmt)
 					"missing baudclk for master mode\n");
 				return -EINVAL;
 			}
-			/* fall through */
+			fallthrough;
 		case SND_SOC_DAIFMT_CBM_CFS:
 			ssi->i2s_net |= SSI_SCR_I2S_MODE_MASTER;
 			break;
