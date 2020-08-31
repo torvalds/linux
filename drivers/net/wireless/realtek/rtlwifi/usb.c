@@ -310,7 +310,8 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 	init_usb_anchor(&rtlusb->rx_cleanup_urbs);
 
 	skb_queue_head_init(&rtlusb->rx_queue);
-	rtlusb->rx_work_tasklet.func = (void(*)(unsigned long))_rtl_rx_work;
+	rtlusb->rx_work_tasklet.func = (void(*))_rtl_rx_work;
+	rtlusb->rx_work_tasklet.data = (unsigned long)&rtlusb->rx_work_tasklet;
 
 	return 0;
 }
