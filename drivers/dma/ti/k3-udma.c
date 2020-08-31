@@ -3101,14 +3101,14 @@ static struct udma_match_data am654_main_data = {
 	.psil_base = 0x1000,
 	.enable_memcpy_support = true,
 	.statictr_z_mask = GENMASK(11, 0),
-	.rchan_oes_offset = 0x2000,
+	.rchan_oes_offset = 0x200,
 };
 
 static struct udma_match_data am654_mcu_data = {
 	.psil_base = 0x6000,
 	.enable_memcpy_support = false,
 	.statictr_z_mask = GENMASK(11, 0),
-	.rchan_oes_offset = 0x2000,
+	.rchan_oes_offset = 0x200,
 };
 
 static struct udma_match_data j721e_main_data = {
