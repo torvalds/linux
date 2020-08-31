@@ -333,11 +333,10 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 
 	kfree(desc);
 
-	if (!ret)
-		ret = devm_add_action_or_reset(ctrldev, devm_deinstantiate_rng,
-					       ctrldev);
+	if (ret)
+		return ret;
 
-	return ret;
+	return devm_add_action_or_reset(ctrldev, devm_deinstantiate_rng, ctrldev);
 }
 
 /*
