@@ -258,10 +258,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 
 		if (dr_mask_is_smac_set(&mask.outer) &&
 		    dr_mask_is_dmac_set(&mask.outer)) {
-			ret = mlx5dr_ste_build_eth_l2_src_des(&sb[idx++], &mask,
-							      inner, rx);
-			if (ret)
-				return ret;
+			mlx5dr_ste_build_eth_l2_src_des(&sb[idx++], &mask,
+							inner, rx);
 		}
 
 		if (dr_mask_is_smac_set(&mask.outer))
@@ -338,10 +336,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 
 		if (dr_mask_is_smac_set(&mask.inner) &&
 		    dr_mask_is_dmac_set(&mask.inner)) {
-			ret = mlx5dr_ste_build_eth_l2_src_des(&sb[idx++],
-							      &mask, inner, rx);
-			if (ret)
-				return ret;
+			mlx5dr_ste_build_eth_l2_src_des(&sb[idx++],
+							&mask, inner, rx);
 		}
 
 		if (dr_mask_is_smac_set(&mask.inner))

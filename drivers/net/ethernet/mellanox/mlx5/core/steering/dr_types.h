@@ -288,9 +288,9 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 			     struct mlx5dr_matcher_rx_tx *nic_matcher,
 			     struct mlx5dr_match_param *value,
 			     u8 *ste_arr);
-int mlx5dr_ste_build_eth_l2_src_des(struct mlx5dr_ste_build *builder,
-				    struct mlx5dr_match_param *mask,
-				    bool inner, bool rx);
+void mlx5dr_ste_build_eth_l2_src_des(struct mlx5dr_ste_build *builder,
+				     struct mlx5dr_match_param *mask,
+				     bool inner, bool rx);
 void mlx5dr_ste_build_eth_l3_ipv4_5_tuple(struct mlx5dr_ste_build *sb,
 					  struct mlx5dr_match_param *mask,
 					  bool inner, bool rx);
