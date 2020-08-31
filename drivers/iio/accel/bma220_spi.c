@@ -30,7 +30,6 @@
 #define BMA220_SUSPEND_WAKE			0x00
 
 #define BMA220_DEVICE_NAME			"bma220"
-#define BMA220_SCALE_AVAILABLE			"0.623 1.248 2.491 4.983"
 
 #define BMA220_ACCEL_CHANNEL(index, reg, axis) {			\
 	.type = IIO_ACCEL,						\
@@ -55,19 +54,8 @@ enum bma220_axis {
 	AXIS_Z,
 };
 
-static IIO_CONST_ATTR(in_accel_scale_available, BMA220_SCALE_AVAILABLE);
-
-static struct attribute *bma220_attributes[] = {
-	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group bma220_attribute_group = {
-	.attrs = bma220_attributes,
-};
-
-static const int bma220_scale_table[][4] = {
-	{0, 623000}, {1, 248000}, {2, 491000}, {4, 983000}
+static const int bma220_scale_table[][2] = {
+	{0, 623000}, {1, 248000}, {2, 491000}, {4, 983000},
 };
 
 struct bma220_data {
@@ -182,10 +170,26 @@ static int bma220_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int bma220_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = (int *)bma220_scale_table;
+		*type = IIO_VAL_INT_PLUS_MICRO;
+		*length = ARRAY_SIZE(bma220_scale_table) * 2;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info bma220_info = {
 	.read_raw		= bma220_read_raw,
 	.write_raw		= bma220_write_raw,
-	.attrs			= &bma220_attribute_group,
+	.read_avail		= bma220_read_avail,
 };
 
 static int bma220_init(struct spi_device *spi)
