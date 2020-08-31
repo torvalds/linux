@@ -28,15 +28,6 @@ struct felix_info {
 	int				imdio_pci_bar;
 	int	(*mdio_bus_alloc)(struct ocelot *ocelot);
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
-	void	(*pcs_config)(struct ocelot *ocelot, int port,
-			      unsigned int link_an_mode,
-			      const struct phylink_link_state *state);
-	void	(*pcs_link_up)(struct ocelot *ocelot, int port,
-			       unsigned int link_an_mode,
-			       phy_interface_t interface,
-			       int speed, int duplex);
-	void	(*pcs_link_state)(struct ocelot *ocelot, int port,
-				  struct phylink_link_state *state);
 	void	(*phylink_validate)(struct ocelot *ocelot, int port,
 				    unsigned long *supported,
 				    struct phylink_link_state *state);
@@ -59,20 +50,11 @@ struct felix {
 	const struct felix_info		*info;
 	struct ocelot			ocelot;
 	struct mii_bus			*imdio;
-	struct phy_device		**pcs;
+	struct lynx_pcs			**pcs;
 	resource_size_t			switch_base;
 	resource_size_t			imdio_base;
 };
 
-void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
-			    struct phylink_link_state *state);
-void vsc9959_pcs_config(struct ocelot *ocelot, int port,
-			unsigned int link_an_mode,
-			const struct phylink_link_state *state);
-void vsc9959_pcs_link_up(struct ocelot *ocelot, int port,
-			 unsigned int link_an_mode,
-			 phy_interface_t interface,
-			 int speed, int duplex);
 void vsc9959_mdio_bus_free(struct ocelot *ocelot);
 
 #endif

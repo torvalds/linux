@@ -8,6 +8,7 @@ config NET_DSA_MSCC_FELIX
 	select MSCC_OCELOT_SWITCH_LIB
 	select NET_DSA_TAG_OCELOT
 	select FSL_ENETC_MDIO
+	select PCS_LYNX
 	help
 	  This driver supports network switches from the Vitesse /
 	  Microsemi / Microchip Ocelot family of switching cores that are

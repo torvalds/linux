@@ -7,6 +7,7 @@
 #include <soc/mscc/ocelot_sys.h>
 #include <soc/mscc/ocelot.h>
 #include <linux/of_platform.h>
+#include <linux/pcs-lynx.h>
 #include <linux/packing.h>
 #include <linux/iopoll.h>
 #include "felix.h"
@@ -960,18 +961,27 @@ static int vsc9953_mdio_bus_alloc(struct ocelot *ocelot)
 
 	for (port = 0; port < felix->info->num_ports; port++) {
 		struct ocelot_port *ocelot_port = ocelot->ports[port];
-		struct phy_device *pcs;
 		int addr = port + 4;
+		struct mdio_device *pcs;
+		struct lynx_pcs *lynx;
+
+		if (dsa_is_unused_port(felix->ds, port))
+			continue;
 
 		if (ocelot_port->phy_mode == PHY_INTERFACE_MODE_INTERNAL)
 			continue;
 
-		pcs = get_phy_device(felix->imdio, addr, false);
+		pcs = mdio_device_create(felix->imdio, addr);
 		if (IS_ERR(pcs))
 			continue;
 
-		pcs->interface = ocelot_port->phy_mode;
-		felix->pcs[port] = pcs;
+		lynx = lynx_pcs_create(pcs);
+		if (!lynx) {
+			mdio_device_free(pcs);
+			continue;
+		}
+
+		felix->pcs[port] = lynx;
 
 		dev_info(dev, "Found PCS at internal MDIO address %d\n", addr);
 	}
@@ -1013,9 +1023,6 @@ static const struct felix_info seville_info_vsc9953 = {
 	.num_ports		= 10,
 	.mdio_bus_alloc		= vsc9953_mdio_bus_alloc,
 	.mdio_bus_free		= vsc9959_mdio_bus_free,
-	.pcs_config		= vsc9959_pcs_config,
-	.pcs_link_up		= vsc9959_pcs_link_up,
-	.pcs_link_state		= vsc9959_pcs_link_state,
 	.phylink_validate	= vsc9953_phylink_validate,
 	.prevalidate_phy_mode	= vsc9953_prevalidate_phy_mode,
 	.xmit_template_populate	= vsc9953_xmit_template_populate,
