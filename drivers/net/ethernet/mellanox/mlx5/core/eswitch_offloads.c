@@ -54,6 +54,15 @@
 #define MLX5_ESW_MISS_FLOWS (2)
 #define UPLINK_REP_INDEX 0
 
+#define MLX5_ESW_VPORT_TBL_SIZE 128
+#define MLX5_ESW_VPORT_TBL_NUM_GROUPS  4
+
+static const struct esw_vport_tbl_namespace mlx5_esw_vport_tbl_mirror_ns = {
+	.max_fte = MLX5_ESW_VPORT_TBL_SIZE,
+	.max_num_groups = MLX5_ESW_VPORT_TBL_NUM_GROUPS,
+	.flags = 0,
+};
+
 static struct mlx5_eswitch_rep *mlx5_eswitch_get_rep(struct mlx5_eswitch *esw,
 						     u16 vport_num)
 {
@@ -482,6 +491,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		fwd_attr.chain = attr->chain;
 		fwd_attr.prio = attr->prio;
 		fwd_attr.vport = esw_attr->in_rep->vport;
+		fwd_attr.vport_ns = &mlx5_esw_vport_tbl_mirror_ns;
 
 		fdb = mlx5_esw_vporttbl_get(esw, &fwd_attr);
 	} else {
@@ -548,6 +558,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	fwd_attr.chain = attr->chain;
 	fwd_attr.prio = attr->prio;
 	fwd_attr.vport = esw_attr->in_rep->vport;
+	fwd_attr.vport_ns = &mlx5_esw_vport_tbl_mirror_ns;
 	fwd_fdb = mlx5_esw_vporttbl_get(esw, &fwd_attr);
 	if (IS_ERR(fwd_fdb)) {
 		rule = ERR_CAST(fwd_fdb);
@@ -628,6 +639,7 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 		fwd_attr.chain = attr->chain;
 		fwd_attr.prio = attr->prio;
 		fwd_attr.vport = esw_attr->in_rep->vport;
+		fwd_attr.vport_ns = &mlx5_esw_vport_tbl_mirror_ns;
 	}
 
 	if (fwd_rule)  {
@@ -1345,6 +1357,7 @@ static void esw_vport_tbl_put(struct mlx5_eswitch *esw)
 	attr.prio = 1;
 	mlx5_esw_for_all_vports(esw, i, vport) {
 		attr.vport = vport->vport;
+		attr.vport_ns = &mlx5_esw_vport_tbl_mirror_ns;
 		mlx5_esw_vporttbl_put(esw, &attr);
 	}
 }
@@ -1360,6 +1373,7 @@ static int esw_vport_tbl_get(struct mlx5_eswitch *esw)
 	attr.prio = 1;
 	mlx5_esw_for_all_vports(esw, i, vport) {
 		attr.vport = vport->vport;
+		attr.vport_ns = &mlx5_esw_vport_tbl_mirror_ns;
 		fdb = mlx5_esw_vporttbl_get(esw, &attr);
 		if (IS_ERR(fdb))
 			goto out;

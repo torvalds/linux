@@ -713,10 +713,17 @@ void
 esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 				      struct mlx5_vport *vport);
 
+struct esw_vport_tbl_namespace {
+	int max_fte;
+	int max_num_groups;
+	u32 flags;
+};
+
 struct mlx5_vport_tbl_attr {
 	u16 chain;
 	u16 prio;
 	u16 vport;
+	const struct esw_vport_tbl_namespace *vport_ns;
 };
 
 struct mlx5_flow_table *

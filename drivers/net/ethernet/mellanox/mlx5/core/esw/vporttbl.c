@@ -3,9 +3,6 @@
 
 #include "eswitch.h"
 
-#define MLX5_ESW_VPORT_TABLE_SIZE 128
-#define MLX5_ESW_VPORT_TBL_NUM_GROUPS  4
-
 /* This struct is used as a key to the hash table and we need it to be packed
  * so hash result is consistent
  */
@@ -14,6 +11,7 @@ struct mlx5_vport_key {
 	u16 prio;
 	u16 vport;
 	u16 vhca_id;
+	const struct esw_vport_tbl_namespace *vport_ns;
 } __packed;
 
 struct mlx5_vport_table {
@@ -24,14 +22,16 @@ struct mlx5_vport_table {
 };
 
 static struct mlx5_flow_table *
-esw_vport_tbl_create(struct mlx5_eswitch *esw, struct mlx5_flow_namespace *ns)
+esw_vport_tbl_create(struct mlx5_eswitch *esw, struct mlx5_flow_namespace *ns,
+		     const struct esw_vport_tbl_namespace *vport_ns)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *fdb;
 
-	ft_attr.autogroup.max_num_groups = MLX5_ESW_VPORT_TBL_NUM_GROUPS;
-	ft_attr.max_fte = MLX5_ESW_VPORT_TABLE_SIZE;
+	ft_attr.autogroup.max_num_groups = vport_ns->max_num_groups;
+	ft_attr.max_fte = vport_ns->max_fte;
 	ft_attr.prio = FDB_PER_VPORT;
+	ft_attr.flags = vport_ns->flags;
 	fdb = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		esw_warn(esw->dev, "Failed to create per vport FDB Table err %ld\n",
@@ -49,6 +49,7 @@ static u32 flow_attr_to_vport_key(struct mlx5_eswitch *esw,
 	key->chain = attr->chain;
 	key->prio = attr->prio;
 	key->vhca_id = MLX5_CAP_GEN(esw->dev, vhca_id);
+	key->vport_ns  = attr->vport_ns;
 	return jhash(key, sizeof(*key), 0);
 }
 
@@ -96,7 +97,7 @@ mlx5_esw_vporttbl_get(struct mlx5_eswitch *esw, struct mlx5_vport_tbl_attr *attr
 		goto err_ns;
 	}
 
-	fdb = esw_vport_tbl_create(esw, ns);
+	fdb = esw_vport_tbl_create(esw, ns, attr->vport_ns);
 	if (IS_ERR(fdb))
 		goto err_ns;
 
