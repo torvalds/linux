@@ -298,7 +298,7 @@ bool dc_stream_set_cursor_attributes(
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	/* disable idle optimizations while updating cursor */
 	if (dc->idle_optimizations_allowed) {
-		dc->hwss.apply_idle_power_optimizations(dc, false);
+		dc_allow_idle_optimizations(dc, false);
 		reset_idle_optimizations = true;
 	}
 
@@ -326,7 +326,7 @@ bool dc_stream_set_cursor_attributes(
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	/* re-enable idle optimizations if necessary */
 	if (reset_idle_optimizations)
-		dc->hwss.apply_idle_power_optimizations(dc, true);
+		dc_allow_idle_optimizations(dc, true);
 
 #endif
 	return true;
@@ -359,9 +359,8 @@ bool dc_stream_set_cursor_position(
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 
 	/* disable idle optimizations if enabling cursor */
-	if (dc->idle_optimizations_allowed &&
-			!stream->cursor_position.enable && position->enable) {
-		dc->hwss.apply_idle_power_optimizations(dc, false);
+	if (dc->idle_optimizations_allowed && !stream->cursor_position.enable && position->enable) {
+		dc_allow_idle_optimizations(dc, false);
 		reset_idle_optimizations = true;
 	}
 
@@ -392,7 +391,7 @@ bool dc_stream_set_cursor_position(
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	/* re-enable idle optimizations if necessary */
 	if (reset_idle_optimizations)
-		dc->hwss.apply_idle_power_optimizations(dc, true);
+		dc_allow_idle_optimizations(dc, true);
 
 #endif
 	return true;
