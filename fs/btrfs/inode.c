@@ -8124,15 +8124,15 @@ static int btrfs_migratepage(struct address_space *mapping,
 static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 				 unsigned int length)
 {
-	struct inode *inode = page->mapping->host;
-	struct extent_io_tree *tree;
+	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
+	struct extent_io_tree *tree = &inode->io_tree;
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
 	u64 page_start = page_offset(page);
 	u64 page_end = page_start + PAGE_SIZE - 1;
 	u64 start;
 	u64 end;
-	int inode_evicting = inode->i_state & I_FREEING;
+	int inode_evicting = inode->vfs_inode.i_state & I_FREEING;
 
 	/*
 	 * we have the page locked, so new writeback can't start,
@@ -8143,7 +8143,6 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 	 */
 	wait_on_page_writeback(page);
 
-	tree = &BTRFS_I(inode)->io_tree;
 	if (offset) {
 		btrfs_releasepage(page, GFP_NOFS);
 		return;
@@ -8153,8 +8152,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 		lock_extent_bits(tree, page_start, page_end, &cached_state);
 again:
 	start = page_start;
-	ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), start,
-					page_end - start + 1);
+	ordered = btrfs_lookup_ordered_range(inode, start, page_end - start + 1);
 	if (ordered) {
 		end = min(page_end,
 			  ordered->file_offset + ordered->num_bytes - 1);
@@ -8175,7 +8173,7 @@ again:
 			struct btrfs_ordered_inode_tree *tree;
 			u64 new_len;
 
-			tree = &BTRFS_I(inode)->ordered_tree;
+			tree = &inode->ordered_tree;
 
 			spin_lock_irq(&tree->lock);
 			set_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags);
@@ -8184,8 +8182,8 @@ again:
 				ordered->truncated_len = new_len;
 			spin_unlock_irq(&tree->lock);
 
-			if (btrfs_dec_test_ordered_pending(BTRFS_I(inode),
-							   &ordered, start,
+			if (btrfs_dec_test_ordered_pending(inode, &ordered,
+							   start,
 							   end - start + 1, 1))
 				btrfs_finish_ordered_io(ordered);
 		}
@@ -8214,7 +8212,7 @@ again:
 	 *    bit of its io_tree, and free the qgroup reserved data space.
 	 *    Since the IO will never happen for this page.
 	 */
-	btrfs_qgroup_free_data(BTRFS_I(inode), NULL, page_start, PAGE_SIZE);
+	btrfs_qgroup_free_data(inode, NULL, page_start, PAGE_SIZE);
 	if (!inode_evicting) {
 		clear_extent_bit(tree, page_start, page_end, EXTENT_LOCKED |
 				 EXTENT_DELALLOC | EXTENT_DELALLOC_NEW |
