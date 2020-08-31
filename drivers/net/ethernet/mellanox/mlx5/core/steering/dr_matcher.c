@@ -203,7 +203,6 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	struct mlx5dr_domain_rx_tx *nic_dmn = nic_matcher->nic_tbl->nic_dmn;
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	struct mlx5dr_match_param mask = {};
-	struct mlx5dr_match_misc3 *misc3;
 	struct mlx5dr_ste_build *sb;
 	bool inner, rx;
 	int idx = 0;
@@ -309,8 +308,7 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 			mlx5dr_ste_build_flex_parser_0(&sb[idx++], &mask,
 						       inner, rx);
 
-		misc3 = &mask.misc3;
-		if ((DR_MASK_IS_FLEX_PARSER_ICMPV4_SET(misc3) &&
+		if ((DR_MASK_IS_FLEX_PARSER_ICMPV4_SET(&mask.misc3) &&
 		     mlx5dr_matcher_supp_flex_parser_icmp_v4(&dmn->info.caps)) ||
 		    (dr_mask_is_flex_parser_icmpv6_set(&mask.misc3) &&
 		     mlx5dr_matcher_supp_flex_parser_icmp_v6(&dmn->info.caps))) {
