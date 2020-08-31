@@ -3335,6 +3335,8 @@ static inline int kiocb_set_rw_flags(struct kiocb *ki, rwf_t flags)
 		return 0;
 	if (unlikely(flags & ~RWF_SUPPORTED))
 		return -EOPNOTSUPP;
+	if (unlikely((flags & RWF_APPEND) && (flags & RWF_NOAPPEND)))
+		return -EINVAL;
 
 	if (flags & RWF_NOWAIT) {
 		if (!(ki->ki_filp->f_mode & FMODE_NOWAIT))
@@ -3344,6 +3346,12 @@ static inline int kiocb_set_rw_flags(struct kiocb *ki, rwf_t flags)
 	kiocb_flags |= (__force int) (flags & RWF_SUPPORTED);
 	if (flags & RWF_SYNC)
 		kiocb_flags |= IOCB_DSYNC;
+
+	if ((flags & RWF_NOAPPEND) && (ki->ki_flags & IOCB_APPEND)) {
+		if (IS_APPEND(file_inode(ki->ki_filp)))
+			return -EPERM;
+		ki->ki_flags &= ~IOCB_APPEND;
+	}
 
 	ki->ki_flags |= kiocb_flags;
 	return 0;
