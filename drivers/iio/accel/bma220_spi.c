@@ -5,6 +5,7 @@
  * Copyright (c) 2016, Intel Corporation.
  */
 
+#include <linux/bits.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -24,8 +25,8 @@
 #define BMA220_REG_SUSPEND			0x18
 
 #define BMA220_CHIP_ID				0xDD
-#define BMA220_READ_MASK			0x80
-#define BMA220_RANGE_MASK			0x03
+#define BMA220_READ_MASK			BIT(7)
+#define BMA220_RANGE_MASK			GENMASK(1, 0)
 #define BMA220_DATA_SHIFT			2
 #define BMA220_SUSPEND_SLEEP			0xFF
 #define BMA220_SUSPEND_WAKE			0x00
