@@ -346,10 +346,10 @@ void mlx5dr_ste_build_register_0(struct mlx5dr_ste_build *sb,
 void mlx5dr_ste_build_register_1(struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-int mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
-				  struct mlx5dr_match_param *mask,
-				  struct mlx5dr_domain *dmn,
-				  bool inner, bool rx);
+void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
+				   struct mlx5dr_match_param *mask,
+				   struct mlx5dr_domain *dmn,
+				   bool inner, bool rx);
 void mlx5dr_ste_build_empty_always_hit(struct mlx5dr_ste_build *sb, bool rx);
 
 /* Actions utils */

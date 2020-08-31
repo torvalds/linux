@@ -709,7 +709,14 @@ int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
 {
 	if (!value && (match_criteria & DR_MATCHER_CRITERIA_MISC)) {
 		if (mask->misc.source_port && mask->misc.source_port != 0xffff) {
-			mlx5dr_err(dmn, "Partial mask source_port is not supported\n");
+			mlx5dr_err(dmn,
+				   "Partial mask source_port is not supported\n");
+			return -EINVAL;
+		}
+		if (mask->misc.source_eswitch_owner_vhca_id &&
+		    mask->misc.source_eswitch_owner_vhca_id != 0xffff) {
+			mlx5dr_err(dmn,
+				   "Partial mask source_eswitch_owner_vhca_id is not supported\n");
 			return -EINVAL;
 		}
 	}
@@ -2257,25 +2264,14 @@ void mlx5dr_ste_build_register_1(struct mlx5dr_ste_build *sb,
 	sb->ste_build_tag_func = &dr_ste_build_register_1_tag;
 }
 
-static int dr_ste_build_src_gvmi_qpn_bit_mask(struct mlx5dr_match_param *value,
-					      u8 *bit_mask)
+static void dr_ste_build_src_gvmi_qpn_bit_mask(struct mlx5dr_match_param *value,
+					       u8 *bit_mask)
 {
 	struct mlx5dr_match_misc *misc_mask = &value->misc;
-
-	/* Partial misc source_port is not supported */
-	if (misc_mask->source_port && misc_mask->source_port != 0xffff)
-		return -EINVAL;
-
-	/* Partial misc source_eswitch_owner_vhca_id is not supported */
-	if (misc_mask->source_eswitch_owner_vhca_id &&
-	    misc_mask->source_eswitch_owner_vhca_id != 0xffff)
-		return -EINVAL;
 
 	DR_STE_SET_MASK(src_gvmi_qp, bit_mask, source_gvmi, misc_mask, source_port);
 	DR_STE_SET_MASK(src_gvmi_qp, bit_mask, source_qp, misc_mask, source_sqn);
 	misc_mask->source_eswitch_owner_vhca_id = 0;
-
-	return 0;
 }
 
 static int dr_ste_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
@@ -2320,19 +2316,15 @@ static int dr_ste_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-int mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
-				  struct mlx5dr_match_param *mask,
-				  struct mlx5dr_domain *dmn,
-				  bool inner, bool rx)
+void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
+				   struct mlx5dr_match_param *mask,
+				   struct mlx5dr_domain *dmn,
+				   bool inner, bool rx)
 {
-	int ret;
-
 	/* Set vhca_id_valid before we reset source_eswitch_owner_vhca_id */
 	sb->vhca_id_valid = mask->misc.source_eswitch_owner_vhca_id;
 
-	ret = dr_ste_build_src_gvmi_qpn_bit_mask(mask, sb->bit_mask);
-	if (ret)
-		return ret;
+	dr_ste_build_src_gvmi_qpn_bit_mask(mask, sb->bit_mask);
 
 	sb->rx = rx;
 	sb->dmn = dmn;
@@ -2340,6 +2332,4 @@ int mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
 	sb->lu_type = MLX5DR_STE_LU_TYPE_SRC_GVMI_AND_QP;
 	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
 	sb->ste_build_tag_func = &dr_ste_build_src_gvmi_qpn_tag;
-
-	return 0;
 }

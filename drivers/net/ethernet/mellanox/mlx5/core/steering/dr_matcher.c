@@ -252,10 +252,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 		if (dr_mask_is_gvmi_or_qpn_set(&mask.misc) &&
 		    (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
 		     dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX)) {
-			ret = mlx5dr_ste_build_src_gvmi_qpn(&sb[idx++], &mask,
-							    dmn, inner, rx);
-			if (ret)
-				return ret;
+			mlx5dr_ste_build_src_gvmi_qpn(&sb[idx++], &mask,
+						      dmn, inner, rx);
 		}
 
 		if (dr_mask_is_smac_set(&mask.outer) &&
