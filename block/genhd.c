@@ -1729,45 +1729,48 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 	}
 
 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
-	if (disk) {
-		disk->part0.dkstats = alloc_percpu(struct disk_stats);
-		if (!disk->part0.dkstats) {
-			kfree(disk);
-			return NULL;
-		}
-		init_rwsem(&disk->lookup_sem);
-		disk->node_id = node_id;
-		if (disk_expand_part_tbl(disk, 0)) {
-			free_percpu(disk->part0.dkstats);
-			kfree(disk);
-			return NULL;
-		}
-		ptbl = rcu_dereference_protected(disk->part_tbl, 1);
-		rcu_assign_pointer(ptbl->part[0], &disk->part0);
+	if (!disk)
+		return NULL;
 
-		/*
-		 * set_capacity() and get_capacity() currently don't use
-		 * seqcounter to read/update the part0->nr_sects. Still init
-		 * the counter as we can read the sectors in IO submission
-		 * patch using seqence counters.
-		 *
-		 * TODO: Ideally set_capacity() and get_capacity() should be
-		 * converted to make use of bd_mutex and sequence counters.
-		 */
-		hd_sects_seq_init(&disk->part0);
-		if (hd_ref_init(&disk->part0)) {
-			hd_free_part(&disk->part0);
-			kfree(disk);
-			return NULL;
-		}
+	disk->part0.dkstats = alloc_percpu(struct disk_stats);
+	if (!disk->part0.dkstats)
+		goto out_free_disk;
 
-		disk->minors = minors;
-		rand_initialize_disk(disk);
-		disk_to_dev(disk)->class = &block_class;
-		disk_to_dev(disk)->type = &disk_type;
-		device_initialize(disk_to_dev(disk));
+	init_rwsem(&disk->lookup_sem);
+	disk->node_id = node_id;
+	if (disk_expand_part_tbl(disk, 0)) {
+		free_percpu(disk->part0.dkstats);
+		goto out_free_disk;
 	}
+
+	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
+	rcu_assign_pointer(ptbl->part[0], &disk->part0);
+
+	/*
+	 * set_capacity() and get_capacity() currently don't use
+	 * seqcounter to read/update the part0->nr_sects. Still init
+	 * the counter as we can read the sectors in IO submission
+	 * patch using seqence counters.
+	 *
+	 * TODO: Ideally set_capacity() and get_capacity() should be
+	 * converted to make use of bd_mutex and sequence counters.
+	 */
+	hd_sects_seq_init(&disk->part0);
+	if (hd_ref_init(&disk->part0))
+		goto out_free_part0;
+
+	disk->minors = minors;
+	rand_initialize_disk(disk);
+	disk_to_dev(disk)->class = &block_class;
+	disk_to_dev(disk)->type = &disk_type;
+	device_initialize(disk_to_dev(disk));
 	return disk;
+
+out_free_part0:
+	hd_free_part(&disk->part0);
+out_free_disk:
+	kfree(disk);
+	return NULL;
 }
 EXPORT_SYMBOL(__alloc_disk_node);
 
