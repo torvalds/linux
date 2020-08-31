@@ -5,8 +5,8 @@
  * Copyright (c) 2016, Intel Corporation.
  */
 
-#include <linux/acpi.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
@@ -308,20 +308,18 @@ static const struct spi_device_id bma220_spi_id[] = {
 	{}
 };
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id bma220_acpi_id[] = {
 	{"BMA0220", 0},
 	{}
 };
 
 MODULE_DEVICE_TABLE(spi, bma220_spi_id);
-#endif
 
 static struct spi_driver bma220_driver = {
 	.driver = {
 		.name = "bma220_spi",
 		.pm = &bma220_pm_ops,
-		.acpi_match_table = ACPI_PTR(bma220_acpi_id),
+		.acpi_match_table = bma220_acpi_id,
 	},
 	.probe =            bma220_probe,
 	.remove =           bma220_remove,
