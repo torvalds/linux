@@ -36,16 +36,6 @@ struct isp_irqs_data {
 	irqreturn_t (*irq_hdl)(int irq, void *ctx);
 };
 
-struct isp_match_data {
-	const char * const *clks;
-	int num_clks;
-	enum rkisp_isp_ver isp_ver;
-	const struct isp_clk_info  *clk_rate_tbl;
-	int num_clk_rate_tbl;
-	struct isp_irqs_data *irqs;
-	int num_irqs;
-};
-
 /* using default value if reg no write for multi device */
 static void default_sw_reg_flag(struct rkisp_device *dev)
 {

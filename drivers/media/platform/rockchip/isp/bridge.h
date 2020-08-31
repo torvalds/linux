@@ -48,6 +48,7 @@ struct rkisp_bridge_device {
 	wait_queue_head_t done;
 	struct rkisp_bridge_ops *ops;
 	struct rkisp_bridge_config *cfg;
+	struct frame_debug_info dbg;
 	u8 work_mode;
 	u8 buf_num;
 	bool pingpong;

@@ -44,6 +44,7 @@
 #include "isp_params.h"
 #include "isp_stats.h"
 #include "isp_mipi_luma.h"
+#include "procfs.h"
 
 #define DRIVER_NAME "rkisp"
 #define ISP_VDEV_NAME DRIVER_NAME  "_ispdev"
@@ -188,6 +189,7 @@ struct rkisp_device {
 	struct rkisp_csi_device csi_dev;
 	struct rkisp_bridge_device br_dev;
 	struct rkisp_luma_vdev luma_vdev;
+	struct proc_dir_entry *procfs;
 	struct rkisp_pipeline pipe;
 	enum rkisp_isp_ver isp_ver;
 	struct rkisp_emd_data emd_data_fifo[RKISP_EMDDATA_FIFO_MAX];
@@ -199,6 +201,7 @@ struct rkisp_device {
 	struct rkisp_hdr hdr;
 	enum rkisp_isp_state isp_state;
 	unsigned int isp_err_cnt;
+	unsigned int isp_isr_cnt;
 	unsigned int isp_inp;
 	struct mutex apilock; /* mutex to serialize the calls of stream */
 	struct mutex iqlock; /* mutex to serialize the calls of iq */

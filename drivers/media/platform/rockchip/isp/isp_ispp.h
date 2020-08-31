@@ -41,6 +41,12 @@ enum rkisp_ispp_work_mode {
 	ISP_ISPP_INIT_FAIL = BIT(7),
 };
 
+struct frame_debug_info {
+	u64 timestamp;
+	u32 interval;
+	u32 id;
+};
+
 struct max_input {
 	u32 w;
 	u32 h;

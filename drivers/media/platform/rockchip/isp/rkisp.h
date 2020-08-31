@@ -66,6 +66,7 @@ struct rkisp_stream;
  */
 struct ispsd_in_fmt {
 	u32 mbus_code;
+	u8 name[16];
 	u8 fmt_type;
 	u32 mipi_dt;
 	u32 yuv_seq;

@@ -13,6 +13,16 @@ struct isp_clk_info {
 	u32 refer_data;
 };
 
+struct isp_match_data {
+	const char * const *clks;
+	int num_clks;
+	enum rkisp_isp_ver isp_ver;
+	const struct isp_clk_info  *clk_rate_tbl;
+	int num_clk_rate_tbl;
+	struct isp_irqs_data *irqs;
+	int num_irqs;
+};
+
 struct rkisp_hw_dev {
 	const struct isp_match_data *match_data;
 	struct platform_device *pdev;
