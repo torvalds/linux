@@ -1571,9 +1571,9 @@ static void dma_tc_handle(struct d40_chan *d40c)
 
 }
 
-static void dma_tasklet(unsigned long data)
+static void dma_tasklet(struct tasklet_struct *t)
 {
-	struct d40_chan *d40c = (struct d40_chan *) data;
+	struct d40_chan *d40c = from_tasklet(d40c, t, tasklet);
 	struct d40_desc *d40d;
 	unsigned long flags;
 	bool callback_active;
@@ -2804,8 +2804,7 @@ static void __init d40_chan_init(struct d40_base *base, struct dma_device *dma,
 		INIT_LIST_HEAD(&d40c->client);
 		INIT_LIST_HEAD(&d40c->prepare_queue);
 
-		tasklet_init(&d40c->tasklet, dma_tasklet,
-			     (unsigned long) d40c);
+		tasklet_setup(&d40c->tasklet, dma_tasklet);
 
 		list_add_tail(&d40c->chan.device_node,
 			      &dma->channels);
