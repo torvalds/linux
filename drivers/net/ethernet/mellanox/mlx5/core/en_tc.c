@@ -4731,6 +4731,7 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 	struct mlx5_core_dev *dev = priv->mdev;
+	struct mapping_ctx *chains_mapping;
 	struct mlx5_chains_attr attr = {};
 	int err;
 
@@ -4745,15 +4746,22 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 
 	lockdep_set_class(&tc->ht.mutex, &tc_ht_lock_key);
 
-	if (MLX5_CAP_FLOWTABLE_NIC_RX(priv->mdev, ignore_flow_level)) {
+	chains_mapping = mapping_create(sizeof(struct mlx5_mapped_obj),
+					MLX5E_TC_TABLE_CHAIN_TAG_MASK, true);
+	if (IS_ERR(chains_mapping)) {
+		err = PTR_ERR(chains_mapping);
+		goto err_mapping;
+	}
+	tc->mapping = chains_mapping;
+
+	if (MLX5_CAP_FLOWTABLE_NIC_RX(priv->mdev, ignore_flow_level))
 		attr.flags = MLX5_CHAINS_AND_PRIOS_SUPPORTED |
 			MLX5_CHAINS_IGNORE_FLOW_LEVEL_SUPPORTED;
-		attr.max_restore_tag = MLX5E_TC_TABLE_CHAIN_TAG_MASK;
-	}
 	attr.ns = MLX5_FLOW_NAMESPACE_KERNEL;
 	attr.max_ft_sz = mlx5e_tc_nic_get_ft_size(dev);
 	attr.max_grp_num = MLX5E_TC_TABLE_NUM_GROUPS;
 	attr.default_ft = mlx5e_vlan_get_flowtable(priv->fs.vlan);
+	attr.mapping = chains_mapping;
 
 	tc->chains = mlx5_chains_create(dev, &attr);
 	if (IS_ERR(tc->chains)) {
@@ -4780,6 +4788,8 @@ err_reg:
 	mlx5_tc_ct_clean(tc->ct);
 	mlx5_chains_destroy(tc->chains);
 err_chains:
+	mapping_destroy(chains_mapping);
+err_mapping:
 	rhashtable_destroy(&tc->ht);
 	return err;
 }
@@ -4814,6 +4824,7 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 	mutex_destroy(&tc->t_lock);
 
 	mlx5_tc_ct_clean(tc->ct);
+	mapping_destroy(tc->mapping);
 	mlx5_chains_destroy(tc->chains);
 }
 
@@ -4981,7 +4992,7 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 	chain_tag = reg_b & MLX5E_TC_TABLE_CHAIN_TAG_MASK;
 
-	err = mlx5_get_mapped_object(nic_chains(priv), chain_tag, &mapped_obj);
+	err = mapping_find(tc->mapping, chain_tag, &mapped_obj);
 	if (err) {
 		netdev_dbg(priv->netdev,
 			   "Couldn't find chain for chain tag: %d, err: %d\n",

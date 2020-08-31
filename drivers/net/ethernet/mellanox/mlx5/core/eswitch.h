@@ -217,6 +217,7 @@ struct mlx5_esw_offload {
 	struct mlx5_flow_table *ft_offloads_restore;
 	struct mlx5_flow_group *restore_group;
 	struct mlx5_modify_hdr *restore_copy_hdr_id;
+	struct mapping_ctx *reg_c0_obj_pool;
 
 	struct mlx5_flow_table *ft_offloads;
 	struct mlx5_flow_group *vport_rx_group;

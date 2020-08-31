@@ -47,6 +47,7 @@
 #include "lib/eq.h"
 #include "lib/fs_chains.h"
 #include "en_tc.h"
+#include "en/mapping.h"
 
 /* There are two match-all miss flows, one for unicast dst mac and
  * one for multicast.
@@ -1428,7 +1429,7 @@ esw_chains_create(struct mlx5_eswitch *esw, struct mlx5_flow_table *miss_fdb)
 	attr.max_ft_sz = fdb_max;
 	attr.max_grp_num = esw->params.large_group_num;
 	attr.default_ft = miss_fdb;
-	attr.max_restore_tag = ESW_REG_C0_USER_DATA_METADATA_MASK;
+	attr.mapping = esw->offloads.reg_c0_obj_pool;
 
 	chains = mlx5_chains_create(dev, &attr);
 	if (IS_ERR(chains)) {
@@ -2595,6 +2596,7 @@ static int mlx5_esw_host_number_init(struct mlx5_eswitch *esw)
 
 int esw_offloads_enable(struct mlx5_eswitch *esw)
 {
+	struct mapping_ctx *reg_c0_obj_pool;
 	struct mlx5_vport *vport;
 	int err, i;
 
@@ -2622,6 +2624,15 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 	if (err)
 		goto err_vport_metadata;
 
+	reg_c0_obj_pool = mapping_create(sizeof(struct mlx5_mapped_obj),
+					 ESW_REG_C0_USER_DATA_METADATA_MASK,
+					 true);
+	if (IS_ERR(reg_c0_obj_pool)) {
+		err = PTR_ERR(reg_c0_obj_pool);
+		goto err_pool;
+	}
+	esw->offloads.reg_c0_obj_pool = reg_c0_obj_pool;
+
 	err = esw_offloads_steering_init(esw);
 	if (err)
 		goto err_steering_init;
@@ -2648,6 +2659,8 @@ err_vports:
 err_uplink:
 	esw_offloads_steering_cleanup(esw);
 err_steering_init:
+	mapping_destroy(reg_c0_obj_pool);
+err_pool:
 	esw_set_passing_vport_metadata(esw, false);
 err_vport_metadata:
 	esw_offloads_metadata_uninit(esw);
@@ -2686,6 +2699,7 @@ void esw_offloads_disable(struct mlx5_eswitch *esw)
 	esw_offloads_unload_rep(esw, MLX5_VPORT_UPLINK);
 	esw_set_passing_vport_metadata(esw, false);
 	esw_offloads_steering_cleanup(esw);
+	mapping_destroy(esw->offloads.reg_c0_obj_pool);
 	esw_offloads_metadata_uninit(esw);
 	esw->flags &= ~MLX5_ESWITCH_VPORT_MATCH_METADATA;
 	mlx5_rdma_disable_roce(esw->dev);
