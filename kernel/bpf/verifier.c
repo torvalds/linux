@@ -11008,6 +11008,8 @@ BTF_SET_START(btf_sleepable_lsm_hooks)
 #ifdef CONFIG_BPF_LSM
 BTF_ID(func, bpf_lsm_file_mprotect)
 BTF_ID(func, bpf_lsm_bprm_committed_creds)
+#else
+BTF_ID_UNUSED
 #endif
 BTF_SET_END(btf_sleepable_lsm_hooks)
 
