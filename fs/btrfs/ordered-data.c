@@ -861,20 +861,21 @@ out:
  * try to find a checksum.  This is used because we allow pages to
  * be reclaimed before their checksum is actually put into the btree
  */
-int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
-			   u8 *sum, int len)
+int btrfs_find_ordered_sum(struct btrfs_inode *inode, u64 offset,
+			   u64 disk_bytenr, u8 *sum, int len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_ordered_sum *ordered_sum;
 	struct btrfs_ordered_extent *ordered;
-	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
+	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	unsigned long num_sectors;
 	unsigned long i;
-	u32 sectorsize = btrfs_inode_sectorsize(BTRFS_I(inode));
+	u32 sectorsize = btrfs_inode_sectorsize(inode);
+	const u8 blocksize_bits = inode->vfs_inode.i_sb->s_blocksize_bits;
 	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	int index = 0;
 
-	ordered = btrfs_lookup_ordered_extent(BTRFS_I(inode), offset);
+	ordered = btrfs_lookup_ordered_extent(inode, offset);
 	if (!ordered)
 		return 0;
 
@@ -882,10 +883,8 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 	list_for_each_entry_reverse(ordered_sum, &ordered->list, list) {
 		if (disk_bytenr >= ordered_sum->bytenr &&
 		    disk_bytenr < ordered_sum->bytenr + ordered_sum->len) {
-			i = (disk_bytenr - ordered_sum->bytenr) >>
-			    inode->i_sb->s_blocksize_bits;
-			num_sectors = ordered_sum->len >>
-				      inode->i_sb->s_blocksize_bits;
+			i = (disk_bytenr - ordered_sum->bytenr) >> blocksize_bits;
+			num_sectors = ordered_sum->len >> blocksize_bits;
 			num_sectors = min_t(int, len - index, num_sectors - i);
 			memcpy(sum + index, ordered_sum->sums + i * csum_size,
 			       num_sectors * csum_size);
