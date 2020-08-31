@@ -902,7 +902,7 @@ static void empty_ail1_list(struct gfs2_sbd *sdp)
 }
 
 /**
- * drain_bd - drain the buf and databuf queue for a failed transaction
+ * trans_drain - drain the buf and databuf queue for a failed transaction
  * @tr: the transaction to drain
  *
  * When this is called, we're taking an error exit for a log write that failed
