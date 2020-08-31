@@ -237,6 +237,7 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 {
 	int nwords = 0;
 
+	vpr_info("entry, buf:'%s'\n", buf);
 	while (*buf) {
 		char *end;
 
@@ -246,6 +247,8 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 			break;	/* oh, it was trailing whitespace */
 		if (*buf == '#')
 			break;	/* token starts comment, skip rest of line */
+
+		vpr_info("start-of-word:%d '%s'\n", nwords, buf);
 
 		/* find `end' of word, whitespace separated or quoted */
 		if (*buf == '"' || *buf == '\'') {
@@ -257,7 +260,9 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 				return -EINVAL;	/* unclosed quote */
 			}
 		} else {
-			for (end = buf; *end && !isspace(*end); end++)
+			for (end = buf;
+			     *end && *end != '=' && !isspace(*end);
+			     end++)
 				;
 			BUG_ON(end == buf);
 		}
@@ -373,30 +378,21 @@ static int ddebug_parse_query(char *words[], int nwords,
 	unsigned int i;
 	int rc = 0;
 	char *fline;
-	char *keyword, *arg;
 
-	if (modname)
+	if (nwords % 2 != 0) {
+		pr_err("expecting pairs of match-spec <value>\n");
+		return -EINVAL;
+	}
+	if (modname) {
 		/* support $modname.dyndbg=<multiple queries> */
+		vpr_info("module:%s queries:'%s'\n", modname);
 		query->module = modname;
+	}
+	for (i = 0; i < nwords; i += 2) {
+		char *keyword = words[i];
+		char *arg = words[i+1];
 
-	for (i = 0; i < nwords; i++) {
-		/* accept keyword=arg */
-		vpr_info("%d w:%s\n", i, words[i]);
-
-		keyword = words[i];
-		arg = strchr(keyword, '=');
-		if (arg) {
-			*arg++ = '\0';
-		} else {
-			i++; /* next word is arg */
-			if (!(i < nwords)) {
-				pr_err("missing arg to keyword: %s\n", keyword);
-				return -EINVAL;
-			}
-			arg = words[i];
-		}
-		vpr_info("%d key:%s arg:%s\n", i, keyword, arg);
-
+		vpr_info("keyword:'%s' value:'%s'\n", keyword, arg);
 		if (!strcmp(keyword, "func")) {
 			rc = check_set(&query->function, arg, "func");
 		} else if (!strcmp(keyword, "file")) {
