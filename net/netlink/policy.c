@@ -264,7 +264,8 @@ send_attribute:
 		else
 			type = NL_ATTR_TYPE_BINARY;
 
-		if (pt->validation_type != NLA_VALIDATE_NONE) {
+		if (pt->validation_type == NLA_VALIDATE_RANGE ||
+		    pt->validation_type == NLA_VALIDATE_RANGE_WARN_TOO_LONG) {
 			struct netlink_range_validation range;
 
 			nla_get_range_unsigned(pt, &range);
