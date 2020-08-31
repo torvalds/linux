@@ -549,25 +549,6 @@ void mlx5dr_ste_always_miss_addr(struct mlx5dr_ste *ste, u64 miss_addr)
 	dr_ste_set_always_miss((struct dr_hw_ste_format *)ste->hw_ste);
 }
 
-/* The assumption here is that we don't update the ste->hw_ste if it is not
- * used ste, so it will be all zero, checking the next_lu_type.
- */
-bool mlx5dr_ste_is_not_valid_entry(u8 *p_hw_ste)
-{
-	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)p_hw_ste;
-
-	if (MLX5_GET(ste_general, hw_ste, next_lu_type) ==
-	    MLX5DR_STE_LU_TYPE_NOP)
-		return true;
-
-	return false;
-}
-
-bool mlx5dr_ste_not_used_ste(struct mlx5dr_ste *ste)
-{
-	return !ste->refcount;
-}
-
 /* Init one ste as a pattern for ste data array */
 void mlx5dr_ste_set_formatted_ste(u16 gvmi,
 				  struct mlx5dr_domain_rx_tx *nic_dmn,
