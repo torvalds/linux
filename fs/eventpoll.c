@@ -636,33 +636,6 @@ static void ep_done_scan(struct eventpoll *ep,
 		mutex_unlock(&ep->mtx);
 }
 
-/**
- * ep_scan_ready_list - Scans the ready list in a way that makes possible for
- *                      the scan code, to call f_op->poll(). Also allows for
- *                      O(NumReady) performance.
- *
- * @ep: Pointer to the epoll private data structure.
- * @sproc: Pointer to the scan callback.
- * @priv: Private opaque data passed to the @sproc callback.
- * @depth: The current depth of recursive f_op->poll calls.
- * @ep_locked: caller already holds ep->mtx
- *
- * Returns: The same integer error code returned by the @sproc callback.
- */
-static __poll_t ep_scan_ready_list(struct eventpoll *ep,
-			      __poll_t (*sproc)(struct eventpoll *,
-					   struct list_head *, void *),
-			      void *priv, int depth, bool ep_locked)
-{
-	__poll_t res;
-	LIST_HEAD(txlist);
-
-	ep_start_scan(ep, depth, ep_locked, &txlist);
-	res = (*sproc)(ep, &txlist, priv);
-	ep_done_scan(ep, depth, ep_locked, &txlist);
-	return res;
-}
-
 static void epi_rcu_free(struct rcu_head *head)
 {
 	struct epitem *epi = container_of(head, struct epitem, rcu);
@@ -1685,11 +1658,15 @@ static int ep_send_events(struct eventpoll *ep,
 			  struct epoll_event __user *events, int maxevents)
 {
 	struct ep_send_events_data esed;
+	LIST_HEAD(txlist);
 
 	esed.maxevents = maxevents;
 	esed.events = events;
 
-	ep_scan_ready_list(ep, ep_send_events_proc, &esed, 0, false);
+	ep_start_scan(ep, 0, false, &txlist);
+	ep_send_events_proc(ep, &txlist, &esed);
+	ep_done_scan(ep, 0, false, &txlist);
+
 	return esed.res;
 }
 
