@@ -171,6 +171,9 @@ struct dc_caps {
 	bool dmcub_support;
 	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
+	unsigned int mall_size_per_mem_channel;
+	unsigned int mall_size_total;
+	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
 };
@@ -499,6 +502,7 @@ struct dc_debug_options {
 	bool dmcub_emulation;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_idle_power_optimizations;
+	unsigned int mall_size_override;
 #endif
 	bool dmub_command_table; /* for testing only */
 	struct dc_bw_validation_profile bw_val_profile;
