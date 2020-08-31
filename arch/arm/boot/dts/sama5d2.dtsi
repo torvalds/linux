@@ -94,6 +94,9 @@
 	ns_sram: sram@200000 {
 		compatible = "mmio-sram";
 		reg = <0x00200000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x00200000 0x20000>;
 	};
 
 	ahb {
@@ -106,6 +109,10 @@
 			compatible = "mmio-sram";
 			no-memory-wc;
 			reg = <0x00100000 0x2400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x00100000 0x2400>;
+
 		};
 
 		usb0: gadget@300000 {

@@ -74,6 +74,9 @@
 	sram0: sram@2ff000 {
 		compatible = "mmio-sram";
 		reg = <0x002ff000 0x2000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x002ff000 0x2000>;
 	};
 
 	ahb {

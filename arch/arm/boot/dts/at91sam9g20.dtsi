@@ -22,6 +22,9 @@
 	sram1: sram@2fc000 {
 		compatible = "mmio-sram";
 		reg = <0x002fc000 0x8000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x002fc000 0x8000>;
 	};
 
 	ahb {
