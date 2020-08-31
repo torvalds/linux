@@ -864,6 +864,22 @@ static int nhi_suspend_noirq(struct device *dev)
 	return __nhi_suspend_noirq(dev, device_may_wakeup(dev));
 }
 
+static int nhi_freeze_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	return tb_domain_freeze_noirq(tb);
+}
+
+static int nhi_thaw_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	return tb_domain_thaw_noirq(tb);
+}
+
 static bool nhi_wake_supported(struct pci_dev *pdev)
 {
 	u8 val;
@@ -1255,14 +1271,13 @@ static void nhi_remove(struct pci_dev *pdev)
 static const struct dev_pm_ops nhi_pm_ops = {
 	.suspend_noirq = nhi_suspend_noirq,
 	.resume_noirq = nhi_resume_noirq,
-	.freeze_noirq = nhi_suspend_noirq, /*
+	.freeze_noirq = nhi_freeze_noirq,  /*
 					    * we just disable hotplug, the
 					    * pci-tunnels stay alive.
 					    */
-	.thaw_noirq = nhi_resume_noirq,
+	.thaw_noirq = nhi_thaw_noirq,
 	.restore_noirq = nhi_resume_noirq,
 	.suspend = nhi_suspend,
-	.freeze = nhi_suspend,
 	.poweroff_noirq = nhi_poweroff_noirq,
 	.poweroff = nhi_suspend,
 	.complete = nhi_complete,

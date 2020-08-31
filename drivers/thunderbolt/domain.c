@@ -546,6 +546,33 @@ int tb_domain_suspend(struct tb *tb)
 	return tb->cm_ops->suspend ? tb->cm_ops->suspend(tb) : 0;
 }
 
+int tb_domain_freeze_noirq(struct tb *tb)
+{
+	int ret = 0;
+
+	mutex_lock(&tb->lock);
+	if (tb->cm_ops->freeze_noirq)
+		ret = tb->cm_ops->freeze_noirq(tb);
+	if (!ret)
+		tb_ctl_stop(tb->ctl);
+	mutex_unlock(&tb->lock);
+
+	return ret;
+}
+
+int tb_domain_thaw_noirq(struct tb *tb)
+{
+	int ret = 0;
+
+	mutex_lock(&tb->lock);
+	tb_ctl_start(tb->ctl);
+	if (tb->cm_ops->thaw_noirq)
+		ret = tb->cm_ops->thaw_noirq(tb);
+	mutex_unlock(&tb->lock);
+
+	return ret;
+}
+
 void tb_domain_complete(struct tb *tb)
 {
 	if (tb->cm_ops->complete)

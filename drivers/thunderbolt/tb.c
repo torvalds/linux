@@ -1424,6 +1424,22 @@ static int tb_free_unplugged_xdomains(struct tb_switch *sw)
 	return ret;
 }
 
+static int tb_freeze_noirq(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+
+	tcm->hotplug_active = false;
+	return 0;
+}
+
+static int tb_thaw_noirq(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+
+	tcm->hotplug_active = true;
+	return 0;
+}
+
 static void tb_complete(struct tb *tb)
 {
 	/*
@@ -1490,6 +1506,8 @@ static const struct tb_cm_ops tb_cm_ops = {
 	.stop = tb_stop,
 	.suspend_noirq = tb_suspend_noirq,
 	.resume_noirq = tb_resume_noirq,
+	.freeze_noirq = tb_freeze_noirq,
+	.thaw_noirq = tb_thaw_noirq,
 	.complete = tb_complete,
 	.runtime_suspend = tb_runtime_suspend,
 	.runtime_resume = tb_runtime_resume,

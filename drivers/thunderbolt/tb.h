@@ -351,6 +351,8 @@ struct tb_path {
  * @suspend_noirq: Connection manager specific suspend_noirq
  * @resume_noirq: Connection manager specific resume_noirq
  * @suspend: Connection manager specific suspend
+ * @freeze_noirq: Connection manager specific freeze_noirq
+ * @thaw_noirq: Connection manager specific thaw_noirq
  * @complete: Connection manager specific complete
  * @runtime_suspend: Connection manager specific runtime_suspend
  * @runtime_resume: Connection manager specific runtime_resume
@@ -373,6 +375,8 @@ struct tb_cm_ops {
 	int (*suspend_noirq)(struct tb *tb);
 	int (*resume_noirq)(struct tb *tb);
 	int (*suspend)(struct tb *tb);
+	int (*freeze_noirq)(struct tb *tb);
+	int (*thaw_noirq)(struct tb *tb);
 	void (*complete)(struct tb *tb);
 	int (*runtime_suspend)(struct tb *tb);
 	int (*runtime_resume)(struct tb *tb);
@@ -607,6 +611,8 @@ void tb_domain_remove(struct tb *tb);
 int tb_domain_suspend_noirq(struct tb *tb);
 int tb_domain_resume_noirq(struct tb *tb);
 int tb_domain_suspend(struct tb *tb);
+int tb_domain_freeze_noirq(struct tb *tb);
+int tb_domain_thaw_noirq(struct tb *tb);
 void tb_domain_complete(struct tb *tb);
 int tb_domain_runtime_suspend(struct tb *tb);
 int tb_domain_runtime_resume(struct tb *tb);
