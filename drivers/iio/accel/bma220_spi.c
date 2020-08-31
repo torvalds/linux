@@ -286,8 +286,7 @@ static int bma220_remove(struct spi_device *spi)
 	return bma220_deinit(spi);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int bma220_suspend(struct device *dev)
+static __maybe_unused int bma220_suspend(struct device *dev)
 {
 	struct bma220_data *data = iio_priv(dev_get_drvdata(dev));
 
@@ -295,7 +294,7 @@ static int bma220_suspend(struct device *dev)
 	return bma220_read_reg(data->spi_device, BMA220_REG_SUSPEND);
 }
 
-static int bma220_resume(struct device *dev)
+static __maybe_unused int bma220_resume(struct device *dev)
 {
 	struct bma220_data *data = iio_priv(dev_get_drvdata(dev));
 
@@ -303,11 +302,6 @@ static int bma220_resume(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(bma220_pm_ops, bma220_suspend, bma220_resume);
-
-#define BMA220_PM_OPS (&bma220_pm_ops)
-#else
-#define BMA220_PM_OPS NULL
-#endif
 
 static const struct spi_device_id bma220_spi_id[] = {
 	{"bma220", 0},
@@ -326,7 +320,7 @@ MODULE_DEVICE_TABLE(spi, bma220_spi_id);
 static struct spi_driver bma220_driver = {
 	.driver = {
 		.name = "bma220_spi",
-		.pm = BMA220_PM_OPS,
+		.pm = &bma220_pm_ops,
 		.acpi_match_table = ACPI_PTR(bma220_acpi_id),
 	},
 	.probe =            bma220_probe,
