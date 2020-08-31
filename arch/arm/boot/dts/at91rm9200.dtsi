@@ -173,7 +173,6 @@
 				clock-names = "mci_clk";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pinctrl-names = "default";
 				status = "disabled";
 			};
 

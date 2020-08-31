@@ -654,7 +654,6 @@
 				interrupts = <9 IRQ_TYPE_LEVEL_HIGH 0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pinctrl-names = "default";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 9>;
 				clock-names = "mci_clk";
 				status = "disabled";

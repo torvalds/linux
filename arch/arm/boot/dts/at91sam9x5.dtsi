@@ -651,7 +651,6 @@
 				interrupts = <12 IRQ_TYPE_LEVEL_HIGH 0>;
 				dmas = <&dma0 1 AT91_DMA_CFG_PER_ID(0)>;
 				dma-names = "rxtx";
-				pinctrl-names = "default";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 12>;
 				clock-names = "mci_clk";
 				#address-cells = <1>;
@@ -665,7 +664,6 @@
 				interrupts = <26 IRQ_TYPE_LEVEL_HIGH 0>;
 				dmas = <&dma1 1 AT91_DMA_CFG_PER_ID(0)>;
 				dma-names = "rxtx";
-				pinctrl-names = "default";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 26>;
 				clock-names = "mci_clk";
 				#address-cells = <1>;
