@@ -283,7 +283,7 @@ config ARM_SPEAR_CPUFREQ
 
 config ARM_STI_CPUFREQ
 	tristate "STi CPUFreq support"
-	depends on SOC_STIH407
+	depends on CPUFREQ_DT && SOC_STIH407
 	help
 	  This driver uses the generic OPP framework to match the running
 	  platform with a predefined set of suitable values.  If not provided
