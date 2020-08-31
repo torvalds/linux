@@ -749,6 +749,7 @@ config VIDEO_IMX378
 	tristate "Sony IMX378 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX378 camera.
