@@ -18,8 +18,8 @@
 #define GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START		0x8000	/* 32KB */
 #define GAUDI_DRIVER_SRAM_RESERVED_SIZE_FROM_START	0x80	/* 128 bytes */
 
-#define GAUDI_FIRST_AVAILABLE_W_S_SYNC_OBJECT		48
-#define GAUDI_FIRST_AVAILABLE_W_S_MONITOR		24
+#define GAUDI_FIRST_AVAILABLE_W_S_SYNC_OBJECT		32
+#define GAUDI_FIRST_AVAILABLE_W_S_MONITOR		16
 /*
  * Goya queue Numbering
  *
@@ -76,10 +76,10 @@ enum gaudi_queue_id {
 	GAUDI_QUEUE_ID_DMA_4_1 = 18,	/* internal */
 	GAUDI_QUEUE_ID_DMA_4_2 = 19,	/* internal */
 	GAUDI_QUEUE_ID_DMA_4_3 = 20,	/* internal */
-	GAUDI_QUEUE_ID_DMA_5_0 = 21,	/* external */
-	GAUDI_QUEUE_ID_DMA_5_1 = 22,	/* external */
-	GAUDI_QUEUE_ID_DMA_5_2 = 23,	/* external */
-	GAUDI_QUEUE_ID_DMA_5_3 = 24,	/* external */
+	GAUDI_QUEUE_ID_DMA_5_0 = 21,	/* internal */
+	GAUDI_QUEUE_ID_DMA_5_1 = 22,	/* internal */
+	GAUDI_QUEUE_ID_DMA_5_2 = 23,	/* internal */
+	GAUDI_QUEUE_ID_DMA_5_3 = 24,	/* internal */
 	GAUDI_QUEUE_ID_DMA_6_0 = 25,	/* internal */
 	GAUDI_QUEUE_ID_DMA_6_1 = 26,	/* internal */
 	GAUDI_QUEUE_ID_DMA_6_2 = 27,	/* internal */

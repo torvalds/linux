@@ -38,7 +38,7 @@
  *
  * MMU is always enabled.
  *
- * QMAN DMA channels 0,1,5 (PCI DMAN):
+ * QMAN DMA channels 0,1 (PCI DMAN):
  *     - DMA is not secured.
  *     - PQ and CQ are secured.
  *     - CP is secured: The driver needs to parse CB but WREG should be allowed
@@ -55,7 +55,7 @@
  *       idle)
  *     - MMU page tables area clear (happens on init)
  *
- * QMAN DMA 2-4,6,7, TPC, MME, NIC:
+ * QMAN DMA 2-7, TPC, MME, NIC:
  * PQ is secured and is located on the Host (HBM CON TPC3 bug)
  * CQ, CP and the engine are not secured
  *
@@ -113,12 +113,12 @@ static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 static const u8 gaudi_dma_assignment[GAUDI_DMA_MAX] = {
 	[GAUDI_PCI_DMA_1] = GAUDI_ENGINE_ID_DMA_0,
 	[GAUDI_PCI_DMA_2] = GAUDI_ENGINE_ID_DMA_1,
-	[GAUDI_PCI_DMA_3] = GAUDI_ENGINE_ID_DMA_5,
 	[GAUDI_HBM_DMA_1] = GAUDI_ENGINE_ID_DMA_2,
 	[GAUDI_HBM_DMA_2] = GAUDI_ENGINE_ID_DMA_3,
 	[GAUDI_HBM_DMA_3] = GAUDI_ENGINE_ID_DMA_4,
-	[GAUDI_HBM_DMA_4] = GAUDI_ENGINE_ID_DMA_6,
-	[GAUDI_HBM_DMA_5] = GAUDI_ENGINE_ID_DMA_7
+	[GAUDI_HBM_DMA_4] = GAUDI_ENGINE_ID_DMA_5,
+	[GAUDI_HBM_DMA_5] = GAUDI_ENGINE_ID_DMA_6,
+	[GAUDI_HBM_DMA_6] = GAUDI_ENGINE_ID_DMA_7
 };
 
 static const u8 gaudi_cq_assignment[NUMBER_OF_CMPLT_QUEUES] = {
@@ -130,10 +130,6 @@ static const u8 gaudi_cq_assignment[NUMBER_OF_CMPLT_QUEUES] = {
 	[5] = GAUDI_QUEUE_ID_DMA_1_1,
 	[6] = GAUDI_QUEUE_ID_DMA_1_2,
 	[7] = GAUDI_QUEUE_ID_DMA_1_3,
-	[8] = GAUDI_QUEUE_ID_DMA_5_0,
-	[9] = GAUDI_QUEUE_ID_DMA_5_1,
-	[10] = GAUDI_QUEUE_ID_DMA_5_2,
-	[11] = GAUDI_QUEUE_ID_DMA_5_3
 };
 
 static const u16 gaudi_packet_sizes[MAX_PACKET_ID] = {
@@ -249,10 +245,10 @@ static enum hl_queue_type gaudi_queue_type[GAUDI_QUEUE_ID_SIZE] = {
 	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_4_1 */
 	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_4_2 */
 	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_4_3 */
-	QUEUE_TYPE_EXT, /* GAUDI_QUEUE_ID_DMA_5_0 */
-	QUEUE_TYPE_EXT, /* GAUDI_QUEUE_ID_DMA_5_1 */
-	QUEUE_TYPE_EXT, /* GAUDI_QUEUE_ID_DMA_5_2 */
-	QUEUE_TYPE_EXT, /* GAUDI_QUEUE_ID_DMA_5_3 */
+	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_5_0 */
+	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_5_1 */
+	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_5_2 */
+	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_5_3 */
 	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_6_0 */
 	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_6_1 */
 	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_DMA_6_2 */
@@ -978,8 +974,7 @@ static int gaudi_alloc_internal_qmans_pq_mem(struct hl_device *hdev)
 		q = &gaudi->internal_qmans[i];
 
 		switch (i) {
-		case GAUDI_QUEUE_ID_DMA_2_0 ... GAUDI_QUEUE_ID_DMA_4_3:
-		case GAUDI_QUEUE_ID_DMA_6_0 ... GAUDI_QUEUE_ID_DMA_7_3:
+		case GAUDI_QUEUE_ID_DMA_2_0 ... GAUDI_QUEUE_ID_DMA_7_3:
 			q->pq_size = HBM_DMA_QMAN_SIZE_IN_BYTES;
 			break;
 		case GAUDI_QUEUE_ID_MME_0_0 ... GAUDI_QUEUE_ID_MME_1_3:
@@ -3424,21 +3419,21 @@ static void gaudi_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 		break;
 
 	case GAUDI_QUEUE_ID_DMA_5_0...GAUDI_QUEUE_ID_DMA_5_3:
-		dma_id = gaudi_dma_assignment[GAUDI_PCI_DMA_3];
-		dma_qm_offset = dma_id * DMA_QMAN_OFFSET;
-		q_off = dma_qm_offset + ((hw_queue_id - 1) & 0x3) * 4;
-		db_reg_offset = mmDMA0_QM_PQ_PI_0 + q_off;
-		break;
-
-	case GAUDI_QUEUE_ID_DMA_6_0...GAUDI_QUEUE_ID_DMA_6_3:
 		dma_id = gaudi_dma_assignment[GAUDI_HBM_DMA_4];
 		dma_qm_offset = dma_id * DMA_QMAN_OFFSET;
 		q_off = dma_qm_offset + ((hw_queue_id - 1) & 0x3) * 4;
 		db_reg_offset = mmDMA0_QM_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_DMA_7_0...GAUDI_QUEUE_ID_DMA_7_3:
+	case GAUDI_QUEUE_ID_DMA_6_0...GAUDI_QUEUE_ID_DMA_6_3:
 		dma_id = gaudi_dma_assignment[GAUDI_HBM_DMA_5];
+		dma_qm_offset = dma_id * DMA_QMAN_OFFSET;
+		q_off = dma_qm_offset + ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmDMA0_QM_PQ_PI_0 + q_off;
+		break;
+
+	case GAUDI_QUEUE_ID_DMA_7_0...GAUDI_QUEUE_ID_DMA_7_3:
+		dma_id = gaudi_dma_assignment[GAUDI_HBM_DMA_6];
 		dma_qm_offset = dma_id * DMA_QMAN_OFFSET;
 		q_off = dma_qm_offset + ((hw_queue_id - 1) & 0x3) * 4;
 		db_reg_offset = mmDMA0_QM_PQ_PI_0 + q_off;

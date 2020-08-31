@@ -15,7 +15,7 @@
 #include "../include/gaudi/gaudi.h"
 #include "../include/gaudi/gaudi_async_events.h"
 
-#define NUMBER_OF_EXT_HW_QUEUES		12
+#define NUMBER_OF_EXT_HW_QUEUES		8
 #define NUMBER_OF_CMPLT_QUEUES		NUMBER_OF_EXT_HW_QUEUES
 #define NUMBER_OF_CPU_HW_QUEUES		1
 #define NUMBER_OF_INT_HW_QUEUES		100
@@ -62,8 +62,8 @@
 #error "GAUDI_MAX_PENDING_CS must be power of 2 and greater than 1"
 #endif
 
-#define PCI_DMA_NUMBER_OF_CHNLS		3
-#define HBM_DMA_NUMBER_OF_CHNLS		5
+#define PCI_DMA_NUMBER_OF_CHNLS		2
+#define HBM_DMA_NUMBER_OF_CHNLS		6
 #define DMA_NUMBER_OF_CHNLS		(PCI_DMA_NUMBER_OF_CHNLS + \
 						HBM_DMA_NUMBER_OF_CHNLS)
 
@@ -205,12 +205,12 @@
 enum gaudi_dma_channels {
 	GAUDI_PCI_DMA_1,
 	GAUDI_PCI_DMA_2,
-	GAUDI_PCI_DMA_3,
 	GAUDI_HBM_DMA_1,
 	GAUDI_HBM_DMA_2,
 	GAUDI_HBM_DMA_3,
 	GAUDI_HBM_DMA_4,
 	GAUDI_HBM_DMA_5,
+	GAUDI_HBM_DMA_6,
 	GAUDI_DMA_MAX
 };
 
