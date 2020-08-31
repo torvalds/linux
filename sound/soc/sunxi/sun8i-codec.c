@@ -94,7 +94,6 @@ struct sun8i_codec_quirks {
 struct sun8i_codec {
 	struct regmap			*regmap;
 	struct clk			*clk_module;
-	struct clk			*clk_bus;
 	const struct sun8i_codec_quirks	*quirks;
 };
 
@@ -109,12 +108,6 @@ static int sun8i_codec_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(scodec->clk_bus);
-	if (ret) {
-		dev_err(dev, "Failed to enable the bus clock\n");
-		goto err_disable_modclk;
-	}
-
 	regcache_cache_only(scodec->regmap, false);
 
 	ret = regcache_sync(scodec->regmap);
@@ -126,9 +119,6 @@ static int sun8i_codec_runtime_resume(struct device *dev)
 	return 0;
 
 err_disable_clk:
-	clk_disable_unprepare(scodec->clk_bus);
-
-err_disable_modclk:
 	clk_disable_unprepare(scodec->clk_module);
 
 	return ret;
@@ -142,7 +132,6 @@ static int sun8i_codec_runtime_suspend(struct device *dev)
 	regcache_mark_dirty(scodec->regmap);
 
 	clk_disable_unprepare(scodec->clk_module);
-	clk_disable_unprepare(scodec->clk_bus);
 
 	return 0;
 }
@@ -612,20 +601,14 @@ static int sun8i_codec_probe(struct platform_device *pdev)
 		return PTR_ERR(scodec->clk_module);
 	}
 
-	scodec->clk_bus = devm_clk_get(&pdev->dev, "bus");
-	if (IS_ERR(scodec->clk_bus)) {
-		dev_err(&pdev->dev, "Failed to get the bus clock\n");
-		return PTR_ERR(scodec->clk_bus);
-	}
-
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
 		dev_err(&pdev->dev, "Failed to map the registers\n");
 		return PTR_ERR(base);
 	}
 
-	scodec->regmap = devm_regmap_init_mmio(&pdev->dev, base,
-					       &sun8i_codec_regmap_config);
+	scodec->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "bus", base,
+						   &sun8i_codec_regmap_config);
 	if (IS_ERR(scodec->regmap)) {
 		dev_err(&pdev->dev, "Failed to create our regmap\n");
 		return PTR_ERR(scodec->regmap);
