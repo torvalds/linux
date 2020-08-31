@@ -883,6 +883,25 @@ static bool opcode_allowed(struct mlx5_cmd *cmd, u16 opcode)
 	return cmd->allowed_opcode == opcode;
 }
 
+static int cmd_alloc_index_retry(struct mlx5_cmd *cmd)
+{
+	unsigned long alloc_end = jiffies + msecs_to_jiffies(1000);
+	int idx;
+
+retry:
+	idx = cmd_alloc_index(cmd);
+	if (idx < 0 && time_before(jiffies, alloc_end)) {
+		/* Index allocation can fail on heavy load of commands. This is a temporary
+		 * situation as the current command already holds the semaphore, meaning that
+		 * another command completion is being handled and it is expected to release
+		 * the entry index soon.
+		 */
+		cpu_relax();
+		goto retry;
+	}
+	return idx;
+}
+
 static void cmd_work_handler(struct work_struct *work)
 {
 	struct mlx5_cmd_work_ent *ent = container_of(work, struct mlx5_cmd_work_ent, work);
@@ -900,7 +919,7 @@ static void cmd_work_handler(struct work_struct *work)
 	sem = ent->page_queue ? &cmd->pages_sem : &cmd->sem;
 	down(sem);
 	if (!ent->page_queue) {
-		alloc_ret = cmd_alloc_index(cmd);
+		alloc_ret = cmd_alloc_index_retry(cmd);
 		if (alloc_ret < 0) {
 			mlx5_core_err_rl(dev, "failed to allocate command entry\n");
 			if (ent->callback) {
