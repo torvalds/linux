@@ -554,20 +554,13 @@ static inline void ep_pm_stay_awake_rcu(struct epitem *epi)
 	rcu_read_unlock();
 }
 
-static void ep_start_scan(struct eventpoll *ep,
-			  int depth, bool ep_locked,
-			  struct list_head *txlist)
+
+/*
+ * ep->mutex needs to be held because we could be hit by
+ * eventpoll_release_file() and epoll_ctl().
+ */
+static void ep_start_scan(struct eventpoll *ep, struct list_head *txlist)
 {
-	lockdep_assert_irqs_enabled();
-
-	/*
-	 * We need to lock this because we could be hit by
-	 * eventpoll_release_file() and epoll_ctl().
-	 */
-
-	if (!ep_locked)
-		mutex_lock_nested(&ep->mtx, depth);
-
 	/*
 	 * Steal the ready list, and re-init the original one to the
 	 * empty list. Also, set ep->ovflist to NULL so that events
@@ -576,6 +569,7 @@ static void ep_start_scan(struct eventpoll *ep,
 	 * because we want the "sproc" callback to be able to do it
 	 * in a lockless way.
 	 */
+	lockdep_assert_irqs_enabled();
 	write_lock_irq(&ep->lock);
 	list_splice_init(&ep->rdllist, txlist);
 	WRITE_ONCE(ep->ovflist, NULL);
@@ -583,7 +577,6 @@ static void ep_start_scan(struct eventpoll *ep,
 }
 
 static void ep_done_scan(struct eventpoll *ep,
-			 int depth, bool ep_locked,
 			 struct list_head *txlist)
 {
 	struct epitem *epi, *nepi;
@@ -624,9 +617,6 @@ static void ep_done_scan(struct eventpoll *ep,
 	list_splice(txlist, &ep->rdllist);
 	__pm_relax(ep->ws);
 	write_unlock_irq(&ep->lock);
-
-	if (!ep_locked)
-		mutex_unlock(&ep->mtx);
 }
 
 static void epi_rcu_free(struct rcu_head *head)
@@ -763,11 +753,16 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 
 	ep = epi->ffd.file->private_data;
 	poll_wait(epi->ffd.file, &ep->poll_wait, pt);
-	locked = pt && (pt->_qproc == ep_ptable_queue_proc);
 
-	ep_start_scan(ep, depth, locked, &txlist);
+	// kludge: ep_insert() calls us with ep->mtx already locked
+	locked = pt && (pt->_qproc == ep_ptable_queue_proc);
+	if (!locked)
+		mutex_lock_nested(&ep->mtx, depth);
+	ep_start_scan(ep, &txlist);
 	res = ep_read_events_proc(ep, &txlist, depth + 1);
-	ep_done_scan(ep, depth, locked, &txlist);
+	ep_done_scan(ep, &txlist);
+	if (!locked)
+		mutex_unlock(&ep->mtx);
 	return res & epi->event.events;
 }
 
@@ -809,9 +804,11 @@ static __poll_t ep_eventpoll_poll(struct file *file, poll_table *wait)
 	 * Proceed to find out if wanted events are really available inside
 	 * the ready list.
 	 */
-	ep_start_scan(ep, 0, false, &txlist);
+	mutex_lock(&ep->mtx);
+	ep_start_scan(ep, &txlist);
 	res = ep_read_events_proc(ep, &txlist, 1);
-	ep_done_scan(ep, 0, false, &txlist);
+	ep_done_scan(ep, &txlist);
+	mutex_unlock(&ep->mtx);
 	return res;
 }
 
@@ -1573,15 +1570,13 @@ static int ep_send_events(struct eventpoll *ep,
 
 	init_poll_funcptr(&pt, NULL);
 
-	ep_start_scan(ep, 0, false, &txlist);
+	mutex_lock(&ep->mtx);
+	ep_start_scan(ep, &txlist);
 
 	/*
 	 * We can loop without lock because we are passed a task private list.
-	 * Items cannot vanish during the loop because ep_scan_ready_list() is
-	 * holding "mtx" during this call.
+	 * Items cannot vanish during the loop we are holding ep->mtx.
 	 */
-	lockdep_assert_held(&ep->mtx);
-
 	list_for_each_entry_safe(epi, tmp, &txlist, rdllink) {
 		struct wakeup_source *ws;
 		__poll_t revents;
@@ -1609,9 +1604,8 @@ static int ep_send_events(struct eventpoll *ep,
 
 		/*
 		 * If the event mask intersect the caller-requested one,
-		 * deliver the event to userspace. Again, ep_scan_ready_list()
-		 * is holding ep->mtx, so no operations coming from userspace
-		 * can change the item.
+		 * deliver the event to userspace. Again, we are holding ep->mtx,
+		 * so no operations coming from userspace can change the item.
 		 */
 		revents = ep_item_poll(epi, &pt, 1);
 		if (!revents)
@@ -1645,7 +1639,8 @@ static int ep_send_events(struct eventpoll *ep,
 			ep_pm_stay_awake(epi);
 		}
 	}
-	ep_done_scan(ep, 0, false, &txlist);
+	ep_done_scan(ep, &txlist);
+	mutex_unlock(&ep->mtx);
 
 	return res;
 }
