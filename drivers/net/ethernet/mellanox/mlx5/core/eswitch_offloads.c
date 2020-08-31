@@ -1820,14 +1820,11 @@ static void __unload_reps_all_vport(struct mlx5_eswitch *esw, u8 rep_type)
 	__esw_offloads_unload_rep(esw, rep, rep_type);
 }
 
-int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num)
+static int mlx5_esw_offloads_rep_load(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_eswitch_rep *rep;
 	int rep_type;
 	int err;
-
-	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
-		return 0;
 
 	rep = mlx5_eswitch_get_rep(esw, vport_num);
 	for (rep_type = 0; rep_type < NUM_REP_TYPES; rep_type++)
@@ -1847,17 +1844,33 @@ err_reps:
 	return err;
 }
 
-void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num)
+static void mlx5_esw_offloads_rep_unload(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_eswitch_rep *rep;
 	int rep_type;
 
-	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
-		return;
-
 	rep = mlx5_eswitch_get_rep(esw, vport_num);
 	for (rep_type = NUM_REP_TYPES - 1; rep_type >= 0; rep_type--)
 		__esw_offloads_unload_rep(esw, rep, rep_type);
+}
+
+int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	int err;
+
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
+		return 0;
+
+	err = mlx5_esw_offloads_rep_load(esw, vport_num);
+	return err;
+}
+
+void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
+		return;
+
+	mlx5_esw_offloads_rep_unload(esw, vport_num);
 }
 
 #define ESW_OFFLOADS_DEVCOM_PAIR	(0)
