@@ -21,6 +21,8 @@
 #define REG_SKIP ~0
 #define REG_ADRENO_SKIP(_offset) [_offset] = REG_SKIP
 
+extern bool snapshot_debugbus;
+
 /**
  * adreno_regs: List of registers that are used in across all
  * 3D devices. Each device type has different offset value for the same

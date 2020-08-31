@@ -45,6 +45,14 @@ static inline void efx_rx_flush_packet(struct efx_channel *channel)
 				__ef100_rx_packet, __efx_rx_packet,
 				channel);
 }
+static inline bool efx_rx_buf_hash_valid(struct efx_nic *efx, const u8 *prefix)
+{
+	if (efx->type->rx_buf_hash_valid)
+		return INDIRECT_CALL_1(efx->type->rx_buf_hash_valid,
+				       ef100_rx_buf_hash_valid,
+				       prefix);
+	return true;
+}
 
 /* Maximum number of TCP segments we support for soft-TSO */
 #define EFX_TSO_MAX_SEGS	100

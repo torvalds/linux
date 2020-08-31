@@ -1712,13 +1712,13 @@ static bool slic_is_fiber(unsigned short subdev)
 {
 	switch (subdev) {
 	/* Mojave */
-	case PCI_SUBDEVICE_ID_ALACRITECH_1000X1F: /* fallthrough */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SES1001F: /* fallthrough */
+	case PCI_SUBDEVICE_ID_ALACRITECH_1000X1F:
+	case PCI_SUBDEVICE_ID_ALACRITECH_SES1001F: fallthrough;
 	/* Oasis */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2002XF: /* fallthrough */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2001XF: /* fallthrough */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2104EF: /* fallthrough */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2102EF: /* fallthrough */
+	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2002XF:
+	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2001XF:
+	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2104EF:
+	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2102EF:
 		return true;
 	}
 	return false;

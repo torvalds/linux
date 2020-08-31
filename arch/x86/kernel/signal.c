@@ -726,7 +726,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->ax = -EINTR;
 				break;
 			}
-		/* fallthrough */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->ax = regs->orig_ax;
 			regs->ip -= 2;

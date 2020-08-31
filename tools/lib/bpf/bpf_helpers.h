@@ -40,7 +40,7 @@
  * Helper macro to manipulate data structures
  */
 #ifndef offsetof
-#define offsetof(TYPE, MEMBER)  __builtin_offsetof(TYPE, MEMBER)
+#define offsetof(TYPE, MEMBER)	((unsigned long)&((TYPE *)0)->MEMBER)
 #endif
 #ifndef container_of
 #define container_of(ptr, type, member)				\

@@ -339,7 +339,6 @@ static int psc_dma_new(struct snd_soc_component *component,
 static void psc_dma_free(struct snd_soc_component *component,
 			 struct snd_pcm *pcm)
 {
-	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
 	struct snd_pcm_substream *substream;
 	int stream;
 

@@ -1219,13 +1219,13 @@ static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 	case sa_rootdomain:
 		if (!atomic_read(&d->rd->refcount))
 			free_rootdomain(&d->rd->rcu);
-		/* Fall through */
+		fallthrough;
 	case sa_sd:
 		free_percpu(d->sd);
-		/* Fall through */
+		fallthrough;
 	case sa_sd_storage:
 		__sdt_free(cpu_map);
-		/* Fall through */
+		fallthrough;
 	case sa_none:
 		break;
 	}

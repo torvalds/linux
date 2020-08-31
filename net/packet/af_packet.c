@@ -4061,7 +4061,7 @@ static int packet_notifier(struct notifier_block *this,
 		case NETDEV_UNREGISTER:
 			if (po->mclist)
 				packet_dev_mclist_delete(dev, &po->mclist);
-			/* fallthrough */
+			fallthrough;
 
 		case NETDEV_DOWN:
 			if (dev->ifindex == po->ifindex) {

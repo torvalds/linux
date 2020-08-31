@@ -2457,7 +2457,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 				sec_mask = 0x10000;
 				break;
 			}
-			/* Fall through... */
+			fallthrough;
 
 		case 0x1f: /* Atmel flash. */
 			/* 512k sector size. */
@@ -2466,7 +2466,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 				sec_mask =   0x80000000;
 				break;
 			}
-			/* Fall through... */
+			fallthrough;
 
 		case 0x01: /* AMD flash. */
 			if (flash_id == 0x38 || flash_id == 0x40 ||
@@ -2499,7 +2499,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 				sec_mask = 0x1e000;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			/* Default to 16 kb sector size. */
 			rest_addr = 0x3fff;

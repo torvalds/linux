@@ -237,8 +237,8 @@
 		.union_sz = sizeof(((type *)0)->union_field),		\
 		.arr_sz = sizeof(((type *)0)->arr_field),		\
 		.arr_elem_sz = sizeof(((type *)0)->arr_field[0]),	\
-		.ptr_sz = sizeof(((type *)0)->ptr_field),		\
-		.enum_sz = sizeof(((type *)0)->enum_field),	\
+		.ptr_sz = 8, /* always 8-byte pointer for BPF */	\
+		.enum_sz = sizeof(((type *)0)->enum_field),		\
 	}
 
 #define SIZE_CASE(name) {						\
@@ -432,20 +432,20 @@ static struct core_reloc_test_case test_cases[] = {
 		.sb4 = -1,
 		.sb20 = -0x17654321,
 		.u32 = 0xBEEF,
-		.s32 = -0x3FEDCBA987654321,
+		.s32 = -0x3FEDCBA987654321LL,
 	}),
 	BITFIELDS_CASE(bitfields___bitfield_vs_int, {
-		.ub1 = 0xFEDCBA9876543210,
+		.ub1 = 0xFEDCBA9876543210LL,
 		.ub2 = 0xA6,
-		.ub7 = -0x7EDCBA987654321,
-		.sb4 = -0x6123456789ABCDE,
-		.sb20 = 0xD00D,
+		.ub7 = -0x7EDCBA987654321LL,
+		.sb4 = -0x6123456789ABCDELL,
+		.sb20 = 0xD00DLL,
 		.u32 = -0x76543,
-		.s32 = 0x0ADEADBEEFBADB0B,
+		.s32 = 0x0ADEADBEEFBADB0BLL,
 	}),
 	BITFIELDS_CASE(bitfields___just_big_enough, {
-		.ub1 = 0xF,
-		.ub2 = 0x0812345678FEDCBA,
+		.ub1 = 0xFLL,
+		.ub2 = 0x0812345678FEDCBALL,
 	}),
 	BITFIELDS_ERR_CASE(bitfields___err_too_big_bitfield),
 

@@ -548,7 +548,7 @@ static int lan743x_ethtool_get_rxnfc(struct net_device *netdev,
 		case TCP_V4_FLOW:case UDP_V4_FLOW:
 		case TCP_V6_FLOW:case UDP_V6_FLOW:
 			rxnfc->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			/* fall through */
+			fallthrough;
 		case IPV4_FLOW: case IPV6_FLOW:
 			rxnfc->data |= RXH_IP_SRC | RXH_IP_DST;
 			return 0;

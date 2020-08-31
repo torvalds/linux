@@ -40,7 +40,7 @@ struct exynos_drm_gem {
 	unsigned int		flags;
 	unsigned long		size;
 	void			*cookie;
-	void __iomem		*kvaddr;
+	void			*kvaddr;
 	dma_addr_t		dma_addr;
 	unsigned long		dma_attrs;
 	struct sg_table		*sgt;

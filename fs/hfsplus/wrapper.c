@@ -195,7 +195,7 @@ reread:
 	switch (sbi->s_vhdr->signature) {
 	case cpu_to_be16(HFSPLUS_VOLHEAD_SIGX):
 		set_bit(HFSPLUS_SB_HFSX, &sbi->flags);
-		/*FALLTHRU*/
+		fallthrough;
 	case cpu_to_be16(HFSPLUS_VOLHEAD_SIG):
 		break;
 	case cpu_to_be16(HFSP_WRAP_MAGIC):

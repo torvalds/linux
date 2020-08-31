@@ -358,7 +358,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 
 	case XDP_ABORTED:
 		trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
-		/* Fall through */
+		fallthrough;
 	case XDP_DROP:
 		efx_free_rx_buffers(rx_queue, rx_buf, 1);
 		channel->n_rx_xdp_drops++;

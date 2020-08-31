@@ -780,7 +780,7 @@ static void kone_keep_values_up_to_date(struct kone_device *kone,
 	case kone_mouse_event_switch_profile:
 		kone->actual_dpi = kone->profiles[event->value - 1].
 				startup_dpi;
-		/* fall through */
+		fallthrough;
 	case kone_mouse_event_osd_profile:
 		kone->actual_profile = event->value;
 		break;

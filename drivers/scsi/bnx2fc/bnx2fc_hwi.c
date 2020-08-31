@@ -1404,7 +1404,6 @@ void bnx2fc_indicate_kcqe(void *context, struct kcqe *kcq[],
 			break;
 
 		case FCOE_KCQE_OPCODE_FCOE_ERROR:
-			/* fall thru */
 		default:
 			printk(KERN_ERR PFX "unknown opcode 0x%x\n",
 								kcqe->op_code);

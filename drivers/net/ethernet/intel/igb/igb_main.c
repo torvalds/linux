@@ -718,7 +718,6 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
-		fallthrough;
 	default:
 		for (; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i]->reg_idx = rbase_offset + i;

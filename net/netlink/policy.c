@@ -51,6 +51,9 @@ static int add_policy(struct nl_policy_dump **statep,
 	if (!state)
 		return -ENOMEM;
 
+	memset(&state->policies[state->n_alloc], 0,
+	       flex_array_size(state, policies, n_alloc - state->n_alloc));
+
 	state->policies[state->n_alloc].policy = policy;
 	state->policies[state->n_alloc].maxtype = maxtype;
 	state->n_alloc = n_alloc;
@@ -185,7 +188,7 @@ send_attribute:
 		goto next;
 	case NLA_NESTED:
 		type = NL_ATTR_TYPE_NESTED;
-		/* fall through */
+		fallthrough;
 	case NLA_NESTED_ARRAY:
 		if (pt->type == NLA_NESTED_ARRAY)
 			type = NL_ATTR_TYPE_NESTED_ARRAY;

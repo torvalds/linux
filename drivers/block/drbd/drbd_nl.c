@@ -3883,7 +3883,7 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
 			if (nla_put_u32(skb, T_helper_exit_code,
 					sib->helper_exit_code))
 				goto nla_put_failure;
-			/* fall through */
+			fallthrough;
 		case SIB_HELPER_PRE:
 			if (nla_put_string(skb, T_helper, sib->helper_name))
 				goto nla_put_failure;

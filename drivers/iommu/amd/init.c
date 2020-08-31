@@ -2258,7 +2258,7 @@ static void iommu_enable_ga(struct amd_iommu *iommu)
 	switch (amd_iommu_guest_ir) {
 	case AMD_IOMMU_GUEST_IR_VAPIC:
 		iommu_feature_enable(iommu, CONTROL_GAM_EN);
-		/* Fall through */
+		fallthrough;
 	case AMD_IOMMU_GUEST_IR_LEGACY_GA:
 		iommu_feature_enable(iommu, CONTROL_GA_EN);
 		iommu->irte_ops = &irte_128_ops;

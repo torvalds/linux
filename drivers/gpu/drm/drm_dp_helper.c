@@ -492,7 +492,7 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 		case DP_DS_16BPC:
 			return 16;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return 0;
 	}

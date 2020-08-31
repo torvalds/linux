@@ -165,7 +165,7 @@ static void nvmet_passthru_execute_cmd_work(struct work_struct *w)
 
 	req->cqe->result = nvme_req(rq)->result;
 	nvmet_req_complete(req, status);
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 }
 
 static void nvmet_passthru_req_done(struct request *rq,
@@ -175,7 +175,7 @@ static void nvmet_passthru_req_done(struct request *rq,
 
 	req->cqe->result = nvme_req(rq)->result;
 	nvmet_req_complete(req, nvme_req(rq)->status);
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 }
 
 static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
@@ -230,7 +230,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		if (unlikely(!ns)) {
 			pr_err("failed to get passthru ns nsid:%u\n", nsid);
 			status = NVME_SC_INVALID_NS | NVME_SC_DNR;
-			goto fail_out;
+			goto out;
 		}
 
 		q = ns->queue;
@@ -238,16 +238,15 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 
 	rq = nvme_alloc_request(q, req->cmd, BLK_MQ_REQ_NOWAIT, NVME_QID_ANY);
 	if (IS_ERR(rq)) {
-		rq = NULL;
 		status = NVME_SC_INTERNAL;
-		goto fail_out;
+		goto out_put_ns;
 	}
 
 	if (req->sg_cnt) {
 		ret = nvmet_passthru_map_sg(req, rq);
 		if (unlikely(ret)) {
 			status = NVME_SC_INTERNAL;
-			goto fail_out;
+			goto out_put_req;
 		}
 	}
 
@@ -274,11 +273,13 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 
 	return;
 
-fail_out:
+out_put_req:
+	blk_mq_free_request(rq);
+out_put_ns:
 	if (ns)
 		nvme_put_ns(ns);
+out:
 	nvmet_req_complete(req, status);
-	blk_put_request(rq);
 }
 
 /*
@@ -326,6 +327,10 @@ static u16 nvmet_setup_passthru_command(struct nvmet_req *req)
 
 u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req)
 {
+	/* Reject any commands with non-sgl flags set (ie. fused commands) */
+	if (req->cmd->common.flags & ~NVME_CMD_SGL_ALL)
+		return NVME_SC_INVALID_FIELD;
+
 	switch (req->cmd->common.opcode) {
 	case nvme_cmd_resv_register:
 	case nvme_cmd_resv_report:
@@ -396,6 +401,10 @@ static u16 nvmet_passthru_get_set_features(struct nvmet_req *req)
 
 u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 {
+	/* Reject any commands with non-sgl flags set (ie. fused commands) */
+	if (req->cmd->common.flags & ~NVME_CMD_SGL_ALL)
+		return NVME_SC_INVALID_FIELD;
+
 	/*
 	 * Passthru all vendor specific commands
 	 */

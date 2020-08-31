@@ -2340,12 +2340,12 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	case PXA250_A0:
 	case PXA250_A1:
 		/* A0/A1 "not released"; ep 13, 15 unusable */
-		/* fall through */
+		fallthrough;
 	case PXA250_B2: case PXA210_B2:
 	case PXA250_B1: case PXA210_B1:
 	case PXA250_B0: case PXA210_B0:
 		/* OUT-DMA is broken ... */
-		/* fall through */
+		fallthrough;
 	case PXA250_C0: case PXA210_C0:
 		break;
 #elif	defined(CONFIG_ARCH_IXP4XX)

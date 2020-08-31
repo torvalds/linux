@@ -103,6 +103,10 @@ KVM_NVHE_ALIAS(vgic_v3_cpuif_trap);
 KVM_NVHE_ALIAS(gic_pmr_sync);
 #endif
 
+/* EL2 exception handling */
+KVM_NVHE_ALIAS(__start___kvm_ex_table);
+KVM_NVHE_ALIAS(__stop___kvm_ex_table);
+
 #endif /* CONFIG_KVM */
 
 #endif /* __ARM64_KERNEL_IMAGE_VARS_H */

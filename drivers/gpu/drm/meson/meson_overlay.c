@@ -654,7 +654,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 			 priv->viu.vd1_addr2,
 			 priv->viu.vd1_stride2,
 			 priv->viu.vd1_height2);
-	/* fallthrough */
+		fallthrough;
 	case 2:
 		gem = drm_fb_cma_get_gem_obj(fb, 1);
 		priv->viu.vd1_addr1 = gem->paddr + fb->offsets[1];
@@ -666,7 +666,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 			 priv->viu.vd1_addr1,
 			 priv->viu.vd1_stride1,
 			 priv->viu.vd1_height1);
-	/* fallthrough */
+		fallthrough;
 	case 1:
 		gem = drm_fb_cma_get_gem_obj(fb, 0);
 		priv->viu.vd1_addr0 = gem->paddr + fb->offsets[0];

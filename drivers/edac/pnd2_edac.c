@@ -198,7 +198,7 @@ static int apl_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 	switch (sz) {
 	case 8:
 		ret = _apl_rd_reg(port, off + 4, op, (u32 *)(data + 4));
-		/* fall through */
+		fallthrough;
 	case 4:
 		ret |= _apl_rd_reg(port, off, op, (u32 *)data);
 		pnd2_printk(KERN_DEBUG, "%s=%x%08x ret=%d\n", name,
@@ -1155,7 +1155,7 @@ static void pnd2_mce_output_error(struct mem_ctl_info *mci, const struct mce *m,
 	u32 optypenum = GET_BITFIELD(m->status, 4, 6);
 	int rc;
 
-	tp_event = uc_err ? (ripv ? HW_EVENT_ERR_FATAL : HW_EVENT_ERR_UNCORRECTED) :
+	tp_event = uc_err ? (ripv ? HW_EVENT_ERR_UNCORRECTED : HW_EVENT_ERR_FATAL) :
 						 HW_EVENT_ERR_CORRECTED;
 
 	/*

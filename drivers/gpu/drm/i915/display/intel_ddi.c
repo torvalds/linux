@@ -1888,7 +1888,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		default:
 			MISSING_CASE(tmp & TRANS_DDI_EDP_INPUT_MASK);
-			/* fallthrough */
+			fallthrough;
 		case TRANS_DDI_EDP_INPUT_A_ON:
 		case TRANS_DDI_EDP_INPUT_A_ONOFF:
 			*pipe_mask = BIT(PIPE_A);
@@ -4268,7 +4268,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 			pipe_config->hdmi_scrambling = true;
 		if (temp & TRANS_DDI_HIGH_TMDS_CHAR_RATE)
 			pipe_config->hdmi_high_tmds_clock_ratio = true;
-		/* fall through */
+		fallthrough;
 	case TRANS_DDI_MODE_SELECT_DVI:
 		pipe_config->output_types |= BIT(INTEL_OUTPUT_HDMI);
 		pipe_config->lane_count = 4;

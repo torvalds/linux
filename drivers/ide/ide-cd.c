@@ -350,7 +350,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		 */
 		if (scsi_req(rq)->cmd[0] == GPCMD_START_STOP_UNIT)
 			break;
-		/* fall-through */
+		fallthrough;
 	case DATA_PROTECT:
 		/*
 		 * No point in retrying after an illegal request or data
@@ -750,7 +750,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	case REQ_OP_DRV_IN:
 	case REQ_OP_DRV_OUT:
 		expiry = ide_cd_expiry;
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		timeout = ATAPI_WAIT_PC;
 		break;

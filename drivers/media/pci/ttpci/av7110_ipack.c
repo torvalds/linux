@@ -182,7 +182,7 @@ int av7110_ipack_instant_repack (const u8 *buf, int count, struct ipack *p)
 			case DSM_CC_STREAM  :
 			case ISO13522_STREAM:
 				p->done = 1;
-				/* fall through */
+				fallthrough;
 			case PRIVATE_STREAM1:
 			case VIDEO_STREAM_S ... VIDEO_STREAM_E:
 			case AUDIO_STREAM_S ... AUDIO_STREAM_E:

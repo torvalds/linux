@@ -65,51 +65,30 @@ void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
 	}
 }
 
-bool nvme_failover_req(struct request *req)
+void nvme_failover_req(struct request *req)
 {
 	struct nvme_ns *ns = req->q->queuedata;
-	u16 status = nvme_req(req)->status;
+	u16 status = nvme_req(req)->status & 0x7ff;
 	unsigned long flags;
 
-	switch (status & 0x7ff) {
-	case NVME_SC_ANA_TRANSITION:
-	case NVME_SC_ANA_INACCESSIBLE:
-	case NVME_SC_ANA_PERSISTENT_LOSS:
-		/*
-		 * If we got back an ANA error we know the controller is alive,
-		 * but not ready to serve this namespaces.  The spec suggests
-		 * we should update our general state here, but due to the fact
-		 * that the admin and I/O queues are not serialized that is
-		 * fundamentally racy.  So instead just clear the current path,
-		 * mark the the path as pending and kick of a re-read of the ANA
-		 * log page ASAP.
-		 */
-		nvme_mpath_clear_current_path(ns);
-		if (ns->ctrl->ana_log_buf) {
-			set_bit(NVME_NS_ANA_PENDING, &ns->flags);
-			queue_work(nvme_wq, &ns->ctrl->ana_work);
-		}
-		break;
-	case NVME_SC_HOST_PATH_ERROR:
-	case NVME_SC_HOST_ABORTED_CMD:
-		/*
-		 * Temporary transport disruption in talking to the controller.
-		 * Try to send on a new path.
-		 */
-		nvme_mpath_clear_current_path(ns);
-		break;
-	default:
-		/* This was a non-ANA error so follow the normal error path. */
-		return false;
+	nvme_mpath_clear_current_path(ns);
+
+	/*
+	 * If we got back an ANA error, we know the controller is alive but not
+	 * ready to serve this namespace.  Kick of a re-read of the ANA
+	 * information page, and just try any other available path for now.
+	 */
+	if (nvme_is_ana_error(status) && ns->ctrl->ana_log_buf) {
+		set_bit(NVME_NS_ANA_PENDING, &ns->flags);
+		queue_work(nvme_wq, &ns->ctrl->ana_work);
 	}
 
 	spin_lock_irqsave(&ns->head->requeue_lock, flags);
 	blk_steal_bios(&ns->head->requeue_list, req);
 	spin_unlock_irqrestore(&ns->head->requeue_lock, flags);
-	blk_mq_end_request(req, 0);
 
+	blk_mq_end_request(req, 0);
 	kblockd_schedule_work(&ns->head->requeue_work);
-	return true;
 }
 
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
@@ -233,7 +212,7 @@ static struct nvme_ns *nvme_next_ns(struct nvme_ns_head *head,
 static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
 		int node, struct nvme_ns *old)
 {
-	struct nvme_ns *ns, *found, *fallback = NULL;
+	struct nvme_ns *ns, *found = NULL;
 
 	if (list_is_singular(&head->list)) {
 		if (nvme_path_is_disabled(old))
@@ -252,18 +231,22 @@ static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
 			goto out;
 		}
 		if (ns->ana_state == NVME_ANA_NONOPTIMIZED)
-			fallback = ns;
+			found = ns;
 	}
 
-	/* No optimized path found, re-check the current path */
+	/*
+	 * The loop above skips the current path for round-robin semantics.
+	 * Fall back to the current path if either:
+	 *  - no other optimized path found and current is optimized,
+	 *  - no other usable path found and current is usable.
+	 */
 	if (!nvme_path_is_disabled(old) &&
-	    old->ana_state == NVME_ANA_OPTIMIZED) {
-		found = old;
-		goto out;
-	}
-	if (!fallback)
+	    (old->ana_state == NVME_ANA_OPTIMIZED ||
+	     (!found && old->ana_state == NVME_ANA_NONOPTIMIZED)))
+		return old;
+
+	if (!found)
 		return NULL;
-	found = fallback;
 out:
 	rcu_assign_pointer(head->current_path[node], found);
 	return found;
