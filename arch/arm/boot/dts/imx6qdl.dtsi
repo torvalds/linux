@@ -1043,8 +1043,9 @@
 					     <0 119 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6QDL_CLK_ENET>,
 					 <&clks IMX6QDL_CLK_ENET>,
+					 <&clks IMX6QDL_CLK_ENET_REF>,
 					 <&clks IMX6QDL_CLK_ENET_REF>;
-				clock-names = "ipg", "ahb", "ptp";
+				clock-names = "ipg", "ahb", "ptp", "enet_out";
 				fsl,stop-mode = <&gpr 0x34 27>;
 				status = "disabled";
 			};
