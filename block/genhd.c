@@ -913,7 +913,7 @@ void del_gendisk(struct gendisk *disk)
 			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
 	while ((part = disk_part_iter_next(&piter))) {
 		invalidate_partition(disk, part->partno);
-		delete_partition(disk, part);
+		delete_partition(part);
 	}
 	disk_part_iter_exit(&piter);
 

@@ -324,8 +324,9 @@ int hd_ref_init(struct hd_struct *part)
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-void delete_partition(struct gendisk *disk, struct hd_struct *part)
+void delete_partition(struct hd_struct *part)
 {
+	struct gendisk *disk = part_to_disk(part);
 	struct disk_part_tbl *ptbl =
 		rcu_dereference_protected(disk->part_tbl, 1);
 
@@ -333,7 +334,7 @@ void delete_partition(struct gendisk *disk, struct hd_struct *part)
 	 * ->part_tbl is referenced in this part's release handler, so
 	 *  we have to hold the disk device
 	 */
-	get_device(disk_to_dev(part_to_disk(part)));
+	get_device(disk_to_dev(disk));
 	rcu_assign_pointer(ptbl->part[part->partno], NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
@@ -556,7 +557,7 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	sync_blockdev(bdevp);
 	invalidate_bdev(bdevp);
 
-	delete_partition(bdev->bd_disk, part);
+	delete_partition(part);
 	ret = 0;
 out_unlock:
 	mutex_unlock(&bdev->bd_mutex);
@@ -636,7 +637,7 @@ int blk_drop_partitions(struct block_device *bdev)
 
 	disk_part_iter_init(&piter, bdev->bd_disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
-		delete_partition(bdev->bd_disk, part);
+		delete_partition(part);
 	disk_part_iter_exit(&piter);
 
 	return 0;
