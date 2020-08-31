@@ -288,7 +288,7 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 			     struct mlx5dr_matcher_rx_tx *nic_matcher,
 			     struct mlx5dr_match_param *value,
 			     u8 *ste_arr);
-void mlx5dr_ste_build_eth_l2_src_des(struct mlx5dr_ste_build *builder,
+void mlx5dr_ste_build_eth_l2_src_dst(struct mlx5dr_ste_build *builder,
 				     struct mlx5dr_match_param *mask,
 				     bool inner, bool rx);
 void mlx5dr_ste_build_eth_l3_ipv4_5_tuple(struct mlx5dr_ste_build *sb,
@@ -312,31 +312,31 @@ void mlx5dr_ste_build_eth_l2_dst(struct mlx5dr_ste_build *sb,
 void mlx5dr_ste_build_eth_l2_tnl(struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-void mlx5dr_ste_build_ipv6_l3_l4(struct mlx5dr_ste_build *sb,
-				 struct mlx5dr_match_param *mask,
-				 bool inner, bool rx);
+void mlx5dr_ste_build_eth_ipv6_l3_l4(struct mlx5dr_ste_build *sb,
+				     struct mlx5dr_match_param *mask,
+				     bool inner, bool rx);
 void mlx5dr_ste_build_eth_l4_misc(struct mlx5dr_ste_build *sb,
 				  struct mlx5dr_match_param *mask,
 				  bool inner, bool rx);
-void mlx5dr_ste_build_gre(struct mlx5dr_ste_build *sb,
-			  struct mlx5dr_match_param *mask,
-			  bool inner, bool rx);
+void mlx5dr_ste_build_tnl_gre(struct mlx5dr_ste_build *sb,
+			      struct mlx5dr_match_param *mask,
+			      bool inner, bool rx);
 void mlx5dr_ste_build_mpls(struct mlx5dr_ste_build *sb,
 			   struct mlx5dr_match_param *mask,
 			   bool inner, bool rx);
-void mlx5dr_ste_build_flex_parser_0(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_build *sb,
+			       struct mlx5dr_match_param *mask,
+			       bool inner, bool rx);
+int mlx5dr_ste_build_icmp(struct mlx5dr_ste_build *sb,
+			  struct mlx5dr_match_param *mask,
+			  struct mlx5dr_cmd_caps *caps,
+			  bool inner, bool rx);
+void mlx5dr_ste_build_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
 				    struct mlx5dr_match_param *mask,
 				    bool inner, bool rx);
-int mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_build *sb,
-				   struct mlx5dr_match_param *mask,
-				   struct mlx5dr_cmd_caps *caps,
-				   bool inner, bool rx);
-void mlx5dr_ste_build_flex_parser_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
-						struct mlx5dr_match_param *mask,
-						bool inner, bool rx);
-void mlx5dr_ste_build_flex_parser_tnl_geneve(struct mlx5dr_ste_build *sb,
-					     struct mlx5dr_match_param *mask,
-					     bool inner, bool rx);
+void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_build *sb,
+				 struct mlx5dr_match_param *mask,
+				 bool inner, bool rx);
 void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx);
@@ -588,9 +588,9 @@ struct mlx5dr_match_param {
 	struct mlx5dr_match_misc3 misc3;
 };
 
-#define DR_MASK_IS_FLEX_PARSER_ICMPV4_SET(_misc3) ((_misc3)->icmpv4_type || \
-						   (_misc3)->icmpv4_code || \
-						   (_misc3)->icmpv4_header_data)
+#define DR_MASK_IS_ICMPV4_SET(_misc3) ((_misc3)->icmpv4_type || \
+				       (_misc3)->icmpv4_code || \
+				       (_misc3)->icmpv4_header_data)
 
 struct mlx5dr_esw_caps {
 	u64 drop_icm_address_rx;
