@@ -700,7 +700,6 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 			return true;
 
 		return false;
-		fallthrough;
 	case ATOMISP_RUN_MODE_VIDEO:
 		if (!asd->continuous_mode->val) {
 			if (pipe_id == IA_CSS_PIPE_ID_VIDEO ||
