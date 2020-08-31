@@ -1370,8 +1370,9 @@ static struct ftrace_hash *dup_hash(struct ftrace_hash *src, int size)
 	/*
 	 * Make the hash size about 1/2 the # found
 	 */
-	for (size /= 2; size; size >>= 1)
-		bits++;
+	bits = fls(size);
+	if (bits)
+		bits--;
 
 	/* Don't allocate too much */
 	if (bits > FTRACE_HASH_MAX_BITS)
