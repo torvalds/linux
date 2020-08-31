@@ -1449,21 +1449,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
 	struct gendisk *disk;
 	int ret;
 	int partno;
-	int perm = 0;
 	bool first_open = false, unblock_events = true, need_restart;
-
-	if (mode & FMODE_READ)
-		perm |= MAY_READ;
-	if (mode & FMODE_WRITE)
-		perm |= MAY_WRITE;
-	/*
-	 * hooks: /n/, see "layering violations".
-	 */
-	if (!for_part) {
-		ret = devcgroup_inode_permission(bdev->bd_inode, perm);
-		if (ret != 0)
-			return ret;
-	}
 
  restart:
 	need_restart = false;
@@ -1637,12 +1623,24 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
  */
 int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 {
-	int res;
+	int ret, perm = 0;
 
-	res =__blkdev_get(bdev, mode, holder, 0);
-	if (res)
-		bdput(bdev);
-	return res;
+	if (mode & FMODE_READ)
+		perm |= MAY_READ;
+	if (mode & FMODE_WRITE)
+		perm |= MAY_WRITE;
+	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
+	if (ret)
+		goto bdput;
+
+	ret =__blkdev_get(bdev, mode, holder, 0);
+	if (ret)
+		goto bdput;
+	return 0;
+
+bdput:
+	bdput(bdev);
+	return ret;
 }
 EXPORT_SYMBOL(blkdev_get);
 
