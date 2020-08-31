@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd.
-
+/*
+ * v0.1.1 Fix the bug that when pwm is disabled, the light cannot be turned off
+ */
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/delay.h>
@@ -19,7 +21,7 @@
 #include <linux/version.h>
 #include <linux/pwm.h>
 
-#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x1)
 
 #define FLASH_TIMEOUT_MIN	1000
 #define FLASH_TIMEOUT_STEP	1000
@@ -58,8 +60,7 @@ struct rgb13h_led {
 	u32 module_index;
 	const char *module_facing;
 	struct pwm_device   *pwm;
-	u32 pwm_period;
-	u32 pwm_duty;
+	struct pwm_state pwm_state;
 };
 
 static struct rgb13h_led *fled_cdev_to_led(struct led_classdev_flash *fled_cdev)
@@ -79,18 +80,19 @@ static int rgb13h_set_output(struct rgb13h_led *led, bool on)
 		gpiod_direction_output(led->gpio_en, on);
 	if (!IS_ERR(led->pwm)) {
 		if (led->led_mode == V4L2_FLASH_LED_MODE_TORCH)
-			led->pwm_duty = led->pwm_period -
-				led->intensity_torch * led->pwm_period / led->max_mm_current;
+			led->pwm_state.duty_cycle =
+				led->intensity_torch * led->pwm_state.period / led->max_mm_current;
 		else
-			led->pwm_duty = led->pwm_period -
-				led->intensity * led->pwm_period / led->max_flash_current;
+			led->pwm_state.duty_cycle =
+				led->intensity * led->pwm_state.period / led->max_flash_current;
 		if (on) {
-			pwm_config(led->pwm, led->pwm_duty, led->pwm_period);
-			pwm_enable(led->pwm);
+			led->pwm_state.enabled = true;
+			pwm_apply_state(led->pwm, &led->pwm_state);
 			dev_dbg(&led->pdev->dev, "led pwm duty=%d, period=%d, polarity=%d\n",
-				led->pwm_duty, led->pwm_period, led->pwm->args.polarity);
+				led->pwm_state.duty_cycle, led->pwm_state.period, led->pwm_state.polarity);
 		} else {
-			pwm_disable(led->pwm);
+			led->pwm_state.enabled = false;
+			pwm_apply_state(led->pwm, &led->pwm_state);
 		}
 	}
 	if (!on) {
@@ -216,7 +218,10 @@ static int rgb13h_led_parse_dt(struct rgb13h_led *led,
 		ret = PTR_ERR(led->pwm);
 		dev_info(dev, "Unable to get pwm device\n");
 	} else {
-		led->pwm_period = led->pwm->args.period;
+		led->pwm_state.period = led->pwm->args.period;
+		led->pwm_state.polarity = led->pwm->args.polarity;
+		dev_dbg(dev, "period %d, polarity %d\n",
+			led->pwm_state.period, led->pwm_state.polarity);
 	}
 	if (IS_ERR(led->gpio_en) && IS_ERR(led->pwm)) {
 		dev_err(dev, "Neither enable-gpio nor pwm can be get,return error\n");
@@ -560,9 +565,9 @@ static int rgb13h_led_probe(struct platform_device *pdev)
 		facing[0] = 'b';
 	else
 		facing[0] = 'f';
-	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s",
 		 led->module_index, facing,
-		 led_cdev->name, dev_name(sd->dev));
+		 led_cdev->name);
 	ret = media_entity_pads_init(&sd->entity, 0, NULL);
 	if (ret < 0)
 		goto error_v4l2_flash_init;
