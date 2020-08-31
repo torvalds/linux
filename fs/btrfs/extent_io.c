@@ -4555,7 +4555,7 @@ next:
 static struct extent_map *get_extent_skip_holes(struct inode *inode,
 						u64 offset, u64 last)
 {
-	u64 sectorsize = btrfs_inode_sectorsize(inode);
+	u64 sectorsize = btrfs_inode_sectorsize(BTRFS_I(inode));
 	struct extent_map *em;
 	u64 len;
 
@@ -4736,8 +4736,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		goto out_free_ulist;
 	}
 
-	start = round_down(start, btrfs_inode_sectorsize(inode));
-	len = round_up(max, btrfs_inode_sectorsize(inode)) - start;
+	start = round_down(start, btrfs_inode_sectorsize(BTRFS_I(inode)));
+	len = round_up(max, btrfs_inode_sectorsize(BTRFS_I(inode))) - start;
 
 	/*
 	 * lookup the last file extent.  We're not using i_size here

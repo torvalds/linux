@@ -2901,9 +2901,9 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		goto out_only_mutex;
 	}
 
-	lockstart = round_up(offset, btrfs_inode_sectorsize(inode));
+	lockstart = round_up(offset, btrfs_inode_sectorsize(BTRFS_I(inode)));
 	lockend = round_down(offset + len,
-			     btrfs_inode_sectorsize(inode)) - 1;
+			     btrfs_inode_sectorsize(BTRFS_I(inode))) - 1;
 	same_block = (BTRFS_BYTES_TO_BLKS(fs_info, offset))
 		== (BTRFS_BYTES_TO_BLKS(fs_info, offset + len - 1));
 	/*
@@ -3108,7 +3108,7 @@ enum {
 static int btrfs_zero_range_check_range_boundary(struct inode *inode,
 						 u64 offset)
 {
-	const u64 sectorsize = btrfs_inode_sectorsize(inode);
+	const u64 sectorsize = btrfs_inode_sectorsize(BTRFS_I(inode));
 	struct extent_map *em;
 	int ret;
 
@@ -3138,7 +3138,7 @@ static int btrfs_zero_range(struct inode *inode,
 	struct extent_changeset *data_reserved = NULL;
 	int ret;
 	u64 alloc_hint = 0;
-	const u64 sectorsize = btrfs_inode_sectorsize(inode);
+	const u64 sectorsize = btrfs_inode_sectorsize(BTRFS_I(inode));
 	u64 alloc_start = round_down(offset, sectorsize);
 	u64 alloc_end = round_up(offset + len, sectorsize);
 	u64 bytes_to_reserve = 0;
@@ -3319,7 +3319,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	u64 locked_end;
 	u64 actual_end = 0;
 	struct extent_map *em;
-	int blocksize = btrfs_inode_sectorsize(inode);
+	int blocksize = btrfs_inode_sectorsize(BTRFS_I(inode));
 	int ret;
 
 	alloc_start = round_down(offset, blocksize);
