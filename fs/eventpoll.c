@@ -774,7 +774,7 @@ static int ep_eventpoll_release(struct inode *inode, struct file *file)
 }
 
 static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
-			       void *priv);
+			       int depth);
 static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 				 poll_table *pt);
 
@@ -787,6 +787,8 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 				 int depth)
 {
 	struct eventpoll *ep;
+	LIST_HEAD(txlist);
+	__poll_t res;
 	bool locked;
 
 	pt->_key = epi->event.events;
@@ -797,20 +799,19 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 	poll_wait(epi->ffd.file, &ep->poll_wait, pt);
 	locked = pt && (pt->_qproc == ep_ptable_queue_proc);
 
-	return ep_scan_ready_list(epi->ffd.file->private_data,
-				  ep_read_events_proc, &depth, depth,
-				  locked) & epi->event.events;
+	ep_start_scan(ep, depth, locked, &txlist);
+	res = ep_read_events_proc(ep, &txlist, depth + 1);
+	ep_done_scan(ep, depth, locked, &txlist);
+	return res & epi->event.events;
 }
 
 static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
-			       void *priv)
+			       int depth)
 {
 	struct epitem *epi, *tmp;
 	poll_table pt;
-	int depth = *(int *)priv;
 
 	init_poll_funcptr(&pt, NULL);
-	depth++;
 
 	list_for_each_entry_safe(epi, tmp, head, rdllink) {
 		if (ep_item_poll(epi, &pt, depth)) {
@@ -832,7 +833,8 @@ static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head
 static __poll_t ep_eventpoll_poll(struct file *file, poll_table *wait)
 {
 	struct eventpoll *ep = file->private_data;
-	int depth = 0;
+	LIST_HEAD(txlist);
+	__poll_t res;
 
 	/* Insert inside our poll wait queue */
 	poll_wait(file, &ep->poll_wait, wait);
@@ -841,8 +843,10 @@ static __poll_t ep_eventpoll_poll(struct file *file, poll_table *wait)
 	 * Proceed to find out if wanted events are really available inside
 	 * the ready list.
 	 */
-	return ep_scan_ready_list(ep, ep_read_events_proc,
-				  &depth, depth, false);
+	ep_start_scan(ep, 0, false, &txlist);
+	res = ep_read_events_proc(ep, &txlist, 1);
+	ep_done_scan(ep, 0, false, &txlist);
+	return res;
 }
 
 #ifdef CONFIG_PROC_FS
