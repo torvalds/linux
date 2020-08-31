@@ -68,7 +68,7 @@ See below for all known bank addresses, numbers of sensors in that bank,
 number of bytes data per sensor and contents/meaning of those bytes.
 
 Although both this document and the kernel driver have kept the sensor
-terminoligy for the addressing within a bank this is not 100% correct, in
+terminology for the addressing within a bank this is not 100% correct, in
 bank 0x24 for example the addressing within the bank selects a PWM output not
 a sensor.
 
@@ -155,7 +155,7 @@ After wider testing of the Linux kernel driver some variants of the uGuru have
 turned up which do not hold 0x08 at DATA within 250 reads after writing the
 bank address. With these versions this happens quite frequent, using larger
 timeouts doesn't help, they just go offline for a second or 2, doing some
-internal callibration or whatever. Your code should be prepared to handle
+internal calibration or whatever. Your code should be prepared to handle
 this and in case of no response in this specific case just goto sleep for a
 while and then retry.
 
@@ -331,6 +331,6 @@ the voltage / clock programming out, I tried reading and only reading banks
 0-0x30 with the reading code used for the sensor banks (0x20-0x28) and this
 resulted in a _permanent_ reprogramming of the voltages, luckily I had the
 sensors part configured so that it would shutdown my system on any out of spec
-voltages which proprably safed my computer (after a reboot I managed to
+voltages which probably safed my computer (after a reboot I managed to
 immediately enter the bios and reload the defaults). This probably means that
 the read/write cycle for the non sensor part is different from the sensor part.

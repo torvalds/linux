@@ -1434,7 +1434,7 @@ on the feature, restricting the viewing angles.
 
 
 DYTC Lapmode sensor
-------------------
+-------------------
 
 sysfs: dytc_lapmode
 
