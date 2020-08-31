@@ -198,10 +198,12 @@ static int bma220_init(struct spi_device *spi)
 
 	/* Make sure the chip is powered on */
 	ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
+	if (ret == BMA220_SUSPEND_WAKE)
+		ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
 	if (ret < 0)
 		return ret;
-	else if (ret == BMA220_SUSPEND_WAKE)
-		return bma220_read_reg(spi, BMA220_REG_SUSPEND);
+	if (ret == BMA220_SUSPEND_WAKE)
+		return -EBUSY;
 
 	return 0;
 }
@@ -212,10 +214,12 @@ static int bma220_deinit(struct spi_device *spi)
 
 	/* Make sure the chip is powered off */
 	ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
+	if (ret == BMA220_SUSPEND_SLEEP)
+		ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
 	if (ret < 0)
 		return ret;
-	else if (ret == BMA220_SUSPEND_SLEEP)
-		return bma220_read_reg(spi, BMA220_REG_SUSPEND);
+	if (ret == BMA220_SUSPEND_SLEEP)
+		return -EBUSY;
 
 	return 0;
 }
@@ -245,7 +249,7 @@ static int bma220_probe(struct spi_device *spi)
 	indio_dev->available_scan_masks = bma220_accel_scan_masks;
 
 	ret = bma220_init(data->spi_device);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = iio_triggered_buffer_setup(indio_dev, iio_pollfunc_store_time,
