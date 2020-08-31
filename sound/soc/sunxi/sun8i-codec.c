@@ -431,7 +431,7 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			sun8i_input_mixer_controls),
 
 	/* Clocks */
-	SND_SOC_DAPM_SUPPLY("MODCLK AFI1", SUN8I_MOD_CLK_ENA,
+	SND_SOC_DAPM_SUPPLY("MODCLK AIF1", SUN8I_MOD_CLK_ENA,
 			    SUN8I_MOD_CLK_ENA_AIF1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MODCLK DAC", SUN8I_MOD_CLK_ENA,
 			    SUN8I_MOD_CLK_ENA_DAC, 0, NULL, 0),
@@ -464,11 +464,11 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	{ "SYSCLK", NULL, "AIF1 PLL" },
 
 	{ "RST AIF1", NULL, "SYSCLK" },
-	{ "MODCLK AFI1", NULL, "RST AIF1" },
-	{ "AIF1 AD0L", NULL, "MODCLK AFI1" },
-	{ "AIF1 AD0R", NULL, "MODCLK AFI1" },
-	{ "AIF1 DA0L", NULL, "MODCLK AFI1" },
-	{ "AIF1 DA0R", NULL, "MODCLK AFI1" },
+	{ "MODCLK AIF1", NULL, "RST AIF1" },
+	{ "AIF1 AD0L", NULL, "MODCLK AIF1" },
+	{ "AIF1 AD0R", NULL, "MODCLK AIF1" },
+	{ "AIF1 DA0L", NULL, "MODCLK AIF1" },
+	{ "AIF1 DA0R", NULL, "MODCLK AIF1" },
 
 	{ "RST DAC", NULL, "SYSCLK" },
 	{ "MODCLK DAC", NULL, "RST DAC" },
