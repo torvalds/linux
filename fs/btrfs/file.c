@@ -2541,7 +2541,8 @@ static int btrfs_punch_hole_lock_range(struct inode *inode,
 
 		lock_extent_bits(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 				 cached_state);
-		ordered = btrfs_lookup_first_ordered_extent(inode, lockend);
+		ordered = btrfs_lookup_first_ordered_extent(BTRFS_I(inode),
+							    lockend);
 
 		/*
 		 * We need to make sure we have no ordered extents in this range
@@ -3400,7 +3401,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 		 */
 		lock_extent_bits(&BTRFS_I(inode)->io_tree, alloc_start,
 				 locked_end, &cached_state);
-		ordered = btrfs_lookup_first_ordered_extent(inode, locked_end);
+		ordered = btrfs_lookup_first_ordered_extent(BTRFS_I(inode),
+							    locked_end);
 
 		if (ordered &&
 		    ordered->file_offset + ordered->num_bytes > alloc_start &&

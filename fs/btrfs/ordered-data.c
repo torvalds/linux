@@ -710,7 +710,7 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 
 	end = orig_end;
 	while (1) {
-		ordered = btrfs_lookup_first_ordered_extent(inode, end);
+		ordered = btrfs_lookup_first_ordered_extent(BTRFS_I(inode), end);
 		if (!ordered)
 			break;
 		if (ordered->file_offset > orig_end) {
@@ -838,13 +838,13 @@ void btrfs_get_ordered_extents_for_logging(struct btrfs_inode *inode,
  * if none is found
  */
 struct btrfs_ordered_extent *
-btrfs_lookup_first_ordered_extent(struct inode *inode, u64 file_offset)
+btrfs_lookup_first_ordered_extent(struct btrfs_inode *inode, u64 file_offset)
 {
 	struct btrfs_ordered_inode_tree *tree;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry = NULL;
 
-	tree = &BTRFS_I(inode)->ordered_tree;
+	tree = &inode->ordered_tree;
 	spin_lock_irq(&tree->lock);
 	node = tree_search(tree, file_offset);
 	if (!node)

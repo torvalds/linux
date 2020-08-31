@@ -8672,7 +8672,8 @@ void btrfs_destroy_inode(struct inode *inode)
 		return;
 
 	while (1) {
-		ordered = btrfs_lookup_first_ordered_extent(inode, (u64)-1);
+		ordered = btrfs_lookup_first_ordered_extent(BTRFS_I(inode),
+							    (u64)-1);
 		if (!ordered)
 			break;
 		else {

@@ -178,7 +178,7 @@ void btrfs_start_ordered_extent(struct inode *inode,
 				struct btrfs_ordered_extent *entry, int wait);
 int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len);
 struct btrfs_ordered_extent *
-btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset);
+btrfs_lookup_first_ordered_extent(struct btrfs_inode *inode, u64 file_offset);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
 		struct btrfs_inode *inode,
 		u64 file_offset,
