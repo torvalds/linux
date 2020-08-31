@@ -348,7 +348,7 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 int efx_new_mcdi_nvram_test_all(struct efx_nic *efx);
 int efx_mcdi_nvram_test_all(struct efx_nic *efx);
 int efx_mcdi_handle_assertion(struct efx_nic *efx);
-void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
+int efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
 int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx, const u8 *mac,
 				  int *id_out);
 int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);

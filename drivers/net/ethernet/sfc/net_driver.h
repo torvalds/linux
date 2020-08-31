@@ -1217,7 +1217,6 @@ struct efx_udp_tunnel {
  * @start_stats: Start the regular fetching of statistics
  * @pull_stats: Pull stats from the NIC and wait until they arrive.
  * @stop_stats: Stop the regular fetching of statistics
- * @set_id_led: Set state of identifying LED or revert to automatic function
  * @push_irq_moderation: Apply interrupt moderation value
  * @reconfigure_port: Push loopback/power/txdis changes to the MAC and PHY
  * @prepare_enable_fc_tx: Prepare MAC to enable pause frame TX (may be %NULL)
@@ -1362,7 +1361,6 @@ struct efx_nic_type {
 	void (*start_stats)(struct efx_nic *efx);
 	void (*pull_stats)(struct efx_nic *efx);
 	void (*stop_stats)(struct efx_nic *efx);
-	void (*set_id_led)(struct efx_nic *efx, enum efx_led_mode mode);
 	void (*push_irq_moderation)(struct efx_channel *channel);
 	int (*reconfigure_port)(struct efx_nic *efx);
 	void (*prepare_enable_fc_tx)(struct efx_nic *efx);
