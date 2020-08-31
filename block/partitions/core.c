@@ -199,7 +199,10 @@ static ssize_t part_alignment_offset_show(struct device *dev,
 					  struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
-	return sprintf(buf, "%llu\n", (unsigned long long)p->alignment_offset);
+
+	return sprintf(buf, "%u\n",
+		queue_limit_alignment_offset(&part_to_disk(p)->queue->limits,
+				p->start_sect));
 }
 
 static ssize_t part_discard_alignment_show(struct device *dev,
@@ -405,8 +408,6 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	pdev = part_to_dev(p);
 
 	p->start_sect = start;
-	p->alignment_offset =
-		queue_limit_alignment_offset(&disk->queue->limits, start);
 	p->discard_alignment =
 		queue_limit_discard_alignment(&disk->queue->limits, start);
 	p->nr_sects = len;

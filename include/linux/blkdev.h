@@ -1456,10 +1456,9 @@ static inline int bdev_alignment_offset(struct block_device *bdev)
 
 	if (q->limits.misaligned)
 		return -1;
-
 	if (bdev != bdev->bd_contains)
-		return bdev->bd_part->alignment_offset;
-
+		return queue_limit_alignment_offset(&q->limits,
+				bdev->bd_part->start_sect);
 	return q->limits.alignment_offset;
 }
 
