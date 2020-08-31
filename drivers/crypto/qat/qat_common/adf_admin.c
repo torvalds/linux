@@ -131,9 +131,10 @@ static int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
 	memcpy(admin->virt_addr + offset, in, ADF_ADMINMSG_LEN);
 	ADF_CSR_WR(mailbox, mb_offset, 1);
 
-	ret = readl_poll_timeout(mailbox + mb_offset, status,
-				 status == 0, ADF_ADMIN_POLL_DELAY_US,
-				 ADF_ADMIN_POLL_TIMEOUT_US);
+	ret = read_poll_timeout(ADF_CSR_RD, status, status == 0,
+				ADF_ADMIN_POLL_DELAY_US,
+				ADF_ADMIN_POLL_TIMEOUT_US, true,
+				mailbox, mb_offset);
 	if (ret < 0) {
 		/* Response timeout */
 		dev_err(&GET_DEV(accel_dev),

@@ -706,11 +706,11 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 	switch (pd->max_sas_lrate) {
 	case SAS_LINK_RATE_6_0_GBPS:
 		*speed_mask &= ~SAS_SPEED_60_DIS;
-		/* fall through*/
+		fallthrough;
 	default:
 	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask &= ~SAS_SPEED_30_DIS;
-		/* fall through*/
+		fallthrough;
 	case SAS_LINK_RATE_1_5_GBPS:
 		*speed_mask &= ~SAS_SPEED_15_DIS;
 	}
@@ -718,7 +718,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 	switch (pd->min_sas_lrate) {
 	case SAS_LINK_RATE_6_0_GBPS:
 		*speed_mask |= SAS_SPEED_30_DIS;
-		/* fall through*/
+		fallthrough;
 	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask |= SAS_SPEED_15_DIS;
 	default:
@@ -730,7 +730,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 	switch (pd->max_sata_lrate) {
 	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask &= ~SATA_SPEED_30_DIS;
-		/* fall through*/
+		fallthrough;
 	default:
 	case SAS_LINK_RATE_1_5_GBPS:
 		*speed_mask &= ~SATA_SPEED_15_DIS;
@@ -789,7 +789,7 @@ void asd_build_control_phy(struct asd_ascb *ascb, int phy_id, u8 subfunc)
 
 		/* link reset retries, this should be nominal */
 		control_phy->link_reset_retries = 10;
-		/* fall through */
+		fallthrough;
 
 	case RELEASE_SPINUP_HOLD: /* 0x02 */
 		/* decide the func_mask */

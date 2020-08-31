@@ -3033,7 +3033,7 @@ static int cm_rej_handler(struct cm_work *work)
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
-		/* fall through */
+		fallthrough;
 	case IB_CM_REQ_RCVD:
 	case IB_CM_MRA_REQ_SENT:
 		if (IBA_GET(CM_REJ_REASON, rej_msg) == IB_CM_REJ_STALE_CONN)
@@ -3043,7 +3043,7 @@ static int cm_rej_handler(struct cm_work *work)
 		break;
 	case IB_CM_DREQ_SENT:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
-		/* fall through */
+		fallthrough;
 	case IB_CM_REP_RCVD:
 	case IB_CM_MRA_REP_SENT:
 		cm_enter_timewait(cm_id_priv);
@@ -3057,7 +3057,7 @@ static int cm_rej_handler(struct cm_work *work)
 			cm_enter_timewait(cm_id_priv);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		trace_icm_rej_unknown_err(&cm_id_priv->id);
 		spin_unlock_irq(&cm_id_priv->lock);
@@ -3113,7 +3113,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 			msg_response = CM_MSG_RESPONSE_OTHER;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		trace_icm_send_mra_unknown_err(&cm_id_priv->id);
 		ret = -EINVAL;
@@ -3223,7 +3223,7 @@ static int cm_mra_handler(struct cm_work *work)
 	case IB_CM_MRA_REP_RCVD:
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
 				counter[CM_MRA_COUNTER]);
-		/* fall through */
+		fallthrough;
 	default:
 		trace_icm_mra_unknown_err(&cm_id_priv->id);
 		goto out;
@@ -4205,7 +4205,7 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 				qp_attr->retry_cnt = cm_id_priv->retry_count;
 				qp_attr->rnr_retry = cm_id_priv->rnr_retry_count;
 				qp_attr->max_rd_atomic = cm_id_priv->initiator_depth;
-				/* fall through */
+				fallthrough;
 			case IB_QPT_XRC_TGT:
 				*qp_attr_mask |= IB_QP_TIMEOUT;
 				qp_attr->timeout = cm_id_priv->av.timeout;

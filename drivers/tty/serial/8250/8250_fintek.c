@@ -255,7 +255,7 @@ static void fintek_8250_set_irq_mode(struct fintek_8250 *pdata, bool is_level)
 	case CHIP_ID_F81866:
 		sio_write_mask_reg(pdata, F81866_FIFO_CTRL, F81866_IRQ_MODE1,
 				   0);
-		/* fall through */
+		fallthrough;
 	case CHIP_ID_F81865:
 		sio_write_mask_reg(pdata, F81866_IRQ_MODE, F81866_IRQ_SHARE,
 				   F81866_IRQ_SHARE);

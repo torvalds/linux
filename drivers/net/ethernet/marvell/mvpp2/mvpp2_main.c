@@ -5437,7 +5437,7 @@ static void mvpp2_phylink_validate(struct phylink_config *config,
 		}
 		if (state->interface != PHY_INTERFACE_MODE_NA)
 			break;
-		/* Fall-through */
+		fallthrough;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
@@ -5451,7 +5451,7 @@ static void mvpp2_phylink_validate(struct phylink_config *config,
 		phylink_set(mask, 1000baseX_Full);
 		if (state->interface != PHY_INTERFACE_MODE_NA)
 			break;
-		/* Fall-through */
+		fallthrough;
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_2500BASEX:
 		if (port->comphy ||

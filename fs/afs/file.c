@@ -311,7 +311,7 @@ int afs_page_filler(void *data, struct page *page)
 	case -ENOBUFS:
 		_debug("cache said ENOBUFS");
 
-		/* fall through */
+		fallthrough;
 	default:
 	go_on:
 		req = kzalloc(struct_size(req, array, 1), GFP_KERNEL);

@@ -2204,14 +2204,17 @@ static const struct throttling_logging_label {
 };
 static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 {
+	int ret;
 	int throttler_idx, throtting_events = 0, buf_idx = 0;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t throttler_status;
 	char log_buf[256];
 
-	arcturus_get_smu_metrics_data(smu,
-				      METRICS_THROTTLER_STATUS,
-				      &throttler_status);
+	ret = arcturus_get_smu_metrics_data(smu,
+					    METRICS_THROTTLER_STATUS,
+					    &throttler_status);
+	if (ret)
+		return;
 
 	memset(log_buf, 0, sizeof(log_buf));
 	for (throttler_idx = 0; throttler_idx < ARRAY_SIZE(logging_label);

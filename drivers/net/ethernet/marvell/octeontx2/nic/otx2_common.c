@@ -1226,8 +1226,8 @@ int otx2_config_npa(struct otx2_nic *pfvf)
 	if (!hw->pool_cnt)
 		return -EINVAL;
 
-	qset->pool = devm_kzalloc(pfvf->dev, sizeof(struct otx2_pool) *
-				  hw->pool_cnt, GFP_KERNEL);
+	qset->pool = devm_kcalloc(pfvf->dev, hw->pool_cnt,
+				  sizeof(struct otx2_pool), GFP_KERNEL);
 	if (!qset->pool)
 		return -ENOMEM;
 

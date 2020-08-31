@@ -28,7 +28,7 @@ void test_prog_run_xattr(void)
 	      "err %d errno %d retval %d\n", err, errno, tattr.retval);
 
 	CHECK_ATTR(tattr.data_size_out != sizeof(pkt_v4), "data_size_out",
-	      "incorrect output size, want %lu have %u\n",
+	      "incorrect output size, want %zu have %u\n",
 	      sizeof(pkt_v4), tattr.data_size_out);
 
 	CHECK_ATTR(buf[5] != 0, "overflow",

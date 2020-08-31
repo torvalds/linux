@@ -115,7 +115,7 @@ static void nvme_loop_queue_response(struct nvmet_req *req)
 			return;
 		}
 
-		if (!nvme_end_request(rq, cqe->status, cqe->result))
+		if (!nvme_try_complete_req(rq, cqe->status, cqe->result))
 			nvme_loop_complete_rq(rq);
 	}
 }

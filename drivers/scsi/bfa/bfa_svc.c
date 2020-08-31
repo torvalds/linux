@@ -6397,7 +6397,7 @@ bfa_dport_sm_starting(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 			dport->test_state = BFA_DPORT_ST_INP;
 			bfa_dport_result_start(dport, BFA_DPORT_OPMODE_MANU);
 		}
-		/* fall thru */
+		fallthrough;
 
 	case BFA_DPORT_SM_REQFAIL:
 		bfa_sm_set_state(dport, bfa_dport_sm_enabled);

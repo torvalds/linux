@@ -568,7 +568,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 		case -EIO:
 			pr_err("kAFS: Call %u in bad state %u\n",
 			       call->debug_id, state);
-			/* Fall through */
+			fallthrough;
 		case -ENODATA:
 		case -EBADMSG:
 		case -EMSGSIZE:
@@ -669,7 +669,7 @@ long afs_wait_for_call_to_complete(struct afs_call *call,
 		ret = call->ret0;
 		call->ret0 = 0;
 
-		/* Fall through */
+		fallthrough;
 	case -ECONNABORTED:
 		ac->responded = true;
 		break;
@@ -872,7 +872,7 @@ void afs_send_empty_reply(struct afs_call *call)
 		_debug("oom");
 		rxrpc_kernel_abort_call(net->socket, call->rxcall,
 					RX_USER_ABORT, -ENOMEM, "KOO");
-		/* Fall through */
+		fallthrough;
 	default:
 		_leave(" [error]");
 		return;

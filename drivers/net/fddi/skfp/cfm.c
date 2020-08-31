@@ -36,10 +36,6 @@
 #define KERNEL
 #include "h/smtstate.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)cfm.c	2.18 98/10/06 (C) SK " ;
-#endif
-
 /*
  * FSM Macros
  */
@@ -208,7 +204,6 @@ void cfm(struct s_smc *smc, int event)
 {
 	int	state ;		/* remember last state */
 	int	cond ;
-	int	oldstate ;
 
 	/* We will do the following: */
 	/*  - compute the variable WC_Flag for every port (This is where */
@@ -222,7 +217,6 @@ void cfm(struct s_smc *smc, int event)
 	/*  - change the portstates */
 	cem_priv_state (smc, event);
 
-	oldstate = smc->mib.fddiSMTCF_State ;
 	do {
 		DB_CFM("CFM : state %s%s event %s",
 		       smc->mib.fddiSMTCF_State & AFLAG ? "ACTIONS " : "",
@@ -250,18 +244,11 @@ void cfm(struct s_smc *smc, int event)
 	if (cond != smc->mib.fddiSMTPeerWrapFlag)
 		smt_srf_event(smc,SMT_COND_SMT_PEER_WRAP,0,cond) ;
 
-#if	0
 	/*
-	 * Don't send ever MAC_PATH_CHANGE events. Our MAC is hard-wired
+	 * Don't ever send MAC_PATH_CHANGE events. Our MAC is hard-wired
 	 * to the primary path.
 	 */
-	/*
-	 * path change
-	 */
-	if (smc->mib.fddiSMTCF_State != oldstate) {
-		smt_srf_event(smc,SMT_EVENT_MAC_PATH_CHANGE,INDEX_MAC,0) ;
-	}
-#endif
+
 #endif	/* no SLIM_SMT */
 
 	/*

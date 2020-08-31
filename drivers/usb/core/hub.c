@@ -727,7 +727,7 @@ static void hub_irq(struct urb *urb)
 		if ((++hub->nerrors < 10) || hub->error)
 			goto resubmit;
 		hub->error = status;
-		/* FALL THROUGH */
+		fallthrough;
 
 	/* let hub_wq handle things */
 	case 0:			/* we got data:  port status changed */

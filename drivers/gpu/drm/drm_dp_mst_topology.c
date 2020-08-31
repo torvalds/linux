@@ -5040,8 +5040,8 @@ int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm
 
 		crtc = conn_state->crtc;
 
-		if (WARN_ON(!crtc))
-			return -EINVAL;
+		if (!crtc)
+			continue;
 
 		if (!drm_dp_mst_dsc_aux_for_port(pos->port))
 			continue;

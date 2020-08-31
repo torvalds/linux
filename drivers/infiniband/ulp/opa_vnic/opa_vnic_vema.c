@@ -547,7 +547,6 @@ static void vema_get(struct opa_vnic_vema_port *port,
 		vema_get_mac_entries(port, recvd_mad, rsp_mad);
 		break;
 	case OPA_EM_ATTR_IFACE_UCAST_MACS:
-		/* fall through */
 	case OPA_EM_ATTR_IFACE_MCAST_MACS:
 		vema_get_mac_list(port, recvd_mad, rsp_mad, attr_id);
 		break;

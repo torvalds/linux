@@ -359,7 +359,7 @@ int __init pcr_arch_init(void)
 		 * counter overflow interrupt so we can't make use of
 		 * their hardware currently.
 		 */
-		/* fallthrough */
+		fallthrough;
 	default:
 		err = -ENODEV;
 		goto out_unregister;

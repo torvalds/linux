@@ -115,7 +115,7 @@ void r420_pipes_init(struct radeon_device *rdev)
 	default:
 		/* force to 1 pipe */
 		num_pipes = 1;
-		/* fall through */
+		fallthrough;
 	case 1:
 		tmp = (0 << 1);
 		break;

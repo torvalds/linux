@@ -431,18 +431,18 @@ static int ef100_reset(struct efx_nic *efx, enum reset_type reset_type)
 		/* A RESET_TYPE_ALL will cause filters to be removed, so we remove filters
 		 * and reprobe after reset to avoid removing filters twice
 		 */
-		down_read(&efx->filter_sem);
+		down_write(&efx->filter_sem);
 		ef100_filter_table_down(efx);
-		up_read(&efx->filter_sem);
+		up_write(&efx->filter_sem);
 		rc = efx_mcdi_reset(efx, reset_type);
 		if (rc)
 			return rc;
 
 		netif_device_attach(efx->net_dev);
 
-		down_read(&efx->filter_sem);
+		down_write(&efx->filter_sem);
 		rc = ef100_filter_table_up(efx);
-		up_read(&efx->filter_sem);
+		up_write(&efx->filter_sem);
 		if (rc)
 			return rc;
 
@@ -739,6 +739,7 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.rx_remove = efx_mcdi_rx_remove,
 	.rx_write = ef100_rx_write,
 	.rx_packet = __ef100_rx_packet,
+	.rx_buf_hash_valid = ef100_rx_buf_hash_valid,
 	.fini_dmaq = efx_fini_dmaq,
 	.max_rx_ip_filters = EFX_MCDI_FILTER_TBL_ROWS,
 	.filter_table_probe = ef100_filter_table_up,
@@ -820,6 +821,7 @@ const struct efx_nic_type ef100_vf_nic_type = {
 	.rx_remove = efx_mcdi_rx_remove,
 	.rx_write = ef100_rx_write,
 	.rx_packet = __ef100_rx_packet,
+	.rx_buf_hash_valid = ef100_rx_buf_hash_valid,
 	.fini_dmaq = efx_fini_dmaq,
 	.max_rx_ip_filters = EFX_MCDI_FILTER_TBL_ROWS,
 	.filter_table_probe = ef100_filter_table_up,

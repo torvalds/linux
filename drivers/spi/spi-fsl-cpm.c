@@ -226,7 +226,7 @@ static void fsl_spi_free_dummy_rx(void)
 	case 1:
 		kfree(fsl_dummy_rx);
 		fsl_dummy_rx = NULL;
-		/* fall through */
+		fallthrough;
 	default:
 		fsl_dummy_rx_refcnt--;
 		break;
@@ -294,7 +294,7 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 		switch (mspi->subblock) {
 		default:
 			dev_warn(dev, "cell-index unspecified, assuming SPI1\n");
-			/* fall through */
+			fallthrough;
 		case 0:
 			mspi->subblock = QE_CR_SUBBLOCK_SPI1;
 			break;

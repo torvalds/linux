@@ -290,7 +290,7 @@ static int vt_notifier_call(struct notifier_block *blk,
 			break;
 		case '\t':
 			c = ' ';
-			/* Fallthrough */
+			fallthrough;
 		default:
 			if (c < 32)
 				/* Ignore other control sequences */
