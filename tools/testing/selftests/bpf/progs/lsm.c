@@ -36,14 +36,10 @@ int monitored_pid = 0;
 int mprotect_count = 0;
 int bprm_count = 0;
 
-SEC("lsm.s/file_mprotect")
+SEC("lsm/file_mprotect")
 int BPF_PROG(test_int_hook, struct vm_area_struct *vma,
 	     unsigned long reqprot, unsigned long prot, int ret)
 {
-	char args[64];
-	__u32 key = 0;
-	__u64 *value;
-
 	if (ret != 0)
 		return ret;
 
@@ -52,18 +48,6 @@ int BPF_PROG(test_int_hook, struct vm_area_struct *vma,
 
 	is_stack = (vma->vm_start <= vma->vm_mm->start_stack &&
 		    vma->vm_end >= vma->vm_mm->start_stack);
-
-	bpf_copy_from_user(args, sizeof(args), (void *)vma->vm_mm->arg_start);
-
-	value = bpf_map_lookup_elem(&array, &key);
-	if (value)
-		*value = 0;
-	value = bpf_map_lookup_elem(&hash, &key);
-	if (value)
-		*value = 0;
-	value = bpf_map_lookup_elem(&lru_hash, &key);
-	if (value)
-		*value = 0;
 
 	if (is_stack && monitored_pid == pid) {
 		mprotect_count++;
@@ -77,9 +61,25 @@ SEC("lsm.s/bprm_committed_creds")
 int BPF_PROG(test_void_hook, struct linux_binprm *bprm)
 {
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
+	char args[64];
+	__u32 key = 0;
+	__u64 *value;
 
 	if (monitored_pid == pid)
 		bprm_count++;
+
+	bpf_copy_from_user(args, sizeof(args), (void *)bprm->vma->vm_mm->arg_start);
+	bpf_copy_from_user(args, sizeof(args), (void *)bprm->mm->arg_start);
+
+	value = bpf_map_lookup_elem(&array, &key);
+	if (value)
+		*value = 0;
+	value = bpf_map_lookup_elem(&hash, &key);
+	if (value)
+		*value = 0;
+	value = bpf_map_lookup_elem(&lru_hash, &key);
+	if (value)
+		*value = 0;
 
 	return 0;
 }

@@ -11006,7 +11006,6 @@ static int check_attach_modify_return(struct bpf_prog *prog, unsigned long addr)
 /* non exhaustive list of sleepable bpf_lsm_*() functions */
 BTF_SET_START(btf_sleepable_lsm_hooks)
 #ifdef CONFIG_BPF_LSM
-BTF_ID(func, bpf_lsm_file_mprotect)
 BTF_ID(func, bpf_lsm_bprm_committed_creds)
 #else
 BTF_ID_UNUSED

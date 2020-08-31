@@ -409,6 +409,7 @@ void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
 void notrace __bpf_prog_enter_sleepable(void)
 {
 	rcu_read_lock_trace();
+	might_fault();
 }
 
 void notrace __bpf_prog_exit_sleepable(void)
