@@ -2,7 +2,7 @@
 /**
  * BMA220 Digital triaxial acceleration sensor driver
  *
- * Copyright (c) 2016, Intel Corporation.
+ * Copyright (c) 2016,2020 Intel Corporation.
  */
 
 #include <linux/bits.h>
@@ -302,7 +302,6 @@ static __maybe_unused int bma220_resume(struct device *dev)
 
 	return bma220_read_reg(data->spi_device, BMA220_REG_SUSPEND);
 }
-
 static SIMPLE_DEV_PM_OPS(bma220_pm_ops, bma220_suspend, bma220_resume);
 
 static const struct spi_device_id bma220_spi_id[] = {
@@ -314,7 +313,6 @@ static const struct acpi_device_id bma220_acpi_id[] = {
 	{"BMA0220", 0},
 	{}
 };
-
 MODULE_DEVICE_TABLE(spi, bma220_spi_id);
 
 static struct spi_driver bma220_driver = {
@@ -327,7 +325,6 @@ static struct spi_driver bma220_driver = {
 	.remove =           bma220_remove,
 	.id_table =         bma220_spi_id,
 };
-
 module_spi_driver(bma220_driver);
 
 MODULE_AUTHOR("Tiberiu Breana <tiberiu.a.breana@intel.com>");
