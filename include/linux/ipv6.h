@@ -177,17 +177,6 @@ static inline int inet6_sdif(const struct sk_buff *skb)
 	return 0;
 }
 
-/* can not be used in TCP layer after tcp_v6_fill_cb */
-static inline bool inet6_exact_dif_match(struct net *net, struct sk_buff *skb)
-{
-#if defined(CONFIG_NET_L3_MASTER_DEV)
-	if (!net->ipv4.sysctl_tcp_l3mdev_accept &&
-	    skb && ipv6_l3mdev_skb(IP6CB(skb)->flags))
-		return true;
-#endif
-	return false;
-}
-
 struct tcp6_request_sock {
 	struct tcp_request_sock	  tcp6rsk_tcp;
 };
