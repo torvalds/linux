@@ -5305,15 +5305,15 @@ static void inode_tree_add(struct inode *inode)
 	spin_unlock(&root->inode_lock);
 }
 
-static void inode_tree_del(struct inode *inode)
+static void inode_tree_del(struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	int empty = 0;
 
 	spin_lock(&root->inode_lock);
-	if (!RB_EMPTY_NODE(&BTRFS_I(inode)->rb_node)) {
-		rb_erase(&BTRFS_I(inode)->rb_node, &root->inode_tree);
-		RB_CLEAR_NODE(&BTRFS_I(inode)->rb_node);
+	if (!RB_EMPTY_NODE(&inode->rb_node)) {
+		rb_erase(&inode->rb_node, &root->inode_tree);
+		RB_CLEAR_NODE(&inode->rb_node);
 		empty = RB_EMPTY_ROOT(&root->inode_tree);
 	}
 	spin_unlock(&root->inode_lock);
@@ -8685,7 +8685,7 @@ void btrfs_destroy_inode(struct inode *inode)
 		}
 	}
 	btrfs_qgroup_check_reserved_leak(BTRFS_I(inode));
-	inode_tree_del(inode);
+	inode_tree_del(BTRFS_I(inode));
 	btrfs_drop_extent_cache(BTRFS_I(inode), 0, (u64)-1, 0);
 	btrfs_inode_clear_file_extent_range(BTRFS_I(inode), 0, (u64)-1);
 	btrfs_put_root(BTRFS_I(inode)->root);
