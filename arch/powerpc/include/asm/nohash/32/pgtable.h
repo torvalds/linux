@@ -235,6 +235,8 @@ static int number_of_cells_per_pte(pmd_t *pmd, pte_basic_t val, int huge)
 		return PAGE_SIZE / SZ_4K;
 	else if (hugepd_ok(*((hugepd_t *)pmd)))
 		return 1;
+	else if (IS_ENABLED(CONFIG_PPC_4K_PAGES) && !(val & _PAGE_HUGE))
+		return SZ_16K / SZ_4K;
 	else
 		return SZ_512K / SZ_4K;
 }

@@ -180,7 +180,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
 	if (!hpdp)
 		return NULL;
 
-	if (IS_ENABLED(CONFIG_PPC_8xx) && sz == SZ_512K)
+	if (IS_ENABLED(CONFIG_PPC_8xx) && pshift < PMD_SHIFT)
 		return pte_alloc_map(mm, (pmd_t *)hpdp, addr);
 
 	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
