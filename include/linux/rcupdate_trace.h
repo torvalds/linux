@@ -82,7 +82,14 @@ static inline void rcu_read_unlock_trace(void)
 void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func);
 void synchronize_rcu_tasks_trace(void);
 void rcu_barrier_tasks_trace(void);
-
+#else
+/*
+ * The BPF JIT forms these addresses even when it doesn't call these
+ * functions, so provide definitions that result in runtime errors.
+ */
+static inline void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func) { BUG(); }
+static inline void rcu_read_lock_trace(void) { BUG(); }
+static inline void rcu_read_unlock_trace(void) { BUG(); }
 #endif /* #ifdef CONFIG_TASKS_TRACE_RCU */
 
 #endif /* __LINUX_RCUPDATE_TRACE_H */
