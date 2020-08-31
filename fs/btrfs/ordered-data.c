@@ -217,7 +217,7 @@ static int __btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset
 	INIT_LIST_HEAD(&entry->work_list);
 	init_completion(&entry->completion);
 
-	trace_btrfs_ordered_extent_add(&inode->vfs_inode, entry);
+	trace_btrfs_ordered_extent_add(inode, entry);
 
 	spin_lock_irq(&tree->lock);
 	node = tree_insert(&tree->tree, file_offset,
@@ -442,7 +442,7 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 	struct list_head *cur;
 	struct btrfs_ordered_sum *sum;
 
-	trace_btrfs_ordered_extent_put(entry->inode, entry);
+	trace_btrfs_ordered_extent_put(BTRFS_I(entry->inode), entry);
 
 	if (refcount_dec_and_test(&entry->refs)) {
 		ASSERT(list_empty(&entry->root_extent_list));
@@ -528,7 +528,7 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 	list_del_init(&entry->root_extent_list);
 	root->nr_ordered_extents--;
 
-	trace_btrfs_ordered_extent_remove(inode, entry);
+	trace_btrfs_ordered_extent_remove(BTRFS_I(inode), entry);
 
 	if (!root->nr_ordered_extents) {
 		spin_lock(&fs_info->ordered_root_lock);
@@ -658,7 +658,7 @@ void btrfs_start_ordered_extent(struct inode *inode,
 	u64 start = entry->file_offset;
 	u64 end = start + entry->num_bytes - 1;
 
-	trace_btrfs_ordered_extent_start(inode, entry);
+	trace_btrfs_ordered_extent_start(BTRFS_I(inode), entry);
 
 	/*
 	 * pages in the range can be dirty, clean or writeback.  We

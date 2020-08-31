@@ -510,7 +510,7 @@ DEFINE_EVENT(
 
 DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered),
@@ -529,8 +529,8 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 		__field(	u64,  truncated_len	)
 	),
 
-	TP_fast_assign_btrfs(btrfs_sb(inode->i_sb),
-		__entry->ino 		= btrfs_ino(BTRFS_I(inode));
+	TP_fast_assign_btrfs(inode->root->fs_info,
+		__entry->ino 		= btrfs_ino(inode);
 		__entry->file_offset	= ordered->file_offset;
 		__entry->start		= ordered->disk_bytenr;
 		__entry->len		= ordered->num_bytes;
@@ -539,8 +539,7 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 		__entry->flags		= ordered->flags;
 		__entry->compress_type	= ordered->compress_type;
 		__entry->refs		= refcount_read(&ordered->refs);
-		__entry->root_objectid	=
-				BTRFS_I(inode)->root->root_key.objectid;
+		__entry->root_objectid	= inode->root->root_key.objectid;
 		__entry->truncated_len	= ordered->truncated_len;
 	),
 
@@ -563,7 +562,7 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_add,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
@@ -571,7 +570,7 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_add,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_remove,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
@@ -579,7 +578,7 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_remove,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_start,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
@@ -587,7 +586,7 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_start,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_put,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
