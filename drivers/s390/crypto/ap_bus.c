@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright IBM Corp. 2006, 2012
+ * Copyright IBM Corp. 2006, 2020
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
  *	      Felix Beck <felix.beck@de.ibm.com>
  *	      Holger Dengler <hd@linux.vnet.ibm.com>
+ *	      Harald Freudenberger <freude@linux.ibm.com>
  *
  * Adjunct processor bus.
  */
@@ -72,6 +73,12 @@ struct ap_perms ap_perms;
 EXPORT_SYMBOL(ap_perms);
 DEFINE_MUTEX(ap_perms_mutex);
 EXPORT_SYMBOL(ap_perms_mutex);
+
+/* # of bus scans since init */
+static atomic64_t ap_scan_bus_count;
+
+/* completion for initial APQN bindings complete */
+static DECLARE_COMPLETION(ap_init_apqn_bindings_complete);
 
 static struct ap_config_info *ap_qci_info;
 
@@ -577,22 +584,124 @@ static int ap_bus_match(struct device *dev, struct device_driver *drv)
  */
 static int ap_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
+	int rc;
 	struct ap_device *ap_dev = to_ap_dev(dev);
-	int retval = 0;
 
-	if (!ap_dev)
-		return -ENODEV;
+	/* Uevents from ap bus core don't need extensions to the env */
+	if (dev == ap_root_device)
+		return 0;
 
 	/* Set up DEV_TYPE environment variable. */
-	retval = add_uevent_var(env, "DEV_TYPE=%04X", ap_dev->device_type);
-	if (retval)
-		return retval;
+	rc = add_uevent_var(env, "DEV_TYPE=%04X", ap_dev->device_type);
+	if (rc)
+		return rc;
 
 	/* Add MODALIAS= */
-	retval = add_uevent_var(env, "MODALIAS=ap:t%02X", ap_dev->device_type);
+	rc = add_uevent_var(env, "MODALIAS=ap:t%02X", ap_dev->device_type);
+	if (rc)
+		return rc;
 
-	return retval;
+	return 0;
 }
+
+static void ap_send_init_scan_done_uevent(void)
+{
+	char *envp[] = { "INITSCAN=done", NULL };
+
+	kobject_uevent_env(&ap_root_device->kobj, KOBJ_CHANGE, envp);
+}
+
+static void ap_send_bindings_complete_uevent(void)
+{
+	char *envp[] = { "BINDINGS=complete", NULL };
+
+	kobject_uevent_env(&ap_root_device->kobj, KOBJ_CHANGE, envp);
+}
+
+/*
+ * calc # of bound APQNs
+ */
+
+struct __ap_calc_ctrs {
+	unsigned int apqns;
+	unsigned int bound;
+};
+
+static int __ap_calc_helper(struct device *dev, void *arg)
+{
+	struct __ap_calc_ctrs *pctrs = (struct __ap_calc_ctrs *) arg;
+
+	if (is_queue_dev(dev)) {
+		pctrs->apqns++;
+		if ((to_ap_dev(dev))->drv)
+			pctrs->bound++;
+	}
+
+	return 0;
+}
+
+static void ap_calc_bound_apqns(unsigned int *apqns, unsigned int *bound)
+{
+	struct __ap_calc_ctrs ctrs;
+
+	memset(&ctrs, 0, sizeof(ctrs));
+	bus_for_each_dev(&ap_bus_type, NULL, (void *) &ctrs, __ap_calc_helper);
+
+	*apqns = ctrs.apqns;
+	*bound = ctrs.bound;
+}
+
+/*
+ * After initial ap bus scan do check if all existing APQNs are
+ * bound to device drivers.
+ */
+static void ap_check_bindings_complete(void)
+{
+	unsigned int apqns, bound;
+
+	if (atomic64_read(&ap_scan_bus_count) >= 1) {
+		ap_calc_bound_apqns(&apqns, &bound);
+		if (bound == apqns) {
+			if (!completion_done(&ap_init_apqn_bindings_complete)) {
+				complete_all(&ap_init_apqn_bindings_complete);
+				AP_DBF(DBF_INFO, "%s complete\n", __func__);
+			}
+			ap_send_bindings_complete_uevent();
+		}
+	}
+}
+
+/*
+ * Interface to wait for the AP bus to have done one initial ap bus
+ * scan and all detected APQNs have been bound to device drivers.
+ * If these both conditions are not fulfilled, this function blocks
+ * on a condition with wait_for_completion_interruptible_timeout().
+ * If these both conditions are fulfilled (before the timeout hits)
+ * the return value is 0. If the timeout (in jiffies) hits instead
+ * -ETIME is returned. On failures negative return values are
+ * returned to the caller.
+ */
+int ap_wait_init_apqn_bindings_complete(unsigned long timeout)
+{
+	long l;
+
+	if (completion_done(&ap_init_apqn_bindings_complete))
+		return 0;
+
+	if (timeout)
+		l = wait_for_completion_interruptible_timeout(
+			&ap_init_apqn_bindings_complete, timeout);
+	else
+		l = wait_for_completion_interruptible(
+			&ap_init_apqn_bindings_complete);
+	if (l < 0)
+		return l == -ERESTARTSYS ? -EINTR : l;
+	else if (l == 0 && timeout)
+		return -ETIME;
+
+	return 0;
+}
+EXPORT_SYMBOL(ap_wait_init_apqn_bindings_complete);
 
 static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 {
@@ -719,7 +828,8 @@ static int ap_device_probe(struct device *dev)
 			hash_del(&to_ap_queue(dev)->hnode);
 		spin_unlock_bh(&ap_queues_lock);
 		ap_dev->drv = NULL;
-	}
+	} else
+		ap_check_bindings_complete();
 
 out:
 	if (rc)
@@ -749,6 +859,7 @@ static int ap_device_remove(struct device *dev)
 	if (is_queue_dev(dev))
 		hash_del(&to_ap_queue(dev)->hnode);
 	spin_unlock_bh(&ap_queues_lock);
+	ap_dev->drv = NULL;
 
 	put_device(dev);
 
@@ -1166,6 +1277,30 @@ static ssize_t aqmask_store(struct bus_type *bus, const char *buf,
 
 static BUS_ATTR_RW(aqmask);
 
+static ssize_t scans_show(struct bus_type *bus, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%llu\n",
+			 atomic64_read(&ap_scan_bus_count));
+}
+
+static BUS_ATTR_RO(scans);
+
+static ssize_t bindings_show(struct bus_type *bus, char *buf)
+{
+	int rc;
+	unsigned int apqns, n;
+
+	ap_calc_bound_apqns(&apqns, &n);
+	if (atomic64_read(&ap_scan_bus_count) >= 1 && n == apqns)
+		rc = scnprintf(buf, PAGE_SIZE, "%u/%u (complete)\n", n, apqns);
+	else
+		rc = scnprintf(buf, PAGE_SIZE, "%u/%u\n", n, apqns);
+
+	return rc;
+}
+
+static BUS_ATTR_RO(bindings);
+
 static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
 	&bus_attr_ap_control_domain_mask,
@@ -1179,6 +1314,8 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_max_adapter_id,
 	&bus_attr_apmask,
 	&bus_attr_aqmask,
+	&bus_attr_scans,
+	&bus_attr_bindings,
 	NULL,
 };
 
@@ -1608,6 +1745,12 @@ static void ap_scan_bus(struct work_struct *unused)
 				    ap_domain_index);
 	}
 
+	if (atomic64_inc_return(&ap_scan_bus_count) == 1) {
+		AP_DBF(DBF_DEBUG, "%s init scan complete\n", __func__);
+		ap_send_init_scan_done_uevent();
+		ap_check_bindings_complete();
+	}
+
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }
 
@@ -1705,6 +1848,7 @@ static int __init ap_module_init(void)
 	rc = PTR_ERR_OR_ZERO(ap_root_device);
 	if (rc)
 		goto out_bus;
+	ap_root_device->bus = &ap_bus_type;
 
 	/* Setup the AP bus rescan timer. */
 	timer_setup(&ap_config_timer, ap_config_timeout, 0);
