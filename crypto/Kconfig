@@ -1199,6 +1199,7 @@ config CRYPTO_ANUBIS
 
 config CRYPTO_ARC4
 	tristate "ARC4 cipher algorithm"
+	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_ARC4
 	help
@@ -1880,6 +1881,15 @@ config CRYPTO_USER_API_AEAD
 	help
 	  This option enables the user-spaces interface for AEAD
 	  cipher algorithms.
+
+config CRYPTO_USER_API_ENABLE_OBSOLETE
+	bool "Enable obsolete cryptographic algorithms for userspace"
+	depends on CRYPTO_USER_API
+	default y
+	help
+	  Allow obsolete cryptographic algorithms to be selected that have
+	  already been phased out from internal use by the kernel, and are
+	  only useful for userspace clients that still rely on them.
 
 config CRYPTO_STATS
 	bool "Crypto usage statistics for User-space"
