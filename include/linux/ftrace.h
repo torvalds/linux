@@ -217,11 +217,11 @@ extern struct ftrace_ops __rcu *ftrace_ops_list;
 extern struct ftrace_ops ftrace_list_end;
 
 /*
- * Traverse the ftrace_global_list, invoking all entries.  The reason that we
+ * Traverse the ftrace_ops_list, invoking all entries.  The reason that we
  * can use rcu_dereference_raw_check() is that elements removed from this list
  * are simply leaked, so there is no need to interact with a grace-period
  * mechanism.  The rcu_dereference_raw_check() calls are needed to handle
- * concurrent insertions into the ftrace_global_list.
+ * concurrent insertions into the ftrace_ops_list.
  *
  * Silly Alpha and silly pointer-speculation compiler optimizations!
  */
