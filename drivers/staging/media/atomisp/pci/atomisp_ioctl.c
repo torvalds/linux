@@ -1467,7 +1467,6 @@ enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 	case ATOMISP_RUN_MODE_VIDEO:
 		return IA_CSS_PIPE_ID_VIDEO;
 	case ATOMISP_RUN_MODE_STILL_CAPTURE:
-	/* fall through */
 	default:
 		return IA_CSS_PIPE_ID_CAPTURE;
 	}

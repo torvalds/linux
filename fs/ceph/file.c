@@ -252,7 +252,7 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 	case S_IFREG:
 		ceph_fscache_register_inode_cookie(inode);
 		ceph_fscache_file_set_cookie(inode, file);
-		/* fall through */
+		fallthrough;
 	case S_IFDIR:
 		ret = ceph_init_file_info(inode, file, fmode,
 						S_ISDIR(inode->i_mode));
@@ -630,8 +630,8 @@ static int ceph_finish_async_create(struct inode *dir, struct dentry *dentry,
 	} else {
 		struct dentry *dn;
 
-		dout("%s d_adding new inode 0x%llx to 0x%lx/%s\n", __func__,
-			vino.ino, dir->i_ino, dentry->d_name.name);
+		dout("%s d_adding new inode 0x%llx to 0x%llx/%s\n", __func__,
+			vino.ino, ceph_ino(dir), dentry->d_name.name);
 		ceph_dir_clear_ordered(dir);
 		ceph_init_inode_acls(inode, as_ctx);
 		if (inode->i_state & I_NEW) {
@@ -2507,6 +2507,7 @@ const struct file_operations ceph_file_fops = {
 	.mmap = ceph_mmap,
 	.fsync = ceph_fsync,
 	.lock = ceph_lock,
+	.setlease = simple_nosetlease,
 	.flock = ceph_flock,
 	.splice_read = generic_file_splice_read,
 	.splice_write = iter_file_splice_write,

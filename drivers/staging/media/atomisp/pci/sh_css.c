@@ -4510,7 +4510,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 #endif
 					pipe->stop_requested = false;
 				}
-				/* fall through */
+				fallthrough;
 			case IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME:
 			case IA_CSS_BUFFER_TYPE_SEC_VF_OUTPUT_FRAME:
 				frame = (struct ia_css_frame *)HOST_ADDRESS(ddr_buffer.kernel_ptr);

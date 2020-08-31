@@ -2029,7 +2029,7 @@ bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
 	case BPF_PROG_TYPE_EXT:
 		if (expected_attach_type)
 			return -EINVAL;
-		/* fallthrough */
+		fallthrough;
 	default:
 		return 0;
 	}

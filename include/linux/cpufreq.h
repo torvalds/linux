@@ -956,8 +956,8 @@ static inline int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 	case CPUFREQ_RELATION_C:
 		return cpufreq_table_find_index_c(policy, target_freq);
 	default:
-		pr_err("%s: Invalid relation: %d\n", __func__, relation);
-		return -EINVAL;
+		WARN_ON_ONCE(1);
+		return 0;
 	}
 }
 

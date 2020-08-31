@@ -7656,13 +7656,13 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		switch (nmac) {
 		case 5:
 			memcpy(mac + 24, c.nmac3, sizeof(c.nmac3));
-			/* Fall through */
+			fallthrough;
 		case 4:
 			memcpy(mac + 18, c.nmac2, sizeof(c.nmac2));
-			/* Fall through */
+			fallthrough;
 		case 3:
 			memcpy(mac + 12, c.nmac1, sizeof(c.nmac1));
-			/* Fall through */
+			fallthrough;
 		case 2:
 			memcpy(mac + 6,  c.nmac0, sizeof(c.nmac0));
 		}

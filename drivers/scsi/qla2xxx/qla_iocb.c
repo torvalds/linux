@@ -2874,7 +2874,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 					    &vha->dpc_flags);
 					qla2xxx_wake_dpc(vha);
 				}
-				/* fall through */
+				fallthrough;
 			default:
 				ql_dbg(ql_dbg_disc, vha, 0x20eb,
 				    "%s %8phC cmd error fw_status 0x%x 0x%x 0x%x\n",

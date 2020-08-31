@@ -1189,7 +1189,7 @@ static void nvme_rdma_end_request(struct nvme_rdma_request *req)
 
 	if (!refcount_dec_and_test(&req->ref))
 		return;
-	if (!nvme_end_request(rq, req->status, req->result))
+	if (!nvme_try_complete_req(rq, req->status, req->result))
 		nvme_rdma_complete_rq(rq);
 }
 
@@ -1915,7 +1915,7 @@ static int nvme_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 	case RDMA_CM_EVENT_UNREACHABLE:
 		nvme_rdma_destroy_queue_ib(queue);
-		/* fall through */
+		fallthrough;
 	case RDMA_CM_EVENT_ADDR_ERROR:
 		dev_dbg(queue->ctrl->ctrl.device,
 			"CM error event %d\n", ev->event);

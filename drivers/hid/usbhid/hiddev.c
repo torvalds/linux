@@ -519,12 +519,16 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 
 		switch (cmd) {
 		case HIDIOCGUSAGE:
+			if (uref->usage_index >= field->report_count)
+				goto inval;
 			uref->value = field->value[uref->usage_index];
 			if (copy_to_user(user_arg, uref, sizeof(*uref)))
 				goto fault;
 			goto goodreturn;
 
 		case HIDIOCSUSAGE:
+			if (uref->usage_index >= field->report_count)
+				goto inval;
 			field->value[uref->usage_index] = uref->value;
 			goto goodreturn;
 
@@ -781,7 +785,6 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case HIDIOCGUCODE:
-		/* fall through */
 	case HIDIOCGUSAGE:
 	case HIDIOCSUSAGE:
 	case HIDIOCGUSAGES:

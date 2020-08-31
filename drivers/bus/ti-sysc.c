@@ -1849,7 +1849,7 @@ static int sysc_clockdomain_init(struct sysc *ddata)
 	switch (ddata->nr_clocks) {
 	case 2:
 		ick = ddata->clocks[SYSC_ICK];
-		/* fallthrough */
+		fallthrough;
 	case 1:
 		fck = ddata->clocks[SYSC_FCK];
 		break;

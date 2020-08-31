@@ -82,8 +82,8 @@ endif
 # compiler to generate them and consequently to break the single image contract
 # we pass it only to the assembler. This option is utilized only in case of non
 # integrated assemblers.
-ifneq ($(CONFIG_AS_HAS_ARMV8_4), y)
-branch-prot-flags-$(CONFIG_AS_HAS_PAC) += -Wa,-march=armv8.3-a
+ifeq ($(CONFIG_AS_HAS_PAC), y)
+asm-arch := armv8.3-a
 endif
 endif
 
@@ -91,7 +91,12 @@ KBUILD_CFLAGS += $(branch-prot-flags-y)
 
 ifeq ($(CONFIG_AS_HAS_ARMV8_4), y)
 # make sure to pass the newest target architecture to -march.
-KBUILD_CFLAGS	+= -Wa,-march=armv8.4-a
+asm-arch := armv8.4-a
+endif
+
+ifdef asm-arch
+KBUILD_CFLAGS	+= -Wa,-march=$(asm-arch) \
+		   -DARM64_ASM_ARCH='"$(asm-arch)"'
 endif
 
 ifeq ($(CONFIG_SHADOW_CALL_STACK), y)
@@ -165,7 +170,8 @@ zinstall install:
 PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
-	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso32 $@
+	$(if $(CONFIG_COMPAT_VDSO), \
+		$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso32 $@)
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:

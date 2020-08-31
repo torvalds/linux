@@ -451,11 +451,12 @@ static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (omap_state->manually_updated)
 		return;
 
-	spin_lock_irq(&crtc->dev->event_lock);
 	drm_crtc_vblank_on(crtc);
+
 	ret = drm_crtc_vblank_get(crtc);
 	WARN_ON(ret != 0);
 
+	spin_lock_irq(&crtc->dev->event_lock);
 	omap_crtc_arm_event(crtc);
 	spin_unlock_irq(&crtc->dev->event_lock);
 }

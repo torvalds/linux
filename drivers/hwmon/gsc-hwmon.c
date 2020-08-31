@@ -172,6 +172,7 @@ gsc_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case mode_temperature:
 		if (tmp > 0x8000)
 			tmp -= 0xffff;
+		tmp *= 100; /* convert to millidegrees celsius */
 		break;
 	case mode_voltage_raw:
 		tmp = clamp_val(tmp, 0, BIT(GSC_HWMON_RESOLUTION));

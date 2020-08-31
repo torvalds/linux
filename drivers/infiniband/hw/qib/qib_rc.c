@@ -83,7 +83,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 			rvt_put_mr(e->rdma_sge.mr);
 			e->rdma_sge.mr = NULL;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(ATOMIC_ACKNOWLEDGE):
 		/*
 		 * We can increment the tail pointer now that the last
@@ -92,7 +92,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 		 */
 		if (++qp->s_tail_ack_queue > QIB_MAX_RDMA_ATOMIC)
 			qp->s_tail_ack_queue = 0;
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(SEND_ONLY):
 	case OP(ACKNOWLEDGE):
 		/* Check for no next entry in the queue. */
@@ -149,7 +149,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 
 	case OP(RDMA_READ_RESPONSE_FIRST):
 		qp->s_ack_state = OP(RDMA_READ_RESPONSE_MIDDLE);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(RDMA_READ_RESPONSE_MIDDLE):
 		qp->s_cur_sge = &qp->s_ack_rdma_sge;
 		qp->s_rdma_mr = qp->s_ack_rdma_sge.sge.mr;
@@ -471,10 +471,10 @@ no_flow_control:
 		 * See qib_restart_rc().
 		 */
 		qp->s_len = restart_sge(&qp->s_sge, wqe, qp->s_psn, pmtu);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(SEND_FIRST):
 		qp->s_state = OP(SEND_MIDDLE);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(SEND_MIDDLE):
 		bth2 = qp->s_psn++ & QIB_PSN_MASK;
 		ss = &qp->s_sge;
@@ -510,10 +510,10 @@ no_flow_control:
 		 * See qib_restart_rc().
 		 */
 		qp->s_len = restart_sge(&qp->s_sge, wqe, qp->s_psn, pmtu);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(RDMA_WRITE_FIRST):
 		qp->s_state = OP(RDMA_WRITE_MIDDLE);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(RDMA_WRITE_MIDDLE):
 		bth2 = qp->s_psn++ & QIB_PSN_MASK;
 		ss = &qp->s_sge;
@@ -1807,7 +1807,7 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 		if (!ret)
 			goto rnr_nak;
 		qp->r_rcv_len = 0;
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(SEND_MIDDLE):
 	case OP(RDMA_WRITE_MIDDLE):
 send_middle:
@@ -1839,7 +1839,7 @@ send_middle:
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
 			goto no_immediate_data;
-		/* fall through -- for SEND_ONLY_WITH_IMMEDIATE */
+		fallthrough;	/* for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;

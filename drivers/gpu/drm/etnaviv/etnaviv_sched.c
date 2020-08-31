@@ -89,12 +89,15 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 	u32 dma_addr;
 	int change;
 
+	/* block scheduler */
+	drm_sched_stop(&gpu->sched, sched_job);
+
 	/*
 	 * If the GPU managed to complete this jobs fence, the timout is
 	 * spurious. Bail out.
 	 */
 	if (dma_fence_is_signaled(submit->out_fence))
-		return;
+		goto out_no_timeout;
 
 	/*
 	 * If the GPU is still making forward progress on the front-end (which
@@ -105,11 +108,8 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 	change = dma_addr - gpu->hangcheck_dma_addr;
 	if (change < 0 || change > 16) {
 		gpu->hangcheck_dma_addr = dma_addr;
-		return;
+		goto out_no_timeout;
 	}
-
-	/* block scheduler */
-	drm_sched_stop(&gpu->sched, sched_job);
 
 	if(sched_job)
 		drm_sched_increase_karma(sched_job);
@@ -120,6 +120,7 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 
 	drm_sched_resubmit_jobs(&gpu->sched);
 
+out_no_timeout:
 	/* restart scheduler after GPU is usable again */
 	drm_sched_start(&gpu->sched, true);
 }

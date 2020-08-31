@@ -10034,7 +10034,7 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 		case IF_SRC_KERNELADDR:
 		case IF_SRC_KERNEL:
 			kernel = 1;
-			/* fall through */
+			fallthrough;
 
 		case IF_SRC_FILEADDR:
 		case IF_SRC_FILE:

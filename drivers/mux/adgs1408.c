@@ -93,7 +93,7 @@ static int adgs1408_probe(struct spi_device *spi)
 			mux->idle_state = idle_state;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		dev_err(dev, "invalid idle-state %d\n", idle_state);
 		return -EINVAL;

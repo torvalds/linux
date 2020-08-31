@@ -412,7 +412,7 @@ SYSCALL_DEFINE5(fsconfig,
 		break;
 	case FSCONFIG_SET_PATH_EMPTY:
 		lookup_flags = LOOKUP_EMPTY;
-		/* fallthru */
+		fallthrough;
 	case FSCONFIG_SET_PATH:
 		param.type = fs_value_is_filename;
 		param.name = getname_flags(_value, lookup_flags, NULL);

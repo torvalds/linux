@@ -1111,7 +1111,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		if (init_attr->port_num == 0 ||
 		    init_attr->port_num > ibpd->device->phys_port_cnt)
 			return ERR_PTR(-EINVAL);
-		/* fall through */
+		fallthrough;
 	case IB_QPT_UC:
 	case IB_QPT_RC:
 	case IB_QPT_UD:

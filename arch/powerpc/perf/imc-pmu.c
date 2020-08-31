@@ -1289,7 +1289,7 @@ static int trace_imc_prepare_sample(struct trace_imc_data *mem,
 	header->misc = 0;
 
 	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
-		switch (IMC_TRACE_RECORD_VAL_HVPR(mem->val)) {
+		switch (IMC_TRACE_RECORD_VAL_HVPR(be64_to_cpu(READ_ONCE(mem->val)))) {
 		case 0:/* when MSR HV and PR not set in the trace-record */
 			header->misc |= PERF_RECORD_MISC_GUEST_KERNEL;
 			break;
@@ -1297,7 +1297,7 @@ static int trace_imc_prepare_sample(struct trace_imc_data *mem,
 			header->misc |= PERF_RECORD_MISC_GUEST_USER;
 			break;
 		case 2: /* MSR HV is 1 and PR is 0 */
-			header->misc |= PERF_RECORD_MISC_HYPERVISOR;
+			header->misc |= PERF_RECORD_MISC_KERNEL;
 			break;
 		case 3: /* MSR HV is 1 and PR is 1 */
 			header->misc |= PERF_RECORD_MISC_USER;

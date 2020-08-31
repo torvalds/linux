@@ -30,8 +30,8 @@ static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
 		*qsfp = false;
 		break;
-	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP: /* fall-through */
-	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS: /* fall-through */
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP:
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS:
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28:
 		*qsfp = true;
 		break;
@@ -205,7 +205,7 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 		modinfo->type       = ETH_MODULE_SFF_8436;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		break;
-	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS: /* fall-through */
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS:
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28:
 		if (module_id == MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28 ||
 		    module_rev_id >=

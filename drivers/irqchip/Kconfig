@@ -425,7 +425,7 @@ config GOLDFISH_PIC
          for Goldfish based virtual platforms.
 
 config QCOM_PDC
-	tristate "QCOM PDC"
+	bool "QCOM PDC"
 	depends on ARCH_QCOM
 	depends on QCOM_SCM || !QCOM_SCM
 	select IRQ_DOMAIN_HIERARCHY

@@ -16,19 +16,19 @@
 #define to_mvdev(__vdev) container_of((__vdev), struct mlx5_vdpa_dev, vdev)
 
 #define VALID_FEATURES_MASK                                                                        \
-	(BIT(VIRTIO_NET_F_CSUM) | BIT(VIRTIO_NET_F_GUEST_CSUM) |                                   \
-	 BIT(VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) | BIT(VIRTIO_NET_F_MTU) | BIT(VIRTIO_NET_F_MAC) |   \
-	 BIT(VIRTIO_NET_F_GUEST_TSO4) | BIT(VIRTIO_NET_F_GUEST_TSO6) |                             \
-	 BIT(VIRTIO_NET_F_GUEST_ECN) | BIT(VIRTIO_NET_F_GUEST_UFO) | BIT(VIRTIO_NET_F_HOST_TSO4) | \
-	 BIT(VIRTIO_NET_F_HOST_TSO6) | BIT(VIRTIO_NET_F_HOST_ECN) | BIT(VIRTIO_NET_F_HOST_UFO) |   \
-	 BIT(VIRTIO_NET_F_MRG_RXBUF) | BIT(VIRTIO_NET_F_STATUS) | BIT(VIRTIO_NET_F_CTRL_VQ) |      \
-	 BIT(VIRTIO_NET_F_CTRL_RX) | BIT(VIRTIO_NET_F_CTRL_VLAN) |                                 \
-	 BIT(VIRTIO_NET_F_CTRL_RX_EXTRA) | BIT(VIRTIO_NET_F_GUEST_ANNOUNCE) |                      \
-	 BIT(VIRTIO_NET_F_MQ) | BIT(VIRTIO_NET_F_CTRL_MAC_ADDR) | BIT(VIRTIO_NET_F_HASH_REPORT) |  \
-	 BIT(VIRTIO_NET_F_RSS) | BIT(VIRTIO_NET_F_RSC_EXT) | BIT(VIRTIO_NET_F_STANDBY) |           \
-	 BIT(VIRTIO_NET_F_SPEED_DUPLEX) | BIT(VIRTIO_F_NOTIFY_ON_EMPTY) |                          \
-	 BIT(VIRTIO_F_ANY_LAYOUT) | BIT(VIRTIO_F_VERSION_1) | BIT(VIRTIO_F_ACCESS_PLATFORM) |      \
-	 BIT(VIRTIO_F_RING_PACKED) | BIT(VIRTIO_F_ORDER_PLATFORM) | BIT(VIRTIO_F_SR_IOV))
+	(BIT_ULL(VIRTIO_NET_F_CSUM) | BIT_ULL(VIRTIO_NET_F_GUEST_CSUM) |                                   \
+	 BIT_ULL(VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) | BIT_ULL(VIRTIO_NET_F_MTU) | BIT_ULL(VIRTIO_NET_F_MAC) |   \
+	 BIT_ULL(VIRTIO_NET_F_GUEST_TSO4) | BIT_ULL(VIRTIO_NET_F_GUEST_TSO6) |                             \
+	 BIT_ULL(VIRTIO_NET_F_GUEST_ECN) | BIT_ULL(VIRTIO_NET_F_GUEST_UFO) | BIT_ULL(VIRTIO_NET_F_HOST_TSO4) | \
+	 BIT_ULL(VIRTIO_NET_F_HOST_TSO6) | BIT_ULL(VIRTIO_NET_F_HOST_ECN) | BIT_ULL(VIRTIO_NET_F_HOST_UFO) |   \
+	 BIT_ULL(VIRTIO_NET_F_MRG_RXBUF) | BIT_ULL(VIRTIO_NET_F_STATUS) | BIT_ULL(VIRTIO_NET_F_CTRL_VQ) |      \
+	 BIT_ULL(VIRTIO_NET_F_CTRL_RX) | BIT_ULL(VIRTIO_NET_F_CTRL_VLAN) |                                 \
+	 BIT_ULL(VIRTIO_NET_F_CTRL_RX_EXTRA) | BIT_ULL(VIRTIO_NET_F_GUEST_ANNOUNCE) |                      \
+	 BIT_ULL(VIRTIO_NET_F_MQ) | BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR) | BIT_ULL(VIRTIO_NET_F_HASH_REPORT) |  \
+	 BIT_ULL(VIRTIO_NET_F_RSS) | BIT_ULL(VIRTIO_NET_F_RSC_EXT) | BIT_ULL(VIRTIO_NET_F_STANDBY) |           \
+	 BIT_ULL(VIRTIO_NET_F_SPEED_DUPLEX) | BIT_ULL(VIRTIO_F_NOTIFY_ON_EMPTY) |                          \
+	 BIT_ULL(VIRTIO_F_ANY_LAYOUT) | BIT_ULL(VIRTIO_F_VERSION_1) | BIT_ULL(VIRTIO_F_ACCESS_PLATFORM) |      \
+	 BIT_ULL(VIRTIO_F_RING_PACKED) | BIT_ULL(VIRTIO_F_ORDER_PLATFORM) | BIT_ULL(VIRTIO_F_SR_IOV))
 
 #define VALID_STATUS_MASK                                                                          \
 	(VIRTIO_CONFIG_S_ACKNOWLEDGE | VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_DRIVER_OK |        \
@@ -149,7 +149,7 @@ static bool mlx5_vdpa_debug;
 
 #define MLX5_LOG_VIO_FLAG(_feature)                                                                \
 	do {                                                                                       \
-		if (features & BIT(_feature))                                                      \
+		if (features & BIT_ULL(_feature))                                                  \
 			mlx5_vdpa_info(mvdev, "%s\n", #_feature);                                  \
 	} while (0)
 
@@ -750,10 +750,10 @@ static bool vq_is_tx(u16 idx)
 
 static u16 get_features_12_3(u64 features)
 {
-	return (!!(features & BIT(VIRTIO_NET_F_HOST_TSO4)) << 9) |
-	       (!!(features & BIT(VIRTIO_NET_F_HOST_TSO6)) << 8) |
-	       (!!(features & BIT(VIRTIO_NET_F_CSUM)) << 7) |
-	       (!!(features & BIT(VIRTIO_NET_F_GUEST_CSUM)) << 6);
+	return (!!(features & BIT_ULL(VIRTIO_NET_F_HOST_TSO4)) << 9) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_HOST_TSO6)) << 8) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_CSUM)) << 7) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_GUEST_CSUM)) << 6);
 }
 
 static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
@@ -1439,13 +1439,13 @@ static u64 mlx_to_vritio_features(u16 dev_features)
 	u64 result = 0;
 
 	if (dev_features & MLX5_VIRTIO_NET_F_GUEST_CSUM)
-		result |= BIT(VIRTIO_NET_F_GUEST_CSUM);
+		result |= BIT_ULL(VIRTIO_NET_F_GUEST_CSUM);
 	if (dev_features & MLX5_VIRTIO_NET_F_CSUM)
-		result |= BIT(VIRTIO_NET_F_CSUM);
+		result |= BIT_ULL(VIRTIO_NET_F_CSUM);
 	if (dev_features & MLX5_VIRTIO_NET_F_HOST_TSO6)
-		result |= BIT(VIRTIO_NET_F_HOST_TSO6);
+		result |= BIT_ULL(VIRTIO_NET_F_HOST_TSO6);
 	if (dev_features & MLX5_VIRTIO_NET_F_HOST_TSO4)
-		result |= BIT(VIRTIO_NET_F_HOST_TSO4);
+		result |= BIT_ULL(VIRTIO_NET_F_HOST_TSO4);
 
 	return result;
 }
@@ -1459,15 +1459,15 @@ static u64 mlx5_vdpa_get_features(struct vdpa_device *vdev)
 	dev_features = MLX5_CAP_DEV_VDPA_EMULATION(mvdev->mdev, device_features_bits_mask);
 	ndev->mvdev.mlx_features = mlx_to_vritio_features(dev_features);
 	if (MLX5_CAP_DEV_VDPA_EMULATION(mvdev->mdev, virtio_version_1_0))
-		ndev->mvdev.mlx_features |= BIT(VIRTIO_F_VERSION_1);
-	ndev->mvdev.mlx_features |= BIT(VIRTIO_F_ACCESS_PLATFORM);
+		ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_F_VERSION_1);
+	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_F_ACCESS_PLATFORM);
 	print_features(mvdev, ndev->mvdev.mlx_features, false);
 	return ndev->mvdev.mlx_features;
 }
 
 static int verify_min_features(struct mlx5_vdpa_dev *mvdev, u64 features)
 {
-	if (!(features & BIT(VIRTIO_F_ACCESS_PLATFORM)))
+	if (!(features & BIT_ULL(VIRTIO_F_ACCESS_PLATFORM)))
 		return -EOPNOTSUPP;
 
 	return 0;

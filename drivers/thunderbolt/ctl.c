@@ -453,7 +453,7 @@ static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 				   "RX: checksum mismatch, dropping packet\n");
 			goto rx;
 		}
-		/* Fall through */
+		fallthrough;
 	case TB_CFG_PKG_ICM_EVENT:
 		if (tb_ctl_handle_event(pkg->ctl, frame->eof, pkg, frame->size))
 			goto rx;
