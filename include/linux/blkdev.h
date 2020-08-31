@@ -1498,8 +1498,8 @@ static inline int bdev_discard_alignment(struct block_device *bdev)
 	struct request_queue *q = bdev_get_queue(bdev);
 
 	if (bdev != bdev->bd_contains)
-		return bdev->bd_part->discard_alignment;
-
+		return queue_limit_discard_alignment(&q->limits,
+				bdev->bd_part->start_sect);
 	return q->limits.discard_alignment;
 }
 
