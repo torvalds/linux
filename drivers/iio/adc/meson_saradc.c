@@ -707,7 +707,7 @@ static int meson_sar_adc_temp_sensor_init(struct iio_dev *indio_dev)
 	size_t read_len;
 	int ret;
 
-	temperature_calib = devm_nvmem_cell_get(&indio_dev->dev,
+	temperature_calib = devm_nvmem_cell_get(indio_dev->dev.parent,
 						"temperature_calib");
 	if (IS_ERR(temperature_calib)) {
 		ret = PTR_ERR(temperature_calib);
