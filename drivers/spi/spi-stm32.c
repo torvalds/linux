@@ -1857,9 +1857,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 
 	spi->irq = platform_get_irq(pdev, 0);
 	if (spi->irq <= 0) {
-		ret = spi->irq;
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get irq: %d\n", ret);
+		ret = dev_err_probe(&pdev->dev, spi->irq, "failed to get irq\n");
 		goto err_master_put;
 	}
 	ret = devm_request_threaded_irq(&pdev->dev, spi->irq,
