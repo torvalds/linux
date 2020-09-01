@@ -457,7 +457,7 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	dp_hpd_gpio: dp-hpd-gpio {
+	dp_hpd_gpio: dp-hpd {
 		samsung,pins = "gpc3-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
