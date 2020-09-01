@@ -3329,12 +3329,6 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-static const struct of_device_id mv88e6xxx_mdio_external_match[] = {
-	{ .compatible = "marvell,mv88e6xxx-mdio-external",
-	  .data = (void *)true },
-	{ },
-};
-
 static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
 
 {
@@ -3354,7 +3348,6 @@ static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
 static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 				    struct device_node *np)
 {
-	const struct of_device_id *match;
 	struct device_node *child;
 	int err;
 
@@ -3372,8 +3365,8 @@ static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 	 * bus.
 	 */
 	for_each_available_child_of_node(np, child) {
-		match = of_match_node(mv88e6xxx_mdio_external_match, child);
-		if (match) {
+		if (of_device_is_compatible(
+			    child, "marvell,mv88e6xxx-mdio-external")) {
 			err = mv88e6xxx_mdio_register(chip, child, true);
 			if (err) {
 				mv88e6xxx_mdios_unregister(chip);
