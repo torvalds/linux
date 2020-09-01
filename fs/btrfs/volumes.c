@@ -2597,9 +2597,6 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	btrfs_set_super_num_devices(fs_info->super_copy,
 				    orig_super_num_devices + 1);
 
-	/* add sysfs device entry */
-	btrfs_sysfs_add_devices_dir(fs_devices, device);
-
 	/*
 	 * we've got more storage, clear any full flags on the space
 	 * infos
@@ -2607,6 +2604,10 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	btrfs_clear_space_info_full(fs_info);
 
 	mutex_unlock(&fs_info->chunk_mutex);
+
+	/* Add sysfs device entry */
+	btrfs_sysfs_add_devices_dir(fs_devices, device);
+
 	mutex_unlock(&fs_devices->device_list_mutex);
 
 	if (seeding_dev) {
