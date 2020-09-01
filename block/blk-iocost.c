@@ -270,6 +270,31 @@ enum {
 	/* unbusy hysterisis */
 	UNBUSY_THR_PCT		= 75,
 
+	/*
+	 * The effect of delay is indirect and non-linear and a huge amount of
+	 * future debt can accumulate abruptly while unthrottled. Linearly scale
+	 * up delay as debt is going up and then let it decay exponentially.
+	 * This gives us quick ramp ups while delay is accumulating and long
+	 * tails which can help reducing the frequency of debt explosions on
+	 * unthrottle. The parameters are experimentally determined.
+	 *
+	 * The delay mechanism provides adequate protection and behavior in many
+	 * cases. However, this is far from ideal and falls shorts on both
+	 * fronts. The debtors are often throttled too harshly costing a
+	 * significant level of fairness and possibly total work while the
+	 * protection against their impacts on the system can be choppy and
+	 * unreliable.
+	 *
+	 * The shortcoming primarily stems from the fact that, unlike for page
+	 * cache, the kernel doesn't have well-defined back-pressure propagation
+	 * mechanism and policies for anonymous memory. Fully addressing this
+	 * issue will likely require substantial improvements in the area.
+	 */
+	MIN_DELAY_THR_PCT	= 500,
+	MAX_DELAY_THR_PCT	= 25000,
+	MIN_DELAY		= 250,
+	MAX_DELAY		= 250 * USEC_PER_MSEC,
+
 	/* don't let cmds which take a very long time pin lagging for too long */
 	MAX_LAGGING_PERIODS	= 10,
 
@@ -473,6 +498,10 @@ struct ioc_gq {
 	atomic64_t			done_vtime;
 	u64				abs_vdebt;
 
+	/* current delay in effect and when it started */
+	u64				delay;
+	u64				delay_at;
+
 	/*
 	 * The period this iocg was last active in.  Used for deactivation
 	 * and invalidating `vtime`.
@@ -495,7 +524,6 @@ struct ioc_gq {
 
 	struct wait_queue_head		waitq;
 	struct hrtimer			waitq_timer;
-	struct hrtimer			delay_timer;
 
 	/* timestamp at the latest activation */
 	u64				activated_at;
@@ -1204,58 +1232,50 @@ static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
 	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
-	u64 vtime = atomic64_read(&iocg->vtime);
-	u64 delta_ns, expires, oexpires;
+	u64 tdelta, delay, new_delay;
+	s64 vover, vover_pct;
 	u32 hwa;
 
 	lockdep_assert_held(&iocg->waitq.lock);
 
-	/* debt-adjust vtime */
-	current_hweight(iocg, &hwa, NULL);
-	vtime += abs_cost_to_cost(iocg->abs_vdebt, hwa);
+	/* calculate the current delay in effect - 1/2 every second */
+	tdelta = now->now - iocg->delay_at;
+	if (iocg->delay)
+		delay = iocg->delay >> div64_u64(tdelta, USEC_PER_SEC);
+	else
+		delay = 0;
 
-	/*
-	 * Clear or maintain depending on the overage. Non-zero vdebt is what
-	 * guarantees that @iocg is online and future iocg_kick_delay() will
-	 * clear use_delay. Don't leave it on when there's no vdebt.
-	 */
-	if (!iocg->abs_vdebt || time_before_eq64(vtime, now->vnow)) {
+	/* calculate the new delay from the debt amount */
+	current_hweight(iocg, &hwa, NULL);
+	vover = atomic64_read(&iocg->vtime) +
+		abs_cost_to_cost(iocg->abs_vdebt, hwa) - now->vnow;
+	vover_pct = div64_s64(100 * vover, ioc->period_us * now->vrate);
+
+	if (vover_pct <= MIN_DELAY_THR_PCT)
+		new_delay = 0;
+	else if (vover_pct >= MAX_DELAY_THR_PCT)
+		new_delay = MAX_DELAY;
+	else
+		new_delay = MIN_DELAY +
+			div_u64((MAX_DELAY - MIN_DELAY) *
+				(vover_pct - MIN_DELAY_THR_PCT),
+				MAX_DELAY_THR_PCT - MIN_DELAY_THR_PCT);
+
+	/* pick the higher one and apply */
+	if (new_delay > delay) {
+		iocg->delay = new_delay;
+		iocg->delay_at = now->now;
+		delay = new_delay;
+	}
+
+	if (delay >= MIN_DELAY) {
+		blkcg_set_delay(blkg, delay * NSEC_PER_USEC);
+		return true;
+	} else {
+		iocg->delay = 0;
 		blkcg_clear_delay(blkg);
 		return false;
 	}
-	if (!atomic_read(&blkg->use_delay) &&
-	    time_before_eq64(vtime, now->vnow + ioc->margins.target))
-		return false;
-
-	/* use delay */
-	delta_ns = DIV64_U64_ROUND_UP(vtime - now->vnow,
-				      now->vrate) * NSEC_PER_USEC;
-	blkcg_set_delay(blkg, delta_ns);
-	expires = now->now_ns + delta_ns;
-
-	/* if already active and close enough, don't bother */
-	oexpires = ktime_to_ns(hrtimer_get_softexpires(&iocg->delay_timer));
-	if (hrtimer_is_queued(&iocg->delay_timer) &&
-	    abs(oexpires - expires) <= ioc->timer_slack_ns)
-		return true;
-
-	hrtimer_start_range_ns(&iocg->delay_timer, ns_to_ktime(expires),
-			       ioc->timer_slack_ns, HRTIMER_MODE_ABS);
-	return true;
-}
-
-static enum hrtimer_restart iocg_delay_timer_fn(struct hrtimer *timer)
-{
-	struct ioc_gq *iocg = container_of(timer, struct ioc_gq, delay_timer);
-	struct ioc_now now;
-	unsigned long flags;
-
-	spin_lock_irqsave(&iocg->waitq.lock, flags);
-	ioc_now(iocg->ioc, &now);
-	iocg_kick_delay(iocg, &now);
-	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
-
-	return HRTIMER_NORESTART;
 }
 
 static void iocg_incur_debt(struct ioc_gq *iocg, u64 abs_cost,
@@ -1356,9 +1376,10 @@ static void iocg_kick_waitq(struct ioc_gq *iocg, bool pay_debt,
 		atomic64_add(vpay, &iocg->done_vtime);
 		iocg_pay_debt(iocg, abs_vpay, now);
 		vbudget -= vpay;
-
-		iocg_kick_delay(iocg, now);
 	}
+
+	if (iocg->abs_vdebt || iocg->delay)
+		iocg_kick_delay(iocg, now);
 
 	/*
 	 * Debt can still be outstanding if we haven't paid all yet or the
@@ -1906,12 +1927,13 @@ static void ioc_timer_fn(struct timer_list *timer)
 	 */
 	list_for_each_entry_safe(iocg, tiocg, &ioc->active_iocgs, active_list) {
 		if (!waitqueue_active(&iocg->waitq) && !iocg->abs_vdebt &&
-		    !iocg_is_idle(iocg))
+		    !iocg->delay && !iocg_is_idle(iocg))
 			continue;
 
 		spin_lock(&iocg->waitq.lock);
 
-		if (waitqueue_active(&iocg->waitq) || iocg->abs_vdebt) {
+		if (waitqueue_active(&iocg->waitq) || iocg->abs_vdebt ||
+		    iocg->delay) {
 			/* might be oversleeping vtime / hweight changes, kick */
 			iocg_kick_waitq(iocg, true, &now);
 		} else if (iocg_is_idle(iocg)) {
@@ -2641,8 +2663,6 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	init_waitqueue_head(&iocg->waitq);
 	hrtimer_init(&iocg->waitq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	iocg->waitq_timer.function = iocg_waitq_timer_fn;
-	hrtimer_init(&iocg->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	iocg->delay_timer.function = iocg_delay_timer_fn;
 
 	iocg->level = blkg->blkcg->css.cgroup->level;
 
@@ -2679,7 +2699,6 @@ static void ioc_pd_free(struct blkg_policy_data *pd)
 		spin_unlock_irqrestore(&ioc->lock, flags);
 
 		hrtimer_cancel(&iocg->waitq_timer);
-		hrtimer_cancel(&iocg->delay_timer);
 	}
 	free_percpu(iocg->pcpu_stat);
 	kfree(iocg);
