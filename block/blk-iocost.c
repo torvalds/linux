@@ -494,6 +494,7 @@ struct ioc_gq {
 	int				hweight_gen;
 	u32				hweight_active;
 	u32				hweight_inuse;
+	u32				hweight_after_donation;
 
 	struct list_head		walk_list;
 	struct list_head		surplus_list;
@@ -1070,6 +1071,32 @@ out:
 		*hw_inusep = iocg->hweight_inuse;
 }
 
+/*
+ * Calculate the hweight_inuse @iocg would get with max @inuse assuming all the
+ * other weights stay unchanged.
+ */
+static u32 current_hweight_max(struct ioc_gq *iocg)
+{
+	u32 hwm = WEIGHT_ONE;
+	u32 inuse = iocg->active;
+	u64 child_inuse_sum;
+	int lvl;
+
+	lockdep_assert_held(&iocg->ioc->lock);
+
+	for (lvl = iocg->level - 1; lvl >= 0; lvl--) {
+		struct ioc_gq *parent = iocg->ancestors[lvl];
+		struct ioc_gq *child = iocg->ancestors[lvl + 1];
+
+		child_inuse_sum = parent->child_inuse_sum + inuse - child->inuse;
+		hwm = div64_u64((u64)hwm * inuse, child_inuse_sum);
+		inuse = DIV64_U64_ROUND_UP(parent->active * child_inuse_sum,
+					   parent->child_active_sum);
+	}
+
+	return max_t(u32, hwm, 1);
+}
+
 static void weight_updated(struct ioc_gq *iocg)
 {
 	struct ioc *ioc = iocg->ioc;
@@ -1488,18 +1515,56 @@ static void iocg_flush_stat(struct list_head *target_iocgs, struct ioc_now *now)
 	}
 }
 
-/* returns usage with margin added if surplus is large enough */
-static u32 surplus_adjusted_hweight_inuse(u32 usage, u32 hw_inuse)
+/*
+ * Determine what @iocg's hweight_inuse should be after donating unused
+ * capacity. @hwm is the upper bound and used to signal no donation. This
+ * function also throws away @iocg's excess budget.
+ */
+static u32 hweight_after_donation(struct ioc_gq *iocg, u32 hwm, u32 usage,
+				  struct ioc_now *now)
 {
+	struct ioc *ioc = iocg->ioc;
+	u64 vtime = atomic64_read(&iocg->vtime);
+	s64 excess;
+
+	/* see whether minimum margin requirement is met */
+	if (waitqueue_active(&iocg->waitq) ||
+	    time_after64(vtime, now->vnow - ioc->margins.min))
+		return hwm;
+
+	/* throw away excess above max */
+	excess = now->vnow - vtime - ioc->margins.max;
+	if (excess > 0) {
+		atomic64_add(excess, &iocg->vtime);
+		atomic64_add(excess, &iocg->done_vtime);
+		vtime += excess;
+	}
+
 	/* add margin */
 	usage = DIV_ROUND_UP(usage * SURPLUS_SCALE_PCT, 100);
 	usage += SURPLUS_SCALE_ABS;
 
 	/* don't bother if the surplus is too small */
-	if (usage + SURPLUS_MIN_ADJ_DELTA > hw_inuse)
-		return 0;
+	if (usage + SURPLUS_MIN_ADJ_DELTA > hwm)
+		return hwm;
 
 	return usage;
+}
+
+static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
+{
+	struct ioc_gq *iocg;
+
+	list_for_each_entry(iocg, surpluses, surplus_list) {
+		u32 old_hwi, new_hwi, new_inuse;
+
+		current_hweight(iocg, NULL, &old_hwi);
+		new_hwi = iocg->hweight_after_donation;
+
+		new_inuse = DIV64_U64_ROUND_UP((u64)iocg->inuse * new_hwi,
+					       old_hwi);
+		__propagate_weights(iocg, iocg->weight, new_inuse);
+	}
 }
 
 static void ioc_timer_fn(struct timer_list *timer)
@@ -1560,9 +1625,9 @@ static void ioc_timer_fn(struct timer_list *timer)
 
 	/* calc usages and see whether some weights need to be moved around */
 	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
-		u64 vdone, vtime, usage_us, vmin;
+		u64 vdone, vtime, usage_us;
 		u32 hw_active, hw_inuse, usage;
-		int uidx;
+		int uidx, nr_valid;
 
 		/*
 		 * Collect unused and wind vtime closer to vnow to prevent
@@ -1618,92 +1683,54 @@ static void ioc_timer_fn(struct timer_list *timer)
 				started_at = ioc->period_at;
 
 			dur = max_t(u64, now.now - started_at, 1);
-			usage = clamp_t(u32,
-				DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE, dur),
-				1, WEIGHT_ONE);
 
 			iocg->usage_idx = uidx;
-			iocg->usages[uidx] = usage;
-		} else {
-			usage = 0;
+			iocg->usages[uidx] = clamp_t(u32,
+				DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE, dur),
+				1, WEIGHT_ONE);
 		}
-
-		/* see whether there's surplus vtime */
-		vmin = now.vnow - ioc->margins.max;
-
-		WARN_ON_ONCE(!list_empty(&iocg->surplus_list));
-		if (!waitqueue_active(&iocg->waitq) &&
-		    time_before64(vtime, vmin)) {
-			u64 delta = vmin - vtime;
-
-			/* throw away surplus vtime */
-			atomic64_add(delta, &iocg->vtime);
-			atomic64_add(delta, &iocg->done_vtime);
-			/* if usage is sufficiently low, maybe it can donate */
-			if (surplus_adjusted_hweight_inuse(usage, hw_inuse))
-				list_add(&iocg->surplus_list, &surpluses);
-		} else if (hw_inuse < hw_active) {
-			u32 new_hwi, new_inuse;
-
-			/* was donating but might need to take back some */
-			if (waitqueue_active(&iocg->waitq)) {
-				new_hwi = hw_active;
-			} else {
-				new_hwi = max(hw_inuse,
-					      usage * SURPLUS_SCALE_PCT / 100 +
-					      SURPLUS_SCALE_ABS);
-			}
-
-			new_inuse = div64_u64((u64)iocg->inuse * new_hwi,
-					      hw_inuse);
-			new_inuse = clamp_t(u32, new_inuse, 1, iocg->active);
-
-			if (new_inuse > iocg->inuse) {
-				TRACE_IOCG_PATH(inuse_takeback, iocg, &now,
-						iocg->inuse, new_inuse,
-						hw_inuse, new_hwi);
-				__propagate_weights(iocg, iocg->weight,
-						    new_inuse);
-			}
-		} else {
-			/* genuninely out of vtime */
-			nr_shortages++;
-		}
-	}
-
-	if (!nr_shortages || list_empty(&surpluses))
-		goto skip_surplus_transfers;
-
-	/* there are both shortages and surpluses, transfer surpluses */
-	list_for_each_entry(iocg, &surpluses, surplus_list) {
-		u32 usage, hw_active, hw_inuse, new_hwi, new_inuse;
-		int nr_valid = 0;
 
 		/* base the decision on max historical usage */
-		for (i = 0, usage = 0; i < NR_USAGE_SLOTS; i++) {
+		for (i = 0, usage = 0, nr_valid = 0; i < NR_USAGE_SLOTS; i++) {
 			if (iocg->usages[i]) {
 				usage = max(usage, iocg->usages[i]);
 				nr_valid++;
 			}
 		}
 		if (nr_valid < MIN_VALID_USAGES)
-			continue;
+			usage = WEIGHT_ONE;
 
-		current_hweight(iocg, &hw_active, &hw_inuse);
-		new_hwi = surplus_adjusted_hweight_inuse(usage, hw_inuse);
-		if (!new_hwi)
-			continue;
+		/* see whether there's surplus vtime */
+		WARN_ON_ONCE(!list_empty(&iocg->surplus_list));
+		if (hw_inuse < hw_active ||
+		    (!waitqueue_active(&iocg->waitq) &&
+		     time_before64(vtime, now.vnow - ioc->margins.max))) {
+			u32 hwm, new_hwi;
 
-		new_inuse = DIV64_U64_ROUND_UP((u64)iocg->inuse * new_hwi,
-					       hw_inuse);
-		if (new_inuse < iocg->inuse) {
-			TRACE_IOCG_PATH(inuse_giveaway, iocg, &now,
-					iocg->inuse, new_inuse,
-					hw_inuse, new_hwi);
-			__propagate_weights(iocg, iocg->weight, new_inuse);
+			/*
+			 * Already donating or accumulated enough to start.
+			 * Determine the donation amount.
+			 */
+			hwm = current_hweight_max(iocg);
+			new_hwi = hweight_after_donation(iocg, hwm, usage,
+							 &now);
+			if (new_hwi < hwm) {
+				iocg->hweight_after_donation = new_hwi;
+				list_add(&iocg->surplus_list, &surpluses);
+			} else {
+				__propagate_weights(iocg, iocg->active,
+						    iocg->active);
+				nr_shortages++;
+			}
+		} else {
+			/* genuinely short on vtime */
+			nr_shortages++;
 		}
 	}
-skip_surplus_transfers:
+
+	if (!list_empty(&surpluses) && nr_shortages)
+		transfer_surpluses(&surpluses, &now);
+
 	commit_weights(ioc);
 
 	/* surplus list should be dissolved after use */
