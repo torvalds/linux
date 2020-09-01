@@ -2116,24 +2116,30 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 		all_cpu_data[cpunum] = cpu;
 
+		cpu->cpu = cpunum;
+
 		cpu->epp_default = -EINVAL;
-		cpu->epp_powersave = -EINVAL;
+
+		if (hwp_active) {
+			const struct x86_cpu_id *id;
+
+			intel_pstate_hwp_enable(cpu);
+
+			id = x86_match_cpu(intel_pstate_hwp_boost_ids);
+			if (id && intel_pstate_acpi_pm_profile_server())
+				hwp_boost = true;
+		}
+	} else if (hwp_active) {
+		/*
+		 * Re-enable HWP in case this happens after a resume from ACPI
+		 * S3 if the CPU was offline during the whole system/resume
+		 * cycle.
+		 */
+		intel_pstate_hwp_reenable(cpu);
 	}
 
-	cpu = all_cpu_data[cpunum];
-
-	cpu->cpu = cpunum;
-
-	if (hwp_active) {
-		const struct x86_cpu_id *id;
-
-		intel_pstate_hwp_enable(cpu);
-		cpu->epp_policy = 0;
-
-		id = x86_match_cpu(intel_pstate_hwp_boost_ids);
-		if (id && intel_pstate_acpi_pm_profile_server())
-			hwp_boost = true;
-	}
+	cpu->epp_powersave = -EINVAL;
+	cpu->epp_policy = 0;
 
 	intel_pstate_get_cpu_pstates(cpu);
 
@@ -2730,9 +2736,6 @@ static void intel_pstate_driver_cleanup(void)
 	}
 	put_online_cpus();
 
-	if (intel_pstate_driver == &intel_pstate)
-		intel_pstate_sysfs_hide_hwp_dynamic_boost();
-
 	intel_pstate_driver = NULL;
 }
 
@@ -2758,14 +2761,6 @@ static int intel_pstate_register_driver(struct cpufreq_driver *driver)
 	return 0;
 }
 
-static int intel_pstate_unregister_driver(void)
-{
-	cpufreq_unregister_driver(intel_pstate_driver);
-	intel_pstate_driver_cleanup();
-
-	return 0;
-}
-
 static ssize_t intel_pstate_show_status(char *buf)
 {
 	if (!intel_pstate_driver)
@@ -2777,8 +2772,6 @@ static ssize_t intel_pstate_show_status(char *buf)
 
 static int intel_pstate_update_status(const char *buf, size_t size)
 {
-	int ret;
-
 	if (size == 3 && !strncmp(buf, "off", size)) {
 		if (!intel_pstate_driver)
 			return -EINVAL;
@@ -2786,7 +2779,8 @@ static int intel_pstate_update_status(const char *buf, size_t size)
 		if (hwp_active)
 			return -EBUSY;
 
-		return intel_pstate_unregister_driver();
+		cpufreq_unregister_driver(intel_pstate_driver);
+		intel_pstate_driver_cleanup();
 	}
 
 	if (size == 6 && !strncmp(buf, "active", size)) {
@@ -2794,9 +2788,7 @@ static int intel_pstate_update_status(const char *buf, size_t size)
 			if (intel_pstate_driver == &intel_pstate)
 				return 0;
 
-			ret = intel_pstate_unregister_driver();
-			if (ret)
-				return ret;
+			cpufreq_unregister_driver(intel_pstate_driver);
 		}
 
 		return intel_pstate_register_driver(&intel_pstate);
@@ -2807,9 +2799,8 @@ static int intel_pstate_update_status(const char *buf, size_t size)
 			if (intel_pstate_driver == &intel_cpufreq)
 				return 0;
 
-			ret = intel_pstate_unregister_driver();
-			if (ret)
-				return ret;
+			cpufreq_unregister_driver(intel_pstate_driver);
+			intel_pstate_sysfs_hide_hwp_dynamic_boost();
 		}
 
 		return intel_pstate_register_driver(&intel_cpufreq);
