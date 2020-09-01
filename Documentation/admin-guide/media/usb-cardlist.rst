@@ -112,7 +112,6 @@ zr364xx                 USB ZR364XX Camera
 	em28xx-cardlist
 	tm6000-cardlist
 	siano-cardlist
-	usbvision-cardlist
 
 	gspca-cardlist
 
