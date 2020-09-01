@@ -243,11 +243,11 @@
 		s5m8767,pmic-buck3-dvs-voltage = <1100000>;
 		s5m8767,pmic-buck4-dvs-voltage = <1200000>;
 		s5m8767,pmic-buck-dvs-gpios = <&gpd1 0 GPIO_ACTIVE_HIGH>,
-		                              <&gpd1 1 GPIO_ACTIVE_HIGH>,
-		                              <&gpd1 2 GPIO_ACTIVE_HIGH>;
+					      <&gpd1 1 GPIO_ACTIVE_HIGH>,
+					      <&gpd1 2 GPIO_ACTIVE_HIGH>;
 		s5m8767,pmic-buck-ds-gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>,
-		                             <&gpx2 4 GPIO_ACTIVE_HIGH>,
-		                             <&gpx2 5 GPIO_ACTIVE_HIGH>;
+					     <&gpx2 4 GPIO_ACTIVE_HIGH>,
+					     <&gpx2 5 GPIO_ACTIVE_HIGH>;
 
 		s5m8767_osc: clocks {
 			compatible = "samsung,s5m8767-clk";
@@ -544,7 +544,7 @@
 	samsung,i2c-max-bus-freq = <40000>;
 	samsung,i2c-slave-addr = <0x38>;
 
-	sata_phy_i2c:sata-phy@38 {
+	sata_phy_i2c: sata-phy@38 {
 		compatible = "samsung,exynos-sataphy-i2c";
 		reg = <0x38>;
 	};
