@@ -1333,7 +1333,6 @@ xfs_buf_ioend(
 			bp->b_ops->verify_read(bp);
 		if (!bp->b_error)
 			bp->b_flags |= XBF_DONE;
-		xfs_buf_ioend_finish(bp);
 	} else if (bp->b_flags & _XBF_LOGRECOVERY) {
 		/*
 		 * If this is a log recovery buffer, we aren't doing
@@ -1381,9 +1380,12 @@ xfs_buf_ioend(
 			xfs_buf_inode_iodone(bp);
 		else if (bp->b_flags & _XBF_DQUOTS)
 			xfs_buf_dquot_iodone(bp);
-
-		xfs_buf_ioend_finish(bp);
 	}
+
+	if (bp->b_flags & XBF_ASYNC)
+		xfs_buf_relse(bp);
+	else
+		complete(&bp->b_iowait);
 }
 
 static void

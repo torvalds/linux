@@ -288,7 +288,6 @@ xlog_recover_iodone(
 		xfs_buf_item_relse(bp);
 	ASSERT(bp->b_log_item == NULL);
 	bp->b_flags &= ~_XBF_LOGRECOVERY;
-	xfs_buf_ioend_finish(bp);
 }
 
 /*
