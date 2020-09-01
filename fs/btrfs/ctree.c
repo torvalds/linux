@@ -4832,8 +4832,8 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 		btrfs_cpu_key_to_disk(&disk_key, cpu_key + i);
 		btrfs_set_item_key(leaf, &disk_key, slot + i);
 		item = btrfs_item_nr(slot + i);
-		btrfs_set_token_item_offset(&token, item, data_end - data_size[i]);
 		data_end -= data_size[i];
+		btrfs_set_token_item_offset(&token, item, data_end);
 		btrfs_set_token_item_size(&token, item, data_size[i]);
 	}
 
