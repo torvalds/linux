@@ -1177,6 +1177,48 @@ static void vivid_disable_unused_ioctls(struct vivid_dev *dev,
 	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_ENUM_FRAMEINTERVALS);
 }
 
+static int vivid_init_dv_timings(struct vivid_dev *dev)
+{
+	int i;
+
+	while (v4l2_dv_timings_presets[dev->query_dv_timings_size].bt.width)
+		dev->query_dv_timings_size++;
+
+	/*
+	 * Create a char pointer array that points to the names of all the
+	 * preset timings
+	 */
+	dev->query_dv_timings_qmenu = kmalloc_array(dev->query_dv_timings_size,
+						    sizeof(char *), GFP_KERNEL);
+	/*
+	 * Create a string array containing the names of all the preset
+	 * timings. Each name is max 31 chars long (+ terminating 0).
+	 */
+	dev->query_dv_timings_qmenu_strings =
+		kmalloc_array(dev->query_dv_timings_size, 32, GFP_KERNEL);
+
+	if (!dev->query_dv_timings_qmenu ||
+	    !dev->query_dv_timings_qmenu_strings)
+		return -ENOMEM;
+
+	for (i = 0; i < dev->query_dv_timings_size; i++) {
+		const struct v4l2_bt_timings *bt = &v4l2_dv_timings_presets[i].bt;
+		char *p = dev->query_dv_timings_qmenu_strings + i * 32;
+		u32 htot, vtot;
+
+		dev->query_dv_timings_qmenu[i] = p;
+
+		htot = V4L2_DV_BT_FRAME_WIDTH(bt);
+		vtot = V4L2_DV_BT_FRAME_HEIGHT(bt);
+		snprintf(p, 32, "%ux%u%s%u",
+			bt->width, bt->height, bt->interlaced ? "i" : "p",
+			(u32)bt->pixelclock / (htot * vtot));
+	}
+
+	return 0;
+}
+
+
 static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
 	static const struct v4l2_dv_timings def_dv_timings =
@@ -1254,39 +1296,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (!dev->edid)
 		goto free_dev;
 
-	while (v4l2_dv_timings_presets[dev->query_dv_timings_size].bt.width)
-		dev->query_dv_timings_size++;
-
-	/*
-	 * Create a char pointer array that points to the names of all the
-	 * preset timings
-	 */
-	dev->query_dv_timings_qmenu = kmalloc_array(dev->query_dv_timings_size,
-						    sizeof(char *), GFP_KERNEL);
-	/*
-	 * Create a string array containing the names of all the preset
-	 * timings. Each name is max 31 chars long (+ terminating 0).
-	 */
-	dev->query_dv_timings_qmenu_strings =
-		kmalloc_array(dev->query_dv_timings_size, 32, GFP_KERNEL);
-
-	if (!dev->query_dv_timings_qmenu ||
-	    !dev->query_dv_timings_qmenu_strings)
+	ret = vivid_init_dv_timings(dev);
+	if (ret < 0)
 		goto free_dev;
-
-	for (i = 0; i < dev->query_dv_timings_size; i++) {
-		const struct v4l2_bt_timings *bt = &v4l2_dv_timings_presets[i].bt;
-		char *p = dev->query_dv_timings_qmenu_strings + i * 32;
-		u32 htot, vtot;
-
-		dev->query_dv_timings_qmenu[i] = p;
-
-		htot = V4L2_DV_BT_FRAME_WIDTH(bt);
-		vtot = V4L2_DV_BT_FRAME_HEIGHT(bt);
-		snprintf(p, 32, "%ux%u%s%u",
-			bt->width, bt->height, bt->interlaced ? "i" : "p",
-			(u32)bt->pixelclock / (htot * vtot));
-	}
 
 	vivid_disable_unused_ioctls(dev, has_tuner, has_modulator,
 				    in_type_counter, out_type_counter);
