@@ -3309,13 +3309,7 @@ xlog_do_recover(
 	 */
 	xfs_buf_lock(bp);
 	xfs_buf_hold(bp);
-	ASSERT(bp->b_flags & XBF_DONE);
-	bp->b_flags &= ~(XBF_DONE | XBF_ASYNC);
-	ASSERT(!(bp->b_flags & XBF_WRITE));
-	bp->b_flags |= XBF_READ;
-	bp->b_ops = &xfs_sb_buf_ops;
-
-	error = xfs_buf_submit(bp);
+	error = _xfs_buf_read(bp, XBF_READ);
 	if (error) {
 		if (!XFS_FORCED_SHUTDOWN(mp)) {
 			xfs_buf_ioerror_alert(bp, __this_address);
