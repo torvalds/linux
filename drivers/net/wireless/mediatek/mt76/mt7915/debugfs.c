@@ -21,7 +21,6 @@ static int mt7915_ser_trigger_set(void *data, u64 val)
 	switch (val) {
 	case SER_SET_RECOVER_L1:
 	case SER_SET_RECOVER_L2:
-		/* fall through */
 		ret = mt7915_mcu_set_ser(dev, SER_ENABLE, BIT(val), 0);
 		if (ret)
 			return ret;

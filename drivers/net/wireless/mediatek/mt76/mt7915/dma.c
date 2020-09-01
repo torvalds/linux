@@ -66,7 +66,7 @@ void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			mt76_rx(&dev->mt76, q, skb);
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		dev_kfree_skb(skb);
 		break;

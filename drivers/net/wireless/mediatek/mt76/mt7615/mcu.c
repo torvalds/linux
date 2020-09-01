@@ -3292,7 +3292,7 @@ static int mt7615_dcoc_freq_idx(u16 freq, u8 bw)
 			freq = freq_bw40[idx];
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case NL80211_CHAN_WIDTH_40:
 		idx = mt7615_find_freq_idx(freq_bw40, ARRAY_SIZE(freq_bw40),
 					   freq);

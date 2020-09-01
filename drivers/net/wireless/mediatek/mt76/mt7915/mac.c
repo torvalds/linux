@@ -471,7 +471,7 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 			switch (mode) {
 			case MT_PHY_TYPE_CCK:
 				cck = true;
-				/* fall through */
+				fallthrough;
 			case MT_PHY_TYPE_OFDM:
 				i = mt76_get_rate(&dev->mt76, sband, i, cck);
 				break;
@@ -490,7 +490,7 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 				break;
 			case MT_PHY_TYPE_HE_MU:
 				status->flag |= RX_FLAG_RADIOTAP_HE_MU;
-				/* fall through */
+				fallthrough;
 			case MT_PHY_TYPE_HE_SU:
 			case MT_PHY_TYPE_HE_EXT_SU:
 			case MT_PHY_TYPE_HE_TB:

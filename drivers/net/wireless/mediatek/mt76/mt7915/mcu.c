@@ -1431,7 +1431,7 @@ mt7915_mcu_sta_he_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 
 		he->max_nss_mcs[CMD_HE_MCS_BW160] =
 				he_cap->he_mcs_nss_supp.rx_mcs_160;
-		/* fall through */
+		fallthrough;
 	default:
 		he->max_nss_mcs[CMD_HE_MCS_BW80] =
 				he_cap->he_mcs_nss_supp.rx_mcs_80;

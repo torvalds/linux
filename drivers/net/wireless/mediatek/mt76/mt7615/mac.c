@@ -378,7 +378,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		switch (FIELD_GET(MT_RXV1_TX_MODE, rxdg0)) {
 		case MT_PHY_TYPE_CCK:
 			cck = true;
-			/* fall through */
+			fallthrough;
 		case MT_PHY_TYPE_OFDM:
 			i = mt76_get_rate(&dev->mt76, sband, i, cck);
 			break;
@@ -1271,7 +1271,7 @@ out:
 	switch (FIELD_GET(MT_TX_RATE_MODE, final_rate)) {
 	case MT_PHY_TYPE_CCK:
 		cck = true;
-		/* fall through */
+		fallthrough;
 	case MT_PHY_TYPE_OFDM:
 		mphy = &dev->mphy;
 		if (sta->wcid.ext_phy && dev->mt76.phy2)
@@ -1497,7 +1497,7 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			mt76_rx(&dev->mt76, q, skb);
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		dev_kfree_skb(skb);
 		break;
