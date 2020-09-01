@@ -1302,7 +1302,6 @@ static void check_disk_size_change(struct gendisk *disk,
 		}
 		i_size_write(bdev->bd_inode, disk_size);
 	}
-	bdev->bd_invalidated = 0;
 	spin_unlock(&bdev->bd_size_lock);
 
 	if (bdev_size > disk_size) {
@@ -1390,6 +1389,8 @@ int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 	int ret;
 
 	lockdep_assert_held(&bdev->bd_mutex);
+
+	bdev->bd_invalidated = 0;
 
 rescan:
 	ret = blk_drop_partitions(bdev);
