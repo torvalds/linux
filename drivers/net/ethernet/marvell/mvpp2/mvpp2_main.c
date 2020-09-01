@@ -5691,30 +5691,34 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 	}
 }
 
-static void mvpp2_mac_config(struct phylink_config *config, unsigned int mode,
-			     const struct phylink_link_state *state)
+static int mvpp2_mac_prepare(struct phylink_config *config, unsigned int mode,
+			     phy_interface_t interface)
 {
 	struct mvpp2_port *port = mvpp2_phylink_to_port(config);
-	bool change_interface = port->phy_interface != state->interface;
 
 	/* Check for invalid configuration */
-	if (mvpp2_is_xlg(state->interface) && port->gop_id != 0) {
+	if (mvpp2_is_xlg(interface) && port->gop_id != 0) {
 		netdev_err(port->dev, "Invalid mode on %s\n", port->dev->name);
-		return;
+		return -EINVAL;
 	}
 
 	/* Make sure the port is disabled when reconfiguring the mode */
 	mvpp2_port_disable(port);
 
-	if (port->priv->hw_version == MVPP22 && change_interface) {
+	if (port->priv->hw_version == MVPP22 &&
+	    port->phy_interface != interface) {
 		mvpp22_gop_mask_irq(port);
 
-		port->phy_interface = state->interface;
-
-		/* Reconfigure the serdes lanes */
 		phy_power_off(port->comphy);
-		mvpp22_mode_reconfigure(port);
 	}
+
+	return 0;
+}
+
+static void mvpp2_mac_config(struct phylink_config *config, unsigned int mode,
+			     const struct phylink_link_state *state)
+{
+	struct mvpp2_port *port = mvpp2_phylink_to_port(config);
 
 	/* mac (re)configuration */
 	if (mvpp2_is_xlg(state->interface))
@@ -5726,11 +5730,27 @@ static void mvpp2_mac_config(struct phylink_config *config, unsigned int mode,
 
 	if (port->priv->hw_version == MVPP21 && port->flags & MVPP2_F_LOOPBACK)
 		mvpp2_port_loopback_set(port, state);
+}
 
-	if (port->priv->hw_version == MVPP22 && change_interface)
+static int mvpp2_mac_finish(struct phylink_config *config, unsigned int mode,
+			    phy_interface_t interface)
+{
+	struct mvpp2_port *port = mvpp2_phylink_to_port(config);
+
+	if (port->priv->hw_version == MVPP22 &&
+	    port->phy_interface != interface) {
+		port->phy_interface = interface;
+
+		/* Reconfigure the serdes lanes */
+		mvpp22_mode_reconfigure(port);
+
+		/* Unmask interrupts */
 		mvpp22_gop_unmask_irq(port);
+	}
 
 	mvpp2_port_enable(port);
+
+	return 0;
 }
 
 static void mvpp2_mac_link_up(struct phylink_config *config,
@@ -5829,7 +5849,9 @@ static const struct phylink_mac_ops mvpp2_phylink_ops = {
 	.validate = mvpp2_phylink_validate,
 	.mac_pcs_get_state = mvpp2_phylink_mac_pcs_get_state,
 	.mac_an_restart = mvpp2_mac_an_restart,
+	.mac_prepare = mvpp2_mac_prepare,
 	.mac_config = mvpp2_mac_config,
+	.mac_finish = mvpp2_mac_finish,
 	.mac_link_up = mvpp2_mac_link_up,
 	.mac_link_down = mvpp2_mac_link_down,
 };
@@ -5844,7 +5866,11 @@ static void mvpp2_acpi_start(struct mvpp2_port *port)
 	struct phylink_link_state state = {
 		.interface = port->phy_interface,
 	};
+	mvpp2_mac_prepare(&port->phylink_config, MLO_AN_INBAND,
+			  port->phy_interface);
 	mvpp2_mac_config(&port->phylink_config, MLO_AN_INBAND, &state);
+	mvpp2_mac_finish(&port->phylink_config, MLO_AN_INBAND,
+			 port->phy_interface);
 	mvpp2_mac_link_up(&port->phylink_config, NULL,
 			  MLO_AN_INBAND, port->phy_interface,
 			  SPEED_UNKNOWN, DUPLEX_UNKNOWN, false, false);
