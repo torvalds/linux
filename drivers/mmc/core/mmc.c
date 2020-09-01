@@ -1168,12 +1168,12 @@ static int mmc_select_hs400(struct mmc_card *card)
 		return err;
 	}
 
-	/* Set host controller to HS timing */
-	mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
-
 	/* Prepare host to downgrade to HS timing */
 	if (host->ops->hs400_downgrade)
 		host->ops->hs400_downgrade(host);
+
+	/* Set host controller to HS timing */
+	mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
 
 	/* Reduce frequency to HS frequency */
 	max_dtr = card->ext_csd.hs_max_dtr;
@@ -1253,6 +1253,9 @@ int mmc_hs400_to_hs200(struct mmc_card *card)
 	if (err)
 		goto out_err;
 
+	if (host->ops->hs400_downgrade)
+		host->ops->hs400_downgrade(host);
+
 	mmc_set_timing(host, MMC_TIMING_MMC_DDR52);
 
 	err = mmc_switch_status(card, true);
@@ -1267,9 +1270,6 @@ int mmc_hs400_to_hs200(struct mmc_card *card)
 		goto out_err;
 
 	mmc_set_timing(host, MMC_TIMING_MMC_HS);
-
-	if (host->ops->hs400_downgrade)
-		host->ops->hs400_downgrade(host);
 
 	err = mmc_switch_status(card, true);
 	if (err)
