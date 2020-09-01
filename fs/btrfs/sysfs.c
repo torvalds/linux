@@ -1137,17 +1137,38 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 
 	rkobj->flags = cache->flags;
 	kobject_init(&rkobj->kobj, &btrfs_raid_ktype);
+
+	/*
+	 * We call this either on mount, or if we've created a block group for a
+	 * new index type while running (i.e. when restriping).  The running
+	 * case is tricky because we could race with other threads, so we need
+	 * to have this check to make sure we didn't already init the kobject.
+	 *
+	 * We don't have to protect on the free side because it only happens on
+	 * unmount.
+	 */
+	spin_lock(&space_info->lock);
+	if (space_info->block_group_kobjs[index]) {
+		spin_unlock(&space_info->lock);
+		kobject_put(&rkobj->kobj);
+		return;
+	} else {
+		space_info->block_group_kobjs[index] = &rkobj->kobj;
+	}
+	spin_unlock(&space_info->lock);
+
 	ret = kobject_add(&rkobj->kobj, &space_info->kobj, "%s",
 			  btrfs_bg_type_to_raid_name(rkobj->flags));
 	memalloc_nofs_restore(nofs_flag);
 	if (ret) {
+		spin_lock(&space_info->lock);
+		space_info->block_group_kobjs[index] = NULL;
+		spin_unlock(&space_info->lock);
 		kobject_put(&rkobj->kobj);
 		btrfs_warn(fs_info,
 			"failed to add kobject for block cache, ignoring");
 		return;
 	}
-
-	space_info->block_group_kobjs[index] = &rkobj->kobj;
 }
 
 /*

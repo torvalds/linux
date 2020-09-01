@@ -1766,16 +1766,10 @@ static void link_block_group(struct btrfs_block_group *cache)
 {
 	struct btrfs_space_info *space_info = cache->space_info;
 	int index = btrfs_bg_flags_to_raid_index(cache->flags);
-	bool first = false;
 
 	down_write(&space_info->groups_sem);
-	if (list_empty(&space_info->block_groups[index]))
-		first = true;
 	list_add_tail(&cache->list, &space_info->block_groups[index]);
 	up_write(&space_info->groups_sem);
-
-	if (first)
-		btrfs_sysfs_add_block_group_type(cache);
 }
 
 static struct btrfs_block_group *btrfs_create_block_group_cache(
@@ -2032,6 +2026,17 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 	}
 
 	list_for_each_entry(space_info, &info->space_info, list) {
+		int i;
+
+		for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
+			if (list_empty(&space_info->block_groups[i]))
+				continue;
+			cache = list_first_entry(&space_info->block_groups[i],
+						 struct btrfs_block_group,
+						 list);
+			btrfs_sysfs_add_block_group_type(cache);
+		}
+
 		if (!(btrfs_get_alloc_profile(info, space_info->flags) &
 		      (BTRFS_BLOCK_GROUP_RAID10 |
 		       BTRFS_BLOCK_GROUP_RAID1_MASK |
@@ -2091,11 +2096,15 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 		return;
 
 	while (!list_empty(&trans->new_bgs)) {
+		int index;
+
 		block_group = list_first_entry(&trans->new_bgs,
 					       struct btrfs_block_group,
 					       bg_list);
 		if (ret)
 			goto next;
+
+		index = btrfs_bg_flags_to_raid_index(block_group->flags);
 
 		ret = insert_block_group_item(trans, block_group);
 		if (ret)
@@ -2105,6 +2114,16 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
 		add_block_group_free_space(trans, block_group);
+
+		/*
+		 * If we restriped during balance, we may have added a new raid
+		 * type, so now add the sysfs entries when it is safe to do so.
+		 * We don't have to worry about locking here as it's handled in
+		 * btrfs_sysfs_add_block_group_type.
+		 */
+		if (block_group->space_info->block_group_kobjs[index] == NULL)
+			btrfs_sysfs_add_block_group_type(block_group);
+
 		/* Already aborted the transaction if it failed. */
 next:
 		btrfs_delayed_refs_rsv_release(fs_info, 1);
