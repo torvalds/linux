@@ -26,7 +26,6 @@ TRACE_EVENT(iocost_iocg_activate,
 		__field(u64, vrate)
 		__field(u64, last_period)
 		__field(u64, cur_period)
-		__field(u64, last_vtime)
 		__field(u64, vtime)
 		__field(u32, weight)
 		__field(u32, inuse)
@@ -42,7 +41,6 @@ TRACE_EVENT(iocost_iocg_activate,
 		__entry->vrate = now->vrate;
 		__entry->last_period = last_period;
 		__entry->cur_period = cur_period;
-		__entry->last_vtime = iocg->last_vtime;
 		__entry->vtime = vtime;
 		__entry->weight = iocg->weight;
 		__entry->inuse = iocg->inuse;
@@ -51,13 +49,12 @@ TRACE_EVENT(iocost_iocg_activate,
 	),
 
 	TP_printk("[%s:%s] now=%llu:%llu vrate=%llu "
-		  "period=%llu->%llu vtime=%llu->%llu "
+		  "period=%llu->%llu vtime=%llu "
 		  "weight=%u/%u hweight=%llu/%llu",
 		__get_str(devname), __get_str(cgroup),
 		__entry->now, __entry->vnow, __entry->vrate,
 		__entry->last_period, __entry->cur_period,
-		__entry->last_vtime, __entry->vtime,
-		__entry->inuse, __entry->weight,
+		__entry->vtime, __entry->inuse, __entry->weight,
 		__entry->hweight_inuse, __entry->hweight_active
 	)
 );
