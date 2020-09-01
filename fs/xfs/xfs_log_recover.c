@@ -265,31 +265,6 @@ xlog_header_check_mount(
 	return 0;
 }
 
-void
-xlog_recover_iodone(
-	struct xfs_buf	*bp)
-{
-	if (!bp->b_error) {
-		bp->b_flags |= XBF_DONE;
-	} else if (!XFS_FORCED_SHUTDOWN(bp->b_mount)) {
-		/*
-		 * We're not going to bother about retrying this during
-		 * recovery. One strike!
-		 */
-		xfs_buf_ioerror_alert(bp, __this_address);
-		xfs_force_shutdown(bp->b_mount, SHUTDOWN_META_IO_ERROR);
-	}
-
-	/*
-	 * On v5 supers, a bli could be attached to update the metadata LSN.
-	 * Clean it up.
-	 */
-	if (bp->b_log_item)
-		xfs_buf_item_relse(bp);
-	ASSERT(bp->b_log_item == NULL);
-	bp->b_flags &= ~_XBF_LOGRECOVERY;
-}
-
 /*
  * This routine finds (to an approximation) the first block in the physical
  * log which contains the given cycle.  It uses a binary search algorithm.

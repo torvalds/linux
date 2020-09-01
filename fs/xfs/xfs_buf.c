@@ -1244,6 +1244,15 @@ xfs_buf_ioend_handle_error(
 	xfs_buf_ioerror_alert_ratelimited(bp);
 
 	/*
+	 * We're not going to bother about retrying this during recovery.
+	 * One strike!
+	 */
+	if (bp->b_flags & _XBF_LOGRECOVERY) {
+		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+		return false;
+	}
+
+	/*
 	 * Synchronous writes will have callers process the error.
 	 */
 	if (!(bp->b_flags & XBF_ASYNC))
@@ -1312,13 +1321,6 @@ xfs_buf_ioend(
 			bp->b_ops->verify_read(bp);
 		if (!bp->b_error)
 			bp->b_flags |= XBF_DONE;
-	} else if (bp->b_flags & _XBF_LOGRECOVERY) {
-		/*
-		 * If this is a log recovery buffer, we aren't doing
-		 * transactional I/O yet so we need to let the log recovery code
-		 * handle I/O completions:
-		 */
-		xlog_recover_iodone(bp);
 	} else {
 		if (!bp->b_error) {
 			bp->b_flags &= ~XBF_WRITE_FAIL;
@@ -1345,9 +1347,11 @@ xfs_buf_ioend(
 			xfs_buf_inode_iodone(bp);
 		else if (bp->b_flags & _XBF_DQUOTS)
 			xfs_buf_dquot_iodone(bp);
+
 	}
 
-	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
+	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD |
+			 _XBF_LOGRECOVERY);
 
 	if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
