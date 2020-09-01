@@ -53,7 +53,6 @@ struct table_instance {
 	struct rcu_head rcu;
 	int node_ver;
 	u32 hash_seed;
-	bool keep_flows;
 };
 
 struct flow_table {
