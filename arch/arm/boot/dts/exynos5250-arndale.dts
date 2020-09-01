@@ -624,7 +624,7 @@
 	 * For unknown reasons HDMI-DDC does not work with Exynos I2C
 	 * controllers. Lets use software I2C over GPIO pins as a workaround.
 	 */
-	i2c_ddc: i2c-gpio {
+	i2c_ddc: i2c-10 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c2_gpio_bus>;
 		status = "okay";
