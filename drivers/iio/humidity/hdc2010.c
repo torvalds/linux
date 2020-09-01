@@ -302,7 +302,7 @@ static int hdc2010_probe(struct i2c_client *client,
 		if (hdc2010_update_drdy_config(data, HDC2010_AMM, 0))
 			dev_warn(&client->dev, "Unable to restore default AMM\n");
 		return ret;
-	};
+	}
 
 	data->measurement_config = tmp;
 
