@@ -71,6 +71,22 @@
 #define mmDCHUBBUB_SDPIF_MMIO_CNTRL_0_BASE_IDX                                                         2
 
 
+static const char *gfxhub_client_ids[] = {
+	"CB",
+	"DB",
+	"IA",
+	"WD",
+	"CPF",
+	"CPC",
+	"CPG",
+	"RLC",
+	"TCP",
+	"SQC (inst)",
+	"SQC (data)",
+	"SQG",
+	"PA",
+};
+
 static const u32 golden_settings_vega10_hdp[] =
 {
 	0xf64, 0x0fffffff, 0x00000000,
@@ -303,7 +319,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 {
 	struct amdgpu_vmhub *hub;
 	bool retry_fault = !!(entry->src_data[1] & 0x80);
-	uint32_t status = 0;
+	uint32_t status = 0, cid = 0;
 	u64 addr;
 	char hub_name[10];
 
@@ -340,6 +356,8 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			RREG32(hub->vm_l2_pro_fault_status);
 
 		status = RREG32(hub->vm_l2_pro_fault_status);
+		cid = REG_GET_FIELD(status,
+				    VM_L2_PROTECTION_FAULT_STATUS, CID);
 		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 	}
 
@@ -362,9 +380,13 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			dev_err(adev->dev,
 				"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 				status);
-			dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, CID));
+			if (hub == &adev->vmhub[AMDGPU_GFXHUB_0])
+				dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+					cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" : gfxhub_client_ids[cid],
+					cid);
+			else
+				dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%x\n",
+					cid);
 			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
 				REG_GET_FIELD(status,
 				VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
