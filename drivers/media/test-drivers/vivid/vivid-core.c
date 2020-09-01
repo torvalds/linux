@@ -1001,6 +1001,100 @@ static int vivid_detect_feature_set(struct vivid_dev *dev, int inst,
 	return 0;
 }
 
+static void vivid_disable_unused_ioctls(struct vivid_dev *dev,
+					bool has_tuner,
+					bool has_modulator,
+					unsigned in_type_counter[4],
+					unsigned out_type_counter[4])
+{
+	/* disable invalid ioctls based on the feature set */
+	if (!dev->has_audio_inputs) {
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_AUDIO);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_ENUMAUDIO);
+		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_AUDIO);
+		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_ENUMAUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_AUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_ENUMAUDIO);
+	}
+	if (!dev->has_audio_outputs) {
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_AUDOUT);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_AUDOUT);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUMAUDOUT);
+		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_S_AUDOUT);
+		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_G_AUDOUT);
+		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_ENUMAUDOUT);
+		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_S_AUDOUT);
+		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_G_AUDOUT);
+		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_ENUMAUDOUT);
+	}
+	if (!in_type_counter[TV] && !in_type_counter[SVID]) {
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_STD);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_STD);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_ENUMSTD);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_QUERYSTD);
+	}
+	if (!out_type_counter[SVID]) {
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_STD);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_STD);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUMSTD);
+	}
+	if (!has_tuner && !has_modulator) {
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_FREQUENCY);
+	}
+	if (!has_tuner) {
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_TUNER);
+	}
+	if (in_type_counter[HDMI] == 0) {
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_EDID);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_EDID);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_DV_TIMINGS_CAP);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_DV_TIMINGS);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_DV_TIMINGS);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_ENUM_DV_TIMINGS);
+		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_QUERY_DV_TIMINGS);
+	}
+	if (out_type_counter[HDMI] == 0) {
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_EDID);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_DV_TIMINGS_CAP);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_DV_TIMINGS);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_DV_TIMINGS);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_DV_TIMINGS);
+	}
+	if (!dev->has_fb) {
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_FBUF);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_FBUF);
+		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_OVERLAY);
+	}
+	v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
+	v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
+	v4l2_disable_ioctl(&dev->sdr_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
+	v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
+	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_FREQUENCY);
+	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_FREQUENCY);
+	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_FRAMESIZES);
+	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_FRAMEINTERVALS);
+	v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_S_FREQUENCY);
+	v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_G_FREQUENCY);
+	v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_S_FREQUENCY);
+	v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_G_FREQUENCY);
+	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_S_PARM);
+	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_ENUM_FRAMESIZES);
+	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_ENUM_FRAMEINTERVALS);
+}
+
 static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
 	static const struct v4l2_dv_timings def_dv_timings =
@@ -1189,92 +1283,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 			(u32)bt->pixelclock / (htot * vtot));
 	}
 
-	/* disable invalid ioctls based on the feature set */
-	if (!dev->has_audio_inputs) {
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_AUDIO);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_AUDIO);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_ENUMAUDIO);
-		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_AUDIO);
-		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_AUDIO);
-		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_ENUMAUDIO);
-		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_AUDIO);
-		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_AUDIO);
-		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_ENUMAUDIO);
-	}
-	if (!dev->has_audio_outputs) {
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_AUDOUT);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_AUDOUT);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUMAUDOUT);
-		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_S_AUDOUT);
-		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_G_AUDOUT);
-		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_ENUMAUDOUT);
-		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_S_AUDOUT);
-		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_G_AUDOUT);
-		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_ENUMAUDOUT);
-	}
-	if (!in_type_counter[TV] && !in_type_counter[SVID]) {
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_STD);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_STD);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_ENUMSTD);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_QUERYSTD);
-	}
-	if (!out_type_counter[SVID]) {
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_STD);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_STD);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUMSTD);
-	}
-	if (!has_tuner && !has_modulator) {
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_FREQUENCY);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_FREQUENCY);
-		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_FREQUENCY);
-		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_FREQUENCY);
-		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_FREQUENCY);
-		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_FREQUENCY);
-	}
-	if (!has_tuner) {
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_TUNER);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_TUNER);
-		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_TUNER);
-		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_TUNER);
-		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_TUNER);
-		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_TUNER);
-	}
-	if (in_type_counter[HDMI] == 0) {
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_EDID);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_EDID);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_DV_TIMINGS_CAP);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_DV_TIMINGS);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_DV_TIMINGS);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_ENUM_DV_TIMINGS);
-		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_QUERY_DV_TIMINGS);
-	}
-	if (out_type_counter[HDMI] == 0) {
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_EDID);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_DV_TIMINGS_CAP);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_DV_TIMINGS);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_DV_TIMINGS);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_DV_TIMINGS);
-	}
-	if (!dev->has_fb) {
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_FBUF);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_FBUF);
-		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_OVERLAY);
-	}
-	v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
-	v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
-	v4l2_disable_ioctl(&dev->sdr_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
-	v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
-	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_FREQUENCY);
-	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_FREQUENCY);
-	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_FRAMESIZES);
-	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_FRAMEINTERVALS);
-	v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_S_FREQUENCY);
-	v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_G_FREQUENCY);
-	v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_S_FREQUENCY);
-	v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_G_FREQUENCY);
-	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_S_PARM);
-	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_ENUM_FRAMESIZES);
-	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_ENUM_FRAMEINTERVALS);
+	vivid_disable_unused_ioctls(dev, has_tuner, has_modulator,
+				    in_type_counter, out_type_counter);
 
 	/* configure internal data */
 	dev->fmt_cap = &vivid_formats[0];
