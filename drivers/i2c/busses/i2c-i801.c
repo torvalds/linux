@@ -1958,10 +1958,9 @@ static void i801_shutdown(struct pci_dev *dev)
 #ifdef CONFIG_PM_SLEEP
 static int i801_suspend(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct i801_priv *priv = pci_get_drvdata(pci_dev);
+	struct i801_priv *priv = dev_get_drvdata(dev);
 
-	pci_write_config_byte(pci_dev, SMBHSTCFG, priv->original_hstcfg);
+	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, priv->original_hstcfg);
 	return 0;
 }
 
