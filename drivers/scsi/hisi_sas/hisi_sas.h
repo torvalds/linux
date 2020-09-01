@@ -273,6 +273,18 @@ enum hisi_sas_debugfs_cache_type {
 	HISI_SAS_IOST_CACHE,
 };
 
+enum hisi_sas_debugfs_bist_ffe_cfg {
+	FFE_SAS_1_5_GBPS,
+	FFE_SAS_3_0_GBPS,
+	FFE_SAS_6_0_GBPS,
+	FFE_SAS_12_0_GBPS,
+	FFE_RESV,
+	FFE_SATA_1_5_GBPS,
+	FFE_SATA_3_0_GBPS,
+	FFE_SATA_6_0_GBPS,
+	FFE_CFG_MAX
+};
+
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
 	void (*setup_itct)(struct hisi_hba *hisi_hba,
@@ -440,6 +452,7 @@ struct hisi_hba {
 	int debugfs_bist_mode;
 	u32 debugfs_bist_cnt;
 	int debugfs_bist_enable;
+	u32 debugfs_bist_ffe[HISI_SAS_MAX_PHYS][FFE_CFG_MAX];
 
 	/* debugfs memories */
 	/* Put Global AXI and RAS Register into register array */

@@ -297,6 +297,7 @@
 #define DMA_RX_STATUS_BUSY_MSK		(0x1 << DMA_RX_STATUS_BUSY_OFF)
 
 #define COARSETUNE_TIME			(PORT_BASE + 0x304)
+#define TXDEEMPH_G1			(PORT_BASE + 0x350)
 #define ERR_CNT_DWS_LOST		(PORT_BASE + 0x380)
 #define ERR_CNT_RESET_PROB		(PORT_BASE + 0x384)
 #define ERR_CNT_INVLD_DW		(PORT_BASE + 0x390)
@@ -567,7 +568,7 @@ static u32 hisi_sas_phy_read32(struct hisi_hba *hisi_hba,
 
 static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 {
-	int i;
+	int i, j;
 
 	/* Global registers init */
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE,
@@ -637,6 +638,13 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 		/* used for 12G negotiate */
 		hisi_sas_phy_write32(hisi_hba, i, COARSETUNE_TIME, 0x1e);
 		hisi_sas_phy_write32(hisi_hba, i, AIP_LIMIT, 0x2ffff);
+
+		/* get default FFE configuration for BIST */
+		for (j = 0; j < FFE_CFG_MAX; j++) {
+			u32 val = hisi_sas_phy_read32(hisi_hba, i,
+						      TXDEEMPH_G1 + (j * 0x4));
+			hisi_hba->debugfs_bist_ffe[i][j] = val;
+		}
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
@@ -2972,9 +2980,15 @@ static void hisi_sas_bist_test_prep_v3_hw(struct hisi_hba *hisi_hba)
 {
 	u32 reg_val;
 	int phy_no = hisi_hba->debugfs_bist_phy_no;
+	int i;
 
 	/* disable PHY */
 	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+
+	/* update FFE */
+	for (i = 0; i < FFE_CFG_MAX; i++)
+		hisi_sas_phy_write32(hisi_hba, phy_no, TXDEEMPH_G1 + (i * 0x4),
+				     hisi_hba->debugfs_bist_ffe[phy_no][i]);
 
 	/* disable ALOS */
 	reg_val = hisi_sas_phy_read32(hisi_hba, phy_no, SERDES_CFG);
@@ -3016,12 +3030,17 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 	u32 reg_val, mode_tmp;
 	u32 linkrate = hisi_hba->debugfs_bist_linkrate;
 	u32 phy_no = hisi_hba->debugfs_bist_phy_no;
+	u32 *ffe = hisi_hba->debugfs_bist_ffe[phy_no];
 	u32 code_mode = hisi_hba->debugfs_bist_code_mode;
 	u32 path_mode = hisi_hba->debugfs_bist_mode;
 	struct device *dev = hisi_hba->dev;
 
-	dev_info(dev, "BIST info:linkrate=%d phy_no=%d code_mode=%d path_mode=%d\n",
-		 linkrate, phy_no, code_mode, path_mode);
+	dev_info(dev, "BIST info:phy%d link_rate=%d code_mode=%d path_mode=%d ffe={0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x}\n",
+		 phy_no, linkrate, code_mode, path_mode,
+		 ffe[FFE_SAS_1_5_GBPS], ffe[FFE_SAS_3_0_GBPS],
+		 ffe[FFE_SAS_6_0_GBPS], ffe[FFE_SAS_12_0_GBPS],
+		 ffe[FFE_SATA_1_5_GBPS], ffe[FFE_SATA_3_0_GBPS],
+		 ffe[FFE_SATA_6_0_GBPS]);
 	mode_tmp = path_mode ? 2 : 1;
 	if (enable) {
 		/* some preparations before bist test */
