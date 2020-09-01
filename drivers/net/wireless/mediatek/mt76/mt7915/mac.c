@@ -858,17 +858,19 @@ mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 		ieee80211_start_tx_ba_session(sta, tid, 0);
 }
 
-static inline void
-mt7915_tx_status(struct ieee80211_sta *sta, struct ieee80211_hw *hw,
-		 struct ieee80211_tx_info *info, struct sk_buff *skb)
+static void
+mt7915_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
+			  struct ieee80211_sta *sta, u8 stat,
+			  struct list_head *free_list)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_status status = {
 		.sta = sta,
 		.info = info,
+		.skb = skb,
+		.free_list = free_list,
 	};
-
-	if (skb)
-		status.skb = skb;
+	struct ieee80211_hw *hw;
 
 	if (sta) {
 		struct mt7915_sta *msta;
@@ -876,17 +878,6 @@ mt7915_tx_status(struct ieee80211_sta *sta, struct ieee80211_hw *hw,
 		msta = (struct mt7915_sta *)sta->drv_priv;
 		status.rate = &msta->stats.tx_rate;
 	}
-
-	/* use status_ext to report HE rate */
-	ieee80211_tx_status_ext(hw, &status);
-}
-
-static void
-mt7915_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
-			  struct ieee80211_sta *sta, u8 stat)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hw *hw;
 
 	hw = mt76_tx_status_get_hw(mdev, skb);
 
@@ -900,17 +891,7 @@ mt7915_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
 	info->status.tx_time = 0;
-
-	if (info->flags & (IEEE80211_TX_CTL_REQ_TX_STATUS |
-			   IEEE80211_TX_CTL_HW_80211_ENCAP)) {
-		mt7915_tx_status(sta, hw, info, skb);
-		return;
-	}
-
-	if (sta || !(info->flags & IEEE80211_TX_CTL_NO_ACK))
-		mt7915_tx_status(sta, hw, info, NULL);
-
-	ieee80211_free_txskb(hw, skb);
+	ieee80211_tx_status_ext(hw, &status);
 }
 
 void mt7915_txp_skb_unmap(struct mt76_dev *dev,
@@ -931,6 +912,8 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_txwi_cache *txwi;
 	struct ieee80211_sta *sta = NULL;
+	LIST_HEAD(free_list);
+	struct sk_buff *tmp;
 	u8 i, count;
 
 	/* clean DMA queues and unmap buffers first */
@@ -1002,16 +985,22 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 					atomic_cmpxchg(&wcid->non_aql_packets, pending, 0);
 			}
 
-			mt7915_tx_complete_status(mdev, txwi->skb, sta, stat);
+			mt7915_tx_complete_status(mdev, txwi->skb, sta, stat, &free_list);
 			txwi->skb = NULL;
 		}
 
 		mt76_put_txwi(mdev, txwi);
 	}
-	dev_kfree_skb(skb);
 
 	mt7915_mac_sta_poll(dev);
 	mt76_worker_schedule(&dev->mt76.tx_worker);
+
+	napi_consume_skb(skb, 1);
+
+	list_for_each_entry_safe(skb, tmp, &free_list, list) {
+		skb_list_del_init(skb);
+		napi_consume_skb(skb, 1);
+	}
 }
 
 void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
@@ -1044,7 +1033,8 @@ void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 
 		wcid = rcu_dereference(dev->mt76.wcid[cb->wcid]);
 
-		mt7915_tx_complete_status(mdev, e->skb, wcid_to_sta(wcid), 0);
+		mt7915_tx_complete_status(mdev, e->skb, wcid_to_sta(wcid), 0,
+					  NULL);
 	}
 }
 
