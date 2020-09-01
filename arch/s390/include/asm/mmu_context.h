@@ -15,6 +15,7 @@
 #include <asm/ctl_reg.h>
 #include <asm-generic/mm_hooks.h>
 
+#define init_new_context init_new_context
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
@@ -68,8 +69,6 @@ static inline int init_new_context(struct task_struct *tsk,
 	crst_table_init((unsigned long *) mm->pgd, init_entry);
 	return 0;
 }
-
-#define destroy_context(mm)             do { } while (0)
 
 static inline void set_user_asce(struct mm_struct *mm)
 {
@@ -125,9 +124,7 @@ static inline void finish_arch_post_lock_switch(void)
 	set_fs(current->thread.mm_segment);
 }
 
-#define enter_lazy_tlb(mm,tsk)	do { } while (0)
-#define deactivate_mm(tsk,mm)	do { } while (0)
-
+#define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *prev,
                                struct mm_struct *next)
 {
@@ -135,5 +132,7 @@ static inline void activate_mm(struct mm_struct *prev,
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
 	set_user_asce(next);
 }
+
+#include <asm-generic/mmu_context.h>
 
 #endif /* __S390_MMU_CONTEXT_H */
