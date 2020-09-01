@@ -1170,24 +1170,12 @@ xfs_buf_wait_unpin(
 	set_current_state(TASK_RUNNING);
 }
 
-/*
- * Decide if we're going to retry the write after a failure, and prepare
- * the buffer for retrying the write.
- */
-static bool
-xfs_buf_ioerror_fail_without_retry(
+static void
+xfs_buf_ioerror_alert_ratelimited(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_mount;
 	static unsigned long	lasttime;
 	static struct xfs_buftarg *lasttarg;
-
-	/*
-	 * If we've already decided to shutdown the filesystem because of
-	 * I/O errors, there's no point in giving this a retry.
-	 */
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return true;
 
 	if (bp->b_target != lasttarg ||
 	    time_after(jiffies, (lasttime + 5*HZ))) {
@@ -1195,11 +1183,6 @@ xfs_buf_ioerror_fail_without_retry(
 		xfs_buf_ioerror_alert(bp, __this_address);
 	}
 	lasttarg = bp->b_target;
-
-	/* synchronous writes will have callers process the error */
-	if (!(bp->b_flags & XBF_ASYNC))
-		return true;
-	return false;
 }
 
 static bool
@@ -1280,7 +1263,19 @@ xfs_buf_ioend_disposition(
 	if (likely(!bp->b_error))
 		return XBF_IOEND_FINISH;
 
-	if (xfs_buf_ioerror_fail_without_retry(bp))
+	/*
+	 * If we've already decided to shutdown the filesystem because of I/O
+	 * errors, there's no point in giving this a retry.
+	 */
+	if (XFS_FORCED_SHUTDOWN(mp))
+		goto out_stale;
+
+	xfs_buf_ioerror_alert_ratelimited(bp);
+
+	/*
+	 * Synchronous writes will have callers process the error.
+	 */
+	if (!(bp->b_flags & XBF_ASYNC))
 		goto out_stale;
 
 	trace_xfs_buf_iodone_async(bp, _RET_IP_);
