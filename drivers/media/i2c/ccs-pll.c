@@ -365,14 +365,14 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 
 			/* Check if this one is better. */
 			if (pix_div * sys_div
-			    <= roundup(min_vt_div, best_pix_div))
+			    <= roundup(vt_div, best_pix_div))
 				best_pix_div = pix_div;
 		}
 		if (best_pix_div < INT_MAX >> 1)
 			break;
 	}
 
-	pll->vt_bk.sys_clk_div = DIV_ROUND_UP(min_vt_div, best_pix_div);
+	pll->vt_bk.sys_clk_div = DIV_ROUND_UP(vt_div, best_pix_div);
 	pll->vt_bk.pix_clk_div = best_pix_div;
 
 	pll->vt_bk.sys_clk_freq_hz =
