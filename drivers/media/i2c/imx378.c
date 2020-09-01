@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  * V0.0X01.0X01 add imx378 driver.
+ * V0.0X01.0X02 add imx378 support mirror and flip.
  */
 
 #include <linux/clk.h>
@@ -32,7 +33,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -88,6 +89,10 @@
 
 #define IMX378_REG_VTS_H		0x0340
 #define IMX378_REG_VTS_L		0x0341
+
+#define IMX378_FLIP_MIRROR_REG		0x0101
+#define IMX378_MIRROR_BIT_MASK		BIT(0)
+#define IMX378_FLIP_BIT_MASK		BIT(1)
 
 #define IMX378_FETCH_EXP_H(VAL)		(((VAL) >> 8) & 0xFF)
 #define IMX378_FETCH_EXP_L(VAL)		((VAL) & 0xFF)
@@ -166,6 +171,8 @@ struct imx378 {
 	struct v4l2_ctrl	*digi_gain;
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
+	struct v4l2_ctrl	*h_flip;
+	struct v4l2_ctrl	*v_flip;
 	struct v4l2_ctrl	*test_pattern;
 	struct v4l2_ctrl	*pixel_rate;
 	struct v4l2_ctrl	*link_freq;
@@ -183,6 +190,7 @@ struct imx378 {
 	u32			cur_vts;
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	u8			flip;
 };
 
 #define to_imx378(sd) container_of(sd, struct imx378, subdev)
@@ -2007,7 +2015,15 @@ static int imx378_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = mode->bus_fmt;
+		if (imx378->flip & IMX378_MIRROR_BIT_MASK) {
+			fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
+			if (imx378->flip & IMX378_FLIP_BIT_MASK)
+				fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+		} else if (imx378->flip & IMX378_FLIP_BIT_MASK) {
+			fmt->format.code = MEDIA_BUS_FMT_SGBRG10_1X10;
+		} else {
+			fmt->format.code = mode->bus_fmt;
+		}
 		fmt->format.field = V4L2_FIELD_NONE;
 		/* format info: width/height/data type/virctual channel */
 		if (fmt->pad < PAD_MAX && mode->hdr_mode != NO_HDR)
@@ -2268,6 +2284,27 @@ static long imx378_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
+static int imx378_set_flip(struct imx378 *imx378)
+{
+	int ret = 0;
+	u32 val = 0;
+
+	ret = imx378_read_reg(imx378->client, IMX378_FLIP_MIRROR_REG,
+			      IMX378_REG_VALUE_08BIT, &val);
+	if (imx378->flip & IMX378_MIRROR_BIT_MASK)
+		val |= IMX378_MIRROR_BIT_MASK;
+	else
+		val &= ~IMX378_MIRROR_BIT_MASK;
+	if (imx378->flip & IMX378_FLIP_BIT_MASK)
+		val |= IMX378_FLIP_BIT_MASK;
+	else
+		val &= ~IMX378_FLIP_BIT_MASK;
+	ret |= imx378_write_reg(imx378->client, IMX378_FLIP_MIRROR_REG,
+				IMX378_REG_VALUE_08BIT, val);
+
+	return ret;
+}
+
 static int __imx378_start_stream(struct imx378 *imx378)
 {
 	int ret;
@@ -2289,6 +2326,8 @@ static int __imx378_start_stream(struct imx378 *imx378)
 			return ret;
 		}
 	}
+
+	imx378_set_flip(imx378);
 
 	return imx378_write_reg(imx378->client, IMX378_REG_CTRL_MODE,
 				IMX378_REG_VALUE_08BIT, IMX378_MODE_STREAMING);
@@ -2635,6 +2674,18 @@ static int imx378_set_ctrl(struct v4l2_ctrl *ctrl)
 					& 0xff);
 		imx378->cur_vts = ctrl->val + imx378->cur_mode->height;
 		break;
+	case V4L2_CID_HFLIP:
+		if (ctrl->val)
+			imx378->flip |= IMX378_MIRROR_BIT_MASK;
+		else
+			imx378->flip &= ~IMX378_MIRROR_BIT_MASK;
+		break;
+	case V4L2_CID_VFLIP:
+		if (ctrl->val)
+			imx378->flip |= IMX378_FLIP_BIT_MASK;
+		else
+			imx378->flip &= ~IMX378_FLIP_BIT_MASK;
+		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = imx378_enable_test_pattern(imx378, ctrl->val);
 		break;
@@ -2663,7 +2714,7 @@ static int imx378_initialize_controls(struct imx378 *imx378)
 
 	handler = &imx378->ctrl_handler;
 	mode = imx378->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
 	handler->lock = &imx378->mutex;
@@ -2717,6 +2768,14 @@ static int imx378_initialize_controls(struct imx378 *imx378)
 				V4L2_CID_TEST_PATTERN,
 				ARRAY_SIZE(imx378_test_pattern_menu) - 1,
 				0, 0, imx378_test_pattern_menu);
+
+	imx378->h_flip = v4l2_ctrl_new_std(handler, &imx378_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	imx378->v_flip = v4l2_ctrl_new_std(handler, &imx378_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+	imx378->flip = 0;
+
 	if (handler->error) {
 		ret = handler->error;
 		dev_err(&imx378->client->dev,
