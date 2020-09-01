@@ -252,6 +252,8 @@ static void cs_counters_aggregate(struct hl_device *hdev, struct hl_ctx *ctx)
 			ctx->cs_counters.parsing_drop_cnt;
 	hdev->aggregated_cs_counters.queue_full_drop_cnt +=
 			ctx->cs_counters.queue_full_drop_cnt;
+	hdev->aggregated_cs_counters.max_cs_in_flight_drop_cnt +=
+			ctx->cs_counters.max_cs_in_flight_drop_cnt;
 }
 
 static void cs_do_release(struct kref *ref)
@@ -431,8 +433,9 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 				(hdev->asic_prop.max_pending_cs - 1)];
 
 	if (other && !completion_done(&other->completion)) {
-		dev_dbg(hdev->dev,
+		dev_dbg_ratelimited(hdev->dev,
 			"Rejecting CS because of too many in-flights CS\n");
+		ctx->cs_counters.max_cs_in_flight_drop_cnt++;
 		rc = -EAGAIN;
 		goto free_fence;
 	}

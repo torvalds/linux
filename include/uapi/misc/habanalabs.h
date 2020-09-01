@@ -401,12 +401,14 @@ struct hl_info_sync_manager {
  * @parsing_drop_cnt: dropped due to error in packet parsing
  * @queue_full_drop_cnt: dropped due to queue full
  * @device_in_reset_drop_cnt: dropped due to device in reset
+ * @max_cs_in_flight_drop_cnt: dropped due to maximum CS in-flight
  */
 struct hl_cs_counters {
 	__u64 out_of_mem_drop_cnt;
 	__u64 parsing_drop_cnt;
 	__u64 queue_full_drop_cnt;
 	__u64 device_in_reset_drop_cnt;
+	__u64 max_cs_in_flight_drop_cnt;
 };
 
 struct hl_info_cs_counters {
