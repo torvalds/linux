@@ -448,7 +448,7 @@ static int __init dummy_numa_init(void)
  * arm64_numa_init() - Initialize NUMA
  *
  * Try each configured NUMA initialization method until one succeeds. The
- * last fallback is dummy single node config encomapssing whole memory.
+ * last fallback is dummy single node config encompassing whole memory.
  */
 void __init arm64_numa_init(void)
 {
