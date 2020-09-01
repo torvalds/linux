@@ -553,7 +553,8 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 			      NETIF_F_IPV6_CSUM | NETIF_F_RXHASH |
-			      NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
+			      NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+			      NETIF_F_GSO_UDP_L4;
 	netdev->features = netdev->hw_features;
 
 	netdev->gso_max_segs = OTX2_MAX_GSO_SEGS;

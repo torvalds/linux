@@ -1501,6 +1501,9 @@ int otx2_open(struct net_device *netdev)
 	if (err)
 		goto err_disable_napi;
 
+	/* Setup segmentation algorithms, if failed, clear offload capability */
+	otx2_setup_segmentation(pf);
+
 	/* Initialize RSS */
 	err = otx2_rss_init(pf);
 	if (err)
@@ -2091,7 +2094,8 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	netdev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 			       NETIF_F_IPV6_CSUM | NETIF_F_RXHASH |
-			       NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6);
+			       NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+			       NETIF_F_GSO_UDP_L4);
 	netdev->features |= netdev->hw_features;
 
 	netdev->hw_features |= NETIF_F_LOOPBACK | NETIF_F_RXALL;

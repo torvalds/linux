@@ -524,10 +524,33 @@ static void otx2_sqe_add_ext(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 			 */
 			ip_hdr(skb)->tot_len =
 				htons(ext->lso_sb - skb_network_offset(skb));
-		} else {
+		} else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6) {
 			ext->lso_format = pfvf->hw.lso_tsov6_idx;
+
 			ipv6_hdr(skb)->payload_len =
 				htons(ext->lso_sb - skb_network_offset(skb));
+		} else if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+			__be16 l3_proto = vlan_get_protocol(skb);
+			struct udphdr *udph = udp_hdr(skb);
+			u16 iplen;
+
+			ext->lso_sb = skb_transport_offset(skb) +
+					sizeof(struct udphdr);
+
+			/* HW adds payload size to length fields in IP and
+			 * UDP headers while segmentation, hence adjust the
+			 * lengths to just header sizes.
+			 */
+			iplen = htons(ext->lso_sb - skb_network_offset(skb));
+			if (l3_proto == htons(ETH_P_IP)) {
+				ip_hdr(skb)->tot_len = iplen;
+				ext->lso_format = pfvf->hw.lso_udpv4_idx;
+			} else {
+				ipv6_hdr(skb)->payload_len = iplen;
+				ext->lso_format = pfvf->hw.lso_udpv6_idx;
+			}
+
+			udph->len = htons(sizeof(struct udphdr));
 		}
 	} else if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		ext->tstmp = 1;

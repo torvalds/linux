@@ -177,9 +177,11 @@ struct otx2_hw {
 	u16			rq_skid;
 	u8			cq_time_wait;
 
-	/* For TSO segmentation */
+	/* Segmentation */
 	u8			lso_tsov4_idx;
 	u8			lso_tsov6_idx;
+	u8			lso_udpv4_idx;
+	u8			lso_udpv6_idx;
 	u8			hw_tso;
 
 	/* MSI-X */
@@ -580,6 +582,7 @@ void otx2_tx_timeout(struct net_device *netdev, unsigned int txq);
 void otx2_get_mac_from_af(struct net_device *netdev);
 void otx2_config_irq_coalescing(struct otx2_nic *pfvf, int qidx);
 int otx2_config_pause_frm(struct otx2_nic *pfvf);
+void otx2_setup_segmentation(struct otx2_nic *pfvf);
 
 /* RVU block related APIs */
 int otx2_attach_npa_nix(struct otx2_nic *pfvf);
