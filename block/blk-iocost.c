@@ -1115,6 +1115,66 @@ fail_unlock:
 	return false;
 }
 
+static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now)
+{
+	struct ioc *ioc = iocg->ioc;
+	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
+	u64 vtime = atomic64_read(&iocg->vtime);
+	u64 vmargin = ioc->margin_us * now->vrate;
+	u64 margin_ns = ioc->margin_us * NSEC_PER_USEC;
+	u64 delta_ns, expires, oexpires;
+	u32 hw_inuse;
+
+	lockdep_assert_held(&iocg->waitq.lock);
+
+	/* debt-adjust vtime */
+	current_hweight(iocg, NULL, &hw_inuse);
+	vtime += abs_cost_to_cost(iocg->abs_vdebt, hw_inuse);
+
+	/*
+	 * Clear or maintain depending on the overage. Non-zero vdebt is what
+	 * guarantees that @iocg is online and future iocg_kick_delay() will
+	 * clear use_delay. Don't leave it on when there's no vdebt.
+	 */
+	if (!iocg->abs_vdebt || time_before_eq64(vtime, now->vnow)) {
+		blkcg_clear_delay(blkg);
+		return false;
+	}
+	if (!atomic_read(&blkg->use_delay) &&
+	    time_before_eq64(vtime, now->vnow + vmargin))
+		return false;
+
+	/* use delay */
+	delta_ns = DIV64_U64_ROUND_UP(vtime - now->vnow,
+				      now->vrate) * NSEC_PER_USEC;
+	blkcg_set_delay(blkg, delta_ns);
+	expires = now->now_ns + delta_ns;
+
+	/* if already active and close enough, don't bother */
+	oexpires = ktime_to_ns(hrtimer_get_softexpires(&iocg->delay_timer));
+	if (hrtimer_is_queued(&iocg->delay_timer) &&
+	    abs(oexpires - expires) <= margin_ns / 4)
+		return true;
+
+	hrtimer_start_range_ns(&iocg->delay_timer, ns_to_ktime(expires),
+			       margin_ns / 4, HRTIMER_MODE_ABS);
+	return true;
+}
+
+static enum hrtimer_restart iocg_delay_timer_fn(struct hrtimer *timer)
+{
+	struct ioc_gq *iocg = container_of(timer, struct ioc_gq, delay_timer);
+	struct ioc_now now;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iocg->waitq.lock, flags);
+	ioc_now(iocg->ioc, &now);
+	iocg_kick_delay(iocg, &now);
+	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
+
+	return HRTIMER_NORESTART;
+}
+
 static int iocg_wake_fn(struct wait_queue_entry *wq_entry, unsigned mode,
 			int flags, void *key)
 {
@@ -1206,66 +1266,6 @@ static enum hrtimer_restart iocg_waitq_timer_fn(struct hrtimer *timer)
 
 	spin_lock_irqsave(&iocg->waitq.lock, flags);
 	iocg_kick_waitq(iocg, &now);
-	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
-
-	return HRTIMER_NORESTART;
-}
-
-static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now)
-{
-	struct ioc *ioc = iocg->ioc;
-	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
-	u64 vtime = atomic64_read(&iocg->vtime);
-	u64 vmargin = ioc->margin_us * now->vrate;
-	u64 margin_ns = ioc->margin_us * NSEC_PER_USEC;
-	u64 delta_ns, expires, oexpires;
-	u32 hw_inuse;
-
-	lockdep_assert_held(&iocg->waitq.lock);
-
-	/* debt-adjust vtime */
-	current_hweight(iocg, NULL, &hw_inuse);
-	vtime += abs_cost_to_cost(iocg->abs_vdebt, hw_inuse);
-
-	/*
-	 * Clear or maintain depending on the overage. Non-zero vdebt is what
-	 * guarantees that @iocg is online and future iocg_kick_delay() will
-	 * clear use_delay. Don't leave it on when there's no vdebt.
-	 */
-	if (!iocg->abs_vdebt || time_before_eq64(vtime, now->vnow)) {
-		blkcg_clear_delay(blkg);
-		return false;
-	}
-	if (!atomic_read(&blkg->use_delay) &&
-	    time_before_eq64(vtime, now->vnow + vmargin))
-		return false;
-
-	/* use delay */
-	delta_ns = DIV64_U64_ROUND_UP(vtime - now->vnow,
-				      now->vrate) * NSEC_PER_USEC;
-	blkcg_set_delay(blkg, delta_ns);
-	expires = now->now_ns + delta_ns;
-
-	/* if already active and close enough, don't bother */
-	oexpires = ktime_to_ns(hrtimer_get_softexpires(&iocg->delay_timer));
-	if (hrtimer_is_queued(&iocg->delay_timer) &&
-	    abs(oexpires - expires) <= margin_ns / 4)
-		return true;
-
-	hrtimer_start_range_ns(&iocg->delay_timer, ns_to_ktime(expires),
-			       margin_ns / 4, HRTIMER_MODE_ABS);
-	return true;
-}
-
-static enum hrtimer_restart iocg_delay_timer_fn(struct hrtimer *timer)
-{
-	struct ioc_gq *iocg = container_of(timer, struct ioc_gq, delay_timer);
-	struct ioc_now now;
-	unsigned long flags;
-
-	spin_lock_irqsave(&iocg->waitq.lock, flags);
-	ioc_now(iocg->ioc, &now);
-	iocg_kick_delay(iocg, &now);
 	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
 
 	return HRTIMER_NORESTART;
