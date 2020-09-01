@@ -1045,27 +1045,9 @@ static int parse_control_option(const struct option *opt,
 				const char *str,
 				int unset __maybe_unused)
 {
-	char *comma = NULL, *endptr = NULL;
-	struct perf_stat_config *config = (struct perf_stat_config *)opt->value;
+	struct perf_stat_config *config = opt->value;
 
-	if (strncmp(str, "fd:", 3))
-		return -EINVAL;
-
-	config->ctl_fd = strtoul(&str[3], &endptr, 0);
-	if (endptr == &str[3])
-		return -EINVAL;
-
-	comma = strchr(str, ',');
-	if (comma) {
-		if (endptr != comma)
-			return -EINVAL;
-
-		config->ctl_fd_ack = strtoul(comma + 1, &endptr, 0);
-		if (endptr == comma + 1 || *endptr != '\0')
-			return -EINVAL;
-	}
-
-	return 0;
+	return evlist__parse_control(str, &config->ctl_fd, &config->ctl_fd_ack);
 }
 
 static struct option stat_options[] = {

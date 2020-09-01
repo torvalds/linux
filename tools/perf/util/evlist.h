@@ -373,6 +373,7 @@ enum evlist_ctl_cmd {
 	EVLIST_CTL_CMD_ACK
 };
 
+int evlist__parse_control(const char *str, int *ctl_fd, int *ctl_fd_ack);
 int evlist__initialize_ctlfd(struct evlist *evlist, int ctl_fd, int ctl_fd_ack);
 int evlist__finalize_ctlfd(struct evlist *evlist);
 bool evlist__ctlfd_initialized(struct evlist *evlist);
