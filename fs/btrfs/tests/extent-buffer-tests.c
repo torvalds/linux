@@ -60,7 +60,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 	key.type = BTRFS_EXTENT_CSUM_KEY;
 	key.offset = 0;
 
-	setup_items_for_insert(root, path, &key, &value_len, value_len, 1);
+	setup_items_for_insert(root, path, &key, &value_len, 1);
 	item = btrfs_item_nr(0);
 	write_extent_buffer(eb, value, btrfs_item_ptr_offset(eb, 0),
 			    value_len);
