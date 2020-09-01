@@ -1,0 +1,473 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126.dtsi"
+#include "rv1126-ipc.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Rockchip RV1126 38x38 V10 EMMC DDR3 Board";
+	compatible = "rockchip,rv1126-38x38-v10-emmc", "rockchip,rv1126";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait snd_aloop.index=7";
+	};
+
+	/delete-node/ vdd-npu;
+	/delete-node/ vdd-vepu;
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vcc_dvdd: vcc-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_dvdd";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+	};
+
+	vcc3v3_sys: vcc33sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vcc_sd: vcc-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&sdmmc_pwr>;
+		pinctrl-names = "default";
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc3v3_sys>;
+		enable-active-high;
+	};
+
+	vdd_arm: vdd-arm {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0 0 5000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <720000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-init-microvolt = <825000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc3v3_sys>;
+		status = "okay";
+	};
+
+	/*
+	 * pwm1 is reserved as voltage adjustment in hardware
+	 * use fixed regulator to avoid voltage adjustment by software
+	 */
+	vdd_logic_npu_vepu: vdd-logic-npu-vepu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1 0 5000 1>;
+		regulator-name = "vdd_logic_npu_vepu";
+		regulator-min-microvolt = <720000>;
+		regulator-max-microvolt = <880000>;
+		regulator-init-microvolt = <825000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc3v3_sys>;
+		status = "okay";
+	};
+
+	vdd_logic_npu_vepu_fixed: vdd-logic-npu-vepu-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_logic_npu_vepu-fixed";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <825000>;
+		regulator-max-microvolt = <825000>;
+	};
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 0>;
+		io-channel-names = "buttons";
+		poll-interval = <100>;
+		keyup-threshold-microvolt = <1800000>;
+
+		esc-key {
+			label = "esc";
+			linux,code = <KEY_ESC>;
+			press-threshold-microvolt = <0>;
+		};
+	};
+
+	cam_ircut0: cam_ircut {
+		status = "okay";
+		compatible = "rockchip,ircut";
+		ircut-open-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+		ircut-close-gpios  = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+	};
+
+	flash_ir: flash-ir {
+		status = "okay";
+		compatible = "led,rgb13h";
+		label = "pwm-flash";
+		led-max-microamp = <20000>;
+		flash-max-microamp = <20000>;
+		flash-max-timeout-us = <1000000>;
+		pwms=<&pwm3 0 25000 0>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+	};
+
+	i2s0_sound: i2s0-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,i2s0-sound";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&es8311>;
+		};
+	};
+};
+
+&csi_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_csi2_input>;
+			};
+		};
+	};
+};
+
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs200-1_8v;
+	rockchip,default-sample-phase = <90>;
+	supports-emmc;
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	status = "okay";
+};
+
+&gmac {
+	phy-mode = "rmii";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 50000 10000>;
+
+	assigned-clocks = <&cru CLK_GMAC_SRC_M0>, <&cru CLK_GMAC_SRC>, <&cru CLK_GMAC_TX_RX>;
+	assigned-clock-rates = <0>, <50000000>;
+	assigned-clock-parents = <&cru CLK_GMAC_RGMII_M0>, <&cru CLK_GMAC_SRC_M0>, <&cru RMII_MODE_CLK>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmiim0_pins &gmac_clk_m0_pins>;
+
+	phy-handle = <&phy>;
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	pcf8563: pcf8563@51 {
+		compatible = "pcf8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	imx415: imx415@1a {
+		   compatible = "sony,imx415";
+		   reg = <0x1a>;
+		   clocks = <&cru CLK_MIPICSI_OUT>;
+		   clock-names = "xvclk";
+		   power-domains = <&power RV1126_PD_VI>;
+		   pinctrl-names = "rockchip,camera_default";
+		   pinctrl-0 = <&mipicsi_clk0>;
+		   avdd-supply = <&vcc3v3_sys>;
+		   dovdd-supply = <&vcc_1v8>;
+		   dvdd-supply = <&vcc_dvdd>;
+		   /* reset is always pulled high in v10 */
+		   reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		   rockchip,camera-module-index = <1>;
+		   rockchip,camera-module-facing = "front";
+		   rockchip,camera-module-name = "YT10092";
+		   rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+		   ir-cut = <&cam_ircut0>;
+		   flash-leds = <&flash_ir>;
+		   port {
+				   ucam_out0: endpoint {
+						   remote-endpoint = <&mipi_in_ucam0>;
+						   data-lanes = <1 2 3 4>;
+				   };
+		   };
+	};
+
+};
+
+&i2c4 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c4m1_xfer>;
+
+	es8311: es8311@18 {
+		compatible = "everest,es8311";
+		reg = <0x18>;
+		clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0m0_mclk &spk_ctl>;
+		assigned-clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
+		assigned-clock-parents = <&cru MCLK_I2S0_TX>;
+		spk-ctl-gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&i2s0_8ch {
+	status = "okay";
+	rockchip,clk-trcm = <1>;
+	#sound-dai-cells = <0>;
+	pinctrl-0 = <&i2s0m0_sclk_tx
+		     &i2s0m0_lrck_tx
+		     &i2s0m0_sdi0
+		     &i2s0m0_sdo0>;
+};
+
+&isp_reserved {
+	size = <0x20000000>;
+};
+
+&mdio {
+	phy: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+	};
+};
+
+&mipi_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&npu {
+	npu-supply = <&vdd_logic_npu_vepu_fixed>;
+};
+
+&pinctrl {
+	es8311 {
+		spk_ctl: spk-ctl {
+			rockchip,pins = <2 RK_PA5 0 &pcfg_pull_none>;
+		};
+	};
+
+	sdmmc-pwr {
+		/omit-if-no-ref/
+		sdmmc_pwr: sdmmc-pwr {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pmu_io_domains {
+	status = "okay";
+
+	pmuio0-supply = <&vcc3v3_sys>;
+	pmuio1-supply = <&vcc3v3_sys>;
+	vccio2-supply = <&vcc3v3_sys>;
+	vccio3-supply = <&vcc3v3_sys>;
+	vccio4-supply = <&vcc_1v8>;
+	vccio5-supply = <&vcc3v3_sys>;
+	vccio6-supply = <&vcc3v3_sys>;
+	vccio7-supply = <&vcc3v3_sys>;
+};
+
+&pwm3 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm3m0_pins_pull_down>;
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "disabled";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+			data-lanes = <1 2 3 4>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_in>;
+			data-lanes = <1 2 3 4>;
+		};
+	};
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_lvds_sditf>;
+			};
+		};
+	};
+};
+
+&rkvenc {
+	venc-supply = <&vdd_logic_npu_vepu_fixed>;
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_ARMOFF
+		| RKPM_SLP_PMU_PMUALIVE_32K
+		| RKPM_SLP_PMU_DIS_OSC
+		)
+	>;
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
+};
+
+&sdmmc0_bus4 {
+	rockchip,pins =
+		/* sdmmc0_d0 */
+		<1 RK_PA4 1 &pcfg_pull_up_drv_level_0>,
+		/* sdmmc0_d1 */
+		<1 RK_PA5 1 &pcfg_pull_up_drv_level_0>,
+		/* sdmmc0_d2 */
+		<1 RK_PA6 1 &pcfg_pull_up_drv_level_0>,
+		/* sdmmc0_d3 */
+		<1 RK_PA7 1 &pcfg_pull_up_drv_level_0>;
+};
+
+&sdmmc0_clk {
+	rockchip,pins =
+		/* sdmmc0_clk */
+		<1 RK_PB0 1 &pcfg_pull_up_drv_level_3>;
+};
+
+&sdmmc0_cmd {
+	rockchip,pins =
+		/* sdmmc0_cmd */
+		<1 RK_PB1 1 &pcfg_pull_up_drv_level_0>;
+};
+
+&sdmmc {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	rockchip,default-sample-phase = <90>;
+	supports-sd;
+	status = "okay";
+	vmmc-supply = <&vcc_sd>;
+};
