@@ -1255,21 +1255,10 @@ static int rkisp1_capture_link_validate(struct media_link *link)
 	struct v4l2_subdev *sd =
 		media_entity_to_v4l2_subdev(link->source->entity);
 	struct rkisp1_capture *cap = video_get_drvdata(vdev);
-	struct rkisp1_isp *isp = &cap->rkisp1->isp;
-	u8 isp_pix_enc = isp->src_fmt->pixel_enc;
-	u8 cap_pix_enc = cap->pix.info->pixel_enc;
+	const struct rkisp1_capture_fmt_cfg *fmt =
+		rkisp1_find_fmt_cfg(cap, cap->pix.fmt.pixelformat);
 	struct v4l2_subdev_format sd_fmt;
 	int ret;
-
-	if (cap_pix_enc != isp_pix_enc &&
-	    !(isp_pix_enc == V4L2_PIXEL_ENC_YUV &&
-	      cap_pix_enc == V4L2_PIXEL_ENC_RGB)) {
-		dev_err(cap->rkisp1->dev,
-			"format type mismatch in link '%s:%d->%s:%d'\n",
-			link->source->entity->name, link->source->index,
-			link->sink->entity->name, link->sink->index);
-		return -EPIPE;
-	}
 
 	sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sd_fmt.pad = link->source->index;
@@ -1278,7 +1267,8 @@ static int rkisp1_capture_link_validate(struct media_link *link)
 		return ret;
 
 	if (sd_fmt.format.height != cap->pix.fmt.height ||
-	    sd_fmt.format.width != cap->pix.fmt.width)
+	    sd_fmt.format.width != cap->pix.fmt.width ||
+	    sd_fmt.format.code != fmt->mbus)
 		return -EPIPE;
 
 	return 0;
