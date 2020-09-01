@@ -1310,7 +1310,6 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
 {
 	struct cdns3_endpoint *priv_ep;
 	struct usb_ep *ep;
-	int val;
 
 	if (priv_dev->hw_configured_flag)
 		return;
@@ -1319,10 +1318,6 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
 
 	cdns3_set_register_bit(&priv_dev->regs->usb_conf,
 			       USB_CONF_U1EN | USB_CONF_U2EN);
-
-	/* wait until configuration set */
-	readl_poll_timeout_atomic(&priv_dev->regs->usb_sts, val,
-				  val & USB_STS_CFGSTS_MASK, 1, 100);
 
 	priv_dev->hw_configured_flag = 1;
 
