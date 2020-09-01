@@ -1508,7 +1508,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 	struct ioc_gq *iocg, *tiocg;
 	struct ioc_now now;
 	LIST_HEAD(surpluses);
-	int nr_surpluses = 0, nr_shortages = 0, nr_lagging = 0;
+	int nr_shortages = 0, nr_lagging = 0;
 	u32 ppm_rthr = MILLION - ioc->params.qos[QOS_RPPM];
 	u32 ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
 	u32 missed_ppm[2], rq_wait_pct;
@@ -1640,10 +1640,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 			atomic64_add(delta, &iocg->vtime);
 			atomic64_add(delta, &iocg->done_vtime);
 			/* if usage is sufficiently low, maybe it can donate */
-			if (surplus_adjusted_hweight_inuse(usage, hw_inuse)) {
+			if (surplus_adjusted_hweight_inuse(usage, hw_inuse))
 				list_add(&iocg->surplus_list, &surpluses);
-				nr_surpluses++;
-			}
 		} else if (hw_inuse < hw_active) {
 			u32 new_hwi, new_inuse;
 
@@ -1673,7 +1671,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 		}
 	}
 
-	if (!nr_shortages || !nr_surpluses)
+	if (!nr_shortages || list_empty(&surpluses))
 		goto skip_surplus_transfers;
 
 	/* there are both shortages and surpluses, transfer surpluses */
@@ -1738,11 +1736,9 @@ skip_surplus_transfers:
 
 			/*
 			 * If there are IOs spanning multiple periods, wait
-			 * them out before pushing the device harder.  If
-			 * there are surpluses, let redistribution work it
-			 * out first.
+			 * them out before pushing the device harder.
 			 */
-			if (!nr_lagging && !nr_surpluses)
+			if (!nr_lagging)
 				ioc->busy_level--;
 		} else {
 			/*
@@ -1796,15 +1792,14 @@ skip_surplus_transfers:
 		}
 
 		trace_iocost_ioc_vrate_adj(ioc, vrate, missed_ppm, rq_wait_pct,
-					   nr_lagging, nr_shortages,
-					   nr_surpluses);
+					   nr_lagging, nr_shortages);
 
 		atomic64_set(&ioc->vtime_rate, vrate);
 		ioc_refresh_margins(ioc);
 	} else if (ioc->busy_level != prev_busy_level || nr_lagging) {
 		trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
 					   missed_ppm, rq_wait_pct, nr_lagging,
-					   nr_shortages, nr_surpluses);
+					   nr_shortages);
 	}
 
 	ioc_refresh_params(ioc, false);
