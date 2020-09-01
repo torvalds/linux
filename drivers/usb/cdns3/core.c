@@ -280,6 +280,10 @@ int cdns3_hw_role_switch(struct cdns3 *cdns)
 	enum usb_role real_role, current_role;
 	int ret = 0;
 
+	/* Depends on role switch class */
+	if (cdns->role_sw)
+		return 0;
+
 	pm_runtime_get_sync(cdns->dev);
 
 	current_role = cdns->role;
