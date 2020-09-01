@@ -1,34 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qede NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
+
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <net/udp_tunnel.h>
@@ -978,115 +953,67 @@ int qede_set_features(struct net_device *dev, netdev_features_t features)
 	return 0;
 }
 
-void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti)
+static int qede_udp_tunnel_sync(struct net_device *dev, unsigned int table)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_tunn_params tunn_params;
-	u16 t_port = ntohs(ti->port);
+	struct udp_tunnel_info ti;
+	u16 *save_port;
 	int rc;
 
 	memset(&tunn_params, 0, sizeof(tunn_params));
 
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		if (!edev->dev_info.common.vxlan_enable)
-			return;
-
-		if (edev->vxlan_dst_port)
-			return;
-
+	udp_tunnel_nic_get_port(dev, table, 0, &ti);
+	if (ti.type == UDP_TUNNEL_TYPE_VXLAN) {
 		tunn_params.update_vxlan_port = 1;
-		tunn_params.vxlan_port = t_port;
-
-		__qede_lock(edev);
-		rc = edev->ops->tunn_config(edev->cdev, &tunn_params);
-		__qede_unlock(edev);
-
-		if (!rc) {
-			edev->vxlan_dst_port = t_port;
-			DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d\n",
-				   t_port);
-		} else {
-			DP_NOTICE(edev, "Failed to add vxlan UDP port=%d\n",
-				  t_port);
-		}
-
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		if (!edev->dev_info.common.geneve_enable)
-			return;
-
-		if (edev->geneve_dst_port)
-			return;
-
+		tunn_params.vxlan_port = ntohs(ti.port);
+		save_port = &edev->vxlan_dst_port;
+	} else {
 		tunn_params.update_geneve_port = 1;
-		tunn_params.geneve_port = t_port;
-
-		__qede_lock(edev);
-		rc = edev->ops->tunn_config(edev->cdev, &tunn_params);
-		__qede_unlock(edev);
-
-		if (!rc) {
-			edev->geneve_dst_port = t_port;
-			DP_VERBOSE(edev, QED_MSG_DEBUG,
-				   "Added geneve port=%d\n", t_port);
-		} else {
-			DP_NOTICE(edev, "Failed to add geneve UDP port=%d\n",
-				  t_port);
-		}
-
-		break;
-	default:
-		return;
+		tunn_params.geneve_port = ntohs(ti.port);
+		save_port = &edev->geneve_dst_port;
 	}
+
+	__qede_lock(edev);
+	rc = edev->ops->tunn_config(edev->cdev, &tunn_params);
+	__qede_unlock(edev);
+	if (rc)
+		return rc;
+
+	*save_port = ntohs(ti.port);
+	return 0;
 }
 
-void qede_udp_tunnel_del(struct net_device *dev,
-			 struct udp_tunnel_info *ti)
+static const struct udp_tunnel_nic_info qede_udp_tunnels_both = {
+	.sync_table	= qede_udp_tunnel_sync,
+	.flags		= UDP_TUNNEL_NIC_INFO_MAY_SLEEP,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+	},
+}, qede_udp_tunnels_vxlan = {
+	.sync_table	= qede_udp_tunnel_sync,
+	.flags		= UDP_TUNNEL_NIC_INFO_MAY_SLEEP,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
+	},
+}, qede_udp_tunnels_geneve = {
+	.sync_table	= qede_udp_tunnel_sync,
+	.flags		= UDP_TUNNEL_NIC_INFO_MAY_SLEEP,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+	},
+};
+
+void qede_set_udp_tunnels(struct qede_dev *edev)
 {
-	struct qede_dev *edev = netdev_priv(dev);
-	struct qed_tunn_params tunn_params;
-	u16 t_port = ntohs(ti->port);
-
-	memset(&tunn_params, 0, sizeof(tunn_params));
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		if (t_port != edev->vxlan_dst_port)
-			return;
-
-		tunn_params.update_vxlan_port = 1;
-		tunn_params.vxlan_port = 0;
-
-		__qede_lock(edev);
-		edev->ops->tunn_config(edev->cdev, &tunn_params);
-		__qede_unlock(edev);
-
-		edev->vxlan_dst_port = 0;
-
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted vxlan port=%d\n",
-			   t_port);
-
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		if (t_port != edev->geneve_dst_port)
-			return;
-
-		tunn_params.update_geneve_port = 1;
-		tunn_params.geneve_port = 0;
-
-		__qede_lock(edev);
-		edev->ops->tunn_config(edev->cdev, &tunn_params);
-		__qede_unlock(edev);
-
-		edev->geneve_dst_port = 0;
-
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted geneve port=%d\n",
-			   t_port);
-		break;
-	default:
-		return;
-	}
+	if (edev->dev_info.common.vxlan_enable &&
+	    edev->dev_info.common.geneve_enable)
+		edev->ndev->udp_tunnel_nic_info = &qede_udp_tunnels_both;
+	else if (edev->dev_info.common.vxlan_enable)
+		edev->ndev->udp_tunnel_nic_info = &qede_udp_tunnels_vxlan;
+	else if (edev->dev_info.common.geneve_enable)
+		edev->ndev->udp_tunnel_nic_info = &qede_udp_tunnels_geneve;
 }
 
 static void qede_xdp_reload_func(struct qede_dev *edev,
@@ -1118,9 +1045,6 @@ int qede_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return qede_xdp_set(edev, xdp->prog);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = edev->xdp_prog ? edev->xdp_prog->aux->id : 0;
-		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1746,7 +1670,8 @@ unlock:
 }
 
 static int qede_parse_actions(struct qede_dev *edev,
-			      struct flow_action *flow_action)
+			      struct flow_action *flow_action,
+			      struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *act;
 	int i;
@@ -1755,6 +1680,9 @@ static int qede_parse_actions(struct qede_dev *edev,
 		DP_NOTICE(edev, "No actions received\n");
 		return -EINVAL;
 	}
+
+	if (!flow_action_basic_hw_stats_check(flow_action, extack))
+		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
@@ -1785,8 +1713,8 @@ qede_flow_parse_ports(struct qede_dev *edev, struct flow_rule *rule,
 		struct flow_match_ports match;
 
 		flow_rule_match_ports(rule, &match);
-		if ((match.key->src && match.mask->src != U16_MAX) ||
-		    (match.key->dst && match.mask->dst != U16_MAX)) {
+		if ((match.key->src && match.mask->src != htons(U16_MAX)) ||
+		    (match.key->dst && match.mask->dst != htons(U16_MAX))) {
 			DP_NOTICE(edev, "Do not support ports masks\n");
 			return -EINVAL;
 		}
@@ -1838,8 +1766,8 @@ qede_flow_parse_v4_common(struct qede_dev *edev, struct flow_rule *rule,
 		struct flow_match_ipv4_addrs match;
 
 		flow_rule_match_ipv4_addrs(rule, &match);
-		if ((match.key->src && match.mask->src != U32_MAX) ||
-		    (match.key->dst && match.mask->dst != U32_MAX)) {
+		if ((match.key->src && match.mask->src != htonl(U32_MAX)) ||
+		    (match.key->dst && match.mask->dst != htonl(U32_MAX))) {
 			DP_NOTICE(edev, "Do not support ipv4 prefix/masks\n");
 			return -EINVAL;
 		}
@@ -1970,7 +1898,7 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 	}
 
 	/* parse tc actions and get the vf_id */
-	if (qede_parse_actions(edev, &f->rule->action))
+	if (qede_parse_actions(edev, &f->rule->action, f->common.extack))
 		goto unlock;
 
 	if (qede_flow_find_fltr(edev, &t)) {
@@ -2038,7 +1966,7 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 		return -EINVAL;
 	}
 
-	if (qede_parse_actions(edev, flow_action))
+	if (qede_parse_actions(edev, flow_action, NULL))
 		return -EINVAL;
 
 	return 0;

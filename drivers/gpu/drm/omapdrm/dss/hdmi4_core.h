@@ -249,7 +249,9 @@ struct hdmi_core_packet_enable_repeat {
 	u32	generic_pkt_repeat;
 };
 
-int hdmi4_read_edid(struct hdmi_core_data *core, u8 *edid, int len);
+int hdmi4_core_ddc_init(struct hdmi_core_data *core);
+int hdmi4_core_ddc_read(void *data, u8 *buf, unsigned int block, size_t len);
+
 void hdmi4_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 		struct hdmi_config *cfg);
 void hdmi4_core_dump(struct hdmi_core_data *core, struct seq_file *s);

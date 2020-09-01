@@ -292,8 +292,22 @@ files' data differently, inode numbers are included in the IVs.
 Consequently, shrinking the filesystem may not be allowed.
 
 This format is optimized for use with inline encryption hardware
-compliant with the UFS or eMMC standards, which support only 64 IV
-bits per I/O request and may have only a small number of keyslots.
+compliant with the UFS standard, which supports only 64 IV bits per
+I/O request and may have only a small number of keyslots.
+
+IV_INO_LBLK_32 policies
+-----------------------
+
+IV_INO_LBLK_32 policies work like IV_INO_LBLK_64, except that for
+IV_INO_LBLK_32, the inode number is hashed with SipHash-2-4 (where the
+SipHash key is derived from the master key) and added to the file
+logical block number mod 2^32 to produce a 32-bit IV.
+
+This format is optimized for use with inline encryption hardware
+compliant with the eMMC v5.2 standard, which supports only 32 IV bits
+per I/O request and may have only a small number of keyslots.  This
+format results in some level of IV reuse, so it should only be used
+when necessary due to hardware limitations.
 
 Key identifiers
 ---------------
@@ -368,6 +382,10 @@ a little endian number, except that:
 - With `IV_INO_LBLK_64 policies`_, the logical block number is limited
   to 32 bits and is placed in bits 0-31 of the IV.  The inode number
   (which is also limited to 32 bits) is placed in bits 32-63.
+
+- With `IV_INO_LBLK_32 policies`_, the logical block number is limited
+  to 32 bits and is placed in bits 0-31 of the IV.  The inode number
+  is then hashed and added mod 2^32.
 
 Note that because file logical block numbers are included in the IVs,
 filesystems must enforce that blocks are never shifted around within
@@ -465,8 +483,15 @@ This structure must be initialized as follows:
     (0x3).
   - FSCRYPT_POLICY_FLAG_DIRECT_KEY: See `DIRECT_KEY policies`_.
   - FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64: See `IV_INO_LBLK_64
-    policies`_.  This is mutually exclusive with DIRECT_KEY and is not
-    supported on v1 policies.
+    policies`_.
+  - FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32: See `IV_INO_LBLK_32
+    policies`_.
+
+  v1 encryption policies only support the PAD_* and DIRECT_KEY flags.
+  The other flags are only supported by v2 encryption policies.
+
+  The DIRECT_KEY, IV_INO_LBLK_64, and IV_INO_LBLK_32 flags are
+  mutually exclusive.
 
 - For v2 encryption policies, ``__reserved`` must be zeroed.
 
@@ -632,6 +657,17 @@ from a passphrase or other low-entropy user credential.
 
 FS_IOC_GET_ENCRYPTION_PWSALT is deprecated.  Instead, prefer to
 generate and manage any needed salt(s) in userspace.
+
+Getting a file's encryption nonce
+---------------------------------
+
+Since Linux v5.7, the ioctl FS_IOC_GET_ENCRYPTION_NONCE is supported.
+On encrypted files and directories it gets the inode's 16-byte nonce.
+On unencrypted files and directories, it fails with ENODATA.
+
+This ioctl can be useful for automated tests which verify that the
+encryption is being done correctly.  It is not needed for normal use
+of fscrypt.
 
 Adding keys
 -----------
@@ -1122,7 +1158,7 @@ setxattr() because of the special semantics of the encryption xattr.
 were to be added to or removed from anything other than an empty
 directory.)  These structs are defined as follows::
 
-    #define FS_KEY_DERIVATION_NONCE_SIZE 16
+    #define FSCRYPT_FILE_NONCE_SIZE 16
 
     #define FSCRYPT_KEY_DESCRIPTOR_SIZE  8
     struct fscrypt_context_v1 {
@@ -1131,7 +1167,7 @@ directory.)  These structs are defined as follows::
             u8 filenames_encryption_mode;
             u8 flags;
             u8 master_key_descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
-            u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+            u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
     };
 
     #define FSCRYPT_KEY_IDENTIFIER_SIZE  16
@@ -1142,7 +1178,7 @@ directory.)  These structs are defined as follows::
             u8 flags;
             u8 __reserved[4];
             u8 master_key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE];
-            u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+            u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
     };
 
 The context structs contain the same information as the corresponding
@@ -1167,6 +1203,18 @@ temporary buffer or "bounce page", then write out the temporary
 buffer.  Some filesystems, such as UBIFS, already use temporary
 buffers regardless of encryption.  Other filesystems, such as ext4 and
 F2FS, have to allocate bounce pages specially for encryption.
+
+Fscrypt is also able to use inline encryption hardware instead of the
+kernel crypto API for en/decryption of file contents.  When possible,
+and if directed to do so (by specifying the 'inlinecrypt' mount option
+for an ext4/F2FS filesystem), it adds encryption contexts to bios and
+uses blk-crypto to perform the en/decryption instead of making use of
+the above read/write path changes.  Of course, even if directed to
+make use of inline encryption, fscrypt will only be able to do so if
+either hardware inline encryption support is available for the
+selected encryption algorithm or CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK
+is selected.  If neither is the case, fscrypt will fall back to using
+the above mentioned read/write path changes for en/decryption.
 
 Filename hashing and encoding
 -----------------------------
@@ -1214,11 +1262,14 @@ Tests
 
 To test fscrypt, use xfstests, which is Linux's de facto standard
 filesystem test suite.  First, run all the tests in the "encrypt"
-group on the relevant filesystem(s).  For example, to test ext4 and
+group on the relevant filesystem(s).  One can also run the tests
+with the 'inlinecrypt' mount option to test the implementation for
+inline encryption support.  For example, to test ext4 and
 f2fs encryption using `kvm-xfstests
 <https://github.com/tytso/xfstests-bld/blob/master/Documentation/kvm-quickstart.md>`_::
 
     kvm-xfstests -c ext4,f2fs -g encrypt
+    kvm-xfstests -c ext4,f2fs -g encrypt -m inlinecrypt
 
 UBIFS encryption can also be tested this way, but it should be done in
 a separate command, and it takes some time for kvm-xfstests to set up
@@ -1240,6 +1291,7 @@ This tests the encrypted I/O paths more thoroughly.  To do this with
 kvm-xfstests, use the "encrypt" filesystem configuration::
 
     kvm-xfstests -c ext4/encrypt,f2fs/encrypt -g auto
+    kvm-xfstests -c ext4/encrypt,f2fs/encrypt -g auto -m inlinecrypt
 
 Because this runs many more tests than "-g encrypt" does, it takes
 much longer to run; so also consider using `gce-xfstests
@@ -1247,3 +1299,4 @@ much longer to run; so also consider using `gce-xfstests
 instead of kvm-xfstests::
 
     gce-xfstests -c ext4/encrypt,f2fs/encrypt -g auto
+    gce-xfstests -c ext4/encrypt,f2fs/encrypt -g auto -m inlinecrypt

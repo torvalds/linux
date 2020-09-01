@@ -45,7 +45,8 @@ allOf:
 
 properties:
   "#dma-cells":
-    const: 1
+    minimum: 1
+    maximum: 2
     description: |
       The cell is the PSI-L  thread ID of the remote (to UDMAP) end.
       Valid ranges for thread ID depends on the data movement direction:
@@ -54,6 +55,8 @@ properties:
 
       Please refer to the device documentation for the PSI-L thread map and also
       the PSI-L peripheral chapter for the correct thread ID.
+
+      When #dma-cells is 2, the second parameter is the channel ATYPE.
 
   compatible:
     enum:
@@ -66,34 +69,30 @@ properties:
     maxItems: 3
 
   reg-names:
-   items:
-     - const: gcfg
-     - const: rchanrt
-     - const: tchanrt
+    items:
+      - const: gcfg
+      - const: rchanrt
+      - const: tchanrt
 
   msi-parent: true
 
   ti,sci:
     description: phandle to TI-SCI compatible System controller node
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,sci-dev-id:
     description: TI-SCI device id of UDMAP
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   ti,ringacc:
     description: phandle to the ring accelerator node
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,sci-rm-range-tchan:
     description: |
       Array of UDMA tchan resource subtypes for resource allocation for this
       host
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     # Should be enough
     maxItems: 255
@@ -102,8 +101,7 @@ properties:
     description: |
       Array of UDMA rchan resource subtypes for resource allocation for this
       host
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     # Should be enough
     maxItems: 255
@@ -112,8 +110,7 @@ properties:
     description: |
       Array of UDMA rflow resource subtypes for resource allocation for this
       host
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     # Should be enough
     maxItems: 255
@@ -130,6 +127,19 @@ required:
   - ti,sci-rm-range-tchan
   - ti,sci-rm-range-rchan
   - ti,sci-rm-range-rflow
+
+if:
+  properties:
+    "#dma-cells":
+      const: 2
+then:
+  properties:
+    ti,udma-atype:
+      description: ATYPE value which should be used by non slave channels
+      $ref: /schemas/types.yaml#/definitions/uint32
+
+  required:
+    - ti,udma-atype
 
 examples:
   - |+

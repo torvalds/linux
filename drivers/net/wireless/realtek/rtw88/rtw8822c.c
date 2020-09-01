@@ -2,6 +2,7 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/module.h>
 #include "main.h"
 #include "coex.h"
 #include "fw.h"
@@ -15,6 +16,7 @@
 #include "debug.h"
 #include "util.h"
 #include "bf.h"
+#include "efuse.h"
 
 static void rtw8822c_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
 				     u8 rx_path, bool is_tx2_path);
@@ -1000,10 +1002,122 @@ static void rtw8822c_rf_x2_check(struct rtw_dev *rtwdev)
 	}
 }
 
+static void rtw8822c_set_power_trim(struct rtw_dev *rtwdev, s8 bb_gain[2][8])
+{
+#define RF_SET_POWER_TRIM(_path, _seq, _idx)					\
+		do {								\
+			rtw_write_rf(rtwdev, _path, 0x33, RFREG_MASK, _seq);	\
+			rtw_write_rf(rtwdev, _path, 0x3f, RFREG_MASK,		\
+				     bb_gain[_path][_idx]);			\
+		} while (0)
+	u8 path;
+
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rtw_write_rf(rtwdev, path, 0xee, BIT(19), 1);
+		RF_SET_POWER_TRIM(path, 0x0, 0);
+		RF_SET_POWER_TRIM(path, 0x1, 1);
+		RF_SET_POWER_TRIM(path, 0x2, 2);
+		RF_SET_POWER_TRIM(path, 0x3, 2);
+		RF_SET_POWER_TRIM(path, 0x4, 3);
+		RF_SET_POWER_TRIM(path, 0x5, 4);
+		RF_SET_POWER_TRIM(path, 0x6, 5);
+		RF_SET_POWER_TRIM(path, 0x7, 6);
+		RF_SET_POWER_TRIM(path, 0x8, 7);
+		RF_SET_POWER_TRIM(path, 0x9, 3);
+		RF_SET_POWER_TRIM(path, 0xa, 4);
+		RF_SET_POWER_TRIM(path, 0xb, 5);
+		RF_SET_POWER_TRIM(path, 0xc, 6);
+		RF_SET_POWER_TRIM(path, 0xd, 7);
+		RF_SET_POWER_TRIM(path, 0xe, 7);
+		rtw_write_rf(rtwdev, path, 0xee, BIT(19), 0);
+	}
+#undef RF_SET_POWER_TRIM
+}
+
+static void rtw8822c_power_trim(struct rtw_dev *rtwdev)
+{
+	u8 pg_pwr = 0xff, i, path, idx;
+	s8 bb_gain[2][8] = {};
+	u16 rf_efuse_2g[3] = {PPG_2GL_TXAB, PPG_2GM_TXAB, PPG_2GH_TXAB};
+	u16 rf_efuse_5g[2][5] = {{PPG_5GL1_TXA, PPG_5GL2_TXA, PPG_5GM1_TXA,
+				  PPG_5GM2_TXA, PPG_5GH1_TXA},
+				 {PPG_5GL1_TXB, PPG_5GL2_TXB, PPG_5GM1_TXB,
+				  PPG_5GM2_TXB, PPG_5GH1_TXB} };
+	bool set = false;
+
+	for (i = 0; i < ARRAY_SIZE(rf_efuse_2g); i++) {
+		rtw_read8_physical_efuse(rtwdev, rf_efuse_2g[i], &pg_pwr);
+		if (pg_pwr == EFUSE_READ_FAIL)
+			continue;
+		set = true;
+		bb_gain[RF_PATH_A][i] = FIELD_GET(PPG_2G_A_MASK, pg_pwr);
+		bb_gain[RF_PATH_B][i] = FIELD_GET(PPG_2G_B_MASK, pg_pwr);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(rf_efuse_5g[0]); i++) {
+		for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+			rtw_read8_physical_efuse(rtwdev, rf_efuse_5g[path][i],
+						 &pg_pwr);
+			if (pg_pwr == EFUSE_READ_FAIL)
+				continue;
+			set = true;
+			idx = i + ARRAY_SIZE(rf_efuse_2g);
+			bb_gain[path][idx] = FIELD_GET(PPG_5G_MASK, pg_pwr);
+		}
+	}
+	if (set)
+		rtw8822c_set_power_trim(rtwdev, bb_gain);
+
+	rtw_write32_mask(rtwdev, REG_DIS_DPD, DIS_DPD_MASK, DIS_DPD_RATEALL);
+}
+
+static void rtw8822c_thermal_trim(struct rtw_dev *rtwdev)
+{
+	u16 rf_efuse[2] = {PPG_THERMAL_A, PPG_THERMAL_B};
+	u8 pg_therm = 0xff, thermal[2] = {0}, path;
+
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rtw_read8_physical_efuse(rtwdev, rf_efuse[path], &pg_therm);
+		if (pg_therm == EFUSE_READ_FAIL)
+			return;
+		/* Efuse value of BIT(0) shall be move to BIT(3), and the value
+		 * of BIT(1) to BIT(3) should be right shifted 1 bit.
+		 */
+		thermal[path] = FIELD_GET(GENMASK(3, 1), pg_therm);
+		thermal[path] |= FIELD_PREP(BIT(3), pg_therm & BIT(0));
+		rtw_write_rf(rtwdev, path, 0x43, RF_THEMAL_MASK, thermal[path]);
+	}
+}
+
+static void rtw8822c_pa_bias(struct rtw_dev *rtwdev)
+{
+	u16 rf_efuse_2g[2] = {PPG_PABIAS_2GA, PPG_PABIAS_2GB};
+	u16 rf_efuse_5g[2] = {PPG_PABIAS_5GA, PPG_PABIAS_5GB};
+	u8 pg_pa_bias = 0xff, path;
+
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rtw_read8_physical_efuse(rtwdev, rf_efuse_2g[path],
+					 &pg_pa_bias);
+		if (pg_pa_bias == EFUSE_READ_FAIL)
+			return;
+		pg_pa_bias = FIELD_GET(PPG_PABIAS_MASK, pg_pa_bias);
+		rtw_write_rf(rtwdev, path, 0x60, RF_PABIAS_2G_MASK, pg_pa_bias);
+	}
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rtw_read8_physical_efuse(rtwdev, rf_efuse_5g[path],
+					 &pg_pa_bias);
+		pg_pa_bias = FIELD_GET(PPG_PABIAS_MASK, pg_pa_bias);
+		rtw_write_rf(rtwdev, path, 0x60, RF_PABIAS_5G_MASK, pg_pa_bias);
+	}
+}
+
 static void rtw8822c_rf_init(struct rtw_dev *rtwdev)
 {
 	rtw8822c_rf_dac_cal(rtwdev);
 	rtw8822c_rf_x2_check(rtwdev);
+	rtw8822c_thermal_trim(rtwdev);
+	rtw8822c_power_trim(rtwdev);
+	rtw8822c_pa_bias(rtwdev);
 }
 
 static void rtw8822c_pwrtrack_init(struct rtw_dev *rtwdev)
@@ -1289,6 +1403,17 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static void rtw8822c_rstb_3wire(struct rtw_dev *rtwdev, bool enable)
+{
+	if (enable) {
+		rtw_write32_mask(rtwdev, REG_RSTB, BIT_RSTB_3WIRE, 0x1);
+		rtw_write32_mask(rtwdev, REG_ANAPAR_A, BIT_ANAPAR_UPDATE, 0x1);
+		rtw_write32_mask(rtwdev, REG_ANAPAR_B, BIT_ANAPAR_UPDATE, 0x1);
+	} else {
+		rtw_write32_mask(rtwdev, REG_RSTB, BIT_RSTB_3WIRE, 0x0);
+	}
+}
+
 static void rtw8822c_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 {
 #define RF18_BAND_MASK		(BIT(16) | BIT(9) | BIT(8))
@@ -1337,6 +1462,8 @@ static void rtw8822c_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 		break;
 	}
 
+	rtw8822c_rstb_3wire(rtwdev, false);
+
 	rtw_write_rf(rtwdev, RF_PATH_A, RF_LUTWE2, 0x04, 0x01);
 	rtw_write_rf(rtwdev, RF_PATH_A, RF_LUTWA, 0x1f, 0x12);
 	rtw_write_rf(rtwdev, RF_PATH_A, RF_LUTWD0, 0xfffff, rf_rxbb);
@@ -1349,6 +1476,8 @@ static void rtw8822c_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 
 	rtw_write_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK, rf_reg18);
 	rtw_write_rf(rtwdev, RF_PATH_B, RF_CFGCH, RFREG_MASK, rf_reg18);
+
+	rtw8822c_rstb_3wire(rtwdev, true);
 }
 
 static void rtw8822c_toggle_igi(struct rtw_dev *rtwdev)
@@ -1367,7 +1496,6 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 {
 	if (IS_CH_2G_BAND(channel)) {
 		rtw_write32_clr(rtwdev, REG_BGCTRL, BITS_RX_IQ_WEIGHT);
-		rtw_write32_mask(rtwdev, REG_RXCCKSEL, 0xf0000000, 0x8);
 		rtw_write32_set(rtwdev, REG_TXF4, BIT(20));
 		rtw_write32_clr(rtwdev, REG_CCK_CHECK, BIT_CHECK_CCK_EN);
 		rtw_write32_clr(rtwdev, REG_CCKTXONLY, BIT_BB_CCK_CHECK_EN);
@@ -1435,7 +1563,6 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_set(rtwdev, REG_CCK_CHECK, BIT_CHECK_CCK_EN);
 		rtw_write32_set(rtwdev, REG_BGCTRL, BITS_RX_IQ_WEIGHT);
 		rtw_write32_clr(rtwdev, REG_TXF4, BIT(20));
-		rtw_write32_mask(rtwdev, REG_RXCCKSEL, 0xf0000000, 0x0);
 		rtw_write32_mask(rtwdev, REG_CCAMSK, 0x3F000000, 0x22);
 		rtw_write32_mask(rtwdev, REG_TXDFIR0, 0x70, 0x3);
 		if (IS_CH_5G_BAND_1(channel) || IS_CH_5G_BAND_2(channel)) {
@@ -1482,7 +1609,7 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		break;
 	case RTW_CHANNEL_WIDTH_40:
 		rtw_write32_mask(rtwdev, REG_CCKSB, BIT(4),
-				 (primary_ch_idx == 1 ? 1 : 0));
+				 (primary_ch_idx == RTW_SC_20_UPPER ? 1 : 0));
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xf, 0x5);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xc0, 0x0);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xff00,
@@ -1873,6 +2000,40 @@ static void rtw8822c_set_tx_power_index(struct rtw_dev *rtwdev)
 							   diff_idx);
 		}
 	}
+}
+
+static int rtw8822c_set_antenna(struct rtw_dev *rtwdev,
+				u32 antenna_tx,
+				u32 antenna_rx)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+
+	switch (antenna_tx) {
+	case BB_PATH_A:
+	case BB_PATH_B:
+	case BB_PATH_AB:
+		break;
+	default:
+		rtw_info(rtwdev, "unsupport tx path 0x%x\n", antenna_tx);
+		return -EINVAL;
+	}
+
+	/* path B only is not available for RX */
+	switch (antenna_rx) {
+	case BB_PATH_A:
+	case BB_PATH_AB:
+		break;
+	default:
+		rtw_info(rtwdev, "unsupport rx path 0x%x\n", antenna_rx);
+		return -EINVAL;
+	}
+
+	hal->antenna_tx = antenna_tx;
+	hal->antenna_rx = antenna_rx;
+
+	rtw8822c_config_trx_mode(rtwdev, antenna_tx, antenna_rx, false);
+
+	return 0;
 }
 
 static void rtw8822c_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
@@ -3399,7 +3560,7 @@ static void rtw8822c_pwr_track(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_triggered = false;
 }
 
-static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
+static const struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_SDIO_MSK,
@@ -3442,7 +3603,7 @@ static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
+static const struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
 	{0x0000,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_USB_MSK | RTW_PWR_INTF_SDIO_MSK,
@@ -3544,6 +3705,11 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(2), BIT(2)},
+	{0x1064,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_ALL_MSK,
+	 RTW_PWR_ADDR_MAC,
+	 RTW_PWR_CMD_WRITE, BIT(1), BIT(1)},
 	{0xFFFF,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -3551,7 +3717,7 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822c[] = {
+static const struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822c[] = {
 	{0x0093,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -3614,7 +3780,7 @@ static struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822c[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822c[] = {
+static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822c[] = {
 	{0x0005,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_SDIO_MSK,
@@ -3677,47 +3843,47 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822c[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd *card_enable_flow_8822c[] = {
+static const struct rtw_pwr_seq_cmd *card_enable_flow_8822c[] = {
 	trans_carddis_to_cardemu_8822c,
 	trans_cardemu_to_act_8822c,
 	NULL
 };
 
-static struct rtw_pwr_seq_cmd *card_disable_flow_8822c[] = {
+static const struct rtw_pwr_seq_cmd *card_disable_flow_8822c[] = {
 	trans_act_to_cardemu_8822c,
 	trans_cardemu_to_carddis_8822c,
 	NULL
 };
 
-static struct rtw_intf_phy_para usb2_param_8822c[] = {
+static const struct rtw_intf_phy_para usb2_param_8822c[] = {
 	{0xFFFF, 0x00,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para usb3_param_8822c[] = {
+static const struct rtw_intf_phy_para usb3_param_8822c[] = {
 	{0xFFFF, 0x0000,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para pcie_gen1_param_8822c[] = {
+static const struct rtw_intf_phy_para pcie_gen1_param_8822c[] = {
 	{0xFFFF, 0x0000,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para pcie_gen2_param_8822c[] = {
+static const struct rtw_intf_phy_para pcie_gen2_param_8822c[] = {
 	{0xFFFF, 0x0000,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para_table phy_para_table_8822c = {
+static const struct rtw_intf_phy_para_table phy_para_table_8822c = {
 	.usb2_para	= usb2_param_8822c,
 	.usb3_para	= usb3_param_8822c,
 	.gen1_para	= pcie_gen1_param_8822c,
@@ -3732,14 +3898,22 @@ static const struct rtw_rfe_def rtw8822c_rfe_defs[] = {
 	[0] = RTW_DEF_RFE(8822c, 0, 0),
 	[1] = RTW_DEF_RFE(8822c, 0, 0),
 	[2] = RTW_DEF_RFE(8822c, 0, 0),
+	[5] = RTW_DEF_RFE(8822c, 0, 5),
+	[6] = RTW_DEF_RFE(8822c, 0, 0),
 };
 
-static struct rtw_hw_reg rtw8822c_dig[] = {
+static const struct rtw_hw_reg rtw8822c_dig[] = {
 	[0] = { .addr = 0x1d70, .mask = 0x7f },
 	[1] = { .addr = 0x1d70, .mask = 0x7f00 },
 };
 
-static struct rtw_page_table page_table_8822c[] = {
+static const struct rtw_ltecoex_addr rtw8822c_ltecoex_addr = {
+	.ctrl = LTECOEX_ACCESS_CTRL,
+	.wdata = LTECOEX_WRITE_DATA,
+	.rdata = LTECOEX_READ_DATA,
+};
+
+static const struct rtw_page_table page_table_8822c[] = {
 	{64, 64, 64, 64, 1},
 	{64, 64, 64, 64, 1},
 	{64, 64, 0, 0, 1},
@@ -3747,7 +3921,7 @@ static struct rtw_page_table page_table_8822c[] = {
 	{64, 64, 64, 64, 1},
 };
 
-static struct rtw_rqpn rqpn_table_8822c[] = {
+static const struct rtw_rqpn rqpn_table_8822c[] = {
 	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
@@ -3765,6 +3939,22 @@ static struct rtw_rqpn rqpn_table_8822c[] = {
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
 };
 
+static struct rtw_prioq_addrs prioq_addrs_8822c = {
+	.prio[RTW_DMA_MAPPING_EXTRA] = {
+		.rsvd = REG_FIFOPAGE_INFO_4, .avail = REG_FIFOPAGE_INFO_4 + 2,
+	},
+	.prio[RTW_DMA_MAPPING_LOW] = {
+		.rsvd = REG_FIFOPAGE_INFO_2, .avail = REG_FIFOPAGE_INFO_2 + 2,
+	},
+	.prio[RTW_DMA_MAPPING_NORMAL] = {
+		.rsvd = REG_FIFOPAGE_INFO_3, .avail = REG_FIFOPAGE_INFO_3 + 2,
+	},
+	.prio[RTW_DMA_MAPPING_HIGH] = {
+		.rsvd = REG_FIFOPAGE_INFO_1, .avail = REG_FIFOPAGE_INFO_1 + 2,
+	},
+	.wsize = true,
+};
+
 static struct rtw_chip_ops rtw8822c_ops = {
 	.phy_set_param		= rtw8822c_phy_set_param,
 	.read_efuse		= rtw8822c_read_efuse,
@@ -3774,6 +3964,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.read_rf		= rtw_phy_read_rf,
 	.write_rf		= rtw_phy_write_rf_reg_mix,
 	.set_tx_power_index	= rtw8822c_set_tx_power_index,
+	.set_antenna		= rtw8822c_set_antenna,
 	.cfg_ldo25		= rtw8822c_cfg_ldo25,
 	.false_alarm_statistics	= rtw8822c_false_alarm_statistics,
 	.dpk_track		= rtw8822c_dpk_track,
@@ -3807,7 +3998,7 @@ static const struct coex_table_para table_sant_8822c[] = {
 	{0x66555555, 0x5a5a5a5a},
 	{0x66555555, 0x6a5a5a5a}, /* case-10 */
 	{0x66555555, 0xfafafafa},
-	{0x66555555, 0x6a5a5aaa},
+	{0x66555555, 0x5a5a5aaa},
 	{0x66555555, 0x5aaa5aaa},
 	{0x66555555, 0xaaaa5aaa},
 	{0x66555555, 0xaaaaaaaa}, /* case-15 */
@@ -3883,7 +4074,8 @@ static const struct coex_tdma_para tdma_sant_8822c[] = {
 	{ {0x55, 0x08, 0x03, 0x10, 0x54} },
 	{ {0x65, 0x10, 0x03, 0x11, 0x11} },
 	{ {0x51, 0x10, 0x03, 0x10, 0x51} }, /* case-25 */
-	{ {0x51, 0x08, 0x03, 0x10, 0x50} }
+	{ {0x51, 0x08, 0x03, 0x10, 0x50} },
+	{ {0x61, 0x08, 0x03, 0x11, 0x11} }
 };
 
 /* Non-Shared-Antenna TDMA */
@@ -4072,10 +4264,36 @@ static const struct wiphy_wowlan_support rtw_wowlan_stub_8822c = {
 };
 #endif
 
+static const struct rtw_reg_domain coex_info_hw_regs_8822c[] = {
+	{0x1860, BIT(3), RTW_REG_DOMAIN_MAC8},
+	{0x4160, BIT(3), RTW_REG_DOMAIN_MAC8},
+	{0x1c32, BIT(6), RTW_REG_DOMAIN_MAC8},
+	{0x1c38, BIT(28), RTW_REG_DOMAIN_MAC32},
+	{0, 0, RTW_REG_DOMAIN_NL},
+	{0x430, MASKDWORD, RTW_REG_DOMAIN_MAC32},
+	{0x434, MASKDWORD, RTW_REG_DOMAIN_MAC32},
+	{0x42a, MASKLWORD, RTW_REG_DOMAIN_MAC16},
+	{0x426, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+	{0x45e, BIT(3), RTW_REG_DOMAIN_MAC8},
+	{0x454, MASKLWORD, RTW_REG_DOMAIN_MAC16},
+	{0, 0, RTW_REG_DOMAIN_NL},
+	{0x4c, BIT(24) | BIT(23), RTW_REG_DOMAIN_MAC32},
+	{0x64, BIT(0), RTW_REG_DOMAIN_MAC8},
+	{0x4c6, BIT(4), RTW_REG_DOMAIN_MAC8},
+	{0x40, BIT(5), RTW_REG_DOMAIN_MAC8},
+	{0x1, RFREG_MASK, RTW_REG_DOMAIN_RF_B},
+	{0, 0, RTW_REG_DOMAIN_NL},
+	{0x550, MASKDWORD, RTW_REG_DOMAIN_MAC32},
+	{0x522, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+	{0x953, BIT(1), RTW_REG_DOMAIN_MAC8},
+	{0xc50, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+};
+
 struct rtw_chip_info rtw8822c_hw_spec = {
 	.ops = &rtw8822c_ops,
 	.id = RTW_CHIP_TYPE_8822C,
 	.fw_name = "rtw88/rtw8822c_fw.bin",
+	.wlan_cpu = RTW_WCPU_11AC,
 	.tx_pkt_desc_sz = 48,
 	.tx_buf_desc_sz = 16,
 	.rx_pkt_desc_sz = 24,
@@ -4100,15 +4318,18 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.pwr_off_seq = card_disable_flow_8822c,
 	.page_table = page_table_8822c,
 	.rqpn_table = rqpn_table_8822c,
+	.prioq_addrs = &prioq_addrs_8822c,
 	.intf_table = &phy_para_table_8822c,
 	.dig = rtw8822c_dig,
+	.dig_cck = NULL,
 	.rf_base_addr = {0x3c00, 0x4c00},
 	.rf_sipi_addr = {0x1808, 0x4108},
+	.ltecoex_addr = &rtw8822c_ltecoex_addr,
 	.mac_tbl = &rtw8822c_mac_tbl,
 	.agc_tbl = &rtw8822c_agc_tbl,
 	.bb_tbl = &rtw8822c_bb_tbl,
 	.rfk_init_tbl = &rtw8822c_array_mp_cal_init_tbl,
-	.rf_tbl = {&rtw8822c_rf_a_tbl, &rtw8822c_rf_b_tbl},
+	.rf_tbl = {&rtw8822c_rf_b_tbl, &rtw8822c_rf_a_tbl},
 	.rfe_defs = rtw8822c_rfe_defs,
 	.rfe_defs_size = ARRAY_SIZE(rtw8822c_rfe_defs),
 	.en_dis_dpd = true,
@@ -4117,14 +4338,15 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.iqk_threshold = 8,
 	.bfer_su_max_num = 2,
 	.bfer_mu_max_num = 1,
+	.rx_ldpc = true,
 
 #ifdef CONFIG_PM
 	.wow_fw_name = "rtw88/rtw8822c_wow_fw.bin",
 	.wowlan_stub = &rtw_wowlan_stub_8822c,
 	.max_sched_scan_ssids = 4,
 #endif
-	.coex_para_ver = 0x19062706,
-	.bt_desired_ver = 0x6,
+	.coex_para_ver = 0x20070217,
+	.bt_desired_ver = 0x17,
 	.scbd_support = true,
 	.new_scbd10_def = true,
 	.pstdma_type = COEX_PSTDMA_FORCE_LPSOFF,
@@ -4148,8 +4370,15 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.bt_afh_span_bw40 = 0x36,
 	.afh_5g_num = ARRAY_SIZE(afh_5g_8822c),
 	.afh_5g = afh_5g_8822c,
+
+	.coex_info_hw_regs_num = ARRAY_SIZE(coex_info_hw_regs_8822c),
+	.coex_info_hw_regs = coex_info_hw_regs_8822c,
 };
 EXPORT_SYMBOL(rtw8822c_hw_spec);
 
 MODULE_FIRMWARE("rtw88/rtw8822c_fw.bin");
 MODULE_FIRMWARE("rtw88/rtw8822c_wow_fw.bin");
+
+MODULE_AUTHOR("Realtek Corporation");
+MODULE_DESCRIPTION("Realtek 802.11ac wireless 8822c driver");
+MODULE_LICENSE("Dual BSD/GPL");

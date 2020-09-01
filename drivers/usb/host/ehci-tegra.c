@@ -282,7 +282,7 @@ done:
 struct dma_aligned_buffer {
 	void *kmalloc_ptr;
 	void *old_xfer_buffer;
-	u8 data[0];
+	u8 data[];
 };
 
 static void free_dma_aligned_buffer(struct urb *urb)
@@ -480,7 +480,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq) {
-		dev_err(&pdev->dev, "Failed to get IRQ\n");
 		err = -ENODEV;
 		goto cleanup_phy;
 	}

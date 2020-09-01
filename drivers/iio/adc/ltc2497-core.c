@@ -169,7 +169,6 @@ int ltc2497core_probe(struct device *dev, struct iio_dev *indio_dev)
 	struct ltc2497core_driverdata *ddata = iio_priv(indio_dev);
 	int ret;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = dev_name(dev);
 	indio_dev->info = &ltc2497core_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

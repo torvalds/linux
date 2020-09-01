@@ -27,11 +27,16 @@
 
 #include "dc_hw_types.h"
 #include "hw_shared.h"
+#include "transform.h"
 
 #define MAX_MPCC 6
 #define MAX_OPP 6
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#define MAX_DWB		2
+#else
 #define MAX_DWB		1
+#endif
 
 enum mpc_output_csc_mode {
 	MPC_OUTPUT_CSC_DISABLE = 0,
@@ -72,6 +77,12 @@ struct mpcc_blnd_cfg {
 	int bottom_outside_gain;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+struct mpc_grph_gamut_adjustment {
+	struct fixed31_32 temperature_matrix[CSC_TEMPERATURE_MATRIX_SIZE];
+	enum graphics_gamut_adjust_type gamut_adjust_type;
+};
+#endif
 struct mpcc_sm_cfg {
 	bool enable;
 	/* 0-single plane,2-row subsampling,4-column subsampling,6-checkboard subsampling */
@@ -95,6 +106,13 @@ struct mpc_denorm_clamp {
 	int clamp_min_b_cb;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+struct mpc_dwb_flow_control {
+	int flow_ctrl_mode;
+	int flow_ctrl_cnt0;
+	int flow_ctrl_cnt1;
+};
+#endif
 /*
  * MPCC connection and blending configuration for a single MPCC instance.
  * This struct is used as a node in an MPC tree.
@@ -105,6 +123,9 @@ struct mpcc {
 	struct mpcc *mpcc_bot;		/* pointer to bottom layer MPCC.  NULL when not connected */
 	struct mpcc_blnd_cfg blnd_cfg;	/* The blending configuration for this MPCC */
 	struct mpcc_sm_cfg sm_cfg;	/* stereo mix setting for this MPCC */
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool shared_bottom;		/* TRUE if MPCC output to both OPP and DWB endpoints, else FALSE */
+#endif
 };
 
 /*
@@ -210,6 +231,66 @@ struct mpc_funcs {
 		struct mpcc_blnd_cfg *blnd_cfg,
 		int mpcc_id);
 
+	/*
+	 * Lock cursor updates for the specified OPP.
+	 * OPP defines the set of MPCC that are locked together for cursor.
+	 *
+	 * Parameters:
+	 * [in] 	mpc		- MPC context.
+	 * [in]     opp_id	- The OPP to lock cursor updates on
+	 * [in]		lock	- lock/unlock the OPP
+	 *
+	 * Return:  void
+	 */
+	void (*cursor_lock)(
+			struct mpc *mpc,
+			int opp_id,
+			bool lock);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	/*
+	 * Add DPP into 'secondary' MPC tree based on specified blending position.
+	 * Only used for planes that are part of blending chain for DWB output
+	 *
+	 * Parameters:
+	 * [in/out] mpc		- MPC context.
+	 * [in/out] tree		- MPC tree structure that plane will be added to.
+	 * [in]	blnd_cfg	- MPCC blending configuration for the new blending layer.
+	 * [in]	sm_cfg		- MPCC stereo mix configuration for the new blending layer.
+	 *			  stereo mix must disable for the very bottom layer of the tree config.
+	 * [in]	insert_above_mpcc - Insert new plane above this MPCC.  If NULL, insert as bottom plane.
+	 * [in]	dpp_id		- DPP instance for the plane to be added.
+	 * [in]	mpcc_id		- The MPCC physical instance to use for blending.
+	 *
+	 * Return:  struct mpcc* - MPCC that was added.
+	 */
+	struct mpcc* (*insert_plane_to_secondary)(
+			struct mpc *mpc,
+			struct mpc_tree *tree,
+			struct mpcc_blnd_cfg *blnd_cfg,
+			struct mpcc_sm_cfg *sm_cfg,
+			struct mpcc *insert_above_mpcc,
+			int dpp_id,
+			int mpcc_id);
+
+	/*
+	 * Remove a specified DPP from the 'secondary' MPC tree.
+	 *
+	 * Parameters:
+	 * [in/out] mpc		- MPC context.
+	 * [in/out] tree	- MPC tree structure that plane will be removed from.
+	 * [in]     mpcc	- MPCC to be removed from tree.
+	 * Return:  void
+	 */
+	void (*remove_mpcc_from_secondary)(
+			struct mpc *mpc,
+			struct mpc_tree *tree,
+			struct mpcc *mpcc);
+
+	struct mpcc* (*get_mpcc_for_dpp_from_secondary)(
+			struct mpc_tree *tree,
+			int dpp_id);
+#endif
 	struct mpcc* (*get_mpcc_for_dpp)(
 			struct mpc_tree *tree,
 			int dpp_id);
@@ -249,6 +330,49 @@ struct mpc_funcs {
 			struct mpc *mpc,
 			int mpcc_id,
 			bool power_on);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	void (*set_dwb_mux)(
+			struct mpc *mpc,
+			int dwb_id,
+			int mpcc_id);
+
+	void (*disable_dwb_mux)(
+		struct mpc *mpc,
+		int dwb_id);
+
+	bool (*is_dwb_idle)(
+		struct mpc *mpc,
+		int dwb_id);
+
+	void (*set_out_rate_control)(
+		struct mpc *mpc,
+		int opp_id,
+		bool enable,
+		bool rate_2x_mode,
+		struct mpc_dwb_flow_control *flow_control);
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	void (*set_gamut_remap)(
+			struct mpc *mpc,
+			int mpcc_id,
+			const struct mpc_grph_gamut_adjustment *adjust);
+
+	bool (*program_shaper)(
+			struct mpc *mpc,
+			const struct pwl_params *params,
+			uint32_t rmu_idx);
+
+	uint32_t (*acquire_rmu)(struct mpc *mpc, int mpcc_id, int rmu_idx);
+
+	bool (*program_3dlut)(
+			struct mpc *mpc,
+			const struct tetrahedral_params *params,
+			int rmu_idx);
+
+	int (*release_rmu)(struct mpc *mpc, int mpcc_id);
+
+#endif
 
 };
 

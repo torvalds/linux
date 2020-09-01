@@ -46,7 +46,7 @@
 
 struct ib_pkey_cache {
 	int             table_len;
-	u16             table[0];
+	u16             table[];
 };
 
 struct ib_update_work {
@@ -973,6 +973,23 @@ done:
 EXPORT_SYMBOL(rdma_query_gid);
 
 /**
+ * rdma_read_gid_hw_context - Read the HW GID context from GID attribute
+ * @attr:		Potinter to the GID attribute
+ *
+ * rdma_read_gid_hw_context() reads the drivers GID HW context corresponding
+ * to the SGID attr. Callers are required to already be holding the reference
+ * to an existing GID entry.
+ *
+ * Returns the HW GID context
+ *
+ */
+void *rdma_read_gid_hw_context(const struct ib_gid_attr *attr)
+{
+	return container_of(attr, struct ib_gid_table_entry, attr)->context;
+}
+EXPORT_SYMBOL(rdma_read_gid_hw_context);
+
+/**
  * rdma_find_gid - Returns SGID attributes if the matching GID is found.
  * @device: The device to query.
  * @gid: The GID value to search for.
@@ -1037,7 +1054,7 @@ int ib_get_cached_pkey(struct ib_device *device,
 
 	cache = device->port_data[port_num].cache.pkey;
 
-	if (index < 0 || index >= cache->table_len)
+	if (!cache || index < 0 || index >= cache->table_len)
 		ret = -EINVAL;
 	else
 		*pkey = cache->table[index];
@@ -1082,6 +1099,10 @@ int ib_find_cached_pkey(struct ib_device *device,
 	read_lock_irqsave(&device->cache_lock, flags);
 
 	cache = device->port_data[port_num].cache.pkey;
+	if (!cache) {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	*index = -1;
 
@@ -1100,6 +1121,7 @@ int ib_find_cached_pkey(struct ib_device *device,
 		ret = 0;
 	}
 
+err:
 	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
@@ -1122,6 +1144,10 @@ int ib_find_exact_cached_pkey(struct ib_device *device,
 	read_lock_irqsave(&device->cache_lock, flags);
 
 	cache = device->port_data[port_num].cache.pkey;
+	if (!cache) {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	*index = -1;
 
@@ -1132,6 +1158,7 @@ int ib_find_exact_cached_pkey(struct ib_device *device,
 			break;
 		}
 
+err:
 	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
@@ -1408,23 +1435,26 @@ ib_cache_update(struct ib_device *device, u8 port, bool enforce_security)
 			goto err;
 	}
 
-	pkey_cache = kmalloc(struct_size(pkey_cache, table,
-					 tprops->pkey_tbl_len),
-			     GFP_KERNEL);
-	if (!pkey_cache) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	pkey_cache->table_len = tprops->pkey_tbl_len;
-
-	for (i = 0; i < pkey_cache->table_len; ++i) {
-		ret = ib_query_pkey(device, port, i, pkey_cache->table + i);
-		if (ret) {
-			dev_warn(&device->dev,
-				 "ib_query_pkey failed (%d) for index %d\n",
-				 ret, i);
+	if (tprops->pkey_tbl_len) {
+		pkey_cache = kmalloc(struct_size(pkey_cache, table,
+						 tprops->pkey_tbl_len),
+				     GFP_KERNEL);
+		if (!pkey_cache) {
+			ret = -ENOMEM;
 			goto err;
+		}
+
+		pkey_cache->table_len = tprops->pkey_tbl_len;
+
+		for (i = 0; i < pkey_cache->table_len; ++i) {
+			ret = ib_query_pkey(device, port, i,
+					    pkey_cache->table + i);
+			if (ret) {
+				dev_warn(&device->dev,
+					 "ib_query_pkey failed (%d) for index %d\n",
+					 ret, i);
+				goto err;
+			}
 		}
 	}
 
@@ -1536,8 +1566,11 @@ int ib_cache_setup_one(struct ib_device *device)
 	if (err)
 		return err;
 
-	rdma_for_each_port (device, p)
-		ib_cache_update(device, p, true);
+	rdma_for_each_port (device, p) {
+		err = ib_cache_update(device, p, true);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }

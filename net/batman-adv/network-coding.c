@@ -134,7 +134,7 @@ static void batadv_nc_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_nc_mesh_init() - initialise coding hash table and start house keeping
+ * batadv_nc_mesh_init() - initialise coding hash table and start housekeeping
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: 0 on success or negative error number in case of failure
@@ -700,7 +700,7 @@ batadv_nc_process_nc_paths(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_nc_worker() - periodic task for house keeping related to network
+ * batadv_nc_worker() - periodic task for housekeeping related to network
  *  coding
  * @work: kernel work struct
  */
@@ -1009,15 +1009,8 @@ static struct batadv_nc_path *batadv_nc_get_path(struct batadv_priv *bat_priv,
  */
 static u8 batadv_nc_random_weight_tq(u8 tq)
 {
-	u8 rand_val, rand_tq;
-
-	get_random_bytes(&rand_val, sizeof(rand_val));
-
 	/* randomize the estimated packet loss (max TQ - estimated TQ) */
-	rand_tq = rand_val * (BATADV_TQ_MAX_VALUE - tq);
-
-	/* normalize the randomized packet loss */
-	rand_tq /= BATADV_TQ_MAX_VALUE;
+	u8 rand_tq = prandom_u32_max(BATADV_TQ_MAX_VALUE + 1 - tq);
 
 	/* convert to (randomized) estimated tq again */
 	return BATADV_TQ_MAX_VALUE - rand_tq;
@@ -1323,7 +1316,7 @@ batadv_nc_path_search(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_nc_skb_src_search() - Loops through the list of neighoring nodes of
+ * batadv_nc_skb_src_search() - Loops through the list of neighboring nodes of
  *  the skb's sender (may be equal to the originator).
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: data skb to forward
@@ -1409,10 +1402,10 @@ static void batadv_nc_skb_store_before_coding(struct batadv_priv *bat_priv,
  * @neigh_node: next hop to forward packet to
  * @ethhdr: pointer to the ethernet header inside the skb
  *
- * Loops through list of neighboring nodes the next hop has a good connection to
- * (receives OGMs with a sufficient quality). We need to find a neighbor of our
- * next hop that potentially sent a packet which our next hop also received
- * (overheard) and has stored for later decoding.
+ * Loops through the list of neighboring nodes the next hop has a good
+ * connection to (receives OGMs with a sufficient quality). We need to find a
+ * neighbor of our next hop that potentially sent a packet which our next hop
+ * also received (overheard) and has stored for later decoding.
  *
  * Return: true if the skb was consumed (encoded packet sent) or false otherwise
  */

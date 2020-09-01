@@ -32,10 +32,10 @@
 static int vega12_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
 	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_GetCurrentRpm),
+				PPSMC_MSG_GetCurrentRpm,
+				current_rpm),
 			"Attempt to get current RPM from SMC Failed!",
 			return -EINVAL);
-	*current_rpm = smum_get_argument(hwmgr);
 
 	return 0;
 }
@@ -170,17 +170,18 @@ int vega12_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int vega12_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)
 {
+	struct phm_ppt_v3_information *pptable_information =
+		(struct phm_ppt_v3_information *)hwmgr->pptable;
 	struct amdgpu_device *adev = hwmgr->adev;
-	int low = VEGA12_THERMAL_MINIMUM_ALERT_TEMP *
-			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	int high = VEGA12_THERMAL_MAXIMUM_ALERT_TEMP *
-			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	int low = VEGA12_THERMAL_MINIMUM_ALERT_TEMP;
+	int high = VEGA12_THERMAL_MAXIMUM_ALERT_TEMP;
 	uint32_t val;
 
-	if (low < range->min)
-		low = range->min;
-	if (high > range->max)
-		high = range->max;
+	/* compare them in unit celsius degree */
+	if (low < range->min / PP_TEMPERATURE_UNITS_PER_CENTIGRADES)
+		low = range->min / PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	if (high > pptable_information->us_software_shutdown_temp)
+		high = pptable_information->us_software_shutdown_temp;
 
 	if (low > high)
 		return -EINVAL;
@@ -189,8 +190,8 @@ static int vega12_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, high);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, low);
 	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
 
 	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
@@ -251,7 +252,7 @@ int vega12_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
+static int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	int ret;
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
@@ -259,7 +260,8 @@ int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 	ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanTemperatureTarget,
-				(uint32_t)table->FanTargetTemperature);
+				(uint32_t)table->FanTargetTemperature,
+				NULL);
 
 	return ret;
 }
@@ -273,7 +275,7 @@ int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int vega12_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr)
+static int vega12_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	/* If the fantable setup has failed we could have disabled
 	 * PHM_PlatformCaps_MicrocodeFanControl even after

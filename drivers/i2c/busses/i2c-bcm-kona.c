@@ -722,16 +722,16 @@ static int bcm_kona_i2c_assign_bus_speed(struct bcm_kona_i2c_dev *dev)
 	}
 
 	switch (bus_speed) {
-	case 100000:
+	case I2C_MAX_STANDARD_MODE_FREQ:
 		dev->std_cfg = &std_cfg_table[BCM_SPD_100K];
 		break;
-	case 400000:
+	case I2C_MAX_FAST_MODE_FREQ:
 		dev->std_cfg = &std_cfg_table[BCM_SPD_400K];
 		break;
-	case 1000000:
+	case I2C_MAX_FAST_MODE_PLUS_FREQ:
 		dev->std_cfg = &std_cfg_table[BCM_SPD_1MHZ];
 		break;
-	case 3400000:
+	case I2C_MAX_HIGH_SPEED_MODE_FREQ:
 		/* Send mastercode at 100k */
 		dev->std_cfg = &std_cfg_table[BCM_SPD_100K];
 		dev->hs_cfg = &hs_cfg_table[BCM_SPD_3P4MHZ];
@@ -750,7 +750,6 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	int rc = 0;
 	struct bcm_kona_i2c_dev *dev;
 	struct i2c_adapter *adap;
-	struct resource *iomem;
 
 	/* Allocate memory for private data structure */
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
@@ -762,8 +761,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	init_completion(&dev->done);
 
 	/* Map hardware registers */
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->base = devm_ioremap_resource(dev->device, iomem);
+	dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->base))
 		return -ENOMEM;
 
@@ -823,8 +821,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	/* Get the interrupt number */
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0) {
-		dev_err(dev->device, "no irq resource\n");
-		rc = -ENODEV;
+		rc = dev->irq;
 		goto probe_disable_clk;
 	}
 

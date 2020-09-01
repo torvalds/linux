@@ -20,7 +20,6 @@
 #include <linux/types.h>
 
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-subdev.h>
 
 struct fwnode_handle;
 struct v4l2_async_notifier;
@@ -110,17 +109,108 @@ struct v4l2_fwnode_endpoint {
 };
 
 /**
+ * V4L2_FWNODE_PROPERTY_UNSET - identify a non initialized property
+ *
+ * All properties in &struct v4l2_fwnode_device_properties are initialized
+ * to this value.
+ */
+#define V4L2_FWNODE_PROPERTY_UNSET   (-1U)
+
+/**
+ * enum v4l2_fwnode_orientation - possible device orientation
+ * @V4L2_FWNODE_ORIENTATION_FRONT: device installed on the front side
+ * @V4L2_FWNODE_ORIENTATION_BACK: device installed on the back side
+ * @V4L2_FWNODE_ORIENTATION_EXTERNAL: device externally located
+ */
+enum v4l2_fwnode_orientation {
+	V4L2_FWNODE_ORIENTATION_FRONT,
+	V4L2_FWNODE_ORIENTATION_BACK,
+	V4L2_FWNODE_ORIENTATION_EXTERNAL
+};
+
+/**
+ * struct v4l2_fwnode_device_properties - fwnode device properties
+ * @orientation: device orientation. See &enum v4l2_fwnode_orientation
+ * @rotation: device rotation
+ */
+struct v4l2_fwnode_device_properties {
+	enum v4l2_fwnode_orientation orientation;
+	unsigned int rotation;
+};
+
+/**
  * struct v4l2_fwnode_link - a link between two endpoints
  * @local_node: pointer to device_node of this endpoint
  * @local_port: identifier of the port this endpoint belongs to
+ * @local_id: identifier of the id this endpoint belongs to
  * @remote_node: pointer to device_node of the remote endpoint
  * @remote_port: identifier of the port the remote endpoint belongs to
+ * @remote_id: identifier of the id the remote endpoint belongs to
  */
 struct v4l2_fwnode_link {
 	struct fwnode_handle *local_node;
 	unsigned int local_port;
+	unsigned int local_id;
 	struct fwnode_handle *remote_node;
 	unsigned int remote_port;
+	unsigned int remote_id;
+};
+
+/**
+ * enum v4l2_connector_type - connector type
+ * @V4L2_CONN_UNKNOWN:   unknown connector type, no V4L2 connector configuration
+ * @V4L2_CONN_COMPOSITE: analog composite connector
+ * @V4L2_CONN_SVIDEO:    analog svideo connector
+ */
+enum v4l2_connector_type {
+	V4L2_CONN_UNKNOWN,
+	V4L2_CONN_COMPOSITE,
+	V4L2_CONN_SVIDEO,
+};
+
+/**
+ * struct v4l2_connector_link - connector link data structure
+ * @head: structure to be used to add the link to the
+ *        &struct v4l2_fwnode_connector
+ * @fwnode_link: &struct v4l2_fwnode_link link between the connector and the
+ *               device the connector belongs to.
+ */
+struct v4l2_connector_link {
+	struct list_head head;
+	struct v4l2_fwnode_link fwnode_link;
+};
+
+/**
+ * struct v4l2_fwnode_connector_analog - analog connector data structure
+ * @sdtv_stds: sdtv standards this connector supports, set to V4L2_STD_ALL
+ *             if no restrictions are specified.
+ */
+struct v4l2_fwnode_connector_analog {
+	v4l2_std_id sdtv_stds;
+};
+
+/**
+ * struct v4l2_fwnode_connector - the connector data structure
+ * @name: the connector device name
+ * @label: optional connector label
+ * @type: connector type
+ * @links: list of all connector &struct v4l2_connector_link links
+ * @nr_of_links: total number of links
+ * @connector: connector configuration
+ * @connector.analog: analog connector configuration
+ *                    &struct v4l2_fwnode_connector_analog
+ */
+struct v4l2_fwnode_connector {
+	const char *name;
+	const char *label;
+	enum v4l2_connector_type type;
+	struct list_head links;
+	unsigned int nr_of_links;
+
+	union {
+		struct v4l2_fwnode_connector_analog analog;
+		/* future connectors */
+	} connector;
 };
 
 /**
@@ -232,6 +322,83 @@ int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
  * must be called on every link parsed with v4l2_fwnode_parse_link().
  */
 void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link);
+
+/**
+ * v4l2_fwnode_connector_free() - free the V4L2 connector acquired memory
+ * @connector: the V4L2 connector resources of which are to be released
+ *
+ * Free all allocated memory and put all links acquired by
+ * v4l2_fwnode_connector_parse() and v4l2_fwnode_connector_add_link().
+ *
+ * It is safe to call this function with NULL argument or on a V4L2 connector
+ * the parsing of which failed.
+ */
+void v4l2_fwnode_connector_free(struct v4l2_fwnode_connector *connector);
+
+/**
+ * v4l2_fwnode_connector_parse() - initialize the 'struct v4l2_fwnode_connector'
+ * @fwnode: pointer to the subdev endpoint's fwnode handle where the connector
+ *	    is connected to or to the connector endpoint fwnode handle.
+ * @connector: pointer to the V4L2 fwnode connector data structure
+ *
+ * Fill the &struct v4l2_fwnode_connector with the connector type, label and
+ * all &enum v4l2_connector_type specific connector data. The label is optional
+ * so it is set to %NULL if no one was found. The function initialize the links
+ * to zero. Adding links to the connector is done by calling
+ * v4l2_fwnode_connector_add_link().
+ *
+ * The memory allocated for the label must be freed when no longer needed.
+ * Freeing the memory is done by v4l2_fwnode_connector_free().
+ *
+ * Return:
+ * * %0 on success or a negative error code on failure:
+ * * %-EINVAL if @fwnode is invalid
+ * * %-ENOTCONN if connector type is unknown or connector device can't be found
+ */
+int v4l2_fwnode_connector_parse(struct fwnode_handle *fwnode,
+				struct v4l2_fwnode_connector *connector);
+
+/**
+ * v4l2_fwnode_connector_add_link - add a link between a connector node and
+ *				    a v4l2-subdev node.
+ * @fwnode: pointer to the subdev endpoint's fwnode handle where the connector
+ *          is connected to
+ * @connector: pointer to the V4L2 fwnode connector data structure
+ *
+ * Add a new &struct v4l2_connector_link link to the
+ * &struct v4l2_fwnode_connector connector links list. The link local_node
+ * points to the connector node, the remote_node to the host v4l2 (sub)dev.
+ *
+ * The taken references to remote_node and local_node must be dropped and the
+ * allocated memory must be freed when no longer needed. Both is done by calling
+ * v4l2_fwnode_connector_free().
+ *
+ * Return:
+ * * %0 on success or a negative error code on failure:
+ * * %-EINVAL if @fwnode or @connector is invalid or @connector type is unknown
+ * * %-ENOMEM on link memory allocation failure
+ * * %-ENOTCONN if remote connector device can't be found
+ * * %-ENOLINK if link parsing between v4l2 (sub)dev and connector fails
+ */
+int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
+				   struct v4l2_fwnode_connector *connector);
+
+/**
+ * v4l2_fwnode_device_parse() - parse fwnode device properties
+ * @dev: pointer to &struct device
+ * @props: pointer to &struct v4l2_fwnode_device_properties where to store the
+ *	   parsed properties values
+ *
+ * This function parses and validates the V4L2 fwnode device properties from the
+ * firmware interface, and fills the @struct v4l2_fwnode_device_properties
+ * provided by the caller.
+ *
+ * Return:
+ *	% 0 on success
+ *	%-EINVAL if a parsed property value is not valid
+ */
+int v4l2_fwnode_device_parse(struct device *dev,
+			     struct v4l2_fwnode_device_properties *props);
 
 /**
  * typedef parse_endpoint_func - Driver's callback function to be called on
@@ -369,41 +536,26 @@ v4l2_async_notifier_parse_fwnode_endpoints_by_port(struct device *dev,
 int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
 						   struct v4l2_async_notifier *notifier);
 
-/**
- * v4l2_async_register_fwnode_subdev - registers a sub-device to the
- *					asynchronous sub-device framework
- *					and parses fwnode endpoints
+/* Helper macros to access the connector links. */
+
+/** v4l2_connector_last_link - Helper macro to get the first
+ *                             &struct v4l2_fwnode_connector link
+ * @v4l2c: &struct v4l2_fwnode_connector owning the connector links
  *
- * @sd: pointer to struct &v4l2_subdev
- * @asd_struct_size: size of the driver's async sub-device struct, including
- *		     sizeof(struct v4l2_async_subdev). The &struct
- *		     v4l2_async_subdev shall be the first member of
- *		     the driver's async sub-device struct, i.e. both
- *		     begin at the same memory address.
- * @ports: array of port id's to parse for fwnode endpoints. If NULL, will
- *	   parse all ports owned by the sub-device.
- * @num_ports: number of ports in @ports array. Ignored if @ports is NULL.
- * @parse_endpoint: Driver's callback function called on each V4L2 fwnode
- *		    endpoint. Optional.
- *
- * This function is just like v4l2_async_register_subdev() with the
- * exception that calling it will also allocate a notifier for the
- * sub-device, parse the sub-device's firmware node endpoints using
- * v4l2_async_notifier_parse_fwnode_endpoints() or
- * v4l2_async_notifier_parse_fwnode_endpoints_by_port(), and
- * registers the sub-device notifier. The sub-device is similarly
- * unregistered by calling v4l2_async_unregister_subdev().
- *
- * While registered, the subdev module is marked as in-use.
- *
- * An error is returned if the module is no longer loaded on any attempts
- * to register it.
+ * This marco returns the first added &struct v4l2_connector_link connector
+ * link or @NULL if the connector has no links.
  */
-int
-v4l2_async_register_fwnode_subdev(struct v4l2_subdev *sd,
-				  size_t asd_struct_size,
-				  unsigned int *ports,
-				  unsigned int num_ports,
-				  parse_endpoint_func parse_endpoint);
+#define v4l2_connector_first_link(v4l2c)				       \
+	list_first_entry_or_null(&(v4l2c)->links,			       \
+				 struct v4l2_connector_link, head)
+
+/** v4l2_connector_last_link - Helper macro to get the last
+ *                             &struct v4l2_fwnode_connector link
+ * @v4l2c: &struct v4l2_fwnode_connector owning the connector links
+ *
+ * This marco returns the last &struct v4l2_connector_link added connector link.
+ */
+#define v4l2_connector_last_link(v4l2c)					       \
+	list_last_entry(&(v4l2c)->links, struct v4l2_connector_link, head)
 
 #endif /* _V4L2_FWNODE_H */

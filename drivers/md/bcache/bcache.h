@@ -176,7 +176,7 @@
  * - updates to non leaf nodes just happen synchronously (see btree_split()).
  */
 
-#define pr_fmt(fmt) "bcache: %s() " fmt "\n", __func__
+#define pr_fmt(fmt) "bcache: %s() " fmt, __func__
 
 #include <linux/bcache.h>
 #include <linux/bio.h>
@@ -264,7 +264,7 @@ struct bcache_device {
 #define BCACHE_DEV_UNLINK_DONE		2
 #define BCACHE_DEV_WB_RUNNING		3
 #define BCACHE_DEV_RATE_DW_RUNNING	4
-	unsigned int		nr_stripes;
+	int			nr_stripes;
 	unsigned int		stripe_size;
 	atomic_t		*stripe_sectors_dirty;
 	unsigned long		*full_dirty_stripes;
@@ -762,11 +762,32 @@ struct bbio {
 #define bucket_bytes(c)		((c)->sb.bucket_size << 9)
 #define block_bytes(c)		((c)->sb.block_size << 9)
 
-#define prios_per_bucket(c)				\
-	((bucket_bytes(c) - sizeof(struct prio_set)) /	\
+static inline unsigned int meta_bucket_pages(struct cache_sb *sb)
+{
+	unsigned int n, max_pages;
+
+	max_pages = min_t(unsigned int,
+			  __rounddown_pow_of_two(USHRT_MAX) / PAGE_SECTORS,
+			  MAX_ORDER_NR_PAGES);
+
+	n = sb->bucket_size / PAGE_SECTORS;
+	if (n > max_pages)
+		n = max_pages;
+
+	return n;
+}
+
+static inline unsigned int meta_bucket_bytes(struct cache_sb *sb)
+{
+	return meta_bucket_pages(sb) << PAGE_SHIFT;
+}
+
+#define prios_per_bucket(ca)						\
+	((meta_bucket_bytes(&(ca)->sb) - sizeof(struct prio_set)) /	\
 	 sizeof(struct bucket_disk))
-#define prio_buckets(c)					\
-	DIV_ROUND_UP((size_t) (c)->sb.nbuckets, prios_per_bucket(c))
+
+#define prio_buckets(ca)						\
+	DIV_ROUND_UP((size_t) (ca)->sb.nbuckets, prios_per_bucket(ca))
 
 static inline size_t sector_to_bucket(struct cache_set *c, sector_t s)
 {
@@ -929,7 +950,7 @@ static inline void closure_bio_submit(struct cache_set *c,
 		bio_endio(bio);
 		return;
 	}
-	generic_make_request(bio);
+	submit_bio_noacct(bio);
 }
 
 /*

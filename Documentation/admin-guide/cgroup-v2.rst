@@ -9,7 +9,7 @@ This is the authoritative documentation on the design, interface and
 conventions of cgroup v2.  It describes all userland-visible aspects
 of cgroup including core and specific controller behaviors.  All
 future changes must be reflected in this document.  Documentation for
-v1 is available under Documentation/admin-guide/cgroup-v1/.
+v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgroup-v1>`.
 
 .. CONTENTS
 
@@ -187,6 +187,17 @@ cgroup v2 currently supports the following mount options.
         This option is system wide and can only be set on mount or
         modified through remount from the init namespace. The mount
         option is ignored on non-init namespace mounts.
+
+  memory_recursiveprot
+
+        Recursively apply memory.min and memory.low protection to
+        entire subtrees, without requiring explicit downward
+        propagation into leaf cgroups.  This allows protecting entire
+        subtrees from one another, while retaining free competition
+        within those subtrees.  This should have been the default
+        behavior but is a mount-option to avoid regressing setups
+        relying on the original semantics (e.g. specifying bogusly
+        high 'bypass' protection values at higher tree levels).
 
 
 Organizing Processes and Threads
@@ -703,9 +714,7 @@ Conventions
 - Settings for a single feature should be contained in a single file.
 
 - The root cgroup should be exempt from resource control and thus
-  shouldn't have resource control interface files.  Also,
-  informational files on the root cgroup which end up showing global
-  information available elsewhere shouldn't exist.
+  shouldn't have resource control interface files.
 
 - The default time unit is microseconds.  If a different unit is ever
   used, an explicit unit suffix must be present.
@@ -974,7 +983,7 @@ CPU Interface Files
 All time durations are in microseconds.
 
   cpu.stat
-	A read-only flat-keyed file which exists on non-root cgroups.
+	A read-only flat-keyed file.
 	This file exists whether the controller is enabled or not.
 
 	It always reports the following three stats:
@@ -1023,7 +1032,7 @@ All time durations are in microseconds.
 	A read-only nested-key file which exists on non-root cgroups.
 
 	Shows pressure stall information for CPU. See
-	Documentation/accounting/psi.rst for details.
+	:ref:`Documentation/accounting/psi.rst <psi>` for details.
 
   cpu.uclamp.min
         A read-write single value file which exists on non-root cgroups.
@@ -1103,7 +1112,7 @@ PAGE_SIZE multiple when read back.
 	proportionally to the overage, reducing reclaim pressure for
 	smaller overages.
 
-       Effective min boundary is limited by memory.min values of
+	Effective min boundary is limited by memory.min values of
 	all ancestor cgroups. If there is memory.min overcommitment
 	(child cgroup or cgroups are requiring more protected memory
 	than parent will allow), then each child cgroup will get
@@ -1161,6 +1170,13 @@ PAGE_SIZE multiple when read back.
 	Under certain circumstances, the usage may go over the limit
 	temporarily.
 
+	In default configuration regular 0-order allocations always
+	succeed unless OOM killer chooses current task as a victim.
+
+	Some kinds of allocations don't invoke the OOM killer.
+	Caller could retry them differently, return into userspace
+	as -ENOMEM or silently ignore in cases like disk readahead.
+
 	This is the ultimate protection mechanism.  As long as the
 	high limit is used and monitored properly, this limit's
 	utility is limited to providing the final safety net.
@@ -1217,17 +1233,9 @@ PAGE_SIZE multiple when read back.
 		The number of time the cgroup's memory usage was
 		reached the limit and allocation was about to fail.
 
-		Depending on context result could be invocation of OOM
-		killer and retrying allocation or failing allocation.
-
-		Failed allocation in its turn could be returned into
-		userspace as -ENOMEM or silently ignored in cases like
-		disk readahead.  For now OOM in memory cgroup kills
-		tasks iff shortage has happened inside page fault.
-
 		This event is not raised if the OOM killer is not
 		considered as an option, e.g. for failed high-order
-		allocations.
+		allocations or if caller asked to not retry attempts.
 
 	  oom_kill
 		The number of processes belonging to this cgroup
@@ -1265,6 +1273,10 @@ PAGE_SIZE multiple when read back.
 	  slab
 		Amount of memory used for storing in-kernel data
 		structures.
+
+	  percpu
+		Amount of memory used for storing per-cpu kernel
+		data structures.
 
 	  sock
 		Amount of memory used in network transmission buffers
@@ -1313,53 +1325,45 @@ PAGE_SIZE multiple when read back.
 		Number of major page faults incurred
 
 	  workingset_refault
-
 		Number of refaults of previously evicted pages
 
 	  workingset_activate
-
 		Number of refaulted pages that were immediately activated
 
-	  workingset_nodereclaim
+	  workingset_restore
+		Number of restored pages which have been detected as an active
+		workingset before they got reclaimed.
 
+	  workingset_nodereclaim
 		Number of times a shadow node has been reclaimed
 
 	  pgrefill
-
 		Amount of scanned pages (in an active LRU list)
 
 	  pgscan
-
 		Amount of scanned pages (in an inactive LRU list)
 
 	  pgsteal
-
 		Amount of reclaimed pages
 
 	  pgactivate
-
 		Amount of pages moved to the active LRU list
 
 	  pgdeactivate
-
 		Amount of pages moved to the inactive LRU list
 
 	  pglazyfree
-
 		Amount of pages postponed to be freed under memory pressure
 
 	  pglazyfreed
-
 		Amount of reclaimed lazyfree pages
 
 	  thp_fault_alloc
-
 		Number of transparent hugepages which were allocated to satisfy
-		a page fault, including COW faults. This counter is not present
-		when CONFIG_TRANSPARENT_HUGEPAGE is not set.
+		a page fault. This counter is not present when CONFIG_TRANSPARENT_HUGEPAGE
+                is not set.
 
 	  thp_collapse_alloc
-
 		Number of transparent hugepages which were allocated to allow
 		collapsing an existing range of pages. This counter is not
 		present when CONFIG_TRANSPARENT_HUGEPAGE is not set.
@@ -1370,6 +1374,22 @@ PAGE_SIZE multiple when read back.
 
 	The total amount of swap currently being used by the cgroup
 	and its descendants.
+
+  memory.swap.high
+	A read-write single value file which exists on non-root
+	cgroups.  The default is "max".
+
+	Swap usage throttle limit.  If a cgroup's swap usage exceeds
+	this limit, all its further allocations will be throttled to
+	allow userspace to implement custom out-of-memory procedures.
+
+	This limit marks a point of no return for the cgroup. It is NOT
+	designed to manage the amount of swapping a workload does
+	during regular operation. Compare to memory.swap.max, which
+	prohibits swapping past a set amount, but lets the cgroup
+	continue unimpeded as long as other memory can be reclaimed.
+
+	Healthy workloads are not expected to reach this limit.
 
   memory.swap.max
 	A read-write single value file which exists on non-root
@@ -1383,6 +1403,10 @@ PAGE_SIZE multiple when read back.
 	The following entries are defined.  Unless specified
 	otherwise, a value change in this file generates a file
 	modified event.
+
+	  high
+		The number of times the cgroup's swap usage was over
+		the high threshold.
 
 	  max
 		The number of times the cgroup's swap usage was about
@@ -1403,7 +1427,7 @@ PAGE_SIZE multiple when read back.
 	A read-only nested-key file which exists on non-root cgroups.
 
 	Shows pressure stall information for memory. See
-	Documentation/accounting/psi.rst for details.
+	:ref:`Documentation/accounting/psi.rst <psi>` for details.
 
 
 Usage Guidelines
@@ -1463,8 +1487,7 @@ IO Interface Files
 ~~~~~~~~~~~~~~~~~~
 
   io.stat
-	A read-only nested-keyed file which exists on non-root
-	cgroups.
+	A read-only nested-keyed file.
 
 	Lines are keyed by $MAJ:$MIN device numbers and not ordered.
 	The following nested keys are defined.
@@ -1478,7 +1501,7 @@ IO Interface Files
 	  dios		Number of discard IOs
 	  ======	=====================
 
-	An example read output follows:
+	An example read output follows::
 
 	  8:16 rbytes=1459200 wbytes=314773504 rios=192 wios=353 dbytes=0 dios=0
 	  8:0 rbytes=90430464 wbytes=299008000 rios=8950 wios=1252 dbytes=50331648 dios=3021
@@ -1643,7 +1666,7 @@ IO Interface Files
 	A read-only nested-key file which exists on non-root cgroups.
 
 	Shows pressure stall information for IO. See
-	Documentation/accounting/psi.rst for details.
+	:ref:`Documentation/accounting/psi.rst <psi>` for details.
 
 
 Writeback
@@ -1664,9 +1687,9 @@ per-cgroup dirty memory states are examined and the more restrictive
 of the two is enforced.
 
 cgroup writeback requires explicit support from the underlying
-filesystem.  Currently, cgroup writeback is implemented on ext2, ext4
-and btrfs.  On other filesystems, all writeback IOs are attributed to
-the root cgroup.
+filesystem.  Currently, cgroup writeback is implemented on ext2, ext4,
+btrfs, f2fs, and xfs.  On other filesystems, all writeback IOs are 
+attributed to the root cgroup.
 
 There are inherent differences in memory and writeback management
 which affects how cgroup ownership is tracked.  Memory is tracked per
@@ -1853,7 +1876,7 @@ Cpuset Interface Files
 	from the requested CPUs.
 
 	The CPU numbers are comma-separated numbers or ranges.
-	For example:
+	For example::
 
 	  # cat cpuset.cpus
 	  0-4,6,8-10
@@ -1892,7 +1915,7 @@ Cpuset Interface Files
 	from the requested memory nodes.
 
 	The memory node numbers are comma-separated numbers or ranges.
-	For example:
+	For example::
 
 	  # cat cpuset.mems
 	  0-1,3
@@ -2023,7 +2046,7 @@ RDMA
 ----
 
 The "rdma" controller regulates the distribution and accounting of
-of RDMA resources.
+RDMA resources.
 
 RDMA Interface Files
 ~~~~~~~~~~~~~~~~~~~~

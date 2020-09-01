@@ -43,12 +43,12 @@ config GENERIC_IRQ_MIGRATION
 config AUTO_IRQ_AFFINITY
        bool
 
+# Interrupt injection mechanism
+config GENERIC_IRQ_INJECTION
+	bool
+
 # Tasklet based software resend for pending interrupts on enable_irq()
 config HARDIRQS_SW_RESEND
-       bool
-
-# Preflow handler support for fasteoi (sparc64)
-config IRQ_PREFLOW_FASTEOI
        bool
 
 # Edge style eoi based handler (cell)
@@ -68,6 +68,7 @@ config IRQ_DOMAIN
 config IRQ_SIM
 	bool
 	select IRQ_WORK
+	select IRQ_DOMAIN
 
 # Support for hierarchical irq domains
 config IRQ_DOMAIN_HIERARCHY
@@ -113,7 +114,7 @@ config IRQ_FORCED_THREADING
 
 config SPARSE_IRQ
 	bool "Support sparse irq numbering" if MAY_HAVE_SPARSE_IRQ
-	---help---
+	help
 
 	  Sparse irq numbering is useful for distro kernels that want
 	  to define a high CONFIG_NR_CPUS value but still want to have
@@ -127,8 +128,9 @@ config SPARSE_IRQ
 config GENERIC_IRQ_DEBUGFS
 	bool "Expose irq internals in debugfs"
 	depends on DEBUG_FS
+	select GENERIC_IRQ_INJECTION
 	default n
-	---help---
+	help
 
 	  Exposes internal state information through debugfs. Mostly for
 	  developers and debugging of hard to diagnose interrupt problems.

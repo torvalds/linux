@@ -289,6 +289,7 @@ static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
 /**
  * fc_fcp_retry_cmd() - Retry a fcp_pkt
  * @fsp: The FCP packet to be retried
+ * @status_code: The FCP status code to set
  *
  * Sets the status code to be FC_ERROR and then calls
  * fc_fcp_complete_locked() which in turn calls fc_io_compl().
@@ -580,7 +581,7 @@ err:
 /**
  * fc_fcp_send_data() - Send SCSI data to a target
  * @fsp:      The FCP packet the data is on
- * @sp:	      The sequence the data is to be sent on
+ * @seq:      The sequence the data is to be sent on
  * @offset:   The starting offset for this data request
  * @seq_blen: The burst length for this data request
  *
@@ -751,7 +752,7 @@ static void fc_fcp_abts_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		brp = fc_frame_payload_get(fp, sizeof(*brp));
 		if (brp && brp->br_reason == FC_BA_RJT_LOG_ERR)
 			break;
-		/* fall thru */
+		fallthrough;
 	default:
 		/*
 		 * we will let the command timeout
@@ -1283,7 +1284,7 @@ static int fc_fcp_pkt_abort(struct fc_fcp_pkt *fsp)
 
 /**
  * fc_lun_reset_send() - Send LUN reset command
- * @data: The FCP packet that identifies the LUN to be reset
+ * @t: Timer context used to fetch the FSP packet
  */
 static void fc_lun_reset_send(struct timer_list *t)
 {
@@ -1409,7 +1410,7 @@ static void fc_fcp_cleanup(struct fc_lport *lport)
 
 /**
  * fc_fcp_timeout() - Handler for fcp_pkt timeouts
- * @data: The FCP packet that has timed out
+ * @t: Timer context used to fetch the FSP packet
  *
  * If REC is supported then just issue it and return. The REC exchange will
  * complete or time out and recovery can continue at that point. Otherwise,
@@ -1535,7 +1536,7 @@ static void fc_fcp_rec_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 				   "device %x invalid REC reject %d/%d\n",
 				   fsp->rport->port_id, rjt->er_reason,
 				   rjt->er_explan);
-			/* fall through */
+			fallthrough;
 		case ELS_RJT_UNSUP:
 			FC_FCP_DBG(fsp, "device does not support REC\n");
 			rpriv = fsp->rport->dd_data;
@@ -1667,7 +1668,7 @@ static void fc_fcp_rec_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		FC_FCP_DBG(fsp, "REC %p fid %6.6x error unexpected error %d\n",
 			   fsp, fsp->rport->port_id, error);
 		fsp->status_code = FC_CMD_PLOGO;
-		/* fall through */
+		fallthrough;
 
 	case -FC_EX_TIMEOUT:
 		/*
@@ -1691,6 +1692,7 @@ out:
 /**
  * fc_fcp_recovery() - Handler for fcp_pkt recovery
  * @fsp: The FCP pkt that needs to be aborted
+ * @code: The FCP status code to set
  */
 static void fc_fcp_recovery(struct fc_fcp_pkt *fsp, u8 code)
 {
@@ -1709,6 +1711,7 @@ static void fc_fcp_recovery(struct fc_fcp_pkt *fsp, u8 code)
  * fc_fcp_srr() - Send a SRR request (Sequence Retransmission Request)
  * @fsp:   The FCP packet the SRR is to be sent on
  * @r_ctl: The R_CTL field for the SRR request
+ * @offset: The SRR relative offset
  * This is called after receiving status but insufficient data, or
  * when expecting status but the request has timed out.
  */
@@ -1827,7 +1830,7 @@ static void fc_fcp_srr_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		break;
 	case -FC_EX_CLOSED:			/* e.g., link failure */
 		FC_FCP_DBG(fsp, "SRR error, exchange closed\n");
-		/* fall through */
+		fallthrough;
 	default:
 		fc_fcp_retry_cmd(fsp, FC_ERROR);
 		break;
@@ -1851,7 +1854,7 @@ static inline int fc_fcp_lport_queue_ready(struct fc_lport *lport)
 /**
  * fc_queuecommand() - The queuecommand function of the SCSI template
  * @shost: The Scsi_Host that the command was issued to
- * @cmd:   The scsi_cmnd to be executed
+ * @sc_cmd:   The scsi_cmnd to be executed
  *
  * This is the i/o strategy routine, called by the SCSI layer.
  */

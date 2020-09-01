@@ -183,6 +183,11 @@ struct dc_firmware_info {
 
 };
 
+struct dc_vram_info {
+	unsigned int num_chans;
+	unsigned int dram_channel_width_bytes;
+};
+
 struct step_and_delay_info {
 	uint32_t step;
 	uint32_t delay;

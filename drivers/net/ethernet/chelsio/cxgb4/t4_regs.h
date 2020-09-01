@@ -487,6 +487,12 @@
 #define ERROR_QID_M    0x1ffffU
 #define ERROR_QID_G(x) (((x) >> ERROR_QID_S) & ERROR_QID_M)
 
+#define SGE_INT_CAUSE5_A        0x110c
+
+#define ERR_T_RXCRC_S    31
+#define ERR_T_RXCRC_V(x) ((x) << ERR_T_RXCRC_S)
+#define ERR_T_RXCRC_F    ERR_T_RXCRC_V(1U)
+
 #define HP_INT_THRESH_S    28
 #define HP_INT_THRESH_M    0xfU
 #define HP_INT_THRESH_V(x) ((x) << HP_INT_THRESH_S)
@@ -557,6 +563,12 @@
 #define AIVEC_V(x) ((x) << AIVEC_S)
 
 #define PCIE_PF_CLI_A	0x44
+
+#define PCIE_PF_EXPROM_OFST_A 0x4c
+#define OFFSET_S    10
+#define OFFSET_M    0x3fffU
+#define OFFSET_G(x) (((x) >> OFFSET_S) & OFFSET_M)
+
 #define PCIE_INT_CAUSE_A	0x3004
 
 #define UNXSPLCPLERR_S    29
@@ -1900,6 +1912,9 @@
 
 #define MAC_PORT_CFG2_A 0x818
 
+#define MAC_PORT_PTP_SUM_LO_A 0x990
+#define MAC_PORT_PTP_SUM_HI_A 0x994
+
 #define MPS_CMN_CTL_A	0x9000
 
 #define COUNTPAUSEMCRX_S    5
@@ -3028,6 +3043,10 @@
 #define HASHTIDSIZE_S    16
 #define HASHTIDSIZE_M    0x3fU
 #define HASHTIDSIZE_G(x) (((x) >> HASHTIDSIZE_S) & HASHTIDSIZE_M)
+
+#define HASHTBLSIZE_S    3
+#define HASHTBLSIZE_M    0x1ffffU
+#define HASHTBLSIZE_G(x) (((x) >> HASHTBLSIZE_S) & HASHTBLSIZE_M)
 
 #define LE_DB_HASH_TID_BASE_A 0x19c30
 #define LE_DB_HASH_TBL_BASE_ADDR_A 0x19c30

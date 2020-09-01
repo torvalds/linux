@@ -72,6 +72,7 @@ static int device_setup[SNDRV_CARDS]; /* device parameter for this card */
 static bool ignore_ctl_error;
 static bool autoclock = true;
 static char *quirk_alias[SNDRV_CARDS];
+static char *delayed_register[SNDRV_CARDS];
 
 bool snd_usb_use_vmalloc = true;
 bool snd_usb_skip_validation;
@@ -95,6 +96,8 @@ module_param(autoclock, bool, 0444);
 MODULE_PARM_DESC(autoclock, "Enable auto-clock selection for UAC2 devices (default: yes).");
 module_param_array(quirk_alias, charp, NULL, 0444);
 MODULE_PARM_DESC(quirk_alias, "Quirk aliases, e.g. 0123abcd:5678beef.");
+module_param_array(delayed_register, charp, NULL, 0444);
+MODULE_PARM_DESC(delayed_register, "Quirk for delayed registration, given by id:iface, e.g. 0123abcd:4.");
 module_param_named(use_vmalloc, snd_usb_use_vmalloc, bool, 0444);
 MODULE_PARM_DESC(use_vmalloc, "Use vmalloc for PCM intermediate buffers (default: yes).");
 module_param_named(skip_validation, snd_usb_skip_validation, bool, 0444);
@@ -227,7 +230,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 		dev_warn(&dev->dev,
 			 "unknown interface protocol %#02x, assuming v1\n",
 			 protocol);
-		/* fall through */
+		fallthrough;
 
 	case UAC_VERSION_1: {
 		struct uac1_ac_header_descriptor *h1;
@@ -525,6 +528,21 @@ static bool get_alias_id(struct usb_device *dev, unsigned int *id)
 	return false;
 }
 
+static bool check_delayed_register_option(struct snd_usb_audio *chip, int iface)
+{
+	int i;
+	unsigned int id, inum;
+
+	for (i = 0; i < ARRAY_SIZE(delayed_register); i++) {
+		if (delayed_register[i] &&
+		    sscanf(delayed_register[i], "%x:%x", &id, &inum) == 2 &&
+		    id == chip->usb_id)
+			return inum != iface;
+	}
+
+	return false;
+}
+
 static const struct usb_device_id usb_audio_ids[]; /* defined below */
 
 /* look for the corresponding quirk */
@@ -616,7 +634,6 @@ static int usb_audio_probe(struct usb_interface *intf,
 								   id, &chip);
 					if (err < 0)
 						goto __error;
-					chip->pm_intf = intf;
 					break;
 				} else if (vid[i] != -1 || pid[i] != -1) {
 					dev_info(&dev->dev,
@@ -633,6 +650,13 @@ static int usb_audio_probe(struct usb_interface *intf,
 			goto __error;
 		}
 	}
+
+	if (chip->num_interfaces >= MAX_CARD_INTERFACES) {
+		dev_info(&dev->dev, "Too many interfaces assigned to the single USB-audio card\n");
+		err = -EINVAL;
+		goto __error;
+	}
+
 	dev_set_drvdata(&dev->dev, chip);
 
 	/*
@@ -662,10 +686,22 @@ static int usb_audio_probe(struct usb_interface *intf,
 			goto __error;
 	}
 
-	/* we are allowed to call snd_card_register() many times */
-	err = snd_card_register(chip->card);
-	if (err < 0)
-		goto __error;
+	if (chip->need_delayed_register) {
+		dev_info(&dev->dev,
+			 "Found post-registration device assignment: %08x:%02x\n",
+			 chip->usb_id, ifnum);
+		chip->need_delayed_register = false; /* clear again */
+	}
+
+	/* we are allowed to call snd_card_register() many times, but first
+	 * check to see if a device needs to skip it or do anything special
+	 */
+	if (!snd_usb_registration_quirk(chip, ifnum) &&
+	    !check_delayed_register_option(chip, ifnum)) {
+		err = snd_card_register(chip->card);
+		if (err < 0)
+			goto __error;
+	}
 
 	if (quirk && quirk->shares_media_device) {
 		/* don't want to fail when snd_media_device_create() fails */
@@ -673,6 +709,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 	}
 
 	usb_chip[chip->index] = chip;
+	chip->intf[chip->num_interfaces] = intf;
 	chip->num_interfaces++;
 	usb_set_intfdata(intf, chip);
 	atomic_dec(&chip->active);
@@ -788,19 +825,37 @@ void snd_usb_unlock_shutdown(struct snd_usb_audio *chip)
 
 int snd_usb_autoresume(struct snd_usb_audio *chip)
 {
+	int i, err;
+
 	if (atomic_read(&chip->shutdown))
 		return -EIO;
-	if (atomic_inc_return(&chip->active) == 1)
-		return usb_autopm_get_interface(chip->pm_intf);
+	if (atomic_inc_return(&chip->active) != 1)
+		return 0;
+
+	for (i = 0; i < chip->num_interfaces; i++) {
+		err = usb_autopm_get_interface(chip->intf[i]);
+		if (err < 0) {
+			/* rollback */
+			while (--i >= 0)
+				usb_autopm_put_interface(chip->intf[i]);
+			atomic_dec(&chip->active);
+			return err;
+		}
+	}
 	return 0;
 }
 
 void snd_usb_autosuspend(struct snd_usb_audio *chip)
 {
+	int i;
+
 	if (atomic_read(&chip->shutdown))
 		return;
-	if (atomic_dec_and_test(&chip->active))
-		usb_autopm_put_interface(chip->pm_intf);
+	if (!atomic_dec_and_test(&chip->active))
+		return;
+
+	for (i = 0; i < chip->num_interfaces; i++)
+		usb_autopm_put_interface(chip->intf[i]);
 }
 
 static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
@@ -813,9 +868,6 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 	if (chip == (void *)-1L)
 		return 0;
 
-	chip->autosuspended = !!PMSG_IS_AUTO(message);
-	if (!chip->autosuspended)
-		snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	if (!chip->num_suspended_intf++) {
 		list_for_each_entry(as, &chip->pcm_list, list) {
 			snd_usb_pcm_suspend(as);
@@ -826,6 +878,11 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 			snd_usbmidi_suspend(p);
 		list_for_each_entry(mixer, &chip->mixer_list, list)
 			snd_usb_mixer_suspend(mixer);
+	}
+
+	if (!PMSG_IS_AUTO(message) && !chip->system_suspend) {
+		snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
+		chip->system_suspend = chip->num_suspended_intf;
 	}
 
 	return 0;
@@ -841,10 +898,10 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 
 	if (chip == (void *)-1L)
 		return 0;
-	if (--chip->num_suspended_intf)
-		return 0;
 
 	atomic_inc(&chip->active); /* avoid autopm */
+	if (chip->num_suspended_intf > 1)
+		goto out;
 
 	list_for_each_entry(as, &chip->pcm_list, list) {
 		err = snd_usb_pcm_resume(as);
@@ -866,9 +923,12 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 		snd_usbmidi_resume(p);
 	}
 
-	if (!chip->autosuspended)
+ out:
+	if (chip->num_suspended_intf == chip->system_suspend) {
 		snd_power_change_state(chip->card, SNDRV_CTL_POWER_D0);
-	chip->autosuspended = 0;
+		chip->system_suspend = 0;
+	}
+	chip->num_suspended_intf--;
 
 err_out:
 	atomic_dec(&chip->active); /* allow autopm after this point */

@@ -59,7 +59,7 @@ static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 
 	ret = mlx5_core_alloc_pd(dmn->mdev, &dmn->pdn);
 	if (ret) {
-		mlx5dr_dbg(dmn, "Couldn't allocate PD\n");
+		mlx5dr_err(dmn, "Couldn't allocate PD, ret: %d", ret);
 		return ret;
 	}
 
@@ -192,7 +192,7 @@ static int dr_domain_query_fdb_caps(struct mlx5_core_dev *mdev,
 
 	ret = dr_domain_query_vports(dmn);
 	if (ret) {
-		mlx5dr_dbg(dmn, "Failed to query vports caps\n");
+		mlx5dr_err(dmn, "Failed to query vports caps (err: %d)", ret);
 		goto free_vports_caps;
 	}
 
@@ -213,7 +213,7 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 	int ret;
 
 	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH) {
-		mlx5dr_dbg(dmn, "Failed to allocate domain, bad link type\n");
+		mlx5dr_err(dmn, "Failed to allocate domain, bad link type\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -257,7 +257,7 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 		dmn->info.tx.ste_type = MLX5DR_STE_TYPE_TX;
 		vport_cap = mlx5dr_get_vport_cap(&dmn->info.caps, 0);
 		if (!vport_cap) {
-			mlx5dr_dbg(dmn, "Failed to get esw manager vport\n");
+			mlx5dr_err(dmn, "Failed to get esw manager vport\n");
 			return -ENOENT;
 		}
 
@@ -268,7 +268,7 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 		dmn->info.tx.drop_icm_addr = dmn->info.caps.esw_tx_drop_address;
 		break;
 	default:
-		mlx5dr_dbg(dmn, "Invalid domain\n");
+		mlx5dr_err(dmn, "Invalid domain\n");
 		ret = -EINVAL;
 		break;
 	}
@@ -297,10 +297,11 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 	dmn->mdev = mdev;
 	dmn->type = type;
 	refcount_set(&dmn->refcount, 1);
-	mutex_init(&dmn->mutex);
+	mutex_init(&dmn->info.rx.mutex);
+	mutex_init(&dmn->info.tx.mutex);
 
 	if (dr_domain_caps_init(mdev, dmn)) {
-		mlx5dr_dbg(dmn, "Failed init domain, no caps\n");
+		mlx5dr_err(dmn, "Failed init domain, no caps\n");
 		goto free_domain;
 	}
 
@@ -345,11 +346,14 @@ int mlx5dr_domain_sync(struct mlx5dr_domain *dmn, u32 flags)
 	int ret = 0;
 
 	if (flags & MLX5DR_DOMAIN_SYNC_FLAGS_SW) {
-		mutex_lock(&dmn->mutex);
+		mlx5dr_domain_lock(dmn);
 		ret = mlx5dr_send_ring_force_drain(dmn);
-		mutex_unlock(&dmn->mutex);
-		if (ret)
+		mlx5dr_domain_unlock(dmn);
+		if (ret) {
+			mlx5dr_err(dmn, "Force drain failed flags: %d, ret: %d\n",
+				   flags, ret);
 			return ret;
+		}
 	}
 
 	if (flags & MLX5DR_DOMAIN_SYNC_FLAGS_HW)
@@ -368,7 +372,8 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 	dr_domain_uninit_cache(dmn);
 	dr_domain_uninit_resources(dmn);
 	dr_domain_caps_uninit(dmn);
-	mutex_destroy(&dmn->mutex);
+	mutex_destroy(&dmn->info.tx.mutex);
+	mutex_destroy(&dmn->info.rx.mutex);
 	kfree(dmn);
 	return 0;
 }
@@ -376,7 +381,7 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 			    struct mlx5dr_domain *peer_dmn)
 {
-	mutex_lock(&dmn->mutex);
+	mlx5dr_domain_lock(dmn);
 
 	if (dmn->peer_dmn)
 		refcount_dec(&dmn->peer_dmn->refcount);
@@ -386,5 +391,5 @@ void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 	if (dmn->peer_dmn)
 		refcount_inc(&dmn->peer_dmn->refcount);
 
-	mutex_unlock(&dmn->mutex);
+	mlx5dr_domain_unlock(dmn);
 }

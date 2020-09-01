@@ -24,7 +24,6 @@ extern struct clock_event_device decrementer_clockevent;
 
 
 extern void generic_calibrate_decr(void);
-extern void hdec_interrupt(struct pt_regs *regs);
 
 /* Some sane defaults: 125 MHz timebase, 1GHz processor */
 extern unsigned long ppc_proc_freq;
@@ -40,7 +39,6 @@ struct div_result {
 };
 
 /* Accessor functions for the timebase (RTC on 601) registers. */
-/* If one day CONFIG_POWER is added just define __USE_RTC as 1 */
 #define __USE_RTC()	(IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 
 #ifdef CONFIG_PPC64
@@ -52,24 +50,12 @@ struct div_result {
 
 static inline unsigned long get_tbl(void)
 {
-#if defined(CONFIG_403GCX)
-	unsigned long tbl;
-	asm volatile("mfspr %0, 0x3dd" : "=r" (tbl));
-	return tbl;
-#else
 	return mftbl();
-#endif
 }
 
 static inline unsigned int get_tbu(void)
 {
-#ifdef CONFIG_403GCX
-	unsigned int tbu;
-	asm volatile("mfspr %0, 0x3dc" : "=r" (tbu));
-	return tbu;
-#else
 	return mftbu();
-#endif
 }
 #endif /* !CONFIG_PPC64 */
 
@@ -194,6 +180,9 @@ DECLARE_PER_CPU(u64, decrementers_next_tb);
 
 /* Convert timebase ticks to nanoseconds */
 unsigned long long tb_to_ns(unsigned long long tb_ticks);
+
+/* SPLPAR */
+void accumulate_stolen_time(void);
 
 #endif /* __KERNEL__ */
 #endif /* __POWERPC_TIME_H */

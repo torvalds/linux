@@ -48,7 +48,7 @@ static int fill_match_fields(struct adapter *adap,
 			     bool next_header)
 {
 	unsigned int i, j;
-	u32 val, mask;
+	__be32 val, mask;
 	int off, err;
 	bool found;
 
@@ -155,9 +155,10 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	struct ch_filter_specification fs;
 	struct cxgb4_tc_u32_table *t;
 	struct cxgb4_link *link;
-	unsigned int filter_id;
 	u32 uhtid, link_uhtid;
 	bool is_ipv6 = false;
+	u8 inet_family;
+	int filter_id;
 	int ret;
 
 	if (!can_tc_u32_offload(dev))
@@ -166,18 +167,15 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	if (protocol != htons(ETH_P_IP) && protocol != htons(ETH_P_IPV6))
 		return -EOPNOTSUPP;
 
-	/* Note that TC uses prio 0 to indicate stack to generate
-	 * automatic prio and hence doesn't pass prio 0 to driver.
-	 * However, the hardware TCAM index starts from 0. Hence, the
-	 * -1 here.
-	 */
-	filter_id = TC_U32_NODE(cls->knode.handle) - 1;
+	inet_family = (protocol == htons(ETH_P_IPV6)) ? PF_INET6 : PF_INET;
 
-	/* Only insert U32 rule if its priority doesn't conflict with
-	 * existing rules in the LETCAM.
+	/* Get a free filter entry TID, where we can insert this new
+	 * rule. Only insert rule if its prio doesn't conflict with
+	 * existing rules.
 	 */
-	if (filter_id >= adapter->tids.nftids + adapter->tids.nhpftids ||
-	    !cxgb4_filter_prio_in_range(dev, filter_id, cls->common.prio)) {
+	filter_id = cxgb4_get_free_ftid(dev, inet_family, false,
+					TC_U32_NODE(cls->knode.handle));
+	if (filter_id < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "No free LETCAM index available");
 		return -ENOMEM;
@@ -230,7 +228,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		const struct cxgb4_next_header *next;
 		bool found = false;
 		unsigned int i, j;
-		u32 val, mask;
+		__be32 val, mask;
 		int off;
 
 		if (t->table[link_uhtid - 1].link_handle) {
@@ -244,10 +242,10 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 
 		/* Try to find matches that allow jumps to next header. */
 		for (i = 0; next[i].jump; i++) {
-			if (next[i].offoff != cls->knode.sel->offoff ||
-			    next[i].shift != cls->knode.sel->offshift ||
-			    next[i].mask != cls->knode.sel->offmask ||
-			    next[i].offset != cls->knode.sel->off)
+			if (next[i].sel.offoff != cls->knode.sel->offoff ||
+			    next[i].sel.offshift != cls->knode.sel->offshift ||
+			    next[i].sel.offmask != cls->knode.sel->offmask ||
+			    next[i].sel.off != cls->knode.sel->off)
 				continue;
 
 			/* Found a possible candidate.  Find a key that
@@ -259,9 +257,9 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 				val = cls->knode.sel->keys[j].val;
 				mask = cls->knode.sel->keys[j].mask;
 
-				if (next[i].match_off == off &&
-				    next[i].match_val == val &&
-				    next[i].match_mask == mask) {
+				if (next[i].key.off == off &&
+				    next[i].key.val == val &&
+				    next[i].key.mask == mask) {
 					found = true;
 					break;
 				}
@@ -358,23 +356,65 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	struct cxgb4_link *link = NULL;
 	struct cxgb4_tc_u32_table *t;
 	struct filter_entry *f;
+	bool found = false;
 	u32 handle, uhtid;
+	u8 nslots;
 	int ret;
 
 	if (!can_tc_u32_offload(dev))
 		return -EOPNOTSUPP;
 
 	/* Fetch the location to delete the filter. */
-	filter_id = TC_U32_NODE(cls->knode.handle) - 1;
-	if (filter_id >= adapter->tids.nftids + adapter->tids.nhpftids)
-		return -ERANGE;
+	max_tids = adapter->tids.nhpftids + adapter->tids.nftids;
 
-	if (filter_id < adapter->tids.nhpftids)
-		f = &adapter->tids.hpftid_tab[filter_id];
-	else
-		f = &adapter->tids.ftid_tab[filter_id - adapter->tids.nhpftids];
+	spin_lock_bh(&adapter->tids.ftid_lock);
+	filter_id = 0;
+	while (filter_id < max_tids) {
+		if (filter_id < adapter->tids.nhpftids) {
+			i = filter_id;
+			f = &adapter->tids.hpftid_tab[i];
+			if (f->valid && f->fs.tc_cookie == cls->knode.handle) {
+				found = true;
+				break;
+			}
 
-	if (cls->knode.handle != f->fs.tc_cookie)
+			i = find_next_bit(adapter->tids.hpftid_bmap,
+					  adapter->tids.nhpftids, i + 1);
+			if (i >= adapter->tids.nhpftids) {
+				filter_id = adapter->tids.nhpftids;
+				continue;
+			}
+
+			filter_id = i;
+		} else {
+			i = filter_id - adapter->tids.nhpftids;
+			f = &adapter->tids.ftid_tab[i];
+			if (f->valid && f->fs.tc_cookie == cls->knode.handle) {
+				found = true;
+				break;
+			}
+
+			i = find_next_bit(adapter->tids.ftid_bmap,
+					  adapter->tids.nftids, i + 1);
+			if (i >= adapter->tids.nftids)
+				break;
+
+			filter_id = i + adapter->tids.nhpftids;
+		}
+
+		nslots = 0;
+		if (f->fs.type) {
+			nslots++;
+			if (CHELSIO_CHIP_VERSION(adapter->params.chip) <
+			    CHELSIO_T6)
+				nslots += 2;
+		}
+
+		filter_id += nslots;
+	}
+	spin_unlock_bh(&adapter->tids.ftid_lock);
+
+	if (!found)
 		return -ERANGE;
 
 	t = adapter->tc_u32;
@@ -407,7 +447,6 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	/* If a link is being deleted, then delete all filters
 	 * associated with the link.
 	 */
-	max_tids = adapter->tids.nftids;
 	for (i = 0; i < t->size; i++) {
 		link = &t->table[i];
 

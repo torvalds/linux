@@ -35,11 +35,11 @@ static int lowpan_rx_handlers_result(struct sk_buff *skb, lowpan_rx_result res)
 		net_warn_ratelimited("%s: received unknown dispatch\n",
 				     __func__);
 
-		/* fall-through */
+		fallthrough;
 	case RX_DROP_UNUSABLE:
 		kfree_skb(skb);
 
-		/* fall-through */
+		fallthrough;
 	case RX_DROP:
 		return NET_RX_DROP;
 	case RX_QUEUED:
@@ -240,7 +240,7 @@ static inline bool lowpan_is_reserved(u8 dispatch)
 	return ((dispatch >= 0x44 && dispatch <= 0x4F) ||
 		(dispatch >= 0x51 && dispatch <= 0x5F) ||
 		(dispatch >= 0xc8 && dispatch <= 0xdf) ||
-		(dispatch >= 0xe8 && dispatch <= 0xff));
+		dispatch >= 0xe8);
 }
 
 /* lowpan_rx_h_check checks on generic 6LoWPAN requirements

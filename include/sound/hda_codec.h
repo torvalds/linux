@@ -208,7 +208,7 @@ struct hda_codec {
 	struct mutex control_mutex;
 	struct snd_array spdif_out;
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
-	const hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
+	const hda_nid_t *follower_dig_outs; /* optional digital out follower widgets */
 	struct snd_array init_pins;	/* initial (BIOS) pin configurations */
 	struct snd_array driver_pins;	/* pin configs set by codec parser */
 	struct snd_array cvt_setups;	/* audio convert setups */
@@ -288,6 +288,10 @@ struct hda_codec {
 #define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, core.dev)
 #define hda_codec_dev(_dev)	(&(_dev)->core.dev)
 
+#define hdac_to_hda_priv(_hdac) \
+			container_of(_hdac, struct hdac_hda_priv, codec.core)
+#define hdac_to_hda_codec(_hdac) container_of(_hdac, struct hda_codec, core)
+
 #define list_for_each_codec(c, bus) \
 	list_for_each_entry(c, &(bus)->core.codec_list, core.list)
 #define list_for_each_codec_safe(c, n, bus)				\
@@ -362,13 +366,6 @@ struct hda_verb {
 void snd_hda_sequence_write(struct hda_codec *codec,
 			    const struct hda_verb *seq);
 
-/* unsolicited event */
-static inline void
-snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
-{
-	snd_hdac_bus_queue_event(&bus->core, res, res_ex);
-}
-
 /* cached write */
 static inline int
 snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
@@ -417,6 +414,8 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec);
 __printf(2, 3)
 struct hda_pcm *snd_hda_codec_pcm_new(struct hda_codec *codec,
 				      const char *fmt, ...);
+
+void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec);
 
 static inline void snd_hda_codec_pcm_get(struct hda_pcm *pcm)
 {
@@ -493,6 +492,11 @@ void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
 static inline void snd_hda_set_power_save(struct hda_bus *bus, int delay) {}
 #endif
+
+static inline bool hda_codec_need_resume(struct hda_codec *codec)
+{
+	return !codec->relaxed_resume && codec->jacktbl.used;
+}
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 /*

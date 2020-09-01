@@ -654,7 +654,7 @@ do_reloc (struct module *mod, uint8_t r_type, Elf64_Sym *sym, uint64_t addend,
 				}
 			} else if (!is_internal(mod, val))
 				val = get_plt(mod, location, val, &ok);
-			/* FALL THROUGH */
+			fallthrough;
 		      default:
 			val -= bundle(location);
 			break;

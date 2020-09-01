@@ -34,6 +34,7 @@
 #include <linux/of_fdt.h>
 #include <linux/hugetlb.h>
 
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/code-patching.h>

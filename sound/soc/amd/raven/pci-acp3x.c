@@ -19,10 +19,12 @@ struct acp3x_dev_data {
 	bool acp3x_audio_mode;
 	struct resource *res;
 	struct platform_device *pdev[ACP3x_DEVS];
+	u32 pme_en;
 };
 
-static int acp3x_power_on(void __iomem *acp3x_base)
+static int acp3x_power_on(struct acp3x_dev_data *adata)
 {
+	void __iomem *acp3x_base = adata->acp3x_base;
 	u32 val;
 	int timeout;
 
@@ -38,8 +40,13 @@ static int acp3x_power_on(void __iomem *acp3x_base)
 	timeout = 0;
 	while (++timeout < 500) {
 		val = rv_readl(acp3x_base + mmACP_PGFSM_STATUS);
-		if (!val)
+		if (!val) {
+			/* ACP power On clears PME_EN.
+			 * Restore the value to its prior state
+			 */
+			rv_writel(adata->pme_en, acp3x_base + mmACP_PME_EN);
 			return 0;
+		}
 		udelay(1);
 	}
 	return -ETIMEDOUT;
@@ -69,12 +76,13 @@ static int acp3x_reset(void __iomem *acp3x_base)
 	return -ETIMEDOUT;
 }
 
-static int acp3x_init(void __iomem *acp3x_base)
+static int acp3x_init(struct acp3x_dev_data *adata)
 {
+	void __iomem *acp3x_base = adata->acp3x_base;
 	int ret;
 
 	/* power on */
-	ret = acp3x_power_on(acp3x_base);
+	ret = acp3x_power_on(adata);
 	if (ret) {
 		pr_err("ACP3x power on failed\n");
 		return ret;
@@ -146,7 +154,9 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 	}
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
-	ret = acp3x_init(adata->acp3x_base);
+	/* Save ACP_PME_EN state */
+	adata->pme_en = rv_readl(adata->acp3x_base + mmACP_PME_EN);
+	ret = acp3x_init(adata);
 	if (ret)
 		goto disable_msi;
 
@@ -227,9 +237,7 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 	}
 	pm_runtime_set_autosuspend_delay(&pci->dev, 2000);
 	pm_runtime_use_autosuspend(&pci->dev);
-	pm_runtime_set_active(&pci->dev);
 	pm_runtime_put_noidle(&pci->dev);
-	pm_runtime_enable(&pci->dev);
 	pm_runtime_allow(&pci->dev);
 	return 0;
 
@@ -271,7 +279,7 @@ static int snd_acp3x_resume(struct device *dev)
 	struct acp3x_dev_data *adata;
 
 	adata = dev_get_drvdata(dev);
-	ret = acp3x_init(adata->acp3x_base);
+	ret = acp3x_init(adata);
 	if (ret) {
 		dev_err(dev, "ACP init failed\n");
 		return ret;
@@ -298,7 +306,7 @@ static void snd_acp3x_remove(struct pci_dev *pci)
 	ret = acp3x_deinit(adata->acp3x_base);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
-	pm_runtime_disable(&pci->dev);
+	pm_runtime_forbid(&pci->dev);
 	pm_runtime_get_noresume(&pci->dev);
 	pci_disable_msi(pci);
 	pci_release_regions(pci);

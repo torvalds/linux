@@ -103,12 +103,12 @@ static enum led_brightness ap_led_get(struct led_classdev *led)
 }
 
 // Set the airplane mode LED brightness
-static void ap_led_set(struct led_classdev *led, enum led_brightness value)
+static int ap_led_set(struct led_classdev *led, enum led_brightness value)
 {
 	struct system76_data *data;
 
 	data = container_of(led, struct system76_data, ap_led);
-	system76_set(data, "SAPL", value == LED_OFF ? 0 : 1);
+	return system76_set(data, "SAPL", value == LED_OFF ? 0 : 1);
 }
 
 // Get the last set keyboard LED brightness
@@ -121,13 +121,13 @@ static enum led_brightness kb_led_get(struct led_classdev *led)
 }
 
 // Set the keyboard LED brightness
-static void kb_led_set(struct led_classdev *led, enum led_brightness value)
+static int kb_led_set(struct led_classdev *led, enum led_brightness value)
 {
 	struct system76_data *data;
 
 	data = container_of(led, struct system76_data, kb_led);
 	data->kb_brightness = value;
-	system76_set(data, "SKBL", (int)data->kb_brightness);
+	return system76_set(data, "SKBL", (int)data->kb_brightness);
 }
 
 // Get the last set keyboard LED color
@@ -313,7 +313,7 @@ static int system76_add(struct acpi_device *acpi_dev)
 	data->ap_led.name = "system76_acpi::airplane";
 	data->ap_led.flags = LED_CORE_SUSPENDRESUME;
 	data->ap_led.brightness_get = ap_led_get;
-	data->ap_led.brightness_set = ap_led_set;
+	data->ap_led.brightness_set_blocking = ap_led_set;
 	data->ap_led.max_brightness = 1;
 	data->ap_led.default_trigger = "rfkill-none";
 	err = devm_led_classdev_register(&acpi_dev->dev, &data->ap_led);
@@ -323,7 +323,7 @@ static int system76_add(struct acpi_device *acpi_dev)
 	data->kb_led.name = "system76_acpi::kbd_backlight";
 	data->kb_led.flags = LED_BRIGHT_HW_CHANGED | LED_CORE_SUSPENDRESUME;
 	data->kb_led.brightness_get = kb_led_get;
-	data->kb_led.brightness_set = kb_led_set;
+	data->kb_led.brightness_set_blocking = kb_led_set;
 	if (acpi_has_method(acpi_device_handle(data->acpi_dev), "SKBC")) {
 		data->kb_led.max_brightness = 255;
 		data->kb_toggle_brightness = 72;

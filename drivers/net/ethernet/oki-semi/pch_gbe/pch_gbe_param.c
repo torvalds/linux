@@ -410,7 +410,7 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 	case SPEED_1000 + HALF_DUPLEX:
 		netdev_dbg(adapter->netdev,
 			   "Half Duplex is not supported at 1000 Mbps\n");
-		/* fall through */
+		fallthrough;
 	case SPEED_1000 + FULL_DUPLEX:
 full_duplex_only:
 		netdev_dbg(adapter->netdev,

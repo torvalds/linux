@@ -31,11 +31,15 @@ enum {
 #define MT7530_MFC			0x10
 #define  BC_FFP(x)			(((x) & 0xff) << 24)
 #define  UNM_FFP(x)			(((x) & 0xff) << 16)
+#define  UNM_FFP_MASK			UNM_FFP(~0)
 #define  UNU_FFP(x)			(((x) & 0xff) << 8)
 #define  UNU_FFP_MASK			UNU_FFP(~0)
 #define  CPU_EN				BIT(7)
 #define  CPU_PORT(x)			((x) << 4)
 #define  CPU_MASK			(0xf << 4)
+#define  MIRROR_EN			BIT(3)
+#define  MIRROR_PORT(x)			((x) & 0x7)
+#define  MIRROR_MASK			0x7
 
 /* Registers for address table access */
 #define MT7530_ATA1			0x74
@@ -141,11 +145,19 @@ enum mt7530_stp_state {
 
 /* Register for port control */
 #define MT7530_PCR_P(x)			(0x2004 + ((x) * 0x100))
+#define  PORT_TX_MIR			BIT(9)
+#define  PORT_RX_MIR			BIT(8)
 #define  PORT_VLAN(x)			((x) & 0x3)
 
 enum mt7530_port_mode {
 	/* Port Matrix Mode: Frames are forwarded by the PCR_MATRIX members. */
 	MT7530_PORT_MATRIX_MODE = PORT_VLAN(0),
+
+	/* Fallback Mode: Forward received frames with ingress ports that do
+	 * not belong to the VLAN member. Frames whose VID is not listed on
+	 * the VLAN table are forwarded by the PCR_MATRIX members.
+	 */
+	MT7530_PORT_FALLBACK_MODE = PORT_VLAN(1),
 
 	/* Security Mode: Discard any frame due to ingress membership
 	 * violation or VID missed on the VLAN table.
@@ -167,8 +179,15 @@ enum mt7530_port_mode {
 /* Register for port vlan control */
 #define MT7530_PVC_P(x)			(0x2010 + ((x) * 0x100))
 #define  PORT_SPEC_TAG			BIT(5)
+#define  PVC_EG_TAG(x)			(((x) & 0x7) << 8)
+#define  PVC_EG_TAG_MASK		PVC_EG_TAG(7)
 #define  VLAN_ATTR(x)			(((x) & 0x3) << 6)
 #define  VLAN_ATTR_MASK			VLAN_ATTR(3)
+
+enum mt7530_vlan_port_eg_tag {
+	MT7530_VLAN_EG_DISABLED = 0,
+	MT7530_VLAN_EG_CONSISTENT = 1,
+};
 
 enum mt7530_vlan_port_attr {
 	MT7530_VLAN_USER = 0,
@@ -201,6 +220,10 @@ enum mt7530_vlan_port_attr {
 #define  PMCR_FORCE_LNK			BIT(0)
 #define  PMCR_SPEED_MASK		(PMCR_FORCE_SPEED_100 | \
 					 PMCR_FORCE_SPEED_1000)
+#define  PMCR_LINK_SETTINGS_MASK	(PMCR_TX_EN | PMCR_FORCE_SPEED_1000 | \
+					 PMCR_RX_EN | PMCR_FORCE_SPEED_100 | \
+					 PMCR_TX_FC_EN | PMCR_RX_FC_EN | \
+					 PMCR_FORCE_FDX | PMCR_FORCE_LNK)
 
 #define MT7530_PMSR_P(x)		(0x3008 + (x) * 0x100)
 #define  PMSR_EEE1G			BIT(7)
@@ -268,7 +291,6 @@ enum mt7530_vlan_port_attr {
 
 /* Registers for TRGMII on the both side */
 #define MT7530_TRGMII_RCK_CTRL		0x7a00
-#define GSW_TRGMII_RCK_CTRL		0x300
 #define  RX_RST				BIT(31)
 #define  RXC_DQSISEL			BIT(30)
 #define  DQSI1_TAP_MASK			(0x7f << 8)
@@ -277,30 +299,23 @@ enum mt7530_vlan_port_attr {
 #define  DQSI0_TAP(x)			((x) & 0x7f)
 
 #define MT7530_TRGMII_RCK_RTT		0x7a04
-#define GSW_TRGMII_RCK_RTT		0x304
 #define  DQS1_GATE			BIT(31)
 #define  DQS0_GATE			BIT(30)
 
 #define MT7530_TRGMII_RD(x)		(0x7a10 + (x) * 8)
-#define GSW_TRGMII_RD(x)		(0x310 + (x) * 8)
 #define  BSLIP_EN			BIT(31)
 #define  EDGE_CHK			BIT(30)
 #define  RD_TAP_MASK			0x7f
 #define  RD_TAP(x)			((x) & 0x7f)
 
-#define GSW_TRGMII_TXCTRL		0x340
 #define MT7530_TRGMII_TXCTRL		0x7a40
 #define  TRAIN_TXEN			BIT(31)
 #define  TXC_INV			BIT(30)
 #define  TX_RST				BIT(28)
 
 #define MT7530_TRGMII_TD_ODT(i)		(0x7a54 + 8 * (i))
-#define GSW_TRGMII_TD_ODT(i)		(0x354 + 8 * (i))
 #define  TD_DM_DRVP(x)			((x) & 0xf)
 #define  TD_DM_DRVN(x)			(((x) & 0xf) << 4)
-
-#define GSW_INTF_MODE			0x390
-#define  INTF_MODE_TRGMII		BIT(1)
 
 #define MT7530_TRGMII_TCK_CTRL		0x7a78
 #define  TCK_TAP(x)			(((x) & 0xf) << 8)
@@ -434,7 +449,6 @@ static const char *p5_intf_modes(unsigned int p5_interface)
  * @ds:			The pointer to the dsa core structure
  * @bus:		The bus used for the device and built-in PHY
  * @rstc:		The pointer to reset control used by MCM
- * @ethernet:		The regmap used for access TRGMII-based registers
  * @core_pwr:		The power supplied into the core
  * @io_pwr:		The power supplied into the I/O
  * @reset:		The descriptor for GPIO line tied to its reset pin
@@ -451,7 +465,6 @@ struct mt7530_priv {
 	struct dsa_switch	*ds;
 	struct mii_bus		*bus;
 	struct reset_control	*rstc;
-	struct regmap		*ethernet;
 	struct regulator	*core_pwr;
 	struct regulator	*io_pwr;
 	struct gpio_desc	*reset;
@@ -460,6 +473,8 @@ struct mt7530_priv {
 	phy_interface_t		p6_interface;
 	phy_interface_t		p5_interface;
 	unsigned int		p5_intf_sel;
+	u8			mirror_rx;
+	u8			mirror_tx;
 
 	struct mt7530_port	ports[MT7530_NUM_PORTS];
 	/* protect among processes for registers access*/

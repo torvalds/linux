@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/of_device.h>
 #include <linux/pm_opp.h>
 #include <linux/platform_device.h>
@@ -20,6 +21,10 @@
 #include <linux/slab.h>
 #include "../jedec_ddr.h"
 #include "../of_memory.h"
+
+static int irqmode;
+module_param(irqmode, int, 0644);
+MODULE_PARM_DESC(irqmode, "Enable IRQ mode (0=off [default], 1=on)");
 
 #define EXYNOS5_DREXI_TIMINGAREF		(0x0030)
 #define EXYNOS5_DREXI_TIMINGROW0		(0x0034)
@@ -270,12 +275,14 @@ static int find_target_freq_idx(struct exynos5_dmc *dmc,
  * This function switches between these banks according to the
  * currently used clock source.
  */
-static void exynos5_switch_timing_regs(struct exynos5_dmc *dmc, bool set)
+static int exynos5_switch_timing_regs(struct exynos5_dmc *dmc, bool set)
 {
 	unsigned int reg;
 	int ret;
 
 	ret = regmap_read(dmc->clk_regmap, CDREX_LPDDR3PHY_CON3, &reg);
+	if (ret)
+		return ret;
 
 	if (set)
 		reg |= EXYNOS5_TIMING_SET_SWI;
@@ -283,6 +290,8 @@ static void exynos5_switch_timing_regs(struct exynos5_dmc *dmc, bool set)
 		reg &= ~EXYNOS5_TIMING_SET_SWI;
 
 	regmap_write(dmc->clk_regmap, CDREX_LPDDR3PHY_CON3, reg);
+
+	return 0;
 }
 
 /**
@@ -516,7 +525,7 @@ exynos5_dmc_switch_to_bypass_configuration(struct exynos5_dmc *dmc,
 	/*
 	 * Delays are long enough, so use them for the new coming clock.
 	 */
-	exynos5_switch_timing_regs(dmc, USE_MX_MSPLL_TIMINGS);
+	ret = exynos5_switch_timing_regs(dmc, USE_MX_MSPLL_TIMINGS);
 
 	return ret;
 }
@@ -577,7 +586,9 @@ exynos5_dmc_change_freq_and_volt(struct exynos5_dmc *dmc,
 
 	clk_set_rate(dmc->fout_bpll, target_rate);
 
-	exynos5_switch_timing_regs(dmc, USE_BPLL_TIMINGS);
+	ret = exynos5_switch_timing_regs(dmc, USE_BPLL_TIMINGS);
+	if (ret)
+		goto disable_clocks;
 
 	ret = clk_set_parent(dmc->mout_mclk_cdrex, dmc->mout_bpll);
 	if (ret)
@@ -945,6 +956,7 @@ static int exynos5_dmc_get_cur_freq(struct device *dev, unsigned long *freq)
  * It provides to the devfreq framework needed functions and polling period.
  */
 static struct devfreq_dev_profile exynos5_dmc_df_profile = {
+	.timer = DEVFREQ_TIMER_DELAYED,
 	.target = exynos5_dmc_target,
 	.get_dev_status = exynos5_dmc_get_status,
 	.get_cur_freq = exynos5_dmc_get_cur_freq,
@@ -1091,7 +1103,7 @@ static int create_timings_aligned(struct exynos5_dmc *dmc, u32 *reg_timing_row,
 	/* power related timings */
 	val = dmc->timings->tFAW / clk_period_ps;
 	val += dmc->timings->tFAW % clk_period_ps ? 1 : 0;
-	val = max(val, dmc->min_tck->tXP);
+	val = max(val, dmc->min_tck->tFAW);
 	reg = &timing_power[0];
 	*reg_timing_power |= TIMING_VAL2REG(reg, val);
 
@@ -1346,14 +1358,12 @@ static irqreturn_t dmc_irq_thread(int irq, void *priv)
 	struct exynos5_dmc *dmc = priv;
 
 	mutex_lock(&dmc->df->lock);
-
 	exynos5_dmc_perf_events_check(dmc);
-
 	res = update_devfreq(dmc->df);
+	mutex_unlock(&dmc->df->lock);
+
 	if (res)
 		dev_warn(dmc->dev, "devfreq failed with %d\n", res);
-
-	mutex_unlock(&dmc->df->lock);
 
 	return IRQ_HANDLED;
 }
@@ -1394,7 +1404,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 		return PTR_ERR(dmc->base_drexi1);
 
 	dmc->clk_regmap = syscon_regmap_lookup_by_phandle(np,
-				"samsung,syscon-clk");
+							  "samsung,syscon-clk");
 	if (IS_ERR(dmc->clk_regmap))
 		return PTR_ERR(dmc->clk_regmap);
 
@@ -1429,7 +1439,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 	/* There is two modes in which the driver works: polling or IRQ */
 	irq[0] = platform_get_irq_byname(pdev, "drex_0");
 	irq[1] = platform_get_irq_byname(pdev, "drex_1");
-	if (irq[0] > 0 && irq[1] > 0) {
+	if (irq[0] > 0 && irq[1] > 0 && irqmode) {
 		ret = devm_request_threaded_irq(dev, irq[0], NULL,
 						dmc_irq_thread, IRQF_ONESHOT,
 						dev_name(dev), dmc);
@@ -1467,12 +1477,11 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 		 * Setup default thresholds for the devfreq governor.
 		 * The values are chosen based on experiments.
 		 */
-		dmc->gov_data.upthreshold = 30;
+		dmc->gov_data.upthreshold = 10;
 		dmc->gov_data.downdifferential = 5;
 
-		exynos5_dmc_df_profile.polling_ms = 500;
+		exynos5_dmc_df_profile.polling_ms = 100;
 	}
-
 
 	dmc->df = devm_devfreq_add_device(dev, &exynos5_dmc_df_profile,
 					  DEVFREQ_GOV_SIMPLE_ONDEMAND,
@@ -1486,7 +1495,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 	if (dmc->in_irq_mode)
 		exynos5_dmc_start_perf_events(dmc, PERF_COUNTER_START_VALUE);
 
-	dev_info(dev, "DMC initialized\n");
+	dev_info(dev, "DMC initialized, in irq mode: %d\n", dmc->in_irq_mode);
 
 	return 0;
 

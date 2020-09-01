@@ -99,7 +99,7 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 
 	mapping = panfrost_gem_mapping_get(bo, priv);
 	if (!mapping) {
-		drm_gem_object_put_unlocked(&bo->base.base);
+		drm_gem_object_put(&bo->base.base);
 		return -EINVAL;
 	}
 
@@ -317,7 +317,7 @@ panfrost_ioctl_wait_bo(struct drm_device *dev, void *data,
 	if (!ret)
 		ret = timeout ? -ETIMEDOUT : -EBUSY;
 
-	drm_gem_object_put_unlocked(gem_obj);
+	drm_gem_object_put(gem_obj);
 
 	return ret;
 }
@@ -351,7 +351,7 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 		args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 
 out:
-	drm_gem_object_put_unlocked(gem_obj);
+	drm_gem_object_put(gem_obj);
 	return ret;
 }
 
@@ -372,7 +372,7 @@ static int panfrost_ioctl_get_bo_offset(struct drm_device *dev, void *data,
 	bo = to_panfrost_bo(gem_obj);
 
 	mapping = panfrost_gem_mapping_get(bo, priv);
-	drm_gem_object_put_unlocked(gem_obj);
+	drm_gem_object_put(gem_obj);
 
 	if (!mapping)
 		return -EINVAL;
@@ -438,7 +438,7 @@ out_unlock_mappings:
 	mutex_unlock(&bo->mappings.lock);
 	mutex_unlock(&pfdev->shrinker_lock);
 
-	drm_gem_object_put_unlocked(gem_obj);
+	drm_gem_object_put(gem_obj);
 	return ret;
 }
 
@@ -584,6 +584,10 @@ static int panfrost_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pfdev);
 
+	pfdev->comp = of_device_get_match_data(&pdev->dev);
+	if (!pfdev->comp)
+		return -ENODEV;
+
 	/* Allocate and initialze the DRM device. */
 	ddev = drm_dev_alloc(&panfrost_drm_driver, &pdev->dev);
 	if (IS_ERR(ddev))
@@ -655,16 +659,24 @@ static int panfrost_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const char * const default_supplies[] = { "mali" };
+static const struct panfrost_compatible default_data = {
+	.num_supplies = ARRAY_SIZE(default_supplies),
+	.supply_names = default_supplies,
+	.num_pm_domains = 1, /* optional */
+	.pm_domain_names = NULL,
+};
+
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "arm,mali-t604" },
-	{ .compatible = "arm,mali-t624" },
-	{ .compatible = "arm,mali-t628" },
-	{ .compatible = "arm,mali-t720" },
-	{ .compatible = "arm,mali-t760" },
-	{ .compatible = "arm,mali-t820" },
-	{ .compatible = "arm,mali-t830" },
-	{ .compatible = "arm,mali-t860" },
-	{ .compatible = "arm,mali-t880" },
+	{ .compatible = "arm,mali-t604", .data = &default_data, },
+	{ .compatible = "arm,mali-t624", .data = &default_data, },
+	{ .compatible = "arm,mali-t628", .data = &default_data, },
+	{ .compatible = "arm,mali-t720", .data = &default_data, },
+	{ .compatible = "arm,mali-t760", .data = &default_data, },
+	{ .compatible = "arm,mali-t820", .data = &default_data, },
+	{ .compatible = "arm,mali-t830", .data = &default_data, },
+	{ .compatible = "arm,mali-t860", .data = &default_data, },
+	{ .compatible = "arm,mali-t880", .data = &default_data, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);

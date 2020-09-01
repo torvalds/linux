@@ -90,6 +90,7 @@ struct sp_device {
 	/* get and set master device */
 	struct sp_device*(*get_psp_master_device)(void);
 	void (*set_psp_master_device)(struct sp_device *);
+	void (*clear_psp_master_device)(struct sp_device *);
 
 	bool irq_registered;
 	bool use_tasklet;
@@ -118,7 +119,7 @@ int sp_init(struct sp_device *sp);
 void sp_destroy(struct sp_device *sp);
 struct sp_device *sp_get_master(void);
 
-int sp_suspend(struct sp_device *sp, pm_message_t state);
+int sp_suspend(struct sp_device *sp);
 int sp_resume(struct sp_device *sp);
 int sp_request_ccp_irq(struct sp_device *sp, irq_handler_t handler,
 		       const char *name, void *data);
@@ -133,7 +134,7 @@ struct sp_device *sp_get_psp_master_device(void);
 int ccp_dev_init(struct sp_device *sp);
 void ccp_dev_destroy(struct sp_device *sp);
 
-int ccp_dev_suspend(struct sp_device *sp, pm_message_t state);
+int ccp_dev_suspend(struct sp_device *sp);
 int ccp_dev_resume(struct sp_device *sp);
 
 #else	/* !CONFIG_CRYPTO_DEV_SP_CCP */
@@ -144,7 +145,7 @@ static inline int ccp_dev_init(struct sp_device *sp)
 }
 static inline void ccp_dev_destroy(struct sp_device *sp) { }
 
-static inline int ccp_dev_suspend(struct sp_device *sp, pm_message_t state)
+static inline int ccp_dev_suspend(struct sp_device *sp)
 {
 	return 0;
 }

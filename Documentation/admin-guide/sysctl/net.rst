@@ -67,7 +67,8 @@ two flavors of JITs, the newer eBPF JIT currently supported on:
   - sparc64
   - mips64
   - s390x
-  - riscv
+  - riscv64
+  - riscv32
 
 And the older cBPF JIT supported on the following archs:
 
@@ -338,7 +339,9 @@ settings from init_net and for IPv6 we reset all settings to default.
 
 If set to 1, both IPv4 and IPv6 settings are forced to inherit from
 current ones in init_net. If set to 2, both IPv4 and IPv6 settings are
-forced to reset to their default values.
+forced to reset to their default values. If set to 3, both IPv4 and IPv6
+settings are forced to inherit from current ones in the netns where this
+new netns has been created.
 
 Default : 0  (for compatibility reasons)
 
@@ -352,8 +355,8 @@ socket's buffer. It will not take effect unless PF_UNIX flag is specified.
 
 3. /proc/sys/net/ipv4 - IPV4 settings
 -------------------------------------
-Please see: Documentation/networking/ip-sysctl.txt and ipvs-sysctl.txt for
-descriptions of these entries.
+Please see: Documentation/networking/ip-sysctl.rst and
+Documentation/admin-guide/sysctl/net.rst for descriptions of these entries.
 
 
 4. Appletalk

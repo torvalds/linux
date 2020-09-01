@@ -346,7 +346,7 @@ static int pm8xxx_pin_config_set(struct pinctrl_dev *pctldev,
 				return -EINVAL;
 			}
 			pin->pull_up_strength = arg;
-			/* FALLTHROUGH */
+			fallthrough;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			pin->bias = pin->pull_up_strength;
 			banks |= BIT(2);

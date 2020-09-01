@@ -387,7 +387,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 		status = PTR_ERR(mcfqspi->clk);
 		goto fail0;
 	}
-	clk_enable(mcfqspi->clk);
+	clk_prepare_enable(mcfqspi->clk);
 
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->num_chipselect;
@@ -425,7 +425,7 @@ fail2:
 	pm_runtime_disable(&pdev->dev);
 	mcfqspi_cs_teardown(mcfqspi);
 fail1:
-	clk_disable(mcfqspi->clk);
+	clk_disable_unprepare(mcfqspi->clk);
 fail0:
 	spi_master_put(master);
 

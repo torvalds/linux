@@ -127,21 +127,21 @@ static int p1022_rdk_machine_probe(struct snd_soc_card *card)
  */
 static int p1022_rdk_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct machine_data *mdata =
 		container_of(rtd->card, struct machine_data, card);
 	struct device *dev = rtd->card->dev;
 	int ret = 0;
 
 	/* Tell the codec driver what the serial protocol is. */
-	ret = snd_soc_dai_set_fmt(rtd->codec_dai, mdata->dai_format);
+	ret = snd_soc_dai_set_fmt(asoc_rtd_to_codec(rtd, 0), mdata->dai_format);
 	if (ret < 0) {
 		dev_err(dev, "could not set codec driver audio format (ret=%i)\n",
 			ret);
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_pll(rtd->codec_dai, 0, 0, mdata->clk_frequency,
+	ret = snd_soc_dai_set_pll(asoc_rtd_to_codec(rtd, 0), 0, 0, mdata->clk_frequency,
 		mdata->clk_frequency);
 	if (ret < 0) {
 		dev_err(dev, "could not set codec PLL frequency (ret=%i)\n",

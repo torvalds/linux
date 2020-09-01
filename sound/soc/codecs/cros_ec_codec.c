@@ -8,7 +8,6 @@
  * EC for audio function.
  */
 
-#include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
@@ -44,6 +43,9 @@ struct cros_ec_codec_priv {
 
 	/* DMIC */
 	atomic_t dmic_probed;
+
+	/* I2S_RX */
+	uint32_t i2s_rx_bclk_ratio;
 
 	/* WoV */
 	bool wov_enabled;
@@ -99,41 +101,6 @@ static int send_ec_host_command(struct cros_ec_device *ec_dev, uint32_t cmd,
 error:
 	kfree(msg);
 	return ret;
-}
-
-static int calculate_sha256(struct cros_ec_codec_priv *priv,
-			    uint8_t *buf, uint32_t size, uint8_t *digest)
-{
-	struct crypto_shash *tfm;
-
-	tfm = crypto_alloc_shash("sha256", CRYPTO_ALG_TYPE_SHASH, 0);
-	if (IS_ERR(tfm)) {
-		dev_err(priv->dev, "can't alloc shash\n");
-		return PTR_ERR(tfm);
-	}
-
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-
-		crypto_shash_digest(desc, buf, size, digest);
-		shash_desc_zero(desc);
-	}
-
-	crypto_free_shash(tfm);
-
-#ifdef DEBUG
-	{
-		char digest_str[65];
-
-		bin2hex(digest_str, digest, 32);
-		digest_str[64] = 0;
-		dev_dbg(priv->dev, "hash=%s\n", digest_str);
-	}
-#endif
-
-	return 0;
 }
 
 static int dmic_get_gain(struct snd_kcontrol *kcontrol,
@@ -259,6 +226,7 @@ static int i2s_rx_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_get_drvdata(component);
 	struct ec_param_ec_codec_i2s_rx p;
 	enum ec_codec_i2s_rx_sample_depth depth;
+	uint32_t bclk;
 	int ret;
 
 	if (params_rate(params) != 48000)
@@ -284,13 +252,27 @@ static int i2s_rx_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(component->dev, "set bclk to %u\n",
-		snd_soc_params_to_bclk(params));
+	if (priv->i2s_rx_bclk_ratio)
+		bclk = params_rate(params) * priv->i2s_rx_bclk_ratio;
+	else
+		bclk = snd_soc_params_to_bclk(params);
+
+	dev_dbg(component->dev, "set bclk to %u\n", bclk);
 
 	p.cmd = EC_CODEC_I2S_RX_SET_BCLK;
-	p.set_bclk_param.bclk = snd_soc_params_to_bclk(params);
+	p.set_bclk_param.bclk = bclk;
 	return send_ec_host_command(priv->ec_device, EC_CMD_EC_CODEC_I2S_RX,
 				    (uint8_t *)&p, sizeof(p), NULL, 0);
+}
+
+static int i2s_rx_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
+{
+	struct snd_soc_component *component = dai->component;
+	struct cros_ec_codec_priv *priv =
+		snd_soc_component_get_drvdata(component);
+
+	priv->i2s_rx_bclk_ratio = ratio;
+	return 0;
 }
 
 static int i2s_rx_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -340,6 +322,7 @@ static int i2s_rx_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static const struct snd_soc_dai_ops i2s_rx_dai_ops = {
 	.hw_params = i2s_rx_hw_params,
 	.set_fmt = i2s_rx_set_fmt,
+	.set_bclk_ratio = i2s_rx_set_bclk_ratio,
 };
 
 static int i2s_rx_event(struct snd_soc_dapm_widget *w,
@@ -777,9 +760,8 @@ static int wov_hotword_model_put(struct snd_kcontrol *kcontrol,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	ret = calculate_sha256(priv, buf, size, digest);
-	if (ret)
-		goto leave;
+	sha256(buf, size, digest);
+	dev_dbg(priv->dev, "hash=%*phN\n", SHA256_DIGEST_SIZE, digest);
 
 	p.cmd = EC_CODEC_WOV_GET_LANG;
 	ret = send_ec_host_command(priv->ec_device, EC_CMD_EC_CODEC_WOV,
@@ -1048,11 +1030,13 @@ static const struct of_device_id cros_ec_codec_of_match[] = {
 MODULE_DEVICE_TABLE(of, cros_ec_codec_of_match);
 #endif
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id cros_ec_codec_acpi_id[] = {
 	{ "GOOG0013", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, cros_ec_codec_acpi_id);
+#endif
 
 static struct platform_driver cros_ec_codec_platform_driver = {
 	.driver = {

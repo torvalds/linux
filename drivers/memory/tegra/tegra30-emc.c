@@ -11,7 +11,6 @@
 
 #include <linux/clk.h>
 #include <linux/clk/tegra.h>
-#include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -327,7 +326,6 @@ struct emc_timing {
 struct tegra_emc {
 	struct device *dev;
 	struct tegra_mc *mc;
-	struct completion clk_handshake_complete;
 	struct notifier_block clk_nb;
 	struct clk *clk;
 	void __iomem *regs;
@@ -374,52 +372,10 @@ static int emc_seq_update_timing(struct tegra_emc *emc)
 	return 0;
 }
 
-static void emc_complete_clk_change(struct tegra_emc *emc)
-{
-	struct emc_timing *timing = emc->new_timing;
-	unsigned int dram_num;
-	bool failed = false;
-	int err;
-
-	/* re-enable auto-refresh */
-	dram_num = tegra_mc_get_emem_device_count(emc->mc);
-	writel_relaxed(EMC_REFCTRL_ENABLE_ALL(dram_num),
-		       emc->regs + EMC_REFCTRL);
-
-	/* restore auto-calibration */
-	if (emc->vref_cal_toggle)
-		writel_relaxed(timing->emc_auto_cal_interval,
-			       emc->regs + EMC_AUTO_CAL_INTERVAL);
-
-	/* restore dynamic self-refresh */
-	if (timing->emc_cfg_dyn_self_ref) {
-		emc->emc_cfg |= EMC_CFG_DYN_SREF_ENABLE;
-		writel_relaxed(emc->emc_cfg, emc->regs + EMC_CFG);
-	}
-
-	/* set number of clocks to wait after each ZQ command */
-	if (emc->zcal_long)
-		writel_relaxed(timing->emc_zcal_cnt_long,
-			       emc->regs + EMC_ZCAL_WAIT_CNT);
-
-	/* wait for writes to settle */
-	udelay(2);
-
-	/* update restored timing */
-	err = emc_seq_update_timing(emc);
-	if (err)
-		failed = true;
-
-	/* restore early ACK */
-	mc_writel(emc->mc, emc->mc_override, MC_EMEM_ARB_OVERRIDE);
-
-	WRITE_ONCE(emc->bad_state, failed);
-}
-
 static irqreturn_t tegra_emc_isr(int irq, void *data)
 {
 	struct tegra_emc *emc = data;
-	u32 intmask = EMC_REFRESH_OVERFLOW_INT | EMC_CLKCHANGE_COMPLETE_INT;
+	u32 intmask = EMC_REFRESH_OVERFLOW_INT;
 	u32 status;
 
 	status = readl_relaxed(emc->regs + EMC_INTSTATUS) & intmask;
@@ -433,18 +389,6 @@ static irqreturn_t tegra_emc_isr(int irq, void *data)
 
 	/* clear interrupts */
 	writel_relaxed(status, emc->regs + EMC_INTSTATUS);
-
-	/* notify about EMC-CAR handshake completion */
-	if (status & EMC_CLKCHANGE_COMPLETE_INT) {
-		if (completion_done(&emc->clk_handshake_complete)) {
-			dev_err_ratelimited(emc->dev,
-					    "bogus handshake interrupt\n");
-			return IRQ_NONE;
-		}
-
-		emc_complete_clk_change(emc);
-		complete(&emc->clk_handshake_complete);
-	}
 
 	return IRQ_HANDLED;
 }
@@ -801,29 +745,58 @@ static int emc_prepare_timing_change(struct tegra_emc *emc, unsigned long rate)
 	 */
 	mc_readl(emc->mc, MC_EMEM_ARB_OVERRIDE);
 
-	reinit_completion(&emc->clk_handshake_complete);
-
-	emc->new_timing = timing;
-
 	return 0;
 }
 
 static int emc_complete_timing_change(struct tegra_emc *emc,
 				      unsigned long rate)
 {
-	unsigned long timeout;
+	struct emc_timing *timing = emc_find_timing(emc, rate);
+	unsigned int dram_num;
+	int err;
+	u32 v;
 
-	timeout = wait_for_completion_timeout(&emc->clk_handshake_complete,
-					      msecs_to_jiffies(100));
-	if (timeout == 0) {
-		dev_err(emc->dev, "emc-car handshake failed\n");
-		return -EIO;
+	err = readl_relaxed_poll_timeout_atomic(emc->regs + EMC_INTSTATUS, v,
+						v & EMC_CLKCHANGE_COMPLETE_INT,
+						1, 100);
+	if (err) {
+		dev_err(emc->dev, "emc-car handshake timeout: %d\n", err);
+		return err;
 	}
 
-	if (READ_ONCE(emc->bad_state))
-		return -EIO;
+	/* re-enable auto-refresh */
+	dram_num = tegra_mc_get_emem_device_count(emc->mc);
+	writel_relaxed(EMC_REFCTRL_ENABLE_ALL(dram_num),
+		       emc->regs + EMC_REFCTRL);
 
-	return 0;
+	/* restore auto-calibration */
+	if (emc->vref_cal_toggle)
+		writel_relaxed(timing->emc_auto_cal_interval,
+			       emc->regs + EMC_AUTO_CAL_INTERVAL);
+
+	/* restore dynamic self-refresh */
+	if (timing->emc_cfg_dyn_self_ref) {
+		emc->emc_cfg |= EMC_CFG_DYN_SREF_ENABLE;
+		writel_relaxed(emc->emc_cfg, emc->regs + EMC_CFG);
+	}
+
+	/* set number of clocks to wait after each ZQ command */
+	if (emc->zcal_long)
+		writel_relaxed(timing->emc_zcal_cnt_long,
+			       emc->regs + EMC_ZCAL_WAIT_CNT);
+
+	/* wait for writes to settle */
+	udelay(2);
+
+	/* update restored timing */
+	err = emc_seq_update_timing(emc);
+	if (!err)
+		emc->bad_state = false;
+
+	/* restore early ACK */
+	mc_writel(emc->mc, emc->mc_override, MC_EMEM_ARB_OVERRIDE);
+
+	return err;
 }
 
 static int emc_unprepare_timing_change(struct tegra_emc *emc,
@@ -1033,7 +1006,7 @@ static struct device_node *emc_find_node_by_ram_code(struct device *dev)
 
 static int emc_setup_hw(struct tegra_emc *emc)
 {
-	u32 intmask = EMC_REFRESH_OVERFLOW_INT | EMC_CLKCHANGE_COMPLETE_INT;
+	u32 intmask = EMC_REFRESH_OVERFLOW_INT;
 	u32 fbio_cfg5, emc_cfg, emc_dbg;
 	enum emc_dram_type dram_type;
 
@@ -1256,6 +1229,11 @@ static void tegra_emc_debugfs_init(struct tegra_emc *emc)
 			emc->debugfs.max_rate = emc->timings[i].rate;
 	}
 
+	if (!emc->num_timings) {
+		emc->debugfs.min_rate = clk_get_rate(emc->clk);
+		emc->debugfs.max_rate = emc->debugfs.min_rate;
+	}
+
 	err = clk_set_rate_range(emc->clk, emc->debugfs.min_rate,
 				 emc->debugfs.max_rate);
 	if (err < 0) {
@@ -1270,11 +1248,11 @@ static void tegra_emc_debugfs_init(struct tegra_emc *emc)
 		return;
 	}
 
-	debugfs_create_file("available_rates", S_IRUGO, emc->debugfs.root,
+	debugfs_create_file("available_rates", 0444, emc->debugfs.root,
 			    emc, &tegra_emc_debug_available_rates_fops);
-	debugfs_create_file("min_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
+	debugfs_create_file("min_rate", 0644, emc->debugfs.root,
 			    emc, &tegra_emc_debug_min_rate_fops);
-	debugfs_create_file("max_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
+	debugfs_create_file("max_rate", 0644, emc->debugfs.root,
 			    emc, &tegra_emc_debug_max_rate_fops);
 }
 
@@ -1316,7 +1294,6 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	if (!emc->mc)
 		return -EPROBE_DEFER;
 
-	init_completion(&emc->clk_handshake_complete);
 	emc->clk_nb.notifier_call = emc_clk_change_notify;
 	emc->dev = &pdev->dev;
 

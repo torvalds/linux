@@ -15,6 +15,7 @@
 #include "mt76x02_dfs.h"
 #include "mt76x02_dma.h"
 
+#define MT76x02_N_WCIDS 128
 #define MT_CALIBRATE_INTERVAL	HZ
 #define MT_MAC_WORK_INTERVAL	(HZ / 10)
 
@@ -70,18 +71,22 @@ struct mt76x02_beacon_ops {
 	(dev)->beacon_ops->pre_tbtt_enable(dev, enable)
 
 struct mt76x02_dev {
-	struct mt76_dev mt76; /* must be first */
+	union { /* must be first */
+		struct mt76_dev mt76;
+		struct mt76_phy mphy;
+	};
 
 	struct mac_address macaddr_list[8];
 
 	struct mutex phy_mutex;
 
-	u16 vif_mask;
+	u16 chainmask;
 
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 	spinlock_t txstatus_fifo_lock;
 	u32 tx_airtime;
+	u32 ampdu_ref;
 
 	struct sk_buff *rx_head;
 
@@ -93,8 +98,7 @@ struct mt76x02_dev {
 
 	const struct mt76x02_beacon_ops *beacon_ops;
 
-	struct sk_buff *beacons[8];
-	u8 beacon_data_mask;
+	u8 beacon_data_count;
 
 	u8 tbtt_count;
 
@@ -104,13 +108,14 @@ struct mt76x02_dev {
 
 	struct mt76x02_calibration cal;
 
+	int txpower_conf;
 	s8 target_power;
 	s8 target_power_delta[2];
 	bool enable_tpc;
 
 	bool no_2ghz;
 
-	u8 coverage_class;
+	s16 coverage_class;
 	u8 slottime;
 
 	struct mt76x02_dfs_pattern_detector dfs_pd;
@@ -182,6 +187,8 @@ void mt76x02_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *info, u32 changed);
+void mt76x02_reconfig_complete(struct ieee80211_hw *hw,
+			       enum ieee80211_reconfig_type reconfig_type);
 
 struct beacon_bc_data {
 	struct mt76x02_dev *dev;
@@ -211,6 +218,7 @@ static inline bool is_mt76x0(struct mt76x02_dev *dev)
 static inline bool is_mt76x2(struct mt76x02_dev *dev)
 {
 	return mt76_chip(&dev->mt76) == 0x7612 ||
+	       mt76_chip(&dev->mt76) == 0x7632 ||
 	       mt76_chip(&dev->mt76) == 0x7662 ||
 	       mt76_chip(&dev->mt76) == 0x7602;
 }
@@ -238,7 +246,7 @@ mt76x02_rx_get_sta(struct mt76_dev *dev, u8 idx)
 {
 	struct mt76_wcid *wcid;
 
-	if (idx >= ARRAY_SIZE(dev->wcid))
+	if (idx >= MT76x02_N_WCIDS)
 		return NULL;
 
 	wcid = rcu_dereference(dev->wcid[idx]);

@@ -1519,6 +1519,7 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 		spin_lock(&configfs_dirent_lock);
 		configfs_detach_rollback(dentry);
 		spin_unlock(&configfs_dirent_lock);
+		config_item_put(parent_item);
 		return -EINTR;
 	}
 	frag->frag_dead = true;
@@ -1687,11 +1688,11 @@ static loff_t configfs_dir_lseek(struct file *file, loff_t offset, int whence)
 	switch (whence) {
 		case 1:
 			offset += file->f_pos;
-			/* fall through */
+			fallthrough;
 		case 0:
 			if (offset >= 0)
 				break;
-			/* fall through */
+			fallthrough;
 		default:
 			return -EINVAL;
 	}

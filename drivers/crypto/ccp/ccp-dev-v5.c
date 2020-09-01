@@ -221,8 +221,8 @@ static unsigned int ccp5_get_free_slots(struct ccp_cmd_queue *cmd_q)
 static int ccp5_do_cmd(struct ccp5_desc *desc,
 		       struct ccp_cmd_queue *cmd_q)
 {
-	u32 *mP;
-	__le32 *dP;
+	__le32 *mP;
+	u32 *dP;
 	u32 tail;
 	int	i;
 	int ret = 0;
@@ -235,8 +235,8 @@ static int ccp5_do_cmd(struct ccp5_desc *desc,
 	}
 	mutex_lock(&cmd_q->q_mutex);
 
-	mP = (u32 *) &cmd_q->qbase[cmd_q->qidx];
-	dP = (__le32 *) desc;
+	mP = (__le32 *)&cmd_q->qbase[cmd_q->qidx];
+	dP = (u32 *)desc;
 	for (i = 0; i < 8; i++)
 		mP[i] = cpu_to_le32(dP[i]); /* handle endianness */
 

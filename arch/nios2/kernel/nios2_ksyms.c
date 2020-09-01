@@ -8,9 +8,9 @@
 
 #include <linux/export.h>
 #include <linux/string.h>
+#include <linux/pgtable.h>
 
 #include <asm/cacheflush.h>
-#include <asm/pgtable.h>
 
 /* string functions */
 

@@ -88,13 +88,9 @@ const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
 {
 	struct dsa_tag_driver *dsa_tag_driver;
 	const struct dsa_device_ops *ops;
-	char module_name[128];
 	bool found = false;
 
-	snprintf(module_name, 127, "%s%d", DSA_TAG_DRIVER_ALIAS,
-		 tag_protocol);
-
-	request_module(module_name);
+	request_module("%s%d", DSA_TAG_DRIVER_ALIAS, tag_protocol);
 
 	mutex_lock(&dsa_tag_drivers_lock);
 	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
@@ -238,7 +234,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (dsa_skb_defer_rx_timestamp(p, skb))
 		return 0;
 
-	netif_receive_skb(skb);
+	gro_cells_receive(&p->gcells, skb);
 
 	return 0;
 }
@@ -415,6 +411,15 @@ void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
 	devlink_resource_occ_get_unregister(ds->devlink, resource_id);
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_resource_occ_get_unregister);
+
+struct dsa_port *dsa_port_from_netdev(struct net_device *netdev)
+{
+	if (!netdev || !dsa_slave_dev_check(netdev))
+		return ERR_PTR(-ENODEV);
+
+	return dsa_slave_to_port(netdev);
+}
+EXPORT_SYMBOL_GPL(dsa_port_from_netdev);
 
 static int __init dsa_init_module(void)
 {

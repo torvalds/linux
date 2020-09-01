@@ -23,6 +23,7 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/pm.h>
@@ -72,7 +73,14 @@ struct sdhci_acpi_host {
 	const struct sdhci_acpi_slot	*slot;
 	struct platform_device		*pdev;
 	bool				use_runtime_pm;
-	unsigned long			private[0] ____cacheline_aligned;
+	bool				is_intel;
+	bool				reset_signal_volt_on_suspend;
+	unsigned long			private[] ____cacheline_aligned;
+};
+
+enum {
+	DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP			= BIT(0),
+	DMI_QUIRK_SD_NO_WRITE_PROTECT				= BIT(1),
 };
 
 static inline void *sdhci_acpi_priv(struct sdhci_acpi_host *c)
@@ -234,7 +242,7 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 static bool sdhci_acpi_byt(void)
 {
 	static const struct x86_cpu_id byt[] = {
-		{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT },
+		X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT, NULL),
 		{}
 	};
 
@@ -244,7 +252,7 @@ static bool sdhci_acpi_byt(void)
 static bool sdhci_acpi_cht(void)
 {
 	static const struct x86_cpu_id cht[] = {
-		{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_AIRMONT },
+		X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT, NULL),
 		{}
 	};
 
@@ -391,6 +399,8 @@ static int intel_probe_slot(struct platform_device *pdev, struct acpi_device *ad
 	host->mmc_host_ops.start_signal_voltage_switch =
 					intel_start_signal_voltage_switch;
 
+	c->is_intel = true;
+
 	return 0;
 }
 
@@ -525,6 +535,11 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd = {
 	.caps    = MMC_CAP_NONREMOVABLE,
 };
 
+struct amd_sdhci_host {
+	bool	tuned_clock;
+	bool	dll_enabled;
+};
+
 /* AMD sdhci reset dll register. */
 #define SDHCI_AMD_RESET_DLL_REGISTER    0x908
 
@@ -532,6 +547,7 @@ static int amd_select_drive_strength(struct mmc_card *card,
 				     unsigned int max_dtr, int host_drv,
 				     int card_drv, int *drv_type)
 {
+	*drv_type = MMC_SET_DRIVER_TYPE_A;
 	return MMC_SET_DRIVER_TYPE_A;
 }
 
@@ -544,24 +560,64 @@ static void sdhci_acpi_amd_hs400_dll(struct sdhci_host *host)
 }
 
 /*
- * For AMD Platform it is required to disable the tuning
- * bit first controller to bring to HS Mode from HS200
- * mode, later enable to tune to HS400 mode.
+ * The initialization sequence for HS400 is:
+ *     HS->HS200->Perform Tuning->HS->HS400
+ *
+ * The re-tuning sequence is:
+ *     HS400->DDR52->HS->HS200->Perform Tuning->HS->HS400
+ *
+ * The AMD eMMC Controller can only use the tuned clock while in HS200 and HS400
+ * mode. If we switch to a different mode, we need to disable the tuned clock.
+ * If we have previously performed tuning and switch back to HS200 or
+ * HS400, we can re-enable the tuned clock.
+ *
  */
 static void amd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_acpi_host *acpi_host = sdhci_priv(host);
+	struct amd_sdhci_host *amd_host = sdhci_acpi_priv(acpi_host);
 	unsigned int old_timing = host->timing;
+	u16 val;
 
 	sdhci_set_ios(mmc, ios);
-	if (old_timing == MMC_TIMING_MMC_HS200 &&
-	    ios->timing == MMC_TIMING_MMC_HS)
-		sdhci_writew(host, 0x9, SDHCI_HOST_CONTROL2);
-	if (old_timing != MMC_TIMING_MMC_HS400 &&
-	    ios->timing == MMC_TIMING_MMC_HS400) {
-		sdhci_writew(host, 0x80, SDHCI_HOST_CONTROL2);
-		sdhci_acpi_amd_hs400_dll(host);
+
+	if (old_timing != host->timing && amd_host->tuned_clock) {
+		if (host->timing == MMC_TIMING_MMC_HS400 ||
+		    host->timing == MMC_TIMING_MMC_HS200) {
+			val = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+			val |= SDHCI_CTRL_TUNED_CLK;
+			sdhci_writew(host, val, SDHCI_HOST_CONTROL2);
+		} else {
+			val = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+			val &= ~SDHCI_CTRL_TUNED_CLK;
+			sdhci_writew(host, val, SDHCI_HOST_CONTROL2);
+		}
+
+		/* DLL is only required for HS400 */
+		if (host->timing == MMC_TIMING_MMC_HS400 &&
+		    !amd_host->dll_enabled) {
+			sdhci_acpi_amd_hs400_dll(host);
+			amd_host->dll_enabled = true;
+		}
 	}
+}
+
+static int amd_sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	int err;
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_acpi_host *acpi_host = sdhci_priv(host);
+	struct amd_sdhci_host *amd_host = sdhci_acpi_priv(acpi_host);
+
+	amd_host->tuned_clock = false;
+
+	err = sdhci_execute_tuning(mmc, opcode);
+
+	if (!err && !host->tuning_err)
+		amd_host->tuned_clock = true;
+
+	return err;
 }
 
 static const struct sdhci_ops sdhci_acpi_ops_amd = {
@@ -591,15 +647,19 @@ static int sdhci_acpi_emmc_amd_probe_slot(struct platform_device *pdev,
 
 	host->mmc_host_ops.select_drive_strength = amd_select_drive_strength;
 	host->mmc_host_ops.set_ios = amd_set_ios;
+	host->mmc_host_ops.execute_tuning = amd_sdhci_execute_tuning;
 	return 0;
 }
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_amd_emmc = {
-	.chip   = &sdhci_acpi_chip_amd,
-	.caps   = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
-	.quirks = SDHCI_QUIRK_32BIT_DMA_ADDR | SDHCI_QUIRK_32BIT_DMA_SIZE |
-			SDHCI_QUIRK_32BIT_ADMA_SIZE,
+	.chip		= &sdhci_acpi_chip_amd,
+	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
+			  SDHCI_QUIRK_32BIT_DMA_SIZE |
+			  SDHCI_QUIRK_32BIT_ADMA_SIZE,
+	.quirks2	= SDHCI_QUIRK2_BROKEN_64_BIT_DMA,
 	.probe_slot     = sdhci_acpi_emmc_amd_probe_slot,
+	.priv_size	= sizeof(struct amd_sdhci_host),
 };
 
 struct sdhci_acpi_uid_slot {
@@ -647,6 +707,36 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, sdhci_acpi_ids);
 
+static const struct dmi_system_id sdhci_acpi_quirks[] = {
+	{
+		/*
+		 * The Lenovo Miix 320-10ICR has a bug in the _PS0 method of
+		 * the SHC1 ACPI device, this bug causes it to reprogram the
+		 * wrong LDO (DLDO3) to 1.8V if 1.8V modes are used and the
+		 * card is (runtime) suspended + resumed. DLDO3 is used for
+		 * the LCD and setting it to 1.8V causes the LCD to go black.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
+		},
+		.driver_data = (void *)DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP,
+	},
+	{
+		/*
+		 * The Acer Aspire Switch 10 (SW5-012) microSD slot always
+		 * reports the card being write-protected even though microSD
+		 * cards do not have a write-protect switch at all.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire SW5-012"),
+		},
+		.driver_data = (void *)DMI_QUIRK_SD_NO_WRITE_PROTECT,
+	},
+	{} /* Terminating entry */
+};
+
 static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(struct acpi_device *adev)
 {
 	const struct sdhci_acpi_uid_slot *u;
@@ -663,16 +753,22 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct sdhci_acpi_slot *slot;
 	struct acpi_device *device, *child;
+	const struct dmi_system_id *id;
 	struct sdhci_acpi_host *c;
 	struct sdhci_host *host;
 	struct resource *iomem;
 	resource_size_t len;
 	size_t priv_size;
+	int quirks = 0;
 	int err;
 
 	device = ACPI_COMPANION(dev);
 	if (!device)
 		return -ENODEV;
+
+	id = dmi_first_match(sdhci_acpi_quirks);
+	if (id)
+		quirks = (long)id->driver_data;
 
 	slot = sdhci_acpi_get_slot(device);
 
@@ -759,6 +855,12 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 			dev_warn(dev, "failed to setup card detect gpio\n");
 			c->use_runtime_pm = false;
 		}
+
+		if (quirks & DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP)
+			c->reset_signal_volt_on_suspend = true;
+
+		if (quirks & DMI_QUIRK_SD_NO_WRITE_PROTECT)
+			host->mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
 	}
 
 	err = sdhci_setup_host(host);
@@ -823,17 +925,39 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void __maybe_unused sdhci_acpi_reset_signal_voltage_if_needed(
+	struct device *dev)
+{
+	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
+	struct sdhci_host *host = c->host;
+
+	if (c->is_intel && c->reset_signal_volt_on_suspend &&
+	    host->mmc->ios.signal_voltage != MMC_SIGNAL_VOLTAGE_330) {
+		struct intel_host *intel_host = sdhci_acpi_priv(c);
+		unsigned int fn = INTEL_DSM_V33_SWITCH;
+		u32 result = 0;
+
+		intel_dsm(intel_host, dev, fn, &result);
+	}
+}
+
 #ifdef CONFIG_PM_SLEEP
 
 static int sdhci_acpi_suspend(struct device *dev)
 {
 	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
 	struct sdhci_host *host = c->host;
+	int ret;
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
 
-	return sdhci_suspend_host(host);
+	ret = sdhci_suspend_host(host);
+	if (ret)
+		return ret;
+
+	sdhci_acpi_reset_signal_voltage_if_needed(dev);
+	return 0;
 }
 
 static int sdhci_acpi_resume(struct device *dev)
@@ -853,11 +977,17 @@ static int sdhci_acpi_runtime_suspend(struct device *dev)
 {
 	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
 	struct sdhci_host *host = c->host;
+	int ret;
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
 
-	return sdhci_runtime_suspend_host(host);
+	ret = sdhci_runtime_suspend_host(host);
+	if (ret)
+		return ret;
+
+	sdhci_acpi_reset_signal_voltage_if_needed(dev);
+	return 0;
 }
 
 static int sdhci_acpi_runtime_resume(struct device *dev)

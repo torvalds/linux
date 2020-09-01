@@ -339,7 +339,7 @@ struct fsl_mc_io {
 		 * This field is only meaningful if the
 		 * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is set
 		 */
-		spinlock_t spinlock;	/* serializes mc_send_command() */
+		raw_spinlock_t spinlock; /* serializes mc_send_command() */
 	};
 };
 
@@ -381,6 +381,22 @@ int __must_check __fsl_mc_driver_register(struct fsl_mc_driver *fsl_mc_driver,
 
 void fsl_mc_driver_unregister(struct fsl_mc_driver *driver);
 
+/**
+ * struct fsl_mc_version
+ * @major: Major version number: incremented on API compatibility changes
+ * @minor: Minor version number: incremented on API additions (that are
+ *		backward compatible); reset when major version is incremented
+ * @revision: Internal revision number: incremented on implementation changes
+ *		and/or bug fixes that have no impact on API
+ */
+struct fsl_mc_version {
+	u32 major;
+	u32 minor;
+	u32 revision;
+};
+
+struct fsl_mc_version *fsl_mc_get_version(void);
+
 int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 					u16 mc_io_flags,
 					struct fsl_mc_io **new_mc_io);
@@ -417,6 +433,11 @@ extern struct device_type fsl_mc_bus_dpmcp_type;
 extern struct device_type fsl_mc_bus_dpmac_type;
 extern struct device_type fsl_mc_bus_dprtc_type;
 extern struct device_type fsl_mc_bus_dpseci_type;
+extern struct device_type fsl_mc_bus_dpdmux_type;
+extern struct device_type fsl_mc_bus_dpdcei_type;
+extern struct device_type fsl_mc_bus_dpaiop_type;
+extern struct device_type fsl_mc_bus_dpci_type;
+extern struct device_type fsl_mc_bus_dpdmai_type;
 
 static inline bool is_fsl_mc_bus_dprc(const struct fsl_mc_device *mc_dev)
 {
@@ -436,6 +457,11 @@ static inline bool is_fsl_mc_bus_dpio(const struct fsl_mc_device *mc_dev)
 static inline bool is_fsl_mc_bus_dpsw(const struct fsl_mc_device *mc_dev)
 {
 	return mc_dev->dev.type == &fsl_mc_bus_dpsw_type;
+}
+
+static inline bool is_fsl_mc_bus_dpdmux(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpdmux_type;
 }
 
 static inline bool is_fsl_mc_bus_dpbp(const struct fsl_mc_device *mc_dev)
@@ -466,6 +492,26 @@ static inline bool is_fsl_mc_bus_dprtc(const struct fsl_mc_device *mc_dev)
 static inline bool is_fsl_mc_bus_dpseci(const struct fsl_mc_device *mc_dev)
 {
 	return mc_dev->dev.type == &fsl_mc_bus_dpseci_type;
+}
+
+static inline bool is_fsl_mc_bus_dpdcei(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpdcei_type;
+}
+
+static inline bool is_fsl_mc_bus_dpaiop(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpaiop_type;
+}
+
+static inline bool is_fsl_mc_bus_dpci(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpci_type;
+}
+
+static inline bool is_fsl_mc_bus_dpdmai(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpdmai_type;
 }
 
 /*

@@ -82,6 +82,7 @@ struct ad5755_chip_info {
  * @pwr_down:	bitmask which contains  hether a channel is powered down or not
  * @ctrl:	software shadow of the channel ctrl registers
  * @channels:	iio channel spec for the device
+ * @lock:	lock to protect the data buffer during SPI ops
  * @data:	spi transfer buffers
  */
 struct ad5755_state {
@@ -90,6 +91,7 @@ struct ad5755_state {
 	unsigned int			pwr_down;
 	unsigned int			ctrl[AD5755_NUM_CHANNELS];
 	struct iio_chan_spec		channels[AD5755_NUM_CHANNELS];
+	struct mutex			lock;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -174,11 +176,12 @@ static int ad5755_write_ctrl_unlocked(struct iio_dev *indio_dev,
 static int ad5755_write(struct iio_dev *indio_dev, unsigned int reg,
 	unsigned int val)
 {
+	struct ad5755_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	ret = ad5755_write_unlocked(indio_dev, reg, val);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -186,11 +189,12 @@ static int ad5755_write(struct iio_dev *indio_dev, unsigned int reg,
 static int ad5755_write_ctrl(struct iio_dev *indio_dev, unsigned int channel,
 	unsigned int reg, unsigned int val)
 {
+	struct ad5755_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	ret = ad5755_write_ctrl_unlocked(indio_dev, channel, reg, val);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -211,7 +215,7 @@ static int ad5755_read(struct iio_dev *indio_dev, unsigned int addr)
 		},
 	};
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 
 	st->data[0].d32 = cpu_to_be32(AD5755_READ_FLAG | (addr << 16));
 	st->data[1].d32 = cpu_to_be32(AD5755_NOOP);
@@ -220,7 +224,7 @@ static int ad5755_read(struct iio_dev *indio_dev, unsigned int addr)
 	if (ret >= 0)
 		ret = be32_to_cpu(st->data[1].d32) & 0xffff;
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -246,7 +250,7 @@ static int ad5755_set_channel_pwr_down(struct iio_dev *indio_dev,
 	struct ad5755_state *st = iio_priv(indio_dev);
 	unsigned int mask = BIT(channel);
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 
 	if ((bool)(st->pwr_down & mask) == pwr_down)
 		goto out_unlock;
@@ -266,7 +270,7 @@ static int ad5755_set_channel_pwr_down(struct iio_dev *indio_dev,
 	}
 
 out_unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return 0;
 }
@@ -631,10 +635,9 @@ static struct ad5755_platform_data *ad5755_parse_dt(struct device *dev)
 			}
 		}
 
-		if (i == ARRAY_SIZE(ad5755_dcdc_freq_table)) {
+		if (i == ARRAY_SIZE(ad5755_dcdc_freq_table))
 			dev_err(dev,
-				"adi,dc-dc-freq out of range selecting 410kHz");
-		}
+				"adi,dc-dc-freq out of range selecting 410kHz\n");
 	}
 
 	pdata->dc_dc_maxv = AD5755_DC_DC_MAXV_23V;
@@ -645,17 +648,16 @@ static struct ad5755_platform_data *ad5755_parse_dt(struct device *dev)
 				break;
 			}
 		}
-		if (i == ARRAY_SIZE(ad5755_dcdc_maxv_table)) {
+		if (i == ARRAY_SIZE(ad5755_dcdc_maxv_table))
 				dev_err(dev,
-					"adi,dc-dc-maxv out of range selecting 23V");
-		}
+					"adi,dc-dc-maxv out of range selecting 23V\n");
 	}
 
 	devnr = 0;
 	for_each_child_of_node(np, pp) {
 		if (devnr >= AD5755_NUM_CHANNELS) {
 			dev_err(dev,
-				"There is to many channels defined in DT\n");
+				"There are too many channels defined in DT\n");
 			goto error_out;
 		}
 
@@ -681,11 +683,10 @@ static struct ad5755_platform_data *ad5755_parse_dt(struct device *dev)
 					break;
 				}
 			}
-			if (i == ARRAY_SIZE(ad5755_slew_rate_table)) {
+			if (i == ARRAY_SIZE(ad5755_slew_rate_table))
 				dev_err(dev,
-					"channel %d slew rate out of range selecting 64kHz",
+					"channel %d slew rate out of range selecting 64kHz\n",
 					devnr);
-			}
 
 			pdata->dac[devnr].slew.step_size = AD5755_SLEW_STEP_SIZE_1;
 			for (i = 0; i < ARRAY_SIZE(ad5755_slew_step_table); i++) {
@@ -695,11 +696,10 @@ static struct ad5755_platform_data *ad5755_parse_dt(struct device *dev)
 					break;
 				}
 			}
-			if (i == ARRAY_SIZE(ad5755_slew_step_table)) {
+			if (i == ARRAY_SIZE(ad5755_slew_step_table))
 				dev_err(dev,
-					"channel %d slew step size out of range selecting 1 LSB",
+					"channel %d slew step size out of range selecting 1 LSB\n",
 					devnr);
-			}
 		} else {
 			pdata->dac[devnr].slew.enable = false;
 			pdata->dac[devnr].slew.rate = AD5755_SLEW_RATE_64k;
@@ -744,11 +744,12 @@ static int ad5755_probe(struct spi_device *spi)
 	st->spi = spi;
 	st->pwr_down = 0xf;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad5755_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->num_channels = AD5755_NUM_CHANNELS;
+
+	mutex_init(&st->lock);
 
 	if (spi->dev.of_node)
 		pdata = ad5755_parse_dt(&spi->dev);

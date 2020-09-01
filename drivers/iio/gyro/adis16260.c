@@ -346,6 +346,7 @@ static const struct adis_data adis16260_data = {
 	.diag_stat_reg = ADIS16260_DIAG_STAT,
 
 	.self_test_mask = ADIS16260_MSC_CTRL_MEM_TEST,
+	.self_test_reg = ADIS16260_MSC_CTRL,
 	.timeouts = &adis16260_timeouts,
 
 	.status_error_msgs = adis1620_status_error_msgs,
@@ -380,7 +381,6 @@ static int adis16260_probe(struct spi_device *spi)
 	adis16260->info = &adis16260_chip_info_table[id->driver_data];
 
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16260_info;
 	indio_dev->channels = adis16260->info->channels;
 	indio_dev->num_channels = adis16260->info->num_channels;

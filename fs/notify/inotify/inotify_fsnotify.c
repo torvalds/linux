@@ -39,7 +39,7 @@ static bool event_compare(struct fsnotify_event *old_fsn,
 	if (old->mask & FS_IN_IGNORED)
 		return false;
 	if ((old->mask == new->mask) &&
-	    (old_fsn->inode == new_fsn->inode) &&
+	    (old->wd == new->wd) &&
 	    (old->name_len == new->name_len) &&
 	    (!old->name_len || !strcmp(old->name, new->name)))
 		return true;
@@ -55,13 +55,11 @@ static int inotify_merge(struct list_head *list,
 	return event_compare(last_event, event);
 }
 
-int inotify_handle_event(struct fsnotify_group *group,
-			 struct inode *inode,
-			 u32 mask, const void *data, int data_type,
-			 const struct qstr *file_name, u32 cookie,
-			 struct fsnotify_iter_info *iter_info)
+static int inotify_one_event(struct fsnotify_group *group, u32 mask,
+			     struct fsnotify_mark *inode_mark,
+			     const struct path *path,
+			     const struct qstr *file_name, u32 cookie)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct inotify_inode_mark *i_mark;
 	struct inotify_event_info *event;
 	struct fsnotify_event *fsn_event;
@@ -69,22 +67,16 @@ int inotify_handle_event(struct fsnotify_group *group,
 	int len = 0;
 	int alloc_len = sizeof(struct inotify_event_info);
 
-	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
+	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
+	    path && d_unlinked(path->dentry))
 		return 0;
 
-	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
-	    (data_type == FSNOTIFY_EVENT_PATH)) {
-		const struct path *path = data;
-
-		if (d_unlinked(path->dentry))
-			return 0;
-	}
 	if (file_name) {
 		len = file_name->len;
 		alloc_len += len + 1;
 	}
 
-	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
+	pr_debug("%s: group=%p mark=%p mask=%x\n", __func__, group, inode_mark,
 		 mask);
 
 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
@@ -118,7 +110,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 		mask &= ~IN_ISDIR;
 
 	fsn_event = &event->fse;
-	fsnotify_init_event(fsn_event, inode);
+	fsnotify_init_event(fsn_event, 0);
 	event->mask = mask;
 	event->wd = i_mark->wd;
 	event->sync_cookie = cookie;
@@ -136,6 +128,37 @@ int inotify_handle_event(struct fsnotify_group *group,
 		fsnotify_destroy_mark(inode_mark, group);
 
 	return 0;
+}
+
+int inotify_handle_event(struct fsnotify_group *group, u32 mask,
+			 const void *data, int data_type, struct inode *dir,
+			 const struct qstr *file_name, u32 cookie,
+			 struct fsnotify_iter_info *iter_info)
+{
+	const struct path *path = fsnotify_data_path(data, data_type);
+	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
+	struct fsnotify_mark *child_mark = fsnotify_iter_child_mark(iter_info);
+	int ret = 0;
+
+	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
+		return 0;
+
+	/*
+	 * Some events cannot be sent on both parent and child marks
+	 * (e.g. IN_CREATE).  Those events are always sent on inode_mark.
+	 * For events that are possible on both parent and child (e.g. IN_OPEN),
+	 * event is sent on inode_mark with name if the parent is watching and
+	 * is sent on child_mark without name if child is watching.
+	 * If both parent and child are watching, report the event with child's
+	 * name here and report another event without child's name below.
+	 */
+	if (inode_mark)
+		ret = inotify_one_event(group, mask, inode_mark, path,
+					file_name, cookie);
+	if (ret || !child_mark)
+		return ret;
+
+	return inotify_one_event(group, mask, child_mark, path, NULL, 0);
 }
 
 static void inotify_freeing_mark(struct fsnotify_mark *fsn_mark, struct fsnotify_group *group)

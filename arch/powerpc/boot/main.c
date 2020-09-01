@@ -104,7 +104,7 @@ static struct addr_range prep_initrd(struct addr_range vmlinux, void *chosen,
 {
 	/* If we have an image attached to us, it overrides anything
 	 * supplied by the loader. */
-	if (_initrd_end > _initrd_start) {
+	if (&_initrd_end > &_initrd_start) {
 		printf("Attached initrd image at 0x%p-0x%p\n\r",
 		       _initrd_start, _initrd_end);
 		initrd_addr = (unsigned long)_initrd_start;
@@ -152,7 +152,7 @@ static void prep_esm_blob(struct addr_range vmlinux, void *chosen)
 	unsigned long esm_blob_addr, esm_blob_size;
 
 	/* Do we have an ESM (Enter Secure Mode) blob? */
-	if (_esm_blob_end <= _esm_blob_start)
+	if (&_esm_blob_end <= &_esm_blob_start)
 		return;
 
 	printf("Attached ESM blob at 0x%p-0x%p\n\r",

@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/phy.h>
 #include <linux/marvell_phy.h>
 #include <linux/bitfield.h>
@@ -41,7 +42,9 @@
 #define MII_MARVELL_FIBER_PAGE		0x01
 #define MII_MARVELL_MSCR_PAGE		0x02
 #define MII_MARVELL_LED_PAGE		0x03
+#define MII_MARVELL_VCT5_PAGE		0x05
 #define MII_MARVELL_MISC_TEST_PAGE	0x06
+#define MII_MARVELL_VCT7_PAGE		0x07
 #define MII_MARVELL_WOL_PAGE		0x11
 
 #define MII_M1011_IEVENT		0x13
@@ -162,6 +165,90 @@
 #define MII_88E1510_GEN_CTRL_REG_1_MODE_SGMII	0x1	/* SGMII to copper */
 #define MII_88E1510_GEN_CTRL_REG_1_RESET	0x8000	/* Soft reset */
 
+#define MII_VCT5_TX_RX_MDI0_COUPLING	0x10
+#define MII_VCT5_TX_RX_MDI1_COUPLING	0x11
+#define MII_VCT5_TX_RX_MDI2_COUPLING	0x12
+#define MII_VCT5_TX_RX_MDI3_COUPLING	0x13
+#define MII_VCT5_TX_RX_AMPLITUDE_MASK	0x7f00
+#define MII_VCT5_TX_RX_AMPLITUDE_SHIFT	8
+#define MII_VCT5_TX_RX_COUPLING_POSITIVE_REFLECTION	BIT(15)
+
+#define MII_VCT5_CTRL				0x17
+#define MII_VCT5_CTRL_ENABLE				BIT(15)
+#define MII_VCT5_CTRL_COMPLETE				BIT(14)
+#define MII_VCT5_CTRL_TX_SAME_CHANNEL			(0x0 << 11)
+#define MII_VCT5_CTRL_TX0_CHANNEL			(0x4 << 11)
+#define MII_VCT5_CTRL_TX1_CHANNEL			(0x5 << 11)
+#define MII_VCT5_CTRL_TX2_CHANNEL			(0x6 << 11)
+#define MII_VCT5_CTRL_TX3_CHANNEL			(0x7 << 11)
+#define MII_VCT5_CTRL_SAMPLES_2				(0x0 << 8)
+#define MII_VCT5_CTRL_SAMPLES_4				(0x1 << 8)
+#define MII_VCT5_CTRL_SAMPLES_8				(0x2 << 8)
+#define MII_VCT5_CTRL_SAMPLES_16			(0x3 << 8)
+#define MII_VCT5_CTRL_SAMPLES_32			(0x4 << 8)
+#define MII_VCT5_CTRL_SAMPLES_64			(0x5 << 8)
+#define MII_VCT5_CTRL_SAMPLES_128			(0x6 << 8)
+#define MII_VCT5_CTRL_SAMPLES_DEFAULT			(0x6 << 8)
+#define MII_VCT5_CTRL_SAMPLES_256			(0x7 << 8)
+#define MII_VCT5_CTRL_SAMPLES_SHIFT			8
+#define MII_VCT5_CTRL_MODE_MAXIMUM_PEEK			(0x0 << 6)
+#define MII_VCT5_CTRL_MODE_FIRST_LAST_PEEK		(0x1 << 6)
+#define MII_VCT5_CTRL_MODE_OFFSET			(0x2 << 6)
+#define MII_VCT5_CTRL_SAMPLE_POINT			(0x3 << 6)
+#define MII_VCT5_CTRL_PEEK_HYST_DEFAULT			3
+
+#define MII_VCT5_SAMPLE_POINT_DISTANCE		0x18
+#define MII_VCT5_SAMPLE_POINT_DISTANCE_MAX	511
+#define MII_VCT5_TX_PULSE_CTRL			0x1c
+#define MII_VCT5_TX_PULSE_CTRL_DONT_WAIT_LINK_DOWN	BIT(12)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_128nS	(0x0 << 10)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_96nS		(0x1 << 10)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_64nS		(0x2 << 10)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_32nS		(0x3 << 10)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_SHIFT	10
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_AMPLITUDE_1000mV	(0x0 << 8)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_AMPLITUDE_750mV	(0x1 << 8)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_AMPLITUDE_500mV	(0x2 << 8)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_AMPLITUDE_250mV	(0x3 << 8)
+#define MII_VCT5_TX_PULSE_CTRL_PULSE_AMPLITUDE_SHIFT	8
+#define MII_VCT5_TX_PULSE_CTRL_MAX_AMP			BIT(7)
+#define MII_VCT5_TX_PULSE_CTRL_GT_140m_46_86mV		(0x6 << 0)
+
+/* For TDR measurements less than 11 meters, a short pulse should be
+ * used.
+ */
+#define TDR_SHORT_CABLE_LENGTH	11
+
+#define MII_VCT7_PAIR_0_DISTANCE	0x10
+#define MII_VCT7_PAIR_1_DISTANCE	0x11
+#define MII_VCT7_PAIR_2_DISTANCE	0x12
+#define MII_VCT7_PAIR_3_DISTANCE	0x13
+
+#define MII_VCT7_RESULTS	0x14
+#define MII_VCT7_RESULTS_PAIR3_MASK	0xf000
+#define MII_VCT7_RESULTS_PAIR2_MASK	0x0f00
+#define MII_VCT7_RESULTS_PAIR1_MASK	0x00f0
+#define MII_VCT7_RESULTS_PAIR0_MASK	0x000f
+#define MII_VCT7_RESULTS_PAIR3_SHIFT	12
+#define MII_VCT7_RESULTS_PAIR2_SHIFT	8
+#define MII_VCT7_RESULTS_PAIR1_SHIFT	4
+#define MII_VCT7_RESULTS_PAIR0_SHIFT	0
+#define MII_VCT7_RESULTS_INVALID	0
+#define MII_VCT7_RESULTS_OK		1
+#define MII_VCT7_RESULTS_OPEN		2
+#define MII_VCT7_RESULTS_SAME_SHORT	3
+#define MII_VCT7_RESULTS_CROSS_SHORT	4
+#define MII_VCT7_RESULTS_BUSY		9
+
+#define MII_VCT7_CTRL		0x15
+#define MII_VCT7_CTRL_RUN_NOW			BIT(15)
+#define MII_VCT7_CTRL_RUN_ANEG			BIT(14)
+#define MII_VCT7_CTRL_DISABLE_CROSS		BIT(13)
+#define MII_VCT7_CTRL_RUN_AFTER_BREAK_LINK	BIT(12)
+#define MII_VCT7_CTRL_IN_PROGRESS		BIT(11)
+#define MII_VCT7_CTRL_METERS			BIT(10)
+#define MII_VCT7_CTRL_CENTIMETERS		0
+
 #define LPA_PAUSE_FIBER		0x180
 #define LPA_PAUSE_ASYM_FIBER	0x100
 
@@ -188,6 +275,11 @@ struct marvell_priv {
 	u64 stats[ARRAY_SIZE(marvell_hw_stats)];
 	char *hwmon_name;
 	struct device *hwmon_dev;
+	bool cable_test_tdr;
+	u32 first;
+	u32 last;
+	u32 step;
+	s8 pair;
 };
 
 static int marvell_read_page(struct phy_device *phydev)
@@ -337,7 +429,7 @@ static int m88e1101_config_aneg(struct phy_device *phydev)
 	return marvell_config_aneg(phydev);
 }
 
-#ifdef CONFIG_OF_MDIO
+#if IS_ENABLED(CONFIG_OF_MDIO)
 /* Set and/or override some configuration registers based on the
  * marvell,reg-init property stored in the of_node for the phydev.
  *
@@ -867,21 +959,6 @@ static int m88e1011_set_tunable(struct phy_device *phydev,
 	}
 }
 
-static void m88e1011_link_change_notify(struct phy_device *phydev)
-{
-	int status;
-
-	if (phydev->state != PHY_RUNNING)
-		return;
-
-	/* we may be on fiber page currently */
-	status = phy_read_paged(phydev, MII_MARVELL_COPPER_PAGE,
-				MII_M1011_PHY_SSR);
-
-	if (status > 0 && status & MII_M1011_PHY_SSR_DOWNSHIFT)
-		phydev_warn(phydev, "Downshift occurred! Cabling may be defective.\n");
-}
-
 static int m88e1116r_config_init(struct phy_device *phydev)
 {
 	int err;
@@ -1278,6 +1355,30 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 	int lpa;
 	int err;
 
+	if (!(status & MII_M1011_PHY_STATUS_RESOLVED)) {
+		phydev->link = 0;
+		return 0;
+	}
+
+	if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
+		phydev->duplex = DUPLEX_FULL;
+	else
+		phydev->duplex = DUPLEX_HALF;
+
+	switch (status & MII_M1011_PHY_STATUS_SPD_MASK) {
+	case MII_M1011_PHY_STATUS_1000:
+		phydev->speed = SPEED_1000;
+		break;
+
+	case MII_M1011_PHY_STATUS_100:
+		phydev->speed = SPEED_100;
+		break;
+
+	default:
+		phydev->speed = SPEED_10;
+		break;
+	}
+
 	if (!fiber) {
 		err = genphy_read_lpa(phydev);
 		if (err < 0)
@@ -1304,28 +1405,6 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 				phydev->asym_pause = 0;
 			}
 		}
-	}
-
-	if (!(status & MII_M1011_PHY_STATUS_RESOLVED))
-		return 0;
-
-	if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
-		phydev->duplex = DUPLEX_FULL;
-	else
-		phydev->duplex = DUPLEX_HALF;
-
-	switch (status & MII_M1011_PHY_STATUS_SPD_MASK) {
-	case MII_M1011_PHY_STATUS_1000:
-		phydev->speed = SPEED_1000;
-		break;
-
-	case MII_M1011_PHY_STATUS_100:
-		phydev->speed = SPEED_100;
-		break;
-
-	default:
-		phydev->speed = SPEED_10;
-		break;
 	}
 
 	return 0;
@@ -1669,6 +1748,382 @@ static void marvell_get_stats(struct phy_device *phydev,
 
 	for (i = 0; i < count; i++)
 		data[i] = marvell_get_stat(phydev, i);
+}
+
+static int marvell_vct5_wait_complete(struct phy_device *phydev)
+{
+	int i;
+	int val;
+
+	for (i = 0; i < 32; i++) {
+		val = __phy_read(phydev, MII_VCT5_CTRL);
+		if (val < 0)
+			return val;
+
+		if (val & MII_VCT5_CTRL_COMPLETE)
+			return 0;
+	}
+
+	phydev_err(phydev, "Timeout while waiting for cable test to finish\n");
+	return -ETIMEDOUT;
+}
+
+static int marvell_vct5_amplitude(struct phy_device *phydev, int pair)
+{
+	int amplitude;
+	int val;
+	int reg;
+
+	reg = MII_VCT5_TX_RX_MDI0_COUPLING + pair;
+	val = __phy_read(phydev, reg);
+
+	if (val < 0)
+		return 0;
+
+	amplitude = (val & MII_VCT5_TX_RX_AMPLITUDE_MASK) >>
+		MII_VCT5_TX_RX_AMPLITUDE_SHIFT;
+
+	if (!(val & MII_VCT5_TX_RX_COUPLING_POSITIVE_REFLECTION))
+		amplitude = -amplitude;
+
+	return 1000 * amplitude / 128;
+}
+
+static u32 marvell_vct5_distance2cm(int distance)
+{
+	return distance * 805 / 10;
+}
+
+static u32 marvell_vct5_cm2distance(int cm)
+{
+	return cm * 10 / 805;
+}
+
+static int marvell_vct5_amplitude_distance(struct phy_device *phydev,
+					   int distance, int pair)
+{
+	u16 reg;
+	int err;
+	int mV;
+	int i;
+
+	err = __phy_write(phydev, MII_VCT5_SAMPLE_POINT_DISTANCE,
+			  distance);
+	if (err)
+		return err;
+
+	reg = MII_VCT5_CTRL_ENABLE |
+		MII_VCT5_CTRL_TX_SAME_CHANNEL |
+		MII_VCT5_CTRL_SAMPLES_DEFAULT |
+		MII_VCT5_CTRL_SAMPLE_POINT |
+		MII_VCT5_CTRL_PEEK_HYST_DEFAULT;
+	err = __phy_write(phydev, MII_VCT5_CTRL, reg);
+	if (err)
+		return err;
+
+	err = marvell_vct5_wait_complete(phydev);
+	if (err)
+		return err;
+
+	for (i = 0; i < 4; i++) {
+		if (pair != PHY_PAIR_ALL && i != pair)
+			continue;
+
+		mV = marvell_vct5_amplitude(phydev, i);
+		ethnl_cable_test_amplitude(phydev, i, mV);
+	}
+
+	return 0;
+}
+
+static int marvell_vct5_amplitude_graph(struct phy_device *phydev)
+{
+	struct marvell_priv *priv = phydev->priv;
+	int distance;
+	u16 width;
+	int page;
+	int err;
+	u16 reg;
+
+	if (priv->first <= TDR_SHORT_CABLE_LENGTH)
+		width = MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_32nS;
+	else
+		width = MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_128nS;
+
+	reg = MII_VCT5_TX_PULSE_CTRL_GT_140m_46_86mV |
+		MII_VCT5_TX_PULSE_CTRL_DONT_WAIT_LINK_DOWN |
+		MII_VCT5_TX_PULSE_CTRL_MAX_AMP | width;
+
+	err = phy_write_paged(phydev, MII_MARVELL_VCT5_PAGE,
+			      MII_VCT5_TX_PULSE_CTRL, reg);
+	if (err)
+		return err;
+
+	/* Reading the TDR data is very MDIO heavy. We need to optimize
+	 * access to keep the time to a minimum. So lock the bus once,
+	 * and don't release it until complete. We can then avoid having
+	 * to change the page for every access, greatly speeding things
+	 * up.
+	 */
+	page = phy_select_page(phydev, MII_MARVELL_VCT5_PAGE);
+	if (page < 0)
+		goto restore_page;
+
+	for (distance = priv->first;
+	     distance <= priv->last;
+	     distance += priv->step) {
+		err = marvell_vct5_amplitude_distance(phydev, distance,
+						      priv->pair);
+		if (err)
+			goto restore_page;
+
+		if (distance > TDR_SHORT_CABLE_LENGTH &&
+		    width == MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_32nS) {
+			width = MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_128nS;
+			reg = MII_VCT5_TX_PULSE_CTRL_GT_140m_46_86mV |
+				MII_VCT5_TX_PULSE_CTRL_DONT_WAIT_LINK_DOWN |
+				MII_VCT5_TX_PULSE_CTRL_MAX_AMP | width;
+			err = __phy_write(phydev, MII_VCT5_TX_PULSE_CTRL, reg);
+			if (err)
+				goto restore_page;
+		}
+	}
+
+restore_page:
+	return phy_restore_page(phydev, page, err);
+}
+
+static int marvell_cable_test_start_common(struct phy_device *phydev)
+{
+	int bmcr, bmsr, ret;
+
+	/* If auto-negotiation is enabled, but not complete, the cable
+	 * test never completes. So disable auto-neg.
+	 */
+	bmcr = phy_read(phydev, MII_BMCR);
+	if (bmcr < 0)
+		return bmcr;
+
+	bmsr = phy_read(phydev, MII_BMSR);
+
+	if (bmsr < 0)
+		return bmsr;
+
+	if (bmcr & BMCR_ANENABLE) {
+		ret =  phy_modify(phydev, MII_BMCR, BMCR_ANENABLE, 0);
+		if (ret < 0)
+			return ret;
+		ret = genphy_soft_reset(phydev);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* If the link is up, allow it some time to go down */
+	if (bmsr & BMSR_LSTATUS)
+		msleep(1500);
+
+	return 0;
+}
+
+static int marvell_vct7_cable_test_start(struct phy_device *phydev)
+{
+	struct marvell_priv *priv = phydev->priv;
+	int ret;
+
+	ret = marvell_cable_test_start_common(phydev);
+	if (ret)
+		return ret;
+
+	priv->cable_test_tdr = false;
+
+	/* Reset the VCT5 API control to defaults, otherwise
+	 * VCT7 does not work correctly.
+	 */
+	ret = phy_write_paged(phydev, MII_MARVELL_VCT5_PAGE,
+			      MII_VCT5_CTRL,
+			      MII_VCT5_CTRL_TX_SAME_CHANNEL |
+			      MII_VCT5_CTRL_SAMPLES_DEFAULT |
+			      MII_VCT5_CTRL_MODE_MAXIMUM_PEEK |
+			      MII_VCT5_CTRL_PEEK_HYST_DEFAULT);
+	if (ret)
+		return ret;
+
+	ret = phy_write_paged(phydev, MII_MARVELL_VCT5_PAGE,
+			      MII_VCT5_SAMPLE_POINT_DISTANCE, 0);
+	if (ret)
+		return ret;
+
+	return phy_write_paged(phydev, MII_MARVELL_VCT7_PAGE,
+			       MII_VCT7_CTRL,
+			       MII_VCT7_CTRL_RUN_NOW |
+			       MII_VCT7_CTRL_CENTIMETERS);
+}
+
+static int marvell_vct5_cable_test_tdr_start(struct phy_device *phydev,
+					     const struct phy_tdr_config *cfg)
+{
+	struct marvell_priv *priv = phydev->priv;
+	int ret;
+
+	priv->cable_test_tdr = true;
+	priv->first = marvell_vct5_cm2distance(cfg->first);
+	priv->last = marvell_vct5_cm2distance(cfg->last);
+	priv->step = marvell_vct5_cm2distance(cfg->step);
+	priv->pair = cfg->pair;
+
+	if (priv->first > MII_VCT5_SAMPLE_POINT_DISTANCE_MAX)
+		return -EINVAL;
+
+	if (priv->last > MII_VCT5_SAMPLE_POINT_DISTANCE_MAX)
+		return -EINVAL;
+
+	/* Disable  VCT7 */
+	ret = phy_write_paged(phydev, MII_MARVELL_VCT7_PAGE,
+			      MII_VCT7_CTRL, 0);
+	if (ret)
+		return ret;
+
+	ret = marvell_cable_test_start_common(phydev);
+	if (ret)
+		return ret;
+
+	ret = ethnl_cable_test_pulse(phydev, 1000);
+	if (ret)
+		return ret;
+
+	return ethnl_cable_test_step(phydev,
+				     marvell_vct5_distance2cm(priv->first),
+				     marvell_vct5_distance2cm(priv->last),
+				     marvell_vct5_distance2cm(priv->step));
+}
+
+static int marvell_vct7_distance_to_length(int distance, bool meter)
+{
+	if (meter)
+		distance *= 100;
+
+	return distance;
+}
+
+static bool marvell_vct7_distance_valid(int result)
+{
+	switch (result) {
+	case MII_VCT7_RESULTS_OPEN:
+	case MII_VCT7_RESULTS_SAME_SHORT:
+	case MII_VCT7_RESULTS_CROSS_SHORT:
+		return true;
+	}
+	return false;
+}
+
+static int marvell_vct7_report_length(struct phy_device *phydev,
+				      int pair, bool meter)
+{
+	int length;
+	int ret;
+
+	ret = phy_read_paged(phydev, MII_MARVELL_VCT7_PAGE,
+			     MII_VCT7_PAIR_0_DISTANCE + pair);
+	if (ret < 0)
+		return ret;
+
+	length = marvell_vct7_distance_to_length(ret, meter);
+
+	ethnl_cable_test_fault_length(phydev, pair, length);
+
+	return 0;
+}
+
+static int marvell_vct7_cable_test_report_trans(int result)
+{
+	switch (result) {
+	case MII_VCT7_RESULTS_OK:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
+	case MII_VCT7_RESULTS_OPEN:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+	case MII_VCT7_RESULTS_SAME_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+	case MII_VCT7_RESULTS_CROSS_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_CROSS_SHORT;
+	default:
+		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+	}
+}
+
+static int marvell_vct7_cable_test_report(struct phy_device *phydev)
+{
+	int pair0, pair1, pair2, pair3;
+	bool meter;
+	int ret;
+
+	ret = phy_read_paged(phydev, MII_MARVELL_VCT7_PAGE,
+			     MII_VCT7_RESULTS);
+	if (ret < 0)
+		return ret;
+
+	pair3 = (ret & MII_VCT7_RESULTS_PAIR3_MASK) >>
+		MII_VCT7_RESULTS_PAIR3_SHIFT;
+	pair2 = (ret & MII_VCT7_RESULTS_PAIR2_MASK) >>
+		MII_VCT7_RESULTS_PAIR2_SHIFT;
+	pair1 = (ret & MII_VCT7_RESULTS_PAIR1_MASK) >>
+		MII_VCT7_RESULTS_PAIR1_SHIFT;
+	pair0 = (ret & MII_VCT7_RESULTS_PAIR0_MASK) >>
+		MII_VCT7_RESULTS_PAIR0_SHIFT;
+
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+				marvell_vct7_cable_test_report_trans(pair0));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_B,
+				marvell_vct7_cable_test_report_trans(pair1));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_C,
+				marvell_vct7_cable_test_report_trans(pair2));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_D,
+				marvell_vct7_cable_test_report_trans(pair3));
+
+	ret = phy_read_paged(phydev, MII_MARVELL_VCT7_PAGE, MII_VCT7_CTRL);
+	if (ret < 0)
+		return ret;
+
+	meter = ret & MII_VCT7_CTRL_METERS;
+
+	if (marvell_vct7_distance_valid(pair0))
+		marvell_vct7_report_length(phydev, 0, meter);
+	if (marvell_vct7_distance_valid(pair1))
+		marvell_vct7_report_length(phydev, 1, meter);
+	if (marvell_vct7_distance_valid(pair2))
+		marvell_vct7_report_length(phydev, 2, meter);
+	if (marvell_vct7_distance_valid(pair3))
+		marvell_vct7_report_length(phydev, 3, meter);
+
+	return 0;
+}
+
+static int marvell_vct7_cable_test_get_status(struct phy_device *phydev,
+					      bool *finished)
+{
+	struct marvell_priv *priv = phydev->priv;
+	int ret;
+
+	if (priv->cable_test_tdr) {
+		ret = marvell_vct5_amplitude_graph(phydev);
+		*finished = true;
+		return ret;
+	}
+
+	*finished = false;
+
+	ret = phy_read_paged(phydev, MII_MARVELL_VCT7_PAGE,
+			     MII_VCT7_CTRL);
+
+	if (ret < 0)
+		return ret;
+
+	if (!(ret & MII_VCT7_CTRL_IN_PROGRESS)) {
+		*finished = true;
+
+		return marvell_vct7_cable_test_report(phydev);
+	}
+
+	return 0;
 }
 
 #ifdef CONFIG_HWMON
@@ -2170,12 +2625,12 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1101",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &marvell_config_init,
-		.config_aneg = &m88e1101_config_aneg,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = marvell_config_init,
+		.config_aneg = m88e1101_config_aneg,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2188,12 +2643,12 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1112",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e1111_config_init,
-		.config_aneg = &marvell_config_aneg,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e1111_config_init,
+		.config_aneg = marvell_config_aneg,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2201,7 +2656,6 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1111,
@@ -2209,13 +2663,13 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1111",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e1111_config_init,
-		.config_aneg = &marvell_config_aneg,
-		.read_status = &marvell_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e1111_config_init,
+		.config_aneg = marvell_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2223,7 +2677,6 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1111_get_tunable,
 		.set_tunable = m88e1111_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1118,
@@ -2231,12 +2684,12 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1118",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e1118_config_init,
-		.config_aneg = &m88e1118_config_aneg,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e1118_config_init,
+		.config_aneg = m88e1118_config_aneg,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2248,15 +2701,15 @@ static struct phy_driver marvell_drivers[] = {
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1121R",
 		/* PHY_GBIT_FEATURES */
-		.probe = &m88e1121_probe,
-		.config_init = &marvell_config_init,
-		.config_aneg = &m88e1121_config_aneg,
-		.read_status = &marvell_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.did_interrupt = &m88e1121_did_interrupt,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.probe = m88e1121_probe,
+		.config_init = marvell_config_init,
+		.config_aneg = m88e1121_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2264,7 +2717,6 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1318S,
@@ -2272,16 +2724,16 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1318S",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e1318_config_init,
-		.config_aneg = &m88e1318_config_aneg,
-		.read_status = &marvell_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.did_interrupt = &m88e1121_did_interrupt,
-		.get_wol = &m88e1318_get_wol,
-		.set_wol = &m88e1318_set_wol,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e1318_config_init,
+		.config_aneg = m88e1318_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.get_wol = m88e1318_get_wol,
+		.set_wol = m88e1318_set_wol,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2294,13 +2746,13 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1145",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e1145_config_init,
-		.config_aneg = &m88e1101_config_aneg,
-		.read_status = &genphy_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e1145_config_init,
+		.config_aneg = m88e1101_config_aneg,
+		.read_status = genphy_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2308,7 +2760,6 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1111_get_tunable,
 		.set_tunable = m88e1111_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1149R,
@@ -2316,12 +2767,12 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1149R",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e1149_config_init,
-		.config_aneg = &m88e1118_config_aneg,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e1149_config_init,
+		.config_aneg = m88e1118_config_aneg,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2334,12 +2785,12 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1240",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e1111_config_init,
-		.config_aneg = &marvell_config_aneg,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e1111_config_init,
+		.config_aneg = marvell_config_aneg,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2352,11 +2803,11 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1116R",
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e1116r_config_init,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e1116r_config_init,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2364,24 +2815,24 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1510,
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1510",
 		.features = PHY_GBIT_FIBRE_FEATURES,
-		.probe = &m88e1510_probe,
-		.config_init = &m88e1510_config_init,
-		.config_aneg = &m88e1510_config_aneg,
-		.read_status = &marvell_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.did_interrupt = &m88e1121_did_interrupt,
-		.get_wol = &m88e1318_get_wol,
-		.set_wol = &m88e1318_set_wol,
-		.resume = &marvell_resume,
-		.suspend = &marvell_suspend,
+		.flags = PHY_POLL_CABLE_TEST,
+		.probe = m88e1510_probe,
+		.config_init = m88e1510_config_init,
+		.config_aneg = m88e1510_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.get_wol = m88e1318_get_wol,
+		.set_wol = m88e1318_set_wol,
+		.resume = marvell_resume,
+		.suspend = marvell_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2390,22 +2841,25 @@ static struct phy_driver marvell_drivers[] = {
 		.set_loopback = genphy_loopback,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.cable_test_start = marvell_vct7_cable_test_start,
+		.cable_test_tdr_start = marvell_vct5_cable_test_tdr_start,
+		.cable_test_get_status = marvell_vct7_cable_test_get_status,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1540,
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1540",
 		/* PHY_GBIT_FEATURES */
+		.flags = PHY_POLL_CABLE_TEST,
 		.probe = m88e1510_probe,
-		.config_init = &marvell_config_init,
-		.config_aneg = &m88e1510_config_aneg,
-		.read_status = &marvell_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.did_interrupt = &m88e1121_did_interrupt,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = marvell_config_init,
+		.config_aneg = m88e1510_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2413,7 +2867,9 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1540_get_tunable,
 		.set_tunable = m88e1540_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.cable_test_start = marvell_vct7_cable_test_start,
+		.cable_test_tdr_start = marvell_vct5_cable_test_tdr_start,
+		.cable_test_get_status = marvell_vct7_cable_test_get_status,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1545,
@@ -2421,14 +2877,15 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E1545",
 		.probe = m88e1510_probe,
 		/* PHY_GBIT_FEATURES */
-		.config_init = &marvell_config_init,
-		.config_aneg = &m88e1510_config_aneg,
-		.read_status = &marvell_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.did_interrupt = &m88e1121_did_interrupt,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.flags = PHY_POLL_CABLE_TEST,
+		.config_init = marvell_config_init,
+		.config_aneg = m88e1510_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2436,7 +2893,9 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1540_get_tunable,
 		.set_tunable = m88e1540_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.cable_test_start = marvell_vct7_cable_test_start,
+		.cable_test_tdr_start = marvell_vct5_cable_test_tdr_start,
+		.cable_test_get_status = marvell_vct7_cable_test_get_status,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E3016,
@@ -2444,14 +2903,14 @@ static struct phy_driver marvell_drivers[] = {
 		.name = "Marvell 88E3016",
 		/* PHY_BASIC_FEATURES */
 		.probe = marvell_probe,
-		.config_init = &m88e3016_config_init,
-		.aneg_done = &marvell_aneg_done,
-		.read_status = &marvell_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.did_interrupt = &m88e1121_did_interrupt,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = m88e3016_config_init,
+		.aneg_done = marvell_aneg_done,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2463,15 +2922,16 @@ static struct phy_driver marvell_drivers[] = {
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E6390",
 		/* PHY_GBIT_FEATURES */
+		.flags = PHY_POLL_CABLE_TEST,
 		.probe = m88e6390_probe,
-		.config_init = &marvell_config_init,
-		.config_aneg = &m88e6390_config_aneg,
-		.read_status = &marvell_read_status,
-		.ack_interrupt = &marvell_ack_interrupt,
-		.config_intr = &marvell_config_intr,
-		.did_interrupt = &m88e1121_did_interrupt,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.config_init = marvell_config_init,
+		.config_aneg = m88e6390_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
 		.write_page = marvell_write_page,
 		.get_sset_count = marvell_get_sset_count,
@@ -2479,7 +2939,53 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1540_get_tunable,
 		.set_tunable = m88e1540_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.cable_test_start = marvell_vct7_cable_test_start,
+		.cable_test_tdr_start = marvell_vct5_cable_test_tdr_start,
+		.cable_test_get_status = marvell_vct7_cable_test_get_status,
+	},
+	{
+		.phy_id = MARVELL_PHY_ID_88E1340S,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
+		.name = "Marvell 88E1340S",
+		.probe = m88e1510_probe,
+		/* PHY_GBIT_FEATURES */
+		.config_init = marvell_config_init,
+		.config_aneg = m88e1510_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
+		.read_page = marvell_read_page,
+		.write_page = marvell_write_page,
+		.get_sset_count = marvell_get_sset_count,
+		.get_strings = marvell_get_strings,
+		.get_stats = marvell_get_stats,
+		.get_tunable = m88e1540_get_tunable,
+		.set_tunable = m88e1540_set_tunable,
+	},
+	{
+		.phy_id = MARVELL_PHY_ID_88E1548P,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
+		.name = "Marvell 88E1548P",
+		.probe = m88e1510_probe,
+		.features = PHY_GBIT_FIBRE_FEATURES,
+		.config_init = marvell_config_init,
+		.config_aneg = m88e1510_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.did_interrupt = m88e1121_did_interrupt,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
+		.read_page = marvell_read_page,
+		.write_page = marvell_write_page,
+		.get_sset_count = marvell_get_sset_count,
+		.get_strings = marvell_get_strings,
+		.get_stats = marvell_get_stats,
+		.get_tunable = m88e1540_get_tunable,
+		.set_tunable = m88e1540_set_tunable,
 	},
 };
 
@@ -2501,6 +3007,8 @@ static struct mdio_device_id __maybe_unused marvell_tbl[] = {
 	{ MARVELL_PHY_ID_88E1545, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E3016, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E6390, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1340S, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1548P, MARVELL_PHY_ID_MASK },
 	{ }
 };
 

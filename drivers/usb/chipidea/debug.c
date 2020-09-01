@@ -18,7 +18,7 @@
 #include "bits.h"
 #include "otg.h"
 
-/**
+/*
  * ci_device_show: prints information about device capabilities and status
  */
 static int ci_device_show(struct seq_file *s, void *data)
@@ -47,7 +47,7 @@ static int ci_device_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(ci_device);
 
-/**
+/*
  * ci_port_test_show: reads port test mode
  */
 static int ci_port_test_show(struct seq_file *s, void *data)
@@ -67,7 +67,7 @@ static int ci_port_test_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-/**
+/*
  * ci_port_test_write: writes port test mode
  */
 static ssize_t ci_port_test_write(struct file *file, const char __user *ubuf,
@@ -115,7 +115,7 @@ static const struct file_operations ci_port_test_fops = {
 	.release	= single_release,
 };
 
-/**
+/*
  * ci_qheads_show: DMA contents of all queue heads
  */
 static int ci_qheads_show(struct seq_file *s, void *data)
@@ -147,7 +147,7 @@ static int ci_qheads_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(ci_qheads);
 
-/**
+/*
  * ci_requests_show: DMA contents of all requests currently queued (all endpts)
  */
 static int ci_requests_show(struct seq_file *s, void *data)

@@ -339,7 +339,6 @@ static const struct drm_display_mode td043mtea1_mode = {
 	.vsync_start = 480 + 39,
 	.vsync_end = 480 + 39 + 1,
 	.vtotal = 480 + 39 + 1 + 34,
-	.vrefresh = 60,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm = 94,

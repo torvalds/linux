@@ -42,7 +42,9 @@ enum nfs4_client_state {
 	NFS4CLNT_LEASE_MOVED,
 	NFS4CLNT_DELEGATION_EXPIRED,
 	NFS4CLNT_RUN_MANAGER,
-	NFS4CLNT_DELEGRETURN_RUNNING,
+	NFS4CLNT_RECALL_RUNNING,
+	NFS4CLNT_RECALL_ANY_LAYOUT_READ,
+	NFS4CLNT_RECALL_ANY_LAYOUT_RW,
 };
 
 #define NFS4_RENEW_TIMEOUT		0x01
@@ -115,7 +117,7 @@ struct nfs4_state_owner {
 	unsigned long	     so_flags;
 	struct list_head     so_states;
 	struct nfs_seqid_counter so_seqid;
-	seqcount_t	     so_reclaim_seqcount;
+	seqcount_spinlock_t  so_reclaim_seqcount;
 	struct mutex	     so_delegreturn_mutex;
 };
 
@@ -322,6 +324,13 @@ extern int update_open_stateid(struct nfs4_state *state,
 
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);
+extern void nfs4_update_changeattr(struct inode *dir,
+				   struct nfs4_change_info *cinfo,
+				   unsigned long timestamp,
+				   unsigned long cache_validity);
+extern int nfs4_buf_to_pages_noslab(const void *buf, size_t buflen,
+				    struct page **pages);
+
 #if defined(CONFIG_NFS_V4_1)
 extern int nfs41_sequence_done(struct rpc_task *, struct nfs4_sequence_res *);
 extern int nfs4_proc_create_session(struct nfs_client *, const struct cred *);
@@ -555,6 +564,12 @@ static inline void nfs4_unregister_sysctl(void)
 /* nfs4xdr.c */
 extern const struct rpc_procinfo nfs4_procedures[];
 
+#ifdef CONFIG_NFS_V4_2
+extern const u32 nfs42_maxsetxattr_overhead;
+extern const u32 nfs42_maxgetxattr_overhead;
+extern const u32 nfs42_maxlistxattrs_overhead;
+#endif
+
 struct nfs4_mount_data;
 
 /* callback_xdr.c */
@@ -611,12 +626,34 @@ static inline bool nfs4_state_match_open_stateid_other(const struct nfs4_state *
 		nfs4_stateid_match_other(&state->open_stateid, stateid);
 }
 
+/* nfs42xattr.c */
+#ifdef CONFIG_NFS_V4_2
+extern int __init nfs4_xattr_cache_init(void);
+extern void nfs4_xattr_cache_exit(void);
+extern void nfs4_xattr_cache_add(struct inode *inode, const char *name,
+				 const char *buf, struct page **pages,
+				 ssize_t buflen);
+extern void nfs4_xattr_cache_remove(struct inode *inode, const char *name);
+extern ssize_t nfs4_xattr_cache_get(struct inode *inode, const char *name,
+				char *buf, ssize_t buflen);
+extern void nfs4_xattr_cache_set_list(struct inode *inode, const char *buf,
+				      ssize_t buflen);
+extern ssize_t nfs4_xattr_cache_list(struct inode *inode, char *buf,
+				     ssize_t buflen);
+extern void nfs4_xattr_cache_zap(struct inode *inode);
 #else
+static inline void nfs4_xattr_cache_zap(struct inode *inode)
+{
+}
+#endif /* CONFIG_NFS_V4_2 */
+
+#else /* CONFIG_NFS_V4 */
 
 #define nfs4_close_state(a, b) do { } while (0)
 #define nfs4_close_sync(a, b) do { } while (0)
 #define nfs4_state_protect(a, b, c, d) do { } while (0)
 #define nfs4_state_protect_write(a, b, c, d) do { } while (0)
+
 
 #endif /* CONFIG_NFS_V4 */
 #endif /* __LINUX_FS_NFS_NFS4_FS.H */

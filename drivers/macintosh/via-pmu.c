@@ -50,9 +50,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/uaccess.h>
+#include <linux/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
 #ifdef CONFIG_PPC_PMAC
@@ -74,9 +74,6 @@
 
 /* Some compile options */
 #undef DEBUG_SLEEP
-
-/* Misc minor number allocated for /dev/pmu */
-#define PMU_MINOR		154
 
 /* How many iterations between battery polls */
 #define BATTERY_POLLING_COUNT	2
@@ -2187,8 +2184,6 @@ pmu_read(struct file *file, char __user *buf,
 
 	if (count < 1 || !pp)
 		return -EINVAL;
-	if (!access_ok(buf, count))
-		return -EFAULT;
 
 	spin_lock_irqsave(&pp->lock, flags);
 	add_wait_queue(&pp->wait, &wait);

@@ -207,7 +207,7 @@ struct fw_event_work {
 	u8			ignore;
 	u16			event;
 	struct kref		refcount;
-	char			event_data[0] __aligned(4);
+	char			event_data[] __aligned(4);
 };
 
 static void fw_event_work_free(struct kref *r)
@@ -5470,7 +5470,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 
 	case MPI2_IOCSTATUS_SCSI_DATA_OVERRUN:
 		scsi_set_resid(scmd, 0);
-		/* fall through */
+		fallthrough;
 	case MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR:
 	case MPI2_IOCSTATUS_SUCCESS:
 		scmd->result = (DID_OK << 16) | scsi_status;
@@ -6480,7 +6480,7 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			if (!test_bit(handle, ioc->pend_os_device_add))
 				break;
 
-			/* fall through */
+			fallthrough;
 
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
 
@@ -7208,7 +7208,7 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			event_data->PortEntry[i].PortStatus &= 0xF0;
 			event_data->PortEntry[i].PortStatus |=
 				MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED;
-			/* fall through */
+			fallthrough;
 		case MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED:
 			if (ioc->shost_recovery)
 				break;
@@ -9908,8 +9908,8 @@ static void scsih_remove(struct pci_dev *pdev)
 
 	ioc->remove_host = 1;
 
-	mpt3sas_wait_for_commands_to_complete(ioc);
-	_scsih_flush_running_cmds(ioc);
+	if (!pci_device_is_present(pdev))
+		_scsih_flush_running_cmds(ioc);
 
 	_scsih_fw_event_cleanup_queue(ioc);
 
@@ -9928,6 +9928,7 @@ static void scsih_remove(struct pci_dev *pdev)
 				&ioc->ioc_pg1_copy);
 	/* release all the volumes */
 	_scsih_ir_shutdown(ioc);
+	mpt3sas_destroy_debugfs(ioc);
 	sas_remove_host(shost);
 	list_for_each_entry_safe(raid_device, next, &ioc->raid_device_list,
 	    list) {
@@ -9992,8 +9993,8 @@ scsih_shutdown(struct pci_dev *pdev)
 
 	ioc->remove_host = 1;
 
-	mpt3sas_wait_for_commands_to_complete(ioc);
-	_scsih_flush_running_cmds(ioc);
+	if (!pci_device_is_present(pdev))
+		_scsih_flush_running_cmds(ioc);
 
 	_scsih_fw_event_cleanup_queue(ioc);
 
@@ -10652,7 +10653,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case MPI26_MFGPAGE_DEVID_CFG_SEC_3916:
 			dev_info(&pdev->dev,
 			    "HBA is in Configurable Secure mode\n");
-			/* fall through */
+			fallthrough;
 		case MPI26_MFGPAGE_DEVID_HARD_SEC_3816:
 		case MPI26_MFGPAGE_DEVID_HARD_SEC_3916:
 			ioc->is_aero_ioc = ioc->is_gen35_ioc = 1;
@@ -10763,8 +10764,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 	/* register EEDP capabilities with SCSI layer */
-	if (prot_mask > 0)
-		scsi_host_set_prot(shost, prot_mask);
+	if (prot_mask >= 0)
+		scsi_host_set_prot(shost, (prot_mask & 0x07));
 	else
 		scsi_host_set_prot(shost, SHOST_DIF_TYPE1_PROTECTION
 				   | SHOST_DIF_TYPE2_PROTECTION
@@ -10814,6 +10815,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	scsi_scan_host(shost);
+	mpt3sas_setup_debugfs(ioc);
 	return 0;
 out_add_shost_fail:
 	mpt3sas_base_detach(ioc);
@@ -11220,6 +11222,7 @@ scsih_init(void)
 	tm_sas_control_cb_idx = mpt3sas_base_register_callback_handler(
 	    _scsih_sas_control_complete);
 
+	mpt3sas_init_debugfs();
 	return 0;
 }
 
@@ -11251,6 +11254,7 @@ scsih_exit(void)
 	if (hbas_to_enumerate != 2)
 		raid_class_release(mpt2sas_raid_template);
 	sas_release_transport(mpt3sas_transport_template);
+	mpt3sas_exit_debugfs();
 }
 
 /**

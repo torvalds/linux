@@ -68,7 +68,6 @@ struct udl_device {
 
 /* modeset */
 int udl_modeset_init(struct drm_device *dev);
-void udl_modeset_cleanup(struct drm_device *dev);
 struct drm_connector *udl_connector_init(struct drm_device *dev);
 
 struct urb *udl_get_urb(struct drm_device *dev);
@@ -77,14 +76,10 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len);
 void udl_urb_completion(struct urb *urb);
 
 int udl_init(struct udl_device *udl);
-void udl_fini(struct drm_device *dev);
 
 int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
 		     u32 byte_offset, u32 device_byte_offset, u32 byte_width);
-
-struct drm_gem_object *udl_driver_gem_create_object(struct drm_device *dev,
-						    size_t size);
 
 int udl_drop_usb(struct drm_device *dev);
 

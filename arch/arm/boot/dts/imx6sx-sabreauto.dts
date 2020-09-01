@@ -66,10 +66,66 @@
 		enable-active-high;
 		vin-supply = <&reg_can_en>;
 	};
+
+	reg_cs42888: cs42888_supply {
+		compatible = "regulator-fixed";
+		regulator-name = "cs42888_supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	sound-cs42888 {
+		compatible = "fsl,imx6-sabreauto-cs42888",
+			     "fsl,imx-audio-cs42888";
+		model = "imx-cs42888";
+		audio-cpu = <&esai>;
+		audio-asrc = <&asrc>;
+		audio-codec = <&cs42888>;
+		audio-routing =
+			"Line Out Jack", "AOUT1L",
+			"Line Out Jack", "AOUT1R",
+			"Line Out Jack", "AOUT2L",
+			"Line Out Jack", "AOUT2R",
+			"Line Out Jack", "AOUT3L",
+			"Line Out Jack", "AOUT3R",
+			"Line Out Jack", "AOUT4L",
+			"Line Out Jack", "AOUT4R",
+			"AIN1L", "Line In Jack",
+			"AIN1R", "Line In Jack",
+			"AIN2L", "Line In Jack",
+			"AIN2R", "Line In Jack";
+	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-in;
+	};
 };
 
 &anaclk2 {
 	clock-frequency = <24576000>;
+};
+
+&clks {
+	assigned-clocks = <&clks IMX6SX_PLL4_BYPASS_SRC>,
+			  <&clks IMX6SX_PLL4_BYPASS>,
+			  <&clks IMX6SX_CLK_PLL4_POST_DIV>;
+	assigned-clock-parents = <&clks IMX6SX_CLK_LVDS2_IN>,
+				 <&clks IMX6SX_PLL4_BYPASS_SRC>;
+	assigned-clock-rates = <0>, <0>, <24576000>;
+};
+
+&esai {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esai>;
+	assigned-clocks = <&clks IMX6SX_CLK_ESAI_SEL>,
+			<&clks IMX6SX_CLK_ESAI_EXTAL>;
+	assigned-clock-parents = <&clks IMX6SX_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <24576000>;
+	status = "okay";
 };
 
 &fec1 {
@@ -99,7 +155,7 @@
 &fec2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet2>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
 	status = "okay";
@@ -193,6 +249,21 @@
 		>;
 	};
 
+	pinctrl_esai: esaigrp {
+		fsl,pins = <
+			MX6SX_PAD_CSI_DATA00__ESAI_TX_CLK   0x1b030
+			MX6SX_PAD_CSI_DATA01__ESAI_TX_FS    0x1b030
+			MX6SX_PAD_CSI_HSYNC__ESAI_TX0       0x1b030
+			MX6SX_PAD_CSI_DATA04__ESAI_TX1      0x1b030
+			MX6SX_PAD_CSI_DATA06__ESAI_TX2_RX3  0x1b030
+			MX6SX_PAD_CSI_DATA07__ESAI_TX3_RX2  0x1b030
+			MX6SX_PAD_CSI_DATA02__ESAI_RX_CLK   0x1b030
+			MX6SX_PAD_CSI_DATA03__ESAI_RX_FS    0x1b030
+			MX6SX_PAD_CSI_VSYNC__ESAI_TX5_RX0   0x1b030
+			MX6SX_PAD_CSI_DATA05__ESAI_TX4_RX1  0x1b030
+		>;
+	};
+
 	pinctrl_flexcan1: flexcan1grp {
 		fsl,pins = <
 			MX6SX_PAD_QSPI1B_DQS__CAN1_TX   0x1b020
@@ -227,10 +298,16 @@
 		>;
 	};
 
+	pinctrl_spdif: spdifgrp {
+		fsl,pins = <
+			MX6SX_PAD_ENET2_COL__SPDIF_IN           0x1b0b0
+		>;
+	};
+
 	pinctrl_uart1: uart1grp {
 		fsl,pins = <
-			MX6SX_PAD_GPIO1_IO04__UART1_TX		0x1b0b1
-			MX6SX_PAD_GPIO1_IO05__UART1_RX		0x1b0b1
+			MX6SX_PAD_GPIO1_IO04__UART1_DCE_TX		0x1b0b1
+			MX6SX_PAD_GPIO1_IO05__UART1_DCE_RX		0x1b0b1
 		>;
 	};
 
@@ -312,6 +389,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
+
+	cs42888: cs42888@48 {
+		compatible = "cirrus,cs42888";
+		reg = <0x48>;
+		clocks = <&anaclk2 0>;
+		clock-names = "mclk";
+		VA-supply = <&reg_cs42888>;
+		VD-supply = <&reg_cs42888>;
+		VLS-supply = <&reg_cs42888>;
+		VLC-supply = <&reg_cs42888>;
+	};
 
 	touchscreen@4 {
 		compatible = "eeti,egalax_ts";
@@ -452,6 +540,14 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
+	assigned-clocks = <&clks IMX6SX_CLK_SPDIF_PODF>;
+	assigned-clock-rates = <24576000>;
+	status = "okay";
 };
 
 &wdog1 {

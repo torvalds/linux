@@ -13,6 +13,8 @@
 #include <vdso/helpers.h>
 #include <vdso/vsyscall.h>
 
+#include "timekeeping_internal.h"
+
 static inline void update_vdso_data(struct vdso_data *vdata,
 				    struct timekeeper *tk)
 {
@@ -71,13 +73,15 @@ void update_vsyscall(struct timekeeper *tk)
 {
 	struct vdso_data *vdata = __arch_get_k_vdso_data();
 	struct vdso_timestamp *vdso_ts;
+	s32 clock_mode;
 	u64 nsec;
 
 	/* copy vsyscall data */
 	vdso_write_begin(vdata);
 
-	vdata[CS_HRES_COARSE].clock_mode	= __arch_get_clock_mode(tk);
-	vdata[CS_RAW].clock_mode		= __arch_get_clock_mode(tk);
+	clock_mode = tk->tkr_mono.clock->vdso_clock_mode;
+	vdata[CS_HRES_COARSE].clock_mode	= clock_mode;
+	vdata[CS_RAW].clock_mode		= clock_mode;
 
 	/* CLOCK_REALTIME also required for time() */
 	vdso_ts		= &vdata[CS_HRES_COARSE].basetime[CLOCK_REALTIME];
@@ -103,10 +107,10 @@ void update_vsyscall(struct timekeeper *tk)
 	WRITE_ONCE(vdata[CS_HRES_COARSE].hrtimer_res, hrtimer_resolution);
 
 	/*
-	 * Architectures can opt out of updating the high resolution part
-	 * of the VDSO.
+	 * If the current clocksource is not VDSO capable, then spare the
+	 * update of the high reolution parts.
 	 */
-	if (__arch_update_vdso_data())
+	if (clock_mode != VDSO_CLOCKMODE_NONE)
 		update_vdso_data(vdata, tk);
 
 	__arch_update_vsyscall(vdata, tk);
@@ -124,4 +128,43 @@ void update_vsyscall_tz(void)
 	vdata[CS_HRES_COARSE].tz_dsttime = sys_tz.tz_dsttime;
 
 	__arch_sync_vdso_data(vdata);
+}
+
+/**
+ * vdso_update_begin - Start of a VDSO update section
+ *
+ * Allows architecture code to safely update the architecture specific VDSO
+ * data. Disables interrupts, acquires timekeeper lock to serialize against
+ * concurrent updates from timekeeping and invalidates the VDSO data
+ * sequence counter to prevent concurrent readers from accessing
+ * inconsistent data.
+ *
+ * Returns: Saved interrupt flags which need to be handed in to
+ * vdso_update_end().
+ */
+unsigned long vdso_update_begin(void)
+{
+	struct vdso_data *vdata = __arch_get_k_vdso_data();
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&timekeeper_lock, flags);
+	vdso_write_begin(vdata);
+	return flags;
+}
+
+/**
+ * vdso_update_end - End of a VDSO update section
+ * @flags:	Interrupt flags as returned from vdso_update_begin()
+ *
+ * Pairs with vdso_update_begin(). Marks vdso data consistent, invokes data
+ * synchronization if the architecture requires it, drops timekeeper lock
+ * and restores interrupt flags.
+ */
+void vdso_update_end(unsigned long flags)
+{
+	struct vdso_data *vdata = __arch_get_k_vdso_data();
+
+	vdso_write_end(vdata);
+	__arch_sync_vdso_data(vdata);
+	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 }

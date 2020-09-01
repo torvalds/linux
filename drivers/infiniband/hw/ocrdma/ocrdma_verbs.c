@@ -99,8 +99,6 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	attr->max_mw = dev->attr.max_mw;
 	attr->max_pd = dev->attr.max_pd;
 	attr->atomic_cap = 0;
-	attr->max_fmr = 0;
-	attr->max_map_per_fmr = 0;
 	attr->max_qp_rd_atom =
 	    min(dev->attr.max_ord_per_qp, dev->attr.max_ird_per_qp);
 	attr->max_qp_init_rd_atom = dev->attr.max_ord_per_qp;
@@ -1111,7 +1109,7 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 	    (attrs->qp_type != IB_QPT_UD)) {
 		pr_err("%s(%d) unsupported qp type=0x%x requested\n",
 		       __func__, dev->id, attrs->qp_type);
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 	/* Skip the check for QP1 to support CM size of 128 */
 	if ((attrs->qp_type != IB_QPT_GSI) &&
@@ -2136,7 +2134,7 @@ int ocrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		case IB_WR_SEND_WITH_IMM:
 			hdr->cw |= (OCRDMA_FLAG_IMM << OCRDMA_WQE_FLAGS_SHIFT);
 			hdr->immdt = ntohl(wr->ex.imm_data);
-			/* fall through */
+			fallthrough;
 		case IB_WR_SEND:
 			hdr->cw |= (OCRDMA_SEND << OCRDMA_WQE_OPCODE_SHIFT);
 			ocrdma_build_send(qp, hdr, wr);
@@ -2150,7 +2148,7 @@ int ocrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			hdr->cw |= (OCRDMA_FLAG_IMM << OCRDMA_WQE_FLAGS_SHIFT);
 			hdr->immdt = ntohl(wr->ex.imm_data);
-			/* fall through */
+			fallthrough;
 		case IB_WR_RDMA_WRITE:
 			hdr->cw |= (OCRDMA_WRITE << OCRDMA_WQE_OPCODE_SHIFT);
 			status = ocrdma_build_write(qp, hdr, wr);
@@ -2903,7 +2901,7 @@ int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 }
 
 struct ib_mr *ocrdma_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
-			      u32 max_num_sg, struct ib_udata *udata)
+			      u32 max_num_sg)
 {
 	int status;
 	struct ocrdma_mr *mr;

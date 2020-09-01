@@ -5,6 +5,8 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#include <linux/sort.h>
+
 #include "common.h"
 
 enum scmi_clock_protocol_cmd {
@@ -121,11 +123,23 @@ static int scmi_clock_attributes_get(const struct scmi_handle *handle,
 	return ret;
 }
 
+static int rate_cmp_func(const void *_r1, const void *_r2)
+{
+	const u64 *r1 = _r1, *r2 = _r2;
+
+	if (*r1 < *r2)
+		return -1;
+	else if (*r1 == *r2)
+		return 0;
+	else
+		return 1;
+}
+
 static int
 scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 			      struct scmi_clock_info *clk)
 {
-	u64 *rate;
+	u64 *rate = NULL;
 	int ret, cnt;
 	bool rate_discrete = false;
 	u32 tot_rate_cnt = 0, rates_flag;
@@ -184,8 +198,10 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 		 */
 	} while (num_returned && num_remaining);
 
-	if (rate_discrete)
+	if (rate_discrete && rate) {
 		clk->list.num_rates = tot_rate_cnt;
+		sort(rate, tot_rate_cnt, sizeof(*rate), rate_cmp_func, NULL);
+	}
 
 	clk->rate_discrete = rate_discrete;
 

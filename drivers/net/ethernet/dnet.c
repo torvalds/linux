@@ -729,7 +729,6 @@ static void dnet_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, "0", sizeof(info->bus_info));
 }
 
@@ -777,8 +776,7 @@ static int dnet_probe(struct platform_device *pdev)
 
 	spin_lock_init(&bp->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	bp->regs = devm_ioremap_resource(&pdev->dev, res);
+	bp->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(bp->regs)) {
 		err = PTR_ERR(bp->regs);
 		goto err_out_free_dev;

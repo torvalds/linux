@@ -600,9 +600,14 @@ static void stmmac_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
+	if (!priv->plat->pmt)
+		return phylink_ethtool_get_wol(priv->phylink, wol);
+
 	mutex_lock(&priv->lock);
 	if (device_can_wakeup(priv->device)) {
 		wol->supported = WAKE_MAGIC | WAKE_UCAST;
+		if (priv->hw_cap_support && !priv->dma_cap.pmt_magic_frame)
+			wol->supported &= ~WAKE_MAGIC;
 		wol->wolopts = priv->wolopts;
 	}
 	mutex_unlock(&priv->lock);
@@ -613,14 +618,22 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 support = WAKE_MAGIC | WAKE_UCAST;
 
+	if (!device_can_wakeup(priv->device))
+		return -EOPNOTSUPP;
+
+	if (!priv->plat->pmt) {
+		int ret = phylink_ethtool_set_wol(priv->phylink, wol);
+
+		if (!ret)
+			device_set_wakeup_enable(priv->device, !!wol->wolopts);
+		return ret;
+	}
+
 	/* By default almost all GMAC devices support the WoL via
 	 * magic frame but we can disable it if the HW capability
 	 * register shows no support for pmt_magic_frame. */
 	if ((priv->hw_cap_support) && (!priv->dma_cap.pmt_magic_frame))
 		wol->wolopts &= ~WAKE_MAGIC;
-
-	if (!device_can_wakeup(priv->device))
-		return -EINVAL;
 
 	if (wol->wolopts & ~support)
 		return -EINVAL;
@@ -731,20 +744,6 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	unsigned int rx_riwt;
-
-	/* Check not supported parameters  */
-	if ((ec->rx_coalesce_usecs_irq) ||
-	    (ec->rx_max_coalesced_frames_irq) || (ec->tx_coalesce_usecs_irq) ||
-	    (ec->use_adaptive_rx_coalesce) || (ec->use_adaptive_tx_coalesce) ||
-	    (ec->pkt_rate_low) || (ec->rx_coalesce_usecs_low) ||
-	    (ec->rx_max_coalesced_frames_low) || (ec->tx_coalesce_usecs_high) ||
-	    (ec->tx_max_coalesced_frames_low) || (ec->pkt_rate_high) ||
-	    (ec->tx_coalesce_usecs_low) || (ec->rx_coalesce_usecs_high) ||
-	    (ec->rx_max_coalesced_frames_high) ||
-	    (ec->tx_max_coalesced_frames_irq) ||
-	    (ec->stats_block_coalesce_usecs) ||
-	    (ec->tx_max_coalesced_frames_high) || (ec->rate_sample_interval))
-		return -EOPNOTSUPP;
 
 	if (priv->use_riwt && (ec->rx_coalesce_usecs > 0)) {
 		rx_riwt = stmmac_usec2riwt(ec->rx_coalesce_usecs, priv);
@@ -914,6 +913,8 @@ static int stmmac_set_tunable(struct net_device *dev,
 }
 
 static const struct ethtool_ops stmmac_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.begin = stmmac_check_if_running,
 	.get_drvinfo = stmmac_ethtool_getdrvinfo,
 	.get_msglevel = stmmac_ethtool_getmsglevel,

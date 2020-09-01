@@ -153,6 +153,10 @@ bool hubbub2_dcc_support_pixel_format(
 	case SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FIX:
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT:
 	case SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FLOAT:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
+#endif
 		*bytes_per_element = 4;
 		return true;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
@@ -339,6 +343,11 @@ static enum dcn_hubbub_page_table_block_size page_table_block_size_to_hw(unsigne
 	case 65536:
 		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_64KB;
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case 32768:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_32KB;
+		break;
+#endif
 	default:
 		ASSERT(false);
 		block_size = page_table_block_size;
@@ -562,19 +571,23 @@ void hubbub2_get_dchub_ref_freq(struct hubbub *hubbub,
 	}
 }
 
-static void hubbub2_program_watermarks(
+static bool hubbub2_program_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
+	bool wm_pending = false;
 	/*
 	 * Need to clamp to max of the register values (i.e. no wrap)
 	 * for dcn1, all wm registers are 21-bit wide
 	 */
-	hubbub1_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
-	hubbub1_program_stutter_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
+	if (hubbub1_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower))
+		wm_pending = true;
+
+	if (hubbub1_program_stutter_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower))
+		wm_pending = true;
 
 	/*
 	 * There's a special case when going from p-state support to p-state unsupported
@@ -592,6 +605,7 @@ static void hubbub2_program_watermarks(
 	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND, DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 180);
 
 	hubbub->funcs->allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
+	return wm_pending;
 }
 
 static const struct hubbub_funcs hubbub2_funcs = {

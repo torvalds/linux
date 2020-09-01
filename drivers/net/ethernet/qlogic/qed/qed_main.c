@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/stddef.h>
@@ -49,6 +23,8 @@
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_ll2_if.h>
 #include <net/devlink.h>
+#include <linux/aer.h>
+#include <linux/phylink.h>
 
 #include "qed.h"
 #include "qed_sriov.h"
@@ -89,20 +65,200 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 MODULE_FIRMWARE(QED_FW_FILE_NAME);
 
+/* MFW speed capabilities maps */
+
+struct qed_mfw_speed_map {
+	u32		mfw_val;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(caps);
+
+	const u32	*cap_arr;
+	u32		arr_size;
+};
+
+#define QED_MFW_SPEED_MAP(type, arr)		\
+{						\
+	.mfw_val	= (type),		\
+	.cap_arr	= (arr),		\
+	.arr_size	= ARRAY_SIZE(arr),	\
+}
+
+static const u32 qed_mfw_ext_1g[] __initconst = {
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_10g[] __initconst = {
+	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+	ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_20g[] __initconst = {
+	ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_25g[] __initconst = {
+	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_40g[] __initconst = {
+	ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_50g_base_r[] __initconst = {
+	ETHTOOL_LINK_MODE_50000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseDR_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_50g_base_r2[] __initconst = {
+	ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_100g_base_r2[] __initconst = {
+	ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_100g_base_r4[] __initconst = {
+	ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+};
+
+static struct qed_mfw_speed_map qed_mfw_ext_maps[] __ro_after_init = {
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_1G, qed_mfw_ext_1g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_10G, qed_mfw_ext_10g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_20G, qed_mfw_ext_20g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_25G, qed_mfw_ext_25g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_40G, qed_mfw_ext_40g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_50G_BASE_R,
+			  qed_mfw_ext_50g_base_r),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_50G_BASE_R2,
+			  qed_mfw_ext_50g_base_r2),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_100G_BASE_R2,
+			  qed_mfw_ext_100g_base_r2),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_100G_BASE_R4,
+			  qed_mfw_ext_100g_base_r4),
+};
+
+static const u32 qed_mfw_legacy_1g[] __initconst = {
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_10g[] __initconst = {
+	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+	ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_20g[] __initconst = {
+	ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_25g[] __initconst = {
+	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_40g[] __initconst = {
+	ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_50g[] __initconst = {
+	ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_bb_100g[] __initconst = {
+	ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+};
+
+static struct qed_mfw_speed_map qed_mfw_legacy_maps[] __ro_after_init = {
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G,
+			  qed_mfw_legacy_1g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G,
+			  qed_mfw_legacy_10g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G,
+			  qed_mfw_legacy_20g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G,
+			  qed_mfw_legacy_25g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G,
+			  qed_mfw_legacy_40g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G,
+			  qed_mfw_legacy_50g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G,
+			  qed_mfw_legacy_bb_100g),
+};
+
+static void __init qed_mfw_speed_map_populate(struct qed_mfw_speed_map *map)
+{
+	linkmode_set_bit_array(map->cap_arr, map->arr_size, map->caps);
+
+	map->cap_arr = NULL;
+	map->arr_size = 0;
+}
+
+static void __init qed_mfw_speed_maps_init(void)
+{
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(qed_mfw_ext_maps); i++)
+		qed_mfw_speed_map_populate(qed_mfw_ext_maps + i);
+
+	for (i = 0; i < ARRAY_SIZE(qed_mfw_legacy_maps); i++)
+		qed_mfw_speed_map_populate(qed_mfw_legacy_maps + i);
+}
+
 static int __init qed_init(void)
 {
 	pr_info("%s", version);
 
+	qed_mfw_speed_maps_init();
+
 	return 0;
 }
-
-static void __exit qed_cleanup(void)
-{
-	pr_notice("qed_cleanup called\n");
-}
-
 module_init(qed_init);
-module_exit(qed_cleanup);
+
+static void __exit qed_exit(void)
+{
+	/* To prevent marking this module as "permanent" */
+}
+module_exit(qed_exit);
 
 /* Check if the DMA controller on the machine can properly handle the DMA
  * addressing required by the device.
@@ -128,6 +284,8 @@ static int qed_set_coherency_mask(struct qed_dev *cdev)
 static void qed_free_pci(struct qed_dev *cdev)
 {
 	struct pci_dev *pdev = cdev->pdev;
+
+	pci_disable_pcie_error_reporting(pdev);
 
 	if (cdev->doorbells && cdev->db_size)
 		iounmap(cdev->doorbells);
@@ -230,6 +388,12 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 		DP_NOTICE(cdev, "Cannot map doorbell space\n");
 		return -ENOMEM;
 	}
+
+	/* AER (Advanced Error reporting) configuration */
+	rc = pci_enable_pcie_error_reporting(pdev);
+	if (rc)
+		DP_VERBOSE(cdev, NETIF_MSG_DRV,
+			   "Failed to configure PCIe AER [%d]\n", rc);
 
 	return 0;
 
@@ -597,7 +761,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 		kfree(int_params->msix_table);
 		if (force_mode)
 			goto out;
-		/* Fallthrough */
+		fallthrough;
 
 	case QED_INT_MODE_MSI:
 		if (cdev->num_hwfns == 1) {
@@ -611,7 +775,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 			if (force_mode)
 				goto out;
 		}
-		/* Fallthrough */
+		fallthrough;
 
 	case QED_INT_MODE_INTA:
 			int_params->out.int_mode = QED_INT_MODE_INTA;
@@ -1087,9 +1251,6 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 #define QED_PERIODIC_DB_REC_INTERVAL_MS		100
 #define QED_PERIODIC_DB_REC_INTERVAL \
 	msecs_to_jiffies(QED_PERIODIC_DB_REC_INTERVAL_MS)
-#define QED_PERIODIC_DB_REC_WAIT_COUNT		10
-#define QED_PERIODIC_DB_REC_WAIT_INTERVAL \
-	(QED_PERIODIC_DB_REC_INTERVAL_MS / QED_PERIODIC_DB_REC_WAIT_COUNT)
 
 static int qed_slowpath_delayed_work(struct qed_hwfn *hwfn,
 				     enum qed_slowpath_wq_flag wq_flag,
@@ -1123,7 +1284,7 @@ void qed_periodic_db_rec_start(struct qed_hwfn *p_hwfn)
 
 static void qed_slowpath_wq_stop(struct qed_dev *cdev)
 {
-	int i, sleep_count = QED_PERIODIC_DB_REC_WAIT_COUNT;
+	int i;
 
 	if (IS_VF(cdev))
 		return;
@@ -1135,13 +1296,7 @@ static void qed_slowpath_wq_stop(struct qed_dev *cdev)
 		/* Stop queuing new delayed works */
 		cdev->hwfns[i].slowpath_wq_active = false;
 
-		/* Wait until the last periodic doorbell recovery is executed */
-		while (test_bit(QED_SLOWPATH_PERIODIC_DB_REC,
-				&cdev->hwfns[i].slowpath_task_flags) &&
-		       sleep_count--)
-			msleep(QED_PERIODIC_DB_REC_WAIT_INTERVAL);
-
-		flush_workqueue(cdev->hwfns[i].slowpath_wq);
+		cancel_delayed_work(&cdev->hwfns[i].slowpath_task);
 		destroy_workqueue(cdev->hwfns[i].slowpath_wq);
 	}
 }
@@ -1480,13 +1635,156 @@ static bool qed_can_link_change(struct qed_dev *cdev)
 	return true;
 }
 
+static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
+				     const struct qed_link_params *params)
+{
+	struct qed_mcp_link_speed_params *ext_speed = &link_params->ext_speed;
+	const struct qed_mfw_speed_map *map;
+	u32 i;
+
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_AUTONEG)
+		ext_speed->autoneg = !!params->autoneg;
+
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS) {
+		ext_speed->advertised_speeds = 0;
+
+		for (i = 0; i < ARRAY_SIZE(qed_mfw_ext_maps); i++) {
+			map = qed_mfw_ext_maps + i;
+
+			if (linkmode_intersects(params->adv_speeds, map->caps))
+				ext_speed->advertised_speeds |= map->mfw_val;
+		}
+	}
+
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED) {
+		switch (params->forced_speed) {
+		case SPEED_1000:
+			ext_speed->forced_speed = QED_EXT_SPEED_1G;
+			break;
+		case SPEED_10000:
+			ext_speed->forced_speed = QED_EXT_SPEED_10G;
+			break;
+		case SPEED_20000:
+			ext_speed->forced_speed = QED_EXT_SPEED_20G;
+			break;
+		case SPEED_25000:
+			ext_speed->forced_speed = QED_EXT_SPEED_25G;
+			break;
+		case SPEED_40000:
+			ext_speed->forced_speed = QED_EXT_SPEED_40G;
+			break;
+		case SPEED_50000:
+			ext_speed->forced_speed = QED_EXT_SPEED_50G_R |
+						  QED_EXT_SPEED_50G_R2;
+			break;
+		case SPEED_100000:
+			ext_speed->forced_speed = QED_EXT_SPEED_100G_R2 |
+						  QED_EXT_SPEED_100G_R4 |
+						  QED_EXT_SPEED_100G_P4;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!(params->override_flags & QED_LINK_OVERRIDE_FEC_CONFIG))
+		return;
+
+	switch (params->forced_speed) {
+	case SPEED_25000:
+		switch (params->fec) {
+		case FEC_FORCE_MODE_NONE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_NONE;
+			break;
+		case FEC_FORCE_MODE_FIRECODE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_BASE_R;
+			break;
+		case FEC_FORCE_MODE_RS:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_RS528;
+			break;
+		case FEC_FORCE_MODE_AUTO:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_RS528 |
+						    ETH_EXT_FEC_25G_BASE_R |
+						    ETH_EXT_FEC_25G_NONE;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case SPEED_40000:
+		switch (params->fec) {
+		case FEC_FORCE_MODE_NONE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_40G_NONE;
+			break;
+		case FEC_FORCE_MODE_FIRECODE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_40G_BASE_R;
+			break;
+		case FEC_FORCE_MODE_AUTO:
+			link_params->ext_fec_mode = ETH_EXT_FEC_40G_BASE_R |
+						    ETH_EXT_FEC_40G_NONE;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case SPEED_50000:
+		switch (params->fec) {
+		case FEC_FORCE_MODE_NONE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_NONE;
+			break;
+		case FEC_FORCE_MODE_FIRECODE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_BASE_R;
+			break;
+		case FEC_FORCE_MODE_RS:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_RS528;
+			break;
+		case FEC_FORCE_MODE_AUTO:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_RS528 |
+						    ETH_EXT_FEC_50G_BASE_R |
+						    ETH_EXT_FEC_50G_NONE;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case SPEED_100000:
+		switch (params->fec) {
+		case FEC_FORCE_MODE_NONE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_NONE;
+			break;
+		case FEC_FORCE_MODE_FIRECODE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_BASE_R;
+			break;
+		case FEC_FORCE_MODE_RS:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_RS528;
+			break;
+		case FEC_FORCE_MODE_AUTO:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_RS528 |
+						    ETH_EXT_FEC_100G_BASE_R |
+						    ETH_EXT_FEC_100G_NONE;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	default:
+		break;
+	}
+}
+
 static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 {
-	struct qed_hwfn *hwfn;
 	struct qed_mcp_link_params *link_params;
+	struct qed_mcp_link_speed_params *speed;
+	const struct qed_mfw_speed_map *map;
+	struct qed_hwfn *hwfn;
 	struct qed_ptt *ptt;
-	u32 sup_caps;
 	int rc;
+	u32 i;
 
 	if (!cdev)
 		return -ENODEV;
@@ -1508,59 +1806,31 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		return -EBUSY;
 
 	link_params = qed_mcp_get_link_params(hwfn);
+	if (!link_params)
+		return -ENODATA;
+
+	speed = &link_params->speed;
+
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_AUTONEG)
-		link_params->speed.autoneg = params->autoneg;
+		speed->autoneg = !!params->autoneg;
+
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS) {
-		link_params->speed.advertised_speeds = 0;
-		sup_caps = QED_LM_1000baseT_Full_BIT |
-			   QED_LM_1000baseKX_Full_BIT |
-			   QED_LM_1000baseX_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
-		sup_caps = QED_LM_10000baseT_Full_BIT |
-			   QED_LM_10000baseKR_Full_BIT |
-			   QED_LM_10000baseKX4_Full_BIT |
-			   QED_LM_10000baseR_FEC_BIT |
-			   QED_LM_10000baseCR_Full_BIT |
-			   QED_LM_10000baseSR_Full_BIT |
-			   QED_LM_10000baseLR_Full_BIT |
-			   QED_LM_10000baseLRM_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
-		if (params->adv_speeds & QED_LM_20000baseKR2_Full_BIT)
-			link_params->speed.advertised_speeds |=
-				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G;
-		sup_caps = QED_LM_25000baseKR_Full_BIT |
-			   QED_LM_25000baseCR_Full_BIT |
-			   QED_LM_25000baseSR_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
-		sup_caps = QED_LM_40000baseLR4_Full_BIT |
-			   QED_LM_40000baseKR4_Full_BIT |
-			   QED_LM_40000baseCR4_Full_BIT |
-			   QED_LM_40000baseSR4_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
-		sup_caps = QED_LM_50000baseKR2_Full_BIT |
-			   QED_LM_50000baseCR2_Full_BIT |
-			   QED_LM_50000baseSR2_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
-		sup_caps = QED_LM_100000baseKR4_Full_BIT |
-			   QED_LM_100000baseSR4_Full_BIT |
-			   QED_LM_100000baseCR4_Full_BIT |
-			   QED_LM_100000baseLR4_ER4_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G;
+		speed->advertised_speeds = 0;
+
+		for (i = 0; i < ARRAY_SIZE(qed_mfw_legacy_maps); i++) {
+			map = qed_mfw_legacy_maps + i;
+
+			if (linkmode_intersects(params->adv_speeds, map->caps))
+				speed->advertised_speeds |= map->mfw_val;
+		}
 	}
+
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED)
-		link_params->speed.forced_speed = params->forced_speed;
+		speed->forced_speed = params->forced_speed;
+
+	if (qed_mcp_is_ext_speed_supported(hwfn))
+		qed_set_ext_speed_params(link_params, params);
+
 	if (params->override_flags & QED_LINK_OVERRIDE_PAUSE_CONFIG) {
 		if (params->pause_config & QED_LINK_PAUSE_AUTONEG_ENABLE)
 			link_params->pause.autoneg = true;
@@ -1575,6 +1845,7 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		else
 			link_params->pause.forced_tx = false;
 	}
+
 	if (params->override_flags & QED_LINK_OVERRIDE_LOOPBACK_MODE) {
 		switch (params->loopback_mode) {
 		case QED_LINK_LOOPBACK_INT_PHY:
@@ -1589,6 +1860,25 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		case QED_LINK_LOOPBACK_MAC:
 			link_params->loopback_mode = ETH_LOOPBACK_MAC;
 			break;
+		case QED_LINK_LOOPBACK_CNIG_AH_ONLY_0123:
+			link_params->loopback_mode =
+				ETH_LOOPBACK_CNIG_AH_ONLY_0123;
+			break;
+		case QED_LINK_LOOPBACK_CNIG_AH_ONLY_2301:
+			link_params->loopback_mode =
+				ETH_LOOPBACK_CNIG_AH_ONLY_2301;
+			break;
+		case QED_LINK_LOOPBACK_PCS_AH_ONLY:
+			link_params->loopback_mode = ETH_LOOPBACK_PCS_AH_ONLY;
+			break;
+		case QED_LINK_LOOPBACK_REVERSE_MAC_AH_ONLY:
+			link_params->loopback_mode =
+				ETH_LOOPBACK_REVERSE_MAC_AH_ONLY;
+			break;
+		case QED_LINK_LOOPBACK_INT_PHY_FEA_AH_ONLY:
+			link_params->loopback_mode =
+				ETH_LOOPBACK_INT_PHY_FEA_AH_ONLY;
+			break;
 		default:
 			link_params->loopback_mode = ETH_LOOPBACK_NONE;
 			break;
@@ -1598,6 +1888,9 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 	if (params->override_flags & QED_LINK_OVERRIDE_EEE_CONFIG)
 		memcpy(&link_params->eee, &params->eee,
 		       sizeof(link_params->eee));
+
+	if (params->override_flags & QED_LINK_OVERRIDE_FEC_CONFIG)
+		link_params->fec = params->fec;
 
 	rc = qed_mcp_set_link(hwfn, ptt, params->link_up);
 
@@ -1615,7 +1908,6 @@ static int qed_get_port_type(u32 media_type)
 	case MEDIA_SFP_1G_FIBER:
 	case MEDIA_XFP_FIBER:
 	case MEDIA_MODULE_FIBER:
-	case MEDIA_KR:
 		port_type = PORT_FIBRE;
 		break;
 	case MEDIA_DA_TWINAX:
@@ -1624,6 +1916,7 @@ static int qed_get_port_type(u32 media_type)
 	case MEDIA_BASE_T:
 		port_type = PORT_TP;
 		break;
+	case MEDIA_KR:
 	case MEDIA_NOT_PRESENT:
 		port_type = PORT_NONE;
 		break;
@@ -1670,7 +1963,7 @@ static int qed_get_link_data(struct qed_hwfn *hwfn,
 
 static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 				     struct qed_ptt *ptt, u32 capability,
-				     u32 *if_capability)
+				     unsigned long *if_caps)
 {
 	u32 media_type, tcvr_state, tcvr_type;
 	u32 speed_mask, board_cfg;
@@ -1693,120 +1986,213 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 
 	switch (media_type) {
 	case MEDIA_DA_TWINAX:
-		*if_capability |= QED_LM_FIBRE_BIT;
+		phylink_set(if_caps, FIBRE);
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
-			*if_capability |= QED_LM_20000baseKR2_Full_BIT;
-		/* For DAC media multiple speed capabilities are supported*/
-		capability = capability & speed_mask;
+			phylink_set(if_caps, 20000baseKR2_Full);
+
+		/* For DAC media multiple speed capabilities are supported */
+		capability |= speed_mask;
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
-			*if_capability |= QED_LM_1000baseKX_Full_BIT;
+			phylink_set(if_caps, 1000baseKX_Full);
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
-			*if_capability |= QED_LM_10000baseCR_Full_BIT;
+			phylink_set(if_caps, 10000baseCR_Full);
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
-			*if_capability |= QED_LM_40000baseCR4_Full_BIT;
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_40G_CR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_CR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_CR:
+				phylink_set(if_caps, 40000baseCR4_Full);
+				break;
+			default:
+				break;
+			}
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
-			*if_capability |= QED_LM_25000baseCR_Full_BIT;
+			phylink_set(if_caps, 25000baseCR_Full);
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
-			*if_capability |= QED_LM_50000baseCR2_Full_BIT;
+			phylink_set(if_caps, 50000baseCR2_Full);
+
 		if (capability &
-			NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
-			*if_capability |= QED_LM_100000baseCR4_Full_BIT;
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_100G_CR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_CR:
+				phylink_set(if_caps, 100000baseCR4_Full);
+				break;
+			default:
+				break;
+			}
+
 		break;
 	case MEDIA_BASE_T:
-		*if_capability |= QED_LM_TP_BIT;
+		phylink_set(if_caps, TP);
+
 		if (board_cfg & NVM_CFG1_PORT_PORT_TYPE_EXT_PHY) {
 			if (capability &
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G) {
-				*if_capability |= QED_LM_1000baseT_Full_BIT;
-			}
+			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
+				phylink_set(if_caps, 1000baseT_Full);
 			if (capability &
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G) {
-				*if_capability |= QED_LM_10000baseT_Full_BIT;
+			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
+				phylink_set(if_caps, 10000baseT_Full);
+		}
+
+		if (board_cfg & NVM_CFG1_PORT_PORT_TYPE_MODULE) {
+			phylink_set(if_caps, FIBRE);
+
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_1000BASET:
+				phylink_set(if_caps, 1000baseT_Full);
+				break;
+			case ETH_TRANSCEIVER_TYPE_10G_BASET:
+				phylink_set(if_caps, 10000baseT_Full);
+				break;
+			default:
+				break;
 			}
 		}
-		if (board_cfg & NVM_CFG1_PORT_PORT_TYPE_MODULE) {
-			*if_capability |= QED_LM_FIBRE_BIT;
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_1000BASET)
-				*if_capability |= QED_LM_1000baseT_Full_BIT;
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_BASET)
-				*if_capability |= QED_LM_10000baseT_Full_BIT;
-		}
+
 		break;
 	case MEDIA_SFP_1G_FIBER:
 	case MEDIA_SFPP_10G_FIBER:
 	case MEDIA_XFP_FIBER:
 	case MEDIA_MODULE_FIBER:
-		*if_capability |= QED_LM_FIBRE_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G) {
-			if ((tcvr_type == ETH_TRANSCEIVER_TYPE_1G_LX) ||
-			    (tcvr_type == ETH_TRANSCEIVER_TYPE_1G_SX))
-				*if_capability |= QED_LM_1000baseKX_Full_BIT;
-		}
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G) {
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_SR)
-				*if_capability |= QED_LM_10000baseSR_Full_BIT;
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_LR)
-				*if_capability |= QED_LM_10000baseLR_Full_BIT;
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_LRM)
-				*if_capability |= QED_LM_10000baseLRM_Full_BIT;
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_ER)
-				*if_capability |= QED_LM_10000baseR_FEC_BIT;
-		}
+		phylink_set(if_caps, FIBRE);
+		capability |= speed_mask;
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_1G_LX:
+			case ETH_TRANSCEIVER_TYPE_1G_SX:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_LR:
+				phylink_set(if_caps, 1000baseKX_Full);
+				break;
+			default:
+				break;
+			}
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_10G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_SR:
+				phylink_set(if_caps, 10000baseSR_Full);
+				break;
+			case ETH_TRANSCEIVER_TYPE_10G_LR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_LR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_LR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_LR:
+				phylink_set(if_caps, 10000baseLR_Full);
+				break;
+			case ETH_TRANSCEIVER_TYPE_10G_LRM:
+				phylink_set(if_caps, 10000baseLRM_Full);
+				break;
+			case ETH_TRANSCEIVER_TYPE_10G_ER:
+				phylink_set(if_caps, 10000baseR_FEC);
+				break;
+			default:
+				break;
+			}
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
-			*if_capability |= QED_LM_20000baseKR2_Full_BIT;
+			phylink_set(if_caps, 20000baseKR2_Full);
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_25G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_SR:
+				phylink_set(if_caps, 25000baseSR_Full);
+				break;
+			default:
+				break;
+			}
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_40G_LR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_LR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_LR:
+				phylink_set(if_caps, 40000baseLR4_Full);
+				break;
+			case ETH_TRANSCEIVER_TYPE_40G_SR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_SR:
+				phylink_set(if_caps, 40000baseSR4_Full);
+				break;
+			default:
+				break;
+			}
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
+			phylink_set(if_caps, 50000baseKR2_Full);
+
 		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G) {
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_25G_SR)
-				*if_capability |= QED_LM_25000baseSR_Full_BIT;
-		}
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G) {
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_40G_LR4)
-				*if_capability |= QED_LM_40000baseLR4_Full_BIT;
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_40G_SR4)
-				*if_capability |= QED_LM_40000baseSR4_Full_BIT;
-		}
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
-			*if_capability |= QED_LM_50000baseKR2_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G) {
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_100G_SR4)
-				*if_capability |= QED_LM_100000baseSR4_Full_BIT;
-		}
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_100G_SR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_SR:
+				phylink_set(if_caps, 100000baseSR4_Full);
+				break;
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_LR:
+				phylink_set(if_caps, 100000baseLR4_ER4_Full);
+				break;
+			default:
+				break;
+			}
 
 		break;
 	case MEDIA_KR:
-		*if_capability |= QED_LM_Backplane_BIT;
+		phylink_set(if_caps, Backplane);
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
-			*if_capability |= QED_LM_20000baseKR2_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
-			*if_capability |= QED_LM_1000baseKX_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
-			*if_capability |= QED_LM_10000baseKR_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
-			*if_capability |= QED_LM_25000baseKR_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
-			*if_capability |= QED_LM_40000baseKR4_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
-			*if_capability |= QED_LM_50000baseKR2_Full_BIT;
+			phylink_set(if_caps, 20000baseKR2_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
+			phylink_set(if_caps, 1000baseKX_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
+			phylink_set(if_caps, 10000baseKR_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
+			phylink_set(if_caps, 25000baseKR_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
+			phylink_set(if_caps, 40000baseKR4_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
+			phylink_set(if_caps, 50000baseKR2_Full);
 		if (capability &
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
-			*if_capability |= QED_LM_100000baseKR4_Full_BIT;
+			phylink_set(if_caps, 100000baseKR4_Full);
+
 		break;
 	case MEDIA_UNSPECIFIED:
 	case MEDIA_NOT_PRESENT:
+	default:
 		DP_VERBOSE(hwfn->cdev, QED_MSG_DEBUG,
 			   "Unknown media and transceiver type;\n");
 		break;
 	}
+}
+
+static void qed_lp_caps_to_speed_mask(u32 caps, u32 *speed_mask)
+{
+	*speed_mask = 0;
+
+	if (caps &
+	    (QED_LINK_PARTNER_SPEED_1G_FD | QED_LINK_PARTNER_SPEED_1G_HD))
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+	if (caps & QED_LINK_PARTNER_SPEED_10G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+	if (caps & QED_LINK_PARTNER_SPEED_20G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G;
+	if (caps & QED_LINK_PARTNER_SPEED_25G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
+	if (caps & QED_LINK_PARTNER_SPEED_40G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
+	if (caps & QED_LINK_PARTNER_SPEED_50G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
+	if (caps & QED_LINK_PARTNER_SPEED_100G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G;
 }
 
 static void qed_fill_link(struct qed_hwfn *hwfn,
@@ -1816,7 +2202,7 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	struct qed_mcp_link_capabilities link_caps;
 	struct qed_mcp_link_params params;
 	struct qed_mcp_link_state link;
-	u32 media_type;
+	u32 media_type, speed_mask;
 
 	memset(if_link, 0, sizeof(*if_link));
 
@@ -1830,28 +2216,53 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	if (link.link_up)
 		if_link->link_up = true;
 
-	/* TODO - at the moment assume supported and advertised speed equal */
-	if (link_caps.default_speed_autoneg)
-		if_link->supported_caps |= QED_LM_Autoneg_BIT;
+	if (IS_PF(hwfn->cdev) && qed_mcp_is_ext_speed_supported(hwfn)) {
+		if (link_caps.default_ext_autoneg)
+			phylink_set(if_link->supported_caps, Autoneg);
+
+		linkmode_copy(if_link->advertised_caps, if_link->supported_caps);
+
+		if (params.ext_speed.autoneg)
+			phylink_set(if_link->advertised_caps, Autoneg);
+		else
+			phylink_clear(if_link->advertised_caps, Autoneg);
+
+		qed_fill_link_capability(hwfn, ptt,
+					 params.ext_speed.advertised_speeds,
+					 if_link->advertised_caps);
+	} else {
+		if (link_caps.default_speed_autoneg)
+			phylink_set(if_link->supported_caps, Autoneg);
+
+		linkmode_copy(if_link->advertised_caps, if_link->supported_caps);
+
+		if (params.speed.autoneg)
+			phylink_set(if_link->advertised_caps, Autoneg);
+		else
+			phylink_clear(if_link->advertised_caps, Autoneg);
+	}
+
 	if (params.pause.autoneg ||
 	    (params.pause.forced_rx && params.pause.forced_tx))
-		if_link->supported_caps |= QED_LM_Asym_Pause_BIT;
+		phylink_set(if_link->supported_caps, Asym_Pause);
 	if (params.pause.autoneg || params.pause.forced_rx ||
 	    params.pause.forced_tx)
-		if_link->supported_caps |= QED_LM_Pause_BIT;
+		phylink_set(if_link->supported_caps, Pause);
 
-	if_link->advertised_caps = if_link->supported_caps;
-	if (params.speed.autoneg)
-		if_link->advertised_caps |= QED_LM_Autoneg_BIT;
-	else
-		if_link->advertised_caps &= ~QED_LM_Autoneg_BIT;
+	if_link->sup_fec = link_caps.fec_default;
+	if_link->active_fec = params.fec;
 
-	/* Fill link advertised capability*/
+	/* Fill link advertised capability */
 	qed_fill_link_capability(hwfn, ptt, params.speed.advertised_speeds,
-				 &if_link->advertised_caps);
-	/* Fill link supported capability*/
+				 if_link->advertised_caps);
+
+	/* Fill link supported capability */
 	qed_fill_link_capability(hwfn, ptt, link_caps.speed_capabilities,
-				 &if_link->supported_caps);
+				 if_link->supported_caps);
+
+	/* Fill partner advertised capability */
+	qed_lp_caps_to_speed_mask(link.partner_adv_speed, &speed_mask);
+	qed_fill_link_capability(hwfn, ptt, speed_mask, if_link->lp_caps);
 
 	if (link.link_up)
 		if_link->speed = link.speed;
@@ -1870,31 +2281,13 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	if (params.pause.forced_tx)
 		if_link->pause_config |= QED_LINK_PAUSE_TX_ENABLE;
 
-	/* Link partner capabilities */
-	if (link.partner_adv_speed &
-	    QED_LINK_PARTNER_SPEED_1G_FD)
-		if_link->lp_caps |= QED_LM_1000baseT_Full_BIT;
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_10G)
-		if_link->lp_caps |= QED_LM_10000baseKR_Full_BIT;
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_20G)
-		if_link->lp_caps |= QED_LM_20000baseKR2_Full_BIT;
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_25G)
-		if_link->lp_caps |= QED_LM_25000baseKR_Full_BIT;
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_40G)
-		if_link->lp_caps |= QED_LM_40000baseLR4_Full_BIT;
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_50G)
-		if_link->lp_caps |= QED_LM_50000baseKR2_Full_BIT;
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_100G)
-		if_link->lp_caps |= QED_LM_100000baseKR4_Full_BIT;
-
 	if (link.an_complete)
-		if_link->lp_caps |= QED_LM_Autoneg_BIT;
-
+		phylink_set(if_link->lp_caps, Autoneg);
 	if (link.partner_adv_pause)
-		if_link->lp_caps |= QED_LM_Pause_BIT;
+		phylink_set(if_link->lp_caps, Pause);
 	if (link.partner_adv_pause == QED_LINK_PARTNER_ASYMMETRIC_PAUSE ||
 	    link.partner_adv_pause == QED_LINK_PARTNER_BOTH_PAUSE)
-		if_link->lp_caps |= QED_LM_Asym_Pause_BIT;
+		phylink_set(if_link->lp_caps, Asym_Pause);
 
 	if (link_caps.default_eee == QED_MCP_EEE_UNSUPPORTED) {
 		if_link->eee_supported = false;
@@ -1949,6 +2342,15 @@ void qed_link_update(struct qed_hwfn *hwfn, struct qed_ptt *ptt)
 		op->link_update(cookie, &if_link);
 }
 
+void qed_bw_update(struct qed_hwfn *hwfn, struct qed_ptt *ptt)
+{
+	void *cookie = hwfn->cdev->ops_cookie;
+	struct qed_common_cb_ops *op = hwfn->cdev->protocol_ops.common;
+
+	if (IS_LEAD_HWFN(hwfn) && cookie && op && op->bw_update)
+		op->bw_update(cookie);
+}
+
 static int qed_drain(struct qed_dev *cdev)
 {
 	struct qed_hwfn *hwfn;
@@ -1979,8 +2381,7 @@ static u32 qed_nvm_flash_image_access_crc(struct qed_dev *cdev,
 					  u32 *crc)
 {
 	u8 *buf = NULL;
-	int rc, j;
-	u32 val;
+	int rc;
 
 	/* Allocate a buffer for holding the nvram image */
 	buf = kzalloc(nvm_image->length, GFP_KERNEL);
@@ -1998,15 +2399,14 @@ static u32 qed_nvm_flash_image_access_crc(struct qed_dev *cdev,
 	/* Convert the buffer into big-endian format (excluding the
 	 * closing 4 bytes of CRC).
 	 */
-	for (j = 0; j < nvm_image->length - 4; j += 4) {
-		val = cpu_to_be32(*(u32 *)&buf[j]);
-		*(u32 *)&buf[j] = val;
-	}
+	cpu_to_be32_array((__force __be32 *)buf, (const u32 *)buf,
+			  DIV_ROUND_UP(nvm_image->length - 4, 4));
 
 	/* Calc CRC for the "actual" image buffer, i.e. not including
 	 * the last 4 CRC bytes.
 	 */
-	*crc = (~cpu_to_be32(crc32(0xffffffff, buf, nvm_image->length - 4)));
+	*crc = ~crc32(~0U, buf, nvm_image->length - 4);
+	*crc = (__force u32)cpu_to_be32p(crc);
 
 out:
 	kfree(buf);
@@ -2468,6 +2868,39 @@ void qed_schedule_recovery_handler(struct qed_hwfn *p_hwfn)
 		ops->schedule_recovery_handler(cookie);
 }
 
+static const char * const qed_hw_err_type_descr[] = {
+	[QED_HW_ERR_FAN_FAIL]		= "Fan Failure",
+	[QED_HW_ERR_MFW_RESP_FAIL]	= "MFW Response Failure",
+	[QED_HW_ERR_HW_ATTN]		= "HW Attention",
+	[QED_HW_ERR_DMAE_FAIL]		= "DMAE Failure",
+	[QED_HW_ERR_RAMROD_FAIL]	= "Ramrod Failure",
+	[QED_HW_ERR_FW_ASSERT]		= "FW Assertion",
+	[QED_HW_ERR_LAST]		= "Unknown",
+};
+
+void qed_hw_error_occurred(struct qed_hwfn *p_hwfn,
+			   enum qed_hw_err_type err_type)
+{
+	struct qed_common_cb_ops *ops = p_hwfn->cdev->protocol_ops.common;
+	void *cookie = p_hwfn->cdev->ops_cookie;
+	const char *err_str;
+
+	if (err_type > QED_HW_ERR_LAST)
+		err_type = QED_HW_ERR_LAST;
+	err_str = qed_hw_err_type_descr[err_type];
+
+	DP_NOTICE(p_hwfn, "HW error occurred [%s]\n", err_str);
+
+	/* Call the HW error handler of the protocol driver.
+	 * If it is not available - perform a minimal handling of preventing
+	 * HW attentions from being reasserted.
+	 */
+	if (ops && ops->schedule_hw_err_handler)
+		ops->schedule_hw_err_handler(cookie, err_type);
+	else
+		qed_int_attn_clr_enable(p_hwfn->cdev, true);
+}
+
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
 			    void *handle)
 {
@@ -2689,6 +3122,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.set_led = &qed_set_led,
 	.recovery_process = &qed_recovery_process,
 	.recovery_prolog = &qed_recovery_prolog,
+	.attn_clr_enable = &qed_int_attn_clr_enable,
 	.update_drv_state = &qed_update_drv_state,
 	.update_mac = &qed_update_mac,
 	.update_mtu = &qed_update_mtu,

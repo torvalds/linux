@@ -48,7 +48,7 @@ struct acx424akp {
 };
 
 static const struct drm_display_mode sony_acx424akp_vid_mode = {
-	.clock = 330000,
+	.clock = 27234,
 	.hdisplay = 480,
 	.hsync_start = 480 + 15,
 	.hsync_end = 480 + 15 + 0,
@@ -57,7 +57,6 @@ static const struct drm_display_mode sony_acx424akp_vid_mode = {
 	.vsync_start = 864 + 14,
 	.vsync_end = 864 + 14 + 1,
 	.vtotal = 864 + 14 + 1 + 11,
-	.vrefresh = 60,
 	.width_mm = 48,
 	.height_mm = 84,
 	.flags = DRM_MODE_FLAG_PVSYNC,
@@ -68,7 +67,7 @@ static const struct drm_display_mode sony_acx424akp_vid_mode = {
  * command mode using the maximum HS frequency.
  */
 static const struct drm_display_mode sony_acx424akp_cmd_mode = {
-	.clock = 420160,
+	.clock = 35478,
 	.hdisplay = 480,
 	.hsync_start = 480 + 154,
 	.hsync_end = 480 + 154 + 16,
@@ -81,7 +80,6 @@ static const struct drm_display_mode sony_acx424akp_cmd_mode = {
 	 * Some desired refresh rate, experiments at the maximum "pixel"
 	 * clock speed (HS clock 420 MHz) yields around 117Hz.
 	 */
-	.vrefresh = 60,
 	.width_mm = 48,
 	.height_mm = 84,
 };

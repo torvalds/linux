@@ -706,6 +706,7 @@ static void atmel_spi_next_xfer_pio(struct spi_master *master,
 static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 				struct spi_transfer *xfer,
 				u32 *plen)
+	__must_hold(&as->lock)
 {
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 	struct dma_chan		*rxchan = master->dma_rx;
@@ -1545,10 +1546,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	/* setup spi core then atmel-specific driver state */
-	ret = -ENOMEM;
 	master = spi_alloc_master(&pdev->dev, sizeof(*as));
 	if (!master)
-		goto out_free;
+		return -ENOMEM;
 
 	/* the spi->mode bits understood by this driver: */
 	master->use_gpio_descriptors = true;
@@ -1677,7 +1677,6 @@ out_free_dma:
 	clk_disable_unprepare(clk);
 out_free_irq:
 out_unmap_regs:
-out_free:
 	spi_master_put(master);
 	return ret;
 }

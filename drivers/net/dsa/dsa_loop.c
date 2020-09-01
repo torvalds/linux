@@ -14,48 +14,16 @@
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/if_bridge.h>
+#include <linux/dsa/loop.h>
 #include <net/dsa.h>
 
 #include "dsa_loop.h"
-
-struct dsa_loop_vlan {
-	u16 members;
-	u16 untagged;
-};
-
-struct dsa_loop_mib_entry {
-	char name[ETH_GSTRING_LEN];
-	unsigned long val;
-};
-
-enum dsa_loop_mib_counters {
-	DSA_LOOP_PHY_READ_OK,
-	DSA_LOOP_PHY_READ_ERR,
-	DSA_LOOP_PHY_WRITE_OK,
-	DSA_LOOP_PHY_WRITE_ERR,
-	__DSA_LOOP_CNT_MAX,
-};
 
 static struct dsa_loop_mib_entry dsa_loop_mibs[] = {
 	[DSA_LOOP_PHY_READ_OK]	= { "phy_read_ok", },
 	[DSA_LOOP_PHY_READ_ERR]	= { "phy_read_err", },
 	[DSA_LOOP_PHY_WRITE_OK] = { "phy_write_ok", },
 	[DSA_LOOP_PHY_WRITE_ERR] = { "phy_write_err", },
-};
-
-struct dsa_loop_port {
-	struct dsa_loop_mib_entry mib[__DSA_LOOP_CNT_MAX];
-};
-
-#define DSA_LOOP_VLANS	5
-
-struct dsa_loop_priv {
-	struct mii_bus	*bus;
-	unsigned int	port_base;
-	struct dsa_loop_vlan vlans[DSA_LOOP_VLANS];
-	struct net_device *netdev;
-	struct dsa_loop_port ports[DSA_MAX_PORTS];
-	u16 pvid;
 };
 
 static struct phy_device *phydevs[PHY_MAX_ADDR];
@@ -191,7 +159,7 @@ dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
 
-	if (vlan->vid_end > DSA_LOOP_VLANS)
+	if (vlan->vid_end > ARRAY_SIZE(ps->vlans))
 		return -ERANGE;
 
 	return 0;
@@ -224,7 +192,7 @@ static void dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
 	}
 
 	if (pvid)
-		ps->pvid = vid;
+		ps->ports[port].pvid = vid;
 }
 
 static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
@@ -234,7 +202,7 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
-	u16 vid, pvid = ps->pvid;
+	u16 vid, pvid = ps->ports[port].pvid;
 
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
@@ -252,9 +220,24 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 		dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
 			__func__, port, vid, untagged ? "un" : "", pvid);
 	}
-	ps->pvid = pvid;
+	ps->ports[port].pvid = pvid;
 
 	return 0;
+}
+
+static int dsa_loop_port_change_mtu(struct dsa_switch *ds, int port,
+				    int new_mtu)
+{
+	struct dsa_loop_priv *priv = ds->priv;
+
+	priv->ports[port].mtu = new_mtu;
+
+	return 0;
+}
+
+static int dsa_loop_port_max_mtu(struct dsa_switch *ds, int port)
+{
+	return ETH_MAX_MTU;
 }
 
 static const struct dsa_switch_ops dsa_loop_driver = {
@@ -273,6 +256,8 @@ static const struct dsa_switch_ops dsa_loop_driver = {
 	.port_vlan_prepare	= dsa_loop_port_vlan_prepare,
 	.port_vlan_add		= dsa_loop_port_vlan_add,
 	.port_vlan_del		= dsa_loop_port_vlan_del,
+	.port_change_mtu	= dsa_loop_port_change_mtu,
+	.port_max_mtu		= dsa_loop_port_max_mtu,
 };
 
 static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
@@ -280,19 +265,17 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 	struct dsa_loop_pdata *pdata = mdiodev->dev.platform_data;
 	struct dsa_loop_priv *ps;
 	struct dsa_switch *ds;
+	int ret;
 
 	if (!pdata)
 		return -ENODEV;
-
-	dev_info(&mdiodev->dev, "%s: 0x%0x\n",
-		 pdata->name, pdata->enabled_ports);
 
 	ds = devm_kzalloc(&mdiodev->dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
 		return -ENOMEM;
 
 	ds->dev = &mdiodev->dev;
-	ds->num_ports = DSA_MAX_PORTS;
+	ds->num_ports = DSA_LOOP_NUM_PORTS;
 
 	ps = devm_kzalloc(&mdiodev->dev, sizeof(*ps), GFP_KERNEL);
 	if (!ps)
@@ -311,7 +294,12 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 
 	dev_set_drvdata(&mdiodev->dev, ds);
 
-	return dsa_register_switch(ds);
+	ret = dsa_register_switch(ds);
+	if (!ret)
+		dev_info(&mdiodev->dev, "%s: 0x%0x\n",
+			 pdata->name, pdata->enabled_ports);
+
+	return ret;
 }
 
 static void dsa_loop_drv_remove(struct mdio_device *mdiodev)
@@ -360,6 +348,7 @@ static void __exit dsa_loop_exit(void)
 }
 module_exit(dsa_loop_exit);
 
+MODULE_SOFTDEP("pre: dsa_loop_bdinfo");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Florian Fainelli");
 MODULE_DESCRIPTION("DSA loopback driver");

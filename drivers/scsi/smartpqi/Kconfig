@@ -42,7 +42,7 @@ config SCSI_SMARTPQI
 	depends on PCI && SCSI && !S390
 	select SCSI_SAS_ATTRS
 	select RAID_ATTRS
-	---help---
+	help
 	This driver supports Microsemi PQI controllers.
 
 	<http://www.microsemi.com>
@@ -53,4 +53,4 @@ config SCSI_SMARTPQI
         Note: the aacraid driver will not manage a smartpqi
               controller. You need to enable smartpqi for smartpqi
               controllers. For more information, please see
-              Documentation/scsi/smartpqi.txt
+              Documentation/scsi/smartpqi.rst

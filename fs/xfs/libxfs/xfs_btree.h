@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
@@ -10,6 +10,7 @@ struct xfs_buf;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_ifork;
 
 extern kmem_zone_t	*xfs_btree_cur_zone;
 
@@ -177,15 +178,37 @@ union xfs_btree_irec {
 	struct xfs_refcount_irec	rc;
 };
 
-/* Per-AG btree private information. */
-union xfs_btree_cur_private {
-	struct {
-		unsigned long	nr_ops;		/* # record updates */
-		int		shape_changes;	/* # of extent splits */
-	} refc;
-	struct {
-		bool		active;		/* allocation cursor state */
-	} abt;
+/* Per-AG btree information. */
+struct xfs_btree_cur_ag {
+	union {
+		struct xfs_buf		*agbp;
+		struct xbtree_afakeroot	*afake;	/* for staging cursor */
+	};
+	xfs_agnumber_t		agno;
+	union {
+		struct {
+			unsigned long nr_ops;	/* # record updates */
+			int	shape_changes;	/* # of extent splits */
+		} refc;
+		struct {
+			bool	active;		/* allocation cursor state */
+		} abt;
+	};
+};
+
+/* Btree-in-inode cursor information */
+struct xfs_btree_cur_ino {
+	struct xfs_inode		*ip;
+	struct xbtree_ifakeroot		*ifake;	/* for staging cursor */
+	int				allocated;
+	short				forksize;
+	char				whichfork;
+	char				flags;
+/* We are converting a delalloc reservation */
+#define	XFS_BTCUR_BMBT_WASDEL		(1 << 0)
+
+/* For extent swap, ignore owner check in verifier */
+#define	XFS_BTCUR_BMBT_INVALID_OWNER	(1 << 1)
 };
 
 /*
@@ -209,21 +232,9 @@ typedef struct xfs_btree_cur
 	xfs_btnum_t	bc_btnum;	/* identifies which btree type */
 	int		bc_statoff;	/* offset of btre stats array */
 	union {
-		struct {			/* needed for BNO, CNT, INO */
-			struct xfs_buf	*agbp;	/* agf/agi buffer pointer */
-			xfs_agnumber_t	agno;	/* ag number */
-			union xfs_btree_cur_private	priv;
-		} a;
-		struct {			/* needed for BMAP */
-			struct xfs_inode *ip;	/* pointer to our inode */
-			int		allocated;	/* count of alloced */
-			short		forksize;	/* fork's inode space */
-			char		whichfork;	/* data or attr fork */
-			char		flags;		/* flags */
-#define	XFS_BTCUR_BPRV_WASDEL		(1<<0)		/* was delayed */
-#define	XFS_BTCUR_BPRV_INVALID_OWNER	(1<<1)		/* for ext swap */
-		} b;
-	}		bc_private;	/* per-btree type data */
+		struct xfs_btree_cur_ag	bc_ag;
+		struct xfs_btree_cur_ino bc_ino;
+	};
 } xfs_btree_cur_t;
 
 /* cursor flags */
@@ -232,6 +243,12 @@ typedef struct xfs_btree_cur
 #define XFS_BTREE_LASTREC_UPDATE	(1<<2)	/* track last rec externally */
 #define XFS_BTREE_CRC_BLOCKS		(1<<3)	/* uses extended btree blocks */
 #define XFS_BTREE_OVERLAPPING		(1<<4)	/* overlapping intervals */
+/*
+ * The root of this btree is a fakeroot structure so that we can stage a btree
+ * rebuild without leaving it accessible via primary metadata.  The ops struct
+ * is dynamically allocated and must be freed when the cursor is deleted.
+ */
+#define XFS_BTREE_STAGING		(1<<5)
 
 
 #define	XFS_BTREE_NOERROR	0
@@ -494,6 +511,7 @@ union xfs_btree_key *xfs_btree_high_key_from_key(struct xfs_btree_cur *cur,
 int xfs_btree_has_record(struct xfs_btree_cur *cur, union xfs_btree_irec *low,
 		union xfs_btree_irec *high, bool *exists);
 bool xfs_btree_has_more_records(struct xfs_btree_cur *cur);
+struct xfs_ifork *xfs_btree_ifork_ptr(struct xfs_btree_cur *cur);
 
 /* Does this cursor point to the last block in the given level? */
 static inline bool
@@ -511,5 +529,21 @@ xfs_btree_islastblock(
 		return block->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK);
 	return block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK);
 }
+
+void xfs_btree_set_ptr_null(struct xfs_btree_cur *cur,
+		union xfs_btree_ptr *ptr);
+int xfs_btree_get_buf_block(struct xfs_btree_cur *cur, union xfs_btree_ptr *ptr,
+		struct xfs_btree_block **block, struct xfs_buf **bpp);
+void xfs_btree_set_sibling(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, union xfs_btree_ptr *ptr,
+		int lr);
+void xfs_btree_init_block_cur(struct xfs_btree_cur *cur,
+		struct xfs_buf *bp, int level, int numrecs);
+void xfs_btree_copy_ptrs(struct xfs_btree_cur *cur,
+		union xfs_btree_ptr *dst_ptr,
+		const union xfs_btree_ptr *src_ptr, int numptrs);
+void xfs_btree_copy_keys(struct xfs_btree_cur *cur,
+		union xfs_btree_key *dst_key, union xfs_btree_key *src_key,
+		int numkeys);
 
 #endif	/* __XFS_BTREE_H__ */

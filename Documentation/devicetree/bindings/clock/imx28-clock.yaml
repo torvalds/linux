@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/imx28-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Clock bindings for Freescale i.MX28
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+
+description: |
+  The clock consumer should specify the desired clock by having the clock
+  ID in its "clocks" phandle cell. The following is a full list of i.MX28
+  clocks and IDs.
+
+        Clock		ID
+        ------------------
+        ref_xtal	0
+        pll0		1
+        pll1		2
+        pll2		3
+        ref_cpu		4
+        ref_emi		5
+        ref_io0		6
+        ref_io1		7
+        ref_pix		8
+        ref_hsadc	9
+        ref_gpmi	10
+        saif0_sel	11
+        saif1_sel	12
+        gpmi_sel	13
+        ssp0_sel	14
+        ssp1_sel	15
+        ssp2_sel	16
+        ssp3_sel	17
+        emi_sel		18
+        etm_sel		19
+        lcdif_sel	20
+        cpu		21
+        ptp_sel		22
+        cpu_pll		23
+        cpu_xtal	24
+        hbus		25
+        xbus		26
+        ssp0_div	27
+        ssp1_div	28
+        ssp2_div	29
+        ssp3_div	30
+        gpmi_div	31
+        emi_pll		32
+        emi_xtal	33
+        lcdif_div	34
+        etm_div		35
+        ptp		36
+        saif0_div	37
+        saif1_div	38
+        clk32k_div	39
+        rtc		40
+        lradc		41
+        spdif_div	42
+        clk32k		43
+        pwm		44
+        uart		45
+        ssp0		46
+        ssp1		47
+        ssp2		48
+        ssp3		49
+        gpmi		50
+        spdif		51
+        emi		52
+        saif0		53
+        saif1		54
+        lcdif		55
+        etm		56
+        fec		57
+        can0		58
+        can1		59
+        usb0		60
+        usb1		61
+        usb0_phy	62
+        usb1_phy	63
+        enet_out	64
+
+properties:
+  compatible:
+    const: fsl,imx28-clkctrl
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@80040000 {
+        compatible = "fsl,imx28-clkctrl";
+        reg = <0x80040000 0x2000>;
+        #clock-cells = <1>;
+    };
+
+    serial@8006a000 {
+        compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+        reg = <0x8006a000 0x2000>;
+        interrupts = <112 70 71>;
+        clocks = <&clks 45>;
+    };

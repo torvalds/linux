@@ -138,12 +138,13 @@ static void qla_nvme_release_fcp_cmd_kref(struct kref *kref)
 	priv->sp = NULL;
 	sp->priv = NULL;
 	if (priv->comp_status == QLA_SUCCESS) {
-		fd->rcv_rsplen = nvme->u.nvme.rsp_pyld_len;
+		fd->rcv_rsplen = le16_to_cpu(nvme->u.nvme.rsp_pyld_len);
+		fd->status = NVME_SC_SUCCESS;
 	} else {
 		fd->rcv_rsplen = 0;
 		fd->transferred_length = 0;
+		fd->status = NVME_SC_INTERNAL;
 	}
-	fd->status = 0;
 	spin_unlock_irqrestore(&priv->cmd_lock, flags);
 
 	fd->done(fd);
@@ -295,7 +296,7 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 	sp->name = "nvme_ls";
 	sp->done = qla_nvme_sp_ls_done;
 	sp->put_fn = qla_nvme_release_ls_cmd_kref;
-	sp->priv = (void *)priv;
+	sp->priv = priv;
 	priv->sp = sp;
 	kref_init(&sp->cmd_kref);
 	spin_lock_init(&priv->cmd_lock);
@@ -384,7 +385,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
 		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
-		    RD_REG_DWORD_RELAXED(req->req_q_out);
+		    rd_reg_dword_relaxed(req->req_q_out);
 
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
@@ -413,7 +414,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	req->cnt -= req_cnt;
 
 	cmd_pkt = (struct cmd_nvme *)req->ring_ptr;
-	cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+	cmd_pkt->handle = make_handle(req->id, handle);
 
 	/* Zero out remaining portion of packet. */
 	clr_ptr = (uint32_t *)cmd_pkt + 2;
@@ -426,11 +427,11 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* No data transfer how do we check buffer len == 0?? */
 	if (fd->io_dir == NVMEFC_FCP_READ) {
-		cmd_pkt->control_flags = CF_READ_DATA;
+		cmd_pkt->control_flags = cpu_to_le16(CF_READ_DATA);
 		vha->qla_stats.input_bytes += fd->payload_length;
 		vha->qla_stats.input_requests++;
 	} else if (fd->io_dir == NVMEFC_FCP_WRITE) {
-		cmd_pkt->control_flags = CF_WRITE_DATA;
+		cmd_pkt->control_flags = cpu_to_le16(CF_WRITE_DATA);
 		if ((vha->flags.nvme_first_burst) &&
 		    (sp->fcport->nvme_prli_service_param &
 			NVME_PRLI_SP_FIRST_BURST)) {
@@ -438,7 +439,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 			    sp->fcport->nvme_first_burst_size) ||
 				(sp->fcport->nvme_first_burst_size == 0))
 				cmd_pkt->control_flags |=
-				    CF_NVME_FIRST_BURST_ENABLE;
+					cpu_to_le16(CF_NVME_FIRST_BURST_ENABLE);
 		}
 		vha->qla_stats.output_bytes += fd->payload_length;
 		vha->qla_stats.output_requests++;
@@ -514,7 +515,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	}
 
 	/* Set chip new ring index. */
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
 
 queuing_error:
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
@@ -534,6 +535,11 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	struct qla_qpair *qpair = hw_queue_handle;
 	struct nvme_private *priv = fd->private;
 	struct qla_nvme_rport *qla_rport = rport->private;
+
+	if (!priv) {
+		/* nvme association has been torn down */
+		return rval;
+	}
 
 	fcport = qla_rport->fcport;
 
@@ -560,7 +566,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	init_waitqueue_head(&sp->nvme_ls_waitq);
 	kref_init(&sp->cmd_kref);
 	spin_lock_init(&priv->cmd_lock);
-	sp->priv = (void *)priv;
+	sp->priv = priv;
 	priv->sp = sp;
 	sp->type = SRB_NVME_CMD;
 	sp->name = "nvme_cmd";
@@ -610,7 +616,6 @@ static void qla_nvme_remoteport_delete(struct nvme_fc_remote_port *rport)
 }
 
 static struct nvme_fc_port_template qla_nvme_fc_transport = {
-	.module	= THIS_MODULE,
 	.localport_delete = qla_nvme_localport_delete,
 	.remoteport_delete = qla_nvme_remoteport_delete,
 	.create_queue   = qla_nvme_alloc_queue,
@@ -687,7 +692,15 @@ int qla_nvme_register_hba(struct scsi_qla_host *vha)
 	tmpl = &qla_nvme_fc_transport;
 
 	WARN_ON(vha->nvme_local_port);
-	WARN_ON(ha->max_req_queues < 3);
+
+	if (ha->max_req_queues < 3) {
+		if (!ha->flags.max_req_queue_warned)
+			ql_log(ql_log_info, vha, 0x2120,
+			       "%s: Disabling FC-NVME due to lack of free queue pairs (%d).\n",
+			       __func__, ha->max_req_queues);
+		ha->flags.max_req_queue_warned = 1;
+		return ret;
+	}
 
 	qla_nvme_fc_transport.max_hw_queues =
 	    min((uint8_t)(qla_nvme_fc_transport.max_hw_queues),

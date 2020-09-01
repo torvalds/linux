@@ -36,6 +36,7 @@ struct renesas_sdhi_of_data {
 struct renesas_sdhi_quirks {
 	bool hs400_disabled;
 	bool hs400_4taps;
+	u32 hs400_bad_taps;
 };
 
 struct tmio_mmc_dma {
@@ -57,6 +58,14 @@ struct renesas_sdhi {
 	void __iomem *scc_ctl;
 	u32 scc_tappos;
 	u32 scc_tappos_hs400;
+	bool doing_tune;
+
+	/* Tuning values: 1 for success, 0 for failure */
+	DECLARE_BITMAP(taps, BITS_PER_LONG);
+	/* Sampling data comparison: 1 for match, 0 for mismatch */
+	DECLARE_BITMAP(smpcmp, BITS_PER_LONG);
+	unsigned int tap_num;
+	unsigned int tap_set;
 };
 
 #define host_to_priv(host) \

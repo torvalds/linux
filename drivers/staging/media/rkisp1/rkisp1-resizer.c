@@ -14,7 +14,7 @@
 #define RKISP1_RSZ_MP_DEV_NAME	RKISP1_DRIVER_NAME "_resizer_mainpath"
 
 #define RKISP1_DEF_FMT MEDIA_BUS_FMT_YUYV8_2X8
-#define RKISP1_DEF_FMT_TYPE RKISP1_FMT_YUV
+#define RKISP1_DEF_PIXEL_ENC V4L2_PIXEL_ENC_YUV
 
 #define RKISP1_MBUS_FMT_HDIV 2
 #define RKISP1_MBUS_FMT_VDIV 1
@@ -365,13 +365,18 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 	struct v4l2_rect sink_y, sink_c, src_y, src_c;
 	struct v4l2_mbus_framefmt *src_fmt;
 	struct v4l2_rect *sink_crop;
+	struct rkisp1_capture *cap = &rsz->rkisp1->capture_devs[rsz->id];
 
 	sink_crop = rkisp1_rsz_get_pad_crop(rsz, NULL, RKISP1_RSZ_PAD_SINK,
 					    V4L2_SUBDEV_FORMAT_ACTIVE);
 	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, NULL, RKISP1_RSZ_PAD_SRC,
 					 V4L2_SUBDEV_FORMAT_ACTIVE);
 
-	if (rsz->fmt_type == RKISP1_FMT_BAYER) {
+	/*
+	 * The resizer only works on yuv formats,
+	 * so return if it is bayer format.
+	 */
+	if (rsz->pixel_enc == V4L2_PIXEL_ENC_BAYER) {
 		rkisp1_rsz_disable(rsz, when);
 		return;
 	}
@@ -384,15 +389,20 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 	sink_c.width = sink_y.width / RKISP1_MBUS_FMT_HDIV;
 	sink_c.height = sink_y.height / RKISP1_MBUS_FMT_VDIV;
 
-	if (rsz->fmt_type == RKISP1_FMT_YUV) {
-		struct rkisp1_capture *cap =
-			&rsz->rkisp1->capture_devs[rsz->id];
-		const struct v4l2_format_info *pixfmt_info =
-			v4l2_format_info(cap->pix.fmt.pixelformat);
-
-		hdiv = pixfmt_info->hdiv;
-		vdiv = pixfmt_info->vdiv;
+	/*
+	 * The resizer is used not only to change the dimensions of the frame
+	 * but also to change the scale for YUV formats,
+	 * (4:2:2 -> 4:2:0 for example). So the width/height of the CbCr
+	 * streams should be set according to the pixel format in the capture.
+	 * The resizer always gets the input as YUV422. If the capture format
+	 * is RGB then the memory input should be YUV422 so we don't change the
+	 * default hdiv, vdiv in that case.
+	 */
+	if (v4l2_is_format_yuv(cap->pix.info)) {
+		hdiv = cap->pix.info->hdiv;
+		vdiv = cap->pix.info->vdiv;
 	}
+
 	src_c.width = src_y.width / hdiv;
 	src_c.height = src_y.height / vdiv;
 
@@ -427,8 +437,8 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 	u32 pad = code->pad;
 	int ret;
 
-	/* supported mbus codes are the same in isp sink pad */
-	code->pad = RKISP1_ISP_PAD_SINK_VIDEO;
+	/* supported mbus codes are the same in isp video src pad */
+	code->pad = RKISP1_ISP_PAD_SOURCE_VIDEO;
 	ret = v4l2_subdev_call(&rsz->rkisp1->isp.sd, pad, enum_mbus_code,
 			       &dummy_cfg, code);
 
@@ -498,11 +508,13 @@ static void rkisp1_rsz_set_sink_crop(struct rkisp1_resizer *rsz,
 	mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
 
 	if (rsz->id == RKISP1_MAINPATH &&
-	    mbus_info->fmt_type == RKISP1_FMT_BAYER) {
+	    mbus_info->pixel_enc == V4L2_PIXEL_ENC_BAYER) {
 		sink_crop->left = 0;
 		sink_crop->top = 0;
 		sink_crop->width = sink_fmt->width;
 		sink_crop->height = sink_fmt->height;
+
+		*r = *sink_crop;
 		return;
 	}
 
@@ -530,31 +542,22 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 					    which);
 	sink_fmt->code = format->code;
 	mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
-	if (!mbus_info) {
+	if (!mbus_info || !(mbus_info->direction & RKISP1_ISP_SD_SRC)) {
 		sink_fmt->code = RKISP1_DEF_FMT;
 		mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
 	}
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		rsz->fmt_type = mbus_info->fmt_type;
-
-	if (rsz->id == RKISP1_MAINPATH &&
-	    mbus_info->fmt_type == RKISP1_FMT_BAYER) {
-		sink_crop->left = 0;
-		sink_crop->top = 0;
-		sink_crop->width = sink_fmt->width;
-		sink_crop->height = sink_fmt->height;
-		return;
-	}
+		rsz->pixel_enc = mbus_info->pixel_enc;
 
 	/* Propagete to source pad */
 	src_fmt->code = sink_fmt->code;
 
 	sink_fmt->width = clamp_t(u32, format->width,
-				  rsz->config->min_rsz_width,
-				  rsz->config->max_rsz_width);
+				  RKISP1_ISP_MIN_WIDTH,
+				  RKISP1_ISP_MAX_WIDTH);
 	sink_fmt->height = clamp_t(u32, format->height,
-				   rsz->config->min_rsz_height,
-				   rsz->config->max_rsz_height);
+				  RKISP1_ISP_MIN_HEIGHT,
+				  RKISP1_ISP_MAX_HEIGHT);
 
 	*format = *sink_fmt;
 
@@ -569,7 +572,9 @@ static int rkisp1_rsz_get_fmt(struct v4l2_subdev *sd,
 	struct rkisp1_resizer *rsz =
 		container_of(sd, struct rkisp1_resizer, sd);
 
+	mutex_lock(&rsz->ops_lock);
 	fmt->format = *rkisp1_rsz_get_pad_fmt(rsz, cfg, fmt->pad, fmt->which);
+	mutex_unlock(&rsz->ops_lock);
 	return 0;
 }
 
@@ -580,11 +585,13 @@ static int rkisp1_rsz_set_fmt(struct v4l2_subdev *sd,
 	struct rkisp1_resizer *rsz =
 		container_of(sd, struct rkisp1_resizer, sd);
 
+	mutex_lock(&rsz->ops_lock);
 	if (fmt->pad == RKISP1_RSZ_PAD_SINK)
 		rkisp1_rsz_set_sink_fmt(rsz, cfg, &fmt->format, fmt->which);
 	else
 		rkisp1_rsz_set_src_fmt(rsz, cfg, &fmt->format, fmt->which);
 
+	mutex_unlock(&rsz->ops_lock);
 	return 0;
 }
 
@@ -595,10 +602,12 @@ static int rkisp1_rsz_get_selection(struct v4l2_subdev *sd,
 	struct rkisp1_resizer *rsz =
 		container_of(sd, struct rkisp1_resizer, sd);
 	struct v4l2_mbus_framefmt *mf_sink;
+	int ret = 0;
 
 	if (sel->pad == RKISP1_RSZ_PAD_SRC)
 		return -EINVAL;
 
+	mutex_lock(&rsz->ops_lock);
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		mf_sink = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SINK,
@@ -613,10 +622,11 @@ static int rkisp1_rsz_get_selection(struct v4l2_subdev *sd,
 						  sel->which);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	mutex_unlock(&rsz->ops_lock);
+	return ret;
 }
 
 static int rkisp1_rsz_set_selection(struct v4l2_subdev *sd,
@@ -629,10 +639,12 @@ static int rkisp1_rsz_set_selection(struct v4l2_subdev *sd,
 	if (sel->target != V4L2_SEL_TGT_CROP || sel->pad == RKISP1_RSZ_PAD_SRC)
 		return -EINVAL;
 
-	dev_dbg(sd->dev, "%s: pad: %d sel(%d,%d)/%dx%d\n", __func__,
+	dev_dbg(rsz->rkisp1->dev, "%s: pad: %d sel(%d,%d)/%dx%d\n", __func__,
 		sel->pad, sel->r.left, sel->r.top, sel->r.width, sel->r.height);
 
+	mutex_lock(&rsz->ops_lock);
 	rkisp1_rsz_set_sink_crop(rsz, cfg, &sel->r, sel->which);
+	mutex_unlock(&rsz->ops_lock);
 
 	return 0;
 }
@@ -672,9 +684,11 @@ static int rkisp1_rsz_s_stream(struct v4l2_subdev *sd, int enable)
 	if (other->is_streaming)
 		when = RKISP1_SHADOW_REGS_ASYNC;
 
+	mutex_lock(&rsz->ops_lock);
 	rkisp1_rsz_config(rsz, when);
 	rkisp1_dcrop_config(rsz);
 
+	mutex_unlock(&rsz->ops_lock);
 	return 0;
 }
 
@@ -718,9 +732,10 @@ static int rkisp1_rsz_register(struct rkisp1_resizer *rsz)
 	pads[RKISP1_RSZ_PAD_SRC].flags = MEDIA_PAD_FL_SOURCE |
 					 MEDIA_PAD_FL_MUST_CONNECT;
 
-	rsz->fmt_type = RKISP1_DEF_FMT_TYPE;
+	rsz->pixel_enc = RKISP1_DEF_PIXEL_ENC;
 
-	ret = media_entity_pads_init(&sd->entity, 2, pads);
+	mutex_init(&rsz->ops_lock);
+	ret = media_entity_pads_init(&sd->entity, RKISP1_RSZ_PAD_MAX, pads);
 	if (ret)
 		return ret;
 

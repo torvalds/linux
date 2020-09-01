@@ -439,7 +439,7 @@ enum hpx_type3_dev_type {
 static u16 hpx3_device_type(struct pci_dev *dev)
 {
 	u16 pcie_type = pci_pcie_type(dev);
-	const int pcie_to_hpx3_type[] = {
+	static const int pcie_to_hpx3_type[] = {
 		[PCI_EXP_TYPE_ENDPOINT]    = HPX_TYPE_ENDPOINT,
 		[PCI_EXP_TYPE_LEG_END]     = HPX_TYPE_LEG_END,
 		[PCI_EXP_TYPE_RC_END]      = HPX_TYPE_RC_END,
@@ -527,8 +527,8 @@ static void program_hpx_type3_register(struct pci_dev *dev,
 			return;
 
 		break;
-	case HPX_CFG_VEND_CAP:	/* Fall through */
-	case HPX_CFG_DVSEC:	/* Fall through */
+	case HPX_CFG_VEND_CAP:
+	case HPX_CFG_DVSEC:
 	default:
 		pci_warn(dev, "Encountered _HPX type 3 with unsupported config space location");
 		return;
@@ -948,7 +948,7 @@ static bool acpi_pci_bridge_d3(struct pci_dev *dev)
 	 * Look for a special _DSD property for the root port and if it
 	 * is set we know the hierarchy behind it supports D3 just fine.
 	 */
-	root = pci_find_pcie_root_port(dev);
+	root = pcie_find_root_port(dev);
 	if (!root)
 		return false;
 
@@ -1001,7 +1001,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 			error = -EBUSY;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	case PCI_D0:
 	case PCI_D1:
 	case PCI_D2:
@@ -1128,7 +1128,7 @@ void acpi_pci_add_bus(struct pci_bus *bus)
 		return;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(bus->bridge), &pci_acpi_dsm_guid, 3,
-				RESET_DELAY_DSM, NULL);
+				DSM_PCI_POWER_ON_RESET_DELAY, NULL);
 	if (!obj)
 		return;
 
@@ -1193,7 +1193,7 @@ static void pci_acpi_optimize_delay(struct pci_dev *pdev,
 		pdev->d3cold_delay = 0;
 
 	obj = acpi_evaluate_dsm(handle, &pci_acpi_dsm_guid, 3,
-				FUNCTION_DELAY_DSM, NULL);
+				DSM_PCI_DEVICE_READINESS_DURATIONS, NULL);
 	if (!obj)
 		return;
 
@@ -1213,7 +1213,7 @@ static void pci_acpi_optimize_delay(struct pci_dev *pdev,
 	ACPI_FREE(obj);
 }
 
-static void pci_acpi_set_untrusted(struct pci_dev *dev)
+static void pci_acpi_set_external_facing(struct pci_dev *dev)
 {
 	u8 val;
 
@@ -1224,11 +1224,10 @@ static void pci_acpi_set_untrusted(struct pci_dev *dev)
 
 	/*
 	 * These root ports expose PCIe (including DMA) outside of the
-	 * system so make sure we treat them and everything behind as
-	 * untrusted.
+	 * system.  Everything downstream from them is external.
 	 */
 	if (val)
-		dev->untrusted = 1;
+		dev->external_facing = 1;
 }
 
 static void pci_acpi_setup(struct device *dev)
@@ -1240,7 +1239,8 @@ static void pci_acpi_setup(struct device *dev)
 		return;
 
 	pci_acpi_optimize_delay(pci_dev, adev->handle);
-	pci_acpi_set_untrusted(pci_dev);
+	pci_acpi_set_external_facing(pci_dev);
+	pci_acpi_add_edr_notifier(pci_dev);
 
 	pci_acpi_add_pm_notifier(adev, pci_dev);
 	if (!adev->wakeup.flags.valid)
@@ -1268,6 +1268,7 @@ static void pci_acpi_cleanup(struct device *dev)
 	if (!adev)
 		return;
 
+	pci_acpi_remove_edr_notifier(pci_dev);
 	pci_acpi_remove_pm_notifier(adev);
 	if (adev->wakeup.flags.valid) {
 		acpi_device_power_remove_dependent(adev, dev);

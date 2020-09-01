@@ -44,7 +44,7 @@
 /*	The following is for BT Efuse definition */
 #define		EFUSE_BT_MAX_MAP_LEN		1024
 #define		EFUSE_MAX_BANK			4
-#define		EFUSE_MAX_BT_BANK		(EFUSE_MAX_BANK-1)
+#define		EFUSE_MAX_BT_BANK		(EFUSE_MAX_BANK - 1)
 /*--------------------------Define Parameters-------------------------------*/
 #define		EFUSE_MAX_WORD_UNIT			4
 

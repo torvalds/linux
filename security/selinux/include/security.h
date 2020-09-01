@@ -41,10 +41,11 @@
 #define POLICYDB_VERSION_XPERMS_IOCTL	30
 #define POLICYDB_VERSION_INFINIBAND		31
 #define POLICYDB_VERSION_GLBLUB		32
+#define POLICYDB_VERSION_COMP_FTRANS	33 /* compressed filename transitions */
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
-#define POLICYDB_VERSION_MAX   POLICYDB_VERSION_GLBLUB
+#define POLICYDB_VERSION_MAX   POLICYDB_VERSION_COMP_FTRANS
 
 /* Mask for just the mount related flags */
 #define SE_MNTMASK	0x0f
@@ -79,6 +80,7 @@ enum {
 	POLICYDB_CAPABILITY_ALWAYSNETWORK,
 	POLICYDB_CAPABILITY_CGROUPSECLABEL,
 	POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION,
+	POLICYDB_CAPABILITY_GENFS_SECLABEL_SYMLINKS,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
@@ -108,6 +110,10 @@ struct selinux_state {
 	bool checkreqprot;
 	bool initialized;
 	bool policycap[__POLICYDB_CAPABILITY_MAX];
+
+	struct page *status_page;
+	struct mutex status_lock;
+
 	struct selinux_avc *avc;
 	struct selinux_ss *ss;
 } __randomize_layout;
@@ -207,6 +213,13 @@ static inline bool selinux_policycap_nnp_nosuid_transition(void)
 	struct selinux_state *state = &selinux_state;
 
 	return state->policycap[POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION];
+}
+
+static inline bool selinux_policycap_genfs_seclabel_symlinks(void)
+{
+	struct selinux_state *state = &selinux_state;
+
+	return state->policycap[POLICYDB_CAPABILITY_GENFS_SECLABEL_SYMLINKS];
 }
 
 int security_mls_enabled(struct selinux_state *state);

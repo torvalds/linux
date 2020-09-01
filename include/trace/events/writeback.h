@@ -20,7 +20,6 @@
 		{I_CLEAR,		"I_CLEAR"},		\
 		{I_SYNC,		"I_SYNC"},		\
 		{I_DIRTY_TIME,		"I_DIRTY_TIME"},	\
-		{I_DIRTY_TIME_EXPIRED,	"I_DIRTY_TIME_EXPIRED"}, \
 		{I_REFERENCED,		"I_REFERENCED"}		\
 	)
 
@@ -36,7 +35,6 @@
 	EM( WB_REASON_SYNC,			"sync")			\
 	EM( WB_REASON_PERIODIC,			"periodic")		\
 	EM( WB_REASON_LAPTOP_TIMER,		"laptop_timer")		\
-	EM( WB_REASON_FREE_MORE_MEM,		"free_more_memory")	\
 	EM( WB_REASON_FS_FREE_SPACE,		"fs_free_space")	\
 	EMe(WB_REASON_FORKER_THREAD,		"forker_thread")
 
@@ -499,8 +497,9 @@ DEFINE_WBC_EVENT(wbc_writepage);
 TRACE_EVENT(writeback_queue_io,
 	TP_PROTO(struct bdi_writeback *wb,
 		 struct wb_writeback_work *work,
+		 unsigned long dirtied_before,
 		 int moved),
-	TP_ARGS(wb, work, moved),
+	TP_ARGS(wb, work, dirtied_before, moved),
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
 		__field(unsigned long,	older)
@@ -510,19 +509,17 @@ TRACE_EVENT(writeback_queue_io,
 		__field(ino_t,		cgroup_ino)
 	),
 	TP_fast_assign(
-		unsigned long *older_than_this = work->older_than_this;
 		strscpy_pad(__entry->name, bdi_dev_name(wb->bdi), 32);
-		__entry->older	= older_than_this ?  *older_than_this : 0;
-		__entry->age	= older_than_this ?
-				  (jiffies - *older_than_this) * 1000 / HZ : -1;
+		__entry->older	= dirtied_before;
+		__entry->age	= (jiffies - dirtied_before) * 1000 / HZ;
 		__entry->moved	= moved;
 		__entry->reason	= work->reason;
 		__entry->cgroup_ino	= __trace_wb_assign_cgroup(wb);
 	),
 	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d reason=%s cgroup_ino=%lu",
 		__entry->name,
-		__entry->older,	/* older_than_this in jiffies */
-		__entry->age,	/* older_than_this in relative milliseconds */
+		__entry->older,	/* dirtied_before in jiffies */
+		__entry->age,	/* dirtied_before in relative milliseconds */
 		__entry->moved,
 		__print_symbolic(__entry->reason, WB_WORK_REASON),
 		(unsigned long)__entry->cgroup_ino
@@ -542,7 +539,6 @@ TRACE_EVENT(global_dirty_state,
 	TP_STRUCT__entry(
 		__field(unsigned long,	nr_dirty)
 		__field(unsigned long,	nr_writeback)
-		__field(unsigned long,	nr_unstable)
 		__field(unsigned long,	background_thresh)
 		__field(unsigned long,	dirty_thresh)
 		__field(unsigned long,	dirty_limit)
@@ -553,7 +549,6 @@ TRACE_EVENT(global_dirty_state,
 	TP_fast_assign(
 		__entry->nr_dirty	= global_node_page_state(NR_FILE_DIRTY);
 		__entry->nr_writeback	= global_node_page_state(NR_WRITEBACK);
-		__entry->nr_unstable	= global_node_page_state(NR_UNSTABLE_NFS);
 		__entry->nr_dirtied	= global_node_page_state(NR_DIRTIED);
 		__entry->nr_written	= global_node_page_state(NR_WRITTEN);
 		__entry->background_thresh = background_thresh;
@@ -561,12 +556,11 @@ TRACE_EVENT(global_dirty_state,
 		__entry->dirty_limit	= global_wb_domain.dirty_limit;
 	),
 
-	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
+	TP_printk("dirty=%lu writeback=%lu "
 		  "bg_thresh=%lu thresh=%lu limit=%lu "
 		  "dirtied=%lu written=%lu",
 		  __entry->nr_dirty,
 		  __entry->nr_writeback,
-		  __entry->nr_unstable,
 		  __entry->background_thresh,
 		  __entry->dirty_thresh,
 		  __entry->dirty_limit,

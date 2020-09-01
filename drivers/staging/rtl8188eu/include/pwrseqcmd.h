@@ -27,7 +27,6 @@
 #define PWR_CUT_G_MSK		BIT(7)
 #define PWR_CUT_ALL_MSK		0xFF
 
-
 enum pwrseq_cmd_delat_unit {
 	PWRSEQ_DELAY_US,
 	PWRSEQ_DELAY_MS,

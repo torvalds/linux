@@ -22,18 +22,21 @@
 #include <linux/magic.h>
 #include <linux/pstore.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/uaccess.h>
 
 #include "internal.h"
 
 #define	PSTORE_NAMELEN	64
 
-static DEFINE_SPINLOCK(allpstore_lock);
-static LIST_HEAD(allpstore);
+static DEFINE_MUTEX(records_list_lock);
+static LIST_HEAD(records_list);
+
+static DEFINE_MUTEX(pstore_sb_lock);
+static struct super_block *pstore_sb;
 
 struct pstore_private {
 	struct list_head list;
+	struct dentry *dentry;
 	struct pstore_record *record;
 	size_t total_size;
 };
@@ -87,11 +90,11 @@ static void *pstore_ftrace_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	struct pstore_private *ps = s->private;
 	struct pstore_ftrace_seq_data *data = v;
 
+	(*pos)++;
 	data->off += REC_SIZE;
 	if (data->off + REC_SIZE > ps->total_size)
 		return NULL;
 
-	(*pos)++;
 	return data;
 }
 
@@ -100,6 +103,9 @@ static int pstore_ftrace_seq_show(struct seq_file *s, void *v)
 	struct pstore_private *ps = s->private;
 	struct pstore_ftrace_seq_data *data = v;
 	struct pstore_ftrace_record *rec;
+
+	if (!data)
+		return 0;
 
 	rec = (struct pstore_ftrace_record *)(ps->record->buf + data->off);
 
@@ -175,9 +181,21 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct pstore_private *p = d_inode(dentry)->i_private;
 	struct pstore_record *record = p->record;
+	int rc = 0;
 
 	if (!record->psi->erase)
 		return -EPERM;
+
+	/* Make sure we can't race while removing this file. */
+	mutex_lock(&records_list_lock);
+	if (!list_empty(&p->list))
+		list_del_init(&p->list);
+	else
+		rc = -ENOENT;
+	p->dentry = NULL;
+	mutex_unlock(&records_list_lock);
+	if (rc)
+		return rc;
 
 	mutex_lock(&record->psi->read_mutex);
 	record->psi->erase(record);
@@ -189,15 +207,9 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 static void pstore_evict_inode(struct inode *inode)
 {
 	struct pstore_private	*p = inode->i_private;
-	unsigned long		flags;
 
 	clear_inode(inode);
-	if (p) {
-		spin_lock_irqsave(&allpstore_lock, flags);
-		list_del(&p->list);
-		spin_unlock_irqrestore(&allpstore_lock, flags);
-		free_pstore_private(p);
-	}
+	free_pstore_private(p);
 }
 
 static const struct inode_operations pstore_dir_inode_operations = {
@@ -275,11 +287,54 @@ static const struct super_operations pstore_ops = {
 	.show_options	= pstore_show_options,
 };
 
-static struct super_block *pstore_sb;
-
-bool pstore_is_mounted(void)
+static struct dentry *psinfo_lock_root(void)
 {
-	return pstore_sb != NULL;
+	struct dentry *root;
+
+	mutex_lock(&pstore_sb_lock);
+	/*
+	 * Having no backend is fine -- no records appear.
+	 * Not being mounted is fine -- nothing to do.
+	 */
+	if (!psinfo || !pstore_sb) {
+		mutex_unlock(&pstore_sb_lock);
+		return NULL;
+	}
+
+	root = pstore_sb->s_root;
+	inode_lock(d_inode(root));
+	mutex_unlock(&pstore_sb_lock);
+
+	return root;
+}
+
+int pstore_put_backend_records(struct pstore_info *psi)
+{
+	struct pstore_private *pos, *tmp;
+	struct dentry *root;
+	int rc = 0;
+
+	root = psinfo_lock_root();
+	if (!root)
+		return 0;
+
+	mutex_lock(&records_list_lock);
+	list_for_each_entry_safe(pos, tmp, &records_list, list) {
+		if (pos->record->psi == psi) {
+			list_del_init(&pos->list);
+			rc = simple_unlink(d_inode(root), pos->dentry);
+			if (WARN_ON(rc))
+				break;
+			d_drop(pos->dentry);
+			dput(pos->dentry);
+			pos->dentry = NULL;
+		}
+	}
+	mutex_unlock(&records_list_lock);
+
+	inode_unlock(d_inode(root));
+
+	return rc;
 }
 
 /*
@@ -294,23 +349,20 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 	int			rc = 0;
 	char			name[PSTORE_NAMELEN];
 	struct pstore_private	*private, *pos;
-	unsigned long		flags;
 	size_t			size = record->size + record->ecc_notice_size;
 
-	WARN_ON(!inode_is_locked(d_inode(root)));
+	if (WARN_ON(!inode_is_locked(d_inode(root))))
+		return -EINVAL;
 
-	spin_lock_irqsave(&allpstore_lock, flags);
-	list_for_each_entry(pos, &allpstore, list) {
+	rc = -EEXIST;
+	/* Skip records that are already present in the filesystem. */
+	mutex_lock(&records_list_lock);
+	list_for_each_entry(pos, &records_list, list) {
 		if (pos->record->type == record->type &&
 		    pos->record->id == record->id &&
-		    pos->record->psi == record->psi) {
-			rc = -EEXIST;
-			break;
-		}
+		    pos->record->psi == record->psi)
+			goto fail;
 	}
-	spin_unlock_irqrestore(&allpstore_lock, flags);
-	if (rc)
-		return rc;
 
 	rc = -ENOMEM;
 	inode = pstore_get_inode(root->d_sb);
@@ -331,6 +383,7 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 	if (!dentry)
 		goto fail_private;
 
+	private->dentry = dentry;
 	private->record = record;
 	inode->i_size = private->total_size = size;
 	inode->i_private = private;
@@ -340,9 +393,8 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 
 	d_add(dentry, inode);
 
-	spin_lock_irqsave(&allpstore_lock, flags);
-	list_add(&private->list, &allpstore);
-	spin_unlock_irqrestore(&allpstore_lock, flags);
+	list_add(&private->list, &records_list);
+	mutex_unlock(&records_list_lock);
 
 	return 0;
 
@@ -350,8 +402,8 @@ fail_private:
 	free_pstore_private(private);
 fail_inode:
 	iput(inode);
-
 fail:
+	mutex_unlock(&records_list_lock);
 	return rc;
 }
 
@@ -363,24 +415,19 @@ fail:
  */
 void pstore_get_records(int quiet)
 {
-	struct pstore_info *psi = psinfo;
 	struct dentry *root;
 
-	if (!psi || !pstore_sb)
+	root = psinfo_lock_root();
+	if (!root)
 		return;
 
-	root = pstore_sb->s_root;
-
-	inode_lock(d_inode(root));
-	pstore_get_backend_records(psi, root, quiet);
+	pstore_get_backend_records(psinfo, root, quiet);
 	inode_unlock(d_inode(root));
 }
 
 static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
-
-	pstore_sb = sb;
 
 	sb->s_maxbytes		= MAX_LFS_FILESIZE;
 	sb->s_blocksize		= PAGE_SIZE;
@@ -402,6 +449,10 @@ static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		return -ENOMEM;
 
+	mutex_lock(&pstore_sb_lock);
+	pstore_sb = sb;
+	mutex_unlock(&pstore_sb_lock);
+
 	pstore_get_records(0);
 
 	return 0;
@@ -415,8 +466,17 @@ static struct dentry *pstore_mount(struct file_system_type *fs_type,
 
 static void pstore_kill_sb(struct super_block *sb)
 {
+	mutex_lock(&pstore_sb_lock);
+	WARN_ON(pstore_sb != sb);
+
 	kill_litter_super(sb);
 	pstore_sb = NULL;
+
+	mutex_lock(&records_list_lock);
+	INIT_LIST_HEAD(&records_list);
+	mutex_unlock(&records_list_lock);
+
+	mutex_unlock(&pstore_sb_lock);
 }
 
 static struct file_system_type pstore_fs_type = {

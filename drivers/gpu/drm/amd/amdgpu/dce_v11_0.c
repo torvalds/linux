@@ -2342,7 +2342,7 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 
 	/* XXX need to determine what plls are available on each DCE11 part */
 	pll_in_use = amdgpu_pll_get_use_mask(crtc);
-	if (adev->asic_type == CHIP_CARRIZO || adev->asic_type == CHIP_STONEY) {
+	if (adev->flags & AMD_IS_APU) {
 		if (!(pll_in_use & (1 << ATOM_PPLL1)))
 			return ATOM_PPLL1;
 		if (!(pll_in_use & (1 << ATOM_PPLL0)))
@@ -2382,9 +2382,9 @@ static void dce_v11_0_hide_cursor(struct drm_crtc *crtc)
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	u32 tmp;
 
-	tmp = RREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset);
+	tmp = RREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset);
 	tmp = REG_SET_FIELD(tmp, CUR_CONTROL, CURSOR_EN, 0);
-	WREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset, tmp);
+	WREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 }
 
 static void dce_v11_0_show_cursor(struct drm_crtc *crtc)
@@ -2398,10 +2398,10 @@ static void dce_v11_0_show_cursor(struct drm_crtc *crtc)
 	WREG32(mmCUR_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
 	       lower_32_bits(amdgpu_crtc->cursor_addr));
 
-	tmp = RREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset);
+	tmp = RREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset);
 	tmp = REG_SET_FIELD(tmp, CUR_CONTROL, CURSOR_EN, 1);
 	tmp = REG_SET_FIELD(tmp, CUR_CONTROL, CURSOR_MODE, 2);
-	WREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset, tmp);
+	WREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 }
 
 static int dce_v11_0_cursor_move_locked(struct drm_crtc *crtc,
@@ -2483,7 +2483,7 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 	aobj = gem_to_amdgpu_bo(obj);
 	ret = amdgpu_bo_reserve(aobj, false);
 	if (ret != 0) {
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 		return ret;
 	}
 
@@ -2491,7 +2491,7 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 	amdgpu_bo_unreserve(aobj);
 	if (ret) {
 		DRM_ERROR("Failed to pin new cursor BO (%d)\n", ret);
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 		return ret;
 	}
 	amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
@@ -2526,7 +2526,7 @@ unpin:
 			amdgpu_bo_unpin(aobj);
 			amdgpu_bo_unreserve(aobj);
 		}
-		drm_gem_object_put_unlocked(amdgpu_crtc->cursor_bo);
+		drm_gem_object_put(amdgpu_crtc->cursor_bo);
 	}
 
 	amdgpu_crtc->cursor_bo = obj;
@@ -2573,6 +2573,10 @@ static const struct drm_crtc_funcs dce_v11_0_crtc_funcs = {
 	.set_config = amdgpu_display_crtc_set_config,
 	.destroy = dce_v11_0_crtc_destroy,
 	.page_flip_target = amdgpu_display_crtc_page_flip_target,
+	.get_vblank_counter = amdgpu_get_vblank_counter_kms,
+	.enable_vblank = amdgpu_enable_vblank_kms,
+	.disable_vblank = amdgpu_disable_vblank_kms,
+	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
 };
 
 static void dce_v11_0_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -2793,6 +2797,7 @@ static const struct drm_crtc_helper_funcs dce_v11_0_crtc_helper_funcs = {
 	.prepare = dce_v11_0_crtc_prepare,
 	.commit = dce_v11_0_crtc_commit,
 	.disable = dce_v11_0_crtc_disable,
+	.get_scanout_position = amdgpu_crtc_get_scanout_position,
 };
 
 static int dce_v11_0_crtc_init(struct amdgpu_device *adev, int index)

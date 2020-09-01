@@ -11,6 +11,7 @@
 #include "btree.h"
 #include "request.h"
 #include "writeback.h"
+#include "features.h"
 
 #include <linux/blkdev.h>
 #include <linux/sort.h>
@@ -88,6 +89,9 @@ read_attribute(btree_used_percent);
 read_attribute(average_key_size);
 read_attribute(dirty_data);
 read_attribute(bset_tree_stats);
+read_attribute(feature_compat);
+read_attribute(feature_ro_compat);
+read_attribute(feature_incompat);
 
 read_attribute(state);
 read_attribute(cache_read_races);
@@ -154,7 +158,7 @@ static ssize_t bch_snprint_string_list(char *buf,
 	size_t i;
 
 	for (i = 0; list[i]; i++)
-		out += snprintf(out, buf + size - out,
+		out += scnprintf(out, buf + size - out,
 				i == selected ? "[%s] " : "%s ", list[i]);
 
 	out[-1] = '\n';
@@ -421,7 +425,7 @@ STORE(__cached_dev)
 				return size;
 		}
 		if (v == -ENOENT)
-			pr_err("Can't attach %s: cache set not found", buf);
+			pr_err("Can't attach %s: cache set not found\n", buf);
 		return v;
 	}
 
@@ -455,7 +459,7 @@ STORE(bch_cached_dev)
 			 */
 			if (dc->writeback_running) {
 				dc->writeback_running = false;
-				pr_err("%s: failed to run non-existent writeback thread",
+				pr_err("%s: failed to run non-existent writeback thread\n",
 						dc->disk.disk->disk_name);
 			}
 		} else
@@ -779,6 +783,13 @@ SHOW(__bch_cache_set)
 	if (attr == &sysfs_bset_tree_stats)
 		return bch_bset_print_stats(c, buf);
 
+	if (attr == &sysfs_feature_compat)
+		return bch_print_cache_set_feature_compat(c, buf, PAGE_SIZE);
+	if (attr == &sysfs_feature_ro_compat)
+		return bch_print_cache_set_feature_ro_compat(c, buf, PAGE_SIZE);
+	if (attr == &sysfs_feature_incompat)
+		return bch_print_cache_set_feature_incompat(c, buf, PAGE_SIZE);
+
 	return 0;
 }
 SHOW_LOCKED(bch_cache_set)
@@ -872,11 +883,11 @@ STORE(__bch_cache_set)
 		if (v) {
 			if (test_and_set_bit(CACHE_SET_IO_DISABLE,
 					     &c->flags))
-				pr_warn("CACHE_SET_IO_DISABLE already set");
+				pr_warn("CACHE_SET_IO_DISABLE already set\n");
 		} else {
 			if (!test_and_clear_bit(CACHE_SET_IO_DISABLE,
 						&c->flags))
-				pr_warn("CACHE_SET_IO_DISABLE already cleared");
+				pr_warn("CACHE_SET_IO_DISABLE already cleared\n");
 		}
 	}
 
@@ -987,6 +998,9 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_io_disable,
 	&sysfs_cutoff_writeback,
 	&sysfs_cutoff_writeback_sync,
+	&sysfs_feature_compat,
+	&sysfs_feature_ro_compat,
+	&sysfs_feature_incompat,
 	NULL
 };
 KTYPE(bch_cache_set_internal);

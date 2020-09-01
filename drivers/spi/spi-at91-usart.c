@@ -681,13 +681,6 @@ static const struct dev_pm_ops at91_usart_spi_pm_ops = {
 			   at91_usart_spi_runtime_resume, NULL)
 };
 
-static const struct of_device_id at91_usart_spi_dt_ids[] = {
-	{ .compatible = "microchip,at91sam9g45-usart-spi"},
-	{ /* sentinel */}
-};
-
-MODULE_DEVICE_TABLE(of, at91_usart_spi_dt_ids);
-
 static struct platform_driver at91_usart_spi_driver = {
 	.driver = {
 		.name = "at91_usart_spi",

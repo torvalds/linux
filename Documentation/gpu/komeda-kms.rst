@@ -41,7 +41,7 @@ Compositor blends multiple layers or pixel data flows into one single display
 frame. its output frame can be fed into post image processor for showing it on
 the monitor or fed into wb_layer and written to memory at the same time.
 user can also insert a scaler between compositor and wb_layer to down scale
-the display frame first and and then write to memory.
+the display frame first and then write to memory.
 
 Writeback Layer (wb_layer)
 --------------------------

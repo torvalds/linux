@@ -223,30 +223,30 @@ static int snprint_line(char *buf, size_t count,
 	int out, i, j, l;
 	char c;
 
-	out = snprintf(buf, count, "%08X", ofs);
+	out = scnprintf(buf, count, "%08X", ofs);
 
 	for (l = 0, i = 0; i < 2; i++) {
-		out += snprintf(buf + out, count - out, " ");
+		out += scnprintf(buf + out, count - out, " ");
 		for (j = 0; j < 8 && l < len; j++, l++)
-			out += snprintf(buf + out, count - out, "%02X ",
+			out += scnprintf(buf + out, count - out, "%02X ",
 					data[(i * 8 + j)]);
 		for (; j < 8; j++)
-			out += snprintf(buf + out, count - out, "   ");
+			out += scnprintf(buf + out, count - out, "   ");
 	}
 
-	out += snprintf(buf + out, count - out, " ");
+	out += scnprintf(buf + out, count - out, " ");
 	for (l = 0, i = 0; i < 2; i++) {
-		out += snprintf(buf + out, count - out, " ");
+		out += scnprintf(buf + out, count - out, " ");
 		for (j = 0; j < 8 && l < len; j++, l++) {
 			c = data[(i * 8 + j)];
 			if (!isascii(c) || !isprint(c))
 				c = '.';
 
-			out += snprintf(buf + out, count - out, "%c", c);
+			out += scnprintf(buf + out, count - out, "%c", c);
 		}
 
 		for (; j < 8; j++)
-			out += snprintf(buf + out, count - out, " ");
+			out += scnprintf(buf + out, count - out, " ");
 	}
 
 	return out;
@@ -1279,12 +1279,12 @@ static ssize_t show_event_log(struct device *d,
 	log_len = log_size / sizeof(*log);
 	ipw_capture_event_log(priv, log_len, log);
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "%08X", log_len);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "%08X", log_len);
 	for (i = 0; i < log_len; i++)
-		len += snprintf(buf + len, PAGE_SIZE - len,
+		len += scnprintf(buf + len, PAGE_SIZE - len,
 				"\n%08X%08X%08X",
 				log[i].time, log[i].event, log[i].data);
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	kfree(log);
 	return len;
 }
@@ -1298,13 +1298,13 @@ static ssize_t show_error(struct device *d,
 	u32 len = 0, i;
 	if (!priv->error)
 		return 0;
-	len += snprintf(buf + len, PAGE_SIZE - len,
+	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"%08lX%08X%08X%08X",
 			priv->error->jiffies,
 			priv->error->status,
 			priv->error->config, priv->error->elem_len);
 	for (i = 0; i < priv->error->elem_len; i++)
-		len += snprintf(buf + len, PAGE_SIZE - len,
+		len += scnprintf(buf + len, PAGE_SIZE - len,
 				"\n%08X%08X%08X%08X%08X%08X%08X",
 				priv->error->elem[i].time,
 				priv->error->elem[i].desc,
@@ -1314,15 +1314,15 @@ static ssize_t show_error(struct device *d,
 				priv->error->elem[i].link2,
 				priv->error->elem[i].data);
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
+	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"\n%08X", priv->error->log_len);
 	for (i = 0; i < priv->error->log_len; i++)
-		len += snprintf(buf + len, PAGE_SIZE - len,
+		len += scnprintf(buf + len, PAGE_SIZE - len,
 				"\n%08X%08X%08X",
 				priv->error->log[i].time,
 				priv->error->log[i].event,
 				priv->error->log[i].data);
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	return len;
 }
 
@@ -1350,7 +1350,7 @@ static ssize_t show_cmd_log(struct device *d,
 	     (i != priv->cmdlog_pos) && (len < PAGE_SIZE);
 	     i = (i + 1) % priv->cmdlog_len) {
 		len +=
-		    snprintf(buf + len, PAGE_SIZE - len,
+		    scnprintf(buf + len, PAGE_SIZE - len,
 			     "\n%08lX%08X%08X%08X\n", priv->cmdlog[i].jiffies,
 			     priv->cmdlog[i].retcode, priv->cmdlog[i].cmd.cmd,
 			     priv->cmdlog[i].cmd.len);
@@ -1358,9 +1358,9 @@ static ssize_t show_cmd_log(struct device *d,
 		    snprintk_buf(buf + len, PAGE_SIZE - len,
 				 (u8 *) priv->cmdlog[i].cmd.param,
 				 priv->cmdlog[i].cmd.len);
-		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+		len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	return len;
 }
 
@@ -3386,7 +3386,7 @@ struct ipw_fw {
 	__le32 boot_size;
 	__le32 ucode_size;
 	__le32 fw_size;
-	u8 data[0];
+	u8 data[];
 };
 
 static int ipw_get_fw(struct ipw_priv *priv,
@@ -3442,8 +3442,9 @@ static void ipw_rx_queue_reset(struct ipw_priv *priv,
 		/* In the reset function, these buffers may have been allocated
 		 * to an SKB, so we need to unmap and free potential storage */
 		if (rxq->pool[i].skb != NULL) {
-			pci_unmap_single(priv->pci_dev, rxq->pool[i].dma_addr,
-					 IPW_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pci_dev->dev,
+					 rxq->pool[i].dma_addr,
+					 IPW_RX_BUF_SIZE, DMA_FROM_DEVICE);
 			dev_kfree_skb(rxq->pool[i].skb);
 			rxq->pool[i].skb = NULL;
 		}
@@ -3770,13 +3771,12 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 	struct pci_dev *dev = priv->pci_dev;
 
 	q->txb = kmalloc_array(count, sizeof(q->txb[0]), GFP_KERNEL);
-	if (!q->txb) {
-		IPW_ERROR("vmalloc for auxiliary BD structures failed\n");
+	if (!q->txb)
 		return -ENOMEM;
-	}
 
 	q->bd =
-	    pci_alloc_consistent(dev, sizeof(q->bd[0]) * count, &q->q.dma_addr);
+	    dma_alloc_coherent(&dev->dev, sizeof(q->bd[0]) * count,
+			       &q->q.dma_addr, GFP_KERNEL);
 	if (!q->bd) {
 		IPW_ERROR("pci_alloc_consistent(%zd) failed\n",
 			  sizeof(q->bd[0]) * count);
@@ -3818,9 +3818,10 @@ static void ipw_queue_tx_free_tfd(struct ipw_priv *priv,
 
 	/* unmap chunks if any */
 	for (i = 0; i < le32_to_cpu(bd->u.data.num_chunks); i++) {
-		pci_unmap_single(dev, le32_to_cpu(bd->u.data.chunk_ptr[i]),
+		dma_unmap_single(&dev->dev,
+				 le32_to_cpu(bd->u.data.chunk_ptr[i]),
 				 le16_to_cpu(bd->u.data.chunk_len[i]),
-				 PCI_DMA_TODEVICE);
+				 DMA_TO_DEVICE);
 		if (txq->txb[txq->q.last_used]) {
 			libipw_txb_free(txq->txb[txq->q.last_used]);
 			txq->txb[txq->q.last_used] = NULL;
@@ -3852,8 +3853,8 @@ static void ipw_queue_tx_free(struct ipw_priv *priv, struct clx2_tx_queue *txq)
 	}
 
 	/* free buffers belonging to queue itself */
-	pci_free_consistent(dev, sizeof(txq->bd[0]) * q->n_bd, txq->bd,
-			    q->dma_addr);
+	dma_free_coherent(&dev->dev, sizeof(txq->bd[0]) * q->n_bd, txq->bd,
+			  q->dma_addr);
 	kfree(txq->txb);
 
 	/* 0 fill whole structure */
@@ -5198,8 +5199,8 @@ static void ipw_rx_queue_replenish(void *data)
 		list_del(element);
 
 		rxb->dma_addr =
-		    pci_map_single(priv->pci_dev, rxb->skb->data,
-				   IPW_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+		    dma_map_single(&priv->pci_dev->dev, rxb->skb->data,
+				   IPW_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
@@ -5232,8 +5233,9 @@ static void ipw_rx_queue_free(struct ipw_priv *priv, struct ipw_rx_queue *rxq)
 
 	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
 		if (rxq->pool[i].skb != NULL) {
-			pci_unmap_single(priv->pci_dev, rxq->pool[i].dma_addr,
-					 IPW_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pci_dev->dev,
+					 rxq->pool[i].dma_addr,
+					 IPW_RX_BUF_SIZE, DMA_FROM_DEVICE);
 			dev_kfree_skb(rxq->pool[i].skb);
 		}
 	}
@@ -7042,23 +7044,22 @@ static int ipw_qos_association(struct ipw_priv *priv,
 * off the network from the associated setting, adjust the QoS
 * setting
 */
-static int ipw_qos_association_resp(struct ipw_priv *priv,
+static void ipw_qos_association_resp(struct ipw_priv *priv,
 				    struct libipw_network *network)
 {
-	int ret = 0;
 	unsigned long flags;
 	u32 size = sizeof(struct libipw_qos_parameters);
 	int set_qos_param = 0;
 
 	if ((priv == NULL) || (network == NULL) ||
 	    (priv->assoc_network == NULL))
-		return ret;
+		return;
 
 	if (!(priv->status & STATUS_ASSOCIATED))
-		return ret;
+		return;
 
 	if ((priv->ieee->iw_mode != IW_MODE_INFRA))
-		return ret;
+		return;
 
 	spin_lock_irqsave(&priv->ieee->lock, flags);
 	if (network->flags & NETWORK_HAS_QOS_PARAMETERS) {
@@ -7088,8 +7089,6 @@ static int ipw_qos_association_resp(struct ipw_priv *priv,
 
 	if (set_qos_param == 1)
 		schedule_work(&priv->qos_activate);
-
-	return ret;
 }
 
 static u32 ipw_qos_get_burst_duration(struct ipw_priv *priv)
@@ -8268,9 +8267,8 @@ static void ipw_rx(struct ipw_priv *priv)
 		}
 		priv->rxq->queue[i] = NULL;
 
-		pci_dma_sync_single_for_cpu(priv->pci_dev, rxb->dma_addr,
-					    IPW_RX_BUF_SIZE,
-					    PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_cpu(&priv->pci_dev->dev, rxb->dma_addr,
+					IPW_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
 		pkt = (struct ipw_rx_packet *)rxb->skb->data;
 		IPW_DEBUG_RX("Packet: type=%02X seq=%02X bits=%02X\n",
@@ -8422,8 +8420,8 @@ static void ipw_rx(struct ipw_priv *priv)
 			rxb->skb = NULL;
 		}
 
-		pci_unmap_single(priv->pci_dev, rxb->dma_addr,
-				 IPW_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&priv->pci_dev->dev, rxb->dma_addr,
+				 IPW_RX_BUF_SIZE, DMA_FROM_DEVICE);
 		list_add_tail(&rxb->list, &priv->rxq->rx_used);
 
 		i = (i + 1) % RX_QUEUE_SIZE;
@@ -9608,24 +9606,24 @@ static int ipw_wx_get_powermode(struct net_device *dev,
 	int level = IPW_POWER_LEVEL(priv->power_mode);
 	char *p = extra;
 
-	p += snprintf(p, MAX_WX_STRING, "Power save level: %d ", level);
+	p += scnprintf(p, MAX_WX_STRING, "Power save level: %d ", level);
 
 	switch (level) {
 	case IPW_POWER_AC:
-		p += snprintf(p, MAX_WX_STRING - (p - extra), "(AC)");
+		p += scnprintf(p, MAX_WX_STRING - (p - extra), "(AC)");
 		break;
 	case IPW_POWER_BATTERY:
-		p += snprintf(p, MAX_WX_STRING - (p - extra), "(BATTERY)");
+		p += scnprintf(p, MAX_WX_STRING - (p - extra), "(BATTERY)");
 		break;
 	default:
-		p += snprintf(p, MAX_WX_STRING - (p - extra),
+		p += scnprintf(p, MAX_WX_STRING - (p - extra),
 			      "(Timeout %dms, Period %dms)",
 			      timeout_duration[level - 1] / 1000,
 			      period_duration[level - 1] / 1000);
 	}
 
 	if (!(priv->power_mode & IPW_POWER_ENABLED))
-		p += snprintf(p, MAX_WX_STRING - (p - extra), " OFF");
+		p += scnprintf(p, MAX_WX_STRING - (p - extra), " OFF");
 
 	wrqu->data.length = p - extra + 1;
 
@@ -10222,11 +10220,10 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 			   txb->fragments[i]->len - hdr_len);
 
 		tfd->u.data.chunk_ptr[i] =
-		    cpu_to_le32(pci_map_single
-				(priv->pci_dev,
-				 txb->fragments[i]->data + hdr_len,
-				 txb->fragments[i]->len - hdr_len,
-				 PCI_DMA_TODEVICE));
+		    cpu_to_le32(dma_map_single(&priv->pci_dev->dev,
+					       txb->fragments[i]->data + hdr_len,
+					       txb->fragments[i]->len - hdr_len,
+					       DMA_TO_DEVICE));
 		tfd->u.data.chunk_len[i] =
 		    cpu_to_le16(txb->fragments[i]->len - hdr_len);
 	}
@@ -10256,10 +10253,10 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 			dev_kfree_skb_any(txb->fragments[i]);
 			txb->fragments[i] = skb;
 			tfd->u.data.chunk_ptr[i] =
-			    cpu_to_le32(pci_map_single
-					(priv->pci_dev, skb->data,
-					 remaining_bytes,
-					 PCI_DMA_TODEVICE));
+			    cpu_to_le32(dma_map_single(&priv->pci_dev->dev,
+						       skb->data,
+						       remaining_bytes,
+						       DMA_TO_DEVICE));
 
 			le32_add_cpu(&tfd->u.data.num_chunks, 1);
 		}
@@ -10643,10 +10640,8 @@ static void ipw_bg_link_down(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-static int ipw_setup_deferred_work(struct ipw_priv *priv)
+static void ipw_setup_deferred_work(struct ipw_priv *priv)
 {
-	int ret = 0;
-
 	init_waitqueue_head(&priv->wait_command_queue);
 	init_waitqueue_head(&priv->wait_state);
 
@@ -10680,8 +10675,6 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 
 	tasklet_init(&priv->irq_tasklet,
 		     ipw_irq_tasklet, (unsigned long)priv);
-
-	return ret;
 }
 
 static void shim__set_security(struct net_device *dev,
@@ -11629,9 +11622,9 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		printk(KERN_WARNING DRV_NAME ": No suitable DMA available.\n");
 		goto out_pci_disable_device;
@@ -11662,11 +11655,7 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 	IPW_DEBUG_INFO("pci_resource_len = 0x%08x\n", length);
 	IPW_DEBUG_INFO("pci_resource_base = %p\n", base);
 
-	err = ipw_setup_deferred_work(priv);
-	if (err) {
-		IPW_ERROR("Unable to setup deferred work\n");
-		goto out_iounmap;
-	}
+	ipw_setup_deferred_work(priv);
 
 	ipw_sw_reset(priv, 1);
 
@@ -11851,10 +11840,9 @@ static void ipw_pci_remove(struct pci_dev *pdev)
 	free_firmware();
 }
 
-#ifdef CONFIG_PM
-static int ipw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused ipw_pci_suspend(struct device *dev_d)
 {
-	struct ipw_priv *priv = pci_get_drvdata(pdev);
+	struct ipw_priv *priv = dev_get_drvdata(dev_d);
 	struct net_device *dev = priv->net_dev;
 
 	printk(KERN_INFO "%s: Going into suspend...\n", dev->name);
@@ -11865,32 +11853,19 @@ static int ipw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* Remove the PRESENT state of the device */
 	netif_device_detach(dev);
 
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
 	priv->suspend_at = ktime_get_boottime_seconds();
 
 	return 0;
 }
 
-static int ipw_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused ipw_pci_resume(struct device *dev_d)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct ipw_priv *priv = pci_get_drvdata(pdev);
 	struct net_device *dev = priv->net_dev;
-	int err;
 	u32 val;
 
 	printk(KERN_INFO "%s: Coming out of suspend...\n", dev->name);
-
-	pci_set_power_state(pdev, PCI_D0);
-	err = pci_enable_device(pdev);
-	if (err) {
-		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
-		       dev->name);
-		return err;
-	}
-	pci_restore_state(pdev);
 
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
@@ -11913,7 +11888,6 @@ static int ipw_pci_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-#endif
 
 static void ipw_pci_shutdown(struct pci_dev *pdev)
 {
@@ -11925,16 +11899,15 @@ static void ipw_pci_shutdown(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static SIMPLE_DEV_PM_OPS(ipw_pci_pm_ops, ipw_pci_suspend, ipw_pci_resume);
+
 /* driver initialization stuff */
 static struct pci_driver ipw_driver = {
 	.name = DRV_NAME,
 	.id_table = card_ids,
 	.probe = ipw_pci_probe,
 	.remove = ipw_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = ipw_pci_suspend,
-	.resume = ipw_pci_resume,
-#endif
+	.driver.pm = &ipw_pci_pm_ops,
 	.shutdown = ipw_pci_shutdown,
 };
 

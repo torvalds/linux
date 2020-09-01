@@ -136,7 +136,6 @@ int siw_query_device(struct ib_device *base_dev, struct ib_device_attr *attr,
 	attr->max_cq = sdev->attrs.max_cq;
 	attr->max_cqe = sdev->attrs.max_cqe;
 	attr->max_fast_reg_page_list_len = SIW_MAX_SGE_PBL;
-	attr->max_fmr = sdev->attrs.max_fmr;
 	attr->max_mr = sdev->attrs.max_mr;
 	attr->max_mw = sdev->attrs.max_mw;
 	attr->max_mr_size = ~0ull;
@@ -165,18 +164,18 @@ int siw_query_port(struct ib_device *base_dev, u8 port,
 		   struct ib_port_attr *attr)
 {
 	struct siw_device *sdev = to_siw_dev(base_dev);
+	int rv;
 
 	memset(attr, 0, sizeof(*attr));
 
-	attr->active_mtu = attr->max_mtu;
-	attr->active_speed = 2;
-	attr->active_width = 2;
+	rv = ib_get_eth_speed(base_dev, port, &attr->active_speed,
+			 &attr->active_width);
 	attr->gid_tbl_len = 1;
 	attr->max_msg_sz = -1;
 	attr->max_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
+	attr->active_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
 	attr->phys_state = sdev->state == IB_PORT_ACTIVE ?
 		IB_PORT_PHYS_STATE_LINK_UP : IB_PORT_PHYS_STATE_DISABLED;
-	attr->pkey_tbl_len = 1;
 	attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_DEVICE_MGMT_SUP;
 	attr->state = sdev->state;
 	/*
@@ -192,7 +191,7 @@ int siw_query_port(struct ib_device *base_dev, u8 port,
 	 * attr->subnet_timeout = 0;
 	 * attr->init_type_repy = 0;
 	 */
-	return 0;
+	return rv;
 }
 
 int siw_get_port_immutable(struct ib_device *base_dev, u8 port,
@@ -204,17 +203,9 @@ int siw_get_port_immutable(struct ib_device *base_dev, u8 port,
 	if (rv)
 		return rv;
 
-	port_immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	port_immutable->gid_tbl_len = attr.gid_tbl_len;
 	port_immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
 
-	return 0;
-}
-
-int siw_query_pkey(struct ib_device *base_dev, u8 port, u16 idx, u16 *pkey)
-{
-	/* Report the default pkey */
-	*pkey = 0xffff;
 	return 0;
 }
 
@@ -322,7 +313,7 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 	}
 	if (attrs->qp_type != IB_QPT_RC) {
 		siw_dbg(base_dev, "only RC QP's supported\n");
-		rv = -EINVAL;
+		rv = -EOPNOTSUPP;
 		goto err_out;
 	}
 	if ((attrs->cap.max_send_wr > SIW_MAX_QP_WR) ||
@@ -1373,7 +1364,7 @@ err_out:
 }
 
 struct ib_mr *siw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-			   u32 max_sge, struct ib_udata *udata)
+			   u32 max_sge)
 {
 	struct siw_device *sdev = to_siw_dev(pd->device);
 	struct siw_mr *mr = NULL;

@@ -205,7 +205,6 @@ static int __init efika_probe(void)
 	if (strcmp(model, "EFIKA5K2"))
 		return 0;
 
-	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
 

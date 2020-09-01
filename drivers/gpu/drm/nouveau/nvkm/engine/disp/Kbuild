@@ -39,6 +39,7 @@ nvkm-y += nvkm/engine/disp/sorgf119.o
 nvkm-y += nvkm/engine/disp/sorgk104.o
 nvkm-y += nvkm/engine/disp/sorgm107.o
 nvkm-y += nvkm/engine/disp/sorgm200.o
+nvkm-y += nvkm/engine/disp/sorgp100.o
 nvkm-y += nvkm/engine/disp/sorgv100.o
 nvkm-y += nvkm/engine/disp/sortu102.o
 
@@ -47,6 +48,7 @@ nvkm-y += nvkm/engine/disp/dp.o
 
 nvkm-y += nvkm/engine/disp/hdagt215.o
 nvkm-y += nvkm/engine/disp/hdagf119.o
+nvkm-y += nvkm/engine/disp/hdagv100.o
 
 nvkm-y += nvkm/engine/disp/hdmi.o
 nvkm-y += nvkm/engine/disp/hdmig84.o
@@ -73,6 +75,8 @@ nvkm-y += nvkm/engine/disp/rootgp100.o
 nvkm-y += nvkm/engine/disp/rootgp102.o
 nvkm-y += nvkm/engine/disp/rootgv100.o
 nvkm-y += nvkm/engine/disp/roottu102.o
+
+nvkm-y += nvkm/engine/disp/capsgv100.o
 
 nvkm-y += nvkm/engine/disp/channv50.o
 nvkm-y += nvkm/engine/disp/changf119.o

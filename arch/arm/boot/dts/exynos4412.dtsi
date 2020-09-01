@@ -213,7 +213,7 @@
 			label = "ISP";
 		};
 
-		l2c: l2-cache-controller@10502000 {
+		l2c: cache-controller@10502000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x10502000 0x1000>;
 			cache-unified;

@@ -38,7 +38,8 @@
 
 #define AUX_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
-	SRI(AUX_DPHY_RX_CONTROL0, DP_AUX, id)
+	SRI(AUX_DPHY_RX_CONTROL0, DP_AUX, id), \
+	SRI(AUX_DPHY_RX_CONTROL1, DP_AUX, id)
 
 #define HPD_REG_LIST(id)\
 	SRI(DC_HPD_CONTROL, HPD, id)
@@ -107,6 +108,7 @@
 struct dce110_link_enc_aux_registers {
 	uint32_t AUX_CONTROL;
 	uint32_t AUX_DPHY_RX_CONTROL0;
+	uint32_t AUX_DPHY_RX_CONTROL1;
 };
 
 struct dce110_link_enc_hpd_registers {
@@ -270,5 +272,8 @@ void dce110_psr_program_secondary_packet(struct link_encoder *enc,
 			unsigned int sdp_transmit_line_num_deadline);
 
 bool dce110_is_dig_enabled(struct link_encoder *enc);
+
+void dce110_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings);
 
 #endif /* __DC_LINK_ENCODER__DCE110_H__ */

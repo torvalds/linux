@@ -36,11 +36,18 @@ static int ovl_ccup_get(char *buf, const struct kernel_param *param)
 module_param_call(check_copy_up, ovl_ccup_set, ovl_ccup_get, NULL, 0644);
 MODULE_PARM_DESC(check_copy_up, "Obsolete; does nothing");
 
+static bool ovl_must_copy_xattr(const char *name)
+{
+	return !strcmp(name, XATTR_POSIX_ACL_ACCESS) ||
+	       !strcmp(name, XATTR_POSIX_ACL_DEFAULT) ||
+	       !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN);
+}
+
 int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
 	ssize_t list_size, size, value_size = 0;
 	char *buf, *name, *value = NULL;
-	int uninitialized_var(error);
+	int error = 0;
 	size_t slen;
 
 	if (!(old->d_inode->i_opflags & IOP_XATTR) ||
@@ -107,8 +114,13 @@ retry:
 			continue; /* Discard */
 		}
 		error = vfs_setxattr(new, name, value, size, 0);
-		if (error)
-			break;
+		if (error) {
+			if (error != -EOPNOTSUPP || ovl_must_copy_xattr(name))
+				break;
+
+			/* Ignore failure to copy unknown xattrs */
+			error = 0;
+		}
 	}
 	kfree(value);
 out:
@@ -572,9 +584,10 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 		.link = c->link
 	};
 
-	err = ovl_lock_rename_workdir(c->workdir, c->destdir);
-	if (err)
-		return err;
+	/* workdir and destdir could be the same when copying up to indexdir */
+	err = -EIO;
+	if (lock_rename(c->workdir, c->destdir) != NULL)
+		goto unlock;
 
 	err = ovl_prep_cu_creds(c->dentry, &cc);
 	if (err)
@@ -774,7 +787,7 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 	struct path upperpath, datapath;
 	int err;
 	char *capability = NULL;
-	ssize_t uninitialized_var(cap_size);
+	ssize_t cap_size;
 
 	ovl_path_upper(c->dentry, &upperpath);
 	if (WARN_ON(upperpath.dentry == NULL))
@@ -882,7 +895,7 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	return err;
 }
 
-int ovl_copy_up_flags(struct dentry *dentry, int flags)
+static int ovl_copy_up_flags(struct dentry *dentry, int flags)
 {
 	int err = 0;
 	const struct cred *old_cred = ovl_override_creds(dentry->d_sb);

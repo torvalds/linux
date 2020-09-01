@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2012-2019, Intel Corporation. All rights reserved.
+ * Copyright (c) 2012-2020, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -19,13 +19,15 @@
  *
  * @fw_status: FW status
  * @quirk_probe: device exclusion quirk
+ * @kind: MEI head kind
  * @dma_size: device DMA buffers size
  * @fw_ver_supported: is fw version retrievable from FW
  * @hw_trc_supported: does the hw support trc register
  */
 struct mei_cfg {
 	const struct mei_fw_status fw_status;
-	bool (*quirk_probe)(struct pci_dev *pdev);
+	bool (*quirk_probe)(const struct pci_dev *pdev);
+	const char *kind;
 	size_t dma_size[DMA_DSCR_NUM];
 	u32 fw_ver_supported:1;
 	u32 hw_trc_supported:1;
@@ -76,11 +78,22 @@ struct mei_me_hw {
  *                         with quirk for Node Manager exclusion.
  * @MEI_ME_PCH8_CFG:       Platform Controller Hub Gen8 and newer
  *                         client platforms.
- * @MEI_ME_PCH8_SPS_CFG:   Platform Controller Hub Gen8 and newer
+ * @MEI_ME_PCH8_ITOUCH_CFG:Platform Controller Hub Gen8 and newer
+ *                         client platforms (iTouch).
+ * @MEI_ME_PCH8_SPS_4_CFG: Platform Controller Hub Gen8 and newer
  *                         servers platforms with quirk for
  *                         SPS firmware exclusion.
  * @MEI_ME_PCH12_CFG:      Platform Controller Hub Gen12 and newer
+ * @MEI_ME_PCH12_SPS_4_CFG:Platform Controller Hub Gen12 up to 4.0
+ *                         servers platforms with quirk for
+ *                         SPS firmware exclusion.
+ * @MEI_ME_PCH12_SPS_CFG:  Platform Controller Hub Gen12 5.0 and newer
+ *                         servers platforms with quirk for
+ *                         SPS firmware exclusion.
  * @MEI_ME_PCH15_CFG:      Platform Controller Hub Gen15 and newer
+ * @MEI_ME_PCH15_SPS_CFG:  Platform Controller Hub Gen15 and newer
+ *                         servers platforms with quirk for
+ *                         SPS firmware exclusion.
  * @MEI_ME_NUM_CFG:        Upper Sentinel.
  */
 enum mei_cfg_idx {
@@ -91,9 +104,14 @@ enum mei_cfg_idx {
 	MEI_ME_PCH7_CFG,
 	MEI_ME_PCH_CPT_PBG_CFG,
 	MEI_ME_PCH8_CFG,
-	MEI_ME_PCH8_SPS_CFG,
+	MEI_ME_PCH8_ITOUCH_CFG,
+	MEI_ME_PCH8_SPS_4_CFG,
 	MEI_ME_PCH12_CFG,
+	MEI_ME_PCH12_SPS_4_CFG,
+	MEI_ME_PCH12_SPS_CFG,
+	MEI_ME_PCH12_SPS_ITOUCH_CFG,
 	MEI_ME_PCH15_CFG,
+	MEI_ME_PCH15_SPS_CFG,
 	MEI_ME_NUM_CFG,
 };
 

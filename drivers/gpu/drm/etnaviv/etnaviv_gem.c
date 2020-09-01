@@ -244,7 +244,7 @@ void etnaviv_gem_mapping_unreference(struct etnaviv_vram_mapping *mapping)
 	mapping->use -= 1;
 	mutex_unlock(&etnaviv_obj->lock);
 
-	drm_gem_object_put_unlocked(&etnaviv_obj->base);
+	drm_gem_object_put(&etnaviv_obj->base);
 }
 
 struct etnaviv_vram_mapping *etnaviv_gem_mapping_get(
@@ -602,6 +602,7 @@ static int etnaviv_gem_new_impl(struct drm_device *dev, u32 size, u32 flags,
 int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	u32 size, u32 flags, u32 *handle)
 {
+	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct drm_gem_object *obj = NULL;
 	int ret;
 
@@ -624,8 +625,7 @@ int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	 * above new_inode() why this is required _and_ expected if you're
 	 * going to pin these pages.
 	 */
-	mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER |
-			     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	mapping_set_gfp_mask(obj->filp->f_mapping, priv->shm_gfp_mask);
 
 	etnaviv_gem_obj_add(dev, obj);
 
@@ -633,7 +633,7 @@ int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 	/* drop reference from allocate - handle holds it now */
 fail:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 
 	return ret;
 }
@@ -661,7 +661,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 	struct etnaviv_gem_userptr *userptr = &etnaviv_obj->userptr;
 	int ret, pinned = 0, npages = etnaviv_obj->base.size >> PAGE_SHIFT;
 
-	might_lock_read(&current->mm->mmap_sem);
+	might_lock_read(&current->mm->mmap_lock);
 
 	if (userptr->mm != current->mm)
 		return -EPERM;
@@ -675,10 +675,10 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 		uint64_t ptr = userptr->ptr + pinned * PAGE_SIZE;
 		struct page **pages = pvec + pinned;
 
-		ret = get_user_pages_fast(ptr, num_pages,
+		ret = pin_user_pages_fast(ptr, num_pages,
 					  !userptr->ro ? FOLL_WRITE : 0, pages);
 		if (ret < 0) {
-			release_pages(pvec, pinned);
+			unpin_user_pages(pvec, pinned);
 			kvfree(pvec);
 			return ret;
 		}
@@ -702,7 +702,7 @@ static void etnaviv_gem_userptr_release(struct etnaviv_gem_object *etnaviv_obj)
 	if (etnaviv_obj->pages) {
 		int npages = etnaviv_obj->base.size >> PAGE_SHIFT;
 
-		release_pages(etnaviv_obj->pages, npages);
+		unpin_user_pages(etnaviv_obj->pages, npages);
 		kvfree(etnaviv_obj->pages);
 	}
 }
@@ -742,6 +742,6 @@ int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 	ret = drm_gem_handle_create(file, &etnaviv_obj->base, handle);
 
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(&etnaviv_obj->base);
+	drm_gem_object_put(&etnaviv_obj->base);
 	return ret;
 }

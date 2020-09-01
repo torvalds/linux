@@ -61,8 +61,7 @@ struct rtw_wdev_nego_info {
 		(nego_info)->conf_op_ch = 0; \
 	} while (0)
 
-struct rtw_wdev_priv
-{
+struct rtw_wdev_priv {
 	struct wireless_dev *rtw_wdev;
 
 	struct adapter *padapter;

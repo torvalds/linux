@@ -6,9 +6,7 @@
 #define _ASM_X86_TSC_H
 
 #include <asm/processor.h>
-
-#define NS_SCALE	10 /* 2^10, carefully chosen */
-#define US_SCALE	32 /* 2^32, arbitralrily chosen */
+#include <asm/cpufeature.h>
 
 /*
  * Standard way to access the cycle counter.

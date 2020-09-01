@@ -49,6 +49,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_STACK]			= "stack",
 	[BPF_MAP_TYPE_SK_STORAGE]		= "sk_storage",
 	[BPF_MAP_TYPE_STRUCT_OPS]		= "struct_ops",
+	[BPF_MAP_TYPE_RINGBUF]			= "ringbuf",
 };
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
@@ -90,162 +91,6 @@ static void *alloc_value(struct bpf_map_info *info)
 			      get_possible_cpus());
 	else
 		return malloc(info->value_size);
-}
-
-static int map_fd_by_name(char *name, int **fds)
-{
-	unsigned int id = 0;
-	int fd, nb_fds = 0;
-	void *tmp;
-	int err;
-
-	while (true) {
-		struct bpf_map_info info = {};
-		__u32 len = sizeof(info);
-
-		err = bpf_map_get_next_id(id, &id);
-		if (err) {
-			if (errno != ENOENT) {
-				p_err("%s", strerror(errno));
-				goto err_close_fds;
-			}
-			return nb_fds;
-		}
-
-		fd = bpf_map_get_fd_by_id(id);
-		if (fd < 0) {
-			p_err("can't get map by id (%u): %s",
-			      id, strerror(errno));
-			goto err_close_fds;
-		}
-
-		err = bpf_obj_get_info_by_fd(fd, &info, &len);
-		if (err) {
-			p_err("can't get map info (%u): %s",
-			      id, strerror(errno));
-			goto err_close_fd;
-		}
-
-		if (strncmp(name, info.name, BPF_OBJ_NAME_LEN)) {
-			close(fd);
-			continue;
-		}
-
-		if (nb_fds > 0) {
-			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
-			if (!tmp) {
-				p_err("failed to realloc");
-				goto err_close_fd;
-			}
-			*fds = tmp;
-		}
-		(*fds)[nb_fds++] = fd;
-	}
-
-err_close_fd:
-	close(fd);
-err_close_fds:
-	while (--nb_fds >= 0)
-		close((*fds)[nb_fds]);
-	return -1;
-}
-
-static int map_parse_fds(int *argc, char ***argv, int **fds)
-{
-	if (is_prefix(**argv, "id")) {
-		unsigned int id;
-		char *endptr;
-
-		NEXT_ARGP();
-
-		id = strtoul(**argv, &endptr, 0);
-		if (*endptr) {
-			p_err("can't parse %s as ID", **argv);
-			return -1;
-		}
-		NEXT_ARGP();
-
-		(*fds)[0] = bpf_map_get_fd_by_id(id);
-		if ((*fds)[0] < 0) {
-			p_err("get map by id (%u): %s", id, strerror(errno));
-			return -1;
-		}
-		return 1;
-	} else if (is_prefix(**argv, "name")) {
-		char *name;
-
-		NEXT_ARGP();
-
-		name = **argv;
-		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
-			p_err("can't parse name");
-			return -1;
-		}
-		NEXT_ARGP();
-
-		return map_fd_by_name(name, fds);
-	} else if (is_prefix(**argv, "pinned")) {
-		char *path;
-
-		NEXT_ARGP();
-
-		path = **argv;
-		NEXT_ARGP();
-
-		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_MAP);
-		if ((*fds)[0] < 0)
-			return -1;
-		return 1;
-	}
-
-	p_err("expected 'id', 'name' or 'pinned', got: '%s'?", **argv);
-	return -1;
-}
-
-int map_parse_fd(int *argc, char ***argv)
-{
-	int *fds = NULL;
-	int nb_fds, fd;
-
-	fds = malloc(sizeof(int));
-	if (!fds) {
-		p_err("mem alloc failed");
-		return -1;
-	}
-	nb_fds = map_parse_fds(argc, argv, &fds);
-	if (nb_fds != 1) {
-		if (nb_fds > 1) {
-			p_err("several maps match this handle");
-			while (nb_fds--)
-				close(fds[nb_fds]);
-		}
-		fd = -1;
-		goto exit_free;
-	}
-
-	fd = fds[0];
-exit_free:
-	free(fds);
-	return fd;
-}
-
-int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
-{
-	int err;
-	int fd;
-
-	fd = map_parse_fd(argc, argv);
-	if (fd < 0)
-		return -1;
-
-	err = bpf_obj_get_info_by_fd(fd, info, info_len);
-	if (err) {
-		p_err("can't get map info: %s", strerror(errno));
-		close(fd);
-		return err;
-	}
-
-	return fd;
 }
 
 static int do_dump_btf(const struct btf_dumper *d,
@@ -628,7 +473,7 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 		if (owner_prog_type) {
 			unsigned int prog_type = atoi(owner_prog_type);
 
-			if (prog_type < ARRAY_SIZE(prog_type_name))
+			if (prog_type < prog_type_name_size)
 				jsonw_string_field(json_wtr, "owner_prog_type",
 						   prog_type_name[prog_type]);
 			else
@@ -664,6 +509,8 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 		}
 		jsonw_end_array(json_wtr);
 	}
+
+	emit_obj_refs_json(&refs_table, info->id, json_wtr);
 
 	jsonw_end_object(json_wtr);
 
@@ -711,7 +558,7 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 		if (owner_prog_type) {
 			unsigned int prog_type = atoi(owner_prog_type);
 
-			if (prog_type < ARRAY_SIZE(prog_type_name))
+			if (prog_type < prog_type_name_size)
 				printf("owner_prog_type %s  ",
 				       prog_type_name[prog_type]);
 			else
@@ -751,6 +598,8 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 
 	if (frozen)
 		printf("%sfrozen", info->btf_id ? "  " : "");
+
+	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 	return 0;
@@ -810,6 +659,7 @@ static int do_show(int argc, char **argv)
 
 	if (show_pinned)
 		build_pinned_obj_table(&map_table, BPF_OBJ_MAP);
+	build_obj_refs_table(&refs_table, BPF_OBJ_MAP);
 
 	if (argc == 2)
 		return do_show_subset(argc, argv);
@@ -852,6 +702,8 @@ static int do_show(int argc, char **argv)
 	}
 	if (json_output)
 		jsonw_end_array(json_wtr);
+
+	delete_obj_refs_table(&refs_table);
 
 	return errno == ENOENT ? 0 : -1;
 }
@@ -1384,7 +1236,7 @@ static int do_pin(int argc, char **argv)
 {
 	int err;
 
-	err = do_pin_any(argc, argv, bpf_map_get_fd_by_id);
+	err = do_pin_any(argc, argv, map_parse_fd);
 	if (!err && json_output)
 		jsonw_null(json_wtr);
 	return err;
@@ -1561,24 +1413,24 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s { show | list }   [MAP]\n"
-		"       %s %s create     FILE type TYPE key KEY_SIZE value VALUE_SIZE \\\n"
-		"                              entries MAX_ENTRIES name NAME [flags FLAGS] \\\n"
-		"                              [dev NAME]\n"
-		"       %s %s dump       MAP\n"
-		"       %s %s update     MAP [key DATA] [value VALUE] [UPDATE_FLAGS]\n"
-		"       %s %s lookup     MAP [key DATA]\n"
-		"       %s %s getnext    MAP [key DATA]\n"
-		"       %s %s delete     MAP  key DATA\n"
-		"       %s %s pin        MAP  FILE\n"
-		"       %s %s event_pipe MAP [cpu N index M]\n"
-		"       %s %s peek       MAP\n"
-		"       %s %s push       MAP value VALUE\n"
-		"       %s %s pop        MAP\n"
-		"       %s %s enqueue    MAP value VALUE\n"
-		"       %s %s dequeue    MAP\n"
-		"       %s %s freeze     MAP\n"
-		"       %s %s help\n"
+		"Usage: %1$s %2$s { show | list }   [MAP]\n"
+		"       %1$s %2$s create     FILE type TYPE key KEY_SIZE value VALUE_SIZE \\\n"
+		"                                  entries MAX_ENTRIES name NAME [flags FLAGS] \\\n"
+		"                                  [dev NAME]\n"
+		"       %1$s %2$s dump       MAP\n"
+		"       %1$s %2$s update     MAP [key DATA] [value VALUE] [UPDATE_FLAGS]\n"
+		"       %1$s %2$s lookup     MAP [key DATA]\n"
+		"       %1$s %2$s getnext    MAP [key DATA]\n"
+		"       %1$s %2$s delete     MAP  key DATA\n"
+		"       %1$s %2$s pin        MAP  FILE\n"
+		"       %1$s %2$s event_pipe MAP [cpu N index M]\n"
+		"       %1$s %2$s peek       MAP\n"
+		"       %1$s %2$s push       MAP value VALUE\n"
+		"       %1$s %2$s pop        MAP\n"
+		"       %1$s %2$s enqueue    MAP value VALUE\n"
+		"       %1$s %2$s dequeue    MAP\n"
+		"       %1$s %2$s freeze     MAP\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
 		"       DATA := { [hex] BYTES }\n"
@@ -1589,14 +1441,10 @@ static int do_help(int argc, char **argv)
 		"                 percpu_array | stack_trace | cgroup_array | lru_hash |\n"
 		"                 lru_percpu_hash | lpm_trie | array_of_maps | hash_of_maps |\n"
 		"                 devmap | devmap_hash | sockmap | cpumap | xskmap | sockhash |\n"
-		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage }\n"
+		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage |\n"
+		"                 queue | stack | sk_storage | struct_ops | ringbuf }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2]);
 
 	return 0;

@@ -230,6 +230,6 @@ static struct comedi_driver aio_iiro_16_driver = {
 };
 module_comedi_driver(aio_iiro_16_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Access I/O Products 104-IIRO-16 board");
 MODULE_LICENSE("GPL");

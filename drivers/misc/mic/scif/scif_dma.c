@@ -99,7 +99,7 @@ int scif_reserve_dma_chan(struct scif_endpt *ep)
 }
 
 #ifdef CONFIG_MMU_NOTIFIER
-/**
+/*
  * scif_rma_destroy_tcw:
  *
  * This routine destroys temporary cached windows
@@ -332,6 +332,7 @@ static bool scif_rma_tc_can_cache(struct scif_endpt *ep, size_t cur_bytes)
  * @epd: End Point Descriptor.
  * @addr: virtual address to/from which to copy
  * @len: length of range to copy
+ * @prot: read/write protection
  * @out_offset: computed offset returned by reference.
  * @out_window: allocated registered window returned by reference.
  *

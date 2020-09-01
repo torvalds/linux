@@ -6,6 +6,7 @@
 config ARC
 	def_bool y
 	select ARC_TIMERS
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SETUP_DMA_OPS
@@ -28,7 +29,6 @@ config ARC
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_FUTEX_CMPXCHG if FUTEX
@@ -168,6 +168,15 @@ config ARC_CPU_HS
 		* SETcc, BMSKN, XBFU...
 
 endchoice
+
+config ARC_TUNE_MCPU
+	string "Override default -mcpu compiler flag"
+	default ""
+	help
+	  Override default -mcpu=xxx compiler flag (which is set depending on
+	  the ISA version) with the specified value.
+	  NOTE: If specified flag isn't supported by current compiler the
+	  ISA default value will be used as a fallback.
 
 config CPU_BIG_ENDIAN
 	bool "Enable Big Endian Mode"
@@ -347,7 +356,7 @@ config NODES_SHIFT
 	default "0" if !DISCONTIGMEM
 	default "1" if DISCONTIGMEM
 	depends on NEED_MULTIPLE_NODES
-	---help---
+	help
 	  Accessing memory beyond 1GB (with or w/o PAE) requires 2 memory
 	  zones.
 
@@ -401,12 +410,60 @@ config ARC_HAS_DIV_REM
 	default y
 
 config ARC_HAS_ACCL_REGS
-	bool "Reg Pair ACCL:ACCH (FPU and/or MPY > 6)"
+	bool "Reg Pair ACCL:ACCH (FPU and/or MPY > 6 and/or DSP)"
 	default y
 	help
 	  Depending on the configuration, CPU can contain accumulator reg-pair
 	  (also referred to as r58:r59). These can also be used by gcc as GPR so
 	  kernel needs to save/restore per process
+
+config ARC_DSP_HANDLED
+	def_bool n
+
+config ARC_DSP_SAVE_RESTORE_REGS
+	def_bool n
+
+choice
+	prompt "DSP support"
+	default ARC_DSP_NONE
+	help
+	  Depending on the configuration, CPU can contain DSP registers
+	  (ACC0_GLO, ACC0_GHI, DSP_BFLY0, DSP_CTRL, DSP_FFT_CTRL).
+	  Bellow is options describing how to handle these registers in
+	  interrupt entry / exit and in context switch.
+
+config ARC_DSP_NONE
+	bool "No DSP extension presence in HW"
+	help
+	  No DSP extension presence in HW
+
+config ARC_DSP_KERNEL
+	bool "DSP extension in HW, no support for userspace"
+	select ARC_HAS_ACCL_REGS
+	select ARC_DSP_HANDLED
+	help
+	  DSP extension presence in HW, no support for DSP-enabled userspace
+	  applications. We don't save / restore DSP registers and only do
+	  some minimal preparations so userspace won't be able to break kernel
+
+config ARC_DSP_USERSPACE
+	bool "Support DSP for userspace apps"
+	select ARC_HAS_ACCL_REGS
+	select ARC_DSP_HANDLED
+	select ARC_DSP_SAVE_RESTORE_REGS
+	help
+	  DSP extension presence in HW, support save / restore DSP registers to
+	  run DSP-enabled userspace applications
+
+config ARC_DSP_AGU_USERSPACE
+	bool "Support DSP with AGU for userspace apps"
+	select ARC_HAS_ACCL_REGS
+	select ARC_DSP_HANDLED
+	select ARC_DSP_SAVE_RESTORE_REGS
+	help
+	  DSP and AGU extensions presence in HW, support save / restore DSP
+	  and AGU registers to run DSP-enabled userspace applications
+endchoice
 
 config ARC_IRQ_NO_AUTOSAVE
 	bool "Disable hardware autosave regfile on interrupts"
@@ -415,6 +472,12 @@ config ARC_IRQ_NO_AUTOSAVE
 	  On HS cores, taken interrupt auto saves the regfile on stack.
 	  This is programmable and can be optionally disabled in which case
 	  software INTERRUPT_PROLOGUE/EPILGUE do the needed work
+
+config ARC_LPB_DISABLE
+	bool "Disable loop buffer (LPB)"
+	help
+	  On HS cores, loop buffer (LPB) is programmable in runtime and can
+	  be optionally disabled.
 
 endif # ISA_ARCV2
 

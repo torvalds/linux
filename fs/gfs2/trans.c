@@ -25,19 +25,34 @@
 #include "util.h"
 #include "trace_gfs2.h"
 
+static void gfs2_print_trans(struct gfs2_sbd *sdp, const struct gfs2_trans *tr)
+{
+	fs_warn(sdp, "Transaction created at: %pSR\n", (void *)tr->tr_ip);
+	fs_warn(sdp, "blocks=%u revokes=%u reserved=%u touched=%u\n",
+		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved,
+		test_bit(TR_TOUCHED, &tr->tr_flags));
+	fs_warn(sdp, "Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
+		tr->tr_num_buf_new, tr->tr_num_buf_rm,
+		tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
+		tr->tr_num_revoke, tr->tr_num_revoke_rm);
+}
+
 int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 		     unsigned int revokes)
 {
 	struct gfs2_trans *tr;
 	int error;
 
-	BUG_ON(current->journal_info);
+	if (current->journal_info) {
+		gfs2_print_trans(sdp, current->journal_info);
+		BUG();
+	}
 	BUG_ON(blocks == 0 && revokes == 0);
 
 	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 		return -EROFS;
 
-	tr = kzalloc(sizeof(struct gfs2_trans), GFP_NOFS);
+	tr = kmem_cache_zalloc(gfs2_trans_cachep, GFP_NOFS);
 	if (!tr)
 		return -ENOMEM;
 
@@ -52,6 +67,9 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 		tr->tr_reserved += gfs2_struct2blk(sdp, revokes);
 	INIT_LIST_HEAD(&tr->tr_databuf);
 	INIT_LIST_HEAD(&tr->tr_buf);
+	INIT_LIST_HEAD(&tr->tr_list);
+	INIT_LIST_HEAD(&tr->tr_ail1_list);
+	INIT_LIST_HEAD(&tr->tr_ail2_list);
 
 	sb_start_intwrite(sdp->sd_vfs);
 
@@ -65,21 +83,9 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 
 fail:
 	sb_end_intwrite(sdp->sd_vfs);
-	kfree(tr);
+	kmem_cache_free(gfs2_trans_cachep, tr);
 
 	return error;
-}
-
-static void gfs2_print_trans(struct gfs2_sbd *sdp, const struct gfs2_trans *tr)
-{
-	fs_warn(sdp, "Transaction created at: %pSR\n", (void *)tr->tr_ip);
-	fs_warn(sdp, "blocks=%u revokes=%u reserved=%u touched=%u\n",
-		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved,
-		test_bit(TR_TOUCHED, &tr->tr_flags));
-	fs_warn(sdp, "Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
-		tr->tr_num_buf_new, tr->tr_num_buf_rm,
-		tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
-		tr->tr_num_revoke, tr->tr_num_revoke_rm);
 }
 
 void gfs2_trans_end(struct gfs2_sbd *sdp)
@@ -93,7 +99,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	if (!test_bit(TR_TOUCHED, &tr->tr_flags)) {
 		gfs2_log_release(sdp, tr->tr_reserved);
 		if (alloced) {
-			kfree(tr);
+			gfs2_trans_free(sdp, tr);
 			sb_end_intwrite(sdp->sd_vfs);
 		}
 		return;
@@ -109,7 +115,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 
 	gfs2_log_commit(sdp, tr);
 	if (alloced && !test_bit(TR_ATTACHED, &tr->tr_flags))
-		kfree(tr);
+		gfs2_trans_free(sdp, tr);
 	up_read(&sdp->sd_log_flush_lock);
 
 	if (sdp->sd_vfs->s_flags & SB_SYNCHRONOUS)
@@ -228,6 +234,10 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		fs_info(sdp, "GFS2:adding buf while frozen\n");
 		gfs2_assert_withdraw(sdp, 0);
 	}
+	if (unlikely(gfs2_withdrawn(sdp))) {
+		fs_info(sdp, "GFS2:adding buf while withdrawn! 0x%llx\n",
+			(unsigned long long)bd->bd_bh->b_blocknr);
+	}
 	gfs2_pin(sdp, bd->bd_bh);
 	mh->__pad0 = cpu_to_be64(0);
 	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
@@ -272,3 +282,14 @@ void gfs2_trans_remove_revoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
 	gfs2_log_unlock(sdp);
 }
 
+void gfs2_trans_free(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
+{
+	if (tr == NULL)
+		return;
+
+	gfs2_assert_warn(sdp, list_empty(&tr->tr_ail1_list));
+	gfs2_assert_warn(sdp, list_empty(&tr->tr_ail2_list));
+	gfs2_assert_warn(sdp, list_empty(&tr->tr_databuf));
+	gfs2_assert_warn(sdp, list_empty(&tr->tr_buf));
+	kmem_cache_free(gfs2_trans_cachep, tr);
+}

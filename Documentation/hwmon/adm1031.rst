@@ -10,7 +10,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.analog.com/en/prod/0%2C2877%2CADM1030%2C00.html
+	       https://www.analog.com/en/prod/0%2C2877%2CADM1030%2C00.html
 
   * Analog Devices ADM1031
 
@@ -20,7 +20,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.analog.com/en/prod/0%2C2877%2CADM1031%2C00.html
+	       https://www.analog.com/en/prod/0%2C2877%2CADM1031%2C00.html
 
 Authors:
 	- Alexandre d'Alton <alex@alexdalton.org>

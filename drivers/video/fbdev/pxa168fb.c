@@ -60,8 +60,6 @@ static int determine_best_pix_fmt(struct fb_var_screeninfo *var)
 			else
 				return PIX_FMT_BGR1555;
 		}
-
-		/* fall through */
 	}
 
 	/*
@@ -87,8 +85,6 @@ static int determine_best_pix_fmt(struct fb_var_screeninfo *var)
 			else
 				return PIX_FMT_BGR888UNPACK;
 		}
-
-		/* fall through */
 	}
 
 	return -EINVAL;
@@ -557,12 +553,11 @@ static const struct fb_ops pxa168fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int pxa168fb_init_mode(struct fb_info *info,
+static void pxa168fb_init_mode(struct fb_info *info,
 			      struct pxa168fb_mach_info *mi)
 {
 	struct pxa168fb_info *fbi = info->par;
 	struct fb_var_screeninfo *var = &info->var;
-	int ret = 0;
 	u32 total_w, total_h, refresh;
 	u64 div_result;
 	const struct fb_videomode *m;
@@ -593,8 +588,6 @@ static int pxa168fb_init_mode(struct fb_info *info,
 	div_result = 1000000000000ll;
 	do_div(div_result, total_w * total_h * refresh);
 	var->pixclock = (u32)div_result;
-
-	return ret;
 }
 
 static int pxa168fb_probe(struct platform_device *pdev)
@@ -769,7 +762,7 @@ failed_free_fbmem:
 	dma_free_wc(fbi->dev, info->fix.smem_len,
 		    info->screen_base, fbi->fb_start_dma);
 failed_free_info:
-	kfree(info);
+	framebuffer_release(info);
 
 	dev_err(&pdev->dev, "frame buffer device init failed with %d\n", ret);
 	return ret;
@@ -779,7 +772,6 @@ static int pxa168fb_remove(struct platform_device *pdev)
 {
 	struct pxa168fb_info *fbi = platform_get_drvdata(pdev);
 	struct fb_info *info;
-	int irq;
 	unsigned int data;
 
 	if (!fbi)
@@ -798,8 +790,6 @@ static int pxa168fb_remove(struct platform_device *pdev)
 
 	if (info->cmap.len)
 		fb_dealloc_cmap(&info->cmap);
-
-	irq = platform_get_irq(pdev, 0);
 
 	dma_free_wc(fbi->dev, info->fix.smem_len,
 		    info->screen_base, info->fix.smem_start);

@@ -138,6 +138,6 @@ another encrypted-key.
 This command is only available when the master security is enabled, indicated
 by the extended security status.
 
-[1]: http://pmem.io/documents/NVDIMM_DSM_Interface-V1.8.pdf
+[1]: https://pmem.io/documents/NVDIMM_DSM_Interface-V1.8.pdf
 
 [2]: http://www.t13.org/documents/UploadedDocuments/docs2006/e05179r4-ACS-SecurityClarifications.pdf

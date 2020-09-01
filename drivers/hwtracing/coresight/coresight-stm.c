@@ -727,8 +727,6 @@ static int acpi_stm_get_stimulus_area(struct device *dev, struct resource *res)
 
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 
-	if (!adev)
-		return -ENODEV;
 	rc = acpi_dev_get_resources(adev, &res_list, NULL, NULL);
 	if (rc < 0)
 		return rc;

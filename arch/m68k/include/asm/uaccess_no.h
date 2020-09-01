@@ -5,7 +5,6 @@
 /*
  * User space memory access functions
  */
-#include <linux/mm.h>
 #include <linux/string.h>
 
 #include <asm/segment.h>
@@ -43,7 +42,7 @@ static inline int _access_ok(unsigned long addr, unsigned long size)
 	__put_user_asm(__pu_err, __pu_val, ptr, l);	\
 	break;						\
     case 8:						\
-	memcpy(ptr, &__pu_val, sizeof (*(ptr))); \
+	memcpy((void __force *)ptr, &__pu_val, sizeof(*(ptr))); \
 	break;						\
     default:						\
 	__pu_err = __put_user_bad();			\
@@ -61,7 +60,7 @@ extern int __put_user_bad(void);
  * aliasing issues.
  */
 
-#define __ptr(x) ((unsigned long *)(x))
+#define __ptr(x) ((unsigned long __user *)(x))
 
 #define __put_user_asm(err,x,ptr,bwl)				\
 	__asm__ ("move" #bwl " %0,%1"				\
@@ -86,7 +85,7 @@ extern int __put_user_bad(void);
 	    u64 l;						\
 	    __typeof__(*(ptr)) t;				\
 	} __gu_val;						\
-	memcpy(&__gu_val.l, ptr, sizeof(__gu_val.l));		\
+	memcpy(&__gu_val.l, (const void __force *)ptr, sizeof(__gu_val.l)); \
 	(x) = __gu_val.t;					\
 	break;							\
     }								\

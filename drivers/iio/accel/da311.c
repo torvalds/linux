@@ -231,7 +231,6 @@ static int da311_probe(struct i2c_client *client,
 	data->client = client;
 	i2c_set_clientdata(client, indio_dev);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &da311_info;
 	indio_dev->name = "da311";
 	indio_dev->modes = INDIO_DIRECT_MODE;

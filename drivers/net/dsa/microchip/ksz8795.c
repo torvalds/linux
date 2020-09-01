@@ -731,15 +731,6 @@ static void ksz8795_port_stp_state_set(struct dsa_switch *ds, int port,
 
 	ksz_pwrite8(dev, port, P_STP_CTRL, data);
 	p->stp_state = state;
-	if (data & PORT_RX_ENABLE)
-		dev->rx_ports |= BIT(port);
-	else
-		dev->rx_ports &= ~BIT(port);
-	if (data & PORT_TX_ENABLE)
-		dev->tx_ports |= BIT(port);
-	else
-		dev->tx_ports &= ~BIT(port);
-
 	/* Port membership may share register with STP state. */
 	if (member >= 0 && member != p->member)
 		ksz8795_cfg_port_member(dev, port, (u8)member);
@@ -976,15 +967,8 @@ static void ksz8795_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		p->phydev.duplex = 1;
 
 		member = dev->port_mask;
-		dev->on_ports = dev->host_mask;
-		dev->live_ports = dev->host_mask;
 	} else {
 		member = dev->host_mask | p->vid_member;
-		dev->on_ports |= BIT(port);
-
-		/* Link was detected before port is enabled. */
-		if (p->phydev.link)
-			dev->live_ports |= BIT(port);
 	}
 	ksz8795_cfg_port_member(dev, port, member);
 }
@@ -1111,9 +1095,8 @@ static const struct dsa_switch_ops ksz8795_switch_ops = {
 	.setup			= ksz8795_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
-	.adjust_link		= ksz_adjust_link,
+	.phylink_mac_link_down	= ksz_mac_link_down,
 	.port_enable		= ksz_enable_port,
-	.port_disable		= ksz_disable_port,
 	.get_strings		= ksz8795_get_strings,
 	.get_ethtool_stats	= ksz_get_ethtool_stats,
 	.get_sset_count		= ksz_sset_count,
@@ -1267,6 +1250,9 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 		if (!dev->ports[i].mib.counters)
 			return -ENOMEM;
 	}
+
+	/* set the real number of ports */
+	dev->ds->num_ports = dev->port_cnt;
 
 	return 0;
 }

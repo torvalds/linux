@@ -3,7 +3,7 @@ NVMe Fault Injection
 Linux's fault injection framework provides a systematic way to support
 error injection via debugfs in the /sys/kernel/debug directory. When
 enabled, the default NVME_SC_INVALID_OPCODE with no retry will be
-injected into the nvme_end_request. Users can change the default status
+injected into the nvme_try_complete_req. Users can change the default status
 code and no retry flag via the debugfs. The list of Generic Command
 Status can be found in include/linux/nvme.h
 

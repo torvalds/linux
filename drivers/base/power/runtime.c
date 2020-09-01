@@ -523,13 +523,11 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 
  repeat:
 	retval = rpm_check_suspend_allowed(dev);
-
 	if (retval < 0)
-		;	/* Conditions are wrong. */
+		goto out;	/* Conditions are wrong. */
 
 	/* Synchronous suspends are not allowed in the RPM_RESUMING state. */
-	else if (dev->power.runtime_status == RPM_RESUMING &&
-	    !(rpmflags & RPM_ASYNC))
+	if (dev->power.runtime_status == RPM_RESUMING && !(rpmflags & RPM_ASYNC))
 		retval = -EAGAIN;
 	if (retval)
 		goto out;
@@ -1087,29 +1085,49 @@ int __pm_runtime_resume(struct device *dev, int rpmflags)
 EXPORT_SYMBOL_GPL(__pm_runtime_resume);
 
 /**
- * pm_runtime_get_if_in_use - Conditionally bump up the device's usage counter.
+ * pm_runtime_get_if_active - Conditionally bump up device usage counter.
  * @dev: Device to handle.
+ * @ign_usage_count: Whether or not to look at the current usage counter value.
  *
- * Return -EINVAL if runtime PM is disabled for the device.
+ * Return -EINVAL if runtime PM is disabled for @dev.
  *
- * If that's not the case and if the device's runtime PM status is RPM_ACTIVE
- * and the runtime PM usage counter is nonzero, increment the counter and
- * return 1.  Otherwise return 0 without changing the counter.
+ * Otherwise, if the runtime PM status of @dev is %RPM_ACTIVE and either
+ * @ign_usage_count is %true or the runtime PM usage counter of @dev is not
+ * zero, increment the usage counter of @dev and return 1. Otherwise, return 0
+ * without changing the usage counter.
+ *
+ * If @ign_usage_count is %true, this function can be used to prevent suspending
+ * the device when its runtime PM status is %RPM_ACTIVE.
+ *
+ * If @ign_usage_count is %false, this function can be used to prevent
+ * suspending the device when both its runtime PM status is %RPM_ACTIVE and its
+ * runtime PM usage counter is not zero.
+ *
+ * The caller is resposible for decrementing the runtime PM usage counter of
+ * @dev after this function has returned a positive value for it.
  */
-int pm_runtime_get_if_in_use(struct device *dev)
+int pm_runtime_get_if_active(struct device *dev, bool ign_usage_count)
 {
 	unsigned long flags;
 	int retval;
 
 	spin_lock_irqsave(&dev->power.lock, flags);
-	retval = dev->power.disable_depth > 0 ? -EINVAL :
-		dev->power.runtime_status == RPM_ACTIVE
-			&& atomic_inc_not_zero(&dev->power.usage_count);
+	if (dev->power.disable_depth > 0) {
+		retval = -EINVAL;
+	} else if (dev->power.runtime_status != RPM_ACTIVE) {
+		retval = 0;
+	} else if (ign_usage_count) {
+		retval = 1;
+		atomic_inc(&dev->power.usage_count);
+	} else {
+		retval = atomic_inc_not_zero(&dev->power.usage_count);
+	}
 	trace_rpm_usage_rcuidle(dev, 0);
 	spin_unlock_irqrestore(&dev->power.lock, flags);
+
 	return retval;
 }
-EXPORT_SYMBOL_GPL(pm_runtime_get_if_in_use);
+EXPORT_SYMBOL_GPL(pm_runtime_get_if_active);
 
 /**
  * __pm_runtime_set_status - Set runtime PM status of a device.

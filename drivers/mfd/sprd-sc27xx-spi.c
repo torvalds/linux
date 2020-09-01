@@ -7,9 +7,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mfd/core.h>
+#include <linux/mfd/sc27xx-pmic.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
+#include <uapi/linux/usb/charger.h>
 
 #define SPRD_PMIC_INT_MASK_STATUS	0x0
 #define SPRD_PMIC_INT_RAW_STATUS	0x4
@@ -17,6 +20,16 @@
 
 #define SPRD_SC2731_IRQ_BASE		0x140
 #define SPRD_SC2731_IRQ_NUMS		16
+#define SPRD_SC2731_CHG_DET		0xedc
+
+/* PMIC charger detection definition */
+#define SPRD_PMIC_CHG_DET_DELAY_US	200000
+#define SPRD_PMIC_CHG_DET_TIMEOUT	2000000
+#define SPRD_PMIC_CHG_DET_DONE		BIT(11)
+#define SPRD_PMIC_SDP_TYPE		BIT(7)
+#define SPRD_PMIC_DCP_TYPE		BIT(6)
+#define SPRD_PMIC_CDP_TYPE		BIT(5)
+#define SPRD_PMIC_CHG_TYPE_MASK		GENMASK(7, 5)
 
 struct sprd_pmic {
 	struct regmap *regmap;
@@ -24,12 +37,14 @@ struct sprd_pmic {
 	struct regmap_irq *irqs;
 	struct regmap_irq_chip irq_chip;
 	struct regmap_irq_chip_data *irq_data;
+	const struct sprd_pmic_data *pdata;
 	int irq;
 };
 
 struct sprd_pmic_data {
 	u32 irq_base;
 	u32 num_irqs;
+	u32 charger_det;
 };
 
 /*
@@ -40,74 +55,45 @@ struct sprd_pmic_data {
 static const struct sprd_pmic_data sc2731_data = {
 	.irq_base = SPRD_SC2731_IRQ_BASE,
 	.num_irqs = SPRD_SC2731_IRQ_NUMS,
+	.charger_det = SPRD_SC2731_CHG_DET,
 };
 
-static const struct mfd_cell sprd_pmic_devs[] = {
-	{
-		.name = "sc27xx-wdt",
-		.of_compatible = "sprd,sc2731-wdt",
-	}, {
-		.name = "sc27xx-rtc",
-		.of_compatible = "sprd,sc2731-rtc",
-	}, {
-		.name = "sc27xx-charger",
-		.of_compatible = "sprd,sc2731-charger",
-	}, {
-		.name = "sc27xx-chg-timer",
-		.of_compatible = "sprd,sc2731-chg-timer",
-	}, {
-		.name = "sc27xx-fast-chg",
-		.of_compatible = "sprd,sc2731-fast-chg",
-	}, {
-		.name = "sc27xx-chg-wdt",
-		.of_compatible = "sprd,sc2731-chg-wdt",
-	}, {
-		.name = "sc27xx-typec",
-		.of_compatible = "sprd,sc2731-typec",
-	}, {
-		.name = "sc27xx-flash",
-		.of_compatible = "sprd,sc2731-flash",
-	}, {
-		.name = "sc27xx-eic",
-		.of_compatible = "sprd,sc2731-eic",
-	}, {
-		.name = "sc27xx-efuse",
-		.of_compatible = "sprd,sc2731-efuse",
-	}, {
-		.name = "sc27xx-thermal",
-		.of_compatible = "sprd,sc2731-thermal",
-	}, {
-		.name = "sc27xx-adc",
-		.of_compatible = "sprd,sc2731-adc",
-	}, {
-		.name = "sc27xx-audio-codec",
-		.of_compatible = "sprd,sc2731-audio-codec",
-	}, {
-		.name = "sc27xx-regulator",
-		.of_compatible = "sprd,sc2731-regulator",
-	}, {
-		.name = "sc27xx-vibrator",
-		.of_compatible = "sprd,sc2731-vibrator",
-	}, {
-		.name = "sc27xx-keypad-led",
-		.of_compatible = "sprd,sc2731-keypad-led",
-	}, {
-		.name = "sc27xx-bltc",
-		.of_compatible = "sprd,sc2731-bltc",
-	}, {
-		.name = "sc27xx-fgu",
-		.of_compatible = "sprd,sc2731-fgu",
-	}, {
-		.name = "sc27xx-7sreset",
-		.of_compatible = "sprd,sc2731-7sreset",
-	}, {
-		.name = "sc27xx-poweroff",
-		.of_compatible = "sprd,sc2731-poweroff",
-	}, {
-		.name = "sc27xx-syscon",
-		.of_compatible = "sprd,sc2731-syscon",
-	},
-};
+enum usb_charger_type sprd_pmic_detect_charger_type(struct device *dev)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	struct sprd_pmic *ddata = spi_get_drvdata(spi);
+	const struct sprd_pmic_data *pdata = ddata->pdata;
+	enum usb_charger_type type;
+	u32 val;
+	int ret;
+
+	ret = regmap_read_poll_timeout(ddata->regmap, pdata->charger_det, val,
+				       (val & SPRD_PMIC_CHG_DET_DONE),
+				       SPRD_PMIC_CHG_DET_DELAY_US,
+				       SPRD_PMIC_CHG_DET_TIMEOUT);
+	if (ret) {
+		dev_err(&spi->dev, "failed to detect charger type\n");
+		return UNKNOWN_TYPE;
+	}
+
+	switch (val & SPRD_PMIC_CHG_TYPE_MASK) {
+	case SPRD_PMIC_CDP_TYPE:
+		type = CDP_TYPE;
+		break;
+	case SPRD_PMIC_DCP_TYPE:
+		type = DCP_TYPE;
+		break;
+	case SPRD_PMIC_SDP_TYPE:
+		type = SDP_TYPE;
+		break;
+	default:
+		type = UNKNOWN_TYPE;
+		break;
+	}
+
+	return type;
+}
+EXPORT_SYMBOL_GPL(sprd_pmic_detect_charger_type);
 
 static int sprd_pmic_spi_write(void *context, const void *data, size_t count)
 {
@@ -181,6 +167,7 @@ static int sprd_pmic_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, ddata);
 	ddata->dev = &spi->dev;
 	ddata->irq = spi->irq;
+	ddata->pdata = pdata;
 
 	ddata->irq_chip.name = dev_name(&spi->dev);
 	ddata->irq_chip.status_base =
@@ -198,10 +185,8 @@ static int sprd_pmic_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ddata->irq_chip.irqs = ddata->irqs;
-	for (i = 0; i < pdata->num_irqs; i++) {
-		ddata->irqs[i].reg_offset = i / pdata->num_irqs;
-		ddata->irqs[i].mask = BIT(i % pdata->num_irqs);
-	}
+	for (i = 0; i < pdata->num_irqs; i++)
+		ddata->irqs[i].mask = BIT(i);
 
 	ret = devm_regmap_add_irq_chip(&spi->dev, ddata->regmap, ddata->irq,
 				       IRQF_ONESHOT | IRQF_NO_SUSPEND, 0,
@@ -211,12 +196,9 @@ static int sprd_pmic_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = devm_mfd_add_devices(&spi->dev, PLATFORM_DEVID_AUTO,
-				   sprd_pmic_devs, ARRAY_SIZE(sprd_pmic_devs),
-				   NULL, 0,
-				   regmap_irq_get_domain(ddata->irq_data));
+	ret = devm_of_platform_populate(&spi->dev);
 	if (ret) {
-		dev_err(&spi->dev, "Failed to register device %d\n", ret);
+		dev_err(&spi->dev, "Failed to populate sub-devices %d\n", ret);
 		return ret;
 	}
 
@@ -232,7 +214,6 @@ MODULE_DEVICE_TABLE(of, sprd_pmic_match);
 static struct spi_driver sprd_pmic_driver = {
 	.driver = {
 		.name = "sc27xx-pmic",
-		.bus = &spi_bus_type,
 		.of_match_table = sprd_pmic_match,
 	},
 	.probe = sprd_pmic_probe,

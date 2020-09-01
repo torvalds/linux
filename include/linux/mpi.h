@@ -63,6 +63,9 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod);
 int mpi_cmp_ui(MPI u, ulong v);
 int mpi_cmp(MPI u, MPI v);
 
+/*-- mpi-sub-ui.c --*/
+int mpi_sub_ui(MPI w, MPI u, unsigned long vval);
+
 /*-- mpi-bit.c --*/
 void mpi_normalize(MPI a);
 unsigned mpi_get_nbits(MPI a);

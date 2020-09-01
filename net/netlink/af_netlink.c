@@ -60,6 +60,7 @@
 #include <linux/genetlink.h>
 #include <linux/net_namespace.h>
 #include <linux/nospec.h>
+#include <linux/btf_ids.h>
 
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -71,7 +72,7 @@
 
 struct listeners {
 	struct rcu_head		rcu;
-	unsigned long		masks[0];
+	unsigned long		masks[];
 };
 
 /* state bits */
@@ -1620,7 +1621,7 @@ static void netlink_update_socket_mc(struct netlink_sock *nlk,
 }
 
 static int netlink_setsockopt(struct socket *sock, int level, int optname,
-			      char __user *optval, unsigned int optlen)
+			      sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -1631,7 +1632,7 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 		return -ENOPROTOOPT;
 
 	if (optlen >= sizeof(int) &&
-	    get_user(val, (unsigned int __user *)optval))
+	    copy_from_sockptr(&val, optval, sizeof(val)))
 		return -EFAULT;
 
 	switch (optname) {
@@ -2392,19 +2393,14 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 	if (nlk_has_extack && extack && extack->_msg)
 		tlvlen += nla_total_size(strlen(extack->_msg) + 1);
 
-	if (err) {
-		if (!(nlk->flags & NETLINK_F_CAP_ACK))
-			payload += nlmsg_len(nlh);
-		else
-			flags |= NLM_F_CAPPED;
-		if (nlk_has_extack && extack && extack->bad_attr)
-			tlvlen += nla_total_size(sizeof(u32));
-	} else {
+	if (err && !(nlk->flags & NETLINK_F_CAP_ACK))
+		payload += nlmsg_len(nlh);
+	else
 		flags |= NLM_F_CAPPED;
-
-		if (nlk_has_extack && extack && extack->cookie_len)
-			tlvlen += nla_total_size(extack->cookie_len);
-	}
+	if (err && nlk_has_extack && extack && extack->bad_attr)
+		tlvlen += nla_total_size(sizeof(u32));
+	if (nlk_has_extack && extack && extack->cookie_len)
+		tlvlen += nla_total_size(extack->cookie_len);
 
 	if (tlvlen)
 		flags |= NLM_F_ACK_TLVS;
@@ -2427,20 +2423,16 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 			WARN_ON(nla_put_string(skb, NLMSGERR_ATTR_MSG,
 					       extack->_msg));
 		}
-		if (err) {
-			if (extack->bad_attr &&
-			    !WARN_ON((u8 *)extack->bad_attr < in_skb->data ||
-				     (u8 *)extack->bad_attr >= in_skb->data +
-							       in_skb->len))
-				WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_OFFS,
-						    (u8 *)extack->bad_attr -
-						    (u8 *)nlh));
-		} else {
-			if (extack->cookie_len)
-				WARN_ON(nla_put(skb, NLMSGERR_ATTR_COOKIE,
-						extack->cookie_len,
-						extack->cookie));
-		}
+		if (err && extack->bad_attr &&
+		    !WARN_ON((u8 *)extack->bad_attr < in_skb->data ||
+			     (u8 *)extack->bad_attr >= in_skb->data +
+						       in_skb->len))
+			WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_OFFS,
+					    (u8 *)extack->bad_attr -
+					    (u8 *)nlh));
+		if (extack->cookie_len)
+			WARN_ON(nla_put(skb, NLMSGERR_ATTR_COOKIE,
+					extack->cookie_len, extack->cookie));
 	}
 
 	nlmsg_end(skb, rep);
@@ -2583,6 +2575,7 @@ static void *__netlink_seq_next(struct seq_file *seq)
 }
 
 static void *netlink_seq_start(struct seq_file *seq, loff_t *posp)
+	__acquires(RCU)
 {
 	struct nl_seq_iter *iter = seq->private;
 	void *obj = SEQ_START_TOKEN;
@@ -2604,7 +2597,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	return __netlink_seq_next(seq);
 }
 
-static void netlink_seq_stop(struct seq_file *seq, void *v)
+static void netlink_native_seq_stop(struct seq_file *seq, void *v)
 {
 	struct nl_seq_iter *iter = seq->private;
 
@@ -2615,7 +2608,7 @@ static void netlink_seq_stop(struct seq_file *seq, void *v)
 }
 
 
-static int netlink_seq_show(struct seq_file *seq, void *v)
+static int netlink_native_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq,
@@ -2641,6 +2634,68 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_BPF_SYSCALL
+struct bpf_iter__netlink {
+	__bpf_md_ptr(struct bpf_iter_meta *, meta);
+	__bpf_md_ptr(struct netlink_sock *, sk);
+};
+
+DEFINE_BPF_ITER_FUNC(netlink, struct bpf_iter_meta *meta, struct netlink_sock *sk)
+
+static int netlink_prog_seq_show(struct bpf_prog *prog,
+				  struct bpf_iter_meta *meta,
+				  void *v)
+{
+	struct bpf_iter__netlink ctx;
+
+	meta->seq_num--;  /* skip SEQ_START_TOKEN */
+	ctx.meta = meta;
+	ctx.sk = nlk_sk((struct sock *)v);
+	return bpf_iter_run_prog(prog, &ctx);
+}
+
+static int netlink_seq_show(struct seq_file *seq, void *v)
+{
+	struct bpf_iter_meta meta;
+	struct bpf_prog *prog;
+
+	meta.seq = seq;
+	prog = bpf_iter_get_info(&meta, false);
+	if (!prog)
+		return netlink_native_seq_show(seq, v);
+
+	if (v != SEQ_START_TOKEN)
+		return netlink_prog_seq_show(prog, &meta, v);
+
+	return 0;
+}
+
+static void netlink_seq_stop(struct seq_file *seq, void *v)
+{
+	struct bpf_iter_meta meta;
+	struct bpf_prog *prog;
+
+	if (!v) {
+		meta.seq = seq;
+		prog = bpf_iter_get_info(&meta, true);
+		if (prog)
+			(void)netlink_prog_seq_show(prog, &meta, v);
+	}
+
+	netlink_native_seq_stop(seq, v);
+}
+#else
+static int netlink_seq_show(struct seq_file *seq, void *v)
+{
+	return netlink_native_seq_show(seq, v);
+}
+
+static void netlink_seq_stop(struct seq_file *seq, void *v)
+{
+	netlink_native_seq_stop(seq, v);
+}
+#endif
 
 static const struct seq_operations netlink_seq_ops = {
 	.start  = netlink_seq_start,
@@ -2748,6 +2803,34 @@ static const struct rhashtable_params netlink_rhashtable_params = {
 	.automatic_shrinking = true,
 };
 
+#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+BTF_ID_LIST(btf_netlink_sock_id)
+BTF_ID(struct, netlink_sock)
+
+static const struct bpf_iter_seq_info netlink_seq_info = {
+	.seq_ops		= &netlink_seq_ops,
+	.init_seq_private	= bpf_iter_init_seq_net,
+	.fini_seq_private	= bpf_iter_fini_seq_net,
+	.seq_priv_size		= sizeof(struct nl_seq_iter),
+};
+
+static struct bpf_iter_reg netlink_reg_info = {
+	.target			= "netlink",
+	.ctx_arg_info_size	= 1,
+	.ctx_arg_info		= {
+		{ offsetof(struct bpf_iter__netlink, sk),
+		  PTR_TO_BTF_ID_OR_NULL },
+	},
+	.seq_info		= &netlink_seq_info,
+};
+
+static int __init bpf_iter_register(void)
+{
+	netlink_reg_info.ctx_arg_info[0].btf_id = *btf_netlink_sock_id;
+	return bpf_iter_reg_target(&netlink_reg_info);
+}
+#endif
+
 static int __init netlink_proto_init(void)
 {
 	int i;
@@ -2755,6 +2838,12 @@ static int __init netlink_proto_init(void)
 
 	if (err != 0)
 		goto out;
+
+#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+	err = bpf_iter_register();
+	if (err)
+		goto out;
+#endif
 
 	BUILD_BUG_ON(sizeof(struct netlink_skb_parms) > sizeof_field(struct sk_buff, cb));
 

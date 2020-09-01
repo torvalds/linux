@@ -169,7 +169,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
-	intel_guc_fw_init_early(guc);
+	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC);
 	intel_guc_ct_init_early(&guc->ct);
 	intel_guc_log_init_early(&guc->log);
 	intel_guc_submission_init_early(guc);
@@ -207,7 +207,7 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (!intel_guc_is_submission_supported(guc))
+	if (!intel_guc_submission_is_used(guc))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
 
 	return flags;
@@ -217,7 +217,7 @@ static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (intel_guc_is_submission_supported(guc)) {
+	if (intel_guc_submission_is_used(guc)) {
 		u32 ctxnum, base;
 
 		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
@@ -333,7 +333,7 @@ int intel_guc_init(struct intel_guc *guc)
 
 	ret = intel_uc_fw_init(&guc->fw);
 	if (ret)
-		goto err_fetch;
+		goto out;
 
 	ret = intel_guc_log_create(&guc->log);
 	if (ret)
@@ -348,7 +348,7 @@ int intel_guc_init(struct intel_guc *guc)
 	if (ret)
 		goto err_ads;
 
-	if (intel_guc_is_submission_supported(guc)) {
+	if (intel_guc_submission_is_used(guc)) {
 		/*
 		 * This is stuff we need to have available at fw load time
 		 * if we are planning to enable submission later
@@ -364,6 +364,8 @@ int intel_guc_init(struct intel_guc *guc)
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(gt->ggtt);
 
+	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_LOADABLE);
+
 	return 0;
 
 err_ct:
@@ -374,9 +376,8 @@ err_log:
 	intel_guc_log_destroy(&guc->log);
 err_fw:
 	intel_uc_fw_fini(&guc->fw);
-err_fetch:
-	intel_uc_fw_cleanup_fetch(&guc->fw);
-	DRM_DEV_DEBUG_DRIVER(gt->i915->drm.dev, "failed with %d\n", ret);
+out:
+	i915_probe_error(gt->i915, "failed with %d\n", ret);
 	return ret;
 }
 
@@ -384,12 +385,12 @@ void intel_guc_fini(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	if (!intel_uc_fw_is_available(&guc->fw))
+	if (!intel_uc_fw_is_loadable(&guc->fw))
 		return;
 
 	i915_ggtt_disable_guc(gt->ggtt);
 
-	if (intel_guc_is_submission_supported(guc))
+	if (intel_guc_submission_is_used(guc))
 		intel_guc_submission_fini(guc);
 
 	intel_guc_ct_fini(&guc->ct);
@@ -397,9 +398,6 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
 	intel_uc_fw_fini(&guc->fw);
-	intel_uc_fw_cleanup_fetch(&guc->fw);
-
-	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_DISABLED);
 }
 
 /*
@@ -544,7 +542,7 @@ int intel_guc_suspend(struct intel_guc *guc)
 	 * If GuC communication is enabled but submission is not supported,
 	 * we do not need to suspend the GuC.
 	 */
-	if (!intel_guc_submission_is_enabled(guc))
+	if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
 		return 0;
 
 	/*
@@ -609,7 +607,7 @@ int intel_guc_resume(struct intel_guc *guc)
 	 * we do not need to resume the GuC but we do need to enable the
 	 * GuC communication on resume (above).
 	 */
-	if (!intel_guc_submission_is_enabled(guc))
+	if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
 		return 0;
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
@@ -678,8 +676,8 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	if (IS_ERR(vma))
 		goto err;
 
-	flags = PIN_GLOBAL | PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
-	ret = i915_vma_pin(vma, 0, 0, flags);
+	flags = PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
+	ret = i915_ggtt_pin(vma, 0, flags);
 	if (ret) {
 		vma = ERR_PTR(ret);
 		goto err;
@@ -724,4 +722,48 @@ int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
 	*out_vaddr = vaddr;
 
 	return 0;
+}
+
+/**
+ * intel_guc_load_status - dump information about GuC load status
+ * @guc: the GuC
+ * @p: the &drm_printer
+ *
+ * Pretty printer for GuC load status.
+ */
+void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct intel_uncore *uncore = gt->uncore;
+	intel_wakeref_t wakeref;
+
+	if (!intel_guc_is_supported(guc)) {
+		drm_printf(p, "GuC not supported\n");
+		return;
+	}
+
+	if (!intel_guc_is_wanted(guc)) {
+		drm_printf(p, "GuC disabled\n");
+		return;
+	}
+
+	intel_uc_fw_dump(&guc->fw, p);
+
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
+		u32 status = intel_uncore_read(uncore, GUC_STATUS);
+		u32 i;
+
+		drm_printf(p, "\nGuC status 0x%08x:\n", status);
+		drm_printf(p, "\tBootrom status = 0x%x\n",
+			   (status & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT);
+		drm_printf(p, "\tuKernel status = 0x%x\n",
+			   (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT);
+		drm_printf(p, "\tMIA Core status = 0x%x\n",
+			   (status & GS_MIA_MASK) >> GS_MIA_SHIFT);
+		drm_puts(p, "\nScratch registers:\n");
+		for (i = 0; i < 16; i++) {
+			drm_printf(p, "\t%2d: \t0x%x\n",
+				   i, intel_uncore_read(uncore, SOFT_SCRATCH(i)));
+		}
+	}
 }

@@ -7,9 +7,48 @@
 
 #include "efistub.h"
 
+static efi_guid_t cpu_state_guid = LINUX_EFI_ARM_CPU_STATE_TABLE_GUID;
+
+struct efi_arm_entry_state *efi_entry_state;
+
+static void get_cpu_state(u32 *cpsr, u32 *sctlr)
+{
+	asm("mrs %0, cpsr" : "=r"(*cpsr));
+	if ((*cpsr & MODE_MASK) == HYP_MODE)
+		asm("mrc p15, 4, %0, c1, c0, 0" : "=r"(*sctlr));
+	else
+		asm("mrc p15, 0, %0, c1, c0, 0" : "=r"(*sctlr));
+}
+
 efi_status_t check_platform_features(void)
 {
+	efi_status_t status;
+	u32 cpsr, sctlr;
 	int block;
+
+	get_cpu_state(&cpsr, &sctlr);
+
+	efi_info("Entering in %s mode with MMU %sabled\n",
+		 ((cpsr & MODE_MASK) == HYP_MODE) ? "HYP" : "SVC",
+		 (sctlr & 1) ? "en" : "dis");
+
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
+			     sizeof(*efi_entry_state),
+			     (void **)&efi_entry_state);
+	if (status != EFI_SUCCESS) {
+		efi_err("allocate_pool() failed\n");
+		return status;
+	}
+
+	efi_entry_state->cpsr_before_ebs = cpsr;
+	efi_entry_state->sctlr_before_ebs = sctlr;
+
+	status = efi_bs_call(install_configuration_table, &cpu_state_guid,
+			     efi_entry_state);
+	if (status != EFI_SUCCESS) {
+		efi_err("install_configuration_table() failed\n");
+		goto free_state;
+	}
 
 	/* non-LPAE kernels can run anywhere */
 	if (!IS_ENABLED(CONFIG_ARM_LPAE))
@@ -18,10 +57,23 @@ efi_status_t check_platform_features(void)
 	/* LPAE kernels need compatible hardware */
 	block = cpuid_feature_extract(CPUID_EXT_MMFR0, 0);
 	if (block < 5) {
-		pr_efi_err("This LPAE kernel is not supported by your CPU\n");
-		return EFI_UNSUPPORTED;
+		efi_err("This LPAE kernel is not supported by your CPU\n");
+		status = EFI_UNSUPPORTED;
+		goto drop_table;
 	}
 	return EFI_SUCCESS;
+
+drop_table:
+	efi_bs_call(install_configuration_table, &cpu_state_guid, NULL);
+free_state:
+	efi_bs_call(free_pool, efi_entry_state);
+	return status;
+}
+
+void efi_handle_post_ebs_state(void)
+{
+	get_cpu_state(&efi_entry_state->cpsr_after_ebs,
+		      &efi_entry_state->sctlr_after_ebs);
 }
 
 static efi_guid_t screen_info_guid = LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID;
@@ -120,7 +172,7 @@ static efi_status_t reserve_kernel_base(unsigned long dram_base,
 	 */
 	status = efi_get_memory_map(&map);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("reserve_kernel_base(): Unable to retrieve memory map.\n");
+		efi_err("reserve_kernel_base(): Unable to retrieve memory map.\n");
 		return status;
 	}
 
@@ -162,7 +214,7 @@ static efi_status_t reserve_kernel_base(unsigned long dram_base,
 					     (end - start) / EFI_PAGE_SIZE,
 					     &start);
 			if (status != EFI_SUCCESS) {
-				pr_efi_err("reserve_kernel_base(): alloc failed.\n");
+				efi_err("reserve_kernel_base(): alloc failed.\n");
 				goto out;
 			}
 			break;
@@ -199,14 +251,8 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	unsigned long kernel_base;
 	efi_status_t status;
 
-	/*
-	 * Verify that the DRAM base address is compatible with the ARM
-	 * boot protocol, which determines the base of DRAM by masking
-	 * off the low 27 bits of the address at which the zImage is
-	 * loaded. These assumptions are made by the decompressor,
-	 * before any memory map is available.
-	 */
-	kernel_base = round_up(dram_base, SZ_128M);
+	/* use a 16 MiB aligned base for the decompressed kernel */
+	kernel_base = round_up(dram_base, SZ_16M) + TEXT_OFFSET;
 
 	/*
 	 * Note that some platforms (notably, the Raspberry Pi 2) put
@@ -215,40 +261,14 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	 * base of the kernel image is only partially used at the moment.
 	 * (Up to 5 pages are used for the swapper page tables)
 	 */
-	kernel_base += TEXT_OFFSET - 5 * PAGE_SIZE;
-
-	status = reserve_kernel_base(kernel_base, reserve_addr, reserve_size);
+	status = reserve_kernel_base(kernel_base - 5 * PAGE_SIZE, reserve_addr,
+				     reserve_size);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Unable to allocate memory for uncompressed kernel.\n");
+		efi_err("Unable to allocate memory for uncompressed kernel.\n");
 		return status;
 	}
 
-	/*
-	 * Relocate the zImage, so that it appears in the lowest 128 MB
-	 * memory window.
-	 */
-	*image_size = image->image_size;
-	status = efi_relocate_kernel(image_addr, *image_size, *image_size,
-				     kernel_base + MAX_UNCOMP_KERNEL_SIZE, 0, 0);
-	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to relocate kernel.\n");
-		efi_free(*reserve_size, *reserve_addr);
-		*reserve_size = 0;
-		return status;
-	}
-
-	/*
-	 * Check to see if we were able to allocate memory low enough
-	 * in memory. The kernel determines the base of DRAM from the
-	 * address at which the zImage is loaded.
-	 */
-	if (*image_addr + *image_size > dram_base + ZIMAGE_OFFSET_LIMIT) {
-		pr_efi_err("Failed to relocate kernel, no low memory available.\n");
-		efi_free(*reserve_size, *reserve_addr);
-		*reserve_size = 0;
-		efi_free(*image_size, *image_addr);
-		*image_size = 0;
-		return EFI_LOAD_ERROR;
-	}
+	*image_addr = kernel_base;
+	*image_size = 0;
 	return EFI_SUCCESS;
 }

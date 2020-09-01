@@ -16,13 +16,14 @@
 #include <sound/soc.h>
 #include <uapi/linux/input-event-codes.h>
 #include <dt-bindings/sound/apq8016-lpass.h>
+#include "common.h"
 
 struct apq8016_sbc_data {
+	struct snd_soc_card card;
 	void __iomem *mic_iomux;
 	void __iomem *spkr_iomux;
 	struct snd_soc_jack jack;
 	bool jack_setup;
-	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
 };
 
 #define MIC_CTRL_TER_WS_SLAVE_SEL	BIT(21)
@@ -33,9 +34,9 @@ struct apq8016_sbc_data {
 
 static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai;
 	struct snd_soc_component *component;
-	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_card *card = rtd->card;
 	struct apq8016_sbc_data *pdata = snd_soc_card_get_drvdata(card);
 	int i, rval;
@@ -90,10 +91,9 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 		pdata->jack_setup = true;
 	}
 
-	for (i = 0 ; i < dai_link->num_codecs; i++) {
-		struct snd_soc_dai *dai = rtd->codec_dais[i];
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 
-		component = dai->component;
+		component = codec_dai->component;
 		/* Set default mclk for internal codec */
 		rval = snd_soc_component_set_sysclk(component, 0, 0, DEFAULT_MCLK_RATE,
 				       SND_SOC_CLOCK_IN);
@@ -111,107 +111,13 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
+static void apq8016_sbc_add_ops(struct snd_soc_card *card)
 {
-	struct device *dev = card->dev;
 	struct snd_soc_dai_link *link;
-	struct device_node *np, *codec, *cpu, *node  = dev->of_node;
-	struct apq8016_sbc_data *data;
-	struct snd_soc_dai_link_component *dlc;
-	int ret, num_links;
+	int i;
 
-	ret = snd_soc_of_parse_card_name(card, "qcom,model");
-	if (ret) {
-		dev_err(dev, "Error parsing card name: %d\n", ret);
-		return ERR_PTR(ret);
-	}
-
-	/* DAPM routes */
-	if (of_property_read_bool(node, "qcom,audio-routing")) {
-		ret = snd_soc_of_parse_audio_routing(card,
-					"qcom,audio-routing");
-		if (ret)
-			return ERR_PTR(ret);
-	}
-
-
-	/* Populate links */
-	num_links = of_get_child_count(node);
-
-	/* Allocate the private data and the DAI link array */
-	data = devm_kzalloc(dev,
-			    struct_size(data, dai_link, num_links),
-			    GFP_KERNEL);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	card->dai_link	= &data->dai_link[0];
-	card->num_links	= num_links;
-
-	link = data->dai_link;
-
-	for_each_child_of_node(node, np) {
-		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
-		if (!dlc)
-			return ERR_PTR(-ENOMEM);
-
-		link->cpus	= &dlc[0];
-		link->platforms	= &dlc[1];
-
-		link->num_cpus		= 1;
-		link->num_platforms	= 1;
-
-		cpu = of_get_child_by_name(np, "cpu");
-		codec = of_get_child_by_name(np, "codec");
-
-		if (!cpu || !codec) {
-			dev_err(dev, "Can't find cpu/codec DT node\n");
-			ret = -EINVAL;
-			goto error;
-		}
-
-		link->cpus->of_node = of_parse_phandle(cpu, "sound-dai", 0);
-		if (!link->cpus->of_node) {
-			dev_err(card->dev, "error getting cpu phandle\n");
-			ret = -EINVAL;
-			goto error;
-		}
-
-		ret = snd_soc_of_get_dai_name(cpu, &link->cpus->dai_name);
-		if (ret) {
-			dev_err(card->dev, "error getting cpu dai name\n");
-			goto error;
-		}
-
-		ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
-
-		if (ret < 0) {
-			dev_err(card->dev, "error getting codec dai name\n");
-			goto error;
-		}
-
-		link->platforms->of_node = link->cpus->of_node;
-		ret = of_property_read_string(np, "link-name", &link->name);
-		if (ret) {
-			dev_err(card->dev, "error getting codec dai_link name\n");
-			goto error;
-		}
-
-		link->stream_name = link->name;
+	for_each_card_prelinks(card, i, link)
 		link->init = apq8016_sbc_dai_init;
-		link++;
-
-		of_node_put(cpu);
-		of_node_put(codec);
-	}
-
-	return data;
-
- error:
-	of_node_put(np);
-	of_node_put(cpu);
-	of_node_put(codec);
-	return ERR_PTR(ret);
 }
 
 static const struct snd_soc_dapm_widget apq8016_sbc_dapm_widgets[] = {
@@ -229,20 +135,20 @@ static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	struct apq8016_sbc_data *data;
 	struct resource *res;
+	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
-	if (!card)
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
+	card = &data->card;
 	card->dev = dev;
 	card->dapm_widgets = apq8016_sbc_dapm_widgets;
 	card->num_dapm_widgets = ARRAY_SIZE(apq8016_sbc_dapm_widgets);
-	data = apq8016_sbc_parse_of(card);
-	if (IS_ERR(data)) {
-		dev_err(&pdev->dev, "Error resolving dai links: %ld\n",
-			PTR_ERR(data));
-		return PTR_ERR(data);
-	}
+
+	ret = qcom_snd_parse_of(card);
+	if (ret)
+		return ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mic-iomux");
 	data->mic_iomux = devm_ioremap_resource(dev, res);
@@ -256,6 +162,7 @@ static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 
 	snd_soc_card_set_drvdata(card, data);
 
+	apq8016_sbc_add_ops(card);
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 

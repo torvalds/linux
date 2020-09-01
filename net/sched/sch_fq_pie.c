@@ -102,7 +102,7 @@ static unsigned int fq_pie_classify(struct sk_buff *skb, struct Qdisc *sch,
 		case TC_ACT_QUEUED:
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
-			/* fall through */
+			fallthrough;
 		case TC_ACT_SHOT:
 			return 0;
 		}
@@ -130,7 +130,7 @@ static int fq_pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 {
 	struct fq_pie_sched_data *q = qdisc_priv(sch);
 	struct fq_pie_flow *sel_flow;
-	int uninitialized_var(ret);
+	int ret;
 	u8 memory_limited = false;
 	u8 enqueue = false;
 	u32 pkt_len;
@@ -189,7 +189,6 @@ static int fq_pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 out:
 	q->stats.dropped++;
 	sel_flow->vars.accu_prob = 0;
-	sel_flow->vars.accu_prob_overflows = 0;
 	__qdisc_drop(skb, to_free);
 	qdisc_qstats_drop(sch);
 	return NET_XMIT_CN;
@@ -298,9 +297,9 @@ static int fq_pie_change(struct Qdisc *sch, struct nlattr *opt,
 			goto flow_error;
 		}
 		q->flows_cnt = nla_get_u32(tb[TCA_FQ_PIE_FLOWS]);
-		if (!q->flows_cnt || q->flows_cnt > 65536) {
+		if (!q->flows_cnt || q->flows_cnt >= 65536) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Number of flows must be < 65536");
+					   "Number of flows must range in [1..65535]");
 			goto flow_error;
 		}
 	}

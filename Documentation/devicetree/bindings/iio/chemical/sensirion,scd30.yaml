@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/chemical/sensirion,scd30.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sensirion SCD30 carbon dioxide sensor
+
+maintainers:
+  - Tomasz Duszynski <tomasz.duszynski@octakon.com>
+
+description: |
+  Air quality sensor capable of measuring co2 concentration, temperature
+  and relative humidity.
+
+properties:
+  compatible:
+    enum:
+      - sensirion,scd30
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vdd-supply: true
+
+  sensirion,sel-gpios:
+    description: GPIO connected to the SEL line
+    maxItems: 1
+
+  sensirion,pwm-gpios:
+    description: GPIO connected to the PWM line
+    maxItems: 1
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    # include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      co2-sensor@61 {
+        compatible = "sensirion,scd30";
+        reg = <0x61>;
+        vdd-supply = <&vdd>;
+        interrupt-parent = <&gpio0>;
+        interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+      };
+    };
+  - |
+    # include <dt-bindings/interrupt-controller/irq.h>
+    serial {
+      co2-sensor {
+        compatible = "sensirion,scd30";
+        vdd-supply = <&vdd>;
+        interrupt-parent = <&gpio0>;
+        interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+      };
+    };
+
+...

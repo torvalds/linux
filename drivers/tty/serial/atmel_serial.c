@@ -20,15 +20,12 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/atmel_pdc.h>
 #include <linux/uaccess.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/timer.h>
-#include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/irq.h>
 #include <linux/suspend.h>
@@ -1848,7 +1845,7 @@ static void atmel_get_ip_name(struct uart_port *port)
 		version = atmel_uart_readl(port, ATMEL_US_VERSION);
 		switch (version) {
 		case 0x814:	/* sama5d2 */
-			/* fall through */
+			fallthrough;
 		case 0x701:	/* sama5d4 */
 			atmel_port->fidi_min = 3;
 			atmel_port->fidi_max = 65535;
@@ -2494,8 +2491,6 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	atmel_init_property(atmel_port, pdev);
 	atmel_set_ops(port);
 
-	uart_get_rs485_mode(&mpdev->dev, &port->rs485);
-
 	port->iotype		= UPIO_MEM;
 	port->flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP;
 	port->ops		= &atmel_pops;
@@ -2508,6 +2503,10 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	port->membase		= NULL;
 
 	memset(&atmel_port->rx_ring, 0, sizeof(atmel_port->rx_ring));
+
+	ret = uart_get_rs485_mode(port);
+	if (ret)
+		return ret;
 
 	/* for console, the clock could already be configured */
 	if (!atmel_port->clk) {
@@ -2679,18 +2678,8 @@ static struct console atmel_console = {
 
 #define ATMEL_CONSOLE_DEVICE	(&atmel_console)
 
-static inline bool atmel_is_console_port(struct uart_port *port)
-{
-	return port->cons && port->cons->index == port->line;
-}
-
 #else
 #define ATMEL_CONSOLE_DEVICE	NULL
-
-static inline bool atmel_is_console_port(struct uart_port *port)
-{
-	return false;
-}
 #endif
 
 static struct uart_driver atmel_uart = {
@@ -2719,14 +2708,14 @@ static int atmel_serial_suspend(struct platform_device *pdev,
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
-	if (atmel_is_console_port(port) && console_suspend_enabled) {
+	if (uart_console(port) && console_suspend_enabled) {
 		/* Drain the TX shifter */
 		while (!(atmel_uart_readl(port, ATMEL_US_CSR) &
 			 ATMEL_US_TXEMPTY))
 			cpu_relax();
 	}
 
-	if (atmel_is_console_port(port) && !console_suspend_enabled) {
+	if (uart_console(port) && !console_suspend_enabled) {
 		/* Cache register values as we won't get a full shutdown/startup
 		 * cycle
 		 */
@@ -2762,7 +2751,7 @@ static int atmel_serial_resume(struct platform_device *pdev)
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned long flags;
 
-	if (atmel_is_console_port(port) && !console_suspend_enabled) {
+	if (uart_console(port) && !console_suspend_enabled) {
 		atmel_uart_writel(port, ATMEL_US_MR, atmel_port->cache.mr);
 		atmel_uart_writel(port, ATMEL_US_IER, atmel_port->cache.imr);
 		atmel_uart_writel(port, ATMEL_US_BRGR, atmel_port->cache.brgr);
@@ -2916,7 +2905,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 		goto err_add_port;
 
 #ifdef CONFIG_SERIAL_ATMEL_CONSOLE
-	if (atmel_is_console_port(&atmel_port->uart)
+	if (uart_console(&atmel_port->uart)
 			&& ATMEL_CONSOLE_DEVICE->flags & CON_ENABLED) {
 		/*
 		 * The serial core enabled the clock for us, so undo
@@ -2959,7 +2948,7 @@ err_add_port:
 	kfree(atmel_port->rx_ring.buf);
 	atmel_port->rx_ring.buf = NULL;
 err_alloc_ring:
-	if (!atmel_is_console_port(&atmel_port->uart)) {
+	if (!uart_console(&atmel_port->uart)) {
 		clk_put(atmel_port->clk);
 		atmel_port->clk = NULL;
 	}

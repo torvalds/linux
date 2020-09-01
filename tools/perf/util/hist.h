@@ -38,6 +38,7 @@ enum hist_column {
 	HISTC_THREAD,
 	HISTC_COMM,
 	HISTC_CGROUP_ID,
+	HISTC_CGROUP,
 	HISTC_PARENT,
 	HISTC_CPU,
 	HISTC_SOCKET,
@@ -172,9 +173,9 @@ void hist_entry__delete(struct hist_entry *he);
 
 typedef int (*hists__resort_cb_t)(struct hist_entry *he, void *arg);
 
-void perf_evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
-				  hists__resort_cb_t cb, void *cb_arg);
-void perf_evsel__output_resort(struct evsel *evsel, struct ui_progress *prog);
+void evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
+			     hists__resort_cb_t cb, void *cb_arg);
+void evsel__output_resort(struct evsel *evsel, struct ui_progress *prog);
 void hists__output_resort(struct hists *hists, struct ui_progress *prog);
 void hists__output_resort_cb(struct hists *hists, struct ui_progress *prog,
 			     hists__resort_cb_t cb);
@@ -536,6 +537,7 @@ static inline int block_hists_tui_browse(struct block_hist *bh __maybe_unused,
 #define K_LEFT  -1000
 #define K_RIGHT -2000
 #define K_SWITCH_INPUT_DATA -3000
+#define K_RELOAD -4000
 #endif
 
 unsigned int hists__sort_list_width(struct hists *hists);

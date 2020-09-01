@@ -122,7 +122,10 @@ static int ad7292_single_conversion(struct ad7292_state *st,
 		{
 			.tx_buf = &st->d8,
 			.len = 4,
-			.delay_usecs = 6,
+			.delay = {
+				.value = 6,
+				.unit = SPI_DELAY_UNIT_USECS
+			},
 		}, {
 			.rx_buf = &st->d16,
 			.len = 2,
@@ -301,7 +304,6 @@ static int ad7292_probe(struct spi_device *spi)
 		st->vref_mv = 1250;
 	}
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7292_info;

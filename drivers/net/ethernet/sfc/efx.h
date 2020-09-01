@@ -8,7 +8,10 @@
 #ifndef EFX_EFX_H
 #define EFX_EFX_H
 
+#include <linux/indirect_call_wrapper.h>
 #include "net_driver.h"
+#include "ef100_rx.h"
+#include "ef100_tx.h"
 #include "filter.h"
 
 int efx_net_open(struct net_device *net_dev);
@@ -18,13 +21,18 @@ int efx_net_stop(struct net_device *net_dev);
 void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue);
 netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev);
-netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
+netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
+static inline netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
+{
+	return INDIRECT_CALL_2(tx_queue->efx->type->tx_enqueue,
+			       ef100_enqueue_skb, __efx_enqueue_skb,
+			       tx_queue, skb);
+}
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 void efx_xmit_done_single(struct efx_tx_queue *tx_queue);
 int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 		 void *type_data);
 extern unsigned int efx_piobuf_size;
-extern bool efx_separate_tx_channels;
 
 /* RX */
 void __efx_rx_packet(struct efx_channel *channel);
@@ -33,15 +41,18 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 static inline void efx_rx_flush_packet(struct efx_channel *channel)
 {
 	if (channel->rx_pkt_n_frags)
-		__efx_rx_packet(channel);
+		INDIRECT_CALL_2(channel->efx->type->rx_packet,
+				__ef100_rx_packet, __efx_rx_packet,
+				channel);
 }
-
-#define EFX_MAX_DMAQ_SIZE 4096UL
-#define EFX_DEFAULT_DMAQ_SIZE 1024UL
-#define EFX_MIN_DMAQ_SIZE 512UL
-
-#define EFX_MAX_EVQ_SIZE 16384UL
-#define EFX_MIN_EVQ_SIZE 512UL
+static inline bool efx_rx_buf_hash_valid(struct efx_nic *efx, const u8 *prefix)
+{
+	if (efx->type->rx_buf_hash_valid)
+		return INDIRECT_CALL_1(efx->type->rx_buf_hash_valid,
+				       ef100_rx_buf_hash_valid,
+				       prefix);
+	return true;
+}
 
 /* Maximum number of TCP segments we support for soft-TSO */
 #define EFX_TSO_MAX_SEGS	100
@@ -147,29 +158,6 @@ static inline s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 {
 	return efx->type->filter_get_rx_ids(efx, priority, buf, size);
 }
-#ifdef CONFIG_RFS_ACCEL
-int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
-		   u16 rxq_index, u32 flow_id);
-bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota);
-static inline void efx_filter_rfs_expire(struct work_struct *data)
-{
-	struct delayed_work *dwork = to_delayed_work(data);
-	struct efx_channel *channel;
-	unsigned int time, quota;
-
-	channel = container_of(dwork, struct efx_channel, filter_work);
-	time = jiffies - channel->rfs_last_expiry;
-	quota = channel->rfs_filter_count * time / (30 * HZ);
-	if (quota > 20 && __efx_filter_rfs_expire(channel, min(channel->rfs_filter_count, quota)))
-		channel->rfs_last_expiry += time;
-	/* Ensure we do more work eventually even if NAPI poll is not happening */
-	schedule_delayed_work(dwork, 30 * HZ);
-}
-#define efx_filter_rfs_enabled() 1
-#else
-static inline void efx_filter_rfs_expire(struct work_struct *data) {}
-#define efx_filter_rfs_enabled() 0
-#endif
 
 /* RSS contexts */
 static inline bool efx_rss_active(struct efx_rss_context *ctx)
@@ -188,10 +176,6 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 			    bool rx_may_override_tx);
 void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 			    unsigned int *rx_usecs, bool *rx_adaptive);
-
-/* Dummy PHY ops for PHY drivers */
-int efx_port_dummy_op_int(struct efx_nic *efx);
-void efx_port_dummy_op_void(struct efx_nic *efx);
 
 /* Update the generic software stats in the passed stats array */
 void efx_update_sw_stats(struct efx_nic *efx, u64 *stats);
@@ -218,24 +202,6 @@ static inline unsigned int efx_vf_size(struct efx_nic *efx)
 	return 1 << efx->vi_scale;
 }
 #endif
-
-static inline void efx_schedule_channel(struct efx_channel *channel)
-{
-	netif_vdbg(channel->efx, intr, channel->efx->net_dev,
-		   "channel %d scheduling NAPI poll on CPU%d\n",
-		   channel->channel, raw_smp_processor_id());
-
-	napi_schedule(&channel->napi_str);
-}
-
-static inline void efx_schedule_channel_irq(struct efx_channel *channel)
-{
-	channel->event_test_cpu = raw_smp_processor_id();
-	efx_schedule_channel(channel);
-}
-
-void efx_link_clear_advertising(struct efx_nic *efx);
-void efx_link_set_wanted_fc(struct efx_nic *efx, u8);
 
 static inline void efx_device_detach_sync(struct efx_nic *efx)
 {

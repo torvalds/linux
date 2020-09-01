@@ -16,33 +16,31 @@
 #include <linux/leds.h>
 #include <linux/err.h>
 #include <linux/pwm.h>
-#include <linux/leds_pwm.h>
 #include <linux/slab.h>
+
+struct led_pwm {
+	const char	*name;
+	const char	*default_trigger;
+	u8		active_low;
+	unsigned int	max_brightness;
+};
+
+struct led_pwm_platform_data {
+	int		num_leds;
+	struct led_pwm	*leds;
+};
 
 struct led_pwm_data {
 	struct led_classdev	cdev;
 	struct pwm_device	*pwm;
+	struct pwm_state	pwmstate;
 	unsigned int		active_low;
-	unsigned int		period;
-	int			duty;
 };
 
 struct led_pwm_priv {
 	int num_leds;
-	struct led_pwm_data leds[0];
+	struct led_pwm_data leds[];
 };
-
-static void __led_pwm_set(struct led_pwm_data *led_dat)
-{
-	int new_duty = led_dat->duty;
-
-	pwm_config(led_dat->pwm, new_duty, led_dat->period);
-
-	if (new_duty == 0)
-		pwm_disable(led_dat->pwm);
-	else
-		pwm_enable(led_dat->pwm);
-}
 
 static int led_pwm_set(struct led_classdev *led_cdev,
 		       enum led_brightness brightness)
@@ -50,26 +48,23 @@ static int led_pwm_set(struct led_classdev *led_cdev,
 	struct led_pwm_data *led_dat =
 		container_of(led_cdev, struct led_pwm_data, cdev);
 	unsigned int max = led_dat->cdev.max_brightness;
-	unsigned long long duty =  led_dat->period;
+	unsigned long long duty = led_dat->pwmstate.period;
 
 	duty *= brightness;
 	do_div(duty, max);
 
 	if (led_dat->active_low)
-		duty = led_dat->period - duty;
+		duty = led_dat->pwmstate.period - duty;
 
-	led_dat->duty = duty;
-
-	__led_pwm_set(led_dat);
-
-	return 0;
+	led_dat->pwmstate.duty_cycle = duty;
+	led_dat->pwmstate.enabled = duty > 0;
+	return pwm_apply_state(led_dat->pwm, &led_dat->pwmstate);
 }
 
 static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 		       struct led_pwm *led, struct fwnode_handle *fwnode)
 {
 	struct led_pwm_data *led_data = &priv->leds[priv->num_leds];
-	struct pwm_args pargs;
 	int ret;
 
 	led_data->active_low = led->active_low;
@@ -93,28 +88,24 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 
 	led_data->cdev.brightness_set_blocking = led_pwm_set;
 
-	/*
-	 * FIXME: pwm_apply_args() should be removed when switching to the
-	 * atomic PWM API.
-	 */
-	pwm_apply_args(led_data->pwm);
-
-	pwm_get_args(led_data->pwm, &pargs);
-
-	led_data->period = pargs.period;
-	if (!led_data->period && (led->pwm_period_ns > 0))
-		led_data->period = led->pwm_period_ns;
+	pwm_init_state(led_data->pwm, &led_data->pwmstate);
 
 	ret = devm_led_classdev_register(dev, &led_data->cdev);
-	if (ret == 0) {
-		priv->num_leds++;
-		led_pwm_set(&led_data->cdev, led_data->cdev.brightness);
-	} else {
+	if (ret) {
 		dev_err(dev, "failed to register PWM led for %s: %d\n",
 			led->name, ret);
+		return ret;
 	}
 
-	return ret;
+	ret = led_pwm_set(&led_data->cdev, led_data->cdev.brightness);
+	if (ret) {
+		dev_err(dev, "failed to set led PWM value for %s: %d",
+			led->name, ret);
+		return ret;
+	}
+
+	priv->num_leds++;
+	return 0;
 }
 
 static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)

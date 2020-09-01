@@ -260,6 +260,7 @@ static void dwc2_gadget_wkup_alert_handler(struct dwc2_hsotg *hsotg)
 
 	gintsts2 = dwc2_readl(hsotg, GINTSTS2);
 	gintmsk2 = dwc2_readl(hsotg, GINTMSK2);
+	gintsts2 &= gintmsk2;
 
 	if (gintsts2 & GINTSTS2_WKUP_ALERT_INT) {
 		dev_dbg(hsotg->dev, "%s: Wkup_Alert_Int\n", __func__);
@@ -882,11 +883,10 @@ static int dwc2_gadget_fill_isoc_desc(struct dwc2_hsotg_ep *hs_ep,
 	struct dwc2_dma_desc *desc;
 	struct dwc2_hsotg *hsotg = hs_ep->parent;
 	u32 index;
-	u32 maxsize = 0;
 	u32 mask = 0;
 	u8 pid = 0;
 
-	maxsize = dwc2_gadget_get_desc_params(hs_ep, &mask);
+	dwc2_gadget_get_desc_params(hs_ep, &mask);
 
 	index = hs_ep->next_desc;
 	desc = &hs_ep->desc_list[index];
@@ -1561,11 +1561,11 @@ int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode)
 
 	dctl &= ~DCTL_TSTCTL_MASK;
 	switch (testmode) {
-	case TEST_J:
-	case TEST_K:
-	case TEST_SE0_NAK:
-	case TEST_PACKET:
-	case TEST_FORCE_EN:
+	case USB_TEST_J:
+	case USB_TEST_K:
+	case USB_TEST_SE0_NAK:
+	case USB_TEST_PACKET:
+	case USB_TEST_FORCE_ENABLE:
 		dctl |= testmode << DCTL_TSTCTL_SHIFT;
 		break;
 	default:
@@ -1646,7 +1646,8 @@ static int dwc2_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		status = 1 << USB_DEVICE_SELF_POWERED;
+		status = hsotg->gadget.is_selfpowered <<
+			 USB_DEVICE_SELF_POWERED;
 		status |= hsotg->remote_wakeup_allowed <<
 			  USB_DEVICE_REMOTE_WAKEUP;
 		reply = cpu_to_le16(status);
@@ -2977,10 +2978,8 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 	u32 epctl_reg = dir_in ? DIEPCTL(idx) : DOEPCTL(idx);
 	u32 epsiz_reg = dir_in ? DIEPTSIZ(idx) : DOEPTSIZ(idx);
 	u32 ints;
-	u32 ctrl;
 
 	ints = dwc2_gadget_read_ep_interrupts(hsotg, idx, dir_in);
-	ctrl = dwc2_readl(hsotg, epctl_reg);
 
 	/* Clear endpoint interrupts */
 	dwc2_writel(hsotg, ints, epint_reg);
@@ -4528,6 +4527,26 @@ static int dwc2_hsotg_gadget_getframe(struct usb_gadget *gadget)
 }
 
 /**
+ * dwc2_hsotg_set_selfpowered - set if device is self/bus powered
+ * @gadget: The usb gadget state
+ * @is_selfpowered: Whether the device is self-powered
+ *
+ * Set if the device is self or bus powered.
+ */
+static int dwc2_hsotg_set_selfpowered(struct usb_gadget *gadget,
+				      int is_selfpowered)
+{
+	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
+	unsigned long flags;
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	gadget->is_selfpowered = !!is_selfpowered;
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return 0;
+}
+
+/**
  * dwc2_hsotg_pullup - connect/disconnect the USB PHY
  * @gadget: The usb gadget state
  * @is_on: Current state of the USB PHY
@@ -4618,6 +4637,7 @@ static int dwc2_hsotg_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 
 static const struct usb_gadget_ops dwc2_hsotg_gadget_ops = {
 	.get_frame	= dwc2_hsotg_gadget_getframe,
+	.set_selfpowered	= dwc2_hsotg_set_selfpowered,
 	.udc_start		= dwc2_hsotg_udc_start,
 	.udc_stop		= dwc2_hsotg_udc_stop,
 	.pullup                 = dwc2_hsotg_pullup,
@@ -4898,12 +4918,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 					  epnum, 0);
 	}
 
-	ret = usb_add_gadget_udc(dev, &hsotg->gadget);
-	if (ret) {
-		dwc2_hsotg_ep_free_request(&hsotg->eps_out[0]->ep,
-					   hsotg->ctrl_req);
-		return ret;
-	}
 	dwc2_hsotg_dump(hsotg);
 
 	return 0;

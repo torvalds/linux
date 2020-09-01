@@ -6,63 +6,39 @@
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/dmaengine.h>
+#include <linux/irq.h>
+#include <linux/msi.h>
 #include <uapi/linux/idxd.h>
 #include "../dmaengine.h"
 #include "idxd.h"
 #include "registers.h"
 
-static int idxd_cmd_wait(struct idxd_device *idxd, u32 *status, int timeout);
-static int idxd_cmd_send(struct idxd_device *idxd, int cmd_code, u32 operand);
+static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
+			  u32 *status);
 
 /* Interrupt control bits */
-int idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id)
+void idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id)
 {
-	struct pci_dev *pdev = idxd->pdev;
-	int msixcnt = pci_msix_vec_count(pdev);
-	union msix_perm perm;
-	u32 offset;
+	struct irq_data *data = irq_get_irq_data(idxd->msix_entries[vec_id].vector);
 
-	if (vec_id < 0 || vec_id >= msixcnt)
-		return -EINVAL;
-
-	offset = idxd->msix_perm_offset + vec_id * 8;
-	perm.bits = ioread32(idxd->reg_base + offset);
-	perm.ignore = 1;
-	iowrite32(perm.bits, idxd->reg_base + offset);
-
-	return 0;
+	pci_msi_mask_irq(data);
 }
 
 void idxd_mask_msix_vectors(struct idxd_device *idxd)
 {
 	struct pci_dev *pdev = idxd->pdev;
 	int msixcnt = pci_msix_vec_count(pdev);
-	int i, rc;
+	int i;
 
-	for (i = 0; i < msixcnt; i++) {
-		rc = idxd_mask_msix_vector(idxd, i);
-		if (rc < 0)
-			dev_warn(&pdev->dev,
-				 "Failed disabling msix vec %d\n", i);
-	}
+	for (i = 0; i < msixcnt; i++)
+		idxd_mask_msix_vector(idxd, i);
 }
 
-int idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id)
+void idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id)
 {
-	struct pci_dev *pdev = idxd->pdev;
-	int msixcnt = pci_msix_vec_count(pdev);
-	union msix_perm perm;
-	u32 offset;
+	struct irq_data *data = irq_get_irq_data(idxd->msix_entries[vec_id].vector);
 
-	if (vec_id < 0 || vec_id >= msixcnt)
-		return -EINVAL;
-
-	offset = idxd->msix_perm_offset + vec_id * 8;
-	perm.bits = ioread32(idxd->reg_base + offset);
-	perm.ignore = 0;
-	iowrite32(perm.bits, idxd->reg_base + offset);
-
-	return 0;
+	pci_msi_unmask_irq(data);
 }
 
 void idxd_unmask_error_interrupts(struct idxd_device *idxd)
@@ -153,16 +129,14 @@ static int alloc_descs(struct idxd_wq *wq, int num)
 int idxd_wq_alloc_resources(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
-	struct idxd_group *group = wq->group;
 	struct device *dev = &idxd->pdev->dev;
 	int rc, num_descs, i;
 
 	if (wq->type != IDXD_WQT_KERNEL)
 		return 0;
 
-	num_descs = wq->size +
-		idxd->hw.gen_cap.max_descs_per_engine * group->num_engines;
-	wq->num_descs = num_descs;
+	wq->num_descs = wq->size;
+	num_descs = wq->size;
 
 	rc = alloc_hw_descs(wq, num_descs);
 	if (rc < 0)
@@ -180,8 +154,8 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	if (rc < 0)
 		goto fail_alloc_descs;
 
-	rc = sbitmap_init_node(&wq->sbmap, num_descs, -1, GFP_KERNEL,
-			       dev_to_node(dev));
+	rc = sbitmap_queue_init_node(&wq->sbq, num_descs, -1, false, GFP_KERNEL,
+				     dev_to_node(dev));
 	if (rc < 0)
 		goto fail_sbitmap_init;
 
@@ -194,7 +168,7 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 			sizeof(struct dsa_completion_record) * i;
 		desc->id = i;
 		desc->wq = wq;
-
+		desc->cpu = -1;
 		dma_async_tx_descriptor_init(&desc->txd, &wq->dma_chan);
 		desc->txd.tx_submit = idxd_dma_tx_submit;
 	}
@@ -220,7 +194,7 @@ void idxd_wq_free_resources(struct idxd_wq *wq)
 	free_hw_descs(wq);
 	free_descs(wq);
 	dma_free_coherent(dev, wq->compls_size, wq->compls, wq->compls_addr);
-	sbitmap_free(&wq->sbmap);
+	sbitmap_queue_free(&wq->sbq);
 }
 
 int idxd_wq_enable(struct idxd_wq *wq)
@@ -228,21 +202,13 @@ int idxd_wq_enable(struct idxd_wq *wq)
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
 	u32 status;
-	int rc;
-
-	lockdep_assert_held(&idxd->dev_lock);
 
 	if (wq->state == IDXD_WQ_ENABLED) {
 		dev_dbg(dev, "WQ %d already enabled\n", wq->id);
 		return -ENXIO;
 	}
 
-	rc = idxd_cmd_send(idxd, IDXD_CMD_ENABLE_WQ, wq->id);
-	if (rc < 0)
-		return rc;
-	rc = idxd_cmd_wait(idxd, &status, IDXD_REG_TIMEOUT);
-	if (rc < 0)
-		return rc;
+	idxd_cmd_exec(idxd, IDXD_CMD_ENABLE_WQ, wq->id, &status);
 
 	if (status != IDXD_CMDSTS_SUCCESS &&
 	    status != IDXD_CMDSTS_ERR_WQ_ENABLED) {
@@ -260,9 +226,7 @@ int idxd_wq_disable(struct idxd_wq *wq)
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
 	u32 status, operand;
-	int rc;
 
-	lockdep_assert_held(&idxd->dev_lock);
 	dev_dbg(dev, "Disabling WQ %d\n", wq->id);
 
 	if (wq->state != IDXD_WQ_ENABLED) {
@@ -271,12 +235,7 @@ int idxd_wq_disable(struct idxd_wq *wq)
 	}
 
 	operand = BIT(wq->id % 16) | ((wq->id / 16) << 16);
-	rc = idxd_cmd_send(idxd, IDXD_CMD_DISABLE_WQ, operand);
-	if (rc < 0)
-		return rc;
-	rc = idxd_cmd_wait(idxd, &status, IDXD_REG_TIMEOUT);
-	if (rc < 0)
-		return rc;
+	idxd_cmd_exec(idxd, IDXD_CMD_DISABLE_WQ, operand, &status);
 
 	if (status != IDXD_CMDSTS_SUCCESS) {
 		dev_dbg(dev, "WQ disable failed: %#x\n", status);
@@ -286,6 +245,22 @@ int idxd_wq_disable(struct idxd_wq *wq)
 	wq->state = IDXD_WQ_DISABLED;
 	dev_dbg(dev, "WQ %d disabled\n", wq->id);
 	return 0;
+}
+
+void idxd_wq_drain(struct idxd_wq *wq)
+{
+	struct idxd_device *idxd = wq->idxd;
+	struct device *dev = &idxd->pdev->dev;
+	u32 operand;
+
+	if (wq->state != IDXD_WQ_ENABLED) {
+		dev_dbg(dev, "WQ %d in wrong state: %d\n", wq->id, wq->state);
+		return;
+	}
+
+	dev_dbg(dev, "Draining WQ %d\n", wq->id);
+	operand = BIT(wq->id % 16) | ((wq->id / 16) << 16);
+	idxd_cmd_exec(idxd, IDXD_CMD_DRAIN_WQ, operand, NULL);
 }
 
 int idxd_wq_map_portal(struct idxd_wq *wq)
@@ -313,6 +288,31 @@ void idxd_wq_unmap_portal(struct idxd_wq *wq)
 	devm_iounmap(dev, wq->dportal);
 }
 
+void idxd_wq_disable_cleanup(struct idxd_wq *wq)
+{
+	struct idxd_device *idxd = wq->idxd;
+	struct device *dev = &idxd->pdev->dev;
+	int i, wq_offset;
+
+	lockdep_assert_held(&idxd->dev_lock);
+	memset(&wq->wqcfg, 0, sizeof(wq->wqcfg));
+	wq->type = IDXD_WQT_NONE;
+	wq->size = 0;
+	wq->group = NULL;
+	wq->threshold = 0;
+	wq->priority = 0;
+	clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
+	memset(wq->name, 0, WQ_NAME_SIZE);
+
+	for (i = 0; i < 8; i++) {
+		wq_offset = idxd->wqcfg_offset + wq->id * 32 + i * sizeof(u32);
+		iowrite32(0, idxd->reg_base + wq_offset);
+		dev_dbg(dev, "WQ[%d][%d][%#x]: %#x\n",
+			wq->id, i, wq_offset,
+			ioread32(idxd->reg_base + wq_offset));
+	}
+}
+
 /* Device control bits */
 static inline bool idxd_is_enabled(struct idxd_device *idxd)
 {
@@ -325,66 +325,79 @@ static inline bool idxd_is_enabled(struct idxd_device *idxd)
 	return false;
 }
 
-static int idxd_cmd_wait(struct idxd_device *idxd, u32 *status, int timeout)
+/*
+ * This is function is only used for reset during probe and will
+ * poll for completion. Once the device is setup with interrupts,
+ * all commands will be done via interrupt completion.
+ */
+void idxd_device_init_reset(struct idxd_device *idxd)
 {
-	u32 sts, to = timeout;
+	struct device *dev = &idxd->pdev->dev;
+	union idxd_command_reg cmd;
+	unsigned long flags;
 
-	lockdep_assert_held(&idxd->dev_lock);
-	sts = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
-	while (sts & IDXD_CMDSTS_ACTIVE && --to) {
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.cmd = IDXD_CMD_RESET_DEVICE;
+	dev_dbg(dev, "%s: sending reset for init.\n", __func__);
+	spin_lock_irqsave(&idxd->dev_lock, flags);
+	iowrite32(cmd.bits, idxd->reg_base + IDXD_CMD_OFFSET);
+
+	while (ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET) &
+	       IDXD_CMDSTS_ACTIVE)
 		cpu_relax();
-		sts = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
-	}
-
-	if (to == 0 && sts & IDXD_CMDSTS_ACTIVE) {
-		dev_warn(&idxd->pdev->dev, "%s timed out!\n", __func__);
-		*status = 0;
-		return -EBUSY;
-	}
-
-	*status = sts;
-	return 0;
+	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 }
 
-static int idxd_cmd_send(struct idxd_device *idxd, int cmd_code, u32 operand)
+static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
+			  u32 *status)
 {
 	union idxd_command_reg cmd;
-	int rc;
-	u32 status;
-
-	lockdep_assert_held(&idxd->dev_lock);
-	rc = idxd_cmd_wait(idxd, &status, IDXD_REG_TIMEOUT);
-	if (rc < 0)
-		return rc;
+	DECLARE_COMPLETION_ONSTACK(done);
+	unsigned long flags;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd = cmd_code;
 	cmd.operand = operand;
+	cmd.int_req = 1;
+
+	spin_lock_irqsave(&idxd->dev_lock, flags);
+	wait_event_lock_irq(idxd->cmd_waitq,
+			    !test_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags),
+			    idxd->dev_lock);
+
 	dev_dbg(&idxd->pdev->dev, "%s: sending cmd: %#x op: %#x\n",
 		__func__, cmd_code, operand);
+
+	__set_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags);
+	idxd->cmd_done = &done;
 	iowrite32(cmd.bits, idxd->reg_base + IDXD_CMD_OFFSET);
 
-	return 0;
+	/*
+	 * After command submitted, release lock and go to sleep until
+	 * the command completes via interrupt.
+	 */
+	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	wait_for_completion(&done);
+	spin_lock_irqsave(&idxd->dev_lock, flags);
+	if (status)
+		*status = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
+	__clear_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags);
+	/* Wake up other pending commands */
+	wake_up(&idxd->cmd_waitq);
+	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 }
 
 int idxd_device_enable(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
-	int rc;
 	u32 status;
 
-	lockdep_assert_held(&idxd->dev_lock);
 	if (idxd_is_enabled(idxd)) {
 		dev_dbg(dev, "Device already enabled\n");
 		return -ENXIO;
 	}
 
-	rc = idxd_cmd_send(idxd, IDXD_CMD_ENABLE_DEVICE, 0);
-	if (rc < 0)
-		return rc;
-	rc = idxd_cmd_wait(idxd, &status, IDXD_REG_TIMEOUT);
-	if (rc < 0)
-		return rc;
+	idxd_cmd_exec(idxd, IDXD_CMD_ENABLE_DEVICE, 0, &status);
 
 	/* If the command is successful or if the device was enabled */
 	if (status != IDXD_CMDSTS_SUCCESS &&
@@ -400,58 +413,29 @@ int idxd_device_enable(struct idxd_device *idxd)
 int idxd_device_disable(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
-	int rc;
 	u32 status;
 
-	lockdep_assert_held(&idxd->dev_lock);
 	if (!idxd_is_enabled(idxd)) {
 		dev_dbg(dev, "Device is not enabled\n");
 		return 0;
 	}
 
-	rc = idxd_cmd_send(idxd, IDXD_CMD_DISABLE_DEVICE, 0);
-	if (rc < 0)
-		return rc;
-	rc = idxd_cmd_wait(idxd, &status, IDXD_REG_TIMEOUT);
-	if (rc < 0)
-		return rc;
+	idxd_cmd_exec(idxd, IDXD_CMD_DISABLE_DEVICE, 0, &status);
 
 	/* If the command is successful or if the device was disabled */
 	if (status != IDXD_CMDSTS_SUCCESS &&
 	    !(status & IDXD_CMDSTS_ERR_DIS_DEV_EN)) {
 		dev_dbg(dev, "%s: err_code: %#x\n", __func__, status);
-		rc = -ENXIO;
-		return rc;
+		return -ENXIO;
 	}
 
 	idxd->state = IDXD_DEV_CONF_READY;
 	return 0;
 }
 
-int __idxd_device_reset(struct idxd_device *idxd)
+void idxd_device_reset(struct idxd_device *idxd)
 {
-	u32 status;
-	int rc;
-
-	rc = idxd_cmd_send(idxd, IDXD_CMD_RESET_DEVICE, 0);
-	if (rc < 0)
-		return rc;
-	rc = idxd_cmd_wait(idxd, &status, IDXD_REG_TIMEOUT);
-	if (rc < 0)
-		return rc;
-
-	return 0;
-}
-
-int idxd_device_reset(struct idxd_device *idxd)
-{
-	unsigned long flags;
-	int rc;
-
-	spin_lock_irqsave(&idxd->dev_lock, flags);
-	rc = __idxd_device_reset(idxd);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
-	return rc;
+	idxd_cmd_exec(idxd, IDXD_CMD_RESET_DEVICE, 0, NULL);
 }
 
 /* Device configuration bits */
@@ -584,11 +568,11 @@ static void idxd_group_flags_setup(struct idxd_device *idxd)
 		struct idxd_group *group = &idxd->groups[i];
 
 		if (group->tc_a == -1)
-			group->grpcfg.flags.tc_a = 0;
+			group->tc_a = group->grpcfg.flags.tc_a = 0;
 		else
 			group->grpcfg.flags.tc_a = group->tc_a;
 		if (group->tc_b == -1)
-			group->grpcfg.flags.tc_b = 1;
+			group->tc_b = group->grpcfg.flags.tc_b = 1;
 		else
 			group->grpcfg.flags.tc_b = group->tc_b;
 		group->grpcfg.flags.use_token_limit = group->use_token_limit;

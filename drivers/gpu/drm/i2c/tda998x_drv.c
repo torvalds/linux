@@ -19,6 +19,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <drm/i2c/tda998x.h>
 
 #include <media/cec-notifier.h>
@@ -1132,7 +1133,8 @@ static void tda998x_audio_shutdown(struct device *dev, void *data)
 	mutex_unlock(&priv->audio_mutex);
 }
 
-int tda998x_audio_digital_mute(struct device *dev, void *data, bool enable)
+static int tda998x_audio_mute_stream(struct device *dev, void *data,
+				     bool enable, int direction)
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 
@@ -1160,8 +1162,9 @@ static int tda998x_audio_get_eld(struct device *dev, void *data,
 static const struct hdmi_codec_ops audio_codec_ops = {
 	.hw_params = tda998x_audio_hw_params,
 	.audio_shutdown = tda998x_audio_shutdown,
-	.digital_mute = tda998x_audio_digital_mute,
+	.mute_stream = tda998x_audio_mute_stream,
 	.get_eld = tda998x_audio_get_eld,
+	.no_capture_mute = 1,
 };
 
 static int tda998x_audio_codec_init(struct tda998x_priv *priv,
@@ -1356,9 +1359,15 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 
 /* DRM bridge functions */
 
-static int tda998x_bridge_attach(struct drm_bridge *bridge)
+static int tda998x_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
 {
 	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	return tda998x_connector_init(priv, bridge->dev);
 }
@@ -1371,6 +1380,7 @@ static void tda998x_bridge_detach(struct drm_bridge *bridge)
 }
 
 static enum drm_mode_status tda998x_bridge_mode_valid(struct drm_bridge *bridge,
+				     const struct drm_display_info *info,
 				     const struct drm_display_mode *mode)
 {
 	/* TDA19988 dotclock can go up to 165MHz */
@@ -1943,9 +1953,9 @@ static int tda998x_create(struct device *dev)
 	cec_info.platform_data = &priv->cec_glue;
 	cec_info.irq = client->irq;
 
-	priv->cec = i2c_new_device(client->adapter, &cec_info);
-	if (!priv->cec) {
-		ret = -ENODEV;
+	priv->cec = i2c_new_client_device(client->adapter, &cec_info);
+	if (IS_ERR(priv->cec)) {
+		ret = PTR_ERR(priv->cec);
 		goto fail;
 	}
 
@@ -1991,15 +2001,6 @@ err_irq:
 
 /* DRM encoder functions */
 
-static void tda998x_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
-static const struct drm_encoder_funcs tda998x_encoder_funcs = {
-	.destroy = tda998x_encoder_destroy,
-};
-
 static int tda998x_encoder_init(struct device *dev, struct drm_device *drm)
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
@@ -2017,12 +2018,12 @@ static int tda998x_encoder_init(struct device *dev, struct drm_device *drm)
 
 	priv->encoder.possible_crtcs = crtcs;
 
-	ret = drm_encoder_init(drm, &priv->encoder, &tda998x_encoder_funcs,
-			       DRM_MODE_ENCODER_TMDS, NULL);
+	ret = drm_simple_encoder_init(drm, &priv->encoder,
+				      DRM_MODE_ENCODER_TMDS);
 	if (ret)
 		goto err_encoder;
 
-	ret = drm_bridge_attach(&priv->encoder, &priv->bridge, NULL);
+	ret = drm_bridge_attach(&priv->encoder, &priv->bridge, NULL, 0);
 	if (ret)
 		goto err_bridge;
 

@@ -72,6 +72,7 @@
 
 #define PCI_DEVICE_ID_GLI_9755		0x9755
 #define PCI_DEVICE_ID_GLI_9750		0x9750
+#define PCI_DEVICE_ID_GLI_9763E		0xe763
 
 /*
  * PCI device class and mask
@@ -163,7 +164,7 @@ struct sdhci_pci_slot {
 	bool			cd_override_level;
 
 	void (*hw_reset)(struct sdhci_host *host);
-	unsigned long		private[0] ____cacheline_aligned;
+	unsigned long		private[] ____cacheline_aligned;
 };
 
 struct sdhci_pci_chip {
@@ -195,5 +196,6 @@ extern const struct sdhci_pci_fixes sdhci_snps;
 extern const struct sdhci_pci_fixes sdhci_o2;
 extern const struct sdhci_pci_fixes sdhci_gl9750;
 extern const struct sdhci_pci_fixes sdhci_gl9755;
+extern const struct sdhci_pci_fixes sdhci_gl9763e;
 
 #endif /* __SDHCI_PCI_H */

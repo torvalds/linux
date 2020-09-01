@@ -13,11 +13,6 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
-static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
 /**
  * iio_triggered_buffer_setup() - Setup triggered buffer and pollfunc
  * @indio_dev:		IIO device structure
@@ -67,10 +62,7 @@ int iio_triggered_buffer_setup(struct iio_dev *indio_dev,
 	}
 
 	/* Ring buffer functions - here trigger setup related */
-	if (setup_ops)
-		indio_dev->setup_ops = setup_ops;
-	else
-		indio_dev->setup_ops = &iio_triggered_buffer_setup_ops;
+	indio_dev->setup_ops = setup_ops;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
@@ -125,17 +117,6 @@ int devm_iio_triggered_buffer_setup(struct device *dev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_iio_triggered_buffer_setup);
-
-void devm_iio_triggered_buffer_cleanup(struct device *dev,
-				       struct iio_dev *indio_dev)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_iio_triggered_buffer_clean,
-			    devm_iio_device_match, indio_dev);
-	WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_iio_triggered_buffer_cleanup);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("IIO helper functions for setting up triggered buffers");

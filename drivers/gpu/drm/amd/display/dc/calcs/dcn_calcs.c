@@ -302,10 +302,17 @@ static void pipe_ctx_to_e2e_pipe_params (
 		struct _vcs_dpi_display_pipe_params_st *input)
 {
 	input->src.is_hsplit = false;
-	if (pipe->top_pipe != NULL && pipe->top_pipe->plane_state == pipe->plane_state)
+
+	/* stereo can never be split */
+	if (pipe->plane_state->stereo_format == PLANE_STEREO_FORMAT_SIDE_BY_SIDE ||
+	    pipe->plane_state->stereo_format == PLANE_STEREO_FORMAT_TOP_AND_BOTTOM) {
+		/* reset the split group if it was already considered split. */
+		input->src.hsplit_grp = pipe->pipe_idx;
+	} else if (pipe->top_pipe != NULL && pipe->top_pipe->plane_state == pipe->plane_state) {
 		input->src.is_hsplit = true;
-	else if (pipe->bottom_pipe != NULL && pipe->bottom_pipe->plane_state == pipe->plane_state)
+	} else if (pipe->bottom_pipe != NULL && pipe->bottom_pipe->plane_state == pipe->plane_state) {
 		input->src.is_hsplit = true;
+	}
 
 	if (pipe->plane_res.dpp->ctx->dc->debug.optimized_watermark) {
 		/*
@@ -374,6 +381,13 @@ static void pipe_ctx_to_e2e_pipe_params (
 		input->src.viewport_width_c    = input->src.viewport_width;
 		input->src.viewport_height_c   = input->src.viewport_height;
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
+		input->src.source_format = dm_rgbe_alpha;
+		input->src.viewport_width_c    = input->src.viewport_width;
+		input->src.viewport_height_c   = input->src.viewport_height;
+		break;
+#endif
 	default:
 		input->src.source_format = dm_444_32;
 		input->src.viewport_width_c    = input->src.viewport_width;
@@ -690,6 +704,26 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		struct dc_debug_options *dbg,
 		struct dc_state *context)
 {
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		/**
+		 * Workaround for avoiding pipe-split in cases where we'd split
+		 * planes that are too small, resulting in splits that aren't
+		 * valid for the scaler.
+		 */
+		if (pipe->plane_state &&
+		    (pipe->plane_state->dst_rect.width <= 16 ||
+		     pipe->plane_state->dst_rect.height <= 16 ||
+		     pipe->plane_state->src_rect.width <= 16 ||
+		     pipe->plane_state->src_rect.height <= 16)) {
+			hack_disable_optional_pipe_split(v);
+			return;
+		}
+	}
+
 	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID)
 		hack_disable_optional_pipe_split(v);
 
@@ -702,12 +736,24 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_100hz);
 }
 
-
-unsigned int get_highest_allowed_voltage_level(uint32_t hw_internal_rev)
+unsigned int get_highest_allowed_voltage_level(uint32_t hw_internal_rev, uint32_t pci_revision_id)
 {
-	/* for dali & pollock, the highest voltage level we want is 0 */
-	if (ASICREV_IS_POLLOCK(hw_internal_rev) || ASICREV_IS_DALI(hw_internal_rev))
-		return 0;
+	/* for low power RV2 variants, the highest voltage level we want is 0 */
+	if (ASICREV_IS_RAVEN2(hw_internal_rev))
+		switch (pci_revision_id) {
+		case PRID_DALI_DE:
+		case PRID_DALI_DF:
+		case PRID_DALI_E3:
+		case PRID_DALI_E4:
+		case PRID_POLLOCK_94:
+		case PRID_POLLOCK_95:
+		case PRID_POLLOCK_E9:
+		case PRID_POLLOCK_EA:
+		case PRID_POLLOCK_EB:
+			return 0;
+		default:
+			break;
+		}
 
 	/* we are ok with all levels */
 	return 4;
@@ -1277,7 +1323,9 @@ bool dcn_validate_bandwidth(
 	PERFORMANCE_TRACE_END();
 	BW_VAL_TRACE_FINISH();
 
-	if (bw_limit_pass && v->voltage_level <= get_highest_allowed_voltage_level(dc->ctx->asic_id.hw_internal_rev))
+	if (bw_limit_pass && v->voltage_level <= get_highest_allowed_voltage_level(
+							dc->ctx->asic_id.hw_internal_rev,
+							dc->ctx->asic_id.pci_revision_id))
 		return true;
 	else
 		return false;

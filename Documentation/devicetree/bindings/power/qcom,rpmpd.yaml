@@ -23,6 +23,7 @@ properties:
       - qcom,sc7180-rpmhpd
       - qcom,sdm845-rpmhpd
       - qcom,sm8150-rpmhpd
+      - qcom,sm8250-rpmhpd
 
   '#power-domain-cells':
     const: 1

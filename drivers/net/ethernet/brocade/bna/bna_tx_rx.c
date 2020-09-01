@@ -1636,7 +1636,7 @@ bna_bfi_rx_enet_start(struct bna_rx *rx)
 						&q1->qpt);
 			cfg_req->q_cfg[i].qs.rx_buffer_size =
 				htons((u16)q1->buffer_size);
-			/* Fall through */
+			fallthrough;
 
 		case BNA_RXP_SINGLE:
 			/* Large/Single RxQ */

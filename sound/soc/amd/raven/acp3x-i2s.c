@@ -15,7 +15,7 @@
 
 #include "acp3x.h"
 
-#define DRV_NAME "acp3x-i2s"
+#define DRV_NAME "acp3x_i2s_playcap"
 
 static int acp3x_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 					unsigned int fmt)
@@ -42,7 +42,7 @@ static int acp3x_i2s_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 		u32 tx_mask, u32 rx_mask, int slots, int slot_width)
 {
 	struct i2s_dev_data *adata;
-	u32 val, reg_val, frmt_reg, frm_len;
+	u32 frm_len;
 	u16 slot_len;
 
 	adata = snd_soc_dai_get_drvdata(cpu_dai);
@@ -64,36 +64,7 @@ static int acp3x_i2s_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 	default:
 		return -EINVAL;
 	}
-
-	/* Enable I2S/BT channels TDM, respective TX/RX frame lengths.*/
-
 	frm_len = FRM_LEN | (slots << 15) | (slot_len << 18);
-	if (adata->substream_type == SNDRV_PCM_STREAM_PLAYBACK) {
-		switch (adata->i2s_instance) {
-		case I2S_BT_INSTANCE:
-			reg_val = mmACP_BTTDM_ITER;
-			frmt_reg = mmACP_BTTDM_TXFRMT;
-			break;
-		case I2S_SP_INSTANCE:
-		default:
-			reg_val = mmACP_I2STDM_ITER;
-			frmt_reg = mmACP_I2STDM_TXFRMT;
-		}
-	} else {
-		switch (adata->i2s_instance) {
-		case I2S_BT_INSTANCE:
-			reg_val = mmACP_BTTDM_IRER;
-			frmt_reg = mmACP_BTTDM_RXFRMT;
-			break;
-		case I2S_SP_INSTANCE:
-		default:
-			reg_val = mmACP_I2STDM_IRER;
-			frmt_reg = mmACP_I2STDM_RXFRMT;
-		}
-	}
-	val = rv_readl(adata->acp3x_base + reg_val);
-	rv_writel(val | 0x2, adata->acp3x_base + reg_val);
-	rv_writel(frm_len, adata->acp3x_base + frmt_reg);
 	adata->tdm_fmt = frm_len;
 	return 0;
 }
@@ -105,12 +76,14 @@ static int acp3x_i2s_hwparams(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *prtd;
 	struct snd_soc_card *card;
 	struct acp3x_platform_info *pinfo;
+	struct i2s_dev_data *adata;
 	u32 val;
-	u32 reg_val;
+	u32 reg_val, frmt_reg;
 
-	prtd = substream->private_data;
+	prtd = asoc_substream_to_rtd(substream);
 	rtd = substream->runtime->private_data;
 	card = prtd->card;
+	adata = snd_soc_dai_get_drvdata(dai);
 	pinfo = snd_soc_card_get_drvdata(card);
 	if (pinfo) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -141,22 +114,32 @@ static int acp3x_i2s_hwparams(struct snd_pcm_substream *substream,
 		switch (rtd->i2s_instance) {
 		case I2S_BT_INSTANCE:
 			reg_val = mmACP_BTTDM_ITER;
+			frmt_reg = mmACP_BTTDM_TXFRMT;
 			break;
 		case I2S_SP_INSTANCE:
 		default:
 			reg_val = mmACP_I2STDM_ITER;
+			frmt_reg = mmACP_I2STDM_TXFRMT;
 		}
 	} else {
 		switch (rtd->i2s_instance) {
 		case I2S_BT_INSTANCE:
 			reg_val = mmACP_BTTDM_IRER;
+			frmt_reg = mmACP_BTTDM_RXFRMT;
 			break;
 		case I2S_SP_INSTANCE:
 		default:
 			reg_val = mmACP_I2STDM_IRER;
+			frmt_reg = mmACP_I2STDM_RXFRMT;
 		}
 	}
+	if (adata->tdm_mode) {
+		val = rv_readl(rtd->acp3x_base + reg_val);
+		rv_writel(val | 0x2, rtd->acp3x_base + reg_val);
+		rv_writel(adata->tdm_fmt, rtd->acp3x_base + frmt_reg);
+	}
 	val = rv_readl(rtd->acp3x_base + reg_val);
+	val &= ~ACP3x_ITER_IRER_SAMP_LEN_MASK;
 	val = val | (rtd->xfer_resolution  << 3);
 	rv_writel(val, rtd->acp3x_base + reg_val);
 	return 0;
@@ -166,22 +149,10 @@ static int acp3x_i2s_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
 	struct i2s_stream_instance *rtd;
-	struct snd_soc_pcm_runtime *prtd;
-	struct snd_soc_card *card;
-	struct acp3x_platform_info *pinfo;
 	u32 ret, val, period_bytes, reg_val, ier_val, water_val;
 	u32 buf_size, buf_reg;
 
-	prtd = substream->private_data;
 	rtd = substream->runtime->private_data;
-	card = prtd->card;
-	pinfo = snd_soc_card_get_drvdata(card);
-	if (pinfo) {
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			rtd->i2s_instance = pinfo->play_i2s_instance;
-		else
-			rtd->i2s_instance = pinfo->cap_i2s_instance;
-	}
 	period_bytes = frames_to_bytes(substream->runtime,
 			substream->runtime->period_size);
 	buf_size = frames_to_bytes(substream->runtime,
@@ -286,7 +257,7 @@ static struct snd_soc_dai_ops acp3x_i2s_dai_ops = {
 };
 
 static const struct snd_soc_component_driver acp3x_dai_component = {
-	.name           = "acp3x-i2s",
+	.name           = DRV_NAME,
 };
 
 static struct snd_soc_dai_driver acp3x_i2s_dai = {
@@ -365,4 +336,4 @@ module_platform_driver(acp3x_dai_driver);
 MODULE_AUTHOR("Vishnuvardhanrao.Ravulapati@amd.com");
 MODULE_DESCRIPTION("AMD ACP 3.x PCM Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_ALIAS("platform:"DRV_NAME);

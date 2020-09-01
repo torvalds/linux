@@ -19,7 +19,14 @@
 #define RSVD_PAGE_START_ADDR		0x780
 #define FIFO_DUMP_ADDR			0x8000
 
+#define DLFW_PAGE_SIZE_SHIFT_LEGACY	12
+#define DLFW_PAGE_SIZE_LEGACY		0x1000
+#define DLFW_BLK_SIZE_SHIFT_LEGACY	2
+#define DLFW_BLK_SIZE_LEGACY		4
+#define FW_START_ADDR_LEGACY		0x1000
+
 enum rtw_c2h_cmd_id {
+	C2H_CCX_TX_RPT = 0x03,
 	C2H_BT_INFO = 0x09,
 	C2H_BT_MP_INFO = 0x0b,
 	C2H_RA_RPT = 0x0c,
@@ -36,11 +43,12 @@ enum rtw_c2h_cmd_id_ext {
 struct rtw_c2h_cmd {
 	u8 id;
 	u8 seq;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 enum rtw_rsvd_packet_type {
 	RSVD_BEACON,
+	RSVD_DUMMY,
 	RSVD_PS_POLL,
 	RSVD_PROBE_RESP,
 	RSVD_NULL,
@@ -98,7 +106,13 @@ struct rtw_lps_pg_info_hdr {
 } __packed;
 
 struct rtw_rsvd_page {
-	struct list_head list;
+	/* associated with each vif */
+	struct list_head vif_list;
+	struct rtw_vif *rtwvif;
+
+	/* associated when build rsvd page */
+	struct list_head build_list;
+
 	struct sk_buff *skb;
 	enum rtw_rsvd_packet_type type;
 	u8 page;
@@ -185,9 +199,30 @@ struct rtw_fw_hdr {
 	__le32 imem_addr;
 } __packed;
 
+struct rtw_fw_hdr_legacy {
+	__le16 signature;
+	u8 category;
+	u8 function;
+	__le16 version;	/* 0x04 */
+	u8 subversion1;
+	u8 subversion2;
+	u8 month;	/* 0x08 */
+	u8 day;
+	u8 hour;
+	u8 minute;
+	__le16 size;
+	__le16 rsvd2;
+	__le32 idx;	/* 0x10 */
+	__le32 rsvd3;
+	__le32 rsvd4;	/* 0x18 */
+	__le32 rsvd5;
+} __packed;
+
 /* C2H */
-#define GET_CCX_REPORT_SEQNUM(c2h_payload)	(c2h_payload[8] & 0xfc)
-#define GET_CCX_REPORT_STATUS(c2h_payload)	(c2h_payload[9] & 0xc0)
+#define GET_CCX_REPORT_SEQNUM_V0(c2h_payload)	(c2h_payload[6] & 0xfc)
+#define GET_CCX_REPORT_STATUS_V0(c2h_payload)	(c2h_payload[0] & 0xc0)
+#define GET_CCX_REPORT_SEQNUM_V1(c2h_payload)	(c2h_payload[8] & 0xfc)
+#define GET_CCX_REPORT_STATUS_V1(c2h_payload)	(c2h_payload[9] & 0xc0)
 
 #define GET_RA_REPORT_RATE(c2h_payload)		(c2h_payload[0] & 0x7f)
 #define GET_RA_REPORT_SGI(c2h_payload)		((c2h_payload[0] & 0x80) >> 7)
@@ -502,15 +537,17 @@ void rtw_fw_bt_wifi_control(struct rtw_dev *rtwdev, u8 op_code, u8 *data);
 void rtw_fw_send_rssi_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
 void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
 void rtw_fw_media_status_report(struct rtw_dev *rtwdev, u8 mac_id, bool conn);
-void rtw_add_rsvd_page(struct rtw_dev *rtwdev, enum rtw_rsvd_packet_type type,
-		       bool txdesc);
-void rtw_add_rsvd_page_probe_req(struct rtw_dev *rtwdev,
-				 struct cfg80211_ssid *ssid);
 int rtw_fw_write_data_rsvd_page(struct rtw_dev *rtwdev, u16 pg_addr,
 				u8 *buf, u32 size);
-void rtw_reset_rsvd_page(struct rtw_dev *rtwdev);
-int rtw_fw_download_rsvd_page(struct rtw_dev *rtwdev,
-			      struct ieee80211_vif *vif);
+void rtw_remove_rsvd_page(struct rtw_dev *rtwdev,
+			  struct rtw_vif *rtwvif);
+void rtw_add_rsvd_page_bcn(struct rtw_dev *rtwdev,
+			   struct rtw_vif *rtwvif);
+void rtw_add_rsvd_page_pno(struct rtw_dev *rtwdev,
+			   struct rtw_vif *rtwvif);
+void rtw_add_rsvd_page_sta(struct rtw_dev *rtwdev,
+			   struct rtw_vif *rtwvif);
+int rtw_fw_download_rsvd_page(struct rtw_dev *rtwdev);
 void rtw_send_rsvd_page_h2c(struct rtw_dev *rtwdev);
 int rtw_dump_drv_rsvd_page(struct rtw_dev *rtwdev,
 			   u32 offset, u32 size, u32 *buf);
@@ -526,4 +563,6 @@ void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable);
 void rtw_fw_update_pkt_probe_req(struct rtw_dev *rtwdev,
 				 struct cfg80211_ssid *ssid);
 void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable);
+void rtw_fw_h2c_cmd_dbg(struct rtw_dev *rtwdev, u8 *h2c);
+
 #endif

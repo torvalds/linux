@@ -201,7 +201,19 @@
 					compatible = "stericsson,ab8500-sysctrl";
 				};
 
-				ab8500-pwm {
+				ab8500-pwm-1 {
+					compatible = "stericsson,ab8500-pwm";
+					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+					clock-names = "intclk";
+				};
+
+				ab8500-pwm-2 {
+					compatible = "stericsson,ab8500-pwm";
+					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+					clock-names = "intclk";
+				};
+
+				ab8500-pwm-3 {
 					compatible = "stericsson,ab8500-pwm";
 					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
 					clock-names = "intclk";
@@ -314,13 +326,13 @@
 		mcde@a0350000 {
 			vana-supply = <&ab8500_ldo_ana_reg>;
 
-			dsi@a0351000 {
+			dsi-controller@a0351000 {
 				vana-supply = <&ab8500_ldo_ana_reg>;
 			};
-			dsi@a0352000 {
+			dsi-controller@a0352000 {
 				vana-supply = <&ab8500_ldo_ana_reg>;
 			};
-			dsi@a0353000 {
+			dsi-controller@a0353000 {
 				vana-supply = <&ab8500_ldo_ana_reg>;
 			};
 		};

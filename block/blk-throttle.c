@@ -1339,8 +1339,8 @@ static void blk_throtl_dispatch_work_fn(struct work_struct *work)
 
 	if (!bio_list_empty(&bio_list_on_stack)) {
 		blk_start_plug(&plug);
-		while((bio = bio_list_pop(&bio_list_on_stack)))
-			generic_make_request(bio);
+		while ((bio = bio_list_pop(&bio_list_on_stack)))
+			submit_bio_noacct(bio);
 		blk_finish_plug(&plug);
 	}
 }
@@ -2158,17 +2158,18 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 }
 #endif
 
-bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
-		    struct bio *bio)
+bool blk_throtl_bio(struct bio *bio)
 {
+	struct request_queue *q = bio->bi_disk->queue;
+	struct blkcg_gq *blkg = bio->bi_blkg;
 	struct throtl_qnode *qn = NULL;
-	struct throtl_grp *tg = blkg_to_tg(blkg ?: q->root_blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 	struct throtl_service_queue *sq;
 	bool rw = bio_data_dir(bio);
 	bool throttled = false;
 	struct throtl_data *td = tg->td;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	rcu_read_lock();
 
 	/* see throtl_charge_bio() */
 	if (bio_flagged(bio, BIO_THROTTLED))
@@ -2273,6 +2274,7 @@ out:
 	if (throttled || !td->track_bio_latency)
 		bio->bi_issue.value |= BIO_ISSUE_THROTL_SKIP_LATENCY;
 #endif
+	rcu_read_unlock();
 	return throttled;
 }
 
@@ -2357,69 +2359,6 @@ void blk_throtl_bio_endio(struct bio *bio)
 	}
 }
 #endif
-
-/*
- * Dispatch all bios from all children tg's queued on @parent_sq.  On
- * return, @parent_sq is guaranteed to not have any active children tg's
- * and all bios from previously active tg's are on @parent_sq->bio_lists[].
- */
-static void tg_drain_bios(struct throtl_service_queue *parent_sq)
-{
-	struct throtl_grp *tg;
-
-	while ((tg = throtl_rb_first(parent_sq))) {
-		struct throtl_service_queue *sq = &tg->service_queue;
-		struct bio *bio;
-
-		throtl_dequeue_tg(tg);
-
-		while ((bio = throtl_peek_queued(&sq->queued[READ])))
-			tg_dispatch_one_bio(tg, bio_data_dir(bio));
-		while ((bio = throtl_peek_queued(&sq->queued[WRITE])))
-			tg_dispatch_one_bio(tg, bio_data_dir(bio));
-	}
-}
-
-/**
- * blk_throtl_drain - drain throttled bios
- * @q: request_queue to drain throttled bios for
- *
- * Dispatch all currently throttled bios on @q through ->make_request_fn().
- */
-void blk_throtl_drain(struct request_queue *q)
-	__releases(&q->queue_lock) __acquires(&q->queue_lock)
-{
-	struct throtl_data *td = q->td;
-	struct blkcg_gq *blkg;
-	struct cgroup_subsys_state *pos_css;
-	struct bio *bio;
-	int rw;
-
-	rcu_read_lock();
-
-	/*
-	 * Drain each tg while doing post-order walk on the blkg tree, so
-	 * that all bios are propagated to td->service_queue.  It'd be
-	 * better to walk service_queue tree directly but blkg walk is
-	 * easier.
-	 */
-	blkg_for_each_descendant_post(blkg, pos_css, td->queue->root_blkg)
-		tg_drain_bios(&blkg_to_tg(blkg)->service_queue);
-
-	/* finally, transfer bios from top-level tg's into the td */
-	tg_drain_bios(&td->service_queue);
-
-	rcu_read_unlock();
-	spin_unlock_irq(&q->queue_lock);
-
-	/* all bios now should be in td->service_queue, issue them */
-	for (rw = READ; rw <= WRITE; rw++)
-		while ((bio = throtl_pop_queued(&td->service_queue.queued[rw],
-						NULL)))
-			generic_make_request(bio);
-
-	spin_lock_irq(&q->queue_lock);
-}
 
 int blk_throtl_init(struct request_queue *q)
 {

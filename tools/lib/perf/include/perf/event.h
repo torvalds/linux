@@ -105,6 +105,20 @@ struct perf_record_bpf_event {
 	__u8			 tag[BPF_TAG_SIZE];  // prog tag
 };
 
+struct perf_record_cgroup {
+	struct perf_event_header header;
+	__u64			 id;
+	char			 path[PATH_MAX];
+};
+
+struct perf_record_text_poke_event {
+	struct perf_event_header header;
+	__u64			addr;
+	__u16			old_len;
+	__u16			new_len;
+	__u8			bytes[];
+};
+
 struct perf_record_sample {
 	struct perf_event_header header;
 	__u64			 array[];
@@ -352,6 +366,7 @@ union perf_event {
 	struct perf_record_mmap2		mmap2;
 	struct perf_record_comm			comm;
 	struct perf_record_namespaces		namespaces;
+	struct perf_record_cgroup		cgroup;
 	struct perf_record_fork			fork;
 	struct perf_record_lost			lost;
 	struct perf_record_lost_samples		lost_samples;
@@ -360,6 +375,7 @@ union perf_event {
 	struct perf_record_sample		sample;
 	struct perf_record_bpf_event		bpf;
 	struct perf_record_ksymbol		ksymbol;
+	struct perf_record_text_poke_event	text_poke;
 	struct perf_record_header_attr		attr;
 	struct perf_record_event_update		event_update;
 	struct perf_record_header_event_type	event_type;

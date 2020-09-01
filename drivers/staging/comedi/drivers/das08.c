@@ -465,6 +465,6 @@ static void __exit das08_exit(void)
 }
 module_exit(das08_exit);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi common DAS08 support module");
 MODULE_LICENSE("GPL");

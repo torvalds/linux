@@ -93,7 +93,7 @@ EXPORT_SYMBOL(ttm_bo_move_ttm);
 
 int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 {
-	if (likely(man->io_reserve_fastpath))
+	if (likely(!man->use_io_reserve_lru))
 		return 0;
 
 	if (interruptible)
@@ -105,7 +105,7 @@ int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 
 void ttm_mem_io_unlock(struct ttm_mem_type_manager *man)
 {
-	if (likely(man->io_reserve_fastpath))
+	if (likely(!man->use_io_reserve_lru))
 		return;
 
 	mutex_unlock(&man->io_reserve_mutex);
@@ -115,39 +115,35 @@ static int ttm_mem_io_evict(struct ttm_mem_type_manager *man)
 {
 	struct ttm_buffer_object *bo;
 
-	if (!man->use_io_reserve_lru || list_empty(&man->io_reserve_lru))
-		return -EAGAIN;
+	bo = list_first_entry_or_null(&man->io_reserve_lru,
+				      struct ttm_buffer_object,
+				      io_reserve_lru);
+	if (!bo)
+		return -ENOSPC;
 
-	bo = list_first_entry(&man->io_reserve_lru,
-			      struct ttm_buffer_object,
-			      io_reserve_lru);
 	list_del_init(&bo->io_reserve_lru);
 	ttm_bo_unmap_virtual_locked(bo);
-
 	return 0;
 }
-
 
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_mem_reg *mem)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
-	int ret = 0;
+	int ret;
+
+	if (mem->bus.io_reserved_count++)
+		return 0;
 
 	if (!bdev->driver->io_mem_reserve)
 		return 0;
-	if (likely(man->io_reserve_fastpath))
-		return bdev->driver->io_mem_reserve(bdev, mem);
 
-	if (bdev->driver->io_mem_reserve &&
-	    mem->bus.io_reserved_count++ == 0) {
 retry:
-		ret = bdev->driver->io_mem_reserve(bdev, mem);
-		if (ret == -EAGAIN) {
-			ret = ttm_mem_io_evict(man);
-			if (ret == 0)
-				goto retry;
-		}
+	ret = bdev->driver->io_mem_reserve(bdev, mem);
+	if (ret == -ENOSPC) {
+		ret = ttm_mem_io_evict(man);
+		if (ret == 0)
+			goto retry;
 	}
 	return ret;
 }
@@ -155,35 +151,31 @@ retry:
 void ttm_mem_io_free(struct ttm_bo_device *bdev,
 		     struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
-
-	if (likely(man->io_reserve_fastpath))
+	if (--mem->bus.io_reserved_count)
 		return;
 
-	if (bdev->driver->io_mem_reserve &&
-	    --mem->bus.io_reserved_count == 0 &&
-	    bdev->driver->io_mem_free)
-		bdev->driver->io_mem_free(bdev, mem);
+	if (!bdev->driver->io_mem_free)
+		return;
 
+	bdev->driver->io_mem_free(bdev, mem);
 }
 
 int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo)
 {
+	struct ttm_mem_type_manager *man = &bo->bdev->man[bo->mem.mem_type];
 	struct ttm_mem_reg *mem = &bo->mem;
 	int ret;
 
-	if (!mem->bus.io_reserved_vm) {
-		struct ttm_mem_type_manager *man =
-			&bo->bdev->man[mem->mem_type];
+	if (mem->bus.io_reserved_vm)
+		return 0;
 
-		ret = ttm_mem_io_reserve(bo->bdev, mem);
-		if (unlikely(ret != 0))
-			return ret;
-		mem->bus.io_reserved_vm = true;
-		if (man->use_io_reserve_lru)
-			list_add_tail(&bo->io_reserve_lru,
-				      &man->io_reserve_lru);
-	}
+	ret = ttm_mem_io_reserve(bo->bdev, mem);
+	if (unlikely(ret != 0))
+		return ret;
+	mem->bus.io_reserved_vm = true;
+	if (man->use_io_reserve_lru)
+		list_add_tail(&bo->io_reserve_lru,
+			      &man->io_reserve_lru);
 	return 0;
 }
 
@@ -191,15 +183,17 @@ void ttm_mem_io_free_vm(struct ttm_buffer_object *bo)
 {
 	struct ttm_mem_reg *mem = &bo->mem;
 
-	if (mem->bus.io_reserved_vm) {
-		mem->bus.io_reserved_vm = false;
-		list_del_init(&bo->io_reserve_lru);
-		ttm_mem_io_free(bo->bdev, mem);
-	}
+	if (!mem->bus.io_reserved_vm)
+		return;
+
+	mem->bus.io_reserved_vm = false;
+	list_del_init(&bo->io_reserve_lru);
+	ttm_mem_io_free(bo->bdev, mem);
 }
 
-static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
-			void **virtual)
+static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev,
+			       struct ttm_mem_reg *mem,
+			       void **virtual)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	int ret;
@@ -216,9 +210,11 @@ static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *m
 		addr = mem->bus.addr;
 	} else {
 		if (mem->placement & TTM_PL_FLAG_WC)
-			addr = ioremap_wc(mem->bus.base + mem->bus.offset, mem->bus.size);
+			addr = ioremap_wc(mem->bus.base + mem->bus.offset,
+					  mem->bus.size);
 		else
-			addr = ioremap(mem->bus.base + mem->bus.offset, mem->bus.size);
+			addr = ioremap(mem->bus.base + mem->bus.offset,
+				       mem->bus.size);
 		if (!addr) {
 			(void) ttm_mem_io_lock(man, false);
 			ttm_mem_io_free(bdev, mem);
@@ -230,8 +226,9 @@ static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *m
 	return 0;
 }
 
-static void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
-			 void *virtual)
+static void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev,
+				struct ttm_mem_reg *mem,
+				void *virtual)
 {
 	struct ttm_mem_type_manager *man;
 
@@ -257,54 +254,6 @@ static int ttm_copy_io_page(void *dst, void *src, unsigned long page)
 	return 0;
 }
 
-#ifdef CONFIG_X86
-#define __ttm_kmap_atomic_prot(__page, __prot) kmap_atomic_prot(__page, __prot)
-#define __ttm_kunmap_atomic(__addr) kunmap_atomic(__addr)
-#else
-#define __ttm_kmap_atomic_prot(__page, __prot) vmap(&__page, 1, 0,  __prot)
-#define __ttm_kunmap_atomic(__addr) vunmap(__addr)
-#endif
-
-
-/**
- * ttm_kmap_atomic_prot - Efficient kernel map of a single page with
- * specified page protection.
- *
- * @page: The page to map.
- * @prot: The page protection.
- *
- * This function maps a TTM page using the kmap_atomic api if available,
- * otherwise falls back to vmap. The user must make sure that the
- * specified page does not have an aliased mapping with a different caching
- * policy unless the architecture explicitly allows it. Also mapping and
- * unmapping using this api must be correctly nested. Unmapping should
- * occur in the reverse order of mapping.
- */
-void *ttm_kmap_atomic_prot(struct page *page, pgprot_t prot)
-{
-	if (pgprot_val(prot) == pgprot_val(PAGE_KERNEL))
-		return kmap_atomic(page);
-	else
-		return __ttm_kmap_atomic_prot(page, prot);
-}
-EXPORT_SYMBOL(ttm_kmap_atomic_prot);
-
-/**
- * ttm_kunmap_atomic_prot - Unmap a page that was mapped using
- * ttm_kmap_atomic_prot.
- *
- * @addr: The virtual address from the map.
- * @prot: The page protection.
- */
-void ttm_kunmap_atomic_prot(void *addr, pgprot_t prot)
-{
-	if (pgprot_val(prot) == pgprot_val(PAGE_KERNEL))
-		kunmap_atomic(addr);
-	else
-		__ttm_kunmap_atomic(addr);
-}
-EXPORT_SYMBOL(ttm_kunmap_atomic_prot);
-
 static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
 				unsigned long page,
 				pgprot_t prot)
@@ -316,13 +265,13 @@ static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
 		return -ENOMEM;
 
 	src = (void *)((unsigned long)src + (page << PAGE_SHIFT));
-	dst = ttm_kmap_atomic_prot(d, prot);
+	dst = kmap_atomic_prot(d, prot);
 	if (!dst)
 		return -ENOMEM;
 
 	memcpy_fromio(dst, src, PAGE_SIZE);
 
-	ttm_kunmap_atomic_prot(dst, prot);
+	kunmap_atomic(dst);
 
 	return 0;
 }
@@ -338,13 +287,13 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 		return -ENOMEM;
 
 	dst = (void *)((unsigned long)dst + (page << PAGE_SHIFT));
-	src = ttm_kmap_atomic_prot(s, prot);
+	src = kmap_atomic_prot(s, prot);
 	if (!src)
 		return -ENOMEM;
 
 	memcpy_toio(dst, src, PAGE_SIZE);
 
-	ttm_kunmap_atomic_prot(src, prot);
+	kunmap_atomic(src);
 
 	return 0;
 }
@@ -507,11 +456,10 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->base.moving = NULL;
 	drm_vma_node_reset(&fbo->base.base.vma_node);
 
-	kref_init(&fbo->base.list_kref);
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
 	fbo->base.acc_size = 0;
-	if (bo->base.resv == &bo->base._resv)
+	if (bo->type != ttm_bo_type_sg)
 		fbo->base.base.resv = &fbo->base.base._resv;
 
 	dma_resv_init(&fbo->base.base._resv);
@@ -562,11 +510,13 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 	} else {
 		map->bo_kmap_type = ttm_bo_map_iomap;
 		if (mem->placement & TTM_PL_FLAG_WC)
-			map->virtual = ioremap_wc(bo->mem.bus.base + bo->mem.bus.offset + offset,
+			map->virtual = ioremap_wc(bo->mem.bus.base +
+						  bo->mem.bus.offset + offset,
 						  size);
 		else
-			map->virtual = ioremap(bo->mem.bus.base + bo->mem.bus.offset + offset,
-						       size);
+			map->virtual = ioremap(bo->mem.bus.base +
+					       bo->mem.bus.offset + offset,
+					       size);
 	}
 	return (!map->virtual) ? -ENOMEM : 0;
 }

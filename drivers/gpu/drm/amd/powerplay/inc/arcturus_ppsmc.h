@@ -110,7 +110,15 @@
 //Others
 #define PPSMC_MSG_SetMemoryChannelEnable         0x39
 
-#define PPSMC_Message_Count                      0x3A
+//OOB
+#define PPSMC_MSG_SetNumBadHbmPagesRetired	 0x3A
+
+#define PPSMC_MSG_DFCstateControl		 0x3B
+#define PPSMC_MSG_GmiPwrDnControl                0x3D
+#define PPSMC_Message_Count                      0x3E
+
+#define PPSMC_MSG_ReadSerialNumTop32		 0x40
+#define PPSMC_MSG_ReadSerialNumBottom32		 0x41
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;

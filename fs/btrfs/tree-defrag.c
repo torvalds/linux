@@ -35,7 +35,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 		goto out;
 
 	path = btrfs_alloc_path();
@@ -133,10 +133,9 @@ out:
 		ret = 0;
 	}
 done:
-	if (ret != -EAGAIN) {
+	if (ret != -EAGAIN)
 		memset(&root->defrag_progress, 0,
 		       sizeof(root->defrag_progress));
-		root->defrag_trans_start = trans->transid;
-	}
+
 	return ret;
 }

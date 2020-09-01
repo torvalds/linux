@@ -179,6 +179,8 @@ struct mlxsw_sp_acl_tcam_vgroup {
 	bool tmplt_elusage_set;
 	struct mlxsw_afk_element_usage tmplt_elusage;
 	bool vregion_rehash_enabled;
+	unsigned int *p_min_prio;
+	unsigned int *p_max_prio;
 };
 
 struct mlxsw_sp_acl_tcam_rehash_ctx {
@@ -224,7 +226,7 @@ struct mlxsw_sp_acl_tcam_vchunk;
 struct mlxsw_sp_acl_tcam_chunk {
 	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
 	struct mlxsw_sp_acl_tcam_region *region;
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 
@@ -243,7 +245,7 @@ struct mlxsw_sp_acl_tcam_vchunk {
 struct mlxsw_sp_acl_tcam_entry {
 	struct mlxsw_sp_acl_tcam_ventry *ventry;
 	struct mlxsw_sp_acl_tcam_chunk *chunk;
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 
@@ -316,13 +318,17 @@ mlxsw_sp_acl_tcam_vgroup_add(struct mlxsw_sp *mlxsw_sp,
 			     const struct mlxsw_sp_acl_tcam_pattern *patterns,
 			     unsigned int patterns_count,
 			     struct mlxsw_afk_element_usage *tmplt_elusage,
-			     bool vregion_rehash_enabled)
+			     bool vregion_rehash_enabled,
+			     unsigned int *p_min_prio,
+			     unsigned int *p_max_prio)
 {
 	int err;
 
 	vgroup->patterns = patterns;
 	vgroup->patterns_count = patterns_count;
 	vgroup->vregion_rehash_enabled = vregion_rehash_enabled;
+	vgroup->p_min_prio = p_min_prio;
+	vgroup->p_max_prio = p_max_prio;
 
 	if (tmplt_elusage) {
 		vgroup->tmplt_elusage_set = true;
@@ -414,6 +420,21 @@ mlxsw_sp_acl_tcam_vregion_max_prio(struct mlxsw_sp_acl_tcam_vregion *vregion)
 	vchunk = list_last_entry(&vregion->vchunk_list,
 				 typeof(*vchunk), list);
 	return vchunk->priority;
+}
+
+static void
+mlxsw_sp_acl_tcam_vgroup_prio_update(struct mlxsw_sp_acl_tcam_vgroup *vgroup)
+{
+	struct mlxsw_sp_acl_tcam_vregion *vregion;
+
+	if (list_empty(&vgroup->vregion_list))
+		return;
+	vregion = list_first_entry(&vgroup->vregion_list,
+				   typeof(*vregion), list);
+	*vgroup->p_min_prio = mlxsw_sp_acl_tcam_vregion_prio(vregion);
+	vregion = list_last_entry(&vgroup->vregion_list,
+				  typeof(*vregion), list);
+	*vgroup->p_max_prio = mlxsw_sp_acl_tcam_vregion_max_prio(vregion);
 }
 
 static int
@@ -986,8 +1007,9 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 				unsigned int priority,
 				struct mlxsw_afk_element_usage *elusage)
 {
+	struct mlxsw_sp_acl_tcam_vchunk *vchunk, *vchunk2;
 	struct mlxsw_sp_acl_tcam_vregion *vregion;
-	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
+	struct list_head *pos;
 	int err;
 
 	if (priority == MLXSW_SP_ACL_TCAM_CATCHALL_PRIO)
@@ -1025,8 +1047,16 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	mlxsw_sp_acl_tcam_rehash_ctx_vregion_changed(vregion);
-	list_add_tail(&vchunk->list, &vregion->vchunk_list);
+
+	/* Position the vchunk inside the list according to priority */
+	list_for_each(pos, &vregion->vchunk_list) {
+		vchunk2 = list_entry(pos, typeof(*vchunk2), list);
+		if (vchunk2->priority > priority)
+			break;
+	}
+	list_add_tail(&vchunk->list, pos);
 	mutex_unlock(&vregion->lock);
+	mlxsw_sp_acl_tcam_vgroup_prio_update(vgroup);
 
 	return vchunk;
 
@@ -1058,6 +1088,7 @@ mlxsw_sp_acl_tcam_vchunk_destroy(struct mlxsw_sp *mlxsw_sp,
 			       mlxsw_sp_acl_tcam_vchunk_ht_params);
 	mlxsw_sp_acl_tcam_vregion_put(mlxsw_sp, vchunk->vregion);
 	kfree(vchunk);
+	mlxsw_sp_acl_tcam_vgroup_prio_update(vgroup);
 }
 
 static struct mlxsw_sp_acl_tcam_vchunk *
@@ -1574,14 +1605,17 @@ static int
 mlxsw_sp_acl_tcam_flower_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam *tcam,
 				     void *ruleset_priv,
-				     struct mlxsw_afk_element_usage *tmplt_elusage)
+				     struct mlxsw_afk_element_usage *tmplt_elusage,
+				     unsigned int *p_min_prio,
+				     unsigned int *p_max_prio)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
 	return mlxsw_sp_acl_tcam_vgroup_add(mlxsw_sp, tcam, &ruleset->vgroup,
 					    mlxsw_sp_acl_tcam_patterns,
 					    MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
-					    tmplt_elusage, true);
+					    tmplt_elusage, true,
+					    p_min_prio, p_max_prio);
 }
 
 static void
@@ -1690,7 +1724,9 @@ static int
 mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam *tcam,
 				 void *ruleset_priv,
-				 struct mlxsw_afk_element_usage *tmplt_elusage)
+				 struct mlxsw_afk_element_usage *tmplt_elusage,
+				 unsigned int *p_min_prio,
+				 unsigned int *p_max_prio)
 {
 	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
 	int err;
@@ -1698,7 +1734,8 @@ mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_acl_tcam_vgroup_add(mlxsw_sp, tcam, &ruleset->vgroup,
 					   mlxsw_sp_acl_tcam_patterns,
 					   MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
-					   tmplt_elusage, false);
+					   tmplt_elusage, false,
+					   p_min_prio, p_max_prio);
 	if (err)
 		return err;
 

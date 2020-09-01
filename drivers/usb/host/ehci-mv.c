@@ -108,13 +108,14 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	struct ehci_hcd *ehci;
 	struct ehci_hcd_mv *ehci_mv;
 	struct resource *r;
-	int retval = -ENODEV;
+	int retval;
 	u32 offset;
+	u32 status;
 
 	if (usb_disabled())
 		return -ENODEV;
 
-	hcd = usb_create_hcd(&ehci_platform_hc_driver, &pdev->dev, "mv ehci");
+	hcd = usb_create_hcd(&ehci_platform_hc_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd)
 		return -ENOMEM;
 
@@ -142,8 +143,6 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		goto err_put_hcd;
 	}
 
-
-
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ehci_mv->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(ehci_mv->base)) {
@@ -167,12 +166,10 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	hcd->rsrc_len = resource_size(r);
 	hcd->regs = ehci_mv->op_regs;
 
-	hcd->irq = platform_get_irq(pdev, 0);
-	if (!hcd->irq) {
-		dev_err(&pdev->dev, "Cannot get irq.");
-		retval = -ENODEV;
+	retval = platform_get_irq(pdev, 0);
+	if (retval < 0)
 		goto err_disable_clk;
-	}
+	hcd->irq = retval;
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = (struct ehci_caps __iomem *) ehci_mv->cap_regs;
@@ -211,6 +208,14 @@ static int mv_ehci_probe(struct platform_device *pdev)
 			goto err_set_vbus;
 		}
 		device_wakeup_enable(hcd->self.controller);
+	}
+
+	if (of_usb_get_phy_mode(pdev->dev.of_node) == USBPHY_INTERFACE_MODE_HSIC) {
+		status = ehci_readl(ehci, &ehci->regs->port_status[0]);
+		/* These "reserved" bits actually enable HSIC mode. */
+		status |= BIT(25);
+		status &= ~GENMASK(31, 30);
+		ehci_writel(ehci, status, &ehci->regs->port_status[0]);
 	}
 
 	dev_info(&pdev->dev,

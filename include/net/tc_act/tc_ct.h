@@ -25,6 +25,9 @@ struct tcf_ct_params {
 	u16 ct_action;
 
 	struct rcu_head rcu;
+
+	struct tcf_ct_flow_table *ct_ft;
+	struct nf_flowtable *nf_ft;
 };
 
 struct tcf_ct {
@@ -33,8 +36,10 @@ struct tcf_ct {
 };
 
 #define to_ct(a) ((struct tcf_ct *)a)
-#define to_ct_params(a) ((struct tcf_ct_params *) \
-			 rtnl_dereference((to_ct(a)->params)))
+#define to_ct_params(a)							\
+	((struct tcf_ct_params *)					\
+	 rcu_dereference_protected(to_ct(a)->params,			\
+				   lockdep_is_held(&a->tcfa_lock)))
 
 static inline uint16_t tcf_ct_zone(const struct tc_action *a)
 {
@@ -46,10 +51,35 @@ static inline int tcf_ct_action(const struct tc_action *a)
 	return to_ct_params(a)->ct_action;
 }
 
+static inline struct nf_flowtable *tcf_ct_ft(const struct tc_action *a)
+{
+	return to_ct_params(a)->nf_ft;
+}
+
 #else
 static inline uint16_t tcf_ct_zone(const struct tc_action *a) { return 0; }
 static inline int tcf_ct_action(const struct tc_action *a) { return 0; }
+static inline struct nf_flowtable *tcf_ct_ft(const struct tc_action *a)
+{
+	return NULL;
+}
 #endif /* CONFIG_NF_CONNTRACK */
+
+#if IS_ENABLED(CONFIG_NET_ACT_CT)
+static inline void
+tcf_ct_flow_table_restore_skb(struct sk_buff *skb, unsigned long cookie)
+{
+	enum ip_conntrack_info ctinfo = cookie & NFCT_INFOMASK;
+	struct nf_conn *ct;
+
+	ct = (struct nf_conn *)(cookie & NFCT_PTRMASK);
+	nf_conntrack_get(&ct->ct_general);
+	nf_ct_set(skb, ct, ctinfo);
+}
+#else
+static inline void
+tcf_ct_flow_table_restore_skb(struct sk_buff *skb, unsigned long cookie) { }
+#endif
 
 static inline bool is_tcf_ct(const struct tc_action *a)
 {

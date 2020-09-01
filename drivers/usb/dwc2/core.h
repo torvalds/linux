@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /*
  * core.h - DesignWare HS OTG Controller common declarations
  *
@@ -411,6 +411,10 @@ enum dwc2_ep0_state {
  *			register.
  *			0 - Deactivate the transceiver (default)
  *			1 - Activate the transceiver
+ * @activate_stm_id_vb_detection: Activate external ID pin and Vbus level
+ *			detection using GGPIO register.
+ *			0 - Deactivate the external level detection (default)
+ *			1 - Activate the external level detection
  * @g_dma:              Enables gadget dma usage (default: autodetect).
  * @g_dma_desc:         Enables gadget descriptor DMA (default: autodetect).
  * @g_rx_fifo_size:	The periodic rx fifo size for the device, in
@@ -481,6 +485,7 @@ struct dwc2_core_params {
 	bool service_interval;
 	u8 hird_threshold;
 	bool activate_stm_fs_transceiver;
+	bool activate_stm_id_vb_detection;
 	bool ipg_isoc_en;
 	u16 max_packet_count;
 	u32 max_transfer_size;
@@ -874,6 +879,8 @@ struct dwc2_hregs_backup {
  *                      removed once all SoCs support usb transceiver.
  * @supplies:           Definition of USB power supplies
  * @vbus_supply:        Regulator supplying vbus.
+ * @usb33d:		Optional 3.3v regulator used on some stm32 devices to
+ *			supply ID and VBUS detection hardware.
  * @lock:		Spinlock that protects all the driver data structures
  * @priv:		Stores a pointer to the struct usb_hcd
  * @queuing_high_bandwidth: True if multiple packets of a high-bandwidth
@@ -1029,7 +1036,7 @@ struct dwc2_hregs_backup {
  * @fifo_mem:			Total internal RAM for FIFOs (bytes)
  * @fifo_map:		Each bit intend for concrete fifo. If that bit is set,
  *			then that fifo is used
- * @gadget:		Represents a usb slave device
+ * @gadget:		Represents a usb gadget device
  * @connected:		Used in slave mode. True if device connected with host
  * @eps_in:		The IN endpoints being supplied to the gadget framework
  * @eps_out:		The OUT endpoints being supplied to the gadget framework
@@ -1061,6 +1068,7 @@ struct dwc2_hsotg {
 	struct dwc2_hsotg_plat *plat;
 	struct regulator_bulk_data supplies[DWC2_NUM_SUPPLIES];
 	struct regulator *vbus_supply;
+	struct regulator *usb33d;
 
 	spinlock_t lock;
 	void *priv;
@@ -1095,8 +1103,10 @@ struct dwc2_hsotg {
 #define DWC2_CORE_REV_3_00a	0x4f54300a
 #define DWC2_CORE_REV_3_10a	0x4f54310a
 #define DWC2_CORE_REV_4_00a	0x4f54400a
+#define DWC2_CORE_REV_4_20a	0x4f54420a
 #define DWC2_FS_IOT_REV_1_00a	0x5531100a
 #define DWC2_HS_IOT_REV_1_00a	0x5532100a
+#define DWC2_CORE_REV_MASK	0x0000ffff
 
 	/* DWC OTG HW Core ID */
 #define DWC2_OTG_ID		0x4f540000
@@ -1300,6 +1310,8 @@ void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host);
 void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
 
 bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg);
+
+int dwc2_check_core_version(struct dwc2_hsotg *hsotg);
 
 /*
  * Common core Functions.

@@ -3,42 +3,16 @@
  * core.c - ChipIdea USB IP core family device controller
  *
  * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2020 NXP
  *
  * Author: David Lopo
- */
-
-/*
- * Description: ChipIdea USB IP core family device controller
+ *	   Peter Chen <peter.chen@nxp.com>
  *
- * This driver is composed of several blocks:
- * - HW:     hardware interface
- * - DBG:    debug facilities (optional)
- * - UTIL:   utilities
- * - ISR:    interrupts handling
- * - ENDPT:  endpoint operations (Gadget API)
- * - GADGET: gadget operations (Gadget API)
- * - BUS:    bus glue code, bus abstraction layer
- *
- * Compile Options
- * - STALL_IN:  non-empty bulk-in pipes cannot be halted
- *              if defined mass storage compliance succeeds but with warnings
- *              => case 4: Hi >  Dn
- *              => case 5: Hi >  Di
- *              => case 8: Hi <> Do
- *              if undefined usbtest 13 fails
- * - TRACE:     enable function tracing (depends on DEBUG)
- *
- * Main Features
- * - Chapter 9 & Mass Storage Compliance with Gadget File Storage
- * - Chapter 9 Compliance with Gadget Zero (STALL_IN undefined)
- * - Normal & LPM support
- *
- * USBTEST Report
- * - OK: 0-12, 13 (STALL_IN defined) & 14
- * - Not Supported: 15 & 16 (ISO)
- *
- * TODO List
- * - Suspend & Remote Wakeup
+ * Main Features:
+ * - Four transfers are supported, usbtest is passed
+ * - USB Certification for gadget: CH9 and Mass Storage are passed
+ * - Low power mode
+ * - USB wakeup
  */
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -181,6 +155,7 @@ u32 hw_read_intr_status(struct ci_hdrc *ci)
 
 /**
  * hw_port_test_set: writes port test mode (execute without interruption)
+ * @ci: the controller
  * @mode: new value
  *
  * This function returns an error code
@@ -272,7 +247,7 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 	ci->rev = ci_get_revision(ci);
 
 	dev_dbg(ci->dev,
-		"ChipIdea HDRC found, revision: %d, lpm: %d; cap: %p op: %p\n",
+		"revision: %d, lpm: %d; cap: %px op: %px\n",
 		ci->rev, ci->hw_bank.lpm, ci->hw_bank.cap, ci->hw_bank.op);
 
 	/* setup lock mode ? */
@@ -600,9 +575,9 @@ static int ci_cable_notifier(struct notifier_block *nb, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static enum usb_role ci_usb_role_switch_get(struct device *dev)
+static enum usb_role ci_usb_role_switch_get(struct usb_role_switch *sw)
 {
-	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	struct ci_hdrc *ci = usb_role_switch_get_drvdata(sw);
 	enum usb_role role;
 	unsigned long flags;
 
@@ -613,9 +588,10 @@ static enum usb_role ci_usb_role_switch_get(struct device *dev)
 	return role;
 }
 
-static int ci_usb_role_switch_set(struct device *dev, enum usb_role role)
+static int ci_usb_role_switch_set(struct usb_role_switch *sw,
+				  enum usb_role role)
 {
-	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	struct ci_hdrc *ci = usb_role_switch_get_drvdata(sw);
 	struct ci_hdrc_cable *cable = NULL;
 	enum usb_role current_role = ci_role_to_usb_role(ci);
 	enum ci_role ci_role = usb_role_to_ci_role(role);
@@ -665,6 +641,7 @@ static int ci_usb_role_switch_set(struct device *dev, enum usb_role role)
 static struct usb_role_switch_desc ci_role_switch = {
 	.set = ci_usb_role_switch_set,
 	.get = ci_usb_role_switch_get,
+	.allow_userspace_control = true,
 };
 
 static int ci_get_platdata(struct device *dev,
@@ -901,6 +878,33 @@ void ci_hdrc_remove_device(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(ci_hdrc_remove_device);
 
+/**
+ * ci_hdrc_query_available_role: get runtime available operation mode
+ *
+ * The glue layer can get current operation mode (host/peripheral/otg)
+ * This function should be called after ci core device has created.
+ *
+ * @pdev: the platform device of ci core.
+ *
+ * Return runtime usb_dr_mode.
+ */
+enum usb_dr_mode ci_hdrc_query_available_role(struct platform_device *pdev)
+{
+	struct ci_hdrc *ci = platform_get_drvdata(pdev);
+
+	if (!ci)
+		return USB_DR_MODE_UNKNOWN;
+	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET])
+		return USB_DR_MODE_OTG;
+	else if (ci->roles[CI_ROLE_HOST])
+		return USB_DR_MODE_HOST;
+	else if (ci->roles[CI_ROLE_GADGET])
+		return USB_DR_MODE_PERIPHERAL;
+	else
+		return USB_DR_MODE_UNKNOWN;
+}
+EXPORT_SYMBOL_GPL(ci_hdrc_query_available_role);
+
 static inline void ci_role_destroy(struct ci_hdrc *ci)
 {
 	ci_hdrc_gadget_destroy(ci);
@@ -1118,6 +1122,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	if (ci_role_switch.fwnode) {
+		ci_role_switch.driver_data = ci;
 		ci->role_switch = usb_role_switch_register(dev,
 					&ci_role_switch);
 		if (IS_ERR(ci->role_switch)) {
@@ -1147,8 +1152,11 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	if (!ci_otg_is_fsm_mode(ci)) {
 		/* only update vbus status for peripheral */
-		if (ci->role == CI_ROLE_GADGET)
+		if (ci->role == CI_ROLE_GADGET) {
+			/* Pull down DP for possible charger detection */
+			hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
 			ci_handle_vbus_change(ci);
+		}
 
 		ret = ci_role_start(ci, ci->role);
 		if (ret) {
@@ -1263,6 +1271,29 @@ static void ci_controller_suspend(struct ci_hdrc *ci)
 	enable_irq(ci->irq);
 }
 
+/*
+ * Handle the wakeup interrupt triggered by extcon connector
+ * We need to call ci_irq again for extcon since the first
+ * interrupt (wakeup int) only let the controller be out of
+ * low power mode, but not handle any interrupts.
+ */
+static void ci_extcon_wakeup_int(struct ci_hdrc *ci)
+{
+	struct ci_hdrc_cable *cable_id, *cable_vbus;
+	u32 otgsc = hw_read_otgsc(ci, ~0);
+
+	cable_id = &ci->platdata->id_extcon;
+	cable_vbus = &ci->platdata->vbus_extcon;
+
+	if (!IS_ERR(cable_id->edev) && ci->is_otg &&
+		(otgsc & OTGSC_IDIE) && (otgsc & OTGSC_IDIS))
+		ci_irq(ci->irq, ci);
+
+	if (!IS_ERR(cable_vbus->edev) && ci->is_otg &&
+		(otgsc & OTGSC_BSVIE) && (otgsc & OTGSC_BSVIS))
+		ci_irq(ci->irq, ci);
+}
+
 static int ci_controller_resume(struct device *dev)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
@@ -1295,6 +1326,7 @@ static int ci_controller_resume(struct device *dev)
 		enable_irq(ci->irq);
 		if (ci_otg_is_fsm_mode(ci))
 			ci_otg_fsm_wakeup_by_srp(ci);
+		ci_extcon_wakeup_int(ci);
 	}
 
 	return 0;

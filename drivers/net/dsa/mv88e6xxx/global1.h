@@ -282,6 +282,8 @@ int mv88e6250_g1_reset(struct mv88e6xxx_chip *chip);
 int mv88e6185_g1_ppu_enable(struct mv88e6xxx_chip *chip);
 int mv88e6185_g1_ppu_disable(struct mv88e6xxx_chip *chip);
 
+int mv88e6185_g1_set_max_frame_size(struct mv88e6xxx_chip *chip, int mtu);
+
 int mv88e6xxx_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 int mv88e6320_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);

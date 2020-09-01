@@ -16,6 +16,7 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/core.h>
 #include <linux/semaphore.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
@@ -41,9 +42,22 @@
 /* watermark expressed in number of words */
 #define DEFAULT_F2_WATERMARK    0x8
 #define CY_4373_F2_WATERMARK    0x40
+#define CY_4373_F1_MESBUSYCTRL  (CY_4373_F2_WATERMARK | SBSDIO_MESBUSYCTRL_ENAB)
 #define CY_43012_F2_WATERMARK    0x60
-#define CY_4359_F2_WATERMARK	0x40
-#define CY_4359_F1_MESBUSYCTRL	(CY_4359_F2_WATERMARK | SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_43012_MES_WATERMARK  0x50
+#define CY_43012_MESBUSYCTRL    (CY_43012_MES_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_4339_F2_WATERMARK    48
+#define CY_4339_MES_WATERMARK	80
+#define CY_4339_MESBUSYCTRL	(CY_4339_MES_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_43455_F2_WATERMARK	0x60
+#define CY_43455_MES_WATERMARK	0x50
+#define CY_43455_MESBUSYCTRL	(CY_43455_MES_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_435X_F2_WATERMARK	0x40
+#define CY_435X_F1_MESBUSYCTRL	(CY_435X_F2_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
 
 #ifdef DEBUG
 
@@ -314,15 +328,6 @@ struct rte_console {
 #define KSO_WAIT_US 50
 #define MAX_KSO_ATTEMPTS (PMU_MAX_TRANSITION_DLY/KSO_WAIT_US)
 #define BRCMF_SDIO_MAX_ACCESS_ERRORS	5
-
-/*
- * Conversion of 802.1D priority to precedence level
- */
-static uint prio2prec(u32 prio)
-{
-	return (prio == PRIO_8021D_NONE || prio == PRIO_8021D_BE) ?
-	       (prio^2) : prio;
-}
 
 #ifdef DEBUG
 /* Device console log buffer state */
@@ -644,6 +649,8 @@ static const struct brcmf_firmware_mapping brcmf_sdio_fwnames[] = {
 	BRCMF_FW_ENTRY(CY_CC_43012_CHIP_ID, 0xFFFFFFFF, 43012)
 };
 
+#define TXCTL_CREDITS	2
+
 static void pkt_align(struct sk_buff *p, int len, int align)
 {
 	uint datalign;
@@ -657,8 +664,16 @@ static void pkt_align(struct sk_buff *p, int len, int align)
 /* To check if there's window offered */
 static bool data_ok(struct brcmf_sdio *bus)
 {
-	return (u8)(bus->tx_max - bus->tx_seq) != 0 &&
-	       ((u8)(bus->tx_max - bus->tx_seq) & 0x80) == 0;
+	/* Reserve TXCTL_CREDITS credits for txctl */
+	return (bus->tx_max - bus->tx_seq) > TXCTL_CREDITS &&
+	       ((bus->tx_max - bus->tx_seq) & 0x80) == 0;
+}
+
+/* To check if there's window offered */
+static bool txctl_ok(struct brcmf_sdio *bus)
+{
+	return (bus->tx_max - bus->tx_seq) != 0 &&
+	       ((bus->tx_max - bus->tx_seq) & 0x80) == 0;
 }
 
 static int
@@ -1938,6 +1953,8 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 			if (brcmf_sdio_hdparse(bus, bus->rxhdr, &rd_new,
 					       BRCMF_SDIO_FT_NORMAL)) {
 				rd->len = 0;
+				brcmf_sdio_rxfail(bus, true, true);
+				sdio_release_host(bus->sdiodev->func1);
 				brcmu_pkt_buf_free_skb(pkt);
 				continue;
 			}
@@ -2662,7 +2679,7 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	brcmf_sdio_clrintr(bus);
 
 	if (bus->ctrl_frame_stat && (bus->clkstate == CLK_AVAIL) &&
-	    data_ok(bus)) {
+	    txctl_ok(bus)) {
 		sdio_claim_host(bus->sdiodev->func1);
 		if (bus->ctrl_frame_stat) {
 			err = brcmf_sdio_tx_ctrlframe(bus,  bus->ctrl_frame_buf,
@@ -2670,6 +2687,9 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 			bus->ctrl_frame_err = err;
 			wmb();
 			bus->ctrl_frame_stat = false;
+			if (err)
+				brcmf_err("sdio ctrlframe tx failed err=%d\n",
+					  err);
 		}
 		sdio_release_host(bus->sdiodev->func1);
 		brcmf_sdio_wait_event_wakeup(bus);
@@ -2772,7 +2792,13 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	skb_push(pkt, bus->tx_hdrlen);
 	/* precondition: IS_ALIGNED((unsigned long)(pkt->data), 2) */
 
-	prec = prio2prec((pkt->priority & PRIOMASK));
+	/* In WLAN, priority is always set by the AP using WMM parameters
+	 * and this need not always follow the standard 802.1d priority.
+	 * Based on AP WMM config, map from 802.1d priority to corresponding
+	 * precedence level.
+	 */
+	prec = brcmf_map_prio_to_prec(bus_if->drvr->config,
+				      (pkt->priority & PRIOMASK));
 
 	/* Check for existing queue, current flow-control,
 			 pending event, or pending clock */
@@ -3687,7 +3713,11 @@ static void brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 			if (bus->idlecount > bus->idletime) {
 				brcmf_dbg(SDIO, "idle\n");
 				sdio_claim_host(bus->sdiodev->func1);
-				brcmf_sdio_wd_timer(bus, false);
+#ifdef DEBUG
+				if (!BRCMF_FWCON_ON() ||
+				    bus->console_interval == 0)
+#endif
+					brcmf_sdio_wd_timer(bus, false);
 				bus->idlecount = 0;
 				brcmf_sdio_bus_sleep(bus, true, false);
 				sdio_release_host(bus->sdiodev->func1);
@@ -4097,6 +4127,36 @@ int brcmf_sdio_get_fwname(struct device *dev, const char *ext, u8 *fw_name)
 	return 0;
 }
 
+static int brcmf_sdio_bus_reset(struct device *dev)
+{
+	int ret = 0;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+
+	brcmf_dbg(SDIO, "Enter\n");
+
+	/* start by unregistering irqs */
+	brcmf_sdiod_intr_unregister(sdiodev);
+
+	brcmf_sdiod_remove(sdiodev);
+
+	/* reset the adapter */
+	sdio_claim_host(sdiodev->func1);
+	mmc_hw_reset(sdiodev->func1->card->host);
+	sdio_release_host(sdiodev->func1);
+
+	brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_DOWN);
+
+	ret = brcmf_sdiod_probe(sdiodev);
+	if (ret) {
+		brcmf_err("Failed to probe after sdio device reset: ret %d\n",
+			  ret);
+		brcmf_sdiod_remove(sdiodev);
+	}
+
+	return ret;
+}
+
 static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.stop = brcmf_sdio_bus_stop,
 	.preinit = brcmf_sdio_bus_preinit,
@@ -4108,7 +4168,8 @@ static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.get_ramsize = brcmf_sdio_bus_get_ramsize,
 	.get_memdump = brcmf_sdio_bus_get_memdump,
 	.get_fwname = brcmf_sdio_get_fwname,
-	.debugfs_create = brcmf_sdio_debugfs_create
+	.debugfs_create = brcmf_sdio_debugfs_create,
+	.reset = brcmf_sdio_bus_reset
 };
 
 #define BRCMF_SDIO_FW_CODE	0
@@ -4185,7 +4246,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 				   bus->hostintmask, NULL);
 
 		switch (sdiod->func1->device) {
-		case SDIO_DEVICE_ID_CYPRESS_4373:
+		case SDIO_DEVICE_ID_BROADCOM_CYPRESS_4373:
 			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
 				  CY_4373_F2_WATERMARK);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
@@ -4196,10 +4257,9 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
 					   &err);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
-					   CY_4373_F2_WATERMARK |
-					   SBSDIO_MESBUSYCTRL_ENAB, &err);
+					   CY_4373_F1_MESBUSYCTRL, &err);
 			break;
-		case SDIO_DEVICE_ID_CYPRESS_43012:
+		case SDIO_DEVICE_ID_BROADCOM_CYPRESS_43012:
 			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
 				  CY_43012_F2_WATERMARK);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
@@ -4209,19 +4269,51 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
 			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
 					   &err);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
+					   CY_43012_MESBUSYCTRL, &err);
 			break;
-		case SDIO_DEVICE_ID_BROADCOM_4359:
-			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
-				  CY_4359_F2_WATERMARK);
+		case SDIO_DEVICE_ID_BROADCOM_4339:
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes for 4339\n",
+				  CY_4339_F2_WATERMARK);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
-					   CY_4359_F2_WATERMARK, &err);
+					   CY_4339_F2_WATERMARK, &err);
 			devctl = brcmf_sdiod_readb(sdiod, SBSDIO_DEVICE_CTL,
 						   &err);
 			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
 			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
 					   &err);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
-					   CY_4359_F1_MESBUSYCTRL, &err);
+					   CY_4339_MESBUSYCTRL, &err);
+			break;
+		case SDIO_DEVICE_ID_BROADCOM_43455:
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes for 43455\n",
+				  CY_43455_F2_WATERMARK);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
+					   CY_43455_F2_WATERMARK, &err);
+			devctl = brcmf_sdiod_readb(sdiod, SBSDIO_DEVICE_CTL,
+						   &err);
+			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
+			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
+					   &err);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
+					   CY_43455_MESBUSYCTRL, &err);
+			break;
+		case SDIO_DEVICE_ID_BROADCOM_4359:
+			/* fallthrough */
+		case SDIO_DEVICE_ID_BROADCOM_4354:
+			/* fallthrough */
+		case SDIO_DEVICE_ID_BROADCOM_4356:
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
+				  CY_435X_F2_WATERMARK);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
+					   CY_435X_F2_WATERMARK, &err);
+			devctl = brcmf_sdiod_readb(sdiod, SBSDIO_DEVICE_CTL,
+						   &err);
+			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
+			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
+					   &err);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
+					   CY_435X_F1_MESBUSYCTRL, &err);
 			break;
 		default:
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,

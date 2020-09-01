@@ -9,17 +9,18 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
+#include <linux/uio.h>
 #include "tee_private.h"
 
 static void tee_shm_release(struct tee_shm *shm)
 {
-	struct tee_device *teedev = shm->teedev;
+	struct tee_device *teedev = shm->ctx->teedev;
 
-	mutex_lock(&teedev->mutex);
-	idr_remove(&teedev->idr, shm->id);
-	if (shm->ctx)
-		list_del(&shm->link);
-	mutex_unlock(&teedev->mutex);
+	if (shm->flags & TEE_SHM_DMA_BUF) {
+		mutex_lock(&teedev->mutex);
+		idr_remove(&teedev->idr, shm->id);
+		mutex_unlock(&teedev->mutex);
+	}
 
 	if (shm->flags & TEE_SHM_POOL) {
 		struct tee_shm_pool_mgr *poolm;
@@ -44,8 +45,7 @@ static void tee_shm_release(struct tee_shm *shm)
 		kfree(shm->pages);
 	}
 
-	if (shm->ctx)
-		teedev_ctx_put(shm->ctx);
+	teedev_ctx_put(shm->ctx);
 
 	kfree(shm);
 
@@ -77,7 +77,7 @@ static int tee_shm_op_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	size_t size = vma->vm_end - vma->vm_start;
 
 	/* Refuse sharing shared memory provided by application */
-	if (shm->flags & TEE_SHM_REGISTER)
+	if (shm->flags & TEE_SHM_USER_MAPPED)
 		return -EINVAL;
 
 	return remap_pfn_range(vma, vma->vm_start, shm->paddr >> PAGE_SHIFT,
@@ -91,19 +91,13 @@ static const struct dma_buf_ops tee_shm_dma_buf_ops = {
 	.mmap = tee_shm_op_mmap,
 };
 
-static struct tee_shm *__tee_shm_alloc(struct tee_context *ctx,
-				       struct tee_device *teedev,
-				       size_t size, u32 flags)
+struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 {
+	struct tee_device *teedev = ctx->teedev;
 	struct tee_shm_pool_mgr *poolm = NULL;
 	struct tee_shm *shm;
 	void *ret;
 	int rc;
-
-	if (ctx && ctx->teedev != teedev) {
-		dev_err(teedev->dev.parent, "ctx and teedev mismatch\n");
-		return ERR_PTR(-EINVAL);
-	}
 
 	if (!(flags & TEE_SHM_MAPPED)) {
 		dev_err(teedev->dev.parent,
@@ -132,7 +126,6 @@ static struct tee_shm *__tee_shm_alloc(struct tee_context *ctx,
 	}
 
 	shm->flags = flags | TEE_SHM_POOL;
-	shm->teedev = teedev;
 	shm->ctx = ctx;
 	if (flags & TEE_SHM_DMA_BUF)
 		poolm = teedev->pool->dma_buf_mgr;
@@ -145,16 +138,17 @@ static struct tee_shm *__tee_shm_alloc(struct tee_context *ctx,
 		goto err_kfree;
 	}
 
-	mutex_lock(&teedev->mutex);
-	shm->id = idr_alloc(&teedev->idr, shm, 1, 0, GFP_KERNEL);
-	mutex_unlock(&teedev->mutex);
-	if (shm->id < 0) {
-		ret = ERR_PTR(shm->id);
-		goto err_pool_free;
-	}
 
 	if (flags & TEE_SHM_DMA_BUF) {
 		DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+
+		mutex_lock(&teedev->mutex);
+		shm->id = idr_alloc(&teedev->idr, shm, 1, 0, GFP_KERNEL);
+		mutex_unlock(&teedev->mutex);
+		if (shm->id < 0) {
+			ret = ERR_PTR(shm->id);
+			goto err_pool_free;
+		}
 
 		exp_info.ops = &tee_shm_dma_buf_ops;
 		exp_info.size = shm->size;
@@ -168,18 +162,15 @@ static struct tee_shm *__tee_shm_alloc(struct tee_context *ctx,
 		}
 	}
 
-	if (ctx) {
-		teedev_ctx_get(ctx);
-		mutex_lock(&teedev->mutex);
-		list_add_tail(&shm->link, &ctx->list_shm);
-		mutex_unlock(&teedev->mutex);
-	}
+	teedev_ctx_get(ctx);
 
 	return shm;
 err_rem:
-	mutex_lock(&teedev->mutex);
-	idr_remove(&teedev->idr, shm->id);
-	mutex_unlock(&teedev->mutex);
+	if (flags & TEE_SHM_DMA_BUF) {
+		mutex_lock(&teedev->mutex);
+		idr_remove(&teedev->idr, shm->id);
+		mutex_unlock(&teedev->mutex);
+	}
 err_pool_free:
 	poolm->ops->free(poolm, shm);
 err_kfree:
@@ -188,43 +179,21 @@ err_dev_put:
 	tee_device_put(teedev);
 	return ret;
 }
-
-/**
- * tee_shm_alloc() - Allocate shared memory
- * @ctx:	Context that allocates the shared memory
- * @size:	Requested size of shared memory
- * @flags:	Flags setting properties for the requested shared memory.
- *
- * Memory allocated as global shared memory is automatically freed when the
- * TEE file pointer is closed. The @flags field uses the bits defined by
- * TEE_SHM_* in <linux/tee_drv.h>. TEE_SHM_MAPPED must currently always be
- * set. If TEE_SHM_DMA_BUF global shared memory will be allocated and
- * associated with a dma-buf handle, else driver private memory.
- */
-struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
-{
-	return __tee_shm_alloc(ctx, ctx->teedev, size, flags);
-}
 EXPORT_SYMBOL_GPL(tee_shm_alloc);
-
-struct tee_shm *tee_shm_priv_alloc(struct tee_device *teedev, size_t size)
-{
-	return __tee_shm_alloc(NULL, teedev, size, TEE_SHM_MAPPED);
-}
-EXPORT_SYMBOL_GPL(tee_shm_priv_alloc);
 
 struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 				 size_t length, u32 flags)
 {
 	struct tee_device *teedev = ctx->teedev;
-	const u32 req_flags = TEE_SHM_DMA_BUF | TEE_SHM_USER_MAPPED;
+	const u32 req_user_flags = TEE_SHM_DMA_BUF | TEE_SHM_USER_MAPPED;
+	const u32 req_kernel_flags = TEE_SHM_DMA_BUF | TEE_SHM_KERNEL_MAPPED;
 	struct tee_shm *shm;
 	void *ret;
 	int rc;
 	int num_pages;
 	unsigned long start;
 
-	if (flags != req_flags)
+	if (flags != req_user_flags && flags != req_kernel_flags)
 		return ERR_PTR(-ENOTSUPP);
 
 	if (!tee_device_get(teedev))
@@ -245,7 +214,6 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 	}
 
 	shm->flags = flags | TEE_SHM_REGISTER;
-	shm->teedev = teedev;
 	shm->ctx = ctx;
 	shm->id = -1;
 	addr = untagged_addr(addr);
@@ -259,7 +227,27 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 		goto err;
 	}
 
-	rc = get_user_pages_fast(start, num_pages, FOLL_WRITE, shm->pages);
+	if (flags & TEE_SHM_USER_MAPPED) {
+		rc = get_user_pages_fast(start, num_pages, FOLL_WRITE,
+					 shm->pages);
+	} else {
+		struct kvec *kiov;
+		int i;
+
+		kiov = kcalloc(num_pages, sizeof(*kiov), GFP_KERNEL);
+		if (!kiov) {
+			ret = ERR_PTR(-ENOMEM);
+			goto err;
+		}
+
+		for (i = 0; i < num_pages; i++) {
+			kiov[i].iov_base = (void *)(start + i * PAGE_SIZE);
+			kiov[i].iov_len = PAGE_SIZE;
+		}
+
+		rc = get_kernel_pages(kiov, num_pages, 0, shm->pages);
+		kfree(kiov);
+	}
 	if (rc > 0)
 		shm->num_pages = rc;
 	if (rc != num_pages) {
@@ -300,10 +288,6 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 			goto err;
 		}
 	}
-
-	mutex_lock(&teedev->mutex);
-	list_add_tail(&shm->link, &ctx->list_shm);
-	mutex_unlock(&teedev->mutex);
 
 	return shm;
 err:

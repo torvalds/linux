@@ -7,6 +7,10 @@ KCOV_INSTRUMENT_mem_encrypt_identity.o	:= n
 KASAN_SANITIZE_mem_encrypt.o		:= n
 KASAN_SANITIZE_mem_encrypt_identity.o	:= n
 
+# Disable KCSAN entirely, because otherwise we get warnings that some functions
+# reference __initdata sections.
+KCSAN_SANITIZE := n
+
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_mem_encrypt.o		= -pg
 CFLAGS_REMOVE_mem_encrypt_identity.o	= -pg
@@ -18,10 +22,9 @@ obj-y				:=  init.o init_$(BITS).o fault.o ioremap.o extable.o mmap.o \
 obj-y				+= pat/
 
 # Make sure __phys_addr has no stackprotector
-nostackp := $(call cc-option, -fno-stack-protector)
-CFLAGS_physaddr.o		:= $(nostackp)
-CFLAGS_setup_nx.o		:= $(nostackp)
-CFLAGS_mem_encrypt_identity.o	:= $(nostackp)
+CFLAGS_physaddr.o		:= -fno-stack-protector
+CFLAGS_setup_nx.o		:= -fno-stack-protector
+CFLAGS_mem_encrypt_identity.o	:= -fno-stack-protector
 
 CFLAGS_fault.o := -I $(srctree)/$(src)/../include/asm/trace
 

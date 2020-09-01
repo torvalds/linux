@@ -51,6 +51,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/uaccess.h>
 
+#include <asm/unaligned.h>
+
 #include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
@@ -79,7 +81,6 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_WORM);
 	 CDC_CD_R|CDC_CD_RW|CDC_DVD|CDC_DVD_R|CDC_DVD_RAM|CDC_GENERIC_PACKET| \
 	 CDC_MRW|CDC_MRW_W|CDC_RAM)
 
-static DEFINE_MUTEX(sr_mutex);
 static int sr_probe(struct device *);
 static int sr_remove(struct device *);
 static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt);
@@ -345,10 +346,8 @@ static int sr_done(struct scsi_cmnd *SCpnt)
 		case ILLEGAL_REQUEST:
 			if (!(SCpnt->sense_buffer[0] & 0x90))
 				break;
-			error_sector = (SCpnt->sense_buffer[3] << 24) |
-				(SCpnt->sense_buffer[4] << 16) |
-				(SCpnt->sense_buffer[5] << 8) |
-				SCpnt->sense_buffer[6];
+			error_sector =
+				get_unaligned_be32(&SCpnt->sense_buffer[3]);
 			if (SCpnt->request->bio != NULL)
 				block_sectors =
 					bio_sectors(SCpnt->request->bio);
@@ -496,13 +495,9 @@ static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt)
 		SCpnt->sdb.length = this_count * s_size;
 	}
 
-	SCpnt->cmnd[2] = (unsigned char) (block >> 24) & 0xff;
-	SCpnt->cmnd[3] = (unsigned char) (block >> 16) & 0xff;
-	SCpnt->cmnd[4] = (unsigned char) (block >> 8) & 0xff;
-	SCpnt->cmnd[5] = (unsigned char) block & 0xff;
+	put_unaligned_be32(block, &SCpnt->cmnd[2]);
 	SCpnt->cmnd[6] = SCpnt->cmnd[9] = 0;
-	SCpnt->cmnd[7] = (unsigned char) (this_count >> 8) & 0xff;
-	SCpnt->cmnd[8] = (unsigned char) this_count & 0xff;
+	put_unaligned_be16(this_count, &SCpnt->cmnd[7]);
 
 	/*
 	 * We shouldn't disconnect in the middle of a sector, so with a dumb
@@ -536,9 +531,9 @@ static int sr_block_open(struct block_device *bdev, fmode_t mode)
 	scsi_autopm_get_device(sdev);
 	check_disk_change(bdev);
 
-	mutex_lock(&sr_mutex);
+	mutex_lock(&cd->lock);
 	ret = cdrom_open(&cd->cdi, bdev, mode);
-	mutex_unlock(&sr_mutex);
+	mutex_unlock(&cd->lock);
 
 	scsi_autopm_put_device(sdev);
 	if (ret)
@@ -551,10 +546,12 @@ out:
 static void sr_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct scsi_cd *cd = scsi_cd(disk);
-	mutex_lock(&sr_mutex);
+
+	mutex_lock(&cd->lock);
 	cdrom_release(&cd->cdi, mode);
+	mutex_unlock(&cd->lock);
+
 	scsi_cd_put(cd);
-	mutex_unlock(&sr_mutex);
 }
 
 static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
@@ -565,7 +562,7 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	void __user *argp = (void __user *)arg;
 	int ret;
 
-	mutex_lock(&sr_mutex);
+	mutex_lock(&cd->lock);
 
 	ret = scsi_ioctl_block_when_processing_errors(sdev, cmd,
 			(mode & FMODE_NDELAY) != 0);
@@ -595,7 +592,7 @@ put:
 	scsi_autopm_put_device(sdev);
 
 out:
-	mutex_unlock(&sr_mutex);
+	mutex_unlock(&cd->lock);
 	return ret;
 }
 
@@ -608,7 +605,7 @@ static int sr_block_compat_ioctl(struct block_device *bdev, fmode_t mode, unsign
 	void __user *argp = compat_ptr(arg);
 	int ret;
 
-	mutex_lock(&sr_mutex);
+	mutex_lock(&cd->lock);
 
 	ret = scsi_ioctl_block_when_processing_errors(sdev, cmd,
 			(mode & FMODE_NDELAY) != 0);
@@ -638,7 +635,7 @@ put:
 	scsi_autopm_put_device(sdev);
 
 out:
-	mutex_unlock(&sr_mutex);
+	mutex_unlock(&cd->lock);
 	return ret;
 
 }
@@ -745,6 +742,7 @@ static int sr_probe(struct device *dev)
 	disk = alloc_disk(1);
 	if (!disk)
 		goto fail_free;
+	mutex_init(&cd->lock);
 
 	spin_lock(&sr_index_lock);
 	minor = find_first_zero_bit(sr_index_bits, SR_DISKS);
@@ -792,10 +790,9 @@ static int sr_probe(struct device *dev)
 	set_capacity(disk, cd->capacity);
 	disk->private_data = &cd->driver;
 	disk->queue = sdev->request_queue;
-	cd->cdi.disk = disk;
 
-	if (register_cdrom(&cd->cdi))
-		goto fail_put;
+	if (register_cdrom(disk, &cd->cdi))
+		goto fail_minor;
 
 	/*
 	 * Initialize block layer runtime PM stuffs before the
@@ -813,8 +810,13 @@ static int sr_probe(struct device *dev)
 
 	return 0;
 
+fail_minor:
+	spin_lock(&sr_index_lock);
+	clear_bit(minor, sr_index_bits);
+	spin_unlock(&sr_index_lock);
 fail_put:
 	put_disk(disk);
+	mutex_destroy(&cd->lock);
 fail_free:
 	kfree(cd);
 fail:
@@ -852,8 +854,7 @@ static void get_sectorsize(struct scsi_cd *cd)
 	} else {
 		long last_written;
 
-		cd->capacity = 1 + ((buffer[0] << 24) | (buffer[1] << 16) |
-				    (buffer[2] << 8) | buffer[3]);
+		cd->capacity = 1 + get_unaligned_be32(&buffer[0]);
 		/*
 		 * READ_CAPACITY doesn't return the correct size on
 		 * certain UDF media.  If last_written is larger, use
@@ -864,8 +865,7 @@ static void get_sectorsize(struct scsi_cd *cd)
 		if (!cdrom_get_last_written(&cd->cdi, &last_written))
 			cd->capacity = max_t(long, cd->capacity, last_written);
 
-		sector_size = (buffer[4] << 24) |
-		    (buffer[5] << 16) | (buffer[6] << 8) | buffer[7];
+		sector_size = get_unaligned_be32(&buffer[4]);
 		switch (sector_size) {
 			/*
 			 * HP 4020i CD-Recorder reports 2340 byte sectors
@@ -877,10 +877,10 @@ static void get_sectorsize(struct scsi_cd *cd)
 		case 2340:
 		case 2352:
 			sector_size = 2048;
-			/* fall through */
+			fallthrough;
 		case 2048:
 			cd->capacity *= 4;
-			/* fall through */
+			fallthrough;
 		case 512:
 			break;
 		default:
@@ -953,13 +953,13 @@ static void get_capabilities(struct scsi_cd *cd)
 	}
 
 	n = data.header_length + data.block_descriptor_length;
-	cd->cdi.speed = ((buffer[n + 8] << 8) + buffer[n + 9]) / 176;
+	cd->cdi.speed = get_unaligned_be16(&buffer[n + 8]) / 176;
 	cd->readcd_known = 1;
 	cd->readcd_cdda = buffer[n + 5] & 0x01;
 	/* print some capability bits */
 	sr_printk(KERN_INFO, cd,
 		  "scsi3-mmc drive: %dx/%dx %s%s%s%s%s%s\n",
-		  ((buffer[n + 14] << 8) + buffer[n + 15]) / 176,
+		  get_unaligned_be16(&buffer[n + 14]) / 176,
 		  cd->cdi.speed,
 		  buffer[n + 3] & 0x01 ? "writer " : "", /* CD Writer */
 		  buffer[n + 3] & 0x20 ? "dvd-ram " : "",
@@ -1054,6 +1054,8 @@ static void sr_kref_release(struct kref *kref)
 	disk->private_data = NULL;
 
 	put_disk(disk);
+
+	mutex_destroy(&cd->lock);
 
 	kfree(cd);
 }

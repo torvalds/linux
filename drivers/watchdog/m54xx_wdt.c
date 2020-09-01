@@ -29,6 +29,7 @@
 #include <linux/bitops.h>
 #include <linux/ioport.h>
 #include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include <asm/coldfire.h>
 #include <asm/m54xxsim.h>
@@ -154,7 +155,7 @@ static long m54xx_wdt_ioctl(struct file *file, unsigned int cmd,
 
 		heartbeat = time;
 		wdt_enable();
-		/* Fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(heartbeat, (int *)arg);

@@ -124,7 +124,7 @@ static int trace_level;
 
 /**
  * mega_setup_mailbox()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Allocates a 8 byte aligned memory for the handshake mailbox.
  */
@@ -347,7 +347,7 @@ mega_query_adapter(adapter_t *adapter)
 
 /**
  * mega_runpendq()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Runs through the list of pending requests.
  */
@@ -413,8 +413,8 @@ static DEF_SCSI_QCMD(megaraid_queue)
 
 /**
  * mega_allocate_scb()
- * @adapter - pointer to our soft state
- * @cmd - scsi command from the mid-layer
+ * @adapter: pointer to our soft state
+ * @cmd: scsi command from the mid-layer
  *
  * Allocate a SCB structure. This is the central structure for controller
  * commands.
@@ -444,9 +444,9 @@ mega_allocate_scb(adapter_t *adapter, struct scsi_cmnd *cmd)
 
 /**
  * mega_get_ldrv_num()
- * @adapter - pointer to our soft state
- * @cmd - scsi mid layer command
- * @channel - channel on the controller
+ * @adapter: pointer to our soft state
+ * @cmd: scsi mid layer command
+ * @channel: channel on the controller
  *
  * Calculate the logical drive number based on the information in scsi command
  * and the channel number.
@@ -491,9 +491,9 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
 
 	if (adapter->support_random_del && adapter->read_ldidmap )
 		switch (cmd->cmnd[0]) {
-		case READ_6:	/* fall through */
-		case WRITE_6:	/* fall through */
-		case READ_10:	/* fall through */
+		case READ_6:
+		case WRITE_6:
+		case READ_10:
 		case WRITE_10:
 			ldrv_num += 0x80;
 		}
@@ -503,9 +503,9 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
 
 /**
  * mega_build_cmd()
- * @adapter - pointer to our soft state
- * @cmd - Prepare using this scsi command
- * @busy - busy flag if no resources
+ * @adapter: pointer to our soft state
+ * @cmd: Prepare using this scsi command
+ * @busy: busy flag if no resources
  *
  * Prepares a command and scatter gather list for the controller. This routine
  * also finds out if the commands is intended for a logical drive or a
@@ -517,7 +517,6 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
 static scb_t *
 mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 {
-	mega_ext_passthru	*epthru;
 	mega_passthru	*pthru;
 	scb_t	*scb;
 	mbox_t	*mbox;
@@ -853,7 +852,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 			return scb;
 
 #if MEGA_HAVE_CLUSTERING
-		case RESERVE:	/* Fall through */
+		case RESERVE:
 		case RELEASE:
 
 			/*
@@ -905,7 +904,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 		if( adapter->support_ext_cdb ) {
 
-			epthru = mega_prepare_extpassthru(adapter, scb, cmd,
+			mega_prepare_extpassthru(adapter, scb, cmd,
 					channel, target);
 
 			mbox->m_out.cmd = MEGA_MBOXCMD_EXTPTHRU;
@@ -937,11 +936,11 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 /**
  * mega_prepare_passthru()
- * @adapter - pointer to our soft state
- * @scb - our scsi control block
- * @cmd - scsi command from the mid-layer
- * @channel - actual channel on the controller
- * @target - actual id on the controller.
+ * @adapter: pointer to our soft state
+ * @scb: our scsi control block
+ * @cmd: scsi command from the mid-layer
+ * @channel: actual channel on the controller
+ * @target: actual id on the controller.
  *
  * prepare a command for the scsi physical devices.
  */
@@ -988,7 +987,7 @@ mega_prepare_passthru(adapter_t *adapter, scb_t *scb, struct scsi_cmnd *cmd,
 
 			adapter->flag |= (1L << cmd->device->channel);
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		pthru->numsgelements = mega_build_sglist(adapter, scb,
 				&pthru->dataxferaddr, &pthru->dataxferlen);
@@ -1000,11 +999,11 @@ mega_prepare_passthru(adapter_t *adapter, scb_t *scb, struct scsi_cmnd *cmd,
 
 /**
  * mega_prepare_extpassthru()
- * @adapter - pointer to our soft state
- * @scb - our scsi control block
- * @cmd - scsi command from the mid-layer
- * @channel - actual channel on the controller
- * @target - actual id on the controller.
+ * @adapter: pointer to our soft state
+ * @scb: our scsi control block
+ * @cmd: scsi command from the mid-layer
+ * @channel: actual channel on the controller
+ * @target: actual id on the controller.
  *
  * prepare a command for the scsi physical devices. This rountine prepares
  * commands for devices which can take extended CDBs (>10 bytes)
@@ -1051,7 +1050,7 @@ mega_prepare_extpassthru(adapter_t *adapter, scb_t *scb,
 
 			adapter->flag |= (1L << cmd->device->channel);
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		epthru->numsgelements = mega_build_sglist(adapter, scb,
 				&epthru->dataxferaddr, &epthru->dataxferlen);
@@ -1085,8 +1084,8 @@ __mega_runpendq(adapter_t *adapter)
 
 /**
  * issue_scb()
- * @adapter - pointer to our soft state
- * @scb - scsi control block
+ * @adapter: pointer to our soft state
+ * @scb: scsi control block
  *
  * Post a command to the card if the mailbox is available, otherwise return
  * busy. We also take the scb from the pending list if the mailbox is
@@ -1166,8 +1165,8 @@ mega_busywait_mbox (adapter_t *adapter)
 
 /**
  * issue_scb_block()
- * @adapter - pointer to our soft state
- * @raw_mbox - the mailbox
+ * @adapter: pointer to our soft state
+ * @raw_mbox: the mailbox
  *
  * Issue a scb in synchronous and non-interrupt mode
  */
@@ -1247,8 +1246,8 @@ bug_blocked_mailbox:
 
 /**
  * megaraid_isr_iomapped()
- * @irq - irq
- * @devp - pointer to our soft state
+ * @irq: irq
+ * @devp: pointer to our soft state
  *
  * Interrupt service routine for io-mapped controllers.
  * Find out if our device is interrupting. If yes, acknowledge the interrupt
@@ -1323,8 +1322,8 @@ megaraid_isr_iomapped(int irq, void *devp)
 
 /**
  * megaraid_isr_memmapped()
- * @irq - irq
- * @devp - pointer to our soft state
+ * @irq: irq
+ * @devp: pointer to our soft state
  *
  * Interrupt service routine for memory-mapped controllers.
  * Find out if our device is interrupting. If yes, acknowledge the interrupt
@@ -1401,10 +1400,10 @@ megaraid_isr_memmapped(int irq, void *devp)
 }
 /**
  * mega_cmd_done()
- * @adapter - pointer to our soft state
- * @completed - array of ids of completed commands
- * @nstatus - number of completed commands
- * @status - status of the last command completed
+ * @adapter: pointer to our soft state
+ * @completed: array of ids of completed commands
+ * @nstatus: number of completed commands
+ * @status: status of the last command completed
  *
  * Complete the commands and call the scsi mid-layer callback hooks.
  */
@@ -1921,9 +1920,9 @@ megaraid_reset(struct scsi_cmnd *cmd)
 
 /**
  * megaraid_abort_and_reset()
- * @adapter - megaraid soft state
- * @cmd - scsi command to be aborted or reset
- * @aor - abort or reset flag
+ * @adapter: megaraid soft state
+ * @cmd: scsi command to be aborted or reset
+ * @aor: abort or reset flag
  *
  * Try to locate the scsi command in the pending queue. If found and is not
  * issued to the controller, abort/reset it. Otherwise return failure
@@ -2021,8 +2020,8 @@ free_local_pdev(struct pci_dev *pdev)
 
 /**
  * mega_allocate_inquiry()
- * @dma_handle - handle returned for dma address
- * @pdev - handle to pci device
+ * @dma_handle: handle returned for dma address
+ * @pdev: handle to pci device
  *
  * allocates memory for inquiry structure
  */
@@ -2045,8 +2044,8 @@ mega_free_inquiry(void *inquiry, dma_addr_t dma_handle, struct pci_dev *pdev)
 
 /**
  * proc_show_config()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display configuration information about the controller.
  */
@@ -2109,8 +2108,8 @@ proc_show_config(struct seq_file *m, void *v)
 
 /**
  * proc_show_stat()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display statistical information about the I/O activity.
  */
@@ -2143,8 +2142,8 @@ proc_show_stat(struct seq_file *m, void *v)
 
 /**
  * proc_show_mbox()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display mailbox information for the last command issued. This information
  * is good for debugging.
@@ -2171,8 +2170,8 @@ proc_show_mbox(struct seq_file *m, void *v)
 
 /**
  * proc_show_rebuild_rate()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display current rebuild rate
  */
@@ -2214,8 +2213,8 @@ free_pdev:
 
 /**
  * proc_show_battery()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display information about the battery module on the controller.
  */
@@ -2317,9 +2316,9 @@ mega_print_inquiry(struct seq_file *m, char *scsi_inq)
 
 /**
  * proc_show_pdrv()
- * @m - Synthetic file construction data
- * @page - buffer to write the data in
- * @adapter - pointer to our soft state
+ * @m: Synthetic file construction data
+ * @adapter: pointer to our soft state
+ * @channel: channel
  *
  * Display information about the physical drives.
  */
@@ -2433,8 +2432,8 @@ free_pdev:
 
 /**
  * proc_show_pdrv_ch0()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display information about the physical drives on physical channel 0.
  */
@@ -2447,8 +2446,8 @@ proc_show_pdrv_ch0(struct seq_file *m, void *v)
 
 /**
  * proc_show_pdrv_ch1()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display information about the physical drives on physical channel 1.
  */
@@ -2461,8 +2460,8 @@ proc_show_pdrv_ch1(struct seq_file *m, void *v)
 
 /**
  * proc_show_pdrv_ch2()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display information about the physical drives on physical channel 2.
  */
@@ -2475,8 +2474,8 @@ proc_show_pdrv_ch2(struct seq_file *m, void *v)
 
 /**
  * proc_show_pdrv_ch3()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display information about the physical drives on physical channel 3.
  */
@@ -2489,10 +2488,10 @@ proc_show_pdrv_ch3(struct seq_file *m, void *v)
 
 /**
  * proc_show_rdrv()
- * @m - Synthetic file construction data
- * @adapter - pointer to our soft state
- * @start - starting logical drive to display
- * @end - ending logical drive to display
+ * @m: Synthetic file construction data
+ * @adapter: pointer to our soft state
+ * @start: starting logical drive to display
+ * @end: ending logical drive to display
  *
  * We do not print the inquiry information since its already available through
  * /proc/scsi/scsi interface
@@ -2674,8 +2673,8 @@ free_pdev:
 
 /**
  * proc_show_rdrv_10()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display real time information about the logical drives 0 through 9.
  */
@@ -2688,8 +2687,8 @@ proc_show_rdrv_10(struct seq_file *m, void *v)
 
 /**
  * proc_show_rdrv_20()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display real time information about the logical drives 0 through 9.
  */
@@ -2702,8 +2701,8 @@ proc_show_rdrv_20(struct seq_file *m, void *v)
 
 /**
  * proc_show_rdrv_30()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display real time information about the logical drives 0 through 9.
  */
@@ -2716,8 +2715,8 @@ proc_show_rdrv_30(struct seq_file *m, void *v)
 
 /**
  * proc_show_rdrv_40()
- * @m - Synthetic file construction data
- * @v - File iterator
+ * @m: Synthetic file construction data
+ * @v: File iterator
  *
  * Display real time information about the logical drives 0 through 9.
  */
@@ -2729,8 +2728,8 @@ proc_show_rdrv_40(struct seq_file *m, void *v)
 
 /**
  * mega_create_proc_entry()
- * @index - index in soft state array
- * @parent - parent node for this /proc entry
+ * @index: index in soft state array
+ * @parent: parent node for this /proc entry
  *
  * Creates /proc entries for our controllers.
  */
@@ -2785,7 +2784,7 @@ static inline void mega_create_proc_entry(int index, struct proc_dir_entry *pare
 #endif
 
 
-/**
+/*
  * megaraid_biosparam()
  *
  * Return the disk geometry for a particular disk
@@ -2795,11 +2794,9 @@ megaraid_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 		    sector_t capacity, int geom[])
 {
 	adapter_t	*adapter;
-	unsigned char	*bh;
 	int	heads;
 	int	sectors;
 	int	cylinders;
-	int	rval;
 
 	/* Get pointer to host config structure */
 	adapter = (adapter_t *)sdev->host->hostdata;
@@ -2826,15 +2823,8 @@ megaraid_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 			geom[2] = cylinders;
 	}
 	else {
-		bh = scsi_bios_ptable(bdev);
-
-		if( bh ) {
-			rval = scsi_partsize(bh, capacity,
-					    &geom[2], &geom[0], &geom[1]);
-			kfree(bh);
-			if( rval != -1 )
-				return rval;
-		}
+		if (scsi_partsize(bdev, capacity, geom))
+			return 0;
 
 		dev_info(&adapter->dev->dev,
 			 "invalid partition on this disk on channel %d\n",
@@ -2863,7 +2853,7 @@ megaraid_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 
 /**
  * mega_init_scb()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Allocate memory for the various pointers in the scb structures:
  * scatter-gather list pointer, passthru and extended passthru structure
@@ -2943,8 +2933,8 @@ mega_init_scb(adapter_t *adapter)
 
 /**
  * megadev_open()
- * @inode - unused
- * @filep - unused
+ * @inode: unused
+ * @filep: unused
  *
  * Routines for the character/ioctl interface to the driver. Find out if this
  * is a valid open. 
@@ -2963,10 +2953,9 @@ megadev_open (struct inode *inode, struct file *filep)
 
 /**
  * megadev_ioctl()
- * @inode - Our device inode
- * @filep - unused
- * @cmd - ioctl command
- * @arg - user buffer
+ * @filep: Our device file
+ * @cmd: ioctl command
+ * @arg: user buffer
  *
  * ioctl entry point for our private ioctl interface. We move the data in from
  * the user space, prepare the command (if necessary, convert the old MIMD
@@ -2986,13 +2975,12 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	void		*data = NULL;	/* data to be transferred */
 	dma_addr_t	data_dma_hndl;	/* dma handle for data xfer area */
 	megacmd_t	mc;
-	megastat_t	__user *ustats;
-	int		num_ldrv;
+#if MEGA_HAVE_STATS
+	megastat_t	__user *ustats = NULL;
+	int		num_ldrv = 0;
+#endif
 	u32		uxferaddr = 0;
 	struct pci_dev	*pdev;
-
-	ustats = NULL; /* avoid compilation warnings */
-	num_ldrv = 0;
 
 	/*
 	 * Make sure only USCSICMD are issued through this interface.
@@ -3379,8 +3367,8 @@ megadev_unlocked_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 /**
  * mega_m_to_n()
- * @arg - user address
- * @uioc - new ioctl structure
+ * @arg: user address
+ * @uioc: new ioctl structure
  *
  * A thin layer to convert older mimd interface ioctl structure to NIT ioctl
  * structure
@@ -3507,8 +3495,8 @@ mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 
 /*
  * mega_n_to_m()
- * @arg - user address
- * @mc - mailbox command
+ * @arg: user address
+ * @mc: mailbox command
  *
  * Updates the status information to the application, depending on application
  * conforms to older mimd ioctl interface or newer NIT ioctl interface
@@ -3574,7 +3562,7 @@ mega_n_to_m(void __user *arg, megacmd_t *mc)
 
 /**
  * mega_is_bios_enabled()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * issue command to find out if the BIOS is enabled for this controller
  */
@@ -3583,7 +3571,6 @@ mega_is_bios_enabled(adapter_t *adapter)
 {
 	unsigned char	raw_mbox[sizeof(struct mbox_out)];
 	mbox_t	*mbox;
-	int	ret;
 
 	mbox = (mbox_t *)raw_mbox;
 
@@ -3596,8 +3583,7 @@ mega_is_bios_enabled(adapter_t *adapter)
 	raw_mbox[0] = IS_BIOS_ENABLED;
 	raw_mbox[2] = GET_BIOS;
 
-
-	ret = issue_scb_block(adapter, raw_mbox);
+	issue_scb_block(adapter, raw_mbox);
 
 	return *(char *)adapter->mega_buffer;
 }
@@ -3605,7 +3591,7 @@ mega_is_bios_enabled(adapter_t *adapter)
 
 /**
  * mega_enum_raid_scsi()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Find out what channels are RAID/SCSI. This information is used to
  * differentiate the virtual channels and physical channels and to support
@@ -3660,7 +3646,7 @@ mega_enum_raid_scsi(adapter_t *adapter)
 
 /**
  * mega_get_boot_drv()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Find out which device is the boot device. Note, any logical drive or any
  * phyical device (e.g., a CDROM) can be designated as a boot device.
@@ -3727,7 +3713,7 @@ mega_get_boot_drv(adapter_t *adapter)
 
 /**
  * mega_support_random_del()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Find out if this controller supports random deletion and addition of
  * logical drives
@@ -3757,7 +3743,7 @@ mega_support_random_del(adapter_t *adapter)
 
 /**
  * mega_support_ext_cdb()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Find out if this firmware support cdblen > 10
  */
@@ -3785,8 +3771,8 @@ mega_support_ext_cdb(adapter_t *adapter)
 
 /**
  * mega_del_logdrv()
- * @adapter - pointer to our soft state
- * @logdrv - logical drive to be deleted
+ * @adapter: pointer to our soft state
+ * @logdrv: logical drive to be deleted
  *
  * Delete the specified logical drive. It is the responsibility of the user
  * app to let the OS know about this operation.
@@ -3871,7 +3857,7 @@ mega_do_del_logdrv(adapter_t *adapter, int logdrv)
 
 /**
  * mega_get_max_sgl()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Find out the maximum number of scatter-gather elements supported by this
  * version of the firmware
@@ -3917,7 +3903,7 @@ mega_get_max_sgl(adapter_t *adapter)
 
 /**
  * mega_support_cluster()
- * @adapter - pointer to our soft state
+ * @adapter: pointer to our soft state
  *
  * Find out if this firmware support cluster calls.
  */
@@ -3959,8 +3945,8 @@ mega_support_cluster(adapter_t *adapter)
 #ifdef CONFIG_PROC_FS
 /**
  * mega_adapinq()
- * @adapter - pointer to our soft state
- * @dma_handle - DMA address of the buffer
+ * @adapter: pointer to our soft state
+ * @dma_handle: DMA address of the buffer
  *
  * Issue internal commands while interrupts are available.
  * We only issue direct mailbox commands from within the driver. ioctl()
@@ -3992,11 +3978,12 @@ mega_adapinq(adapter_t *adapter, dma_addr_t dma_handle)
 }
 
 
-/** mega_internal_dev_inquiry()
- * @adapter - pointer to our soft state
- * @ch - channel for this device
- * @tgt - ID of this device
- * @buf_dma_handle - DMA address of the buffer
+/**
+ * mega_internal_dev_inquiry()
+ * @adapter: pointer to our soft state
+ * @ch: channel for this device
+ * @tgt: ID of this device
+ * @buf_dma_handle: DMA address of the buffer
  *
  * Issue the scsi inquiry for the specified device.
  */
@@ -4065,9 +4052,9 @@ mega_internal_dev_inquiry(adapter_t *adapter, u8 ch, u8 tgt,
 
 /**
  * mega_internal_command()
- * @adapter - pointer to our soft state
- * @mc - the mailbox command
- * @pthru - Passthru structure for DCDB commands
+ * @adapter: pointer to our soft state
+ * @mc: the mailbox command
+ * @pthru: Passthru structure for DCDB commands
  *
  * Issue the internal commands in interrupt mode.
  * The last argument is the address of the passthru structure if the command

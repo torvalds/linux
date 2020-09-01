@@ -62,7 +62,7 @@ enum {
 	WORK_CPU_UNBOUND	= NR_CPUS,
 
 	/*
-	 * Reserve 7 bits off of pwq pointer w/ debugobjects turned off.
+	 * Reserve 8 bits off of pwq pointer w/ debugobjects turned off.
 	 * This makes pwqs aligned to 256 bytes and allows 15 workqueue
 	 * flush colors.
 	 */
@@ -665,7 +665,7 @@ int workqueue_online_cpu(unsigned int cpu);
 int workqueue_offline_cpu(unsigned int cpu);
 #endif
 
-int __init workqueue_init_early(void);
-int __init workqueue_init(void);
+void __init workqueue_init_early(void);
+void __init workqueue_init(void);
 
 #endif

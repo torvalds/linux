@@ -105,8 +105,8 @@ void start_thread(struct pt_regs *regs, unsigned int pc, unsigned long usp)
  * Copy a new thread context in its stack.
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long ustk_size,
-		struct task_struct *p)
+		unsigned long ustk_size, struct task_struct *p,
+		unsigned long tls)
 {
 	struct pt_regs *childregs;
 

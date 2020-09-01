@@ -24,7 +24,7 @@ NAMES = {
           # Name of the namespace to use
           'NS': 'tcut',
           # Directory containing eBPF test programs
-          'EBPFDIR': './bpf'
+          'EBPFDIR': './'
         }
 
 

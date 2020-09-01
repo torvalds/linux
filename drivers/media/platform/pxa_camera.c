@@ -1016,7 +1016,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
  *  - a videobuffer is queued on the pcdev->capture list
  *
  * Please check the "DMA hot chaining timeslice issue" in
- *   Documentation/media/v4l-drivers/pxa_camera.rst
+ *   Documentation/driver-api/media/drivers/pxa_camera.rst
  *
  * Context: should only be called within the dma irq handler
  */
@@ -1438,7 +1438,7 @@ static void pxac_vb2_queue(struct vb2_buffer *vb)
 
 /*
  * Please check the DMA prepared buffer structure in :
- *   Documentation/media/v4l-drivers/pxa_camera.rst
+ *   Documentation/driver-api/media/drivers/pxa_camera.rst
  * Please check also in pxa_camera_check_link_miss() to understand why DMA chain
  * modification while DMA chain is running will work anyway.
  */
@@ -2191,7 +2191,7 @@ static int pxa_camera_sensor_bound(struct v4l2_async_notifier *notifier,
 	if (err)
 		goto out_sensor_poweroff;
 
-	err = video_register_device(&pcdev->vdev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(&pcdev->vdev, VFL_TYPE_VIDEO, -1);
 	if (err) {
 		v4l2_err(v4l2_dev, "register video device failed: %d\n", err);
 		pcdev->sensor = NULL;
@@ -2440,23 +2440,23 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pcdev->base = base;
 
 	/* request dma */
-	pcdev->dma_chans[0] = dma_request_slave_channel(&pdev->dev, "CI_Y");
-	if (!pcdev->dma_chans[0]) {
+	pcdev->dma_chans[0] = dma_request_chan(&pdev->dev, "CI_Y");
+	if (IS_ERR(pcdev->dma_chans[0])) {
 		dev_err(&pdev->dev, "Can't request DMA for Y\n");
-		return -ENODEV;
+		return PTR_ERR(pcdev->dma_chans[0]);
 	}
 
-	pcdev->dma_chans[1] = dma_request_slave_channel(&pdev->dev, "CI_U");
-	if (!pcdev->dma_chans[1]) {
-		dev_err(&pdev->dev, "Can't request DMA for Y\n");
-		err = -ENODEV;
+	pcdev->dma_chans[1] = dma_request_chan(&pdev->dev, "CI_U");
+	if (IS_ERR(pcdev->dma_chans[1])) {
+		dev_err(&pdev->dev, "Can't request DMA for U\n");
+		err = PTR_ERR(pcdev->dma_chans[1]);
 		goto exit_free_dma_y;
 	}
 
-	pcdev->dma_chans[2] = dma_request_slave_channel(&pdev->dev, "CI_V");
-	if (!pcdev->dma_chans[2]) {
+	pcdev->dma_chans[2] = dma_request_chan(&pdev->dev, "CI_V");
+	if (IS_ERR(pcdev->dma_chans[2])) {
 		dev_err(&pdev->dev, "Can't request DMA for V\n");
-		err = -ENODEV;
+		err = PTR_ERR(pcdev->dma_chans[2]);
 		goto exit_free_dma_u;
 	}
 
@@ -2504,17 +2504,14 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_notifier_cleanup;
 
-	if (pcdev->mclk) {
-		v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
-				  pcdev->asd.match.i2c.adapter_id,
-				  pcdev->asd.match.i2c.address);
+	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
+			  pcdev->asd.match.i2c.adapter_id,
+			  pcdev->asd.match.i2c.address);
 
-		pcdev->mclk_clk = v4l2_clk_register(&pxa_camera_mclk_ops,
-						    clk_name, NULL);
-		if (IS_ERR(pcdev->mclk_clk)) {
-			err = PTR_ERR(pcdev->mclk_clk);
-			goto exit_notifier_cleanup;
-		}
+	pcdev->mclk_clk = v4l2_clk_register(&pxa_camera_mclk_ops, clk_name, NULL);
+	if (IS_ERR(pcdev->mclk_clk)) {
+		err = PTR_ERR(pcdev->mclk_clk);
+		goto exit_notifier_cleanup;
 	}
 
 	err = v4l2_async_notifier_register(&pcdev->v4l2_dev, &pcdev->notifier);
@@ -2588,7 +2585,7 @@ static struct platform_driver pxa_camera_driver = {
 
 module_platform_driver(pxa_camera_driver);
 
-MODULE_DESCRIPTION("PXA27x SoC Camera Host driver");
+MODULE_DESCRIPTION("PXA27x Camera Driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(PXA_CAM_VERSION);

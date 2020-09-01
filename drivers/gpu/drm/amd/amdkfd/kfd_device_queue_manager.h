@@ -180,9 +180,9 @@ struct device_queue_manager {
 	struct list_head	queues;
 	unsigned int		saved_flags;
 	unsigned int		processes_count;
-	unsigned int		queue_count;
-	unsigned int		sdma_queue_count;
-	unsigned int		xgmi_sdma_queue_count;
+	unsigned int		active_queue_count;
+	unsigned int		active_cp_queue_count;
+	unsigned int		gws_queue_count;
 	unsigned int		total_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
@@ -219,7 +219,7 @@ void device_queue_manager_init_v10_navi10(
 		struct device_queue_manager_asic_ops *asic_ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
-unsigned int get_queues_num(struct device_queue_manager *dqm);
+unsigned int get_cp_queues_num(struct device_queue_manager *dqm);
 unsigned int get_queues_per_pipe(struct device_queue_manager *dqm);
 unsigned int get_pipes_per_mec(struct device_queue_manager *dqm);
 unsigned int get_num_sdma_queues(struct device_queue_manager *dqm);
@@ -251,4 +251,5 @@ static inline void dqm_unlock(struct device_queue_manager *dqm)
 	mutex_unlock(&dqm->lock_hidden);
 }
 
+int read_sdma_queue_counter(uint64_t q_rptr, uint64_t *val);
 #endif /* KFD_DEVICE_QUEUE_MANAGER_H_ */

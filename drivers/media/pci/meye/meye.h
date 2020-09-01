@@ -305,9 +305,7 @@ struct meye {
 	u16 colour;
 	struct meye_params params;	/* additional parameters */
 	unsigned long in_use;		/* set to 1 if the device is in use */
-#ifdef CONFIG_PM
 	u8 pm_mchip_mode;		/* old mchip mode */
-#endif
 };
 
 #endif

@@ -47,9 +47,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"winbond-840"
-#define DRV_VERSION	"1.01-e"
-#define DRV_RELDATE	"Sep-11-2006"
-
 
 /* Automatically extracted configuration info:
 probe-func: winbond840_probe
@@ -139,16 +136,9 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #undef PKT_BUF_SZ			/* tulip.h also defines this */
 #define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer.*/
 
-/* These identify the driver base version and may not be removed. */
-static const char version[] __initconst =
-	"v" DRV_VERSION " (2.4 port) "
-	DRV_RELDATE "  Donald Becker <becker@scyld.com>\n"
-	"  http://www.scyld.com/network/drivers.html\n";
-
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Winbond W89c840 Ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 module_param(max_interrupt_work, int, 0);
 module_param(debug, int, 0);
@@ -1385,7 +1375,6 @@ static void netdev_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *
 	struct netdev_private *np = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
@@ -1454,7 +1443,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = ((struct netdev_private *)netdev_priv(dev))->phys[0] & 0x1f;
-		/* Fall Through */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		spin_lock_irq(&np->lock);
@@ -1541,8 +1530,6 @@ static void w840_remove1(struct pci_dev *pdev)
 	}
 }
 
-#ifdef CONFIG_PM
-
 /*
  * suspend/resume synchronization:
  * - open, close, do_ioctl:
@@ -1566,9 +1553,9 @@ static void w840_remove1(struct pci_dev *pdev)
  * Detach must occur under spin_unlock_irq(), interrupts from a detached
  * device would cause an irq storm.
  */
-static int w840_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused w840_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base_addr;
 
@@ -1601,21 +1588,15 @@ static int w840_suspend (struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int w840_resume (struct pci_dev *pdev)
+static int __maybe_unused w840_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct netdev_private *np = netdev_priv(dev);
-	int retval = 0;
 
 	rtnl_lock();
 	if (netif_device_present(dev))
 		goto out; /* device not suspended */
 	if (netif_running(dev)) {
-		if ((retval = pci_enable_device(pdev))) {
-			dev_err(&dev->dev,
-				"pci_enable_device failed in resume\n");
-			goto out;
-		}
 		spin_lock_irq(&np->lock);
 		iowrite32(1, np->base_addr+PCIBusCfg);
 		ioread32(np->base_addr+PCIBusCfg);
@@ -1633,24 +1614,21 @@ static int w840_resume (struct pci_dev *pdev)
 	}
 out:
 	rtnl_unlock();
-	return retval;
+	return 0;
 }
-#endif
+
+static SIMPLE_DEV_PM_OPS(w840_pm_ops, w840_suspend, w840_resume);
 
 static struct pci_driver w840_driver = {
 	.name		= DRV_NAME,
 	.id_table	= w840_pci_tbl,
 	.probe		= w840_probe1,
 	.remove		= w840_remove1,
-#ifdef CONFIG_PM
-	.suspend	= w840_suspend,
-	.resume		= w840_resume,
-#endif
+	.driver.pm	= &w840_pm_ops,
 };
 
 static int __init w840_init(void)
 {
-	printk(version);
 	return pci_register_driver(&w840_driver);
 }
 

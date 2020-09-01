@@ -205,6 +205,33 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
 }
 
 /**
+ * DOC: standard CRTC properties
+ *
+ * DRM CRTCs have a few standardized properties:
+ *
+ * ACTIVE:
+ * 	Atomic property for setting the power state of the CRTC. When set to 1
+ * 	the CRTC will actively display content. When set to 0 the CRTC will be
+ * 	powered off. There is no expectation that user-space will reset CRTC
+ * 	resources like the mode and planes when setting ACTIVE to 0.
+ *
+ * 	User-space can rely on an ACTIVE change to 1 to never fail an atomic
+ * 	test as long as no other property has changed. If a change to ACTIVE
+ * 	fails an atomic test, this is a driver bug. For this reason setting
+ * 	ACTIVE to 0 must not release internal resources (like reserved memory
+ * 	bandwidth or clock generators).
+ *
+ * 	Note that the legacy DPMS property on connectors is internally routed
+ * 	to control this property for atomic drivers.
+ * MODE_ID:
+ * 	Atomic property for setting the CRTC display timings. The value is the
+ * 	ID of a blob containing the DRM mode info. To disable the CRTC,
+ * 	user-space must set this property to 0.
+ *
+ * 	Setting MODE_ID to 0 will release reserved resources for the CRTC.
+ */
+
+/**
  * drm_crtc_init_with_planes - Initialise a new CRTC object with
  *    specified primary and cursor planes.
  * @dev: DRM device
@@ -561,7 +588,6 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	if (crtc_req->mode_valid && !drm_lease_held(file_priv, plane->base.id))
 		return -EACCES;
 
-	mutex_lock(&crtc->dev->mode_config.mutex);
 	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx,
 				   DRM_MODESET_ACQUIRE_INTERRUPTIBLE, ret);
 
@@ -629,6 +655,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 							   fb->modifier);
 			if (ret) {
 				struct drm_format_name_buf format_name;
+
 				DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
 					      drm_get_format_name(fb->format->format,
 								  &format_name),
@@ -728,8 +755,7 @@ out:
 	fb = NULL;
 	mode = NULL;
 
-	DRM_MODESET_LOCK_ALL_END(ctx, ret);
-	mutex_unlock(&crtc->dev->mode_config.mutex);
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 
 	return ret;
 }

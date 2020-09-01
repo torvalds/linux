@@ -31,10 +31,10 @@
  */
 
 #include <linux/types.h>
-#include <xen/xen.h>
 #include <linux/kthread.h>
 
 #include "i915_drv.h"
+#include "intel_gvt.h"
 #include "gvt.h"
 #include <linux/vfio.h>
 #include <linux/mdev.h>
@@ -49,15 +49,15 @@ static const char * const supported_hypervisors[] = {
 static struct intel_vgpu_type *intel_gvt_find_vgpu_type(struct intel_gvt *gvt,
 		const char *name)
 {
+	const char *driver_name =
+		dev_driver_string(&gvt->gt->i915->drm.pdev->dev);
 	int i;
-	struct intel_vgpu_type *t;
-	const char *driver_name = dev_driver_string(
-			&gvt->dev_priv->drm.pdev->dev);
 
+	name += strlen(driver_name) + 1;
 	for (i = 0; i < gvt->num_types; i++) {
-		t = &gvt->types[i];
-		if (!strncmp(t->name, name + strlen(driver_name) + 1,
-			sizeof(t->name)))
+		struct intel_vgpu_type *t = &gvt->types[i];
+
+		if (!strncmp(t->name, name, sizeof(t->name)))
 			return t;
 	}
 
@@ -120,10 +120,8 @@ static struct attribute_group *gvt_vgpu_type_groups[] = {
 	[0 ... NR_MAX_INTEL_VGPU_TYPES - 1] = NULL,
 };
 
-static bool intel_get_gvt_attrs(struct attribute ***type_attrs,
-		struct attribute_group ***intel_vgpu_type_groups)
+static bool intel_get_gvt_attrs(struct attribute_group ***intel_vgpu_type_groups)
 {
-	*type_attrs = gvt_type_attrs;
 	*intel_vgpu_type_groups = gvt_vgpu_type_groups;
 	return true;
 }
@@ -191,7 +189,7 @@ static const struct intel_gvt_ops intel_gvt_ops = {
 static void init_device_info(struct intel_gvt *gvt)
 {
 	struct intel_gvt_device_info *info = &gvt->device_info;
-	struct pci_dev *pdev = gvt->dev_priv->drm.pdev;
+	struct pci_dev *pdev = gvt->gt->i915->drm.pdev;
 
 	info->max_support_vgpus = 8;
 	info->cfg_space_size = PCI_CFG_SPACE_EXP_SIZE;
@@ -257,17 +255,17 @@ static int init_service_thread(struct intel_gvt *gvt)
 
 /**
  * intel_gvt_clean_device - clean a GVT device
- * @dev_priv: i915 private
+ * @i915: i915 private
  *
  * This function is called at the driver unloading stage, to free the
  * resources owned by a GVT device.
  *
  */
-void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
+void intel_gvt_clean_device(struct drm_i915_private *i915)
 {
-	struct intel_gvt *gvt = to_gvt(dev_priv);
+	struct intel_gvt *gvt = fetch_and_zero(&i915->gvt);
 
-	if (WARN_ON(!gvt))
+	if (drm_WARN_ON(&i915->drm, !gvt))
 		return;
 
 	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
@@ -285,13 +283,12 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	intel_gvt_clean_mmio_info(gvt);
 	idr_destroy(&gvt->vgpu_idr);
 
-	kfree(dev_priv->gvt);
-	dev_priv->gvt = NULL;
+	kfree(i915->gvt);
 }
 
 /**
  * intel_gvt_init_device - initialize a GVT device
- * @dev_priv: drm i915 private data
+ * @i915: drm i915 private data
  *
  * This function is called at the initialization stage, to initialize
  * necessary GVT components.
@@ -300,13 +297,13 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
  * Zero on success, negative error code if failed.
  *
  */
-int intel_gvt_init_device(struct drm_i915_private *dev_priv)
+int intel_gvt_init_device(struct drm_i915_private *i915)
 {
 	struct intel_gvt *gvt;
 	struct intel_vgpu *vgpu;
 	int ret;
 
-	if (WARN_ON(dev_priv->gvt))
+	if (drm_WARN_ON(&i915->drm, i915->gvt))
 		return -EEXIST;
 
 	gvt = kzalloc(sizeof(struct intel_gvt), GFP_KERNEL);
@@ -319,7 +316,8 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	spin_lock_init(&gvt->scheduler.mmio_context_lock);
 	mutex_init(&gvt->lock);
 	mutex_init(&gvt->sched_lock);
-	gvt->dev_priv = dev_priv;
+	gvt->gt = &i915->gt;
+	i915->gvt = gvt;
 
 	init_device_info(gvt);
 
@@ -378,8 +376,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	intel_gvt_debugfs_init(gvt);
 
 	gvt_dbg_core("gvt device initialization is done\n");
-	dev_priv->gvt = gvt;
-	intel_gvt_host.dev = &dev_priv->drm.pdev->dev;
+	intel_gvt_host.dev = &i915->drm.pdev->dev;
 	intel_gvt_host.initialized = true;
 	return 0;
 
@@ -404,6 +401,7 @@ out_clean_mmio_info:
 out_clean_idr:
 	idr_destroy(&gvt->vgpu_idr);
 	kfree(gvt);
+	i915->gvt = NULL;
 	return ret;
 }
 

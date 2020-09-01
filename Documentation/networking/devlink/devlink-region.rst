@@ -14,11 +14,22 @@ Region snapshots are collected by the driver, and can be accessed via read
 or dump commands. This allows future analysis on the created snapshots.
 Regions may optionally support triggering snapshots on demand.
 
+Snapshot identifiers are scoped to the devlink instance, not a region.
+All snapshots with the same snapshot id within a devlink instance
+correspond to the same event.
+
 The major benefit to creating a region is to provide access to internal
 address regions that are otherwise inaccessible to the user.
 
 Regions may also be used to provide an additional way to debug complex error
 states, but see also :doc:`devlink-health`
+
+Regions may optionally support capturing a snapshot on demand via the
+``DEVLINK_CMD_REGION_NEW`` netlink message. A driver wishing to allow
+requested snapshots must implement the ``.snapshot`` callback for the region
+in its ``devlink_region_ops`` structure. If snapshot id is not set in
+the ``DEVLINK_CMD_REGION_NEW`` request kernel will allocate one and send
+the snapshot information to user space.
 
 example usage
 -------------
@@ -29,8 +40,7 @@ example usage
     $ devlink region show [ DEV/REGION ]
     $ devlink region del DEV/REGION snapshot SNAPSHOT_ID
     $ devlink region dump DEV/REGION [ snapshot SNAPSHOT_ID ]
-    $ devlink region read DEV/REGION [ snapshot SNAPSHOT_ID ]
-            address ADDRESS length length
+    $ devlink region read DEV/REGION [ snapshot SNAPSHOT_ID ] address ADDRESS length length
 
     # Show all of the exposed regions with region sizes:
     $ devlink region show
@@ -40,6 +50,10 @@ example usage
     # Delete a snapshot using:
     $ devlink region del pci/0000:00:05.0/cr-space snapshot 1
 
+    # Request an immediate snapshot, if supported by the region
+    $ devlink region new pci/0000:00:05.0/cr-space
+    pci/0000:00:05.0/cr-space: snapshot 5
+
     # Dump a snapshot:
     $ devlink region dump pci/0000:00:05.0/fw-health snapshot 1
     0000000000000000 0014 95dc 0014 9514 0035 1670 0034 db30
@@ -48,8 +62,7 @@ example usage
     0000000000000030 bada cce5 bada cce5 bada cce5 bada cce5
 
     # Read a specific part of a snapshot:
-    $ devlink region read pci/0000:00:05.0/fw-health snapshot 1 address 0
-            length 16
+    $ devlink region read pci/0000:00:05.0/fw-health snapshot 1 address 0 length 16
     0000000000000000 0014 95dc 0014 9514 0035 1670 0034 db30
 
 As regions are likely very device or driver specific, no generic regions are

@@ -470,12 +470,12 @@
 				<1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		vsel1_gpio: vsel1-gpio {
+		vsel1_pin: vsel1-pin {
 			rockchip,pins =
 				<1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
-		vsel2_gpio: vsel2-gpio {
+		vsel2_pin: vsel2-pin {
 			rockchip,pins =
 				<1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
@@ -542,7 +542,7 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	clock-frequency = <100000000>;
-	clock-freq-min-max = <100000 100000000>;
+	max-frequency = <100000000>;
 	cd-gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;
 	disable-wp;
 	sd-uhs-sdr104;

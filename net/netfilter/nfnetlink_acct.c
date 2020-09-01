@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) 2011 Pablo Neira Ayuso <pablo@netfilter.org>
- * (C) 2011 Intra2net AG <http://www.intra2net.com>
+ * (C) 2011 Intra2net AG <https://www.intra2net.com>
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -33,7 +33,7 @@ struct nf_acct {
 	refcount_t		refcnt;
 	char			name[NFACCT_NAME_MAX];
 	struct rcu_head		rcu_head;
-	char			data[0];
+	char			data[];
 };
 
 struct nfacct_filter {

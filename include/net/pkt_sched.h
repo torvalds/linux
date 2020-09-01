@@ -75,7 +75,15 @@ struct qdisc_watchdog {
 void qdisc_watchdog_init_clockid(struct qdisc_watchdog *wd, struct Qdisc *qdisc,
 				 clockid_t clockid);
 void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);
-void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires);
+
+void qdisc_watchdog_schedule_range_ns(struct qdisc_watchdog *wd, u64 expires,
+				      u64 delta_ns);
+
+static inline void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd,
+					      u64 expires)
+{
+	return qdisc_watchdog_schedule_range_ns(wd, expires, 0ULL);
+}
 
 static inline void qdisc_watchdog_schedule(struct qdisc_watchdog *wd,
 					   psched_time_t expires)
@@ -128,17 +136,6 @@ static inline void qdisc_run(struct Qdisc *q)
 	}
 }
 
-static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
-{
-	/* We need to take extra care in case the skb came via
-	 * vlan accelerated path. In that case, use skb->vlan_proto
-	 * as the original vlan header was already stripped.
-	 */
-	if (skb_vlan_tag_present(skb))
-		return skb->vlan_proto;
-	return skb->protocol;
-}
-
 /* Calculate maximal size of packet seen by hard_start_xmit
    routine of this device.
  */
@@ -181,7 +178,7 @@ struct tc_taprio_qopt_offload {
 	u64 cycle_time_extension;
 
 	size_t num_entries;
-	struct tc_taprio_sched_entry entries[0];
+	struct tc_taprio_sched_entry entries[];
 };
 
 /* Reference counting */

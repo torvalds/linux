@@ -858,7 +858,11 @@ struct sctp_chunk *sctp_make_shutdown(const struct sctp_association *asoc,
 	struct sctp_chunk *retval;
 	__u32 ctsn;
 
-	ctsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
+	if (chunk && chunk->asoc)
+		ctsn = sctp_tsnmap_get_ctsn(&chunk->asoc->peer.tsn_map);
+	else
+		ctsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
+
 	shut.cum_tsn_ack = htonl(ctsn);
 
 	retval = sctp_make_control(asoc, SCTP_CID_SHUTDOWN, 0,
@@ -1666,17 +1670,14 @@ static struct sctp_cookie_param *sctp_pack_cookie(
 	       ntohs(init_chunk->chunk_hdr->length), raw_addrs, addrs_len);
 
 	if (sctp_sk(ep->base.sk)->hmac) {
-		SHASH_DESC_ON_STACK(desc, sctp_sk(ep->base.sk)->hmac);
+		struct crypto_shash *tfm = sctp_sk(ep->base.sk)->hmac;
 		int err;
 
 		/* Sign the message.  */
-		desc->tfm = sctp_sk(ep->base.sk)->hmac;
-
-		err = crypto_shash_setkey(desc->tfm, ep->secret_key,
+		err = crypto_shash_setkey(tfm, ep->secret_key,
 					  sizeof(ep->secret_key)) ?:
-		      crypto_shash_digest(desc, (u8 *)&cookie->c, bodysize,
-					  cookie->signature);
-		shash_desc_zero(desc);
+		      crypto_shash_tfm_digest(tfm, (u8 *)&cookie->c, bodysize,
+					      cookie->signature);
 		if (err)
 			goto free_cookie;
 	}
@@ -1737,17 +1738,13 @@ struct sctp_association *sctp_unpack_cookie(
 
 	/* Check the signature.  */
 	{
-		SHASH_DESC_ON_STACK(desc, sctp_sk(ep->base.sk)->hmac);
+		struct crypto_shash *tfm = sctp_sk(ep->base.sk)->hmac;
 		int err;
 
-		desc->tfm = sctp_sk(ep->base.sk)->hmac;
-
-		err = crypto_shash_setkey(desc->tfm, ep->secret_key,
+		err = crypto_shash_setkey(tfm, ep->secret_key,
 					  sizeof(ep->secret_key)) ?:
-		      crypto_shash_digest(desc, (u8 *)bear_cookie, bodysize,
-					  digest);
-		shash_desc_zero(desc);
-
+		      crypto_shash_tfm_digest(tfm, (u8 *)bear_cookie, bodysize,
+					      digest);
 		if (err) {
 			*error = -SCTP_IERROR_NOMEM;
 			goto fail;
@@ -2080,7 +2077,7 @@ static enum sctp_ierror sctp_process_unk_param(
 		break;
 	case SCTP_PARAM_ACTION_DISCARD_ERR:
 		retval =  SCTP_IERROR_ERROR;
-		/* Fall through */
+		fallthrough;
 	case SCTP_PARAM_ACTION_SKIP_ERR:
 		/* Make an ERROR chunk, preparing enough room for
 		 * returning multiple unknown parameters.

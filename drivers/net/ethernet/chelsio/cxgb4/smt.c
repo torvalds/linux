@@ -55,7 +55,7 @@ struct smt_data *t4_init_smt(void)
 	for (i = 0; i < s->smt_size; ++i) {
 		s->smtab[i].idx = i;
 		s->smtab[i].state = SMT_STATE_UNUSED;
-		memset(&s->smtab[i].src_mac, 0, ETH_ALEN);
+		eth_zero_addr(s->smtab[i].src_mac);
 		spin_lock_init(&s->smtab[i].lock);
 		s->smtab[i].refcnt = 0;
 	}
@@ -103,6 +103,7 @@ static void t4_smte_free(struct smt_entry *e)
 }
 
 /**
+ * cxgb4_smt_release - Release SMT entry
  * @e: smt entry to release
  *
  * Releases ref count and frees up an smt entry from SMT table
@@ -231,6 +232,7 @@ static struct smt_entry *t4_smt_alloc_switching(struct adapter *adap, u16 pfvf,
 }
 
 /**
+ * cxgb4_smt_alloc_switching - Allocates an SMT entry for switch filters.
  * @dev: net_device pointer
  * @smac: MAC address to add to SMT
  * Returns pointer to the SMT entry created

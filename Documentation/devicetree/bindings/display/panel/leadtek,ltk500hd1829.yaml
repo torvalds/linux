@@ -19,9 +19,9 @@ properties:
   backlight: true
   reset-gpios: true
   iovcc-supply:
-     description: regulator that supplies the iovcc voltage
+    description: regulator that supplies the iovcc voltage
   vcc-supply:
-     description: regulator that supplies the vcc voltage
+    description: regulator that supplies the vcc voltage
 
 required:
   - compatible
@@ -34,10 +34,9 @@ additionalProperties: false
 
 examples:
   - |
-    dsi@ff450000 {
+    dsi {
         #address-cells = <1>;
         #size-cells = <0>;
-        reg = <0xff450000 0x1000>;
 
         panel@0 {
             compatible = "leadtek,ltk500hd1829";

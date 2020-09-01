@@ -39,7 +39,7 @@ struct intel_guc {
 		void (*disable)(struct intel_guc *guc);
 	} interrupts;
 
-	bool submission_supported;
+	bool submission_selected;
 
 	struct i915_vma *ads_vma;
 	struct __guc_ads_blob *ads_blob;
@@ -73,6 +73,11 @@ struct intel_guc {
 	/* To serialize the intel_guc_send actions */
 	struct mutex send_mutex;
 };
+
+static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
+{
+	return container_of(log, struct intel_guc, log);
+}
 
 static
 inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
@@ -143,27 +148,34 @@ static inline bool intel_guc_is_supported(struct intel_guc *guc)
 	return intel_uc_fw_is_supported(&guc->fw);
 }
 
-static inline bool intel_guc_is_enabled(struct intel_guc *guc)
+static inline bool intel_guc_is_wanted(struct intel_guc *guc)
 {
 	return intel_uc_fw_is_enabled(&guc->fw);
 }
 
-static inline bool intel_guc_is_running(struct intel_guc *guc)
+static inline bool intel_guc_is_used(struct intel_guc *guc)
+{
+	GEM_BUG_ON(__intel_uc_fw_status(&guc->fw) == INTEL_UC_FIRMWARE_SELECTED);
+	return intel_uc_fw_is_available(&guc->fw);
+}
+
+static inline bool intel_guc_is_fw_running(struct intel_guc *guc)
 {
 	return intel_uc_fw_is_running(&guc->fw);
+}
+
+static inline bool intel_guc_is_ready(struct intel_guc *guc)
+{
+	return intel_guc_is_fw_running(guc) && intel_guc_ct_enabled(&guc->ct);
 }
 
 static inline int intel_guc_sanitize(struct intel_guc *guc)
 {
 	intel_uc_fw_sanitize(&guc->fw);
+	intel_guc_ct_sanitize(&guc->ct);
 	guc->mmio_msg = 0;
 
 	return 0;
-}
-
-static inline bool intel_guc_is_submission_supported(struct intel_guc *guc)
-{
-	return guc->submission_supported;
 }
 
 static inline void intel_guc_enable_msg(struct intel_guc *guc, u32 mask)
@@ -182,5 +194,7 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 
 int intel_guc_reset_engine(struct intel_guc *guc,
 			   struct intel_engine_cs *engine);
+
+void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
 
 #endif

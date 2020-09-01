@@ -620,7 +620,6 @@ static int isl29028_probe(struct i2c_client *client,
 	indio_dev->channels = isl29028_channels;
 	indio_dev->num_channels = ARRAY_SIZE(isl29028_channels);
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	pm_runtime_enable(&client->dev);

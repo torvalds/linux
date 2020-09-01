@@ -15,6 +15,7 @@
 
 #include <linux/device.h>
 #include <linux/types.h>
+#include <linux/hashtable.h>
 #include <asm/isc.h>
 #include <asm/ap.h>
 
@@ -27,8 +28,8 @@
 
 extern int ap_domain_index;
 
-extern spinlock_t ap_list_lock;
-extern struct list_head ap_card_list;
+extern DECLARE_HASHTABLE(ap_queues, 8);
+extern spinlock_t ap_queues_lock;
 
 static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 {
@@ -82,40 +83,39 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_INTR_ENABLED		1	/* AP interrupt enabled */
 
 /*
- * AP device states
+ * AP queue state machine states
  */
-enum ap_state {
-	AP_STATE_RESET_START,
-	AP_STATE_RESET_WAIT,
-	AP_STATE_SETIRQ_WAIT,
-	AP_STATE_IDLE,
-	AP_STATE_WORKING,
-	AP_STATE_QUEUE_FULL,
-	AP_STATE_SUSPEND_WAIT,
-	AP_STATE_REMOVE,	/* about to be removed from driver */
-	AP_STATE_UNBOUND,	/* momentary not bound to a driver */
-	AP_STATE_BORKED,	/* broken */
-	NR_AP_STATES
+enum ap_sm_state {
+	AP_SM_STATE_RESET_START,
+	AP_SM_STATE_RESET_WAIT,
+	AP_SM_STATE_SETIRQ_WAIT,
+	AP_SM_STATE_IDLE,
+	AP_SM_STATE_WORKING,
+	AP_SM_STATE_QUEUE_FULL,
+	AP_SM_STATE_REMOVE,	/* about to be removed from driver */
+	AP_SM_STATE_UNBOUND,	/* momentary not bound to a driver */
+	AP_SM_STATE_BORKED,	/* broken */
+	NR_AP_SM_STATES
 };
 
 /*
- * AP device events
+ * AP queue state machine events
  */
-enum ap_event {
-	AP_EVENT_POLL,
-	AP_EVENT_TIMEOUT,
-	NR_AP_EVENTS
+enum ap_sm_event {
+	AP_SM_EVENT_POLL,
+	AP_SM_EVENT_TIMEOUT,
+	NR_AP_SM_EVENTS
 };
 
 /*
- * AP wait behaviour
+ * AP queue state wait behaviour
  */
-enum ap_wait {
-	AP_WAIT_AGAIN,		/* retry immediately */
-	AP_WAIT_TIMEOUT,	/* wait for timeout */
-	AP_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
-	AP_WAIT_NONE,		/* no wait */
-	NR_AP_WAIT
+enum ap_sm_wait {
+	AP_SM_WAIT_AGAIN,	/* retry immediately */
+	AP_SM_WAIT_TIMEOUT,	/* wait for timeout */
+	AP_SM_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
+	AP_SM_WAIT_NONE,	/* no wait */
+	NR_AP_SM_WAIT
 };
 
 struct ap_device;
@@ -136,8 +136,6 @@ struct ap_driver {
 
 	int (*probe)(struct ap_device *);
 	void (*remove)(struct ap_device *);
-	void (*suspend)(struct ap_device *);
-	void (*resume)(struct ap_device *);
 };
 
 #define to_ap_drv(x) container_of((x), struct ap_driver, driver)
@@ -155,8 +153,6 @@ struct ap_device {
 
 struct ap_card {
 	struct ap_device ap_dev;
-	struct list_head list;		/* Private list of AP cards. */
-	struct list_head queues;	/* List of assoc. AP queues */
 	void *private;			/* ap driver private pointer. */
 	int raw_hwtype;			/* AP raw hardware type. */
 	unsigned int functions;		/* AP device function bitfield. */
@@ -169,14 +165,14 @@ struct ap_card {
 
 struct ap_queue {
 	struct ap_device ap_dev;
-	struct list_head list;		/* Private list of AP queues. */
+	struct hlist_node hnode;	/* Node for the ap_queues hashtable */
 	struct ap_card *card;		/* Ptr to assoc. AP card. */
 	spinlock_t lock;		/* Per device lock. */
 	void *private;			/* ap driver private pointer. */
 	ap_qid_t qid;			/* AP queue id. */
 	int interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */
-	enum ap_state state;		/* State of the AP device. */
+	enum ap_sm_state sm_state;	/* ap queue state machine state */
 	int pendingq_count;		/* # requests on pendingq list. */
 	int requestq_count;		/* # requests on requestq list. */
 	u64 total_request_count;	/* # requests ever for this AP device.*/
@@ -189,21 +185,22 @@ struct ap_queue {
 
 #define to_ap_queue(x) container_of((x), struct ap_queue, ap_dev.device)
 
-typedef enum ap_wait (ap_func_t)(struct ap_queue *queue);
+typedef enum ap_sm_wait (ap_func_t)(struct ap_queue *queue);
 
 struct ap_message {
 	struct list_head list;		/* Request queueing. */
 	unsigned long long psmid;	/* Message id. */
-	void *message;			/* Pointer to message buffer. */
-	size_t length;			/* Message length. */
+	void *msg;			/* Pointer to message buffer. */
+	unsigned int len;		/* Message length. */
+	u32 flags;			/* Flags, see AP_MSG_FLAG_xxx */
 	int rc;				/* Return code for this message */
-
 	void *private;			/* ap driver private pointer. */
-	unsigned int special:1;		/* Used for special commands. */
 	/* receive is called from tasklet context */
 	void (*receive)(struct ap_queue *, struct ap_message *,
 			struct ap_message *);
 };
+
+#define AP_MSG_FLAG_SPECIAL  (1 << 16)	/* flag msg as 'special' with NQAP */
 
 /**
  * ap_init_message() - Initialize ap_message.
@@ -222,15 +219,9 @@ static inline void ap_init_message(struct ap_message *ap_msg)
  */
 static inline void ap_release_message(struct ap_message *ap_msg)
 {
-	kzfree(ap_msg->message);
-	kzfree(ap_msg->private);
+	kfree_sensitive(ap_msg->msg);
+	kfree_sensitive(ap_msg->private);
 }
-
-#define for_each_ap_card(_ac) \
-	list_for_each_entry(_ac, &ap_card_list, list)
-
-#define for_each_ap_queue(_aq, _ac) \
-	list_for_each_entry(_aq, &(_ac)->queues, list)
 
 /*
  * Note: don't use ap_send/ap_recv after using ap_queue_message
@@ -240,15 +231,15 @@ static inline void ap_release_message(struct ap_message *ap_msg)
 int ap_send(ap_qid_t, unsigned long long, void *, size_t);
 int ap_recv(ap_qid_t, unsigned long long *, void *, size_t);
 
-enum ap_wait ap_sm_event(struct ap_queue *aq, enum ap_event event);
-enum ap_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_event event);
+enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event);
+enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event);
 
 void ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg);
 void ap_cancel_message(struct ap_queue *aq, struct ap_message *ap_msg);
 void ap_flush_queue(struct ap_queue *aq);
 
 void *ap_airq_ptr(void);
-void ap_wait(enum ap_wait wait);
+void ap_wait(enum ap_sm_wait wait);
 void ap_request_timeout(struct timer_list *t);
 void ap_bus_force_rescan(void);
 
@@ -259,8 +250,6 @@ void ap_queue_init_reply(struct ap_queue *aq, struct ap_message *ap_msg);
 struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type);
 void ap_queue_prepare_remove(struct ap_queue *aq);
 void ap_queue_remove(struct ap_queue *aq);
-void ap_queue_suspend(struct ap_device *ap_dev);
-void ap_queue_resume(struct ap_device *ap_dev);
 void ap_queue_init_state(struct ap_queue *aq);
 
 struct ap_card *ap_card_create(int id, int queue_depth, int raw_device_type,
@@ -273,6 +262,16 @@ struct ap_perms {
 };
 extern struct ap_perms ap_perms;
 extern struct mutex ap_perms_mutex;
+
+/*
+ * Get ap_queue device for this qid.
+ * Returns ptr to the struct ap_queue device or NULL if there
+ * was no ap_queue device with this qid found. When something is
+ * found, the reference count of the embedded device is increased.
+ * So the caller has to decrease the reference count after use
+ * with a call to put_device(&aq->ap_dev.device).
+ */
+struct ap_queue *ap_get_qdev(ap_qid_t qid);
 
 /*
  * check APQN for owned/reserved by ap bus and default driver(s).

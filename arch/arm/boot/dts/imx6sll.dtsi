@@ -72,6 +72,8 @@
 				 <&clks IMX6SLL_CLK_PLL1_SYS>;
 			clock-names = "arm", "pll2_pfd2_396m", "step",
 				      "pll1_sw", "pll1_sys";
+			nvmem-cells = <&cpu_speed_grade>;
+			nvmem-cell-names = "speed_grade";
 		};
 	};
 
@@ -103,16 +105,6 @@
 		clock-output-names = "ipp_di1";
 	};
 
-	tempmon: temperature-sensor {
-		compatible = "fsl,imx6sll-tempmon", "fsl,imx6sx-tempmon";
-		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-parent = <&gpc>;
-		fsl,tempmon = <&anatop>;
-		nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
-		nvmem-cell-names = "calib", "temp_grade";
-		clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
-	};
-
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -134,7 +126,7 @@
 			interrupt-parent = <&intc>;
 		};
 
-		L2: l2-cache@a02000 {
+		L2: cache-controller@a02000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x00a02000 0x1000>;
 			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
@@ -144,7 +136,7 @@
 			arm,data-latency = <4 2 3>;
 		};
 
-		aips1: aips-bus@2000000 {
+		aips1: bus@2000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -269,7 +261,7 @@
 					status = "disabled";
 				};
 
-				ssi1: ssi-controller@2028000 {
+				ssi1: ssi@2028000 {
 					compatible = "fsl,imx6sl-ssi", "fsl,imx51-ssi";
 					reg = <0x02028000 0x4000>;
 					interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
@@ -282,7 +274,7 @@
 					status = "disabled";
 				};
 
-				ssi2: ssi-controller@202c000 {
+				ssi2: ssi@202c000 {
 					compatible = "fsl,imx6sl-ssi", "fsl,imx51-ssi";
 					reg = <0x0202c000 0x4000>;
 					interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
@@ -295,7 +287,7 @@
 					status = "disabled";
 				};
 
-				ssi3: ssi-controller@2030000 {
+				ssi3: ssi@2030000 {
 					compatible = "fsl,imx6sl-ssi", "fsl,imx51-ssi";
 					reg = <0x02030000 0x4000>;
 					interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
@@ -329,7 +321,7 @@
 				clocks = <&clks IMX6SLL_CLK_PWM1>,
 					 <&clks IMX6SLL_CLK_PWM1>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm2: pwm@2084000 {
@@ -339,7 +331,7 @@
 				clocks = <&clks IMX6SLL_CLK_PWM2>,
 					 <&clks IMX6SLL_CLK_PWM2>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm3: pwm@2088000 {
@@ -349,7 +341,7 @@
 				clocks = <&clks IMX6SLL_CLK_PWM3>,
 					 <&clks IMX6SLL_CLK_PWM3>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm4: pwm@208c000 {
@@ -359,7 +351,7 @@
 				clocks = <&clks IMX6SLL_CLK_PWM4>,
 					 <&clks IMX6SLL_CLK_PWM4>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			gpt1: timer@2098000 {
@@ -529,6 +521,16 @@
 					anatop-max-voltage = <3400000>;
 					anatop-enable-bit = <0>;
 				};
+
+				tempmon: temperature-sensor {
+					compatible = "fsl,imx6sll-tempmon", "fsl,imx6sx-tempmon";
+					interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-parent = <&gpc>;
+					fsl,tempmon = <&anatop>;
+					nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+					nvmem-cell-names = "calib", "temp_grade";
+					clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
+				};
 			};
 
 			usbphy1: usb-phy@20c9000 {
@@ -652,7 +654,7 @@
 				status = "disabled";
 			};
 
-			dcp: dcp@20fc000 {
+			dcp: crypto@20fc000 {
 				compatible = "fsl,imx28-dcp";
 				reg = <0x020fc000 0x4000>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
@@ -663,7 +665,7 @@
 			};
 		};
 
-		aips2: aips-bus@2100000 {
+		aips2: bus@2100000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -784,12 +786,16 @@
 				clocks = <&clks IMX6SLL_CLK_MMDC_P0_IPG>;
 			};
 
-			ocotp: ocotp-ctrl@21bc000 {
+			ocotp: efuse@21bc000 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 				compatible = "fsl,imx6sll-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 				clocks = <&clks IMX6SLL_CLK_OCOTP>;
+
+				cpu_speed_grade: speed-grade@10 {
+					reg = <0x10 4>;
+				};
 
 				tempmon_calib: calib@38 {
 					reg = <0x38 4>;

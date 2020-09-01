@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Politecnico di Torino, Italy
- *                    TORSEC group -- http://security.polito.it
+ *                    TORSEC group -- https://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
  *
  * File: ima_template_lib.c
  *      Library of supported template fields.
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "ima_template_lib.h"
 
@@ -79,7 +77,7 @@ static void ima_show_template_data_ascii(struct seq_file *m,
 		/* skip ':' and '\0' */
 		buf_ptr += 2;
 		buflen -= buf_ptr - field_data->data;
-		/* fall through */
+		fallthrough;
 	case DATA_FMT_DIGEST:
 	case DATA_FMT_HEX:
 		if (!buflen)
@@ -285,6 +283,24 @@ int ima_eventdigest_init(struct ima_event_data *event_data,
 	if (ima_template_hash_algo_allowed(event_data->iint->ima_hash->algo)) {
 		cur_digest = event_data->iint->ima_hash->digest;
 		cur_digestsize = event_data->iint->ima_hash->length;
+		goto out;
+	}
+
+	if ((const char *)event_data->filename == boot_aggregate_name) {
+		if (ima_tpm_chip) {
+			hash.hdr.algo = HASH_ALGO_SHA1;
+			result = ima_calc_boot_aggregate(&hash.hdr);
+
+			/* algo can change depending on available PCR banks */
+			if (!result && hash.hdr.algo != HASH_ALGO_SHA1)
+				result = -EINVAL;
+
+			if (result < 0)
+				memset(&hash, 0, sizeof(hash));
+		}
+
+		cur_digest = hash.hdr.digest;
+		cur_digestsize = hash_digest_size[HASH_ALGO_SHA1];
 		goto out;
 	}
 

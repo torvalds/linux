@@ -74,26 +74,35 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 	struct idxd_device *idxd;
 	struct idxd_wq *wq;
 	struct device *dev;
-	struct idxd_cdev *idxd_cdev;
+	int rc = 0;
 
 	wq = inode_wq(inode);
 	idxd = wq->idxd;
 	dev = &idxd->pdev->dev;
-	idxd_cdev = &wq->idxd_cdev;
 
-	dev_dbg(dev, "%s called\n", __func__);
-
-	if (idxd_wq_refcount(wq) > 1 && wq_dedicated(wq))
-		return -EBUSY;
+	dev_dbg(dev, "%s called: %d\n", __func__, idxd_wq_refcount(wq));
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
+	mutex_lock(&wq->wq_lock);
+
+	if (idxd_wq_refcount(wq) > 0 && wq_dedicated(wq)) {
+		rc = -EBUSY;
+		goto failed;
+	}
+
 	ctx->wq = wq;
 	filp->private_data = ctx;
 	idxd_wq_get(wq);
+	mutex_unlock(&wq->wq_lock);
 	return 0;
+
+ failed:
+	mutex_unlock(&wq->wq_lock);
+	kfree(ctx);
+	return rc;
 }
 
 static int idxd_cdev_release(struct inode *node, struct file *filep)
@@ -106,8 +115,13 @@ static int idxd_cdev_release(struct inode *node, struct file *filep)
 	dev_dbg(dev, "%s called\n", __func__);
 	filep->private_data = NULL;
 
+	/* Wait for in-flight operations to complete. */
+	idxd_wq_drain(wq);
+
 	kfree(ctx);
+	mutex_lock(&wq->wq_lock);
 	idxd_wq_put(wq);
+	mutex_unlock(&wq->wq_lock);
 	return 0;
 }
 
@@ -139,6 +153,8 @@ static int idxd_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	dev_dbg(&pdev->dev, "%s called\n", __func__);
 	rc = check_vma(wq, vma, __func__);
+	if (rc < 0)
+		return rc;
 
 	vma->vm_flags |= VM_DONTCOPY;
 	pfn = (base + idxd_get_wq_portal_full_offset(wq->id,

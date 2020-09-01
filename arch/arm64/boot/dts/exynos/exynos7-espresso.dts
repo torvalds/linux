@@ -157,6 +157,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1150000>;
 				regulator-enable-ramp-delay = <125>;
+				regulator-always-on;
 			};
 
 			ldo8_reg: LDO8 {
@@ -193,6 +194,7 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-enable-ramp-delay = <125>;
+				regulator-always-on;
 			};
 
 			ldo13_reg: LDO13 {
@@ -404,6 +406,10 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
+};
+
+&ufs {
+	status = "okay";
 };
 
 &usbdrd_phy {

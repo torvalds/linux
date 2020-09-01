@@ -102,8 +102,7 @@ properties:
 
   gpio@42:
     type: object
-    allOf:
-      - $ref: ../gpio/qcom,wcd934x-gpio.yaml#
+    $ref: ../gpio/qcom,wcd934x-gpio.yaml#
 
 patternProperties:
   "^.*@[0-9a-f]+$":
@@ -138,6 +137,8 @@ required:
   - "#sound-dai-cells"
   - "#address-cells"
   - "#size-cells"
+
+additionalProperties: false
 
 examples:
   - |

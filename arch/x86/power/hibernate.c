@@ -12,6 +12,7 @@
 #include <linux/scatterlist.h>
 #include <linux/kdebug.h>
 #include <linux/cpu.h>
+#include <linux/pgtable.h>
 
 #include <crypto/hash.h>
 
@@ -19,7 +20,6 @@
 #include <asm/init.h>
 #include <asm/proto.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mtrr.h>
 #include <asm/sections.h>
 #include <asm/suspend.h>
@@ -98,7 +98,7 @@ static int get_e820_md5(struct e820_table *table, void *buf)
 	if (crypto_shash_digest(desc, (u8 *)table, size, buf))
 		ret = -EINVAL;
 
-	kzfree(desc);
+	kfree_sensitive(desc);
 
 free_tfm:
 	crypto_free_shash(tfm);

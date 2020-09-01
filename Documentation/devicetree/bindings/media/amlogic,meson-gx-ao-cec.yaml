@@ -24,13 +24,18 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    maxItems: 1
+
   interrupts:
     maxItems: 1
 
   hdmi-phandle:
     description: phandle to the HDMI controller
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:
   - if:
@@ -47,7 +52,6 @@ allOf:
             - description: AO-CEC clock
 
         clock-names:
-          maxItems: 1
           items:
             - const: core
 
@@ -66,7 +70,6 @@ allOf:
             - description: AO-CEC clock generator source
 
         clock-names:
-          maxItems: 1
           items:
             - const: oscin
 
@@ -78,14 +81,15 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 examples:
   - |
     cec_AO: cec@100 {
         compatible = "amlogic,meson-gx-ao-cec";
-        reg = <0x0 0x00100 0x0 0x14>;
+        reg = <0x00100 0x14>;
         interrupts = <199>;
         clocks = <&clkc_cec>;
         clock-names = "core";
         hdmi-phandle = <&hdmi_tx>;
     };
-

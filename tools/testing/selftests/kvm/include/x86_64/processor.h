@@ -79,13 +79,16 @@ static inline uint64_t get_desc64_base(const struct desc64 *desc)
 static inline uint64_t rdtsc(void)
 {
 	uint32_t eax, edx;
-
+	uint64_t tsc_val;
 	/*
 	 * The lfence is to wait (on Intel CPUs) until all previous
-	 * instructions have been executed.
+	 * instructions have been executed. If software requires RDTSC to be
+	 * executed prior to execution of any subsequent instruction, it can
+	 * execute LFENCE immediately after RDTSC
 	 */
-	__asm__ __volatile__("lfence; rdtsc" : "=a"(eax), "=d"(edx));
-	return ((uint64_t)edx) << 32 | eax;
+	__asm__ __volatile__("lfence; rdtsc; lfence" : "=a"(eax), "=d"(edx));
+	tsc_val = ((uint64_t)edx) << 32 | eax;
+	return tsc_val;
 }
 
 static inline uint64_t rdtscp(uint32_t *aux)

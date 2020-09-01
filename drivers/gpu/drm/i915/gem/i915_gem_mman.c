@@ -93,7 +93,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		struct mm_struct *mm = current->mm;
 		struct vm_area_struct *vma;
 
-		if (down_write_killable(&mm->mmap_sem)) {
+		if (mmap_write_lock_killable(mm)) {
 			addr = -EINTR;
 			goto err;
 		}
@@ -103,7 +103,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 				pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 		else
 			addr = -ENOMEM;
-		up_write(&mm->mmap_sem);
+		mmap_write_unlock(mm);
 		if (IS_ERR_VALUE(addr))
 			goto err;
 	}
@@ -209,19 +209,19 @@ static vm_fault_t i915_error_to_vmf_fault(int err)
 	switch (err) {
 	default:
 		WARN_ONCE(err, "unhandled error in %s: %i\n", __func__, err);
-		/* fallthrough */
+		fallthrough;
 	case -EIO: /* shmemfs failure from swap device */
 	case -EFAULT: /* purged object */
 	case -ENODEV: /* bad object, how did you get here! */
 	case -ENXIO: /* unable to access backing store (on device) */
 		return VM_FAULT_SIGBUS;
 
-	case -ENOSPC: /* shmemfs allocation failure */
 	case -ENOMEM: /* our allocation failure */
 		return VM_FAULT_OOM;
 
 	case 0:
 	case -EAGAIN:
+	case -ENOSPC: /* transient failure to evict? */
 	case -ERESTARTSYS:
 	case -EINTR:
 	case -EBUSY:
@@ -396,6 +396,38 @@ err:
 	return i915_error_to_vmf_fault(ret);
 }
 
+static int
+vm_access(struct vm_area_struct *area, unsigned long addr,
+	  void *buf, int len, int write)
+{
+	struct i915_mmap_offset *mmo = area->vm_private_data;
+	struct drm_i915_gem_object *obj = mmo->obj;
+	void *vaddr;
+
+	if (i915_gem_object_is_readonly(obj) && write)
+		return -EACCES;
+
+	addr -= area->vm_start;
+	if (addr >= obj->base.size)
+		return -EINVAL;
+
+	/* As this is primarily for debugging, let's focus on simplicity */
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_FORCE_WC);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
+
+	if (write) {
+		memcpy(vaddr + addr, buf, len);
+		__i915_gem_object_flush_map(obj, addr, len);
+	} else {
+		memcpy(buf, vaddr + addr, len);
+	}
+
+	i915_gem_object_unpin_map(obj);
+
+	return len;
+}
+
 void __i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
@@ -416,7 +448,7 @@ void __i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
  * mapping will then trigger a page fault on the next user access, allowing
  * fixup by vm_fault_gtt().
  */
-static void i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
+void i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	intel_wakeref_t wakeref;
@@ -473,19 +505,6 @@ void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 		spin_lock(&obj->mmo.lock);
 	}
 	spin_unlock(&obj->mmo.lock);
-}
-
-/**
- * i915_gem_object_release_mmap - remove physical page mappings
- * @obj: obj in question
- *
- * Preserve the reservation of the mmapping with the DRM core code, but
- * relinquish ownership of the pages back to the system.
- */
-void i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
-{
-	i915_gem_object_release_mmap_gtt(obj);
-	i915_gem_object_release_mmap_offset(obj);
 }
 
 static struct i915_mmap_offset *
@@ -613,8 +632,7 @@ __assign_mmap_offset(struct drm_file *file,
 	if (!obj)
 		return -ENOENT;
 
-	if (mmap_type == I915_MMAP_TYPE_GTT &&
-	    i915_gem_object_never_bind_ggtt(obj)) {
+	if (i915_gem_object_never_mmap(obj)) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -746,12 +764,14 @@ static void vm_close(struct vm_area_struct *vma)
 
 static const struct vm_operations_struct vm_ops_gtt = {
 	.fault = vm_fault_gtt,
+	.access = vm_access,
 	.open = vm_open,
 	.close = vm_close,
 };
 
 static const struct vm_operations_struct vm_ops_cpu = {
 	.fault = vm_fault_cpu,
+	.access = vm_access,
 	.open = vm_open,
 	.close = vm_close,
 };
@@ -776,7 +796,7 @@ static struct file *mmap_singleton(struct drm_i915_private *i915)
 	struct file *file;
 
 	rcu_read_lock();
-	file = i915->gem.mmap_singleton;
+	file = READ_ONCE(i915->gem.mmap_singleton);
 	if (file && !get_file_rcu(file))
 		file = NULL;
 	rcu_read_unlock();

@@ -21,93 +21,91 @@
  *
  */
 
+#define SWSMU_CODE_LAYER_L2
+
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
-#include "smu_internal.h"
-#include "soc15_common.h"
 #include "smu_v12_0_ppsmc.h"
 #include "smu12_driver_if.h"
 #include "smu_v12_0.h"
 #include "renoir_ppt.h"
+#include "smu_cmn.h"
 
+/*
+ * DO NOT use these for err/warn/info/debug messages.
+ * Use dev_err, dev_warn, dev_info and dev_dbg instead.
+ * They are more MGPU friendly.
+ */
+#undef pr_err
+#undef pr_warn
+#undef pr_info
+#undef pr_debug
 
-#define CLK_MAP(clk, index) \
-	[SMU_##clk] = {1, (index)}
-
-#define MSG_MAP(msg, index) \
-	[SMU_MSG_##msg] = {1, (index)}
-
-#define TAB_MAP_VALID(tab) \
-	[SMU_TABLE_##tab] = {1, TABLE_##tab}
-
-#define TAB_MAP_INVALID(tab) \
-	[SMU_TABLE_##tab] = {0, TABLE_##tab}
-
-static struct smu_12_0_cmn2aisc_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = {
-	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage),
-	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion),
-	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion),
-	MSG_MAP(PowerUpGfx,                     PPSMC_MSG_PowerUpGfx),
-	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_EnableGfxOff),
-	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisableGfxOff),
-	MSG_MAP(PowerDownIspByTile,             PPSMC_MSG_PowerDownIspByTile),
-	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile),
-	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn),
-	MSG_MAP(PowerUpVcn,                     PPSMC_MSG_PowerUpVcn),
-	MSG_MAP(PowerDownSdma,                  PPSMC_MSG_PowerDownSdma),
-	MSG_MAP(PowerUpSdma,                    PPSMC_MSG_PowerUpSdma),
-	MSG_MAP(SetHardMinIspclkByFreq,         PPSMC_MSG_SetHardMinIspclkByFreq),
-	MSG_MAP(SetHardMinVcn,                  PPSMC_MSG_SetHardMinVcn),
-	MSG_MAP(Spare1,                         PPSMC_MSG_spare1),
-	MSG_MAP(Spare2,                         PPSMC_MSG_spare2),
-	MSG_MAP(SetAllowFclkSwitch,             PPSMC_MSG_SetAllowFclkSwitch),
-	MSG_MAP(SetMinVideoGfxclkFreq,          PPSMC_MSG_SetMinVideoGfxclkFreq),
-	MSG_MAP(ActiveProcessNotify,            PPSMC_MSG_ActiveProcessNotify),
-	MSG_MAP(SetCustomPolicy,                PPSMC_MSG_SetCustomPolicy),
-	MSG_MAP(SetVideoFps,                    PPSMC_MSG_SetVideoFps),
-	MSG_MAP(NumOfDisplays,                  PPSMC_MSG_SetDisplayCount),
-	MSG_MAP(QueryPowerLimit,                PPSMC_MSG_QueryPowerLimit),
-	MSG_MAP(SetDriverDramAddrHigh,          PPSMC_MSG_SetDriverDramAddrHigh),
-	MSG_MAP(SetDriverDramAddrLow,           PPSMC_MSG_SetDriverDramAddrLow),
-	MSG_MAP(TransferTableSmu2Dram,          PPSMC_MSG_TransferTableSmu2Dram),
-	MSG_MAP(TransferTableDram2Smu,          PPSMC_MSG_TransferTableDram2Smu),
-	MSG_MAP(GfxDeviceDriverReset,           PPSMC_MSG_GfxDeviceDriverReset),
-	MSG_MAP(SetGfxclkOverdriveByFreqVid,    PPSMC_MSG_SetGfxclkOverdriveByFreqVid),
-	MSG_MAP(SetHardMinDcfclkByFreq,         PPSMC_MSG_SetHardMinDcfclkByFreq),
-	MSG_MAP(SetHardMinSocclkByFreq,         PPSMC_MSG_SetHardMinSocclkByFreq),
-	MSG_MAP(ControlIgpuATS,                 PPSMC_MSG_ControlIgpuATS),
-	MSG_MAP(SetMinVideoFclkFreq,            PPSMC_MSG_SetMinVideoFclkFreq),
-	MSG_MAP(SetMinDeepSleepDcfclk,          PPSMC_MSG_SetMinDeepSleepDcfclk),
-	MSG_MAP(ForcePowerDownGfx,              PPSMC_MSG_ForcePowerDownGfx),
-	MSG_MAP(SetPhyclkVoltageByFreq,         PPSMC_MSG_SetPhyclkVoltageByFreq),
-	MSG_MAP(SetDppclkVoltageByFreq,         PPSMC_MSG_SetDppclkVoltageByFreq),
-	MSG_MAP(SetSoftMinVcn,                  PPSMC_MSG_SetSoftMinVcn),
-	MSG_MAP(EnablePostCode,                 PPSMC_MSG_EnablePostCode),
-	MSG_MAP(GetGfxclkFrequency,             PPSMC_MSG_GetGfxclkFrequency),
-	MSG_MAP(GetFclkFrequency,               PPSMC_MSG_GetFclkFrequency),
-	MSG_MAP(GetMinGfxclkFrequency,          PPSMC_MSG_GetMinGfxclkFrequency),
-	MSG_MAP(GetMaxGfxclkFrequency,          PPSMC_MSG_GetMaxGfxclkFrequency),
-	MSG_MAP(SoftReset,                      PPSMC_MSG_SoftReset),
-	MSG_MAP(SetGfxCGPG,                     PPSMC_MSG_SetGfxCGPG),
-	MSG_MAP(SetSoftMaxGfxClk,               PPSMC_MSG_SetSoftMaxGfxClk),
-	MSG_MAP(SetHardMinGfxClk,               PPSMC_MSG_SetHardMinGfxClk),
-	MSG_MAP(SetSoftMaxSocclkByFreq,         PPSMC_MSG_SetSoftMaxSocclkByFreq),
-	MSG_MAP(SetSoftMaxFclkByFreq,           PPSMC_MSG_SetSoftMaxFclkByFreq),
-	MSG_MAP(SetSoftMaxVcn,                  PPSMC_MSG_SetSoftMaxVcn),
-	MSG_MAP(PowerGateMmHub,                 PPSMC_MSG_PowerGateMmHub),
-	MSG_MAP(UpdatePmeRestore,               PPSMC_MSG_UpdatePmeRestore),
-	MSG_MAP(GpuChangeState,                 PPSMC_MSG_GpuChangeState),
-	MSG_MAP(SetPowerLimitPercentage,        PPSMC_MSG_SetPowerLimitPercentage),
-	MSG_MAP(ForceGfxContentSave,            PPSMC_MSG_ForceGfxContentSave),
-	MSG_MAP(EnableTmdp48MHzRefclkPwrDown,   PPSMC_MSG_EnableTmdp48MHzRefclkPwrDown),
-	MSG_MAP(PowerDownJpeg,                  PPSMC_MSG_PowerDownJpeg),
-	MSG_MAP(PowerUpJpeg,                    PPSMC_MSG_PowerUpJpeg),
-	MSG_MAP(PowerGateAtHub,                 PPSMC_MSG_PowerGateAtHub),
-	MSG_MAP(SetSoftMinJpeg,                 PPSMC_MSG_SetSoftMinJpeg),
-	MSG_MAP(SetHardMinFclkByFreq,           PPSMC_MSG_SetHardMinFclkByFreq),
+static struct cmn2asic_msg_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = {
+	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,                  1),
+	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,                1),
+	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion,           1),
+	MSG_MAP(PowerUpGfx,                     PPSMC_MSG_PowerUpGfx,                   1),
+	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_EnableGfxOff,                 1),
+	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisableGfxOff,                1),
+	MSG_MAP(PowerDownIspByTile,             PPSMC_MSG_PowerDownIspByTile,           1),
+	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile,             1),
+	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn,                 1),
+	MSG_MAP(PowerUpVcn,                     PPSMC_MSG_PowerUpVcn,                   1),
+	MSG_MAP(PowerDownSdma,                  PPSMC_MSG_PowerDownSdma,                1),
+	MSG_MAP(PowerUpSdma,                    PPSMC_MSG_PowerUpSdma,                  1),
+	MSG_MAP(SetHardMinIspclkByFreq,         PPSMC_MSG_SetHardMinIspclkByFreq,       1),
+	MSG_MAP(SetHardMinVcn,                  PPSMC_MSG_SetHardMinVcn,                1),
+	MSG_MAP(Spare1,                         PPSMC_MSG_spare1,                       1),
+	MSG_MAP(Spare2,                         PPSMC_MSG_spare2,                       1),
+	MSG_MAP(SetAllowFclkSwitch,             PPSMC_MSG_SetAllowFclkSwitch,           1),
+	MSG_MAP(SetMinVideoGfxclkFreq,          PPSMC_MSG_SetMinVideoGfxclkFreq,        1),
+	MSG_MAP(ActiveProcessNotify,            PPSMC_MSG_ActiveProcessNotify,          1),
+	MSG_MAP(SetCustomPolicy,                PPSMC_MSG_SetCustomPolicy,              1),
+	MSG_MAP(SetVideoFps,                    PPSMC_MSG_SetVideoFps,                  1),
+	MSG_MAP(NumOfDisplays,                  PPSMC_MSG_SetDisplayCount,              1),
+	MSG_MAP(QueryPowerLimit,                PPSMC_MSG_QueryPowerLimit,              1),
+	MSG_MAP(SetDriverDramAddrHigh,          PPSMC_MSG_SetDriverDramAddrHigh,        1),
+	MSG_MAP(SetDriverDramAddrLow,           PPSMC_MSG_SetDriverDramAddrLow,         1),
+	MSG_MAP(TransferTableSmu2Dram,          PPSMC_MSG_TransferTableSmu2Dram,        1),
+	MSG_MAP(TransferTableDram2Smu,          PPSMC_MSG_TransferTableDram2Smu,        1),
+	MSG_MAP(GfxDeviceDriverReset,           PPSMC_MSG_GfxDeviceDriverReset,         1),
+	MSG_MAP(SetGfxclkOverdriveByFreqVid,    PPSMC_MSG_SetGfxclkOverdriveByFreqVid,  1),
+	MSG_MAP(SetHardMinDcfclkByFreq,         PPSMC_MSG_SetHardMinDcfclkByFreq,       1),
+	MSG_MAP(SetHardMinSocclkByFreq,         PPSMC_MSG_SetHardMinSocclkByFreq,       1),
+	MSG_MAP(ControlIgpuATS,                 PPSMC_MSG_ControlIgpuATS,               1),
+	MSG_MAP(SetMinVideoFclkFreq,            PPSMC_MSG_SetMinVideoFclkFreq,          1),
+	MSG_MAP(SetMinDeepSleepDcfclk,          PPSMC_MSG_SetMinDeepSleepDcfclk,        1),
+	MSG_MAP(ForcePowerDownGfx,              PPSMC_MSG_ForcePowerDownGfx,            1),
+	MSG_MAP(SetPhyclkVoltageByFreq,         PPSMC_MSG_SetPhyclkVoltageByFreq,       1),
+	MSG_MAP(SetDppclkVoltageByFreq,         PPSMC_MSG_SetDppclkVoltageByFreq,       1),
+	MSG_MAP(SetSoftMinVcn,                  PPSMC_MSG_SetSoftMinVcn,                1),
+	MSG_MAP(EnablePostCode,                 PPSMC_MSG_EnablePostCode,               1),
+	MSG_MAP(GetGfxclkFrequency,             PPSMC_MSG_GetGfxclkFrequency,           1),
+	MSG_MAP(GetFclkFrequency,               PPSMC_MSG_GetFclkFrequency,             1),
+	MSG_MAP(GetMinGfxclkFrequency,          PPSMC_MSG_GetMinGfxclkFrequency,        1),
+	MSG_MAP(GetMaxGfxclkFrequency,          PPSMC_MSG_GetMaxGfxclkFrequency,        1),
+	MSG_MAP(SoftReset,                      PPSMC_MSG_SoftReset,                    1),
+	MSG_MAP(SetGfxCGPG,                     PPSMC_MSG_SetGfxCGPG,                   1),
+	MSG_MAP(SetSoftMaxGfxClk,               PPSMC_MSG_SetSoftMaxGfxClk,             1),
+	MSG_MAP(SetHardMinGfxClk,               PPSMC_MSG_SetHardMinGfxClk,             1),
+	MSG_MAP(SetSoftMaxSocclkByFreq,         PPSMC_MSG_SetSoftMaxSocclkByFreq,       1),
+	MSG_MAP(SetSoftMaxFclkByFreq,           PPSMC_MSG_SetSoftMaxFclkByFreq,         1),
+	MSG_MAP(SetSoftMaxVcn,                  PPSMC_MSG_SetSoftMaxVcn,                1),
+	MSG_MAP(PowerGateMmHub,                 PPSMC_MSG_PowerGateMmHub,               1),
+	MSG_MAP(UpdatePmeRestore,               PPSMC_MSG_UpdatePmeRestore,             1),
+	MSG_MAP(GpuChangeState,                 PPSMC_MSG_GpuChangeState,               1),
+	MSG_MAP(SetPowerLimitPercentage,        PPSMC_MSG_SetPowerLimitPercentage,      1),
+	MSG_MAP(ForceGfxContentSave,            PPSMC_MSG_ForceGfxContentSave,          1),
+	MSG_MAP(EnableTmdp48MHzRefclkPwrDown,   PPSMC_MSG_EnableTmdp48MHzRefclkPwrDown, 1),
+	MSG_MAP(PowerDownJpeg,                  PPSMC_MSG_PowerDownJpeg,                1),
+	MSG_MAP(PowerUpJpeg,                    PPSMC_MSG_PowerUpJpeg,                  1),
+	MSG_MAP(PowerGateAtHub,                 PPSMC_MSG_PowerGateAtHub,               1),
+	MSG_MAP(SetSoftMinJpeg,                 PPSMC_MSG_SetSoftMinJpeg,               1),
+	MSG_MAP(SetHardMinFclkByFreq,           PPSMC_MSG_SetHardMinFclkByFreq,         1),
 };
 
-static struct smu_12_0_cmn2aisc_mapping renoir_clk_map[SMU_CLK_COUNT] = {
+static struct cmn2asic_mapping renoir_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(GFXCLK, CLOCK_GFXCLK),
 	CLK_MAP(SCLK,	CLOCK_GFXCLK),
 	CLK_MAP(SOCCLK, CLOCK_SOCCLK),
@@ -115,55 +113,20 @@ static struct smu_12_0_cmn2aisc_mapping renoir_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(MCLK, CLOCK_FCLK),
 };
 
-static struct smu_12_0_cmn2aisc_mapping renoir_table_map[SMU_TABLE_COUNT] = {
+static struct cmn2asic_mapping renoir_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP_VALID(WATERMARKS),
 	TAB_MAP_INVALID(CUSTOM_DPM),
 	TAB_MAP_VALID(DPMCLOCKS),
 	TAB_MAP_VALID(SMU_METRICS),
 };
 
-static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
-{
-	struct smu_12_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_MSG_MAX_COUNT)
-		return -EINVAL;
-
-	mapping = renoir_message_map[index];
-	if (!(mapping.valid_mapping))
-		return -EINVAL;
-
-	return mapping.map_to;
-}
-
-static int renoir_get_smu_clk_index(struct smu_context *smc, uint32_t index)
-{
-	struct smu_12_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_CLK_COUNT)
-		return -EINVAL;
-
-	mapping = renoir_clk_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-}
-
-static int renoir_get_smu_table_index(struct smu_context *smc, uint32_t index)
-{
-	struct smu_12_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_TABLE_COUNT)
-		return -EINVAL;
-
-	mapping = renoir_table_map[index];
-	if (!(mapping.valid_mapping))
-		return -EINVAL;
-
-	return mapping.map_to;
-}
+static struct cmn2asic_mapping renoir_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+};
 
 static int renoir_get_metrics_table(struct smu_context *smu,
 				    SmuMetrics_t *metrics_table)
@@ -173,10 +136,10 @@ static int renoir_get_metrics_table(struct smu_context *smu,
 
 	mutex_lock(&smu->metrics_lock);
 	if (!smu_table->metrics_time || time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(100))) {
-		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
+		ret = smu_cmn_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
 				(void *)smu_table->metrics_table, false);
 		if (ret) {
-			pr_info("Failed to export SMU metrics table!\n");
+			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
 			mutex_unlock(&smu->metrics_lock);
 			return ret;
 		}
@@ -189,9 +152,10 @@ static int renoir_get_metrics_table(struct smu_context *smu,
 	return ret;
 }
 
-static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
+static int renoir_init_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -228,9 +192,163 @@ static int renoir_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type
 	if (!clk_table || clk_type >= SMU_CLK_COUNT)
 		return -EINVAL;
 
-	GET_DPM_CUR_FREQ(clk_table, clk_type, dpm_level, *freq);
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		if (dpm_level >= NUM_SOCCLK_DPM_LEVELS)
+			return -EINVAL;
+		*freq = clk_table->SocClocks[dpm_level].Freq;
+		break;
+	case SMU_MCLK:
+		if (dpm_level >= NUM_FCLK_DPM_LEVELS)
+			return -EINVAL;
+		*freq = clk_table->FClocks[dpm_level].Freq;
+		break;
+	case SMU_DCEFCLK:
+		if (dpm_level >= NUM_DCFCLK_DPM_LEVELS)
+			return -EINVAL;
+		*freq = clk_table->DcfClocks[dpm_level].Freq;
+		break;
+	case SMU_FCLK:
+		if (dpm_level >= NUM_FCLK_DPM_LEVELS)
+			return -EINVAL;
+		*freq = clk_table->FClocks[dpm_level].Freq;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
+}
+
+static int renoir_get_profiling_clk_mask(struct smu_context *smu,
+					 enum amd_dpm_forced_level level,
+					 uint32_t *sclk_mask,
+					 uint32_t *mclk_mask,
+					 uint32_t *soc_mask)
+{
+
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
+		if (sclk_mask)
+			*sclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+		if (mclk_mask)
+			*mclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+		if(sclk_mask)
+			/* The sclk as gfxclk and has three level about max/min/current */
+			*sclk_mask = 3 - 1;
+
+		if(mclk_mask)
+			*mclk_mask = NUM_MEMCLK_DPM_LEVELS - 1;
+
+		if(soc_mask)
+			*soc_mask = NUM_SOCCLK_DPM_LEVELS - 1;
+	}
+
+	return 0;
+}
+
+static int renoir_get_dpm_ultimate_freq(struct smu_context *smu,
+					enum smu_clk_type clk_type,
+					uint32_t *min,
+					uint32_t *max)
+{
+	int ret = 0;
+	uint32_t mclk_mask, soc_mask;
+	uint32_t clock_limit;
+
+	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type)) {
+		switch (clk_type) {
+		case SMU_MCLK:
+		case SMU_UCLK:
+			clock_limit = smu->smu_table.boot_values.uclk;
+			break;
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			clock_limit = smu->smu_table.boot_values.gfxclk;
+			break;
+		case SMU_SOCCLK:
+			clock_limit = smu->smu_table.boot_values.socclk;
+			break;
+		default:
+			clock_limit = 0;
+			break;
+		}
+
+		/* clock in Mhz unit */
+		if (min)
+			*min = clock_limit / 100;
+		if (max)
+			*max = clock_limit / 100;
+
+		return 0;
+	}
+
+	if (max) {
+		ret = renoir_get_profiling_clk_mask(smu,
+						    AMD_DPM_FORCED_LEVEL_PROFILE_PEAK,
+						    NULL,
+						    &mclk_mask,
+						    &soc_mask);
+		if (ret)
+			goto failed;
+
+		switch (clk_type) {
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetMaxGfxclkFrequency, max);
+			if (ret) {
+				dev_err(smu->adev->dev, "Attempt to get max GX frequency from SMC Failed !\n");
+				goto failed;
+			}
+			break;
+		case SMU_UCLK:
+		case SMU_FCLK:
+		case SMU_MCLK:
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, mclk_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_SOCCLK:
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, soc_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+	}
+
+	if (min) {
+		switch (clk_type) {
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetMinGfxclkFrequency, min);
+			if (ret) {
+				dev_err(smu->adev->dev, "Attempt to get min GX frequency from SMC Failed !\n");
+				goto failed;
+			}
+			break;
+		case SMU_UCLK:
+		case SMU_FCLK:
+		case SMU_MCLK:
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, 0, min);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_SOCCLK:
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, 0, min);
+			if (ret)
+				goto failed;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+	}
+failed:
+	return ret;
 }
 
 static int renoir_print_clk_levels(struct smu_context *smu,
@@ -238,11 +356,8 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 {
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0, min = 0, max = 0;
-	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_t metrics;
-
-	if (!clk_table || clk_type >= SMU_CLK_COUNT)
-		return -EINVAL;
+	bool cur_value_match_level = false;
 
 	memset(&metrics, 0, sizeof(metrics));
 
@@ -255,7 +370,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	case SMU_SCLK:
 		/* retirve table returned paramters unit is MHz */
 		cur_value = metrics.ClockFrequency[CLOCK_GFXCLK];
-		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min, &max, false);
+		ret = renoir_get_dpm_ultimate_freq(smu, SMU_GFXCLK, &min, &max);
 		if (!ret) {
 			/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
 			if (cur_value  == max)
@@ -295,10 +410,19 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	}
 
 	for (i = 0; i < count; i++) {
-		GET_DPM_CUR_FREQ(clk_table, clk_type, i, value);
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, i, &value);
+		if (ret)
+			return ret;
+		if (!value)
+			continue;
 		size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
 				cur_value == value ? "*" : "");
+		if (cur_value == value)
+			cur_value_match_level = true;
 	}
+
+	if (!cur_value_match_level)
+		size += sprintf(buf + size, "   %uMhz *\n", cur_value);
 
 	return size;
 }
@@ -333,27 +457,23 @@ static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context 
 	return pm_type;
 }
 
-static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+static int renoir_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 {
-	struct smu_power_context *smu_power = &smu->smu_power;
-	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
 	if (enable) {
 		/* vcn dpm on is a prerequisite for vcn power gate messages */
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0);
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0, NULL);
 			if (ret)
 				return ret;
 		}
-		power_gate->vcn_gated = false;
 	} else {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PowerDownVcn, NULL);
 			if (ret)
 				return ret;
 		}
-		power_gate->vcn_gated = true;
 	}
 
 	return ret;
@@ -361,24 +481,20 @@ static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 
 static int renoir_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 {
-	struct smu_power_context *smu_power = &smu->smu_power;
-	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
 	if (enable) {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0);
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0, NULL);
 			if (ret)
 				return ret;
 		}
-		power_gate->jpeg_gated = false;
 	} else {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0);
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0, NULL);
 			if (ret)
 				return ret;
 		}
-		power_gate->jpeg_gated = true;
 	}
 
 	return ret;
@@ -395,7 +511,9 @@ static int renoir_get_current_clk_freq_by_table(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	clk_id = smu_clk_get_index(smu, clk_type);
+	clk_id = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_CLK,
+						clk_type);
 	if (clk_id < 0)
 		return clk_id;
 
@@ -418,12 +536,12 @@ static int renoir_force_dpm_limit_value(struct smu_context *smu, bool highest)
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++) {
 		clk_type = clks[i];
-		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq, false);
+		ret = renoir_get_dpm_ultimate_freq(smu, clk_type, &min_freq, &max_freq);
 		if (ret)
 			return ret;
 
 		force_freq = highest ? max_freq : min_freq;
-		ret = smu_set_soft_freq_range(smu, clk_type, force_freq, force_freq);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, clk_type, force_freq, force_freq);
 		if (ret)
 			return ret;
 	}
@@ -447,16 +565,16 @@ static int renoir_unforce_dpm_levels(struct smu_context *smu) {
 	};
 
 	for (i = 0; i < ARRAY_SIZE(clk_feature_map); i++) {
-		if (!smu_feature_is_enabled(smu, clk_feature_map[i].feature))
+		if (!smu_cmn_feature_is_enabled(smu, clk_feature_map[i].feature))
 		    continue;
 
 		clk_type = clk_feature_map[i].clk_type;
 
-		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq, false);
+		ret = renoir_get_dpm_ultimate_freq(smu, clk_type, &min_freq, &max_freq);
 		if (ret)
 			return ret;
 
-		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
 		if (ret)
 			return ret;
 	}
@@ -501,64 +619,8 @@ static int renoir_get_current_activity_percent(struct smu_context *smu,
 		*value = metrics.AverageGfxActivity / 100;
 		break;
 	default:
-		pr_err("Invalid sensor for retrieving clock activity\n");
+		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
 		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int renoir_get_workload_type(struct smu_context *smu, uint32_t profile)
-{
-
-	uint32_t  pplib_workload = 0;
-
-	switch (profile) {
-	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
-		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_CUSTOM:
-		pplib_workload = WORKLOAD_PPLIB_COUNT;
-		break;
-	case PP_SMC_POWER_PROFILE_VIDEO:
-		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_VR:
-		pplib_workload = WORKLOAD_PPLIB_VR_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_COMPUTE:
-		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return pplib_workload;
-}
-
-static int renoir_get_profiling_clk_mask(struct smu_context *smu,
-					 enum amd_dpm_forced_level level,
-					 uint32_t *sclk_mask,
-					 uint32_t *mclk_mask,
-					 uint32_t *soc_mask)
-{
-
-	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
-		if (sclk_mask)
-			*sclk_mask = 0;
-	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
-		if (mclk_mask)
-			*mclk_mask = 0;
-	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
-		if(sclk_mask)
-			/* The sclk as gfxclk and has three level about max/min/current */
-			*sclk_mask = 3 - 1;
-
-		if(mclk_mask)
-			*mclk_mask = NUM_MEMCLK_DPM_LEVELS - 1;
-
-		if(soc_mask)
-			*soc_mask = NUM_SOCCLK_DPM_LEVELS - 1;
 	}
 
 	return 0;
@@ -604,7 +666,6 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 
 	int ret = 0 ;
 	uint32_t soft_min_level = 0, soft_max_level = 0, min_freq = 0, max_freq = 0;
-	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 
 	soft_min_level = mask ? (ffs(mask) - 1) : 0;
 	soft_max_level = mask ? (fls(mask) - 1) : 0;
@@ -613,42 +674,52 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 	case SMU_GFXCLK:
 	case SMU_SCLK:
 		if (soft_min_level > 2 || soft_max_level > 2) {
-			pr_info("Currently sclk only support 3 levels on APU\n");
+			dev_info(smu->adev->dev, "Currently sclk only support 3 levels on APU\n");
 			return -EINVAL;
 		}
 
-		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min_freq, &max_freq, false);
+		ret = renoir_get_dpm_ultimate_freq(smu, SMU_GFXCLK, &min_freq, &max_freq);
 		if (ret)
 			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
 					soft_max_level == 0 ? min_freq :
-					soft_max_level == 1 ? RENOIR_UMD_PSTATE_GFXCLK : max_freq);
+					soft_max_level == 1 ? RENOIR_UMD_PSTATE_GFXCLK : max_freq,
+					NULL);
 		if (ret)
 			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
 					soft_min_level == 2 ? max_freq :
-					soft_min_level == 1 ? RENOIR_UMD_PSTATE_GFXCLK : min_freq);
+					soft_min_level == 1 ? RENOIR_UMD_PSTATE_GFXCLK : min_freq,
+					NULL);
 		if (ret)
 			return ret;
 		break;
 	case SMU_SOCCLK:
-		GET_DPM_CUR_FREQ(clk_table, clk_type, soft_min_level, min_freq);
-		GET_DPM_CUR_FREQ(clk_table, clk_type, soft_max_level, max_freq);
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxSocclkByFreq, max_freq);
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, soft_min_level, &min_freq);
 		if (ret)
 			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinSocclkByFreq, min_freq);
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, soft_max_level, &max_freq);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxSocclkByFreq, max_freq, NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinSocclkByFreq, min_freq, NULL);
 		if (ret)
 			return ret;
 		break;
 	case SMU_MCLK:
 	case SMU_FCLK:
-		GET_DPM_CUR_FREQ(clk_table, clk_type, soft_min_level, min_freq);
-		GET_DPM_CUR_FREQ(clk_table, clk_type, soft_max_level, max_freq);
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxFclkByFreq, max_freq);
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, soft_min_level, &min_freq);
 		if (ret)
 			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinFclkByFreq, min_freq);
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, soft_max_level, &max_freq);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxFclkByFreq, max_freq, NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinFclkByFreq, min_freq, NULL);
 		if (ret)
 			return ret;
 		break;
@@ -665,21 +736,28 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 	uint32_t profile_mode = input[size];
 
 	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", profile_mode);
 		return -EINVAL;
 	}
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
+	workload_type = smu_cmn_to_asic_specific_index(smu,
+						       CMN2ASIC_MAPPING_WORKLOAD,
+						       profile_mode);
 	if (workload_type < 0) {
-		pr_err("Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
+		/*
+		 * TODO: If some case need switch to powersave/default power mode
+		 * then can consider enter WORKLOAD_COMPUTE/WORKLOAD_CUSTOM for power saving.
+		 */
+		dev_err_once(smu->adev->dev, "Unsupported power profile mode %d on RENOIR\n", profile_mode);
 		return -EINVAL;
 	}
 
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
-				    1 << workload_type);
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ActiveProcessNotify,
+				    1 << workload_type,
+				    NULL);
 	if (ret) {
-		pr_err("Fail to set workload type %d\n", workload_type);
+		dev_err_once(smu->adev->dev, "Fail to set workload type %d\n", workload_type);
 		return ret;
 	}
 
@@ -693,19 +771,19 @@ static int renoir_set_peak_clock_by_device(struct smu_context *smu)
 	int ret = 0;
 	uint32_t sclk_freq = 0, uclk_freq = 0;
 
-	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, NULL, &sclk_freq, false);
+	ret = renoir_get_dpm_ultimate_freq(smu, SMU_SCLK, NULL, &sclk_freq);
 	if (ret)
 		return ret;
 
-	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
 	if (ret)
 		return ret;
 
-	ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &uclk_freq, false);
+	ret = renoir_get_dpm_ultimate_freq(smu, SMU_UCLK, NULL, &uclk_freq);
 	if (ret)
 		return ret;
 
-	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
 	if (ret)
 		return ret;
 
@@ -720,26 +798,26 @@ static int renoir_set_performance_level(struct smu_context *smu,
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
-		ret = smu_force_dpm_limit_value(smu, true);
+		ret = renoir_force_dpm_limit_value(smu, true);
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
-		ret = smu_force_dpm_limit_value(smu, false);
+		ret = renoir_force_dpm_limit_value(smu, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
-		ret = smu_unforce_dpm_levels(smu);
+		ret = renoir_unforce_dpm_levels(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
-		ret = smu_get_profiling_clk_mask(smu, level,
-						 &sclk_mask,
-						 &mclk_mask,
-						 &soc_mask);
+		ret = renoir_get_profiling_clk_mask(smu, level,
+						    &sclk_mask,
+						    &mclk_mask,
+						    &soc_mask);
 		if (ret)
 			return ret;
-		smu_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask, false);
-		smu_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask, false);
-		smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask, false);
+		renoir_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask);
+		renoir_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask);
+		renoir_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		ret = renoir_set_peak_clock_by_device(smu);
@@ -757,62 +835,61 @@ static int renoir_set_performance_level(struct smu_context *smu,
  */
 static int renoir_set_watermarks_table(
 		struct smu_context *smu,
-		void *watermarks,
 		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
 {
-	int i;
+	Watermarks_t *table = smu->smu_table.watermarks_table;
 	int ret = 0;
-	Watermarks_t *table = watermarks;
+	int i;
 
-	if (!table || !clock_ranges)
-		return -EINVAL;
+	if (clock_ranges) {
+		if (clock_ranges->num_wm_dmif_sets > 4 ||
+				clock_ranges->num_wm_mcif_sets > 4)
+			return -EINVAL;
 
-	if (clock_ranges->num_wm_dmif_sets > 4 ||
-			clock_ranges->num_wm_mcif_sets > 4)
-		return -EINVAL;
+		/* save into smu->smu_table.tables[SMU_TABLE_WATERMARKS]->cpu_addr*/
+		for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
+			table->WatermarkRow[WM_DCFCLK][i].MinClock =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz));
+			table->WatermarkRow[WM_DCFCLK][i].MaxClock =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz));
+			table->WatermarkRow[WM_DCFCLK][i].MinMclk =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz));
+			table->WatermarkRow[WM_DCFCLK][i].MaxMclk =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz));
+			table->WatermarkRow[WM_DCFCLK][i].WmSetting = (uint8_t)
+					clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+		}
 
-	/* save into smu->smu_table.tables[SMU_TABLE_WATERMARKS]->cpu_addr*/
-	for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
-		table->WatermarkRow[WM_DCFCLK][i].MinClock =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz));
-		table->WatermarkRow[WM_DCFCLK][i].MaxClock =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz));
-		table->WatermarkRow[WM_DCFCLK][i].MinMclk =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz));
-		table->WatermarkRow[WM_DCFCLK][i].MaxMclk =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz));
-		table->WatermarkRow[WM_DCFCLK][i].WmSetting = (uint8_t)
-				clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+		for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
+			table->WatermarkRow[WM_SOCCLK][i].MinClock =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz));
+			table->WatermarkRow[WM_SOCCLK][i].MaxClock =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz));
+			table->WatermarkRow[WM_SOCCLK][i].MinMclk =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz));
+			table->WatermarkRow[WM_SOCCLK][i].MaxMclk =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz));
+			table->WatermarkRow[WM_SOCCLK][i].WmSetting = (uint8_t)
+					clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
+		}
+
+		smu->watermarks_bitmap |= WATERMARKS_EXIST;
 	}
-
-	for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
-		table->WatermarkRow[WM_SOCCLK][i].MinClock =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz));
-		table->WatermarkRow[WM_SOCCLK][i].MaxClock =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz));
-		table->WatermarkRow[WM_SOCCLK][i].MinMclk =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz));
-		table->WatermarkRow[WM_SOCCLK][i].MaxMclk =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz));
-		table->WatermarkRow[WM_SOCCLK][i].WmSetting = (uint8_t)
-				clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
-	}
-
-	smu->watermarks_bitmap |= WATERMARKS_EXIST;
 
 	/* pass data to smu controller */
-	if (!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu_write_watermarks_table(smu);
+	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
+	     !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
+		ret = smu_cmn_write_watermarks_table(smu);
 		if (ret) {
-			pr_err("Failed to update WMTABLE!");
+			dev_err(smu->adev->dev, "Failed to update WMTABLE!");
 			return ret;
 		}
 		smu->watermarks_bitmap |= WATERMARKS_LOADED;
@@ -835,7 +912,7 @@ static int renoir_get_power_profile_mode(struct smu_context *smu,
 	uint32_t i, size = 0;
 	int16_t workload_type = 0;
 
-	if (!smu->pm_enabled || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
@@ -843,7 +920,9 @@ static int renoir_get_power_profile_mode(struct smu_context *smu,
 		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
 		 * Not all profile modes are supported on arcturus.
 		 */
-		workload_type = smu_workload_get_type(smu, i);
+		workload_type = smu_cmn_to_asic_specific_index(smu,
+							       CMN2ASIC_MAPPING_WORKLOAD,
+							       i);
 		if (workload_type < 0)
 			continue;
 
@@ -873,30 +952,47 @@ static int renoir_read_sensor(struct smu_context *smu,
 		ret = renoir_get_gpu_temperature(smu, (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = renoir_get_current_clk_freq_by_table(smu, SMU_UCLK, (uint32_t *)data);
+		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = renoir_get_current_clk_freq_by_table(smu, SMU_GFXCLK, (uint32_t *)data);
+		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
 	default:
-		ret = smu_v12_0_read_sensor(smu, sensor, data, size);
+		ret = -EOPNOTSUPP;
+		break;
 	}
 	mutex_unlock(&smu->sensor_lock);
 
 	return ret;
 }
 
+static bool renoir_is_dpm_running(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	/*
+	 * Until now, the pmfw hasn't exported the interface of SMU
+	 * feature mask to APU SKU so just force on all the feature
+	 * at early initial stage.
+	 */
+	if (adev->in_suspend)
+		return false;
+	else
+		return true;
+
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
-	.get_smu_msg_index = renoir_get_smu_msg_index,
-	.get_smu_clk_index = renoir_get_smu_clk_index,
-	.get_smu_table_index = renoir_get_smu_table_index,
-	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
-	.get_dpm_clk_limited = renoir_get_dpm_clk_limited,
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
-	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,
+	.dpm_set_vcn_enable = renoir_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
-	.get_current_clk_freq_by_table = renoir_get_current_clk_freq_by_table,
-	.force_dpm_limit_value = renoir_force_dpm_limit_value,
-	.unforce_dpm_levels = renoir_unforce_dpm_levels,
-	.get_workload_type = renoir_get_workload_type,
-	.get_profiling_clk_mask = renoir_get_profiling_clk_mask,
 	.force_clk_levels = renoir_force_clk_levels,
 	.set_power_profile_mode = renoir_set_power_profile_mode,
 	.set_performance_level = renoir_set_performance_level,
@@ -907,26 +1003,33 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
 	.powergate_sdma = smu_v12_0_powergate_sdma,
-	.powergate_vcn = smu_v12_0_powergate_vcn,
-	.powergate_jpeg = smu_v12_0_powergate_jpeg,
-	.send_smc_msg_with_param = smu_v12_0_send_msg_with_param,
-	.read_smc_arg = smu_v12_0_read_arg,
+	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
+	.send_smc_msg = smu_cmn_send_smc_msg,
 	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,
 	.gfx_off_control = smu_v12_0_gfx_off_control,
-	.init_smc_tables = smu_v12_0_init_smc_tables,
+	.get_gfx_off_status = smu_v12_0_get_gfxoff_status,
+	.init_smc_tables = renoir_init_smc_tables,
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
-	.populate_smc_tables = smu_v12_0_populate_smc_tables,
-	.get_enabled_mask = smu_v12_0_get_enabled_mask,
-	.get_current_clk_freq = smu_v12_0_get_current_clk_freq,
-	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
+	.set_default_dpm_table = smu_v12_0_set_default_dpm_tables,
+	.get_enabled_mask = smu_cmn_get_enabled_mask,
+	.feature_is_enabled = smu_cmn_feature_is_enabled,
+	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
+	.get_dpm_ultimate_freq = renoir_get_dpm_ultimate_freq,
 	.mode2_reset = smu_v12_0_mode2_reset,
 	.set_soft_freq_limited_range = smu_v12_0_set_soft_freq_limited_range,
 	.set_driver_table_location = smu_v12_0_set_driver_table_location,
+	.is_dpm_running = renoir_is_dpm_running,
+	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
+	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &renoir_ppt_funcs;
-	smu->smc_if_version = SMU12_DRIVER_IF_VERSION;
+	smu->message_map = renoir_message_map;
+	smu->clock_map = renoir_clk_map;
+	smu->table_map = renoir_table_map;
+	smu->workload_map = renoir_workload_map;
+	smu->smc_driver_if_version = SMU12_DRIVER_IF_VERSION;
 	smu->is_apu = true;
 }

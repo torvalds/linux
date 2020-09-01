@@ -116,8 +116,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 #define __TRACEPOINT_ENTRY(name)					 \
 	static tracepoint_ptr_t __tracepoint_ptr_##name __used		 \
-	__attribute__((section("__tracepoints_ptrs"))) =		 \
-		&__tracepoint_##name
+	__section(__tracepoints_ptrs) = &__tracepoint_##name
 #endif
 
 #endif /* _LINUX_TRACEPOINT_H */
@@ -156,8 +155,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * Note, the proto and args passed in includes "__data" as the first parameter.
  * The reason for this is to handle the "void" prototype. If a tracepoint
  * has a "void" prototype, then it is invalid to declare a function
- * as "(void *, void)". The DECLARE_TRACE_NOARGS() will pass in just
- * "void *data", where as the DECLARE_TRACE() will pass in "void *data, proto".
+ * as "(void *, void)".
  */
 #define __DO_TRACE(tp, proto, args, cond, rcuidle)			\
 	do {								\
@@ -281,9 +279,9 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  */
 #define DEFINE_TRACE_FN(name, reg, unreg)				 \
 	static const char __tpstrtab_##name[]				 \
-	__attribute__((section("__tracepoints_strings"))) = #name;	 \
-	struct tracepoint __tracepoint_##name				 \
-	__attribute__((section("__tracepoints"), used)) =		 \
+	__section(__tracepoints_strings) = #name;			 \
+	struct tracepoint __tracepoint_##name __used			 \
+	__section(__tracepoints) =					 \
 		{ __tpstrtab_##name, STATIC_KEY_INIT_FALSE, reg, unreg, NULL };\
 	__TRACEPOINT_ENTRY(name);
 
@@ -362,7 +360,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 		static const char *___tp_str __tracepoint_string = str; \
 		___tp_str;						\
 	})
-#define __tracepoint_string	__attribute__((section("__tracepoint_str")))
+#define __tracepoint_string	__used __section(__tracepoint_str)
 #else
 /*
  * tracepoint_string() is used to save the string address for userspace
@@ -372,25 +370,6 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 # define tracepoint_string(str) str
 # define __tracepoint_string
 #endif
-
-/*
- * The need for the DECLARE_TRACE_NOARGS() is to handle the prototype
- * (void). "void" is a special value in a function prototype and can
- * not be combined with other arguments. Since the DECLARE_TRACE()
- * macro adds a data element at the beginning of the prototype,
- * we need a way to differentiate "(void *data, proto)" from
- * "(void *data, void)". The second prototype is invalid.
- *
- * DECLARE_TRACE_NOARGS() passes "void" as the tracepoint prototype
- * and "void *__data" as the callback prototype.
- *
- * DECLARE_TRACE() passes "proto" as the tracepoint protoype and
- * "void *__data, proto" as the callback prototype.
- */
-#define DECLARE_TRACE_NOARGS(name)					\
-	__DECLARE_TRACE(name, void, ,					\
-			cpu_online(raw_smp_processor_id()),		\
-			void *__data, __data)
 
 #define DECLARE_TRACE(name, proto, args)				\
 	__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args),		\

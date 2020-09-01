@@ -33,9 +33,8 @@
  * struct ad5764_chip_info - chip specific information
  * @int_vref:	Value of the internal reference voltage in uV - 0 if external
  *		reference voltage is used
- * @channel	channel specification
+ * @channels:	channel specification
 */
-
 struct ad5764_chip_info {
 	unsigned long int_vref;
 	const struct iio_chan_spec *channels;
@@ -46,6 +45,7 @@ struct ad5764_chip_info {
  * @spi:		spi_device
  * @chip_info:		chip info
  * @vref_reg:		vref supply regulators
+ * @lock:		lock to protect the data buffer during SPI ops
  * @data:		spi transfer buffers
  */
 
@@ -53,6 +53,7 @@ struct ad5764_state {
 	struct spi_device		*spi;
 	const struct ad5764_chip_info	*chip_info;
 	struct regulator_bulk_data	vref_reg[2];
+	struct mutex			lock;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -126,11 +127,11 @@ static int ad5764_write(struct iio_dev *indio_dev, unsigned int reg,
 	struct ad5764_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	st->data[0].d32 = cpu_to_be32((reg << 16) | val);
 
 	ret = spi_write(st->spi, &st->data[0].d8[1], 3);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -151,7 +152,7 @@ static int ad5764_read(struct iio_dev *indio_dev, unsigned int reg,
 		},
 	};
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 
 	st->data[0].d32 = cpu_to_be32((1 << 23) | (reg << 16));
 
@@ -159,7 +160,7 @@ static int ad5764_read(struct iio_dev *indio_dev, unsigned int reg,
 	if (ret >= 0)
 		*val = be32_to_cpu(st->data[1].d32) & 0xffff;
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -288,12 +289,13 @@ static int ad5764_probe(struct spi_device *spi)
 	st->spi = spi;
 	st->chip_info = &ad5764_chip_infos[type];
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad5764_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->num_channels = AD5764_NUM_CHANNELS;
 	indio_dev->channels = st->chip_info->channels;
+
+	mutex_init(&st->lock);
 
 	if (st->chip_info->int_vref == 0) {
 		st->vref_reg[0].supply = "vrefAB";

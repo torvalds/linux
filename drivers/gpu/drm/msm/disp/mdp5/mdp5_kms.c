@@ -259,17 +259,9 @@ static struct drm_info_list mdp5_debugfs_list[] = {
 
 static int mdp5_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
-	struct drm_device *dev = minor->dev;
-	int ret;
-
-	ret = drm_debugfs_create_files(mdp5_debugfs_list,
-			ARRAY_SIZE(mdp5_debugfs_list),
-			minor->debugfs_root, minor);
-
-	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not install mdp5_debugfs_list\n");
-		return ret;
-	}
+	drm_debugfs_create_files(mdp5_debugfs_list,
+				 ARRAY_SIZE(mdp5_debugfs_list),
+				 minor->debugfs_root, minor);
 
 	return 0;
 }
@@ -583,98 +575,6 @@ static int get_clk(struct platform_device *pdev, struct clk **clkp,
 	return 0;
 }
 
-static struct drm_encoder *get_encoder_from_crtc(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_encoder *encoder;
-
-	drm_for_each_encoder(encoder, dev)
-		if (encoder->crtc == crtc)
-			return encoder;
-
-	return NULL;
-}
-
-static bool mdp5_get_scanoutpos(struct drm_device *dev, unsigned int pipe,
-				bool in_vblank_irq, int *vpos, int *hpos,
-				ktime_t *stime, ktime_t *etime,
-				const struct drm_display_mode *mode)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	struct drm_encoder *encoder;
-	int line, vsw, vbp, vactive_start, vactive_end, vfp_end;
-
-	crtc = priv->crtcs[pipe];
-	if (!crtc) {
-		DRM_ERROR("Invalid crtc %d\n", pipe);
-		return false;
-	}
-
-	encoder = get_encoder_from_crtc(crtc);
-	if (!encoder) {
-		DRM_ERROR("no encoder found for crtc %d\n", pipe);
-		return false;
-	}
-
-	vsw = mode->crtc_vsync_end - mode->crtc_vsync_start;
-	vbp = mode->crtc_vtotal - mode->crtc_vsync_end;
-
-	/*
-	 * the line counter is 1 at the start of the VSYNC pulse and VTOTAL at
-	 * the end of VFP. Translate the porch values relative to the line
-	 * counter positions.
-	 */
-
-	vactive_start = vsw + vbp + 1;
-
-	vactive_end = vactive_start + mode->crtc_vdisplay;
-
-	/* last scan line before VSYNC */
-	vfp_end = mode->crtc_vtotal;
-
-	if (stime)
-		*stime = ktime_get();
-
-	line = mdp5_encoder_get_linecount(encoder);
-
-	if (line < vactive_start) {
-		line -= vactive_start;
-	} else if (line > vactive_end) {
-		line = line - vfp_end - vactive_start;
-	} else {
-		line -= vactive_start;
-	}
-
-	*vpos = line;
-	*hpos = 0;
-
-	if (etime)
-		*etime = ktime_get();
-
-	return true;
-}
-
-static u32 mdp5_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	struct drm_encoder *encoder;
-
-	if (pipe >= priv->num_crtcs)
-		return 0;
-
-	crtc = priv->crtcs[pipe];
-	if (!crtc)
-		return 0;
-
-	encoder = get_encoder_from_crtc(crtc);
-	if (!encoder)
-		return 0;
-
-	return mdp5_encoder_get_framecount(encoder);
-}
-
 struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -724,25 +624,25 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->platform.iommu) {
+		struct msm_mmu *mmu;
+
 		iommu_dev = &pdev->dev;
-		if (!iommu_dev->iommu_fwspec)
+		if (!dev_iommu_fwspec_get(iommu_dev))
 			iommu_dev = iommu_dev->parent;
 
-		aspace = msm_gem_address_space_create(iommu_dev,
-				config->platform.iommu, "mdp5");
+		mmu = msm_iommu_new(iommu_dev, config->platform.iommu);
+
+		aspace = msm_gem_address_space_create(mmu, "mdp5",
+			0x1000, 0x100000000 - 0x1000);
+
 		if (IS_ERR(aspace)) {
+			if (!IS_ERR(mmu))
+				mmu->funcs->destroy(mmu);
 			ret = PTR_ERR(aspace);
 			goto fail;
 		}
 
 		kms->aspace = aspace;
-
-		ret = aspace->mmu->funcs->attach(aspace->mmu);
-		if (ret) {
-			DRM_DEV_ERROR(&pdev->dev, "failed to attach iommu: %d\n",
-				ret);
-			goto fail;
-		}
 	} else {
 		DRM_DEV_INFO(&pdev->dev,
 			 "no iommu, fallback to phys contig buffers for scanout\n");
@@ -762,9 +662,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	dev->mode_config.max_width = 0xffff;
 	dev->mode_config.max_height = 0xffff;
 
-	dev->driver->get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos;
-	dev->driver->get_scanout_position = mdp5_get_scanoutpos;
-	dev->driver->get_vblank_counter = mdp5_get_vblank_counter;
 	dev->max_vblank_count = 0; /* max_vblank_count is set on each CRTC */
 	dev->vblank_disable_immediate = true;
 
@@ -1038,7 +935,8 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 
 	return 0;
 fail:
-	mdp5_destroy(pdev);
+	if (mdp5_kms)
+		mdp5_destroy(pdev);
 	return ret;
 }
 

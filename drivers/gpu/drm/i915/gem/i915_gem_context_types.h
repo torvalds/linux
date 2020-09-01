@@ -20,6 +20,7 @@
 #include "gt/intel_context_types.h"
 
 #include "i915_scheduler.h"
+#include "i915_sw_fence.h"
 
 struct pid;
 
@@ -30,7 +31,12 @@ struct intel_timeline;
 struct intel_ring;
 
 struct i915_gem_engines {
-	struct rcu_head rcu;
+	union {
+		struct list_head link;
+		struct rcu_head rcu;
+	};
+	struct i915_sw_fence fence;
+	struct i915_gem_context *ctx;
 	unsigned int num_engines;
 	struct intel_context *engines[];
 };
@@ -164,6 +170,7 @@ struct i915_gem_context {
 	 * per vm, which may be one per context or shared with the global GTT)
 	 */
 	struct radix_tree_root handles_vma;
+	struct mutex lut_mutex;
 
 	/**
 	 * @name: arbitrary name, used for user debug
@@ -173,6 +180,11 @@ struct i915_gem_context {
 	 * context in messages.
 	 */
 	char name[TASK_COMM_LEN + 8];
+
+	struct {
+		spinlock_t lock;
+		struct list_head engines;
+	} stale;
 };
 
 #endif /* __I915_GEM_CONTEXT_TYPES_H__ */

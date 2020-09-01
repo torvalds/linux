@@ -27,8 +27,6 @@
 */
 
 #define DRV_NAME	"starfire"
-#define DRV_VERSION	"2.1"
-#define DRV_RELDATE	"July  6, 2008"
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -165,15 +163,9 @@ static int rx_copybreak /* = 0 */;
 #define FIRMWARE_RX	"adaptec/starfire_rx.bin"
 #define FIRMWARE_TX	"adaptec/starfire_tx.bin"
 
-/* These identify the driver base version and may not be removed. */
-static const char version[] =
-KERN_INFO "starfire.c:v1.03 7/26/2000  Written by Donald Becker <becker@scyld.com>\n"
-" (unofficial 2.2/2.4 kernel port, version " DRV_VERSION ", " DRV_RELDATE ")\n";
-
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Adaptec Starfire Ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_FIRMWARE(FIRMWARE_RX);
 MODULE_FIRMWARE(FIRMWARE_TX);
 
@@ -653,13 +645,6 @@ static int starfire_init_one(struct pci_dev *pdev,
 	void __iomem *base;
 	int drv_flags, io_size;
 	int boguscnt;
-
-/* when built into the kernel, we only print version if device is found */
-#ifndef MODULE
-	static int printed_version;
-	if (!printed_version++)
-		printk(version);
-#endif
 
 	if (pci_enable_device (pdev))
 		return -EIO;
@@ -1853,7 +1838,6 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
@@ -2000,28 +1984,21 @@ static int netdev_close(struct net_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int starfire_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused starfire_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 
 	if (netif_running(dev)) {
 		netif_device_detach(dev);
 		netdev_close(dev);
 	}
 
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev,state));
-
 	return 0;
 }
 
-static int starfire_resume(struct pci_dev *pdev)
+static int __maybe_unused starfire_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 
 	if (netif_running(dev)) {
 		netdev_open(dev);
@@ -2030,8 +2007,6 @@ static int starfire_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
-
 
 static void starfire_remove_one(struct pci_dev *pdev)
 {
@@ -2056,15 +2031,13 @@ static void starfire_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);			/* Will also free np!! */
 }
 
+static SIMPLE_DEV_PM_OPS(starfire_pm_ops, starfire_suspend, starfire_resume);
 
 static struct pci_driver starfire_driver = {
 	.name		= DRV_NAME,
 	.probe		= starfire_init_one,
 	.remove		= starfire_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= starfire_suspend,
-	.resume		= starfire_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &starfire_pm_ops,
 	.id_table	= starfire_pci_tbl,
 };
 
@@ -2073,8 +2046,6 @@ static int __init starfire_init (void)
 {
 /* when a module, this is printed whether or not devices are found in probe */
 #ifdef MODULE
-	printk(version);
-
 	printk(KERN_INFO DRV_NAME ": polling (NAPI) enabled\n");
 #endif
 

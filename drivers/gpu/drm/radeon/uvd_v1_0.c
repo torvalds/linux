@@ -219,7 +219,7 @@ done:
 			WREG32(RS_DQ_RD_RET_CONF, 0x3f);
 			WREG32(MC_CONFIG, 0x1f);
 
-			/* fall through */
+			fallthrough;
 		case CHIP_RV670:
 		case CHIP_RV635:
 

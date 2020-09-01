@@ -56,6 +56,9 @@ struct zonefs_inode_info {
 	/* File maximum size */
 	loff_t			i_max_size;
 
+	/* File zone size */
+	loff_t			i_zone_size;
+
 	/*
 	 * To serialise fully against both syscall and mmap based IO and
 	 * sequential file truncation, two locks are used. For serializing

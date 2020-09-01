@@ -121,6 +121,10 @@ static int resources_available(void)
 
 	clk_put(cpu_clk);
 
+	ret = dev_pm_opp_of_find_icc_paths(cpu_dev, NULL);
+	if (ret)
+		return ret;
+
 	name = find_supply_name(cpu_dev);
 	/* Platform doesn't require regulator */
 	if (!name)
@@ -275,7 +279,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = transition_latency;
 	policy->dvfs_possible_from_any_cpu = true;
 
-	dev_pm_opp_of_register_em(policy->cpus);
+	dev_pm_opp_of_register_em(cpu_dev, policy->cpus);
 
 	return 0;
 
@@ -363,6 +367,10 @@ static int dt_cpufreq_probe(struct platform_device *pdev)
 		dt_cpufreq_driver.resume = data->resume;
 		if (data->suspend)
 			dt_cpufreq_driver.suspend = data->suspend;
+		if (data->get_intermediate) {
+			dt_cpufreq_driver.target_intermediate = data->target_intermediate;
+			dt_cpufreq_driver.get_intermediate = data->get_intermediate;
+		}
 	}
 
 	ret = cpufreq_register_driver(&dt_cpufreq_driver);

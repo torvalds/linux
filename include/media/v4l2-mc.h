@@ -12,6 +12,7 @@
 
 #include <media/media-device.h>
 #include <media/v4l2-dev.h>
+#include <media/v4l2-subdev.h>
 #include <linux/types.h>
 
 /* We don't need to include pci.h or usb.h here */
@@ -84,25 +85,79 @@ void v4l_disable_media_source(struct video_device *vdev);
  */
 int v4l_vb2q_enable_media_source(struct vb2_queue *q);
 
+/**
+ * v4l2_create_fwnode_links_to_pad - Create fwnode-based links from a
+ *                                   source subdev to a sink subdev pad.
+ *
+ * @src_sd: pointer to a source subdev
+ * @sink:  pointer to a subdev sink pad
+ *
+ * This function searches for fwnode endpoint connections from a source
+ * subdevice to a single sink pad, and if suitable connections are found,
+ * translates them into media links to that pad. The function can be
+ * called by the sink subdevice, in its v4l2-async notifier subdev bound
+ * callback, to create links from a bound source subdevice.
+ *
+ * .. note::
+ *
+ *    Any sink subdevice that calls this function must implement the
+ *    .get_fwnode_pad media operation in order to verify endpoints passed
+ *    to the sink are owned by the sink.
+ *
+ * Return 0 on success or a negative error code on failure.
+ */
+int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
+				    struct media_pad *sink);
 
 /**
- * v4l2_pipeline_pm_use - Update the use count of an entity
- * @entity: The entity
- * @use: Use (1) or stop using (0) the entity
+ * v4l2_create_fwnode_links - Create fwnode-based links from a source
+ *                            subdev to a sink subdev.
  *
- * Update the use count of all entities in the pipeline and power entities on or
- * off accordingly.
+ * @src_sd: pointer to a source subdevice
+ * @sink_sd: pointer to a sink subdevice
  *
- * This function is intended to be called in video node open (use ==
- * 1) and release (use == 0). It uses struct media_entity.use_count to
- * track the power status. The use of this function should be paired
- * with v4l2_pipeline_link_notify().
+ * This function searches for any and all fwnode endpoint connections
+ * between source and sink subdevices, and translates them into media
+ * links. The function can be called by the sink subdevice, in its
+ * v4l2-async notifier subdev bound callback, to create all links from
+ * a bound source subdevice.
  *
- * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. No failure can occur when the use parameter is
- * set to 0.
+ * .. note::
+ *
+ *    Any sink subdevice that calls this function must implement the
+ *    .get_fwnode_pad media operation in order to verify endpoints passed
+ *    to the sink are owned by the sink.
+ *
+ * Return 0 on success or a negative error code on failure.
  */
-int v4l2_pipeline_pm_use(struct media_entity *entity, int use);
+int v4l2_create_fwnode_links(struct v4l2_subdev *src_sd,
+			     struct v4l2_subdev *sink_sd);
+
+/**
+ * v4l2_pipeline_pm_get - Increase the use count of a pipeline
+ * @entity: The root entity of a pipeline
+ *
+ * Update the use count of all entities in the pipeline and power entities on.
+ *
+ * This function is intended to be called in video node open. It uses
+ * struct media_entity.use_count to track the power status. The use
+ * of this function should be paired with v4l2_pipeline_link_notify().
+ *
+ * Return 0 on success or a negative error code on failure.
+ */
+int v4l2_pipeline_pm_get(struct media_entity *entity);
+
+/**
+ * v4l2_pipeline_pm_put - Decrease the use count of a pipeline
+ * @entity: The root entity of a pipeline
+ *
+ * Update the use count of all entities in the pipeline and power entities off.
+ *
+ * This function is intended to be called in video node release. It uses
+ * struct media_entity.use_count to track the power status. The use
+ * of this function should be paired with v4l2_pipeline_link_notify().
+ */
+void v4l2_pipeline_pm_put(struct media_entity *entity);
 
 
 /**
@@ -114,7 +169,7 @@ int v4l2_pipeline_pm_use(struct media_entity *entity, int use);
  * React to link management on powered pipelines by updating the use count of
  * all entities in the source and sink sides of the link. Entities are powered
  * on or off accordingly. The use of this function should be paired
- * with v4l2_pipeline_pm_use().
+ * with v4l2_pipeline_pm_{get,put}().
  *
  * Return 0 on success or a negative error code on failure. Powering entities
  * off is assumed to never fail. This function will not fail for disconnection
@@ -144,10 +199,13 @@ static inline int v4l_vb2q_enable_media_source(struct vb2_queue *q)
 	return 0;
 }
 
-static inline int v4l2_pipeline_pm_use(struct media_entity *entity, int use)
+static inline int v4l2_pipeline_pm_get(struct media_entity *entity)
 {
 	return 0;
 }
+
+static inline void v4l2_pipeline_pm_put(struct media_entity *entity)
+{}
 
 static inline int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 					    unsigned int notification)

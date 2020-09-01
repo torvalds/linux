@@ -181,6 +181,10 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
+	ret =  bcm_phy_enable_jumbo(phydev);
+	if (ret)
+		return ret;
+
 	ret = bcm_phy_downshift_get(phydev, &count);
 	if (ret)
 		return ret;

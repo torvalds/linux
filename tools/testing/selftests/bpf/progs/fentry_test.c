@@ -2,7 +2,7 @@
 /* Copyright (c) 2019 Facebook */
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
-#include "bpf_trace_helpers.h"
+#include <bpf/bpf_tracing.h>
 
 char _license[] SEC("license") = "GPL";
 
@@ -53,5 +53,27 @@ int BPF_PROG(test6, __u64 a, void *b, short c, int d, void * e, __u64 f)
 {
 	test6_result = a == 16 && b == (void *)17 && c == 18 && d == 19 &&
 		e == (void *)20 && f == 21;
+	return 0;
+}
+
+struct bpf_fentry_test_t {
+	struct bpf_fentry_test_t *a;
+};
+
+__u64 test7_result = 0;
+SEC("fentry/bpf_fentry_test7")
+int BPF_PROG(test7, struct bpf_fentry_test_t *arg)
+{
+	if (arg == 0)
+		test7_result = 1;
+	return 0;
+}
+
+__u64 test8_result = 0;
+SEC("fentry/bpf_fentry_test8")
+int BPF_PROG(test8, struct bpf_fentry_test_t *arg)
+{
+	if (arg->a == 0)
+		test8_result = 1;
 	return 0;
 }

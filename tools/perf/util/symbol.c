@@ -79,6 +79,7 @@ static enum dso_binary_type binary_type_symtab[] = {
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP,
 	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
+	DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO,
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
@@ -566,6 +567,20 @@ void dso__sort_by_name(struct dso *dso)
 	return symbols__sort_by_name(&dso->symbol_names, &dso->symbols);
 }
 
+/*
+ * While we find nice hex chars, build a long_val.
+ * Return number of chars processed.
+ */
+static int hex2u64(const char *ptr, u64 *long_val)
+{
+	char *p;
+
+	*long_val = strtoull(ptr, &p, 16);
+
+	return p - ptr;
+}
+
+
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,
 					 u64 start, u64 size))
@@ -651,6 +666,8 @@ static bool symbol__is_idle(const char *name)
 		"poll_idle",
 		"ppc64_runlatch_off",
 		"pseries_dedicated_idle_sleep",
+		"psw_idle",
+		"psw_idle_exit",
 		NULL
 	};
 	int i;
@@ -791,7 +808,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 
 			if (strcmp(curr_map->dso->short_name, module)) {
 				if (curr_map != initial_map &&
-				    dso->kernel == DSO_TYPE_GUEST_KERNEL &&
+				    dso->kernel == DSO_SPACE__KERNEL_GUEST &&
 				    machine__is_default_guest(machine)) {
 					/*
 					 * We assume all symbols of a module are
@@ -848,7 +865,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 				goto add_symbol;
 			}
 
-			if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+			if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
 				snprintf(dso_name, sizeof(dso_name),
 					"[guest.kernel].%d",
 					kernel_range++);
@@ -892,7 +909,7 @@ discard_symbol:
 	}
 
 	if (curr_map != initial_map &&
-	    dso->kernel == DSO_TYPE_GUEST_KERNEL &&
+	    dso->kernel == DSO_SPACE__KERNEL_GUEST &&
 	    machine__is_default_guest(kmaps->machine)) {
 		dso__set_loaded(curr_map->dso);
 	}
@@ -1209,6 +1226,7 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 
 				m->end = old_map->start;
 				list_add_tail(&m->node, &merged);
+				new_map->pgoff += old_map->end - new_map->start;
 				new_map->start = old_map->end;
 			}
 		} else {
@@ -1229,6 +1247,7 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 				 *      |new......| ->         |new...|
 				 * |old....|        -> |old....|
 				 */
+				new_map->pgoff += old_map->end - new_map->start;
 				new_map->start = old_map->end;
 			}
 		}
@@ -1368,7 +1387,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	 * Set the data type and long name so that kcore can be read via
 	 * dso__data_read_addr().
 	 */
-	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+	if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
 		dso->binary_type = DSO_BINARY_TYPE__GUEST_KCORE;
 	else
 		dso->binary_type = DSO_BINARY_TYPE__KCORE;
@@ -1432,7 +1451,7 @@ int __dso__load_kallsyms(struct dso *dso, const char *filename,
 	symbols__fixup_end(&dso->symbols);
 	symbols__fixup_duplicate(&dso->symbols);
 
-	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+	if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
 		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KALLSYMS;
 	else
 		dso->symtab_type = DSO_BINARY_TYPE__KALLSYMS;
@@ -1515,19 +1534,20 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
 	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
 	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
+	case DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO:
 	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
 	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
-		return !kmod && dso->kernel == DSO_TYPE_USER;
+		return !kmod && dso->kernel == DSO_SPACE__USER;
 
 	case DSO_BINARY_TYPE__KALLSYMS:
 	case DSO_BINARY_TYPE__VMLINUX:
 	case DSO_BINARY_TYPE__KCORE:
-		return dso->kernel == DSO_TYPE_KERNEL;
+		return dso->kernel == DSO_SPACE__KERNEL;
 
 	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
 	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__GUEST_KCORE:
-		return dso->kernel == DSO_TYPE_GUEST_KERNEL;
+		return dso->kernel == DSO_SPACE__KERNEL_GUEST;
 
 	case DSO_BINARY_TYPE__GUEST_KMODULE:
 	case DSO_BINARY_TYPE__GUEST_KMODULE_COMP:
@@ -1544,6 +1564,8 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 		return true;
 
 	case DSO_BINARY_TYPE__BPF_PROG_INFO:
+	case DSO_BINARY_TYPE__BPF_IMAGE:
+	case DSO_BINARY_TYPE__OOL:
 	case DSO_BINARY_TYPE__NOT_FOUND:
 	default:
 		return false;
@@ -1628,9 +1650,9 @@ int dso__load(struct dso *dso, struct map *map)
 		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
 
 	if (dso->kernel && !kmod) {
-		if (dso->kernel == DSO_TYPE_KERNEL)
+		if (dso->kernel == DSO_SPACE__KERNEL)
 			ret = dso__load_kernel_sym(dso, map);
-		else if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+		else if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
 			ret = dso__load_guest_kernel_sym(dso, map);
 
 		machine = map__kmaps(map)->machine;
@@ -1860,7 +1882,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	else
 		symbol__join_symfs(symfs_vmlinux, vmlinux);
 
-	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+	if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
 		symtab_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
 	else
 		symtab_type = DSO_BINARY_TYPE__VMLINUX;
@@ -1872,7 +1894,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	symsrc__destroy(&ss);
 
 	if (err > 0) {
-		if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+		if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
 			dso->binary_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
 		else
 			dso->binary_type = DSO_BINARY_TYPE__VMLINUX;

@@ -984,6 +984,7 @@ static int tegra_emc_load_timings_from_dt(struct tegra_emc *emc,
 
 static const struct of_device_id tegra_emc_of_match[] = {
 	{ .compatible = "nvidia,tegra124-emc" },
+	{ .compatible = "nvidia,tegra132-emc" },
 	{}
 };
 
@@ -1158,6 +1159,11 @@ static void emc_debugfs_init(struct device *dev, struct tegra_emc *emc)
 			emc->debugfs.max_rate = emc->timings[i].rate;
 	}
 
+	if (!emc->num_timings) {
+		emc->debugfs.min_rate = clk_get_rate(emc->clk);
+		emc->debugfs.max_rate = emc->debugfs.min_rate;
+	}
+
 	err = clk_set_rate_range(emc->clk, emc->debugfs.min_rate,
 				 emc->debugfs.max_rate);
 	if (err < 0) {
@@ -1173,11 +1179,11 @@ static void emc_debugfs_init(struct device *dev, struct tegra_emc *emc)
 		return;
 	}
 
-	debugfs_create_file("available_rates", S_IRUGO, emc->debugfs.root, emc,
+	debugfs_create_file("available_rates", 0444, emc->debugfs.root, emc,
 			    &tegra_emc_debug_available_rates_fops);
-	debugfs_create_file("min_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
+	debugfs_create_file("min_rate", 0644, emc->debugfs.root,
 			    emc, &tegra_emc_debug_min_rate_fops);
-	debugfs_create_file("max_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
+	debugfs_create_file("max_rate", 0644, emc->debugfs.root,
 			    emc, &tegra_emc_debug_max_rate_fops);
 }
 

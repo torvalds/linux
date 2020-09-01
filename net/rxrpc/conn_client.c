@@ -655,13 +655,20 @@ static int rxrpc_wait_for_channel(struct rxrpc_call *call, gfp_t gfp)
 
 		add_wait_queue_exclusive(&call->waitq, &myself);
 		for (;;) {
-			if (test_bit(RXRPC_CALL_IS_INTR, &call->flags))
+			switch (call->interruptibility) {
+			case RXRPC_INTERRUPTIBLE:
+			case RXRPC_PREINTERRUPTIBLE:
 				set_current_state(TASK_INTERRUPTIBLE);
-			else
+				break;
+			case RXRPC_UNINTERRUPTIBLE:
+			default:
 				set_current_state(TASK_UNINTERRUPTIBLE);
+				break;
+			}
 			if (call->call_id)
 				break;
-			if (test_bit(RXRPC_CALL_IS_INTR, &call->flags) &&
+			if ((call->interruptibility == RXRPC_INTERRUPTIBLE ||
+			     call->interruptibility == RXRPC_PREINTERRUPTIBLE) &&
 			    signal_pending(current)) {
 				ret = -ERESTARTSYS;
 				break;
@@ -874,7 +881,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 			conn->cache_state = RXRPC_CONN_CLIENT_ACTIVE;
 			rxrpc_activate_channels_locked(conn);
 		}
-		/* fall through */
+		fallthrough;
 	case RXRPC_CONN_CLIENT_ACTIVE:
 		if (list_empty(&conn->waiting_calls)) {
 			rxrpc_deactivate_one_channel(conn, channel);

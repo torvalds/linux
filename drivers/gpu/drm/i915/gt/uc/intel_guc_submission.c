@@ -217,7 +217,7 @@ static void guc_wq_item_append(struct intel_guc *guc,
 static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
-	u32 ctx_desc = lower_32_bits(rq->context->lrc_desc);
+	u32 ctx_desc = rq->context->lrc.ccid;
 	u32 ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
 
 	guc_wq_item_append(guc, engine->guc_id, ctx_desc,
@@ -258,7 +258,7 @@ static void guc_submit(struct intel_engine_cs *engine,
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->sched.attr.priority | __NO_PREEMPTION;
+	return rq->sched.attr.priority;
 }
 
 static struct i915_request *schedule_in(struct i915_request *rq, int idx)
@@ -456,9 +456,7 @@ static void guc_reset_cancel(struct intel_engine_cs *engine)
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link) {
-		if (!i915_request_signaled(rq))
-			dma_fence_set_error(&rq->fence, -EIO);
-
+		i915_request_set_error_once(rq, -EIO);
 		i915_request_mark_complete(rq);
 	}
 
@@ -660,20 +658,19 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 	guc_proc_desc_fini(guc);
 }
 
-static bool __guc_submission_support(struct intel_guc *guc)
+static bool __guc_submission_selected(struct intel_guc *guc)
 {
-	/* XXX: GuC submission is unavailable for now */
-	return false;
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
-	if (!intel_guc_is_supported(guc))
+	if (!intel_guc_submission_is_supported(guc))
 		return false;
 
-	return i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION;
+	return i915->params.enable_guc & ENABLE_GUC_SUBMISSION;
 }
 
 void intel_guc_submission_init_early(struct intel_guc *guc)
 {
-	guc->submission_supported = __guc_submission_support(guc);
+	guc->submission_selected = __guc_submission_selected(guc);
 }
 
 bool intel_engine_in_guc_submission_mode(const struct intel_engine_cs *engine)

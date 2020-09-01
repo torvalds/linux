@@ -1058,7 +1058,7 @@ static int xts_skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	u32 *desc;
 
 	if (keylen != 2 * AES_MIN_KEY_SIZE  && keylen != 2 * AES_MAX_KEY_SIZE) {
-		dev_err(dev, "key size mismatch\n");
+		dev_dbg(dev, "key size mismatch\n");
 		return -EINVAL;
 	}
 
@@ -2912,7 +2912,8 @@ static void caam_skcipher_alg_init(struct caam_skcipher_alg *t_alg)
 	alg->base.cra_module = THIS_MODULE;
 	alg->base.cra_priority = CAAM_CRA_PRIORITY;
 	alg->base.cra_ctxsize = sizeof(struct caam_ctx);
-	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY;
+	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY |
+			      CRYPTO_ALG_KERN_DRIVER_ONLY;
 
 	alg->init = caam_cra_init_skcipher;
 	alg->exit = caam_cra_exit;
@@ -2925,7 +2926,8 @@ static void caam_aead_alg_init(struct caam_aead_alg *t_alg)
 	alg->base.cra_module = THIS_MODULE;
 	alg->base.cra_priority = CAAM_CRA_PRIORITY;
 	alg->base.cra_ctxsize = sizeof(struct caam_ctx);
-	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY;
+	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY |
+			      CRYPTO_ALG_KERN_DRIVER_ONLY;
 
 	alg->init = caam_cra_init_aead;
 	alg->exit = caam_cra_exit_aead;
@@ -4004,7 +4006,7 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct ahash_edesc *edesc;
 	struct dpaa2_sg_entry *sg_table;
-	int ret;
+	int ret = -ENOMEM;
 
 	src_nents = sg_nents_for_len(req->src, req->nbytes);
 	if (src_nents < 0) {
@@ -4017,7 +4019,7 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 					  DMA_TO_DEVICE);
 		if (!mapped_nents) {
 			dev_err(ctx->dev, "unable to DMA map source\n");
-			return -ENOMEM;
+			return ret;
 		}
 	} else {
 		mapped_nents = 0;
@@ -4027,7 +4029,7 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 	edesc = qi_cache_zalloc(GFP_DMA | flags);
 	if (!edesc) {
 		dma_unmap_sg(ctx->dev, req->src, src_nents, DMA_TO_DEVICE);
-		return -ENOMEM;
+		return ret;
 	}
 
 	edesc->src_nents = src_nents;
@@ -4082,7 +4084,7 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 unmap:
 	ahash_unmap_ctx(ctx->dev, edesc, req, DMA_FROM_DEVICE);
 	qi_cache_free(edesc);
-	return -ENOMEM;
+	return ret;
 }
 
 static int ahash_update_first(struct ahash_request *req)
@@ -4498,7 +4500,11 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct caam_hash_state));
 
-	return ahash_set_sh_desc(ahash);
+	/*
+	 * For keyed hash algorithms shared descriptors
+	 * will be created later in setkey() callback
+	 */
+	return alg->setkey ? 0 : ahash_set_sh_desc(ahash);
 }
 
 static void caam_hash_cra_exit(struct crypto_tfm *tfm)
@@ -4547,7 +4553,7 @@ static struct caam_hash_alg *caam_hash_alloc(struct device *dev,
 	alg->cra_priority = CAAM_CRA_PRIORITY;
 	alg->cra_blocksize = template->blocksize;
 	alg->cra_alignmask = 0;
-	alg->cra_flags = CRYPTO_ALG_ASYNC;
+	alg->cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY;
 
 	t_alg->alg_type = template->alg_type;
 	t_alg->dev = dev;
@@ -4697,6 +4703,13 @@ static void dpaa2_dpseci_free(struct dpaa2_caam_priv *priv)
 {
 	struct device *dev = priv->dev;
 	struct fsl_mc_device *ls_dev = to_fsl_mc_device(dev);
+	int err;
+
+	if (DPSECI_VER(priv->major_ver, priv->minor_ver) > DPSECI_VER(5, 3)) {
+		err = dpseci_reset(priv->mc_io, 0, ls_dev->mc_handle);
+		if (err)
+			dev_err(dev, "dpseci_reset() failed\n");
+	}
 
 	dpaa2_dpseci_congestion_free(priv);
 	dpseci_close(priv->mc_io, 0, ls_dev->mc_handle);
@@ -4893,6 +4906,14 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 	}
 
 	dev_info(dev, "dpseci v%d.%d\n", priv->major_ver, priv->minor_ver);
+
+	if (DPSECI_VER(priv->major_ver, priv->minor_ver) > DPSECI_VER(5, 3)) {
+		err = dpseci_reset(priv->mc_io, 0, ls_dev->mc_handle);
+		if (err) {
+			dev_err(dev, "dpseci_reset() failed\n");
+			goto err_get_vers;
+		}
+	}
 
 	err = dpseci_get_attributes(priv->mc_io, 0, ls_dev->mc_handle,
 				    &priv->dpseci_attr);
@@ -5221,7 +5242,7 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
 			dev_warn(dev, "%s hash alg allocation failed: %d\n",
-				 alg->driver_name, err);
+				 alg->hmac_driver_name, err);
 			continue;
 		}
 
@@ -5384,6 +5405,7 @@ static const struct fsl_mc_device_id dpaa2_caam_match_id_table[] = {
 	},
 	{ .vendor = 0x0 }
 };
+MODULE_DEVICE_TABLE(fslmc, dpaa2_caam_match_id_table);
 
 static struct fsl_mc_driver dpaa2_caam_driver = {
 	.driver = {

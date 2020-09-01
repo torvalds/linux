@@ -16,25 +16,22 @@
 
 #ifdef CONFIG_PPC64
 	.p2align	3
+#define __SYSCALL(nr, entry)	.8byte entry
+#else
+#define __SYSCALL(nr, entry)	.long entry
 #endif
 
 .globl sys_call_table
 sys_call_table:
 #ifdef CONFIG_PPC64
-#define __SYSCALL(nr, entry)	.8byte DOTSYM(entry)
 #include <asm/syscall_table_64.h>
-#undef __SYSCALL
 #else
-#define __SYSCALL(nr, entry)	.long entry
 #include <asm/syscall_table_32.h>
-#undef __SYSCALL
 #endif
 
 #ifdef CONFIG_COMPAT
 .globl compat_sys_call_table
 compat_sys_call_table:
 #define compat_sys_sigsuspend	sys_sigsuspend
-#define __SYSCALL(nr, entry)	.8byte DOTSYM(entry)
 #include <asm/syscall_table_c32.h>
-#undef __SYSCALL
 #endif

@@ -160,9 +160,6 @@ static void blk_account_io_flush(struct request *rq)
  *
  * CONTEXT:
  * spin_lock_irq(fq->mq_flush_lock)
- *
- * RETURNS:
- * %true if requests were added to the dispatch queue, %false otherwise.
  */
 static void blk_flush_complete_seq(struct request *rq,
 				   struct blk_flush_queue *fq,
@@ -222,7 +219,6 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	struct request *rq, *n;
 	unsigned long flags = 0;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, flush_rq->mq_ctx);
-	struct blk_mq_hw_ctx *hctx;
 
 	blk_account_io_flush(flush_rq);
 
@@ -238,13 +234,11 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	if (fq->rq_status != BLK_STS_OK)
 		error = fq->rq_status;
 
-	hctx = flush_rq->mq_hctx;
 	if (!q->elevator) {
-		blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
-		flush_rq->tag = -1;
+		flush_rq->tag = BLK_MQ_NO_TAG;
 	} else {
 		blk_mq_put_driver_tag(flush_rq);
-		flush_rq->internal_tag = -1;
+		flush_rq->internal_tag = BLK_MQ_NO_TAG;
 	}
 
 	running = &fq->flush_queue[fq->flush_running_idx];
@@ -261,7 +255,6 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 		blk_flush_complete_seq(rq, fq, seq, error);
 	}
 
-	fq->flush_queue_delayed = 0;
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 }
 
@@ -290,13 +283,8 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	if (fq->flush_pending_idx != fq->flush_running_idx || list_empty(pending))
 		return;
 
-	/* C2 and C3
-	 *
-	 * For blk-mq + scheduling, we can risk having all driver tags
-	 * assigned to empty flushes, and we deadlock if we are expecting
-	 * other requests to make progress. Don't defer for that case.
-	 */
-	if (!list_empty(&fq->flush_data_in_flight) && q->elevator &&
+	/* C2 and C3 */
+	if (!list_empty(&fq->flush_data_in_flight) &&
 	    time_before(jiffies,
 			fq->flush_pending_since + FLUSH_PENDING_TIMEOUT))
 		return;
@@ -321,12 +309,16 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	flush_rq->mq_hctx = first_rq->mq_hctx;
 
 	if (!q->elevator) {
-		fq->orig_rq = first_rq;
 		flush_rq->tag = first_rq->tag;
-		blk_mq_tag_set_rq(flush_rq->mq_hctx, first_rq->tag, flush_rq);
-	} else {
+
+		/*
+		 * We borrow data request's driver tag, so have to mark
+		 * this flush request as INFLIGHT for avoiding double
+		 * account of this driver tag
+		 */
+		flush_rq->rq_flags |= RQF_MQ_INFLIGHT;
+	} else
 		flush_rq->internal_tag = first_rq->internal_tag;
-	}
 
 	flush_rq->cmd_flags = REQ_OP_FLUSH | REQ_PREFLUSH;
 	flush_rq->cmd_flags |= (flags & REQ_DRV) | (flags & REQ_FAILFAST_MASK);
@@ -436,57 +428,27 @@ void blk_insert_flush(struct request *rq)
  * blkdev_issue_flush - queue a flush
  * @bdev:	blockdev to issue flush for
  * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @error_sector:	error sector
  *
  * Description:
- *    Issue a flush for the block device in question. Caller can supply
- *    room for storing the error offset in case of a flush error, if they
- *    wish to.
+ *    Issue a flush for the block device in question.
  */
-int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
-		sector_t *error_sector)
+int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask)
 {
-	struct request_queue *q;
 	struct bio *bio;
 	int ret = 0;
-
-	if (bdev->bd_disk == NULL)
-		return -ENXIO;
-
-	q = bdev_get_queue(bdev);
-	if (!q)
-		return -ENXIO;
-
-	/*
-	 * some block devices may not have their queue correctly set up here
-	 * (e.g. loop device without a backing file) and so issuing a flush
-	 * here will panic. Ensure there is a request function before issuing
-	 * the flush.
-	 */
-	if (!q->make_request_fn)
-		return -ENXIO;
 
 	bio = bio_alloc(gfp_mask, 0);
 	bio_set_dev(bio, bdev);
 	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
 	ret = submit_bio_wait(bio);
-
-	/*
-	 * The driver must store the error location in ->bi_sector, if
-	 * it supports it. For non-stacked drivers, this should be
-	 * copied from blk_rq_pos(rq).
-	 */
-	if (error_sector)
-		*error_sector = bio->bi_iter.bi_sector;
-
 	bio_put(bio);
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
-		int node, int cmd_size, gfp_t flags)
+struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
+					      gfp_t flags)
 {
 	struct blk_flush_queue *fq;
 	int rq_sz = sizeof(struct request);

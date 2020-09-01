@@ -1212,22 +1212,19 @@ static void i40iw_add_ipv4_addr(struct i40iw_device *iwdev)
 {
 	struct net_device *dev;
 	struct in_device *idev;
-	bool got_lock = true;
 	u32 ip_addr;
 
-	if (!rtnl_trylock())
-		got_lock = false;
-
-	for_each_netdev(&init_net, dev) {
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
 		if ((((rdma_vlan_dev_vlan_id(dev) < 0xFFFF) &&
 		      (rdma_vlan_dev_real_dev(dev) == iwdev->netdev)) ||
-		    (dev == iwdev->netdev)) && (dev->flags & IFF_UP)) {
+		    (dev == iwdev->netdev)) && (READ_ONCE(dev->flags) & IFF_UP)) {
 			const struct in_ifaddr *ifa;
 
-			idev = in_dev_get(dev);
+			idev = __in_dev_get_rcu(dev);
 			if (!idev)
 				continue;
-			in_dev_for_each_ifa_rtnl(ifa, idev) {
+			in_dev_for_each_ifa_rcu(ifa, idev) {
 				i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_CM,
 					    "IP=%pI4, vlan_id=%d, MAC=%pM\n", &ifa->ifa_address,
 					     rdma_vlan_dev_vlan_id(dev), dev->dev_addr);
@@ -1239,12 +1236,9 @@ static void i40iw_add_ipv4_addr(struct i40iw_device *iwdev)
 						       true,
 						       I40IW_ARP_ADD);
 			}
-
-			in_dev_put(idev);
 		}
 	}
-	if (got_lock)
-		rtnl_unlock();
+	rcu_read_unlock();
 }
 
 /**
@@ -1495,36 +1489,35 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev)
 		iwdev->iw_status = 0;
 		i40iw_port_ibevent(iwdev);
 		i40iw_destroy_rdma_device(iwdev->iwibdev);
-		/* fallthrough */
+		fallthrough;
 	case IP_ADDR_REGISTERED:
 		if (!iwdev->reset)
 			i40iw_del_macip_entry(iwdev, (u8)iwdev->mac_ip_table_idx);
-		/* fallthrough */
-		/* fallthrough */
+		fallthrough;
 	case PBLE_CHUNK_MEM:
 		i40iw_destroy_pble_pool(dev, iwdev->pble_rsrc);
-		/* fallthrough */
+		fallthrough;
 	case CEQ_CREATED:
 		i40iw_dele_ceqs(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case AEQ_CREATED:
 		i40iw_destroy_aeq(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case IEQ_CREATED:
 		i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_IEQ, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case ILQ_CREATED:
 		i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_ILQ, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case CCQ_CREATED:
 		i40iw_destroy_ccq(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case HMC_OBJS_CREATED:
 		i40iw_del_hmc_objects(dev, dev->hmc_info, true, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case CQP_CREATED:
 		i40iw_destroy_cqp(iwdev, true);
-		/* fallthrough */
+		fallthrough;
 	case INITIAL_STATE:
 		i40iw_cleanup_cm_core(&iwdev->cm_core);
 		if (iwdev->vsi.pestat) {
@@ -1534,7 +1527,6 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev)
 		i40iw_del_init_mem(iwdev);
 		break;
 	case INVALID_STATE:
-		/* fallthrough */
 	default:
 		i40iw_pr_err("bad init_state = %d\n", iwdev->init_state);
 		break;
@@ -1689,6 +1681,12 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 		status = i40iw_setup_ceqs(iwdev, ldev);
 		if (status)
 			break;
+
+		status = i40iw_get_rdma_features(dev);
+		if (status)
+			dev->feature_info[I40IW_FEATURE_FW_INFO] =
+				I40IW_FW_VER_DEFAULT;
+
 		iwdev->init_state = CEQ_CREATED;
 		status = i40iw_initialize_hw_resources(iwdev);
 		if (status)

@@ -185,7 +185,7 @@ static void nbio_v7_4_ih_doorbell_range(struct amdgpu_device *adev,
 
 	if (use_doorbell) {
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, OFFSET, doorbell_index);
-		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 2);
+		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 4);
 	} else
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 0);
 
@@ -292,23 +292,6 @@ const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg = {
 	.ref_and_mask_sdma7 = GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK,
 };
 
-static void nbio_v7_4_detect_hw_virt(struct amdgpu_device *adev)
-{
-	uint32_t reg;
-
-	reg = RREG32_SOC15(NBIO, 0, mmRCC_IOV_FUNC_IDENTIFIER);
-	if (reg & 1)
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
-
-	if (reg & 0x80000000)
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
-
-	if (!reg) {
-		if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
-			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
-	}
-}
-
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 {
 
@@ -318,6 +301,7 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 {
 	uint32_t bif_doorbell_intr_cntl;
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, adev->nbio.ras_if);
+	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
 	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
@@ -332,9 +316,27 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 		 * clear error status after ras_controller_intr according to
 		 * hw team and count ue number for query
 		 */
-		nbio_v7_4_query_ras_error_count(adev, &obj->err_data);
+		nbio_v7_4_query_ras_error_count(adev, &err_data);
 
-		DRM_WARN("RAS controller interrupt triggered by NBIF error\n");
+		/* logging on error counter and printing for awareness */
+		obj->err_data.ue_count += err_data.ue_count;
+		obj->err_data.ce_count += err_data.ce_count;
+
+		if (err_data.ce_count)
+			dev_info(adev->dev, "%ld correctable hardware "
+					"errors detected in %s block, "
+					"no user action is needed.\n",
+					obj->err_data.ce_count,
+					adev->nbio.ras_if->name);
+
+		if (err_data.ue_count)
+			dev_info(adev->dev, "%ld uncorrectable hardware "
+					"errors detected in %s block\n",
+					obj->err_data.ue_count,
+					adev->nbio.ras_if->name);
+
+		dev_info(adev->dev, "RAS controller interrupt triggered "
+					"by NBIF error\n");
 
 		/* ras_controller_int is dedicated for nbif ras error,
 		 * not the global interrupt for sync flood
@@ -548,7 +550,6 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.get_clockgating_state = nbio_v7_4_get_clockgating_state,
 	.ih_control = nbio_v7_4_ih_control,
 	.init_registers = nbio_v7_4_init_registers,
-	.detect_hw_virt = nbio_v7_4_detect_hw_virt,
 	.remap_hdp_registers = nbio_v7_4_remap_hdp_registers,
 	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
 	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,

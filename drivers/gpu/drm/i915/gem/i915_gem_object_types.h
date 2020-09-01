@@ -34,7 +34,7 @@ struct drm_i915_gem_object_ops {
 #define I915_GEM_OBJECT_HAS_IOMEM	BIT(1)
 #define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(2)
 #define I915_GEM_OBJECT_IS_PROXY	BIT(3)
-#define I915_GEM_OBJECT_NO_GGTT		BIT(4)
+#define I915_GEM_OBJECT_NO_MMAP		BIT(4)
 #define I915_GEM_OBJECT_ASYNC_CANCEL	BIT(5)
 
 	/* Interface between the GEM object and its backing storage.
@@ -61,6 +61,8 @@ struct drm_i915_gem_object_ops {
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *obj);
 	void (*release)(struct drm_i915_gem_object *obj);
+
+	const char *name; /* friendly name for debug, e.g. lockdep classes */
 };
 
 enum i915_mmap_type {
@@ -119,6 +121,7 @@ struct drm_i915_gem_object {
 	 * this translation from object to context->handles_vma.
 	 */
 	struct list_head lut_list;
+	spinlock_t lut_lock; /* guards lut_list */
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
@@ -178,9 +181,6 @@ struct drm_i915_gem_object {
 #define FENCE_MINIMUM_STRIDE 128 /* See i915_tiling_ok() */
 #define TILING_MASK (FENCE_MINIMUM_STRIDE - 1)
 #define STRIDE_MASK (~TILING_MASK)
-
-	/** Count of VMA actually bound by this object */
-	atomic_t bind_count;
 
 	struct {
 		/*

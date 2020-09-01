@@ -99,7 +99,7 @@ the sake of simplicity.
 
       /*
        * Give userspace some time to read the events before we destroy the
-       * device with UI_DEV_DESTOY.
+       * device with UI_DEV_DESTROY.
        */
       sleep(1);
 
@@ -164,7 +164,7 @@ mouse.
 
       /*
        * Give userspace some time to read the events before we destroy the
-       * device with UI_DEV_DESTOY.
+       * device with UI_DEV_DESTROY.
        */
       sleep(1);
 
@@ -233,7 +233,7 @@ but interact with uinput via ioctl calls, or use libevdev.
 
       /*
        * Give userspace some time to read the events before we destroy the
-       * device with UI_DEV_DESTOY.
+       * device with UI_DEV_DESTROY.
        */
       sleep(1);
 

@@ -11,6 +11,7 @@
 #include <linux/bitops.h>
 #include <linux/phy.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 
 #define RTL821x_PHYSR				0x11
 #define RTL821x_PHYSR_DUPLEX			BIT(13)
@@ -48,6 +49,8 @@
 #define RTL_LPADV_10000FULL			BIT(11)
 #define RTL_LPADV_5000FULL			BIT(6)
 #define RTL_LPADV_2500FULL			BIT(5)
+
+#define RTLGEN_SPEED_MASK			0x0630
 
 #define RTL_GENERIC_PHYID			0x001cc800
 
@@ -309,6 +312,55 @@ static int rtl8366rb_config_init(struct phy_device *phydev)
 	return ret;
 }
 
+/* get actual speed to cover the downshift case */
+static int rtlgen_get_speed(struct phy_device *phydev)
+{
+	int val;
+
+	if (!phydev->link)
+		return 0;
+
+	val = phy_read_paged(phydev, 0xa43, 0x12);
+	if (val < 0)
+		return val;
+
+	switch (val & RTLGEN_SPEED_MASK) {
+	case 0x0000:
+		phydev->speed = SPEED_10;
+		break;
+	case 0x0010:
+		phydev->speed = SPEED_100;
+		break;
+	case 0x0020:
+		phydev->speed = SPEED_1000;
+		break;
+	case 0x0200:
+		phydev->speed = SPEED_10000;
+		break;
+	case 0x0210:
+		phydev->speed = SPEED_2500;
+		break;
+	case 0x0220:
+		phydev->speed = SPEED_5000;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int rtlgen_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_read_status(phydev);
+	if (ret < 0)
+		return ret;
+
+	return rtlgen_get_speed(phydev);
+}
+
 static int rtlgen_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 {
 	int ret;
@@ -429,6 +481,8 @@ static int rtl8125_config_aneg(struct phy_device *phydev)
 
 static int rtl8125_read_status(struct phy_device *phydev)
 {
+	int ret;
+
 	if (phydev->autoneg == AUTONEG_ENABLE) {
 		int lpadv = phy_read_paged(phydev, 0xa5d, 0x13);
 
@@ -443,7 +497,11 @@ static int rtl8125_read_status(struct phy_device *phydev)
 			phydev->lp_advertising, lpadv & RTL_LPADV_2500FULL);
 	}
 
-	return genphy_read_status(phydev);
+	ret = genphy_read_status(phydev);
+	if (ret < 0)
+		return ret;
+
+	return rtlgen_get_speed(phydev);
 }
 
 static bool rtlgen_supports_2_5gbps(struct phy_device *phydev)
@@ -467,6 +525,16 @@ static int rtl8125_match_phy_device(struct phy_device *phydev)
 {
 	return phydev->phy_id == RTL_GENERIC_PHYID &&
 	       rtlgen_supports_2_5gbps(phydev);
+}
+
+static int rtlgen_resume(struct phy_device *phydev)
+{
+	int ret = genphy_resume(phydev);
+
+	/* Internal PHY's from RTL8168h up may not be instantly ready */
+	msleep(20);
+
+	return ret;
 }
 
 static struct phy_driver realtek_drvs[] = {
@@ -550,8 +618,9 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		.name		= "Generic FE-GE Realtek PHY",
 		.match_phy_device = rtlgen_match_phy_device,
+		.read_status	= rtlgen_read_status,
 		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
+		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.read_mmd	= rtlgen_read_mmd,
@@ -563,7 +632,19 @@ static struct phy_driver realtek_drvs[] = {
 		.config_aneg	= rtl8125_config_aneg,
 		.read_status	= rtl8125_read_status,
 		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
+		.resume		= rtlgen_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl8125_read_mmd,
+		.write_mmd	= rtl8125_write_mmd,
+	}, {
+		PHY_ID_MATCH_EXACT(0x001cc840),
+		.name		= "RTL8125B 2.5Gbps internal",
+		.get_features	= rtl8125_get_features,
+		.config_aneg	= rtl8125_config_aneg,
+		.read_status	= rtl8125_read_status,
+		.suspend	= genphy_suspend,
+		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.read_mmd	= rtl8125_read_mmd,

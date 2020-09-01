@@ -20,13 +20,13 @@ static void device_wakeup(struct wfx_dev *wdev)
 {
 	if (!wdev->pdata.gpio_wakeup)
 		return;
-	if (gpiod_get_value(wdev->pdata.gpio_wakeup))
+	if (gpiod_get_value_cansleep(wdev->pdata.gpio_wakeup))
 		return;
 
-	gpiod_set_value(wdev->pdata.gpio_wakeup, 1);
+	gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 	if (wfx_api_older_than(wdev, 1, 4)) {
 		if (!completion_done(&wdev->hif.ctrl_ready))
-			udelay(2000);
+			usleep_range(2000, 2500);
 	} else {
 		// completion.h does not provide any function to wait
 		// completion without consume it (a kind of
@@ -45,7 +45,7 @@ static void device_release(struct wfx_dev *wdev)
 	if (!wdev->pdata.gpio_wakeup)
 		return;
 
-	gpiod_set_value(wdev->pdata.gpio_wakeup, 0);
+	gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 0);
 }
 
 static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
@@ -57,7 +57,6 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	int release_count;
 	int piggyback = 0;
 
-	WARN(read_len < 4, "corrupted read");
 	WARN(read_len > round_down(0xFFF, 2) * sizeof(u16),
 	     "%s: request exceed WFx capability", __func__);
 
@@ -70,27 +69,23 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	if (wfx_data_read(wdev, skb->data, alloc_len))
 		goto err;
 
-	piggyback = le16_to_cpup((u16 *)(skb->data + alloc_len - 2));
+	piggyback = le16_to_cpup((__le16 *)(skb->data + alloc_len - 2));
 	_trace_piggyback(piggyback, false);
 
 	hif = (struct hif_msg *)skb->data;
 	WARN(hif->encrypted & 0x1, "unsupported encryption type");
 	if (hif->encrypted == 0x2) {
-		if (wfx_sl_decode(wdev, (void *)hif)) {
-			dev_kfree_skb(skb);
-			// If frame was a confirmation, expect trouble in next
-			// exchange. However, it is harmless to fail to decode
-			// an indication frame, so try to continue. Anyway,
-			// piggyback is probably correct.
-			return piggyback;
-		}
-		le16_to_cpus(&hif->len);
-		computed_len = round_up(hif->len - sizeof(hif->len), 16)
-			       + sizeof(struct hif_sl_msg)
-			       + sizeof(struct hif_sl_tag);
+		if (WARN(read_len < sizeof(struct hif_sl_msg), "corrupted read"))
+			goto err;
+		computed_len = le16_to_cpu(((struct hif_sl_msg *)hif)->len);
+		computed_len = round_up(computed_len - sizeof(u16), 16);
+		computed_len += sizeof(struct hif_sl_msg);
+		computed_len += sizeof(struct hif_sl_tag);
 	} else {
-		le16_to_cpus(&hif->len);
-		computed_len = round_up(hif->len, 2);
+		if (WARN(read_len < sizeof(struct hif_msg), "corrupted read"))
+			goto err;
+		computed_len = le16_to_cpu(hif->len);
+		computed_len = round_up(computed_len, 2);
 	}
 	if (computed_len != read_len) {
 		dev_err(wdev->dev, "inconsistent message length: %zu != %zu\n",
@@ -99,17 +94,25 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 			       hif, read_len, true);
 		goto err;
 	}
+	if (hif->encrypted == 0x2) {
+		if (wfx_sl_decode(wdev, (struct hif_sl_msg *)hif)) {
+			dev_kfree_skb(skb);
+			// If frame was a confirmation, expect trouble in next
+			// exchange. However, it is harmless to fail to decode
+			// an indication frame, so try to continue. Anyway,
+			// piggyback is probably correct.
+			return piggyback;
+		}
+	}
 
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {
 		(*is_cnf)++;
 		if (hif->id == HIF_CNF_ID_MULTI_TRANSMIT)
-			release_count = le32_to_cpu(((struct hif_cnf_multi_transmit *)hif->body)->num_tx_confs);
+			release_count = ((struct hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
 		else
 			release_count = 1;
 		WARN(wdev->hif.tx_buffers_used < release_count, "corrupted buffer counter");
 		wdev->hif.tx_buffers_used -= release_count;
-		if (!wdev->hif.tx_buffers_used)
-			wake_up(&wdev->hif.tx_buffers_empty);
 	}
 	_trace_hif_recv(hif, wdev->hif.tx_buffers_used);
 
@@ -120,9 +123,11 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 		wdev->hif.rx_seqnum = (hif->seqnum + 1) % (HIF_COUNTER_MAX + 1);
 	}
 
-	skb_put(skb, hif->len);
+	skb_put(skb, le16_to_cpu(hif->len));
 	// wfx_handle_rx takes care on SKB livetime
 	wfx_handle_rx(wdev, skb);
+	if (!wdev->hif.tx_buffers_used)
+		wake_up(&wdev->hif.tx_buffers_empty);
 
 	return piggyback;
 
@@ -305,6 +310,35 @@ void wfx_bh_request_rx(struct wfx_dev *wdev)
 void wfx_bh_request_tx(struct wfx_dev *wdev)
 {
 	queue_work(system_highpri_wq, &wdev->hif.bh);
+}
+
+/*
+ * If IRQ is not available, this function allow to manually poll the control
+ * register and simulate an IRQ ahen an event happened.
+ *
+ * Note that the device has a bug: If an IRQ raise while host read control
+ * register, the IRQ is lost. So, use this function carefully (only duing
+ * device initialisation).
+ */
+void wfx_bh_poll_irq(struct wfx_dev *wdev)
+{
+	ktime_t now, start;
+	u32 reg;
+
+	WARN(!wdev->poll_irq, "unexpected IRQ polling can mask IRQ");
+	start = ktime_get();
+	for (;;) {
+		control_reg_read(wdev, &reg);
+		now = ktime_get();
+		if (reg & 0xFFF)
+			break;
+		if (ktime_after(now, ktime_add_ms(start, 1000))) {
+			dev_err(wdev->dev, "time out while polling control register\n");
+			return;
+		}
+		udelay(200);
+	}
+	wfx_bh_request_rx(wdev);
 }
 
 void wfx_bh_register(struct wfx_dev *wdev)

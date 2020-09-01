@@ -32,6 +32,7 @@
 
 #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
 #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
+#define _PAGE_BIT_UFFD_WP	_PAGE_BIT_SOFTW2 /* userfaultfd wrprotected */
 #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
 #define _PAGE_BIT_DEVMAP	_PAGE_BIT_SOFTW4
 
@@ -100,6 +101,14 @@
 #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
 #endif
 
+#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
+#define _PAGE_UFFD_WP		(_AT(pteval_t, 1) << _PAGE_BIT_UFFD_WP)
+#define _PAGE_SWP_UFFD_WP	_PAGE_USER
+#else
+#define _PAGE_UFFD_WP		(_AT(pteval_t, 0))
+#define _PAGE_SWP_UFFD_WP	(_AT(pteval_t, 0))
+#endif
+
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 #define _PAGE_NX	(_AT(pteval_t, 1) << _PAGE_BIT_NX)
 #define _PAGE_DEVMAP	(_AT(u64, 1) << _PAGE_BIT_DEVMAP)
@@ -118,7 +127,8 @@
  */
 #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
-			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP)
+			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP | _PAGE_ENC |  \
+			 _PAGE_UFFD_WP)
 #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
 
 /*
@@ -184,7 +194,7 @@ enum page_cache_mode {
 #define _PAGE_TABLE_NOENC	 (__PP|__RW|_USR|___A|   0|___D|   0|   0)
 #define _PAGE_TABLE		 (__PP|__RW|_USR|___A|   0|___D|   0|   0| _ENC)
 #define __PAGE_KERNEL_RO	 (__PP|   0|   0|___A|__NX|___D|   0|___G)
-#define __PAGE_KERNEL_RX	 (__PP|   0|   0|___A|   0|___D|   0|___G)
+#define __PAGE_KERNEL_ROX	 (__PP|   0|   0|___A|   0|___D|   0|___G)
 #define __PAGE_KERNEL_NOCACHE	 (__PP|__RW|   0|___A|__NX|___D|   0|___G| __NC)
 #define __PAGE_KERNEL_VVAR	 (__PP|   0|_USR|___A|__NX|___D|   0|___G)
 #define __PAGE_KERNEL_LARGE	 (__PP|__RW|   0|___A|__NX|___D|_PSE|___G)
@@ -210,7 +220,7 @@ enum page_cache_mode {
 #define PAGE_KERNEL_RO		__pgprot_mask(__PAGE_KERNEL_RO         | _ENC)
 #define PAGE_KERNEL_EXEC	__pgprot_mask(__PAGE_KERNEL_EXEC       | _ENC)
 #define PAGE_KERNEL_EXEC_NOENC	__pgprot_mask(__PAGE_KERNEL_EXEC       |    0)
-#define PAGE_KERNEL_RX		__pgprot_mask(__PAGE_KERNEL_RX         | _ENC)
+#define PAGE_KERNEL_ROX		__pgprot_mask(__PAGE_KERNEL_ROX        | _ENC)
 #define PAGE_KERNEL_NOCACHE	__pgprot_mask(__PAGE_KERNEL_NOCACHE    | _ENC)
 #define PAGE_KERNEL_LARGE	__pgprot_mask(__PAGE_KERNEL_LARGE      | _ENC)
 #define PAGE_KERNEL_LARGE_EXEC	__pgprot_mask(__PAGE_KERNEL_LARGE_EXEC | _ENC)
@@ -273,6 +283,12 @@ enum page_cache_mode {
 typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
 
 typedef struct { pgdval_t pgd; } pgd_t;
+
+static inline pgprot_t pgprot_nx(pgprot_t prot)
+{
+	return __pgprot(pgprot_val(prot) | _PAGE_NX);
+}
+#define pgprot_nx pgprot_nx
 
 #ifdef CONFIG_X86_PAE
 
@@ -457,9 +473,6 @@ static inline pteval_t pte_flags(pte_t pte)
 	return native_pte_val(pte) & PTE_FLAGS_MASK;
 }
 
-extern uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM];
-extern uint8_t __pte2cachemode_tbl[8];
-
 #define __pte2cm_idx(cb)				\
 	((((cb) >> (_PAGE_BIT_PAT - 2)) & 4) |		\
 	 (((cb) >> (_PAGE_BIT_PCD - 1)) & 2) |		\
@@ -469,43 +482,26 @@ extern uint8_t __pte2cachemode_tbl[8];
 	 (((i) & 2) << (_PAGE_BIT_PCD - 1)) |		\
 	 (((i) & 1) << _PAGE_BIT_PWT))
 
-static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
-{
-	if (likely(pcm == 0))
-		return 0;
-	return __cachemode2pte_tbl[pcm];
-}
-static inline pgprot_t cachemode2pgprot(enum page_cache_mode pcm)
-{
-	return __pgprot(cachemode2protval(pcm));
-}
-static inline enum page_cache_mode pgprot2cachemode(pgprot_t pgprot)
-{
-	unsigned long masked;
+unsigned long cachemode2protval(enum page_cache_mode pcm);
 
-	masked = pgprot_val(pgprot) & _PAGE_CACHE_MASK;
-	if (likely(masked == 0))
-		return 0;
-	return __pte2cachemode_tbl[__pte2cm_idx(masked)];
+static inline pgprotval_t protval_4k_2_large(pgprotval_t val)
+{
+	return (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
+		((val & _PAGE_PAT) << (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
 }
 static inline pgprot_t pgprot_4k_2_large(pgprot_t pgprot)
 {
-	pgprotval_t val = pgprot_val(pgprot);
-	pgprot_t new;
-
-	pgprot_val(new) = (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
-		((val & _PAGE_PAT) << (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
-	return new;
+	return __pgprot(protval_4k_2_large(pgprot_val(pgprot)));
+}
+static inline pgprotval_t protval_large_2_4k(pgprotval_t val)
+{
+	return (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
+		((val & _PAGE_PAT_LARGE) >>
+		 (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
 }
 static inline pgprot_t pgprot_large_2_4k(pgprot_t pgprot)
 {
-	pgprotval_t val = pgprot_val(pgprot);
-	pgprot_t new;
-
-	pgprot_val(new) = (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
-			  ((val & _PAGE_PAT_LARGE) >>
-			   (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
-	return new;
+	return __pgprot(protval_large_2_4k(pgprot_val(pgprot)));
 }
 
 

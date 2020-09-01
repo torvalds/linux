@@ -42,6 +42,13 @@ struct soc15_reg_golden {
 	u32	or_mask;
 };
 
+struct soc15_reg_rlcg {
+	u32	hwip;
+	u32	instance;
+	u32	segment;
+	u32	reg;
+};
+
 struct soc15_reg_entry {
 	uint32_t hwip;
 	uint32_t inst;
@@ -83,6 +90,7 @@ struct soc15_ras_field_entry {
 
 void soc15_grbm_select(struct amdgpu_device *adev,
 		    u32 me, u32 pipe, u32 queue, u32 vmid);
+void soc15_set_virt_ops(struct amdgpu_device *adev);
 int soc15_set_ip_blocks(struct amdgpu_device *adev);
 
 void soc15_program_register_sequence(struct amdgpu_device *adev,

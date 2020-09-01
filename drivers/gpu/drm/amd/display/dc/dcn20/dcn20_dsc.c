@@ -156,7 +156,12 @@ static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_ds
 
 	REG_GET(DSC_TOP_CONTROL, DSC_CLOCK_EN, &s->dsc_clock_en);
 	REG_GET(DSCC_PPS_CONFIG3, SLICE_WIDTH, &s->dsc_slice_width);
-	REG_GET(DSCC_PPS_CONFIG1, BITS_PER_PIXEL, &s->dsc_bytes_per_pixel);
+	REG_GET(DSCC_PPS_CONFIG1, BITS_PER_PIXEL, &s->dsc_bits_per_pixel);
+	REG_GET(DSCC_PPS_CONFIG3, SLICE_HEIGHT, &s->dsc_slice_height);
+	REG_GET(DSCC_PPS_CONFIG1, CHUNK_SIZE, &s->dsc_chunk_size);
+	REG_GET(DSCC_PPS_CONFIG2, PIC_WIDTH, &s->dsc_pic_width);
+	REG_GET(DSCC_PPS_CONFIG2, PIC_HEIGHT, &s->dsc_pic_height);
+	REG_GET(DSCC_PPS_CONFIG7, SLICE_BPG_OFFSET, &s->dsc_slice_bpg_offset);
 }
 
 
@@ -369,6 +374,7 @@ static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_
 	dsc_reg_vals->pps.block_pred_enable = dsc_cfg->dc_dsc_cfg.block_pred_enable;
 	dsc_reg_vals->pps.line_buf_depth = dsc_cfg->dc_dsc_cfg.linebuf_depth;
 	dsc_reg_vals->alternate_ich_encoding_en = dsc_reg_vals->pps.dsc_version_minor == 1 ? 0 : 1;
+	dsc_reg_vals->ich_reset_at_eol = (dsc_cfg->is_odm || dsc_reg_vals->num_slices_h > 1) ? 0xF : 0;
 
 	// TODO: in addition to validating slice height (pic height must be divisible by slice height),
 	// see what happens when the same condition doesn't apply for slice_width/pic_width.
@@ -531,7 +537,6 @@ static void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, cons
 		reg_vals->pps.rc_buf_thresh[i] = reg_vals->pps.rc_buf_thresh[i] >> 6;
 
 	reg_vals->rc_buffer_model_size = dsc_params->rc_buffer_model_size;
-	reg_vals->ich_reset_at_eol = reg_vals->num_slices_h == 1 ? 0 : 0xf;
 }
 
 static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc_reg_values *reg_vals)
@@ -717,22 +722,5 @@ static void dsc_write_to_registers(struct display_stream_compressor *dsc, const 
 		RANGE_MAX_QP14, reg_vals->pps.rc_range_params[14].range_max_qp,
 		RANGE_BPG_OFFSET14, reg_vals->pps.rc_range_params[14].range_bpg_offset);
 
-	if (IS_FPGA_MAXIMUS_DC(dsc20->base.ctx->dce_environment)) {
-		/* It's safe to do this as long as debug bus is not being used in DAL Diag environment.
-		 *
-		 * This is because DSCC_PPS_CONFIG4.INITIAL_DEC_DELAY is a read-only register field (because it's a decoder
-		 * value not required by DSC encoder). However, since decoding fails when this value is missing from PPS, it's
-		 * required to communicate this value to the PPS header. When testing on FPGA, the values for PPS header are
-		 * being read from Diag register dump. The register below is used in place of a scratch register to make
-		 * 'initial_dec_delay' available.
-		 */
-
-		temp_int = reg_vals->pps.initial_dec_delay;
-		REG_SET_4(DSCC_TEST_DEBUG_BUS_ROTATE, 0,
-			DSCC_TEST_DEBUG_BUS0_ROTATE, temp_int & 0x1f,
-			DSCC_TEST_DEBUG_BUS1_ROTATE, temp_int >> 5 & 0x1f,
-			DSCC_TEST_DEBUG_BUS2_ROTATE, temp_int >> 10 & 0x1f,
-			DSCC_TEST_DEBUG_BUS3_ROTATE, temp_int >> 15 & 0x1);
-	}
 }
 

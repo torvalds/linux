@@ -20,9 +20,9 @@ struct ice_fv {
 
 /* Package and segment headers and tables */
 struct ice_pkg_hdr {
-	struct ice_pkg_ver format_ver;
+	struct ice_pkg_ver pkg_format_ver;
 	__le32 seg_count;
-	__le32 seg_offset[1];
+	__le32 seg_offset[];
 };
 
 /* generic segment */
@@ -30,9 +30,9 @@ struct ice_generic_seg_hdr {
 #define SEGMENT_TYPE_METADATA	0x00000001
 #define SEGMENT_TYPE_ICE	0x00000010
 	__le32 seg_type;
-	struct ice_pkg_ver seg_ver;
+	struct ice_pkg_ver seg_format_ver;
 	__le32 seg_size;
-	char seg_name[ICE_PKG_NAME_SIZE];
+	char seg_id[ICE_PKG_NAME_SIZE];
 };
 
 /* ice specific segment */
@@ -53,12 +53,12 @@ struct ice_device_id_entry {
 struct ice_seg {
 	struct ice_generic_seg_hdr hdr;
 	__le32 device_table_count;
-	struct ice_device_id_entry device_table[1];
+	struct ice_device_id_entry device_table[];
 };
 
 struct ice_nvm_table {
 	__le32 table_count;
-	__le32 vers[1];
+	__le32 vers[];
 };
 
 struct ice_buf {
@@ -68,14 +68,14 @@ struct ice_buf {
 
 struct ice_buf_table {
 	__le32 buf_count;
-	struct ice_buf buf_array[1];
+	struct ice_buf buf_array[];
 };
 
 /* global metadata specific segment */
 struct ice_global_metadata_seg {
 	struct ice_generic_seg_hdr hdr;
 	struct ice_pkg_ver pkg_ver;
-	__le32 track_id;
+	__le32 rsvd;
 	char pkg_name[ICE_PKG_NAME_SIZE];
 };
 
@@ -101,11 +101,12 @@ struct ice_section_entry {
 struct ice_buf_hdr {
 	__le16 section_count;
 	__le16 data_end;
-	struct ice_section_entry section_entry[1];
+	struct ice_section_entry section_entry[];
 };
 
 #define ICE_MAX_ENTRIES_IN_BUF(hd_sz, ent_sz) ((ICE_PKG_BUF_SIZE - \
-	sizeof(struct ice_buf_hdr) - (hd_sz)) / (ent_sz))
+	struct_size((struct ice_buf_hdr *)0, section_entry, 1) - (hd_sz)) /\
+	(ent_sz))
 
 /* ice package section IDs */
 #define ICE_SID_XLT0_SW			10
@@ -149,6 +150,7 @@ struct ice_buf_hdr {
 #define ICE_SID_CDID_REDIR_RSS		48
 
 #define ICE_SID_RXPARSER_BOOST_TCAM	56
+#define ICE_SID_TXPARSER_BOOST_TCAM	66
 
 #define ICE_SID_XLT0_PE			80
 #define ICE_SID_XLT_KEY_BUILDER_PE	81
@@ -197,17 +199,17 @@ struct ice_label {
 
 struct ice_label_section {
 	__le16 count;
-	struct ice_label label[1];
+	struct ice_label label[];
 };
 
 #define ICE_MAX_LABELS_IN_BUF ICE_MAX_ENTRIES_IN_BUF( \
-	sizeof(struct ice_label_section) - sizeof(struct ice_label), \
-	sizeof(struct ice_label))
+	struct_size((struct ice_label_section *)0, label, 1) - \
+	sizeof(struct ice_label), sizeof(struct ice_label))
 
 struct ice_sw_fv_section {
 	__le16 count;
 	__le16 base_offset;
-	struct ice_fv fv[1];
+	struct ice_fv fv[];
 };
 
 /* The BOOST TCAM stores the match packet header in reverse order, meaning
@@ -244,30 +246,30 @@ struct ice_boost_tcam_entry {
 struct ice_boost_tcam_section {
 	__le16 count;
 	__le16 reserved;
-	struct ice_boost_tcam_entry tcam[1];
+	struct ice_boost_tcam_entry tcam[];
 };
 
 #define ICE_MAX_BST_TCAMS_IN_BUF ICE_MAX_ENTRIES_IN_BUF( \
-	sizeof(struct ice_boost_tcam_section) - \
+	struct_size((struct ice_boost_tcam_section *)0, tcam, 1) - \
 	sizeof(struct ice_boost_tcam_entry), \
 	sizeof(struct ice_boost_tcam_entry))
 
 struct ice_xlt1_section {
 	__le16 count;
 	__le16 offset;
-	u8 value[1];
-} __packed;
+	u8 value[];
+};
 
 struct ice_xlt2_section {
 	__le16 count;
 	__le16 offset;
-	__le16 value[1];
+	__le16 value[];
 };
 
 struct ice_prof_redir_section {
 	__le16 count;
 	__le16 offset;
-	u8 redir_value[1];
+	u8 redir_value[];
 };
 
 /* package buffer building */
@@ -291,10 +293,42 @@ struct ice_pkg_enum {
 	void *(*handler)(u32 sect_type, void *section, u32 index, u32 *offset);
 };
 
+/* Tunnel enabling */
+
+enum ice_tunnel_type {
+	TNL_VXLAN = 0,
+	TNL_GENEVE,
+	TNL_LAST = 0xFF,
+	TNL_ALL = 0xFF,
+};
+
+struct ice_tunnel_type_scan {
+	enum ice_tunnel_type type;
+	const char *label_prefix;
+};
+
+struct ice_tunnel_entry {
+	enum ice_tunnel_type type;
+	u16 boost_addr;
+	u16 port;
+	u16 ref;
+	struct ice_boost_tcam_entry *boost_entry;
+	u8 valid;
+	u8 in_use;
+	u8 marked;
+};
+
+#define ICE_TUNNEL_MAX_ENTRIES	16
+
+struct ice_tunnel_table {
+	struct ice_tunnel_entry tbl[ICE_TUNNEL_MAX_ENTRIES];
+	u16 count;
+};
+
 struct ice_pkg_es {
 	__le16 count;
 	__le16 offset;
-	struct ice_fv_word es[1];
+	struct ice_fv_word es[];
 };
 
 struct ice_es {
@@ -428,8 +462,8 @@ struct ice_prof_tcam_entry {
 
 struct ice_prof_id_section {
 	__le16 count;
-	struct ice_prof_tcam_entry entry[1];
-} __packed;
+	struct ice_prof_tcam_entry entry[];
+};
 
 struct ice_prof_tcam {
 	u32 sid;

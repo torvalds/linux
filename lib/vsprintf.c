@@ -34,6 +34,7 @@
 #include <linux/dcache.h>
 #include <linux/cred.h>
 #include <linux/rtc.h>
+#include <linux/time.h>
 #include <linux/uuid.h>
 #include <linux/of.h>
 #include <net/addrconf.h>
@@ -58,7 +59,7 @@
  * @endp: A pointer to the end of the parsed string will be placed here
  * @base: The number base to use
  *
- * This function is obsolete. Please use kstrtoull instead.
+ * This function has caveats. Please use kstrtoull instead.
  */
 unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int base)
 {
@@ -83,7 +84,7 @@ EXPORT_SYMBOL(simple_strtoull);
  * @endp: A pointer to the end of the parsed string will be placed here
  * @base: The number base to use
  *
- * This function is obsolete. Please use kstrtoul instead.
+ * This function has caveats. Please use kstrtoul instead.
  */
 unsigned long simple_strtoul(const char *cp, char **endp, unsigned int base)
 {
@@ -97,7 +98,7 @@ EXPORT_SYMBOL(simple_strtoul);
  * @endp: A pointer to the end of the parsed string will be placed here
  * @base: The number base to use
  *
- * This function is obsolete. Please use kstrtol instead.
+ * This function has caveats. Please use kstrtol instead.
  */
 long simple_strtol(const char *cp, char **endp, unsigned int base)
 {
@@ -114,7 +115,7 @@ EXPORT_SYMBOL(simple_strtol);
  * @endp: A pointer to the end of the parsed string will be placed here
  * @base: The number base to use
  *
- * This function is obsolete. Please use kstrtoll instead.
+ * This function has caveats. Please use kstrtoll instead.
  */
 long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 {
@@ -380,6 +381,9 @@ int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 #define SMALL	32		/* use lowercase in hex (must be 32 == 0x20) */
 #define SPECIAL	64		/* prefix hex with "0x", octal with "0" */
 
+static_assert(ZEROPAD == ('0' - ' '));
+static_assert(SMALL == ' ');
+
 enum format_type {
 	FORMAT_TYPE_NONE, /* Just a string part */
 	FORMAT_TYPE_WIDTH,
@@ -506,7 +510,7 @@ char *number(char *buf, char *end, unsigned long long num,
 	/* zero or space padding */
 	if (!(spec.flags & LEFT)) {
 		char c = ' ' + (spec.flags & ZEROPAD);
-		BUILD_BUG_ON(' ' + ZEROPAD != '0');
+
 		while (--field_width >= 0) {
 			if (buf < end)
 				*buf = c;
@@ -793,6 +797,13 @@ static char *ptr_to_id(char *buf, char *end, const void *ptr,
 	const char *str = sizeof(ptr) == 8 ? "(____ptrval____)" : "(ptrval)";
 	unsigned long hashval;
 	int ret;
+
+	/*
+	 * Print the real pointer value for NULL and error pointers,
+	 * as they are not actual addresses.
+	 */
+	if (IS_ERR_OR_NULL(ptr))
+		return pointer_string(buf, end, ptr, spec);
 
 	/* When debugging early boot use non-cryptographically secure hash. */
 	if (unlikely(debug_boot_weak_hash)) {
@@ -1670,7 +1681,8 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 
 	switch (*(++fmt)) {
 	case 'L':
-		uc = true;		/* fall-through */
+		uc = true;
+		/* fall through */
 	case 'l':
 		index = guid_index;
 		break;
@@ -1820,14 +1832,39 @@ char *rtc_str(char *buf, char *end, const struct rtc_time *tm,
 }
 
 static noinline_for_stack
+char *time64_str(char *buf, char *end, const time64_t time,
+		 struct printf_spec spec, const char *fmt)
+{
+	struct rtc_time rtc_time;
+	struct tm tm;
+
+	time64_to_tm(time, 0, &tm);
+
+	rtc_time.tm_sec = tm.tm_sec;
+	rtc_time.tm_min = tm.tm_min;
+	rtc_time.tm_hour = tm.tm_hour;
+	rtc_time.tm_mday = tm.tm_mday;
+	rtc_time.tm_mon = tm.tm_mon;
+	rtc_time.tm_year = tm.tm_year;
+	rtc_time.tm_wday = tm.tm_wday;
+	rtc_time.tm_yday = tm.tm_yday;
+
+	rtc_time.tm_isdst = 0;
+
+	return rtc_str(buf, end, &rtc_time, spec, fmt);
+}
+
+static noinline_for_stack
 char *time_and_date(char *buf, char *end, void *ptr, struct printf_spec spec,
 		    const char *fmt)
 {
 	switch (fmt[1]) {
 	case 'R':
 		return rtc_str(buf, end, (const struct rtc_time *)ptr, spec, fmt);
+	case 'T':
+		return time64_str(buf, end, *(const time64_t *)ptr, spec, fmt);
 	default:
-		return error_string(buf, end, "(%ptR?)", spec);
+		return error_string(buf, end, "(%pt?)", spec);
 	}
 }
 
@@ -1901,7 +1938,7 @@ char *flags_string(char *buf, char *end, void *flags_ptr,
 		names = vmaflag_names;
 		break;
 	case 'g':
-		flags = *(gfp_t *)flags_ptr;
+		flags = (__force unsigned long)(*(gfp_t *)flags_ptr);
 		names = gfpflag_names;
 		break;
 	default:
@@ -1943,12 +1980,6 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 	char *buf_start = buf;
 	struct property *prop;
 	bool has_mult, pass;
-	static const struct printf_spec num_spec = {
-		.flags = SMALL,
-		.field_width = -1,
-		.precision = -1,
-		.base = 10,
-	};
 
 	struct printf_spec str_spec = spec;
 	str_spec.field_width = -1;
@@ -1988,7 +2019,7 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 			str_spec.precision = precision;
 			break;
 		case 'p':	/* phandle */
-			buf = number(buf, end, (unsigned int)dn->phandle, num_spec);
+			buf = number(buf, end, (unsigned int)dn->phandle, default_dec_spec);
 			break;
 		case 'P':	/* path-spec */
 			p = fwnode_get_name(of_fwnode_handle(dn));
@@ -2101,7 +2132,7 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  *       [4] or [6] and is able to print port [p], flowinfo [f], scope [s]
  * - '[Ii][4S][hnbl]' IPv4 addresses in host, network, big or little endian order
  * - 'I[6S]c' for IPv6 addresses printed as specified by
- *       http://tools.ietf.org/html/rfc5952
+ *       https://tools.ietf.org/html/rfc5952
  * - 'E[achnops]' For an escaped buffer, where rules are defined by combination
  *                of the following flags (see string_escape_mem() for the
  *                details):
@@ -2143,8 +2174,9 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  * - 'd[234]' For a dentry name (optionally 2-4 last components)
  * - 'D[234]' Same as 'd' but for a struct file
  * - 'g' For block_device name (gendisk + partition number)
- * - 't[R][dt][r]' For time and date as represented:
+ * - 't[RT][dt][r]' For time and date as represented by:
  *      R    struct rtc_time
+ *      T    time64_t
  * - 'C' For a clock, it prints the name (Common Clock Framework) or address
  *       (legacy clock framework) of the clock
  * - 'Cn' For a clock, it prints the name (Common Clock Framework) or address
@@ -2168,6 +2200,10 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  *		f full name
  *		P node name, including a possible unit address
  * - 'x' For printing the address. Equivalent to "%lx".
+ * - '[ku]s' For a BPF/tracing related format specifier, e.g. used out of
+ *           bpf_trace_printk() where [ku] prefix specifies either kernel (k)
+ *           or user (u) memory to probe, and:
+ *              s a string, equivalent to "%s" on direct vsnprintf() use
  *
  * ** When making changes please also update:
  *	Documentation/core-api/printk-formats.rst
@@ -2183,7 +2219,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'S':
 	case 's':
 		ptr = dereference_symbol_descriptor(ptr);
-		/* Fallthrough */
+		/* fall through */
 	case 'B':
 		return symbol_string(buf, end, ptr, spec, fmt);
 	case 'R':
@@ -2251,6 +2287,14 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		if (!IS_ERR(ptr))
 			break;
 		return err_ptr(buf, end, ptr, spec);
+	case 'u':
+	case 'k':
+		switch (fmt[1]) {
+		case 's':
+			return string(buf, end, ptr, spec);
+		default:
+			return error_string(buf, end, "(einval)", spec);
+		}
 	}
 
 	/* default is to _not_ leak addresses, hash before printing */
@@ -2424,7 +2468,7 @@ qualifier:
 		 * utility, treat it as any other invalid or
 		 * unsupported format specifier.
 		 */
-		/* Fall-through */
+		/* fall through */
 
 	default:
 		WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt);

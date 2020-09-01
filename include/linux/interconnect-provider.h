@@ -41,6 +41,7 @@ struct icc_node *of_icc_xlate_onecell(struct of_phandle_args *spec,
  * @xlate: provider-specific callback for mapping nodes from phandle arguments
  * @dev: the device this interconnect provider belongs to
  * @users: count of active users
+ * @inter_set: whether inter-provider pairs will be configured with @set
  * @data: pointer to private data
  */
 struct icc_provider {
@@ -53,6 +54,7 @@ struct icc_provider {
 	struct icc_node* (*xlate)(struct of_phandle_args *spec, void *data);
 	struct device		*dev;
 	int			users;
+	bool			inter_set;
 	void			*data;
 };
 
@@ -103,6 +105,7 @@ void icc_node_del(struct icc_node *node);
 int icc_nodes_remove(struct icc_provider *provider);
 int icc_provider_add(struct icc_provider *provider);
 int icc_provider_del(struct icc_provider *provider);
+struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec);
 
 #else
 
@@ -117,7 +120,7 @@ static inline struct icc_node *icc_node_create(int id)
 	return ERR_PTR(-ENOTSUPP);
 }
 
-void icc_node_destroy(int id)
+static inline void icc_node_destroy(int id)
 {
 }
 
@@ -126,16 +129,16 @@ static inline int icc_link_create(struct icc_node *node, const int dst_id)
 	return -ENOTSUPP;
 }
 
-int icc_link_destroy(struct icc_node *src, struct icc_node *dst)
+static inline int icc_link_destroy(struct icc_node *src, struct icc_node *dst)
 {
 	return -ENOTSUPP;
 }
 
-void icc_node_add(struct icc_node *node, struct icc_provider *provider)
+static inline void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 {
 }
 
-void icc_node_del(struct icc_node *node)
+static inline void icc_node_del(struct icc_node *node)
 {
 }
 
@@ -152,6 +155,11 @@ static inline int icc_provider_add(struct icc_provider *provider)
 static inline int icc_provider_del(struct icc_provider *provider)
 {
 	return -ENOTSUPP;
+}
+
+static inline struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec)
+{
+	return ERR_PTR(-ENOTSUPP);
 }
 
 #endif /* CONFIG_INTERCONNECT */

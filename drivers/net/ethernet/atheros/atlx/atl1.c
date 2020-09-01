@@ -65,12 +65,10 @@
 
 #include "atl1.h"
 
-#define ATLX_DRIVER_VERSION "2.1.3"
 MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, "
 	      "Chris Snook <csnook@redhat.com>, "
 	      "Jay Cliburn <jcliburn@gmail.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(ATLX_DRIVER_VERSION);
 
 /* Temporary hack for merging atl1 and atl2 */
 #include "atlx.c"
@@ -1044,7 +1042,7 @@ static s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 	 * each ring/block may need up to 8 bytes for alignment, hence the
 	 * additional 40 bytes tacked onto the end.
 	 */
-	ring_header->size = size =
+	ring_header->size =
 		sizeof(struct tx_packet_desc) * tpd_ring->count
 		+ sizeof(struct rx_free_desc) * rfd_ring->count
 		+ sizeof(struct rx_return_desc) * rrd_ring->count
@@ -2965,8 +2963,6 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* get device revision number */
 	adapter->hw.dev_rev = ioread16(adapter->hw.hw_addr +
 		(REG_MASTER_CTRL + 2));
-	if (netif_msg_probe(adapter))
-		dev_info(&pdev->dev, "version %s\n", ATLX_DRIVER_VERSION);
 
 	/* set default ring resource counts */
 	adapter->rfd_ring.count = adapter->rrd_ring.count = ATL1_DEFAULT_RFD;
@@ -3344,8 +3340,6 @@ static void atl1_get_drvinfo(struct net_device *netdev,
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver, ATLX_DRIVER_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, ATLX_DRIVER_VERSION,
-		sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }

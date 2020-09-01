@@ -11,8 +11,10 @@
 
 #include <asm/cpu.h>
 #include <asm/smp.h>
+#include <asm/io_apic.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
+#include <asm/idtentry.h>
 #include <asm/hypervisor.h>
 #include <asm/e820/api.h>
 #include <asm/early_ioremap.h>
@@ -116,6 +118,17 @@ static void __init init_hvm_pv_info(void)
 		this_cpu_write(xen_vcpu_id, ebx);
 	else
 		this_cpu_write(xen_vcpu_id, smp_processor_id());
+}
+
+DEFINE_IDTENTRY_SYSVEC(sysvec_xen_hvm_callback)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	inc_irq_stat(irq_hv_callback_count);
+
+	xen_hvm_evtchn_do_upcall();
+
+	set_irq_regs(old_regs);
 }
 
 #ifdef CONFIG_KEXEC_CORE

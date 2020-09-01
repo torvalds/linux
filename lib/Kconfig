@@ -19,6 +19,9 @@ config RAID6_PQ_BENCHMARK
 	  Benchmark all available RAID6 PQ functions on init and choose the
 	  fastest one.
 
+config LINEAR_RANGES
+	tristate
+
 config PACKING
 	bool "Generic bitfield packing and unpacking"
 	default n
@@ -78,6 +81,9 @@ config ARCH_USE_CMPXCHG_LOCKREF
 	bool
 
 config ARCH_HAS_FAST_MULTIPLIER
+	bool
+
+config ARCH_USE_SYM_ANNOTATIONS
 	bool
 
 config INDIRECT_PIO
@@ -336,6 +342,10 @@ config DECOMPRESS_LZ4
 	select LZ4_DECOMPRESS
 	tristate
 
+config DECOMPRESS_ZSTD
+	select ZSTD_DECOMPRESS
+	tristate
+
 #
 # Generic allocator support is selected if needed
 #
@@ -427,7 +437,7 @@ config INTERVAL_TREE
 
 	  See:
 
-		Documentation/rbtree.txt
+		Documentation/core-api/rbtree.rst
 
 	  for more information.
 
@@ -615,6 +625,9 @@ config ARCH_HAS_PMEM_API
 config MEMREGION
 	bool
 
+config ARCH_HAS_MEMREMAP_COMPAT_ALIGN
+	bool
+
 # use memcpy to implement user copies for nommu architectures
 config UACCESS_MEMCPY
 	bool
@@ -667,3 +680,7 @@ config GENERIC_LIB_CMPDI2
 
 config GENERIC_LIB_UCMPDI2
 	bool
+
+config PLDMFW
+	bool
+	default n

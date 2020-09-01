@@ -189,7 +189,7 @@ struct clk_duty {
  *              and >= numerator) Return 0 on success, otherwise -EERROR.
  *
  * @init:	Perform platform-specific initialization magic.
- *		This is not not used by any of the basic clock types.
+ *		This is not used by any of the basic clock types.
  *		This callback exist for HW which needs to perform some
  *		initialisation magic for CCF to get an accurate view of the
  *		clock. It may also be used dynamic resource allocation is
@@ -522,9 +522,9 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
  * @clk_gate_flags: gate-specific flags for this clock
  * @lock: shared register lock for this clock
  */
-#define clk_hw_register_gate_parent_hw(dev, name, parent_name, flags, reg,    \
+#define clk_hw_register_gate_parent_hw(dev, name, parent_hw, flags, reg,      \
 				       bit_idx, clk_gate_flags, lock)	      \
-	__clk_hw_register_gate((dev), NULL, (name), (parent_name), NULL,      \
+	__clk_hw_register_gate((dev), NULL, (name), NULL, (parent_hw),        \
 			       NULL, (flags), (reg), (bit_idx),		      \
 			       (clk_gate_flags), (lock))
 /**
@@ -539,10 +539,10 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
  * @clk_gate_flags: gate-specific flags for this clock
  * @lock: shared register lock for this clock
  */
-#define clk_hw_register_gate_parent_data(dev, name, parent_name, flags, reg,  \
+#define clk_hw_register_gate_parent_data(dev, name, parent_data, flags, reg,  \
 				       bit_idx, clk_gate_flags, lock)	      \
-	__clk_hw_register_gate((dev), NULL, (name), (parent_name), NULL,      \
-			       NULL, (flags), (reg), (bit_idx),		      \
+	__clk_hw_register_gate((dev), NULL, (name), NULL, NULL, (parent_data), \
+			       (flags), (reg), (bit_idx),		      \
 			       (clk_gate_flags), (lock))
 void clk_unregister_gate(struct clk *clk);
 void clk_hw_unregister_gate(struct clk_hw *hw);
@@ -1096,7 +1096,6 @@ int clk_hw_get_parent_index(struct clk_hw *hw);
 int clk_hw_set_parent(struct clk_hw *hw, struct clk_hw *new_parent);
 unsigned int __clk_get_enable_count(struct clk *clk);
 unsigned long clk_hw_get_rate(const struct clk_hw *hw);
-unsigned long __clk_get_flags(struct clk *clk);
 unsigned long clk_hw_get_flags(const struct clk_hw *hw);
 #define clk_hw_can_set_rate_parent(hw) \
 	(clk_hw_get_flags((hw)) & CLK_SET_RATE_PARENT)

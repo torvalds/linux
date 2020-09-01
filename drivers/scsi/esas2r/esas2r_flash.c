@@ -1500,7 +1500,7 @@ bool esas2r_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi,
 			return complete_fmapi_req(a, rq, FI_STAT_SUCCESS);
 		}
 
-	/* fall through */
+		fallthrough;
 
 	case FI_ACT_UP: /* Upload the components */
 	default:

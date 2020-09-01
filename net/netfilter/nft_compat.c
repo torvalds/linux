@@ -213,6 +213,17 @@ static int nft_parse_compat(const struct nlattr *attr, u16 *proto, bool *inv)
 	return 0;
 }
 
+static void nft_compat_wait_for_destructors(void)
+{
+	/* xtables matches or targets can have side effects, e.g.
+	 * creation/destruction of /proc files.
+	 * The xt ->destroy functions are run asynchronously from
+	 * work queue.  If we have pending invocations we thus
+	 * need to wait for those to finish.
+	 */
+	nf_tables_trans_destroy_flush_work();
+}
+
 static int
 nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		const struct nlattr * const tb[])
@@ -236,6 +247,8 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	nft_target_set_tgchk_param(&par, ctx, target, info, &e, proto, inv);
 
+	nft_compat_wait_for_destructors();
+
 	ret = xt_check_target(&par, size, proto, inv);
 	if (ret < 0)
 		return ret;
@@ -245,6 +258,12 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		return -EINVAL;
 
 	return 0;
+}
+
+static void __nft_mt_tg_destroy(struct module *me, const struct nft_expr *expr)
+{
+	module_put(me);
+	kfree(expr->ops);
 }
 
 static void
@@ -262,8 +281,7 @@ nft_target_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 
-	module_put(me);
-	kfree(expr->ops);
+	__nft_mt_tg_destroy(me, expr);
 }
 
 static int nft_extension_dump_info(struct sk_buff *skb, int attr,
@@ -451,6 +469,8 @@ __nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	nft_match_set_mtchk_param(&par, ctx, match, info, &e, proto, inv);
 
+	nft_compat_wait_for_destructors();
+
 	return xt_check_match(&par, size, proto, inv);
 }
 
@@ -494,8 +514,7 @@ __nft_match_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (par.match->destroy != NULL)
 		par.match->destroy(&par);
 
-	module_put(me);
-	kfree(expr->ops);
+	__nft_mt_tg_destroy(me, expr);
 }
 
 static void
@@ -902,3 +921,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_ALIAS_NFT_EXPR("match");
 MODULE_ALIAS_NFT_EXPR("target");
+MODULE_DESCRIPTION("x_tables over nftables support");

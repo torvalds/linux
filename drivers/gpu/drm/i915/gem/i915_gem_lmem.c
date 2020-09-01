@@ -9,6 +9,7 @@
 #include "i915_drv.h"
 
 const struct drm_i915_gem_object_ops i915_gem_lmem_obj_ops = {
+	.name = "i915_gem_object_lmem",
 	.flags = I915_GEM_OBJECT_HAS_IOMEM,
 
 	.get_pages = i915_gem_object_get_pages_buddy,

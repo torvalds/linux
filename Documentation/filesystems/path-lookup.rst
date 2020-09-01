@@ -43,15 +43,15 @@ characters, and "components" that are sequences of one or more
 non-"``/``" characters.  These form two kinds of paths.  Those that
 start with slashes are "absolute" and start from the filesystem root.
 The others are "relative" and start from the current directory, or
-from some other location specified by a file descriptor given to a
-"``XXXat``" system call such as `openat() <openat_>`_.
+from some other location specified by a file descriptor given to
+"``*at()``" system calls such as `openat() <openat_>`_.
 
 .. _execveat: http://man7.org/linux/man-pages/man2/execveat.2.html
 
 It is tempting to describe the second kind as starting with a
 component, but that isn't always accurate: a pathname can lack both
 slashes and components, it can be empty, in other words.  This is
-generally forbidden in POSIX, but some of those "xxx``at``" system calls
+generally forbidden in POSIX, but some of those "``*at()``" system calls
 in Linux permit it when the ``AT_EMPTY_PATH`` flag is given.  For
 example, if you have an open file descriptor on an executable file you
 can execute it by calling `execveat() <execveat_>`_ passing
@@ -69,17 +69,17 @@ pathname that is just slashes have a final component.  If it does
 exist, it could be "``.``" or "``..``" which are handled quite differently
 from other components.
 
-.. _POSIX: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_12
+.. _POSIX: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_12
 
 If a pathname ends with a slash, such as "``/tmp/foo/``" it might be
 tempting to consider that to have an empty final component.  In many
 ways that would lead to correct results, but not always.  In
 particular, ``mkdir()`` and ``rmdir()`` each create or remove a directory named
 by the final component, and they are required to work with pathnames
-ending in "``/``".  According to POSIX_
+ending in "``/``".  According to POSIX_:
 
-  A pathname that contains at least one non- &lt;slash> character and
-  that ends with one or more trailing &lt;slash> characters shall not
+  A pathname that contains at least one non-<slash> character and
+  that ends with one or more trailing <slash> characters shall not
   be resolved successfully unless the last pathname component before
   the trailing <slash> characters names an existing directory or a
   directory entry that is to be created for a directory immediately
@@ -229,7 +229,7 @@ happened to be looking at a dentry that was moved in this way,
 it might end up continuing the search down the wrong chain,
 and so miss out on part of the correct chain.
 
-The name-lookup process (``d_lookup()``) does _not_ try to prevent this
+The name-lookup process (``d_lookup()``) does *not* try to prevent this
 from happening, but only to detect when it happens.
 ``rename_lock`` is a seqlock that is updated whenever any dentry is
 renamed.  If ``d_lookup`` finds that a rename happened while it
@@ -376,7 +376,7 @@ table, and the mount point hash table.
 Bringing it together with ``struct nameidata``
 ----------------------------------------------
 
-.. _First edition Unix: http://minnie.tuhs.org/cgi-bin/utree.pl?file=V1/u2.s
+.. _First edition Unix: https://minnie.tuhs.org/cgi-bin/utree.pl?file=V1/u2.s
 
 Throughout the process of walking a path, the current status is stored
 in a ``struct nameidata``, "namei" being the traditional name - dating
@@ -398,17 +398,14 @@ held.
 ``struct qstr last``
 ~~~~~~~~~~~~~~~~~~~~
 
-This is a string together with a length (i.e. _not_ ``nul`` terminated)
+This is a string together with a length (i.e. *not* ``nul`` terminated)
 that is the "next" component in the pathname.
 
 ``int last_type``
 ~~~~~~~~~~~~~~~~~
 
-This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT``, ``LAST_DOTDOT``, or
-``LAST_BIND``.  The ``last`` field is only valid if the type is
-``LAST_NORM``.  ``LAST_BIND`` is used when following a symlink and no
-components of the symlink have been processed yet.  Others should be
-fairly self-explanatory.
+This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT`` or ``LAST_DOTDOT``.
+The ``last`` field is only valid if the type is ``LAST_NORM``.
 
 ``struct path root``
 ~~~~~~~~~~~~~~~~~~~~
@@ -658,8 +655,8 @@ This pattern of "try RCU-walk, if that fails try REF-walk" can be
 clearly seen in functions like ``filename_lookup()``,
 ``filename_parentat()``, ``filename_mountpoint()``,
 ``do_filp_open()``, and ``do_file_open_root()``.  These five
-correspond roughly to the four ``path_``* functions we met earlier,
-each of which calls ``link_path_walk()``.  The ``path_*`` functions are
+correspond roughly to the four ``path_*()`` functions we met earlier,
+each of which calls ``link_path_walk()``.  The ``path_*()`` functions are
 called using different mode flags until a mode is found which works.
 They are first called with ``LOOKUP_RCU`` set to request "RCU-walk".  If
 that fails with the error ``ECHILD`` they are called again with no
@@ -723,7 +720,7 @@ against a dentry.  The length and name pointer are copied into local
 variables, then ``read_seqcount_retry()`` is called to confirm the two
 are consistent, and only then is ``->d_compare()`` called.  When
 standard filename comparison is used, ``dentry_cmp()`` is called
-instead.  Notably it does _not_ use ``read_seqcount_retry()``, but
+instead.  Notably it does *not* use ``read_seqcount_retry()``, but
 instead has a large comment explaining why the consistency guarantee
 isn't necessary.  A subsequent ``read_seqcount_retry()`` will be
 sufficient to catch any problem that could occur at this point.
@@ -931,7 +928,7 @@ if anything goes wrong it is much safer to just abort and try a more
 sedate approach.
 
 The emphasis here is "try quickly and check".  It should probably be
-"try quickly _and carefully,_ then check".  The fact that checking is
+"try quickly *and carefully*, then check".  The fact that checking is
 needed is a reminder that the system is dynamic and only a limited
 number of things are safe at all.  The most likely cause of errors in
 this whole process is assuming something is safe when in reality it
@@ -1268,7 +1265,7 @@ Symlinks are different it seems.  Both reading a symlink (with ``readlink()``)
 and looking up a symlink on the way to some other destination can
 update the atime on that symlink.
 
-.. _clearest statement: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_08
+.. _clearest statement: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_08
 
 It is not clear why this is the case; POSIX has little to say on the
 subject.  The `clearest statement`_ is that, if a particular implementation
@@ -1368,7 +1365,7 @@ as well as blocking ".." if it would jump outside the starting point.
 resolution of "..". Magic-links are also blocked.
 
 ``LOOKUP_IN_ROOT`` resolves all path components as though the starting point
-were the filesystem root. ``nd_jump_root()`` brings the resolution back to to
+were the filesystem root. ``nd_jump_root()`` brings the resolution back to
 the starting point, and ".." at the starting point will act as a no-op. As with
 ``LOOKUP_BENEATH``, ``rename_lock`` and ``mount_lock`` are used to detect
 attacks against ".." resolution. Magic-links are also blocked.

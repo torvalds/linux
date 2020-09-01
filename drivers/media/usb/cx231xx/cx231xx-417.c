@@ -1734,7 +1734,7 @@ static void cx231xx_video_dev_init(
 int cx231xx_417_register(struct cx231xx *dev)
 {
 	/* FIXME: Port1 hardcoded here */
-	int err = -ENODEV;
+	int err;
 	struct cx231xx_tsport *tsport = &dev->ts1;
 	struct vb2_queue *q;
 
@@ -1790,7 +1790,7 @@ int cx231xx_417_register(struct cx231xx *dev)
 	dev->v4l_device.queue = q;
 
 	err = video_register_device(&dev->v4l_device,
-		VFL_TYPE_GRABBER, -1);
+		VFL_TYPE_VIDEO, -1);
 	if (err < 0) {
 		dprintk(3, "%s: can't register mpeg device\n", dev->name);
 		v4l2_ctrl_handler_free(&dev->mpeg_ctrl_handler.hdl);

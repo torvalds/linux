@@ -2828,6 +2828,7 @@ extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size
 extern void radeon_program_register_sequence(struct radeon_device *rdev,
 					     const u32 *registers,
 					     const u32 array_size);
+struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev);
 
 /*
  * vm

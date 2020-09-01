@@ -18,13 +18,20 @@
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/if_vlan.h>
+#include <linux/ipv6.h>
+#include <net/ipv6.h>
+#include <net/transp_v6.h>
+#include <net/ip6_route.h>
 #include <net/inet_common.h>
 #include <net/tcp.h>
 #include <net/dst.h>
 #include <net/tls.h>
+#include <net/addrconf.h>
+#include <net/secure_seq.h>
 
 #include "chtls.h"
 #include "chtls_cm.h"
+#include "clip_tbl.h"
 
 /*
  * State transitions and actions for close.  Note that if we are in SYN_SENT
@@ -82,15 +89,40 @@ static void chtls_sock_release(struct kref *ref)
 	kfree(csk);
 }
 
-static struct net_device *chtls_ipv4_netdev(struct chtls_dev *cdev,
+static struct net_device *chtls_find_netdev(struct chtls_dev *cdev,
 					    struct sock *sk)
 {
 	struct net_device *ndev = cdev->ports[0];
+#if IS_ENABLED(CONFIG_IPV6)
+	struct net_device *temp;
+	int addr_type;
+#endif
 
-	if (likely(!inet_sk(sk)->inet_rcv_saddr))
-		return ndev;
+	switch (sk->sk_family) {
+	case PF_INET:
+		if (likely(!inet_sk(sk)->inet_rcv_saddr))
+			return ndev;
+		ndev = __ip_dev_find(&init_net, inet_sk(sk)->inet_rcv_saddr, false);
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case PF_INET6:
+		addr_type = ipv6_addr_type(&sk->sk_v6_rcv_saddr);
+		if (likely(addr_type == IPV6_ADDR_ANY))
+			return ndev;
 
-	ndev = ip_dev_find(&init_net, inet_sk(sk)->inet_rcv_saddr);
+		for_each_netdev_rcu(&init_net, temp) {
+			if (ipv6_chk_addr(&init_net, (struct in6_addr *)
+					  &sk->sk_v6_rcv_saddr, temp, 1)) {
+				ndev = temp;
+				break;
+			}
+		}
+	break;
+#endif
+	default:
+		return NULL;
+	}
+
 	if (!ndev)
 		return NULL;
 
@@ -445,7 +477,13 @@ void chtls_destroy_sock(struct sock *sk)
 	chtls_purge_write_queue(sk);
 	free_tls_keyid(sk);
 	kref_put(&csk->kref, chtls_sock_release);
-	sk->sk_prot = &tcp_prot;
+	csk->cdev = NULL;
+	if (sk->sk_family == AF_INET)
+		sk->sk_prot = &tcp_prot;
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		sk->sk_prot = &tcpv6_prot;
+#endif
 	sk->sk_prot->destroy(sk);
 }
 
@@ -472,7 +510,8 @@ static void chtls_disconnect_acceptq(struct sock *listen_sk)
 	while (*pprev) {
 		struct request_sock *req = *pprev;
 
-		if (req->rsk_ops == &chtls_rsk_ops) {
+		if (req->rsk_ops == &chtls_rsk_ops ||
+		    req->rsk_ops == &chtls_rsk_opsv6) {
 			struct sock *child = req->sk;
 
 			*pprev = req->dl_next;
@@ -596,17 +635,17 @@ static void chtls_reset_synq(struct listen_ctx *listen_ctx)
 int chtls_listen_start(struct chtls_dev *cdev, struct sock *sk)
 {
 	struct net_device *ndev;
+#if IS_ENABLED(CONFIG_IPV6)
+	bool clip_valid = false;
+#endif
 	struct listen_ctx *ctx;
 	struct adapter *adap;
 	struct port_info *pi;
+	int ret = 0;
 	int stid;
-	int ret;
-
-	if (sk->sk_family != PF_INET)
-		return -EAGAIN;
 
 	rcu_read_lock();
-	ndev = chtls_ipv4_netdev(cdev, sk);
+	ndev = chtls_find_netdev(cdev, sk);
 	rcu_read_unlock();
 	if (!ndev)
 		return -EBADF;
@@ -637,16 +676,39 @@ int chtls_listen_start(struct chtls_dev *cdev, struct sock *sk)
 	if (!listen_hash_add(cdev, sk, stid))
 		goto free_stid;
 
-	ret = cxgb4_create_server(ndev, stid,
-				  inet_sk(sk)->inet_rcv_saddr,
-				  inet_sk(sk)->inet_sport, 0,
-				  cdev->lldi->rxq_ids[0]);
+	if (sk->sk_family == PF_INET) {
+		ret = cxgb4_create_server(ndev, stid,
+					  inet_sk(sk)->inet_rcv_saddr,
+					  inet_sk(sk)->inet_sport, 0,
+					  cdev->lldi->rxq_ids[0]);
+#if IS_ENABLED(CONFIG_IPV6)
+	} else {
+		int addr_type;
+
+		addr_type = ipv6_addr_type(&sk->sk_v6_rcv_saddr);
+		if (addr_type != IPV6_ADDR_ANY) {
+			ret = cxgb4_clip_get(ndev, (const u32 *)
+					     &sk->sk_v6_rcv_saddr, 1);
+			if (ret)
+				goto del_hash;
+			clip_valid = true;
+		}
+		ret = cxgb4_create_server6(ndev, stid,
+					   &sk->sk_v6_rcv_saddr,
+					   inet_sk(sk)->inet_sport,
+					   cdev->lldi->rxq_ids[0]);
+#endif
+	}
 	if (ret > 0)
 		ret = net_xmit_errno(ret);
 	if (ret)
 		goto del_hash;
 	return 0;
 del_hash:
+#if IS_ENABLED(CONFIG_IPV6)
+	if (clip_valid)
+		cxgb4_clip_release(ndev, (const u32 *)&sk->sk_v6_rcv_saddr, 1);
+#endif
 	listen_hash_del(cdev, sk);
 free_stid:
 	cxgb4_free_stid(cdev->tids, stid, sk->sk_family);
@@ -670,7 +732,21 @@ void chtls_listen_stop(struct chtls_dev *cdev, struct sock *sk)
 	chtls_reset_synq(listen_ctx);
 
 	cxgb4_remove_server(cdev->lldi->ports[0], stid,
-			    cdev->lldi->rxq_ids[0], 0);
+			    cdev->lldi->rxq_ids[0], sk->sk_family == PF_INET6);
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == PF_INET6) {
+		struct chtls_sock *csk;
+		int addr_type = 0;
+
+		csk = rcu_dereference_sk_user_data(sk);
+		addr_type = ipv6_addr_type((const struct in6_addr *)
+					  &sk->sk_v6_rcv_saddr);
+		if (addr_type != IPV6_ADDR_ANY)
+			cxgb4_clip_release(csk->egress_dev, (const u32 *)
+					   &sk->sk_v6_rcv_saddr, 1);
+	}
+#endif
 	chtls_disconnect_acceptq(sk);
 }
 
@@ -759,8 +835,10 @@ static void chtls_release_resources(struct sock *sk)
 		csk->l2t_entry = NULL;
 	}
 
-	cxgb4_remove_tid(tids, csk->port_id, tid, sk->sk_family);
-	sock_put(sk);
+	if (sk->sk_state != TCP_SYN_SENT) {
+		cxgb4_remove_tid(tids, csk->port_id, tid, sk->sk_family);
+		sock_put(sk);
+	}
 }
 
 static void chtls_conn_done(struct sock *sk)
@@ -877,7 +955,12 @@ static unsigned int chtls_select_mss(const struct chtls_sock *csk,
 	tp = tcp_sk(sk);
 	tcpoptsz = 0;
 
-	iphdrsz = sizeof(struct iphdr) + sizeof(struct tcphdr);
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		iphdrsz = sizeof(struct ipv6hdr) + sizeof(struct tcphdr);
+	else
+#endif
+		iphdrsz = sizeof(struct iphdr) + sizeof(struct tcphdr);
 	if (req->tcpopt.tstamp)
 		tcpoptsz += round_up(TCPOLEN_TIMESTAMP, 4);
 
@@ -973,6 +1056,7 @@ static void chtls_pass_accept_rpl(struct sk_buff *skb,
 	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWRENO);
 	opt2 |= T5_ISS_F;
 	opt2 |= T5_OPT_2_VALID_F;
+	opt2 |= WND_SCALE_EN_V(WSCALE_OK(tp));
 	rpl5->opt0 = cpu_to_be64(opt0);
 	rpl5->opt2 = cpu_to_be32(opt2);
 	rpl5->iss = cpu_to_be32((prandom_u32() & ~7UL) - 1);
@@ -1024,13 +1108,13 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 				    const struct cpl_pass_accept_req *req,
 				    struct chtls_dev *cdev)
 {
+	struct neighbour *n = NULL;
 	struct inet_sock *newinet;
 	const struct iphdr *iph;
 	struct tls_context *ctx;
 	struct net_device *ndev;
 	struct chtls_sock *csk;
 	struct dst_entry *dst;
-	struct neighbour *n;
 	struct tcp_sock *tp;
 	struct sock *newsk;
 	u16 port_id;
@@ -1042,11 +1126,31 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 	if (!newsk)
 		goto free_oreq;
 
-	dst = inet_csk_route_child_sock(lsk, newsk, oreq);
-	if (!dst)
-		goto free_sk;
+	if (lsk->sk_family == AF_INET) {
+		dst = inet_csk_route_child_sock(lsk, newsk, oreq);
+		if (!dst)
+			goto free_sk;
 
-	n = dst_neigh_lookup(dst, &iph->saddr);
+		n = dst_neigh_lookup(dst, &iph->saddr);
+#if IS_ENABLED(CONFIG_IPV6)
+	} else {
+		const struct ipv6hdr *ip6h;
+		struct flowi6 fl6;
+
+		ip6h = (const struct ipv6hdr *)network_hdr;
+		memset(&fl6, 0, sizeof(fl6));
+		fl6.flowi6_proto = IPPROTO_TCP;
+		fl6.saddr = ip6h->daddr;
+		fl6.daddr = ip6h->saddr;
+		fl6.fl6_dport = inet_rsk(oreq)->ir_rmt_port;
+		fl6.fl6_sport = htons(inet_rsk(oreq)->ir_num);
+		security_req_classify_flow(oreq, flowi6_to_flowi(&fl6));
+		dst = ip6_dst_lookup_flow(sock_net(lsk), lsk, &fl6, NULL);
+		if (IS_ERR(dst))
+			goto free_sk;
+		n = dst_neigh_lookup(dst, &ip6h->saddr);
+#endif
+	}
 	if (!n)
 		goto free_sk;
 
@@ -1069,9 +1173,30 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 	tp = tcp_sk(newsk);
 	newinet = inet_sk(newsk);
 
-	newinet->inet_daddr = iph->saddr;
-	newinet->inet_rcv_saddr = iph->daddr;
-	newinet->inet_saddr = iph->daddr;
+	if (iph->version == 0x4) {
+		newinet->inet_daddr = iph->saddr;
+		newinet->inet_rcv_saddr = iph->daddr;
+		newinet->inet_saddr = iph->daddr;
+#if IS_ENABLED(CONFIG_IPV6)
+	} else {
+		struct tcp6_sock *newtcp6sk = (struct tcp6_sock *)newsk;
+		struct inet_request_sock *treq = inet_rsk(oreq);
+		struct ipv6_pinfo *newnp = inet6_sk(newsk);
+		struct ipv6_pinfo *np = inet6_sk(lsk);
+
+		inet_sk(newsk)->pinet6 = &newtcp6sk->inet6;
+		memcpy(newnp, np, sizeof(struct ipv6_pinfo));
+		newsk->sk_v6_daddr = treq->ir_v6_rmt_addr;
+		newsk->sk_v6_rcv_saddr = treq->ir_v6_loc_addr;
+		inet6_sk(newsk)->saddr = treq->ir_v6_loc_addr;
+		newnp->ipv6_fl_list = NULL;
+		newnp->pktoptions = NULL;
+		newsk->sk_bound_dev_if = treq->ir_iif;
+		newinet->inet_opt = NULL;
+		newinet->inet_daddr = LOOPBACK4_IPV6;
+		newinet->inet_saddr = LOOPBACK4_IPV6;
+#endif
+	}
 
 	oreq->ts_recent = PASS_OPEN_TID_G(ntohl(req->tos_stid));
 	sk_setup_caps(newsk, dst);
@@ -1153,6 +1278,7 @@ static void chtls_pass_accept_request(struct sock *sk,
 	struct sk_buff *reply_skb;
 	struct chtls_sock *csk;
 	struct chtls_dev *cdev;
+	struct ipv6hdr *ip6h;
 	struct tcphdr *tcph;
 	struct sock *newsk;
 	struct ethhdr *eh;
@@ -1193,37 +1319,52 @@ static void chtls_pass_accept_request(struct sock *sk,
 	if (sk_acceptq_is_full(sk))
 		goto reject;
 
-	oreq = inet_reqsk_alloc(&chtls_rsk_ops, sk, true);
-	if (!oreq)
-		goto reject;
-
-	oreq->rsk_rcv_wnd = 0;
-	oreq->rsk_window_clamp = 0;
-	oreq->cookie_ts = 0;
-	oreq->mss = 0;
-	oreq->ts_recent = 0;
 
 	eth_hdr_len = T6_ETH_HDR_LEN_G(ntohl(req->hdr_len));
 	if (eth_hdr_len == ETH_HLEN) {
 		eh = (struct ethhdr *)(req + 1);
 		iph = (struct iphdr *)(eh + 1);
+		ip6h = (struct ipv6hdr *)(eh + 1);
 		network_hdr = (void *)(eh + 1);
 	} else {
 		vlan_eh = (struct vlan_ethhdr *)(req + 1);
 		iph = (struct iphdr *)(vlan_eh + 1);
+		ip6h = (struct ipv6hdr *)(vlan_eh + 1);
 		network_hdr = (void *)(vlan_eh + 1);
 	}
-	if (iph->version != 0x4)
-		goto free_oreq;
 
-	tcph = (struct tcphdr *)(iph + 1);
-	skb_set_network_header(skb, (void *)iph - (void *)req);
+	if (iph->version == 0x4) {
+		tcph = (struct tcphdr *)(iph + 1);
+		skb_set_network_header(skb, (void *)iph - (void *)req);
+		oreq = inet_reqsk_alloc(&chtls_rsk_ops, sk, true);
+	} else {
+		tcph = (struct tcphdr *)(ip6h + 1);
+		skb_set_network_header(skb, (void *)ip6h - (void *)req);
+		oreq = inet_reqsk_alloc(&chtls_rsk_opsv6, sk, false);
+	}
+
+	if (!oreq)
+		goto reject;
+
+	oreq->rsk_rcv_wnd = 0;
+	oreq->rsk_window_clamp = 0;
+	oreq->syncookie = 0;
+	oreq->mss = 0;
+	oreq->ts_recent = 0;
 
 	tcp_rsk(oreq)->tfo_listener = false;
 	tcp_rsk(oreq)->rcv_isn = ntohl(tcph->seq);
 	chtls_set_req_port(oreq, tcph->source, tcph->dest);
-	chtls_set_req_addr(oreq, iph->daddr, iph->saddr);
-	ip_dsfield = ipv4_get_dsfield(iph);
+	if (iph->version == 0x4) {
+		chtls_set_req_addr(oreq, iph->daddr, iph->saddr);
+		ip_dsfield = ipv4_get_dsfield(iph);
+#if IS_ENABLED(CONFIG_IPV6)
+	} else {
+		inet_rsk(oreq)->ir_v6_rmt_addr = ipv6_hdr(skb)->saddr;
+		inet_rsk(oreq)->ir_v6_loc_addr = ipv6_hdr(skb)->daddr;
+		ip_dsfield = ipv6_get_dsfield(ipv6_hdr(skb));
+#endif
+	}
 	if (req->tcpopt.wsf <= 14 &&
 	    sock_net(sk)->ipv4.sysctl_tcp_window_scaling) {
 		inet_rsk(oreq)->wscale_ok = 1;
@@ -1240,7 +1381,7 @@ static void chtls_pass_accept_request(struct sock *sk,
 
 	newsk = chtls_recv_sock(sk, oreq, network_hdr, req, cdev);
 	if (!newsk)
-		goto reject;
+		goto free_oreq;
 
 	if (chtls_get_module(newsk))
 		goto reject;
@@ -1716,6 +1857,9 @@ static void chtls_peer_close(struct sock *sk, struct sk_buff *skb)
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
 
+	if (csk_flag_nochk(csk, CSK_ABORT_RPL_PENDING))
+		goto out;
+
 	sk->sk_shutdown |= RCV_SHUTDOWN;
 	sock_set_flag(sk, SOCK_DONE);
 
@@ -1748,6 +1892,7 @@ static void chtls_peer_close(struct sock *sk, struct sk_buff *skb)
 		else
 			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	}
+out:
 	kfree_skb(skb);
 }
 
@@ -1758,6 +1903,10 @@ static void chtls_close_con_rpl(struct sock *sk, struct sk_buff *skb)
 	struct tcp_sock *tp;
 
 	csk = rcu_dereference_sk_user_data(sk);
+
+	if (csk_flag_nochk(csk, CSK_ABORT_RPL_PENDING))
+		goto out;
+
 	tp = tcp_sk(sk);
 
 	tp->snd_una = ntohl(rpl->snd_nxt) - 1;  /* exclude FIN */
@@ -1787,6 +1936,7 @@ static void chtls_close_con_rpl(struct sock *sk, struct sk_buff *skb)
 	default:
 		pr_info("close_con_rpl in bad state %d\n", sk->sk_state);
 	}
+out:
 	kfree_skb(skb);
 }
 
@@ -1896,6 +2046,7 @@ static void chtls_send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 	}
 
 	set_abort_rpl_wr(reply_skb, tid, status);
+	kfree_skb(skb);
 	set_wr_txq(reply_skb, CPL_PRIORITY_DATA, queue);
 	if (csk_conn_inline(csk)) {
 		struct l2t_entry *e = csk->l2t_entry;
@@ -1906,7 +2057,6 @@ static void chtls_send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 		}
 	}
 	cxgb4_ofld_send(cdev->lldi->ports[0], reply_skb);
-	kfree_skb(skb);
 }
 
 /*
@@ -2008,7 +2158,8 @@ static void chtls_abort_req_rss(struct sock *sk, struct sk_buff *skb)
 		chtls_conn_done(sk);
 	}
 
-	chtls_send_abort_rpl(sk, skb, csk->cdev, rst_status, queue);
+	chtls_send_abort_rpl(sk, skb, BLOG_SKB_CB(skb)->cdev,
+			     rst_status, queue);
 }
 
 static void chtls_abort_rpl_rss(struct sock *sk, struct sk_buff *skb)
@@ -2042,6 +2193,7 @@ static int chtls_conn_cpl(struct chtls_dev *cdev, struct sk_buff *skb)
 	struct cpl_peer_close *req = cplhdr(skb) + RSS_HDR;
 	void (*fn)(struct sock *sk, struct sk_buff *skb);
 	unsigned int hwtid = GET_TID(req);
+	struct chtls_sock *csk;
 	struct sock *sk;
 	u8 opcode;
 
@@ -2051,6 +2203,8 @@ static int chtls_conn_cpl(struct chtls_dev *cdev, struct sk_buff *skb)
 	if (!sk)
 		goto rel_skb;
 
+	csk = sk->sk_user_data;
+
 	switch (opcode) {
 	case CPL_PEER_CLOSE:
 		fn = chtls_peer_close;
@@ -2059,6 +2213,11 @@ static int chtls_conn_cpl(struct chtls_dev *cdev, struct sk_buff *skb)
 		fn = chtls_close_con_rpl;
 		break;
 	case CPL_ABORT_REQ_RSS:
+		/*
+		 * Save the offload device in the skb, we may process this
+		 * message after the socket has closed.
+		 */
+		BLOG_SKB_CB(skb)->cdev = csk->cdev;
 		fn = chtls_abort_req_rss;
 		break;
 	case CPL_ABORT_RPL_RSS:

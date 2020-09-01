@@ -46,6 +46,8 @@ static const struct ieee80211_iface_limit mt76x02_if_limits[] = {
 #ifdef CONFIG_MAC80211_MESH
 			 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
+			 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			 BIT(NL80211_IFTYPE_P2P_GO) |
 			 BIT(NL80211_IFTYPE_AP)
 	 },
 };
@@ -60,6 +62,8 @@ static const struct ieee80211_iface_limit mt76x02u_if_limits[] = {
 #ifdef CONFIG_MAC80211_MESH
 			 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
+			 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			 BIT(NL80211_IFTYPE_P2P_GO) |
 			 BIT(NL80211_IFTYPE_AP)
 	},
 };
@@ -96,9 +100,9 @@ mt76x02_led_set_config(struct mt76_dev *mdev, u8 delay_on,
 					       mt76);
 	u32 val;
 
-	val = MT_LED_STATUS_DURATION(0xff) |
-	      MT_LED_STATUS_OFF(delay_off) |
-	      MT_LED_STATUS_ON(delay_on);
+	val = FIELD_PREP(MT_LED_STATUS_DURATION, 0xff) |
+	      FIELD_PREP(MT_LED_STATUS_OFF, delay_off) |
+	      FIELD_PREP(MT_LED_STATUS_ON, delay_on);
 
 	mt76_wr(dev, MT_LED_S0(mdev->led_pin), val);
 	mt76_wr(dev, MT_LED_S1(mdev->led_pin), val);
@@ -166,7 +170,6 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 		wiphy->reg_notifier = mt76x02_regd_notifier;
 		wiphy->iface_combinations = mt76x02_if_comb;
 		wiphy->n_iface_combinations = ARRAY_SIZE(mt76x02_if_comb);
-		wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 		/* init led callbacks */
 		if (IS_ENABLED(CONFIG_MT76_LEDS)) {
@@ -182,21 +185,22 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 	hw->vif_data_size = sizeof(struct mt76x02_vif);
 
 	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 
 	dev->mt76.global_wcid.idx = 255;
 	dev->mt76.global_wcid.hw_key_idx = -1;
 	dev->slottime = 9;
 
 	if (is_mt76x2(dev)) {
-		dev->mt76.sband_2g.sband.ht_cap.cap |=
+		dev->mphy.sband_2g.sband.ht_cap.cap |=
 				IEEE80211_HT_CAP_LDPC_CODING;
-		dev->mt76.sband_5g.sband.ht_cap.cap |=
+		dev->mphy.sband_5g.sband.ht_cap.cap |=
 				IEEE80211_HT_CAP_LDPC_CODING;
-		dev->mt76.chainmask = 0x202;
-		dev->mt76.antenna_mask = 3;
+		dev->chainmask = 0x202;
+		dev->mphy.antenna_mask = 3;
 	} else {
-		dev->mt76.chainmask = 0x101;
-		dev->mt76.antenna_mask = 1;
+		dev->chainmask = 0x101;
+		dev->mphy.antenna_mask = 1;
 	}
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_device);
@@ -245,7 +249,7 @@ int mt76x02_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	memset(msta, 0, sizeof(*msta));
 
-	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, ARRAY_SIZE(dev->mt76.wcid));
+	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT76x02_N_WCIDS);
 	if (idx < 0)
 		return -ENOSPC;
 
@@ -301,7 +305,7 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	unsigned int idx = 0;
 
 	/* Allow to change address in HW if we create first interface. */
-	if (!dev->vif_mask &&
+	if (!dev->mphy.vif_mask &&
 	    (((vif->addr[0] ^ dev->mt76.macaddr[0]) & ~GENMASK(4, 1)) ||
 	     memcmp(vif->addr + 1, dev->mt76.macaddr + 1, ETH_ALEN - 1)))
 		mt76x02_mac_setaddr(dev, vif->addr);
@@ -325,10 +329,12 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (vif->type == NL80211_IFTYPE_STATION)
 		idx += 8;
 
-	if (dev->vif_mask & BIT(idx))
+	/* vif is already set or idx is 8 for AP/Mesh/... */
+	if (dev->mphy.vif_mask & BIT(idx) ||
+	    (vif->type != NL80211_IFTYPE_STATION && idx > 7))
 		return -EBUSY;
 
-	dev->vif_mask |= BIT(idx);
+	dev->mphy.vif_mask |= BIT(idx);
 
 	mt76x02_vif_init(dev, vif, idx);
 	return 0;
@@ -342,7 +348,7 @@ void mt76x02_remove_interface(struct ieee80211_hw *hw,
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
 	mt76_txq_remove(&dev->mt76, vif->txq);
-	dev->vif_mask &= ~BIT(mvif->idx);
+	dev->mphy.vif_mask &= ~BIT(mvif->idx);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_interface);
 
@@ -545,7 +551,7 @@ void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
 	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
-	dev->coverage_class = coverage_class;
+	dev->coverage_class = max_t(s16, coverage_class, 0);
 	mt76x02_set_tx_ackto(dev);
 	mutex_unlock(&dev->mt76.mutex);
 }
@@ -602,7 +608,7 @@ void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	clear_bit(MT76_SCANNING, &dev->mt76.state);
+	clear_bit(MT76_SCANNING, &dev->mphy.state);
 	if (dev->cal.gain_init_done) {
 		/* Restore AGC gain and resume calibration after scanning. */
 		dev->cal.low_gain = -1;

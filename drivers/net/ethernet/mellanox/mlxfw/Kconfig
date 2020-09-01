@@ -5,10 +5,11 @@
 
 config MLXFW
 	tristate "Mellanox Technologies firmware flash module"
-	---help---
+	help
 	  This driver supports Mellanox Technologies Firmware
 	  flashing common logic.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mlxfw.
 	select XZ_DEC
+	select NET_DEVLINK

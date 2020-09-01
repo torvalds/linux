@@ -10,7 +10,7 @@
 
 #include "net_driver.h"
 #include "efx.h"
-#include "nic.h"
+#include "nic_common.h"
 #include "tx_common.h"
 
 static unsigned int efx_tx_cb_page_count(struct efx_tx_queue *tx_queue)
@@ -71,6 +71,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 		  "initialising TX queue %d\n", tx_queue->queue);
 
 	tx_queue->insert_count = 0;
+	tx_queue->notify_count = 0;
 	tx_queue->write_count = 0;
 	tx_queue->packet_write_count = 0;
 	tx_queue->old_write_count = 0;
@@ -298,7 +299,11 @@ struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 	/* Map the fragment taking account of NIC-dependent DMA limits. */
 	do {
 		buffer = efx_tx_queue_get_insert_buffer(tx_queue);
-		dma_len = nic_type->tx_limit_len(tx_queue, dma_addr, len);
+
+		if (nic_type->tx_limit_len)
+			dma_len = nic_type->tx_limit_len(tx_queue, dma_addr, len);
+		else
+			dma_len = len;
 
 		buffer->len = dma_len;
 		buffer->dma_addr = dma_addr;
@@ -309,6 +314,20 @@ struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 	} while (len);
 
 	return buffer;
+}
+
+int efx_tx_tso_header_length(struct sk_buff *skb)
+{
+	size_t header_len;
+
+	if (skb->encapsulation)
+		header_len = skb_inner_transport_header(skb) -
+				skb->data +
+				(inner_tcp_hdr(skb)->doff << 2u);
+	else
+		header_len = skb_transport_header(skb) - skb->data +
+				(tcp_hdr(skb)->doff << 2u);
+	return header_len;
 }
 
 /* Map all data from an SKB for DMA and create descriptors on the queue. */
@@ -339,8 +358,7 @@ int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 		/* For TSO we need to put the header in to a separate
 		 * descriptor. Map this separately if necessary.
 		 */
-		size_t header_len = skb_transport_header(skb) - skb->data +
-				(tcp_hdr(skb)->doff << 2u);
+		size_t header_len = efx_tx_tso_header_length(skb);
 
 		if (header_len != len) {
 			tx_queue->tso_long_headers++;
@@ -404,4 +422,31 @@ unsigned int efx_tx_max_skb_descs(struct efx_nic *efx)
 				   DIV_ROUND_UP(GSO_MAX_SIZE, EFX_PAGE_SIZE));
 
 	return max_descs;
+}
+
+/*
+ * Fallback to software TSO.
+ *
+ * This is used if we are unable to send a GSO packet through hardware TSO.
+ * This should only ever happen due to per-queue restrictions - unsupported
+ * packets should first be filtered by the feature flags.
+ *
+ * Returns 0 on success, error code otherwise.
+ */
+int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
+{
+	struct sk_buff *segments, *next;
+
+	segments = skb_gso_segment(skb, 0);
+	if (IS_ERR(segments))
+		return PTR_ERR(segments);
+
+	dev_consume_skb_any(skb);
+
+	skb_list_walk_safe(segments, skb, next) {
+		skb_mark_not_on_list(skb);
+		efx_enqueue_skb(tx_queue, skb);
+	}
+
+	return 0;
 }

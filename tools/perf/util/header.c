@@ -46,6 +46,7 @@
 #include "util/util.h" // perf_exe()
 #include "cputopo.h"
 #include "bpf-event.h"
+#include "clockid.h"
 
 #include <linux/ctype.h>
 #include <internal/lib.h>
@@ -525,7 +526,7 @@ static int write_event_desc(struct feat_fd *ff,
 		/*
 		 * write event string as passed on cmdline
 		 */
-		ret = do_write_string(ff, perf_evsel__name(evsel));
+		ret = do_write_string(ff, evsel__name(evsel));
 		if (ret < 0)
 			return ret;
 		/*
@@ -783,8 +784,7 @@ static int write_group_desc(struct feat_fd *ff,
 		return ret;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (perf_evsel__is_group_leader(evsel) &&
-		    evsel->core.nr_members > 1) {
+		if (evsel__is_group_leader(evsel) && evsel->core.nr_members > 1) {
 			const char *name = evsel->group_name ?: "{anon_group}";
 			u32 leader_idx = evsel->idx;
 			u32 nr_members = evsel->core.nr_members;
@@ -892,8 +892,42 @@ static int write_auxtrace(struct feat_fd *ff,
 static int write_clockid(struct feat_fd *ff,
 			 struct evlist *evlist __maybe_unused)
 {
-	return do_write(ff, &ff->ph->env.clockid_res_ns,
-			sizeof(ff->ph->env.clockid_res_ns));
+	return do_write(ff, &ff->ph->env.clock.clockid_res_ns,
+			sizeof(ff->ph->env.clock.clockid_res_ns));
+}
+
+static int write_clock_data(struct feat_fd *ff,
+			    struct evlist *evlist __maybe_unused)
+{
+	u64 *data64;
+	u32 data32;
+	int ret;
+
+	/* version */
+	data32 = 1;
+
+	ret = do_write(ff, &data32, sizeof(data32));
+	if (ret < 0)
+		return ret;
+
+	/* clockid */
+	data32 = ff->ph->env.clock.clockid;
+
+	ret = do_write(ff, &data32, sizeof(data32));
+	if (ret < 0)
+		return ret;
+
+	/* TOD ref time */
+	data64 = &ff->ph->env.clock.tod_ns;
+
+	ret = do_write(ff, data64, sizeof(*data64));
+	if (ret < 0)
+		return ret;
+
+	/* clockid ref time */
+	data64 = &ff->ph->env.clock.clockid_ns;
+
+	return do_write(ff, data64, sizeof(*data64));
 }
 
 static int write_dir_format(struct feat_fd *ff,
@@ -1395,6 +1429,38 @@ static int write_compressed(struct feat_fd *ff __maybe_unused,
 	return do_write(ff, &(ff->ph->env.comp_mmap_len), sizeof(ff->ph->env.comp_mmap_len));
 }
 
+static int write_cpu_pmu_caps(struct feat_fd *ff,
+			      struct evlist *evlist __maybe_unused)
+{
+	struct perf_pmu *cpu_pmu = perf_pmu__find("cpu");
+	struct perf_pmu_caps *caps = NULL;
+	int nr_caps;
+	int ret;
+
+	if (!cpu_pmu)
+		return -ENOENT;
+
+	nr_caps = perf_pmu__caps_parse(cpu_pmu);
+	if (nr_caps < 0)
+		return nr_caps;
+
+	ret = do_write(ff, &nr_caps, sizeof(nr_caps));
+	if (ret < 0)
+		return ret;
+
+	list_for_each_entry(caps, &cpu_pmu->caps, list) {
+		ret = do_write_string(ff, caps->name);
+		if (ret < 0)
+			return ret;
+
+		ret = do_write_string(ff, caps->value);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
+}
+
 static void print_hostname(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# hostname : %s\n", ff->ph->env.hostname);
@@ -1515,7 +1581,50 @@ static void print_cpu_topology(struct feat_fd *ff, FILE *fp)
 static void print_clockid(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# clockid frequency: %"PRIu64" MHz\n",
-		ff->ph->env.clockid_res_ns * 1000);
+		ff->ph->env.clock.clockid_res_ns * 1000);
+}
+
+static void print_clock_data(struct feat_fd *ff, FILE *fp)
+{
+	struct timespec clockid_ns;
+	char tstr[64], date[64];
+	struct timeval tod_ns;
+	clockid_t clockid;
+	struct tm ltime;
+	u64 ref;
+
+	if (!ff->ph->env.clock.enabled) {
+		fprintf(fp, "# reference time disabled\n");
+		return;
+	}
+
+	/* Compute TOD time. */
+	ref = ff->ph->env.clock.tod_ns;
+	tod_ns.tv_sec = ref / NSEC_PER_SEC;
+	ref -= tod_ns.tv_sec * NSEC_PER_SEC;
+	tod_ns.tv_usec = ref / NSEC_PER_USEC;
+
+	/* Compute clockid time. */
+	ref = ff->ph->env.clock.clockid_ns;
+	clockid_ns.tv_sec = ref / NSEC_PER_SEC;
+	ref -= clockid_ns.tv_sec * NSEC_PER_SEC;
+	clockid_ns.tv_nsec = ref;
+
+	clockid = ff->ph->env.clock.clockid;
+
+	if (localtime_r(&tod_ns.tv_sec, &ltime) == NULL)
+		snprintf(tstr, sizeof(tstr), "<error>");
+	else {
+		strftime(date, sizeof(date), "%F %T", &ltime);
+		scnprintf(tstr, sizeof(tstr), "%s.%06d",
+			  date, (int) tod_ns.tv_usec);
+	}
+
+	fprintf(fp, "# clockid: %s (%u)\n", clockid_name(clockid), clockid);
+	fprintf(fp, "# reference time: %s = %ld.%06d (TOD) = %ld.%09ld (%s)\n",
+		    tstr, tod_ns.tv_sec, (int) tod_ns.tv_usec,
+		    clockid_ns.tv_sec, clockid_ns.tv_nsec,
+		    clockid_name(clockid));
 }
 
 static void print_dir_format(struct feat_fd *ff, FILE *fp)
@@ -1590,6 +1699,40 @@ static void free_event_desc(struct evsel *events)
 	free(events);
 }
 
+static bool perf_attr_check(struct perf_event_attr *attr)
+{
+	if (attr->__reserved_1 || attr->__reserved_2 || attr->__reserved_3) {
+		pr_warning("Reserved bits are set unexpectedly. "
+			   "Please update perf tool.\n");
+		return false;
+	}
+
+	if (attr->sample_type & ~(PERF_SAMPLE_MAX-1)) {
+		pr_warning("Unknown sample type (0x%llx) is detected. "
+			   "Please update perf tool.\n",
+			   attr->sample_type);
+		return false;
+	}
+
+	if (attr->read_format & ~(PERF_FORMAT_MAX-1)) {
+		pr_warning("Unknown read format (0x%llx) is detected. "
+			   "Please update perf tool.\n",
+			   attr->read_format);
+		return false;
+	}
+
+	if ((attr->sample_type & PERF_SAMPLE_BRANCH_STACK) &&
+	    (attr->branch_sample_type & ~(PERF_SAMPLE_BRANCH_MAX-1))) {
+		pr_warning("Unknown branch sample type (0x%llx) is detected. "
+			   "Please update perf tool.\n",
+			   attr->branch_sample_type);
+
+		return false;
+	}
+
+	return true;
+}
+
 static struct evsel *read_event_desc(struct feat_fd *ff)
 {
 	struct evsel *evsel, *events = NULL;
@@ -1633,6 +1776,9 @@ static struct evsel *read_event_desc(struct feat_fd *ff)
 			perf_event__attr_swap(buf);
 
 		memcpy(&evsel->core.attr, buf, msz);
+
+		if (!perf_attr_check(&evsel->core.attr))
+			goto error;
 
 		if (do_read_u32(ff, &nr))
 			goto error;
@@ -1772,6 +1918,27 @@ static void print_compressed(struct feat_fd *ff, FILE *fp)
 		ff->ph->env.comp_level, ff->ph->env.comp_ratio);
 }
 
+static void print_cpu_pmu_caps(struct feat_fd *ff, FILE *fp)
+{
+	const char *delimiter = "# cpu pmu capabilities: ";
+	u32 nr_caps = ff->ph->env.nr_cpu_pmu_caps;
+	char *str;
+
+	if (!nr_caps) {
+		fprintf(fp, "# cpu pmu capabilities: not available\n");
+		return;
+	}
+
+	str = ff->ph->env.cpu_pmu_caps;
+	while (nr_caps--) {
+		fprintf(fp, "%s%s", delimiter, str);
+		delimiter = ", ";
+		str += strlen(str) + 1;
+	}
+
+	fprintf(fp, "\n");
+}
+
 static void print_pmu_mappings(struct feat_fd *ff, FILE *fp)
 {
 	const char *delimiter = "# pmu mappings: ";
@@ -1817,14 +1984,12 @@ static void print_group_desc(struct feat_fd *ff, FILE *fp)
 	session = container_of(ff->ph, struct perf_session, header);
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (perf_evsel__is_group_leader(evsel) &&
-		    evsel->core.nr_members > 1) {
-			fprintf(fp, "# group: %s{%s", evsel->group_name ?: "",
-				perf_evsel__name(evsel));
+		if (evsel__is_group_leader(evsel) && evsel->core.nr_members > 1) {
+			fprintf(fp, "# group: %s{%s", evsel->group_name ?: "", evsel__name(evsel));
 
 			nr = evsel->core.nr_members - 1;
 		} else if (nr) {
-			fprintf(fp, ",%s", perf_evsel__name(evsel));
+			fprintf(fp, ",%s", evsel__name(evsel));
 
 			if (--nr == 0)
 				fprintf(fp, "}\n");
@@ -1891,7 +2056,7 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 	struct machine *machine;
 	u16 cpumode;
 	struct dso *dso;
-	enum dso_kernel_type dso_type;
+	enum dso_space_type dso_space;
 
 	machine = perf_session__findnew_machine(session, bev->pid);
 	if (!machine)
@@ -1901,14 +2066,14 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 
 	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
-		dso_type = DSO_TYPE_KERNEL;
+		dso_space = DSO_SPACE__KERNEL;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
-		dso_type = DSO_TYPE_GUEST_KERNEL;
+		dso_space = DSO_SPACE__KERNEL_GUEST;
 		break;
 	case PERF_RECORD_MISC_USER:
 	case PERF_RECORD_MISC_GUEST_USER:
-		dso_type = DSO_TYPE_USER;
+		dso_space = DSO_SPACE__USER;
 		break;
 	default:
 		goto out;
@@ -1920,14 +2085,13 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 
 		dso__set_build_id(dso, &bev->build_id);
 
-		if (dso_type != DSO_TYPE_USER) {
+		if (dso_space != DSO_SPACE__USER) {
 			struct kmod_path m = { .name = NULL, };
 
 			if (!kmod_path__parse_name(&m, filename) && m.kmod)
 				dso__set_module_info(dso, &m, machine);
-			else
-				dso->kernel = dso_type;
 
+			dso->kernel = dso_space;
 			free(m.name);
 		}
 
@@ -2645,9 +2809,43 @@ out:
 static int process_clockid(struct feat_fd *ff,
 			   void *data __maybe_unused)
 {
-	if (do_read_u64(ff, &ff->ph->env.clockid_res_ns))
+	if (do_read_u64(ff, &ff->ph->env.clock.clockid_res_ns))
 		return -1;
 
+	return 0;
+}
+
+static int process_clock_data(struct feat_fd *ff,
+			      void *_data __maybe_unused)
+{
+	u32 data32;
+	u64 data64;
+
+	/* version */
+	if (do_read_u32(ff, &data32))
+		return -1;
+
+	if (data32 != 1)
+		return -1;
+
+	/* clockid */
+	if (do_read_u32(ff, &data32))
+		return -1;
+
+	ff->ph->env.clock.clockid = data32;
+
+	/* TOD ref time */
+	if (do_read_u64(ff, &data64))
+		return -1;
+
+	ff->ph->env.clock.tod_ns = data64;
+
+	/* clockid ref time */
+	if (do_read_u64(ff, &data64))
+		return -1;
+
+	ff->ph->env.clock.clockid_ns = data64;
+	ff->ph->env.clock.enabled = true;
 	return 0;
 }
 
@@ -2809,6 +3007,60 @@ static int process_compressed(struct feat_fd *ff,
 	return 0;
 }
 
+static int process_cpu_pmu_caps(struct feat_fd *ff,
+				void *data __maybe_unused)
+{
+	char *name, *value;
+	struct strbuf sb;
+	u32 nr_caps;
+
+	if (do_read_u32(ff, &nr_caps))
+		return -1;
+
+	if (!nr_caps) {
+		pr_debug("cpu pmu capabilities not available\n");
+		return 0;
+	}
+
+	ff->ph->env.nr_cpu_pmu_caps = nr_caps;
+
+	if (strbuf_init(&sb, 128) < 0)
+		return -1;
+
+	while (nr_caps--) {
+		name = do_read_string(ff);
+		if (!name)
+			goto error;
+
+		value = do_read_string(ff);
+		if (!value)
+			goto free_name;
+
+		if (strbuf_addf(&sb, "%s=%s", name, value) < 0)
+			goto free_value;
+
+		/* include a NULL character at the end */
+		if (strbuf_add(&sb, "", 1) < 0)
+			goto free_value;
+
+		if (!strcmp(name, "branches"))
+			ff->ph->env.max_branches = atoi(value);
+
+		free(value);
+		free(name);
+	}
+	ff->ph->env.cpu_pmu_caps = strbuf_detach(&sb, NULL);
+	return 0;
+
+free_value:
+	free(value);
+free_name:
+	free(name);
+error:
+	strbuf_release(&sb);
+	return -1;
+}
+
 #define FEAT_OPR(n, func, __full_only) \
 	[HEADER_##n] = {					\
 		.name	    = __stringify(n),			\
@@ -2866,6 +3118,8 @@ const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPR(BPF_PROG_INFO, bpf_prog_info,  false),
 	FEAT_OPR(BPF_BTF,       bpf_btf,        false),
 	FEAT_OPR(COMPRESSED,	compressed,	false),
+	FEAT_OPR(CPU_PMU_CAPS,	cpu_pmu_caps,	false),
+	FEAT_OPR(CLOCK_DATA,	clock_data,	false),
 };
 
 struct header_print_data {
@@ -3432,7 +3686,7 @@ static int perf_header__read_pipe(struct perf_session *session)
 		return -EINVAL;
 	}
 
-	return 0;
+	return f_header.size == sizeof(f_header) ? 0 : -1;
 }
 
 static int read_attr(int fd, struct perf_header *ph,
@@ -3534,7 +3788,7 @@ int perf_session__read_header(struct perf_session *session)
 	struct perf_file_header	f_header;
 	struct perf_file_attr	f_attr;
 	u64			f_id;
-	int nr_attrs, nr_ids, i, j;
+	int nr_attrs, nr_ids, i, j, err;
 	int fd = perf_data__fd(data);
 
 	session->evlist = evlist__new();
@@ -3543,8 +3797,16 @@ int perf_session__read_header(struct perf_session *session)
 
 	session->evlist->env = &header->env;
 	session->machines.host.env = &header->env;
-	if (perf_data__is_pipe(data))
-		return perf_header__read_pipe(session);
+
+	/*
+	 * We can read 'pipe' data event from regular file,
+	 * check for the pipe header regardless of source.
+	 */
+	err = perf_header__read_pipe(session);
+	if (!err || (err && perf_data__is_pipe(data))) {
+		data->is_pipe = true;
+		return err;
+	}
 
 	if (perf_file_header__read(&f_header, header, fd) < 0)
 		return -EINVAL;
@@ -3805,12 +4067,22 @@ int perf_event__process_tracing_data(struct perf_session *session,
 {
 	ssize_t size_read, padding, size = event->tracing_data.size;
 	int fd = perf_data__fd(session->data);
-	off_t offset = lseek(fd, 0, SEEK_CUR);
 	char buf[BUFSIZ];
 
-	/* setup for reading amidst mmap */
-	lseek(fd, offset + sizeof(struct perf_record_header_tracing_data),
-	      SEEK_SET);
+	/*
+	 * The pipe fd is already in proper place and in any case
+	 * we can't move it, and we'd screw the case where we read
+	 * 'pipe' data from regular file. The trace_report reads
+	 * data from 'fd' so we need to set it directly behind the
+	 * event, where the tracing data starts.
+	 */
+	if (!perf_data__is_pipe(session->data)) {
+		off_t offset = lseek(fd, 0, SEEK_CUR);
+
+		/* setup for reading amidst mmap */
+		lseek(fd, offset + sizeof(struct perf_record_header_tracing_data),
+		      SEEK_SET);
+	}
 
 	size_read = trace_report(fd, &session->tevent,
 				 session->repipe);

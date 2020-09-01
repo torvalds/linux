@@ -425,7 +425,7 @@ struct tomoyo_request_info {
 	struct tomoyo_obj_info *obj;
 	/*
 	 * For holding parameters specific to execve() request.
-	 * NULL if not dealing do_execve().
+	 * NULL if not dealing execve().
 	 */
 	struct tomoyo_execve *ee;
 	struct tomoyo_domain_info *domain;

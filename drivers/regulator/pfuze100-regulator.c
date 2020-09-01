@@ -128,7 +128,7 @@ static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	struct pfuze_chip *pfuze100 = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 	bool reg_has_ramp_delay;
-	unsigned int ramp_bits;
+	unsigned int ramp_bits = 0;
 	int ret;
 
 	switch (pfuze100->chip_id) {
@@ -149,8 +149,11 @@ static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	}
 
 	if (reg_has_ramp_delay) {
-		ramp_delay = 12500 / ramp_delay;
-		ramp_bits = (ramp_delay >> 1) - (ramp_delay >> 3);
+		if (ramp_delay > 0) {
+			ramp_delay = 12500 / ramp_delay;
+			ramp_bits = (ramp_delay >> 1) - (ramp_delay >> 3);
+		}
+
 		ret = regmap_update_bits(pfuze100->regmap,
 					 rdev->desc->vsel_reg + 4,
 					 0xc0, ramp_bits << 6);
@@ -206,6 +209,19 @@ static const struct regulator_ops pfuze100_swb_regulator_ops = {
 	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+
+};
+
+static const struct regulator_ops pfuze3000_sw_regulator_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
+	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_voltage_time_sel = regulator_set_voltage_time_sel,
+	.set_ramp_delay = pfuze100_set_ramp_delay,
 
 };
 
@@ -318,23 +334,28 @@ static const struct regulator_ops pfuze100_swb_regulator_ops = {
 	.stby_mask = 0x20,	\
 }
 
-
-#define PFUZE3000_SW2_REG(_chip, _name, base, min, max, step)	{	\
-	.desc = {	\
-		.name = #_name,\
-		.n_voltages = ((max) - (min)) / (step) + 1,	\
-		.ops = &pfuze100_sw_regulator_ops,	\
-		.type = REGULATOR_VOLTAGE,	\
-		.id = _chip ## _ ## _name,	\
-		.owner = THIS_MODULE,	\
-		.min_uV = (min),	\
-		.uV_step = (step),	\
-		.vsel_reg = (base) + PFUZE100_VOL_OFFSET,	\
-		.vsel_mask = 0x7,	\
-	},	\
-	.stby_reg = (base) + PFUZE100_STANDBY_OFFSET,	\
-	.stby_mask = 0x7,	\
-}
+/* No linar case for the some switches of PFUZE3000 */
+#define PFUZE3000_SW_REG(_chip, _name, base, mask, voltages)	\
+	[_chip ## _ ##  _name] = {	\
+		.desc = {	\
+			.name = #_name,	\
+			.n_voltages = ARRAY_SIZE(voltages),	\
+			.ops = &pfuze3000_sw_regulator_ops,	\
+			.type = REGULATOR_VOLTAGE,	\
+			.id = _chip ## _ ## _name,	\
+			.owner = THIS_MODULE,	\
+			.volt_table = voltages,	\
+			.vsel_reg = (base) + PFUZE100_VOL_OFFSET,	\
+			.vsel_mask = (mask),	\
+			.enable_reg = (base) + PFUZE100_MODE_OFFSET,	\
+			.enable_mask = 0xf,	\
+			.enable_val = 0x8,	\
+			.enable_time = 500,	\
+		},	\
+		.stby_reg = (base) + PFUZE100_STANDBY_OFFSET,	\
+		.stby_mask = (mask),	\
+		.sw_reg = true,		\
+	}
 
 #define PFUZE3000_SW3_REG(_chip, _name, base, min, max, step)	{	\
 	.desc = {	\
@@ -391,9 +412,9 @@ static struct pfuze_regulator pfuze200_regulators[] = {
 };
 
 static struct pfuze_regulator pfuze3000_regulators[] = {
-	PFUZE100_SWB_REG(PFUZE3000, SW1A, PFUZE100_SW1ABVOL, 0x1f, pfuze3000_sw1a),
+	PFUZE3000_SW_REG(PFUZE3000, SW1A, PFUZE100_SW1ABVOL, 0x1f, pfuze3000_sw1a),
 	PFUZE100_SW_REG(PFUZE3000, SW1B, PFUZE100_SW1CVOL, 700000, 1475000, 25000),
-	PFUZE100_SWB_REG(PFUZE3000, SW2, PFUZE100_SW2VOL, 0x7, pfuze3000_sw2lo),
+	PFUZE3000_SW_REG(PFUZE3000, SW2, PFUZE100_SW2VOL, 0x7, pfuze3000_sw2lo),
 	PFUZE3000_SW3_REG(PFUZE3000, SW3, PFUZE100_SW3AVOL, 900000, 1650000, 50000),
 	PFUZE100_SWB_REG(PFUZE3000, SWBST, PFUZE100_SWBSTCON1, 0x3, pfuze100_swbst),
 	PFUZE100_SWB_REG(PFUZE3000, VSNVS, PFUZE100_VSNVSVOL, 0x7, pfuze100_vsnvs),
@@ -407,8 +428,8 @@ static struct pfuze_regulator pfuze3000_regulators[] = {
 };
 
 static struct pfuze_regulator pfuze3001_regulators[] = {
-	PFUZE100_SWB_REG(PFUZE3001, SW1, PFUZE100_SW1ABVOL, 0x1f, pfuze3000_sw1a),
-	PFUZE100_SWB_REG(PFUZE3001, SW2, PFUZE100_SW2VOL, 0x7, pfuze3000_sw2lo),
+	PFUZE3000_SW_REG(PFUZE3001, SW1, PFUZE100_SW1ABVOL, 0x1f, pfuze3000_sw1a),
+	PFUZE3000_SW_REG(PFUZE3001, SW2, PFUZE100_SW2VOL, 0x7, pfuze3000_sw2lo),
 	PFUZE3000_SW3_REG(PFUZE3001, SW3, PFUZE100_SW3AVOL, 900000, 1650000, 50000),
 	PFUZE100_SWB_REG(PFUZE3001, VSNVS, PFUZE100_VSNVSVOL, 0x7, pfuze100_vsnvs),
 	PFUZE100_VGEN_REG(PFUZE3001, VLDO1, PFUZE100_VGEN1VOL, 1800000, 3300000, 100000),

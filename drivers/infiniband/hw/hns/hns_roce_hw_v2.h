@@ -50,15 +50,14 @@
 #define HNS_ROCE_V2_MAX_WQE_NUM			0x8000
 #define	HNS_ROCE_V2_MAX_SRQ			0x100000
 #define HNS_ROCE_V2_MAX_SRQ_WR			0x8000
-#define HNS_ROCE_V2_MAX_SRQ_SGE			0x100
+#define HNS_ROCE_V2_MAX_SRQ_SGE			64
 #define HNS_ROCE_V2_MAX_CQ_NUM			0x100000
 #define HNS_ROCE_V2_MAX_CQC_TIMER_NUM		0x100
 #define HNS_ROCE_V2_MAX_SRQ_NUM			0x100000
 #define HNS_ROCE_V2_MAX_CQE_NUM			0x400000
 #define HNS_ROCE_V2_MAX_SRQWQE_NUM		0x8000
-#define HNS_ROCE_V2_MAX_RQ_SGE_NUM		0x100
-#define HNS_ROCE_V2_MAX_SQ_SGE_NUM		0xff
-#define HNS_ROCE_V2_MAX_SRQ_SGE_NUM		0x100
+#define HNS_ROCE_V2_MAX_RQ_SGE_NUM		64
+#define HNS_ROCE_V2_MAX_SQ_SGE_NUM		64
 #define HNS_ROCE_V2_MAX_EXTEND_SGE_NUM		0x200000
 #define HNS_ROCE_V2_MAX_SQ_INLINE		0x20
 #define HNS_ROCE_V2_UAR_NUM			256
@@ -163,7 +162,7 @@ enum {
 
 #define	GID_LEN_V2				16
 
-#define HNS_ROCE_V2_CQE_QPN_MASK		0x3ffff
+#define HNS_ROCE_V2_CQE_QPN_MASK		0xfffff
 
 enum {
 	HNS_ROCE_V2_WQE_OP_SEND				= 0x0,
@@ -178,24 +177,8 @@ enum {
 	HNS_ROCE_V2_WQE_OP_ATOM_MSK_FETCH_AND_ADD	= 0x9,
 	HNS_ROCE_V2_WQE_OP_FAST_REG_PMR			= 0xa,
 	HNS_ROCE_V2_WQE_OP_LOCAL_INV			= 0xb,
-	HNS_ROCE_V2_WQE_OP_BIND_MW_TYPE			= 0xc,
+	HNS_ROCE_V2_WQE_OP_BIND_MW			= 0xc,
 	HNS_ROCE_V2_WQE_OP_MASK				= 0x1f,
-};
-
-enum {
-	HNS_ROCE_SQ_OPCODE_SEND = 0x0,
-	HNS_ROCE_SQ_OPCODE_SEND_WITH_INV = 0x1,
-	HNS_ROCE_SQ_OPCODE_SEND_WITH_IMM = 0x2,
-	HNS_ROCE_SQ_OPCODE_RDMA_WRITE = 0x3,
-	HNS_ROCE_SQ_OPCODE_RDMA_WRITE_WITH_IMM = 0x4,
-	HNS_ROCE_SQ_OPCODE_RDMA_READ = 0x5,
-	HNS_ROCE_SQ_OPCODE_ATOMIC_COMP_AND_SWAP = 0x6,
-	HNS_ROCE_SQ_OPCODE_ATOMIC_FETCH_AND_ADD = 0x7,
-	HNS_ROCE_SQ_OPCODE_ATOMIC_MASK_COMP_AND_SWAP = 0x8,
-	HNS_ROCE_SQ_OPCODE_ATOMIC_MASK_FETCH_AND_ADD = 0x9,
-	HNS_ROCE_SQ_OPCODE_FAST_REG_WR = 0xa,
-	HNS_ROCE_SQ_OPCODE_LOCAL_INV = 0xb,
-	HNS_ROCE_SQ_OPCODE_BIND_MW = 0xc,
 };
 
 enum {
@@ -229,6 +212,7 @@ enum {
 	HNS_ROCE_CQE_V2_TRANSPORT_RETRY_EXC_ERR		= 0x15,
 	HNS_ROCE_CQE_V2_RNR_RETRY_EXC_ERR		= 0x16,
 	HNS_ROCE_CQE_V2_REMOTE_ABORT_ERR		= 0x22,
+	HNS_ROCE_CQE_V2_GENERAL_ERR			= 0x23,
 
 	HNS_ROCE_V2_CQE_STATUS_MASK			= 0xff,
 };
@@ -460,8 +444,8 @@ enum hns_roce_v2_qp_state {
 	HNS_ROCE_QP_ST_INIT,
 	HNS_ROCE_QP_ST_RTR,
 	HNS_ROCE_QP_ST_RTS,
-	HNS_ROCE_QP_ST_SQER,
 	HNS_ROCE_QP_ST_SQD,
+	HNS_ROCE_QP_ST_SQER,
 	HNS_ROCE_QP_ST_ERR,
 	HNS_ROCE_QP_ST_SQ_DRAINING,
 	HNS_ROCE_QP_NUM_ST
@@ -1056,11 +1040,6 @@ struct hns_roce_v2_mpt_entry {
 #define V2_DB_PARAMETER_SL_S 16
 #define V2_DB_PARAMETER_SL_M GENMASK(18, 16)
 
-struct hns_roce_v2_cq_db {
-	__le32	byte_4;
-	__le32	parameter;
-};
-
 #define	V2_CQ_DB_BYTE_4_TAG_S 0
 #define V2_CQ_DB_BYTE_4_TAG_M GENMASK(23, 0)
 
@@ -1247,10 +1226,9 @@ struct hns_roce_func_clear {
 };
 
 #define FUNC_CLEAR_RST_FUN_DONE_S 0
-/* Each physical function manages up to 248 virtual functions；
- * it takes up to 100ms for each function to execute clear；
- * if an abnormal reset occurs, it is executed twice at most;
- * so it takes up to 249 * 2 * 100ms.
+/* Each physical function manages up to 248 virtual functions, it takes up to
+ * 100ms for each function to execute clear. If an abnormal reset occurs, it is
+ * executed twice at most, so it takes up to 249 * 2 * 100ms.
  */
 #define HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS	(249 * 2 * 100)
 #define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_INTERVAL	40
@@ -1654,7 +1632,7 @@ struct hns_roce_query_pf_caps_c {
 struct hns_roce_query_pf_caps_d {
 	__le32 wq_hop_num_max_srqs;
 	__le16 srq_depth;
-	__le16 rsv;
+	__le16 cap_flags_ex;
 	__le32 num_ceqs_ceq_depth;
 	__le32 arm_st_aeq_depth;
 	__le32 num_uars_rsv_pds;
@@ -1984,7 +1962,7 @@ int hns_roce_v2_query_cqc_info(struct hns_roce_dev *hr_dev, u32 cqn,
 static inline void hns_roce_write64(struct hns_roce_dev *hr_dev, __le32 val[2],
 				    void __iomem *dest)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 

@@ -46,7 +46,7 @@ and posted this:
 	to communicate user requirements to these people is a waste of
 	time. They are much too "intelligent" to listen to lesser mortals.
 
-(http://lwn.net/Articles/131776/).
+(https://lwn.net/Articles/131776/).
 
 The reality of the situation was different; the kernel developers were far
 more concerned about system stability, long-term maintenance, and finding
@@ -216,7 +216,7 @@ a non-disclosure agreement.  The Linux Foundation operates an NDA program
 designed to help with this sort of situation; more information can be found
 at:
 
-    http://www.linuxfoundation.org/en/NDA_program
+    https://www.linuxfoundation.org/nda/
 
 This kind of review is often enough to avoid serious problems later on
 without requiring public disclosure of the project.

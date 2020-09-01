@@ -6,6 +6,7 @@
  * Copyright (C) 2004 Benjamin Herrenschmuidt (benh@kernel.crashing.org), IBM Corp.
  * Copyright (C) 2004 Alan Modra (amodra@au.ibm.com)), IBM Corp.
  */
+#include <asm/cache.h>		/* IFETCH_ALIGN_BYTES */
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 #include <asm/unistd.h>
@@ -14,21 +15,17 @@
 
 	.text
 
-/* The nop here is a hack.  The dwarf2 unwind routines subtract 1 from
-   the return address to get an address in the middle of the presumed
-   call instruction.  Since we don't have a call here, we artificially
-   extend the range covered by the unwind info by padding before the
-   real start.  */
-	nop
 	.balign 8
+	.balign IFETCH_ALIGN_BYTES
 V_FUNCTION_BEGIN(__kernel_sigtramp_rt64)
-.Lsigrt_start = . - 4
+.Lsigrt_start:
+	bctrl	/* call the handler */
 	addi	r1, r1, __SIGNAL_FRAMESIZE
 	li	r0,__NR_rt_sigreturn
 	sc
 .Lsigrt_end:
 V_FUNCTION_END(__kernel_sigtramp_rt64)
-/* The ".balign 8" above and the following zeros mimic the old stack
+/* The .balign 8 above and the following zeros mimic the old stack
    trampoline layout.  The last magic value is the ucontext pointer,
    chosen in such a way that older libgcc unwind code returns a zero
    for a sigcontext pointer.  */

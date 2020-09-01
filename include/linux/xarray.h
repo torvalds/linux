@@ -32,8 +32,8 @@
  * The following internal entries have a special meaning:
  *
  * 0-62: Sibling entries
- * 256: Zero entry
- * 257: Retry entry
+ * 256: Retry entry
+ * 257: Zero entry
  *
  * Errors are also represented as internal entries, but use the negative
  * space (-4094 to -2).  They're never stored in the slots array; only
@@ -576,7 +576,7 @@ void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
- * Return: The entry which used to be at this index.
+ * Return: The old entry at this index or xa_err() if an error happened.
  */
 static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
 		void *entry, gfp_t gfp)
@@ -602,7 +602,7 @@ static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.
- * Return: The entry which used to be at this index.
+ * Return: The old entry at this index or xa_err() if an error happened.
  */
 static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
 		void *entry, gfp_t gfp)
@@ -1648,6 +1648,7 @@ static inline void *xas_next_marked(struct xa_state *xas, unsigned long max,
 								xa_mark_t mark)
 {
 	struct xa_node *node = xas->xa_node;
+	void *entry;
 	unsigned int offset;
 
 	if (unlikely(xas_not_node(node) || node->shift))
@@ -1659,7 +1660,10 @@ static inline void *xas_next_marked(struct xa_state *xas, unsigned long max,
 		return NULL;
 	if (offset == XA_CHUNK_SIZE)
 		return xas_find_marked(xas, max, mark);
-	return xa_entry(xas->xa, node, offset);
+	entry = xa_entry(xas->xa, node, offset);
+	if (!entry)
+		return xas_find_marked(xas, max, mark);
+	return entry;
 }
 
 /*

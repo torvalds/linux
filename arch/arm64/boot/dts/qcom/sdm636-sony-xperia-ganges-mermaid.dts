@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, Martin Botka
+ */
+
+/dts-v1/;
+
+/* Mermaid uses sdm636, but it's different ever so slightly
+ * that we can ignore it for the time being. Sony also commonizes
+ * the Ganges platform as a whole in downstream kernels.
+ */
+#include "sdm630-sony-xperia-ganges.dtsi"
+
+/ {
+	model = "Sony Xperia 10 Plus";
+	compatible = "sony,mermaid-row", "qcom,sdm636";
+
+	qcom,msm-id = <345 0>;
+	qcom,pmic-id = <0x1001b 0x101011a 0x00 0x00 0x1001b 0x201011a 0x00 0x00 0x1001b 0x102001a 0x00 0x00>;
+};

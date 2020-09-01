@@ -27,6 +27,7 @@
 #include <drm/drm_print.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_sysfs.h>
 
 #include <linux/uaccess.h>
 
@@ -37,7 +38,7 @@
  * DOC: overview
  *
  * In DRM connectors are the general abstraction for display sinks, and include
- * als fixed panels or anything else that can display pixels in some form. As
+ * also fixed panels or anything else that can display pixels in some form. As
  * opposed to all other KMS objects representing hardware (like CRTC, encoder or
  * plane abstractions) connectors can be hotplugged and unplugged at runtime.
  * Hence they are reference-counted using drm_connector_get() and
@@ -112,8 +113,23 @@ void drm_connector_ida_destroy(void)
 }
 
 /**
+ * drm_get_connector_type_name - return a string for connector type
+ * @type: The connector type (DRM_MODE_CONNECTOR_*)
+ *
+ * Returns: the name of the connector type, or NULL if the type is not valid.
+ */
+const char *drm_get_connector_type_name(unsigned int type)
+{
+	if (type < ARRAY_SIZE(drm_connector_enum_list))
+		return drm_connector_enum_list[type].name;
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_get_connector_type_name);
+
+/**
  * drm_connector_get_cmdline_mode - reads the user's cmdline mode
- * @connector: connector to quwery
+ * @connector: connector to query
  *
  * The kernel supports per-connector configuration of its consoles through
  * use of the video= parameter. This function parses that option and
@@ -138,6 +154,13 @@ static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
 		DRM_INFO("forcing %s connector %s\n", connector->name,
 			 drm_get_connector_force_name(mode->force));
 		connector->force = mode->force;
+	}
+
+	if (mode->panel_orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN) {
+		DRM_INFO("cmdline forces connector %s panel_orientation to %d\n",
+			 connector->name, mode->panel_orientation);
+		drm_connector_set_panel_orientation(connector,
+						    mode->panel_orientation);
 	}
 
 	DRM_DEBUG_KMS("cmdline mode for connector %s %s %dx%d@%dHz%s%s%s\n",
@@ -246,6 +269,7 @@ int drm_connector_init(struct drm_device *dev,
 	INIT_LIST_HEAD(&connector->modes);
 	mutex_init(&connector->mutex);
 	connector->edid_blob_ptr = NULL;
+	connector->epoch_counter = 0;
 	connector->tile_blob_ptr = NULL;
 	connector->status = connector_status_unknown;
 	connector->display_info.panel_orientation =
@@ -501,6 +525,10 @@ int drm_connector_register(struct drm_connector *connector)
 	drm_mode_object_register(connector->dev, &connector->base);
 
 	connector->registration_state = DRM_CONNECTOR_REGISTERED;
+
+	/* Let userspace know we have a new connector */
+	drm_sysfs_hotplug_event(connector->dev);
+
 	goto unlock;
 
 err_debugfs:
@@ -926,8 +954,7 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  * 	connector is linked to. Drivers should never set this property directly,
  * 	it is handled by the DRM core by calling the &drm_connector_funcs.dpms
  * 	callback. For atomic drivers the remapping to the "ACTIVE" property is
- * 	implemented in the DRM core.  This is the only standard connector
- * 	property that userspace can change.
+ * 	implemented in the DRM core.
  *
  * 	Note that this property cannot be set through the MODE_ATOMIC ioctl,
  * 	userspace must use "ACTIVE" on the CRTC instead.
@@ -964,7 +991,7 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  * 	DP MST sinks), or high-res integrated panels (like dual-link DSI) which
  * 	are not gen-locked. Note that for tiled panels which are genlocked, like
  * 	dual-link LVDS or dual-link DSI, the driver should try to not expose the
- * 	tiling and virtualize both &drm_crtc and &drm_plane if needed. Drivers
+ * 	tiling and virtualise both &drm_crtc and &drm_plane if needed. Drivers
  * 	should update this value using drm_connector_set_tile_property().
  * 	Userspace cannot change this property.
  * link-status:
@@ -973,6 +1000,32 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *      after modeset, the kernel driver may set this to "BAD" and issue a
  *      hotplug uevent. Drivers should update this value using
  *      drm_connector_set_link_status_property().
+ *
+ *      When user-space receives the hotplug uevent and detects a "BAD"
+ *      link-status, the sink doesn't receive pixels anymore (e.g. the screen
+ *      becomes completely black). The list of available modes may have
+ *      changed. User-space is expected to pick a new mode if the current one
+ *      has disappeared and perform a new modeset with link-status set to
+ *      "GOOD" to re-enable the connector.
+ *
+ *      If multiple connectors share the same CRTC and one of them gets a "BAD"
+ *      link-status, the other are unaffected (ie. the sinks still continue to
+ *      receive pixels).
+ *
+ *      When user-space performs an atomic commit on a connector with a "BAD"
+ *      link-status without resetting the property to "GOOD", the sink may
+ *      still not receive pixels. When user-space performs an atomic commit
+ *      which resets the link-status property to "GOOD" without the
+ *      ALLOW_MODESET flag set, it might fail because a modeset is required.
+ *
+ *      User-space can only change link-status to "GOOD", changing it to "BAD"
+ *      is a no-op.
+ *
+ *      For backwards compatibility with non-atomic userspace the kernel
+ *      tries to automatically set the link-status back to "GOOD" in the
+ *      SETCRTC IOCTL. This might fail if the mode is no longer valid, similar
+ *      to how it might fail if a different screen has been connected in the
+ *      interim.
  * non_desktop:
  * 	Indicates the output should be ignored for purposes of displaying a
  * 	standard desktop environment or console. This is most likely because
@@ -1104,7 +1157,7 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *
  *	It will even need to do colorspace conversion and get all layers
  *	to one common colorspace for blending. It can use either GL, Media
- *	or display engine to get this done based on the capabilties of the
+ *	or display engine to get this done based on the capabilities of the
  *	associated hardware.
  *
  *	Driver expects metadata to be put in &struct hdr_output_metadata
@@ -1139,7 +1192,8 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *	coordinates, so if userspace rotates the picture to adjust for
  *	the orientation it must also apply the same transformation to the
  *	touchscreen input coordinates. This property is initialized by calling
- *	drm_connector_init_panel_orientation_property().
+ *	drm_connector_set_panel_orientation() or
+ *	drm_connector_set_panel_orientation_with_quirk()
  *
  * scaling mode:
  *	This property defines how a non-native mode is upscaled to the native
@@ -1586,7 +1640,7 @@ EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
  * variable refresh rate capability for a connector.
  *
  * Returns:
- * Zero on success, negative errono on failure.
+ * Zero on success, negative errno on failure.
  */
 int drm_connector_attach_vrr_capable_property(
 	struct drm_connector *connector)
@@ -1731,7 +1785,7 @@ EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
  * HDMI connectors.
  *
  * Returns:
- * Zero on success, negative errono on failure.
+ * Zero on success, negative errno on failure.
  */
 int drm_mode_create_hdmi_colorspace_property(struct drm_connector *connector)
 {
@@ -1760,7 +1814,7 @@ EXPORT_SYMBOL(drm_mode_create_hdmi_colorspace_property);
  * DP connectors.
  *
  * Returns:
- * Zero on success, negative errono on failure.
+ * Zero on success, negative errno on failure.
  */
 int drm_mode_create_dp_colorspace_property(struct drm_connector *connector)
 {
@@ -1812,7 +1866,7 @@ EXPORT_SYMBOL(drm_mode_create_content_type_property);
  * drm_mode_create_suggested_offset_properties - create suggests offset properties
  * @dev: DRM device
  *
- * Create the the suggested x/y offset property for connectors.
+ * Create the suggested x/y offset property for connectors.
  */
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev)
 {
@@ -1926,6 +1980,7 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	size_t size = 0;
 	int ret;
+	const struct edid *old_edid;
 
 	/* ignore requests to set edid when overridden */
 	if (connector->override_edid)
@@ -1935,7 +1990,7 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 		size = EDID_LENGTH * (1 + edid->extensions);
 
 	/* Set the display info, using edid if available, otherwise
-	 * reseting the values to defaults. This duplicates the work
+	 * resetting the values to defaults. This duplicates the work
 	 * done in drm_add_edid_modes, but that function is not
 	 * consistently called before this one in all drivers and the
 	 * computation is cheap enough that it seems better to
@@ -1946,6 +2001,22 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 		drm_add_display_info(connector, edid);
 	else
 		drm_reset_display_info(connector);
+
+	drm_update_tile_info(connector, edid);
+
+	if (connector->edid_blob_ptr) {
+		old_edid = (const struct edid *)connector->edid_blob_ptr->data;
+		if (old_edid) {
+			if (!drm_edid_are_equal(edid, old_edid)) {
+				DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Edid was changed.\n",
+					      connector->base.id, connector->name);
+
+				connector->epoch_counter += 1;
+				DRM_DEBUG_KMS("Updating change counter to %llu\n",
+					      connector->epoch_counter);
+			}
+		}
+	}
 
 	drm_object_property_set_value(&connector->base,
 				      dev->mode_config.non_desktop_property,
@@ -2046,37 +2117,40 @@ void drm_connector_set_vrr_capable_property(
 EXPORT_SYMBOL(drm_connector_set_vrr_capable_property);
 
 /**
- * drm_connector_init_panel_orientation_property -
- *	initialize the connecters panel_orientation property
- * @connector: connector for which to init the panel-orientation property.
- * @width: width in pixels of the panel, used for panel quirk detection
- * @height: height in pixels of the panel, used for panel quirk detection
+ * drm_connector_set_panel_orientation - sets the connector's panel_orientation
+ * @connector: connector for which to set the panel-orientation property.
+ * @panel_orientation: drm_panel_orientation value to set
  *
- * This function should only be called for built-in panels, after setting
- * connector->display_info.panel_orientation first (if known).
+ * This function sets the connector's panel_orientation and attaches
+ * a "panel orientation" property to the connector.
  *
- * This function will check for platform specific (e.g. DMI based) quirks
- * overriding display_info.panel_orientation first, then if panel_orientation
- * is not DRM_MODE_PANEL_ORIENTATION_UNKNOWN it will attach the
- * "panel orientation" property to the connector.
+ * Calling this function on a connector where the panel_orientation has
+ * already been set is a no-op (e.g. the orientation has been overridden with
+ * a kernel commandline option).
+ *
+ * It is allowed to call this function with a panel_orientation of
+ * DRM_MODE_PANEL_ORIENTATION_UNKNOWN, in which case it is a no-op.
  *
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_connector_init_panel_orientation_property(
-	struct drm_connector *connector, int width, int height)
+int drm_connector_set_panel_orientation(
+	struct drm_connector *connector,
+	enum drm_panel_orientation panel_orientation)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_info *info = &connector->display_info;
 	struct drm_property *prop;
-	int orientation_quirk;
 
-	orientation_quirk = drm_get_panel_orientation_quirk(width, height);
-	if (orientation_quirk != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
-		info->panel_orientation = orientation_quirk;
-
-	if (info->panel_orientation == DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+	/* Already set? */
+	if (info->panel_orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
 		return 0;
+
+	/* Don't attach the property if the orientation is unknown */
+	if (panel_orientation == DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+		return 0;
+
+	info->panel_orientation = panel_orientation;
 
 	prop = dev->mode_config.panel_orientation_property;
 	if (!prop) {
@@ -2094,7 +2168,37 @@ int drm_connector_init_panel_orientation_property(
 				   info->panel_orientation);
 	return 0;
 }
-EXPORT_SYMBOL(drm_connector_init_panel_orientation_property);
+EXPORT_SYMBOL(drm_connector_set_panel_orientation);
+
+/**
+ * drm_connector_set_panel_orientation_with_quirk -
+ *	set the connector's panel_orientation after checking for quirks
+ * @connector: connector for which to init the panel-orientation property.
+ * @panel_orientation: drm_panel_orientation value to set
+ * @width: width in pixels of the panel, used for panel quirk detection
+ * @height: height in pixels of the panel, used for panel quirk detection
+ *
+ * Like drm_connector_set_panel_orientation(), but with a check for platform
+ * specific (e.g. DMI based) quirks overriding the passed in panel_orientation.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_set_panel_orientation_with_quirk(
+	struct drm_connector *connector,
+	enum drm_panel_orientation panel_orientation,
+	int width, int height)
+{
+	int orientation_quirk;
+
+	orientation_quirk = drm_get_panel_orientation_quirk(width, height);
+	if (orientation_quirk != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+		panel_orientation = orientation_quirk;
+
+	return drm_connector_set_panel_orientation(connector,
+						   panel_orientation);
+}
+EXPORT_SYMBOL(drm_connector_set_panel_orientation_with_quirk);
 
 int drm_connector_set_obj_prop(struct drm_mode_object *obj,
 				    struct drm_property *property,
@@ -2305,6 +2409,7 @@ static void drm_tile_group_free(struct kref *kref)
 {
 	struct drm_tile_group *tg = container_of(kref, struct drm_tile_group, refcount);
 	struct drm_device *dev = tg->dev;
+
 	mutex_lock(&dev->mode_config.idr_mutex);
 	idr_remove(&dev->mode_config.tile_idr, tg->id);
 	mutex_unlock(&dev->mode_config.idr_mutex);
@@ -2336,10 +2441,11 @@ EXPORT_SYMBOL(drm_mode_put_tile_group);
  * tile group or NULL if not found.
  */
 struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
-					       char topology[8])
+					       const char topology[8])
 {
 	struct drm_tile_group *tg;
 	int id;
+
 	mutex_lock(&dev->mode_config.idr_mutex);
 	idr_for_each_entry(&dev->mode_config.tile_idr, tg, id) {
 		if (!memcmp(tg->group_data, topology, 8)) {
@@ -2366,7 +2472,7 @@ EXPORT_SYMBOL(drm_mode_get_tile_group);
  * new tile group or NULL.
  */
 struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
-						  char topology[8])
+						  const char topology[8])
 {
 	struct drm_tile_group *tg;
 	int ret;

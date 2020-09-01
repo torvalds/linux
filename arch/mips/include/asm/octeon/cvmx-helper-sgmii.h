@@ -68,7 +68,7 @@ extern int __cvmx_helper_sgmii_enable(int interface);
  *
  * Returns Link state
  */
-extern cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port);
+extern union cvmx_helper_link_info __cvmx_helper_sgmii_link_get(int ipd_port);
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
@@ -82,6 +82,6 @@ extern cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port);
  * Returns Zero on success, negative on failure
  */
 extern int __cvmx_helper_sgmii_link_set(int ipd_port,
-					cvmx_helper_link_info_t link_info);
+					union cvmx_helper_link_info link_info);
 
 #endif

@@ -1186,7 +1186,7 @@ MODULE_DEVICE_TABLE(pci, ngene_id_tbl);
 /****************************************************************************/
 
 static pci_ers_result_t ngene_error_detected(struct pci_dev *dev,
-					     enum pci_channel_state state)
+					     pci_channel_state_t state)
 {
 	dev_err(&dev->dev, "PCI error\n");
 	if (state == pci_channel_io_perm_failure)

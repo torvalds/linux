@@ -4917,15 +4917,26 @@ struct ec_response_usb_pd_control_v1 {
 #define USBC_PD_CC_UFP_ATTACHED	4 /* UFP attached to usbc */
 #define USBC_PD_CC_DFP_ATTACHED	5 /* DPF attached to usbc */
 
+/* Active/Passive Cable */
+#define USB_PD_CTRL_ACTIVE_CABLE        BIT(0)
+/* Optical/Non-optical cable */
+#define USB_PD_CTRL_OPTICAL_CABLE       BIT(1)
+/* 3rd Gen TBT device (or AMA)/2nd gen tbt Adapter */
+#define USB_PD_CTRL_TBT_LEGACY_ADAPTER  BIT(2)
+/* Active Link Uni-Direction */
+#define USB_PD_CTRL_ACTIVE_LINK_UNIDIR  BIT(3)
+
 struct ec_response_usb_pd_control_v2 {
 	uint8_t enabled;
 	uint8_t role;
 	uint8_t polarity;
 	char state[32];
-	uint8_t cc_state; /* USBC_PD_CC_*Encoded cc state */
-	uint8_t dp_mode;  /* Current DP pin mode (MODE_DP_PIN_[A-E]) */
-	/* CL:1500994 Current cable type */
-	uint8_t reserved_cable_type;
+	uint8_t cc_state;	/* enum pd_cc_states representing cc state */
+	uint8_t dp_mode;	/* Current DP pin mode (MODE_DP_PIN_[A-E]) */
+	uint8_t reserved;	/* Reserved for future use */
+	uint8_t control_flags;	/* USB_PD_CTRL_*flags */
+	uint8_t cable_speed;	/* TBT_SS_* cable speed */
+	uint8_t cable_gen;	/* TBT_GEN3_* cable rounded support */
 } __ec_align1;
 
 #define EC_CMD_USB_PD_PORTS 0x0102
@@ -5207,11 +5218,15 @@ struct ec_params_usb_pd_mux_info {
 } __ec_align1;
 
 /* Flags representing mux state */
-#define USB_PD_MUX_USB_ENABLED       BIT(0) /* USB connected */
-#define USB_PD_MUX_DP_ENABLED        BIT(1) /* DP connected */
-#define USB_PD_MUX_POLARITY_INVERTED BIT(2) /* CC line Polarity inverted */
-#define USB_PD_MUX_HPD_IRQ           BIT(3) /* HPD IRQ is asserted */
-#define USB_PD_MUX_HPD_LVL           BIT(4) /* HPD level is asserted */
+#define USB_PD_MUX_NONE               0      /* Open switch */
+#define USB_PD_MUX_USB_ENABLED        BIT(0) /* USB connected */
+#define USB_PD_MUX_DP_ENABLED         BIT(1) /* DP connected */
+#define USB_PD_MUX_POLARITY_INVERTED  BIT(2) /* CC line Polarity inverted */
+#define USB_PD_MUX_HPD_IRQ            BIT(3) /* HPD IRQ is asserted */
+#define USB_PD_MUX_HPD_LVL            BIT(4) /* HPD level is asserted */
+#define USB_PD_MUX_SAFE_MODE          BIT(5) /* DP is in safe mode */
+#define USB_PD_MUX_TBT_COMPAT_ENABLED BIT(6) /* TBT compat enabled */
+#define USB_PD_MUX_USB4_ENABLED       BIT(7) /* USB4 enabled */
 
 struct ec_response_usb_pd_mux_info {
 	uint8_t flags; /* USB_PD_MUX_*-encoded USB mux state */
@@ -5429,6 +5444,89 @@ struct ec_response_rollback_info {
 
 /* Issue AP reset */
 #define EC_CMD_AP_RESET 0x0125
+
+/*****************************************************************************/
+/* Voltage regulator controls */
+
+/*
+ * Get basic info of voltage regulator for given index.
+ *
+ * Returns the regulator name and supported voltage list in mV.
+ */
+#define EC_CMD_REGULATOR_GET_INFO 0x012C
+
+/* Maximum length of regulator name */
+#define EC_REGULATOR_NAME_MAX_LEN 16
+
+/* Maximum length of the supported voltage list. */
+#define EC_REGULATOR_VOLTAGE_MAX_COUNT 16
+
+struct ec_params_regulator_get_info {
+	uint32_t index;
+} __ec_align4;
+
+struct ec_response_regulator_get_info {
+	char name[EC_REGULATOR_NAME_MAX_LEN];
+	uint16_t num_voltages;
+	uint16_t voltages_mv[EC_REGULATOR_VOLTAGE_MAX_COUNT];
+} __ec_align2;
+
+/*
+ * Configure the regulator as enabled / disabled.
+ */
+#define EC_CMD_REGULATOR_ENABLE 0x012D
+
+struct ec_params_regulator_enable {
+	uint32_t index;
+	uint8_t enable;
+} __ec_align4;
+
+/*
+ * Query if the regulator is enabled.
+ *
+ * Returns 1 if the regulator is enabled, 0 if not.
+ */
+#define EC_CMD_REGULATOR_IS_ENABLED 0x012E
+
+struct ec_params_regulator_is_enabled {
+	uint32_t index;
+} __ec_align4;
+
+struct ec_response_regulator_is_enabled {
+	uint8_t enabled;
+} __ec_align1;
+
+/*
+ * Set voltage for the voltage regulator within the range specified.
+ *
+ * The driver should select the voltage in range closest to min_mv.
+ *
+ * Also note that this might be called before the regulator is enabled, and the
+ * setting should be in effect after the regulator is enabled.
+ */
+#define EC_CMD_REGULATOR_SET_VOLTAGE 0x012F
+
+struct ec_params_regulator_set_voltage {
+	uint32_t index;
+	uint32_t min_mv;
+	uint32_t max_mv;
+} __ec_align4;
+
+/*
+ * Get the currently configured voltage for the voltage regulator.
+ *
+ * Note that this might be called before the regulator is enabled, and this
+ * should return the configured output voltage if the regulator is enabled.
+ */
+#define EC_CMD_REGULATOR_GET_VOLTAGE 0x0130
+
+struct ec_params_regulator_get_voltage {
+	uint32_t index;
+} __ec_align4;
+
+struct ec_response_regulator_get_voltage {
+	uint32_t voltage_mv;
+} __ec_align4;
 
 /*****************************************************************************/
 /* The command range 0x200-0x2FF is reserved for Rotor. */

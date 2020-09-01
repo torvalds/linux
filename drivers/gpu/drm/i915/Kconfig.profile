@@ -1,3 +1,15 @@
+config DRM_I915_FENCE_TIMEOUT
+	int "Timeout for unsignaled foreign fences (ms, jiffy granularity)"
+	default 10000 # milliseconds
+	help
+	  When listening to a foreign fence, we install a supplementary timer
+	  to ensure that we are always signaled and our userspace is able to
+	  make forward progress. This value specifies the timeout used for an
+	  unsignaled foreign fence.
+
+	  May be 0 to disable the timeout, and rely on the foreign fence being
+	  eventually signaled.
+
 config DRM_I915_USERFAULT_AUTOSUSPEND
 	int "Runtime autosuspend delay for userspace GGTT mmaps (ms)"
 	default 250 # milliseconds
@@ -20,6 +32,9 @@ config DRM_I915_HEARTBEAT_INTERVAL
 	  check the health of the GPU and undertake regular house-keeping of
 	  internal driver state.
 
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/heartbeat_interval_ms
+
 	  May be 0 to disable heartbeats and therefore disable automatic GPU
 	  hang detection.
 
@@ -33,17 +48,27 @@ config DRM_I915_PREEMPT_TIMEOUT
 	  expires, the HW will be reset to allow the more important context
 	  to execute.
 
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/preempt_timeout_ms
+
 	  May be 0 to disable the timeout.
 
-config DRM_I915_SPIN_REQUEST
-	int "Busywait for request completion (us)"
-	default 5 # microseconds
+	  The compiled in default may get overridden at driver probe time on
+	  certain platforms and certain engines which will be reflected in the
+	  sysfs control.
+
+config DRM_I915_MAX_REQUEST_BUSYWAIT
+	int "Busywait for request completion limit (ns)"
+	default 8000 # nanoseconds
 	help
 	  Before sleeping waiting for a request (GPU operation) to complete,
 	  we may spend some time polling for its completion. As the IRQ may
 	  take a non-negligible time to setup, we do a short spin first to
 	  check if the request will complete in the time it would have taken
 	  us to enable the interrupt.
+
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/max_busywait_duration_ns
 
 	  May be 0 to disable the initial spin. In practice, we estimate
 	  the cost of enabling the interrupt (if currently disabled) to be
@@ -60,6 +85,9 @@ config DRM_I915_STOP_TIMEOUT
 	  that the reset itself may take longer and so be more disruptive to
 	  interactive or low latency workloads.
 
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/stop_timeout_ms
+
 config DRM_I915_TIMESLICE_DURATION
 	int "Scheduling quantum for userspace batches (ms, jiffy granularity)"
 	default 1 # milliseconds
@@ -72,5 +100,8 @@ config DRM_I915_TIMESLICE_DURATION
 	  interact with each other via userspace semaphores. Each context
 	  is scheduled for execution for the timeslice duration, before
 	  switching to the next context.
+
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/timeslice_duration_ms
 
 	  May be 0 to disable timeslicing.

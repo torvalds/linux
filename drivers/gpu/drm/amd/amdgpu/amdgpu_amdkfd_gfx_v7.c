@@ -20,8 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/mmu_context.h>
-
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 #include "cikd.h"
@@ -83,31 +81,6 @@ union TCP_WATCH_CNTL_BITS {
 	signed int i32All;
 	float f32All;
 };
-
-/* Because of REG_GET_FIELD() being used, we put this function in the
- * asic specific file.
- */
-static int get_tile_config(struct kgd_dev *kgd,
-		struct tile_config *config)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-
-	config->gb_addr_config = adev->gfx.config.gb_addr_config;
-	config->num_banks = REG_GET_FIELD(adev->gfx.config.mc_arb_ramcfg,
-				MC_ARB_RAMCFG, NOOFBANK);
-	config->num_ranks = REG_GET_FIELD(adev->gfx.config.mc_arb_ramcfg,
-				MC_ARB_RAMCFG, NOOFRANKS);
-
-	config->tile_config_ptr = adev->gfx.config.tile_mode_array;
-	config->num_tile_configs =
-			ARRAY_SIZE(adev->gfx.config.tile_mode_array);
-	config->macro_tile_config_ptr =
-			adev->gfx.config.macrotile_mode_array;
-	config->num_macro_tile_configs =
-			ARRAY_SIZE(adev->gfx.config.macrotile_mode_array);
-
-	return 0;
-}
 
 static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
 {
@@ -262,7 +235,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			     CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
 	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, data);
 
-	/* read_user_ptr may take the mm->mmap_sem.
+	/* read_user_ptr may take the mm->mmap_lock.
 	 * release srbm_mutex to avoid circular dependency between
 	 * srbm_mutex->mm_sem->reservation_ww_class_mutex->srbm_mutex.
 	 */
@@ -730,7 +703,6 @@ const struct kfd2kgd_calls gfx_v7_kfd2kgd = {
 	.address_watch_get_offset = kgd_address_watch_get_offset,
 	.get_atc_vmid_pasid_mapping_info = get_atc_vmid_pasid_mapping_info,
 	.set_scratch_backing_va = set_scratch_backing_va,
-	.get_tile_config = get_tile_config,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
 	.read_vmid_from_vmfault_reg = read_vmid_from_vmfault_reg,
 };

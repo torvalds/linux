@@ -14,7 +14,7 @@
 
 #include "card.h"
 
-static const struct mmc_fixup mmc_blk_fixups[] = {
+static const struct mmc_fixup __maybe_unused mmc_blk_fixups[] = {
 #define INAND_CMD38_ARG_EXT_CSD  113
 #define INAND_CMD38_ARG_ERASE    0x00
 #define INAND_CMD38_ARG_TRIM     0x01
@@ -102,7 +102,7 @@ static const struct mmc_fixup mmc_blk_fixups[] = {
 	END_FIXUP
 };
 
-static const struct mmc_fixup mmc_ext_csd_fixups[] = {
+static const struct mmc_fixup __maybe_unused mmc_ext_csd_fixups[] = {
 	/*
 	 * Certain Hynix eMMC 4.41 cards might get broken when HPI feature
 	 * is used so disable the HPI feature for such buggy cards.
@@ -120,7 +120,7 @@ static const struct mmc_fixup mmc_ext_csd_fixups[] = {
 };
 
 
-static const struct mmc_fixup sdio_fixup_methods[] = {
+static const struct mmc_fixup __maybe_unused sdio_fixup_methods[] = {
 	SDIO_FIXUP(SDIO_VENDOR_ID_TI_WL1251, SDIO_DEVICE_ID_TI_WL1251,
 		   add_quirk, MMC_QUIRK_NONSTD_FUNC_IF),
 
@@ -139,7 +139,7 @@ static const struct mmc_fixup sdio_fixup_methods[] = {
 	SDIO_FIXUP(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8797_F0,
 		   add_quirk, MMC_QUIRK_BROKEN_IRQ_POLLING),
 
-	SDIO_FIXUP(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8887WLAN,
+	SDIO_FIXUP(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8887_F0,
 		   add_limit_rate_quirk, 150000000),
 
 	END_FIXUP

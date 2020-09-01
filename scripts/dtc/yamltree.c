@@ -59,10 +59,10 @@ static void yaml_propval_int(yaml_emitter_t *emitter, struct marker *markers, ch
 			sprintf(buf, "0x%"PRIx8, *(uint8_t*)(data + off));
 			break;
 		case 2:
-			sprintf(buf, "0x%"PRIx16, fdt16_to_cpu(*(fdt16_t*)(data + off)));
+			sprintf(buf, "0x%"PRIx16, dtb_ld16(data + off));
 			break;
 		case 4:
-			sprintf(buf, "0x%"PRIx32, fdt32_to_cpu(*(fdt32_t*)(data + off)));
+			sprintf(buf, "0x%"PRIx32, dtb_ld32(data + off));
 			m = markers;
 			is_phandle = false;
 			for_each_marker_of_type(m, REF_PHANDLE) {
@@ -73,7 +73,7 @@ static void yaml_propval_int(yaml_emitter_t *emitter, struct marker *markers, ch
 			}
 			break;
 		case 8:
-			sprintf(buf, "0x%"PRIx64, fdt64_to_cpu(*(fdt64_t*)(data + off)));
+			sprintf(buf, "0x%"PRIx64, dtb_ld64(data + off));
 			break;
 		}
 

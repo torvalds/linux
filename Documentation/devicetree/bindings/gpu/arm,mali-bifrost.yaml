@@ -43,12 +43,23 @@ properties:
 
   operating-points-v2: true
 
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 2
+
+  "#cooling-cells":
+    const: 2
+
 required:
   - compatible
   - reg
   - interrupts
   - interrupt-names
   - clocks
+
+additionalProperties: false
 
 allOf:
   - if:
@@ -57,9 +68,6 @@ allOf:
           contains:
             const: amlogic,meson-g12a-mali
     then:
-      properties:
-        resets:
-          minItems: 2
       required:
         - resets
 

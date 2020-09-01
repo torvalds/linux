@@ -164,7 +164,7 @@ static inline void destroy_timer_on_stack(struct timer_list *timer) { }
  */
 static inline int timer_pending(const struct timer_list * timer)
 {
-	return timer->entry.pprev != NULL;
+	return !hlist_unhashed_lockless(&timer->entry);
 }
 
 extern void add_timer_on(struct timer_list *timer, int cpu);
@@ -201,8 +201,7 @@ struct ctl_table;
 
 extern unsigned int sysctl_timer_migration;
 int timer_migration_handler(struct ctl_table *table, int write,
-			    void __user *buffer, size_t *lenp,
-			    loff_t *ppos);
+			    void *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
 unsigned long __round_jiffies(unsigned long j, int cpu);

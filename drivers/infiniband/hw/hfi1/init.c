@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -69,6 +69,7 @@
 #include "affinity.h"
 #include "vnic.h"
 #include "exp_rcv.h"
+#include "netdev.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -374,6 +375,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		rcd->numa_id = numa;
 		rcd->rcv_array_groups = dd->rcv_entries.ngroups;
 		rcd->rhf_rcv_function_map = normal_rhf_rcv_functions;
+		rcd->msix_intr = CCE_NUM_MSIX_VECTORS;
 
 		mutex_init(&rcd->exp_mutex);
 		spin_lock_init(&rcd->exp_lock);
@@ -829,6 +831,29 @@ wq_error:
 }
 
 /**
+ * destroy_workqueues - destroy per port workqueues
+ * @dd: the hfi1_ib device
+ */
+static void destroy_workqueues(struct hfi1_devdata *dd)
+{
+	int pidx;
+	struct hfi1_pportdata *ppd;
+
+	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
+		ppd = dd->pport + pidx;
+
+		if (ppd->hfi1_wq) {
+			destroy_workqueue(ppd->hfi1_wq);
+			ppd->hfi1_wq = NULL;
+		}
+		if (ppd->link_wq) {
+			destroy_workqueue(ppd->link_wq);
+			ppd->link_wq = NULL;
+		}
+	}
+}
+
+/**
  * enable_general_intr() - Enable the IRQs that will be handled by the
  * general interrupt handler.
  * @dd: valid devdata
@@ -1101,15 +1126,10 @@ static void shutdown_device(struct hfi1_devdata *dd)
 		 * We can't count on interrupts since we are stopping.
 		 */
 		hfi1_quiet_serdes(ppd);
-
-		if (ppd->hfi1_wq) {
-			destroy_workqueue(ppd->hfi1_wq);
-			ppd->hfi1_wq = NULL;
-		}
-		if (ppd->link_wq) {
-			destroy_workqueue(ppd->link_wq);
-			ppd->link_wq = NULL;
-		}
+		if (ppd->hfi1_wq)
+			flush_workqueue(ppd->hfi1_wq);
+		if (ppd->link_wq)
+			flush_workqueue(ppd->link_wq);
 	}
 	sdma_exit(dd);
 }
@@ -1198,13 +1218,13 @@ static void finalize_asic_data(struct hfi1_devdata *dd,
 }
 
 /**
- * hfi1_clean_devdata - cleans up per-unit data structure
+ * hfi1_free_devdata - cleans up and frees per-unit data structure
  * @dd: pointer to a valid devdata structure
  *
- * It cleans up all data structures set up by
+ * It cleans up and frees all data structures set up by
  * by hfi1_alloc_devdata().
  */
-static void hfi1_clean_devdata(struct hfi1_devdata *dd)
+void hfi1_free_devdata(struct hfi1_devdata *dd)
 {
 	struct hfi1_asic_data *ad;
 	unsigned long flags;
@@ -1229,23 +1249,6 @@ static void hfi1_clean_devdata(struct hfi1_devdata *dd)
 	dd->comp_vect = NULL;
 	sdma_clean(dd, dd->num_sdma);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
-}
-
-static void __hfi1_free_devdata(struct kobject *kobj)
-{
-	struct hfi1_devdata *dd =
-		container_of(kobj, struct hfi1_devdata, kobj);
-
-	hfi1_clean_devdata(dd);
-}
-
-static struct kobj_type hfi1_devdata_type = {
-	.release = __hfi1_free_devdata,
-};
-
-void hfi1_free_devdata(struct hfi1_devdata *dd)
-{
-	kobject_put(&dd->kobj);
 }
 
 /**
@@ -1333,11 +1336,11 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 		goto bail;
 	}
 
-	kobject_init(&dd->kobj, &hfi1_devdata_type);
+	atomic_set(&dd->ipoib_rsm_usr_num, 0);
 	return dd;
 
 bail:
-	hfi1_clean_devdata(dd);
+	hfi1_free_devdata(dd);
 	return ERR_PTR(ret);
 }
 
@@ -1681,9 +1684,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* do the generic initialization */
 	initfail = hfi1_init(dd, 0);
 
-	/* setup vnic */
-	hfi1_vnic_setup(dd);
-
 	ret = hfi1_register_ib_device(dd);
 
 	/*
@@ -1722,7 +1722,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			hfi1_device_remove(dd);
 		if (!ret)
 			hfi1_unregister_ib_device(dd);
-		hfi1_vnic_cleanup(dd);
 		postinit_cleanup(dd);
 		if (initfail)
 			ret = initfail;
@@ -1767,14 +1766,15 @@ static void remove_one(struct pci_dev *pdev)
 	/* unregister from IB core */
 	hfi1_unregister_ib_device(dd);
 
-	/* cleanup vnic */
-	hfi1_vnic_cleanup(dd);
+	/* free netdev data */
+	hfi1_netdev_free(dd);
 
 	/*
 	 * Disable the IB link, disable interrupts on the device,
 	 * clear dma engines, etc.
 	 */
 	shutdown_device(dd);
+	destroy_workqueues(dd);
 
 	stop_timers(dd);
 

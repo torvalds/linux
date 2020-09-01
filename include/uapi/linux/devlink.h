@@ -117,6 +117,11 @@ enum devlink_command {
 	DEVLINK_CMD_TRAP_GROUP_NEW,
 	DEVLINK_CMD_TRAP_GROUP_DEL,
 
+	DEVLINK_CMD_TRAP_POLICER_GET,	/* can dump */
+	DEVLINK_CMD_TRAP_POLICER_SET,
+	DEVLINK_CMD_TRAP_POLICER_NEW,
+	DEVLINK_CMD_TRAP_POLICER_DEL,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -187,6 +192,7 @@ enum devlink_port_flavour {
 				      * for the PCI VF. It is an internal
 				      * port that faces the PCI VF.
 				      */
+	DEVLINK_PORT_FLAVOUR_VIRTUAL, /* Any virtual port facing the user. */
 };
 
 enum devlink_param_cmode {
@@ -216,6 +222,7 @@ enum devlink_param_reset_dev_on_drv_probe_value {
 enum {
 	DEVLINK_ATTR_STATS_RX_PACKETS,		/* u64 */
 	DEVLINK_ATTR_STATS_RX_BYTES,		/* u64 */
+	DEVLINK_ATTR_STATS_RX_DROPPED,		/* u64 */
 
 	__DEVLINK_ATTR_STATS_MAX,
 	DEVLINK_ATTR_STATS_MAX = __DEVLINK_ATTR_STATS_MAX - 1
@@ -226,10 +233,13 @@ enum {
  * @DEVLINK_TRAP_ACTION_DROP: Packet is dropped by the device and a copy is not
  *                            sent to the CPU.
  * @DEVLINK_TRAP_ACTION_TRAP: The sole copy of the packet is sent to the CPU.
+ * @DEVLINK_TRAP_ACTION_MIRROR: Packet is forwarded by the device and a copy is
+ *                              sent to the CPU.
  */
 enum devlink_trap_action {
 	DEVLINK_TRAP_ACTION_DROP,
 	DEVLINK_TRAP_ACTION_TRAP,
+	DEVLINK_TRAP_ACTION_MIRROR,
 };
 
 /**
@@ -243,15 +253,23 @@ enum devlink_trap_action {
  *                               control plane for resolution. Trapped packets
  *                               are processed by devlink and injected to
  *                               the kernel's Rx path.
+ * @DEVLINK_TRAP_TYPE_CONTROL: Packet was trapped because it is required for
+ *                             the correct functioning of the control plane.
+ *                             For example, an ARP request packet. Trapped
+ *                             packets are injected to the kernel's Rx path,
+ *                             but not reported to drop monitor.
  */
 enum devlink_trap_type {
 	DEVLINK_TRAP_TYPE_DROP,
 	DEVLINK_TRAP_TYPE_EXCEPTION,
+	DEVLINK_TRAP_TYPE_CONTROL,
 };
 
 enum {
 	/* Trap can report input port as metadata */
 	DEVLINK_ATTR_TRAP_METADATA_TYPE_IN_PORT,
+	/* Trap can report flow action cookie as metadata */
+	DEVLINK_ATTR_TRAP_METADATA_TYPE_FA_COOKIE,
 };
 
 enum devlink_attr {
@@ -426,6 +444,20 @@ enum devlink_attr {
 	DEVLINK_ATTR_NETNS_FD,			/* u32 */
 	DEVLINK_ATTR_NETNS_PID,			/* u32 */
 	DEVLINK_ATTR_NETNS_ID,			/* u32 */
+
+	DEVLINK_ATTR_HEALTH_REPORTER_AUTO_DUMP,	/* u8 */
+
+	DEVLINK_ATTR_TRAP_POLICER_ID,			/* u32 */
+	DEVLINK_ATTR_TRAP_POLICER_RATE,			/* u64 */
+	DEVLINK_ATTR_TRAP_POLICER_BURST,		/* u64 */
+
+	DEVLINK_ATTR_PORT_FUNCTION,			/* nested */
+
+	DEVLINK_ATTR_INFO_BOARD_SERIAL_NUMBER,	/* string */
+
+	DEVLINK_ATTR_PORT_LANES,			/* u32 */
+	DEVLINK_ATTR_PORT_SPLITTABLE,			/* u8 */
+
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,
@@ -470,6 +502,14 @@ enum devlink_dpipe_header_id {
 
 enum devlink_resource_unit {
 	DEVLINK_RESOURCE_UNIT_ENTRY,
+};
+
+enum devlink_port_function_attr {
+	DEVLINK_PORT_FUNCTION_ATTR_UNSPEC,
+	DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR,	/* binary */
+
+	__DEVLINK_PORT_FUNCTION_ATTR_MAX,
+	DEVLINK_PORT_FUNCTION_ATTR_MAX = __DEVLINK_PORT_FUNCTION_ATTR_MAX - 1
 };
 
 #endif /* _UAPI_LINUX_DEVLINK_H_ */

@@ -312,9 +312,6 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 	int ret;
 	u32 clkdiv;
 
-	if (!np)
-		return -EINVAL;
-
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
@@ -352,7 +349,6 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
-		dev_err(&pdev->dev, "failed to get irq (%d)\n", ret);
 		if (!ret)
 			ret = -EINVAL;
 		return ret;
@@ -388,7 +384,7 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 	if (!ret) {
 		dev_dbg(&pdev->dev, "using frequency %u\n", frequency);
 	} else {
-		frequency = 100000;
+		frequency = I2C_MAX_STANDARD_MODE_FREQ;
 		dev_info(&pdev->dev, "defaulting to 100 kHz\n");
 	}
 	ddata->frequency = frequency;

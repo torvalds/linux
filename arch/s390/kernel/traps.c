@@ -50,11 +50,8 @@ void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
         } else {
                 const struct exception_table_entry *fixup;
 		fixup = s390_search_extables(regs->psw.addr);
-                if (fixup)
-			regs->psw.addr = extable_fixup(fixup);
-		else {
+		if (!fixup || !ex_handle(fixup, regs))
 			die(regs, str);
-		}
         }
 }
 
@@ -251,7 +248,7 @@ void monitor_event_exception(struct pt_regs *regs)
 	case BUG_TRAP_TYPE_NONE:
 		fixup = s390_search_extables(regs->psw.addr);
 		if (fixup)
-			regs->psw.addr = extable_fixup(fixup);
+			ex_handle(fixup, regs);
 		break;
 	case BUG_TRAP_TYPE_WARN:
 		break;
@@ -271,7 +268,7 @@ void kernel_stack_overflow(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(kernel_stack_overflow);
 
-static void test_monitor_call(void)
+static void __init test_monitor_call(void)
 {
 	int val = 1;
 

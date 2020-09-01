@@ -103,7 +103,7 @@ static bool plls_locked(struct snd_soc_component *component)
 	int count = MAX_PLL_LOCK_20MS_WAITS;
 
 	do {
-		ret = snd_soc_component_read32(component, R_PLLCTL0);
+		ret = snd_soc_component_read(component, R_PLLCTL0);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"Failed to read PLL lock status (%d)\n", ret);
@@ -148,7 +148,7 @@ static int write_coeff_ram(struct snd_soc_component *component, u8 *coeff_ram,
 	for (cnt = 0; cnt < coeff_cnt; cnt++, addr++) {
 
 		for (trys = 0; trys < DACCRSTAT_MAX_TRYS; trys++) {
-			ret = snd_soc_component_read32(component, R_DACCRSTAT);
+			ret = snd_soc_component_read(component, R_DACCRSTAT);
 			if (ret < 0) {
 				dev_err(component->dev,
 					"Failed to read stat (%d)\n", ret);

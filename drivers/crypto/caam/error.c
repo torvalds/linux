@@ -212,6 +212,9 @@ static const char * const rng_err_id_list[] = {
 	"Prediction resistance and test request",
 	"Uninstantiate",
 	"Secure key generation",
+	"",
+	"Hardware error",
+	"Continuous check"
 };
 
 static int report_ccb_status(struct device *jrdev, const u32 status,

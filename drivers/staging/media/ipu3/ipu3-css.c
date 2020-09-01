@@ -210,12 +210,12 @@ static int imgu_hw_wait(void __iomem *base, int reg, u32 mask, u32 cmp)
 
 /* Initialize the IPU3 CSS hardware and associated h/w blocks */
 
-int imgu_css_set_powerup(struct device *dev, void __iomem *base)
+int imgu_css_set_powerup(struct device *dev, void __iomem *base,
+			 unsigned int freq)
 {
-	static const unsigned int freq = 450;
 	u32 pm_ctrl, state, val;
 
-	dev_dbg(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s with freq %u\n", __func__, freq);
 	/* Clear the CSS busy signal */
 	readl(base + IMGU_REG_GP_BUSY);
 	writel(0, base + IMGU_REG_GP_BUSY);
@@ -1911,6 +1911,13 @@ int imgu_css_meta_fmt_set(struct v4l2_meta_format *fmt)
 	switch (fmt->dataformat) {
 	case V4L2_META_FMT_IPU3_PARAMS:
 		fmt->buffersize = sizeof(struct ipu3_uapi_params);
+
+		/*
+		 * Sanity check for the parameter struct size. This must
+		 * not change!
+		 */
+		BUILD_BUG_ON(sizeof(struct ipu3_uapi_params) != 39328);
+
 		break;
 	case V4L2_META_FMT_IPU3_STAT_3A:
 		fmt->buffersize = sizeof(struct ipu3_uapi_stats_3a);

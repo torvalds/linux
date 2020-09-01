@@ -19,6 +19,7 @@
 #include <linux/atomic.h>
 #include <asm/bug.h>
 #include <asm/page.h>
+#include <asm/uv.h>
 
 extern pgd_t swapper_pg_dir[];
 extern void paging_init(void);
@@ -515,6 +516,15 @@ static inline int mm_has_pgste(struct mm_struct *mm)
 {
 #ifdef CONFIG_PGSTE
 	if (unlikely(mm->context.has_pgste))
+		return 1;
+#endif
+	return 0;
+}
+
+static inline int mm_is_protected(struct mm_struct *mm)
+{
+#ifdef CONFIG_PGSTE
+	if (unlikely(atomic_read(&mm->context.is_protected)))
 		return 1;
 #endif
 	return 0;
@@ -1067,7 +1077,12 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long addr, pte_t *ptep)
 {
-	return ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
+	pte_t res;
+
+	res = ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
+	if (mm_is_protected(mm) && pte_present(res))
+		uv_convert_from_secure(pte_val(res) & PAGE_MASK);
+	return res;
 }
 
 #define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
@@ -1079,7 +1094,12 @@ void ptep_modify_prot_commit(struct vm_area_struct *, unsigned long,
 static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 				     unsigned long addr, pte_t *ptep)
 {
-	return ptep_xchg_direct(vma->vm_mm, addr, ptep, __pte(_PAGE_INVALID));
+	pte_t res;
+
+	res = ptep_xchg_direct(vma->vm_mm, addr, ptep, __pte(_PAGE_INVALID));
+	if (mm_is_protected(vma->vm_mm) && pte_present(res))
+		uv_convert_from_secure(pte_val(res) & PAGE_MASK);
+	return res;
 }
 
 /*
@@ -1094,12 +1114,17 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 					    unsigned long addr,
 					    pte_t *ptep, int full)
 {
+	pte_t res;
+
 	if (full) {
-		pte_t pte = *ptep;
+		res = *ptep;
 		*ptep = __pte(_PAGE_INVALID);
-		return pte;
+	} else {
+		res = ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
 	}
-	return ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
+	if (mm_is_protected(mm) && pte_present(res))
+		uv_convert_from_secure(pte_val(res) & PAGE_MASK);
+	return res;
 }
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
@@ -1204,7 +1229,6 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 #define p4d_index(address) (((address) >> P4D_SHIFT) & (PTRS_PER_P4D-1))
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
-#define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE-1))
 
 #define pmd_deref(pmd) (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN)
 #define pud_deref(pud) (pud_val(pud) & _REGION_ENTRY_ORIGIN)
@@ -1235,7 +1259,6 @@ static inline pgd_t *pgd_offset_raw(pgd_t *pgd, unsigned long address)
 }
 
 #define pgd_offset(mm, address) pgd_offset_raw(READ_ONCE((mm)->pgd), address)
-#define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 {
@@ -1250,6 +1273,7 @@ static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 		return (pud_t *) p4d_deref(*p4d) + pud_index(address);
 	return (pud_t *) p4d;
 }
+#define pud_offset pud_offset
 
 static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 {
@@ -1257,16 +1281,12 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 		return (pmd_t *) pud_deref(*pud) + pmd_index(address);
 	return (pmd_t *) pud;
 }
+#define pmd_offset pmd_offset
 
-static inline pte_t *pte_offset(pmd_t *pmd, unsigned long address)
+static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 {
-	return (pte_t *) pmd_deref(*pmd) + pte_index(address);
+	return (unsigned long) pmd_deref(pmd);
 }
-
-#define pte_offset_kernel(pmd, address) pte_offset(pmd, address)
-#define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
-
-static inline void pte_unmap(pte_t *pte) { }
 
 static inline bool gup_fast_permitted(unsigned long start, unsigned long end)
 {
@@ -1535,7 +1555,7 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 }
 
 #define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR_FULL
-static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
+static inline pmd_t pmdp_huge_get_and_clear_full(struct vm_area_struct *vma,
 						 unsigned long addr,
 						 pmd_t *pmdp, int full)
 {
@@ -1544,7 +1564,7 @@ static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
 		*pmdp = __pmd(_SEGMENT_ENTRY_EMPTY);
 		return pmd;
 	}
-	return pmdp_xchg_lazy(mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
+	return pmdp_xchg_lazy(vma->vm_mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
 }
 
 #define __HAVE_ARCH_PMDP_HUGE_CLEAR_FLUSH
@@ -1649,7 +1669,7 @@ static inline swp_entry_t __swp_entry(unsigned long type, unsigned long offset)
 #define kern_addr_valid(addr)   (1)
 
 extern int vmem_add_mapping(unsigned long start, unsigned long size);
-extern int vmem_remove_mapping(unsigned long start, unsigned long size);
+extern void vmem_remove_mapping(unsigned long start, unsigned long size);
 extern int s390_enable_sie(void);
 extern int s390_enable_skey(void);
 extern void s390_reset_cmma(struct mm_struct *mm);
@@ -1657,7 +1677,5 @@ extern void s390_reset_cmma(struct mm_struct *mm);
 /* s390 has a private copy of get unmapped area to deal with cache synonyms */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-
-#include <asm-generic/pgtable.h>
 
 #endif /* _S390_PAGE_H */

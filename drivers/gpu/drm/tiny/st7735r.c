@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * DRM driver for Sitronix ST7735R panels
+ * DRM driver for display panels connected to a Sitronix ST7715R or ST7735R
+ * display controller in SPI mode.
  *
  * Copyright 2017 David Lechner <david@lechnology.com>
+ * Copyright (C) 2019 Glider bvba
  */
 
 #include <linux/backlight.h>
@@ -19,6 +21,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 
 #define ST7735R_FRMCTR1		0xb1
@@ -37,12 +40,28 @@
 #define ST7735R_MY	BIT(7)
 #define ST7735R_MX	BIT(6)
 #define ST7735R_MV	BIT(5)
+#define ST7735R_RGB	BIT(3)
 
-static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
-				      struct drm_crtc_state *crtc_state,
-				      struct drm_plane_state *plane_state)
+struct st7735r_cfg {
+	const struct drm_display_mode mode;
+	unsigned int left_offset;
+	unsigned int top_offset;
+	unsigned int write_only:1;
+	unsigned int rgb:1;		/* RGB (vs. BGR) */
+};
+
+struct st7735r_priv {
+	struct mipi_dbi_dev dbidev;	/* Must be first for .release() */
+	const struct st7735r_cfg *cfg;
+};
+
+static void st7735r_pipe_enable(struct drm_simple_display_pipe *pipe,
+				struct drm_crtc_state *crtc_state,
+				struct drm_plane_state *plane_state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct st7735r_priv *priv = container_of(dbidev, struct st7735r_priv,
+						 dbidev);
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	int ret, idx;
 	u8 addr_mode;
@@ -87,6 +106,10 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 		addr_mode = ST7735R_MY | ST7735R_MV;
 		break;
 	}
+
+	if (priv->cfg->rgb)
+		addr_mode |= ST7735R_RGB;
+
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
 	mipi_dbi_command(dbi, MIPI_DCS_SET_PIXEL_FORMAT,
 			 MIPI_DCS_PIXEL_FMT_16BIT);
@@ -109,15 +132,24 @@ out_exit:
 	drm_dev_exit(idx);
 }
 
-static const struct drm_simple_display_pipe_funcs jd_t18003_t01_pipe_funcs = {
-	.enable		= jd_t18003_t01_pipe_enable,
+static const struct drm_simple_display_pipe_funcs st7735r_pipe_funcs = {
+	.enable		= st7735r_pipe_enable,
 	.disable	= mipi_dbi_pipe_disable,
 	.update		= mipi_dbi_pipe_update,
 	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
-static const struct drm_display_mode jd_t18003_t01_mode = {
-	DRM_SIMPLE_MODE(128, 160, 28, 35),
+static const struct st7735r_cfg jd_t18003_t01_cfg = {
+	.mode		= { DRM_SIMPLE_MODE(128, 160, 28, 35) },
+	/* Cannot read from Adafruit 1.8" display via SPI */
+	.write_only	= true,
+};
+
+static const struct st7735r_cfg rh128128t_cfg = {
+	.mode		= { DRM_SIMPLE_MODE(128, 128, 25, 26) },
+	.left_offset	= 2,
+	.top_offset	= 3,
+	.rgb		= true,
 };
 
 DEFINE_DRM_GEM_CMA_FOPS(st7735r_fops);
@@ -125,8 +157,7 @@ DEFINE_DRM_GEM_CMA_FOPS(st7735r_fops);
 static struct drm_driver st7735r_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &st7735r_fops,
-	.release		= mipi_dbi_release,
-	DRM_GEM_CMA_VMAP_DRIVER_OPS,
+	DRM_GEM_CMA_DRIVER_OPS_VMAP,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7735r",
 	.desc			= "Sitronix ST7735R",
@@ -136,13 +167,14 @@ static struct drm_driver st7735r_driver = {
 };
 
 static const struct of_device_id st7735r_of_match[] = {
-	{ .compatible = "jianda,jd-t18003-t01" },
+	{ .compatible = "jianda,jd-t18003-t01", .data = &jd_t18003_t01_cfg },
+	{ .compatible = "okaya,rh128128t", .data = &rh128128t_cfg },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, st7735r_of_match);
 
 static const struct spi_device_id st7735r_id[] = {
-	{ "jd-t18003-t01", 0 },
+	{ "jd-t18003-t01", (uintptr_t)&jd_t18003_t01_cfg },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, st7735r_id);
@@ -150,26 +182,29 @@ MODULE_DEVICE_TABLE(spi, st7735r_id);
 static int st7735r_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	const struct st7735r_cfg *cfg;
 	struct mipi_dbi_dev *dbidev;
+	struct st7735r_priv *priv;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	dbidev = kzalloc(sizeof(*dbidev), GFP_KERNEL);
-	if (!dbidev)
-		return -ENOMEM;
+	cfg = device_get_match_data(&spi->dev);
+	if (!cfg)
+		cfg = (void *)spi_get_device_id(spi)->driver_data;
+
+	priv = devm_drm_dev_alloc(dev, &st7735r_driver,
+				  struct st7735r_priv, dbidev.drm);
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
+
+	dbidev = &priv->dbidev;
+	priv->cfg = cfg;
 
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
-	ret = devm_drm_dev_init(dev, drm, &st7735r_driver);
-	if (ret) {
-		kfree(dbidev);
-		return ret;
-	}
-
-	drm_mode_config_init(drm);
 
 	dbi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(dbi->reset)) {
@@ -193,10 +228,14 @@ static int st7735r_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	/* Cannot read from Adafruit 1.8" display via SPI */
-	dbi->read_commands = NULL;
+	if (cfg->write_only)
+		dbi->read_commands = NULL;
 
-	ret = mipi_dbi_dev_init(dbidev, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
+	dbidev->left_offset = cfg->left_offset;
+	dbidev->top_offset = cfg->top_offset;
+
+	ret = mipi_dbi_dev_init(dbidev, &st7735r_pipe_funcs, &cfg->mode,
+				rotation);
 	if (ret)
 		return ret;
 
@@ -231,7 +270,6 @@ static void st7735r_shutdown(struct spi_device *spi)
 static struct spi_driver st7735r_spi_driver = {
 	.driver = {
 		.name = "st7735r",
-		.owner = THIS_MODULE,
 		.of_match_table = st7735r_of_match,
 	},
 	.id_table = st7735r_id,

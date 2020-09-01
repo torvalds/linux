@@ -91,6 +91,7 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 	t->props.mode = x->props.mode;
 	memcpy(t->props.saddr.a6, x->props.saddr.a6, sizeof(struct in6_addr));
 	memcpy(&t->mark, &x->mark, sizeof(t->mark));
+	t->if_id = x->if_id;
 
 	if (xfrm_init_state(t))
 		goto error;
@@ -183,6 +184,7 @@ static const struct xfrm_type ipcomp6_type = {
 
 static struct xfrm6_protocol ipcomp6_protocol = {
 	.handler	= xfrm6_rcv,
+	.input_handler	= xfrm_input,
 	.cb_handler	= ipcomp6_rcv_cb,
 	.err_handler	= ipcomp6_err,
 	.priority	= 0,

@@ -152,7 +152,6 @@ static int mcp4922_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, indio_dev);
 	id = spi_get_device_id(spi);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &mcp4922_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mcp4922_channels[id->driver_data];

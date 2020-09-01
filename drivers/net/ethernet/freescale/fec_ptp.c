@@ -103,11 +103,6 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 	u64 ns;
 	val = 0;
 
-	if (!(fep->hwts_tx_en || fep->hwts_rx_en)) {
-		dev_err(&fep->pdev->dev, "No ptp stack is running\n");
-		return -EINVAL;
-	}
-
 	if (fep->pps_enable == enable)
 		return 0;
 
@@ -269,7 +264,7 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 	fep->cc.mult = FEC_CC_MULT;
 
 	/* reset the ns time counter */
-	timecounter_init(&fep->tc, &fep->cc, ktime_to_ns(ktime_get_real()));
+	timecounter_init(&fep->tc, &fep->cc, 0);
 
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 }
@@ -452,6 +447,18 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
+/**
+ * fec_ptp_disable_hwts - disable hardware time stamping
+ * @ndev: pointer to net_device
+ */
+void fec_ptp_disable_hwts(struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+
+	fep->hwts_tx_en = 0;
+	fep->hwts_rx_en = 0;
+}
+
 int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
@@ -478,9 +485,7 @@ int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr)
 
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		if (fep->hwts_rx_en)
-			fep->hwts_rx_en = 0;
-		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		fep->hwts_rx_en = 0;
 		break;
 
 	default:
@@ -577,7 +582,7 @@ void fec_ptp_init(struct platform_device *pdev, int irq_idx)
 	int ret;
 
 	fep->ptp_caps.owner = THIS_MODULE;
-	snprintf(fep->ptp_caps.name, 16, "fec ptp");
+	strlcpy(fep->ptp_caps.name, "fec ptp", sizeof(fep->ptp_caps.name));
 
 	fep->ptp_caps.max_adj = 250000000;
 	fep->ptp_caps.n_alarm = 0;

@@ -144,6 +144,8 @@ MODULE_PARM_DESC(radio_nr, "Radio device numbers");
 	
 /**
  * struct fm801 - describes FM801 chip
+ * @dev:		device for this chio
+ * @irq:		irq number
  * @port:		I/O port number
  * @multichannel:	multichannel support
  * @secondary:		secondary codec
@@ -151,6 +153,31 @@ MODULE_PARM_DESC(radio_nr, "Radio device numbers");
  * @tea575x_tuner:	tuner access method & flags
  * @ply_ctrl:		playback control
  * @cap_ctrl:		capture control
+ * @ply_buffer:		playback buffer
+ * @ply_buf:		playback buffer index
+ * @ply_count:		playback buffer count
+ * @ply_size:		playback buffer size
+ * @ply_pos:		playback position
+ * @cap_buffer:		capture buffer
+ * @cap_buf:		capture buffer index
+ * @cap_count:		capture buffer count
+ * @cap_size:		capture buffer size
+ * @cap_pos:		capture position
+ * @ac97_bus:		ac97 bus handle
+ * @ac97:		ac97 handle
+ * @ac97_sec:		ac97 secondary handle
+ * @card:		ALSA card
+ * @pcm:		PCM devices
+ * @rmidi:		rmidi device
+ * @playback_substream:	substream for playback
+ * @capture_substream:	substream for capture
+ * @p_dma_size:		playback DMA size
+ * @c_dma_size:		capture DMA size
+ * @reg_lock:		lock
+ * @proc_entry:		/proc entry
+ * @v4l2_dev:		v4l2 device
+ * @tea:		tea575a structure
+ * @saved_regs:		context saved during suspend
  */
 struct fm801 {
 	struct device *dev;

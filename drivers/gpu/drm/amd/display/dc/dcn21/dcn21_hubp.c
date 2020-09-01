@@ -79,32 +79,47 @@ void apply_DEDCN21_142_wa_for_hostvm_deadline(
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr)
 {
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
-	uint32_t cur_value;
+	uint32_t refcyc_per_vm_group_vblank;
+	uint32_t refcyc_per_vm_req_vblank;
+	uint32_t refcyc_per_vm_group_flip;
+	uint32_t refcyc_per_vm_req_flip;
+	const uint32_t uninitialized_hw_default = 0;
 
-	REG_GET(VBLANK_PARAMETERS_5, REFCYC_PER_VM_GROUP_VBLANK, &cur_value);
-	if (cur_value > dlg_attr->refcyc_per_vm_group_vblank)
+	REG_GET(VBLANK_PARAMETERS_5,
+			REFCYC_PER_VM_GROUP_VBLANK, &refcyc_per_vm_group_vblank);
+
+	if (refcyc_per_vm_group_vblank == uninitialized_hw_default ||
+			refcyc_per_vm_group_vblank > dlg_attr->refcyc_per_vm_group_vblank)
 		REG_SET(VBLANK_PARAMETERS_5, 0,
 				REFCYC_PER_VM_GROUP_VBLANK, dlg_attr->refcyc_per_vm_group_vblank);
 
 	REG_GET(VBLANK_PARAMETERS_6,
-			REFCYC_PER_VM_REQ_VBLANK,
-			&cur_value);
-	if (cur_value > dlg_attr->refcyc_per_vm_req_vblank)
+			REFCYC_PER_VM_REQ_VBLANK, &refcyc_per_vm_req_vblank);
+
+	if (refcyc_per_vm_req_vblank == uninitialized_hw_default ||
+			refcyc_per_vm_req_vblank > dlg_attr->refcyc_per_vm_req_vblank)
 		REG_SET(VBLANK_PARAMETERS_6, 0,
 				REFCYC_PER_VM_REQ_VBLANK, dlg_attr->refcyc_per_vm_req_vblank);
 
-	REG_GET(FLIP_PARAMETERS_3, REFCYC_PER_VM_GROUP_FLIP, &cur_value);
-	if (cur_value > dlg_attr->refcyc_per_vm_group_flip)
+	REG_GET(FLIP_PARAMETERS_3,
+			REFCYC_PER_VM_GROUP_FLIP, &refcyc_per_vm_group_flip);
+
+	if (refcyc_per_vm_group_flip == uninitialized_hw_default ||
+			refcyc_per_vm_group_flip > dlg_attr->refcyc_per_vm_group_flip)
 		REG_SET(FLIP_PARAMETERS_3, 0,
 				REFCYC_PER_VM_GROUP_FLIP, dlg_attr->refcyc_per_vm_group_flip);
 
-	REG_GET(FLIP_PARAMETERS_4, REFCYC_PER_VM_REQ_FLIP, &cur_value);
-	if (cur_value > dlg_attr->refcyc_per_vm_req_flip)
+	REG_GET(FLIP_PARAMETERS_4,
+			REFCYC_PER_VM_REQ_FLIP, &refcyc_per_vm_req_flip);
+
+	if (refcyc_per_vm_req_flip == uninitialized_hw_default ||
+			refcyc_per_vm_req_flip > dlg_attr->refcyc_per_vm_req_flip)
 		REG_SET(FLIP_PARAMETERS_4, 0,
 					REFCYC_PER_VM_REQ_FLIP, dlg_attr->refcyc_per_vm_req_flip);
 
 	REG_SET(FLIP_PARAMETERS_5, 0,
 			REFCYC_PER_PTE_GROUP_FLIP_C, dlg_attr->refcyc_per_pte_group_flip_c);
+
 	REG_SET(FLIP_PARAMETERS_6, 0,
 			REFCYC_PER_META_CHUNK_FLIP_C, dlg_attr->refcyc_per_meta_chunk_flip_c);
 }
@@ -210,127 +225,13 @@ void hubp21_set_viewport(
 		  SEC_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
-static void hubp21_apply_PLAT_54186_wa(
-		struct hubp *hubp,
-		const struct dc_plane_address *address)
-{
-	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
-	struct dc_debug_options *debug = &hubp->ctx->dc->debug;
-	unsigned int chroma_bpe = 2;
-	unsigned int luma_addr_high_part = 0;
-	unsigned int row_height = 0;
-	unsigned int chroma_pitch = 0;
-	unsigned int viewport_c_height = 0;
-	unsigned int viewport_c_width = 0;
-	unsigned int patched_viewport_height = 0;
-	unsigned int patched_viewport_width = 0;
-	unsigned int rotation_angle = 0;
-	unsigned int pix_format = 0;
-	unsigned int h_mirror_en = 0;
-	unsigned int tile_blk_size = 64 * 1024; /* 64KB for 64KB SW, 4KB for 4KB SW */
-
-
-	if (!debug->nv12_iflip_vm_wa)
-		return;
-
-	REG_GET(DCHUBP_REQ_SIZE_CONFIG_C,
-		PTE_ROW_HEIGHT_LINEAR_C, &row_height);
-
-	REG_GET_2(DCSURF_PRI_VIEWPORT_DIMENSION_C,
-			PRI_VIEWPORT_WIDTH_C, &viewport_c_width,
-			PRI_VIEWPORT_HEIGHT_C, &viewport_c_height);
-
-	REG_GET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C,
-			PRIMARY_SURFACE_ADDRESS_HIGH_C, &luma_addr_high_part);
-
-	REG_GET(DCSURF_SURFACE_PITCH_C,
-			PITCH_C, &chroma_pitch);
-
-	chroma_pitch += 1;
-
-	REG_GET_3(DCSURF_SURFACE_CONFIG,
-			SURFACE_PIXEL_FORMAT, &pix_format,
-			ROTATION_ANGLE, &rotation_angle,
-			H_MIRROR_EN, &h_mirror_en);
-
-	/* reset persistent cached data */
-	hubp21->PLAT_54186_wa_chroma_addr_offset = 0;
-	/* apply wa only for NV12 surface with scatter gather enabled with viewport > 512 along
-	 * the vertical direction*/
-	if (address->type != PLN_ADDR_TYPE_VIDEO_PROGRESSIVE ||
-			address->video_progressive.luma_addr.high_part == 0xf4)
-		return;
-
-	if ((rotation_angle == ROTATION_ANGLE_0 || rotation_angle == ROTATION_ANGLE_180)
-			&& viewport_c_height <= 512)
-		return;
-
-	if ((rotation_angle == ROTATION_ANGLE_90 || rotation_angle == ROTATION_ANGLE_270)
-				&& viewport_c_width <= 512)
-		return;
-
-	switch (rotation_angle) {
-	case ROTATION_ANGLE_0: /* 0 degree rotation */
-		row_height = 128;
-		patched_viewport_height = (viewport_c_height / row_height + 1) * row_height + 1;
-		patched_viewport_width = viewport_c_width;
-		hubp21->PLAT_54186_wa_chroma_addr_offset = 0;
-		break;
-	case ROTATION_ANGLE_180: /* 180 degree rotation */
-		row_height = 128;
-		patched_viewport_height = viewport_c_height + row_height;
-		patched_viewport_width = viewport_c_width;
-		hubp21->PLAT_54186_wa_chroma_addr_offset = 0 - chroma_pitch * row_height * chroma_bpe;
-		break;
-	case ROTATION_ANGLE_90: /* 90 degree rotation */
-		row_height = 256;
-		if (h_mirror_en) {
-			patched_viewport_height = viewport_c_height;
-			patched_viewport_width = viewport_c_width + row_height;
-			hubp21->PLAT_54186_wa_chroma_addr_offset = 0;
-		} else {
-			patched_viewport_height = viewport_c_height;
-			patched_viewport_width = viewport_c_width + row_height;
-			hubp21->PLAT_54186_wa_chroma_addr_offset = 0 - tile_blk_size;
-		}
-		break;
-	case ROTATION_ANGLE_270: /* 270 degree rotation */
-		row_height = 256;
-		if (h_mirror_en) {
-			patched_viewport_height = viewport_c_height;
-			patched_viewport_width = viewport_c_width + row_height;
-			hubp21->PLAT_54186_wa_chroma_addr_offset = 0 - tile_blk_size;
-		} else {
-			patched_viewport_height = viewport_c_height;
-			patched_viewport_width = viewport_c_width + row_height;
-			hubp21->PLAT_54186_wa_chroma_addr_offset = 0;
-		}
-		break;
-	default:
-		ASSERT(0);
-		break;
-	}
-
-	/* catch cases where viewport keep growing */
-	ASSERT(patched_viewport_height && patched_viewport_height < 5000);
-	ASSERT(patched_viewport_width && patched_viewport_width < 5000);
-
-	REG_UPDATE_2(DCSURF_PRI_VIEWPORT_DIMENSION_C,
-			PRI_VIEWPORT_WIDTH_C, patched_viewport_width,
-			PRI_VIEWPORT_HEIGHT_C, patched_viewport_height);
-}
-
 void hubp21_set_vm_system_aperture_settings(struct hubp *hubp,
 		struct vm_system_aperture_param *apt)
 {
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
 
-	PHYSICAL_ADDRESS_LOC mc_vm_apt_default;
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_low;
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_high;
-
-	// The format of default addr is 48:12 of the 48 bit addr
-	mc_vm_apt_default.quad_part = apt->sys_default.quad_part >> 12;
 
 	// The format of high/low are 48:18 of the 48 bit addr
 	mc_vm_apt_low.quad_part = apt->sys_low.quad_part >> 18;
@@ -767,21 +668,28 @@ void dmcub_PLAT_54186_wa(struct hubp *hubp, struct surface_flip_registers *flip_
 {
 	struct dc_dmub_srv *dmcub = hubp->ctx->dmub_srv;
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
-	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa = { 0 };
+	union dmub_rb_cmd cmd;
 
-	PLAT_54186_wa.header.type = DMUB_CMD__PLAT_54186_WA;
-	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS;
-	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_C = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_C;
-	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
-	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
-	PLAT_54186_wa.flip.flip_params.grph_stereo = flip_regs->grph_stereo;
-	PLAT_54186_wa.flip.flip_params.hubp_inst = hubp->inst;
-	PLAT_54186_wa.flip.flip_params.immediate = flip_regs->immediate;
-	PLAT_54186_wa.flip.flip_params.tmz_surface = flip_regs->tmz_surface;
-	PLAT_54186_wa.flip.flip_params.vmid = flip_regs->vmid;
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.PLAT_54186_wa.header.type = DMUB_CMD__PLAT_54186_WA;
+	cmd.PLAT_54186_wa.header.payload_bytes = sizeof(cmd.PLAT_54186_wa.flip);
+	cmd.PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS =
+		flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS;
+	cmd.PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
+		flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_C;
+	cmd.PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
+		flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
+	cmd.PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C =
+		flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
+	cmd.PLAT_54186_wa.flip.flip_params.grph_stereo = flip_regs->grph_stereo;
+	cmd.PLAT_54186_wa.flip.flip_params.hubp_inst = hubp->inst;
+	cmd.PLAT_54186_wa.flip.flip_params.immediate = flip_regs->immediate;
+	cmd.PLAT_54186_wa.flip.flip_params.tmz_surface = flip_regs->tmz_surface;
+	cmd.PLAT_54186_wa.flip.flip_params.vmid = flip_regs->vmid;
 
 	PERF_TRACE();  // TODO: remove after performance is stable.
-	dc_dmub_srv_cmd_queue(dmcub, &PLAT_54186_wa.header);
+	dc_dmub_srv_cmd_queue(dmcub, &cmd);
 	PERF_TRACE();  // TODO: remove after performance is stable.
 	dc_dmub_srv_cmd_execute(dmcub);
 	PERF_TRACE();  // TODO: remove after performance is stable.
@@ -794,8 +702,6 @@ bool hubp21_program_surface_flip_and_addr(
 		const struct dc_plane_address *address,
 		bool flip_immediate)
 {
-	struct dc_debug_options *debug = &hubp->ctx->dc->debug;
-	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
 	struct surface_flip_registers flip_regs = { 0 };
 
 	flip_regs.vmid = address->vmid;
@@ -841,12 +747,8 @@ bool hubp21_program_surface_flip_and_addr(
 		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
 				address->video_progressive.luma_addr.high_part;
 
-		if (debug->nv12_iflip_vm_wa) {
-			flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
-					address->video_progressive.chroma_addr.low_part + hubp21->PLAT_54186_wa_chroma_addr_offset;
-		} else
-			flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
-					address->video_progressive.chroma_addr.low_part;
+		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
+				address->video_progressive.chroma_addr.low_part;
 
 		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C =
 				address->video_progressive.chroma_addr.high_part;
@@ -924,7 +826,6 @@ static struct hubp_funcs dcn21_hubp_funcs = {
 	.set_blank = hubp1_set_blank,
 	.dcc_control = hubp1_dcc_control,
 	.mem_program_viewport = hubp21_set_viewport,
-	.apply_PLAT_54186_wa = hubp21_apply_PLAT_54186_wa,
 	.set_cursor_attributes	= hubp2_cursor_set_attributes,
 	.set_cursor_position	= hubp1_cursor_set_position,
 	.hubp_clk_cntl = hubp1_clk_cntl,

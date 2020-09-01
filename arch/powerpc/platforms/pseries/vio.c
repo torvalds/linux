@@ -31,6 +31,7 @@
 #include <asm/tce.h>
 #include <asm/page.h>
 #include <asm/hvcall.h>
+#include <asm/machdep.h>
 
 static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = "vio",
@@ -1513,7 +1514,7 @@ static int __init vio_bus_init(void)
 
 	return 0;
 }
-postcore_initcall(vio_bus_init);
+machine_postcore_initcall(pseries, vio_bus_init);
 
 static int __init vio_device_init(void)
 {
@@ -1522,7 +1523,7 @@ static int __init vio_device_init(void)
 
 	return 0;
 }
-device_initcall(vio_device_init);
+machine_device_initcall(pseries, vio_device_init);
 
 static ssize_t name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1628,7 +1629,6 @@ const void *vio_get_attribute(struct vio_dev *vdev, char *which, int *length)
 }
 EXPORT_SYMBOL(vio_get_attribute);
 
-#ifdef CONFIG_PPC_PSERIES
 /* vio_find_name() - internal because only vio.c knows how we formatted the
  * kobject name
  */
@@ -1698,11 +1698,10 @@ int vio_disable_interrupts(struct vio_dev *dev)
 	return rc;
 }
 EXPORT_SYMBOL(vio_disable_interrupts);
-#endif /* CONFIG_PPC_PSERIES */
 
 static int __init vio_init(void)
 {
 	dma_debug_add_bus(&vio_bus_type);
 	return 0;
 }
-fs_initcall(vio_init);
+machine_fs_initcall(pseries, vio_init);

@@ -106,6 +106,8 @@ struct tid_info {
 	unsigned long *stid_bmap;
 	unsigned int nstids;
 	unsigned int stid_base;
+
+	unsigned int nhash;
 	unsigned int hash_base;
 
 	union aopen_entry *atid_tab;
@@ -147,8 +149,13 @@ struct tid_info {
 	/* TIDs in the HASH */
 	atomic_t hash_tids_in_use;
 	atomic_t conns_in_use;
+	/* ETHOFLD TIDs used for rate limiting */
+	atomic_t eotids_in_use;
+
 	/* lock for setting/clearing filter bitmap */
 	spinlock_t ftid_lock;
+
+	unsigned int tc_hash_tids_max_prio;
 };
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
@@ -219,12 +226,14 @@ static inline void cxgb4_alloc_eotid(struct tid_info *t, u32 eotid, void *data)
 {
 	set_bit(eotid, t->eotid_bmap);
 	t->eotid_tab[eotid].data = data;
+	atomic_inc(&t->eotids_in_use);
 }
 
 static inline void cxgb4_free_eotid(struct tid_info *t, u32 eotid)
 {
 	clear_bit(eotid, t->eotid_bmap);
 	t->eotid_tab[eotid].data = NULL;
+	atomic_dec(&t->eotids_in_use);
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
@@ -261,9 +270,14 @@ struct filter_ctx {
 	u32 tid;			/* to store tid */
 };
 
+struct chcr_ktls {
+	refcount_t ktls_refcount;
+};
+
 struct ch_filter_specification;
 
-int cxgb4_get_free_ftid(struct net_device *dev, int family);
+int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
+			u32 tc_prio);
 int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx);
@@ -319,6 +333,7 @@ enum cxgb4_control {
 	CXGB4_CONTROL_DB_DROP,
 };
 
+struct adapter;
 struct pci_dev;
 struct l2t_data;
 struct net_device;
@@ -357,6 +372,26 @@ struct chcr_stats_debug {
 	atomic_t tls_pdu_tx;
 	atomic_t tls_pdu_rx;
 	atomic_t tls_key;
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	atomic64_t ktls_tx_connection_open;
+	atomic64_t ktls_tx_connection_fail;
+	atomic64_t ktls_tx_connection_close;
+	atomic64_t ktls_tx_send_records;
+	atomic64_t ktls_tx_end_pkts;
+	atomic64_t ktls_tx_start_pkts;
+	atomic64_t ktls_tx_middle_pkts;
+	atomic64_t ktls_tx_retransmit_pkts;
+	atomic64_t ktls_tx_complete_pkts;
+	atomic64_t ktls_tx_trimmed_pkts;
+	atomic64_t ktls_tx_encrypted_packets;
+	atomic64_t ktls_tx_encrypted_bytes;
+	atomic64_t ktls_tx_ctx;
+	atomic64_t ktls_tx_ooo;
+	atomic64_t ktls_tx_skip_no_sync_data;
+	atomic64_t ktls_tx_drop_no_sync_data;
+	atomic64_t ktls_tx_drop_bypass_req;
+
+#endif
 };
 
 #define OCQ_WIN_OFFSET(pdev, vres) \
@@ -435,8 +470,12 @@ struct cxgb4_uld_info {
 			      struct napi_struct *napi);
 	void (*lro_flush)(struct t4_lro_mgr *);
 	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+	const struct tlsdev_ops *tlsdev_ops;
+#endif
 };
 
+void cxgb4_uld_enable(struct adapter *adap);
 void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);

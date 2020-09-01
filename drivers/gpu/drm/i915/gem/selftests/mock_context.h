@@ -9,6 +9,7 @@
 
 struct file;
 struct drm_i915_private;
+struct intel_engine_cs;
 
 void mock_init_contexts(struct drm_i915_private *i915);
 
@@ -20,6 +21,9 @@ void mock_context_close(struct i915_gem_context *ctx);
 
 struct i915_gem_context *
 live_context(struct drm_i915_private *i915, struct file *file);
+
+struct i915_gem_context *
+live_context_for_engine(struct intel_engine_cs *engine, struct file *file);
 
 struct i915_gem_context *kernel_context(struct drm_i915_private *i915);
 void kernel_context_close(struct i915_gem_context *ctx);

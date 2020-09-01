@@ -55,10 +55,10 @@ static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
 			break;
 		}
 		chacha_4block_xor_neon(state, dst, src, nrounds, l);
-		bytes -= CHACHA_BLOCK_SIZE * 5;
-		src += CHACHA_BLOCK_SIZE * 5;
-		dst += CHACHA_BLOCK_SIZE * 5;
-		state[12] += 5;
+		bytes -= l;
+		src += l;
+		dst += l;
+		state[12] += DIV_ROUND_UP(l, CHACHA_BLOCK_SIZE);
 	}
 }
 
@@ -87,9 +87,17 @@ void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src, unsigned int bytes,
 	    !crypto_simd_usable())
 		return chacha_crypt_generic(state, dst, src, bytes, nrounds);
 
-	kernel_neon_begin();
-	chacha_doneon(state, dst, src, bytes, nrounds);
-	kernel_neon_end();
+	do {
+		unsigned int todo = min_t(unsigned int, bytes, SZ_4K);
+
+		kernel_neon_begin();
+		chacha_doneon(state, dst, src, todo, nrounds);
+		kernel_neon_end();
+
+		bytes -= todo;
+		src += todo;
+		dst += todo;
+	} while (bytes);
 }
 EXPORT_SYMBOL(chacha_crypt_arch);
 

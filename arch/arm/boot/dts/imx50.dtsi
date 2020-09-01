@@ -101,7 +101,7 @@
 		interrupt-parent = <&tzic>;
 		ranges;
 
-		aips@50000000 { /* AIPS1 */
+		bus@50000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -115,7 +115,7 @@
 				reg = <0x50000000 0x40000>;
 				ranges;
 
-				esdhc1: esdhc@50004000 {
+				esdhc1: mmc@50004000 {
 					compatible = "fsl,imx50-esdhc", "fsl,imx53-esdhc";
 					reg = <0x50004000 0x4000>;
 					interrupts = <1>;
@@ -127,7 +127,7 @@
 					status = "disabled";
 				};
 
-				esdhc2: esdhc@50008000 {
+				esdhc2: mmc@50008000 {
 					compatible = "fsl,imx50-esdhc", "fsl,imx53-esdhc";
 					reg = <0x50008000 0x4000>;
 					interrupts = <2>;
@@ -176,7 +176,7 @@
 					status = "disabled";
 				};
 
-				esdhc3: esdhc@50020000 {
+				esdhc3: mmc@50020000 {
 					compatible = "fsl,imx50-esdhc", "fsl,imx53-esdhc";
 					reg = <0x50020000 0x4000>;
 					interrupts = <3>;
@@ -188,7 +188,7 @@
 					status = "disabled";
 				};
 
-				esdhc4: esdhc@50024000 {
+				esdhc4: mmc@50024000 {
 					compatible = "fsl,imx50-esdhc", "fsl,imx53-esdhc";
 					reg = <0x50024000 0x4000>;
 					interrupts = <4>;
@@ -288,13 +288,8 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			gpr: iomuxc-gpr@53fa8000 {
-				compatible = "fsl,imx50-iomuxc-gpr", "syscon";
-				reg = <0x53fa8000 0xc>;
-			};
-
 			pwm1: pwm@53fb4000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx50-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb4000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM1_IPG_GATE>,
@@ -304,7 +299,7 @@
 			};
 
 			pwm2: pwm@53fb8000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx50-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb8000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM2_IPG_GATE>,
@@ -333,9 +328,10 @@
 				status = "disabled";
 			};
 
-			src: src@53fd0000 {
+			src: reset-controller@53fd0000 {
 				compatible = "fsl,imx50-src", "fsl,imx51-src";
 				reg = <0x53fd0000 0x4000>;
+				interrupts = <75>;
 				#reset-cells = <1>;
 			};
 
@@ -389,7 +385,7 @@
 			};
 		};
 
-		aips@60000000 {	/* AIPS2 */
+		bus@60000000 {	/* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

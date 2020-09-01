@@ -42,7 +42,7 @@ static ssize_t online_show(struct device *dev,
 {
 	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", zq->online);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", zq->online);
 }
 
 static ssize_t online_store(struct device *dev,
@@ -78,7 +78,7 @@ static ssize_t load_show(struct device *dev,
 {
 	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zq->load));
+	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zq->load));
 }
 
 static DEVICE_ATTR_RO(load);
@@ -107,10 +107,10 @@ struct zcrypt_queue *zcrypt_queue_alloc(size_t max_response_size)
 	zq = kzalloc(sizeof(struct zcrypt_queue), GFP_KERNEL);
 	if (!zq)
 		return NULL;
-	zq->reply.message = kmalloc(max_response_size, GFP_KERNEL);
-	if (!zq->reply.message)
+	zq->reply.msg = kmalloc(max_response_size, GFP_KERNEL);
+	if (!zq->reply.msg)
 		goto out_free;
-	zq->reply.length = max_response_size;
+	zq->reply.len = max_response_size;
 	INIT_LIST_HEAD(&zq->list);
 	kref_init(&zq->refcount);
 	return zq;
@@ -123,7 +123,7 @@ EXPORT_SYMBOL(zcrypt_queue_alloc);
 
 void zcrypt_queue_free(struct zcrypt_queue *zq)
 {
-	kfree(zq->reply.message);
+	kfree(zq->reply.msg);
 	kfree(zq);
 }
 EXPORT_SYMBOL(zcrypt_queue_free);

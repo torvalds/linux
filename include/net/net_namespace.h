@@ -33,6 +33,7 @@
 #include <net/netns/mpls.h>
 #include <net/netns/can.h>
 #include <net/netns/xdp.h>
+#include <net/netns/bpf.h>
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 #include <linux/skbuff.h>
@@ -162,12 +163,16 @@ struct net {
 #endif
 	struct net_generic __rcu	*gen;
 
-	struct bpf_prog __rcu	*flow_dissector_prog;
+	/* Used to store attached BPF programs */
+	struct netns_bpf	bpf;
 
 	/* Note : following structs are cache line aligned */
 #ifdef CONFIG_XFRM
 	struct netns_xfrm	xfrm;
 #endif
+
+	atomic64_t		net_cookie; /* written once */
+
 #if IS_ENABLED(CONFIG_IP_VS)
 	struct netns_ipvs	*ipvs;
 #endif
@@ -224,6 +229,8 @@ extern struct list_head net_namespace_list;
 
 struct net *get_net_ns_by_pid(pid_t pid);
 struct net *get_net_ns_by_fd(int fd);
+
+u64 net_gen_cookie(struct net *net);
 
 #ifdef CONFIG_SYSCTL
 void ipx_register_sysctl(void);
@@ -431,6 +438,13 @@ static inline int rt_genid_ipv4(const struct net *net)
 {
 	return atomic_read(&net->ipv4.rt_genid);
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int rt_genid_ipv6(const struct net *net)
+{
+	return atomic_read(&net->ipv6.fib6_sernum);
+}
+#endif
 
 static inline void rt_genid_bump_ipv4(struct net *net)
 {

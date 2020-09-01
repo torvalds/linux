@@ -39,6 +39,7 @@ struct dsc_config {
 	uint32_t pic_height;
 	enum dc_pixel_encoding pixel_encoding;
 	enum dc_color_depth color_depth;  /* Bits per component */
+	bool is_odm;
 	struct dc_dsc_config dc_dsc_cfg;
 };
 
@@ -54,7 +55,12 @@ struct dsc_optc_config {
 struct dcn_dsc_state {
 	uint32_t dsc_clock_en;
 	uint32_t dsc_slice_width;
-	uint32_t dsc_bytes_per_pixel;
+	uint32_t dsc_bits_per_pixel;
+	uint32_t dsc_slice_height;
+	uint32_t dsc_pic_width;
+	uint32_t dsc_pic_height;
+	uint32_t dsc_slice_bpg_offset;
+	uint32_t dsc_chunk_size;
 };
 
 

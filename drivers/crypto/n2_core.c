@@ -462,7 +462,6 @@ static int n2_hmac_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 	struct n2_hmac_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct crypto_shash *child_shash = ctx->child_shash;
 	struct crypto_ahash *fallback_tfm;
-	SHASH_DESC_ON_STACK(shash, child_shash);
 	int err, bs, ds;
 
 	fallback_tfm = ctx->base.fallback_tfm;
@@ -470,14 +469,12 @@ static int n2_hmac_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 	if (err)
 		return err;
 
-	shash->tfm = child_shash;
-
 	bs = crypto_shash_blocksize(child_shash);
 	ds = crypto_shash_digestsize(child_shash);
 	BUG_ON(ds > N2_HASH_KEY_MAX);
 	if (keylen > bs) {
-		err = crypto_shash_digest(shash, key, keylen,
-					  ctx->hash_key);
+		err = crypto_shash_tfm_digest(child_shash, key, keylen,
+					      ctx->hash_key);
 		if (err)
 			return err;
 		keylen = ds;
@@ -1385,7 +1382,8 @@ static int __n2_register_one_skcipher(const struct n2_skcipher_tmpl *tmpl)
 	snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s", tmpl->name);
 	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s-n2", tmpl->drv_name);
 	alg->base.cra_priority = N2_CRA_PRIORITY;
-	alg->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC;
+	alg->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC |
+			      CRYPTO_ALG_ALLOCATES_MEMORY;
 	alg->base.cra_blocksize = tmpl->block_size;
 	p->enc_type = tmpl->enc_type;
 	alg->base.cra_ctxsize = sizeof(struct n2_skcipher_context);

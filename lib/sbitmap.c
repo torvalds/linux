@@ -292,7 +292,10 @@ void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m)
 
 	for (i = 0; i < sb->map_nr; i++) {
 		unsigned long word = READ_ONCE(sb->map[i].word);
+		unsigned long cleared = READ_ONCE(sb->map[i].cleared);
 		unsigned int word_bits = READ_ONCE(sb->map[i].depth);
+
+		word &= ~cleared;
 
 		while (word_bits > 0) {
 			unsigned int bits = min(8 - byte_bits, word_bits);

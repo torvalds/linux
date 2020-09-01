@@ -31,14 +31,6 @@ struct device;
 extern int edac_op_state;
 
 struct bus_type *edac_get_sysfs_subsys(void);
-int edac_get_report_status(void);
-void edac_set_report_status(int new);
-
-enum {
-	EDAC_REPORTING_ENABLED,
-	EDAC_REPORTING_DISABLED,
-	EDAC_REPORTING_FORCE
-};
 
 static inline void opstate_init(void)
 {
@@ -383,6 +375,9 @@ struct dimm_info {
 	unsigned int csrow, cschannel;	/* Points to the old API data */
 
 	u16 smbios_handle;              /* Handle for SMBIOS type 17 */
+
+	u32 ce_count;
+	u32 ue_count;
 };
 
 /**
@@ -442,6 +437,7 @@ struct errcount_attribute_data {
  * struct edac_raw_error_desc - Raw error report structure
  * @grain:			minimum granularity for an error report, in bytes
  * @error_count:		number of errors of the same type
+ * @type:			severity of the error (CE/UE/Fatal)
  * @top_layer:			top layer of the error (layer[0])
  * @mid_layer:			middle layer of the error (layer[1])
  * @low_layer:			low layer of the error (layer[2])
@@ -453,8 +449,6 @@ struct errcount_attribute_data {
  * @location:			location of the error
  * @label:			label of the affected DIMM(s)
  * @other_detail:		other driver-specific detail about the error
- * @enable_per_layer_report:	if false, the error affects all layers
- *				(typically, a memory controller error)
  */
 struct edac_raw_error_desc {
 	char location[LOCATION_SIZE];
@@ -462,6 +456,7 @@ struct edac_raw_error_desc {
 	long grain;
 
 	u16 error_count;
+	enum hw_event_mc_err_type type;
 	int top_layer;
 	int mid_layer;
 	int low_layer;
@@ -470,7 +465,6 @@ struct edac_raw_error_desc {
 	unsigned long syndrome;
 	const char *msg;
 	const char *other_detail;
-	bool enable_per_layer_report;
 };
 
 /* MEMORY controller information structure
@@ -560,7 +554,6 @@ struct mem_ctl_info {
 	 */
 	u32 ce_noinfo_count, ue_noinfo_count;
 	u32 ue_mc, ce_mc;
-	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
 
 	struct completion complete;
 
@@ -602,27 +595,6 @@ struct mem_ctl_info {
 		     : NULL)
 
 /**
- * edac_get_dimm_by_index - Get DIMM info at @index from a memory
- * 			    controller
- *
- * @mci:	MC descriptor struct mem_ctl_info
- * @index:	index in the memory controller's DIMM array
- *
- * Returns a struct dimm_info * or NULL on failure.
- */
-static inline struct dimm_info *
-edac_get_dimm_by_index(struct mem_ctl_info *mci, int index)
-{
-	if (index < 0 || index >= mci->tot_dimms)
-		return NULL;
-
-	if (WARN_ON_ONCE(mci->dimms[index]->idx != index))
-		return NULL;
-
-	return mci->dimms[index];
-}
-
-/**
  * edac_get_dimm - Get DIMM info from a memory controller given by
  *                 [layer0,layer1,layer2] position
  *
@@ -657,6 +629,12 @@ static inline struct dimm_info *edac_get_dimm(struct mem_ctl_info *mci,
 	if (mci->n_layers > 2)
 		index = index * mci->layers[2].size + layer2;
 
-	return edac_get_dimm_by_index(mci, index);
+	if (index < 0 || index >= mci->tot_dimms)
+		return NULL;
+
+	if (WARN_ON_ONCE(mci->dimms[index]->idx != index))
+		return NULL;
+
+	return mci->dimms[index];
 }
 #endif /* _LINUX_EDAC_H_ */

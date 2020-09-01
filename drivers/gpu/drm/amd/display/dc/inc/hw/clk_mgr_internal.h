@@ -71,8 +71,9 @@ enum dentist_divider_range {
 
 #define CTX \
 	clk_mgr->base.ctx
+
 #define DC_LOGGER \
-	clk_mgr->ctx->logger
+	clk_mgr->base.ctx->logger
 
 
 
@@ -100,6 +101,12 @@ enum dentist_divider_range {
 	SR(DENTIST_DISPCLK_CNTL), \
 	CLK_SRI(CLK3_CLK_PLL_REQ, CLK3, 0), \
 	CLK_SRI(CLK3_CLK2_DFS_CNTL, CLK3, 0)
+
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+// TODO:
+#define CLK_REG_LIST_DCN3()	  \
+	SR(DENTIST_DISPCLK_CNTL)
+#endif
 
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -167,6 +174,10 @@ struct clk_mgr_registers {
 	uint32_t CLK3_CLK2_DFS_CNTL;
 	uint32_t CLK3_CLK_PLL_REQ;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	uint32_t CLK0_CLK2_DFS_CNTL;
+	uint32_t CLK0_CLK_PLL_REQ;
+#endif
 	uint32_t MP1_SMN_C2PMSG_67;
 	uint32_t MP1_SMN_C2PMSG_83;
 	uint32_t MP1_SMN_C2PMSG_91;
@@ -260,6 +271,15 @@ struct clk_mgr_internal {
 
 	enum dm_pp_clocks_state max_clks_state;
 	enum dm_pp_clocks_state cur_min_clks_state;
+	bool periodic_retraining_disabled;
+
+	unsigned int cur_phyclk_req_table[MAX_PIPES * 2];
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+
+	bool smu_present;
+	void *wm_range_table;
+	long long wm_range_table_addr;
+#endif
 };
 
 struct clk_mgr_internal_funcs {
@@ -293,6 +313,10 @@ static inline bool should_update_pstate_support(bool safe_to_lower, bool calc_su
 }
 
 int clk_mgr_helper_get_active_display_cnt(
+		struct dc *dc,
+		struct dc_state *context);
+
+int clk_mgr_helper_get_active_plane_cnt(
 		struct dc *dc,
 		struct dc_state *context);
 

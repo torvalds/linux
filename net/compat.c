@@ -33,10 +33,10 @@
 #include <linux/uaccess.h>
 #include <net/compat.h>
 
-int get_compat_msghdr(struct msghdr *kmsg,
-		      struct compat_msghdr __user *umsg,
-		      struct sockaddr __user **save_addr,
-		      struct iovec **iov)
+int __get_compat_msghdr(struct msghdr *kmsg,
+			struct compat_msghdr __user *umsg,
+			struct sockaddr __user **save_addr,
+			compat_uptr_t *ptr, compat_size_t *len)
 {
 	struct compat_msghdr msg;
 	ssize_t err;
@@ -56,7 +56,8 @@ int get_compat_msghdr(struct msghdr *kmsg,
 	if (kmsg->msg_namelen > sizeof(struct sockaddr_storage))
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
 
-	kmsg->msg_control = compat_ptr(msg.msg_control);
+	kmsg->msg_control_is_user = true;
+	kmsg->msg_control_user = compat_ptr(msg.msg_control);
 	kmsg->msg_controllen = msg.msg_controllen;
 
 	if (save_addr)
@@ -79,10 +80,26 @@ int get_compat_msghdr(struct msghdr *kmsg,
 		return -EMSGSIZE;
 
 	kmsg->msg_iocb = NULL;
+	*ptr = msg.msg_iov;
+	*len = msg.msg_iovlen;
+	return 0;
+}
 
-	err = compat_import_iovec(save_addr ? READ : WRITE,
-				   compat_ptr(msg.msg_iov), msg.msg_iovlen,
-				   UIO_FASTIOV, iov, &kmsg->msg_iter);
+int get_compat_msghdr(struct msghdr *kmsg,
+		      struct compat_msghdr __user *umsg,
+		      struct sockaddr __user **save_addr,
+		      struct iovec **iov)
+{
+	compat_uptr_t ptr;
+	compat_size_t len;
+	ssize_t err;
+
+	err = __get_compat_msghdr(kmsg, umsg, save_addr, &ptr, &len);
+	if (err)
+		return err;
+
+	err = compat_import_iovec(save_addr ? READ : WRITE, compat_ptr(ptr),
+				   len, UIO_FASTIOV, iov, &kmsg->msg_iter);
 	return err < 0 ? err : 0;
 }
 
@@ -105,7 +122,7 @@ int get_compat_msghdr(struct msghdr *kmsg,
 	((ucmlen) >= sizeof(struct compat_cmsghdr) && \
 	 (ucmlen) <= (unsigned long) \
 	 ((mhdr)->msg_controllen - \
-	  ((char *)(ucmsg) - (char *)(mhdr)->msg_control)))
+	  ((char __user *)(ucmsg) - (char __user *)(mhdr)->msg_control_user)))
 
 static inline struct compat_cmsghdr __user *cmsg_compat_nxthdr(struct msghdr *msg,
 		struct compat_cmsghdr __user *cmsg, int cmsg_len)
@@ -166,25 +183,26 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 	memset(kcmsg, 0, kcmlen);
 	ucmsg = CMSG_COMPAT_FIRSTHDR(kmsg);
 	while (ucmsg != NULL) {
-		if (__get_user(ucmlen, &ucmsg->cmsg_len))
+		struct compat_cmsghdr cmsg;
+		if (copy_from_user(&cmsg, ucmsg, sizeof(cmsg)))
 			goto Efault;
-		if (!CMSG_COMPAT_OK(ucmlen, ucmsg, kmsg))
+		if (!CMSG_COMPAT_OK(cmsg.cmsg_len, ucmsg, kmsg))
 			goto Einval;
-		tmp = ((ucmlen - sizeof(*ucmsg)) + sizeof(struct cmsghdr));
+		tmp = ((cmsg.cmsg_len - sizeof(*ucmsg)) + sizeof(struct cmsghdr));
 		if ((char *)kcmsg_base + kcmlen - (char *)kcmsg < CMSG_ALIGN(tmp))
 			goto Einval;
 		kcmsg->cmsg_len = tmp;
+		kcmsg->cmsg_level = cmsg.cmsg_level;
+		kcmsg->cmsg_type = cmsg.cmsg_type;
 		tmp = CMSG_ALIGN(tmp);
-		if (__get_user(kcmsg->cmsg_level, &ucmsg->cmsg_level) ||
-		    __get_user(kcmsg->cmsg_type, &ucmsg->cmsg_type) ||
-		    copy_from_user(CMSG_DATA(kcmsg),
+		if (copy_from_user(CMSG_DATA(kcmsg),
 				   CMSG_COMPAT_DATA(ucmsg),
-				   (ucmlen - sizeof(*ucmsg))))
+				   (cmsg.cmsg_len - sizeof(*ucmsg))))
 			goto Efault;
 
 		/* Advance. */
 		kcmsg = (struct cmsghdr *)((char *)kcmsg + tmp);
-		ucmsg = cmsg_compat_nxthdr(kmsg, ucmsg, ucmlen);
+		ucmsg = cmsg_compat_nxthdr(kmsg, ucmsg, cmsg.cmsg_len);
 	}
 
 	/*
@@ -263,39 +281,31 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 	return 0;
 }
 
-void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
+static int scm_max_fds_compat(struct msghdr *msg)
 {
-	struct compat_cmsghdr __user *cm = (struct compat_cmsghdr __user *) kmsg->msg_control;
-	int fdmax = (kmsg->msg_controllen - sizeof(struct compat_cmsghdr)) / sizeof(int);
-	int fdnum = scm->fp->count;
-	struct file **fp = scm->fp->fp;
-	int __user *cmfptr;
+	if (msg->msg_controllen <= sizeof(struct compat_cmsghdr))
+		return 0;
+	return (msg->msg_controllen - sizeof(struct compat_cmsghdr)) / sizeof(int);
+}
+
+void scm_detach_fds_compat(struct msghdr *msg, struct scm_cookie *scm)
+{
+	struct compat_cmsghdr __user *cm =
+		(struct compat_cmsghdr __user *)msg->msg_control;
+	unsigned int o_flags = (msg->msg_flags & MSG_CMSG_CLOEXEC) ? O_CLOEXEC : 0;
+	int fdmax = min_t(int, scm_max_fds_compat(msg), scm->fp->count);
+	int __user *cmsg_data = CMSG_COMPAT_DATA(cm);
 	int err = 0, i;
 
-	if (fdnum < fdmax)
-		fdmax = fdnum;
-
-	for (i = 0, cmfptr = (int __user *) CMSG_COMPAT_DATA(cm); i < fdmax; i++, cmfptr++) {
-		int new_fd;
-		err = security_file_receive(fp[i]);
-		if (err)
-			break;
-		err = get_unused_fd_flags(MSG_CMSG_CLOEXEC & kmsg->msg_flags
-					  ? O_CLOEXEC : 0);
+	for (i = 0; i < fdmax; i++) {
+		err = receive_fd_user(scm->fp->fp[i], cmsg_data + i, o_flags);
 		if (err < 0)
 			break;
-		new_fd = err;
-		err = put_user(new_fd, cmfptr);
-		if (err) {
-			put_unused_fd(new_fd);
-			break;
-		}
-		/* Bump the usage count and install the file. */
-		fd_install(new_fd, get_file(fp[i]));
 	}
 
 	if (i > 0) {
 		int cmlen = CMSG_COMPAT_LEN(i * sizeof(int));
+
 		err = put_user(SOL_SOCKET, &cm->cmsg_level);
 		if (!err)
 			err = put_user(SCM_RIGHTS, &cm->cmsg_type);
@@ -303,327 +313,22 @@ void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
 			err = put_user(cmlen, &cm->cmsg_len);
 		if (!err) {
 			cmlen = CMSG_COMPAT_SPACE(i * sizeof(int));
-			kmsg->msg_control += cmlen;
-			kmsg->msg_controllen -= cmlen;
+			if (msg->msg_controllen < cmlen)
+				cmlen = msg->msg_controllen;
+			msg->msg_control += cmlen;
+			msg->msg_controllen -= cmlen;
 		}
 	}
-	if (i < fdnum)
-		kmsg->msg_flags |= MSG_CTRUNC;
+
+	if (i < scm->fp->count || (scm->fp->count && fdmax <= 0))
+		msg->msg_flags |= MSG_CTRUNC;
 
 	/*
-	 * All of the files that fit in the message have had their
-	 * usage counts incremented, so we just free the list.
+	 * All of the files that fit in the message have had their usage counts
+	 * incremented, so we just free the list.
 	 */
 	__scm_destroy(scm);
 }
-
-/* allocate a 64-bit sock_fprog on the user stack for duration of syscall. */
-struct sock_fprog __user *get_compat_bpf_fprog(char __user *optval)
-{
-	struct compat_sock_fprog __user *fprog32 = (struct compat_sock_fprog __user *)optval;
-	struct sock_fprog __user *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog));
-	struct compat_sock_fprog f32;
-	struct sock_fprog f;
-
-	if (copy_from_user(&f32, fprog32, sizeof(*fprog32)))
-		return NULL;
-	memset(&f, 0, sizeof(f));
-	f.len = f32.len;
-	f.filter = compat_ptr(f32.filter);
-	if (copy_to_user(kfprog, &f, sizeof(struct sock_fprog)))
-		return NULL;
-
-	return kfprog;
-}
-EXPORT_SYMBOL_GPL(get_compat_bpf_fprog);
-
-static int do_set_attach_filter(struct socket *sock, int level, int optname,
-				char __user *optval, unsigned int optlen)
-{
-	struct sock_fprog __user *kfprog;
-
-	kfprog = get_compat_bpf_fprog(optval);
-	if (!kfprog)
-		return -EFAULT;
-
-	return sock_setsockopt(sock, level, optname, (char __user *)kfprog,
-			      sizeof(struct sock_fprog));
-}
-
-static int compat_sock_setsockopt(struct socket *sock, int level, int optname,
-				char __user *optval, unsigned int optlen)
-{
-	if (optname == SO_ATTACH_FILTER ||
-	    optname == SO_ATTACH_REUSEPORT_CBPF)
-		return do_set_attach_filter(sock, level, optname,
-					    optval, optlen);
-	return sock_setsockopt(sock, level, optname, optval, optlen);
-}
-
-static int __compat_sys_setsockopt(int fd, int level, int optname,
-				   char __user *optval, unsigned int optlen)
-{
-	int err;
-	struct socket *sock;
-
-	if (optlen > INT_MAX)
-		return -EINVAL;
-
-	sock = sockfd_lookup(fd, &err);
-	if (sock) {
-		err = security_socket_setsockopt(sock, level, optname);
-		if (err) {
-			sockfd_put(sock);
-			return err;
-		}
-
-		if (level == SOL_SOCKET)
-			err = compat_sock_setsockopt(sock, level,
-					optname, optval, optlen);
-		else if (sock->ops->compat_setsockopt)
-			err = sock->ops->compat_setsockopt(sock, level,
-					optname, optval, optlen);
-		else
-			err = sock->ops->setsockopt(sock, level,
-					optname, optval, optlen);
-		sockfd_put(sock);
-	}
-	return err;
-}
-
-COMPAT_SYSCALL_DEFINE5(setsockopt, int, fd, int, level, int, optname,
-		       char __user *, optval, unsigned int, optlen)
-{
-	return __compat_sys_setsockopt(fd, level, optname, optval, optlen);
-}
-
-static int __compat_sys_getsockopt(int fd, int level, int optname,
-				   char __user *optval,
-				   int __user *optlen)
-{
-	int err;
-	struct socket *sock = sockfd_lookup(fd, &err);
-
-	if (sock) {
-		err = security_socket_getsockopt(sock, level, optname);
-		if (err) {
-			sockfd_put(sock);
-			return err;
-		}
-
-		if (level == SOL_SOCKET)
-			err = sock_getsockopt(sock, level,
-					optname, optval, optlen);
-		else if (sock->ops->compat_getsockopt)
-			err = sock->ops->compat_getsockopt(sock, level,
-					optname, optval, optlen);
-		else
-			err = sock->ops->getsockopt(sock, level,
-					optname, optval, optlen);
-		sockfd_put(sock);
-	}
-	return err;
-}
-
-COMPAT_SYSCALL_DEFINE5(getsockopt, int, fd, int, level, int, optname,
-		       char __user *, optval, int __user *, optlen)
-{
-	return __compat_sys_getsockopt(fd, level, optname, optval, optlen);
-}
-
-struct compat_group_req {
-	__u32				 gr_interface;
-	struct __kernel_sockaddr_storage gr_group
-		__aligned(4);
-} __packed;
-
-struct compat_group_source_req {
-	__u32				 gsr_interface;
-	struct __kernel_sockaddr_storage gsr_group
-		__aligned(4);
-	struct __kernel_sockaddr_storage gsr_source
-		__aligned(4);
-} __packed;
-
-struct compat_group_filter {
-	__u32				 gf_interface;
-	struct __kernel_sockaddr_storage gf_group
-		__aligned(4);
-	__u32				 gf_fmode;
-	__u32				 gf_numsrc;
-	struct __kernel_sockaddr_storage gf_slist[1]
-		__aligned(4);
-} __packed;
-
-#define __COMPAT_GF0_SIZE (sizeof(struct compat_group_filter) - \
-			sizeof(struct __kernel_sockaddr_storage))
-
-
-int compat_mc_setsockopt(struct sock *sock, int level, int optname,
-	char __user *optval, unsigned int optlen,
-	int (*setsockopt)(struct sock *, int, int, char __user *, unsigned int))
-{
-	char __user	*koptval = optval;
-	int		koptlen = optlen;
-
-	switch (optname) {
-	case MCAST_JOIN_GROUP:
-	case MCAST_LEAVE_GROUP:
-	{
-		struct compat_group_req __user *gr32 = (void __user *)optval;
-		struct group_req __user *kgr =
-			compat_alloc_user_space(sizeof(struct group_req));
-		u32 interface;
-
-		if (!access_ok(gr32, sizeof(*gr32)) ||
-		    !access_ok(kgr, sizeof(struct group_req)) ||
-		    __get_user(interface, &gr32->gr_interface) ||
-		    __put_user(interface, &kgr->gr_interface) ||
-		    copy_in_user(&kgr->gr_group, &gr32->gr_group,
-				sizeof(kgr->gr_group)))
-			return -EFAULT;
-		koptval = (char __user *)kgr;
-		koptlen = sizeof(struct group_req);
-		break;
-	}
-	case MCAST_JOIN_SOURCE_GROUP:
-	case MCAST_LEAVE_SOURCE_GROUP:
-	case MCAST_BLOCK_SOURCE:
-	case MCAST_UNBLOCK_SOURCE:
-	{
-		struct compat_group_source_req __user *gsr32 = (void __user *)optval;
-		struct group_source_req __user *kgsr = compat_alloc_user_space(
-			sizeof(struct group_source_req));
-		u32 interface;
-
-		if (!access_ok(gsr32, sizeof(*gsr32)) ||
-		    !access_ok(kgsr,
-			sizeof(struct group_source_req)) ||
-		    __get_user(interface, &gsr32->gsr_interface) ||
-		    __put_user(interface, &kgsr->gsr_interface) ||
-		    copy_in_user(&kgsr->gsr_group, &gsr32->gsr_group,
-				sizeof(kgsr->gsr_group)) ||
-		    copy_in_user(&kgsr->gsr_source, &gsr32->gsr_source,
-				sizeof(kgsr->gsr_source)))
-			return -EFAULT;
-		koptval = (char __user *)kgsr;
-		koptlen = sizeof(struct group_source_req);
-		break;
-	}
-	case MCAST_MSFILTER:
-	{
-		struct compat_group_filter __user *gf32 = (void __user *)optval;
-		struct group_filter __user *kgf;
-		u32 interface, fmode, numsrc;
-
-		if (!access_ok(gf32, __COMPAT_GF0_SIZE) ||
-		    __get_user(interface, &gf32->gf_interface) ||
-		    __get_user(fmode, &gf32->gf_fmode) ||
-		    __get_user(numsrc, &gf32->gf_numsrc))
-			return -EFAULT;
-		koptlen = optlen + sizeof(struct group_filter) -
-				sizeof(struct compat_group_filter);
-		if (koptlen < GROUP_FILTER_SIZE(numsrc))
-			return -EINVAL;
-		kgf = compat_alloc_user_space(koptlen);
-		if (!access_ok(kgf, koptlen) ||
-		    __put_user(interface, &kgf->gf_interface) ||
-		    __put_user(fmode, &kgf->gf_fmode) ||
-		    __put_user(numsrc, &kgf->gf_numsrc) ||
-		    copy_in_user(&kgf->gf_group, &gf32->gf_group,
-				sizeof(kgf->gf_group)) ||
-		    (numsrc && copy_in_user(kgf->gf_slist, gf32->gf_slist,
-				numsrc * sizeof(kgf->gf_slist[0]))))
-			return -EFAULT;
-		koptval = (char __user *)kgf;
-		break;
-	}
-
-	default:
-		break;
-	}
-	return setsockopt(sock, level, optname, koptval, koptlen);
-}
-EXPORT_SYMBOL(compat_mc_setsockopt);
-
-int compat_mc_getsockopt(struct sock *sock, int level, int optname,
-	char __user *optval, int __user *optlen,
-	int (*getsockopt)(struct sock *, int, int, char __user *, int __user *))
-{
-	struct compat_group_filter __user *gf32 = (void __user *)optval;
-	struct group_filter __user *kgf;
-	int __user	*koptlen;
-	u32 interface, fmode, numsrc;
-	int klen, ulen, err;
-
-	if (optname != MCAST_MSFILTER)
-		return getsockopt(sock, level, optname, optval, optlen);
-
-	koptlen = compat_alloc_user_space(sizeof(*koptlen));
-	if (!access_ok(optlen, sizeof(*optlen)) ||
-	    __get_user(ulen, optlen))
-		return -EFAULT;
-
-	/* adjust len for pad */
-	klen = ulen + sizeof(*kgf) - sizeof(*gf32);
-
-	if (klen < GROUP_FILTER_SIZE(0))
-		return -EINVAL;
-
-	if (!access_ok(koptlen, sizeof(*koptlen)) ||
-	    __put_user(klen, koptlen))
-		return -EFAULT;
-
-	/* have to allow space for previous compat_alloc_user_space, too */
-	kgf = compat_alloc_user_space(klen+sizeof(*optlen));
-
-	if (!access_ok(gf32, __COMPAT_GF0_SIZE) ||
-	    __get_user(interface, &gf32->gf_interface) ||
-	    __get_user(fmode, &gf32->gf_fmode) ||
-	    __get_user(numsrc, &gf32->gf_numsrc) ||
-	    __put_user(interface, &kgf->gf_interface) ||
-	    __put_user(fmode, &kgf->gf_fmode) ||
-	    __put_user(numsrc, &kgf->gf_numsrc) ||
-	    copy_in_user(&kgf->gf_group, &gf32->gf_group, sizeof(kgf->gf_group)))
-		return -EFAULT;
-
-	err = getsockopt(sock, level, optname, (char __user *)kgf, koptlen);
-	if (err)
-		return err;
-
-	if (!access_ok(koptlen, sizeof(*koptlen)) ||
-	    __get_user(klen, koptlen))
-		return -EFAULT;
-
-	ulen = klen - (sizeof(*kgf)-sizeof(*gf32));
-
-	if (!access_ok(optlen, sizeof(*optlen)) ||
-	    __put_user(ulen, optlen))
-		return -EFAULT;
-
-	if (!access_ok(kgf, klen) ||
-	    !access_ok(gf32, ulen) ||
-	    __get_user(interface, &kgf->gf_interface) ||
-	    __get_user(fmode, &kgf->gf_fmode) ||
-	    __get_user(numsrc, &kgf->gf_numsrc) ||
-	    __put_user(interface, &gf32->gf_interface) ||
-	    __put_user(fmode, &gf32->gf_fmode) ||
-	    __put_user(numsrc, &gf32->gf_numsrc))
-		return -EFAULT;
-	if (numsrc) {
-		int copylen;
-
-		klen -= GROUP_FILTER_SIZE(0);
-		copylen = numsrc * sizeof(gf32->gf_slist[0]);
-		if (copylen > klen)
-			copylen = klen;
-		if (copy_in_user(gf32->gf_slist, kgf->gf_slist, copylen))
-			return -EFAULT;
-	}
-	return err;
-}
-EXPORT_SYMBOL(compat_mc_getsockopt);
-
 
 /* Argument list sizes for compat_sys_socketcall */
 #define AL(x) ((x) * sizeof(u32))
@@ -784,13 +489,11 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 		ret = __sys_shutdown(a0, a1);
 		break;
 	case SYS_SETSOCKOPT:
-		ret = __compat_sys_setsockopt(a0, a1, a[2],
-					      compat_ptr(a[3]), a[4]);
+		ret = __sys_setsockopt(a0, a1, a[2], compat_ptr(a[3]), a[4]);
 		break;
 	case SYS_GETSOCKOPT:
-		ret = __compat_sys_getsockopt(a0, a1, a[2],
-					      compat_ptr(a[3]),
-					      compat_ptr(a[4]));
+		ret = __sys_getsockopt(a0, a1, a[2], compat_ptr(a[3]),
+				       compat_ptr(a[4]));
 		break;
 	case SYS_SENDMSG:
 		ret = __compat_sys_sendmsg(a0, compat_ptr(a1), a[2]);

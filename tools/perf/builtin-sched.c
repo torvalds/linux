@@ -811,8 +811,8 @@ replay_wakeup_event(struct perf_sched *sched,
 		    struct evsel *evsel, struct perf_sample *sample,
 		    struct machine *machine __maybe_unused)
 {
-	const char *comm = perf_evsel__strval(evsel, sample, "comm");
-	const u32 pid	 = perf_evsel__intval(evsel, sample, "pid");
+	const char *comm = evsel__strval(evsel, sample, "comm");
+	const u32 pid	 = evsel__intval(evsel, sample, "pid");
 	struct task_desc *waker, *wakee;
 
 	if (verbose > 0) {
@@ -833,11 +833,11 @@ static int replay_switch_event(struct perf_sched *sched,
 			       struct perf_sample *sample,
 			       struct machine *machine __maybe_unused)
 {
-	const char *prev_comm  = perf_evsel__strval(evsel, sample, "prev_comm"),
-		   *next_comm  = perf_evsel__strval(evsel, sample, "next_comm");
-	const u32 prev_pid = perf_evsel__intval(evsel, sample, "prev_pid"),
-		  next_pid = perf_evsel__intval(evsel, sample, "next_pid");
-	const u64 prev_state = perf_evsel__intval(evsel, sample, "prev_state");
+	const char *prev_comm  = evsel__strval(evsel, sample, "prev_comm"),
+		   *next_comm  = evsel__strval(evsel, sample, "next_comm");
+	const u32 prev_pid = evsel__intval(evsel, sample, "prev_pid"),
+		  next_pid = evsel__intval(evsel, sample, "next_pid");
+	const u64 prev_state = evsel__intval(evsel, sample, "prev_state");
 	struct task_desc *prev, __maybe_unused *next;
 	u64 timestamp0, timestamp = sample->time;
 	int cpu = sample->cpu;
@@ -1106,9 +1106,9 @@ static int latency_switch_event(struct perf_sched *sched,
 				struct perf_sample *sample,
 				struct machine *machine)
 {
-	const u32 prev_pid = perf_evsel__intval(evsel, sample, "prev_pid"),
-		  next_pid = perf_evsel__intval(evsel, sample, "next_pid");
-	const u64 prev_state = perf_evsel__intval(evsel, sample, "prev_state");
+	const u32 prev_pid = evsel__intval(evsel, sample, "prev_pid"),
+		  next_pid = evsel__intval(evsel, sample, "next_pid");
+	const u64 prev_state = evsel__intval(evsel, sample, "prev_state");
 	struct work_atoms *out_events, *in_events;
 	struct thread *sched_out, *sched_in;
 	u64 timestamp0, timestamp = sample->time;
@@ -1176,8 +1176,8 @@ static int latency_runtime_event(struct perf_sched *sched,
 				 struct perf_sample *sample,
 				 struct machine *machine)
 {
-	const u32 pid	   = perf_evsel__intval(evsel, sample, "pid");
-	const u64 runtime  = perf_evsel__intval(evsel, sample, "runtime");
+	const u32 pid	   = evsel__intval(evsel, sample, "pid");
+	const u64 runtime  = evsel__intval(evsel, sample, "runtime");
 	struct thread *thread = machine__findnew_thread(machine, -1, pid);
 	struct work_atoms *atoms = thread_atoms_search(&sched->atom_root, thread, &sched->cmp_pid);
 	u64 timestamp = sample->time;
@@ -1211,7 +1211,7 @@ static int latency_wakeup_event(struct perf_sched *sched,
 				struct perf_sample *sample,
 				struct machine *machine)
 {
-	const u32 pid	  = perf_evsel__intval(evsel, sample, "pid");
+	const u32 pid	  = evsel__intval(evsel, sample, "pid");
 	struct work_atoms *atoms;
 	struct work_atom *atom;
 	struct thread *wakee;
@@ -1272,7 +1272,7 @@ static int latency_migrate_task_event(struct perf_sched *sched,
 				      struct perf_sample *sample,
 				      struct machine *machine)
 {
-	const u32 pid = perf_evsel__intval(evsel, sample, "pid");
+	const u32 pid = evsel__intval(evsel, sample, "pid");
 	u64 timestamp = sample->time;
 	struct work_atoms *atoms;
 	struct work_atom *atom;
@@ -1526,7 +1526,7 @@ map__findnew_thread(struct perf_sched *sched, struct machine *machine, pid_t pid
 static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 			    struct perf_sample *sample, struct machine *machine)
 {
-	const u32 next_pid = perf_evsel__intval(evsel, sample, "next_pid");
+	const u32 next_pid = evsel__intval(evsel, sample, "next_pid");
 	struct thread *sched_in;
 	struct thread_runtime *tr;
 	int new_shortname;
@@ -1670,8 +1670,8 @@ static int process_sched_switch_event(struct perf_tool *tool,
 {
 	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 	int this_cpu = sample->cpu, err = 0;
-	u32 prev_pid = perf_evsel__intval(evsel, sample, "prev_pid"),
-	    next_pid = perf_evsel__intval(evsel, sample, "next_pid");
+	u32 prev_pid = evsel__intval(evsel, sample, "prev_pid"),
+	    next_pid = evsel__intval(evsel, sample, "next_pid");
 
 	if (sched->curr_pid[this_cpu] != (u32)-1) {
 		/*
@@ -1848,7 +1848,7 @@ static inline void print_sched_time(unsigned long long nsecs, int width)
  * returns runtime data for event, allocating memory for it the
  * first time it is used.
  */
-static struct evsel_runtime *perf_evsel__get_runtime(struct evsel *evsel)
+static struct evsel_runtime *evsel__get_runtime(struct evsel *evsel)
 {
 	struct evsel_runtime *r = evsel->priv;
 
@@ -1863,10 +1863,9 @@ static struct evsel_runtime *perf_evsel__get_runtime(struct evsel *evsel)
 /*
  * save last time event was seen per cpu
  */
-static void perf_evsel__save_time(struct evsel *evsel,
-				  u64 timestamp, u32 cpu)
+static void evsel__save_time(struct evsel *evsel, u64 timestamp, u32 cpu)
 {
-	struct evsel_runtime *r = perf_evsel__get_runtime(evsel);
+	struct evsel_runtime *r = evsel__get_runtime(evsel);
 
 	if (r == NULL)
 		return;
@@ -1890,9 +1889,9 @@ static void perf_evsel__save_time(struct evsel *evsel,
 }
 
 /* returns last time this event was seen on the given cpu */
-static u64 perf_evsel__get_time(struct evsel *evsel, u32 cpu)
+static u64 evsel__get_time(struct evsel *evsel, u32 cpu)
 {
-	struct evsel_runtime *r = perf_evsel__get_runtime(evsel);
+	struct evsel_runtime *r = evsel__get_runtime(evsel);
 
 	if ((r == NULL) || (r->last_time == NULL) || (cpu >= r->ncpu))
 		return 0;
@@ -2004,8 +2003,8 @@ static void timehist_print_sample(struct perf_sched *sched,
 				  u64 t, int state)
 {
 	struct thread_runtime *tr = thread__priv(thread);
-	const char *next_comm = perf_evsel__strval(evsel, sample, "next_comm");
-	const u32 next_pid = perf_evsel__intval(evsel, sample, "next_pid");
+	const char *next_comm = evsel__strval(evsel, sample, "next_comm");
+	const u32 next_pid = evsel__intval(evsel, sample, "next_pid");
 	u32 max_cpus = sched->max_cpu + 1;
 	char tstr[64];
 	char nstr[30];
@@ -2136,8 +2135,8 @@ static bool is_idle_sample(struct perf_sample *sample,
 			   struct evsel *evsel)
 {
 	/* pid 0 == swapper == idle task */
-	if (strcmp(perf_evsel__name(evsel), "sched:sched_switch") == 0)
-		return perf_evsel__intval(evsel, sample, "prev_pid") == 0;
+	if (strcmp(evsel__name(evsel), "sched:sched_switch") == 0)
+		return evsel__intval(evsel, sample, "prev_pid") == 0;
 
 	return sample->pid == 0;
 }
@@ -2334,7 +2333,7 @@ static struct thread *timehist_get_thread(struct perf_sched *sched,
 			itr->last_thread = thread;
 
 			/* copy task callchain when entering to idle */
-			if (perf_evsel__intval(evsel, sample, "next_pid") == 0)
+			if (evsel__intval(evsel, sample, "next_pid") == 0)
 				save_idle_callchain(sched, itr, sample);
 		}
 	}
@@ -2355,10 +2354,10 @@ static bool timehist_skip_sample(struct perf_sched *sched,
 	}
 
 	if (sched->idle_hist) {
-		if (strcmp(perf_evsel__name(evsel), "sched:sched_switch"))
+		if (strcmp(evsel__name(evsel), "sched:sched_switch"))
 			rc = true;
-		else if (perf_evsel__intval(evsel, sample, "prev_pid") != 0 &&
-			 perf_evsel__intval(evsel, sample, "next_pid") != 0)
+		else if (evsel__intval(evsel, sample, "prev_pid") != 0 &&
+			 evsel__intval(evsel, sample, "next_pid") != 0)
 			rc = true;
 	}
 
@@ -2399,6 +2398,15 @@ static void timehist_print_wakeup_event(struct perf_sched *sched,
 	printf("\n");
 }
 
+static int timehist_sched_wakeup_ignore(struct perf_tool *tool __maybe_unused,
+					union perf_event *event __maybe_unused,
+					struct evsel *evsel __maybe_unused,
+					struct perf_sample *sample __maybe_unused,
+					struct machine *machine __maybe_unused)
+{
+	return 0;
+}
+
 static int timehist_sched_wakeup_event(struct perf_tool *tool,
 				       union perf_event *event __maybe_unused,
 				       struct evsel *evsel,
@@ -2409,7 +2417,7 @@ static int timehist_sched_wakeup_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct thread_runtime *tr = NULL;
 	/* want pid of awakened task not pid in sample */
-	const u32 pid = perf_evsel__intval(evsel, sample, "pid");
+	const u32 pid = evsel__intval(evsel, sample, "pid");
 
 	thread = machine__findnew_thread(machine, 0, pid);
 	if (thread == NULL)
@@ -2445,8 +2453,8 @@ static void timehist_print_migration_event(struct perf_sched *sched,
 		return;
 
 	max_cpus = sched->max_cpu + 1;
-	ocpu = perf_evsel__intval(evsel, sample, "orig_cpu");
-	dcpu = perf_evsel__intval(evsel, sample, "dest_cpu");
+	ocpu = evsel__intval(evsel, sample, "orig_cpu");
+	dcpu = evsel__intval(evsel, sample, "dest_cpu");
 
 	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
 	if (thread == NULL)
@@ -2493,7 +2501,7 @@ static int timehist_migrate_task_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct thread_runtime *tr = NULL;
 	/* want pid of migrated task not pid in sample */
-	const u32 pid = perf_evsel__intval(evsel, sample, "pid");
+	const u32 pid = evsel__intval(evsel, sample, "pid");
 
 	thread = machine__findnew_thread(machine, 0, pid);
 	if (thread == NULL)
@@ -2524,8 +2532,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	struct thread_runtime *tr = NULL;
 	u64 tprev, t = sample->time;
 	int rc = 0;
-	int state = perf_evsel__intval(evsel, sample, "prev_state");
-
+	int state = evsel__intval(evsel, sample, "prev_state");
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event. skipping it\n",
@@ -2549,7 +2556,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 		goto out;
 	}
 
-	tprev = perf_evsel__get_time(evsel, sample->cpu);
+	tprev = evsel__get_time(evsel, sample->cpu);
 
 	/*
 	 * If start time given:
@@ -2632,7 +2639,7 @@ out:
 		tr->ready_to_run = 0;
 	}
 
-	perf_evsel__save_time(evsel, sample->time, sample->cpu);
+	evsel__save_time(evsel, sample->time, sample->cpu);
 
 	return rc;
 }
@@ -2942,7 +2949,7 @@ static int timehist_check_attr(struct perf_sched *sched,
 	struct evsel_runtime *er;
 
 	list_for_each_entry(evsel, &evlist->core.entries, core.node) {
-		er = perf_evsel__get_runtime(evsel);
+		er = evsel__get_runtime(evsel);
 		if (er == NULL) {
 			pr_err("Failed to allocate memory for evsel runtime data\n");
 			return -1;
@@ -2960,9 +2967,10 @@ static int timehist_check_attr(struct perf_sched *sched,
 
 static int perf_sched__timehist(struct perf_sched *sched)
 {
-	const struct evsel_str_handler handlers[] = {
+	struct evsel_str_handler handlers[] = {
 		{ "sched:sched_switch",       timehist_sched_switch_event, },
 		{ "sched:sched_wakeup",	      timehist_sched_wakeup_event, },
+		{ "sched:sched_waking",       timehist_sched_wakeup_event, },
 		{ "sched:sched_wakeup_new",   timehist_sched_wakeup_event, },
 	};
 	const struct evsel_str_handler migrate_handlers[] = {
@@ -3019,6 +3027,11 @@ static int perf_sched__timehist(struct perf_sched *sched)
 		goto out;
 
 	setup_pager();
+
+	/* prefer sched_waking if it is captured */
+	if (perf_evlist__find_tracepoint_by_name(session->evlist,
+						  "sched:sched_waking"))
+		handlers[1].handler = timehist_sched_wakeup_ignore;
 
 	/* setup per-evsel handlers */
 	if (perf_session__set_tracepoints_handlers(session, handlers))
@@ -3332,12 +3345,16 @@ static int __cmd_record(int argc, const char **argv)
 		"-e", "sched:sched_stat_iowait",
 		"-e", "sched:sched_stat_runtime",
 		"-e", "sched:sched_process_fork",
-		"-e", "sched:sched_wakeup",
 		"-e", "sched:sched_wakeup_new",
 		"-e", "sched:sched_migrate_task",
 	};
+	struct tep_event *waking_event;
 
-	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
+	/*
+	 * +2 for either "-e", "sched:sched_wakeup" or
+	 * "-e", "sched:sched_waking"
+	 */
+	rec_argc = ARRAY_SIZE(record_args) + 2 + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
 	if (rec_argv == NULL)
@@ -3345,6 +3362,13 @@ static int __cmd_record(int argc, const char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
+
+	rec_argv[i++] = "-e";
+	waking_event = trace_event__tp_format("sched", "sched_waking");
+	if (!IS_ERR(waking_event))
+		rec_argv[i++] = strdup("sched:sched_waking");
+	else
+		rec_argv[i++] = strdup("sched:sched_wakeup");
 
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];

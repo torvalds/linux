@@ -5,7 +5,6 @@
  * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -16,8 +15,7 @@
 #include <linux/kfifo.h>
 #include <linux/uaccess.h>
 #include <linux/idr.h>
-
-#include "../most.h"
+#include <linux/most.h>
 
 #define CHRDEV_REGION_SIZE 50
 
@@ -68,19 +66,16 @@ static struct comp_channel *get_channel(struct most_interface *iface, int id)
 {
 	struct comp_channel *c, *tmp;
 	unsigned long flags;
-	int found_channel = 0;
 
 	spin_lock_irqsave(&ch_list_lock, flags);
 	list_for_each_entry_safe(c, tmp, &channel_list, list) {
 		if ((c->iface == iface) && (c->channel_id == id)) {
-			found_channel = 1;
-			break;
+			spin_unlock_irqrestore(&ch_list_lock, flags);
+			return c;
 		}
 	}
 	spin_unlock_irqrestore(&ch_list_lock, flags);
-	if (!found_channel)
-		return NULL;
-	return c;
+	return NULL;
 }
 
 static void stop_channel(struct comp_channel *c)
@@ -130,19 +125,16 @@ static int comp_open(struct inode *inode, struct file *filp)
 	     ((filp->f_flags & O_ACCMODE) != O_RDONLY)) ||
 	     ((c->cfg->direction == MOST_CH_TX) &&
 		((filp->f_flags & O_ACCMODE) != O_WRONLY))) {
-		pr_info("WARN: Access flags mismatch\n");
 		return -EACCES;
 	}
 
 	mutex_lock(&c->io_mutex);
 	if (!c->dev) {
-		pr_info("WARN: Device is destroyed\n");
 		mutex_unlock(&c->io_mutex);
 		return -ENODEV;
 	}
 
 	if (c->access_ref) {
-		pr_info("WARN: Device is busy\n");
 		mutex_unlock(&c->io_mutex);
 		return -EBUSY;
 	}
@@ -329,14 +321,9 @@ static int comp_disconnect_channel(struct most_interface *iface, int channel_id)
 {
 	struct comp_channel *c;
 
-	if (!iface) {
-		pr_info("Bad interface pointer\n");
-		return -EINVAL;
-	}
-
 	c = get_channel(iface, channel_id);
 	if (!c)
-		return -ENXIO;
+		return -EINVAL;
 
 	mutex_lock(&c->io_mutex);
 	spin_lock(&c->unlink);
@@ -370,7 +357,7 @@ static int comp_rx_completion(struct mbo *mbo)
 
 	c = get_channel(mbo->ifp, mbo->hdm_channel_id);
 	if (!c)
-		return -ENXIO;
+		return -EINVAL;
 
 	spin_lock(&c->unlink);
 	if (!c->access_ref || !c->dev) {
@@ -381,7 +368,7 @@ static int comp_rx_completion(struct mbo *mbo)
 	spin_unlock(&c->unlink);
 #ifdef DEBUG_MESG
 	if (kfifo_is_full(&c->fifo))
-		pr_info("WARN: Fifo is full\n");
+		dev_warn(c->dev, "Fifo is full\n");
 #endif
 	wake_up_interruptible(&c->wq);
 	return 0;
@@ -398,18 +385,15 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
 {
 	struct comp_channel *c;
 
-	if (!iface) {
-		pr_info("Bad interface pointer\n");
+	c = get_channel(iface, channel_id);
+	if (!c)
 		return -EINVAL;
-	}
+
 	if ((channel_id < 0) || (channel_id >= iface->num_channels)) {
-		pr_info("Channel ID out of range\n");
+		dev_warn(c->dev, "Channel ID out of range\n");
 		return -EINVAL;
 	}
 
-	c = get_channel(iface, channel_id);
-	if (!c)
-		return -ENXIO;
 	wake_up_interruptible(&c->wq);
 	return 0;
 }
@@ -433,10 +417,9 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	int retval;
 	int current_minor;
 
-	if ((!iface) || (!cfg) || (!name)) {
-		pr_info("Probing component with bad arguments");
+	if (!cfg || !name)
 		return -EINVAL;
-	}
+
 	c = get_channel(iface, channel_id);
 	if (c)
 		return -EEXIST;
@@ -475,7 +458,6 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 
 	if (IS_ERR(c->dev)) {
 		retval = PTR_ERR(c->dev);
-		pr_info("failed to create new device node %s\n", name);
 		goto err_free_kfifo_and_del_list;
 	}
 	kobject_uevent(&c->dev->kobj, KOBJ_ADD);
@@ -508,13 +490,9 @@ static int __init mod_init(void)
 {
 	int err;
 
-	pr_info("init()\n");
-
 	comp.class = class_create(THIS_MODULE, "most_cdev");
-	if (IS_ERR(comp.class)) {
-		pr_info("No udev support.\n");
+	if (IS_ERR(comp.class))
 		return PTR_ERR(comp.class);
-	}
 
 	INIT_LIST_HEAD(&channel_list);
 	spin_lock_init(&ch_list_lock);
@@ -545,8 +523,6 @@ dest_ida:
 static void __exit mod_exit(void)
 {
 	struct comp_channel *c, *tmp;
-
-	pr_info("exit module\n");
 
 	most_deregister_configfs_subsys(&comp.cc);
 	most_deregister_component(&comp.cc);

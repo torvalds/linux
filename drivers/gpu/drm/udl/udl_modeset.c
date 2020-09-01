@@ -215,7 +215,7 @@ static char *udl_dummy_render(char *wrptr)
 static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	struct urb *urb;
 	char *buf;
 	int retval;
@@ -266,8 +266,8 @@ static int udl_aligned_damage_clip(struct drm_rect *clip, int x, int y,
 	return 0;
 }
 
-int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
-		      int width, int height)
+static int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
+			     int width, int height)
 {
 	struct drm_device *dev = fb->dev;
 	struct dma_buf_attachment *import_attach = fb->obj[0]->import_attach;
@@ -369,13 +369,11 @@ udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_framebuffer *fb = plane_state->fb;
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	struct drm_display_mode *mode = &crtc_state->mode;
 	char *buf;
 	char *wrptr;
 	int color_depth = UDL_COLOR_DEPTH_16BPP;
-
-	crtc_state->no_vblank = true;
 
 	buf = (char *)udl->mode_buf;
 
@@ -428,14 +426,6 @@ udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
 	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
 }
 
-static int
-udl_simple_display_pipe_check(struct drm_simple_display_pipe *pipe,
-			      struct drm_plane_state *plane_state,
-			      struct drm_crtc_state *crtc_state)
-{
-	return 0;
-}
-
 static void
 udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 			       struct drm_plane_state *old_plane_state)
@@ -457,7 +447,6 @@ struct drm_simple_display_pipe_funcs udl_simple_display_pipe_funcs = {
 	.mode_valid = udl_simple_display_pipe_mode_valid,
 	.enable = udl_simple_display_pipe_enable,
 	.disable = udl_simple_display_pipe_disable,
-	.check = udl_simple_display_pipe_check,
 	.update = udl_simple_display_pipe_update,
 	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
@@ -475,11 +464,13 @@ static const struct drm_mode_config_funcs udl_mode_funcs = {
 int udl_modeset_init(struct drm_device *dev)
 {
 	size_t format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	struct drm_connector *connector;
 	int ret;
 
-	drm_mode_config_init(dev);
+	ret = drmm_mode_config_init(dev);
+	if (ret)
+		return ret;
 
 	dev->mode_config.min_width = 640;
 	dev->mode_config.min_height = 480;
@@ -493,10 +484,8 @@ int udl_modeset_init(struct drm_device *dev)
 	dev->mode_config.funcs = &udl_mode_funcs;
 
 	connector = udl_connector_init(dev);
-	if (IS_ERR(connector)) {
-		ret = PTR_ERR(connector);
-		goto err_drm_mode_config_cleanup;
-	}
+	if (IS_ERR(connector))
+		return PTR_ERR(connector);
 
 	format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
 
@@ -505,18 +494,9 @@ int udl_modeset_init(struct drm_device *dev)
 					   udl_simple_display_pipe_formats,
 					   format_count, NULL, connector);
 	if (ret)
-		goto err_drm_mode_config_cleanup;
+		return ret;
 
 	drm_mode_config_reset(dev);
 
 	return 0;
-
-err_drm_mode_config_cleanup:
-	drm_mode_config_cleanup(dev);
-	return ret;
-}
-
-void udl_modeset_cleanup(struct drm_device *dev)
-{
-	drm_mode_config_cleanup(dev);
 }

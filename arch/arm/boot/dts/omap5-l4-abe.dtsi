@@ -298,8 +298,9 @@
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>,
 				      <0x49038000 0x80>;
-				clocks = <&abe_clkctrl OMAP5_TIMER5_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&abe_clkctrl OMAP5_TIMER5_CLKCTRL 24>,
+					 <&dss_syc_gfclk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-dsp;
 				ti,timer-pwm;
@@ -329,8 +330,9 @@
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>,
 				      <0x4903a000 0x80>;
-				clocks = <&abe_clkctrl OMAP5_TIMER6_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&abe_clkctrl OMAP5_TIMER6_CLKCTRL 24>,
+					 <&dss_syc_gfclk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-dsp;
 				ti,timer-pwm;
@@ -360,8 +362,9 @@
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>,
 				      <0x4903c000 0x80>;
-				clocks = <&abe_clkctrl OMAP5_TIMER7_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&abe_clkctrl OMAP5_TIMER7_CLKCTRL 24>,
+					 <&dss_syc_gfclk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-dsp;
 			};
@@ -390,8 +393,9 @@
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>,
 				      <0x4903e000 0x80>;
-				clocks = <&abe_clkctrl OMAP5_TIMER8_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&abe_clkctrl OMAP5_TIMER8_CLKCTRL 24>,
+					 <&dss_syc_gfclk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-dsp;
 				ti,timer-pwm;
@@ -426,8 +430,20 @@
 		};
 
 		target-module@f1000 {			/* 0x401f1000, ap 32 20.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xf1000 0x4>,
+			      <0xf1010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			/* Domains (V, P, C): iva, abe_pwrdm, abe_clkdm */
+			clocks = <&abe_clkctrl OMAP5_AESS_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xf1000 0x1000>,

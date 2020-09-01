@@ -26,8 +26,7 @@ static int auto_flowlabels_min;
 static int auto_flowlabels_max = IP6_AUTO_FLOW_LABEL_MAX;
 
 static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
-					  void __user *buffer, size_t *lenp,
-					  loff_t *ppos)
+					  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
 	int ret;
@@ -203,29 +202,16 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	struct ctl_table *ipv6_table;
 	struct ctl_table *ipv6_route_table;
 	struct ctl_table *ipv6_icmp_table;
-	int err;
+	int err, i;
 
 	err = -ENOMEM;
 	ipv6_table = kmemdup(ipv6_table_template, sizeof(ipv6_table_template),
 			     GFP_KERNEL);
 	if (!ipv6_table)
 		goto out;
-	ipv6_table[0].data = &net->ipv6.sysctl.bindv6only;
-	ipv6_table[1].data = &net->ipv6.sysctl.anycast_src_echo_reply;
-	ipv6_table[2].data = &net->ipv6.sysctl.flowlabel_consistency;
-	ipv6_table[3].data = &net->ipv6.sysctl.auto_flowlabels;
-	ipv6_table[4].data = &net->ipv6.sysctl.fwmark_reflect;
-	ipv6_table[5].data = &net->ipv6.sysctl.idgen_retries;
-	ipv6_table[6].data = &net->ipv6.sysctl.idgen_delay;
-	ipv6_table[7].data = &net->ipv6.sysctl.flowlabel_state_ranges;
-	ipv6_table[8].data = &net->ipv6.sysctl.ip_nonlocal_bind;
-	ipv6_table[9].data = &net->ipv6.sysctl.flowlabel_reflect;
-	ipv6_table[10].data = &net->ipv6.sysctl.max_dst_opts_cnt;
-	ipv6_table[11].data = &net->ipv6.sysctl.max_hbh_opts_cnt;
-	ipv6_table[12].data = &net->ipv6.sysctl.max_dst_opts_len;
-	ipv6_table[13].data = &net->ipv6.sysctl.max_hbh_opts_len;
-	ipv6_table[14].data = &net->ipv6.sysctl.multipath_hash_policy,
-	ipv6_table[15].data = &net->ipv6.sysctl.seg6_flowlabel;
+	/* Update the variables to point into the current struct net */
+	for (i = 0; i < ARRAY_SIZE(ipv6_table_template) - 1; i++)
+		ipv6_table[i].data += (void *)net - (void *)&init_net;
 
 	ipv6_route_table = ipv6_route_sysctl_init(net);
 	if (!ipv6_route_table)

@@ -53,6 +53,7 @@
 #include "abm.h"
 #include "audio.h"
 #include "reg_helper.h"
+#include "panel_cntl.h"
 
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"
@@ -71,6 +72,8 @@
 #define PANEL_POWER_UP_TIMEOUT 300
 #define PANEL_POWER_DOWN_TIMEOUT 500
 #define HPD_CHECK_INTERVAL 10
+#define OLED_POST_T7_DELAY 100
+#define OLED_PRE_T11_DELAY 150
 
 #define CTX \
 	hws->ctx
@@ -695,28 +698,6 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 
 }
 
-/*todo: cloned in stream enc, fix*/
-static bool is_panel_backlight_on(struct dce_hwseq *hws)
-{
-	uint32_t value;
-
-	REG_GET(LVTMA_PWRSEQ_CNTL, LVTMA_BLON, &value);
-
-	return value;
-}
-
-static bool is_panel_powered_on(struct dce_hwseq *hws)
-{
-	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
-
-
-	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &pwr_seq_state);
-
-	REG_GET_2(LVTMA_PWRSEQ_CNTL, LVTMA_DIGON, &dig_on, LVTMA_DIGON_OVRD, &dig_on_ovrd);
-
-	return (pwr_seq_state == 1) || (dig_on == 1 && dig_on_ovrd == 1);
-}
-
 static enum bp_result link_transmitter_control(
 		struct dc_bios *bios,
 	struct bp_transmitter_control *cntl)
@@ -805,7 +786,6 @@ void dce110_edp_power_control(
 		bool power_up)
 {
 	struct dc_context *ctx = link->ctx;
-	struct dce_hwseq *hwseq = ctx->dc->hwseq;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result bp_result;
 
@@ -816,7 +796,11 @@ void dce110_edp_power_control(
 		return;
 	}
 
-	if (power_up != is_panel_powered_on(hwseq)) {
+	if (!link->panel_cntl)
+		return;
+
+	if (power_up !=
+		link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl)) {
 		/* Send VBIOS command to prompt eDP panel power */
 		if (power_up) {
 			unsigned long long current_ts = dm_get_timestamp(ctx);
@@ -858,6 +842,17 @@ void dce110_edp_power_control(
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
 		cntl.hpd_sel = link->link_enc->hpd_source;
+
+		if (ctx->dc->ctx->dmub_srv &&
+				ctx->dc->debug.dmub_command_table) {
+			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
+				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+						LVTMA_CONTROL_POWER_ON);
+			else
+				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+						LVTMA_CONTROL_POWER_OFF);
+		}
+
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
 		if (!power_up)
@@ -887,7 +882,6 @@ void dce110_edp_backlight_control(
 		bool enable)
 {
 	struct dc_context *ctx = link->ctx;
-	struct dce_hwseq *hws = ctx->dc->hwseq;
 	struct bp_transmitter_control cntl = { 0 };
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
@@ -896,7 +890,8 @@ void dce110_edp_backlight_control(
 		return;
 	}
 
-	if (enable && is_panel_backlight_on(hws)) {
+	if (enable && link->panel_cntl &&
+		link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl)) {
 		DC_LOG_HW_RESUME_S3(
 				"%s: panel already powered up. Do nothing.\n",
 				__func__);
@@ -935,10 +930,35 @@ void dce110_edp_backlight_control(
 		/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 		edp_receiver_ready_T7(link);
+
+	if (ctx->dc->ctx->dmub_srv &&
+			ctx->dc->debug.dmub_command_table) {
+		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
+			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+					LVTMA_CONTROL_LCD_BLON);
+		else
+			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+					LVTMA_CONTROL_LCD_BLOFF);
+	}
+
 	link_transmitter_control(ctx->dc_bios, &cntl);
+
+
+
+	if (enable && link->dpcd_sink_ext_caps.bits.oled)
+		msleep(OLED_POST_T7_DELAY);
+
+	if (link->dpcd_sink_ext_caps.bits.oled ||
+		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
+		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)
+		dc_link_backlight_enable_aux(link, enable);
+
 	/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF)
 		edp_receiver_ready_T9(link);
+
+	if (!enable && link->dpcd_sink_ext_caps.bits.oled)
+		msleep(OLED_PRE_T11_DELAY);
 }
 
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
@@ -1070,11 +1090,20 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 		hws->funcs.edp_backlight_control(link, false);
-		dc_link_set_abm_disable(link);
+		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
+
+		/*
+		 * After output is idle pattern some sinks need time to recognize the stream
+		 * has changed or they enter protection state and hang.
+		 */
+		if (!dc_is_embedded_signal(pipe_ctx->stream->signal))
+			msleep(60);
+	}
+
 }
 
 
@@ -1152,7 +1181,7 @@ static void build_audio_output(
 			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
 /*for HDMI, audio ACR is with deep color ratio factor*/
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) &&
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) &&
 		audio_output->crtc_info.requested_pixel_clock_100Hz ==
 				(stream->timing.pix_clk_100hz)) {
 		if (pipe_ctx->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
@@ -1415,7 +1444,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
-	pipe_ctx->stream->link->psr_feature_enabled = false;
+	pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
 
 	return DC_OK;
 }
@@ -1447,6 +1476,8 @@ static void power_down_encoders(struct dc *dc)
 
 		dc->links[i]->link_enc->funcs->disable_output(
 				dc->links[i]->link_enc, signal);
+
+		dc->links[i]->link_status.link_active = false;
 	}
 }
 
@@ -1821,7 +1852,7 @@ static bool should_enable_fbc(struct dc *dc,
 		return false;
 
 	/* PSR should not be enabled */
-	if (pipe_ctx->stream->link->psr_feature_enabled)
+	if (pipe_ctx->stream->link->psr_settings.psr_feature_enabled)
 		return false;
 
 	/* Nothing to compress */
@@ -1965,10 +1996,8 @@ static void dce110_setup_audio_dto(
 
 		if (pipe_ctx->top_pipe)
 			continue;
-
 		if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
 			continue;
-
 		if (pipe_ctx->stream_res.audio != NULL) {
 			struct audio_output audio_output;
 
@@ -2359,6 +2388,7 @@ static void init_hw(struct dc *dc)
 	struct abm *abm;
 	struct dmcu *dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
+	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
 	bp = dc->ctx->dc_bios;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2405,11 +2435,16 @@ static void init_hw(struct dc *dc)
 		audio->funcs->hw_init(audio);
 	}
 
-	abm = dc->res_pool->abm;
-	if (abm != NULL) {
-		abm->funcs->init_backlight(abm);
-		abm->funcs->abm_init(abm);
+	for (i = 0; i < dc->link_count; i++) {
+		struct dc_link *link = dc->links[i];
+
+		if (link->panel_cntl)
+			backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
 	}
+
+	abm = dc->res_pool->abm;
+	if (abm != NULL)
+		abm->funcs->abm_init(abm, backlight);
 
 	dmcu = dc->res_pool->dmcu;
 	if (dmcu != NULL && abm != NULL)
@@ -2576,17 +2611,6 @@ static void dce110_apply_ctx_for_surface(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (stream == pipe_ctx->stream) {
-			if (!pipe_ctx->top_pipe &&
-				(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
-				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
-		}
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->stream != stream)
 			continue;
@@ -2607,18 +2631,14 @@ static void dce110_apply_ctx_for_surface(
 
 	}
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-
-		if ((stream == pipe_ctx->stream) &&
-			(!pipe_ctx->top_pipe) &&
-			(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
-			dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
-	}
-
 	if (dc->fbc_compressor)
 		enable_fbc(dc, context);
+}
+
+static void dce110_post_unlock_program_front_end(
+		struct dc *dc,
+		struct dc_state *context)
+{
 }
 
 static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
@@ -2683,6 +2703,23 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
 
+	/**
+	 * If the cursor's source viewport is clipped then we need to
+	 * translate the cursor to appear in the correct position on
+	 * the screen.
+	 *
+	 * This translation isn't affected by scaling so it needs to be
+	 * done *after* we adjust the position for the scale factor.
+	 *
+	 * This is only done by opt-in for now since there are still
+	 * some usecases like tiled display that might enable the
+	 * cursor on both streams while expecting dc to clip it.
+	 */
+	if (pos_cpy.translate_by_source) {
+		pos_cpy.x += pipe_ctx->plane_state->src_rect.x;
+		pos_cpy.y += pipe_ctx->plane_state->src_rect.y;
+	}
+
 	if (pipe_ctx->plane_state->address.type
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
 		pos_cpy.enable = false;
@@ -2716,12 +2753,70 @@ void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 				pipe_ctx->plane_res.xfm, attributes);
 }
 
+bool dce110_set_backlight_level(struct pipe_ctx *pipe_ctx,
+		uint32_t backlight_pwm_u16_16,
+		uint32_t frame_ramp)
+{
+	struct dc_link *link = pipe_ctx->stream->link;
+	struct dc  *dc = link->ctx->dc;
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = link->panel_cntl;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	bool fw_set_brightness = true;
+	/* DMCU -1 for all controller id values,
+	 * therefore +1 here
+	 */
+	uint32_t controller_id = pipe_ctx->stream_res.tg->inst + 1;
+
+	if (abm == NULL || panel_cntl == NULL || (abm->funcs->set_backlight_level_pwm == NULL))
+		return false;
+
+	if (dmcu)
+		fw_set_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
+
+	if (!fw_set_brightness && panel_cntl->funcs->driver_set_backlight)
+		panel_cntl->funcs->driver_set_backlight(panel_cntl, backlight_pwm_u16_16);
+	else
+		abm->funcs->set_backlight_level_pwm(
+				abm,
+				backlight_pwm_u16_16,
+				frame_ramp,
+				controller_id,
+				link->panel_cntl->inst);
+
+	return true;
+}
+
+void dce110_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
+{
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+
+	if (abm)
+		abm->funcs->set_abm_immediate_disable(abm,
+				pipe_ctx->stream->link->panel_cntl->inst);
+
+	if (panel_cntl)
+		panel_cntl->funcs->store_backlight_level(panel_cntl);
+}
+
+void dce110_set_pipe(struct pipe_ctx *pipe_ctx)
+{
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+	uint32_t otg_inst = pipe_ctx->stream_res.tg->inst + 1;
+
+	if (abm && panel_cntl)
+		abm->funcs->set_pipe(abm, otg_inst, panel_cntl->inst);
+}
+
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_output_csc = program_output_csc,
 	.init_hw = init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dce110_apply_ctx_for_surface,
+	.post_unlock_program_front_end = dce110_post_unlock_program_front_end,
 	.update_plane_addr = update_plane_addr,
 	.update_pending_status = dce110_update_pending_status,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
@@ -2736,6 +2831,8 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dce110_power_down_fe,
 	.pipe_control_lock = dce_pipe_control_lock,
+	.interdependent_update_lock = NULL,
+	.cursor_lock = dce_pipe_control_lock,
 	.prepare_bandwidth = dce110_prepare_bandwidth,
 	.optimize_bandwidth = dce110_optimize_bandwidth,
 	.set_drr = set_drr,
@@ -2747,7 +2844,10 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.edp_power_control = dce110_edp_power_control,
 	.edp_wait_for_hpd_ready = dce110_edp_wait_for_hpd_ready,
 	.set_cursor_position = dce110_set_cursor_position,
-	.set_cursor_attribute = dce110_set_cursor_attribute
+	.set_cursor_attribute = dce110_set_cursor_attribute,
+	.set_backlight_level = dce110_set_backlight_level,
+	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
+	.set_pipe = dce110_set_pipe,
 };
 
 static const struct hwseq_private_funcs dce110_private_funcs = {

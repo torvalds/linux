@@ -52,8 +52,8 @@ struct rcar_csi2;
 
 /*
  * Channel Data Type Select
- * VCDT[0-15]:  Channel 1 VCDT[16-31]:  Channel 2
- * VCDT2[0-15]: Channel 3 VCDT2[16-31]: Channel 4
+ * VCDT[0-15]:  Channel 0 VCDT[16-31]:  Channel 1
+ * VCDT2[0-15]: Channel 2 VCDT2[16-31]: Channel 3
  */
 #define VCDT_REG			0x10
 #define VCDT2_REG			0x14
@@ -320,6 +320,7 @@ static const struct rcar_csi2_format rcar_csi2_formats[] = {
 	{ .code = MEDIA_BUS_FMT_YUYV8_1X16,	.datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_UYVY8_2X8,	.datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_YUYV10_2X10,	.datatype = 0x1e, .bpp = 20 },
+	{ .code = MEDIA_BUS_FMT_SRGGB8_1X8,     .datatype = 0x2a, .bpp = 8 },
 };
 
 static const struct rcar_csi2_format *rcsi2_code_to_fmt(unsigned int code)
@@ -344,7 +345,7 @@ enum rcar_csi2_pads {
 
 struct rcar_csi2_info {
 	int (*init_phtw)(struct rcar_csi2 *priv, unsigned int mbps);
-	int (*confirm_start)(struct rcar_csi2 *priv);
+	int (*phy_post_init)(struct rcar_csi2 *priv);
 	const struct rcsi2_mbps_reg *hsfreqrange;
 	unsigned int csi0clkfreqrange;
 	unsigned int num_channels;
@@ -575,9 +576,9 @@ static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 	if (ret)
 		return ret;
 
-	/* Confirm start */
-	if (priv->info->confirm_start) {
-		ret = priv->info->confirm_start(priv);
+	/* Run post PHY start initialization, if needed. */
+	if (priv->info->phy_post_init) {
+		ret = priv->info->phy_post_init(priv);
 		if (ret)
 			return ret;
 	}
@@ -975,7 +976,7 @@ static int rcsi2_init_phtw_v3m_e3(struct rcar_csi2 *priv, unsigned int mbps)
 	return rcsi2_phtw_write_mbps(priv, mbps, phtw_mbps_v3m_e3, 0x44);
 }
 
-static int rcsi2_confirm_start_v3m_e3(struct rcar_csi2 *priv)
+static int rcsi2_phy_post_init_v3m_e3(struct rcar_csi2 *priv)
 {
 	static const struct phtw_value step1[] = {
 		{ .data = 0xee, .code = 0x34 },
@@ -1059,7 +1060,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77965 = {
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77970 = {
 	.init_phtw = rcsi2_init_phtw_v3m_e3,
-	.confirm_start = rcsi2_confirm_start_v3m_e3,
+	.phy_post_init = rcsi2_phy_post_init_v3m_e3,
 	.num_channels = 4,
 };
 
@@ -1072,7 +1073,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77980 = {
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77990 = {
 	.init_phtw = rcsi2_init_phtw_v3m_e3,
-	.confirm_start = rcsi2_confirm_start_v3m_e3,
+	.phy_post_init = rcsi2_phy_post_init_v3m_e3,
 	.num_channels = 2,
 };
 

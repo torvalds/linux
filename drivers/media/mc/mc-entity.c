@@ -386,7 +386,7 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
 	if (ret)
 		return ret;
 
-	ret = entity->ops->get_fwnode_pad(&endpoint);
+	ret = entity->ops->get_fwnode_pad(entity, &endpoint);
 	if (ret < 0)
 		return ret;
 
@@ -662,9 +662,14 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	struct media_link *link;
 	struct media_link *backlink;
 
-	BUG_ON(source == NULL || sink == NULL);
-	BUG_ON(source_pad >= source->num_pads);
-	BUG_ON(sink_pad >= sink->num_pads);
+	if (WARN_ON(!source || !sink) ||
+	    WARN_ON(source_pad >= source->num_pads) ||
+	    WARN_ON(sink_pad >= sink->num_pads))
+		return -EINVAL;
+	if (WARN_ON(!(source->pads[source_pad].flags & MEDIA_PAD_FL_SOURCE)))
+		return -EINVAL;
+	if (WARN_ON(!(sink->pads[sink_pad].flags & MEDIA_PAD_FL_SINK)))
+		return -EINVAL;
 
 	link = media_add_link(&source->links);
 	if (link == NULL)

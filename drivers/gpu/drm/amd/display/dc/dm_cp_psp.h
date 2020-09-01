@@ -32,11 +32,13 @@ struct cp_psp_stream_config {
 	uint8_t otg_inst;
 	uint8_t link_enc_inst;
 	uint8_t stream_enc_inst;
+	uint8_t mst_supported;
 	void *dm_stream_ctx;
 	bool dpms_off;
 };
 
 struct cp_psp_funcs {
+	bool (*enable_assr)(void *handle, struct dc_link *link);
 	void (*update_stream_config)(void *handle, struct cp_psp_stream_config *config);
 };
 

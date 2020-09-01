@@ -84,9 +84,7 @@ u32 tmc_get_memwidth_mask(struct tmc_drvdata *drvdata)
 	 */
 	switch (drvdata->memwidth) {
 	case TMC_MEM_INTF_WIDTH_32BITS:
-	/* fallthrough */
 	case TMC_MEM_INTF_WIDTH_64BITS:
-	/* fallthrough */
 	case TMC_MEM_INTF_WIDTH_128BITS:
 		mask = GENMASK(31, 4);
 		break;
@@ -361,7 +359,7 @@ static const struct attribute_group coresight_tmc_mgmt_group = {
 	.name = "mgmt",
 };
 
-const struct attribute_group *coresight_tmc_groups[] = {
+static const struct attribute_group *coresight_tmc_groups[] = {
 	&coresight_tmc_group,
 	&coresight_tmc_mgmt_group,
 	NULL,
@@ -484,7 +482,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 		break;
 	case TMC_CONFIG_TYPE_ETR:
 		desc.type = CORESIGHT_DEV_TYPE_SINK;
-		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
+		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_SYSMEM;
 		desc.ops = &tmc_etr_cs_ops;
 		ret = tmc_etr_setup_caps(dev, devid,
 					 coresight_get_uci_data(id));
@@ -496,6 +494,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 		break;
 	case TMC_CONFIG_TYPE_ETF:
 		desc.type = CORESIGHT_DEV_TYPE_LINKSINK;
+		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
 		desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_FIFO;
 		desc.ops = &tmc_etf_cs_ops;
 		dev_list = &etf_devs;
@@ -538,6 +537,28 @@ out:
 	return ret;
 }
 
+static void tmc_shutdown(struct amba_device *adev)
+{
+	unsigned long flags;
+	struct tmc_drvdata *drvdata = amba_get_drvdata(adev);
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+
+	if (drvdata->mode == CS_MODE_DISABLED)
+		goto out;
+
+	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR)
+		tmc_etr_disable_hw(drvdata);
+
+	/*
+	 * We do not care about coresight unregister here unlike remove
+	 * callback which is required for making coresight modular since
+	 * the system is going down after this.
+	 */
+out:
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+}
+
 static const struct amba_id tmc_ids[] = {
 	CS_AMBA_ID(0x000bb961),
 	/* Coresight SoC 600 TMC-ETR/ETS */
@@ -556,6 +577,7 @@ static struct amba_driver tmc_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe		= tmc_probe,
+	.shutdown	= tmc_shutdown,
 	.id_table	= tmc_ids,
 };
 builtin_amba_driver(tmc_driver);

@@ -3,7 +3,7 @@
 
 time_start=$(date +%s)
 
-optstring="b:d:e:l:r:h4cm:"
+optstring="S:R:d:e:l:r:h4cm:f:t"
 ret=0
 sin=""
 sout=""
@@ -19,7 +19,10 @@ tc_loss=$((RANDOM%101))
 tc_reorder=""
 testmode=""
 sndbuf=0
+rcvbuf=0
 options_log=true
+do_tcp=0
+filesize=0
 
 if [ $tc_loss -eq 100 ];then
 	tc_loss=1%
@@ -39,8 +42,11 @@ usage() {
 	echo -e "\t-e: ethtool features to disable, e.g.: \"-e tso -e gso\" (default: randomly disable any of tso/gso/gro)"
 	echo -e "\t-4: IPv4 only: disable IPv6 tests (default: test both IPv4 and IPv6)"
 	echo -e "\t-c: capture packets for each test using tcpdump (default: no capture)"
-	echo -e "\t-b: set sndbuf value (default: use kernel default)"
+	echo -e "\t-f: size of file to transfer in bytes (default random)"
+	echo -e "\t-S: set sndbuf value (default: use kernel default)"
+	echo -e "\t-R: set rcvbuf value (default: use kernel default)"
 	echo -e "\t-m: test mode (poll, sendfile; default: poll)"
+	echo -e "\t-t: also run tests with TCP (use twice to non-fallback tcp)"
 }
 
 while getopts "$optstring" option;do
@@ -73,16 +79,30 @@ while getopts "$optstring" option;do
 	"c")
 		capture=true
 		;;
-	"b")
+	"S")
 		if [ $OPTARG -ge 0 ];then
 			sndbuf="$OPTARG"
 		else
-			echo "-s requires numeric argument, got \"$OPTARG\"" 1>&2
+			echo "-S requires numeric argument, got \"$OPTARG\"" 1>&2
+			exit 1
+		fi
+		;;
+	"R")
+		if [ $OPTARG -ge 0 ];then
+			rcvbuf="$OPTARG"
+		else
+			echo "-R requires numeric argument, got \"$OPTARG\"" 1>&2
 			exit 1
 		fi
 		;;
 	"m")
 		testmode="$OPTARG"
+		;;
+	"f")
+		filesize="$OPTARG"
+		;;
+	"t")
+		do_tcp=$((do_tcp+1))
 		;;
 	"?")
 		usage $0
@@ -175,6 +195,9 @@ ip -net "$ns4" addr add dead:beef:3::1/64 dev ns4eth3 nodad
 ip -net "$ns4" link set ns4eth3 up
 ip -net "$ns4" route add default via 10.0.3.2
 ip -net "$ns4" route add default via dead:beef:3::2
+
+# use TCP syn cookies, even if no flooding was detected.
+ip netns exec "$ns2" sysctl -q net.ipv4.tcp_syncookies=2
 
 set_ethtool_flags() {
 	local ns="$1"
@@ -342,8 +365,12 @@ do_transfer()
 	port=$((10000+$TEST_COUNT))
 	TEST_COUNT=$((TEST_COUNT+1))
 
+	if [ "$rcvbuf" -gt 0 ]; then
+		extra_args="$extra_args -R $rcvbuf"
+	fi
+
 	if [ "$sndbuf" -gt 0 ]; then
-		extra_args="$extra_args -b $sndbuf"
+		extra_args="$extra_args -S $sndbuf"
 	fi
 
 	if [ -n "$testmode" ]; then
@@ -371,13 +398,22 @@ do_transfer()
 			capuser="-Z $SUDO_USER"
 		fi
 
-		local capfile="${listener_ns}-${connector_ns}-${cl_proto}-${srv_proto}-${connect_addr}.pcap"
+		local capfile="${rndh}-${connector_ns:0:3}-${listener_ns:0:3}-${cl_proto}-${srv_proto}-${connect_addr}-${port}"
+		local capopt="-i any -s 65535 -B 32768 ${capuser}"
 
-		ip netns exec ${listener_ns} tcpdump -i any -s 65535 -B 32768 $capuser -w $capfile > "$capout" 2>&1 &
-		local cappid=$!
+		ip netns exec ${listener_ns}  tcpdump ${capopt} -w "${capfile}-listener.pcap"  >> "${capout}" 2>&1 &
+		local cappid_listener=$!
+
+		ip netns exec ${connector_ns} tcpdump ${capopt} -w "${capfile}-connector.pcap" >> "${capout}" 2>&1 &
+		local cappid_connector=$!
 
 		sleep 1
 	fi
+
+	local stat_synrx_last_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableSYNRX | while read a count c rest ;do  echo $count;done)
+	local stat_ackrx_last_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableACKRX | while read a count c rest ;do  echo $count;done)
+	local stat_cookietx_last=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesSent | while read a count c rest ;do  echo $count;done)
+	local stat_cookierx_last=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesRecv | while read a count c rest ;do  echo $count;done)
 
 	ip netns exec ${listener_ns} ./mptcp_connect -t $timeout -l -p $port -s ${srv_proto} $extra_args $local_addr < "$sin" > "$sout" &
 	local spid=$!
@@ -399,7 +435,8 @@ do_transfer()
 
 	if $capture; then
 		sleep 1
-		kill $cappid
+		kill ${cappid_listener}
+		kill ${cappid_connector}
 	fi
 
 	local duration
@@ -421,6 +458,45 @@ do_transfer()
 	check_transfer $cin $sout "file received by server"
 	rets=$?
 
+	local stat_synrx_now_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableSYNRX  | while read a count c rest ;do  echo $count;done)
+	local stat_ackrx_now_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableACKRX  | while read a count c rest ;do  echo $count;done)
+
+	local stat_cookietx_now=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesSent | while read a count c rest ;do  echo $count;done)
+	local stat_cookierx_now=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesRecv | while read a count c rest ;do  echo $count;done)
+
+	expect_synrx=$((stat_synrx_last_l))
+	expect_ackrx=$((stat_ackrx_last_l))
+
+	cookies=$(ip netns exec ${listener_ns} sysctl net.ipv4.tcp_syncookies)
+	cookies=${cookies##*=}
+
+	if [ ${cl_proto} = "MPTCP" ] && [ ${srv_proto} = "MPTCP" ]; then
+		expect_synrx=$((stat_synrx_last_l+1))
+		expect_ackrx=$((stat_ackrx_last_l+1))
+	fi
+	if [ $cookies -eq 2 ];then
+		if [ $stat_cookietx_last -ge $stat_cookietx_now ] ;then
+			echo "${listener_ns} CookieSent: ${cl_proto} -> ${srv_proto}: did not advance"
+		fi
+		if [ $stat_cookierx_last -ge $stat_cookierx_now ] ;then
+			echo "${listener_ns} CookieRecv: ${cl_proto} -> ${srv_proto}: did not advance"
+		fi
+	else
+		if [ $stat_cookietx_last -ne $stat_cookietx_now ] ;then
+			echo "${listener_ns} CookieSent: ${cl_proto} -> ${srv_proto}: changed"
+		fi
+		if [ $stat_cookierx_last -ne $stat_cookierx_now ] ;then
+			echo "${listener_ns} CookieRecv: ${cl_proto} -> ${srv_proto}: changed"
+		fi
+	fi
+
+	if [ $expect_synrx -ne $stat_synrx_now_l ] ;then
+		echo "${listener_ns} SYNRX: ${cl_proto} -> ${srv_proto}: expect ${expect_synrx}, got ${stat_synrx_now_l}"
+	fi
+	if [ $expect_ackrx -ne $stat_ackrx_now_l ] ;then
+		echo "${listener_ns} ACKRX: ${cl_proto} -> ${srv_proto}: expect ${expect_synrx}, got ${stat_synrx_now_l}"
+	fi
+
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ];then
 		echo "$duration [ OK ]"
 		cat "$capout"
@@ -435,20 +511,25 @@ make_file()
 {
 	local name=$1
 	local who=$2
+	local SIZE=$filesize
+	local ksize
+	local rem
 
-	local SIZE TSIZE
-	SIZE=$((RANDOM % (1024 * 8)))
-	TSIZE=$((SIZE * 1024))
+	if [ $SIZE -eq 0 ]; then
+		local MAXSIZE=$((1024 * 1024 * 8))
+		local MINSIZE=$((1024 * 256))
 
-	dd if=/dev/urandom of="$name" bs=1024 count=$SIZE 2> /dev/null
+		SIZE=$(((RANDOM * RANDOM + MINSIZE) % MAXSIZE))
+	fi
 
-	SIZE=$((RANDOM % 1024))
-	SIZE=$((SIZE + 128))
-	TSIZE=$((TSIZE + SIZE))
-	dd if=/dev/urandom conv=notrunc of="$name" bs=1 count=$SIZE 2> /dev/null
+	ksize=$((SIZE / 1024))
+	rem=$((SIZE - (ksize * 1024)))
+
+	dd if=/dev/urandom of="$name" bs=1024 count=$ksize 2> /dev/null
+	dd if=/dev/urandom conv=notrunc of="$name" bs=1 count=$rem 2> /dev/null
 	echo -e "\nMPTCP_TEST_FILE_END_MARKER" >> "$name"
 
-	echo "Created $name (size $TSIZE) containing data sent by $who"
+	echo "Created $name (size $(du -b "$name")) containing data sent by $who"
 }
 
 run_tests_lo()
@@ -483,9 +564,11 @@ run_tests_lo()
 		return 1
 	fi
 
-	# don't bother testing fallback tcp except for loopback case.
-	if [ ${listener_ns} != ${connector_ns} ]; then
-		return 0
+	if [ $do_tcp -eq 0 ]; then
+		# don't bother testing fallback tcp except for loopback case.
+		if [ ${listener_ns} != ${connector_ns} ]; then
+			return 0
+		fi
 	fi
 
 	do_transfer ${listener_ns} ${connector_ns} MPTCP TCP ${connect_addr} ${local_addr}
@@ -500,6 +583,15 @@ run_tests_lo()
 	if [ $lret -ne 0 ]; then
 		ret=$lret
 		return 1
+	fi
+
+	if [ $do_tcp -gt 1 ] ;then
+		do_transfer ${listener_ns} ${connector_ns} TCP TCP ${connect_addr} ${local_addr}
+		lret=$?
+		if [ $lret -ne 0 ]; then
+			ret=$lret
+			return 1
+		fi
 	fi
 
 	return 0

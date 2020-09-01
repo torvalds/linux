@@ -34,18 +34,6 @@ properties:
           - adi,adt7461
             # +/-1C TDM Extended Temp Range I.C
           - adt7461
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7473
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7475
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7476
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7490
-            # Three-Axis Digital Accelerometer
-          - adi,adxl345
-            # Three-Axis Digital Accelerometer (backward-compatibility value "adi,adxl345" must be listed too)
-          - adi,adxl346
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
             # i2c serial eeprom  (24cxx)
@@ -92,8 +80,6 @@ properties:
           - fsl,mpl3115
             # MPR121: Proximity Capacitive Touch Sensor Controller
           - fsl,mpr121
-            # SGTL5000: Ultra Low-Power Audio Codec
-          - fsl,sgtl5000
             # G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
           - gmt,g751
             # Infineon IR38064 Voltage Regulator
@@ -312,7 +298,7 @@ properties:
           - national,lm80
             # Temperature sensor with integrated fan control
           - national,lm85
-            # ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator with Two-Wire Interface
+            # I2C ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator
           - national,lm92
             # i2c trusted platform module (TPM)
           - nuvoton,npct501
@@ -350,6 +336,8 @@ properties:
           - ti,ads7830
             # Temperature Monitoring and Fan Control
           - ti,amc6821
+            # Temperature sensor with 2-wire interface
+          - ti,lm73
             # Temperature sensor with integrated fan control
           - ti,lm96000
             # I2C Touch-Screen Controller
@@ -372,5 +360,7 @@ properties:
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 ...

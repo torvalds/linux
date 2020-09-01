@@ -4,7 +4,7 @@
  *
  * This is a basic crc64 implementation following ECMA-182 specification,
  * which can be found from,
- * http://www.ecma-international.org/publications/standards/Ecma-182.htm
+ * https://www.ecma-international.org/publications/standards/Ecma-182.htm
  *
  * Dr. Ross N. Williams has a great document to introduce the idea of CRC
  * algorithm, here the CRC64 code is also inspired by the table-driven

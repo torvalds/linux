@@ -48,6 +48,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->chunk_sectors = 0;
 	lim->max_write_same_sectors = 0;
 	lim->max_write_zeroes_sectors = 0;
+	lim->max_zone_append_sectors = 0;
 	lim->max_discard_sectors = 0;
 	lim->max_hw_discard_sectors = 0;
 	lim->discard_granularity = 0;
@@ -83,44 +84,9 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	lim->max_dev_sectors = UINT_MAX;
 	lim->max_write_same_sectors = UINT_MAX;
 	lim->max_write_zeroes_sectors = UINT_MAX;
+	lim->max_zone_append_sectors = UINT_MAX;
 }
 EXPORT_SYMBOL(blk_set_stacking_limits);
-
-/**
- * blk_queue_make_request - define an alternate make_request function for a device
- * @q:  the request queue for the device to be affected
- * @mfn: the alternate make_request function
- *
- * Description:
- *    The normal way for &struct bios to be passed to a device
- *    driver is for them to be collected into requests on a request
- *    queue, and then to allow the device driver to select requests
- *    off that queue when it is ready.  This works well for many block
- *    devices. However some block devices (typically virtual devices
- *    such as md or lvm) do not benefit from the processing on the
- *    request queue, and are served best by having the requests passed
- *    directly to them.  This can be achieved by providing a function
- *    to blk_queue_make_request().
- *
- * Caveat:
- *    The driver that does this *must* be able to deal appropriately
- *    with buffers in "highmemory". This can be accomplished by either calling
- *    kmap_atomic() to get a temporary kernel mapping, or by calling
- *    blk_queue_bounce() to create a buffer in normal memory.
- **/
-void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
-{
-	/*
-	 * set defaults
-	 */
-	q->nr_requests = BLKDEV_MAX_RQ;
-
-	q->make_request_fn = mfn;
-	blk_queue_dma_alignment(q, 511);
-
-	blk_set_default_limits(&q->limits);
-}
-EXPORT_SYMBOL(blk_queue_make_request);
 
 /**
  * blk_queue_bounce_limit - set bounce buffer limit for queue
@@ -256,6 +222,33 @@ void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
 	q->limits.max_write_zeroes_sectors = max_write_zeroes_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_write_zeroes_sectors);
+
+/**
+ * blk_queue_max_zone_append_sectors - set max sectors for a single zone append
+ * @q:  the request queue for the device
+ * @max_zone_append_sectors: maximum number of sectors to write per command
+ **/
+void blk_queue_max_zone_append_sectors(struct request_queue *q,
+		unsigned int max_zone_append_sectors)
+{
+	unsigned int max_sectors;
+
+	if (WARN_ON(!blk_queue_is_zoned(q)))
+		return;
+
+	max_sectors = min(q->limits.max_hw_sectors, max_zone_append_sectors);
+	max_sectors = min(q->limits.chunk_sectors, max_sectors);
+
+	/*
+	 * Signal eventual driver bugs resulting in the max_zone_append sectors limit
+	 * being 0 due to a 0 argument, the chunk_sectors limit (zone size) not set,
+	 * or the max_hw_sectors limit not set.
+	 */
+	WARN_ON(!max_sectors);
+
+	q->limits.max_zone_append_sectors = max_sectors;
+}
+EXPORT_SYMBOL_GPL(blk_queue_max_zone_append_sectors);
 
 /**
  * blk_queue_max_segments - set max hw segments for a request for this queue
@@ -463,17 +456,6 @@ void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 EXPORT_SYMBOL(blk_queue_io_opt);
 
 /**
- * blk_queue_stack_limits - inherit underlying queue limits for stacked drivers
- * @t:	the stacking driver (top)
- * @b:  the underlying device (bottom)
- **/
-void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
-{
-	blk_stack_limits(&t->limits, &b->limits, 0);
-}
-EXPORT_SYMBOL(blk_queue_stack_limits);
-
-/**
  * blk_stack_limits - adjust queue_limits for stacked devices
  * @t:	the stacking driver limits (top device)
  * @b:  the underlying queue limits (bottom, component device)
@@ -506,6 +488,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					b->max_write_same_sectors);
 	t->max_write_zeroes_sectors = min(t->max_write_zeroes_sectors,
 					b->max_write_zeroes_sectors);
+	t->max_zone_append_sectors = min(t->max_zone_append_sectors,
+					b->max_zone_append_sectors);
 	t->bounce_pfn = min_not_zero(t->bounce_pfn, b->bounce_pfn);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
@@ -614,31 +598,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		t->chunk_sectors = min_not_zero(t->chunk_sectors,
 						b->chunk_sectors);
 
+	t->zoned = max(t->zoned, b->zoned);
 	return ret;
 }
 EXPORT_SYMBOL(blk_stack_limits);
-
-/**
- * bdev_stack_limits - adjust queue limits for stacked drivers
- * @t:	the stacking driver limits (top device)
- * @bdev:  the component block_device (bottom)
- * @start:  first data sector within component device
- *
- * Description:
- *    Merges queue limits for a top device and a block_device.  Returns
- *    0 if alignment didn't change.  Returns -1 if adding the bottom
- *    device caused misalignment.
- */
-int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
-		      sector_t start)
-{
-	struct request_queue *bq = bdev_get_queue(bdev);
-
-	start += get_start_sect(bdev);
-
-	return blk_stack_limits(t, &bq->limits, start);
-}
-EXPORT_SYMBOL(bdev_stack_limits);
 
 /**
  * disk_stack_limits - adjust queue limits for stacked drivers
@@ -655,7 +618,8 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 {
 	struct request_queue *t = disk->queue;
 
-	if (bdev_stack_limits(&t->limits, bdev, offset >> 9) < 0) {
+	if (blk_stack_limits(&t->limits, &bdev_get_queue(bdev)->limits,
+			get_start_sect(bdev) + (offset >> 9)) < 0) {
 		char top[BDEVNAME_SIZE], bottom[BDEVNAME_SIZE];
 
 		disk_name(disk, 0, top);
@@ -664,6 +628,9 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 		printk(KERN_NOTICE "%s: Warning: Device %s is misaligned\n",
 		       top, bottom);
 	}
+
+	t->backing_dev_info->io_pages =
+		t->limits.max_sectors >> (PAGE_SHIFT - 9);
 }
 EXPORT_SYMBOL(disk_stack_limits);
 
@@ -683,43 +650,6 @@ void blk_queue_update_dma_pad(struct request_queue *q, unsigned int mask)
 		q->dma_pad_mask = mask;
 }
 EXPORT_SYMBOL(blk_queue_update_dma_pad);
-
-/**
- * blk_queue_dma_drain - Set up a drain buffer for excess dma.
- * @q:  the request queue for the device
- * @dma_drain_needed: fn which returns non-zero if drain is necessary
- * @buf:	physically contiguous buffer
- * @size:	size of the buffer in bytes
- *
- * Some devices have excess DMA problems and can't simply discard (or
- * zero fill) the unwanted piece of the transfer.  They have to have a
- * real area of memory to transfer it into.  The use case for this is
- * ATAPI devices in DMA mode.  If the packet command causes a transfer
- * bigger than the transfer size some HBAs will lock up if there
- * aren't DMA elements to contain the excess transfer.  What this API
- * does is adjust the queue so that the buf is always appended
- * silently to the scatterlist.
- *
- * Note: This routine adjusts max_hw_segments to make room for appending
- * the drain buffer.  If you call blk_queue_max_segments() after calling
- * this routine, you must set the limit to one fewer than your device
- * can support otherwise there won't be room for the drain buffer.
- */
-int blk_queue_dma_drain(struct request_queue *q,
-			       dma_drain_needed_fn *dma_drain_needed,
-			       void *buf, unsigned int size)
-{
-	if (queue_max_segments(q) < 2)
-		return -EINVAL;
-	/* make room for appending the drain */
-	blk_queue_max_segments(q, queue_max_segments(q) - 1);
-	q->dma_drain_needed = dma_drain_needed;
-	q->dma_drain_buffer = buf;
-	q->dma_drain_size = size;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blk_queue_dma_drain);
 
 /**
  * blk_queue_segment_boundary - set boundary rules for segment merging

@@ -572,6 +572,9 @@ struct drm_i915_reg_descriptor {
 #define REG32(_reg, ...) \
 	{ .addr = (_reg), __VA_ARGS__ }
 
+#define REG32_IDX(_reg, idx) \
+	{ .addr = _reg(idx) }
+
 /*
  * Convenience macro for adding 64-bit registers.
  *
@@ -669,6 +672,7 @@ static const struct drm_i915_reg_descriptor gen9_blt_regs[] = {
 	REG64_IDX(RING_TIMESTAMP, BSD_RING_BASE),
 	REG32(BCS_SWCTRL),
 	REG64_IDX(RING_TIMESTAMP, BLT_RING_BASE),
+	REG32_IDX(RING_CTX_TIMESTAMP, BLT_RING_BASE),
 	REG64_IDX(BCS_GPR, 0),
 	REG64_IDX(BCS_GPR, 1),
 	REG64_IDX(BCS_GPR, 2),
@@ -803,10 +807,11 @@ static bool validate_cmds_sorted(const struct intel_engine_cs *engine,
 			u32 curr = desc->cmd.value & desc->cmd.mask;
 
 			if (curr < previous) {
-				DRM_ERROR("CMD: %s [%d] command table not sorted: "
-					  "table=%d entry=%d cmd=0x%08X prev=0x%08X\n",
-					  engine->name, engine->id,
-					  i, j, curr, previous);
+				drm_err(&engine->i915->drm,
+					"CMD: %s [%d] command table not sorted: "
+					"table=%d entry=%d cmd=0x%08X prev=0x%08X\n",
+					engine->name, engine->id,
+					i, j, curr, previous);
 				ret = false;
 			}
 
@@ -829,10 +834,11 @@ static bool check_sorted(const struct intel_engine_cs *engine,
 		u32 curr = i915_mmio_reg_offset(reg_table[i].addr);
 
 		if (curr < previous) {
-			DRM_ERROR("CMD: %s [%d] register table not sorted: "
-				  "entry=%d reg=0x%08X prev=0x%08X\n",
-				  engine->name, engine->id,
-				  i, curr, previous);
+			drm_err(&engine->i915->drm,
+				"CMD: %s [%d] register table not sorted: "
+				"entry=%d reg=0x%08X prev=0x%08X\n",
+				engine->name, engine->id,
+				i, curr, previous);
 			ret = false;
 		}
 
@@ -1010,18 +1016,21 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 	}
 
 	if (!validate_cmds_sorted(engine, cmd_tables, cmd_table_count)) {
-		DRM_ERROR("%s: command descriptions are not sorted\n",
-			  engine->name);
+		drm_err(&engine->i915->drm,
+			"%s: command descriptions are not sorted\n",
+			engine->name);
 		return;
 	}
 	if (!validate_regs_sorted(engine)) {
-		DRM_ERROR("%s: registers are not sorted\n", engine->name);
+		drm_err(&engine->i915->drm,
+			"%s: registers are not sorted\n", engine->name);
 		return;
 	}
 
 	ret = init_hash_table(engine, cmd_tables, cmd_table_count);
 	if (ret) {
-		DRM_ERROR("%s: initialised failed!\n", engine->name);
+		drm_err(&engine->i915->drm,
+			"%s: initialised failed!\n", engine->name);
 		fini_hash_table(engine);
 		return;
 	}
@@ -1195,6 +1204,12 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 	return dst;
 }
 
+static inline bool cmd_desc_is(const struct drm_i915_cmd_descriptor * const desc,
+			       const u32 cmd)
+{
+	return desc->cmd.value == (cmd & desc->cmd.mask);
+}
+
 static bool check_cmd(const struct intel_engine_cs *engine,
 		      const struct drm_i915_cmd_descriptor *desc,
 		      const u32 *cmd, u32 length)
@@ -1233,19 +1248,19 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 			 * allowed mask/value pair given in the whitelist entry.
 			 */
 			if (reg->mask) {
-				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
+				if (cmd_desc_is(desc, MI_LOAD_REGISTER_MEM)) {
 					DRM_DEBUG("CMD: Rejected LRM to masked register 0x%08X\n",
 						  reg_addr);
 					return false;
 				}
 
-				if (desc->cmd.value == MI_LOAD_REGISTER_REG) {
+				if (cmd_desc_is(desc, MI_LOAD_REGISTER_REG)) {
 					DRM_DEBUG("CMD: Rejected LRR to masked register 0x%08X\n",
 						  reg_addr);
 					return false;
 				}
 
-				if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1) &&
+				if (cmd_desc_is(desc, MI_LOAD_REGISTER_IMM(1)) &&
 				    (offset + 2 > length ||
 				     (cmd[offset + 1] & reg->mask) != reg->value)) {
 					DRM_DEBUG("CMD: Rejected LRI to masked register 0x%08X\n",
@@ -1469,7 +1484,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			break;
 		}
 
-		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
+		if (cmd_desc_is(desc, MI_BATCH_BUFFER_START)) {
 			ret = check_bbstart(cmd, offset, length, batch_length,
 					    batch_addr, shadow_addr,
 					    jump_whitelist);

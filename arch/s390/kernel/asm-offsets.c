@@ -11,9 +11,9 @@
 #include <linux/kvm_host.h>
 #include <linux/sched.h>
 #include <linux/purgatory.h>
+#include <linux/pgtable.h>
 #include <asm/idle.h>
 #include <asm/vdso.h>
-#include <asm/pgtable.h>
 #include <asm/gmap.h>
 #include <asm/nmi.h>
 #include <asm/stacktrace.h>
@@ -76,6 +76,7 @@ int main(void)
 	OFFSET(__VDSO_TK_SHIFT, vdso_data, tk_shift);
 	OFFSET(__VDSO_TS_DIR, vdso_data, ts_dir);
 	OFFSET(__VDSO_TS_END, vdso_data, ts_end);
+	OFFSET(__VDSO_CLOCK_REALTIME_RES, vdso_data, hrtimer_res);
 	OFFSET(__VDSO_ECTG_BASE, vdso_per_cpu_data, ectg_timer_base);
 	OFFSET(__VDSO_ECTG_USER, vdso_per_cpu_data, ectg_user_time);
 	OFFSET(__VDSO_GETCPU_VAL, vdso_per_cpu_data, getcpu_val);
@@ -86,7 +87,6 @@ int main(void)
 	DEFINE(__CLOCK_REALTIME_COARSE, CLOCK_REALTIME_COARSE);
 	DEFINE(__CLOCK_MONOTONIC_COARSE, CLOCK_MONOTONIC_COARSE);
 	DEFINE(__CLOCK_THREAD_CPUTIME_ID, CLOCK_THREAD_CPUTIME_ID);
-	DEFINE(__CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
 	DEFINE(__CLOCK_COARSE_RES, LOW_RES_NSEC);
 	BLANK();
 	/* idle data offsets */
@@ -124,6 +124,8 @@ int main(void)
 	OFFSET(__LC_EXT_DAMAGE_CODE, lowcore, external_damage_code);
 	OFFSET(__LC_MCCK_FAIL_STOR_ADDR, lowcore, failing_storage_address);
 	OFFSET(__LC_LAST_BREAK, lowcore, breaking_event_addr);
+	OFFSET(__LC_RETURN_LPSWE, lowcore, return_lpswe);
+	OFFSET(__LC_RETURN_MCCK_LPSWE, lowcore, return_mcck_lpswe);
 	OFFSET(__LC_RST_OLD_PSW, lowcore, restart_old_psw);
 	OFFSET(__LC_EXT_OLD_PSW, lowcore, external_old_psw);
 	OFFSET(__LC_SVC_OLD_PSW, lowcore, svc_old_psw);

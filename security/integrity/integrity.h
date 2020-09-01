@@ -6,6 +6,12 @@
  * Mimi Zohar <zohar@us.ibm.com>
  */
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/integrity.h>
 #include <crypto/sha.h>
@@ -101,7 +107,7 @@ struct ima_digest_data {
 		} ng;
 		u8 data[2];
 	} xattr;
-	u8 digest[0];
+	u8 digest[];
 } __packed;
 
 /*
@@ -113,7 +119,7 @@ struct signature_v2_hdr {
 	uint8_t	hash_algo;	/* Digest algorithm [enum hash_algo] */
 	__be32 keyid;		/* IMA key identifier - not X509/PGP specific */
 	__be16 sig_size;	/* signature size */
-	uint8_t sig[0];		/* signature payload */
+	uint8_t sig[];		/* signature payload */
 } __packed;
 
 /* integrity data associated with an inode */
@@ -233,6 +239,11 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int info);
 
+void integrity_audit_message(int audit_msgno, struct inode *inode,
+			     const unsigned char *fname, const char *op,
+			     const char *cause, int result, int info,
+			     int errno);
+
 static inline struct audit_buffer *
 integrity_audit_log_start(struct audit_context *ctx, gfp_t gfp_mask, int type)
 {
@@ -244,6 +255,14 @@ static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
 				       const unsigned char *fname,
 				       const char *op, const char *cause,
 				       int result, int info)
+{
+}
+
+static inline void integrity_audit_message(int audit_msgno,
+					   struct inode *inode,
+					   const unsigned char *fname,
+					   const char *op, const char *cause,
+					   int result, int info, int errno)
 {
 }
 

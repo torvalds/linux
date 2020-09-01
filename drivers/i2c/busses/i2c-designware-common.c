@@ -8,17 +8,22 @@
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
  */
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/device.h>
 #include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/swab.h>
+#include <linux/types.h>
 
 #include "i2c-designware-core.h"
 
@@ -53,68 +58,275 @@ static char *abort_sources[] = {
 		"incorrect slave-transmitter mode configuration",
 };
 
-u32 dw_readl(struct dw_i2c_dev *dev, int offset)
+static int dw_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
-	u32 value;
+	struct dw_i2c_dev *dev = context;
 
-	if (dev->flags & ACCESS_16BIT)
-		value = readw_relaxed(dev->base + offset) |
-			(readw_relaxed(dev->base + offset + 2) << 16);
-	else
-		value = readl_relaxed(dev->base + offset);
+	*val = readl_relaxed(dev->base + reg);
 
-	if (dev->flags & ACCESS_SWAP)
-		return swab32(value);
-	else
-		return value;
+	return 0;
 }
 
-void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
+static int dw_reg_write(void *context, unsigned int reg, unsigned int val)
 {
-	if (dev->flags & ACCESS_SWAP)
-		b = swab32(b);
+	struct dw_i2c_dev *dev = context;
 
-	if (dev->flags & ACCESS_16BIT) {
-		writew_relaxed((u16)b, dev->base + offset);
-		writew_relaxed((u16)(b >> 16), dev->base + offset + 2);
-	} else {
-		writel_relaxed(b, dev->base + offset);
-	}
+	writel_relaxed(val, dev->base + reg);
+
+	return 0;
+}
+
+static int dw_reg_read_swab(void *context, unsigned int reg, unsigned int *val)
+{
+	struct dw_i2c_dev *dev = context;
+
+	*val = swab32(readl_relaxed(dev->base + reg));
+
+	return 0;
+}
+
+static int dw_reg_write_swab(void *context, unsigned int reg, unsigned int val)
+{
+	struct dw_i2c_dev *dev = context;
+
+	writel_relaxed(swab32(val), dev->base + reg);
+
+	return 0;
+}
+
+static int dw_reg_read_word(void *context, unsigned int reg, unsigned int *val)
+{
+	struct dw_i2c_dev *dev = context;
+
+	*val = readw_relaxed(dev->base + reg) |
+		(readw_relaxed(dev->base + reg + 2) << 16);
+
+	return 0;
+}
+
+static int dw_reg_write_word(void *context, unsigned int reg, unsigned int val)
+{
+	struct dw_i2c_dev *dev = context;
+
+	writew_relaxed(val, dev->base + reg);
+	writew_relaxed(val >> 16, dev->base + reg + 2);
+
+	return 0;
 }
 
 /**
- * i2c_dw_set_reg_access() - Set register access flags
+ * i2c_dw_init_regmap() - Initialize registers map
  * @dev: device private data
  *
- * Autodetects needed register access mode and sets access flags accordingly.
- * This must be called before doing any other register access.
+ * Autodetects needed register access mode and creates the regmap with
+ * corresponding read/write callbacks. This must be called before doing any
+ * other register access.
  */
-int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
+int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
 {
+	struct regmap_config map_cfg = {
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.disable_locking = true,
+		.reg_read = dw_reg_read,
+		.reg_write = dw_reg_write,
+		.max_register = DW_IC_COMP_TYPE,
+	};
 	u32 reg;
 	int ret;
+
+	/*
+	 * Skip detecting the registers map configuration if the regmap has
+	 * already been provided by a higher code.
+	 */
+	if (dev->map)
+		return 0;
 
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
 		return ret;
 
-	reg = dw_readl(dev, DW_IC_COMP_TYPE);
+	reg = readl(dev->base + DW_IC_COMP_TYPE);
 	i2c_dw_release_lock(dev);
 
 	if (reg == swab32(DW_IC_COMP_TYPE_VALUE)) {
-		/* Configure register endianess access */
-		dev->flags |= ACCESS_SWAP;
+		map_cfg.reg_read = dw_reg_read_swab;
+		map_cfg.reg_write = dw_reg_write_swab;
 	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
-		/* Configure register access mode 16bit */
-		dev->flags |= ACCESS_16BIT;
+		map_cfg.reg_read = dw_reg_read_word;
+		map_cfg.reg_write = dw_reg_write_word;
 	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
 		dev_err(dev->dev,
 			"Unknown Synopsys component type: 0x%08x\n", reg);
 		return -ENODEV;
 	}
 
+	/*
+	 * Note we'll check the return value of the regmap IO accessors only
+	 * at the probe stage. The rest of the code won't do this because
+	 * basically we have MMIO-based regmap so non of the read/write methods
+	 * can fail.
+	 */
+	dev->map = devm_regmap_init(dev->dev, NULL, dev, &map_cfg);
+	if (IS_ERR(dev->map)) {
+		dev_err(dev->dev, "Failed to init the registers map\n");
+		return PTR_ERR(dev->map);
+	}
+
 	return 0;
 }
+
+static const u32 supported_speeds[] = {
+	I2C_MAX_HIGH_SPEED_MODE_FREQ,
+	I2C_MAX_FAST_MODE_PLUS_FREQ,
+	I2C_MAX_FAST_MODE_FREQ,
+	I2C_MAX_STANDARD_MODE_FREQ,
+};
+
+int i2c_dw_validate_speed(struct dw_i2c_dev *dev)
+{
+	struct i2c_timings *t = &dev->timings;
+	unsigned int i;
+
+	/*
+	 * Only standard mode at 100kHz, fast mode at 400kHz,
+	 * fast mode plus at 1MHz and high speed mode at 3.4MHz are supported.
+	 */
+	for (i = 0; i < ARRAY_SIZE(supported_speeds); i++) {
+		if (t->bus_freq_hz == supported_speeds[i])
+			return 0;
+	}
+
+	dev_err(dev->dev,
+		"%d Hz is unsupported, only 100kHz, 400kHz, 1MHz and 3.4MHz are supported\n",
+		t->bus_freq_hz);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_validate_speed);
+
+#ifdef CONFIG_ACPI
+
+#include <linux/dmi.h>
+
+/*
+ * The HCNT/LCNT information coming from ACPI should be the most accurate
+ * for given platform. However, some systems get it wrong. On such systems
+ * we get better results by calculating those based on the input clock.
+ */
+static const struct dmi_system_id i2c_dw_no_acpi_params[] = {
+	{
+		.ident = "Dell Inspiron 7348",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7348"),
+		},
+	},
+	{}
+};
+
+static void i2c_dw_acpi_params(struct device *device, char method[],
+			       u16 *hcnt, u16 *lcnt, u32 *sda_hold)
+{
+	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
+	acpi_handle handle = ACPI_HANDLE(device);
+	union acpi_object *obj;
+
+	if (dmi_check_system(i2c_dw_no_acpi_params))
+		return;
+
+	if (ACPI_FAILURE(acpi_evaluate_object(handle, method, NULL, &buf)))
+		return;
+
+	obj = (union acpi_object *)buf.pointer;
+	if (obj->type == ACPI_TYPE_PACKAGE && obj->package.count == 3) {
+		const union acpi_object *objs = obj->package.elements;
+
+		*hcnt = (u16)objs[0].integer.value;
+		*lcnt = (u16)objs[1].integer.value;
+		*sda_hold = (u32)objs[2].integer.value;
+	}
+
+	kfree(buf.pointer);
+}
+
+int i2c_dw_acpi_configure(struct device *device)
+{
+	struct dw_i2c_dev *dev = dev_get_drvdata(device);
+	struct i2c_timings *t = &dev->timings;
+	u32 ss_ht = 0, fp_ht = 0, hs_ht = 0, fs_ht = 0;
+
+	/*
+	 * Try to get SDA hold time and *CNT values from an ACPI method for
+	 * selected speed modes.
+	 */
+	i2c_dw_acpi_params(device, "SSCN", &dev->ss_hcnt, &dev->ss_lcnt, &ss_ht);
+	i2c_dw_acpi_params(device, "FPCN", &dev->fp_hcnt, &dev->fp_lcnt, &fp_ht);
+	i2c_dw_acpi_params(device, "HSCN", &dev->hs_hcnt, &dev->hs_lcnt, &hs_ht);
+	i2c_dw_acpi_params(device, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt, &fs_ht);
+
+	switch (t->bus_freq_hz) {
+	case I2C_MAX_STANDARD_MODE_FREQ:
+		dev->sda_hold_time = ss_ht;
+		break;
+	case I2C_MAX_FAST_MODE_PLUS_FREQ:
+		dev->sda_hold_time = fp_ht;
+		break;
+	case I2C_MAX_HIGH_SPEED_MODE_FREQ:
+		dev->sda_hold_time = hs_ht;
+		break;
+	case I2C_MAX_FAST_MODE_FREQ:
+	default:
+		dev->sda_hold_time = fs_ht;
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_acpi_configure);
+
+static u32 i2c_dw_acpi_round_bus_speed(struct device *device)
+{
+	u32 acpi_speed;
+	int i;
+
+	acpi_speed = i2c_acpi_find_bus_speed(device);
+	/*
+	 * Some DSTDs use a non standard speed, round down to the lowest
+	 * standard speed.
+	 */
+	for (i = 0; i < ARRAY_SIZE(supported_speeds); i++) {
+		if (acpi_speed >= supported_speeds[i])
+			return supported_speeds[i];
+	}
+
+	return 0;
+}
+
+#else	/* CONFIG_ACPI */
+
+static inline u32 i2c_dw_acpi_round_bus_speed(struct device *device) { return 0; }
+
+#endif	/* CONFIG_ACPI */
+
+void i2c_dw_adjust_bus_speed(struct dw_i2c_dev *dev)
+{
+	u32 acpi_speed = i2c_dw_acpi_round_bus_speed(dev->dev);
+	struct i2c_timings *t = &dev->timings;
+
+	/*
+	 * Find bus speed from the "clock-frequency" device property, ACPI
+	 * or by using fast mode if neither is set.
+	 */
+	if (acpi_speed && t->bus_freq_hz)
+		t->bus_freq_hz = min(t->bus_freq_hz, acpi_speed);
+	else if (acpi_speed || t->bus_freq_hz)
+		t->bus_freq_hz = max(t->bus_freq_hz, acpi_speed);
+	else
+		t->bus_freq_hz = I2C_MAX_FAST_MODE_FREQ;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_adjust_bus_speed);
 
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset)
 {
@@ -181,19 +393,25 @@ int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 		return ret;
 
 	/* Configure SDA Hold Time if required */
-	reg = dw_readl(dev, DW_IC_COMP_VERSION);
+	ret = regmap_read(dev->map, DW_IC_COMP_VERSION, &reg);
+	if (ret)
+		goto err_release_lock;
+
 	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
 		if (!dev->sda_hold_time) {
 			/* Keep previous hold time setting if no one set it */
-			dev->sda_hold_time = dw_readl(dev, DW_IC_SDA_HOLD);
+			ret = regmap_read(dev->map, DW_IC_SDA_HOLD,
+					  &dev->sda_hold_time);
+			if (ret)
+				goto err_release_lock;
 		}
 
 		/*
 		 * Workaround for avoiding TX arbitration lost in case I2C
-		 * slave pulls SDA down "too quickly" after falling egde of
+		 * slave pulls SDA down "too quickly" after falling edge of
 		 * SCL by enabling non-zero SDA RX hold. Specification says it
 		 * extends incoming SDA low to high transition while SCL is
-		 * high but it apprears to help also above issue.
+		 * high but it appears to help also above issue.
 		 */
 		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
 			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
@@ -209,14 +427,16 @@ int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 		dev->sda_hold_time = 0;
 	}
 
+err_release_lock:
 	i2c_dw_release_lock(dev);
 
-	return 0;
+	return ret;
 }
 
 void __i2c_dw_disable(struct dw_i2c_dev *dev)
 {
 	int timeout = 100;
+	u32 status;
 
 	do {
 		__i2c_dw_disable_nowait(dev);
@@ -224,7 +444,8 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 		 * The enable status register may be unimplemented, but
 		 * in that case this test reads zero and exits the loop.
 		 */
-		if ((dw_readl(dev, DW_IC_ENABLE_STATUS) & 1) == 0)
+		regmap_read(dev->map, DW_IC_ENABLE_STATUS, &status);
+		if ((status & 1) == 0)
 			return;
 
 		/*
@@ -303,22 +524,23 @@ void i2c_dw_release_lock(struct dw_i2c_dev *dev)
  */
 int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 {
-	int timeout = TIMEOUT;
+	u32 status;
+	int ret;
 
-	while (dw_readl(dev, DW_IC_STATUS) & DW_IC_STATUS_ACTIVITY) {
-		if (timeout <= 0) {
-			dev_warn(dev->dev, "timeout waiting for bus ready\n");
-			i2c_recover_bus(&dev->adapter);
+	ret = regmap_read_poll_timeout(dev->map, DW_IC_STATUS, status,
+				       !(status & DW_IC_STATUS_ACTIVITY),
+				       1100, 20000);
+	if (ret) {
+		dev_warn(dev->dev, "timeout waiting for bus ready\n");
 
-			if (dw_readl(dev, DW_IC_STATUS) & DW_IC_STATUS_ACTIVITY)
-				return -ETIMEDOUT;
-			return 0;
-		}
-		timeout--;
-		usleep_range(1000, 1100);
+		i2c_recover_bus(&dev->adapter);
+
+		regmap_read(dev->map, DW_IC_STATUS, &status);
+		if (!(status & DW_IC_STATUS_ACTIVITY))
+			ret = 0;
 	}
 
-	return 0;
+	return ret;
 }
 
 int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
@@ -344,6 +566,34 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
 		return -EIO;
 }
 
+int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
+{
+	u32 param, tx_fifo_depth, rx_fifo_depth;
+	int ret;
+
+	/*
+	 * Try to detect the FIFO depth if not set by interface driver,
+	 * the depth could be from 2 to 256 from HW spec.
+	 */
+	ret = regmap_read(dev->map, DW_IC_COMP_PARAM_1, &param);
+	if (ret)
+		return ret;
+
+	tx_fifo_depth = ((param >> 16) & 0xff) + 1;
+	rx_fifo_depth = ((param >> 8)  & 0xff) + 1;
+	if (!dev->tx_fifo_depth) {
+		dev->tx_fifo_depth = tx_fifo_depth;
+		dev->rx_fifo_depth = rx_fifo_depth;
+	} else if (tx_fifo_depth >= 2) {
+		dev->tx_fifo_depth = min_t(u32, dev->tx_fifo_depth,
+				tx_fifo_depth);
+		dev->rx_fifo_depth = min_t(u32, dev->rx_fifo_depth,
+				rx_fifo_depth);
+	}
+
+	return 0;
+}
+
 u32 i2c_dw_func(struct i2c_adapter *adap)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
@@ -353,24 +603,20 @@ u32 i2c_dw_func(struct i2c_adapter *adap)
 
 void i2c_dw_disable(struct dw_i2c_dev *dev)
 {
+	u32 dummy;
+
 	/* Disable controller */
 	__i2c_dw_disable(dev);
 
-	/* Disable all interupts */
-	dw_writel(dev, 0, DW_IC_INTR_MASK);
-	dw_readl(dev, DW_IC_CLR_INTR);
+	/* Disable all interrupts */
+	regmap_write(dev->map, DW_IC_INTR_MASK, 0);
+	regmap_read(dev->map, DW_IC_CLR_INTR, &dummy);
 }
 
 void i2c_dw_disable_int(struct dw_i2c_dev *dev)
 {
-	dw_writel(dev, 0, DW_IC_INTR_MASK);
+	regmap_write(dev->map, DW_IC_INTR_MASK, 0);
 }
-
-u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev)
-{
-	return dw_readl(dev, DW_IC_COMP_PARAM_1);
-}
-EXPORT_SYMBOL_GPL(i2c_dw_read_comp_param);
 
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter core");
 MODULE_LICENSE("GPL");

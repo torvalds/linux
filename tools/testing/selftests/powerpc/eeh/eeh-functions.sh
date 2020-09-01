@@ -5,12 +5,17 @@ pe_ok() {
 	local dev="$1"
 	local path="/sys/bus/pci/devices/$dev/eeh_pe_state"
 
-	if ! [ -e "$path" ] ; then
+	# if a driver doesn't support the error handling callbacks then the
+	# device is recovered by removing and re-probing it. This causes the
+	# sysfs directory to disappear so read the PE state once and squash
+	# any potential error messages
+	local eeh_state="$(cat $path 2>/dev/null)"
+	if [ -z "$eeh_state" ]; then
 		return 1;
 	fi
 
-	local fw_state="$(cut -d' ' -f1 < $path)"
-	local sw_state="$(cut -d' ' -f2 < $path)"
+	local fw_state="$(echo $eeh_state | cut -d' ' -f1)"
+	local sw_state="$(echo $eeh_state | cut -d' ' -f2)"
 
 	# If EEH_PE_ISOLATED or EEH_PE_RECOVERING are set then the PE is in an
 	# error state or being recovered. Either way, not ok.

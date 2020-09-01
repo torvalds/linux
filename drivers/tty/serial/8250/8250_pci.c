@@ -53,7 +53,7 @@ struct serial_private {
 	unsigned int		nr;
 	struct pci_serial_quirk	*quirk;
 	const struct pciserial_board *board;
-	int			line[0];
+	int			line[];
 };
 
 static const struct pci_device_id pci_use_msi[] = {
@@ -631,7 +631,7 @@ pci_timedia_setup(struct serial_private *priv,
 		break;
 	case 3:
 		offset = board->uart_offset;
-		/* FALLTHROUGH */
+		fallthrough;
 	case 4: /* BAR 2 */
 	case 5: /* BAR 3 */
 	case 6: /* BAR 4 */
@@ -1868,12 +1868,6 @@ pci_moxa_setup(struct serial_private *priv,
 #define PCIE_DEVICE_ID_WCH_CH382_2S1P	0x3250
 #define PCIE_DEVICE_ID_WCH_CH384_4S	0x3470
 #define PCIE_DEVICE_ID_WCH_CH382_2S	0x3253
-
-#define PCI_VENDOR_ID_PERICOM			0x12D8
-#define PCI_DEVICE_ID_PERICOM_PI7C9X7951	0x7951
-#define PCI_DEVICE_ID_PERICOM_PI7C9X7952	0x7952
-#define PCI_DEVICE_ID_PERICOM_PI7C9X7954	0x7954
-#define PCI_DEVICE_ID_PERICOM_PI7C9X7958	0x7958
 
 #define PCI_VENDOR_ID_ACCESIO			0x494f
 #define PCI_DEVICE_ID_ACCESIO_PCIE_COM_2SDB	0x1051

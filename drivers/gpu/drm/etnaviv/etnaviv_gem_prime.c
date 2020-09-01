@@ -136,7 +136,7 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 	return &etnaviv_obj->base;
 
 fail:
-	drm_gem_object_put_unlocked(&etnaviv_obj->base);
+	drm_gem_object_put(&etnaviv_obj->base);
 
 	return ERR_PTR(ret);
 }

@@ -222,7 +222,10 @@ ext4_mark_iloc_dirty(handle_t *handle,
 int ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 			struct ext4_iloc *iloc);
 
-int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode);
+#define ext4_mark_inode_dirty(__h, __i)					\
+		__ext4_mark_inode_dirty((__h), (__i), __func__, __LINE__)
+int __ext4_mark_inode_dirty(handle_t *handle, struct inode *inode,
+				const char *func, unsigned int line);
 
 int ext4_expand_extra_isize(struct inode *inode,
 			    unsigned int new_extra_isize,
@@ -334,12 +337,6 @@ static inline handle_t *__ext4_journal_start(struct inode *inode,
 
 handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 					int type);
-
-static inline void ext4_journal_free_reserved(handle_t *handle)
-{
-	if (ext4_handle_valid(handle))
-		jbd2_journal_free_reserved(handle);
-}
 
 static inline handle_t *ext4_journal_current_handle(void)
 {
@@ -511,6 +508,9 @@ static inline int ext4_should_dioread_nolock(struct inode *inode)
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return 0;
 	if (ext4_should_journal_data(inode))
+		return 0;
+	/* temporary fix to prevent generic/422 test failures */
+	if (!test_opt(inode->i_sb, DELALLOC))
 		return 0;
 	return 1;
 }

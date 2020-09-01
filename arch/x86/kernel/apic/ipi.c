@@ -2,6 +2,7 @@
 
 #include <linux/cpumask.h>
 #include <linux/smp.h>
+#include <asm/io_apic.h>
 
 #include "local.h"
 

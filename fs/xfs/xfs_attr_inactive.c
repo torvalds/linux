@@ -145,8 +145,8 @@ xfs_attr3_node_inactive(
 	 * Since this code is recursive (gasp!) we must protect ourselves.
 	 */
 	if (level > XFS_DA_NODE_MAXDEPTH) {
+		xfs_buf_mark_corrupt(bp);
 		xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
-		xfs_buf_corruption_error(bp);
 		return -EFSCORRUPTED;
 	}
 
@@ -194,7 +194,7 @@ xfs_attr3_node_inactive(
 			error = xfs_attr3_leaf_inactive(trans, dp, child_bp);
 			break;
 		default:
-			xfs_buf_corruption_error(child_bp);
+			xfs_buf_mark_corrupt(child_bp);
 			xfs_trans_brelse(*trans, child_bp);
 			error = -EFSCORRUPTED;
 			break;
@@ -289,7 +289,7 @@ xfs_attr3_root_inactive(
 		break;
 	default:
 		error = -EFSCORRUPTED;
-		xfs_buf_corruption_error(bp);
+		xfs_buf_mark_corrupt(bp);
 		xfs_trans_brelse(*trans, bp);
 		break;
 	}
@@ -367,7 +367,7 @@ xfs_attr_inactive(
 	 * removal below.
 	 */
 	if (xfs_inode_hasattr(dp) &&
-	    dp->i_d.di_aformat != XFS_DINODE_FMT_LOCAL) {
+	    dp->i_afp->if_format != XFS_DINODE_FMT_LOCAL) {
 		error = xfs_attr3_root_inactive(&trans, dp);
 		if (error)
 			goto out_cancel;
@@ -388,8 +388,11 @@ out_cancel:
 	xfs_trans_cancel(trans);
 out_destroy_fork:
 	/* kill the in-core attr fork before we drop the inode lock */
-	if (dp->i_afp)
-		xfs_idestroy_fork(dp, XFS_ATTR_FORK);
+	if (dp->i_afp) {
+		xfs_idestroy_fork(dp->i_afp);
+		kmem_cache_free(xfs_ifork_zone, dp->i_afp);
+		dp->i_afp = NULL;
+	}
 	if (lock_mode)
 		xfs_iunlock(dp, lock_mode);
 	return error;

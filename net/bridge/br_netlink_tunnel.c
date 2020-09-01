@@ -26,8 +26,8 @@ static size_t __get_vlan_tinfo_size(void)
 		  nla_total_size(sizeof(u16)); /* IFLA_BRIDGE_VLAN_TUNNEL_FLAGS */
 }
 
-static bool vlan_tunid_inrange(struct net_bridge_vlan *v_curr,
-			       struct net_bridge_vlan *v_last)
+bool vlan_tunid_inrange(const struct net_bridge_vlan *v_curr,
+			const struct net_bridge_vlan *v_last)
 {
 	__be32 tunid_curr = tunnel_id_to_key32(v_curr->tinfo.tunnel_id);
 	__be32 tunid_last = tunnel_id_to_key32(v_last->tinfo.tunnel_id);
@@ -193,8 +193,8 @@ static const struct nla_policy vlan_tunnel_policy[IFLA_BRIDGE_VLAN_TUNNEL_MAX + 
 	[IFLA_BRIDGE_VLAN_TUNNEL_FLAGS] = { .type = NLA_U16 },
 };
 
-static int br_vlan_tunnel_info(struct net_bridge_port *p, int cmd,
-			       u16 vid, u32 tun_id, bool *changed)
+int br_vlan_tunnel_info(const struct net_bridge_port *p, int cmd,
+			u16 vid, u32 tun_id, bool *changed)
 {
 	int err = 0;
 
@@ -250,8 +250,38 @@ int br_parse_vlan_tunnel_info(struct nlattr *attr,
 	return 0;
 }
 
-int br_process_vlan_tunnel_info(struct net_bridge *br,
-				struct net_bridge_port *p, int cmd,
+/* send a notification if v_curr can't enter the range and start a new one */
+static void __vlan_tunnel_handle_range(const struct net_bridge_port *p,
+				       struct net_bridge_vlan **v_start,
+				       struct net_bridge_vlan **v_end,
+				       int v_curr, bool curr_change)
+{
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+
+	vg = nbp_vlan_group(p);
+	if (!vg)
+		return;
+
+	v = br_vlan_find(vg, v_curr);
+
+	if (!*v_start)
+		goto out_init;
+
+	if (v && curr_change && br_vlan_can_enter_range(v, *v_end)) {
+		*v_end = v;
+		return;
+	}
+
+	br_vlan_notify(p->br, p, (*v_start)->vid, (*v_end)->vid, RTM_NEWVLAN);
+out_init:
+	/* we start a range only if there are any changes to notify about */
+	*v_start = curr_change ? v : NULL;
+	*v_end = *v_start;
+}
+
+int br_process_vlan_tunnel_info(const struct net_bridge *br,
+				const struct net_bridge_port *p, int cmd,
 				struct vtunnel_info *tinfo_curr,
 				struct vtunnel_info *tinfo_last,
 				bool *changed)
@@ -263,6 +293,7 @@ int br_process_vlan_tunnel_info(struct net_bridge *br,
 			return -EINVAL;
 		memcpy(tinfo_last, tinfo_curr, sizeof(struct vtunnel_info));
 	} else if (tinfo_curr->flags & BRIDGE_VLAN_INFO_RANGE_END) {
+		struct net_bridge_vlan *v_start = NULL, *v_end = NULL;
 		int t, v;
 
 		if (!(tinfo_last->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN))
@@ -272,11 +303,24 @@ int br_process_vlan_tunnel_info(struct net_bridge *br,
 			return -EINVAL;
 		t = tinfo_last->tunid;
 		for (v = tinfo_last->vid; v <= tinfo_curr->vid; v++) {
-			err = br_vlan_tunnel_info(p, cmd, v, t, changed);
+			bool curr_change = false;
+
+			err = br_vlan_tunnel_info(p, cmd, v, t, &curr_change);
 			if (err)
-				return err;
+				break;
 			t++;
+
+			if (curr_change)
+				*changed = curr_change;
+			 __vlan_tunnel_handle_range(p, &v_start, &v_end, v,
+						    curr_change);
 		}
+		if (v_start && v_end)
+			br_vlan_notify(br, p, v_start->vid, v_end->vid,
+				       RTM_NEWVLAN);
+		if (err)
+			return err;
+
 		memset(tinfo_last, 0, sizeof(struct vtunnel_info));
 		memset(tinfo_curr, 0, sizeof(struct vtunnel_info));
 	} else {
@@ -286,6 +330,7 @@ int br_process_vlan_tunnel_info(struct net_bridge *br,
 					  tinfo_curr->tunid, changed);
 		if (err)
 			return err;
+		br_vlan_notify(br, p, tinfo_curr->vid, 0, RTM_NEWVLAN);
 		memset(tinfo_last, 0, sizeof(struct vtunnel_info));
 		memset(tinfo_curr, 0, sizeof(struct vtunnel_info));
 	}

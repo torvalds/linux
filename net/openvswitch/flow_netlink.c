@@ -80,6 +80,7 @@ static bool actions_may_change_flow(const struct nlattr *actions)
 		case OVS_ACTION_ATTR_METER:
 		case OVS_ACTION_ATTR_CHECK_PKT_LEN:
 		case OVS_ACTION_ATTR_ADD_MPLS:
+		case OVS_ACTION_ATTR_DEC_TTL:
 		default:
 			return true;
 		}
@@ -1762,11 +1763,11 @@ static void mask_set_nlattr(struct nlattr *attr, u8 val)
  * does not include any don't care bit.
  * @net: Used to determine per-namespace field support.
  * @match: receives the extracted flow match information.
- * @key: Netlink attribute holding nested %OVS_KEY_ATTR_* Netlink attribute
+ * @nla_key: Netlink attribute holding nested %OVS_KEY_ATTR_* Netlink attribute
  * sequence. The fields should of the packet that triggered the creation
  * of this flow.
- * @mask: Optional. Netlink attribute holding nested %OVS_KEY_ATTR_* Netlink
- * attribute specifies the mask field of the wildcarded flow.
+ * @nla_mask: Optional. Netlink attribute holding nested %OVS_KEY_ATTR_*
+ * Netlink attribute specifies the mask field of the wildcarded flow.
  * @log: Boolean to allow kernel error logging.  Normally true, but when
  * probing for feature compatibility this should be passed in as false to
  * suppress unnecessary error logging.
@@ -2495,6 +2496,39 @@ static int validate_and_copy_sample(struct net *net, const struct nlattr *attr,
 	return 0;
 }
 
+static int validate_and_copy_dec_ttl(struct net *net,
+				     const struct nlattr *attr,
+				     const struct sw_flow_key *key,
+				     struct sw_flow_actions **sfa,
+				     __be16 eth_type, __be16 vlan_tci,
+				     u32 mpls_label_count, bool log)
+{
+	int start, err;
+	u32 nested = true;
+
+	if (!nla_len(attr))
+		return ovs_nla_add_action(sfa, OVS_ACTION_ATTR_DEC_TTL,
+					  NULL, 0, log);
+
+	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_DEC_TTL, log);
+	if (start < 0)
+		return start;
+
+	err = ovs_nla_add_action(sfa, OVS_DEC_TTL_ATTR_ACTION, &nested,
+				 sizeof(nested), log);
+
+	if (err)
+		return err;
+
+	err = __ovs_nla_copy_actions(net, attr, key, sfa, eth_type,
+				     vlan_tci, mpls_label_count, log);
+	if (err)
+		return err;
+
+	add_nested_action_end(*sfa, start);
+	return 0;
+}
+
 static int validate_and_copy_clone(struct net *net,
 				   const struct nlattr *attr,
 				   const struct sw_flow_key *key,
@@ -3009,6 +3043,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			[OVS_ACTION_ATTR_CLONE] = (u32)-1,
 			[OVS_ACTION_ATTR_CHECK_PKT_LEN] = (u32)-1,
 			[OVS_ACTION_ATTR_ADD_MPLS] = sizeof(struct ovs_action_add_mpls),
+			[OVS_ACTION_ATTR_DEC_TTL] = (u32)-1,
 		};
 		const struct ovs_action_push_vlan *vlan;
 		int type = nla_type(a);
@@ -3269,6 +3304,15 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			break;
 		}
 
+		case OVS_ACTION_ATTR_DEC_TTL:
+			err = validate_and_copy_dec_ttl(net, a, key, sfa,
+							eth_type, vlan_tci,
+							mpls_label_count, log);
+			if (err)
+				return err;
+			skip_copy = true;
+			break;
+
 		default:
 			OVS_NLERR(log, "Unknown Action type %d", type);
 			return -EINVAL;
@@ -3440,6 +3484,26 @@ out:
 	return err;
 }
 
+static int dec_ttl_action_to_attr(const struct nlattr *attr,
+				  struct sk_buff *skb)
+{
+	int err = 0, rem = nla_len(attr);
+	struct nlattr *start;
+
+	start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_DEC_TTL);
+
+	if (!start)
+		return -EMSGSIZE;
+
+	err = ovs_nla_put_actions(nla_data(attr), rem, skb);
+	if (err)
+		nla_nest_cancel(skb, start);
+	else
+		nla_nest_end(skb, start);
+
+	return err;
+}
+
 static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 {
 	const struct nlattr *ovs_key = nla_data(a);
@@ -3536,6 +3600,12 @@ int ovs_nla_put_actions(const struct nlattr *attr, int len, struct sk_buff *skb)
 
 		case OVS_ACTION_ATTR_CHECK_PKT_LEN:
 			err = check_pkt_len_action_to_attr(a, skb);
+			if (err)
+				return err;
+			break;
+
+		case OVS_ACTION_ATTR_DEC_TTL:
+			err = dec_ttl_action_to_attr(a, skb);
 			if (err)
 				return err;
 			break;

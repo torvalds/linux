@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/renesas,rcar-dmac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car and RZ/G DMA Controller
+
+maintainers:
+  - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+
+allOf:
+  - $ref: "dma-controller.yaml#"
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,dmac-r8a7743  # RZ/G1M
+          - renesas,dmac-r8a7744  # RZ/G1N
+          - renesas,dmac-r8a7745  # RZ/G1E
+          - renesas,dmac-r8a77470 # RZ/G1C
+          - renesas,dmac-r8a774a1 # RZ/G2M
+          - renesas,dmac-r8a774b1 # RZ/G2N
+          - renesas,dmac-r8a774c0 # RZ/G2E
+          - renesas,dmac-r8a774e1 # RZ/G2H
+          - renesas,dmac-r8a7790  # R-Car H2
+          - renesas,dmac-r8a7791  # R-Car M2-W
+          - renesas,dmac-r8a7792  # R-Car V2H
+          - renesas,dmac-r8a7793  # R-Car M2-N
+          - renesas,dmac-r8a7794  # R-Car E2
+          - renesas,dmac-r8a7795  # R-Car H3
+          - renesas,dmac-r8a7796  # R-Car M3-W
+          - renesas,dmac-r8a77961 # R-Car M3-W+
+          - renesas,dmac-r8a77965 # R-Car M3-N
+          - renesas,dmac-r8a77970 # R-Car V3M
+          - renesas,dmac-r8a77980 # R-Car V3H
+          - renesas,dmac-r8a77990 # R-Car E3
+          - renesas,dmac-r8a77995 # R-Car D3
+      - const: renesas,rcar-dmac
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 9
+    maxItems: 17
+
+  interrupt-names:
+    minItems: 9
+    maxItems: 17
+    items:
+      - const: error
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+      - pattern: "^ch([0-9]|1[0-5])$"
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    maxItems: 1
+    items:
+      - const: fck
+
+  '#dma-cells':
+    const: 1
+    description:
+      The cell specifies the MID/RID of the DMAC port connected to
+      the DMA client.
+
+  dma-channels:
+    minimum: 8
+    maximum: 16
+
+  dma-channel-mask: true
+
+  iommus:
+    minItems: 8
+    maxItems: 16
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - '#dma-cells'
+  - dma-channels
+  - power-domains
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7790-sysc.h>
+
+    dmac0: dma-controller@e6700000 {
+        compatible = "renesas,dmac-r8a7790", "renesas,rcar-dmac";
+        reg = <0xe6700000 0x20000>;
+        interrupts = <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "error",
+                          "ch0", "ch1", "ch2", "ch3",
+                          "ch4", "ch5", "ch6", "ch7",
+                          "ch8", "ch9", "ch10", "ch11",
+                          "ch12", "ch13", "ch14";
+        clocks = <&cpg CPG_MOD 219>;
+        clock-names = "fck";
+        power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+        resets = <&cpg 219>;
+        #dma-cells = <1>;
+        dma-channels = <15>;
+    };

@@ -261,7 +261,7 @@ static int tpa6130a2_probe(struct i2c_client *client,
 	default:
 		dev_warn(dev, "Unknown TPA model (%d). Assuming 6130A2\n",
 			 data->id);
-		/* fall through */
+		fallthrough;
 	case TPA6130A2:
 		regulator = "Vdd";
 		break;

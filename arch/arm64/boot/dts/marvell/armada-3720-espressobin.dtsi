@@ -7,12 +7,16 @@
  *
  */
 
-/dts-v1/;
-
 #include <dt-bindings/gpio/gpio.h>
 #include "armada-372x.dtsi"
 
 / {
+	aliases {
+		ethernet0 = &eth0;
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -40,9 +44,9 @@
 /* J9 */
 &pcie0 {
 	status = "okay";
-	phys = <&comphy1 0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_reset_pins &pcie_clkreq_pins>;
+	reset-gpios = <&gpiosb 3 GPIO_ACTIVE_LOW>;
 };
 
 /* J6 */

@@ -49,17 +49,26 @@ tu102_sec2 = {
 	.initmsg = gp102_sec2_initmsg,
 };
 
-static int
-tu102_sec2_nofw(struct nvkm_sec2 *sec2, int ver,
-		const struct nvkm_sec2_fwif *fwif)
-{
-	return 0;
-}
+MODULE_FIRMWARE("nvidia/tu102/sec2/desc.bin");
+MODULE_FIRMWARE("nvidia/tu102/sec2/image.bin");
+MODULE_FIRMWARE("nvidia/tu102/sec2/sig.bin");
+MODULE_FIRMWARE("nvidia/tu104/sec2/desc.bin");
+MODULE_FIRMWARE("nvidia/tu104/sec2/image.bin");
+MODULE_FIRMWARE("nvidia/tu104/sec2/sig.bin");
+MODULE_FIRMWARE("nvidia/tu106/sec2/desc.bin");
+MODULE_FIRMWARE("nvidia/tu106/sec2/image.bin");
+MODULE_FIRMWARE("nvidia/tu106/sec2/sig.bin");
+MODULE_FIRMWARE("nvidia/tu116/sec2/desc.bin");
+MODULE_FIRMWARE("nvidia/tu116/sec2/image.bin");
+MODULE_FIRMWARE("nvidia/tu116/sec2/sig.bin");
+MODULE_FIRMWARE("nvidia/tu117/sec2/desc.bin");
+MODULE_FIRMWARE("nvidia/tu117/sec2/image.bin");
+MODULE_FIRMWARE("nvidia/tu117/sec2/sig.bin");
 
 static const struct nvkm_sec2_fwif
 tu102_sec2_fwif[] = {
 	{  0, gp102_sec2_load, &tu102_sec2, &gp102_sec2_acr_1 },
-	{ -1, tu102_sec2_nofw, &tu102_sec2 }
+	{ -1, gp102_sec2_nofw, &tu102_sec2 }
 };
 
 int

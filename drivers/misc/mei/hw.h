@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2003-2018, Intel Corporation. All rights reserved
+ * Copyright (c) 2003-2020, Intel Corporation. All rights reserved
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -209,11 +209,14 @@ struct mei_msg_hdr {
 	u32 extension[0];
 } __packed;
 
+/* The length is up to 9 bits */
+#define MEI_MSG_MAX_LEN_MASK GENMASK(9, 0)
+
 #define MEI_MSG_HDR_MAX 2
 
 struct mei_bus_message {
 	u8 hbm_cmd;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**
@@ -316,7 +319,7 @@ struct hbm_props_response {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 status;
-	u8 reserved[1];
+	u8 reserved;
 	struct mei_client_properties client_properties;
 } __packed;
 
@@ -349,7 +352,7 @@ struct hbm_add_client_response {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 status;
-	u8 reserved[1];
+	u8 reserved;
 } __packed;
 
 /**
@@ -458,7 +461,7 @@ struct hbm_notification {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
-	u8 reserved[1];
+	u8 reserved;
 } __packed;
 
 /**

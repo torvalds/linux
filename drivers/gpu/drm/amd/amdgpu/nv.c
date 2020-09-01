@@ -41,6 +41,7 @@
 #include "hdp/hdp_5_0_0_offset.h"
 #include "hdp/hdp_5_0_0_sh_mask.h"
 #include "smuio/smuio_11_0_0_offset.h"
+#include "mp/mp_11_0_offset.h"
 
 #include "soc15.h"
 #include "soc15_common.h"
@@ -52,8 +53,11 @@
 #include "navi10_ih.h"
 #include "gfx_v10_0.h"
 #include "sdma_v5_0.h"
+#include "sdma_v5_2.h"
 #include "vcn_v2_0.h"
 #include "jpeg_v2_0.h"
+#include "vcn_v3_0.h"
+#include "jpeg_v3_0.h"
 #include "dce_virtual.h"
 #include "mes_v10_1.h"
 #include "mxgpu_nv.h"
@@ -89,6 +93,49 @@ static void nv_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	WREG32(address, reg);
 	(void)RREG32(address);
 	WREG32(data, v);
+	(void)RREG32(data);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
+static u64 nv_pcie_rreg64(struct amdgpu_device *adev, u32 reg)
+{
+	unsigned long flags, address, data;
+	u64 r;
+	address = adev->nbio.funcs->get_pcie_index_offset(adev);
+	data = adev->nbio.funcs->get_pcie_data_offset(adev);
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	/* read low 32 bit */
+	WREG32(address, reg);
+	(void)RREG32(address);
+	r = RREG32(data);
+
+	/* read high 32 bit*/
+	WREG32(address, reg + 4);
+	(void)RREG32(address);
+	r |= ((u64)RREG32(data) << 32);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	return r;
+}
+
+static void nv_pcie_wreg64(struct amdgpu_device *adev, u32 reg, u64 v)
+{
+	unsigned long flags, address, data;
+
+	address = adev->nbio.funcs->get_pcie_index_offset(adev);
+	data = adev->nbio.funcs->get_pcie_data_offset(adev);
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	/* write low 32 bit */
+	WREG32(address, reg);
+	(void)RREG32(address);
+	WREG32(data, (u32)(v & 0xffffffffULL));
+	(void)RREG32(data);
+
+	/* write high 32 bit */
+	WREG32(address, reg + 4);
+	(void)RREG32(address);
+	WREG32(data, (u32)(v >> 32));
 	(void)RREG32(data);
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 }
@@ -188,10 +235,8 @@ static struct soc15_allowed_register_entry nv_allowed_read_registers[] = {
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE1)},
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE2)},
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE3)},
-#if 0	/* TODO: will set it when SDMA header is available */
 	{ SOC15_REG_ENTRY(SDMA0, 0, mmSDMA0_STATUS_REG)},
 	{ SOC15_REG_ENTRY(SDMA1, 0, mmSDMA1_STATUS_REG)},
-#endif
 	{ SOC15_REG_ENTRY(GC, 0, mmCP_STAT)},
 	{ SOC15_REG_ENTRY(GC, 0, mmCP_STALLED_STAT1)},
 	{ SOC15_REG_ENTRY(GC, 0, mmCP_STALLED_STAT2)},
@@ -256,31 +301,6 @@ static int nv_read_register(struct amdgpu_device *adev, u32 se_num,
 	return -EINVAL;
 }
 
-#if 0
-static void nv_gpu_pci_config_reset(struct amdgpu_device *adev)
-{
-	u32 i;
-
-	dev_info(adev->dev, "GPU pci config reset\n");
-
-	/* disable BM */
-	pci_clear_master(adev->pdev);
-	/* reset */
-	amdgpu_pci_config_reset(adev);
-
-	udelay(100);
-
-	/* wait for asic to come out of reset */
-	for (i = 0; i < adev->usec_timeout; i++) {
-		u32 memsize = nbio_v2_3_get_memsize(adev);
-		if (memsize != 0xffffffff)
-			break;
-		udelay(1);
-	}
-
-}
-#endif
-
 static int nv_asic_mode1_reset(struct amdgpu_device *adev)
 {
 	u32 i;
@@ -288,17 +308,21 @@ static int nv_asic_mode1_reset(struct amdgpu_device *adev)
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
-	dev_info(adev->dev, "GPU mode1 reset\n");
-
 	/* disable BM */
 	pci_clear_master(adev->pdev);
 
 	pci_save_state(adev->pdev);
 
-	ret = psp_gpu_reset(adev);
+	if (amdgpu_dpm_is_mode1_reset_supported(adev)) {
+		dev_info(adev->dev, "GPU smu mode1 reset\n");
+		ret = amdgpu_dpm_mode1_reset(adev);
+	} else {
+		dev_info(adev->dev, "GPU psp mode1 reset\n");
+		ret = psp_gpu_reset(adev);
+	}
+
 	if (ret)
 		dev_err(adev->dev, "GPU mode1 reset failed\n");
-
 	pci_restore_state(adev->pdev);
 
 	/* wait for asic to come out of reset */
@@ -330,40 +354,42 @@ nv_asic_reset_method(struct amdgpu_device *adev)
 {
 	struct smu_context *smu = &adev->smu;
 
-	if (!amdgpu_sriov_vf(adev) && smu_baco_is_support(smu))
-		return AMD_RESET_METHOD_BACO;
-	else
+	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
+	    amdgpu_reset_method == AMD_RESET_METHOD_BACO)
+		return amdgpu_reset_method;
+
+	if (amdgpu_reset_method != -1)
+		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
+				  amdgpu_reset_method);
+
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		return AMD_RESET_METHOD_MODE1;
+	default:
+		if (smu_baco_is_support(smu))
+			return AMD_RESET_METHOD_BACO;
+		else
+			return AMD_RESET_METHOD_MODE1;
+	}
 }
 
 static int nv_asic_reset(struct amdgpu_device *adev)
 {
-
-	/* FIXME: it doesn't work since vega10 */
-#if 0
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	nv_gpu_pci_config_reset(adev);
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
-#endif
 	int ret = 0;
 	struct smu_context *smu = &adev->smu;
 
 	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
-		if (!adev->in_suspend)
-			amdgpu_inc_vram_lost(adev);
+		dev_info(adev->dev, "GPU BACO reset\n");
+
 		ret = smu_baco_enter(smu);
 		if (ret)
 			return ret;
 		ret = smu_baco_exit(smu);
 		if (ret)
 			return ret;
-	} else {
-		if (!adev->in_suspend)
-			amdgpu_inc_vram_lost(adev);
+	} else
 		ret = nv_asic_mode1_reset(adev);
-	}
 
 	return ret;
 }
@@ -446,6 +472,10 @@ legacy_init:
 	case CHIP_NAVI12:
 		navi12_reg_base_init(adev);
 		break;
+	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
+		sienna_cichlid_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -453,22 +483,25 @@ legacy_init:
 	return 0;
 }
 
+void nv_set_virt_ops(struct amdgpu_device *adev)
+{
+	adev->virt.ops = &xgpu_nv_virt_ops;
+}
+
 int nv_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
+
+	adev->nbio.funcs = &nbio_v2_3_funcs;
+	adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
+
+	if (adev->asic_type == CHIP_SIENNA_CICHLID)
+		adev->gmc.xgmi.supported = true;
 
 	/* Set IP register base before any HW register access */
 	r = nv_reg_base_init(adev);
 	if (r)
 		return r;
-
-	adev->nbio.funcs = &nbio_v2_3_funcs;
-	adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
-
-	adev->nbio.funcs->detect_hw_virt(adev);
-
-	if (amdgpu_sriov_vf(adev))
-		adev->virt.ops = &xgpu_nv_virt_ops;
 
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
@@ -501,8 +534,7 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
 		amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
-		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
-		    !amdgpu_sriov_vf(adev))
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -516,7 +548,55 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		    !amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &jpeg_v2_0_ip_block);
+		if (!amdgpu_sriov_vf(adev))
+			amdgpu_device_ip_block_add(adev, &jpeg_v2_0_ip_block);
+		break;
+	case CHIP_SIENNA_CICHLID:
+		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
+		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
+			amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
+		    is_support_sw_smu(adev) && !amdgpu_sriov_vf(adev))
+			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
+			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+#if defined(CONFIG_DRM_AMD_DC)
+		else if (amdgpu_device_has_dc_support(adev))
+			amdgpu_device_ip_block_add(adev, &dm_ip_block);
+#endif
+		amdgpu_device_ip_block_add(adev, &gfx_v10_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v5_2_ip_block);
+		amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
+		if (!amdgpu_sriov_vf(adev))
+			amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);
+
+		if (adev->enable_mes)
+			amdgpu_device_ip_block_add(adev, &mes_v10_1_ip_block);
+		break;
+	case CHIP_NAVY_FLOUNDER:
+		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
+		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
+			amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
+		    is_support_sw_smu(adev))
+			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
+			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+#if defined(CONFIG_DRM_AMD_DC)
+		else if (amdgpu_device_has_dc_support(adev))
+			amdgpu_device_ip_block_add(adev, &dm_ip_block);
+#endif
+		amdgpu_device_ip_block_add(adev, &gfx_v10_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v5_2_ip_block);
+		amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&
+		    is_support_sw_smu(adev))
+			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 		break;
 	default:
 		return -EINVAL;
@@ -551,16 +631,8 @@ static bool nv_need_full_reset(struct amdgpu_device *adev)
 	return true;
 }
 
-static void nv_get_pcie_usage(struct amdgpu_device *adev,
-			      uint64_t *count0,
-			      uint64_t *count1)
-{
-	/*TODO*/
-}
-
 static bool nv_need_reset_on_init(struct amdgpu_device *adev)
 {
-#if 0
 	u32 sol_reg;
 
 	if (adev->flags & AMD_IS_APU)
@@ -572,8 +644,7 @@ static bool nv_need_reset_on_init(struct amdgpu_device *adev)
 	sol_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81);
 	if (sol_reg)
 		return true;
-#endif
-	/* TODO: re-enable it when mode1 reset is functional */
+
 	return false;
 }
 
@@ -602,8 +673,11 @@ static void nv_init_doorbell_index(struct amdgpu_device *adev)
 	adev->doorbell_index.userqueue_end = AMDGPU_NAVI10_DOORBELL_USERQUEUE_END;
 	adev->doorbell_index.gfx_ring0 = AMDGPU_NAVI10_DOORBELL_GFX_RING0;
 	adev->doorbell_index.gfx_ring1 = AMDGPU_NAVI10_DOORBELL_GFX_RING1;
+	adev->doorbell_index.mes_ring = AMDGPU_NAVI10_DOORBELL_MES_RING;
 	adev->doorbell_index.sdma_engine[0] = AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE0;
 	adev->doorbell_index.sdma_engine[1] = AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE1;
+	adev->doorbell_index.sdma_engine[2] = AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE2;
+	adev->doorbell_index.sdma_engine[3] = AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE3;
 	adev->doorbell_index.ih = AMDGPU_NAVI10_DOORBELL_IH;
 	adev->doorbell_index.vcn.vcn_ring0_1 = AMDGPU_NAVI10_DOORBELL64_VCN0_1;
 	adev->doorbell_index.vcn.vcn_ring2_3 = AMDGPU_NAVI10_DOORBELL64_VCN2_3;
@@ -632,7 +706,6 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.invalidate_hdp = &nv_invalidate_hdp,
 	.init_doorbell_index = &nv_init_doorbell_index,
 	.need_full_reset = &nv_need_full_reset,
-	.get_pcie_usage = &nv_get_pcie_usage,
 	.need_reset_on_init = &nv_need_reset_on_init,
 	.get_pcie_replay_count = &nv_get_pcie_replay_count,
 	.supports_baco = &nv_asic_supports_baco,
@@ -649,6 +722,8 @@ static int nv_common_early_init(void *handle)
 	adev->smc_wreg = NULL;
 	adev->pcie_rreg = &nv_pcie_rreg;
 	adev->pcie_wreg = &nv_pcie_wreg;
+	adev->pcie_rreg64 = &nv_pcie_rreg64;
+	adev->pcie_wreg64 = &nv_pcie_wreg64;
 
 	/* TODO: will add them during VCN v2 implementation */
 	adev->uvd_ctx_rreg = NULL;
@@ -734,6 +809,48 @@ static int nv_common_early_init(void *handle)
 			adev->rev_id = 0;
 		adev->external_rev_id = adev->rev_id + 0xa;
 		break;
+	case CHIP_SIENNA_CICHLID:
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_3D_CGCG |
+			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_VCN_MGCG |
+			AMD_CG_SUPPORT_JPEG_MGCG |
+			AMD_CG_SUPPORT_HDP_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_IH_CG |
+			AMD_CG_SUPPORT_MC_LS;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN |
+			AMD_PG_SUPPORT_VCN_DPG |
+			AMD_PG_SUPPORT_JPEG |
+			AMD_PG_SUPPORT_ATHUB |
+			AMD_PG_SUPPORT_MMHUB;
+		if (amdgpu_sriov_vf(adev)) {
+			/* hypervisor control CG and PG enablement */
+			adev->cg_flags = 0;
+			adev->pg_flags = 0;
+		}
+		adev->external_rev_id = adev->rev_id + 0x28;
+		break;
+	case CHIP_NAVY_FLOUNDER:
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_3D_CGCG |
+			AMD_CG_SUPPORT_VCN_MGCG |
+			AMD_CG_SUPPORT_JPEG_MGCG |
+			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_MC_LS |
+			AMD_CG_SUPPORT_HDP_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_IH_CG;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN |
+			AMD_PG_SUPPORT_VCN_DPG |
+			AMD_PG_SUPPORT_JPEG |
+			AMD_PG_SUPPORT_ATHUB |
+			AMD_PG_SUPPORT_MMHUB;
+		adev->external_rev_id = adev->rev_id + 0x32;
+		break;
+
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
@@ -900,6 +1017,16 @@ static void nv_update_hdp_mem_power_gating(struct amdgpu_device *adev,
 						 RC_MEM_POWER_DS_EN, enable);
 	}
 
+	/* confirmed that IPH_MEM_POWER_CTRL_EN and RC_MEM_POWER_CTRL_EN have to
+	 * be set for SRAM LS/DS/SD */
+	if (adev->cg_flags & (AMD_CG_SUPPORT_HDP_LS | AMD_CG_SUPPORT_HDP_DS |
+							AMD_CG_SUPPORT_HDP_SD)) {
+		hdp_mem_pwr_cntl = REG_SET_FIELD(hdp_mem_pwr_cntl, HDP_MEM_POWER_CTRL,
+						IPH_MEM_POWER_CTRL_EN, 1);
+		hdp_mem_pwr_cntl = REG_SET_FIELD(hdp_mem_pwr_cntl, HDP_MEM_POWER_CTRL,
+						RC_MEM_POWER_CTRL_EN, 1);
+	}
+
 	WREG32_SOC15(HDP, 0, mmHDP_MEM_POWER_CTRL, hdp_mem_pwr_cntl);
 
 	/* restore IPH & RC clock override after clock/power mode changing */
@@ -949,6 +1076,8 @@ static int nv_common_set_clockgating_state(void *handle,
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
+	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		adev->nbio.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		adev->nbio.funcs->update_medium_grain_light_sleep(adev,

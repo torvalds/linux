@@ -30,24 +30,4 @@ extern void renoir_set_ppt_funcs(struct smu_context *smu);
 #define RENOIR_UMD_PSTATE_SOCCLK       678
 #define RENOIR_UMD_PSTATE_FCLK         800
 
-#define GET_DPM_CUR_FREQ(table, clk_type, dpm_level, freq)		\
-	do {								\
-		switch (clk_type) {					\
-		case SMU_SOCCLK:					\
-			freq = table->SocClocks[dpm_level].Freq;	\
-			break;						\
-		case SMU_MCLK:						\
-			freq = table->MemClocks[dpm_level].Freq;	\
-			break;						\
-		case SMU_DCEFCLK:					\
-			freq = table->DcfClocks[dpm_level].Freq;	\
-			break;						\
-		case SMU_FCLK:						\
-			freq = table->FClocks[dpm_level].Freq;		\
-			break;						\
-		default:						\
-			break;						\
-		}							\
-	} while (0)
-
 #endif

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
+ * Copyright (c) 2003-2020, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -1353,11 +1353,24 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.read = mei_me_read_slots
 };
 
-static bool mei_me_fw_type_nm(struct pci_dev *pdev)
+/**
+ * mei_me_fw_type_nm() - check for nm sku
+ *
+ * Read ME FW Status register to check for the Node Manager (NM) Firmware.
+ * The NM FW is only signaled in PCI function 0.
+ * __Note__: Deprecated by PCH8 and newer.
+ *
+ * @pdev: pci device
+ *
+ * Return: true in case of NM firmware
+ */
+static bool mei_me_fw_type_nm(const struct pci_dev *pdev)
 {
 	u32 reg;
+	unsigned int devfn;
 
-	pci_read_config_dword(pdev, PCI_CFG_HFS_2, &reg);
+	devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
+	pci_bus_read_config_dword(pdev->bus, devfn, PCI_CFG_HFS_2, &reg);
 	trace_mei_pci_cfg_read(&pdev->dev, "PCI_CFG_HFS_2", PCI_CFG_HFS_2, reg);
 	/* make sure that bit 9 (NM) is up and bit 10 (DM) is down */
 	return (reg & 0x600) == 0x200;
@@ -1366,23 +1379,61 @@ static bool mei_me_fw_type_nm(struct pci_dev *pdev)
 #define MEI_CFG_FW_NM                           \
 	.quirk_probe = mei_me_fw_type_nm
 
-static bool mei_me_fw_type_sps(struct pci_dev *pdev)
+/**
+ * mei_me_fw_sku_sps_4() - check for sps 4.0 sku
+ *
+ * Read ME FW Status register to check for SPS Firmware.
+ * The SPS FW is only signaled in the PCI function 0.
+ * __Note__: Deprecated by SPS 5.0 and newer.
+ *
+ * @pdev: pci device
+ *
+ * Return: true in case of SPS firmware
+ */
+static bool mei_me_fw_type_sps_4(const struct pci_dev *pdev)
 {
 	u32 reg;
 	unsigned int devfn;
 
-	/*
-	 * Read ME FW Status register to check for SPS Firmware
-	 * The SPS FW is only signaled in pci function 0
-	 */
 	devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
 	pci_bus_read_config_dword(pdev->bus, devfn, PCI_CFG_HFS_1, &reg);
 	trace_mei_pci_cfg_read(&pdev->dev, "PCI_CFG_HFS_1", PCI_CFG_HFS_1, reg);
-	/* if bits [19:16] = 15, running SPS Firmware */
-	return (reg & 0xf0000) == 0xf0000;
+	return (reg & PCI_CFG_HFS_1_OPMODE_MSK) == PCI_CFG_HFS_1_OPMODE_SPS;
 }
 
-#define MEI_CFG_FW_SPS                           \
+#define MEI_CFG_FW_SPS_4                          \
+	.quirk_probe = mei_me_fw_type_sps_4
+
+/**
+ * mei_me_fw_sku_sps() - check for sps sku
+ *
+ * Read ME FW Status register to check for SPS Firmware.
+ * The SPS FW is only signaled in pci function 0
+ *
+ * @pdev: pci device
+ *
+ * Return: true in case of SPS firmware
+ */
+static bool mei_me_fw_type_sps(const struct pci_dev *pdev)
+{
+	u32 reg;
+	u32 fw_type;
+	unsigned int devfn;
+
+	devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
+	pci_bus_read_config_dword(pdev->bus, devfn, PCI_CFG_HFS_3, &reg);
+	trace_mei_pci_cfg_read(&pdev->dev, "PCI_CFG_HFS_3", PCI_CFG_HFS_3, reg);
+	fw_type = (reg & PCI_CFG_HFS_3_FW_SKU_MSK);
+
+	dev_dbg(&pdev->dev, "fw type is %d\n", fw_type);
+
+	return fw_type == PCI_CFG_HFS_3_FW_SKU_SPS;
+}
+
+#define MEI_CFG_KIND_ITOUCH                     \
+	.kind = "itouch"
+
+#define MEI_CFG_FW_SPS                          \
 	.quirk_probe = mei_me_fw_type_sps
 
 #define MEI_CFG_FW_VER_SUPP                     \
@@ -1451,11 +1502,25 @@ static const struct mei_cfg mei_me_pch8_cfg = {
 	MEI_CFG_FW_VER_SUPP,
 };
 
-/* PCH8 Lynx Point with quirk for SPS Firmware exclusion */
-static const struct mei_cfg mei_me_pch8_sps_cfg = {
+/* PCH8 Lynx Point and newer devices - iTouch */
+static const struct mei_cfg mei_me_pch8_itouch_cfg = {
+	MEI_CFG_KIND_ITOUCH,
 	MEI_CFG_PCH8_HFS,
 	MEI_CFG_FW_VER_SUPP,
-	MEI_CFG_FW_SPS,
+};
+
+/* PCH8 Lynx Point with quirk for SPS Firmware exclusion */
+static const struct mei_cfg mei_me_pch8_sps_4_cfg = {
+	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
+	MEI_CFG_FW_SPS_4,
+};
+
+/* LBG with quirk for SPS (4.0) Firmware exclusion */
+static const struct mei_cfg mei_me_pch12_sps_4_cfg = {
+	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
+	MEI_CFG_FW_SPS_4,
 };
 
 /* Cannon Lake and newer devices */
@@ -1465,12 +1530,39 @@ static const struct mei_cfg mei_me_pch12_cfg = {
 	MEI_CFG_DMA_128,
 };
 
+/* Cannon Lake with quirk for SPS 5.0 and newer Firmware exclusion */
+static const struct mei_cfg mei_me_pch12_sps_cfg = {
+	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
+	MEI_CFG_DMA_128,
+	MEI_CFG_FW_SPS,
+};
+
+/* Cannon Lake itouch with quirk for SPS 5.0 and newer Firmware exclusion
+ * w/o DMA support.
+ */
+static const struct mei_cfg mei_me_pch12_itouch_sps_cfg = {
+	MEI_CFG_KIND_ITOUCH,
+	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
+	MEI_CFG_FW_SPS,
+};
+
 /* Tiger Lake and newer devices */
 static const struct mei_cfg mei_me_pch15_cfg = {
 	MEI_CFG_PCH8_HFS,
 	MEI_CFG_FW_VER_SUPP,
 	MEI_CFG_DMA_128,
 	MEI_CFG_TRC,
+};
+
+/* Tiger Lake with quirk for SPS 5.0 and newer Firmware exclusion */
+static const struct mei_cfg mei_me_pch15_sps_cfg = {
+	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
+	MEI_CFG_DMA_128,
+	MEI_CFG_TRC,
+	MEI_CFG_FW_SPS,
 };
 
 /*
@@ -1485,9 +1577,14 @@ static const struct mei_cfg *const mei_cfg_list[] = {
 	[MEI_ME_PCH7_CFG] = &mei_me_pch7_cfg,
 	[MEI_ME_PCH_CPT_PBG_CFG] = &mei_me_pch_cpt_pbg_cfg,
 	[MEI_ME_PCH8_CFG] = &mei_me_pch8_cfg,
-	[MEI_ME_PCH8_SPS_CFG] = &mei_me_pch8_sps_cfg,
+	[MEI_ME_PCH8_ITOUCH_CFG] = &mei_me_pch8_itouch_cfg,
+	[MEI_ME_PCH8_SPS_4_CFG] = &mei_me_pch8_sps_4_cfg,
 	[MEI_ME_PCH12_CFG] = &mei_me_pch12_cfg,
+	[MEI_ME_PCH12_SPS_4_CFG] = &mei_me_pch12_sps_4_cfg,
+	[MEI_ME_PCH12_SPS_CFG] = &mei_me_pch12_sps_cfg,
+	[MEI_ME_PCH12_SPS_ITOUCH_CFG] = &mei_me_pch12_itouch_sps_cfg,
 	[MEI_ME_PCH15_CFG] = &mei_me_pch15_cfg,
+	[MEI_ME_PCH15_SPS_CFG] = &mei_me_pch15_sps_cfg,
 };
 
 const struct mei_cfg *mei_me_get_cfg(kernel_ulong_t idx)
@@ -1515,8 +1612,7 @@ struct mei_device *mei_me_dev_init(struct device *parent,
 	struct mei_me_hw *hw;
 	int i;
 
-	dev = devm_kzalloc(parent, sizeof(struct mei_device) +
-			   sizeof(struct mei_me_hw), GFP_KERNEL);
+	dev = devm_kzalloc(parent, sizeof(*dev) + sizeof(*hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 
@@ -1529,6 +1625,8 @@ struct mei_device *mei_me_dev_init(struct device *parent,
 	hw->cfg = cfg;
 
 	dev->fw_f_fw_ver_supported = cfg->fw_ver_supported;
+
+	dev->kind = cfg->kind;
 
 	return dev;
 }

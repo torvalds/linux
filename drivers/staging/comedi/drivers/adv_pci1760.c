@@ -419,6 +419,6 @@ static struct pci_driver pci1760_pci_driver = {
 };
 module_comedi_pci_driver(pci1760_driver, pci1760_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Advantech PCI-1760");
 MODULE_LICENSE("GPL");

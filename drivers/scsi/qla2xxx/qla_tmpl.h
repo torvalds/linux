@@ -18,16 +18,16 @@ struct __packed qla27xx_fwdt_template {
 
 	__le32 entry_count;
 	uint32_t template_version;
-	uint32_t capture_timestamp;
+	__le32 capture_timestamp;
 	uint32_t template_checksum;
 
 	uint32_t reserved_2;
-	uint32_t driver_info[3];
+	__le32 driver_info[3];
 
 	uint32_t saved_state[16];
 
 	uint32_t reserved_3[8];
-	uint32_t firmware_version[5];
+	__le32 firmware_version[5];
 };
 
 #define TEMPLATE_TYPE_FWDUMP		99

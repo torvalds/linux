@@ -100,6 +100,8 @@ enum htt_tlv_tag_t {
 	HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG              = 86,
 	HTT_STATS_SCHED_TXQ_SCHED_INELIGIBILITY_TAG         = 87,
 	HTT_STATS_PDEV_OBSS_PD_TAG                          = 88,
+	HTT_STATS_HW_WAR_TAG				    = 89,
+	HTT_STATS_RING_BACKPRESSURE_STATS_TAG		    = 90,
 
 	HTT_STATS_MAX_TAG,
 };
@@ -237,7 +239,7 @@ struct htt_tx_pdev_stats_tx_ppdu_stats_tlv_v {
  */
 struct htt_tx_pdev_stats_tried_mpdu_cnt_hist_tlv_v {
 	u32 hist_bin_size;
-	u32 tried_mpdu_cnt_hist[0]; /* HTT_TX_PDEV_TRIED_MPDU_CNT_HIST */
+	u32 tried_mpdu_cnt_hist[]; /* HTT_TX_PDEV_TRIED_MPDU_CNT_HIST */
 };
 
 /* == SOC ERROR STATS == */
@@ -548,7 +550,7 @@ struct htt_tx_hwq_stats_cmn_tlv {
 struct htt_tx_hwq_difs_latency_stats_tlv_v {
 	u32 hist_intvl;
 	/* histogram of ppdu post to hwsch - > cmd status received */
-	u32 difs_latency_hist[0]; /* HTT_TX_HWQ_MAX_DIFS_LATENCY_BINS */
+	u32 difs_latency_hist[]; /* HTT_TX_HWQ_MAX_DIFS_LATENCY_BINS */
 };
 
 /* NOTE: Variable length TLV, use length spec to infer array size */
@@ -584,7 +586,7 @@ struct htt_tx_hwq_fes_result_stats_tlv_v {
 struct htt_tx_hwq_tried_mpdu_cnt_hist_tlv_v {
 	u32 hist_bin_size;
 	/* Histogram of number of mpdus on tried mpdu */
-	u32 tried_mpdu_cnt_hist[0]; /* HTT_TX_HWQ_TRIED_MPDU_CNT_HIST */
+	u32 tried_mpdu_cnt_hist[]; /* HTT_TX_HWQ_TRIED_MPDU_CNT_HIST */
 };
 
 /* NOTE: Variable length TLV, use length spec to infer array size
@@ -1582,7 +1584,7 @@ struct htt_pdev_stats_twt_session_tlv {
 struct htt_pdev_stats_twt_sessions_tlv {
 	u32 pdev_id;
 	u32 num_sessions;
-	struct htt_pdev_stats_twt_session_tlv twt_session[0];
+	struct htt_pdev_stats_twt_session_tlv twt_session[];
 };
 
 enum htt_rx_reo_resource_sample_id_enum {
@@ -1659,4 +1661,30 @@ struct htt_pdev_obss_pd_stats_tlv {
 };
 
 void ath11k_debug_htt_stats_init(struct ath11k *ar);
+
+struct htt_ring_backpressure_stats_tlv {
+	u32 pdev_id;
+	u32 current_head_idx;
+	u32 current_tail_idx;
+	u32 num_htt_msgs_sent;
+	/* Time in milliseconds for which the ring has been in
+	 * its current backpressure condition
+	 */
+	u32 backpressure_time_ms;
+	/* backpressure_hist - histogram showing how many times
+	 * different degrees of backpressure duration occurred:
+	 * Index 0 indicates the number of times ring was
+	 * continuously in backpressure state for 100 - 200ms.
+	 * Index 1 indicates the number of times ring was
+	 * continuously in backpressure state for 200 - 300ms.
+	 * Index 2 indicates the number of times ring was
+	 * continuously in backpressure state for 300 - 400ms.
+	 * Index 3 indicates the number of times ring was
+	 * continuously in backpressure state for 400 - 500ms.
+	 * Index 4 indicates the number of times ring was
+	 * continuously in backpressure state beyond 500ms.
+	 */
+	u32 backpressure_hist[5];
+};
+
 #endif

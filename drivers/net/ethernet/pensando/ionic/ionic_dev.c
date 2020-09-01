@@ -14,11 +14,15 @@
 static void ionic_watchdog_cb(struct timer_list *t)
 {
 	struct ionic *ionic = from_timer(ionic, t, watchdog_timer);
+	int hb;
 
 	mod_timer(&ionic->watchdog_timer,
 		  round_jiffies(jiffies + ionic->watchdog_period));
 
-	ionic_heartbeat_check(ionic);
+	hb = ionic_heartbeat_check(ionic);
+
+	if (hb >= 0 && ionic->master_lif)
+		ionic_link_status_check_request(ionic->master_lif);
 }
 
 void ionic_init_devinfo(struct ionic *ionic)
@@ -82,6 +86,7 @@ int ionic_dev_setup(struct ionic *ionic)
 		return -EFAULT;
 	}
 
+	idev->last_fw_status = 0xff;
 	timer_setup(&ionic->watchdog_timer, ionic_watchdog_cb, 0);
 	ionic->watchdog_period = IONIC_WATCHDOG_SECS * HZ;
 	mod_timer(&ionic->watchdog_timer,
@@ -115,8 +120,43 @@ int ionic_heartbeat_check(struct ionic *ionic)
 	 * fw_status != 0xff (bad PCI read)
 	 */
 	fw_status = ioread8(&idev->dev_info_regs->fw_status);
-	if (fw_status == 0xff ||
-	    !(fw_status & IONIC_FW_STS_F_RUNNING))
+	if (fw_status != 0xff)
+		fw_status &= IONIC_FW_STS_F_RUNNING;  /* use only the run bit */
+
+	/* is this a transition? */
+	if (fw_status != idev->last_fw_status &&
+	    idev->last_fw_status != 0xff) {
+		struct ionic_lif *lif = ionic->master_lif;
+		bool trigger = false;
+
+		if (!fw_status || fw_status == 0xff) {
+			dev_info(ionic->dev, "FW stopped %u\n", fw_status);
+			if (lif && !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+				trigger = true;
+		} else {
+			dev_info(ionic->dev, "FW running %u\n", fw_status);
+			if (lif && test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+				trigger = true;
+		}
+
+		if (trigger) {
+			struct ionic_deferred_work *work;
+
+			work = kzalloc(sizeof(*work), GFP_ATOMIC);
+			if (!work) {
+				dev_err(ionic->dev, "%s OOM\n", __func__);
+			} else {
+				work->type = IONIC_DW_TYPE_LIF_RESET;
+				if (fw_status & IONIC_FW_STS_F_RUNNING &&
+				    fw_status != 0xff)
+					work->fw_status = 1;
+				ionic_lif_deferred_enqueue(&lif->deferred, work);
+			}
+		}
+	}
+	idev->last_fw_status = fw_status;
+
+	if (!fw_status || fw_status == 0xff)
 		return -ENXIO;
 
 	/* early FW has no heartbeat, else FW will return non-zero */
@@ -348,6 +388,19 @@ int ionic_set_vf_config(struct ionic *ionic, int vf, u8 attr, u8 *data)
 }
 
 /* LIF commands */
+void ionic_dev_cmd_queue_identify(struct ionic_dev *idev,
+				  u16 lif_type, u8 qtype, u8 qver)
+{
+	union ionic_dev_cmd cmd = {
+		.q_identify.opcode = IONIC_CMD_Q_IDENTIFY,
+		.q_identify.lif_type = lif_type,
+		.q_identify.type = qtype,
+		.q_identify.ver = qver,
+	};
+
+	ionic_dev_cmd_go(idev, &cmd);
+}
+
 void ionic_dev_cmd_lif_identify(struct ionic_dev *idev, u8 type, u8 ver)
 {
 	union ionic_dev_cmd cmd = {
@@ -391,6 +444,7 @@ void ionic_dev_cmd_adminq_init(struct ionic_dev *idev, struct ionic_qcq *qcq,
 		.q_init.opcode = IONIC_CMD_Q_INIT,
 		.q_init.lif_index = cpu_to_le16(lif_index),
 		.q_init.type = q->type,
+		.q_init.ver = qcq->q.lif->qtype_info[q->type].version,
 		.q_init.index = cpu_to_le32(q->index),
 		.q_init.flags = cpu_to_le16(IONIC_QINIT_F_IRQ |
 					    IONIC_QINIT_F_ENA),

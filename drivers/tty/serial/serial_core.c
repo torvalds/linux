@@ -14,12 +14,14 @@
 #include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
 #include <linux/serial.h> /* for serial_state and serial_icounter_struct */
 #include <linux/serial_core.h>
+#include <linux/sysrq.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/security.h>
@@ -1119,7 +1121,7 @@ out:
 	return ret;
 }
 
-static int uart_do_autoconfig(struct tty_struct *tty,struct uart_state *state)
+static int uart_do_autoconfig(struct tty_struct *tty, struct uart_state *state)
 {
 	struct tty_port *port = &state->port;
 	struct uart_port *uport;
@@ -1522,6 +1524,7 @@ static void uart_set_termios(struct tty_struct *tty,
 	/* Handle transition away from B0 status */
 	else if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		unsigned int mask = TIOCM_DTR;
+
 		if (!(cflag & CRTSCTS) || !tty_throttled(tty))
 			mask |= TIOCM_RTS;
 		uart_set_mctrl(uport, mask);
@@ -1908,6 +1911,29 @@ static int uart_proc_show(struct seq_file *m, void *v)
 }
 #endif
 
+static inline bool uart_console_enabled(struct uart_port *port)
+{
+	return uart_console(port) && (port->cons->flags & CON_ENABLED);
+}
+
+static void __uart_port_spin_lock_init(struct uart_port *port)
+{
+	spin_lock_init(&port->lock);
+	lockdep_set_class(&port->lock, &port_lock_key);
+}
+
+/*
+ * Ensure that the serial console lock is initialised early.
+ * If this port is a console, then the spinlock is already initialised.
+ */
+static inline void uart_port_spin_lock_init(struct uart_port *port)
+{
+	if (uart_console(port))
+		return;
+
+	__uart_port_spin_lock_init(port);
+}
+
 #if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /**
  *	uart_console_write - write a console message to a serial port
@@ -2060,16 +2086,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	struct ktermios termios;
 	static struct ktermios dummy;
 
-	/*
-	 * Ensure that the serial console lock is initialised
-	 * early.
-	 * If this port is a console, then the spinlock is already
-	 * initialised.
-	 */
-	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED))) {
-		spin_lock_init(&port->lock);
-		lockdep_set_class(&port->lock, &port_lock_key);
-	}
+	uart_port_spin_lock_init(port);
 
 	memset(&termios, 0, sizeof(struct ktermios));
 
@@ -2084,7 +2101,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	switch (parity) {
 	case 'o': case 'O':
 		termios.c_cflag |= PARODD;
-		/*fall through*/
+		fallthrough;
 	case 'e': case 'E':
 		termios.c_cflag |= PARENB;
 		break;
@@ -2264,6 +2281,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		if (console_suspend_enabled || !uart_console(uport)) {
 			/* Protected by port mutex for now */
 			struct tty_struct *tty = port->tty;
+
 			ret = ops->startup(uport);
 			if (ret == 0) {
 				if (tty)
@@ -2359,6 +2377,13 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 
 		/* Power up port for set_mctrl() */
 		uart_change_pm(state, UART_PM_STATE_ON);
+
+		/*
+		 * If this driver supports console, and it hasn't been
+		 * successfully registered yet, initialise spin lock for it.
+		 */
+		if (port->cons && !(port->cons->flags & CON_ENABLED))
+			__uart_port_spin_lock_init(port);
 
 		/*
 		 * Ensure that the modem control lines are de-activated.
@@ -2605,7 +2630,7 @@ struct tty_driver *uart_console_device(struct console *co, int *index)
 }
 EXPORT_SYMBOL_GPL(uart_console_device);
 
-static ssize_t uart_get_attr_uartclk(struct device *dev,
+static ssize_t uartclk_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2615,7 +2640,7 @@ static ssize_t uart_get_attr_uartclk(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.baud_base * 16);
 }
 
-static ssize_t uart_get_attr_type(struct device *dev,
+static ssize_t type_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2624,7 +2649,8 @@ static ssize_t uart_get_attr_type(struct device *dev,
 	uart_get_info(port, &tmp);
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.type);
 }
-static ssize_t uart_get_attr_line(struct device *dev,
+
+static ssize_t line_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2634,7 +2660,7 @@ static ssize_t uart_get_attr_line(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.line);
 }
 
-static ssize_t uart_get_attr_port(struct device *dev,
+static ssize_t port_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2648,7 +2674,7 @@ static ssize_t uart_get_attr_port(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%lX\n", ioaddr);
 }
 
-static ssize_t uart_get_attr_irq(struct device *dev,
+static ssize_t irq_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2658,7 +2684,7 @@ static ssize_t uart_get_attr_irq(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.irq);
 }
 
-static ssize_t uart_get_attr_flags(struct device *dev,
+static ssize_t flags_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2668,7 +2694,7 @@ static ssize_t uart_get_attr_flags(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%X\n", tmp.flags);
 }
 
-static ssize_t uart_get_attr_xmit_fifo_size(struct device *dev,
+static ssize_t xmit_fifo_size_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2678,8 +2704,7 @@ static ssize_t uart_get_attr_xmit_fifo_size(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.xmit_fifo_size);
 }
 
-
-static ssize_t uart_get_attr_close_delay(struct device *dev,
+static ssize_t close_delay_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2689,8 +2714,7 @@ static ssize_t uart_get_attr_close_delay(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.close_delay);
 }
 
-
-static ssize_t uart_get_attr_closing_wait(struct device *dev,
+static ssize_t closing_wait_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2700,7 +2724,7 @@ static ssize_t uart_get_attr_closing_wait(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.closing_wait);
 }
 
-static ssize_t uart_get_attr_custom_divisor(struct device *dev,
+static ssize_t custom_divisor_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2710,7 +2734,7 @@ static ssize_t uart_get_attr_custom_divisor(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.custom_divisor);
 }
 
-static ssize_t uart_get_attr_io_type(struct device *dev,
+static ssize_t io_type_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2720,7 +2744,7 @@ static ssize_t uart_get_attr_io_type(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.io_type);
 }
 
-static ssize_t uart_get_attr_iomem_base(struct device *dev,
+static ssize_t iomem_base_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2730,7 +2754,7 @@ static ssize_t uart_get_attr_iomem_base(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%lX\n", (unsigned long)tmp.iomem_base);
 }
 
-static ssize_t uart_get_attr_iomem_reg_shift(struct device *dev,
+static ssize_t iomem_reg_shift_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2740,40 +2764,92 @@ static ssize_t uart_get_attr_iomem_reg_shift(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.iomem_reg_shift);
 }
 
-static DEVICE_ATTR(type, S_IRUSR | S_IRGRP, uart_get_attr_type, NULL);
-static DEVICE_ATTR(line, S_IRUSR | S_IRGRP, uart_get_attr_line, NULL);
-static DEVICE_ATTR(port, S_IRUSR | S_IRGRP, uart_get_attr_port, NULL);
-static DEVICE_ATTR(irq, S_IRUSR | S_IRGRP, uart_get_attr_irq, NULL);
-static DEVICE_ATTR(flags, S_IRUSR | S_IRGRP, uart_get_attr_flags, NULL);
-static DEVICE_ATTR(xmit_fifo_size, S_IRUSR | S_IRGRP, uart_get_attr_xmit_fifo_size, NULL);
-static DEVICE_ATTR(uartclk, S_IRUSR | S_IRGRP, uart_get_attr_uartclk, NULL);
-static DEVICE_ATTR(close_delay, S_IRUSR | S_IRGRP, uart_get_attr_close_delay, NULL);
-static DEVICE_ATTR(closing_wait, S_IRUSR | S_IRGRP, uart_get_attr_closing_wait, NULL);
-static DEVICE_ATTR(custom_divisor, S_IRUSR | S_IRGRP, uart_get_attr_custom_divisor, NULL);
-static DEVICE_ATTR(io_type, S_IRUSR | S_IRGRP, uart_get_attr_io_type, NULL);
-static DEVICE_ATTR(iomem_base, S_IRUSR | S_IRGRP, uart_get_attr_iomem_base, NULL);
-static DEVICE_ATTR(iomem_reg_shift, S_IRUSR | S_IRGRP, uart_get_attr_iomem_reg_shift, NULL);
+static ssize_t console_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct tty_port *port = dev_get_drvdata(dev);
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport;
+	bool console = false;
+
+	mutex_lock(&port->mutex);
+	uport = uart_port_check(state);
+	if (uport)
+		console = uart_console_enabled(uport);
+	mutex_unlock(&port->mutex);
+
+	return sprintf(buf, "%c\n", console ? 'Y' : 'N');
+}
+
+static ssize_t console_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct tty_port *port = dev_get_drvdata(dev);
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport;
+	bool oldconsole, newconsole;
+	int ret;
+
+	ret = kstrtobool(buf, &newconsole);
+	if (ret)
+		return ret;
+
+	mutex_lock(&port->mutex);
+	uport = uart_port_check(state);
+	if (uport) {
+		oldconsole = uart_console_enabled(uport);
+		if (oldconsole && !newconsole) {
+			ret = unregister_console(uport->cons);
+		} else if (!oldconsole && newconsole) {
+			if (uart_console(uport))
+				register_console(uport->cons);
+			else
+				ret = -ENOENT;
+		}
+	} else {
+		ret = -ENXIO;
+	}
+	mutex_unlock(&port->mutex);
+
+	return ret < 0 ? ret : count;
+}
+
+static DEVICE_ATTR_RO(uartclk);
+static DEVICE_ATTR_RO(type);
+static DEVICE_ATTR_RO(line);
+static DEVICE_ATTR_RO(port);
+static DEVICE_ATTR_RO(irq);
+static DEVICE_ATTR_RO(flags);
+static DEVICE_ATTR_RO(xmit_fifo_size);
+static DEVICE_ATTR_RO(close_delay);
+static DEVICE_ATTR_RO(closing_wait);
+static DEVICE_ATTR_RO(custom_divisor);
+static DEVICE_ATTR_RO(io_type);
+static DEVICE_ATTR_RO(iomem_base);
+static DEVICE_ATTR_RO(iomem_reg_shift);
+static DEVICE_ATTR_RW(console);
 
 static struct attribute *tty_dev_attrs[] = {
+	&dev_attr_uartclk.attr,
 	&dev_attr_type.attr,
 	&dev_attr_line.attr,
 	&dev_attr_port.attr,
 	&dev_attr_irq.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_xmit_fifo_size.attr,
-	&dev_attr_uartclk.attr,
 	&dev_attr_close_delay.attr,
 	&dev_attr_closing_wait.attr,
 	&dev_attr_custom_divisor.attr,
 	&dev_attr_io_type.attr,
 	&dev_attr_iomem_base.attr,
 	&dev_attr_iomem_reg_shift.attr,
-	NULL,
-	};
+	&dev_attr_console.attr,
+	NULL
+};
 
 static const struct attribute_group tty_dev_attr_group = {
 	.attrs = tty_dev_attrs,
-	};
+};
 
 /**
  *	uart_add_one_port - attach a driver-defined port structure
@@ -2824,14 +2900,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		goto out;
 	}
 
-	/*
-	 * If this port is a console, then the spinlock is already
-	 * initialised.
-	 */
-	if (!(uart_console(uport) && (uport->cons->flags & CON_ENABLED))) {
-		spin_lock_init(&uport->lock);
-		lockdep_set_class(&uport->lock, &port_lock_key);
-	}
+	uart_port_spin_lock_init(uport);
+
 	if (uport->cons && uport->dev)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
@@ -3082,88 +3152,55 @@ void uart_insert_char(struct uart_port *port, unsigned int status,
 }
 EXPORT_SYMBOL_GPL(uart_insert_char);
 
-int uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
+#ifdef CONFIG_MAGIC_SYSRQ_SERIAL
+static const char sysrq_toggle_seq[] = CONFIG_MAGIC_SYSRQ_SERIAL_SEQUENCE;
+
+static void uart_sysrq_on(struct work_struct *w)
 {
-	if (!IS_ENABLED(CONFIG_MAGIC_SYSRQ_SERIAL))
-		return 0;
+	int sysrq_toggle_seq_len = strlen(sysrq_toggle_seq);
 
-	if (!port->has_sysrq || !port->sysrq)
-		return 0;
-
-	if (ch && time_before(jiffies, port->sysrq)) {
-		handle_sysrq(ch);
-		port->sysrq = 0;
-		return 1;
-	}
-	port->sysrq = 0;
-
-	return 0;
+	sysrq_toggle_support(1);
+	pr_info("SysRq is enabled by magic sequence '%*pE' on serial\n",
+		sysrq_toggle_seq_len, sysrq_toggle_seq);
 }
-EXPORT_SYMBOL_GPL(uart_handle_sysrq_char);
+static DECLARE_WORK(sysrq_enable_work, uart_sysrq_on);
 
-int uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch)
-{
-	if (!IS_ENABLED(CONFIG_MAGIC_SYSRQ_SERIAL))
-		return 0;
-
-	if (!port->has_sysrq || !port->sysrq)
-		return 0;
-
-	if (ch && time_before(jiffies, port->sysrq)) {
-		port->sysrq_ch = ch;
-		port->sysrq = 0;
-		return 1;
-	}
-	port->sysrq = 0;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(uart_prepare_sysrq_char);
-
-void uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long irqflags)
-{
-	int sysrq_ch;
-
-	if (!port->has_sysrq) {
-		spin_unlock_irqrestore(&port->lock, irqflags);
-		return;
-	}
-
-	sysrq_ch = port->sysrq_ch;
-	port->sysrq_ch = 0;
-
-	spin_unlock_irqrestore(&port->lock, irqflags);
-
-	if (sysrq_ch)
-		handle_sysrq(sysrq_ch);
-}
-EXPORT_SYMBOL_GPL(uart_unlock_and_check_sysrq);
-
-/*
- * We do the SysRQ and SAK checking like this...
+/**
+ *	uart_try_toggle_sysrq - Enables SysRq from serial line
+ *	@port: uart_port structure where char(s) after BREAK met
+ *	@ch: new character in the sequence after received BREAK
+ *
+ *	Enables magic SysRq when the required sequence is met on port
+ *	(see CONFIG_MAGIC_SYSRQ_SERIAL_SEQUENCE).
+ *
+ *	Returns false if @ch is out of enabling sequence and should be
+ *	handled some other way, true if @ch was consumed.
  */
-int uart_handle_break(struct uart_port *port)
+bool uart_try_toggle_sysrq(struct uart_port *port, unsigned int ch)
 {
-	struct uart_state *state = port->state;
+	int sysrq_toggle_seq_len = strlen(sysrq_toggle_seq);
 
-	if (port->handle_break)
-		port->handle_break(port);
+	if (!sysrq_toggle_seq_len)
+		return false;
 
-	if (port->has_sysrq) {
-		if (port->cons && port->cons->index == port->line) {
-			if (!port->sysrq) {
-				port->sysrq = jiffies + HZ*5;
-				return 1;
-			}
-			port->sysrq = 0;
-		}
+	BUILD_BUG_ON(ARRAY_SIZE(sysrq_toggle_seq) >= U8_MAX);
+	if (sysrq_toggle_seq[port->sysrq_seq] != ch) {
+		port->sysrq_seq = 0;
+		return false;
 	}
 
-	if (port->flags & UPF_SAK)
-		do_SAK(state->port.tty);
-	return 0;
+	if (++port->sysrq_seq < sysrq_toggle_seq_len) {
+		port->sysrq = jiffies + SYSRQ_TIMEOUT;
+		return true;
+	}
+
+	schedule_work(&sysrq_enable_work);
+
+	port->sysrq = 0;
+	return true;
 }
-EXPORT_SYMBOL_GPL(uart_handle_break);
+EXPORT_SYMBOL_GPL(uart_try_toggle_sysrq);
+#endif
 
 EXPORT_SYMBOL(uart_write_wakeup);
 EXPORT_SYMBOL(uart_register_driver);
@@ -3175,14 +3212,15 @@ EXPORT_SYMBOL(uart_remove_one_port);
 
 /**
  * uart_get_rs485_mode() - retrieve rs485 properties for given uart
- * @dev: uart device
- * @rs485conf: output parameter
+ * @port: uart device's target port
  *
  * This function implements the device tree binding described in
  * Documentation/devicetree/bindings/serial/rs485.txt.
  */
-void uart_get_rs485_mode(struct device *dev, struct serial_rs485 *rs485conf)
+int uart_get_rs485_mode(struct uart_port *port)
 {
+	struct serial_rs485 *rs485conf = &port->rs485;
+	struct device *dev = port->dev;
 	u32 rs485_delay[2];
 	int ret;
 
@@ -3201,6 +3239,7 @@ void uart_get_rs485_mode(struct device *dev, struct serial_rs485 *rs485conf)
 	 * to get to a defined state with the following properties:
 	 */
 	rs485conf->flags &= ~(SER_RS485_RX_DURING_TX | SER_RS485_ENABLED |
+			      SER_RS485_TERMINATE_BUS |
 			      SER_RS485_RTS_AFTER_SEND);
 	rs485conf->flags |= SER_RS485_RTS_ON_SEND;
 
@@ -3214,6 +3253,23 @@ void uart_get_rs485_mode(struct device *dev, struct serial_rs485 *rs485conf)
 		rs485conf->flags &= ~SER_RS485_RTS_ON_SEND;
 		rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
 	}
+
+	/*
+	 * Disabling termination by default is the safe choice:  Else if many
+	 * bus participants enable it, no communication is possible at all.
+	 * Works fine for short cables and users may enable for longer cables.
+	 */
+	port->rs485_term_gpio = devm_gpiod_get_optional(dev, "rs485-term",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(port->rs485_term_gpio)) {
+		ret = PTR_ERR(port->rs485_term_gpio);
+		port->rs485_term_gpio = NULL;
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Cannot get rs485-term-gpios\n");
+		return ret;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(uart_get_rs485_mode);
 

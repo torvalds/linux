@@ -31,13 +31,6 @@ struct extent_io_tree;
 struct prelim_ref;
 struct btrfs_space_info;
 
-TRACE_DEFINE_ENUM(FLUSH_DELAYED_ITEMS_NR);
-TRACE_DEFINE_ENUM(FLUSH_DELAYED_ITEMS);
-TRACE_DEFINE_ENUM(FLUSH_DELALLOC);
-TRACE_DEFINE_ENUM(FLUSH_DELALLOC_WAIT);
-TRACE_DEFINE_ENUM(ALLOC_CHUNK);
-TRACE_DEFINE_ENUM(COMMIT_TRANS);
-
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
 		{ BTRFS_TREE_BLOCK_REF_KEY, 	"TREE_BLOCK_REF" },	\
@@ -67,28 +60,72 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 	      (obj >= BTRFS_ROOT_TREE_OBJECTID &&			\
 	       obj <= BTRFS_QUOTA_TREE_OBJECTID)) ? __show_root_type(obj) : "-"
 
-#define show_fi_type(type)						\
-	__print_symbolic(type,						\
-		 { BTRFS_FILE_EXTENT_INLINE,	"INLINE" },		\
-		 { BTRFS_FILE_EXTENT_REG,	"REG"	 },		\
-		 { BTRFS_FILE_EXTENT_PREALLOC,	"PREALLOC"})
+#define FLUSH_ACTIONS								\
+	EM( BTRFS_RESERVE_NO_FLUSH,		"BTRFS_RESERVE_NO_FLUSH")	\
+	EM( BTRFS_RESERVE_FLUSH_LIMIT,		"BTRFS_RESERVE_FLUSH_LIMIT")	\
+	EM( BTRFS_RESERVE_FLUSH_ALL,		"BTRFS_RESERVE_FLUSH_ALL")	\
+	EMe(BTRFS_RESERVE_FLUSH_ALL_STEAL,	"BTRFS_RESERVE_FLUSH_ALL_STEAL")
 
-#define show_qgroup_rsv_type(type)					\
-	__print_symbolic(type,						\
-		{ BTRFS_QGROUP_RSV_DATA,	  "DATA"	},	\
-		{ BTRFS_QGROUP_RSV_META_PERTRANS, "META_PERTRANS" },	\
-		{ BTRFS_QGROUP_RSV_META_PREALLOC, "META_PREALLOC" })
+#define FI_TYPES							\
+	EM( BTRFS_FILE_EXTENT_INLINE,		"INLINE")		\
+	EM( BTRFS_FILE_EXTENT_REG,		"REG")			\
+	EMe(BTRFS_FILE_EXTENT_PREALLOC,		"PREALLOC")
 
-#define show_extent_io_tree_owner(owner)				       \
-	__print_symbolic(owner,						       \
-		{ IO_TREE_FS_INFO_FREED_EXTENTS0, "FREED_EXTENTS0" },	       \
-		{ IO_TREE_FS_INFO_FREED_EXTENTS1, "FREED_EXTENTS1" },	       \
-		{ IO_TREE_INODE_IO,		  "INODE_IO" },		       \
-		{ IO_TREE_INODE_IO_FAILURE,	  "INODE_IO_FAILURE" },	       \
-		{ IO_TREE_RELOC_BLOCKS,		  "RELOC_BLOCKS" },	       \
-		{ IO_TREE_TRANS_DIRTY_PAGES,	  "TRANS_DIRTY_PAGES" },       \
-		{ IO_TREE_ROOT_DIRTY_LOG_PAGES,	  "ROOT_DIRTY_LOG_PAGES" },    \
-		{ IO_TREE_SELFTEST,		  "SELFTEST" })
+#define QGROUP_RSV_TYPES						\
+	EM( BTRFS_QGROUP_RSV_DATA,		"DATA")			\
+	EM( BTRFS_QGROUP_RSV_META_PERTRANS,	"META_PERTRANS")	\
+	EMe(BTRFS_QGROUP_RSV_META_PREALLOC,	"META_PREALLOC")
+
+#define IO_TREE_OWNER						    \
+	EM( IO_TREE_FS_PINNED_EXTENTS, 	  "PINNED_EXTENTS")	    \
+	EM( IO_TREE_FS_EXCLUDED_EXTENTS,  "EXCLUDED_EXTENTS")	    \
+	EM( IO_TREE_INODE_IO,		  "INODE_IO")		    \
+	EM( IO_TREE_INODE_IO_FAILURE,	  "INODE_IO_FAILURE")	    \
+	EM( IO_TREE_RELOC_BLOCKS,	  "RELOC_BLOCKS")	    \
+	EM( IO_TREE_TRANS_DIRTY_PAGES,	  "TRANS_DIRTY_PAGES")      \
+	EM( IO_TREE_ROOT_DIRTY_LOG_PAGES, "ROOT_DIRTY_LOG_PAGES")   \
+	EM( IO_TREE_INODE_FILE_EXTENT,	  "INODE_FILE_EXTENT")      \
+	EM( IO_TREE_LOG_CSUM_RANGE,	  "LOG_CSUM_RANGE")         \
+	EMe(IO_TREE_SELFTEST,		  "SELFTEST")
+
+#define FLUSH_STATES							\
+	EM( FLUSH_DELAYED_ITEMS_NR,	"FLUSH_DELAYED_ITEMS_NR")	\
+	EM( FLUSH_DELAYED_ITEMS,	"FLUSH_DELAYED_ITEMS")		\
+	EM( FLUSH_DELALLOC,		"FLUSH_DELALLOC")		\
+	EM( FLUSH_DELALLOC_WAIT,	"FLUSH_DELALLOC_WAIT")		\
+	EM( FLUSH_DELAYED_REFS_NR,	"FLUSH_DELAYED_REFS_NR")	\
+	EM( FLUSH_DELAYED_REFS,		"FLUSH_ELAYED_REFS")		\
+	EM( ALLOC_CHUNK,		"ALLOC_CHUNK")			\
+	EM( ALLOC_CHUNK_FORCE,		"ALLOC_CHUNK_FORCE")		\
+	EM( RUN_DELAYED_IPUTS,		"RUN_DELAYED_IPUTS")		\
+	EMe(COMMIT_TRANS,		"COMMIT_TRANS")
+
+/*
+ * First define the enums in the above macros to be exported to userspace via
+ * TRACE_DEFINE_ENUM().
+ */
+
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+FLUSH_ACTIONS
+FI_TYPES
+QGROUP_RSV_TYPES
+IO_TREE_OWNER
+FLUSH_STATES
+
+/*
+ * Now redefine the EM and EMe macros to map the enums to the strings that will
+ * be printed in the output
+ */
+
+#undef EM
+#undef EMe
+#define EM(a, b)        {a, b},
+#define EMe(a, b)       {a, b}
+
 
 #define BTRFS_GROUP_FLAGS	\
 	{ BTRFS_BLOCK_GROUP_DATA,	"DATA"},	\
@@ -378,7 +415,7 @@ DECLARE_EVENT_CLASS(btrfs__file_extent_item_regular,
 		__entry->disk_isize, __entry->extent_start,
 		__entry->extent_end, __entry->num_bytes, __entry->ram_bytes,
 		__entry->disk_bytenr, __entry->disk_num_bytes,
-		__entry->extent_offset, show_fi_type(__entry->extent_type),
+		__entry->extent_offset, __print_symbolic(__entry->extent_type, FI_TYPES),
 		__entry->compression)
 );
 
@@ -419,7 +456,7 @@ DECLARE_EVENT_CLASS(
 		"extent_type=%s compression=%u",
 		show_root_type(__entry->root_obj), __entry->ino, __entry->isize,
 		__entry->disk_isize, __entry->extent_start,
-		__entry->extent_end, show_fi_type(__entry->extent_type),
+		__entry->extent_end, __print_symbolic(__entry->extent_type, FI_TYPES),
 		__entry->compression)
 );
 
@@ -468,7 +505,6 @@ DEFINE_EVENT(
 		{ (1 << BTRFS_ORDERED_PREALLOC), 	"PREALLOC" 	}, \
 		{ (1 << BTRFS_ORDERED_DIRECT),	 	"DIRECT" 	}, \
 		{ (1 << BTRFS_ORDERED_IOERR), 		"IOERR" 	}, \
-		{ (1 << BTRFS_ORDERED_UPDATED_ISIZE), 	"UPDATED_ISIZE"	}, \
 		{ (1 << BTRFS_ORDERED_TRUNCATED), 	"TRUNCATED"	})
 
 
@@ -1041,12 +1077,6 @@ TRACE_EVENT(btrfs_space_reservation,
 			__entry->bytes)
 );
 
-#define show_flush_action(action)						\
-	__print_symbolic(action,						\
-		{ BTRFS_RESERVE_NO_FLUSH,	"BTRFS_RESERVE_NO_FLUSH"},	\
-		{ BTRFS_RESERVE_FLUSH_LIMIT,	"BTRFS_RESERVE_FLUSH_LIMIT"},	\
-		{ BTRFS_RESERVE_FLUSH_ALL,	"BTRFS_RESERVE_FLUSH_ALL"})
-
 TRACE_EVENT(btrfs_trigger_flush,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 flags, u64 bytes,
@@ -1070,25 +1100,13 @@ TRACE_EVENT(btrfs_trigger_flush,
 
 	TP_printk_btrfs("%s: flush=%d(%s) flags=%llu(%s) bytes=%llu",
 		  __get_str(reason), __entry->flush,
-		  show_flush_action(__entry->flush),
+		  __print_symbolic(__entry->flush, FLUSH_ACTIONS),
 		  __entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
 				BTRFS_GROUP_FLAGS),
 		  __entry->bytes)
 );
 
-#define show_flush_state(state)							\
-	__print_symbolic(state,							\
-		{ FLUSH_DELAYED_ITEMS_NR,	"FLUSH_DELAYED_ITEMS_NR"},	\
-		{ FLUSH_DELAYED_ITEMS,		"FLUSH_DELAYED_ITEMS"},		\
-		{ FLUSH_DELALLOC,		"FLUSH_DELALLOC"},		\
-		{ FLUSH_DELALLOC_WAIT,		"FLUSH_DELALLOC_WAIT"},		\
-		{ FLUSH_DELAYED_REFS_NR,	"FLUSH_DELAYED_REFS_NR"},	\
-		{ FLUSH_DELAYED_REFS,		"FLUSH_ELAYED_REFS"},		\
-		{ ALLOC_CHUNK,			"ALLOC_CHUNK"},			\
-		{ ALLOC_CHUNK_FORCE,		"ALLOC_CHUNK_FORCE"},		\
-		{ RUN_DELAYED_IPUTS,		"RUN_DELAYED_IPUTS"},		\
-		{ COMMIT_TRANS,			"COMMIT_TRANS"})
 
 TRACE_EVENT(btrfs_flush_space,
 
@@ -1113,7 +1131,7 @@ TRACE_EVENT(btrfs_flush_space,
 
 	TP_printk_btrfs("state=%d(%s) flags=%llu(%s) num_bytes=%llu ret=%d",
 		  __entry->state,
-		  show_flush_state(__entry->state),
+		  __print_symbolic(__entry->state, FLUSH_STATES),
 		  __entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
 				BTRFS_GROUP_FLAGS),
@@ -1689,7 +1707,7 @@ TRACE_EVENT(qgroup_update_reserve,
 	),
 
 	TP_printk_btrfs("qgid=%llu type=%s cur_reserved=%llu diff=%lld",
-		__entry->qgid, show_qgroup_rsv_type(__entry->type),
+		__entry->qgid, __print_symbolic(__entry->type, QGROUP_RSV_TYPES),
 		__entry->cur_reserved, __entry->diff)
 );
 
@@ -1713,7 +1731,7 @@ TRACE_EVENT(qgroup_meta_reserve,
 
 	TP_printk_btrfs("refroot=%llu(%s) type=%s diff=%lld",
 		show_root_type(__entry->refroot),
-		show_qgroup_rsv_type(__entry->type), __entry->diff)
+		__print_symbolic(__entry->type, QGROUP_RSV_TYPES), __entry->diff)
 );
 
 TRACE_EVENT(qgroup_meta_convert,
@@ -1734,8 +1752,8 @@ TRACE_EVENT(qgroup_meta_convert,
 
 	TP_printk_btrfs("refroot=%llu(%s) type=%s->%s diff=%lld",
 		show_root_type(__entry->refroot),
-		show_qgroup_rsv_type(BTRFS_QGROUP_RSV_META_PREALLOC),
-		show_qgroup_rsv_type(BTRFS_QGROUP_RSV_META_PERTRANS),
+		__print_symbolic(BTRFS_QGROUP_RSV_META_PREALLOC, QGROUP_RSV_TYPES),
+		__print_symbolic(BTRFS_QGROUP_RSV_META_PERTRANS, QGROUP_RSV_TYPES),
 		__entry->diff)
 );
 
@@ -1761,7 +1779,7 @@ TRACE_EVENT(qgroup_meta_free_all_pertrans,
 
 	TP_printk_btrfs("refroot=%llu(%s) type=%s diff=%lld",
 		show_root_type(__entry->refroot),
-		show_qgroup_rsv_type(__entry->type), __entry->diff)
+		__print_symbolic(__entry->type, QGROUP_RSV_TYPES), __entry->diff)
 );
 
 DECLARE_EVENT_CLASS(btrfs__prelim_ref,
@@ -1919,7 +1937,7 @@ TRACE_EVENT(btrfs_set_extent_bit,
 
 	TP_printk_btrfs(
 		"io_tree=%s ino=%llu root=%llu start=%llu len=%llu set_bits=%s",
-		show_extent_io_tree_owner(__entry->owner), __entry->ino,
+		__print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
 		__entry->rootid, __entry->start, __entry->len,
 		__print_flags(__entry->set_bits, "|", EXTENT_FLAGS))
 );
@@ -1958,7 +1976,7 @@ TRACE_EVENT(btrfs_clear_extent_bit,
 
 	TP_printk_btrfs(
 		"io_tree=%s ino=%llu root=%llu start=%llu len=%llu clear_bits=%s",
-		show_extent_io_tree_owner(__entry->owner), __entry->ino,
+		__print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
 		__entry->rootid, __entry->start, __entry->len,
 		__print_flags(__entry->clear_bits, "|", EXTENT_FLAGS))
 );
@@ -1999,7 +2017,7 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 
 	TP_printk_btrfs(
 "io_tree=%s ino=%llu root=%llu start=%llu len=%llu set_bits=%s clear_bits=%s",
-		  show_extent_io_tree_owner(__entry->owner), __entry->ino,
+		  __print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
 		  __entry->rootid, __entry->start, __entry->len,
 		  __print_flags(__entry->set_bits , "|", EXTENT_FLAGS),
 		  __print_flags(__entry->clear_bits, "|", EXTENT_FLAGS))

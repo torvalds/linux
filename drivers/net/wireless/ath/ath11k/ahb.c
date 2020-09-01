@@ -10,6 +10,7 @@
 #include <linux/dma-mapping.h>
 #include "ahb.h"
 #include "debug.h"
+#include "hif.h"
 #include <linux/remoteproc.h>
 
 static const struct of_device_id ath11k_ahb_of_match[] = {
@@ -434,6 +435,16 @@ enum ext_irq_num {
 	tcl2host_status_ring,
 };
 
+static inline u32 ath11k_ahb_read32(struct ath11k_base *ab, u32 offset)
+{
+	return ioread32(ab->mem + offset);
+}
+
+static inline void ath11k_ahb_write32(struct ath11k_base *ab, u32 offset, u32 value)
+{
+	iowrite32(value, ab->mem + offset);
+}
+
 static void ath11k_ahb_kill_tasklets(struct ath11k_base *ab)
 {
 	int i;
@@ -458,7 +469,6 @@ static void ath11k_ahb_ext_grp_disable(struct ath11k_ext_irq_grp *irq_grp)
 
 static void __ath11k_ahb_ext_irq_disable(struct ath11k_base *ab)
 {
-	struct sk_buff *skb;
 	int i;
 
 	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++) {
@@ -468,9 +478,6 @@ static void __ath11k_ahb_ext_irq_disable(struct ath11k_base *ab)
 
 		napi_synchronize(&irq_grp->napi);
 		napi_disable(&irq_grp->napi);
-
-		while ((skb = __skb_dequeue(&irq_grp->pending_q)))
-			dev_kfree_skb_any(skb);
 	}
 }
 
@@ -579,7 +586,7 @@ static void ath11k_ahb_ce_irqs_disable(struct ath11k_base *ab)
 	}
 }
 
-int ath11k_ahb_start(struct ath11k_base *ab)
+static int ath11k_ahb_start(struct ath11k_base *ab)
 {
 	ath11k_ahb_ce_irqs_enable(ab);
 	ath11k_ce_rx_post_buf(ab);
@@ -587,7 +594,7 @@ int ath11k_ahb_start(struct ath11k_base *ab)
 	return 0;
 }
 
-void ath11k_ahb_ext_irq_enable(struct ath11k_base *ab)
+static void ath11k_ahb_ext_irq_enable(struct ath11k_base *ab)
 {
 	int i;
 
@@ -599,13 +606,13 @@ void ath11k_ahb_ext_irq_enable(struct ath11k_base *ab)
 	}
 }
 
-void ath11k_ahb_ext_irq_disable(struct ath11k_base *ab)
+static void ath11k_ahb_ext_irq_disable(struct ath11k_base *ab)
 {
 	__ath11k_ahb_ext_irq_disable(ab);
 	ath11k_ahb_sync_ext_irqs(ab);
 }
 
-void ath11k_ahb_stop(struct ath11k_base *ab)
+static void ath11k_ahb_stop(struct ath11k_base *ab)
 {
 	if (!test_bit(ATH11K_FLAG_CRASH_FLUSH, &ab->dev_flags))
 		ath11k_ahb_ce_irqs_disable(ab);
@@ -615,7 +622,7 @@ void ath11k_ahb_stop(struct ath11k_base *ab)
 	ath11k_ce_cleanup_pipes(ab);
 }
 
-int ath11k_ahb_power_up(struct ath11k_base *ab)
+static int ath11k_ahb_power_up(struct ath11k_base *ab)
 {
 	int ret;
 
@@ -626,7 +633,7 @@ int ath11k_ahb_power_up(struct ath11k_base *ab)
 	return ret;
 }
 
-void ath11k_ahb_power_down(struct ath11k_base *ab)
+static void ath11k_ahb_power_down(struct ath11k_base *ab)
 {
 	rproc_shutdown(ab->tgt_rproc);
 }
@@ -681,6 +688,9 @@ static irqreturn_t ath11k_ahb_ce_interrupt_handler(int irq, void *arg)
 {
 	struct ath11k_ce_pipe *ce_pipe = arg;
 
+	/* last interrupt received for this CE */
+	ce_pipe->timestamp = jiffies;
+
 	ath11k_ahb_ce_irq_disable(ce_pipe->ab, ce_pipe->pipe_num);
 
 	tasklet_schedule(&ce_pipe->intr_tq);
@@ -712,6 +722,9 @@ static irqreturn_t ath11k_ahb_ext_interrupt_handler(int irq, void *arg)
 {
 	struct ath11k_ext_irq_grp *irq_grp = arg;
 
+	/* last interrupt received for this group */
+	irq_grp->timestamp = jiffies;
+
 	ath11k_ahb_ext_grp_disable(irq_grp);
 
 	napi_schedule(&irq_grp->napi);
@@ -734,7 +747,6 @@ static int ath11k_ahb_ext_irq_config(struct ath11k_base *ab)
 		init_dummy_netdev(&irq_grp->napi_ndev);
 		netif_napi_add(&irq_grp->napi_ndev, &irq_grp->napi,
 			       ath11k_ahb_ext_grp_napi_poll, NAPI_POLL_WEIGHT);
-		__skb_queue_head_init(&irq_grp->pending_q);
 
 		for (j = 0; j < ATH11K_EXT_IRQ_NUM_MAX; j++) {
 			if (ath11k_tx_ring_mask[i] & BIT(j)) {
@@ -787,7 +799,7 @@ static int ath11k_ahb_ext_irq_config(struct ath11k_base *ab)
 			irq = platform_get_irq_byname(ab->pdev,
 						      irq_name[irq_idx]);
 			ab->irq_num[irq_idx] = irq;
-			irq_set_status_flags(irq, IRQ_NOAUTOEN);
+			irq_set_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
 			ret = request_irq(irq, ath11k_ahb_ext_interrupt_handler,
 					  IRQF_TRIGGER_RISING,
 					  irq_name[irq_idx], irq_grp);
@@ -833,8 +845,8 @@ static int ath11k_ahb_config_irq(struct ath11k_base *ab)
 	return ret;
 }
 
-int ath11k_ahb_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
-				   u8 *ul_pipe, u8 *dl_pipe)
+static int ath11k_ahb_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
+					  u8 *ul_pipe, u8 *dl_pipe)
 {
 	const struct service_to_pipe *entry;
 	bool ul_set = false, dl_set = false;
@@ -876,6 +888,18 @@ int ath11k_ahb_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 	return 0;
 }
 
+static const struct ath11k_hif_ops ath11k_ahb_hif_ops = {
+	.start = ath11k_ahb_start,
+	.stop = ath11k_ahb_stop,
+	.read32 = ath11k_ahb_read32,
+	.write32 = ath11k_ahb_write32,
+	.irq_enable = ath11k_ahb_ext_irq_enable,
+	.irq_disable = ath11k_ahb_ext_irq_disable,
+	.map_service_to_pipe = ath11k_ahb_map_service_to_pipe,
+	.power_down = ath11k_ahb_power_down,
+	.power_up = ath11k_ahb_power_up,
+};
+
 static int ath11k_ahb_probe(struct platform_device *pdev)
 {
 	struct ath11k_base *ab;
@@ -890,13 +914,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(&pdev->dev, "failed to get IO memory resource\n");
-		return -ENXIO;
-	}
-
-	mem = devm_ioremap_resource(&pdev->dev, mem_res);
+	mem = devm_platform_get_and_ioremap_resource(pdev, 0, &mem_res);
 	if (IS_ERR(mem)) {
 		dev_err(&pdev->dev, "ioremap error\n");
 		return PTR_ERR(mem);
@@ -908,12 +926,13 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ab = ath11k_core_alloc(&pdev->dev);
+	ab = ath11k_core_alloc(&pdev->dev, 0, ATH11K_BUS_AHB);
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
 		return -ENOMEM;
 	}
 
+	ab->hif.ops = &ath11k_ahb_hif_ops;
 	ab->pdev = pdev;
 	ab->hw_rev = (enum ath11k_hw_rev)of_id->data;
 	ab->mem = mem;
@@ -992,12 +1011,17 @@ static struct platform_driver ath11k_ahb_driver = {
 	.remove = ath11k_ahb_remove,
 };
 
-int ath11k_ahb_init(void)
+static int ath11k_ahb_init(void)
 {
 	return platform_driver_register(&ath11k_ahb_driver);
 }
+module_init(ath11k_ahb_init);
 
-void ath11k_ahb_exit(void)
+static void ath11k_ahb_exit(void)
 {
 	platform_driver_unregister(&ath11k_ahb_driver);
 }
+module_exit(ath11k_ahb_exit);
+
+MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax wireless chip");
+MODULE_LICENSE("Dual BSD/GPL");

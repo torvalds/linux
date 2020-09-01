@@ -20,14 +20,14 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev,
 	}
 
 	if (state == VGA_SWITCHEROO_ON) {
-		pr_info("switched on\n");
+		drm_info(&i915->drm, "switched on\n");
 		i915->drm.switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		/* i915 resume handler doesn't set to D0 */
 		pci_set_power_state(pdev, PCI_D0);
 		i915_resume_switcheroo(i915);
 		i915->drm.switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
-		pr_info("switched off\n");
+		drm_info(&i915->drm, "switched off\n");
 		i915->drm.switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		i915_suspend_switcheroo(i915, pmm);
 		i915->drm.switch_power_state = DRM_SWITCH_POWER_OFF;
@@ -43,7 +43,7 @@ static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 	 * locking inversion with the driver load path. And the access here is
 	 * completely racy anyway. So don't bother with locking for now.
 	 */
-	return i915 && i915->drm.open_count == 0;
+	return i915 && atomic_read(&i915->drm.open_count) == 0;
 }
 
 static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {

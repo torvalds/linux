@@ -126,7 +126,7 @@ xfs_bmap_rtalloc(
 	 * pick an extent that will space things out in the rt area.
 	 */
 	if (ap->eof && ap->offset == 0) {
-		xfs_rtblock_t uninitialized_var(rtx); /* realtime extent no */
+		xfs_rtblock_t rtx; /* realtime extent no */
 
 		error = xfs_rtpick_extent(mp, ap->tp, ralen, &rtx);
 		if (error)
@@ -223,7 +223,7 @@ xfs_bmap_count_blocks(
 	if (!ifp)
 		return 0;
 
-	switch (XFS_IFORK_FORMAT(ip, whichfork)) {
+	switch (ifp->if_format) {
 	case XFS_DINODE_FMT_BTREE:
 		if (!(ifp->if_flags & XFS_IFEXTENTS)) {
 			error = xfs_iread_extents(tp, ip, whichfork);
@@ -449,7 +449,7 @@ xfs_getbmap(
 		break;
 	}
 
-	switch (XFS_IFORK_FORMAT(ip, whichfork)) {
+	switch (ifp->if_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 	case XFS_DINODE_FMT_BTREE:
 		break;
@@ -1062,7 +1062,6 @@ xfs_collapse_file_space(
 	int			error;
 	xfs_fileoff_t		next_fsb = XFS_B_TO_FSB(mp, offset + len);
 	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
-	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 	bool			done = false;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
@@ -1078,32 +1077,34 @@ xfs_collapse_file_space(
 	if (error)
 		return error;
 
-	while (!error && !done) {
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0,
-					&tp);
-		if (error)
-			break;
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0, 0, 0, &tp);
+	if (error)
+		return error;
 
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		error = xfs_trans_reserve_quota(tp, mp, ip->i_udquot,
-				ip->i_gdquot, ip->i_pdquot, resblks, 0,
-				XFS_QMOPT_RES_REGBLKS);
-		if (error)
-			goto out_trans_cancel;
-		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
 
+	while (!done) {
 		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
 				&done);
 		if (error)
 			goto out_trans_cancel;
+		if (done)
+			break;
 
-		error = xfs_trans_commit(tp);
+		/* finish any deferred frees and roll the transaction */
+		error = xfs_defer_finish(&tp);
+		if (error)
+			goto out_trans_cancel;
 	}
 
+	error = xfs_trans_commit(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 
 out_trans_cancel:
 	xfs_trans_cancel(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
 
@@ -1146,35 +1147,41 @@ xfs_insert_file_space(
 	if (error)
 		return error;
 
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write,
+			XFS_DIOSTRAT_SPACE_RES(mp, 0), 0, 0, &tp);
+	if (error)
+		return error;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
+
 	/*
 	 * The extent shifting code works on extent granularity. So, if stop_fsb
 	 * is not the starting block of extent, we need to split the extent at
 	 * stop_fsb.
 	 */
-	error = xfs_bmap_split_extent(ip, stop_fsb);
+	error = xfs_bmap_split_extent(tp, ip, stop_fsb);
 	if (error)
-		return error;
+		goto out_trans_cancel;
 
-	while (!error && !done) {
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0, 0, 0,
-					&tp);
+	do {
+		error = xfs_trans_roll_inode(&tp, ip);
 		if (error)
-			break;
+			goto out_trans_cancel;
 
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 		error = xfs_bmap_insert_extents(tp, ip, &next_fsb, shift_fsb,
 				&done, stop_fsb);
 		if (error)
 			goto out_trans_cancel;
+	} while (!done);
 
-		error = xfs_trans_commit(tp);
-	}
-
+	error = xfs_trans_commit(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 
 out_trans_cancel:
 	xfs_trans_cancel(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
 
@@ -1203,17 +1210,26 @@ xfs_swap_extents_check_format(
 	struct xfs_inode	*ip,	/* target inode */
 	struct xfs_inode	*tip)	/* tmp inode */
 {
+	struct xfs_ifork	*ifp = &ip->i_df;
+	struct xfs_ifork	*tifp = &tip->i_df;
+
+	/* User/group/project quota ids must match if quotas are enforced. */
+	if (XFS_IS_QUOTA_ON(ip->i_mount) &&
+	    (!uid_eq(VFS_I(ip)->i_uid, VFS_I(tip)->i_uid) ||
+	     !gid_eq(VFS_I(ip)->i_gid, VFS_I(tip)->i_gid) ||
+	     ip->i_d.di_projid != tip->i_d.di_projid))
+		return -EINVAL;
 
 	/* Should never get a local format */
-	if (ip->i_d.di_format == XFS_DINODE_FMT_LOCAL ||
-	    tip->i_d.di_format == XFS_DINODE_FMT_LOCAL)
+	if (ifp->if_format == XFS_DINODE_FMT_LOCAL ||
+	    tifp->if_format == XFS_DINODE_FMT_LOCAL)
 		return -EINVAL;
 
 	/*
 	 * if the target inode has less extents that then temporary inode then
 	 * why did userspace call us?
 	 */
-	if (ip->i_d.di_nextents < tip->i_d.di_nextents)
+	if (ifp->if_nextents < tifp->if_nextents)
 		return -EINVAL;
 
 	/*
@@ -1228,20 +1244,18 @@ xfs_swap_extents_check_format(
 	 * form then we will end up with the target inode in the wrong format
 	 * as we already know there are less extents in the temp inode.
 	 */
-	if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
-	    tip->i_d.di_format == XFS_DINODE_FMT_BTREE)
+	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS &&
+	    tifp->if_format == XFS_DINODE_FMT_BTREE)
 		return -EINVAL;
 
 	/* Check temp in extent form to max in target */
-	if (tip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
-	    XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) >
-			XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
+	if (tifp->if_format == XFS_DINODE_FMT_EXTENTS &&
+	    tifp->if_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
 		return -EINVAL;
 
 	/* Check target in extent form to max in temp */
-	if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
-	    XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) >
-			XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
+	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS &&
+	    ifp->if_nextents > XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
 		return -EINVAL;
 
 	/*
@@ -1253,22 +1267,20 @@ xfs_swap_extents_check_format(
 	 * (a common defrag case) which will occur when the temp inode is in
 	 * extent format...
 	 */
-	if (tip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
+	if (tifp->if_format == XFS_DINODE_FMT_BTREE) {
 		if (XFS_IFORK_Q(ip) &&
-		    XFS_BMAP_BMDR_SPACE(tip->i_df.if_broot) > XFS_IFORK_BOFF(ip))
+		    XFS_BMAP_BMDR_SPACE(tifp->if_broot) > XFS_IFORK_BOFF(ip))
 			return -EINVAL;
-		if (XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) <=
-		    XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
+		if (tifp->if_nextents <= XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
 			return -EINVAL;
 	}
 
 	/* Reciprocal target->temp btree format checks */
-	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
+	if (ifp->if_format == XFS_DINODE_FMT_BTREE) {
 		if (XFS_IFORK_Q(tip) &&
 		    XFS_BMAP_BMDR_SPACE(ip->i_df.if_broot) > XFS_IFORK_BOFF(tip))
 			return -EINVAL;
-		if (XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) <=
-		    XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
+		if (ifp->if_nextents <= XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
 			return -EINVAL;
 	}
 
@@ -1420,15 +1432,15 @@ xfs_swap_extent_forks(
 	/*
 	 * Count the number of extended attribute blocks
 	 */
-	if ( ((XFS_IFORK_Q(ip) != 0) && (ip->i_d.di_anextents > 0)) &&
-	     (ip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL)) {
+	if (XFS_IFORK_Q(ip) && ip->i_afp->if_nextents > 0 &&
+	    ip->i_afp->if_format != XFS_DINODE_FMT_LOCAL) {
 		error = xfs_bmap_count_blocks(tp, ip, XFS_ATTR_FORK, &junk,
 				&aforkblks);
 		if (error)
 			return error;
 	}
-	if ( ((XFS_IFORK_Q(tip) != 0) && (tip->i_d.di_anextents > 0)) &&
-	     (tip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL)) {
+	if (XFS_IFORK_Q(tip) && tip->i_afp->if_nextents > 0 &&
+	    tip->i_afp->if_format != XFS_DINODE_FMT_LOCAL) {
 		error = xfs_bmap_count_blocks(tp, tip, XFS_ATTR_FORK, &junk,
 				&taforkblks);
 		if (error)
@@ -1442,12 +1454,12 @@ xfs_swap_extent_forks(
 	 * event of a crash. Set the owner change log flags now and leave the
 	 * bmbt scan as the last step.
 	 */
-	if (ip->i_d.di_version == 3 &&
-	    ip->i_d.di_format == XFS_DINODE_FMT_BTREE)
-		(*target_log_flags) |= XFS_ILOG_DOWNER;
-	if (tip->i_d.di_version == 3 &&
-	    tip->i_d.di_format == XFS_DINODE_FMT_BTREE)
-		(*src_log_flags) |= XFS_ILOG_DOWNER;
+	if (xfs_sb_version_has_v3inode(&ip->i_mount->m_sb)) {
+		if (ip->i_df.if_format == XFS_DINODE_FMT_BTREE)
+			(*target_log_flags) |= XFS_ILOG_DOWNER;
+		if (tip->i_df.if_format == XFS_DINODE_FMT_BTREE)
+			(*src_log_flags) |= XFS_ILOG_DOWNER;
+	}
 
 	/*
 	 * Swap the data forks of the inodes
@@ -1460,9 +1472,6 @@ xfs_swap_extent_forks(
 	tmp = (uint64_t)ip->i_d.di_nblocks;
 	ip->i_d.di_nblocks = tip->i_d.di_nblocks - taforkblks + aforkblks;
 	tip->i_d.di_nblocks = tmp + taforkblks - aforkblks;
-
-	swap(ip->i_d.di_nextents, tip->i_d.di_nextents);
-	swap(ip->i_d.di_format, tip->i_d.di_format);
 
 	/*
 	 * The extents in the source inode could still contain speculative
@@ -1477,24 +1486,24 @@ xfs_swap_extent_forks(
 	tip->i_delayed_blks = ip->i_delayed_blks;
 	ip->i_delayed_blks = 0;
 
-	switch (ip->i_d.di_format) {
+	switch (ip->i_df.if_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		(*src_log_flags) |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:
-		ASSERT(ip->i_d.di_version < 3 ||
+		ASSERT(!xfs_sb_version_has_v3inode(&ip->i_mount->m_sb) ||
 		       (*src_log_flags & XFS_ILOG_DOWNER));
 		(*src_log_flags) |= XFS_ILOG_DBROOT;
 		break;
 	}
 
-	switch (tip->i_d.di_format) {
+	switch (tip->i_df.if_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		(*target_log_flags) |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		(*target_log_flags) |= XFS_ILOG_DBROOT;
-		ASSERT(tip->i_d.di_version < 3 ||
+		ASSERT(!xfs_sb_version_has_v3inode(&ip->i_mount->m_sb) ||
 		       (*target_log_flags & XFS_ILOG_DOWNER));
 		break;
 	}
@@ -1558,6 +1567,7 @@ xfs_swap_extents(
 	int			lock_flags;
 	uint64_t		f;
 	int			resblks = 0;
+	unsigned int		flags = 0;
 
 	/*
 	 * Lock the inodes against other IO, page faults and truncate to
@@ -1599,7 +1609,7 @@ xfs_swap_extents(
 	if (xfs_inode_has_cow_data(tip)) {
 		error = xfs_reflink_cancel_cow_range(tip, 0, NULLFILEOFF, true);
 		if (error)
-			return error;
+			goto out_unlock;
 	}
 
 	/*
@@ -1608,9 +1618,9 @@ xfs_swap_extents(
 	 * performed with log redo items!
 	 */
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
-		int		w	= XFS_DATA_FORK;
-		uint32_t	ipnext	= XFS_IFORK_NEXTENTS(ip, w);
-		uint32_t	tipnext	= XFS_IFORK_NEXTENTS(tip, w);
+		int		w = XFS_DATA_FORK;
+		uint32_t	ipnext = ip->i_df.if_nextents;
+		uint32_t	tipnext	= tip->i_df.if_nextents;
 
 		/*
 		 * Conceptually this shouldn't affect the shape of either bmbt,
@@ -1621,17 +1631,16 @@ xfs_swap_extents(
 		resblks +=  XFS_SWAP_RMAP_SPACE_RES(mp, tipnext, w);
 
 		/*
-		 * Handle the corner case where either inode might straddle the
-		 * btree format boundary. If so, the inode could bounce between
-		 * btree <-> extent format on unmap -> remap cycles, freeing and
-		 * allocating a bmapbt block each time.
+		 * If either inode straddles a bmapbt block allocation boundary,
+		 * the rmapbt algorithm triggers repeated allocs and frees as
+		 * extents are remapped. This can exhaust the block reservation
+		 * prematurely and cause shutdown. Return freed blocks to the
+		 * transaction reservation to counter this behavior.
 		 */
-		if (ipnext == (XFS_IFORK_MAXEXT(ip, w) + 1))
-			resblks += XFS_IFORK_MAXEXT(ip, w);
-		if (tipnext == (XFS_IFORK_MAXEXT(tip, w) + 1))
-			resblks += XFS_IFORK_MAXEXT(tip, w);
+		flags |= XFS_TRANS_RES_FDBLKS;
 	}
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, flags,
+				&tp);
 	if (error)
 		goto out_unlock;
 
@@ -1710,10 +1719,11 @@ xfs_swap_extents(
 
 	/* Swap the cow forks. */
 	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
-		ASSERT(ip->i_cformat == XFS_DINODE_FMT_EXTENTS);
-		ASSERT(tip->i_cformat == XFS_DINODE_FMT_EXTENTS);
+		ASSERT(!ip->i_cowfp ||
+		       ip->i_cowfp->if_format == XFS_DINODE_FMT_EXTENTS);
+		ASSERT(!tip->i_cowfp ||
+		       tip->i_cowfp->if_format == XFS_DINODE_FMT_EXTENTS);
 
-		swap(ip->i_cnextents, tip->i_cnextents);
 		swap(ip->i_cowfp, tip->i_cowfp);
 
 		if (ip->i_cowfp && ip->i_cowfp->if_bytes)

@@ -125,6 +125,9 @@ struct cros_ec_command {
  * @host_event_wake_mask: Mask of host events that cause wake from suspend.
  * @last_event_time: exact time from the hard irq when we got notified of
  *     a new event.
+ * @notifier_ready: The notifier_block to let the kernel re-query EC
+ *		    communication protocol when the EC sends
+ *		    EC_HOST_EVENT_INTERFACE_READY.
  * @ec: The platform_device used by the mfd driver to interface with the
  *      main EC.
  * @pd: The platform_device used by the mfd driver to interface with the
@@ -166,6 +169,7 @@ struct cros_ec_device {
 	u32 host_event_wake_mask;
 	u32 last_resume_result;
 	ktime_t last_event_time;
+	struct notifier_block notifier_ready;
 
 	/* The platform devices used by the mfd driver */
 	struct platform_device *ec;
@@ -211,9 +215,6 @@ int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 
 int cros_ec_check_result(struct cros_ec_device *ec_dev,
 			 struct cros_ec_command *msg);
-
-int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
-		     struct cros_ec_command *msg);
 
 int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg);

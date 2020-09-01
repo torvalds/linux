@@ -54,6 +54,7 @@
 
 #include <trace/events/sunrpc.h>
 
+#include "socklib.h"
 #include "sunrpc.h"
 
 static void xs_close(struct rpc_xprt *xprt);
@@ -495,8 +496,8 @@ xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 		int flags, struct rpc_rqst *req)
 {
 	struct xdr_buf *buf = &req->rq_private_buf;
-	size_t want, uninitialized_var(read);
-	ssize_t uninitialized_var(ret);
+	size_t want, read;
+	ssize_t ret;
 
 	xs_read_header(transport, buf);
 
@@ -749,125 +750,6 @@ xs_stream_start_connect(struct sock_xprt *transport)
 
 #define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
 
-static int xs_sendmsg(struct socket *sock, struct msghdr *msg, size_t seek)
-{
-	if (seek)
-		iov_iter_advance(&msg->msg_iter, seek);
-	return sock_sendmsg(sock, msg);
-}
-
-static int xs_send_kvec(struct socket *sock, struct msghdr *msg, struct kvec *vec, size_t seek)
-{
-	iov_iter_kvec(&msg->msg_iter, WRITE, vec, 1, vec->iov_len);
-	return xs_sendmsg(sock, msg, seek);
-}
-
-static int xs_send_pagedata(struct socket *sock, struct msghdr *msg, struct xdr_buf *xdr, size_t base)
-{
-	int err;
-
-	err = xdr_alloc_bvec(xdr, GFP_KERNEL);
-	if (err < 0)
-		return err;
-
-	iov_iter_bvec(&msg->msg_iter, WRITE, xdr->bvec,
-			xdr_buf_pagecount(xdr),
-			xdr->page_len + xdr->page_base);
-	return xs_sendmsg(sock, msg, base + xdr->page_base);
-}
-
-#define xs_record_marker_len() sizeof(rpc_fraghdr)
-
-/* Common case:
- *  - stream transport
- *  - sending from byte 0 of the message
- *  - the message is wholly contained in @xdr's head iovec
- */
-static int xs_send_rm_and_kvec(struct socket *sock, struct msghdr *msg,
-		rpc_fraghdr marker, struct kvec *vec, size_t base)
-{
-	struct kvec iov[2] = {
-		[0] = {
-			.iov_base	= &marker,
-			.iov_len	= sizeof(marker)
-		},
-		[1] = *vec,
-	};
-	size_t len = iov[0].iov_len + iov[1].iov_len;
-
-	iov_iter_kvec(&msg->msg_iter, WRITE, iov, 2, len);
-	return xs_sendmsg(sock, msg, base);
-}
-
-/**
- * xs_sendpages - write pages directly to a socket
- * @sock: socket to send on
- * @addr: UDP only -- address of destination
- * @addrlen: UDP only -- length of destination address
- * @xdr: buffer containing this request
- * @base: starting position in the buffer
- * @rm: stream record marker field
- * @sent_p: return the total number of bytes successfully queued for sending
- *
- */
-static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base, rpc_fraghdr rm, int *sent_p)
-{
-	struct msghdr msg = {
-		.msg_name = addr,
-		.msg_namelen = addrlen,
-		.msg_flags = XS_SENDMSG_FLAGS | MSG_MORE,
-	};
-	unsigned int rmsize = rm ? sizeof(rm) : 0;
-	unsigned int remainder = rmsize + xdr->len - base;
-	unsigned int want;
-	int err = 0;
-
-	if (unlikely(!sock))
-		return -ENOTSOCK;
-
-	want = xdr->head[0].iov_len + rmsize;
-	if (base < want) {
-		unsigned int len = want - base;
-		remainder -= len;
-		if (remainder == 0)
-			msg.msg_flags &= ~MSG_MORE;
-		if (rmsize)
-			err = xs_send_rm_and_kvec(sock, &msg, rm,
-					&xdr->head[0], base);
-		else
-			err = xs_send_kvec(sock, &msg, &xdr->head[0], base);
-		if (remainder == 0 || err != len)
-			goto out;
-		*sent_p += err;
-		base = 0;
-	} else
-		base -= want;
-
-	if (base < xdr->page_len) {
-		unsigned int len = xdr->page_len - base;
-		remainder -= len;
-		if (remainder == 0)
-			msg.msg_flags &= ~MSG_MORE;
-		err = xs_send_pagedata(sock, &msg, xdr, base);
-		if (remainder == 0 || err != len)
-			goto out;
-		*sent_p += err;
-		base = 0;
-	} else
-		base -= xdr->page_len;
-
-	if (base >= xdr->tail[0].iov_len)
-		return 0;
-	msg.msg_flags &= ~MSG_MORE;
-	err = xs_send_kvec(sock, &msg, &xdr->tail[0], base);
-out:
-	if (err > 0) {
-		*sent_p += err;
-		err = 0;
-	}
-	return err;
-}
-
 /**
  * xs_nospace - handle transmit was incomplete
  * @req: pointer to RPC request
@@ -959,8 +841,11 @@ static int xs_local_send_request(struct rpc_rqst *req)
 	struct xdr_buf *xdr = &req->rq_snd_buf;
 	rpc_fraghdr rm = xs_stream_record_marker(xdr);
 	unsigned int msglen = rm ? req->rq_slen + sizeof(rm) : req->rq_slen;
+	struct msghdr msg = {
+		.msg_flags	= XS_SENDMSG_FLAGS,
+	};
+	unsigned int sent;
 	int status;
-	int sent = 0;
 
 	/* Close the stream if the previous transmission was incomplete */
 	if (xs_send_request_was_aborted(transport, req)) {
@@ -972,8 +857,8 @@ static int xs_local_send_request(struct rpc_rqst *req)
 			req->rq_svec->iov_base, req->rq_svec->iov_len);
 
 	req->rq_xtime = ktime_get();
-	status = xs_sendpages(transport->sock, NULL, 0, xdr,
-			      transport->xmit.offset, rm, &sent);
+	status = xprt_sock_sendmsg(transport->sock, &msg, xdr,
+				   transport->xmit.offset, rm, &sent);
 	dprintk("RPC:       %s(%u) = %d\n",
 			__func__, xdr->len - transport->xmit.offset, status);
 
@@ -1000,7 +885,7 @@ static int xs_local_send_request(struct rpc_rqst *req)
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
-		/* fall through */
+		fallthrough;
 	case -EPIPE:
 		xs_close(xprt);
 		status = -ENOTCONN;
@@ -1025,7 +910,12 @@ static int xs_udp_send_request(struct rpc_rqst *req)
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct xdr_buf *xdr = &req->rq_snd_buf;
-	int sent = 0;
+	struct msghdr msg = {
+		.msg_name	= xs_addr(xprt),
+		.msg_namelen	= xprt->addrlen,
+		.msg_flags	= XS_SENDMSG_FLAGS,
+	};
+	unsigned int sent;
 	int status;
 
 	xs_pktdump("packet data:",
@@ -1039,8 +929,7 @@ static int xs_udp_send_request(struct rpc_rqst *req)
 		return -EBADSLT;
 
 	req->rq_xtime = ktime_get();
-	status = xs_sendpages(transport->sock, xs_addr(xprt), xprt->addrlen,
-			      xdr, 0, 0, &sent);
+	status = xprt_sock_sendmsg(transport->sock, &msg, xdr, 0, 0, &sent);
 
 	dprintk("RPC:       xs_udp_send_request(%u) = %d\n",
 			xdr->len, status);
@@ -1106,9 +995,12 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 	struct xdr_buf *xdr = &req->rq_snd_buf;
 	rpc_fraghdr rm = xs_stream_record_marker(xdr);
 	unsigned int msglen = rm ? req->rq_slen + sizeof(rm) : req->rq_slen;
+	struct msghdr msg = {
+		.msg_flags	= XS_SENDMSG_FLAGS,
+	};
 	bool vm_wait = false;
+	unsigned int sent;
 	int status;
-	int sent;
 
 	/* Close the stream if the previous transmission was incomplete */
 	if (xs_send_request_was_aborted(transport, req)) {
@@ -1129,9 +1021,8 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 	 * called sendmsg(). */
 	req->rq_xtime = ktime_get();
 	while (1) {
-		sent = 0;
-		status = xs_sendpages(transport->sock, NULL, 0, xdr,
-				      transport->xmit.offset, rm, &sent);
+		status = xprt_sock_sendmsg(transport->sock, &msg, xdr,
+					   transport->xmit.offset, rm, &sent);
 
 		dprintk("RPC:       xs_tcp_send_request(%u) = %d\n",
 				xdr->len - transport->xmit.offset, status);
@@ -1545,7 +1436,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		xprt->connect_cookie++;
 		clear_bit(XPRT_CONNECTED, &xprt->state);
 		xs_run_error_worker(transport, XPRT_SOCK_WAKE_DISCONNECT);
-		/* fall through */
+		fallthrough;
 	case TCP_CLOSING:
 		/*
 		 * If the server closed down the connection, make sure that
@@ -1701,21 +1592,6 @@ static int xs_get_random_port(void)
 	range = max - min + 1;
 	rand = (unsigned short) prandom_u32() % range;
 	return rand + min;
-}
-
-/**
- * xs_set_reuseaddr_port - set the socket's port and address reuse options
- * @sock: socket
- *
- * Note that this function has to be called on all sockets that share the
- * same port, and it must be called before binding.
- */
-static void xs_sock_set_reuseport(struct socket *sock)
-{
-	int opt = 1;
-
-	kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,
-			(char *)&opt, sizeof(opt));
 }
 
 static unsigned short xs_sock_getport(struct socket *sock)
@@ -1910,7 +1786,7 @@ static struct socket *xs_create_sock(struct rpc_xprt *xprt,
 	xs_reclassify_socket(family, sock);
 
 	if (reuseport)
-		xs_sock_set_reuseport(sock);
+		sock_set_reuseport(sock->sk);
 
 	err = xs_bind(transport, sock);
 	if (err) {
@@ -1970,7 +1846,7 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct file *filp;
 	struct socket *sock;
-	int status = -EIO;
+	int status;
 
 	status = __sock_create(xprt->xprt_net, AF_LOCAL,
 					SOCK_STREAM, 0, &sock, 1);
@@ -2219,7 +2095,6 @@ static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	unsigned int keepidle;
 	unsigned int keepcnt;
-	unsigned int opt_on = 1;
 	unsigned int timeo;
 
 	spin_lock(&xprt->transport_lock);
@@ -2231,18 +2106,13 @@ static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
 	spin_unlock(&xprt->transport_lock);
 
 	/* TCP Keepalive options */
-	kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-			(char *)&opt_on, sizeof(opt_on));
-	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPIDLE,
-			(char *)&keepidle, sizeof(keepidle));
-	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPINTVL,
-			(char *)&keepidle, sizeof(keepidle));
-	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPCNT,
-			(char *)&keepcnt, sizeof(keepcnt));
+	sock_set_keepalive(sock->sk);
+	tcp_sock_set_keepidle(sock->sk, keepidle);
+	tcp_sock_set_keepintvl(sock->sk, keepidle);
+	tcp_sock_set_keepcnt(sock->sk, keepcnt);
 
 	/* TCP user timeout (see RFC5482) */
-	kernel_setsockopt(sock, SOL_TCP, TCP_USER_TIMEOUT,
-			(char *)&timeo, sizeof(timeo));
+	tcp_sock_set_user_timeout(sock->sk, timeo);
 }
 
 static void xs_tcp_set_connect_timeout(struct rpc_xprt *xprt,
@@ -2280,7 +2150,6 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 
 	if (!transport->inet) {
 		struct sock *sk = sock->sk;
-		unsigned int addr_pref = IPV6_PREFER_SRC_PUBLIC;
 
 		/* Avoid temporary address, they are bad for long-lived
 		 * connections such as NFS mounts.
@@ -2289,8 +2158,10 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		 *    knowledge about the normal duration of connections,
 		 *    MAY override this as appropriate.
 		 */
-		kernel_setsockopt(sock, SOL_IPV6, IPV6_ADDR_PREFERENCES,
-				(char *)&addr_pref, sizeof(addr_pref));
+		if (xs_addr(xprt)->sa_family == PF_INET6) {
+			ip6_sock_set_addr_preferences(sk,
+				IPV6_PREFER_SRC_PUBLIC);
+		}
 
 		xs_tcp_set_socket_timeouts(xprt, sock);
 
@@ -2331,7 +2202,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	switch (ret) {
 	case 0:
 		xs_set_srcport(transport, sock);
-		/* fall through */
+		fallthrough;
 	case -EINPROGRESS:
 		/* SYN_SENT! */
 		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
@@ -2384,7 +2255,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	default:
 		printk("%s: connect returned unhandled error %d\n",
 			__func__, status);
-		/* fall through */
+		fallthrough;
 	case -EADDRNOTAVAIL:
 		/* We're probably in TIME_WAIT. Get rid of existing socket,
 		 * and retry
@@ -2636,50 +2507,37 @@ static void bc_free(struct rpc_task *task)
 	free_page((unsigned long)buf);
 }
 
-/*
- * Use the svc_sock to send the callback. Must be called with svsk->sk_mutex
- * held. Borrows heavily from svc_tcp_sendto and xs_tcp_send_request.
- */
 static int bc_sendto(struct rpc_rqst *req)
 {
-	int len;
-	struct xdr_buf *xbufp = &req->rq_snd_buf;
+	struct xdr_buf *xdr = &req->rq_snd_buf;
 	struct sock_xprt *transport =
 			container_of(req->rq_xprt, struct sock_xprt, xprt);
-	unsigned long headoff;
-	unsigned long tailoff;
-	struct page *tailpage;
 	struct msghdr msg = {
-		.msg_flags	= MSG_MORE
+		.msg_flags	= 0,
 	};
 	rpc_fraghdr marker = cpu_to_be32(RPC_LAST_STREAM_FRAGMENT |
-					 (u32)xbufp->len);
-	struct kvec iov = {
-		.iov_base	= &marker,
-		.iov_len	= sizeof(marker),
-	};
+					 (u32)xdr->len);
+	unsigned int sent = 0;
+	int err;
 
 	req->rq_xtime = ktime_get();
-
-	len = kernel_sendmsg(transport->sock, &msg, &iov, 1, iov.iov_len);
-	if (len != iov.iov_len)
+	err = xprt_sock_sendmsg(transport->sock, &msg, xdr, 0, marker, &sent);
+	xdr_free_bvec(xdr);
+	if (err < 0 || sent != (xdr->len + sizeof(marker)))
 		return -EAGAIN;
-
-	tailpage = NULL;
-	if (xbufp->tail[0].iov_len)
-		tailpage = virt_to_page(xbufp->tail[0].iov_base);
-	tailoff = (unsigned long)xbufp->tail[0].iov_base & ~PAGE_MASK;
-	headoff = (unsigned long)xbufp->head[0].iov_base & ~PAGE_MASK;
-	len = svc_send_common(transport->sock, xbufp,
-			      virt_to_page(xbufp->head[0].iov_base), headoff,
-			      tailpage, tailoff);
-	if (len != xbufp->len)
-		return -EAGAIN;
-	return len;
+	return sent;
 }
 
-/*
- * The send routine. Borrows from svc_send
+/**
+ * bc_send_request - Send a backchannel Call on a TCP socket
+ * @req: rpc_rqst containing Call message to be sent
+ *
+ * xpt_mutex ensures @rqstp's whole message is written to the socket
+ * without interruption.
+ *
+ * Return values:
+ *   %0 if the message was sent successfully
+ *   %ENOTCONN if the message was not sent
  */
 static int bc_send_request(struct rpc_rqst *req)
 {
@@ -2714,6 +2572,7 @@ static int bc_send_request(struct rpc_rqst *req)
 
 static void bc_close(struct rpc_xprt *xprt)
 {
+	xprt_disconnect_done(xprt);
 }
 
 /*

@@ -187,7 +187,8 @@ bool imgu_css_is_streaming(struct imgu_css *css);
 bool imgu_css_pipe_queue_empty(struct imgu_css *css, unsigned int pipe);
 
 /******************* css hw *******************/
-int imgu_css_set_powerup(struct device *dev, void __iomem *base);
+int imgu_css_set_powerup(struct device *dev, void __iomem *base,
+			 unsigned int freq);
 void imgu_css_set_powerdown(struct device *dev, void __iomem *base);
 int imgu_css_irq_ack(struct imgu_css *css);
 

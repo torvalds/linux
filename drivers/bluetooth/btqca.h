@@ -14,6 +14,7 @@
 #define EDL_NVM_ACCESS_SET_REQ_CMD	(0x01)
 #define MAX_SIZE_PER_TLV_SEGMENT	(243)
 #define QCA_PRE_SHUTDOWN_CMD		(0xFC08)
+#define QCA_DISABLE_LOGGING		(0xFC17)
 
 #define EDL_CMD_REQ_RES_EVT		(0x00)
 #define EDL_PATCH_VER_RES_EVT		(0x19)
@@ -22,6 +23,7 @@
 #define EDL_CMD_EXE_STATUS_EVT		(0x00)
 #define EDL_SET_BAUDRATE_RSP_EVT	(0x92)
 #define EDL_NVM_ACCESS_CODE_EVT		(0x0B)
+#define QCA_DISABLE_LOGGING_SUB_OP	(0x14)
 
 #define EDL_TAG_ID_HCI			(17)
 #define EDL_TAG_ID_DEEP_SLEEP		(27)
@@ -79,7 +81,7 @@ struct qca_fw_config {
 struct edl_event_hdr {
 	__u8 cresp;
 	__u8 rtype;
-	__u8 data[0];
+	__u8 data[];
 } __packed;
 
 struct qca_btsoc_version {
@@ -112,12 +114,12 @@ struct tlv_type_nvm {
 	__le16 tag_len;
 	__le32 reserve1;
 	__le32 reserve2;
-	__u8   data[0];
+	__u8   data[];
 } __packed;
 
 struct tlv_type_hdr {
 	__le32 type_len;
-	__u8   data[0];
+	__u8   data[];
 } __packed;
 
 enum qca_btsoc_type {
@@ -125,8 +127,9 @@ enum qca_btsoc_type {
 	QCA_AR3002,
 	QCA_ROME,
 	QCA_WCN3990,
-	QCA_WCN3991,
 	QCA_WCN3998,
+	QCA_WCN3991,
+	QCA_QCA6390,
 };
 
 #if IS_ENABLED(CONFIG_BT_QCA)

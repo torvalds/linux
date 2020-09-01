@@ -80,7 +80,6 @@ static const struct pci_device_id enic_id_table[] = {
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR("Scott Feldman <scofeldm@cisco.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, enic_id_table);
 
 #define ENIC_LARGE_PKT_THRESHOLD		1000
@@ -177,50 +176,18 @@ static void enic_unset_affinity_hint(struct enic *enic)
 		irq_set_affinity_hint(enic->msix_entry[i].vector, NULL);
 }
 
-static void enic_udp_tunnel_add(struct net_device *netdev,
-				struct udp_tunnel_info *ti)
+static int enic_udp_tunnel_set_port(struct net_device *netdev,
+				    unsigned int table, unsigned int entry,
+				    struct udp_tunnel_info *ti)
 {
 	struct enic *enic = netdev_priv(netdev);
-	__be16 port = ti->port;
 	int err;
 
 	spin_lock_bh(&enic->devcmd_lock);
 
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN) {
-		netdev_info(netdev, "udp_tnl: only vxlan tunnel offload supported");
-		goto error;
-	}
-
-	switch (ti->sa_family) {
-	case AF_INET6:
-		if (!(enic->vxlan.flags & ENIC_VXLAN_OUTER_IPV6)) {
-			netdev_info(netdev, "vxlan: only IPv4 offload supported");
-			goto error;
-		}
-		/* Fall through */
-	case AF_INET:
-		break;
-	default:
-		goto error;
-	}
-
-	if (enic->vxlan.vxlan_udp_port_number) {
-		if (ntohs(port) == enic->vxlan.vxlan_udp_port_number)
-			netdev_warn(netdev, "vxlan: udp port already offloaded");
-		else
-			netdev_info(netdev, "vxlan: offload supported for only one UDP port");
-
-		goto error;
-	}
-	if ((vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ) != 1) &&
-	    !(enic->vxlan.flags & ENIC_VXLAN_MULTI_WQ)) {
-		netdev_info(netdev, "vxlan: vxlan offload with multi wq not supported on this adapter");
-		goto error;
-	}
-
 	err = vnic_dev_overlay_offload_cfg(enic->vdev,
 					   OVERLAY_CFG_VXLAN_PORT_UPDATE,
-					   ntohs(port));
+					   ntohs(ti->port));
 	if (err)
 		goto error;
 
@@ -229,51 +196,49 @@ static void enic_udp_tunnel_add(struct net_device *netdev,
 	if (err)
 		goto error;
 
-	enic->vxlan.vxlan_udp_port_number = ntohs(port);
-
-	netdev_info(netdev, "vxlan fw-vers-%d: offload enabled for udp port: %d, sa_family: %d ",
-		    (int)enic->vxlan.patch_level, ntohs(port), ti->sa_family);
-
-	goto unlock;
-
+	enic->vxlan.vxlan_udp_port_number = ntohs(ti->port);
 error:
-	netdev_info(netdev, "failed to offload udp port: %d, sa_family: %d, type: %d",
-		    ntohs(port), ti->sa_family, ti->type);
-unlock:
 	spin_unlock_bh(&enic->devcmd_lock);
+
+	return err;
 }
 
-static void enic_udp_tunnel_del(struct net_device *netdev,
-				struct udp_tunnel_info *ti)
+static int enic_udp_tunnel_unset_port(struct net_device *netdev,
+				      unsigned int table, unsigned int entry,
+				      struct udp_tunnel_info *ti)
 {
 	struct enic *enic = netdev_priv(netdev);
 	int err;
 
 	spin_lock_bh(&enic->devcmd_lock);
 
-	if ((ntohs(ti->port) != enic->vxlan.vxlan_udp_port_number) ||
-	    ti->type != UDP_TUNNEL_TYPE_VXLAN) {
-		netdev_info(netdev, "udp_tnl: port:%d, sa_family: %d, type: %d not offloaded",
-			    ntohs(ti->port), ti->sa_family, ti->type);
-		goto unlock;
-	}
-
 	err = vnic_dev_overlay_offload_ctrl(enic->vdev, OVERLAY_FEATURE_VXLAN,
 					    OVERLAY_OFFLOAD_DISABLE);
-	if (err) {
-		netdev_err(netdev, "vxlan: del offload udp port: %d failed",
-			   ntohs(ti->port));
+	if (err)
 		goto unlock;
-	}
 
 	enic->vxlan.vxlan_udp_port_number = 0;
 
-	netdev_info(netdev, "vxlan: del offload udp port %d, family %d\n",
-		    ntohs(ti->port), ti->sa_family);
-
 unlock:
 	spin_unlock_bh(&enic->devcmd_lock);
+
+	return err;
 }
+
+static const struct udp_tunnel_nic_info enic_udp_tunnels = {
+	.set_port	= enic_udp_tunnel_set_port,
+	.unset_port	= enic_udp_tunnel_unset_port,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN, },
+	},
+}, enic_udp_tunnels_v4 = {
+	.set_port	= enic_udp_tunnel_set_port,
+	.unset_port	= enic_udp_tunnel_unset_port,
+	.flags		= UDP_TUNNEL_NIC_INFO_IPV4_ONLY,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN, },
+	},
+};
 
 static netdev_features_t enic_features_check(struct sk_buff *skb,
 					     struct net_device *dev,
@@ -307,7 +272,7 @@ static netdev_features_t enic_features_check(struct sk_buff *skb,
 	case ntohs(ETH_P_IPV6):
 		if (!(enic->vxlan.flags & ENIC_VXLAN_INNER_IPV6))
 			goto out;
-		/* Fall through */
+		fallthrough;
 	case ntohs(ETH_P_IP):
 		break;
 	default:
@@ -696,8 +661,7 @@ static void enic_preload_tcp_csum(struct sk_buff *skb)
 		tcp_hdr(skb)->check = ~csum_tcpudp_magic(ip_hdr(skb)->saddr,
 			ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
 	} else if (skb->protocol == cpu_to_be16(ETH_P_IPV6)) {
-		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-			&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+		tcp_v6_gso_csum_prep(skb);
 	}
 }
 
@@ -2528,8 +2492,8 @@ static const struct net_device_ops enic_netdev_dynamic_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= enic_rx_flow_steer,
 #endif
-	.ndo_udp_tunnel_add	= enic_udp_tunnel_add,
-	.ndo_udp_tunnel_del	= enic_udp_tunnel_del,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= enic_features_check,
 };
 
@@ -2554,8 +2518,8 @@ static const struct net_device_ops enic_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= enic_rx_flow_steer,
 #endif
-	.ndo_udp_tunnel_add	= enic_udp_tunnel_add,
-	.ndo_udp_tunnel_del	= enic_udp_tunnel_del,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= enic_features_check,
 };
 
@@ -2965,6 +2929,13 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		patch_level = fls(patch_level);
 		patch_level = patch_level ? patch_level - 1 : 0;
 		enic->vxlan.patch_level = patch_level;
+
+		if (vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ) == 1 ||
+		    enic->vxlan.flags & ENIC_VXLAN_MULTI_WQ) {
+			netdev->udp_tunnel_nic_info = &enic_udp_tunnels_v4;
+			if (enic->vxlan.flags & ENIC_VXLAN_OUTER_IPV6)
+				netdev->udp_tunnel_nic_info = &enic_udp_tunnels;
+		}
 	}
 
 	netdev->features |= netdev->hw_features;
@@ -3056,8 +3027,6 @@ static struct pci_driver enic_driver = {
 
 static int __init enic_init_module(void)
 {
-	pr_info("%s, ver %s\n", DRV_DESCRIPTION, DRV_VERSION);
-
 	return pci_register_driver(&enic_driver);
 }
 

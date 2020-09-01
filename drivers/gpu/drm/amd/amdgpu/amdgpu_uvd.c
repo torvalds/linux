@@ -54,6 +54,12 @@
 #define FW_1_66_16	((1 << 24) | (66 << 16) | (16 << 8))
 
 /* Firmware Names */
+#ifdef CONFIG_DRM_AMDGPU_SI
+#define FIRMWARE_TAHITI		"amdgpu/tahiti_uvd.bin"
+#define FIRMWARE_VERDE		"amdgpu/verde_uvd.bin"
+#define FIRMWARE_PITCAIRN	"amdgpu/pitcairn_uvd.bin"
+#define FIRMWARE_OLAND		"amdgpu/oland_uvd.bin"
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #define FIRMWARE_BONAIRE	"amdgpu/bonaire_uvd.bin"
 #define FIRMWARE_KABINI	"amdgpu/kabini_uvd.bin"
@@ -100,6 +106,12 @@ struct amdgpu_uvd_cs_ctx {
 	unsigned *buf_sizes;
 };
 
+#ifdef CONFIG_DRM_AMDGPU_SI
+MODULE_FIRMWARE(FIRMWARE_TAHITI);
+MODULE_FIRMWARE(FIRMWARE_VERDE);
+MODULE_FIRMWARE(FIRMWARE_PITCAIRN);
+MODULE_FIRMWARE(FIRMWARE_OLAND);
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
 MODULE_FIRMWARE(FIRMWARE_KABINI);
@@ -133,6 +145,20 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	INIT_DELAYED_WORK(&adev->uvd.idle_work, amdgpu_uvd_idle_work_handler);
 
 	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_TAHITI:
+		fw_name = FIRMWARE_TAHITI;
+		break;
+	case CHIP_VERDE:
+		fw_name = FIRMWARE_VERDE;
+		break;
+	case CHIP_PITCAIRN:
+		fw_name = FIRMWARE_PITCAIRN;
+		break;
+	case CHIP_OLAND:
+		fw_name = FIRMWARE_OLAND;
+		break;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
 		fw_name = FIRMWARE_BONAIRE;
@@ -1056,7 +1082,8 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 			goto err;
 	}
 
-	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
+	r = amdgpu_job_alloc_with_ib(adev, 64, direct ? AMDGPU_IB_POOL_DIRECT :
+				     AMDGPU_IB_POOL_DELAYED, &job);
 	if (r)
 		goto err;
 
@@ -1099,7 +1126,8 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 			goto err_free;
 	} else {
 		r = amdgpu_sync_resv(adev, &job->sync, bo->tbo.base.resv,
-				     AMDGPU_FENCE_OWNER_UNDEFINED, false);
+				     AMDGPU_SYNC_ALWAYS,
+				     AMDGPU_FENCE_OWNER_UNDEFINED);
 		if (r)
 			goto err_free;
 

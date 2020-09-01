@@ -99,16 +99,16 @@ static int sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf,
 	return ret;
 }
 
-int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
-		 const struct firmware **fw, int *file_offset)
+static int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
+			const struct firmware **fw, int *file_offset)
 {
 	int keyset_file;
 	char filename[256];
 	const char *data;
 	int ret;
 
-	snprintf(filename, sizeof(filename), "%s_%02X.sec", wdev->pdata.file_fw,
-		 keyset_chip);
+	snprintf(filename, sizeof(filename), "%s_%02X.sec",
+		 wdev->pdata.file_fw, keyset_chip);
 	ret = firmware_request_nowarn(fw, filename, wdev->dev);
 	if (ret) {
 		dev_info(wdev->dev, "can't load %s, falling back to %s.sec\n",
@@ -177,7 +177,7 @@ static int wait_ncp_status(struct wfx_dev *wdev, u32 status)
 static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 {
 	int ret;
-	u32 offs, bytes_done;
+	u32 offs, bytes_done = 0;
 	ktime_t now, start;
 
 	if (len % DNLD_BLOCK_SIZE) {
@@ -188,15 +188,14 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 	while (offs < len) {
 		start = ktime_get();
 		for (;;) {
-			ret = sram_reg_read(wdev, WFX_DCA_GET, &bytes_done);
-			if (ret < 0)
-				return ret;
 			now = ktime_get();
-			if (offs +
-			    DNLD_BLOCK_SIZE - bytes_done < DNLD_FIFO_SIZE)
+			if (offs + DNLD_BLOCK_SIZE - bytes_done < DNLD_FIFO_SIZE)
 				break;
 			if (ktime_after(now, ktime_add_ms(start, DCA_TIMEOUT)))
 				return -ETIMEDOUT;
+			ret = sram_reg_read(wdev, WFX_DCA_GET, &bytes_done);
+			if (ret < 0)
+				return ret;
 		}
 		if (ktime_compare(now, start))
 			dev_dbg(wdev->dev, "answer after %lldus\n",
@@ -325,8 +324,8 @@ static int init_gpr(struct wfx_dev *wdev)
 				     gpr_init[i].value);
 		if (ret < 0)
 			return ret;
-		dev_dbg(wdev->dev, "  index %02x: %08x\n", gpr_init[i].index,
-			gpr_init[i].value);
+		dev_dbg(wdev->dev, "  index %02x: %08x\n",
+			gpr_init[i].index, gpr_init[i].value);
 	}
 	return 0;
 }
@@ -360,7 +359,7 @@ int wfx_init_device(struct wfx_dev *wdev)
 	dev_dbg(wdev->dev, "initial config register value: %08x\n", reg);
 
 	hw_revision = FIELD_GET(CFG_DEVICE_ID_MAJOR, reg);
-	if (hw_revision == 0 || hw_revision > 2) {
+	if (hw_revision == 0) {
 		dev_err(wdev->dev, "bad hardware revision number: %d\n",
 			hw_revision);
 		return -ENODEV;
@@ -398,10 +397,9 @@ int wfx_init_device(struct wfx_dev *wdev)
 	ret = load_firmware_secure(wdev);
 	if (ret < 0)
 		return ret;
-	ret = config_reg_write_bits(wdev,
-				    CFG_DIRECT_ACCESS_MODE |
-				    CFG_IRQ_ENABLE_DATA |
-				    CFG_IRQ_ENABLE_WRDY,
-				    CFG_IRQ_ENABLE_DATA);
-	return ret;
+	return config_reg_write_bits(wdev,
+				     CFG_DIRECT_ACCESS_MODE |
+				     CFG_IRQ_ENABLE_DATA |
+				     CFG_IRQ_ENABLE_WRDY,
+				     CFG_IRQ_ENABLE_DATA);
 }

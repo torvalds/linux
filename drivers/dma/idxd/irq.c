@@ -23,16 +23,13 @@ void idxd_device_wqs_clear_state(struct idxd_device *idxd)
 	}
 }
 
-static int idxd_restart(struct idxd_device *idxd)
+static void idxd_device_reinit(struct work_struct *work)
 {
-	int i, rc;
+	struct idxd_device *idxd = container_of(work, struct idxd_device, work);
+	struct device *dev = &idxd->pdev->dev;
+	int rc, i;
 
-	lockdep_assert_held(&idxd->dev_lock);
-
-	rc = __idxd_device_reset(idxd);
-	if (rc < 0)
-		goto out;
-
+	idxd_device_reset(idxd);
 	rc = idxd_device_config(idxd);
 	if (rc < 0)
 		goto out;
@@ -47,19 +44,16 @@ static int idxd_restart(struct idxd_device *idxd)
 		if (wq->state == IDXD_WQ_ENABLED) {
 			rc = idxd_wq_enable(wq);
 			if (rc < 0) {
-				dev_warn(&idxd->pdev->dev,
-					 "Unable to re-enable wq %s\n",
+				dev_warn(dev, "Unable to re-enable wq %s\n",
 					 dev_name(&wq->conf_dev));
 			}
 		}
 	}
 
-	return 0;
+	return;
 
  out:
 	idxd_device_wqs_clear_state(idxd);
-	idxd->state = IDXD_DEV_HALTED;
-	return rc;
 }
 
 irqreturn_t idxd_irq_handler(int vec, void *data)
@@ -78,7 +72,7 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 	struct device *dev = &idxd->pdev->dev;
 	union gensts_reg gensts;
 	u32 cause, val = 0;
-	int i, rc;
+	int i;
 	bool err = false;
 
 	cause = ioread32(idxd->reg_base + IDXD_INTCAUSE_OFFSET);
@@ -117,8 +111,8 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 	}
 
 	if (cause & IDXD_INTC_CMD) {
-		/* Driver does use command interrupts */
 		val |= IDXD_INTC_CMD;
+		complete(idxd->cmd_done);
 	}
 
 	if (cause & IDXD_INTC_OCCUPY) {
@@ -141,27 +135,31 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 
 	iowrite32(cause, idxd->reg_base + IDXD_INTCAUSE_OFFSET);
 	if (!err)
-		return IRQ_HANDLED;
+		goto out;
 
 	gensts.bits = ioread32(idxd->reg_base + IDXD_GENSTATS_OFFSET);
 	if (gensts.state == IDXD_DEVICE_STATE_HALT) {
-		spin_lock_bh(&idxd->dev_lock);
+		idxd->state = IDXD_DEV_HALTED;
 		if (gensts.reset_type == IDXD_DEVICE_RESET_SOFTWARE) {
-			rc = idxd_restart(idxd);
-			if (rc < 0)
-				dev_err(&idxd->pdev->dev,
-					"idxd restart failed, device halt.");
+			/*
+			 * If we need a software reset, we will throw the work
+			 * on a system workqueue in order to allow interrupts
+			 * for the device command completions.
+			 */
+			INIT_WORK(&idxd->work, idxd_device_reinit);
+			queue_work(idxd->wq, &idxd->work);
 		} else {
+			spin_lock_bh(&idxd->dev_lock);
 			idxd_device_wqs_clear_state(idxd);
-			idxd->state = IDXD_DEV_HALTED;
 			dev_err(&idxd->pdev->dev,
 				"idxd halted, need %s.\n",
 				gensts.reset_type == IDXD_DEVICE_RESET_FLR ?
 				"FLR" : "system reset");
+			spin_unlock_bh(&idxd->dev_lock);
 		}
-		spin_unlock_bh(&idxd->dev_lock);
 	}
 
+ out:
 	idxd_unmask_msix_vector(idxd, irq_entry->id);
 	return IRQ_HANDLED;
 }
@@ -173,6 +171,7 @@ static int irq_process_pending_llist(struct idxd_irq_entry *irq_entry,
 	struct llist_node *head;
 	int queued = 0;
 
+	*processed = 0;
 	head = llist_del_all(&irq_entry->pending_llist);
 	if (!head)
 		return 0;
@@ -197,6 +196,7 @@ static int irq_process_work_list(struct idxd_irq_entry *irq_entry,
 	struct list_head *node, *next;
 	int queued = 0;
 
+	*processed = 0;
 	if (list_empty(&irq_entry->work_list))
 		return 0;
 
@@ -218,10 +218,9 @@ static int irq_process_work_list(struct idxd_irq_entry *irq_entry,
 	return queued;
 }
 
-irqreturn_t idxd_wq_thread(int irq, void *data)
+static int idxd_desc_process(struct idxd_irq_entry *irq_entry)
 {
-	struct idxd_irq_entry *irq_entry = data;
-	int rc, processed = 0, retry = 0;
+	int rc, processed, total = 0;
 
 	/*
 	 * There are two lists we are processing. The pending_llist is where
@@ -244,14 +243,23 @@ irqreturn_t idxd_wq_thread(int irq, void *data)
 	 */
 	do {
 		rc = irq_process_work_list(irq_entry, &processed);
-		if (rc != 0) {
-			retry++;
+		total += processed;
+		if (rc != 0)
 			continue;
-		}
 
 		rc = irq_process_pending_llist(irq_entry, &processed);
-	} while (rc != 0 && retry != 10);
+		total += processed;
+	} while (rc != 0);
 
+	return total;
+}
+
+irqreturn_t idxd_wq_thread(int irq, void *data)
+{
+	struct idxd_irq_entry *irq_entry = data;
+	int processed;
+
+	processed = idxd_desc_process(irq_entry);
 	idxd_unmask_msix_vector(irq_entry->idxd, irq_entry->id);
 
 	if (processed == 0)

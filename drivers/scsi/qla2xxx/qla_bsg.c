@@ -11,6 +11,14 @@
 #include <linux/delay.h>
 #include <linux/bsg-lib.h>
 
+static void qla2xxx_free_fcport_work(struct work_struct *work)
+{
+	struct fc_port *fcport = container_of(work, typeof(*fcport),
+	    free_work);
+
+	qla2x00_free_fcport(fcport);
+}
+
 /* BSG support for ELS/CT pass through */
 void qla2x00_bsg_job_done(srb_t *sp, int res)
 {
@@ -53,8 +61,10 @@ void qla2x00_bsg_sp_free(srb_t *sp)
 
 	if (sp->type == SRB_CT_CMD ||
 	    sp->type == SRB_FXIOCB_BCMD ||
-	    sp->type == SRB_ELS_CMD_HST)
-		qla2x00_free_fcport(sp->fcport);
+	    sp->type == SRB_ELS_CMD_HST) {
+		INIT_WORK(&sp->fcport->free_work, qla2xxx_free_fcport_work);
+		queue_work(ha->wq, &sp->fcport->free_work);
+	}
 
 	qla2x00_rel_sp(sp);
 }
@@ -213,8 +223,7 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct bsg_job *bsg_job)
 
 		/* validate fcp priority data */
 
-		if (!qla24xx_fcp_prio_cfg_valid(vha,
-		    (struct qla_fcp_prio_cfg *) ha->fcp_prio_cfg, 1)) {
+		if (!qla24xx_fcp_prio_cfg_valid(vha, ha->fcp_prio_cfg, 1)) {
 			bsg_reply->result = (DID_ERROR << 16);
 			ret = -EINVAL;
 			/* If buffer was invalidatic int
@@ -480,7 +489,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 			>> 24;
 	switch (loop_id) {
 	case 0xFC:
-		loop_id = cpu_to_le16(NPH_SNS);
+		loop_id = NPH_SNS;
 		break;
 	case 0xFA:
 		loop_id = vha->mgmt_svr_loop_id;
@@ -681,7 +690,7 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		 * dump and reset the chip.
 		 */
 		if (ret) {
-			ha->isp_ops->fw_dump(vha, 0);
+			qla2xxx_dump_fw(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		}
 		rval = -EINVAL;
@@ -718,7 +727,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 	uint16_t response[MAILBOX_REGISTER_COUNT];
 	uint16_t config[4], new_config[4];
 	uint8_t *fw_sts_ptr;
-	uint8_t *req_data = NULL;
+	void *req_data = NULL;
 	dma_addr_t req_data_dma;
 	uint32_t req_data_len;
 	uint8_t *rsp_data = NULL;
@@ -796,10 +805,11 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 	    bsg_request->rqst_data.h_vendor.vendor_cmd[2];
 
 	if (atomic_read(&vha->loop_state) == LOOP_READY &&
-	    (ha->current_topology == ISP_CFG_F ||
-	    (get_unaligned_le32(req_data) == ELS_OPCODE_BYTE &&
-	     req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
-	    elreq.options == EXTERNAL_LOOPBACK) {
+	    ((ha->current_topology == ISP_CFG_F && (elreq.options & 7) >= 2) ||
+	    ((IS_QLA81XX(ha) || IS_QLA8031(ha) || IS_QLA8044(ha)) &&
+	    get_unaligned_le32(req_data) == ELS_OPCODE_BYTE &&
+	    req_data_len == MAX_ELS_FRAME_PAYLOAD &&
+	    elreq.options == EXTERNAL_LOOPBACK))) {
 		type = "FC_BSG_HST_VENDOR_ECHO_DIAG";
 		ql_dbg(ql_dbg_user, vha, 0x701e,
 		    "BSG request type: %s.\n", type);
@@ -885,7 +895,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 					 * doesn't work take FCoE dump and then
 					 * reset the chip.
 					 */
-					ha->isp_ops->fw_dump(vha, 0);
+					qla2xxx_dump_fw(vha);
 					set_bit(ISP_ABORT_NEEDED,
 					    &vha->dpc_flags);
 				}
@@ -1506,10 +1516,15 @@ qla2x00_update_optrom(struct bsg_job *bsg_job)
 	    bsg_job->request_payload.sg_cnt, ha->optrom_buffer,
 	    ha->optrom_region_size);
 
-	ha->isp_ops->write_optrom(vha, ha->optrom_buffer,
+	rval = ha->isp_ops->write_optrom(vha, ha->optrom_buffer,
 	    ha->optrom_region_start, ha->optrom_region_size);
 
-	bsg_reply->result = DID_OK;
+	if (rval) {
+		bsg_reply->result = -EINVAL;
+		rval = -EINVAL;
+	} else {
+		bsg_reply->result = DID_OK;
+	}
 	vfree(ha->optrom_buffer);
 	ha->optrom_buffer = NULL;
 	ha->optrom_state = QLA_SWAITING;
@@ -2026,7 +2041,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 
 	/* Initialize all required  fields of fcport */
 	fcport->vha = vha;
-	fcport->loop_id = piocb_rqst->dataword;
+	fcport->loop_id = le32_to_cpu(piocb_rqst->dataword);
 
 	sp->type = SRB_FXIOCB_BCMD;
 	sp->name = "bsg_fx_mgmt";
@@ -2404,7 +2419,7 @@ qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
 	regions.global_image = active_regions.global;
 
 	if (IS_QLA28XX(ha)) {
-		qla27xx_get_active_image(vha, &active_regions);
+		qla28xx_get_aux_images(vha, &active_regions);
 		regions.board_config = active_regions.aux.board_config;
 		regions.vpd_nvram = active_regions.aux.vpd_nvram;
 		regions.npiv_config_0_1 = active_regions.aux.npiv_config_0_1;

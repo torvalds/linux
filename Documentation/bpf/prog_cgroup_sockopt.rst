@@ -86,6 +86,20 @@ then the next program in the chain (A) will see those changes,
 *not* the original input ``setsockopt`` arguments. The potentially
 modified values will be then passed down to the kernel.
 
+Large optval
+============
+When the ``optval`` is greater than the ``PAGE_SIZE``, the BPF program
+can access only the first ``PAGE_SIZE`` of that data. So it has to options:
+
+* Set ``optlen`` to zero, which indicates that the kernel should
+  use the original buffer from the userspace. Any modifications
+  done by the BPF program to the ``optval`` are ignored.
+* Set ``optlen`` to the value less than ``PAGE_SIZE``, which
+  indicates that the kernel should use BPF's trimmed ``optval``.
+
+When the BPF program returns with the ``optlen`` greater than
+``PAGE_SIZE``, the userspace will receive ``EFAULT`` errno.
+
 Example
 =======
 

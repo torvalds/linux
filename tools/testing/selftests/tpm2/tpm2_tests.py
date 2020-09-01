@@ -20,8 +20,8 @@ class SmokeTest(unittest.TestCase):
         self.client.close()
 
     def test_seal_with_auth(self):
-        data = 'X' * 64
-        auth = 'A' * 15
+        data = ('X' * 64).encode()
+        auth = ('A' * 15).encode()
 
         blob = self.client.seal(self.root_key, data, auth, None)
         result = self.client.unseal(self.root_key, blob, auth, None)
@@ -30,8 +30,8 @@ class SmokeTest(unittest.TestCase):
     def test_seal_with_policy(self):
         handle = self.client.start_auth_session(tpm2.TPM2_SE_TRIAL)
 
-        data = 'X' * 64
-        auth = 'A' * 15
+        data = ('X' * 64).encode()
+        auth = ('A' * 15).encode()
         pcrs = [16]
 
         try:
@@ -58,14 +58,15 @@ class SmokeTest(unittest.TestCase):
         self.assertEqual(data, result)
 
     def test_unseal_with_wrong_auth(self):
-        data = 'X' * 64
-        auth = 'A' * 20
+        data = ('X' * 64).encode()
+        auth = ('A' * 20).encode()
         rc = 0
 
         blob = self.client.seal(self.root_key, data, auth, None)
         try:
-            result = self.client.unseal(self.root_key, blob, auth[:-1] + 'B', None)
-        except ProtocolError, e:
+            result = self.client.unseal(self.root_key, blob,
+                        auth[:-1] + 'B'.encode(), None)
+        except ProtocolError as e:
             rc = e.rc
 
         self.assertEqual(rc, tpm2.TPM2_RC_AUTH_FAIL)
@@ -73,8 +74,8 @@ class SmokeTest(unittest.TestCase):
     def test_unseal_with_wrong_policy(self):
         handle = self.client.start_auth_session(tpm2.TPM2_SE_TRIAL)
 
-        data = 'X' * 64
-        auth = 'A' * 17
+        data = ('X' * 64).encode()
+        auth = ('A' * 17).encode()
         pcrs = [16]
 
         try:
@@ -91,7 +92,7 @@ class SmokeTest(unittest.TestCase):
         # This should succeed.
 
         ds = tpm2.get_digest_size(tpm2.TPM2_ALG_SHA1)
-        self.client.extend_pcr(1, 'X' * ds)
+        self.client.extend_pcr(1, ('X' * ds).encode())
 
         handle = self.client.start_auth_session(tpm2.TPM2_SE_POLICY)
 
@@ -108,7 +109,7 @@ class SmokeTest(unittest.TestCase):
 
         # Then, extend a PCR that is part of the policy and try to unseal.
         # This should fail.
-        self.client.extend_pcr(16, 'X' * ds)
+        self.client.extend_pcr(16, ('X' * ds).encode())
 
         handle = self.client.start_auth_session(tpm2.TPM2_SE_POLICY)
 
@@ -119,7 +120,7 @@ class SmokeTest(unittest.TestCase):
             self.client.policy_password(handle)
 
             result = self.client.unseal(self.root_key, blob, auth, handle)
-        except ProtocolError, e:
+        except ProtocolError as e:
             rc = e.rc
             self.client.flush_context(handle)
         except:
@@ -130,13 +131,13 @@ class SmokeTest(unittest.TestCase):
 
     def test_seal_with_too_long_auth(self):
         ds = tpm2.get_digest_size(tpm2.TPM2_ALG_SHA1)
-        data = 'X' * 64
-        auth = 'A' * (ds + 1)
+        data = ('X' * 64).encode()
+        auth = ('A' * (ds + 1)).encode()
 
         rc = 0
         try:
             blob = self.client.seal(self.root_key, data, auth, None)
-        except ProtocolError, e:
+        except ProtocolError as e:
             rc = e.rc
 
         self.assertEqual(rc, tpm2.TPM2_RC_SIZE)
@@ -152,7 +153,7 @@ class SmokeTest(unittest.TestCase):
                               0xDEADBEEF)
 
             self.client.send_cmd(cmd)
-        except IOError, e:
+        except IOError as e:
             rejected = True
         except:
             pass
@@ -212,7 +213,7 @@ class SmokeTest(unittest.TestCase):
             self.client.tpm.write(cmd)
             rsp = self.client.tpm.read()
 
-        except IOError, e:
+        except IOError as e:
             # read the response
             rsp = self.client.tpm.read()
             rejected = True
@@ -283,7 +284,7 @@ class SpaceTest(unittest.TestCase):
         rc = 0
         try:
             space1.send_cmd(cmd)
-        except ProtocolError, e:
+        except ProtocolError as e:
             rc = e.rc
 
         self.assertEqual(rc, tpm2.TPM2_RC_COMMAND_CODE |

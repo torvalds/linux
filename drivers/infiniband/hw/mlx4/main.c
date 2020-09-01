@@ -434,9 +434,6 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	return real_index;
 }
 
-#define field_avail(type, fld, sz) (offsetof(type, fld) + \
-				    sizeof(((type *)0)->fld) <= (sz))
-
 static int mlx4_ib_query_device(struct ib_device *ibdev,
 				struct ib_device_attr *props,
 				struct ib_udata *uhw)
@@ -447,7 +444,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	int err;
 	int have_ib_ports;
 	struct mlx4_uverbs_ex_query_device cmd;
-	struct mlx4_uverbs_ex_query_device_resp resp = {.comp_mask = 0};
+	struct mlx4_uverbs_ex_query_device_resp resp = {};
 	struct mlx4_clock_params clock_params;
 
 	if (uhw->inlen) {
@@ -561,7 +558,6 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_mcast_qp_attach = dev->dev->caps.num_qp_per_mgm;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
-	props->max_map_per_fmr = dev->dev->caps.max_fmr_maps;
 	props->hca_core_clock = dev->dev->caps.hca_core_clock * 1000UL;
 	props->timestamp_mask = 0xFFFFFFFFFFFFULL;
 	props->max_ah = INT_MAX;
@@ -602,7 +598,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 			sizeof(struct mlx4_wqe_data_seg);
 	}
 
-	if (field_avail(typeof(resp), rss_caps, uhw->outlen)) {
+	if (offsetofend(typeof(resp), rss_caps) <= uhw->outlen) {
 		if (props->rss_caps.supported_qpts) {
 			resp.rss_caps.rx_hash_function =
 				MLX4_IB_RX_HASH_FUNC_TOEPLITZ;
@@ -626,7 +622,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 				       sizeof(resp.rss_caps);
 	}
 
-	if (field_avail(typeof(resp), tso_caps, uhw->outlen)) {
+	if (offsetofend(typeof(resp), tso_caps) <= uhw->outlen) {
 		if (dev->dev->caps.max_gso_sz &&
 		    ((mlx4_ib_port_link_layer(ibdev, 1) ==
 		    IB_LINK_LAYER_ETHERNET) ||
@@ -1223,56 +1219,47 @@ static void mlx4_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 	mlx4_pd_free(to_mdev(pd->device)->dev, to_mpd(pd)->pdn);
 }
 
-static struct ib_xrcd *mlx4_ib_alloc_xrcd(struct ib_device *ibdev,
-					  struct ib_udata *udata)
+static int mlx4_ib_alloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata)
 {
-	struct mlx4_ib_xrcd *xrcd;
+	struct mlx4_ib_dev *dev = to_mdev(ibxrcd->device);
+	struct mlx4_ib_xrcd *xrcd = to_mxrcd(ibxrcd);
 	struct ib_cq_init_attr cq_attr = {};
 	int err;
 
-	if (!(to_mdev(ibdev)->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC))
-		return ERR_PTR(-ENOSYS);
+	if (!(dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC))
+		return -EOPNOTSUPP;
 
-	xrcd = kmalloc(sizeof *xrcd, GFP_KERNEL);
-	if (!xrcd)
-		return ERR_PTR(-ENOMEM);
-
-	err = mlx4_xrcd_alloc(to_mdev(ibdev)->dev, &xrcd->xrcdn);
+	err = mlx4_xrcd_alloc(dev->dev, &xrcd->xrcdn);
 	if (err)
-		goto err1;
+		return err;
 
-	xrcd->pd = ib_alloc_pd(ibdev, 0);
+	xrcd->pd = ib_alloc_pd(ibxrcd->device, 0);
 	if (IS_ERR(xrcd->pd)) {
 		err = PTR_ERR(xrcd->pd);
 		goto err2;
 	}
 
 	cq_attr.cqe = 1;
-	xrcd->cq = ib_create_cq(ibdev, NULL, NULL, xrcd, &cq_attr);
+	xrcd->cq = ib_create_cq(ibxrcd->device, NULL, NULL, xrcd, &cq_attr);
 	if (IS_ERR(xrcd->cq)) {
 		err = PTR_ERR(xrcd->cq);
 		goto err3;
 	}
 
-	return &xrcd->ibxrcd;
+	return 0;
 
 err3:
 	ib_dealloc_pd(xrcd->pd);
 err2:
-	mlx4_xrcd_free(to_mdev(ibdev)->dev, xrcd->xrcdn);
-err1:
-	kfree(xrcd);
-	return ERR_PTR(err);
+	mlx4_xrcd_free(dev->dev, xrcd->xrcdn);
+	return err;
 }
 
-static int mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
+static void mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
 	ib_destroy_cq(to_mxrcd(xrcd)->cq);
 	ib_dealloc_pd(to_mxrcd(xrcd)->pd);
 	mlx4_xrcd_free(to_mdev(xrcd->device)->dev, to_mxrcd(xrcd)->xrcdn);
-	kfree(xrcd);
-
-	return 0;
 }
 
 static int add_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
@@ -1502,8 +1489,9 @@ static int __mlx4_ib_create_default_rules(
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(pdefault_rules->rules_create_list); i++) {
+		union ib_flow_spec ib_spec = {};
 		int ret;
-		union ib_flow_spec ib_spec;
+
 		switch (pdefault_rules->rules_create_list[i]) {
 		case 0:
 			/* no rule */
@@ -2602,13 +2590,6 @@ static const struct ib_device_ops mlx4_ib_dev_wq_ops = {
 	.modify_wq = mlx4_ib_modify_wq,
 };
 
-static const struct ib_device_ops mlx4_ib_dev_fmr_ops = {
-	.alloc_fmr = mlx4_ib_fmr_alloc,
-	.dealloc_fmr = mlx4_ib_fmr_dealloc,
-	.map_phys_fmr = mlx4_ib_map_phys_fmr,
-	.unmap_fmr = mlx4_ib_unmap_fmr,
-};
-
 static const struct ib_device_ops mlx4_ib_dev_mw_ops = {
 	.alloc_mw = mlx4_ib_alloc_mw,
 	.dealloc_mw = mlx4_ib_dealloc_mw,
@@ -2617,6 +2598,8 @@ static const struct ib_device_ops mlx4_ib_dev_mw_ops = {
 static const struct ib_device_ops mlx4_ib_dev_xrc_ops = {
 	.alloc_xrcd = mlx4_ib_alloc_xrcd,
 	.dealloc_xrcd = mlx4_ib_dealloc_xrcd,
+
+	INIT_RDMA_OBJ_SIZE(ib_xrcd, mlx4_ib_xrcd, ibxrcd),
 };
 
 static const struct ib_device_ops mlx4_ib_dev_fs_ops = {
@@ -2725,9 +2708,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_wq_ops);
 	}
-
-	if (!mlx4_is_slave(ibdev->dev))
-		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_fmr_ops);
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
 	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {

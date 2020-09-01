@@ -32,10 +32,6 @@
  * the structure version (product ID, see appldata_base.c) needs to be changed
  * as well and all documentation and z/VM applications using it must be
  * updated.
- *
- * The record layout is documented in the Linux for zSeries Device Drivers
- * book:
- * http://oss.software.ibm.com/developerworks/opensource/linux390/index.shtml
  */
 struct appldata_os_per_cpu {
 	u32 per_cpu_user;	/* timer ticks spent in user mode   */
@@ -75,7 +71,7 @@ struct appldata_os_data {
 				   (waiting for I/O)               */
 
 	/* per cpu data */
-	struct appldata_os_per_cpu os_cpu[0];
+	struct appldata_os_per_cpu os_cpu[];
 } __attribute__((packed));
 
 static struct appldata_os_data *appldata_os_data;
@@ -133,8 +129,7 @@ static void appldata_get_os_data(void *data)
 
 	os_data->nr_cpus = j;
 
-	new_size = sizeof(struct appldata_os_data) +
-		   (os_data->nr_cpus * sizeof(struct appldata_os_per_cpu));
+	new_size = struct_size(os_data, os_cpu, os_data->nr_cpus);
 	if (ops.size != new_size) {
 		if (ops.active) {
 			rc = appldata_diag(APPLDATA_RECORD_OS_ID,
@@ -169,8 +164,7 @@ static int __init appldata_os_init(void)
 {
 	int rc, max_size;
 
-	max_size = sizeof(struct appldata_os_data) +
-		   (num_possible_cpus() * sizeof(struct appldata_os_per_cpu));
+	max_size = struct_size(appldata_os_data, os_cpu, num_possible_cpus());
 	if (max_size > APPLDATA_MAX_REC_SIZE) {
 		pr_err("Maximum OS record size %i exceeds the maximum "
 		       "record size %i\n", max_size, APPLDATA_MAX_REC_SIZE);

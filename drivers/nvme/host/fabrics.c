@@ -105,14 +105,14 @@ int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size)
 	int len = 0;
 
 	if (ctrl->opts->mask & NVMF_OPT_TRADDR)
-		len += snprintf(buf, size, "traddr=%s", ctrl->opts->traddr);
+		len += scnprintf(buf, size, "traddr=%s", ctrl->opts->traddr);
 	if (ctrl->opts->mask & NVMF_OPT_TRSVCID)
-		len += snprintf(buf + len, size - len, "%strsvcid=%s",
+		len += scnprintf(buf + len, size - len, "%strsvcid=%s",
 				(len) ? "," : "", ctrl->opts->trsvcid);
 	if (ctrl->opts->mask & NVMF_OPT_HOST_TRADDR)
-		len += snprintf(buf + len, size - len, "%shost_traddr=%s",
+		len += scnprintf(buf + len, size - len, "%shost_traddr=%s",
 				(len) ? "," : "", ctrl->opts->host_traddr);
-	len += snprintf(buf + len, size - len, "\n");
+	len += scnprintf(buf + len, size - len, "\n");
 
 	return len;
 }
@@ -547,7 +547,7 @@ static struct nvmf_transport_ops *nvmf_lookup_transport(
 blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
 		struct request *rq)
 {
-	if (ctrl->state != NVME_CTRL_DELETING &&
+	if (ctrl->state != NVME_CTRL_DELETING_NOIO &&
 	    ctrl->state != NVME_CTRL_DEAD &&
 	    !blk_noretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
 		return BLK_STS_RESOURCE;

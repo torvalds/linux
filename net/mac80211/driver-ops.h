@@ -12,12 +12,11 @@
 #include "ieee80211_i.h"
 #include "trace.h"
 
-static inline bool check_sdata_in_driver(struct ieee80211_sub_if_data *sdata)
-{
-	return !WARN(!(sdata->flags & IEEE80211_SDATA_IN_DRIVER),
-		     "%s:  Failed check-sdata-in-driver check, flags: 0x%x\n",
-		     sdata->dev ? sdata->dev->name : sdata->name, sdata->flags);
-}
+#define check_sdata_in_driver(sdata)	({					\
+	!WARN_ONCE(!(sdata->flags & IEEE80211_SDATA_IN_DRIVER),			\
+		   "%s: Failed check-sdata-in-driver check, flags: 0x%x\n",	\
+		   sdata->dev ? sdata->dev->name : sdata->name, sdata->flags);	\
+})
 
 static inline struct ieee80211_sub_if_data *
 get_bss_sdata(struct ieee80211_sub_if_data *sdata)
@@ -1358,4 +1357,31 @@ static inline void drv_del_nan_func(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline int drv_set_tid_config(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_sta *sta,
+				     struct cfg80211_tid_config *tid_conf)
+{
+	int ret;
+
+	might_sleep();
+	ret = local->ops->set_tid_config(&local->hw, &sdata->vif, sta,
+					 tid_conf);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_reset_tid_config(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_sta *sta, u8 tids)
+{
+	int ret;
+
+	might_sleep();
+	ret = local->ops->reset_tid_config(&local->hw, &sdata->vif, sta, tids);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
 #endif /* __MAC80211_DRIVER_OPS */

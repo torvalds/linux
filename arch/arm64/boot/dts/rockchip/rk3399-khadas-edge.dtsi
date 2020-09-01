@@ -141,15 +141,15 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&sys_led_gpio>, <&user_led_gpio>;
+		pinctrl-0 = <&sys_led_pin>, <&user_led_pin>;
 
-		sys-led {
+		sys_led: led-0 {
 			label = "sys_led";
 			linux,default-trigger = "heartbeat";
 			gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
 		};
 
-		user-led {
+		user_led: led-1 {
 			label = "user_led";
 			default-state = "off";
 			gpios = <&gpio4 RK_PD0 GPIO_ACTIVE_HIGH>;
@@ -586,11 +586,11 @@
 	};
 
 	leds {
-		sys_led_gpio: sys_led-gpio {
+		sys_led_pin: sys-led-pin {
 			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		user_led_gpio: user_led-gpio {
+		user_led_pin: user-led-pin {
 			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};

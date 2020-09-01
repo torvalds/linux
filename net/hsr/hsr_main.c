@@ -3,9 +3,12 @@
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
+ *
+ * Event handling for HSR and PRP devices.
  */
 
 #include <linux/netdevice.h>
+#include <net/rtnetlink.h>
 #include <linux/rculist.h>
 #include <linux/timer.h>
 #include <linux/etherdevice.h>
@@ -15,12 +18,23 @@
 #include "hsr_framereg.h"
 #include "hsr_slave.h"
 
+static bool hsr_slave_empty(struct hsr_priv *hsr)
+{
+	struct hsr_port *port;
+
+	hsr_for_each_port(hsr, port)
+		if (port->type != HSR_PT_MASTER)
+			return false;
+	return true;
+}
+
 static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev;
 	struct hsr_port *port, *master;
+	struct net_device *dev;
 	struct hsr_priv *hsr;
+	LIST_HEAD(list_kill);
 	int mtu_max;
 	int res;
 
@@ -85,7 +99,17 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		master->dev->mtu = mtu_max;
 		break;
 	case NETDEV_UNREGISTER:
-		hsr_del_port(port);
+		if (!is_hsr_master(dev)) {
+			master = hsr_port_get_hsr(port->hsr, HSR_PT_MASTER);
+			hsr_del_port(port);
+			if (hsr_slave_empty(master->hsr)) {
+				const struct rtnl_link_ops *ops;
+
+				ops = master->dev->rtnl_link_ops;
+				ops->dellink(master->dev, &list_kill);
+				unregister_netdevice_many(&list_kill);
+			}
+		}
 		break;
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* HSR works only on Ethernet devices. Refuse slave to change
@@ -125,9 +149,9 @@ static int __init hsr_init(void)
 
 static void __exit hsr_exit(void)
 {
-	unregister_netdevice_notifier(&hsr_nb);
 	hsr_netlink_exit();
 	hsr_debugfs_remove_root();
+	unregister_netdevice_notifier(&hsr_nb);
 }
 
 module_init(hsr_init);

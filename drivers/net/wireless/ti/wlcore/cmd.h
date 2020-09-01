@@ -209,7 +209,7 @@ struct wl1271_cmd_header {
 	__le16 id;
 	__le16 status;
 	/* payload */
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define WL1271_CMD_MAX_PARAMS 572
@@ -458,6 +458,7 @@ enum wl1271_cmd_key_type {
 	KEY_TKIP = 2,
 	KEY_AES  = 3,
 	KEY_GEM  = 4,
+	KEY_IGTK  = 5,
 };
 
 struct wl1271_cmd_set_keys {

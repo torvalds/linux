@@ -119,14 +119,15 @@ void dcn20_set_mcif_arb_params(
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt);
 bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context, bool fast_validate);
-void dcn20_merge_pipes_for_validate(
-		struct dc *dc,
-		struct dc_state *context);
 int dcn20_validate_apply_pipe_split_flags(
 		struct dc *dc,
 		struct dc_state *context,
 		int vlevel,
-		bool *split);
+		int *split,
+		bool *merge);
+void dcn20_release_dsc(struct resource_context *res_ctx,
+			const struct resource_pool *pool,
+			struct display_stream_compressor **dsc);
 bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx);
 void dcn20_split_stream_for_mpc(
 		struct resource_context *res_ctx,
@@ -134,10 +135,14 @@ void dcn20_split_stream_for_mpc(
 		struct pipe_ctx *primary_pipe,
 		struct pipe_ctx *secondary_pipe);
 bool dcn20_split_stream_for_odm(
+		const struct dc *dc,
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool,
 		struct pipe_ctx *prev_odm_pipe,
 		struct pipe_ctx *next_odm_pipe);
+void dcn20_acquire_dsc(const struct dc *dc,
+			struct resource_context *res_ctx,
+			struct display_stream_compressor **dsc,
+			int pipe_idx);
 struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
@@ -159,7 +164,7 @@ enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state 
 enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream);
 enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc, struct dc_state *dc_ctx, struct dc_stream_state *dc_stream);
 enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream);
-enum dc_status dcn20_get_default_swizzle_mode(struct dc_plane_state *plane_state);
+enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_state);
 
 void dcn20_patch_bounding_box(
 		struct dc *dc,

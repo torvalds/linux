@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 #ifndef IEEE80211_I_H
@@ -111,6 +111,8 @@ struct ieee80211_bss {
 	size_t supp_rates_len;
 	struct ieee80211_rate *beacon_rate;
 
+	u32 vht_cap_info;
+
 	/*
 	 * During association, we save an ERP value from a probe response so
 	 * that we can feed ERP info to the driver when handling the
@@ -162,7 +164,6 @@ typedef unsigned __bitwise ieee80211_tx_result;
 #define TX_DROP		((__force ieee80211_tx_result) 1u)
 #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
 
-#define IEEE80211_TX_NO_SEQNO		BIT(0)
 #define IEEE80211_TX_UNICAST		BIT(1)
 #define IEEE80211_TX_PS_BUFFERED	BIT(2)
 
@@ -216,7 +217,7 @@ enum ieee80211_rx_flags {
 };
 
 struct ieee80211_rx_data {
-	struct napi_struct *napi;
+	struct list_head *list;
 	struct sk_buff *skb;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -267,7 +268,7 @@ struct probe_resp {
 	struct rcu_head rcu_head;
 	int len;
 	u16 csa_counter_offsets[IEEE80211_MAX_CSA_COUNTERS_NUM];
-	u8 data[0];
+	u8 data[];
 };
 
 struct ps_data {
@@ -292,10 +293,7 @@ struct ieee80211_if_ap {
 
 	struct ps_data ps;
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
-	enum ieee80211_smps_mode req_smps, /* requested smps mode */
-			 driver_smps_mode; /* smps mode request */
 
-	struct work_struct request_smps_work;
 	bool multicast_to_unicast;
 };
 
@@ -452,8 +450,6 @@ struct ieee80211_if_managed {
 	struct ieee80211_mgd_assoc_data *assoc_data;
 
 	u8 bssid[ETH_ALEN] __aligned(2);
-
-	u16 aid;
 
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
@@ -904,14 +900,18 @@ struct ieee80211_sub_if_data {
 	/* bit field of ACM bits (BIT(802.1D tag)) */
 	u8 wmm_acm;
 
-	struct ieee80211_key __rcu *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
+	struct ieee80211_key __rcu *keys[NUM_DEFAULT_KEYS +
+					 NUM_DEFAULT_MGMT_KEYS +
+					 NUM_DEFAULT_BEACON_KEYS];
 	struct ieee80211_key __rcu *default_unicast_key;
 	struct ieee80211_key __rcu *default_multicast_key;
 	struct ieee80211_key __rcu *default_mgmt_key;
+	struct ieee80211_key __rcu *default_beacon_key;
 
 	u16 sequence_number;
 	__be16 control_port_protocol;
 	bool control_port_no_encrypt;
+	bool control_port_no_preauth;
 	bool control_port_over_nl80211;
 	int encrypt_headroom;
 
@@ -963,6 +963,10 @@ struct ieee80211_sub_if_data {
 	bool rc_has_vht_mcs_mask[NUM_NL80211_BANDS];
 	u16 rc_rateidx_vht_mcs_mask[NUM_NL80211_BANDS][NL80211_VHT_NSS_MAX];
 
+	/* Beacon frame (non-MCS) rate (as a bitmap) */
+	u32 beacon_rateidx_mask[NUM_NL80211_BANDS];
+	bool beacon_rate_set;
+
 	union {
 		struct ieee80211_if_ap ap;
 		struct ieee80211_if_wds wds;
@@ -981,8 +985,11 @@ struct ieee80211_sub_if_data {
 		struct dentry *default_unicast_key;
 		struct dentry *default_multicast_key;
 		struct dentry *default_mgmt_key;
+		struct dentry *default_beacon_key;
 	} debugfs;
 #endif
+
+	bool hw_80211_encap;
 
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
@@ -1165,7 +1172,8 @@ struct ieee80211_local {
 	/* number of interfaces with corresponding FIF_ flags */
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll,
 	    fif_probe_req;
-	int probe_req_reg;
+	bool probe_req_reg;
+	bool rx_mcast_action_reg;
 	unsigned int filter_flags; /* FIF_* */
 
 	bool wiphy_ciphers_allocated;
@@ -1473,6 +1481,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_tim_ie *tim;
 	const u8 *challenge;
 	const u8 *rsn;
+	const u8 *rsnx;
 	const u8 *erp_info;
 	const u8 *ext_supp_rates;
 	const u8 *wmm_info;
@@ -1486,6 +1495,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_he_operation *he_operation;
 	const struct ieee80211_he_spr *he_spr;
 	const struct ieee80211_mu_edca_param_set *mu_edca_param_set;
+	const struct ieee80211_he_6ghz_capa *he_6ghz_capa;
 	const u8 *uora_element;
 	const u8 *mesh_id;
 	const u8 *peering;
@@ -1520,6 +1530,7 @@ struct ieee802_11_elems {
 	u8 tim_len;
 	u8 challenge_len;
 	u8 rsn_len;
+	u8 rsnx_len;
 	u8 ext_supp_rates_len;
 	u8 wmm_info_len;
 	u8 wmm_param_len;
@@ -1727,6 +1738,13 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 			     struct cfg80211_csa_settings *params);
 
 /* interface handling */
+#define MAC80211_SUPPORTED_FEATURES_TX	(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | \
+					 NETIF_F_HW_CSUM | NETIF_F_SG | \
+					 NETIF_F_HIGHDMA | NETIF_F_GSO_SOFTWARE)
+#define MAC80211_SUPPORTED_FEATURES_RX	(NETIF_F_RXCSUM)
+#define MAC80211_SUPPORTED_FEATURES	(MAC80211_SUPPORTED_FEATURES_TX | \
+					 MAC80211_SUPPORTED_FEATURES_RX)
+
 int ieee80211_iface_init(void);
 void ieee80211_iface_exit(void);
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
@@ -1762,10 +1780,13 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 					 struct net_device *dev);
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev);
+netdev_tx_t ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
+					    struct net_device *dev);
 void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev,
 				  u32 info_flags,
-				  u32 ctrl_flags);
+				  u32 ctrl_flags,
+				  u64 *cookie);
 void ieee80211_purge_tx_queue(struct ieee80211_hw *hw,
 			      struct sk_buff_head *skbs);
 struct sk_buff *
@@ -1782,7 +1803,8 @@ void ieee80211_check_fast_xmit_iface(struct ieee80211_sub_if_data *sdata);
 void ieee80211_clear_fast_xmit(struct sta_info *sta);
 int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 			      const u8 *buf, size_t len,
-			      const u8 *dest, __be16 proto, bool unencrypted);
+			      const u8 *dest, __be16 proto, bool unencrypted,
+			      u64 *cookie);
 int ieee80211_probe_mesh_link(struct wiphy *wiphy, struct net_device *dev,
 			      const u8 *buf, size_t len);
 
@@ -1876,6 +1898,7 @@ void
 ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_supported_band *sband,
 				  const u8 *he_cap_ie, u8 he_cap_len,
+				  const struct ieee80211_he_6ghz_capa *he_6ghz_capa,
 				  struct sta_info *sta);
 void
 ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
@@ -1894,6 +1917,7 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
  * @sdata: the sdata of the interface which has received the frame
  * @elems: parsed 802.11 elements received with the frame
  * @current_band: indicates the current band
+ * @vht_cap_info: VHT capabilities of the transmitter
  * @sta_flags: contains information about own capabilities and restrictions
  *	to decide which channel switch announcements can be accepted. Only the
  *	following subset of &enum ieee80211_sta_flags are evaluated:
@@ -1908,6 +1932,7 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems,
 				 enum nl80211_band current_band,
+				 u32 vht_cap_info,
 				 u32 sta_flags, u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie);
 
@@ -1941,20 +1966,24 @@ void ieee80211_regulatory_limit_wmm_params(struct ieee80211_sub_if_data *sdata,
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 			       bool bss_notify, bool enable_qos);
 void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
-		    struct sta_info *sta, struct sk_buff *skb,
-		    u32 txdata_flags);
+		    struct sta_info *sta, struct sk_buff *skb);
 
 void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb, int tid,
-				 enum nl80211_band band, u32 txdata_flags);
+				 enum nl80211_band band);
+
+/* sta_out needs to be checked for ERR_PTR() before using */
+int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
+			    struct sk_buff *skb,
+			    struct sta_info **sta_out);
 
 static inline void
 ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 			  struct sk_buff *skb, int tid,
-			  enum nl80211_band band, u32 txdata_flags)
+			  enum nl80211_band band)
 {
 	rcu_read_lock();
-	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band, txdata_flags);
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band);
 	rcu_read_unlock();
 }
 
@@ -1972,7 +2001,7 @@ static inline void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 	}
 
 	__ieee80211_tx_skb_tid_band(sdata, skb, tid,
-				    chanctx_conf->def.chan->band, 0);
+				    chanctx_conf->def.chan->band);
 	rcu_read_unlock();
 }
 
@@ -2113,7 +2142,7 @@ enum {
 	IEEE80211_PROBE_FLAG_RANDOM_SN		= BIT(2),
 };
 
-int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
+int ieee80211_build_preq_ies(struct ieee80211_sub_if_data *sdata, u8 *buffer,
 			     size_t buffer_len,
 			     struct ieee80211_scan_ies *ie_desc,
 			     const u8 *ie, size_t ie_len,
@@ -2132,8 +2161,6 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    enum nl80211_band band, u32 *basic_rates);
 int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 				 enum ieee80211_smps_mode smps_mode);
-int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
-				enum ieee80211_smps_mode smps_mode);
 void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata);
 
@@ -2153,7 +2180,9 @@ u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata, u8 iftype);
 u8 *ieee80211_ie_build_he_cap(u8 *pos,
 			      const struct ieee80211_sta_he_cap *he_cap,
 			      u8 *end);
-u8 *ieee80211_ie_build_he_oper(u8 *pos);
+void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
+				    struct sk_buff *skb);
+u8 *ieee80211_ie_build_he_oper(u8 *pos, struct cfg80211_chan_def *chandef);
 int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates);
@@ -2168,10 +2197,13 @@ u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo);
 /* channel management */
 bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
 			       struct cfg80211_chan_def *chandef);
-bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw,
+bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 				const struct ieee80211_vht_operation *oper,
 				const struct ieee80211_ht_operation *htop,
 				struct cfg80211_chan_def *chandef);
+bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
+				    const struct ieee80211_he_operation *he_oper,
+				    struct cfg80211_chan_def *chandef);
 u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 
 int __must_check
@@ -2256,7 +2288,7 @@ extern const struct ethtool_ops ieee80211_ethtool_ops;
 u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_sta *pubsta,
-				       int len);
+				       int len, bool ampdu);
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
 #else

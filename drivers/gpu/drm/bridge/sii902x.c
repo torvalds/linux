@@ -360,7 +360,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 
 	buf[0] = pixel_clock_10kHz & 0xff;
 	buf[1] = pixel_clock_10kHz >> 8;
-	buf[2] = adj->vrefresh;
+	buf[2] = drm_mode_vrefresh(adj);
 	buf[3] = 0x00;
 	buf[4] = adj->hdisplay;
 	buf[5] = adj->hdisplay >> 8;
@@ -399,11 +399,17 @@ out:
 	mutex_unlock(&sii902x->mutex);
 }
 
-static int sii902x_bridge_attach(struct drm_bridge *bridge)
+static int sii902x_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 	struct drm_device *drm = bridge->dev;
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	drm_connector_helper_add(&sii902x->connector,
 				 &sii902x_connector_helper_funcs);
@@ -666,8 +672,8 @@ static void sii902x_audio_shutdown(struct device *dev, void *data)
 	clk_disable_unprepare(sii902x->audio.mclk);
 }
 
-static int sii902x_audio_digital_mute(struct device *dev,
-				      void *data, bool enable)
+static int sii902x_audio_mute(struct device *dev, void *data,
+			      bool enable, int direction)
 {
 	struct sii902x *sii902x = dev_get_drvdata(dev);
 
@@ -718,9 +724,10 @@ static int sii902x_audio_get_dai_id(struct snd_soc_component *component,
 static const struct hdmi_codec_ops sii902x_audio_codec_ops = {
 	.hw_params = sii902x_audio_hw_params,
 	.audio_shutdown = sii902x_audio_shutdown,
-	.digital_mute = sii902x_audio_digital_mute,
+	.mute_stream = sii902x_audio_mute,
 	.get_eld = sii902x_audio_get_eld,
 	.get_dai_id = sii902x_audio_get_dai_id,
+	.no_capture_mute = 1,
 };
 
 static int sii902x_audio_codec_init(struct sii902x *sii902x,

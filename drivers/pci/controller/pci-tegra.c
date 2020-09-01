@@ -181,13 +181,6 @@
 
 #define AFI_PEXBIAS_CTRL_0		0x168
 
-#define RP_PRIV_XP_DL		0x00000494
-#define  RP_PRIV_XP_DL_GEN2_UPD_FC_TSHOLD	(0x1ff << 1)
-
-#define RP_RX_HDR_LIMIT		0x00000e00
-#define  RP_RX_HDR_LIMIT_PW_MASK	(0xff << 8)
-#define  RP_RX_HDR_LIMIT_PW		(0x0e << 8)
-
 #define RP_ECTL_2_R1	0x00000e84
 #define  RP_ECTL_2_R1_RX_CTLE_1C_MASK		0xffff
 
@@ -323,7 +316,6 @@ struct tegra_pcie_soc {
 	bool program_uphy;
 	bool update_clamp_threshold;
 	bool program_deskew_time;
-	bool raw_violation_fixup;
 	bool update_fc_timer;
 	bool has_cache_bars;
 	struct {
@@ -355,16 +347,6 @@ struct tegra_pcie {
 	int irq;
 
 	struct resource cs;
-	struct resource io;
-	struct resource pio;
-	struct resource mem;
-	struct resource prefetch;
-	struct resource busn;
-
-	struct {
-		resource_size_t mem;
-		resource_size_t io;
-	} offset;
 
 	struct clk *pex_clk;
 	struct clk *afi_clk;
@@ -669,23 +651,6 @@ static void tegra_pcie_apply_sw_fixup(struct tegra_pcie_port *port)
 		writel(value, port->base + RP_VEND_CTL0);
 	}
 
-	/* Fixup for read after write violation. */
-	if (soc->raw_violation_fixup) {
-		value = readl(port->base + RP_RX_HDR_LIMIT);
-		value &= ~RP_RX_HDR_LIMIT_PW_MASK;
-		value |= RP_RX_HDR_LIMIT_PW;
-		writel(value, port->base + RP_RX_HDR_LIMIT);
-
-		value = readl(port->base + RP_PRIV_XP_DL);
-		value |= RP_PRIV_XP_DL_GEN2_UPD_FC_TSHOLD;
-		writel(value, port->base + RP_PRIV_XP_DL);
-
-		value = readl(port->base + RP_VEND_XP);
-		value &= ~RP_VEND_XP_UPDATE_FC_THRESHOLD_MASK;
-		value |= soc->update_fc_threshold;
-		writel(value, port->base + RP_VEND_XP);
-	}
-
 	if (soc->update_fc_timer) {
 		value = readl(port->base + RP_VEND_XP);
 		value &= ~RP_VEND_XP_UPDATE_FC_THRESHOLD_MASK;
@@ -797,38 +762,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, 0x0bf1, tegra_pcie_relax_enable);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, 0x0e1c, tegra_pcie_relax_enable);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, 0x0e1d, tegra_pcie_relax_enable);
 
-static int tegra_pcie_request_resources(struct tegra_pcie *pcie)
-{
-	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
-	struct list_head *windows = &host->windows;
-	struct device *dev = pcie->dev;
-	int err;
-
-	pci_add_resource_offset(windows, &pcie->pio, pcie->offset.io);
-	pci_add_resource_offset(windows, &pcie->mem, pcie->offset.mem);
-	pci_add_resource_offset(windows, &pcie->prefetch, pcie->offset.mem);
-	pci_add_resource(windows, &pcie->busn);
-
-	err = devm_request_pci_bus_resources(dev, windows);
-	if (err < 0) {
-		pci_free_resource_list(windows);
-		return err;
-	}
-
-	pci_remap_iospace(&pcie->pio, pcie->io.start);
-
-	return 0;
-}
-
-static void tegra_pcie_free_resources(struct tegra_pcie *pcie)
-{
-	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
-	struct list_head *windows = &host->windows;
-
-	pci_unmap_iospace(&pcie->pio);
-	pci_free_resource_list(windows);
-}
-
 static int tegra_pcie_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	struct tegra_pcie *pcie = pdev->bus->sysdata;
@@ -909,36 +842,49 @@ static irqreturn_t tegra_pcie_isr(int irq, void *arg)
  */
 static void tegra_pcie_setup_translations(struct tegra_pcie *pcie)
 {
-	u32 fpci_bar, size, axi_address;
+	u32 size;
+	struct resource_entry *entry;
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
 
 	/* Bar 0: type 1 extended configuration space */
 	size = resource_size(&pcie->cs);
 	afi_writel(pcie, pcie->cs.start, AFI_AXI_BAR0_START);
 	afi_writel(pcie, size >> 12, AFI_AXI_BAR0_SZ);
 
-	/* Bar 1: downstream IO bar */
-	fpci_bar = 0xfdfc0000;
-	size = resource_size(&pcie->io);
-	axi_address = pcie->io.start;
-	afi_writel(pcie, axi_address, AFI_AXI_BAR1_START);
-	afi_writel(pcie, size >> 12, AFI_AXI_BAR1_SZ);
-	afi_writel(pcie, fpci_bar, AFI_FPCI_BAR1);
+	resource_list_for_each_entry(entry, &bridge->windows) {
+		u32 fpci_bar, axi_address;
+		struct resource *res = entry->res;
 
-	/* Bar 2: prefetchable memory BAR */
-	fpci_bar = (((pcie->prefetch.start >> 12) & 0x0fffffff) << 4) | 0x1;
-	size = resource_size(&pcie->prefetch);
-	axi_address = pcie->prefetch.start;
-	afi_writel(pcie, axi_address, AFI_AXI_BAR2_START);
-	afi_writel(pcie, size >> 12, AFI_AXI_BAR2_SZ);
-	afi_writel(pcie, fpci_bar, AFI_FPCI_BAR2);
+		size = resource_size(res);
 
-	/* Bar 3: non prefetchable memory BAR */
-	fpci_bar = (((pcie->mem.start >> 12) & 0x0fffffff) << 4) | 0x1;
-	size = resource_size(&pcie->mem);
-	axi_address = pcie->mem.start;
-	afi_writel(pcie, axi_address, AFI_AXI_BAR3_START);
-	afi_writel(pcie, size >> 12, AFI_AXI_BAR3_SZ);
-	afi_writel(pcie, fpci_bar, AFI_FPCI_BAR3);
+		switch (resource_type(res)) {
+		case IORESOURCE_IO:
+			/* Bar 1: downstream IO bar */
+			fpci_bar = 0xfdfc0000;
+			axi_address = pci_pio_to_address(res->start);
+			afi_writel(pcie, axi_address, AFI_AXI_BAR1_START);
+			afi_writel(pcie, size >> 12, AFI_AXI_BAR1_SZ);
+			afi_writel(pcie, fpci_bar, AFI_FPCI_BAR1);
+			break;
+		case IORESOURCE_MEM:
+			fpci_bar = (((res->start >> 12) & 0x0fffffff) << 4) | 0x1;
+			axi_address = res->start;
+
+			if (res->flags & IORESOURCE_PREFETCH) {
+				/* Bar 2: prefetchable memory BAR */
+				afi_writel(pcie, axi_address, AFI_AXI_BAR2_START);
+				afi_writel(pcie, size >> 12, AFI_AXI_BAR2_SZ);
+				afi_writel(pcie, fpci_bar, AFI_FPCI_BAR2);
+
+			} else {
+				/* Bar 3: non prefetchable memory BAR */
+				afi_writel(pcie, axi_address, AFI_AXI_BAR3_START);
+				afi_writel(pcie, size >> 12, AFI_AXI_BAR3_SZ);
+				afi_writel(pcie, fpci_bar, AFI_FPCI_BAR3);
+			}
+			break;
+		}
+	}
 
 	/* NULL out the remaining BARs as they are not used */
 	afi_writel(pcie, 0, AFI_AXI_BAR4_START);
@@ -1491,7 +1437,7 @@ static int tegra_pcie_get_resources(struct tegra_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct resource *pads, *afi, *res;
+	struct resource *res;
 	const struct tegra_pcie_soc *soc = pcie->soc;
 	int err;
 
@@ -1515,15 +1461,13 @@ static int tegra_pcie_get_resources(struct tegra_pcie *pcie)
 		}
 	}
 
-	pads = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pads");
-	pcie->pads = devm_ioremap_resource(dev, pads);
+	pcie->pads = devm_platform_ioremap_resource_byname(pdev, "pads");
 	if (IS_ERR(pcie->pads)) {
 		err = PTR_ERR(pcie->pads);
 		goto phys_put;
 	}
 
-	afi = platform_get_resource_byname(pdev, IORESOURCE_MEM, "afi");
-	pcie->afi = devm_ioremap_resource(dev, afi);
+	pcie->afi = devm_platform_ioremap_resource_byname(pdev, "afi");
 	if (IS_ERR(pcie->afi)) {
 		err = PTR_ERR(pcie->afi);
 		goto phys_put;
@@ -1549,10 +1493,8 @@ static int tegra_pcie_get_resources(struct tegra_pcie *pcie)
 
 	/* request interrupt */
 	err = platform_get_irq_byname(pdev, "intr");
-	if (err < 0) {
-		dev_err(dev, "failed to get IRQ: %d\n", err);
+	if (err < 0)
 		goto phys_put;
-	}
 
 	pcie->irq = err;
 
@@ -1767,10 +1709,8 @@ static int tegra_pcie_msi_setup(struct tegra_pcie *pcie)
 	}
 
 	err = platform_get_irq_byname(pdev, "msi");
-	if (err < 0) {
-		dev_err(dev, "failed to get IRQ: %d\n", err);
+	if (err < 0)
 		goto free_irq_domain;
-	}
 
 	msi->irq = err;
 
@@ -2054,7 +1994,7 @@ static int tegra_pcie_get_regulators(struct tegra_pcie *pcie, u32 lane_mask)
 		pcie->supplies[i++].supply = "hvdd-pex";
 		pcie->supplies[i++].supply = "vddio-pexctl-aud";
 	} else if (of_device_is_compatible(np, "nvidia,tegra210-pcie")) {
-		pcie->num_supplies = 6;
+		pcie->num_supplies = 3;
 
 		pcie->supplies = devm_kcalloc(pcie->dev, pcie->num_supplies,
 					      sizeof(*pcie->supplies),
@@ -2062,14 +2002,11 @@ static int tegra_pcie_get_regulators(struct tegra_pcie *pcie, u32 lane_mask)
 		if (!pcie->supplies)
 			return -ENOMEM;
 
-		pcie->supplies[i++].supply = "avdd-pll-uerefe";
 		pcie->supplies[i++].supply = "hvddio-pex";
 		pcie->supplies[i++].supply = "dvddio-pex";
-		pcie->supplies[i++].supply = "dvdd-pex-pll";
-		pcie->supplies[i++].supply = "hvdd-pex-pll-e";
 		pcie->supplies[i++].supply = "vddio-pex-ctl";
 	} else if (of_device_is_compatible(np, "nvidia,tegra124-pcie")) {
-		pcie->num_supplies = 7;
+		pcie->num_supplies = 4;
 
 		pcie->supplies = devm_kcalloc(dev, pcie->num_supplies,
 					      sizeof(*pcie->supplies),
@@ -2079,11 +2016,8 @@ static int tegra_pcie_get_regulators(struct tegra_pcie *pcie, u32 lane_mask)
 
 		pcie->supplies[i++].supply = "avddio-pex";
 		pcie->supplies[i++].supply = "dvddio-pex";
-		pcie->supplies[i++].supply = "avdd-pex-pll";
 		pcie->supplies[i++].supply = "hvdd-pex";
-		pcie->supplies[i++].supply = "hvdd-pex-pll-e";
 		pcie->supplies[i++].supply = "vddio-pex-ctl";
-		pcie->supplies[i++].supply = "avdd-pll-erefe";
 	} else if (of_device_is_compatible(np, "nvidia,tegra30-pcie")) {
 		bool need_pexa = false, need_pexb = false;
 
@@ -2157,75 +2091,9 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 	struct device *dev = pcie->dev;
 	struct device_node *np = dev->of_node, *port;
 	const struct tegra_pcie_soc *soc = pcie->soc;
-	struct of_pci_range_parser parser;
-	struct of_pci_range range;
 	u32 lanes = 0, mask = 0;
 	unsigned int lane = 0;
-	struct resource res;
 	int err;
-
-	if (of_pci_range_parser_init(&parser, np)) {
-		dev_err(dev, "missing \"ranges\" property\n");
-		return -EINVAL;
-	}
-
-	for_each_of_pci_range(&parser, &range) {
-		err = of_pci_range_to_resource(&range, np, &res);
-		if (err < 0)
-			return err;
-
-		switch (res.flags & IORESOURCE_TYPE_BITS) {
-		case IORESOURCE_IO:
-			/* Track the bus -> CPU I/O mapping offset. */
-			pcie->offset.io = res.start - range.pci_addr;
-
-			memcpy(&pcie->pio, &res, sizeof(res));
-			pcie->pio.name = np->full_name;
-
-			/*
-			 * The Tegra PCIe host bridge uses this to program the
-			 * mapping of the I/O space to the physical address,
-			 * so we override the .start and .end fields here that
-			 * of_pci_range_to_resource() converted to I/O space.
-			 * We also set the IORESOURCE_MEM type to clarify that
-			 * the resource is in the physical memory space.
-			 */
-			pcie->io.start = range.cpu_addr;
-			pcie->io.end = range.cpu_addr + range.size - 1;
-			pcie->io.flags = IORESOURCE_MEM;
-			pcie->io.name = "I/O";
-
-			memcpy(&res, &pcie->io, sizeof(res));
-			break;
-
-		case IORESOURCE_MEM:
-			/*
-			 * Track the bus -> CPU memory mapping offset. This
-			 * assumes that the prefetchable and non-prefetchable
-			 * regions will be the last of type IORESOURCE_MEM in
-			 * the ranges property.
-			 * */
-			pcie->offset.mem = res.start - range.pci_addr;
-
-			if (res.flags & IORESOURCE_PREFETCH) {
-				memcpy(&pcie->prefetch, &res, sizeof(res));
-				pcie->prefetch.name = "prefetchable";
-			} else {
-				memcpy(&pcie->mem, &res, sizeof(res));
-				pcie->mem.name = "non-prefetchable";
-			}
-			break;
-		}
-	}
-
-	err = of_pci_parse_bus_range(np, &pcie->busn);
-	if (err < 0) {
-		dev_err(dev, "failed to parse ranges property: %d\n", err);
-		pcie->busn.name = np->name;
-		pcie->busn.start = 0;
-		pcie->busn.end = 0xff;
-		pcie->busn.flags = IORESOURCE_BUS;
-	}
 
 	/* parse root ports */
 	for_each_child_of_node(np, port) {
@@ -2314,8 +2182,8 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 			if (PTR_ERR(rp->reset_gpio) == -ENOENT) {
 				rp->reset_gpio = NULL;
 			} else {
-				dev_err(dev, "failed to get reset GPIO: %d\n",
-					err);
+				dev_err(dev, "failed to get reset GPIO: %ld\n",
+					PTR_ERR(rp->reset_gpio));
 				return PTR_ERR(rp->reset_gpio);
 			}
 		}
@@ -2511,7 +2379,6 @@ static const struct tegra_pcie_soc tegra20_pcie = {
 	.program_uphy = true,
 	.update_clamp_threshold = false,
 	.program_deskew_time = false,
-	.raw_violation_fixup = false,
 	.update_fc_timer = false,
 	.has_cache_bars = true,
 	.ectl.enable = false,
@@ -2541,7 +2408,6 @@ static const struct tegra_pcie_soc tegra30_pcie = {
 	.program_uphy = true,
 	.update_clamp_threshold = false,
 	.program_deskew_time = false,
-	.raw_violation_fixup = false,
 	.update_fc_timer = false,
 	.has_cache_bars = false,
 	.ectl.enable = false,
@@ -2554,8 +2420,6 @@ static const struct tegra_pcie_soc tegra124_pcie = {
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
 	.pads_refclk_cfg0 = 0x44ac44ac,
-	/* FC threshold is bit[25:18] */
-	.update_fc_threshold = 0x03fc0000,
 	.has_pex_clkreq_en = true,
 	.has_pex_bias_ctrl = true,
 	.has_intr_prsnt_sense = true,
@@ -2565,7 +2429,6 @@ static const struct tegra_pcie_soc tegra124_pcie = {
 	.program_uphy = true,
 	.update_clamp_threshold = true,
 	.program_deskew_time = false,
-	.raw_violation_fixup = true,
 	.update_fc_timer = false,
 	.has_cache_bars = false,
 	.ectl.enable = false,
@@ -2589,7 +2452,6 @@ static const struct tegra_pcie_soc tegra210_pcie = {
 	.program_uphy = true,
 	.update_clamp_threshold = true,
 	.program_deskew_time = true,
-	.raw_violation_fixup = false,
 	.update_fc_timer = true,
 	.has_cache_bars = false,
 	.ectl = {
@@ -2631,7 +2493,6 @@ static const struct tegra_pcie_soc tegra186_pcie = {
 	.program_uphy = false,
 	.update_clamp_threshold = false,
 	.program_deskew_time = false,
-	.raw_violation_fixup = false,
 	.update_fc_timer = false,
 	.has_cache_bars = false,
 	.ectl.enable = false,
@@ -2765,7 +2626,6 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pci_host_bridge *host;
 	struct tegra_pcie *pcie;
-	struct pci_bus *child;
 	int err;
 
 	host = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
@@ -2800,32 +2660,17 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	err = pm_runtime_get_sync(pcie->dev);
 	if (err < 0) {
 		dev_err(dev, "fail to enable pcie controller: %d\n", err);
-		goto teardown_msi;
+		goto pm_runtime_put;
 	}
 
-	err = tegra_pcie_request_resources(pcie);
-	if (err)
-		goto pm_runtime_put;
-
-	host->busnr = pcie->busn.start;
-	host->dev.parent = &pdev->dev;
 	host->ops = &tegra_pcie_ops;
 	host->map_irq = tegra_pcie_map_irq;
-	host->swizzle_irq = pci_common_swizzle;
 
-	err = pci_scan_root_bus_bridge(host);
+	err = pci_host_probe(host);
 	if (err < 0) {
 		dev_err(dev, "failed to register host: %d\n", err);
-		goto free_resources;
+		goto pm_runtime_put;
 	}
-
-	pci_bus_size_bridges(host->bus);
-	pci_bus_assign_resources(host->bus);
-
-	list_for_each_entry(child, &host->bus->children, node)
-		pcie_bus_configure_settings(child);
-
-	pci_bus_add_devices(host->bus);
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		err = tegra_pcie_debugfs_init(pcie);
@@ -2835,12 +2680,9 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 
 	return 0;
 
-free_resources:
-	tegra_pcie_free_resources(pcie);
 pm_runtime_put:
 	pm_runtime_put_sync(pcie->dev);
 	pm_runtime_disable(pcie->dev);
-teardown_msi:
 	tegra_pcie_msi_teardown(pcie);
 put_resources:
 	tegra_pcie_put_resources(pcie);
@@ -2858,7 +2700,6 @@ static int tegra_pcie_remove(struct platform_device *pdev)
 
 	pci_stop_root_bus(host->bus);
 	pci_remove_root_bus(host->bus);
-	tegra_pcie_free_resources(pcie);
 	pm_runtime_put_sync(pcie->dev);
 	pm_runtime_disable(pcie->dev);
 

@@ -1,38 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
 #include <linux/vmalloc.h>
+#include <linux/crash_dump.h>
 #include <linux/qed/qed_iov_if.h>
 #include "qed_cxt.h"
 #include "qed_hsi.h"
@@ -607,6 +582,9 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	int pos;
 	int rc;
 
+	if (is_kdump_kernel())
+		return 0;
+
 	if (IS_VF(p_hwfn->cdev))
 		return 0;
 
@@ -845,16 +823,17 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 }
 
 /**
- * @brief qed_iov_config_perm_table - configure the permission
- *      zone table.
- *      In E4, queue zone permission table size is 320x9. There
- *      are 320 VF queues for single engine device (256 for dual
- *      engine device), and each entry has the following format:
- *      {Valid, VF[7:0]}
- * @param p_hwfn
- * @param p_ptt
- * @param vf
- * @param enable
+ * qed_iov_config_perm_table() - Configure the permission zone table.
+ *
+ * @p_hwfn: HW device data.
+ * @p_ptt: PTT window for writing the registers.
+ * @vf: VF info data.
+ * @enable: The actual permision for this VF.
+ *
+ * In E4, queue zone permission table size is 320x9. There
+ * are 320 VF queues for single engine device (256 for dual
+ * engine device), and each entry has the following format:
+ * {Valid, VF[7:0]}
  */
 static void qed_iov_config_perm_table(struct qed_hwfn *p_hwfn,
 				      struct qed_ptt *p_ptt,
@@ -3297,14 +3276,12 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_IOV,
-		   "VF[%d]: opcode 0x%02x type 0x%02x [%s %s] [vport 0x%02x] MAC %02x:%02x:%02x:%02x:%02x:%02x, vlan 0x%04x\n",
+		   "VF[%d]: opcode 0x%02x type 0x%02x [%s %s] [vport 0x%02x] MAC %pM, vlan 0x%04x\n",
 		   vf->abs_vf_id, params.opcode, params.type,
 		   params.is_rx_filter ? "RX" : "",
 		   params.is_tx_filter ? "TX" : "",
 		   params.vport_to_add_to,
-		   params.mac[0], params.mac[1],
-		   params.mac[2], params.mac[3],
-		   params.mac[4], params.mac[5], params.vlan);
+		   params.mac, params.vlan);
 
 	if (!vf->vport_instance) {
 		DP_VERBOSE(p_hwfn,
@@ -4026,7 +4003,7 @@ static int qed_sriov_vfpf_msg(struct qed_hwfn *p_hwfn,
 	/* List the physical address of the request so that handler
 	 * could later on copy the message from it.
 	 */
-	p_vf->vf_mbx.pending_req = (((u64)vf_msg->hi) << 32) | vf_msg->lo;
+	p_vf->vf_mbx.pending_req = HILO_64(vf_msg->hi, vf_msg->lo);
 
 	/* Mark the event and schedule the workqueue */
 	p_vf->vf_mbx.b_pending_msg = true;
@@ -4058,9 +4035,7 @@ static void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
-			       u8 opcode,
-			       __le16 echo,
+static int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode, __le16 echo,
 			       union event_ring_data *data, u8 fw_return_code)
 {
 	switch (opcode) {
@@ -5063,8 +5038,7 @@ static void qed_update_mac_for_vf_trust_change(struct qed_hwfn *hwfn, int vf_id)
 			for (i = 0; i < QED_ETH_VF_NUM_MAC_FILTERS; i++) {
 				if (ether_addr_equal(vf->shadow_config.macs[i],
 						     vf_info->mac)) {
-					memset(vf->shadow_config.macs[i], 0,
-					       ETH_ALEN);
+					eth_zero_addr(vf->shadow_config.macs[i]);
 					DP_VERBOSE(hwfn, QED_MSG_IOV,
 						   "Shadow MAC %pM removed for VF 0x%02x, VF trust mode is ON\n",
 						    vf_info->mac, vf_id);
@@ -5073,7 +5047,7 @@ static void qed_update_mac_for_vf_trust_change(struct qed_hwfn *hwfn, int vf_id)
 			}
 
 			ether_addr_copy(vf_info->mac, force_mac);
-			memset(vf_info->forced_mac, 0, ETH_ALEN);
+			eth_zero_addr(vf_info->forced_mac);
 			vf->bulletin.p_virt->valid_bitmap &=
 					~BIT(MAC_ADDR_FORCED);
 			qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
@@ -5084,7 +5058,7 @@ static void qed_update_mac_for_vf_trust_change(struct qed_hwfn *hwfn, int vf_id)
 	if (!vf_info->is_trusted_configured) {
 		u8 empty_mac[ETH_ALEN];
 
-		memset(empty_mac, 0, ETH_ALEN);
+		eth_zero_addr(empty_mac);
 		for (i = 0; i < QED_ETH_VF_NUM_MAC_FILTERS; i++) {
 			if (ether_addr_equal(vf->shadow_config.macs[i],
 					     empty_mac)) {

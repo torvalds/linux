@@ -3085,6 +3085,7 @@ static int bnx2x_bsc_read(struct link_params *params,
 			  u8 xfer_cnt,
 			  u32 *data_array)
 {
+	u64 t0, delta;
 	u32 val, i;
 	int rc = 0;
 
@@ -3114,17 +3115,18 @@ static int bnx2x_bsc_read(struct link_params *params,
 	REG_WR(bp, MCP_REG_MCPR_IMC_COMMAND, val);
 
 	/* Poll for completion */
-	i = 0;
+	t0 = ktime_get_ns();
 	val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
 	while (((val >> MCPR_IMC_COMMAND_IMC_STATUS_BITSHIFT) & 0x3) != 1) {
-		udelay(10);
-		val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
-		if (i++ > 1000) {
-			DP(NETIF_MSG_LINK, "wr 0 byte timed out after %d try\n",
-								i);
+		delta = ktime_get_ns() - t0;
+		if (delta > 10 * NSEC_PER_MSEC) {
+			DP(NETIF_MSG_LINK, "wr 0 byte timed out after %Lu ns\n",
+					   delta);
 			rc = -EFAULT;
 			break;
 		}
+		usleep_range(10, 20);
+		val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
 	}
 	if (rc == -EFAULT)
 		return rc;
@@ -3138,16 +3140,18 @@ static int bnx2x_bsc_read(struct link_params *params,
 	REG_WR(bp, MCP_REG_MCPR_IMC_COMMAND, val);
 
 	/* Poll for completion */
-	i = 0;
+	t0 = ktime_get_ns();
 	val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
 	while (((val >> MCPR_IMC_COMMAND_IMC_STATUS_BITSHIFT) & 0x3) != 1) {
-		udelay(10);
-		val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
-		if (i++ > 1000) {
-			DP(NETIF_MSG_LINK, "rd op timed out after %d try\n", i);
+		delta = ktime_get_ns() - t0;
+		if (delta > 10 * NSEC_PER_MSEC) {
+			DP(NETIF_MSG_LINK, "rd op timed out after %Lu ns\n",
+					   delta);
 			rc = -EFAULT;
 			break;
 		}
+		usleep_range(10, 20);
+		val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
 	}
 	if (rc == -EFAULT)
 		return rc;
@@ -4708,14 +4712,14 @@ static void bnx2x_sync_link(struct link_params *params,
 			LINK_STATUS_SPEED_AND_DUPLEX_MASK) {
 		case LINK_10THD:
 			vars->duplex = DUPLEX_HALF;
-			/* Fall thru */
+			fallthrough;
 		case LINK_10TFD:
 			vars->line_speed = SPEED_10;
 			break;
 
 		case LINK_100TXHD:
 			vars->duplex = DUPLEX_HALF;
-			/* Fall thru */
+			fallthrough;
 		case LINK_100T4:
 		case LINK_100TXFD:
 			vars->line_speed = SPEED_100;
@@ -4723,14 +4727,14 @@ static void bnx2x_sync_link(struct link_params *params,
 
 		case LINK_1000THD:
 			vars->duplex = DUPLEX_HALF;
-			/* Fall thru */
+			fallthrough;
 		case LINK_1000TFD:
 			vars->line_speed = SPEED_1000;
 			break;
 
 		case LINK_2500THD:
 			vars->duplex = DUPLEX_HALF;
-			/* Fall thru */
+			fallthrough;
 		case LINK_2500TFD:
 			vars->line_speed = SPEED_2500;
 			break;
@@ -6335,7 +6339,7 @@ int bnx2x_set_led(struct link_params *params,
 		 */
 		if (!vars->link_up)
 			break;
-		/* fall through */
+		fallthrough;
 	case LED_MODE_ON:
 		if (((params->phy[EXT_PHY1].type ==
 			  PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727) ||
@@ -6874,7 +6878,8 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 			case PORT_HW_CFG_PHY_SELECTION_FIRST_PHY_PRIORITY:
 			/* In this option, the first PHY makes sure to pass the
 			 * traffic through itself only.
-			 * Its not clear how to reset the link on the second phy
+			 * It's not clear how to reset the link on the second
+			 * phy.
 			 */
 				active_external_phy = EXT_PHY1;
 				break;
@@ -12503,13 +12508,13 @@ static void bnx2x_phy_def_cfg(struct link_params *params,
 	switch (link_config  & PORT_FEATURE_LINK_SPEED_MASK) {
 	case PORT_FEATURE_LINK_SPEED_10M_HALF:
 		phy->req_duplex = DUPLEX_HALF;
-		/* fall through */
+		fallthrough;
 	case PORT_FEATURE_LINK_SPEED_10M_FULL:
 		phy->req_line_speed = SPEED_10;
 		break;
 	case PORT_FEATURE_LINK_SPEED_100M_HALF:
 		phy->req_duplex = DUPLEX_HALF;
-		/* fall through */
+		fallthrough;
 	case PORT_FEATURE_LINK_SPEED_100M_FULL:
 		phy->req_line_speed = SPEED_100;
 		break;

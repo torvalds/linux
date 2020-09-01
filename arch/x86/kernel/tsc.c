@@ -41,6 +41,7 @@ EXPORT_SYMBOL(tsc_khz);
  * TSC can be unstable due to cpufreq or due to unsynced TSCs
  */
 static int __read_mostly tsc_unstable;
+static unsigned int __initdata tsc_early_khz;
 
 static DEFINE_STATIC_KEY_FALSE(__use_tsc);
 
@@ -58,6 +59,12 @@ struct cyc2ns {
 }; /* fits one cacheline */
 
 static DEFINE_PER_CPU_ALIGNED(struct cyc2ns, cyc2ns);
+
+static int __init tsc_early_khz_setup(char *buf)
+{
+	return kstrtouint(buf, 0, &tsc_early_khz);
+}
+early_param("tsc_early_khz", tsc_early_khz_setup);
 
 __always_inline void cyc2ns_read_begin(struct cyc2ns_data *data)
 {
@@ -477,7 +484,7 @@ static unsigned long pit_calibrate_tsc(u32 latch, unsigned long ms, int loopmin)
  * transition from one expected value to another with a fairly
  * high accuracy, and we didn't miss any events. We can thus
  * use the TSC value at the transitions to calculate a pretty
- * good value for the TSC frequencty.
+ * good value for the TSC frequency.
  */
 static inline int pit_verify_msb(unsigned char val)
 {
@@ -1108,17 +1115,24 @@ static void tsc_cs_tick_stable(struct clocksource *cs)
 		sched_clock_tick_stable();
 }
 
+static int tsc_cs_enable(struct clocksource *cs)
+{
+	vclocks_set_used(VDSO_CLOCKMODE_TSC);
+	return 0;
+}
+
 /*
  * .mask MUST be CLOCKSOURCE_MASK(64). See comment above read_tsc()
  */
 static struct clocksource clocksource_tsc_early = {
-	.name                   = "tsc-early",
-	.rating                 = 299,
-	.read                   = read_tsc,
-	.mask                   = CLOCKSOURCE_MASK(64),
-	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS |
+	.name			= "tsc-early",
+	.rating			= 299,
+	.read			= read_tsc,
+	.mask			= CLOCKSOURCE_MASK(64),
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_MUST_VERIFY,
-	.archdata               = { .vclock_mode = VCLOCK_TSC },
+	.vdso_clock_mode	= VDSO_CLOCKMODE_TSC,
+	.enable			= tsc_cs_enable,
 	.resume			= tsc_resume,
 	.mark_unstable		= tsc_cs_mark_unstable,
 	.tick_stable		= tsc_cs_tick_stable,
@@ -1131,14 +1145,15 @@ static struct clocksource clocksource_tsc_early = {
  * been found good.
  */
 static struct clocksource clocksource_tsc = {
-	.name                   = "tsc",
-	.rating                 = 300,
-	.read                   = read_tsc,
-	.mask                   = CLOCKSOURCE_MASK(64),
-	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS |
+	.name			= "tsc",
+	.rating			= 300,
+	.read			= read_tsc,
+	.mask			= CLOCKSOURCE_MASK(64),
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_VALID_FOR_HRES |
 				  CLOCK_SOURCE_MUST_VERIFY,
-	.archdata               = { .vclock_mode = VCLOCK_TSC },
+	.vdso_clock_mode	= VDSO_CLOCKMODE_TSC,
+	.enable			= tsc_cs_enable,
 	.resume			= tsc_resume,
 	.mark_unstable		= tsc_cs_mark_unstable,
 	.tick_stable		= tsc_cs_tick_stable,
@@ -1404,7 +1419,10 @@ static bool __init determine_cpu_tsc_frequencies(bool early)
 
 	if (early) {
 		cpu_khz = x86_platform.calibrate_cpu();
-		tsc_khz = x86_platform.calibrate_tsc();
+		if (tsc_early_khz)
+			tsc_khz = tsc_early_khz;
+		else
+			tsc_khz = x86_platform.calibrate_tsc();
 	} else {
 		/* We should not be here with non-native cpu calibration */
 		WARN_ON(x86_platform.calibrate_cpu != native_calibrate_cpu);

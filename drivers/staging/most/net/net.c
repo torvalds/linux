@@ -15,8 +15,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/kobject.h>
-
-#include "../most.h"
+#include <linux/most.h>
 
 #define MEP_HDR_LEN 8
 #define MDP_HDR_LEN 16
@@ -565,13 +564,11 @@ static void on_netinfo(struct most_interface *iface,
 
 	if (m && is_valid_ether_addr(m)) {
 		if (!is_valid_ether_addr(dev->dev_addr)) {
-			netdev_info(dev, "set mac %02x-%02x-%02x-%02x-%02x-%02x\n",
-				    m[0], m[1], m[2], m[3], m[4], m[5]);
+			netdev_info(dev, "set mac %pM\n", m);
 			ether_addr_copy(dev->dev_addr, m);
 			netif_dormant_off(dev);
 		} else if (!ether_addr_equal(dev->dev_addr, m)) {
-			netdev_warn(dev, "reject mac %02x-%02x-%02x-%02x-%02x-%02x\n",
-				    m[0], m[1], m[2], m[3], m[4], m[5]);
+			netdev_warn(dev, "reject mac %pM\n", m);
 		}
 	}
 

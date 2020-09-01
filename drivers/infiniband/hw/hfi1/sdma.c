@@ -833,7 +833,7 @@ struct sdma_engine *sdma_select_engine_sc(
 struct sdma_rht_map_elem {
 	u32 mask;
 	u8 ctr;
-	struct sdma_engine *sde[0];
+	struct sdma_engine *sde[];
 };
 
 struct sdma_rht_node {
@@ -2584,7 +2584,7 @@ static void __sdma_process_event(struct sdma_engine *sde,
 			 * 7220, e.g.
 			 */
 			ss->go_s99_running = 1;
-			/* fall through -- and start dma engine */
+			fallthrough;	/* and start dma engine */
 		case sdma_event_e10_go_hw_start:
 			/* This reference means the state machine is started */
 			sdma_get(&sde->state);
@@ -2726,7 +2726,6 @@ static void __sdma_process_event(struct sdma_engine *sde,
 		case sdma_event_e70_go_idle:
 			break;
 		case sdma_event_e85_link_down:
-			/* fall through */
 		case sdma_event_e80_hw_freeze:
 			sdma_set_state(sde, sdma_state_s80_hw_freeze);
 			atomic_dec(&sde->dd->sdma_unfreeze_count);
@@ -3007,7 +3006,7 @@ static void __sdma_process_event(struct sdma_engine *sde,
 		case sdma_event_e60_hw_halted:
 			need_progress = 1;
 			sdma_err_progress_check_schedule(sde);
-			/* fall through */
+			fallthrough;
 		case sdma_event_e90_sw_halted:
 			/*
 			* SW initiated halt does not perform engines
@@ -3021,7 +3020,7 @@ static void __sdma_process_event(struct sdma_engine *sde,
 			break;
 		case sdma_event_e85_link_down:
 			ss->go_s99_running = 0;
-			/* fall through */
+			fallthrough;
 		case sdma_event_e80_hw_freeze:
 			sdma_set_state(sde, sdma_state_s80_hw_freeze);
 			atomic_dec(&sde->dd->sdma_unfreeze_count);
@@ -3252,7 +3251,7 @@ void _sdma_txreq_ahgadd(
 		tx->num_desc++;
 		tx->descs[2].qw[0] = 0;
 		tx->descs[2].qw[1] = 0;
-		/* FALLTHROUGH */
+		fallthrough;
 	case SDMA_AHG_APPLY_UPDATE2:
 		tx->num_desc++;
 		tx->descs[1].qw[0] = 0;

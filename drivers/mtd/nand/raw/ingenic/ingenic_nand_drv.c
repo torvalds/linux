@@ -27,9 +27,6 @@
 
 #define DRV_NAME	"ingenic-nand"
 
-/* Command delay when there is no R/B pin. */
-#define RB_DELAY_US	100
-
 struct jz_soc_info {
 	unsigned long data_offset;
 	unsigned long addr_offset;
@@ -49,7 +46,6 @@ struct ingenic_nfc {
 	struct nand_controller controller;
 	unsigned int num_banks;
 	struct list_head chips;
-	int selected;
 	struct ingenic_nand_cs cs[];
 };
 
@@ -102,7 +98,7 @@ static int qi_lb60_ooblayout_free(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-const struct mtd_ooblayout_ops qi_lb60_ooblayout_ops = {
+static const struct mtd_ooblayout_ops qi_lb60_ooblayout_ops = {
 	.ecc = qi_lb60_ooblayout_ecc,
 	.free = qi_lb60_ooblayout_free,
 };
@@ -141,51 +137,6 @@ static const struct mtd_ooblayout_ops jz4725b_ooblayout_ops = {
 	.ecc = jz4725b_ooblayout_ecc,
 	.free = jz4725b_ooblayout_free,
 };
-
-static void ingenic_nand_select_chip(struct nand_chip *chip, int chipnr)
-{
-	struct ingenic_nand *nand = to_ingenic_nand(nand_to_mtd(chip));
-	struct ingenic_nfc *nfc = to_ingenic_nfc(nand->chip.controller);
-	struct ingenic_nand_cs *cs;
-
-	/* Ensure the currently selected chip is deasserted. */
-	if (chipnr == -1 && nfc->selected >= 0) {
-		cs = &nfc->cs[nfc->selected];
-		jz4780_nemc_assert(nfc->dev, cs->bank, false);
-	}
-
-	nfc->selected = chipnr;
-}
-
-static void ingenic_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
-				  unsigned int ctrl)
-{
-	struct ingenic_nand *nand = to_ingenic_nand(nand_to_mtd(chip));
-	struct ingenic_nfc *nfc = to_ingenic_nfc(nand->chip.controller);
-	struct ingenic_nand_cs *cs;
-
-	if (WARN_ON(nfc->selected < 0))
-		return;
-
-	cs = &nfc->cs[nfc->selected];
-
-	jz4780_nemc_assert(nfc->dev, cs->bank, ctrl & NAND_NCE);
-
-	if (cmd == NAND_CMD_NONE)
-		return;
-
-	if (ctrl & NAND_ALE)
-		writeb(cmd, cs->base + nfc->soc_info->addr_offset);
-	else if (ctrl & NAND_CLE)
-		writeb(cmd, cs->base + nfc->soc_info->cmd_offset);
-}
-
-static int ingenic_nand_dev_ready(struct nand_chip *chip)
-{
-	struct ingenic_nand *nand = to_ingenic_nand(nand_to_mtd(chip));
-
-	return !gpiod_get_value_cansleep(nand->busy_gpio);
-}
 
 static void ingenic_nand_ecc_hwctl(struct nand_chip *chip, int mode)
 {
@@ -253,7 +204,7 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 		chip->ecc.hwctl = ingenic_nand_ecc_hwctl;
 		chip->ecc.calculate = ingenic_nand_ecc_calculate;
 		chip->ecc.correct = ingenic_nand_ecc_correct;
-		/* fall through */
+		fallthrough;
 	case NAND_ECC_SOFT:
 		dev_info(nfc->dev, "using %s (strength %d, size %d, bytes %d)\n",
 			 (nfc->ecc) ? "hardware ECC" : "software ECC",
@@ -298,8 +249,91 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 	return 0;
 }
 
+static int ingenic_nand_exec_instr(struct nand_chip *chip,
+				   struct ingenic_nand_cs *cs,
+				   const struct nand_op_instr *instr)
+{
+	struct ingenic_nand *nand = to_ingenic_nand(nand_to_mtd(chip));
+	struct ingenic_nfc *nfc = to_ingenic_nfc(chip->controller);
+	unsigned int i;
+
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		writeb(instr->ctx.cmd.opcode,
+		       cs->base + nfc->soc_info->cmd_offset);
+		return 0;
+	case NAND_OP_ADDR_INSTR:
+		for (i = 0; i < instr->ctx.addr.naddrs; i++)
+			writeb(instr->ctx.addr.addrs[i],
+			       cs->base + nfc->soc_info->addr_offset);
+		return 0;
+	case NAND_OP_DATA_IN_INSTR:
+		if (instr->ctx.data.force_8bit ||
+		    !(chip->options & NAND_BUSWIDTH_16))
+			ioread8_rep(cs->base + nfc->soc_info->data_offset,
+				    instr->ctx.data.buf.in,
+				    instr->ctx.data.len);
+		else
+			ioread16_rep(cs->base + nfc->soc_info->data_offset,
+				     instr->ctx.data.buf.in,
+				     instr->ctx.data.len);
+		return 0;
+	case NAND_OP_DATA_OUT_INSTR:
+		if (instr->ctx.data.force_8bit ||
+		    !(chip->options & NAND_BUSWIDTH_16))
+			iowrite8_rep(cs->base + nfc->soc_info->data_offset,
+				     instr->ctx.data.buf.out,
+				     instr->ctx.data.len);
+		else
+			iowrite16_rep(cs->base + nfc->soc_info->data_offset,
+				      instr->ctx.data.buf.out,
+				      instr->ctx.data.len);
+		return 0;
+	case NAND_OP_WAITRDY_INSTR:
+		if (!nand->busy_gpio)
+			return nand_soft_waitrdy(chip,
+						 instr->ctx.waitrdy.timeout_ms);
+
+		return nand_gpio_waitrdy(chip, nand->busy_gpio,
+					 instr->ctx.waitrdy.timeout_ms);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int ingenic_nand_exec_op(struct nand_chip *chip,
+				const struct nand_operation *op,
+				bool check_only)
+{
+	struct ingenic_nand *nand = to_ingenic_nand(nand_to_mtd(chip));
+	struct ingenic_nfc *nfc = to_ingenic_nfc(nand->chip.controller);
+	struct ingenic_nand_cs *cs;
+	unsigned int i;
+	int ret = 0;
+
+	if (check_only)
+		return 0;
+
+	cs = &nfc->cs[op->cs];
+	jz4780_nemc_assert(nfc->dev, cs->bank, true);
+	for (i = 0; i < op->ninstrs; i++) {
+		ret = ingenic_nand_exec_instr(chip, cs, &op->instrs[i]);
+		if (ret)
+			break;
+
+		if (op->instrs[i].delay_ns)
+			ndelay(op->instrs[i].delay_ns);
+	}
+	jz4780_nemc_assert(nfc->dev, cs->bank, false);
+
+	return ret;
+}
+
 static const struct nand_controller_ops ingenic_nand_controller_ops = {
 	.attach_chip = ingenic_nand_attach_chip,
+	.exec_op = ingenic_nand_exec_op,
 };
 
 static int ingenic_nand_init_chip(struct platform_device *pdev,
@@ -339,9 +373,19 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 		ret = PTR_ERR(nand->busy_gpio);
 		dev_err(dev, "failed to request busy GPIO: %d\n", ret);
 		return ret;
-	} else if (nand->busy_gpio) {
-		nand->chip.legacy.dev_ready = ingenic_nand_dev_ready;
 	}
+
+	/*
+	 * The rb-gpios semantics was undocumented and qi,lb60 (along with
+	 * the ingenic driver) got it wrong. The active state encodes the
+	 * NAND ready state, which is high level. Since there's no signal
+	 * inverter on this board, it should be active-high. Let's fix that
+	 * here for older DTs so we can re-use the generic nand_gpio_waitrdy()
+	 * helper, and be consistent with what other drivers do.
+	 */
+	if (of_machine_is_compatible("qi,lb60") &&
+	    gpiod_is_active_low(nand->busy_gpio))
+		gpiod_toggle_active_low(nand->busy_gpio);
 
 	nand->wp_gpio = devm_gpiod_get_optional(dev, "wp", GPIOD_OUT_LOW);
 
@@ -359,12 +403,7 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 		return -ENOMEM;
 	mtd->dev.parent = dev;
 
-	chip->legacy.IO_ADDR_R = cs->base + nfc->soc_info->data_offset;
-	chip->legacy.IO_ADDR_W = cs->base + nfc->soc_info->data_offset;
-	chip->legacy.chip_delay = RB_DELAY_US;
 	chip->options = NAND_NO_SUBPAGE_WRITE;
-	chip->legacy.select_chip = ingenic_nand_select_chip;
-	chip->legacy.cmd_ctrl = ingenic_nand_cmd_ctrl;
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->controller = &nfc->controller;
 	nand_set_flash_node(chip, np);
@@ -376,7 +415,7 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
-		nand_release(chip);
+		nand_cleanup(chip);
 		return ret;
 	}
 
@@ -387,13 +426,18 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 
 static void ingenic_nand_cleanup_chips(struct ingenic_nfc *nfc)
 {
-	struct ingenic_nand *chip;
+	struct ingenic_nand *ingenic_chip;
+	struct nand_chip *chip;
+	int ret;
 
 	while (!list_empty(&nfc->chips)) {
-		chip = list_first_entry(&nfc->chips,
-					struct ingenic_nand, chip_list);
-		nand_release(&chip->chip);
-		list_del(&chip->chip_list);
+		ingenic_chip = list_first_entry(&nfc->chips,
+						struct ingenic_nand, chip_list);
+		chip = &ingenic_chip->chip;
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
+		list_del(&ingenic_chip->chip_list);
 	}
 }
 

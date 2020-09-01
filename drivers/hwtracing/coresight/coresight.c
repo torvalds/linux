@@ -216,6 +216,44 @@ void coresight_disclaim_device(void __iomem *base)
 	CS_LOCK(base);
 }
 
+/* enable or disable an associated CTI device of the supplied CS device */
+static int
+coresight_control_assoc_ectdev(struct coresight_device *csdev, bool enable)
+{
+	int ect_ret = 0;
+	struct coresight_device *ect_csdev = csdev->ect_dev;
+
+	if (!ect_csdev)
+		return 0;
+
+	if (enable) {
+		if (ect_ops(ect_csdev)->enable)
+			ect_ret = ect_ops(ect_csdev)->enable(ect_csdev);
+	} else {
+		if (ect_ops(ect_csdev)->disable)
+			ect_ret = ect_ops(ect_csdev)->disable(ect_csdev);
+	}
+
+	/* output warning if ECT enable is preventing trace operation */
+	if (ect_ret)
+		dev_info(&csdev->dev, "Associated ECT device (%s) %s failed\n",
+			 dev_name(&ect_csdev->dev),
+			 enable ? "enable" : "disable");
+	return ect_ret;
+}
+
+/*
+ * Set the associated ect / cti device while holding the coresight_mutex
+ * to avoid a race with coresight_enable that may try to use this value.
+ */
+void coresight_set_assoc_ectdev_mutex(struct coresight_device *csdev,
+				      struct coresight_device *ect_csdev)
+{
+	mutex_lock(&coresight_mutex);
+	csdev->ect_dev = ect_csdev;
+	mutex_unlock(&coresight_mutex);
+}
+
 static int coresight_enable_sink(struct coresight_device *csdev,
 				 u32 mode, void *data)
 {
@@ -228,9 +266,14 @@ static int coresight_enable_sink(struct coresight_device *csdev,
 	if (!sink_ops(csdev)->enable)
 		return -EINVAL;
 
-	ret = sink_ops(csdev)->enable(csdev, mode, data);
+	ret = coresight_control_assoc_ectdev(csdev, true);
 	if (ret)
 		return ret;
+	ret = sink_ops(csdev)->enable(csdev, mode, data);
+	if (ret) {
+		coresight_control_assoc_ectdev(csdev, false);
+		return ret;
+	}
 	csdev->enable = true;
 
 	return 0;
@@ -246,6 +289,7 @@ static void coresight_disable_sink(struct coresight_device *csdev)
 	ret = sink_ops(csdev)->disable(csdev);
 	if (ret)
 		return;
+	coresight_control_assoc_ectdev(csdev, false);
 	csdev->enable = false;
 }
 
@@ -269,8 +313,15 @@ static int coresight_enable_link(struct coresight_device *csdev,
 	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT && outport < 0)
 		return outport;
 
-	if (link_ops(csdev)->enable)
-		ret = link_ops(csdev)->enable(csdev, inport, outport);
+	if (link_ops(csdev)->enable) {
+		ret = coresight_control_assoc_ectdev(csdev, true);
+		if (!ret) {
+			ret = link_ops(csdev)->enable(csdev, inport, outport);
+			if (ret)
+				coresight_control_assoc_ectdev(csdev, false);
+		}
+	}
+
 	if (!ret)
 		csdev->enable = true;
 
@@ -300,8 +351,10 @@ static void coresight_disable_link(struct coresight_device *csdev,
 		nr_conns = 1;
 	}
 
-	if (link_ops(csdev)->disable)
+	if (link_ops(csdev)->disable) {
 		link_ops(csdev)->disable(csdev, inport, outport);
+		coresight_control_assoc_ectdev(csdev, false);
+	}
 
 	for (i = 0; i < nr_conns; i++)
 		if (atomic_read(&csdev->refcnt[i]) != 0)
@@ -322,9 +375,14 @@ static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
 
 	if (!csdev->enable) {
 		if (source_ops(csdev)->enable) {
-			ret = source_ops(csdev)->enable(csdev, NULL, mode);
+			ret = coresight_control_assoc_ectdev(csdev, true);
 			if (ret)
 				return ret;
+			ret = source_ops(csdev)->enable(csdev, NULL, mode);
+			if (ret) {
+				coresight_control_assoc_ectdev(csdev, false);
+				return ret;
+			};
 		}
 		csdev->enable = true;
 	}
@@ -347,6 +405,7 @@ static bool coresight_disable_source(struct coresight_device *csdev)
 	if (atomic_dec_return(csdev->refcnt) == 0) {
 		if (source_ops(csdev)->disable)
 			source_ops(csdev)->disable(csdev, NULL);
+		coresight_control_assoc_ectdev(csdev, false);
 		csdev->enable = false;
 	}
 	return !csdev->enable;
@@ -710,6 +769,171 @@ void coresight_release_path(struct list_head *path)
 	path = NULL;
 }
 
+/* return true if the device is a suitable type for a default sink */
+static inline bool coresight_is_def_sink_type(struct coresight_device *csdev)
+{
+	/* sink & correct subtype */
+	if (((csdev->type == CORESIGHT_DEV_TYPE_SINK) ||
+	     (csdev->type == CORESIGHT_DEV_TYPE_LINKSINK)) &&
+	    (csdev->subtype.sink_subtype >= CORESIGHT_DEV_SUBTYPE_SINK_BUFFER))
+		return true;
+	return false;
+}
+
+/**
+ * coresight_select_best_sink - return the best sink for use as default from
+ * the two provided.
+ *
+ * @sink:	current best sink.
+ * @depth:      search depth where current sink was found.
+ * @new_sink:	new sink for comparison with current sink.
+ * @new_depth:  search depth where new sink was found.
+ *
+ * Sinks prioritised according to coresight_dev_subtype_sink, with only
+ * subtypes CORESIGHT_DEV_SUBTYPE_SINK_BUFFER or higher being used.
+ *
+ * Where two sinks of equal priority are found, the sink closest to the
+ * source is used (smallest search depth).
+ *
+ * return @new_sink & update @depth if better than @sink, else return @sink.
+ */
+static struct coresight_device *
+coresight_select_best_sink(struct coresight_device *sink, int *depth,
+			   struct coresight_device *new_sink, int new_depth)
+{
+	bool update = false;
+
+	if (!sink) {
+		/* first found at this level */
+		update = true;
+	} else if (new_sink->subtype.sink_subtype >
+		   sink->subtype.sink_subtype) {
+		/* found better sink */
+		update = true;
+	} else if ((new_sink->subtype.sink_subtype ==
+		    sink->subtype.sink_subtype) &&
+		   (*depth > new_depth)) {
+		/* found same but closer sink */
+		update = true;
+	}
+
+	if (update)
+		*depth = new_depth;
+	return update ? new_sink : sink;
+}
+
+/**
+ * coresight_find_sink - recursive function to walk trace connections from
+ * source to find a suitable default sink.
+ *
+ * @csdev: source / current device to check.
+ * @depth: [in] search depth of calling dev, [out] depth of found sink.
+ *
+ * This will walk the connection path from a source (ETM) till a suitable
+ * sink is encountered and return that sink to the original caller.
+ *
+ * If current device is a plain sink return that & depth, otherwise recursively
+ * call child connections looking for a sink. Select best possible using
+ * coresight_select_best_sink.
+ *
+ * return best sink found, or NULL if not found at this node or child nodes.
+ */
+static struct coresight_device *
+coresight_find_sink(struct coresight_device *csdev, int *depth)
+{
+	int i, curr_depth = *depth + 1, found_depth = 0;
+	struct coresight_device *found_sink = NULL;
+
+	if (coresight_is_def_sink_type(csdev)) {
+		found_depth = curr_depth;
+		found_sink = csdev;
+		if (csdev->type == CORESIGHT_DEV_TYPE_SINK)
+			goto return_def_sink;
+		/* look past LINKSINK for something better */
+	}
+
+	/*
+	 * Not a sink we want - or possible child sink may be better.
+	 * recursively explore each port found on this element.
+	 */
+	for (i = 0; i < csdev->pdata->nr_outport; i++) {
+		struct coresight_device *child_dev, *sink = NULL;
+		int child_depth = curr_depth;
+
+		child_dev = csdev->pdata->conns[i].child_dev;
+		if (child_dev)
+			sink = coresight_find_sink(child_dev, &child_depth);
+
+		if (sink)
+			found_sink = coresight_select_best_sink(found_sink,
+								&found_depth,
+								sink,
+								child_depth);
+	}
+
+return_def_sink:
+	/* return found sink and depth */
+	if (found_sink)
+		*depth = found_depth;
+	return found_sink;
+}
+
+/**
+ * coresight_find_default_sink: Find a sink suitable for use as a
+ * default sink.
+ *
+ * @csdev: starting source to find a connected sink.
+ *
+ * Walks connections graph looking for a suitable sink to enable for the
+ * supplied source. Uses CoreSight device subtypes and distance from source
+ * to select the best sink.
+ *
+ * If a sink is found, then the default sink for this device is set and
+ * will be automatically used in future.
+ *
+ * Used in cases where the CoreSight user (perf / sysfs) has not selected a
+ * sink.
+ */
+struct coresight_device *
+coresight_find_default_sink(struct coresight_device *csdev)
+{
+	int depth = 0;
+
+	/* look for a default sink if we have not found for this device */
+	if (!csdev->def_sink)
+		csdev->def_sink = coresight_find_sink(csdev, &depth);
+	return csdev->def_sink;
+}
+
+static int coresight_remove_sink_ref(struct device *dev, void *data)
+{
+	struct coresight_device *sink = data;
+	struct coresight_device *source = to_coresight_device(dev);
+
+	if (source->def_sink == sink)
+		source->def_sink = NULL;
+	return 0;
+}
+
+/**
+ * coresight_clear_default_sink: Remove all default sink references to the
+ * supplied sink.
+ *
+ * If supplied device is a sink, then check all the bus devices and clear
+ * out all the references to this sink from the coresight_device def_sink
+ * parameter.
+ *
+ * @csdev: coresight sink - remove references to this from all sources.
+ */
+static void coresight_clear_default_sink(struct coresight_device *csdev)
+{
+	if ((csdev->type == CORESIGHT_DEV_TYPE_SINK) ||
+	    (csdev->type == CORESIGHT_DEV_TYPE_LINKSINK)) {
+		bus_for_each_dev(&coresight_bustype, NULL, csdev,
+				 coresight_remove_sink_ref);
+	}
+}
+
 /** coresight_validate_source - make sure a source has the right credentials
  *  @csdev:	the device structure for a source.
  *  @function:	the function this was called from.
@@ -955,12 +1179,16 @@ static struct device_type coresight_dev_type[] = {
 	{
 		.name = "helper",
 	},
+	{
+		.name = "ect",
+	},
 };
 
 static void coresight_device_release(struct device *dev)
 {
 	struct coresight_device *csdev = to_coresight_device(dev);
 
+	cti_remove_assoc_from_csdev(csdev);
 	fwnode_handle_put(csdev->dev.fwnode);
 	kfree(csdev->refcnt);
 	kfree(csdev);
@@ -968,7 +1196,7 @@ static void coresight_device_release(struct device *dev)
 
 static int coresight_orphan_match(struct device *dev, void *data)
 {
-	int i;
+	int i, ret = 0;
 	bool still_orphan = false;
 	struct coresight_device *csdev, *i_csdev;
 	struct coresight_connection *conn;
@@ -990,55 +1218,62 @@ static int coresight_orphan_match(struct device *dev, void *data)
 	for (i = 0; i < i_csdev->pdata->nr_outport; i++) {
 		conn = &i_csdev->pdata->conns[i];
 
+		/* Skip the port if FW doesn't describe it */
+		if (!conn->child_fwnode)
+			continue;
 		/* We have found at least one orphan connection */
 		if (conn->child_dev == NULL) {
 			/* Does it match this newly added device? */
-			if (conn->child_fwnode == csdev->dev.fwnode)
-				conn->child_dev = csdev;
-			else
+			if (conn->child_fwnode == csdev->dev.fwnode) {
+				ret = coresight_make_links(i_csdev,
+							   conn, csdev);
+				if (ret)
+					return ret;
+			} else {
 				/* This component still has an orphan */
 				still_orphan = true;
+			}
 		}
 	}
 
 	i_csdev->orphan = still_orphan;
 
 	/*
-	 * Returning '0' ensures that all known component on the
-	 * bus will be checked.
+	 * Returning '0' in case we didn't encounter any error,
+	 * ensures that all known component on the bus will be checked.
 	 */
 	return 0;
 }
 
-static void coresight_fixup_orphan_conns(struct coresight_device *csdev)
+static int coresight_fixup_orphan_conns(struct coresight_device *csdev)
 {
-	/*
-	 * No need to check for a return value as orphan connection(s)
-	 * are hooked-up with each newly added component.
-	 */
-	bus_for_each_dev(&coresight_bustype, NULL,
+	return bus_for_each_dev(&coresight_bustype, NULL,
 			 csdev, coresight_orphan_match);
 }
 
 
-static void coresight_fixup_device_conns(struct coresight_device *csdev)
+static int coresight_fixup_device_conns(struct coresight_device *csdev)
 {
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < csdev->pdata->nr_outport; i++) {
 		struct coresight_connection *conn = &csdev->pdata->conns[i];
-		struct device *dev = NULL;
 
-		dev = bus_find_device_by_fwnode(&coresight_bustype, conn->child_fwnode);
-		if (dev) {
-			conn->child_dev = to_coresight_device(dev);
-			/* and put reference from 'bus_find_device()' */
-			put_device(dev);
+		if (!conn->child_fwnode)
+			continue;
+		conn->child_dev =
+			coresight_find_csdev_by_fwnode(conn->child_fwnode);
+		if (conn->child_dev) {
+			ret = coresight_make_links(csdev, conn,
+						   conn->child_dev);
+			if (ret)
+				break;
 		} else {
 			csdev->orphan = true;
-			conn->child_dev = NULL;
 		}
 	}
+
+	return 0;
 }
 
 static int coresight_remove_match(struct device *dev, void *data)
@@ -1061,12 +1296,12 @@ static int coresight_remove_match(struct device *dev, void *data)
 	for (i = 0; i < iterator->pdata->nr_outport; i++) {
 		conn = &iterator->pdata->conns[i];
 
-		if (conn->child_dev == NULL)
+		if (conn->child_dev == NULL || conn->child_fwnode == NULL)
 			continue;
 
 		if (csdev->dev.fwnode == conn->child_fwnode) {
 			iterator->orphan = true;
-			conn->child_dev = NULL;
+			coresight_remove_links(iterator, conn);
 			/*
 			 * Drop the reference to the handle for the remote
 			 * device acquired in parsing the connections from
@@ -1156,16 +1391,27 @@ postcore_initcall(coresight_init);
  * coresight_release_platform_data: Release references to the devices connected
  * to the output port of this device.
  */
-void coresight_release_platform_data(struct coresight_platform_data *pdata)
+void coresight_release_platform_data(struct coresight_device *csdev,
+				     struct coresight_platform_data *pdata)
 {
 	int i;
+	struct coresight_connection *conns = pdata->conns;
 
 	for (i = 0; i < pdata->nr_outport; i++) {
-		if (pdata->conns[i].child_fwnode) {
-			fwnode_handle_put(pdata->conns[i].child_fwnode);
+		/* If we have made the links, remove them now */
+		if (csdev && conns[i].child_dev)
+			coresight_remove_links(csdev, &conns[i]);
+		/*
+		 * Drop the refcount and clear the handle as this device
+		 * is going away
+		 */
+		if (conns[i].child_fwnode) {
+			fwnode_handle_put(conns[i].child_fwnode);
 			pdata->conns[i].child_fwnode = NULL;
 		}
 	}
+	if (csdev)
+		coresight_remove_conns_sysfs_group(csdev);
 }
 
 struct coresight_device *coresight_register(struct coresight_desc *desc)
@@ -1247,10 +1493,19 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 
 	mutex_lock(&coresight_mutex);
 
-	coresight_fixup_device_conns(csdev);
-	coresight_fixup_orphan_conns(csdev);
+	ret = coresight_create_conns_sysfs_group(csdev);
+	if (!ret)
+		ret = coresight_fixup_device_conns(csdev);
+	if (!ret)
+		ret = coresight_fixup_orphan_conns(csdev);
+	if (!ret)
+		cti_add_assoc_to_csdev(csdev);
 
 	mutex_unlock(&coresight_mutex);
+	if (ret) {
+		coresight_unregister(csdev);
+		return ERR_PTR(ret);
+	}
 
 	return csdev;
 
@@ -1258,7 +1513,7 @@ err_free_csdev:
 	kfree(csdev);
 err_out:
 	/* Cleanup the connection information */
-	coresight_release_platform_data(desc->pdata);
+	coresight_release_platform_data(NULL, desc->pdata);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(coresight_register);
@@ -1268,7 +1523,8 @@ void coresight_unregister(struct coresight_device *csdev)
 	etm_perf_del_symlink_sink(csdev);
 	/* Remove references of that device in the topology */
 	coresight_remove_conns(csdev);
-	coresight_release_platform_data(csdev->pdata);
+	coresight_clear_default_sink(csdev);
+	coresight_release_platform_data(csdev, csdev->pdata);
 	device_unregister(&csdev->dev);
 }
 EXPORT_SYMBOL_GPL(coresight_unregister);

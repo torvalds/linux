@@ -54,6 +54,8 @@
 #define PLL_INDEX	2
 #define PLL_DATA	3
 
+#define ATOM_CMD_TIMEOUT_SEC	20
+
 typedef struct {
 	struct atom_context *ctx;
 	uint32_t *ps, *ws;
@@ -744,8 +746,9 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 			cjiffies = jiffies;
 			if (time_after(cjiffies, ctx->last_jump_jiffies)) {
 				cjiffies -= ctx->last_jump_jiffies;
-				if ((jiffies_to_msecs(cjiffies) > 5000)) {
-					DRM_ERROR("atombios stuck in loop for more than 5secs aborting\n");
+				if ((jiffies_to_msecs(cjiffies) > ATOM_CMD_TIMEOUT_SEC*1000)) {
+					DRM_ERROR("atombios stuck in loop for more than %dsecs aborting\n",
+						  ATOM_CMD_TIMEOUT_SEC);
 					ctx->abort = true;
 				}
 			} else {

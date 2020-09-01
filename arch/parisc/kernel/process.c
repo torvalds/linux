@@ -47,7 +47,6 @@
 #include <asm/assembly.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
-#include <asm/pgalloc.h>
 #include <asm/unwind.h>
 #include <asm/sections.h>
 
@@ -153,25 +152,6 @@ void release_thread(struct task_struct *dead_task)
 }
 
 /*
- * Fill in the FPU structure for a core dump.
- */
-
-int dump_fpu (struct pt_regs * regs, elf_fpregset_t *r)
-{
-	if (regs == NULL)
-		return 0;
-
-	memcpy(r, regs->fr, sizeof *r);
-	return 1;
-}
-
-int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
-{
-	memcpy(r, tsk->thread.regs.fr, sizeof(*r));
-	return 1;
-}
-
-/*
  * Idle thread support
  *
  * Detect when running on QEMU with SeaBIOS PDC Firmware and let
@@ -208,7 +188,7 @@ arch_initcall(parisc_idle_init);
  * Copy architecture-specific thread state
  */
 int
-copy_thread_tls(unsigned long clone_flags, unsigned long usp,
+copy_thread(unsigned long clone_flags, unsigned long usp,
 	    unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *cregs = &(p->thread.regs);
@@ -293,7 +273,7 @@ void *dereference_function_descriptor(void *ptr)
 	Elf64_Fdesc *desc = ptr;
 	void *p;
 
-	if (!probe_kernel_address(&desc->addr, p))
+	if (!get_kernel_nofault(p, (void *)&desc->addr))
 		ptr = p;
 	return ptr;
 }

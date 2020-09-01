@@ -6,9 +6,9 @@
  */
 
 #include "goyaP.h"
-#include "include/goya/goya_coresight.h"
-#include "include/goya/asic_reg/goya_regs.h"
-#include "include/goya/asic_reg/goya_masks.h"
+#include "../include/goya/goya_coresight.h"
+#include "../include/goya/asic_reg/goya_regs.h"
+#include "../include/goya/asic_reg/goya_masks.h"
 
 #include <uapi/misc/habanalabs.h>
 
@@ -232,6 +232,7 @@ static int goya_config_stm(struct hl_device *hdev,
 {
 	struct hl_debug_params_stm *input;
 	u64 base_reg;
+	u32 frequency;
 	int rc;
 
 	if (params->reg_idx >= ARRAY_SIZE(debug_stm_regs)) {
@@ -264,9 +265,12 @@ static int goya_config_stm(struct hl_device *hdev,
 		WREG32(base_reg + 0xE20, 0xFFFFFFFF);
 		WREG32(base_reg + 0xEF4, input->id);
 		WREG32(base_reg + 0xDF4, 0x80);
-		WREG32(base_reg + 0xE8C, input->frequency);
+		frequency = hdev->asic_prop.psoc_timestamp_frequency;
+		if (frequency == 0)
+			frequency = input->frequency;
+		WREG32(base_reg + 0xE8C, frequency);
 		WREG32(base_reg + 0xE90, 0x7FF);
-		WREG32(base_reg + 0xE80, 0x7 | (input->id << 16));
+		WREG32(base_reg + 0xE80, 0x27 | (input->id << 16));
 	} else {
 		WREG32(base_reg + 0xE80, 4);
 		WREG32(base_reg + 0xD64, 0);
@@ -358,14 +362,20 @@ static int goya_config_etf(struct hl_device *hdev,
 }
 
 static int goya_etr_validate_address(struct hl_device *hdev, u64 addr,
-		u32 size)
+		u64 size)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 range_start, range_end;
 
+	if (addr > (addr + size)) {
+		dev_err(hdev->dev,
+			"ETR buffer size %llu overflow\n", size);
+		return false;
+	}
+
 	if (hdev->mmu_enable) {
-		range_start = prop->va_space_dram_start_address;
-		range_end = prop->va_space_dram_end_address;
+		range_start = prop->dmmu.start_addr;
+		range_end = prop->dmmu.end_addr;
 	} else {
 		range_start = prop->dram_user_base_address;
 		range_end = prop->dram_end_address;
@@ -640,7 +650,6 @@ static int goya_config_spmu(struct hl_device *hdev,
 int goya_debug_coresight(struct hl_device *hdev, void *data)
 {
 	struct hl_debug_params *params = data;
-	u32 val;
 	int rc = 0;
 
 	switch (params->op) {
@@ -672,7 +681,7 @@ int goya_debug_coresight(struct hl_device *hdev, void *data)
 	}
 
 	/* Perform read from the device to flush all configuration */
-	val = RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 
 	return rc;
 }

@@ -166,9 +166,8 @@ pptp_outbound_pkt(struct sk_buff *skb,
 		break;
 	default:
 		pr_debug("unknown outbound packet 0x%04x:%s\n", msg,
-			 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] :
-					       pptp_msg_name[0]);
-		/* fall through */
+			 pptp_msg_name(msg));
+		fallthrough;
 	case PPTP_SET_LINK_INFO:
 		/* only need to NAT in case PAC is behind NAT box */
 	case PPTP_START_SESSION_REQUEST:
@@ -268,10 +267,8 @@ pptp_inbound_pkt(struct sk_buff *skb,
 		pcid_off = offsetof(union pptp_ctrl_union, setlink.peersCallID);
 		break;
 	default:
-		pr_debug("unknown inbound packet %s\n",
-			 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] :
-					       pptp_msg_name[0]);
-		/* fall through */
+		pr_debug("unknown inbound packet %s\n", pptp_msg_name(msg));
+		fallthrough;
 	case PPTP_START_SESSION_REQUEST:
 	case PPTP_START_SESSION_REPLY:
 	case PPTP_STOP_SESSION_REQUEST:

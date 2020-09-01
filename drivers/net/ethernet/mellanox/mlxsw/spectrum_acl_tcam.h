@@ -20,7 +20,7 @@ struct mlxsw_sp_acl_tcam {
 	struct mutex lock; /* guards vregion list */
 	struct list_head vregion_list;
 	u32 vregion_rehash_intrvl;   /* ms */
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 
@@ -42,7 +42,8 @@ struct mlxsw_sp_acl_profile_ops {
 	size_t ruleset_priv_size;
 	int (*ruleset_add)(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_tcam *tcam, void *ruleset_priv,
-			   struct mlxsw_afk_element_usage *tmplt_elusage);
+			   struct mlxsw_afk_element_usage *tmplt_elusage,
+			   unsigned int *p_min_prio, unsigned int *p_max_prio);
 	void (*ruleset_del)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
 	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 			    struct mlxsw_sp_port *mlxsw_sp_port,
@@ -86,7 +87,7 @@ struct mlxsw_sp_acl_tcam_region {
 	char tcam_region_info[MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN];
 	struct mlxsw_afk_key_info *key_info;
 	struct mlxsw_sp *mlxsw_sp;
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 

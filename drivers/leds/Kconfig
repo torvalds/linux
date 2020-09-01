@@ -30,6 +30,16 @@ config LEDS_CLASS_FLASH
 	  for the flash related features of a LED device. It can be built
 	  as a module.
 
+config LEDS_CLASS_MULTICOLOR
+	tristate "LED Multicolor Class Support"
+	depends on LEDS_CLASS
+	help
+	  This option enables the multicolor LED sysfs class in /sys/class/leds.
+	  It wraps LED class and adds multicolor LED specific sysfs attributes
+	  and kernel internal API to it. You'll need this to provide support
+	  for multicolor LEDs that are grouped together. This class is not
+	  intended for single color LEDs. It can be built as a module.
+
 config LEDS_BRIGHTNESS_HW_CHANGED
 	bool "LED Class brightness_hw_changed attribute support"
 	depends on LEDS_CLASS
@@ -83,6 +93,17 @@ config LEDS_APU
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-apu.
 
+config LEDS_ARIEL
+	tristate "Dell Wyse 3020 status LED support"
+	depends on LEDS_CLASS
+	depends on (MACH_MMP3_DT && MFD_ENE_KB3930) || COMPILE_TEST
+	help
+	  This driver adds support for controlling the front panel status
+	  LEDs on Dell Wyse 3020 (Ariel) board via the KB3930 Embedded
+	  Controller.
+
+	  Say Y to if your machine is a Dell Wyse 3020 thin client.
+
 config LEDS_AS3645A
 	tristate "AS3645A and LM3555 LED flash controllers support"
 	depends on I2C && LEDS_CLASS_FLASH
@@ -91,6 +112,16 @@ config LEDS_AS3645A
 	  Enable LED flash class support for AS3645A LED flash
 	  controller. V4L2 flash API is provided as well if
 	  CONFIG_V4L2_FLASH_API is enabled.
+
+config LEDS_AW2013
+	tristate "LED support for Awinic AW2013"
+	depends on LEDS_CLASS && I2C && OF
+	help
+	  This option enables support for the AW2013 3-channel
+	  LED driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-aw2013.
 
 config LEDS_BCM6328
 	tristate "LED Support for Broadcom BCM6328"
@@ -144,6 +175,17 @@ config LEDS_EL15203000
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-el15203000.
+
+config LEDS_TURRIS_OMNIA
+	tristate "LED support for CZ.NIC's Turris Omnia"
+	depends on LEDS_CLASS_MULTICOLOR
+	depends on I2C
+	depends on MACH_ARMADA_38X || COMPILE_TEST
+	depends on OF
+	help
+	  This option enables basic support for the LEDs found on the front
+	  side of CZ.NIC's Turris Omnia router. There are 12 RGB LEDs on the
+	  front panel.
 
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
@@ -355,7 +397,9 @@ config LEDS_LP3952
 
 config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
-	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
+	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
+	depends on OF
+	depends on I2C
 	select FW_LOADER
 	select FW_LOADER_USER_HELPER
 	help
@@ -365,7 +409,7 @@ config LEDS_LP55XX_COMMON
 config LEDS_LP5521
 	tristate "LED Support for N.S. LP5521 LED driver chip"
 	depends on LEDS_CLASS && I2C
-	select LEDS_LP55XX_COMMON
+	depends on LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for the National Semiconductor
 	  LP5521 LED driver. It is 3 channel chip with programmable engines.
@@ -375,7 +419,7 @@ config LEDS_LP5521
 config LEDS_LP5523
 	tristate "LED Support for TI/National LP5523/55231 LED driver chip"
 	depends on LEDS_CLASS && I2C
-	select LEDS_LP55XX_COMMON
+	depends on LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for TI/National Semiconductor
 	  LP5523/55231 LED driver.
@@ -386,7 +430,7 @@ config LEDS_LP5523
 config LEDS_LP5562
 	tristate "LED Support for TI LP5562 LED driver chip"
 	depends on LEDS_CLASS && I2C
-	select LEDS_LP55XX_COMMON
+	depends on LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for TI LP5562 LED driver.
 	  It is 4 channels chip with programmable engines.
@@ -396,7 +440,7 @@ config LEDS_LP5562
 config LEDS_LP8501
 	tristate "LED Support for TI LP8501 LED driver chip"
 	depends on LEDS_CLASS && I2C
-	select LEDS_LP55XX_COMMON
+	depends on LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for TI LP8501 LED driver.
 	  It is 9 channel chip with programmable engines.
@@ -845,6 +889,25 @@ config LEDS_TPS6105X
 	  This driver supports TPS61050/TPS61052 LED chips.
 	  It is a single boost converter primarily for white LEDs and
 	  audio amplifiers.
+
+config LEDS_IP30
+	tristate "LED support for SGI Octane machines"
+	depends on LEDS_CLASS
+	depends on SGI_MFD_IOC3
+	help
+	  This option enables support for the Red and White LEDs of
+	  SGI Octane machines.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-ip30.
+
+config LEDS_SGM3140
+	tristate "LED support for the SGM3140"
+	depends on LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  This option enables support for the SGM3140 500mA Buck/Boost Charge
+	  Pump LED Driver.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

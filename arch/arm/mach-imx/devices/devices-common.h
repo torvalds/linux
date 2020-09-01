@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_data/dma-imx-sdma.h>
 
 extern struct device mxc_aips_bus;
@@ -276,7 +277,6 @@ struct platform_device *__init imx_add_sdhci_esdhc_imx(
 		const struct imx_sdhci_esdhc_imx_data *data,
 		const struct esdhc_platform_data *pdata);
 
-#include <linux/platform_data/spi-imx.h>
 struct imx_spi_imx_data {
 	const char *devid;
 	int id;
@@ -285,10 +285,9 @@ struct imx_spi_imx_data {
 	int irq;
 };
 struct platform_device *__init imx_add_spi_imx(
-		const struct imx_spi_imx_data *data,
-		const struct spi_imx_master *pdata);
+	const struct imx_spi_imx_data *data, struct gpiod_lookup_table *gtable);
 
 struct platform_device *imx_add_imx_dma(char *name, resource_size_t iobase,
-					int irq, int irq_err);
+					int irq);
 struct platform_device *imx_add_imx_sdma(char *name,
 	resource_size_t iobase, int irq, struct sdma_platform_data *pdata);

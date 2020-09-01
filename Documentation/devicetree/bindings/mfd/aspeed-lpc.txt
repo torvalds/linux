@@ -37,7 +37,7 @@ syscon as a means to arbitrate access.
 
 [0] http://www.intel.com/design/chipsets/industry/25128901.pdf
 [1] https://www.renesas.com/en-sg/doc/products/mpumcu/001/rej09b0078_h8s2168.pdf?key=7c88837454702128622bee53acbda8f4
-[2] http://www.intel.com/content/dam/www/public/us/en/documents/product-briefs/ipmi-second-gen-interface-spec-v2-rev1-1.pdf
+[2] https://www.intel.com/content/dam/www/public/us/en/documents/product-briefs/ipmi-second-gen-interface-spec-v2-rev1-1.pdf
 [3] https://en.wikipedia.org/wiki/Super_I/O
 
 Required properties

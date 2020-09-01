@@ -70,19 +70,21 @@ static const int b2p[] = {
  */
 #define PPC_BPF_LL(r, base, i) do {					      \
 				if ((i) % 4) {				      \
-					PPC_LI(b2p[TMP_REG_2], (i));	      \
-					PPC_LDX(r, base, b2p[TMP_REG_2]);     \
+					EMIT(PPC_RAW_LI(b2p[TMP_REG_2], (i)));\
+					EMIT(PPC_RAW_LDX(r, base,	      \
+							b2p[TMP_REG_2]));     \
 				} else					      \
-					PPC_LD(r, base, i);		      \
+					EMIT(PPC_RAW_LD(r, base, i));	      \
 				} while(0)
 #define PPC_BPF_STL(r, base, i) do {					      \
 				if ((i) % 4) {				      \
-					PPC_LI(b2p[TMP_REG_2], (i));	      \
-					PPC_STDX(r, base, b2p[TMP_REG_2]);    \
+					EMIT(PPC_RAW_LI(b2p[TMP_REG_2], (i)));\
+					EMIT(PPC_RAW_STDX(r, base,	      \
+							b2p[TMP_REG_2]));     \
 				} else					      \
-					PPC_STD(r, base, i);		      \
+					EMIT(PPC_RAW_STD(r, base, i));	      \
 				} while(0)
-#define PPC_BPF_STLU(r, base, i) do { PPC_STDU(r, base, i); } while(0)
+#define PPC_BPF_STLU(r, base, i) do { EMIT(PPC_RAW_STDU(r, base, i)); } while(0)
 
 #define SEEN_FUNC	0x1000 /* might call external helpers */
 #define SEEN_STACK	0x2000 /* uses BPF stack */

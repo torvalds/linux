@@ -149,7 +149,7 @@ struct scrub_parity {
 	 */
 	unsigned long		*ebitmap;
 
-	unsigned long		bitmap[0];
+	unsigned long		bitmap[];
 };
 
 struct scrub_ctx {
@@ -647,13 +647,9 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	struct btrfs_fs_info *fs_info = swarn->dev->fs_info;
 	struct inode_fs_paths *ipath = NULL;
 	struct btrfs_root *local_root;
-	struct btrfs_key root_key;
 	struct btrfs_key key;
 
-	root_key.objectid = root;
-	root_key.type = BTRFS_ROOT_ITEM_KEY;
-	root_key.offset = (u64)-1;
-	local_root = btrfs_read_fs_root_no_name(fs_info, &root_key);
+	local_root = btrfs_get_fs_root(fs_info, root, true);
 	if (IS_ERR(local_root)) {
 		ret = PTR_ERR(local_root);
 		goto err;
@@ -668,6 +664,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 
 	ret = btrfs_search_slot(NULL, local_root, &key, swarn->path, 0, 0);
 	if (ret) {
+		btrfs_put_root(local_root);
 		btrfs_release_path(swarn->path);
 		goto err;
 	}
@@ -688,6 +685,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	ipath = init_ipath(4096, local_root, swarn->path);
 	memalloc_nofs_restore(nofs_flag);
 	if (IS_ERR(ipath)) {
+		btrfs_put_root(local_root);
 		ret = PTR_ERR(ipath);
 		ipath = NULL;
 		goto err;
@@ -711,6 +709,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 				  min(isize - offset, (u64)PAGE_SIZE), nlink,
 				  (char *)(unsigned long)ipath->fspath->val[i]);
 
+	btrfs_put_root(local_root);
 	free_ipath(ipath);
 	return 0;
 
@@ -1617,13 +1616,9 @@ static int scrub_write_page_to_dev_replace(struct scrub_block *sblock,
 	struct scrub_page *spage = sblock->pagev[page_num];
 
 	BUG_ON(spage->page == NULL);
-	if (spage->io_error) {
-		void *mapped_buffer = kmap_atomic(spage->page);
+	if (spage->io_error)
+		clear_page(page_address(spage->page));
 
-		clear_page(mapped_buffer);
-		flush_dcache_page(spage->page);
-		kunmap_atomic(mapped_buffer);
-	}
 	return scrub_add_page_to_wr_bio(sblock->sctx, spage);
 }
 
@@ -1791,42 +1786,21 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 csum[BTRFS_CSUM_SIZE];
-	u8 *on_disk_csum;
-	struct page *page;
-	void *buffer;
-	u64 len;
-	int index;
+	struct scrub_page *spage;
+	char *kaddr;
 
 	BUG_ON(sblock->page_count < 1);
-	if (!sblock->pagev[0]->have_csum)
+	spage = sblock->pagev[0];
+	if (!spage->have_csum)
 		return 0;
+
+	kaddr = page_address(spage->page);
 
 	shash->tfm = fs_info->csum_shash;
 	crypto_shash_init(shash);
+	crypto_shash_digest(shash, kaddr, PAGE_SIZE, csum);
 
-	on_disk_csum = sblock->pagev[0]->csum;
-	page = sblock->pagev[0]->page;
-	buffer = kmap_atomic(page);
-
-	len = sctx->fs_info->sectorsize;
-	index = 0;
-	for (;;) {
-		u64 l = min_t(u64, len, PAGE_SIZE);
-
-		crypto_shash_update(shash, buffer, l);
-		kunmap_atomic(buffer);
-		len -= l;
-		if (len == 0)
-			break;
-		index++;
-		BUG_ON(index >= sblock->page_count);
-		BUG_ON(!sblock->pagev[index]->page);
-		page = sblock->pagev[index]->page;
-		buffer = kmap_atomic(page);
-	}
-
-	crypto_shash_final(shash, csum);
-	if (memcmp(csum, on_disk_csum, sctx->csum_size))
+	if (memcmp(csum, spage->csum, sctx->csum_size))
 		sblock->checksum_error = 1;
 
 	return sblock->checksum_error;
@@ -1840,20 +1814,15 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
-	struct page *page;
-	void *mapped_buffer;
-	u64 mapped_size;
-	void *p;
-	u64 len;
-	int index;
-
-	shash->tfm = fs_info->csum_shash;
-	crypto_shash_init(shash);
+	const int num_pages = sctx->fs_info->nodesize >> PAGE_SHIFT;
+	int i;
+	struct scrub_page *spage;
+	char *kaddr;
 
 	BUG_ON(sblock->page_count < 1);
-	page = sblock->pagev[0]->page;
-	mapped_buffer = kmap_atomic(page);
-	h = (struct btrfs_header *)mapped_buffer;
+	spage = sblock->pagev[0];
+	kaddr = page_address(spage->page);
+	h = (struct btrfs_header *)kaddr;
 	memcpy(on_disk_csum, h->csum, sctx->csum_size);
 
 	/*
@@ -1861,40 +1830,29 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	 * a) don't have an extent buffer and
 	 * b) the page is already kmapped
 	 */
-	if (sblock->pagev[0]->logical != btrfs_stack_header_bytenr(h))
+	if (spage->logical != btrfs_stack_header_bytenr(h))
 		sblock->header_error = 1;
 
-	if (sblock->pagev[0]->generation != btrfs_stack_header_generation(h)) {
+	if (spage->generation != btrfs_stack_header_generation(h)) {
 		sblock->header_error = 1;
 		sblock->generation_error = 1;
 	}
 
-	if (!scrub_check_fsid(h->fsid, sblock->pagev[0]))
+	if (!scrub_check_fsid(h->fsid, spage))
 		sblock->header_error = 1;
 
 	if (memcmp(h->chunk_tree_uuid, fs_info->chunk_tree_uuid,
 		   BTRFS_UUID_SIZE))
 		sblock->header_error = 1;
 
-	len = sctx->fs_info->nodesize - BTRFS_CSUM_SIZE;
-	mapped_size = PAGE_SIZE - BTRFS_CSUM_SIZE;
-	p = ((u8 *)mapped_buffer) + BTRFS_CSUM_SIZE;
-	index = 0;
-	for (;;) {
-		u64 l = min_t(u64, len, mapped_size);
+	shash->tfm = fs_info->csum_shash;
+	crypto_shash_init(shash);
+	crypto_shash_update(shash, kaddr + BTRFS_CSUM_SIZE,
+			    PAGE_SIZE - BTRFS_CSUM_SIZE);
 
-		crypto_shash_update(shash, p, l);
-		kunmap_atomic(mapped_buffer);
-		len -= l;
-		if (len == 0)
-			break;
-		index++;
-		BUG_ON(index >= sblock->page_count);
-		BUG_ON(!sblock->pagev[index]->page);
-		page = sblock->pagev[index]->page;
-		mapped_buffer = kmap_atomic(page);
-		mapped_size = PAGE_SIZE;
-		p = mapped_buffer;
+	for (i = 1; i < num_pages; i++) {
+		kaddr = page_address(sblock->pagev[i]->page);
+		crypto_shash_update(shash, kaddr, PAGE_SIZE);
 	}
 
 	crypto_shash_final(shash, calculated_csum);
@@ -1911,57 +1869,31 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
-	u8 on_disk_csum[BTRFS_CSUM_SIZE];
-	struct page *page;
-	void *mapped_buffer;
-	u64 mapped_size;
-	void *p;
+	struct scrub_page *spage;
+	char *kaddr;
 	int fail_gen = 0;
 	int fail_cor = 0;
-	u64 len;
-	int index;
+
+	BUG_ON(sblock->page_count < 1);
+	spage = sblock->pagev[0];
+	kaddr = page_address(spage->page);
+	s = (struct btrfs_super_block *)kaddr;
+
+	if (spage->logical != btrfs_super_bytenr(s))
+		++fail_cor;
+
+	if (spage->generation != btrfs_super_generation(s))
+		++fail_gen;
+
+	if (!scrub_check_fsid(s->fsid, spage))
+		++fail_cor;
 
 	shash->tfm = fs_info->csum_shash;
 	crypto_shash_init(shash);
+	crypto_shash_digest(shash, kaddr + BTRFS_CSUM_SIZE,
+			BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE, calculated_csum);
 
-	BUG_ON(sblock->page_count < 1);
-	page = sblock->pagev[0]->page;
-	mapped_buffer = kmap_atomic(page);
-	s = (struct btrfs_super_block *)mapped_buffer;
-	memcpy(on_disk_csum, s->csum, sctx->csum_size);
-
-	if (sblock->pagev[0]->logical != btrfs_super_bytenr(s))
-		++fail_cor;
-
-	if (sblock->pagev[0]->generation != btrfs_super_generation(s))
-		++fail_gen;
-
-	if (!scrub_check_fsid(s->fsid, sblock->pagev[0]))
-		++fail_cor;
-
-	len = BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE;
-	mapped_size = PAGE_SIZE - BTRFS_CSUM_SIZE;
-	p = ((u8 *)mapped_buffer) + BTRFS_CSUM_SIZE;
-	index = 0;
-	for (;;) {
-		u64 l = min_t(u64, len, mapped_size);
-
-		crypto_shash_update(shash, p, l);
-		kunmap_atomic(mapped_buffer);
-		len -= l;
-		if (len == 0)
-			break;
-		index++;
-		BUG_ON(index >= sblock->page_count);
-		BUG_ON(!sblock->pagev[index]->page);
-		page = sblock->pagev[index]->page;
-		mapped_buffer = kmap_atomic(page);
-		mapped_size = PAGE_SIZE;
-		p = mapped_buffer;
-	}
-
-	crypto_shash_final(shash, calculated_csum);
-	if (memcmp(calculated_csum, on_disk_csum, sctx->csum_size))
+	if (memcmp(calculated_csum, s->csum, sctx->csum_size))
 		++fail_cor;
 
 	if (fail_cor + fail_gen) {
@@ -1974,10 +1906,10 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 		++sctx->stat.super_errors;
 		spin_unlock(&sctx->stat_lock);
 		if (fail_cor)
-			btrfs_dev_stat_inc_and_print(sblock->pagev[0]->dev,
+			btrfs_dev_stat_inc_and_print(spage->dev,
 				BTRFS_DEV_STAT_CORRUPTION_ERRS);
 		else
-			btrfs_dev_stat_inc_and_print(sblock->pagev[0]->dev,
+			btrfs_dev_stat_inc_and_print(spage->dev,
 				BTRFS_DEV_STAT_GENERATION_ERRS);
 	}
 
@@ -3043,7 +2975,8 @@ out:
 static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   struct map_lookup *map,
 					   struct btrfs_device *scrub_dev,
-					   int num, u64 base, u64 length)
+					   int num, u64 base, u64 length,
+					   struct btrfs_block_group *cache)
 {
 	struct btrfs_path *path, *ppath;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
@@ -3281,6 +3214,20 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 				break;
 			}
 
+			/*
+			 * If our block group was removed in the meanwhile, just
+			 * stop scrubbing since there is no point in continuing.
+			 * Continuing would prevent reusing its device extents
+			 * for new block groups for a long time.
+			 */
+			spin_lock(&cache->lock);
+			if (cache->removed) {
+				spin_unlock(&cache->lock);
+				ret = 0;
+				goto out;
+			}
+			spin_unlock(&cache->lock);
+
 			extent = btrfs_item_ptr(l, slot,
 						struct btrfs_extent_item);
 			flags = btrfs_extent_flags(l, extent);
@@ -3325,13 +3272,14 @@ again:
 						   &extent_dev,
 						   &extent_mirror_num);
 
-			ret = btrfs_lookup_csums_range(csum_root,
-						       extent_logical,
-						       extent_logical +
-						       extent_len - 1,
-						       &sctx->csum_list, 1);
-			if (ret)
-				goto out;
+			if (flags & BTRFS_EXTENT_FLAG_DATA) {
+				ret = btrfs_lookup_csums_range(csum_root,
+						extent_logical,
+						extent_logical + extent_len - 1,
+						&sctx->csum_list, 1);
+				if (ret)
+					goto out;
+			}
 
 			ret = scrub_extent(sctx, map, extent_logical, extent_len,
 					   extent_physical, extent_dev, flags,
@@ -3454,7 +3402,7 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 		if (map->stripes[i].dev->bdev == scrub_dev->bdev &&
 		    map->stripes[i].physical == dev_offset) {
 			ret = scrub_stripe(sctx, map, scrub_dev, i,
-					   chunk_offset, length);
+					   chunk_offset, length, cache);
 			if (ret)
 				goto out;
 		}
@@ -3552,6 +3500,23 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			goto skip;
 
 		/*
+		 * Make sure that while we are scrubbing the corresponding block
+		 * group doesn't get its logical address and its device extents
+		 * reused for another block group, which can possibly be of a
+		 * different type and different profile. We do this to prevent
+		 * false error detections and crashes due to bogus attempts to
+		 * repair extents.
+		 */
+		spin_lock(&cache->lock);
+		if (cache->removed) {
+			spin_unlock(&cache->lock);
+			btrfs_put_block_group(cache);
+			goto skip;
+		}
+		btrfs_freeze_block_group(cache);
+		spin_unlock(&cache->lock);
+
+		/*
 		 * we need call btrfs_inc_block_group_ro() with scrubs_paused,
 		 * to avoid deadlock caused by:
 		 * btrfs_inc_block_group_ro()
@@ -3606,6 +3571,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		} else {
 			btrfs_warn(fs_info,
 				   "failed setting block group ro: %d", ret);
+			btrfs_unfreeze_block_group(cache);
 			btrfs_put_block_group(cache);
 			scrub_pause_off(fs_info);
 			break;
@@ -3692,6 +3658,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			spin_unlock(&cache->lock);
 		}
 
+		btrfs_unfreeze_block_group(cache);
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;
@@ -3724,7 +3691,7 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
-		return -EIO;
+		return -EROFS;
 
 	/* Seed devices of a new filesystem has their own generation. */
 	if (scrub_dev->fs_devices != fs_info->fs_devices)

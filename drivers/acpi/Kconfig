@@ -32,7 +32,7 @@ menuconfig ACPI
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
 	  ACPI CA, see:
-	  <http://acpica.org/>
+	  <https://acpica.org/>
 
 	  ACPI is an open industry specification originally co-developed by
 	  Hewlett-Packard, Intel, Microsoft, Phoenix, and Toshiba. Currently,
@@ -40,8 +40,7 @@ menuconfig ACPI
 	  the UEFI Forum and any UEFI member can join the ASWG and contribute
 	  to the ACPI specification.
 	  The specification is available at:
-	  <http://www.acpi.info>
-	  <http://www.uefi.org/acpi/specs>
+	  <https://uefi.org/specifications>
 
 if ACPI
 
@@ -98,23 +97,6 @@ config ACPI_SLEEP
 	depends on SUSPEND || HIBERNATION
 	depends on ACPI_SYSTEM_POWER_STATES_SUPPORT
 	default y
-
-config ACPI_PROCFS_POWER
-	bool "Deprecated power /proc/acpi directories"
-	depends on X86 && PROC_FS
-	help
-	  For backwards compatibility, this option allows
-	  deprecated power /proc/acpi/ directories to exist, even when
-	  they have been replaced by functions in /sys.
-	  The deprecated directories (and their replacements) include:
-	  /proc/acpi/battery/* (/sys/class/power_supply/*) and
-	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*).
-	  This option has no effect on /proc/acpi/ directories
-	  and functions which do not yet exist in /sys.
-	  This option, together with the proc directories, will be
-	  deleted in the future.
-
-	  Say N to delete power /proc/acpi/ directories that have moved to /sys.
 
 config ACPI_REV_OVERRIDE_POSSIBLE
 	bool "Allow supported ACPI revision to be overridden"
@@ -189,6 +171,30 @@ config ACPI_BUTTON
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called button.
+
+config ACPI_TINY_POWER_BUTTON
+	tristate "Tiny Power Button Driver"
+	depends on !ACPI_BUTTON
+	help
+	  This driver provides a tiny alternative to the ACPI Button driver.
+	  The tiny power button driver only handles the power button. Rather
+	  than notifying userspace via the input layer or a netlink event, this
+	  driver directly signals the init process to shut down.
+
+	  This driver is particularly suitable for cloud and VM environments,
+	  which use a simulated power button to initiate a controlled poweroff,
+	  but which may not want to run a separate userspace daemon to process
+	  input events.
+
+config ACPI_TINY_POWER_BUTTON_SIGNAL
+	int "Tiny Power Button Signal"
+	depends on ACPI_TINY_POWER_BUTTON
+	default 38
+	help
+	  Default signal to send to init in response to the power button.
+
+	  Likely values here include 38 (SIGRTMIN+4) to power off, or 2
+	  (SIGINT) to simulate Ctrl+Alt+Del.
 
 config ACPI_VIDEO
 	tristate "Video"

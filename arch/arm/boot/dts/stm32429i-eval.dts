@@ -104,17 +104,17 @@
 
 	leds {
 		compatible = "gpio-leds";
-		green {
+		led-green {
 			gpios = <&gpiog 6 1>;
 			linux,default-trigger = "heartbeat";
 		};
-		orange {
+		led-orange {
 			gpios = <&gpiog 7 1>;
 		};
-		red {
+		led-red {
 			gpios = <&gpiog 10 1>;
 		};
-		blue {
+		led-blue {
 			gpios = <&gpiog 12 1>;
 		};
 	};
@@ -240,7 +240,7 @@
 
 &ltdc {
 	status = "okay";
-	pinctrl-0 = <&ltdc_pins>;
+	pinctrl-0 = <&ltdc_pins_a>;
 	pinctrl-names = "default";
 
 	port {

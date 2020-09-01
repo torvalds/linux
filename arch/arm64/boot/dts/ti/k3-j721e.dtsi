@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for J721E SoC Family
  *
- * Copyright (C) 2016-2019 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2019 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -30,6 +30,7 @@
 		serial9 = &main_uart7;
 		serial10 = &main_uart8;
 		serial11 = &main_uart9;
+		ethernet0 = &cpsw_port1;
 	};
 
 	chosen { };

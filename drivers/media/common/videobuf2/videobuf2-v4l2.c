@@ -35,10 +35,11 @@
 static int debug;
 module_param(debug, int, 0644);
 
-#define dprintk(level, fmt, arg...)					      \
+#define dprintk(q, level, fmt, arg...)					      \
 	do {								      \
 		if (debug >= level)					      \
-			pr_info("vb2-v4l2: %s: " fmt, __func__, ## arg); \
+			pr_info("vb2-v4l2: [%p] %s: " fmt,		      \
+				(q)->name, __func__, ## arg);		      \
 	} while (0)
 
 /* Flags that are set by us */
@@ -66,12 +67,14 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 
 	/* Is memory for copying plane information present? */
 	if (b->m.planes == NULL) {
-		dprintk(1, "multi-planar buffer passed but planes array not provided\n");
+		dprintk(vb->vb2_queue, 1,
+			"multi-planar buffer passed but planes array not provided\n");
 		return -EINVAL;
 	}
 
 	if (b->length < vb->num_planes || b->length > VB2_MAX_PLANES) {
-		dprintk(1, "incorrect planes array length, expected %d, got %d\n",
+		dprintk(vb->vb2_queue, 1,
+			"incorrect planes array length, expected %d, got %d\n",
 			vb->num_planes, b->length);
 		return -EINVAL;
 	}
@@ -94,7 +97,7 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	unsigned int bytesused;
 	unsigned int plane;
 
-	if (!V4L2_TYPE_IS_OUTPUT(b->type))
+	if (V4L2_TYPE_IS_CAPTURE(b->type))
 		return 0;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
@@ -114,7 +117,8 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 				return -EINVAL;
 		}
 	} else {
-		length = (b->memory == VB2_MEMORY_USERPTR)
+		length = (b->memory == VB2_MEMORY_USERPTR ||
+			  b->memory == VB2_MEMORY_DMABUF)
 			? b->length : vb->planes[0].length;
 
 		if (b->bytesused > length)
@@ -179,7 +183,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 
 	ret = __verify_length(vb, b);
 	if (ret < 0) {
-		dprintk(1, "plane parameters verification failed: %d\n", ret);
+		dprintk(q, 1, "plane parameters verification failed: %d\n", ret);
 		return ret;
 	}
 	if (b->field == V4L2_FIELD_ALTERNATE && q->is_output) {
@@ -192,7 +196,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 		 * that just says that it is either a top or a bottom field,
 		 * but not which of the two it is.
 		 */
-		dprintk(1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
+		dprintk(q, 1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
 		return -EINVAL;
 	}
 	vbuf->sequence = 0;
@@ -307,7 +311,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 
 	/* Zero flags that we handle */
 	vbuf->flags = b->flags & ~V4L2_BUFFER_MASK_FLAGS;
-	if (!vb->vb2_queue->copy_timestamp || !V4L2_TYPE_IS_OUTPUT(b->type)) {
+	if (!vb->vb2_queue->copy_timestamp || V4L2_TYPE_IS_CAPTURE(b->type)) {
 		/*
 		 * Non-COPY timestamps and non-OUTPUT queues will get
 		 * their timestamp and timestamp source flags from the
@@ -337,6 +341,53 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 	return 0;
 }
 
+static void set_buffer_cache_hints(struct vb2_queue *q,
+				   struct vb2_buffer *vb,
+				   struct v4l2_buffer *b)
+{
+	/*
+	 * DMA exporter should take care of cache syncs, so we can avoid
+	 * explicit ->prepare()/->finish() syncs. For other ->memory types
+	 * we always need ->prepare() or/and ->finish() cache sync.
+	 */
+	if (q->memory == VB2_MEMORY_DMABUF) {
+		vb->need_cache_sync_on_finish = 0;
+		vb->need_cache_sync_on_prepare = 0;
+		return;
+	}
+
+	/*
+	 * Cache sync/invalidation flags are set by default in order to
+	 * preserve existing behaviour for old apps/drivers.
+	 */
+	vb->need_cache_sync_on_prepare = 1;
+	vb->need_cache_sync_on_finish = 1;
+
+	if (!vb2_queue_allows_cache_hints(q)) {
+		/*
+		 * Clear buffer cache flags if queue does not support user
+		 * space hints. That's to indicate to userspace that these
+		 * flags won't work.
+		 */
+		b->flags &= ~V4L2_BUF_FLAG_NO_CACHE_INVALIDATE;
+		b->flags &= ~V4L2_BUF_FLAG_NO_CACHE_CLEAN;
+		return;
+	}
+
+	/*
+	 * ->finish() cache sync can be avoided when queue direction is
+	 * TO_DEVICE.
+	 */
+	if (q->dma_dir == DMA_TO_DEVICE)
+		vb->need_cache_sync_on_finish = 0;
+
+	if (b->flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE)
+		vb->need_cache_sync_on_finish = 0;
+
+	if (b->flags & V4L2_BUF_FLAG_NO_CACHE_CLEAN)
+		vb->need_cache_sync_on_prepare = 0;
+}
+
 static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 				    struct v4l2_buffer *b, bool is_prepare,
 				    struct media_request **p_req)
@@ -348,23 +399,23 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	int ret;
 
 	if (b->type != q->type) {
-		dprintk(1, "%s: invalid buffer type\n", opname);
+		dprintk(q, 1, "%s: invalid buffer type\n", opname);
 		return -EINVAL;
 	}
 
 	if (b->index >= q->num_buffers) {
-		dprintk(1, "%s: buffer index out of range\n", opname);
+		dprintk(q, 1, "%s: buffer index out of range\n", opname);
 		return -EINVAL;
 	}
 
 	if (q->bufs[b->index] == NULL) {
 		/* Should never happen */
-		dprintk(1, "%s: buffer is NULL\n", opname);
+		dprintk(q, 1, "%s: buffer is NULL\n", opname);
 		return -EINVAL;
 	}
 
 	if (b->memory != q->memory) {
-		dprintk(1, "%s: invalid memory type\n", opname);
+		dprintk(q, 1, "%s: invalid memory type\n", opname);
 		return -EINVAL;
 	}
 
@@ -376,11 +427,12 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 
 	if (!is_prepare && (b->flags & V4L2_BUF_FLAG_REQUEST_FD) &&
 	    vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
+		dprintk(q, 1, "%s: buffer is not in dequeued state\n", opname);
 		return -EINVAL;
 	}
 
 	if (!vb->prepared) {
+		set_buffer_cache_hints(q, vb, b);
 		/* Copy relevant information provided by the userspace */
 		memset(vbuf->planes, 0,
 		       sizeof(vbuf->planes[0]) * vb->num_planes);
@@ -394,19 +446,19 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 
 	if (!(b->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
 		if (q->requires_requests) {
-			dprintk(1, "%s: queue requires requests\n", opname);
+			dprintk(q, 1, "%s: queue requires requests\n", opname);
 			return -EBADR;
 		}
 		if (q->uses_requests) {
-			dprintk(1, "%s: queue uses requests\n", opname);
+			dprintk(q, 1, "%s: queue uses requests\n", opname);
 			return -EBUSY;
 		}
 		return 0;
 	} else if (!q->supports_requests) {
-		dprintk(1, "%s: queue does not support requests\n", opname);
+		dprintk(q, 1, "%s: queue does not support requests\n", opname);
 		return -EBADR;
 	} else if (q->uses_qbuf) {
-		dprintk(1, "%s: queue does not use requests\n", opname);
+		dprintk(q, 1, "%s: queue does not use requests\n", opname);
 		return -EBUSY;
 	}
 
@@ -436,13 +488,13 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		return -EINVAL;
 
 	if (b->request_fd < 0) {
-		dprintk(1, "%s: request_fd < 0\n", opname);
+		dprintk(q, 1, "%s: request_fd < 0\n", opname);
 		return -EINVAL;
 	}
 
 	req = media_request_get_by_fd(mdev, b->request_fd);
 	if (IS_ERR(req)) {
-		dprintk(1, "%s: invalid request_fd\n", opname);
+		dprintk(q, 1, "%s: invalid request_fd\n", opname);
 		return PTR_ERR(req);
 	}
 
@@ -452,7 +504,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	 */
 	if (req->state != MEDIA_REQUEST_STATE_IDLE &&
 	    req->state != MEDIA_REQUEST_STATE_UPDATING) {
-		dprintk(1, "%s: request is not idle\n", opname);
+		dprintk(q, 1, "%s: request is not idle\n", opname);
 		media_request_put(req);
 		return -EBUSY;
 	}
@@ -635,12 +687,12 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 	int ret;
 
 	if (b->type != q->type) {
-		dprintk(1, "wrong buffer type\n");
+		dprintk(q, 1, "wrong buffer type\n");
 		return -EINVAL;
 	}
 
 	if (b->index >= q->num_buffers) {
-		dprintk(1, "buffer index out of range\n");
+		dprintk(q, 1, "buffer index out of range\n");
 		return -EINVAL;
 	}
 	vb = q->bufs[b->index];
@@ -662,10 +714,20 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
 	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
+	if (q->allow_cache_hints && q->io_modes & VB2_MMAP)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS;
 #ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
 	if (q->supports_requests)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
 #endif
+}
+
+static void clear_consistency_attr(struct vb2_queue *q,
+				   int memory,
+				   unsigned int *flags)
+{
+	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP)
+		*flags &= ~V4L2_FLAG_MEMORY_NON_CONSISTENT;
 }
 
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
@@ -673,7 +735,9 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	int ret = vb2_verify_memory_type(q, req->memory, req->type);
 
 	fill_buf_caps(q, &req->capabilities);
-	return ret ? ret : vb2_core_reqbufs(q, req->memory, &req->count);
+	clear_consistency_attr(q, req->memory, &req->flags);
+	return ret ? ret : vb2_core_reqbufs(q, req->memory,
+					    req->flags, &req->count);
 }
 EXPORT_SYMBOL_GPL(vb2_reqbufs);
 
@@ -683,7 +747,7 @@ int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 
@@ -705,6 +769,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	unsigned i;
 
 	fill_buf_caps(q, &create->capabilities);
+	clear_consistency_attr(q, create->memory, &create->flags);
 	create->index = q->num_buffers;
 	if (create->count == 0)
 		return ret != -EBUSY ? ret : 0;
@@ -748,7 +813,10 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 		if (requested_sizes[i] == 0)
 			return -EINVAL;
 	return ret ? ret : vb2_core_create_bufs(q, create->memory,
-		&create->count, requested_planes, requested_sizes);
+						create->flags,
+						&create->count,
+						requested_planes,
+						requested_sizes);
 }
 EXPORT_SYMBOL_GPL(vb2_create_bufs);
 
@@ -759,7 +827,7 @@ int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 
@@ -778,12 +846,12 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 
 	if (b->type != q->type) {
-		dprintk(1, "invalid buffer type\n");
+		dprintk(q, 1, "invalid buffer type\n");
 		return -EINVAL;
 	}
 
@@ -807,7 +875,7 @@ EXPORT_SYMBOL_GPL(vb2_dqbuf);
 int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 {
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 	return vb2_core_streamon(q, type);
@@ -817,7 +885,7 @@ EXPORT_SYMBOL_GPL(vb2_streamon);
 int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
 {
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 	return vb2_core_streamoff(q, type);
@@ -831,7 +899,7 @@ int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb)
 }
 EXPORT_SYMBOL_GPL(vb2_expbuf);
 
-int vb2_queue_init(struct vb2_queue *q)
+int vb2_queue_init_name(struct vb2_queue *q, const char *name)
 {
 	/*
 	 * Sanity check
@@ -867,7 +935,18 @@ int vb2_queue_init(struct vb2_queue *q)
 	 */
 	q->quirk_poll_must_check_waiting_for_buffers = true;
 
+	if (name)
+		strscpy(q->name, name, sizeof(q->name));
+	else
+		q->name[0] = '\0';
+
 	return vb2_core_queue_init(q);
+}
+EXPORT_SYMBOL_GPL(vb2_queue_init_name);
+
+int vb2_queue_init(struct vb2_queue *q)
+{
+	return vb2_queue_init_name(q, NULL);
 }
 EXPORT_SYMBOL_GPL(vb2_queue_init);
 
@@ -919,11 +998,12 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
 	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
 
 	fill_buf_caps(vdev->queue, &p->capabilities);
+	clear_consistency_attr(vdev->queue, p->memory, &p->flags);
 	if (res)
 		return res;
 	if (vb2_queue_is_busy(vdev, file))
 		return -EBUSY;
-	res = vb2_core_reqbufs(vdev->queue, p->memory, &p->count);
+	res = vb2_core_reqbufs(vdev->queue, p->memory, p->flags, &p->count);
 	/* If count == 0, then the owner has released all buffers and he
 	   is no longer owner of the queue. Otherwise we have a new owner. */
 	if (res == 0)
@@ -941,6 +1021,7 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
 
 	p->index = vdev->queue->num_buffers;
 	fill_buf_caps(vdev->queue, &p->capabilities);
+	clear_consistency_attr(vdev->queue, p->memory, &p->flags);
 	/*
 	 * If count == 0, then just check if memory and type are valid.
 	 * Any -EBUSY result from vb2_verify_memory_type can be mapped to 0.

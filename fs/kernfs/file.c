@@ -652,9 +652,9 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	 * The following is done to give a different lockdep key to
 	 * @of->mutex for files which implement mmap.  This is a rather
 	 * crude way to avoid false positive lockdep warning around
-	 * mm->mmap_sem - mmap nests @of->mutex under mm->mmap_sem and
+	 * mm->mmap_lock - mmap nests @of->mutex under mm->mmap_lock and
 	 * reading /sys/block/sda/trace/act_mask grabs sr_mutex, under
-	 * which mm->mmap_sem nests, while holding @of->mutex.  As each
+	 * which mm->mmap_lock nests, while holding @of->mutex.  As each
 	 * open file has a separate mutex, it's okay as long as those don't
 	 * happen on the same file.  At this point, we can't easily give
 	 * each file a separate locking class.  Let's differentiate on
@@ -883,6 +883,7 @@ repeat:
 
 	list_for_each_entry(info, &kernfs_root(kn)->supers, node) {
 		struct kernfs_node *parent;
+		struct inode *p_inode = NULL;
 		struct inode *inode;
 		struct qstr name;
 
@@ -899,20 +900,20 @@ repeat:
 		name = (struct qstr)QSTR_INIT(kn->name, strlen(kn->name));
 		parent = kernfs_get_parent(kn);
 		if (parent) {
-			struct inode *p_inode;
-
 			p_inode = ilookup(info->sb, kernfs_ino(parent));
 			if (p_inode) {
-				fsnotify(p_inode, FS_MODIFY | FS_EVENT_ON_CHILD,
-					 inode, FSNOTIFY_EVENT_INODE, &name, 0);
+				fsnotify(FS_MODIFY | FS_EVENT_ON_CHILD,
+					 inode, FSNOTIFY_EVENT_INODE,
+					 p_inode, &name, inode, 0);
 				iput(p_inode);
 			}
 
 			kernfs_put(parent);
 		}
 
-		fsnotify(inode, FS_MODIFY, inode, FSNOTIFY_EVENT_INODE,
-			 &name, 0);
+		if (!p_inode)
+			fsnotify_inode(inode, FS_MODIFY);
+
 		iput(inode);
 	}
 
@@ -1010,7 +1011,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	if (key) {
-		lockdep_init_map(&kn->dep_map, "kn->count", key, 0);
+		lockdep_init_map(&kn->dep_map, "kn->active", key, 0);
 		kn->flags |= KERNFS_LOCKDEP;
 	}
 #endif

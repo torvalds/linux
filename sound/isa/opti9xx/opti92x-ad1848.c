@@ -249,7 +249,7 @@ static unsigned char snd_opti9xx_read(struct snd_opti9xx *chip,
 			retval = inb(chip->mc_base + 9);
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 
 	case OPTi9XX_HW_82C928:
 	case OPTi9XX_HW_82C929:
@@ -292,7 +292,7 @@ static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 			outb(value, chip->mc_base + 9);
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 
 	case OPTi9XX_HW_82C928:
 	case OPTi9XX_HW_82C929:
@@ -317,10 +317,13 @@ static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 }
 
 
-#define snd_opti9xx_write_mask(chip, reg, value, mask)	\
-	snd_opti9xx_write(chip, reg,			\
-		(snd_opti9xx_read(chip, reg) & ~(mask)) | ((value) & (mask)))
+static inline void snd_opti9xx_write_mask(struct snd_opti9xx *chip,
+		unsigned char reg, unsigned char value, unsigned char mask)
+{
+	unsigned char oldval = snd_opti9xx_read(chip, reg);
 
+	snd_opti9xx_write(chip, reg, (oldval & ~mask) | (value & mask));
+}
 
 static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 					   long port,
@@ -340,7 +343,7 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(4), 0xf0, 0xfc);
 		/* enable wave audio */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(6), 0x02, 0x02);
-		/* Fall through */
+		fallthrough;
 
 	case OPTi9XX_HW_82C925:
 		/* enable WSS mode */
@@ -377,7 +380,8 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 	case OPTi9XX_HW_82C931:
 		/* disable 3D sound (set GPIO1 as output, low) */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(20), 0x04, 0x0c);
-		/* fall through */
+		fallthrough;
+
 	case OPTi9XX_HW_82C933:
 		/*
 		 * The BTC 1817DW has QS1000 wavetable which is connected
@@ -389,7 +393,8 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 		 * or digital input signal.
 		 */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(26), 0x01, 0x01);
-		/* fall through */
+		fallthrough;
+
 	case OPTi9XX_HW_82C930:
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(6), 0x02, 0x03);
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(3), 0x00, 0xff);

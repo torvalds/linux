@@ -30,6 +30,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
@@ -211,7 +212,7 @@
 
 #define OLD_SCLK_MIPI_CLK_NAME "pll_clk"
 
-static char *clk_names[5] = { "bus_clk", "sclk_mipi",
+static const char *const clk_names[5] = { "bus_clk", "sclk_mipi",
 	"phyclk_mipidphy0_bitclkdiv8", "phyclk_mipidphy0_rxclkesc0",
 	"sclk_rgb_vclk_to_dsim0" };
 
@@ -546,9 +547,9 @@ static unsigned long exynos_dsi_pll_find_pms(struct exynos_dsi *dsi,
 	unsigned long best_freq = 0;
 	u32 min_delta = 0xffffffff;
 	u8 p_min, p_max;
-	u8 _p, uninitialized_var(best_p);
-	u16 _m, uninitialized_var(best_m);
-	u8 _s, uninitialized_var(best_s);
+	u8 _p, best_p;
+	u16 _m, best_m;
+	u8 _s, best_s;
 
 	p_min = DIV_ROUND_UP(fin, (12 * MHZ));
 	p_max = fin / (6 * MHZ);
@@ -986,10 +987,10 @@ static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
 	switch (length) {
 	case 3:
 		reg |= payload[2] << 16;
-		/* Fall through */
+		fallthrough;
 	case 2:
 		reg |= payload[1] << 8;
-		/* Fall through */
+		fallthrough;
 	case 1:
 		reg |= payload[0];
 		exynos_dsi_write(dsi, DSIM_PAYLOAD_REG, reg);
@@ -1037,7 +1038,7 @@ static void exynos_dsi_read_from_fifo(struct exynos_dsi *dsi,
 				payload[1] = reg >> 16;
 				++xfer->rx_done;
 			}
-			/* Fall through */
+			fallthrough;
 		case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
 		case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
 			payload[0] = reg >> 8;
@@ -1081,10 +1082,10 @@ static void exynos_dsi_read_from_fifo(struct exynos_dsi *dsi,
 		switch (length) {
 		case 3:
 			payload[2] = (reg >> 16) & 0xff;
-			/* Fall through */
+			fallthrough;
 		case 2:
 			payload[1] = (reg >> 8) & 0xff;
-			/* Fall through */
+			fallthrough;
 		case 1:
 			payload[0] = reg & 0xff;
 		}
@@ -1514,7 +1515,6 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 		return 0;
 
 	connector->funcs->reset(connector);
-	drm_fb_helper_add_one_connector(drm->fb_helper, connector);
 	drm_connector_register(connector);
 	return 0;
 }
@@ -1522,10 +1522,6 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs exynos_dsi_encoder_helper_funcs = {
 	.enable = exynos_dsi_enable,
 	.disable = exynos_dsi_disable,
-};
-
-static const struct drm_encoder_funcs exynos_dsi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
 };
 
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
@@ -1540,7 +1536,7 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 
 	out_bridge  = of_drm_find_bridge(device->dev.of_node);
 	if (out_bridge) {
-		drm_bridge_attach(encoder, out_bridge, NULL);
+		drm_bridge_attach(encoder, out_bridge, NULL, 0);
 		dsi->out_bridge = out_bridge;
 		list_splice_init(&encoder->bridge_chain, &dsi->bridge_chain);
 	} else {
@@ -1705,8 +1701,7 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	struct drm_bridge *in_bridge;
 	int ret;
 
-	drm_encoder_init(drm_dev, encoder, &exynos_dsi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	drm_encoder_helper_add(encoder, &exynos_dsi_encoder_helper_funcs);
 
@@ -1717,7 +1712,7 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	if (dsi->in_bridge_node) {
 		in_bridge = of_drm_find_bridge(dsi->in_bridge_node);
 		if (in_bridge)
-			drm_bridge_attach(encoder, in_bridge, NULL);
+			drm_bridge_attach(encoder, in_bridge, NULL, 0);
 	}
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
@@ -1763,10 +1758,6 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 
 	dsi->dev = dev;
 	dsi->driver_data = of_device_get_match_data(dev);
-
-	ret = exynos_dsi_parse_dt(dsi);
-	if (ret)
-		return ret;
 
 	dsi->supplies[0].supply = "vddcore";
 	dsi->supplies[1].supply = "vddio";
@@ -1814,10 +1805,8 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	}
 
 	dsi->irq = platform_get_irq(pdev, 0);
-	if (dsi->irq < 0) {
-		dev_err(dev, "failed to request dsi irq resource\n");
+	if (dsi->irq < 0)
 		return dsi->irq;
-	}
 
 	irq_set_status_flags(dsi->irq, IRQ_NOAUTOEN);
 	ret = devm_request_threaded_irq(dev, dsi->irq, NULL,
@@ -1828,11 +1817,25 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = exynos_dsi_parse_dt(dsi);
+	if (ret)
+		return ret;
+
 	platform_set_drvdata(pdev, &dsi->encoder);
 
 	pm_runtime_enable(dev);
 
-	return component_add(dev, &exynos_dsi_component_ops);
+	ret = component_add(dev, &exynos_dsi_component_ops);
+	if (ret)
+		goto err_disable_runtime;
+
+	return 0;
+
+err_disable_runtime:
+	pm_runtime_disable(dev);
+	of_node_put(dsi->in_bridge_node);
+
+	return ret;
 }
 
 static int exynos_dsi_remove(struct platform_device *pdev)

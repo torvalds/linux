@@ -26,10 +26,6 @@
 
 #include "hantro_hw.h"
 
-#define MB_DIM			16
-#define MB_WIDTH(w)		DIV_ROUND_UP(w, MB_DIM)
-#define MB_HEIGHT(h)		DIV_ROUND_UP(h, MB_DIM)
-
 struct hantro_ctx;
 struct hantro_codec_ops;
 
@@ -203,6 +199,7 @@ struct hantro_dev {
  *
  * @dev:		VPU driver data to which the context belongs.
  * @fh:			V4L2 file handler.
+ * @is_encoder:		Decoder or encoder context?
  *
  * @sequence_cap:       Sequence counter for capture queue
  * @sequence_out:       Sequence counter for output queue
@@ -215,9 +212,6 @@ struct hantro_dev {
  * @ctrl_handler:	Control handler used to register controls.
  * @jpeg_quality:	User-specified JPEG compression quality.
  *
- * @buf_finish:		Buffer finish. This depends on encoder or decoder
- *			context, and it's called right before
- *			calling v4l2_m2m_job_finish.
  * @codec_ops:		Set of operations related to codec mode.
  * @postproc:		Post-processing context.
  * @jpeg_enc:		JPEG-encoding context.
@@ -227,6 +221,7 @@ struct hantro_dev {
 struct hantro_ctx {
 	struct hantro_dev *dev;
 	struct v4l2_fh fh;
+	bool is_encoder;
 
 	u32 sequence_cap;
 	u32 sequence_out;
@@ -238,10 +233,6 @@ struct hantro_ctx {
 
 	struct v4l2_ctrl_handler ctrl_handler;
 	int jpeg_quality;
-
-	int (*buf_finish)(struct hantro_ctx *ctx,
-			  struct vb2_buffer *buf,
-			  unsigned int bytesused);
 
 	const struct hantro_codec_ops *codec_ops;
 	struct hantro_postproc_ctx postproc;
@@ -403,8 +394,6 @@ static inline void hantro_reg_write_s(struct hantro_dev *vpu,
 	vdpu_write(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
 }
 
-bool hantro_is_encoder_ctx(const struct hantro_ctx *ctx);
-
 void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id);
 dma_addr_t hantro_get_ref(struct hantro_ctx *ctx, u64 ts);
 
@@ -421,9 +410,10 @@ hantro_get_dst_buf(struct hantro_ctx *ctx)
 }
 
 static inline bool
-hantro_needs_postproc(struct hantro_ctx *ctx, const struct hantro_fmt *fmt)
+hantro_needs_postproc(const struct hantro_ctx *ctx,
+		      const struct hantro_fmt *fmt)
 {
-	return fmt->fourcc != V4L2_PIX_FMT_NV12;
+	return !ctx->is_encoder && fmt->fourcc != V4L2_PIX_FMT_NV12;
 }
 
 static inline dma_addr_t

@@ -142,7 +142,7 @@
 		};
 	};
 
-	amba {
+	amba: bus {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -153,6 +153,7 @@
 			reg = <0x0 0xff1f0000 0x0 0x4000>;
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
@@ -299,8 +300,6 @@
 	grf: syscon@ff100000 {
 		compatible = "rockchip,rk3328-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff100000 0x0 0x1000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
 
 		io_domains: io-domains {
 			compatible = "rockchip,rk3328-io-voltage-domain";
@@ -554,9 +553,9 @@
 		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
 		clock-names = "tsadc", "apb_pclk";
 		pinctrl-names = "init", "default", "sleep";
-		pinctrl-0 = <&otp_gpio>;
+		pinctrl-0 = <&otp_pin>;
 		pinctrl-1 = <&otp_out>;
-		pinctrl-2 = <&otp_gpio>;
+		pinctrl-2 = <&otp_pin>;
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
 		rockchip,grf = <&grf>;
@@ -906,6 +905,7 @@
 		resets = <&cru SRST_GMAC2IO_A>;
 		reset-names = "stmmaceth";
 		rockchip,grf = <&grf>;
+		snps,txpbl = <0x4>;
 		status = "disabled";
 	};
 
@@ -927,6 +927,7 @@
 		reset-names = "stmmaceth", "mac-phy";
 		phy-mode = "rmii";
 		phy-handle = <&phy>;
+		snps,txpbl = <0x4>;
 		status = "disabled";
 
 		mdio {
@@ -934,7 +935,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			phy: phy@0 {
+			phy: ethernet-phy@0 {
 				compatible = "ethernet-phy-id1234.d400", "ethernet-phy-ieee802.3-c22";
 				reg = <0>;
 				clocks = <&cru SCLK_MAC2PHY_OUT>;
@@ -957,7 +958,6 @@
 		g-np-tx-fifo-size = <16>;
 		g-rx-fifo-size = <280>;
 		g-tx-fifo-size = <256 128 128 64 32 16>;
-		g-use-dma;
 		phys = <&u2phy_otg>;
 		phy-names = "usb2-phy";
 		status = "disabled";
@@ -968,7 +968,6 @@
 		reg = <0x0 0xff5c0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST0>, <&u2phy>;
-		clock-names = "usbhost", "utmi";
 		phys = <&u2phy_host>;
 		phy-names = "usb";
 		status = "disabled";
@@ -979,7 +978,6 @@
 		reg = <0x0 0xff5d0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST0>, <&u2phy>;
-		clock-names = "usbhost", "utmi";
 		phys = <&u2phy_host>;
 		phy-names = "usb";
 		status = "disabled";
@@ -1157,7 +1155,7 @@
 				rockchip,pins = <0 RK_PA5 2 &pcfg_pull_none>,
 						<0 RK_PA6 2 &pcfg_pull_none>;
 			};
-			i2c3_gpio: i2c3-gpio {
+			i2c3_pins: i2c3-pins {
 				rockchip,pins =
 					<0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,
 					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -1228,7 +1226,7 @@
 		};
 
 		tsadc {
-			otp_gpio: otp-gpio {
+			otp_pin: otp-pin {
 				rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 
@@ -1251,7 +1249,7 @@
 				rockchip,pins = <1 RK_PB2 1 &pcfg_pull_none>;
 			};
 
-			uart0_rts_gpio: uart0-rts-gpio {
+			uart0_rts_pin: uart0-rts-pin {
 				rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};
@@ -1270,7 +1268,7 @@
 				rockchip,pins = <3 RK_PA5 4 &pcfg_pull_none>;
 			};
 
-			uart1_rts_gpio: uart1-rts-gpio {
+			uart1_rts_pin: uart1-rts-pin {
 				rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};
@@ -1496,7 +1494,7 @@
 				rockchip,pins = <2 RK_PA7 1 &pcfg_pull_up_4ma>;
 			};
 
-			sdmmc0m0_gpio: sdmmc0m0-gpio {
+			sdmmc0m0_pin: sdmmc0m0-pin {
 				rockchip,pins = <2 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up_4ma>;
 			};
 		};
@@ -1506,7 +1504,7 @@
 				rockchip,pins = <0 RK_PD6 3 &pcfg_pull_up_4ma>;
 			};
 
-			sdmmc0m1_gpio: sdmmc0m1-gpio {
+			sdmmc0m1_pin: sdmmc0m1-pin {
 				rockchip,pins = <0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_up_4ma>;
 			};
 		};
@@ -1539,7 +1537,7 @@
 						<1 RK_PA3 1 &pcfg_pull_up_8ma>;
 			};
 
-			sdmmc0_gpio: sdmmc0-gpio {
+			sdmmc0_pins: sdmmc0-pins {
 				rockchip,pins =
 					<1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
 					<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
@@ -1581,7 +1579,7 @@
 					<3 RK_PA7 3 &pcfg_pull_up_4ma>;
 			};
 
-			sdmmc0ext_gpio: sdmmc0ext-gpio {
+			sdmmc0ext_pins: sdmmc0ext-pins {
 				rockchip,pins =
 					<3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
 					<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
@@ -1626,7 +1624,7 @@
 						<1 RK_PC1 1 &pcfg_pull_up_8ma>;
 			};
 
-			sdmmc1_gpio: sdmmc1-gpio {
+			sdmmc1_pins: sdmmc1-pins {
 				rockchip,pins =
 					<1 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
 					<1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
@@ -1795,28 +1793,12 @@
 		};
 
 		gmac2phy {
-			fephyled_speed100: fephyled-speed100 {
-				rockchip,pins = <0 RK_PD7 1 &pcfg_pull_none>;
-			};
-
 			fephyled_speed10: fephyled-speed10 {
 				rockchip,pins = <0 RK_PD6 1 &pcfg_pull_none>;
 			};
 
 			fephyled_duplex: fephyled-duplex {
 				rockchip,pins = <0 RK_PD6 2 &pcfg_pull_none>;
-			};
-
-			fephyled_rxm0: fephyled-rxm0 {
-				rockchip,pins = <0 RK_PD5 1 &pcfg_pull_none>;
-			};
-
-			fephyled_txm0: fephyled-txm0 {
-				rockchip,pins = <0 RK_PD5 2 &pcfg_pull_none>;
-			};
-
-			fephyled_linkm0: fephyled-linkm0 {
-				rockchip,pins = <0 RK_PD4 1 &pcfg_pull_none>;
 			};
 
 			fephyled_rxm1: fephyled-rxm1 {
@@ -1836,7 +1818,7 @@
 			tsadc_int: tsadc-int {
 				rockchip,pins = <2 RK_PB5 2 &pcfg_pull_none>;
 			};
-			tsadc_gpio: tsadc-gpio {
+			tsadc_pin: tsadc-pin {
 				rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};

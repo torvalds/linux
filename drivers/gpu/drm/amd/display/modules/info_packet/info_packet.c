@@ -130,8 +130,7 @@ enum ColorimetryYCCDP {
 };
 
 void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
-		struct dc_info_packet *info_packet,
-		bool *use_vsc_sdp_for_colorimetry)
+		struct dc_info_packet *info_packet)
 {
 	unsigned int vsc_packet_revision = vsc_packet_undefined;
 	unsigned int i;
@@ -139,23 +138,17 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	unsigned int colorimetryFormat = 0;
 	bool stereo3dSupport = false;
 
-	/* Initialize first, later if infopacket is valid determine if VSC SDP
-	 * should be used to signal colorimetry format and pixel encoding.
-	 */
-	*use_vsc_sdp_for_colorimetry = false;
-
 	if (stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE && stream->view_format != VIEW_3D_FORMAT_NONE) {
 		vsc_packet_revision = vsc_packet_rev1;
 		stereo3dSupport = true;
 	}
 
 	/*VSC packet set to 2 when DP revision >= 1.2*/
-	if (stream->psr_version != 0)
+	if (stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
 		vsc_packet_revision = vsc_packet_rev2;
 
-	/* Update to revision 5 for extended colorimetry support for DPCD 1.4+ */
-	if (stream->link->dpcd_caps.dpcd_rev.raw >= 0x14 &&
-			stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED)
+	/* Update to revision 5 for extended colorimetry support */
+	if (stream->use_vsc_sdp_for_colorimetry)
 		vsc_packet_revision = vsc_packet_rev5;
 
 	/* VSC packet not needed based on the features
@@ -268,13 +261,6 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		info_packet->hb3 = 0x13;
 
 		info_packet->valid = true;
-
-		/* If we are using VSC SDP revision 05h, use this to signal for
-		 * colorimetry format and pixel encoding. HW should later be
-		 * programmed to set MSA MISC1 bit 6 to indicate ignore
-		 * colorimetry format and pixel encoding in the MSA.
-		 */
-		*use_vsc_sdp_for_colorimetry = true;
 
 		/* Set VSC SDP fields for pixel encoding and colorimetry format from DP 1.3 specs
 		 * Data Bytes DB 18~16

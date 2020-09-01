@@ -138,6 +138,25 @@ static void otx2_set_rxhash(struct otx2_nic *pfvf,
 	skb_set_hash(skb, hash, hash_type);
 }
 
+static void otx2_free_rcv_seg(struct otx2_nic *pfvf, struct nix_cqe_rx_s *cqe,
+			      int qidx)
+{
+	struct nix_rx_sg_s *sg = &cqe->sg;
+	void *end, *start;
+	u64 *seg_addr;
+	int seg;
+
+	start = (void *)sg;
+	end = start + ((cqe->parse.desc_sizem1 + 1) * 16);
+	while (start < end) {
+		sg = (struct nix_rx_sg_s *)start;
+		seg_addr = &sg->seg_addr;
+		for (seg = 0; seg < sg->segs; seg++, seg_addr++)
+			otx2_aura_freeptr(pfvf, qidx, *seg_addr & ~0x07ULL);
+		start += sizeof(*sg);
+	}
+}
+
 static bool otx2_check_rcv_errors(struct otx2_nic *pfvf,
 				  struct nix_cqe_rx_s *cqe, int qidx)
 {
@@ -189,16 +208,17 @@ static bool otx2_check_rcv_errors(struct otx2_nic *pfvf,
 		/* For now ignore all the NPC parser errors and
 		 * pass the packets to stack.
 		 */
-		return false;
+		if (cqe->sg.segs == 1)
+			return false;
 	}
 
 	/* If RXALL is enabled pass on packets to stack. */
-	if (cqe->sg.segs && (pfvf->netdev->features & NETIF_F_RXALL))
+	if (cqe->sg.segs == 1 && (pfvf->netdev->features & NETIF_F_RXALL))
 		return false;
 
 	/* Free buffer back to pool */
 	if (cqe->sg.segs)
-		otx2_aura_freeptr(pfvf, qidx, cqe->sg.seg_addr & ~0x07ULL);
+		otx2_free_rcv_seg(pfvf, cqe, qidx);
 	return true;
 }
 
@@ -210,7 +230,7 @@ static void otx2_rcv_pkt_handler(struct otx2_nic *pfvf,
 	struct nix_rx_parse_s *parse = &cqe->parse;
 	struct sk_buff *skb = NULL;
 
-	if (unlikely(parse->errlev || parse->errcode)) {
+	if (unlikely(parse->errlev || parse->errcode || cqe->sg.segs > 1)) {
 		if (otx2_check_rcv_errors(pfvf, cqe, cq->cq_idx))
 			return;
 	}
@@ -266,7 +286,7 @@ static int otx2_rx_napi_handler(struct otx2_nic *pfvf,
 
 	/* Refill pool with new buffers */
 	while (cq->pool_ptrs) {
-		bufptr = otx2_alloc_rbuf(pfvf, cq->rbpool, GFP_ATOMIC);
+		bufptr = __otx2_alloc_rbuf(pfvf, cq->rbpool);
 		if (unlikely(bufptr <= 0)) {
 			struct refill_work *work;
 			struct delayed_work *dwork;
@@ -599,12 +619,13 @@ static void otx2_sq_append_tso(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 			       struct sk_buff *skb, u16 qidx)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(pfvf->netdev, qidx);
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
-	int tcp_data, seg_len, pkt_len, offset;
+	int hdr_len, tcp_data, seg_len, pkt_len, offset;
 	struct nix_sqe_hdr_s *sqe_hdr;
 	int first_sqe = sq->head;
 	struct sg_list list;
 	struct tso_t tso;
+
+	hdr_len = tso_start(skb, &tso);
 
 	/* Map SKB's fragments to DMA.
 	 * It's done here to avoid mapping for every TSO segment's packet.
@@ -616,7 +637,6 @@ static void otx2_sq_append_tso(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 
 	netdev_tx_sent_queue(txq, skb->len);
 
-	tso_start(skb, &tso);
 	tcp_data = skb->len - hdr_len;
 	while (tcp_data > 0) {
 		char *hdr;
@@ -778,6 +798,7 @@ bool otx2_sq_append_skb(struct net_device *netdev, struct otx2_snd_queue *sq,
 
 	return true;
 }
+EXPORT_SYMBOL(otx2_sq_append_skb);
 
 void otx2_cleanup_rx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq)
 {
@@ -788,11 +809,15 @@ void otx2_cleanup_rx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq)
 	while ((cqe = (struct nix_cqe_rx_s *)otx2_get_next_cqe(cq))) {
 		if (!cqe->sg.subdc)
 			continue;
+		processed_cqe++;
+		if (cqe->sg.segs > 1) {
+			otx2_free_rcv_seg(pfvf, cqe, cq->cq_idx);
+			continue;
+		}
 		iova = cqe->sg.seg_addr - OTX2_HEAD_ROOM;
 		pa = otx2_iova_to_phys(pfvf->iommu_domain, iova);
 		otx2_dma_unmap_page(pfvf, iova, pfvf->rbsize, DMA_FROM_DEVICE);
 		put_page(virt_to_page(phys_to_virt(pa)));
-		processed_cqe++;
 	}
 
 	/* Free CQEs to HW */
@@ -831,18 +856,18 @@ int otx2_rxtx_enable(struct otx2_nic *pfvf, bool enable)
 	struct msg_req *msg;
 	int err;
 
-	otx2_mbox_lock(&pfvf->mbox);
+	mutex_lock(&pfvf->mbox.lock);
 	if (enable)
 		msg = otx2_mbox_alloc_msg_nix_lf_start_rx(&pfvf->mbox);
 	else
 		msg = otx2_mbox_alloc_msg_nix_lf_stop_rx(&pfvf->mbox);
 
 	if (!msg) {
-		otx2_mbox_unlock(&pfvf->mbox);
+		mutex_unlock(&pfvf->mbox.lock);
 		return -ENOMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
-	otx2_mbox_unlock(&pfvf->mbox);
+	mutex_unlock(&pfvf->mbox.lock);
 	return err;
 }

@@ -854,7 +854,8 @@ unmap_page:
 static int scsiback_map(struct vscsibk_info *info)
 {
 	struct xenbus_device *dev = info->dev;
-	unsigned int ring_ref, evtchn;
+	unsigned int ring_ref;
+	evtchn_port_t evtchn;
 	int err;
 
 	err = xenbus_gather(XBT_NIL, dev->otherend,
@@ -1184,7 +1185,7 @@ static void scsiback_frontend_changed(struct xenbus_device *dev,
 		xenbus_switch_state(dev, XenbusStateClosed);
 		if (xenbus_dev_is_online(dev))
 			break;
-		/* fall through - if not online */
+		fallthrough;	/* if not online */
 	case XenbusStateUnknown:
 		device_unregister(&dev->dev);
 		break;

@@ -68,7 +68,7 @@ static int TSS_sha1(const unsigned char *data, unsigned int datalen,
 	}
 
 	ret = crypto_shash_digest(&sdesc->shash, data, datalen, digest);
-	kzfree(sdesc);
+	kfree_sensitive(sdesc);
 	return ret;
 }
 
@@ -112,7 +112,7 @@ static int TSS_rawhmac(unsigned char *digest, const unsigned char *key,
 	if (!ret)
 		ret = crypto_shash_final(&sdesc->shash, digest);
 out:
-	kzfree(sdesc);
+	kfree_sensitive(sdesc);
 	return ret;
 }
 
@@ -166,7 +166,7 @@ int TSS_authhmac(unsigned char *digest, const unsigned char *key,
 				  paramdigest, TPM_NONCE_SIZE, h1,
 				  TPM_NONCE_SIZE, h2, 1, &c, 0, 0);
 out:
-	kzfree(sdesc);
+	kfree_sensitive(sdesc);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(TSS_authhmac);
@@ -251,7 +251,7 @@ int TSS_checkhmac1(unsigned char *buffer,
 	if (memcmp(testhmac, authdata, SHA1_DIGEST_SIZE))
 		ret = -EINVAL;
 out:
-	kzfree(sdesc);
+	kfree_sensitive(sdesc);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(TSS_checkhmac1);
@@ -353,7 +353,7 @@ static int TSS_checkhmac2(unsigned char *buffer,
 	if (memcmp(testhmac2, authdata2, SHA1_DIGEST_SIZE))
 		ret = -EINVAL;
 out:
-	kzfree(sdesc);
+	kfree_sensitive(sdesc);
 	return ret;
 }
 
@@ -563,7 +563,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 		*bloblen = storedsize;
 	}
 out:
-	kzfree(td);
+	kfree_sensitive(td);
 	return ret;
 }
 
@@ -1031,12 +1031,12 @@ static int trusted_instantiate(struct key *key,
 	if (!ret && options->pcrlock)
 		ret = pcrlock(options->pcrlock);
 out:
-	kzfree(datablob);
-	kzfree(options);
+	kfree_sensitive(datablob);
+	kfree_sensitive(options);
 	if (!ret)
 		rcu_assign_keypointer(key, payload);
 	else
-		kzfree(payload);
+		kfree_sensitive(payload);
 	return ret;
 }
 
@@ -1045,7 +1045,7 @@ static void trusted_rcu_free(struct rcu_head *rcu)
 	struct trusted_key_payload *p;
 
 	p = container_of(rcu, struct trusted_key_payload, rcu);
-	kzfree(p);
+	kfree_sensitive(p);
 }
 
 /*
@@ -1087,13 +1087,13 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	ret = datablob_parse(datablob, new_p, new_o);
 	if (ret != Opt_update) {
 		ret = -EINVAL;
-		kzfree(new_p);
+		kfree_sensitive(new_p);
 		goto out;
 	}
 
 	if (!new_o->keyhandle) {
 		ret = -EINVAL;
-		kzfree(new_p);
+		kfree_sensitive(new_p);
 		goto out;
 	}
 
@@ -1107,22 +1107,22 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	ret = key_seal(new_p, new_o);
 	if (ret < 0) {
 		pr_info("trusted_key: key_seal failed (%d)\n", ret);
-		kzfree(new_p);
+		kfree_sensitive(new_p);
 		goto out;
 	}
 	if (new_o->pcrlock) {
 		ret = pcrlock(new_o->pcrlock);
 		if (ret < 0) {
 			pr_info("trusted_key: pcrlock failed (%d)\n", ret);
-			kzfree(new_p);
+			kfree_sensitive(new_p);
 			goto out;
 		}
 	}
 	rcu_assign_keypointer(key, new_p);
 	call_rcu(&p->rcu, trusted_rcu_free);
 out:
-	kzfree(datablob);
-	kzfree(new_o);
+	kfree_sensitive(datablob);
+	kfree_sensitive(new_o);
 	return ret;
 }
 
@@ -1130,11 +1130,10 @@ out:
  * trusted_read - copy the sealed blob data to userspace in hex.
  * On success, return to userspace the trusted key datablob size.
  */
-static long trusted_read(const struct key *key, char __user *buffer,
+static long trusted_read(const struct key *key, char *buffer,
 			 size_t buflen)
 {
 	const struct trusted_key_payload *p;
-	char *ascii_buf;
 	char *bufp;
 	int i;
 
@@ -1143,18 +1142,9 @@ static long trusted_read(const struct key *key, char __user *buffer,
 		return -EINVAL;
 
 	if (buffer && buflen >= 2 * p->blob_len) {
-		ascii_buf = kmalloc_array(2, p->blob_len, GFP_KERNEL);
-		if (!ascii_buf)
-			return -ENOMEM;
-
-		bufp = ascii_buf;
+		bufp = buffer;
 		for (i = 0; i < p->blob_len; i++)
 			bufp = hex_byte_pack(bufp, p->blob[i]);
-		if (copy_to_user(buffer, ascii_buf, 2 * p->blob_len) != 0) {
-			kzfree(ascii_buf);
-			return -EFAULT;
-		}
-		kzfree(ascii_buf);
 	}
 	return 2 * p->blob_len;
 }
@@ -1164,7 +1154,7 @@ static long trusted_read(const struct key *key, char __user *buffer,
  */
 static void trusted_destroy(struct key *key)
 {
-	kzfree(key->payload.data[0]);
+	kfree_sensitive(key->payload.data[0]);
 }
 
 struct key_type key_type_trusted = {

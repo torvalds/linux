@@ -42,7 +42,6 @@
 #include <asm/irq.h>
 #include <asm/mips-cps.h>
 #include <asm/msa.h>
-#include <asm/pgtable.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
 #include <asm/reg.h>
@@ -75,7 +74,9 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	lose_fpu(0);
 	clear_thread_flag(TIF_MSA_CTX_LIVE);
 	clear_used_math();
+#ifdef CONFIG_MIPS_FP_SUPPORT
 	atomic_set(&current->thread.bd_emu_frame, BD_EMUFRAME_NONE);
+#endif
 	init_dsp();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
@@ -118,8 +119,9 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 /*
  * Copy architecture-specific thread state
  */
-int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
-	unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
+int copy_thread(unsigned long clone_flags, unsigned long usp,
+		unsigned long kthread_arg, struct task_struct *p,
+		unsigned long tls)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs, *regs = current_pt_regs();
@@ -176,7 +178,9 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 	clear_tsk_thread_flag(p, TIF_FPUBOUND);
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 	atomic_set(&p->thread.bd_emu_frame, BD_EMUFRAME_NONE);
+#endif
 
 	if (clone_flags & CLONE_SETTLS)
 		ti->tp_value = tls;
@@ -650,8 +654,10 @@ unsigned long mips_stack_top(void)
 {
 	unsigned long top = TASK_SIZE & PAGE_MASK;
 
-	/* One page for branch delay slot "emulation" */
-	top -= PAGE_SIZE;
+	if (IS_ENABLED(CONFIG_MIPS_FP_SUPPORT)) {
+		/* One page for branch delay slot "emulation" */
+		top -= PAGE_SIZE;
+	}
 
 	/* Space for the VDSO, data page & GIC user page */
 	top -= PAGE_ALIGN(current->thread.abi->vdso->size);

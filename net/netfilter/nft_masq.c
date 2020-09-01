@@ -305,3 +305,4 @@ module_exit(nft_masq_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arturo Borrero Gonzalez <arturo@debian.org>");
 MODULE_ALIAS_NFT_EXPR("masq");
+MODULE_DESCRIPTION("Netfilter nftables masquerade expression support");

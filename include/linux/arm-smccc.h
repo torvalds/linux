@@ -5,12 +5,15 @@
 #ifndef __LINUX_ARM_SMCCC_H
 #define __LINUX_ARM_SMCCC_H
 
+#include <linux/init.h>
 #include <uapi/linux/const.h>
 
 /*
  * This file provides common defines for ARM SMC Calling Convention as
  * specified in
- * http://infocenter.arm.com/help/topic/com.arm.doc.den0028a/index.html
+ * https://developer.arm.com/docs/den0028/latest
+ *
+ * This code is up-to-date with version DEN 0028 C
  */
 
 #define ARM_SMCCC_STD_CALL	        _AC(0,U)
@@ -56,6 +59,7 @@
 
 #define ARM_SMCCC_VERSION_1_0		0x10000
 #define ARM_SMCCC_VERSION_1_1		0x10001
+#define ARM_SMCCC_VERSION_1_2		0x10002
 
 #define ARM_SMCCC_VERSION_FUNC_ID					\
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
@@ -67,6 +71,11 @@
 			   ARM_SMCCC_SMC_32,				\
 			   0, 1)
 
+#define ARM_SMCCC_ARCH_SOC_ID						\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
+			   ARM_SMCCC_SMC_32,				\
+			   0, 2)
+
 #define ARM_SMCCC_ARCH_WORKAROUND_1					\
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
 			   ARM_SMCCC_SMC_32,				\
@@ -76,6 +85,28 @@
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
 			   ARM_SMCCC_SMC_32,				\
 			   0, 0x7fff)
+
+/* Paravirtualised time calls (defined by ARM DEN0057A) */
+#define ARM_SMCCC_HV_PV_TIME_FEATURES				\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,			\
+			   ARM_SMCCC_SMC_64,			\
+			   ARM_SMCCC_OWNER_STANDARD_HYP,	\
+			   0x20)
+
+#define ARM_SMCCC_HV_PV_TIME_ST					\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,			\
+			   ARM_SMCCC_SMC_64,			\
+			   ARM_SMCCC_OWNER_STANDARD_HYP,	\
+			   0x21)
+
+/*
+ * Return codes defined in ARM DEN 0070A
+ * ARM DEN 0070A is now merged/consolidated into ARM DEN 0028 C
+ */
+#define SMCCC_RET_SUCCESS			0
+#define SMCCC_RET_NOT_SUPPORTED			-1
+#define SMCCC_RET_NOT_REQUIRED			-2
+#define SMCCC_RET_INVALID_PARAMETER		-3
 
 #ifndef __ASSEMBLY__
 
@@ -96,6 +127,19 @@ enum arm_smccc_conduit {
  * When SMCCCv1.1 is not present, returns SMCCC_CONDUIT_NONE.
  */
 enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void);
+
+/**
+ * arm_smccc_get_version()
+ *
+ * Returns the version to be used for SMCCCv1.1 or later.
+ *
+ * When SMCCCv1.1 or above is not present, returns SMCCCv1.0, but this
+ * does not imply the presence of firmware or a valid conduit. Caller
+ * handling SMCCCv1.0 must determine the conduit by other means.
+ */
+u32 arm_smccc_get_version(void);
+
+void __init arm_smccc_version_init(u32 version, enum arm_smccc_conduit conduit);
 
 /**
  * struct arm_smccc_res - Result from SMC/HVC call
@@ -314,11 +358,6 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
  */
 #define arm_smccc_1_1_hvc(...)	__arm_smccc_1_1(SMCCC_HVC_INST, __VA_ARGS__)
 
-/* Return codes defined in ARM DEN 0070A */
-#define SMCCC_RET_SUCCESS			0
-#define SMCCC_RET_NOT_SUPPORTED			-1
-#define SMCCC_RET_NOT_REQUIRED			-2
-
 /*
  * Like arm_smccc_1_1* but always returns SMCCC_RET_NOT_SUPPORTED.
  * Used when the SMCCC conduit is not defined. The empty asm statement
@@ -363,19 +402,6 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 		}							\
 		method;							\
 	})
-
-/* Paravirtualised time calls (defined by ARM DEN0057A) */
-#define ARM_SMCCC_HV_PV_TIME_FEATURES				\
-	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,			\
-			   ARM_SMCCC_SMC_64,			\
-			   ARM_SMCCC_OWNER_STANDARD_HYP,	\
-			   0x20)
-
-#define ARM_SMCCC_HV_PV_TIME_ST					\
-	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,			\
-			   ARM_SMCCC_SMC_64,			\
-			   ARM_SMCCC_OWNER_STANDARD_HYP,	\
-			   0x21)
 
 #endif /*__ASSEMBLY__*/
 #endif /*__LINUX_ARM_SMCCC_H*/

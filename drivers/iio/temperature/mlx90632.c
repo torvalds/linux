@@ -164,8 +164,8 @@ static s32 mlx90632_pwr_continuous(struct regmap *regmap)
 }
 
 /**
- * mlx90632_perform_measurement - Trigger and retrieve current measurement cycle
- * @*data: pointer to mlx90632_data object containing regmap information
+ * mlx90632_perform_measurement() - Trigger and retrieve current measurement cycle
+ * @data: pointer to mlx90632_data object containing regmap information
  *
  * Perform a measurement and return latest measurement cycle position reported
  * by sensor. This is a blocking function for 500ms, as that is default sensor
@@ -645,7 +645,6 @@ static int mlx90632_probe(struct i2c_client *client,
 	mlx90632->regmap = regmap;
 
 	mutex_init(&mlx90632->lock);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mlx90632_info;

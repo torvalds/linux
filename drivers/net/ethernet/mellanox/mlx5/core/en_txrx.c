@@ -32,6 +32,7 @@
 
 #include <linux/irq.h>
 #include "en.h"
+#include "en/txrx.h"
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
 #include "en/xsk/tx.h"
@@ -77,7 +78,11 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 	struct mlx5e_tx_wqe *nopwqe;
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
-	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
+	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
+		.wqe_type   = MLX5E_ICOSQ_WQE_NOP,
+		.num_wqebbs = 1,
+	};
+
 	nopwqe = mlx5e_post_nop(wq, sq->sqn, &sq->pc);
 	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
 }
@@ -99,7 +104,10 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskr
 	busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
 	mlx5e_xsk_update_tx_wakeup(xsksq);
 
-	xsk_rx_alloc_err = xskrq->post_wqes(xskrq);
+	xsk_rx_alloc_err = INDIRECT_CALL_2(xskrq->post_wqes,
+					   mlx5e_post_rx_mpwqes,
+					   mlx5e_post_rx_wqes,
+					   xskrq);
 	busy_xsk |= mlx5e_xsk_update_rx_wakeup(xskrq, xsk_rx_alloc_err);
 
 	return busy_xsk;
@@ -141,10 +149,17 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	mlx5e_poll_ico_cq(&c->icosq.cq);
+	if (mlx5e_poll_ico_cq(&c->async_icosq.cq))
+		/* Don't clear the flag if nothing was polled to prevent
+		 * queueing more WQEs and overflowing the async ICOSQ.
+		 */
+		clear_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->async_icosq.state);
 
-	busy |= rq->post_wqes(rq);
+	busy |= INDIRECT_CALL_2(rq->post_wqes,
+				mlx5e_post_rx_mpwqes,
+				mlx5e_post_rx_wqes,
+				rq);
 	if (xsk_open) {
-		mlx5e_poll_ico_cq(&c->xskicosq.cq);
 		busy |= mlx5e_poll_xdpsq_cq(&xsksq->cq);
 		busy_xsk |= mlx5e_napi_xsk_post(xsksq, xskrq);
 	}
@@ -174,11 +189,11 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	mlx5e_cq_arm(&rq->cq);
 	mlx5e_cq_arm(&c->icosq.cq);
+	mlx5e_cq_arm(&c->async_icosq.cq);
 	mlx5e_cq_arm(&c->xdpsq.cq);
 
 	if (xsk_open) {
 		mlx5e_handle_rx_dim(xskrq);
-		mlx5e_cq_arm(&c->xskicosq.cq);
 		mlx5e_cq_arm(&xsksq->cq);
 		mlx5e_cq_arm(&xskrq->cq);
 	}

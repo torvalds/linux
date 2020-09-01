@@ -1165,7 +1165,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				break;
 			}
 			fw_flags |= FW_RI_RDMA_WRITE_WITH_IMMEDIATE;
-			/*FALLTHROUGH*/
+			fallthrough;
 		case IB_WR_RDMA_WRITE:
 			fw_opcode = FW_RI_RDMA_WRITE_WR;
 			swsqe->opcode = FW_RI_RDMA_WRITE;
@@ -2127,7 +2127,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	pr_debug("ib_pd %p\n", pd);
 
 	if (attrs->qp_type != IB_QPT_RC)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;

@@ -32,6 +32,8 @@
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
 
+#include <trace/events/qdisc.h>
+
 /*
 
    Short review.
@@ -265,7 +267,8 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 	    root->handle == handle)
 		return root;
 
-	hash_for_each_possible_rcu(qdisc_dev(root)->qdisc_hash, q, hash, handle) {
+	hash_for_each_possible_rcu(qdisc_dev(root)->qdisc_hash, q, hash, handle,
+				   lockdep_rtnl_is_held()) {
 		if (q->handle == handle)
 			return q;
 	}
@@ -618,21 +621,28 @@ void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_watchdog_init);
 
-void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires)
+void qdisc_watchdog_schedule_range_ns(struct qdisc_watchdog *wd, u64 expires,
+				      u64 delta_ns)
 {
 	if (test_bit(__QDISC_STATE_DEACTIVATED,
 		     &qdisc_root_sleeping(wd->qdisc)->state))
 		return;
 
-	if (wd->last_expires == expires)
-		return;
+	if (hrtimer_is_queued(&wd->timer)) {
+		/* If timer is already set in [expires, expires + delta_ns],
+		 * do not reprogram it.
+		 */
+		if (wd->last_expires - expires <= delta_ns)
+			return;
+	}
 
 	wd->last_expires = expires;
-	hrtimer_start(&wd->timer,
-		      ns_to_ktime(expires),
-		      HRTIMER_MODE_ABS_PINNED);
+	hrtimer_start_range_ns(&wd->timer,
+			       ns_to_ktime(expires),
+			       delta_ns,
+			       HRTIMER_MODE_ABS_PINNED);
 }
-EXPORT_SYMBOL(qdisc_watchdog_schedule_ns);
+EXPORT_SYMBOL(qdisc_watchdog_schedule_range_ns);
 
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 {
@@ -1084,8 +1094,7 @@ skip:
 		int err;
 
 		/* Only support running class lockless if parent is lockless */
-		if (new && (new->flags & TCQ_F_NOLOCK) &&
-		    parent && !(parent->flags & TCQ_F_NOLOCK))
+		if (new && (new->flags & TCQ_F_NOLOCK) && !(parent->flags & TCQ_F_NOLOCK))
 			qdisc_clear_nolock(new);
 
 		if (!cops || !cops->graft)
@@ -1276,6 +1285,7 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 	}
 
 	qdisc_hash_add(sch, false);
+	trace_qdisc_create(ops, dev, parent);
 
 	return sch;
 

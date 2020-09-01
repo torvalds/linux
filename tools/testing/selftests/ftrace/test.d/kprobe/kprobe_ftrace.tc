@@ -1,9 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Kprobe dynamic event with function tracer
-
-[ -f kprobe_events ] || exit_unsupported # this is configurable
-grep "function" available_tracers || exit_unsupported # this is configurable
+# requires: kprobe_events stack_trace_filter function:tracer
 
 # prepare
 echo nop > current_tracer

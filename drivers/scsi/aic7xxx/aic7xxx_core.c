@@ -1834,21 +1834,6 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				printerror = 0;
 			} else if (ahc_sent_msg(ahc, AHCMSG_1B,
 						MSG_BUS_DEV_RESET, TRUE)) {
-#ifdef __FreeBSD__
-				/*
-				 * Don't mark the user's request for this BDR
-				 * as completing with CAM_BDR_SENT.  CAM3
-				 * specifies CAM_REQ_CMP.
-				 */
-				if (scb != NULL
-				 && scb->io_ctx->ccb_h.func_code== XPT_RESET_DEV
-				 && ahc_match_scb(ahc, scb, target, channel,
-						  CAM_LUN_WILDCARD,
-						  SCB_LIST_NULL,
-						  ROLE_INITIATOR)) {
-					ahc_set_transaction_status(scb, CAM_REQ_CMP);
-				}
-#endif
 				ahc_compile_devinfo(&devinfo,
 						    initiator_role_id,
 						    target,
@@ -2193,8 +2178,7 @@ ahc_free_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel, int force)
 	if (channel == 'B')
 		scsi_id += 8;
 	tstate = ahc->enabled_targets[scsi_id];
-	if (tstate != NULL)
-		kfree(tstate);
+	kfree(tstate);
 	ahc->enabled_targets[scsi_id] = NULL;
 }
 #endif
@@ -2420,7 +2404,7 @@ ahc_validate_width(struct ahc_softc *ahc, struct ahc_initiator_tinfo *tinfo,
 			*bus_width = MSG_EXT_WDTR_BUS_16_BIT;
 			break;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case MSG_EXT_WDTR_BUS_8_BIT:
 		*bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 		break;
@@ -3615,7 +3599,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		break;
 	case MSG_MESSAGE_REJECT:
 		response = ahc_handle_msg_reject(ahc, devinfo);
-		/* FALLTHROUGH */
+		fallthrough;
 	case MSG_NOOP:
 		done = MSGLOOP_MSGCOMPLETE;
 		break;
@@ -4399,22 +4383,16 @@ ahc_alloc(void *platform_arg, char *name)
 	struct  ahc_softc *ahc;
 	int	i;
 
-#ifndef	__FreeBSD__
-	ahc = kmalloc(sizeof(*ahc), GFP_ATOMIC);
+	ahc = kzalloc(sizeof(*ahc), GFP_ATOMIC);
 	if (!ahc) {
 		printk("aic7xxx: cannot malloc softc!\n");
 		kfree(name);
 		return NULL;
 	}
-#else
-	ahc = device_get_softc((device_t)platform_arg);
-#endif
-	memset(ahc, 0, sizeof(*ahc));
+
 	ahc->seep_config = kmalloc(sizeof(*ahc->seep_config), GFP_ATOMIC);
 	if (ahc->seep_config == NULL) {
-#ifndef	__FreeBSD__
 		kfree(ahc);
-#endif
 		kfree(name);
 		return (NULL);
 	}
@@ -4474,8 +4452,7 @@ ahc_set_unit(struct ahc_softc *ahc, int unit)
 void
 ahc_set_name(struct ahc_softc *ahc, char *name)
 {
-	if (ahc->name != NULL)
-		kfree(ahc->name);
+	kfree(ahc->name);
 	ahc->name = name;
 }
 
@@ -4488,17 +4465,17 @@ ahc_free(struct ahc_softc *ahc)
 	default:
 	case 5:
 		ahc_shutdown(ahc);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 4:
 		ahc_dmamap_unload(ahc, ahc->shared_data_dmat,
 				  ahc->shared_data_dmamap);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 3:
 		ahc_dmamem_free(ahc, ahc->shared_data_dmat, ahc->qoutfifo,
 				ahc->shared_data_dmamap);
 		ahc_dmamap_destroy(ahc, ahc->shared_data_dmat,
 				   ahc->shared_data_dmamap);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 2:
 		ahc_dma_tag_destroy(ahc, ahc->shared_data_dmat);
 	case 1:
@@ -4536,13 +4513,9 @@ ahc_free(struct ahc_softc *ahc)
 		kfree(ahc->black_hole);
 	}
 #endif
-	if (ahc->name != NULL)
-		kfree(ahc->name);
-	if (ahc->seep_config != NULL)
-		kfree(ahc->seep_config);
-#ifndef __FreeBSD__
+	kfree(ahc->name);
+	kfree(ahc->seep_config);
 	kfree(ahc);
-#endif
 	return;
 }
 
@@ -4920,38 +4893,37 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 		}
 		ahc_dma_tag_destroy(ahc, scb_data->sg_dmat);
 	}
-		/* fall through */
+		fallthrough;
 	case 6:
 		ahc_dmamap_unload(ahc, scb_data->sense_dmat,
 				  scb_data->sense_dmamap);
-		/* fall through */
+		fallthrough;
 	case 5:
 		ahc_dmamem_free(ahc, scb_data->sense_dmat, scb_data->sense,
 				scb_data->sense_dmamap);
 		ahc_dmamap_destroy(ahc, scb_data->sense_dmat,
 				   scb_data->sense_dmamap);
-		/* fall through */
+		fallthrough;
 	case 4:
 		ahc_dma_tag_destroy(ahc, scb_data->sense_dmat);
-		/* fall through */
+		fallthrough;
 	case 3:
 		ahc_dmamap_unload(ahc, scb_data->hscb_dmat,
 				  scb_data->hscb_dmamap);
-		/* fall through */
+		fallthrough;
 	case 2:
 		ahc_dmamem_free(ahc, scb_data->hscb_dmat, scb_data->hscbs,
 				scb_data->hscb_dmamap);
 		ahc_dmamap_destroy(ahc, scb_data->hscb_dmat,
 				   scb_data->hscb_dmamap);
-		/* fall through */
+		fallthrough;
 	case 1:
 		ahc_dma_tag_destroy(ahc, scb_data->hscb_dmat);
 		break;
 	case 0:
 		break;
 	}
-	if (scb_data->scbarray != NULL)
-		kfree(scb_data->scbarray);
+	kfree(scb_data->scbarray);
 }
 
 static void
@@ -6009,7 +5981,7 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 					printk("Inactive SCB in Waiting List\n");
 				ahc_done(ahc, scb);
 			}
-				/* fall through */
+				fallthrough;
 			case SEARCH_REMOVE:
 				next = ahc_rem_wscb(ahc, next, prev);
 				break;
@@ -7015,7 +6987,7 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 		address -= address_offset;
 		fmt3_ins->address = address;
 	}
-		/* fall through */
+		fallthrough;
 	case AIC_OP_OR:
 	case AIC_OP_AND:
 	case AIC_OP_XOR:
@@ -7041,7 +7013,7 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 			fmt1_ins->opcode = AIC_OP_AND;
 			fmt1_ins->immediate = 0xff;
 		}
-		/* fall through */
+		fallthrough;
 	case AIC_OP_ROL:
 		if ((ahc->features & AHC_ULTRA2) != 0) {
 			int i, count;

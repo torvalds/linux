@@ -35,16 +35,16 @@ const char *ucsi_cmd_str(u64 raw_cmd)
 
 const char *ucsi_cci_str(u32 cci)
 {
-	if (cci & GENMASK(7, 0)) {
-		if (cci & BIT(29))
+	if (UCSI_CCI_CONNECTOR(cci)) {
+		if (cci & UCSI_CCI_ACK_COMPLETE)
 			return "Event pending (ACK completed)";
-		if (cci & BIT(31))
+		if (cci & UCSI_CCI_COMMAND_COMPLETE)
 			return "Event pending (command completed)";
 		return "Connector Change";
 	}
-	if (cci & BIT(29))
+	if (cci & UCSI_CCI_ACK_COMPLETE)
 		return "ACK completed";
-	if (cci & BIT(31))
+	if (cci & UCSI_CCI_COMMAND_COMPLETE)
 		return "Command completed";
 
 	return "";

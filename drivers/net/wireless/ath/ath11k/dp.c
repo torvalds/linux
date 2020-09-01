@@ -3,6 +3,7 @@
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
 
+#include <crypto/hash.h>
 #include "core.h"
 #include "dp_tx.h"
 #include "hal_tx.h"
@@ -33,14 +34,16 @@ void ath11k_dp_peer_cleanup(struct ath11k *ar, int vdev_id, const u8 *addr)
 	}
 
 	ath11k_peer_rx_tid_cleanup(ar, peer);
+	crypto_free_shash(peer->tfm_mmic);
 	spin_unlock_bh(&ab->base_lock);
 }
 
 int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr)
 {
 	struct ath11k_base *ab = ar->ab;
+	struct ath11k_peer *peer;
 	u32 reo_dest;
-	int ret;
+	int ret = 0, tid;
 
 	/* NOTE: reo_dest ring id starts from 1 unlike mac_id which starts from 0 */
 	reo_dest = ar->dp.mac_id + 1;
@@ -54,24 +57,42 @@ int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr)
 		return ret;
 	}
 
-	ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id,
-				       HAL_DESC_REO_NON_QOS_TID, 1, 0);
-	if (ret) {
-		ath11k_warn(ab, "failed to setup rxd tid queue for non-qos tid %d\n",
-			    ret);
-		return ret;
+	for (tid = 0; tid <= IEEE80211_NUM_TIDS; tid++) {
+		ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id, tid, 1, 0,
+					       HAL_PN_TYPE_NONE);
+		if (ret) {
+			ath11k_warn(ab, "failed to setup rxd tid queue for tid %d: %d\n",
+				    tid, ret);
+			goto peer_clean;
+		}
 	}
 
-	ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id, 0, 1, 0);
+	ret = ath11k_peer_rx_frag_setup(ar, addr, vdev_id);
 	if (ret) {
-		ath11k_warn(ab, "failed to setup rxd tid queue for tid 0 %d\n",
-			    ret);
+		ath11k_warn(ab, "failed to setup rx defrag context\n");
 		return ret;
 	}
 
 	/* TODO: Setup other peer specific resource used in data path */
 
 	return 0;
+
+peer_clean:
+	spin_lock_bh(&ab->base_lock);
+
+	peer = ath11k_peer_find(ab, vdev_id, addr);
+	if (!peer) {
+		ath11k_warn(ab, "failed to find the peer to del rx tid\n");
+		spin_unlock_bh(&ab->base_lock);
+		return -ENOENT;
+	}
+
+	for (; tid >= 0; tid--)
+		ath11k_peer_rx_tid_delete(ar, peer, tid);
+
+	spin_unlock_bh(&ab->base_lock);
+
+	return ret;
 }
 
 void ath11k_dp_srng_cleanup(struct ath11k_base *ab, struct dp_srng *ring)
@@ -151,10 +172,11 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 	case HAL_RXDMA_DST:
 	case HAL_RXDMA_MONITOR_DST:
 	case HAL_RXDMA_MONITOR_DESC:
-	case HAL_RXDMA_DIR_BUF:
 		params.intr_batch_cntr_thres_entries =
 					HAL_SRNG_INT_BATCH_THRESHOLD_OTHER;
 		params.intr_timer_thres_us = HAL_SRNG_INT_TIMER_THRESHOLD_OTHER;
+		break;
+	case HAL_RXDMA_DIR_BUF:
 		break;
 	default:
 		ath11k_warn(ab, "Not a valid ring type in dp :%d\n", type);
@@ -197,6 +219,7 @@ static int ath11k_dp_srng_common_setup(struct ath11k_base *ab)
 	struct ath11k_dp *dp = &ab->dp;
 	struct hal_srng *srng;
 	int i, ret;
+	u32 ring_hash_map;
 
 	ret = ath11k_dp_srng_setup(ab, &dp->wbm_desc_rel_ring,
 				   HAL_SW2WBM_RELEASE, 0, 0,
@@ -284,7 +307,21 @@ static int ath11k_dp_srng_common_setup(struct ath11k_base *ab)
 		goto err;
 	}
 
-	ath11k_hal_reo_hw_setup(ab);
+	/* When hash based routing of rx packet is enabled, 32 entries to map
+	 * the hash values to the ring will be configured. Each hash entry uses
+	 * three bits to map to a particular ring. The ring mapping will be
+	 * 0:TCL, 1:SW1, 2:SW2, 3:SW3, 4:SW4, 5:Release, 6:FW and 7:Not used.
+	 */
+	ring_hash_map = HAL_HASH_ROUTING_RING_SW1 << 0 |
+			HAL_HASH_ROUTING_RING_SW2 << 3 |
+			HAL_HASH_ROUTING_RING_SW3 << 6 |
+			HAL_HASH_ROUTING_RING_SW4 << 9 |
+			HAL_HASH_ROUTING_RING_SW1 << 12 |
+			HAL_HASH_ROUTING_RING_SW2 << 15 |
+			HAL_HASH_ROUTING_RING_SW3 << 18 |
+			HAL_HASH_ROUTING_RING_SW4 << 21;
+
+	ath11k_hal_reo_hw_setup(ab, ring_hash_map);
 
 	return 0;
 
@@ -614,17 +651,13 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 	}
 
 	if (ath11k_rx_ring_mask[grp_id]) {
-		for (i = 0; i <  ab->num_radios; i++) {
-			if (ath11k_rx_ring_mask[grp_id] & BIT(i)) {
-				work_done = ath11k_dp_process_rx(ab, i, napi,
-								 &irq_grp->pending_q,
-								 budget);
-				budget -= work_done;
-				tot_work_done += work_done;
-			}
-			if (budget <= 0)
-				goto done;
-		}
+		i =  fls(ath11k_rx_ring_mask[grp_id]) - 1;
+		work_done = ath11k_dp_process_rx(ab, i, napi,
+						 budget);
+		budget -= work_done;
+		tot_work_done += work_done;
+		if (budget <= 0)
+			goto done;
 	}
 
 	if (rx_mon_status_ring_mask[grp_id]) {
@@ -669,6 +702,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 done:
 	return tot_work_done;
 }
+EXPORT_SYMBOL(ath11k_dp_service_srng);
 
 void ath11k_dp_pdev_free(struct ath11k_base *ab)
 {
@@ -848,6 +882,8 @@ int ath11k_dp_alloc(struct ath11k_base *ab)
 	INIT_LIST_HEAD(&dp->reo_cmd_cache_flush_list);
 	spin_lock_init(&dp->reo_cmd_lock);
 
+	dp->reo_cmd_cache_flush_count = 0;
+
 	ret = ath11k_wbm_idle_ring_setup(ab, &n_link_desc);
 	if (ret) {
 		ath11k_warn(ab, "failed to setup wbm_idle_ring: %d\n", ret);
@@ -877,8 +913,10 @@ int ath11k_dp_alloc(struct ath11k_base *ab)
 		dp->tx_ring[i].tx_status_head = 0;
 		dp->tx_ring[i].tx_status_tail = DP_TX_COMP_RING_SIZE - 1;
 		dp->tx_ring[i].tx_status = kmalloc(size, GFP_KERNEL);
-		if (!dp->tx_ring[i].tx_status)
+		if (!dp->tx_ring[i].tx_status) {
+			ret = -ENOMEM;
 			goto fail_cmn_srng_cleanup;
+		}
 	}
 
 	for (i = 0; i < HAL_DSCP_TID_MAP_TBL_NUM_ENTRIES_MAX; i++)

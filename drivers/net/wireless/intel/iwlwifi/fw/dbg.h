@@ -98,17 +98,6 @@ struct iwl_fw_dbg_params {
 
 extern const struct iwl_fw_dump_desc iwl_dump_desc_assert;
 
-static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
-{
-	if (fwrt->dump.desc != &iwl_dump_desc_assert)
-		kfree(fwrt->dump.desc);
-	fwrt->dump.desc = NULL;
-	fwrt->dump.lmac_err_id[0] = 0;
-	if (fwrt->smem_cfg.num_lmacs > 1)
-		fwrt->dump.lmac_err_id[1] = 0;
-	fwrt->dump.umac_err_id = 0;
-}
-
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
 			    bool monitor_only, unsigned int delay);
@@ -239,9 +228,9 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 	_iwl_fw_dbg_trigger_simple_stop((fwrt), (wdev),		\
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
-int iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
-				      struct iwl_fw_dbg_params *params,
-				      bool stop);
+void iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
+				       struct iwl_fw_dbg_params *params,
+				       bool stop);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // TI LM3532 LED driver
-// Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
-// http://www.ti.com/lit/ds/symlink/lm3532.pdf
+// Copyright (C) 2019 Texas Instruments Incorporated - https://www.ti.com/
+// https://www.ti.com/lit/ds/symlink/lm3532.pdf
 
 #include <linux/i2c.h>
 #include <linux/leds.h>
@@ -140,7 +140,7 @@ struct lm3532_led {
 	int ctrl_brt_pointer;
 	int num_leds;
 	int full_scale_current;
-	int enabled:1;
+	unsigned int enabled:1;
 	u32 led_strings[LM3532_MAX_CONTROL_BANKS];
 	char label[LED_MAX_NAME_SIZE];
 };

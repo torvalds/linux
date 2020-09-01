@@ -12,10 +12,15 @@
 #ifndef _LEDS_LP55XX_H
 #define _LEDS_LP55XX_H
 
+#include <linux/gpio/consumer.h>
+#include <linux/led-class-multicolor.h>
+
 /* Clock configuration */
 #define LP55XX_CLOCK_AUTO	0
 #define LP55XX_CLOCK_INT	1
 #define LP55XX_CLOCK_EXT	2
+
+#define LP55XX_MAX_GROUPED_CHAN	4
 
 struct lp55xx_led_config {
 	const char *name;
@@ -23,6 +28,10 @@ struct lp55xx_led_config {
 	u8 chan_nr;
 	u8 led_current; /* mA x10, 0 if led is not connected */
 	u8 max_current;
+	int num_colors;
+	unsigned int max_channel;
+	int color_id[LED_COLOR_ID_MAX];
+	int output_num[LED_COLOR_ID_MAX];
 };
 
 struct lp55xx_predef_pattern {
@@ -49,7 +58,7 @@ enum lp8501_pwr_sel {
  * @clock_mode        : Input clock mode. LP55XX_CLOCK_AUTO or _INT or _EXT
  * @setup_resources   : Platform specific function before enabling the chip
  * @release_resources : Platform specific function after  disabling the chip
- * @enable            : EN pin control by platform side
+ * @enable_gpiod      : enable GPIO descriptor
  * @patterns          : Predefined pattern data for RGB channels
  * @num_patterns      : Number of patterns
  * @update_config     : Value of CONFIG register
@@ -65,7 +74,7 @@ struct lp55xx_platform_data {
 	u8 clock_mode;
 
 	/* optional enable GPIO */
-	int enable_gpio;
+	struct gpio_desc *enable_gpiod;
 
 	/* Predefined pattern data */
 	struct lp55xx_predef_pattern *patterns;

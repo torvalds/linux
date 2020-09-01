@@ -752,7 +752,7 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 	switch (sensors->freq.version) {
 	case 2:
 		show_freq = occ_show_freq_2;
-		/* fall through */
+		fallthrough;
 	case 1:
 		num_attrs += (sensors->freq.num_sensors * 2);
 		break;
@@ -763,7 +763,7 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 	switch (sensors->power.version) {
 	case 2:
 		show_power = occ_show_power_2;
-		/* fall through */
+		fallthrough;
 	case 1:
 		num_attrs += (sensors->power.num_sensors * 4);
 		break;
@@ -781,7 +781,7 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 		break;
 	case 3:
 		show_caps = occ_show_caps_3;
-		/* fall through */
+		fallthrough;
 	case 2:
 		num_attrs += (sensors->caps.num_sensors * 8);
 		break;

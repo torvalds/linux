@@ -64,8 +64,6 @@ struct dm_table {
 	void *event_context;
 
 	struct dm_md_mempools *mempools;
-
-	struct list_head target_callbacks;
 };
 
 /*
@@ -190,7 +188,6 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&t->devices);
-	INIT_LIST_HEAD(&t->target_callbacks);
 
 	if (!num_targets)
 		num_targets = KEYS_PER_NODE;
@@ -279,7 +276,6 @@ static struct dm_dev_internal *find_device(struct list_head *l, dev_t dev)
 static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 				  sector_t start, sector_t len, void *data)
 {
-	struct request_queue *q;
 	struct queue_limits *limits = data;
 	struct block_device *bdev = dev->bdev;
 	sector_t dev_size =
@@ -287,22 +283,6 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 	unsigned short logical_block_size_sectors =
 		limits->logical_block_size >> SECTOR_SHIFT;
 	char b[BDEVNAME_SIZE];
-
-	/*
-	 * Some devices exist without request functions,
-	 * such as loop devices not yet bound to backing files.
-	 * Forbid the use of such devices.
-	 */
-	q = bdev_get_queue(bdev);
-	if (!q || !q->make_request_fn) {
-		DMWARN("%s: %s is not yet initialised: "
-		       "start=%llu, len=%llu, dev_size=%llu",
-		       dm_device_name(ti->table->md), bdevname(bdev, b),
-		       (unsigned long long)start,
-		       (unsigned long long)len,
-		       (unsigned long long)dev_size);
-		return 1;
-	}
 
 	if (!dev_size)
 		return 0;
@@ -378,7 +358,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
  * This upgrades the mode on an already open dm_dev, being
  * careful to leave things as they were if we fail to reopen the
  * device and not to touch the existing bdev field in case
- * it is accessed concurrently inside dm_table_any_congested().
+ * it is accessed concurrently.
  */
 static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
 			struct mapped_device *md)
@@ -478,7 +458,8 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 		return 0;
 	}
 
-	if (bdev_stack_limits(limits, bdev, start) < 0)
+	if (blk_stack_limits(limits, &q->limits,
+			get_start_sect(bdev) + start) < 0)
 		DMWARN("%s: adding target device %s caused an alignment inconsistency: "
 		       "physical_block_size=%u, logical_block_size=%u, "
 		       "alignment_offset=%u, start=%llu",
@@ -487,9 +468,6 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 		       q->limits.logical_block_size,
 		       q->limits.alignment_offset,
 		       (unsigned long long) start << SECTOR_SHIFT);
-
-	limits->zoned = blk_queue_zoned_model(q);
-
 	return 0;
 }
 
@@ -659,7 +637,7 @@ static int validate_hardware_logical_block_alignment(struct dm_table *table,
 	 */
 	unsigned short remaining = 0;
 
-	struct dm_target *uninitialized_var(ti);
+	struct dm_target *ti;
 	struct queue_limits ti_limits;
 	unsigned i;
 
@@ -1548,22 +1526,6 @@ combine_limits:
 			       dm_device_name(table->md),
 			       (unsigned long long) ti->begin,
 			       (unsigned long long) ti->len);
-
-		/*
-		 * FIXME: this should likely be moved to blk_stack_limits(), would
-		 * also eliminate limits->zoned stacking hack in dm_set_device_limits()
-		 */
-		if (limits->zoned == BLK_ZONED_NONE && ti_limits.zoned != BLK_ZONED_NONE) {
-			/*
-			 * By default, the stacked limits zoned model is set to
-			 * BLK_ZONED_NONE in blk_set_stacking_limits(). Update
-			 * this model using the first target model reported
-			 * that is not BLK_ZONED_NONE. This will be either the
-			 * first target device zoned model or the model reported
-			 * by the target .io_hints.
-			 */
-			limits->zoned = ti_limits.zoned;
-		}
 	}
 
 	/*
@@ -2067,38 +2029,6 @@ int dm_table_resume_targets(struct dm_table *t)
 	}
 
 	return 0;
-}
-
-void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callbacks *cb)
-{
-	list_add(&cb->list, &t->target_callbacks);
-}
-EXPORT_SYMBOL_GPL(dm_table_add_target_callbacks);
-
-int dm_table_any_congested(struct dm_table *t, int bdi_bits)
-{
-	struct dm_dev_internal *dd;
-	struct list_head *devices = dm_table_get_devices(t);
-	struct dm_target_callbacks *cb;
-	int r = 0;
-
-	list_for_each_entry(dd, devices, list) {
-		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
-		char b[BDEVNAME_SIZE];
-
-		if (likely(q))
-			r |= bdi_congested(q->backing_dev_info, bdi_bits);
-		else
-			DMWARN_LIMIT("%s: any_congested: nonexistent device %s",
-				     dm_device_name(t->md),
-				     bdevname(dd->dm_dev->bdev, b));
-	}
-
-	list_for_each_entry(cb, &t->target_callbacks, list)
-		if (cb->congested_fn)
-			r |= cb->congested_fn(cb, bdi_bits);
-
-	return r;
 }
 
 struct mapped_device *dm_table_get_md(struct dm_table *t)

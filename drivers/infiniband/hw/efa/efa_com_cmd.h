@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_COM_CMD_H_
@@ -127,6 +127,8 @@ struct efa_com_get_device_attr_result {
 	u16 max_sq_sge;
 	u16 max_rq_sge;
 	u16 max_wr_rdma_sge;
+	u16 max_tx_batch;
+	u16 min_sq_depth;
 	u8 db_bar;
 };
 
@@ -270,6 +272,15 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 			    struct efa_com_get_device_attr_result *result);
 int efa_com_get_hw_hints(struct efa_com_dev *edev,
 			 struct efa_com_get_hw_hints_result *result);
+bool
+efa_com_check_supported_feature_id(struct efa_com_dev *edev,
+				   enum efa_admin_aq_feature_id feature_id);
+int efa_com_set_feature_ex(struct efa_com_dev *edev,
+			   struct efa_admin_set_feature_resp *set_resp,
+			   struct efa_admin_set_feature_cmd *set_cmd,
+			   enum efa_admin_aq_feature_id feature_id,
+			   dma_addr_t control_buf_dma_addr,
+			   u32 control_buff_size);
 int efa_com_set_aenq_config(struct efa_com_dev *edev, u32 groups);
 int efa_com_alloc_pd(struct efa_com_dev *edev,
 		     struct efa_com_alloc_pd_result *result);

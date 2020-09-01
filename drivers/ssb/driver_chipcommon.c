@@ -119,7 +119,7 @@ void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 static enum ssb_clksrc chipco_pctl_get_slowclksrc(struct ssb_chipcommon *cc)
 {
 	struct ssb_bus *bus = cc->dev->bus;
-	u32 uninitialized_var(tmp);
+	u32 tmp;
 
 	if (cc->dev->id.revision < 6) {
 		if (bus->bustype == SSB_BUSTYPE_SSB ||
@@ -149,7 +149,7 @@ static enum ssb_clksrc chipco_pctl_get_slowclksrc(struct ssb_chipcommon *cc)
 /* Get maximum or minimum (depending on get_max flag) slowclock frequency. */
 static int chipco_pctl_clockfreqlimit(struct ssb_chipcommon *cc, int get_max)
 {
-	int uninitialized_var(limit);
+	int limit;
 	enum ssb_clksrc clocksrc;
 	int divisor = 1;
 	u32 tmp;
@@ -238,7 +238,7 @@ static void chipco_powercontrol_init(struct ssb_chipcommon *cc)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PmuFastPwrupDelay */
+/* https://bcm-v4.sipsolutions.net/802.11/PmuFastPwrupDelay */
 static u16 pmu_fast_powerup_delay(struct ssb_chipcommon *cc)
 {
 	struct ssb_bus *bus = cc->dev->bus;
@@ -255,7 +255,7 @@ static u16 pmu_fast_powerup_delay(struct ssb_chipcommon *cc)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/ClkctlFastPwrupDelay */
+/* https://bcm-v4.sipsolutions.net/802.11/ClkctlFastPwrupDelay */
 static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 {
 	struct ssb_bus *bus = cc->dev->bus;
@@ -425,7 +425,7 @@ void ssb_chipco_get_clockcontrol(struct ssb_chipcommon *cc,
 			*m = chipco_read32(cc, SSB_CHIPCO_CLOCK_M2);
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		*m = chipco_read32(cc, SSB_CHIPCO_CLOCK_SB);
 	}

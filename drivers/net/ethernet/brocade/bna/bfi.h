@@ -389,7 +389,7 @@ struct bfi_msgq_mhdr {
 	u16	msg_token;
 	u16	num_entries;
 	u8	enet_id;
-	u8	rsvd[1];
+	u8	rsvd;
 } __packed;
 
 #define bfi_msgq_mhdr_set(_mh, _mc, _mid, _tok, _enet_id) do {	\

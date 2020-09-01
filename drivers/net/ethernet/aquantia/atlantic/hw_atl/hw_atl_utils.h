@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_utils.h: Declaration of common functions for Atlantic hardware
@@ -225,7 +226,7 @@ struct __packed offload_info {
 	struct offload_port_info ports;
 	struct offload_ka_info kas;
 	struct offload_rr_info rrs;
-	u8 buf[0];
+	u8 buf[];
 };
 
 struct __packed hw_atl_utils_fw_rpc {
@@ -319,6 +320,32 @@ struct __packed hw_atl_utils_settings {
 	u32 media_detect;
 };
 
+enum macsec_msg_type {
+	macsec_cfg_msg = 0,
+	macsec_add_rx_sc_msg,
+	macsec_add_tx_sc_msg,
+	macsec_add_rx_sa_msg,
+	macsec_add_tx_sa_msg,
+	macsec_get_stats_msg,
+};
+
+struct __packed macsec_cfg_request {
+	u32 enabled;
+	u32 egress_threshold;
+	u32 ingress_threshold;
+	u32 interrupts_enabled;
+};
+
+struct __packed macsec_msg_fw_request {
+	u32 msg_id; /* not used */
+	u32 msg_type;
+	struct macsec_cfg_request cfg;
+};
+
+struct __packed macsec_msg_fw_response {
+	u32 result;
+};
+
 enum hw_atl_rx_action_with_traffic {
 	HW_ATL_RX_DISCARD,
 	HW_ATL_RX_HOST,
@@ -333,6 +360,8 @@ struct aq_rx_filter_vlan {
 	u16 vlan_id;
 	u8 queue;
 };
+
+#define HW_ATL_VLAN_MAX_FILTERS         16U
 
 struct aq_rx_filter_l2 {
 	s8 queue;
@@ -380,17 +409,6 @@ enum hw_atl_rx_ctrl_registers_l3l4 {
 #define HW_ATL_GET_REG_LOCATION_FL3L4(location) \
 	((location) - AQ_RX_FIRST_LOC_FL3L4)
 
-#define HAL_ATLANTIC_UTILS_CHIP_MIPS         0x00000001U
-#define HAL_ATLANTIC_UTILS_CHIP_TPO2         0x00000002U
-#define HAL_ATLANTIC_UTILS_CHIP_RPF2         0x00000004U
-#define HAL_ATLANTIC_UTILS_CHIP_MPI_AQ       0x00000010U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_A0  0x01000000U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_B0  0x02000000U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_B1  0x04000000U
-
-#define IS_CHIP_FEATURE(_F_) (HAL_ATLANTIC_UTILS_CHIP_##_F_ & \
-	self->chip_features)
-
 enum hal_atl_utils_fw_state_e {
 	MPI_DEINIT = 0,
 	MPI_RESET = 1,
@@ -401,7 +419,7 @@ enum hal_atl_utils_fw_state_e {
 #define HAL_ATLANTIC_RATE_10G        BIT(0)
 #define HAL_ATLANTIC_RATE_5G         BIT(1)
 #define HAL_ATLANTIC_RATE_5GSR       BIT(2)
-#define HAL_ATLANTIC_RATE_2GS        BIT(3)
+#define HAL_ATLANTIC_RATE_2G5        BIT(3)
 #define HAL_ATLANTIC_RATE_1G         BIT(4)
 #define HAL_ATLANTIC_RATE_100M       BIT(5)
 #define HAL_ATLANTIC_RATE_INVALID    BIT(6)
@@ -437,34 +455,43 @@ enum hw_atl_fw2x_caps_lo {
 	CAPS_LO_2P5GBASET_FD,
 	CAPS_LO_5GBASET_FD        = 10,
 	CAPS_LO_10GBASET_FD,
+	CAPS_LO_AUTONEG,
+	CAPS_LO_SMBUS_READ,
+	CAPS_LO_SMBUS_WRITE,
+	CAPS_LO_MACSEC            = 15,
+	CAPS_LO_RESERVED1,
+	CAPS_LO_WAKE_ON_LINK_FORCED,
+	CAPS_LO_HIGH_TEMP_WARNING = 29,
+	CAPS_LO_DRIVER_SCRATCHPAD = 30,
+	CAPS_LO_GLOBAL_FAULT      = 31
 };
 
 /* 0x374
  * Status register
  */
 enum hw_atl_fw2x_caps_hi {
-	CAPS_HI_RESERVED1         = 0,
+	CAPS_HI_TPO2EN            = 0,
 	CAPS_HI_10BASET_EEE,
 	CAPS_HI_RESERVED2,
 	CAPS_HI_PAUSE,
 	CAPS_HI_ASYMMETRIC_PAUSE,
 	CAPS_HI_100BASETX_EEE     = 5,
-	CAPS_HI_RESERVED3,
-	CAPS_HI_RESERVED4,
+	CAPS_HI_PHY_BUF_SEND,
+	CAPS_HI_PHY_BUF_RECV,
 	CAPS_HI_1000BASET_FD_EEE,
 	CAPS_HI_2P5GBASET_FD_EEE,
 	CAPS_HI_5GBASET_FD_EEE    = 10,
 	CAPS_HI_10GBASET_FD_EEE,
 	CAPS_HI_FW_REQUEST,
-	CAPS_HI_RESERVED6,
-	CAPS_HI_RESERVED7,
-	CAPS_HI_RESERVED8         = 15,
-	CAPS_HI_RESERVED9,
+	CAPS_HI_PHY_LOG,
+	CAPS_HI_EEE_AUTO_DISABLE_SETTINGS,
+	CAPS_HI_PFC               = 15,
+	CAPS_HI_WAKE_ON_LINK,
 	CAPS_HI_CABLE_DIAG,
 	CAPS_HI_TEMPERATURE,
 	CAPS_HI_DOWNSHIFT,
 	CAPS_HI_PTP_AVB_EN_FW2X   = 20,
-	CAPS_HI_MEDIA_DETECT,
+	CAPS_HI_THERMAL_SHUTDOWN,
 	CAPS_HI_LINK_DROP,
 	CAPS_HI_SLEEP_PROXY,
 	CAPS_HI_WOL,
@@ -587,7 +614,7 @@ int hw_atl_utils_hw_set_power(struct aq_hw_s *self,
 
 int hw_atl_utils_hw_deinit(struct aq_hw_s *self);
 
-int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version);
+u32 hw_atl_utils_get_fw_version(struct aq_hw_s *self);
 
 int hw_atl_utils_update_stats(struct aq_hw_s *self);
 
@@ -607,6 +634,8 @@ int hw_atl_utils_fw_rpc_call(struct aq_hw_s *self, unsigned int rpc_size);
 
 int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 			     struct hw_atl_utils_fw_rpc **rpc);
+
+bool hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
 
 extern const struct aq_fw_ops aq_fw_1x_ops;
 extern const struct aq_fw_ops aq_fw_2x_ops;

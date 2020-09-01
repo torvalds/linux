@@ -654,12 +654,11 @@ static u8 sd_search_final_phase(struct rtsx_usb_sdmmc *host, u32 phase_map)
 
 static void sd_wait_data_idle(struct rtsx_usb_sdmmc *host)
 {
-	int err, i;
+	int i;
 	u8 val = 0;
 
 	for (i = 0; i < 100; i++) {
-		err = rtsx_usb_ep0_read_register(host->ucr,
-				SD_DATA_STATE, &val);
+		rtsx_usb_ep0_read_register(host->ucr, SD_DATA_STATE, &val);
 		if (val & SD_DATA_IDLE)
 			return;
 
@@ -1314,7 +1313,7 @@ static void rtsx_usb_init_host(struct rtsx_usb_sdmmc *host)
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SD_HIGHSPEED |
 		MMC_CAP_MMC_HIGHSPEED | MMC_CAP_BUS_WIDTH_TEST |
 		MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
-		MMC_CAP_ERASE | MMC_CAP_SYNC_RUNTIME_PM;
+		MMC_CAP_SYNC_RUNTIME_PM;
 	mmc->caps2 = MMC_CAP2_NO_PRESCAN_POWERUP | MMC_CAP2_FULL_PWR_CYCLE |
 		MMC_CAP2_NO_SDIO;
 

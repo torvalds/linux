@@ -33,22 +33,22 @@
 #include <linux/hugetlb.h>
 #include <asm/asm-offsets.h>
 #include <asm/diag.h>
-#include <asm/pgtable.h>
 #include <asm/gmap.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/facility.h>
+#include <asm/uv.h>
 #include "../kernel/entry.h"
 
 #define __FAIL_ADDR_MASK -4096L
 #define __SUBCODE_MASK 0x0600
 #define __PF_RES_FIELD 0x8000000000000000ULL
 
-#define VM_FAULT_BADCONTEXT	0x010000
-#define VM_FAULT_BADMAP		0x020000
-#define VM_FAULT_BADACCESS	0x040000
-#define VM_FAULT_SIGNAL		0x080000
-#define VM_FAULT_PFAULT		0x100000
+#define VM_FAULT_BADCONTEXT	((__force vm_fault_t) 0x010000)
+#define VM_FAULT_BADMAP		((__force vm_fault_t) 0x020000)
+#define VM_FAULT_BADACCESS	((__force vm_fault_t) 0x040000)
+#define VM_FAULT_SIGNAL		((__force vm_fault_t) 0x080000)
+#define VM_FAULT_PFAULT		((__force vm_fault_t) 0x100000)
 
 enum fault_type {
 	KERNEL_FAULT,
@@ -105,7 +105,7 @@ static int bad_address(void *p)
 {
 	unsigned long dummy;
 
-	return probe_kernel_address((unsigned long *)p, dummy);
+	return get_kernel_nofault(dummy, (unsigned long *)p);
 }
 
 static void dump_pagetable(unsigned long asce, unsigned long address)
@@ -122,7 +122,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		if (*table & _REGION_ENTRY_INVALID)
 			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-		/* fallthrough */
+		fallthrough;
 	case _ASCE_TYPE_REGION2:
 		table += (address & _REGION2_INDEX) >> _REGION2_SHIFT;
 		if (bad_address(table))
@@ -131,7 +131,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		if (*table & _REGION_ENTRY_INVALID)
 			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-		/* fallthrough */
+		fallthrough;
 	case _ASCE_TYPE_REGION3:
 		table += (address & _REGION3_INDEX) >> _REGION3_SHIFT;
 		if (bad_address(table))
@@ -140,7 +140,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		if (*table & (_REGION_ENTRY_INVALID | _REGION3_ENTRY_LARGE))
 			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-		/* fallthrough */
+		fallthrough;
 	case _ASCE_TYPE_SEGMENT:
 		table += (address & _SEGMENT_INDEX) >> _SEGMENT_SHIFT;
 		if (bad_address(table))
@@ -255,10 +255,8 @@ static noinline void do_no_context(struct pt_regs *regs)
 
 	/* Are we prepared to handle this kernel fault?  */
 	fixup = s390_search_extables(regs->psw.addr);
-	if (fixup) {
-		regs->psw.addr = extable_fixup(fixup);
+	if (fixup && ex_handle(fixup, regs))
 		return;
-	}
 
 	/*
 	 * Oops. The kernel tried to access some bad page. We'll have to
@@ -327,7 +325,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 	case VM_FAULT_BADACCESS:
 		if (access == VM_EXEC && signal_return(regs) == 0)
 			break;
-		/* fallthrough */
+		fallthrough;
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
 		if (user_mode(regs)) {
@@ -337,9 +335,8 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 			do_sigsegv(regs, si_code);
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case VM_FAULT_BADCONTEXT:
-		/* fallthrough */
 	case VM_FAULT_PFAULT:
 		do_no_context(regs);
 		break;
@@ -377,7 +374,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
  * routines.
  *
  * interruption code (int_code):
- *   04       Protection           ->  Write-Protection  (suprression)
+ *   04       Protection           ->  Write-Protection  (suppression)
  *   10       Segment translation  ->  Not present       (nullification)
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
@@ -429,12 +426,12 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
-	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	flags = FAULT_FLAG_DEFAULT;
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
 	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
 		flags |= FAULT_FLAG_WRITE;
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	gmap = NULL;
 	if (IS_ENABLED(CONFIG_PGSTE) && type == GMAP_FAULT) {
@@ -479,9 +476,8 @@ retry:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(vma, address, flags);
-	/* No reason to continue if interrupted by SIGKILL. */
-	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+	fault = handle_mm_fault(vma, address, flags, regs);
+	if (fault_signal_pending(fault, regs)) {
 		fault = VM_FAULT_SIGNAL;
 		if (flags & FAULT_FLAG_RETRY_NOWAIT)
 			goto out_up;
@@ -490,36 +486,19 @@ retry:
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 
-	/*
-	 * Major/minor page fault accounting is only done on the
-	 * initial attempt. If we go through a retry, it is extremely
-	 * likely that the page will be found in page cache at that point.
-	 */
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_MAJOR) {
-			tsk->maj_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
-				      regs, address);
-		} else {
-			tsk->min_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
-				      regs, address);
-		}
 		if (fault & VM_FAULT_RETRY) {
 			if (IS_ENABLED(CONFIG_PGSTE) && gmap &&
 			    (flags & FAULT_FLAG_RETRY_NOWAIT)) {
 				/* FAULT_FLAG_RETRY_NOWAIT has been set,
-				 * mmap_sem has not been released */
+				 * mmap_lock has not been released */
 				current->thread.gmap_pfault = 1;
 				fault = VM_FAULT_PFAULT;
 				goto out_up;
 			}
-			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
-			 * of starvation. */
-			flags &= ~(FAULT_FLAG_ALLOW_RETRY |
-				   FAULT_FLAG_RETRY_NOWAIT);
+			flags &= ~FAULT_FLAG_RETRY_NOWAIT;
 			flags |= FAULT_FLAG_TRIED;
-			down_read(&mm->mmap_sem);
+			mmap_read_lock(mm);
 			goto retry;
 		}
 	}
@@ -537,7 +516,7 @@ retry:
 	}
 	fault = 0;
 out_up:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 out:
 	return fault;
 }
@@ -584,7 +563,7 @@ void do_dat_exception(struct pt_regs *regs)
 	int access;
 	vm_fault_t fault;
 
-	access = VM_READ | VM_EXEC | VM_WRITE;
+	access = VM_ACCESS_FLAGS;
 	fault = do_exception(regs, access);
 	if (unlikely(fault))
 		do_fault_error(regs, access, fault);
@@ -816,3 +795,78 @@ out_extint:
 early_initcall(pfault_irq_init);
 
 #endif /* CONFIG_PFAULT */
+
+#if IS_ENABLED(CONFIG_PGSTE)
+void do_secure_storage_access(struct pt_regs *regs)
+{
+	unsigned long addr = regs->int_parm_long & __FAIL_ADDR_MASK;
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	struct page *page;
+	int rc;
+
+	switch (get_fault_type(regs)) {
+	case USER_FAULT:
+		mm = current->mm;
+		mmap_read_lock(mm);
+		vma = find_vma(mm, addr);
+		if (!vma) {
+			mmap_read_unlock(mm);
+			do_fault_error(regs, VM_READ | VM_WRITE, VM_FAULT_BADMAP);
+			break;
+		}
+		page = follow_page(vma, addr, FOLL_WRITE | FOLL_GET);
+		if (IS_ERR_OR_NULL(page)) {
+			mmap_read_unlock(mm);
+			break;
+		}
+		if (arch_make_page_accessible(page))
+			send_sig(SIGSEGV, current, 0);
+		put_page(page);
+		mmap_read_unlock(mm);
+		break;
+	case KERNEL_FAULT:
+		page = phys_to_page(addr);
+		if (unlikely(!try_get_page(page)))
+			break;
+		rc = arch_make_page_accessible(page);
+		put_page(page);
+		if (rc)
+			BUG();
+		break;
+	case VDSO_FAULT:
+	case GMAP_FAULT:
+	default:
+		do_fault_error(regs, VM_READ | VM_WRITE, VM_FAULT_BADMAP);
+		WARN_ON_ONCE(1);
+	}
+}
+NOKPROBE_SYMBOL(do_secure_storage_access);
+
+void do_non_secure_storage_access(struct pt_regs *regs)
+{
+	unsigned long gaddr = regs->int_parm_long & __FAIL_ADDR_MASK;
+	struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
+
+	if (get_fault_type(regs) != GMAP_FAULT) {
+		do_fault_error(regs, VM_READ | VM_WRITE, VM_FAULT_BADMAP);
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	if (gmap_convert_to_secure(gmap, gaddr) == -EINVAL)
+		send_sig(SIGSEGV, current, 0);
+}
+NOKPROBE_SYMBOL(do_non_secure_storage_access);
+
+#else
+void do_secure_storage_access(struct pt_regs *regs)
+{
+	default_trap_handler(regs);
+}
+
+void do_non_secure_storage_access(struct pt_regs *regs)
+{
+	default_trap_handler(regs);
+}
+#endif

@@ -200,7 +200,6 @@ static int mb1232_probe(struct i2c_client *client,
 
 	indio_dev->info = &mb1232_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mb1232_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mb1232_channels);

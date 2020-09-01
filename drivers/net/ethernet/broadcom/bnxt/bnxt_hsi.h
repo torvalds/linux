@@ -2,7 +2,7 @@
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
  * Copyright (c) 2014-2018 Broadcom Limited
- * Copyright (c) 2018-2019 Broadcom Inc.
+ * Copyright (c) 2018-2020 Broadcom Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -169,9 +169,14 @@ struct cmd_nums {
 	#define HWRM_RING_CMPL_RING_QAGGINT_PARAMS        0x52UL
 	#define HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS     0x53UL
 	#define HWRM_RING_AGGINT_QCAPS                    0x54UL
+	#define HWRM_RING_SCHQ_ALLOC                      0x55UL
+	#define HWRM_RING_SCHQ_CFG                        0x56UL
+	#define HWRM_RING_SCHQ_FREE                       0x57UL
 	#define HWRM_RING_RESET                           0x5eUL
 	#define HWRM_RING_GRP_ALLOC                       0x60UL
 	#define HWRM_RING_GRP_FREE                        0x61UL
+	#define HWRM_RING_CFG                             0x62UL
+	#define HWRM_RING_QCFG                            0x63UL
 	#define HWRM_RESERVED5                            0x64UL
 	#define HWRM_RESERVED6                            0x65UL
 	#define HWRM_VNIC_RSS_COS_LB_CTX_ALLOC            0x70UL
@@ -207,6 +212,8 @@ struct cmd_nums {
 	#define HWRM_PORT_PHY_MDIO_READ                   0xb6UL
 	#define HWRM_PORT_PHY_MDIO_BUS_ACQUIRE            0xb7UL
 	#define HWRM_PORT_PHY_MDIO_BUS_RELEASE            0xb8UL
+	#define HWRM_PORT_QSTATS_EXT_PFC_WD               0xb9UL
+	#define HWRM_PORT_ECN_QSTATS                      0xbaUL
 	#define HWRM_FW_RESET                             0xc0UL
 	#define HWRM_FW_QSTATUS                           0xc1UL
 	#define HWRM_FW_HEALTH_CHECK                      0xc2UL
@@ -220,6 +227,9 @@ struct cmd_nums {
 	#define HWRM_FW_SET_STRUCTURED_DATA               0xcaUL
 	#define HWRM_FW_GET_STRUCTURED_DATA               0xcbUL
 	#define HWRM_FW_IPC_MAILBOX                       0xccUL
+	#define HWRM_FW_ECN_CFG                           0xcdUL
+	#define HWRM_FW_ECN_QCFG                          0xceUL
+	#define HWRM_FW_SECURE_CFG                        0xcfUL
 	#define HWRM_EXEC_FWD_RESP                        0xd0UL
 	#define HWRM_REJECT_FWD_RESP                      0xd1UL
 	#define HWRM_FWD_RESP                             0xd2UL
@@ -233,6 +243,7 @@ struct cmd_nums {
 	#define HWRM_TEMP_MONITOR_QUERY                   0xe0UL
 	#define HWRM_REG_POWER_QUERY                      0xe1UL
 	#define HWRM_CORE_FREQUENCY_QUERY                 0xe2UL
+	#define HWRM_REG_POWER_HISTOGRAM                  0xe3UL
 	#define HWRM_WOL_FILTER_ALLOC                     0xf0UL
 	#define HWRM_WOL_FILTER_FREE                      0xf1UL
 	#define HWRM_WOL_FILTER_QCFG                      0xf2UL
@@ -331,6 +342,8 @@ struct cmd_nums {
 	#define HWRM_FUNC_VF_BW_CFG                       0x195UL
 	#define HWRM_FUNC_VF_BW_QCFG                      0x196UL
 	#define HWRM_FUNC_HOST_PF_IDS_QUERY               0x197UL
+	#define HWRM_FUNC_QSTATS_EXT                      0x198UL
+	#define HWRM_STAT_EXT_CTX_QUERY                   0x199UL
 	#define HWRM_SELFTEST_QLIST                       0x200UL
 	#define HWRM_SELFTEST_EXEC                        0x201UL
 	#define HWRM_SELFTEST_IRQ                         0x202UL
@@ -341,6 +354,37 @@ struct cmd_nums {
 	#define HWRM_MFG_OTP_CFG                          0x207UL
 	#define HWRM_MFG_OTP_QCFG                         0x208UL
 	#define HWRM_MFG_HDMA_TEST                        0x209UL
+	#define HWRM_MFG_FRU_EEPROM_WRITE                 0x20aUL
+	#define HWRM_MFG_FRU_EEPROM_READ                  0x20bUL
+	#define HWRM_TF                                   0x2bcUL
+	#define HWRM_TF_VERSION_GET                       0x2bdUL
+	#define HWRM_TF_SESSION_OPEN                      0x2c6UL
+	#define HWRM_TF_SESSION_ATTACH                    0x2c7UL
+	#define HWRM_TF_SESSION_REGISTER                  0x2c8UL
+	#define HWRM_TF_SESSION_UNREGISTER                0x2c9UL
+	#define HWRM_TF_SESSION_CLOSE                     0x2caUL
+	#define HWRM_TF_SESSION_QCFG                      0x2cbUL
+	#define HWRM_TF_SESSION_RESC_QCAPS                0x2ccUL
+	#define HWRM_TF_SESSION_RESC_ALLOC                0x2cdUL
+	#define HWRM_TF_SESSION_RESC_FREE                 0x2ceUL
+	#define HWRM_TF_SESSION_RESC_FLUSH                0x2cfUL
+	#define HWRM_TF_TBL_TYPE_GET                      0x2daUL
+	#define HWRM_TF_TBL_TYPE_SET                      0x2dbUL
+	#define HWRM_TF_CTXT_MEM_RGTR                     0x2e4UL
+	#define HWRM_TF_CTXT_MEM_UNRGTR                   0x2e5UL
+	#define HWRM_TF_EXT_EM_QCAPS                      0x2e6UL
+	#define HWRM_TF_EXT_EM_OP                         0x2e7UL
+	#define HWRM_TF_EXT_EM_CFG                        0x2e8UL
+	#define HWRM_TF_EXT_EM_QCFG                       0x2e9UL
+	#define HWRM_TF_EM_INSERT                         0x2eaUL
+	#define HWRM_TF_EM_DELETE                         0x2ebUL
+	#define HWRM_TF_TCAM_SET                          0x2f8UL
+	#define HWRM_TF_TCAM_GET                          0x2f9UL
+	#define HWRM_TF_TCAM_MOVE                         0x2faUL
+	#define HWRM_TF_TCAM_FREE                         0x2fbUL
+	#define HWRM_TF_GLOBAL_CFG_SET                    0x2fcUL
+	#define HWRM_TF_GLOBAL_CFG_GET                    0x2fdUL
+	#define HWRM_SV                                   0x400UL
 	#define HWRM_DBG_READ_DIRECT                      0xff10UL
 	#define HWRM_DBG_READ_INDIRECT                    0xff11UL
 	#define HWRM_DBG_WRITE_DIRECT                     0xff12UL
@@ -356,6 +400,11 @@ struct cmd_nums {
 	#define HWRM_DBG_RING_INFO_GET                    0xff1cUL
 	#define HWRM_DBG_CRASHDUMP_HEADER                 0xff1dUL
 	#define HWRM_DBG_CRASHDUMP_ERASE                  0xff1eUL
+	#define HWRM_DBG_DRV_TRACE                        0xff1fUL
+	#define HWRM_DBG_QCAPS                            0xff20UL
+	#define HWRM_DBG_QCFG                             0xff21UL
+	#define HWRM_DBG_CRASHDUMP_MEDIUM_CFG             0xff22UL
+	#define HWRM_NVM_REQ_ARBITRATION                  0xffedUL
 	#define HWRM_NVM_FACTORY_DEFAULTS                 0xffeeUL
 	#define HWRM_NVM_VALIDATE_OPTION                  0xffefUL
 	#define HWRM_NVM_FLUSH                            0xfff0UL
@@ -429,8 +478,8 @@ struct hwrm_err_output {
 #define HWRM_VERSION_MAJOR 1
 #define HWRM_VERSION_MINOR 10
 #define HWRM_VERSION_UPDATE 1
-#define HWRM_VERSION_RSVD 12
-#define HWRM_VERSION_STR "1.10.1.12"
+#define HWRM_VERSION_RSVD 54
+#define HWRM_VERSION_STR "1.10.1.54"
 
 /* hwrm_ver_get_input (size:192b/24B) */
 struct hwrm_ver_get_input {
@@ -482,6 +531,7 @@ struct hwrm_ver_get_output {
 	#define VER_GET_RESP_DEV_CAPS_CFG_CFA_EEM_SUPPORTED                        0x800UL
 	#define VER_GET_RESP_DEV_CAPS_CFG_CFA_ADV_FLOW_MGNT_SUPPORTED              0x1000UL
 	#define VER_GET_RESP_DEV_CAPS_CFG_CFA_TFLIB_SUPPORTED                      0x2000UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_CFA_TRUFLOW_SUPPORTED                    0x4000UL
 	u8	roce_fw_maj_8b;
 	u8	roce_fw_min_8b;
 	u8	roce_fw_bld_8b;
@@ -647,6 +697,7 @@ struct hwrm_async_event_cmpl {
 	#define ASYNC_EVENT_CMPL_EVENT_ID_TFLIB_LINK_STATUS_CHANGE   0x3eUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_QUIESCE_DONE               0x3fUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_DEFERRED_RESPONSE          0x40UL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_PFC_WATCHDOG_CFG_CHANGE    0x41UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_FW_TRACE_MSG               0xfeUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR                 0xffUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_LAST                      ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR
@@ -1057,6 +1108,8 @@ struct hwrm_func_vf_cfg_input {
 	#define FUNC_VF_CFG_REQ_FLAGS_STAT_CTX_ASSETS_TEST       0x20UL
 	#define FUNC_VF_CFG_REQ_FLAGS_VNIC_ASSETS_TEST           0x40UL
 	#define FUNC_VF_CFG_REQ_FLAGS_L2_CTX_ASSETS_TEST         0x80UL
+	#define FUNC_VF_CFG_REQ_FLAGS_PPP_PUSH_MODE_ENABLE       0x100UL
+	#define FUNC_VF_CFG_REQ_FLAGS_PPP_PUSH_MODE_DISABLE      0x200UL
 	__le16	num_rsscos_ctxs;
 	__le16	num_cmpl_rings;
 	__le16	num_tx_rings;
@@ -1089,7 +1142,7 @@ struct hwrm_func_qcaps_input {
 	u8	unused_0[6];
 };
 
-/* hwrm_func_qcaps_output (size:640b/80B) */
+/* hwrm_func_qcaps_output (size:704b/88B) */
 struct hwrm_func_qcaps_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -1126,6 +1179,10 @@ struct hwrm_func_qcaps_output {
 	#define FUNC_QCAPS_RESP_FLAGS_ERR_RECOVER_RELOAD                    0x2000000UL
 	#define FUNC_QCAPS_RESP_FLAGS_NOTIFY_VF_DEF_VNIC_CHNG_SUPPORTED     0x4000000UL
 	#define FUNC_QCAPS_RESP_FLAGS_VLAN_ACCELERATION_TX_DISABLED         0x8000000UL
+	#define FUNC_QCAPS_RESP_FLAGS_COREDUMP_CMD_SUPPORTED                0x10000000UL
+	#define FUNC_QCAPS_RESP_FLAGS_CRASHDUMP_CMD_SUPPORTED               0x20000000UL
+	#define FUNC_QCAPS_RESP_FLAGS_PFC_WD_STATS_SUPPORTED                0x40000000UL
+	#define FUNC_QCAPS_RESP_FLAGS_DBG_QCAPS_CMD_SUPPORTED               0x80000000UL
 	u8	mac_address[6];
 	__le16	max_rsscos_ctx;
 	__le16	max_cmpl_rings;
@@ -1146,7 +1203,18 @@ struct hwrm_func_qcaps_output {
 	__le32	max_flow_id;
 	__le32	max_hw_ring_grps;
 	__le16	max_sp_tx_rings;
-	u8	unused_0;
+	u8	unused_0[2];
+	__le32	flags_ext;
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_ECN_MARK_SUPPORTED                     0x1UL
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_ECN_STATS_SUPPORTED                    0x2UL
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_EXT_HW_STATS_SUPPORTED                 0x4UL
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_HOT_RESET_IF_SUPPORT                   0x8UL
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_PROXY_MODE_SUPPORT                     0x10UL
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_TX_PROXY_SRC_INTF_OVERRIDE_SUPPORT     0x20UL
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_SCHQ_SUPPORTED                         0x40UL
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_PPP_PUSH_MODE_SUPPORTED                0x80UL
+	u8	max_schqs;
+	u8	unused_1[2];
 	u8	valid;
 };
 
@@ -1161,7 +1229,7 @@ struct hwrm_func_qcfg_input {
 	u8	unused_0[6];
 };
 
-/* hwrm_func_qcfg_output (size:704b/88B) */
+/* hwrm_func_qcfg_output (size:768b/96B) */
 struct hwrm_func_qcfg_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -1180,6 +1248,8 @@ struct hwrm_func_qcfg_output {
 	#define FUNC_QCFG_RESP_FLAGS_TRUSTED_VF                   0x40UL
 	#define FUNC_QCFG_RESP_FLAGS_SECURE_MODE_ENABLED          0x80UL
 	#define FUNC_QCFG_RESP_FLAGS_PREBOOT_LEGACY_L2_RINGS      0x100UL
+	#define FUNC_QCFG_RESP_FLAGS_HOT_RESET_ALLOWED            0x200UL
+	#define FUNC_QCFG_RESP_FLAGS_PPP_PUSH_MODE_ENABLED        0x400UL
 	u8	mac_address[6];
 	__le16	pci_id;
 	__le16	alloc_rsscos_ctx;
@@ -1267,11 +1337,15 @@ struct hwrm_func_qcfg_output {
 	u8	always_1;
 	__le32	reset_addr_poll;
 	__le16	legacy_l2_db_size_kb;
-	u8	unused_2[1];
+	__le16	svif_info;
+	#define FUNC_QCFG_RESP_SVIF_INFO_SVIF_MASK      0x7fffUL
+	#define FUNC_QCFG_RESP_SVIF_INFO_SVIF_SFT       0
+	#define FUNC_QCFG_RESP_SVIF_INFO_SVIF_VALID     0x8000UL
+	u8	unused_2[7];
 	u8	valid;
 };
 
-/* hwrm_func_cfg_input (size:704b/88B) */
+/* hwrm_func_cfg_input (size:768b/96B) */
 struct hwrm_func_cfg_input {
 	__le16	req_type;
 	__le16	cmpl_ring;
@@ -1302,30 +1376,35 @@ struct hwrm_func_cfg_input {
 	#define FUNC_CFG_REQ_FLAGS_NQ_ASSETS_TEST                 0x800000UL
 	#define FUNC_CFG_REQ_FLAGS_TRUSTED_VF_DISABLE             0x1000000UL
 	#define FUNC_CFG_REQ_FLAGS_PREBOOT_LEGACY_L2_RINGS        0x2000000UL
+	#define FUNC_CFG_REQ_FLAGS_HOT_RESET_IF_EN_DIS            0x4000000UL
+	#define FUNC_CFG_REQ_FLAGS_PPP_PUSH_MODE_ENABLE           0x8000000UL
+	#define FUNC_CFG_REQ_FLAGS_PPP_PUSH_MODE_DISABLE          0x10000000UL
 	__le32	enables;
-	#define FUNC_CFG_REQ_ENABLES_MTU                     0x1UL
-	#define FUNC_CFG_REQ_ENABLES_MRU                     0x2UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS         0x4UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS          0x8UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS            0x10UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_RX_RINGS            0x20UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_L2_CTXS             0x40UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_VNICS               0x80UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS           0x100UL
-	#define FUNC_CFG_REQ_ENABLES_DFLT_MAC_ADDR           0x200UL
-	#define FUNC_CFG_REQ_ENABLES_DFLT_VLAN               0x400UL
-	#define FUNC_CFG_REQ_ENABLES_DFLT_IP_ADDR            0x800UL
-	#define FUNC_CFG_REQ_ENABLES_MIN_BW                  0x1000UL
-	#define FUNC_CFG_REQ_ENABLES_MAX_BW                  0x2000UL
-	#define FUNC_CFG_REQ_ENABLES_ASYNC_EVENT_CR          0x4000UL
-	#define FUNC_CFG_REQ_ENABLES_VLAN_ANTISPOOF_MODE     0x8000UL
-	#define FUNC_CFG_REQ_ENABLES_ALLOWED_VLAN_PRIS       0x10000UL
-	#define FUNC_CFG_REQ_ENABLES_EVB_MODE                0x20000UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_MCAST_FILTERS       0x40000UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS        0x80000UL
-	#define FUNC_CFG_REQ_ENABLES_CACHE_LINESIZE          0x100000UL
-	#define FUNC_CFG_REQ_ENABLES_NUM_MSIX                0x200000UL
-	#define FUNC_CFG_REQ_ENABLES_ADMIN_LINK_STATE        0x400000UL
+	#define FUNC_CFG_REQ_ENABLES_MTU                      0x1UL
+	#define FUNC_CFG_REQ_ENABLES_MRU                      0x2UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS          0x4UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS           0x8UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS             0x10UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_RX_RINGS             0x20UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_L2_CTXS              0x40UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_VNICS                0x80UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS            0x100UL
+	#define FUNC_CFG_REQ_ENABLES_DFLT_MAC_ADDR            0x200UL
+	#define FUNC_CFG_REQ_ENABLES_DFLT_VLAN                0x400UL
+	#define FUNC_CFG_REQ_ENABLES_DFLT_IP_ADDR             0x800UL
+	#define FUNC_CFG_REQ_ENABLES_MIN_BW                   0x1000UL
+	#define FUNC_CFG_REQ_ENABLES_MAX_BW                   0x2000UL
+	#define FUNC_CFG_REQ_ENABLES_ASYNC_EVENT_CR           0x4000UL
+	#define FUNC_CFG_REQ_ENABLES_VLAN_ANTISPOOF_MODE      0x8000UL
+	#define FUNC_CFG_REQ_ENABLES_ALLOWED_VLAN_PRIS        0x10000UL
+	#define FUNC_CFG_REQ_ENABLES_EVB_MODE                 0x20000UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_MCAST_FILTERS        0x40000UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS         0x80000UL
+	#define FUNC_CFG_REQ_ENABLES_CACHE_LINESIZE           0x100000UL
+	#define FUNC_CFG_REQ_ENABLES_NUM_MSIX                 0x200000UL
+	#define FUNC_CFG_REQ_ENABLES_ADMIN_LINK_STATE         0x400000UL
+	#define FUNC_CFG_REQ_ENABLES_HOT_RESET_IF_SUPPORT     0x800000UL
+	#define FUNC_CFG_REQ_ENABLES_SCHQ_ID                  0x1000000UL
 	__le16	mtu;
 	__le16	mru;
 	__le16	num_rsscos_ctxs;
@@ -1399,6 +1478,8 @@ struct hwrm_func_cfg_input {
 	#define FUNC_CFG_REQ_OPTIONS_RSVD_MASK                   0xf0UL
 	#define FUNC_CFG_REQ_OPTIONS_RSVD_SFT                    4
 	__le16	num_mcast_filters;
+	__le16	schq_id;
+	u8	unused_0[6];
 };
 
 /* hwrm_func_cfg_output (size:128b/16B) */
@@ -1420,9 +1501,10 @@ struct hwrm_func_qstats_input {
 	__le64	resp_addr;
 	__le16	fid;
 	u8	flags;
-	#define FUNC_QSTATS_REQ_FLAGS_UNUSED    0x0UL
-	#define FUNC_QSTATS_REQ_FLAGS_ROCE_ONLY 0x1UL
-	#define FUNC_QSTATS_REQ_FLAGS_LAST     FUNC_QSTATS_REQ_FLAGS_ROCE_ONLY
+	#define FUNC_QSTATS_REQ_FLAGS_UNUSED       0x0UL
+	#define FUNC_QSTATS_REQ_FLAGS_ROCE_ONLY    0x1UL
+	#define FUNC_QSTATS_REQ_FLAGS_COUNTER_MASK 0x2UL
+	#define FUNC_QSTATS_REQ_FLAGS_LAST        FUNC_QSTATS_REQ_FLAGS_COUNTER_MASK
 	u8	unused_0[5];
 };
 
@@ -1452,6 +1534,58 @@ struct hwrm_func_qstats_output {
 	__le64	rx_agg_bytes;
 	__le64	rx_agg_events;
 	__le64	rx_agg_aborts;
+	u8	unused_0[7];
+	u8	valid;
+};
+
+/* hwrm_func_qstats_ext_input (size:256b/32B) */
+struct hwrm_func_qstats_ext_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	__le16	fid;
+	u8	flags;
+	#define FUNC_QSTATS_EXT_REQ_FLAGS_UNUSED       0x0UL
+	#define FUNC_QSTATS_EXT_REQ_FLAGS_ROCE_ONLY    0x1UL
+	#define FUNC_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK 0x2UL
+	#define FUNC_QSTATS_EXT_REQ_FLAGS_LAST        FUNC_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK
+	u8	unused_0[1];
+	__le32	enables;
+	#define FUNC_QSTATS_EXT_REQ_ENABLES_SCHQ_ID     0x1UL
+	__le16	schq_id;
+	__le16	traffic_class;
+	u8	unused_1[4];
+};
+
+/* hwrm_func_qstats_ext_output (size:1472b/184B) */
+struct hwrm_func_qstats_ext_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le64	rx_ucast_pkts;
+	__le64	rx_mcast_pkts;
+	__le64	rx_bcast_pkts;
+	__le64	rx_discard_pkts;
+	__le64	rx_error_pkts;
+	__le64	rx_ucast_bytes;
+	__le64	rx_mcast_bytes;
+	__le64	rx_bcast_bytes;
+	__le64	tx_ucast_pkts;
+	__le64	tx_mcast_pkts;
+	__le64	tx_bcast_pkts;
+	__le64	tx_error_pkts;
+	__le64	tx_discard_pkts;
+	__le64	tx_ucast_bytes;
+	__le64	tx_mcast_bytes;
+	__le64	tx_bcast_bytes;
+	__le64	rx_tpa_eligible_pkt;
+	__le64	rx_tpa_eligible_bytes;
+	__le64	rx_tpa_pkt;
+	__le64	rx_tpa_bytes;
+	__le64	rx_tpa_errors;
 	u8	unused_0[7];
 	u8	valid;
 };
@@ -1808,7 +1942,7 @@ struct hwrm_func_backing_store_qcaps_output {
 	u8	ctx_kind_initializer;
 	__le32	rsvd;
 	__le16	rsvd1;
-	u8	rsvd2;
+	u8	tqm_fp_rings_count;
 	u8	valid;
 };
 
@@ -2231,7 +2365,17 @@ struct hwrm_error_recovery_qcfg_output {
 	#define ERROR_RECOVERY_QCFG_RESP_RESET_REG_ADDR_SFT           2
 	__le32	reset_reg_val[16];
 	u8	delay_after_reset[16];
-	u8	unused_1[7];
+	__le32	err_recovery_cnt_reg;
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SPACE_MASK    0x3UL
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SPACE_SFT     0
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SPACE_PCIE_CFG  0x0UL
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SPACE_GRC       0x1UL
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SPACE_BAR0      0x2UL
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SPACE_BAR1      0x3UL
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SPACE_LAST     ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SPACE_BAR1
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_MASK          0xfffffffcUL
+	#define ERROR_RECOVERY_QCFG_RESP_ERR_RECOVERY_CNT_REG_ADDR_SFT           2
+	u8	unused_1[3];
 	u8	valid;
 };
 
@@ -2268,33 +2412,39 @@ struct hwrm_port_phy_cfg_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le32	flags;
-	#define PORT_PHY_CFG_REQ_FLAGS_RESET_PHY                0x1UL
-	#define PORT_PHY_CFG_REQ_FLAGS_DEPRECATED               0x2UL
-	#define PORT_PHY_CFG_REQ_FLAGS_FORCE                    0x4UL
-	#define PORT_PHY_CFG_REQ_FLAGS_RESTART_AUTONEG          0x8UL
-	#define PORT_PHY_CFG_REQ_FLAGS_EEE_ENABLE               0x10UL
-	#define PORT_PHY_CFG_REQ_FLAGS_EEE_DISABLE              0x20UL
-	#define PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_ENABLE        0x40UL
-	#define PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_DISABLE       0x80UL
-	#define PORT_PHY_CFG_REQ_FLAGS_FEC_AUTONEG_ENABLE       0x100UL
-	#define PORT_PHY_CFG_REQ_FLAGS_FEC_AUTONEG_DISABLE      0x200UL
-	#define PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_ENABLE      0x400UL
-	#define PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_DISABLE     0x800UL
-	#define PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE91_ENABLE      0x1000UL
-	#define PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE91_DISABLE     0x2000UL
-	#define PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DWN           0x4000UL
+	#define PORT_PHY_CFG_REQ_FLAGS_RESET_PHY                 0x1UL
+	#define PORT_PHY_CFG_REQ_FLAGS_DEPRECATED                0x2UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FORCE                     0x4UL
+	#define PORT_PHY_CFG_REQ_FLAGS_RESTART_AUTONEG           0x8UL
+	#define PORT_PHY_CFG_REQ_FLAGS_EEE_ENABLE                0x10UL
+	#define PORT_PHY_CFG_REQ_FLAGS_EEE_DISABLE               0x20UL
+	#define PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_ENABLE         0x40UL
+	#define PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_DISABLE        0x80UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_AUTONEG_ENABLE        0x100UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_AUTONEG_DISABLE       0x200UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_ENABLE       0x400UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_DISABLE      0x800UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE91_ENABLE       0x1000UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE91_DISABLE      0x2000UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DWN            0x4000UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_RS544_1XN_ENABLE      0x8000UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_RS544_1XN_DISABLE     0x10000UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_RS544_2XN_ENABLE      0x20000UL
+	#define PORT_PHY_CFG_REQ_FLAGS_FEC_RS544_2XN_DISABLE     0x40000UL
 	__le32	enables;
-	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_MODE                0x1UL
-	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_DUPLEX              0x2UL
-	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_PAUSE               0x4UL
-	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED          0x8UL
-	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED_MASK     0x10UL
-	#define PORT_PHY_CFG_REQ_ENABLES_WIRESPEED                0x20UL
-	#define PORT_PHY_CFG_REQ_ENABLES_LPBK                     0x40UL
-	#define PORT_PHY_CFG_REQ_ENABLES_PREEMPHASIS              0x80UL
-	#define PORT_PHY_CFG_REQ_ENABLES_FORCE_PAUSE              0x100UL
-	#define PORT_PHY_CFG_REQ_ENABLES_EEE_LINK_SPEED_MASK      0x200UL
-	#define PORT_PHY_CFG_REQ_ENABLES_TX_LPI_TIMER             0x400UL
+	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_MODE                     0x1UL
+	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_DUPLEX                   0x2UL
+	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_PAUSE                    0x4UL
+	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED               0x8UL
+	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED_MASK          0x10UL
+	#define PORT_PHY_CFG_REQ_ENABLES_WIRESPEED                     0x20UL
+	#define PORT_PHY_CFG_REQ_ENABLES_LPBK                          0x40UL
+	#define PORT_PHY_CFG_REQ_ENABLES_PREEMPHASIS                   0x80UL
+	#define PORT_PHY_CFG_REQ_ENABLES_FORCE_PAUSE                   0x100UL
+	#define PORT_PHY_CFG_REQ_ENABLES_EEE_LINK_SPEED_MASK           0x200UL
+	#define PORT_PHY_CFG_REQ_ENABLES_TX_LPI_TIMER                  0x400UL
+	#define PORT_PHY_CFG_REQ_ENABLES_FORCE_PAM4_LINK_SPEED         0x800UL
+	#define PORT_PHY_CFG_REQ_ENABLES_AUTO_PAM4_LINK_SPEED_MASK     0x1000UL
 	__le16	port_id;
 	__le16	force_link_speed;
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_100MB 0x1UL
@@ -2307,7 +2457,6 @@ struct hwrm_port_phy_cfg_input {
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_100GB 0x3e8UL
-	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_LAST PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10MB
 	u8	auto_mode;
@@ -2338,7 +2487,6 @@ struct hwrm_port_phy_cfg_input {
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_100GB 0x3e8UL
-	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_LAST PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_10MB
 	__le16	auto_link_speed_mask;
@@ -2356,7 +2504,6 @@ struct hwrm_port_phy_cfg_input {
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_MASK_100GB       0x800UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_MASK_10MBHD      0x1000UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_MASK_10MB        0x2000UL
-	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_MASK_200GB       0x4000UL
 	u8	wirespeed;
 	#define PORT_PHY_CFG_REQ_WIRESPEED_OFF 0x0UL
 	#define PORT_PHY_CFG_REQ_WIRESPEED_ON  0x1UL
@@ -2380,11 +2527,19 @@ struct hwrm_port_phy_cfg_input {
 	#define PORT_PHY_CFG_REQ_EEE_LINK_SPEED_MASK_RSVD3     0x10UL
 	#define PORT_PHY_CFG_REQ_EEE_LINK_SPEED_MASK_RSVD4     0x20UL
 	#define PORT_PHY_CFG_REQ_EEE_LINK_SPEED_MASK_10GB      0x40UL
-	u8	unused_2[2];
+	__le16	force_pam4_link_speed;
+	#define PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_50GB  0x1f4UL
+	#define PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_100GB 0x3e8UL
+	#define PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_200GB 0x7d0UL
+	#define PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_LAST PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_200GB
 	__le32	tx_lpi_timer;
 	#define PORT_PHY_CFG_REQ_TX_LPI_TIMER_MASK 0xffffffUL
 	#define PORT_PHY_CFG_REQ_TX_LPI_TIMER_SFT 0
-	__le32	unused_3;
+	__le16	auto_link_pam4_speed_mask;
+	#define PORT_PHY_CFG_REQ_AUTO_LINK_PAM4_SPEED_MASK_50G      0x1UL
+	#define PORT_PHY_CFG_REQ_AUTO_LINK_PAM4_SPEED_MASK_100G     0x2UL
+	#define PORT_PHY_CFG_REQ_AUTO_LINK_PAM4_SPEED_MASK_200G     0x4UL
+	u8	unused_2[2];
 };
 
 /* hwrm_port_phy_cfg_output (size:128b/16B) */
@@ -2418,7 +2573,7 @@ struct hwrm_port_phy_qcfg_input {
 	u8	unused_0[6];
 };
 
-/* hwrm_port_phy_qcfg_output (size:768b/96B) */
+/* hwrm_port_phy_qcfg_output (size:832b/104B) */
 struct hwrm_port_phy_qcfg_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -2429,7 +2584,10 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_LINK_SIGNAL  0x1UL
 	#define PORT_PHY_QCFG_RESP_LINK_LINK    0x2UL
 	#define PORT_PHY_QCFG_RESP_LINK_LAST   PORT_PHY_QCFG_RESP_LINK_LINK
-	u8	unused_0;
+	u8	link_signal_mode;
+	#define PORT_PHY_QCFG_RESP_LINK_SIGNAL_MODE_NRZ  0x0UL
+	#define PORT_PHY_QCFG_RESP_LINK_SIGNAL_MODE_PAM4 0x1UL
+	#define PORT_PHY_QCFG_RESP_LINK_SIGNAL_MODE_LAST PORT_PHY_QCFG_RESP_LINK_SIGNAL_MODE_PAM4
 	__le16	link_speed;
 	#define PORT_PHY_QCFG_RESP_LINK_SPEED_100MB 0x1UL
 	#define PORT_PHY_QCFG_RESP_LINK_SPEED_1GB   0xaUL
@@ -2466,7 +2624,6 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_100GB       0x800UL
 	#define PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_10MBHD      0x1000UL
 	#define PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_10MB        0x2000UL
-	#define PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_200GB       0x4000UL
 	__le16	force_link_speed;
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_100MB 0x1UL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_1GB   0xaUL
@@ -2478,7 +2635,6 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_100GB 0x3e8UL
-	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_LAST PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_10MB
 	u8	auto_mode;
@@ -2503,7 +2659,6 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_100GB 0x3e8UL
-	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_LAST PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_10MB
 	__le16	auto_link_speed_mask;
@@ -2521,7 +2676,6 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_MASK_100GB       0x800UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_MASK_10MBHD      0x1000UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_MASK_10MB        0x2000UL
-	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_MASK_200GB       0x4000UL
 	u8	wirespeed;
 	#define PORT_PHY_QCFG_RESP_WIRESPEED_OFF 0x0UL
 	#define PORT_PHY_QCFG_RESP_WIRESPEED_ON  0x1UL
@@ -2655,13 +2809,21 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_XCVR_IDENTIFIER_TYPE_QSFP28    (0x11UL << 24)
 	#define PORT_PHY_QCFG_RESP_XCVR_IDENTIFIER_TYPE_LAST     PORT_PHY_QCFG_RESP_XCVR_IDENTIFIER_TYPE_QSFP28
 	__le16	fec_cfg;
-	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED         0x1UL
-	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_AUTONEG_SUPPORTED      0x2UL
-	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_AUTONEG_ENABLED        0x4UL
-	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE74_SUPPORTED     0x8UL
-	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE74_ENABLED       0x10UL
-	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE91_SUPPORTED     0x20UL
-	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE91_ENABLED       0x40UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED          0x1UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_AUTONEG_SUPPORTED       0x2UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_AUTONEG_ENABLED         0x4UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE74_SUPPORTED      0x8UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE74_ENABLED        0x10UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE91_SUPPORTED      0x20UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE91_ENABLED        0x40UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_RS544_1XN_SUPPORTED     0x80UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_RS544_1XN_ENABLED       0x100UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_RS544_2XN_SUPPORTED     0x200UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_RS544_2XN_ENABLED       0x400UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE74_ACTIVE         0x800UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE91_ACTIVE         0x1000UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_RS544_1XN_ACTIVE        0x2000UL
+	#define PORT_PHY_QCFG_RESP_FEC_CFG_FEC_RS544_2XN_ACTIVE        0x4000UL
 	u8	duplex_state;
 	#define PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF 0x0UL
 	#define PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL 0x1UL
@@ -2670,7 +2832,24 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_OPTION_FLAGS_MEDIA_AUTO_DETECT     0x1UL
 	char	phy_vendor_name[16];
 	char	phy_vendor_partnumber[16];
-	u8	unused_2[7];
+	__le16	support_pam4_speeds;
+	#define PORT_PHY_QCFG_RESP_SUPPORT_PAM4_SPEEDS_50G      0x1UL
+	#define PORT_PHY_QCFG_RESP_SUPPORT_PAM4_SPEEDS_100G     0x2UL
+	#define PORT_PHY_QCFG_RESP_SUPPORT_PAM4_SPEEDS_200G     0x4UL
+	__le16	force_pam4_link_speed;
+	#define PORT_PHY_QCFG_RESP_FORCE_PAM4_LINK_SPEED_50GB  0x1f4UL
+	#define PORT_PHY_QCFG_RESP_FORCE_PAM4_LINK_SPEED_100GB 0x3e8UL
+	#define PORT_PHY_QCFG_RESP_FORCE_PAM4_LINK_SPEED_200GB 0x7d0UL
+	#define PORT_PHY_QCFG_RESP_FORCE_PAM4_LINK_SPEED_LAST PORT_PHY_QCFG_RESP_FORCE_PAM4_LINK_SPEED_200GB
+	__le16	auto_pam4_link_speed_mask;
+	#define PORT_PHY_QCFG_RESP_AUTO_PAM4_LINK_SPEED_MASK_50G      0x1UL
+	#define PORT_PHY_QCFG_RESP_AUTO_PAM4_LINK_SPEED_MASK_100G     0x2UL
+	#define PORT_PHY_QCFG_RESP_AUTO_PAM4_LINK_SPEED_MASK_200G     0x4UL
+	__le16	link_partner_pam4_adv_speeds;
+	#define PORT_PHY_QCFG_RESP_LINK_PARTNER_PAM4_ADV_SPEEDS_50GB      0x1UL
+	#define PORT_PHY_QCFG_RESP_LINK_PARTNER_PAM4_ADV_SPEEDS_100GB     0x2UL
+	#define PORT_PHY_QCFG_RESP_LINK_PARTNER_PAM4_ADV_SPEEDS_200GB     0x4UL
+	u8	unused_0[7];
 	u8	valid;
 };
 
@@ -2934,7 +3113,11 @@ struct hwrm_port_qstats_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le16	port_id;
-	u8	unused_0[6];
+	u8	flags;
+	#define PORT_QSTATS_REQ_FLAGS_UNUSED       0x0UL
+	#define PORT_QSTATS_REQ_FLAGS_COUNTER_MASK 0x1UL
+	#define PORT_QSTATS_REQ_FLAGS_LAST        PORT_QSTATS_REQ_FLAGS_COUNTER_MASK
+	u8	unused_0[5];
 	__le64	tx_stat_host_addr;
 	__le64	rx_stat_host_addr;
 };
@@ -3058,7 +3241,11 @@ struct hwrm_port_qstats_ext_input {
 	__le16	port_id;
 	__le16	tx_stat_size;
 	__le16	rx_stat_size;
-	u8	unused_0[2];
+	u8	flags;
+	#define PORT_QSTATS_EXT_REQ_FLAGS_UNUSED       0x0UL
+	#define PORT_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK 0x1UL
+	#define PORT_QSTATS_EXT_REQ_FLAGS_LAST        PORT_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK
+	u8	unused_0;
 	__le64	tx_stat_host_addr;
 	__le64	rx_stat_host_addr;
 };
@@ -3188,19 +3375,20 @@ struct hwrm_port_phy_qcaps_input {
 	u8	unused_0[6];
 };
 
-/* hwrm_port_phy_qcaps_output (size:192b/24B) */
+/* hwrm_port_phy_qcaps_output (size:256b/32B) */
 struct hwrm_port_phy_qcaps_output {
 	__le16	error_code;
 	__le16	req_type;
 	__le16	seq_id;
 	__le16	resp_len;
 	u8	flags;
-	#define PORT_PHY_QCAPS_RESP_FLAGS_EEE_SUPPORTED                0x1UL
-	#define PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED      0x2UL
-	#define PORT_PHY_QCAPS_RESP_FLAGS_AUTONEG_LPBK_SUPPORTED       0x4UL
-	#define PORT_PHY_QCAPS_RESP_FLAGS_SHARED_PHY_CFG_SUPPORTED     0x8UL
-	#define PORT_PHY_QCAPS_RESP_FLAGS_RSVD1_MASK                   0xf0UL
-	#define PORT_PHY_QCAPS_RESP_FLAGS_RSVD1_SFT                    4
+	#define PORT_PHY_QCAPS_RESP_FLAGS_EEE_SUPPORTED                    0x1UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED          0x2UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_AUTONEG_LPBK_SUPPORTED           0x4UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_SHARED_PHY_CFG_SUPPORTED         0x8UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_CUMULATIVE_COUNTERS_ON_RESET     0x10UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_RSVD1_MASK                       0xe0UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_RSVD1_SFT                        5
 	u8	port_cnt;
 	#define PORT_PHY_QCAPS_RESP_PORT_CNT_UNKNOWN 0x0UL
 	#define PORT_PHY_QCAPS_RESP_PORT_CNT_1       0x1UL
@@ -3223,7 +3411,6 @@ struct hwrm_port_phy_qcaps_output {
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_FORCE_MODE_100GB       0x800UL
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_FORCE_MODE_10MBHD      0x1000UL
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_FORCE_MODE_10MB        0x2000UL
-	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_FORCE_MODE_200GB       0x4000UL
 	__le16	supported_speeds_auto_mode;
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_AUTO_MODE_100MBHD     0x1UL
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_AUTO_MODE_100MB       0x2UL
@@ -3239,7 +3426,6 @@ struct hwrm_port_phy_qcaps_output {
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_AUTO_MODE_100GB       0x800UL
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_AUTO_MODE_10MBHD      0x1000UL
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_AUTO_MODE_10MB        0x2000UL
-	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_AUTO_MODE_200GB       0x4000UL
 	__le16	supported_speeds_eee_mode;
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_EEE_MODE_RSVD1     0x1UL
 	#define PORT_PHY_QCAPS_RESP_SUPPORTED_SPEEDS_EEE_MODE_100MB     0x2UL
@@ -3256,8 +3442,18 @@ struct hwrm_port_phy_qcaps_output {
 	__le32	valid_tx_lpi_timer_high;
 	#define PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_MASK 0xffffffUL
 	#define PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_SFT 0
-	#define PORT_PHY_QCAPS_RESP_VALID_MASK            0xff000000UL
-	#define PORT_PHY_QCAPS_RESP_VALID_SFT             24
+	#define PORT_PHY_QCAPS_RESP_RSVD_MASK             0xff000000UL
+	#define PORT_PHY_QCAPS_RESP_RSVD_SFT              24
+	__le16	supported_pam4_speeds_auto_mode;
+	#define PORT_PHY_QCAPS_RESP_SUPPORTED_PAM4_SPEEDS_AUTO_MODE_50G      0x1UL
+	#define PORT_PHY_QCAPS_RESP_SUPPORTED_PAM4_SPEEDS_AUTO_MODE_100G     0x2UL
+	#define PORT_PHY_QCAPS_RESP_SUPPORTED_PAM4_SPEEDS_AUTO_MODE_200G     0x4UL
+	__le16	supported_pam4_speeds_force_mode;
+	#define PORT_PHY_QCAPS_RESP_SUPPORTED_PAM4_SPEEDS_FORCE_MODE_50G      0x1UL
+	#define PORT_PHY_QCAPS_RESP_SUPPORTED_PAM4_SPEEDS_FORCE_MODE_100G     0x2UL
+	#define PORT_PHY_QCAPS_RESP_SUPPORTED_PAM4_SPEEDS_FORCE_MODE_200G     0x4UL
+	u8	unused_0[3];
+	u8	valid;
 };
 
 /* hwrm_port_phy_i2c_read_input (size:320b/40B) */
@@ -3696,7 +3892,7 @@ struct hwrm_queue_qportcfg_input {
 	u8	unused_0;
 };
 
-/* hwrm_queue_qportcfg_output (size:256b/32B) */
+/* hwrm_queue_qportcfg_output (size:1344b/168B) */
 struct hwrm_queue_qportcfg_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -3782,6 +3978,49 @@ struct hwrm_queue_qportcfg_output {
 	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
 	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_UNKNOWN        0xffUL
 	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_UNKNOWN
+	u8	unused_0;
+	char	qid0_name[16];
+	char	qid1_name[16];
+	char	qid2_name[16];
+	char	qid3_name[16];
+	char	qid4_name[16];
+	char	qid5_name[16];
+	char	qid6_name[16];
+	char	qid7_name[16];
+	u8	unused_1[7];
+	u8	valid;
+};
+
+/* hwrm_queue_qcfg_input (size:192b/24B) */
+struct hwrm_queue_qcfg_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	__le32	flags;
+	#define QUEUE_QCFG_REQ_FLAGS_PATH     0x1UL
+	#define QUEUE_QCFG_REQ_FLAGS_PATH_TX    0x0UL
+	#define QUEUE_QCFG_REQ_FLAGS_PATH_RX    0x1UL
+	#define QUEUE_QCFG_REQ_FLAGS_PATH_LAST QUEUE_QCFG_REQ_FLAGS_PATH_RX
+	__le32	queue_id;
+};
+
+/* hwrm_queue_qcfg_output (size:128b/16B) */
+struct hwrm_queue_qcfg_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le32	queue_len;
+	u8	service_profile;
+	#define QUEUE_QCFG_RESP_SERVICE_PROFILE_LOSSY    0x0UL
+	#define QUEUE_QCFG_RESP_SERVICE_PROFILE_LOSSLESS 0x1UL
+	#define QUEUE_QCFG_RESP_SERVICE_PROFILE_UNKNOWN  0xffUL
+	#define QUEUE_QCFG_RESP_SERVICE_PROFILE_LAST    QUEUE_QCFG_RESP_SERVICE_PROFILE_UNKNOWN
+	u8	queue_cfg_info;
+	#define QUEUE_QCFG_RESP_QUEUE_CFG_INFO_ASYM_CFG     0x1UL
+	u8	unused_0;
 	u8	valid;
 };
 
@@ -3840,14 +4079,22 @@ struct hwrm_queue_pfcenable_qcfg_output {
 	__le16	seq_id;
 	__le16	resp_len;
 	__le32	flags;
-	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI0_PFC_ENABLED     0x1UL
-	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI1_PFC_ENABLED     0x2UL
-	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI2_PFC_ENABLED     0x4UL
-	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI3_PFC_ENABLED     0x8UL
-	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI4_PFC_ENABLED     0x10UL
-	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI5_PFC_ENABLED     0x20UL
-	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI6_PFC_ENABLED     0x40UL
-	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI7_PFC_ENABLED     0x80UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI0_PFC_ENABLED              0x1UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI1_PFC_ENABLED              0x2UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI2_PFC_ENABLED              0x4UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI3_PFC_ENABLED              0x8UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI4_PFC_ENABLED              0x10UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI5_PFC_ENABLED              0x20UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI6_PFC_ENABLED              0x40UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI7_PFC_ENABLED              0x80UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI0_PFC_WATCHDOG_ENABLED     0x100UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI1_PFC_WATCHDOG_ENABLED     0x200UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI2_PFC_WATCHDOG_ENABLED     0x400UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI3_PFC_WATCHDOG_ENABLED     0x800UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI4_PFC_WATCHDOG_ENABLED     0x1000UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI5_PFC_WATCHDOG_ENABLED     0x2000UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI6_PFC_WATCHDOG_ENABLED     0x4000UL
+	#define QUEUE_PFCENABLE_QCFG_RESP_FLAGS_PRI7_PFC_WATCHDOG_ENABLED     0x8000UL
 	u8	unused_0[3];
 	u8	valid;
 };
@@ -3860,14 +4107,22 @@ struct hwrm_queue_pfcenable_cfg_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le32	flags;
-	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI0_PFC_ENABLED     0x1UL
-	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI1_PFC_ENABLED     0x2UL
-	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI2_PFC_ENABLED     0x4UL
-	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI3_PFC_ENABLED     0x8UL
-	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI4_PFC_ENABLED     0x10UL
-	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI5_PFC_ENABLED     0x20UL
-	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI6_PFC_ENABLED     0x40UL
-	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI7_PFC_ENABLED     0x80UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI0_PFC_ENABLED              0x1UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI1_PFC_ENABLED              0x2UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI2_PFC_ENABLED              0x4UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI3_PFC_ENABLED              0x8UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI4_PFC_ENABLED              0x10UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI5_PFC_ENABLED              0x20UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI6_PFC_ENABLED              0x40UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI7_PFC_ENABLED              0x80UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI0_PFC_WATCHDOG_ENABLED     0x100UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI1_PFC_WATCHDOG_ENABLED     0x200UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI2_PFC_WATCHDOG_ENABLED     0x400UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI3_PFC_WATCHDOG_ENABLED     0x800UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI4_PFC_WATCHDOG_ENABLED     0x1000UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI5_PFC_WATCHDOG_ENABLED     0x2000UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI6_PFC_WATCHDOG_ENABLED     0x4000UL
+	#define QUEUE_PFCENABLE_CFG_REQ_FLAGS_PRI7_PFC_WATCHDOG_ENABLED     0x8000UL
 	__le16	port_id;
 	u8	unused_0[2];
 };
@@ -4806,6 +5061,7 @@ struct hwrm_vnic_cfg_input {
 	#define VNIC_CFG_REQ_ENABLES_DEFAULT_RX_RING_ID       0x20UL
 	#define VNIC_CFG_REQ_ENABLES_DEFAULT_CMPL_RING_ID     0x40UL
 	#define VNIC_CFG_REQ_ENABLES_QUEUE_ID                 0x80UL
+	#define VNIC_CFG_REQ_ENABLES_RX_CSUM_V2_MODE          0x100UL
 	__le16	vnic_id;
 	__le16	dflt_ring_grp;
 	__le16	rss_rule;
@@ -4815,7 +5071,12 @@ struct hwrm_vnic_cfg_input {
 	__le16	default_rx_ring_id;
 	__le16	default_cmpl_ring_id;
 	__le16	queue_id;
-	u8	unused0[6];
+	u8	rx_csum_v2_mode;
+	#define VNIC_CFG_REQ_RX_CSUM_V2_MODE_DEFAULT 0x0UL
+	#define VNIC_CFG_REQ_RX_CSUM_V2_MODE_ALL_OK  0x1UL
+	#define VNIC_CFG_REQ_RX_CSUM_V2_MODE_MAX     0x2UL
+	#define VNIC_CFG_REQ_RX_CSUM_V2_MODE_LAST   VNIC_CFG_REQ_RX_CSUM_V2_MODE_MAX
+	u8	unused0[5];
 };
 
 /* hwrm_vnic_cfg_output (size:128b/16B) */
@@ -4857,6 +5118,7 @@ struct hwrm_vnic_qcaps_output {
 	#define VNIC_QCAPS_RESP_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_CAP     0x40UL
 	#define VNIC_QCAPS_RESP_FLAGS_OUTERMOST_RSS_CAP                   0x80UL
 	#define VNIC_QCAPS_RESP_FLAGS_COS_ASSIGNMENT_CAP                  0x100UL
+	#define VNIC_QCAPS_RESP_FLAGS_RX_CMPL_V2_CAP                      0x200UL
 	__le16	max_aggs_supported;
 	u8	unused_1[5];
 	u8	valid;
@@ -5023,15 +5285,18 @@ struct hwrm_vnic_plcmodes_cfg_input {
 	#define VNIC_PLCMODES_CFG_REQ_FLAGS_HDS_IPV6              0x8UL
 	#define VNIC_PLCMODES_CFG_REQ_FLAGS_HDS_FCOE              0x10UL
 	#define VNIC_PLCMODES_CFG_REQ_FLAGS_HDS_ROCE              0x20UL
+	#define VNIC_PLCMODES_CFG_REQ_FLAGS_VIRTIO_PLACEMENT      0x40UL
 	__le32	enables;
 	#define VNIC_PLCMODES_CFG_REQ_ENABLES_JUMBO_THRESH_VALID      0x1UL
 	#define VNIC_PLCMODES_CFG_REQ_ENABLES_HDS_OFFSET_VALID        0x2UL
 	#define VNIC_PLCMODES_CFG_REQ_ENABLES_HDS_THRESHOLD_VALID     0x4UL
+	#define VNIC_PLCMODES_CFG_REQ_ENABLES_MAX_BDS_VALID           0x8UL
 	__le32	vnic_id;
 	__le16	jumbo_thresh;
 	__le16	hds_offset;
 	__le16	hds_threshold;
-	u8	unused_0[6];
+	__le16	max_bds;
+	u8	unused_0[4];
 };
 
 /* hwrm_vnic_plcmodes_cfg_output (size:128b/16B) */
@@ -5099,6 +5364,7 @@ struct hwrm_ring_alloc_input {
 	#define RING_ALLOC_REQ_ENABLES_RX_RING_ID_VALID      0x40UL
 	#define RING_ALLOC_REQ_ENABLES_NQ_RING_ID_VALID      0x80UL
 	#define RING_ALLOC_REQ_ENABLES_RX_BUF_SIZE_VALID     0x100UL
+	#define RING_ALLOC_REQ_ENABLES_SCHQ_ID               0x200UL
 	u8	ring_type;
 	#define RING_ALLOC_REQ_RING_TYPE_L2_CMPL   0x0UL
 	#define RING_ALLOC_REQ_RING_TYPE_TX        0x1UL
@@ -5114,7 +5380,7 @@ struct hwrm_ring_alloc_input {
 	__le32	fbo;
 	u8	page_size;
 	u8	page_tbl_depth;
-	u8	unused_1[2];
+	__le16	schq_id;
 	__le32	length;
 	__le16	logical_id;
 	__le16	cmpl_ring_id;
@@ -5212,11 +5478,12 @@ struct hwrm_ring_reset_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	u8	ring_type;
-	#define RING_RESET_REQ_RING_TYPE_L2_CMPL   0x0UL
-	#define RING_RESET_REQ_RING_TYPE_TX        0x1UL
-	#define RING_RESET_REQ_RING_TYPE_RX        0x2UL
-	#define RING_RESET_REQ_RING_TYPE_ROCE_CMPL 0x3UL
-	#define RING_RESET_REQ_RING_TYPE_LAST     RING_RESET_REQ_RING_TYPE_ROCE_CMPL
+	#define RING_RESET_REQ_RING_TYPE_L2_CMPL     0x0UL
+	#define RING_RESET_REQ_RING_TYPE_TX          0x1UL
+	#define RING_RESET_REQ_RING_TYPE_RX          0x2UL
+	#define RING_RESET_REQ_RING_TYPE_ROCE_CMPL   0x3UL
+	#define RING_RESET_REQ_RING_TYPE_RX_RING_GRP 0x6UL
+	#define RING_RESET_REQ_RING_TYPE_LAST       RING_RESET_REQ_RING_TYPE_RX_RING_GRP
 	u8	unused_0;
 	__le16	ring_id;
 	u8	unused_1[4];
@@ -5287,7 +5554,11 @@ struct hwrm_ring_cmpl_ring_qaggint_params_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le16	ring_id;
-	u8	unused_0[6];
+	__le16	flags;
+	#define RING_CMPL_RING_QAGGINT_PARAMS_REQ_FLAGS_UNUSED_0_MASK 0x3UL
+	#define RING_CMPL_RING_QAGGINT_PARAMS_REQ_FLAGS_UNUSED_0_SFT 0
+	#define RING_CMPL_RING_QAGGINT_PARAMS_REQ_FLAGS_IS_NQ        0x4UL
+	u8	unused_0[4];
 };
 
 /* hwrm_ring_cmpl_ring_qaggint_params_output (size:256b/32B) */
@@ -5393,6 +5664,7 @@ struct hwrm_ring_grp_free_output {
 	u8	unused_0[7];
 	u8	valid;
 };
+
 #define DEFAULT_FLOW_ID 0xFFFFFFFFUL
 #define ROCEV1_FLOW_ID 0xFFFFFFFEUL
 #define ROCEV2_FLOW_ID 0xFFFFFFFDUL
@@ -6680,15 +6952,15 @@ struct ctx_hw_stats {
 	__le64	rx_mcast_pkts;
 	__le64	rx_bcast_pkts;
 	__le64	rx_discard_pkts;
-	__le64	rx_drop_pkts;
+	__le64	rx_error_pkts;
 	__le64	rx_ucast_bytes;
 	__le64	rx_mcast_bytes;
 	__le64	rx_bcast_bytes;
 	__le64	tx_ucast_pkts;
 	__le64	tx_mcast_pkts;
 	__le64	tx_bcast_pkts;
+	__le64	tx_error_pkts;
 	__le64	tx_discard_pkts;
-	__le64	tx_drop_pkts;
 	__le64	tx_ucast_bytes;
 	__le64	tx_mcast_bytes;
 	__le64	tx_bcast_bytes;
@@ -6704,15 +6976,15 @@ struct ctx_hw_stats_ext {
 	__le64	rx_mcast_pkts;
 	__le64	rx_bcast_pkts;
 	__le64	rx_discard_pkts;
-	__le64	rx_drop_pkts;
+	__le64	rx_error_pkts;
 	__le64	rx_ucast_bytes;
 	__le64	rx_mcast_bytes;
 	__le64	rx_bcast_bytes;
 	__le64	tx_ucast_pkts;
 	__le64	tx_mcast_pkts;
 	__le64	tx_bcast_pkts;
+	__le64	tx_error_pkts;
 	__le64	tx_discard_pkts;
-	__le64	tx_drop_pkts;
 	__le64	tx_ucast_bytes;
 	__le64	tx_mcast_bytes;
 	__le64	tx_bcast_bytes;
@@ -6779,7 +7051,9 @@ struct hwrm_stat_ctx_query_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le32	stat_ctx_id;
-	u8	unused_0[4];
+	u8	flags;
+	#define STAT_CTX_QUERY_REQ_FLAGS_COUNTER_MASK     0x1UL
+	u8	unused_0[3];
 };
 
 /* hwrm_stat_ctx_query_output (size:1408b/176B) */
@@ -6808,6 +7082,50 @@ struct hwrm_stat_ctx_query_output {
 	__le64	rx_agg_bytes;
 	__le64	rx_agg_events;
 	__le64	rx_agg_aborts;
+	u8	unused_0[7];
+	u8	valid;
+};
+
+/* hwrm_stat_ext_ctx_query_input (size:192b/24B) */
+struct hwrm_stat_ext_ctx_query_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	__le32	stat_ctx_id;
+	u8	flags;
+	#define STAT_EXT_CTX_QUERY_REQ_FLAGS_COUNTER_MASK     0x1UL
+	u8	unused_0[3];
+};
+
+/* hwrm_stat_ext_ctx_query_output (size:1472b/184B) */
+struct hwrm_stat_ext_ctx_query_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le64	rx_ucast_pkts;
+	__le64	rx_mcast_pkts;
+	__le64	rx_bcast_pkts;
+	__le64	rx_discard_pkts;
+	__le64	rx_error_pkts;
+	__le64	rx_ucast_bytes;
+	__le64	rx_mcast_bytes;
+	__le64	rx_bcast_bytes;
+	__le64	tx_ucast_pkts;
+	__le64	tx_mcast_pkts;
+	__le64	tx_bcast_pkts;
+	__le64	tx_error_pkts;
+	__le64	tx_discard_pkts;
+	__le64	tx_ucast_bytes;
+	__le64	tx_mcast_bytes;
+	__le64	tx_bcast_bytes;
+	__le64	rx_tpa_eligible_pkt;
+	__le64	rx_tpa_eligible_bytes;
+	__le64	rx_tpa_pkt;
+	__le64	rx_tpa_bytes;
+	__le64	rx_tpa_errors;
 	u8	unused_0[7];
 	u8	valid;
 };
@@ -7361,6 +7679,29 @@ struct hwrm_wol_reason_qcfg_output {
 	u8	valid;
 };
 
+/* hwrm_dbg_read_direct_input (size:256b/32B) */
+struct hwrm_dbg_read_direct_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	__le64	host_dest_addr;
+	__le32	read_addr;
+	__le32	read_len32;
+};
+
+/* hwrm_dbg_read_direct_output (size:128b/16B) */
+struct hwrm_dbg_read_direct_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le32	crc32;
+	u8	unused_0[3];
+	u8	valid;
+};
+
 /* coredump_segment_record (size:128b/16B) */
 struct coredump_segment_record {
 	__le16	component_id;
@@ -7371,7 +7712,8 @@ struct coredump_segment_record {
 	u8	seg_flags;
 	u8	compress_flags;
 	#define SFLAG_COMPRESSED_ZLIB     0x1UL
-	u8	unused_0[6];
+	u8	unused_0[2];
+	__le32	segment_len;
 };
 
 /* hwrm_dbg_coredump_list_input (size:256b/32B) */
@@ -7484,7 +7826,8 @@ struct hwrm_dbg_ring_info_get_input {
 	#define DBG_RING_INFO_GET_REQ_RING_TYPE_L2_CMPL 0x0UL
 	#define DBG_RING_INFO_GET_REQ_RING_TYPE_TX      0x1UL
 	#define DBG_RING_INFO_GET_REQ_RING_TYPE_RX      0x2UL
-	#define DBG_RING_INFO_GET_REQ_RING_TYPE_LAST   DBG_RING_INFO_GET_REQ_RING_TYPE_RX
+	#define DBG_RING_INFO_GET_REQ_RING_TYPE_NQ      0x3UL
+	#define DBG_RING_INFO_GET_REQ_RING_TYPE_LAST   DBG_RING_INFO_GET_REQ_RING_TYPE_NQ
 	u8	unused_0[3];
 	__le32	fw_ring_id;
 };
@@ -7497,7 +7840,8 @@ struct hwrm_dbg_ring_info_get_output {
 	__le16	resp_len;
 	__le32	producer_index;
 	__le32	consumer_index;
-	u8	unused_0[7];
+	__le32	cag_vector_ctrl;
+	u8	unused_0[3];
 	u8	valid;
 };
 
@@ -7618,7 +7962,9 @@ struct hwrm_nvm_modify_input {
 	__le64	resp_addr;
 	__le64	host_src_addr;
 	__le16	dir_idx;
-	u8	unused_0[2];
+	__le16	flags;
+	#define NVM_MODIFY_REQ_FLAGS_BATCH_MODE     0x1UL
+	#define NVM_MODIFY_REQ_FLAGS_BATCH_LAST     0x2UL
 	__le32	offset;
 	__le32	len;
 	u8	unused_1[4];
@@ -7784,6 +8130,7 @@ struct hwrm_nvm_install_update_input {
 	#define NVM_INSTALL_UPDATE_REQ_FLAGS_ERASE_UNUSED_SPACE     0x1UL
 	#define NVM_INSTALL_UPDATE_REQ_FLAGS_REMOVE_UNUSED_PKG      0x2UL
 	#define NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG      0x4UL
+	#define NVM_INSTALL_UPDATE_REQ_FLAGS_VERIFY_ONLY            0x8UL
 	u8	unused_0[2];
 };
 
@@ -7963,7 +8310,14 @@ struct hwrm_selftest_qlist_output {
 	char	test5_name[32];
 	char	test6_name[32];
 	char	test7_name[32];
-	u8	unused_2[7];
+	u8	eyescope_target_BER_support;
+	#define SELFTEST_QLIST_RESP_EYESCOPE_TARGET_BER_SUPPORT_BER_1E8_SUPPORTED  0x0UL
+	#define SELFTEST_QLIST_RESP_EYESCOPE_TARGET_BER_SUPPORT_BER_1E9_SUPPORTED  0x1UL
+	#define SELFTEST_QLIST_RESP_EYESCOPE_TARGET_BER_SUPPORT_BER_1E10_SUPPORTED 0x2UL
+	#define SELFTEST_QLIST_RESP_EYESCOPE_TARGET_BER_SUPPORT_BER_1E11_SUPPORTED 0x3UL
+	#define SELFTEST_QLIST_RESP_EYESCOPE_TARGET_BER_SUPPORT_BER_1E12_SUPPORTED 0x4UL
+	#define SELFTEST_QLIST_RESP_EYESCOPE_TARGET_BER_SUPPORT_LAST              SELFTEST_QLIST_RESP_EYESCOPE_TARGET_BER_SUPPORT_BER_1E12_SUPPORTED
+	u8	unused_2[6];
 	u8	valid;
 };
 
@@ -8025,6 +8379,20 @@ struct hwrm_selftest_irq_output {
 	__le16	resp_len;
 	u8	unused_0[7];
 	u8	valid;
+};
+
+/* fw_status_reg (size:32b/4B) */
+struct fw_status_reg {
+	u32	fw_status;
+	#define FW_STATUS_REG_CODE_MASK              0xffffUL
+	#define FW_STATUS_REG_CODE_SFT               0
+	#define FW_STATUS_REG_CODE_READY               0x8000UL
+	#define FW_STATUS_REG_CODE_LAST               FW_STATUS_REG_CODE_READY
+	#define FW_STATUS_REG_IMAGE_DEGRADED         0x10000UL
+	#define FW_STATUS_REG_RECOVERABLE            0x20000UL
+	#define FW_STATUS_REG_CRASHDUMP_ONGOING      0x40000UL
+	#define FW_STATUS_REG_CRASHDUMP_COMPLETE     0x80000UL
+	#define FW_STATUS_REG_SHUTDOWN               0x100000UL
 };
 
 #endif /* _BNXT_HSI_H_ */

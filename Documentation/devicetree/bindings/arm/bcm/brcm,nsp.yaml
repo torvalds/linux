@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/bcm/brcm,nsp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Northstar Plus device tree bindings
+
+description:
+  Broadcom Northstar Plus family of SoCs are used for switching control
+  and management applications as well as residential router/gateway
+  applications. The SoC features dual core Cortex A9 ARM CPUs, integrating
+  several peripheral interfaces including multiple Gigabit Ethernet PHYs,
+  DDR3 memory, PCIE Gen-2, USB 2.0 and USB 3.0, serial and NAND flash,
+  SATA and several other IO controllers.
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    items:
+      - enum:
+          - brcm,bcm58522
+          - brcm,bcm58525
+          - brcm,bcm58535
+          - brcm,bcm58622
+          - brcm,bcm58623
+          - brcm,bcm58625
+          - brcm,bcm88312
+      - const: brcm,nsp
+
+...

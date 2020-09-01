@@ -21,10 +21,10 @@
 #include <linux/cpuhotplug.h>
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
+#include <linux/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
@@ -40,6 +40,7 @@
 #include <asm/fadump.h>
 #include <asm/asm-prototypes.h>
 #include <asm/debugfs.h>
+#include <asm/dtl.h>
 
 #include "pseries.h"
 
@@ -636,8 +637,16 @@ static const struct proc_ops vcpudispatch_stats_freq_proc_ops = {
 
 static int __init vcpudispatch_stats_procfs_init(void)
 {
-	if (!lppaca_shared_proc(get_lppaca()))
+	/*
+	 * Avoid smp_processor_id while preemptible. All CPUs should have
+	 * the same value for lppaca_shared_proc.
+	 */
+	preempt_disable();
+	if (!lppaca_shared_proc(get_lppaca())) {
+		preempt_enable();
 		return 0;
+	}
+	preempt_enable();
 
 	if (!proc_create("powerpc/vcpudispatch_stats", 0600, NULL,
 					&vcpudispatch_stats_proc_ops))
@@ -1672,9 +1681,11 @@ static int pseries_lpar_register_process_table(unsigned long base,
 
 	if (table_size)
 		flags |= PROC_TABLE_NEW;
-	if (radix_enabled())
-		flags |= PROC_TABLE_RADIX | PROC_TABLE_GTSE;
-	else
+	if (radix_enabled()) {
+		flags |= PROC_TABLE_RADIX;
+		if (mmu_has_feature(MMU_FTR_GTSE))
+			flags |= PROC_TABLE_GTSE;
+	} else
 		flags |= PROC_TABLE_HPT_SLB;
 	for (;;) {
 		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,

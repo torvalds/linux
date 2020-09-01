@@ -799,9 +799,6 @@ static const char * const pa_indicator_groups[] = {
 static const char * const modem_tsync_groups[] = {
 	"gpio93",
 };
-static const char * const nav_tsync_groups[] = {
-	"gpio93",
-};
 static const char * const ssbi_wtr1_groups[] = {
 	"gpio79", "gpio94",
 };

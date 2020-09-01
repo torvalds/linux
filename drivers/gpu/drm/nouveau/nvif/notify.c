@@ -142,7 +142,7 @@ nvif_notify(const void *header, u32 length, const void *data, u32 size)
 }
 
 int
-nvif_notify_fini(struct nvif_notify *notify)
+nvif_notify_dtor(struct nvif_notify *notify)
 {
 	struct nvif_object *object = notify->object;
 	struct {
@@ -162,9 +162,9 @@ nvif_notify_fini(struct nvif_notify *notify)
 }
 
 int
-nvif_notify_init(struct nvif_object *object, int (*func)(struct nvif_notify *),
-		 bool work, u8 event, void *data, u32 size, u32 reply,
-		 struct nvif_notify *notify)
+nvif_notify_ctor(struct nvif_object *object, const char *name,
+		 int (*func)(struct nvif_notify *), bool work, u8 event,
+		 void *data, u32 size, u32 reply, struct nvif_notify *notify)
 {
 	struct {
 		struct nvif_ioctl_v0 ioctl;
@@ -174,6 +174,7 @@ nvif_notify_init(struct nvif_object *object, int (*func)(struct nvif_notify *),
 	int ret = -ENOMEM;
 
 	notify->object = object;
+	notify->name = name ? name : "nvifNotify";
 	notify->flags = 0;
 	atomic_set(&notify->putcnt, 1);
 	notify->func = func;
@@ -204,6 +205,6 @@ nvif_notify_init(struct nvif_object *object, int (*func)(struct nvif_notify *),
 	kfree(args);
 done:
 	if (ret)
-		nvif_notify_fini(notify);
+		nvif_notify_dtor(notify);
 	return ret;
 }

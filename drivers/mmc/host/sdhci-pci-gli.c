@@ -26,12 +26,23 @@
 #define   SDHCI_GLI_9750_DRIVING_2    GENMASK(27, 26)
 #define   GLI_9750_DRIVING_1_VALUE    0xFFF
 #define   GLI_9750_DRIVING_2_VALUE    0x3
+#define   SDHCI_GLI_9750_SEL_1        BIT(29)
+#define   SDHCI_GLI_9750_SEL_2        BIT(31)
+#define   SDHCI_GLI_9750_ALL_RST      (BIT(24)|BIT(25)|BIT(28)|BIT(30))
 
 #define SDHCI_GLI_9750_PLL	      0x864
+#define   SDHCI_GLI_9750_PLL_LDIV       GENMASK(9, 0)
+#define   SDHCI_GLI_9750_PLL_PDIV       GENMASK(14, 12)
+#define   SDHCI_GLI_9750_PLL_DIR        BIT(15)
 #define   SDHCI_GLI_9750_PLL_TX2_INV    BIT(23)
 #define   SDHCI_GLI_9750_PLL_TX2_DLY    GENMASK(22, 20)
 #define   GLI_9750_PLL_TX2_INV_VALUE    0x1
 #define   GLI_9750_PLL_TX2_DLY_VALUE    0x0
+#define   SDHCI_GLI_9750_PLLSSC_STEP    GENMASK(28, 24)
+#define   SDHCI_GLI_9750_PLLSSC_EN      BIT(31)
+
+#define SDHCI_GLI_9750_PLLSSC        0x86C
+#define   SDHCI_GLI_9750_PLLSSC_PPM    GENMASK(31, 16)
 
 #define SDHCI_GLI_9750_SW_CTRL      0x874
 #define   SDHCI_GLI_9750_SW_CTRL_4    GENMASK(7, 6)
@@ -59,6 +70,34 @@
 #define SDHCI_GLI_9750_TUNING_PARAMETERS           0x544
 #define   SDHCI_GLI_9750_TUNING_PARAMETERS_RX_DLY    GENMASK(2, 0)
 #define   GLI_9750_TUNING_PARAMETERS_RX_DLY_VALUE    0x1
+
+#define SDHCI_GLI_9763E_CTRL_HS400  0x7
+
+#define SDHCI_GLI_9763E_HS400_ES_REG      0x52C
+#define   SDHCI_GLI_9763E_HS400_ES_BIT      BIT(8)
+
+#define PCIE_GLI_9763E_VHS	 0x884
+#define   GLI_9763E_VHS_REV	   GENMASK(19, 16)
+#define   GLI_9763E_VHS_REV_R      0x0
+#define   GLI_9763E_VHS_REV_M      0x1
+#define   GLI_9763E_VHS_REV_W      0x2
+#define PCIE_GLI_9763E_SCR	 0x8E0
+#define   GLI_9763E_SCR_AXI_REQ	   BIT(9)
+
+#define PCI_GLI_9755_WT       0x800
+#define   PCI_GLI_9755_WT_EN    BIT(0)
+#define   GLI_9755_WT_EN_ON     0x1
+#define   GLI_9755_WT_EN_OFF    0x0
+
+#define PCI_GLI_9755_PLL            0x64
+#define   PCI_GLI_9755_PLL_LDIV       GENMASK(9, 0)
+#define   PCI_GLI_9755_PLL_PDIV       GENMASK(14, 12)
+#define   PCI_GLI_9755_PLL_DIR        BIT(15)
+#define   PCI_GLI_9755_PLLSSC_STEP    GENMASK(28, 24)
+#define   PCI_GLI_9755_PLLSSC_EN      BIT(31)
+
+#define PCI_GLI_9755_PLLSSC        0x68
+#define   PCI_GLI_9755_PLLSSC_PPM    GENMASK(15, 0)
 
 #define GLI_MAX_TUNING_LOOP 40
 
@@ -122,6 +161,8 @@ static void gli_set_9750(struct sdhci_host *host)
 				    GLI_9750_DRIVING_1_VALUE);
 	driving_value |= FIELD_PREP(SDHCI_GLI_9750_DRIVING_2,
 				    GLI_9750_DRIVING_2_VALUE);
+	driving_value &= ~(SDHCI_GLI_9750_SEL_1|SDHCI_GLI_9750_SEL_2|SDHCI_GLI_9750_ALL_RST);
+	driving_value |= SDHCI_GLI_9750_SEL_2;
 	sdhci_writel(host, driving_value, SDHCI_GLI_9750_DRIVING);
 
 	sw_ctrl_value &= ~SDHCI_GLI_9750_SW_CTRL_4;
@@ -262,6 +303,84 @@ static int gl9750_execute_tuning(struct sdhci_host *host, u32 opcode)
 	return 0;
 }
 
+static void gl9750_disable_ssc_pll(struct sdhci_host *host)
+{
+	u32 pll;
+
+	gl9750_wt_on(host);
+	pll = sdhci_readl(host, SDHCI_GLI_9750_PLL);
+	pll &= ~(SDHCI_GLI_9750_PLL_DIR | SDHCI_GLI_9750_PLLSSC_EN);
+	sdhci_writel(host, pll, SDHCI_GLI_9750_PLL);
+	gl9750_wt_off(host);
+}
+
+static void gl9750_set_pll(struct sdhci_host *host, u8 dir, u16 ldiv, u8 pdiv)
+{
+	u32 pll;
+
+	gl9750_wt_on(host);
+	pll = sdhci_readl(host, SDHCI_GLI_9750_PLL);
+	pll &= ~(SDHCI_GLI_9750_PLL_LDIV |
+		 SDHCI_GLI_9750_PLL_PDIV |
+		 SDHCI_GLI_9750_PLL_DIR);
+	pll |= FIELD_PREP(SDHCI_GLI_9750_PLL_LDIV, ldiv) |
+	       FIELD_PREP(SDHCI_GLI_9750_PLL_PDIV, pdiv) |
+	       FIELD_PREP(SDHCI_GLI_9750_PLL_DIR, dir);
+	sdhci_writel(host, pll, SDHCI_GLI_9750_PLL);
+	gl9750_wt_off(host);
+
+	/* wait for pll stable */
+	mdelay(1);
+}
+
+static void gl9750_set_ssc(struct sdhci_host *host, u8 enable, u8 step, u16 ppm)
+{
+	u32 pll;
+	u32 ssc;
+
+	gl9750_wt_on(host);
+	pll = sdhci_readl(host, SDHCI_GLI_9750_PLL);
+	ssc = sdhci_readl(host, SDHCI_GLI_9750_PLLSSC);
+	pll &= ~(SDHCI_GLI_9750_PLLSSC_STEP |
+		 SDHCI_GLI_9750_PLLSSC_EN);
+	ssc &= ~SDHCI_GLI_9750_PLLSSC_PPM;
+	pll |= FIELD_PREP(SDHCI_GLI_9750_PLLSSC_STEP, step) |
+	       FIELD_PREP(SDHCI_GLI_9750_PLLSSC_EN, enable);
+	ssc |= FIELD_PREP(SDHCI_GLI_9750_PLLSSC_PPM, ppm);
+	sdhci_writel(host, ssc, SDHCI_GLI_9750_PLLSSC);
+	sdhci_writel(host, pll, SDHCI_GLI_9750_PLL);
+	gl9750_wt_off(host);
+}
+
+static void gl9750_set_ssc_pll_205mhz(struct sdhci_host *host)
+{
+	/* set pll to 205MHz and enable ssc */
+	gl9750_set_ssc(host, 0x1, 0x1F, 0xFFE7);
+	gl9750_set_pll(host, 0x1, 0x246, 0x0);
+}
+
+static void sdhci_gl9750_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	struct mmc_ios *ios = &host->mmc->ios;
+	u16 clk;
+
+	host->mmc->actual_clock = 0;
+
+	gl9750_disable_ssc_pll(host);
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
+	if (clock == 0)
+		return;
+
+	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
+	if (clock == 200000000 && ios->timing == MMC_TIMING_UHS_SDR104) {
+		host->mmc->actual_clock = 205000000;
+		gl9750_set_ssc_pll_205mhz(host);
+	}
+
+	sdhci_enable_clk(host, clk);
+}
+
 static void gli_pcie_enable_msi(struct sdhci_pci_slot *slot)
 {
 	int ret;
@@ -275,6 +394,121 @@ static void gli_pcie_enable_msi(struct sdhci_pci_slot *slot)
 	}
 
 	slot->host->irq = pci_irq_vector(slot->chip->pdev, 0);
+}
+
+static inline void gl9755_wt_on(struct pci_dev *pdev)
+{
+	u32 wt_value;
+	u32 wt_enable;
+
+	pci_read_config_dword(pdev, PCI_GLI_9755_WT, &wt_value);
+	wt_enable = FIELD_GET(PCI_GLI_9755_WT_EN, wt_value);
+
+	if (wt_enable == GLI_9755_WT_EN_ON)
+		return;
+
+	wt_value &= ~PCI_GLI_9755_WT_EN;
+	wt_value |= FIELD_PREP(PCI_GLI_9755_WT_EN, GLI_9755_WT_EN_ON);
+
+	pci_write_config_dword(pdev, PCI_GLI_9755_WT, wt_value);
+}
+
+static inline void gl9755_wt_off(struct pci_dev *pdev)
+{
+	u32 wt_value;
+	u32 wt_enable;
+
+	pci_read_config_dword(pdev, PCI_GLI_9755_WT, &wt_value);
+	wt_enable = FIELD_GET(PCI_GLI_9755_WT_EN, wt_value);
+
+	if (wt_enable == GLI_9755_WT_EN_OFF)
+		return;
+
+	wt_value &= ~PCI_GLI_9755_WT_EN;
+	wt_value |= FIELD_PREP(PCI_GLI_9755_WT_EN, GLI_9755_WT_EN_OFF);
+
+	pci_write_config_dword(pdev, PCI_GLI_9755_WT, wt_value);
+}
+
+static void gl9755_disable_ssc_pll(struct pci_dev *pdev)
+{
+	u32 pll;
+
+	gl9755_wt_on(pdev);
+	pci_read_config_dword(pdev, PCI_GLI_9755_PLL, &pll);
+	pll &= ~(PCI_GLI_9755_PLL_DIR | PCI_GLI_9755_PLLSSC_EN);
+	pci_write_config_dword(pdev, PCI_GLI_9755_PLL, pll);
+	gl9755_wt_off(pdev);
+}
+
+static void gl9755_set_pll(struct pci_dev *pdev, u8 dir, u16 ldiv, u8 pdiv)
+{
+	u32 pll;
+
+	gl9755_wt_on(pdev);
+	pci_read_config_dword(pdev, PCI_GLI_9755_PLL, &pll);
+	pll &= ~(PCI_GLI_9755_PLL_LDIV |
+		 PCI_GLI_9755_PLL_PDIV |
+		 PCI_GLI_9755_PLL_DIR);
+	pll |= FIELD_PREP(PCI_GLI_9755_PLL_LDIV, ldiv) |
+	       FIELD_PREP(PCI_GLI_9755_PLL_PDIV, pdiv) |
+	       FIELD_PREP(PCI_GLI_9755_PLL_DIR, dir);
+	pci_write_config_dword(pdev, PCI_GLI_9755_PLL, pll);
+	gl9755_wt_off(pdev);
+
+	/* wait for pll stable */
+	mdelay(1);
+}
+
+static void gl9755_set_ssc(struct pci_dev *pdev, u8 enable, u8 step, u16 ppm)
+{
+	u32 pll;
+	u32 ssc;
+
+	gl9755_wt_on(pdev);
+	pci_read_config_dword(pdev, PCI_GLI_9755_PLL, &pll);
+	pci_read_config_dword(pdev, PCI_GLI_9755_PLLSSC, &ssc);
+	pll &= ~(PCI_GLI_9755_PLLSSC_STEP |
+		 PCI_GLI_9755_PLLSSC_EN);
+	ssc &= ~PCI_GLI_9755_PLLSSC_PPM;
+	pll |= FIELD_PREP(PCI_GLI_9755_PLLSSC_STEP, step) |
+	       FIELD_PREP(PCI_GLI_9755_PLLSSC_EN, enable);
+	ssc |= FIELD_PREP(PCI_GLI_9755_PLLSSC_PPM, ppm);
+	pci_write_config_dword(pdev, PCI_GLI_9755_PLLSSC, ssc);
+	pci_write_config_dword(pdev, PCI_GLI_9755_PLL, pll);
+	gl9755_wt_off(pdev);
+}
+
+static void gl9755_set_ssc_pll_205mhz(struct pci_dev *pdev)
+{
+	/* set pll to 205MHz and enable ssc */
+	gl9755_set_ssc(pdev, 0x1, 0x1F, 0xFFE7);
+	gl9755_set_pll(pdev, 0x1, 0x246, 0x0);
+}
+
+static void sdhci_gl9755_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	struct sdhci_pci_slot *slot = sdhci_priv(host);
+	struct mmc_ios *ios = &host->mmc->ios;
+	struct pci_dev *pdev;
+	u16 clk;
+
+	pdev = slot->chip->pdev;
+	host->mmc->actual_clock = 0;
+
+	gl9755_disable_ssc_pll(pdev);
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
+	if (clock == 0)
+		return;
+
+	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
+	if (clock == 200000000 && ios->timing == MMC_TIMING_UHS_SDR104) {
+		host->mmc->actual_clock = 205000000;
+		gl9755_set_ssc_pll_205mhz(pdev);
+	}
+
+	sdhci_enable_clk(host, clk);
 }
 
 static int gli_probe_slot_gl9750(struct sdhci_pci_slot *slot)
@@ -334,8 +568,95 @@ static u32 sdhci_gl9750_readl(struct sdhci_host *host, int reg)
 	return value;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int sdhci_pci_gli_resume(struct sdhci_pci_chip *chip)
+{
+	struct sdhci_pci_slot *slot = chip->slots[0];
+
+	pci_free_irq_vectors(slot->chip->pdev);
+	gli_pcie_enable_msi(slot);
+
+	return sdhci_pci_resume_host(chip);
+}
+#endif
+
+static void gl9763e_hs400_enhanced_strobe(struct mmc_host *mmc,
+					  struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	u32 val;
+
+	val = sdhci_readl(host, SDHCI_GLI_9763E_HS400_ES_REG);
+	if (ios->enhanced_strobe)
+		val |= SDHCI_GLI_9763E_HS400_ES_BIT;
+	else
+		val &= ~SDHCI_GLI_9763E_HS400_ES_BIT;
+
+	sdhci_writel(host, val, SDHCI_GLI_9763E_HS400_ES_REG);
+}
+
+static void sdhci_set_gl9763e_signaling(struct sdhci_host *host,
+					unsigned int timing)
+{
+	u16 ctrl_2;
+
+	ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
+	if (timing == MMC_TIMING_MMC_HS200)
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR104;
+	else if (timing == MMC_TIMING_MMC_HS)
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR25;
+	else if (timing == MMC_TIMING_MMC_DDR52)
+		ctrl_2 |= SDHCI_CTRL_UHS_DDR50;
+	else if (timing == MMC_TIMING_MMC_HS400)
+		ctrl_2 |= SDHCI_GLI_9763E_CTRL_HS400;
+
+	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+}
+
+static void gli_set_gl9763e(struct sdhci_pci_slot *slot)
+{
+	struct pci_dev *pdev = slot->chip->pdev;
+	u32 value;
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
+	value &= ~GLI_9763E_VHS_REV;
+	value |= FIELD_PREP(GLI_9763E_VHS_REV, GLI_9763E_VHS_REV_W);
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_VHS, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_SCR, &value);
+	value |= GLI_9763E_SCR_AXI_REQ;
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_SCR, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
+	value &= ~GLI_9763E_VHS_REV;
+	value |= FIELD_PREP(GLI_9763E_VHS_REV, GLI_9763E_VHS_REV_R);
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_VHS, value);
+}
+
+static int gli_probe_slot_gl9763e(struct sdhci_pci_slot *slot)
+{
+	struct sdhci_host *host = slot->host;
+
+	host->mmc->caps |= MMC_CAP_8_BIT_DATA |
+			   MMC_CAP_1_8V_DDR |
+			   MMC_CAP_NONREMOVABLE;
+	host->mmc->caps2 |= MMC_CAP2_HS200_1_8V_SDR |
+			    MMC_CAP2_HS400_1_8V |
+			    MMC_CAP2_HS400_ES |
+			    MMC_CAP2_NO_SDIO |
+			    MMC_CAP2_NO_SD;
+	gli_pcie_enable_msi(slot);
+	host->mmc_host_ops.hs400_enhanced_strobe =
+					gl9763e_hs400_enhanced_strobe;
+	gli_set_gl9763e(slot);
+	sdhci_enable_v4_mode(host);
+
+	return 0;
+}
+
 static const struct sdhci_ops sdhci_gl9755_ops = {
-	.set_clock		= sdhci_set_clock,
+	.set_clock		= sdhci_gl9755_set_clock,
 	.enable_dma		= sdhci_pci_enable_dma,
 	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_reset,
@@ -348,11 +669,14 @@ const struct sdhci_pci_fixes sdhci_gl9755 = {
 	.quirks2	= SDHCI_QUIRK2_BROKEN_DDR50,
 	.probe_slot	= gli_probe_slot_gl9755,
 	.ops            = &sdhci_gl9755_ops,
+#ifdef CONFIG_PM_SLEEP
+	.resume         = sdhci_pci_gli_resume,
+#endif
 };
 
 static const struct sdhci_ops sdhci_gl9750_ops = {
 	.read_l                 = sdhci_gl9750_readl,
-	.set_clock		= sdhci_set_clock,
+	.set_clock		= sdhci_gl9750_set_clock,
 	.enable_dma		= sdhci_pci_enable_dma,
 	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_gl9750_reset,
@@ -366,4 +690,25 @@ const struct sdhci_pci_fixes sdhci_gl9750 = {
 	.quirks2	= SDHCI_QUIRK2_BROKEN_DDR50,
 	.probe_slot	= gli_probe_slot_gl9750,
 	.ops            = &sdhci_gl9750_ops,
+#ifdef CONFIG_PM_SLEEP
+	.resume         = sdhci_pci_gli_resume,
+#endif
+};
+
+static const struct sdhci_ops sdhci_gl9763e_ops = {
+	.set_clock		= sdhci_set_clock,
+	.enable_dma		= sdhci_pci_enable_dma,
+	.set_bus_width		= sdhci_set_bus_width,
+	.reset			= sdhci_reset,
+	.set_uhs_signaling	= sdhci_set_gl9763e_signaling,
+	.voltage_switch		= sdhci_gli_voltage_switch,
+};
+
+const struct sdhci_pci_fixes sdhci_gl9763e = {
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.probe_slot	= gli_probe_slot_gl9763e,
+	.ops            = &sdhci_gl9763e_ops,
+#ifdef CONFIG_PM_SLEEP
+	.resume         = sdhci_pci_gli_resume,
+#endif
 };

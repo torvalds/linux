@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_pci_func.c: Definition of PCI functions. */
@@ -16,8 +17,10 @@
 #include "aq_pci_func.h"
 #include "hw_atl/hw_atl_a0.h"
 #include "hw_atl/hw_atl_b0.h"
+#include "hw_atl2/hw_atl2.h"
 #include "aq_filters.h"
 #include "aq_drvinfo.h"
+#include "aq_macsec.h"
 
 static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_0001), },
@@ -40,6 +43,13 @@ static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC111S), },
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC112S), },
 
+	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC113DEV), },
+	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC113CS), },
+	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC114CS), },
+	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC113), },
+	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC113C), },
+	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC115C), },
+
 	{}
 };
 
@@ -56,7 +66,7 @@ static const struct aq_board_revision_s hw_atl_boards[] = {
 	{ AQ_DEVICE_ID_D108,	AQ_HWREV_2,	&hw_atl_ops_b0, &hw_atl_b0_caps_aqc108, },
 	{ AQ_DEVICE_ID_D109,	AQ_HWREV_2,	&hw_atl_ops_b0, &hw_atl_b0_caps_aqc109, },
 
-	{ AQ_DEVICE_ID_AQC100,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc107, },
+	{ AQ_DEVICE_ID_AQC100,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc100, },
 	{ AQ_DEVICE_ID_AQC107,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc107, },
 	{ AQ_DEVICE_ID_AQC108,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc108, },
 	{ AQ_DEVICE_ID_AQC109,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc109, },
@@ -69,6 +79,13 @@ static const struct aq_board_revision_s hw_atl_boards[] = {
 	{ AQ_DEVICE_ID_AQC109S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc109s, },
 	{ AQ_DEVICE_ID_AQC111S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc111s, },
 	{ AQ_DEVICE_ID_AQC112S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc112s, },
+
+	{ AQ_DEVICE_ID_AQC113DEV,	AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
+	{ AQ_DEVICE_ID_AQC113,		AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
+	{ AQ_DEVICE_ID_AQC113CS,	AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
+	{ AQ_DEVICE_ID_AQC114CS,	AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
+	{ AQ_DEVICE_ID_AQC113C,		AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
+	{ AQ_DEVICE_ID_AQC115C,		AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
 };
 
 MODULE_DEVICE_TABLE(pci, aq_pci_tbl);
@@ -98,15 +115,13 @@ static int aq_pci_probe_get_hw_by_id(struct pci_dev *pdev,
 	return 0;
 }
 
-int aq_pci_func_init(struct pci_dev *pdev)
+static int aq_pci_func_init(struct pci_dev *pdev)
 {
 	int err;
 
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (!err) {
+	if (!err)
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-
-	}
 	if (err) {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (!err)
@@ -236,6 +251,15 @@ static int aq_pci_probe(struct pci_dev *pdev,
 		goto err_ioremap;
 	}
 	self->aq_hw->aq_nic_cfg = aq_nic_get_cfg(self);
+	if (self->aq_hw->aq_nic_cfg->aq_hw_caps->priv_data_len) {
+		int len = self->aq_hw->aq_nic_cfg->aq_hw_caps->priv_data_len;
+
+		self->aq_hw->priv = kzalloc(len, GFP_KERNEL);
+		if (!self->aq_hw->priv) {
+			err = -ENOMEM;
+			goto err_free_aq_hw;
+		}
+	}
 
 	for (bar = 0; bar < 4; ++bar) {
 		if (IORESOURCE_MEM & pci_resource_flags(pdev, bar)) {
@@ -244,19 +268,19 @@ static int aq_pci_probe(struct pci_dev *pdev,
 			mmio_pa = pci_resource_start(pdev, bar);
 			if (mmio_pa == 0U) {
 				err = -EIO;
-				goto err_free_aq_hw;
+				goto err_free_aq_hw_priv;
 			}
 
 			reg_sz = pci_resource_len(pdev, bar);
 			if ((reg_sz <= 24 /*ATL_REGS_SIZE*/)) {
 				err = -EIO;
-				goto err_free_aq_hw;
+				goto err_free_aq_hw_priv;
 			}
 
 			self->aq_hw->mmio = ioremap(mmio_pa, reg_sz);
 			if (!self->aq_hw->mmio) {
 				err = -EIO;
-				goto err_free_aq_hw;
+				goto err_free_aq_hw_priv;
 			}
 			break;
 		}
@@ -264,7 +288,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 
 	if (bar == 4) {
 		err = -EIO;
-		goto err_free_aq_hw;
+		goto err_free_aq_hw_priv;
 	}
 
 	numvecs = min((u8)AQ_CFG_VECS_DEF,
@@ -304,6 +328,8 @@ err_register:
 	aq_pci_free_irq_vectors(self);
 err_hwinit:
 	iounmap(self->aq_hw->mmio);
+err_free_aq_hw_priv:
+	kfree(self->aq_hw->priv);
 err_free_aq_hw:
 	kfree(self->aq_hw);
 err_ioremap:
@@ -324,9 +350,14 @@ static void aq_pci_remove(struct pci_dev *pdev)
 		aq_clear_rxnfc_all_rules(self);
 		if (self->ndev->reg_state == NETREG_REGISTERED)
 			unregister_netdev(self->ndev);
+
+#if IS_ENABLED(CONFIG_MACSEC)
+		aq_macsec_free(self);
+#endif
 		aq_nic_free_vectors(self);
 		aq_pci_free_irq_vectors(self);
 		iounmap(self->aq_hw->mmio);
+		kfree(self->aq_hw->priv);
 		kfree(self->aq_hw);
 		pci_release_regions(pdev);
 		free_netdev(self->ndev);
@@ -401,6 +432,9 @@ static int atl_resume_common(struct device *dev, bool deep)
 	netif_tx_start_all_queues(nic->ndev);
 
 err_exit:
+	if (ret < 0)
+		aq_nic_deinit(nic, true);
+
 	rtnl_unlock();
 
 	return ret;

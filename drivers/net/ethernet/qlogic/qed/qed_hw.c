@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -762,9 +736,10 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 							    dst_type,
 							    length_cur);
 		if (qed_status) {
-			DP_NOTICE(p_hwfn,
-				  "qed_dmae_execute_sub_operation Failed with error 0x%x. source_addr 0x%llx, destination addr 0x%llx, size_in_dwords 0x%x\n",
-				  qed_status, src_addr, dst_addr, length_cur);
+			qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_DMAE_FAIL,
+					  "qed_dmae_execute_sub_operation Failed with error 0x%x. source_addr 0x%llx, destination addr 0x%llx, size_in_dwords 0x%x\n",
+					  qed_status, src_addr,
+					  dst_addr, length_cur);
 			break;
 		}
 	}
@@ -835,6 +810,40 @@ int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 	mutex_unlock(&(p_hwfn->dmae_info.mutex));
 
 	return rc;
+}
+
+void qed_hw_err_notify(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       enum qed_hw_err_type err_type, const char *fmt, ...)
+{
+	char buf[QED_HW_ERR_MAX_STR_SIZE];
+	va_list vl;
+	int len;
+
+	if (fmt) {
+		va_start(vl, fmt);
+		len = vsnprintf(buf, QED_HW_ERR_MAX_STR_SIZE, fmt, vl);
+		va_end(vl);
+
+		if (len > QED_HW_ERR_MAX_STR_SIZE - 1)
+			len = QED_HW_ERR_MAX_STR_SIZE - 1;
+
+		DP_NOTICE(p_hwfn, "%s", buf);
+	}
+
+	/* Fan failure cannot be masked by handling of another HW error */
+	if (p_hwfn->cdev->recov_in_prog &&
+	    err_type != QED_HW_ERR_FAN_FAIL) {
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_DRV,
+			   "Recovery is in progress. Avoid notifying about HW error %d.\n",
+			   err_type);
+		return;
+	}
+
+	qed_hw_error_occurred(p_hwfn, err_type);
+
+	if (fmt)
+		qed_mcp_send_raw_debug_data(p_hwfn, p_ptt, buf, len);
 }
 
 int qed_dmae_sanity(struct qed_hwfn *p_hwfn,

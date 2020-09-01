@@ -383,7 +383,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 			switch (desc->mark) {
 			case DESC_COMPLETED:
 				desc->mark = DESC_WAITING;
-				/* Fall through */
+				fallthrough;
 			case DESC_WAITING:
 				if (head_acked)
 					async_tx_ack(&desc->async_tx);
@@ -709,7 +709,7 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	BUG_ON(!schan->desc_num);
 
 	if (sg_len > SHDMA_MAX_SG_LEN) {
-		dev_err(schan->dev, "sg length %d exceds limit %d",
+		dev_err(schan->dev, "sg length %d exceeds limit %d",
 				sg_len, SHDMA_MAX_SG_LEN);
 		return NULL;
 	}

@@ -10,6 +10,7 @@
 #define __LINUX_NEXTHOP_H
 
 #include <linux/netdevice.h>
+#include <linux/notifier.h>
 #include <linux/route.h>
 #include <linux/types.h>
 #include <net/ip_fib.h>
@@ -26,6 +27,7 @@ struct nh_config {
 	u8		nh_family;
 	u8		nh_protocol;
 	u8		nh_blackhole;
+	u8		nh_fdb;
 	u32		nh_flags;
 
 	int		nh_ifindex;
@@ -52,6 +54,7 @@ struct nh_info {
 
 	u8			family;
 	bool			reject_nh;
+	bool			fdb_nh;
 
 	union {
 		struct fib_nh_common	fib_nhc;
@@ -70,16 +73,19 @@ struct nh_grp_entry {
 };
 
 struct nh_group {
+	struct nh_group		*spare; /* spare group for removals */
 	u16			num_nh;
 	bool			mpath;
+	bool			fdb_nh;
 	bool			has_v4;
-	struct nh_grp_entry	nh_entries[0];
+	struct nh_grp_entry	nh_entries[];
 };
 
 struct nexthop {
 	struct rb_node		rb_node;    /* entry on netns rbtree */
 	struct list_head	fi_list;    /* v4 entries using nh */
 	struct list_head	f6i_list;   /* v6 entries using nh */
+	struct list_head        fdb_list;   /* fdb entries using this nh */
 	struct list_head	grp_list;   /* nh group entries using this nh */
 	struct net		*net;
 
@@ -97,6 +103,17 @@ struct nexthop {
 		struct nh_group __rcu *nh_grp;
 	};
 };
+
+enum nexthop_event_type {
+	NEXTHOP_EVENT_ADD,
+	NEXTHOP_EVENT_DEL
+};
+
+int call_nexthop_notifier(struct notifier_block *nb, struct net *net,
+			  enum nexthop_event_type event_type,
+			  struct nexthop *nh);
+int register_nexthop_notifier(struct net *net, struct notifier_block *nb);
+int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb);
 
 /* caller is holding rcu or rtnl; no reference taken to nexthop */
 struct nexthop *nexthop_find_by_id(struct net *net, u32 id);
@@ -119,6 +136,32 @@ static inline bool nexthop_cmp(const struct nexthop *nh1,
 	return nh1 == nh2;
 }
 
+static inline bool nexthop_is_fdb(const struct nexthop *nh)
+{
+	if (nh->is_group) {
+		const struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
+		return nh_grp->fdb_nh;
+	} else {
+		const struct nh_info *nhi;
+
+		nhi = rcu_dereference_rtnl(nh->nh_info);
+		return nhi->fdb_nh;
+	}
+}
+
+static inline bool nexthop_has_v4(const struct nexthop *nh)
+{
+	if (nh->is_group) {
+		struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
+		return nh_grp->has_v4;
+	}
+	return false;
+}
+
 static inline bool nexthop_is_multipath(const struct nexthop *nh)
 {
 	if (nh->is_group) {
@@ -136,21 +179,20 @@ static inline unsigned int nexthop_num_path(const struct nexthop *nh)
 {
 	unsigned int rc = 1;
 
-	if (nexthop_is_multipath(nh)) {
+	if (nh->is_group) {
 		struct nh_group *nh_grp;
 
 		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
-		rc = nh_grp->num_nh;
+		if (nh_grp->mpath)
+			rc = nh_grp->num_nh;
 	}
 
 	return rc;
 }
 
 static inline
-struct nexthop *nexthop_mpath_select(const struct nexthop *nh, int nhsel)
+struct nexthop *nexthop_mpath_select(const struct nh_group *nhg, int nhsel)
 {
-	const struct nh_group *nhg = rcu_dereference_rtnl(nh->nh_grp);
-
 	/* for_nexthops macros in fib_semantics.c grabs a pointer to
 	 * the nexthop before checking nhsel
 	 */
@@ -185,12 +227,14 @@ static inline bool nexthop_is_blackhole(const struct nexthop *nh)
 {
 	const struct nh_info *nhi;
 
-	if (nexthop_is_multipath(nh)) {
-		if (nexthop_num_path(nh) > 1)
+	if (nh->is_group) {
+		struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
+		if (nh_grp->num_nh > 1)
 			return false;
-		nh = nexthop_mpath_select(nh, 0);
-		if (!nh)
-			return false;
+
+		nh = nh_grp->nh_entries[0].nh;
 	}
 
 	nhi = rcu_dereference_rtnl(nh->nh_info);
@@ -216,14 +260,77 @@ struct fib_nh_common *nexthop_fib_nhc(struct nexthop *nh, int nhsel)
 	BUILD_BUG_ON(offsetof(struct fib_nh, nh_common) != 0);
 	BUILD_BUG_ON(offsetof(struct fib6_nh, nh_common) != 0);
 
-	if (nexthop_is_multipath(nh)) {
-		nh = nexthop_mpath_select(nh, nhsel);
-		if (!nh)
-			return NULL;
+	if (nh->is_group) {
+		struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
+		if (nh_grp->mpath) {
+			nh = nexthop_mpath_select(nh_grp, nhsel);
+			if (!nh)
+				return NULL;
+		}
 	}
 
 	nhi = rcu_dereference_rtnl(nh->nh_info);
 	return &nhi->fib_nhc;
+}
+
+/* called from fib_table_lookup with rcu_lock */
+static inline
+struct fib_nh_common *nexthop_get_nhc_lookup(const struct nexthop *nh,
+					     int fib_flags,
+					     const struct flowi4 *flp,
+					     int *nhsel)
+{
+	struct nh_info *nhi;
+
+	if (nh->is_group) {
+		struct nh_group *nhg = rcu_dereference(nh->nh_grp);
+		int i;
+
+		for (i = 0; i < nhg->num_nh; i++) {
+			struct nexthop *nhe = nhg->nh_entries[i].nh;
+
+			nhi = rcu_dereference(nhe->nh_info);
+			if (fib_lookup_good_nhc(&nhi->fib_nhc, fib_flags, flp)) {
+				*nhsel = i;
+				return &nhi->fib_nhc;
+			}
+		}
+	} else {
+		nhi = rcu_dereference(nh->nh_info);
+		if (fib_lookup_good_nhc(&nhi->fib_nhc, fib_flags, flp)) {
+			*nhsel = 0;
+			return &nhi->fib_nhc;
+		}
+	}
+
+	return NULL;
+}
+
+static inline bool nexthop_uses_dev(const struct nexthop *nh,
+				    const struct net_device *dev)
+{
+	struct nh_info *nhi;
+
+	if (nh->is_group) {
+		struct nh_group *nhg = rcu_dereference(nh->nh_grp);
+		int i;
+
+		for (i = 0; i < nhg->num_nh; i++) {
+			struct nexthop *nhe = nhg->nh_entries[i].nh;
+
+			nhi = rcu_dereference(nhe->nh_info);
+			if (nhc_l3mdev_matches_dev(&nhi->fib_nhc, dev))
+				return true;
+		}
+	} else {
+		nhi = rcu_dereference(nh->nh_info);
+		if (nhc_l3mdev_matches_dev(&nhi->fib_nhc, dev))
+			return true;
+	}
+
+	return false;
 }
 
 static inline unsigned int fib_info_num_path(const struct fib_info *fi)
@@ -263,8 +370,11 @@ static inline struct fib6_nh *nexthop_fib6_nh(struct nexthop *nh)
 {
 	struct nh_info *nhi;
 
-	if (nexthop_is_multipath(nh)) {
-		nh = nexthop_mpath_select(nh, 0);
+	if (nh->is_group) {
+		struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
+		nh = nexthop_mpath_select(nh_grp, 0);
 		if (!nh)
 			return NULL;
 	}
@@ -304,4 +414,32 @@ static inline void nexthop_path_fib6_result(struct fib6_result *res, int hash)
 int nexthop_for_each_fib6_nh(struct nexthop *nh,
 			     int (*cb)(struct fib6_nh *nh, void *arg),
 			     void *arg);
+
+static inline int nexthop_get_family(struct nexthop *nh)
+{
+	struct nh_info *nhi = rcu_dereference_rtnl(nh->nh_info);
+
+	return nhi->family;
+}
+
+static inline
+struct fib_nh_common *nexthop_fdb_nhc(struct nexthop *nh)
+{
+	struct nh_info *nhi = rcu_dereference_rtnl(nh->nh_info);
+
+	return &nhi->fib_nhc;
+}
+
+static inline struct fib_nh_common *nexthop_path_fdb_result(struct nexthop *nh,
+							    int hash)
+{
+	struct nh_info *nhi;
+	struct nexthop *nhp;
+
+	nhp = nexthop_select_path(nh, hash);
+	if (unlikely(!nhp))
+		return NULL;
+	nhi = rcu_dereference(nhp->nh_info);
+	return &nhi->fib_nhc;
+}
 #endif

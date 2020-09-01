@@ -386,6 +386,16 @@ static int lp_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static void lp_gpio_enable_input(void __iomem *reg)
+{
+	iowrite32(ioread32(reg) & ~GPINDIS_BIT, reg);
+}
+
+static void lp_gpio_disable_input(void __iomem *reg)
+{
+	iowrite32(ioread32(reg) | GPINDIS_BIT, reg);
+}
+
 static int lp_gpio_request_enable(struct pinctrl_dev *pctldev,
 				  struct pinctrl_gpio_range *range,
 				  unsigned int pin)
@@ -411,7 +421,7 @@ static int lp_gpio_request_enable(struct pinctrl_dev *pctldev,
 	}
 
 	/* Enable input sensing */
-	iowrite32(ioread32(conf2) & ~GPINDIS_BIT, conf2);
+	lp_gpio_enable_input(conf2);
 
 	raw_spin_unlock_irqrestore(&lg->lock, flags);
 
@@ -429,7 +439,7 @@ static void lp_gpio_disable_free(struct pinctrl_dev *pctldev,
 	raw_spin_lock_irqsave(&lg->lock, flags);
 
 	/* Disable input sensing */
-	iowrite32(ioread32(conf2) | GPINDIS_BIT, conf2);
+	lp_gpio_disable_input(conf2);
 
 	raw_spin_unlock_irqrestore(&lg->lock, flags);
 
@@ -794,11 +804,11 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	const struct intel_pinctrl_soc_data *soc;
 	struct intel_pinctrl *lg;
 	struct gpio_chip *gc;
-	struct resource *io_rc, *irq_rc;
 	struct device *dev = &pdev->dev;
+	struct resource *io_rc;
 	void __iomem *regs;
 	unsigned int i;
-	int ret;
+	int irq, ret;
 
 	soc = (const struct intel_pinctrl_soc_data *)device_get_match_data(dev);
 	if (!soc)
@@ -870,8 +880,8 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->parent = dev;
 
 	/* set up interrupts  */
-	irq_rc = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (irq_rc && irq_rc->start) {
+	irq = platform_get_irq_optional(pdev, 0);
+	if (irq > 0) {
 		struct gpio_irq_chip *girq;
 
 		girq = &gc->irq;
@@ -884,7 +894,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 					     GFP_KERNEL);
 		if (!girq->parents)
 			return -ENOMEM;
-		girq->parents[0] = (unsigned int)irq_rc->start;
+		girq->parents[0] = irq;
 		girq->default_type = IRQ_TYPE_NONE;
 		girq->handler = handle_bad_irq;
 	}
@@ -919,16 +929,14 @@ static int lp_gpio_runtime_resume(struct device *dev)
 static int lp_gpio_resume(struct device *dev)
 {
 	struct intel_pinctrl *lg = dev_get_drvdata(dev);
-	void __iomem *reg;
+	struct gpio_chip *chip = &lg->chip;
+	const char *dummy;
 	int i;
 
 	/* on some hardware suspend clears input sensing, re-enable it here */
-	for (i = 0; i < lg->chip.ngpio; i++) {
-		if (gpiochip_is_requested(&lg->chip, i) != NULL) {
-			reg = lp_gpio_reg(&lg->chip, i, LP_CONFIG2);
-			iowrite32(ioread32(reg) & ~GPINDIS_BIT, reg);
-		}
-	}
+	for_each_requested_gpio(chip, i, dummy)
+		lp_gpio_enable_input(lp_gpio_reg(chip, i, LP_CONFIG2));
+
 	return 0;
 }
 
@@ -951,7 +959,7 @@ static struct platform_driver lp_gpio_driver = {
 	.driver         = {
 		.name   = "lp_gpio",
 		.pm	= &lp_gpio_pm_ops,
-		.acpi_match_table = ACPI_PTR(lynxpoint_gpio_acpi_match),
+		.acpi_match_table = lynxpoint_gpio_acpi_match,
 	},
 };
 

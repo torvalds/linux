@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2019 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include "dra76x.dtsi"
+#include "am57-pruss.dtsi"
 
 / {
 	compatible = "ti,am5748", "ti,dra762", "ti,dra7";

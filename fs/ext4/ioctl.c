@@ -202,7 +202,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	reset_inode_seed(inode);
 	reset_inode_seed(inode_bl);
 
-	ext4_discard_preallocations(inode);
+	ext4_discard_preallocations(inode, 0);
 
 	err = ext4_mark_inode_dirty(handle, inode);
 	if (err < 0) {
@@ -292,6 +292,38 @@ static int ext4_ioctl_check_immutable(struct inode *inode, __u32 new_projid,
 	return 0;
 }
 
+static void ext4_dax_dontcache(struct inode *inode, unsigned int flags)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+
+	if (S_ISDIR(inode->i_mode))
+		return;
+
+	if (test_opt2(inode->i_sb, DAX_NEVER) ||
+	    test_opt(inode->i_sb, DAX_ALWAYS))
+		return;
+
+	if ((ei->i_flags ^ flags) & EXT4_DAX_FL)
+		d_mark_dontcache(inode);
+}
+
+static bool dax_compatible(struct inode *inode, unsigned int oldflags,
+			   unsigned int flags)
+{
+	if (flags & EXT4_DAX_FL) {
+		if ((oldflags & EXT4_DAX_MUT_EXCL) ||
+		     ext4_test_inode_state(inode,
+					  EXT4_STATE_VERITY_IN_PROGRESS)) {
+			return false;
+		}
+	}
+
+	if ((flags & EXT4_DAX_MUT_EXCL) && (oldflags & EXT4_DAX_FL))
+			return false;
+
+	return true;
+}
+
 static int ext4_ioctl_setflags(struct inode *inode,
 			       unsigned int flags)
 {
@@ -300,7 +332,6 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	int err = -EPERM, migrate = 0;
 	struct ext4_iloc iloc;
 	unsigned int oldflags, mask, i;
-	unsigned int jflag;
 	struct super_block *sb = inode->i_sb;
 
 	/* Is it quota file? Do not allow user to mess with it */
@@ -308,9 +339,6 @@ static int ext4_ioctl_setflags(struct inode *inode,
 		goto flags_out;
 
 	oldflags = ei->i_flags;
-
-	/* The JOURNAL_DATA flag is modifiable only by root */
-	jflag = flags & EXT4_JOURNAL_DATA_FL;
 
 	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
 	if (err)
@@ -320,24 +348,18 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	 * The JOURNAL_DATA flag can only be changed by
 	 * the relevant capability.
 	 */
-	if ((jflag ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
+	if ((flags ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
 		if (!capable(CAP_SYS_RESOURCE))
 			goto flags_out;
 	}
+
+	if (!dax_compatible(inode, oldflags, flags)) {
+		err = -EOPNOTSUPP;
+		goto flags_out;
+	}
+
 	if ((flags ^ oldflags) & EXT4_EXTENTS_FL)
 		migrate = 1;
-
-	if (flags & EXT4_EOFBLOCKS_FL) {
-		/* we don't support adding EOFBLOCKS flag */
-		if (!(oldflags & EXT4_EOFBLOCKS_FL)) {
-			err = -EOPNOTSUPP;
-			goto flags_out;
-		}
-	} else if (oldflags & EXT4_EOFBLOCKS_FL) {
-		err = ext4_truncate(inode);
-		if (err)
-			goto flags_out;
-	}
 
 	if ((flags ^ oldflags) & EXT4_CASEFOLD_FL) {
 		if (!ext4_has_feature_casefold(sb)) {
@@ -381,6 +403,8 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	if (err)
 		goto flags_err;
 
+	ext4_dax_dontcache(inode, flags);
+
 	for (i = 0, mask = 1; i < 32; i++, mask <<= 1) {
 		if (!(mask & EXT4_FL_USER_MODIFIABLE))
 			continue;
@@ -393,7 +417,8 @@ static int ext4_ioctl_setflags(struct inode *inode,
 			ext4_clear_inode_flag(inode, i);
 	}
 
-	ext4_set_inode_flags(inode);
+	ext4_set_inode_flags(inode, false);
+
 	inode->i_ctime = current_time(inode);
 
 	err = ext4_mark_iloc_dirty(handle, inode, &iloc);
@@ -402,17 +427,18 @@ flags_err:
 	if (err)
 		goto flags_out;
 
-	if ((jflag ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
+	if ((flags ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
 		/*
 		 * Changes to the journaling mode can cause unsafe changes to
-		 * S_DAX if we are using the DAX mount option.
+		 * S_DAX if the inode is DAX
 		 */
-		if (test_opt(inode->i_sb, DAX)) {
+		if (IS_DAX(inode)) {
 			err = -EBUSY;
 			goto flags_out;
 		}
 
-		err = ext4_change_inode_journal_flag(inode, jflag);
+		err = ext4_change_inode_journal_flag(inode,
+						     flags & EXT4_JOURNAL_DATA_FL);
 		if (err)
 			goto flags_out;
 	}
@@ -539,12 +565,15 @@ static inline __u32 ext4_iflags_to_xflags(unsigned long iflags)
 		xflags |= FS_XFLAG_NOATIME;
 	if (iflags & EXT4_PROJINHERIT_FL)
 		xflags |= FS_XFLAG_PROJINHERIT;
+	if (iflags & EXT4_DAX_FL)
+		xflags |= FS_XFLAG_DAX;
 	return xflags;
 }
 
 #define EXT4_SUPPORTED_FS_XFLAGS (FS_XFLAG_SYNC | FS_XFLAG_IMMUTABLE | \
 				  FS_XFLAG_APPEND | FS_XFLAG_NODUMP | \
-				  FS_XFLAG_NOATIME | FS_XFLAG_PROJINHERIT)
+				  FS_XFLAG_NOATIME | FS_XFLAG_PROJINHERIT | \
+				  FS_XFLAG_DAX)
 
 /* Transfer xflags flags to internal */
 static inline unsigned long ext4_xflags_to_iflags(__u32 xflags)
@@ -563,6 +592,8 @@ static inline unsigned long ext4_xflags_to_iflags(__u32 xflags)
 		iflags |= EXT4_NOATIME_FL;
 	if (xflags & FS_XFLAG_PROJINHERIT)
 		iflags |= EXT4_PROJINHERIT_FL;
+	if (xflags & FS_XFLAG_DAX)
+		iflags |= EXT4_DAX_FL;
 
 	return iflags;
 }
@@ -745,29 +776,6 @@ static void ext4_fill_fsxattr(struct inode *inode, struct fsxattr *fa)
 		fa->fsx_projid = from_kprojid(&init_user_ns, ei->i_projid);
 }
 
-/* copied from fs/ioctl.c */
-static int fiemap_check_ranges(struct super_block *sb,
-			       u64 start, u64 len, u64 *new_len)
-{
-	u64 maxbytes = (u64) sb->s_maxbytes;
-
-	*new_len = len;
-
-	if (len == 0)
-		return -EINVAL;
-
-	if (start > maxbytes)
-		return -EFBIG;
-
-	/*
-	 * Shrink request scope to what the fs can actually handle.
-	 */
-	if (len > maxbytes || (maxbytes - len) < start)
-		*new_len = maxbytes - start;
-
-	return 0;
-}
-
 /* So that the fiemap access checks can't overflow on 32 bit machines. */
 #define FIEMAP_MAX_EXTENTS	(UINT_MAX / sizeof(struct fiemap_extent))
 
@@ -777,8 +785,6 @@ static int ext4_ioctl_get_es_cache(struct file *filp, unsigned long arg)
 	struct fiemap __user *ufiemap = (struct fiemap __user *) arg;
 	struct fiemap_extent_info fieinfo = { 0, };
 	struct inode *inode = file_inode(filp);
-	struct super_block *sb = inode->i_sb;
-	u64 len;
 	int error;
 
 	if (copy_from_user(&fiemap, ufiemap, sizeof(fiemap)))
@@ -787,24 +793,12 @@ static int ext4_ioctl_get_es_cache(struct file *filp, unsigned long arg)
 	if (fiemap.fm_extent_count > FIEMAP_MAX_EXTENTS)
 		return -EINVAL;
 
-	error = fiemap_check_ranges(sb, fiemap.fm_start, fiemap.fm_length,
-				    &len);
-	if (error)
-		return error;
-
 	fieinfo.fi_flags = fiemap.fm_flags;
 	fieinfo.fi_extents_max = fiemap.fm_extent_count;
 	fieinfo.fi_extents_start = ufiemap->fm_extents;
 
-	if (fiemap.fm_extent_count != 0 &&
-	    !access_ok(fieinfo.fi_extents_start,
-		       fieinfo.fi_extents_max * sizeof(struct fiemap_extent)))
-		return -EFAULT;
-
-	if (fieinfo.fi_flags & FIEMAP_FLAG_SYNC)
-		filemap_write_and_wait(inode->i_mapping);
-
-	error = ext4_get_es_cache(inode, &fieinfo, fiemap.fm_start, len);
+	error = ext4_get_es_cache(inode, &fieinfo, fiemap.fm_start,
+			fiemap.fm_length);
 	fiemap.fm_flags = fieinfo.fi_flags;
 	fiemap.fm_mapped_extents = fieinfo.fi_extents_mapped;
 	if (copy_to_user(ufiemap, &fiemap, sizeof(fiemap)))
@@ -825,12 +819,12 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case FS_IOC_GETFSMAP:
 		return ext4_ioc_getfsmap(sb, (void __user *)arg);
-	case EXT4_IOC_GETFLAGS:
+	case FS_IOC_GETFLAGS:
 		flags = ei->i_flags & EXT4_FL_USER_VISIBLE;
 		if (S_ISREG(inode->i_mode))
 			flags &= ~EXT4_PROJINHERIT_FL;
 		return put_user(flags, (int __user *) arg);
-	case EXT4_IOC_SETFLAGS: {
+	case FS_IOC_SETFLAGS: {
 		int err;
 
 		if (!inode_owner_or_capable(inode))
@@ -1135,12 +1129,12 @@ resizefs_out:
 	case EXT4_IOC_PRECACHE_EXTENTS:
 		return ext4_ext_precache(inode);
 
-	case EXT4_IOC_SET_ENCRYPTION_POLICY:
+	case FS_IOC_SET_ENCRYPTION_POLICY:
 		if (!ext4_has_feature_encrypt(sb))
 			return -EOPNOTSUPP;
 		return fscrypt_ioctl_set_policy(filp, (const void __user *)arg);
 
-	case EXT4_IOC_GET_ENCRYPTION_PWSALT: {
+	case FS_IOC_GET_ENCRYPTION_PWSALT: {
 #ifdef CONFIG_FS_ENCRYPTION
 		int err, err2;
 		struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -1180,7 +1174,7 @@ resizefs_out:
 		return -EOPNOTSUPP;
 #endif
 	}
-	case EXT4_IOC_GET_ENCRYPTION_POLICY:
+	case FS_IOC_GET_ENCRYPTION_POLICY:
 		if (!ext4_has_feature_encrypt(sb))
 			return -EOPNOTSUPP;
 		return fscrypt_ioctl_get_policy(filp, (void __user *)arg);
@@ -1210,6 +1204,11 @@ resizefs_out:
 			return -EOPNOTSUPP;
 		return fscrypt_ioctl_get_key_status(filp, (void __user *)arg);
 
+	case FS_IOC_GET_ENCRYPTION_NONCE:
+		if (!ext4_has_feature_encrypt(sb))
+			return -EOPNOTSUPP;
+		return fscrypt_ioctl_get_nonce(filp, (void __user *)arg);
+
 	case EXT4_IOC_CLEAR_ES_CACHE:
 	{
 		if (!inode_owner_or_capable(inode))
@@ -1237,7 +1236,7 @@ resizefs_out:
 	case EXT4_IOC_GET_ES_CACHE:
 		return ext4_ioctl_get_es_cache(filp, arg);
 
-	case EXT4_IOC_FSGETXATTR:
+	case FS_IOC_FSGETXATTR:
 	{
 		struct fsxattr fa;
 
@@ -1248,7 +1247,7 @@ resizefs_out:
 			return -EFAULT;
 		return 0;
 	}
-	case EXT4_IOC_FSSETXATTR:
+	case FS_IOC_FSSETXATTR:
 	{
 		struct fsxattr fa, old_fa;
 		int err;
@@ -1314,11 +1313,11 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	/* These are just misnamed, they actually get/put from/to user an int */
 	switch (cmd) {
-	case EXT4_IOC32_GETFLAGS:
-		cmd = EXT4_IOC_GETFLAGS;
+	case FS_IOC32_GETFLAGS:
+		cmd = FS_IOC_GETFLAGS;
 		break;
-	case EXT4_IOC32_SETFLAGS:
-		cmd = EXT4_IOC_SETFLAGS;
+	case FS_IOC32_SETFLAGS:
+		cmd = FS_IOC_SETFLAGS;
 		break;
 	case EXT4_IOC32_GETVERSION:
 		cmd = EXT4_IOC_GETVERSION;
@@ -1362,14 +1361,15 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC_RESIZE_FS:
 	case FITRIM:
 	case EXT4_IOC_PRECACHE_EXTENTS:
-	case EXT4_IOC_SET_ENCRYPTION_POLICY:
-	case EXT4_IOC_GET_ENCRYPTION_PWSALT:
-	case EXT4_IOC_GET_ENCRYPTION_POLICY:
+	case FS_IOC_SET_ENCRYPTION_POLICY:
+	case FS_IOC_GET_ENCRYPTION_PWSALT:
+	case FS_IOC_GET_ENCRYPTION_POLICY:
 	case FS_IOC_GET_ENCRYPTION_POLICY_EX:
 	case FS_IOC_ADD_ENCRYPTION_KEY:
 	case FS_IOC_REMOVE_ENCRYPTION_KEY:
 	case FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS:
 	case FS_IOC_GET_ENCRYPTION_KEY_STATUS:
+	case FS_IOC_GET_ENCRYPTION_NONCE:
 	case EXT4_IOC_SHUTDOWN:
 	case FS_IOC_GETFSMAP:
 	case FS_IOC_ENABLE_VERITY:
@@ -1377,8 +1377,8 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC_CLEAR_ES_CACHE:
 	case EXT4_IOC_GETSTATE:
 	case EXT4_IOC_GET_ES_CACHE:
-	case EXT4_IOC_FSGETXATTR:
-	case EXT4_IOC_FSSETXATTR:
+	case FS_IOC_FSGETXATTR:
+	case FS_IOC_FSSETXATTR:
 		break;
 	default:
 		return -ENOIOCTLCMD;

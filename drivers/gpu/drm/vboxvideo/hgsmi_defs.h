@@ -58,7 +58,7 @@ struct hgsmi_buffer_tail {
 	/* Reserved, must be initialized to 0. */
 	u32 reserved;
 	/*
-	 * One-at-a-Time Hash: http://www.burtleburtle.net/bob/hash/doobs.html
+	 * One-at-a-Time Hash: https://www.burtleburtle.net/bob/hash/doobs.html
 	 * Over the header, offset and for first 4 bytes of the tail.
 	 */
 	u32 checksum;

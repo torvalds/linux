@@ -57,6 +57,8 @@
 #include <linux/uaccess.h>
 #include <asm/delay.h>
 
+#include "irq.h"
+
 #ifdef CONFIG_PERFMON
 /*
  * perfmon context state
@@ -2258,13 +2260,13 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 	 * now we atomically find some area in the address space and
 	 * remap the buffer in it.
 	 */
-	down_write(&task->mm->mmap_sem);
+	mmap_write_lock(task->mm);
 
 	/* find some free area in address space, must have mmap sem held */
 	vma->vm_start = get_unmapped_area(NULL, 0, size, 0, MAP_PRIVATE|MAP_ANONYMOUS);
 	if (IS_ERR_VALUE(vma->vm_start)) {
 		DPRINT(("Cannot find unmapped area for size %ld\n", size));
-		up_write(&task->mm->mmap_sem);
+		mmap_write_unlock(task->mm);
 		goto error;
 	}
 	vma->vm_end = vma->vm_start + size;
@@ -2275,7 +2277,7 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 	/* can only be applied to current task, need to have the mm semaphore held when called */
 	if (pfm_remap_buffer(vma, (unsigned long)smpl_buf, vma->vm_start, size)) {
 		DPRINT(("Can't remap buffer\n"));
-		up_write(&task->mm->mmap_sem);
+		mmap_write_unlock(task->mm);
 		goto error;
 	}
 
@@ -2286,7 +2288,7 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 	insert_vm_struct(mm, vma);
 
 	vm_stat_account(vma->vm_mm, vma->vm_flags, vma_pages(vma));
-	up_write(&task->mm->mmap_sem);
+	mmap_write_unlock(task->mm);
 
 	/*
 	 * keep track of user level virtual address
@@ -3470,7 +3472,7 @@ pfm_restart(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 			break;
 		case PFM_CTX_LOADED: 
 			if (CTX_HAS_SMPL(ctx) && fmt->fmt_restart_active) break;
-			/* fall through */
+			fallthrough;
 		case PFM_CTX_UNLOADED:
 		case PFM_CTX_ZOMBIE:
 			DPRINT(("invalid state=%d\n", state));
@@ -6313,11 +6315,6 @@ pfm_flush_pmds(struct task_struct *task, pfm_context_t *ctx)
 	}
 }
 
-static struct irqaction perfmon_irqaction = {
-	.handler = pfm_interrupt_handler,
-	.name    = "perfmon"
-};
-
 static void
 pfm_alt_save_pmu_state(void *data)
 {
@@ -6591,7 +6588,8 @@ pfm_init_percpu (void)
 	pfm_unfreeze_pmu();
 
 	if (first_time) {
-		register_percpu_irq(IA64_PERFMON_VECTOR, &perfmon_irqaction);
+		register_percpu_irq(IA64_PERFMON_VECTOR, pfm_interrupt_handler,
+				    0, "perfmon");
 		first_time=0;
 	}
 

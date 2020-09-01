@@ -72,6 +72,28 @@ Contact: Ville Syrjälä, Daniel Vetter, driver maintainers
 
 Level: Advanced
 
+Improve plane atomic_check helpers
+----------------------------------
+
+Aside from the clipped coordinates right above there's a few suboptimal things
+with the current helpers:
+
+- drm_plane_helper_funcs->atomic_check gets called for enabled or disabled
+  planes. At best this seems to confuse drivers, worst it means they blow up
+  when the plane is disabled without the CRTC. The only special handling is
+  resetting values in the plane state structures, which instead should be moved
+  into the drm_plane_funcs->atomic_duplicate_state functions.
+
+- Once that's done, helpers could stop calling ->atomic_check for disabled
+  planes.
+
+- Then we could go through all the drivers and remove the more-or-less confused
+  checks for plane_state->fb and plane_state->crtc.
+
+Contact: Daniel Vetter
+
+Level: Advanced
+
 Convert early atomic drivers to async commit helpers
 ----------------------------------------------------
 
@@ -135,8 +157,8 @@ private lock. The tricky part is the BO free functions, since those can't
 reliably take that lock any more. Instead state needs to be protected with
 suitable subordinate locks or some cleanup work pushed to a worker thread. For
 performance-critical drivers it might also be better to go with a more
-fine-grained per-buffer object and per-context lockings scheme. Currently only the
-``msm`` driver still use ``struct_mutex``.
+fine-grained per-buffer object and per-context lockings scheme. Currently only
+the ``msm`` and `i915` drivers use ``struct_mutex``.
 
 Contact: Daniel Vetter, respective driver maintainers
 
@@ -283,7 +305,7 @@ acquire context. Replace the boilerplate code surrounding
 drm_modeset_lock_all_ctx() with DRM_MODESET_LOCK_ALL_BEGIN() and
 DRM_MODESET_LOCK_ALL_END() instead.
 
-This should also be done for all places where drm_modest_lock_all() is still
+This should also be done for all places where drm_modeset_lock_all() is still
 used.
 
 As a reference, take a look at the conversions already completed in drm core.
@@ -304,55 +326,6 @@ Contact: Laurent Pinchart, Daniel Vetter
 
 Level: Intermediate (mostly because it is a huge tasks without good partial
 milestones, not technically itself that challenging)
-
-Convert direct mode.vrefresh accesses to use drm_mode_vrefresh()
-----------------------------------------------------------------
-
-drm_display_mode.vrefresh isn't guaranteed to be populated. As such, using it
-is risky and has been known to cause div-by-zero bugs. Fortunately, drm core
-has helper which will use mode.vrefresh if it's !0 and will calculate it from
-the timings when it's 0.
-
-Use simple search/replace, or (more fun) cocci to replace instances of direct
-vrefresh access with a call to the helper. Check out
-https://lists.freedesktop.org/archives/dri-devel/2019-January/205186.html for
-inspiration.
-
-Once all instances of vrefresh have been converted, remove vrefresh from
-drm_display_mode to avoid future use.
-
-Contact: Sean Paul
-
-Level: Starter
-
-Remove drm_display_mode.hsync
------------------------------
-
-We have drm_mode_hsync() to calculate this from hsync_start/end, since drivers
-shouldn't/don't use this, remove this member to avoid any temptations to use it
-in the future. If there is any debug code using drm_display_mode.hsync, convert
-it to use drm_mode_hsync() instead.
-
-Contact: Sean Paul
-
-Level: Starter
-
-drm_fb_helper tasks
--------------------
-
-- drm_fb_helper_restore_fbdev_mode_unlocked() should call restore_fbdev_mode()
-  not the _force variant so it can bail out if there is a master. But first
-  these igt tests need to be fixed: kms_fbcon_fbt@psr and
-  kms_fbcon_fbt@psr-suspend.
-
-- The max connector argument for drm_fb_helper_init() isn't used anymore and
-  can be removed.
-
-- The helper doesn't keep an array of connectors anymore so these can be
-  removed: drm_fb_helper_single_add_all_connectors(),
-  drm_fb_helper_add_one_connector() and drm_fb_helper_remove_one_connector().
-
-Level: Intermediate
 
 connector register/unregister fixes
 -----------------------------------
@@ -384,6 +357,52 @@ between setting up the &drm_driver structure and calling drm_dev_register().
 Contact: Daniel Vetter
 
 Level: Intermediate
+
+Replace drm_detect_hdmi_monitor() with drm_display_info.is_hdmi
+---------------------------------------------------------------
+
+Once EDID is parsed, the monitor HDMI support information is available through
+drm_display_info.is_hdmi. Many drivers still call drm_detect_hdmi_monitor() to
+retrieve the same information, which is less efficient.
+
+Audit each individual driver calling drm_detect_hdmi_monitor() and switch to
+drm_display_info.is_hdmi if applicable.
+
+Contact: Laurent Pinchart, respective driver maintainers
+
+Level: Intermediate
+
+Consolidate custom driver modeset properties
+--------------------------------------------
+
+Before atomic modeset took place, many drivers where creating their own
+properties. Among other things, atomic brought the requirement that custom,
+driver specific properties should not be used.
+
+For this task, we aim to introduce core helpers or reuse the existing ones
+if available:
+
+A quick, unconfirmed, examples list.
+
+Introduce core helpers:
+- audio (amdgpu, intel, gma500, radeon)
+- brightness, contrast, etc (armada, nouveau) - overlay only (?)
+- broadcast rgb (gma500, intel)
+- colorkey (armada, nouveau, rcar) - overlay only (?)
+- dither (amdgpu, nouveau, radeon) - varies across drivers
+- underscan family (amdgpu, radeon, nouveau)
+
+Already in core:
+- colorspace (sti)
+- tv format names, enhancements (gma500, intel)
+- tv overscan, margins, etc. (gma500, intel)
+- zorder (omapdrm) - same as zpos (?)
+
+
+Contact: Emil Velikov, respective driver maintainers
+
+Level: Intermediate
+
 
 Core refactorings
 =================

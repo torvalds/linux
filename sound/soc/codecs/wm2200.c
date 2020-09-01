@@ -2027,7 +2027,7 @@ static int wm2200_set_fll(struct snd_soc_component *component, int fll_id, int s
 			msleep(1);
 		}
 
-		ret = snd_soc_component_read32(component,
+		ret = snd_soc_component_read(component,
 				   WM2200_INTERRUPT_RAW_STATUS_2);
 		if (ret < 0) {
 			dev_err(component->dev,
@@ -2060,7 +2060,7 @@ static int wm2200_dai_probe(struct snd_soc_dai *dai)
 	unsigned int val = 0;
 	int ret;
 
-	ret = snd_soc_component_read32(component, WM2200_GPIO_CTRL_1);
+	ret = snd_soc_component_read(component, WM2200_GPIO_CTRL_1);
 	if (ret >= 0) {
 		if ((ret & WM2200_GP1_FN_MASK) != 0) {
 			wm2200->symmetric_rates = true;

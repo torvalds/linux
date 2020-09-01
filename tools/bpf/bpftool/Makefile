@@ -40,8 +40,9 @@ bash_compdir ?= /usr/share/bash-completion/completions
 
 CFLAGS += -O2
 CFLAGS += -W -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
-CFLAGS += $(filter-out -Wswitch-enum,$(EXTRA_WARNINGS))
+CFLAGS += $(filter-out -Wswitch-enum -Wnested-externs,$(EXTRA_WARNINGS))
 CFLAGS += -DPACKAGE='"bpftool"' -D__EXPORTED_HEADERS__ \
+	-I$(if $(OUTPUT),$(OUTPUT),.) \
 	-I$(srctree)/kernel/bpf/ \
 	-I$(srctree)/tools/include \
 	-I$(srctree)/tools/include/uapi \
@@ -55,14 +56,16 @@ ifneq ($(EXTRA_LDFLAGS),)
 LDFLAGS += $(EXTRA_LDFLAGS)
 endif
 
-LIBS = $(LIBBPF) -lelf -lz
-
 INSTALL ?= install
 RM ?= rm -f
+CLANG ?= clang
+LLVM_STRIP ?= llvm-strip
 
 FEATURE_USER = .bpftool
-FEATURE_TESTS = libbfd disassembler-four-args reallocarray zlib
-FEATURE_DISPLAY = libbfd disassembler-four-args zlib
+FEATURE_TESTS = libbfd disassembler-four-args reallocarray zlib libcap \
+	clang-bpf-co-re
+FEATURE_DISPLAY = libbfd disassembler-four-args zlib libcap \
+	clang-bpf-co-re
 
 check_feat := 1
 NON_CHECK_FEAT_TARGETS := clean uninstall doc doc-clean doc-install doc-uninstall
@@ -88,6 +91,12 @@ ifeq ($(feature-reallocarray), 0)
 CFLAGS += -DCOMPAT_NEED_REALLOCARRAY
 endif
 
+LIBS = $(LIBBPF) -lelf -lz
+ifeq ($(feature-libcap), 1)
+CFLAGS += -DUSE_LIBCAP
+LIBS += -lcap
+endif
+
 include $(wildcard $(OUTPUT)*.d)
 
 all: $(OUTPUT)bpftool
@@ -109,22 +118,68 @@ CFLAGS += -DHAVE_LIBBFD_SUPPORT
 SRCS += $(BFD_SRCS)
 endif
 
+BPFTOOL_BOOTSTRAP := $(if $(OUTPUT),$(OUTPUT)bpftool-bootstrap,./bpftool-bootstrap)
+
+BOOTSTRAP_OBJS = $(addprefix $(OUTPUT),main.o common.o json_writer.o gen.o btf.o)
 OBJS = $(patsubst %.c,$(OUTPUT)%.o,$(SRCS)) $(OUTPUT)disasm.o
 
+VMLINUX_BTF_PATHS ?= $(if $(O),$(O)/vmlinux)				\
+		     $(if $(KBUILD_OUTPUT),$(KBUILD_OUTPUT)/vmlinux)	\
+		     ../../../vmlinux					\
+		     /sys/kernel/btf/vmlinux				\
+		     /boot/vmlinux-$(shell uname -r)
+VMLINUX_BTF ?= $(abspath $(firstword $(wildcard $(VMLINUX_BTF_PATHS))))
+
+ifneq ($(VMLINUX_BTF)$(VMLINUX_H),)
+ifeq ($(feature-clang-bpf-co-re),1)
+
+BUILD_BPF_SKELS := 1
+
+$(OUTPUT)vmlinux.h: $(VMLINUX_BTF) $(BPFTOOL_BOOTSTRAP)
+ifeq ($(VMLINUX_H),)
+	$(QUIET_GEN)$(BPFTOOL_BOOTSTRAP) btf dump file $< format c > $@
+else
+	$(Q)cp "$(VMLINUX_H)" $@
+endif
+
+$(OUTPUT)%.bpf.o: skeleton/%.bpf.c $(OUTPUT)vmlinux.h $(LIBBPF)
+	$(QUIET_CLANG)$(CLANG) \
+		-I$(if $(OUTPUT),$(OUTPUT),.) \
+		-I$(srctree)/tools/include/uapi/ \
+		-I$(LIBBPF_PATH) \
+		-I$(srctree)/tools/lib \
+		-g -O2 -target bpf -c $< -o $@ && $(LLVM_STRIP) -g $@
+
+$(OUTPUT)%.skel.h: $(OUTPUT)%.bpf.o $(BPFTOOL_BOOTSTRAP)
+	$(QUIET_GEN)$(BPFTOOL_BOOTSTRAP) gen skeleton $< > $@
+
+$(OUTPUT)prog.o: $(OUTPUT)profiler.skel.h
+
+$(OUTPUT)pids.o: $(OUTPUT)pid_iter.skel.h
+
+endif
+endif
+
+CFLAGS += $(if $(BUILD_BPF_SKELS),,-DBPFTOOL_WITHOUT_SKELETONS)
+
 $(OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
-	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
 
 $(OUTPUT)feature.o: | zdep
+
+$(BPFTOOL_BOOTSTRAP): $(BOOTSTRAP_OBJS) $(LIBBPF)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(BOOTSTRAP_OBJS) $(LIBS)
 
 $(OUTPUT)bpftool: $(OBJS) $(LIBBPF)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 $(OUTPUT)%.o: %.c
-	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
 
 clean: $(LIBBPF)-clean
 	$(call QUIET_CLEAN, bpftool)
 	$(Q)$(RM) -- $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(Q)$(RM) -- $(BPFTOOL_BOOTSTRAP) $(OUTPUT)*.skel.h $(OUTPUT)vmlinux.h
 	$(Q)$(RM) -r -- $(OUTPUT)libbpf/
 	$(call QUIET_CLEAN, core-gen)
 	$(Q)$(RM) -- $(OUTPUT)FEATURE-DUMP.bpftool
@@ -159,6 +214,7 @@ FORCE:
 zdep:
 	@if [ "$(feature-zlib)" != "1" ]; then echo "No zlib found"; exit 1 ; fi
 
+.SECONDARY:
 .PHONY: all FORCE clean install uninstall zdep
 .PHONY: doc doc-clean doc-install doc-uninstall
 .DEFAULT_GOAL := all

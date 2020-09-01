@@ -21,15 +21,16 @@ SYNOPSIS
 PROG COMMANDS
 =============
 
-|	**bpftool** **prog { show | list }** [*PROG*]
+|	**bpftool** **prog** { **show** | **list** } [*PROG*]
 |	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual** | **linum**}]
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes** | **linum**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
-|	**bpftool** **prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*]
+|	**bpftool** **prog** { **load** | **loadall** } *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*]
 |	**bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog tracelog**
 |	**bpftool** **prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
+|	**bpftool** **prog profile** *PROG* [**duration** *DURATION*] *METRICs*
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -40,12 +41,17 @@ PROG COMMANDS
 |		**cgroup/sock** | **cgroup/dev** | **lwt_in** | **lwt_out** | **lwt_xmit** |
 |		**lwt_seg6local** | **sockops** | **sk_skb** | **sk_msg** | **lirc_mode2** |
 |		**cgroup/bind4** | **cgroup/bind6** | **cgroup/post_bind4** | **cgroup/post_bind6** |
-|		**cgroup/connect4** | **cgroup/connect6** | **cgroup/sendmsg4** | **cgroup/sendmsg6** |
+|		**cgroup/connect4** | **cgroup/connect6** | **cgroup/getpeername4** | **cgroup/getpeername6** |
+|               **cgroup/getsockname4** | **cgroup/getsockname6** | **cgroup/sendmsg4** | **cgroup/sendmsg6** |
 |		**cgroup/recvmsg4** | **cgroup/recvmsg6** | **cgroup/sysctl** |
-|		**cgroup/getsockopt** | **cgroup/setsockopt**
+|		**cgroup/getsockopt** | **cgroup/setsockopt** |
+|		**struct_ops** | **fentry** | **fexit** | **freplace** | **sk_lookup**
 |	}
 |       *ATTACH_TYPE* := {
 |		**msg_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
+|	}
+|	*METRICs* := {
+|		**cycles** | **instructions** | **l1d_loads** | **llc_misses**
 |	}
 
 
@@ -68,6 +74,11 @@ DESCRIPTION
 		  them by defaults, as it slightly impacts performance on each
 		  program run. Activation or deactivation of the feature is
 		  performed via the **kernel.bpf_stats_enabled** sysctl knob.
+
+		  Since Linux 5.8 bpftool is able to discover information about
+		  processes that hold open file descriptors (FDs) against BPF
+		  programs. On such kernels bpftool will automatically emit this
+		  information as well.
 
 	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** | **linum** }]
 		  Dump eBPF instructions of the programs from the kernel. By
@@ -150,7 +161,7 @@ DESCRIPTION
 	**bpftool prog tracelog**
 		  Dump the trace pipe of the system to the console (stdout).
 		  Hit <Ctrl+C> to stop printing. BPF programs can write to this
-		  trace pipe at runtime with the **bpf_trace_printk()** helper.
+		  trace pipe at runtime with the **bpf_trace_printk**\ () helper.
 		  This should be used only for debugging purposes. For
 		  streaming data from BPF programs to user space, one can use
 		  perf events (see also **bpftool-map**\ (8)).
@@ -187,6 +198,12 @@ DESCRIPTION
 		  Not all program types support test run. Among those which do,
 		  not all of them can take the **ctx_in**/**ctx_out**
 		  arguments. bpftool does not perform checks on program types.
+
+	**bpftool prog profile** *PROG* [**duration** *DURATION*] *METRICs*
+		  Profile *METRICs* for bpf program *PROG* for *DURATION*
+		  seconds or until user hits <Ctrl+C>. *DURATION* is optional.
+		  If *DURATION* is not specified, the profiling will run up to
+		  **UINT_MAX** seconds.
 
 	**bpftool prog help**
 		  Print short help message.
@@ -231,6 +248,7 @@ EXAMPLES
     10: xdp  name some_prog  tag 005a3d2123620c8b  gpl run_time_ns 81632 run_cnt 10
             loaded_at 2017-09-29T20:11:00+0000  uid 0
             xlated 528B  jited 370B  memlock 4096B  map_ids 10
+            pids systemd(1)
 
 **# bpftool --json --pretty prog show**
 
@@ -250,13 +268,18 @@ EXAMPLES
             "bytes_jited": 370,
             "bytes_memlock": 4096,
             "map_ids": [10
+            ],
+            "pids": [{
+                    "pid": 1,
+                    "comm": "systemd"
+                }
             ]
         }
     ]
 
 |
 | **# bpftool prog dump xlated id 10 file /tmp/t**
-| **# ls -l /tmp/t**
+| **$ ls -l /tmp/t**
 
 ::
 
@@ -310,14 +333,28 @@ EXAMPLES
 
 **# rm /sys/fs/bpf/xdp1**
 
+|
+| **# bpftool prog profile id 337 duration 10 cycles instructions llc_misses**
+
+::
+
+         51397 run_cnt
+      40176203 cycles                                                 (83.05%)
+      42518139 instructions    #   1.06 insns per cycle               (83.39%)
+           123 llc_misses      #   2.89 LLC misses per million insns  (83.15%)
+
 SEE ALSO
 ========
 	**bpf**\ (2),
 	**bpf-helpers**\ (7),
 	**bpftool**\ (8),
-	**bpftool-map**\ (8),
+	**bpftool-btf**\ (8),
 	**bpftool-cgroup**\ (8),
 	**bpftool-feature**\ (8),
+	**bpftool-gen**\ (8),
+	**bpftool-iter**\ (8),
+	**bpftool-link**\ (8),
+	**bpftool-map**\ (8),
 	**bpftool-net**\ (8),
 	**bpftool-perf**\ (8),
-	**bpftool-btf**\ (8)
+	**bpftool-struct_ops**\ (8)

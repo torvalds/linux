@@ -333,12 +333,13 @@ static unsigned int crypto_ctxsize(struct crypto_alg *alg, u32 type, u32 mask)
 	return len;
 }
 
-static void crypto_shoot_alg(struct crypto_alg *alg)
+void crypto_shoot_alg(struct crypto_alg *alg)
 {
 	down_write(&crypto_alg_sem);
 	alg->cra_flags |= CRYPTO_ALG_DYING;
 	up_write(&crypto_alg_sem);
 }
+EXPORT_SYMBOL_GPL(crypto_shoot_alg);
 
 struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask)
@@ -432,8 +433,9 @@ err:
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_base);
 
-void *crypto_create_tfm(struct crypto_alg *alg,
-			const struct crypto_type *frontend)
+void *crypto_create_tfm_node(struct crypto_alg *alg,
+			const struct crypto_type *frontend,
+			int node)
 {
 	char *mem;
 	struct crypto_tfm *tfm = NULL;
@@ -444,12 +446,13 @@ void *crypto_create_tfm(struct crypto_alg *alg,
 	tfmsize = frontend->tfmsize;
 	total = tfmsize + sizeof(*tfm) + frontend->extsize(alg);
 
-	mem = kzalloc(total, GFP_KERNEL);
+	mem = kzalloc_node(total, GFP_KERNEL, node);
 	if (mem == NULL)
 		goto out_err;
 
 	tfm = (struct crypto_tfm *)(mem + tfmsize);
 	tfm->__crt_alg = alg;
+	tfm->node = node;
 
 	err = frontend->init_tfm(tfm);
 	if (err)
@@ -471,7 +474,7 @@ out_err:
 out:
 	return mem;
 }
-EXPORT_SYMBOL_GPL(crypto_create_tfm);
+EXPORT_SYMBOL_GPL(crypto_create_tfm_node);
 
 struct crypto_alg *crypto_find_alg(const char *alg_name,
 				   const struct crypto_type *frontend,
@@ -489,11 +492,13 @@ struct crypto_alg *crypto_find_alg(const char *alg_name,
 EXPORT_SYMBOL_GPL(crypto_find_alg);
 
 /*
- *	crypto_alloc_tfm - Locate algorithm and allocate transform
+ *	crypto_alloc_tfm_node - Locate algorithm and allocate transform
  *	@alg_name: Name of algorithm
  *	@frontend: Frontend algorithm type
  *	@type: Type of algorithm
  *	@mask: Mask for type comparison
+ *	@node: NUMA node in which users desire to put requests, if node is
+ *		NUMA_NO_NODE, it means users have no special requirement.
  *
  *	crypto_alloc_tfm() will first attempt to locate an already loaded
  *	algorithm.  If that fails and the kernel supports dynamically loadable
@@ -508,8 +513,10 @@ EXPORT_SYMBOL_GPL(crypto_find_alg);
  *
  *	In case of error the return value is an error pointer.
  */
-void *crypto_alloc_tfm(const char *alg_name,
-		       const struct crypto_type *frontend, u32 type, u32 mask)
+
+void *crypto_alloc_tfm_node(const char *alg_name,
+		       const struct crypto_type *frontend, u32 type, u32 mask,
+		       int node)
 {
 	void *tfm;
 	int err;
@@ -523,7 +530,7 @@ void *crypto_alloc_tfm(const char *alg_name,
 			goto err;
 		}
 
-		tfm = crypto_create_tfm(alg, frontend);
+		tfm = crypto_create_tfm_node(alg, frontend, node);
 		if (!IS_ERR(tfm))
 			return tfm;
 
@@ -541,7 +548,7 @@ err:
 
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(crypto_alloc_tfm);
+EXPORT_SYMBOL_GPL(crypto_alloc_tfm_node);
 
 /*
  *	crypto_destroy_tfm - Free crypto transform
@@ -564,7 +571,7 @@ void crypto_destroy_tfm(void *mem, struct crypto_tfm *tfm)
 		alg->cra_exit(tfm);
 	crypto_exit_ops(tfm);
 	crypto_mod_put(alg);
-	kzfree(mem);
+	kfree_sensitive(mem);
 }
 EXPORT_SYMBOL_GPL(crypto_destroy_tfm);
 

@@ -46,6 +46,14 @@
 	   (__rssi__ == COEX_RSSI_STATE_LOW || \
 	    __rssi__ == COEX_RSSI_STATE_STAY_LOW ? true : false); })
 
+#define GET_COEX_RESP_BT_SUPP_VER(payload)				\
+	le64_get_bits(*((__le64 *)(payload)), GENMASK_ULL(39, 32))
+#define GET_COEX_RESP_BT_SUPP_FEAT(payload)				\
+	le64_get_bits(*((__le64 *)(payload)), GENMASK_ULL(39, 24))
+#define GET_COEX_RESP_BT_PATCH_VER(payload)				\
+	le64_get_bits(*((__le64 *)(payload)), GENMASK_ULL(55, 24))
+#define GET_COEX_RESP_BT_REG_VAL(payload)				\
+	le64_get_bits(*((__le64 *)(payload)), GENMASK_ULL(39, 24))
 #define GET_COEX_RESP_BT_SCAN_TYPE(payload)				\
 	le64_get_bits(*((__le64 *)(payload)), GENMASK(31, 24))
 
@@ -87,6 +95,7 @@ enum coex_runreason {
 	COEX_RSN_BTINFO		= 12,
 	COEX_RSN_LPS		= 13,
 	COEX_RSN_WLSTATUS	= 14,
+	COEX_RSN_BTSTATUS	= 15,
 
 	COEX_RSN_MAX
 };
@@ -354,6 +363,8 @@ void rtw_coex_write_scbd(struct rtw_dev *rtwdev, u16 bitpos, bool set);
 void rtw_coex_bt_relink_work(struct work_struct *work);
 void rtw_coex_bt_reenable_work(struct work_struct *work);
 void rtw_coex_defreeze_work(struct work_struct *work);
+void rtw_coex_wl_remain_work(struct work_struct *work);
+void rtw_coex_bt_remain_work(struct work_struct *work);
 
 void rtw_coex_power_on_setting(struct rtw_dev *rtwdev);
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only);
@@ -366,5 +377,7 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 len);
 void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
 void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev);
+
+void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m);
 
 #endif

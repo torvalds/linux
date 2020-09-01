@@ -57,6 +57,7 @@ int chsc_error_from_response(int response)
 	case 0x0104:
 		return -EINVAL;
 	case 0x0004:
+	case 0x0106:		/* "Wrong Channel Parm" for the op 0x003d */
 		return -EOPNOTSUPP;
 	case 0x000b:
 	case 0x0107:		/* "Channel busy" for the op 0x003d */
@@ -180,11 +181,12 @@ EXPORT_SYMBOL_GPL(chsc_ssqd);
  * @scssc: request and response block for SADC
  * @summary_indicator_addr: summary indicator address
  * @subchannel_indicator_addr: subchannel indicator address
+ * @isc: Interruption Subclass for this subchannel
  *
  * Returns 0 on success.
  */
 int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
-	      u64 summary_indicator_addr, u64 subchannel_indicator_addr)
+	      u64 summary_indicator_addr, u64 subchannel_indicator_addr, u8 isc)
 {
 	memset(scssc, 0, sizeof(*scssc));
 	scssc->request.length = 0x0fe0;
@@ -196,7 +198,7 @@ int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
 
 	scssc->ks = PAGE_DEFAULT_KEY >> 4;
 	scssc->kc = PAGE_DEFAULT_KEY >> 4;
-	scssc->isc = QDIO_AIRQ_ISC;
+	scssc->isc = isc;
 	scssc->schid = schid;
 
 	/* enable the time delay disablement facility */
@@ -1335,36 +1337,35 @@ out:
 EXPORT_SYMBOL_GPL(chsc_scm_info);
 
 /**
- * chsc_pnso_brinfo() - Perform Network-Subchannel Operation, Bridge Info.
+ * chsc_pnso() - Perform Network-Subchannel Operation
  * @schid:		id of the subchannel on which PNSO is performed
- * @brinfo_area:	request and response block for the operation
+ * @pnso_area:		request and response block for the operation
  * @resume_token:	resume token for multiblock response
  * @cnc:		Boolean change-notification control
  *
- * brinfo_area must be allocated by the caller with get_zeroed_page(GFP_KERNEL)
+ * pnso_area must be allocated by the caller with get_zeroed_page(GFP_KERNEL)
  *
  * Returns 0 on success.
  */
-int chsc_pnso_brinfo(struct subchannel_id schid,
-		struct chsc_pnso_area *brinfo_area,
-		struct chsc_brinfo_resume_token resume_token,
-		int cnc)
+int chsc_pnso(struct subchannel_id schid,
+	      struct chsc_pnso_area *pnso_area,
+	      struct chsc_pnso_resume_token resume_token,
+	      int cnc)
 {
-	memset(brinfo_area, 0, sizeof(*brinfo_area));
-	brinfo_area->request.length = 0x0030;
-	brinfo_area->request.code = 0x003d; /* network-subchannel operation */
-	brinfo_area->m	   = schid.m;
-	brinfo_area->ssid  = schid.ssid;
-	brinfo_area->sch   = schid.sch_no;
-	brinfo_area->cssid = schid.cssid;
-	brinfo_area->oc    = 0; /* Store-network-bridging-information list */
-	brinfo_area->resume_token = resume_token;
-	brinfo_area->n	   = (cnc != 0);
-	if (chsc(brinfo_area))
+	memset(pnso_area, 0, sizeof(*pnso_area));
+	pnso_area->request.length = 0x0030;
+	pnso_area->request.code = 0x003d; /* network-subchannel operation */
+	pnso_area->m	   = schid.m;
+	pnso_area->ssid  = schid.ssid;
+	pnso_area->sch	 = schid.sch_no;
+	pnso_area->cssid = schid.cssid;
+	pnso_area->oc	 = 0; /* Store-network-bridging-information list */
+	pnso_area->resume_token = resume_token;
+	pnso_area->n	   = (cnc != 0);
+	if (chsc(pnso_area))
 		return -EIO;
-	return chsc_error_from_response(brinfo_area->response.code);
+	return chsc_error_from_response(pnso_area->response.code);
 }
-EXPORT_SYMBOL_GPL(chsc_pnso_brinfo);
 
 int chsc_sgib(u32 origin)
 {

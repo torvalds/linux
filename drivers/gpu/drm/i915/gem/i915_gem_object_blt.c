@@ -6,8 +6,8 @@
 #include "i915_drv.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
-#include "gt/intel_engine_pool.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_buffer_pool.h"
 #include "gt/intel_ring.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_object_blt.h"
@@ -18,7 +18,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
 	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
-	struct intel_engine_pool_node *pool;
+	struct intel_gt_buffer_pool_node *pool;
 	struct i915_vma *batch;
 	u64 offset;
 	u64 count;
@@ -33,7 +33,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	count = div_u64(round_up(vma->size, block_size), block_size);
 	size = (1 + 8 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
-	pool = intel_engine_get_pool(ce->engine, size);
+	pool = intel_gt_get_buffer_pool(ce->engine->gt, size);
 	if (IS_ERR(pool)) {
 		err = PTR_ERR(pool);
 		goto out_pm;
@@ -78,9 +78,11 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	} while (rem);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	intel_gt_chipset_flush(ce->vm->gt);
 
+	i915_gem_object_flush_map(pool->obj);
 	i915_gem_object_unpin_map(pool->obj);
+
+	intel_gt_chipset_flush(ce->vm->gt);
 
 	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
 	if (IS_ERR(batch)) {
@@ -96,7 +98,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	return batch;
 
 out_put:
-	intel_engine_pool_put(pool);
+	intel_gt_buffer_pool_put(pool);
 out_pm:
 	intel_engine_pm_put(ce->engine);
 	return ERR_PTR(err);
@@ -114,14 +116,25 @@ int intel_emit_vma_mark_active(struct i915_vma *vma, struct i915_request *rq)
 	if (unlikely(err))
 		return err;
 
-	return intel_engine_pool_mark_active(vma->private, rq);
+	return intel_gt_buffer_pool_mark_active(vma->private, rq);
 }
 
 void intel_emit_vma_release(struct intel_context *ce, struct i915_vma *vma)
 {
 	i915_vma_unpin(vma);
-	intel_engine_pool_put(vma->private);
+	intel_gt_buffer_pool_put(vma->private);
 	intel_engine_pm_put(ce->engine);
+}
+
+static int
+move_obj_to_gpu(struct drm_i915_gem_object *obj,
+		struct i915_request *rq,
+		bool write)
+{
+	if (obj->cache_dirty & ~obj->cache_coherent)
+		i915_gem_clflush_object(obj, 0);
+
+	return i915_request_await_object(rq, obj, write);
 }
 
 int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
@@ -141,12 +154,6 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 	if (unlikely(err))
 		return err;
 
-	if (obj->cache_dirty & ~obj->cache_coherent) {
-		i915_gem_object_lock(obj);
-		i915_gem_clflush_object(obj, 0);
-		i915_gem_object_unlock(obj);
-	}
-
 	batch = intel_emit_vma_fill_blt(ce, vma, value);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
@@ -163,30 +170,25 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 	if (unlikely(err))
 		goto out_request;
 
-	err = i915_request_await_object(rq, obj, true);
-	if (unlikely(err))
-		goto out_request;
-
-	if (ce->engine->emit_init_breadcrumb) {
-		err = ce->engine->emit_init_breadcrumb(rq);
-		if (unlikely(err))
-			goto out_request;
-	}
-
 	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj, true);
+	err = move_obj_to_gpu(vma->obj, rq, true);
 	if (err == 0)
 		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(vma);
 	if (unlikely(err))
 		goto out_request;
 
-	err = ce->engine->emit_bb_start(rq,
-					batch->node.start, batch->node.size,
-					0);
+	if (ce->engine->emit_init_breadcrumb)
+		err = ce->engine->emit_init_breadcrumb(rq);
+
+	if (likely(!err))
+		err = ce->engine->emit_bb_start(rq,
+						batch->node.start,
+						batch->node.size,
+						0);
 out_request:
 	if (unlikely(err))
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 
 	i915_request_add(rq);
 out_batch:
@@ -196,13 +198,24 @@ out_unpin:
 	return err;
 }
 
+/* Wa_1209644611:icl,ehl */
+static bool wa_1209644611_applies(struct drm_i915_private *i915, u32 size)
+{
+	u32 height = size >> PAGE_SHIFT;
+
+	if (!IS_GEN(i915, 11))
+		return false;
+
+	return height % 4 == 3 && height <= 8;
+}
+
 struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 					 struct i915_vma *src,
 					 struct i915_vma *dst)
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
 	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
-	struct intel_engine_pool_node *pool;
+	struct intel_gt_buffer_pool_node *pool;
 	struct i915_vma *batch;
 	u64 src_offset, dst_offset;
 	u64 count, rem;
@@ -217,7 +230,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	count = div_u64(round_up(dst->size, block_size), block_size);
 	size = (1 + 11 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
-	pool = intel_engine_get_pool(ce->engine, size);
+	pool = intel_gt_get_buffer_pool(ce->engine->gt, size);
 	if (IS_ERR(pool)) {
 		err = PTR_ERR(pool);
 		goto out_pm;
@@ -237,7 +250,8 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 		size = min_t(u64, rem, block_size);
 		GEM_BUG_ON(size >> PAGE_SHIFT > S16_MAX);
 
-		if (INTEL_GEN(i915) >= 9) {
+		if (INTEL_GEN(i915) >= 9 &&
+		    !wa_1209644611_applies(i915, size)) {
 			*cmd++ = GEN9_XY_FAST_COPY_BLT_CMD | (10 - 2);
 			*cmd++ = BLT_DEPTH_32 | PAGE_SIZE;
 			*cmd++ = 0;
@@ -277,9 +291,11 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	} while (rem);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	intel_gt_chipset_flush(ce->vm->gt);
 
+	i915_gem_object_flush_map(pool->obj);
 	i915_gem_object_unpin_map(pool->obj);
+
+	intel_gt_chipset_flush(ce->vm->gt);
 
 	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
 	if (IS_ERR(batch)) {
@@ -295,20 +311,10 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	return batch;
 
 out_put:
-	intel_engine_pool_put(pool);
+	intel_gt_buffer_pool_put(pool);
 out_pm:
 	intel_engine_pm_put(ce->engine);
 	return ERR_PTR(err);
-}
-
-static int move_to_gpu(struct i915_vma *vma, struct i915_request *rq, bool write)
-{
-	struct drm_i915_gem_object *obj = vma->obj;
-
-	if (obj->cache_dirty & ~obj->cache_coherent)
-		i915_gem_clflush_object(obj, 0);
-
-	return i915_request_await_object(rq, obj, write);
 }
 
 int i915_gem_object_copy_blt(struct drm_i915_gem_object *src,
@@ -359,7 +365,7 @@ int i915_gem_object_copy_blt(struct drm_i915_gem_object *src,
 		goto out_request;
 
 	for (i = 0; i < ARRAY_SIZE(vma); i++) {
-		err = move_to_gpu(vma[i], rq, i);
+		err = move_obj_to_gpu(vma[i]->obj, rq, i);
 		if (unlikely(err))
 			goto out_unlock;
 	}
@@ -385,7 +391,7 @@ out_unlock:
 	drm_gem_unlock_reservations(objs, ARRAY_SIZE(objs), &acquire);
 out_request:
 	if (unlikely(err))
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 
 	i915_request_add(rq);
 out_batch:

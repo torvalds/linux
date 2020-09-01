@@ -6,7 +6,7 @@
 
 #define PING_CMD	"ping -q -c1 -w1 127.0.0.1 > /dev/null"
 
-char bpf_log_buf[BPF_LOG_BUF_SIZE];
+static char bpf_log_buf[BPF_LOG_BUF_SIZE];
 
 static int map_fd = -1;
 
@@ -225,6 +225,13 @@ void test_cgroup_attach_multi(void)
 
 	/* replace 1st from the top program */
 	attach_opts.replace_prog_fd = allow_prog[0];
+	if (CHECK(bpf_prog_attach_xattr(allow_prog[6], cg1,
+					BPF_CGROUP_INET_EGRESS, &attach_opts),
+		  "prog_replace", "errno=%d\n", errno))
+		goto err;
+
+	/* replace program with itself */
+	attach_opts.replace_prog_fd = allow_prog[6];
 	if (CHECK(bpf_prog_attach_xattr(allow_prog[6], cg1,
 					BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "prog_replace", "errno=%d\n", errno))

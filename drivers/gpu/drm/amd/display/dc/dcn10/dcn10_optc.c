@@ -288,8 +288,19 @@ void optc1_program_timing(
 	if (optc1_is_two_pixels_per_containter(&patched_crtc_timing) || optc1->opp_count == 2)
 		h_div = H_TIMING_DIV_BY2;
 
-	REG_UPDATE(OTG_H_TIMING_CNTL,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	if (optc1->tg_mask->OTG_H_TIMING_DIV_MODE != 0) {
+		if (optc1->opp_count == 4)
+			h_div = H_TIMING_DIV_BY4;
+
+		REG_UPDATE(OTG_H_TIMING_CNTL,
+		OTG_H_TIMING_DIV_MODE, h_div);
+	} else
+#endif
+	{
+		REG_UPDATE(OTG_H_TIMING_CNTL,
 		OTG_H_TIMING_DIV_BY2, h_div);
+	}
 }
 
 void optc1_set_vtg_params(struct timing_generator *optc,
@@ -342,6 +353,23 @@ void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enab
 
 	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
 			OTG_BLANK_DATA_DOUBLE_BUFFER_EN, blank_data_double_buffer_enable);
+}
+
+/**
+ * optc1_set_timing_double_buffer() - DRR double buffering control
+ *
+ * Sets double buffer point for V_TOTAL, H_TOTAL, VTOTAL_MIN,
+ * VTOTAL_MAX, VTOTAL_MIN_SEL and VTOTAL_MAX_SEL registers.
+ *
+ * Options: any time,  start of frame, dp start of frame (range timing)
+ */
+void optc1_set_timing_double_buffer(struct timing_generator *optc, bool enable)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t mode = enable ? 2 : 0;
+
+	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
+		   OTG_RANGE_TIMING_DBUF_UPDATE_MODE, mode);
 }
 
 /**
@@ -1195,7 +1223,7 @@ static void optc1_enable_stereo(struct timing_generator *optc,
 			REG_UPDATE_3(OTG_STEREO_CONTROL,
 				OTG_STEREO_EN, stereo_en,
 				OTG_STEREO_SYNC_OUTPUT_LINE_NUM, 0,
-				OTG_STEREO_SYNC_OUTPUT_POLARITY, 0);
+				OTG_STEREO_SYNC_OUTPUT_POLARITY, flags->RIGHT_EYE_POLARITY == 0 ? 0 : 1);
 
 		if (flags->PROGRAM_POLARITY)
 			REG_UPDATE(OTG_STEREO_CONTROL,
@@ -1355,6 +1383,7 @@ void optc1_clear_optc_underflow(struct timing_generator *optc)
 void optc1_tg_init(struct timing_generator *optc)
 {
 	optc1_set_blank_data_double_buffer(optc, true);
+	optc1_set_timing_double_buffer(optc, true);
 	optc1_clear_optc_underflow(optc);
 }
 

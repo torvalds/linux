@@ -78,27 +78,6 @@ struct tcp_sack_block {
 #define TCP_SACK_SEEN     (1 << 0)   /*1 = peer is SACK capable, */
 #define TCP_DSACK_SEEN    (1 << 2)   /*1 = DSACK was received from peer*/
 
-#if IS_ENABLED(CONFIG_MPTCP)
-struct mptcp_options_received {
-	u64	sndr_key;
-	u64	rcvr_key;
-	u64	data_ack;
-	u64	data_seq;
-	u32	subflow_seq;
-	u16	data_len;
-	u8	mp_capable : 1,
-		mp_join : 1,
-		dss : 1;
-	u8	use_map:1,
-		dsn64:1,
-		data_fin:1,
-		use_ack:1,
-		ack64:1,
-		mpc_map:1,
-		__unused:2;
-};
-#endif
-
 struct tcp_options_received {
 /*	PAWS/RTTM data	*/
 	int	ts_recent_stamp;/* Time we stored ts_recent (for aging) */
@@ -116,9 +95,6 @@ struct tcp_options_received {
 	u8	num_sacks;	/* Number of SACK blocks		*/
 	u16	user_mss;	/* mss requested by user in ioctl	*/
 	u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
-#if IS_ENABLED(CONFIG_MPTCP)
-	struct mptcp_options_received	mptcp;
-#endif
 };
 
 static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
@@ -127,11 +103,6 @@ static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
 	rx_opt->wscale_ok = rx_opt->snd_wscale = 0;
 #if IS_ENABLED(CONFIG_SMC)
 	rx_opt->smc_ok = 0;
-#endif
-#if IS_ENABLED(CONFIG_MPTCP)
-	rx_opt->mptcp.mp_capable = 0;
-	rx_opt->mptcp.mp_join = 0;
-	rx_opt->mptcp.dss = 0;
 #endif
 }
 
@@ -149,6 +120,9 @@ struct tcp_request_sock {
 	u64				snt_synack; /* first SYNACK sent time */
 	bool				tfo_listener;
 	bool				is_mptcp;
+#if IS_ENABLED(CONFIG_MPTCP)
+	bool				drop_req;
+#endif
 	u32				txhash;
 	u32				rcv_isn;
 	u32				snt_isn;
@@ -246,6 +220,9 @@ struct tcp_sock {
 	} rack;
 	u16	advmss;		/* Advertised MSS			*/
 	u8	compressed_ack;
+	u8	dup_ack_counter:2,
+		tlp_retrans:1,	/* TLP is a retransmission */
+		unused:5;
 	u32	chrono_start;	/* Start time in jiffies of a TCP chrono */
 	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
 	u8	chrono_type:2,	/* current chronograph type */
@@ -268,7 +245,7 @@ struct tcp_sock {
 		save_syn:1,	/* Save headers of SYN packet */
 		is_cwnd_limited:1,/* forward progress limited by snd_cwnd? */
 		syn_smc:1;	/* SYN includes SMC */
-	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
+	u32	tlp_high_seq;	/* snd_nxt at the time of TLP */
 
 	u32	tcp_tx_delay;	/* delay (in usec) added to TX packets */
 	u64	tcp_wstamp_ns;	/* departure time for next sent data packet */
@@ -507,7 +484,8 @@ static inline void tcp_saved_syn_free(struct tcp_sock *tp)
 	tp->saved_syn = NULL;
 }
 
-struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk);
+struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk,
+					       const struct sk_buff *orig_skb);
 
 static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
 {
@@ -521,5 +499,15 @@ static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
 
 int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
 		  int shiftlen);
+
+void tcp_sock_set_cork(struct sock *sk, bool on);
+int tcp_sock_set_keepcnt(struct sock *sk, int val);
+int tcp_sock_set_keepidle_locked(struct sock *sk, int val);
+int tcp_sock_set_keepidle(struct sock *sk, int val);
+int tcp_sock_set_keepintvl(struct sock *sk, int val);
+void tcp_sock_set_nodelay(struct sock *sk);
+void tcp_sock_set_quickack(struct sock *sk, int val);
+int tcp_sock_set_syncnt(struct sock *sk, int val);
+void tcp_sock_set_user_timeout(struct sock *sk, u32 val);
 
 #endif	/* _LINUX_TCP_H */

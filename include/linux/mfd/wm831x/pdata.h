@@ -89,7 +89,6 @@ enum wm831x_watchdog_action {
 
 struct wm831x_watchdog_pdata {
 	enum wm831x_watchdog_action primary, secondary;
-	int update_gpio;
 	unsigned int software:1;
 };
 

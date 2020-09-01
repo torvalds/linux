@@ -60,7 +60,7 @@ print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 			   ntohs(tuple->src.u.tcp.port),
 			   ntohs(tuple->dst.u.tcp.port));
 		break;
-	case IPPROTO_UDPLITE: /* fallthrough */
+	case IPPROTO_UDPLITE:
 	case IPPROTO_UDP:
 		seq_printf(s, "sport=%hu dport=%hu ",
 			   ntohs(tuple->src.u.udp.port),
@@ -348,7 +348,9 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (seq_print_acct(s, ct, IP_CT_DIR_REPLY))
 		goto release;
 
-	if (test_bit(IPS_OFFLOAD_BIT, &ct->status))
+	if (test_bit(IPS_HW_OFFLOAD_BIT, &ct->status))
+		seq_puts(s, "[HW_OFFLOAD] ");
+	else if (test_bit(IPS_OFFLOAD_BIT, &ct->status))
 		seq_puts(s, "[OFFLOAD] ");
 	else if (test_bit(IPS_ASSURED_BIT, &ct->status))
 		seq_puts(s, "[ASSURED] ");
@@ -517,7 +519,7 @@ static unsigned int nf_conntrack_htable_size_user __read_mostly;
 
 static int
 nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
@@ -1054,21 +1056,18 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	nf_conntrack_standalone_init_dccp_sysctl(net, table);
 	nf_conntrack_standalone_init_gre_sysctl(net, table);
 
-	/* Don't export sysctls to unprivileged users */
+	/* Don't allow unprivileged users to alter certain sysctls */
 	if (net->user_ns != &init_user_ns) {
-		table[NF_SYSCTL_CT_MAX].procname = NULL;
-		table[NF_SYSCTL_CT_ACCT].procname = NULL;
-		table[NF_SYSCTL_CT_HELPER].procname = NULL;
-#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
-		table[NF_SYSCTL_CT_TIMESTAMP].procname = NULL;
-#endif
+		table[NF_SYSCTL_CT_MAX].mode = 0444;
+		table[NF_SYSCTL_CT_EXPECT_MAX].mode = 0444;
+		table[NF_SYSCTL_CT_HELPER].mode = 0444;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-		table[NF_SYSCTL_CT_EVENTS].procname = NULL;
+		table[NF_SYSCTL_CT_EVENTS].mode = 0444;
 #endif
-	}
-
-	if (!net_eq(&init_net, net))
 		table[NF_SYSCTL_CT_BUCKETS].mode = 0444;
+	} else if (!net_eq(&init_net, net)) {
+		table[NF_SYSCTL_CT_BUCKETS].mode = 0444;
+	}
 
 	net->ct.sysctl_header = register_net_sysctl(net, "net/netfilter", table);
 	if (!net->ct.sysctl_header)

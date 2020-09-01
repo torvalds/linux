@@ -37,6 +37,10 @@
 #define RPM_XO_A0				27
 #define RPM_XO_A1				28
 #define RPM_XO_A2				29
+#define RPM_NSS_FABRIC_0_CLK			30
+#define RPM_NSS_FABRIC_0_A_CLK			31
+#define RPM_NSS_FABRIC_1_CLK			32
+#define RPM_NSS_FABRIC_1_A_CLK			33
 
 /* SMD RPM clocks */
 #define RPM_SMD_XO_CLK_SRC				0
@@ -129,5 +133,21 @@
 #define RPM_SMD_RF_CLK3_A			87
 #define RPM_SMD_RF_CLK3_PIN			88
 #define RPM_SMD_RF_CLK3_A_PIN			89
+#define RPM_SMD_MMSSNOC_AXI_CLK			90
+#define RPM_SMD_MMSSNOC_AXI_CLK_A		91
+#define RPM_SMD_CNOC_PERIPH_CLK			92
+#define RPM_SMD_CNOC_PERIPH_A_CLK		93
+#define RPM_SMD_LN_BB_CLK3			94
+#define RPM_SMD_LN_BB_CLK3_A			95
+#define RPM_SMD_LN_BB_CLK1_PIN			96
+#define RPM_SMD_LN_BB_CLK1_A_PIN		97
+#define RPM_SMD_LN_BB_CLK2_PIN			98
+#define RPM_SMD_LN_BB_CLK2_A_PIN		99
+#define RPM_SMD_SYSMMNOC_CLK			100
+#define RPM_SMD_SYSMMNOC_A_CLK			101
+#define RPM_SMD_CE2_CLK				102
+#define RPM_SMD_CE2_A_CLK			103
+#define RPM_SMD_CE3_CLK				104
+#define RPM_SMD_CE3_A_CLK			105
 
 #endif

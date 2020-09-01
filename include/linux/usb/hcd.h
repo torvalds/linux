@@ -228,7 +228,7 @@ struct usb_hcd {
 	/* The HC driver's private data is stored at the end of
 	 * this structure.
 	 */
-	unsigned long hcd_priv[0]
+	unsigned long hcd_priv[]
 			__attribute__ ((aligned(sizeof(s64))));
 };
 
@@ -479,7 +479,8 @@ extern void usb_hcd_platform_shutdown(struct platform_device *dev);
 struct pci_dev;
 struct pci_device_id;
 extern int usb_hcd_pci_probe(struct pci_dev *dev,
-				const struct pci_device_id *id);
+			     const struct pci_device_id *id,
+			     const struct hc_driver *driver);
 extern void usb_hcd_pci_remove(struct pci_dev *dev);
 extern void usb_hcd_pci_shutdown(struct pci_dev *dev);
 

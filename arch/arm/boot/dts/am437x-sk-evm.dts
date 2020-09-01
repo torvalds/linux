@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 /* AM437x SK EVM */
@@ -133,22 +133,6 @@
 		backlight = <&lcd_bl>;
 
 		enable-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
-
-		panel-timing {
-			clock-frequency = <9000000>;
-			hactive = <480>;
-			vactive = <272>;
-			hfront-porch = <2>;
-			hback-porch = <2>;
-			hsync-len = <41>;
-			vfront-porch = <2>;
-			vback-porch = <2>;
-			vsync-len = <10>;
-			hsync-active = <0>;
-			vsync-active = <0>;
-			de-active = <1>;
-			pixelclk-active = <1>;
-		};
 
 		port {
 			lcd_in: endpoint {
@@ -719,7 +703,7 @@
 	pinctrl-1 = <&mmc3_pins_sleep>;
 	cap-power-off-card;
 	keep-power-in-suspend;
-	ti,non-removable;
+	non-removable;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -833,13 +817,13 @@
 
 &cpsw_emac0 {
 	phy-handle = <&ethphy0>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-rxid";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
 	phy-handle = <&ethphy1>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-rxid";
 	dual_emac_res_vlan = <2>;
 };
 

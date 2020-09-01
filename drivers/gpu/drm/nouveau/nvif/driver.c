@@ -53,6 +53,6 @@ nvif_driver_init(const char *drv, const char *cfg, const char *dbg,
 	}
 
 	if (ret == 0)
-		ret = nvif_client_init(client, name, device, client);
+		ret = nvif_client_ctor(client, name, device, client);
 	return ret;
 }

@@ -13,17 +13,11 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 
-	.text
-	.altmacro
+#if !IS_ENABLED(CONFIG_PREEMPTION)
+.set resume_kernel, restore_all
+#endif
 
-/*
- * Prepares to enter a system call or exception by saving all registers to the
- * stack.
- */
-	.macro SAVE_ALL
-	LOCAL _restore_kernel_tpsp
-	LOCAL _save_context
-
+ENTRY(handle_exception)
 	/*
 	 * If coming from userspace, preserve the user thread pointer and load
 	 * the kernel thread pointer.  If we came from the kernel, the scratch
@@ -90,13 +84,184 @@ _save_context:
 	REG_S s3, PT_BADADDR(sp)
 	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
-	.endm
 
-/*
- * Prepares to return from a system call or exception by restoring all
- * registers from the stack.
- */
-	.macro RESTORE_ALL
+	/*
+	 * Set the scratch register to 0, so that if a recursive exception
+	 * occurs, the exception vector knows it came from the kernel
+	 */
+	csrw CSR_SCRATCH, x0
+
+	/* Load the global pointer */
+.option push
+.option norelax
+	la gp, __global_pointer$
+.option pop
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call trace_hardirqs_off
+#endif
+
+#ifdef CONFIG_CONTEXT_TRACKING
+	/* If previous state is in user mode, call context_tracking_user_exit. */
+	li   a0, SR_PP
+	and a0, s1, a0
+	bnez a0, skip_context_tracking
+	call context_tracking_user_exit
+skip_context_tracking:
+#endif
+
+	/*
+	 * MSB of cause differentiates between
+	 * interrupts and exceptions
+	 */
+	bge s4, zero, 1f
+
+	la ra, ret_from_exception
+
+	/* Handle interrupts */
+	move a0, sp /* pt_regs */
+	la a1, handle_arch_irq
+	REG_L a1, (a1)
+	jr a1
+1:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call trace_hardirqs_on
+#endif
+	/*
+	 * Exceptions run with interrupts enabled or disabled depending on the
+	 * state of SR_PIE in m/sstatus.
+	 */
+	andi t0, s1, SR_PIE
+	beqz t0, 1f
+	csrs CSR_STATUS, SR_IE
+
+1:
+	la ra, ret_from_exception
+	/* Handle syscalls */
+	li t0, EXC_SYSCALL
+	beq s4, t0, handle_syscall
+
+	/* Handle other exceptions */
+	slli t0, s4, RISCV_LGPTR
+	la t1, excp_vect_table
+	la t2, excp_vect_table_end
+	move a0, sp /* pt_regs */
+	add t0, t1, t0
+	/* Check if exception code lies within bounds */
+	bgeu t0, t2, 1f
+	REG_L t0, 0(t0)
+	jr t0
+1:
+	tail do_trap_unknown
+
+handle_syscall:
+#if defined(CONFIG_TRACE_IRQFLAGS) || defined(CONFIG_CONTEXT_TRACKING)
+	/* Recover a0 - a7 for system calls */
+	REG_L a0, PT_A0(sp)
+	REG_L a1, PT_A1(sp)
+	REG_L a2, PT_A2(sp)
+	REG_L a3, PT_A3(sp)
+	REG_L a4, PT_A4(sp)
+	REG_L a5, PT_A5(sp)
+	REG_L a6, PT_A6(sp)
+	REG_L a7, PT_A7(sp)
+#endif
+	 /* save the initial A0 value (needed in signal handlers) */
+	REG_S a0, PT_ORIG_A0(sp)
+	/*
+	 * Advance SEPC to avoid executing the original
+	 * scall instruction on sret
+	 */
+	addi s2, s2, 0x4
+	REG_S s2, PT_EPC(sp)
+	/* Trace syscalls, but only if requested by the user. */
+	REG_L t0, TASK_TI_FLAGS(tp)
+	andi t0, t0, _TIF_SYSCALL_WORK
+	bnez t0, handle_syscall_trace_enter
+check_syscall_nr:
+	/* Check to make sure we don't jump to a bogus syscall number. */
+	li t0, __NR_syscalls
+	la s0, sys_ni_syscall
+	/*
+	 * Syscall number held in a7.
+	 * If syscall number is above allowed value, redirect to ni_syscall.
+	 */
+	bge a7, t0, 1f
+	/*
+	 * Check if syscall is rejected by tracer, i.e., a7 == -1.
+	 * If yes, we pretend it was executed.
+	 */
+	li t1, -1
+	beq a7, t1, ret_from_syscall_rejected
+	blt a7, t1, 1f
+	/* Call syscall */
+	la s0, sys_call_table
+	slli t0, a7, RISCV_LGPTR
+	add s0, s0, t0
+	REG_L s0, 0(s0)
+1:
+	jalr s0
+
+ret_from_syscall:
+	/* Set user a0 to kernel a0 */
+	REG_S a0, PT_A0(sp)
+	/*
+	 * We didn't execute the actual syscall.
+	 * Seccomp already set return value for the current task pt_regs.
+	 * (If it was configured with SECCOMP_RET_ERRNO/TRACE)
+	 */
+ret_from_syscall_rejected:
+	/* Trace syscalls, but only if requested by the user. */
+	REG_L t0, TASK_TI_FLAGS(tp)
+	andi t0, t0, _TIF_SYSCALL_WORK
+	bnez t0, handle_syscall_trace_exit
+
+ret_from_exception:
+	REG_L s0, PT_STATUS(sp)
+	csrc CSR_STATUS, SR_IE
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call trace_hardirqs_off
+#endif
+#ifdef CONFIG_RISCV_M_MODE
+	/* the MPP value is too large to be used as an immediate arg for addi */
+	li t0, SR_MPP
+	and s0, s0, t0
+#else
+	andi s0, s0, SR_SPP
+#endif
+	bnez s0, resume_kernel
+
+resume_userspace:
+	/* Interrupts must be disabled here so flags are checked atomically */
+	REG_L s0, TASK_TI_FLAGS(tp) /* current_thread_info->flags */
+	andi s1, s0, _TIF_WORK_MASK
+	bnez s1, work_pending
+
+#ifdef CONFIG_CONTEXT_TRACKING
+	call context_tracking_user_enter
+#endif
+
+	/* Save unwound kernel stack pointer in thread_info */
+	addi s0, sp, PT_SIZE_ON_STACK
+	REG_S s0, TASK_TI_KERNEL_SP(tp)
+
+	/*
+	 * Save TP into the scratch register , so we can find the kernel data
+	 * structures again.
+	 */
+	csrw CSR_SCRATCH, tp
+
+restore_all:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	REG_L s1, PT_STATUS(sp)
+	andi t0, s1, SR_PIE
+	beqz t0, 1f
+	call trace_hardirqs_on
+	j 2f
+1:
+	call trace_hardirqs_off
+2:
+#endif
 	REG_L a0, PT_STATUS(sp)
 	/*
 	 * The current load reservation is effectively part of the processor's
@@ -153,145 +318,7 @@ _save_context:
 	REG_L x31, PT_T6(sp)
 
 	REG_L x2,  PT_SP(sp)
-	.endm
 
-#if !IS_ENABLED(CONFIG_PREEMPTION)
-.set resume_kernel, restore_all
-#endif
-
-ENTRY(handle_exception)
-	SAVE_ALL
-
-	/*
-	 * Set the scratch register to 0, so that if a recursive exception
-	 * occurs, the exception vector knows it came from the kernel
-	 */
-	csrw CSR_SCRATCH, x0
-
-	/* Load the global pointer */
-.option push
-.option norelax
-	la gp, __global_pointer$
-.option pop
-
-	la ra, ret_from_exception
-	/*
-	 * MSB of cause differentiates between
-	 * interrupts and exceptions
-	 */
-	bge s4, zero, 1f
-
-	/* Handle interrupts */
-	move a0, sp /* pt_regs */
-	tail do_IRQ
-1:
-	/*
-	 * Exceptions run with interrupts enabled or disabled depending on the
-	 * state of SR_PIE in m/sstatus.
-	 */
-	andi t0, s1, SR_PIE
-	beqz t0, 1f
-	csrs CSR_STATUS, SR_IE
-
-1:
-	/* Handle syscalls */
-	li t0, EXC_SYSCALL
-	beq s4, t0, handle_syscall
-
-	/* Handle other exceptions */
-	slli t0, s4, RISCV_LGPTR
-	la t1, excp_vect_table
-	la t2, excp_vect_table_end
-	move a0, sp /* pt_regs */
-	add t0, t1, t0
-	/* Check if exception code lies within bounds */
-	bgeu t0, t2, 1f
-	REG_L t0, 0(t0)
-	jr t0
-1:
-	tail do_trap_unknown
-
-handle_syscall:
-	 /* save the initial A0 value (needed in signal handlers) */
-	REG_S a0, PT_ORIG_A0(sp)
-	/*
-	 * Advance SEPC to avoid executing the original
-	 * scall instruction on sret
-	 */
-	addi s2, s2, 0x4
-	REG_S s2, PT_EPC(sp)
-	/* Trace syscalls, but only if requested by the user. */
-	REG_L t0, TASK_TI_FLAGS(tp)
-	andi t0, t0, _TIF_SYSCALL_WORK
-	bnez t0, handle_syscall_trace_enter
-check_syscall_nr:
-	/* Check to make sure we don't jump to a bogus syscall number. */
-	li t0, __NR_syscalls
-	la s0, sys_ni_syscall
-	/*
-	 * Syscall number held in a7.
-	 * If syscall number is above allowed value, redirect to ni_syscall.
-	 */
-	bge a7, t0, 1f
-	/*
-	 * Check if syscall is rejected by tracer, i.e., a7 == -1.
-	 * If yes, we pretend it was executed.
-	 */
-	li t1, -1
-	beq a7, t1, ret_from_syscall_rejected
-	blt a7, t1, 1f
-	/* Call syscall */
-	la s0, sys_call_table
-	slli t0, a7, RISCV_LGPTR
-	add s0, s0, t0
-	REG_L s0, 0(s0)
-1:
-	jalr s0
-
-ret_from_syscall:
-	/* Set user a0 to kernel a0 */
-	REG_S a0, PT_A0(sp)
-	/*
-	 * We didn't execute the actual syscall.
-	 * Seccomp already set return value for the current task pt_regs.
-	 * (If it was configured with SECCOMP_RET_ERRNO/TRACE)
-	 */
-ret_from_syscall_rejected:
-	/* Trace syscalls, but only if requested by the user. */
-	REG_L t0, TASK_TI_FLAGS(tp)
-	andi t0, t0, _TIF_SYSCALL_WORK
-	bnez t0, handle_syscall_trace_exit
-
-ret_from_exception:
-	REG_L s0, PT_STATUS(sp)
-	csrc CSR_STATUS, SR_IE
-#ifdef CONFIG_RISCV_M_MODE
-	/* the MPP value is too large to be used as an immediate arg for addi */
-	li t0, SR_MPP
-	and s0, s0, t0
-#else
-	andi s0, s0, SR_SPP
-#endif
-	bnez s0, resume_kernel
-
-resume_userspace:
-	/* Interrupts must be disabled here so flags are checked atomically */
-	REG_L s0, TASK_TI_FLAGS(tp) /* current_thread_info->flags */
-	andi s1, s0, _TIF_WORK_MASK
-	bnez s1, work_pending
-
-	/* Save unwound kernel stack pointer in thread_info */
-	addi s0, sp, PT_SIZE_ON_STACK
-	REG_S s0, TASK_TI_KERNEL_SP(tp)
-
-	/*
-	 * Save TP into the scratch register , so we can find the kernel data
-	 * structures again.
-	 */
-	csrw CSR_SCRATCH, tp
-
-restore_all:
-	RESTORE_ALL
 #ifdef CONFIG_RISCV_M_MODE
 	mret
 #else
@@ -408,12 +435,8 @@ ENTRY(__switch_to)
 	lw a4, TASK_TI_CPU(a1)
 	sw a3, TASK_TI_CPU(a1)
 	sw a4, TASK_TI_CPU(a0)
-#if TASK_TI != 0
-#error "TASK_TI != 0: tp will contain a 'struct thread_info', not a 'struct task_struct' so get_current() won't work."
-	addi tp, a1, TASK_TI
-#else
+	/* The offset of thread_info in task_struct is zero. */
 	move tp, a1
-#endif
 	ret
 ENDPROC(__switch_to)
 

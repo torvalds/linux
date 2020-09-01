@@ -27,7 +27,8 @@
  *   - FIFO size: 4KB
  *
  * - LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/ISM330DHCX:
- *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
+ *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416,
+ *     833
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 3KB
@@ -791,7 +792,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 			[ST_LSM6DSX_ID_GYRO] = {
 				.reg = {
@@ -804,7 +806,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 		},
 		.fs_table = {
@@ -994,7 +997,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 			[ST_LSM6DSX_ID_GYRO] = {
 				.reg = {
@@ -1007,7 +1011,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 		},
 		.fs_table = {
@@ -1171,7 +1176,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 			[ST_LSM6DSX_ID_GYRO] = {
 				.reg = {
@@ -1184,7 +1190,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 		},
 		.fs_table = {
@@ -2036,10 +2043,20 @@ static int st_lsm6dsx_init_hw_timer(struct st_lsm6dsx_hw *hw)
 	return 0;
 }
 
-static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
+static int st_lsm6dsx_reset_device(struct st_lsm6dsx_hw *hw)
 {
 	const struct st_lsm6dsx_reg *reg;
 	int err;
+
+	/*
+	 * flush hw FIFO before device reset in order to avoid
+	 * possible races on interrupt line 1. If the first interrupt
+	 * line is asserted during hw reset the device will work in
+	 * I3C-only mode (if it is supported)
+	 */
+	err = st_lsm6dsx_flush_fifo(hw);
+	if (err < 0 && err != -ENOTSUPP)
+		return err;
 
 	/* device sw reset */
 	reg = &hw->settings->reset;
@@ -2058,6 +2075,18 @@ static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
 		return err;
 
 	msleep(50);
+
+	return 0;
+}
+
+static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
+{
+	const struct st_lsm6dsx_reg *reg;
+	int err;
+
+	err = st_lsm6dsx_reset_device(hw);
+	if (err < 0)
+		return err;
 
 	/* enable Block Data Update */
 	reg = &hw->settings->bdu;
@@ -2123,7 +2152,6 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 		return NULL;
 
 	iio_dev->modes = INDIO_DIRECT_MODE;
-	iio_dev->dev.parent = hw->dev;
 	iio_dev->available_scan_masks = st_lsm6dsx_available_scan_masks;
 	iio_dev->channels = hw->settings->channels[id].chan;
 	iio_dev->num_channels = hw->settings->channels[id].len;
@@ -2429,7 +2457,7 @@ static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
 	}
 
 	if (hw->fifo_mask)
-		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
+		err = st_lsm6dsx_resume_fifo(hw);
 
 	return err;
 }

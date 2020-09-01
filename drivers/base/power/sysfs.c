@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* sysfs entries for device PM */
 #include <linux/device.h>
+#include <linux/kobject.h>
 #include <linux/string.h>
 #include <linux/export.h>
 #include <linux/pm_qos.h>
@@ -480,6 +481,14 @@ static ssize_t wakeup_last_time_ms_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lld\n", msec) : sprintf(buf, "\n");
 }
 
+static inline int dpm_sysfs_wakeup_change_owner(struct device *dev, kuid_t kuid,
+						kgid_t kgid)
+{
+	if (dev->power.wakeup && dev->power.wakeup->dev)
+		return device_change_owner(dev->power.wakeup->dev, kuid, kgid);
+	return 0;
+}
+
 static DEVICE_ATTR_RO(wakeup_last_time_ms);
 
 #ifdef CONFIG_PM_AUTOSLEEP
@@ -501,7 +510,13 @@ static ssize_t wakeup_prevent_sleep_time_ms_show(struct device *dev,
 
 static DEVICE_ATTR_RO(wakeup_prevent_sleep_time_ms);
 #endif /* CONFIG_PM_AUTOSLEEP */
-#endif /* CONFIG_PM_SLEEP */
+#else /* CONFIG_PM_SLEEP */
+static inline int dpm_sysfs_wakeup_change_owner(struct device *dev, kuid_t kuid,
+						kgid_t kgid)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_PM_ADVANCED_DEBUG
 static ssize_t runtime_usage_show(struct device *dev,
@@ -652,7 +667,7 @@ int dpm_sysfs_add(struct device *dev)
 	if (rc)
 		return rc;
 
-	if (pm_runtime_callbacks_present(dev)) {
+	if (!pm_runtime_has_no_callbacks(dev)) {
 		rc = sysfs_merge_group(&dev->kobj, &pm_runtime_attr_group);
 		if (rc)
 			goto err_out;
@@ -684,14 +699,59 @@ int dpm_sysfs_add(struct device *dev)
 	return rc;
 }
 
+int dpm_sysfs_change_owner(struct device *dev, kuid_t kuid, kgid_t kgid)
+{
+	int rc;
+
+	if (device_pm_not_required(dev))
+		return 0;
+
+	rc = sysfs_group_change_owner(&dev->kobj, &pm_attr_group, kuid, kgid);
+	if (rc)
+		return rc;
+
+	if (!pm_runtime_has_no_callbacks(dev)) {
+		rc = sysfs_group_change_owner(
+			&dev->kobj, &pm_runtime_attr_group, kuid, kgid);
+		if (rc)
+			return rc;
+	}
+
+	if (device_can_wakeup(dev)) {
+		rc = sysfs_group_change_owner(&dev->kobj, &pm_wakeup_attr_group,
+					      kuid, kgid);
+		if (rc)
+			return rc;
+
+		rc = dpm_sysfs_wakeup_change_owner(dev, kuid, kgid);
+		if (rc)
+			return rc;
+	}
+
+	if (dev->power.set_latency_tolerance) {
+		rc = sysfs_group_change_owner(
+			&dev->kobj, &pm_qos_latency_tolerance_attr_group, kuid,
+			kgid);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
 int wakeup_sysfs_add(struct device *dev)
 {
-	return sysfs_merge_group(&dev->kobj, &pm_wakeup_attr_group);
+	int ret = sysfs_merge_group(&dev->kobj, &pm_wakeup_attr_group);
+
+	if (!ret)
+		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
+
+	return ret;
 }
 
 void wakeup_sysfs_remove(struct device *dev)
 {
 	sysfs_unmerge_group(&dev->kobj, &pm_wakeup_attr_group);
+	kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 }
 
 int pm_qos_sysfs_add_resume_latency(struct device *dev)

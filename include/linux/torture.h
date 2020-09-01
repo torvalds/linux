@@ -55,6 +55,11 @@ struct torture_random_state {
 #define DEFINE_TORTURE_RANDOM_PERCPU(name) \
 	DEFINE_PER_CPU(struct torture_random_state, name)
 unsigned long torture_random(struct torture_random_state *trsp);
+static inline void torture_random_init(struct torture_random_state *trsp)
+{
+	trsp->trs_state = 0;
+	trsp->trs_count = 0;
+}
 
 /* Task shuffler, which causes CPUs to occasionally go idle. */
 void torture_shuffle_task_register(struct task_struct *tp);
@@ -89,7 +94,7 @@ void _torture_stop_kthread(char *m, struct task_struct **tp);
 #ifdef CONFIG_PREEMPTION
 #define torture_preempt_schedule() preempt_schedule()
 #else
-#define torture_preempt_schedule()
+#define torture_preempt_schedule()	do { } while (0)
 #endif
 
 #endif /* __LINUX_TORTURE_H */

@@ -48,11 +48,6 @@ static inline void qxl_bo_unreserve(struct qxl_bo *bo)
 	ttm_bo_unreserve(&bo->tbo);
 }
 
-static inline u64 qxl_bo_gpu_offset(struct qxl_bo *bo)
-{
-	return bo->tbo.offset;
-}
-
 static inline unsigned long qxl_bo_size(struct qxl_bo *bo)
 {
 	return bo->tbo.num_pages << PAGE_SHIFT;

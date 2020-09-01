@@ -2,8 +2,6 @@
 #ifndef __ASM_SH_FUTEX_H
 #define __ASM_SH_FUTEX_H
 
-#ifdef __KERNEL__
-
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <asm/errno.h>
@@ -33,8 +31,6 @@ static inline int arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval,
 {
 	u32 oldval, newval, prev;
 	int ret;
-
-	pagefault_disable();
 
 	do {
 		ret = get_user(oldval, uaddr);
@@ -67,13 +63,10 @@ static inline int arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval,
 		ret = futex_atomic_cmpxchg_inatomic(&prev, uaddr, oldval, newval);
 	} while (!ret && prev != oldval);
 
-	pagefault_enable();
-
 	if (!ret)
 		*oval = oldval;
 
 	return ret;
 }
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_SH_FUTEX_H */

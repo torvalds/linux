@@ -31,6 +31,7 @@
 #include "stat.h"
 #include "session.h"
 #include "bpf-event.h"
+#include "print_binary.h"
 #include "tool.h"
 #include "../perf.h"
 
@@ -54,6 +55,8 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_NAMESPACES]		= "NAMESPACES",
 	[PERF_RECORD_KSYMBOL]			= "KSYMBOL",
 	[PERF_RECORD_BPF_EVENT]			= "BPF_EVENT",
+	[PERF_RECORD_CGROUP]			= "CGROUP",
+	[PERF_RECORD_TEXT_POKE]			= "TEXT_POKE",
 	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
@@ -180,6 +183,12 @@ size_t perf_event__fprintf_namespaces(union perf_event *event, FILE *fp)
 	return ret;
 }
 
+size_t perf_event__fprintf_cgroup(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " cgroup: %" PRI_lu64 " %s\n",
+		       event->cgroup.id, event->cgroup.path);
+}
+
 int perf_event__process_comm(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct perf_sample *sample,
@@ -194,6 +203,14 @@ int perf_event__process_namespaces(struct perf_tool *tool __maybe_unused,
 				   struct machine *machine)
 {
 	return machine__process_namespaces_event(machine, event, sample);
+}
+
+int perf_event__process_cgroup(struct perf_tool *tool __maybe_unused,
+			       union perf_event *event,
+			       struct perf_sample *sample,
+			       struct machine *machine)
+{
+	return machine__process_cgroup_event(machine, event, sample);
 }
 
 int perf_event__process_lost(struct perf_tool *tool __maybe_unused,
@@ -250,6 +267,14 @@ int perf_event__process_bpf(struct perf_tool *tool __maybe_unused,
 			    struct machine *machine)
 {
 	return machine__process_bpf(machine, event, sample);
+}
+
+int perf_event__process_text_poke(struct perf_tool *tool __maybe_unused,
+				  union perf_event *event,
+				  struct perf_sample *sample,
+				  struct machine *machine)
+{
+	return machine__process_text_poke(machine, event, sample);
 }
 
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
@@ -398,7 +423,52 @@ size_t perf_event__fprintf_bpf(union perf_event *event, FILE *fp)
 		       event->bpf.type, event->bpf.flags, event->bpf.id);
 }
 
-size_t perf_event__fprintf(union perf_event *event, FILE *fp)
+static int text_poke_printer(enum binary_printer_ops op, unsigned int val,
+			     void *extra, FILE *fp)
+{
+	bool old = *(bool *)extra;
+
+	switch ((int)op) {
+	case BINARY_PRINT_LINE_BEGIN:
+		return fprintf(fp, "            %s bytes:", old ? "Old" : "New");
+	case BINARY_PRINT_NUM_DATA:
+		return fprintf(fp, " %02x", val);
+	case BINARY_PRINT_LINE_END:
+		return fprintf(fp, "\n");
+	default:
+		return 0;
+	}
+}
+
+size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *machine, FILE *fp)
+{
+	struct perf_record_text_poke_event *tp = &event->text_poke;
+	size_t ret;
+	bool old;
+
+	ret = fprintf(fp, " %" PRI_lx64 " ", tp->addr);
+	if (machine) {
+		struct addr_location al;
+
+		al.map = maps__find(&machine->kmaps, tp->addr);
+		if (al.map && map__load(al.map) >= 0) {
+			al.addr = al.map->map_ip(al.map, tp->addr);
+			al.sym = map__find_symbol(al.map, al.addr);
+			if (al.sym)
+				ret += symbol__fprintf_symname_offs(al.sym, &al, fp);
+		}
+	}
+	ret += fprintf(fp, " old len %u new len %u\n", tp->old_len, tp->new_len);
+	old = true;
+	ret += binary__fprintf(tp->bytes, tp->old_len, 16, text_poke_printer,
+			       &old, fp);
+	old = false;
+	ret += binary__fprintf(tp->bytes + tp->old_len, tp->new_len, 16,
+			       text_poke_printer, &old, fp);
+	return ret;
+}
+
+size_t perf_event__fprintf(union perf_event *event, struct machine *machine, FILE *fp)
 {
 	size_t ret = fprintf(fp, "PERF_RECORD_%s",
 			     perf_event__name(event->header.type));
@@ -416,6 +486,9 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		break;
 	case PERF_RECORD_NAMESPACES:
 		ret += perf_event__fprintf_namespaces(event, fp);
+		break;
+	case PERF_RECORD_CGROUP:
+		ret += perf_event__fprintf_cgroup(event, fp);
 		break;
 	case PERF_RECORD_MMAP2:
 		ret += perf_event__fprintf_mmap2(event, fp);
@@ -438,6 +511,9 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		break;
 	case PERF_RECORD_BPF_EVENT:
 		ret += perf_event__fprintf_bpf(event, fp);
+		break;
+	case PERF_RECORD_TEXT_POKE:
+		ret += perf_event__fprintf_text_poke(event, machine, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");
@@ -599,10 +675,23 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 		al->sym = map__find_symbol(al->map, al->addr);
 	}
 
-	if (symbol_conf.sym_list &&
-		(!al->sym || !strlist__has_entry(symbol_conf.sym_list,
-						al->sym->name))) {
-		al->filtered |= (1 << HIST_FILTER__SYMBOL);
+	if (symbol_conf.sym_list) {
+		int ret = 0;
+		char al_addr_str[32];
+		size_t sz = sizeof(al_addr_str);
+
+		if (al->sym) {
+			ret = strlist__has_entry(symbol_conf.sym_list,
+						al->sym->name);
+		}
+		if (!ret && al->sym) {
+			snprintf(al_addr_str, sz, "0x%"PRIx64,
+				al->map->unmap_ip(al->map, al->sym->start));
+			ret = strlist__has_entry(symbol_conf.sym_list,
+						al_addr_str);
+		}
+		if (!ret)
+			al->filtered |= (1 << HIST_FILTER__SYMBOL);
 	}
 
 	return 0;

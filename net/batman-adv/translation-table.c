@@ -301,7 +301,7 @@ void batadv_tt_global_entry_put(struct batadv_tt_global_entry *tt_global_entry)
  * @vid: VLAN identifier
  *
  * Return: the number of originators advertising the given address/data
- * (excluding ourself).
+ * (excluding our self).
  */
 int batadv_tt_global_hash_count(struct batadv_priv *bat_priv,
 				const u8 *addr, unsigned short vid)
@@ -842,7 +842,7 @@ out:
  *  table. In case of success the value is updated with the real amount of
  *  reserved bytes
  * Allocate the needed amount of memory for the entire TT TVLV and write its
- * header made up by one tvlv_tt_data object and a series of tvlv_tt_vlan_data
+ * header made up of one tvlv_tt_data object and a series of tvlv_tt_vlan_data
  * objects, one per active VLAN served by the originator node.
  *
  * Return: the size of the allocated buffer or 0 in case of failure.
@@ -862,7 +862,7 @@ batadv_tt_prepare_tvlv_global_data(struct batadv_orig_node *orig_node,
 	u8 *tt_change_ptr;
 
 	spin_lock_bh(&orig_node->vlan_list_lock);
-	hlist_for_each_entry_rcu(vlan, &orig_node->vlan_list, list) {
+	hlist_for_each_entry(vlan, &orig_node->vlan_list, list) {
 		num_vlan++;
 		num_entries += atomic_read(&vlan->tt.num_entries);
 	}
@@ -888,7 +888,7 @@ batadv_tt_prepare_tvlv_global_data(struct batadv_orig_node *orig_node,
 	(*tt_data)->num_vlan = htons(num_vlan);
 
 	tt_vlan = (struct batadv_tvlv_tt_vlan_data *)(*tt_data + 1);
-	hlist_for_each_entry_rcu(vlan, &orig_node->vlan_list, list) {
+	hlist_for_each_entry(vlan, &orig_node->vlan_list, list) {
 		tt_vlan->vid = htons(vlan->vid);
 		tt_vlan->crc = htonl(vlan->tt.crc);
 
@@ -937,7 +937,7 @@ batadv_tt_prepare_tvlv_local_data(struct batadv_priv *bat_priv,
 	int change_offset;
 
 	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
-	hlist_for_each_entry_rcu(vlan, &bat_priv->softif_vlan_list, list) {
+	hlist_for_each_entry(vlan, &bat_priv->softif_vlan_list, list) {
 		vlan_entries = atomic_read(&vlan->tt.num_entries);
 		if (vlan_entries < 1)
 			continue;
@@ -967,7 +967,7 @@ batadv_tt_prepare_tvlv_local_data(struct batadv_priv *bat_priv,
 	(*tt_data)->num_vlan = htons(num_vlan);
 
 	tt_vlan = (struct batadv_tvlv_tt_vlan_data *)(*tt_data + 1);
-	hlist_for_each_entry_rcu(vlan, &bat_priv->softif_vlan_list, list) {
+	hlist_for_each_entry(vlan, &bat_priv->softif_vlan_list, list) {
 		vlan_entries = atomic_read(&vlan->tt.num_entries);
 		if (vlan_entries < 1)
 			continue;
@@ -1674,7 +1674,7 @@ out:
  * the function argument.
  * If a TT local entry exists for this non-mesh client remove it.
  *
- * The caller must hold orig_node refcount.
+ * The caller must hold the orig_node refcount.
  *
  * Return: true if the new entry has been added, false otherwise
  */
@@ -1839,7 +1839,7 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @tt_global_entry: global translation table entry to be analyzed
  *
- * This functon assumes the caller holds rcu_read_lock().
+ * This function assumes the caller holds rcu_read_lock().
  * Return: best originator list entry or NULL on errors.
  */
 static struct batadv_tt_orig_list_entry *
@@ -1887,7 +1887,7 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
  * @tt_global_entry: global translation table entry to be printed
  * @seq: debugfs table seq_file struct
  *
- * This functon assumes the caller holds rcu_read_lock().
+ * This function assumes the caller holds rcu_read_lock().
  */
 static void
 batadv_tt_global_print_entry(struct batadv_priv *bat_priv,

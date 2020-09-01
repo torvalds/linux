@@ -15,7 +15,7 @@
 		    <0x08000000 0x04000000>;
 	};
 
-	L2: l2-cache {
+	L2: cache-controller {
 		compatible = "arm,l210-cache";
 		reg = <0x10210000 0x1000>;
 		interrupt-parent = <&vica>;

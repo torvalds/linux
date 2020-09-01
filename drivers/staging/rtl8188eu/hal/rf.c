@@ -49,9 +49,9 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 		tx_agc[RF_PATH_B] = 0x3f3f3f3f;
 		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
 			tx_agc[idx1] = powerlevel[idx1] |
-				      (powerlevel[idx1]<<8) |
-				      (powerlevel[idx1]<<16) |
-				      (powerlevel[idx1]<<24);
+				      (powerlevel[idx1] << 8) |
+				      (powerlevel[idx1] << 16) |
+				      (powerlevel[idx1] << 24);
 		}
 	} else {
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
@@ -63,23 +63,23 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 		} else {
 			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
 				tx_agc[idx1] = powerlevel[idx1] |
-					       (powerlevel[idx1]<<8) |
-					       (powerlevel[idx1]<<16) |
-					       (powerlevel[idx1]<<24);
+					       (powerlevel[idx1] << 8) |
+					       (powerlevel[idx1] << 16) |
+					       (powerlevel[idx1] << 24);
 			}
 			if (hal_data->EEPROMRegulatory == 0) {
 				tmpval = hal_data->MCSTxPowerLevelOriginalOffset[0][6] +
-					 (hal_data->MCSTxPowerLevelOriginalOffset[0][7]<<8);
+					 (hal_data->MCSTxPowerLevelOriginalOffset[0][7] << 8);
 				tx_agc[RF_PATH_A] += tmpval;
 
 				tmpval = hal_data->MCSTxPowerLevelOriginalOffset[0][14] +
-					 (hal_data->MCSTxPowerLevelOriginalOffset[0][15]<<24);
+					 (hal_data->MCSTxPowerLevelOriginalOffset[0][15] << 24);
 				tx_agc[RF_PATH_B] += tmpval;
 			}
 		}
 	}
 	for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-		ptr = (u8 *)(&(tx_agc[idx1]));
+		ptr = (u8 *)(&tx_agc[idx1]);
 		for (idx2 = 0; idx2 < 4; idx2++) {
 			if (*ptr > RF6052_MAX_TX_PWR)
 				*ptr = RF6052_MAX_TX_PWR;
@@ -100,15 +100,15 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 	}
 
 	/*  rf-A cck tx power */
-	tmpval = tx_agc[RF_PATH_A]&0xff;
+	tmpval = tx_agc[RF_PATH_A] & 0xff;
 	phy_set_bb_reg(adapt, rTxAGC_A_CCK1_Mcs32, bMaskByte1, tmpval);
-	tmpval = tx_agc[RF_PATH_A]>>8;
+	tmpval = tx_agc[RF_PATH_A] >> 8;
 	phy_set_bb_reg(adapt, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
 
 	/*  rf-B cck tx power */
-	tmpval = tx_agc[RF_PATH_B]>>24;
+	tmpval = tx_agc[RF_PATH_B] >> 24;
 	phy_set_bb_reg(adapt, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, tmpval);
-	tmpval = tx_agc[RF_PATH_B]&0x00ffffff;
+	tmpval = tx_agc[RF_PATH_B] & 0x00ffffff;
 	phy_set_bb_reg(adapt, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
 }
 
@@ -124,9 +124,9 @@ static void getpowerbase88e(struct adapter *adapt, u8 *pwr_level_ofdm,
 	for (i = 0; i < 2; i++) {
 		powerbase0 = pwr_level_ofdm[i];
 
-		powerbase0 = (powerbase0<<24) | (powerbase0<<16) |
-			     (powerbase0<<8) | powerbase0;
-		*(ofdmbase+i) = powerbase0;
+		powerbase0 = (powerbase0 << 24) | (powerbase0 << 16) |
+			     (powerbase0 << 8) | powerbase0;
+		*(ofdmbase + i) = powerbase0;
 	}
 	/* Check HT20 to HT40 diff */
 	if (adapt->HalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
@@ -134,8 +134,8 @@ static void getpowerbase88e(struct adapter *adapt, u8 *pwr_level_ofdm,
 	else
 		powerlevel[0] = pwr_level_bw40[0];
 	powerbase1 = powerlevel[0];
-	powerbase1 = (powerbase1<<24) | (powerbase1<<16) |
-		     (powerbase1<<8) | powerbase1;
+	powerbase1 = (powerbase1 << 24) | (powerbase1 << 16) |
+		     (powerbase1 << 8) | powerbase1;
 	*mcs_base = powerbase1;
 }
 static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
@@ -157,7 +157,7 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 		switch (regulatory) {
 		case 0:
 			chnlGroup = 0;
-			write_val = hal_data->MCSTxPowerLevelOriginalOffset[chnlGroup][index+(rf ? 8 : 0)] +
+			write_val = hal_data->MCSTxPowerLevelOriginalOffset[chnlGroup][index + (rf ? 8 : 0)] +
 				((index < 2) ? powerbase0[rf] : powerbase1[rf]);
 			break;
 		case 1: /*  Realtek regulatory */
@@ -167,7 +167,7 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 			if (hal_data->pwrGroupCnt >= hal_data->PGMaxGroup)
 				Hal_GetChnlGroup88E(channel, &chnlGroup);
 
-			write_val = hal_data->MCSTxPowerLevelOriginalOffset[chnlGroup][index+(rf ? 8 : 0)] +
+			write_val = hal_data->MCSTxPowerLevelOriginalOffset[chnlGroup][index + (rf ? 8 : 0)] +
 					((index < 2) ? powerbase0[rf] : powerbase1[rf]);
 			break;
 		case 2:	/*  Better regulatory */
@@ -179,14 +179,14 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 			chnlGroup = 0;
 
 			if (index < 2)
-				pwr_diff = hal_data->TxPwrLegacyHtDiff[rf][channel-1];
+				pwr_diff = hal_data->TxPwrLegacyHtDiff[rf][channel - 1];
 			else if (hal_data->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-				pwr_diff = hal_data->TxPwrHt20Diff[rf][channel-1];
+				pwr_diff = hal_data->TxPwrHt20Diff[rf][channel - 1];
 
 			if (hal_data->CurrentChannelBW == HT_CHANNEL_WIDTH_40)
-				customer_pwr_limit = hal_data->PwrGroupHT40[rf][channel-1];
+				customer_pwr_limit = hal_data->PwrGroupHT40[rf][channel - 1];
 			else
-				customer_pwr_limit = hal_data->PwrGroupHT20[rf][channel-1];
+				customer_pwr_limit = hal_data->PwrGroupHT20[rf][channel - 1];
 
 			if (pwr_diff >= customer_pwr_limit)
 				pwr_diff = 0;
@@ -200,9 +200,9 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 				if (pwr_diff_limit[i] > pwr_diff)
 					pwr_diff_limit[i] = pwr_diff;
 			}
-			customer_limit = (pwr_diff_limit[3]<<24) |
-					 (pwr_diff_limit[2]<<16) |
-					 (pwr_diff_limit[1]<<8) |
+			customer_limit = (pwr_diff_limit[3] << 24) |
+					 (pwr_diff_limit[2] << 16) |
+					 (pwr_diff_limit[1] << 8) |
 					 (pwr_diff_limit[0]);
 			write_val = customer_limit + ((index < 2) ? powerbase0[rf] : powerbase1[rf]);
 			break;
@@ -221,7 +221,7 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 		else if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level2)
 			write_val = 0x00000000;
 
-		*(out_val+rf) = write_val;
+		*(out_val + rf) = write_val;
 	}
 }
 
@@ -240,12 +240,12 @@ static void write_ofdm_pwr_reg(struct adapter *adapt, u8 index, u32 *pvalue)
 	for (rf = 0; rf < 2; rf++) {
 		write_val = pvalue[rf];
 		for (i = 0; i < 4; i++) {
-			pwr_val[i] = (u8)((write_val & (0x7f<<(i*8)))>>(i*8));
+			pwr_val[i] = (u8)((write_val & (0x7f << (i * 8))) >> (i * 8));
 			if (pwr_val[i]  > RF6052_MAX_TX_PWR)
 				pwr_val[i]  = RF6052_MAX_TX_PWR;
 		}
-		write_val = (pwr_val[3]<<24) | (pwr_val[2]<<16) |
-			    (pwr_val[1]<<8) | pwr_val[0];
+		write_val = (pwr_val[3] << 24) | (pwr_val[2] << 16) |
+			    (pwr_val[1] << 8) | pwr_val[0];
 
 		if (rf == 0)
 			regoffset = regoffset_a[index];

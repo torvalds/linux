@@ -4,8 +4,14 @@
 #include <sched.h>
 #include <sys/socket.h>
 #include <test_progs.h>
+#include "test_perf_buffer.skel.h"
 #include "bpf/libbpf_internal.h"
 
+/* AddressSanitizer sometimes crashes due to data dereference below, due to
+ * this being mmap()'ed memory. Disable instrumentation with
+ * no_sanitize_address attribute
+ */
+__attribute__((no_sanitize_address))
 static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 {
 	int cpu_data = *(int *)data, duration = 0;
@@ -20,16 +26,11 @@ static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 
 void test_perf_buffer(void)
 {
-	int err, prog_fd, on_len, nr_on_cpus = 0,  nr_cpus, i, duration = 0;
-	const char *prog_name = "kprobe/sys_nanosleep";
-	const char *file = "./test_perf_buffer.o";
+	int err, on_len, nr_on_cpus = 0,  nr_cpus, i, duration = 0;
 	struct perf_buffer_opts pb_opts = {};
-	struct bpf_map *perf_buf_map;
+	struct test_perf_buffer *skel;
 	cpu_set_t cpu_set, cpu_seen;
-	struct bpf_program *prog;
-	struct bpf_object *obj;
 	struct perf_buffer *pb;
-	struct bpf_link *link;
 	bool *online;
 
 	nr_cpus = libbpf_num_possible_cpus();
@@ -46,33 +47,21 @@ void test_perf_buffer(void)
 			nr_on_cpus++;
 
 	/* load program */
-	err = bpf_prog_load(file, BPF_PROG_TYPE_KPROBE, &obj, &prog_fd);
-	if (CHECK(err, "obj_load", "err %d errno %d\n", err, errno)) {
-		obj = NULL;
-		goto out_close;
-	}
-
-	prog = bpf_object__find_program_by_title(obj, prog_name);
-	if (CHECK(!prog, "find_probe", "prog '%s' not found\n", prog_name))
+	skel = test_perf_buffer__open_and_load();
+	if (CHECK(!skel, "skel_load", "skeleton open/load failed\n"))
 		goto out_close;
 
-	/* load map */
-	perf_buf_map = bpf_object__find_map_by_name(obj, "perf_buf_map");
-	if (CHECK(!perf_buf_map, "find_perf_buf_map", "not found\n"))
-		goto out_close;
-
-	/* attach kprobe */
-	link = bpf_program__attach_kprobe(prog, false /* retprobe */,
-					  SYS_NANOSLEEP_KPROBE_NAME);
-	if (CHECK(IS_ERR(link), "attach_kprobe", "err %ld\n", PTR_ERR(link)))
+	/* attach probe */
+	err = test_perf_buffer__attach(skel);
+	if (CHECK(err, "attach_kprobe", "err %d\n", err))
 		goto out_close;
 
 	/* set up perf buffer */
 	pb_opts.sample_cb = on_sample;
 	pb_opts.ctx = &cpu_seen;
-	pb = perf_buffer__new(bpf_map__fd(perf_buf_map), 1, &pb_opts);
+	pb = perf_buffer__new(bpf_map__fd(skel->maps.perf_buf_map), 1, &pb_opts);
 	if (CHECK(IS_ERR(pb), "perf_buf__new", "err %ld\n", PTR_ERR(pb)))
-		goto out_detach;
+		goto out_close;
 
 	/* trigger kprobe on every CPU */
 	CPU_ZERO(&cpu_seen);
@@ -89,7 +78,7 @@ void test_perf_buffer(void)
 					     &cpu_set);
 		if (err && CHECK(err, "set_affinity", "cpu #%d, err %d\n",
 				 i, err))
-			goto out_detach;
+			goto out_close;
 
 		usleep(1);
 	}
@@ -105,9 +94,7 @@ void test_perf_buffer(void)
 
 out_free_pb:
 	perf_buffer__free(pb);
-out_detach:
-	bpf_link__destroy(link);
 out_close:
-	bpf_object__close(obj);
+	test_perf_buffer__destroy(skel);
 	free(online);
 }

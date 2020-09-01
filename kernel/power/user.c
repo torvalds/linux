@@ -27,8 +27,6 @@
 #include "power.h"
 
 
-#define SNAPSHOT_MINOR	231
-
 static struct snapshot_data {
 	struct snapshot_handle handle;
 	int swap;
@@ -37,9 +35,13 @@ static struct snapshot_data {
 	bool ready;
 	bool platform_support;
 	bool free_bitmaps;
+	struct inode *bd_inode;
 } snapshot_state;
 
-atomic_t snapshot_device_available = ATOMIC_INIT(1);
+int is_hibernate_resume_dev(const struct inode *bd_inode)
+{
+	return hibernation_available() && snapshot_state.bd_inode == bd_inode;
+}
 
 static int snapshot_open(struct inode *inode, struct file *filp)
 {
@@ -51,13 +53,13 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 
 	lock_system_sleep();
 
-	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
+	if (!hibernate_acquire()) {
 		error = -EBUSY;
 		goto Unlock;
 	}
 
 	if ((filp->f_flags & O_ACCMODE) == O_RDWR) {
-		atomic_inc(&snapshot_device_available);
+		hibernate_release();
 		error = -ENOSYS;
 		goto Unlock;
 	}
@@ -94,11 +96,12 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 			__pm_notifier_call_chain(PM_POST_RESTORE, nr_calls, NULL);
 	}
 	if (error)
-		atomic_inc(&snapshot_device_available);
+		hibernate_release();
 
 	data->frozen = false;
 	data->ready = false;
 	data->platform_support = false;
+	data->bd_inode = NULL;
 
  Unlock:
 	unlock_system_sleep();
@@ -114,6 +117,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 
 	swsusp_free();
 	data = filp->private_data;
+	data->bd_inode = NULL;
 	free_all_swap_pages(data->swap);
 	if (data->frozen) {
 		pm_restore_gfp_mask();
@@ -124,7 +128,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	}
 	pm_notifier_call_chain(data->mode == O_RDONLY ?
 			PM_POST_HIBERNATION : PM_POST_RESTORE);
-	atomic_inc(&snapshot_device_available);
+	hibernate_release();
 
 	unlock_system_sleep();
 
@@ -196,6 +200,54 @@ unlock:
 	unlock_system_sleep();
 
 	return res;
+}
+
+struct compat_resume_swap_area {
+	compat_loff_t offset;
+	u32 dev;
+} __packed;
+
+static int snapshot_set_swap_area(struct snapshot_data *data,
+		void __user *argp)
+{
+	struct block_device *bdev;
+	sector_t offset;
+	dev_t swdev;
+
+	if (swsusp_swap_in_use())
+		return -EPERM;
+
+	if (in_compat_syscall()) {
+		struct compat_resume_swap_area swap_area;
+
+		if (copy_from_user(&swap_area, argp, sizeof(swap_area)))
+			return -EFAULT;
+		swdev = new_decode_dev(swap_area.dev);
+		offset = swap_area.offset;
+	} else {
+		struct resume_swap_area swap_area;
+
+		if (copy_from_user(&swap_area, argp, sizeof(swap_area)))
+			return -EFAULT;
+		swdev = new_decode_dev(swap_area.dev);
+		offset = swap_area.offset;
+	}
+
+	/*
+	 * User space encodes device types as two-byte values,
+	 * so we need to recode them
+	 */
+	if (!swdev) {
+		data->swap = -1;
+		return -EINVAL;
+	}
+	data->swap = swap_type_of(swdev, offset, &bdev);
+	if (data->swap < 0)
+		return -ENODEV;
+
+	data->bd_inode = bdev->bd_inode;
+	bdput(bdev);
+	return 0;
 }
 
 static long snapshot_ioctl(struct file *filp, unsigned int cmd,
@@ -353,34 +405,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case SNAPSHOT_SET_SWAP_AREA:
-		if (swsusp_swap_in_use()) {
-			error = -EPERM;
-		} else {
-			struct resume_swap_area swap_area;
-			dev_t swdev;
-
-			error = copy_from_user(&swap_area, (void __user *)arg,
-					sizeof(struct resume_swap_area));
-			if (error) {
-				error = -EFAULT;
-				break;
-			}
-
-			/*
-			 * User space encodes device types as two-byte values,
-			 * so we need to recode them
-			 */
-			swdev = new_decode_dev(swap_area.dev);
-			if (swdev) {
-				offset = swap_area.offset;
-				data->swap = swap_type_of(swdev, offset, NULL);
-				if (data->swap < 0)
-					error = -ENODEV;
-			} else {
-				data->swap = -1;
-				error = -EINVAL;
-			}
-		}
+		error = snapshot_set_swap_area(data, (void __user *)arg);
 		break;
 
 	default:
@@ -395,12 +420,6 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 }
 
 #ifdef CONFIG_COMPAT
-
-struct compat_resume_swap_area {
-	compat_loff_t offset;
-	u32 dev;
-} __packed;
-
 static long
 snapshot_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -409,49 +428,15 @@ snapshot_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case SNAPSHOT_GET_IMAGE_SIZE:
 	case SNAPSHOT_AVAIL_SWAP_SIZE:
-	case SNAPSHOT_ALLOC_SWAP_PAGE: {
-		compat_loff_t __user *uoffset = compat_ptr(arg);
-		loff_t offset;
-		mm_segment_t old_fs;
-		int err;
-
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		err = snapshot_ioctl(file, cmd, (unsigned long) &offset);
-		set_fs(old_fs);
-		if (!err && put_user(offset, uoffset))
-			err = -EFAULT;
-		return err;
-	}
-
+	case SNAPSHOT_ALLOC_SWAP_PAGE:
 	case SNAPSHOT_CREATE_IMAGE:
+	case SNAPSHOT_SET_SWAP_AREA:
 		return snapshot_ioctl(file, cmd,
 				      (unsigned long) compat_ptr(arg));
-
-	case SNAPSHOT_SET_SWAP_AREA: {
-		struct compat_resume_swap_area __user *u_swap_area =
-			compat_ptr(arg);
-		struct resume_swap_area swap_area;
-		mm_segment_t old_fs;
-		int err;
-
-		err = get_user(swap_area.offset, &u_swap_area->offset);
-		err |= get_user(swap_area.dev, &u_swap_area->dev);
-		if (err)
-			return -EFAULT;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		err = snapshot_ioctl(file, SNAPSHOT_SET_SWAP_AREA,
-				     (unsigned long) &swap_area);
-		set_fs(old_fs);
-		return err;
-	}
-
 	default:
 		return snapshot_ioctl(file, cmd, arg);
 	}
 }
-
 #endif /* CONFIG_COMPAT */
 
 static const struct file_operations snapshot_fops = {

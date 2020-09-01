@@ -209,8 +209,8 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		bphy_err(drvr, "Retrieving cur_etheraddr failed, %d\n", err);
 		goto done;
 	}
-	memcpy(ifp->drvr->wiphy->perm_addr, ifp->drvr->mac, ETH_ALEN);
 	memcpy(ifp->drvr->mac, ifp->mac_addr, sizeof(ifp->drvr->mac));
+	memcpy(ifp->drvr->wiphy->perm_addr, ifp->drvr->mac, ETH_ALEN);
 
 	bus = ifp->drvr->bus_if;
 	ri = &ifp->drvr->revinfo;

@@ -21,6 +21,7 @@ struct ipl_parameter_block {
 		struct ipl_pb0_common common;
 		struct ipl_pb0_fcp fcp;
 		struct ipl_pb0_ccw ccw;
+		struct ipl_pb0_nvme nvme;
 		char raw[PAGE_SIZE - sizeof(struct ipl_pl_hdr)];
 	};
 } __packed __aligned(PAGE_SIZE);
@@ -30,6 +31,11 @@ struct ipl_parameter_block {
 #define IPL_BP_FCP_LEN (sizeof(struct ipl_pl_hdr) + \
 			      sizeof(struct ipl_pb0_fcp))
 #define IPL_BP0_FCP_LEN (sizeof(struct ipl_pb0_fcp))
+
+#define IPL_BP_NVME_LEN (sizeof(struct ipl_pl_hdr) + \
+			      sizeof(struct ipl_pb0_nvme))
+#define IPL_BP0_NVME_LEN (sizeof(struct ipl_pb0_nvme))
+
 #define IPL_BP_CCW_LEN (sizeof(struct ipl_pl_hdr) + \
 			      sizeof(struct ipl_pb0_ccw))
 #define IPL_BP0_CCW_LEN (sizeof(struct ipl_pb0_ccw))
@@ -59,6 +65,7 @@ enum ipl_type {
 	IPL_TYPE_FCP		= 4,
 	IPL_TYPE_FCP_DUMP	= 8,
 	IPL_TYPE_NSS		= 16,
+	IPL_TYPE_NVME		= 32,
 };
 
 struct ipl_info
@@ -73,6 +80,10 @@ struct ipl_info
 			u64 wwpn;
 			u64 lun;
 		} fcp;
+		struct {
+			u32 fid;
+			u32 nsid;
+		} nvme;
 		struct {
 			char name[NSS_NAME_SIZE + 1];
 		} nss;
@@ -119,6 +130,7 @@ enum diag308_subcode  {
 	DIAG308_LOAD_NORMAL_DUMP = 4,
 	DIAG308_SET = 5,
 	DIAG308_STORE = 6,
+	DIAG308_LOAD_NORMAL = 7,
 };
 
 enum diag308_rc {

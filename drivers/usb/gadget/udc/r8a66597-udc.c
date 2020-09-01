@@ -1827,10 +1827,8 @@ static void nop_completion(struct usb_ep *ep, struct usb_request *r)
 static int r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 					  struct platform_device *pdev)
 {
-	struct resource *res;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sudmac");
-	r8a66597->sudmac_reg = devm_ioremap_resource(&pdev->dev, res);
+	r8a66597->sudmac_reg =
+		devm_platform_ioremap_resource_byname(pdev, "sudmac");
 	return PTR_ERR_OR_ZERO(r8a66597->sudmac_reg);
 }
 
@@ -1968,7 +1966,7 @@ clean_up2:
 static struct platform_driver r8a66597_driver = {
 	.remove =	r8a66597_remove,
 	.driver		= {
-		.name =	(char *) udc_name,
+		.name =	udc_name,
 	},
 };
 

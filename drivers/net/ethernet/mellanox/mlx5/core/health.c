@@ -36,7 +36,6 @@
 #include <linux/vmalloc.h>
 #include <linux/hardirq.h>
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 #include "lib/eq.h"
 #include "lib/mlx5.h"
@@ -193,15 +192,23 @@ static bool reset_fw_if_needed(struct mlx5_core_dev *dev)
 
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 {
+	bool err_detected = false;
+
+	/* Mark the device as fatal in order to abort FW commands */
+	if ((check_fatal_sensors(dev) || force) &&
+	    dev->state == MLX5_DEVICE_STATE_UP) {
+		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
+		err_detected = true;
+	}
 	mutex_lock(&dev->intf_state_mutex);
-	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
-		goto unlock;
+	if (!err_detected && dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		goto unlock;/* a previous error is still being handled */
 	if (dev->state == MLX5_DEVICE_STATE_UNINITIALIZED) {
 		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
 		goto unlock;
 	}
 
-	if (check_fatal_sensors(dev) || force) {
+	if (check_fatal_sensors(dev) || force) { /* protected state setting */
 		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
 		mlx5_cmd_flush(dev);
 	}
@@ -243,7 +250,7 @@ recover_from_sw_reset:
 		if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
 			break;
 
-		cond_resched();
+		msleep(20);
 	} while (!time_after(jiffies, end));
 
 	if (mlx5_get_nic_state(dev) != MLX5_NIC_IFC_DISABLED) {
@@ -627,7 +634,7 @@ static void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 
 	health->fw_reporter =
 		devlink_health_reporter_create(devlink, &mlx5_fw_reporter_ops,
-					       0, false, dev);
+					       0, dev);
 	if (IS_ERR(health->fw_reporter))
 		mlx5_core_warn(dev, "Failed to create fw reporter, err = %ld\n",
 			       PTR_ERR(health->fw_reporter));
@@ -636,7 +643,7 @@ static void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 		devlink_health_reporter_create(devlink,
 					       &mlx5_fw_fatal_reporter_ops,
 					       MLX5_REPORTER_FW_GRACEFUL_PERIOD,
-					       true, dev);
+					       dev);
 	if (IS_ERR(health->fw_fatal_reporter))
 		mlx5_core_warn(dev, "Failed to create fw fatal reporter, err = %ld\n",
 			       PTR_ERR(health->fw_fatal_reporter));

@@ -732,7 +732,6 @@ static int dps310_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	iio->dev.parent = &client->dev;
 	iio->name = id->name;
 	iio->channels = dps310_channels;
 	iio->num_channels = ARRAY_SIZE(dps310_channels);

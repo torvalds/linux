@@ -1892,8 +1892,7 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			arg = cmd->convert_arg * cmd->scan_end_arg;
 			err |= comedi_check_trigger_arg_min(
-				&cmd->scan_begin_arg,
-				arg);
+					&cmd->scan_begin_arg, arg);
 		}
 	}
 
@@ -2131,13 +2130,15 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 	void *addr;
 	dma_addr_t appdma;
 
-	addr = pci_alloc_consistent(pcidev, S626_DMABUF_SIZE, &appdma);
+	addr = dma_alloc_coherent(&pcidev->dev, S626_DMABUF_SIZE, &appdma,
+				  GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 	devpriv->ana_buf.logical_base = addr;
 	devpriv->ana_buf.physical_base = appdma;
 
-	addr = pci_alloc_consistent(pcidev, S626_DMABUF_SIZE, &appdma);
+	addr = dma_alloc_coherent(&pcidev->dev, S626_DMABUF_SIZE, &appdma,
+				  GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 	devpriv->rps_buf.logical_base = addr;
@@ -2155,13 +2156,13 @@ static void s626_free_dma_buffers(struct comedi_device *dev)
 		return;
 
 	if (devpriv->rps_buf.logical_base)
-		pci_free_consistent(pcidev, S626_DMABUF_SIZE,
-				    devpriv->rps_buf.logical_base,
-				    devpriv->rps_buf.physical_base);
+		dma_free_coherent(&pcidev->dev, S626_DMABUF_SIZE,
+				  devpriv->rps_buf.logical_base,
+				  devpriv->rps_buf.physical_base);
 	if (devpriv->ana_buf.logical_base)
-		pci_free_consistent(pcidev, S626_DMABUF_SIZE,
-				    devpriv->ana_buf.logical_base,
-				    devpriv->ana_buf.physical_base);
+		dma_free_coherent(&pcidev->dev, S626_DMABUF_SIZE,
+				  devpriv->ana_buf.logical_base,
+				  devpriv->ana_buf.physical_base);
 }
 
 static int s626_initialize(struct comedi_device *dev)

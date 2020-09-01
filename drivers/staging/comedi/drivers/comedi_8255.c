@@ -271,6 +271,6 @@ static void __exit comedi_8255_module_exit(void)
 }
 module_exit(comedi_8255_module_exit);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi: Generic 8255 digital I/O support");
 MODULE_LICENSE("GPL");

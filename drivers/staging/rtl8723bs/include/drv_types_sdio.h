@@ -16,8 +16,7 @@
 	#include <linux/mmc/card.h>
 #endif
 
-struct sdio_data
-{
+struct sdio_data {
 	u8  func_number;
 
 	u8  tx_block_mode;

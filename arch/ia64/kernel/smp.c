@@ -39,14 +39,13 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/sal.h>
 #include <asm/tlbflush.h>
 #include <asm/unistd.h>
 #include <asm/mca.h>
+#include <asm/xtp.h>
 
 /*
  * Note: alignment of 4 entries/cacheline was empirically determined

@@ -165,9 +165,10 @@ void *child_thread(void *arg)
 			socklen_t zc_len = sizeof(zc);
 			int res;
 
+			memset(&zc, 0, sizeof(zc));
 			zc.address = (__u64)((unsigned long)addr);
 			zc.length = chunk_size;
-			zc.recv_skip_hint = 0;
+
 			res = getsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE,
 					 &zc, &zc_len);
 			if (res == -1)
@@ -281,12 +282,14 @@ static void setup_sockaddr(int domain, const char *str_addr,
 static void do_accept(int fdlisten)
 {
 	pthread_attr_t attr;
+	int rcvlowat;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
+	rcvlowat = chunk_size;
 	if (setsockopt(fdlisten, SOL_SOCKET, SO_RCVLOWAT,
-		       &chunk_size, sizeof(chunk_size)) == -1) {
+		       &rcvlowat, sizeof(rcvlowat)) == -1) {
 		perror("setsockopt SO_RCVLOWAT");
 	}
 
@@ -341,7 +344,7 @@ int main(int argc, char *argv[])
 {
 	struct sockaddr_storage listenaddr, addr;
 	unsigned int max_pacing_rate = 0;
-	size_t total = 0;
+	uint64_t total = 0;
 	char *host = NULL;
 	int fd, c, on = 1;
 	char *buffer;
@@ -470,12 +473,12 @@ int main(int argc, char *argv[])
 		zflg = 0;
 	}
 	while (total < FILE_SZ) {
-		ssize_t wr = FILE_SZ - total;
+		int64_t wr = FILE_SZ - total;
 
 		if (wr > chunk_size)
 			wr = chunk_size;
 		/* Note : we just want to fill the pipe with 0 bytes */
-		wr = send(fd, buffer, wr, zflg ? MSG_ZEROCOPY : 0);
+		wr = send(fd, buffer, (size_t)wr, zflg ? MSG_ZEROCOPY : 0);
 		if (wr <= 0)
 			break;
 		total += wr;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright 2010 Wolfram Sang <w.sang@pengutronix.de>
+ * Copyright 2010 Wolfram Sang <kernel@pengutronix.de>
  */
 
 #ifndef __ASM_ARCH_IMX_ESDHC_H
@@ -37,5 +37,6 @@ struct esdhc_platform_data {
 	unsigned int delay_line;
 	unsigned int tuning_step;       /* The delay cell steps in tuning procedure */
 	unsigned int tuning_start_tap;	/* The start delay cell point in tuning procedure */
+	unsigned int strobe_dll_delay_target;	/* The delay cell for strobe pad (read clock) */
 };
 #endif /* __ASM_ARCH_IMX_ESDHC_H */

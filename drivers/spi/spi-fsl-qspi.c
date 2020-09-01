@@ -15,7 +15,7 @@
  *     Yogesh Gaur <yogeshnarayan.gaur@nxp.com>
  *     Suresh Gupta <suresh.gupta@nxp.com>
  *
- * Based on the original fsl-quadspi.c spi-nor driver:
+ * Based on the original fsl-quadspi.c SPI NOR driver:
  * Author: Freescale Semiconductor, Inc.
  *
  */
@@ -484,7 +484,7 @@ static int fsl_qspi_clk_prep_enable(struct fsl_qspi *q)
 	}
 
 	if (needs_wakeup_wait_mode(q))
-		pm_qos_add_request(&q->pm_qos_req, PM_QOS_CPU_DMA_LATENCY, 0);
+		cpu_latency_qos_add_request(&q->pm_qos_req, 0);
 
 	return 0;
 }
@@ -492,7 +492,7 @@ static int fsl_qspi_clk_prep_enable(struct fsl_qspi *q)
 static void fsl_qspi_clk_disable_unprep(struct fsl_qspi *q)
 {
 	if (needs_wakeup_wait_mode(q))
-		pm_qos_remove_request(&q->pm_qos_req);
+		cpu_latency_qos_remove_request(&q->pm_qos_req);
 
 	clk_disable_unprepare(q->clk);
 	clk_disable_unprepare(q->clk_en);
@@ -876,13 +876,14 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					"QuadSPI-memory");
-	q->ahb_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(q->ahb_addr)) {
-		ret = PTR_ERR(q->ahb_addr);
+	q->memmap_phy = res->start;
+	/* Since there are 4 cs, map size required is 4 times ahb_buf_size */
+	q->ahb_addr = devm_ioremap(dev, q->memmap_phy,
+				   (q->devtype_data->ahb_buf_size * 4));
+	if (!q->ahb_addr) {
+		ret = -ENOMEM;
 		goto err_put_ctrl;
 	}
-
-	q->memmap_phy = res->start;
 
 	/* find the clocks */
 	q->clk_en = devm_clk_get(dev, "qspi_en");

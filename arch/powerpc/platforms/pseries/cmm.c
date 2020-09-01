@@ -26,7 +26,6 @@
 #include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/mmu.h>
-#include <asm/pgalloc.h>
 #include <linux/uaccess.h>
 #include <linux/memory.h>
 #include <asm/plpar_wrappers.h>

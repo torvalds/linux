@@ -130,7 +130,7 @@ int rt2x00soc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct ieee80211_hw *hw = platform_get_drvdata(pdev);
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
-	return rt2x00lib_suspend(rt2x00dev, state);
+	return rt2x00lib_suspend(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00soc_suspend);
 

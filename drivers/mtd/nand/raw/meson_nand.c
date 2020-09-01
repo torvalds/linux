@@ -118,7 +118,7 @@ struct meson_nfc_nand_chip {
 	u8 *data_buf;
 	__le64 *info_buf;
 	u32 nsels;
-	u8 sels[0];
+	u8 sels[];
 };
 
 struct meson_nand_ecc {
@@ -573,10 +573,10 @@ static int meson_nfc_write_buf(struct nand_chip *nand, u8 *buf, int len)
 static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 						int page, bool in)
 {
+	const struct nand_sdr_timings *sdr =
+		nand_get_sdr_timings(nand_get_interface_config(nand));
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
-	const struct nand_sdr_timings *sdr =
-		nand_get_sdr_timings(&nand->data_interface);
 	u32 *addrs = nfc->cmdfifo.rw.addrs;
 	u32 cs = nfc->param.chip_select;
 	u32 cmd0, cmd_num, row_start;
@@ -626,9 +626,9 @@ static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 static int meson_nfc_write_page_sub(struct nand_chip *nand,
 				    int page, int raw)
 {
-	struct mtd_info *mtd = nand_to_mtd(nand);
 	const struct nand_sdr_timings *sdr =
-		nand_get_sdr_timings(&nand->data_interface);
+		nand_get_sdr_timings(nand_get_interface_config(nand));
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	int data_len, info_len;
@@ -899,6 +899,9 @@ static int meson_nfc_exec_op(struct nand_chip *nand,
 	u32 op_id, delay_idle, cmd;
 	int i;
 
+	if (check_only)
+		return 0;
+
 	meson_nfc_select_chip(nand, op->cs);
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {
 		instr = &op->instrs[op_id];
@@ -1094,8 +1097,8 @@ static int meson_chip_buffer_init(struct nand_chip *nand)
 }
 
 static
-int meson_nfc_setup_data_interface(struct nand_chip *nand, int csline,
-				   const struct nand_data_interface *conf)
+int meson_nfc_setup_interface(struct nand_chip *nand, int csline,
+			      const struct nand_interface_config *conf)
 {
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	const struct nand_sdr_timings *timings;
@@ -1219,7 +1222,7 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 static const struct nand_controller_ops meson_nand_controller_ops = {
 	.attach_chip = meson_nand_attach_chip,
 	.detach_chip = meson_nand_detach_chip,
-	.setup_data_interface = meson_nfc_setup_data_interface,
+	.setup_interface = meson_nfc_setup_interface,
 	.exec_op = meson_nfc_exec_op,
 };
 
@@ -1266,7 +1269,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 	nand_set_flash_node(nand, np);
 	nand_set_controller_data(nand, nfc);
 
-	nand->options |= NAND_USE_BOUNCE_BUFFER;
+	nand->options |= NAND_USES_DMA;
 	mtd = nand_to_mtd(nand);
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = dev;

@@ -297,7 +297,7 @@ struct vxge_hw_fifo_config {
  * @greedy_return: If Set it forces the device to return absolutely all RxD
  *             that are consumed and still on board when a timer interrupt
  *             triggers. If Clear, then if the device has already returned
- *             RxD before current timer interrupt trigerred and after the
+ *             RxD before current timer interrupt triggered and after the
  *             previous timer interrupt triggered, then the device is not
  *             forced to returned the rest of the consumed RxD that it has
  *             on board which account for a byte count less than the one
@@ -2045,7 +2045,7 @@ vxge_hw_vpath_strip_fcs_check(struct __vxge_hw_device *hldev, u64 vpath_mask);
 	if ((level >= VXGE_ERR && VXGE_COMPONENT_LL & VXGE_DEBUG_ERR_MASK) ||  \
 	    (level >= VXGE_TRACE && VXGE_COMPONENT_LL & VXGE_DEBUG_TRACE_MASK))\
 		if ((mask & VXGE_DEBUG_MASK) == mask)			       \
-			printk(fmt "\n", __VA_ARGS__);			       \
+			printk(fmt "\n", ##__VA_ARGS__);		       \
 } while (0)
 #else
 #define vxge_debug_ll(level, mask, fmt, ...)

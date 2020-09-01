@@ -1034,6 +1034,7 @@ static enum enq_res do_tx(struct sk_buff *skb)
 	u32 dma_rd,dma_wr;
 	u32 size; /* in words */
 	int aal5,dma_size,i,j;
+	unsigned char skb_data3;
 
 	DPRINTK(">do_tx\n");
 	NULLCHECK(skb);
@@ -1108,6 +1109,7 @@ DPRINTK("iovcnt = %d\n",skb_shinfo(skb)->nr_frags);
 		    vcc->dev->number);
 		return enq_jam;
 	}
+	skb_data3 = skb->data[3];
 	paddr = dma_map_single(&eni_dev->pci_dev->dev,skb->data,skb->len,
 			       DMA_TO_DEVICE);
 	ENI_PRV_PADDR(skb) = paddr;
@@ -1150,7 +1152,7 @@ DPRINTK("doing direct send\n"); /* @@@ well, this doesn't work anyway */
 	    (size/(ATM_CELL_PAYLOAD/4)),tx->send+tx->tx_pos*4);
 /*printk("dsc = 0x%08lx\n",(unsigned long) readl(tx->send+tx->tx_pos*4));*/
 	writel((vcc->vci << MID_SEG_VCI_SHIFT) |
-            (aal5 ? 0 : (skb->data[3] & 0xf)) |
+            (aal5 ? 0 : (skb_data3 & 0xf)) |
 	    (ATM_SKB(skb)->atm_options & ATM_ATMOPT_CLP ? MID_SEG_CLP : 0),
 	    tx->send+((tx->tx_pos+1) & (tx->words-1))*4);
 	DPRINTK("size: %d, len:%d\n",size,skb->len);
@@ -2027,21 +2029,6 @@ static int eni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 	return dev->phy->ioctl(dev,cmd,arg);
 }
 
-
-static int eni_getsockopt(struct atm_vcc *vcc,int level,int optname,
-    void __user *optval,int optlen)
-{
-	return -EINVAL;
-}
-
-
-static int eni_setsockopt(struct atm_vcc *vcc,int level,int optname,
-    void __user *optval,unsigned int optlen)
-{
-	return -EINVAL;
-}
-
-
 static int eni_send(struct atm_vcc *vcc,struct sk_buff *skb)
 {
 	enum enq_res res;
@@ -2215,8 +2202,6 @@ static const struct atmdev_ops ops = {
 	.open		= eni_open,
 	.close		= eni_close,
 	.ioctl		= eni_ioctl,
-	.getsockopt	= eni_getsockopt,
-	.setsockopt	= eni_setsockopt,
 	.send		= eni_send,
 	.phy_put	= eni_phy_put,
 	.phy_get	= eni_phy_get,

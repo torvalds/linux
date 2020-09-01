@@ -323,7 +323,7 @@
 			status = "disabled";
 		};
 
-		sdhi0: sd@e804e000 {
+		sdhi0: mmc@e804e000 {
 			compatible = "renesas,sdhi-r7s72100";
 			reg = <0xe804e000 0x100>;
 			interrupts = <GIC_SPI 270 IRQ_TYPE_LEVEL_HIGH>,
@@ -339,7 +339,7 @@
 			status = "disabled";
 		};
 
-		sdhi1: sd@e804e800 {
+		sdhi1: mmc@e804e800 {
 			compatible = "renesas,sdhi-r7s72100";
 			reg = <0xe804e800 0x100>;
 			interrupts = <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
@@ -467,11 +467,12 @@
 			#clock-cells = <1>;
 			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0xfcfe0438 4>;
-			clocks = <&p0_clk>, <&p0_clk>, <&p0_clk>, <&p0_clk>;
+			clocks = <&p0_clk>, <&p0_clk>, <&p0_clk>, <&p0_clk>, <&b_clk>, <&b_clk>;
 			clock-indices = <
 				R7S72100_CLK_I2C0 R7S72100_CLK_I2C1 R7S72100_CLK_I2C2 R7S72100_CLK_I2C3
+				R7S72100_CLK_SPIBSC0 R7S72100_CLK_SPIBSC1
 			>;
-			clock-output-names = "i2c0", "i2c1", "i2c2", "i2c3";
+			clock-output-names = "i2c0", "i2c1", "i2c2", "i2c3", "spibsc0", "spibsc1";
 		};
 
 		mstp10_clks: mstp10_clks@fcfe043c {

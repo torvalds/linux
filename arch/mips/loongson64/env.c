@@ -14,10 +14,14 @@
  * Author: Wu Zhangjin, wuzhangjin@gmail.com
  */
 #include <linux/export.h>
+#include <linux/pci_ids.h>
 #include <asm/bootinfo.h>
 #include <loongson.h>
 #include <boot_param.h>
+#include <builtin_dtbs.h>
 #include <workarounds.h>
+
+#define HOST_BRIDGE_CONFIG_ADDR	((void __iomem *)TO_UNCAC(0x1a000000))
 
 u32 cpu_clock_freq;
 EXPORT_SYMBOL(cpu_clock_freq);
@@ -42,6 +46,8 @@ void __init prom_init_env(void)
 	struct system_loongson *esys;
 	struct efi_cpuinfo_loongson *ecpu;
 	struct irq_source_routing_table *eirq_source;
+	u32 id;
+	u16 vendor, device;
 
 	/* firmware arguments are initialized in head.S */
 	boot_p = (struct boot_params *)fw_arg2;
@@ -155,4 +161,63 @@ void __init prom_init_env(void)
 		memcpy(loongson_sysconf.sensors, esys->sensors,
 			sizeof(struct sensor_device) * loongson_sysconf.nr_sensors);
 	pr_info("CpuClock = %u\n", cpu_clock_freq);
+
+	/* Read the ID of PCI host bridge to detect bridge type */
+	id = readl(HOST_BRIDGE_CONFIG_ADDR);
+	vendor = id & 0xffff;
+	device = (id >> 16) & 0xffff;
+
+	switch (vendor) {
+	case PCI_VENDOR_ID_LOONGSON:
+		pr_info("The bridge chip is LS7A\n");
+		loongson_sysconf.bridgetype = LS7A;
+		loongson_sysconf.early_config = ls7a_early_config;
+		break;
+	case PCI_VENDOR_ID_AMD:
+	case PCI_VENDOR_ID_ATI:
+		pr_info("The bridge chip is RS780E or SR5690\n");
+		loongson_sysconf.bridgetype = RS780E;
+		loongson_sysconf.early_config = rs780e_early_config;
+		break;
+	default:
+		pr_info("The bridge chip is VIRTUAL\n");
+		loongson_sysconf.bridgetype = VIRTUAL;
+		loongson_sysconf.early_config = virtual_early_config;
+		loongson_fdt_blob = __dtb_loongson64v_4core_virtio_begin;
+		break;
+	}
+
+	if ((read_c0_prid() & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64C) {
+		switch (read_c0_prid() & PRID_REV_MASK) {
+		case PRID_REV_LOONGSON3A_R1:
+		case PRID_REV_LOONGSON3A_R2_0:
+		case PRID_REV_LOONGSON3A_R2_1:
+		case PRID_REV_LOONGSON3A_R3_0:
+		case PRID_REV_LOONGSON3A_R3_1:
+			switch (loongson_sysconf.bridgetype) {
+			case LS7A:
+				loongson_fdt_blob = __dtb_loongson64c_4core_ls7a_begin;
+				break;
+			case RS780E:
+				loongson_fdt_blob = __dtb_loongson64c_4core_rs780e_begin;
+				break;
+			default:
+				break;
+			}
+			break;
+		case PRID_REV_LOONGSON3B_R1:
+		case PRID_REV_LOONGSON3B_R2:
+			if (loongson_sysconf.bridgetype == RS780E)
+				loongson_fdt_blob = __dtb_loongson64c_8core_rs780e_begin;
+			break;
+		default:
+			break;
+		}
+	} else if ((read_c0_prid() & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64G) {
+		if (loongson_sysconf.bridgetype == LS7A)
+			loongson_fdt_blob = __dtb_loongson64g_4core_ls7a_begin;
+	}
+
+	if (!loongson_fdt_blob)
+		pr_err("Failed to determine built-in Loongson64 dtb\n");
 }

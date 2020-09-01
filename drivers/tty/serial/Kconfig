@@ -3,8 +3,6 @@
 # Serial device configuration
 #
 
-if TTY
-
 menu "Serial drivers"
 	depends on HAS_IOMEM
 
@@ -34,7 +32,7 @@ config SERIAL_AMBA_PL010_CONSOLE
 	bool "Support for console on AMBA serial port"
 	depends on SERIAL_AMBA_PL010=y
 	select SERIAL_CORE_CONSOLE
-	---help---
+	help
 	  Say Y here if you wish to use an AMBA PrimeCell UART as the system
 	  console (the system console is the device which receives all kernel
 	  messages and warnings and which allows logins in single user mode).
@@ -62,7 +60,7 @@ config SERIAL_AMBA_PL011_CONSOLE
 	depends on SERIAL_AMBA_PL011=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
-	---help---
+	help
 	  Say Y here if you wish to use an AMBA PrimeCell UART as the system
 	  console (the system console is the device which receives all kernel
 	  messages and warnings and which allows logins in single user mode).
@@ -88,7 +86,7 @@ config SERIAL_EARLYCON_ARM_SEMIHOST
 
 config SERIAL_EARLYCON_RISCV_SBI
 	bool "Early console using RISC-V SBI"
-	depends on RISCV_SBI
+	depends on RISCV_SBI_V01
 	select SERIAL_CORE
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
@@ -103,7 +101,7 @@ config SERIAL_SB1250_DUART
 	depends on SIBYTE_SB1xxx_SOC=y
 	select SERIAL_CORE
 	default y
-	---help---
+	help
 	  Support for the asynchronous serial interface (DUART) included in
 	  the BCM1250 and derived System-On-a-Chip (SOC) devices.  Note that
 	  the letter D in DUART stands for "dual", which is how the device
@@ -118,7 +116,7 @@ config SERIAL_SB1250_DUART_CONSOLE
 	depends on SERIAL_SB1250_DUART=y
 	select SERIAL_CORE_CONSOLE
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -260,15 +258,6 @@ config SERIAL_SAMSUNG_UARTS
 	help
 	  Select the number of available UART ports for the Samsung S3C
 	  serial driver
-	
-config SERIAL_SAMSUNG_DEBUG
-	bool "Samsung SoC serial debug"
-	depends on SERIAL_SAMSUNG && DEBUG_LL
-	help
-	  Add support for debugging the serial driver. Since this is
-	  generally being used as a console, we use our own output
-	  routines that go via the low-level debug printascii()
-	  function.
 
 config SERIAL_SAMSUNG_CONSOLE
 	bool "Support for console on Samsung SoC serial port"
@@ -333,7 +322,7 @@ config SERIAL_TEGRA_TCU_CONSOLE
 	depends on SERIAL_TEGRA_TCU=y
 	select SERIAL_CORE_CONSOLE
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a the Tegra TCU as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -366,7 +355,7 @@ config SERIAL_DZ
 	depends on MACH_DECSTATION && 32BIT
 	select SERIAL_CORE
 	default y
-	---help---
+	help
 	  DZ11-family serial controllers for DECstations and VAXstations,
 	  including the DC7085, M7814, and M7819.
 
@@ -375,7 +364,7 @@ config SERIAL_DZ_CONSOLE
 	depends on SERIAL_DZ=y
 	select SERIAL_CORE_CONSOLE
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -391,7 +380,7 @@ config SERIAL_ZS
 	depends on MACH_DECSTATION
 	select SERIAL_CORE
 	default y
-	---help---
+	help
 	  Support for the Zilog 85C350 serial communications controller used
 	  for serial ports in newer DECstation systems.  These include the
 	  DECsystem 5900 and all models of the DECstation and DECsystem 5000
@@ -405,7 +394,7 @@ config SERIAL_ZS_CONSOLE
 	depends on SERIAL_ZS=y
 	select SERIAL_CORE_CONSOLE
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -513,19 +502,27 @@ config SERIAL_IMX
 	  can enable its onboard serial port by enabling this option.
 
 config SERIAL_IMX_CONSOLE
-	bool "Console on IMX serial port"
-	depends on SERIAL_IMX=y
+	tristate "Console on IMX serial port"
+	depends on SERIAL_IMX
 	select SERIAL_CORE_CONSOLE
-	select SERIAL_EARLYCON if OF
 	help
 	  If you have enabled the serial port on the Freescale IMX
-	  CPU you can make it the console by answering Y to this option.
+	  CPU you can make it the console by answering Y/M to this option.
 
-	  Even if you say Y here, the currently visible virtual console
+	  Even if you say Y/M here, the currently visible virtual console
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
 	  "console=ttymxc0". (Try "man bootparam" or see the documentation of
 	  your bootloader about how to pass options to the kernel at boot time.)
+
+config SERIAL_IMX_EARLYCON
+	bool "Earlycon on IMX serial port"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on OF
+	select SERIAL_EARLYCON
+	help
+	  If you have enabled the earlycon on the Freescale IMX
+	  CPU you can make it the earlycon by answering Y to this option.
 
 config SERIAL_UARTLITE
 	tristate "Xilinx uartlite serial port support"
@@ -599,7 +596,7 @@ config SERIAL_MUX
 	depends on GSC
 	select SERIAL_CORE
 	default y
-	---help---
+	help
 	  Saying Y here will enable the hardware MUX serial driver for
 	  the Nova, K class systems and D class with a 'remote control card'.
 	  The hardware MUX is not 8250/16550 compatible therefore the
@@ -1045,13 +1042,22 @@ config SERIAL_SIFIVE_CONSOLE
 	  boot time.)
 
 config SERIAL_LANTIQ
-	bool "Lantiq serial driver"
-	depends on LANTIQ
+	tristate "Lantiq serial driver"
+	depends on (LANTIQ || X86) || COMPILE_TEST
 	select SERIAL_CORE
+	help
+	  Support for UART on Lantiq and Intel SoCs.
+	  To compile this driver as a module, select M here. The
+	  module will be called lantiq.
+
+config SERIAL_LANTIQ_CONSOLE
+	bool "Console on Lantiq UART"
+	depends on SERIAL_LANTIQ=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
-	  Support for console and UART on Lantiq SoCs.
+	  Select this option if you would like to use a Lantiq UART as the
+	  system console.
 
 config SERIAL_QE
 	tristate "Freescale QUICC Engine serial port support"
@@ -1111,14 +1117,14 @@ config SERIAL_SC16IS7XX_SPI
 	help
 	  Enable SC16IS7xx driver on SPI bus,
 	  If required say y, and say n to spi if not required,
-	  This is additional support to exsisting driver.
+	  This is additional support to existing driver.
 	  You must select at least one bus for the driver to be built.
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
 	select SERIAL_CORE
 	depends on X86_32 || COMPILE_TEST
-	---help---
+	help
 	Add support for UART controller on timberdale.
 
 config SERIAL_BCM63XX
@@ -1147,7 +1153,7 @@ config SERIAL_GRLIB_GAISLER_APBUART
 	tristate "GRLIB APBUART serial support"
 	depends on OF && SPARC
 	select SERIAL_CORE
-	---help---
+	help
 	Add support for the GRLIB APBUART serial port.
 
 config SERIAL_GRLIB_GAISLER_APBUART_CONSOLE
@@ -1279,6 +1285,7 @@ config SERIAL_AR933X
 	tristate "AR933X serial port support"
 	depends on HAVE_CLK && ATH79
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  If you have an Atheros AR933X SOC based board and want to use the
 	  built-in UART of the SoC, say Y to this option.
@@ -1452,8 +1459,8 @@ config SERIAL_MEN_Z135
 
 config SERIAL_SPRD
 	tristate "Support for Spreadtrum serial"
-	depends on ARCH_SPRD
 	select SERIAL_CORE
+	depends on COMMON_CLK
 	help
 	  This enables the driver for the Spreadtrum's serial.
 
@@ -1472,6 +1479,7 @@ config SERIAL_STM32
 	tristate "STMicroelectronics STM32 serial port support"
 	select SERIAL_CORE
 	depends on ARCH_STM32 || COMPILE_TEST
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This driver is for the on-chip Serial Controller on
 	  STMicroelectronics STM32 MCUs.
@@ -1576,5 +1584,3 @@ endmenu
 
 config SERIAL_MCTRL_GPIO
 	tristate
-
-endif # TTY

@@ -75,10 +75,6 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	ret = nouveau_mem_vram(reg, nvbo->contig, nvbo->page);
 	if (ret) {
 		nouveau_mem_del(reg);
-		if (ret == -ENOSPC) {
-			reg->mm_node = NULL;
-			return 0;
-		}
 		return ret;
 	}
 
@@ -139,10 +135,6 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 			   reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {
 		nouveau_mem_del(reg);
-		if (ret == -ENOSPC) {
-			reg->mm_node = NULL;
-			return 0;
-		}
 		return ret;
 	}
 

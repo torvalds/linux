@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, Martin Botka
+ */
+
+/dts-v1/;
+
+#include "sdm630-sony-xperia-ganges.dtsi"
+
+/ {
+	model = "Sony Xperia 10";
+	compatible = "sony,kirin-row", "qcom,sdm630";
+};

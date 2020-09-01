@@ -43,12 +43,31 @@ static int ethsw_add_vlan(struct ethsw_core *ethsw, u16 vid)
 	return 0;
 }
 
+static bool ethsw_port_is_up(struct ethsw_port_priv *port_priv)
+{
+	struct net_device *netdev = port_priv->netdev;
+	struct dpsw_link_state state;
+	int err;
+
+	err = dpsw_if_get_link_state(port_priv->ethsw_data->mc_io, 0,
+				     port_priv->ethsw_data->dpsw_handle,
+				     port_priv->idx, &state);
+	if (err) {
+		netdev_err(netdev, "dpsw_if_get_link_state() err %d\n", err);
+		return true;
+	}
+
+	WARN_ONCE(state.up > 1, "Garbage read into link_state");
+
+	return state.up ? true : false;
+}
+
 static int ethsw_port_set_pvid(struct ethsw_port_priv *port_priv, u16 pvid)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct net_device *netdev = port_priv->netdev;
 	struct dpsw_tci_cfg tci_cfg = { 0 };
-	bool is_oper;
+	bool up;
 	int err, ret;
 
 	err = dpsw_if_get_tci(ethsw->mc_io, 0, ethsw->dpsw_handle,
@@ -61,8 +80,8 @@ static int ethsw_port_set_pvid(struct ethsw_port_priv *port_priv, u16 pvid)
 	tci_cfg.vlan_id = pvid;
 
 	/* Interface needs to be down to change PVID */
-	is_oper = netif_oper_up(netdev);
-	if (is_oper) {
+	up = ethsw_port_is_up(port_priv);
+	if (up) {
 		err = dpsw_if_disable(ethsw->mc_io, 0,
 				      ethsw->dpsw_handle,
 				      port_priv->idx);
@@ -85,7 +104,7 @@ static int ethsw_port_set_pvid(struct ethsw_port_priv *port_priv, u16 pvid)
 	port_priv->pvid = pvid;
 
 set_tci_error:
-	if (is_oper) {
+	if (up) {
 		ret = dpsw_if_enable(ethsw->mc_io, 0,
 				     ethsw->dpsw_handle,
 				     port_priv->idx);
@@ -183,21 +202,26 @@ static int ethsw_port_set_flood(struct ethsw_port_priv *port_priv, bool enable)
 static int ethsw_port_set_stp_state(struct ethsw_port_priv *port_priv, u8 state)
 {
 	struct dpsw_stp_cfg stp_cfg = {
-		.vlan_id = DEFAULT_VLAN_ID,
 		.state = state,
 	};
 	int err;
+	u16 vid;
 
-	if (!netif_oper_up(port_priv->netdev) || state == port_priv->stp_state)
+	if (!netif_running(port_priv->netdev) || state == port_priv->stp_state)
 		return 0;	/* Nothing to do */
 
-	err = dpsw_if_set_stp(port_priv->ethsw_data->mc_io, 0,
-			      port_priv->ethsw_data->dpsw_handle,
-			      port_priv->idx, &stp_cfg);
-	if (err) {
-		netdev_err(port_priv->netdev,
-			   "dpsw_if_set_stp err %d\n", err);
-		return err;
+	for (vid = 0; vid <= VLAN_VID_MASK; vid++) {
+		if (port_priv->vlans[vid] & ETHSW_VLAN_MEMBER) {
+			stp_cfg.vlan_id = vid;
+			err = dpsw_if_set_stp(port_priv->ethsw_data->mc_io, 0,
+					      port_priv->ethsw_data->dpsw_handle,
+					      port_priv->idx, &stp_cfg);
+			if (err) {
+				netdev_err(port_priv->netdev,
+					   "dpsw_if_set_stp err %d\n", err);
+				return err;
+			}
+		}
 	}
 
 	port_priv->stp_state = state;
@@ -445,6 +469,12 @@ static int port_carrier_state_sync(struct net_device *netdev)
 	struct dpsw_link_state state;
 	int err;
 
+	/* Interrupts are received even though no one issued an 'ifconfig up'
+	 * on the switch interface. Ignore these link state update interrupts
+	 */
+	if (!netif_running(netdev))
+		return 0;
+
 	err = dpsw_if_get_link_state(port_priv->ethsw_data->mc_io, 0,
 				     port_priv->ethsw_data->dpsw_handle,
 				     port_priv->idx, &state);
@@ -462,6 +492,7 @@ static int port_carrier_state_sync(struct net_device *netdev)
 			netif_carrier_off(netdev);
 		port_priv->link_state = state.up;
 	}
+
 	return 0;
 }
 
@@ -472,6 +503,13 @@ static int port_open(struct net_device *netdev)
 
 	/* No need to allow Tx as control interface is disabled */
 	netif_tx_stop_all_queues(netdev);
+
+	/* Explicitly set carrier off, otherwise
+	 * netif_carrier_ok() will return true and cause 'ip link show'
+	 * to report the LOWER_UP flag, even though the link
+	 * notification wasn't even received.
+	 */
+	netif_carrier_off(netdev);
 
 	err = dpsw_if_enable(port_priv->ethsw_data->mc_io, 0,
 			     port_priv->ethsw_data->dpsw_handle,
@@ -677,6 +715,46 @@ err_map:
 	return err;
 }
 
+static int ethsw_port_set_mac_addr(struct ethsw_port_priv *port_priv)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct net_device *net_dev = port_priv->netdev;
+	struct device *dev = net_dev->dev.parent;
+	u8 mac_addr[ETH_ALEN];
+	int err;
+
+	if (!(ethsw->features & ETHSW_FEATURE_MAC_ADDR))
+		return 0;
+
+	/* Get firmware address, if any */
+	err = dpsw_if_get_port_mac_addr(ethsw->mc_io, 0, ethsw->dpsw_handle,
+					port_priv->idx, mac_addr);
+	if (err) {
+		dev_err(dev, "dpsw_if_get_port_mac_addr() failed\n");
+		return err;
+	}
+
+	/* First check if firmware has any address configured by bootloader */
+	if (!is_zero_ether_addr(mac_addr)) {
+		memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
+	} else {
+		/* No MAC address configured, fill in net_dev->dev_addr
+		 * with a random one
+		 */
+		eth_hw_addr_random(net_dev);
+		dev_dbg_once(dev, "device(s) have all-zero hwaddr, replaced with random\n");
+
+		/* Override NET_ADDR_RANDOM set by eth_hw_addr_random(); for all
+		 * practical purposes, this will be our "permanent" mac address,
+		 * at least until the next reboot. This move will also permit
+		 * register_netdevice() to properly fill up net_dev->perm_addr.
+		 */
+		net_dev->addr_assign_type = NET_ADDR_PERM;
+	}
+
+	return 0;
+}
+
 static const struct net_device_ops ethsw_port_ops = {
 	.ndo_open		= port_open,
 	.ndo_stop		= port_stop,
@@ -695,12 +773,28 @@ static const struct net_device_ops ethsw_port_ops = {
 	.ndo_get_phys_port_name = port_get_phys_name,
 };
 
+static bool ethsw_port_dev_check(const struct net_device *netdev,
+				 struct notifier_block *nb)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+
+	if (netdev->netdev_ops == &ethsw_port_ops &&
+	    (!nb || &port_priv->ethsw_data->port_nb == nb ||
+	     &port_priv->ethsw_data->port_switchdev_nb == nb ||
+	     &port_priv->ethsw_data->port_switchdevb_nb == nb))
+		return true;
+
+	return false;
+}
+
 static void ethsw_links_state_update(struct ethsw_core *ethsw)
 {
 	int i;
 
-	for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
+	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		port_carrier_state_sync(ethsw->ports[i]->netdev);
+		ethsw_port_set_mac_addr(ethsw->ports[i]);
+	}
 }
 
 static irqreturn_t ethsw_irq0_handler_thread(int irq_num, void *arg)
@@ -885,10 +979,27 @@ static int port_vlans_add(struct net_device *netdev,
 			  struct switchdev_trans *trans)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int vid, err = 0;
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct dpsw_attr *attr = &ethsw->sw_attr;
+	int vid, err = 0, new_vlans = 0;
 
-	if (switchdev_trans_ph_prepare(trans))
+	if (switchdev_trans_ph_prepare(trans)) {
+		for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++)
+			if (!port_priv->ethsw_data->vlans[vid])
+				new_vlans++;
+
+		/* Check if there is space for a new VLAN */
+		err = dpsw_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,
+					  &ethsw->sw_attr);
+		if (err) {
+			netdev_err(netdev, "dpsw_get_attributes err %d\n", err);
+			return err;
+		}
+		if (attr->max_vlans - attr->num_vlans < new_vlans)
+			return -ENOSPC;
+
 		return 0;
+	}
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		if (!port_priv->ethsw_data->vlans[vid]) {
@@ -1094,7 +1205,8 @@ static int swdev_port_obj_del(struct net_device *netdev,
 
 static int
 ethsw_switchdev_port_attr_set_event(struct net_device *netdev,
-		struct switchdev_notifier_port_attr_info *port_attr_info)
+				    struct switchdev_notifier_port_attr_info
+				    *port_attr_info)
 {
 	int err;
 
@@ -1111,6 +1223,9 @@ static int port_bridge_join(struct net_device *netdev,
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct ethsw_port_priv *other_port_priv;
+	struct net_device *other_dev;
+	struct list_head *iter;
 	int i, err;
 
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
@@ -1120,6 +1235,18 @@ static int port_bridge_join(struct net_device *netdev,
 				   "Only one bridge supported per DPSW object!\n");
 			return -EINVAL;
 		}
+
+	netdev_for_each_lower_dev(upper_dev, other_dev, iter) {
+		if (!ethsw_port_dev_check(other_dev, NULL))
+			continue;
+
+		other_port_priv = netdev_priv(other_dev);
+		if (other_port_priv->ethsw_data != port_priv->ethsw_data) {
+			netdev_err(netdev,
+				   "Interface from a different DPSW is in the bridge already!\n");
+			return -EINVAL;
+		}
+	}
 
 	/* Enable flooding */
 	err = ethsw_port_set_flood(port_priv, 1);
@@ -1142,12 +1269,7 @@ static int port_bridge_leave(struct net_device *netdev)
 	return err;
 }
 
-static bool ethsw_port_dev_check(const struct net_device *netdev)
-{
-	return netdev->netdev_ops == &ethsw_port_ops;
-}
-
-static int port_netdevice_event(struct notifier_block *unused,
+static int port_netdevice_event(struct notifier_block *nb,
 				unsigned long event, void *ptr)
 {
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
@@ -1155,7 +1277,7 @@ static int port_netdevice_event(struct notifier_block *unused,
 	struct net_device *upper_dev;
 	int err = 0;
 
-	if (!ethsw_port_dev_check(netdev))
+	if (!ethsw_port_dev_check(netdev, nb))
 		return NOTIFY_DONE;
 
 	/* Handle just upper dev link/unlink for the moment */
@@ -1223,7 +1345,7 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 }
 
 /* Called under rcu_read_lock() */
-static int port_switchdev_event(struct notifier_block *unused,
+static int port_switchdev_event(struct notifier_block *nb,
 				unsigned long event, void *ptr)
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
@@ -1232,7 +1354,7 @@ static int port_switchdev_event(struct notifier_block *unused,
 	struct switchdev_notifier_fdb_info *fdb_info = ptr;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 
-	if (!ethsw_port_dev_check(dev))
+	if (!ethsw_port_dev_check(dev, nb))
 		return NOTIFY_DONE;
 
 	if (event == SWITCHDEV_PORT_ATTR_SET)
@@ -1277,7 +1399,8 @@ err_addr_alloc:
 
 static int
 ethsw_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
-			struct switchdev_notifier_port_obj_info *port_obj_info)
+			       struct switchdev_notifier_port_obj_info
+			       *port_obj_info)
 {
 	int err = -EOPNOTSUPP;
 
@@ -1295,16 +1418,16 @@ ethsw_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
 	return notifier_from_errno(err);
 }
 
-static int port_switchdev_blocking_event(struct notifier_block *unused,
+static int port_switchdev_blocking_event(struct notifier_block *nb,
 					 unsigned long event, void *ptr)
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
 
-	if (!ethsw_port_dev_check(dev))
+	if (!ethsw_port_dev_check(dev, nb))
 		return NOTIFY_DONE;
 
 	switch (event) {
-	case SWITCHDEV_PORT_OBJ_ADD: /* fall through */
+	case SWITCHDEV_PORT_OBJ_ADD:
 	case SWITCHDEV_PORT_OBJ_DEL:
 		return ethsw_switchdev_port_obj_event(event, dev, ptr);
 	case SWITCHDEV_PORT_ATTR_SET:
@@ -1349,13 +1472,21 @@ err_switchdev_nb:
 	return err;
 }
 
+static void ethsw_detect_features(struct ethsw_core *ethsw)
+{
+	ethsw->features = 0;
+
+	if (ethsw->major > 8 || (ethsw->major == 8 && ethsw->minor >= 6))
+		ethsw->features |= ETHSW_FEATURE_MAC_ADDR;
+}
+
 static int ethsw_init(struct fsl_mc_device *sw_dev)
 {
 	struct device *dev = &sw_dev->dev;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	u16 version_major, version_minor, i;
 	struct dpsw_stp_cfg stp_cfg;
 	int err;
+	u16 i;
 
 	ethsw->dev_id = sw_dev->obj_desc.id;
 
@@ -1373,24 +1504,26 @@ static int ethsw_init(struct fsl_mc_device *sw_dev)
 	}
 
 	err = dpsw_get_api_version(ethsw->mc_io, 0,
-				   &version_major,
-				   &version_minor);
+				   &ethsw->major,
+				   &ethsw->minor);
 	if (err) {
 		dev_err(dev, "dpsw_get_api_version err %d\n", err);
 		goto err_close;
 	}
 
 	/* Minimum supported DPSW version check */
-	if (version_major < DPSW_MIN_VER_MAJOR ||
-	    (version_major == DPSW_MIN_VER_MAJOR &&
-	     version_minor < DPSW_MIN_VER_MINOR)) {
+	if (ethsw->major < DPSW_MIN_VER_MAJOR ||
+	    (ethsw->major == DPSW_MIN_VER_MAJOR &&
+	     ethsw->minor < DPSW_MIN_VER_MINOR)) {
 		dev_err(dev, "DPSW version %d:%d not supported. Use %d.%d or greater.\n",
-			version_major,
-			version_minor,
+			ethsw->major,
+			ethsw->minor,
 			DPSW_MIN_VER_MAJOR, DPSW_MIN_VER_MINOR);
 		err = -ENOTSUPP;
 		goto err_close;
 	}
+
+	ethsw_detect_features(ethsw);
 
 	err = dpsw_reset(ethsw->mc_io, 0, ethsw->dpsw_handle);
 	if (err) {
@@ -1492,7 +1625,8 @@ static void ethsw_unregister_notifier(struct device *dev)
 	err = unregister_switchdev_blocking_notifier(nb);
 	if (err)
 		dev_err(dev,
-			"Failed to unregister switchdev blocking notifier (%d)\n", err);
+			"Failed to unregister switchdev blocking notifier (%d)\n",
+			err);
 
 	err = unregister_switchdev_notifier(&ethsw->port_switchdev_nb);
 	if (err)
@@ -1530,8 +1664,6 @@ static int ethsw_remove(struct fsl_mc_device *sw_dev)
 
 	ethsw_teardown_irqs(sw_dev);
 
-	destroy_workqueue(ethsw->workqueue);
-
 	dpsw_disable(ethsw->mc_io, 0, ethsw->dpsw_handle);
 
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
@@ -1542,6 +1674,9 @@ static int ethsw_remove(struct fsl_mc_device *sw_dev)
 	kfree(ethsw->ports);
 
 	ethsw_takedown(sw_dev);
+
+	destroy_workqueue(ethsw->workqueue);
+
 	fsl_mc_portal_free(ethsw->mc_io);
 
 	kfree(ethsw);
@@ -1583,6 +1718,10 @@ static int ethsw_probe_port(struct ethsw_core *ethsw, u16 port_idx)
 	port_netdev->max_mtu = ETHSW_MAX_FRAME_LENGTH;
 
 	err = ethsw_port_init(port_priv, port_idx);
+	if (err)
+		goto err_port_probe;
+
+	err = ethsw_port_set_mac_addr(port_priv);
 	if (err)
 		goto err_port_probe;
 
@@ -1655,6 +1794,10 @@ static int ethsw_probe(struct fsl_mc_device *sw_dev)
 		dev_err(ethsw->dev, "dpsw_enable err %d\n", err);
 		goto err_free_ports;
 	}
+
+	/* Make sure the switch ports are disabled at probe time */
+	for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
+		dpsw_if_disable(ethsw->mc_io, 0, ethsw->dpsw_handle, i);
 
 	/* Setup IRQs */
 	err = ethsw_setup_irqs(sw_dev);

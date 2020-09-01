@@ -1330,7 +1330,6 @@
 				battery: bq27742@55 {
 					compatible = "ti,bq27742";
 					reg = <0x55>;
-					battery-name = "battery";
 				};
 			};
 		};
@@ -1355,11 +1354,11 @@
 			maxim,enable-active-discharge;
 			maxim,enable-bias-control;
 			maxim,enable-etr;
-			maxim,enable-gpio = <&max77620 5 0>;
+			maxim,enable-gpio = <&pmic 5 0>;
 			maxim,externally-enable;
 		};
 
-		max77620: max77620@3c {
+		pmic: pmic@3c {
 			compatible = "maxim,max77620";
 			reg = <0x3c>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -1373,8 +1372,8 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77620_default>;
 
-			max77620_default: pinmux@0 {
-				pin_gpio {
+			max77620_default: pinmux {
+				gpio0_1_2_7 {
 					pins = "gpio0", "gpio1", "gpio2", "gpio7";
 					function = "gpio";
 				};
@@ -1384,7 +1383,7 @@
 				 * sequence, So it must be sequenced up (automatically
 				 * set by OTP) and down properly.
 				 */
-				pin_gpio3 {
+				gpio3 {
 					pins = "gpio3";
 					function = "fps-out";
 					drive-open-drain = <1>;
@@ -1393,13 +1392,13 @@
 					maxim,active-fps-power-down-slot = <2>;
 				};
 
-				pin_gpio5_6 {
+				gpio5_6 {
 					pins = "gpio5", "gpio6";
 					function = "gpio";
 					drive-push-pull = <1>;
 				};
 
-				pin_32k {
+				gpio4 {
 					pins = "gpio4";
 					function = "32k-out1";
 				};
@@ -1592,7 +1591,7 @@
 			reg = <0x1a>;
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(E, 6) IRQ_TYPE_LEVEL_LOW>;
-			clocks = <&tegra_car TEGRA210_CLK_CLK_OUT_2>;
+			clocks = <&tegra_pmc TEGRA_PMC_CLK_OUT_2>;
 			clock-names = "mclk";
 
 			nuvoton,jkdet-enable;
@@ -1697,7 +1696,7 @@
 		};
 	};
 
-	sdhci@700b0600 {
+	mmc@700b0600 {
 		bus-width = <8>;
 		non-removable;
 		status = "okay";
@@ -1722,22 +1721,15 @@
 			status = "okay";
 		};
 
-		agic@702f9000 {
+		interrupt-controller@702f9000 {
 			status = "okay";
 		};
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
+	clk32k_in: clock@0 {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
 	};
 
 	cpus {
@@ -1815,88 +1807,73 @@
 		method = "smc";
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		device_type = "fixed-regulators";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	ppvar_sys: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "PPVAR_SYS";
+		regulator-min-microvolt = <4400000>;
+		regulator-max-microvolt = <4400000>;
+		regulator-always-on;
+	};
 
-		ppvar_sys: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "PPVAR_SYS";
-			regulator-min-microvolt = <4400000>;
-			regulator-max-microvolt = <4400000>;
-			regulator-always-on;
-		};
+	pplcd_vdd: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "PPLCD_VDD";
+		regulator-min-microvolt = <4400000>;
+		regulator-max-microvolt = <4400000>;
+		gpio = <&gpio TEGRA_GPIO(V, 4) 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 
-		pplcd_vdd: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "PPLCD_VDD";
-			regulator-min-microvolt = <4400000>;
-			regulator-max-microvolt = <4400000>;
-			gpio = <&gpio TEGRA_GPIO(V, 4) 0>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	pp3000_always: regulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "PP3000_ALWAYS";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		regulator-always-on;
+	};
 
-		pp3000_always: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "PP3000_ALWAYS";
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
-			regulator-always-on;
-		};
+	pp3300: regulator@3 {
+		compatible = "regulator-fixed";
+		regulator-name = "PP3300";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+		enable-active-high;
+	};
 
-		pp3300: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "PP3300";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-boot-on;
-			regulator-always-on;
-			enable-active-high;
-		};
+	pp5000: regulator@4 {
+		compatible = "regulator-fixed";
+		regulator-name = "PP5000";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
 
-		pp5000: regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "PP5000";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-		};
+	pp1800_lcdio: regulator@5 {
+		compatible = "regulator-fixed";
+		regulator-name = "PP1800_LCDIO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio TEGRA_GPIO(V, 3) 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 
-		pp1800_lcdio: regulator@5 {
-			compatible = "regulator-fixed";
-			reg = <5>;
-			regulator-name = "PP1800_LCDIO";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio TEGRA_GPIO(V, 3) 0>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	pp1800_cam: regulator@6 {
+		compatible = "regulator-fixed";
+		regulator-name = "PP1800_CAM";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio TEGRA_GPIO(K, 3) 0>;
+		enable-active-high;
+	};
 
-		pp1800_cam: regulator@6 {
-			compatible = "regulator-fixed";
-			reg= <6>;
-			regulator-name = "PP1800_CAM";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio TEGRA_GPIO(K, 3) 0>;
-			enable-active-high;
-		};
-
-		usbc_vbus: regulator@7 {
-			compatible = "regulator-fixed";
-			reg = <7>;
-			regulator-name = "USBC_VBUS";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-		};
+	usbc_vbus: regulator@7 {
+		compatible = "regulator-fixed";
+		regulator-name = "USBC_VBUS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 	};
 };

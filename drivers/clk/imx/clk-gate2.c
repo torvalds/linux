@@ -40,29 +40,34 @@ static int clk_gate2_enable(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
 	u32 reg;
-	unsigned long flags = 0;
+	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(gate->lock, flags);
 
 	if (gate->share_count && (*gate->share_count)++ > 0)
 		goto out;
 
-	reg = readl(gate->reg);
-	reg &= ~(3 << gate->bit_idx);
-	reg |= gate->cgr_val << gate->bit_idx;
-	writel(reg, gate->reg);
+	if (gate->flags & IMX_CLK_GATE2_SINGLE_BIT) {
+		ret = clk_gate_ops.enable(hw);
+	} else {
+		reg = readl(gate->reg);
+		reg &= ~(3 << gate->bit_idx);
+		reg |= gate->cgr_val << gate->bit_idx;
+		writel(reg, gate->reg);
+	}
 
 out:
 	spin_unlock_irqrestore(gate->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static void clk_gate2_disable(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
 	u32 reg;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	spin_lock_irqsave(gate->lock, flags);
 
@@ -73,9 +78,13 @@ static void clk_gate2_disable(struct clk_hw *hw)
 			goto out;
 	}
 
-	reg = readl(gate->reg);
-	reg &= ~(3 << gate->bit_idx);
-	writel(reg, gate->reg);
+	if (gate->flags & IMX_CLK_GATE2_SINGLE_BIT) {
+		clk_gate_ops.disable(hw);
+	} else {
+		reg = readl(gate->reg);
+		reg &= ~(3 << gate->bit_idx);
+		writel(reg, gate->reg);
+	}
 
 out:
 	spin_unlock_irqrestore(gate->lock, flags);
@@ -95,14 +104,20 @@ static int clk_gate2_is_enabled(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
 
+	if (gate->flags & IMX_CLK_GATE2_SINGLE_BIT)
+		return clk_gate_ops.is_enabled(hw);
+
 	return clk_gate2_reg_is_enabled(gate->reg, gate->bit_idx);
 }
 
 static void clk_gate2_disable_unused(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 reg;
+
+	if (gate->flags & IMX_CLK_GATE2_SINGLE_BIT)
+		return;
 
 	spin_lock_irqsave(gate->lock, flags);
 
@@ -154,7 +169,7 @@ struct clk_hw *clk_hw_register_gate2(struct device *dev, const char *name,
 	gate->hw.init = &init;
 	hw = &gate->hw;
 
-	ret = clk_hw_register(NULL, hw);
+	ret = clk_hw_register(dev, hw);
 	if (ret) {
 		kfree(gate);
 		return ERR_PTR(ret);

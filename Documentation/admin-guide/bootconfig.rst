@@ -23,7 +23,7 @@ of dot-connected-words, and key and value are connected by ``=``. The value
 has to be terminated by semi-colon (``;``) or newline (``\n``).
 For array value, array entries are separated by comma (``,``). ::
 
-KEY[.WORD[...]] = VALUE[, VALUE2[...]][;]
+  KEY[.WORD[...]] = VALUE[, VALUE2[...]][;]
 
 Unlike the kernel command line syntax, spaces are OK around the comma and ``=``.
 
@@ -71,6 +71,16 @@ For example,::
  foo = bar, baz
  foo = qux  # !ERROR! we can not re-define same key
 
+If you want to update the value, you must use the override operator
+``:=`` explicitly. For example::
+
+ foo = bar, baz
+ foo := qux
+
+then, the ``qux`` is assigned to ``foo`` key. This is useful for
+overriding the default value by adding (partial) custom bootconfigs
+without parsing the default bootconfig.
+
 If you want to append the value to existing key as an array member,
 you can use ``+=`` operator. For example::
 
@@ -84,6 +94,7 @@ For example, following config is NOT allowed.::
 
  foo = value1
  foo.bar = value2 # !ERROR! subkey "bar" and value "value1" can NOT co-exist
+ foo.bar := value2 # !ERROR! even with the override operator, this is NOT allowed.
 
 
 Comments

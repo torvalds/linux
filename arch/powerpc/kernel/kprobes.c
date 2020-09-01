@@ -23,6 +23,7 @@
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
 #include <asm/sections.h>
+#include <asm/inst.h>
 #include <linux/uaccess.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
@@ -105,13 +106,26 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 int arch_prepare_kprobe(struct kprobe *p)
 {
 	int ret = 0;
-	kprobe_opcode_t insn = *p->addr;
+	struct kprobe *prev;
+	struct ppc_inst insn = ppc_inst_read((struct ppc_inst *)p->addr);
+	struct ppc_inst prefix = ppc_inst_read((struct ppc_inst *)(p->addr - 1));
 
 	if ((unsigned long)p->addr & 0x03) {
 		printk("Attempt to register kprobe at an unaligned address\n");
 		ret = -EINVAL;
 	} else if (IS_MTMSRD(insn) || IS_RFID(insn) || IS_RFI(insn)) {
 		printk("Cannot register a kprobe on rfi/rfid or mtmsr[d]\n");
+		ret = -EINVAL;
+	} else if (ppc_inst_prefixed(prefix)) {
+		printk("Cannot register a kprobe on the second word of prefixed instruction\n");
+		ret = -EINVAL;
+	}
+	preempt_disable();
+	prev = get_kprobe(p->addr - 1);
+	preempt_enable_no_resched();
+	if (prev &&
+	    ppc_inst_prefixed(ppc_inst_read((struct ppc_inst *)prev->ainsn.insn))) {
+		printk("Cannot register a kprobe on the second word of prefixed instruction\n");
 		ret = -EINVAL;
 	}
 
@@ -124,11 +138,8 @@ int arch_prepare_kprobe(struct kprobe *p)
 	}
 
 	if (!ret) {
-		memcpy(p->ainsn.insn, p->addr,
-				MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
-		p->opcode = *p->addr;
-		flush_icache_range((unsigned long)p->ainsn.insn,
-			(unsigned long)p->ainsn.insn + sizeof(kprobe_opcode_t));
+		patch_instruction((struct ppc_inst *)p->ainsn.insn, insn);
+		p->opcode = ppc_inst_val(insn);
 	}
 
 	p->ainsn.boostable = 0;
@@ -138,13 +149,13 @@ NOKPROBE_SYMBOL(arch_prepare_kprobe);
 
 void arch_arm_kprobe(struct kprobe *p)
 {
-	patch_instruction(p->addr, BREAKPOINT_INSTRUCTION);
+	patch_instruction((struct ppc_inst *)p->addr, ppc_inst(BREAKPOINT_INSTRUCTION));
 }
 NOKPROBE_SYMBOL(arch_arm_kprobe);
 
 void arch_disarm_kprobe(struct kprobe *p)
 {
-	patch_instruction(p->addr, p->opcode);
+	patch_instruction((struct ppc_inst *)p->addr, ppc_inst(p->opcode));
 }
 NOKPROBE_SYMBOL(arch_disarm_kprobe);
 
@@ -216,7 +227,7 @@ NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 {
 	int ret;
-	unsigned int insn = *p->ainsn.insn;
+	struct ppc_inst insn = ppc_inst_read((struct ppc_inst *)p->ainsn.insn);
 
 	/* regs->nip is also adjusted if emulate_step returns 1 */
 	ret = emulate_step(regs, insn);
@@ -233,7 +244,7 @@ static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 		 * So, we should never get here... but, its still
 		 * good to catch them, just in case...
 		 */
-		printk("Can't step on instruction %x\n", insn);
+		printk("Can't step on instruction %s\n", ppc_inst_as_str(insn));
 		BUG();
 	} else {
 		/*
@@ -264,6 +275,9 @@ int kprobe_handler(struct pt_regs *regs)
 	if (user_mode(regs))
 		return 0;
 
+	if (!(regs->msr & MSR_IR) || !(regs->msr & MSR_DR))
+		return 0;
+
 	/*
 	 * We don't want to be preempted for the entire
 	 * duration of kprobe processing
@@ -271,64 +285,20 @@ int kprobe_handler(struct pt_regs *regs)
 	preempt_disable();
 	kcb = get_kprobe_ctlblk();
 
-	/* Check we're not actually recursing */
-	if (kprobe_running()) {
-		p = get_kprobe(addr);
-		if (p) {
-			kprobe_opcode_t insn = *p->ainsn.insn;
-			if (kcb->kprobe_status == KPROBE_HIT_SS &&
-					is_trap(insn)) {
-				/* Turn off 'trace' bits */
-				regs->msr &= ~MSR_SINGLESTEP;
-				regs->msr |= kcb->kprobe_saved_msr;
-				goto no_kprobe;
-			}
-			/* We have reentered the kprobe_handler(), since
-			 * another probe was hit while within the handler.
-			 * We here save the original kprobes variables and
-			 * just single step on the instruction of the new probe
-			 * without calling any user handlers.
-			 */
-			save_previous_kprobe(kcb);
-			set_current_kprobe(p, regs, kcb);
-			kprobes_inc_nmissed_count(p);
-			kcb->kprobe_status = KPROBE_REENTER;
-			if (p->ainsn.boostable >= 0) {
-				ret = try_to_emulate(p, regs);
-
-				if (ret > 0) {
-					restore_previous_kprobe(kcb);
-					preempt_enable_no_resched();
-					return 1;
-				}
-			}
-			prepare_singlestep(p, regs);
-			return 1;
-		} else if (*addr != BREAKPOINT_INSTRUCTION) {
-			/* If trap variant, then it belongs not to us */
-			kprobe_opcode_t cur_insn = *addr;
-
-			if (is_trap(cur_insn))
-				goto no_kprobe;
-			/* The breakpoint instruction was removed by
-			 * another cpu right after we hit, no further
-			 * handling of this interrupt is appropriate
-			 */
-			ret = 1;
-		}
-		goto no_kprobe;
-	}
-
 	p = get_kprobe(addr);
 	if (!p) {
-		if (*addr != BREAKPOINT_INSTRUCTION) {
+		unsigned int instr;
+
+		if (get_kernel_nofault(instr, addr))
+			goto no_kprobe;
+
+		if (instr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * PowerPC has multiple variants of the "trap"
 			 * instruction. If the current instruction is a
 			 * trap variant, it could belong to someone else
 			 */
-			kprobe_opcode_t cur_insn = *addr;
-			if (is_trap(cur_insn))
+			if (is_trap(instr))
 				goto no_kprobe;
 			/*
 			 * The breakpoint instruction was removed right
@@ -341,6 +311,39 @@ int kprobe_handler(struct pt_regs *regs)
 		}
 		/* Not one of ours: let kernel handle it */
 		goto no_kprobe;
+	}
+
+	/* Check we're not actually recursing */
+	if (kprobe_running()) {
+		kprobe_opcode_t insn = *p->ainsn.insn;
+		if (kcb->kprobe_status == KPROBE_HIT_SS && is_trap(insn)) {
+			/* Turn off 'trace' bits */
+			regs->msr &= ~MSR_SINGLESTEP;
+			regs->msr |= kcb->kprobe_saved_msr;
+			goto no_kprobe;
+		}
+
+		/*
+		 * We have reentered the kprobe_handler(), since another probe
+		 * was hit while within the handler. We here save the original
+		 * kprobes variables and just single step on the instruction of
+		 * the new probe without calling any user handlers.
+		 */
+		save_previous_kprobe(kcb);
+		set_current_kprobe(p, regs, kcb);
+		kprobes_inc_nmissed_count(p);
+		kcb->kprobe_status = KPROBE_REENTER;
+		if (p->ainsn.boostable >= 0) {
+			ret = try_to_emulate(p, regs);
+
+			if (ret > 0) {
+				restore_previous_kprobe(kcb);
+				preempt_enable_no_resched();
+				return 1;
+			}
+		}
+		prepare_singlestep(p, regs);
+		return 1;
 	}
 
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
@@ -476,14 +479,16 @@ NOKPROBE_SYMBOL(trampoline_probe_handler);
  */
 int kprobe_post_handler(struct pt_regs *regs)
 {
+	int len;
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
 	if (!cur || user_mode(regs))
 		return 0;
 
+	len = ppc_inst_len(ppc_inst_read((struct ppc_inst *)cur->ainsn.insn));
 	/* make sure we got here for instruction we have a kprobe on */
-	if (((unsigned long)cur->ainsn.insn + 4) != regs->nip)
+	if (((unsigned long)cur->ainsn.insn + len) != regs->nip)
 		return 0;
 
 	if ((kcb->kprobe_status != KPROBE_REENTER) && cur->post_handler) {
@@ -492,7 +497,7 @@ int kprobe_post_handler(struct pt_regs *regs)
 	}
 
 	/* Adjust nip to after the single-stepped instruction */
-	regs->nip = (unsigned long)cur->addr + 4;
+	regs->nip = (unsigned long)cur->addr + len;
 	regs->msr |= kcb->kprobe_saved_msr;
 
 	/*Restore back the original saved kprobes variables and continue. */

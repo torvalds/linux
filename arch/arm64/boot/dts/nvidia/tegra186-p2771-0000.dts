@@ -103,7 +103,7 @@
 	};
 
 	/* SDMMC1 (SD/MMC) */
-	sdhci@3400000 {
+	mmc@3400000 {
 		status = "okay";
 
 		vmmc-supply = <&vdd_sd>;
@@ -119,10 +119,6 @@
 
 		avdd-pll-erefeut-supply = <&vdd_1v8_pll>;
 		avdd-usb-supply = <&vdd_3v3_sys>;
-		dvdd-pex-supply = <&vdd_pex>;
-		dvdd-pex-pll-supply = <&vdd_pex>;
-		hvdd-pex-supply = <&vdd_1v8>;
-		hvdd-pex-pll-supply = <&vdd_1v8>;
 		vclamp-usb-supply = <&vdd_1v8>;
 		vddio-hsic-supply = <&gnd>;
 
@@ -131,7 +127,7 @@
 				status = "okay";
 
 				lanes {
-					usb2-0 {
+					micro_b: usb2-0 {
 						nvidia,function = "xusb";
 						status = "okay";
 					};
@@ -174,8 +170,19 @@
 			usb2-0 {
 				status = "okay";
 				mode = "otg";
-
 				vbus-supply = <&vdd_usb0>;
+				usb-role-switch;
+
+				connector {
+					compatible = "gpio-usb-b-connector",
+						     "usb-b-connector";
+					label = "micro-USB";
+					type = "micro";
+					vbus-gpios = <&gpio
+						      TEGRA186_MAIN_GPIO(X, 7)
+						      GPIO_ACTIVE_LOW>;
+					id-gpios = <&pmic 0 GPIO_ACTIVE_HIGH>;
+				};
 			};
 
 			usb2-1 {
@@ -187,6 +194,7 @@
 
 			usb3-0 {
 				nvidia,usb2-companion = <1>;
+				vbus-supply = <&vdd_usb1>;
 				status = "okay";
 			};
 		};
@@ -201,14 +209,22 @@
 		phy-names = "usb2-0", "usb2-1", "usb3-0";
 	};
 
+	usb@3550000 {
+		status = "okay";
+
+		phys = <&micro_b>;
+		phy-names = "usb2-0";
+	};
+
 	i2c@c250000 {
 		/* carrier board ID EEPROM */
 		eeprom@57 {
 			compatible = "atmel,24c02";
 			reg = <0x57>;
 
-			address-bits = <8>;
-			page-size = <8>;
+			vcc-supply = <&vdd_1v8>;
+			address-width = <8>;
+			pagesize = <8>;
 			size = <256>;
 			read-only;
 		};
@@ -258,7 +274,7 @@
 			status = "okay";
 
 			avdd-io-hdmi-dp-supply = <&vdd_hdmi_1v05>;
-			vdd-hdmi-dp-pll = <&vdd_1v8_ap>;
+			vdd-hdmi-dp-pll-supply = <&vdd_1v8_ap>;
 
 			nvidia,dpaux = <&dpaux>;
 		};
@@ -266,8 +282,8 @@
 		sor@15580000 {
 			status = "okay";
 
-			avdd-io-supply = <&vdd_hdmi_1v05>;
-			vdd-pll-supply = <&vdd_1v8_ap>;
+			avdd-io-hdmi-dp-supply = <&vdd_hdmi_1v05>;
+			vdd-hdmi-dp-pll-supply = <&vdd_1v8_ap>;
 			hdmi-supply = <&vdd_hdmi>;
 
 			nvidia,ddc-i2c-bus = <&ddc>;
@@ -313,62 +329,51 @@
 		};
 	};
 
-	regulators {
-		vdd_sd: regulator@100 {
-			compatible = "regulator-fixed";
-			reg = <100>;
+	vdd_sd: regulator@100 {
+		compatible = "regulator-fixed";
+		regulator-name = "SD_CARD_SW_PWR";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 
-			regulator-name = "SD_CARD_SW_PWR";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
+		gpio = <&gpio TEGRA186_MAIN_GPIO(P, 6) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 
-			gpio = <&gpio TEGRA186_MAIN_GPIO(P, 6)
-				      GPIO_ACTIVE_HIGH>;
-			enable-active-high;
+		vin-supply = <&vdd_3v3_sys>;
+	};
 
-			vin-supply = <&vdd_3v3_sys>;
-		};
+	vdd_hdmi: regulator@101 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_HDMI_5V0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 
-		vdd_hdmi: regulator@101 {
-			compatible = "regulator-fixed";
-			reg = <101>;
+		gpio = <&exp1 14 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 
-			regulator-name = "VDD_HDMI_5V0";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+		vin-supply = <&vdd_5v0_sys>;
+	};
 
-			gpio = <&exp1 14 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
+	vdd_usb0: regulator@102 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_USB0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 
-			vin-supply = <&vdd_5v0_sys>;
-		};
+		gpio = <&gpio TEGRA186_MAIN_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 
-		vdd_usb0: regulator@102 {
-			compatible = "regulator-fixed";
-			reg = <102>;
+		vin-supply = <&vdd_5v0_sys>;
+	};
 
-			regulator-name = "VDD_USB0";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+	vdd_usb1: regulator@103 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_USB1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 
-			gpio = <&gpio TEGRA186_MAIN_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
+		gpio = <&gpio TEGRA186_MAIN_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 
-			vin-supply = <&vdd_5v0_sys>;
-		};
-
-		vdd_usb1: regulator@103 {
-			compatible = "regulator-fixed";
-			reg = <103>;
-
-			regulator-name = "VDD_USB1";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-
-			gpio = <&gpio TEGRA186_MAIN_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-
-			vin-supply = <&vdd_5v0_sys>;
-		};
+		vin-supply = <&vdd_5v0_sys>;
 	};
 };

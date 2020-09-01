@@ -30,13 +30,13 @@
 #include <linux/lockdep.h>
 #include <linux/memory.h>
 #include <linux/nmi.h>
+#include <linux/pgtable.h>
 
 #include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
-#include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
 #include <asm/machdep.h>
@@ -196,7 +196,10 @@ static void __init configure_exceptions(void)
 	/* Under a PAPR hypervisor, we need hypercalls */
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		/* Enable AIL if possible */
-		pseries_enable_reloc_on_exc();
+		if (!pseries_enable_reloc_on_exc()) {
+			init_task.thread.fscr &= ~FSCR_SCV;
+			cur_cpu_spec->cpu_user_features2 &= ~PPC_FEATURE2_SCV;
+		}
 
 		/*
 		 * Tell the hypervisor that we want our exceptions to
@@ -279,23 +282,41 @@ void __init record_spr_defaults(void)
  * device-tree is not accessible via normal means at this point.
  */
 
-void __init early_setup(unsigned long dt_ptr)
+void __init __nostackprotector early_setup(unsigned long dt_ptr)
 {
 	static __initdata struct paca_struct boot_paca;
 
 	/* -------- printk is _NOT_ safe to use here ! ------- */
 
-	/* Try new device tree based feature discovery ... */
-	if (!dt_cpu_ftrs_init(__va(dt_ptr)))
-		/* Otherwise use the old style CPU table */
-		identify_cpu(0, mfspr(SPRN_PVR));
-
-	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
+	/*
+	 * Assume we're on cpu 0 for now.
+	 *
+	 * We need to load a PACA very early for a few reasons.
+	 *
+	 * The stack protector canary is stored in the paca, so as soon as we
+	 * call any stack protected code we need r13 pointing somewhere valid.
+	 *
+	 * If we are using kcov it will call in_task() in its instrumentation,
+	 * which relies on the current task from the PACA.
+	 *
+	 * dt_cpu_ftrs_init() calls into generic OF/fdt code, as well as
+	 * printk(), which can trigger both stack protector and kcov.
+	 *
+	 * percpu variables and spin locks also use the paca.
+	 *
+	 * So set up a temporary paca. It will be replaced below once we know
+	 * what CPU we are on.
+	 */
 	initialise_paca(&boot_paca, 0);
 	setup_paca(&boot_paca);
 	fixup_boot_paca();
 
 	/* -------- printk is now safe to use ------- */
+
+	/* Try new device tree based feature discovery ... */
+	if (!dt_cpu_ftrs_init(__va(dt_ptr)))
+		/* Otherwise use the old style CPU table */
+		identify_cpu(0, mfspr(SPRN_PVR));
 
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
@@ -516,6 +537,8 @@ static bool __init parse_cache_info(struct device_node *np,
 	lsizep = of_get_property(np, propnames[3], NULL);
 	if (bsizep == NULL)
 		bsizep = lsizep;
+	if (lsizep == NULL)
+		lsizep = bsizep;
 	if (lsizep != NULL)
 		lsize = be32_to_cpu(*lsizep);
 	if (bsizep != NULL)
@@ -691,7 +714,7 @@ void __init exc_lvl_early_init(void)
  */
 void __init emergency_stack_init(void)
 {
-	u64 limit;
+	u64 limit, mce_limit;
 	unsigned int i;
 
 	/*
@@ -708,7 +731,16 @@ void __init emergency_stack_init(void)
 	 * initialized in kernel/irq.c. These are initialized here in order
 	 * to have emergency stacks available as early as possible.
 	 */
-	limit = min(ppc64_bolted_size(), ppc64_rma_size);
+	limit = mce_limit = min(ppc64_bolted_size(), ppc64_rma_size);
+
+	/*
+	 * Machine check on pseries calls rtas, but can't use the static
+	 * rtas_args due to a machine check hitting while the lock is held.
+	 * rtas args have to be under 4GB, so the machine check stack is
+	 * limited to 4GB so args can be put on stack.
+	 */
+	if (firmware_has_feature(FW_FEATURE_LPAR) && mce_limit > SZ_4G)
+		mce_limit = SZ_4G;
 
 	for_each_possible_cpu(i) {
 		paca_ptrs[i]->emergency_sp = alloc_stack(limit, i) + THREAD_SIZE;
@@ -718,7 +750,7 @@ void __init emergency_stack_init(void)
 		paca_ptrs[i]->nmi_emergency_sp = alloc_stack(limit, i) + THREAD_SIZE;
 
 		/* emergency stack for machine check exception handling. */
-		paca_ptrs[i]->mc_emergency_sp = alloc_stack(limit, i) + THREAD_SIZE;
+		paca_ptrs[i]->mc_emergency_sp = alloc_stack(mce_limit, i) + THREAD_SIZE;
 #endif
 	}
 }

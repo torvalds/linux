@@ -298,7 +298,7 @@ enum ssp_reading {
 	READING_U32
 };
 
-/**
+/*
  * The type of writing going on on this chip
  */
 enum ssp_writing {
@@ -317,6 +317,7 @@ enum ssp_writing {
  * @extended_cr: 32 bit wide control register 0 with extra
  * features and extra features in CR1 as found in the ST variants
  * @pl023: supports a subset of the ST extensions called "PL023"
+ * @loopback: supports loopback mode
  * @internal_cs_ctrl: supports chip select control register
  */
 struct vendor_data {
@@ -353,11 +354,14 @@ struct vendor_data {
  * @read: the type of read currently going on
  * @write: the type of write currently going on
  * @exp_fifo_level: expected FIFO level
+ * @rx_lev_trig: receive FIFO watermark level which triggers IRQ
+ * @tx_lev_trig: transmit FIFO watermark level which triggers IRQ
  * @dma_rx_channel: optional channel for RX DMA
  * @dma_tx_channel: optional channel for TX DMA
  * @sgt_rx: scattertable for the RX transfer
  * @sgt_tx: scattertable for the TX transfer
  * @dummypage: a dummy page used for driving data on the bus with DMA
+ * @dma_running: indicates whether DMA is in operation
  * @cur_cs: current chip select (gpio)
  * @chipselects: list of chipselects (gpios)
  */
@@ -662,7 +666,7 @@ static void load_ssp_default_config(struct pl022 *pl022)
 	writew(CLEAR_ALL_INTERRUPTS, SSP_ICR(pl022->virtbase));
 }
 
-/**
+/*
  * This will write to TX and read from RX according to the parameters
  * set in pl022.
  */
@@ -1237,6 +1241,8 @@ static inline void pl022_dma_remove(struct pl022 *pl022)
 
 /**
  * pl022_interrupt_handler - Interrupt handler for SSP controller
+ * @irq: IRQ number
+ * @dev_id: Local device data
  *
  * This function handles interrupts generated for an interrupt based transfer.
  * If a receive overrun (ROR) interrupt is there then we disable SSP, flag the
@@ -1334,7 +1340,7 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * This sets up the pointers to memory for the next message to
  * send out on the SPI bus.
  */

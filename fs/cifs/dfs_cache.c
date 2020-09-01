@@ -29,6 +29,7 @@
 
 struct cache_dfs_tgt {
 	char *name;
+	int path_consumed;
 	struct list_head list;
 };
 
@@ -198,7 +199,7 @@ static ssize_t dfscache_proc_write(struct file *file, const char __user *buffer,
 	if (c != '0')
 		return -EINVAL;
 
-	cifs_dbg(FYI, "clearing dfs cache");
+	cifs_dbg(FYI, "clearing dfs cache\n");
 
 	down_write(&htable_rw_lock);
 	flush_cache_ents();
@@ -234,8 +235,8 @@ static inline void dump_tgts(const struct cache_entry *ce)
 
 static inline void dump_ce(const struct cache_entry *ce)
 {
-	cifs_dbg(FYI, "cache entry: path=%s,type=%s,ttl=%d,etime=%ld,"
-		 "interlink=%s,path_consumed=%d,expired=%s\n", ce->path,
+	cifs_dbg(FYI, "cache entry: path=%s,type=%s,ttl=%d,etime=%ld,interlink=%s,path_consumed=%d,expired=%s\n",
+		 ce->path,
 		 ce->srvtype == DFS_TYPE_ROOT ? "root" : "link", ce->ttl,
 		 ce->etime.tv_nsec,
 		 IS_INTERLINK_SET(ce->flags) ? "yes" : "no",
@@ -350,7 +351,7 @@ static inline struct timespec64 get_expire_time(int ttl)
 }
 
 /* Allocate a new DFS target */
-static struct cache_dfs_tgt *alloc_target(const char *name)
+static struct cache_dfs_tgt *alloc_target(const char *name, int path_consumed)
 {
 	struct cache_dfs_tgt *t;
 
@@ -362,6 +363,7 @@ static struct cache_dfs_tgt *alloc_target(const char *name)
 		kfree(t);
 		return ERR_PTR(-ENOMEM);
 	}
+	t->path_consumed = path_consumed;
 	INIT_LIST_HEAD(&t->list);
 	return t;
 }
@@ -384,7 +386,7 @@ static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 	for (i = 0; i < numrefs; i++) {
 		struct cache_dfs_tgt *t;
 
-		t = alloc_target(refs[i].node_name);
+		t = alloc_target(refs[i].node_name, refs[i].path_consumed);
 		if (IS_ERR(t)) {
 			free_tgts(ce);
 			return PTR_ERR(t);
@@ -453,11 +455,11 @@ static void remove_oldest_entry(void)
 	}
 
 	if (!to_del) {
-		cifs_dbg(FYI, "%s: no entry to remove", __func__);
+		cifs_dbg(FYI, "%s: no entry to remove\n", __func__);
 		return;
 	}
 
-	cifs_dbg(FYI, "%s: removing entry", __func__);
+	cifs_dbg(FYI, "%s: removing entry\n", __func__);
 	dump_ce(to_del);
 	flush_cache_ent(to_del);
 }
@@ -490,16 +492,7 @@ static int add_cache_entry(const char *path, unsigned int hash,
 	return 0;
 }
 
-/*
- * Find a DFS cache entry in hash table and optionally check prefix path against
- * @path.
- * Use whole path components in the match.
- * Must be called with htable_rw_lock held.
- *
- * Return ERR_PTR(-ENOENT) if the entry is not found.
- */
-static struct cache_entry *lookup_cache_entry(const char *path,
-					      unsigned int *hash)
+static struct cache_entry *__lookup_cache_entry(const char *path)
 {
 	struct cache_entry *ce;
 	unsigned int h;
@@ -517,9 +510,75 @@ static struct cache_entry *lookup_cache_entry(const char *path,
 
 	if (!found)
 		ce = ERR_PTR(-ENOENT);
+	return ce;
+}
+
+/*
+ * Find a DFS cache entry in hash table and optionally check prefix path against
+ * @path.
+ * Use whole path components in the match.
+ * Must be called with htable_rw_lock held.
+ *
+ * Return ERR_PTR(-ENOENT) if the entry is not found.
+ */
+static struct cache_entry *lookup_cache_entry(const char *path, unsigned int *hash)
+{
+	struct cache_entry *ce = ERR_PTR(-ENOENT);
+	unsigned int h;
+	int cnt = 0;
+	char *npath;
+	char *s, *e;
+	char sep;
+
+	npath = kstrndup(path, strlen(path), GFP_KERNEL);
+	if (!npath)
+		return ERR_PTR(-ENOMEM);
+
+	s = npath;
+	sep = *npath;
+	while ((s = strchr(s, sep)) && ++cnt < 3)
+		s++;
+
+	if (cnt < 3) {
+		h = cache_entry_hash(path, strlen(path));
+		ce = __lookup_cache_entry(path);
+		goto out;
+	}
+	/*
+	 * Handle paths that have more than two path components and are a complete prefix of the DFS
+	 * referral request path (@path).
+	 *
+	 * See MS-DFSC 3.2.5.5 "Receiving a Root Referral Request or Link Referral Request".
+	 */
+	h = cache_entry_hash(npath, strlen(npath));
+	e = npath + strlen(npath) - 1;
+	while (e > s) {
+		char tmp;
+
+		/* skip separators */
+		while (e > s && *e == sep)
+			e--;
+		if (e == s)
+			goto out;
+
+		tmp = *(e+1);
+		*(e+1) = 0;
+
+		ce = __lookup_cache_entry(npath);
+		if (!IS_ERR(ce)) {
+			h = cache_entry_hash(npath, strlen(npath));
+			break;
+		}
+
+		*(e+1) = tmp;
+		/* backward until separator */
+		while (e > s && *e != sep)
+			e--;
+	}
+out:
 	if (hash)
 		*hash = h;
-
+	kfree(npath);
 	return ce;
 }
 
@@ -696,8 +755,8 @@ static int __dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	if (atomic_read(&cache_count) >= CACHE_MAX_ENTRIES) {
-		cifs_dbg(FYI, "%s: reached max cache size (%d)", __func__,
-			 CACHE_MAX_ENTRIES);
+		cifs_dbg(FYI, "%s: reached max cache size (%d)\n",
+			 __func__, CACHE_MAX_ENTRIES);
 		down_write(&htable_rw_lock);
 		remove_oldest_entry();
 		up_write(&htable_rw_lock);
@@ -773,6 +832,7 @@ static int get_targets(struct cache_entry *ce, struct dfs_cache_tgt_list *tl)
 			rc = -ENOMEM;
 			goto err_free_it;
 		}
+		it->it_path_consumed = t->path_consumed;
 
 		if (ce->tgthint == t)
 			list_add(&it->it_list, head);
@@ -1131,7 +1191,7 @@ err_free_domainname:
 err_free_unc:
 	kfree(new->UNC);
 err_free_password:
-	kzfree(new->password);
+	kfree_sensitive(new->password);
 err_free_username:
 	kfree(new->username);
 	kfree(new);
@@ -1258,6 +1318,72 @@ void dfs_cache_del_vol(const char *fullpath)
 	spin_unlock(&vol_list_lock);
 
 	kref_put(&vi->refcnt, vol_release);
+}
+
+/**
+ * dfs_cache_get_tgt_share - parse a DFS target
+ *
+ * @path: DFS full path
+ * @it: DFS target iterator.
+ * @share: tree name.
+ * @prefix: prefix path.
+ *
+ * Return zero if target was parsed correctly, otherwise non-zero.
+ */
+int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it,
+			    char **share, char **prefix)
+{
+	char *s, sep, *p;
+	size_t len;
+	size_t plen1, plen2;
+
+	if (!it || !path || !share || !prefix || strlen(path) < it->it_path_consumed)
+		return -EINVAL;
+
+	*share = NULL;
+	*prefix = NULL;
+
+	sep = it->it_name[0];
+	if (sep != '\\' && sep != '/')
+		return -EINVAL;
+
+	s = strchr(it->it_name + 1, sep);
+	if (!s)
+		return -EINVAL;
+
+	/* point to prefix in target node */
+	s = strchrnul(s + 1, sep);
+
+	/* extract target share */
+	*share = kstrndup(it->it_name, s - it->it_name, GFP_KERNEL);
+	if (!*share)
+		return -ENOMEM;
+
+	/* skip separator */
+	if (*s)
+		s++;
+	/* point to prefix in DFS path */
+	p = path + it->it_path_consumed;
+	if (*p == sep)
+		p++;
+
+	/* merge prefix paths from DFS path and target node */
+	plen1 = it->it_name + strlen(it->it_name) - s;
+	plen2 = path + strlen(path) - p;
+	if (plen1 || plen2) {
+		len = plen1 + plen2 + 2;
+		*prefix = kmalloc(len, GFP_KERNEL);
+		if (!*prefix) {
+			kfree(*share);
+			*share = NULL;
+			return -ENOMEM;
+		}
+		if (plen1)
+			scnprintf(*prefix, len, "%.*s%c%.*s", (int)plen1, s, sep, (int)plen2, p);
+		else
+			strscpy(*prefix, p, len);
+	}
+	return 0;
 }
 
 /* Get all tcons that are within a DFS namespace and can be refreshed */

@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/fsl,imxgpt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX General Purpose Timer (GPT)
+
+maintainers:
+  - Sascha Hauer <s.hauer@pengutronix.de>
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,imx1-gpt
+      - const: fsl,imx21-gpt
+      - items:
+          - const: fsl,imx27-gpt
+          - const: fsl,imx21-gpt
+      - const: fsl,imx31-gpt
+      - items:
+          - enum:
+              - fsl,imx25-gpt
+              - fsl,imx50-gpt
+              - fsl,imx51-gpt
+              - fsl,imx53-gpt
+              - fsl,imx6q-gpt
+          - const: fsl,imx31-gpt
+      - const: fsl,imx6dl-gpt
+      - items:
+          - enum:
+              - fsl,imx6sl-gpt
+              - fsl,imx6sx-gpt
+          - const: fsl,imx6dl-gpt
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: SoC GPT ipg clock
+      - description: SoC GPT per clock
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: per
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx27-clock.h>
+
+    timer@10003000 {
+        compatible = "fsl,imx27-gpt", "fsl,imx21-gpt";
+        reg = <0x10003000 0x1000>;
+        interrupts = <26>;
+        clocks = <&clks IMX27_CLK_GPT1_IPG_GATE>,
+                 <&clks IMX27_CLK_PER1_GATE>;
+        clock-names = "ipg", "per";
+    };

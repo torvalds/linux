@@ -9,7 +9,7 @@ menu "Backlight & LCD device support"
 # LCD
 #
 config LCD_CLASS_DEVICE
-        tristate "Lowlevel LCD controls"
+	tristate "Lowlevel LCD controls"
 	help
 	  This framework adds support for low-level control of LCD.
 	  Some framebuffer devices connect to platform-specific LCD modules
@@ -141,10 +141,10 @@ endif # LCD_CLASS_DEVICE
 # Backlight
 #
 config BACKLIGHT_CLASS_DEVICE
-        tristate "Lowlevel Backlight controls"
+	tristate "Lowlevel Backlight controls"
 	help
 	  This framework adds support for low-level control of the LCD
-          backlight. This includes support for brightness and power.
+	  backlight. This includes support for brightness and power.
 
 	  To have support for your specific LCD panel you will have to
 	  select the proper drivers which depend on this option.
@@ -172,14 +172,6 @@ config BACKLIGHT_EP93XX
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called ep93xx_bl.
-
-config BACKLIGHT_GENERIC
-	tristate "Generic (aka Sharp Corgi) Backlight Driver"
-	default y
-	help
-	  Say y to enable the generic platform backlight driver previously
-	  known as the Corgi backlight driver. If you have a Sharp Zaurus
-	  SL-C7xx, SL-Cxx00 or SL-6000x say y.
 
 config BACKLIGHT_IPAQ_MICRO
 	tristate "iPAQ microcontroller backlight driver"
@@ -272,7 +264,7 @@ config BACKLIGHT_APPLE
        tristate "Apple Backlight Driver"
        depends on X86 && ACPI
        help
-         If you have an Intel-based Apple say Y to enable a driver for its
+	 If you have an Intel-based Apple say Y to enable a driver for its
 	 backlight.
 
 config BACKLIGHT_TOSA
@@ -385,13 +377,6 @@ config BACKLIGHT_LP8788
 	depends on MFD_LP8788 && PWM
 	help
 	  This supports TI LP8788 backlight driver.
-
-config BACKLIGHT_OT200
-	tristate "Backlight driver for ot200 visualisation device"
-	depends on CS5535_MFGPT && GPIO_CS5535
-	help
-	  To compile this driver as a module, choose M here: the module will be
-	  called ot200_bl.
 
 config BACKLIGHT_PANDORA
 	tristate "Backlight driver for Pandora console"

@@ -51,22 +51,6 @@ static uint64_t virt_alloc_region(struct kvm_vm *vm, int ri, uint32_t memslot)
 		| ((ri < 4 ? (PAGES_PER_REGION - 1) : 0) & REGION_ENTRY_LENGTH);
 }
 
-/*
- * VM Virtual Page Map
- *
- * Input Args:
- *   vm - Virtual Machine
- *   gva - VM Virtual Address
- *   gpa - VM Physical Address
- *   memslot - Memory region slot for new virtual translation tables
- *
- * Output Args: None
- *
- * Return: None
- *
- * Within the VM given by vm, creates a virtual translation for the page
- * starting at vaddr to the page starting at paddr.
- */
 void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa,
 		 uint32_t memslot)
 {
@@ -107,26 +91,6 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa,
 	entry[idx] = gpa;
 }
 
-/*
- * Address Guest Virtual to Guest Physical
- *
- * Input Args:
- *   vm - Virtual Machine
- *   gpa - VM virtual address
- *
- * Output Args: None
- *
- * Return:
- *   Equivalent VM physical address
- *
- * Translates the VM virtual address given by gva to a VM physical
- * address and then locates the memory region containing the VM
- * physical address, within the VM given by vm.  When found, the host
- * virtual address providing the memory to the vm physical address is
- * returned.
- * A TEST_ASSERT failure occurs if no region containing translated
- * VM virtual address exists.
- */
 vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	int ri, idx;
@@ -196,21 +160,6 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	virt_dump_region(stream, vm, indent, vm->pgd);
 }
 
-/*
- * Create a VM with reasonable defaults
- *
- * Input Args:
- *   vcpuid - The id of the single VCPU to add to the VM.
- *   extra_mem_pages - The size of extra memories to add (this will
- *                     decide how much extra space we will need to
- *                     setup the page tables using mem slot 0)
- *   guest_code - The vCPU's entry point
- *
- * Output Args: None
- *
- * Return:
- *   Pointer to opaque structure that describes the created VM.
- */
 struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 				 void *guest_code)
 {
@@ -231,13 +180,6 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	return vm;
 }
 
-/*
- * Adds a vCPU with reasonable defaults (i.e. a stack and initial PSW)
- *
- * Input Args:
- *   vcpuid - The id of the VCPU to add to the VM.
- *   guest_code - The vCPU's entry point
- */
 void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 {
 	size_t stack_size =  DEFAULT_STACK_PGS * getpagesize();
@@ -269,9 +211,32 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 	run->psw_addr = (uintptr_t)guest_code;
 }
 
+void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
+{
+	va_list ap;
+	struct kvm_regs regs;
+	int i;
+
+	TEST_ASSERT(num >= 1 && num <= 5, "Unsupported number of args,\n"
+		    "  num: %u\n",
+		    num);
+
+	va_start(ap, num);
+	vcpu_regs_get(vm, vcpuid, &regs);
+
+	for (i = 0; i < num; i++)
+		regs.gprs[i + 2] = va_arg(ap, uint64_t);
+
+	vcpu_regs_set(vm, vcpuid, &regs);
+	va_end(ap);
+}
+
 void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
 {
-	struct vcpu *vcpu = vm->vcpu_head;
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+
+	if (!vcpu)
+		return;
 
 	fprintf(stream, "%*spstate: psw: 0x%.16llx:0x%.16llx\n",
 		indent, "", vcpu->state->psw_mask, vcpu->state->psw_addr);

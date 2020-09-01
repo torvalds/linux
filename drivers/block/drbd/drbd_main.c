@@ -132,9 +132,10 @@ wait_queue_head_t drbd_pp_wait;
 DEFINE_RATELIMIT_STATE(drbd_ratelimit_state, 5 * HZ, 5);
 
 static const struct block_device_operations drbd_ops = {
-	.owner =   THIS_MODULE,
-	.open =    drbd_open,
-	.release = drbd_release,
+	.owner		= THIS_MODULE,
+	.submit_bio	= drbd_submit_bio,
+	.open		= drbd_open,
+	.release	= drbd_release,
 };
 
 struct bio *bio_alloc_drbd(gfp_t gfp_mask)
@@ -429,7 +430,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		thi->t_state = RESTARTING;
 		drbd_info(resource, "Restarting %s thread (from %s [%d])\n",
 				thi->name, current->comm, current->pid);
-		/* fall through */
+		fallthrough;
 	case RUNNING:
 	case RESTARTING:
 	default:
@@ -660,7 +661,7 @@ static int __send_command(struct drbd_connection *connection, int vnr,
 	/* DRBD protocol "pings" are latency critical.
 	 * This is supposed to trigger tcp_push_pending_frames() */
 	if (!err && (cmd == P_PING || cmd == P_PING_ACK))
-		drbd_tcp_nodelay(sock->socket);
+		tcp_sock_set_nodelay(sock->socket->sk);
 
 	return err;
 }
@@ -2324,7 +2325,7 @@ static void do_retry(struct work_struct *ws)
 		 * workqueues instead.
 		 */
 
-		/* We are not just doing generic_make_request(),
+		/* We are not just doing submit_bio_noacct(),
 		 * as we want to keep the start_time information. */
 		inc_ap_bio(device);
 		__drbd_make_request(device, bio, start_jif);
@@ -2412,62 +2413,6 @@ static void drbd_cleanup(void)
 	idr_destroy(&drbd_devices);
 
 	pr_info("module cleanup done.\n");
-}
-
-/**
- * drbd_congested() - Callback for the flusher thread
- * @congested_data:	User data
- * @bdi_bits:		Bits the BDI flusher thread is currently interested in
- *
- * Returns 1<<WB_async_congested and/or 1<<WB_sync_congested if we are congested.
- */
-static int drbd_congested(void *congested_data, int bdi_bits)
-{
-	struct drbd_device *device = congested_data;
-	struct request_queue *q;
-	char reason = '-';
-	int r = 0;
-
-	if (!may_inc_ap_bio(device)) {
-		/* DRBD has frozen IO */
-		r = bdi_bits;
-		reason = 'd';
-		goto out;
-	}
-
-	if (test_bit(CALLBACK_PENDING, &first_peer_device(device)->connection->flags)) {
-		r |= (1 << WB_async_congested);
-		/* Without good local data, we would need to read from remote,
-		 * and that would need the worker thread as well, which is
-		 * currently blocked waiting for that usermode helper to
-		 * finish.
-		 */
-		if (!get_ldev_if_state(device, D_UP_TO_DATE))
-			r |= (1 << WB_sync_congested);
-		else
-			put_ldev(device);
-		r &= bdi_bits;
-		reason = 'c';
-		goto out;
-	}
-
-	if (get_ldev(device)) {
-		q = bdev_get_queue(device->ldev->backing_bdev);
-		r = bdi_congested(q->backing_dev_info, bdi_bits);
-		put_ldev(device);
-		if (r)
-			reason = 'b';
-	}
-
-	if (bdi_bits & (1 << WB_async_congested) &&
-	    test_bit(NET_CONGESTED, &first_peer_device(device)->connection->flags)) {
-		r |= (1 << WB_async_congested);
-		reason = reason == 'b' ? 'a' : 'n';
-	}
-
-out:
-	device->congestion_reason = reason;
-	return r;
 }
 
 static void drbd_init_workqueue(struct drbd_work_queue* wq)
@@ -2801,11 +2746,10 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 
 	drbd_init_set_defaults(device);
 
-	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
+	q = blk_alloc_queue(NUMA_NO_NODE);
 	if (!q)
 		goto out_no_q;
 	device->rq_queue = q;
-	q->queuedata   = device;
 
 	disk = alloc_disk(1);
 	if (!disk)
@@ -2825,10 +2769,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	/* we have no partitions. we contain only ourselves. */
 	device->this_bdev->bd_contains = device->this_bdev;
 
-	q->backing_dev_info->congested_fn = drbd_congested;
-	q->backing_dev_info->congested_data = device;
-
-	blk_queue_make_request(q, drbd_make_request);
 	blk_queue_write_cache(q, true, true);
 	/* Setting the max_hw_sectors to an odd value of 8kibyte here
 	   This triggers a max_bio_size message upon first attach or connect */
@@ -3414,22 +3354,11 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
  * the meta-data super block. This function sets MD_DIRTY, and starts a
  * timer that ensures that within five seconds you have to call drbd_md_sync().
  */
-#ifdef DEBUG
-void drbd_md_mark_dirty_(struct drbd_device *device, unsigned int line, const char *func)
-{
-	if (!test_and_set_bit(MD_DIRTY, &device->flags)) {
-		mod_timer(&device->md_sync_timer, jiffies + HZ);
-		device->last_md_mark_dirty.line = line;
-		device->last_md_mark_dirty.func = func;
-	}
-}
-#else
 void drbd_md_mark_dirty(struct drbd_device *device)
 {
 	if (!test_and_set_bit(MD_DIRTY, &device->flags))
 		mod_timer(&device->md_sync_timer, jiffies + 5*HZ);
 }
-#endif
 
 void drbd_uuid_move_history(struct drbd_device *device) __must_hold(local)
 {

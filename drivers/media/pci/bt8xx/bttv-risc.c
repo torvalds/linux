@@ -20,8 +20,8 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <media/v4l2-ioctl.h>
 
 #include "bttvp.h"

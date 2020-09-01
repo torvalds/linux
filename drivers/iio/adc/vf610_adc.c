@@ -724,12 +724,7 @@ static int vf610_adc_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct vf610_adc *info = iio_priv(indio_dev);
 	unsigned int channel;
-	int ret;
 	int val;
-
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret)
-		return ret;
 
 	val = readl(info->regs + VF610_REG_ADC_GC);
 	val |= VF610_ADC_ADCON;
@@ -761,7 +756,7 @@ static int vf610_adc_buffer_predisable(struct iio_dev *indio_dev)
 
 	writel(hc_cfg, info->regs + VF610_REG_ADC_HC0);
 
-	return iio_triggered_buffer_predisable(indio_dev);
+	return 0;
 }
 
 static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
@@ -860,8 +855,6 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	init_completion(&info->completion);
 
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &vf610_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = vf610_adc_iio_channels;

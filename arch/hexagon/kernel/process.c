@@ -50,8 +50,8 @@ void arch_cpu_idle(void)
 /*
  * Copy architecture-specific thread state
  */
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *p)
+int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct hexagon_switch_stack *ss;
@@ -100,7 +100,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * ugp is used to provide TLS support.
 	 */
 	if (clone_flags & CLONE_SETTLS)
-		childregs->ugp = childregs->r04;
+		childregs->ugp = tls;
 
 	/*
 	 * Parent sees new pid -- not necessary, not even possible at
@@ -152,15 +152,6 @@ unsigned long get_wchan(struct task_struct *p)
 
 	return 0;
 }
-
-/*
- * Required placeholder.
- */
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
-{
-	return 0;
-}
-
 
 /*
  * Called on the exit path of event entry; see vm_entry.S

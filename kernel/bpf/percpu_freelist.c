@@ -25,12 +25,18 @@ void pcpu_freelist_destroy(struct pcpu_freelist *s)
 	free_percpu(s->freelist);
 }
 
+static inline void pcpu_freelist_push_node(struct pcpu_freelist_head *head,
+					   struct pcpu_freelist_node *node)
+{
+	node->next = head->first;
+	head->first = node;
+}
+
 static inline void ___pcpu_freelist_push(struct pcpu_freelist_head *head,
 					 struct pcpu_freelist_node *node)
 {
 	raw_spin_lock(&head->lock);
-	node->next = head->first;
-	head->first = node;
+	pcpu_freelist_push_node(head, node);
 	raw_spin_unlock(&head->lock);
 }
 
@@ -56,21 +62,16 @@ void pcpu_freelist_populate(struct pcpu_freelist *s, void *buf, u32 elem_size,
 			    u32 nr_elems)
 {
 	struct pcpu_freelist_head *head;
-	unsigned long flags;
 	int i, cpu, pcpu_entries;
 
 	pcpu_entries = nr_elems / num_possible_cpus() + 1;
 	i = 0;
 
-	/* disable irq to workaround lockdep false positive
-	 * in bpf usage pcpu_freelist_populate() will never race
-	 * with pcpu_freelist_push()
-	 */
-	local_irq_save(flags);
 	for_each_possible_cpu(cpu) {
 again:
 		head = per_cpu_ptr(s->freelist, cpu);
-		___pcpu_freelist_push(head, buf);
+		/* No locking required as this is not visible yet. */
+		pcpu_freelist_push_node(head, buf);
 		i++;
 		buf += elem_size;
 		if (i == nr_elems)
@@ -78,7 +79,6 @@ again:
 		if (i % pcpu_entries)
 			goto again;
 	}
-	local_irq_restore(flags);
 }
 
 struct pcpu_freelist_node *__pcpu_freelist_pop(struct pcpu_freelist *s)

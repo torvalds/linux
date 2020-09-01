@@ -65,7 +65,7 @@ static const struct sdio_device_id if_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL,
 			SDIO_DEVICE_ID_MARVELL_LIBERTAS) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL,
-			SDIO_DEVICE_ID_MARVELL_8688WLAN) },
+			SDIO_DEVICE_ID_MARVELL_8688_WLAN) },
 	{ /* end: all zeroes */				},
 };
 
@@ -103,7 +103,7 @@ MODULE_FIRMWARE("sd8688.bin");
 struct if_sdio_packet {
 	struct if_sdio_packet	*next;
 	u16			nb;
-	u8			buffer[0] __attribute__((aligned(4)));
+	u8			buffer[] __aligned(4);
 };
 
 struct if_sdio_card {

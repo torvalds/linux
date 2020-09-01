@@ -15,7 +15,7 @@ menuconfig IOMMU_SUPPORT
 	bool "IOMMU Hardware Support"
 	depends on MMU
 	default y
-	---help---
+	help
 	  Say Y here if you want to compile device drivers for IO Memory
 	  Management Units into the kernel. These devices usually allow to
 	  remap DMA requests and/or remap interrupts from other devices on the
@@ -97,6 +97,7 @@ config OF_IOMMU
 # IOMMU-agnostic DMA-mapping layer
 config IOMMU_DMA
 	bool
+	select DMA_OPS
 	select IOMMU_API
 	select IOMMU_IOVA
 	select IRQ_MSI_IOMMU
@@ -128,144 +129,14 @@ config MSM_IOMMU
 
 	  If unsure, say N here.
 
-config IOMMU_PGTABLES_L2
-	def_bool y
-	depends on MSM_IOMMU && MMU && SMP && CPU_DCACHE_DISABLE=n
-
-# AMD IOMMU support
-config AMD_IOMMU
-	bool "AMD IOMMU support"
-	select SWIOTLB
-	select PCI_MSI
-	select PCI_ATS
-	select PCI_PRI
-	select PCI_PASID
-	select IOMMU_API
-	select IOMMU_IOVA
-	select IOMMU_DMA
-	depends on X86_64 && PCI && ACPI
-	---help---
-	  With this option you can enable support for AMD IOMMU hardware in
-	  your system. An IOMMU is a hardware component which provides
-	  remapping of DMA memory accesses from devices. With an AMD IOMMU you
-	  can isolate the DMA memory of different devices and protect the
-	  system from misbehaving device drivers or hardware.
-
-	  You can find out if your system has an AMD IOMMU if you look into
-	  your BIOS for an option to enable it or if you have an IVRS ACPI
-	  table.
-
-config AMD_IOMMU_V2
-	tristate "AMD IOMMU Version 2 driver"
-	depends on AMD_IOMMU
-	select MMU_NOTIFIER
-	---help---
-	  This option enables support for the AMD IOMMUv2 features of the IOMMU
-	  hardware. Select this option if you want to use devices that support
-	  the PCI PRI and PASID interface.
-
-config AMD_IOMMU_DEBUGFS
-	bool "Enable AMD IOMMU internals in DebugFS"
-	depends on AMD_IOMMU && IOMMU_DEBUGFS
-	---help---
-	  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!
-
-	  DO NOT ENABLE THIS OPTION UNLESS YOU REALLY, -REALLY- KNOW WHAT YOU ARE DOING!!!
-	  Exposes AMD IOMMU device internals in DebugFS.
-
-	  This option is -NOT- intended for production environments, and should
-	  not generally be enabled.
-
-# Intel IOMMU support
-config DMAR_TABLE
-	bool
-
-config INTEL_IOMMU
-	bool "Support for Intel IOMMU using DMA Remapping Devices"
-	depends on PCI_MSI && ACPI && (X86 || IA64)
-	select IOMMU_API
-	select IOMMU_IOVA
-	select NEED_DMA_MAP_STATE
-	select DMAR_TABLE
-	select SWIOTLB
-	help
-	  DMA remapping (DMAR) devices support enables independent address
-	  translations for Direct Memory Access (DMA) from devices.
-	  These DMA remapping devices are reported via ACPI tables
-	  and include PCI device scope covered by these DMA
-	  remapping devices.
-
-config INTEL_IOMMU_DEBUGFS
-	bool "Export Intel IOMMU internals in Debugfs"
-	depends on INTEL_IOMMU && IOMMU_DEBUGFS
-	help
-	  !!!WARNING!!!
-
-	  DO NOT ENABLE THIS OPTION UNLESS YOU REALLY KNOW WHAT YOU ARE DOING!!!
-
-	  Expose Intel IOMMU internals in Debugfs.
-
-	  This option is -NOT- intended for production environments, and should
-	  only be enabled for debugging Intel IOMMU.
-
-config INTEL_IOMMU_SVM
-	bool "Support for Shared Virtual Memory with Intel IOMMU"
-	depends on INTEL_IOMMU && X86
-	select PCI_PASID
-	select PCI_PRI
-	select MMU_NOTIFIER
-	select IOASID
-	help
-	  Shared Virtual Memory (SVM) provides a facility for devices
-	  to access DMA resources through process address space by
-	  means of a Process Address Space ID (PASID).
-
-config INTEL_IOMMU_DEFAULT_ON
-	def_bool y
-	prompt "Enable Intel DMA Remapping Devices by default"
-	depends on INTEL_IOMMU
-	help
-	  Selecting this option will enable a DMAR device at boot time if
-	  one is found. If this option is not selected, DMAR support can
-	  be enabled by passing intel_iommu=on to the kernel.
-
-config INTEL_IOMMU_BROKEN_GFX_WA
-	bool "Workaround broken graphics drivers (going away soon)"
-	depends on INTEL_IOMMU && BROKEN && X86
-	---help---
-	  Current Graphics drivers tend to use physical address
-	  for DMA and avoid using DMA APIs. Setting this config
-	  option permits the IOMMU driver to set a unity map for
-	  all the OS-visible memory. Hence the driver can continue
-	  to use physical addresses for DMA, at least until this
-	  option is removed in the 2.6.32 kernel.
-
-config INTEL_IOMMU_FLOPPY_WA
-	def_bool y
-	depends on INTEL_IOMMU && X86
-	---help---
-	  Floppy disk drivers are known to bypass DMA API calls
-	  thereby failing to work when IOMMU is enabled. This
-	  workaround will setup a 1:1 mapping for the first
-	  16MiB to make floppy (an ISA device) work.
-
-config INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON
-	bool "Enable Intel IOMMU scalable mode by default"
-	depends on INTEL_IOMMU
-	help
-	  Selecting this option will enable by default the scalable mode if
-	  hardware presents the capability. The scalable mode is defined in
-	  VT-d 3.0. The scalable mode capability could be checked by reading
-	  /sys/devices/virtual/iommu/dmar*/intel-iommu/ecap. If this option
-	  is not selected, scalable mode support could also be enabled by
-	  passing intel_iommu=sm_on to the kernel. If not sure, please use
-	  the default value.
+source "drivers/iommu/amd/Kconfig"
+source "drivers/iommu/intel/Kconfig"
 
 config IRQ_REMAP
 	bool "Support for Interrupt Remapping"
 	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI
 	select DMAR_TABLE
-	---help---
+	help
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
 	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
@@ -273,17 +144,16 @@ config IRQ_REMAP
 # OMAP IOMMU support
 config OMAP_IOMMU
 	bool "OMAP IOMMU Support"
-	depends on ARM && MMU
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select IOMMU_API
-	---help---
+	help
 	  The OMAP3 media platform drivers depend on iommu support,
 	  if you need them say Y here.
 
 config OMAP_IOMMU_DEBUG
 	bool "Export OMAP IOMMU internals in DebugFS"
 	depends on OMAP_IOMMU && DEBUG_FS
-	---help---
+	help
 	  Select this to see extensive information about
 	  the internal state of OMAP IOMMU in debugfs.
 
@@ -291,7 +161,6 @@ config OMAP_IOMMU_DEBUG
 
 config ROCKCHIP_IOMMU
 	bool "Rockchip IOMMU Support"
-	depends on ARM || ARM64
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
@@ -301,6 +170,15 @@ config ROCKCHIP_IOMMU
 	  cores within the multimedia subsystem.
 	  Say Y here if you are using a Rockchip SoC that includes an IOMMU
 	  device.
+
+config SUN50I_IOMMU
+	bool "Allwinner H6 IOMMU Support"
+	depends on HAS_DMA
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_API
+	help
+	  Support for the IOMMU introduced in the Allwinner H6 SoCs.
 
 config TEGRA_IOMMU_GART
 	bool "Tegra GART IOMMU Support"
@@ -325,7 +203,7 @@ config TEGRA_IOMMU_SMMU
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
-	depends on ARCH_EXYNOS && MMU
+	depends on ARCH_EXYNOS || COMPILE_TEST
 	depends on !CPU_BIG_ENDIAN # revisit driver if we can enable big-endian ptes
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
@@ -348,7 +226,6 @@ config EXYNOS_IOMMU_DEBUG
 
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"
-	depends on ARM || IOMMU_DMA
 	depends on ARCH_RENESAS || (COMPILE_TEST && !GENERIC_ATOMIC64)
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
@@ -370,7 +247,7 @@ config SPAPR_TCE_IOMMU
 # ARM IOMMU support
 config ARM_SMMU
 	tristate "ARM Ltd. System MMU (SMMU) Support"
-	depends on (ARM64 || ARM) && MMU
+	depends on ARM64 || ARM || (COMPILE_TEST && !GENERIC_ATOMIC64)
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU if ARM
@@ -440,7 +317,7 @@ config S390_IOMMU
 
 config S390_CCW_IOMMU
 	bool "S390 CCW IOMMU Support"
-	depends on S390 && CCW
+	depends on S390 && CCW || COMPILE_TEST
 	select IOMMU_API
 	help
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
@@ -448,7 +325,7 @@ config S390_CCW_IOMMU
 
 config S390_AP_IOMMU
 	bool "S390 AP IOMMU Support"
-	depends on S390 && ZCRYPT
+	depends on S390 && ZCRYPT || COMPILE_TEST
 	select IOMMU_API
 	help
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
@@ -456,11 +333,9 @@ config S390_AP_IOMMU
 
 config MTK_IOMMU
 	bool "MTK IOMMU Support"
-	depends on ARM || ARM64
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select ARM_DMA_USE_IOMMU
 	select IOMMU_API
-	select IOMMU_DMA
 	select IOMMU_IO_PGTABLE_ARMV7S
 	select MEMORY
 	select MTK_SMI
@@ -506,8 +381,8 @@ config HYPERV_IOMMU
 	  guests to run with x2APIC mode enabled.
 
 config VIRTIO_IOMMU
-	bool "Virtio IOMMU driver"
-	depends on VIRTIO=y
+	tristate "Virtio IOMMU driver"
+	depends on VIRTIO
 	depends on ARM64
 	select IOMMU_API
 	select INTERVAL_TREE

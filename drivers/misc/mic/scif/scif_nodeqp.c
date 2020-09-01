@@ -443,6 +443,7 @@ static void scif_deinit_p2p_info(struct scif_dev *scifdev,
 
 /**
  * scif_node_connect: Respond to SCIF_NODE_CONNECT interrupt message
+ * @scifdev: SCIF device
  * @dst: Destination node
  *
  * Connect the src and dst node by setting up the p2p connection
@@ -660,7 +661,7 @@ int scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
 	struct device *spdev = NULL;
 
 	if (msg->uop > SCIF_EXIT_ACK) {
-		/* Dont send messages once the exit flow has begun */
+		/* Don't send messages once the exit flow has begun */
 		if (OP_IDLE != scifdev->exit)
 			return -ENODEV;
 		spdev = scif_get_peer_dev(scifdev);
@@ -719,7 +720,7 @@ scif_init(struct scif_dev *scifdev, struct scifmsg *msg)
 /**
  * scif_exit() - Respond to SCIF_EXIT interrupt message
  * @scifdev:    Remote SCIF device node
- * @msg:        Interrupt message
+ * @unused:     Interrupt message (unused)
  *
  * This function stops the SCIF interface for the node which sent
  * the SCIF_EXIT message and starts waiting for that node to
@@ -740,7 +741,7 @@ scif_exit(struct scif_dev *scifdev, struct scifmsg *unused)
 /**
  * scif_exitack() - Respond to SCIF_EXIT_ACK interrupt message
  * @scifdev:    Remote SCIF device node
- * @msg:        Interrupt message
+ * @unused:     Interrupt message (unused)
  *
  */
 static __always_inline void
@@ -930,6 +931,7 @@ local_error:
 
 /**
  * scif_node_add_nack: Respond to SCIF_NODE_ADD_NACK interrupt message
+ * @scifdev:    Remote SCIF device node
  * @msg:        Interrupt message
  *
  * SCIF_NODE_ADD failed, so inform the waiting wq.
@@ -946,8 +948,9 @@ scif_node_add_nack(struct scif_dev *scifdev, struct scifmsg *msg)
 	}
 }
 
-/*
+/**
  * scif_node_remove: Handle SCIF_NODE_REMOVE message
+ * @scifdev:    Remote SCIF device node
  * @msg: Interrupt message
  *
  * Handle node removal.
@@ -962,8 +965,9 @@ scif_node_remove(struct scif_dev *scifdev, struct scifmsg *msg)
 	scif_handle_remove_node(node);
 }
 
-/*
+/**
  * scif_node_remove_ack: Handle SCIF_NODE_REMOVE_ACK message
+ * @scifdev:    Remote SCIF device node
  * @msg: Interrupt message
  *
  * The peer has acked a SCIF_NODE_REMOVE message.
@@ -979,6 +983,7 @@ scif_node_remove_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 
 /**
  * scif_get_node_info: Respond to SCIF_GET_NODE_INFO interrupt message
+ * @scifdev:    Remote SCIF device node
  * @msg:        Interrupt message
  *
  * Retrieve node info i.e maxid and total from the mgmt node.
@@ -1058,6 +1063,7 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 	scif_recv_sig_resp,	/* SCIF_SIG_NACK */
 };
 
+static int scif_max_msg_id = SCIF_MAX_MSG;
 /**
  * scif_nodeqp_msg_handler() - Common handler for node messages
  * @scifdev: Remote device to respond to
@@ -1067,8 +1073,6 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
  * This routine calls the appropriate routine to handle a Node Qp
  * message receipt
  */
-static int scif_max_msg_id = SCIF_MAX_MSG;
-
 static void
 scif_nodeqp_msg_handler(struct scif_dev *scifdev,
 			struct scif_qp *qp, struct scifmsg *msg)
@@ -1117,7 +1121,7 @@ void scif_nodeqp_intrhandler(struct scif_dev *scifdev, struct scif_qp *qp)
 
 /**
  * scif_loopb_wq_handler - Loopback Workqueue Handler.
- * @work: loop back work
+ * @unused: loop back work (unused)
  *
  * This work queue routine is invoked by the loopback work queue handler.
  * It grabs the recv lock, dequeues any available messages from the head

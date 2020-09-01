@@ -4,7 +4,7 @@
  * and monitor. Users can read all ADC inputs along with their labels
  * using the sysfs nodes.
  *
- * Copyright (c) 2014 Echo360 http://www.echo360.com
+ * Copyright (c) 2014 Echo360 https://www.echo360.com
  * Scott Kanowitz <skanowitz@echo360.com> <scott.kanowitz@gmail.com>
  */
 

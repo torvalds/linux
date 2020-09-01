@@ -5,8 +5,11 @@
 
 #include <drm/drm_atomic_state_helper.h>
 
+#include "intel_atomic.h"
 #include "intel_bw.h"
+#include "intel_cdclk.h"
 #include "intel_display_types.h"
+#include "intel_pm.h"
 #include "intel_sideband.h"
 
 /* Parameters for Qclk Geyserville (QGV) */
@@ -113,6 +116,26 @@ static int icl_pcode_read_qgv_point_info(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
+				  u32 points_mask)
+{
+	int ret;
+
+	/* bspec says to keep retrying for at least 1 ms */
+	ret = skl_pcode_request(dev_priv, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
+				points_mask,
+				ICL_PCODE_POINTS_RESTRICTED_MASK,
+				ICL_PCODE_POINTS_RESTRICTED,
+				1);
+
+	if (ret < 0) {
+		drm_err(&dev_priv->drm, "Failed to disable qgv points (%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 			      struct intel_qgv_info *qi)
 {
@@ -122,7 +145,8 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 	if (ret)
 		return ret;
 
-	if (WARN_ON(qi->num_points > ARRAY_SIZE(qi->points)))
+	if (drm_WARN_ON(&dev_priv->drm,
+			qi->num_points > ARRAY_SIZE(qi->points)))
 		qi->num_points = ARRAY_SIZE(qi->points);
 
 	for (i = 0; i < qi->num_points; i++) {
@@ -132,9 +156,10 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 		if (ret)
 			return ret;
 
-		DRM_DEBUG_KMS("QGV %d: DCLK=%d tRP=%d tRDPRE=%d tRAS=%d tRCD=%d tRC=%d\n",
-			      i, sp->dclk, sp->t_rp, sp->t_rdpre, sp->t_ras,
-			      sp->t_rcd, sp->t_rc);
+		drm_dbg_kms(&dev_priv->drm,
+			    "QGV %d: DCLK=%d tRP=%d tRDPRE=%d tRAS=%d tRCD=%d tRC=%d\n",
+			    i, sp->dclk, sp->t_rp, sp->t_rdpre, sp->t_ras,
+			    sp->t_rcd, sp->t_rc);
 	}
 
 	return 0;
@@ -174,6 +199,12 @@ static const struct intel_sa_info tgl_sa_info = {
 	.displayrtids = 256,
 };
 
+static const struct intel_sa_info rkl_sa_info = {
+	.deburst = 16,
+	.deprogbwlimit = 20, /* GB/s */
+	.displayrtids = 128,
+};
+
 static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel_sa_info *sa)
 {
 	struct intel_qgv_info qi = {};
@@ -187,7 +218,8 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 
 	ret = icl_get_qgv_points(dev_priv, &qi);
 	if (ret) {
-		DRM_DEBUG_KMS("Failed to get memory subsystem information, ignoring bandwidth limits");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Failed to get memory subsystem information, ignoring bandwidth limits");
 		return ret;
 	}
 	num_channels = qi.num_channels;
@@ -228,13 +260,24 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 			bi->deratedbw[j] = min(maxdebw,
 					       bw * 9 / 10); /* 90% */
 
-			DRM_DEBUG_KMS("BW%d / QGV %d: num_planes=%d deratedbw=%u\n",
-				      i, j, bi->num_planes, bi->deratedbw[j]);
+			drm_dbg_kms(&dev_priv->drm,
+				    "BW%d / QGV %d: num_planes=%d deratedbw=%u\n",
+				    i, j, bi->num_planes, bi->deratedbw[j]);
 		}
 
 		if (bi->num_planes == 1)
 			break;
 	}
+
+	/*
+	 * In case if SAGV is disabled in BIOS, we always get 1
+	 * SAGV point, but we can't send PCode commands to restrict it
+	 * as it will fail and pointless anyway.
+	 */
+	if (qi.num_points == 1)
+		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+	else
+		dev_priv->sagv_status = I915_SAGV_ENABLED;
 
 	return 0;
 }
@@ -243,6 +286,11 @@ static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,
 			       int num_planes, int qgv_point)
 {
 	int i;
+
+	/*
+	 * Let's return max bw for 0 planes
+	 */
+	num_planes = max(1, num_planes);
 
 	for (i = 0; i < ARRAY_SIZE(dev_priv->max_bw); i++) {
 		const struct intel_bw_info *bi =
@@ -267,38 +315,12 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (IS_GEN(dev_priv, 12))
+	if (IS_ROCKETLAKE(dev_priv))
+		icl_get_bw_info(dev_priv, &rkl_sa_info);
+	else if (IS_GEN(dev_priv, 12))
 		icl_get_bw_info(dev_priv, &tgl_sa_info);
 	else if (IS_GEN(dev_priv, 11))
 		icl_get_bw_info(dev_priv, &icl_sa_info);
-}
-
-static unsigned int intel_max_data_rate(struct drm_i915_private *dev_priv,
-					int num_planes)
-{
-	if (INTEL_GEN(dev_priv) >= 11) {
-		/*
-		 * Any bw group has same amount of QGV points
-		 */
-		const struct intel_bw_info *bi =
-			&dev_priv->max_bw[0];
-		unsigned int min_bw = UINT_MAX;
-		int i;
-
-		/*
-		 * FIXME with SAGV disabled maybe we can assume
-		 * point 1 will always be used? Seems to match
-		 * the behaviour observed in the wild.
-		 */
-		for (i = 0; i < bi->num_qgv_points; i++) {
-			unsigned int bw = icl_max_bw(dev_priv, num_planes, i);
-
-			min_bw = min(bw, min_bw);
-		}
-		return min_bw;
-	} else {
-		return UINT_MAX;
-	}
 }
 
 static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_state *crtc_state)
@@ -334,16 +356,17 @@ void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 			  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	bw_state->data_rate[crtc->pipe] =
 		intel_bw_crtc_data_rate(crtc_state);
 	bw_state->num_active_planes[crtc->pipe] =
 		intel_bw_crtc_num_active_planes(crtc_state);
 
-	DRM_DEBUG_KMS("pipe %c data rate %u num active planes %u\n",
-		      pipe_name(crtc->pipe),
-		      bw_state->data_rate[crtc->pipe],
-		      bw_state->num_active_planes[crtc->pipe]);
+	drm_dbg_kms(&i915->drm, "pipe %c data rate %u num active planes %u\n",
+		    pipe_name(crtc->pipe),
+		    bw_state->data_rate[crtc->pipe],
+		    bw_state->num_active_planes[crtc->pipe]);
 }
 
 static unsigned int intel_bw_num_active_planes(struct drm_i915_private *dev_priv,
@@ -370,29 +393,190 @@ static unsigned int intel_bw_data_rate(struct drm_i915_private *dev_priv,
 	return data_rate;
 }
 
-static struct intel_bw_state *
+struct intel_bw_state *
+intel_atomic_get_old_bw_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_global_state *bw_state;
+
+	bw_state = intel_atomic_get_old_global_obj_state(state, &dev_priv->bw_obj);
+
+	return to_intel_bw_state(bw_state);
+}
+
+struct intel_bw_state *
+intel_atomic_get_new_bw_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_global_state *bw_state;
+
+	bw_state = intel_atomic_get_new_global_obj_state(state, &dev_priv->bw_obj);
+
+	return to_intel_bw_state(bw_state);
+}
+
+struct intel_bw_state *
 intel_atomic_get_bw_state(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct drm_private_state *bw_state;
+	struct intel_global_state *bw_state;
 
-	bw_state = drm_atomic_get_private_obj_state(&state->base,
-						    &dev_priv->bw_obj);
+	bw_state = intel_atomic_get_global_obj_state(state, &dev_priv->bw_obj);
 	if (IS_ERR(bw_state))
 		return ERR_CAST(bw_state);
 
 	return to_intel_bw_state(bw_state);
 }
 
+int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_bw_state *new_bw_state = NULL;
+	struct intel_bw_state *old_bw_state = NULL;
+	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int max_bw = 0;
+	int slice_id;
+	enum pipe pipe;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		enum plane_id plane_id;
+		struct intel_dbuf_bw *crtc_bw;
+
+		new_bw_state = intel_atomic_get_bw_state(state);
+		if (IS_ERR(new_bw_state))
+			return PTR_ERR(new_bw_state);
+
+		old_bw_state = intel_atomic_get_old_bw_state(state);
+
+		crtc_bw = &new_bw_state->dbuf_bw[crtc->pipe];
+
+		memset(&crtc_bw->used_bw, 0, sizeof(crtc_bw->used_bw));
+
+		if (!crtc_state->hw.active)
+			continue;
+
+		for_each_plane_id_on_crtc(crtc, plane_id) {
+			const struct skl_ddb_entry *plane_alloc =
+				&crtc_state->wm.skl.plane_ddb_y[plane_id];
+			const struct skl_ddb_entry *uv_plane_alloc =
+				&crtc_state->wm.skl.plane_ddb_uv[plane_id];
+			unsigned int data_rate = crtc_state->data_rate[plane_id];
+			unsigned int dbuf_mask = 0;
+
+			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, plane_alloc);
+			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, uv_plane_alloc);
+
+			/*
+			 * FIXME: To calculate that more properly we probably
+			 * need to to split per plane data_rate into data_rate_y
+			 * and data_rate_uv for multiplanar formats in order not
+			 * to get accounted those twice if they happen to reside
+			 * on different slices.
+			 * However for pre-icl this would work anyway because
+			 * we have only single slice and for icl+ uv plane has
+			 * non-zero data rate.
+			 * So in worst case those calculation are a bit
+			 * pessimistic, which shouldn't pose any significant
+			 * problem anyway.
+			 */
+			for_each_dbuf_slice_in_mask(slice_id, dbuf_mask)
+				crtc_bw->used_bw[slice_id] += data_rate;
+		}
+	}
+
+	if (!old_bw_state)
+		return 0;
+
+	for_each_pipe(dev_priv, pipe) {
+		struct intel_dbuf_bw *crtc_bw;
+
+		crtc_bw = &new_bw_state->dbuf_bw[pipe];
+
+		for_each_dbuf_slice(slice_id) {
+			/*
+			 * Current experimental observations show that contrary
+			 * to BSpec we get underruns once we exceed 64 * CDCLK
+			 * for slices in total.
+			 * As a temporary measure in order not to keep CDCLK
+			 * bumped up all the time we calculate CDCLK according
+			 * to this formula for  overall bw consumed by slices.
+			 */
+			max_bw += crtc_bw->used_bw[slice_id];
+		}
+	}
+
+	new_bw_state->min_cdclk = max_bw / 64;
+
+	if (new_bw_state->min_cdclk != old_bw_state->min_cdclk) {
+		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_bw_state *new_bw_state = NULL;
+	struct intel_bw_state *old_bw_state = NULL;
+	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int min_cdclk = 0;
+	enum pipe pipe;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		new_bw_state = intel_atomic_get_bw_state(state);
+		if (IS_ERR(new_bw_state))
+			return PTR_ERR(new_bw_state);
+
+		old_bw_state = intel_atomic_get_old_bw_state(state);
+	}
+
+	if (!old_bw_state)
+		return 0;
+
+	for_each_pipe(dev_priv, pipe) {
+		struct intel_cdclk_state *cdclk_state;
+
+		cdclk_state = intel_atomic_get_new_cdclk_state(state);
+		if (!cdclk_state)
+			return 0;
+
+		min_cdclk = max(cdclk_state->min_cdclk[pipe], min_cdclk);
+	}
+
+	new_bw_state->min_cdclk = min_cdclk;
+
+	if (new_bw_state->min_cdclk != old_bw_state->min_cdclk) {
+		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int intel_bw_atomic_check(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
-	struct intel_bw_state *bw_state = NULL;
-	unsigned int data_rate, max_data_rate;
+	struct intel_bw_state *new_bw_state = NULL;
+	const struct intel_bw_state *old_bw_state = NULL;
+	unsigned int data_rate;
 	unsigned int num_active_planes;
 	struct intel_crtc *crtc;
-	int i;
+	int i, ret;
+	u32 allowed_points = 0;
+	unsigned int max_bw_point = 0, max_bw = 0;
+	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
+	u32 mask = (1 << num_qgv_points) - 1;
 
 	/* FIXME earlier gens need some checks too */
 	if (INTEL_GEN(dev_priv) < 11)
@@ -417,39 +601,98 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		    old_active_planes == new_active_planes)
 			continue;
 
-		bw_state  = intel_atomic_get_bw_state(state);
-		if (IS_ERR(bw_state))
-			return PTR_ERR(bw_state);
+		new_bw_state = intel_atomic_get_bw_state(state);
+		if (IS_ERR(new_bw_state))
+			return PTR_ERR(new_bw_state);
 
-		bw_state->data_rate[crtc->pipe] = new_data_rate;
-		bw_state->num_active_planes[crtc->pipe] = new_active_planes;
+		new_bw_state->data_rate[crtc->pipe] = new_data_rate;
+		new_bw_state->num_active_planes[crtc->pipe] = new_active_planes;
 
-		DRM_DEBUG_KMS("pipe %c data rate %u num active planes %u\n",
-			      pipe_name(crtc->pipe),
-			      bw_state->data_rate[crtc->pipe],
-			      bw_state->num_active_planes[crtc->pipe]);
+		drm_dbg_kms(&dev_priv->drm,
+			    "pipe %c data rate %u num active planes %u\n",
+			    pipe_name(crtc->pipe),
+			    new_bw_state->data_rate[crtc->pipe],
+			    new_bw_state->num_active_planes[crtc->pipe]);
 	}
 
-	if (!bw_state)
+	if (!new_bw_state)
 		return 0;
 
-	data_rate = intel_bw_data_rate(dev_priv, bw_state);
-	num_active_planes = intel_bw_num_active_planes(dev_priv, bw_state);
+	ret = intel_atomic_lock_global_state(&new_bw_state->base);
+	if (ret)
+		return ret;
 
-	max_data_rate = intel_max_data_rate(dev_priv, num_active_planes);
-
+	data_rate = intel_bw_data_rate(dev_priv, new_bw_state);
 	data_rate = DIV_ROUND_UP(data_rate, 1000);
 
-	if (data_rate > max_data_rate) {
-		DRM_DEBUG_KMS("Bandwidth %u MB/s exceeds max available %d MB/s (%d active planes)\n",
-			      data_rate, max_data_rate, num_active_planes);
+	num_active_planes = intel_bw_num_active_planes(dev_priv, new_bw_state);
+
+	for (i = 0; i < num_qgv_points; i++) {
+		unsigned int max_data_rate;
+
+		max_data_rate = icl_max_bw(dev_priv, num_active_planes, i);
+		/*
+		 * We need to know which qgv point gives us
+		 * maximum bandwidth in order to disable SAGV
+		 * if we find that we exceed SAGV block time
+		 * with watermarks. By that moment we already
+		 * have those, as it is calculated earlier in
+		 * intel_atomic_check,
+		 */
+		if (max_data_rate > max_bw) {
+			max_bw_point = i;
+			max_bw = max_data_rate;
+		}
+		if (max_data_rate >= data_rate)
+			allowed_points |= BIT(i);
+		drm_dbg_kms(&dev_priv->drm, "QGV point %d: max bw %d required %d\n",
+			    i, max_data_rate, data_rate);
+	}
+
+	/*
+	 * BSpec states that we always should have at least one allowed point
+	 * left, so if we couldn't - simply reject the configuration for obvious
+	 * reasons.
+	 */
+	if (allowed_points == 0) {
+		drm_dbg_kms(&dev_priv->drm, "No QGV points provide sufficient memory"
+			    " bandwidth %d for display configuration(%d active planes).\n",
+			    data_rate, num_active_planes);
 		return -EINVAL;
+	}
+
+	/*
+	 * Leave only single point with highest bandwidth, if
+	 * we can't enable SAGV due to the increased memory latency it may
+	 * cause.
+	 */
+	if (!intel_can_enable_sagv(dev_priv, new_bw_state)) {
+		allowed_points = BIT(max_bw_point);
+		drm_dbg_kms(&dev_priv->drm, "No SAGV, using single QGV point %d\n",
+			    max_bw_point);
+	}
+	/*
+	 * We store the ones which need to be masked as that is what PCode
+	 * actually accepts as a parameter.
+	 */
+	new_bw_state->qgv_points_mask = ~allowed_points & mask;
+
+	old_bw_state = intel_atomic_get_old_bw_state(state);
+	/*
+	 * If the actual mask had changed we need to make sure that
+	 * the commits are serialized(in case this is a nomodeset, nonblocking)
+	 */
+	if (new_bw_state->qgv_points_mask != old_bw_state->qgv_points_mask) {
+		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
 }
 
-static struct drm_private_state *intel_bw_duplicate_state(struct drm_private_obj *obj)
+static struct intel_global_state *
+intel_bw_duplicate_state(struct intel_global_obj *obj)
 {
 	struct intel_bw_state *state;
 
@@ -457,18 +700,16 @@ static struct drm_private_state *intel_bw_duplicate_state(struct drm_private_obj
 	if (!state)
 		return NULL;
 
-	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
-
 	return &state->base;
 }
 
-static void intel_bw_destroy_state(struct drm_private_obj *obj,
-				   struct drm_private_state *state)
+static void intel_bw_destroy_state(struct intel_global_obj *obj,
+				   struct intel_global_state *state)
 {
 	kfree(state);
 }
 
-static const struct drm_private_state_funcs intel_bw_funcs = {
+static const struct intel_global_state_funcs intel_bw_funcs = {
 	.atomic_duplicate_state = intel_bw_duplicate_state,
 	.atomic_destroy_state = intel_bw_destroy_state,
 };
@@ -481,13 +722,8 @@ int intel_bw_init(struct drm_i915_private *dev_priv)
 	if (!state)
 		return -ENOMEM;
 
-	drm_atomic_private_obj_init(&dev_priv->drm, &dev_priv->bw_obj,
-				    &state->base, &intel_bw_funcs);
+	intel_atomic_global_obj_init(dev_priv, &dev_priv->bw_obj,
+				     &state->base, &intel_bw_funcs);
 
 	return 0;
-}
-
-void intel_bw_cleanup(struct drm_i915_private *dev_priv)
-{
-	drm_atomic_private_obj_fini(&dev_priv->bw_obj);
 }

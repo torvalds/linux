@@ -76,6 +76,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_MODESET,
 	POWER_DOMAIN_GT_IRQ,
 	POWER_DOMAIN_DPLL_DC_OFF,
+	POWER_DOMAIN_TC_COLD_OFF,
 	POWER_DOMAIN_INIT,
 
 	POWER_DOMAIN_NUM,
@@ -100,6 +101,7 @@ enum i915_power_well_id {
 	SKL_DISP_PW_MISC_IO,
 	SKL_DISP_PW_1,
 	SKL_DISP_PW_2,
+	ICL_DISP_PW_3,
 	SKL_DISP_DC_OFF,
 };
 
@@ -265,6 +267,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain);
 
 bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain);
+bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
+					 enum i915_power_well_id power_well_id);
 bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain);
 intel_wakeref_t intel_display_power_get(struct drm_i915_private *dev_priv,
@@ -307,12 +311,18 @@ intel_display_power_put_async(struct drm_i915_private *i915,
 }
 #endif
 
+enum dbuf_slice {
+	DBUF_S1,
+	DBUF_S2,
+	I915_MAX_DBUF_SLICES
+};
+
+void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
+			     u8 req_slices);
+
 #define with_intel_display_power(i915, domain, wf) \
 	for ((wf) = intel_display_power_get((i915), (domain)); (wf); \
 	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = 0)
-
-void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
-			    u8 req_slices);
 
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 			     bool override, unsigned int mask);

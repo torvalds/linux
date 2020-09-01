@@ -26,7 +26,7 @@
 #define VSC73XX_CMD_SPI_BLOCK_MASK		0x7
 #define VSC73XX_CMD_SPI_SUBBLOCK_MASK		0xf
 
-/**
+/*
  * struct vsc73xx_spi - VSC73xx SPI state container
  */
 struct vsc73xx_spi {

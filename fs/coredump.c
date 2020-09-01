@@ -153,10 +153,10 @@ int cn_esc_printf(struct core_name *cn, const char *fmt, ...)
 	return ret;
 }
 
-static int cn_print_exe_file(struct core_name *cn)
+static int cn_print_exe_file(struct core_name *cn, bool name_only)
 {
 	struct file *exe_file;
-	char *pathbuf, *path;
+	char *pathbuf, *path, *ptr;
 	int ret;
 
 	exe_file = get_mm_exe_file(current->mm);
@@ -175,6 +175,11 @@ static int cn_print_exe_file(struct core_name *cn)
 		goto free_buf;
 	}
 
+	if (name_only) {
+		ptr = strrchr(path, '/');
+		if (ptr)
+			path = ptr + 1;
+	}
 	ret = cn_esc_printf(cn, "%s", path);
 
 free_buf:
@@ -211,6 +216,8 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 			return -ENOMEM;
 		(*argv)[(*argc)++] = 0;
 		++pat_ptr;
+		if (!(*pat_ptr))
+			return -ENOMEM;
 	}
 
 	/* Repeat as long as we have more pattern to process and more output
@@ -299,12 +306,16 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 					      utsname()->nodename);
 				up_read(&uts_sem);
 				break;
-			/* executable */
+			/* executable, could be changed by prctl PR_SET_NAME etc */
 			case 'e':
 				err = cn_esc_printf(cn, "%s", current->comm);
 				break;
+			/* file name of executable */
+			case 'f':
+				err = cn_print_exe_file(cn, true);
+				break;
 			case 'E':
-				err = cn_print_exe_file(cn);
+				err = cn_print_exe_file(cn, false);
 				break;
 			/* core limit size */
 			case 'c':
@@ -391,7 +402,7 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	 *	of ->siglock provides a memory barrier.
 	 *
 	 * do_exit:
-	 *	The caller holds mm->mmap_sem. This means that the task which
+	 *	The caller holds mm->mmap_lock. This means that the task which
 	 *	uses this mm can't pass exit_mm(), so it can't exit or clear
 	 *	its ->mm.
 	 *
@@ -399,7 +410,7 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	 *	It does list_replace_rcu(&leader->tasks, &current->tasks),
 	 *	we must see either old or new leader, this does not matter.
 	 *	However, it can change p->sighand, so lock_task_sighand(p)
-	 *	must be used. Since p->mm != NULL and we hold ->mmap_sem
+	 *	must be used. Since p->mm != NULL and we hold ->mmap_lock
 	 *	it can't fail.
 	 *
 	 *	Note also that "g" can be the old leader with ->mm == NULL
@@ -443,12 +454,12 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	core_state->dumper.task = tsk;
 	core_state->dumper.next = NULL;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
 	if (!mm->core_state)
 		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 
 	if (core_waiters > 0) {
 		struct core_thread *ptr;
@@ -786,6 +797,14 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	if (displaced)
 		put_files_struct(displaced);
 	if (!dump_interrupted()) {
+		/*
+		 * umh disabled with CONFIG_STATIC_USERMODEHELPER_PATH="" would
+		 * have this set to NULL.
+		 */
+		if (!cprm.file) {
+			pr_info("Core dump to |%s disabled\n", cn.corename);
+			goto close_fail;
+		}
 		file_start_write(cprm.file);
 		core_dumped = binfmt->core_dump(&cprm);
 		file_end_write(cprm.file);

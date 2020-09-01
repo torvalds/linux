@@ -47,4 +47,4 @@ led-controller@2d {
 }
 
 For more product information please see the link below:
-http://www.ti.com/product/lp8860-q1
+https://www.ti.com/product/lp8860-q1

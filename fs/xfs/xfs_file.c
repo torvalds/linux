@@ -80,19 +80,9 @@ xfs_dir_fsync(
 	int			datasync)
 {
 	struct xfs_inode	*ip = XFS_I(file->f_mapping->host);
-	struct xfs_mount	*mp = ip->i_mount;
-	xfs_lsn_t		lsn = 0;
 
 	trace_xfs_dir_fsync(ip);
-
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	if (xfs_ipincount(ip))
-		lsn = ip->i_itemp->ili_last_lsn;
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-
-	if (!lsn)
-		return 0;
-	return xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
+	return xfs_log_force_inode(ip);
 }
 
 STATIC int
@@ -104,6 +94,7 @@ xfs_file_fsync(
 {
 	struct inode		*inode = file->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_inode_log_item *iip = ip->i_itemp;
 	struct xfs_mount	*mp = ip->i_mount;
 	int			error = 0;
 	int			log_flushed = 0;
@@ -147,13 +138,15 @@ xfs_file_fsync(
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	if (xfs_ipincount(ip)) {
 		if (!datasync ||
-		    (ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
-			lsn = ip->i_itemp->ili_last_lsn;
+		    (iip->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
+			lsn = iip->ili_last_lsn;
 	}
 
 	if (lsn) {
 		error = xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, &log_flushed);
-		ip->i_itemp->ili_fsync_fields = 0;
+		spin_lock(&iip->ili_lock);
+		iip->ili_fsync_fields = 0;
+		spin_unlock(&iip->ili_lock);
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
@@ -515,7 +508,7 @@ xfs_file_dio_aio_write(
 		 */
 		if (xfs_is_cow_inode(ip)) {
 			trace_xfs_reflink_bounce_dio_write(ip, iocb->ki_pos, count);
-			return -EREMCHG;
+			return -ENOTBLK;
 		}
 		iolock = XFS_IOLOCK_EXCL;
 	} else {
@@ -563,8 +556,8 @@ out:
 	xfs_iunlock(ip, iolock);
 
 	/*
-	 * No fallback to buffered IO on errors for XFS, direct IO will either
-	 * complete fully or fail.
+	 * No fallback to buffered IO after short writes for XFS, direct I/O
+	 * will either complete fully or return an error.
 	 */
 	ASSERT(ret < 0 || ret == count);
 	return ret;
@@ -724,7 +717,7 @@ xfs_file_write_iter(
 		 * allow an operation to fall back to buffered mode.
 		 */
 		ret = xfs_file_dio_aio_write(iocb, from);
-		if (ret != -EREMCHG)
+		if (ret != -ENOTBLK)
 			return ret;
 	}
 
@@ -1045,7 +1038,7 @@ xfs_file_remap_range(
 	/* Prepare and then clone file data. */
 	ret = xfs_reflink_remap_prep(file_in, pos_in, file_out, pos_out,
 			&len, remap_flags);
-	if (ret < 0 || len == 0)
+	if (ret || len == 0)
 		return ret;
 
 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
@@ -1069,9 +1062,13 @@ xfs_file_remap_range(
 
 	ret = xfs_reflink_update_dest(dest, pos_out + len, cowextsize,
 			remap_flags);
+	if (ret)
+		goto out_unlock;
 
+	if (mp->m_flags & XFS_MOUNT_WSYNC)
+		xfs_log_force_inode(dest);
 out_unlock:
-	xfs_reflink_remap_unlock(file_in, file_out);
+	xfs_iunlock2_io_mmap(src, dest);
 	if (ret)
 		trace_xfs_reflink_remap_range_error(dest, ret, _RET_IP_);
 	return remapped > 0 ? remapped : ret;
@@ -1086,7 +1083,7 @@ xfs_file_open(
 		return -EFBIG;
 	if (XFS_FORCED_SHUTDOWN(XFS_M(inode->i_sb)))
 		return -EIO;
-	file->f_mode |= FMODE_NOWAIT;
+	file->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC;
 	return 0;
 }
 
@@ -1108,7 +1105,7 @@ xfs_dir_open(
 	 * certain to have the next operation be a read there.
 	 */
 	mode = xfs_ilock_data_map_shared(ip);
-	if (ip->i_d.di_nextents > 0)
+	if (ip->i_df.if_nextents > 0)
 		error = xfs_dir3_data_readahead(ip, 0, 0);
 	xfs_iunlock(ip, mode);
 	return error;
@@ -1179,7 +1176,7 @@ xfs_file_llseek(
  * Locking for serialisation of IO during page faults. This results in a lock
  * ordering of:
  *
- * mmap_sem (MM)
+ * mmap_lock (MM)
  *   sb_start_pagefault(vfs, freeze)
  *     i_mmaplock (XFS - truncate serialisation)
  *       page_lock (MM)
@@ -1269,10 +1266,23 @@ xfs_filemap_pfn_mkwrite(
 	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
 }
 
+static void
+xfs_filemap_map_pages(
+	struct vm_fault		*vmf,
+	pgoff_t			start_pgoff,
+	pgoff_t			end_pgoff)
+{
+	struct inode		*inode = file_inode(vmf->vma->vm_file);
+
+	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+	filemap_map_pages(vmf, start_pgoff, end_pgoff);
+	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+}
+
 static const struct vm_operations_struct xfs_file_vm_ops = {
 	.fault		= xfs_filemap_fault,
 	.huge_fault	= xfs_filemap_huge_fault,
-	.map_pages	= filemap_map_pages,
+	.map_pages	= xfs_filemap_map_pages,
 	.page_mkwrite	= xfs_filemap_page_mkwrite,
 	.pfn_mkwrite	= xfs_filemap_pfn_mkwrite,
 };

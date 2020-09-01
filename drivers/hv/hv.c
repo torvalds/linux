@@ -117,8 +117,6 @@ int hv_synic_alloc(void)
 			pr_err("Unable to allocate post msg page\n");
 			goto err;
 		}
-
-		INIT_LIST_HEAD(&hv_cpu->chan_list);
 	}
 
 	return 0;
@@ -184,11 +182,7 @@ void hv_synic_enable_regs(unsigned int cpu)
 
 	shared_sint.vector = HYPERVISOR_CALLBACK_VECTOR;
 	shared_sint.masked = false;
-	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
-		shared_sint.auto_eoi = false;
-	else
-		shared_sint.auto_eoi = true;
-
+	shared_sint.auto_eoi = hv_recommend_using_aeoi();
 	hv_set_synint_state(VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
 
 	/* Enable the global synic bit */
@@ -247,13 +241,20 @@ int hv_synic_cleanup(unsigned int cpu)
 {
 	struct vmbus_channel *channel, *sc;
 	bool channel_found = false;
-	unsigned long flags;
+
+	/*
+	 * Hyper-V does not provide a way to change the connect CPU once
+	 * it is set; we must prevent the connect CPU from going offline.
+	 */
+	if (cpu == VMBUS_CONNECT_CPU)
+		return -EBUSY;
 
 	/*
 	 * Search for channels which are bound to the CPU we're about to
-	 * cleanup. In case we find one and vmbus is still connected we need to
-	 * fail, this will effectively prevent CPU offlining. There is no way
-	 * we can re-bind channels to different CPUs for now.
+	 * cleanup.  In case we find one and vmbus is still connected, we
+	 * fail; this will effectively prevent CPU offlining.
+	 *
+	 * TODO: Re-bind the channels to different CPUs.
 	 */
 	mutex_lock(&vmbus_connection.channel_mutex);
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
@@ -261,14 +262,12 @@ int hv_synic_cleanup(unsigned int cpu)
 			channel_found = true;
 			break;
 		}
-		spin_lock_irqsave(&channel->lock, flags);
 		list_for_each_entry(sc, &channel->sc_list, sc_list) {
 			if (sc->target_cpu == cpu) {
 				channel_found = true;
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&channel->lock, flags);
 		if (channel_found)
 			break;
 	}

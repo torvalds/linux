@@ -170,7 +170,7 @@ void b53_serdes_phylink_validate(struct b53_device *dev, int port,
 	switch (lane) {
 	case 0:
 		phylink_set(supported, 2500baseX_Full);
-		/* fallthrough */
+		fallthrough;
 	case 1:
 		phylink_set(supported, 1000baseX_Full);
 		break;

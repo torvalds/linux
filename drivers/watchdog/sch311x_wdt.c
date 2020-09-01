@@ -295,7 +295,7 @@ static long sch311x_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (sch311x_wdt_set_heartbeat(new_timeout))
 			return -EINVAL;
 		sch311x_wdt_keepalive();
-		/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 	default:

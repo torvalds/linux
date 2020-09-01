@@ -319,6 +319,8 @@ struct via_crdr_mmc_host {
 /* some devices need a very long delay for power to stabilize */
 #define VIA_CRDR_QUIRK_300MS_PWRDELAY	0x0001
 
+#define VIA_CMD_TIMEOUT_MS		1000
+
 static const struct pci_device_id via_ids[] = {
 	{PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_9530,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0,},
@@ -551,13 +553,16 @@ static void via_sdc_send_command(struct via_crdr_mmc_host *host,
 {
 	void __iomem *addrbase;
 	struct mmc_data *data;
+	unsigned int timeout_ms;
 	u32 cmdctrl = 0;
 
 	WARN_ON(host->cmd);
 
 	data = cmd->data;
-	mod_timer(&host->timer, jiffies + HZ);
 	host->cmd = cmd;
+
+	timeout_ms = cmd->busy_timeout ? cmd->busy_timeout : VIA_CMD_TIMEOUT_MS;
+	mod_timer(&host->timer, jiffies + msecs_to_jiffies(timeout_ms));
 
 	/*Command index*/
 	cmdctrl = cmd->opcode << 8;
@@ -1215,9 +1220,7 @@ static void via_sd_remove(struct pci_dev *pcidev)
 		pci_name(pcidev), (int)pcidev->vendor, (int)pcidev->device);
 }
 
-#ifdef CONFIG_PM
-
-static void via_init_sdc_pm(struct via_crdr_mmc_host *host)
+static void __maybe_unused via_init_sdc_pm(struct via_crdr_mmc_host *host)
 {
 	struct sdhcreg *pm_sdhcreg;
 	void __iomem *addrbase;
@@ -1251,30 +1254,27 @@ static void via_init_sdc_pm(struct via_crdr_mmc_host *host)
 	via_print_sdchc(host);
 }
 
-static int via_sd_suspend(struct pci_dev *pcidev, pm_message_t state)
+static int __maybe_unused via_sd_suspend(struct device *dev)
 {
 	struct via_crdr_mmc_host *host;
 
-	host = pci_get_drvdata(pcidev);
+	host = dev_get_drvdata(dev);
 
 	via_save_pcictrlreg(host);
 	via_save_sdcreg(host);
 
-	pci_save_state(pcidev);
-	pci_enable_wake(pcidev, pci_choose_state(pcidev, state), 0);
-	pci_disable_device(pcidev);
-	pci_set_power_state(pcidev, pci_choose_state(pcidev, state));
+	device_wakeup_enable(dev);
 
 	return 0;
 }
 
-static int via_sd_resume(struct pci_dev *pcidev)
+static int __maybe_unused via_sd_resume(struct device *dev)
 {
 	struct via_crdr_mmc_host *sdhost;
 	int ret = 0;
 	u8 gatt;
 
-	sdhost = pci_get_drvdata(pcidev);
+	sdhost = dev_get_drvdata(dev);
 
 	gatt = VIA_CRDR_PCICLKGATT_PAD_PWRON;
 	if (sdhost->power == MMC_VDD_165_195)
@@ -1289,32 +1289,20 @@ static int via_sd_resume(struct pci_dev *pcidev)
 
 	msleep(100);
 
-	pci_set_power_state(pcidev, PCI_D0);
-	pci_restore_state(pcidev);
-	ret = pci_enable_device(pcidev);
-	if (ret)
-		return ret;
-
 	via_restore_pcictrlreg(sdhost);
 	via_init_sdc_pm(sdhost);
 
 	return ret;
 }
 
-#else /* CONFIG_PM */
-
-#define via_sd_suspend NULL
-#define via_sd_resume NULL
-
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(via_sd_pm_ops, via_sd_suspend, via_sd_resume);
 
 static struct pci_driver via_sd_driver = {
 	.name = DRV_NAME,
 	.id_table = via_ids,
 	.probe = via_sd_probe,
 	.remove = via_sd_remove,
-	.suspend = via_sd_suspend,
-	.resume = via_sd_resume,
+	.driver.pm = &via_sd_pm_ops,
 };
 
 module_pci_driver(via_sd_driver);

@@ -141,7 +141,7 @@ static int ipu_bus_format_to_map(u32 fmt)
 	switch (fmt) {
 	default:
 		WARN_ON(1);
-		/* fall-through */
+		fallthrough;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		return IPU_DC_MAP_RGB24;
 	case MEDIA_BUS_FMT_RGB565_1X16:

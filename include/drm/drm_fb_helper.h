@@ -213,8 +213,7 @@ drm_fb_helper_from_client(struct drm_client_dev *client)
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs);
-int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *helper, int max_conn);
+int drm_fb_helper_init(struct drm_device *dev, struct drm_fb_helper *helper);
 void drm_fb_helper_fini(struct drm_fb_helper *helper);
 int drm_fb_helper_blank(int blank, struct fb_info *info);
 int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
@@ -270,7 +269,8 @@ int drm_fb_helper_debug_leave(struct fb_info *info);
 void drm_fb_helper_lastclose(struct drm_device *dev);
 void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 
-int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp);
+void drm_fbdev_generic_setup(struct drm_device *dev,
+			     unsigned int preferred_bpp);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					struct drm_fb_helper *helper,
@@ -279,8 +279,7 @@ static inline void drm_fb_helper_prepare(struct drm_device *dev,
 }
 
 static inline int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *helper,
-		       int max_conn)
+		       struct drm_fb_helper *helper)
 {
 	/* So drivers can use it to free the struct */
 	helper->dev = dev;
@@ -445,34 +444,12 @@ static inline void drm_fb_helper_output_poll_changed(struct drm_device *dev)
 {
 }
 
-static inline int
+static inline void
 drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 {
-	return 0;
 }
 
 #endif
-
-/* TODO: There's a todo entry to remove these three */
-static inline int
-drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
-{
-	return 0;
-}
-
-static inline int
-drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
-				struct drm_connector *connector)
-{
-	return 0;
-}
-
-static inline int
-drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
-				   struct drm_connector *connector)
-{
-	return 0;
-}
 
 /**
  * drm_fb_helper_remove_conflicting_framebuffers - remove firmware-configured framebuffers

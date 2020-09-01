@@ -14,7 +14,7 @@ collisions are prevented, ...) please have a look at the I3C specification.
 This document is just a brief introduction to the I3C protocol and the concepts
 it brings to the table. If you need more information, please refer to the MIPI
 I3C specification (can be downloaded here
-http://resources.mipi.org/mipi-i3c-v1-download).
+https://resources.mipi.org/mipi-i3c-v1-download).
 
 Introduction
 ============

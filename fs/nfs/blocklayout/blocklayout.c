@@ -476,7 +476,7 @@ static void bl_free_layout_hdr(struct pnfs_layout_hdr *lo)
 	err = ext_tree_remove(bl, true, 0, LLONG_MAX);
 	WARN_ON(err);
 
-	kfree(bl);
+	kfree_rcu(bl, bl_layout.plh_rcu);
 }
 
 static struct pnfs_layout_hdr *__bl_alloc_layout_hdr(struct inode *inode,
@@ -753,7 +753,7 @@ out:
 	case -ENODEV:
 		/* Our extent block devices are unavailable */
 		set_bit(NFS_LSEG_UNAVAILABLE, &lseg->pls_flags);
-		/* Fall through */
+		fallthrough;
 	case 0:
 		return lseg;
 	default:

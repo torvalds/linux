@@ -107,7 +107,7 @@ struct mtk_sha_ctx {
 	u8 id;
 	u8 buf[SHA_BUF_SIZE] __aligned(sizeof(u32));
 
-	struct mtk_sha_hmac_ctx	base[0];
+	struct mtk_sha_hmac_ctx	base[];
 };
 
 struct mtk_sha_drv {
@@ -805,12 +805,9 @@ static int mtk_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 	size_t ds = crypto_shash_digestsize(bctx->shash);
 	int err, i;
 
-	SHASH_DESC_ON_STACK(shash, bctx->shash);
-
-	shash->tfm = bctx->shash;
-
 	if (keylen > bs) {
-		err = crypto_shash_digest(shash, key, keylen, bctx->ipad);
+		err = crypto_shash_tfm_digest(bctx->shash, key, keylen,
+					      bctx->ipad);
 		if (err)
 			return err;
 		keylen = ds;

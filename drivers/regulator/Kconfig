@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig REGULATOR
 	bool "Voltage and Current Regulator Support"
+	select LINEAR_RANGES
 	help
 	  Generic Voltage and Current Regulator support.
 
@@ -107,6 +108,7 @@ config REGULATOR_AD5398
 
 config REGULATOR_ANATOP
 	tristate "Freescale i.MX on-chip ANATOP LDO regulators"
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on MFD_SYSCON
 	help
 	  Say y here to support Freescale i.MX on-chip ANATOP LDOs
@@ -236,6 +238,16 @@ config REGULATOR_CPCAP
 	  Say y here for CPCAP regulator found on some Motorola phones
 	  and tablets such as Droid 4.
 
+config REGULATOR_CROS_EC
+	tristate "ChromeOS EC regulators"
+	depends on CROS_EC && OF
+	help
+	  This driver supports voltage regulators that is connected to ChromeOS
+	  EC and controlled through EC host commands.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called cros-ec-regulator.
+
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
@@ -323,6 +335,16 @@ config REGULATOR_FAN53555
 	  regulator that delivers a digitally programmable output from an
 	  input voltage supply of 2.5V to 5.5V. The output voltage is
 	  programmed through an I2C interface.
+
+config REGULATOR_FAN53880
+	tristate "Fairchild FAN53880 Regulator"
+	depends on I2C && (OF || COMPILE_TEST)
+	select REGMAP_I2C
+	help
+	  This driver supports Fairchild (ON Semiconductor) FAN53880
+	  regulator. The regulator is a programmable power management IC
+	  (PMIC), it is controlled by I2C and provides one BUCK, one BOOST
+	  and four LDO outputs.
 
 config REGULATOR_GPIO
 	tristate "GPIO regulator support"
@@ -584,6 +606,16 @@ config REGULATOR_MAX77802
 	  Exynos5420/Exynos5800 SoCs to control various voltages.
 	  It includes support for control of voltage and ramp speed.
 
+config REGULATOR_MAX77826
+	tristate "Maxim 77826 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls a Maxim 77826 regulator via I2C bus.
+	  The regulator include 15 LDOs, BUCK and BUCK BOOST regulator.
+	  It includes support for control of output voltage. This
+	  regulator is found on the Samsung Galaxy S5 (klte) smartphone.
+
 config REGULATOR_MC13XXX_CORE
 	tristate
 
@@ -613,6 +645,16 @@ config REGULATOR_MCP16502
 	  through the regulator interface. In addition it enables
 	  suspend-to-ram/standby transition.
 
+config REGULATOR_MP5416
+	tristate "Monolithic MP5416 PMIC"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  Say y here to support the MP5416 PMIC. This will enable supports
+	  the software controllable 4 buck and 4 LDO regulators.
+	  Say M here if you want to include support for the regulator as a
+	  module.
+
 config REGULATOR_MP8859
 	tristate "MPS MP8859 regulator driver"
 	depends on I2C
@@ -623,6 +665,13 @@ config REGULATOR_MP8859
 	  interface.
 	  Say M here if you want to include support for the regulator as a
 	  module. The module will be named "mp8859".
+
+config REGULATOR_MP886X
+	tristate "MPS MP8869 regulator driver"
+	depends on I2C && (OF || COMPILE_TEST)
+	select REGMAP_I2C
+	help
+	  This driver supports the MP8869 voltage regulator.
 
 config REGULATOR_MPQ7920
 	tristate "Monolithic MPQ7920 PMIC"
@@ -655,7 +704,7 @@ config REGULATOR_MT6323
 
 config REGULATOR_MT6358
 	tristate "MediaTek MT6358 PMIC"
-	depends on MFD_MT6397 && BROKEN
+	depends on MFD_MT6397
 	help
 	  Say y here to select this option to enable the power regulator of
 	  MediaTek MT6358 PMIC.
@@ -700,6 +749,14 @@ config REGULATOR_PBIAS
 	 on OMAP SoCs.
 	 This driver provides support for OMAP pbias modelled
 	 regulators.
+
+config REGULATOR_PCA9450
+	tristate "NXP PCA9450A/PCA9450B/PCA9450C regulator driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the NXP PCA9450A/PCA9450B/PCA9450C PMIC
+	  regulator driver.
 
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
@@ -796,6 +853,16 @@ config REGULATOR_QCOM_SPMI
 	  Say M here if you want to include support for the regulators on the
 	  Qualcomm SPMI PMICs as a module. The module will be named
 	  "qcom_spmi-regulator".
+
+config REGULATOR_QCOM_USB_VBUS
+	tristate "Qualcomm USB Vbus regulator driver"
+	depends on SPMI || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  regulator used to enable the VBUS output.
+
+	  Say M here if you want to include support for enabling the VBUS output
+	  as a module. The module will be named "qcom_usb_vbus_regulator".
 
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
@@ -959,6 +1026,13 @@ config REGULATOR_SY8824X
 	select REGMAP_I2C
 	help
 	  This driver supports SY8824C single output regulator.
+
+config REGULATOR_SY8827N
+	tristate "Silergy SY8827N regulator"
+	depends on I2C && (OF || COMPILE_TEST)
+	select REGMAP_I2C
+	help
+	  This driver supports SY8827N single output regulator.
 
 config REGULATOR_TPS51632
 	tristate "TI TPS51632 Power Regulator"
@@ -1148,6 +1222,16 @@ config REGULATOR_WM8994
 	help
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
+
+config REGULATOR_QCOM_LABIBB
+	tristate "QCOM LAB/IBB regulator support"
+	depends on SPMI || COMPILE_TEST
+	help
+	  This driver supports Qualcomm's LAB/IBB regulators present on the
+	  Qualcomm's PMIC chip pmi8998. QCOM LAB and IBB are SPMI
+	  based PMIC implementations. LAB can be used as positive
+	  boost regulator and IBB can be used as a negative boost regulator
+	  for LCD display panel.
 
 endif
 

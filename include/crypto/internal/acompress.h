@@ -46,7 +46,7 @@ static inline struct acomp_req *__acomp_request_alloc(struct crypto_acomp *tfm)
 
 static inline void __acomp_request_free(struct acomp_req *req)
 {
-	kzfree(req);
+	kfree_sensitive(req);
 }
 
 /**

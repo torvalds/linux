@@ -111,9 +111,6 @@ EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 				struct v4l2_subdev *sd)
 {
-#if defined(CONFIG_MEDIA_CONTROLLER)
-	struct media_entity *entity = &sd->entity;
-#endif
 	int err;
 
 	/* Check for valid input */
@@ -143,7 +140,7 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	/* Register the entity. */
 	if (v4l2_dev->mdev) {
-		err = media_device_register_entity(v4l2_dev->mdev, entity);
+		err = media_device_register_entity(v4l2_dev->mdev, &sd->entity);
 		if (err < 0)
 			goto error_module;
 	}
@@ -163,7 +160,7 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 
 error_unregister:
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	media_device_unregister_entity(entity);
+	media_device_unregister_entity(&sd->entity);
 #endif
 error_module:
 	if (!sd->owner_v4l2_dev)
@@ -179,6 +176,7 @@ static void v4l2_subdev_release(struct v4l2_subdev *sd)
 
 	if (sd->internal_ops && sd->internal_ops->release)
 		sd->internal_ops->release(sd);
+	sd->devnode = NULL;
 	module_put(owner);
 }
 
@@ -188,7 +186,8 @@ static void v4l2_device_release_subdev_node(struct video_device *vdev)
 	kfree(vdev);
 }
 
-int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
+int __v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev,
+					bool read_only)
 {
 	struct video_device *vdev;
 	struct v4l2_subdev *sd;
@@ -217,6 +216,8 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 		vdev->fops = &v4l2_subdev_fops;
 		vdev->release = v4l2_device_release_subdev_node;
 		vdev->ctrl_handler = sd->ctrl_handler;
+		if (read_only)
+			set_bit(V4L2_FL_SUBDEV_RO_DEVNODE, &vdev->flags);
 		err = __video_register_device(vdev, VFL_TYPE_SUBDEV, -1, 1,
 					      sd->owner);
 		if (err < 0) {
@@ -254,7 +255,7 @@ clean_up:
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(v4l2_device_register_subdev_nodes);
+EXPORT_SYMBOL_GPL(__v4l2_device_register_subdev_nodes);
 
 void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 {

@@ -19,7 +19,7 @@ Required properties:
 
 SPI Controller nodes must be child of GENI based Qualcomm Universal
 Peripharal. Please refer GENI based QUP wrapper controller node bindings
-described in Documentation/devicetree/bindings/soc/qcom/qcom,geni-se.txt.
+described in Documentation/devicetree/bindings/soc/qcom/qcom,geni-se.yaml.
 
 SPI slave nodes must be children of the SPI master node and conform to SPI bus
 binding as described in Documentation/devicetree/bindings/spi/spi-bus.txt.

@@ -297,7 +297,7 @@ static inline int ovl_dir_read(struct path *realpath,
 	struct file *realfile;
 	int err;
 
-	realfile = ovl_path_open(realpath, O_RDONLY | O_DIRECTORY);
+	realfile = ovl_path_open(realpath, O_RDONLY | O_LARGEFILE);
 	if (IS_ERR(realfile))
 		return PTR_ERR(realfile);
 
@@ -438,15 +438,23 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 
 /* Map inode number to lower fs unique range */
 static u64 ovl_remap_lower_ino(u64 ino, int xinobits, int fsid,
-			       const char *name, int namelen)
+			       const char *name, int namelen, bool warn)
 {
-	if (ino >> (64 - xinobits)) {
-		pr_warn_ratelimited("d_ino too big (%.*s, ino=%llu, xinobits=%d)\n",
-				    namelen, name, ino, xinobits);
+	unsigned int xinoshift = 64 - xinobits;
+
+	if (unlikely(ino >> xinoshift)) {
+		if (warn) {
+			pr_warn_ratelimited("d_ino too big (%.*s, ino=%llu, xinobits=%d)\n",
+					    namelen, name, ino, xinobits);
+		}
 		return ino;
 	}
 
-	return ino | ((u64)fsid) << (64 - xinobits);
+	/*
+	 * The lowest xinobit is reserved for mapping the non-peresistent inode
+	 * numbers range, but this range is only exposed via st_ino, not here.
+	 */
+	return ino | ((u64)fsid) << (xinoshift + 1);
 }
 
 /*
@@ -515,7 +523,8 @@ get:
 	} else if (xinobits && !OVL_TYPE_UPPER(type)) {
 		ino = ovl_remap_lower_ino(ino, xinobits,
 					  ovl_layer_lower(this)->fsid,
-					  p->name, p->len);
+					  p->name, p->len,
+					  ovl_xino_warn(dir->d_sb));
 	}
 
 out:
@@ -645,6 +654,7 @@ struct ovl_readdir_translate {
 	u64 parent_ino;
 	int fsid;
 	int xinobits;
+	bool xinowarn;
 };
 
 static int ovl_fill_real(struct dir_context *ctx, const char *name,
@@ -665,7 +675,7 @@ static int ovl_fill_real(struct dir_context *ctx, const char *name,
 			ino = p->ino;
 	} else if (rdt->xinobits) {
 		ino = ovl_remap_lower_ino(ino, rdt->xinobits, rdt->fsid,
-					  name, namelen);
+					  name, namelen, rdt->xinowarn);
 	}
 
 	return orig_ctx->actor(orig_ctx, name, namelen, offset, ino, d_type);
@@ -696,6 +706,7 @@ static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
 		.ctx.actor = ovl_fill_real,
 		.orig_ctx = ctx,
 		.xinobits = ovl_xino_bits(dir->d_sb),
+		.xinowarn = ovl_xino_warn(dir->d_sb),
 	};
 
 	if (rdt.xinobits && lower_layer)
@@ -732,8 +743,10 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 	struct ovl_dir_file *od = file->private_data;
 	struct dentry *dentry = file->f_path.dentry;
 	struct ovl_cache_entry *p;
+	const struct cred *old_cred;
 	int err;
 
+	old_cred = ovl_override_creds(dentry->d_sb);
 	if (!ctx->pos)
 		ovl_dir_reset(file);
 
@@ -747,17 +760,20 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		    (ovl_same_fs(dentry->d_sb) &&
 		     (ovl_is_impure_dir(file) ||
 		      OVL_TYPE_MERGE(ovl_path_type(dentry->d_parent))))) {
-			return ovl_iterate_real(file, ctx);
+			err = ovl_iterate_real(file, ctx);
+		} else {
+			err = iterate_dir(od->realfile, ctx);
 		}
-		return iterate_dir(od->realfile, ctx);
+		goto out;
 	}
 
 	if (!od->cache) {
 		struct ovl_dir_cache *cache;
 
 		cache = ovl_cache_get(dentry);
+		err = PTR_ERR(cache);
 		if (IS_ERR(cache))
-			return PTR_ERR(cache);
+			goto out;
 
 		od->cache = cache;
 		ovl_seek_cursor(od, ctx->pos);
@@ -769,7 +785,7 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 			if (!p->ino) {
 				err = ovl_cache_update_ino(&file->f_path, p);
 				if (err)
-					return err;
+					goto out;
 			}
 			if (!dir_emit(ctx, p->name, p->len, p->ino, p->type))
 				break;
@@ -777,7 +793,10 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		od->cursor = p->l_node.next;
 		ctx->pos++;
 	}
-	return 0;
+	err = 0;
+out:
+	revert_creds(old_cred);
+	return err;
 }
 
 static loff_t ovl_dir_llseek(struct file *file, loff_t offset, int origin)
@@ -820,6 +839,19 @@ out_unlock:
 	return res;
 }
 
+static struct file *ovl_dir_open_realfile(struct file *file,
+					  struct path *realpath)
+{
+	struct file *res;
+	const struct cred *old_cred;
+
+	old_cred = ovl_override_creds(file_inode(file)->i_sb);
+	res = ovl_path_open(realpath, O_RDONLY | (file->f_flags & O_LARGEFILE));
+	revert_creds(old_cred);
+
+	return res;
+}
+
 static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 			 int datasync)
 {
@@ -842,7 +874,7 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 			struct path upperpath;
 
 			ovl_path_upper(dentry, &upperpath);
-			realfile = ovl_path_open(&upperpath, O_RDONLY);
+			realfile = ovl_dir_open_realfile(file, &upperpath);
 
 			inode_lock(inode);
 			if (!od->upperfile) {
@@ -893,7 +925,7 @@ static int ovl_dir_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	type = ovl_path_real(file->f_path.dentry, &realpath);
-	realfile = ovl_path_open(&realpath, file->f_flags);
+	realfile = ovl_dir_open_realfile(file, &realpath);
 	if (IS_ERR(realfile)) {
 		kfree(od);
 		return PTR_ERR(realfile);
@@ -1060,14 +1092,13 @@ out:
 	ovl_cache_free(&list);
 }
 
-void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
+int ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 			 struct dentry *dentry, int level)
 {
 	int err;
 
 	if (!d_is_dir(dentry) || level > 1) {
-		ovl_cleanup(dir, dentry);
-		return;
+		return ovl_cleanup(dir, dentry);
 	}
 
 	err = ovl_do_rmdir(dir, dentry);
@@ -1077,8 +1108,10 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 		inode_unlock(dir);
 		ovl_workdir_cleanup_recurse(&path, level + 1);
 		inode_lock_nested(dir, I_MUTEX_PARENT);
-		ovl_cleanup(dir, dentry);
+		err = ovl_cleanup(dir, dentry);
 	}
+
+	return err;
 }
 
 int ovl_indexdir_cleanup(struct ovl_fs *ofs)
@@ -1087,7 +1120,7 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 	struct dentry *indexdir = ofs->indexdir;
 	struct dentry *index = NULL;
 	struct inode *dir = indexdir->d_inode;
-	struct path path = { .mnt = ofs->upper_mnt, .dentry = indexdir };
+	struct path path = { .mnt = ovl_upper_mnt(ofs), .dentry = indexdir };
 	LIST_HEAD(list);
 	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;
@@ -1117,6 +1150,13 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			index = NULL;
 			break;
 		}
+		/* Cleanup leftover from index create/cleanup attempt */
+		if (index->d_name.name[0] == '#') {
+			err = ovl_workdir_cleanup(dir, path.mnt, index, 1);
+			if (err)
+				break;
+			goto next;
+		}
 		err = ovl_verify_index(ofs, index);
 		if (!err) {
 			goto next;
@@ -1135,7 +1175,7 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			 * Whiteout orphan index to block future open by
 			 * handle after overlay nlink dropped to zero.
 			 */
-			err = ovl_cleanup_and_whiteout(indexdir, dir, index);
+			err = ovl_cleanup_and_whiteout(ofs, dir, index);
 		} else {
 			/* Cleanup orphan index entries */
 			err = ovl_cleanup(dir, index);

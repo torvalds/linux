@@ -131,13 +131,13 @@ nv40_ram_prog(struct nvkm_ram *base)
 		nvkm_mask(device, 0x00402c, 0xc0771100, ram->ctrl);
 		nvkm_wr32(device, 0x004048, ram->coef);
 		nvkm_wr32(device, 0x004030, ram->coef);
-		/* fall through */
+		fallthrough;
 	case 0x43:
 	case 0x49:
 	case 0x4b:
 		nvkm_mask(device, 0x004038, 0xc0771100, ram->ctrl);
 		nvkm_wr32(device, 0x00403c, ram->coef);
-		/* fall through */
+		fallthrough;
 	default:
 		nvkm_mask(device, 0x004020, 0xc0771100, ram->ctrl);
 		nvkm_wr32(device, 0x004024, ram->coef);

@@ -34,13 +34,13 @@ extern arch_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned;
 /* Can't use raw_spin_lock_irq because of #include problems, so
  * this is the substitute */
 #define _atomic_spin_lock_irqsave(l,f) do {	\
-	arch_spinlock_t *s = ATOMIC_HASH(l);		\
+	arch_spinlock_t *s = ATOMIC_HASH(l);	\
 	local_irq_save(f);			\
 	arch_spin_lock(s);			\
 } while(0)
 
 #define _atomic_spin_unlock_irqrestore(l,f) do {	\
-	arch_spinlock_t *s = ATOMIC_HASH(l);			\
+	arch_spinlock_t *s = ATOMIC_HASH(l);		\
 	arch_spin_unlock(s);				\
 	local_irq_restore(f);				\
 } while(0)
@@ -85,7 +85,7 @@ static __inline__ void atomic_##op(int i, atomic_t *v)			\
 	_atomic_spin_lock_irqsave(v, flags);				\
 	v->counter c_op i;						\
 	_atomic_spin_unlock_irqrestore(v, flags);			\
-}									\
+}
 
 #define ATOMIC_OP_RETURN(op, c_op)					\
 static __inline__ int atomic_##op##_return(int i, atomic_t *v)		\
@@ -136,8 +136,6 @@ ATOMIC_OPS(xor, ^=)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define ATOMIC_INIT(i)	{ (i) }
-
 #ifdef CONFIG_64BIT
 
 #define ATOMIC64_INIT(i) { (i) }
@@ -150,7 +148,7 @@ static __inline__ void atomic64_##op(s64 i, atomic64_t *v)		\
 	_atomic_spin_lock_irqsave(v, flags);				\
 	v->counter c_op i;						\
 	_atomic_spin_unlock_irqrestore(v, flags);			\
-}									\
+}
 
 #define ATOMIC64_OP_RETURN(op, c_op)					\
 static __inline__ s64 atomic64_##op##_return(s64 i, atomic64_t *v)	\
@@ -211,6 +209,8 @@ atomic64_set(atomic64_t *v, s64 i)
 
 	_atomic_spin_unlock_irqrestore(v, flags);
 }
+
+#define atomic64_set_release(v, i)	atomic64_set((v), (i))
 
 static __inline__ s64
 atomic64_read(const atomic64_t *v)

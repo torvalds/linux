@@ -64,7 +64,7 @@
 #define gpio_range_to_bank(chip) \
 		container_of(chip, struct stm32_gpio_bank, range)
 
-#define HWSPINLOCK_TIMEOUT	5 /* msec */
+#define HWSPNLCK_TIMEOUT	1000 /* usec */
 
 static const char * const stm32_gpio_functions[] = {
 	"gpio", "af0", "af1",
@@ -84,6 +84,7 @@ struct stm32_pinctrl_group {
 struct stm32_gpio_bank {
 	void __iomem *base;
 	struct clk *clk;
+	struct reset_control *rstc;
 	spinlock_t lock;
 	struct gpio_chip gpio_chip;
 	struct pinctrl_gpio_range range;
@@ -92,6 +93,7 @@ struct stm32_gpio_bank {
 	u32 bank_nr;
 	u32 bank_ioport_nr;
 	u32 pin_backup[STM32_GPIO_PINS_PER_BANK];
+	u8 irq_type[STM32_GPIO_PINS_PER_BANK];
 };
 
 struct stm32_pinctrl {
@@ -283,9 +285,9 @@ static int stm32_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 
 	stm32_pmx_get_mode(bank, pin, &mode, &alt);
 	if ((alt == 0) && (mode == 0))
-		ret = 1;
+		ret = GPIO_LINE_DIRECTION_IN;
 	else if ((alt == 0) && (mode == 1))
-		ret = 0;
+		ret = GPIO_LINE_DIRECTION_OUT;
 	else
 		ret = -EINVAL;
 
@@ -301,6 +303,51 @@ static const struct gpio_chip stm32_gpio_template = {
 	.direction_output	= stm32_gpio_direction_output,
 	.to_irq			= stm32_gpio_to_irq,
 	.get_direction		= stm32_gpio_get_direction,
+	.set_config		= gpiochip_generic_config,
+};
+
+static void stm32_gpio_irq_trigger(struct irq_data *d)
+{
+	struct stm32_gpio_bank *bank = d->domain->host_data;
+	int level;
+
+	/* If level interrupt type then retrig */
+	level = stm32_gpio_get(&bank->gpio_chip, d->hwirq);
+	if ((level == 0 && bank->irq_type[d->hwirq] == IRQ_TYPE_LEVEL_LOW) ||
+	    (level == 1 && bank->irq_type[d->hwirq] == IRQ_TYPE_LEVEL_HIGH))
+		irq_chip_retrigger_hierarchy(d);
+}
+
+static void stm32_gpio_irq_eoi(struct irq_data *d)
+{
+	irq_chip_eoi_parent(d);
+	stm32_gpio_irq_trigger(d);
+};
+
+static int stm32_gpio_set_type(struct irq_data *d, unsigned int type)
+{
+	struct stm32_gpio_bank *bank = d->domain->host_data;
+	u32 parent_type;
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+	case IRQ_TYPE_EDGE_FALLING:
+	case IRQ_TYPE_EDGE_BOTH:
+		parent_type = type;
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+		parent_type = IRQ_TYPE_EDGE_RISING;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		parent_type = IRQ_TYPE_EDGE_FALLING;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	bank->irq_type[d->hwirq] = type;
+
+	return irq_chip_set_type_parent(d, parent_type);
 };
 
 static int stm32_gpio_irq_request_resources(struct irq_data *irq_data)
@@ -330,13 +377,19 @@ static void stm32_gpio_irq_release_resources(struct irq_data *irq_data)
 	gpiochip_unlock_as_irq(&bank->gpio_chip, irq_data->hwirq);
 }
 
+static void stm32_gpio_irq_unmask(struct irq_data *d)
+{
+	irq_chip_unmask_parent(d);
+	stm32_gpio_irq_trigger(d);
+}
+
 static struct irq_chip stm32_gpio_irq_chip = {
 	.name		= "stm32gpio",
-	.irq_eoi	= irq_chip_eoi_parent,
+	.irq_eoi	= stm32_gpio_irq_eoi,
 	.irq_ack	= irq_chip_ack_parent,
 	.irq_mask	= irq_chip_mask_parent,
-	.irq_unmask	= irq_chip_unmask_parent,
-	.irq_set_type	= irq_chip_set_type_parent,
+	.irq_unmask	= stm32_gpio_irq_unmask,
+	.irq_set_type	= stm32_gpio_set_type,
 	.irq_set_wake	= irq_chip_set_wake_parent,
 	.irq_request_resources = stm32_gpio_irq_request_resources,
 	.irq_release_resources = stm32_gpio_irq_release_resources,
@@ -369,12 +422,14 @@ static int stm32_gpio_domain_activate(struct irq_domain *d,
 	 * to avoid overriding.
 	 */
 	spin_lock_irqsave(&pctl->irqmux_lock, flags);
-	if (pctl->hwlock)
-		ret = hwspin_lock_timeout(pctl->hwlock, HWSPINLOCK_TIMEOUT);
 
-	if (ret) {
-		dev_err(pctl->dev, "Can't get hwspinlock\n");
-		goto unlock;
+	if (pctl->hwlock) {
+		ret = hwspin_lock_timeout_in_atomic(pctl->hwlock,
+						    HWSPNLCK_TIMEOUT);
+		if (ret) {
+			dev_err(pctl->dev, "Can't get hwspinlock\n");
+			goto unlock;
+		}
 	}
 
 	if (pctl->irqmux_map & BIT(irq_data->hwirq)) {
@@ -382,7 +437,7 @@ static int stm32_gpio_domain_activate(struct irq_domain *d,
 			irq_data->hwirq);
 		ret = -EBUSY;
 		if (pctl->hwlock)
-			hwspin_unlock(pctl->hwlock);
+			hwspin_unlock_in_atomic(pctl->hwlock);
 		goto unlock;
 	} else {
 		pctl->irqmux_map |= BIT(irq_data->hwirq);
@@ -391,7 +446,7 @@ static int stm32_gpio_domain_activate(struct irq_domain *d,
 	regmap_field_write(pctl->irqmux[irq_data->hwirq], bank->bank_ioport_nr);
 
 	if (pctl->hwlock)
-		hwspin_unlock(pctl->hwlock);
+		hwspin_unlock_in_atomic(pctl->hwlock);
 
 unlock:
 	spin_unlock_irqrestore(&pctl->irqmux_lock, flags);
@@ -699,12 +754,13 @@ static int stm32_pmx_set_mode(struct stm32_gpio_bank *bank,
 	clk_enable(bank->clk);
 	spin_lock_irqsave(&bank->lock, flags);
 
-	if (pctl->hwlock)
-		err = hwspin_lock_timeout(pctl->hwlock, HWSPINLOCK_TIMEOUT);
-
-	if (err) {
-		dev_err(pctl->dev, "Can't get hwspinlock\n");
-		goto unlock;
+	if (pctl->hwlock) {
+		err = hwspin_lock_timeout_in_atomic(pctl->hwlock,
+						    HWSPNLCK_TIMEOUT);
+		if (err) {
+			dev_err(pctl->dev, "Can't get hwspinlock\n");
+			goto unlock;
+		}
 	}
 
 	val = readl_relaxed(bank->base + alt_offset);
@@ -718,7 +774,7 @@ static int stm32_pmx_set_mode(struct stm32_gpio_bank *bank,
 	writel_relaxed(val, bank->base + STM32_GPIO_MODER);
 
 	if (pctl->hwlock)
-		hwspin_unlock(pctl->hwlock);
+		hwspin_unlock_in_atomic(pctl->hwlock);
 
 	stm32_gpio_backup_mode(bank, pin, mode, alt);
 
@@ -818,12 +874,13 @@ static int stm32_pconf_set_driving(struct stm32_gpio_bank *bank,
 	clk_enable(bank->clk);
 	spin_lock_irqsave(&bank->lock, flags);
 
-	if (pctl->hwlock)
-		err = hwspin_lock_timeout(pctl->hwlock, HWSPINLOCK_TIMEOUT);
-
-	if (err) {
-		dev_err(pctl->dev, "Can't get hwspinlock\n");
-		goto unlock;
+	if (pctl->hwlock) {
+		err = hwspin_lock_timeout_in_atomic(pctl->hwlock,
+						    HWSPNLCK_TIMEOUT);
+		if (err) {
+			dev_err(pctl->dev, "Can't get hwspinlock\n");
+			goto unlock;
+		}
 	}
 
 	val = readl_relaxed(bank->base + STM32_GPIO_TYPER);
@@ -832,7 +889,7 @@ static int stm32_pconf_set_driving(struct stm32_gpio_bank *bank,
 	writel_relaxed(val, bank->base + STM32_GPIO_TYPER);
 
 	if (pctl->hwlock)
-		hwspin_unlock(pctl->hwlock);
+		hwspin_unlock_in_atomic(pctl->hwlock);
 
 	stm32_gpio_backup_driving(bank, offset, drive);
 
@@ -872,12 +929,13 @@ static int stm32_pconf_set_speed(struct stm32_gpio_bank *bank,
 	clk_enable(bank->clk);
 	spin_lock_irqsave(&bank->lock, flags);
 
-	if (pctl->hwlock)
-		err = hwspin_lock_timeout(pctl->hwlock, HWSPINLOCK_TIMEOUT);
-
-	if (err) {
-		dev_err(pctl->dev, "Can't get hwspinlock\n");
-		goto unlock;
+	if (pctl->hwlock) {
+		err = hwspin_lock_timeout_in_atomic(pctl->hwlock,
+						    HWSPNLCK_TIMEOUT);
+		if (err) {
+			dev_err(pctl->dev, "Can't get hwspinlock\n");
+			goto unlock;
+		}
 	}
 
 	val = readl_relaxed(bank->base + STM32_GPIO_SPEEDR);
@@ -886,7 +944,7 @@ static int stm32_pconf_set_speed(struct stm32_gpio_bank *bank,
 	writel_relaxed(val, bank->base + STM32_GPIO_SPEEDR);
 
 	if (pctl->hwlock)
-		hwspin_unlock(pctl->hwlock);
+		hwspin_unlock_in_atomic(pctl->hwlock);
 
 	stm32_gpio_backup_speed(bank, offset, speed);
 
@@ -926,12 +984,13 @@ static int stm32_pconf_set_bias(struct stm32_gpio_bank *bank,
 	clk_enable(bank->clk);
 	spin_lock_irqsave(&bank->lock, flags);
 
-	if (pctl->hwlock)
-		err = hwspin_lock_timeout(pctl->hwlock, HWSPINLOCK_TIMEOUT);
-
-	if (err) {
-		dev_err(pctl->dev, "Can't get hwspinlock\n");
-		goto unlock;
+	if (pctl->hwlock) {
+		err = hwspin_lock_timeout_in_atomic(pctl->hwlock,
+						    HWSPNLCK_TIMEOUT);
+		if (err) {
+			dev_err(pctl->dev, "Can't get hwspinlock\n");
+			goto unlock;
+		}
 	}
 
 	val = readl_relaxed(bank->base + STM32_GPIO_PUPDR);
@@ -940,7 +999,7 @@ static int stm32_pconf_set_bias(struct stm32_gpio_bank *bank,
 	writel_relaxed(val, bank->base + STM32_GPIO_PUPDR);
 
 	if (pctl->hwlock)
-		hwspin_unlock(pctl->hwlock);
+		hwspin_unlock_in_atomic(pctl->hwlock);
 
 	stm32_gpio_backup_bias(bank, offset, bias);
 
@@ -1000,7 +1059,7 @@ static int stm32_pconf_parse_conf(struct pinctrl_dev *pctldev,
 	struct stm32_gpio_bank *bank;
 	int offset, ret = 0;
 
-	range = pinctrl_find_gpio_range_from_pin(pctldev, pin);
+	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
 	if (!range) {
 		dev_err(pctl->dev, "No gpio range defined.\n");
 		return -EINVAL;
@@ -1033,7 +1092,7 @@ static int stm32_pconf_parse_conf(struct pinctrl_dev *pctldev,
 		ret = stm32_pmx_gpio_set_direction(pctldev, range, pin, false);
 		break;
 	default:
-		ret = -EINVAL;
+		ret = -ENOTSUPP;
 	}
 
 	return ret;
@@ -1058,13 +1117,31 @@ static int stm32_pconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 	int i, ret;
 
 	for (i = 0; i < num_configs; i++) {
+		mutex_lock(&pctldev->mutex);
 		ret = stm32_pconf_parse_conf(pctldev, g->pin,
 			pinconf_to_config_param(configs[i]),
 			pinconf_to_config_argument(configs[i]));
+		mutex_unlock(&pctldev->mutex);
 		if (ret < 0)
 			return ret;
 
 		g->config = configs[i];
+	}
+
+	return 0;
+}
+
+static int stm32_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
+			   unsigned long *configs, unsigned int num_configs)
+{
+	int i, ret;
+
+	for (i = 0; i < num_configs; i++) {
+		ret = stm32_pconf_parse_conf(pctldev, pin,
+				pinconf_to_config_param(configs[i]),
+				pinconf_to_config_argument(configs[i]));
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
@@ -1135,10 +1212,10 @@ static void stm32_pconf_dbg_show(struct pinctrl_dev *pctldev,
 	}
 }
 
-
 static const struct pinconf_ops stm32_pconf_ops = {
 	.pin_config_group_get	= stm32_pconf_group_get,
 	.pin_config_group_set	= stm32_pconf_group_set,
+	.pin_config_set		= stm32_pconf_set,
 	.pin_config_dbg_show	= stm32_pconf_dbg_show,
 };
 
@@ -1151,13 +1228,11 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	struct of_phandle_args args;
 	struct device *dev = pctl->dev;
 	struct resource res;
-	struct reset_control *rstc;
 	int npins = STM32_GPIO_PINS_PER_BANK;
 	int bank_nr, err;
 
-	rstc = of_reset_control_get_exclusive(np, NULL);
-	if (!IS_ERR(rstc))
-		reset_control_deassert(rstc);
+	if (!IS_ERR(bank->rstc))
+		reset_control_deassert(bank->rstc);
 
 	if (of_address_to_resource(np, 0, &res))
 		return -ENODEV;
@@ -1165,12 +1240,6 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	bank->base = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(bank->base))
 		return PTR_ERR(bank->base);
-
-	bank->clk = of_clk_get_by_name(np, NULL);
-	if (IS_ERR(bank->clk)) {
-		dev_err(dev, "failed to get clk (%ld)\n", PTR_ERR(bank->clk));
-		return PTR_ERR(bank->clk);
-	}
 
 	err = clk_prepare(bank->clk);
 	if (err) {
@@ -1465,6 +1534,28 @@ int stm32_pctl_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 	if (!pctl->banks)
 		return -ENOMEM;
+
+	i = 0;
+	for_each_available_child_of_node(np, child) {
+		struct stm32_gpio_bank *bank = &pctl->banks[i];
+
+		if (of_property_read_bool(child, "gpio-controller")) {
+			bank->rstc = of_reset_control_get_exclusive(child,
+								    NULL);
+			if (PTR_ERR(bank->rstc) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+
+			bank->clk = of_clk_get_by_name(child, NULL);
+			if (IS_ERR(bank->clk)) {
+				if (PTR_ERR(bank->clk) != -EPROBE_DEFER)
+					dev_err(dev,
+						"failed to get clk (%ld)\n",
+						PTR_ERR(bank->clk));
+				return PTR_ERR(bank->clk);
+			}
+			i++;
+		}
+	}
 
 	for_each_available_child_of_node(np, child) {
 		if (of_property_read_bool(child, "gpio-controller")) {

@@ -547,24 +547,20 @@ void user_dlm_write_lvb(struct inode *inode,
 	spin_unlock(&lockres->l_lock);
 }
 
-ssize_t user_dlm_read_lvb(struct inode *inode,
-			  char *val,
-			  unsigned int len)
+bool user_dlm_read_lvb(struct inode *inode, char *val)
 {
 	struct user_lock_res *lockres = &DLMFS_I(inode)->ip_lockres;
 	char *lvb;
-	ssize_t ret = len;
-
-	BUG_ON(len > DLM_LVB_LEN);
+	bool ret = true;
 
 	spin_lock(&lockres->l_lock);
 
 	BUG_ON(lockres->l_level < DLM_LOCK_PR);
 	if (ocfs2_dlm_lvb_valid(&lockres->l_lksb)) {
 		lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
-		memcpy(val, lvb, len);
+		memcpy(val, lvb, DLM_LVB_LEN);
 	} else
-		ret = 0;
+		ret = false;
 
 	spin_unlock(&lockres->l_lock);
 	return ret;

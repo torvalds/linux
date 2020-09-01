@@ -79,7 +79,7 @@ snd_seq_oss_process_timer_event(struct seq_oss_timer *rec, union evrec *ev)
 		case TMR_WAIT_REL:
 			parm += rec->cur_tick;
 			rec->realtime = 0;
-			/* fall through */
+			fallthrough;
 		case TMR_WAIT_ABS:
 			if (parm == 0) {
 				rec->realtime = 1;

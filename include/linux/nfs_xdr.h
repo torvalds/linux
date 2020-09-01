@@ -75,6 +75,7 @@ struct nfs_fattr {
 	struct nfs4_string	*owner_name;
 	struct nfs4_string	*group_name;
 	struct nfs4_threshold	*mdsthreshold;	/* pNFS threshold hints */
+	struct nfs4_label	*label;
 };
 
 #define NFS_ATTR_FATTR_TYPE		(1U << 0)
@@ -149,6 +150,7 @@ struct nfs_fsinfo {
 	__u32			layouttype[NFS_MAX_LAYOUT_TYPES]; /* supported pnfs layout driver */
 	__u32			blksize; /* preferred pnfs io block size */
 	__u32			clone_blksize; /* granularity of a CLONE operation */
+	__u32			xattr_support; /* User xattrs supported */
 };
 
 struct nfs_fsstat {
@@ -1226,7 +1228,7 @@ struct nfs4_secinfo4 {
 
 struct nfs4_secinfo_flavors {
 	unsigned int		num_flavors;
-	struct nfs4_secinfo4	flavors[0];
+	struct nfs4_secinfo4	flavors[];
 };
 
 struct nfs4_secinfo_arg {
@@ -1265,16 +1267,25 @@ struct nfstime4 {
 struct pnfs_commit_bucket {
 	struct list_head written;
 	struct list_head committing;
-	struct pnfs_layout_segment *wlseg;
-	struct pnfs_layout_segment *clseg;
+	struct pnfs_layout_segment *lseg;
 	struct nfs_writeverf direct_verf;
 };
 
+struct pnfs_commit_array {
+	struct list_head cinfo_list;
+	struct list_head lseg_list;
+	struct pnfs_layout_segment *lseg;
+	struct rcu_head rcu;
+	refcount_t refcount;
+	unsigned int nbuckets;
+	struct pnfs_commit_bucket buckets[];
+};
+
 struct pnfs_ds_commit_info {
-	int nwritten;
-	int ncommitting;
-	int nbuckets;
-	struct pnfs_commit_bucket *buckets;
+	struct list_head commits;
+	unsigned int nwritten;
+	unsigned int ncommitting;
+	const struct pnfs_commit_ops *ops;
 };
 
 struct nfs41_state_protection {
@@ -1307,11 +1318,13 @@ struct nfs41_impl_id {
 	struct nfstime4			date;
 };
 
+#define MAX_BIND_CONN_TO_SESSION_RETRIES 3
 struct nfs41_bind_conn_to_session_args {
 	struct nfs_client		*client;
 	struct nfs4_sessionid		sessionid;
 	u32				dir;
 	bool				use_conn_in_rdma_mode;
+	int				retries;
 };
 
 struct nfs41_bind_conn_to_session_res {
@@ -1385,21 +1398,10 @@ struct nfs41_free_stateid_res {
 	unsigned int			status;
 };
 
-static inline void
-nfs_free_pnfs_ds_cinfo(struct pnfs_ds_commit_info *cinfo)
-{
-	kfree(cinfo->buckets);
-}
-
 #else
 
 struct pnfs_ds_commit_info {
 };
-
-static inline void
-nfs_free_pnfs_ds_cinfo(struct pnfs_ds_commit_info *cinfo)
-{
-}
 
 #endif /* CONFIG_NFS_V4_1 */
 
@@ -1496,7 +1498,64 @@ struct nfs42_seek_res {
 	u32	sr_eof;
 	u64	sr_offset;
 };
-#endif
+
+struct nfs42_setxattrargs {
+	struct nfs4_sequence_args	seq_args;
+	struct nfs_fh			*fh;
+	const char			*xattr_name;
+	u32				xattr_flags;
+	size_t				xattr_len;
+	struct page			**xattr_pages;
+};
+
+struct nfs42_setxattrres {
+	struct nfs4_sequence_res	seq_res;
+	struct nfs4_change_info		cinfo;
+};
+
+struct nfs42_getxattrargs {
+	struct nfs4_sequence_args	seq_args;
+	struct nfs_fh			*fh;
+	const char			*xattr_name;
+	size_t				xattr_len;
+	struct page			**xattr_pages;
+};
+
+struct nfs42_getxattrres {
+	struct nfs4_sequence_res	seq_res;
+	size_t				xattr_len;
+};
+
+struct nfs42_listxattrsargs {
+	struct nfs4_sequence_args	seq_args;
+	struct nfs_fh			*fh;
+	u32				count;
+	u64				cookie;
+	struct page			**xattr_pages;
+};
+
+struct nfs42_listxattrsres {
+	struct nfs4_sequence_res	seq_res;
+	struct page			*scratch;
+	void				*xattr_buf;
+	size_t				xattr_len;
+	u64				cookie;
+	bool				eof;
+	size_t				copied;
+};
+
+struct nfs42_removexattrargs {
+	struct nfs4_sequence_args	seq_args;
+	struct nfs_fh			*fh;
+	const char			*xattr_name;
+};
+
+struct nfs42_removexattrres {
+	struct nfs4_sequence_res	seq_res;
+	struct nfs4_change_info		cinfo;
+};
+
+#endif /* CONFIG_NFS_V4_2 */
 
 struct nfs_page;
 

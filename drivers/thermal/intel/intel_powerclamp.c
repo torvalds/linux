@@ -70,9 +70,6 @@ static unsigned int control_cpu; /* The cpu assigned to collect stat and update
 				  */
 static bool clamping;
 
-static const struct sched_param sparam = {
-	.sched_priority = MAX_USER_RT_PRIO / 2,
-};
 struct powerclamp_worker_data {
 	struct kthread_worker *worker;
 	struct kthread_work balancing_work;
@@ -488,7 +485,7 @@ static void start_power_clamp_worker(unsigned long cpu)
 	w_data->cpu = cpu;
 	w_data->clamping = true;
 	set_bit(cpu, cpu_clamping_mask);
-	sched_setscheduler(worker->task, SCHED_FIFO, &sparam);
+	sched_set_fifo(worker->task);
 	kthread_init_work(&w_data->balancing_work, clamp_balancing_func);
 	kthread_init_delayed_work(&w_data->idle_injection_work,
 				  clamp_idle_injection_func);
@@ -651,7 +648,7 @@ static struct thermal_cooling_device_ops powerclamp_cooling_ops = {
 };
 
 static const struct x86_cpu_id __initconst intel_powerclamp_ids[] = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_MWAIT },
+	X86_MATCH_VENDOR_FEATURE(INTEL, X86_FEATURE_MWAIT, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);

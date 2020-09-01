@@ -366,3 +366,17 @@ int tb_lc_dp_sink_dealloc(struct tb_switch *sw, struct tb_port *in)
 	tb_port_dbg(in, "sink %d de-allocated\n", sink);
 	return 0;
 }
+
+/**
+ * tb_lc_force_power() - Forces LC to be powered on
+ * @sw: Thunderbolt switch
+ *
+ * This is useful to let authentication cycle pass even without
+ * a Thunderbolt link present.
+ */
+int tb_lc_force_power(struct tb_switch *sw)
+{
+	u32 in = 0xffff;
+
+	return tb_sw_write(sw, &in, TB_CFG_SWITCH, TB_LC_POWER, 1);
+}

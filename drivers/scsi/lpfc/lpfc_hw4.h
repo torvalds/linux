@@ -20,6 +20,8 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#include <uapi/scsi/fc/fc_els.h>
+
 /* Macros to deal with bit fields. Each bit field must have 3 #defines
  * associated with it (_SHIFT, _MASK, and _WORD).
  * EG. For a bit field that is in the 7th bit of the "field4" field of a
@@ -648,6 +650,9 @@ struct lpfc_register {
 #define lpfc_sliport_status_oti_SHIFT	29
 #define lpfc_sliport_status_oti_MASK	0x1
 #define lpfc_sliport_status_oti_WORD	word0
+#define lpfc_sliport_status_dip_SHIFT	25
+#define lpfc_sliport_status_dip_MASK	0x1
+#define lpfc_sliport_status_dip_WORD	word0
 #define lpfc_sliport_status_rn_SHIFT	24
 #define lpfc_sliport_status_rn_MASK	0x1
 #define lpfc_sliport_status_rn_WORD	word0
@@ -3529,7 +3534,7 @@ struct lpfc_sli4_parameters {
 };
 
 #define LPFC_SET_UE_RECOVERY		0x10
-#define LPFC_SET_MDS_DIAGS		0x11
+#define LPFC_SET_MDS_DIAGS		0x12
 #define LPFC_SET_DUAL_DUMP		0x1e
 struct lpfc_mbx_set_feature {
 	struct mbox_header header;
@@ -3539,7 +3544,7 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_UER_SHIFT  0
 #define lpfc_mbx_set_feature_UER_MASK   0x00000001
 #define lpfc_mbx_set_feature_UER_WORD   word6
-#define lpfc_mbx_set_feature_mds_SHIFT  0
+#define lpfc_mbx_set_feature_mds_SHIFT  2
 #define lpfc_mbx_set_feature_mds_MASK   0x00000001
 #define lpfc_mbx_set_feature_mds_WORD   word6
 #define lpfc_mbx_set_feature_mds_deep_loopbk_SHIFT  1
@@ -4793,6 +4798,23 @@ struct send_frame_wqe {
 	uint32_t fc_hdr_wd3;           /* word 13 */
 	uint32_t fc_hdr_wd4;           /* word 14 */
 	uint32_t fc_hdr_wd5;           /* word 15 */
+};
+
+#define ELS_RDF_REG_TAG_CNT		1
+struct lpfc_els_rdf_reg_desc {
+	struct fc_df_desc_fpin_reg	reg_desc;	/* descriptor header */
+	__be32				desc_tags[ELS_RDF_REG_TAG_CNT];
+							/* tags in reg_desc */
+};
+
+struct lpfc_els_rdf_req {
+	struct fc_els_rdf		rdf;	   /* hdr up to descriptors */
+	struct lpfc_els_rdf_reg_desc	reg_d1;	/* 1st descriptor */
+};
+
+struct lpfc_els_rdf_rsp {
+	struct fc_els_rdf_resp		rdf_resp;  /* hdr up to descriptors */
+	struct lpfc_els_rdf_reg_desc	reg_d1;	/* 1st descriptor */
 };
 
 union lpfc_wqe {

@@ -87,6 +87,13 @@ struct dc_writeback_info {
 	int dwb_pipe_inst;
 	struct dc_dwb_params dwb_params;
 	struct mcif_buf_params mcif_buf_params;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	struct mcif_warmup_params mcif_warmup_params;
+	/* the plane that is the input to TOP_MUX for MPCC that is the DWB source */
+	struct dc_plane_state *writeback_source_plane;
+	/* source MPCC instance.  for use by internally by dc */
+	int mpcc_inst;
+#endif
 };
 
 struct dc_writeback_update {
@@ -118,6 +125,7 @@ union stream_update_flags {
 		uint32_t dpms_off:1;
 		uint32_t gamut_remap:1;
 		uint32_t wb_update:1;
+		uint32_t dsc_changed : 1;
 	} bits;
 
 	uint32_t raw;
@@ -166,8 +174,6 @@ struct dc_stream_state {
 
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
-	/* PSR info */
-	unsigned char psr_version;
 	/* TODO: CEA VIC */
 
 	/* DMCU info */
@@ -201,6 +207,10 @@ struct dc_stream_state {
 	/* writeback */
 	unsigned int num_wb_info;
 	struct dc_writeback_info writeback_info[MAX_DWB_PIPES];
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	const struct dc_transfer_func *func_shaper;
+	const struct dc_3dlut *lut3d_func;
+#endif
 	/* Computed state bits */
 	bool mode_changed : 1;
 
@@ -223,7 +233,7 @@ struct dc_stream_state {
 	union stream_update_flags update_flags;
 };
 
-#define ABM_LEVEL_IMMEDIATE_DISABLE 0xFFFFFFFF
+#define ABM_LEVEL_IMMEDIATE_DISABLE 255
 
 struct dc_stream_update {
 	struct dc_stream_state *stream;
@@ -252,6 +262,10 @@ struct dc_stream_update {
 
 	struct dc_writeback_update *wb_update;
 	struct dc_dsc_config *dsc_config;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	struct dc_transfer_func *func_shaper;
+	struct dc_3dlut *lut3d_func;
+#endif
 };
 
 bool dc_is_stream_unchanged(
@@ -349,6 +363,10 @@ bool dc_stream_remove_writeback(struct dc *dc,
 		struct dc_stream_state *stream,
 		uint32_t dwb_pipe_inst);
 
+enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
+		struct dc_state *state,
+		struct dc_stream_state *stream);
+
 bool dc_stream_warmup_writeback(struct dc *dc,
 		int num_dwb,
 		struct dc_writeback_info *wb_info);
@@ -404,6 +422,12 @@ struct dc_stream_status *dc_stream_get_status_from_state(
 	struct dc_stream_state *stream);
 struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *dc_stream);
+
+#ifndef TRIM_FSFT
+bool dc_optimize_timing_for_fsft(
+	struct dc_stream_state *pStream,
+	unsigned int max_input_rate_in_khz);
+#endif
 
 /*******************************************************************************
  * Cursor interfaces - To manages the cursor within a stream

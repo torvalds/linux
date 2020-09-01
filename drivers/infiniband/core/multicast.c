@@ -42,7 +42,7 @@
 #include <rdma/ib_cache.h>
 #include "sa.h"
 
-static void mcast_add_one(struct ib_device *device);
+static int mcast_add_one(struct ib_device *device);
 static void mcast_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client mcast_client = {
@@ -71,7 +71,7 @@ struct mcast_device {
 	struct ib_event_handler	event_handler;
 	int			start_port;
 	int			end_port;
-	struct mcast_port	port[0];
+	struct mcast_port	port[];
 };
 
 enum mcast_state {
@@ -815,7 +815,7 @@ static void mcast_event_handler(struct ib_event_handler *handler,
 	}
 }
 
-static void mcast_add_one(struct ib_device *device)
+static int mcast_add_one(struct ib_device *device)
 {
 	struct mcast_device *dev;
 	struct mcast_port *port;
@@ -825,7 +825,7 @@ static void mcast_add_one(struct ib_device *device)
 	dev = kmalloc(struct_size(dev, port, device->phys_port_cnt),
 		      GFP_KERNEL);
 	if (!dev)
-		return;
+		return -ENOMEM;
 
 	dev->start_port = rdma_start_port(device);
 	dev->end_port = rdma_end_port(device);
@@ -845,7 +845,7 @@ static void mcast_add_one(struct ib_device *device)
 
 	if (!count) {
 		kfree(dev);
-		return;
+		return -EOPNOTSUPP;
 	}
 
 	dev->device = device;
@@ -853,6 +853,7 @@ static void mcast_add_one(struct ib_device *device)
 
 	INIT_IB_EVENT_HANDLER(&dev->event_handler, device, mcast_event_handler);
 	ib_register_event_handler(&dev->event_handler);
+	return 0;
 }
 
 static void mcast_remove_one(struct ib_device *device, void *client_data)
@@ -860,9 +861,6 @@ static void mcast_remove_one(struct ib_device *device, void *client_data)
 	struct mcast_device *dev = client_data;
 	struct mcast_port *port;
 	int i;
-
-	if (!dev)
-		return;
 
 	ib_unregister_event_handler(&dev->event_handler);
 	flush_workqueue(mcast_wq);

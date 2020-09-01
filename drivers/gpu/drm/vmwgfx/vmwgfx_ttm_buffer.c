@@ -610,7 +610,7 @@ static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 	return 0;
 }
 
-static int vmw_ttm_unbind(struct ttm_tt *ttm)
+static void vmw_ttm_unbind(struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_be =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
@@ -628,8 +628,6 @@ static int vmw_ttm_unbind(struct ttm_tt *ttm)
 
 	if (vmw_be->dev_priv->map_mode == vmw_dma_map_bind)
 		vmw_ttm_unmap_dma(vmw_be);
-
-	return 0;
 }
 
 
@@ -736,27 +734,19 @@ out_no_init:
 	return NULL;
 }
 
-static int vmw_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
-{
-	return 0;
-}
-
 static int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		      struct ttm_mem_type_manager *man)
 {
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
-
-		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_CACHED;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
-		man->func = &ttm_bo_manager_func;
-		man->gpu_offset = 0;
-		man->flags = TTM_MEMTYPE_FLAG_FIXED | TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->func = &vmw_thp_func;
+		man->flags = TTM_MEMTYPE_FLAG_FIXED;
 		man->available_caching = TTM_PL_FLAG_CACHED;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
@@ -768,8 +758,6 @@ static int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		 *  slots as well as the bo size.
 		 */
 		man->func = &vmw_gmrid_manager_func;
-		man->gpu_offset = 0;
-		man->flags = TTM_MEMTYPE_FLAG_CMA | TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_CACHED;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
@@ -796,7 +784,6 @@ static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 
 static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
 
 	mem->bus.addr = NULL;
@@ -804,8 +791,7 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg
 	mem->bus.offset = 0;
 	mem->bus.size = mem->num_pages << PAGE_SHIFT;
 	mem->bus.base = 0;
-	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
-		return -EINVAL;
+
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
 	case VMW_PL_GMR:
@@ -819,15 +805,6 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg
 	default:
 		return -EINVAL;
 	}
-	return 0;
-}
-
-static void vmw_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
-{
-}
-
-static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
-{
 	return 0;
 }
 
@@ -866,7 +843,6 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.ttm_tt_create = &vmw_ttm_tt_create,
 	.ttm_tt_populate = &vmw_ttm_populate,
 	.ttm_tt_unpopulate = &vmw_ttm_unpopulate,
-	.invalidate_caches = vmw_invalidate_caches,
 	.init_mem_type = vmw_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vmw_evict_flags,
@@ -874,7 +850,5 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.verify_access = vmw_verify_access,
 	.move_notify = vmw_move_notify,
 	.swap_notify = vmw_swap_notify,
-	.fault_reserve_notify = &vmw_ttm_fault_reserve_notify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
-	.io_mem_free = &vmw_ttm_io_mem_free,
 };

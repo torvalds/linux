@@ -12,13 +12,6 @@
 #define pr_fmt(fmt) "tulip: " fmt
 
 #define DRV_NAME	"tulip"
-#ifdef CONFIG_TULIP_NAPI
-#define DRV_VERSION    "1.1.15-NAPI" /* Keep at least for test */
-#else
-#define DRV_VERSION	"1.1.15"
-#endif
-#define DRV_RELDATE	"Feb 27, 2007"
-
 
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -36,9 +29,6 @@
 #ifdef CONFIG_SPARC
 #include <asm/prom.h>
 #endif
-
-static char version[] =
-	"Linux Tulip driver version " DRV_VERSION " (" DRV_RELDATE ")\n";
 
 /* A few user-configurable values. */
 
@@ -109,7 +99,6 @@ static int csr0;
 MODULE_AUTHOR("The Linux Kernel Team");
 MODULE_DESCRIPTION("Digital 21*4* Tulip ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 module_param(tulip_debug, int, 0);
 module_param(max_interrupt_work, int, 0);
 module_param(rx_copybreak, int, 0);
@@ -868,7 +857,6 @@ static void tulip_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *in
 {
 	struct tulip_private *np = netdev_priv(dev);
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pdev), sizeof(info->bus_info));
 }
 
@@ -923,7 +911,7 @@ static int private_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			data->phy_id = 1;
 		else
 			return -ENODEV;
-		/* Fall through */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		if (data->phy_id == 32 && (tp->flags & HAS_NWAY)) {
@@ -1289,7 +1277,7 @@ static const struct net_device_ops tulip_netdev_ops = {
 #endif
 };
 
-const struct pci_device_id early_486_chipsets[] = {
+static const struct pci_device_id early_486_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82424) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_496) },
 	{ },
@@ -1313,11 +1301,6 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const char *chip_name = tulip_tbl[chip_idx].chip_name;
 	unsigned int eeprom_missing = 0;
 	unsigned int force_csr0 = 0;
-
-#ifndef MODULE
-	if (tulip_debug > 0)
-		printk_once(KERN_INFO "%s", version);
-#endif
 
 	board_idx++;
 
@@ -1800,14 +1783,13 @@ static void tulip_set_wolopts (struct pci_dev *pdev, u32 wolopts)
 	void __iomem *ioaddr = tp->base_addr;
 
 	if (tp->flags & COMET_PM) {
-	  
 		unsigned int tmp;
-			
+
 		tmp = ioread32(ioaddr + CSR18);
 		tmp &= ~(comet_csr18_pmes_sticky | comet_csr18_apm_mode | comet_csr18_d3a);
 		tmp |= comet_csr18_pm_mode;
 		iowrite32(tmp, ioaddr + CSR18);
-			
+
 		/* Set the Wake-up Control/Status Register to the given WOL options*/
 		tmp = ioread32(ioaddr + CSR13);
 		tmp &= ~(comet_csr13_linkoffe | comet_csr13_linkone | comet_csr13_wfre | comet_csr13_lsce | comet_csr13_mpre);
@@ -1821,13 +1803,9 @@ static void tulip_set_wolopts (struct pci_dev *pdev, u32 wolopts)
 	}
 }
 
-#ifdef CONFIG_PM
-
-
-static int tulip_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused tulip_suspend(struct device *dev_d)
 {
-	pci_power_t pstate;
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct tulip_private *tp = netdev_priv(dev);
 
 	if (!dev)
@@ -1843,44 +1821,26 @@ static int tulip_suspend (struct pci_dev *pdev, pm_message_t state)
 	free_irq(tp->pdev->irq, dev);
 
 save_state:
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pstate = pci_choose_state(pdev, state);
-	if (state.event == PM_EVENT_SUSPEND && pstate != PCI_D0) {
-		int rc;
-
-		tulip_set_wolopts(pdev, tp->wolinfo.wolopts);
-		rc = pci_enable_wake(pdev, pstate, tp->wolinfo.wolopts);
-		if (rc)
-			pr_err("pci_enable_wake failed (%d)\n", rc);
-	}
-	pci_set_power_state(pdev, pstate);
+	tulip_set_wolopts(to_pci_dev(dev_d), tp->wolinfo.wolopts);
+	device_set_wakeup_enable(dev_d, !!tp->wolinfo.wolopts);
 
 	return 0;
 }
 
-
-static int tulip_resume(struct pci_dev *pdev)
+static int __maybe_unused tulip_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct tulip_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->base_addr;
-	int retval;
 	unsigned int tmp;
+	int retval = 0;
 
 	if (!dev)
 		return -EINVAL;
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
 	if (!netif_running(dev))
 		return 0;
-
-	if ((retval = pci_enable_device(pdev))) {
-		pr_err("pci_enable_device failed in resume\n");
-		return retval;
-	}
 
 	retval = request_irq(pdev->irq, tulip_interrupt, IRQF_SHARED,
 			     dev->name, dev);
@@ -1890,8 +1850,7 @@ static int tulip_resume(struct pci_dev *pdev)
 	}
 
 	if (tp->flags & COMET_PM) {
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
+		device_set_wakeup_enable(dev_d, 0);
 
 		/* Clear the PMES flag */
 		tmp = ioread32(ioaddr + CSR20);
@@ -1908,9 +1867,6 @@ static int tulip_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-
-#endif /* CONFIG_PM */
-
 
 static void tulip_remove_one(struct pci_dev *pdev)
 {
@@ -1955,24 +1911,19 @@ static void poll_tulip (struct net_device *dev)
 }
 #endif
 
+static SIMPLE_DEV_PM_OPS(tulip_pm_ops, tulip_suspend, tulip_resume);
+
 static struct pci_driver tulip_driver = {
 	.name		= DRV_NAME,
 	.id_table	= tulip_pci_tbl,
 	.probe		= tulip_init_one,
 	.remove		= tulip_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= tulip_suspend,
-	.resume		= tulip_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &tulip_pm_ops,
 };
 
 
 static int __init tulip_init (void)
 {
-#ifdef MODULE
-	pr_info("%s", version);
-#endif
-
 	if (!csr0) {
 		pr_warn("tulip: unknown CPU architecture, using default csr0\n");
 		/* default to 8 longword cache line alignment */

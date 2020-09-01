@@ -350,7 +350,8 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 
 /**
  *	aac_get_config_status	-	check the adapter configuration
- *	@common: adapter to query
+ *	@dev: aac driver data
+ *	@commit_flag: force sending CT_COMMIT_CONFIG
  *
  *	Query config status, and commit the configuration if needed.
  */
@@ -442,7 +443,7 @@ static void aac_expose_phy_device(struct scsi_cmnd *scsicmd)
 
 /**
  *	aac_get_containers	-	list containers
- *	@common: adapter to probe
+ *	@dev: aac driver data
  *
  *	Make a list of all containers on this controller
  */
@@ -561,7 +562,7 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 	scsicmd->scsi_done(scsicmd);
 }
 
-/**
+/*
  *	aac_get_container_name	-	get container name, none blocking.
  */
 static int aac_get_container_name(struct scsi_cmnd * scsicmd)
@@ -786,8 +787,7 @@ static int _aac_probe_container(struct scsi_cmnd * scsicmd, int (*callback)(stru
 
 /**
  *	aac_probe_container		-	query a logical volume
- *	@dev: device to query
- *	@cid: container identifier
+ * @scsicmd: the scsi command block
  *
  *	Queries the controller about the given volume. The volume information
  *	is updated in the struct fsa_dev_info structure rather than returned.
@@ -796,6 +796,11 @@ static int aac_probe_container_callback1(struct scsi_cmnd * scsicmd)
 {
 	scsicmd->device = NULL;
 	return 0;
+}
+
+static void aac_probe_container_scsi_done(struct scsi_cmnd *scsi_cmnd)
+{
+	aac_probe_container_callback1(scsi_cmnd);
 }
 
 int aac_probe_container(struct aac_dev *dev, int cid)
@@ -809,8 +814,7 @@ int aac_probe_container(struct aac_dev *dev, int cid)
 		kfree(scsidev);
 		return -ENOMEM;
 	}
-	scsicmd->list.next = NULL;
-	scsicmd->scsi_done = (void (*)(struct scsi_cmnd*))aac_probe_container_callback1;
+	scsicmd->scsi_done = aac_probe_container_scsi_done;
 
 	scsicmd->device = scsidev;
 	scsidev->sdev_state = 0;
@@ -1094,7 +1098,7 @@ static void get_container_serial_callback(void *context, struct fib * fibptr)
 	scsicmd->scsi_done(scsicmd);
 }
 
-/**
+/*
  *	aac_get_container_serial - get container serial, none blocking.
  */
 static int aac_get_container_serial(struct scsi_cmnd * scsicmd)
@@ -1948,8 +1952,6 @@ free_identify_resp:
 /**
  *	aac_set_safw_attr_all_targets-	update current hba map with data from FW
  *	@dev:	aac_dev structure
- *	@phys_luns: FW information from report phys luns
- *	@rescan: Indicates scan type
  *
  *	Update our hba map with the information gathered from the FW
  */
@@ -2601,9 +2603,7 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 static void synchronize_callback(void *context, struct fib *fibptr)
 {
 	struct aac_synchronize_reply *synchronizereply;
-	struct scsi_cmnd *cmd;
-
-	cmd = context;
+	struct scsi_cmnd *cmd = context;
 
 	if (!aac_valid_context(cmd, fibptr))
 		return;
@@ -2644,77 +2644,8 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
 	int status;
 	struct fib *cmd_fibcontext;
 	struct aac_synchronize *synchronizecmd;
-	struct scsi_cmnd *cmd;
 	struct scsi_device *sdev = scsicmd->device;
-	int active = 0;
 	struct aac_dev *aac;
-	u64 lba = ((u64)scsicmd->cmnd[2] << 24) | (scsicmd->cmnd[3] << 16) |
-		(scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
-	u32 count = (scsicmd->cmnd[7] << 8) | scsicmd->cmnd[8];
-	unsigned long flags;
-
-	/*
-	 * Wait for all outstanding queued commands to complete to this
-	 * specific target (block).
-	 */
-	spin_lock_irqsave(&sdev->list_lock, flags);
-	list_for_each_entry(cmd, &sdev->cmd_list, list)
-		if (cmd->SCp.phase == AAC_OWNER_FIRMWARE) {
-			u64 cmnd_lba;
-			u32 cmnd_count;
-
-			if (cmd->cmnd[0] == WRITE_6) {
-				cmnd_lba = ((cmd->cmnd[1] & 0x1F) << 16) |
-					(cmd->cmnd[2] << 8) |
-					cmd->cmnd[3];
-				cmnd_count = cmd->cmnd[4];
-				if (cmnd_count == 0)
-					cmnd_count = 256;
-			} else if (cmd->cmnd[0] == WRITE_16) {
-				cmnd_lba = ((u64)cmd->cmnd[2] << 56) |
-					((u64)cmd->cmnd[3] << 48) |
-					((u64)cmd->cmnd[4] << 40) |
-					((u64)cmd->cmnd[5] << 32) |
-					((u64)cmd->cmnd[6] << 24) |
-					(cmd->cmnd[7] << 16) |
-					(cmd->cmnd[8] << 8) |
-					cmd->cmnd[9];
-				cmnd_count = (cmd->cmnd[10] << 24) |
-					(cmd->cmnd[11] << 16) |
-					(cmd->cmnd[12] << 8) |
-					cmd->cmnd[13];
-			} else if (cmd->cmnd[0] == WRITE_12) {
-				cmnd_lba = ((u64)cmd->cmnd[2] << 24) |
-					(cmd->cmnd[3] << 16) |
-					(cmd->cmnd[4] << 8) |
-					cmd->cmnd[5];
-				cmnd_count = (cmd->cmnd[6] << 24) |
-					(cmd->cmnd[7] << 16) |
-					(cmd->cmnd[8] << 8) |
-					cmd->cmnd[9];
-			} else if (cmd->cmnd[0] == WRITE_10) {
-				cmnd_lba = ((u64)cmd->cmnd[2] << 24) |
-					(cmd->cmnd[3] << 16) |
-					(cmd->cmnd[4] << 8) |
-					cmd->cmnd[5];
-				cmnd_count = (cmd->cmnd[7] << 8) |
-					cmd->cmnd[8];
-			} else
-				continue;
-			if (((cmnd_lba + cmnd_count) < lba) ||
-			  (count && ((lba + count) < cmnd_lba)))
-				continue;
-			++active;
-			break;
-		}
-
-	spin_unlock_irqrestore(&sdev->list_lock, flags);
-
-	/*
-	 *	Yield the processor (requeue for later)
-	 */
-	if (active)
-		return SCSI_MLQUEUE_DEVICE_BUSY;
 
 	aac = (struct aac_dev *)sdev->host->hostdata;
 	if (aac->in_reset)
@@ -2723,8 +2654,7 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
 	/*
 	 *	Allocate and initialize a Fib
 	 */
-	if (!(cmd_fibcontext = aac_fib_alloc(aac)))
-		return SCSI_MLQUEUE_HOST_BUSY;
+	cmd_fibcontext = aac_fib_alloc_tag(aac, scsicmd);
 
 	aac_fib_init(cmd_fibcontext);
 
@@ -2879,7 +2809,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 					    !(dev->raw_io_64) ||
 					    ((scsicmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
 						break;
-					/* fall through */
+					fallthrough;
 				case INQUIRY:
 				case READ_CAPACITY:
 				case TEST_UNIT_READY:
@@ -2954,7 +2884,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		/* Issue FIB to tell Firmware to flush it's cache */
 		if ((aac_cache & 6) != 2)
 			return aac_synchronize(scsicmd);
-		/* fall through */
+		fallthrough;
 	case INQUIRY:
 	{
 		struct inquiry_data inq_data;
@@ -3310,7 +3240,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				     SCSI_SENSE_BUFFERSIZE));
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case RESERVE:
 	case RELEASE:
 	case REZERO_UNIT:
@@ -3323,7 +3253,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	case START_STOP:
 		return aac_start_stop(scsicmd);
 
-	/* FALLTHRU */
+		fallthrough;
 	default:
 	/*
 	 *	Unhandled commands
@@ -3459,15 +3389,12 @@ int aac_dev_ioctl(struct aac_dev *dev, unsigned int cmd, void __user *arg)
 }
 
 /**
- *
  * aac_srb_callback
  * @context: the context set in the fib - here it is scsi cmd
  * @fibptr: pointer to the fib
  *
  * Handles the completion of a scsi command to a non dasd device
- *
  */
-
 static void aac_srb_callback(void *context, struct fib * fibptr)
 {
 	struct aac_srb_reply *srbreply;
@@ -3752,13 +3679,11 @@ static void hba_resp_task_failure(struct aac_dev *dev,
 }
 
 /**
- *
  * aac_hba_callback
  * @context: the context set in the fib - here it is scsi cmd
  * @fibptr: pointer to the fib
  *
  * Handles the completion of a native HBA scsi command
- *
  */
 void aac_hba_callback(void *context, struct fib *fibptr)
 {
@@ -3817,14 +3742,12 @@ out:
 }
 
 /**
- *
  * aac_send_srb_fib
  * @scsicmd: the scsi command block
  *
  * This routine will form a FIB and fill in the aac_srb from the
  * scsicmd passed in.
  */
-
 static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 {
 	struct fib* cmd_fibcontext;
@@ -3860,7 +3783,6 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 }
 
 /**
- *
  * aac_send_hba_fib
  * @scsicmd: the scsi command block
  *

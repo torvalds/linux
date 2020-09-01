@@ -1,52 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright(c) 2016 - 2020 Intel Corporation.
+ */
+
 #ifndef DEF_RDMAVT_INCQP_H
 #define DEF_RDMAVT_INCQP_H
-
-/*
- * Copyright(c) 2016 - 2019 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
 
 #include <rdma/rdma_vt.h>
 #include <rdma/ib_pack.h>
@@ -67,6 +25,33 @@
 #define RVT_R_RSP_NAK   0x04
 #define RVT_R_RSP_SEND  0x08
 #define RVT_R_COMM_EST  0x10
+
+/*
+ * If a packet's QP[23:16] bits match this value, then it is
+ * a PSM packet and the hardware will expect a KDETH header
+ * following the BTH.
+ */
+#define RVT_KDETH_QP_PREFIX       0x80
+#define RVT_KDETH_QP_SUFFIX       0xffff
+#define RVT_KDETH_QP_PREFIX_MASK  0x00ff0000
+#define RVT_KDETH_QP_PREFIX_SHIFT 16
+#define RVT_KDETH_QP_BASE         (u32)(RVT_KDETH_QP_PREFIX << \
+					RVT_KDETH_QP_PREFIX_SHIFT)
+#define RVT_KDETH_QP_MAX          (u32)(RVT_KDETH_QP_BASE + RVT_KDETH_QP_SUFFIX)
+
+/*
+ * If a packet's LNH == BTH and DEST QPN[23:16] in the BTH match this
+ * prefix value, then it is an AIP packet with a DETH containing the entropy
+ * value in byte 4 following the BTH.
+ */
+#define RVT_AIP_QP_PREFIX       0x81
+#define RVT_AIP_QP_SUFFIX       0xffff
+#define RVT_AIP_QP_PREFIX_MASK  0x00ff0000
+#define RVT_AIP_QP_PREFIX_SHIFT 16
+#define RVT_AIP_QP_BASE         (u32)(RVT_AIP_QP_PREFIX << \
+				      RVT_AIP_QP_PREFIX_SHIFT)
+#define RVT_AIP_QPN_MAX         BIT(RVT_AIP_QP_PREFIX_SHIFT)
+#define RVT_AIP_QP_MAX          (u32)(RVT_AIP_QP_BASE + RVT_AIP_QPN_MAX - 1)
 
 /*
  * Bit definitions for s_flags.
@@ -191,7 +176,7 @@ struct rvt_swqe {
 	u32 ssn;                /* send sequence number */
 	u32 length;             /* total length of data in sg_list */
 	void *priv;             /* driver dependent field */
-	struct rvt_sge sg_list[0];
+	struct rvt_sge sg_list[];
 };
 
 /**
@@ -277,6 +262,25 @@ struct rvt_rq {
 	/* protect changes in this struct */
 	spinlock_t lock ____cacheline_aligned_in_smp;
 };
+
+/**
+ * rvt_get_rq_count - count numbers of request work queue entries
+ * in circular buffer
+ * @rq: data structure for request queue entry
+ * @head: head indices of the circular buffer
+ * @tail: tail indices of the circular buffer
+ *
+ * Return - total number of entries in the Receive Queue
+ */
+
+static inline u32 rvt_get_rq_count(struct rvt_rq *rq, u32 head, u32 tail)
+{
+	u32 count = head - tail;
+
+	if ((s32)count < 0)
+		count += rq->size;
+	return count;
+}
 
 /*
  * This structure holds the information that the send tasklet needs
@@ -440,7 +444,7 @@ struct rvt_qp {
 	/*
 	 * This sge list MUST be last. Do not add anything below here.
 	 */
-	struct rvt_sge r_sg_list[0] /* verified SGEs */
+	struct rvt_sge r_sg_list[] /* verified SGEs */
 		____cacheline_aligned_in_smp;
 };
 

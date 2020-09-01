@@ -21,6 +21,17 @@ Optional properties:
 	enabled and disabled together with HP_L and HP_R pins in response to jack
 	detect events.
 
+  - wlf,hp-cfg: A list of headphone jack detect configuration register values.
+		The list must be 3 entries long.
+		hp-cfg[0]: HPSEL[1:0] of R48 (Additional Control 4).
+		hp-cfg[1]: {HPSWEN:HPSWPOL} of R24 (Additional Control 2).
+		hp-cfg[2]: {TOCLKSEL:TOEN} of R23 (Additional Control 1).
+
+  - wlf,gpio-cfg: A list of GPIO configuration register values.
+		  The list must be 2 entries long.
+		  gpio-cfg[0]: ALRCGPIO of R9 (Audio interface)
+		  gpio-cfg[1]: {GPIOPOL:GPIOSEL[2:0]} of R48 (Additional Control 4).
+
 Example:
 
 wm8960: codec@1a {

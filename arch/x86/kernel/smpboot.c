@@ -51,10 +51,11 @@
 #include <linux/err.h>
 #include <linux/nmi.h>
 #include <linux/tboot.h>
-#include <linux/stackprotector.h>
 #include <linux/gfp.h>
 #include <linux/cpuidle.h>
 #include <linux/numa.h>
+#include <linux/pgtable.h>
+#include <linux/overflow.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -63,7 +64,6 @@
 #include <asm/realmode.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
 #include <asm/mwait.h>
@@ -80,6 +80,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/spec-ctrl.h>
 #include <asm/hw_irq.h>
+#include <asm/stackprotector.h>
 
 /* representing HT siblings of each logical CPU */
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
@@ -147,6 +148,8 @@ static inline void smpboot_restore_warm_reset_vector(void)
 	*((volatile u32 *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) = 0;
 }
 
+static void init_freq_invariance(bool secondary);
+
 /*
  * Report back to the Boot Processor during boot time or to the caller processor
  * during CPU online.
@@ -182,6 +185,8 @@ static void smp_callin(void)
 	 * calibrate_delay() and notify_cpu_starting().
 	 */
 	set_cpu_sibling_map(raw_smp_processor_id());
+
+	init_freq_invariance(true);
 
 	/*
 	 * Get our bogomips.
@@ -254,9 +259,6 @@ static void notrace start_secondary(void *unused)
 
 	/* enable local interrupts */
 	local_irq_enable();
-
-	/* to prevent fake stack check failure in clock setup */
-	boot_init_stack_canary();
 
 	x86_cpuinit.setup_percpu_clockev();
 
@@ -466,7 +468,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
  */
 
 static const struct x86_cpu_id snc_cpu[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_X },
+	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X, NULL),
 	{}
 };
 
@@ -999,6 +1001,7 @@ int common_cpu_up(unsigned int cpu, struct task_struct *idle)
 	alternatives_enable_smp();
 
 	per_cpu(current_task, cpu) = idle;
+	cpu_init_stack_canary(cpu, idle);
 
 	/* Initialize the interrupt stack(s) */
 	ret = irq_init_percpu_irqstack(cpu);
@@ -1337,7 +1340,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	set_sched_topology(x86_topology);
 
 	set_cpu_sibling_map(0);
-
+	init_freq_invariance(false);
 	smp_sanity_check();
 
 	switch (apic_intr_mode) {
@@ -1372,12 +1375,12 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	speculative_store_bypass_ht_init();
 }
 
-void arch_enable_nonboot_cpus_begin(void)
+void arch_thaw_secondary_cpus_begin(void)
 {
 	set_mtrr_aps_delayed_init();
 }
 
-void arch_enable_nonboot_cpus_end(void)
+void arch_thaw_secondary_cpus_end(void)
 {
 	mtrr_aps_init();
 }
@@ -1434,7 +1437,7 @@ early_param("possible_cpus", _setup_possible_cpus);
 /*
  * cpu_possible_mask should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
- * are allocated by some modules at init time, and dont expect to
+ * are allocated by some modules at init time, and don't expect to
  * do this dynamically on cpu arrival/departure.
  * cpu_present_mask on the other hand can change dynamically.
  * In case when cpu_hotplug is not compiled, then we resort to current
@@ -1591,13 +1594,27 @@ int native_cpu_disable(void)
 	if (ret)
 		return ret;
 
-	/*
-	 * Disable the local APIC. Otherwise IPI broadcasts will reach
-	 * it. It still responds normally to INIT, NMI, SMI, and SIPI
-	 * messages.
-	 */
-	apic_soft_disable();
 	cpu_disable_common();
+
+        /*
+         * Disable the local APIC. Otherwise IPI broadcasts will reach
+         * it. It still responds normally to INIT, NMI, SMI, and SIPI
+         * messages.
+         *
+         * Disabling the APIC must happen after cpu_disable_common()
+         * which invokes fixup_irqs().
+         *
+         * Disabling the APIC preserves already set bits in IRR, but
+         * an interrupt arriving after disabling the local APIC does not
+         * set the corresponding IRR bit.
+         *
+         * fixup_irqs() scans IRR for set bits so it can raise a not
+         * yet handled interrupt on the new destination CPU via an IPI
+         * but obviously it can't do so for IRR bits which are not set.
+         * IOW, interrupts arriving after disabling the local APIC will
+         * be lost.
+         */
+	apic_soft_disable();
 
 	return 0;
 }
@@ -1764,3 +1781,338 @@ void native_play_dead(void)
 }
 
 #endif
+
+#ifdef CONFIG_X86_64
+/*
+ * APERF/MPERF frequency ratio computation.
+ *
+ * The scheduler wants to do frequency invariant accounting and needs a <1
+ * ratio to account for the 'current' frequency, corresponding to
+ * freq_curr / freq_max.
+ *
+ * Since the frequency freq_curr on x86 is controlled by micro-controller and
+ * our P-state setting is little more than a request/hint, we need to observe
+ * the effective frequency 'BusyMHz', i.e. the average frequency over a time
+ * interval after discarding idle time. This is given by:
+ *
+ *   BusyMHz = delta_APERF / delta_MPERF * freq_base
+ *
+ * where freq_base is the max non-turbo P-state.
+ *
+ * The freq_max term has to be set to a somewhat arbitrary value, because we
+ * can't know which turbo states will be available at a given point in time:
+ * it all depends on the thermal headroom of the entire package. We set it to
+ * the turbo level with 4 cores active.
+ *
+ * Benchmarks show that's a good compromise between the 1C turbo ratio
+ * (freq_curr/freq_max would rarely reach 1) and something close to freq_base,
+ * which would ignore the entire turbo range (a conspicuous part, making
+ * freq_curr/freq_max always maxed out).
+ *
+ * An exception to the heuristic above is the Atom uarch, where we choose the
+ * highest turbo level for freq_max since Atom's are generally oriented towards
+ * power efficiency.
+ *
+ * Setting freq_max to anything less than the 1C turbo ratio makes the ratio
+ * freq_curr / freq_max to eventually grow >1, in which case we clip it to 1.
+ */
+
+DEFINE_STATIC_KEY_FALSE(arch_scale_freq_key);
+
+static DEFINE_PER_CPU(u64, arch_prev_aperf);
+static DEFINE_PER_CPU(u64, arch_prev_mperf);
+static u64 arch_turbo_freq_ratio = SCHED_CAPACITY_SCALE;
+static u64 arch_max_freq_ratio = SCHED_CAPACITY_SCALE;
+
+void arch_set_max_freq_ratio(bool turbo_disabled)
+{
+	arch_max_freq_ratio = turbo_disabled ? SCHED_CAPACITY_SCALE :
+					arch_turbo_freq_ratio;
+}
+
+static bool turbo_disabled(void)
+{
+	u64 misc_en;
+	int err;
+
+	err = rdmsrl_safe(MSR_IA32_MISC_ENABLE, &misc_en);
+	if (err)
+		return false;
+
+	return (misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE);
+}
+
+static bool slv_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
+{
+	int err;
+
+	err = rdmsrl_safe(MSR_ATOM_CORE_RATIOS, base_freq);
+	if (err)
+		return false;
+
+	err = rdmsrl_safe(MSR_ATOM_CORE_TURBO_RATIOS, turbo_freq);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 16) & 0x3F;     /* max P state */
+	*turbo_freq = *turbo_freq & 0x3F;           /* 1C turbo    */
+
+	return true;
+}
+
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
+
+#define X86_MATCH(model)					\
+	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL, 6,		\
+		INTEL_FAM6_##model, X86_FEATURE_APERFMPERF, NULL)
+
+static const struct x86_cpu_id has_knl_turbo_ratio_limits[] = {
+	X86_MATCH(XEON_PHI_KNL),
+	X86_MATCH(XEON_PHI_KNM),
+	{}
+};
+
+static const struct x86_cpu_id has_skx_turbo_ratio_limits[] = {
+	X86_MATCH(SKYLAKE_X),
+	{}
+};
+
+static const struct x86_cpu_id has_glm_turbo_ratio_limits[] = {
+	X86_MATCH(ATOM_GOLDMONT),
+	X86_MATCH(ATOM_GOLDMONT_D),
+	X86_MATCH(ATOM_GOLDMONT_PLUS),
+	{}
+};
+
+static bool knl_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq,
+				int num_delta_fratio)
+{
+	int fratio, delta_fratio, found;
+	int err, i;
+	u64 msr;
+
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 8) & 0xFF;	    /* max P state */
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &msr);
+	if (err)
+		return false;
+
+	fratio = (msr >> 8) & 0xFF;
+	i = 16;
+	found = 0;
+	do {
+		if (found >= num_delta_fratio) {
+			*turbo_freq = fratio;
+			return true;
+		}
+
+		delta_fratio = (msr >> (i + 5)) & 0x7;
+
+		if (delta_fratio) {
+			found += 1;
+			fratio -= delta_fratio;
+		}
+
+		i += 8;
+	} while (i < 64);
+
+	return true;
+}
+
+static bool skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int size)
+{
+	u64 ratios, counts;
+	u32 group_size;
+	int err, i;
+
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 8) & 0xFF;      /* max P state */
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &ratios);
+	if (err)
+		return false;
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT1, &counts);
+	if (err)
+		return false;
+
+	for (i = 0; i < 64; i += 8) {
+		group_size = (counts >> i) & 0xFF;
+		if (group_size >= size) {
+			*turbo_freq = (ratios >> i) & 0xFF;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
+{
+	u64 msr;
+	int err;
+
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	if (err)
+		return false;
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &msr);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 8) & 0xFF;    /* max P state */
+	*turbo_freq = (msr >> 24) & 0xFF;         /* 4C turbo    */
+
+	/* The CPU may have less than 4 cores */
+	if (!*turbo_freq)
+		*turbo_freq = msr & 0xFF;         /* 1C turbo    */
+
+	return true;
+}
+
+static bool intel_set_max_freq_ratio(void)
+{
+	u64 base_freq, turbo_freq;
+	u64 turbo_ratio;
+
+	if (slv_set_max_freq_ratio(&base_freq, &turbo_freq))
+		goto out;
+
+	if (x86_match_cpu(has_glm_turbo_ratio_limits) &&
+	    skx_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
+		goto out;
+
+	if (x86_match_cpu(has_knl_turbo_ratio_limits) &&
+	    knl_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
+		goto out;
+
+	if (x86_match_cpu(has_skx_turbo_ratio_limits) &&
+	    skx_set_max_freq_ratio(&base_freq, &turbo_freq, 4))
+		goto out;
+
+	if (core_set_max_freq_ratio(&base_freq, &turbo_freq))
+		goto out;
+
+	return false;
+
+out:
+	/*
+	 * Some hypervisors advertise X86_FEATURE_APERFMPERF
+	 * but then fill all MSR's with zeroes.
+	 * Some CPUs have turbo boost but don't declare any turbo ratio
+	 * in MSR_TURBO_RATIO_LIMIT.
+	 */
+	if (!base_freq || !turbo_freq) {
+		pr_debug("Couldn't determine cpu base or turbo frequency, necessary for scale-invariant accounting.\n");
+		return false;
+	}
+
+	turbo_ratio = div_u64(turbo_freq * SCHED_CAPACITY_SCALE, base_freq);
+	if (!turbo_ratio) {
+		pr_debug("Non-zero turbo and base frequencies led to a 0 ratio.\n");
+		return false;
+	}
+
+	arch_turbo_freq_ratio = turbo_ratio;
+	arch_set_max_freq_ratio(turbo_disabled());
+
+	return true;
+}
+
+static void init_counter_refs(void)
+{
+	u64 aperf, mperf;
+
+	rdmsrl(MSR_IA32_APERF, aperf);
+	rdmsrl(MSR_IA32_MPERF, mperf);
+
+	this_cpu_write(arch_prev_aperf, aperf);
+	this_cpu_write(arch_prev_mperf, mperf);
+}
+
+static void init_freq_invariance(bool secondary)
+{
+	bool ret = false;
+
+	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
+		return;
+
+	if (secondary) {
+		if (static_branch_likely(&arch_scale_freq_key)) {
+			init_counter_refs();
+		}
+		return;
+	}
+
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		ret = intel_set_max_freq_ratio();
+
+	if (ret) {
+		init_counter_refs();
+		static_branch_enable(&arch_scale_freq_key);
+	} else {
+		pr_debug("Couldn't determine max cpu frequency, necessary for scale-invariant accounting.\n");
+	}
+}
+
+static void disable_freq_invariance_workfn(struct work_struct *work)
+{
+	static_branch_disable(&arch_scale_freq_key);
+}
+
+static DECLARE_WORK(disable_freq_invariance_work,
+		    disable_freq_invariance_workfn);
+
+DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
+
+void arch_scale_freq_tick(void)
+{
+	u64 freq_scale = SCHED_CAPACITY_SCALE;
+	u64 aperf, mperf;
+	u64 acnt, mcnt;
+
+	if (!arch_scale_freq_invariant())
+		return;
+
+	rdmsrl(MSR_IA32_APERF, aperf);
+	rdmsrl(MSR_IA32_MPERF, mperf);
+
+	acnt = aperf - this_cpu_read(arch_prev_aperf);
+	mcnt = mperf - this_cpu_read(arch_prev_mperf);
+
+	this_cpu_write(arch_prev_aperf, aperf);
+	this_cpu_write(arch_prev_mperf, mperf);
+
+	if (check_shl_overflow(acnt, 2*SCHED_CAPACITY_SHIFT, &acnt))
+		goto error;
+
+	if (check_mul_overflow(mcnt, arch_max_freq_ratio, &mcnt) || !mcnt)
+		goto error;
+
+	freq_scale = div64_u64(acnt, mcnt);
+	if (!freq_scale)
+		goto error;
+
+	if (freq_scale > SCHED_CAPACITY_SCALE)
+		freq_scale = SCHED_CAPACITY_SCALE;
+
+	this_cpu_write(arch_freq_scale, freq_scale);
+	return;
+
+error:
+	pr_warn("Scheduler frequency invariance went wobbly, disabling!\n");
+	schedule_work(&disable_freq_invariance_work);
+}
+#else
+static inline void init_freq_invariance(bool secondary)
+{
+}
+#endif /* CONFIG_X86_64 */

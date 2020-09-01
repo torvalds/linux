@@ -299,11 +299,18 @@ void mlx5_fill_page_array(struct mlx5_frag_buf *buf, __be64 *pas)
 }
 EXPORT_SYMBOL_GPL(mlx5_fill_page_array);
 
-void mlx5_fill_page_frag_array(struct mlx5_frag_buf *buf, __be64 *pas)
+void mlx5_fill_page_frag_array_perm(struct mlx5_frag_buf *buf, __be64 *pas, u8 perm)
 {
 	int i;
 
+	WARN_ON(perm & 0xfc);
 	for (i = 0; i < buf->npages; i++)
-		pas[i] = cpu_to_be64(buf->frags[i].map);
+		pas[i] = cpu_to_be64(buf->frags[i].map | perm);
+}
+EXPORT_SYMBOL_GPL(mlx5_fill_page_frag_array_perm);
+
+void mlx5_fill_page_frag_array(struct mlx5_frag_buf *buf, __be64 *pas)
+{
+	mlx5_fill_page_frag_array_perm(buf, pas, 0);
 }
 EXPORT_SYMBOL_GPL(mlx5_fill_page_frag_array);

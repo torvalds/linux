@@ -49,15 +49,17 @@
 #define FS_OPEN_EXEC_PERM	0x00040000	/* open/exec event in a permission hook */
 
 #define FS_EXCL_UNLINK		0x04000000	/* do not send events if object is unlinked */
-#define FS_ISDIR		0x40000000	/* event occurred against dir */
-#define FS_IN_ONESHOT		0x80000000	/* only send event once */
+/*
+ * Set on inode mark that cares about things that happen to its children.
+ * Always set for dnotify and inotify.
+ * Set on inode/sb/mount marks that care about parent/name info.
+ */
+#define FS_EVENT_ON_CHILD	0x08000000
 
 #define FS_DN_RENAME		0x10000000	/* file renamed */
 #define FS_DN_MULTISHOT		0x20000000	/* dnotify multishot */
-
-/* This inode cares about things that happen to its children.  Always set for
- * dnotify and inotify. */
-#define FS_EVENT_ON_CHILD	0x08000000
+#define FS_ISDIR		0x40000000	/* event occurred against dir */
+#define FS_IN_ONESHOT		0x80000000	/* only send event once */
 
 #define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
 
@@ -73,13 +75,21 @@
 				  FS_OPEN_EXEC_PERM)
 
 /*
- * This is a list of all events that may get sent to a parent based on fs event
- * happening to inodes inside that directory.
+ * This is a list of all events that may get sent to a parent that is watching
+ * with flag FS_EVENT_ON_CHILD based on fs event on a child of that directory.
  */
 #define FS_EVENTS_POSS_ON_CHILD   (ALL_FSNOTIFY_PERM_EVENTS | \
 				   FS_ACCESS | FS_MODIFY | FS_ATTRIB | \
 				   FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | \
 				   FS_OPEN | FS_OPEN_EXEC)
+
+/*
+ * This is a list of all events that may get sent with the parent inode as the
+ * @to_tell argument of fsnotify().
+ * It may include events that can be sent to an inode/sb/mount mark, but cannot
+ * be sent to a parent watching children.
+ */
+#define FS_EVENTS_POSS_TO_PARENT (FS_EVENTS_POSS_ON_CHILD)
 
 /* Events that can be reported to backends */
 #define ALL_FSNOTIFY_EVENTS (ALL_FSNOTIFY_DIRENT_EVENTS | \
@@ -107,18 +117,41 @@ struct mem_cgroup;
  * these operations for each relevant group.
  *
  * handle_event - main call for a group to handle an fs event
+ * @group:	group to notify
+ * @mask:	event type and flags
+ * @data:	object that event happened on
+ * @data_type:	type of object for fanotify_data_XXX() accessors
+ * @dir:	optional directory associated with event -
+ *		if @file_name is not NULL, this is the directory that
+ *		@file_name is relative to
+ * @file_name:	optional file name associated with event
+ * @cookie:	inotify rename cookie
+ * @iter_info:	array of marks from this group that are interested in the event
+ *
+ * handle_inode_event - simple variant of handle_event() for groups that only
+ *		have inode marks and don't have ignore mask
+ * @mark:	mark to notify
+ * @mask:	event type and flags
+ * @inode:	inode that event happened on
+ * @dir:	optional directory associated with event -
+ *		if @file_name is not NULL, this is the directory that
+ *		@file_name is relative to.
+ * @file_name:	optional file name associated with event
+ *
  * free_group_priv - called when a group refcnt hits 0 to clean up the private union
  * freeing_mark - called when a mark is being destroyed for some reason.  The group
- * 		MUST be holding a reference on each mark and that reference must be
- * 		dropped in this function.  inotify uses this function to send
- * 		userspace messages that marks have been removed.
+ *		MUST be holding a reference on each mark and that reference must be
+ *		dropped in this function.  inotify uses this function to send
+ *		userspace messages that marks have been removed.
  */
 struct fsnotify_ops {
-	int (*handle_event)(struct fsnotify_group *group,
-			    struct inode *inode,
-			    u32 mask, const void *data, int data_type,
+	int (*handle_event)(struct fsnotify_group *group, u32 mask,
+			    const void *data, int data_type, struct inode *dir,
 			    const struct qstr *file_name, u32 cookie,
 			    struct fsnotify_iter_info *iter_info);
+	int (*handle_inode_event)(struct fsnotify_mark *mark, u32 mask,
+			    struct inode *inode, struct inode *dir,
+			    const struct qstr *file_name);
 	void (*free_group_priv)(struct fsnotify_group *group);
 	void (*freeing_mark)(struct fsnotify_mark *mark, struct fsnotify_group *group);
 	void (*free_event)(struct fsnotify_event *event);
@@ -133,8 +166,7 @@ struct fsnotify_ops {
  */
 struct fsnotify_event {
 	struct list_head list;
-	/* inode may ONLY be dereferenced during handle_event(). */
-	struct inode *inode;	/* either the inode the event happened to or its parent */
+	unsigned long objectid;	/* identifier for queue merges */
 };
 
 /*
@@ -213,13 +245,39 @@ struct fsnotify_group {
 	};
 };
 
-/* when calling fsnotify tell it if the data is a path or inode */
-#define FSNOTIFY_EVENT_NONE	0
-#define FSNOTIFY_EVENT_PATH	1
-#define FSNOTIFY_EVENT_INODE	2
+/* When calling fsnotify tell it if the data is a path or inode */
+enum fsnotify_data_type {
+	FSNOTIFY_EVENT_NONE,
+	FSNOTIFY_EVENT_PATH,
+	FSNOTIFY_EVENT_INODE,
+};
+
+static inline struct inode *fsnotify_data_inode(const void *data, int data_type)
+{
+	switch (data_type) {
+	case FSNOTIFY_EVENT_INODE:
+		return (struct inode *)data;
+	case FSNOTIFY_EVENT_PATH:
+		return d_inode(((const struct path *)data)->dentry);
+	default:
+		return NULL;
+	}
+}
+
+static inline const struct path *fsnotify_data_path(const void *data,
+						    int data_type)
+{
+	switch (data_type) {
+	case FSNOTIFY_EVENT_PATH:
+		return data;
+	default:
+		return NULL;
+	}
+}
 
 enum fsnotify_obj_type {
 	FSNOTIFY_OBJ_TYPE_INODE,
+	FSNOTIFY_OBJ_TYPE_CHILD,
 	FSNOTIFY_OBJ_TYPE_VFSMOUNT,
 	FSNOTIFY_OBJ_TYPE_SB,
 	FSNOTIFY_OBJ_TYPE_COUNT,
@@ -227,6 +285,7 @@ enum fsnotify_obj_type {
 };
 
 #define FSNOTIFY_OBJ_TYPE_INODE_FL	(1U << FSNOTIFY_OBJ_TYPE_INODE)
+#define FSNOTIFY_OBJ_TYPE_CHILD_FL	(1U << FSNOTIFY_OBJ_TYPE_CHILD)
 #define FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL	(1U << FSNOTIFY_OBJ_TYPE_VFSMOUNT)
 #define FSNOTIFY_OBJ_TYPE_SB_FL		(1U << FSNOTIFY_OBJ_TYPE_SB)
 #define FSNOTIFY_OBJ_ALL_TYPES_MASK	((1U << FSNOTIFY_OBJ_TYPE_COUNT) - 1)
@@ -271,6 +330,7 @@ static inline struct fsnotify_mark *fsnotify_iter_##name##_mark( \
 }
 
 FSNOTIFY_ITER_FUNCS(inode, INODE)
+FSNOTIFY_ITER_FUNCS(child, CHILD)
 FSNOTIFY_ITER_FUNCS(vfsmount, VFSMOUNT)
 FSNOTIFY_ITER_FUNCS(sb, SB)
 
@@ -351,13 +411,28 @@ struct fsnotify_mark {
 /* called from the vfs helpers */
 
 /* main fsnotify call to send events */
-extern int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
-		    const struct qstr *name, u32 cookie);
-extern int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask);
+extern int fsnotify(__u32 mask, const void *data, int data_type,
+		    struct inode *dir, const struct qstr *name,
+		    struct inode *inode, u32 cookie);
+extern int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
+			   int data_type);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
 extern void fsnotify_sb_delete(struct super_block *sb);
 extern u32 fsnotify_get_cookie(void);
+
+static inline __u32 fsnotify_parent_needed_mask(__u32 mask)
+{
+	/* FS_EVENT_ON_CHILD is set on marks that want parent/name info */
+	if (!(mask & FS_EVENT_ON_CHILD))
+		return 0;
+	/*
+	 * This object might be watched by a mark that cares about parent/name
+	 * info, does it care about the specific set of events that can be
+	 * reported with parent/name info?
+	 */
+	return mask & FS_EVENTS_POSS_TO_PARENT;
+}
 
 static inline int fsnotify_inode_watches_children(struct inode *inode)
 {
@@ -500,21 +575,23 @@ extern void fsnotify_finish_user_wait(struct fsnotify_iter_info *iter_info);
 extern bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info);
 
 static inline void fsnotify_init_event(struct fsnotify_event *event,
-				       struct inode *inode)
+				       unsigned long objectid)
 {
 	INIT_LIST_HEAD(&event->list);
-	event->inode = inode;
+	event->objectid = objectid;
 }
 
 #else
 
-static inline int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
-			   const struct qstr *name, u32 cookie)
+static inline int fsnotify(__u32 mask, const void *data, int data_type,
+			   struct inode *dir, const struct qstr *name,
+			   struct inode *inode, u32 cookie)
 {
 	return 0;
 }
 
-static inline int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask)
+static inline int __fsnotify_parent(struct dentry *dentry, __u32 mask,
+				  const void *data, int data_type)
 {
 	return 0;
 }

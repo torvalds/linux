@@ -135,8 +135,8 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 	 *
 	 * All subdomains have been powered off already at this point.
 	 */
-	list_for_each_entry(link, &genpd->master_links, master_node) {
-		struct generic_pm_domain *sd = link->slave;
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
+		struct generic_pm_domain *sd = link->child;
 		s64 sd_max_off_ns = sd->max_off_time_ns;
 
 		if (sd_max_off_ns < 0)
@@ -217,13 +217,13 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 	}
 
 	/*
-	 * We have to invalidate the cached results for the masters, so
+	 * We have to invalidate the cached results for the parents, so
 	 * use the observation that default_power_down_ok() is not
-	 * going to be called for any master until this instance
+	 * going to be called for any parent until this instance
 	 * returns.
 	 */
-	list_for_each_entry(link, &genpd->slave_links, slave_node)
-		link->master->max_off_time_changed = true;
+	list_for_each_entry(link, &genpd->child_links, child_node)
+		link->parent->max_off_time_changed = true;
 
 	genpd->max_off_time_ns = -1;
 	genpd->max_off_time_changed = false;

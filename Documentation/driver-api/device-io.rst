@@ -36,14 +36,14 @@ are starting with one. Physical addresses are of type unsigned long.
 
 This address should not be used directly. Instead, to get an address
 suitable for passing to the accessor functions described below, you
-should call :c:func:`ioremap()`. An address suitable for accessing
+should call ioremap(). An address suitable for accessing
 the device will be returned to you.
 
 After you've finished using the device (say, in your module's exit
-routine), call :c:func:`iounmap()` in order to return the address
+routine), call iounmap() in order to return the address
 space to the kernel. Most architectures allocate new address space each
-time you call :c:func:`ioremap()`, and they can run out unless you
-call :c:func:`iounmap()`.
+time you call ioremap(), and they can run out unless you
+call iounmap().
 
 Accessing the device
 --------------------
@@ -60,8 +60,8 @@ readb_relaxed(), readw_relaxed(), readl_relaxed(), readq_relaxed(),
 writeb(), writew(), writel() and writeq().
 
 Some devices (such as framebuffers) would like to use larger transfers than
-8 bytes at a time. For these devices, the :c:func:`memcpy_toio()`,
-:c:func:`memcpy_fromio()` and :c:func:`memset_io()` functions are
+8 bytes at a time. For these devices, the memcpy_toio(),
+memcpy_fromio() and memset_io() functions are
 provided. Do not use memset or memcpy on IO addresses; they are not
 guaranteed to copy data in order.
 
@@ -135,15 +135,15 @@ Accessing Port Space
 
 Accesses to this space are provided through a set of functions which
 allow 8-bit, 16-bit and 32-bit accesses; also known as byte, word and
-long. These functions are :c:func:`inb()`, :c:func:`inw()`,
-:c:func:`inl()`, :c:func:`outb()`, :c:func:`outw()` and
-:c:func:`outl()`.
+long. These functions are inb(), inw(),
+inl(), outb(), outw() and
+outl().
 
 Some variants are provided for these functions. Some devices require
 that accesses to their ports are slowed down. This functionality is
 provided by appending a ``_p`` to the end of the function.
-There are also equivalents to memcpy. The :c:func:`ins()` and
-:c:func:`outs()` functions copy bytes, words or longs to the given
+There are also equivalents to memcpy. The ins() and
+outs() functions copy bytes, words or longs to the given
 port.
 
 Public Functions Provided

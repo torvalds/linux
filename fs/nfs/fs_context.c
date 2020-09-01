@@ -190,6 +190,7 @@ static const struct constant_table nfs_vers_tokens[] = {
 	{ "4.0",	Opt_vers_4_0 },
 	{ "4.1",	Opt_vers_4_1 },
 	{ "4.2",	Opt_vers_4_2 },
+	{}
 };
 
 enum {
@@ -202,13 +203,14 @@ enum {
 	nr__Opt_xprt
 };
 
-static const struct constant_table nfs_xprt_protocol_tokens[nr__Opt_xprt] = {
+static const struct constant_table nfs_xprt_protocol_tokens[] = {
 	{ "rdma",	Opt_xprt_rdma },
 	{ "rdma6",	Opt_xprt_rdma6 },
 	{ "tcp",	Opt_xprt_tcp },
 	{ "tcp6",	Opt_xprt_tcp6 },
 	{ "udp",	Opt_xprt_udp },
 	{ "udp6",	Opt_xprt_udp6 },
+	{}
 };
 
 enum {
@@ -239,6 +241,7 @@ static const struct constant_table nfs_secflavor_tokens[] = {
 	{ "spkm3i",	Opt_sec_spkmi },
 	{ "spkm3p",	Opt_sec_spkmp },
 	{ "sys",	Opt_sec_sys },
+	{}
 };
 
 /*
@@ -648,21 +651,21 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		switch (lookup_constant(nfs_xprt_protocol_tokens, param->string, -1)) {
 		case Opt_xprt_udp6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_udp:
 			ctx->flags &= ~NFS_MOUNT_TCP;
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 			break;
 		case Opt_xprt_tcp6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_tcp:
 			ctx->flags |= NFS_MOUNT_TCP;
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 			break;
 		case Opt_xprt_rdma6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_rdma:
 			/* vector side protocols to TCP */
 			ctx->flags |= NFS_MOUNT_TCP;
@@ -681,13 +684,13 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		switch (lookup_constant(nfs_xprt_protocol_tokens, param->string, -1)) {
 		case Opt_xprt_udp6:
 			mountfamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_udp:
 			ctx->mount_server.protocol = XPRT_TRANSPORT_UDP;
 			break;
 		case Opt_xprt_tcp6:
 			mountfamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_tcp:
 			ctx->mount_server.protocol = XPRT_TRANSPORT_TCP;
 			break;
@@ -896,9 +899,11 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 	ctx->version = NFS_DEFAULT_VERSION;
 	switch (data->version) {
 	case 1:
-		data->namlen = 0; /* fall through */
+		data->namlen = 0;
+		fallthrough;
 	case 2:
-		data->bsize = 0; /* fall through */
+		data->bsize = 0;
+		fallthrough;
 	case 3:
 		if (data->flags & NFS_MOUNT_VER3)
 			goto out_no_v3;
@@ -906,14 +911,14 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
 		/* Turn off security negotiation */
 		extra_flags |= NFS_MOUNT_SECFLAVOUR;
-		/* fall through */
+		fallthrough;
 	case 4:
 		if (data->flags & NFS_MOUNT_SECFLAVOUR)
 			goto out_no_sec;
-		/* fall through */
+		fallthrough;
 	case 5:
 		memset(data->context, 0, sizeof(data->context));
-		/* fall through */
+		fallthrough;
 	case 6:
 		if (data->flags & NFS_MOUNT_VER3) {
 			if (data->root.size > NFS3_FHSIZE || data->root.size == 0)
@@ -979,7 +984,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		/*
 		 * The legacy version 6 binary mount data from userspace has a
 		 * field used only to transport selinux information into the
-		 * the kernel.  To continue to support that functionality we
+		 * kernel.  To continue to support that functionality we
 		 * have a touch of selinux knowledge here in the NFS code. The
 		 * userspace code converted context=blah to just blah so we are
 		 * converting back to the full string selinux understands.
@@ -1135,7 +1140,7 @@ out_no_address:
 	return nfs_invalf(fc, "NFS4: mount program didn't pass remote address");
 
 out_invalid_transport_udp:
-	return nfs_invalf(fc, "NFSv4: Unsupported transport protocol udp");
+	return nfs_invalf(fc, "NFS: Unsupported transport protocol udp");
 }
 #endif
 
@@ -1257,7 +1262,7 @@ out_v4_not_compiled:
 	nfs_errorf(fc, "NFS: NFSv4 is not compiled into kernel");
 	return -EPROTONOSUPPORT;
 out_invalid_transport_udp:
-	return nfs_invalf(fc, "NFSv4: Unsupported transport protocol udp");
+	return nfs_invalf(fc, "NFS: Unsupported transport protocol udp");
 out_no_address:
 	return nfs_invalf(fc, "NFS: mount program didn't pass remote address");
 out_mountproto_mismatch:

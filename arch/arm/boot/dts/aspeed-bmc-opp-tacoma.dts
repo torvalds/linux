@@ -29,22 +29,16 @@
 			no-map;
 			reg = <0xb8000000 0x4000000>; /* 64M */
 		};
+
+		vga_memory: region@bf000000 {
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;	/* 16M */
+		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-
-		air-water {
-			label = "air-water";
-			gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(Q, 7)>;
-		};
-
-		checkstop {
-			label = "checkstop";
-			gpios = <&gpio0 ASPEED_GPIO(E, 3) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(E, 3)>;
-		};
 
 		ps0-presence {
 			label = "ps0-presence";
@@ -89,6 +83,53 @@
 			linux,code = <7>;
 		};
 	};
+
+	iio-hwmon-dps310 {
+		compatible = "iio-hwmon";
+		io-channels = <&dps 0>;
+	};
+
+	iio-hwmon-bmp280 {
+		compatible = "iio-hwmon";
+		io-channels = <&bmp 1>;
+	};
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+&gpio0 {
+	gpio-line-names =
+	/*A0-A7*/	"","","","","","","","",
+	/*B0-B7*/	"fsi-mux","","","","","","","",
+	/*C0-C7*/	"","","","","","","","",
+	/*D0-D7*/	"","","","","","","","",
+	/*E0-E7*/	"power-button","","","checkstop","","presence-ps1","","led-rear-fault",
+	/*F0-F7*/	"","","","","","","","",
+	/*G0-G7*/	"","","","","","","","",
+	/*H0-H7*/	"","","","presence-ps0","","","","",
+	/*I0-I7*/	"","","","","","","","",
+	/*J0-J7*/	"","","","","","","","",
+	/*K0-K7*/	"","","","","","","","",
+	/*L0-L7*/	"","","","","","","","",
+	/*M0-M7*/	"","","","","","","","",
+	/*N0-N7*/	"","","","","","","","",
+	/*O0-O7*/	"led-rear-power","led-rear-id","","usb-power","","","","",
+	/*P0-P7*/	"","","","","","","","",
+	/*Q0-Q7*/	"cfam-reset","","","","","","","fsi-routing",
+	/*R0-R7*/	"","","","","","","","",
+	/*S0-S7*/	"","","","","","","","",
+	/*T0-T7*/	"","","","","","","","",
+	/*U0-U7*/	"","","","","","","","",
+	/*V0-V7*/	"","","","","","","","",
+	/*W0-W7*/	"","","","","","","","",
+	/*X0-X7*/	"","","","","","","","",
+	/*Y0-Y7*/	"","","","","","","","",
+	/*Z0-Z7*/	"","","","","","","","",
+	/*AA0-AA7*/	"","","","","","","","",
+	/*AB0-AB7*/	"","","","","","","","",
+	/*AC0-AC7*/	"","","","","","","","";
 };
 
 &fmc {
@@ -132,6 +173,10 @@
 	use-ncsi;
 };
 
+&emmc_controller {
+	status = "okay";
+};
+
 &emmc {
 	status = "okay";
 };
@@ -141,6 +186,10 @@
 
 	#address-cells = <2>;
 	#size-cells = <0>;
+
+	fsi-routing-gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_HIGH>;
+	fsi-mux-gpios = <&gpio0 ASPEED_GPIO(B, 0) GPIO_ACTIVE_HIGH>;
+	cfam-reset-gpios = <&gpio0 ASPEED_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
 
 	cfam@0,0 {
 		reg = <0 0>;
@@ -394,6 +443,11 @@
 
 &i2c1 {
 	status = "okay";
+
+	tpm: tpm@2e {
+		compatible = "tcg,tpm-tis-i2c";
+		reg = <0x2e>;
+	};
 };
 
 &i2c2 {
@@ -774,6 +828,10 @@
 	status = "okay";
 };
 
+&vuart2 {
+	status = "okay";
+};
+
 &lpc_ctrl {
 	status = "okay";
 	memory-region = <&flash_memory>;
@@ -799,4 +857,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpc_default>,
 		    <&pinctrl_lsirq_default>;
+};
+
+&xdma {
+	status = "okay";
+	memory-region = <&vga_memory>;
 };

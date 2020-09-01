@@ -99,6 +99,17 @@ config POWER_RESET_HISI
 	help
 	  Reboot support for Hisilicon boards.
 
+config POWER_RESET_LINKSTATION
+	tristate "Buffalo LinkStation power-off driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF_MDIO && PHYLIB
+	help
+	  This driver supports turning off some Buffalo LinkStations by
+	  setting an output pin at the ethernet PHY to the correct state.
+	  It also makes the device compatible with the WoL function.
+
+	  Say Y here if you have a Buffalo LinkStation LS421D/E.
+
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
 	depends on ARCH_QCOM
@@ -122,6 +133,13 @@ config POWER_RESET_OCELOT_RESET
 	select MFD_SYSCON
 	help
 	  This driver supports restart for Microsemi Ocelot SoC.
+
+config POWER_RESET_OXNAS
+	bool "OXNAS SoC restart driver"
+	depends on ARCH_OXNAS
+	default MACH_OX820
+	help
+	  Restart support for OXNAS/PLXTECH OX820 SoC.
 
 config POWER_RESET_PIIX4_POWEROFF
 	tristate "Intel PIIX4 power-off driver"
@@ -184,7 +202,7 @@ config POWER_RESET_VERSATILE
 config POWER_RESET_VEXPRESS
 	bool "ARM Versatile Express power-off and reset driver"
 	depends on ARM || ARM64
-	depends on VEXPRESS_CONFIG
+	depends on VEXPRESS_CONFIG=y
 	help
 	  Power off and reset support for the ARM Ltd. Versatile
 	  Express boards.
@@ -248,7 +266,7 @@ config SYSCON_REBOOT_MODE
 	  action according to the mode.
 
 config POWER_RESET_SC27XX
-	bool "Spreadtrum SC27xx PMIC power-off driver"
+	tristate "Spreadtrum SC27xx PMIC power-off driver"
 	depends on MFD_SC27XX_PMIC || COMPILE_TEST
 	help
 	  This driver supports powering off a system through

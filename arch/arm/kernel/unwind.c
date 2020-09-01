@@ -444,7 +444,7 @@ int unwind_frame(struct stackframe *frame)
 		ctrl.vrs[PC] = ctrl.vrs[LR];
 
 	/* check for infinite loop */
-	if (frame->pc == ctrl.vrs[PC])
+	if (frame->pc == ctrl.vrs[PC] && frame->sp == ctrl.vrs[SP])
 		return -URC_FAILURE;
 
 	frame->fp = ctrl.vrs[FP];
@@ -455,7 +455,8 @@ int unwind_frame(struct stackframe *frame)
 	return URC_OK;
 }
 
-void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		      const char *loglvl)
 {
 	struct stackframe frame;
 
@@ -493,7 +494,7 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		urc = unwind_frame(&frame);
 		if (urc < 0)
 			break;
-		dump_backtrace_entry(where, frame.pc, frame.sp - 4);
+		dump_backtrace_entry(where, frame.pc, frame.sp - 4, loglvl);
 	}
 }
 

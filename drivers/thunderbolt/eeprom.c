@@ -247,7 +247,7 @@ struct tb_drom_entry_header {
 
 struct tb_drom_entry_generic {
 	struct tb_drom_entry_header header;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct tb_drom_entry_port {
@@ -599,6 +599,7 @@ parse:
 		sw->uid = header->uid;
 	sw->vendor = header->vendor_id;
 	sw->device = header->model_id;
+	tb_check_quirks(sw);
 
 	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
 	if (crc != header->data_crc32) {

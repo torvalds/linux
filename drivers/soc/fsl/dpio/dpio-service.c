@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2016 NXP
+ * Copyright 2016-2019 NXP
  *
  */
 #include <linux/types.h>
@@ -58,7 +58,7 @@ static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
 	 * If cpu == -1, choose the current cpu, with no guarantees about
 	 * potentially being migrated away.
 	 */
-	if (unlikely(cpu < 0))
+	if (cpu < 0)
 		cpu = smp_processor_id();
 
 	/* If a specific cpu was requested, pick it up immediately */
@@ -67,6 +67,10 @@ static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
 
 static inline struct dpaa2_io *service_select(struct dpaa2_io *d)
 {
+	if (d)
+		return d;
+
+	d = service_select_by_cpu(d, -1);
 	if (d)
 		return d;
 
@@ -433,6 +437,78 @@ int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d,
 EXPORT_SYMBOL(dpaa2_io_service_enqueue_fq);
 
 /**
+ * dpaa2_io_service_enqueue_multiple_fq() - Enqueue multiple frames
+ * to a frame queue using one fqid.
+ * @d: the given DPIO service.
+ * @fqid: the given frame queue id.
+ * @fd: the frame descriptor which is enqueued.
+ * @nb: number of frames to be enqueud
+ *
+ * Return 0 for successful enqueue, -EBUSY if the enqueue ring is not ready,
+ * or -ENODEV if there is no dpio service.
+ */
+int dpaa2_io_service_enqueue_multiple_fq(struct dpaa2_io *d,
+				u32 fqid,
+				const struct dpaa2_fd *fd,
+				int nb)
+{
+	struct qbman_eq_desc ed;
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+
+	qbman_eq_desc_clear(&ed);
+	qbman_eq_desc_set_no_orp(&ed, 0);
+	qbman_eq_desc_set_fq(&ed, fqid);
+
+	return qbman_swp_enqueue_multiple(d->swp, &ed, fd, 0, nb);
+}
+EXPORT_SYMBOL(dpaa2_io_service_enqueue_multiple_fq);
+
+/**
+ * dpaa2_io_service_enqueue_multiple_desc_fq() - Enqueue multiple frames
+ * to different frame queue using a list of fqids.
+ * @d: the given DPIO service.
+ * @fqid: the given list of frame queue ids.
+ * @fd: the frame descriptor which is enqueued.
+ * @nb: number of frames to be enqueud
+ *
+ * Return 0 for successful enqueue, -EBUSY if the enqueue ring is not ready,
+ * or -ENODEV if there is no dpio service.
+ */
+int dpaa2_io_service_enqueue_multiple_desc_fq(struct dpaa2_io *d,
+				u32 *fqid,
+				const struct dpaa2_fd *fd,
+				int nb)
+{
+	struct qbman_eq_desc *ed;
+	int i, ret;
+
+	ed = kcalloc(sizeof(struct qbman_eq_desc), 32, GFP_KERNEL);
+	if (!ed)
+		return -ENOMEM;
+
+	d = service_select(d);
+	if (!d) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	for (i = 0; i < nb; i++) {
+		qbman_eq_desc_clear(&ed[i]);
+		qbman_eq_desc_set_no_orp(&ed[i], 0);
+		qbman_eq_desc_set_fq(&ed[i], fqid[i]);
+	}
+
+	ret = qbman_swp_enqueue_multiple_desc(d->swp, &ed[0], fd, nb);
+out:
+	kfree(ed);
+	return ret;
+}
+EXPORT_SYMBOL(dpaa2_io_service_enqueue_multiple_desc_fq);
+
+/**
  * dpaa2_io_service_enqueue_qd() - Enqueue a frame to a QD.
  * @d: the given DPIO service.
  * @qdid: the given queuing destination id.
@@ -526,7 +602,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_acquire);
 
 /**
  * dpaa2_io_store_create() - Create the dma memory storage for dequeue result.
- * @max_frames: the maximum number of dequeued result for frames, must be <= 16.
+ * @max_frames: the maximum number of dequeued result for frames, must be <= 32.
  * @dev:        the device to allow mapping/unmapping the DMAable region.
  *
  * The size of the storage is "max_frames*sizeof(struct dpaa2_dq)".
@@ -541,7 +617,7 @@ struct dpaa2_io_store *dpaa2_io_store_create(unsigned int max_frames,
 	struct dpaa2_io_store *ret;
 	size_t size;
 
-	if (!max_frames || (max_frames > 16))
+	if (!max_frames || (max_frames > 32))
 		return NULL;
 
 	ret = kmalloc(sizeof(*ret), GFP_KERNEL);

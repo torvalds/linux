@@ -37,7 +37,7 @@ struct obj_mlmeex {
 	u16 state;
 	u16 code;
 	u16 size;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct obj_buffer {
@@ -68,12 +68,12 @@ struct obj_bss {
 
 struct obj_bsslist {
 	u32 nr;
-	struct obj_bss bsslist[0];
+	struct obj_bss bsslist[];
 } __packed;
 
 struct obj_frequencies {
 	u16 nr;
-	u16 mhz[0];
+	u16 mhz[];
 } __packed;
 
 struct obj_attachment {
@@ -81,7 +81,7 @@ struct obj_attachment {
 	char reserved;
 	short id;
 	short size;
-	char data[0];
+	char data[];
 } __packed;
 
 /*
@@ -143,7 +143,7 @@ enum dot11_priv_t {
  * together with a CSMA contention. Without this all frames are
  * sent with a CSMA contention.
  * Bibliography:
- * http://www.hpl.hp.com/personal/Jean_Tourrilhes/Papers/Packet.Frame.Grouping.html
+ * https://www.hpl.hp.com/personal/Jean_Tourrilhes/Papers/Packet.Frame.Grouping.html
  */
 enum dot11_maxframeburst_t {
 	/* Values for DOT11_OID_MAXFRAMEBURST */

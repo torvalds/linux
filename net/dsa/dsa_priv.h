@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/netpoll.h>
 #include <net/dsa.h>
+#include <net/gro_cells.h>
 
 enum {
 	DSA_NOTIFIER_AGEING_TIME,
@@ -22,6 +23,7 @@ enum {
 	DSA_NOTIFIER_MDB_DEL,
 	DSA_NOTIFIER_VLAN_ADD,
 	DSA_NOTIFIER_VLAN_DEL,
+	DSA_NOTIFIER_MTU,
 };
 
 /* DSA_NOTIFIER_AGEING_TIME */
@@ -33,6 +35,7 @@ struct dsa_notifier_ageing_time_info {
 /* DSA_NOTIFIER_BRIDGE_* */
 struct dsa_notifier_bridge_info {
 	struct net_device *br;
+	int tree_index;
 	int sw_index;
 	int port;
 };
@@ -61,12 +64,22 @@ struct dsa_notifier_vlan_info {
 	int port;
 };
 
+/* DSA_NOTIFIER_MTU */
+struct dsa_notifier_mtu_info {
+	bool propagate_upstream;
+	int sw_index;
+	int port;
+	int mtu;
+};
+
 struct dsa_slave_priv {
 	/* Copy of CPU port xmit for faster access in slave transmit hot path */
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
 					struct net_device *dev);
 
-	struct pcpu_sw_netstats	*stats64;
+	struct pcpu_sw_netstats	__percpu *stats64;
+
+	struct gro_cells	gcells;
 
 	/* DSA port data, such as switch, port index, etc. */
 	struct dsa_port		*dp;
@@ -125,8 +138,11 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct switchdev_trans *trans);
+bool dsa_port_skip_vlan_configuration(struct dsa_port *dp);
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 			 struct switchdev_trans *trans);
+int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
+			bool propagate_upstream);
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
 int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
@@ -183,4 +199,8 @@ dsa_slave_to_master(const struct net_device *dev)
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);
+
+/* dsa2.c */
+extern struct list_head dsa_tree_list;
+
 #endif

@@ -28,7 +28,6 @@
 #include <linux/nospec.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
@@ -205,7 +204,7 @@ static int set_segment_reg(struct task_struct *task,
 	case offsetof(struct user_regs_struct, ss):
 		if (unlikely(value == 0))
 			return -EIO;
-		/* Else, fall through */
+		fallthrough;
 
 	default:
 		*pt_regs_access(task_pt_regs(task), offset) = value;
@@ -282,17 +281,9 @@ static int set_segment_reg(struct task_struct *task,
 		return -EIO;
 
 	/*
-	 * This function has some ABI oddities.
-	 *
-	 * A 32-bit ptracer probably expects that writing FS or GS will change
-	 * FSBASE or GSBASE respectively.  In the absence of FSGSBASE support,
-	 * this code indeed has that effect.  When FSGSBASE is added, this
-	 * will require a special case.
-	 *
-	 * For existing 64-bit ptracers, writing FS or GS *also* currently
-	 * changes the base if the selector is nonzero the next time the task
-	 * is run.  This behavior may not be needed, and trying to preserve it
-	 * when FSGSBASE is added would be complicated at best.
+	 * Writes to FS and GS will change the stored selector.  Whether
+	 * this changes the segment base as well depends on whether
+	 * FSGSBASE is enabled.
 	 */
 
 	switch (offset) {
@@ -380,25 +371,12 @@ static int putreg(struct task_struct *child,
 	case offsetof(struct user_regs_struct,fs_base):
 		if (value >= TASK_SIZE_MAX)
 			return -EIO;
-		/*
-		 * When changing the FS base, use do_arch_prctl_64()
-		 * to set the index to zero and to set the base
-		 * as requested.
-		 *
-		 * NB: This behavior is nonsensical and likely needs to
-		 * change when FSGSBASE support is added.
-		 */
-		if (child->thread.fsbase != value)
-			return do_arch_prctl_64(child, ARCH_SET_FS, value);
+		x86_fsbase_write_task(child, value);
 		return 0;
 	case offsetof(struct user_regs_struct,gs_base):
-		/*
-		 * Exactly the same here as the %fs handling above.
-		 */
 		if (value >= TASK_SIZE_MAX)
 			return -EIO;
-		if (child->thread.gsbase != value)
-			return do_arch_prctl_64(child, ARCH_SET_GS, value);
+		x86_gsbase_write_task(child, value);
 		return 0;
 #endif
 	}
@@ -434,26 +412,12 @@ static unsigned long getreg(struct task_struct *task, unsigned long offset)
 
 static int genregs_get(struct task_struct *target,
 		       const struct user_regset *regset,
-		       unsigned int pos, unsigned int count,
-		       void *kbuf, void __user *ubuf)
+		       struct membuf to)
 {
-	if (kbuf) {
-		unsigned long *k = kbuf;
-		while (count >= sizeof(*k)) {
-			*k++ = getreg(target, pos);
-			count -= sizeof(*k);
-			pos += sizeof(*k);
-		}
-	} else {
-		unsigned long __user *u = ubuf;
-		while (count >= sizeof(*u)) {
-			if (__put_user(getreg(target, pos), u++))
-				return -EFAULT;
-			count -= sizeof(*u);
-			pos += sizeof(*u);
-		}
-	}
+	int reg;
 
+	for (reg = 0; to.left; reg++)
+		membuf_store(&to, getreg(target, reg * sizeof(unsigned long)));
 	return 0;
 }
 
@@ -717,16 +681,14 @@ static int ioperm_active(struct task_struct *target,
 
 static int ioperm_get(struct task_struct *target,
 		      const struct user_regset *regset,
-		      unsigned int pos, unsigned int count,
-		      void *kbuf, void __user *ubuf)
+		      struct membuf to)
 {
 	struct io_bitmap *iobm = target->thread.io_bitmap;
 
 	if (!iobm)
 		return -ENXIO;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   iobm->bitmap, 0, IO_BITMAP_BYTES);
+	return membuf_write(&to, iobm->bitmap, IO_BITMAP_BYTES);
 }
 
 /*
@@ -881,14 +843,39 @@ long arch_ptrace(struct task_struct *child, long request,
 static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 {
 	struct pt_regs *regs = task_pt_regs(child);
+	int ret;
 
 	switch (regno) {
 
 	SEG32(cs);
 	SEG32(ds);
 	SEG32(es);
-	SEG32(fs);
-	SEG32(gs);
+
+	/*
+	 * A 32-bit ptracer on a 64-bit kernel expects that writing
+	 * FS or GS will also update the base.  This is needed for
+	 * operations like PTRACE_SETREGS to fully restore a saved
+	 * CPU state.
+	 */
+
+	case offsetof(struct user32, regs.fs):
+		ret = set_segment_reg(child,
+				      offsetof(struct user_regs_struct, fs),
+				      value);
+		if (ret == 0)
+			child->thread.fsbase =
+				x86_fsgsbase_read_task(child, value);
+		return ret;
+
+	case offsetof(struct user32, regs.gs):
+		ret = set_segment_reg(child,
+				      offsetof(struct user_regs_struct, gs),
+				      value);
+		if (ret == 0)
+			child->thread.gsbase =
+				x86_fsgsbase_read_task(child, value);
+		return ret;
+
 	SEG32(ss);
 
 	R32(ebx, bx);
@@ -1004,28 +991,15 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 static int genregs32_get(struct task_struct *target,
 			 const struct user_regset *regset,
-			 unsigned int pos, unsigned int count,
-			 void *kbuf, void __user *ubuf)
+			 struct membuf to)
 {
-	if (kbuf) {
-		compat_ulong_t *k = kbuf;
-		while (count >= sizeof(*k)) {
-			getreg32(target, pos, k++);
-			count -= sizeof(*k);
-			pos += sizeof(*k);
-		}
-	} else {
-		compat_ulong_t __user *u = ubuf;
-		while (count >= sizeof(*u)) {
-			compat_ulong_t word;
-			getreg32(target, pos, &word);
-			if (__put_user(word, u++))
-				return -EFAULT;
-			count -= sizeof(*u);
-			pos += sizeof(*u);
-		}
-	}
+	int reg;
 
+	for (reg = 0; to.left; reg++) {
+		u32 val;
+		getreg32(target, reg * 4, &val);
+		membuf_store(&to, val);
+	}
 	return 0;
 }
 
@@ -1235,25 +1209,25 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct) / sizeof(long),
 		.size = sizeof(long), .align = sizeof(long),
-		.get = genregs_get, .set = genregs_set
+		.regset_get = genregs_get, .set = genregs_set
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_i387_struct) / sizeof(long),
 		.size = sizeof(long), .align = sizeof(long),
-		.active = regset_xregset_fpregs_active, .get = xfpregs_get, .set = xfpregs_set
+		.active = regset_xregset_fpregs_active, .regset_get = xfpregs_get, .set = xfpregs_set
 	},
 	[REGSET_XSTATE] = {
 		.core_note_type = NT_X86_XSTATE,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = xstateregs_active, .get = xstateregs_get,
+		.active = xstateregs_active, .regset_get = xstateregs_get,
 		.set = xstateregs_set
 	},
 	[REGSET_IOPERM64] = {
 		.core_note_type = NT_386_IOPERM,
 		.n = IO_BITMAP_LONGS,
 		.size = sizeof(long), .align = sizeof(long),
-		.active = ioperm_active, .get = ioperm_get
+		.active = ioperm_active, .regset_get = ioperm_get
 	},
 };
 
@@ -1276,24 +1250,24 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct32) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.get = genregs32_get, .set = genregs32_set
+		.regset_get = genregs32_get, .set = genregs32_set
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_i387_ia32_struct) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = regset_fpregs_active, .get = fpregs_get, .set = fpregs_set
+		.active = regset_fpregs_active, .regset_get = fpregs_get, .set = fpregs_set
 	},
 	[REGSET_XFP] = {
 		.core_note_type = NT_PRXFPREG,
 		.n = sizeof(struct user32_fxsr_struct) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = regset_xregset_fpregs_active, .get = xfpregs_get, .set = xfpregs_set
+		.active = regset_xregset_fpregs_active, .regset_get = xfpregs_get, .set = xfpregs_set
 	},
 	[REGSET_XSTATE] = {
 		.core_note_type = NT_X86_XSTATE,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = xstateregs_active, .get = xstateregs_get,
+		.active = xstateregs_active, .regset_get = xstateregs_get,
 		.set = xstateregs_set
 	},
 	[REGSET_TLS] = {
@@ -1302,13 +1276,13 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.size = sizeof(struct user_desc),
 		.align = sizeof(struct user_desc),
 		.active = regset_tls_active,
-		.get = regset_tls_get, .set = regset_tls_set
+		.regset_get = regset_tls_get, .set = regset_tls_set
 	},
 	[REGSET_IOPERM32] = {
 		.core_note_type = NT_386_IOPERM,
 		.n = IO_BITMAP_BYTES / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = ioperm_active, .get = ioperm_get
+		.active = ioperm_active, .regset_get = ioperm_get
 	},
 };
 

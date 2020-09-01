@@ -410,10 +410,11 @@ verified:
  * Read the bitmap for a given block_group,and validate the
  * bits for block/inode/inode tables are set in the bitmaps
  *
- * Return buffer_head on success or NULL in case of failure.
+ * Return buffer_head on success or an ERR_PTR in case of failure.
  */
 struct buffer_head *
-ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
+ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group,
+			      bool ignore_locked)
 {
 	struct ext4_group_desc *desc;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -439,6 +440,12 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 			     "block_group = %u, block_bitmap = %llu",
 			     block_group, bitmap_blk);
 		return ERR_PTR(-ENOMEM);
+	}
+
+	if (ignore_locked && buffer_locked(bh)) {
+		/* buffer under IO already, return if called for prefetching */
+		put_bh(bh);
+		return NULL;
 	}
 
 	if (bitmap_uptodate(bh))
@@ -487,10 +494,11 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	 * submit the buffer_head for reading
 	 */
 	set_buffer_new(bh);
-	trace_ext4_read_block_bitmap_load(sb, block_group);
+	trace_ext4_read_block_bitmap_load(sb, block_group, ignore_locked);
 	bh->b_end_io = ext4_end_bitmap_read;
 	get_bh(bh);
-	submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO, bh);
+	submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO |
+		  (ignore_locked ? REQ_RAHEAD : 0), bh);
 	return bh;
 verify:
 	err = ext4_validate_block_bitmap(sb, desc, block_group, bh);
@@ -502,7 +510,7 @@ out:
 	return ERR_PTR(err);
 }
 
-/* Returns 0 on success, 1 on error */
+/* Returns 0 on success, -errno on error */
 int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 			   struct buffer_head *bh)
 {
@@ -516,10 +524,9 @@ int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 	wait_on_buffer(bh);
 	ext4_simulate_fail_bh(sb, bh, EXT4_SIM_BBITMAP_EIO);
 	if (!buffer_uptodate(bh)) {
-		ext4_set_errno(sb, EIO);
-		ext4_error(sb, "Cannot read block bitmap - "
-			   "block_group = %u, block_bitmap = %llu",
-			   block_group, (unsigned long long) bh->b_blocknr);
+		ext4_error_err(sb, EIO, "Cannot read block bitmap - "
+			       "block_group = %u, block_bitmap = %llu",
+			       block_group, (unsigned long long) bh->b_blocknr);
 		ext4_mark_group_bitmap_corrupted(sb, block_group,
 					EXT4_GROUP_INFO_BBITMAP_CORRUPT);
 		return -EIO;
@@ -535,7 +542,7 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	struct buffer_head *bh;
 	int err;
 
-	bh = ext4_read_block_bitmap_nowait(sb, block_group);
+	bh = ext4_read_block_bitmap_nowait(sb, block_group, false);
 	if (IS_ERR(bh))
 		return bh;
 	err = ext4_wait_block_bitmap(sb, block_group, bh);
@@ -904,10 +911,11 @@ ext4_fsblk_t ext4_inode_to_goal_block(struct inode *inode)
 		return bg_start;
 
 	if (bg_start + EXT4_BLOCKS_PER_GROUP(inode->i_sb) <= last_block)
-		colour = (current->pid % 16) *
+		colour = (task_pid_nr(current) % 16) *
 			(EXT4_BLOCKS_PER_GROUP(inode->i_sb) / 16);
 	else
-		colour = (current->pid % 16) * ((last_block - bg_start) / 16);
+		colour = (task_pid_nr(current) % 16) *
+			((last_block - bg_start) / 16);
 	return bg_start + colour;
 }
 

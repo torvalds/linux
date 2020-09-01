@@ -56,6 +56,7 @@ struct gpio_device {
 	const char		*label;
 	void			*data;
 	struct list_head        list;
+	struct blocking_notifier_head notifier;
 
 #ifdef CONFIG_PINCTRL
 	/*
@@ -80,8 +81,7 @@ struct gpio_array {
 	unsigned long		invert_mask[];
 };
 
-struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
-				    unsigned int hwnum);
+struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc, unsigned int hwnum);
 int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 				  unsigned int array_size,
 				  struct gpio_desc **desc_array,
@@ -119,6 +119,9 @@ struct gpio_desc {
 	const char		*label;
 	/* Name of the GPIO */
 	const char		*name;
+#ifdef CONFIG_OF_DYNAMIC
+	struct device_node	*hog;
+#endif
 };
 
 int gpiod_request(struct gpio_desc *desc, const char *label);
@@ -159,35 +162,17 @@ static inline int gpio_chip_hwgpio(const struct gpio_desc *desc)
 
 /* With chip prefix */
 
-#define chip_emerg(chip, fmt, ...)					\
-	dev_emerg(&chip->gpiodev->dev, "(%s): " fmt, chip->label, ##__VA_ARGS__)
-#define chip_crit(chip, fmt, ...)					\
-	dev_crit(&chip->gpiodev->dev, "(%s): " fmt, chip->label, ##__VA_ARGS__)
-#define chip_err(chip, fmt, ...)					\
-	dev_err(&chip->gpiodev->dev, "(%s): " fmt, chip->label, ##__VA_ARGS__)
-#define chip_warn(chip, fmt, ...)					\
-	dev_warn(&chip->gpiodev->dev, "(%s): " fmt, chip->label, ##__VA_ARGS__)
-#define chip_info(chip, fmt, ...)					\
-	dev_info(&chip->gpiodev->dev, "(%s): " fmt, chip->label, ##__VA_ARGS__)
-#define chip_dbg(chip, fmt, ...)					\
-	dev_dbg(&chip->gpiodev->dev, "(%s): " fmt, chip->label, ##__VA_ARGS__)
-
-#ifdef CONFIG_GPIO_SYSFS
-
-int gpiochip_sysfs_register(struct gpio_device *gdev);
-void gpiochip_sysfs_unregister(struct gpio_device *gdev);
-
-#else
-
-static inline int gpiochip_sysfs_register(struct gpio_device *gdev)
-{
-	return 0;
-}
-
-static inline void gpiochip_sysfs_unregister(struct gpio_device *gdev)
-{
-}
-
-#endif /* CONFIG_GPIO_SYSFS */
+#define chip_emerg(gc, fmt, ...)					\
+	dev_emerg(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
+#define chip_crit(gc, fmt, ...)					\
+	dev_crit(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
+#define chip_err(gc, fmt, ...)					\
+	dev_err(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
+#define chip_warn(gc, fmt, ...)					\
+	dev_warn(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
+#define chip_info(gc, fmt, ...)					\
+	dev_info(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
+#define chip_dbg(gc, fmt, ...)					\
+	dev_dbg(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
 
 #endif /* GPIOLIB_H */

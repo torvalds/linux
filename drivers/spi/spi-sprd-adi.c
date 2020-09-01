@@ -319,7 +319,7 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 
 static void sprd_adi_set_wdt_rst_mode(struct sprd_adi *sadi)
 {
-#ifdef CONFIG_SPRD_WATCHDOG
+#if IS_ENABLED(CONFIG_SPRD_WATCHDOG)
 	u32 val;
 
 	/* Set default watchdog reboot mode */
@@ -389,9 +389,9 @@ static int sprd_adi_restart_handler(struct notifier_block *this,
 	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_CTRL, val);
 
 	/* Load the watchdog timeout value, 50ms is always enough. */
+	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_HIGH, 0);
 	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_LOW,
 		       WDG_LOAD_VAL & WDG_LOAD_MASK);
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_HIGH, 0);
 
 	/* Start the watchdog to reset system */
 	sprd_adi_read(sadi, sadi->slave_pbase + REG_WDG_CTRL, &val);
@@ -506,7 +506,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 		default:
 			dev_err(&pdev->dev,
 				"failed to find hwlock id, %d\n", ret);
-			/* fall-through */
+			fallthrough;
 		case -EPROBE_DEFER:
 			goto put_ctlr;
 		}

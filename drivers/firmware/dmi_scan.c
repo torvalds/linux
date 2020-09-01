@@ -11,6 +11,10 @@
 #include <asm/dmi.h>
 #include <asm/unaligned.h>
 
+#ifndef SMBIOS_ENTRY_POINT_SCAN_START
+#define SMBIOS_ENTRY_POINT_SCAN_START 0xF0000
+#endif
+
 struct kobject *dmi_kobj;
 EXPORT_SYMBOL_GPL(dmi_kobj);
 
@@ -180,6 +184,34 @@ static void __init dmi_save_ident(const struct dmi_header *dm, int slot,
 		return;
 
 	dmi_ident[slot] = p;
+}
+
+static void __init dmi_save_release(const struct dmi_header *dm, int slot,
+		int index)
+{
+	const u8 *minor, *major;
+	char *s;
+
+	/* If the table doesn't have the field, let's return */
+	if (dmi_ident[slot] || dm->length < index)
+		return;
+
+	minor = (u8 *) dm + index;
+	major = (u8 *) dm + index - 1;
+
+	/* As per the spec, if the system doesn't support this field,
+	 * the value is FF
+	 */
+	if (*major == 0xFF && *minor == 0xFF)
+		return;
+
+	s = dmi_alloc(8);
+	if (!s)
+		return;
+
+	sprintf(s, "%u.%u", *major, *minor);
+
+	dmi_ident[slot] = s;
 }
 
 static void __init dmi_save_uuid(const struct dmi_header *dm, int slot,
@@ -440,6 +472,8 @@ static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 		dmi_save_ident(dm, DMI_BIOS_VENDOR, 4);
 		dmi_save_ident(dm, DMI_BIOS_VERSION, 5);
 		dmi_save_ident(dm, DMI_BIOS_DATE, 8);
+		dmi_save_release(dm, DMI_BIOS_RELEASE, 21);
+		dmi_save_release(dm, DMI_EC_FIRMWARE_RELEASE, 23);
 		break;
 	case 1:		/* System Information */
 		dmi_save_ident(dm, DMI_SYS_VENDOR, 4);
@@ -663,7 +697,7 @@ static void __init dmi_scan_machine(void)
 			return;
 		}
 	} else if (IS_ENABLED(CONFIG_DMI_SCAN_MACHINE_NON_EFI_FALLBACK)) {
-		p = dmi_early_remap(0xF0000, 0x10000);
+		p = dmi_early_remap(SMBIOS_ENTRY_POINT_SCAN_START, 0x10000);
 		if (p == NULL)
 			goto error;
 

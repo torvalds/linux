@@ -65,7 +65,7 @@ not be freed until both the parent (original) process and its child have
 put their references to the VM's file descriptor.
 
 Because a VM's resources are not freed until the last reference to its
-file descriptor is released, creating additional references to a VM via
+file descriptor is released, creating additional references to a VM
 via fork(), dup(), etc... without careful consideration is strongly
 discouraged and may have unwanted side effects, e.g. memory allocated
 by and on behalf of the VM's process may not be freed/unaccounted when
@@ -536,7 +536,7 @@ X86:
 	========= ===================================
 	  0       on success,
 	 -EEXIST  if an interrupt is already enqueued
-	 -EINVAL  the the irq number is invalid
+	 -EINVAL  the irq number is invalid
 	 -ENXIO   if the PIC is in the kernel
 	 -EFAULT  if the pointer is invalid
 	========= ===================================
@@ -668,6 +668,10 @@ MSRs that have been set successfully.
 
 Defines the vcpu responses to the cpuid instruction.  Applications
 should use the KVM_SET_CPUID2 ioctl if available.
+
+Note, when this IOCTL fails, KVM gives no guarantees that previous valid CPUID
+configuration (if there is) is not corrupted. Userspace can get a copy of the
+resulting CPUID configuration through KVM_GET_CPUID2 in case.
 
 ::
 
@@ -1574,8 +1578,8 @@ This ioctl would set vcpu's xcr to the value userspace specified.
   };
 
   #define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
-  #define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
-  #define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
+  #define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1) /* deprecated */
+  #define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2) /* deprecated */
 
   struct kvm_cpuid_entry2 {
 	__u32 function;
@@ -1626,13 +1630,6 @@ emulate them efficiently. The fields in each entry are defined as follows:
 
         KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
            if the index field is valid
-        KVM_CPUID_FLAG_STATEFUL_FUNC:
-           if cpuid for this function returns different values for successive
-           invocations; there will be several entries with the same function,
-           all with this flag set
-        KVM_CPUID_FLAG_STATE_READ_NEXT:
-           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
-           the first entry to be read by a cpu
 
    eax, ebx, ecx, edx:
          the values returned by the cpuid instruction for
@@ -2117,7 +2114,8 @@ Errors:
 
   ======   ============================================================
   ENOENT   no such register
-  EINVAL   invalid register ID, or no such register
+  EINVAL   invalid register ID, or no such register or used with VMs in
+           protected virtualization mode on s390
   EPERM    (arm64) register access not allowed before vcpu finalization
   ======   ============================================================
 
@@ -2162,9 +2160,12 @@ registers, find a list below:
   PPC     KVM_REG_PPC_MMCRA               64
   PPC     KVM_REG_PPC_MMCR2               64
   PPC     KVM_REG_PPC_MMCRS               64
+  PPC     KVM_REG_PPC_MMCR3               64
   PPC     KVM_REG_PPC_SIAR                64
   PPC     KVM_REG_PPC_SDAR                64
   PPC     KVM_REG_PPC_SIER                64
+  PPC     KVM_REG_PPC_SIER2               64
+  PPC     KVM_REG_PPC_SIER3               64
   PPC     KVM_REG_PPC_PMC1                32
   PPC     KVM_REG_PPC_PMC2                32
   PPC     KVM_REG_PPC_PMC3                32
@@ -2552,7 +2553,8 @@ Errors include:
 
   ======== ============================================================
   ENOENT   no such register
-  EINVAL   invalid register ID, or no such register
+  EINVAL   invalid register ID, or no such register or used with VMs in
+           protected virtualization mode on s390
   EPERM    (arm64) register access not allowed before vcpu finalization
   ======== ============================================================
 
@@ -2577,13 +2579,15 @@ list in 4.68.
 :Parameters: None
 :Returns: 0 on success, -1 on error
 
-This signals to the host kernel that the specified guest is being paused by
-userspace.  The host will set a flag in the pvclock structure that is checked
-from the soft lockup watchdog.  The flag is part of the pvclock structure that
-is shared between guest and host, specifically the second bit of the flags
+This ioctl sets a flag accessible to the guest indicating that the specified
+vCPU has been paused by the host userspace.
+
+The host will set a flag in the pvclock structure that is checked from the
+soft lockup watchdog.  The flag is part of the pvclock structure that is
+shared between guest and host, specifically the second bit of the flags
 field of the pvclock_vcpu_time_info structure.  It will be set exclusively by
 the host and read/cleared exclusively by the guest.  The guest operation of
-checking and clearing the flag must an atomic operation so
+checking and clearing the flag must be an atomic operation so
 load-link/store-conditional, or equivalent must be used.  There are two cases
 where the guest will clear the flag: when the soft lockup watchdog timer resets
 itself or when a soft lockup is detected.  This ioctl can be called any time
@@ -3150,7 +3154,7 @@ Possible features:
 :Capability: basic
 :Architectures: arm, arm64
 :Type: vm ioctl
-:Parameters: struct struct kvm_vcpu_init (out)
+:Parameters: struct kvm_vcpu_init (out)
 :Returns: 0 on success; -1 on error
 
 Errors:
@@ -3170,7 +3174,7 @@ not mandatory.
 
 The information returned by this ioctl can be used to prepare an instance
 of struct kvm_vcpu_init for KVM_ARM_VCPU_INIT ioctl which will result in
-in VCPU matching underlying host.
+VCPU matching underlying host.
 
 
 4.84 KVM_GET_REG_LIST
@@ -3347,8 +3351,8 @@ The member 'flags' is used for passing flags from userspace.
 ::
 
   #define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
-  #define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
-  #define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
+  #define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1) /* deprecated */
+  #define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2) /* deprecated */
 
   struct kvm_cpuid_entry2 {
 	__u32 function;
@@ -3394,13 +3398,6 @@ The fields in each entry are defined as follows:
 
         KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
            if the index field is valid
-        KVM_CPUID_FLAG_STATEFUL_FUNC:
-           if cpuid for this function returns different values for successive
-           invocations; there will be several entries with the same function,
-           all with this flag set
-        KVM_CPUID_FLAG_STATE_READ_NEXT:
-           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
-           the first entry to be read by a cpu
 
    eax, ebx, ecx, edx:
 
@@ -4346,6 +4343,8 @@ Errors:
   #define KVM_STATE_NESTED_VMX_SMM_GUEST_MODE	0x00000001
   #define KVM_STATE_NESTED_VMX_SMM_VMXON	0x00000002
 
+#define KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE 0x00000001
+
   struct kvm_vmx_nested_state_hdr {
 	__u64 vmxon_pa;
 	__u64 vmcs12_pa;
@@ -4353,6 +4352,9 @@ Errors:
 	struct {
 		__u16 flags;
 	} smm;
+
+	__u32 flags;
+	__u64 preemption_timer_deadline;
   };
 
   struct kvm_vmx_nested_state_data {
@@ -4649,6 +4651,60 @@ the clear cpu reset definition in the POP. However, the cpu is not put
 into ESA mode. This reset is a superset of the initial reset.
 
 
+4.125 KVM_S390_PV_COMMAND
+-------------------------
+
+:Capability: KVM_CAP_S390_PROTECTED
+:Architectures: s390
+:Type: vm ioctl
+:Parameters: struct kvm_pv_cmd
+:Returns: 0 on success, < 0 on error
+
+::
+
+  struct kvm_pv_cmd {
+	__u32 cmd;	/* Command to be executed */
+	__u16 rc;	/* Ultravisor return code */
+	__u16 rrc;	/* Ultravisor return reason code */
+	__u64 data;	/* Data or address */
+	__u32 flags;    /* flags for future extensions. Must be 0 for now */
+	__u32 reserved[3];
+  };
+
+cmd values:
+
+KVM_PV_ENABLE
+  Allocate memory and register the VM with the Ultravisor, thereby
+  donating memory to the Ultravisor that will become inaccessible to
+  KVM. All existing CPUs are converted to protected ones. After this
+  command has succeeded, any CPU added via hotplug will become
+  protected during its creation as well.
+
+  Errors:
+
+  =====      =============================
+  EINTR      an unmasked signal is pending
+  =====      =============================
+
+KVM_PV_DISABLE
+
+  Deregister the VM from the Ultravisor and reclaim the memory that
+  had been donated to the Ultravisor, making it usable by the kernel
+  again.  All registered VCPUs are converted back to non-protected
+  ones.
+
+KVM_PV_VM_SET_SEC_PARMS
+  Pass the image header from VM memory to the Ultravisor in
+  preparation of image unpacking and verification.
+
+KVM_PV_VM_UNPACK
+  Unpack (protect and decrypt) a page of the encrypted boot image.
+
+KVM_PV_VM_VERIFY
+  Verify the integrity of the unpacked image. Only if this succeeds,
+  KVM is allowed to start protected VCPUs.
+
+
 5. The kvm_run structure
 ========================
 
@@ -4746,6 +4802,7 @@ hardware_exit_reason.
 		/* KVM_EXIT_FAIL_ENTRY */
 		struct {
 			__u64 hardware_entry_failure_reason;
+			__u32 cpu; /* if KVM_LAST_CPU */
 		} fail_entry;
 
 If exit_reason is KVM_EXIT_FAIL_ENTRY, the vcpu could not be run due
@@ -5024,10 +5081,13 @@ EOI was received.
 		struct kvm_hyperv_exit {
   #define KVM_EXIT_HYPERV_SYNIC          1
   #define KVM_EXIT_HYPERV_HCALL          2
+  #define KVM_EXIT_HYPERV_SYNDBG         3
 			__u32 type;
+			__u32 pad1;
 			union {
 				struct {
 					__u32 msr;
+					__u32 pad2;
 					__u64 control;
 					__u64 evt_page;
 					__u64 msg_page;
@@ -5037,6 +5097,15 @@ EOI was received.
 					__u64 result;
 					__u64 params[2];
 				} hcall;
+				struct {
+					__u32 msr;
+					__u32 pad2;
+					__u64 control;
+					__u64 status;
+					__u64 send_page;
+					__u64 recv_page;
+					__u64 pending_page;
+				} syndbg;
 			} u;
 		};
 		/* KVM_EXIT_HYPERV */
@@ -5052,6 +5121,12 @@ Valid values for 'type' are:
 Hyper-V SynIC state change. Notification is used to remap SynIC
 event/message pages and to enable/disable SynIC messages/events processing
 in userspace.
+
+	- KVM_EXIT_HYPERV_SYNDBG -- synchronously notify user-space about
+
+Hyper-V Synthetic debugger state change. Notification is used to either update
+the pending_page location or to send a control command (send the buffer located
+in send_page or recv a buffer to recv_page).
 
 ::
 
@@ -5707,8 +5782,13 @@ and injected exceptions.
 :Architectures: x86, arm, arm64, mips
 :Parameters: args[0] whether feature should be enabled or not
 
-With this capability enabled, KVM_GET_DIRTY_LOG will not automatically
-clear and write-protect all pages that are returned as dirty.
+Valid flags are::
+
+  #define KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE   (1 << 0)
+  #define KVM_DIRTY_LOG_INITIALLY_SET           (1 << 1)
+
+With KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE is set, KVM_GET_DIRTY_LOG will not
+automatically clear and write-protect all pages that are returned as dirty.
 Rather, userspace will have to do this operation separately using
 KVM_CLEAR_DIRTY_LOG.
 
@@ -5719,17 +5799,58 @@ than requiring to sync a full memslot; this ensures that KVM does not
 take spinlocks for an extended period of time.  Second, in some cases a
 large amount of time can pass between a call to KVM_GET_DIRTY_LOG and
 userspace actually using the data in the page.  Pages can be modified
-during this time, which is inefficint for both the guest and userspace:
+during this time, which is inefficient for both the guest and userspace:
 the guest will incur a higher penalty due to write protection faults,
 while userspace can see false reports of dirty pages.  Manual reprotection
 helps reducing this time, improving guest performance and reducing the
 number of dirty log false positives.
+
+With KVM_DIRTY_LOG_INITIALLY_SET set, all the bits of the dirty bitmap
+will be initialized to 1 when created.  This also improves performance because
+dirty logging can be enabled gradually in small chunks on the first call
+to KVM_CLEAR_DIRTY_LOG.  KVM_DIRTY_LOG_INITIALLY_SET depends on
+KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE (it is also only available on
+x86 and arm64 for now).
 
 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 was previously available under the name
 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT, but the implementation had bugs that make
 it hard or impossible to use it correctly.  The availability of
 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 signals that those bugs are fixed.
 Userspace should not try to use KVM_CAP_MANUAL_DIRTY_LOG_PROTECT.
+
+7.19 KVM_CAP_PPC_SECURE_GUEST
+------------------------------
+
+:Architectures: ppc
+
+This capability indicates that KVM is running on a host that has
+ultravisor firmware and thus can support a secure guest.  On such a
+system, a guest can ask the ultravisor to make it a secure guest,
+one whose memory is inaccessible to the host except for pages which
+are explicitly requested to be shared with the host.  The ultravisor
+notifies KVM when a guest requests to become a secure guest, and KVM
+has the opportunity to veto the transition.
+
+If present, this capability can be enabled for a VM, meaning that KVM
+will allow the transition to secure guest mode.  Otherwise KVM will
+veto the transition.
+
+7.20 KVM_CAP_HALT_POLL
+----------------------
+
+:Architectures: all
+:Target: VM
+:Parameters: args[0] is the maximum poll time in nanoseconds
+:Returns: 0 on success; -1 on error
+
+This capability overrides the kvm module parameter halt_poll_ns for the
+target VM.
+
+VCPU polling allows a VCPU to poll for wakeup events instead of immediately
+scheduling during guest halts. The maximum time a VCPU can spend polling is
+controlled by the kvm module parameter halt_poll_ns. This capability allows
+the maximum halt time to specified on a per-VM basis, effectively overriding
+the module parameter for the target VM.
 
 8. Other capabilities.
 ======================
@@ -5743,7 +5864,7 @@ features of the KVM implementation.
 :Architectures: ppc
 
 This capability, if KVM_CHECK_EXTENSION indicates that it is
-available, means that that the kernel has an implementation of the
+available, means that the kernel has an implementation of the
 H_RANDOM hypercall backed by a hardware random-number generator.
 If present, the kernel H_RANDOM handler can be enabled for guest use
 with the KVM_CAP_PPC_ENABLE_HCALL capability.
@@ -5754,7 +5875,7 @@ with the KVM_CAP_PPC_ENABLE_HCALL capability.
 :Architectures: x86
 
 This capability, if KVM_CHECK_EXTENSION indicates that it is
-available, means that that the kernel has an implementation of the
+available, means that the kernel has an implementation of the
 Hyper-V Synthetic interrupt controller(SynIC). Hyper-V SynIC is
 used to support Windows Hyper-V based guest paravirt drivers(VMBus).
 
@@ -5769,7 +5890,7 @@ by the CPU, as it's incompatible with SynIC auto-EOI behavior.
 :Architectures: ppc
 
 This capability, if KVM_CHECK_EXTENSION indicates that it is
-available, means that that the kernel can support guests using the
+available, means that the kernel can support guests using the
 radix MMU defined in Power ISA V3.00 (as implemented in the POWER9
 processor).
 
@@ -5779,7 +5900,7 @@ processor).
 :Architectures: ppc
 
 This capability, if KVM_CHECK_EXTENSION indicates that it is
-available, means that that the kernel can support guests using the
+available, means that the kernel can support guests using the
 hashed page table MMU defined in Power ISA V3.00 (as implemented in
 the POWER9 processor), including in-memory segment tables.
 
@@ -5884,7 +6005,7 @@ run->kvm_valid_regs or run->kvm_dirty_regs bits.
 
 If KVM_CAP_ARM_USER_IRQ is supported, the KVM_CHECK_EXTENSION ioctl returns a
 number larger than 0 indicating the version of this capability is implemented
-and thereby which bits in in run->s.regs.device_irq_level can signal values.
+and thereby which bits in run->s.regs.device_irq_level can signal values.
 
 Currently the following bits are defined for the device_irq_level bitmap::
 
@@ -6027,3 +6148,14 @@ Architectures: s390
 
 This capability indicates that the KVM_S390_NORMAL_RESET and
 KVM_S390_CLEAR_RESET ioctls are available.
+
+8.23 KVM_CAP_S390_PROTECTED
+
+Architecture: s390
+
+
+This capability indicates that the Ultravisor has been initialized and
+KVM can therefore start protected VMs.
+This capability governs the KVM_S390_PV_COMMAND ioctl and the
+KVM_MP_STATE_LOAD MP_STATE. KVM_SET_MP_STATE can fail for protected
+guests when the state change is invalid.

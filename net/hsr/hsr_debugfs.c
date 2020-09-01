@@ -1,5 +1,5 @@
 /*
- * hsr_debugfs code
+ * debugfs code for HSR & PRP
  * Copyright (C) 2019 Texas Instruments Incorporated
  *
  * Author(s):
@@ -22,12 +22,6 @@
 
 static struct dentry *hsr_debugfs_root_dir;
 
-static void print_mac_address(struct seq_file *sfp, unsigned char *mac)
-{
-	seq_printf(sfp, "%02x:%02x:%02x:%02x:%02x:%02x:",
-		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
 /* hsr_node_table_show - Formats and prints node_table entries */
 static int
 hsr_node_table_show(struct seq_file *sfp, void *data)
@@ -35,20 +29,32 @@ hsr_node_table_show(struct seq_file *sfp, void *data)
 	struct hsr_priv *priv = (struct hsr_priv *)sfp->private;
 	struct hsr_node *node;
 
-	seq_puts(sfp, "Node Table entries\n");
-	seq_puts(sfp, "MAC-Address-A,   MAC-Address-B, time_in[A], ");
-	seq_puts(sfp, "time_in[B], Address-B port\n");
+	seq_printf(sfp, "Node Table entries for (%s) device\n",
+		   (priv->prot_version == PRP_V1 ? "PRP" : "HSR"));
+	seq_puts(sfp, "MAC-Address-A,    MAC-Address-B,    time_in[A], ");
+	seq_puts(sfp, "time_in[B], Address-B port, ");
+	if (priv->prot_version == PRP_V1)
+		seq_puts(sfp, "SAN-A, SAN-B, DAN-P\n");
+	else
+		seq_puts(sfp, "DAN-H\n");
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(node, &priv->node_db, mac_list) {
 		/* skip self node */
 		if (hsr_addr_is_self(priv, node->macaddress_A))
 			continue;
-		print_mac_address(sfp, &node->macaddress_A[0]);
-		seq_puts(sfp, " ");
-		print_mac_address(sfp, &node->macaddress_B[0]);
-		seq_printf(sfp, "0x%lx, ", node->time_in[HSR_PT_SLAVE_A]);
-		seq_printf(sfp, "0x%lx ", node->time_in[HSR_PT_SLAVE_B]);
-		seq_printf(sfp, "0x%x\n", node->addr_B_port);
+		seq_printf(sfp, "%pM ", &node->macaddress_A[0]);
+		seq_printf(sfp, "%pM ", &node->macaddress_B[0]);
+		seq_printf(sfp, "%10lx, ", node->time_in[HSR_PT_SLAVE_A]);
+		seq_printf(sfp, "%10lx, ", node->time_in[HSR_PT_SLAVE_B]);
+		seq_printf(sfp, "%14x, ", node->addr_B_port);
+
+		if (priv->prot_version == PRP_V1)
+			seq_printf(sfp, "%5x, %5x, %5x\n",
+				   node->san_a, node->san_b,
+				   (node->san_a == 0 && node->san_b == 0));
+		else
+			seq_printf(sfp, "%5x\n", 1);
 	}
 	rcu_read_unlock();
 	return 0;
@@ -57,7 +63,8 @@ hsr_node_table_show(struct seq_file *sfp, void *data)
 /* hsr_node_table_open - Open the node_table file
  *
  * Description:
- * This routine opens a debugfs file node_table of specific hsr device
+ * This routine opens a debugfs file node_table of specific hsr
+ * or prp device
  */
 static int
 hsr_node_table_open(struct inode *inode, struct file *filp)
@@ -113,7 +120,6 @@ void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 		priv->node_tbl_root = NULL;
 		return;
 	}
-	priv->node_tbl_file = de;
 }
 
 /* hsr_debugfs_term - Tear down debugfs intrastructure
@@ -125,9 +131,7 @@ void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 void
 hsr_debugfs_term(struct hsr_priv *priv)
 {
-	debugfs_remove(priv->node_tbl_file);
-	priv->node_tbl_file = NULL;
-	debugfs_remove(priv->node_tbl_root);
+	debugfs_remove_recursive(priv->node_tbl_root);
 	priv->node_tbl_root = NULL;
 }
 

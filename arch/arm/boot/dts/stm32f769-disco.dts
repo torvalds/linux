@@ -66,11 +66,11 @@
 
 	leds {
 		compatible = "gpio-leds";
-		green {
+		led-green {
 			gpios = <&gpioj 5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
-		red {
+		led-red {
 			gpios = <&gpioj 13 GPIO_ACTIVE_HIGH>;
 		};
 	};

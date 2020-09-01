@@ -138,7 +138,7 @@
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*(x)-1)
 /* Gen11+. addr = base + (ctx_restore ? offset & GENMASK(12,2) : offset) */
-#define   MI_LRI_CS_MMIO		(1<<19)
+#define   MI_LRI_LRM_CS_MMIO		REG_BIT(19)
 #define   MI_LRI_FORCE_POSTED		(1<<12)
 #define MI_LOAD_REGISTER_IMM_MAX_REGS (126)
 #define MI_STORE_REGISTER_MEM        MI_INSTR(0x24, 1)
@@ -156,6 +156,7 @@
 #define MI_LOAD_REGISTER_MEM	   MI_INSTR(0x29, 1)
 #define MI_LOAD_REGISTER_MEM_GEN8  MI_INSTR(0x29, 2)
 #define MI_LOAD_REGISTER_REG    MI_INSTR(0x2A, 1)
+#define   MI_LRR_SOURCE_CS_MMIO		REG_BIT(18)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE		(1)
 /* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */
@@ -235,9 +236,8 @@
 #define   PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH	(1<<12) /* gen6+ */
 #define   PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE	(1<<11) /* MBZ on ILK */
 #define   PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE		(1<<10) /* GM45+ only */
-#define   PIPE_CONTROL_L3_RO_CACHE_INVALIDATE		REG_BIT(10) /* gen12 */
 #define   PIPE_CONTROL_INDIRECT_STATE_DISABLE		(1<<9)
-#define   PIPE_CONTROL_HDC_PIPELINE_FLUSH		REG_BIT(9)  /* gen12 */
+#define   PIPE_CONTROL0_HDC_PIPELINE_FLUSH		REG_BIT(9)  /* gen12 */
 #define   PIPE_CONTROL_NOTIFY				(1<<8)
 #define   PIPE_CONTROL_FLUSH_ENABLE			(1<<7) /* gen7+ */
 #define   PIPE_CONTROL_DC_FLUSH_ENABLE			(1<<5)
@@ -292,10 +292,21 @@
 #define MI_STORE_URB_MEM        MI_INSTR(0x2D, 0)
 #define MI_CONDITIONAL_BATCH_BUFFER_END MI_INSTR(0x36, 0)
 
-#define PIPELINE_SELECT                ((0x3<<29)|(0x1<<27)|(0x1<<24)|(0x4<<16))
-#define GFX_OP_3DSTATE_VF_STATISTICS   ((0x3<<29)|(0x1<<27)|(0x0<<24)|(0xB<<16))
-#define MEDIA_VFE_STATE                ((0x3<<29)|(0x2<<27)|(0x0<<24)|(0x0<<16))
+#define STATE_BASE_ADDRESS \
+	((0x3 << 29) | (0x0 << 27) | (0x1 << 24) | (0x1 << 16))
+#define BASE_ADDRESS_MODIFY		REG_BIT(0)
+#define PIPELINE_SELECT \
+	((0x3 << 29) | (0x1 << 27) | (0x1 << 24) | (0x4 << 16))
+#define PIPELINE_SELECT_MEDIA	       REG_BIT(0)
+#define GFX_OP_3DSTATE_VF_STATISTICS \
+	((0x3 << 29) | (0x1 << 27) | (0x0 << 24) | (0xB << 16))
+#define MEDIA_VFE_STATE \
+	((0x3 << 29) | (0x2 << 27) | (0x0 << 24) | (0x0 << 16))
 #define  MEDIA_VFE_STATE_MMIO_ACCESS_MASK (0x18)
+#define MEDIA_INTERFACE_DESCRIPTOR_LOAD \
+	((0x3 << 29) | (0x2 << 27) | (0x0 << 24) | (0x2 << 16))
+#define MEDIA_OBJECT \
+	((0x3 << 29) | (0x2 << 27) | (0x1 << 24) | (0x0 << 16))
 #define GPGPU_OBJECT                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x4<<16))
 #define GPGPU_WALKER                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x5<<16))
 #define GFX_OP_3DSTATE_DX9_CONSTANTF_VS \

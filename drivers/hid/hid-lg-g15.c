@@ -680,7 +680,7 @@ static int lg_g15_register_led(struct lg_g15_data *g15, int i)
 			 * but it does have a separate power-on (reset) value.
 			 */
 			g15->leds[i].cdev.name = "g15::power_on_backlight_val";
-			/* fall through */
+			fallthrough;
 		case LG_G15_KBD_BRIGHTNESS:
 			g15->leds[i].cdev.brightness_set_blocking =
 				lg_g510_kbd_led_set;
@@ -803,8 +803,10 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (ret < 0) {
-		hid_err(hdev, "Error disabling keyboard emulation for the G-keys\n");
-		goto error_hw_stop;
+		hid_err(hdev, "Error %d disabling keyboard emulation for the G-keys, falling back to generic hid-input driver\n",
+			ret);
+		hid_set_drvdata(hdev, NULL);
+		return 0;
 	}
 
 	/* Get initial brightness levels */
@@ -870,6 +872,10 @@ error_hw_stop:
 }
 
 static const struct hid_device_id lg_g15_devices[] = {
+	/* The G11 is a G15 without the LCD, treat it as a G15 */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_G11),
+		.driver_data = LG_G15 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_G15_LCD),
 		.driver_data = LG_G15 },

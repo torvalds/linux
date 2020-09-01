@@ -39,11 +39,15 @@ Hardware Monitoring Kernel Drivers
    adt7470
    adt7475
    amc6821
+   amd_energy
    asb100
    asc7621
    aspeed-pwm-tacho
+   bcm54140
    bel-pfe
+   bt1-pvt
    coretemp
+   corsair-cpro
    da9052
    da9055
    dell-smm-hwmon
@@ -60,6 +64,7 @@ Hardware Monitoring Kernel Drivers
    ftsteutates
    g760a
    g762
+   gsc-hwmon
    gl518sm
    hih6130
    ibmaem
@@ -106,6 +111,7 @@ Hardware Monitoring Kernel Drivers
    max16064
    max16065
    max1619
+   max16601
    max1668
    max197
    max20730
@@ -162,6 +168,7 @@ Hardware Monitoring Kernel Drivers
    tmp421
    tmp513
    tps40422
+   tps53679
    twl4030-madc-hwmon
    ucd9000
    ucd9200

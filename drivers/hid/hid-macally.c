@@ -29,7 +29,7 @@ static __u8 *macally_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
-static struct hid_device_id macally_id_table[] = {
+static const struct hid_device_id macally_id_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SOLID_YEAR,
 			 USB_DEVICE_ID_MACALLY_IKEY_KEYBOARD) },
 	{ }

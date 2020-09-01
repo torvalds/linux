@@ -261,7 +261,7 @@ directories like /tmp. The common method of exploitation of this flaw
 is to cross privilege boundaries when following a given symlink (i.e. a
 root process follows a symlink belonging to another user). For a likely
 incomplete list of hundreds of examples across the years, please see:
-http://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=/tmp
+https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=/tmp
 
 When set to "0", symlink following behavior is unrestricted.
 

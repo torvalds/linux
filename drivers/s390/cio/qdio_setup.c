@@ -135,6 +135,27 @@ output:
 	}
 }
 
+static void __qdio_free_queues(struct qdio_q **queues, unsigned int count)
+{
+	struct qdio_q *q;
+	unsigned int i;
+
+	for (i = 0; i < count; i++) {
+		q = queues[i];
+		free_page((unsigned long) q->slib);
+		kmem_cache_free(qdio_q_cache, q);
+	}
+}
+
+void qdio_free_queues(struct qdio_irq *irq_ptr)
+{
+	__qdio_free_queues(irq_ptr->input_qs, irq_ptr->max_input_qs);
+	irq_ptr->max_input_qs = 0;
+
+	__qdio_free_queues(irq_ptr->output_qs, irq_ptr->max_output_qs);
+	irq_ptr->max_output_qs = 0;
+}
+
 static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 {
 	struct qdio_q *q;
@@ -142,12 +163,15 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 
 	for (i = 0; i < nr_queues; i++) {
 		q = kmem_cache_zalloc(qdio_q_cache, GFP_KERNEL);
-		if (!q)
+		if (!q) {
+			__qdio_free_queues(irq_ptr_qs, i);
 			return -ENOMEM;
+		}
 
 		q->slib = (struct slib *) __get_free_page(GFP_KERNEL);
 		if (!q->slib) {
 			kmem_cache_free(qdio_q_cache, q);
+			__qdio_free_queues(irq_ptr_qs, i);
 			return -ENOMEM;
 		}
 		irq_ptr_qs[i] = q;
@@ -162,8 +186,16 @@ int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs, int nr_output_qs
 	rc = __qdio_allocate_qs(irq_ptr->input_qs, nr_input_qs);
 	if (rc)
 		return rc;
+
 	rc = __qdio_allocate_qs(irq_ptr->output_qs, nr_output_qs);
-	return rc;
+	if (rc) {
+		__qdio_free_queues(irq_ptr->input_qs, nr_input_qs);
+		return rc;
+	}
+
+	irq_ptr->max_input_qs = nr_input_qs;
+	irq_ptr->max_output_qs = nr_output_qs;
+	return 0;
 }
 
 static void setup_queues_misc(struct qdio_q *q, struct qdio_irq *irq_ptr,
@@ -213,8 +245,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 			 struct qdio_initialize *qdio_init)
 {
 	struct qdio_q *q;
-	struct qdio_buffer **input_sbal_array = qdio_init->input_sbal_addr_array;
-	struct qdio_buffer **output_sbal_array = qdio_init->output_sbal_addr_array;
 	struct qdio_outbuf_state *output_sbal_state_array =
 				  qdio_init->output_sbal_state_array;
 	int i;
@@ -224,11 +254,9 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		setup_queues_misc(q, irq_ptr, qdio_init->input_handler, i);
 
 		q->is_input_q = 1;
-		q->u.in.queue_start_poll = qdio_init->queue_start_poll_array ?
-				qdio_init->queue_start_poll_array[i] : NULL;
 
-		setup_storage_lists(q, irq_ptr, input_sbal_array, i);
-		input_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
+		setup_storage_lists(q, irq_ptr,
+				    qdio_init->input_sbal_addr_array[i], i);
 
 		if (is_thinint_irq(irq_ptr)) {
 			tasklet_init(&q->tasklet, tiqdio_inbound_processing,
@@ -247,8 +275,8 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		output_sbal_state_array += QDIO_MAX_BUFFERS_PER_Q;
 
 		q->is_input_q = 0;
-		setup_storage_lists(q, irq_ptr, output_sbal_array, i);
-		output_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
+		setup_storage_lists(q, irq_ptr,
+				    qdio_init->output_sbal_addr_array[i], i);
 
 		tasklet_init(&q->tasklet, qdio_outbound_processing,
 			     (unsigned long) q);
@@ -351,45 +379,28 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 	DBF_EVENT("3:%4x qib:%4x", irq_ptr->ssqd_desc.qdioac3, irq_ptr->qib.ac);
 }
 
-void qdio_release_memory(struct qdio_irq *irq_ptr)
+void qdio_free_async_data(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
 	int i;
 
-	/*
-	 * Must check queue array manually since irq_ptr->nr_input_queues /
-	 * irq_ptr->nr_input_queues may not yet be set.
-	 */
-	for (i = 0; i < QDIO_MAX_QUEUES_PER_IRQ; i++) {
-		q = irq_ptr->input_qs[i];
-		if (q) {
-			free_page((unsigned long) q->slib);
-			kmem_cache_free(qdio_q_cache, q);
-		}
-	}
-	for (i = 0; i < QDIO_MAX_QUEUES_PER_IRQ; i++) {
+	for (i = 0; i < irq_ptr->max_output_qs; i++) {
 		q = irq_ptr->output_qs[i];
-		if (q) {
-			if (q->u.out.use_cq) {
-				int n;
+		if (q->u.out.use_cq) {
+			unsigned int n;
 
-				for (n = 0; n < QDIO_MAX_BUFFERS_PER_Q; ++n) {
-					struct qaob *aob = q->u.out.aobs[n];
-					if (aob) {
-						qdio_release_aob(aob);
-						q->u.out.aobs[n] = NULL;
-					}
+			for (n = 0; n < QDIO_MAX_BUFFERS_PER_Q; n++) {
+				struct qaob *aob = q->u.out.aobs[n];
+
+				if (aob) {
+					qdio_release_aob(aob);
+					q->u.out.aobs[n] = NULL;
 				}
-
-				qdio_disable_async_operation(&q->u.out);
 			}
-			free_page((unsigned long) q->slib);
-			kmem_cache_free(qdio_q_cache, q);
+
+			qdio_disable_async_operation(&q->u.out);
 		}
 	}
-	free_page((unsigned long) irq_ptr->qdr);
-	free_page(irq_ptr->chsc_page);
-	free_page((unsigned long) irq_ptr);
 }
 
 static void __qdio_allocate_fill_qdr(struct qdio_irq *irq_ptr,
@@ -451,10 +462,10 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 	memcpy(irq_ptr->qib.ebcnam, init_data->adapter_name, 8);
 }
 
-int qdio_setup_irq(struct qdio_initialize *init_data)
+int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 {
+	struct ccw_device *cdev = irq_ptr->cdev;
 	struct ciw *ciw;
-	struct qdio_irq *irq_ptr = init_data->cdev->private->qdio_data;
 
 	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
 	memset(&irq_ptr->siga_flag, 0, sizeof(irq_ptr->siga_flag));
@@ -462,8 +473,9 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
 	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
 
-	irq_ptr->debugfs_dev = irq_ptr->debugfs_perf = NULL;
-	irq_ptr->sch_token = irq_ptr->state = irq_ptr->perf_stat_enabled = 0;
+	irq_ptr->debugfs_dev = NULL;
+	irq_ptr->sch_token = irq_ptr->perf_stat_enabled = 0;
+	irq_ptr->state = QDIO_IRQ_STATE_INACTIVE;
 
 	/* wipes qib.ac, required by ar7063 */
 	memset(irq_ptr->qdr, 0, sizeof(struct qdr));
@@ -471,13 +483,18 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
 	irq_ptr->nr_output_qs = init_data->no_output_qs;
-	irq_ptr->cdev = init_data->cdev;
 	irq_ptr->scan_threshold = init_data->scan_threshold;
-	ccw_device_get_schid(irq_ptr->cdev, &irq_ptr->schid);
+	ccw_device_get_schid(cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 
+	if (init_data->irq_poll) {
+		irq_ptr->irq_poll = init_data->irq_poll;
+		set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state);
+	} else {
+		irq_ptr->irq_poll = NULL;
+	}
+
 	setup_qib(irq_ptr, init_data);
-	qdio_setup_thinint(irq_ptr);
 	set_impl_params(irq_ptr, init_data->qib_param_field_format,
 			init_data->qib_param_field,
 			init_data->input_slib_elements,
@@ -488,37 +505,48 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 
 	/* qdr, qib, sls, slsbs, slibs, sbales are filled now */
 
+	/* set our IRQ handler */
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	irq_ptr->orig_handler = cdev->handler;
+	cdev->handler = qdio_int_handler;
+	spin_unlock_irq(get_ccwdev_lock(cdev));
+
 	/* get qdio commands */
-	ciw = ccw_device_get_ciw(init_data->cdev, CIW_TYPE_EQUEUE);
+	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_EQUEUE);
 	if (!ciw) {
 		DBF_ERROR("%4x NO EQ", irq_ptr->schid.sch_no);
 		return -EINVAL;
 	}
 	irq_ptr->equeue = *ciw;
 
-	ciw = ccw_device_get_ciw(init_data->cdev, CIW_TYPE_AQUEUE);
+	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_AQUEUE);
 	if (!ciw) {
 		DBF_ERROR("%4x NO AQ", irq_ptr->schid.sch_no);
 		return -EINVAL;
 	}
 	irq_ptr->aqueue = *ciw;
 
-	/* set new interrupt handler */
-	spin_lock_irq(get_ccwdev_lock(irq_ptr->cdev));
-	irq_ptr->orig_handler = init_data->cdev->handler;
-	init_data->cdev->handler = qdio_int_handler;
-	spin_unlock_irq(get_ccwdev_lock(irq_ptr->cdev));
 	return 0;
 }
 
-void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
-				struct ccw_device *cdev)
+void qdio_shutdown_irq(struct qdio_irq *irq)
+{
+	struct ccw_device *cdev = irq->cdev;
+
+	/* restore IRQ handler */
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	cdev->handler = irq->orig_handler;
+	cdev->private->intparm = 0;
+	spin_unlock_irq(get_ccwdev_lock(cdev));
+}
+
+void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 {
 	char s[80];
 
 	snprintf(s, 80, "qdio: %s %s on SC %x using "
 		 "AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s%s%s\n",
-		 dev_name(&cdev->dev),
+		 dev_name(&irq_ptr->cdev->dev),
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
 		 irq_ptr->schid.sch_no,

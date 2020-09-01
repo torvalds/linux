@@ -15,9 +15,8 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/string_helpers.h>
-#include <linux/stop_machine.h>
+#include <linux/memory.h>
 
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/dma.h>
@@ -26,6 +25,7 @@
 #include <asm/firmware.h>
 #include <asm/powernv.h>
 #include <asm/sections.h>
+#include <asm/smp.h>
 #include <asm/trace.h>
 #include <asm/uaccess.h>
 #include <asm/ultravisor.h>
@@ -34,6 +34,7 @@
 
 unsigned int mmu_pid_bits;
 unsigned int mmu_base_pid;
+unsigned int radix_mem_block_size __ro_after_init;
 
 static __ref void *early_alloc_pgtable(unsigned long size, int nid,
 			unsigned long region_start, unsigned long region_end)
@@ -56,6 +57,13 @@ static __ref void *early_alloc_pgtable(unsigned long size, int nid,
 	return ptr;
 }
 
+/*
+ * When allocating pud or pmd pointers, we allocate a complete page
+ * of PAGE_SIZE rather than PUD_TABLE_SIZE or PMD_TABLE_SIZE. This
+ * is to ensure that the page obtained from the memblock allocator
+ * can be completely used as page table page and can be freed
+ * correctly when the page table entries are removed.
+ */
 static int early_map_kernel_page(unsigned long ea, unsigned long pa,
 			  pgprot_t flags,
 			  unsigned int map_page_size,
@@ -64,24 +72,26 @@ static int early_map_kernel_page(unsigned long ea, unsigned long pa,
 {
 	unsigned long pfn = pa >> PAGE_SHIFT;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
 	pgdp = pgd_offset_k(ea);
-	if (pgd_none(*pgdp)) {
-		pudp = early_alloc_pgtable(PUD_TABLE_SIZE, nid,
-						region_start, region_end);
-		pgd_populate(&init_mm, pgdp, pudp);
+	p4dp = p4d_offset(pgdp, ea);
+	if (p4d_none(*p4dp)) {
+		pudp = early_alloc_pgtable(PAGE_SIZE, nid,
+					   region_start, region_end);
+		p4d_populate(&init_mm, p4dp, pudp);
 	}
-	pudp = pud_offset(pgdp, ea);
+	pudp = pud_offset(p4dp, ea);
 	if (map_page_size == PUD_SIZE) {
 		ptep = (pte_t *)pudp;
 		goto set_the_pte;
 	}
 	if (pud_none(*pudp)) {
-		pmdp = early_alloc_pgtable(PMD_TABLE_SIZE, nid,
-						region_start, region_end);
+		pmdp = early_alloc_pgtable(PAGE_SIZE, nid, region_start,
+					   region_end);
 		pud_populate(&init_mm, pudp, pmdp);
 	}
 	pmdp = pmd_offset(pudp, ea);
@@ -114,6 +124,7 @@ static int __map_kernel_page(unsigned long ea, unsigned long pa,
 {
 	unsigned long pfn = pa >> PAGE_SHIFT;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
@@ -136,7 +147,8 @@ static int __map_kernel_page(unsigned long ea, unsigned long pa,
 	 * boot.
 	 */
 	pgdp = pgd_offset_k(ea);
-	pudp = pud_alloc(&init_mm, pgdp, ea);
+	p4dp = p4d_offset(pgdp, ea);
+	pudp = pud_alloc(&init_mm, p4dp, ea);
 	if (!pudp)
 		return -ENOMEM;
 	if (map_page_size == PUD_SIZE) {
@@ -173,6 +185,7 @@ void radix__change_memory_range(unsigned long start, unsigned long end,
 {
 	unsigned long idx;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
@@ -185,7 +198,8 @@ void radix__change_memory_range(unsigned long start, unsigned long end,
 
 	for (idx = start; idx < end; idx += PAGE_SIZE) {
 		pgdp = pgd_offset_k(idx);
-		pudp = pud_alloc(&init_mm, pgdp, idx);
+		p4dp = p4d_offset(pgdp, idx);
+		pudp = pud_alloc(&init_mm, p4dp, idx);
 		if (!pudp)
 			continue;
 		if (pud_is_leaf(*pudp)) {
@@ -253,19 +267,22 @@ static unsigned long next_boundary(unsigned long addr, unsigned long end)
 
 static int __meminit create_physical_mapping(unsigned long start,
 					     unsigned long end,
-					     int nid)
+					     unsigned long max_mapping_size,
+					     int nid, pgprot_t _prot)
 {
 	unsigned long vaddr, addr, mapping_size = 0;
 	bool prev_exec, exec = false;
 	pgprot_t prot;
 	int psize;
 
-	start = _ALIGN_UP(start, PAGE_SIZE);
+	start = ALIGN(start, PAGE_SIZE);
 	for (addr = start; addr < end; addr += mapping_size) {
 		unsigned long gap, previous_size;
 		int rc;
 
 		gap = next_boundary(addr, end) - addr;
+		if (gap > max_mapping_size)
+			gap = max_mapping_size;
 		previous_size = mapping_size;
 		prev_exec = exec;
 
@@ -289,7 +306,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 			prot = PAGE_KERNEL_X;
 			exec = true;
 		} else {
-			prot = PAGE_KERNEL;
+			prot = _prot;
 			exec = false;
 		}
 
@@ -316,8 +333,9 @@ static void __init radix_init_pgtable(void)
 
 	/* We don't support slb for radix */
 	mmu_slb_size = 0;
+
 	/*
-	 * Create the linear mapping, using standard page size for now
+	 * Create the linear mapping
 	 */
 	for_each_memblock(memory, reg) {
 		/*
@@ -333,7 +351,8 @@ static void __init radix_init_pgtable(void)
 
 		WARN_ON(create_physical_mapping(reg->base,
 						reg->base + reg->size,
-						-1));
+						radix_mem_block_size,
+						-1, PAGE_KERNEL));
 	}
 
 	/* Find out how many PID bits are supported */
@@ -473,6 +492,57 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	return 1;
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+static int __init probe_memory_block_size(unsigned long node, const char *uname, int
+					  depth, void *data)
+{
+	unsigned long *mem_block_size = (unsigned long *)data;
+	const __be64 *prop;
+	int len;
+
+	if (depth != 1)
+		return 0;
+
+	if (strcmp(uname, "ibm,dynamic-reconfiguration-memory"))
+		return 0;
+
+	prop = of_get_flat_dt_prop(node, "ibm,lmb-size", &len);
+	if (!prop || len < sizeof(__be64))
+		/*
+		 * Nothing in the device tree
+		 */
+		*mem_block_size = MIN_MEMORY_BLOCK_SIZE;
+	else
+		*mem_block_size = be64_to_cpup(prop);
+	return 1;
+}
+
+static unsigned long radix_memory_block_size(void)
+{
+	unsigned long mem_block_size = MIN_MEMORY_BLOCK_SIZE;
+
+	/*
+	 * OPAL firmware feature is set by now. Hence we are ok
+	 * to test OPAL feature.
+	 */
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		mem_block_size = 1UL * 1024 * 1024 * 1024;
+	else
+		of_scan_flat_dt(probe_memory_block_size, &mem_block_size);
+
+	return mem_block_size;
+}
+
+#else   /* CONFIG_MEMORY_HOTPLUG */
+
+static unsigned long radix_memory_block_size(void)
+{
+	return 1UL * 1024 * 1024 * 1024;
+}
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
+
 void __init radix__early_init_devtree(void)
 {
 	int rc;
@@ -481,17 +551,27 @@ void __init radix__early_init_devtree(void)
 	 * Try to find the available page sizes in the device-tree
 	 */
 	rc = of_scan_flat_dt(radix_dt_scan_page_sizes, NULL);
-	if (rc != 0)  /* Found */
-		goto found;
-	/*
-	 * let's assume we have page 4k and 64k support
-	 */
-	mmu_psize_defs[MMU_PAGE_4K].shift = 12;
-	mmu_psize_defs[MMU_PAGE_4K].ap = 0x0;
+	if (!rc) {
+		/*
+		 * No page size details found in device tree.
+		 * Let's assume we have page 4k and 64k support
+		 */
+		mmu_psize_defs[MMU_PAGE_4K].shift = 12;
+		mmu_psize_defs[MMU_PAGE_4K].ap = 0x0;
 
-	mmu_psize_defs[MMU_PAGE_64K].shift = 16;
-	mmu_psize_defs[MMU_PAGE_64K].ap = 0x5;
-found:
+		mmu_psize_defs[MMU_PAGE_64K].shift = 16;
+		mmu_psize_defs[MMU_PAGE_64K].ap = 0x5;
+	}
+
+	/*
+	 * Max mapping size used when mapping pages. We don't use
+	 * ppc_md.memory_block_size() here because this get called
+	 * early and we don't have machine probe called yet. Also
+	 * the pseries implementation only check for ibm,lmb-size.
+	 * All hypervisor supporting radix do expose that device
+	 * tree node.
+	 */
+	radix_mem_block_size = radix_memory_block_size();
 	return;
 }
 
@@ -513,8 +593,10 @@ void setup_kuep(bool disabled)
 	if (disabled || !early_radix_enabled())
 		return;
 
-	if (smp_processor_id() == boot_cpuid)
+	if (smp_processor_id() == boot_cpuid) {
 		pr_info("Activating Kernel Userspace Execution Prevention\n");
+		cur_cpu_spec->mmu_features |= MMU_FTR_KUEP;
+	}
 
 	/*
 	 * Radix always uses key0 of the IAMR to determine if an access is
@@ -538,6 +620,10 @@ void setup_kuap(bool disabled)
 
 	/* Make sure userspace can't change the AMR */
 	mtspr(SPRN_UAMOR, 0);
+
+	/*
+	 * Set the default kernel AMR values on all cpus.
+	 */
 	mtspr(SPRN_AMR, AMR_KUAP_BLOCKED);
 	isync();
 }
@@ -694,28 +780,19 @@ static void free_pmd_table(pmd_t *pmd_start, pud_t *pud)
 	pud_clear(pud);
 }
 
-struct change_mapping_params {
-	pte_t *pte;
-	unsigned long start;
-	unsigned long end;
-	unsigned long aligned_start;
-	unsigned long aligned_end;
-};
-
-static int __meminit stop_machine_change_mapping(void *data)
+static void free_pud_table(pud_t *pud_start, p4d_t *p4d)
 {
-	struct change_mapping_params *params =
-			(struct change_mapping_params *)data;
+	pud_t *pud;
+	int i;
 
-	if (!data)
-		return -1;
+	for (i = 0; i < PTRS_PER_PUD; i++) {
+		pud = pud_start + i;
+		if (!pud_none(*pud))
+			return;
+	}
 
-	spin_unlock(&init_mm.page_table_lock);
-	pte_clear(&init_mm, params->aligned_start, params->pte);
-	create_physical_mapping(__pa(params->aligned_start), __pa(params->start), -1);
-	create_physical_mapping(__pa(params->end), __pa(params->aligned_end), -1);
-	spin_lock(&init_mm.page_table_lock);
-	return 0;
+	pud_free(&init_mm, pud_start);
+	p4d_clear(p4d);
 }
 
 static void remove_pte_table(pte_t *pte_start, unsigned long addr,
@@ -746,53 +823,7 @@ static void remove_pte_table(pte_t *pte_start, unsigned long addr,
 	}
 }
 
-/*
- * clear the pte and potentially split the mapping helper
- */
-static void __meminit split_kernel_mapping(unsigned long addr, unsigned long end,
-				unsigned long size, pte_t *pte)
-{
-	unsigned long mask = ~(size - 1);
-	unsigned long aligned_start = addr & mask;
-	unsigned long aligned_end = addr + size;
-	struct change_mapping_params params;
-	bool split_region = false;
-
-	if ((end - addr) < size) {
-		/*
-		 * We're going to clear the PTE, but not flushed
-		 * the mapping, time to remap and flush. The
-		 * effects if visible outside the processor or
-		 * if we are running in code close to the
-		 * mapping we cleared, we are in trouble.
-		 */
-		if (overlaps_kernel_text(aligned_start, addr) ||
-			overlaps_kernel_text(end, aligned_end)) {
-			/*
-			 * Hack, just return, don't pte_clear
-			 */
-			WARN_ONCE(1, "Linear mapping %lx->%lx overlaps kernel "
-				  "text, not splitting\n", addr, end);
-			return;
-		}
-		split_region = true;
-	}
-
-	if (split_region) {
-		params.pte = pte;
-		params.start = addr;
-		params.end = end;
-		params.aligned_start = addr & ~(size - 1);
-		params.aligned_end = min_t(unsigned long, aligned_end,
-				(unsigned long)__va(memblock_end_of_DRAM()));
-		stop_machine(stop_machine_change_mapping, &params, NULL);
-		return;
-	}
-
-	pte_clear(&init_mm, addr, pte);
-}
-
-static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
+static void __meminit remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 			     unsigned long end)
 {
 	unsigned long next;
@@ -807,7 +838,12 @@ static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 			continue;
 
 		if (pmd_is_leaf(*pmd)) {
-			split_kernel_mapping(addr, end, PMD_SIZE, (pte_t *)pmd);
+			if (!IS_ALIGNED(addr, PMD_SIZE) ||
+			    !IS_ALIGNED(next, PMD_SIZE)) {
+				WARN_ONCE(1, "%s: unaligned range\n", __func__);
+				continue;
+			}
+			pte_clear(&init_mm, addr, (pte_t *)pmd);
 			continue;
 		}
 
@@ -817,7 +853,7 @@ static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 	}
 }
 
-static void remove_pud_table(pud_t *pud_start, unsigned long addr,
+static void __meminit remove_pud_table(pud_t *pud_start, unsigned long addr,
 			     unsigned long end)
 {
 	unsigned long next;
@@ -832,7 +868,12 @@ static void remove_pud_table(pud_t *pud_start, unsigned long addr,
 			continue;
 
 		if (pud_is_leaf(*pud)) {
-			split_kernel_mapping(addr, end, PUD_SIZE, (pte_t *)pud);
+			if (!IS_ALIGNED(addr, PUD_SIZE) ||
+			    !IS_ALIGNED(next, PUD_SIZE)) {
+				WARN_ONCE(1, "%s: unaligned range\n", __func__);
+				continue;
+			}
+			pte_clear(&init_mm, addr, (pte_t *)pud);
 			continue;
 		}
 
@@ -847,6 +888,7 @@ static void __meminit remove_pagetable(unsigned long start, unsigned long end)
 	unsigned long addr, next;
 	pud_t *pud_base;
 	pgd_t *pgd;
+	p4d_t *p4d;
 
 	spin_lock(&init_mm.page_table_lock);
 
@@ -854,30 +896,41 @@ static void __meminit remove_pagetable(unsigned long start, unsigned long end)
 		next = pgd_addr_end(addr, end);
 
 		pgd = pgd_offset_k(addr);
-		if (!pgd_present(*pgd))
+		p4d = p4d_offset(pgd, addr);
+		if (!p4d_present(*p4d))
 			continue;
 
-		if (pgd_is_leaf(*pgd)) {
-			split_kernel_mapping(addr, end, PGDIR_SIZE, (pte_t *)pgd);
+		if (p4d_is_leaf(*p4d)) {
+			if (!IS_ALIGNED(addr, P4D_SIZE) ||
+			    !IS_ALIGNED(next, P4D_SIZE)) {
+				WARN_ONCE(1, "%s: unaligned range\n", __func__);
+				continue;
+			}
+
+			pte_clear(&init_mm, addr, (pte_t *)pgd);
 			continue;
 		}
 
-		pud_base = (pud_t *)pgd_page_vaddr(*pgd);
+		pud_base = (pud_t *)p4d_page_vaddr(*p4d);
 		remove_pud_table(pud_base, addr, next);
+		free_pud_table(pud_base, p4d);
 	}
 
 	spin_unlock(&init_mm.page_table_lock);
 	radix__flush_tlb_kernel_range(start, end);
 }
 
-int __meminit radix__create_section_mapping(unsigned long start, unsigned long end, int nid)
+int __meminit radix__create_section_mapping(unsigned long start,
+					    unsigned long end, int nid,
+					    pgprot_t prot)
 {
 	if (end >= RADIX_VMALLOC_START) {
 		pr_warn("Outside the supported range\n");
 		return -1;
 	}
 
-	return create_physical_mapping(__pa(start), __pa(end), nid);
+	return create_physical_mapping(__pa(start), __pa(end),
+				       radix_mem_block_size, nid, prot);
 }
 
 int __meminit radix__remove_section_mapping(unsigned long start, unsigned long end)
@@ -957,7 +1010,13 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
 	pmd = *pmdp;
 	pmd_clear(pmdp);
 
-	/*FIXME!!  Verify whether we need this kick below */
+	/*
+	 * pmdp collapse_flush need to ensure that there are no parallel gup
+	 * walk after this call. This is needed so that we can have stable
+	 * page ref count when collapsing a page. We don't allow a collapse page
+	 * if we have gup taken on the page. We can ensure that by sending IPI
+	 * because gup walk happens with IRQ disabled.
+	 */
 	serialize_against_pte_lookup(vma->vm_mm);
 
 	radix__flush_tlb_collapsed_pmd(vma->vm_mm, address);
@@ -1018,17 +1077,6 @@ pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
 
 	old = radix__pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
 	old_pmd = __pmd(old);
-	/*
-	 * Serialize against find_current_mm_pte which does lock-less
-	 * lookup in page tables with local interrupts disabled. For huge pages
-	 * it casts pmd_t to pte_t. Since format of pte_t is different from
-	 * pmd_t we want to prevent transit from pmd pointing to page table
-	 * to pmd pointing to huge page (and back) while interrupts are disabled.
-	 * We clear pmd to possibly replace it with page table pointer in
-	 * different code paths. So make sure we wait for the parallel
-	 * find_current_mm_pte to finish.
-	 */
-	serialize_against_pte_lookup(mm);
 	return old_pmd;
 }
 

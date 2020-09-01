@@ -71,6 +71,7 @@ struct btrfs_transaction {
 	 */
 	struct list_head io_bgs;
 	struct list_head dropped_roots;
+	struct extent_io_tree pinned_extents;
 
 	/*
 	 * we need to make sure block group deletion doesn't race with
@@ -115,6 +116,10 @@ struct btrfs_trans_handle {
 	struct btrfs_block_rsv *orig_rsv;
 	refcount_t use_count;
 	unsigned int type;
+	/*
+	 * Error code of transaction abort, set outside of locks and must use
+	 * the READ_ONCE/WRITE_ONCE access
+	 */
 	short aborted;
 	bool adding_csums;
 	bool allocating_chunk;
@@ -125,6 +130,14 @@ struct btrfs_trans_handle {
 	struct btrfs_fs_info *fs_info;
 	struct list_head new_bgs;
 };
+
+/*
+ * The abort status can be changed between calls and is not protected by locks.
+ * This accepts btrfs_transaction and btrfs_trans_handle as types. Once it's
+ * set to a non-zero value it does not change, so the macro should be in checks
+ * but is not necessary for further reads of the value.
+ */
+#define TRANS_ABORTED(trans)		(unlikely(READ_ONCE((trans)->aborted)))
 
 struct btrfs_pending_snapshot {
 	struct dentry *dentry;
@@ -138,18 +151,20 @@ struct btrfs_pending_snapshot {
 	struct btrfs_block_rsv block_rsv;
 	/* extra metadata reservation for relocation */
 	int error;
+	/* Preallocated anonymous block device number */
+	dev_t anon_dev;
 	bool readonly;
 	struct list_head list;
 };
 
 static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
-					      struct inode *inode)
+					      struct btrfs_inode *inode)
 {
-	spin_lock(&BTRFS_I(inode)->lock);
-	BTRFS_I(inode)->last_trans = trans->transaction->transid;
-	BTRFS_I(inode)->last_sub_trans = BTRFS_I(inode)->root->log_transid;
-	BTRFS_I(inode)->last_log_commit = BTRFS_I(inode)->root->last_log_commit;
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
+	inode->last_trans = trans->transaction->transid;
+	inode->last_sub_trans = inode->root->log_transid;
+	inode->last_log_commit = inode->root->last_log_commit;
+	spin_unlock(&inode->lock);
 }
 
 /*
@@ -180,8 +195,7 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   unsigned int num_items);
 struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
 					struct btrfs_root *root,
-					unsigned int num_items,
-					int min_factor);
+					unsigned int num_items);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_spacecache(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_nostart(struct btrfs_root *root);
@@ -196,20 +210,6 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans);
 int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 				   int wait_for_unblock);
-
-/*
- * Try to commit transaction asynchronously, so this is safe to call
- * even holding a spinlock.
- *
- * It's done by informing transaction_kthread to commit transaction without
- * waiting for commit interval.
- */
-static inline void btrfs_commit_transaction_locksafe(
-		struct btrfs_fs_info *fs_info)
-{
-	set_bit(BTRFS_FS_NEED_ASYNC_COMMIT, &fs_info->flags);
-	wake_up_process(fs_info->transaction_kthread);
-}
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans);
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans);
 void btrfs_throttle(struct btrfs_fs_info *fs_info);

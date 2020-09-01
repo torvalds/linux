@@ -7,11 +7,29 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
+#include <linux/kref.h>
+#include <linux/rcupdate.h>
 #include <linux/wait.h>
+#include <linux/raspberrypi/vchiq.h>
 
 #include "vchiq_cfg.h"
 
-#include "vchiq.h"
+
+/* Do this so that we can test-build the code on non-rpi systems */
+#if IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE)
+
+#else
+
+#ifndef dsb
+#define dsb(a)
+#endif
+
+#endif	/* IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE) */
+
+#define VCHIQ_SERVICE_HANDLE_INVALID 0
+
+#define VCHIQ_SLOT_SIZE     4096
+#define VCHIQ_MAX_MSG_SIZE  (VCHIQ_SLOT_SIZE - sizeof(struct vchiq_header))
 
 /* Run time control of log level, based on KERN_XXX level. */
 #define VCHIQ_LOG_DEFAULT  4
@@ -251,7 +269,8 @@ struct vchiq_slot_info {
 struct vchiq_service {
 	struct vchiq_service_base base;
 	unsigned int handle;
-	unsigned int ref_count;
+	struct kref ref_count;
+	struct rcu_head rcu;
 	int srvstate;
 	vchiq_userdata_term userdata_term;
 	unsigned int localport;
@@ -294,6 +313,12 @@ struct vchiq_service {
 		uint64_t bulk_tx_bytes;
 		uint64_t bulk_rx_bytes;
 	} stats;
+
+	int msg_queue_read;
+	int msg_queue_write;
+	struct completion msg_queue_pop;
+	struct completion msg_queue_push;
+	struct vchiq_header *msg_queue[VCHIQ_MAX_SLOTS];
 };
 
 /* The quota information is outside struct vchiq_service so that it can
@@ -464,7 +489,7 @@ struct vchiq_state {
 		int error_count;
 	} stats;
 
-	struct vchiq_service *services[VCHIQ_MAX_SERVICES];
+	struct vchiq_service __rcu *services[VCHIQ_MAX_SERVICES];
 	struct vchiq_service_quota service_quotas[VCHIQ_MAX_SERVICES];
 	struct vchiq_slot_info slot_info[VCHIQ_MAX_SLOTS];
 
@@ -476,6 +501,18 @@ struct bulk_waiter {
 	struct completion event;
 	int actual;
 };
+
+struct vchiq_config {
+	unsigned int max_msg_size;
+	unsigned int bulk_threshold; /* The message size above which it
+					is better to use a bulk transfer
+					(<= max_msg_size) */
+	unsigned int max_outstanding_bulks;
+	unsigned int max_services;
+	short version;      /* The version of VCHIQ */
+	short version_min;  /* The minimum compatible version of VCHIQ */
+};
+
 
 extern spinlock_t bulk_waiter_spinlock;
 
@@ -545,12 +582,13 @@ request_poll(struct vchiq_state *state, struct vchiq_service *service,
 static inline struct vchiq_service *
 handle_to_service(unsigned int handle)
 {
+	int idx = handle & (VCHIQ_MAX_SERVICES - 1);
 	struct vchiq_state *state = vchiq_states[(handle / VCHIQ_MAX_SERVICES) &
 		(VCHIQ_MAX_STATES - 1)];
+
 	if (!state)
 		return NULL;
-
-	return state->services[handle & (VCHIQ_MAX_SERVICES - 1)];
+	return rcu_dereference(state->services[idx]);
 }
 
 extern struct vchiq_service *
@@ -568,7 +606,13 @@ find_closed_service_for_instance(struct vchiq_instance *instance,
 	unsigned int handle);
 
 extern struct vchiq_service *
-next_service_by_instance(struct vchiq_state *state, struct vchiq_instance *instance,
+__next_service_by_instance(struct vchiq_state *state,
+			   struct vchiq_instance *instance,
+			   int *pidx);
+
+extern struct vchiq_service *
+next_service_by_instance(struct vchiq_state *state,
+			 struct vchiq_instance *instance,
 			 int *pidx);
 
 extern void
@@ -576,6 +620,13 @@ lock_service(struct vchiq_service *service);
 
 extern void
 unlock_service(struct vchiq_service *service);
+
+extern enum vchiq_status
+vchiq_queue_message(unsigned int handle,
+		    ssize_t (*copy_callback)(void *context, void *dest,
+					     size_t offset, size_t maxsize),
+		    void *context,
+		    size_t size);
 
 /* The following functions are called from vchiq_core, and external
 ** implementations must be provided. */
@@ -589,18 +640,6 @@ vchiq_complete_bulk(struct vchiq_bulk *bulk);
 
 extern void
 remote_event_signal(struct remote_event *event);
-
-void
-vchiq_platform_check_suspend(struct vchiq_state *state);
-
-extern void
-vchiq_platform_paused(struct vchiq_state *state);
-
-extern enum vchiq_status
-vchiq_platform_resume(struct vchiq_state *state);
-
-extern void
-vchiq_platform_resumed(struct vchiq_state *state);
 
 extern int
 vchiq_dump(void *dump_context, const char *str, int len);
@@ -648,13 +687,20 @@ vchiq_platform_conn_state_changed(struct vchiq_state *state,
 				  enum vchiq_connstate newstate);
 
 extern void
-vchiq_platform_handle_timeout(struct vchiq_state *state);
-
-extern void
 vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);
 
 extern void
 vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem,
 	size_t numBytes);
+
+extern enum vchiq_status vchiq_remove_service(unsigned int service);
+
+extern int vchiq_get_client_id(unsigned int service);
+
+extern void vchiq_get_config(struct vchiq_config *config);
+
+extern enum vchiq_status
+vchiq_set_service_option(unsigned int service, enum vchiq_service_option option,
+			 int value);
 
 #endif

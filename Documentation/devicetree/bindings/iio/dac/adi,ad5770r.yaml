@@ -1,0 +1,180 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2020 Analog Devices Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5770r.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5770R DAC device driver
+
+maintainers:
+  - Mircea Caprioru <mircea.caprioru@analog.com>
+
+description: |
+  Bindings for the Analog Devices AD5770R current DAC device. Datasheet can be
+  found here:
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD5770R.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,ad5770r
+
+  reg:
+    maxItems: 1
+
+  avdd-supply:
+    description:
+      AVdd voltage supply. Represents two different supplies in the datasheet
+      that are in fact the same.
+
+  iovdd-supply:
+    description:
+      Voltage supply for the chip interface.
+
+  vref-supply:
+    description: Specify the voltage of the external reference used.
+      Available reference options are 1.25 V or 2.5 V. If no
+      external reference declared then the device will use the
+      internal reference of 1.25 V.
+
+  adi,external-resistor:
+    description: Specify if an external 2.5k ohm resistor is used. If not
+      specified the device will use an internal 2.5k ohm resistor.
+      The precision resistor is used for reference current generation.
+    type: boolean
+
+  reset-gpios:
+    description: GPIO spec for the RESET pin. If specified, it will be
+      asserted during driver probe.
+    maxItems: 1
+
+  channel@0:
+    description: Represents an external channel which are
+      connected to the DAC. Channel 0 can act both as a current
+      source and sink.
+    type: object
+
+    properties:
+      reg:
+        description: This represents the channel number.
+        const: 0
+
+      adi,range-microamp:
+        description: Output range of the channel.
+        oneOf:
+          - items:
+              - const: 0
+              - const: 300000
+          - items:
+              - const: -60000
+              - const: 0
+          - items:
+              - const: -60000
+              - const: 300000
+
+  channel@1:
+    description: Represents an external channel which are
+      connected to the DAC.
+    type: object
+
+    properties:
+      reg:
+        description: This represents the channel number.
+        const: 1
+
+      adi,range-microamp:
+        description: Output range of the channel.
+        items:
+          - const: 0
+          - enum: [140000, 250000]
+
+  channel@2:
+    description: Represents an external channel which are
+      connected to the DAC.
+    type: object
+
+    properties:
+      reg:
+        description: This represents the channel number.
+        const: 2
+
+      adi,range-microamp:
+        description: Output range of the channel.
+        items:
+          - const: 0
+          - enum: [55000, 150000]
+
+patternProperties:
+  "^channel@([3-5])$":
+    type: object
+    description: Represents the external channels which are connected to the DAC.
+    properties:
+      reg:
+        description: This represents the channel number.
+        minimum: 3
+        maximum: 5
+
+      adi,range-microamp:
+        description: Output range of the channel.
+        items:
+          - const: 0
+          - enum: [45000, 100000]
+
+required:
+  - reg
+  - channel@0
+  - channel@1
+  - channel@2
+  - channel@3
+  - channel@4
+  - channel@5
+
+examples:
+  - |
+        spi {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                ad5770r@0 {
+                        compatible = "adi,ad5770r";
+                        reg = <0>;
+                        spi-max-frequency = <1000000>;
+                        vref-supply = <&vref>;
+                        adi,external-resistor;
+                        reset-gpios = <&gpio 22 0>;
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+
+                        channel@0 {
+                                reg = <0>;
+                                adi,range-microamp = <0 300000>;
+                        };
+
+                        channel@1 {
+                                reg = <1>;
+                                adi,range-microamp = <0 140000>;
+                        };
+
+                        channel@2 {
+                                reg = <2>;
+                                adi,range-microamp = <0 55000>;
+                        };
+
+                        channel@3 {
+                                reg = <3>;
+                                adi,range-microamp = <0 45000>;
+                        };
+
+                        channel@4 {
+                                reg = <4>;
+                                adi,range-microamp = <0 45000>;
+                        };
+
+                        channel@5 {
+                                reg = <5>;
+                                adi,range-microamp = <0 45000>;
+                        };
+                };
+        };
+...

@@ -20,6 +20,9 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#include <linux/irq_poll.h>
+#include <linux/cpufreq.h>
+
 #if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
 #define CONFIG_SCSI_LPFC_DEBUG_FS
 #endif
@@ -133,6 +136,16 @@ struct lpfc_rqb {
 				  /* Callback for HBQ buffer free */
 	void               (*rqb_free_buffer)(struct lpfc_hba *,
 					       struct rqb_dmabuf *);
+};
+
+enum lpfc_poll_mode {
+	LPFC_QUEUE_WORK,
+	LPFC_IRQ_POLL
+};
+
+struct lpfc_idle_stat {
+	u64 prev_idle;
+	u64 prev_wall;
 };
 
 struct lpfc_queue {
@@ -265,6 +278,10 @@ struct lpfc_queue {
 	struct lpfc_queue *assoc_qp;
 	struct list_head _poll_list;
 	void **q_pgs;	/* array to index entries per page */
+
+#define LPFC_IRQ_POLL_WEIGHT 256
+	struct irq_poll iop;
+	enum lpfc_poll_mode poll_mode;
 };
 
 struct lpfc_sli4_link {
@@ -697,13 +714,6 @@ struct lpfc_sli4_hdw_queue {
 	struct lpfc_lock_stat lock_conflict;
 #endif
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-#define LPFC_CHECK_CPU_CNT    128
-	uint32_t cpucheck_rcv_io[LPFC_CHECK_CPU_CNT];
-	uint32_t cpucheck_xmt_io[LPFC_CHECK_CPU_CNT];
-	uint32_t cpucheck_cmpl_io[LPFC_CHECK_CPU_CNT];
-#endif
-
 	/* Per HDWQ pool resources */
 	struct list_head sgl_list;
 	struct list_head cmd_rsp_buf_list;
@@ -738,6 +748,15 @@ struct lpfc_sli4_hdw_queue {
 #define lpfc_qp_spin_lock_irqsave(lock, flag, qp, lstat) \
 	spin_lock_irqsave(lock, flag)
 #define lpfc_qp_spin_lock(lock, qp, lstat) spin_lock(lock)
+#endif
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+struct lpfc_hdwq_stat {
+	u32 hdwq_no;
+	u32 rcv_io;
+	u32 xmt_io;
+	u32 cmpl_io;
+};
 #endif
 
 struct lpfc_sli4_hba {
@@ -918,9 +937,13 @@ struct lpfc_sli4_hba {
 	struct lpfc_vector_map_info *cpu_map;
 	uint16_t num_possible_cpu;
 	uint16_t num_present_cpu;
-	struct cpumask numa_mask;
+	struct cpumask irq_aff_mask;
 	uint16_t curr_disp_cpu;
 	struct lpfc_eq_intr_info __percpu *eq_info;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	struct lpfc_hdwq_stat __percpu *c_stat;
+#endif
+	struct lpfc_idle_stat *idle_stat;
 	uint32_t conf_trunk;
 #define lpfc_conf_trunk_port0_WORD	conf_trunk
 #define lpfc_conf_trunk_port0_SHIFT	0

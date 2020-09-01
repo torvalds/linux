@@ -121,7 +121,8 @@ static struct k_itimer *__posix_timers_find(struct hlist_head *head,
 {
 	struct k_itimer *timer;
 
-	hlist_for_each_entry_rcu(timer, head, t_hash) {
+	hlist_for_each_entry_rcu(timer, head, t_hash,
+				 lockdep_is_held(&hash_lock)) {
 		if ((timer->it_signal == sig) && (timer->it_id == id))
 			return timer;
 	}
@@ -438,12 +439,12 @@ static struct pid *good_sigevent(sigevent_t * event)
 		rtn = pid_task(pid, PIDTYPE_PID);
 		if (!rtn || !same_thread_group(rtn, current))
 			return NULL;
-		/* FALLTHRU */
+		fallthrough;
 	case SIGEV_SIGNAL:
 	case SIGEV_THREAD:
 		if (event->sigev_signo <= 0 || event->sigev_signo > SIGRTMAX)
 			return NULL;
-		/* FALLTHRU */
+		fallthrough;
 	case SIGEV_NONE:
 		return pid;
 	default:

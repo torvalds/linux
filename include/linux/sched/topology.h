@@ -11,21 +11,20 @@
  */
 #ifdef CONFIG_SMP
 
-#define SD_LOAD_BALANCE		0x0001	/* Do load balancing on this domain. */
-#define SD_BALANCE_NEWIDLE	0x0002	/* Balance when about to become idle */
-#define SD_BALANCE_EXEC		0x0004	/* Balance on exec */
-#define SD_BALANCE_FORK		0x0008	/* Balance on fork, clone */
-#define SD_BALANCE_WAKE		0x0010  /* Balance on wakeup */
-#define SD_WAKE_AFFINE		0x0020	/* Wake task to waking CPU */
-#define SD_ASYM_CPUCAPACITY	0x0040  /* Domain members have different CPU capacities */
-#define SD_SHARE_CPUCAPACITY	0x0080	/* Domain members share CPU capacity */
-#define SD_SHARE_POWERDOMAIN	0x0100	/* Domain members share power domain */
-#define SD_SHARE_PKG_RESOURCES	0x0200	/* Domain members share CPU pkg resources */
-#define SD_SERIALIZE		0x0400	/* Only a single load balancing instance */
-#define SD_ASYM_PACKING		0x0800  /* Place busy groups earlier in the domain */
-#define SD_PREFER_SIBLING	0x1000	/* Prefer to place tasks in a sibling domain */
-#define SD_OVERLAP		0x2000	/* sched_domains of this level overlap */
-#define SD_NUMA			0x4000	/* cross-node balancing */
+#define SD_BALANCE_NEWIDLE	0x0001	/* Balance when about to become idle */
+#define SD_BALANCE_EXEC		0x0002	/* Balance on exec */
+#define SD_BALANCE_FORK		0x0004	/* Balance on fork, clone */
+#define SD_BALANCE_WAKE		0x0008  /* Balance on wakeup */
+#define SD_WAKE_AFFINE		0x0010	/* Wake task to waking CPU */
+#define SD_ASYM_CPUCAPACITY	0x0020  /* Domain members have different CPU capacities */
+#define SD_SHARE_CPUCAPACITY	0x0040	/* Domain members share CPU capacity */
+#define SD_SHARE_POWERDOMAIN	0x0080	/* Domain members share power domain */
+#define SD_SHARE_PKG_RESOURCES	0x0100	/* Domain members share CPU pkg resources */
+#define SD_SERIALIZE		0x0200	/* Only a single load balancing instance */
+#define SD_ASYM_PACKING		0x0400  /* Place busy groups earlier in the domain */
+#define SD_PREFER_SIBLING	0x0800	/* Prefer to place tasks in a sibling domain */
+#define SD_OVERLAP		0x1000	/* sched_domains of this level overlap */
+#define SD_NUMA			0x2000	/* cross-node balancing */
 
 #ifdef CONFIG_SCHED_SMT
 static inline int cpu_smt_flags(void)
@@ -142,7 +141,7 @@ struct sched_domain {
 	 * by attaching extra space to the end of the structure,
 	 * depending on how many CPUs the kernel has booted up with)
 	 */
-	unsigned long span[0];
+	unsigned long span[];
 };
 
 static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
@@ -218,11 +217,36 @@ static inline bool cpus_share_cache(int this_cpu, int that_cpu)
 #endif	/* !CONFIG_SMP */
 
 #ifndef arch_scale_cpu_capacity
+/**
+ * arch_scale_cpu_capacity - get the capacity scale factor of a given CPU.
+ * @cpu: the CPU in question.
+ *
+ * Return: the CPU scale factor normalized against SCHED_CAPACITY_SCALE, i.e.
+ *
+ *             max_perf(cpu)
+ *      ----------------------------- * SCHED_CAPACITY_SCALE
+ *      max(max_perf(c) : c \in CPUs)
+ */
 static __always_inline
 unsigned long arch_scale_cpu_capacity(int cpu)
 {
 	return SCHED_CAPACITY_SCALE;
 }
+#endif
+
+#ifndef arch_scale_thermal_pressure
+static __always_inline
+unsigned long arch_scale_thermal_pressure(int cpu)
+{
+	return 0;
+}
+#endif
+
+#ifndef arch_set_thermal_pressure
+static __always_inline
+void arch_set_thermal_pressure(const struct cpumask *cpus,
+			       unsigned long th_pressure)
+{ }
 #endif
 
 static inline int task_node(const struct task_struct *p)

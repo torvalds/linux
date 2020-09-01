@@ -9,7 +9,7 @@ which in addition to handling all the metadata access to the NFS export,
 also hands out layouts to the clients so that they can directly access the
 underlying SCSI LUNs that are shared with the client.
 
-To use pNFS SCSI layouts with with the Linux NFS server, the exported file
+To use pNFS SCSI layouts with the Linux NFS server, the exported file
 system needs to support the pNFS SCSI layouts (currently just XFS), and the
 file system must sit on a SCSI LUN that is accessible to the clients in
 addition to the MDS.  As of now the file system needs to sit directly on the

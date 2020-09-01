@@ -1576,7 +1576,7 @@ static int vpe_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 	*f = q_data->format;
 
-	if (!V4L2_TYPE_IS_OUTPUT(f->type)) {
+	if (V4L2_TYPE_IS_CAPTURE(f->type)) {
 		struct vpe_q_data *s_q_data;
 		struct v4l2_pix_format_mplane *spix;
 
@@ -2500,7 +2500,7 @@ static void vpe_fw_cb(struct platform_device *pdev)
 	vfd->lock = &dev->dev_mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (ret) {
 		vpe_err(dev, "Failed to register video device\n");
 

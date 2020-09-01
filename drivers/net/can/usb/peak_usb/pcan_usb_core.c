@@ -345,7 +345,7 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 		default:
 			netdev_warn(netdev, "tx urb submitting failed err=%d\n",
 				    err);
-			/* fall through */
+			fallthrough;
 		case -ENOENT:
 			/* cable unplugged */
 			stats->tx_dropped++;

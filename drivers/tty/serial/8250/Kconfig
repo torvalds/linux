@@ -9,7 +9,7 @@ config SERIAL_8250
 	depends on !S390
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
-	---help---
+	help
 	  This selects whether you want to include the driver for the standard
 	  serial ports.  The standard answer is Y.  People who might say N
 	  here are those that are setting up dedicated Ethernet WWW/FTP
@@ -39,7 +39,7 @@ config SERIAL_8250_DEPRECATED_OPTIONS
 	bool "Support 8250_core.* kernel options (DEPRECATED)"
 	depends on SERIAL_8250
 	default y
-	---help---
+	help
 	  In 3.7 we renamed 8250 to 8250_core by mistake, so now we have to
 	  accept kernel parameters in both forms like 8250_core.nr_uarts=4 and
 	  8250.nr_uarts=4. We now renamed the module back to 8250, but if
@@ -56,13 +56,14 @@ config SERIAL_8250_PNP
 	bool "8250/16550 PNP device support" if EXPERT
 	depends on SERIAL_8250 && PNP
 	default y
-	---help---
+	help
 	  This builds standard PNP serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 
 config SERIAL_8250_16550A_VARIANTS
 	bool "Support for variants of the 16550A serial port"
 	depends on SERIAL_8250
+	default !X86
 	help
 	  The 8250 driver can probe for many variants of the venerable 16550A
 	  serial port. Doing so takes additional time at boot.
@@ -73,7 +74,7 @@ config SERIAL_8250_16550A_VARIANTS
 config SERIAL_8250_FINTEK
 	bool "Support for Fintek F81216A LPC to 4 UART RS485 API"
 	depends on SERIAL_8250
-	---help---
+	help
 	  Selecting this option will add support for the RS485 capabilities
 	  of the Fintek F81216A LPC to 4 UART.
 
@@ -87,7 +88,7 @@ config SERIAL_8250_CONSOLE
 	depends on SERIAL_8250=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -157,7 +158,7 @@ config SERIAL_8250_HP300
 config SERIAL_8250_CS
 	tristate "8250/16550 PCMCIA device support"
 	depends on PCMCIA && SERIAL_8250
-	---help---
+	help
 	  Say Y here to enable support for 16-bit PCMCIA serial devices,
 	  including serial port cards, modems, and the modem functions of
 	  multi-function Ethernet/modem cards. (PCMCIA- or PC-cards are
@@ -221,7 +222,7 @@ config SERIAL_8250_MANY_PORTS
 	  Say Y here if you have dumb serial boards other than the four
 	  standard COM 1/2/3/4 ports. This may happen if you have an AST
 	  FourPort, Accent Async, Boca (read the Boca mini-HOWTO, available
-	  from <http://www.tldp.org/docs.html#howto>), or other custom
+	  from <https://www.tldp.org/docs.html#howto>), or other custom
 	  serial port hardware which acts similar to standard serial port
 	  hardware. If you only use the standard COM 1/2/3/4 ports, you can
 	  say N here to save some memory. You can also say Y if you have an
@@ -265,7 +266,7 @@ config SERIAL_8250_BOCA
 	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
 	help
 	  Say Y here if you have a Boca serial board.  Please read the Boca
-	  mini-HOWTO, available from <http://www.tldp.org/docs.html#howto>
+	  mini-HOWTO, available from <https://www.tldp.org/docs.html#howto>
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_boca.
@@ -499,6 +500,15 @@ config SERIAL_8250_PXA
 	  enable its onboard serial ports by enabling this option. The option is
 	  applicable to both devicetree and legacy boards, and early console is
 	  part of its support.
+
+config SERIAL_8250_TEGRA
+	tristate "8250 support for Tegra serial ports"
+	default SERIAL_8250
+	depends on SERIAL_8250
+	depends on ARCH_TEGRA || COMPILE_TEST
+	help
+	  Select this option if you have machine with an NVIDIA Tegra SoC and
+	  wish to enable 8250 serial driver for the Tegra serial interfaces.
 
 config SERIAL_OF_PLATFORM
 	tristate "Devicetree based probing for 8250 ports"

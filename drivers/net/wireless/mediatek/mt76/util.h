@@ -14,12 +14,24 @@
 #define MT76_INCR(_var, _size) \
 	(_var = (((_var) + 1) % (_size)))
 
-int mt76_wcid_alloc(unsigned long *mask, int size);
+int mt76_wcid_alloc(u32 *mask, int size);
+
+static inline bool
+mt76_wcid_mask_test(u32 *mask, int idx)
+{
+	return mask[idx / 32] & BIT(idx % 32);
+}
 
 static inline void
-mt76_wcid_free(unsigned long *mask, int idx)
+mt76_wcid_mask_set(u32 *mask, int idx)
 {
-	mask[idx / BITS_PER_LONG] &= ~BIT(idx % BITS_PER_LONG);
+	mask[idx / 32] |= BIT(idx % 32);
+}
+
+static inline void
+mt76_wcid_mask_clear(u32 *mask, int idx)
+{
+	mask[idx / 32] &= ~BIT(idx % 32);
 }
 
 static inline void

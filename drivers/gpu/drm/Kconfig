@@ -54,9 +54,6 @@ config DRM_DEBUG_MM
 
 	  If in doubt, say "N".
 
-config DRM_EXPORT_FOR_TESTS
-	bool
-
 config DRM_DEBUG_SELFTEST
 	tristate "kselftests for DRM"
 	depends on DRM
@@ -164,7 +161,7 @@ config DRM_LOAD_EDID_FIRMWARE
 	  monitor are unable to provide appropriate EDID data. Since this
 	  feature is provided as a workaround for broken hardware, the
 	  default case is N. Details and instructions how to build your own
-	  EDID data are given in Documentation/driver-api/edid.rst.
+	  EDID data are given in Documentation/admin-guide/edid.rst.
 
 config DRM_DP_CEC
 	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
@@ -313,8 +310,6 @@ source "drivers/gpu/drm/ast/Kconfig"
 
 source "drivers/gpu/drm/mgag200/Kconfig"
 
-source "drivers/gpu/drm/cirrus/Kconfig"
-
 source "drivers/gpu/drm/armada/Kconfig"
 
 source "drivers/gpu/drm/atmel-hlcdc/Kconfig"
@@ -388,6 +383,10 @@ source "drivers/gpu/drm/panfrost/Kconfig"
 source "drivers/gpu/drm/aspeed/Kconfig"
 
 source "drivers/gpu/drm/mcde/Kconfig"
+
+source "drivers/gpu/drm/tidss/Kconfig"
+
+source "drivers/gpu/drm/xlnx/Kconfig"
 
 # Keep legacy drivers last
 
@@ -467,6 +466,9 @@ config DRM_SAVAGE
 	  chipset. If M is selected the module will be called savage.
 
 endif # DRM_LEGACY
+
+config DRM_EXPORT_FOR_TESTS
+	bool
 
 # Separate option because drm_panel_orientation_quirks.c is shared with fbdev
 config DRM_PANEL_ORIENTATION_QUIRKS

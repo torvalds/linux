@@ -7,7 +7,7 @@
  *   Mux support by Rodolfo Giometti <giometti@enneenne.com> and
  *   Michael Lawnick <michael.lawnick.ext@nsn.com>
  *
- * Copyright (C) 2013-2017 Wolfram Sang <wsa@the-dreams.de>
+ * Copyright (C) 2013-2017 Wolfram Sang <wsa@kernel.org>
  */
 
 #define pr_fmt(fmt) "i2c-core: " fmt
@@ -32,6 +32,7 @@
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_wakeirq.h>
@@ -181,6 +182,8 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 
 	if (bri->prepare_recovery)
 		bri->prepare_recovery(adap);
+	if (bri->pinctrl)
+		pinctrl_select_state(bri->pinctrl, bri->pins_gpio);
 
 	/*
 	 * If we can set SDA, we will always create a STOP to ensure additional
@@ -236,6 +239,8 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 
 	if (bri->unprepare_recovery)
 		bri->unprepare_recovery(adap);
+	if (bri->pinctrl)
+		pinctrl_select_state(bri->pinctrl, bri->pins_default);
 
 	return ret;
 }
@@ -251,13 +256,135 @@ int i2c_recover_bus(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL_GPL(i2c_recover_bus);
 
-static void i2c_init_recovery(struct i2c_adapter *adap)
+static void i2c_gpio_init_pinctrl_recovery(struct i2c_adapter *adap)
+{
+	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+	struct device *dev = &adap->dev;
+	struct pinctrl *p = bri->pinctrl;
+
+	/*
+	 * we can't change states without pinctrl, so remove the states if
+	 * populated
+	 */
+	if (!p) {
+		bri->pins_default = NULL;
+		bri->pins_gpio = NULL;
+		return;
+	}
+
+	if (!bri->pins_default) {
+		bri->pins_default = pinctrl_lookup_state(p,
+							 PINCTRL_STATE_DEFAULT);
+		if (IS_ERR(bri->pins_default)) {
+			dev_dbg(dev, PINCTRL_STATE_DEFAULT " state not found for GPIO recovery\n");
+			bri->pins_default = NULL;
+		}
+	}
+	if (!bri->pins_gpio) {
+		bri->pins_gpio = pinctrl_lookup_state(p, "gpio");
+		if (IS_ERR(bri->pins_gpio))
+			bri->pins_gpio = pinctrl_lookup_state(p, "recovery");
+
+		if (IS_ERR(bri->pins_gpio)) {
+			dev_dbg(dev, "no gpio or recovery state found for GPIO recovery\n");
+			bri->pins_gpio = NULL;
+		}
+	}
+
+	/* for pinctrl state changes, we need all the information */
+	if (bri->pins_default && bri->pins_gpio) {
+		dev_info(dev, "using pinctrl states for GPIO recovery");
+	} else {
+		bri->pinctrl = NULL;
+		bri->pins_default = NULL;
+		bri->pins_gpio = NULL;
+	}
+}
+
+static int i2c_gpio_init_generic_recovery(struct i2c_adapter *adap)
+{
+	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+	struct device *dev = &adap->dev;
+	struct gpio_desc *gpiod;
+	int ret = 0;
+
+	/*
+	 * don't touch the recovery information if the driver is not using
+	 * generic SCL recovery
+	 */
+	if (bri->recover_bus && bri->recover_bus != i2c_generic_scl_recovery)
+		return 0;
+
+	/*
+	 * pins might be taken as GPIO, so we should inform pinctrl about
+	 * this and move the state to GPIO
+	 */
+	if (bri->pinctrl)
+		pinctrl_select_state(bri->pinctrl, bri->pins_gpio);
+
+	/*
+	 * if there is incomplete or no recovery information, see if generic
+	 * GPIO recovery is available
+	 */
+	if (!bri->scl_gpiod) {
+		gpiod = devm_gpiod_get(dev, "scl", GPIOD_OUT_HIGH_OPEN_DRAIN);
+		if (PTR_ERR(gpiod) == -EPROBE_DEFER) {
+			ret  = -EPROBE_DEFER;
+			goto cleanup_pinctrl_state;
+		}
+		if (!IS_ERR(gpiod)) {
+			bri->scl_gpiod = gpiod;
+			bri->recover_bus = i2c_generic_scl_recovery;
+			dev_info(dev, "using generic GPIOs for recovery\n");
+		}
+	}
+
+	/* SDA GPIOD line is optional, so we care about DEFER only */
+	if (!bri->sda_gpiod) {
+		/*
+		 * We have SCL. Pull SCL low and wait a bit so that SDA glitches
+		 * have no effect.
+		 */
+		gpiod_direction_output(bri->scl_gpiod, 0);
+		udelay(10);
+		gpiod = devm_gpiod_get(dev, "sda", GPIOD_IN);
+
+		/* Wait a bit in case of a SDA glitch, and then release SCL. */
+		udelay(10);
+		gpiod_direction_output(bri->scl_gpiod, 1);
+
+		if (PTR_ERR(gpiod) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto cleanup_pinctrl_state;
+		}
+		if (!IS_ERR(gpiod))
+			bri->sda_gpiod = gpiod;
+	}
+
+cleanup_pinctrl_state:
+	/* change the state of the pins back to their default state */
+	if (bri->pinctrl)
+		pinctrl_select_state(bri->pinctrl, bri->pins_default);
+
+	return ret;
+}
+
+static int i2c_gpio_init_recovery(struct i2c_adapter *adap)
+{
+	i2c_gpio_init_pinctrl_recovery(adap);
+	return i2c_gpio_init_generic_recovery(adap);
+}
+
+static int i2c_init_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
 	char *err_str;
 
 	if (!bri)
-		return;
+		return 0;
+
+	if (i2c_gpio_init_recovery(adap) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	if (!bri->recover_bus) {
 		err_str = "no recover_bus() found";
@@ -273,10 +400,7 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 			if (gpiod_get_direction(bri->sda_gpiod) == 0)
 				bri->set_sda = set_sda_gpio_value;
 		}
-		return;
-	}
-
-	if (bri->recover_bus == i2c_generic_scl_recovery) {
+	} else if (bri->recover_bus == i2c_generic_scl_recovery) {
 		/* Generic SCL recovery */
 		if (!bri->set_scl || !bri->get_scl) {
 			err_str = "no {get|set}_scl() found";
@@ -288,10 +412,12 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 		}
 	}
 
-	return;
+	return 0;
  err:
 	dev_err(&adap->dev, "Not using recovery: %s\n", err_str);
 	adap->bus_recovery_info = NULL;
+
+	return -EINVAL;
 }
 
 static int i2c_smbus_host_notify_to_irq(const struct i2c_client *client)
@@ -319,11 +445,9 @@ static int i2c_device_probe(struct device *dev)
 	if (!client)
 		return 0;
 
-	driver = to_i2c_driver(dev->driver);
-
 	client->irq = client->init_irq;
 
-	if (!client->irq && !driver->disable_i2c_core_irq_mapping) {
+	if (!client->irq) {
 		int irq = -ENOENT;
 
 		if (client->flags & I2C_CLIENT_HOST_NOTIFY) {
@@ -338,8 +462,10 @@ static int i2c_device_probe(struct device *dev)
 		} else if (ACPI_COMPANION(dev)) {
 			irq = i2c_acpi_get_irq(client);
 		}
-		if (irq == -EPROBE_DEFER)
-			return irq;
+		if (irq == -EPROBE_DEFER) {
+			status = irq;
+			goto put_sync_adapter;
+		}
 
 		if (irq < 0)
 			irq = 0;
@@ -347,21 +473,27 @@ static int i2c_device_probe(struct device *dev)
 		client->irq = irq;
 	}
 
+	driver = to_i2c_driver(dev->driver);
+
 	/*
 	 * An I2C ID table is not mandatory, if and only if, a suitable OF
 	 * or ACPI ID table is supplied for the probing device.
 	 */
 	if (!driver->id_table &&
-	    !i2c_acpi_match_device(dev->driver->acpi_match_table, client) &&
-	    !i2c_of_match_device(dev->driver->of_match_table, client))
-		return -ENODEV;
+	    !acpi_driver_match_device(dev, dev->driver) &&
+	    !i2c_of_match_device(dev->driver->of_match_table, client)) {
+		status = -ENODEV;
+		goto put_sync_adapter;
+	}
 
 	if (client->flags & I2C_CLIENT_WAKE) {
 		int wakeirq;
 
 		wakeirq = of_irq_get_byname(dev->of_node, "wakeup");
-		if (wakeirq == -EPROBE_DEFER)
-			return wakeirq;
+		if (wakeirq == -EPROBE_DEFER) {
+			status = wakeirq;
+			goto put_sync_adapter;
+		}
 
 		device_init_wakeup(&client->dev, true);
 
@@ -408,6 +540,10 @@ err_detach_pm_domain:
 err_clear_wakeup_irq:
 	dev_pm_clear_wake_irq(&client->dev);
 	device_init_wakeup(&client->dev, false);
+put_sync_adapter:
+	if (client->flags & I2C_CLIENT_HOST_NOTIFY)
+		pm_runtime_put_sync(&client->adapter->dev);
+
 	return status;
 }
 
@@ -804,31 +940,6 @@ out_err_silent:
 	return ERR_PTR(status);
 }
 EXPORT_SYMBOL_GPL(i2c_new_client_device);
-
-/**
- * i2c_new_device - instantiate an i2c device
- * @adap: the adapter managing the device
- * @info: describes one I2C device; bus_num is ignored
- * Context: can sleep
- *
- * This deprecated function has the same functionality as
- * @i2c_new_client_device, it just returns NULL instead of an ERR_PTR in case of
- * an error for compatibility with current I2C API. It will be removed once all
- * users are converted.
- *
- * This returns the new i2c client, which may be saved for later use with
- * i2c_unregister_device(); or NULL to indicate an error.
- */
-struct i2c_client *
-i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
-{
-	struct i2c_client *ret;
-
-	ret = i2c_new_client_device(adap, info);
-	return IS_ERR(ret) ? NULL : ret;
-}
-EXPORT_SYMBOL_GPL(i2c_new_device);
-
 
 /**
  * i2c_unregister_device - reverse effect of i2c_new_*_device()
@@ -1242,7 +1353,7 @@ static int i2c_setup_host_notify_irq_domain(struct i2c_adapter *adap)
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_HOST_NOTIFY))
 		return 0;
 
-	domain = irq_domain_create_linear(adap->dev.fwnode,
+	domain = irq_domain_create_linear(adap->dev.parent->fwnode,
 					  I2C_ADDR_7BITS_COUNT,
 					  &i2c_host_notify_irq_ops, adap);
 	if (!domain)
@@ -1333,11 +1444,15 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	if (res)
 		goto out_reg;
 
-	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
-
 	pm_runtime_no_callbacks(&adap->dev);
 	pm_suspend_ignore_children(&adap->dev, true);
 	pm_runtime_enable(&adap->dev);
+
+	res = i2c_init_recovery(adap);
+	if (res == -EPROBE_DEFER)
+		goto out_reg;
+
+	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
 #ifdef CONFIG_I2C_COMPAT
 	res = class_compat_create_link(i2c_adapter_compat_class, &adap->dev,
@@ -1346,8 +1461,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		dev_warn(&adap->dev,
 			 "Failed to create compatibility class link\n");
 #endif
-
-	i2c_init_recovery(adap);
 
 	/* create pre-declared device nodes */
 	of_i2c_register_devices(adap);
@@ -1588,63 +1701,58 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL(i2c_del_adapter);
 
+static void i2c_parse_timing(struct device *dev, char *prop_name, u32 *cur_val_p,
+			    u32 def_val, bool use_def)
+{
+	int ret;
+
+	ret = device_property_read_u32(dev, prop_name, cur_val_p);
+	if (ret && use_def)
+		*cur_val_p = def_val;
+
+	dev_dbg(dev, "%s: %u\n", prop_name, *cur_val_p);
+}
+
 /**
  * i2c_parse_fw_timings - get I2C related timing parameters from firmware
  * @dev: The device to scan for I2C timing properties
  * @t: the i2c_timings struct to be filled with values
  * @use_defaults: bool to use sane defaults derived from the I2C specification
- *		  when properties are not found, otherwise use 0
+ *		  when properties are not found, otherwise don't update
  *
  * Scan the device for the generic I2C properties describing timing parameters
  * for the signal and fill the given struct with the results. If a property was
  * not found and use_defaults was true, then maximum timings are assumed which
  * are derived from the I2C specification. If use_defaults is not used, the
- * results will be 0, so drivers can apply their own defaults later. The latter
- * is mainly intended for avoiding regressions of existing drivers which want
- * to switch to this function. New drivers almost always should use the defaults.
+ * results will be as before, so drivers can apply their own defaults before
+ * calling this helper. The latter is mainly intended for avoiding regressions
+ * of existing drivers which want to switch to this function. New drivers
+ * almost always should use the defaults.
  */
-
 void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_defaults)
 {
-	int ret;
+	bool u = use_defaults;
+	u32 d;
 
-	memset(t, 0, sizeof(*t));
+	i2c_parse_timing(dev, "clock-frequency", &t->bus_freq_hz,
+			 I2C_MAX_STANDARD_MODE_FREQ, u);
 
-	ret = device_property_read_u32(dev, "clock-frequency", &t->bus_freq_hz);
-	if (ret && use_defaults)
-		t->bus_freq_hz = 100000;
+	d = t->bus_freq_hz <= I2C_MAX_STANDARD_MODE_FREQ ? 1000 :
+	    t->bus_freq_hz <= I2C_MAX_FAST_MODE_FREQ ? 300 : 120;
+	i2c_parse_timing(dev, "i2c-scl-rising-time-ns", &t->scl_rise_ns, d, u);
 
-	ret = device_property_read_u32(dev, "i2c-scl-rising-time-ns", &t->scl_rise_ns);
-	if (ret && use_defaults) {
-		if (t->bus_freq_hz <= 100000)
-			t->scl_rise_ns = 1000;
-		else if (t->bus_freq_hz <= 400000)
-			t->scl_rise_ns = 300;
-		else
-			t->scl_rise_ns = 120;
-	}
+	d = t->bus_freq_hz <= I2C_MAX_FAST_MODE_FREQ ? 300 : 120;
+	i2c_parse_timing(dev, "i2c-scl-falling-time-ns", &t->scl_fall_ns, d, u);
 
-	ret = device_property_read_u32(dev, "i2c-scl-falling-time-ns", &t->scl_fall_ns);
-	if (ret && use_defaults) {
-		if (t->bus_freq_hz <= 400000)
-			t->scl_fall_ns = 300;
-		else
-			t->scl_fall_ns = 120;
-	}
-
-	device_property_read_u32(dev, "i2c-scl-internal-delay-ns", &t->scl_int_delay_ns);
-
-	ret = device_property_read_u32(dev, "i2c-sda-falling-time-ns", &t->sda_fall_ns);
-	if (ret && use_defaults)
-		t->sda_fall_ns = t->scl_fall_ns;
-
-	device_property_read_u32(dev, "i2c-sda-hold-time-ns", &t->sda_hold_ns);
-
-	device_property_read_u32(dev, "i2c-digital-filter-width-ns",
-				 &t->digital_filter_width_ns);
-
-	device_property_read_u32(dev, "i2c-analog-filter-cutoff-frequency",
-				 &t->analog_filter_cutoff_freq_hz);
+	i2c_parse_timing(dev, "i2c-scl-internal-delay-ns",
+			 &t->scl_int_delay_ns, 0, u);
+	i2c_parse_timing(dev, "i2c-sda-falling-time-ns", &t->sda_fall_ns,
+			 t->scl_fall_ns, u);
+	i2c_parse_timing(dev, "i2c-sda-hold-time-ns", &t->sda_hold_ns, 0, u);
+	i2c_parse_timing(dev, "i2c-digital-filter-width-ns",
+			 &t->digital_filter_width_ns, 0, u);
+	i2c_parse_timing(dev, "i2c-analog-filter-cutoff-frequency",
+			 &t->analog_filter_cutoff_freq_hz, 0, u);
 }
 EXPORT_SYMBOL_GPL(i2c_parse_fw_timings);
 
@@ -2181,7 +2289,6 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	const unsigned short *address_list;
 	struct i2c_client *temp_client;
 	int i, err = 0;
-	int adap_id = i2c_adapter_id(adapter);
 
 	address_list = driver->address_list;
 	if (!driver->detect || !address_list)
@@ -2209,7 +2316,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
 		dev_dbg(&adapter->dev,
 			"found normal entry for adapter %d, addr 0x%02x\n",
-			adap_id, address_list[i]);
+			i2c_adapter_id(adapter), address_list[i]);
 		temp_client->addr = address_list[i];
 		err = i2c_detect_address(temp_client, driver);
 		if (unlikely(err))
@@ -2268,19 +2375,6 @@ i2c_new_scanned_device(struct i2c_adapter *adap,
 	return i2c_new_client_device(adap, info);
 }
 EXPORT_SYMBOL_GPL(i2c_new_scanned_device);
-
-struct i2c_client *
-i2c_new_probed_device(struct i2c_adapter *adap,
-		      struct i2c_board_info *info,
-		      unsigned short const *addr_list,
-		      int (*probe)(struct i2c_adapter *adap, unsigned short addr))
-{
-	struct i2c_client *client;
-
-	client = i2c_new_scanned_device(adap, info, addr_list, probe);
-	return IS_ERR(client) ? NULL : client;
-}
-EXPORT_SYMBOL_GPL(i2c_new_probed_device);
 
 struct i2c_adapter *i2c_get_adapter(int nr)
 {

@@ -31,8 +31,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_labels.h>
 #endif
-
-static DEFINE_MUTEX(flow_dissector_mutex);
+#include <linux/bpf-netns.h>
 
 static void dissector_set_key(struct flow_dissector *flow_dissector,
 			      enum flow_dissector_key_id key_id)
@@ -70,54 +69,11 @@ void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 }
 EXPORT_SYMBOL(skb_flow_dissector_init);
 
-int skb_flow_dissector_prog_query(const union bpf_attr *attr,
-				  union bpf_attr __user *uattr)
+#ifdef CONFIG_BPF_SYSCALL
+int flow_dissector_bpf_prog_attach_check(struct net *net,
+					 struct bpf_prog *prog)
 {
-	__u32 __user *prog_ids = u64_to_user_ptr(attr->query.prog_ids);
-	u32 prog_id, prog_cnt = 0, flags = 0;
-	struct bpf_prog *attached;
-	struct net *net;
-
-	if (attr->query.query_flags)
-		return -EINVAL;
-
-	net = get_net_ns_by_fd(attr->query.target_fd);
-	if (IS_ERR(net))
-		return PTR_ERR(net);
-
-	rcu_read_lock();
-	attached = rcu_dereference(net->flow_dissector_prog);
-	if (attached) {
-		prog_cnt = 1;
-		prog_id = attached->aux->id;
-	}
-	rcu_read_unlock();
-
-	put_net(net);
-
-	if (copy_to_user(&uattr->query.attach_flags, &flags, sizeof(flags)))
-		return -EFAULT;
-	if (copy_to_user(&uattr->query.prog_cnt, &prog_cnt, sizeof(prog_cnt)))
-		return -EFAULT;
-
-	if (!attr->query.prog_cnt || !prog_ids || !prog_cnt)
-		return 0;
-
-	if (copy_to_user(prog_ids, &prog_id, sizeof(u32)))
-		return -EFAULT;
-
-	return 0;
-}
-
-int skb_flow_dissector_bpf_prog_attach(const union bpf_attr *attr,
-				       struct bpf_prog *prog)
-{
-	struct bpf_prog *attached;
-	struct net *net;
-	int ret = 0;
-
-	net = current->nsproxy->net_ns;
-	mutex_lock(&flow_dissector_mutex);
+	enum netns_bpf_attach_type type = NETNS_BPF_FLOW_DISSECTOR;
 
 	if (net == &init_net) {
 		/* BPF flow dissector in the root namespace overrides
@@ -130,54 +86,20 @@ int skb_flow_dissector_bpf_prog_attach(const union bpf_attr *attr,
 		for_each_net(ns) {
 			if (ns == &init_net)
 				continue;
-			if (rcu_access_pointer(ns->flow_dissector_prog)) {
-				ret = -EEXIST;
-				goto out;
-			}
+			if (rcu_access_pointer(ns->bpf.run_array[type]))
+				return -EEXIST;
 		}
 	} else {
 		/* Make sure root flow dissector is not attached
 		 * when attaching to the non-root namespace.
 		 */
-		if (rcu_access_pointer(init_net.flow_dissector_prog)) {
-			ret = -EEXIST;
-			goto out;
-		}
+		if (rcu_access_pointer(init_net.bpf.run_array[type]))
+			return -EEXIST;
 	}
 
-	attached = rcu_dereference_protected(net->flow_dissector_prog,
-					     lockdep_is_held(&flow_dissector_mutex));
-	if (attached == prog) {
-		/* The same program cannot be attached twice */
-		ret = -EINVAL;
-		goto out;
-	}
-	rcu_assign_pointer(net->flow_dissector_prog, prog);
-	if (attached)
-		bpf_prog_put(attached);
-out:
-	mutex_unlock(&flow_dissector_mutex);
-	return ret;
-}
-
-int skb_flow_dissector_bpf_prog_detach(const union bpf_attr *attr)
-{
-	struct bpf_prog *attached;
-	struct net *net;
-
-	net = current->nsproxy->net_ns;
-	mutex_lock(&flow_dissector_mutex);
-	attached = rcu_dereference_protected(net->flow_dissector_prog,
-					     lockdep_is_held(&flow_dissector_mutex));
-	if (!attached) {
-		mutex_unlock(&flow_dissector_mutex);
-		return -ENOENT;
-	}
-	RCU_INIT_POINTER(net->flow_dissector_prog, NULL);
-	bpf_prog_put(attached);
-	mutex_unlock(&flow_dissector_mutex);
 	return 0;
 }
+#endif /* CONFIG_BPF_SYSCALL */
 
 /**
  * __skb_flow_get_ports - extract the upper layer ports and return them
@@ -461,18 +383,38 @@ skb_flow_dissect_tunnel_info(const struct sk_buff *skb,
 }
 EXPORT_SYMBOL(skb_flow_dissect_tunnel_info);
 
+void skb_flow_dissect_hash(const struct sk_buff *skb,
+			   struct flow_dissector *flow_dissector,
+			   void *target_container)
+{
+	struct flow_dissector_key_hash *key;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_HASH))
+		return;
+
+	key = skb_flow_dissector_target(flow_dissector,
+					FLOW_DISSECTOR_KEY_HASH,
+					target_container);
+
+	key->hash = skb_get_hash_raw(skb);
+}
+EXPORT_SYMBOL(skb_flow_dissect_hash);
+
 static enum flow_dissect_ret
 __skb_flow_dissect_mpls(const struct sk_buff *skb,
 			struct flow_dissector *flow_dissector,
-			void *target_container, void *data, int nhoff, int hlen)
+			void *target_container, void *data, int nhoff, int hlen,
+			int lse_index, bool *entropy_label)
 {
-	struct flow_dissector_key_keyid *key_keyid;
-	struct mpls_label *hdr, _hdr[2];
-	u32 entry, label;
+	struct mpls_label *hdr, _hdr;
+	u32 entry, label, bos;
 
 	if (!dissector_uses_key(flow_dissector,
 				FLOW_DISSECTOR_KEY_MPLS_ENTROPY) &&
 	    !dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_MPLS))
+		return FLOW_DISSECT_RET_OUT_GOOD;
+
+	if (lse_index >= FLOW_DIS_MPLS_MAX)
 		return FLOW_DISSECT_RET_OUT_GOOD;
 
 	hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data,
@@ -480,31 +422,40 @@ __skb_flow_dissect_mpls(const struct sk_buff *skb,
 	if (!hdr)
 		return FLOW_DISSECT_RET_OUT_BAD;
 
-	entry = ntohl(hdr[0].entry);
+	entry = ntohl(hdr->entry);
 	label = (entry & MPLS_LS_LABEL_MASK) >> MPLS_LS_LABEL_SHIFT;
+	bos = (entry & MPLS_LS_S_MASK) >> MPLS_LS_S_SHIFT;
 
 	if (dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_MPLS)) {
 		struct flow_dissector_key_mpls *key_mpls;
+		struct flow_dissector_mpls_lse *lse;
 
 		key_mpls = skb_flow_dissector_target(flow_dissector,
 						     FLOW_DISSECTOR_KEY_MPLS,
 						     target_container);
-		key_mpls->mpls_label = label;
-		key_mpls->mpls_ttl = (entry & MPLS_LS_TTL_MASK)
-					>> MPLS_LS_TTL_SHIFT;
-		key_mpls->mpls_tc = (entry & MPLS_LS_TC_MASK)
-					>> MPLS_LS_TC_SHIFT;
-		key_mpls->mpls_bos = (entry & MPLS_LS_S_MASK)
-					>> MPLS_LS_S_SHIFT;
+		lse = &key_mpls->ls[lse_index];
+
+		lse->mpls_ttl = (entry & MPLS_LS_TTL_MASK) >> MPLS_LS_TTL_SHIFT;
+		lse->mpls_bos = bos;
+		lse->mpls_tc = (entry & MPLS_LS_TC_MASK) >> MPLS_LS_TC_SHIFT;
+		lse->mpls_label = label;
+		dissector_set_mpls_lse(key_mpls, lse_index);
 	}
 
-	if (label == MPLS_LABEL_ENTROPY) {
+	if (*entropy_label &&
+	    dissector_uses_key(flow_dissector,
+			       FLOW_DISSECTOR_KEY_MPLS_ENTROPY)) {
+		struct flow_dissector_key_keyid *key_keyid;
+
 		key_keyid = skb_flow_dissector_target(flow_dissector,
 						      FLOW_DISSECTOR_KEY_MPLS_ENTROPY,
 						      target_container);
-		key_keyid->keyid = hdr[1].entry & htonl(MPLS_LS_LABEL_MASK);
+		key_keyid->keyid = cpu_to_be32(label);
 	}
-	return FLOW_DISSECT_RET_OUT_GOOD;
+
+	*entropy_label = label == MPLS_LABEL_ENTROPY;
+
+	return bos ? FLOW_DISSECT_RET_OUT_GOOD : FLOW_DISSECT_RET_PROTO_AGAIN;
 }
 
 static enum flow_dissect_ret
@@ -920,9 +871,7 @@ bool bpf_flow_dissect(struct bpf_prog *prog, struct bpf_flow_dissector *ctx,
 		     (int)FLOW_DISSECTOR_F_STOP_AT_ENCAP);
 	flow_keys->flags = flags;
 
-	preempt_disable();
-	result = BPF_PROG_RUN(prog, ctx);
-	preempt_enable();
+	result = bpf_prog_run_pin_on_cpu(prog, ctx);
 
 	flow_keys->nhoff = clamp_t(u16, flow_keys->nhoff, nhoff, hlen);
 	flow_keys->thoff = clamp_t(u16, flow_keys->thoff,
@@ -962,9 +911,10 @@ bool __skb_flow_dissect(const struct net *net,
 	struct flow_dissector_key_addrs *key_addrs;
 	struct flow_dissector_key_tags *key_tags;
 	struct flow_dissector_key_vlan *key_vlan;
-	struct bpf_prog *attached = NULL;
 	enum flow_dissect_ret fdret;
 	enum flow_dissector_key_id dissector_vlan = FLOW_DISSECTOR_KEY_MAX;
+	bool mpls_el = false;
+	int mpls_lse = 0;
 	int num_hdrs = 0;
 	u8 ip_proto = 0;
 	bool ret;
@@ -1016,13 +966,15 @@ bool __skb_flow_dissect(const struct net *net,
 
 	WARN_ON_ONCE(!net);
 	if (net) {
+		enum netns_bpf_attach_type type = NETNS_BPF_FLOW_DISSECTOR;
+		struct bpf_prog_array *run_array;
+
 		rcu_read_lock();
-		attached = rcu_dereference(init_net.flow_dissector_prog);
+		run_array = rcu_dereference(init_net.bpf.run_array[type]);
+		if (!run_array)
+			run_array = rcu_dereference(net->bpf.run_array[type]);
 
-		if (!attached)
-			attached = rcu_dereference(net->flow_dissector_prog);
-
-		if (attached) {
+		if (run_array) {
 			struct bpf_flow_keys flow_keys;
 			struct bpf_flow_dissector ctx = {
 				.flow_keys = &flow_keys,
@@ -1030,6 +982,7 @@ bool __skb_flow_dissect(const struct net *net,
 				.data_end = data + hlen,
 			};
 			__be16 n_proto = proto;
+			struct bpf_prog *prog;
 
 			if (skb) {
 				ctx.skb = skb;
@@ -1040,7 +993,8 @@ bool __skb_flow_dissect(const struct net *net,
 				n_proto = skb->protocol;
 			}
 
-			ret = bpf_flow_dissect(attached, &ctx, n_proto, nhoff,
+			prog = READ_ONCE(run_array->items[0].prog);
+			ret = bpf_flow_dissect(prog, &ctx, n_proto, nhoff,
 					       hlen, flags);
 			__skb_flow_bpf_to_target(&flow_keys, flow_dissector,
 						 target_container);
@@ -1264,7 +1218,10 @@ proto_again:
 	case htons(ETH_P_MPLS_MC):
 		fdret = __skb_flow_dissect_mpls(skb, flow_dissector,
 						target_container, data,
-						nhoff, hlen);
+						nhoff, hlen, mpls_lse,
+						&mpls_el);
+		nhoff += sizeof(struct mpls_label);
+		mpls_lse++;
 		break;
 	case htons(ETH_P_FCOE):
 		if ((hlen - nhoff) < FCOE_HEADER_LEN) {
@@ -1840,5 +1797,4 @@ static int __init init_default_flow_dissectors(void)
 				ARRAY_SIZE(flow_keys_basic_dissector_keys));
 	return 0;
 }
-
 core_initcall(init_default_flow_dissectors);

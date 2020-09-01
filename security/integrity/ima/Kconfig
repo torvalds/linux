@@ -26,7 +26,7 @@ config IMA
 	  an aggregate integrity value over this list inside the
 	  TPM hardware, so that the TPM can prove to a third party
 	  whether or not critical system files have been modified.
-	  Read <http://www.usenix.org/events/sec04/tech/sailer.html>
+	  Read <https://www.usenix.org/events/sec04/tech/sailer.html>
 	  to learn more about IMA.
 	  If unsure, say N.
 
@@ -54,7 +54,7 @@ config IMA_MEASURE_PCR_IDX
 
 config IMA_LSM_RULES
 	bool
-	depends on IMA && AUDIT && (SECURITY_SELINUX || SECURITY_SMACK)
+	depends on IMA && AUDIT && (SECURITY_SELINUX || SECURITY_SMACK || SECURITY_APPARMOR)
 	default y
 	help
 	  Disabling this option will disregard LSM based policy rules.
@@ -232,7 +232,7 @@ config IMA_APPRAISE_REQUIRE_POLICY_SIGS
 
 config IMA_APPRAISE_BOOTPARAM
 	bool "ima_appraise boot parameter"
-	depends on IMA_APPRAISE && !IMA_ARCH_POLICY
+	depends on IMA_APPRAISE
 	default y
 	help
 	  This option enables the different "ima_appraise=" modes
@@ -327,3 +327,10 @@ config IMA_QUEUE_EARLY_BOOT_KEYS
 	depends on IMA_MEASURE_ASYMMETRIC_KEYS
 	depends on SYSTEM_TRUSTED_KEYRING
 	default y
+
+config IMA_SECURE_AND_OR_TRUSTED_BOOT
+       bool
+       depends on IMA_ARCH_POLICY
+       help
+          This option is selected by architectures to enable secure and/or
+          trusted boot based on IMA runtime policies.

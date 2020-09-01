@@ -47,7 +47,6 @@
 
 #define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
 #define TTM_MEMTYPE_FLAG_MAPPABLE      (1 << 1)	/* Memory mappable */
-#define TTM_MEMTYPE_FLAG_CMA           (1 << 3)	/* Can't map aperture */
 
 struct ttm_mem_type_manager;
 
@@ -155,7 +154,6 @@ struct ttm_mem_type_manager_func {
  * @use_io_reserve_lru: Use an lru list to try to unreserve io_mem_regions
  * reserved by the TTM vm system.
  * @io_reserve_lru: Optional lru list for unreserving io mem regions.
- * @io_reserve_fastpath: Only use bdev::driver::io_mem_reserve to obtain
  * @move_lock: lock for move fence
  * static information. bdev::driver::io_mem_free is never used.
  * @lru: The lru list for this memory type.
@@ -177,7 +175,6 @@ struct ttm_mem_type_manager {
 	bool has_type;
 	bool use_type;
 	uint32_t flags;
-	uint64_t gpu_offset; /* GPU address space is independent of CPU word size */
 	uint64_t size;
 	uint32_t available_caching;
 	uint32_t default_caching;
@@ -185,7 +182,6 @@ struct ttm_mem_type_manager {
 	void *priv;
 	struct mutex io_reserve_mutex;
 	bool use_io_reserve_lru;
-	bool io_reserve_fastpath;
 	spinlock_t move_lock;
 
 	/*
@@ -210,8 +206,6 @@ struct ttm_mem_type_manager {
  * struct ttm_bo_driver
  *
  * @create_ttm_backend_entry: Callback to create a struct ttm_backend.
- * @invalidate_caches: Callback to invalidate read caches when a buffer object
- * has been evicted.
  * @init_mem_type: Callback to initialize a struct ttm_mem_type_manager
  * structure.
  * @evict_flags: Callback to obtain placement flags when a buffer is evicted.
@@ -256,19 +250,6 @@ struct ttm_bo_driver {
 	 */
 	void (*ttm_tt_unpopulate)(struct ttm_tt *ttm);
 
-	/**
-	 * struct ttm_bo_driver member invalidate_caches
-	 *
-	 * @bdev: the buffer object device.
-	 * @flags: new placement of the rebound buffer object.
-	 *
-	 * A previosly evicted buffer has been rebound in a
-	 * potentially new location. Tell the driver that it might
-	 * consider invalidating read (texture) caches on the next command
-	 * submission as a consequence.
-	 */
-
-	int (*invalidate_caches)(struct ttm_bo_device *bdev, uint32_t flags);
 	int (*init_mem_type)(struct ttm_bo_device *bdev, uint32_t type,
 			     struct ttm_mem_type_manager *man);
 
@@ -405,7 +386,6 @@ struct ttm_bo_driver {
 /**
  * struct ttm_bo_global - Buffer object driver global data.
  *
- * @mem_glob: Pointer to a struct ttm_mem_global object for accounting.
  * @dummy_read_page: Pointer to a dummy page used for mapping requests
  * of unpopulated pages.
  * @shrink: A shrink callback object used for buffer object swap.
@@ -546,17 +526,6 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
  */
 
 /**
- * ttm_mem_reg_is_pci
- *
- * @bdev: Pointer to a struct ttm_bo_device.
- * @mem: A valid struct ttm_mem_reg.
- *
- * Returns true if the memory described by @mem is PCI memory,
- * false otherwise.
- */
-bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
-
-/**
  * ttm_bo_mem_space
  *
  * @bo: Pointer to a struct ttm_buffer_object. the data of which
@@ -581,8 +550,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		     struct ttm_operation_ctx *ctx);
 
 void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
-void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
-			   struct ttm_mem_reg *mem);
 
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 

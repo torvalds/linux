@@ -50,6 +50,11 @@
 		enable-active-high;
 	};
 
+	wlan_pwrseq: sdhci3-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpe3 1 GPIO_ACTIVE_LOW>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -115,7 +120,7 @@
 		gpio-sck = <&gpy3 1 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpy3 3 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
-		cs-gpios = <&gpy4 3 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpy4 3 GPIO_ACTIVE_LOW>;
 
 		lcd@0 {
 			compatible = "samsung,ld9040";
@@ -124,8 +129,6 @@
 			vci-supply = <&ldo17_reg>;
 			reset-gpios = <&gpy4 5 GPIO_ACTIVE_HIGH>;
 			spi-max-frequency = <1200000>;
-			spi-cpol;
-			spi-cpha;
 			power-on-delay = <10>;
 			reset-delay = <10>;
 			panel-width-mm = <90>;
@@ -166,7 +169,8 @@
 
 	hdmi_ddc: i2c-ddc {
 		compatible = "i2c-gpio";
-		gpios = <&gpe4 2 GPIO_ACTIVE_HIGH &gpe4 3 GPIO_ACTIVE_HIGH>;
+		sda-gpios = <&gpe4 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpe4 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <100>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -174,20 +178,6 @@
 		pinctrl-0 = <&i2c_ddc_bus>;
 		pinctrl-names = "default";
 		status = "okay";
-	};
-};
-
-&amba {
-	mdma0: mdma@12840000 {
-		compatible = "arm,pl330", "arm,primecell";
-		reg = <0x12840000 0x1000>;
-		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clock CLK_MDMA>;
-		clock-names = "apb_pclk";
-		#dma-cells = <1>;
-		#dma-channels = <8>;
-		#dma-requests = <1>;
-		power-domains = <&pd_lcd0>;
 	};
 };
 
@@ -319,7 +309,7 @@
 		max8952,sync-freq = <0>;
 		max8952,ramp-speed = <0>;
 
-		regulator-name = "vdd_arm";
+		regulator-name = "VARM_1.2V_C210";
 		regulator-min-microvolt = <770000>;
 		regulator-max-microvolt = <1400000>;
 		regulator-always-on;
@@ -565,6 +555,29 @@
 	status = "okay";
 };
 
+&sdhci_3 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	non-removable;
+	bus-width = <4>;
+	mmc-pwrseq = <&wlan_pwrseq>;
+	vmmc-supply = <&ldo5_reg>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd3_clk>, <&sd3_cmd>, <&sd3_bus4>;
+
+	brcmf: wifi@1 {
+		compatible = "brcm,bcm4330-fmac";
+		reg = <1>;
+		interrupt-parent = <&gpx2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "host-wake";
+	};
+};
+
 &serial_0 {
 	status = "okay";
 	/delete-property/dmas;
@@ -587,6 +600,20 @@
 	status = "okay";
 	/delete-property/dmas;
 	/delete-property/dma-names;
+};
+
+&soc {
+	mdma0: mdma@12840000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x12840000 0x1000>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock CLK_MDMA>;
+		clock-names = "apb_pclk";
+		#dma-cells = <1>;
+		#dma-channels = <8>;
+		#dma-requests = <1>;
+		power-domains = <&pd_lcd0>;
+	};
 };
 
 &sysram {

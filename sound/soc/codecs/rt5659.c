@@ -1195,50 +1195,13 @@ static const struct snd_kcontrol_new rt5659_if3_dac_swap_mux =
 static const struct snd_kcontrol_new rt5659_if3_adc_swap_mux =
 	SOC_DAPM_ENUM("IF3 ADC Swap Source", rt5659_if3_adc_enum);
 
-static const char * const rt5659_asrc_clk_src[] = {
-	"clk_sysy_div_out", "clk_i2s1_track", "clk_i2s2_track",
-	"clk_i2s3_track", "clk_sys2", "clk_sys3"
-};
-
-static unsigned int rt5659_asrc_clk_map_values[] = {
-	0, 1, 2, 3, 5, 6,
-};
-
-static SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5659_da_sto_asrc_enum, RT5659_ASRC_2, RT5659_DA_STO_T_SFT, 0x7,
-	rt5659_asrc_clk_src, rt5659_asrc_clk_map_values);
-
-static SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5659_da_monol_asrc_enum, RT5659_ASRC_2, RT5659_DA_MONO_L_T_SFT, 0x7,
-	rt5659_asrc_clk_src, rt5659_asrc_clk_map_values);
-
-static SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5659_da_monor_asrc_enum, RT5659_ASRC_2, RT5659_DA_MONO_R_T_SFT, 0x7,
-	rt5659_asrc_clk_src, rt5659_asrc_clk_map_values);
-
-static SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5659_ad_sto1_asrc_enum, RT5659_ASRC_2, RT5659_AD_STO1_T_SFT, 0x7,
-	rt5659_asrc_clk_src, rt5659_asrc_clk_map_values);
-
-static SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5659_ad_sto2_asrc_enum, RT5659_ASRC_3, RT5659_AD_STO2_T_SFT, 0x7,
-	rt5659_asrc_clk_src, rt5659_asrc_clk_map_values);
-
-static SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5659_ad_monol_asrc_enum, RT5659_ASRC_3, RT5659_AD_MONO_L_T_SFT, 0x7,
-	rt5659_asrc_clk_src, rt5659_asrc_clk_map_values);
-
-static SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5659_ad_monor_asrc_enum, RT5659_ASRC_3, RT5659_AD_MONO_R_T_SFT, 0x7,
-	rt5659_asrc_clk_src, rt5659_asrc_clk_map_values);
-
 static int rt5659_hp_vol_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	int ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
-	if (snd_soc_component_read32(component, RT5659_STO_NG2_CTRL_1) & RT5659_NG2_EN) {
+	if (snd_soc_component_read(component, RT5659_STO_NG2_CTRL_1) & RT5659_NG2_EN) {
 		snd_soc_component_update_bits(component, RT5659_STO_NG2_CTRL_1,
 			RT5659_NG2_EN_MASK, RT5659_NG2_DIS);
 		snd_soc_component_update_bits(component, RT5659_STO_NG2_CTRL_1,
@@ -1305,7 +1268,7 @@ static int rt5659_headset_detect(struct snd_soc_component *component, int jack_i
 		snd_soc_dapm_force_enable_pin(dapm,
 			"Mic Det Power");
 		snd_soc_dapm_sync(dapm);
-		reg_63 = snd_soc_component_read32(component, RT5659_PWR_ANLG_1);
+		reg_63 = snd_soc_component_read(component, RT5659_PWR_ANLG_1);
 
 		snd_soc_component_update_bits(component, RT5659_PWR_ANLG_1,
 			RT5659_PWR_VREF2 | RT5659_PWR_MB,
@@ -1323,7 +1286,7 @@ static int rt5659_headset_detect(struct snd_soc_component *component, int jack_i
 
 		while (i < 5) {
 			msleep(sleep_time[i]);
-			val = snd_soc_component_read32(component, RT5659_EJD_CTRL_2) & 0x0003;
+			val = snd_soc_component_read(component, RT5659_EJD_CTRL_2) & 0x0003;
 			i++;
 			if (val == 0x1 || val == 0x2 || val == 0x3)
 				break;
@@ -1357,7 +1320,7 @@ static int rt5659_button_detect(struct snd_soc_component *component)
 {
 	int btn_type, val;
 
-	val = snd_soc_component_read32(component, RT5659_4BTN_IL_CMD_1);
+	val = snd_soc_component_read(component, RT5659_4BTN_IL_CMD_1);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5659_4BTN_IL_CMD_1, val);
 
@@ -1396,7 +1359,7 @@ static void rt5659_jack_detect_work(struct work_struct *work)
 	if (!rt5659->component)
 		return;
 
-	val = snd_soc_component_read32(rt5659->component, RT5659_INT_ST_1) & 0x0080;
+	val = snd_soc_component_read(rt5659->component, RT5659_INT_ST_1) & 0x0080;
 	if (!val) {
 		/* jack in */
 		if (rt5659->jack_type == 0) {
@@ -1604,7 +1567,7 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct rt5659_priv *rt5659 = snd_soc_component_get_drvdata(component);
-	int pd, idx = -EINVAL;
+	int pd, idx;
 
 	pd = rl6231_get_pre_div(rt5659->regmap,
 		RT5659_ADDA_CLK_1, RT5659_I2S_PD1_SFT);
@@ -1696,7 +1659,7 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *w,
 	unsigned int val;
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
-	val = snd_soc_component_read32(component, RT5659_GLB_CLK);
+	val = snd_soc_component_read(component, RT5659_GLB_CLK);
 	val &= RT5659_SCLK_SRC_MASK;
 	if (val == RT5659_SCLK_SRC_PLL1)
 		return 1;
@@ -1739,7 +1702,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
-	val = (snd_soc_component_read32(component, reg) >> shift) & 0xf;
+	val = (snd_soc_component_read(component, reg) >> shift) & 0xf;
 	switch (val) {
 	case 1:
 	case 2:

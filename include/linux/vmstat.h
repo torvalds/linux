@@ -8,6 +8,7 @@
 #include <linux/vm_event_item.h>
 #include <linux/atomic.h>
 #include <linux/static_key.h>
+#include <linux/mmdebug.h>
 
 extern int sysctl_stat_interval;
 
@@ -16,8 +17,8 @@ extern int sysctl_stat_interval;
 #define DISABLE_NUMA_STAT   0
 extern int sysctl_vm_numa_stat;
 DECLARE_STATIC_KEY_TRUE(vm_numa_stat_key);
-extern int sysctl_vm_numa_stat_handler(struct ctl_table *table,
-		int write, void __user *buffer, size_t *length, loff_t *ppos);
+int sysctl_vm_numa_stat_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *length, loff_t *ppos);
 #endif
 
 struct reclaim_stat {
@@ -26,9 +27,11 @@ struct reclaim_stat {
 	unsigned nr_congested;
 	unsigned nr_writeback;
 	unsigned nr_immediate;
+	unsigned nr_pageout;
 	unsigned nr_activate[2];
 	unsigned nr_ref_keep;
 	unsigned nr_unmap_fail;
+	unsigned nr_lazyfree_fail;
 };
 
 enum writeback_stat_item {
@@ -190,7 +193,8 @@ static inline unsigned long global_zone_page_state(enum zone_stat_item item)
 	return x;
 }
 
-static inline unsigned long global_node_page_state(enum node_stat_item item)
+static inline
+unsigned long global_node_page_state_pages(enum node_stat_item item)
 {
 	long x = atomic_long_read(&vm_node_stat[item]);
 #ifdef CONFIG_SMP
@@ -198,6 +202,13 @@ static inline unsigned long global_node_page_state(enum node_stat_item item)
 		x = 0;
 #endif
 	return x;
+}
+
+static inline unsigned long global_node_page_state(enum node_stat_item item)
+{
+	VM_WARN_ON_ONCE(vmstat_item_in_bytes(item));
+
+	return global_node_page_state_pages(item);
 }
 
 static inline unsigned long zone_page_state(struct zone *zone,
@@ -240,9 +251,12 @@ extern unsigned long sum_zone_node_page_state(int node,
 extern unsigned long sum_zone_numa_state(int node, enum numa_stat_item item);
 extern unsigned long node_page_state(struct pglist_data *pgdat,
 						enum node_stat_item item);
+extern unsigned long node_page_state_pages(struct pglist_data *pgdat,
+					   enum node_stat_item item);
 #else
 #define sum_zone_node_page_state(node, item) global_zone_page_state(item)
 #define node_page_state(node, item) global_node_page_state(item)
+#define node_page_state_pages(node, item) global_node_page_state_pages(item)
 #endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_SMP
@@ -274,8 +288,8 @@ void cpu_vm_stats_fold(int cpu);
 void refresh_zone_stat_thresholds(void);
 
 struct ctl_table;
-int vmstat_refresh(struct ctl_table *, int write,
-		   void __user *buffer, size_t *lenp, loff_t *ppos);
+int vmstat_refresh(struct ctl_table *, int write, void *buffer, size_t *lenp,
+		loff_t *ppos);
 
 void drain_zonestat(struct zone *zone, struct per_cpu_pageset *);
 

@@ -49,9 +49,14 @@ int test_vmx_syscall(void)
 	 * Setup an environment with much context switching
 	 */
 	pid_t pid2;
-	pid_t pid = fork();
+	pid_t pid;
 	int ret;
 	int child_ret;
+
+	// vcmpequd used in vmx_asm.S is v2.07
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
+
+	pid = fork();
 	FAIL_IF(pid == -1);
 
 	pid2 = fork();

@@ -76,7 +76,7 @@ struct hbucket {
 	DECLARE_BITMAP(used, AHASH_MAX_TUNED);
 	u8 size;		/* size of the array */
 	u8 pos;			/* position of the first free entry */
-	unsigned char value[0]	/* the array of the values */
+	unsigned char value[]	/* the array of the values */
 		__aligned(__alignof__(u64));
 };
 
@@ -109,7 +109,7 @@ struct htable {
 	u8 htable_bits;		/* size of hash table == 2^htable_bits */
 	u32 maxelem;		/* Maxelem per region */
 	struct ip_set_region *hregion;	/* Region locks and ext sizes */
-	struct hbucket __rcu *bucket[0]; /* hashtable buckets */
+	struct hbucket __rcu *bucket[]; /* hashtable buckets */
 };
 
 #define hbucket(h, i)		((h)->bucket[i])
@@ -682,7 +682,7 @@ retry:
 	}
 	t->hregion = ip_set_alloc(ahash_sizeof_regions(htable_bits));
 	if (!t->hregion) {
-		kfree(t);
+		ip_set_free(t);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1533,7 +1533,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	}
 	t->hregion = ip_set_alloc(ahash_sizeof_regions(hbits));
 	if (!t->hregion) {
-		kfree(t);
+		ip_set_free(t);
 		kfree(h);
 		return -ENOMEM;
 	}

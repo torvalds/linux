@@ -488,7 +488,7 @@ retry:
 		if (dax_is_conflict(entry))
 			goto fallback;
 		if (!xa_is_value(entry)) {
-			xas_set_err(xas, EIO);
+			xas_set_err(xas, -EIO);
 			goto out_unlock;
 		}
 
@@ -680,21 +680,20 @@ int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
 	return __dax_invalidate_entry(mapping, index, false);
 }
 
-static int copy_user_dax(struct block_device *bdev, struct dax_device *dax_dev,
-		sector_t sector, size_t size, struct page *to,
-		unsigned long vaddr)
+static int copy_cow_page_dax(struct block_device *bdev, struct dax_device *dax_dev,
+			     sector_t sector, struct page *to, unsigned long vaddr)
 {
 	void *vto, *kaddr;
 	pgoff_t pgoff;
 	long rc;
 	int id;
 
-	rc = bdev_dax_pgoff(bdev, sector, size, &pgoff);
+	rc = bdev_dax_pgoff(bdev, sector, PAGE_SIZE, &pgoff);
 	if (rc)
 		return rc;
 
 	id = dax_read_lock();
-	rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr, NULL);
+	rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(PAGE_SIZE), &kaddr, NULL);
 	if (rc < 0) {
 		dax_read_unlock(id);
 		return rc;
@@ -1038,50 +1037,43 @@ static vm_fault_t dax_load_hole(struct xa_state *xas,
 	return ret;
 }
 
-static bool dax_range_is_aligned(struct block_device *bdev,
-				 unsigned int offset, unsigned int length)
+int dax_iomap_zero(loff_t pos, unsigned offset, unsigned size,
+		   struct iomap *iomap)
 {
-	unsigned short sector_size = bdev_logical_block_size(bdev);
+	sector_t sector = iomap_sector(iomap, pos & PAGE_MASK);
+	pgoff_t pgoff;
+	long rc, id;
+	void *kaddr;
+	bool page_aligned = false;
 
-	if (!IS_ALIGNED(offset, sector_size))
-		return false;
-	if (!IS_ALIGNED(length, sector_size))
-		return false;
 
-	return true;
-}
+	if (IS_ALIGNED(sector << SECTOR_SHIFT, PAGE_SIZE) &&
+	    IS_ALIGNED(size, PAGE_SIZE))
+		page_aligned = true;
 
-int __dax_zero_page_range(struct block_device *bdev,
-		struct dax_device *dax_dev, sector_t sector,
-		unsigned int offset, unsigned int size)
-{
-	if (dax_range_is_aligned(bdev, offset, size)) {
-		sector_t start_sector = sector + (offset >> 9);
+	rc = bdev_dax_pgoff(iomap->bdev, sector, PAGE_SIZE, &pgoff);
+	if (rc)
+		return rc;
 
-		return blkdev_issue_zeroout(bdev, start_sector,
-				size >> 9, GFP_NOFS, 0);
-	} else {
-		pgoff_t pgoff;
-		long rc, id;
-		void *kaddr;
+	id = dax_read_lock();
 
-		rc = bdev_dax_pgoff(bdev, sector, PAGE_SIZE, &pgoff);
-		if (rc)
-			return rc;
-
-		id = dax_read_lock();
-		rc = dax_direct_access(dax_dev, pgoff, 1, &kaddr, NULL);
-		if (rc < 0) {
-			dax_read_unlock(id);
-			return rc;
-		}
-		memset(kaddr + offset, 0, size);
-		dax_flush(dax_dev, kaddr + offset, size);
+	if (page_aligned)
+		rc = dax_zero_page_range(iomap->dax_dev, pgoff,
+					 size >> PAGE_SHIFT);
+	else
+		rc = dax_direct_access(iomap->dax_dev, pgoff, 1, &kaddr, NULL);
+	if (rc < 0) {
 		dax_read_unlock(id);
+		return rc;
 	}
+
+	if (!page_aligned) {
+		memset(kaddr + offset, 0, size);
+		dax_flush(iomap->dax_dev, kaddr + offset, size);
+	}
+	dax_read_unlock(id);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__dax_zero_page_range);
 
 static loff_t
 dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
@@ -1312,8 +1304,8 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			clear_user_highpage(vmf->cow_page, vaddr);
 			break;
 		case IOMAP_MAPPED:
-			error = copy_user_dax(iomap.bdev, iomap.dax_dev,
-					sector, PAGE_SIZE, vmf->cow_page, vaddr);
+			error = copy_cow_page_dax(iomap.bdev, iomap.dax_dev,
+						  sector, vmf->cow_page, vaddr);
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -1375,7 +1367,7 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			ret = dax_load_hole(&xas, mapping, &entry, vmf);
 			goto finish_iomap;
 		}
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		WARN_ON_ONCE(1);
 		error = -EIO;

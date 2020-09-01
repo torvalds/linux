@@ -4,6 +4,8 @@
 #ifndef _SJA1105_PTP_H
 #define _SJA1105_PTP_H
 
+#include <linux/timer.h>
+
 #if IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP)
 
 /* Timestamps are in units of 8 ns clock ticks (equivalent to
@@ -21,7 +23,49 @@ static inline s64 sja1105_ticks_to_ns(s64 ticks)
 	return ticks * SJA1105_TICK_NS;
 }
 
+/* Calculate the first base_time in the future that satisfies this
+ * relationship:
+ *
+ * future_base_time = base_time + N x cycle_time >= now, or
+ *
+ *      now - base_time
+ * N >= ---------------
+ *         cycle_time
+ *
+ * Because N is an integer, the ceiling value of the above "a / b" ratio
+ * is in fact precisely the floor value of "(a + b - 1) / b", which is
+ * easier to calculate only having integer division tools.
+ */
+static inline s64 future_base_time(s64 base_time, s64 cycle_time, s64 now)
+{
+	s64 a, b, n;
+
+	if (base_time >= now)
+		return base_time;
+
+	a = now - base_time;
+	b = cycle_time;
+	n = div_s64(a + b - 1, b);
+
+	return base_time + n * cycle_time;
+}
+
+/* This is not a preprocessor macro because the "ns" argument may or may not be
+ * s64 at caller side. This ensures it is properly type-cast before div_s64.
+ */
+static inline s64 ns_to_sja1105_delta(s64 ns)
+{
+	return div_s64(ns, 200);
+}
+
+static inline s64 sja1105_delta_to_ns(s64 delta)
+{
+	return delta * 200;
+}
+
 struct sja1105_ptp_cmd {
+	u64 startptpcp;		/* start toggling PTP_CLK pin */
+	u64 stopptpcp;		/* stop toggling PTP_CLK pin */
 	u64 ptpstrtsch;		/* start schedule */
 	u64 ptpstopsch;		/* stop schedule */
 	u64 resptp;		/* reset */
@@ -30,12 +74,15 @@ struct sja1105_ptp_cmd {
 };
 
 struct sja1105_ptp_data {
+	struct timer_list extts_timer;
 	struct sk_buff_head skb_rxtstamp_queue;
 	struct ptp_clock_info caps;
 	struct ptp_clock *clock;
 	struct sja1105_ptp_cmd cmd;
 	/* Serializes all operations on the PTP hardware clock */
 	struct mutex lock;
+	bool extts_enabled;
+	u64 ptpsyncts;
 };
 
 int sja1105_ptp_clock_register(struct dsa_switch *ds);

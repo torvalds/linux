@@ -2127,7 +2127,7 @@ static void w83795_apply_temp_config(struct w83795_data *data, u8 config,
 		if (temp_chan >= 4)
 			break;
 		data->temp_mode |= 1 << temp_chan;
-		/* fall through */
+		fallthrough;
 	case 0x3: /* Thermistor */
 		data->has_temp |= 1 << temp_chan;
 		break;

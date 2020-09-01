@@ -72,14 +72,14 @@ static int rockchip_pcie_valid_device(struct rockchip_pcie *rockchip,
 				      struct pci_bus *bus, int dev)
 {
 	/* access only one slot on each root port */
-	if (bus->number == rockchip->root_bus_nr && dev > 0)
+	if (pci_is_root_bus(bus) && dev > 0)
 		return 0;
 
 	/*
 	 * do not read more than one device on the bus directly attached
 	 * to RC's downstream side.
 	 */
-	if (bus->primary == rockchip->root_bus_nr && dev > 0)
+	if (pci_is_root_bus(bus->parent) && dev > 0)
 		return 0;
 
 	return 1;
@@ -170,7 +170,7 @@ static int rockchip_pcie_rd_other_conf(struct rockchip_pcie *rockchip,
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 	}
 
-	if (bus->parent->number == rockchip->root_bus_nr)
+	if (pci_is_root_bus(bus->parent))
 		rockchip_pcie_cfg_configuration_accesses(rockchip,
 						AXI_WRAPPER_TYPE0_CFG);
 	else
@@ -201,7 +201,7 @@ static int rockchip_pcie_wr_other_conf(struct rockchip_pcie *rockchip,
 	if (!IS_ALIGNED(busdev, size))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	if (bus->parent->number == rockchip->root_bus_nr)
+	if (pci_is_root_bus(bus->parent))
 		rockchip_pcie_cfg_configuration_accesses(rockchip,
 						AXI_WRAPPER_TYPE0_CFG);
 	else
@@ -230,7 +230,7 @@ static int rockchip_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
-	if (bus->number == rockchip->root_bus_nr)
+	if (pci_is_root_bus(bus))
 		return rockchip_pcie_rd_own_conf(rockchip, where, size, val);
 
 	return rockchip_pcie_rd_other_conf(rockchip, bus, devfn, where, size,
@@ -245,7 +245,7 @@ static int rockchip_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	if (!rockchip_pcie_valid_device(rockchip, bus, PCI_SLOT(devfn)))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (bus->number == rockchip->root_bus_nr)
+	if (pci_is_root_bus(bus))
 		return rockchip_pcie_wr_own_conf(rockchip, where, size, val);
 
 	return rockchip_pcie_wr_other_conf(rockchip, bus, devfn, where, size,
@@ -549,10 +549,8 @@ static int rockchip_pcie_setup_irq(struct rockchip_pcie *rockchip)
 	struct platform_device *pdev = to_platform_device(dev);
 
 	irq = platform_get_irq_byname(pdev, "sys");
-	if (irq < 0) {
-		dev_err(dev, "missing sys IRQ resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	err = devm_request_irq(dev, irq, rockchip_pcie_subsys_irq_handler,
 			       IRQF_SHARED, "pcie-sys", rockchip);
@@ -562,20 +560,16 @@ static int rockchip_pcie_setup_irq(struct rockchip_pcie *rockchip)
 	}
 
 	irq = platform_get_irq_byname(pdev, "legacy");
-	if (irq < 0) {
-		dev_err(dev, "missing legacy IRQ resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	irq_set_chained_handler_and_data(irq,
 					 rockchip_pcie_legacy_int_handler,
 					 rockchip);
 
 	irq = platform_get_irq_byname(pdev, "client");
-	if (irq < 0) {
-		dev_err(dev, "missing client IRQ resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	err = devm_request_irq(dev, irq, rockchip_pcie_client_irq_handler,
 			       IRQF_SHARED, "pcie-client", rockchip);
@@ -949,9 +943,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 {
 	struct rockchip_pcie *rockchip;
 	struct device *dev = &pdev->dev;
-	struct pci_bus *bus, *child;
 	struct pci_host_bridge *bridge;
-	struct resource *bus_res;
 	int err;
 
 	if (!dev->of_node)
@@ -991,13 +983,6 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_deinit_port;
 
-	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, &bus_res);
-	if (err)
-		goto err_remove_irq_domain;
-
-	rockchip->root_bus_nr = bus_res->start;
-
 	err = rockchip_pcie_cfg_atu(rockchip);
 	if (err)
 		goto err_remove_irq_domain;
@@ -1008,27 +993,13 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		goto err_remove_irq_domain;
 	}
 
-	bridge->dev.parent = dev;
 	bridge->sysdata = rockchip;
-	bridge->busnr = 0;
 	bridge->ops = &rockchip_pcie_ops;
-	bridge->map_irq = of_irq_parse_and_map_pci;
-	bridge->swizzle_irq = pci_common_swizzle;
 
-	err = pci_scan_root_bus_bridge(bridge);
+	err = pci_host_probe(bridge);
 	if (err < 0)
 		goto err_remove_irq_domain;
 
-	bus = bridge->bus;
-
-	rockchip->root_bus = bus;
-
-	pci_bus_size_bridges(bus);
-	pci_bus_assign_resources(bus);
-	list_for_each_entry(child, &bus->children, node)
-		pcie_bus_configure_settings(child);
-
-	pci_bus_add_devices(bus);
 	return 0;
 
 err_remove_irq_domain:
@@ -1051,9 +1022,10 @@ static int rockchip_pcie_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(rockchip);
 
-	pci_stop_root_bus(rockchip->root_bus);
-	pci_remove_root_bus(rockchip->root_bus);
+	pci_stop_root_bus(bridge->bus);
+	pci_remove_root_bus(bridge->bus);
 	irq_domain_remove(rockchip->irq_domain);
 
 	rockchip_pcie_deinit_phys(rockchip);

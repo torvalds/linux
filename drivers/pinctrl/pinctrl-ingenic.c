@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2017 Paul Cercueil <paul@crapouillou.net>
  * Copyright (c) 2019 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
+ * Copyright (c) 2017, 2019 Paul Boddie <paul@boddie.org.uk>
  */
 
 #include <linux/compiler.h>
@@ -123,6 +124,7 @@ static int jz4740_nand_cs1_pins[] = { 0x39, };
 static int jz4740_nand_cs2_pins[] = { 0x3a, };
 static int jz4740_nand_cs3_pins[] = { 0x3b, };
 static int jz4740_nand_cs4_pins[] = { 0x3c, };
+static int jz4740_nand_fre_fwe_pins[] = { 0x5c, 0x5d, };
 static int jz4740_pwm_pwm0_pins[] = { 0x77, };
 static int jz4740_pwm_pwm1_pins[] = { 0x78, };
 static int jz4740_pwm_pwm2_pins[] = { 0x79, };
@@ -145,6 +147,7 @@ static int jz4740_nand_cs1_funcs[] = { 0, };
 static int jz4740_nand_cs2_funcs[] = { 0, };
 static int jz4740_nand_cs3_funcs[] = { 0, };
 static int jz4740_nand_cs4_funcs[] = { 0, };
+static int jz4740_nand_fre_fwe_funcs[] = { 0, 0, };
 static int jz4740_pwm_pwm0_funcs[] = { 0, };
 static int jz4740_pwm_pwm1_funcs[] = { 0, };
 static int jz4740_pwm_pwm2_funcs[] = { 0, };
@@ -177,6 +180,7 @@ static const struct group_desc jz4740_groups[] = {
 	INGENIC_PIN_GROUP("nand-cs2", jz4740_nand_cs2),
 	INGENIC_PIN_GROUP("nand-cs3", jz4740_nand_cs3),
 	INGENIC_PIN_GROUP("nand-cs4", jz4740_nand_cs4),
+	INGENIC_PIN_GROUP("nand-fre-fwe", jz4740_nand_fre_fwe),
 	INGENIC_PIN_GROUP("pwm0", jz4740_pwm_pwm0),
 	INGENIC_PIN_GROUP("pwm1", jz4740_pwm_pwm1),
 	INGENIC_PIN_GROUP("pwm2", jz4740_pwm_pwm2),
@@ -194,7 +198,7 @@ static const char *jz4740_lcd_groups[] = {
 	"lcd-8bit", "lcd-16bit", "lcd-18bit", "lcd-18bit-tft", "lcd-no-pins",
 };
 static const char *jz4740_nand_groups[] = {
-	"nand-cs1", "nand-cs2", "nand-cs3", "nand-cs4",
+	"nand-cs1", "nand-cs2", "nand-cs3", "nand-cs4", "nand-fre-fwe",
 };
 static const char *jz4740_pwm0_groups[] = { "pwm0", };
 static const char *jz4740_pwm1_groups[] = { "pwm1", };
@@ -900,6 +904,7 @@ static int jz4780_mmc0_8bit_a_pins[] = { 0x04, 0x05, 0x06, 0x07, 0x18, };
 static int jz4780_i2c3_pins[] = { 0x6a, 0x6b, };
 static int jz4780_i2c4_e_pins[] = { 0x8c, 0x8d, };
 static int jz4780_i2c4_f_pins[] = { 0xb9, 0xb8, };
+static int jz4780_hdmi_ddc_pins[] = { 0xb9, 0xb8, };
 
 static int jz4780_uart2_data_funcs[] = { 1, 1, };
 static int jz4780_uart2_hwflow_funcs[] = { 1, 1, };
@@ -908,6 +913,7 @@ static int jz4780_mmc0_8bit_a_funcs[] = { 1, 1, 1, 1, 1, };
 static int jz4780_i2c3_funcs[] = { 1, 1, };
 static int jz4780_i2c4_e_funcs[] = { 1, 1, };
 static int jz4780_i2c4_f_funcs[] = { 1, 1, };
+static int jz4780_hdmi_ddc_funcs[] = { 0, 0, };
 
 static const struct group_desc jz4780_groups[] = {
 	INGENIC_PIN_GROUP("uart0-data", jz4770_uart0_data),
@@ -950,6 +956,7 @@ static const struct group_desc jz4780_groups[] = {
 	INGENIC_PIN_GROUP("i2c3-data", jz4780_i2c3),
 	INGENIC_PIN_GROUP("i2c4-data-e", jz4780_i2c4_e),
 	INGENIC_PIN_GROUP("i2c4-data-f", jz4780_i2c4_f),
+	INGENIC_PIN_GROUP("hdmi-ddc", jz4780_hdmi_ddc),
 	INGENIC_PIN_GROUP("cim-data", jz4770_cim_8bit),
 	INGENIC_PIN_GROUP("lcd-24bit", jz4770_lcd_24bit),
 	{ "lcd-no-pins", },
@@ -982,6 +989,7 @@ static const char *jz4780_nemc_groups[] = {
 static const char *jz4780_i2c3_groups[] = { "i2c3-data", };
 static const char *jz4780_i2c4_groups[] = { "i2c4-data-e", "i2c4-data-f", };
 static const char *jz4780_cim_groups[] = { "cim-data", };
+static const char *jz4780_hdmi_ddc_groups[] = { "hdmi-ddc", };
 
 static const struct function_desc jz4780_functions[] = {
 	{ "uart0", jz4770_uart0_groups, ARRAY_SIZE(jz4770_uart0_groups), },
@@ -1014,6 +1022,8 @@ static const struct function_desc jz4780_functions[] = {
 	{ "pwm5", jz4770_pwm5_groups, ARRAY_SIZE(jz4770_pwm5_groups), },
 	{ "pwm6", jz4770_pwm6_groups, ARRAY_SIZE(jz4770_pwm6_groups), },
 	{ "pwm7", jz4770_pwm7_groups, ARRAY_SIZE(jz4770_pwm7_groups), },
+	{ "hdmi-ddc", jz4780_hdmi_ddc_groups,
+		      ARRAY_SIZE(jz4780_hdmi_ddc_groups), },
 };
 
 static const struct ingenic_chip_info jz4780_chip_info = {
@@ -1437,6 +1447,19 @@ static int x1830_mmc1_4bit_pins[] = { 0x45, 0x46, 0x47, };
 static int x1830_i2c0_pins[] = { 0x0c, 0x0d, };
 static int x1830_i2c1_pins[] = { 0x39, 0x3a, };
 static int x1830_i2c2_pins[] = { 0x5b, 0x5c, };
+static int x1830_lcd_rgb_18bit_pins[] = {
+	0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+	0x68, 0x69, 0x6c, 0x6d, 0x6e, 0x6f,
+	0x70, 0x71, 0x72, 0x73, 0x76, 0x77,
+	0x78, 0x79, 0x7a, 0x7b,
+};
+static int x1830_lcd_slcd_8bit_pins[] = {
+	0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x6c, 0x6d,
+	0x69, 0x72, 0x73, 0x7b, 0x7a,
+};
+static int x1830_lcd_slcd_16bit_pins[] = {
+	0x6e, 0x6f, 0x70, 0x71, 0x76, 0x77, 0x78, 0x79,
+};
 static int x1830_pwm_pwm0_b_pins[] = { 0x31, };
 static int x1830_pwm_pwm0_c_pins[] = { 0x4b, };
 static int x1830_pwm_pwm1_b_pins[] = { 0x32, };
@@ -1486,6 +1509,16 @@ static int x1830_mmc1_4bit_funcs[] = { 0, 0, 0, };
 static int x1830_i2c0_funcs[] = { 1, 1, };
 static int x1830_i2c1_funcs[] = { 0, 0, };
 static int x1830_i2c2_funcs[] = { 1, 1, };
+static int x1830_lcd_rgb_18bit_funcs[] = {
+	0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0,
+};
+static int x1830_lcd_slcd_8bit_funcs[] = {
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+};
+static int x1830_lcd_slcd_16bit_funcs[] = { 1, 1, 1, 1, 1, 1, 1, 1, };
 static int x1830_pwm_pwm0_b_funcs[] = { 0, };
 static int x1830_pwm_pwm0_c_funcs[] = { 1, };
 static int x1830_pwm_pwm1_b_funcs[] = { 0, };
@@ -1534,6 +1567,10 @@ static const struct group_desc x1830_groups[] = {
 	INGENIC_PIN_GROUP("i2c0-data", x1830_i2c0),
 	INGENIC_PIN_GROUP("i2c1-data", x1830_i2c1),
 	INGENIC_PIN_GROUP("i2c2-data", x1830_i2c2),
+	INGENIC_PIN_GROUP("lcd-rgb-18bit", x1830_lcd_rgb_18bit),
+	INGENIC_PIN_GROUP("lcd-slcd-8bit", x1830_lcd_slcd_8bit),
+	INGENIC_PIN_GROUP("lcd-slcd-16bit", x1830_lcd_slcd_16bit),
+	{ "lcd-no-pins", },
 	INGENIC_PIN_GROUP("pwm0-b", x1830_pwm_pwm0_b),
 	INGENIC_PIN_GROUP("pwm0-c", x1830_pwm_pwm0_c),
 	INGENIC_PIN_GROUP("pwm1-b", x1830_pwm_pwm1_b),
@@ -1572,6 +1609,9 @@ static const char *x1830_mmc1_groups[] = { "mmc1-1bit", "mmc1-4bit", };
 static const char *x1830_i2c0_groups[] = { "i2c0-data", };
 static const char *x1830_i2c1_groups[] = { "i2c1-data", };
 static const char *x1830_i2c2_groups[] = { "i2c2-data", };
+static const char *x1830_lcd_groups[] = {
+	"lcd-rgb-18bit", "lcd-slcd-8bit", "lcd-slcd-16bit", "lcd-no-pins",
+};
 static const char *x1830_pwm0_groups[] = { "pwm0-b", "pwm0-c", };
 static const char *x1830_pwm1_groups[] = { "pwm1-b", "pwm1-c", };
 static const char *x1830_pwm2_groups[] = { "pwm2-c-8", "pwm2-c-13", };
@@ -1593,6 +1633,7 @@ static const struct function_desc x1830_functions[] = {
 	{ "i2c0", x1830_i2c0_groups, ARRAY_SIZE(x1830_i2c0_groups), },
 	{ "i2c1", x1830_i2c1_groups, ARRAY_SIZE(x1830_i2c1_groups), },
 	{ "i2c2", x1830_i2c2_groups, ARRAY_SIZE(x1830_i2c2_groups), },
+	{ "lcd", x1830_lcd_groups, ARRAY_SIZE(x1830_lcd_groups), },
 	{ "pwm0", x1830_pwm0_groups, ARRAY_SIZE(x1830_pwm0_groups), },
 	{ "pwm1", x1830_pwm1_groups, ARRAY_SIZE(x1830_pwm1_groups), },
 	{ "pwm2", x1830_pwm2_groups, ARRAY_SIZE(x1830_pwm2_groups), },
@@ -1772,9 +1813,9 @@ static void ingenic_gpio_irq_ack(struct irq_data *irqd)
 		 */
 		high = ingenic_gpio_get_value(jzgc, irq);
 		if (high)
-			irq_set_type(jzgc, irq, IRQ_TYPE_EDGE_FALLING);
+			irq_set_type(jzgc, irq, IRQ_TYPE_LEVEL_LOW);
 		else
-			irq_set_type(jzgc, irq, IRQ_TYPE_EDGE_RISING);
+			irq_set_type(jzgc, irq, IRQ_TYPE_LEVEL_HIGH);
 	}
 
 	if (jzgc->jzpc->info->version >= ID_JZ4760)
@@ -1810,7 +1851,7 @@ static int ingenic_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 		 */
 		bool high = ingenic_gpio_get_value(jzgc, irqd->hwirq);
 
-		type = high ? IRQ_TYPE_EDGE_FALLING : IRQ_TYPE_EDGE_RISING;
+		type = high ? IRQ_TYPE_LEVEL_LOW : IRQ_TYPE_LEVEL_HIGH;
 	}
 
 	irq_set_type(jzgc, irqd->hwirq, type);
@@ -1916,13 +1957,20 @@ static int ingenic_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	struct ingenic_pinctrl *jzpc = jzgc->jzpc;
 	unsigned int pin = gc->base + offset;
 
-	if (jzpc->info->version >= ID_JZ4760)
-		return ingenic_get_pin_config(jzpc, pin, JZ4760_GPIO_PAT1);
+	if (jzpc->info->version >= ID_JZ4760) {
+		if (ingenic_get_pin_config(jzpc, pin, JZ4760_GPIO_INT) ||
+		    ingenic_get_pin_config(jzpc, pin, JZ4760_GPIO_PAT1))
+			return GPIO_LINE_DIRECTION_IN;
+		return GPIO_LINE_DIRECTION_OUT;
+	}
 
 	if (ingenic_get_pin_config(jzpc, pin, JZ4740_GPIO_SELECT))
-		return true;
+		return GPIO_LINE_DIRECTION_IN;
 
-	return !ingenic_get_pin_config(jzpc, pin, JZ4740_GPIO_DIR);
+	if (ingenic_get_pin_config(jzpc, pin, JZ4740_GPIO_DIR))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static const struct pinctrl_ops ingenic_pctlops = {
@@ -1932,6 +1980,25 @@ static const struct pinctrl_ops ingenic_pctlops = {
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
+
+static int ingenic_gpio_irq_request(struct irq_data *data)
+{
+	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+	int ret;
+
+	ret = ingenic_gpio_direction_input(gpio_chip, data->hwirq);
+	if (ret)
+		return ret;
+
+	return gpiochip_reqres_irq(gpio_chip, data->hwirq);
+}
+
+static void ingenic_gpio_irq_release(struct irq_data *data)
+{
+	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+
+	return gpiochip_relres_irq(gpio_chip, data->hwirq);
+}
 
 static int ingenic_pinmux_set_pin_fn(struct ingenic_pinctrl *jzpc,
 		int pin, int func)
@@ -2158,7 +2225,8 @@ static int ingenic_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		default:
-			unreachable();
+			/* unreachable */
+			break;
 		}
 	}
 
@@ -2228,6 +2296,7 @@ static const struct regmap_config ingenic_pinctrl_regmap_config = {
 
 static const struct of_device_id ingenic_gpio_of_match[] __initconst = {
 	{ .compatible = "ingenic,jz4740-gpio", },
+	{ .compatible = "ingenic,jz4725b-gpio", },
 	{ .compatible = "ingenic,jz4760-gpio", },
 	{ .compatible = "ingenic,jz4770-gpio", },
 	{ .compatible = "ingenic,jz4780-gpio", },
@@ -2278,11 +2347,8 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->gc.direction_input = ingenic_gpio_direction_input;
 	jzgc->gc.direction_output = ingenic_gpio_direction_output;
 	jzgc->gc.get_direction = ingenic_gpio_get_direction;
-
-	if (of_property_read_bool(node, "gpio-ranges")) {
-		jzgc->gc.request = gpiochip_generic_request;
-		jzgc->gc.free = gpiochip_generic_free;
-	}
+	jzgc->gc.request = gpiochip_generic_request;
+	jzgc->gc.free = gpiochip_generic_free;
 
 	jzgc->irq = irq_of_parse_and_map(node, 0);
 	if (!jzgc->irq)
@@ -2296,6 +2362,8 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->irq_chip.irq_ack = ingenic_gpio_irq_ack;
 	jzgc->irq_chip.irq_set_type = ingenic_gpio_irq_set_type;
 	jzgc->irq_chip.irq_set_wake = ingenic_gpio_irq_set_wake;
+	jzgc->irq_chip.irq_request_resources = ingenic_gpio_irq_request;
+	jzgc->irq_chip.irq_release_resources = ingenic_gpio_irq_release;
 	jzgc->irq_chip.flags = IRQCHIP_MASK_ON_SUSPEND;
 
 	girq = &jzgc->gc.irq;

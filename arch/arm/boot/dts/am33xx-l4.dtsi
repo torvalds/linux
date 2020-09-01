@@ -151,6 +151,18 @@
 
 			gpio0: gpio@0 {
 				compatible = "ti,omap4-gpio";
+				gpio-ranges =	<&am33xx_pinmux  0  82 8>,
+						<&am33xx_pinmux  8  52 4>,
+						<&am33xx_pinmux 12  94 4>,
+						<&am33xx_pinmux 16  71 2>,
+						<&am33xx_pinmux 18 135 1>,
+						<&am33xx_pinmux 19 108 2>,
+						<&am33xx_pinmux 21  73 1>,
+						<&am33xx_pinmux 22   8 2>,
+						<&am33xx_pinmux 26  10 2>,
+						<&am33xx_pinmux 28  74 1>,
+						<&am33xx_pinmux 29  81 1>,
+						<&am33xx_pinmux 30  28 2>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -278,7 +290,7 @@
 				am33xx_pinmux: pinmux@800 {
 					compatible = "pinctrl-single";
 					reg = <0x800 0x238>;
-					#pinctrl-cells = <1>;
+					#pinctrl-cells = <2>;
 					pinctrl-single,register-width = <32>;
 					pinctrl-single,function-mask = <0x7f>;
 				};
@@ -330,9 +342,8 @@
 			};
 		};
 
-		target-module@31000 {			/* 0x44e31000, ap 25 40.0 */
+		timer1_target: target-module@31000 {	/* 0x44e31000, ap 25 40.0 */
 			compatible = "ti,sysc-omap2-timer", "ti,sysc";
-			ti,hwmods = "timer1";
 			reg = <0x31000 0x4>,
 			      <0x31010 0x4>,
 			      <0x31014 0x4>;
@@ -759,12 +770,27 @@
 			ranges = <0x0 0x200000 0x80000>;
 		};
 
-		target-module@300000 {			/* 0x4a300000, ap 9 04.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+		pruss_tm: target-module@300000 {	/* 0x4a300000, ap 9 04.0 */
+			compatible = "ti,sysc-pruss", "ti,sysc";
+			reg = <0x326000 0x4>,
+			      <0x326004 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_PRUSS_STANDBY_INIT |
+					 SYSC_PRUSS_SUB_MWAIT)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&pruss_ocp_clkctrl AM3_PRUSS_OCP_PRUSS_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_per 1>;
+			reset-names = "rstctrl";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x300000 0x80000>;
+			status = "disabled";
 		};
 	};
 };
@@ -1102,9 +1128,8 @@
 			};
 		};
 
-		target-module@40000 {			/* 0x48040000, ap 22 1e.0 */
+		timer2_target: target-module@40000 {	/* 0x48040000, ap 22 1e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer2";
 			reg = <0x40000 0x4>,
 			      <0x40010 0x4>,
 			      <0x40014 0x4>;
@@ -1283,6 +1308,10 @@
 
 			gpio1: gpio@0 {
 				compatible = "ti,omap4-gpio";
+				gpio-ranges =   <&am33xx_pinmux  0  0  8>,
+						<&am33xx_pinmux  8 90  4>,
+						<&am33xx_pinmux 12 12 16>,
+						<&am33xx_pinmux 28 30  4>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1322,10 +1351,8 @@
 			ranges = <0x0 0x60000 0x1000>;
 
 			mmc1: mmc@0 {
-				compatible = "ti,omap4-hsmmc";
-				ti,dual-volt;
+				compatible = "ti,am335-sdhci";
 				ti,needs-special-reset;
-				ti,needs-special-hs-handling;
 				dmas = <&edma_xbar 24 0 0
 					&edma_xbar 25 0 0>;
 				dma-names = "tx", "rx";
@@ -1685,6 +1712,9 @@
 
 			gpio2: gpio@0 {
 				compatible = "ti,omap4-gpio";
+                                gpio-ranges =	<&am33xx_pinmux  0 34 18>,
+						<&am33xx_pinmux 18 77  4>,
+						<&am33xx_pinmux 22 56 10>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1718,6 +1748,11 @@
 
 			gpio3: gpio@0 {
 				compatible = "ti,omap4-gpio";
+				gpio-ranges =	<&am33xx_pinmux  0  66 5>,
+						<&am33xx_pinmux  5  98 2>,
+						<&am33xx_pinmux  7  75 2>,
+						<&am33xx_pinmux 13 141 1>,
+						<&am33xx_pinmux 14 100 8>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1803,7 +1838,7 @@
 			ranges = <0x0 0xd8000 0x1000>;
 
 			mmc2: mmc@0 {
-				compatible = "ti,omap4-hsmmc";
+				compatible = "ti,am335-sdhci";
 				ti,needs-special-reset;
 				dmas = <&edma 2 0
 					&edma 3 0>;

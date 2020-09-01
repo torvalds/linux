@@ -282,7 +282,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 		if ((syn & AETH_TYPE_MASK) != AETH_ACK)
 			return COMPST_ERROR;
 
-		/* fall through */
+		fallthrough;
 		/* (IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE doesn't have an AETH)
 		 */
 	case IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE:

@@ -31,17 +31,15 @@ int intel_ring_pin(struct intel_ring *ring)
 	if (atomic_fetch_inc(&ring->pin_count))
 		return 0;
 
-	flags = PIN_GLOBAL;
-
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
-	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
+	flags = PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
 
 	if (vma->obj->stolen)
 		flags |= PIN_MAPPABLE;
 	else
 		flags |= PIN_HIGH;
 
-	ret = i915_vma_pin(vma, 0, 0, flags);
+	ret = i915_ggtt_pin(vma, 0, flags);
 	if (unlikely(ret))
 		goto err_unpin;
 
@@ -317,3 +315,7 @@ int intel_ring_cacheline_align(struct i915_request *rq)
 	GEM_BUG_ON(rq->ring->emit & (CACHELINE_BYTES - 1));
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_ring.c"
+#endif

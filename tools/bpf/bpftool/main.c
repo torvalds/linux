@@ -30,6 +30,8 @@ bool verifier_logs;
 bool relaxed_maps;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
+struct pinned_obj_table link_table;
+struct obj_refs_table refs_table;
 
 static void __noreturn clean_and_exit(int i)
 {
@@ -58,7 +60,7 @@ static int do_help(int argc, char **argv)
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map | cgroup | perf | net | feature | btf | gen }\n"
+		"       OBJECT := { prog | map | link | cgroup | perf | net | feature | btf | gen | struct_ops | iter }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, bin_name, bin_name);
@@ -79,13 +81,6 @@ static int do_version(int argc, char **argv)
 	return 0;
 }
 
-static int __printf(2, 0)
-print_all_levels(__maybe_unused enum libbpf_print_level level,
-		 const char *format, va_list args)
-{
-	return vfprintf(stderr, format, args);
-}
-
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	       int (*help)(int argc, char **argv))
 {
@@ -98,9 +93,16 @@ int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	if (argc < 1 && cmds[0].func)
 		return cmds[0].func(argc, argv);
 
-	for (i = 0; cmds[i].func; i++)
-		if (is_prefix(*argv, cmds[i].cmd))
+	for (i = 0; cmds[i].cmd; i++) {
+		if (is_prefix(*argv, cmds[i].cmd)) {
+			if (!cmds[i].func) {
+				p_err("command '%s' is not supported in bootstrap mode",
+				      cmds[i].cmd);
+				return -1;
+			}
 			return cmds[i].func(argc - 1, argv + 1);
+		}
+	}
 
 	help(argc - 1, argv + 1);
 
@@ -222,12 +224,15 @@ static const struct cmd cmds[] = {
 	{ "batch",	do_batch },
 	{ "prog",	do_prog },
 	{ "map",	do_map },
+	{ "link",	do_link },
 	{ "cgroup",	do_cgroup },
 	{ "perf",	do_perf },
 	{ "net",	do_net },
 	{ "feature",	do_feature },
 	{ "btf",	do_btf },
 	{ "gen",	do_gen },
+	{ "struct_ops",	do_struct_ops },
+	{ "iter",	do_iter },
 	{ "version",	do_version },
 	{ 0 }
 };
@@ -370,6 +375,7 @@ int main(int argc, char **argv)
 
 	hash_init(prog_table.table);
 	hash_init(map_table.table);
+	hash_init(link_table.table);
 
 	opterr = 0;
 	while ((opt = getopt_long(argc, argv, "Vhpjfmnd",
@@ -428,6 +434,7 @@ int main(int argc, char **argv)
 	if (show_pinned) {
 		delete_pinned_obj_table(&prog_table);
 		delete_pinned_obj_table(&map_table);
+		delete_pinned_obj_table(&link_table);
 	}
 
 	return ret;

@@ -18,8 +18,6 @@
 #include <asm/barrier.h>
 #include <asm-generic/atomic64.h>
 
-#define ATOMIC_INIT(i)  { (i) }
-
 int atomic_add_return(int, atomic_t *);
 int atomic_fetch_add(int, atomic_t *);
 int atomic_fetch_and(int, atomic_t *);

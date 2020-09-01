@@ -5,7 +5,7 @@
  * http://www.osta.org
  *
  * Copyright (c) 2001-2004  Ben Fennema
- * Copyright (c) 2017-2019  Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (c) 2017-2019  Pali Rohár <pali@kernel.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -226,7 +226,7 @@ struct sparingTable {
 #define ICBTAG_FILE_TYPE_MIRROR		0xFB
 #define ICBTAG_FILE_TYPE_BITMAP		0xFC
 
-/* struct struct long_ad ICB - ADImpUse (UDF 2.60 2.2.4.3) */
+/* struct long_ad ICB - ADImpUse (UDF 2.60 2.2.4.3) */
 struct allocDescImpUse {
 	__le16		flags;
 	uint8_t		impUse[4];

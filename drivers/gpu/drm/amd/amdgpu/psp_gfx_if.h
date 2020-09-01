@@ -31,6 +31,9 @@
 #define GFX_CMD_RESERVED_MASK       0x7FF00000
 #define GFX_CMD_RESPONSE_MASK       0x80000000
 
+/* USBC PD FW version retrieval command */
+#define C2PMSG_CMD_GFX_USB_PD_FW_VER 0x2000000
+
 /* TEE Gfx Command IDs for the register interface.
 *  Command ID must be between 0x00010000 and 0x000F0000.
 */
@@ -107,6 +110,7 @@ enum psp_gfx_cmd_id
     GFX_CMD_ID_SETUP_VMR    = 0x00000009,   /* setup VMR region */
     GFX_CMD_ID_DESTROY_VMR  = 0x0000000A,   /* destroy VMR region */
     GFX_CMD_ID_PROG_REG     = 0x0000000B,   /* program regs */
+    GFX_CMD_ID_CLEAR_VF_FW  = 0x0000000D,   /* Clear VF FW, to be used on VF shutdown. */
     /* IDs upto 0x1F are reserved for older programs (Raven, Vega 10/12/20) */
     GFX_CMD_ID_LOAD_TOC     = 0x00000020,   /* Load TOC and obtain TMR size */
     GFX_CMD_ID_AUTOLOAD_RLC = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
@@ -360,6 +364,13 @@ struct psp_gfx_rb_frame
     uint8_t     reserved1[2];       /* +34 reserved, must be 0 */
     uint32_t    reserved2[7];       /* +36 reserved, must be 0 */
                 /* total 64 bytes */
+};
+
+#define PSP_ERR_UNKNOWN_COMMAND 0x00000100
+
+enum tee_error_code {
+    TEE_SUCCESS                         = 0x00000000,
+    TEE_ERROR_NOT_SUPPORTED             = 0xFFFF000A,
 };
 
 #endif /* _PSP_TEE_GFX_IF_H_ */

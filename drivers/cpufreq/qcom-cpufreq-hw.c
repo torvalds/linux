@@ -6,6 +6,7 @@
 #include <linux/bitfield.h>
 #include <linux/cpufreq.h>
 #include <linux/init.h>
+#include <linux/interconnect.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -30,6 +31,48 @@
 
 static unsigned long cpu_hw_rate, xo_rate;
 static struct platform_device *global_pdev;
+static bool icc_scaling_enabled;
+
+static int qcom_cpufreq_set_bw(struct cpufreq_policy *policy,
+			       unsigned long freq_khz)
+{
+	unsigned long freq_hz = freq_khz * 1000;
+	struct dev_pm_opp *opp;
+	struct device *dev;
+	int ret;
+
+	dev = get_cpu_device(policy->cpu);
+	if (!dev)
+		return -ENODEV;
+
+	opp = dev_pm_opp_find_freq_exact(dev, freq_hz, true);
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
+
+	ret = dev_pm_opp_set_bw(dev, opp);
+	dev_pm_opp_put(opp);
+	return ret;
+}
+
+static int qcom_cpufreq_update_opp(struct device *cpu_dev,
+				   unsigned long freq_khz,
+				   unsigned long volt)
+{
+	unsigned long freq_hz = freq_khz * 1000;
+	int ret;
+
+	/* Skip voltage update if the opp table is not available */
+	if (!icc_scaling_enabled)
+		return dev_pm_opp_add(cpu_dev, freq_hz, volt);
+
+	ret = dev_pm_opp_adjust_voltage(cpu_dev, freq_hz, volt, volt, volt);
+	if (ret) {
+		dev_err(cpu_dev, "Voltage update failed freq=%ld\n", freq_khz);
+		return ret;
+	}
+
+	return dev_pm_opp_enable(cpu_dev, freq_hz);
+}
 
 static int qcom_cpufreq_hw_target_index(struct cpufreq_policy *policy,
 					unsigned int index)
@@ -38,6 +81,9 @@ static int qcom_cpufreq_hw_target_index(struct cpufreq_policy *policy,
 	unsigned long freq = policy->freq_table[index].frequency;
 
 	writel_relaxed(index, perf_state_reg);
+
+	if (icc_scaling_enabled)
+		qcom_cpufreq_set_bw(policy, freq);
 
 	arch_set_freq_scale(policy->related_cpus, freq,
 			    policy->cpuinfo.max_freq);
@@ -66,13 +112,10 @@ static unsigned int qcom_cpufreq_hw_fast_switch(struct cpufreq_policy *policy,
 						unsigned int target_freq)
 {
 	void __iomem *perf_state_reg = policy->driver_data;
-	int index;
+	unsigned int index;
 	unsigned long freq;
 
 	index = policy->cached_resolved_idx;
-	if (index < 0)
-		return 0;
-
 	writel_relaxed(index, perf_state_reg);
 
 	freq = policy->freq_table[index].frequency;
@@ -89,10 +132,33 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 	u32 data, src, lval, i, core_count, prev_freq = 0, freq;
 	u32 volt;
 	struct cpufreq_frequency_table	*table;
+	struct dev_pm_opp *opp;
+	unsigned long rate;
+	int ret;
 
 	table = kcalloc(LUT_MAX_ENTRIES + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
+
+	ret = dev_pm_opp_of_add_table(cpu_dev);
+	if (!ret) {
+		/* Disable all opps and cross-validate against LUT later */
+		icc_scaling_enabled = true;
+		for (rate = 0; ; rate++) {
+			opp = dev_pm_opp_find_freq_ceil(cpu_dev, &rate);
+			if (IS_ERR(opp))
+				break;
+
+			dev_pm_opp_put(opp);
+			dev_pm_opp_disable(cpu_dev, rate);
+		}
+	} else if (ret != -ENODEV) {
+		dev_err(cpu_dev, "Invalid opp table in device tree\n");
+		return ret;
+	} else {
+		policy->fast_switch_possible = true;
+		icc_scaling_enabled = false;
+	}
 
 	for (i = 0; i < LUT_MAX_ENTRIES; i++) {
 		data = readl_relaxed(base + REG_FREQ_LUT +
@@ -112,7 +178,7 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 
 		if (freq != prev_freq && core_count != LUT_TURBO_IND) {
 			table[i].frequency = freq;
-			dev_pm_opp_add(cpu_dev, freq * 1000, volt);
+			qcom_cpufreq_update_opp(cpu_dev, freq, volt);
 			dev_dbg(cpu_dev, "index=%d freq=%d, core_count %d\n", i,
 				freq, core_count);
 		} else if (core_count == LUT_TURBO_IND) {
@@ -133,7 +199,7 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 			if (prev->frequency == CPUFREQ_ENTRY_INVALID) {
 				prev->frequency = prev_freq;
 				prev->flags = CPUFREQ_BOOST_FREQ;
-				dev_pm_opp_add(cpu_dev,	prev_freq * 1000, volt);
+				qcom_cpufreq_update_opp(cpu_dev, prev_freq, volt);
 			}
 
 			break;
@@ -238,9 +304,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 		goto error;
 	}
 
-	dev_pm_opp_of_register_em(policy->cpus);
-
-	policy->fast_switch_possible = true;
+	dev_pm_opp_of_register_em(cpu_dev, policy->cpus);
 
 	return 0;
 error:
@@ -254,6 +318,7 @@ static int qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 	void __iomem *base = policy->driver_data - REG_PERF_STATE;
 
 	dev_pm_opp_remove_all_dynamic(cpu_dev);
+	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	kfree(policy->freq_table);
 	devm_iounmap(&global_pdev->dev, base);
 
@@ -282,6 +347,7 @@ static struct cpufreq_driver cpufreq_qcom_hw_driver = {
 
 static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 {
+	struct device *cpu_dev;
 	struct clk *clk;
 	int ret;
 
@@ -300,6 +366,15 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	clk_put(clk);
 
 	global_pdev = pdev;
+
+	/* Check for optional interconnect paths on CPU0 */
+	cpu_dev = get_cpu_device(0);
+	if (!cpu_dev)
+		return -EPROBE_DEFER;
+
+	ret = dev_pm_opp_of_find_icc_paths(cpu_dev, NULL);
+	if (ret)
+		return ret;
 
 	ret = cpufreq_register_driver(&cpufreq_qcom_hw_driver);
 	if (ret)

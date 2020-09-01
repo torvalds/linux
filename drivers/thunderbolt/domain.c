@@ -147,10 +147,10 @@ static ssize_t boot_acl_show(struct device *dev, struct device_attribute *attr,
 
 	for (ret = 0, i = 0; i < tb->nboot_acl; i++) {
 		if (!uuid_is_null(&uuids[i]))
-			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%pUb",
+			ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%pUb",
 					&uuids[i]);
 
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s",
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s",
 			       i < tb->nboot_acl - 1 ? "," : "\n");
 	}
 
@@ -812,6 +812,6 @@ void tb_domain_exit(void)
 {
 	bus_unregister(&tb_bus_type);
 	ida_destroy(&tb_domain_ida);
-	tb_switch_exit();
+	tb_nvm_exit();
 	tb_xdomain_exit();
 }

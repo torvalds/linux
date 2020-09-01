@@ -162,10 +162,10 @@ struct stm32_adc_cfg {
 	struct stm32_adc_trig_info	*trigs;
 	bool clk_required;
 	bool has_vregready;
-	int (*prepare)(struct stm32_adc *);
-	void (*start_conv)(struct stm32_adc *, bool dma);
-	void (*stop_conv)(struct stm32_adc *);
-	void (*unprepare)(struct stm32_adc *);
+	int (*prepare)(struct iio_dev *);
+	void (*start_conv)(struct iio_dev *, bool dma);
+	void (*stop_conv)(struct iio_dev *);
+	void (*unprepare)(struct iio_dev *);
 	const unsigned int *smp_cycles;
 };
 
@@ -538,10 +538,11 @@ static void stm32_adc_set_res(struct stm32_adc *adc)
 
 static int stm32_adc_hw_stop(struct device *dev)
 {
-	struct stm32_adc *adc = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 
 	if (adc->cfg->unprepare)
-		adc->cfg->unprepare(adc);
+		adc->cfg->unprepare(indio_dev);
 
 	if (adc->clk)
 		clk_disable_unprepare(adc->clk);
@@ -551,7 +552,8 @@ static int stm32_adc_hw_stop(struct device *dev)
 
 static int stm32_adc_hw_start(struct device *dev)
 {
-	struct stm32_adc *adc = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 
 	if (adc->clk) {
@@ -563,7 +565,7 @@ static int stm32_adc_hw_start(struct device *dev)
 	stm32_adc_set_res(adc);
 
 	if (adc->cfg->prepare) {
-		ret = adc->cfg->prepare(adc);
+		ret = adc->cfg->prepare(indio_dev);
 		if (ret)
 			goto err_clk_dis;
 	}
@@ -579,7 +581,7 @@ err_clk_dis:
 
 /**
  * stm32f4_adc_start_conv() - Start conversions for regular channels.
- * @adc: stm32 adc instance
+ * @indio_dev: IIO device instance
  * @dma: use dma to transfer conversion result
  *
  * Start conversions for regular channels.
@@ -587,8 +589,10 @@ err_clk_dis:
  * conversions, in IIO buffer modes. Otherwise, use ADC interrupt with direct
  * DR read instead (e.g. read_raw, or triggered buffer mode without DMA).
  */
-static void stm32f4_adc_start_conv(struct stm32_adc *adc, bool dma)
+static void stm32f4_adc_start_conv(struct iio_dev *indio_dev, bool dma)
 {
+	struct stm32_adc *adc = iio_priv(indio_dev);
+
 	stm32_adc_set_bits(adc, STM32F4_ADC_CR1, STM32F4_SCAN);
 
 	if (dma)
@@ -605,8 +609,10 @@ static void stm32f4_adc_start_conv(struct stm32_adc *adc, bool dma)
 		stm32_adc_set_bits(adc, STM32F4_ADC_CR2, STM32F4_SWSTART);
 }
 
-static void stm32f4_adc_stop_conv(struct stm32_adc *adc)
+static void stm32f4_adc_stop_conv(struct iio_dev *indio_dev)
 {
+	struct stm32_adc *adc = iio_priv(indio_dev);
+
 	stm32_adc_clr_bits(adc, STM32F4_ADC_CR2, STM32F4_EXTEN_MASK);
 	stm32_adc_clr_bits(adc, STM32F4_ADC_SR, STM32F4_STRT);
 
@@ -615,8 +621,9 @@ static void stm32f4_adc_stop_conv(struct stm32_adc *adc)
 			   STM32F4_ADON | STM32F4_DMA | STM32F4_DDS);
 }
 
-static void stm32h7_adc_start_conv(struct stm32_adc *adc, bool dma)
+static void stm32h7_adc_start_conv(struct iio_dev *indio_dev, bool dma)
 {
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	enum stm32h7_adc_dmngt dmngt;
 	unsigned long flags;
 	u32 val;
@@ -635,9 +642,9 @@ static void stm32h7_adc_start_conv(struct stm32_adc *adc, bool dma)
 	stm32_adc_set_bits(adc, STM32H7_ADC_CR, STM32H7_ADSTART);
 }
 
-static void stm32h7_adc_stop_conv(struct stm32_adc *adc)
+static void stm32h7_adc_stop_conv(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 	u32 val;
 
@@ -652,9 +659,9 @@ static void stm32h7_adc_stop_conv(struct stm32_adc *adc)
 	stm32_adc_clr_bits(adc, STM32H7_ADC_CFGR, STM32H7_DMNGT_MASK);
 }
 
-static int stm32h7_adc_exit_pwr_down(struct stm32_adc *adc)
+static int stm32h7_adc_exit_pwr_down(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 	u32 val;
 
@@ -690,9 +697,9 @@ static void stm32h7_adc_enter_pwr_down(struct stm32_adc *adc)
 	stm32_adc_set_bits(adc, STM32H7_ADC_CR, STM32H7_DEEPPWD);
 }
 
-static int stm32h7_adc_enable(struct stm32_adc *adc)
+static int stm32h7_adc_enable(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 	u32 val;
 
@@ -713,9 +720,9 @@ static int stm32h7_adc_enable(struct stm32_adc *adc)
 	return ret;
 }
 
-static void stm32h7_adc_disable(struct stm32_adc *adc)
+static void stm32h7_adc_disable(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 	u32 val;
 
@@ -730,12 +737,12 @@ static void stm32h7_adc_disable(struct stm32_adc *adc)
 
 /**
  * stm32h7_adc_read_selfcalib() - read calibration shadow regs, save result
- * @adc: stm32 adc instance
+ * @indio_dev: IIO device instance
  * Note: Must be called once ADC is enabled, so LINCALRDYW[1..6] are writable
  */
-static int stm32h7_adc_read_selfcalib(struct stm32_adc *adc)
+static int stm32h7_adc_read_selfcalib(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int i, ret;
 	u32 lincalrdyw_mask, val;
 
@@ -774,12 +781,12 @@ static int stm32h7_adc_read_selfcalib(struct stm32_adc *adc)
 
 /**
  * stm32h7_adc_restore_selfcalib() - Restore saved self-calibration result
- * @adc: stm32 adc instance
+ * @indio_dev: IIO device instance
  * Note: ADC must be enabled, with no on-going conversions.
  */
-static int stm32h7_adc_restore_selfcalib(struct stm32_adc *adc)
+static int stm32h7_adc_restore_selfcalib(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int i, ret;
 	u32 lincalrdyw_mask, val;
 
@@ -847,12 +854,12 @@ static int stm32h7_adc_restore_selfcalib(struct stm32_adc *adc)
 
 /**
  * stm32h7_adc_selfcalib() - Procedure to calibrate ADC
- * @adc: stm32 adc instance
+ * @indio_dev: IIO device instance
  * Note: Must be called once ADC is out of power down.
  */
-static int stm32h7_adc_selfcalib(struct stm32_adc *adc)
+static int stm32h7_adc_selfcalib(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 	u32 val;
 
@@ -903,7 +910,7 @@ out:
 
 /**
  * stm32h7_adc_prepare() - Leave power down mode to enable ADC.
- * @adc: stm32 adc instance
+ * @indio_dev: IIO device instance
  * Leave power down mode.
  * Configure channels as single ended or differential before enabling ADC.
  * Enable ADC.
@@ -912,30 +919,31 @@ out:
  * - Only one input is selected for single ended (e.g. 'vinp')
  * - Two inputs are selected for differential channels (e.g. 'vinp' & 'vinn')
  */
-static int stm32h7_adc_prepare(struct stm32_adc *adc)
+static int stm32h7_adc_prepare(struct iio_dev *indio_dev)
 {
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	int calib, ret;
 
-	ret = stm32h7_adc_exit_pwr_down(adc);
+	ret = stm32h7_adc_exit_pwr_down(indio_dev);
 	if (ret)
 		return ret;
 
-	ret = stm32h7_adc_selfcalib(adc);
+	ret = stm32h7_adc_selfcalib(indio_dev);
 	if (ret < 0)
 		goto pwr_dwn;
 	calib = ret;
 
 	stm32_adc_writel(adc, STM32H7_ADC_DIFSEL, adc->difsel);
 
-	ret = stm32h7_adc_enable(adc);
+	ret = stm32h7_adc_enable(indio_dev);
 	if (ret)
 		goto pwr_dwn;
 
 	/* Either restore or read calibration result for future reference */
 	if (calib)
-		ret = stm32h7_adc_restore_selfcalib(adc);
+		ret = stm32h7_adc_restore_selfcalib(indio_dev);
 	else
-		ret = stm32h7_adc_read_selfcalib(adc);
+		ret = stm32h7_adc_read_selfcalib(indio_dev);
 	if (ret)
 		goto disable;
 
@@ -944,16 +952,18 @@ static int stm32h7_adc_prepare(struct stm32_adc *adc)
 	return 0;
 
 disable:
-	stm32h7_adc_disable(adc);
+	stm32h7_adc_disable(indio_dev);
 pwr_dwn:
 	stm32h7_adc_enter_pwr_down(adc);
 
 	return ret;
 }
 
-static void stm32h7_adc_unprepare(struct stm32_adc *adc)
+static void stm32h7_adc_unprepare(struct iio_dev *indio_dev)
 {
-	stm32h7_adc_disable(adc);
+	struct stm32_adc *adc = iio_priv(indio_dev);
+
+	stm32h7_adc_disable(indio_dev);
 	stm32h7_adc_enter_pwr_down(adc);
 }
 
@@ -1160,7 +1170,7 @@ static int stm32_adc_single_conv(struct iio_dev *indio_dev,
 
 	stm32_adc_conv_irq_enable(adc);
 
-	adc->cfg->start_conv(adc, false);
+	adc->cfg->start_conv(indio_dev, false);
 
 	timeout = wait_for_completion_interruptible_timeout(
 					&adc->completion, STM32_ADC_TIMEOUT);
@@ -1173,7 +1183,7 @@ static int stm32_adc_single_conv(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT;
 	}
 
-	adc->cfg->stop_conv(adc);
+	adc->cfg->stop_conv(indio_dev);
 
 	stm32_adc_conv_irq_disable(adc);
 
@@ -1227,8 +1237,8 @@ static int stm32_adc_read_raw(struct iio_dev *indio_dev,
 
 static irqreturn_t stm32_adc_threaded_isr(int irq, void *data)
 {
-	struct stm32_adc *adc = data;
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct iio_dev *indio_dev = data;
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
 	u32 status = stm32_adc_readl(adc, regs->isr_eoc.reg);
 
@@ -1240,8 +1250,8 @@ static irqreturn_t stm32_adc_threaded_isr(int irq, void *data)
 
 static irqreturn_t stm32_adc_isr(int irq, void *data)
 {
-	struct stm32_adc *adc = data;
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct iio_dev *indio_dev = data;
+	struct stm32_adc *adc = iio_priv(indio_dev);
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
 	u32 status = stm32_adc_readl(adc, regs->isr_eoc.reg);
 
@@ -1418,8 +1428,30 @@ static unsigned int stm32_adc_dma_residue(struct stm32_adc *adc)
 static void stm32_adc_dma_buffer_done(void *data)
 {
 	struct iio_dev *indio_dev = data;
+	struct stm32_adc *adc = iio_priv(indio_dev);
+	int residue = stm32_adc_dma_residue(adc);
 
-	iio_trigger_poll_chained(indio_dev->trig);
+	/*
+	 * In DMA mode the trigger services of IIO are not used
+	 * (e.g. no call to iio_trigger_poll).
+	 * Calling irq handler associated to the hardware trigger is not
+	 * relevant as the conversions have already been done. Data
+	 * transfers are performed directly in DMA callback instead.
+	 * This implementation avoids to call trigger irq handler that
+	 * may sleep, in an atomic context (DMA irq handler context).
+	 */
+	dev_dbg(&indio_dev->dev, "%s bufi=%d\n", __func__, adc->bufi);
+
+	while (residue >= indio_dev->scan_bytes) {
+		u16 *buffer = (u16 *)&adc->rx_buf[adc->bufi];
+
+		iio_push_to_buffers(indio_dev, buffer);
+
+		residue -= indio_dev->scan_bytes;
+		adc->bufi += indio_dev->scan_bytes;
+		if (adc->bufi >= adc->rx_buf_sz)
+			adc->bufi = 0;
+	}
 }
 
 static int stm32_adc_dma_start(struct iio_dev *indio_dev)
@@ -1460,7 +1492,7 @@ static int stm32_adc_dma_start(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int __stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
+static int stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
@@ -1492,7 +1524,7 @@ static int __stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
 	if (!adc->dma_chan)
 		stm32_adc_conv_irq_enable(adc);
 
-	adc->cfg->start_conv(adc, !!adc->dma_chan);
+	adc->cfg->start_conv(indio_dev, !!adc->dma_chan);
 
 	return 0;
 
@@ -1505,27 +1537,12 @@ err_pm_put:
 	return ret;
 }
 
-static int stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
-{
-	int ret;
-
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	ret = __stm32_adc_buffer_postenable(indio_dev);
-	if (ret < 0)
-		iio_triggered_buffer_predisable(indio_dev);
-
-	return ret;
-}
-
-static void __stm32_adc_buffer_predisable(struct iio_dev *indio_dev)
+static int stm32_adc_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
 
-	adc->cfg->stop_conv(adc);
+	adc->cfg->stop_conv(indio_dev);
 	if (!adc->dma_chan)
 		stm32_adc_conv_irq_disable(adc);
 
@@ -1539,19 +1556,8 @@ static void __stm32_adc_buffer_predisable(struct iio_dev *indio_dev)
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
-}
 
-static int stm32_adc_buffer_predisable(struct iio_dev *indio_dev)
-{
-	int ret;
-
-	__stm32_adc_buffer_predisable(indio_dev);
-
-	ret = iio_triggered_buffer_predisable(indio_dev);
-	if (ret < 0)
-		dev_err(&indio_dev->dev, "predisable failed\n");
-
-	return ret;
+	return 0;
 }
 
 static const struct iio_buffer_setup_ops stm32_adc_buffer_setup_ops = {
@@ -1790,18 +1796,18 @@ static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int stm32_adc_dma_request(struct iio_dev *indio_dev)
+static int stm32_adc_dma_request(struct device *dev, struct iio_dev *indio_dev)
 {
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	struct dma_slave_config config;
 	int ret;
 
-	adc->dma_chan = dma_request_chan(&indio_dev->dev, "rx");
+	adc->dma_chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(adc->dma_chan)) {
 		ret = PTR_ERR(adc->dma_chan);
 		if (ret != -ENODEV) {
 			if (ret != -EPROBE_DEFER)
-				dev_err(&indio_dev->dev,
+				dev_err(dev,
 					"DMA channel request failed with %d\n",
 					ret);
 			return ret;
@@ -1845,6 +1851,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct device *dev = &pdev->dev;
+	irqreturn_t (*handler)(int irq, void *p) = NULL;
 	struct stm32_adc *adc;
 	int ret;
 
@@ -1863,12 +1870,11 @@ static int stm32_adc_probe(struct platform_device *pdev)
 		of_match_device(dev->driver->of_match_table, dev)->data;
 
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &stm32_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_HARDWARE_TRIGGERED;
 
-	platform_set_drvdata(pdev, adc);
+	platform_set_drvdata(pdev, indio_dev);
 
 	ret = of_property_read_u32(pdev->dev.of_node, "reg", &adc->offset);
 	if (ret != 0) {
@@ -1882,7 +1888,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, adc->irq, stm32_adc_isr,
 					stm32_adc_threaded_isr,
-					0, pdev->name, adc);
+					0, pdev->name, indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		return ret;
@@ -1907,13 +1913,15 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = stm32_adc_dma_request(indio_dev);
+	ret = stm32_adc_dma_request(dev, indio_dev);
 	if (ret < 0)
 		return ret;
 
+	if (!adc->dma_chan)
+		handler = &stm32_adc_trigger_handler;
+
 	ret = iio_triggered_buffer_setup(indio_dev,
-					 &iio_pollfunc_store_time,
-					 &stm32_adc_trigger_handler,
+					 &iio_pollfunc_store_time, handler,
 					 &stm32_adc_buffer_setup_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "buffer setup failed\n");
@@ -1964,8 +1972,8 @@ err_dma_disable:
 
 static int stm32_adc_remove(struct platform_device *pdev)
 {
-	struct stm32_adc *adc = platform_get_drvdata(pdev);
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct stm32_adc *adc = iio_priv(indio_dev);
 
 	pm_runtime_get_sync(&pdev->dev);
 	iio_device_unregister(indio_dev);
@@ -1987,19 +1995,17 @@ static int stm32_adc_remove(struct platform_device *pdev)
 #if defined(CONFIG_PM_SLEEP)
 static int stm32_adc_suspend(struct device *dev)
 {
-	struct stm32_adc *adc = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
 	if (iio_buffer_enabled(indio_dev))
-		__stm32_adc_buffer_predisable(indio_dev);
+		stm32_adc_buffer_predisable(indio_dev);
 
 	return pm_runtime_force_suspend(dev);
 }
 
 static int stm32_adc_resume(struct device *dev)
 {
-	struct stm32_adc *adc = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	int ret;
 
 	ret = pm_runtime_force_resume(dev);
@@ -2014,7 +2020,7 @@ static int stm32_adc_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	return __stm32_adc_buffer_postenable(indio_dev);
+	return stm32_adc_buffer_postenable(indio_dev);
 }
 #endif
 

@@ -494,6 +494,8 @@ static int dn_return_long(struct sk_buff *skb)
 
 /**
  * dn_route_rx_packet - Try and find a route for an incoming packet
+ * @net: The applicable net namespace
+ * @sk: Socket packet transmitted on
  * @skb: The packet to find a route for
  *
  * Returns: result of input function if route is found, error code otherwise
@@ -670,7 +672,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 	if (decnet_debug_level & 1)
 		printk(KERN_DEBUG
 			"dn_route_rcv: got 0x%02x from %s [%d %d %d]\n",
-			(int)flags, (dev) ? dev->name : "???", len, skb->len,
+			(int)flags, dev->name, len, skb->len,
 			padlen);
 
 	if (flags & DN_RT_PKT_CNTL) {
@@ -1173,7 +1175,7 @@ make_route:
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
-	rt = dst_alloc(&dn_dst_ops, dev_out, 0, DST_OBSOLETE_NONE, DST_HOST);
+	rt = dst_alloc(&dn_dst_ops, dev_out, 0, DST_OBSOLETE_NONE, 0);
 	if (rt == NULL)
 		goto e_nobufs;
 
@@ -1439,7 +1441,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	}
 
 make_route:
-	rt = dst_alloc(&dn_dst_ops, out_dev, 1, DST_OBSOLETE_NONE, DST_HOST);
+	rt = dst_alloc(&dn_dst_ops, out_dev, 1, DST_OBSOLETE_NONE, 0);
 	if (rt == NULL)
 		goto e_nobufs;
 

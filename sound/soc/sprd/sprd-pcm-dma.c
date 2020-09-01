@@ -190,7 +190,7 @@ static int sprd_pcm_hw_params(struct snd_soc_component *component,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct sprd_pcm_dma_private *dma_private = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct sprd_pcm_dma_params *dma_params;
 	size_t totsize = params_buffer_bytes(params);
 	size_t period = params_period_bytes(params);
@@ -200,7 +200,7 @@ static int sprd_pcm_hw_params(struct snd_soc_component *component,
 	unsigned long flags;
 	int ret, i, j, sg_num;
 
-	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	dma_params = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
 	if (!dma_params) {
 		dev_warn(component->dev, "no dma parameters setting\n");
 		dma_private->params = NULL;
@@ -515,7 +515,7 @@ static const struct snd_soc_component_driver sprd_soc_component = {
 	.mmap		= sprd_pcm_mmap,
 	.pcm_construct	= sprd_pcm_new,
 	.pcm_destruct	= sprd_pcm_free,
-	.compr_ops	= &sprd_platform_compr_ops,
+	.compress_ops	= &sprd_platform_compress_ops,
 };
 
 static int sprd_soc_platform_probe(struct platform_device *pdev)

@@ -78,7 +78,7 @@ application interfaces:
   - open: Implements restriction that only a single file descriptor can be open per SD-FEC instance at any time
   - release: Allows another file descriptor to be open, that is after current file descriptor is closed
   - poll: Provides a method to monitor for SD-FEC Error events
-  - unlocked_ioctl: Provides the the following ioctl commands that allows the application configure the SD-FEC core:
+  - unlocked_ioctl: Provides the following ioctl commands that allows the application configure the SD-FEC core:
 
 		- :c:macro:`XSDFEC_START_DEV`
 		- :c:macro:`XSDFEC_STOP_DEV`

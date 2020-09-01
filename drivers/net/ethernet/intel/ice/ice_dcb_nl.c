@@ -7,8 +7,6 @@
 #include "ice_dcb_nl.h"
 #include <net/dcbnl.h>
 
-#define ICE_APP_PROT_ID_ROCE	0x8915
-
 /**
  * ice_dcbnl_devreset - perform enough of a ifdown/ifup to sync DCBNL info
  * @netdev: device associated with interface that needs reset
@@ -95,14 +93,12 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 		new_cfg->etsrec.prio_table[i] = ets->reco_prio_tc[i];
 	}
 
-	/* max_tc is a 1-8 value count of number of TC's, not a 0-7 value
-	 * for the TC's index number.  Add one to value if not zero, and
-	 * for zero set it to the FW's default value
-	 */
-	if (max_tc)
-		max_tc++;
-	else
-		max_tc = IEEE_8021QAZ_MAX_TCS;
+	if (ice_dcb_bwchk(pf, new_cfg)) {
+		err = -EINVAL;
+		goto ets_out;
+	}
+
+	max_tc = pf->hw.func_caps.common_cap.maxtc;
 
 	new_cfg->etscfg.maxtcs = max_tc;
 
@@ -119,6 +115,7 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 	if (err == ICE_DCB_NO_HW_CHG)
 		err = ICE_DCB_HW_CHG_RST;
 
+ets_out:
 	mutex_unlock(&pf->tc_mutex);
 	return err;
 }
@@ -535,6 +532,30 @@ ice_dcbnl_get_pg_tc_cfg_rx(struct net_device *netdev, int prio,
 }
 
 /**
+ * ice_dcbnl_set_pg_tc_cfg_rx
+ * @netdev: relevant netdev struct
+ * @prio: corresponding user priority
+ * @prio_type: the traffic priority type
+ * @pgid: the PG ID
+ * @bw_pct: BW percentage for corresponding BWG
+ * @up_map: prio mapped to corresponding TC
+ *
+ * lldpad requires this function pointer to be non-NULL to complete CEE config.
+ */
+static void
+ice_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev,
+			   int __always_unused prio,
+			   u8 __always_unused prio_type,
+			   u8 __always_unused pgid,
+			   u8 __always_unused bw_pct,
+			   u8 __always_unused up_map)
+{
+	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+
+	dev_dbg(ice_pf_to_dev(pf), "Rx TC PG Config Not Supported.\n");
+}
+
+/**
  * ice_dcbnl_get_pg_bwg_cfg_rx - Get CEE PG BW Rx config
  * @netdev: pointer to netdev struct
  * @pgid: the corresponding traffic class
@@ -551,6 +572,23 @@ ice_dcbnl_get_pg_bwg_cfg_rx(struct net_device *netdev, int __always_unused pgid,
 		return;
 
 	*bw_pct = 0;
+}
+
+/**
+ * ice_dcbnl_set_pg_bwg_cfg_rx
+ * @netdev: the corresponding netdev
+ * @pgid: corresponding TC
+ * @bw_pct: BW percentage for given TC
+ *
+ * lldpad requires this function pointer to be non-NULL to complete CEE config.
+ */
+static void
+ice_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int __always_unused pgid,
+			    u8 __always_unused bw_pct)
+{
+	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+
+	dev_dbg(ice_pf_to_dev(pf), "Rx BWG PG Config Not Supported.\n");
 }
 
 /**
@@ -631,7 +669,7 @@ static bool
 ice_dcbnl_find_app(struct ice_dcbx_cfg *cfg,
 		   struct ice_dcb_app_priority_table *app)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < cfg->numapps; i++) {
 		if (app->selector == cfg->app[i].selector &&
@@ -706,7 +744,8 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_dcbx_cfg *old_cfg, *new_cfg;
-	int i, j, ret = 0;
+	unsigned int i, j;
+	int ret = 0;
 
 	if (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED)
 		return -EINVAL;
@@ -799,6 +838,8 @@ static const struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getpermhwaddr = ice_dcbnl_get_perm_hw_addr,
 	.setpgtccfgtx = ice_dcbnl_set_pg_tc_cfg_tx,
 	.setpgbwgcfgtx = ice_dcbnl_set_pg_bwg_cfg_tx,
+	.setpgtccfgrx = ice_dcbnl_set_pg_tc_cfg_rx,
+	.setpgbwgcfgrx = ice_dcbnl_set_pg_bwg_cfg_rx,
 	.getpgtccfgtx = ice_dcbnl_get_pg_tc_cfg_tx,
 	.getpgbwgcfgtx = ice_dcbnl_get_pg_bwg_cfg_tx,
 	.getpgtccfgrx = ice_dcbnl_get_pg_tc_cfg_rx,
@@ -827,7 +868,7 @@ void ice_dcbnl_set_all(struct ice_vsi *vsi)
 	struct ice_port_info *pi;
 	struct dcb_app sapp;
 	struct ice_pf *pf;
-	int i;
+	unsigned int i;
 
 	if (!netdev)
 		return;
@@ -899,7 +940,7 @@ ice_dcbnl_flush_apps(struct ice_pf *pf, struct ice_dcbx_cfg *old_cfg,
 		     struct ice_dcbx_cfg *new_cfg)
 {
 	struct ice_vsi *main_vsi = ice_get_main_vsi(pf);
-	int i;
+	unsigned int i;
 
 	if (!main_vsi)
 		return;

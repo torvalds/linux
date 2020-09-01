@@ -1,4 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config CEC_CORE
+	tristate
+
+config CEC_NOTIFIER
+	bool
+
+config CEC_PIN
+	bool
+
 config MEDIA_CEC_RC
 	bool "HDMI CEC RC integration"
 	depends on CEC_CORE && RC_CORE
@@ -11,3 +20,20 @@ config CEC_PIN_ERROR_INJ
 	depends on CEC_PIN && DEBUG_FS
 	help
 	  This option enables CEC error injection using debugfs.
+
+menuconfig MEDIA_CEC_SUPPORT
+	bool
+	prompt "HDMI CEC drivers"
+	default y if MEDIA_SUPPORT && !MEDIA_SUPPORT_FILTER
+	help
+	  Enable support for HDMI CEC (Consumer Electronics Control),
+	  which is an optional HDMI feature.
+
+	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
+	  adapter that supports HDMI CEC.
+
+if MEDIA_CEC_SUPPORT
+source "drivers/media/cec/i2c/Kconfig"
+source "drivers/media/cec/platform/Kconfig"
+source "drivers/media/cec/usb/Kconfig"
+endif

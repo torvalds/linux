@@ -3,7 +3,7 @@
 // Copyright (c) 2003-2005 Simtec Electronics
 //   Ben Dooks <ben@simtec.co.uk>
 //
-// http://www.handhelds.org/projects/h1940.html
+// https://www.handhelds.org/projects/h1940.html
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -516,7 +516,6 @@ static void h1940_backlight_exit(struct device *dev)
 static struct platform_pwm_backlight_data backlight_data = {
 	.max_brightness = 100,
 	.dft_brightness = 50,
-	.enable_gpio    = -1,
 	.init           = h1940_backlight_init,
 	.notify		= h1940_backlight_notify,
 	.exit           = h1940_backlight_exit,

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
+#define _GNU_SOURCE
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fts.h>
+#include <ftw.h>
 #include <libgen.h>
 #include <mntent.h>
 #include <stdbool.h>
@@ -28,6 +29,44 @@
 #ifndef BPF_FS_MAGIC
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
+
+const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
+	[BPF_CGROUP_INET_INGRESS]	= "ingress",
+	[BPF_CGROUP_INET_EGRESS]	= "egress",
+	[BPF_CGROUP_INET_SOCK_CREATE]	= "sock_create",
+	[BPF_CGROUP_INET_SOCK_RELEASE]	= "sock_release",
+	[BPF_CGROUP_SOCK_OPS]		= "sock_ops",
+	[BPF_CGROUP_DEVICE]		= "device",
+	[BPF_CGROUP_INET4_BIND]		= "bind4",
+	[BPF_CGROUP_INET6_BIND]		= "bind6",
+	[BPF_CGROUP_INET4_CONNECT]	= "connect4",
+	[BPF_CGROUP_INET6_CONNECT]	= "connect6",
+	[BPF_CGROUP_INET4_POST_BIND]	= "post_bind4",
+	[BPF_CGROUP_INET6_POST_BIND]	= "post_bind6",
+	[BPF_CGROUP_INET4_GETPEERNAME]	= "getpeername4",
+	[BPF_CGROUP_INET6_GETPEERNAME]	= "getpeername6",
+	[BPF_CGROUP_INET4_GETSOCKNAME]	= "getsockname4",
+	[BPF_CGROUP_INET6_GETSOCKNAME]	= "getsockname6",
+	[BPF_CGROUP_UDP4_SENDMSG]	= "sendmsg4",
+	[BPF_CGROUP_UDP6_SENDMSG]	= "sendmsg6",
+	[BPF_CGROUP_SYSCTL]		= "sysctl",
+	[BPF_CGROUP_UDP4_RECVMSG]	= "recvmsg4",
+	[BPF_CGROUP_UDP6_RECVMSG]	= "recvmsg6",
+	[BPF_CGROUP_GETSOCKOPT]		= "getsockopt",
+	[BPF_CGROUP_SETSOCKOPT]		= "setsockopt",
+
+	[BPF_SK_SKB_STREAM_PARSER]	= "sk_skb_stream_parser",
+	[BPF_SK_SKB_STREAM_VERDICT]	= "sk_skb_stream_verdict",
+	[BPF_SK_MSG_VERDICT]		= "sk_msg_verdict",
+	[BPF_LIRC_MODE2]		= "lirc_mode2",
+	[BPF_FLOW_DISSECTOR]		= "flow_dissector",
+	[BPF_TRACE_RAW_TP]		= "raw_tp",
+	[BPF_TRACE_FENTRY]		= "fentry",
+	[BPF_TRACE_FEXIT]		= "fexit",
+	[BPF_MODIFY_RETURN]		= "mod_ret",
+	[BPF_LSM_MAC]			= "lsm_mac",
+	[BPF_SK_LOOKUP]			= "sk_lookup",
+};
 
 void p_err(const char *fmt, ...)
 {
@@ -123,24 +162,35 @@ int mount_tracefs(const char *target)
 	return err;
 }
 
-int open_obj_pinned(char *path, bool quiet)
+int open_obj_pinned(const char *path, bool quiet)
 {
-	int fd;
+	char *pname;
+	int fd = -1;
 
-	fd = bpf_obj_get(path);
-	if (fd < 0) {
+	pname = strdup(path);
+	if (!pname) {
 		if (!quiet)
-			p_err("bpf obj get (%s): %s", path,
-			      errno == EACCES && !is_bpffs(dirname(path)) ?
-			    "directory not in bpf file system (bpffs)" :
-			    strerror(errno));
-		return -1;
+			p_err("mem alloc failed");
+		goto out_ret;
 	}
 
+	fd = bpf_obj_get(pname);
+	if (fd < 0) {
+		if (!quiet)
+			p_err("bpf obj get (%s): %s", pname,
+			      errno == EACCES && !is_bpffs(dirname(pname)) ?
+			    "directory not in bpf file system (bpffs)" :
+			    strerror(errno));
+		goto out_free;
+	}
+
+out_free:
+	free(pname);
+out_ret:
 	return fd;
 }
 
-int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
+int open_obj_pinned_any(const char *path, enum bpf_obj_type exp_type)
 {
 	enum bpf_obj_type type;
 	int fd;
@@ -211,39 +261,14 @@ int do_pin_fd(int fd, const char *name)
 	return err;
 }
 
-int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
+int do_pin_any(int argc, char **argv, int (*get_fd)(int *, char ***))
 {
-	unsigned int id;
-	char *endptr;
 	int err;
 	int fd;
 
-	if (argc < 3) {
-		p_err("too few arguments, id ID and FILE path is required");
-		return -1;
-	} else if (argc > 3) {
-		p_err("too many arguments");
-		return -1;
-	}
-
-	if (!is_prefix(*argv, "id")) {
-		p_err("expected 'id' got %s", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	id = strtoul(*argv, &endptr, 0);
-	if (*endptr) {
-		p_err("can't parse %s as ID", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	fd = get_fd_by_id(id);
-	if (fd < 0) {
-		p_err("can't open object by id (%u): %s", id, strerror(errno));
-		return -1;
-	}
+	fd = get_fd(&argc, &argv);
+	if (fd < 0)
+		return fd;
 
 	err = do_pin_fd(fd, *argv);
 
@@ -287,6 +312,8 @@ int get_fd_type(int fd)
 		return BPF_OBJ_MAP;
 	else if (strstr(buf, "bpf-prog"))
 		return BPF_OBJ_PROG;
+	else if (strstr(buf, "bpf-link"))
+		return BPF_OBJ_LINK;
 
 	return BPF_OBJ_UNKNOWN;
 }
@@ -353,71 +380,82 @@ void print_hex_data_json(uint8_t *data, size_t len)
 	jsonw_end_array(json_wtr);
 }
 
+/* extra params for nftw cb */
+static struct pinned_obj_table *build_fn_table;
+static enum bpf_obj_type build_fn_type;
+
+static int do_build_table_cb(const char *fpath, const struct stat *sb,
+			     int typeflag, struct FTW *ftwbuf)
+{
+	struct bpf_prog_info pinned_info;
+	__u32 len = sizeof(pinned_info);
+	struct pinned_obj *obj_node;
+	enum bpf_obj_type objtype;
+	int fd, err = 0;
+
+	if (typeflag != FTW_F)
+		goto out_ret;
+
+	fd = open_obj_pinned(fpath, true);
+	if (fd < 0)
+		goto out_ret;
+
+	objtype = get_fd_type(fd);
+	if (objtype != build_fn_type)
+		goto out_close;
+
+	memset(&pinned_info, 0, sizeof(pinned_info));
+	if (bpf_obj_get_info_by_fd(fd, &pinned_info, &len))
+		goto out_close;
+
+	obj_node = calloc(1, sizeof(*obj_node));
+	if (!obj_node) {
+		err = -1;
+		goto out_close;
+	}
+
+	obj_node->id = pinned_info.id;
+	obj_node->path = strdup(fpath);
+	if (!obj_node->path) {
+		err = -1;
+		free(obj_node);
+		goto out_close;
+	}
+
+	hash_add(build_fn_table->table, &obj_node->hash, obj_node->id);
+out_close:
+	close(fd);
+out_ret:
+	return err;
+}
+
 int build_pinned_obj_table(struct pinned_obj_table *tab,
 			   enum bpf_obj_type type)
 {
-	struct bpf_prog_info pinned_info = {};
-	struct pinned_obj *obj_node = NULL;
-	__u32 len = sizeof(pinned_info);
 	struct mntent *mntent = NULL;
-	enum bpf_obj_type objtype;
 	FILE *mntfile = NULL;
-	FTSENT *ftse = NULL;
-	FTS *fts = NULL;
-	int fd, err;
+	int flags = FTW_PHYS;
+	int nopenfd = 16;
+	int err = 0;
 
 	mntfile = setmntent("/proc/mounts", "r");
 	if (!mntfile)
 		return -1;
 
+	build_fn_table = tab;
+	build_fn_type = type;
+
 	while ((mntent = getmntent(mntfile))) {
-		char *path[] = { mntent->mnt_dir, NULL };
+		char *path = mntent->mnt_dir;
 
 		if (strncmp(mntent->mnt_type, "bpf", 3) != 0)
 			continue;
-
-		fts = fts_open(path, 0, NULL);
-		if (!fts)
-			continue;
-
-		while ((ftse = fts_read(fts))) {
-			if (!(ftse->fts_info & FTS_F))
-				continue;
-			fd = open_obj_pinned(ftse->fts_path, true);
-			if (fd < 0)
-				continue;
-
-			objtype = get_fd_type(fd);
-			if (objtype != type) {
-				close(fd);
-				continue;
-			}
-			memset(&pinned_info, 0, sizeof(pinned_info));
-			err = bpf_obj_get_info_by_fd(fd, &pinned_info, &len);
-			if (err) {
-				close(fd);
-				continue;
-			}
-
-			obj_node = malloc(sizeof(*obj_node));
-			if (!obj_node) {
-				close(fd);
-				fts_close(fts);
-				fclose(mntfile);
-				return -1;
-			}
-
-			memset(obj_node, 0, sizeof(*obj_node));
-			obj_node->id = pinned_info.id;
-			obj_node->path = strdup(ftse->fts_path);
-			hash_add(tab->table, &obj_node->hash, obj_node->id);
-
-			close(fd);
-		}
-		fts_close(fts);
+		err = nftw(path, do_build_table_cb, nopenfd, flags);
+		if (err)
+			break;
 	}
 	fclose(mntfile);
-	return 0;
+	return err;
 }
 
 void delete_pinned_obj_table(struct pinned_obj_table *tab)
@@ -596,4 +634,319 @@ int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what)
 	NEXT_ARGP();
 
 	return 0;
+}
+
+int __printf(2, 0)
+print_all_levels(__maybe_unused enum libbpf_print_level level,
+		 const char *format, va_list args)
+{
+	return vfprintf(stderr, format, args);
+}
+
+static int prog_fd_by_nametag(void *nametag, int **fds, bool tag)
+{
+	unsigned int id = 0;
+	int fd, nb_fds = 0;
+	void *tmp;
+	int err;
+
+	while (true) {
+		struct bpf_prog_info info = {};
+		__u32 len = sizeof(info);
+
+		err = bpf_prog_get_next_id(id, &id);
+		if (err) {
+			if (errno != ENOENT) {
+				p_err("%s", strerror(errno));
+				goto err_close_fds;
+			}
+			return nb_fds;
+		}
+
+		fd = bpf_prog_get_fd_by_id(id);
+		if (fd < 0) {
+			p_err("can't get prog by id (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fds;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			p_err("can't get prog info (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fd;
+		}
+
+		if ((tag && memcmp(nametag, info.tag, BPF_TAG_SIZE)) ||
+		    (!tag && strncmp(nametag, info.name, BPF_OBJ_NAME_LEN))) {
+			close(fd);
+			continue;
+		}
+
+		if (nb_fds > 0) {
+			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
+			if (!tmp) {
+				p_err("failed to realloc");
+				goto err_close_fd;
+			}
+			*fds = tmp;
+		}
+		(*fds)[nb_fds++] = fd;
+	}
+
+err_close_fd:
+	close(fd);
+err_close_fds:
+	while (--nb_fds >= 0)
+		close((*fds)[nb_fds]);
+	return -1;
+}
+
+int prog_parse_fds(int *argc, char ***argv, int **fds)
+{
+	if (is_prefix(**argv, "id")) {
+		unsigned int id;
+		char *endptr;
+
+		NEXT_ARGP();
+
+		id = strtoul(**argv, &endptr, 0);
+		if (*endptr) {
+			p_err("can't parse %s as ID", **argv);
+			return -1;
+		}
+		NEXT_ARGP();
+
+		(*fds)[0] = bpf_prog_get_fd_by_id(id);
+		if ((*fds)[0] < 0) {
+			p_err("get by id (%u): %s", id, strerror(errno));
+			return -1;
+		}
+		return 1;
+	} else if (is_prefix(**argv, "tag")) {
+		unsigned char tag[BPF_TAG_SIZE];
+
+		NEXT_ARGP();
+
+		if (sscanf(**argv, BPF_TAG_FMT, tag, tag + 1, tag + 2,
+			   tag + 3, tag + 4, tag + 5, tag + 6, tag + 7)
+		    != BPF_TAG_SIZE) {
+			p_err("can't parse tag");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return prog_fd_by_nametag(tag, fds, true);
+	} else if (is_prefix(**argv, "name")) {
+		char *name;
+
+		NEXT_ARGP();
+
+		name = **argv;
+		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
+			p_err("can't parse name");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return prog_fd_by_nametag(name, fds, false);
+	} else if (is_prefix(**argv, "pinned")) {
+		char *path;
+
+		NEXT_ARGP();
+
+		path = **argv;
+		NEXT_ARGP();
+
+		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_PROG);
+		if ((*fds)[0] < 0)
+			return -1;
+		return 1;
+	}
+
+	p_err("expected 'id', 'tag', 'name' or 'pinned', got: '%s'?", **argv);
+	return -1;
+}
+
+int prog_parse_fd(int *argc, char ***argv)
+{
+	int *fds = NULL;
+	int nb_fds, fd;
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = prog_parse_fds(argc, argv, &fds);
+	if (nb_fds != 1) {
+		if (nb_fds > 1) {
+			p_err("several programs match this handle");
+			while (nb_fds--)
+				close(fds[nb_fds]);
+		}
+		fd = -1;
+		goto exit_free;
+	}
+
+	fd = fds[0];
+exit_free:
+	free(fds);
+	return fd;
+}
+
+static int map_fd_by_name(char *name, int **fds)
+{
+	unsigned int id = 0;
+	int fd, nb_fds = 0;
+	void *tmp;
+	int err;
+
+	while (true) {
+		struct bpf_map_info info = {};
+		__u32 len = sizeof(info);
+
+		err = bpf_map_get_next_id(id, &id);
+		if (err) {
+			if (errno != ENOENT) {
+				p_err("%s", strerror(errno));
+				goto err_close_fds;
+			}
+			return nb_fds;
+		}
+
+		fd = bpf_map_get_fd_by_id(id);
+		if (fd < 0) {
+			p_err("can't get map by id (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fds;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			p_err("can't get map info (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fd;
+		}
+
+		if (strncmp(name, info.name, BPF_OBJ_NAME_LEN)) {
+			close(fd);
+			continue;
+		}
+
+		if (nb_fds > 0) {
+			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
+			if (!tmp) {
+				p_err("failed to realloc");
+				goto err_close_fd;
+			}
+			*fds = tmp;
+		}
+		(*fds)[nb_fds++] = fd;
+	}
+
+err_close_fd:
+	close(fd);
+err_close_fds:
+	while (--nb_fds >= 0)
+		close((*fds)[nb_fds]);
+	return -1;
+}
+
+int map_parse_fds(int *argc, char ***argv, int **fds)
+{
+	if (is_prefix(**argv, "id")) {
+		unsigned int id;
+		char *endptr;
+
+		NEXT_ARGP();
+
+		id = strtoul(**argv, &endptr, 0);
+		if (*endptr) {
+			p_err("can't parse %s as ID", **argv);
+			return -1;
+		}
+		NEXT_ARGP();
+
+		(*fds)[0] = bpf_map_get_fd_by_id(id);
+		if ((*fds)[0] < 0) {
+			p_err("get map by id (%u): %s", id, strerror(errno));
+			return -1;
+		}
+		return 1;
+	} else if (is_prefix(**argv, "name")) {
+		char *name;
+
+		NEXT_ARGP();
+
+		name = **argv;
+		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
+			p_err("can't parse name");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return map_fd_by_name(name, fds);
+	} else if (is_prefix(**argv, "pinned")) {
+		char *path;
+
+		NEXT_ARGP();
+
+		path = **argv;
+		NEXT_ARGP();
+
+		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_MAP);
+		if ((*fds)[0] < 0)
+			return -1;
+		return 1;
+	}
+
+	p_err("expected 'id', 'name' or 'pinned', got: '%s'?", **argv);
+	return -1;
+}
+
+int map_parse_fd(int *argc, char ***argv)
+{
+	int *fds = NULL;
+	int nb_fds, fd;
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = map_parse_fds(argc, argv, &fds);
+	if (nb_fds != 1) {
+		if (nb_fds > 1) {
+			p_err("several maps match this handle");
+			while (nb_fds--)
+				close(fds[nb_fds]);
+		}
+		fd = -1;
+		goto exit_free;
+	}
+
+	fd = fds[0];
+exit_free:
+	free(fds);
+	return fd;
+}
+
+int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
+{
+	int err;
+	int fd;
+
+	fd = map_parse_fd(argc, argv);
+	if (fd < 0)
+		return -1;
+
+	err = bpf_obj_get_info_by_fd(fd, info, info_len);
+	if (err) {
+		p_err("can't get map info: %s", strerror(errno));
+		close(fd);
+		return err;
+	}
+
+	return fd;
 }

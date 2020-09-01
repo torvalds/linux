@@ -53,7 +53,6 @@ struct zevio_timer {
 
 	struct clk *clk;
 	struct clock_event_device clkevt;
-	struct irqaction clkevt_irq;
 
 	char clocksource_name[64];
 	char clockevent_name[64];
@@ -172,12 +171,12 @@ static int __init zevio_timer_add(struct device_node *node)
 		/* Interrupt to occur when timer value matches 0 */
 		writel(0, timer->base + IO_MATCH(TIMER_MATCH));
 
-		timer->clkevt_irq.name		= timer->clockevent_name;
-		timer->clkevt_irq.handler	= zevio_timer_interrupt;
-		timer->clkevt_irq.dev_id	= timer;
-		timer->clkevt_irq.flags		= IRQF_TIMER | IRQF_IRQPOLL;
-
-		setup_irq(irqnr, &timer->clkevt_irq);
+		if (request_irq(irqnr, zevio_timer_interrupt,
+				IRQF_TIMER | IRQF_IRQPOLL,
+				timer->clockevent_name, timer)) {
+			pr_err("%s: request_irq() failed\n",
+			       timer->clockevent_name);
+		}
 
 		clockevents_config_and_register(&timer->clkevt,
 				clk_get_rate(timer->clk), 0x0001, 0xffff);

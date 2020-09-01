@@ -18,7 +18,6 @@
 #include <linux/security.h>
 #include <linux/memblock.h>
 
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -171,7 +170,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * and end up putting it elsewhere.
 	 * Add enough to the size so that the result can be aligned.
 	 */
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, vdso_base,
 				      (vdso_pages << PAGE_SHIFT) +
@@ -211,11 +210,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		goto fail_mmapsem;
 	}
 
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return 0;
 
  fail_mmapsem:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return rc;
 }
 
@@ -391,12 +390,7 @@ static unsigned long __init find_function64(struct lib64_elfinfo *lib,
 		       symname);
 		return 0;
 	}
-#ifdef VDS64_HAS_DESCRIPTORS
-	return *((u64 *)(vdso64_kbase + sym->st_value - VDSO64_LBASE)) -
-		VDSO64_LBASE;
-#else
 	return sym->st_value - VDSO64_LBASE;
-#endif
 }
 
 static int __init vdso_do_func_patch64(struct lib32_elfinfo *v32,
@@ -656,7 +650,8 @@ static void __init vdso_setup_syscall_map(void)
 		if (sys_call_table[i] != sys_ni_syscall)
 			vdso_data->syscall_map_64[i >> 5] |=
 				0x80000000UL >> (i & 0x1f);
-		if (compat_sys_call_table[i] != sys_ni_syscall)
+		if (IS_ENABLED(CONFIG_COMPAT) &&
+		    compat_sys_call_table[i] != sys_ni_syscall)
 			vdso_data->syscall_map_32[i >> 5] |=
 				0x80000000UL >> (i & 0x1f);
 #else /* CONFIG_PPC64 */
@@ -682,7 +677,7 @@ int vdso_getcpu_init(void)
 	node = cpu_to_node(cpu);
 	WARN_ON_ONCE(node > 0xffff);
 
-	val = (cpu & 0xfff) | ((node & 0xffff) << 16);
+	val = (cpu & 0xffff) | ((node & 0xffff) << 16);
 	mtspr(SPRN_SPRG_VDSO_WRITE, val);
 	get_paca()->sprg_vdso = val;
 

@@ -262,12 +262,12 @@ struct scpi_drvinfo {
 struct scpi_shared_mem {
 	__le32 command;
 	__le32 status;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct legacy_scpi_shared_mem {
 	__le32 status;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct scp_capabilities {

@@ -232,6 +232,14 @@ static void sdhci_pci_dumpregs(struct mmc_host *mmc)
 	sdhci_dumpregs(mmc_priv(mmc));
 }
 
+static void sdhci_cqhci_reset(struct sdhci_host *host, u8 mask)
+{
+	if ((host->mmc->caps2 & MMC_CAP2_CQE) && (mask & SDHCI_RESET_ALL) &&
+	    host->mmc->cqe_private)
+		cqhci_deactivate(host->mmc);
+	sdhci_reset(host, mask);
+}
+
 /*****************************************************************************\
  *                                                                           *
  * Hardware specific quirk handling                                          *
@@ -249,12 +257,8 @@ static int ricoh_probe(struct sdhci_pci_chip *chip)
 static int ricoh_mmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->caps =
-		((0x21 << SDHCI_TIMEOUT_CLK_SHIFT)
-			& SDHCI_TIMEOUT_CLK_MASK) |
-
-		((0x21 << SDHCI_CLOCK_BASE_SHIFT)
-			& SDHCI_CLOCK_BASE_MASK) |
-
+		FIELD_PREP(SDHCI_TIMEOUT_CLK_MASK, 0x21) |
+		FIELD_PREP(SDHCI_CLOCK_BASE_MASK, 0x21) |
 		SDHCI_TIMEOUT_CLK_UNIT |
 		SDHCI_CAN_VDD_330 |
 		SDHCI_CAN_DO_HISPD |
@@ -601,6 +605,9 @@ static int intel_select_drive_strength(struct mmc_card *card,
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
 	struct intel_host *intel_host = sdhci_pci_priv(slot);
 
+	if (!(mmc_driver_type_mask(intel_host->drv_strength) & card_drv))
+		return 0;
+
 	return intel_host->drv_strength;
 }
 
@@ -719,7 +726,7 @@ static const struct sdhci_ops sdhci_intel_glk_ops = {
 	.set_power		= sdhci_intel_set_power,
 	.enable_dma		= sdhci_pci_enable_dma,
 	.set_bus_width		= sdhci_set_bus_width,
-	.reset			= sdhci_reset,
+	.reset			= sdhci_cqhci_reset,
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
 	.irq			= sdhci_cqhci_irq,
@@ -1746,6 +1753,7 @@ static const struct pci_device_id pci_ids[] = {
 	SDHCI_PCI_DEVICE(SYNOPSYS, DWC_MSHC, snps),
 	SDHCI_PCI_DEVICE(GLI, 9750, gl9750),
 	SDHCI_PCI_DEVICE(GLI, 9755, gl9755),
+	SDHCI_PCI_DEVICE(GLI, 9763E, gl9763e),
 	SDHCI_PCI_DEVICE_CLASS(AMD, SYSTEM_SDHCI, PCI_CLASS_MASK, amd),
 	/* Generic SD host controller */
 	{PCI_DEVICE_CLASS(SYSTEM_SDHCI, PCI_CLASS_MASK)},

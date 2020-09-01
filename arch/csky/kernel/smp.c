@@ -12,8 +12,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/irq.h>
+#include <linux/irq_work.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
+#include <linux/seq_file.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/hotplug.h>
@@ -21,22 +23,28 @@
 #include <asm/traps.h>
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
-#include <asm/pgalloc.h>
-
-struct ipi_data_struct {
-	unsigned long bits ____cacheline_aligned;
-};
-static DEFINE_PER_CPU(struct ipi_data_struct, ipi_data);
+#ifdef CONFIG_CPU_HAS_FPU
+#include <abi/fpu.h>
+#endif
 
 enum ipi_message_type {
 	IPI_EMPTY,
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
+	IPI_IRQ_WORK,
 	IPI_MAX
 };
 
+struct ipi_data_struct {
+	unsigned long bits ____cacheline_aligned;
+	unsigned long stats[IPI_MAX] ____cacheline_aligned;
+};
+static DEFINE_PER_CPU(struct ipi_data_struct, ipi_data);
+
 static irqreturn_t handle_ipi(int irq, void *dev)
 {
+	unsigned long *stats = this_cpu_ptr(&ipi_data)->stats;
+
 	while (true) {
 		unsigned long ops;
 
@@ -44,11 +52,20 @@ static irqreturn_t handle_ipi(int irq, void *dev)
 		if (ops == 0)
 			return IRQ_HANDLED;
 
-		if (ops & (1 << IPI_RESCHEDULE))
+		if (ops & (1 << IPI_RESCHEDULE)) {
+			stats[IPI_RESCHEDULE]++;
 			scheduler_ipi();
+		}
 
-		if (ops & (1 << IPI_CALL_FUNC))
+		if (ops & (1 << IPI_CALL_FUNC)) {
+			stats[IPI_CALL_FUNC]++;
 			generic_smp_call_function_interrupt();
+		}
+
+		if (ops & (1 << IPI_IRQ_WORK)) {
+			stats[IPI_IRQ_WORK]++;
+			irq_work_run();
+		}
 
 		BUG_ON((ops >> IPI_MAX) != 0);
 	}
@@ -80,6 +97,29 @@ send_ipi_message(const struct cpumask *to_whom, enum ipi_message_type operation)
 	send_arch_ipi(to_whom);
 }
 
+static const char * const ipi_names[] = {
+	[IPI_EMPTY]		= "Empty interrupts",
+	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
+	[IPI_CALL_FUNC]		= "Function call interrupts",
+	[IPI_IRQ_WORK]		= "Irq work interrupts",
+};
+
+int arch_show_interrupts(struct seq_file *p, int prec)
+{
+	unsigned int cpu, i;
+
+	for (i = 0; i < IPI_MAX; i++) {
+		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i,
+			   prec >= 4 ? " " : "");
+		for_each_online_cpu(cpu)
+			seq_printf(p, "%10lu ",
+				per_cpu_ptr(&ipi_data, cpu)->stats[i]);
+		seq_printf(p, " %s\n", ipi_names[i]);
+	}
+
+	return 0;
+}
+
 void arch_send_call_function_ipi_mask(struct cpumask *mask)
 {
 	send_ipi_message(mask, IPI_CALL_FUNC);
@@ -104,6 +144,13 @@ void smp_send_reschedule(int cpu)
 {
 	send_ipi_message(cpumask_of(cpu), IPI_RESCHEDULE);
 }
+
+#ifdef CONFIG_IRQ_WORK
+void arch_irq_work_raise(void)
+{
+	send_ipi_message(cpumask_of(smp_processor_id()), IPI_IRQ_WORK);
+}
+#endif
 
 void __init smp_prepare_boot_cpu(void)
 {
@@ -153,8 +200,11 @@ void __init setup_smp(void)
 extern void _start_smp_secondary(void);
 
 volatile unsigned int secondary_hint;
+volatile unsigned int secondary_hint2;
 volatile unsigned int secondary_ccr;
 volatile unsigned int secondary_stack;
+
+unsigned long secondary_msa1;
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
@@ -163,7 +213,9 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	secondary_stack =
 		(unsigned int) task_stack_page(tidle) + THREAD_SIZE - 8;
 	secondary_hint = mfcr("cr31");
+	secondary_hint2 = mfcr("cr<21, 1>");
 	secondary_ccr  = mfcr("cr18");
+	secondary_msa1 = read_mmu_msa1();
 
 	/*
 	 * Because other CPUs are in reset status, we must flush data
@@ -203,6 +255,7 @@ void csky_start_secondary(void)
 	unsigned int cpu = smp_processor_id();
 
 	mtcr("cr31", secondary_hint);
+	mtcr("cr<21, 1>", secondary_hint2);
 	mtcr("cr18", secondary_ccr);
 
 	mtcr("vbr", vec_base);

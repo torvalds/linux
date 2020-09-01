@@ -883,3 +883,139 @@ Contact:	Subhash Jadavani <subhashj@codeaurora.org>
 Description:	This entry shows the target state of an UFS UIC link
 		for the chosen system power management level.
 		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/wb_presv_us_en
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows if preserve user-space was configured
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/wb_shared_alloc_units
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the shared allocated units of WB buffer
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/wb_type
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the configured WB type.
+		0x1 for shared buffer mode. 0x0 for dedicated buffer mode.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_buff_cap_adj
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the total user-space decrease in shared
+		buffer mode.
+		The value of this parameter is 3 for TLC NAND when SLC mode
+		is used as WriteBooster Buffer. 2 for MLC NAND.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_max_alloc_units
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the Maximum total WriteBooster Buffer size
+		which is supported by the entire device.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_max_wb_luns
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the maximum number of luns that can support
+		WriteBooster.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_sup_red_type
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	The supportability of user space reduction mode
+		and preserve user space mode.
+		00h: WriteBooster Buffer can be configured only in
+		user space reduction type.
+		01h: WriteBooster Buffer can be configured only in
+		preserve user space type.
+		02h: Device can be configured in either user space
+		reduction type or preserve user space type.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_sup_wb_type
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	The supportability of WriteBooster Buffer type.
+		00h: LU based WriteBooster Buffer configuration
+		01h: Single shared WriteBooster Buffer
+		configuration
+		02h: Supporting both LU based WriteBooster
+		Buffer and Single shared WriteBooster Buffer
+		configuration
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/wb_enable
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the status of WriteBooster.
+		0: WriteBooster is not enabled.
+		1: WriteBooster is enabled
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/wb_flush_en
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows if flush is enabled.
+		0: Flush operation is not performed.
+		1: Flush operation is performed.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/wb_flush_during_h8
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	Flush WriteBooster Buffer during hibernate state.
+		0: Device is not allowed to flush the
+		WriteBooster Buffer during link hibernate
+		state.
+		1: Device is allowed to flush the
+		WriteBooster Buffer during link hibernate
+		state
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_avail_buf
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the amount of unused WriteBooster buffer
+		available.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_cur_buf
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the amount of unused current buffer.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_flush_status
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the flush operation status.
+		00h: idle
+		01h: Flush operation in progress
+		02h: Flush operation stopped prematurely.
+		03h: Flush operation completed successfully
+		04h: Flush operation general failure
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_life_time_est
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows an indication of the WriteBooster Buffer
+		lifetime based on the amount of performed program/erase cycles
+		01h: 0% - 10% WriteBooster Buffer life time used
+		...
+		0Ah: 90% - 100% WriteBooster Buffer life time used
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/wb_buf_alloc_units
+Date:		June 2020
+Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Description:	This entry shows the configured size of WriteBooster buffer.
+		0400h corresponds to 4GB.
+		The file is read only.

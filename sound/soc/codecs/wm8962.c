@@ -118,7 +118,7 @@ static const struct reg_default wm8962_reg[] = {
 	{ 5, 0x0018 },   /* R5     - ADC & DAC Control 1 */
 	{ 6, 0x2008 },   /* R6     - ADC & DAC Control 2 */
 	{ 7, 0x000A },   /* R7     - Audio Interface 0 */
-
+	{ 8, 0x01E4 },   /* R8     - Clocking2 */
 	{ 9, 0x0300 },   /* R9     - Audio Interface 1 */
 	{ 10, 0x00C0 },  /* R10    - Left DAC volume */
 	{ 11, 0x00C0 },  /* R11    - Right DAC volume */
@@ -788,7 +788,6 @@ static bool wm8962_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case WM8962_CLOCKING1:
-	case WM8962_CLOCKING2:
 	case WM8962_SOFTWARE_RESET:
 	case WM8962_THERMAL_SHUTDOWN_STATUS:
 	case WM8962_ADDITIONAL_CONTROL_4:
@@ -957,7 +956,6 @@ static bool wm8962_readable_register(struct device *dev, unsigned int reg)
 	case WM8962_EQ39:
 	case WM8962_EQ40:
 	case WM8962_EQ41:
-	case WM8962_GPIO_BASE:
 	case WM8962_GPIO_2:
 	case WM8962_GPIO_3:
 	case WM8962_GPIO_5:
@@ -1481,9 +1479,9 @@ static int wm8962_dsp2_write_config(struct snd_soc_component *component)
 
 static int wm8962_dsp2_set_enable(struct snd_soc_component *component, u16 val)
 {
-	u16 adcl = snd_soc_component_read32(component, WM8962_LEFT_ADC_VOLUME);
-	u16 adcr = snd_soc_component_read32(component, WM8962_RIGHT_ADC_VOLUME);
-	u16 dac = snd_soc_component_read32(component, WM8962_ADC_DAC_CONTROL_1);
+	u16 adcl = snd_soc_component_read(component, WM8962_LEFT_ADC_VOLUME);
+	u16 adcr = snd_soc_component_read(component, WM8962_RIGHT_ADC_VOLUME);
+	u16 dac = snd_soc_component_read(component, WM8962_ADC_DAC_CONTROL_1);
 
 	/* Mute the ADCs and DACs */
 	snd_soc_component_write(component, WM8962_LEFT_ADC_VOLUME, 0);
@@ -1562,7 +1560,7 @@ static int wm8962_dsp2_ena_put(struct snd_kcontrol *kcontrol,
 	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int old = wm8962->dsp2_ena;
 	int ret = 0;
-	int dsp2_running = snd_soc_component_read32(component, WM8962_DSP2_POWER_MANAGEMENT) &
+	int dsp2_running = snd_soc_component_read(component, WM8962_DSP2_POWER_MANAGEMENT) &
 		WM8962_DSP2_ENA;
 
 	mutex_lock(&wm8962->dsp2_ena_lock);
@@ -1605,17 +1603,17 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* If the left PGA is enabled hit that VU bit... */
-	ret = snd_soc_component_read32(component, WM8962_PWR_MGMT_2);
+	ret = snd_soc_component_read(component, WM8962_PWR_MGMT_2);
 	if (ret & WM8962_HPOUTL_PGA_ENA) {
 		snd_soc_component_write(component, WM8962_HPOUTL_VOLUME,
-			      snd_soc_component_read32(component, WM8962_HPOUTL_VOLUME));
+			      snd_soc_component_read(component, WM8962_HPOUTL_VOLUME));
 		return 1;
 	}
 
 	/* ...otherwise the right.  The VU is stereo. */
 	if (ret & WM8962_HPOUTR_PGA_ENA)
 		snd_soc_component_write(component, WM8962_HPOUTR_VOLUME,
-			      snd_soc_component_read32(component, WM8962_HPOUTR_VOLUME));
+			      snd_soc_component_read(component, WM8962_HPOUTR_VOLUME));
 
 	return 1;
 }
@@ -1635,17 +1633,17 @@ static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* If the left PGA is enabled hit that VU bit... */
-	ret = snd_soc_component_read32(component, WM8962_PWR_MGMT_2);
+	ret = snd_soc_component_read(component, WM8962_PWR_MGMT_2);
 	if (ret & WM8962_SPKOUTL_PGA_ENA) {
 		snd_soc_component_write(component, WM8962_SPKOUTL_VOLUME,
-			      snd_soc_component_read32(component, WM8962_SPKOUTL_VOLUME));
+			      snd_soc_component_read(component, WM8962_SPKOUTL_VOLUME));
 		return 1;
 	}
 
 	/* ...otherwise the right.  The VU is stereo. */
 	if (ret & WM8962_SPKOUTR_PGA_ENA)
 		snd_soc_component_write(component, WM8962_SPKOUTR_VOLUME,
-			      snd_soc_component_read32(component, WM8962_SPKOUTR_VOLUME));
+			      snd_soc_component_read(component, WM8962_SPKOUTR_VOLUME));
 
 	return 1;
 }
@@ -1889,7 +1887,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		timeout = 0;
 		do {
 			msleep(1);
-			reg = snd_soc_component_read32(component, WM8962_DC_SERVO_6);
+			reg = snd_soc_component_read(component, WM8962_DC_SERVO_6);
 			if (reg < 0) {
 				dev_err(component->dev,
 					"Failed to read DCS status: %d\n",
@@ -1976,7 +1974,8 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		return snd_soc_component_write(component, reg, snd_soc_component_read32(component, reg));
+		return snd_soc_component_write(component, reg,
+			snd_soc_component_read(component, reg));
 	default:
 		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
@@ -2443,7 +2442,7 @@ static void wm8962_configure_bclk(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, WM8962_CLOCKING2,
 				WM8962_SYSCLK_ENA_MASK, WM8962_SYSCLK_ENA);
 
-	dspclk = snd_soc_component_read32(component, WM8962_CLOCKING1);
+	dspclk = snd_soc_component_read(component, WM8962_CLOCKING1);
 
 	if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_ON)
 		snd_soc_component_update_bits(component, WM8962_CLOCKING2,
@@ -2645,7 +2644,7 @@ static int wm8962_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif0 |= WM8962_LRCLK_INV | 3;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif0 |= 3;
 
@@ -2881,6 +2880,7 @@ static int wm8962_set_fll(struct snd_soc_component *component, int fll_id, int s
 
 	ret = pm_runtime_get_sync(component->dev);
 	if (ret < 0) {
+		pm_runtime_put_noidle(component->dev);
 		dev_err(component->dev, "Failed to resume device: %d\n", ret);
 		return ret;
 	}
@@ -2917,7 +2917,7 @@ static int wm8962_set_fll(struct snd_soc_component *component, int fll_id, int s
 	return 0;
 }
 
-static int wm8962_mute(struct snd_soc_dai *dai, int mute)
+static int wm8962_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int val, ret;
@@ -2950,7 +2950,8 @@ static const struct snd_soc_dai_ops wm8962_dai_ops = {
 	.hw_params = wm8962_hw_params,
 	.set_sysclk = wm8962_set_dai_sysclk,
 	.set_fmt = wm8962_set_dai_fmt,
-	.digital_mute = wm8962_mute,
+	.mute_stream = wm8962_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8962_dai = {
@@ -2983,7 +2984,7 @@ static void wm8962_mic_work(struct work_struct *work)
 	int irq_pol = 0;
 	int reg;
 
-	reg = snd_soc_component_read32(component, WM8962_ADDITIONAL_CONTROL_4);
+	reg = snd_soc_component_read(component, WM8962_ADDITIONAL_CONTROL_4);
 
 	if (reg & WM8962_MICDET_STS) {
 		status |= SND_JACK_MICROPHONE;
@@ -3013,6 +3014,7 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
 		dev_err(dev, "Failed to resume: %d\n", ret);
 		return IRQ_NONE;
 	}
@@ -3435,8 +3437,14 @@ static int wm8962_probe(struct snd_soc_component *component)
 	/* Save boards having to disable DMIC when not in use */
 	dmicclk = false;
 	dmicdat = false;
-	for (i = 0; i < WM8962_MAX_GPIO; i++) {
-		switch (snd_soc_component_read32(component, WM8962_GPIO_BASE + i)
+	for (i = 1; i < WM8962_MAX_GPIO; i++) {
+		/*
+		 * Register 515 (WM8962_GPIO_BASE + 3) does not exist,
+		 * so skip its access
+		 */
+		if (i == 3)
+			continue;
+		switch (snd_soc_component_read(component, WM8962_GPIO_BASE + i)
 			& WM8962_GP2_FN_MASK) {
 		case WM8962_GPIO_FN_DMICCLK:
 			dmicclk = true;
@@ -3799,8 +3807,8 @@ static int wm8962_runtime_resume(struct device *dev)
 	/* SYSCLK defaults to on; make sure it is off so we can safely
 	 * write to registers if the device is declocked.
 	 */
-	regmap_update_bits(wm8962->regmap, WM8962_CLOCKING2,
-			   WM8962_SYSCLK_ENA, 0);
+	regmap_write_bits(wm8962->regmap, WM8962_CLOCKING2,
+			  WM8962_SYSCLK_ENA, 0);
 
 	/* Ensure we have soft control over all registers */
 	regmap_update_bits(wm8962->regmap, WM8962_CLOCKING2,

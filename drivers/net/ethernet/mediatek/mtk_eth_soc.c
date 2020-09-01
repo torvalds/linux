@@ -65,6 +65,17 @@ u32 mtk_r32(struct mtk_eth *eth, unsigned reg)
 	return __raw_readl(eth->base + reg);
 }
 
+static u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg)
+{
+	u32 val;
+
+	val = mtk_r32(eth, reg);
+	val &= ~mask;
+	val |= set;
+	mtk_w32(eth, val, reg);
+	return reg;
+}
+
 static int mtk_mdio_busy_wait(struct mtk_eth *eth)
 {
 	unsigned long t_start = jiffies;
@@ -160,10 +171,20 @@ static int mt7621_gmac0_rgmii_adjust(struct mtk_eth *eth,
 	return 0;
 }
 
-static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth, int speed)
+static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth,
+				   phy_interface_t interface, int speed)
 {
 	u32 val;
 	int ret;
+
+	if (interface == PHY_INTERFACE_MODE_TRGMII) {
+		mtk_w32(eth, TRGMII_MODE, INTF_MODE);
+		val = 500000000;
+		ret = clk_set_rate(eth->clks[MTK_CLK_TRGPLL], val);
+		if (ret)
+			dev_err(eth->dev, "Failed to set trgmii pll: %d\n", ret);
+		return;
+	}
 
 	val = (speed == SPEED_1000) ?
 		INTF_MODE_RGMII_1000 : INTF_MODE_RGMII_10_100;
@@ -193,7 +214,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
 	struct mtk_eth *eth = mac->hw;
-	u32 mcr_cur, mcr_new, sid;
+	u32 mcr_cur, mcr_new, sid, i;
 	int val, ge_mode, err;
 
 	/* MT76x8 has no hardware settings between for the MAC */
@@ -207,7 +228,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			if (!MTK_HAS_CAPS(mac->hw->soc->caps,
 					  MTK_GMAC1_TRGMII))
 				goto err_phy;
-			/* fall through */
+			fallthrough;
 		case PHY_INTERFACE_MODE_RGMII_TXID:
 		case PHY_INTERFACE_MODE_RGMII_RXID:
 		case PHY_INTERFACE_MODE_RGMII_ID:
@@ -251,10 +272,20 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 							      state->interface))
 					goto err_phy;
 			} else {
-				if (state->interface !=
-				    PHY_INTERFACE_MODE_TRGMII)
-					mtk_gmac0_rgmii_adjust(mac->hw,
-							       state->speed);
+				mtk_gmac0_rgmii_adjust(mac->hw,
+						       state->interface,
+						       state->speed);
+
+				/* mt7623_pad_clk_setup */
+				for (i = 0 ; i < NUM_TRGMII_CTRL; i++)
+					mtk_w32(mac->hw,
+						TD_DM_DRVP(8) | TD_DM_DRVN(8),
+						TRGMII_TD_ODT(i));
+
+				/* Assert/release MT7623 RXC reset */
+				mtk_m32(mac->hw, 0, RXC_RST | RXC_DQSISEL,
+					TRGMII_RCK_CTRL);
+				mtk_m32(mac->hw, RXC_RST, 0, TRGMII_RCK_CTRL);
 			}
 		}
 
@@ -322,28 +353,8 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 	/* Setup gmac */
 	mcr_cur = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
 	mcr_new = mcr_cur;
-	mcr_new &= ~(MAC_MCR_SPEED_100 | MAC_MCR_SPEED_1000 |
-		     MAC_MCR_FORCE_DPX | MAC_MCR_FORCE_TX_FC |
-		     MAC_MCR_FORCE_RX_FC);
 	mcr_new |= MAC_MCR_MAX_RX_1536 | MAC_MCR_IPG_CFG | MAC_MCR_FORCE_MODE |
 		   MAC_MCR_BACKOFF_EN | MAC_MCR_BACKPR_EN | MAC_MCR_FORCE_LINK;
-
-	switch (state->speed) {
-	case SPEED_2500:
-	case SPEED_1000:
-		mcr_new |= MAC_MCR_SPEED_1000;
-		break;
-	case SPEED_100:
-		mcr_new |= MAC_MCR_SPEED_100;
-		break;
-	}
-	if (state->duplex == DUPLEX_FULL) {
-		mcr_new |= MAC_MCR_FORCE_DPX;
-		if (state->pause & MLO_PAUSE_TX)
-			mcr_new |= MAC_MCR_FORCE_TX_FC;
-		if (state->pause & MLO_PAUSE_RX)
-			mcr_new |= MAC_MCR_FORCE_RX_FC;
-	}
 
 	/* Only update control register when needed! */
 	if (mcr_new != mcr_cur)
@@ -412,13 +423,39 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
 }
 
-static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
-			    phy_interface_t interface,
-			    struct phy_device *phy)
+static void mtk_mac_link_up(struct phylink_config *config,
+			    struct phy_device *phy,
+			    unsigned int mode, phy_interface_t interface,
+			    int speed, int duplex, bool tx_pause, bool rx_pause)
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
 	u32 mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
+
+	mcr &= ~(MAC_MCR_SPEED_100 | MAC_MCR_SPEED_1000 |
+		 MAC_MCR_FORCE_DPX | MAC_MCR_FORCE_TX_FC |
+		 MAC_MCR_FORCE_RX_FC);
+
+	/* Configure speed */
+	switch (speed) {
+	case SPEED_2500:
+	case SPEED_1000:
+		mcr |= MAC_MCR_SPEED_1000;
+		break;
+	case SPEED_100:
+		mcr |= MAC_MCR_SPEED_100;
+		break;
+	}
+
+	/* Configure duplex */
+	if (duplex == DUPLEX_FULL)
+		mcr |= MAC_MCR_FORCE_DPX;
+
+	/* Configure pause modes - phylink will avoid these for half duplex */
+	if (tx_pause)
+		mcr |= MAC_MCR_FORCE_TX_FC;
+	if (rx_pause)
+		mcr |= MAC_MCR_FORCE_RX_FC;
 
 	mcr |= MAC_MCR_TX_EN | MAC_MCR_RX_EN;
 	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
@@ -464,11 +501,11 @@ static void mtk_validate(struct phylink_config *config,
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		phylink_set(mask, 1000baseT_Half);
-		/* fall through */
+		fallthrough;
 	case PHY_INTERFACE_MODE_SGMII:
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
-		/* fall through */
+		fallthrough;
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_RMII:
 	case PHY_INTERFACE_MODE_REVMII:
@@ -1099,7 +1136,7 @@ static void mtk_stop_queue(struct mtk_eth *eth)
 	}
 }
 
-static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
@@ -2858,6 +2895,8 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 
 	eth->netdev[id]->irq = eth->irq[0];
 	eth->netdev[id]->dev.of_node = np;
+
+	eth->netdev[id]->max_mtu = MTK_MAX_RX_LENGTH - MTK_RX_ETH_HLEN;
 
 	return 0;
 

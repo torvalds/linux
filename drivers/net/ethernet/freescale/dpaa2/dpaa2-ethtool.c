@@ -43,9 +43,10 @@ static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	"[drv] tx conf bytes",
 	"[drv] tx sg frames",
 	"[drv] tx sg bytes",
-	"[drv] tx realloc frames",
 	"[drv] rx sg frames",
 	"[drv] rx sg bytes",
+	"[drv] tx converted sg frames",
+	"[drv] tx converted sg bytes",
 	"[drv] enqueue portal busy",
 	/* Channel stats */
 	"[drv] dequeue portal busy",
@@ -77,6 +78,16 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 
 	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
+}
+
+static int dpaa2_eth_nway_reset(struct net_device *net_dev)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+
+	if (priv->mac)
+		return phylink_ethtool_nway_reset(priv->mac->phylink);
+
+	return -EOPNOTSUPP;
 }
 
 static int
@@ -120,9 +131,8 @@ static void dpaa2_eth_get_pauseparam(struct net_device *net_dev,
 		return;
 	}
 
-	pause->rx_pause = !!(link_options & DPNI_LINK_OPT_PAUSE);
-	pause->tx_pause = pause->rx_pause ^
-			  !!(link_options & DPNI_LINK_OPT_ASYM_PAUSE);
+	pause->rx_pause = dpaa2_eth_rx_pause_enabled(link_options);
+	pause->tx_pause = dpaa2_eth_tx_pause_enabled(link_options);
 	pause->autoneg = AUTONEG_DISABLE;
 }
 
@@ -267,7 +277,7 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	/* Per-channel stats */
 	for (k = 0; k < priv->num_channels; k++) {
 		ch_stats = &priv->channel[k]->stats;
-		for (j = 0; j < sizeof(*ch_stats) / sizeof(__u64); j++)
+		for (j = 0; j < sizeof(*ch_stats) / sizeof(__u64) - 1; j++)
 			*((__u64 *)data + i + j) += *((__u64 *)ch_stats + j);
 	}
 	i += j;
@@ -537,7 +547,7 @@ static int do_cls_rule(struct net_device *net_dev,
 	dma_addr_t key_iova;
 	u64 fields = 0;
 	void *key_buf;
-	int err;
+	int i, err;
 
 	if (fs->ring_cookie != RX_CLS_FLOW_DISC &&
 	    fs->ring_cookie >= dpaa2_eth_queue_count(priv))
@@ -597,11 +607,18 @@ static int do_cls_rule(struct net_device *net_dev,
 			fs_act.options |= DPNI_FS_OPT_DISCARD;
 		else
 			fs_act.flow_id = fs->ring_cookie;
-		err = dpni_add_fs_entry(priv->mc_io, 0, priv->mc_token, 0,
-					fs->location, &rule_cfg, &fs_act);
-	} else {
-		err = dpni_remove_fs_entry(priv->mc_io, 0, priv->mc_token, 0,
-					   &rule_cfg);
+	}
+	for (i = 0; i < dpaa2_eth_tc_count(priv); i++) {
+		if (add)
+			err = dpni_add_fs_entry(priv->mc_io, 0, priv->mc_token,
+						i, fs->location, &rule_cfg,
+						&fs_act);
+		else
+			err = dpni_remove_fs_entry(priv->mc_io, 0,
+						   priv->mc_token, i,
+						   &rule_cfg);
+		if (err)
+			break;
 	}
 
 	dma_unmap_single(dev, key_iova, rule_cfg.key_size * 2, DMA_TO_DEVICE);
@@ -625,7 +642,7 @@ static int num_rules(struct dpaa2_eth_priv *priv)
 
 static int update_cls_rule(struct net_device *net_dev,
 			   struct ethtool_rx_flow_spec *new_fs,
-			   int location)
+			   unsigned int location)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpaa2_eth_cls_rule *rule;
@@ -761,6 +778,7 @@ static int dpaa2_eth_get_ts_info(struct net_device *dev,
 
 const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
+	.nway_reset = dpaa2_eth_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_link_ksettings = dpaa2_eth_get_link_ksettings,
 	.set_link_ksettings = dpaa2_eth_set_link_ksettings,

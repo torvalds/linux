@@ -49,6 +49,18 @@ struct gpio_flag flagnames[] = {
 		.name = "open-source",
 		.mask = GPIOLINE_FLAG_OPEN_SOURCE,
 	},
+	{
+		.name = "pull-up",
+		.mask = GPIOLINE_FLAG_BIAS_PULL_UP,
+	},
+	{
+		.name = "pull-down",
+		.mask = GPIOLINE_FLAG_BIAS_PULL_DOWN,
+	},
+	{
+		.name = "bias-disabled",
+		.mask = GPIOLINE_FLAG_BIAS_DISABLE,
+	},
 };
 
 void print_flags(unsigned long flags)
@@ -82,7 +94,7 @@ int list_device(const char *device_name)
 	if (fd == -1) {
 		ret = -errno;
 		fprintf(stderr, "Failed to open %s\n", chrdev_name);
-		goto exit_close_error;
+		goto exit_free_name;
 	}
 
 	/* Inspect this GPIO chip */
@@ -129,6 +141,7 @@ int list_device(const char *device_name)
 exit_close_error:
 	if (close(fd) == -1)
 		perror("Failed to close GPIO character device file");
+exit_free_name:
 	free(chrdev_name);
 	return ret;
 }

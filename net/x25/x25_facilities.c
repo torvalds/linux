@@ -98,7 +98,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 					*vc_fac_mask |= X25_MASK_REVERSE;
 					break;
 				}
-				/*fall through */
+				fallthrough;
 			case X25_FAC_THROUGHPUT:
 				facilities->throughput = p[1];
 				*vc_fac_mask |= X25_MASK_THROUGHPUT;

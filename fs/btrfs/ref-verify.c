@@ -286,6 +286,8 @@ static struct block_entry *add_block_entry(struct btrfs_fs_info *fs_info,
 			exist_re = insert_root_entry(&exist->roots, re);
 			if (exist_re)
 				kfree(re);
+		} else {
+			kfree(re);
 		}
 		kfree(be);
 		return exist;
@@ -509,7 +511,7 @@ static int process_leaf(struct btrfs_root *root,
 		switch (key.type) {
 		case BTRFS_EXTENT_ITEM_KEY:
 			*num_bytes = key.offset;
-			/* fall through */
+			fallthrough;
 		case BTRFS_METADATA_ITEM_KEY:
 			*bytenr = key.objectid;
 			ret = process_extent_item(fs_info, path, &key, i,
@@ -799,6 +801,15 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 "trying to do action %d to bytenr %llu num_bytes %llu but there is no existing entry!",
 				  action, (unsigned long long)bytenr,
 				  (unsigned long long)num_bytes);
+			dump_ref_action(fs_info, ra);
+			kfree(ref);
+			kfree(ra);
+			goto out_unlock;
+		} else if (be->num_refs == 0) {
+			btrfs_err(fs_info,
+		"trying to do action %d for a bytenr that has 0 total references",
+				action);
+			dump_block_entry(fs_info, be);
 			dump_ref_action(fs_info, ra);
 			kfree(ref);
 			kfree(ra);

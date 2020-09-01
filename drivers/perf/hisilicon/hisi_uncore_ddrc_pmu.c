@@ -378,6 +378,7 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 			      ddrc_pmu->sccl_id, ddrc_pmu->index_id);
 	ddrc_pmu->pmu = (struct pmu) {
 		.name		= name,
+		.module		= THIS_MODULE,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= hisi_uncore_pmu_event_init,
 		.pmu_enable	= hisi_uncore_pmu_enable,
@@ -394,8 +395,9 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&ddrc_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(ddrc_pmu->dev, "DDRC PMU register failed!\n");
-		cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-					    &ddrc_pmu->node);
+		cpuhp_state_remove_instance_nocalls(
+			CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE, &ddrc_pmu->node);
+		irq_set_affinity_hint(ddrc_pmu->irq, NULL);
 	}
 
 	return ret;
@@ -406,8 +408,9 @@ static int hisi_ddrc_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *ddrc_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&ddrc_pmu->pmu);
-	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-				    &ddrc_pmu->node);
+	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
+					    &ddrc_pmu->node);
+	irq_set_affinity_hint(ddrc_pmu->irq, NULL);
 
 	return 0;
 }
@@ -416,6 +419,7 @@ static struct platform_driver hisi_ddrc_pmu_driver = {
 	.driver = {
 		.name = "hisi_ddrc_pmu",
 		.acpi_match_table = ACPI_PTR(hisi_ddrc_pmu_acpi_match),
+		.suppress_bind_attrs = true,
 	},
 	.probe = hisi_ddrc_pmu_probe,
 	.remove = hisi_ddrc_pmu_remove,

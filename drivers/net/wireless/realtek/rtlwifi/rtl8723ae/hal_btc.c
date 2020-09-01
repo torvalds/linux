@@ -131,7 +131,7 @@ static bool rtl8723e_dm_bt_is_same_coexist_state(struct ieee80211_hw *hw)
 	    (rtlpriv->btcoexist.previous_state_h ==
 	     rtlpriv->btcoexist.cstate_h)) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-			 "[DM][BT], Coexist state do not chang!!\n");
+			 "[DM][BT], Coexist state do not change!!\n");
 		return true;
 	} else {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,

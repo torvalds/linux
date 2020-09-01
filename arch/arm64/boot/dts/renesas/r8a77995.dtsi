@@ -389,6 +389,15 @@
 			dma-channels = <2>;
 		};
 
+		arm_cc630p: crypto@e6601000 {
+			compatible = "arm,cryptocell-630p-ree";
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x0 0xe6601000 0 0x1000>;
+			clocks = <&cpg CPG_MOD 229>;
+			resets = <&cpg 229>;
+			power-domains = <&sysc R8A77995_PD_ALWAYS_ON>;
+		};
+
 		canfd: can@e66c0000 {
 			compatible = "renesas,r8a77995-canfd",
 				     "renesas,rcar-gen3-canfd";
@@ -498,7 +507,7 @@
 			       <&ipmmu_ds1 22>, <&ipmmu_ds1 23>;
 		};
 
-		ipmmu_ds0: mmu@e6740000 {
+		ipmmu_ds0: iommu@e6740000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xe6740000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 0>;
@@ -506,7 +515,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_ds1: mmu@e7740000 {
+		ipmmu_ds1: iommu@e7740000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xe7740000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 1>;
@@ -514,7 +523,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_hc: mmu@e6570000 {
+		ipmmu_hc: iommu@e6570000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xe6570000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 2>;
@@ -522,7 +531,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_mm: mmu@e67b0000 {
+		ipmmu_mm: iommu@e67b0000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xe67b0000 0 0x1000>;
 			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
@@ -531,7 +540,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_mp: mmu@ec670000 {
+		ipmmu_mp: iommu@ec670000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xec670000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 4>;
@@ -539,7 +548,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_pv0: mmu@fd800000 {
+		ipmmu_pv0: iommu@fd800000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xfd800000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 6>;
@@ -547,7 +556,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_rt: mmu@ffc80000 {
+		ipmmu_rt: iommu@ffc80000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xffc80000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 10>;
@@ -555,7 +564,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vc0: mmu@fe6b0000 {
+		ipmmu_vc0: iommu@fe6b0000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xfe6b0000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 12>;
@@ -563,7 +572,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vi0: mmu@febd0000 {
+		ipmmu_vi0: iommu@febd0000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xfebd0000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 14>;
@@ -571,7 +580,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vp0: mmu@fe990000 {
+		ipmmu_vp0: iommu@fe990000 {
 			compatible = "renesas,ipmmu-r8a77995";
 			reg = <0 0xfe990000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 16>;
@@ -907,7 +916,7 @@
 			status = "disabled";
 		};
 
-		sdhi2: sd@ee140000 {
+		sdhi2: mmc@ee140000 {
 			compatible = "renesas,sdhi-r8a77995",
 				     "renesas,rcar-gen3-sdhi";
 			reg = <0 0xee140000 0 0x2000>;
@@ -1017,14 +1026,13 @@
 			reg = <0 0xfeb00000 0 0x40000>;
 			interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 724>,
-				 <&cpg CPG_MOD 723>;
+			clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>;
 			clock-names = "du.0", "du.1";
 			resets = <&cpg 724>;
 			reset-names = "du.0";
 
 			renesas,cmms = <&cmm0>, <&cmm1>;
-			vsps = <&vspd0 0>, <&vspd1 0>;
+			renesas,vsps = <&vspd0 0>, <&vspd1 0>;
 
 			status = "disabled";
 

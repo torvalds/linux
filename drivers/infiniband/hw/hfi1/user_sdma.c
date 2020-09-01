@@ -141,6 +141,7 @@ static int defer_packet_queue(
 	 */
 	xchg(&pq->state, SDMA_PKT_Q_DEFERRED);
 	if (list_empty(&pq->busy.list)) {
+		pq->busy.lock = &sde->waitlock;
 		iowait_get_priority(&pq->busy);
 		iowait_queue(pkts_sent, &pq->busy, &sde->dmawait);
 	}
@@ -155,6 +156,7 @@ static void activate_packet_queue(struct iowait *wait, int reason)
 {
 	struct hfi1_user_sdma_pkt_q *pq =
 		container_of(wait, struct hfi1_user_sdma_pkt_q, busy);
+	pq->busy.lock = NULL;
 	xchg(&pq->state, SDMA_PKT_Q_ACTIVE);
 	wake_up(&wait->wait_dma);
 };
@@ -256,6 +258,21 @@ pq_reqs_nomem:
 	return ret;
 }
 
+static void flush_pq_iowait(struct hfi1_user_sdma_pkt_q *pq)
+{
+	unsigned long flags;
+	seqlock_t *lock = pq->busy.lock;
+
+	if (!lock)
+		return;
+	write_seqlock_irqsave(lock, flags);
+	if (!list_empty(&pq->busy.list)) {
+		list_del_init(&pq->busy.list);
+		pq->busy.lock = NULL;
+	}
+	write_sequnlock_irqrestore(lock, flags);
+}
+
 int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
 			       struct hfi1_ctxtdata *uctxt)
 {
@@ -281,6 +298,7 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
 		kfree(pq->reqs);
 		kfree(pq->req_in_use);
 		kmem_cache_destroy(pq->txreq_cache);
+		flush_pq_iowait(pq);
 		kfree(pq);
 	} else {
 		spin_unlock(&fd->pq_rcu_lock);
@@ -571,10 +589,6 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 
 	set_comp_state(pq, cq, info.comp_idx, QUEUED, 0);
 	pq->state = SDMA_PKT_Q_ACTIVE;
-	/* Send the first N packets in the request to buy us some time */
-	ret = user_sdma_send_pkts(req, pcount);
-	if (unlikely(ret < 0 && ret != -EBUSY))
-		goto free_req;
 
 	/*
 	 * This is a somewhat blocking send implementation.
@@ -587,11 +601,12 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 		if (ret < 0) {
 			if (ret != -EBUSY)
 				goto free_req;
-			wait_event_interruptible_timeout(
+			if (wait_event_interruptible_timeout(
 				pq->busy.wait_dma,
-				(pq->state == SDMA_PKT_Q_ACTIVE),
+				pq->state == SDMA_PKT_Q_ACTIVE,
 				msecs_to_jiffies(
-					SDMA_IOWAIT_TIMEOUT));
+					SDMA_IOWAIT_TIMEOUT)) <= 0)
+				flush_pq_iowait(pq);
 		}
 	}
 	*count += idx;

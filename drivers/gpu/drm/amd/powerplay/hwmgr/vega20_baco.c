@@ -91,16 +91,16 @@ int vega20_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 			WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
 
 			if(smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_EnterBaco, 0))
+					PPSMC_MSG_EnterBaco, 0, NULL))
 				return -EINVAL;
 		} else {
 			if(smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_EnterBaco, 1))
+					PPSMC_MSG_EnterBaco, 1, NULL))
 				return -EINVAL;
 		}
 
 	} else if (state == BACO_STATE_OUT) {
-		if (smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ExitBaco))
+		if (smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ExitBaco, NULL))
 			return -EINVAL;
 		if (!soc15_baco_program_registers(hwmgr, clean_baco_tbl,
 						     ARRAY_SIZE(clean_baco_tbl)))
@@ -118,5 +118,5 @@ int vega20_baco_apply_vdci_flush_workaround(struct pp_hwmgr *hwmgr)
 	if (ret)
 		return ret;
 
-	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_BacoWorkAroundFlushVDCI);
+	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_BacoWorkAroundFlushVDCI, NULL);
 }

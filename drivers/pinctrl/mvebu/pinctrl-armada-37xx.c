@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -44,13 +45,14 @@
  * The pins of a pinmux groups are composed of one or two groups of contiguous
  * pins.
  * @name:	Name of the pin group, used to lookup the group.
- * @start_pins:	Index of the first pin of the main range of pins belonging to
+ * @start_pin:	Index of the first pin of the main range of pins belonging to
  *		the group
  * @npins:	Number of pins included in the first range
  * @reg_mask:	Bit mask matching the group in the selection register
- * @extra_pins:	Index of the first pin of the optional second range of pins
+ * @val:	Value to write to the registers for a given function
+ * @extra_pin:	Index of the first pin of the optional second range of pins
  *		belonging to the group
- * @npins:	Number of pins included in the second optional range
+ * @extra_npins:Number of pins included in the second optional range
  * @funcs:	A list of pinmux functions that can be selected for this group.
  * @pins:	List of the pins included in the group
  */
@@ -402,7 +404,10 @@ static int armada_37xx_gpio_get_direction(struct gpio_chip *chip,
 	mask = BIT(offset);
 	regmap_read(info->regmap, reg, &val);
 
-	return !(val & mask);
+	if (val & mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int armada_37xx_gpio_direction_output(struct gpio_chip *chip,
@@ -738,14 +743,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 		return ret;
 	}
 
-	nr_irq_parent = platform_irq_count(pdev);
-	if (nr_irq_parent < 0) {
-		if (nr_irq_parent != -EPROBE_DEFER)
-			dev_err(dev, "Couldn't determine irq count: %pe\n",
-				ERR_PTR(nr_irq_parent));
-		return nr_irq_parent;
-	}
-
+	nr_irq_parent = of_irq_count(np);
 	spin_lock_init(&info->irq_lock);
 
 	if (!nr_irq_parent) {
@@ -782,7 +780,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	if (!girq->parents)
 		return -ENOMEM;
 	for (i = 0; i < nr_irq_parent; i++) {
-		int irq = platform_get_irq(pdev, i);
+		int irq = irq_of_parse_and_map(np, i);
 
 		if (irq < 0)
 			continue;

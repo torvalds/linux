@@ -16,7 +16,10 @@
 
 /* Wake Up Filter Control */
 #define IGC_WUFC_LNKC	0x00000001 /* Link Status Change Wakeup Enable */
+#define IGC_WUFC_MAG	0x00000002 /* Magic Packet Wakeup Enable */
+#define IGC_WUFC_EX	0x00000004 /* Directed Exact Wakeup Enable */
 #define IGC_WUFC_MC	0x00000008 /* Directed Multicast Wakeup Enable */
+#define IGC_WUFC_BC	0x00000010 /* Broadcast Wakeup Enable */
 
 #define IGC_CTRL_ADVD3WUC	0x00100000  /* D3 WUC */
 
@@ -41,13 +44,9 @@
 /* Wake Up Packet Memory stores the first 128 bytes of the wake up packet */
 #define IGC_WUPM_BYTES	128
 
-/* Physical Func Reset Done Indication */
-#define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
-
 /* Loop limit on how long we wait for auto-negotiation to complete */
 #define COPPER_LINK_UP_LIMIT		10
 #define PHY_AUTO_NEG_LIMIT		45
-#define PHY_FORCE_LIMIT			20
 
 /* Number of 100 microseconds we wait for PCI Express master disable */
 #define MASTER_DISABLE_TIMEOUT		800
@@ -63,8 +62,14 @@
  * (RAR[15]) for our directed address used by controllers with
  * manageability enabled, allowing us room for 15 multicast addresses.
  */
+#define IGC_RAH_RAH_MASK	0x0000FFFF
+#define IGC_RAH_ASEL_MASK	0x00030000
+#define IGC_RAH_ASEL_SRC_ADDR	BIT(16)
+#define IGC_RAH_QSEL_MASK	0x000C0000
+#define IGC_RAH_QSEL_SHIFT	18
+#define IGC_RAH_QSEL_ENABLE	BIT(28)
 #define IGC_RAH_AV		0x80000000 /* Receive descriptor valid */
-#define IGC_RAH_POOL_1		0x00040000
+
 #define IGC_RAL_MAC_ADDR_LEN	4
 #define IGC_RAH_MAC_ADDR_LEN	2
 
@@ -90,8 +95,6 @@
 
 #define IGC_CTRL_RFCE		0x08000000  /* Receive Flow Control enable */
 #define IGC_CTRL_TFCE		0x10000000  /* Transmit flow control enable */
-
-#define IGC_CONNSW_AUTOSENSE_EN	0x1
 
 /* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
 #define MAX_JUMBO_FRAME_SIZE	0x2600
@@ -163,11 +166,6 @@
 
 /* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
 #define NVM_SUM				0xBABA
-
-#define NVM_PBA_OFFSET_0		8
-#define NVM_PBA_OFFSET_1		9
-#define NVM_RESERVED_WORD		0xFFFF
-#define NVM_PBA_PTR_GUARD		0xFAFA
 #define NVM_WORD_SIZE_BASE_SHIFT	6
 
 /* Collision related configuration parameters */
@@ -249,7 +247,6 @@
 /* Interrupt Cause Set */
 #define IGC_ICS_LSC		IGC_ICR_LSC       /* Link Status Change */
 #define IGC_ICS_RXDMT0		IGC_ICR_RXDMT0    /* rx desc min. threshold */
-#define IGC_ICS_DRSTA		IGC_ICR_DRSTA     /* Device Reset Aserted */
 
 #define IGC_ICR_DOUTSYNC	0x10000000 /* NIC DMA out of sync */
 #define IGC_EITR_CNT_IGNR	0x80000000 /* Don't reset counters on write */
@@ -259,27 +256,22 @@
 #define IGC_GPIE_EIAME		0x40000000
 #define IGC_GPIE_PBA		0x80000000
 
+/* Receive Descriptor bit definitions */
+#define IGC_RXD_STAT_DD		0x01    /* Descriptor Done */
+
 /* Transmit Descriptor bit definitions */
 #define IGC_TXD_DTYP_D		0x00100000 /* Data Descriptor */
 #define IGC_TXD_DTYP_C		0x00000000 /* Context Descriptor */
 #define IGC_TXD_POPTS_IXSM	0x01       /* Insert IP checksum */
 #define IGC_TXD_POPTS_TXSM	0x02       /* Insert TCP/UDP checksum */
 #define IGC_TXD_CMD_EOP		0x01000000 /* End of Packet */
-#define IGC_TXD_CMD_IFCS	0x02000000 /* Insert FCS (Ethernet CRC) */
 #define IGC_TXD_CMD_IC		0x04000000 /* Insert Checksum */
-#define IGC_TXD_CMD_RS		0x08000000 /* Report Status */
-#define IGC_TXD_CMD_RPS		0x10000000 /* Report Packet Sent */
 #define IGC_TXD_CMD_DEXT	0x20000000 /* Desc extension (0 = legacy) */
 #define IGC_TXD_CMD_VLE		0x40000000 /* Add VLAN tag */
-#define IGC_TXD_CMD_IDE		0x80000000 /* Enable Tidv register */
 #define IGC_TXD_STAT_DD		0x00000001 /* Descriptor Done */
-#define IGC_TXD_STAT_EC		0x00000002 /* Excess Collisions */
-#define IGC_TXD_STAT_LC		0x00000004 /* Late Collisions */
-#define IGC_TXD_STAT_TU		0x00000008 /* Transmit underrun */
 #define IGC_TXD_CMD_TCP		0x01000000 /* TCP packet */
 #define IGC_TXD_CMD_IP		0x02000000 /* IP packet */
 #define IGC_TXD_CMD_TSE		0x04000000 /* TCP Seg enable */
-#define IGC_TXD_STAT_TC		0x00000004 /* Tx Underrun */
 #define IGC_TXD_EXTCMD_TSTAMP	0x00000010 /* IEEE1588 Timestamp packet */
 
 /* IPSec Encrypt Enable */
@@ -331,7 +323,6 @@
 
 /* Advanced Receive Descriptor bit definitions */
 #define IGC_RXDADV_STAT_TSIP	0x08000 /* timestamp in packet */
-#define IGC_RXDADV_STAT_TS	0x10000 /* Pkt was time stamped */
 
 #define IGC_RXDEXT_STATERR_CE		0x01000000
 #define IGC_RXDEXT_STATERR_SE		0x02000000
@@ -371,6 +362,11 @@
 #define I225_TXPBSIZE_DEFAULT	0x04000014 /* TXPBSIZE default */
 #define IGC_RXPBS_CFG_TS_EN	0x80000000 /* Timestamp in Rx buffer */
 
+#define IGC_TXPBSIZE_TSN	0x04145145 /* 5k bytes buffer for each queue */
+
+#define IGC_DTXMXPKTSZ_TSN	0x19 /* 1600 bytes of max TX DMA packet size */
+#define IGC_DTXMXPKTSZ_DEFAULT	0x98 /* 9728-byte Jumbo frames */
+
 /* Time Sync Interrupt Causes */
 #define IGC_TSICR_SYS_WRAP	BIT(0) /* SYSTIM Wrap around. */
 #define IGC_TSICR_TXTS		BIT(1) /* Transmit Timestamp. */
@@ -381,16 +377,12 @@
 
 #define IGC_TSICR_INTERRUPTS	IGC_TSICR_TXTS
 
-/* PTP Queue Filter */
-#define IGC_ETQF_1588		BIT(30)
-
 #define IGC_FTQF_VF_BP		0x00008000
 #define IGC_FTQF_1588_TIME_STAMP	0x08000000
 #define IGC_FTQF_MASK			0xF0000000
 #define IGC_FTQF_MASK_PROTO_BP	0x10000000
 
 /* Time Sync Receive Control bit definitions */
-#define IGC_TSYNCRXCTL_VALID		0x00000001  /* Rx timestamp valid */
 #define IGC_TSYNCRXCTL_TYPE_MASK	0x0000000E  /* Rx type mask */
 #define IGC_TSYNCRXCTL_TYPE_L2_V2	0x00
 #define IGC_TSYNCRXCTL_TYPE_L4_V1	0x02
@@ -424,6 +416,14 @@
 #define IGC_TSYNCTXCTL_SYNC_COMP		0x40000000  /* sync complete */
 #define IGC_TSYNCTXCTL_START_SYNC		0x80000000  /* initiate sync */
 #define IGC_TSYNCTXCTL_TXSYNSIG			0x00000020  /* Sample TX tstamp in PHY sop */
+
+/* Transmit Scheduling */
+#define IGC_TQAVCTRL_TRANSMIT_MODE_TSN	0x00000001
+#define IGC_TQAVCTRL_ENHANCED_QAV	0x00000008
+
+#define IGC_TXQCTL_QUEUE_MODE_LAUNCHT	0x00000001
+#define IGC_TXQCTL_STRICT_CYCLE		0x00000002
+#define IGC_TXQCTL_STRICT_END		0x00000004
 
 /* Receive Checksum Control */
 #define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */
@@ -491,16 +491,15 @@
 #define IGC_MDIC_READY		0x10000000
 #define IGC_MDIC_INT_EN		0x20000000
 #define IGC_MDIC_ERROR		0x40000000
-#define IGC_MDIC_DEST		0x80000000
 
 #define IGC_N0_QUEUE		-1
 
 #define IGC_MAX_MAC_HDR_LEN	127
 #define IGC_MAX_NETWORK_HDR_LEN	511
 
-#define IGC_VLAPQF_QUEUE_SEL(_n, q_idx) ((q_idx) << ((_n) * 4))
-#define IGC_VLAPQF_P_VALID(_n)	(0x1 << (3 + (_n) * 4))
-#define IGC_VLAPQF_QUEUE_MASK	0x03
+#define IGC_VLANPQF_QSEL(_n, q_idx) ((q_idx) << ((_n) * 4))
+#define IGC_VLANPQF_VALID(_n)	(0x1 << (3 + (_n) * 4))
+#define IGC_VLANPQF_QUEUE_MASK	0x03
 
 #define IGC_ADVTXD_MACLEN_SHIFT		9  /* Adv ctxt desc mac len shift */
 #define IGC_ADVTXD_TUCMD_IPV4		0x00000400  /* IP Packet Type:1=IPv4 */
@@ -509,5 +508,42 @@
 
 /* Maximum size of the MTA register table in all supported adapters */
 #define MAX_MTA_REG			128
+
+/* EEE defines */
+#define IGC_IPCNFG_EEE_2_5G_AN		0x00000010 /* IPCNFG EEE Ena 2.5G AN */
+#define IGC_IPCNFG_EEE_1G_AN		0x00000008 /* IPCNFG EEE Ena 1G AN */
+#define IGC_IPCNFG_EEE_100M_AN		0x00000004 /* IPCNFG EEE Ena 100M AN */
+#define IGC_EEER_EEE_NEG		0x20000000 /* EEE capability nego */
+#define IGC_EEER_TX_LPI_EN		0x00010000 /* EEER Tx LPI Enable */
+#define IGC_EEER_RX_LPI_EN		0x00020000 /* EEER Rx LPI Enable */
+#define IGC_EEER_LPI_FC			0x00040000 /* EEER Ena on Flow Cntrl */
+#define IGC_EEE_SU_LPI_CLK_STP		0x00800000 /* EEE LPI Clock Stop */
+
+/* LTR defines */
+#define IGC_LTRC_EEEMS_EN		0x00000020 /* Enable EEE LTR max send */
+#define IGC_RXPBS_SIZE_I225_MASK	0x0000003F /* Rx packet buffer size */
+#define IGC_TW_SYSTEM_1000_MASK		0x000000FF
+/* Minimum time for 100BASE-T where no data will be transmit following move out
+ * of EEE LPI Tx state
+ */
+#define IGC_TW_SYSTEM_100_MASK		0x0000FF00
+#define IGC_TW_SYSTEM_100_SHIFT		8
+#define IGC_DMACR_DMAC_EN		0x80000000 /* Enable DMA Coalescing */
+#define IGC_DMACR_DMACTHR_MASK		0x00FF0000
+#define IGC_DMACR_DMACTHR_SHIFT		16
+/* Reg val to set scale to 1024 nsec */
+#define IGC_LTRMINV_SCALE_1024		2
+/* Reg val to set scale to 32768 nsec */
+#define IGC_LTRMINV_SCALE_32768		3
+/* Reg val to set scale to 1024 nsec */
+#define IGC_LTRMAXV_SCALE_1024		2
+/* Reg val to set scale to 32768 nsec */
+#define IGC_LTRMAXV_SCALE_32768		3
+#define IGC_LTRMINV_LTRV_MASK		0x000003FF /* LTR minimum value */
+#define IGC_LTRMAXV_LTRV_MASK		0x000003FF /* LTR maximum value */
+#define IGC_LTRMINV_LSNP_REQ		0x00008000 /* LTR Snoop Requirement */
+#define IGC_LTRMINV_SCALE_SHIFT		10
+#define IGC_LTRMAXV_LSNP_REQ		0x00008000 /* LTR Snoop Requirement */
+#define IGC_LTRMAXV_SCALE_SHIFT		10
 
 #endif /* _IGC_DEFINES_H_ */

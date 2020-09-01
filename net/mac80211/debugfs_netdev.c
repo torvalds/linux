@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright (C) 2020 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -235,7 +236,7 @@ IEEE80211_IF_FILE_R(hw_queues);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
-IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
+IEEE80211_IF_FILE(aid, vif.bss_conf.aid, DEC);
 IEEE80211_IF_FILE(beacon_timeout, u.mgd.beacon_timeout, JIFFIES_TO_MS);
 
 static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
@@ -254,15 +255,11 @@ static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 	     smps_mode == IEEE80211_SMPS_AUTOMATIC))
 		return -EINVAL;
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
-	    sdata->vif.type != NL80211_IFTYPE_AP)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
 	sdata_lock(sdata);
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		err = __ieee80211_request_smps_mgd(sdata, smps_mode);
-	else
-		err = __ieee80211_request_smps_ap(sdata, smps_mode);
+	err = __ieee80211_request_smps_mgd(sdata, smps_mode);
 	sdata_unlock(sdata);
 
 	return err;
@@ -281,10 +278,6 @@ static ssize_t ieee80211_if_fmt_smps(const struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		return snprintf(buf, buflen, "request: %s\nused: %s\n",
 				smps_modes[sdata->u.mgd.req_smps],
-				smps_modes[sdata->smps_mode]);
-	if (sdata->vif.type == NL80211_IFTYPE_AP)
-		return snprintf(buf, buflen, "request: %s\nused: %s\n",
-				smps_modes[sdata->u.ap.req_smps],
 				smps_modes[sdata->smps_mode]);
 	return -EINVAL;
 }
@@ -645,6 +638,9 @@ IEEE80211_IF_FILE(dot11MeshAwakeWindowDuration,
 		  u.mesh.mshcfg.dot11MeshAwakeWindowDuration, DEC);
 IEEE80211_IF_FILE(dot11MeshConnectedToMeshGate,
 		  u.mesh.mshcfg.dot11MeshConnectedToMeshGate, DEC);
+IEEE80211_IF_FILE(dot11MeshNolearn, u.mesh.mshcfg.dot11MeshNolearn, DEC);
+IEEE80211_IF_FILE(dot11MeshConnectedToAuthServer,
+		  u.mesh.mshcfg.dot11MeshConnectedToAuthServer, DEC);
 #endif
 
 #define DEBUGFS_ADD_MODE(name, mode) \
@@ -769,6 +765,8 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(power_mode);
 	MESHPARAMS_ADD(dot11MeshAwakeWindowDuration);
 	MESHPARAMS_ADD(dot11MeshConnectedToMeshGate);
+	MESHPARAMS_ADD(dot11MeshNolearn);
+	MESHPARAMS_ADD(dot11MeshConnectedToAuthServer);
 #undef MESHPARAMS_ADD
 }
 #endif

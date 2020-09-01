@@ -15,8 +15,6 @@
 #include <asm/set_memory.h>
 #include <asm/smp.h>
 
-#include <drm/i915_drm.h>
-
 #include "display/intel_frontbuffer.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
@@ -33,6 +31,8 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 		if (dma_map_sg_attrs(&obj->base.dev->pdev->dev,
 				     pages->sgl, pages->nents,
 				     PCI_DMA_BIDIRECTIONAL,
+				     DMA_ATTR_SKIP_CPU_SYNC |
+				     DMA_ATTR_NO_KERNEL_MAPPING |
 				     DMA_ATTR_NO_WARN))
 			return 0;
 
@@ -63,7 +63,8 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 		/* XXX This does not prevent more requests being submitted! */
 		if (intel_gt_retire_requests_timeout(ggtt->vm.gt,
 						     -MAX_SCHEDULE_TIMEOUT)) {
-			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
+			drm_err(&dev_priv->drm,
+				"Failed to wait for idle; VT'd may hang.\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);
 		}

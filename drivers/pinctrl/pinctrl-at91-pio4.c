@@ -106,6 +106,8 @@ struct atmel_pin {
  * @irq_domain: irq domain for the gpio controller.
  * @irqs: table containing the hw irq number of the bank. The index of the
  *     table is the bank id.
+ * @pm_wakeup_sources: bitmap of wakeup sources (lines)
+ * @pm_suspend_backup: backup/restore register values on suspend/resume
  * @dev: device entry for the Atmel PIO controller.
  * @node: node of the Atmel PIO controller.
  */
@@ -1019,7 +1021,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 
 	atmel_pioctrl->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(atmel_pioctrl->reg_base))
-		return -EINVAL;
+		return PTR_ERR(atmel_pioctrl->reg_base);
 
 	atmel_pioctrl->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(atmel_pioctrl->clk)) {

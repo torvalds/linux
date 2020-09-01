@@ -5,16 +5,17 @@
  * Copyright (C) 2019 ARM Ltd.
  */
 
+#define pr_fmt(fmt) "SCMI Notifications RESET - " fmt
+
+#include <linux/scmi_protocol.h>
+
 #include "common.h"
+#include "notify.h"
 
 enum scmi_reset_protocol_cmd {
 	RESET_DOMAIN_ATTRIBUTES = 0x3,
 	RESET = 0x4,
 	RESET_NOTIFY = 0x5,
-};
-
-enum scmi_reset_protocol_notify {
-	RESET_ISSUED = 0x0,
 };
 
 #define NUM_RESET_DOMAIN_MASK	0xffff
@@ -38,6 +39,18 @@ struct scmi_msg_reset_domain_reset {
 #define ARCH_RESET_TYPE		BIT(31)
 #define COLD_RESET_STATE	BIT(0)
 #define ARCH_COLD_RESET		(ARCH_RESET_TYPE | COLD_RESET_STATE)
+};
+
+struct scmi_msg_reset_notify {
+	__le32 id;
+	__le32 event_control;
+#define RESET_TP_NOTIFY_ALL	BIT(0)
+};
+
+struct scmi_reset_issued_notify_payld {
+	__le32 agent_id;
+	__le32 domain_id;
+	__le32 reset_state;
 };
 
 struct reset_dom_info {
@@ -190,6 +203,75 @@ static struct scmi_reset_ops reset_ops = {
 	.deassert = scmi_reset_domain_deassert,
 };
 
+static int scmi_reset_notify(const struct scmi_handle *handle, u32 domain_id,
+			     bool enable)
+{
+	int ret;
+	u32 evt_cntl = enable ? RESET_TP_NOTIFY_ALL : 0;
+	struct scmi_xfer *t;
+	struct scmi_msg_reset_notify *cfg;
+
+	ret = scmi_xfer_get_init(handle, RESET_NOTIFY,
+				 SCMI_PROTOCOL_RESET, sizeof(*cfg), 0, &t);
+	if (ret)
+		return ret;
+
+	cfg = t->tx.buf;
+	cfg->id = cpu_to_le32(domain_id);
+	cfg->event_control = cpu_to_le32(evt_cntl);
+
+	ret = scmi_do_xfer(handle, t);
+
+	scmi_xfer_put(handle, t);
+	return ret;
+}
+
+static int scmi_reset_set_notify_enabled(const struct scmi_handle *handle,
+					 u8 evt_id, u32 src_id, bool enable)
+{
+	int ret;
+
+	ret = scmi_reset_notify(handle, src_id, enable);
+	if (ret)
+		pr_debug("FAIL_ENABLED - evt[%X] dom[%d] - ret:%d\n",
+			 evt_id, src_id, ret);
+
+	return ret;
+}
+
+static void *scmi_reset_fill_custom_report(const struct scmi_handle *handle,
+					   u8 evt_id, ktime_t timestamp,
+					   const void *payld, size_t payld_sz,
+					   void *report, u32 *src_id)
+{
+	const struct scmi_reset_issued_notify_payld *p = payld;
+	struct scmi_reset_issued_report *r = report;
+
+	if (evt_id != SCMI_EVENT_RESET_ISSUED || sizeof(*p) != payld_sz)
+		return NULL;
+
+	r->timestamp = timestamp;
+	r->agent_id = le32_to_cpu(p->agent_id);
+	r->domain_id = le32_to_cpu(p->domain_id);
+	r->reset_state = le32_to_cpu(p->reset_state);
+	*src_id = r->domain_id;
+
+	return r;
+}
+
+static const struct scmi_event reset_events[] = {
+	{
+		.id = SCMI_EVENT_RESET_ISSUED,
+		.max_payld_sz = sizeof(struct scmi_reset_issued_notify_payld),
+		.max_report_sz = sizeof(struct scmi_reset_issued_report),
+	},
+};
+
+static const struct scmi_event_ops reset_event_ops = {
+	.set_notify_enabled = scmi_reset_set_notify_enabled,
+	.fill_custom_report = scmi_reset_fill_custom_report,
+};
+
 static int scmi_reset_protocol_init(struct scmi_handle *handle)
 {
 	int domain;
@@ -217,6 +299,12 @@ static int scmi_reset_protocol_init(struct scmi_handle *handle)
 
 		scmi_reset_domain_attributes_get(handle, domain, dom);
 	}
+
+	scmi_register_protocol_events(handle,
+				      SCMI_PROTOCOL_RESET, SCMI_PROTO_QUEUE_SZ,
+				      &reset_event_ops, reset_events,
+				      ARRAY_SIZE(reset_events),
+				      pinfo->num_domains);
 
 	pinfo->version = version;
 	handle->reset_ops = &reset_ops;

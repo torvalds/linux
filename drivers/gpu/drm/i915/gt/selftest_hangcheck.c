@@ -29,6 +29,7 @@
 #include "intel_gt.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
+#include "selftest_engine_heartbeat.h"
 
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
@@ -203,12 +204,12 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = upper_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
-		*batch++ = MI_ARB_CHECK;
+		*batch++ = MI_NOOP;
 
 		memset(batch, 0, 1024);
 		batch += 1024 / sizeof(*batch);
 
-		*batch++ = MI_ARB_CHECK;
+		*batch++ = MI_NOOP;
 		*batch++ = MI_BATCH_BUFFER_START | 1 << 8 | 1;
 		*batch++ = lower_32_bits(vma->node.start);
 		*batch++ = upper_32_bits(vma->node.start);
@@ -217,12 +218,12 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 		*batch++ = 0;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
-		*batch++ = MI_ARB_CHECK;
+		*batch++ = MI_NOOP;
 
 		memset(batch, 0, 1024);
 		batch += 1024 / sizeof(*batch);
 
-		*batch++ = MI_ARB_CHECK;
+		*batch++ = MI_NOOP;
 		*batch++ = MI_BATCH_BUFFER_START | 1 << 8;
 		*batch++ = lower_32_bits(vma->node.start);
 	} else if (INTEL_GEN(gt->i915) >= 4) {
@@ -230,24 +231,24 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 		*batch++ = 0;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
-		*batch++ = MI_ARB_CHECK;
+		*batch++ = MI_NOOP;
 
 		memset(batch, 0, 1024);
 		batch += 1024 / sizeof(*batch);
 
-		*batch++ = MI_ARB_CHECK;
+		*batch++ = MI_NOOP;
 		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
 		*batch++ = lower_32_bits(vma->node.start);
 	} else {
 		*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
-		*batch++ = MI_ARB_CHECK;
+		*batch++ = MI_NOOP;
 
 		memset(batch, 0, 1024);
 		batch += 1024 / sizeof(*batch);
 
-		*batch++ = MI_ARB_CHECK;
+		*batch++ = MI_NOOP;
 		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
 		*batch++ = lower_32_bits(vma->node.start);
 	}
@@ -268,7 +269,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 
 cancel_rq:
 	if (err) {
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 		i915_request_add(rq);
 	}
 unpin_hws:
@@ -308,24 +309,6 @@ static bool wait_until_running(struct hang *h, struct i915_request *rq)
 		 wait_for(i915_seqno_passed(hws_seqno(h, rq),
 					    rq->fence.seqno),
 			  1000));
-}
-
-static void engine_heartbeat_disable(struct intel_engine_cs *engine,
-				     unsigned long *saved)
-{
-	*saved = engine->props.heartbeat_interval_ms;
-	engine->props.heartbeat_interval_ms = 0;
-
-	intel_engine_pm_get(engine);
-	intel_engine_park_heartbeat(engine);
-}
-
-static void engine_heartbeat_enable(struct intel_engine_cs *engine,
-				    unsigned long saved)
-{
-	intel_engine_pm_put(engine);
-
-	engine->props.heartbeat_interval_ms = saved;
 }
 
 static int igt_hang_sanitycheck(void *arg)
@@ -473,7 +456,6 @@ static int igt_reset_nop_engine(void *arg)
 	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count, count;
 		struct intel_context *ce;
-		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
 		int err;
 
@@ -485,7 +467,7 @@ static int igt_reset_nop_engine(void *arg)
 		reset_engine_count = i915_reset_engine_count(global, engine);
 		count = 0;
 
-		engine_heartbeat_disable(engine, &heartbeat);
+		st_engine_heartbeat_disable(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			int i;
@@ -502,6 +484,20 @@ static int igt_reset_nop_engine(void *arg)
 
 				rq = intel_context_create_request(ce);
 				if (IS_ERR(rq)) {
+					struct drm_printer p =
+						drm_info_printer(gt->i915->drm.dev);
+					intel_engine_dump(engine, &p,
+							  "%s(%s): failed to submit request\n",
+							  __func__,
+							  engine->name);
+
+					GEM_TRACE("%s(%s): failed to submit request\n",
+						  __func__,
+						  engine->name);
+					GEM_TRACE_DUMP();
+
+					intel_gt_set_wedged(gt);
+
 					err = PTR_ERR(rq);
 					break;
 				}
@@ -529,7 +525,7 @@ static int igt_reset_nop_engine(void *arg)
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		engine_heartbeat_enable(engine, heartbeat);
+		st_engine_heartbeat_enable(engine);
 
 		pr_info("%s(%s): %d resets\n", __func__, engine->name, count);
 
@@ -564,7 +560,6 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
-		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
 
 		if (active && !intel_engine_can_store_dword(engine))
@@ -580,7 +575,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 		reset_count = i915_reset_count(global);
 		reset_engine_count = i915_reset_engine_count(global, engine);
 
-		engine_heartbeat_disable(engine, &heartbeat);
+		st_engine_heartbeat_disable(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			if (active) {
@@ -632,7 +627,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		engine_heartbeat_enable(engine, heartbeat);
+		st_engine_heartbeat_enable(engine);
 
 		if (err)
 			break;
@@ -789,7 +784,6 @@ static int __igt_reset_engines(struct intel_gt *gt,
 		struct active_engine threads[I915_NUM_ENGINES] = {};
 		unsigned long device = i915_reset_count(global);
 		unsigned long count = 0, reported;
-		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
 
 		if (flags & TEST_ACTIVE &&
@@ -810,10 +804,10 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			threads[tmp].resets =
 				i915_reset_engine_count(global, other);
 
-			if (!(flags & TEST_OTHERS))
+			if (other == engine && !(flags & TEST_SELF))
 				continue;
 
-			if (other == engine && !(flags & TEST_SELF))
+			if (other != engine && !(flags & TEST_OTHERS))
 				continue;
 
 			threads[tmp].engine = other;
@@ -832,7 +826,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 
 		yield(); /* start all threads before we begin */
 
-		engine_heartbeat_disable(engine, &heartbeat);
+		st_engine_heartbeat_disable(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			struct i915_request *rq = NULL;
@@ -871,13 +865,29 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			count++;
 
 			if (rq) {
+				if (rq->fence.error != -EIO) {
+					pr_err("i915_reset_engine(%s:%s):"
+					       " failed to reset request %llx:%lld\n",
+					       engine->name, test_name,
+					       rq->fence.context,
+					       rq->fence.seqno);
+					i915_request_put(rq);
+
+					GEM_TRACE_DUMP();
+					intel_gt_set_wedged(gt);
+					err = -EIO;
+					break;
+				}
+
 				if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 					struct drm_printer p =
 						drm_info_printer(gt->i915->drm.dev);
 
 					pr_err("i915_reset_engine(%s:%s):"
-					       " failed to complete request after reset\n",
-					       engine->name, test_name);
+					       " failed to complete request %llx:%lld after reset\n",
+					       engine->name, test_name,
+					       rq->fence.context,
+					       rq->fence.seqno);
 					intel_engine_dump(engine, &p,
 							  "%s\n", engine->name);
 					i915_request_put(rq);
@@ -906,7 +916,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		engine_heartbeat_enable(engine, heartbeat);
+		st_engine_heartbeat_enable(engine);
 
 		pr_info("i915_reset_engine(%s:%s): %lu resets\n",
 			engine->name, test_name, count);
@@ -988,7 +998,7 @@ static int igt_reset_engines(void *arg)
 		},
 		{
 			"self-priority",
-			TEST_OTHERS | TEST_ACTIVE | TEST_PRIORITY | TEST_SELF,
+			TEST_ACTIVE | TEST_PRIORITY | TEST_SELF,
 		},
 		{ }
 	};
@@ -1640,7 +1650,7 @@ static int igt_reset_engines_atomic(void *arg)
 	if (!intel_has_reset_engine(gt))
 		return 0;
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
 	igt_global_reset_lock(gt);

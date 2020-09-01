@@ -947,16 +947,8 @@ static void siw_accept_newconn(struct siw_cep *cep)
 	siw_cep_get(new_cep);
 	new_s->sk->sk_user_data = new_cep;
 
-	if (siw_tcp_nagle == false) {
-		int val = 1;
-
-		rv = kernel_setsockopt(new_s, SOL_TCP, TCP_NODELAY,
-				       (char *)&val, sizeof(val));
-		if (rv) {
-			siw_dbg_cep(cep, "setsockopt NODELAY error: %d\n", rv);
-			goto error;
-		}
-	}
+	if (siw_tcp_nagle == false)
+		tcp_sock_set_nodelay(new_s->sk);
 	new_cep->state = SIW_EPSTATE_AWAIT_MPAREQ;
 
 	rv = siw_cm_queue_work(new_cep, SIW_CM_WORK_MPATIMEOUT);
@@ -1232,12 +1224,10 @@ static void siw_cm_llp_data_ready(struct sock *sk)
 
 	switch (cep->state) {
 	case SIW_EPSTATE_RDMA_MODE:
-		/* fall through */
 	case SIW_EPSTATE_LISTENING:
 		break;
 
 	case SIW_EPSTATE_AWAIT_MPAREQ:
-		/* fall through */
 	case SIW_EPSTATE_AWAIT_MPAREP:
 		siw_cm_queue_work(cep, SIW_CM_WORK_READ_MPAHDR);
 		break;
@@ -1312,17 +1302,14 @@ static void siw_cm_llp_state_change(struct sock *sk)
 static int kernel_bindconnect(struct socket *s, struct sockaddr *laddr,
 			      struct sockaddr *raddr)
 {
-	int rv, flags = 0, s_val = 1;
+	int rv, flags = 0;
 	size_t size = laddr->sa_family == AF_INET ?
 		sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 
 	/*
 	 * Make address available again asap.
 	 */
-	rv = kernel_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&s_val,
-			       sizeof(s_val));
-	if (rv < 0)
-		return rv;
+	sock_set_reuseaddr(s->sk);
 
 	rv = s->ops->bind(s, laddr, size);
 	if (rv < 0)
@@ -1389,16 +1376,8 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 		siw_dbg_qp(qp, "kernel_bindconnect: error %d\n", rv);
 		goto error;
 	}
-	if (siw_tcp_nagle == false) {
-		int val = 1;
-
-		rv = kernel_setsockopt(s, SOL_TCP, TCP_NODELAY, (char *)&val,
-				       sizeof(val));
-		if (rv) {
-			siw_dbg_qp(qp, "setsockopt NODELAY error: %d\n", rv);
-			goto error;
-		}
-	}
+	if (siw_tcp_nagle == false)
+		tcp_sock_set_nodelay(s->sk);
 	cep = siw_cep_alloc(sdev);
 	if (!cep) {
 		rv = -ENOMEM;
@@ -1769,13 +1748,22 @@ int siw_reject(struct iw_cm_id *id, const void *pdata, u8 pd_len)
 	return 0;
 }
 
-static int siw_listen_address(struct iw_cm_id *id, int backlog,
-			      struct sockaddr *laddr, int addr_family)
+/*
+ * siw_create_listen - Create resources for a listener's IWCM ID @id
+ *
+ * Starts listen on the socket address id->local_addr.
+ *
+ */
+int siw_create_listen(struct iw_cm_id *id, int backlog)
 {
 	struct socket *s;
 	struct siw_cep *cep = NULL;
 	struct siw_device *sdev = to_siw_dev(id->device);
-	int rv = 0, s_val;
+	int addr_family = id->local_addr.ss_family;
+	int rv = 0;
+
+	if (addr_family != AF_INET && addr_family != AF_INET6)
+		return -EAFNOSUPPORT;
 
 	rv = sock_create(addr_family, SOCK_STREAM, IPPROTO_TCP, &s);
 	if (rv < 0)
@@ -1784,16 +1772,27 @@ static int siw_listen_address(struct iw_cm_id *id, int backlog,
 	/*
 	 * Allow binding local port when still in TIME_WAIT from last close.
 	 */
-	s_val = 1;
-	rv = kernel_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&s_val,
-			       sizeof(s_val));
-	if (rv) {
-		siw_dbg(id->device, "setsockopt error: %d\n", rv);
-		goto error;
+	sock_set_reuseaddr(s->sk);
+
+	if (addr_family == AF_INET) {
+		struct sockaddr_in *laddr = &to_sockaddr_in(id->local_addr);
+
+		/* For wildcard addr, limit binding to current device only */
+		if (ipv4_is_zeronet(laddr->sin_addr.s_addr))
+			s->sk->sk_bound_dev_if = sdev->netdev->ifindex;
+
+		rv = s->ops->bind(s, (struct sockaddr *)laddr,
+				  sizeof(struct sockaddr_in));
+	} else {
+		struct sockaddr_in6 *laddr = &to_sockaddr_in6(id->local_addr);
+
+		/* For wildcard addr, limit binding to current device only */
+		if (ipv6_addr_any(&laddr->sin6_addr))
+			s->sk->sk_bound_dev_if = sdev->netdev->ifindex;
+
+		rv = s->ops->bind(s, (struct sockaddr *)laddr,
+				  sizeof(struct sockaddr_in6));
 	}
-	rv = s->ops->bind(s, laddr, addr_family == AF_INET ?
-				    sizeof(struct sockaddr_in) :
-				    sizeof(struct sockaddr_in6));
 	if (rv) {
 		siw_dbg(id->device, "socket bind error: %d\n", rv);
 		goto error;
@@ -1852,7 +1851,7 @@ static int siw_listen_address(struct iw_cm_id *id, int backlog,
 	list_add_tail(&cep->listenq, (struct list_head *)id->provider_data);
 	cep->state = SIW_EPSTATE_LISTENING;
 
-	siw_dbg(id->device, "Listen at laddr %pISp\n", laddr);
+	siw_dbg(id->device, "Listen at laddr %pISp\n", &id->local_addr);
 
 	return 0;
 
@@ -1908,106 +1907,6 @@ static void siw_drop_listeners(struct iw_cm_id *id)
 		siw_cep_set_free(cep);
 		siw_cep_put(cep);
 	}
-}
-
-/*
- * siw_create_listen - Create resources for a listener's IWCM ID @id
- *
- * Listens on the socket address id->local_addr.
- *
- * If the listener's @id provides a specific local IP address, at most one
- * listening socket is created and associated with @id.
- *
- * If the listener's @id provides the wildcard (zero) local IP address,
- * a separate listen is performed for each local IP address of the device
- * by creating a listening socket and binding to that local IP address.
- *
- */
-int siw_create_listen(struct iw_cm_id *id, int backlog)
-{
-	struct net_device *dev = to_siw_dev(id->device)->netdev;
-	int rv = 0, listeners = 0;
-
-	siw_dbg(id->device, "backlog %d\n", backlog);
-
-	/*
-	 * For each attached address of the interface, create a
-	 * listening socket, if id->local_addr is the wildcard
-	 * IP address or matches the IP address.
-	 */
-	if (id->local_addr.ss_family == AF_INET) {
-		struct in_device *in_dev = in_dev_get(dev);
-		struct sockaddr_in s_laddr;
-		const struct in_ifaddr *ifa;
-
-		if (!in_dev) {
-			rv = -ENODEV;
-			goto out;
-		}
-		memcpy(&s_laddr, &id->local_addr, sizeof(s_laddr));
-
-		siw_dbg(id->device, "laddr %pISp\n", &s_laddr);
-
-		rtnl_lock();
-		in_dev_for_each_ifa_rtnl(ifa, in_dev) {
-			if (ipv4_is_zeronet(s_laddr.sin_addr.s_addr) ||
-			    s_laddr.sin_addr.s_addr == ifa->ifa_address) {
-				s_laddr.sin_addr.s_addr = ifa->ifa_address;
-
-				rv = siw_listen_address(id, backlog,
-						(struct sockaddr *)&s_laddr,
-						AF_INET);
-				if (!rv)
-					listeners++;
-			}
-		}
-		rtnl_unlock();
-		in_dev_put(in_dev);
-	} else if (id->local_addr.ss_family == AF_INET6) {
-		struct inet6_dev *in6_dev = in6_dev_get(dev);
-		struct inet6_ifaddr *ifp;
-		struct sockaddr_in6 *s_laddr = &to_sockaddr_in6(id->local_addr);
-
-		if (!in6_dev) {
-			rv = -ENODEV;
-			goto out;
-		}
-		siw_dbg(id->device, "laddr %pISp\n", &s_laddr);
-
-		rtnl_lock();
-		list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
-			if (ifp->flags & (IFA_F_TENTATIVE | IFA_F_DEPRECATED))
-				continue;
-			if (ipv6_addr_any(&s_laddr->sin6_addr) ||
-			    ipv6_addr_equal(&s_laddr->sin6_addr, &ifp->addr)) {
-				struct sockaddr_in6 bind_addr  = {
-					.sin6_family = AF_INET6,
-					.sin6_port = s_laddr->sin6_port,
-					.sin6_flowinfo = 0,
-					.sin6_addr = ifp->addr,
-					.sin6_scope_id = dev->ifindex };
-
-				rv = siw_listen_address(id, backlog,
-						(struct sockaddr *)&bind_addr,
-						AF_INET6);
-				if (!rv)
-					listeners++;
-			}
-		}
-		rtnl_unlock();
-		in6_dev_put(in6_dev);
-	} else {
-		rv = -EAFNOSUPPORT;
-	}
-out:
-	if (listeners)
-		rv = 0;
-	else if (!rv)
-		rv = -EINVAL;
-
-	siw_dbg(id->device, "%s\n", rv ? "FAIL" : "OK");
-
-	return rv;
 }
 
 int siw_destroy_listen(struct iw_cm_id *id)

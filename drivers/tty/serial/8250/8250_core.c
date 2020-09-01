@@ -524,6 +524,7 @@ static void __init serial8250_isa_init_ports(void)
 		 */
 		up->mcr_mask = ~ALPHA_KLUDGE_MCR;
 		up->mcr_force = ALPHA_KLUDGE_MCR;
+		serial8250_set_defaults(up);
 	}
 
 	/* chain base port ops to support Remote Supervisor Adapter */
@@ -547,7 +548,6 @@ static void __init serial8250_isa_init_ports(void)
 		port->membase  = old_serial_port[i].iomem_base;
 		port->iotype   = old_serial_port[i].io_type;
 		port->regshift = old_serial_port[i].iomem_reg_shift;
-		serial8250_set_defaults(up);
 
 		port->irqflags |= irqflag;
 		if (serial8250_isa_config != NULL)
@@ -608,6 +608,14 @@ static int univ8250_console_setup(struct console *co, char *options)
 	return retval;
 }
 
+static int univ8250_console_exit(struct console *co)
+{
+	struct uart_port *port;
+
+	port = &serial8250_ports[co->index].port;
+	return serial8250_console_exit(port);
+}
+
 /**
  *	univ8250_console_match - non-standard console matching
  *	@co:	  registering console
@@ -666,6 +674,7 @@ static struct console univ8250_console = {
 	.write		= univ8250_console_write,
 	.device		= uart_console_device,
 	.setup		= univ8250_console_setup,
+	.exit		= univ8250_console_exit,
 	.match		= univ8250_console_match,
 	.flags		= CON_PRINTBUFFER | CON_ANYTIME,
 	.index		= -1,
@@ -1007,14 +1016,20 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.unthrottle	= up->port.unthrottle;
 		uart->port.rs485_config	= up->port.rs485_config;
 		uart->port.rs485	= up->port.rs485;
+		uart->rs485_start_tx	= up->rs485_start_tx;
+		uart->rs485_stop_tx	= up->rs485_stop_tx;
 		uart->dma		= up->dma;
 
 		/* Take tx_loadsz from fifosize if it wasn't set separately */
 		if (uart->port.fifosize && !uart->tx_loadsz)
 			uart->tx_loadsz = uart->port.fifosize;
 
-		if (up->port.dev)
+		if (up->port.dev) {
 			uart->port.dev = up->port.dev;
+			ret = uart_get_rs485_mode(&uart->port);
+			if (ret)
+				goto err;
+		}
 
 		if (up->port.flags & UPF_FIXED_TYPE)
 			uart->port.type = up->port.type;
@@ -1027,7 +1042,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			gpios = mctrl_gpio_init(&uart->port, 0);
 			if (IS_ERR(gpios)) {
 				ret = PTR_ERR(gpios);
-				goto out_unlock;
+				goto err;
 			} else {
 				uart->gpios = gpios;
 			}
@@ -1076,8 +1091,10 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			serial8250_apply_quirks(uart);
 			ret = uart_add_one_port(&serial8250_reg,
 						&uart->port);
-			if (ret == 0)
-				ret = uart->port.line;
+			if (ret)
+				goto err;
+
+			ret = uart->port.line;
 		} else {
 			dev_info(uart->port.dev,
 				"skipping CIR port at 0x%lx / 0x%llx, IRQ %d\n",
@@ -1099,9 +1116,13 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		}
 	}
 
-out_unlock:
 	mutex_unlock(&serial_mutex);
 
+	return ret;
+
+err:
+	uart->port.dev = NULL;
+	mutex_unlock(&serial_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(serial8250_register_8250_port);

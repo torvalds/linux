@@ -19,18 +19,23 @@ SYNOPSIS
 FEATURE COMMANDS
 ================
 
-|	**bpftool** **feature probe** [*COMPONENT*] [**macros** [**prefix** *PREFIX*]]
+|	**bpftool** **feature probe** [*COMPONENT*] [**full**] [**unprivileged**] [**macros** [**prefix** *PREFIX*]]
 |	**bpftool** **feature help**
 |
 |	*COMPONENT* := { **kernel** | **dev** *NAME* }
 
 DESCRIPTION
 ===========
-	**bpftool feature probe** [**kernel**] [**macros** [**prefix** *PREFIX*]]
+	**bpftool feature probe** [**kernel**] [**full**] [**macros** [**prefix** *PREFIX*]]
 		  Probe the running kernel and dump a number of eBPF-related
-		  parameters, such as availability of the **bpf()** system call,
+		  parameters, such as availability of the **bpf**\ () system call,
 		  JIT status, eBPF program types availability, eBPF helper
 		  functions availability, and more.
+
+		  By default, bpftool **does not run probes** for
+		  **bpf_probe_write_user**\ () and **bpf_trace_printk**\()
+		  helpers which print warnings to kernel logs. To enable them
+		  and run all probes, the **full** keyword should be used.
 
 		  If the **macros** keyword (but not the **-j** option) is
 		  passed, a subset of the output is dumped as a list of
@@ -44,16 +49,22 @@ DESCRIPTION
 		  Keyword **kernel** can be omitted. If no probe target is
 		  specified, probing the kernel is the default behaviour.
 
-		  Note that when probed, some eBPF helpers (e.g.
-		  **bpf_trace_printk**\ () or **bpf_probe_write_user**\ ()) may
-		  print warnings to kernel logs.
+		  When the **unprivileged** keyword is used, bpftool will dump
+		  only the features available to a user who does not have the
+		  **CAP_SYS_ADMIN** capability set. The features available in
+		  that case usually represent a small subset of the parameters
+		  supported by the system. Unprivileged users MUST use the
+		  **unprivileged** keyword: This is to avoid misdetection if
+		  bpftool is inadvertently run as non-root, for example. This
+		  keyword is unavailable if bpftool was compiled without
+		  libcap.
 
-	**bpftool feature probe dev** *NAME* [**macros** [**prefix** *PREFIX*]]
+	**bpftool feature probe dev** *NAME* [**full**] [**macros** [**prefix** *PREFIX*]]
 		  Probe network device for supported eBPF features and dump
 		  results to the console.
 
-		  The two keywords **macros** and **prefix** have the same
-		  role as when probing the kernel.
+		  The keywords **full**, **macros** and **prefix** have the
+		  same role as when probing the kernel.
 
 	**bpftool feature help**
 		  Print short help message.
@@ -82,9 +93,13 @@ SEE ALSO
 	**bpf**\ (2),
 	**bpf-helpers**\ (7),
 	**bpftool**\ (8),
-	**bpftool-prog**\ (8),
-	**bpftool-map**\ (8),
+	**bpftool-btf**\ (8),
 	**bpftool-cgroup**\ (8),
+	**bpftool-gen**\ (8),
+	**bpftool-iter**\ (8),
+	**bpftool-link**\ (8),
+	**bpftool-map**\ (8),
 	**bpftool-net**\ (8),
 	**bpftool-perf**\ (8),
-	**bpftool-btf**\ (8)
+	**bpftool-prog**\ (8),
+	**bpftool-struct_ops**\ (8)

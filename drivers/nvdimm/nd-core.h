@@ -45,6 +45,7 @@ struct nvdimm {
 		struct kernfs_node *overwrite_state;
 	} sec;
 	struct delayed_work dwork;
+	const struct nvdimm_fw_ops *fw_ops;
 };
 
 static inline unsigned long nvdimm_security_flags(

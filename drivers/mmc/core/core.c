@@ -403,23 +403,6 @@ void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq)
 
 		cmd = mrq->cmd;
 
-		/*
-		 * If host has timed out waiting for the sanitize
-		 * to complete, card might be still in programming state
-		 * so let's try to bring the card out of programming
-		 * state.
-		 */
-		if (cmd->sanitize_busy && cmd->error == -ETIMEDOUT) {
-			if (!mmc_interrupt_hpi(host->card)) {
-				pr_warn("%s: %s: Interrupted sanitize\n",
-					mmc_hostname(host), __func__);
-				cmd->error = 0;
-				break;
-			} else {
-				pr_err("%s: %s: Failed to interrupt sanitize\n",
-				       mmc_hostname(host), __func__);
-			}
-		}
 		if (!cmd->error || !cmd->retries ||
 		    mmc_card_removed(host->card))
 			break;
@@ -1472,12 +1455,12 @@ void mmc_detach_bus(struct mmc_host *host)
 void _mmc_detect_change(struct mmc_host *host, unsigned long delay, bool cd_irq)
 {
 	/*
-	 * If the device is configured as wakeup, we prevent a new sleep for
-	 * 5 s to give provision for user space to consume the event.
+	 * Prevent system sleep for 5s to allow user space to consume the
+	 * corresponding uevent. This is especially useful, when CD irq is used
+	 * as a system wakeup, but doesn't hurt in other cases.
 	 */
-	if (cd_irq && !(host->caps & MMC_CAP_NEEDS_POLL) &&
-		device_can_wakeup(mmc_dev(host)))
-		pm_wakeup_event(mmc_dev(host), 5000);
+	if (cd_irq && !(host->caps & MMC_CAP_NEEDS_POLL))
+		__pm_wakeup_event(host->ws, 5000);
 
 	host->detect_change = 1;
 	mmc_schedule_delayed_work(&host->detect, delay);
@@ -1658,8 +1641,6 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	struct mmc_command cmd = {};
 	unsigned int qty = 0, busy_timeout = 0;
 	bool use_r1b_resp = false;
-	unsigned long timeout;
-	int loop_udelay=64, udelay_max=32768;
 	int err;
 
 	mmc_retune_hold(card->host);
@@ -1763,38 +1744,8 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	if ((card->host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp)
 		goto out;
 
-	timeout = jiffies + msecs_to_jiffies(busy_timeout);
-	do {
-		memset(&cmd, 0, sizeof(struct mmc_command));
-		cmd.opcode = MMC_SEND_STATUS;
-		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-		/* Do not retry else we can't see errors */
-		err = mmc_wait_for_cmd(card->host, &cmd, 0);
-		if (err || R1_STATUS(cmd.resp[0])) {
-			pr_err("error %d requesting status %#x\n",
-				err, cmd.resp[0]);
-			err = -EIO;
-			goto out;
-		}
-
-		/* Timeout if the device never becomes ready for data and
-		 * never leaves the program state.
-		 */
-		if (time_after(jiffies, timeout)) {
-			pr_err("%s: Card stuck in programming state! %s\n",
-				mmc_hostname(card->host), __func__);
-			err =  -EIO;
-			goto out;
-		}
-		if ((cmd.resp[0] & R1_READY_FOR_DATA) &&
-		    R1_CURRENT_STATE(cmd.resp[0]) != R1_STATE_PRG)
-			break;
-
-		usleep_range(loop_udelay, loop_udelay*2);
-		if (loop_udelay < udelay_max)
-			loop_udelay *= 2;
-	} while (1);
+	/* Let's poll to find out when the erase operation completes. */
+	err = mmc_poll_for_busy(card, busy_timeout, MMC_BUSY_ERASE);
 
 out:
 	mmc_retune_release(card->host);
@@ -1864,8 +1815,7 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	unsigned int rem, to = from + nr;
 	int err;
 
-	if (!(card->host->caps & MMC_CAP_ERASE) ||
-	    !(card->csd.cmdclass & CCC_ERASE))
+	if (!(card->csd.cmdclass & CCC_ERASE))
 		return -EOPNOTSUPP;
 
 	if (!card->erase_size)
@@ -1921,8 +1871,7 @@ EXPORT_SYMBOL(mmc_erase);
 
 int mmc_can_erase(struct mmc_card *card)
 {
-	if ((card->host->caps & MMC_CAP_ERASE) &&
-	    (card->csd.cmdclass & CCC_ERASE) && card->erase_size)
+	if (card->csd.cmdclass & CCC_ERASE && card->erase_size)
 		return 1;
 	return 0;
 }
@@ -1957,7 +1906,6 @@ int mmc_can_sanitize(struct mmc_card *card)
 		return 1;
 	return 0;
 }
-EXPORT_SYMBOL(mmc_can_sanitize);
 
 int mmc_can_secure_erase_trim(struct mmc_card *card)
 {
@@ -2355,7 +2303,6 @@ void mmc_start_host(struct mmc_host *host)
 {
 	host->f_init = max(min(freqs[0], host->f_max), host->f_min);
 	host->rescan_disable = 0;
-	host->ios.power_mode = MMC_POWER_UNDEFINED;
 
 	if (!(host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)) {
 		mmc_claim_host(host);

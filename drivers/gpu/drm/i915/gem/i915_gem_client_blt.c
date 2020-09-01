@@ -6,7 +6,6 @@
 #include "i915_drv.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
-#include "gt/intel_engine_pool.h"
 #include "i915_gem_client_blt.h"
 #include "i915_gem_object_blt.h"
 
@@ -33,16 +32,17 @@ static void vma_clear_pages(struct i915_vma *vma)
 	vma->pages = NULL;
 }
 
-static int vma_bind(struct i915_vma *vma,
+static int vma_bind(struct i915_address_space *vm,
+		    struct i915_vma *vma,
 		    enum i915_cache_level cache_level,
 		    u32 flags)
 {
-	return vma->vm->vma_ops.bind_vma(vma, cache_level, flags);
+	return vm->vma_ops.bind_vma(vm, vma, cache_level, flags);
 }
 
-static void vma_unbind(struct i915_vma *vma)
+static void vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
 {
-	vma->vm->vma_ops.unbind_vma(vma);
+	vm->vma_ops.unbind_vma(vm, vma);
 }
 
 static const struct i915_vma_ops proxy_vma_ops = {
@@ -217,7 +217,7 @@ static void clear_pages_worker(struct work_struct *work)
 					   0);
 out_request:
 	if (unlikely(err)) {
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 		err = 0;
 	}
 
@@ -289,8 +289,7 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_lock(obj);
 	err = i915_sw_fence_await_reservation(&work->wait,
-					      obj->base.resv, NULL,
-					      true, I915_FENCE_TIMEOUT,
+					      obj->base.resv, NULL, true, 0,
 					      I915_FENCE_GFP);
 	if (err < 0) {
 		dma_fence_set_error(&work->dma, err);

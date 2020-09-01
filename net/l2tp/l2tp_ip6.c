@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * L2TPv3 IP encapsulation support for IPv6
+/* L2TPv3 IP encapsulation support for IPv6
  *
  * Copyright (c) 2012 Katalix Systems Ltd
  */
@@ -20,8 +19,6 @@
 #include <net/icmp.h>
 #include <net/udp.h>
 #include <net/inet_common.h>
-#include <net/inet_hashtables.h>
-#include <net/inet6_hashtables.h>
 #include <net/tcp_states.h>
 #include <net/protocol.h>
 #include <net/xfrm.h>
@@ -40,7 +37,8 @@ struct l2tp_ip6_sock {
 	u32			peer_conn_id;
 
 	/* ipv6_pinfo has to be the last member of l2tp_ip6_sock, see
-	   inet6_sk_generic */
+	 * inet6_sk_generic
+	 */
 	struct ipv6_pinfo	inet6;
 };
 
@@ -139,8 +137,9 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 		goto discard;
 
 	/* Point to L2TP header */
-	optr = ptr = skb->data;
-	session_id = ntohl(*((__be32 *) ptr));
+	optr = skb->data;
+	ptr = skb->data;
+	session_id = ntohl(*((__be32 *)ptr));
 	ptr += 4;
 
 	/* RFC3931: L2TP/IP packets have the first 4 bytes containing
@@ -168,7 +167,8 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 			goto discard_sess;
 
 		/* Point to L2TP header */
-		optr = ptr = skb->data;
+		optr = skb->data;
+		ptr = skb->data;
 		ptr += 4;
 		pr_debug("%s: ip recv\n", tunnel->name);
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, ptr, length);
@@ -190,7 +190,7 @@ pass_up:
 	if ((skb->data[0] & 0xc0) != 0xc0)
 		goto discard;
 
-	tunnel_id = ntohl(*(__be32 *) &skb->data[4]);
+	tunnel_id = ntohl(*(__be32 *)&skb->data[4]);
 	iph = ipv6_hdr(skb);
 
 	read_lock_bh(&l2tp_ip6_lock);
@@ -222,15 +222,31 @@ discard:
 	return 0;
 }
 
+static int l2tp_ip6_hash(struct sock *sk)
+{
+	if (sk_unhashed(sk)) {
+		write_lock_bh(&l2tp_ip6_lock);
+		sk_add_node(sk, &l2tp_ip6_table);
+		write_unlock_bh(&l2tp_ip6_lock);
+	}
+	return 0;
+}
+
+static void l2tp_ip6_unhash(struct sock *sk)
+{
+	if (sk_unhashed(sk))
+		return;
+	write_lock_bh(&l2tp_ip6_lock);
+	sk_del_node_init(sk);
+	write_unlock_bh(&l2tp_ip6_lock);
+}
+
 static int l2tp_ip6_open(struct sock *sk)
 {
 	/* Prevent autobind. We don't have ports. */
 	inet_sk(sk)->inet_num = IPPROTO_L2TP;
 
-	write_lock_bh(&l2tp_ip6_lock);
-	sk_add_node(sk, &l2tp_ip6_table);
-	write_unlock_bh(&l2tp_ip6_lock);
-
+	l2tp_ip6_hash(sk);
 	return 0;
 }
 
@@ -262,7 +278,7 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct sockaddr_l2tpip6 *addr = (struct sockaddr_l2tpip6 *) uaddr;
+	struct sockaddr_l2tpip6 *addr = (struct sockaddr_l2tpip6 *)uaddr;
 	struct net *net = sock_net(sk);
 	__be32 v4addr = 0;
 	int bound_dev_if;
@@ -361,8 +377,8 @@ out_unlock:
 static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 			    int addr_len)
 {
-	struct sockaddr_l2tpip6 *lsa = (struct sockaddr_l2tpip6 *) uaddr;
-	struct sockaddr_in6	*usin = (struct sockaddr_in6 *) uaddr;
+	struct sockaddr_l2tpip6 *lsa = (struct sockaddr_l2tpip6 *)uaddr;
+	struct sockaddr_in6	*usin = (struct sockaddr_in6 *)uaddr;
 	struct in6_addr	*daddr;
 	int	addr_type;
 	int rc;
@@ -472,7 +488,7 @@ static int l2tp_ip6_push_pending_frames(struct sock *sk)
 	int err = 0;
 
 	skb = skb_peek(&sk->sk_write_queue);
-	if (skb == NULL)
+	if (!skb)
 		goto out;
 
 	transhdr = (__be32 *)skb_transport_header(skb);
@@ -505,7 +521,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int err;
 
 	/* Rough check on arithmetic overflow,
-	   better check is made in ip6_append_data().
+	 * better check is made in ip6_append_data().
 	 */
 	if (len > INT_MAX)
 		return -EMSGSIZE;
@@ -514,9 +530,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
-	/*
-	 *	Get and verify the address.
-	 */
+	/* Get and verify the address */
 	memset(&fl6, 0, sizeof(fl6));
 
 	fl6.flowi6_mark = sk->sk_mark;
@@ -534,15 +548,14 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		daddr = &lsa->l2tp_addr;
 		if (np->sndflow) {
 			fl6.flowlabel = lsa->l2tp_flowinfo & IPV6_FLOWINFO_MASK;
-			if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
+			if (fl6.flowlabel & IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
 				if (IS_ERR(flowlabel))
 					return -EINVAL;
 			}
 		}
 
-		/*
-		 * Otherwise it will be difficult to maintain
+		/* Otherwise it will be difficult to maintain
 		 * sk->sk_dst_cache.
 		 */
 		if (sk->sk_state == TCP_ESTABLISHED &&
@@ -580,7 +593,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			if (IS_ERR(flowlabel))
 				return -EINVAL;
 		}
-		if (!(opt->opt_nflen|opt->opt_flen))
+		if (!(opt->opt_nflen | opt->opt_flen))
 			opt = NULL;
 	}
 
@@ -728,13 +741,9 @@ static struct proto l2tp_ip6_prot = {
 	.sendmsg	   = l2tp_ip6_sendmsg,
 	.recvmsg	   = l2tp_ip6_recvmsg,
 	.backlog_rcv	   = l2tp_ip6_backlog_recv,
-	.hash		   = inet6_hash,
-	.unhash		   = inet_unhash,
+	.hash		   = l2tp_ip6_hash,
+	.unhash		   = l2tp_ip6_unhash,
 	.obj_size	   = sizeof(struct l2tp_ip6_sock),
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ipv6_setsockopt,
-	.compat_getsockopt = compat_ipv6_getsockopt,
-#endif
 };
 
 static const struct proto_ops l2tp_ip6_ops = {
@@ -758,8 +767,7 @@ static const struct proto_ops l2tp_ip6_ops = {
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = sock_no_sendpage,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
+	.compat_ioctl	   = inet6_compat_ioctl,
 #endif
 };
 

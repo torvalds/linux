@@ -40,7 +40,9 @@
 #include <drm/drm_file.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_device.h>
+#include <drm/drm_ioctl.h>
 #include <kgd_kfd_interface.h>
+#include <linux/swap.h>
 
 #include "amd_shared.h"
 
@@ -95,7 +97,7 @@
  * Size of the per-process TBA+TMA buffer: 2 pages
  *
  * The first page is the TBA used for the CWSR ISA code. The second
- * page is used as TMA for daisy changing a user-mode trap handler.
+ * page is used as TMA for user-mode trap handler setup in daisy-chain mode.
  */
 #define KFD_CWSR_TBA_TMA_SIZE (PAGE_SIZE * 2)
 #define KFD_CWSR_TMA_OFFSET PAGE_SIZE
@@ -155,25 +157,20 @@ extern int debug_largebar;
  */
 extern int ignore_crat;
 
-/*
- * Set sh_mem_config.retry_disable on Vega10
- */
+/* Set sh_mem_config.retry_disable on GFX v9 */
 extern int amdgpu_noretry;
 
-/*
- * Halt if HWS hang is detected
- */
+/* Halt if HWS hang is detected */
 extern int halt_if_hws_hang;
 
-/*
- * Whether MEC FW support GWS barriers
- */
+/* Whether MEC FW support GWS barriers */
 extern bool hws_gws_support;
 
-/*
- * Queue preemption timeout in ms
- */
+/* Queue preemption timeout in ms */
 extern int queue_preemption_timeout_ms;
+
+/* Enable eviction debug messages */
+extern bool debug_evictions;
 
 enum cache_policy {
 	cache_policy_coherent,
@@ -281,6 +278,7 @@ struct kfd_dev {
 
 	/* Firmware versions */
 	uint16_t mec_fw_version;
+	uint16_t mec2_fw_version;
 	uint16_t sdma_fw_version;
 
 	/* Maximum process number mapped to HW scheduler */
@@ -294,6 +292,9 @@ struct kfd_dev {
 	/* xGMI */
 	uint64_t hive_id;
 
+	/* UUID */
+	uint64_t unique_id;
+
 	bool pci_atomic_requested;
 
 	/* SRAM ECC flag */
@@ -302,8 +303,12 @@ struct kfd_dev {
 	/* Compute Profile ref. count */
 	atomic_t compute_profile;
 
-	/* Global GWS resource shared b/t processes*/
+	/* Global GWS resource shared between processes */
 	void *gws;
+
+	/* Clients watching SMI events */
+	struct list_head smi_clients;
+	spinlock_t smi_lock;
 };
 
 enum kfd_mempool {
@@ -318,7 +323,7 @@ void kfd_chardev_exit(void);
 struct device *kfd_chardev(void);
 
 /**
- * enum kfd_unmap_queues_filter
+ * enum kfd_unmap_queues_filter - Enum for queue filters.
  *
  * @KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE: Preempts single queue.
  *
@@ -337,15 +342,17 @@ enum kfd_unmap_queues_filter {
 };
 
 /**
- * enum kfd_queue_type
+ * enum kfd_queue_type - Enum for various queue types.
  *
  * @KFD_QUEUE_TYPE_COMPUTE: Regular user mode queue type.
  *
- * @KFD_QUEUE_TYPE_SDMA: Sdma user mode queue type.
+ * @KFD_QUEUE_TYPE_SDMA: SDMA user mode queue type.
  *
  * @KFD_QUEUE_TYPE_HIQ: HIQ queue type.
  *
  * @KFD_QUEUE_TYPE_DIQ: DIQ queue type.
+ *
+ * @KFD_QUEUE_TYPE_SDMA_XGMI: Special SDMA queue for XGMI interface.
  */
 enum kfd_queue_type  {
 	KFD_QUEUE_TYPE_COMPUTE,
@@ -391,9 +398,9 @@ enum KFD_QUEUE_PRIORITY {
  *
  * @write_ptr: Defines the number of dwords written to the ring buffer.
  *
- * @doorbell_ptr: This field aim is to notify the H/W of new packet written to
- * the queue ring buffer. This field should be similar to write_ptr and the
- * user should update this field after he updated the write_ptr.
+ * @doorbell_ptr: Notifies the H/W of new packet written to the queue ring
+ * buffer. This field should be similar to write_ptr and the user should
+ * update this field after updating the write_ptr.
  *
  * @doorbell_off: The doorbell offset in the doorbell pci-bar.
  *
@@ -405,6 +412,10 @@ enum KFD_QUEUE_PRIORITY {
  *
  * @is_active: Defines if the queue is active or not. @is_active and
  * @is_evicted are protected by the DQM lock.
+ *
+ * @is_gws: Defines if the queue has been updated to be GWS-capable or not.
+ * @is_gws should be protected by the DQM lock, since changing it can yield the
+ * possibility of updating DQM state on number of GWS queues.
  *
  * @vmid: If the scheduling mode is no cp scheduling the field defines the vmid
  * of the queue.
@@ -428,6 +439,7 @@ struct queue_properties {
 	bool is_interop;
 	bool is_evicted;
 	bool is_active;
+	bool is_gws;
 	/* Not relevant for user mode queues in cp scheduling */
 	unsigned int vmid;
 	/* Relevant only for sdma queues*/
@@ -457,7 +469,7 @@ struct queue_properties {
  *
  * @list: Queue linked list.
  *
- * @mqd: The queue MQD.
+ * @mqd: The queue MQD (memory queue descriptor).
  *
  * @mqd_mem_obj: The MQD local gpu memory object.
  *
@@ -466,7 +478,7 @@ struct queue_properties {
  * @properties: The queue properties.
  *
  * @mec: Used only in no cp scheduling mode and identifies to micro engine id
- *	 that the queue should be execute on.
+ *	 that the queue should be executed on.
  *
  * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe
  *	  id.
@@ -502,11 +514,11 @@ struct queue {
 	struct kfd_process	*process;
 	struct kfd_dev		*device;
 	void *gws;
+
+	/* procfs */
+	struct kobject kobj;
 };
 
-/*
- * Please read the kfd_mqd_manager.h description.
- */
 enum KFD_MQD_TYPE {
 	KFD_MQD_TYPE_HIQ = 0,		/* for hiq */
 	KFD_MQD_TYPE_CP,		/* for cp queues and diq */
@@ -556,9 +568,15 @@ struct qcm_process_device {
 	 */
 	bool reset_wavefronts;
 
-	/*
-	 * All the memory management data should be here too
+	/* This flag tells us if this process has a GWS-capable
+	 * queue that will be mapped into the runlist. It's
+	 * possible to request a GWS BO, but not have the queue
+	 * currently mapped, and this changes how the MAP_PROCESS
+	 * PM4 packet is configured.
 	 */
+	bool mapped_gws_queue;
+
+	/* All the memory management data should be here too */
 	uint64_t gds_context_area;
 	/* Contains page table flags such as AMDGPU_PTE_VALID since gfx9 */
 	uint64_t page_table_base;
@@ -608,6 +626,15 @@ enum kfd_pdd_bound {
 	PDD_BOUND_SUSPENDED,
 };
 
+#define MAX_SYSFS_FILENAME_LEN 11
+
+/*
+ * SDMA counter runs at 100MHz frequency.
+ * We display SDMA activity in microsecond granularity in sysfs.
+ * As a result, the divisor is 100.
+ */
+#define SDMA_ACTIVITY_DIVISOR  100
+
 /* Data that is per-process-per device. */
 struct kfd_process_device {
 	/*
@@ -646,9 +673,20 @@ struct kfd_process_device {
 	 * function.
 	 */
 	bool already_dequeued;
+	bool runtime_inuse;
 
 	/* Is this process/pasid bound to this device? (amd_iommu_bind_pasid) */
 	enum kfd_pdd_bound bound;
+
+	/* VRAM usage */
+	uint64_t vram_usage;
+	struct attribute attr_vram;
+	char vram_filename[MAX_SYSFS_FILENAME_LEN];
+
+	/* SDMA activity tracking */
+	uint64_t sdma_past_activity_counter;
+	struct attribute attr_sdma;
+	char sdma_filename[MAX_SYSFS_FILENAME_LEN];
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -729,6 +767,7 @@ struct kfd_process {
 
 	/* Kobj for our procfs */
 	struct kobject *kobj;
+	struct kobject *kobj_queues;
 	struct attribute attr_pasid;
 };
 
@@ -737,11 +776,13 @@ extern DECLARE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
 extern struct srcu_struct kfd_processes_srcu;
 
 /**
- * Ioctl function type.
+ * typedef amdkfd_ioctl_t - typedef for ioctl function pointer.
  *
- * \param filep pointer to file structure.
- * \param p amdkfd process pointer.
- * \param data pointer to arg that was copied from user.
+ * @filep: pointer to file structure.
+ * @p: amdkfd process pointer.
+ * @data: pointer to arg that was copied from user.
+ *
+ * Return: returns ioctl completion code.
  */
 typedef int amdkfd_ioctl_t(struct file *filep, struct kfd_process *p,
 				void *data);
@@ -835,6 +876,8 @@ extern struct device *kfd_device;
 /* KFD's procfs */
 void kfd_procfs_init(void);
 void kfd_procfs_shutdown(void);
+int kfd_procfs_add_queue(struct queue *q);
+void kfd_procfs_del_queue(struct queue *q);
 
 /* Topology */
 int kfd_topology_init(void);
@@ -911,6 +954,8 @@ int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 			void *gws);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
+						unsigned int qid);
+struct queue *pqm_get_user_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
 int pqm_get_wave_state(struct process_queue_manager *pqm,
 		       unsigned int qid,
@@ -1039,10 +1084,10 @@ void kfd_dec_compute_active(struct kfd_dev *dev);
 /* Check with device cgroup if @kfd device is accessible */
 static inline int kfd_devcgroup_check_permission(struct kfd_dev *kfd)
 {
-#if defined(CONFIG_CGROUP_DEVICE)
+#if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
 	struct drm_device *ddev = kfd->ddev;
 
-	return devcgroup_check_permission(DEVCG_DEV_CHAR, ddev->driver->major,
+	return devcgroup_check_permission(DEVCG_DEV_CHAR, DRM_MAJOR,
 					  ddev->render->index,
 					  DEVCG_ACC_WRITE | DEVCG_ACC_READ);
 #else

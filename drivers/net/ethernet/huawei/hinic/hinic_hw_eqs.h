@@ -143,8 +143,9 @@ enum hinic_eq_type {
 };
 
 enum hinic_aeq_type {
+	HINIC_MBX_FROM_FUNC = 1,
 	HINIC_MSG_FROM_MGMT_CPU = 2,
-
+	HINIC_MBX_SEND_RSLT = 5,
 	HINIC_MAX_AEQ_EVENTS,
 };
 
@@ -161,7 +162,7 @@ enum hinic_eqe_state {
 
 struct hinic_aeq_elem {
 	u8      data[HINIC_AEQE_DATA_SIZE];
-	u32     desc;
+	__be32  desc;
 };
 
 struct hinic_eq_work {
@@ -171,7 +172,7 @@ struct hinic_eq_work {
 
 struct hinic_eq {
 	struct hinic_hwif       *hwif;
-
+	struct hinic_hwdev      *hwdev;
 	enum hinic_eq_type      type;
 	int                     q_id;
 	u32                     q_len;
@@ -219,7 +220,7 @@ struct hinic_ceq_cb {
 
 struct hinic_ceqs {
 	struct hinic_hwif       *hwif;
-
+	struct hinic_hwdev		*hwdev;
 	struct hinic_eq         ceq[HINIC_MAX_CEQS];
 	int                     num_ceqs;
 
@@ -252,5 +253,9 @@ int hinic_ceqs_init(struct hinic_ceqs *ceqs, struct hinic_hwif *hwif,
 		    struct msix_entry *msix_entries);
 
 void hinic_ceqs_free(struct hinic_ceqs *ceqs);
+
+void hinic_dump_ceq_info(struct hinic_hwdev *hwdev);
+
+void hinic_dump_aeq_info(struct hinic_hwdev *hwdev);
 
 #endif

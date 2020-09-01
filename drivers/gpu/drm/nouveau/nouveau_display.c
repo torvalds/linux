@@ -31,6 +31,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -43,25 +44,12 @@
 #include <nvif/class.h>
 #include <nvif/cl0046.h>
 #include <nvif/event.h>
-
-static int
-nouveau_display_vblank_handler(struct nvif_notify *notify)
-{
-	struct nouveau_crtc *nv_crtc =
-		container_of(notify, typeof(*nv_crtc), vblank);
-	drm_crtc_handle_vblank(&nv_crtc->base);
-	return NVIF_NOTIFY_KEEP;
-}
+#include <dispnv50/crc.h>
 
 int
-nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
+nouveau_display_vblank_enable(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc;
 	struct nouveau_crtc *nv_crtc;
-
-	crtc = drm_crtc_from_index(dev, pipe);
-	if (!crtc)
-		return -EINVAL;
 
 	nv_crtc = nouveau_crtc(crtc);
 	nvif_notify_get(&nv_crtc->vblank);
@@ -70,14 +58,9 @@ nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
 }
 
 void
-nouveau_display_vblank_disable(struct drm_device *dev, unsigned int pipe)
+nouveau_display_vblank_disable(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc;
 	struct nouveau_crtc *nv_crtc;
-
-	crtc = drm_crtc_from_index(dev, pipe);
-	if (!crtc)
-		return;
 
 	nv_crtc = nouveau_crtc(crtc);
 	nvif_notify_put(&nv_crtc->vblank);
@@ -136,102 +119,196 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 }
 
 bool
-nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
+nouveau_display_scanoutpos(struct drm_crtc *crtc,
 			   bool in_vblank_irq, int *vpos, int *hpos,
 			   ktime_t *stime, ktime_t *etime,
 			   const struct drm_display_mode *mode)
 {
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == pipe) {
-			return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
-							       stime, etime);
-		}
-	}
-
-	return false;
+	return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
+					       stime, etime);
 }
+
+static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
+	.destroy = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
+};
 
 static void
-nouveau_display_vblank_fini(struct drm_device *dev)
+nouveau_decode_mod(struct nouveau_drm *drm,
+		   uint64_t modifier,
+		   uint32_t *tile_mode,
+		   uint8_t *kind)
 {
-	struct drm_crtc *crtc;
+	struct nouveau_display *disp = nouveau_display(drm->dev);
+	BUG_ON(!tile_mode || !kind);
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		nvif_notify_fini(&nv_crtc->vblank);
+	if (modifier == DRM_FORMAT_MOD_LINEAR) {
+		/* tile_mode will not be used in this case */
+		*tile_mode = 0;
+		*kind = 0;
+	} else {
+		/*
+		 * Extract the block height and kind from the corresponding
+		 * modifier fields.  See drm_fourcc.h for details.
+		 */
+
+		if ((modifier & (0xffull << 12)) == 0ull) {
+			/* Legacy modifier.  Translate to this dev's 'kind.' */
+			modifier |= disp->format_modifiers[0] & (0xffull << 12);
+		}
+
+		*tile_mode = (uint32_t)(modifier & 0xF);
+		*kind = (uint8_t)((modifier >> 12) & 0xFF);
+
+		if (drm->client.device.info.chipset >= 0xc0)
+			*tile_mode <<= 4;
 	}
 }
 
-static int
-nouveau_display_vblank_init(struct drm_device *dev)
+void
+nouveau_framebuffer_get_layout(struct drm_framebuffer *fb,
+			       uint32_t *tile_mode,
+			       uint8_t *kind)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
-	struct drm_crtc *crtc;
-	int ret;
+	if (fb->flags & DRM_MODE_FB_MODIFIERS) {
+		struct nouveau_drm *drm = nouveau_drm(fb->dev);
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		ret = nvif_notify_init(&disp->disp.object,
-				       nouveau_display_vblank_handler, false,
-				       NV04_DISP_NTFY_VBLANK,
-				       &(struct nvif_notify_head_req_v0) {
-					.head = nv_crtc->index,
-				       },
-				       sizeof(struct nvif_notify_head_req_v0),
-				       sizeof(struct nvif_notify_head_rep_v0),
-				       &nv_crtc->vblank);
-		if (ret) {
-			nouveau_display_vblank_fini(dev);
-			return ret;
-		}
+		nouveau_decode_mod(drm, fb->modifier, tile_mode, kind);
+	} else {
+		const struct nouveau_bo *nvbo = nouveau_gem_object(fb->obj[0]);
+
+		*tile_mode = nvbo->mode;
+		*kind = nvbo->kind;
+	}
+}
+
+static const u64 legacy_modifiers[] = {
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5),
+	DRM_FORMAT_MOD_INVALID
+};
+
+static int
+nouveau_validate_decode_mod(struct nouveau_drm *drm,
+			    uint64_t modifier,
+			    uint32_t *tile_mode,
+			    uint8_t *kind)
+{
+	struct nouveau_display *disp = nouveau_display(drm->dev);
+	int mod;
+
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+		return -EINVAL;
 	}
 
-	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
-	if (ret) {
-		nouveau_display_vblank_fini(dev);
-		return ret;
+	BUG_ON(!disp->format_modifiers);
+
+	for (mod = 0;
+	     (disp->format_modifiers[mod] != DRM_FORMAT_MOD_INVALID) &&
+	     (disp->format_modifiers[mod] != modifier);
+	     mod++);
+
+	if (disp->format_modifiers[mod] == DRM_FORMAT_MOD_INVALID) {
+		for (mod = 0;
+		     (legacy_modifiers[mod] != DRM_FORMAT_MOD_INVALID) &&
+		     (legacy_modifiers[mod] != modifier);
+		     mod++);
+		if (legacy_modifiers[mod] == DRM_FORMAT_MOD_INVALID)
+			return -EINVAL;
 	}
+
+	nouveau_decode_mod(drm, modifier, tile_mode, kind);
 
 	return 0;
 }
 
-static void
-nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
+static inline uint32_t
+nouveau_get_width_in_blocks(uint32_t stride)
 {
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
+	/* GOBs per block in the x direction is always one, and GOBs are
+	 * 64 bytes wide
+	 */
+	static const uint32_t log_block_width = 6;
 
-	if (fb->nvbo)
-		drm_gem_object_put_unlocked(&fb->nvbo->bo.base);
+	return (stride + (1 << log_block_width) - 1) >> log_block_width;
+}
 
-	drm_framebuffer_cleanup(drm_fb);
-	kfree(fb);
+static inline uint32_t
+nouveau_get_height_in_blocks(struct nouveau_drm *drm,
+			     uint32_t height,
+			     uint32_t log_block_height_in_gobs)
+{
+	uint32_t log_gob_height;
+	uint32_t log_block_height;
+
+	BUG_ON(drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA);
+
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
+		log_gob_height = 2;
+	else
+		log_gob_height = 3;
+
+	log_block_height = log_block_height_in_gobs + log_gob_height;
+
+	return (height + (1 << log_block_height) - 1) >> log_block_height;
 }
 
 static int
-nouveau_user_framebuffer_create_handle(struct drm_framebuffer *drm_fb,
-				       struct drm_file *file_priv,
-				       unsigned int *handle)
+nouveau_check_bl_size(struct nouveau_drm *drm, struct nouveau_bo *nvbo,
+		      uint32_t offset, uint32_t stride, uint32_t h,
+		      uint32_t tile_mode)
 {
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
+	uint32_t gob_size, bw, bh;
+	uint64_t bl_size;
 
-	return drm_gem_handle_create(file_priv, &fb->nvbo->bo.base, handle);
+	BUG_ON(drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA);
+
+	if (drm->client.device.info.chipset >= 0xc0) {
+		if (tile_mode & 0xF)
+			return -EINVAL;
+		tile_mode >>= 4;
+	}
+
+	if (tile_mode & 0xFFFFFFF0)
+		return -EINVAL;
+
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
+		gob_size = 256;
+	else
+		gob_size = 512;
+
+	bw = nouveau_get_width_in_blocks(stride);
+	bh = nouveau_get_height_in_blocks(drm, h, tile_mode);
+
+	bl_size = bw * bh * (1 << tile_mode) * gob_size;
+
+	DRM_DEBUG_KMS("offset=%u stride=%u h=%u tile_mode=0x%02x bw=%u bh=%u gob_size=%u bl_size=%llu size=%lu\n",
+		      offset, stride, h, tile_mode, bw, bh, gob_size, bl_size,
+		      nvbo->bo.mem.size);
+
+	if (bl_size + offset > nvbo->bo.mem.size)
+		return -ERANGE;
+
+	return 0;
 }
-
-static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
-	.destroy = nouveau_user_framebuffer_destroy,
-	.create_handle = nouveau_user_framebuffer_create_handle,
-};
 
 int
 nouveau_framebuffer_new(struct drm_device *dev,
 			const struct drm_mode_fb_cmd2 *mode_cmd,
-			struct nouveau_bo *nvbo,
-			struct nouveau_framebuffer **pfb)
+			struct drm_gem_object *gem,
+			struct drm_framebuffer **pfb)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_framebuffer *fb;
+	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct drm_framebuffer *fb;
+	const struct drm_format_info *info;
+	unsigned int width, height, i;
+	uint32_t tile_mode;
+	uint8_t kind;
 	int ret;
 
         /* YUV overlays have special requirements pre-NV50 */
@@ -254,13 +331,50 @@ nouveau_framebuffer_new(struct drm_device *dev,
 		return -EINVAL;
 	}
 
+	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
+		if (nouveau_validate_decode_mod(drm, mode_cmd->modifier[0],
+						&tile_mode, &kind)) {
+			DRM_DEBUG_KMS("Unsupported modifier: 0x%llx\n",
+				      mode_cmd->modifier[0]);
+			return -EINVAL;
+		}
+	} else {
+		tile_mode = nvbo->mode;
+		kind = nvbo->kind;
+	}
+
+	info = drm_get_format_info(dev, mode_cmd);
+
+	for (i = 0; i < info->num_planes; i++) {
+		width = drm_format_info_plane_width(info,
+						    mode_cmd->width,
+						    i);
+		height = drm_format_info_plane_height(info,
+						      mode_cmd->height,
+						      i);
+
+		if (kind) {
+			ret = nouveau_check_bl_size(drm, nvbo,
+						    mode_cmd->offsets[i],
+						    mode_cmd->pitches[i],
+						    height, tile_mode);
+			if (ret)
+				return ret;
+		} else {
+			uint32_t size = mode_cmd->pitches[i] * height;
+
+			if (size + mode_cmd->offsets[i] > nvbo->bo.mem.size)
+				return -ERANGE;
+		}
+	}
+
 	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
 		return -ENOMEM;
 
-	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
-	fb->nvbo = nvbo;
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	fb->obj[0] = gem;
 
-	ret = drm_framebuffer_init(dev, &fb->base, &nouveau_framebuffer_funcs);
+	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
 	if (ret)
 		kfree(fb);
 	return ret;
@@ -271,21 +385,19 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
 				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct nouveau_framebuffer *fb;
-	struct nouveau_bo *nvbo;
+	struct drm_framebuffer *fb;
 	struct drm_gem_object *gem;
 	int ret;
 
 	gem = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (!gem)
 		return ERR_PTR(-ENOENT);
-	nvbo = nouveau_gem_object(gem);
 
-	ret = nouveau_framebuffer_new(dev, mode_cmd, nvbo, &fb);
+	ret = nouveau_framebuffer_new(dev, mode_cmd, gem, &fb);
 	if (ret == 0)
-		return &fb->base;
+		return fb;
 
-	drm_gem_object_put_unlocked(gem);
+	drm_gem_object_put(gem);
 	return ERR_PTR(ret);
 }
 
@@ -535,6 +647,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
+	dev->mode_config.allow_fb_modifiers = true;
 
 	if (drm->client.device.info.chipset < 0x11)
 		dev->mode_config.async_page_flip = false;
@@ -545,7 +658,8 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_disable(dev);
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
-		ret = nvif_disp_ctor(&drm->client.device, 0, &disp->disp);
+		ret = nvif_disp_ctor(&drm->client.device, "kmsDisp", 0,
+				     &disp->disp);
 		if (ret == 0) {
 			nouveau_display_create_properties(dev);
 			if (disp->disp.object.oclass < NV50_DISP)
@@ -563,9 +677,12 @@ nouveau_display_create(struct drm_device *dev)
 	drm_mode_config_reset(dev);
 
 	if (dev->mode_config.num_crtc) {
-		ret = nouveau_display_vblank_init(dev);
+		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
 		if (ret)
 			goto vblank_err;
+
+		if (disp->disp.object.oclass >= NV50_DISP)
+			nv50_crc_init(dev);
 	}
 
 	INIT_WORK(&drm->hpd_work, nouveau_display_hpd_work);
@@ -592,7 +709,6 @@ nouveau_display_destroy(struct drm_device *dev)
 #ifdef CONFIG_ACPI
 	unregister_acpi_notifier(&nouveau_drm(dev)->acpi_nb);
 #endif
-	nouveau_display_vblank_fini(dev);
 
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
@@ -666,7 +782,7 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 		return ret;
 
 	ret = drm_gem_handle_create(file_priv, &bo->bo.base, &args->handle);
-	drm_gem_object_put_unlocked(&bo->bo.base);
+	drm_gem_object_put(&bo->bo.base);
 	return ret;
 }
 
@@ -681,7 +797,7 @@ nouveau_display_dumb_map_offset(struct drm_file *file_priv,
 	if (gem) {
 		struct nouveau_bo *bo = nouveau_gem_object(gem);
 		*poffset = drm_vma_node_offset_addr(&bo->bo.base.vma_node);
-		drm_gem_object_put_unlocked(gem);
+		drm_gem_object_put(gem);
 		return 0;
 	}
 

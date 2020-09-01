@@ -13,6 +13,7 @@
 #include <linux/gpio.h>
 
 #define QCA8K_NUM_PORTS					7
+#define QCA8K_MAX_MTU					9000
 
 #define PHY_ID_QCA8337					0x004dd036
 #define QCA8K_ID_QCA8337				0x13
@@ -20,6 +21,8 @@
 #define QCA8K_NUM_FDB_RECORDS				2048
 
 #define QCA8K_CPU_PORT					0
+
+#define QCA8K_PORT_VID_DEF				1
 
 /* Global control registers */
 #define QCA8K_REG_MASK_CTRL				0x000
@@ -36,6 +39,8 @@
 #define   QCA8K_MAX_DELAY				3
 #define   QCA8K_PORT_PAD_RGMII_RX_DELAY_EN		BIT(24)
 #define   QCA8K_PORT_PAD_SGMII_EN			BIT(7)
+#define QCA8K_REG_PWS					0x010
+#define   QCA8K_PWS_SERDES_AEN_DIS			BIT(7)
 #define QCA8K_REG_MODULE_EN				0x030
 #define   QCA8K_MODULE_EN_MIB				BIT(0)
 #define QCA8K_REG_MIB					0x034
@@ -56,6 +61,7 @@
 #define   QCA8K_MDIO_MASTER_MAX_REG			32
 #define QCA8K_GOL_MAC_ADDR0				0x60
 #define QCA8K_GOL_MAC_ADDR1				0x64
+#define QCA8K_MAX_FRAME_SIZE				0x78
 #define QCA8K_REG_PORT_STATUS(_i)			(0x07c + (_i) * 4)
 #define   QCA8K_PORT_STATUS_SPEED			GENMASK(1, 0)
 #define   QCA8K_PORT_STATUS_SPEED_10			0
@@ -69,6 +75,7 @@
 #define   QCA8K_PORT_STATUS_LINK_UP			BIT(8)
 #define   QCA8K_PORT_STATUS_LINK_AUTO			BIT(9)
 #define   QCA8K_PORT_STATUS_LINK_PAUSE			BIT(10)
+#define   QCA8K_PORT_STATUS_FLOW_AUTO			BIT(12)
 #define QCA8K_REG_PORT_HDR_CTRL(_i)			(0x9c + (_i * 4))
 #define   QCA8K_PORT_HDR_CTRL_RX_MASK			GENMASK(3, 2)
 #define   QCA8K_PORT_HDR_CTRL_RX_S			2
@@ -77,6 +84,16 @@
 #define   QCA8K_PORT_HDR_CTRL_ALL			2
 #define   QCA8K_PORT_HDR_CTRL_MGMT			1
 #define   QCA8K_PORT_HDR_CTRL_NONE			0
+#define QCA8K_REG_SGMII_CTRL				0x0e0
+#define   QCA8K_SGMII_EN_PLL				BIT(1)
+#define   QCA8K_SGMII_EN_RX				BIT(2)
+#define   QCA8K_SGMII_EN_TX				BIT(3)
+#define   QCA8K_SGMII_EN_SD				BIT(4)
+#define   QCA8K_SGMII_CLK125M_DELAY			BIT(7)
+#define   QCA8K_SGMII_MODE_CTRL_MASK			(BIT(22) | BIT(23))
+#define   QCA8K_SGMII_MODE_CTRL_BASEX			(0 << 22)
+#define   QCA8K_SGMII_MODE_CTRL_PHY			(1 << 22)
+#define   QCA8K_SGMII_MODE_CTRL_MAC			(2 << 22)
 
 /* EEE control registers */
 #define QCA8K_REG_EEE_CTRL				0x100
@@ -111,6 +128,19 @@
 #define   QCA8K_ATU_FUNC_FULL				BIT(12)
 #define   QCA8K_ATU_FUNC_PORT_M				0xf
 #define   QCA8K_ATU_FUNC_PORT_S				8
+#define QCA8K_REG_VTU_FUNC0				0x610
+#define   QCA8K_VTU_FUNC0_VALID				BIT(20)
+#define   QCA8K_VTU_FUNC0_IVL_EN			BIT(19)
+#define   QCA8K_VTU_FUNC0_EG_MODE_S(_i)			(4 + (_i) * 2)
+#define   QCA8K_VTU_FUNC0_EG_MODE_MASK			3
+#define   QCA8K_VTU_FUNC0_EG_MODE_UNMOD			0
+#define   QCA8K_VTU_FUNC0_EG_MODE_UNTAG			1
+#define   QCA8K_VTU_FUNC0_EG_MODE_TAG			2
+#define   QCA8K_VTU_FUNC0_EG_MODE_NOT			3
+#define QCA8K_REG_VTU_FUNC1				0x614
+#define   QCA8K_VTU_FUNC1_BUSY				BIT(31)
+#define   QCA8K_VTU_FUNC1_VID_S				16
+#define   QCA8K_VTU_FUNC1_FULL				BIT(4)
 #define QCA8K_REG_GLOBAL_FW_CTRL0			0x620
 #define   QCA8K_GLOBAL_FW_CTRL0_CPU_PORT_EN		BIT(10)
 #define QCA8K_REG_GLOBAL_FW_CTRL1			0x624
@@ -120,6 +150,11 @@
 #define   QCA8K_GLOBAL_FW_CTRL1_UC_DP_S			0
 #define QCA8K_PORT_LOOKUP_CTRL(_i)			(0x660 + (_i) * 0xc)
 #define   QCA8K_PORT_LOOKUP_MEMBER			GENMASK(6, 0)
+#define   QCA8K_PORT_LOOKUP_VLAN_MODE			GENMASK(9, 8)
+#define   QCA8K_PORT_LOOKUP_VLAN_MODE_NONE		(0 << 8)
+#define   QCA8K_PORT_LOOKUP_VLAN_MODE_FALLBACK		(1 << 8)
+#define   QCA8K_PORT_LOOKUP_VLAN_MODE_CHECK		(2 << 8)
+#define   QCA8K_PORT_LOOKUP_VLAN_MODE_SECURE		(3 << 8)
 #define   QCA8K_PORT_LOOKUP_STATE_MASK			GENMASK(18, 16)
 #define   QCA8K_PORT_LOOKUP_STATE_DISABLED		(0 << 16)
 #define   QCA8K_PORT_LOOKUP_STATE_BLOCKING		(1 << 16)
@@ -163,6 +198,15 @@ enum qca8k_fdb_cmd {
 	QCA8K_FDB_SEARCH = 7,
 };
 
+enum qca8k_vlan_cmd {
+	QCA8K_VLAN_FLUSH = 1,
+	QCA8K_VLAN_LOAD = 2,
+	QCA8K_VLAN_PURGE = 3,
+	QCA8K_VLAN_REMOVE_PORT = 4,
+	QCA8K_VLAN_NEXT = 5,
+	QCA8K_VLAN_READ = 6,
+};
+
 struct ar8xxx_port_status {
 	int enabled;
 };
@@ -176,6 +220,7 @@ struct qca8k_priv {
 	struct device *dev;
 	struct dsa_switch_ops ops;
 	struct gpio_desc *reset_gpio;
+	unsigned int port_mtu[QCA8K_NUM_PORTS];
 };
 
 struct qca8k_mib_desc {

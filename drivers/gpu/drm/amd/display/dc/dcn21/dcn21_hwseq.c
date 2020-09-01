@@ -28,10 +28,13 @@
 #include "core_types.h"
 #include "resource.h"
 #include "dce/dce_hwseq.h"
+#include "dce110/dce110_hw_sequencer.h"
 #include "dcn21_hwseq.h"
 #include "vmid.h"
 #include "reg_helper.h"
 #include "hw/clk_mgr.h"
+#include "dc_dmub_srv.h"
+#include "abm.h"
 
 
 #define DC_LOGGER_INIT(logger)
@@ -110,5 +113,113 @@ void dcn21_optimize_pwr_state(
 			dc->clk_mgr,
 			context,
 			true);
+}
+
+/* If user hotplug a HDMI monitor while in monitor off,
+ * OS will do a mode set (with output timing) but keep output off.
+ * In this case DAL will ask vbios to power up the pll in the PHY.
+ * If user unplug the monitor (while we are on monitor off) or
+ * system attempt to enter modern standby (which we will disable PLL),
+ * PHY will hang on the next mode set attempt.
+ * if enable PLL follow by disable PLL (without executing lane enable/disable),
+ * RDPCS_PHY_DP_MPLLB_STATE remains 1,
+ * which indicate that PLL disable attempt actually didn’t go through.
+ * As a workaround, insert PHY lane enable/disable before PLL disable.
+ */
+void dcn21_PLAT_58856_wa(struct dc_state *context, struct pipe_ctx *pipe_ctx)
+{
+	if (!pipe_ctx->stream->dpms_off)
+		return;
+
+	pipe_ctx->stream->dpms_off = false;
+	core_link_enable_stream(context, pipe_ctx);
+	core_link_disable_stream(pipe_ctx);
+	pipe_ctx->stream->dpms_off = true;
+}
+
+static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst, uint32_t option, uint32_t panel_inst)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = abm->ctx;
+	uint32_t ramping_boundary = 0xFFFF;
+
+	cmd.abm_set_pipe.header.type = DMUB_CMD__ABM;
+	cmd.abm_set_pipe.header.sub_type = DMUB_CMD__ABM_SET_PIPE;
+	cmd.abm_set_pipe.abm_set_pipe_data.otg_inst = otg_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.set_pipe_option = option;
+	cmd.abm_set_pipe.abm_set_pipe_data.panel_inst = panel_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.ramping_boundary = ramping_boundary;
+	cmd.abm_set_pipe.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pipe_data);
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+
+	return true;
+}
+
+void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
+{
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	uint32_t otg_inst = pipe_ctx->stream_res.tg->inst;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+
+	struct dmcu *dmcu = pipe_ctx->stream->ctx->dc->res_pool->dmcu;
+
+	if (dmcu) {
+		dce110_set_abm_immediate_disable(pipe_ctx);
+		return;
+	}
+
+	if (abm && panel_cntl)
+		dmub_abm_set_pipe(abm, otg_inst, SET_ABM_PIPE_IMMEDIATELY_DISABLE,
+				panel_cntl->inst);
+}
+
+void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
+{
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	uint32_t otg_inst = pipe_ctx->stream_res.tg->inst;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+	struct dmcu *dmcu = pipe_ctx->stream->ctx->dc->res_pool->dmcu;
+
+	if (dmcu) {
+		dce110_set_pipe(pipe_ctx);
+		return;
+	}
+
+	if (abm && panel_cntl)
+		dmub_abm_set_pipe(abm, otg_inst, SET_ABM_PIPE_NORMAL, panel_cntl->inst);
+}
+
+bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
+		uint32_t backlight_pwm_u16_16,
+		uint32_t frame_ramp)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = pipe_ctx->stream->ctx;
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	uint32_t otg_inst = pipe_ctx->stream_res.tg->inst;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+
+	if (dc->dc->res_pool->dmcu) {
+		dce110_set_backlight_level(pipe_ctx, backlight_pwm_u16_16, frame_ramp);
+		return true;
+	}
+
+	if (abm && panel_cntl)
+		dmub_abm_set_pipe(abm, otg_inst, SET_ABM_PIPE_NORMAL, panel_cntl->inst);
+
+	cmd.abm_set_backlight.header.type = DMUB_CMD__ABM;
+	cmd.abm_set_backlight.header.sub_type = DMUB_CMD__ABM_SET_BACKLIGHT;
+	cmd.abm_set_backlight.abm_set_backlight_data.frame_ramp = frame_ramp;
+	cmd.abm_set_backlight.abm_set_backlight_data.backlight_user_level = backlight_pwm_u16_16;
+	cmd.abm_set_backlight.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_backlight_data);
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+
+	return true;
 }
 

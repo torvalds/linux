@@ -30,7 +30,7 @@
 #if K1212_DEBUG_LEVEL > 0
 #define K1212_DEBUG_PRINTK(fmt,args...)	printk(KERN_DEBUG fmt,##args)
 #else
-#define K1212_DEBUG_PRINTK(fmt,...)
+#define K1212_DEBUG_PRINTK(fmt,...)	do { } while (0)
 #endif
 #if K1212_DEBUG_LEVEL > 1
 #define K1212_DEBUG_PRINTK_VERBOSE(fmt,args...)	printk(KERN_DEBUG fmt,##args)
@@ -2149,7 +2149,9 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
 {
         int err, rc;
         unsigned int i;
-	unsigned ioport_size, iomem_size, iomem2_size;
+	unsigned iomem_size;
+	__maybe_unused unsigned ioport_size;
+	__maybe_unused unsigned iomem2_size;
         struct snd_korg1212 * korg1212;
 	const struct firmware *dsp_code;
 

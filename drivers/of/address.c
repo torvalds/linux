@@ -49,6 +49,7 @@ struct of_bus {
 	u64		(*map)(__be32 *addr, const __be32 *range,
 				int na, int ns, int pna);
 	int		(*translate)(__be32 *addr, u64 offset, int na);
+	bool	has_flags;
 	unsigned int	(*get_flags)(const __be32 *addr);
 };
 
@@ -101,34 +102,13 @@ static unsigned int of_bus_default_get_flags(const __be32 *addr)
 }
 
 #ifdef CONFIG_PCI
-/*
- * PCI bus specific translator
- */
-
-static int of_bus_pci_match(struct device_node *np)
-{
-	/*
- 	 * "pciex" is PCI Express
-	 * "vci" is for the /chaos bridge on 1st-gen PCI powermacs
-	 * "ht" is hypertransport
-	 */
-	return of_node_is_type(np, "pci") || of_node_is_type(np, "pciex") ||
-		of_node_is_type(np, "vci") || of_node_is_type(np, "ht");
-}
-
-static void of_bus_pci_count_cells(struct device_node *np,
-				   int *addrc, int *sizec)
-{
-	if (addrc)
-		*addrc = 3;
-	if (sizec)
-		*sizec = 2;
-}
-
 static unsigned int of_bus_pci_get_flags(const __be32 *addr)
 {
 	unsigned int flags = 0;
 	u32 w = be32_to_cpup(addr);
+
+	if (!IS_ENABLED(CONFIG_PCI))
+		return 0;
 
 	switch((w >> 24) & 0x03) {
 	case 0x01:
@@ -142,6 +122,44 @@ static unsigned int of_bus_pci_get_flags(const __be32 *addr)
 	if (w & 0x40000000)
 		flags |= IORESOURCE_PREFETCH;
 	return flags;
+}
+
+/*
+ * PCI bus specific translator
+ */
+
+static bool of_node_is_pcie(struct device_node *np)
+{
+	bool is_pcie = of_node_name_eq(np, "pcie");
+
+	if (is_pcie)
+		pr_warn_once("%pOF: Missing device_type\n", np);
+
+	return is_pcie;
+}
+
+static int of_bus_pci_match(struct device_node *np)
+{
+	/*
+ 	 * "pciex" is PCI Express
+	 * "vci" is for the /chaos bridge on 1st-gen PCI powermacs
+	 * "ht" is hypertransport
+	 *
+	 * If none of the device_type match, and that the node name is
+	 * "pcie", accept the device as PCI (with a warning).
+	 */
+	return of_node_is_type(np, "pci") || of_node_is_type(np, "pciex") ||
+		of_node_is_type(np, "vci") || of_node_is_type(np, "ht") ||
+		of_node_is_pcie(np);
+}
+
+static void of_bus_pci_count_cells(struct device_node *np,
+				   int *addrc, int *sizec)
+{
+	if (addrc)
+		*addrc = 3;
+	if (sizec)
+		*sizec = 2;
 }
 
 static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
@@ -233,93 +251,6 @@ int of_pci_address_to_resource(struct device_node *dev, int bar,
 	return __of_address_to_resource(dev, addrp, size, flags, NULL, r);
 }
 EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
-
-static int parser_init(struct of_pci_range_parser *parser,
-			struct device_node *node, const char *name)
-{
-	const int na = 3, ns = 2;
-	int rlen;
-
-	parser->node = node;
-	parser->pna = of_n_addr_cells(node);
-	parser->np = parser->pna + na + ns;
-	parser->dma = !strcmp(name, "dma-ranges");
-
-	parser->range = of_get_property(node, name, &rlen);
-	if (parser->range == NULL)
-		return -ENOENT;
-
-	parser->end = parser->range + rlen / sizeof(__be32);
-
-	return 0;
-}
-
-int of_pci_range_parser_init(struct of_pci_range_parser *parser,
-				struct device_node *node)
-{
-	return parser_init(parser, node, "ranges");
-}
-EXPORT_SYMBOL_GPL(of_pci_range_parser_init);
-
-int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-				struct device_node *node)
-{
-	return parser_init(parser, node, "dma-ranges");
-}
-EXPORT_SYMBOL_GPL(of_pci_dma_range_parser_init);
-
-struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
-						struct of_pci_range *range)
-{
-	const int na = 3, ns = 2;
-
-	if (!range)
-		return NULL;
-
-	if (!parser->range || parser->range + parser->np > parser->end)
-		return NULL;
-
-	range->pci_space = be32_to_cpup(parser->range);
-	range->flags = of_bus_pci_get_flags(parser->range);
-	range->pci_addr = of_read_number(parser->range + 1, ns);
-	if (parser->dma)
-		range->cpu_addr = of_translate_dma_address(parser->node,
-				parser->range + na);
-	else
-		range->cpu_addr = of_translate_address(parser->node,
-				parser->range + na);
-	range->size = of_read_number(parser->range + parser->pna + na, ns);
-
-	parser->range += parser->np;
-
-	/* Now consume following elements while they are contiguous */
-	while (parser->range + parser->np <= parser->end) {
-		u32 flags;
-		u64 pci_addr, cpu_addr, size;
-
-		flags = of_bus_pci_get_flags(parser->range);
-		pci_addr = of_read_number(parser->range + 1, ns);
-		if (parser->dma)
-			cpu_addr = of_translate_dma_address(parser->node,
-					parser->range + na);
-		else
-			cpu_addr = of_translate_address(parser->node,
-					parser->range + na);
-		size = of_read_number(parser->range + parser->pna + na, ns);
-
-		if (flags != range->flags)
-			break;
-		if (pci_addr != range->pci_addr + range->size ||
-		    cpu_addr != range->cpu_addr + range->size)
-			break;
-
-		range->size += size;
-		parser->range += parser->np;
-	}
-
-	return range;
-}
-EXPORT_SYMBOL_GPL(of_pci_range_parser_one);
 
 /*
  * of_pci_range_to_resource - Create a resource from an of_pci_range
@@ -448,6 +379,7 @@ static struct of_bus of_busses[] = {
 		.count_cells = of_bus_pci_count_cells,
 		.map = of_bus_pci_map,
 		.translate = of_bus_pci_translate,
+		.has_flags = true,
 		.get_flags = of_bus_pci_get_flags,
 	},
 #endif /* CONFIG_PCI */
@@ -459,6 +391,7 @@ static struct of_bus of_busses[] = {
 		.count_cells = of_bus_isa_count_cells,
 		.map = of_bus_isa_map,
 		.translate = of_bus_isa_translate,
+		.has_flags = true,
 		.get_flags = of_bus_isa_get_flags,
 	},
 	/* Default */
@@ -775,6 +708,103 @@ const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 }
 EXPORT_SYMBOL(of_get_address);
 
+static int parser_init(struct of_pci_range_parser *parser,
+			struct device_node *node, const char *name)
+{
+	int rlen;
+
+	parser->node = node;
+	parser->pna = of_n_addr_cells(node);
+	parser->na = of_bus_n_addr_cells(node);
+	parser->ns = of_bus_n_size_cells(node);
+	parser->dma = !strcmp(name, "dma-ranges");
+	parser->bus = of_match_bus(node);
+
+	parser->range = of_get_property(node, name, &rlen);
+	if (parser->range == NULL)
+		return -ENOENT;
+
+	parser->end = parser->range + rlen / sizeof(__be32);
+
+	return 0;
+}
+
+int of_pci_range_parser_init(struct of_pci_range_parser *parser,
+				struct device_node *node)
+{
+	return parser_init(parser, node, "ranges");
+}
+EXPORT_SYMBOL_GPL(of_pci_range_parser_init);
+
+int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
+				struct device_node *node)
+{
+	return parser_init(parser, node, "dma-ranges");
+}
+EXPORT_SYMBOL_GPL(of_pci_dma_range_parser_init);
+#define of_dma_range_parser_init of_pci_dma_range_parser_init
+
+struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
+						struct of_pci_range *range)
+{
+	int na = parser->na;
+	int ns = parser->ns;
+	int np = parser->pna + na + ns;
+	int busflag_na = 0;
+
+	if (!range)
+		return NULL;
+
+	if (!parser->range || parser->range + np > parser->end)
+		return NULL;
+
+	range->flags = parser->bus->get_flags(parser->range);
+
+	/* A extra cell for resource flags */
+	if (parser->bus->has_flags)
+		busflag_na = 1;
+
+	range->bus_addr = of_read_number(parser->range + busflag_na, na - busflag_na);
+
+	if (parser->dma)
+		range->cpu_addr = of_translate_dma_address(parser->node,
+				parser->range + na);
+	else
+		range->cpu_addr = of_translate_address(parser->node,
+				parser->range + na);
+	range->size = of_read_number(parser->range + parser->pna + na, ns);
+
+	parser->range += np;
+
+	/* Now consume following elements while they are contiguous */
+	while (parser->range + np <= parser->end) {
+		u32 flags = 0;
+		u64 bus_addr, cpu_addr, size;
+
+		flags = parser->bus->get_flags(parser->range);
+		bus_addr = of_read_number(parser->range + busflag_na, na - busflag_na);
+		if (parser->dma)
+			cpu_addr = of_translate_dma_address(parser->node,
+					parser->range + na);
+		else
+			cpu_addr = of_translate_address(parser->node,
+					parser->range + na);
+		size = of_read_number(parser->range + parser->pna + na, ns);
+
+		if (flags != range->flags)
+			break;
+		if (bus_addr != range->bus_addr + range->size ||
+		    cpu_addr != range->cpu_addr + range->size)
+			break;
+
+		range->size += size;
+		parser->range += np;
+	}
+
+	return range;
+}
+EXPORT_SYMBOL_GPL(of_pci_range_parser_one);
+
 static u64 of_translate_ioport(struct device_node *dev, const __be32 *in_addr,
 			u64 size)
 {
@@ -853,7 +883,7 @@ EXPORT_SYMBOL_GPL(of_address_to_resource);
 
 /**
  * of_iomap - Maps the memory mapped IO for a given device_node
- * @device:	the device whose io range will be mapped
+ * @np:		the device whose io range will be mapped
  * @index:	index of the io range
  *
  * Returns a pointer to the mapped memory
@@ -928,10 +958,12 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 {
 	struct device_node *node = of_node_get(np);
 	const __be32 *ranges = NULL;
-	int len, naddr, nsize, pna;
+	int len;
 	int ret = 0;
 	bool found_dma_ranges = false;
-	u64 dmaaddr;
+	struct of_range_parser parser;
+	struct of_range range;
+	u64 dma_start = U64_MAX, dma_end = 0, dma_offset = 0;
 
 	while (node) {
 		ranges = of_get_property(node, "dma-ranges", &len);
@@ -956,32 +988,43 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 		goto out;
 	}
 
-	naddr = of_bus_n_addr_cells(node);
-	nsize = of_bus_n_size_cells(node);
-	pna = of_n_addr_cells(node);
-	if ((len / sizeof(__be32)) % (pna + naddr + nsize)) {
+	of_dma_range_parser_init(&parser, node);
+
+	for_each_of_range(&parser, &range) {
+		pr_debug("dma_addr(%llx) cpu_addr(%llx) size(%llx)\n",
+			 range.bus_addr, range.cpu_addr, range.size);
+
+		if (dma_offset && range.cpu_addr - range.bus_addr != dma_offset) {
+			pr_warn("Can't handle multiple dma-ranges with different offsets on node(%pOF)\n", node);
+			/* Don't error out as we'd break some existing DTs */
+			continue;
+		}
+		if (range.cpu_addr == OF_BAD_ADDR) {
+			pr_err("translation of DMA address(%llx) to CPU address failed node(%pOF)\n",
+			       range.bus_addr, node);
+			continue;
+		}
+		dma_offset = range.cpu_addr - range.bus_addr;
+
+		/* Take lower and upper limits */
+		if (range.bus_addr < dma_start)
+			dma_start = range.bus_addr;
+		if (range.bus_addr + range.size > dma_end)
+			dma_end = range.bus_addr + range.size;
+	}
+
+	if (dma_start >= dma_end) {
 		ret = -EINVAL;
+		pr_debug("Invalid DMA ranges configuration on node(%pOF)\n",
+			 node);
 		goto out;
 	}
 
-	/* dma-ranges format:
-	 * DMA addr	: naddr cells
-	 * CPU addr	: pna cells
-	 * size		: nsize cells
-	 */
-	dmaaddr = of_read_number(ranges, naddr);
-	*paddr = of_translate_dma_address(node, ranges + naddr);
-	if (*paddr == OF_BAD_ADDR) {
-		pr_err("translation of DMA address(%llx) to CPU address failed node(%pOF)\n",
-		       dmaaddr, np);
-		ret = -EINVAL;
-		goto out;
-	}
-	*dma_addr = dmaaddr;
+	*dma_addr = dma_start;
+	*size = dma_end - dma_start;
+	*paddr = dma_start + dma_offset;
 
-	*size = of_read_number(ranges + naddr + pna, nsize);
-
-	pr_debug("dma_addr(%llx) cpu_addr(%llx) size(%llx)\n",
+	pr_debug("final: dma_addr(%llx) cpu_addr(%llx) size(%llx)\n",
 		 *dma_addr, *paddr, *size);
 
 out:

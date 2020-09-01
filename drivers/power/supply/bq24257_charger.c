@@ -5,9 +5,9 @@
  * Copyright (C) 2015 Intel Corporation
  *
  * Datasheets:
- * http://www.ti.com/product/bq24250
- * http://www.ti.com/product/bq24251
- * http://www.ti.com/product/bq24257
+ * https://www.ti.com/product/bq24250
+ * https://www.ti.com/product/bq24251
+ * https://www.ti.com/product/bq24257
  */
 
 #include <linux/module.h>

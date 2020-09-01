@@ -100,8 +100,8 @@
  * RED accepts pkt if unused CQE < 2304 & >= 2560
  * DROPs pkts if unused CQE < 2304
  */
-#define RQ_PASS_CQ_LVL         192ULL
-#define RQ_DROP_CQ_LVL         184ULL
+#define RQ_PASS_CQ_LVL         224ULL
+#define RQ_DROP_CQ_LVL         216ULL
 
 /* RED and Backpressure levels of RBDR for pkt reception
  * For RBDR, level is a measure of fullness i.e 0x0 means empty

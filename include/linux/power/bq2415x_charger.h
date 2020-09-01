@@ -2,7 +2,7 @@
 /*
  * bq2415x charger driver
  *
- * Copyright (C) 2011-2013  Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (C) 2011-2013  Pali Rohár <pali@kernel.org>
  */
 
 #ifndef BQ2415X_CHARGER_H
@@ -14,8 +14,8 @@
  * value is -1 then default chip value (specified in datasheet) will be
  * used.
  *
- * Value resistor_sense is needed for for configuring charge and
- * termination current. It it is less or equal to zero, configuring charge
+ * Value resistor_sense is needed for configuring charge and
+ * termination current. If it is less or equal to zero, configuring charge
  * and termination current will not be possible.
  *
  * For automode support is needed to provide name of power supply device

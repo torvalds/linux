@@ -15,6 +15,19 @@
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <net/flow_offload.h>
+#include <net/page_pool.h>
+#include <linux/bpf.h>
+#include <net/xdp.h>
+
+/* The PacketOffset field is measured in units of 32 bytes and is 3 bits wide,
+ * so the maximum offset is 7 * 32 = 224
+ */
+#define MVPP2_SKB_HEADROOM	min(max(XDP_PACKET_HEADROOM, NET_SKB_PAD), 224)
+
+#define MVPP2_XDP_PASS		0
+#define MVPP2_XDP_DROPPED	BIT(0)
+#define MVPP2_XDP_TX		BIT(1)
+#define MVPP2_XDP_REDIR		BIT(2)
 
 /* Fifo Registers */
 #define MVPP2_RX_DATA_FIFO_SIZE_REG(port)	(0x00 + 4 * (port))
@@ -628,10 +641,12 @@
 	ALIGN((mtu) + MVPP2_MH_SIZE + MVPP2_VLAN_TAG_LEN + \
 	      ETH_HLEN + ETH_FCS_LEN, cache_line_size())
 
-#define MVPP2_RX_BUF_SIZE(pkt_size)	((pkt_size) + NET_SKB_PAD)
+#define MVPP2_RX_BUF_SIZE(pkt_size)	((pkt_size) + MVPP2_SKB_HEADROOM)
 #define MVPP2_RX_TOTAL_SIZE(buf_size)	((buf_size) + MVPP2_SKB_SHINFO_SIZE)
 #define MVPP2_RX_MAX_PKT_SIZE(total_size) \
-	((total_size) - NET_SKB_PAD - MVPP2_SKB_SHINFO_SIZE)
+	((total_size) - MVPP2_SKB_HEADROOM - MVPP2_SKB_SHINFO_SIZE)
+
+#define MVPP2_MAX_RX_BUF_SIZE	(PAGE_SIZE - MVPP2_SKB_SHINFO_SIZE - MVPP2_SKB_HEADROOM)
 
 #define MVPP2_BIT_TO_BYTE(bit)		((bit) / 8)
 #define MVPP2_BIT_TO_WORD(bit)		((bit) / 32)
@@ -689,9 +704,9 @@ enum mvpp2_prs_l3_cast {
 #define MVPP2_BM_COOKIE_POOL_OFFS	8
 #define MVPP2_BM_COOKIE_CPU_OFFS	24
 
-#define MVPP2_BM_SHORT_FRAME_SIZE		512
-#define MVPP2_BM_LONG_FRAME_SIZE		2048
-#define MVPP2_BM_JUMBO_FRAME_SIZE		10240
+#define MVPP2_BM_SHORT_FRAME_SIZE	704	/* frame size 128 */
+#define MVPP2_BM_LONG_FRAME_SIZE	2240	/* frame size 1664 */
+#define MVPP2_BM_JUMBO_FRAME_SIZE	10432	/* frame size 9856 */
 /* BM short pool packet size
  * These value assure that for SWF the total number
  * of bytes allocated for each buffer will be 512
@@ -820,6 +835,9 @@ struct mvpp2 {
 
 	/* RSS Indirection tables */
 	struct mvpp2_rss_table *rss_tables[MVPP22_N_RSS_TABLES];
+
+	/* page_pool allocator */
+	struct page_pool *page_pool[MVPP2_PORT_MAX_RXQ];
 };
 
 struct mvpp2_pcpu_stats {
@@ -828,6 +846,14 @@ struct mvpp2_pcpu_stats {
 	u64	rx_bytes;
 	u64	tx_packets;
 	u64	tx_bytes;
+	/* XDP */
+	u64	xdp_redirect;
+	u64	xdp_pass;
+	u64	xdp_drop;
+	u64	xdp_xmit;
+	u64	xdp_xmit_err;
+	u64	xdp_tx;
+	u64	xdp_tx_err;
 };
 
 /* Per-CPU port control */
@@ -909,6 +935,8 @@ struct mvpp2_port {
 	unsigned int ntxqs;
 	struct net_device *dev;
 
+	struct bpf_prog *xdp_prog;
+
 	int pkt_size;
 
 	/* Per-CPU port control */
@@ -927,6 +955,8 @@ struct mvpp2_port {
 	u16 rx_ring_size;
 	struct mvpp2_pcpu_stats __percpu *stats;
 	u64 *ethtool_stats;
+
+	unsigned long state;
 
 	/* Per-port work and its lock to gather hardware statistics */
 	struct mutex gather_stats_lock;
@@ -1060,9 +1090,20 @@ struct mvpp2_rx_desc {
 	};
 };
 
+enum mvpp2_tx_buf_type {
+	MVPP2_TYPE_SKB,
+	MVPP2_TYPE_XDP_TX,
+	MVPP2_TYPE_XDP_NDO,
+};
+
 struct mvpp2_txq_pcpu_buf {
+	enum mvpp2_tx_buf_type type;
+
 	/* Transmitted SKB */
-	struct sk_buff *skb;
+	union {
+		struct xdp_frame *xdpf;
+		struct sk_buff *skb;
+	};
 
 	/* Physical address of transmitted buffer */
 	dma_addr_t dma;
@@ -1161,6 +1202,10 @@ struct mvpp2_rx_queue {
 
 	/* Port's logic RXQ number to which physical RXQ is mapped */
 	int logic_rxq;
+
+	/* XDP memory accounting */
+	struct xdp_rxq_info xdp_rxq_short;
+	struct xdp_rxq_info xdp_rxq_long;
 };
 
 struct mvpp2_bm_pool {

@@ -3,7 +3,7 @@
  * Synopsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ *		https://www.samsung.com
  *
  * Author: Jingoo Han <jg1.han@samsung.com>
  */
@@ -112,9 +112,10 @@
 #define PCIE_ATU_UNR_REGION_CTRL2	0x04
 #define PCIE_ATU_UNR_LOWER_BASE		0x08
 #define PCIE_ATU_UNR_UPPER_BASE		0x0C
-#define PCIE_ATU_UNR_LIMIT		0x10
+#define PCIE_ATU_UNR_LOWER_LIMIT	0x10
 #define PCIE_ATU_UNR_LOWER_TARGET	0x14
 #define PCIE_ATU_UNR_UPPER_TARGET	0x18
+#define PCIE_ATU_UNR_UPPER_LIMIT	0x20
 
 /*
  * The default address offset between dbi_base and atu_base. Root controller
@@ -172,7 +173,6 @@ struct dw_pcie_host_ops {
 };
 
 struct pcie_port {
-	u8			root_bus_nr;
 	u64			cfg0_base;
 	void __iomem		*va_cfg0_base;
 	u32			cfg0_size;
@@ -233,6 +233,7 @@ struct dw_pcie_ep {
 	phys_addr_t		msi_mem_phys;
 	u8			msi_cap;	/* MSI capability offset */
 	u8			msix_cap;	/* MSI-X capability offset */
+	struct pci_epf_bar	*epf_bar[PCI_STD_NUM_BARS];
 };
 
 struct dw_pcie_ops {
@@ -411,6 +412,8 @@ static inline int dw_pcie_allocate_domains(struct pcie_port *pp)
 #ifdef CONFIG_PCIE_DW_EP
 void dw_pcie_ep_linkup(struct dw_pcie_ep *ep);
 int dw_pcie_ep_init(struct dw_pcie_ep *ep);
+int dw_pcie_ep_init_complete(struct dw_pcie_ep *ep);
+void dw_pcie_ep_init_notify(struct dw_pcie_ep *ep);
 void dw_pcie_ep_exit(struct dw_pcie_ep *ep);
 int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_no);
 int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
@@ -426,6 +429,15 @@ static inline void dw_pcie_ep_linkup(struct dw_pcie_ep *ep)
 static inline int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	return 0;
+}
+
+static inline int dw_pcie_ep_init_complete(struct dw_pcie_ep *ep)
+{
+	return 0;
+}
+
+static inline void dw_pcie_ep_init_notify(struct dw_pcie_ep *ep)
+{
 }
 
 static inline void dw_pcie_ep_exit(struct dw_pcie_ep *ep)

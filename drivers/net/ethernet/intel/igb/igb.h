@@ -306,7 +306,7 @@ struct igb_q_vector {
 	char name[IFNAMSIZ + 9];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct igb_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct igb_ring ring[] ____cacheline_internodealigned_in_smp;
 };
 
 enum e1000_ring_flags_t {
@@ -642,7 +642,6 @@ enum igb_boards {
 };
 
 extern char igb_driver_name[];
-extern char igb_driver_version[];
 
 int igb_open(struct net_device *netdev);
 int igb_close(struct net_device *netdev);

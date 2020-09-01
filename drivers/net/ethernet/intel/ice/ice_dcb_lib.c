@@ -63,6 +63,84 @@ u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg)
 }
 
 /**
+ * ice_is_pfc_causing_hung_q
+ * @pf: pointer to PF structure
+ * @txqueue: Tx queue which is supposedly hung queue
+ *
+ * find if PFC is causing the hung queue, if yes return true else false
+ */
+bool ice_is_pfc_causing_hung_q(struct ice_pf *pf, unsigned int txqueue)
+{
+	u8 num_tcs = 0, i, tc, up_mapped_tc, up_in_tc = 0;
+	u64 ref_prio_xoff[ICE_MAX_UP];
+	struct ice_vsi *vsi;
+	u32 up2tc;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return false;
+
+	ice_for_each_traffic_class(i)
+		if (vsi->tc_cfg.ena_tc & BIT(i))
+			num_tcs++;
+
+	/* first find out the TC to which the hung queue belongs to */
+	for (tc = 0; tc < num_tcs - 1; tc++)
+		if (ice_find_q_in_range(vsi->tc_cfg.tc_info[tc].qoffset,
+					vsi->tc_cfg.tc_info[tc + 1].qoffset,
+					txqueue))
+			break;
+
+	/* Build a bit map of all UPs associated to the suspect hung queue TC,
+	 * so that we check for its counter increment.
+	 */
+	up2tc = rd32(&pf->hw, PRTDCB_TUP2TC);
+	for (i = 0; i < ICE_MAX_UP; i++) {
+		up_mapped_tc = (up2tc >> (i * 3)) & 0x7;
+		if (up_mapped_tc == tc)
+			up_in_tc |= BIT(i);
+	}
+
+	/* Now that we figured out that hung queue is PFC enabled, still the
+	 * Tx timeout can be legitimate. So to make sure Tx timeout is
+	 * absolutely caused by PFC storm, check if the counters are
+	 * incrementing.
+	 */
+	for (i = 0; i < ICE_MAX_UP; i++)
+		if (up_in_tc & BIT(i))
+			ref_prio_xoff[i] = pf->stats.priority_xoff_rx[i];
+
+	ice_update_dcb_stats(pf);
+
+	for (i = 0; i < ICE_MAX_UP; i++)
+		if (up_in_tc & BIT(i))
+			if (pf->stats.priority_xoff_rx[i] > ref_prio_xoff[i])
+				return true;
+
+	return false;
+}
+
+/**
+ * ice_dcb_get_mode - gets the DCB mode
+ * @port_info: pointer to port info structure
+ * @host: if set it's HOST if not it's MANAGED
+ */
+static u8 ice_dcb_get_mode(struct ice_port_info *port_info, bool host)
+{
+	u8 mode;
+
+	if (host)
+		mode = DCB_CAP_DCBX_HOST;
+	else
+		mode = DCB_CAP_DCBX_LLD_MANAGED;
+
+	if (port_info->local_dcbx_cfg.dcbx_mode & ICE_DCBX_MODE_CEE)
+		return mode | DCB_CAP_DCBX_VER_CEE;
+	else
+		return mode | DCB_CAP_DCBX_VER_IEEE;
+}
+
+/**
  * ice_dcb_get_num_tc - Get the number of TCs from DCBX config
  * @dcbcfg: config to retrieve number of TCs from
  */
@@ -149,6 +227,43 @@ void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_dcb_bwchk - check if ETS bandwidth input parameters are correct
+ * @pf: pointer to the PF struct
+ * @dcbcfg: pointer to DCB config structure
+ */
+int ice_dcb_bwchk(struct ice_pf *pf, struct ice_dcbx_cfg *dcbcfg)
+{
+	struct ice_dcb_ets_cfg *etscfg = &dcbcfg->etscfg;
+	u8 num_tc, total_bw = 0;
+	int i;
+
+	/* returns number of contigous TCs and 1 TC for non-contigous TCs,
+	 * since at least 1 TC has to be configured
+	 */
+	num_tc = ice_dcb_get_num_tc(dcbcfg);
+
+	/* no bandwidth checks required if there's only one TC, so assign
+	 * all bandwidth to TC0 and return
+	 */
+	if (num_tc == 1) {
+		etscfg->tcbwtable[0] = ICE_TC_MAX_BW;
+		return 0;
+	}
+
+	for (i = 0; i < num_tc; i++)
+		total_bw += etscfg->tcbwtable[i];
+
+	if (!total_bw) {
+		etscfg->tcbwtable[0] = ICE_TC_MAX_BW;
+	} else if (total_bw != ICE_TC_MAX_BW) {
+		dev_err(ice_pf_to_dev(pf), "Invalid config, total bandwidth must equal 100\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
  * ice_pf_dcb_cfg - Apply new DCB configuration
  * @pf: pointer to the PF struct
  * @new_cfg: DCBX config to apply
@@ -181,6 +296,9 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 		dev_dbg(dev, "No change in DCB config required\n");
 		return ret;
 	}
+
+	if (ice_dcb_bwchk(pf, new_cfg))
+		return -EINVAL;
 
 	/* Store old config in case FW config fails */
 	old_cfg = kmemdup(curr_cfg, sizeof(*old_cfg), GFP_KERNEL);
@@ -326,10 +444,6 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 		goto dcb_error;
 	}
 
-	/* If DCB was not enabled previously, we are done */
-	if (!test_bit(ICE_FLAG_DCB_ENA, pf->flags))
-		return;
-
 	mutex_lock(&pf->tc_mutex);
 
 	if (!pf->hw.port_info->is_sw_lldp)
@@ -349,7 +463,7 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 		}
 	}
 
-	dev_info(dev, "DCB restored after reset\n");
+	dev_info(dev, "DCB info restored\n");
 	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
 	if (ret) {
 		dev_err(dev, "Query Port ETS failed\n");
@@ -466,16 +580,21 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
  */
 static bool ice_dcb_tc_contig(u8 *prio_table)
 {
-	u8 max_tc = 0;
+	bool found_empty = false;
+	u8 used_tc = 0;
 	int i;
 
-	for (i = 0; i < CEE_DCBX_MAX_PRIO; i++) {
-		u8 cur_tc = prio_table[i];
+	/* Create a bitmap of used TCs */
+	for (i = 0; i < CEE_DCBX_MAX_PRIO; i++)
+		used_tc |= BIT(prio_table[i]);
 
-		if (cur_tc > max_tc)
-			return false;
-		else if (cur_tc == max_tc)
-			max_tc++;
+	for (i = 0; i < CEE_DCBX_MAX_PRIO; i++) {
+		if (used_tc & BIT(i)) {
+			if (found_empty)
+				return false;
+		} else {
+			found_empty = true;
+		}
 	}
 
 	return true;
@@ -605,14 +724,14 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 
 		ice_cfg_sw_lldp(pf_vsi, false, true);
 
-		pf->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
+		pf->dcbx_cap = ice_dcb_get_mode(port_info, true);
 		return 0;
 	}
 
 	set_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
 
-	/* DCBX in FW and LLDP enabled in FW */
-	pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_IEEE;
+	/* DCBX/LLDP enabled in FW, set DCBNL mode advertisement */
+	pf->dcbx_cap = ice_dcb_get_mode(port_info, false);
 
 	err = ice_dcb_init_cfg(pf, locked);
 	if (err)
@@ -668,39 +787,31 @@ void ice_update_dcb_stats(struct ice_pf *pf)
  * ice_tx_prepare_vlan_flags_dcb - prepare VLAN tagging for DCB
  * @tx_ring: ring to send buffer on
  * @first: pointer to struct ice_tx_buf
+ *
+ * This should not be called if the outer VLAN is software offloaded as the VLAN
+ * tag will already be configured with the correct ID and priority bits
  */
-int
+void
 ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
 			      struct ice_tx_buf *first)
 {
 	struct sk_buff *skb = first->skb;
 
 	if (!test_bit(ICE_FLAG_DCB_ENA, tx_ring->vsi->back->flags))
-		return 0;
+		return;
 
 	/* Insert 802.1p priority into VLAN header */
-	if ((first->tx_flags & (ICE_TX_FLAGS_HW_VLAN | ICE_TX_FLAGS_SW_VLAN)) ||
+	if ((first->tx_flags & ICE_TX_FLAGS_HW_VLAN) ||
 	    skb->priority != TC_PRIO_CONTROL) {
 		first->tx_flags &= ~ICE_TX_FLAGS_VLAN_PR_M;
 		/* Mask the lower 3 bits to set the 802.1p priority */
 		first->tx_flags |= (skb->priority & 0x7) <<
 				   ICE_TX_FLAGS_VLAN_PR_S;
-		if (first->tx_flags & ICE_TX_FLAGS_SW_VLAN) {
-			struct vlan_ethhdr *vhdr;
-			int rc;
-
-			rc = skb_cow_head(skb, 0);
-			if (rc < 0)
-				return rc;
-			vhdr = (struct vlan_ethhdr *)skb->data;
-			vhdr->h_vlan_TCI = htons(first->tx_flags >>
-						 ICE_TX_FLAGS_VLAN_S);
-		} else {
-			first->tx_flags |= ICE_TX_FLAGS_HW_VLAN;
-		}
+		/* if this is not already set it means a VLAN 0 + priority needs
+		 * to be offloaded
+		 */
+		first->tx_flags |= ICE_TX_FLAGS_HW_VLAN;
 	}
-
-	return 0;
 }
 
 /**
@@ -719,7 +830,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	bool need_reconfig = false;
 	struct ice_port_info *pi;
 	struct ice_vsi *pf_vsi;
-	u8 type;
+	u8 mib_type;
 	int ret;
 
 	/* Not DCB capable or capability disabled */
@@ -734,16 +845,16 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	pi = pf->hw.port_info;
 	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
 	/* Ignore if event is not for Nearest Bridge */
-	type = ((mib->type >> ICE_AQ_LLDP_BRID_TYPE_S) &
-		ICE_AQ_LLDP_BRID_TYPE_M);
-	dev_dbg(dev, "LLDP event MIB bridge type 0x%x\n", type);
-	if (type != ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID)
+	mib_type = ((mib->type >> ICE_AQ_LLDP_BRID_TYPE_S) &
+		    ICE_AQ_LLDP_BRID_TYPE_M);
+	dev_dbg(dev, "LLDP event MIB bridge type 0x%x\n", mib_type);
+	if (mib_type != ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID)
 		return;
 
 	/* Check MIB Type and return if event for Remote MIB update */
-	type = mib->type & ICE_AQ_LLDP_MIB_TYPE_M;
-	dev_dbg(dev, "LLDP event mib type %s\n", type ? "remote" : "local");
-	if (type == ICE_AQ_LLDP_MIB_REMOTE) {
+	mib_type = mib->type & ICE_AQ_LLDP_MIB_TYPE_M;
+	dev_dbg(dev, "LLDP event mib type %s\n", mib_type ? "remote" : "local");
+	if (mib_type == ICE_AQ_LLDP_MIB_REMOTE) {
 		/* Update the remote cached instance and return */
 		ret = ice_aq_get_dcb_cfg(pi->hw, ICE_AQ_LLDP_MIB_REMOTE,
 					 ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID,
@@ -774,6 +885,8 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 		dev_dbg(dev, "No change detected in DCBX configuration.\n");
 		goto out;
 	}
+
+	pf->dcbx_cap = ice_dcb_get_mode(pi, false);
 
 	need_reconfig = ice_dcb_need_recfg(pf, &tmp_dcbx_cfg,
 					   &pi->local_dcbx_cfg);

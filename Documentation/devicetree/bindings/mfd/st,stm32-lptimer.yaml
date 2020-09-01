@@ -33,11 +33,16 @@ properties:
     items:
       - const: mux
 
+  interrupts:
+    maxItems: 1
+
   "#address-cells":
     const: 1
 
   "#size-cells":
     const: 0
+
+  wakeup-source: true
 
   pwm:
     type: object
@@ -64,8 +69,8 @@ patternProperties:
       reg:
         description: Identify trigger hardware block.
         items:
-         minimum: 0
-         maximum: 2
+          minimum: 0
+          maximum: 2
 
     required:
       - compatible
@@ -77,6 +82,16 @@ patternProperties:
     properties:
       compatible:
         const: st,stm32-lptimer-counter
+
+    required:
+      - compatible
+
+  timer:
+    type: object
+
+    properties:
+      compatible:
+        const: st,stm32-lptimer-timer
 
     required:
       - compatible
@@ -94,11 +109,13 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/clock/stm32mp1-clks.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
     timer@40002400 {
       compatible = "st,stm32-lptimer";
       reg = <0x40002400 0x400>;
       clocks = <&timer_clk>;
       clock-names = "mux";
+      interrupts-extended = <&exti 47 IRQ_TYPE_LEVEL_HIGH>;
       #address-cells = <1>;
       #size-cells = <0>;
 
@@ -114,6 +131,10 @@ examples:
 
       counter {
         compatible = "st,stm32-lptimer-counter";
+      };
+
+      timer {
+        compatible = "st,stm32-lptimer-timer";
       };
     };
 

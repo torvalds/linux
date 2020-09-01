@@ -1,5 +1,5 @@
-Kernel Support for miscellaneous (your favourite) Binary Formats v1.1
-=====================================================================
+Kernel Support for miscellaneous Binary Formats (binfmt_misc)
+=============================================================
 
 This Kernel feature allows you to invoke almost (for restrictions see below)
 every program by simply typing its name in the shell.

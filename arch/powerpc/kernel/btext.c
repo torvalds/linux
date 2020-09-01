@@ -9,13 +9,13 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
+#include <linux/pgtable.h>
 
 #include <asm/sections.h>
 #include <asm/prom.h>
 #include <asm/btext.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/udbg.h>
@@ -26,7 +26,7 @@
 static void scrollscreen(void);
 #endif
 
-#define __force_data __attribute__((__section__(".data")))
+#define __force_data __section(.data)
 
 static int g_loc_X __force_data;
 static int g_loc_Y __force_data;

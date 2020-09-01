@@ -1542,7 +1542,7 @@ static void ql_link_state_machine_work(struct work_struct *work)
 		if (test_bit(QL_LINK_MASTER, &qdev->flags))
 			ql_port_start(qdev);
 		qdev->port_link_state = LS_DOWN;
-		/* Fall Through */
+		fallthrough;
 
 	case LS_DOWN:
 		if (curr_link_state == LS_UP) {
@@ -3769,7 +3769,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	struct net_device *ndev = NULL;
 	struct ql3_adapter *qdev = NULL;
 	static int cards_found;
-	int uninitialized_var(pci_using_dac), err;
+	int pci_using_dac, err;
 
 	err = pci_enable_device(pdev);
 	if (err) {

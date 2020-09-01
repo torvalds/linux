@@ -63,6 +63,7 @@ static const struct of_device_id axp20x_i2c_of_match[] = {
 	{ .compatible = "x-powers,axp209", .data = (void *)AXP209_ID },
 	{ .compatible = "x-powers,axp221", .data = (void *)AXP221_ID },
 	{ .compatible = "x-powers,axp223", .data = (void *)AXP223_ID },
+	{ .compatible = "x-powers,axp803", .data = (void *)AXP803_ID },
 	{ .compatible = "x-powers,axp806", .data = (void *)AXP806_ID },
 	{ },
 };
@@ -74,11 +75,13 @@ static const struct i2c_device_id axp20x_i2c_id[] = {
 	{ "axp209", 0 },
 	{ "axp221", 0 },
 	{ "axp223", 0 },
+	{ "axp803", 0 },
 	{ "axp806", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, axp20x_i2c_id);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id axp20x_i2c_acpi_match[] = {
 	{
 		.id = "INT33F4",
@@ -87,6 +90,7 @@ static const struct acpi_device_id axp20x_i2c_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, axp20x_i2c_acpi_match);
+#endif
 
 static struct i2c_driver axp20x_i2c_driver = {
 	.driver = {

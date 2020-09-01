@@ -71,10 +71,12 @@ subsys_initcall(init_vdso);
 
 static unsigned long vdso_base(void)
 {
-	unsigned long base;
+	unsigned long base = STACK_TOP;
 
-	/* Skip the delay slot emulation page */
-	base = STACK_TOP + PAGE_SIZE;
+	if (IS_ENABLED(CONFIG_MIPS_FP_SUPPORT)) {
+		/* Skip the delay slot emulation page */
+		base += PAGE_SIZE;
+	}
 
 	if (current->flags & PF_RANDOMIZE) {
 		base += get_random_int() & (VDSO_RANDOMIZE_SIZE - 1);
@@ -92,17 +94,19 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	struct vm_area_struct *vma;
 	int ret;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
-	/* Map delay slot emulation page */
-	base = mmap_region(NULL, STACK_TOP, PAGE_SIZE,
-			   VM_READ | VM_EXEC |
-			   VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
-			   0, NULL);
-	if (IS_ERR_VALUE(base)) {
-		ret = base;
-		goto out;
+	if (IS_ENABLED(CONFIG_MIPS_FP_SUPPORT)) {
+		/* Map delay slot emulation page */
+		base = mmap_region(NULL, STACK_TOP, PAGE_SIZE,
+				VM_READ | VM_EXEC |
+				VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
+				0, NULL);
+		if (IS_ERR_VALUE(base)) {
+			ret = base;
+			goto out;
+		}
 	}
 
 	/*
@@ -183,6 +187,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	ret = 0;
 
 out:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return ret;
 }

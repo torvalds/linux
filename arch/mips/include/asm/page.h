@@ -49,7 +49,7 @@ static inline unsigned int page_size_ftlb(unsigned int mmuextdef)
 			return 6;
 		if (PAGE_SIZE > (256 << 10))
 			return 7; /* reserved */
-			/* fall through */
+		fallthrough;
 	case MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT:
 		return (PAGE_SHIFT - 10) / 2;
 	default:
@@ -253,10 +253,7 @@ extern bool __virt_addr_valid(const volatile void *kaddr);
 #define virt_addr_valid(kaddr)						\
 	__virt_addr_valid((const volatile void *) (kaddr))
 
-#define VM_DATA_DEFAULT_FLAGS \
-	(VM_READ | VM_WRITE | \
-	 ((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
-	 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

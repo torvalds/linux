@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,ads8688.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments' ADS8684 and ADS8688 ADC chip
+
+maintainers:
+  - Sean Nyekjaer <sean@geanix.com>
+
+description: |
+   SPI 16bit ADCs with 4/8 channels.
+
+properties:
+  compatible:
+    enum:
+      - ti,ads8684
+      - ti,ads8688
+
+  reg:
+    maxItems: 1
+
+  vref-supply:
+    description: Optional external reference.  If not supplied, assume
+      REFSEL input tied low to enable the internal reference.
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "ti,ads8688";
+            reg = <0>;
+            vref-supply = <&vdd_supply>;
+            spi-max-frequency = <1000000>;
+        };
+    };
+...

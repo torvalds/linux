@@ -3,10 +3,13 @@ config CSKY
 	def_bool y
 	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_DMA_PREP_COHERENT
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_QUEUED_RWLOCKS if NR_CPUS>2
+	select ARCH_WANT_FRAME_POINTERS if !CPU_CK610
+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select COMMON_CLK
 	select CLKSRC_MMIO
 	select CSKY_MPINTC if CPU_CK860
@@ -36,18 +39,29 @@ config CSKY
 	select GX6605S_TIMER if CPU_CK610
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_AUDITSYSCALL
-	select HAVE_COPY_THREAD_TLS
+	select HAVE_ARCH_MMAP_RND_BITS
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_CONTEXT_TRACKING
+	select HAVE_VIRT_CPU_ACCOUNTING_GEN
+	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_LZMA
+	select HAVE_KPROBES if !CPU_CK610
+	select HAVE_KPROBES_ON_FTRACE if !CPU_CK610
+	select HAVE_KRETPROBES if !CPU_CK610
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_DMA_CONTIGUOUS
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RSEQ
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select MAY_HAVE_SPARSE_IRQ
@@ -64,6 +78,12 @@ config CSKY
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_SYSCALL if PCI
 	select PCI_MSI if PCI
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config ARCH_SUPPORTS_UPROBES
+	def_bool y if !CPU_CK610
 
 config CPU_HAS_CACHEV2
 	bool
@@ -133,6 +153,14 @@ config L1_CACHE_SHIFT
 	default "4"	if (CPU_CK610)
 	default "5"	if (CPU_CK807 || CPU_CK810)
 	default "6"	if (CPU_CK860)
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 8
+
+# max bits determined by the following formula:
+#  VA_BITS - PAGE_SHIFT - 3
+config ARCH_MMAP_RND_BITS_MAX
+	default 17
 
 menu "Processor type and features"
 
@@ -252,7 +280,7 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "2"
+	default "4"
 
 config HIGHMEM
 	bool "High Memory Support"
@@ -281,3 +309,16 @@ endmenu
 source "arch/csky/Kconfig.platforms"
 
 source "kernel/Kconfig.hz"
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.

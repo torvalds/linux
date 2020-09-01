@@ -1,21 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * Copyright (C) 2009, 2010 Red Hat Inc, Steven Rostedt <srostedt@redhat.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,12 +35,20 @@ struct tep_plugin_option plugin_options[] =
 		.set = 1,
 	},
 	{
+		.name = "offset",
+		.plugin_alias = "ftrace",
+		.description =
+		"Show function names as well as their offsets",
+		.set = 0,
+	},
+	{
 		.name = NULL,
 	}
 };
 
 static struct tep_plugin_option *ftrace_parent = &plugin_options[0];
 static struct tep_plugin_option *ftrace_indent = &plugin_options[1];
+static struct tep_plugin_option *ftrace_offset = &plugin_options[2];
 
 static void add_child(struct func_stack *stack, const char *child, int pos)
 {
@@ -123,6 +116,18 @@ static int add_and_get_index(const char *parent, const char *child, int cpu)
 	return 0;
 }
 
+static void show_function(struct trace_seq *s, struct tep_handle *tep,
+			  const char *func, unsigned long long function)
+{
+	unsigned long long offset;
+
+	trace_seq_printf(s, "%s", func);
+	if (ftrace_offset->set) {
+		offset = tep_find_function_address(tep, function);
+		trace_seq_printf(s, "+0x%x ", (int)(function - offset));
+	}
+}
+
 static int function_handler(struct trace_seq *s, struct tep_record *record,
 			    struct tep_event *event, void *context)
 {
@@ -149,16 +154,92 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	trace_seq_printf(s, "%*s", index*3, "");
 
 	if (func)
-		trace_seq_printf(s, "%s", func);
+		show_function(s, tep, func, function);
 	else
 		trace_seq_printf(s, "0x%llx", function);
 
 	if (ftrace_parent->set) {
 		trace_seq_printf(s, " <-- ");
 		if (parent)
-			trace_seq_printf(s, "%s", parent);
+			show_function(s, tep, parent, pfunction);
 		else
 			trace_seq_printf(s, "0x%llx", pfunction);
+	}
+
+	return 0;
+}
+
+static int
+trace_stack_handler(struct trace_seq *s, struct tep_record *record,
+		    struct tep_event *event, void *context)
+{
+	struct tep_format_field *field;
+	unsigned long long addr;
+	const char *func;
+	int long_size;
+	void *data = record->data;
+
+	field = tep_find_any_field(event, "caller");
+	if (!field) {
+		trace_seq_printf(s, "<CANT FIND FIELD %s>", "caller");
+		return 0;
+	}
+
+	trace_seq_puts(s, "<stack trace >\n");
+
+	long_size = tep_get_long_size(event->tep);
+
+	for (data += field->offset; data < record->data + record->size;
+	     data += long_size) {
+		addr = tep_read_number(event->tep, data, long_size);
+
+		if ((long_size == 8 && addr == (unsigned long long)-1) ||
+		    ((int)addr == -1))
+			break;
+
+		func = tep_find_function(event->tep, addr);
+		if (func)
+			trace_seq_printf(s, "=> %s (%llx)\n", func, addr);
+		else
+			trace_seq_printf(s, "=> %llx\n", addr);
+	}
+
+	return 0;
+}
+
+static int
+trace_raw_data_handler(struct trace_seq *s, struct tep_record *record,
+		    struct tep_event *event, void *context)
+{
+	struct tep_format_field *field;
+	unsigned long long id;
+	int long_size;
+	void *data = record->data;
+
+	if (tep_get_field_val(s, event, "id", record, &id, 1))
+		return trace_seq_putc(s, '!');
+
+	trace_seq_printf(s, "# %llx", id);
+
+	field = tep_find_any_field(event, "buf");
+	if (!field) {
+		trace_seq_printf(s, "<CANT FIND FIELD %s>", "buf");
+		return 0;
+	}
+
+	long_size = tep_get_long_size(event->tep);
+
+	for (data += field->offset; data < record->data + record->size;
+	     data += long_size) {
+		int size = sizeof(long);
+		int left = (record->data + record->size) - data;
+		int i;
+
+		if (size > left)
+			size = left;
+
+		for (i = 0; i < size; i++)
+			trace_seq_printf(s, " %02x", *(unsigned char *)(data + i));
 	}
 
 	return 0;
@@ -168,6 +249,12 @@ int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 {
 	tep_register_event_handler(tep, -1, "ftrace", "function",
 				   function_handler, NULL);
+
+	tep_register_event_handler(tep, -1, "ftrace", "kernel_stack",
+				      trace_stack_handler, NULL);
+
+	tep_register_event_handler(tep, -1, "ftrace", "raw_data",
+				      trace_raw_data_handler, NULL);
 
 	tep_plugin_add_options("ftrace", plugin_options);
 

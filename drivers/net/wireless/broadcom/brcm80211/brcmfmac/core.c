@@ -352,6 +352,9 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	if ((skb->priority == 0) || (skb->priority > 7))
 		skb->priority = cfg80211_classify8021d(skb, NULL);
 
+	/* set pacing shift for packet aggregation */
+	sk_pacing_shift_update(skb->sk, 8);
+
 	ret = brcmf_proto_tx_queue_data(drvr, ifp->ifidx, skb);
 	if (ret < 0)
 		brcmf_txfinalize(ifp, skb, false);
@@ -579,9 +582,6 @@ static int brcmf_netdev_stop(struct net_device *ndev)
 
 	brcmf_cfg80211_down(ndev);
 
-	if (ifp->drvr->bus_if->state == BRCMF_BUS_UP)
-		brcmf_fil_iovar_data_set(ifp, "arp_hostip_clear", NULL, 0);
-
 	brcmf_net_setcarrier(ifp, false);
 
 	return 0;
@@ -729,9 +729,18 @@ static int brcmf_net_mon_stop(struct net_device *ndev)
 	return err;
 }
 
+static netdev_tx_t brcmf_net_mon_start_xmit(struct sk_buff *skb,
+					    struct net_device *ndev)
+{
+	dev_kfree_skb_any(skb);
+
+	return NETDEV_TX_OK;
+}
+
 static const struct net_device_ops brcmf_netdev_ops_mon = {
 	.ndo_open = brcmf_net_mon_open,
 	.ndo_stop = brcmf_net_mon_stop,
+	.ndo_start_xmit = brcmf_net_mon_start_xmit,
 };
 
 int brcmf_net_mon_attach(struct brcmf_if *ifp)

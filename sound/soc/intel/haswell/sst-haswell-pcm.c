@@ -10,8 +10,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -462,7 +462,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
@@ -476,7 +476,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 	u8 channels;
 	int ret, dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	/* check if we are being called a subsequent time */
@@ -494,7 +494,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 		}
 		pcm_data->allocated = false;
 
-		pcm_data->stream = sst_hsw_stream_new(hsw, rtd->cpu_dai->id,
+		pcm_data->stream = sst_hsw_stream_new(hsw, asoc_rtd_to_cpu(rtd, 0)->id,
 			hsw_notify_pointer, pcm_data);
 		if (pcm_data->stream == NULL) {
 			dev_err(rtd->dev, "error: failed to create stream\n");
@@ -509,7 +509,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 		path_id = SST_HSW_STREAM_PATH_SSP0_IN;
 
 	/* DSP stream type depends on DAI ID */
-	switch (rtd->cpu_dai->id) {
+	switch (asoc_rtd_to_cpu(rtd, 0)->id) {
 	case 0:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			stream_type = SST_HSW_STREAM_TYPE_SYSTEM;
@@ -533,7 +533,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 		break;
 	default:
 		dev_err(rtd->dev, "error: invalid DAI ID %d\n",
-			rtd->cpu_dai->id);
+			asoc_rtd_to_cpu(rtd, 0)->id);
 		return -EINVAL;
 	}
 
@@ -595,7 +595,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 	dmab = snd_pcm_get_dma_buf(substream);
 
 	ret = create_adsp_page_table(substream, pdata, rtd, runtime->dma_area,
-		runtime->dma_bytes, rtd->cpu_dai->id);
+		runtime->dma_bytes, asoc_rtd_to_cpu(rtd, 0)->id);
 	if (ret < 0)
 		return ret;
 
@@ -608,7 +608,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 		pages = runtime->dma_bytes / PAGE_SIZE;
 
 	ret = sst_hsw_stream_buffer(hsw, pcm_data->stream,
-		pdata->dmab[rtd->cpu_dai->id][substream->stream].addr,
+		pdata->dmab[asoc_rtd_to_cpu(rtd, 0)->id][substream->stream].addr,
 		pages, runtime->dma_bytes, 0,
 		snd_sgbuf_get_addr(dmab, 0) >> PAGE_SHIFT);
 	if (ret < 0) {
@@ -652,7 +652,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 static int hsw_pcm_trigger(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream, int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw_stream *sst_stream;
@@ -661,7 +661,7 @@ static int hsw_pcm_trigger(struct snd_soc_component *component,
 	snd_pcm_uframes_t pos;
 	int dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 	sst_stream = pcm_data->stream;
 
@@ -695,7 +695,7 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 	struct hsw_pcm_data *pcm_data = data;
 	struct snd_pcm_substream *substream = pcm_data->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct sst_hsw *hsw = pdata->hsw;
@@ -760,7 +760,7 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_soc_component *component,
 					 struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
@@ -770,7 +770,7 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_soc_component *component,
 	u32 position;
 	int dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 	position = sst_hsw_get_dsp_position(hsw, pcm_data->stream);
 
@@ -785,13 +785,13 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_soc_component *component,
 static int hsw_pcm_open(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
 	int dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	mutex_lock(&pcm_data->mutex);
@@ -801,7 +801,7 @@ static int hsw_pcm_open(struct snd_soc_component *component,
 
 	snd_soc_set_runtime_hwparams(substream, &hsw_pcm_hardware);
 
-	pcm_data->stream = sst_hsw_stream_new(hsw, rtd->cpu_dai->id,
+	pcm_data->stream = sst_hsw_stream_new(hsw, asoc_rtd_to_cpu(rtd, 0)->id,
 		hsw_notify_pointer, pcm_data);
 	if (pcm_data->stream == NULL) {
 		dev_err(rtd->dev, "error: failed to create stream\n");
@@ -818,13 +818,13 @@ static int hsw_pcm_open(struct snd_soc_component *component,
 static int hsw_pcm_close(struct snd_soc_component *component,
 			 struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
 	int ret, dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	mutex_lock(&pcm_data->mutex);
@@ -923,9 +923,9 @@ static int hsw_pcm_new(struct snd_soc_component *component,
 			hsw_pcm_hardware.buffer_bytes_max);
 	}
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)
-		priv_data->pcm[rtd->cpu_dai->id][SNDRV_PCM_STREAM_PLAYBACK].hsw_pcm = pcm;
+		priv_data->pcm[asoc_rtd_to_cpu(rtd, 0)->id][SNDRV_PCM_STREAM_PLAYBACK].hsw_pcm = pcm;
 	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream)
-		priv_data->pcm[rtd->cpu_dai->id][SNDRV_PCM_STREAM_CAPTURE].hsw_pcm = pcm;
+		priv_data->pcm[asoc_rtd_to_cpu(rtd, 0)->id][SNDRV_PCM_STREAM_CAPTURE].hsw_pcm = pcm;
 
 	return 0;
 }

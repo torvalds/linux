@@ -15,7 +15,6 @@
 #include <linux/hashtable.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include "json_writer.h"
 #include "main.h"
@@ -389,6 +388,9 @@ static int dump_btf_c(const struct btf *btf,
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
+	printf("#ifndef __VMLINUX_H__\n");
+	printf("#define __VMLINUX_H__\n");
+	printf("\n");
 	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
 	printf("#pragma clang attribute push (__attribute__((preserve_access_index)), apply_to = record)\n");
 	printf("#endif\n\n");
@@ -412,58 +414,12 @@ static int dump_btf_c(const struct btf *btf,
 	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
 	printf("#pragma clang attribute pop\n");
 	printf("#endif\n");
+	printf("\n");
+	printf("#endif /* __VMLINUX_H__ */\n");
 
 done:
 	btf_dump__free(d);
 	return err;
-}
-
-static struct btf *btf__parse_raw(const char *file)
-{
-	struct btf *btf;
-	struct stat st;
-	__u8 *buf;
-	FILE *f;
-
-	if (stat(file, &st))
-		return NULL;
-
-	f = fopen(file, "rb");
-	if (!f)
-		return NULL;
-
-	buf = malloc(st.st_size);
-	if (!buf) {
-		btf = ERR_PTR(-ENOMEM);
-		goto exit_close;
-	}
-
-	if ((size_t) st.st_size != fread(buf, 1, st.st_size, f)) {
-		btf = ERR_PTR(-EINVAL);
-		goto exit_free;
-	}
-
-	btf = btf__new(buf, st.st_size);
-
-exit_free:
-	free(buf);
-exit_close:
-	fclose(f);
-	return btf;
-}
-
-static bool is_btf_raw(const char *file)
-{
-	__u16 magic = 0;
-	int fd, nb_read;
-
-	fd = open(file, O_RDONLY);
-	if (fd < 0)
-		return false;
-
-	nb_read = read(fd, &magic, sizeof(magic));
-	close(fd);
-	return nb_read == sizeof(magic) && magic == BTF_MAGIC;
 }
 
 static int do_dump(int argc, char **argv)
@@ -543,13 +499,9 @@ static int do_dump(int argc, char **argv)
 		}
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
-		if (is_btf_raw(*argv))
-			btf = btf__parse_raw(*argv);
-		else
-			btf = btf__parse_elf(*argv, NULL);
-
+		btf = btf__parse(*argv, NULL);
 		if (IS_ERR(btf)) {
-			err = PTR_ERR(btf);
+			err = -PTR_ERR(btf);
 			btf = NULL;
 			p_err("failed to load BTF from %s: %s",
 			      *argv, strerror(err));
@@ -592,7 +544,7 @@ static int do_dump(int argc, char **argv)
 			goto done;
 		}
 		if (!btf) {
-			err = ENOENT;
+			err = -ENOENT;
 			p_err("can't find btf with ID (%u)", btf_id);
 			goto done;
 		}
@@ -805,6 +757,7 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 			printf("%s%u", n++ == 0 ? "  map_ids " : ",",
 			       obj->obj_id);
 	}
+	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 }
@@ -837,6 +790,9 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 			jsonw_uint(json_wtr, obj->obj_id);
 	}
 	jsonw_end_array(json_wtr);	/* map_ids */
+
+	emit_obj_refs_json(&refs_table, info->id, json_wtr); /* pids */
+
 	jsonw_end_object(json_wtr);	/* btf object */
 }
 
@@ -889,6 +845,7 @@ static int do_show(int argc, char **argv)
 			close(fd);
 		return err;
 	}
+	build_obj_refs_table(&refs_table, BPF_OBJ_BTF);
 
 	if (fd >= 0) {
 		err = show_btf(fd, &btf_prog_table, &btf_map_table);
@@ -935,6 +892,7 @@ static int do_show(int argc, char **argv)
 exit_free:
 	delete_btf_table(&btf_prog_table);
 	delete_btf_table(&btf_map_table);
+	delete_obj_refs_table(&refs_table);
 
 	return err;
 }
@@ -947,9 +905,9 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s btf { show | list } [id BTF_ID]\n"
-		"       %s btf dump BTF_SRC [format FORMAT]\n"
-		"       %s btf help\n"
+		"Usage: %1$s %2$s { show | list } [id BTF_ID]\n"
+		"       %1$s %2$s dump BTF_SRC [format FORMAT]\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       BTF_SRC := { id BTF_ID | prog PROG | map MAP [{key | value | kv | all}] | file FILE }\n"
 		"       FORMAT  := { raw | c }\n"
@@ -957,7 +915,7 @@ static int do_help(int argc, char **argv)
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name, bin_name, bin_name);
+		bin_name, "btf");
 
 	return 0;
 }

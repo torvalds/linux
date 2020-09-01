@@ -468,6 +468,9 @@ static const struct team_mode *team_mode_get(const char *kind)
 	struct team_mode_item *mitem;
 	const struct team_mode *mode = NULL;
 
+	if (!try_module_get(THIS_MODULE))
+		return NULL;
+
 	spin_lock(&mode_list_lock);
 	mitem = __find_mode(kind);
 	if (!mitem) {
@@ -483,6 +486,7 @@ static const struct team_mode *team_mode_get(const char *kind)
 	}
 
 	spin_unlock(&mode_list_lock);
+	module_put(THIS_MODULE);
 	return mode;
 }
 
@@ -1643,6 +1647,7 @@ static int team_init(struct net_device *dev)
 
 	lockdep_register_key(&team->team_lock_key);
 	__mutex_init(&team->lock, "team->team_lock_key", &team->team_lock_key);
+	netdev_lockdep_set_classes(dev);
 
 	return 0;
 

@@ -26,7 +26,7 @@
  * control_code_page, a special page which has been set up to be preserved
  * during the copy operation.
  */
-ENTRY(arm64_relocate_new_kernel)
+SYM_CODE_START(arm64_relocate_new_kernel)
 
 	/* Setup the list loop variables. */
 	mov	x18, x2				/* x18 = dtb address */
@@ -41,7 +41,7 @@ ENTRY(arm64_relocate_new_kernel)
 	cmp	x0, #CurrentEL_EL2
 	b.ne	1f
 	mrs	x0, sctlr_el2
-	ldr	x1, =SCTLR_ELx_FLAGS
+	mov_q	x1, SCTLR_ELx_FLAGS
 	bic	x0, x0, x1
 	pre_disable_mmu_workaround
 	msr	sctlr_el2, x0
@@ -111,9 +111,7 @@ ENTRY(arm64_relocate_new_kernel)
 	mov	x3, xzr
 	br	x17
 
-ENDPROC(arm64_relocate_new_kernel)
-
-.ltorg
+SYM_CODE_END(arm64_relocate_new_kernel)
 
 .align 3	/* To keep the 64-bit values below naturally aligned. */
 

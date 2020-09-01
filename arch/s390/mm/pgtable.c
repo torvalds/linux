@@ -19,8 +19,6 @@
 #include <linux/ksm.h>
 #include <linux/mman.h>
 
-#include <asm/pgtable.h>
-#include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>

@@ -61,6 +61,9 @@ enum trace_type {
 #undef __field_desc
 #define __field_desc(type, container, item)
 
+#undef __field_packed
+#define __field_packed(type, container, item)
+
 #undef __array
 #define __array(type, item, size)	type	item[size];
 
@@ -178,10 +181,10 @@ struct trace_array_cpu {
 	kuid_t			uid;
 	char			comm[TASK_COMM_LEN];
 
-	bool			ignore_pid;
 #ifdef CONFIG_FUNCTION_TRACER
-	bool			ftrace_ignore_pid;
+	int			ftrace_ignore_pid;
 #endif
+	bool			ignore_pid;
 };
 
 struct tracer;
@@ -206,6 +209,30 @@ struct trace_pid_list {
 	int				pid_max;
 	unsigned long			*pids;
 };
+
+enum {
+	TRACE_PIDS		= BIT(0),
+	TRACE_NO_PIDS		= BIT(1),
+};
+
+static inline bool pid_type_enabled(int type, struct trace_pid_list *pid_list,
+				    struct trace_pid_list *no_pid_list)
+{
+	/* Return true if the pid list in type has pids */
+	return ((type & TRACE_PIDS) && pid_list) ||
+		((type & TRACE_NO_PIDS) && no_pid_list);
+}
+
+static inline bool still_need_pid_events(int type, struct trace_pid_list *pid_list,
+					 struct trace_pid_list *no_pid_list)
+{
+	/*
+	 * Turning off what is in @type, return true if the "other"
+	 * pid list, still has pids in it.
+	 */
+	return (!(type & TRACE_PIDS) && pid_list) ||
+		(!(type & TRACE_NO_PIDS) && no_pid_list);
+}
 
 typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
 
@@ -285,6 +312,7 @@ struct trace_array {
 #endif
 #endif
 	struct trace_pid_list	__rcu *filtered_pids;
+	struct trace_pid_list	__rcu *filtered_no_pids;
 	/*
 	 * max_lock is used to protect the swapping of buffers
 	 * when taking a max snapshot. The buffers themselves are
@@ -328,9 +356,11 @@ struct trace_array {
 	struct trace_event_file *trace_marker_file;
 	cpumask_var_t		tracing_cpumask; /* only trace on set CPUs */
 	int			ref;
+	int			trace_ref;
 #ifdef CONFIG_FUNCTION_TRACER
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
+	struct trace_pid_list	__rcu *function_no_pids;
 #ifdef CONFIG_DYNAMIC_FTRACE
 	/* All of these are protected by the ftrace_lock */
 	struct list_head	func_probes;
@@ -518,7 +548,6 @@ struct tracer {
 	struct tracer		*next;
 	struct tracer_flags	*flags;
 	int			enabled;
-	int			ref;
 	bool			print_max;
 	bool			allow_instances;
 #ifdef CONFIG_TRACER_MAX_TRACE
@@ -557,12 +586,7 @@ struct tracer {
  * caller, and we can skip the current check.
  */
 enum {
-	TRACE_BUFFER_BIT,
-	TRACE_BUFFER_NMI_BIT,
-	TRACE_BUFFER_IRQ_BIT,
-	TRACE_BUFFER_SIRQ_BIT,
-
-	/* Start of function recursion bits */
+	/* Function recursion bits */
 	TRACE_FTRACE_BIT,
 	TRACE_FTRACE_NMI_BIT,
 	TRACE_FTRACE_IRQ_BIT,
@@ -787,6 +811,7 @@ extern int pid_max;
 bool trace_find_filtered_pid(struct trace_pid_list *filtered_pids,
 			     pid_t search_pid);
 bool trace_ignore_this_task(struct trace_pid_list *filtered_pids,
+			    struct trace_pid_list *filtered_no_pids,
 			    struct task_struct *task);
 void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
 				  struct task_struct *self,
@@ -1078,6 +1103,10 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 extern struct list_head ftrace_pids;
 
 #ifdef CONFIG_FUNCTION_TRACER
+
+#define FTRACE_PID_IGNORE	-1
+#define FTRACE_PID_TRACE	-2
+
 struct ftrace_func_command {
 	struct list_head	list;
 	char			*name;
@@ -1089,7 +1118,8 @@ struct ftrace_func_command {
 extern bool ftrace_filter_param __initdata;
 static inline int ftrace_trace_task(struct trace_array *tr)
 {
-	return !this_cpu_read(tr->array_buffer.data->ftrace_ignore_pid);
+	return this_cpu_read(tr->array_buffer.data->ftrace_ignore_pid) !=
+		FTRACE_PID_IGNORE;
 }
 extern int ftrace_is_dead(void);
 int ftrace_create_function_files(struct trace_array *tr,
@@ -1307,6 +1337,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(IRQ_INFO,		"irq-info"),		\
 		C(MARKERS,		"markers"),		\
 		C(EVENT_FORK,		"event-fork"),		\
+		C(PAUSE_ON_TRACE,	"pause-on-trace"),	\
 		FUNCTION_FLAGS					\
 		FGRAPH_FLAGS					\
 		STACK_FLAGS					\
@@ -1638,6 +1669,7 @@ extern struct list_head ftrace_events;
 
 extern const struct file_operations event_trigger_fops;
 extern const struct file_operations event_hist_fops;
+extern const struct file_operations event_hist_debug_fops;
 extern const struct file_operations event_inject_fops;
 
 #ifdef CONFIG_HIST_TRIGGERS

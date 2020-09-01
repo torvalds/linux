@@ -40,7 +40,7 @@
  * This driver also supports the ADM1024, a sensor chip made by Analog
  * Devices. That chip is fully compatible with the LM87. Complete
  * datasheet can be obtained from Analog's website at:
- *   http://www.analog.com/en/prod/0,2877,ADM1024,00.html
+ *   https://www.analog.com/en/prod/0,2877,ADM1024,00.html
  */
 
 #include <linux/module.h>

@@ -87,9 +87,9 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	at91sam9rl_pmc = pmc_data_allocate(PMC_MAIN + 1,
+	at91sam9rl_pmc = pmc_data_allocate(PMC_PLLACK + 1,
 					   nck(at91sam9rl_systemck),
-					   nck(at91sam9rl_periphck), 0);
+					   nck(at91sam9rl_periphck), 0, 2);
 	if (!at91sam9rl_pmc)
 		return;
 
@@ -104,6 +104,8 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 				   &sam9rl_plla_characteristics);
 	if (IS_ERR(hw))
 		goto err_free;
+
+	at91sam9rl_pmc->chws[PMC_PLLACK] = hw;
 
 	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck");
 	if (IS_ERR(hw))
@@ -135,9 +137,12 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 
 		hw = at91_clk_register_programmable(regmap, name,
 						    parent_names, 5, i,
-						    &at91rm9200_programmable_layout);
+						    &at91rm9200_programmable_layout,
+						    NULL);
 		if (IS_ERR(hw))
 			goto err_free;
+
+		at91sam9rl_pmc->pchws[i] = hw;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(at91sam9rl_systemck); i++) {
@@ -166,6 +171,6 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 	return;
 
 err_free:
-	pmc_data_free(at91sam9rl_pmc);
+	kfree(at91sam9rl_pmc);
 }
 CLK_OF_DECLARE_DRIVER(at91sam9rl_pmc, "atmel,at91sam9rl-pmc", at91sam9rl_pmc_setup);

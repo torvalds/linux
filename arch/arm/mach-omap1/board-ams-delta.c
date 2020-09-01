@@ -17,6 +17,8 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/leds.h>
+#include <linux/mtd/nand-gpio.h>
+#include <linux/mtd/partitions.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/fixed.h>
@@ -27,8 +29,6 @@
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <media/soc_camera.h>
-
 #include <asm/serial.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -38,7 +38,6 @@
 #include <mach/mux.h>
 
 #include <mach/hardware.h>
-#include "camera.h"
 #include <mach/usb.h>
 
 #include "ams-delta-fiq.h"
@@ -294,9 +293,42 @@ struct modem_private_data {
 
 static struct modem_private_data modem_priv;
 
+/*
+ * Define partitions for flash device
+ */
+
+static struct mtd_partition partition_info[] = {
+	{ .name		= "Kernel",
+	  .offset	= 0,
+	  .size		= 3 * SZ_1M + SZ_512K },
+	{ .name		= "u-boot",
+	  .offset	= 3 * SZ_1M + SZ_512K,
+	  .size		= SZ_256K },
+	{ .name		= "u-boot params",
+	  .offset	= 3 * SZ_1M + SZ_512K + SZ_256K,
+	  .size		= SZ_256K },
+	{ .name		= "Amstrad LDR",
+	  .offset	= 4 * SZ_1M,
+	  .size		= SZ_256K },
+	{ .name		= "File system",
+	  .offset	= 4 * SZ_1M + 1 * SZ_256K,
+	  .size		= 27 * SZ_1M },
+	{ .name		= "PBL reserved",
+	  .offset	= 32 * SZ_1M - 3 * SZ_256K,
+	  .size		=  3 * SZ_256K },
+};
+
+static struct gpio_nand_platdata nand_platdata = {
+	.parts		= partition_info,
+	.num_parts	= ARRAY_SIZE(partition_info),
+};
+
 static struct platform_device ams_delta_nand_device = {
 	.name	= "ams-delta-nand",
 	.id	= -1,
+	.dev	= {
+		.platform_data = &nand_platdata,
+	},
 };
 
 #define OMAP_GPIO_LABEL		"gpio-0-15"
@@ -306,10 +338,14 @@ static struct gpiod_lookup_table ams_delta_nand_gpio_table = {
 	.table = {
 		GPIO_LOOKUP(OMAP_GPIO_LABEL, AMS_DELTA_GPIO_PIN_NAND_RB, "rdy",
 			    0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NCE, "nce", 0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NRE, "nre", 0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWP, "nwp", 0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWE, "nwe", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NCE, "nce",
+			    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NRE, "nre",
+			    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWP, "nwp",
+			    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWE, "nwe",
+			    GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_ALE, "ale", 0),
 		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_CLE, "cle", 0),
 		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 0, "data", 0, 0),
@@ -420,12 +456,6 @@ static struct gpiod_lookup_table leds_gpio_table = {
 	},
 };
 
-static struct i2c_board_info ams_delta_camera_board_info[] = {
-	{
-		I2C_BOARD_INFO("ov6650", 0x60),
-	},
-};
-
 #ifdef CONFIG_LEDS_TRIGGERS
 DEFINE_LED_TRIGGER(ams_delta_camera_led_trigger);
 
@@ -443,27 +473,6 @@ static int ams_delta_camera_power(struct device *dev, int power)
 #else
 #define ams_delta_camera_power	NULL
 #endif
-
-static struct soc_camera_link ams_delta_iclink = {
-	.bus_id         = 0,	/* OMAP1 SoC camera bus */
-	.i2c_adapter_id = 1,
-	.board_info     = &ams_delta_camera_board_info[0],
-	.module_name    = "ov6650",
-	.power		= ams_delta_camera_power,
-};
-
-static struct platform_device ams_delta_camera_device = {
-	.name   = "soc-camera-pdrv",
-	.id     = 0,
-	.dev    = {
-		.platform_data = &ams_delta_iclink,
-	},
-};
-
-static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
-	.camexclk_khz	= 12000,	/* default 12MHz clock, no extra DPLL */
-	.lclk_khz_max	= 1334,		/* results in 5fps CIF, 10fps QCIF */
-};
 
 static struct platform_device ams_delta_audio_device = {
 	.name   = "ams-delta-audio",
@@ -559,7 +568,6 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 	&latch1_gpio_device,
 	&latch2_gpio_device,
 	&ams_delta_kp_device,
-	&ams_delta_camera_device,
 	&ams_delta_audio_device,
 	&ams_delta_serio_device,
 	&ams_delta_nand_device,
@@ -711,7 +719,6 @@ static void __init ams_delta_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 
 	omap1_usb_init(&ams_delta_usb_config);
-	omap1_set_camera_info(&ams_delta_camera_platform_data);
 #ifdef CONFIG_LEDS_TRIGGERS
 	led_trigger_register_simple("ams_delta_camera",
 			&ams_delta_camera_led_trigger);

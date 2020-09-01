@@ -1300,6 +1300,7 @@ struct safexcel_alg_template safexcel_alg_ecb_aes = {
 			.cra_driver_name = "safexcel-ecb-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1337,6 +1338,7 @@ struct safexcel_alg_template safexcel_alg_cbc_aes = {
 			.cra_driver_name = "safexcel-cbc-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1374,6 +1376,7 @@ struct safexcel_alg_template safexcel_alg_cfb_aes = {
 			.cra_driver_name = "safexcel-cfb-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1411,6 +1414,7 @@ struct safexcel_alg_template safexcel_alg_ofb_aes = {
 			.cra_driver_name = "safexcel-ofb-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1485,6 +1489,7 @@ struct safexcel_alg_template safexcel_alg_ctr_aes = {
 			.cra_driver_name = "safexcel-ctr-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1545,6 +1550,7 @@ struct safexcel_alg_template safexcel_alg_cbc_des = {
 			.cra_driver_name = "safexcel-cbc-des",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1582,6 +1588,7 @@ struct safexcel_alg_template safexcel_alg_ecb_des = {
 			.cra_driver_name = "safexcel-ecb-des",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1642,6 +1649,7 @@ struct safexcel_alg_template safexcel_alg_cbc_des3_ede = {
 			.cra_driver_name = "safexcel-cbc-des3_ede",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1679,6 +1687,7 @@ struct safexcel_alg_template safexcel_alg_ecb_des3_ede = {
 			.cra_driver_name = "safexcel-ecb-des3_ede",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1751,6 +1760,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha1-cbc-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1786,6 +1796,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_cbc_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha256-cbc-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1821,6 +1832,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_cbc_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha224-cbc-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1856,6 +1868,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_cbc_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha512-cbc-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1891,6 +1904,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_cbc_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha384-cbc-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1927,6 +1941,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_des3_ede = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha1-cbc-des3_ede",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1963,6 +1978,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_cbc_des3_ede = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha256-cbc-des3_ede",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -1999,6 +2015,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_cbc_des3_ede = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha224-cbc-des3_ede",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2035,6 +2052,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_cbc_des3_ede = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha512-cbc-des3_ede",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2071,6 +2089,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_cbc_des3_ede = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha384-cbc-des3_ede",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2107,6 +2126,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_des = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha1-cbc-des",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2143,6 +2163,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_cbc_des = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha256-cbc-des",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2179,6 +2200,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_cbc_des = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha224-cbc-des",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2215,6 +2237,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_cbc_des = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha512-cbc-des",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2251,6 +2274,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_cbc_des = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha384-cbc-des",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2285,6 +2309,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_ctr_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha1-ctr-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2319,6 +2344,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_ctr_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha256-ctr-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2353,6 +2379,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_ctr_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha224-ctr-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2387,6 +2414,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_ctr_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha512-ctr-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2421,6 +2449,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_ctr_aes = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha384-ctr-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2534,6 +2563,7 @@ struct safexcel_alg_template safexcel_alg_xts_aes = {
 			.cra_driver_name = "safexcel-xts-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = XTS_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2646,6 +2676,7 @@ struct safexcel_alg_template safexcel_alg_gcm = {
 			.cra_driver_name = "safexcel-gcm-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2769,6 +2800,7 @@ struct safexcel_alg_template safexcel_alg_ccm = {
 			.cra_driver_name = "safexcel-ccm-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2832,6 +2864,7 @@ struct safexcel_alg_template safexcel_alg_chacha20 = {
 			.cra_driver_name = "safexcel-chacha20",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -2993,6 +3026,7 @@ struct safexcel_alg_template safexcel_alg_chachapoly = {
 			/* +1 to put it above HW chacha + SW poly */
 			.cra_priority = SAFEXCEL_CRA_PRIORITY + 1,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY |
 				     CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize = 1,
@@ -3032,6 +3066,7 @@ struct safexcel_alg_template safexcel_alg_chachapoly_esp = {
 			/* +1 to put it above HW chacha + SW poly */
 			.cra_priority = SAFEXCEL_CRA_PRIORITY + 1,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY |
 				     CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize = 1,
@@ -3110,6 +3145,7 @@ struct safexcel_alg_template safexcel_alg_ecb_sm4 = {
 			.cra_driver_name = "safexcel-ecb-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = SM4_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3147,6 +3183,7 @@ struct safexcel_alg_template safexcel_alg_cbc_sm4 = {
 			.cra_driver_name = "safexcel-cbc-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = SM4_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3184,6 +3221,7 @@ struct safexcel_alg_template safexcel_alg_ofb_sm4 = {
 			.cra_driver_name = "safexcel-ofb-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3221,6 +3259,7 @@ struct safexcel_alg_template safexcel_alg_cfb_sm4 = {
 			.cra_driver_name = "safexcel-cfb-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3273,6 +3312,7 @@ struct safexcel_alg_template safexcel_alg_ctr_sm4 = {
 			.cra_driver_name = "safexcel-ctr-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3332,6 +3372,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_sm4 = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha1-cbc-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = SM4_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3441,6 +3482,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_cbc_sm4 = {
 			.cra_driver_name = "safexcel-authenc-hmac-sm3-cbc-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY |
 				     CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize = SM4_BLOCK_SIZE,
@@ -3476,6 +3518,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_ctr_sm4 = {
 			.cra_driver_name = "safexcel-authenc-hmac-sha1-ctr-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3510,6 +3553,7 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_ctr_sm4 = {
 			.cra_driver_name = "safexcel-authenc-hmac-sm3-ctr-sm4",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3578,6 +3622,7 @@ struct safexcel_alg_template safexcel_alg_rfc4106_gcm = {
 			.cra_driver_name = "safexcel-rfc4106-gcm-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3622,6 +3667,7 @@ struct safexcel_alg_template safexcel_alg_rfc4543_gcm = {
 			.cra_driver_name = "safexcel-rfc4543-gcm-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -3713,6 +3759,7 @@ struct safexcel_alg_template safexcel_alg_rfc4309_ccm = {
 			.cra_driver_name = "safexcel-rfc4309-ccm-aes",
 			.cra_priority = SAFEXCEL_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),

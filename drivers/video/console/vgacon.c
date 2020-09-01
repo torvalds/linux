@@ -251,6 +251,10 @@ static void vgacon_scrollback_update(struct vc_data *c, int t, int count)
 	p = (void *) (c->vc_origin + t * c->vc_size_row);
 
 	while (count--) {
+		if ((vgacon_scrollback_cur->tail + c->vc_size_row) >
+		    vgacon_scrollback_cur->size)
+			vgacon_scrollback_cur->tail = 0;
+
 		scr_memcpyw(vgacon_scrollback_cur->data +
 			    vgacon_scrollback_cur->tail,
 			    p, c->vc_size_row);
@@ -629,8 +633,10 @@ static void vgacon_deinit(struct vc_data *c)
 	con_set_default_unimap(c);
 }
 
-static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
-			    u8 blink, u8 underline, u8 reverse, u8 italic)
+static u8 vgacon_build_attr(struct vc_data *c, u8 color,
+			    enum vc_intensity intensity,
+			    bool blink, bool underline, bool reverse,
+			    bool italic)
 {
 	u8 attr = color;
 
@@ -639,7 +645,7 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 			attr = (attr & 0xF0) | c->vc_itcolor;
 		else if (underline)
 			attr = (attr & 0xf0) | c->vc_ulcolor;
-		else if (intensity == 0)
+		else if (intensity == VCI_HALF_BRIGHT)
 			attr = (attr & 0xf0) | c->vc_halfcolor;
 	}
 	if (reverse)
@@ -648,14 +654,14 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 				       0x77);
 	if (blink)
 		attr ^= 0x80;
-	if (intensity == 2)
+	if (intensity == VCI_BOLD)
 		attr ^= 0x08;
 	if (!vga_can_do_color) {
 		if (italic)
 			attr = (attr & 0xF8) | 0x02;
 		else if (underline)
 			attr = (attr & 0xf8) | 0x01;
-		else if (intensity == 0)
+		else if (intensity == VCI_HALF_BRIGHT)
 			attr = (attr & 0xf0) | 0x08;
 	}
 	return attr;
@@ -718,17 +724,17 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 	case CM_ERASE:
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
 	        if (vga_video_type >= VIDEO_TYPE_VGAC)
-			vgacon_set_cursor_size(c->vc_x, 31, 30);
+			vgacon_set_cursor_size(c->state.x, 31, 30);
 		else
-			vgacon_set_cursor_size(c->vc_x, 31, 31);
+			vgacon_set_cursor_size(c->state.x, 31, 31);
 		break;
 
 	case CM_MOVE:
 	case CM_DRAW:
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
-		switch (c->vc_cursor_type & 0x0f) {
+		switch (CUR_SIZE(c->vc_cursor_type)) {
 		case CUR_UNDERLINE:
-			vgacon_set_cursor_size(c->vc_x,
+			vgacon_set_cursor_size(c->state.x,
 					       c->vc_font.height -
 					       (c->vc_font.height <
 						10 ? 2 : 3),
@@ -737,21 +743,21 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 						10 ? 1 : 2));
 			break;
 		case CUR_TWO_THIRDS:
-			vgacon_set_cursor_size(c->vc_x,
+			vgacon_set_cursor_size(c->state.x,
 					       c->vc_font.height / 3,
 					       c->vc_font.height -
 					       (c->vc_font.height <
 						10 ? 1 : 2));
 			break;
 		case CUR_LOWER_THIRD:
-			vgacon_set_cursor_size(c->vc_x,
+			vgacon_set_cursor_size(c->state.x,
 					       (c->vc_font.height * 2) / 3,
 					       c->vc_font.height -
 					       (c->vc_font.height <
 						10 ? 1 : 2));
 			break;
 		case CUR_LOWER_HALF:
-			vgacon_set_cursor_size(c->vc_x,
+			vgacon_set_cursor_size(c->state.x,
 					       c->vc_font.height / 2,
 					       c->vc_font.height -
 					       (c->vc_font.height <
@@ -759,12 +765,12 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 			break;
 		case CUR_NONE:
 			if (vga_video_type >= VIDEO_TYPE_VGAC)
-				vgacon_set_cursor_size(c->vc_x, 31, 30);
+				vgacon_set_cursor_size(c->state.x, 31, 30);
 			else
-				vgacon_set_cursor_size(c->vc_x, 31, 31);
+				vgacon_set_cursor_size(c->state.x, 31, 31);
 			break;
 		default:
-			vgacon_set_cursor_size(c->vc_x, 1,
+			vgacon_set_cursor_size(c->state.x, 1,
 					       c->vc_font.height);
 			break;
 		}
@@ -1352,8 +1358,8 @@ static void vgacon_save_screen(struct vc_data *c)
 		 * console initialization routines.
 		 */
 		vga_bootup_console = 1;
-		c->vc_x = screen_info.orig_x;
-		c->vc_y = screen_info.orig_y;
+		c->state.x = screen_info.orig_x;
+		c->state.y = screen_info.orig_y;
 	}
 
 	/* We can't copy in more than the size of the video buffer,

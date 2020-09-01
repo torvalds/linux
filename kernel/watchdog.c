@@ -50,6 +50,11 @@ struct cpumask watchdog_cpumask __read_mostly;
 unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
+
+# ifdef CONFIG_SMP
+int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
+# endif /* CONFIG_SMP */
+
 /*
  * Should we panic when a soft-lockup or hard-lockup occurs:
  */
@@ -82,16 +87,6 @@ static int __init hardlockup_panic_setup(char *str)
 }
 __setup("nmi_watchdog=", hardlockup_panic_setup);
 
-# ifdef CONFIG_SMP
-int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
-
-static int __init hardlockup_all_cpu_backtrace_setup(char *str)
-{
-	sysctl_hardlockup_all_cpu_backtrace = !!simple_strtol(str, NULL, 0);
-	return 1;
-}
-__setup("hardlockup_all_cpu_backtrace=", hardlockup_all_cpu_backtrace_setup);
-# endif /* CONFIG_SMP */
 #endif /* CONFIG_HARDLOCKUP_DETECTOR */
 
 /*
@@ -163,6 +158,10 @@ static void lockup_detector_update_enable(void)
 
 #define SOFTLOCKUP_RESET	ULONG_MAX
 
+#ifdef CONFIG_SMP
+int __read_mostly sysctl_softlockup_all_cpu_backtrace;
+#endif
+
 /* Global variables, exported for sysctl */
 unsigned int __read_mostly softlockup_panic =
 			CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE;
@@ -177,13 +176,6 @@ static DEFINE_PER_CPU(bool, soft_watchdog_warn);
 static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts);
 static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts_saved);
 static unsigned long soft_lockup_nmi_warn;
-
-static int __init softlockup_panic_setup(char *str)
-{
-	softlockup_panic = simple_strtoul(str, NULL, 0);
-	return 1;
-}
-__setup("softlockup_panic=", softlockup_panic_setup);
 
 static int __init nowatchdog_setup(char *str)
 {
@@ -205,17 +197,6 @@ static int __init watchdog_thresh_setup(char *str)
 	return 1;
 }
 __setup("watchdog_thresh=", watchdog_thresh_setup);
-
-#ifdef CONFIG_SMP
-int __read_mostly sysctl_softlockup_all_cpu_backtrace;
-
-static int __init softlockup_all_cpu_backtrace_setup(char *str)
-{
-	sysctl_softlockup_all_cpu_backtrace = !!simple_strtol(str, NULL, 0);
-	return 1;
-}
-__setup("softlockup_all_cpu_backtrace=", softlockup_all_cpu_backtrace_setup);
-#endif
 
 static void __lockup_detector_cleanup(void);
 
@@ -661,7 +642,7 @@ static void proc_watchdog_update(void)
  * proc_soft_watchdog | soft_watchdog_user_enabled | SOFT_WATCHDOG_ENABLED
  */
 static int proc_watchdog_common(int which, struct ctl_table *table, int write,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
+				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int err, old, *param = table->data;
 
@@ -688,7 +669,7 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
  * /proc/sys/kernel/watchdog
  */
 int proc_watchdog(struct ctl_table *table, int write,
-		  void __user *buffer, size_t *lenp, loff_t *ppos)
+		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return proc_watchdog_common(NMI_WATCHDOG_ENABLED|SOFT_WATCHDOG_ENABLED,
 				    table, write, buffer, lenp, ppos);
@@ -698,7 +679,7 @@ int proc_watchdog(struct ctl_table *table, int write,
  * /proc/sys/kernel/nmi_watchdog
  */
 int proc_nmi_watchdog(struct ctl_table *table, int write,
-		      void __user *buffer, size_t *lenp, loff_t *ppos)
+		      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!nmi_watchdog_available && write)
 		return -ENOTSUPP;
@@ -710,7 +691,7 @@ int proc_nmi_watchdog(struct ctl_table *table, int write,
  * /proc/sys/kernel/soft_watchdog
  */
 int proc_soft_watchdog(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
+			void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return proc_watchdog_common(SOFT_WATCHDOG_ENABLED,
 				    table, write, buffer, lenp, ppos);
@@ -720,7 +701,7 @@ int proc_soft_watchdog(struct ctl_table *table, int write,
  * /proc/sys/kernel/watchdog_thresh
  */
 int proc_watchdog_thresh(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int err, old;
 
@@ -743,7 +724,7 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
  * been brought online, if desired.
  */
 int proc_watchdog_cpumask(struct ctl_table *table, int write,
-			  void __user *buffer, size_t *lenp, loff_t *ppos)
+			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int err;
 

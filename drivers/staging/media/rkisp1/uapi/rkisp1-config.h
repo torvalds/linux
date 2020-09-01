@@ -68,7 +68,7 @@
 #define RKISP1_CIF_ISP_BLS_FIX_MASK                0x00001fff
 
 /*
- * Automatic white balance measurments
+ * Automatic white balance measurements
  */
 #define RKISP1_CIF_ISP_AWB_MAX_GRID                1
 #define RKISP1_CIF_ISP_AWB_MAX_FRAMES              7
@@ -408,7 +408,7 @@ struct rkisp1_cif_isp_flt_config {
 /**
  * struct rkisp1_cif_isp_bdm_config - Configuration used by Bayer DeMosaic
  *
- * @demosaic_th: threshod for bayer demosaicing texture detection
+ * @demosaic_th: threshold for bayer demosaicing texture detection
  */
 struct rkisp1_cif_isp_bdm_config {
 	__u8 demosaic_th;

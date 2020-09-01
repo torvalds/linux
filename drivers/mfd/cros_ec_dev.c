@@ -24,7 +24,7 @@ static struct class cros_class = {
 };
 
 /**
- * cros_feature_to_name - CrOS feature id to name/short description.
+ * struct cros_feature_to_name - CrOS feature id to name/short description.
  * @id: The feature identifier.
  * @name: Device name associated with the feature id.
  * @desc: Short name that will be displayed.
@@ -36,7 +36,7 @@ struct cros_feature_to_name {
 };
 
 /**
- * cros_feature_to_cells - CrOS feature id to mfd cells association.
+ * struct cros_feature_to_cells - CrOS feature id to mfd cells association.
  * @id: The feature identifier.
  * @mfd_cells: Pointer to the array of mfd cells that needs to be added.
  * @num_cells: Number of mfd cells into the array.
@@ -211,7 +211,7 @@ static int ec_device_probe(struct platform_device *pdev)
 	 * explicitly added on platforms that don't have the PD notifier ACPI
 	 * device entry defined.
 	 */
-	if (IS_ENABLED(CONFIG_OF)) {
+	if (IS_ENABLED(CONFIG_OF) && ec->ec_dev->dev->of_node) {
 		if (cros_ec_check_features(ec, EC_FEATURE_USB_PD)) {
 			retval = mfd_add_hotplug_devices(ec->dev,
 					cros_usbpd_notify_cells,

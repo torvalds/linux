@@ -25,27 +25,29 @@
 #include <nvif/if000a.h>
 
 int
-nvif_mem_init_map(struct nvif_mmu *mmu, u8 type, u64 size, struct nvif_mem *mem)
+nvif_mem_ctor_map(struct nvif_mmu *mmu, const char *name, u8 type, u64 size,
+		  struct nvif_mem *mem)
 {
-	int ret = nvif_mem_init(mmu, mmu->mem, NVIF_MEM_MAPPABLE | type, 0,
-				size, NULL, 0, mem);
+	int ret = nvif_mem_ctor(mmu, name, mmu->mem, NVIF_MEM_MAPPABLE | type,
+				0, size, NULL, 0, mem);
 	if (ret == 0) {
 		ret = nvif_object_map(&mem->object, NULL, 0);
 		if (ret)
-			nvif_mem_fini(mem);
+			nvif_mem_dtor(mem);
 	}
 	return ret;
 }
 
 void
-nvif_mem_fini(struct nvif_mem *mem)
+nvif_mem_dtor(struct nvif_mem *mem)
 {
-	nvif_object_fini(&mem->object);
+	nvif_object_dtor(&mem->object);
 }
 
 int
-nvif_mem_init_type(struct nvif_mmu *mmu, s32 oclass, int type, u8 page,
-		   u64 size, void *argv, u32 argc, struct nvif_mem *mem)
+nvif_mem_ctor_type(struct nvif_mmu *mmu, const char *name, s32 oclass,
+		   int type, u8 page, u64 size, void *argv, u32 argc,
+		   struct nvif_mem *mem)
 {
 	struct nvif_mem_v0 *args;
 	u8 stack[128];
@@ -67,8 +69,8 @@ nvif_mem_init_type(struct nvif_mmu *mmu, s32 oclass, int type, u8 page,
 	args->size = size;
 	memcpy(args->data, argv, argc);
 
-	ret = nvif_object_init(&mmu->object, 0, oclass, args,
-			       sizeof(*args) + argc, &mem->object);
+	ret = nvif_object_ctor(&mmu->object, name ? name : "nvifMem", 0, oclass,
+			       args, sizeof(*args) + argc, &mem->object);
 	if (ret == 0) {
 		mem->type = mmu->type[type].type;
 		mem->page = args->page;
@@ -83,8 +85,8 @@ nvif_mem_init_type(struct nvif_mmu *mmu, s32 oclass, int type, u8 page,
 }
 
 int
-nvif_mem_init(struct nvif_mmu *mmu, s32 oclass, u8 type, u8 page,
-	      u64 size, void *argv, u32 argc, struct nvif_mem *mem)
+nvif_mem_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass, u8 type,
+	      u8 page, u64 size, void *argv, u32 argc, struct nvif_mem *mem)
 {
 	int ret = -EINVAL, i;
 
@@ -92,8 +94,8 @@ nvif_mem_init(struct nvif_mmu *mmu, s32 oclass, u8 type, u8 page,
 
 	for (i = 0; ret && i < mmu->type_nr; i++) {
 		if ((mmu->type[i].type & type) == type) {
-			ret = nvif_mem_init_type(mmu, oclass, i, page, size,
-						 argv, argc, mem);
+			ret = nvif_mem_ctor_type(mmu, name, oclass, i, page,
+						 size, argv, argc, mem);
 		}
 	}
 

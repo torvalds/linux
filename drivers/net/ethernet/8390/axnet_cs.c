@@ -610,7 +610,7 @@ static int axnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     switch (cmd) {
     case SIOCGMIIPHY:
 	data->phy_id = info->phy_id;
-	/* Fall through */
+	fallthrough;
     case SIOCGMIIREG:		/* Read MII PHY register. */
 	data->val_out = mdio_read(mii_addr, data->phy_id, data->reg_num & 0x1f);
 	return 0;
@@ -898,6 +898,7 @@ static int ax_close(struct net_device *dev)
 /**
  * axnet_tx_timeout - handle transmit time out condition
  * @dev: network device which has apparently fallen asleep
+ * @txqueue: unused
  *
  * Called by kernel when device never acknowledges a transmit has
  * completed (or failed) - i.e. never posted a Tx related interrupt.

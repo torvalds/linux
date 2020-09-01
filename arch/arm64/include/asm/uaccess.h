@@ -19,6 +19,7 @@
 #include <linux/string.h>
 
 #include <asm/cpufeature.h>
+#include <asm/mmu.h>
 #include <asm/ptrace.h>
 #include <asm/memory.h>
 #include <asm/extable.h>
@@ -49,7 +50,7 @@ static inline void set_fs(mm_segment_t fs)
 				CONFIG_ARM64_UAO));
 }
 
-#define segment_eq(a, b)	((a) == (b))
+#define uaccess_kernel()	(get_fs() == KERNEL_DS)
 
 /*
  * Test whether a block of memory is a valid user space address.
@@ -304,7 +305,7 @@ do {									\
 		__p = uaccess_mask_ptr(__p);				\
 		__raw_get_user((x), __p, (err));			\
 	} else {							\
-		(x) = 0; (err) = -EFAULT;				\
+		(x) = (__force __typeof__(x))0; (err) = -EFAULT;	\
 	}								\
 } while (0)
 

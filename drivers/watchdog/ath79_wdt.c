@@ -215,8 +215,8 @@ static long ath79_wdt_ioctl(struct file *file, unsigned int cmd,
 		err = ath79_wdt_set_timeout(t);
 		if (err)
 			break;
+		fallthrough;
 
-		/* fallthrough */
 	case WDIOC_GETTIMEOUT:
 		err = put_user(timeout, p);
 		break;

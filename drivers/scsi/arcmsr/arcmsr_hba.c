@@ -41,7 +41,7 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************
 ** For history of changes, see Documentation/scsi/ChangeLog.arcmsr
-**     Firmware Specification, see Documentation/scsi/arcmsr_spec.txt
+**     Firmware Specification, see Documentation/scsi/arcmsr_spec.rst
 *******************************************************************************
 */
 #include <linux/module.h>
@@ -283,11 +283,10 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
 	}
 	case ACB_ADAPTER_TYPE_D: {
 		void __iomem *mem_base0;
-		unsigned long addr, range, flags;
+		unsigned long addr, range;
 
 		addr = (unsigned long)pci_resource_start(pdev, 0);
 		range = pci_resource_len(pdev, 0);
-		flags = pci_resource_flags(pdev, 0);
 		mem_base0 = ioremap(addr, range);
 		if (!mem_base0) {
 			pr_notice("arcmsr%d: memory mapping region fail\n",
@@ -353,16 +352,11 @@ static irqreturn_t arcmsr_do_interrupt(int irq, void *dev_id)
 static int arcmsr_bios_param(struct scsi_device *sdev,
 		struct block_device *bdev, sector_t capacity, int *geom)
 {
-	int ret, heads, sectors, cylinders, total_capacity;
-	unsigned char *buffer;/* return copy of block device's partition table */
+	int heads, sectors, cylinders, total_capacity;
 
-	buffer = scsi_bios_ptable(bdev);
-	if (buffer) {
-		ret = scsi_partsize(buffer, capacity, &geom[2], &geom[0], &geom[1]);
-		kfree(buffer);
-		if (ret != -1)
-			return ret;
-	}
+	if (scsi_partsize(bdev, capacity, geom))
+		return 0;
+
 	total_capacity = capacity;
 	heads = 64;
 	sectors = 32;
@@ -1072,12 +1066,11 @@ static void arcmsr_free_irq(struct pci_dev *pdev,
 
 static int arcmsr_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	uint32_t intmask_org;
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	struct AdapterControlBlock *acb =
 		(struct AdapterControlBlock *)host->hostdata;
 
-	intmask_org = arcmsr_disable_outbound_ints(acb);
+	arcmsr_disable_outbound_ints(acb);
 	arcmsr_free_irq(pdev, acb);
 	del_timer_sync(&acb->eternal_timer);
 	if (set_date_time)
@@ -1412,7 +1405,7 @@ static void arcmsr_done4abort_postqueue(struct AdapterControlBlock *acb)
 	struct ARCMSR_CDB *pARCMSR_CDB;
 	bool error;
 	struct CommandControlBlock *pCCB;
-	unsigned long ccb_cdb_phy, cdb_phy_hipart;
+	unsigned long ccb_cdb_phy;
 
 	switch (acb->adapter_type) {
 
@@ -1494,8 +1487,6 @@ static void arcmsr_done4abort_postqueue(struct AdapterControlBlock *acb)
 					((toggle ^ 0x4000) + 1);
 				doneq_index = pmu->doneq_index;
 				spin_unlock_irqrestore(&acb->doneq_lock, flags);
-				cdb_phy_hipart = pmu->done_qbuffer[doneq_index &
-					0xFFF].addressHigh;
 				addressLow = pmu->done_qbuffer[doneq_index &
 					0xFFF].addressLow;
 				ccb_cdb_phy = (addressLow & 0xFFFFFFF0);
@@ -2450,7 +2441,7 @@ static void arcmsr_hbaD_postqueue_isr(struct AdapterControlBlock *acb)
 	struct MessageUnit_D  *pmu;
 	struct ARCMSR_CDB *arcmsr_cdb;
 	struct CommandControlBlock *ccb;
-	unsigned long flags, ccb_cdb_phy, cdb_phy_hipart;
+	unsigned long flags, ccb_cdb_phy;
 
 	spin_lock_irqsave(&acb->doneq_lock, flags);
 	pmu = acb->pmuD;
@@ -2464,8 +2455,6 @@ static void arcmsr_hbaD_postqueue_isr(struct AdapterControlBlock *acb)
 			pmu->doneq_index = index_stripped ? (index_stripped | toggle) :
 				((toggle ^ 0x4000) + 1);
 			doneq_index = pmu->doneq_index;
-			cdb_phy_hipart = pmu->done_qbuffer[doneq_index &
-				0xFFF].addressHigh;
 			addressLow = pmu->done_qbuffer[doneq_index &
 				0xFFF].addressLow;
 			ccb_cdb_phy = (addressLow & 0xFFFFFFF0);
@@ -3500,7 +3489,7 @@ static int arcmsr_hbaD_polling_ccbdone(struct AdapterControlBlock *acb,
 	bool error;
 	uint32_t poll_ccb_done = 0, poll_count = 0, flag_ccb;
 	int rtn, doneq_index, index_stripped, outbound_write_pointer, toggle;
-	unsigned long flags, ccb_cdb_phy, cdb_phy_hipart;
+	unsigned long flags, ccb_cdb_phy;
 	struct ARCMSR_CDB *arcmsr_cdb;
 	struct CommandControlBlock *pCCB;
 	struct MessageUnit_D *pmu = acb->pmuD;
@@ -3532,8 +3521,6 @@ polling_hbaD_ccb_retry:
 				((toggle ^ 0x4000) + 1);
 		doneq_index = pmu->doneq_index;
 		spin_unlock_irqrestore(&acb->doneq_lock, flags);
-		cdb_phy_hipart = pmu->done_qbuffer[doneq_index &
-				0xFFF].addressHigh;
 		flag_ccb = pmu->done_qbuffer[doneq_index & 0xFFF].addressLow;
 		ccb_cdb_phy = (flag_ccb & 0xFFFFFFF0);
 		if (acb->cdb_phyadd_hipart)
@@ -4483,7 +4470,7 @@ static const char *arcmsr_info(struct Scsi_Host *host)
 	case PCI_DEVICE_ID_ARECA_1202:
 	case PCI_DEVICE_ID_ARECA_1210:
 		raid6 = 0;
-		/*FALLTHRU*/
+		fallthrough;
 	case PCI_DEVICE_ID_ARECA_1120:
 	case PCI_DEVICE_ID_ARECA_1130:
 	case PCI_DEVICE_ID_ARECA_1160:

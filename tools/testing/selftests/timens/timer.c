@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <signal.h>
-#include <time.h>
 
 #include "log.h"
 #include "timens.h"
@@ -22,6 +21,9 @@ int run_test(int clockid, struct timespec now)
 	long long elapsed;
 	timer_t fd;
 	int i;
+
+	if (check_skip(clockid))
+		return 0;
 
 	for (i = 0; i < 2; i++) {
 		struct sigevent sevp = {.sigev_notify = SIGEV_NONE};
@@ -74,6 +76,8 @@ int main(int argc, char *argv[])
 	struct timespec btime_now, mtime_now;
 
 	nscheck();
+
+	check_supported_timers();
 
 	ksft_set_plan(3);
 

@@ -65,7 +65,7 @@ static int gpio_banks;
 #define DEBOUNCE_VAL_SHIFT	17
 #define DEBOUNCE_VAL	(0x3fff << DEBOUNCE_VAL_SHIFT)
 
-/**
+/*
  * These defines will translated the dt binding settings to our internal
  * settings. They are not necessarily the same value as the register setting.
  * The actual drive strength current of low, medium and high must be looked up
@@ -161,6 +161,10 @@ struct at91_pin_group {
  * @set_pulldown: enable/disable pulldown
  * @get_schmitt_trig: get schmitt trigger status
  * @disable_schmitt_trig: disable schmitt trigger
+ * @get_drivestrength: get driver strength
+ * @set_drivestrength: set driver strength
+ * @get_slewrate: get slew rate
+ * @set_slewrate: set slew rate
  * @irq_type: return irq type
  */
 struct at91_pinctrl_mux_ops {
@@ -1414,7 +1418,10 @@ static int at91_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	u32 osr;
 
 	osr = readl_relaxed(pio + PIO_OSR);
-	return !(osr & mask);
+	if (osr & mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int at91_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -1483,14 +1490,11 @@ static void at91_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	int i;
 	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = at91_gpio->regbase;
+	const char *gpio_label;
 
-	for (i = 0; i < chip->ngpio; i++) {
+	for_each_requested_gpio(chip, i, gpio_label) {
 		unsigned mask = pin_to_mask(i);
-		const char *gpio_label;
 
-		gpio_label = gpiochip_is_requested(chip, i);
-		if (!gpio_label)
-			continue;
 		mode = at91_gpio->ops->get_periph(pio, mask);
 		seq_printf(s, "[%s] GPIO%s%d: ",
 			   gpio_label, chip->label, i);

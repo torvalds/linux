@@ -259,8 +259,20 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->features |= net_dev->hw_features;
 	net_dev->vlan_features = net_dev->features;
 
-	memcpy(net_dev->perm_addr, mac_addr, net_dev->addr_len);
-	memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
+	if (is_valid_ether_addr(mac_addr)) {
+		memcpy(net_dev->perm_addr, mac_addr, net_dev->addr_len);
+		memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
+	} else {
+		eth_hw_addr_random(net_dev);
+		err = priv->mac_dev->change_addr(priv->mac_dev->fman_mac,
+			(enet_addr_t *)net_dev->dev_addr);
+		if (err) {
+			dev_err(dev, "Failed to set random MAC address\n");
+			return -EINVAL;
+		}
+		dev_info(dev, "Using random MAC address: %pM\n",
+			 net_dev->dev_addr);
+	}
 
 	net_dev->ethtool_ops = &dpaa_ethtool_ops;
 
@@ -933,7 +945,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			break;
 		case FQ_TYPE_TX_CONF_MQ:
 			priv->conf_fqs[conf_cnt++] = &fq->fq_base;
-			/* fall through */
+			fallthrough;
 		case FQ_TYPE_TX_CONFIRM:
 			dpaa_setup_ingress(priv, fq, &fq_cbs->tx_defq);
 			break;
@@ -2050,7 +2062,7 @@ static inline int dpaa_xmit(struct dpaa_priv *priv,
 }
 
 #ifdef CONFIG_DPAA_ERRATUM_A050385
-int dpaa_a050385_wa(struct net_device *net_dev, struct sk_buff **s)
+static int dpaa_a050385_wa(struct net_device *net_dev, struct sk_buff **s)
 {
 	struct dpaa_priv *priv = netdev_priv(net_dev);
 	struct sk_buff *new_skb, *skb = *s;
@@ -2095,7 +2107,7 @@ workaround:
 
 	/* Workaround for DPAA_A050385 requires data start to be aligned */
 	start = PTR_ALIGN(new_skb->data, DPAA_A050385_ALIGN);
-	if (start - new_skb->data != 0)
+	if (start - new_skb->data)
 		skb_reserve(new_skb, start - new_skb->data);
 
 	skb_put(new_skb, skb->len);
@@ -2902,7 +2914,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	}
 
 	/* Do this here, so we can be verbose early */
-	SET_NETDEV_DEV(net_dev, dev);
+	SET_NETDEV_DEV(net_dev, dev->parent);
 	dev_set_drvdata(dev, net_dev);
 
 	priv = netdev_priv(net_dev);
@@ -2926,7 +2938,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 						   DMA_BIT_MASK(40));
 	if (err) {
 		netdev_err(net_dev, "dma_coerce_mask_and_coherent() failed\n");
-		return err;
+		goto free_netdev;
 	}
 
 	/* If fsl_fm_max_frm is set to a higher value than the all-common 1500,

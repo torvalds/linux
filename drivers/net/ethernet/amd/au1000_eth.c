@@ -63,14 +63,12 @@ static int au1000_debug = 3;
 				NETIF_MSG_LINK)
 
 #define DRV_NAME	"au1000_eth"
-#define DRV_VERSION	"1.7"
 #define DRV_AUTHOR	"Pete Popov <ppopov@embeddedalley.com>"
 #define DRV_DESC	"Au1xxx on-chip Ethernet driver"
 
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 /* AU1000 MAC registers and bits */
 #define MAC_CONTROL		0x0
@@ -243,7 +241,6 @@ MODULE_VERSION(DRV_VERSION);
  * ps: make sure the used irqs are configured properly in the board
  * specific irq-map
  */
-
 static void au1000_enable_mac(struct net_device *dev, int force_reset)
 {
 	unsigned long flags;
@@ -558,7 +555,6 @@ static int au1000_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-
 /*
  * Buffer allocation/deallocation routines. The buffer descriptor returned
  * has the virtual and dma address of a buffer suitable for
@@ -649,14 +645,12 @@ au1000_setup_hw_rings(struct au1000_private *aup, void __iomem *tx_base)
 /*
  * ethtool operations
  */
-
 static void
 au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s %d", DRV_NAME,
 		 aup->mac_id);
 }
@@ -681,7 +675,6 @@ static const struct ethtool_ops au1000_ethtool_ops = {
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
-
 
 /*
  * Initialize the interface.
@@ -1258,7 +1251,6 @@ static int au1000_probe(struct platform_device *pdev)
 		aup->rx_db_inuse[i] = pDB;
 	}
 
-	err = -ENODEV;
 	for (i = 0; i < NUM_TX_DMA; i++) {
 		pDB = au1000_GetFreeDB(aup);
 		if (!pDB)
@@ -1289,8 +1281,6 @@ static int au1000_probe(struct platform_device *pdev)
 
 	netdev_info(dev, "Au1xx0 Ethernet found at 0x%lx, irq %d\n",
 			(unsigned long)base->start, irq);
-
-	pr_info_once("%s version %s %s\n", DRV_NAME, DRV_VERSION, DRV_AUTHOR);
 
 	return 0;
 

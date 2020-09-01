@@ -101,6 +101,7 @@ struct netns_ipv4 {
 	int sysctl_ip_fwd_use_pmtu;
 	int sysctl_ip_fwd_update_priority;
 	int sysctl_ip_nonlocal_bind;
+	int sysctl_ip_autobind_reuse;
 	/* Shall we try to damage output packets if routing dev changes? */
 	int sysctl_ip_dynaddr;
 	int sysctl_ip_early_demux;
@@ -109,6 +110,8 @@ struct netns_ipv4 {
 #endif
 	int sysctl_tcp_early_demux;
 	int sysctl_udp_early_demux;
+
+	int sysctl_nexthop_compat_mode;
 
 	int sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
@@ -170,6 +173,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_rmem[3];
 	int sysctl_tcp_comp_sack_nr;
 	unsigned long sysctl_tcp_comp_sack_delay_ns;
+	unsigned long sysctl_tcp_comp_sack_slack_ns;
 	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;

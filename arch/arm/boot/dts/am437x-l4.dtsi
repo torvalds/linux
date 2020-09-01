@@ -328,9 +328,8 @@
 			};
 		};
 
-		target-module@31000 {			/* 0x44e31000, ap 24 40.0 */
+		timer1_target: target-module@31000 {	/* 0x44e31000, ap 24 40.0 */
 			compatible = "ti,sysc-omap2-timer", "ti,sysc";
-			ti,hwmods = "timer1";
 			reg = <0x31000 0x4>,
 			      <0x31010 0x4>,
 			      <0x31014 0x4>;
@@ -450,7 +449,6 @@
 
 		target-module@86000 {			/* 0x44e86000, ap 40 70.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "counter_32k";
 			reg = <0x86000 0x4>,
 			      <0x86004 0x4>;
 			reg-names = "rev", "sysc";
@@ -868,9 +866,8 @@
 			};
 		};
 
-		target-module@40000 {			/* 0x48040000, ap 18 1e.0 */
+		timer2_target: target-module@40000 {	/* 0x48040000, ap 18 1e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer2";
 			reg = <0x40000 0x4>,
 			      <0x40010 0x4>,
 			      <0x40014 0x4>;
@@ -1086,9 +1083,8 @@
 			ranges = <0x0 0x60000 0x1000>;
 
 			mmc1: mmc@0 {
-				compatible = "ti,omap4-hsmmc";
+				compatible = "ti,am437-sdhci";
 				reg = <0x0 0x1000>;
-				ti,dual-volt;
 				ti,needs-special-reset;
 				dmas = <&edma 24 0>,
 					<&edma 25 0>;
@@ -1544,8 +1540,9 @@
 			reg = <0xcc020 0x4>;
 			reg-names = "rev";
 			/* Domains (P, C): per_pwrdm, l4ls_clkdm */
-			clocks = <&l4ls_clkctrl AM4_L4LS_D_CAN0_CLKCTRL 0>;
-			clock-names = "fck";
+			clocks = <&l4ls_clkctrl AM4_L4LS_D_CAN0_CLKCTRL 0>,
+			<&dcan0_fck>;
+			clock-names = "fck", "osc";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xcc000 0x2000>;
@@ -1553,6 +1550,8 @@
 			dcan0: can@0 {
 				compatible = "ti,am4372-d_can", "ti,am3352-d_can";
 				reg = <0x0 0x2000>;
+				clocks = <&dcan0_fck>;
+				clock-names = "fck";
 				syscon-raminit = <&scm_conf 0x644 0>;
 				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1564,8 +1563,9 @@
 			reg = <0xd0020 0x4>;
 			reg-names = "rev";
 			/* Domains (P, C): per_pwrdm, l4ls_clkdm */
-			clocks = <&l4ls_clkctrl AM4_L4LS_D_CAN1_CLKCTRL 0>;
-			clock-names = "fck";
+			clocks = <&l4ls_clkctrl AM4_L4LS_D_CAN1_CLKCTRL 0>,
+			<&dcan1_fck>;
+			clock-names = "fck", "osc";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xd0000 0x2000>;
@@ -1573,6 +1573,8 @@
 			dcan1: can@0 {
 				compatible = "ti,am4372-d_can", "ti,am3352-d_can";
 				reg = <0x0 0x2000>;
+				clocks = <&dcan1_fck>;
+				clock-name = "fck";
 				syscon-raminit = <&scm_conf 0x644 1>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1601,7 +1603,7 @@
 			ranges = <0x0 0xd8000 0x1000>;
 
 			mmc2: mmc@0 {
-				compatible = "ti,omap4-hsmmc";
+				compatible = "ti,am437-sdhci";
 				reg = <0x0 0x1000>;
 				ti,needs-special-reset;
 				dmas = <&edma 2 0>,
@@ -2117,7 +2119,6 @@
 
 		target-module@2a000 {			/* 0x4832a000, ap 88 3c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dss_core";
 			reg = <0x2a000 0x4>,
 			      <0x2a010 0x4>,
 			      <0x2a014 0x4>;
@@ -2135,6 +2136,82 @@
 				 <0x00000800 0x0002a800 0x00000400>,
 				 <0x00000c00 0x0002ac00 0x00000400>,
 				 <0x00001000 0x0002b000 0x00001000>;
+
+			dss: dss@0 {
+				compatible = "ti,omap3-dss";
+				reg = <0 0x200>;
+				status = "disabled";
+				clocks = <&disp_clk>;
+				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x00000000 0x00000000 0x00000400>,
+					 <0x00000400 0x00000400 0x00000400>,
+					 <0x00000800 0x00000800 0x00000400>,
+					 <0x00000c00 0x00000c00 0x00000400>,
+					 <0x00001000 0x00001000 0x00001000>;
+
+				target-module@400 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x400 0x4>,
+					      <0x410 0x4>,
+					      <0x414 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-midle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+							 SYSC_OMAP2_ENAWAKEUP |
+							 SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl AM4_DSS_DSS_CORE_CLKCTRL 0>;
+					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x400 0x400>;
+
+					dispc: dispc@0 {
+						compatible = "ti,omap3-dispc";
+						reg = <0 0x400>;
+						interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+						clocks = <&disp_clk>;
+						clock-names = "fck";
+
+						max-memory-bandwidth = <230000000>;
+					};
+				};
+
+				target-module@800 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x800 0x4>,
+					      <0x810 0x4>,
+					      <0x814 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl AM4_DSS_DSS_CORE_CLKCTRL 0>;
+					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x800 0x400>;
+
+					rfbi: rfbi@0 {
+						compatible = "ti,omap3-rfbi";
+						reg = <0 0x100>;
+						clocks = <&dss_clkctrl AM4_DSS_DSS_CORE_CLKCTRL 0>;
+						clock-names = "fck";
+						status = "disabled";
+					};
+				};
+			};
 		};
 
 		target-module@3d000 {			/* 0x4833d000, ap 102 6e.0 */
@@ -2280,7 +2357,6 @@
 
 		target-module@80000 {			/* 0x48380000, ap 123 42.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "usb_otg_ss0";
 			reg = <0x80000 0x4>,
 			      <0x80010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2361,7 +2437,6 @@
 
 		target-module@c0000 {			/* 0x483c0000, ap 127 7a.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "usb_otg_ss1";
 			reg = <0xc0000 0x4>,
 			      <0xc0010 0x4>;
 			reg-names = "rev", "sysc";

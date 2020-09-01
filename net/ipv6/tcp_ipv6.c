@@ -463,6 +463,8 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (fastopen && !fastopen->sk)
 			break;
 
+		ipv6_icmp_error(sk, skb, err, th->dest, ntohl(info), (u8 *)th);
+
 		if (!sock_owned_by_user(sk)) {
 			sk->sk_err = err;
 			sk->sk_error_report(sk);		/* Wake people up to see the error (see connect in sock.c) */
@@ -471,6 +473,15 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		} else
 			sk->sk_err_soft = err;
 		goto out;
+	case TCP_LISTEN:
+		break;
+	default:
+		/* check if this ICMP message allows revert of backoff.
+		 * (see RFC 6069)
+		 */
+		if (!fastopen && type == ICMPV6_DEST_UNREACH &&
+		    code == ICMPV6_NOROUTE)
+			tcp_ld_RTO_revert(sk, seq);
 	}
 
 	if (!sock_owned_by_user(sk) && np->recverr) {
@@ -556,7 +567,7 @@ static struct tcp_md5sig_key *tcp_v6_md5_lookup(const struct sock *sk,
 }
 
 static int tcp_v6_parse_md5_keys(struct sock *sk, int optname,
-				 char __user *optval, int optlen)
+				 sockptr_t optval, int optlen)
 {
 	struct tcp_md5sig cmd;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&cmd.tcpm_addr;
@@ -566,7 +577,7 @@ static int tcp_v6_parse_md5_keys(struct sock *sk, int optname,
 	if (optlen < sizeof(cmd))
 		return -EINVAL;
 
-	if (copy_from_user(&cmd, optval, sizeof(cmd)))
+	if (copy_from_sockptr(&cmd, optval, sizeof(cmd)))
 		return -EFAULT;
 
 	if (sin6->sin6_family != AF_INET6)
@@ -1742,7 +1753,7 @@ do_time_wait:
 		}
 	}
 		/* to ACK */
-		/* fall through */
+		fallthrough;
 	case TCP_TW_ACK:
 		tcp_v6_timewait_ack(sk, skb);
 		break;
@@ -1800,6 +1811,13 @@ static struct timewait_sock_ops tcp6_timewait_sock_ops = {
 	.twsk_destructor = tcp_twsk_destructor,
 };
 
+INDIRECT_CALLABLE_SCOPE void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb)
+{
+	struct ipv6_pinfo *np = inet6_sk(sk);
+
+	__tcp_v6_send_check(skb, &np->saddr, &sk->sk_v6_daddr);
+}
+
 const struct inet_connection_sock_af_ops ipv6_specific = {
 	.queue_xmit	   = inet6_csk_xmit,
 	.send_check	   = tcp_v6_send_check,
@@ -1813,10 +1831,6 @@ const struct inet_connection_sock_af_ops ipv6_specific = {
 	.getsockopt	   = ipv6_getsockopt,
 	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ipv6_setsockopt,
-	.compat_getsockopt = compat_ipv6_getsockopt,
-#endif
 	.mtu_reduced	   = tcp_v6_mtu_reduced,
 };
 
@@ -1843,10 +1857,6 @@ static const struct inet_connection_sock_af_ops ipv6_mapped = {
 	.getsockopt	   = ipv6_getsockopt,
 	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ipv6_setsockopt,
-	.compat_getsockopt = compat_ipv6_getsockopt,
-#endif
 	.mtu_reduced	   = tcp_v4_mtu_reduced,
 };
 
@@ -2104,12 +2114,9 @@ struct proto tcpv6_prot = {
 	.rsk_prot		= &tcp6_request_sock_ops,
 	.h.hashinfo		= &tcp_hashinfo,
 	.no_autobind		= true,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_tcp_setsockopt,
-	.compat_getsockopt	= compat_tcp_getsockopt,
-#endif
 	.diag_destroy		= tcp_abort,
 };
+EXPORT_SYMBOL_GPL(tcpv6_prot);
 
 /* thinking of making this const? Don't.
  * early_demux can change based on sysctl.

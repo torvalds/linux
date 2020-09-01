@@ -10,14 +10,18 @@
 
 struct ethnl_req_info;
 
-int ethnl_parse_header(struct ethnl_req_info *req_info,
-		       const struct nlattr *nest, struct net *net,
-		       struct netlink_ext_ack *extack, bool require_dev);
+int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
+			       const struct nlattr *nest, struct net *net,
+			       struct netlink_ext_ack *extack,
+			       bool require_dev);
 int ethnl_fill_reply_header(struct sk_buff *skb, struct net_device *dev,
 			    u16 attrtype);
 struct sk_buff *ethnl_reply_init(size_t payload, struct net_device *dev, u8 cmd,
 				 u16 hdr_attrtype, struct genl_info *info,
 				 void **ehdrp);
+void *ethnl_dump_put(struct sk_buff *skb, struct netlink_callback *cb, u8 cmd);
+void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd);
+int ethnl_multicast(struct sk_buff *skb, struct net_device *dev);
 
 /**
  * ethnl_strz_size() - calculate attribute length for fixed size string
@@ -336,10 +340,30 @@ extern const struct ethnl_request_ops ethnl_linkmodes_request_ops;
 extern const struct ethnl_request_ops ethnl_linkstate_request_ops;
 extern const struct ethnl_request_ops ethnl_debug_request_ops;
 extern const struct ethnl_request_ops ethnl_wol_request_ops;
+extern const struct ethnl_request_ops ethnl_features_request_ops;
+extern const struct ethnl_request_ops ethnl_privflags_request_ops;
+extern const struct ethnl_request_ops ethnl_rings_request_ops;
+extern const struct ethnl_request_ops ethnl_channels_request_ops;
+extern const struct ethnl_request_ops ethnl_coalesce_request_ops;
+extern const struct ethnl_request_ops ethnl_pause_request_ops;
+extern const struct ethnl_request_ops ethnl_eee_request_ops;
+extern const struct ethnl_request_ops ethnl_tsinfo_request_ops;
 
 int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_debug(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_wol(struct sk_buff *skb, struct genl_info *info);
+int ethnl_set_features(struct sk_buff *skb, struct genl_info *info);
+int ethnl_set_privflags(struct sk_buff *skb, struct genl_info *info);
+int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info);
+int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info);
+int ethnl_set_coalesce(struct sk_buff *skb, struct genl_info *info);
+int ethnl_set_pause(struct sk_buff *skb, struct genl_info *info);
+int ethnl_set_eee(struct sk_buff *skb, struct genl_info *info);
+int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info);
+int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info);
+int ethnl_tunnel_info_doit(struct sk_buff *skb, struct genl_info *info);
+int ethnl_tunnel_info_start(struct netlink_callback *cb);
+int ethnl_tunnel_info_dumpit(struct sk_buff *skb, struct netlink_callback *cb);
 
 #endif /* _NET_ETHTOOL_NETLINK_H */

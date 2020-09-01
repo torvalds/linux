@@ -8,6 +8,8 @@
 
 #include <linux/sizes.h>
 
+struct btrfs_inode;
+
 /*
  * We want to make sure that amount of RAM required to uncompress an extent is
  * reasonable, so we limit the total size in ram of a compressed extent to
@@ -88,7 +90,7 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 			      unsigned long total_out, u64 disk_start,
 			      struct bio *bio);
 
-blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
+blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				  unsigned long len, u64 disk_start,
 				  unsigned long compressed_len,
 				  struct page **compressed_pages,
@@ -139,8 +141,6 @@ extern const struct btrfs_compress_op btrfs_zstd_compress;
 
 const char* btrfs_compress_type2str(enum btrfs_compression_type type);
 bool btrfs_compress_is_valid_type(const char *str, size_t len);
-
-unsigned int btrfs_compress_set_level(int type, unsigned level);
 
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
 

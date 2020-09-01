@@ -105,11 +105,6 @@ enum {
 	SRP_CMD_ACA = 0x4,
 
 	SRPT_DEF_SG_TABLESIZE = 128,
-	/*
-	 * An experimentally determined value that avoids that QP creation
-	 * fails due to "swiotlb buffer is full" on systems using the swiotlb.
-	 */
-	SRPT_MAX_SG_PER_WQE = 16,
 
 	MIN_SRPT_SQ_SIZE = 16,
 	DEF_SRPT_SQ_SIZE = 4096,
@@ -305,6 +300,7 @@ struct srpt_rdma_ch {
 		} rdma_cm;
 	};
 	struct ib_cq		*cq;
+	u32			cq_size;
 	struct ib_cqe		zw_cqe;
 	struct rcu_head		rcu;
 	struct kref		kref;

@@ -48,6 +48,13 @@
 #define ATLAS_REG_EC_CALIB_STATUS_LOW		BIT(2)
 #define ATLAS_REG_EC_CALIB_STATUS_HIGH		BIT(3)
 
+#define ATLAS_REG_DO_CALIB_STATUS		0x09
+#define ATLAS_REG_DO_CALIB_STATUS_MASK		0x03
+#define ATLAS_REG_DO_CALIB_STATUS_PRESSURE	BIT(0)
+#define ATLAS_REG_DO_CALIB_STATUS_DO		BIT(1)
+
+#define ATLAS_REG_RTD_DATA		0x0e
+
 #define ATLAS_REG_PH_TEMP_DATA		0x0e
 #define ATLAS_REG_PH_DATA		0x16
 
@@ -60,14 +67,21 @@
 #define ATLAS_REG_ORP_CALIB_STATUS	0x0d
 #define ATLAS_REG_ORP_DATA		0x0e
 
+#define ATLAS_REG_DO_TEMP_DATA		0x12
+#define ATLAS_REG_DO_DATA		0x22
+
 #define ATLAS_PH_INT_TIME_IN_MS		450
 #define ATLAS_EC_INT_TIME_IN_MS		650
 #define ATLAS_ORP_INT_TIME_IN_MS	450
+#define ATLAS_DO_INT_TIME_IN_MS		450
+#define ATLAS_RTD_INT_TIME_IN_MS	450
 
 enum {
 	ATLAS_PH_SM,
 	ATLAS_EC_SM,
 	ATLAS_ORP_SM,
+	ATLAS_DO_SM,
+	ATLAS_RTD_SM,
 };
 
 struct atlas_data {
@@ -76,6 +90,7 @@ struct atlas_data {
 	struct atlas_device *chip;
 	struct regmap *regmap;
 	struct irq_work work;
+	unsigned int interrupt_enabled;
 
 	__be32 buffer[6]; /* 96-bit data + 32-bit pad + 64-bit timestamp */
 };
@@ -121,7 +136,7 @@ static const struct iio_chan_spec atlas_ph_channels[] = {
 	},
 };
 
-#define ATLAS_EC_CHANNEL(_idx, _addr) \
+#define ATLAS_CONCENTRATION_CHANNEL(_idx, _addr) \
 	{\
 		.type = IIO_CONCENTRATION, \
 		.indexed = 1, \
@@ -152,8 +167,8 @@ static const struct iio_chan_spec atlas_ec_channels[] = {
 			.endianness = IIO_BE,
 		},
 	},
-	ATLAS_EC_CHANNEL(0, ATLAS_REG_TDS_DATA),
-	ATLAS_EC_CHANNEL(1, ATLAS_REG_PSS_DATA),
+	ATLAS_CONCENTRATION_CHANNEL(0, ATLAS_REG_TDS_DATA),
+	ATLAS_CONCENTRATION_CHANNEL(1, ATLAS_REG_PSS_DATA),
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 	{
 		.type = IIO_TEMP,
@@ -171,6 +186,47 @@ static const struct iio_chan_spec atlas_orp_channels[] = {
 		.address = ATLAS_REG_ORP_DATA,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_BE,
+		},
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct iio_chan_spec atlas_do_channels[] = {
+	{
+		.type = IIO_CONCENTRATION,
+		.address = ATLAS_REG_DO_DATA,
+		.info_mask_separate =
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_BE,
+		},
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(1),
+	{
+		.type = IIO_TEMP,
+		.address = ATLAS_REG_DO_TEMP_DATA,
+		.info_mask_separate =
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.output = 1,
+		.scan_index = -1
+	},
+};
+
+static const struct iio_chan_spec atlas_rtd_channels[] = {
+	{
+		.type = IIO_TEMP,
+		.address = ATLAS_REG_RTD_DATA,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 's',
@@ -262,7 +318,31 @@ static int atlas_check_orp_calibration(struct atlas_data *data)
 		dev_warn(dev, "device has not been calibrated\n");
 
 	return 0;
-};
+}
+
+static int atlas_check_do_calibration(struct atlas_data *data)
+{
+	struct device *dev = &data->client->dev;
+	int ret;
+	unsigned int val;
+
+	ret = regmap_read(data->regmap, ATLAS_REG_DO_CALIB_STATUS, &val);
+	if (ret)
+		return ret;
+
+	if (!(val & ATLAS_REG_DO_CALIB_STATUS_MASK)) {
+		dev_warn(dev, "device has not been calibrated\n");
+		return 0;
+	}
+
+	if (!(val & ATLAS_REG_DO_CALIB_STATUS_PRESSURE))
+		dev_warn(dev, "device missing atmospheric pressure calibration\n");
+
+	if (!(val & ATLAS_REG_DO_CALIB_STATUS_DO))
+		dev_warn(dev, "device missing dissolved oxygen calibration\n");
+
+	return 0;
+}
 
 struct atlas_device {
 	const struct iio_chan_spec *channels;
@@ -295,6 +375,19 @@ static struct atlas_device atlas_devices[] = {
 				.calibration = &atlas_check_orp_calibration,
 				.delay = ATLAS_ORP_INT_TIME_IN_MS,
 	},
+	[ATLAS_DO_SM] = {
+				.channels = atlas_do_channels,
+				.num_channels = 3,
+				.data_reg = ATLAS_REG_DO_DATA,
+				.calibration = &atlas_check_do_calibration,
+				.delay = ATLAS_DO_INT_TIME_IN_MS,
+	},
+	[ATLAS_RTD_SM] = {
+				.channels = atlas_rtd_channels,
+				.num_channels = 2,
+				.data_reg = ATLAS_REG_RTD_DATA,
+				.delay = ATLAS_RTD_INT_TIME_IN_MS,
+	},
 };
 
 static int atlas_set_powermode(struct atlas_data *data, int on)
@@ -304,6 +397,9 @@ static int atlas_set_powermode(struct atlas_data *data, int on)
 
 static int atlas_set_interrupt(struct atlas_data *data, bool state)
 {
+	if (!data->interrupt_enabled)
+		return 0;
+
 	return regmap_update_bits(data->regmap, ATLAS_REG_INT_CONTROL,
 				  ATLAS_REG_INT_CONTROL_EN,
 				  state ? ATLAS_REG_INT_CONTROL_EN : 0);
@@ -313,10 +409,6 @@ static int atlas_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct atlas_data *data = iio_priv(indio_dev);
 	int ret;
-
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret)
-		return ret;
 
 	ret = pm_runtime_get_sync(&data->client->dev);
 	if (ret < 0) {
@@ -341,7 +433,7 @@ static int atlas_buffer_predisable(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	return iio_triggered_buffer_predisable(indio_dev);
+	return 0;
 }
 
 static const struct iio_trigger_ops atlas_interrupt_trigger_ops = {
@@ -368,8 +460,7 @@ static irqreturn_t atlas_trigger_handler(int irq, void *private)
 	int ret;
 
 	ret = regmap_bulk_read(data->regmap, data->chip->data_reg,
-			      (u8 *) &data->buffer,
-			      sizeof(__be32) * channels);
+			      &data->buffer, sizeof(__be32) * channels);
 
 	if (!ret)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
@@ -405,7 +496,7 @@ static int atlas_read_measurement(struct atlas_data *data, int reg, __be32 *val)
 	if (suspended)
 		msleep(data->chip->delay);
 
-	ret = regmap_bulk_read(data->regmap, reg, (u8 *) val, sizeof(*val));
+	ret = regmap_bulk_read(data->regmap, reg, val, sizeof(*val));
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -420,6 +511,7 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 	struct atlas_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
+	case IIO_CHAN_INFO_PROCESSED:
 	case IIO_CHAN_INFO_RAW: {
 		int ret;
 		__be32 reg;
@@ -427,7 +519,7 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_TEMP:
 			ret = regmap_bulk_read(data->regmap, chan->address,
-					      (u8 *) &reg, sizeof(reg));
+					       &reg, sizeof(reg));
 			break;
 		case IIO_PH:
 		case IIO_CONCENTRATION:
@@ -507,6 +599,8 @@ static const struct i2c_device_id atlas_id[] = {
 	{ "atlas-ph-sm", ATLAS_PH_SM},
 	{ "atlas-ec-sm", ATLAS_EC_SM},
 	{ "atlas-orp-sm", ATLAS_ORP_SM},
+	{ "atlas-do-sm", ATLAS_DO_SM},
+	{ "atlas-rtd-sm", ATLAS_RTD_SM},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, atlas_id);
@@ -515,6 +609,8 @@ static const struct of_device_id atlas_dt_ids[] = {
 	{ .compatible = "atlas,ph-sm", .data = (void *)ATLAS_PH_SM, },
 	{ .compatible = "atlas,ec-sm", .data = (void *)ATLAS_EC_SM, },
 	{ .compatible = "atlas,orp-sm", .data = (void *)ATLAS_ORP_SM, },
+	{ .compatible = "atlas,do-sm", .data = (void *)ATLAS_DO_SM, },
+	{ .compatible = "atlas,rtd-sm", .data = (void *)ATLAS_RTD_SM, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, atlas_dt_ids);
@@ -544,7 +640,6 @@ static int atlas_probe(struct i2c_client *client,
 	indio_dev->channels = chip->channels;
 	indio_dev->num_channels = chip->num_channels;
 	indio_dev->modes = INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = &client->dev;
 
 	trig = devm_iio_trigger_alloc(&client->dev, "%s-dev%d",
 				      indio_dev->name, indio_dev->id);
@@ -572,11 +667,6 @@ static int atlas_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	if (client->irq <= 0) {
-		dev_err(&client->dev, "no valid irq defined\n");
-		return -EINVAL;
-	}
-
 	ret = chip->calibration(data);
 	if (ret)
 		return ret;
@@ -596,16 +686,20 @@ static int atlas_probe(struct i2c_client *client,
 
 	init_irq_work(&data->work, atlas_work_handler);
 
-	/* interrupt pin toggles on new conversion */
-	ret = devm_request_threaded_irq(&client->dev, client->irq,
-					NULL, atlas_interrupt_handler,
-					IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					"atlas_irq",
-					indio_dev);
-	if (ret) {
-		dev_err(&client->dev, "request irq (%d) failed\n", client->irq);
-		goto unregister_buffer;
+	if (client->irq > 0) {
+		/* interrupt pin toggles on new conversion */
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+				NULL, atlas_interrupt_handler,
+				IRQF_TRIGGER_RISING |
+				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				"atlas_irq",
+				indio_dev);
+
+		if (ret)
+			dev_warn(&client->dev,
+				"request irq (%d) failed\n", client->irq);
+		else
+			data->interrupt_enabled = 1;
 	}
 
 	ret = atlas_set_powermode(data, 1);

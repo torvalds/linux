@@ -263,7 +263,7 @@ static int ip_finish_output_gso(struct net *net, struct sock *sk,
 	 *    insufficent MTU.
 	 */
 	features = netif_skb_features(skb);
-	BUILD_BUG_ON(sizeof(*IPCB(skb)) > SKB_SGO_CB_OFFSET);
+	BUILD_BUG_ON(sizeof(*IPCB(skb)) > SKB_GSO_CB_OFFSET);
 	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
 	if (IS_ERR_OR_NULL(segs)) {
 		kfree_skb(skb);
@@ -333,7 +333,7 @@ static int ip_mc_finish_output(struct net *net, struct sock *sk,
 	switch (ret) {
 	case NET_XMIT_CN:
 		do_cn = true;
-		/* fall through */
+		fallthrough;
 	case NET_XMIT_SUCCESS:
 		break;
 	default:
@@ -538,6 +538,12 @@ no_route:
 	return -EHOSTUNREACH;
 }
 EXPORT_SYMBOL(__ip_queue_xmit);
+
+int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
+{
+	return __ip_queue_xmit(sk, skb, fl, inet_sk(sk)->tos);
+}
+EXPORT_SYMBOL(ip_queue_xmit);
 
 static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 {
@@ -1702,7 +1708,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 	sk->sk_protocol = ip_hdr(skb)->protocol;
 	sk->sk_bound_dev_if = arg->bound_dev_if;
 	sk->sk_sndbuf = sysctl_wmem_default;
-	sk->sk_mark = fl4.flowi4_mark;
+	ipc.sockc.mark = fl4.flowi4_mark;
 	err = ip_append_data(sk, &fl4, ip_reply_glue_bits, arg->iov->iov_base,
 			     len, 0, &ipc, &rt, MSG_DONTWAIT);
 	if (unlikely(err)) {

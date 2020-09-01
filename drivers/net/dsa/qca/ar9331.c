@@ -97,8 +97,7 @@
 	(AR9331_SW_PORT_STATUS_TXMAC | AR9331_SW_PORT_STATUS_RXMAC)
 
 #define AR9331_SW_PORT_STATUS_LINK_MASK \
-	(AR9331_SW_PORT_STATUS_LINK_EN | AR9331_SW_PORT_STATUS_FLOW_LINK_EN | \
-	 AR9331_SW_PORT_STATUS_DUPLEX_MODE | \
+	(AR9331_SW_PORT_STATUS_DUPLEX_MODE | \
 	 AR9331_SW_PORT_STATUS_RX_FLOW_EN | AR9331_SW_PORT_STATUS_TX_FLOW_EN | \
 	 AR9331_SW_PORT_STATUS_SPEED_M)
 
@@ -410,33 +409,10 @@ static void ar9331_sw_phylink_mac_config(struct dsa_switch *ds, int port,
 	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
 	struct regmap *regmap = priv->regmap;
 	int ret;
-	u32 val;
-
-	switch (state->speed) {
-	case SPEED_1000:
-		val = AR9331_SW_PORT_STATUS_SPEED_1000;
-		break;
-	case SPEED_100:
-		val = AR9331_SW_PORT_STATUS_SPEED_100;
-		break;
-	case SPEED_10:
-		val = AR9331_SW_PORT_STATUS_SPEED_10;
-		break;
-	default:
-		return;
-	}
-
-	if (state->duplex)
-		val |= AR9331_SW_PORT_STATUS_DUPLEX_MODE;
-
-	if (state->pause & MLO_PAUSE_TX)
-		val |= AR9331_SW_PORT_STATUS_TX_FLOW_EN;
-
-	if (state->pause & MLO_PAUSE_RX)
-		val |= AR9331_SW_PORT_STATUS_RX_FLOW_EN;
 
 	ret = regmap_update_bits(regmap, AR9331_SW_REG_PORT_STATUS(port),
-				 AR9331_SW_PORT_STATUS_LINK_MASK, val);
+				 AR9331_SW_PORT_STATUS_LINK_EN |
+				 AR9331_SW_PORT_STATUS_FLOW_LINK_EN, 0);
 	if (ret)
 		dev_err_ratelimited(priv->dev, "%s: %i\n", __func__, ret);
 }
@@ -458,15 +434,43 @@ static void ar9331_sw_phylink_mac_link_down(struct dsa_switch *ds, int port,
 static void ar9331_sw_phylink_mac_link_up(struct dsa_switch *ds, int port,
 					  unsigned int mode,
 					  phy_interface_t interface,
-					  struct phy_device *phydev)
+					  struct phy_device *phydev,
+					  int speed, int duplex,
+					  bool tx_pause, bool rx_pause)
 {
 	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
 	struct regmap *regmap = priv->regmap;
+	u32 val;
 	int ret;
 
+	val = AR9331_SW_PORT_STATUS_MAC_MASK;
+	switch (speed) {
+	case SPEED_1000:
+		val |= AR9331_SW_PORT_STATUS_SPEED_1000;
+		break;
+	case SPEED_100:
+		val |= AR9331_SW_PORT_STATUS_SPEED_100;
+		break;
+	case SPEED_10:
+		val |= AR9331_SW_PORT_STATUS_SPEED_10;
+		break;
+	default:
+		return;
+	}
+
+	if (duplex)
+		val |= AR9331_SW_PORT_STATUS_DUPLEX_MODE;
+
+	if (tx_pause)
+		val |= AR9331_SW_PORT_STATUS_TX_FLOW_EN;
+
+	if (rx_pause)
+		val |= AR9331_SW_PORT_STATUS_RX_FLOW_EN;
+
 	ret = regmap_update_bits(regmap, AR9331_SW_REG_PORT_STATUS(port),
-				 AR9331_SW_PORT_STATUS_MAC_MASK,
-				 AR9331_SW_PORT_STATUS_MAC_MASK);
+				 AR9331_SW_PORT_STATUS_MAC_MASK |
+				 AR9331_SW_PORT_STATUS_LINK_MASK,
+				 val);
 	if (ret)
 		dev_err_ratelimited(priv->dev, "%s: %i\n", __func__, ret);
 }

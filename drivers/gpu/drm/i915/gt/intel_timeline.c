@@ -73,6 +73,8 @@ hwsp_alloc(struct intel_timeline *timeline, unsigned int *cacheline)
 			return vma;
 		}
 
+		GT_TRACE(timeline->gt, "new HWSP allocated\n");
+
 		vma->private = hwsp;
 		hwsp->gt = timeline->gt;
 		hwsp->vma = vma;
@@ -119,6 +121,15 @@ static void __idle_hwsp_free(struct intel_timeline_hwsp *hwsp, int cacheline)
 	spin_unlock_irqrestore(&gt->hwsp_lock, flags);
 }
 
+static void __rcu_cacheline_free(struct rcu_head *rcu)
+{
+	struct intel_timeline_cacheline *cl =
+		container_of(rcu, typeof(*cl), rcu);
+
+	i915_active_fini(&cl->active);
+	kfree(cl);
+}
+
 static void __idle_cacheline_free(struct intel_timeline_cacheline *cl)
 {
 	GEM_BUG_ON(!i915_active_is_idle(&cl->active));
@@ -127,8 +138,7 @@ static void __idle_cacheline_free(struct intel_timeline_cacheline *cl)
 	i915_vma_put(cl->hwsp->vma);
 	__idle_hwsp_free(cl->hwsp, ptr_unmask_bits(cl->vaddr, CACHELINE_BITS));
 
-	i915_active_fini(&cl->active);
-	kfree_rcu(cl, rcu);
+	call_rcu(&cl->rcu, __rcu_cacheline_free);
 }
 
 __i915_active_call
@@ -203,9 +213,9 @@ static void cacheline_free(struct intel_timeline_cacheline *cl)
 	i915_active_release(&cl->active);
 }
 
-int intel_timeline_init(struct intel_timeline *timeline,
-			struct intel_gt *gt,
-			struct i915_vma *hwsp)
+static int intel_timeline_init(struct intel_timeline *timeline,
+			       struct intel_gt *gt,
+			       struct i915_vma *hwsp)
 {
 	void *vaddr;
 
@@ -272,7 +282,7 @@ void intel_gt_init_timelines(struct intel_gt *gt)
 	INIT_LIST_HEAD(&timelines->hwsp_free_list);
 }
 
-void intel_timeline_fini(struct intel_timeline *timeline)
+static void intel_timeline_fini(struct intel_timeline *timeline)
 {
 	GEM_BUG_ON(atomic_read(&timeline->pin_count));
 	GEM_BUG_ON(!list_empty(&timeline->requests));
@@ -312,13 +322,15 @@ int intel_timeline_pin(struct intel_timeline *tl)
 	if (atomic_add_unless(&tl->pin_count, 1, 0))
 		return 0;
 
-	err = i915_vma_pin(tl->hwsp_ggtt, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	err = i915_ggtt_pin(tl->hwsp_ggtt, 0, PIN_HIGH);
 	if (err)
 		return err;
 
 	tl->hwsp_offset =
 		i915_ggtt_offset(tl->hwsp_ggtt) +
 		offset_in_page(tl->hwsp_offset);
+	GT_TRACE(tl->gt, "timeline:%llx using HWSP offset:%x\n",
+		 tl->fence_context, tl->hwsp_offset);
 
 	cacheline_acquire(tl->hwsp_cacheline);
 	if (atomic_fetch_inc(&tl->pin_count)) {
@@ -327,6 +339,13 @@ int intel_timeline_pin(struct intel_timeline *tl)
 	}
 
 	return 0;
+}
+
+void intel_timeline_reset_seqno(const struct intel_timeline *tl)
+{
+	/* Must be pinned to be writable, and no requests in flight. */
+	GEM_BUG_ON(!atomic_read(&tl->pin_count));
+	WRITE_ONCE(*(u32 *)tl->hwsp_seqno, tl->seqno);
 }
 
 void intel_timeline_enter(struct intel_timeline *tl)
@@ -357,8 +376,16 @@ void intel_timeline_enter(struct intel_timeline *tl)
 		return;
 
 	spin_lock(&timelines->lock);
-	if (!atomic_fetch_inc(&tl->active_count))
+	if (!atomic_fetch_inc(&tl->active_count)) {
+		/*
+		 * The HWSP is volatile, and may have been lost while inactive,
+		 * e.g. across suspend/resume. Be paranoid, and ensure that
+		 * the HWSP value matches our seqno so we don't proclaim
+		 * the next request as already complete.
+		 */
+		intel_timeline_reset_seqno(tl);
 		list_add_tail(&tl->link, &timelines->active_list);
+	}
 	spin_unlock(&timelines->lock);
 }
 
@@ -410,6 +437,9 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 	void *vaddr;
 	int err;
 
+	might_lock(&tl->gt->ggtt->vm.mutex);
+	GT_TRACE(tl->gt, "timeline:%llx wrapped\n", tl->fence_context);
+
 	/*
 	 * If there is an outstanding GPU reference to this cacheline,
 	 * such as it being sampled by a HW semaphore on another timeline,
@@ -435,7 +465,7 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 		goto err_rollback;
 	}
 
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	err = i915_ggtt_pin(vma, 0, PIN_HIGH);
 	if (err) {
 		__idle_hwsp_free(vma->private, cacheline);
 		goto err_rollback;
@@ -472,6 +502,8 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 		memset(vaddr + tl->hwsp_offset, 0, CACHELINE_BYTES);
 
 	tl->hwsp_offset += i915_ggtt_offset(vma);
+	GT_TRACE(tl->gt, "timeline:%llx using HWSP offset:%x\n",
+		 tl->fence_context, tl->hwsp_offset);
 
 	cacheline_acquire(cl);
 	tl->hwsp_cacheline = cl;
@@ -519,6 +551,8 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 
 	rcu_read_lock();
 	cl = rcu_dereference(from->hwsp_cacheline);
+	if (i915_request_completed(from)) /* confirm cacheline is valid */
+		goto unlock;
 	if (unlikely(!i915_active_acquire_if_busy(&cl->active)))
 		goto unlock; /* seqno wrapped and completed! */
 	if (unlikely(i915_request_completed(from)))

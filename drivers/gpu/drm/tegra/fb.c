@@ -4,7 +4,7 @@
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
  *
  * Based on the KMS/FB CMA helpers
- *   Copyright (C) 2012 Analog Device Inc.
+ *   Copyright (C) 2012 Analog Devices Inc.
  */
 
 #include <linux/console.h>
@@ -171,7 +171,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 
 unreference:
 	while (i--)
-		drm_gem_object_put_unlocked(&planes[i]->gem);
+		drm_gem_object_put(&planes[i]->gem);
 
 	return ERR_PTR(err);
 }
@@ -235,7 +235,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		dev_err(drm->dev, "failed to allocate framebuffer info\n");
-		drm_gem_object_put_unlocked(&bo->gem);
+		drm_gem_object_put(&bo->gem);
 		return PTR_ERR(info);
 	}
 
@@ -244,7 +244,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 		err = PTR_ERR(fbdev->fb);
 		dev_err(drm->dev, "failed to allocate DRM framebuffer: %d\n",
 			err);
-		drm_gem_object_put_unlocked(&bo->gem);
+		drm_gem_object_put(&bo->gem);
 		return PTR_ERR(fbdev->fb);
 	}
 
@@ -314,17 +314,11 @@ static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
 	struct drm_device *drm = fbdev->base.dev;
 	int err;
 
-	err = drm_fb_helper_init(drm, &fbdev->base, max_connectors);
+	err = drm_fb_helper_init(drm, &fbdev->base);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize DRM FB helper: %d\n",
 			err);
 		return err;
-	}
-
-	err = drm_fb_helper_single_add_all_connectors(&fbdev->base);
-	if (err < 0) {
-		dev_err(drm->dev, "failed to add connectors: %d\n", err);
-		goto fini;
 	}
 
 	err = drm_fb_helper_initial_config(&fbdev->base, preferred_bpp);

@@ -168,7 +168,7 @@ static void stm32_memcpy_32to16(void *dest, const void *src, size_t n)
 static int stm32_afsdm_pcm_cb(const void *data, size_t size, void *private)
 {
 	struct stm32_adfsdm_priv *priv = private;
-	struct snd_soc_pcm_runtime *rtd = priv->substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(priv->substream);
 	u8 *pcm_buff = priv->pcm_buff;
 	u8 *src_buff = (u8 *)data;
 	unsigned int old_pos = priv->pos;
@@ -213,9 +213,9 @@ static int stm32_afsdm_pcm_cb(const void *data, size_t size, void *private)
 static int stm32_adfsdm_trigger(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream, int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -234,8 +234,8 @@ static int stm32_adfsdm_trigger(struct snd_soc_component *component,
 static int stm32_adfsdm_pcm_open(struct snd_soc_component *component,
 				 struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct stm32_adfsdm_priv *priv = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct stm32_adfsdm_priv *priv = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 	int ret;
 
 	ret =  snd_soc_set_runtime_hwparams(substream, &stm32_adfsdm_pcm_hw);
@@ -248,9 +248,9 @@ static int stm32_adfsdm_pcm_open(struct snd_soc_component *component,
 static int stm32_adfsdm_pcm_close(struct snd_soc_component *component,
 				  struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 
 	priv->substream = NULL;
 
@@ -261,9 +261,9 @@ static snd_pcm_uframes_t stm32_adfsdm_pcm_pointer(
 					    struct snd_soc_component *component,
 					    struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 
 	return bytes_to_frames(substream->runtime, priv->pos);
 }
@@ -272,9 +272,9 @@ static int stm32_adfsdm_pcm_hw_params(struct snd_soc_component *component,
 				      struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 
 	priv->pcm_buff = substream->runtime->dma_area;
 
@@ -287,7 +287,7 @@ static int stm32_adfsdm_pcm_new(struct snd_soc_component *component,
 {
 	struct snd_pcm *pcm = rtd->pcm;
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 	unsigned int size = DFSDM_MAX_PERIODS * DFSDM_MAX_PERIOD_SIZE;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -344,12 +344,17 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 	component = devm_kzalloc(&pdev->dev, sizeof(*component), GFP_KERNEL);
 	if (!component)
 		return -ENOMEM;
+
+	ret = snd_soc_component_initialize(component,
+					   &stm32_adfsdm_soc_platform,
+					   &pdev->dev);
+	if (ret < 0)
+		return ret;
 #ifdef CONFIG_DEBUG_FS
 	component->debugfs_prefix = "pcm";
 #endif
 
-	ret = snd_soc_add_component(&pdev->dev, component,
-				    &stm32_adfsdm_soc_platform, NULL, 0);
+	ret = snd_soc_add_component(component, NULL, 0);
 	if (ret < 0)
 		dev_err(&pdev->dev, "%s: Failed to register PCM platform\n",
 			__func__);

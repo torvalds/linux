@@ -305,7 +305,7 @@ static int __lb_setup(struct net_device *ndev,
 		break;
 	case MAC_LOOP_PHY_NONE:
 		ret = hns_nic_config_phy_loopback(phy_dev, 0x0);
-		/* fall through */
+		fallthrough;
 	case MAC_LOOP_NONE:
 		if (!ret && h->dev->ops->set_loopback) {
 			if (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII)
@@ -1264,6 +1264,11 @@ static int hns_get_rxnfc(struct net_device *netdev,
 }
 
 static const struct ethtool_ops hns_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE |
+				     ETHTOOL_COALESCE_USECS_LOW_HIGH |
+				     ETHTOOL_COALESCE_MAX_FRAMES_LOW_HIGH,
 	.get_drvinfo = hns_nic_get_drvinfo,
 	.get_link  = hns_nic_get_link,
 	.get_ringparam = hns_get_ringparam,

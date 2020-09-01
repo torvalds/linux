@@ -214,7 +214,7 @@ static int param_set_trace_method_name(const char *val,
 
 static int param_get_trace_method_name(char *buffer, const struct kernel_param *kp)
 {
-	return scnprintf(buffer, PAGE_SIZE, "%s", acpi_gbl_trace_method_name);
+	return scnprintf(buffer, PAGE_SIZE, "%s\n", acpi_gbl_trace_method_name);
 }
 
 static const struct kernel_param_ops param_ops_trace_method = {
@@ -271,15 +271,15 @@ static int param_set_trace_state(const char *val,
 static int param_get_trace_state(char *buffer, const struct kernel_param *kp)
 {
 	if (!(acpi_gbl_trace_flags & ACPI_TRACE_ENABLED))
-		return sprintf(buffer, "disable");
+		return sprintf(buffer, "disable\n");
 	else {
 		if (acpi_gbl_trace_method_name) {
 			if (acpi_gbl_trace_flags & ACPI_TRACE_ONESHOT)
-				return sprintf(buffer, "method-once");
+				return sprintf(buffer, "method-once\n");
 			else
-				return sprintf(buffer, "method");
+				return sprintf(buffer, "method\n");
 		} else
-			return sprintf(buffer, "enable");
+			return sprintf(buffer, "enable\n");
 	}
 	return 0;
 }
@@ -302,7 +302,7 @@ static int param_get_acpica_version(char *buffer,
 {
 	int result;
 
-	result = sprintf(buffer, "%x", ACPI_CA_VERSION);
+	result = sprintf(buffer, "%x\n", ACPI_CA_VERSION);
 
 	return result;
 }
@@ -938,13 +938,13 @@ static void __exit interrupt_stats_exit(void)
 }
 
 static ssize_t
-acpi_show_profile(struct device *dev, struct device_attribute *attr,
+acpi_show_profile(struct kobject *kobj, struct kobj_attribute *attr,
 		  char *buf)
 {
 	return sprintf(buf, "%d\n", acpi_gbl_FADT.preferred_profile);
 }
 
-static const struct device_attribute pm_profile_attr =
+static const struct kobj_attribute pm_profile_attr =
 	__ATTR(pm_profile, S_IRUGO, acpi_show_profile, NULL);
 
 static ssize_t hotplug_enabled_show(struct kobject *kobj,
@@ -993,8 +993,10 @@ void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
 
 	error = kobject_init_and_add(&hotplug->kobj,
 		&acpi_hotplug_profile_ktype, hotplug_kobj, "%s", name);
-	if (error)
+	if (error) {
+		kobject_put(&hotplug->kobj);
 		goto err_out;
+	}
 
 	kobject_uevent(&hotplug->kobj, KOBJ_ADD);
 	return;

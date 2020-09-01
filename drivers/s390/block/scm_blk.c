@@ -256,7 +256,8 @@ static void scm_request_finish(struct scm_request *scmrq)
 	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++) {
 		error = blk_mq_rq_to_pdu(scmrq->request[i]);
 		*error = scmrq->error;
-		blk_mq_complete_request(scmrq->request[i]);
+		if (likely(!blk_should_fake_timeout(scmrq->request[i]->q)))
+			blk_mq_complete_request(scmrq->request[i]);
 	}
 
 	atomic_dec(&bdev->queued_reqs);

@@ -93,7 +93,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	case ST_ROOT:
 		inode->i_uid = sbi->s_uid;
 		inode->i_gid = sbi->s_gid;
-		/* fall through */
+		fallthrough;
 	case ST_USERDIR:
 		if (be32_to_cpu(tail->stype) == ST_USERDIR ||
 		    affs_test_opt(sbi->s_flags, SF_SETMODE)) {

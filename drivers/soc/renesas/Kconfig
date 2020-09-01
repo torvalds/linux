@@ -83,6 +83,13 @@ config ARCH_R8A7740
 	select ARM_ERRATA_754322
 	select RENESAS_INTC_IRQPIN
 
+config ARCH_R8A7742
+	bool "RZ/G1H (R8A77420)"
+	select ARCH_RCAR_GEN2
+	select ARM_ERRATA_798181 if SMP
+	select ARM_ERRATA_814220
+	select SYSC_R8A7742
+
 config ARCH_R8A7743
 	bool "RZ/G1M (R8A77430)"
 	select ARCH_RCAR_GEN2
@@ -116,6 +123,7 @@ config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
 	select ARCH_RCAR_GEN1
 	select ARM_ERRATA_754322
+	select ARM_GLOBAL_TIMER
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select SYSC_R8A7779
@@ -163,6 +171,7 @@ config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
 	select ARCH_RMOBILE
 	select ARM_ERRATA_754322
+	select ARM_GLOBAL_TIMER
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select RENESAS_INTC_IRQPIN
@@ -192,20 +201,27 @@ config ARCH_R8A774C0
 	help
 	  This enables support for the Renesas RZ/G2E SoC.
 
+config ARCH_R8A774E1
+	bool "Renesas RZ/G2H SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A774E1
+	help
+	  This enables support for the Renesas RZ/G2H SoC.
+
 config ARCH_R8A77950
-	bool
-
-config ARCH_R8A77951
-	bool
-
-config ARCH_R8A7795
-	bool "Renesas R-Car H3 SoC Platform"
-	select ARCH_R8A77950
-	select ARCH_R8A77951
+	bool "Renesas R-Car H3 ES1.x SoC Platform"
 	select ARCH_RCAR_GEN3
 	select SYSC_R8A7795
 	help
-	  This enables support for the Renesas R-Car H3 SoC.
+	  This enables support for the Renesas R-Car H3 SoC (revision 1.x).
+
+config ARCH_R8A77951
+	bool "Renesas R-Car H3 ES2.0+ SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A7795
+	help
+	  This enables support for the Renesas R-Car H3 SoC (revisions 2.0 and
+	  later).
 
 config ARCH_R8A77960
 	bool "Renesas R-Car M3-W SoC Platform"
@@ -259,6 +275,10 @@ config ARCH_R8A77995
 endif # ARM64
 
 # SoC
+config SYSC_R8A7742
+	bool "RZ/G1H System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
 config SYSC_R8A7743
 	bool "RZ/G1M System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
@@ -281,6 +301,10 @@ config SYSC_R8A774B1
 
 config SYSC_R8A774C0
 	bool "RZ/G2E System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A774E1
+	bool "RZ/G2H System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
 
 config SYSC_R8A7779

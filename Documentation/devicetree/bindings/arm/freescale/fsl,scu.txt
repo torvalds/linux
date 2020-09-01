@@ -47,7 +47,7 @@ Required properties:
 			  &lsio_mu1 1 2
 			  &lsio_mu1 1 3
 			  &lsio_mu1 3 3>;
-		See Documentation/devicetree/bindings/mailbox/fsl,mu.txt
+		See Documentation/devicetree/bindings/mailbox/fsl,mu.yaml
 		for detailed mailbox binding.
 
 Note: Each mu which supports general interrupt should have an alias correctly
@@ -108,7 +108,8 @@ This binding uses the i.MX common pinctrl binding[3].
 Required properties:
 - compatible:		Should be one of:
 			"fsl,imx8qm-iomuxc",
-			"fsl,imx8qxp-iomuxc".
+			"fsl,imx8qxp-iomuxc",
+			"fsl,imx8dxl-iomuxc".
 
 Required properties for Pinctrl sub nodes:
 - fsl,pins:		Each entry consists of 3 integers which represents
@@ -116,7 +117,8 @@ Required properties for Pinctrl sub nodes:
 			integers <pin_id mux_mode> are specified using a
 			PIN_FUNC_ID macro, which can be found in
 			<dt-bindings/pinctrl/pads-imx8qm.h>,
-			<dt-bindings/pinctrl/pads-imx8qxp.h>.
+			<dt-bindings/pinctrl/pads-imx8qxp.h>,
+			<dt-bindings/pinctrl/pads-imx8dxl.h>.
 			The last integer CONFIG is the pad setting value like
 			pull-up on this pin.
 
@@ -164,7 +166,18 @@ Required properties:
 - compatible: should be:
               "fsl,imx8qxp-sc-key"
               followed by "fsl,imx-sc-key";
-- linux,keycodes: See Documentation/devicetree/bindings/input/keys.txt
+- linux,keycodes: See Documentation/devicetree/bindings/input/input.yaml
+
+Thermal bindings based on SCU Message Protocol
+------------------------------------------------------------
+
+Required properties:
+- compatible:			Should be :
+				  "fsl,imx8qxp-sc-thermal"
+				followed by "fsl,imx-sc-thermal";
+
+- #thermal-sensor-cells:	See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml
+				for a description.
 
 Example (imx8qxp):
 -------------
@@ -237,6 +250,11 @@ firmware {
 		watchdog {
 			compatible = "fsl,imx8qxp-sc-wdt", "fsl,imx-sc-wdt";
 			timeout-sec = <60>;
+		};
+
+		tsens: thermal-sensor {
+			compatible = "fsl,imx8qxp-sc-thermal", "fsl,imx-sc-thermal";
+			#thermal-sensor-cells = <1>;
 		};
 	};
 };

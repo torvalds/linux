@@ -28,6 +28,10 @@
 #include "qedi_gbl.h"
 #include "qedi_iscsi.h"
 
+static uint qedi_qed_debug;
+module_param(qedi_qed_debug, uint, 0644);
+MODULE_PARM_DESC(qedi_qed_debug, " QED debug level 0 (default)");
+
 static uint qedi_fw_debug;
 module_param(qedi_fw_debug, uint, 0644);
 MODULE_PARM_DESC(qedi_fw_debug, " Firmware debug level 0(default) to 3");
@@ -41,7 +45,7 @@ module_param(qedi_io_tracing, uint, 0644);
 MODULE_PARM_DESC(qedi_io_tracing,
 		 " Enable logging of SCSI requests/completions into trace buffer. (default off).");
 
-uint qedi_ll2_buf_size = 0x400;
+static uint qedi_ll2_buf_size = 0x400;
 module_param(qedi_ll2_buf_size, uint, 0644);
 MODULE_PARM_DESC(qedi_ll2_buf_size,
 		 "parameter to set ping packet size, default - 0x400, Jumbo packets - 0x2400.");
@@ -58,6 +62,7 @@ static struct qedi_cmd *qedi_get_cmd_from_tid(struct qedi_ctx *qedi, u32 tid);
 static void qedi_reset_uio_rings(struct qedi_uio_dev *udev);
 static void qedi_ll2_free_skbs(struct qedi_ctx *qedi);
 static struct nvm_iscsi_block *qedi_get_nvram_block(struct qedi_ctx *qedi);
+static void qedi_recovery_handler(struct work_struct *work);
 
 static int qedi_iscsi_event_cb(void *context, u8 fw_event_code, void *fw_handle)
 {
@@ -657,8 +662,6 @@ exit_setup_shost:
 static int qedi_ll2_rx(void *cookie, struct sk_buff *skb, u32 arg1, u32 arg2)
 {
 	struct qedi_ctx *qedi = (struct qedi_ctx *)cookie;
-	struct qedi_uio_dev *udev;
-	struct qedi_uio_ctrl *uctrl;
 	struct skb_work_list *work;
 	struct ethhdr *eh;
 
@@ -696,9 +699,6 @@ static int qedi_ll2_rx(void *cookie, struct sk_buff *skb, u32 arg1, u32 arg2)
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_LL2,
 		  "Allowed frame ethertype [0x%x] len [0x%x].\n",
 		  eh->h_proto, skb->len);
-
-	udev = qedi->udev;
-	uctrl = udev->uctrl;
 
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
@@ -920,7 +920,7 @@ static void qedi_get_boot_tgt_info(struct nvm_iscsi_block *block,
 	ipv6_en = !!(block->generic.ctrl_flags &
 		     NVM_ISCSI_CFG_GEN_IPV6_ENABLED);
 
-	snprintf(tgt->iscsi_name, sizeof(tgt->iscsi_name), "%s\n",
+	snprintf(tgt->iscsi_name, sizeof(tgt->iscsi_name), "%s",
 		 block->target[index].target_name.byte);
 
 	tgt->ipv6_en = ipv6_en;
@@ -1113,6 +1113,20 @@ exit_get_data:
 	return;
 }
 
+static void qedi_schedule_recovery_handler(void *dev)
+{
+	struct qedi_ctx *qedi = dev;
+
+	QEDI_ERR(&qedi->dbg_ctx, "Recovery handler scheduled.\n");
+
+	if (test_and_set_bit(QEDI_IN_RECOVERY, &qedi->flags))
+		return;
+
+	atomic_set(&qedi->link_state, QEDI_LINK_DOWN);
+
+	schedule_delayed_work(&qedi->recovery_work, 0);
+}
+
 static void qedi_link_update(void *dev, struct qed_link_output *link)
 {
 	struct qedi_ctx *qedi = (struct qedi_ctx *)dev;
@@ -1130,6 +1144,7 @@ static void qedi_link_update(void *dev, struct qed_link_output *link)
 static struct qed_iscsi_cb_ops qedi_cb_ops = {
 	{
 		.link_update =		qedi_link_update,
+		.schedule_recovery_handler = qedi_schedule_recovery_handler,
 		.get_protocol_tlv_data = qedi_get_protocol_tlv_data,
 		.get_generic_tlv_data = qedi_get_generic_tlv_data,
 	}
@@ -1140,7 +1155,6 @@ static int qedi_queue_cqe(struct qedi_ctx *qedi, union iscsi_cqe *cqe,
 {
 	struct qedi_work *qedi_work;
 	struct qedi_conn *q_conn;
-	struct iscsi_conn *conn;
 	struct qedi_cmd *qedi_cmd;
 	u32 iscsi_cid;
 	int rc = 0;
@@ -1153,7 +1167,6 @@ static int qedi_queue_cqe(struct qedi_ctx *qedi, union iscsi_cqe *cqe,
 			  iscsi_cid);
 		return -1;
 	}
-	conn = q_conn->cls_conn->dd_data;
 
 	switch (cqe->cqe_common.cqe_type) {
 	case ISCSI_CQE_TYPE_SOLICITED:
@@ -1286,13 +1299,13 @@ process_again:
 			  "process already running\n");
 	}
 
-	if (qedi_fp_has_work(fp) == 0)
+	if (!qedi_fp_has_work(fp))
 		qed_sb_update_sb_idx(fp->sb_info);
 
 	/* Check for more work */
 	rmb();
 
-	if (qedi_fp_has_work(fp) == 0)
+	if (!qedi_fp_has_work(fp))
 		qed_sb_ack(fp->sb_info, IGU_INT_ENABLE, 1);
 	else
 		goto process_again;
@@ -1344,7 +1357,7 @@ static int qedi_request_msix_irq(struct qedi_ctx *qedi)
 	u16 idx;
 
 	cpu = cpumask_first(cpu_online_mask);
-	for (i = 0; i < MIN_NUM_CPUS_MSIX(qedi); i++) {
+	for (i = 0; i < qedi->int_info.msix_cnt; i++) {
 		idx = i * qedi->dev_info.common.num_hwfns +
 			  qedi_ops->common->get_affin_hwfn_idx(qedi->cdev);
 
@@ -1947,7 +1960,7 @@ void qedi_reset_host_mtu(struct qedi_ctx *qedi, u16 mtu)
 	qedi_ops->ll2->start(qedi->cdev, &params);
 }
 
-/**
+/*
  * qedi_get_nvram_block: - Scan through the iSCSI NVRAM block (while accounting
  * for gaps) for the matching absolute-pf-id of the QEDI device.
  */
@@ -2328,16 +2341,22 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
 	int rval;
 
-	if (qedi->tmf_thread) {
-		flush_workqueue(qedi->tmf_thread);
-		destroy_workqueue(qedi->tmf_thread);
-		qedi->tmf_thread = NULL;
-	}
+	if (mode == QEDI_MODE_SHUTDOWN)
+		iscsi_host_for_each_session(qedi->shost,
+					    qedi_clear_session_ctx);
 
-	if (qedi->offload_thread) {
-		flush_workqueue(qedi->offload_thread);
-		destroy_workqueue(qedi->offload_thread);
-		qedi->offload_thread = NULL;
+	if (mode == QEDI_MODE_NORMAL || mode == QEDI_MODE_SHUTDOWN) {
+		if (qedi->tmf_thread) {
+			flush_workqueue(qedi->tmf_thread);
+			destroy_workqueue(qedi->tmf_thread);
+			qedi->tmf_thread = NULL;
+		}
+
+		if (qedi->offload_thread) {
+			flush_workqueue(qedi->offload_thread);
+			destroy_workqueue(qedi->offload_thread);
+			qedi->offload_thread = NULL;
+		}
 	}
 
 #ifdef CONFIG_DEBUG_FS
@@ -2353,8 +2372,7 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 		qedi_ops->ll2->stop(qedi->cdev);
 	}
 
-	if (mode == QEDI_MODE_NORMAL)
-		qedi_free_iscsi_pf_param(qedi);
+	qedi_free_iscsi_pf_param(qedi);
 
 	rval = qedi_ops->common->update_drv_state(qedi->cdev, false);
 	if (rval)
@@ -2367,14 +2385,11 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 
 	qedi_destroy_fp(qedi);
 
-	if (mode == QEDI_MODE_NORMAL) {
+	if (mode == QEDI_MODE_NORMAL || mode == QEDI_MODE_SHUTDOWN) {
 		qedi_release_cid_que(qedi);
 		qedi_cm_free_mem(qedi);
 		qedi_free_uio(qedi->udev);
 		qedi_free_itt(qedi);
-
-		iscsi_host_remove(qedi->shost);
-		iscsi_host_free(qedi->shost);
 
 		if (qedi->ll2_recv_thread) {
 			kthread_stop(qedi->ll2_recv_thread);
@@ -2384,14 +2399,26 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 
 		if (qedi->boot_kset)
 			iscsi_boot_destroy_kset(qedi->boot_kset);
+
+		iscsi_host_remove(qedi->shost);
+		iscsi_host_free(qedi->shost);
 	}
+}
+
+static void qedi_shutdown(struct pci_dev *pdev)
+{
+	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
+
+	QEDI_ERR(&qedi->dbg_ctx, "%s: Shutdown qedi\n", __func__);
+	if (test_and_set_bit(QEDI_IN_SHUTDOWN, &qedi->flags))
+		return;
+	__qedi_remove(pdev, QEDI_MODE_SHUTDOWN);
 }
 
 static int __qedi_probe(struct pci_dev *pdev, int mode)
 {
 	struct qedi_ctx *qedi;
 	struct qed_ll2_params params;
-	u32 dp_module = 0;
 	u8 dp_level = 0;
 	bool is_vf = false;
 	char host_buf[16];
@@ -2400,7 +2427,6 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	struct qed_probe_params qed_params;
 	void *task_start, *task_end;
 	int rc;
-	u16 tmp;
 
 	if (mode != QEDI_MODE_RECOVERY) {
 		qedi = qedi_host_alloc(pdev);
@@ -2414,7 +2440,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 
 	memset(&qed_params, 0, sizeof(qed_params));
 	qed_params.protocol = QED_PROTOCOL_ISCSI;
-	qed_params.dp_module = dp_module;
+	qed_params.dp_module = qedi_qed_debug;
 	qed_params.dp_level = dp_level;
 	qed_params.is_vf = is_vf;
 	qedi->cdev = qedi_ops->common->probe(pdev, &qed_params);
@@ -2435,14 +2461,12 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		  qedi->dev_info.common.num_hwfns,
 		  qedi_ops->common->get_affin_hwfn_idx(qedi->cdev));
 
-	if (mode != QEDI_MODE_RECOVERY) {
-		rc = qedi_set_iscsi_pf_param(qedi);
-		if (rc) {
-			rc = -ENOMEM;
-			QEDI_ERR(&qedi->dbg_ctx,
-				 "Set iSCSI pf param fail\n");
-			goto free_host;
-		}
+	rc = qedi_set_iscsi_pf_param(qedi);
+	if (rc) {
+		rc = -ENOMEM;
+		QEDI_ERR(&qedi->dbg_ctx,
+			 "Set iSCSI pf param fail\n");
+		goto free_host;
 	}
 
 	qedi_ops->common->update_pf_params(qedi->cdev, &qedi->pf_params);
@@ -2501,9 +2525,9 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		  "Writing %d to primary and secondary BDQ doorbell registers.\n",
 		  qedi->bdq_prod_idx);
 	writew(qedi->bdq_prod_idx, qedi->bdq_primary_prod);
-	tmp = readw(qedi->bdq_primary_prod);
+	readw(qedi->bdq_primary_prod);
 	writew(qedi->bdq_prod_idx, qedi->bdq_secondary_prod);
-	tmp = readw(qedi->bdq_secondary_prod);
+	readw(qedi->bdq_secondary_prod);
 
 	ether_addr_copy(qedi->mac, qedi->dev_info.common.hw_mac);
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_DISC, "MAC address is %pM.\n",
@@ -2633,6 +2657,8 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 			goto free_cid_que;
 		}
 
+		INIT_DELAYED_WORK(&qedi->recovery_work, qedi_recovery_handler);
+
 		/* F/w needs 1st task context memory entry for performance */
 		set_bit(QEDI_RESERVE_TASK_ID, qedi->task_idx_map);
 		atomic_set(&qedi->num_offloads, 0);
@@ -2673,6 +2699,32 @@ exit_probe:
 	return rc;
 }
 
+static void qedi_mark_conn_recovery(struct iscsi_cls_session *cls_session)
+{
+	struct iscsi_session *session = cls_session->dd_data;
+	struct iscsi_conn *conn = session->leadconn;
+	struct qedi_conn *qedi_conn = conn->dd_data;
+
+	iscsi_conn_failure(qedi_conn->cls_conn->dd_data, ISCSI_ERR_CONN_FAILED);
+}
+
+static void qedi_recovery_handler(struct work_struct *work)
+{
+	struct qedi_ctx *qedi =
+			container_of(work, struct qedi_ctx, recovery_work.work);
+
+	iscsi_host_for_each_session(qedi->shost, qedi_mark_conn_recovery);
+
+	/* Call common_ops->recovery_prolog to allow the MFW to quiesce
+	 * any PCI transactions.
+	 */
+	qedi_ops->common->recovery_prolog(qedi->cdev);
+
+	__qedi_remove(qedi->pdev, QEDI_MODE_RECOVERY);
+	__qedi_probe(qedi->pdev, QEDI_MODE_RECOVERY);
+	clear_bit(QEDI_IN_RECOVERY, &qedi->flags);
+}
+
 static int qedi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	return __qedi_probe(pdev, QEDI_MODE_NORMAL);
@@ -2697,6 +2749,7 @@ static struct pci_driver qedi_pci_driver = {
 	.id_table = qedi_pci_tbl,
 	.probe = qedi_probe,
 	.remove = qedi_remove,
+	.shutdown = qedi_shutdown,
 };
 
 static int __init qedi_init(void)

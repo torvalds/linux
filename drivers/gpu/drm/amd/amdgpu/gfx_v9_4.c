@@ -710,14 +710,16 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 
 		sec_count = REG_GET_FIELD(data, VML2_MEM_ECC_CNTL, SEC_COUNT);
 		if (sec_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, SEC %d\n", i,
 				 vml2_mems[i], sec_count);
 			err_data->ce_count += sec_count;
 		}
 
 		ded_count = REG_GET_FIELD(data, VML2_MEM_ECC_CNTL, DED_COUNT);
 		if (ded_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, DED %d\n", i,
 				 vml2_mems[i], ded_count);
 			err_data->ue_count += ded_count;
 		}
@@ -730,7 +732,8 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 		sec_count = REG_GET_FIELD(data, VML2_WALKER_MEM_ECC_CNTL,
 					  SEC_COUNT);
 		if (sec_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, SEC %d\n", i,
 				 vml2_walker_mems[i], sec_count);
 			err_data->ce_count += sec_count;
 		}
@@ -738,7 +741,8 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 		ded_count = REG_GET_FIELD(data, VML2_WALKER_MEM_ECC_CNTL,
 					  DED_COUNT);
 		if (ded_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, DED %d\n", i,
 				 vml2_walker_mems[i], ded_count);
 			err_data->ue_count += ded_count;
 		}
@@ -750,14 +754,16 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 
 		sec_count = REG_GET_FIELD(data, UTCL2_MEM_ECC_CNTL, SEC_COUNT);
 		if (sec_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, SEC %d\n", i,
 				 utcl2_router_mems[i], sec_count);
 			err_data->ce_count += sec_count;
 		}
 
 		ded_count = REG_GET_FIELD(data, UTCL2_MEM_ECC_CNTL, DED_COUNT);
 		if (ded_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, DED %d\n", i,
 				 utcl2_router_mems[i], ded_count);
 			err_data->ue_count += ded_count;
 		}
@@ -770,7 +776,8 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 		sec_count = REG_GET_FIELD(data, ATC_L2_CACHE_2M_DSM_CNTL,
 					  SEC_COUNT);
 		if (sec_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, SEC %d\n", i,
 				 atc_l2_cache_2m_mems[i], sec_count);
 			err_data->ce_count += sec_count;
 		}
@@ -778,7 +785,8 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 		ded_count = REG_GET_FIELD(data, ATC_L2_CACHE_2M_DSM_CNTL,
 					  DED_COUNT);
 		if (ded_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, DED %d\n", i,
 				 atc_l2_cache_2m_mems[i], ded_count);
 			err_data->ue_count += ded_count;
 		}
@@ -791,7 +799,8 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 		sec_count = REG_GET_FIELD(data, ATC_L2_CACHE_4K_DSM_CNTL,
 					  SEC_COUNT);
 		if (sec_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, SEC %d\n", i,
 				 atc_l2_cache_4k_mems[i], sec_count);
 			err_data->ce_count += sec_count;
 		}
@@ -799,7 +808,8 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 		ded_count = REG_GET_FIELD(data, ATC_L2_CACHE_4K_DSM_CNTL,
 					  DED_COUNT);
 		if (ded_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, DED %d\n", i,
 				 atc_l2_cache_4k_mems[i], ded_count);
 			err_data->ue_count += ded_count;
 		}
@@ -814,7 +824,8 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v9_4_ras_error_count(const struct soc15_reg_entry *reg,
+static int gfx_v9_4_ras_error_count(struct amdgpu_device *adev,
+				    const struct soc15_reg_entry *reg,
 				    uint32_t se_id, uint32_t inst_id,
 				    uint32_t value, uint32_t *sec_count,
 				    uint32_t *ded_count)
@@ -831,7 +842,8 @@ static int gfx_v9_4_ras_error_count(const struct soc15_reg_entry *reg,
 		sec_cnt = (value & gfx_v9_4_ras_fields[i].sec_count_mask) >>
 			  gfx_v9_4_ras_fields[i].sec_count_shift;
 		if (sec_cnt) {
-			DRM_INFO("GFX SubBlock %s, Instance[%d][%d], SEC %d\n",
+			dev_info(adev->dev,
+				 "GFX SubBlock %s, Instance[%d][%d], SEC %d\n",
 				 gfx_v9_4_ras_fields[i].name, se_id, inst_id,
 				 sec_cnt);
 			*sec_count += sec_cnt;
@@ -840,7 +852,8 @@ static int gfx_v9_4_ras_error_count(const struct soc15_reg_entry *reg,
 		ded_cnt = (value & gfx_v9_4_ras_fields[i].ded_count_mask) >>
 			  gfx_v9_4_ras_fields[i].ded_count_shift;
 		if (ded_cnt) {
-			DRM_INFO("GFX SubBlock %s, Instance[%d][%d], DED %d\n",
+			dev_info(adev->dev,
+				 "GFX SubBlock %s, Instance[%d][%d], DED %d\n",
 				 gfx_v9_4_ras_fields[i].name, se_id, inst_id,
 				 ded_cnt);
 			*ded_count += ded_cnt;
@@ -874,7 +887,7 @@ int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
 				reg_value = RREG32(SOC15_REG_ENTRY_OFFSET(
 					gfx_v9_4_edc_counter_regs[i]));
 				if (reg_value)
-					gfx_v9_4_ras_error_count(
+					gfx_v9_4_ras_error_count(adev,
 						&gfx_v9_4_edc_counter_regs[i],
 						j, k, reg_value, &sec_count,
 						&ded_count);
@@ -893,9 +906,12 @@ int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 }
 
-void gfx_v9_4_clear_ras_edc_counter(struct amdgpu_device *adev)
+void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev)
 {
 	int i, j, k;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+		return;
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < ARRAY_SIZE(gfx_v9_4_edc_counter_regs); i++) {

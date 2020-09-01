@@ -21,8 +21,6 @@
 
 #include "hci_uart.h"
 
-static struct serdev_device_ops hci_serdev_client_ops;
-
 static inline void hci_uart_tx_complete(struct hci_uart *hu, int pkt_type)
 {
 	struct hci_dev *hdev = hu->hdev;
@@ -260,7 +258,7 @@ static int hci_uart_receive_buf(struct serdev_device *serdev, const u8 *data,
 	return count;
 }
 
-static struct serdev_device_ops hci_serdev_client_ops = {
+static const struct serdev_device_ops hci_serdev_client_ops = {
 	.receive_buf = hci_uart_receive_buf,
 	.write_wakeup = hci_uart_write_wakeup,
 };
@@ -357,7 +355,8 @@ void hci_uart_unregister_device(struct hci_uart *hu)
 	struct hci_dev *hdev = hu->hdev;
 
 	clear_bit(HCI_UART_PROTO_READY, &hu->flags);
-	hci_unregister_dev(hdev);
+	if (test_bit(HCI_UART_REGISTERED, &hu->flags))
+		hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
 
 	cancel_work_sync(&hu->write_work);

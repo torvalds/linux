@@ -95,7 +95,6 @@ struct rcar_thermal_priv {
 	struct mutex lock;
 	struct list_head list;
 	int id;
-	u32 ctemp;
 };
 
 #define rcar_thermal_for_each_priv(pos, common)	\
@@ -199,9 +198,8 @@ static void _rcar_thermal_bset(struct rcar_thermal_priv *priv, u32 reg,
 static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 {
 	struct device *dev = rcar_priv_to_dev(priv);
-	int i;
-	u32 ctemp, old, new;
-	int ret = -EINVAL;
+	int old, new, ctemp = -EINVAL;
+	unsigned int i;
 
 	mutex_lock(&priv->lock);
 
@@ -211,7 +209,6 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 	 */
 	rcar_thermal_bset(priv, THSCR, CPCTL, CPCTL);
 
-	ctemp = 0;
 	old = ~0;
 	for (i = 0; i < 128; i++) {
 		/*
@@ -229,7 +226,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 		old = new;
 	}
 
-	if (!ctemp) {
+	if (ctemp < 0) {
 		dev_err(dev, "thermal sensor was broken\n");
 		goto err_out_unlock;
 	}
@@ -247,37 +244,29 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 						   ((ctemp - 1) << 0)));
 	}
 
-	dev_dbg(dev, "thermal%d  %d -> %d\n", priv->id, priv->ctemp, ctemp);
-
-	priv->ctemp = ctemp;
-	ret = 0;
 err_out_unlock:
 	mutex_unlock(&priv->lock);
-	return ret;
+
+	return ctemp;
 }
 
 static int rcar_thermal_get_current_temp(struct rcar_thermal_priv *priv,
 					 int *temp)
 {
-	int tmp;
-	int ret;
+	int ctemp;
 
-	ret = rcar_thermal_update_temp(priv);
-	if (ret < 0)
-		return ret;
-
-	mutex_lock(&priv->lock);
-	if (priv->chip->ctemp_bands == 1)
-		tmp = MCELSIUS((priv->ctemp * 5) - 65);
-	else if (priv->ctemp < 24)
-		tmp = MCELSIUS(((priv->ctemp * 55) - 720) / 10);
-	else
-		tmp = MCELSIUS((priv->ctemp * 5) - 60);
-	mutex_unlock(&priv->lock);
+	ctemp = rcar_thermal_update_temp(priv);
+	if (ctemp < 0)
+		return ctemp;
 
 	/* Guaranteed operating range is -45C to 125C. */
 
-	*temp = tmp;
+	if (priv->chip->ctemp_bands == 1)
+		*temp = MCELSIUS((ctemp * 5) - 65);
+	else if (ctemp < 24)
+		*temp = MCELSIUS(((ctemp * 55) - 720) / 10);
+	else
+		*temp = MCELSIUS((ctemp * 5) - 60);
 
 	return 0;
 }
@@ -387,14 +376,9 @@ static void _rcar_thermal_irq_ctrl(struct rcar_thermal_priv *priv, int enable)
 static void rcar_thermal_work(struct work_struct *work)
 {
 	struct rcar_thermal_priv *priv;
-	int cctemp, nctemp;
 	int ret;
 
 	priv = container_of(work, struct rcar_thermal_priv, work.work);
-
-	ret = rcar_thermal_get_current_temp(priv, &cctemp);
-	if (ret < 0)
-		return;
 
 	ret = rcar_thermal_update_temp(priv);
 	if (ret < 0)
@@ -402,13 +386,7 @@ static void rcar_thermal_work(struct work_struct *work)
 
 	rcar_thermal_irq_enable(priv);
 
-	ret = rcar_thermal_get_current_temp(priv, &nctemp);
-	if (ret < 0)
-		return;
-
-	if (nctemp != cctemp)
-		thermal_zone_device_update(priv->zone,
-					   THERMAL_EVENT_UNSPECIFIED);
+	thermal_zone_device_update(priv->zone, THERMAL_EVENT_UNSPECIFIED);
 }
 
 static u32 rcar_thermal_had_changed(struct rcar_thermal_priv *priv, u32 status)
@@ -521,8 +499,10 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			res = platform_get_resource(pdev, IORESOURCE_MEM,
 						    mres++);
 			common->base = devm_ioremap_resource(dev, res);
-			if (IS_ERR(common->base))
-				return PTR_ERR(common->base);
+			if (IS_ERR(common->base)) {
+				ret = PTR_ERR(common->base);
+				goto error_unregister;
+			}
 
 			idle = 0; /* polling delay is not needed */
 		}
@@ -570,12 +550,19 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			priv->zone = devm_thermal_zone_of_sensor_register(
 						dev, i, priv,
 						&rcar_thermal_zone_of_ops);
-		else
+		else {
 			priv->zone = thermal_zone_device_register(
 						"rcar_thermal",
 						1, 0, priv,
 						&rcar_thermal_zone_ops, NULL, 0,
 						idle);
+
+			ret = thermal_zone_device_enable(priv->zone);
+			if (ret) {
+				thermal_zone_device_unregister(priv->zone);
+				priv->zone = ERR_PTR(ret);
+			}
+		}
 		if (IS_ERR(priv->zone)) {
 			dev_err(dev, "can't register thermal zone\n");
 			ret = PTR_ERR(priv->zone);

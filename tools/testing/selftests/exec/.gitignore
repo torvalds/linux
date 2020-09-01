@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 subdir*
 script*
 execveat
@@ -8,3 +9,5 @@ execveat.ephemeral
 execveat.denatured
 /recursion-depth
 xxxxxxxx*
+pipe
+S_I*.test

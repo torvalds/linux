@@ -13,7 +13,7 @@ description: |
   Bindings for the All Sensors DLH series pressure sensors.
 
   Specifications about the sensors can be found at:
-    http://www.allsensors.com/cad/DS-0355_Rev_B.PDF
+    https://www.allsensors.com/cad/DS-0355_Rev_B.PDF
 
 properties:
   compatible:
@@ -32,6 +32,8 @@ properties:
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 examples:
   - |

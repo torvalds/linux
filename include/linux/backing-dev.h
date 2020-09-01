@@ -33,14 +33,10 @@ int bdi_register(struct backing_dev_info *bdi, const char *fmt, ...);
 __printf(2, 0)
 int bdi_register_va(struct backing_dev_info *bdi, const char *fmt,
 		    va_list args);
-int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner);
+void bdi_set_owner(struct backing_dev_info *bdi, struct device *owner);
 void bdi_unregister(struct backing_dev_info *bdi);
 
-struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id);
-static inline struct backing_dev_info *bdi_alloc(gfp_t gfp_mask)
-{
-	return bdi_alloc_node(gfp_mask, NUMA_NO_NODE);
-}
+struct backing_dev_info *bdi_alloc(int node_id);
 
 void wb_start_background_writeback(struct bdi_writeback *wb);
 void wb_workfn(struct work_struct *work);
@@ -173,11 +169,7 @@ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
 
 static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 {
-	struct backing_dev_info *bdi = wb->bdi;
-
-	if (bdi->congested_fn)
-		return bdi->congested_fn(bdi->congested_data, cong_bits);
-	return wb->congested->state & cong_bits;
+	return wb->congested & cong_bits;
 }
 
 long congestion_wait(int sync, long timeout);
@@ -228,9 +220,6 @@ static inline int bdi_sched_wait(void *word)
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
-struct bdi_writeback_congested *
-wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp);
-void wb_congested_put(struct bdi_writeback_congested *congested);
 struct bdi_writeback *wb_get_lookup(struct backing_dev_info *bdi,
 				    struct cgroup_subsys_state *memcg_css);
 struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
@@ -408,19 +397,6 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
 	return false;
 }
 
-static inline struct bdi_writeback_congested *
-wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
-{
-	refcount_inc(&bdi->wb_congested->refcnt);
-	return bdi->wb_congested;
-}
-
-static inline void wb_congested_put(struct bdi_writeback_congested *congested)
-{
-	if (refcount_dec_and_test(&congested->refcnt))
-		kfree(congested);
-}
-
 static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi)
 {
 	return &bdi->wb;
@@ -505,13 +481,6 @@ static inline int bdi_rw_congested(struct backing_dev_info *bdi)
 				  (1 << WB_async_congested));
 }
 
-extern const char *bdi_unknown_name;
-
-static inline const char *bdi_dev_name(struct backing_dev_info *bdi)
-{
-	if (!bdi || !bdi->dev)
-		return bdi_unknown_name;
-	return dev_name(bdi->dev);
-}
+const char *bdi_dev_name(struct backing_dev_info *bdi);
 
 #endif	/* _LINUX_BACKING_DEV_H */

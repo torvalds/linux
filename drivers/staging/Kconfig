@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig STAGING
 	bool "Staging drivers"
-	---help---
+	help
 	  This option allows you to select a number of drivers that are
 	  not of the "normal" Linux kernel quality level.  These drivers
 	  are placed here in order to get a wider audience to make use of
@@ -42,6 +42,10 @@ source "drivers/staging/rtl8188eu/Kconfig"
 
 source "drivers/staging/rts5208/Kconfig"
 
+source "drivers/staging/octeon/Kconfig"
+
+source "drivers/staging/octeon-usb/Kconfig"
+
 source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
@@ -51,8 +55,6 @@ source "drivers/staging/iio/Kconfig"
 source "drivers/staging/sm750fb/Kconfig"
 
 source "drivers/staging/emxx_udc/Kconfig"
-
-source "drivers/staging/speakup/Kconfig"
 
 source "drivers/staging/nvec/Kconfig"
 
@@ -79,8 +81,6 @@ source "drivers/staging/clocking-wizard/Kconfig"
 source "drivers/staging/fbtft/Kconfig"
 
 source "drivers/staging/fsl-dpaa2/Kconfig"
-
-source "drivers/staging/wilc1000/Kconfig"
 
 source "drivers/staging/most/Kconfig"
 
@@ -112,14 +112,7 @@ source "drivers/staging/fieldbus/Kconfig"
 
 source "drivers/staging/kpc2000/Kconfig"
 
-source "drivers/staging/wusbcore/Kconfig"
-source "drivers/staging/uwb/Kconfig"
-
-source "drivers/staging/exfat/Kconfig"
-
 source "drivers/staging/qlge/Kconfig"
-
-source "drivers/staging/hp/Kconfig"
 
 source "drivers/staging/wfx/Kconfig"
 

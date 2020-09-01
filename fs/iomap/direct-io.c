@@ -10,6 +10,7 @@
 #include <linux/backing-dev.h>
 #include <linux/uio.h>
 #include <linux/task_io_accounting_ops.h>
+#include "trace.h"
 
 #include "../internal.h"
 
@@ -59,7 +60,7 @@ int iomap_dio_iopoll(struct kiocb *kiocb, bool spin)
 EXPORT_SYMBOL_GPL(iomap_dio_iopoll);
 
 static void iomap_dio_submit_bio(struct iomap_dio *dio, struct iomap *iomap,
-		struct bio *bio)
+		struct bio *bio, loff_t pos)
 {
 	atomic_inc(&dio->ref);
 
@@ -67,7 +68,12 @@ static void iomap_dio_submit_bio(struct iomap_dio *dio, struct iomap *iomap,
 		bio_set_polled(bio, dio->iocb);
 
 	dio->submit.last_queue = bdev_get_queue(iomap->bdev);
-	dio->submit.cookie = submit_bio(bio);
+	if (dio->dops && dio->dops->submit_io)
+		dio->submit.cookie = dio->dops->submit_io(
+				file_inode(dio->iocb->ki_filp),
+				iomap, bio, pos);
+	else
+		dio->submit.cookie = submit_bio(bio);
 }
 
 static ssize_t iomap_dio_complete(struct iomap_dio *dio)
@@ -191,7 +197,7 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
 	get_page(page);
 	__bio_add_page(bio, page, len, 0);
 	bio_set_op_attrs(bio, REQ_OP_WRITE, flags);
-	iomap_dio_submit_bio(dio, iomap, bio);
+	iomap_dio_submit_bio(dio, iomap, bio, pos);
 }
 
 static loff_t
@@ -299,11 +305,11 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 		}
 
 		dio->size += n;
-		pos += n;
 		copied += n;
 
 		nr_pages = iov_iter_npages(dio->submit.iter, BIO_MAX_PAGES);
-		iomap_dio_submit_bio(dio, iomap, bio);
+		iomap_dio_submit_bio(dio, iomap, bio, pos);
+		pos += n;
 	} while (nr_pages);
 
 	/*
@@ -396,6 +402,9 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
  * can be mapped into multiple disjoint IOs and only a subset of the IOs issued
  * may be pure data writes. In that case, we still need to do a full data sync
  * completion.
+ *
+ * Returns -ENOTBLK In case of a page invalidation invalidation failure for
+ * writes.  The callers needs to fall back to buffered I/O in this case.
  */
 ssize_t
 iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
@@ -410,8 +419,6 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	unsigned int flags = IOMAP_DIRECT;
 	struct blk_plug plug;
 	struct iomap_dio *dio;
-
-	lockdep_assert_held(&inode->i_rwsem);
 
 	if (!count)
 		return 0;
@@ -472,23 +479,24 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	if (ret)
 		goto out_free_dio;
 
-	/*
-	 * Try to invalidate cache pages for the range we're direct
-	 * writing.  If this invalidation fails, tough, the write will
-	 * still work, but racing two incompatible write paths is a
-	 * pretty crazy thing to do, so we don't support it 100%.
-	 */
-	ret = invalidate_inode_pages2_range(mapping,
-			pos >> PAGE_SHIFT, end >> PAGE_SHIFT);
-	if (ret)
-		dio_warn_stale_pagecache(iocb->ki_filp);
-	ret = 0;
-
-	if (iov_iter_rw(iter) == WRITE && !wait_for_completion &&
-	    !inode->i_sb->s_dio_done_wq) {
-		ret = sb_init_dio_done_wq(inode->i_sb);
-		if (ret < 0)
+	if (iov_iter_rw(iter) == WRITE) {
+		/*
+		 * Try to invalidate cache pages for the range we are writing.
+		 * If this invalidation fails, let the caller fall back to
+		 * buffered I/O.
+		 */
+		if (invalidate_inode_pages2_range(mapping, pos >> PAGE_SHIFT,
+				end >> PAGE_SHIFT)) {
+			trace_iomap_dio_invalidate_fail(inode, pos, count);
+			ret = -ENOTBLK;
 			goto out_free_dio;
+		}
+
+		if (!wait_for_completion && !inode->i_sb->s_dio_done_wq) {
+			ret = sb_init_dio_done_wq(inode->i_sb);
+			if (ret < 0)
+				goto out_free_dio;
+		}
 	}
 
 	inode_dio_begin(inode);
@@ -534,8 +542,8 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 	/*
 	 * We are about to drop our additional submission reference, which
-	 * might be the last reference to the dio.  There are three three
-	 * different ways we can progress here:
+	 * might be the last reference to the dio.  There are three different
+	 * ways we can progress here:
 	 *
 	 *  (a) If this is the last reference we will always complete and free
 	 *	the dio ourselves.
@@ -561,7 +569,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			    !dio->submit.last_queue ||
 			    !blk_poll(dio->submit.last_queue,
 					 dio->submit.cookie, true))
-				io_schedule();
+				blk_io_schedule();
 		}
 		__set_current_state(TASK_RUNNING);
 	}

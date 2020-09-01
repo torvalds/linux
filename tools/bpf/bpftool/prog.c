@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,10 +12,13 @@
 #include <time.h>
 #include <unistd.h>
 #include <net/if.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 
 #include <linux/err.h>
+#include <linux/perf_event.h>
 #include <linux/sizes.h>
 
 #include <bpf/bpf.h>
@@ -24,6 +28,42 @@
 #include "cfg.h"
 #include "main.h"
 #include "xlated_dumper.h"
+
+const char * const prog_type_name[] = {
+	[BPF_PROG_TYPE_UNSPEC]			= "unspec",
+	[BPF_PROG_TYPE_SOCKET_FILTER]		= "socket_filter",
+	[BPF_PROG_TYPE_KPROBE]			= "kprobe",
+	[BPF_PROG_TYPE_SCHED_CLS]		= "sched_cls",
+	[BPF_PROG_TYPE_SCHED_ACT]		= "sched_act",
+	[BPF_PROG_TYPE_TRACEPOINT]		= "tracepoint",
+	[BPF_PROG_TYPE_XDP]			= "xdp",
+	[BPF_PROG_TYPE_PERF_EVENT]		= "perf_event",
+	[BPF_PROG_TYPE_CGROUP_SKB]		= "cgroup_skb",
+	[BPF_PROG_TYPE_CGROUP_SOCK]		= "cgroup_sock",
+	[BPF_PROG_TYPE_LWT_IN]			= "lwt_in",
+	[BPF_PROG_TYPE_LWT_OUT]			= "lwt_out",
+	[BPF_PROG_TYPE_LWT_XMIT]		= "lwt_xmit",
+	[BPF_PROG_TYPE_SOCK_OPS]		= "sock_ops",
+	[BPF_PROG_TYPE_SK_SKB]			= "sk_skb",
+	[BPF_PROG_TYPE_CGROUP_DEVICE]		= "cgroup_device",
+	[BPF_PROG_TYPE_SK_MSG]			= "sk_msg",
+	[BPF_PROG_TYPE_RAW_TRACEPOINT]		= "raw_tracepoint",
+	[BPF_PROG_TYPE_CGROUP_SOCK_ADDR]	= "cgroup_sock_addr",
+	[BPF_PROG_TYPE_LWT_SEG6LOCAL]		= "lwt_seg6local",
+	[BPF_PROG_TYPE_LIRC_MODE2]		= "lirc_mode2",
+	[BPF_PROG_TYPE_SK_REUSEPORT]		= "sk_reuseport",
+	[BPF_PROG_TYPE_FLOW_DISSECTOR]		= "flow_dissector",
+	[BPF_PROG_TYPE_CGROUP_SYSCTL]		= "cgroup_sysctl",
+	[BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE]	= "raw_tracepoint_writable",
+	[BPF_PROG_TYPE_CGROUP_SOCKOPT]		= "cgroup_sockopt",
+	[BPF_PROG_TYPE_TRACING]			= "tracing",
+	[BPF_PROG_TYPE_STRUCT_OPS]		= "struct_ops",
+	[BPF_PROG_TYPE_EXT]			= "ext",
+	[BPF_PROG_TYPE_LSM]			= "lsm",
+	[BPF_PROG_TYPE_SK_LOOKUP]		= "sk_lookup",
+};
+
+const size_t prog_type_name_size = ARRAY_SIZE(prog_type_name);
 
 enum dump_mode {
 	DUMP_JITED,
@@ -82,159 +122,7 @@ static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 		strftime(buf, size, "%FT%T%z", &load_tm);
 }
 
-static int prog_fd_by_nametag(void *nametag, int **fds, bool tag)
-{
-	unsigned int id = 0;
-	int fd, nb_fds = 0;
-	void *tmp;
-	int err;
-
-	while (true) {
-		struct bpf_prog_info info = {};
-		__u32 len = sizeof(info);
-
-		err = bpf_prog_get_next_id(id, &id);
-		if (err) {
-			if (errno != ENOENT) {
-				p_err("%s", strerror(errno));
-				goto err_close_fds;
-			}
-			return nb_fds;
-		}
-
-		fd = bpf_prog_get_fd_by_id(id);
-		if (fd < 0) {
-			p_err("can't get prog by id (%u): %s",
-			      id, strerror(errno));
-			goto err_close_fds;
-		}
-
-		err = bpf_obj_get_info_by_fd(fd, &info, &len);
-		if (err) {
-			p_err("can't get prog info (%u): %s",
-			      id, strerror(errno));
-			goto err_close_fd;
-		}
-
-		if ((tag && memcmp(nametag, info.tag, BPF_TAG_SIZE)) ||
-		    (!tag && strncmp(nametag, info.name, BPF_OBJ_NAME_LEN))) {
-			close(fd);
-			continue;
-		}
-
-		if (nb_fds > 0) {
-			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
-			if (!tmp) {
-				p_err("failed to realloc");
-				goto err_close_fd;
-			}
-			*fds = tmp;
-		}
-		(*fds)[nb_fds++] = fd;
-	}
-
-err_close_fd:
-	close(fd);
-err_close_fds:
-	while (--nb_fds >= 0)
-		close((*fds)[nb_fds]);
-	return -1;
-}
-
-static int prog_parse_fds(int *argc, char ***argv, int **fds)
-{
-	if (is_prefix(**argv, "id")) {
-		unsigned int id;
-		char *endptr;
-
-		NEXT_ARGP();
-
-		id = strtoul(**argv, &endptr, 0);
-		if (*endptr) {
-			p_err("can't parse %s as ID", **argv);
-			return -1;
-		}
-		NEXT_ARGP();
-
-		(*fds)[0] = bpf_prog_get_fd_by_id(id);
-		if ((*fds)[0] < 0) {
-			p_err("get by id (%u): %s", id, strerror(errno));
-			return -1;
-		}
-		return 1;
-	} else if (is_prefix(**argv, "tag")) {
-		unsigned char tag[BPF_TAG_SIZE];
-
-		NEXT_ARGP();
-
-		if (sscanf(**argv, BPF_TAG_FMT, tag, tag + 1, tag + 2,
-			   tag + 3, tag + 4, tag + 5, tag + 6, tag + 7)
-		    != BPF_TAG_SIZE) {
-			p_err("can't parse tag");
-			return -1;
-		}
-		NEXT_ARGP();
-
-		return prog_fd_by_nametag(tag, fds, true);
-	} else if (is_prefix(**argv, "name")) {
-		char *name;
-
-		NEXT_ARGP();
-
-		name = **argv;
-		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
-			p_err("can't parse name");
-			return -1;
-		}
-		NEXT_ARGP();
-
-		return prog_fd_by_nametag(name, fds, false);
-	} else if (is_prefix(**argv, "pinned")) {
-		char *path;
-
-		NEXT_ARGP();
-
-		path = **argv;
-		NEXT_ARGP();
-
-		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_PROG);
-		if ((*fds)[0] < 0)
-			return -1;
-		return 1;
-	}
-
-	p_err("expected 'id', 'tag', 'name' or 'pinned', got: '%s'?", **argv);
-	return -1;
-}
-
-int prog_parse_fd(int *argc, char ***argv)
-{
-	int *fds = NULL;
-	int nb_fds, fd;
-
-	fds = malloc(sizeof(int));
-	if (!fds) {
-		p_err("mem alloc failed");
-		return -1;
-	}
-	nb_fds = prog_parse_fds(argc, argv, &fds);
-	if (nb_fds != 1) {
-		if (nb_fds > 1) {
-			p_err("several programs match this handle");
-			while (nb_fds--)
-				close(fds[nb_fds]);
-		}
-		fd = -1;
-		goto exit_free;
-	}
-
-	fd = fds[0];
-exit_free:
-	free(fds);
-	return fd;
-}
-
-static void show_prog_maps(int fd, u32 num_maps)
+static void show_prog_maps(int fd, __u32 num_maps)
 {
 	struct bpf_prog_info info = {};
 	__u32 len = sizeof(info);
@@ -338,6 +226,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		jsonw_end_array(json_wtr);
 	}
 
+	emit_obj_refs_json(&refs_table, info->id, json_wtr);
+
 	jsonw_end_object(json_wtr);
 }
 
@@ -404,6 +294,8 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (info->btf_id)
 		printf("\n\tbtf_id %d", info->btf_id);
 
+	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
+
 	printf("\n");
 }
 
@@ -469,6 +361,7 @@ static int do_show(int argc, char **argv)
 
 	if (show_pinned)
 		build_pinned_obj_table(&prog_table, BPF_OBJ_PROG);
+	build_obj_refs_table(&refs_table, BPF_OBJ_PROG);
 
 	if (argc == 2)
 		return do_show_subset(argc, argv);
@@ -510,6 +403,8 @@ static int do_show(int argc, char **argv)
 	if (json_output)
 		jsonw_end_array(json_wtr);
 
+	delete_obj_refs_table(&refs_table);
+
 	return err;
 }
 
@@ -533,14 +428,14 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 			p_info("no instructions returned");
 			return -1;
 		}
-		buf = (unsigned char *)(info->jited_prog_insns);
+		buf = u64_to_ptr(info->jited_prog_insns);
 		member_len = info->jited_prog_len;
 	} else {	/* DUMP_XLATED */
 		if (info->xlated_prog_len == 0 || !info->xlated_prog_insns) {
 			p_err("error retrieving insn dump: kernel.kptr_restrict set?");
 			return -1;
 		}
-		buf = (unsigned char *)info->xlated_prog_insns;
+		buf = u64_to_ptr(info->xlated_prog_insns);
 		member_len = info->xlated_prog_len;
 	}
 
@@ -549,7 +444,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		return -1;
 	}
 
-	func_info = (void *)info->func_info;
+	func_info = u64_to_ptr(info->func_info);
 
 	if (info->nr_line_info) {
 		prog_linfo = bpf_prog_linfo__new(info);
@@ -567,7 +462,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 
 		n = write(fd, buf, member_len);
 		close(fd);
-		if (n != member_len) {
+		if (n != (ssize_t)member_len) {
 			p_err("error writing output file: %s",
 			      n < 0 ? strerror(errno) : "short write");
 			return -1;
@@ -597,13 +492,13 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 			__u32 i;
 			if (info->nr_jited_ksyms) {
 				kernel_syms_load(&dd);
-				ksyms = (__u64 *) info->jited_ksyms;
+				ksyms = u64_to_ptr(info->jited_ksyms);
 			}
 
 			if (json_output)
 				jsonw_start_array(json_wtr);
 
-			lens = (__u32 *) info->jited_func_lens;
+			lens = u64_to_ptr(info->jited_func_lens);
 			for (i = 0; i < info->nr_jited_func_lens; i++) {
 				if (ksyms) {
 					sym = kernel_syms_search(&dd, ksyms[i]);
@@ -664,7 +559,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 	} else {
 		kernel_syms_load(&dd);
 		dd.nr_jited_ksyms = info->nr_jited_ksyms;
-		dd.jited_ksyms = (__u64 *) info->jited_ksyms;
+		dd.jited_ksyms = u64_to_ptr(info->jited_ksyms);
 		dd.btf = btf;
 		dd.func_info = func_info;
 		dd.finfo_rec_size = info->func_info_rec_size;
@@ -809,7 +704,7 @@ static int do_pin(int argc, char **argv)
 {
 	int err;
 
-	err = do_pin_any(argc, argv, bpf_prog_get_fd_by_id);
+	err = do_pin_any(argc, argv, prog_parse_fd);
 	if (!err && json_output)
 		jsonw_null(json_wtr);
 	return err;
@@ -1243,6 +1138,25 @@ free_data_in:
 	return err;
 }
 
+static int
+get_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
+		      enum bpf_attach_type *expected_attach_type)
+{
+	libbpf_print_fn_t print_backup;
+	int ret;
+
+	ret = libbpf_prog_type_by_name(name, prog_type, expected_attach_type);
+	if (!ret)
+		return ret;
+
+	/* libbpf_prog_type_by_name() failed, let's re-run with debug level */
+	print_backup = libbpf_set_print(print_all_levels);
+	ret = libbpf_prog_type_by_name(name, prog_type, expected_attach_type);
+	libbpf_set_print(print_backup);
+
+	return ret;
+}
+
 static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
 	enum bpf_prog_type common_prog_type = BPF_PROG_TYPE_UNSPEC;
@@ -1292,8 +1206,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			strcat(type, *argv);
 			strcat(type, "/");
 
-			err = libbpf_prog_type_by_name(type, &common_prog_type,
-						       &expected_attach_type);
+			err = get_prog_type_by_name(type, &common_prog_type,
+						    &expected_attach_type);
 			free(type);
 			if (err < 0)
 				goto err_free_reuse_maps;
@@ -1392,8 +1306,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		if (prog_type == BPF_PROG_TYPE_UNSPEC) {
 			const char *sec_name = bpf_program__title(pos, false);
 
-			err = libbpf_prog_type_by_name(sec_name, &prog_type,
-						       &expected_attach_type);
+			err = get_prog_type_by_name(sec_name, &prog_type,
+						    &expected_attach_type);
 			if (err < 0)
 				goto err_close_obj;
 		}
@@ -1537,6 +1451,422 @@ static int do_loadall(int argc, char **argv)
 	return load_with_options(argc, argv, false);
 }
 
+#ifdef BPFTOOL_WITHOUT_SKELETONS
+
+static int do_profile(int argc, char **argv)
+{
+	p_err("bpftool prog profile command is not supported. Please build bpftool with clang >= 10.0.0");
+	return 0;
+}
+
+#else /* BPFTOOL_WITHOUT_SKELETONS */
+
+#include "profiler.skel.h"
+
+struct profile_metric {
+	const char *name;
+	struct bpf_perf_event_value val;
+	struct perf_event_attr attr;
+	bool selected;
+
+	/* calculate ratios like instructions per cycle */
+	const int ratio_metric; /* 0 for N/A, 1 for index 0 (cycles) */
+	const char *ratio_desc;
+	const float ratio_mul;
+} metrics[] = {
+	{
+		.name = "cycles",
+		.attr = {
+			.type = PERF_TYPE_HARDWARE,
+			.config = PERF_COUNT_HW_CPU_CYCLES,
+			.exclude_user = 1,
+		},
+	},
+	{
+		.name = "instructions",
+		.attr = {
+			.type = PERF_TYPE_HARDWARE,
+			.config = PERF_COUNT_HW_INSTRUCTIONS,
+			.exclude_user = 1,
+		},
+		.ratio_metric = 1,
+		.ratio_desc = "insns per cycle",
+		.ratio_mul = 1.0,
+	},
+	{
+		.name = "l1d_loads",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_L1D |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16),
+			.exclude_user = 1,
+		},
+	},
+	{
+		.name = "llc_misses",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_LL |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+			.exclude_user = 1
+		},
+		.ratio_metric = 2,
+		.ratio_desc = "LLC misses per million insns",
+		.ratio_mul = 1e6,
+	},
+};
+
+static __u64 profile_total_count;
+
+#define MAX_NUM_PROFILE_METRICS 4
+
+static int profile_parse_metrics(int argc, char **argv)
+{
+	unsigned int metric_cnt;
+	int selected_cnt = 0;
+	unsigned int i;
+
+	metric_cnt = sizeof(metrics) / sizeof(struct profile_metric);
+
+	while (argc > 0) {
+		for (i = 0; i < metric_cnt; i++) {
+			if (is_prefix(argv[0], metrics[i].name)) {
+				if (!metrics[i].selected)
+					selected_cnt++;
+				metrics[i].selected = true;
+				break;
+			}
+		}
+		if (i == metric_cnt) {
+			p_err("unknown metric %s", argv[0]);
+			return -1;
+		}
+		NEXT_ARG();
+	}
+	if (selected_cnt > MAX_NUM_PROFILE_METRICS) {
+		p_err("too many (%d) metrics, please specify no more than %d metrics at at time",
+		      selected_cnt, MAX_NUM_PROFILE_METRICS);
+		return -1;
+	}
+	return selected_cnt;
+}
+
+static void profile_read_values(struct profiler_bpf *obj)
+{
+	__u32 m, cpu, num_cpu = obj->rodata->num_cpu;
+	int reading_map_fd, count_map_fd;
+	__u64 counts[num_cpu];
+	__u32 key = 0;
+	int err;
+
+	reading_map_fd = bpf_map__fd(obj->maps.accum_readings);
+	count_map_fd = bpf_map__fd(obj->maps.counts);
+	if (reading_map_fd < 0 || count_map_fd < 0) {
+		p_err("failed to get fd for map");
+		return;
+	}
+
+	err = bpf_map_lookup_elem(count_map_fd, &key, counts);
+	if (err) {
+		p_err("failed to read count_map: %s", strerror(errno));
+		return;
+	}
+
+	profile_total_count = 0;
+	for (cpu = 0; cpu < num_cpu; cpu++)
+		profile_total_count += counts[cpu];
+
+	for (m = 0; m < ARRAY_SIZE(metrics); m++) {
+		struct bpf_perf_event_value values[num_cpu];
+
+		if (!metrics[m].selected)
+			continue;
+
+		err = bpf_map_lookup_elem(reading_map_fd, &key, values);
+		if (err) {
+			p_err("failed to read reading_map: %s",
+			      strerror(errno));
+			return;
+		}
+		for (cpu = 0; cpu < num_cpu; cpu++) {
+			metrics[m].val.counter += values[cpu].counter;
+			metrics[m].val.enabled += values[cpu].enabled;
+			metrics[m].val.running += values[cpu].running;
+		}
+		key++;
+	}
+}
+
+static void profile_print_readings_json(void)
+{
+	__u32 m;
+
+	jsonw_start_array(json_wtr);
+	for (m = 0; m < ARRAY_SIZE(metrics); m++) {
+		if (!metrics[m].selected)
+			continue;
+		jsonw_start_object(json_wtr);
+		jsonw_string_field(json_wtr, "metric", metrics[m].name);
+		jsonw_lluint_field(json_wtr, "run_cnt", profile_total_count);
+		jsonw_lluint_field(json_wtr, "value", metrics[m].val.counter);
+		jsonw_lluint_field(json_wtr, "enabled", metrics[m].val.enabled);
+		jsonw_lluint_field(json_wtr, "running", metrics[m].val.running);
+
+		jsonw_end_object(json_wtr);
+	}
+	jsonw_end_array(json_wtr);
+}
+
+static void profile_print_readings_plain(void)
+{
+	__u32 m;
+
+	printf("\n%18llu %-20s\n", profile_total_count, "run_cnt");
+	for (m = 0; m < ARRAY_SIZE(metrics); m++) {
+		struct bpf_perf_event_value *val = &metrics[m].val;
+		int r;
+
+		if (!metrics[m].selected)
+			continue;
+		printf("%18llu %-20s", val->counter, metrics[m].name);
+
+		r = metrics[m].ratio_metric - 1;
+		if (r >= 0 && metrics[r].selected &&
+		    metrics[r].val.counter > 0) {
+			printf("# %8.2f %-30s",
+			       val->counter * metrics[m].ratio_mul /
+			       metrics[r].val.counter,
+			       metrics[m].ratio_desc);
+		} else {
+			printf("%-41s", "");
+		}
+
+		if (val->enabled > val->running)
+			printf("(%4.2f%%)",
+			       val->running * 100.0 / val->enabled);
+		printf("\n");
+	}
+}
+
+static void profile_print_readings(void)
+{
+	if (json_output)
+		profile_print_readings_json();
+	else
+		profile_print_readings_plain();
+}
+
+static char *profile_target_name(int tgt_fd)
+{
+	struct bpf_prog_info_linear *info_linear;
+	struct bpf_func_info *func_info;
+	const struct btf_type *t;
+	char *name = NULL;
+	struct btf *btf;
+
+	info_linear = bpf_program__get_prog_info_linear(
+		tgt_fd, 1UL << BPF_PROG_INFO_FUNC_INFO);
+	if (IS_ERR_OR_NULL(info_linear)) {
+		p_err("failed to get info_linear for prog FD %d", tgt_fd);
+		return NULL;
+	}
+
+	if (info_linear->info.btf_id == 0 ||
+	    btf__get_from_id(info_linear->info.btf_id, &btf)) {
+		p_err("prog FD %d doesn't have valid btf", tgt_fd);
+		goto out;
+	}
+
+	func_info = u64_to_ptr(info_linear->info.func_info);
+	t = btf__type_by_id(btf, func_info[0].type_id);
+	if (!t) {
+		p_err("btf %d doesn't have type %d",
+		      info_linear->info.btf_id, func_info[0].type_id);
+		goto out;
+	}
+	name = strdup(btf__name_by_offset(btf, t->name_off));
+out:
+	free(info_linear);
+	return name;
+}
+
+static struct profiler_bpf *profile_obj;
+static int profile_tgt_fd = -1;
+static char *profile_tgt_name;
+static int *profile_perf_events;
+static int profile_perf_event_cnt;
+
+static void profile_close_perf_events(struct profiler_bpf *obj)
+{
+	int i;
+
+	for (i = profile_perf_event_cnt - 1; i >= 0; i--)
+		close(profile_perf_events[i]);
+
+	free(profile_perf_events);
+	profile_perf_event_cnt = 0;
+}
+
+static int profile_open_perf_events(struct profiler_bpf *obj)
+{
+	unsigned int cpu, m;
+	int map_fd, pmu_fd;
+
+	profile_perf_events = calloc(
+		sizeof(int), obj->rodata->num_cpu * obj->rodata->num_metric);
+	if (!profile_perf_events) {
+		p_err("failed to allocate memory for perf_event array: %s",
+		      strerror(errno));
+		return -1;
+	}
+	map_fd = bpf_map__fd(obj->maps.events);
+	if (map_fd < 0) {
+		p_err("failed to get fd for events map");
+		return -1;
+	}
+
+	for (m = 0; m < ARRAY_SIZE(metrics); m++) {
+		if (!metrics[m].selected)
+			continue;
+		for (cpu = 0; cpu < obj->rodata->num_cpu; cpu++) {
+			pmu_fd = syscall(__NR_perf_event_open, &metrics[m].attr,
+					 -1/*pid*/, cpu, -1/*group_fd*/, 0);
+			if (pmu_fd < 0 ||
+			    bpf_map_update_elem(map_fd, &profile_perf_event_cnt,
+						&pmu_fd, BPF_ANY) ||
+			    ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0)) {
+				p_err("failed to create event %s on cpu %d",
+				      metrics[m].name, cpu);
+				return -1;
+			}
+			profile_perf_events[profile_perf_event_cnt++] = pmu_fd;
+		}
+	}
+	return 0;
+}
+
+static void profile_print_and_cleanup(void)
+{
+	profile_close_perf_events(profile_obj);
+	profile_read_values(profile_obj);
+	profile_print_readings();
+	profiler_bpf__destroy(profile_obj);
+
+	close(profile_tgt_fd);
+	free(profile_tgt_name);
+}
+
+static void int_exit(int signo)
+{
+	profile_print_and_cleanup();
+	exit(0);
+}
+
+static int do_profile(int argc, char **argv)
+{
+	int num_metric, num_cpu, err = -1;
+	struct bpf_program *prog;
+	unsigned long duration;
+	char *endptr;
+
+	/* we at least need two args for the prog and one metric */
+	if (!REQ_ARGS(3))
+		return -EINVAL;
+
+	/* parse target fd */
+	profile_tgt_fd = prog_parse_fd(&argc, &argv);
+	if (profile_tgt_fd < 0) {
+		p_err("failed to parse fd");
+		return -1;
+	}
+
+	/* parse profiling optional duration */
+	if (argc > 2 && is_prefix(argv[0], "duration")) {
+		NEXT_ARG();
+		duration = strtoul(*argv, &endptr, 0);
+		if (*endptr)
+			usage();
+		NEXT_ARG();
+	} else {
+		duration = UINT_MAX;
+	}
+
+	num_metric = profile_parse_metrics(argc, argv);
+	if (num_metric <= 0)
+		goto out;
+
+	num_cpu = libbpf_num_possible_cpus();
+	if (num_cpu <= 0) {
+		p_err("failed to identify number of CPUs");
+		goto out;
+	}
+
+	profile_obj = profiler_bpf__open();
+	if (!profile_obj) {
+		p_err("failed to open and/or load BPF object");
+		goto out;
+	}
+
+	profile_obj->rodata->num_cpu = num_cpu;
+	profile_obj->rodata->num_metric = num_metric;
+
+	/* adjust map sizes */
+	bpf_map__resize(profile_obj->maps.events, num_metric * num_cpu);
+	bpf_map__resize(profile_obj->maps.fentry_readings, num_metric);
+	bpf_map__resize(profile_obj->maps.accum_readings, num_metric);
+	bpf_map__resize(profile_obj->maps.counts, 1);
+
+	/* change target name */
+	profile_tgt_name = profile_target_name(profile_tgt_fd);
+	if (!profile_tgt_name)
+		goto out;
+
+	bpf_object__for_each_program(prog, profile_obj->obj) {
+		err = bpf_program__set_attach_target(prog, profile_tgt_fd,
+						     profile_tgt_name);
+		if (err) {
+			p_err("failed to set attach target\n");
+			goto out;
+		}
+	}
+
+	set_max_rlimit();
+	err = profiler_bpf__load(profile_obj);
+	if (err) {
+		p_err("failed to load profile_obj");
+		goto out;
+	}
+
+	err = profile_open_perf_events(profile_obj);
+	if (err)
+		goto out;
+
+	err = profiler_bpf__attach(profile_obj);
+	if (err) {
+		p_err("failed to attach profile_obj");
+		goto out;
+	}
+	signal(SIGINT, int_exit);
+
+	sleep(duration);
+	profile_print_and_cleanup();
+	return 0;
+
+out:
+	profile_close_perf_events(profile_obj);
+	if (profile_obj)
+		profiler_bpf__destroy(profile_obj);
+	close(profile_tgt_fd);
+	free(profile_tgt_name);
+	return err;
+}
+
+#endif /* BPFTOOL_WITHOUT_SKELETONS */
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1545,23 +1875,24 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s { show | list } [PROG]\n"
-		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual | linum }]\n"
-		"       %s %s dump jited  PROG [{ file FILE | opcodes | linum }]\n"
-		"       %s %s pin   PROG FILE\n"
-		"       %s %s { load | loadall } OBJ  PATH \\\n"
+		"Usage: %1$s %2$s { show | list } [PROG]\n"
+		"       %1$s %2$s dump xlated PROG [{ file FILE | opcodes | visual | linum }]\n"
+		"       %1$s %2$s dump jited  PROG [{ file FILE | opcodes | linum }]\n"
+		"       %1$s %2$s pin   PROG FILE\n"
+		"       %1$s %2$s { load | loadall } OBJ  PATH \\\n"
 		"                         [type TYPE] [dev NAME] \\\n"
 		"                         [map { idx IDX | name NAME } MAP]\\\n"
 		"                         [pinmaps MAP_DIR]\n"
-		"       %s %s attach PROG ATTACH_TYPE [MAP]\n"
-		"       %s %s detach PROG ATTACH_TYPE [MAP]\n"
-		"       %s %s run PROG \\\n"
+		"       %1$s %2$s attach PROG ATTACH_TYPE [MAP]\n"
+		"       %1$s %2$s detach PROG ATTACH_TYPE [MAP]\n"
+		"       %1$s %2$s run PROG \\\n"
 		"                         data_in FILE \\\n"
 		"                         [data_out FILE [data_size_out L]] \\\n"
 		"                         [ctx_in FILE [ctx_out FILE [ctx_size_out M]]] \\\n"
 		"                         [repeat N]\n"
-		"       %s %s tracelog\n"
-		"       %s %s help\n"
+		"       %1$s %2$s profile PROG [duration DURATION] METRICs\n"
+		"       %1$s %2$s tracelog\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
 		"       " HELP_SPEC_PROGRAM "\n"
@@ -1572,16 +1903,16 @@ static int do_help(int argc, char **argv)
 		"                 sk_reuseport | flow_dissector | cgroup/sysctl |\n"
 		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
 		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
-		"                 cgroup/sendmsg4 | cgroup/sendmsg6 | cgroup/recvmsg4 |\n"
-		"                 cgroup/recvmsg6 | cgroup/getsockopt |\n"
-		"                 cgroup/setsockopt }\n"
+		"                 cgroup/getpeername4 | cgroup/getpeername6 |\n"
+		"                 cgroup/getsockname4 | cgroup/getsockname6 | cgroup/sendmsg4 |\n"
+		"                 cgroup/sendmsg6 | cgroup/recvmsg4 | cgroup/recvmsg6 |\n"
+		"                 cgroup/getsockopt | cgroup/setsockopt |\n"
+		"                 struct_ops | fentry | fexit | freplace | sk_lookup }\n"
 		"       ATTACH_TYPE := { msg_verdict | stream_verdict | stream_parser |\n"
 		"                        flow_dissector }\n"
+		"       METRIC := { cycles | instructions | l1d_loads | llc_misses }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2]);
 
 	return 0;
@@ -1599,6 +1930,7 @@ static const struct cmd cmds[] = {
 	{ "detach",	do_detach },
 	{ "tracelog",	do_tracelog },
 	{ "run",	do_run },
+	{ "profile",	do_profile },
 	{ 0 }
 };
 

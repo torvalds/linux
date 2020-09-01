@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright(c) 2015-18 Intel Corporation.
  */
@@ -33,6 +33,7 @@ struct skl_hda_private {
 	int dai_index;
 	const char *platform_name;
 	bool common_hdmi_codec_drv;
+	bool idisp_codec;
 };
 
 extern struct snd_soc_dai_link skl_hda_be_dai_links[HDA_DSP_MAX_BE_DAI_LINKS];
@@ -48,6 +49,10 @@ static inline int skl_hda_hdmi_build_controls(struct snd_soc_card *card)
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_component *component;
 	struct skl_hda_hdmi_pcm *pcm;
+
+	/* HDMI disabled, do not create controls */
+	if (list_empty(&ctx->hdmi_pcm_list))
+		return 0;
 
 	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct skl_hda_hdmi_pcm,
 			       head);

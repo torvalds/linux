@@ -27,9 +27,11 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     prr: chipid@ff000044 {
         compatible = "renesas,prr";
-        reg = <0 0xff000044 0 4>;
+        reg = <0xff000044 4>;
     };

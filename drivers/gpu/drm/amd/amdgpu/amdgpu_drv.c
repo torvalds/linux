@@ -85,9 +85,12 @@
  * - 3.34.0 - Non-DC can flip correctly between buffers with different pitches
  * - 3.35.0 - Add drm_amdgpu_info_device::tcc_disabled_mask
  * - 3.36.0 - Allow reading more status registers on si/cik
+ * - 3.37.0 - L2 is invalidated before SDMA IBs, needed for correctness
+ * - 3.38.0 - Add AMDGPU_IB_FLAG_EMIT_MEM_SYNC
+ * - 3.39.0 - DMABUF implicit sync does a full pipeline sync
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	36
+#define KMS_DRIVER_MINOR	39
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -138,12 +141,15 @@ int amdgpu_emu_mode = 0;
 uint amdgpu_smu_memory_pool_size = 0;
 /* FBC (bit 0) disabled by default*/
 uint amdgpu_dc_feature_mask = 0;
+uint amdgpu_dc_debug_mask = 0;
 int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
 int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
 int amdgpu_noretry;
 int amdgpu_force_asic_type = -1;
+int amdgpu_tmz = 0;
+int amdgpu_reset_method = -1; /* auto */
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -687,13 +693,12 @@ MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (defau
 
 /**
  * DOC: hws_gws_support(bool)
- * Whether HWS support gws barriers. Default value: false (not supported)
- * This will be replaced with a MEC firmware version check once firmware
- * is ready
+ * Assume that HWS supports GWS barriers regardless of what firmware version
+ * check says. Default value: false (rely on MEC2 firmware version check).
  */
 bool hws_gws_support;
 module_param(hws_gws_support, bool, 0444);
-MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supported (Default), true = supported)");
+MODULE_PARM_DESC(hws_gws_support, "Assume MEC2 FW supports GWS barriers (false = rely on FW version check (Default), true = force supported)");
 
 /**
   * DOC: queue_preemption_timeout_ms (int)
@@ -702,6 +707,14 @@ MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supp
 int queue_preemption_timeout_ms = 9000;
 module_param(queue_preemption_timeout_ms, int, 0644);
 MODULE_PARM_DESC(queue_preemption_timeout_ms, "queue preemption timeout in ms (1 = Minimum, 9000 = default)");
+
+/**
+ * DOC: debug_evictions(bool)
+ * Enable extra debug messages to help determine the cause of evictions
+ */
+bool debug_evictions;
+module_param(debug_evictions, bool, 0644);
+MODULE_PARM_DESC(debug_evictions, "enable eviction debug messages (false = default)");
 #endif
 
 /**
@@ -711,6 +724,13 @@ MODULE_PARM_DESC(queue_preemption_timeout_ms, "queue preemption timeout in ms (1
  */
 MODULE_PARM_DESC(dcfeaturemask, "all stable DC features enabled (default))");
 module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
+
+/**
+ * DOC: dcdebugmask (uint)
+ * Override display features enabled. See enum DC_DEBUG_MASK in drivers/gpu/drm/amd/include/amd_shared.h.
+ */
+MODULE_PARM_DESC(dcdebugmask, "all debug options disabled (default))");
+module_param_named(dcdebugmask, amdgpu_dc_debug_mask, uint, 0444);
 
 /**
  * DOC: abmlevel (uint)
@@ -727,6 +747,23 @@ module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
 uint amdgpu_dm_abm_level = 0;
 MODULE_PARM_DESC(abmlevel, "ABM level (0 = off (default), 1-4 = backlight reduction level) ");
 module_param_named(abmlevel, amdgpu_dm_abm_level, uint, 0444);
+
+/**
+ * DOC: tmz (int)
+ * Trusted Memory Zone (TMZ) is a method to protect data being written
+ * to or read from memory.
+ *
+ * The default value: 0 (off).  TODO: change to auto till it is completed.
+ */
+MODULE_PARM_DESC(tmz, "Enable TMZ feature (-1 = auto, 0 = off (default), 1 = on)");
+module_param_named(tmz, amdgpu_tmz, int, 0444);
+
+/**
+ * DOC: reset_method (int)
+ * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)
+ */
+MODULE_PARM_DESC(reset_method, "GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)");
+module_param_named(reset_method, amdgpu_reset_method, int, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
@@ -1021,6 +1058,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	struct drm_device *dev;
+	struct amdgpu_device *adev;
 	unsigned long flags = ent->driver_data;
 	int ret, retry = 0;
 	bool supports_atomic = false;
@@ -1090,6 +1128,10 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
+	ret = amdgpu_driver_load_kms(dev, ent->driver_data);
+	if (ret)
+		goto err_pci;
+
 retry_init:
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret == -EAGAIN && ++retry <= 3) {
@@ -1099,6 +1141,11 @@ retry_init:
 		goto retry_init;
 	} else if (ret)
 		goto err_pci;
+
+	adev = dev->dev_private;
+	ret = amdgpu_debugfs_init(adev);
+	if (ret)
+		DRM_ERROR("Creating debugfs files failed (%d).\n", ret);
 
 	return 0;
 
@@ -1119,9 +1166,10 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 #endif
 		DRM_ERROR("Hotplug removal is not supported\n");
 	drm_dev_unplug(dev);
-	drm_dev_put(dev);
+	amdgpu_driver_unload_kms(dev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
+	drm_dev_put(dev);
 }
 
 static void
@@ -1138,7 +1186,8 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 	 * unfortunately we can't detect certain
 	 * hypervisors so just do this all the time.
 	 */
-	adev->mp1_state = PP_MP1_STATE_UNLOAD;
+	if (!amdgpu_passthrough(adev))
+		adev->mp1_state = PP_MP1_STATE_UNLOAD;
 	amdgpu_device_ip_suspend(adev);
 	adev->mp1_state = PP_MP1_STATE_NONE;
 }
@@ -1154,14 +1203,6 @@ static int amdgpu_pmops_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	/* GPU comes up enabled by the bios on resume */
-	if (amdgpu_device_supports_boco(drm_dev) ||
-	    amdgpu_device_supports_baco(drm_dev)) {
-		pm_runtime_disable(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-	}
-
 	return amdgpu_device_resume(drm_dev, true);
 }
 
@@ -1171,7 +1212,9 @@ static int amdgpu_pmops_freeze(struct device *dev)
 	struct amdgpu_device *adev = drm_dev->dev_private;
 	int r;
 
+	adev->in_hibernate = true;
 	r = amdgpu_device_suspend(drm_dev, true);
+	adev->in_hibernate = false;
 	if (r)
 		return r;
 	return amdgpu_asic_reset(adev);
@@ -1220,11 +1263,15 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 		}
 	}
 
+	adev->in_runpm = true;
 	if (amdgpu_device_supports_boco(drm_dev))
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 	drm_kms_helper_poll_disable(drm_dev);
 
 	ret = amdgpu_device_suspend(drm_dev, false);
+	if (ret)
+		return ret;
+
 	if (amdgpu_device_supports_boco(drm_dev)) {
 		/* Only need to handle PCI state in the driver for ATPX
 		 * PCI core handles it for _PR3.
@@ -1278,6 +1325,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 	drm_kms_helper_poll_enable(drm_dev);
 	if (amdgpu_device_supports_boco(drm_dev))
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
+	adev->in_runpm = false;
 	return 0;
 }
 
@@ -1285,24 +1333,55 @@ static int amdgpu_pmops_runtime_idle(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_dev->dev_private;
-	struct drm_crtc *crtc;
+	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
+	int ret = 1;
 
 	if (!adev->runpm) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
 
-	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
-		if (crtc->enabled) {
-			DRM_DEBUG_DRIVER("failing to power off - crtc active\n");
-			return -EBUSY;
+	if (amdgpu_device_has_dc_support(adev)) {
+		struct drm_crtc *crtc;
+
+		drm_modeset_lock_all(drm_dev);
+
+		drm_for_each_crtc(crtc, drm_dev) {
+			if (crtc->state->active) {
+				ret = -EBUSY;
+				break;
+			}
 		}
+
+		drm_modeset_unlock_all(drm_dev);
+
+	} else {
+		struct drm_connector *list_connector;
+		struct drm_connector_list_iter iter;
+
+		mutex_lock(&drm_dev->mode_config.mutex);
+		drm_modeset_lock(&drm_dev->mode_config.connection_mutex, NULL);
+
+		drm_connector_list_iter_begin(drm_dev, &iter);
+		drm_for_each_connector_iter(list_connector, &iter) {
+			if (list_connector->dpms ==  DRM_MODE_DPMS_ON) {
+				ret = -EBUSY;
+				break;
+			}
+		}
+
+		drm_connector_list_iter_end(&iter);
+
+		drm_modeset_unlock(&drm_dev->mode_config.connection_mutex);
+		mutex_unlock(&drm_dev->mode_config.mutex);
 	}
+
+	if (ret == -EBUSY)
+		DRM_DEBUG_DRIVER("failing to power off - crtc active\n");
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_autosuspend(dev);
-	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
-	return 1;
+	return ret;
 }
 
 long amdgpu_drm_ioctl(struct file *filp,
@@ -1314,11 +1393,12 @@ long amdgpu_drm_ioctl(struct file *filp,
 	dev = file_priv->minor->dev;
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = drm_ioctl(filp, cmd, arg);
 
 	pm_runtime_mark_last_busy(dev->dev);
+out:
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
 }
@@ -1377,32 +1457,15 @@ int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv)
 	return 0;
 }
 
-static bool
-amdgpu_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
-				 bool in_vblank_irq, int *vpos, int *hpos,
-				 ktime_t *stime, ktime_t *etime,
-				 const struct drm_display_mode *mode)
-{
-	return amdgpu_display_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
-						  stime, etime, mode);
-}
-
 static struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_ATOMIC |
 	    DRIVER_GEM |
 	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_SYNCOBJ |
 	    DRIVER_SYNCOBJ_TIMELINE,
-	.load = amdgpu_driver_load_kms,
 	.open = amdgpu_driver_open_kms,
 	.postclose = amdgpu_driver_postclose_kms,
 	.lastclose = amdgpu_driver_lastclose_kms,
-	.unload = amdgpu_driver_unload_kms,
-	.get_vblank_counter = amdgpu_get_vblank_counter_kms,
-	.enable_vblank = amdgpu_enable_vblank_kms,
-	.disable_vblank = amdgpu_disable_vblank_kms,
-	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
-	.get_scanout_position = amdgpu_get_crtc_scanout_position,
 	.irq_handler = amdgpu_irq_handler,
 	.ioctls = amdgpu_ioctls_kms,
 	.gem_free_object_unlocked = amdgpu_gem_object_free,

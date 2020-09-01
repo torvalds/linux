@@ -488,11 +488,9 @@ struct iio_buffer_setup_ops {
  * @currentmode:	[DRIVER] current operating mode
  * @dev:		[DRIVER] device structure, should be assigned a parent
  *			and owner
- * @event_interface:	[INTERN] event chrdevs associated with interrupt lines
  * @buffer:		[DRIVER] any buffer present
- * @buffer_list:	[INTERN] list of all buffers currently attached
  * @scan_bytes:		[INTERN] num bytes captured to be fed to buffer demux
- * @mlock:		[DRIVER] lock used to prevent simultaneous device state
+ * @mlock:		[INTERN] lock used to prevent simultaneous device state
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @masklength:		[INTERN] the length of the mask established from
@@ -506,9 +504,6 @@ struct iio_buffer_setup_ops {
  * @pollfunc_event:	[DRIVER] function run on events trigger being received
  * @channels:		[DRIVER] channel specification structure table
  * @num_channels:	[DRIVER] number of channels specified in @channels.
- * @channel_attr_list:	[INTERN] keep track of automatically created channel
- *			attributes
- * @chan_attr_group:	[INTERN] group for all attrs in base directory
  * @name:		[DRIVER] name of the device.
  * @label:              [DRIVER] unique name to identify which device this is
  * @info:		[DRIVER] callbacks and constant info from driver
@@ -520,8 +515,8 @@ struct iio_buffer_setup_ops {
  * @groups:		[INTERN] attribute groups
  * @groupcounter:	[INTERN] index of next attribute group
  * @flags:		[INTERN] file ops related flags including busy flag.
- * @debugfs_dentry:	[INTERN] device specific debugfs dentry.
- * @cached_reg_addr:	[INTERN] cached register address for debugfs reads.
+ * @priv:		[DRIVER] reference to driver's private information
+ *			**MUST** be accessed **ONLY** via iio_priv() helper
  */
 struct iio_dev {
 	int				id;
@@ -531,10 +526,7 @@ struct iio_dev {
 	int				currentmode;
 	struct device			dev;
 
-	struct iio_event_interface	*event_interface;
-
 	struct iio_buffer		*buffer;
-	struct list_head		buffer_list;
 	int				scan_bytes;
 	struct mutex			mlock;
 
@@ -551,8 +543,6 @@ struct iio_dev {
 	struct iio_chan_spec const	*channels;
 	int				num_channels;
 
-	struct list_head		channel_attr_list;
-	struct attribute_group		chan_attr_group;
 	const char			*name;
 	const char			*label;
 	const struct iio_info		*info;
@@ -565,10 +555,7 @@ struct iio_dev {
 	int				groupcounter;
 
 	unsigned long			flags;
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*debugfs_dentry;
-	unsigned			cached_reg_addr;
-#endif
+	void				*priv;
 };
 
 const struct iio_chan_spec
@@ -591,17 +578,13 @@ void iio_device_unregister(struct iio_dev *indio_dev);
  * calls iio_device_register() internally. Refer to that function for more
  * information.
  *
- * If an iio_dev registered with this function needs to be unregistered
- * separately, devm_iio_device_unregister() must be used.
- *
  * RETURNS:
  * 0 on success, negative error number on failure.
  */
 #define devm_iio_device_register(dev, indio_dev) \
-	__devm_iio_device_register((dev), (indio_dev), THIS_MODULE);
+	__devm_iio_device_register((dev), (indio_dev), THIS_MODULE)
 int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 			       struct module *this_mod);
-void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev);
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
 int iio_device_claim_direct_mode(struct iio_dev *indio_dev);
 void iio_device_release_direct_mode(struct iio_dev *indio_dev);
@@ -627,6 +610,8 @@ static inline clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
 	return indio_dev->clock_id;
 }
 
+int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id);
+
 /**
  * dev_to_iio_dev() - Get IIO device struct from a device struct
  * @dev: 		The device embedded in the IIO device
@@ -649,6 +634,26 @@ static inline struct iio_dev *iio_device_get(struct iio_dev *indio_dev)
 	return indio_dev ? dev_to_iio_dev(get_device(&indio_dev->dev)) : NULL;
 }
 
+/**
+ * iio_device_set_parent() - assign parent device to the IIO device object
+ * @indio_dev: 		IIO device structure
+ * @parent:		reference to parent device object
+ *
+ * This utility must be called between IIO device allocation
+ * (via devm_iio_device_alloc()) & IIO device registration
+ * (via {devm_}iio_device_register()).
+ * By default, the device allocation will also assign a parent device to
+ * the IIO device object. In cases where devm_iio_device_alloc() is used,
+ * sometimes the parent device must be different than the device used to
+ * manage the allocation.
+ * In that case, this helper should be used to change the parent, hence the
+ * requirement to call this between allocation & registration.
+ **/
+static inline void iio_device_set_parent(struct iio_dev *indio_dev,
+					 struct device *parent)
+{
+	indio_dev->dev.parent = parent;
+}
 
 /**
  * iio_device_set_drvdata() - Set device driver data
@@ -669,34 +674,25 @@ static inline void iio_device_set_drvdata(struct iio_dev *indio_dev, void *data)
  *
  * Returns the data previously set with iio_device_set_drvdata()
  */
-static inline void *iio_device_get_drvdata(struct iio_dev *indio_dev)
+static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
 {
 	return dev_get_drvdata(&indio_dev->dev);
 }
 
 /* Can we make this smaller? */
 #define IIO_ALIGN L1_CACHE_BYTES
-struct iio_dev *iio_device_alloc(int sizeof_priv);
+struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv);
 
+/* The information at the returned address is guaranteed to be cacheline aligned */
 static inline void *iio_priv(const struct iio_dev *indio_dev)
 {
-	return (char *)indio_dev + ALIGN(sizeof(struct iio_dev), IIO_ALIGN);
-}
-
-static inline struct iio_dev *iio_priv_to_dev(void *priv)
-{
-	return (struct iio_dev *)((char *)priv -
-				  ALIGN(sizeof(struct iio_dev), IIO_ALIGN));
+	return indio_dev->priv;
 }
 
 void iio_device_free(struct iio_dev *indio_dev);
-int devm_iio_device_match(struct device *dev, void *res, void *data);
-struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv);
-void devm_iio_device_free(struct device *dev, struct iio_dev *indio_dev);
+struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv);
 struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
 						const char *fmt, ...);
-void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig);
-
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled
  * @indio_dev:		IIO device structure for device
@@ -713,10 +709,7 @@ static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
  * @indio_dev:		IIO device structure for device
  **/
 #if defined(CONFIG_DEBUG_FS)
-static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
-{
-	return indio_dev->debugfs_dentry;
-}
+struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev);
 #else
 static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 {

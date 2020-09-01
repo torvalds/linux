@@ -18,7 +18,7 @@
  * the source code for the Windows driver.
  *
  * The FPGA on the board requires firmware, which is available from
- * http://www.comedi.org in the comedi_nonfree_firmware tarball.
+ * https://www.comedi.org in the comedi_nonfree_firmware tarball.
  *
  * Configuration options: not applicable, uses PCI auto config
  */
@@ -781,7 +781,7 @@ static struct pci_driver db2k_pci_driver = {
 };
 module_comedi_pci_driver(db2k_driver, db2k_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(DB2K_FIRMWARE);

@@ -83,7 +83,8 @@ int __afu_port_disable(struct platform_device *pdev)
 	 * on this port and minimum soft reset pulse width has elapsed.
 	 * Driver polls port_soft_reset_ack to determine if reset done by HW.
 	 */
-	if (readq_poll_timeout(base + PORT_HDR_CTRL, v, v & PORT_CTRL_SFTRST,
+	if (readq_poll_timeout(base + PORT_HDR_CTRL, v,
+			       v & PORT_CTRL_SFTRST_ACK,
 			       RST_POLL_INVL, RST_POLL_TIMEOUT)) {
 		dev_err(&pdev->dev, "timeout, fail to reset device\n");
 		return -ETIMEDOUT;
@@ -529,6 +530,30 @@ static const struct dfl_feature_ops port_stp_ops = {
 	.init = port_stp_init,
 };
 
+static long
+port_uint_ioctl(struct platform_device *pdev, struct dfl_feature *feature,
+		unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case DFL_FPGA_PORT_UINT_GET_IRQ_NUM:
+		return dfl_feature_ioctl_get_num_irqs(pdev, feature, arg);
+	case DFL_FPGA_PORT_UINT_SET_IRQ:
+		return dfl_feature_ioctl_set_irq(pdev, feature, arg);
+	default:
+		dev_dbg(&pdev->dev, "%x cmd not handled", cmd);
+		return -ENODEV;
+	}
+}
+
+static const struct dfl_feature_id port_uint_id_table[] = {
+	{.id = PORT_FEATURE_ID_UINT,},
+	{0,}
+};
+
+static const struct dfl_feature_ops port_uint_ops = {
+	.ioctl = port_uint_ioctl,
+};
+
 static struct dfl_feature_driver port_feature_drvs[] = {
 	{
 		.id_table = port_hdr_id_table,
@@ -547,6 +572,10 @@ static struct dfl_feature_driver port_feature_drvs[] = {
 		.ops = &port_stp_ops,
 	},
 	{
+		.id_table = port_uint_id_table,
+		.ops = &port_uint_ops,
+	},
+	{
 		.ops = NULL,
 	}
 };
@@ -561,31 +590,39 @@ static int afu_open(struct inode *inode, struct file *filp)
 	if (WARN_ON(!pdata))
 		return -ENODEV;
 
-	ret = dfl_feature_dev_use_begin(pdata);
-	if (ret)
-		return ret;
+	mutex_lock(&pdata->lock);
+	ret = dfl_feature_dev_use_begin(pdata, filp->f_flags & O_EXCL);
+	if (!ret) {
+		dev_dbg(&fdev->dev, "Device File Opened %d Times\n",
+			dfl_feature_dev_use_count(pdata));
+		filp->private_data = fdev;
+	}
+	mutex_unlock(&pdata->lock);
 
-	dev_dbg(&fdev->dev, "Device File Open\n");
-	filp->private_data = fdev;
-
-	return 0;
+	return ret;
 }
 
 static int afu_release(struct inode *inode, struct file *filp)
 {
 	struct platform_device *pdev = filp->private_data;
 	struct dfl_feature_platform_data *pdata;
+	struct dfl_feature *feature;
 
 	dev_dbg(&pdev->dev, "Device File Release\n");
 
 	pdata = dev_get_platdata(&pdev->dev);
 
 	mutex_lock(&pdata->lock);
-	__port_reset(pdev);
-	afu_dma_region_destroy(pdata);
-	mutex_unlock(&pdata->lock);
-
 	dfl_feature_dev_use_end(pdata);
+
+	if (!dfl_feature_dev_use_count(pdata)) {
+		dfl_fpga_dev_for_each_feature(pdata, feature)
+			dfl_fpga_set_irq_triggers(feature, 0,
+						  feature->nr_irqs, NULL);
+		__port_reset(pdev);
+		afu_dma_region_destroy(pdata);
+	}
+	mutex_unlock(&pdata->lock);
 
 	return 0;
 }
@@ -746,6 +783,12 @@ static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
+static const struct vm_operations_struct afu_vma_ops = {
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+	.access = generic_access_phys,
+#endif
+};
+
 static int afu_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct platform_device *pdev = filp->private_data;
@@ -774,6 +817,9 @@ static int afu_mmap(struct file *filp, struct vm_area_struct *vma)
 	if ((vma->vm_flags & VM_WRITE) &&
 	    !(region.flags & DFL_PORT_REGION_WRITE))
 		return -EPERM;
+
+	/* Support debug access to the mapping */
+	vma->vm_ops = &afu_vma_ops;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 

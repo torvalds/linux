@@ -592,7 +592,7 @@ struct mwl8k_cmd_pkt {
 	__u8	seq_num;
 	__u8	macid;
 	__le16	result;
-	char	payload[0];
+	char	payload[];
 } __packed;
 
 /*
@@ -806,7 +806,7 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 struct mwl8k_dma_data {
 	__le16 fwlen;
 	struct ieee80211_hdr wh;
-	char data[0];
+	char data[];
 } __packed;
 
 /* Routines to add/remove DMA header from skb.  */
@@ -2668,7 +2668,7 @@ struct mwl8k_cmd_mac_multicast_adr {
 	struct mwl8k_cmd_pkt header;
 	__le16 action;
 	__le16 numaddr;
-	__u8 addr[0][ETH_ALEN];
+	__u8 addr[][ETH_ALEN];
 };
 
 #define MWL8K_ENABLE_RX_DIRECTED	0x0001
@@ -2955,7 +2955,7 @@ mwl8k_cmd_rf_antenna(struct ieee80211_hw *hw, int antenna, int mask)
 struct mwl8k_cmd_set_beacon {
 	struct mwl8k_cmd_pkt header;
 	__le16 beacon_len;
-	__u8 beacon[0];
+	__u8 beacon[];
 };
 
 static int mwl8k_cmd_set_beacon(struct ieee80211_hw *hw,

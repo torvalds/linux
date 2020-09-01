@@ -106,6 +106,24 @@ struct acomp_alg {
  */
 struct crypto_acomp *crypto_alloc_acomp(const char *alg_name, u32 type,
 					u32 mask);
+/**
+ * crypto_alloc_acomp_node() -- allocate ACOMPRESS tfm handle with desired NUMA node
+ * @alg_name:	is the cra_name / name or cra_driver_name / driver name of the
+ *		compression algorithm e.g. "deflate"
+ * @type:	specifies the type of the algorithm
+ * @mask:	specifies the mask for the algorithm
+ * @node:	specifies the NUMA node the ZIP hardware belongs to
+ *
+ * Allocate a handle for a compression algorithm. Drivers should try to use
+ * (de)compressors on the specified NUMA node.
+ * The returned struct crypto_acomp is the handle that is required for any
+ * subsequent API invocation for the compression operations.
+ *
+ * Return:	allocated handle in case of success; IS_ERR() is true in case
+ *		of an error, PTR_ERR() returns the error code.
+ */
+struct crypto_acomp *crypto_alloc_acomp_node(const char *alg_name, u32 type,
+					u32 mask, int node);
 
 static inline struct crypto_tfm *crypto_acomp_tfm(struct crypto_acomp *tfm)
 {
@@ -157,7 +175,7 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_ACOMPRESS;
-	mask |= CRYPTO_ALG_TYPE_MASK;
+	mask |= CRYPTO_ALG_TYPE_ACOMPRESS_MASK;
 
 	return crypto_has_alg(alg_name, type, mask);
 }

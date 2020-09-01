@@ -11,7 +11,6 @@
 #include <drv_types.h>
 #include <wlan_bssdef.h>
 
-
 /*	Commented by Albert 20101105 */
 /*	Increase the SURVEY_TO value from 100 to 150  ( 100ms to 150ms ) */
 /*	The Realtek 8188CE SoftAP will spend around 100ms to send the probe response after receiving the probe request. */
@@ -65,7 +64,6 @@
 #define _HW_STATE_ADHOC_		0x01
 #define _HW_STATE_STATION_	0x02
 #define _HW_STATE_AP_			0x03
-
 
 #define		_1M_RATE_	0
 #define		_2M_RATE_	1
@@ -680,7 +678,6 @@ enum rtw_c2h_event {
 				 */
 	MAX_C2HEVT
 };
-
 
 #ifdef _RTW_MLME_EXT_C_
 

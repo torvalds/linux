@@ -11,8 +11,6 @@
 int nl80211_init(void);
 void nl80211_exit(void);
 
-extern const struct nla_policy nl80211_policy[NUM_NL80211_ATTR];
-
 void *nl80211hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 		     int flags, u8 cmd);
 bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,

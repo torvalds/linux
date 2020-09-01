@@ -288,13 +288,13 @@ static void tcf_police_cleanup(struct tc_action *a)
 }
 
 static void tcf_police_stats_update(struct tc_action *a,
-				    u64 bytes, u32 packets,
+				    u64 bytes, u64 packets, u64 drops,
 				    u64 lastuse, bool hw)
 {
 	struct tcf_police *police = to_police(a);
 	struct tcf_t *tm = &police->tcf_tm;
 
-	tcf_action_update_stats(a, bytes, packets, false, hw);
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 

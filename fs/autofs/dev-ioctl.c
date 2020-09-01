@@ -20,7 +20,7 @@
  * another mount. This situation arises when starting automount(8)
  * or other user space daemon which uses direct mounts or offset
  * mounts (used for autofs lazy mount/umount of nested mount trees),
- * which have been left busy at at service shutdown.
+ * which have been left busy at service shutdown.
  */
 
 typedef int (*ioctl_fn)(struct file *, struct autofs_sb_info *,
@@ -186,7 +186,7 @@ static int find_autofs_mount(const char *pathname,
 	struct path path;
 	int err;
 
-	err = kern_path_mountpoint(AT_FDCWD, pathname, &path, 0);
+	err = kern_path(pathname, LOOKUP_MOUNTPOINT, &path);
 	if (err)
 		return err;
 	err = -ENOENT;
@@ -496,7 +496,7 @@ static int autofs_dev_ioctl_askumount(struct file *fp,
  * located path is the root of a mount we return 1 along with
  * the super magic of the mount or 0 otherwise.
  *
- * In both cases the the device number (as returned by
+ * In both cases the device number (as returned by
  * new_encode_dev()) is also returned.
  */
 static int autofs_dev_ioctl_ismountpoint(struct file *fp,
@@ -519,8 +519,8 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 
 	if (!fp || param->ioctlfd == -1) {
 		if (autofs_type_any(type))
-			err = kern_path_mountpoint(AT_FDCWD,
-						   name, &path, LOOKUP_FOLLOW);
+			err = kern_path(name, LOOKUP_FOLLOW | LOOKUP_MOUNTPOINT,
+					&path);
 		else
 			err = find_autofs_mount(name, &path,
 						test_by_type, &type);

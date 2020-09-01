@@ -57,7 +57,7 @@ SMBus Quick Command
 
 This sends a single bit to the device, at the place of the Rd/Wr bit::
 
-  A Addr Rd/Wr [A] P
+  S Addr Rd/Wr [A] P
 
 Functionality flag: I2C_FUNC_SMBUS_QUICK
 
@@ -274,7 +274,7 @@ to know which slave triggered the interrupt.
 This is implemented the following way in the Linux kernel:
 
 * I2C bus drivers which support SMBus alert should call
-  i2c_setup_smbus_alert() to setup SMBus alert support.
+  i2c_new_smbus_alert_device() to install SMBus alert support.
 * I2C drivers for devices which can trigger SMBus alerts should implement
   the optional alert() callback.
 

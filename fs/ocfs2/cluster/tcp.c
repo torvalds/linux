@@ -1441,22 +1441,6 @@ static void o2net_rx_until_empty(struct work_struct *work)
 	sc_put(sc);
 }
 
-static int o2net_set_nodelay(struct socket *sock)
-{
-	int val = 1;
-
-	return kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
-				    (void *)&val, sizeof(val));
-}
-
-static int o2net_set_usertimeout(struct socket *sock)
-{
-	int user_timeout = O2NET_TCP_USER_TIMEOUT;
-
-	return kernel_setsockopt(sock, SOL_TCP, TCP_USER_TIMEOUT,
-				(void *)&user_timeout, sizeof(user_timeout));
-}
-
 static void o2net_initialize_handshake(void)
 {
 	o2net_hand->o2hb_heartbeat_timeout_ms = cpu_to_be32(
@@ -1570,15 +1554,13 @@ static void o2net_start_connect(struct work_struct *work)
 	struct sockaddr_in myaddr = {0, }, remoteaddr = {0, };
 	int ret = 0, stop;
 	unsigned int timeout;
-	unsigned int noio_flag;
+	unsigned int nofs_flag;
 
 	/*
-	 * sock_create allocates the sock with GFP_KERNEL. We must set
-	 * per-process flag PF_MEMALLOC_NOIO so that all allocations done
-	 * by this process are done as if GFP_NOIO was specified. So we
-	 * are not reentering filesystem while doing memory reclaim.
+	 * sock_create allocates the sock with GFP_KERNEL. We must
+	 * prevent the filesystem from being reentered by memory reclaim.
 	 */
-	noio_flag = memalloc_noio_save();
+	nofs_flag = memalloc_nofs_save();
 	/* if we're greater we initiate tx, otherwise we accept */
 	if (o2nm_this_node() <= o2net_num_from_nn(nn))
 		goto out;
@@ -1638,17 +1620,8 @@ static void o2net_start_connect(struct work_struct *work)
 		goto out;
 	}
 
-	ret = o2net_set_nodelay(sc->sc_sock);
-	if (ret) {
-		mlog(ML_ERROR, "setting TCP_NODELAY failed with %d\n", ret);
-		goto out;
-	}
-
-	ret = o2net_set_usertimeout(sock);
-	if (ret) {
-		mlog(ML_ERROR, "set TCP_USER_TIMEOUT failed with %d\n", ret);
-		goto out;
-	}
+	tcp_sock_set_nodelay(sc->sc_sock->sk);
+	tcp_sock_set_user_timeout(sock->sk, O2NET_TCP_USER_TIMEOUT);
 
 	o2net_register_callbacks(sc->sc_sock->sk, sc);
 
@@ -1683,7 +1656,7 @@ out:
 	if (mynode)
 		o2nm_node_put(mynode);
 
-	memalloc_noio_restore(noio_flag);
+	memalloc_nofs_restore(nofs_flag);
 	return;
 }
 
@@ -1810,15 +1783,13 @@ static int o2net_accept_one(struct socket *sock, int *more)
 	struct o2nm_node *local_node = NULL;
 	struct o2net_sock_container *sc = NULL;
 	struct o2net_node *nn;
-	unsigned int noio_flag;
+	unsigned int nofs_flag;
 
 	/*
-	 * sock_create_lite allocates the sock with GFP_KERNEL. We must set
-	 * per-process flag PF_MEMALLOC_NOIO so that all allocations done
-	 * by this process are done as if GFP_NOIO was specified. So we
-	 * are not reentering filesystem while doing memory reclaim.
+	 * sock_create_lite allocates the sock with GFP_KERNEL. We must
+	 * prevent the filesystem from being reentered by memory reclaim.
 	 */
-	noio_flag = memalloc_noio_save();
+	nofs_flag = memalloc_nofs_save();
 
 	BUG_ON(sock == NULL);
 	*more = 0;
@@ -1836,17 +1807,8 @@ static int o2net_accept_one(struct socket *sock, int *more)
 	*more = 1;
 	new_sock->sk->sk_allocation = GFP_ATOMIC;
 
-	ret = o2net_set_nodelay(new_sock);
-	if (ret) {
-		mlog(ML_ERROR, "setting TCP_NODELAY failed with %d\n", ret);
-		goto out;
-	}
-
-	ret = o2net_set_usertimeout(new_sock);
-	if (ret) {
-		mlog(ML_ERROR, "set TCP_USER_TIMEOUT failed with %d\n", ret);
-		goto out;
-	}
+	tcp_sock_set_nodelay(new_sock->sk);
+	tcp_sock_set_user_timeout(new_sock->sk, O2NET_TCP_USER_TIMEOUT);
 
 	ret = new_sock->ops->getname(new_sock, (struct sockaddr *) &sin, 1);
 	if (ret < 0)
@@ -1934,7 +1896,7 @@ out:
 	if (sc)
 		sc_put(sc);
 
-	memalloc_noio_restore(noio_flag);
+	memalloc_nofs_restore(nofs_flag);
 	return ret;
 }
 
@@ -1948,7 +1910,6 @@ static void o2net_accept_many(struct work_struct *work)
 {
 	struct socket *sock = o2net_listen_sock;
 	int	more;
-	int	err;
 
 	/*
 	 * It is critical to note that due to interrupt moderation
@@ -1963,7 +1924,7 @@ static void o2net_accept_many(struct work_struct *work)
 	 */
 
 	for (;;) {
-		err = o2net_accept_one(sock, &more);
+		o2net_accept_one(sock, &more);
 		if (!more)
 			break;
 		cond_resched();

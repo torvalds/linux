@@ -22,45 +22,55 @@
 #include "head.h"
 #include "core.h"
 
-static void
+#include <nvif/push507c.h>
+
+#include <nvhw/class/cl917d.h>
+
+static int
 head917d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x04a0 + (head->base.index * 0x0300), 1);
-		evo_data(push, asyh->dither.mode << 3 |
-			       asyh->dither.bits << 1 |
-			       asyh->dither.enable);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NV917D, HEAD_SET_DITHER_CONTROL(i),
+		  NVVAL(NV917D, HEAD_SET_DITHER_CONTROL, ENABLE, asyh->dither.enable) |
+		  NVVAL(NV917D, HEAD_SET_DITHER_CONTROL, BITS, asyh->dither.bits) |
+		  NVVAL(NV917D, HEAD_SET_DITHER_CONTROL, MODE, asyh->dither.mode) |
+		  NVVAL(NV917D, HEAD_SET_DITHER_CONTROL, PHASE, 0));
+	return 0;
 }
 
-static void
+static int
 head917d_base(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
 	u32 bounds = 0;
-	u32 *push;
+	int ret;
 
 	if (asyh->base.cpp) {
 		switch (asyh->base.cpp) {
-		case 8: bounds |= 0x00000500; break;
-		case 4: bounds |= 0x00000300; break;
-		case 2: bounds |= 0x00000100; break;
-		case 1: bounds |= 0x00000000; break;
+		case 8: bounds |= NVDEF(NV917D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_64); break;
+		case 4: bounds |= NVDEF(NV917D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_32); break;
+		case 2: bounds |= NVDEF(NV917D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_16); break;
+		case 1: bounds |= NVDEF(NV917D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_8); break;
 		default:
 			WARN_ON(1);
 			break;
 		}
-		bounds |= 0x00020001;
+		bounds |= NVDEF(NV917D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, USABLE, TRUE);
+		bounds |= NVDEF(NV917D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, BASE_LUT, USAGE_1025);
 	}
 
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x04d0 + head->base.index * 0x300, 1);
-		evo_data(push, bounds);
-		evo_kick(push, core);
-	}
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NV917D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS(i), bounds);
+	return 0;
 }
 
 int
@@ -68,10 +78,10 @@ head917d_curs_layout(struct nv50_head *head, struct nv50_wndw_atom *asyw,
 		     struct nv50_head_atom *asyh)
 {
 	switch (asyw->state.fb->width) {
-	case  32: asyh->curs.layout = 0; break;
-	case  64: asyh->curs.layout = 1; break;
-	case 128: asyh->curs.layout = 2; break;
-	case 256: asyh->curs.layout = 3; break;
+	case  32: asyh->curs.layout = NV917D_HEAD_SET_CONTROL_CURSOR_SIZE_W32_H32; break;
+	case  64: asyh->curs.layout = NV917D_HEAD_SET_CONTROL_CURSOR_SIZE_W64_H64; break;
+	case 128: asyh->curs.layout = NV917D_HEAD_SET_CONTROL_CURSOR_SIZE_W128_H128; break;
+	case 256: asyh->curs.layout = NV917D_HEAD_SET_CONTROL_CURSOR_SIZE_W256_H256; break;
 	default:
 		return -EINVAL;
 	}

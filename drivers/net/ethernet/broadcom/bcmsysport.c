@@ -160,13 +160,26 @@ static void bcm_sysport_set_tx_csum(struct net_device *dev,
 	/* Hardware transmit checksum requires us to enable the Transmit status
 	 * block prepended to the packet contents
 	 */
-	priv->tsb_en = !!(wanted & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM));
+	priv->tsb_en = !!(wanted & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+				    NETIF_F_HW_VLAN_CTAG_TX));
 	reg = tdma_readl(priv, TDMA_CONTROL);
 	if (priv->tsb_en)
 		reg |= tdma_control_bit(priv, TSB_EN);
 	else
 		reg &= ~tdma_control_bit(priv, TSB_EN);
+	/* Indicating that software inserts Broadcom tags is needed for the TX
+	 * checksum to be computed correctly when using VLAN HW acceleration,
+	 * else it has no effect, so it can always be turned on.
+	 */
+	if (netdev_uses_dsa(dev))
+		reg |= tdma_control_bit(priv, SW_BRCM_TAG);
+	else
+		reg &= ~tdma_control_bit(priv, SW_BRCM_TAG);
 	tdma_writel(priv, reg, TDMA_CONTROL);
+
+	/* Default TPID is ETH_P_8021AD, change to ETH_P_8021Q */
+	if (wanted & NETIF_F_HW_VLAN_CTAG_TX)
+		tdma_writel(priv, ETH_P_8021Q, TDMA_TPID);
 }
 
 static int bcm_sysport_set_features(struct net_device *dev,
@@ -287,7 +300,6 @@ static void bcm_sysport_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->version, "0.1", sizeof(info->version));
 	strlcpy(info->bus_info, "platform", sizeof(info->bus_info));
 }
 
@@ -624,8 +636,7 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 		return -EINVAL;
 
 	if ((ec->tx_coalesce_usecs == 0 && ec->tx_max_coalesced_frames == 0) ||
-	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0) ||
-	    ec->use_adaptive_tx_coalesce)
+	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0))
 		return -EINVAL;
 
 	for (i = 0; i < dev->num_tx_queues; i++)
@@ -666,7 +677,8 @@ static struct sk_buff *bcm_sysport_rx_refill(struct bcm_sysport_priv *priv,
 	dma_addr_t mapping;
 
 	/* Allocate a new SKB for a new packet */
-	skb = netdev_alloc_skb(priv->netdev, RX_BUF_LENGTH);
+	skb = __netdev_alloc_skb(priv->netdev, RX_BUF_LENGTH,
+				 GFP_ATOMIC | __GFP_NOWARN);
 	if (!skb) {
 		priv->mib.alloc_rx_buff_failed++;
 		netif_err(priv, rx_err, ndev, "SKB alloc failed\n");
@@ -1237,6 +1249,11 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 	/* Zero-out TSB by default */
 	memset(tsb, 0, sizeof(*tsb));
 
+	if (skb_vlan_tag_present(skb)) {
+		tsb->pcp_dei_vid = skb_vlan_tag_get_prio(skb) & PCP_DEI_MASK;
+		tsb->pcp_dei_vid |= (u32)skb_vlan_tag_get_id(skb) << VID_SHIFT;
+	}
+
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		ip_ver = skb->protocol;
 		switch (ip_ver) {
@@ -1252,6 +1269,9 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 
 		/* Get the checksum offset and the L4 (transport) offset */
 		csum_start = skb_checksum_start_offset(skb) - sizeof(*tsb);
+		/* Account for the HW inserted VLAN tag */
+		if (skb_vlan_tag_present(skb))
+			csum_start += VLAN_HLEN;
 		csum_info = (csum_start + skb->csum_offset) & L4_CSUM_PTR_MASK;
 		csum_info |= (csum_start << L4_PTR_SHIFT);
 
@@ -1331,6 +1351,8 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 		       DESC_STATUS_SHIFT;
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		len_status |= (DESC_L4_CSUM << DESC_STATUS_SHIFT);
+	if (skb_vlan_tag_present(skb))
+		len_status |= (TX_STATUS_VLAN_VID_TSB << DESC_STATUS_SHIFT);
 
 	ring->curr_desc++;
 	if (ring->curr_desc == ring->size)
@@ -1504,7 +1526,13 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 		reg |= RING_IGNORE_STATUS;
 	}
 	tdma_writel(priv, reg, TDMA_DESC_RING_MAPPING(index));
-	tdma_writel(priv, 0, TDMA_DESC_RING_PCP_DEI_VID(index));
+	reg = 0;
+	/* Adjust the packet size calculations if SYSTEMPORT is responsible
+	 * for HW insertion of VLAN tags
+	 */
+	if (priv->netdev->features & NETIF_F_HW_VLAN_CTAG_TX)
+		reg = VLAN_HLEN << RING_PKT_SIZE_ADJ_SHIFT;
+	tdma_writel(priv, reg, TDMA_DESC_RING_PCP_DEI_VID(index));
 
 	/* Enable ACB algorithm 2 */
 	reg = tdma_readl(priv, TDMA_CONTROL);
@@ -2210,6 +2238,9 @@ static int bcm_sysport_set_rxnfc(struct net_device *dev,
 }
 
 static const struct ethtool_ops bcm_sysport_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo		= bcm_sysport_get_drvinfo,
 	.get_msglevel		= bcm_sysport_get_msglvl,
 	.set_msglevel		= bcm_sysport_set_msglvl,
@@ -2474,7 +2505,6 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		priv->wol_irq = platform_get_irq(pdev, 1);
 	}
 	if (priv->irq0 <= 0 || (priv->irq1 <= 0 && !priv->is_lite)) {
-		dev_err(&pdev->dev, "invalid interrupts\n");
 		ret = -EINVAL;
 		goto err_free_netdev;
 	}
@@ -2522,7 +2552,8 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	netif_napi_add(dev, &priv->napi, bcm_sysport_poll, 64);
 
 	dev->features |= NETIF_F_RXCSUM | NETIF_F_HIGHDMA |
-			 NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+			 NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			 NETIF_F_HW_VLAN_CTAG_TX;
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
 

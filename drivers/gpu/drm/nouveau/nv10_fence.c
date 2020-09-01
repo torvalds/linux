@@ -21,20 +21,22 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nv10_fence.h"
 
+#include <nvif/push006c.h>
+
+#include <nvhw/class/cl006e.h>
+
 int
 nv10_fence_emit(struct nouveau_fence *fence)
 {
-	struct nouveau_channel *chan = fence->channel;
-	int ret = RING_SPACE(chan, 2);
+	struct nvif_push *push = fence->channel->chan.push;
+	int ret = PUSH_WAIT(push, 2);
 	if (ret == 0) {
-		BEGIN_NV04(chan, 0, NV10_SUBCHAN_REF_CNT, 1);
-		OUT_RING  (chan, fence->base.seqno);
-		FIRE_RING (chan);
+		PUSH_MTHD(push, NV06E, SET_REFERENCE, fence->base.seqno);
+		PUSH_KICK(push);
 	}
 	return ret;
 }
@@ -50,7 +52,7 @@ nv10_fence_sync(struct nouveau_fence *fence,
 u32
 nv10_fence_read(struct nouveau_channel *chan)
 {
-	return nvif_rd32(&chan->user, 0x0048);
+	return NVIF_RD32(&chan->user, NV06E, REFERENCE);
 }
 
 void
@@ -58,7 +60,7 @@ nv10_fence_context_del(struct nouveau_channel *chan)
 {
 	struct nv10_fence_chan *fctx = chan->fence;
 	nouveau_fence_context_del(&fctx->base);
-	nvif_object_fini(&fctx->sema);
+	nvif_object_dtor(&fctx->sema);
 	chan->fence = NULL;
 	nouveau_fence_context_free(&fctx->base);
 }

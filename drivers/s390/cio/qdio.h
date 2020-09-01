@@ -15,7 +15,6 @@
 #define QDIO_BUSY_BIT_PATIENCE		(100 << 12)	/* 100 microseconds */
 #define QDIO_BUSY_BIT_RETRY_DELAY	10		/* 10 milliseconds */
 #define QDIO_BUSY_BIT_RETRIES		1000		/* = 10s retry time */
-#define QDIO_INPUT_THRESHOLD		(500 << 12)	/* 500 microseconds */
 
 enum qdio_irq_states {
 	QDIO_IRQ_STATE_INACTIVE,
@@ -166,32 +165,21 @@ struct qdio_dev_perf_stat {
 } ____cacheline_aligned;
 
 struct qdio_queue_perf_stat {
-	/*
-	 * Sorted into order-2 buckets: 1, 2-3, 4-7, ... 64-127, 128.
-	 * Since max. 127 SBALs are scanned reuse entry for 128 as queue full
-	 * aka 127 SBALs found.
-	 */
+	/* Sorted into order-2 buckets: 1, 2-3, 4-7, ... 64-127, 128. */
 	unsigned int nr_sbals[8];
 	unsigned int nr_sbal_error;
 	unsigned int nr_sbal_nop;
 	unsigned int nr_sbal_total;
 };
 
-enum qdio_queue_irq_states {
-	QDIO_QUEUE_IRQS_DISABLED,
+enum qdio_irq_poll_states {
+	QDIO_IRQ_DISABLED,
 };
 
 struct qdio_input_q {
-	/* first ACK'ed buffer */
-	int ack_start;
-	/* how many SBALs are acknowledged */
-	int ack_count;
-	/* last time of noticing incoming data */
-	u64 timestamp;
-	/* upper-layer polling flag */
-	unsigned long queue_irq_state;
-	/* callback to start upper-layer polling */
-	void (*queue_start_poll) (struct ccw_device *, int, unsigned long);
+	/* Batch of SBALs that we processed while polling the queue: */
+	unsigned int batch_start;
+	unsigned int batch_count;
 };
 
 struct qdio_output_q {
@@ -225,9 +213,6 @@ struct qdio_q {
 	 */
 	int first_to_check;
 
-	/* beginning position for calling the program */
-	int first_to_kick;
-
 	/* number of buffers in use by the adapter */
 	atomic_t nr_buf_used;
 
@@ -254,7 +239,6 @@ struct qdio_q {
 	/* upper-layer program handler */
 	qdio_handler_t (*handler);
 
-	struct dentry *debugfs_q;
 	struct qdio_irq *irq_ptr;
 	struct sl *sl;
 	/*
@@ -270,7 +254,6 @@ struct qdio_irq {
 	struct ccw_device *cdev;
 	struct list_head entry;		/* list of thinint devices */
 	struct dentry *debugfs_dev;
-	struct dentry *debugfs_perf;
 
 	unsigned long int_parm;
 	struct subchannel_id schid;
@@ -298,6 +281,11 @@ struct qdio_irq {
 
 	struct qdio_q *input_qs[QDIO_MAX_QUEUES_PER_IRQ];
 	struct qdio_q *output_qs[QDIO_MAX_QUEUES_PER_IRQ];
+	unsigned int max_input_qs;
+	unsigned int max_output_qs;
+
+	void (*irq_poll)(struct ccw_device *cdev, unsigned long data);
+	unsigned long poll_state;
 
 	debug_info_t *debug_area;
 	struct mutex setup_mutex;
@@ -367,17 +355,13 @@ static inline int multicast_outbound(struct qdio_q *q)
 extern u64 last_ai_time;
 
 /* prototypes for thin interrupt */
-void qdio_setup_thinint(struct qdio_irq *irq_ptr);
 int qdio_establish_thinint(struct qdio_irq *irq_ptr);
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr);
 void tiqdio_add_device(struct qdio_irq *irq_ptr);
 void tiqdio_remove_device(struct qdio_irq *irq_ptr);
 void tiqdio_inbound_processing(unsigned long q);
-int tiqdio_allocate_memory(void);
-void tiqdio_free_memory(void);
-int tiqdio_register_thinints(void);
-void tiqdio_unregister_thinints(void);
-void clear_nonshared_ind(struct qdio_irq *);
+int qdio_thinint_init(void);
+void qdio_thinint_exit(void);
 int test_nonshared_ind(struct qdio_irq *);
 
 /* prototypes for setup */
@@ -392,12 +376,11 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr);
 int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
 			struct subchannel_id *schid,
 			struct qdio_ssqd_desc *data);
-int qdio_setup_irq(struct qdio_initialize *init_data);
-void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
-				struct ccw_device *cdev);
-void qdio_release_memory(struct qdio_irq *irq_ptr);
-int qdio_setup_create_sysfs(struct ccw_device *cdev);
-void qdio_setup_destroy_sysfs(struct ccw_device *cdev);
+int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data);
+void qdio_shutdown_irq(struct qdio_irq *irq);
+void qdio_print_subchannel_info(struct qdio_irq *irq_ptr);
+void qdio_free_queues(struct qdio_irq *irq_ptr);
+void qdio_free_async_data(struct qdio_irq *irq_ptr);
 int qdio_setup_init(void);
 void qdio_setup_exit(void);
 int qdio_enable_async_operation(struct qdio_output_q *q);

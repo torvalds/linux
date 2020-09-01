@@ -36,13 +36,7 @@ static int ep93xxbl_set(struct backlight_device *bl, int brightness)
 
 static int ep93xxbl_update_status(struct backlight_device *bl)
 {
-	int brightness = bl->props.brightness;
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	return ep93xxbl_set(bl, brightness);
+	return ep93xxbl_set(bl, backlight_get_brightness(bl));
 }
 
 static int ep93xxbl_get_brightness(struct backlight_device *bl)

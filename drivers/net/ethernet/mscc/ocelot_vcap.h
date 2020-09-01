@@ -1,403 +1,231 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR MIT)
- * Microsemi Ocelot Switch driver
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
+/* Microsemi Ocelot Switch driver
  * Copyright (c) 2019 Microsemi Corporation
  */
 
-#ifndef _OCELOT_VCAP_H_
-#define _OCELOT_VCAP_H_
+#ifndef _MSCC_OCELOT_VCAP_H_
+#define _MSCC_OCELOT_VCAP_H_
 
-/* =================================================================
- *  VCAP Common
- * =================================================================
- */
+#include "ocelot.h"
+#include "ocelot_police.h"
+#include <net/sch_generic.h>
+#include <net/pkt_cls.h>
 
-/* VCAP Type-Group values */
-#define VCAP_TG_NONE 0 /* Entry is invalid */
-#define VCAP_TG_FULL 1 /* Full entry */
-#define VCAP_TG_HALF 2 /* Half entry */
-#define VCAP_TG_QUARTER 3 /* Quarter entry */
+struct ocelot_ipv4 {
+	u8 addr[4];
+};
 
-/* =================================================================
- *  VCAP IS2
- * =================================================================
- */
+enum ocelot_vcap_bit {
+	OCELOT_VCAP_BIT_ANY,
+	OCELOT_VCAP_BIT_0,
+	OCELOT_VCAP_BIT_1
+};
 
-#define VCAP_IS2_CNT 64
-#define VCAP_IS2_ENTRY_WIDTH 376
-#define VCAP_IS2_ACTION_WIDTH 99
-#define VCAP_PORT_CNT 11
+struct ocelot_vcap_u8 {
+	u8 value[1];
+	u8 mask[1];
+};
 
-/* IS2 half key types */
-#define IS2_TYPE_ETYPE 0
-#define IS2_TYPE_LLC 1
-#define IS2_TYPE_SNAP 2
-#define IS2_TYPE_ARP 3
-#define IS2_TYPE_IP_UDP_TCP 4
-#define IS2_TYPE_IP_OTHER 5
-#define IS2_TYPE_IPV6 6
-#define IS2_TYPE_OAM 7
-#define IS2_TYPE_SMAC_SIP6 8
-#define IS2_TYPE_ANY 100 /* Pseudo type */
+struct ocelot_vcap_u16 {
+	u8 value[2];
+	u8 mask[2];
+};
 
-/* IS2 half key type mask for matching any IP */
-#define IS2_TYPE_MASK_IP_ANY 0xe
+struct ocelot_vcap_u24 {
+	u8 value[3];
+	u8 mask[3];
+};
 
-/* IS2 action types */
-#define IS2_ACTION_TYPE_NORMAL 0
-#define IS2_ACTION_TYPE_SMAC_SIP 1
+struct ocelot_vcap_u32 {
+	u8 value[4];
+	u8 mask[4];
+};
 
-/* IS2 MASK_MODE values */
-#define IS2_ACT_MASK_MODE_NONE 0
-#define IS2_ACT_MASK_MODE_FILTER 1
-#define IS2_ACT_MASK_MODE_POLICY 2
-#define IS2_ACT_MASK_MODE_REDIR 3
+struct ocelot_vcap_u40 {
+	u8 value[5];
+	u8 mask[5];
+};
 
-/* IS2 REW_OP values */
-#define IS2_ACT_REW_OP_NONE 0
-#define IS2_ACT_REW_OP_PTP_ONE 2
-#define IS2_ACT_REW_OP_PTP_TWO 3
-#define IS2_ACT_REW_OP_SPECIAL 8
-#define IS2_ACT_REW_OP_PTP_ORG 9
-#define IS2_ACT_REW_OP_PTP_ONE_SUB_DELAY_1 (IS2_ACT_REW_OP_PTP_ONE | (1 << 3))
-#define IS2_ACT_REW_OP_PTP_ONE_SUB_DELAY_2 (IS2_ACT_REW_OP_PTP_ONE | (2 << 3))
-#define IS2_ACT_REW_OP_PTP_ONE_ADD_DELAY (IS2_ACT_REW_OP_PTP_ONE | (1 << 5))
-#define IS2_ACT_REW_OP_PTP_ONE_ADD_SUB BIT(7)
+struct ocelot_vcap_u48 {
+	u8 value[6];
+	u8 mask[6];
+};
 
-#define VCAP_PORT_WIDTH 4
+struct ocelot_vcap_u64 {
+	u8 value[8];
+	u8 mask[8];
+};
 
-/* IS2 quarter key - SMAC_SIP4 */
-#define IS2_QKO_IGR_PORT 0
-#define IS2_QKL_IGR_PORT VCAP_PORT_WIDTH
-#define IS2_QKO_L2_SMAC (IS2_QKO_IGR_PORT + IS2_QKL_IGR_PORT)
-#define IS2_QKL_L2_SMAC 48
-#define IS2_QKO_L3_IP4_SIP (IS2_QKO_L2_SMAC + IS2_QKL_L2_SMAC)
-#define IS2_QKL_L3_IP4_SIP 32
+struct ocelot_vcap_u128 {
+	u8 value[16];
+	u8 mask[16];
+};
 
-/* IS2 half key - common */
-#define IS2_HKO_TYPE 0
-#define IS2_HKL_TYPE 4
-#define IS2_HKO_FIRST (IS2_HKO_TYPE + IS2_HKL_TYPE)
-#define IS2_HKL_FIRST 1
-#define IS2_HKO_PAG (IS2_HKO_FIRST + IS2_HKL_FIRST)
-#define IS2_HKL_PAG 8
-#define IS2_HKO_IGR_PORT_MASK (IS2_HKO_PAG + IS2_HKL_PAG)
-#define IS2_HKL_IGR_PORT_MASK (VCAP_PORT_CNT + 1)
-#define IS2_HKO_SERVICE_FRM (IS2_HKO_IGR_PORT_MASK + IS2_HKL_IGR_PORT_MASK)
-#define IS2_HKL_SERVICE_FRM 1
-#define IS2_HKO_HOST_MATCH (IS2_HKO_SERVICE_FRM + IS2_HKL_SERVICE_FRM)
-#define IS2_HKL_HOST_MATCH 1
-#define IS2_HKO_L2_MC (IS2_HKO_HOST_MATCH + IS2_HKL_HOST_MATCH)
-#define IS2_HKL_L2_MC 1
-#define IS2_HKO_L2_BC (IS2_HKO_L2_MC + IS2_HKL_L2_MC)
-#define IS2_HKL_L2_BC 1
-#define IS2_HKO_VLAN_TAGGED (IS2_HKO_L2_BC + IS2_HKL_L2_BC)
-#define IS2_HKL_VLAN_TAGGED 1
-#define IS2_HKO_VID (IS2_HKO_VLAN_TAGGED + IS2_HKL_VLAN_TAGGED)
-#define IS2_HKL_VID 12
-#define IS2_HKO_DEI (IS2_HKO_VID + IS2_HKL_VID)
-#define IS2_HKL_DEI 1
-#define IS2_HKO_PCP (IS2_HKO_DEI + IS2_HKL_DEI)
-#define IS2_HKL_PCP 3
+struct ocelot_vcap_vid {
+	u16 value;
+	u16 mask;
+};
 
-/* IS2 half key - MAC_ETYPE/MAC_LLC/MAC_SNAP/OAM common */
-#define IS2_HKO_L2_DMAC (IS2_HKO_PCP + IS2_HKL_PCP)
-#define IS2_HKL_L2_DMAC 48
-#define IS2_HKO_L2_SMAC (IS2_HKO_L2_DMAC + IS2_HKL_L2_DMAC)
-#define IS2_HKL_L2_SMAC 48
+struct ocelot_vcap_ipv4 {
+	struct ocelot_ipv4 value;
+	struct ocelot_ipv4 mask;
+};
 
-/* IS2 half key - MAC_ETYPE */
-#define IS2_HKO_MAC_ETYPE_ETYPE (IS2_HKO_L2_SMAC + IS2_HKL_L2_SMAC)
-#define IS2_HKL_MAC_ETYPE_ETYPE 16
-#define IS2_HKO_MAC_ETYPE_L2_PAYLOAD                                           \
-	(IS2_HKO_MAC_ETYPE_ETYPE + IS2_HKL_MAC_ETYPE_ETYPE)
-#define IS2_HKL_MAC_ETYPE_L2_PAYLOAD 27
+struct ocelot_vcap_udp_tcp {
+	u16 value;
+	u16 mask;
+};
 
-/* IS2 half key - MAC_LLC */
-#define IS2_HKO_MAC_LLC_L2_LLC IS2_HKO_MAC_ETYPE_ETYPE
-#define IS2_HKL_MAC_LLC_L2_LLC 40
+enum ocelot_vcap_key_type {
+	OCELOT_VCAP_KEY_ANY,
+	OCELOT_VCAP_KEY_ETYPE,
+	OCELOT_VCAP_KEY_LLC,
+	OCELOT_VCAP_KEY_SNAP,
+	OCELOT_VCAP_KEY_ARP,
+	OCELOT_VCAP_KEY_IPV4,
+	OCELOT_VCAP_KEY_IPV6
+};
 
-/* IS2 half key - MAC_SNAP */
-#define IS2_HKO_MAC_SNAP_L2_SNAP IS2_HKO_MAC_ETYPE_ETYPE
-#define IS2_HKL_MAC_SNAP_L2_SNAP 40
+struct ocelot_vcap_key_vlan {
+	struct ocelot_vcap_vid vid;    /* VLAN ID (12 bit) */
+	struct ocelot_vcap_u8  pcp;    /* PCP (3 bit) */
+	enum ocelot_vcap_bit dei;    /* DEI */
+	enum ocelot_vcap_bit tagged; /* Tagged/untagged frame */
+};
 
-/* IS2 half key - ARP */
-#define IS2_HKO_MAC_ARP_L2_SMAC IS2_HKO_L2_DMAC
-#define IS2_HKL_MAC_ARP_L2_SMAC 48
-#define IS2_HKO_MAC_ARP_ARP_ADDR_SPACE_OK                                      \
-	(IS2_HKO_MAC_ARP_L2_SMAC + IS2_HKL_MAC_ARP_L2_SMAC)
-#define IS2_HKL_MAC_ARP_ARP_ADDR_SPACE_OK 1
-#define IS2_HKO_MAC_ARP_ARP_PROTO_SPACE_OK                                     \
-	(IS2_HKO_MAC_ARP_ARP_ADDR_SPACE_OK + IS2_HKL_MAC_ARP_ARP_ADDR_SPACE_OK)
-#define IS2_HKL_MAC_ARP_ARP_PROTO_SPACE_OK 1
-#define IS2_HKO_MAC_ARP_ARP_LEN_OK                                             \
-	(IS2_HKO_MAC_ARP_ARP_PROTO_SPACE_OK +                                  \
-	 IS2_HKL_MAC_ARP_ARP_PROTO_SPACE_OK)
-#define IS2_HKL_MAC_ARP_ARP_LEN_OK 1
-#define IS2_HKO_MAC_ARP_ARP_TGT_MATCH                                          \
-	(IS2_HKO_MAC_ARP_ARP_LEN_OK + IS2_HKL_MAC_ARP_ARP_LEN_OK)
-#define IS2_HKL_MAC_ARP_ARP_TGT_MATCH 1
-#define IS2_HKO_MAC_ARP_ARP_SENDER_MATCH                                       \
-	(IS2_HKO_MAC_ARP_ARP_TGT_MATCH + IS2_HKL_MAC_ARP_ARP_TGT_MATCH)
-#define IS2_HKL_MAC_ARP_ARP_SENDER_MATCH 1
-#define IS2_HKO_MAC_ARP_ARP_OPCODE_UNKNOWN                                     \
-	(IS2_HKO_MAC_ARP_ARP_SENDER_MATCH + IS2_HKL_MAC_ARP_ARP_SENDER_MATCH)
-#define IS2_HKL_MAC_ARP_ARP_OPCODE_UNKNOWN 1
-#define IS2_HKO_MAC_ARP_ARP_OPCODE                                             \
-	(IS2_HKO_MAC_ARP_ARP_OPCODE_UNKNOWN +                                  \
-	 IS2_HKL_MAC_ARP_ARP_OPCODE_UNKNOWN)
-#define IS2_HKL_MAC_ARP_ARP_OPCODE 2
-#define IS2_HKO_MAC_ARP_L3_IP4_DIP                                             \
-	(IS2_HKO_MAC_ARP_ARP_OPCODE + IS2_HKL_MAC_ARP_ARP_OPCODE)
-#define IS2_HKL_MAC_ARP_L3_IP4_DIP 32
-#define IS2_HKO_MAC_ARP_L3_IP4_SIP                                             \
-	(IS2_HKO_MAC_ARP_L3_IP4_DIP + IS2_HKL_MAC_ARP_L3_IP4_DIP)
-#define IS2_HKL_MAC_ARP_L3_IP4_SIP 32
-#define IS2_HKO_MAC_ARP_DIP_EQ_SIP                                             \
-	(IS2_HKO_MAC_ARP_L3_IP4_SIP + IS2_HKL_MAC_ARP_L3_IP4_SIP)
-#define IS2_HKL_MAC_ARP_DIP_EQ_SIP 1
+struct ocelot_vcap_key_etype {
+	struct ocelot_vcap_u48 dmac;
+	struct ocelot_vcap_u48 smac;
+	struct ocelot_vcap_u16 etype;
+	struct ocelot_vcap_u16 data; /* MAC data */
+};
 
-/* IS2 half key - IP4_TCP_UDP/IP4_OTHER common */
-#define IS2_HKO_IP4 IS2_HKO_L2_DMAC
-#define IS2_HKL_IP4 1
-#define IS2_HKO_L3_FRAGMENT (IS2_HKO_IP4 + IS2_HKL_IP4)
-#define IS2_HKL_L3_FRAGMENT 1
-#define IS2_HKO_L3_FRAG_OFS_GT0 (IS2_HKO_L3_FRAGMENT + IS2_HKL_L3_FRAGMENT)
-#define IS2_HKL_L3_FRAG_OFS_GT0 1
-#define IS2_HKO_L3_OPTIONS (IS2_HKO_L3_FRAG_OFS_GT0 + IS2_HKL_L3_FRAG_OFS_GT0)
-#define IS2_HKL_L3_OPTIONS 1
-#define IS2_HKO_L3_TTL_GT0 (IS2_HKO_L3_OPTIONS + IS2_HKL_L3_OPTIONS)
-#define IS2_HKL_L3_TTL_GT0 1
-#define IS2_HKO_L3_TOS (IS2_HKO_L3_TTL_GT0 + IS2_HKL_L3_TTL_GT0)
-#define IS2_HKL_L3_TOS 8
-#define IS2_HKO_L3_IP4_DIP (IS2_HKO_L3_TOS + IS2_HKL_L3_TOS)
-#define IS2_HKL_L3_IP4_DIP 32
-#define IS2_HKO_L3_IP4_SIP (IS2_HKO_L3_IP4_DIP + IS2_HKL_L3_IP4_DIP)
-#define IS2_HKL_L3_IP4_SIP 32
-#define IS2_HKO_DIP_EQ_SIP (IS2_HKO_L3_IP4_SIP + IS2_HKL_L3_IP4_SIP)
-#define IS2_HKL_DIP_EQ_SIP 1
+struct ocelot_vcap_key_llc {
+	struct ocelot_vcap_u48 dmac;
+	struct ocelot_vcap_u48 smac;
 
-/* IS2 half key - IP4_TCP_UDP */
-#define IS2_HKO_IP4_TCP_UDP_TCP (IS2_HKO_DIP_EQ_SIP + IS2_HKL_DIP_EQ_SIP)
-#define IS2_HKL_IP4_TCP_UDP_TCP 1
-#define IS2_HKO_IP4_TCP_UDP_L4_DPORT                                           \
-	(IS2_HKO_IP4_TCP_UDP_TCP + IS2_HKL_IP4_TCP_UDP_TCP)
-#define IS2_HKL_IP4_TCP_UDP_L4_DPORT 16
-#define IS2_HKO_IP4_TCP_UDP_L4_SPORT                                           \
-	(IS2_HKO_IP4_TCP_UDP_L4_DPORT + IS2_HKL_IP4_TCP_UDP_L4_DPORT)
-#define IS2_HKL_IP4_TCP_UDP_L4_SPORT 16
-#define IS2_HKO_IP4_TCP_UDP_L4_RNG                                             \
-	(IS2_HKO_IP4_TCP_UDP_L4_SPORT + IS2_HKL_IP4_TCP_UDP_L4_SPORT)
-#define IS2_HKL_IP4_TCP_UDP_L4_RNG 8
-#define IS2_HKO_IP4_TCP_UDP_SPORT_EQ_DPORT                                     \
-	(IS2_HKO_IP4_TCP_UDP_L4_RNG + IS2_HKL_IP4_TCP_UDP_L4_RNG)
-#define IS2_HKL_IP4_TCP_UDP_SPORT_EQ_DPORT 1
-#define IS2_HKO_IP4_TCP_UDP_SEQUENCE_EQ0                                       \
-	(IS2_HKO_IP4_TCP_UDP_SPORT_EQ_DPORT +                                  \
-	 IS2_HKL_IP4_TCP_UDP_SPORT_EQ_DPORT)
-#define IS2_HKL_IP4_TCP_UDP_SEQUENCE_EQ0 1
-#define IS2_HKO_IP4_TCP_UDP_L4_FIN                                             \
-	(IS2_HKO_IP4_TCP_UDP_SEQUENCE_EQ0 + IS2_HKL_IP4_TCP_UDP_SEQUENCE_EQ0)
-#define IS2_HKL_IP4_TCP_UDP_L4_FIN 1
-#define IS2_HKO_IP4_TCP_UDP_L4_SYN                                             \
-	(IS2_HKO_IP4_TCP_UDP_L4_FIN + IS2_HKL_IP4_TCP_UDP_L4_FIN)
-#define IS2_HKL_IP4_TCP_UDP_L4_SYN 1
-#define IS2_HKO_IP4_TCP_UDP_L4_RST                                             \
-	(IS2_HKO_IP4_TCP_UDP_L4_SYN + IS2_HKL_IP4_TCP_UDP_L4_SYN)
-#define IS2_HKL_IP4_TCP_UDP_L4_RST 1
-#define IS2_HKO_IP4_TCP_UDP_L4_PSH                                             \
-	(IS2_HKO_IP4_TCP_UDP_L4_RST + IS2_HKL_IP4_TCP_UDP_L4_RST)
-#define IS2_HKL_IP4_TCP_UDP_L4_PSH 1
-#define IS2_HKO_IP4_TCP_UDP_L4_ACK                                             \
-	(IS2_HKO_IP4_TCP_UDP_L4_PSH + IS2_HKL_IP4_TCP_UDP_L4_PSH)
-#define IS2_HKL_IP4_TCP_UDP_L4_ACK 1
-#define IS2_HKO_IP4_TCP_UDP_L4_URG                                             \
-	(IS2_HKO_IP4_TCP_UDP_L4_ACK + IS2_HKL_IP4_TCP_UDP_L4_ACK)
-#define IS2_HKL_IP4_TCP_UDP_L4_URG 1
-#define IS2_HKO_IP4_TCP_UDP_L4_1588_DOM                                        \
-	(IS2_HKO_IP4_TCP_UDP_L4_URG + IS2_HKL_IP4_TCP_UDP_L4_URG)
-#define IS2_HKL_IP4_TCP_UDP_L4_1588_DOM 8
-#define IS2_HKO_IP4_TCP_UDP_L4_1588_VER                                        \
-	(IS2_HKO_IP4_TCP_UDP_L4_1588_DOM + IS2_HKL_IP4_TCP_UDP_L4_1588_DOM)
-#define IS2_HKL_IP4_TCP_UDP_L4_1588_VER 4
+	/* LLC header: DSAP at byte 0, SSAP at byte 1, Control at byte 2 */
+	struct ocelot_vcap_u32 llc;
+};
 
-/* IS2 half key - IP4_OTHER */
-#define IS2_HKO_IP4_OTHER_L3_PROTO IS2_HKO_IP4_TCP_UDP_TCP
-#define IS2_HKL_IP4_OTHER_L3_PROTO 8
-#define IS2_HKO_IP4_OTHER_L3_PAYLOAD                                           \
-	(IS2_HKO_IP4_OTHER_L3_PROTO + IS2_HKL_IP4_OTHER_L3_PROTO)
-#define IS2_HKL_IP4_OTHER_L3_PAYLOAD 56
+struct ocelot_vcap_key_snap {
+	struct ocelot_vcap_u48 dmac;
+	struct ocelot_vcap_u48 smac;
 
-/* IS2 half key - IP6_STD */
-#define IS2_HKO_IP6_STD_L3_TTL_GT0 IS2_HKO_L2_DMAC
-#define IS2_HKL_IP6_STD_L3_TTL_GT0 1
-#define IS2_HKO_IP6_STD_L3_IP6_SIP                                             \
-	(IS2_HKO_IP6_STD_L3_TTL_GT0 + IS2_HKL_IP6_STD_L3_TTL_GT0)
-#define IS2_HKL_IP6_STD_L3_IP6_SIP 128
-#define IS2_HKO_IP6_STD_L3_PROTO                                               \
-	(IS2_HKO_IP6_STD_L3_IP6_SIP + IS2_HKL_IP6_STD_L3_IP6_SIP)
-#define IS2_HKL_IP6_STD_L3_PROTO 8
+	/* SNAP header: Organization Code at byte 0, Type at byte 3 */
+	struct ocelot_vcap_u40 snap;
+};
 
-/* IS2 half key - OAM */
-#define IS2_HKO_OAM_OAM_MEL_FLAGS IS2_HKO_MAC_ETYPE_ETYPE
-#define IS2_HKL_OAM_OAM_MEL_FLAGS 7
-#define IS2_HKO_OAM_OAM_VER                                                    \
-	(IS2_HKO_OAM_OAM_MEL_FLAGS + IS2_HKL_OAM_OAM_MEL_FLAGS)
-#define IS2_HKL_OAM_OAM_VER 5
-#define IS2_HKO_OAM_OAM_OPCODE (IS2_HKO_OAM_OAM_VER + IS2_HKL_OAM_OAM_VER)
-#define IS2_HKL_OAM_OAM_OPCODE 8
-#define IS2_HKO_OAM_OAM_FLAGS (IS2_HKO_OAM_OAM_OPCODE + IS2_HKL_OAM_OAM_OPCODE)
-#define IS2_HKL_OAM_OAM_FLAGS 8
-#define IS2_HKO_OAM_OAM_MEPID (IS2_HKO_OAM_OAM_FLAGS + IS2_HKL_OAM_OAM_FLAGS)
-#define IS2_HKL_OAM_OAM_MEPID 16
-#define IS2_HKO_OAM_OAM_CCM_CNTS_EQ0                                           \
-	(IS2_HKO_OAM_OAM_MEPID + IS2_HKL_OAM_OAM_MEPID)
-#define IS2_HKL_OAM_OAM_CCM_CNTS_EQ0 1
+struct ocelot_vcap_key_arp {
+	struct ocelot_vcap_u48 smac;
+	enum ocelot_vcap_bit arp;	/* Opcode ARP/RARP */
+	enum ocelot_vcap_bit req;	/* Opcode request/reply */
+	enum ocelot_vcap_bit unknown;    /* Opcode unknown */
+	enum ocelot_vcap_bit smac_match; /* Sender MAC matches SMAC */
+	enum ocelot_vcap_bit dmac_match; /* Target MAC matches DMAC */
 
-/* IS2 half key - SMAC_SIP6 */
-#define IS2_HKO_SMAC_SIP6_IGR_PORT IS2_HKL_TYPE
-#define IS2_HKL_SMAC_SIP6_IGR_PORT VCAP_PORT_WIDTH
-#define IS2_HKO_SMAC_SIP6_L2_SMAC                                              \
-	(IS2_HKO_SMAC_SIP6_IGR_PORT + IS2_HKL_SMAC_SIP6_IGR_PORT)
-#define IS2_HKL_SMAC_SIP6_L2_SMAC 48
-#define IS2_HKO_SMAC_SIP6_L3_IP6_SIP                                           \
-	(IS2_HKO_SMAC_SIP6_L2_SMAC + IS2_HKL_SMAC_SIP6_L2_SMAC)
-#define IS2_HKL_SMAC_SIP6_L3_IP6_SIP 128
+	/**< Protocol addr. length 4, hardware length 6 */
+	enum ocelot_vcap_bit length;
 
-/* IS2 full key - common */
-#define IS2_FKO_TYPE 0
-#define IS2_FKL_TYPE 2
-#define IS2_FKO_FIRST (IS2_FKO_TYPE + IS2_FKL_TYPE)
-#define IS2_FKL_FIRST 1
-#define IS2_FKO_PAG (IS2_FKO_FIRST + IS2_FKL_FIRST)
-#define IS2_FKL_PAG 8
-#define IS2_FKO_IGR_PORT_MASK (IS2_FKO_PAG + IS2_FKL_PAG)
-#define IS2_FKL_IGR_PORT_MASK (VCAP_PORT_CNT + 1)
-#define IS2_FKO_SERVICE_FRM (IS2_FKO_IGR_PORT_MASK + IS2_FKL_IGR_PORT_MASK)
-#define IS2_FKL_SERVICE_FRM 1
-#define IS2_FKO_HOST_MATCH (IS2_FKO_SERVICE_FRM + IS2_FKL_SERVICE_FRM)
-#define IS2_FKL_HOST_MATCH 1
-#define IS2_FKO_L2_MC (IS2_FKO_HOST_MATCH + IS2_FKL_HOST_MATCH)
-#define IS2_FKL_L2_MC 1
-#define IS2_FKO_L2_BC (IS2_FKO_L2_MC + IS2_FKL_L2_MC)
-#define IS2_FKL_L2_BC 1
-#define IS2_FKO_VLAN_TAGGED (IS2_FKO_L2_BC + IS2_FKL_L2_BC)
-#define IS2_FKL_VLAN_TAGGED 1
-#define IS2_FKO_VID (IS2_FKO_VLAN_TAGGED + IS2_FKL_VLAN_TAGGED)
-#define IS2_FKL_VID 12
-#define IS2_FKO_DEI (IS2_FKO_VID + IS2_FKL_VID)
-#define IS2_FKL_DEI 1
-#define IS2_FKO_PCP (IS2_FKO_DEI + IS2_FKL_DEI)
-#define IS2_FKL_PCP 3
+	enum ocelot_vcap_bit ip;       /* Protocol address type IP */
+	enum  ocelot_vcap_bit ethernet; /* Hardware address type Ethernet */
+	struct ocelot_vcap_ipv4 sip;     /* Sender IP address */
+	struct ocelot_vcap_ipv4 dip;     /* Target IP address */
+};
 
-/* IS2 full key - IP6_TCP_UDP/IP6_OTHER common */
-#define IS2_FKO_L3_TTL_GT0 (IS2_FKO_PCP + IS2_FKL_PCP)
-#define IS2_FKL_L3_TTL_GT0 1
-#define IS2_FKO_L3_TOS (IS2_FKO_L3_TTL_GT0 + IS2_FKL_L3_TTL_GT0)
-#define IS2_FKL_L3_TOS 8
-#define IS2_FKO_L3_IP6_DIP (IS2_FKO_L3_TOS + IS2_FKL_L3_TOS)
-#define IS2_FKL_L3_IP6_DIP 128
-#define IS2_FKO_L3_IP6_SIP (IS2_FKO_L3_IP6_DIP + IS2_FKL_L3_IP6_DIP)
-#define IS2_FKL_L3_IP6_SIP 128
-#define IS2_FKO_DIP_EQ_SIP (IS2_FKO_L3_IP6_SIP + IS2_FKL_L3_IP6_SIP)
-#define IS2_FKL_DIP_EQ_SIP 1
+struct ocelot_vcap_key_ipv4 {
+	enum ocelot_vcap_bit ttl;      /* TTL zero */
+	enum ocelot_vcap_bit fragment; /* Fragment */
+	enum ocelot_vcap_bit options;  /* Header options */
+	struct ocelot_vcap_u8 ds;
+	struct ocelot_vcap_u8 proto;      /* Protocol */
+	struct ocelot_vcap_ipv4 sip;      /* Source IP address */
+	struct ocelot_vcap_ipv4 dip;      /* Destination IP address */
+	struct ocelot_vcap_u48 data;      /* Not UDP/TCP: IP data */
+	struct ocelot_vcap_udp_tcp sport; /* UDP/TCP: Source port */
+	struct ocelot_vcap_udp_tcp dport; /* UDP/TCP: Destination port */
+	enum ocelot_vcap_bit tcp_fin;
+	enum ocelot_vcap_bit tcp_syn;
+	enum ocelot_vcap_bit tcp_rst;
+	enum ocelot_vcap_bit tcp_psh;
+	enum ocelot_vcap_bit tcp_ack;
+	enum ocelot_vcap_bit tcp_urg;
+	enum ocelot_vcap_bit sip_eq_dip;     /* SIP equals DIP  */
+	enum ocelot_vcap_bit sport_eq_dport; /* SPORT equals DPORT  */
+	enum ocelot_vcap_bit seq_zero;       /* TCP sequence number is zero */
+};
 
-/* IS2 full key - IP6_TCP_UDP */
-#define IS2_FKO_IP6_TCP_UDP_TCP (IS2_FKO_DIP_EQ_SIP + IS2_FKL_DIP_EQ_SIP)
-#define IS2_FKL_IP6_TCP_UDP_TCP 1
-#define IS2_FKO_IP6_TCP_UDP_L4_DPORT                                           \
-	(IS2_FKO_IP6_TCP_UDP_TCP + IS2_FKL_IP6_TCP_UDP_TCP)
-#define IS2_FKL_IP6_TCP_UDP_L4_DPORT 16
-#define IS2_FKO_IP6_TCP_UDP_L4_SPORT                                           \
-	(IS2_FKO_IP6_TCP_UDP_L4_DPORT + IS2_FKL_IP6_TCP_UDP_L4_DPORT)
-#define IS2_FKL_IP6_TCP_UDP_L4_SPORT 16
-#define IS2_FKO_IP6_TCP_UDP_L4_RNG                                             \
-	(IS2_FKO_IP6_TCP_UDP_L4_SPORT + IS2_FKL_IP6_TCP_UDP_L4_SPORT)
-#define IS2_FKL_IP6_TCP_UDP_L4_RNG 8
-#define IS2_FKO_IP6_TCP_UDP_SPORT_EQ_DPORT                                     \
-	(IS2_FKO_IP6_TCP_UDP_L4_RNG + IS2_FKL_IP6_TCP_UDP_L4_RNG)
-#define IS2_FKL_IP6_TCP_UDP_SPORT_EQ_DPORT 1
-#define IS2_FKO_IP6_TCP_UDP_SEQUENCE_EQ0                                       \
-	(IS2_FKO_IP6_TCP_UDP_SPORT_EQ_DPORT +                                  \
-	 IS2_FKL_IP6_TCP_UDP_SPORT_EQ_DPORT)
-#define IS2_FKL_IP6_TCP_UDP_SEQUENCE_EQ0 1
-#define IS2_FKO_IP6_TCP_UDP_L4_FIN                                             \
-	(IS2_FKO_IP6_TCP_UDP_SEQUENCE_EQ0 + IS2_FKL_IP6_TCP_UDP_SEQUENCE_EQ0)
-#define IS2_FKL_IP6_TCP_UDP_L4_FIN 1
-#define IS2_FKO_IP6_TCP_UDP_L4_SYN                                             \
-	(IS2_FKO_IP6_TCP_UDP_L4_FIN + IS2_FKL_IP6_TCP_UDP_L4_FIN)
-#define IS2_FKL_IP6_TCP_UDP_L4_SYN 1
-#define IS2_FKO_IP6_TCP_UDP_L4_RST                                             \
-	(IS2_FKO_IP6_TCP_UDP_L4_SYN + IS2_FKL_IP6_TCP_UDP_L4_SYN)
-#define IS2_FKL_IP6_TCP_UDP_L4_RST 1
-#define IS2_FKO_IP6_TCP_UDP_L4_PSH                                             \
-	(IS2_FKO_IP6_TCP_UDP_L4_RST + IS2_FKL_IP6_TCP_UDP_L4_RST)
-#define IS2_FKL_IP6_TCP_UDP_L4_PSH 1
-#define IS2_FKO_IP6_TCP_UDP_L4_ACK                                             \
-	(IS2_FKO_IP6_TCP_UDP_L4_PSH + IS2_FKL_IP6_TCP_UDP_L4_PSH)
-#define IS2_FKL_IP6_TCP_UDP_L4_ACK 1
-#define IS2_FKO_IP6_TCP_UDP_L4_URG                                             \
-	(IS2_FKO_IP6_TCP_UDP_L4_ACK + IS2_FKL_IP6_TCP_UDP_L4_ACK)
-#define IS2_FKL_IP6_TCP_UDP_L4_URG 1
-#define IS2_FKO_IP6_TCP_UDP_L4_1588_DOM                                        \
-	(IS2_FKO_IP6_TCP_UDP_L4_URG + IS2_FKL_IP6_TCP_UDP_L4_URG)
-#define IS2_FKL_IP6_TCP_UDP_L4_1588_DOM 8
-#define IS2_FKO_IP6_TCP_UDP_L4_1588_VER                                        \
-	(IS2_FKO_IP6_TCP_UDP_L4_1588_DOM + IS2_FKL_IP6_TCP_UDP_L4_1588_DOM)
-#define IS2_FKL_IP6_TCP_UDP_L4_1588_VER 4
+struct ocelot_vcap_key_ipv6 {
+	struct ocelot_vcap_u8 proto; /* IPv6 protocol */
+	struct ocelot_vcap_u128 sip; /* IPv6 source (byte 0-7 ignored) */
+	enum ocelot_vcap_bit ttl;  /* TTL zero */
+	struct ocelot_vcap_u8 ds;
+	struct ocelot_vcap_u48 data; /* Not UDP/TCP: IP data */
+	struct ocelot_vcap_udp_tcp sport;
+	struct ocelot_vcap_udp_tcp dport;
+	enum ocelot_vcap_bit tcp_fin;
+	enum ocelot_vcap_bit tcp_syn;
+	enum ocelot_vcap_bit tcp_rst;
+	enum ocelot_vcap_bit tcp_psh;
+	enum ocelot_vcap_bit tcp_ack;
+	enum ocelot_vcap_bit tcp_urg;
+	enum ocelot_vcap_bit sip_eq_dip;     /* SIP equals DIP  */
+	enum ocelot_vcap_bit sport_eq_dport; /* SPORT equals DPORT  */
+	enum ocelot_vcap_bit seq_zero;       /* TCP sequence number is zero */
+};
 
-/* IS2 full key - IP6_OTHER */
-#define IS2_FKO_IP6_OTHER_L3_PROTO IS2_FKO_IP6_TCP_UDP_TCP
-#define IS2_FKL_IP6_OTHER_L3_PROTO 8
-#define IS2_FKO_IP6_OTHER_L3_PAYLOAD                                           \
-	(IS2_FKO_IP6_OTHER_L3_PROTO + IS2_FKL_IP6_OTHER_L3_PROTO)
-#define IS2_FKL_IP6_OTHER_L3_PAYLOAD 56
+enum ocelot_vcap_action {
+	OCELOT_VCAP_ACTION_DROP,
+	OCELOT_VCAP_ACTION_TRAP,
+	OCELOT_VCAP_ACTION_POLICE,
+};
 
-/* IS2 full key - CUSTOM */
-#define IS2_FKO_CUSTOM_CUSTOM_TYPE IS2_FKO_L3_TTL_GT0
-#define IS2_FKL_CUSTOM_CUSTOM_TYPE 1
-#define IS2_FKO_CUSTOM_CUSTOM                                                  \
-	(IS2_FKO_CUSTOM_CUSTOM_TYPE + IS2_FKL_CUSTOM_CUSTOM_TYPE)
-#define IS2_FKL_CUSTOM_CUSTOM 320
+struct ocelot_vcap_stats {
+	u64 bytes;
+	u64 pkts;
+	u64 used;
+};
 
-/* IS2 action - BASE_TYPE */
-#define IS2_AO_HIT_ME_ONCE 0
-#define IS2_AL_HIT_ME_ONCE 1
-#define IS2_AO_CPU_COPY_ENA (IS2_AO_HIT_ME_ONCE + IS2_AL_HIT_ME_ONCE)
-#define IS2_AL_CPU_COPY_ENA 1
-#define IS2_AO_CPU_QU_NUM (IS2_AO_CPU_COPY_ENA + IS2_AL_CPU_COPY_ENA)
-#define IS2_AL_CPU_QU_NUM 3
-#define IS2_AO_MASK_MODE (IS2_AO_CPU_QU_NUM + IS2_AL_CPU_QU_NUM)
-#define IS2_AL_MASK_MODE 2
-#define IS2_AO_MIRROR_ENA (IS2_AO_MASK_MODE + IS2_AL_MASK_MODE)
-#define IS2_AL_MIRROR_ENA 1
-#define IS2_AO_LRN_DIS (IS2_AO_MIRROR_ENA + IS2_AL_MIRROR_ENA)
-#define IS2_AL_LRN_DIS 1
-#define IS2_AO_POLICE_ENA (IS2_AO_LRN_DIS + IS2_AL_LRN_DIS)
-#define IS2_AL_POLICE_ENA 1
-#define IS2_AO_POLICE_IDX (IS2_AO_POLICE_ENA + IS2_AL_POLICE_ENA)
-#define IS2_AL_POLICE_IDX 9
-#define IS2_AO_POLICE_VCAP_ONLY (IS2_AO_POLICE_IDX + IS2_AL_POLICE_IDX)
-#define IS2_AL_POLICE_VCAP_ONLY 1
-#define IS2_AO_PORT_MASK (IS2_AO_POLICE_VCAP_ONLY + IS2_AL_POLICE_VCAP_ONLY)
-#define IS2_AL_PORT_MASK VCAP_PORT_CNT
-#define IS2_AO_REW_OP (IS2_AO_PORT_MASK + IS2_AL_PORT_MASK)
-#define IS2_AL_REW_OP 9
-#define IS2_AO_LM_CNT_DIS (IS2_AO_REW_OP + IS2_AL_REW_OP)
-#define IS2_AL_LM_CNT_DIS 1
-#define IS2_AO_ISDX_ENA                                                        \
-	(IS2_AO_LM_CNT_DIS + IS2_AL_LM_CNT_DIS + 1) /* Reserved bit */
-#define IS2_AL_ISDX_ENA 1
-#define IS2_AO_ACL_ID (IS2_AO_ISDX_ENA + IS2_AL_ISDX_ENA)
-#define IS2_AL_ACL_ID 6
+struct ocelot_vcap_filter {
+	struct list_head list;
 
-/* IS2 action - SMAC_SIP */
-#define IS2_AO_SMAC_SIP_CPU_COPY_ENA 0
-#define IS2_AL_SMAC_SIP_CPU_COPY_ENA 1
-#define IS2_AO_SMAC_SIP_CPU_QU_NUM 1
-#define IS2_AL_SMAC_SIP_CPU_QU_NUM 3
-#define IS2_AO_SMAC_SIP_FWD_KILL_ENA 4
-#define IS2_AL_SMAC_SIP_FWD_KILL_ENA 1
-#define IS2_AO_SMAC_SIP_HOST_MATCH 5
-#define IS2_AL_SMAC_SIP_HOST_MATCH 1
+	u16 prio;
+	u32 id;
 
-#endif /* _OCELOT_VCAP_H_ */
+	enum ocelot_vcap_action action;
+	struct ocelot_vcap_stats stats;
+	unsigned long ingress_port_mask;
+
+	enum ocelot_vcap_bit dmac_mc;
+	enum ocelot_vcap_bit dmac_bc;
+	struct ocelot_vcap_key_vlan vlan;
+
+	enum ocelot_vcap_key_type key_type;
+	union {
+		/* OCELOT_VCAP_KEY_ANY: No specific fields */
+		struct ocelot_vcap_key_etype etype;
+		struct ocelot_vcap_key_llc llc;
+		struct ocelot_vcap_key_snap snap;
+		struct ocelot_vcap_key_arp arp;
+		struct ocelot_vcap_key_ipv4 ipv4;
+		struct ocelot_vcap_key_ipv6 ipv6;
+	} key;
+	struct ocelot_policer pol;
+	u32 pol_ix;
+};
+
+int ocelot_vcap_filter_add(struct ocelot *ocelot,
+			   struct ocelot_vcap_filter *rule,
+			   struct netlink_ext_ack *extack);
+int ocelot_vcap_filter_del(struct ocelot *ocelot,
+			   struct ocelot_vcap_filter *rule);
+int ocelot_vcap_filter_stats_update(struct ocelot *ocelot,
+				    struct ocelot_vcap_filter *rule);
+
+int ocelot_vcap_init(struct ocelot *ocelot);
+
+int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
+			       struct flow_cls_offload *f,
+			       bool ingress);
+
+#endif /* _MSCC_OCELOT_VCAP_H_ */

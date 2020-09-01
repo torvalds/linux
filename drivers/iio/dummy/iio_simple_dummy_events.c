@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (c) 2011 Jonathan Cameron
  *
  * Event handling elements of industrial I/O reference driver.
@@ -107,6 +107,7 @@ int iio_simple_dummy_write_event_config(struct iio_dev *indio_dev,
  * @dir: direction of the vent whose value is being read
  * @info: info type of the event whose value is being read
  * @val: value for the event code.
+ * @val2: unused
  *
  * Many devices provide a large set of events of which only a subset may
  * be enabled at a time, with value registers whose meaning changes depending
@@ -136,6 +137,7 @@ int iio_simple_dummy_read_event_value(struct iio_dev *indio_dev,
  * @dir: direction of the vent whose value is being set
  * @info: info type of the event whose value is being set
  * @val: the value to be set.
+ * @val2: unused
  */
 int iio_simple_dummy_write_event_value(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,

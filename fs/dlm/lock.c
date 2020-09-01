@@ -5817,7 +5817,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		break;
 	case -EAGAIN:
 		error = 0;
-		/* fall through */
+		fallthrough;
 	default:
 		__put_lkb(ls, lkb);
 		goto out;

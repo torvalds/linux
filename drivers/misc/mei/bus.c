@@ -745,9 +745,8 @@ static int mei_cl_device_remove(struct device *dev)
 
 	mei_cl_bus_module_put(cldev);
 	module_put(THIS_MODULE);
-	dev->driver = NULL;
-	return ret;
 
+	return ret;
 }
 
 static ssize_t name_show(struct device *dev, struct device_attribute *a,
@@ -932,7 +931,7 @@ static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
 	struct mei_cl_device *cldev;
 	struct mei_cl *cl;
 
-	cldev = kzalloc(sizeof(struct mei_cl_device), GFP_KERNEL);
+	cldev = kzalloc(sizeof(*cldev), GFP_KERNEL);
 	if (!cldev)
 		return NULL;
 

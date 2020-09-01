@@ -197,7 +197,7 @@ static int lg4573_enable(struct drm_panel *panel)
 }
 
 static const struct drm_display_mode default_mode = {
-	.clock = 27000,
+	.clock = 28341,
 	.hdisplay = 480,
 	.hsync_start = 480 + 10,
 	.hsync_end = 480 + 10 + 59,
@@ -206,7 +206,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 800 + 15,
 	.vsync_end = 800 + 15 + 15,
 	.vtotal = 800 + 15 + 15 + 15,
-	.vrefresh = 60,
 };
 
 static int lg4573_get_modes(struct drm_panel *panel,
@@ -218,7 +217,7 @@ static int lg4573_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		dev_err(panel->dev, "failed to add mode %ux%ux@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
-			default_mode.vrefresh);
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 

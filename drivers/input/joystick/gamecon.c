@@ -485,7 +485,7 @@ static void gc_multi_process_packet(struct gc *gc)
 		switch (pad->type) {
 		case GC_MULTI2:
 			input_report_key(dev, BTN_THUMB, s & data[5]);
-			/* fall through */
+			fallthrough;
 
 		case GC_MULTI:
 			input_report_abs(dev, ABS_X,
@@ -638,7 +638,7 @@ static void gc_psx_report_one(struct gc_pad *pad, unsigned char psx_type,
 
 		input_report_key(dev, BTN_THUMBL, ~data[0] & 0x04);
 		input_report_key(dev, BTN_THUMBR, ~data[0] & 0x02);
-		/* fall through */
+		fallthrough;
 
 	case GC_PSX_NEGCON:
 	case GC_PSX_ANALOG:
@@ -872,7 +872,8 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	case GC_SNES:
 		for (i = 4; i < 8; i++)
 			input_set_capability(input_dev, EV_KEY, gc_snes_btn[i]);
-		/* fall through */
+		fallthrough;
+
 	case GC_NES:
 		for (i = 0; i < 4; i++)
 			input_set_capability(input_dev, EV_KEY, gc_snes_btn[i]);
@@ -880,10 +881,10 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 
 	case GC_MULTI2:
 		input_set_capability(input_dev, EV_KEY, BTN_THUMB);
-		/* fall through */
+		fallthrough;
+
 	case GC_MULTI:
 		input_set_capability(input_dev, EV_KEY, BTN_TRIGGER);
-		/* fall through */
 		break;
 
 	case GC_PSX:

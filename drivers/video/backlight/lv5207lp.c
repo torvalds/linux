@@ -46,12 +46,7 @@ static int lv5207lp_write(struct lv5207lp *lv, u8 reg, u8 data)
 static int lv5207lp_backlight_update_status(struct backlight_device *backlight)
 {
 	struct lv5207lp *lv = bl_get_data(backlight);
-	int brightness = backlight->props.brightness;
-
-	if (backlight->props.power != FB_BLANK_UNBLANK ||
-	    backlight->props.fb_blank != FB_BLANK_UNBLANK ||
-	    backlight->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
-		brightness = 0;
+	int brightness = backlight_get_brightness(backlight);
 
 	if (brightness) {
 		lv5207lp_write(lv, LV5207LP_CTRL1,

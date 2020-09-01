@@ -92,6 +92,14 @@ int cxgb4_thermal_init(struct adapter *adap)
 		ch_thermal->tzdev = NULL;
 		return ret;
 	}
+
+	ret = thermal_zone_device_enable(ch_thermal->tzdev);
+	if (ret) {
+		dev_err(adap->pdev_dev, "Failed to enable thermal zone\n");
+		thermal_zone_device_unregister(adap->ch_thermal.tzdev);
+		return ret;
+	}
+
 	return 0;
 }
 

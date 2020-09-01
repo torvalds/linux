@@ -35,6 +35,12 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+devlink dev help 2>&1 | grep info &> /dev/null
+if [ $? -ne 0 ]; then
+	echo "SKIP: iproute2 too old, missing devlink dev info support"
+	exit 1
+fi
+
 ##############################################################################
 # Devlink helpers
 
@@ -90,6 +96,11 @@ devlink_resource_size_set()
 	path=$(devlink_resource_names_to_path "$@")
 	devlink resource set "$DEVLINK_DEV" path "$path" size "$new_size"
 	check_err $? "Failed setting path $path to size $size"
+}
+
+devlink_resource_occ_get()
+{
+	devlink_resource_get "$@" | jq '.["occ"]'
 }
 
 devlink_reload()
@@ -359,7 +370,9 @@ devlink_trap_group_stats_idle_test()
 devlink_trap_exception_test()
 {
 	local trap_name=$1; shift
-	local group_name=$1; shift
+	local group_name
+
+	group_name=$(devlink_trap_group_get $trap_name)
 
 	devlink_trap_stats_idle_test $trap_name
 	check_fail $? "Trap stats idle when packets should have been trapped"
@@ -371,8 +384,11 @@ devlink_trap_exception_test()
 devlink_trap_drop_test()
 {
 	local trap_name=$1; shift
-	local group_name=$1; shift
 	local dev=$1; shift
+	local handle=$1; shift
+	local group_name
+
+	group_name=$(devlink_trap_group_get $trap_name)
 
 	# This is the common part of all the tests. It checks that stats are
 	# initially idle, then non-idle after changing the trap action and
@@ -382,7 +398,6 @@ devlink_trap_drop_test()
 	check_err $? "Trap stats not idle with initial drop action"
 	devlink_trap_group_stats_idle_test $group_name
 	check_err $? "Trap group stats not idle with initial drop action"
-
 
 	devlink_trap_action_set $trap_name "trap"
 	devlink_trap_stats_idle_test $trap_name
@@ -397,7 +412,7 @@ devlink_trap_drop_test()
 	devlink_trap_group_stats_idle_test $group_name
 	check_err $? "Trap group stats not idle after setting action to drop"
 
-	tc_check_packets "dev $dev egress" 101 0
+	tc_check_packets "dev $dev egress" $handle 0
 	check_err $? "Packets were not dropped"
 }
 
@@ -406,7 +421,91 @@ devlink_trap_drop_cleanup()
 	local mz_pid=$1; shift
 	local dev=$1; shift
 	local proto=$1; shift
+	local pref=$1; shift
+	local handle=$1; shift
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
-	tc filter del dev $dev egress protocol $proto pref 1 handle 101 flower
+	tc filter del dev $dev egress protocol $proto pref $pref handle $handle flower
+}
+
+devlink_trap_stats_test()
+{
+	local test_name=$1; shift
+	local trap_name=$1; shift
+	local send_one="$@"
+	local t0_packets
+	local t1_packets
+
+	RET=0
+
+	t0_packets=$(devlink_trap_rx_packets_get $trap_name)
+
+	$send_one && sleep 1
+
+	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
+
+	if [[ $t1_packets -eq $t0_packets ]]; then
+		check_err 1 "Trap stats did not increase"
+	fi
+
+	log_test "$test_name"
+}
+
+devlink_trap_policers_num_get()
+{
+	devlink -j -p trap policer show | jq '.[]["'$DEVLINK_DEV'"] | length'
+}
+
+devlink_trap_policer_rate_get()
+{
+	local policer_id=$1; shift
+
+	devlink -j -p trap policer show $DEVLINK_DEV policer $policer_id \
+		| jq '.[][][]["rate"]'
+}
+
+devlink_trap_policer_burst_get()
+{
+	local policer_id=$1; shift
+
+	devlink -j -p trap policer show $DEVLINK_DEV policer $policer_id \
+		| jq '.[][][]["burst"]'
+}
+
+devlink_trap_policer_rx_dropped_get()
+{
+	local policer_id=$1; shift
+
+	devlink -j -p -s trap policer show $DEVLINK_DEV policer $policer_id \
+		| jq '.[][][]["stats"]["rx"]["dropped"]'
+}
+
+devlink_trap_group_policer_get()
+{
+	local group_name=$1; shift
+
+	devlink -j -p trap group show $DEVLINK_DEV group $group_name \
+		| jq '.[][][]["policer"]'
+}
+
+devlink_trap_policer_ids_get()
+{
+	devlink -j -p trap policer show \
+		| jq '.[]["'$DEVLINK_DEV'"][]["policer"]'
+}
+
+devlink_port_by_netdev()
+{
+	local if_name=$1
+
+	devlink -j port show $if_name | jq -e '.[] | keys' | jq -r '.[]'
+}
+
+devlink_cpu_port_get()
+{
+	local cpu_dl_port_num=$(devlink port list | grep "$DEVLINK_DEV" |
+				grep cpu | cut -d/ -f3 | cut -d: -f1 |
+				sed -n '1p')
+
+	echo "$DEVLINK_DEV/$cpu_dl_port_num"
 }

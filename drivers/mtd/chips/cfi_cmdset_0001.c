@@ -420,8 +420,9 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 		extra_size = 0;
 
 		/* Protection Register info */
-		extra_size += (extp->NumProtectionFields - 1) *
-			      sizeof(struct cfi_intelext_otpinfo);
+		if (extp->NumProtectionFields)
+			extra_size += (extp->NumProtectionFields - 1) *
+				      sizeof(struct cfi_intelext_otpinfo);
 	}
 
 	if (extp->MinorVersion >= '1') {
@@ -695,14 +696,16 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 	 */
 	if (extp && extp->MajorVersion == '1' && extp->MinorVersion >= '3'
 	    && extp->FeatureSupport & (1 << 9)) {
+		int offs = 0;
 		struct cfi_private *newcfi;
 		struct flchip *chip;
 		struct flchip_shared *shared;
-		int offs, numregions, numparts, partshift, numvirtchips, i, j;
+		int numregions, numparts, partshift, numvirtchips, i, j;
 
 		/* Protection Register info */
-		offs = (extp->NumProtectionFields - 1) *
-		       sizeof(struct cfi_intelext_otpinfo);
+		if (extp->NumProtectionFields)
+			offs = (extp->NumProtectionFields - 1) *
+			       sizeof(struct cfi_intelext_otpinfo);
 
 		/* Burst Read info */
 		offs += extp->extra[offs+1]+2;
@@ -834,7 +837,7 @@ static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long 
 			/* Someone else might have been playing with it. */
 			return -EAGAIN;
 		}
-		/* Fall through */
+		fallthrough;
 	case FL_READY:
 	case FL_CFI_QUERY:
 	case FL_JEDEC_QUERY:
@@ -907,7 +910,7 @@ static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long 
 		/* Only if there's no operation suspended... */
 		if (mode == FL_READY && chip->oldstate == FL_READY)
 			return 0;
-		/* Fall through */
+		fallthrough;
 	default:
 	sleep:
 		set_current_state(TASK_UNINTERRUPTIBLE);

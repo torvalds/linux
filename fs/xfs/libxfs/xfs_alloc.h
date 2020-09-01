@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
@@ -235,5 +235,14 @@ typedef int (*xfs_agfl_walk_fn)(struct xfs_mount *mp, xfs_agblock_t bno,
 		void *priv);
 int xfs_agfl_walk(struct xfs_mount *mp, struct xfs_agf *agf,
 		struct xfs_buf *agflbp, xfs_agfl_walk_fn walk_fn, void *priv);
+
+static inline __be32 *
+xfs_buf_to_agfl_bno(
+	struct xfs_buf		*bp)
+{
+	if (xfs_sb_version_hascrc(&bp->b_mount->m_sb))
+		return bp->b_addr + sizeof(struct xfs_agfl);
+	return bp->b_addr;
+}
 
 #endif	/* __XFS_ALLOC_H__ */

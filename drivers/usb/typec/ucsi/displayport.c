@@ -271,6 +271,9 @@ void ucsi_displayport_remove_partner(struct typec_altmode *alt)
 		return;
 
 	dp = typec_altmode_get_drvdata(alt);
+	if (!dp)
+		return;
+
 	dp->data.conf = 0;
 	dp->data.status = 0;
 	dp->initialized = false;

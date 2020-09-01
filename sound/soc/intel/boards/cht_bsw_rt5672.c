@@ -143,8 +143,8 @@ static const struct snd_kcontrol_new cht_mc_controls[] = {
 static int cht_aif1_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int ret;
 
 	/* set codec PLL source to the 19.2MHz platform clock (MCLK) */
@@ -176,7 +176,7 @@ static const struct acpi_gpio_mapping cht_rt5672_gpios[] = {
 static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
-	struct snd_soc_dai *codec_dai = runtime->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(runtime, 0);
 	struct snd_soc_component *component = codec_dai->component;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
 
@@ -253,21 +253,24 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
 
 	/*
-	 * Default mode for SSP configuration is TDM 4 slot
+	 * The default mode for the cpu-dai is TDM 4 slot. The default mode
+	 * for the codec-dai is I2S. So we need to either set the cpu-dai to
+	 * I2S mode to match the codec-dai, or set the codec-dai to TDM 4 slot
+	 * (or program both to yet another mode).
+	 * One board, the Lenovo Miix 2 10, uses not 1 but 2 codecs connected
+	 * to SSP2. The second piggy-backed, output-only codec is inside the
+	 * keyboard-dock (which has extra speakers). Unlike the main rt5672
+	 * codec, we cannot configure this codec, it is hard coded to use
+	 * 2 channel 24 bit I2S. For this to work we must use I2S mode on this
+	 * board. Since we only support 2 channels anyways, there is no need
+	 * for TDM on any cht-bsw-rt5672 designs. So we use I2S 2ch everywhere.
 	 */
-	ret = snd_soc_dai_set_fmt(rtd->codec_dai,
-				  SND_SOC_DAIFMT_DSP_B |
-				  SND_SOC_DAIFMT_IB_NF |
+	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
+				  SND_SOC_DAIFMT_I2S     |
+				  SND_SOC_DAIFMT_NB_NF   |
 				  SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0) {
-		dev_err(rtd->dev, "can't set format to TDM %d\n", ret);
-		return ret;
-	}
-
-	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
-	ret = snd_soc_dai_set_tdm_slot(rtd->codec_dai, 0xF, 0xF, 4, 24);
-	if (ret < 0) {
-		dev_err(rtd->dev, "can't set codec TDM slot %d\n", ret);
+		dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
 		return ret;
 	}
 
@@ -379,9 +382,19 @@ static int cht_resume_post(struct snd_soc_card *card)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+/* use space before codec name to simplify card ID, and simplify driver name */
+#define CARD_NAME "bytcht rt5672" /* card name will be 'sof-bytcht rt5672' */
+#define DRIVER_NAME "SOF"
+#else
+#define CARD_NAME "cht-bsw-rt5672"
+#define DRIVER_NAME NULL /* card name will be used for driver name */
+#endif
+
 /* SoC card */
 static struct snd_soc_card snd_soc_card_cht = {
-	.name = "cht-bsw-rt5672",
+	.name = CARD_NAME,
+	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
@@ -459,6 +472,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
 		.name = "cht-bsw-rt5672",
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+		.pm = &snd_soc_pm_ops,
+#endif
 	},
 	.probe = snd_cht_mc_probe,
 };

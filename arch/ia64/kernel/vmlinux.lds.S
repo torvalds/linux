@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
+#include <linux/pgtable.h>
 #include <asm/cache.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>
 #include <asm/thread_info.h>
 
 #define EMITS_PT_NOTE
@@ -54,6 +54,8 @@ SECTIONS {
 		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		IRQENTRY_TEXT
+		SOFTIRQENTRY_TEXT
 		*(.gnu.linkonce.t*)
 	}
 

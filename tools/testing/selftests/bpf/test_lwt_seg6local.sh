@@ -140,7 +140,7 @@ ip netns exec ns6 sysctl net.ipv6.conf.veth10.seg6_enabled=1 > /dev/null
 ip netns exec ns6 nc -l -6 -u -d 7330 > $TMP_FILE &
 ip netns exec ns1 bash -c "echo 'foobar' | nc -w0 -6 -u -p 2121 -s fb00::1 fb00::6 7330"
 sleep 5 # wait enough time to ensure the UDP datagram arrived to the last segment
-kill -INT $!
+kill -TERM $!
 
 if [[ $(< $TMP_FILE) != "foobar" ]]; then
 	exit 1

@@ -31,7 +31,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Maxim website
 
-	       http://www.maximintegrated.com/
+	       https://www.maximintegrated.com/
 
   * Maxim MAX6625, MAX6626, MAX31725, MAX31726
 
@@ -71,7 +71,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.analog.com/adt75
+	       https://www.analog.com/adt75
 
   * ST Microelectronics STDS75
 
@@ -101,23 +101,23 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/product/tmp100
+	       https://www.ti.com/product/tmp100
 
-	       http://www.ti.com/product/tmp101
+	       https://www.ti.com/product/tmp101
 
-	       http://www.ti.com/product/tmp105
+	       https://www.ti.com/product/tmp105
 
-	       http://www.ti.com/product/tmp112
+	       https://www.ti.com/product/tmp112
 
-	       http://www.ti.com/product/tmp75
+	       https://www.ti.com/product/tmp75
 
-	       http://www.ti.com/product/tmp75b
+	       https://www.ti.com/product/tmp75b
 
-	       http://www.ti.com/product/tmp75c
+	       https://www.ti.com/product/tmp75c
 
-	       http://www.ti.com/product/tmp175
+	       https://www.ti.com/product/tmp175
 
-	       http://www.ti.com/product/tmp275
+	       https://www.ti.com/product/tmp275
 
   * NXP LM75B, PCT2075
 
@@ -127,9 +127,9 @@ Supported chips:
 
     Datasheet: Publicly available at the NXP website
 
-	       http://www.nxp.com/documents/data_sheet/LM75B.pdf
+	       https://www.nxp.com/documents/data_sheet/LM75B.pdf
 
-               http://www.nxp.com/docs/en/data-sheet/PCT2075.pdf
+               https://www.nxp.com/docs/en/data-sheet/PCT2075.pdf
 
 Author: Frodo Looijaard <frodol@dds.nl>
 

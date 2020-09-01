@@ -74,22 +74,7 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	if (setup_cgroup_environment()) {
-		printf("Failed to setup cgroup environment\n");
-		goto err;
-	}
-
-	/* Create a cgroup, get fd, and join it */
-	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
-	if (cgroup_fd < 0) {
-		printf("Failed to create test cgroup\n");
-		goto err;
-	}
-
-	if (join_cgroup(TEST_CGROUP)) {
-		printf("Failed to join cgroup\n");
-		goto err;
-	}
+	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
 
 	/* Attach the bpf program */
 	if (bpf_prog_attach(prog_fd, cgroup_fd, BPF_CGROUP_INET_EGRESS, 0)) {

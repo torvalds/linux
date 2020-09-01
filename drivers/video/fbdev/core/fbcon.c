@@ -639,7 +639,7 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 			       GFP_KERNEL);
 		if (save) {
 			int i = cols < new_cols ? cols : new_cols;
-			scr_memsetw(save, erase, logo_lines * new_cols * 2);
+			scr_memsetw(save, erase, array3_size(logo_lines, new_cols, 2));
 			r = q - step;
 			for (cnt = 0; cnt < logo_lines; cnt++, r += i)
 				scr_memcpyw(save + cnt * new_cols, r, 2 * i);
@@ -655,11 +655,11 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 		}
 		if (!save) {
 			int lines;
-			if (vc->vc_y + logo_lines >= rows)
-				lines = rows - vc->vc_y - 1;
+			if (vc->state.y + logo_lines >= rows)
+				lines = rows - vc->state.y - 1;
 			else
 				lines = logo_lines;
-			vc->vc_y += lines;
+			vc->state.y += lines;
 			vc->vc_pos += lines * vc->vc_size_row;
 		}
 	}
@@ -676,8 +676,8 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 		q = (unsigned short *) (vc->vc_origin +
 					vc->vc_size_row *
 					rows);
-		scr_memcpyw(q, save, logo_lines * new_cols * 2);
-		vc->vc_y += logo_lines;
+		scr_memcpyw(q, save, array3_size(logo_lines, new_cols, 2));
+		vc->state.y += logo_lines;
 		vc->vc_pos += logo_lines * vc->vc_size_row;
 		kfree(save);
 	}
@@ -873,7 +873,7 @@ static int set_con2fb_map(int unit, int newidx, int user)
 	int oldidx = con2fb_map[unit];
 	struct fb_info *info = registered_fb[newidx];
 	struct fb_info *oldinfo = NULL;
- 	int found, err = 0;
+	int found, err = 0;
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -895,31 +895,30 @@ static int set_con2fb_map(int unit, int newidx, int user)
 
 	con2fb_map[unit] = newidx;
 	if (!err && !found)
- 		err = con2fb_acquire_newinfo(vc, info, unit, oldidx);
-
+		err = con2fb_acquire_newinfo(vc, info, unit, oldidx);
 
 	/*
 	 * If old fb is not mapped to any of the consoles,
 	 * fbcon should release it.
 	 */
- 	if (!err && oldinfo && !search_fb_in_map(oldidx))
- 		err = con2fb_release_oldinfo(vc, oldinfo, info, unit, oldidx,
- 					     found);
+	if (!err && oldinfo && !search_fb_in_map(oldidx))
+		err = con2fb_release_oldinfo(vc, oldinfo, info, unit, oldidx,
+					     found);
 
- 	if (!err) {
- 		int show_logo = (fg_console == 0 && !user &&
- 				 logo_shown != FBCON_LOGO_DONTSHOW);
+	if (!err) {
+		int show_logo = (fg_console == 0 && !user &&
+				 logo_shown != FBCON_LOGO_DONTSHOW);
 
- 		if (!found)
- 			fbcon_add_cursor_timer(info);
- 		con2fb_map_boot[unit] = newidx;
- 		con2fb_init_display(vc, info, unit, show_logo);
+		if (!found)
+			fbcon_add_cursor_timer(info);
+		con2fb_map_boot[unit] = newidx;
+		con2fb_init_display(vc, info, unit, show_logo);
 	}
 
 	if (!search_fb_in_map(info_idx))
 		info_idx = newidx;
 
- 	return err;
+	return err;
 }
 
 /*
@@ -1283,6 +1282,9 @@ finished:
 	if (!con_is_bound(&fb_con))
 		fbcon_exit();
 
+	if (vc->vc_num == logo_shown)
+		logo_shown = FBCON_LOGO_CANSHOW;
+
 	return;
 }
 
@@ -1391,7 +1393,7 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 	if (fbcon_is_inactive(vc, info) || vc->vc_deccm != 1)
 		return;
 
-	if (vc->vc_cursor_type & 0x10)
+	if (vc->vc_cursor_type & CUR_SW)
 		fbcon_del_cursor_timer(info);
 	else
 		fbcon_add_cursor_timer(info);
@@ -2189,6 +2191,9 @@ static void updatescrollmode(struct fbcon_display *p,
 	}
 }
 
+#define PITCH(w) (((w) + 7) >> 3)
+#define CALC_FONTSZ(h, p, c) ((h) * (p) * (c)) /* size = height * pitch * charcount */
+
 static int fbcon_resize(struct vc_data *vc, unsigned int width, 
 			unsigned int height, unsigned int user)
 {
@@ -2197,6 +2202,24 @@ static int fbcon_resize(struct vc_data *vc, unsigned int width,
 	struct fbcon_display *p = &fb_display[vc->vc_num];
 	struct fb_var_screeninfo var = info->var;
 	int x_diff, y_diff, virt_w, virt_h, virt_fw, virt_fh;
+
+	if (ops->p && ops->p->userfont && FNTSIZE(vc->vc_font.data)) {
+		int size;
+		int pitch = PITCH(vc->vc_font.width);
+
+		/*
+		 * If user font, ensure that a possible change to user font
+		 * height or width will not allow a font data out-of-bounds access.
+		 * NOTE: must use original charcount in calculation as font
+		 * charcount can change and cannot be used to determine the
+		 * font data allocated size.
+		 */
+		if (pitch <= 0)
+			return -EINVAL;
+		size = CALC_FONTSZ(vc->vc_font.height, pitch, FNTCHARCNT(vc->vc_font.data));
+		if (size > FNTSIZE(vc->vc_font.data))
+			return -EINVAL;
+	}
 
 	virt_w = FBCON_SWAP(ops->rotate, width, height);
 	virt_h = FBCON_SWAP(ops->rotate, height, width);
@@ -2400,7 +2423,8 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 		ops->graphics = 1;
 
 		if (!blank) {
-			var.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+			var.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE |
+				FB_ACTIVATE_KD_TEXT;
 			fb_set_var(info, &var);
 			ops->graphics = 0;
 			ops->var = info->var;
@@ -2649,7 +2673,7 @@ static int fbcon_set_font(struct vc_data *vc, struct console_font *font,
 	int size;
 	int i, csum;
 	u8 *new_data, *data = font->data;
-	int pitch = (font->width+7) >> 3;
+	int pitch = PITCH(font->width);
 
 	/* Is there a reason why fbconsole couldn't handle any charcount >256?
 	 * If not this check should be changed to charcount < 256 */
@@ -2665,7 +2689,7 @@ static int fbcon_set_font(struct vc_data *vc, struct console_font *font,
 	if (fbcon_invalid_charcount(info, charcount))
 		return -EINVAL;
 
-	size = h * pitch * charcount;
+	size = CALC_FONTSZ(h, pitch, charcount);
 
 	new_data = kmalloc(FONT_EXTRA_WORDS * sizeof(int) + size, GFP_USER);
 

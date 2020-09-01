@@ -25,6 +25,7 @@
 #include <linux/kernel_stat.h>
 
 #include <asm/mca.h>
+#include <asm/xtp.h>
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.

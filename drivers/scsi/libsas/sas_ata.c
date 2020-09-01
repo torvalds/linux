@@ -160,6 +160,7 @@ qc_already_gone:
 }
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
+	__must_hold(ap->lock)
 {
 	struct sas_task *task;
 	struct scatterlist *sg;
@@ -323,7 +324,7 @@ static int smp_ata_check_ready(struct ata_link *link)
 	case SAS_END_DEVICE:
 		if (ex_phy->attached_sata_dev)
 			return sas_ata_clear_pending(dev, ex_phy);
-		/* fall through */
+		fallthrough;
 	default:
 		return -ENODEV;
 	}
@@ -506,10 +507,23 @@ void sas_ata_end_eh(struct ata_port *ap)
 	spin_unlock_irqrestore(&ha->lock, flags);
 }
 
+static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
+{
+	struct ata_port *ap = link->ap;
+	struct domain_device *dev = ap->private_data;
+	struct sas_phy *local_phy = sas_get_local_phy(dev);
+	int res = 0;
+
+	if (!local_phy->enabled || test_bit(SAS_DEV_GONE, &dev->state))
+		res = -ENOENT;
+	sas_put_local_phy(local_phy);
+
+	return res;
+}
+
 static struct ata_port_operations sas_sata_ops = {
-	.prereset		= ata_std_prereset,
+	.prereset		= sas_ata_prereset,
 	.hardreset		= sas_ata_hard_reset,
-	.postreset		= ata_std_postreset,
 	.error_handler		= ata_std_error_handler,
 	.post_internal_cmd	= sas_ata_post_internal,
 	.qc_defer               = ata_std_qc_defer,

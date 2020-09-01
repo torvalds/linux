@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/serial/serial.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Serial Interface Generic DT Bindings
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+description:
+  This document lists a set of generic properties for describing UARTs in a
+  device tree.  Whether these properties apply to a particular device depends
+  on the DT bindings for the actual device.
+
+  Each enabled UART may have an optional "serialN" alias in the "aliases" node,
+  where N is the port number (non-negative decimal integer) as printed on the
+  label next to the physical port.
+
+properties:
+  $nodename:
+    pattern: "^serial(@.*)?$"
+
+  cts-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's CTS line.
+
+  dcd-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's DCD line.
+
+  dsr-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's DSR line.
+
+  dtr-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's DTR line.
+
+  rng-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's RNG line.
+
+  rts-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's RTS line.
+
+  uart-has-rtscts:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      The presence of this property indicates that the UART has dedicated lines
+      for RTS/CTS hardware flow control, and that they are available for use
+      (wired and enabled by pinmux configuration).  This depends on both the
+      UART hardware and the board wiring.
+
+  rx-tx-swap:
+    type: boolean
+    description: RX and TX pins are swapped.
+
+  cts-rts-swap:
+    type: boolean
+    description: CTS and RTS pins are swapped.
+
+if:
+  required:
+    - uart-has-rtscts
+then:
+  properties:
+    cts-gpios: false
+    rts-gpios: false
+
+patternProperties:
+  ".*":
+    if:
+      type: object
+    then:
+      description:
+        Serial attached devices shall be a child node of the host UART device
+        the slave device is attached to. It is expected that the attached
+        device is the only child node of the UART device. The slave device node
+        name shall reflect the generic type of device for the node.
+
+      properties:
+        compatible:
+          description:
+            Compatible of the device connected to the serial port.
+
+        max-speed:
+          $ref: /schemas/types.yaml#/definitions/uint32
+          description:
+            The maximum baud rate the device operates at.
+            This should only be present if the maximum is less than the slave
+            device can support.  For example, a particular board has some
+            signal quality issue or the host processor can't support higher
+            baud rates.
+
+        current-speed:
+          $ref: /schemas/types.yaml#/definitions/uint32
+          description: |
+            The current baud rate the device operates at.
+            This should only be present in case a driver has no chance to know
+            the baud rate of the slave device.
+            Examples:
+              * device supports auto-baud
+              * the rate is setup by a bootloader and there is no way to reset
+                the device
+              * device baud rate is configured by its firmware but there is no
+                way to request the actual settings
+
+      required:
+        - compatible
+
+examples:
+  - |
+    serial@1234 {
+            compatible = "ns16550a";
+            reg = <0x1234 0x20>;
+            interrupts = <1>;
+
+            bluetooth {
+                    compatible = "brcm,bcm43341-bt";
+                    interrupt-parent = <&gpio>;
+                    interrupts = <10>;
+            };
+    };

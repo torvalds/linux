@@ -97,7 +97,9 @@ static void ipmr_expire_process(struct timer_list *t);
 
 #ifdef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
 #define ip6mr_for_each_table(mrt, net) \
-	list_for_each_entry_rcu(mrt, &net->ipv6.mr6_tables, list)
+	list_for_each_entry_rcu(mrt, &net->ipv6.mr6_tables, list, \
+				lockdep_rtnl_is_held() || \
+				list_empty(&net->ipv6.mr6_tables))
 
 static struct mr_table *ip6mr_mr_table_iter(struct net *net,
 					    struct mr_table *mrt)
@@ -1627,7 +1629,8 @@ EXPORT_SYMBOL(mroute6_is_socket);
  *	MOSPF/PIM router set up we can clean this up.
  */
 
-int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsigned int optlen)
+int ip6_mroute_setsockopt(struct sock *sk, int optname, sockptr_t optval,
+			  unsigned int optlen)
 {
 	int ret, parent = 0;
 	struct mif6ctl vif;
@@ -1663,7 +1666,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 	case MRT6_ADD_MIF:
 		if (optlen < sizeof(vif))
 			return -EINVAL;
-		if (copy_from_user(&vif, optval, sizeof(vif)))
+		if (copy_from_sockptr(&vif, optval, sizeof(vif)))
 			return -EFAULT;
 		if (vif.mif6c_mifi >= MAXMIFS)
 			return -ENFILE;
@@ -1676,7 +1679,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 	case MRT6_DEL_MIF:
 		if (optlen < sizeof(mifi_t))
 			return -EINVAL;
-		if (copy_from_user(&mifi, optval, sizeof(mifi_t)))
+		if (copy_from_sockptr(&mifi, optval, sizeof(mifi_t)))
 			return -EFAULT;
 		rtnl_lock();
 		ret = mif6_delete(mrt, mifi, 0, NULL);
@@ -1690,12 +1693,12 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 	case MRT6_ADD_MFC:
 	case MRT6_DEL_MFC:
 		parent = -1;
-		/* fall through */
+		fallthrough;
 	case MRT6_ADD_MFC_PROXY:
 	case MRT6_DEL_MFC_PROXY:
 		if (optlen < sizeof(mfc))
 			return -EINVAL;
-		if (copy_from_user(&mfc, optval, sizeof(mfc)))
+		if (copy_from_sockptr(&mfc, optval, sizeof(mfc)))
 			return -EFAULT;
 		if (parent == 0)
 			parent = mfc.mf6cc_parent;
@@ -1716,7 +1719,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 
 		if (optlen != sizeof(flags))
 			return -EINVAL;
-		if (get_user(flags, (int __user *)optval))
+		if (copy_from_sockptr(&flags, optval, sizeof(flags)))
 			return -EFAULT;
 		rtnl_lock();
 		mroute_clean_tables(mrt, flags);
@@ -1733,7 +1736,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 
 		if (optlen != sizeof(v))
 			return -EINVAL;
-		if (get_user(v, (int __user *)optval))
+		if (copy_from_sockptr(&v, optval, sizeof(v)))
 			return -EFAULT;
 		mrt->mroute_do_assert = v;
 		return 0;
@@ -1746,7 +1749,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 
 		if (optlen != sizeof(v))
 			return -EINVAL;
-		if (get_user(v, (int __user *)optval))
+		if (copy_from_sockptr(&v, optval, sizeof(v)))
 			return -EFAULT;
 		v = !!v;
 		rtnl_lock();
@@ -1767,7 +1770,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 
 		if (optlen != sizeof(u32))
 			return -EINVAL;
-		if (get_user(v, (u32 __user *)optval))
+		if (copy_from_sockptr(&v, optval, sizeof(v)))
 			return -EFAULT;
 		/* "pim6reg%u" should not exceed 16 bytes (IFNAMSIZ) */
 		if (v != RT_TABLE_DEFAULT && v >= 100000000)
@@ -2501,7 +2504,7 @@ static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 
 		mrt = ip6mr_get_table(sock_net(skb->sk), filter.table_id);
 		if (!mrt) {
-			if (filter.dump_all_families)
+			if (rtnl_msg_family(cb->nlh) != RTNL_FAMILY_IP6MR)
 				return skb->len;
 
 			NL_SET_ERR_MSG_MOD(cb->extack, "MR table does not exist");

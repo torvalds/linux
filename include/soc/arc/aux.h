@@ -22,7 +22,7 @@ static inline int read_aux_reg(u32 r)
 
 /*
  * function helps elide unused variable warning
- * see: http://lists.infradead.org/pipermail/linux-snps-arc/2016-November/001748.html
+ * see: https://lists.infradead.org/pipermail/linux-snps-arc/2016-November/001748.html
  */
 static inline void write_aux_reg(u32 r, u32 v)
 {

@@ -73,6 +73,7 @@ static void adjust_for_msb_right_quirk(u64 *to_write, int *box_start_bit,
  * @endbit: The index (in logical notation, compensated for quirks) where
  *	    the packed value ends within pbuf. Must be smaller than, or equal
  *	    to, startbit.
+ * @pbuflen: The length in bytes of the packed buffer pointed to by @pbuf.
  * @op: If PACK, then uval will be treated as const pointer and copied (packed)
  *	into pbuf, between startbit and endbit.
  *	If UNPACK, then pbuf will be treated as const pointer and the logical

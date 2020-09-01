@@ -173,16 +173,29 @@ i915_active_add_request(struct i915_active *ref, struct i915_request *rq)
 	return i915_active_ref(ref, i915_request_timeline(rq), &rq->fence);
 }
 
-void i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f);
+struct dma_fence *
+i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f);
 
 static inline bool i915_active_has_exclusive(struct i915_active *ref)
 {
 	return rcu_access_pointer(ref->excl.fence);
 }
 
-int i915_active_wait(struct i915_active *ref);
+int __i915_active_wait(struct i915_active *ref, int state);
+static inline int i915_active_wait(struct i915_active *ref)
+{
+	return __i915_active_wait(ref, TASK_INTERRUPTIBLE);
+}
 
-int i915_request_await_active(struct i915_request *rq, struct i915_active *ref);
+int i915_sw_fence_await_active(struct i915_sw_fence *fence,
+			       struct i915_active *ref,
+			       unsigned int flags);
+int i915_request_await_active(struct i915_request *rq,
+			      struct i915_active *ref,
+			      unsigned int flags);
+#define I915_ACTIVE_AWAIT_EXCL BIT(0)
+#define I915_ACTIVE_AWAIT_ACTIVE BIT(1)
+#define I915_ACTIVE_AWAIT_BARRIER BIT(2)
 
 int i915_active_acquire(struct i915_active *ref);
 bool i915_active_acquire_if_busy(struct i915_active *ref);
@@ -213,5 +226,9 @@ void i915_request_add_active_barriers(struct i915_request *rq);
 
 void i915_active_print(struct i915_active *ref, struct drm_printer *m);
 void i915_active_unlock_wait(struct i915_active *ref);
+
+struct i915_active *i915_active_create(void);
+struct i915_active *i915_active_get(struct i915_active *ref);
+void i915_active_put(struct i915_active *ref);
 
 #endif /* _I915_ACTIVE_H_ */

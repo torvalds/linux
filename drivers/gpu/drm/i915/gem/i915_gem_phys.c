@@ -10,8 +10,6 @@
 
 #include <drm/drm.h> /* for drm_legacy.h! */
 #include <drm/drm_cache.h>
-#include <drm/drm_legacy.h> /* for drm_pci.h! */
-#include <drm/drm_pci.h>
 
 #include "gt/intel_gt.h"
 #include "i915_drv.h"
@@ -29,7 +27,7 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	void *dst;
 	int i;
 
-	if (WARN_ON(i915_gem_object_needs_bit17_swizzle(obj)))
+	if (GEM_WARN_ON(i915_gem_object_needs_bit17_swizzle(obj)))
 		return -EINVAL;
 
 	/*
@@ -142,6 +140,7 @@ static void phys_release(struct drm_i915_gem_object *obj)
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_phys_ops = {
+	.name = "i915_gem_object_phys",
 	.get_pages = i915_gem_object_get_pages_phys,
 	.put_pages = i915_gem_object_put_pages_phys,
 
@@ -194,10 +193,11 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	/* Perma-pin (until release) the physical set of pages */
 	__i915_gem_object_pin_pages(obj);
 
-	if (!IS_ERR_OR_NULL(pages)) {
+	if (!IS_ERR_OR_NULL(pages))
 		i915_gem_shmem_ops.put_pages(obj, pages);
-		i915_gem_object_release_memory_region(obj);
-	}
+
+	i915_gem_object_release_memory_region(obj);
+
 	mutex_unlock(&obj->mm.lock);
 	return 0;
 

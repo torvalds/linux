@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/xlnx,zynqmp-psgtr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx ZynqMP Gigabit Transceiver PHY Device Tree Bindings
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+description: |
+  This binding describes the Xilinx ZynqMP Gigabit Transceiver (GTR) PHY. The
+  GTR provides four lanes and is used by USB, SATA, PCIE, Display port and
+  Ethernet SGMII controllers.
+
+properties:
+  "#phy-cells":
+    const: 4
+    description: |
+      The cells contain the following arguments.
+
+      - description: The GTR lane
+        minimum: 0
+        maximum: 3
+      - description: The PHY type
+        enum:
+          - PHY_TYPE_DP
+          - PHY_TYPE_PCIE
+          - PHY_TYPE_SATA
+          - PHY_TYPE_SGMII
+          - PHY_TYPE_USB
+      - description: The PHY instance
+        minimum: 0
+        maximum: 1 # for DP, SATA or USB
+        maximum: 3 # for PCIE or SGMII
+      - description: The reference clock number
+        minimum: 0
+        maximum: 3
+
+  compatible:
+    enum:
+      - xlnx,zynqmp-psgtr-v1.1
+      - xlnx,zynqmp-psgtr
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+    description: |
+      Clock for each PS_MGTREFCLK[0-3] reference clock input. Unconnected
+      inputs shall not have an entry.
+
+  clock-names:
+    minItems: 1
+    maxItems: 4
+    items:
+      pattern: "^ref[0-3]$"
+
+  reg:
+    items:
+      - description: SERDES registers block
+      - description: SIOU registers block
+
+  reg-names:
+    items:
+      - const: serdes
+      - const: siou
+
+  xlnx,tx-termination-fix:
+    description: |
+      Include this for fixing functional issue with the TX termination
+      resistance in GT, which can be out of spec for the XCZU9EG silicon
+      version.
+    type: boolean
+
+required:
+  - "#phy-cells"
+  - compatible
+  - reg
+  - reg-names
+
+if:
+  properties:
+    compatible:
+      const: xlnx,zynqmp-psgtr-v1.1
+
+then:
+  properties:
+    xlnx,tx-termination-fix: false
+
+additionalProperties: false
+
+examples:
+  - |
+    phy: phy@fd400000 {
+        compatible = "xlnx,zynqmp-psgtr-v1.1";
+        reg = <0xfd400000 0x40000>,
+              <0xfd3d0000 0x1000>;
+        reg-names = "serdes", "siou";
+        clocks = <&refclks 3>, <&refclks 2>, <&refclks 0>;
+        clock-names = "ref1", "ref2", "ref3";
+        #phy-cells = <4>;
+    };
+
+...

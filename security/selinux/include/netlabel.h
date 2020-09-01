@@ -98,12 +98,6 @@ static inline int selinux_netlbl_skbuff_setsid(struct sk_buff *skb,
 	return 0;
 }
 
-static inline int selinux_netlbl_conn_setsid(struct sock *sk,
-					     struct sockaddr *addr)
-{
-	return 0;
-}
-
 static inline int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
 						    struct sk_buff *skb)
 {

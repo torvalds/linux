@@ -29,6 +29,8 @@ struct hibmc_drm_private {
 
 	/* drm */
 	struct drm_device  *dev;
+	struct drm_encoder encoder;
+	struct drm_connector connector;
 	bool mode_config_initialized;
 };
 

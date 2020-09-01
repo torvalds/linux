@@ -42,7 +42,6 @@
 #define DM9000_PHY		0x40	/* PHY address 0x01 */
 
 #define CARDNAME	"dm9000"
-#define DRV_VERSION	"1.31"
 
 /*
  * Transmit timeout, default 5 seconds.
@@ -386,7 +385,7 @@ static void dm9000_set_io(struct board_info *db, int byte_width)
 
 	case 3:
 		dev_dbg(db->dev, ": 3 byte IO, falling back to 16bit\n");
-		/* fall through */
+		fallthrough;
 	case 2:
 		db->dumpblk = dm9000_dumpblk_16bit;
 		db->outblk  = dm9000_outblk_16bit;
@@ -543,7 +542,6 @@ static void dm9000_get_drvinfo(struct net_device *dev,
 	struct board_info *dm = to_dm9000_board(dev);
 
 	strlcpy(info->driver, CARDNAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, to_platform_device(dm->dev)->name,
 		sizeof(info->bus_info));
 }

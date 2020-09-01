@@ -203,8 +203,7 @@ static void tsc_check_state(int state)
 		 */
 		if (boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 			return;
-
-		/*FALL THROUGH*/
+		fallthrough;
 	default:
 		/* TSC could halt in idle, so notify users */
 		if (state > ACPI_STATE_C1)
@@ -308,11 +307,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	if (ret)
 		return ret;
 
-	/*
-	 * It is expected that there will be at least 2 states, C1 and
-	 * something else (C2 or C3), so fail if that is not the case.
-	 */
-	if (pr->power.count < 2)
+	if (!pr->power.count)
 		return -EFAULT;
 
 	pr->flags.has_cst = 1;
@@ -468,8 +463,7 @@ static int acpi_processor_get_cstate_info(struct acpi_processor *pr)
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
 		if (pr->power.states[i].valid) {
 			pr->power.count = i;
-			if (pr->power.states[i].type >= ACPI_STATE_C2)
-				pr->flags.power = 1;
+			pr->flags.power = 1;
 		}
 	}
 
@@ -660,8 +654,8 @@ static int acpi_idle_enter(struct cpuidle_device *dev,
 	return index;
 }
 
-static void acpi_idle_enter_s2idle(struct cpuidle_device *dev,
-				   struct cpuidle_driver *drv, int index)
+static int acpi_idle_enter_s2idle(struct cpuidle_device *dev,
+				  struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
@@ -669,16 +663,18 @@ static void acpi_idle_enter_s2idle(struct cpuidle_device *dev,
 		struct acpi_processor *pr = __this_cpu_read(processors);
 
 		if (unlikely(!pr))
-			return;
+			return 0;
 
 		if (pr->flags.bm_check) {
 			acpi_idle_enter_bm(pr, cx, false);
-			return;
+			return 0;
 		} else {
 			ACPI_FLUSH_CPU_CACHE();
 		}
 	}
 	acpi_idle_do_entry(cx);
+
+	return 0;
 }
 
 static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,

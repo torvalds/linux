@@ -41,7 +41,7 @@ static int tcf_skbedit_act(struct sk_buff *skb, const struct tc_action *a,
 	if (params->flags & SKBEDIT_F_INHERITDSFIELD) {
 		int wlen = skb_network_offset(skb);
 
-		switch (tc_skb_protocol(skb)) {
+		switch (skb_protocol(skb, true)) {
 		case htons(ETH_P_IP):
 			wlen += sizeof(struct iphdr);
 			if (!pskb_may_pull(skb, wlen))
@@ -71,6 +71,17 @@ static int tcf_skbedit_act(struct sk_buff *skb, const struct tc_action *a,
 err:
 	qstats_drop_inc(this_cpu_ptr(d->common.cpu_qstats));
 	return TC_ACT_SHOT;
+}
+
+static void tcf_skbedit_stats_update(struct tc_action *a, u64 bytes,
+				     u64 packets, u64 drops,
+				     u64 lastuse, bool hw)
+{
+	struct tcf_skbedit *d = to_skbedit(a);
+	struct tcf_t *tm = &d->tcf_tm;
+
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
 static const struct nla_policy skbedit_policy[TCA_SKBEDIT_MAX + 1] = {
@@ -323,6 +334,7 @@ static struct tc_action_ops act_skbedit_ops = {
 	.id		=	TCA_ID_SKBEDIT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_skbedit_act,
+	.stats_update	=	tcf_skbedit_stats_update,
 	.dump		=	tcf_skbedit_dump,
 	.init		=	tcf_skbedit_init,
 	.cleanup	=	tcf_skbedit_cleanup,

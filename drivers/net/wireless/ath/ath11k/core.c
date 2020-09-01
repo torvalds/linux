@@ -7,11 +7,11 @@
 #include <linux/slab.h>
 #include <linux/remoteproc.h>
 #include <linux/firmware.h>
-#include "ahb.h"
 #include "core.h"
 #include "dp_tx.h"
 #include "dp_rx.h"
 #include "debug.h"
+#include "hif.h"
 
 unsigned int ath11k_debug_mask;
 module_param_named(debug_mask, ath11k_debug_mask, uint, 0644);
@@ -41,6 +41,7 @@ u8 ath11k_core_get_hw_mac_id(struct ath11k_base *ab, int pdev_idx)
 		return ATH11K_INVALID_HW_MAC_ID;
 	}
 }
+EXPORT_SYMBOL(ath11k_core_get_hw_mac_id);
 
 static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 					 size_t name_len)
@@ -324,7 +325,7 @@ static void ath11k_core_stop(struct ath11k_base *ab)
 {
 	if (!test_bit(ATH11K_FLAG_CRASH_FLUSH, &ab->dev_flags))
 		ath11k_qmi_firmware_stop(ab);
-	ath11k_ahb_stop(ab);
+	ath11k_hif_stop(ab);
 	ath11k_wmi_detach(ab);
 	ath11k_dp_pdev_reo_cleanup(ab);
 
@@ -347,7 +348,7 @@ static int ath11k_core_soc_create(struct ath11k_base *ab)
 		goto err_qmi_deinit;
 	}
 
-	ret = ath11k_ahb_power_up(ab);
+	ret = ath11k_hif_power_up(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to power up :%d\n", ret);
 		goto err_debugfs_reg;
@@ -392,11 +393,27 @@ static int ath11k_core_pdev_create(struct ath11k_base *ab)
 		goto err_mac_unregister;
 	}
 
+	ret = ath11k_thermal_register(ab);
+	if (ret) {
+		ath11k_err(ab, "could not register thermal device: %d\n",
+			   ret);
+		goto err_dp_pdev_free;
+	}
+
+	ret = ath11k_spectral_init(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to init spectral %d\n", ret);
+		goto err_thermal_unregister;
+	}
+
 	return 0;
 
+err_thermal_unregister:
+	ath11k_thermal_unregister(ab);
+err_dp_pdev_free:
+	ath11k_dp_pdev_free(ab);
 err_mac_unregister:
 	ath11k_mac_unregister(ab);
-
 err_pdev_debug:
 	ath11k_debug_pdev_destroy(ab);
 
@@ -405,8 +422,10 @@ err_pdev_debug:
 
 static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
 {
+	ath11k_spectral_deinit(ab);
+	ath11k_thermal_unregister(ab);
 	ath11k_mac_unregister(ab);
-	ath11k_ahb_ext_irq_disable(ab);
+	ath11k_hif_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
 	ath11k_debug_pdev_destroy(ab);
 }
@@ -434,7 +453,7 @@ static int ath11k_core_start(struct ath11k_base *ab,
 		goto err_wmi_detach;
 	}
 
-	ret = ath11k_ahb_start(ab);
+	ret = ath11k_hif_start(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to start HIF: %d\n", ret);
 		goto err_wmi_detach;
@@ -513,7 +532,7 @@ err_reo_cleanup:
 err_mac_destroy:
 	ath11k_mac_destroy(ab);
 err_hif_stop:
-	ath11k_ahb_stop(ab);
+	ath11k_hif_stop(ab);
 err_wmi_detach:
 	ath11k_wmi_detach(ab);
 err_firmware_stop:
@@ -550,7 +569,7 @@ int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab)
 		ath11k_err(ab, "failed to create pdev core: %d\n", ret);
 		goto err_core_stop;
 	}
-	ath11k_ahb_ext_irq_enable(ab);
+	ath11k_hif_irq_enable(ab);
 	mutex_unlock(&ab->core_lock);
 
 	return 0;
@@ -569,9 +588,11 @@ static int ath11k_core_reconfigure_on_crash(struct ath11k_base *ab)
 	int ret;
 
 	mutex_lock(&ab->core_lock);
-	ath11k_ahb_ext_irq_disable(ab);
+	ath11k_thermal_unregister(ab);
+	ath11k_hif_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
-	ath11k_ahb_stop(ab);
+	ath11k_spectral_deinit(ab);
+	ath11k_hif_stop(ab);
 	ath11k_wmi_detach(ab);
 	ath11k_dp_pdev_reo_cleanup(ab);
 	mutex_unlock(&ab->core_lock);
@@ -607,6 +628,7 @@ void ath11k_core_halt(struct ath11k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	ar->num_created_vdevs = 0;
+	ar->allocated_vdev_map = 0;
 
 	ath11k_mac_scan_finish(ar);
 	ath11k_mac_peer_cleanup_all(ar);
@@ -644,6 +666,7 @@ static void ath11k_core_restart(struct work_struct *work)
 		complete(&ar->install_key_done);
 		complete(&ar->vdev_setup_done);
 		complete(&ar->bss_survey_done);
+		complete(&ar->thermal.wmi_sync);
 
 		wake_up(&ar->dp.tx_empty_waitq);
 		idr_for_each(&ar->txmgmt_idr,
@@ -732,7 +755,7 @@ void ath11k_core_deinit(struct ath11k_base *ab)
 
 	mutex_unlock(&ab->core_lock);
 
-	ath11k_ahb_power_down(ab);
+	ath11k_hif_power_down(ab);
 	ath11k_mac_destroy(ab);
 	ath11k_core_soc_destroy(ab);
 }
@@ -742,11 +765,12 @@ void ath11k_core_free(struct ath11k_base *ab)
 	kfree(ab);
 }
 
-struct ath11k_base *ath11k_core_alloc(struct device *dev)
+struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
+				      enum ath11k_bus bus)
 {
 	struct ath11k_base *ab;
 
-	ab = kzalloc(sizeof(*ab), GFP_KERNEL);
+	ab = kzalloc(sizeof(*ab) + priv_size, GFP_KERNEL);
 	if (!ab)
 		return NULL;
 
@@ -772,24 +796,3 @@ err_sc_free:
 	kfree(ab);
 	return NULL;
 }
-
-static int __init ath11k_init(void)
-{
-	int ret;
-
-	ret = ath11k_ahb_init();
-	if (ret)
-		printk(KERN_ERR "failed to register ath11k ahb driver: %d\n",
-		       ret);
-	return ret;
-}
-module_init(ath11k_init);
-
-static void __exit ath11k_exit(void)
-{
-	ath11k_ahb_exit();
-}
-module_exit(ath11k_exit);
-
-MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax wireless chip");
-MODULE_LICENSE("Dual BSD/GPL");

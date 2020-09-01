@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include <sys/poll.h>
@@ -34,8 +35,9 @@ extern int optind;
 #define TCP_ULP 31
 #endif
 
+static int  poll_timeout = 10 * 1000;
 static bool listen_mode;
-static int  poll_timeout;
+static bool quit;
 
 enum cfg_mode {
 	CFG_MODE_POLL,
@@ -50,12 +52,29 @@ static int cfg_sock_proto	= IPPROTO_MPTCP;
 static bool tcpulp_audit;
 static int pf = AF_INET;
 static int cfg_sndbuf;
+static int cfg_rcvbuf;
+static bool cfg_join;
+static int cfg_wait;
 
 static void die_usage(void)
 {
-	fprintf(stderr, "Usage: mptcp_connect [-6] [-u] [-s MPTCP|TCP] [-p port] -m mode]"
-		"[ -l ] [ -t timeout ] connect_address\n");
+	fprintf(stderr, "Usage: mptcp_connect [-6] [-u] [-s MPTCP|TCP] [-p port] [-m mode]"
+		"[-l] [-w sec] connect_address\n");
+	fprintf(stderr, "\t-6 use ipv6\n");
+	fprintf(stderr, "\t-t num -- set poll timeout to num\n");
+	fprintf(stderr, "\t-S num -- set SO_SNDBUF to num\n");
+	fprintf(stderr, "\t-R num -- set SO_RCVBUF to num\n");
+	fprintf(stderr, "\t-p num -- use port num\n");
+	fprintf(stderr, "\t-m [MPTCP|TCP] -- use tcp or mptcp sockets\n");
+	fprintf(stderr, "\t-s [mmap|poll] -- use poll (default) or mmap\n");
+	fprintf(stderr, "\t-u -- check mptcp ulp\n");
+	fprintf(stderr, "\t-w num -- wait num sec before closing the socket\n");
 	exit(1);
+}
+
+static void handle_signal(int nr)
+{
+	quit = true;
 }
 
 static const char *getxinfo_strerr(int err)
@@ -93,6 +112,17 @@ static void xgetaddrinfo(const char *node, const char *service,
 
 		fprintf(stderr, "Fatal: getaddrinfo(%s:%s): %s\n",
 			node ? node : "", service ? service : "", errstr);
+		exit(1);
+	}
+}
+
+static void set_rcvbuf(int fd, unsigned int size)
+{
+	int err;
+
+	err = setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+	if (err) {
+		perror("set SO_RCVBUF");
 		exit(1);
 	}
 }
@@ -230,6 +260,7 @@ static int sock_connect_mptcp(const char * const remoteaddr,
 
 static size_t do_rnd_write(const int fd, char *buf, const size_t len)
 {
+	static bool first = true;
 	unsigned int do_w;
 	ssize_t bw;
 
@@ -237,9 +268,18 @@ static size_t do_rnd_write(const int fd, char *buf, const size_t len)
 	if (do_w == 0 || do_w > len)
 		do_w = len;
 
+	if (cfg_join && first && do_w > 100)
+		do_w = 100;
+
 	bw = write(fd, buf, do_w);
 	if (bw < 0)
 		perror("write");
+
+	/* let the join handshake complete, before going on */
+	if (cfg_join && first) {
+		usleep(200000);
+		first = false;
+	}
 
 	return bw;
 }
@@ -365,8 +405,12 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd)
 					break;
 
 				/* ... but we still receive.
-				 * Close our write side.
+				 * Close our write side, ev. give some time
+				 * for address notification and/or checking
+				 * the current status
 				 */
+				if (cfg_wait)
+					usleep(cfg_wait);
 				shutdown(peerfd, SHUT_WR);
 			} else {
 				if (errno == EINTR)
@@ -382,6 +426,10 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd)
 			return 5;
 		}
 	}
+
+	/* leave some time for late join/announce */
+	if (cfg_join)
+		usleep(cfg_wait);
 
 	close(peerfd);
 	return 0;
@@ -638,7 +686,7 @@ static void maybe_close(int fd)
 {
 	unsigned int r = rand();
 
-	if (r & 1)
+	if (!cfg_join && (r & 1))
 		close(fd);
 }
 
@@ -704,6 +752,8 @@ int main_loop(void)
 
 	check_getpeername_connect(fd);
 
+	if (cfg_rcvbuf)
+		set_rcvbuf(fd, cfg_rcvbuf);
 	if (cfg_sndbuf)
 		set_sndbuf(fd, cfg_sndbuf);
 
@@ -745,7 +795,7 @@ int parse_mode(const char *mode)
 	return 0;
 }
 
-int parse_sndbuf(const char *size)
+static int parse_int(const char *size)
 {
 	unsigned long s;
 
@@ -765,17 +815,20 @@ int parse_sndbuf(const char *size)
 		die_usage();
 	}
 
-	cfg_sndbuf = s;
-
-	return 0;
+	return (int)s;
 }
 
 static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6lp:s:hut:m:b:")) != -1) {
+	while ((c = getopt(argc, argv, "6jlp:s:hut:m:S:R:w:")) != -1) {
 		switch (c) {
+		case 'j':
+			cfg_join = true;
+			cfg_mode = CFG_MODE_POLL;
+			cfg_wait = 400000;
+			break;
 		case 'l':
 			listen_mode = true;
 			break;
@@ -802,8 +855,14 @@ static void parse_opts(int argc, char **argv)
 		case 'm':
 			cfg_mode = parse_mode(optarg);
 			break;
-		case 'b':
-			cfg_sndbuf = parse_sndbuf(optarg);
+		case 'S':
+			cfg_sndbuf = parse_int(optarg);
+			break;
+		case 'R':
+			cfg_rcvbuf = parse_int(optarg);
+			break;
+		case 'w':
+			cfg_wait = atoi(optarg)*1000000;
 			break;
 		}
 	}
@@ -820,6 +879,7 @@ int main(int argc, char *argv[])
 {
 	init_rng();
 
+	signal(SIGUSR1, handle_signal);
 	parse_opts(argc, argv);
 
 	if (tcpulp_audit)
@@ -831,6 +891,8 @@ int main(int argc, char *argv[])
 		if (fd < 0)
 			return 1;
 
+		if (cfg_rcvbuf)
+			set_rcvbuf(fd, cfg_rcvbuf);
 		if (cfg_sndbuf)
 			set_sndbuf(fd, cfg_sndbuf);
 

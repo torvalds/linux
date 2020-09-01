@@ -20,6 +20,7 @@
 #include <asm/setup.h>
 #include <asm/acpi.h>
 #include <asm/numa.h>
+#include <asm/idtentry.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
@@ -31,7 +32,6 @@
 #include <xen/features.h>
 #include <xen/hvc-console.h>
 #include "xen-ops.h"
-#include "vdso.h"
 #include "mmu.h"
 
 #define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
@@ -544,13 +544,10 @@ static unsigned long __init xen_get_pages_limit(void)
 {
 	unsigned long limit;
 
-#ifdef CONFIG_X86_32
-	limit = GB(64) / PAGE_SIZE;
-#else
 	limit = MAXMEM / PAGE_SIZE;
 	if (!xen_initial_domain() && xen_512gb_limit)
 		limit = GB(512) / PAGE_SIZE;
-#endif
+
 	return limit;
 }
 
@@ -721,17 +718,8 @@ static void __init xen_reserve_xen_mfnlist(void)
 	if (!xen_is_e820_reserved(start, size))
 		return;
 
-#ifdef CONFIG_X86_32
-	/*
-	 * Relocating the p2m on 32 bit system to an arbitrary virtual address
-	 * is not supported, so just give up.
-	 */
-	xen_raw_console_write("Xen hypervisor allocated p2m list conflicts with E820 map\n");
-	BUG();
-#else
 	xen_relocate_p2m();
 	memblock_free(start, size);
-#endif
 }
 
 /**
@@ -920,20 +908,6 @@ char * __init xen_memory_setup(void)
 	return "Xen";
 }
 
-/*
- * Set the bit indicating "nosegneg" library variants should be used.
- * We only need to bother in pure 32-bit mode; compat 32-bit processes
- * can have un-truncated segments, so wrapping around is allowed.
- */
-static void __init fiddle_vdso(void)
-{
-#ifdef CONFIG_X86_32
-	u32 *mask = vdso_image_32.data +
-		vdso_image_32.sym_VDSO32_NOTE_MASK;
-	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
-#endif
-}
-
 static int register_callback(unsigned type, const void *func)
 {
 	struct callback_register callback = {
@@ -950,11 +924,7 @@ void xen_enable_sysenter(void)
 	int ret;
 	unsigned sysenter_feature;
 
-#ifdef CONFIG_X86_32
-	sysenter_feature = X86_FEATURE_SEP;
-#else
 	sysenter_feature = X86_FEATURE_SYSENTER32;
-#endif
 
 	if (!boot_cpu_has(sysenter_feature))
 		return;
@@ -966,7 +936,6 @@ void xen_enable_sysenter(void)
 
 void xen_enable_syscall(void)
 {
-#ifdef CONFIG_X86_64
 	int ret;
 
 	ret = register_callback(CALLBACKTYPE_syscall, xen_syscall_target);
@@ -982,10 +951,9 @@ void xen_enable_syscall(void)
 		if (ret != 0)
 			setup_clear_cpu_cap(X86_FEATURE_SYSCALL32);
 	}
-#endif /* CONFIG_X86_64 */
 }
 
-void __init xen_pvmmu_arch_setup(void)
+static void __init xen_pvmmu_arch_setup(void)
 {
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);
@@ -993,7 +961,8 @@ void __init xen_pvmmu_arch_setup(void)
 	HYPERVISOR_vm_assist(VMASST_CMD_enable,
 			     VMASST_TYPE_pae_extended_cr3);
 
-	if (register_callback(CALLBACKTYPE_event, xen_hypervisor_callback) ||
+	if (register_callback(CALLBACKTYPE_event,
+			      xen_asm_exc_xen_hypervisor_callback) ||
 	    register_callback(CALLBACKTYPE_failsafe, xen_failsafe_callback))
 		BUG();
 
@@ -1022,7 +991,6 @@ void __init xen_arch_setup(void)
 	disable_cpuidle();
 	disable_cpufreq();
 	WARN_ON(xen_set_default_idle());
-	fiddle_vdso();
 #ifdef CONFIG_NUMA
 	numa_off = 1;
 #endif

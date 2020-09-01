@@ -4,9 +4,11 @@
 
 #include <linux/types.h>
 #include <linux/nmi.h>
+#include <linux/msi.h>
 #include <asm/io.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/nospec-branch.h>
+#include <asm/paravirt.h>
 
 typedef int (*hyperv_fill_flush_list_func)(
 		struct hv_guest_mapping_flush_list *flush,
@@ -34,6 +36,8 @@ typedef int (*hyperv_fill_flush_list_func)(
 	rdmsrl(HV_X64_MSR_SINT0 + int_num, val)
 #define hv_set_synint_state(int_num, val) \
 	wrmsrl(HV_X64_MSR_SINT0 + int_num, val)
+#define hv_recommend_using_aeoi() \
+	(!(ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED))
 
 #define hv_get_crash_ctl(val) \
 	rdmsrl(HV_X64_MSR_CRASH_CTL, val)
@@ -46,22 +50,23 @@ typedef int (*hyperv_fill_flush_list_func)(
 #define hv_set_reference_tsc(val) \
 	wrmsrl(HV_X64_MSR_REFERENCE_TSC, val)
 #define hv_set_clocksource_vdso(val) \
-	((val).archdata.vclock_mode = VCLOCK_HVCLOCK)
+	((val).vdso_clock_mode = VDSO_CLOCKMODE_HVCLOCK)
+#define hv_enable_vdso_clocksource() \
+	vclocks_set_used(VDSO_CLOCKMODE_HVCLOCK);
 #define hv_get_raw_timer() rdtsc_ordered()
 
-void hyperv_callback_vector(void);
-void hyperv_reenlightenment_vector(void);
-#ifdef CONFIG_TRACING
-#define trace_hyperv_callback_vector hyperv_callback_vector
-#endif
-void hyperv_vector_handler(struct pt_regs *regs);
-
 /*
- * Routines for stimer0 Direct Mode handling.
- * On x86/x64, there are no percpu actions to take.
+ * Reference to pv_ops must be inline so objtool
+ * detection of noinstr violations can work correctly.
  */
-void hv_stimer0_vector_handler(struct pt_regs *regs);
-void hv_stimer0_callback_vector(void);
+static __always_inline void hv_setup_sched_clock(void *sched_clock)
+{
+#ifdef CONFIG_PARAVIRT
+	pv_ops.time.sched_clock = sched_clock;
+#endif
+}
+
+void hyperv_vector_handler(struct pt_regs *regs);
 
 static inline void hv_enable_stimer0_percpu_irq(int irq) {}
 static inline void hv_disable_stimer0_percpu_irq(int irq) {}
@@ -221,7 +226,6 @@ void hyperv_setup_mmu_ops(void);
 void *hv_alloc_hyperv_page(void);
 void *hv_alloc_hyperv_zeroed_page(void);
 void hv_free_hyperv_page(unsigned long addr);
-void hyperv_reenlightenment_intr(struct pt_regs *regs);
 void set_hv_tscchange_cb(void (*cb)(void));
 void clear_hv_tscchange_cb(void);
 void hyperv_stop_tsc_emulation(void);
@@ -239,6 +243,13 @@ bool hv_vcpu_is_preempted(int vcpu);
 #else
 static inline void hv_apic_init(void) {}
 #endif
+
+static inline void hv_set_msi_entry_from_desc(union hv_msi_entry *msi_entry,
+					      struct msi_desc *msi_desc)
+{
+	msi_entry->address = msi_desc->msg.address_lo;
+	msi_entry->data = msi_desc->msg.data;
+}
 
 #else /* CONFIG_HYPERV */
 static inline void hyperv_init(void) {}

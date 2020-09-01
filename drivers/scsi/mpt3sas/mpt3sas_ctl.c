@@ -1002,7 +1002,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		}
 		/* drop to default case for posting the request */
 	}
-		/* fall through */
+		fallthrough;
 	default:
 		ioc->build_sg_mpi(ioc, psge, data_out_dma, data_out_sz,
 		    data_in_dma, data_in_sz);
@@ -3145,19 +3145,18 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 	if (!ioc->is_warpdrive) {
 		ioc_err(ioc, "%s: BRM attribute is only for warpdrive\n",
 			__func__);
-		goto out;
+		return 0;
 	}
 	/* pci_access_mutex lock acquired by sysfs show path */
 	mutex_lock(&ioc->pci_access_mutex);
-	if (ioc->pci_error_recovery || ioc->remove_host) {
-		mutex_unlock(&ioc->pci_access_mutex);
-		return 0;
-	}
+	if (ioc->pci_error_recovery || ioc->remove_host)
+		goto out;
 
 	/* allocate upto GPIOVal 36 entries */
 	sz = offsetof(Mpi2IOUnitPage3_t, GPIOVal) + (sizeof(u16) * 36);
 	io_unit_pg3 = kzalloc(sz, GFP_KERNEL);
 	if (!io_unit_pg3) {
+		rc = -ENOMEM;
 		ioc_err(ioc, "%s: failed allocating memory for iounit_pg3: (%d) bytes\n",
 			__func__, sz);
 		goto out;
@@ -3167,6 +3166,7 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 	    0) {
 		ioc_err(ioc, "%s: failed reading iounit_pg3\n",
 			__func__);
+		rc = -EINVAL;
 		goto out;
 	}
 
@@ -3174,12 +3174,14 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
 		ioc_err(ioc, "%s: iounit_pg3 failed with ioc_status(0x%04x)\n",
 			__func__, ioc_status);
+		rc = -EINVAL;
 		goto out;
 	}
 
 	if (io_unit_pg3->GPIOCount < 25) {
 		ioc_err(ioc, "%s: iounit_pg3->GPIOCount less than 25 entries, detected (%d) entries\n",
 			__func__, io_unit_pg3->GPIOCount);
+		rc = -EINVAL;
 		goto out;
 	}
 
@@ -3660,8 +3662,9 @@ static DEVICE_ATTR_RW(diag_trigger_mpi);
 
 /**
  * drv_support_bitmap_show - driver supported feature bitmap
- * @cdev - pointer to embedded class device
- * @buf - the buffer returned
+ * @cdev: pointer to embedded class device
+ * @attr: unused
+ * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
  */
@@ -3678,8 +3681,9 @@ static DEVICE_ATTR_RO(drv_support_bitmap);
 
 /**
  * enable_sdev_max_qd_show - display whether sdev max qd is enabled/disabled
- * @cdev - pointer to embedded class device
- * @buf - the buffer returned
+ * @cdev: pointer to embedded class device
+ * @attr: unused
+ * @buf: the buffer returned
  *
  * A sysfs read/write shost attribute. This attribute is used to set the
  * targets queue depth to HBA IO queue depth if this attribute is enabled.
@@ -3696,8 +3700,10 @@ enable_sdev_max_qd_show(struct device *cdev,
 
 /**
  * enable_sdev_max_qd_store - Enable/disable sdev max qd
- * @cdev - pointer to embedded class device
- * @buf - the buffer returned
+ * @cdev: pointer to embedded class device
+ * @attr: unused
+ * @buf: the buffer returned
+ * @count: unused
  *
  * A sysfs read/write shost attribute. This attribute is used to set the
  * targets queue depth to HBA IO queue depth if this attribute is enabled.

@@ -367,7 +367,7 @@ static void pit_load_count(struct kvm_pit *pit, int channel, u32 val)
 {
 	struct kvm_kpit_state *ps = &pit->pit_state;
 
-	pr_debug("load_count val is %d, channel is %d\n", val, channel);
+	pr_debug("load_count val is %u, channel is %d\n", val, channel);
 
 	/*
 	 * The largest possible initial count is 0; this is equivalent
@@ -462,7 +462,6 @@ static int pit_ioport_write(struct kvm_vcpu *vcpu,
 		if (channel == 3) {
 			/* Read-Back Command. */
 			for (channel = 0; channel < 3; channel++) {
-				s = &pit_state->channels[channel];
 				if (val & (2 << channel)) {
 					if (!(val & 0x20))
 						pit_latch_count(pit, channel);

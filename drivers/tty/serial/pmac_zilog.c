@@ -213,6 +213,7 @@ static void pmz_interrupt_control(struct uart_pmac_port *uap, int enable)
 }
 
 static bool pmz_receive_chars(struct uart_pmac_port *uap)
+	__must_hold(&uap->port.lock)
 {
 	struct tty_port *port;
 	unsigned char ch, r1, drop, flag;

@@ -246,6 +246,7 @@ static const struct adis_data adis16201_data = {
 	.diag_stat_reg = ADIS16201_DIAG_STAT_REG,
 
 	.self_test_mask = ADIS16201_MSC_CTRL_SELF_TEST_EN,
+	.self_test_reg = ADIS16201_MSC_CTRL_REG,
 	.self_test_no_autoclear = true,
 	.timeouts = &adis16201_timeouts,
 
@@ -270,7 +271,6 @@ static int adis16201_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->name = spi->dev.driver->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16201_info;
 
 	indio_dev->channels = adis16201_channels;

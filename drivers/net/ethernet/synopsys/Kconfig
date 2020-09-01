@@ -6,7 +6,7 @@
 config NET_VENDOR_SYNOPSYS
 	bool "Synopsys devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) device belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -21,7 +21,7 @@ config DWC_XLGMAC
 	depends on HAS_IOMEM && HAS_DMA
 	select BITREVERSE
 	select CRC32
-	---help---
+	help
 	  This driver supports the Synopsys DesignWare Cores Enterprise
 	  Ethernet (dwc-xlgmac).
 
@@ -30,7 +30,7 @@ if DWC_XLGMAC
 config DWC_XLGMAC_PCI
 	tristate "XLGMAC PCI bus support"
 	depends on DWC_XLGMAC && PCI
-	---help---
+	help
 	  This selects the pci bus support for the dwc-xlgmac driver.
 	  This driver was tested on Synopsys XLGMAC IP Prototyping Kit.
 

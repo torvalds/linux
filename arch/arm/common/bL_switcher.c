@@ -270,12 +270,11 @@ static struct bL_thread bL_threads[NR_CPUS];
 static int bL_switcher_thread(void *arg)
 {
 	struct bL_thread *t = arg;
-	struct sched_param param = { .sched_priority = 1 };
 	int cluster;
 	bL_switch_completion_handler completer;
 	void *completer_cookie;
 
-	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
+	sched_set_fifo_low(current);
 	complete(&t->started);
 
 	do {

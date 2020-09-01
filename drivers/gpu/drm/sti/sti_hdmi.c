@@ -727,16 +727,16 @@ static struct drm_info_list hdmi_debugfs_files[] = {
 	{ "hdmi", hdmi_dbg_show, 0, NULL },
 };
 
-static int hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
+static void hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_debugfs_files); i++)
 		hdmi_debugfs_files[i].data = hdmi;
 
-	return drm_debugfs_create_files(hdmi_debugfs_files,
-					ARRAY_SIZE(hdmi_debugfs_files),
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(hdmi_debugfs_files,
+				 ARRAY_SIZE(hdmi_debugfs_files),
+				 minor->debugfs_root, minor);
 }
 
 static void sti_hdmi_disable(struct drm_bridge *bridge)
@@ -850,13 +850,13 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi)
 	switch (info->channels) {
 	case 8:
 		audio_cfg |= HDMI_AUD_CFG_CH78_VALID;
-		/* fall through */
+		fallthrough;
 	case 6:
 		audio_cfg |= HDMI_AUD_CFG_CH56_VALID;
-		/* fall through */
+		fallthrough;
 	case 4:
 		audio_cfg |= HDMI_AUD_CFG_CH34_VALID | HDMI_AUD_CFG_8CH;
-		/* fall through */
+		fallthrough;
 	case 2:
 		audio_cfg |= HDMI_AUD_CFG_CH12_VALID;
 		break;
@@ -1113,10 +1113,7 @@ static int sti_hdmi_late_register(struct drm_connector *connector)
 		= to_sti_hdmi_connector(connector);
 	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
 
-	if (hdmi_debugfs_init(hdmi, hdmi->drm_dev->primary)) {
-		DRM_ERROR("HDMI debugfs setup failed\n");
-		return -EINVAL;
-	}
+	hdmi_debugfs_init(hdmi, hdmi->drm_dev->primary);
 
 	return 0;
 }
@@ -1194,7 +1191,8 @@ static int hdmi_audio_hw_params(struct device *dev,
 	return 0;
 }
 
-static int hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
+static int hdmi_audio_mute(struct device *dev, void *data,
+			   bool enable, int direction)
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1222,8 +1220,9 @@ static int hdmi_audio_get_eld(struct device *dev, void *data, uint8_t *buf, size
 static const struct hdmi_codec_ops audio_codec_ops = {
 	.hw_params = hdmi_audio_hw_params,
 	.audio_shutdown = hdmi_audio_shutdown,
-	.digital_mute = hdmi_audio_digital_mute,
+	.mute_stream = hdmi_audio_mute,
 	.get_eld = hdmi_audio_get_eld,
+	.no_capture_mute = 1,
 };
 
 static int sti_hdmi_register_audio_driver(struct device *dev,
@@ -1281,7 +1280,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	bridge->driver_private = hdmi;
 	bridge->funcs = &sti_hdmi_bridge_funcs;
-	drm_bridge_attach(encoder, bridge, NULL);
+	drm_bridge_attach(encoder, bridge, NULL, 0);
 
 	connector->encoder = encoder;
 

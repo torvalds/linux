@@ -61,7 +61,7 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 
 /**
  * acpi_get_hp_hw_control_from_firmware
- * @dev: the pci_dev of the bridge that has a hotplug controller
+ * @pdev: the pci_dev of the bridge that has a hotplug controller
  *
  * Attempt to take hotplug control from firmware.
  */
@@ -191,7 +191,7 @@ check_hotplug(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 /**
  * acpi_pci_detect_ejectable - check if the PCI bus has ejectable slots
- * @handle - handle of the PCI bus to scan
+ * @handle: handle of the PCI bus to scan
  *
  * Returns 1 if the PCI bus has ACPI based ejectable slots, 0 otherwise.
  */

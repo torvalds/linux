@@ -161,7 +161,6 @@ ping_check()
 non_ip_test()
 {
 	local trap_name="non_ip"
-	local group_name="l3_drops"
 	local mz_pid
 
 	RET=0
@@ -176,11 +175,11 @@ non_ip_test()
 		00:00 de:ad:be:ef" &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "Non IP"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ip"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
 
 __uc_dip_over_mc_dmac_test()
@@ -190,7 +189,6 @@ __uc_dip_over_mc_dmac_test()
 	local dip=$1; shift
 	local flags=${1:-""}; shift
 	local trap_name="uc_dip_over_mc_dmac"
-	local group_name="l3_drops"
 	local dmac=01:02:03:04:05:06
 	local mz_pid
 
@@ -206,11 +204,11 @@ __uc_dip_over_mc_dmac_test()
 		-B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "Unicast destination IP over multicast destination MAC: $desc"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 }
 
 uc_dip_over_mc_dmac_test()
@@ -227,7 +225,6 @@ __sip_is_loopback_test()
 	local dip=$1; shift
 	local flags=${1:-""}; shift
 	local trap_name="sip_is_loopback_address"
-	local group_name="l3_drops"
 	local mz_pid
 
 	RET=0
@@ -242,11 +239,11 @@ __sip_is_loopback_test()
 		-b $rp1mac -B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "Source IP is loopback address: $desc"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 }
 
 sip_is_loopback_test()
@@ -262,7 +259,6 @@ __dip_is_loopback_test()
 	local dip=$1; shift
 	local flags=${1:-""}; shift
 	local trap_name="dip_is_loopback_address"
-	local group_name="l3_drops"
 	local mz_pid
 
 	RET=0
@@ -277,11 +273,11 @@ __dip_is_loopback_test()
 		-B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "Destination IP is loopback address: $desc"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 }
 
 dip_is_loopback_test()
@@ -298,7 +294,6 @@ __sip_is_mc_test()
 	local dip=$1; shift
 	local flags=${1:-""}; shift
 	local trap_name="sip_is_mc"
-	local group_name="l3_drops"
 	local mz_pid
 
 	RET=0
@@ -313,11 +308,11 @@ __sip_is_mc_test()
 		-b $rp1mac -B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "Source IP is multicast: $desc"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 }
 
 sip_is_mc_test()
@@ -329,7 +324,6 @@ sip_is_mc_test()
 ipv4_sip_is_limited_bc_test()
 {
 	local trap_name="ipv4_sip_is_limited_bc"
-	local group_name="l3_drops"
 	local sip=255.255.255.255
 	local mz_pid
 
@@ -345,11 +339,11 @@ ipv4_sip_is_limited_bc_test()
 		-B $h2_ipv4 -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "IPv4 source IP is limited broadcast"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ip"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
 
 ipv4_payload_get()
@@ -382,7 +376,6 @@ __ipv4_header_corrupted_test()
 	local ihl=$1; shift
 	local checksum=$1; shift
 	local trap_name="ip_header_corrupted"
-	local group_name="l3_drops"
 	local payload
 	local mz_pid
 
@@ -399,11 +392,11 @@ __ipv4_header_corrupted_test()
 	$MZ $h1 -c 0 -d 1msec -a $h1mac -b $rp1mac -q p=$payload &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "IP header corrupted: $desc: IPv4"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ip"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
 
 ipv6_payload_get()
@@ -429,7 +422,6 @@ __ipv6_header_corrupted_test()
 	local desc=$1; shift
 	local ipver=$1; shift
 	local trap_name="ip_header_corrupted"
-	local group_name="l3_drops"
 	local payload
 	local mz_pid
 
@@ -446,11 +438,11 @@ __ipv6_header_corrupted_test()
 	$MZ $h1 -c 0 -d 1msec -a $h1mac -b $rp1mac -q p=$payload &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "IP header corrupted: $desc: IPv6"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ip"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
 
 ip_header_corrupted_test()
@@ -469,7 +461,6 @@ ip_header_corrupted_test()
 ipv6_mc_dip_reserved_scope_test()
 {
 	local trap_name="ipv6_mc_dip_reserved_scope"
-	local group_name="l3_drops"
 	local dip=FF00::
 	local mz_pid
 
@@ -485,17 +476,16 @@ ipv6_mc_dip_reserved_scope_test()
 		"33:33:00:00:00:00" -B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "IPv6 multicast destination IP reserved scope"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ipv6"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ipv6" 1 101
 }
 
 ipv6_mc_dip_interface_local_scope_test()
 {
 	local trap_name="ipv6_mc_dip_interface_local_scope"
-	local group_name="l3_drops"
 	local dip=FF01::
 	local mz_pid
 
@@ -511,11 +501,11 @@ ipv6_mc_dip_interface_local_scope_test()
 		"33:33:00:00:00:00" -B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 
 	log_test "IPv6 multicast destination IP interface-local scope"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ipv6"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ipv6" 1 101
 }
 
 __blackhole_route_test()
@@ -526,7 +516,6 @@ __blackhole_route_test()
 	local dip=$1; shift
 	local ip_proto=${1:-"icmp"}; shift
 	local trap_name="blackhole_route"
-	local group_name="l3_drops"
 	local mz_pid
 
 	RET=0
@@ -542,10 +531,10 @@ __blackhole_route_test()
 		-B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $rp2 101
 	log_test "Blackhole route: IPv$flags"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 	ip -$flags route del blackhole $subnet
 }
 
@@ -558,7 +547,6 @@ blackhole_route_test()
 irif_disabled_test()
 {
 	local trap_name="irif_disabled"
-	local group_name="l3_drops"
 	local t0_packets t0_bytes
 	local t1_packets t1_bytes
 	local mz_pid
@@ -613,7 +601,6 @@ irif_disabled_test()
 erif_disabled_test()
 {
 	local trap_name="erif_disabled"
-	local group_name="l3_drops"
 	local t0_packets t0_bytes
 	local t1_packets t1_bytes
 	local mz_pid
@@ -641,13 +628,9 @@ erif_disabled_test()
 	mz_pid=$!
 
 	sleep 5
-	# In order to see this trap we need a route that points to disabled RIF.
-	# When ipv6 address is flushed, there is a delay and the routes are
-	# deleted before the RIF and we cannot get state that we have route
-	# to disabled RIF.
-	# Delete IPv6 address first and then check this trap with flushing IPv4.
-	ip -6 add flush dev br0
-	ip -4 add flush dev br0
+	# Unlinking the port from the bridge will disable the RIF associated
+	# with br0 as it is no longer an upper of any mlxsw port.
+	ip link set dev $rp1 nomaster
 
 	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
 	t1_bytes=$(devlink_trap_rx_bytes_get $trap_name)
@@ -659,7 +642,6 @@ erif_disabled_test()
 	log_test "Egress RIF disabled"
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
-	ip link set dev $rp1 nomaster
 	__addr_add_del $rp1 add 192.0.2.2/24 2001:db8:1::2/64
 	ip link del dev br0 type bridge
 	devlink_trap_action_set $trap_name "drop"

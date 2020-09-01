@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the HiHope RZ/G2M main board
+ * Device Tree Source for the HiHope RZ/G2M Rev.3.0/4.0 main board
  *
- * Copyright (C) 2019 Renesas Electronics Corp.
+ * Copyright (C) 2020 Renesas Electronics Corp.
  */
 
 /dts-v1/;
 #include "r8a774a1.dtsi"
-#include "hihope-common.dtsi"
+#include "hihope-rev4.dtsi"
 
 / {
 	model = "HopeRun HiHope RZ/G2M main board based on r8a774a1";

@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
+#include <asm/mach-tx39xx/ioremap.h> /* for TXX9_DIRECTMAP_BASE */
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>

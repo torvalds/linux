@@ -20,11 +20,6 @@
 
 #include "st_sensors_core.h"
 
-static inline u32 st_sensors_get_unaligned_le24(const u8 *p)
-{
-	return (s32)((p[0] | p[1] << 8 | p[2] << 16) << 8) >> 8;
-}
-
 int st_sensors_write_data_with_mask(struct iio_dev *indio_dev,
 				    u8 reg_addr, u8 mask, u8 data)
 {
@@ -79,7 +74,7 @@ int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 	struct st_sensor_odr_avl odr_out = {0, 0};
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	if (!sdata->sensor_settings->odr.addr)
+	if (!sdata->sensor_settings->odr.mask)
 		return 0;
 
 	err = st_sensors_match_odr(sdata->sensor_settings, odr, &odr_out);
@@ -150,8 +145,7 @@ static int st_sensors_set_fullscale(struct iio_dev *indio_dev, unsigned int fs)
 	if (err < 0)
 		goto st_accel_set_fullscale_error;
 
-	sdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-					&sdata->sensor_settings->fs.fs_avl[i];
+	sdata->current_fullscale = &sdata->sensor_settings->fs.fs_avl[i];
 	return err;
 
 st_accel_set_fullscale_error:
@@ -278,8 +272,7 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	    !sdata->sensor_settings->drdy_irq.int2.addr) {
 		if (pdata->drdy_int_pin)
 			dev_info(&indio_dev->dev,
-				 "DRDY on pin INT%d specified, but sensor "
-				 "does not support interrupts\n",
+				 "DRDY on pin INT%d specified, but sensor does not support interrupts\n",
 				 pdata->drdy_int_pin);
 		return 0;
 	}
@@ -328,6 +321,8 @@ static struct st_sensors_platform_data *st_sensors_dev_probe(struct device *dev,
 		return NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
 	if (!device_property_read_u32(dev, "st,drdy-int-pin", &val) && (val <= 2))
 		pdata->drdy_int_pin = (u8) val;
 	else
@@ -371,6 +366,8 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 
 	/* If OF/DT pdata exists, it will take precedence of anything else */
 	of_pdata = st_sensors_dev_probe(indio_dev->dev.parent, pdata);
+	if (IS_ERR(of_pdata))
+		return PTR_ERR(of_pdata);
 	if (of_pdata)
 		pdata = of_pdata;
 
@@ -541,7 +538,7 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 	else if (byte_for_channel == 2)
 		*data = (s16)get_unaligned_le16(outdata);
 	else if (byte_for_channel == 3)
-		*data = (s32)st_sensors_get_unaligned_le24(outdata);
+		*data = (s32)sign_extend32(get_unaligned_le24(outdata), 23);
 
 st_sensors_free_memory:
 	kfree(outdata);

@@ -28,7 +28,6 @@
 #include "i915_drv.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
-#include "intel_engine_pool.h"
 
 #include "mock_engine.h"
 #include "selftests/mock_request.h"
@@ -65,6 +64,9 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 		return NULL;
 	}
 	i915_active_init(&ring->vma->active, NULL, NULL);
+	__set_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(ring->vma));
+	__set_bit(DRM_MM_NODE_ALLOCATED_BIT, &ring->vma->node.flags);
+	ring->vma->node.size = sz;
 
 	intel_ring_update_space(ring);
 
@@ -241,9 +243,7 @@ static void mock_reset_cancel(struct intel_engine_cs *engine)
 
 	/* Mark all submitted requests as skipped. */
 	list_for_each_entry(request, &engine->active.requests, sched.link) {
-		if (!i915_request_signaled(request))
-			dma_fence_set_error(&request->fence, -EIO);
-
+		i915_request_set_error_once(request, -EIO);
 		i915_request_mark_complete(request);
 	}
 
@@ -327,7 +327,6 @@ int mock_engine_init(struct intel_engine_cs *engine)
 	intel_engine_init_execlists(engine);
 	intel_engine_init__pm(engine);
 	intel_engine_init_retire(engine);
-	intel_engine_pool_init(&engine->pool);
 
 	ce = create_kernel_context(engine);
 	if (IS_ERR(ce))

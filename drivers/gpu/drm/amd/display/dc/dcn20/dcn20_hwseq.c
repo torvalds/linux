@@ -49,6 +49,8 @@
 #include "dc_link_dp.h"
 #include "vm_helper.h"
 #include "dccg.h"
+#include "dc_dmub_srv.h"
+#include "dce/dmub_hw_lock_mgr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -291,12 +293,20 @@ void dcn20_init_blank(
 
 	/* get the OPTC source */
 	tg->funcs->get_optc_source(tg, &num_opps, &opp_id_src0, &opp_id_src1);
-	ASSERT(opp_id_src0 < dc->res_pool->res_cap->num_opp);
+
+	if (opp_id_src0 >= dc->res_pool->res_cap->num_opp) {
+		ASSERT(false);
+		return;
+	}
 	opp = dc->res_pool->opps[opp_id_src0];
 
 	if (num_opps == 2) {
 		otg_active_width = otg_active_width / 2;
-		ASSERT(opp_id_src1 < dc->res_pool->res_cap->num_opp);
+
+		if (opp_id_src1 >= dc->res_pool->res_cap->num_opp) {
+			ASSERT(false);
+			return;
+		}
 		bottom_opp = dc->res_pool->opps[opp_id_src1];
 	}
 
@@ -307,7 +317,8 @@ void dcn20_init_blank(
 			COLOR_DEPTH_UNDEFINED,
 			&black_color,
 			otg_active_width,
-			otg_active_height);
+			otg_active_height,
+			0);
 
 	if (num_opps == 2) {
 		bottom_opp->funcs->opp_set_disp_pattern_generator(
@@ -317,7 +328,8 @@ void dcn20_init_blank(
 				COLOR_DEPTH_UNDEFINED,
 				&black_color,
 				otg_active_width,
-				otg_active_height);
+				otg_active_height,
+				0);
 	}
 
 	hws->funcs.wait_for_blank_complete(opp);
@@ -599,6 +611,31 @@ void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 					pipe_ctx->pipe_idx);
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
+		int opp_cnt)
+{
+	bool hblank_halved = optc2_is_two_pixels_per_containter(&stream->timing);
+	int flow_ctrl_cnt;
+
+	if (opp_cnt >= 2)
+		hblank_halved = true;
+
+	flow_ctrl_cnt = stream->timing.h_total - stream->timing.h_addressable -
+			stream->timing.h_border_left -
+			stream->timing.h_border_right;
+
+	if (hblank_halved)
+		flow_ctrl_cnt /= 2;
+
+	/* ODM combine 4:1 case */
+	if (opp_cnt == 4)
+		flow_ctrl_cnt /= 2;
+
+	return flow_ctrl_cnt;
+}
+#endif
+
 enum dc_status dcn20_enable_stream_timing(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
@@ -612,6 +649,15 @@ enum dc_status dcn20_enable_stream_timing(
 	int opp_cnt = 1;
 	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool interlace = stream->timing.flags.INTERLACE;
+	int i;
+
+	struct mpc_dwb_flow_control flow_control;
+	struct mpc *mpc = dc->res_pool->mpc;
+	bool rate_control_2x_pclk = (interlace || optc2_is_two_pixels_per_containter(&stream->timing));
+
+#endif
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
 	 * with pipe 0. No program is needed.
@@ -645,6 +691,9 @@ enum dc_status dcn20_enable_stream_timing(
 		return DC_ERROR_UNEXPECTED;
 	}
 
+	if (dc->hwseq->funcs.PLAT_58856_wa && (!dc_is_dp_signal(stream->signal)))
+		dc->hwseq->funcs.PLAT_58856_wa(context, pipe_ctx);
+
 	pipe_ctx->stream_res.tg->funcs->program_timing(
 			pipe_ctx->stream_res.tg,
 			&stream->timing,
@@ -655,6 +704,21 @@ enum dc_status dcn20_enable_stream_timing(
 			pipe_ctx->stream->signal,
 			true);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	rate_control_2x_pclk = rate_control_2x_pclk || opp_cnt > 1;
+	flow_control.flow_ctrl_mode = 0;
+	flow_control.flow_ctrl_cnt0 = 0x80;
+	flow_control.flow_ctrl_cnt1 = calc_mpc_flow_ctrl_cnt(stream, opp_cnt);
+	if (mpc->funcs->set_out_rate_control) {
+		for (i = 0; i < opp_cnt; ++i) {
+			mpc->funcs->set_out_rate_control(
+					mpc, opp_inst[i],
+					true,
+					rate_control_2x_pclk,
+					&flow_control);
+		}
+	}
+#endif
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
 				odm_pipe->stream_res.opp,
@@ -956,8 +1020,7 @@ void dcn20_blank_pixel_data(
 	width = width / odm_cnt;
 
 	if (blank) {
-		if (stream_res->abm)
-			stream_res->abm->funcs->set_abm_immediate_disable(stream_res->abm);
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
 		if (dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE) {
 			test_pattern = CONTROLLER_DP_TEST_PATTERN_COLORSQUARES;
@@ -974,7 +1037,8 @@ void dcn20_blank_pixel_data(
 			stream->timing.display_color_depth,
 			&black_color,
 			width,
-			height);
+			height,
+			0);
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
@@ -985,12 +1049,13 @@ void dcn20_blank_pixel_data(
 				stream->timing.display_color_depth,
 				&black_color,
 				width,
-				height);
+				height,
+				0);
 	}
 
 	if (!blank)
 		if (stream_res->abm) {
-			stream_res->abm->funcs->set_pipe(stream_res->abm, stream_res->tg->inst + 1);
+			dc->hwss.set_pipe(pipe_ctx);
 			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 		}
 }
@@ -1088,29 +1153,6 @@ void dcn20_enable_plane(
 //	}
 }
 
-
-void dcn20_pipe_control_lock_global(
-		struct dc *dc,
-		struct pipe_ctx *pipe,
-		bool lock)
-{
-	if (lock) {
-		pipe->stream_res.tg->funcs->lock_doublebuffer_enable(
-				pipe->stream_res.tg);
-		pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
-	} else {
-		pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
-		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-				CRTC_STATE_VACTIVE);
-		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-				CRTC_STATE_VBLANK);
-		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-				CRTC_STATE_VACTIVE);
-		pipe->stream_res.tg->funcs->lock_doublebuffer_disable(
-				pipe->stream_res.tg);
-	}
-}
-
 void dcn20_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,
@@ -1121,7 +1163,7 @@ void dcn20_pipe_control_lock(
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */
-	if (pipe->top_pipe)
+	if (!pipe || pipe->top_pipe)
 		return;
 
 	if (pipe->plane_state != NULL)
@@ -1154,7 +1196,21 @@ void dcn20_pipe_control_lock(
 		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
 			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
 
-	if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
+	if (pipe->stream && should_use_dmub_lock(pipe->stream->link)) {
+		union dmub_hw_lock_flags hw_locks = { 0 };
+		struct dmub_hw_lock_inst_flags inst_flags = { 0 };
+
+		hw_locks.bits.lock_pipe = 1;
+		inst_flags.otg_inst =  pipe->stream_res.tg->inst;
+
+		if (pipe->plane_state != NULL)
+			hw_locks.bits.triple_buffer_lock = pipe->plane_state->triplebuffer_flips;
+
+		dmub_hw_lock_mgr_cmd(dc->ctx->dmub_srv,
+					lock,
+					&hw_locks,
+					&inst_flags);
+	} else if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
 		if (lock)
 			pipe->stream_res.tg->funcs->triplebuffer_lock(pipe->stream_res.tg);
 		else
@@ -1225,14 +1281,13 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 	if (old_pipe->stream_res.tg != new_pipe->stream_res.tg)
 		new_pipe->update_flags.bits.tg_changed = 1;
 
-	/* Detect mpcc blending changes, only dpp inst and bot matter here */
+	/*
+	 * Detect mpcc blending changes, only dpp inst and opp matter here,
+	 * mpccs getting removed/inserted update connected ones during their own
+	 * programming
+	 */
 	if (old_pipe->plane_res.dpp != new_pipe->plane_res.dpp
-			|| old_pipe->stream_res.opp != new_pipe->stream_res.opp
-			|| (!old_pipe->bottom_pipe && new_pipe->bottom_pipe)
-			|| (old_pipe->bottom_pipe && !new_pipe->bottom_pipe)
-			|| (old_pipe->bottom_pipe && new_pipe->bottom_pipe
-				&& old_pipe->bottom_pipe->plane_res.mpcc_inst
-					!= new_pipe->bottom_pipe->plane_res.mpcc_inst))
+			|| old_pipe->stream_res.opp != new_pipe->stream_res.opp)
 		new_pipe->update_flags.bits.mpcc = 1;
 
 	/* Detect dppclk change */
@@ -1389,6 +1444,7 @@ static void dcn20_update_dchubp_dpp(
 	}
 
 	if (pipe_ctx->update_flags.bits.viewport ||
+			(context == dc->current_state && plane_state->update_flags.bits.position_change) ||
 			(context == dc->current_state && plane_state->update_flags.bits.scaling_change) ||
 			(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling)) {
 
@@ -1401,8 +1457,8 @@ static void dcn20_update_dchubp_dpp(
 
 	/* Any updates are handled in dc interface, just need to apply existing for plane enable */
 	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed ||
-			pipe_ctx->update_flags.bits.scaler || pipe_ctx->update_flags.bits.viewport)
-			&& pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
+			pipe_ctx->update_flags.bits.scaler || viewport_changed == true) &&
+			pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
 		dc->hwss.set_cursor_position(pipe_ctx);
 		dc->hwss.set_cursor_attribute(pipe_ctx);
 
@@ -1415,6 +1471,38 @@ static void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed
 			|| pipe_ctx->stream->update_flags.bits.gamut_remap
 			|| pipe_ctx->stream->update_flags.bits.out_csc) {
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+
+		if (mpc->funcs->set_gamut_remap) {
+			int i;
+			int mpcc_id = hubp->inst;
+			struct mpc_grph_gamut_adjustment adjust;
+			bool enable_remap_dpp = false;
+
+			memset(&adjust, 0, sizeof(adjust));
+			adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
+
+			/* save the enablement of gamut remap for dpp */
+			enable_remap_dpp = pipe_ctx->stream->gamut_remap_matrix.enable_remap;
+
+			/* force bypass gamut remap for dpp/cm */
+			pipe_ctx->stream->gamut_remap_matrix.enable_remap = false;
+			dc->hwss.program_gamut_remap(pipe_ctx);
+
+			/* restore gamut remap flag and use this remap into mpc */
+			pipe_ctx->stream->gamut_remap_matrix.enable_remap = enable_remap_dpp;
+
+			/* build remap matrix for top plane if enabled */
+			if (enable_remap_dpp && pipe_ctx->top_pipe == NULL) {
+					adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
+					for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
+						adjust.temperature_matrix[i] =
+								pipe_ctx->stream->gamut_remap_matrix.matrix[i];
+			}
+			mpc->funcs->set_gamut_remap(mpc, mpcc_id, &adjust);
+		} else
+#endif
 			/* dpp/cm gamut remap*/
 			dc->hwss.program_gamut_remap(pipe_ctx);
 
@@ -1450,9 +1538,6 @@ static void dcn20_update_dchubp_dpp(
 			0);
 		hubp->power_gated = false;
 	}
-
-	if (hubp->funcs->apply_PLAT_54186_wa && viewport_changed)
-		hubp->funcs->apply_PLAT_54186_wa(hubp, &plane_state->address);
 
 	if (pipe_ctx->update_flags.bits.enable || plane_state->update_flags.bits.addr_update)
 		hws->funcs.update_plane_addr(dc, pipe_ctx);
@@ -1493,8 +1578,11 @@ static void dcn20_program_pipe(
 	if (pipe_ctx->update_flags.bits.odm)
 		hws->funcs.update_odm(dc, context, pipe_ctx);
 
-	if (pipe_ctx->update_flags.bits.enable)
+	if (pipe_ctx->update_flags.bits.enable) {
 		dcn20_enable_plane(dc, pipe_ctx, context);
+		if (dc->res_pool->hubbub->funcs->force_wm_propagate_to_pipes)
+			dc->res_pool->hubbub->funcs->force_wm_propagate_to_pipes(dc->res_pool->hubbub);
+	}
 
 	if (pipe_ctx->update_flags.raw || pipe_ctx->plane_state->update_flags.raw || pipe_ctx->stream->update_flags.raw)
 		dcn20_update_dchubp_dpp(dc, pipe_ctx, context);
@@ -1536,48 +1624,32 @@ static void dcn20_program_pipe(
 	}
 }
 
-static bool does_pipe_need_lock(struct pipe_ctx *pipe)
-{
-	if ((pipe->plane_state && pipe->plane_state->update_flags.raw)
-			|| pipe->update_flags.raw)
-		return true;
-	if (pipe->bottom_pipe)
-		return does_pipe_need_lock(pipe->bottom_pipe);
-
-	return false;
-}
-
 void dcn20_program_front_end_for_ctx(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	const unsigned int TIMEOUT_FOR_PIPE_ENABLE_MS = 100;
 	int i;
 	struct dce_hwseq *hws = dc->hwseq;
-	bool pipe_locked[MAX_PIPES] = {false};
 	DC_LOGGER_INIT(dc->ctx->logger);
 
-	/* Carry over GSL groups in case the context is changing. */
-	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (context->res_ctx.pipe_ctx[i].stream == dc->current_state->res_ctx.pipe_ctx[i].stream)
-			context->res_ctx.pipe_ctx[i].stream_res.gsl_group =
-				dc->current_state->res_ctx.pipe_ctx[i].stream_res.gsl_group;
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe && pipe_ctx->plane_state) {
+			ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
+			if (dc->hwss.program_triplebuffer != NULL &&
+				!dc->debug.disable_tri_buf) {
+				/*turn off triple buffer for full update*/
+				dc->hwss.program_triplebuffer(
+					dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
+			}
+		}
+	}
 
 	/* Set pipe update flags and lock pipes */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		dcn20_detect_pipe_changes(&dc->current_state->res_ctx.pipe_ctx[i],
 				&context->res_ctx.pipe_ctx[i]);
-	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (!context->res_ctx.pipe_ctx[i].top_pipe &&
-				does_pipe_need_lock(&context->res_ctx.pipe_ctx[i])) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-			if (pipe_ctx->update_flags.bits.tg_changed || pipe_ctx->update_flags.bits.enable)
-				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
-			if (!pipe_ctx->update_flags.bits.enable)
-				dc->hwss.pipe_control_lock(dc, &dc->current_state->res_ctx.pipe_ctx[i], true);
-			pipe_locked[i] = true;
-		}
 
 	/* OTG blank before disabling all front ends */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
@@ -1615,17 +1687,17 @@ void dcn20_program_front_end_for_ctx(
 				hws->funcs.program_all_writeback_pipes_in_tree(dc, pipe->stream, context);
 		}
 	}
+}
 
-	/* Unlock all locked pipes */
-	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (pipe_locked[i]) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+void dcn20_post_unlock_program_front_end(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	int i;
+	const unsigned int TIMEOUT_FOR_PIPE_ENABLE_MS = 100;
+	struct dce_hwseq *hwseq = dc->hwseq;
 
-			if (pipe_ctx->update_flags.bits.tg_changed || pipe_ctx->update_flags.bits.enable)
-				dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
-			if (!pipe_ctx->update_flags.bits.enable)
-				dc->hwss.pipe_control_lock(dc, &dc->current_state->res_ctx.pipe_ctx[i], false);
-		}
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
@@ -1651,10 +1723,25 @@ void dcn20_program_front_end_for_ctx(
 	}
 
 	/* WA to apply WM setting*/
-	if (dc->hwseq->wa.DEGVIDCN21)
+	if (hwseq->wa.DEGVIDCN21)
 		dc->res_pool->hubbub->funcs->apply_DEDCN21_147_wa(dc->res_pool->hubbub);
-}
 
+
+	/* WA for stutter underflow during MPO transitions when adding 2nd plane */
+	if (hwseq->wa.disallow_self_refresh_during_multi_plane_transition) {
+
+		if (dc->current_state->stream_status[0].plane_count == 1 &&
+				context->stream_status[0].plane_count > 1) {
+
+			struct timing_generator *tg = dc->res_pool->timing_generators[0];
+
+			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub, false);
+
+			hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied = true;
+			hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied_on_frame = tg->funcs->get_frame_count(tg);
+		}
+	}
+}
 
 void dcn20_prepare_bandwidth(
 		struct dc *dc,
@@ -1668,7 +1755,7 @@ void dcn20_prepare_bandwidth(
 			false);
 
 	/* program dchubbub watermarks */
-	hubbub->funcs->program_watermarks(hubbub,
+	dc->wm_optimized_required = hubbub->funcs->program_watermarks(hubbub,
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);
@@ -2052,6 +2139,9 @@ static void dcn20_reset_back_end_for_pipe(
 	 * parent pipe.
 	 */
 	if (pipe_ctx->top_pipe == NULL) {
+
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
+
 		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
 		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
@@ -2172,6 +2262,11 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	blnd_cfg.bottom_inside_gain = 0x1f000;
 	blnd_cfg.bottom_outside_gain = 0x1f000;
 	blnd_cfg.pre_multiplied_alpha = per_pixel_alpha;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	if (pipe_ctx->plane_state->format
+			== SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA)
+		blnd_cfg.pre_multiplied_alpha = false;
+#endif
 
 	/*
 	 * TODO: remove hack
@@ -2182,6 +2277,13 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	 * which causes a pstate hang for yet unknown reason.
 	 */
 	mpcc_id = hubp->inst;
+
+	/* If there is no full update, don't need to touch MPC tree*/
+	if (!pipe_ctx->plane_state->update_flags.bits.full_update &&
+		!pipe_ctx->update_flags.bits.mpcc) {
+		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
+		return;
+	}
 
 	/* check if this MPCC is already being used */
 	new_mpcc = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, mpcc_id);
@@ -2306,7 +2408,8 @@ void dcn20_fpga_init_hw(struct dc *dc)
 
 	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, 2);
 	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-	REG_WRITE(REFCLK_CNTL, 0);
+	if (REG(REFCLK_CNTL))
+		REG_WRITE(REFCLK_CNTL, 0);
 	//
 
 
@@ -2395,3 +2498,30 @@ void dcn20_fpga_init_hw(struct dc *dc)
 		tg->funcs->tg_init(tg);
 	}
 }
+#ifndef TRIM_FSFT
+bool dcn20_optimize_timing_for_fsft(struct dc *dc,
+		struct dc_crtc_timing *timing,
+		unsigned int max_input_rate_in_khz)
+{
+	unsigned int old_v_front_porch;
+	unsigned int old_v_total;
+	unsigned int max_input_rate_in_100hz;
+	unsigned long long new_v_total;
+
+	max_input_rate_in_100hz = max_input_rate_in_khz * 10;
+	if (max_input_rate_in_100hz < timing->pix_clk_100hz)
+		return false;
+
+	old_v_total = timing->v_total;
+	old_v_front_porch = timing->v_front_porch;
+
+	timing->fast_transport_output_rate_100hz = timing->pix_clk_100hz;
+	timing->pix_clk_100hz = max_input_rate_in_100hz;
+
+	new_v_total = div_u64((unsigned long long)old_v_total * max_input_rate_in_100hz, timing->pix_clk_100hz);
+
+	timing->v_total = new_v_total;
+	timing->v_front_porch = old_v_front_porch + (timing->v_total - old_v_total);
+	return true;
+}
+#endif

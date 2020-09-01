@@ -156,9 +156,6 @@ static int max517_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	/* establish that the iio_dev is a child of the i2c device */
-	indio_dev->dev.parent = &client->dev;
-
 	switch (id->driver_data) {
 	case ID_MAX521:
 		indio_dev->num_channels = 8;

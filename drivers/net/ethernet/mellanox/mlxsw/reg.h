@@ -621,7 +621,7 @@ static inline void mlxsw_reg_sfn_pack(char *payload)
 {
 	MLXSW_REG_ZERO(sfn, payload);
 	mlxsw_reg_sfn_swid_set(payload, 0);
-	mlxsw_reg_sfn_end_set(payload, 1);
+	mlxsw_reg_sfn_end_set(payload, 0);
 	mlxsw_reg_sfn_num_rec_set(payload, MLXSW_REG_SFN_REC_MAX_COUNT);
 }
 
@@ -3203,7 +3203,7 @@ MLXSW_ITEM32_INDEXED(reg, iedr, rec_type, MLXSW_REG_IEDR_BASE_LEN, 24, 8,
  * Size of entries do be deleted. The unit is 1 entry, regardless of entry type.
  * Access: OP
  */
-MLXSW_ITEM32_INDEXED(reg, iedr, rec_size, MLXSW_REG_IEDR_BASE_LEN, 0, 11,
+MLXSW_ITEM32_INDEXED(reg, iedr, rec_size, MLXSW_REG_IEDR_BASE_LEN, 0, 13,
 		     MLXSW_REG_IEDR_REC_LEN, 0x00, false);
 
 /* reg_iedr_rec_index_start
@@ -3295,6 +3295,12 @@ MLXSW_ITEM32(reg, qpcr, g, 0x00, 14, 2);
  * Access: Index
  */
 MLXSW_ITEM32(reg, qpcr, pid, 0x00, 0, 14);
+
+/* reg_qpcr_clear_counter
+ * Clear counters.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, qpcr, clear_counter, 0x04, 31, 1);
 
 /* reg_qpcr_color_aware
  * Is the policer aware of colors.
@@ -3392,6 +3398,26 @@ enum mlxsw_reg_qpcr_action {
  * Access: RW for unbounded policer. RO for bounded policer.
  */
 MLXSW_ITEM32(reg, qpcr, violate_action, 0x18, 0, 4);
+
+/* reg_qpcr_violate_count
+ * Counts the number of times violate_action happened on this PID.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, qpcr, violate_count, 0x20, 0, 64);
+
+/* Packets */
+#define MLXSW_REG_QPCR_LOWEST_CIR	1
+#define MLXSW_REG_QPCR_HIGHEST_CIR	(2 * 1000 * 1000 * 1000) /* 2Gpps */
+#define MLXSW_REG_QPCR_LOWEST_CBS	4
+#define MLXSW_REG_QPCR_HIGHEST_CBS	24
+
+/* Bandwidth */
+#define MLXSW_REG_QPCR_LOWEST_CIR_BITS		1024 /* bps */
+#define MLXSW_REG_QPCR_HIGHEST_CIR_BITS		2000000000000ULL /* 2Tbps */
+#define MLXSW_REG_QPCR_LOWEST_CBS_BITS_SP1	4
+#define MLXSW_REG_QPCR_LOWEST_CBS_BITS_SP2	4
+#define MLXSW_REG_QPCR_HIGHEST_CBS_BITS_SP1	25
+#define MLXSW_REG_QPCR_HIGHEST_CBS_BITS_SP2	31
 
 static inline void mlxsw_reg_qpcr_pack(char *payload, u16 pid,
 				       enum mlxsw_reg_qpcr_ir_units ir_units,
@@ -3572,7 +3598,7 @@ MLXSW_ITEM32(reg, qeec, mase, 0x10, 31, 1);
  * When in bytes mode, value is specified in units of 1000bps.
  * Access: RW
  */
-MLXSW_ITEM32(reg, qeec, max_shaper_rate, 0x10, 0, 28);
+MLXSW_ITEM32(reg, qeec, max_shaper_rate, 0x10, 0, 31);
 
 /* reg_qeec_de
  * DWRR configuration enable. Enables configuration of the dwrr and
@@ -5421,6 +5447,56 @@ static inline void mlxsw_reg_pplr_pack(char *payload, u8 local_port,
 				 MLXSW_REG_PPLR_LB_TYPE_BIT_PHY_LOCAL : 0);
 }
 
+/* PDDR - Port Diagnostics Database Register
+ * -----------------------------------------
+ * The PDDR enables to read the Phy debug database
+ */
+#define MLXSW_REG_PDDR_ID 0x5031
+#define MLXSW_REG_PDDR_LEN 0x100
+
+MLXSW_REG_DEFINE(pddr, MLXSW_REG_PDDR_ID, MLXSW_REG_PDDR_LEN);
+
+/* reg_pddr_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pddr, local_port, 0x00, 16, 8);
+
+enum mlxsw_reg_pddr_page_select {
+	MLXSW_REG_PDDR_PAGE_SELECT_TROUBLESHOOTING_INFO = 1,
+};
+
+/* reg_pddr_page_select
+ * Page select index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pddr, page_select, 0x04, 0, 8);
+
+enum mlxsw_reg_pddr_trblsh_group_opcode {
+	/* Monitor opcodes */
+	MLXSW_REG_PDDR_TRBLSH_GROUP_OPCODE_MONITOR,
+};
+
+/* reg_pddr_group_opcode
+ * Group selector.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pddr, trblsh_group_opcode, 0x08, 0, 16);
+
+/* reg_pddr_status_opcode
+ * Group selector.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pddr, trblsh_status_opcode, 0x0C, 0, 16);
+
+static inline void mlxsw_reg_pddr_pack(char *payload, u8 local_port,
+				       u8 page_select)
+{
+	MLXSW_REG_ZERO(pddr, payload);
+	mlxsw_reg_pddr_local_port_set(payload, local_port);
+	mlxsw_reg_pddr_page_select_set(payload, page_select);
+}
+
 /* PMTM - Port Module Type Mapping Register
  * ----------------------------------------
  * The PMTM allows query or configuration of module types.
@@ -5440,15 +5516,29 @@ enum mlxsw_reg_pmtm_module_type {
 	/* Backplane with 4 lanes */
 	MLXSW_REG_PMTM_MODULE_TYPE_BP_4X,
 	/* QSFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_BP_QSFP,
+	MLXSW_REG_PMTM_MODULE_TYPE_QSFP,
 	/* SFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_BP_SFP,
+	MLXSW_REG_PMTM_MODULE_TYPE_SFP,
 	/* Backplane with single lane */
 	MLXSW_REG_PMTM_MODULE_TYPE_BP_1X = 4,
 	/* Backplane with two lane */
 	MLXSW_REG_PMTM_MODULE_TYPE_BP_2X = 8,
-	/* Chip2Chip */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C = 10,
+	/* Chip2Chip4x */
+	MLXSW_REG_PMTM_MODULE_TYPE_C2C4X = 10,
+	/* Chip2Chip2x */
+	MLXSW_REG_PMTM_MODULE_TYPE_C2C2X,
+	/* Chip2Chip1x */
+	MLXSW_REG_PMTM_MODULE_TYPE_C2C1X,
+	/* QSFP-DD */
+	MLXSW_REG_PMTM_MODULE_TYPE_QSFP_DD = 14,
+	/* OSFP */
+	MLXSW_REG_PMTM_MODULE_TYPE_OSFP,
+	/* SFP-DD */
+	MLXSW_REG_PMTM_MODULE_TYPE_SFP_DD,
+	/* DSFP */
+	MLXSW_REG_PMTM_MODULE_TYPE_DSFP,
+	/* Chip2Chip8x */
+	MLXSW_REG_PMTM_MODULE_TYPE_C2C8X,
 };
 
 /* reg_pmtm_module_type
@@ -5495,40 +5585,39 @@ MLXSW_ITEM32(reg, htgt, type, 0x00, 8, 4);
 
 enum mlxsw_reg_htgt_trap_group {
 	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
-	MLXSW_REG_HTGT_TRAP_GROUP_SX2_RX,
-	MLXSW_REG_HTGT_TRAP_GROUP_SX2_CTRL,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_STP,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_IGMP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_MC_SNOOPING,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_BGP,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_PIM,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_MULTICAST,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_HOST_MISS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_NEIGH_DISCOVERY,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_REMOTE_ROUTE,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_EXTERNAL_ROUTE,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_DHCP,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_RPF,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_EVENT,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_MLD,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_ND,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LBERROR,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_VRRP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_FLOW_LOGGING,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_FID_MISS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_BFD,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_DUMMY,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_EXCEPTIONS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_BUFFER_DISCARDS,
 
 	__MLXSW_REG_HTGT_TRAP_GROUP_MAX,
 	MLXSW_REG_HTGT_TRAP_GROUP_MAX = __MLXSW_REG_HTGT_TRAP_GROUP_MAX - 1
-};
-
-enum mlxsw_reg_htgt_discard_trap_group {
-	MLXSW_REG_HTGT_DISCARD_TRAP_GROUP_BASE = MLXSW_REG_HTGT_TRAP_GROUP_MAX,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS,
-	MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
 };
 
 /* reg_htgt_trap_group
@@ -5700,7 +5789,7 @@ MLXSW_ITEM32(reg, hpkt, trap_group, 0x00, 12, 6);
  * Note: A trap ID can only be associated with a single trap group. The device
  * will associate the trap ID with the last trap group configured.
  */
-MLXSW_ITEM32(reg, hpkt, trap_id, 0x00, 0, 9);
+MLXSW_ITEM32(reg, hpkt, trap_id, 0x00, 0, 10);
 
 enum {
 	MLXSW_REG_HPKT_CTRL_PACKET_DEFAULT,
@@ -8518,8 +8607,10 @@ MLXSW_ITEM32(reg, mcia, size, 0x08, 0, 16);
 #define MLXSW_REG_MCIA_PAGE0_LO_OFF		0xa0
 #define MLXSW_REG_MCIA_TH_ITEM_SIZE		2
 #define MLXSW_REG_MCIA_TH_PAGE_NUM		3
+#define MLXSW_REG_MCIA_TH_PAGE_CMIS_NUM		2
 #define MLXSW_REG_MCIA_PAGE0_LO			0
 #define MLXSW_REG_MCIA_TH_PAGE_OFF		0x80
+#define MLXSW_REG_MCIA_EEPROM_CMIS_FLAT_MEMORY	BIT(7)
 
 enum mlxsw_reg_mcia_eeprom_module_info_rev_id {
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_UNSPC	= 0x00,
@@ -8538,6 +8629,7 @@ enum mlxsw_reg_mcia_eeprom_module_info_id {
 enum mlxsw_reg_mcia_eeprom_module_info {
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID,
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_TYPE_ID,
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE,
 };
 
@@ -8583,6 +8675,13 @@ MLXSW_REG_DEFINE(mpat, MLXSW_REG_MPAT_ID, MLXSW_REG_MPAT_LEN);
  * Access: Index
  */
 MLXSW_ITEM32(reg, mpat, pa_id, 0x00, 28, 4);
+
+/* reg_mpat_session_id
+ * Mirror Session ID.
+ * Used for MIRROR_SESSION<i> trap.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, session_id, 0x00, 24, 4);
 
 /* reg_mpat_system_port
  * A unique port identifier for the final destination of the packet.
@@ -8640,6 +8739,18 @@ enum mlxsw_reg_mpat_span_type {
  * Access: RW
  */
 MLXSW_ITEM32(reg, mpat, span_type, 0x04, 0, 4);
+
+/* reg_mpat_pide
+ * Policer enable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, pide, 0x0C, 15, 1);
+
+/* reg_mpat_pid
+ * Policer ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, pid, 0x0C, 0, 14);
 
 /* Remote SPAN - Ethernet VLAN
  * - - - - - - - - - - - - - -
@@ -9423,6 +9534,114 @@ MLXSW_ITEM32(reg, mogcr, ptp_iftc, 0x00, 1, 1);
  * Access: RW
  */
 MLXSW_ITEM32(reg, mogcr, ptp_eftc, 0x00, 0, 1);
+
+/* reg_mogcr_mirroring_pid_base
+ * Base policer id for mirroring policers.
+ * Must have an even value (e.g. 1000, not 1001).
+ * Reserved when SwitchX/-2, Switch-IB/2, Spectrum-1 and Quantum.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mogcr, mirroring_pid_base, 0x0C, 0, 14);
+
+/* MPAGR - Monitoring Port Analyzer Global Register
+ * ------------------------------------------------
+ * This register is used for global port analyzer configurations.
+ * Note: This register is not supported by current FW versions for Spectrum-1.
+ */
+#define MLXSW_REG_MPAGR_ID 0x9089
+#define MLXSW_REG_MPAGR_LEN 0x0C
+
+MLXSW_REG_DEFINE(mpagr, MLXSW_REG_MPAGR_ID, MLXSW_REG_MPAGR_LEN);
+
+enum mlxsw_reg_mpagr_trigger {
+	MLXSW_REG_MPAGR_TRIGGER_EGRESS,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS_WRED,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS_SHARED_BUFFER,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS_ING_CONG,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS_EGR_CONG,
+	MLXSW_REG_MPAGR_TRIGGER_EGRESS_ECN,
+	MLXSW_REG_MPAGR_TRIGGER_EGRESS_HIGH_LATENCY,
+};
+
+/* reg_mpagr_trigger
+ * Mirror trigger.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mpagr, trigger, 0x00, 0, 4);
+
+/* reg_mpagr_pa_id
+ * Port analyzer ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpagr, pa_id, 0x04, 0, 4);
+
+/* reg_mpagr_probability_rate
+ * Sampling rate.
+ * Valid values are: 1 to 3.5*10^9
+ * Value of 1 means "sample all". Default is 1.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpagr, probability_rate, 0x08, 0, 32);
+
+static inline void mlxsw_reg_mpagr_pack(char *payload,
+					enum mlxsw_reg_mpagr_trigger trigger,
+					u8 pa_id, u32 probability_rate)
+{
+	MLXSW_REG_ZERO(mpagr, payload);
+	mlxsw_reg_mpagr_trigger_set(payload, trigger);
+	mlxsw_reg_mpagr_pa_id_set(payload, pa_id);
+	mlxsw_reg_mpagr_probability_rate_set(payload, probability_rate);
+}
+
+/* MOMTE - Monitoring Mirror Trigger Enable Register
+ * -------------------------------------------------
+ * This register is used to configure the mirror enable for different mirror
+ * reasons.
+ */
+#define MLXSW_REG_MOMTE_ID 0x908D
+#define MLXSW_REG_MOMTE_LEN 0x10
+
+MLXSW_REG_DEFINE(momte, MLXSW_REG_MOMTE_ID, MLXSW_REG_MOMTE_LEN);
+
+/* reg_momte_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, momte, local_port, 0x00, 16, 8);
+
+enum mlxsw_reg_momte_type {
+	MLXSW_REG_MOMTE_TYPE_WRED = 0x20,
+	MLXSW_REG_MOMTE_TYPE_SHARED_BUFFER_TCLASS = 0x31,
+	MLXSW_REG_MOMTE_TYPE_SHARED_BUFFER_TCLASS_DESCRIPTORS = 0x32,
+	MLXSW_REG_MOMTE_TYPE_SHARED_BUFFER_EGRESS_PORT = 0x33,
+	MLXSW_REG_MOMTE_TYPE_ING_CONG = 0x40,
+	MLXSW_REG_MOMTE_TYPE_EGR_CONG = 0x50,
+	MLXSW_REG_MOMTE_TYPE_ECN = 0x60,
+	MLXSW_REG_MOMTE_TYPE_HIGH_LATENCY = 0x70,
+};
+
+/* reg_momte_type
+ * Type of mirroring.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, momte, type, 0x04, 0, 8);
+
+/* reg_momte_tclass_en
+ * TClass/PG mirror enable. Each bit represents corresponding tclass.
+ * 0: disable (default)
+ * 1: enable
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, momte, tclass_en, 0x08, 0x08, 1);
+
+static inline void mlxsw_reg_momte_pack(char *payload, u8 local_port,
+					enum mlxsw_reg_momte_type type)
+{
+	MLXSW_REG_ZERO(momte, payload);
+	mlxsw_reg_momte_local_port_set(payload, local_port);
+	mlxsw_reg_momte_type_set(payload, type);
+}
 
 /* MTPPPC - Time Precision Packet Port Configuration
  * -------------------------------------------------
@@ -10730,6 +10949,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pbmc),
 	MLXSW_REG(pspa),
 	MLXSW_REG(pplr),
+	MLXSW_REG(pddr),
 	MLXSW_REG(pmtm),
 	MLXSW_REG(htgt),
 	MLXSW_REG(hpkt),
@@ -10774,6 +10994,8 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mgpc),
 	MLXSW_REG(mprs),
 	MLXSW_REG(mogcr),
+	MLXSW_REG(mpagr),
+	MLXSW_REG(momte),
 	MLXSW_REG(mtpppc),
 	MLXSW_REG(mtpptr),
 	MLXSW_REG(mtptpt),

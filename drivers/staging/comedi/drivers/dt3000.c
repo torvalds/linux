@@ -439,9 +439,8 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			arg = cmd->convert_arg * cmd->scan_end_arg;
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    arg);
+			err |= comedi_check_trigger_arg_min(
+				&cmd->scan_begin_arg, arg);
 		}
 	}
 
@@ -736,6 +735,6 @@ static struct pci_driver dt3000_pci_driver = {
 };
 module_comedi_pci_driver(dt3000_driver, dt3000_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Data Translation DT3000 series boards");
 MODULE_LICENSE("GPL");

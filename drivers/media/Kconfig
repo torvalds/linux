@@ -3,194 +3,47 @@
 # Multimedia device configuration
 #
 
-config CEC_CORE
-	tristate
-
-config CEC_NOTIFIER
-	bool
-
-config CEC_PIN
-	bool
-
+#
+# NOTE: CEC and Remote Controller support should not depend on MEDIA_SUPPORT
+#
 source "drivers/media/rc/Kconfig"
+source "drivers/media/cec/Kconfig"
 
 menuconfig MEDIA_SUPPORT
 	tristate "Multimedia support"
 	depends on HAS_IOMEM
 	help
-	  If you want to use Webcams, Video grabber devices and/or TV devices
-	  enable this option and other options below.
+	  If you want to use media devices, including Webcams, Video grabber
+	  devices and/or TV devices, V4L2 codecs, etc, enable this option
+	  and other options below.
+
 	  Additional info and docs are available on the web at
 	  <https://linuxtv.org>
 
 if MEDIA_SUPPORT
 
-comment "Multimedia core support"
-
-#
-# Multimedia support - automatically enable V4L2 and DVB core
-#
-config MEDIA_CAMERA_SUPPORT
-	bool "Cameras/video grabbers support"
-	help
-	  Enable support for webcams and video grabbers.
-
-	  Say Y when you have a webcam or a video capture grabber board.
-
-config MEDIA_ANALOG_TV_SUPPORT
-	bool "Analog TV support"
-	help
-	  Enable analog TV support.
-
-	  Say Y when you have a TV board with analog support or with a
-	  hybrid analog/digital TV chipset.
-
-	  Note: There are several DVB cards that are based on chips that
-		support both analog and digital TV. Disabling this option
-		will disable support for them.
-
-config MEDIA_DIGITAL_TV_SUPPORT
-	bool "Digital TV support"
-	help
-	  Enable digital TV support.
-
-	  Say Y when you have a board with digital support or a board with
-	  hybrid digital TV and analog TV.
-
-config MEDIA_RADIO_SUPPORT
-	bool "AM/FM radio receivers/transmitters support"
-	help
-	  Enable AM/FM radio support.
-
-	  Additional info and docs are available on the web at
-	  <https://linuxtv.org>
-
-	  Say Y when you have a board with radio support.
-
-	  Note: There are several TV cards that are based on chips that
-		support radio reception. Disabling this option will
-		disable support for them.
-
-config MEDIA_SDR_SUPPORT
-	bool "Software defined radio support"
-	help
-	  Enable software defined radio support.
-
-	  Say Y when you have a software defined radio device.
-
-config MEDIA_CEC_SUPPORT
-	bool "HDMI CEC support"
-	help
-	  Enable support for HDMI CEC (Consumer Electronics Control),
-	  which is an optional HDMI feature.
-
-	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
-	  adapter that supports HDMI CEC.
-
-source "drivers/media/cec/Kconfig"
-
-source "drivers/media/mc/Kconfig"
-
-#
-# Video4Linux support
-#	Only enables if one of the V4L2 types (ATV, webcam, radio) is selected
-#
-
-config VIDEO_DEV
-	tristate
+config MEDIA_SUPPORT_FILTER
+	bool "Filter media drivers"
 	depends on MEDIA_SUPPORT
-	depends on MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT
-	default y
-
-config VIDEO_V4L2_SUBDEV_API
-	bool "V4L2 sub-device userspace API"
-	depends on VIDEO_DEV && MEDIA_CONTROLLER
+	default y if !EMBEDDED && !EXPERT
 	help
-	  Enables the V4L2 sub-device pad-level userspace API used to configure
-	  video format, size and frame rate between hardware blocks.
+	   Configuring the media subsystem can be complex, as there are
+	   hundreds of drivers and other config options.
 
-	  This API is mostly used by camera interfaces in embedded platforms.
+	   This menu offers option that will help the Kernel's config
+	   system to hide drivers that are out of the scope of the
+	   user needs, and disabling core support for unused APIs.
 
-source "drivers/media/v4l2-core/Kconfig"
-
-#
-# DVB Core
-#	Only enables if one of DTV is selected
-#
-
-config DVB_CORE
-	tristate
-	depends on MEDIA_SUPPORT
-	depends on MEDIA_DIGITAL_TV_SUPPORT
-	depends on (I2C || I2C=n)
-	default y
-	select CRC32
-
-config DVB_MMAP
-	bool "Enable DVB memory-mapped API (EXPERIMENTAL)"
-	depends on DVB_CORE
-	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_CORE
-	select VIDEOBUF2_VMALLOC
-	help
-	  This option enables DVB experimental memory-mapped API, which
-	  reduces the number of context switches to read DVB buffers, as
-	  the buffers can use mmap() syscalls.
-
-	  Support for it is experimental. Use with care. If unsure,
-	  say N.
-
-config DVB_NET
-	bool "DVB Network Support"
-	default (NET && INET)
-	depends on NET && INET && DVB_CORE
-	help
-	  This option enables DVB Network Support which is a part of the DVB
-	  standard. It is used, for example, by automatic firmware updates used
-	  on Set-Top-Boxes. It can also be used to access the Internet via the
-	  DVB card, if the network provider supports it.
-
-	  You may want to disable the network support on embedded devices. If
-	  unsure say Y.
-
-# This Kconfig option is used by both PCI and USB drivers
-config TTPCI_EEPROM
-	tristate
-	depends on I2C
-
-source "drivers/media/dvb-core/Kconfig"
-
-comment "Media drivers"
-
-#
-# V4L platform/mem2mem drivers
-#
-
-source "drivers/media/usb/Kconfig"
-source "drivers/media/pci/Kconfig"
-source "drivers/media/platform/Kconfig"
-source "drivers/media/mmc/Kconfig"
-source "drivers/media/radio/Kconfig"
-
-comment "Supported FireWire (IEEE 1394) Adapters"
-	depends on DVB_CORE && FIREWIRE
-source "drivers/media/firewire/Kconfig"
-
-# Common driver options
-source "drivers/media/common/Kconfig"
-
-comment "Media ancillary drivers (tuners, sensors, i2c, spi, frontends)"
-
-#
-# Ancillary drivers (tuners, i2c, spi, frontends)
-#
+	   If not selected, all non-optional media core functionality
+	   needed to support media drivers will be enabled. Also, all
+	   media device drivers should be shown.
 
 config MEDIA_SUBDRV_AUTOSELECT
 	bool "Autoselect ancillary drivers (tuners, sensors, i2c, spi, frontends)"
-	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_CAMERA_SUPPORT || MEDIA_SDR_SUPPORT
 	depends on HAS_IOMEM
 	select I2C
 	select I2C_MUX
-	default y if !EMBEDDED
+	default y if MEDIA_SUPPORT_FILTER
 	help
 	  By default, a media driver auto-selects all possible ancillary
 	  devices such as tuners, sensors, video encoders/decoders and
@@ -207,10 +60,193 @@ config MEDIA_SUBDRV_AUTOSELECT
 
 	  If unsure say Y.
 
+menu "Media device types"
+
+#
+# Multimedia support - automatically enable V4L2 and DVB core
+#
+config MEDIA_CAMERA_SUPPORT
+	bool
+	prompt "Cameras and video grabbers" if MEDIA_SUPPORT_FILTER
+	default y if !MEDIA_SUPPORT_FILTER
+	help
+	  Enable support for webcams and video grabbers.
+
+	  Say Y when you have a webcam or a video capture grabber board.
+
+config MEDIA_ANALOG_TV_SUPPORT
+	bool
+	prompt "Analog TV" if MEDIA_SUPPORT_FILTER
+	default y if !MEDIA_SUPPORT_FILTER
+	help
+	  Enable analog TV support.
+
+	  Say Y when you have a TV board with analog support or with a
+	  hybrid analog/digital TV chipset.
+
+	  Note: There are several DVB cards that are based on chips that
+		support both analog and digital TV. Disabling this option
+		will disable support for them.
+
+config MEDIA_DIGITAL_TV_SUPPORT
+	bool
+	prompt "Digital TV" if MEDIA_SUPPORT_FILTER
+	default y if !MEDIA_SUPPORT_FILTER
+	help
+	  Enable digital TV support.
+
+	  Say Y when you have a board with digital support or a board with
+	  hybrid digital TV and analog TV.
+
+config MEDIA_RADIO_SUPPORT
+	bool
+	prompt "AM/FM radio receivers/transmitters" if MEDIA_SUPPORT_FILTER
+	default y if !MEDIA_SUPPORT_FILTER
+	help
+	  Enable AM/FM radio support.
+
+	  Additional info and docs are available on the web at
+	  <https://linuxtv.org>
+
+	  Say Y when you have a board with radio support.
+
+	  Note: There are several TV cards that are based on chips that
+		support radio reception. Disabling this option will
+		disable support for them.
+
+config MEDIA_SDR_SUPPORT
+	bool
+	prompt "Software defined radio" if MEDIA_SUPPORT_FILTER
+	default y if !MEDIA_SUPPORT_FILTER
+	help
+	  Enable software defined radio support.
+
+	  Say Y when you have a software defined radio device.
+
+config MEDIA_PLATFORM_SUPPORT
+	bool
+	prompt "Platform-specific devices" if MEDIA_SUPPORT_FILTER
+	default y if !MEDIA_SUPPORT_FILTER
+	help
+	  Enable support for complex cameras, codecs, and other hardware
+	  that are integrated at the CPU, GPU or on Image Signalling Processor
+	  and don't use PCI, USB or Firewire buses.
+
+	  This is found on Embedded hardware (SoC), on V4L2 codecs and
+	  on some GPU and newer CPU chipsets.
+
+	  Say Y when you want to be able so see such devices.
+
+config MEDIA_TEST_SUPPORT
+	bool
+	prompt "Test drivers" if MEDIA_SUPPORT_FILTER
+	default y if !MEDIA_SUPPORT_FILTER
+	help
+	  Those drivers should not be used on production Kernels, but
+	  can be useful on debug ones. It enables several dummy drivers
+	  that simulate a real hardware. Very useful to test userspace
+	  applications and to validate if the subsystem core is doesn't
+	  have regressions.
+
+	  Say Y if you want to use some virtual test driver.
+
+	  In case of doubts, say N.
+	  Say Y when you have a software defined radio device.
+endmenu # media device types
+
+
+menu "Media core support"
+	visible if !MEDIA_SUPPORT_FILTER
+
+config VIDEO_DEV
+	tristate "Video4Linux core"
+	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT || MEDIA_PLATFORM_SUPPORT || MEDIA_TEST_SUPPORT
+	help
+	  Enables the V4L2 API, used by cameras, analog TV, video grabbers,
+	  radio devices and by some input devices.
+
+config MEDIA_CONTROLLER
+	bool "Media Controller API"
+	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_PLATFORM_SUPPORT
+	help
+	  Enable the media controller API used to query media devices internal
+	  topology and configure it dynamically.
+
+	  This API is mostly used by camera interfaces in embedded platforms.
+
+#
+# DVB Core
+#	Only enables if one of DTV is selected
+#
+
+config DVB_CORE
+	tristate
+	depends on MEDIA_DIGITAL_TV_SUPPORT
+	depends on (I2C || I2C=n)
+	default MEDIA_DIGITAL_TV_SUPPORT
+	select CRC32
+	help
+	  Enables the DVB API, used by Digital TV devices. Supports several
+	  standards, including DVB, ATSC, ISDB and CMDB.
+
+endmenu # Media core support
+
+#
+# Extra per-media API core functionality
+
+menu "Video4Linux options"
+	visible if VIDEO_DEV
+
+source "drivers/media/v4l2-core/Kconfig"
+endmenu
+
+menu "Media controller options"
+	visible if MEDIA_CONTROLLER
+
+source "drivers/media/mc/Kconfig"
+endmenu
+
+menu "Digital TV options"
+	visible if DVB_CORE
+
+source "drivers/media/dvb-core/Kconfig"
+endmenu
+
+menu "Media drivers"
+
+comment "Drivers filtered as selected at 'Filter media drivers'"
+	depends on MEDIA_SUPPORT_FILTER
+
+source "drivers/media/usb/Kconfig"
+source "drivers/media/pci/Kconfig"
+source "drivers/media/radio/Kconfig"
+
+# Common driver options
+source "drivers/media/common/Kconfig"
+
+if MEDIA_PLATFORM_SUPPORT
+source "drivers/media/platform/Kconfig"
+source "drivers/media/mmc/Kconfig"
+endif
+
+if MEDIA_TEST_SUPPORT
+source "drivers/media/test-drivers/Kconfig"
+endif
+
+source "drivers/media/firewire/Kconfig"
+
+endmenu
+
+#
+# Ancillary drivers (tuners, i2c, spi, frontends)
+#
+
 config MEDIA_HIDE_ANCILLARY_SUBDRV
-        bool
-        depends on MEDIA_SUBDRV_AUTOSELECT && !COMPILE_TEST && !EXPERT
-        default y
+	bool
+	depends on MEDIA_SUBDRV_AUTOSELECT && !COMPILE_TEST && !EXPERT
+	default y
+
+menu "Media ancillary drivers"
 
 config MEDIA_ATTACH
 	bool
@@ -222,5 +258,7 @@ source "drivers/media/i2c/Kconfig"
 source "drivers/media/spi/Kconfig"
 source "drivers/media/tuners/Kconfig"
 source "drivers/media/dvb-frontends/Kconfig"
+
+endmenu
 
 endif # MEDIA_SUPPORT

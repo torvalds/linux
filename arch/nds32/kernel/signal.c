@@ -316,7 +316,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->uregs[0] = -EINTR;
 				break;
 			}
-			/* Else, fall through */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->uregs[0] = regs->orig_r0;
 			regs->ipc -= 4;
@@ -361,7 +361,7 @@ static void do_signal(struct pt_regs *regs)
 		switch (regs->uregs[0]) {
 		case -ERESTART_RESTARTBLOCK:
 			regs->uregs[15] = __NR_restart_syscall;
-			/* Fall through */
+			fallthrough;
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:

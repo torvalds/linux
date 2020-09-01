@@ -368,10 +368,21 @@ static const char *dio48e_names[DIO48E_NGPIO] = {
 	"PPI Group 1 Port C 5", "PPI Group 1 Port C 6", "PPI Group 1 Port C 7"
 };
 
+static int dio48e_irq_init_hw(struct gpio_chip *gc)
+{
+	struct dio48e_gpio *const dio48egpio = gpiochip_get_data(gc);
+
+	/* Disable IRQ by default */
+	inb(dio48egpio->base + 0xB);
+
+	return 0;
+}
+
 static int dio48e_probe(struct device *dev, unsigned int id)
 {
 	struct dio48e_gpio *dio48egpio;
 	const char *const name = dev_name(dev);
+	struct gpio_irq_chip *girq;
 	int err;
 
 	dio48egpio = devm_kzalloc(dev, sizeof(*dio48egpio), GFP_KERNEL);
@@ -399,13 +410,17 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 	dio48egpio->chip.set_multiple = dio48e_gpio_set_multiple;
 	dio48egpio->base = base[id];
 
-	raw_spin_lock_init(&dio48egpio->lock);
+	girq = &dio48egpio->chip.irq;
+	girq->chip = &dio48e_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
+	girq->init_hw = dio48e_irq_init_hw;
 
-	err = devm_gpiochip_add_data(dev, &dio48egpio->chip, dio48egpio);
-	if (err) {
-		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		return err;
-	}
+	raw_spin_lock_init(&dio48egpio->lock);
 
 	/* initialize all GPIO as output */
 	outb(0x80, base[id] + 3);
@@ -419,13 +434,9 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 	outb(0x00, base[id] + 6);
 	outb(0x00, base[id] + 7);
 
-	/* disable IRQ by default */
-	inb(base[id] + 0xB);
-
-	err = gpiochip_irqchip_add(&dio48egpio->chip, &dio48e_irqchip, 0,
-		handle_edge_irq, IRQ_TYPE_NONE);
+	err = devm_gpiochip_add_data(dev, &dio48egpio->chip, dio48egpio);
 	if (err) {
-		dev_err(dev, "Could not add irqchip (%d)\n", err);
+		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
 	}
 

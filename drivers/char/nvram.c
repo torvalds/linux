@@ -232,8 +232,6 @@ static ssize_t nvram_misc_read(struct file *file, char __user *buf,
 	ssize_t ret;
 
 
-	if (!access_ok(buf, count))
-		return -EFAULT;
 	if (*ppos >= nvram_size)
 		return 0;
 
@@ -264,8 +262,6 @@ static ssize_t nvram_misc_write(struct file *file, const char __user *buf,
 	char *tmp;
 	ssize_t ret;
 
-	if (!access_ok(buf, count))
-		return -EFAULT;
 	if (*ppos >= nvram_size)
 		return 0;
 
@@ -290,7 +286,7 @@ static long nvram_misc_ioctl(struct file *file, unsigned int cmd,
 #ifdef CONFIG_PPC
 	case OBSOLETE_PMAC_NVRAM_GET_OFFSET:
 		pr_warn("nvram: Using obsolete PMAC_NVRAM_GET_OFFSET ioctl\n");
-		/* fall through */
+		fallthrough;
 	case IOC_NVRAM_GET_OFFSET:
 		ret = -EINVAL;
 #ifdef CONFIG_PPC_PMAC

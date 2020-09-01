@@ -95,6 +95,14 @@ config PINCTRL_DENVERTON
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Denverton SoC pins and using them as GPIOs.
 
+config PINCTRL_EMMITSBURG
+	tristate "Intel Emmitsburg pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Emmitsburg pins and using them as GPIOs.
+
 config PINCTRL_GEMINILAKE
 	tristate "Intel Gemini Lake SoC pinctrl and GPIO driver"
 	depends on ACPI
@@ -110,6 +118,14 @@ config PINCTRL_ICELAKE
 	help
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Ice Lake PCH pins and using them as GPIOs.
+
+config PINCTRL_JASPERLAKE
+	tristate "Intel Jasper Lake PCH pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Jasper Lake PCH pins and using them as GPIOs.
 
 config PINCTRL_LEWISBURG
 	tristate "Intel Lewisburg pinctrl and GPIO driver"

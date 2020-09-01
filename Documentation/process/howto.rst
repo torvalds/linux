@@ -243,10 +243,10 @@ branches.  These different branches are:
 Mainline tree
 ~~~~~~~~~~~~~
 
-Mainline tree are maintained by Linus Torvalds, and can be found at
+The mainline tree is maintained by Linus Torvalds, and can be found at
 https://kernel.org or in the repo.  Its development process is as follows:
 
-  - As soon as a new kernel is released a two weeks window is open,
+  - As soon as a new kernel is released a two week window is open,
     during this period of time maintainers can submit big diffs to
     Linus, usually the patches that have already been included in the
     linux-next for a few weeks.  The preferred way to submit big changes
@@ -281,8 +281,9 @@ Various stable trees with multiple major numbers
 
 Kernels with 3-part versions are -stable kernels. They contain
 relatively small and critical fixes for security problems or significant
-regressions discovered in a given major mainline release, with the first
-2-part of version number are the same correspondingly.
+regressions discovered in a given major mainline release. Each release
+in a major stable series increments the third part of the version
+number, keeping the first two parts the same.
 
 This is the recommended branch for users who want the most recent stable
 kernel and are not interested in helping test development/experimental
@@ -359,10 +360,10 @@ Managing bug reports
 
 One of the best ways to put into practice your hacking skills is by fixing
 bugs reported by other people. Not only you will help to make the kernel
-more stable, you'll learn to fix real world problems and you will improve
-your skills, and other developers will be aware of your presence. Fixing
-bugs is one of the best ways to get merits among other developers, because
-not many people like wasting time fixing other people's bugs.
+more stable, but you'll also learn to fix real world problems and you will
+improve your skills, and other developers will be aware of your presence.
+Fixing bugs is one of the best ways to get merits among other developers,
+because not many people like wasting time fixing other people's bugs.
 
 To work in the already reported bug reports, go to https://bugzilla.kernel.org.
 
@@ -596,7 +597,7 @@ For more details on what this should all look like, please see the
 ChangeLog section of the document:
 
   "The Perfect Patch"
-      http://www.ozlabs.org/~akpm/stuff/tpp.txt
+      https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
 All of these things are sometimes very hard to do. It can take years to

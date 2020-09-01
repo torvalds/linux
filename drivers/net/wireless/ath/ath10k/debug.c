@@ -349,7 +349,7 @@ free:
 	spin_unlock_bh(&ar->data_lock);
 }
 
-static int ath10k_debug_fw_stats_request(struct ath10k *ar)
+int ath10k_debug_fw_stats_request(struct ath10k *ar)
 {
 	unsigned long timeout, time_left;
 	int ret;
@@ -778,7 +778,7 @@ static ssize_t ath10k_mem_value_read(struct file *file,
 
 	ret = ath10k_hif_diag_read(ar, *ppos, buf, count);
 	if (ret) {
-		ath10k_warn(ar, "failed to read address 0x%08x via diagnose window fnrom debugfs: %d\n",
+		ath10k_warn(ar, "failed to read address 0x%08x via diagnose window from debugfs: %d\n",
 			    (u32)(*ppos), ret);
 		goto exit;
 	}
@@ -1978,6 +1978,9 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 	if (strtobool(buf, &val) != 0)
 		return -EINVAL;
 
+	if (!ar->coex_support)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&ar->conf_mutex);
 
 	if (ar->state != ATH10K_STATE_ON &&
@@ -2370,9 +2373,6 @@ static ssize_t ath10k_write_warm_hw_reset(struct file *file,
 		goto exit;
 	}
 
-	if (!(test_bit(WMI_SERVICE_RESET_CHIP, ar->wmi.svc_map)))
-		ath10k_warn(ar, "wmi service for reset chip is not available\n");
-
 	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->pdev_reset,
 					WMI_RST_MODE_WARM_RESET);
 
@@ -2647,8 +2647,10 @@ int ath10k_debug_register(struct ath10k *ar)
 				    ar->debug.debugfs_phy, ar,
 				    &fops_tpc_stats_final);
 
-	debugfs_create_file("warm_hw_reset", 0600, ar->debug.debugfs_phy, ar,
-			    &fops_warm_hw_reset);
+	if (test_bit(WMI_SERVICE_RESET_CHIP, ar->wmi.svc_map))
+		debugfs_create_file("warm_hw_reset", 0600,
+				    ar->debug.debugfs_phy, ar,
+				    &fops_warm_hw_reset);
 
 	debugfs_create_file("ps_state_enable", 0600, ar->debug.debugfs_phy, ar,
 			    &fops_ps_state_enable);

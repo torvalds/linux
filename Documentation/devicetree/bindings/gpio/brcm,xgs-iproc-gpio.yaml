@@ -19,15 +19,13 @@ properties:
 
   reg:
     items:
-      - description: the I/O address containing the GPIO controller
-                     registers.
-      - description: the I/O address containing the Chip Common A interrupt
-                     registers.
+      - description: the I/O address containing the GPIO controller registers.
+      - description: the I/O address containing the Chip Common A interrupt registers.
 
   gpio-controller: true
 
   '#gpio-cells':
-      const: 2
+    const: 2
 
   ngpios:
     minimum: 0
@@ -46,6 +44,8 @@ required:
   - reg
   - "#gpio-cells"
   - gpio-controller
+
+additionalProperties: false
 
 dependencies:
   interrupt-controller: [ interrupts ]

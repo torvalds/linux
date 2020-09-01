@@ -360,8 +360,6 @@
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
-		adi,input-style = <1>;
-		adi,input-justification = "evenly";
 
 		ports {
 			#address-cells = <1>;
@@ -717,6 +715,7 @@
 	mmc-hs400-1_8v;
 	bus-width = <8>;
 	non-removable;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 

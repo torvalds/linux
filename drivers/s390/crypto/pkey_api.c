@@ -80,7 +80,7 @@ struct clearaeskeytoken {
 	u8  res1[3];
 	u32 keytype;	 /* key type, one of the PKEY_KEYTYPE values */
 	u32 len;	 /* bytes actually stored in clearkey[] */
-	u8  clearkey[0]; /* clear key value */
+	u8  clearkey[]; /* clear key value */
 } __packed;
 
 /*
@@ -818,7 +818,7 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			  struct pkey_apqn *apqns, size_t *nr_apqns)
 {
-	int rc = EINVAL;
+	int rc;
 	u32 _nr_apqns, *_apqns = NULL;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 
@@ -886,7 +886,7 @@ static int pkey_apqns4keytype(enum pkey_key_type ktype,
 			      u8 cur_mkvp[32], u8 alt_mkvp[32], u32 flags,
 			      struct pkey_apqn *apqns, size_t *nr_apqns)
 {
-	int rc = -EINVAL;
+	int rc;
 	u32 _nr_apqns, *_apqns = NULL;
 
 	if (ktype == PKEY_TYPE_CCA_DATA || ktype == PKEY_TYPE_CCA_CIPHER) {
@@ -1603,8 +1603,8 @@ static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
 		if (rc == 0)
 			break;
 	}
-		if (rc)
-			return rc;
+	if (rc)
+		return rc;
 
 	if (is_xts) {
 		keysize = CCACIPHERTOKENSIZE;

@@ -45,7 +45,7 @@ To use the target for the first time:
    will format the device
 3. unload the dm-integrity target
 4. read the "provided_data_sectors" value from the superblock
-5. load the dm-integrity target with the the target size
+5. load the dm-integrity target with the target size
    "provided_data_sectors"
 6. if you want to use dm-integrity with dm-crypt, load the dm-crypt target
    with the size "provided_data_sectors"
@@ -99,7 +99,7 @@ interleave_sectors:number
 	the superblock is used.
 
 meta_device:device
-	Don't interleave the data and metadata on on device. Use a
+	Don't interleave the data and metadata on the device. Use a
 	separate device for metadata.
 
 buffer_sectors:number
@@ -182,12 +182,23 @@ fix_padding
 	space-efficient. If this option is not present, large padding is
 	used - that is for compatibility with older kernels.
 
+allow_discards
+	Allow block discard requests (a.k.a. TRIM) for the integrity device.
+	Discards are only allowed to devices using internal hash.
 
-The journal mode (D/J), buffer_sectors, journal_watermark, commit_time can
-be changed when reloading the target (load an inactive table and swap the
-tables with suspend and resume). The other arguments should not be changed
-when reloading the target because the layout of disk data depend on them
-and the reloaded target would be non-functional.
+The journal mode (D/J), buffer_sectors, journal_watermark, commit_time and
+allow_discards can be changed when reloading the target (load an inactive
+table and swap the tables with suspend and resume). The other arguments
+should not be changed when reloading the target because the layout of disk
+data depend on them and the reloaded target would be non-functional.
+
+
+Status line:
+
+1. the number of integrity mismatches
+2. provided data sectors - that is the number of sectors that the user
+   could use
+3. the current recalculating position (or '-' if we didn't recalculate)
 
 
 The layout of the formatted block device:

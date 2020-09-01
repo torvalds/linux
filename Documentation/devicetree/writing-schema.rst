@@ -1,11 +1,11 @@
-:orphan:
+.. SPDX-License-Identifier: GPL-2.0
 
 Writing DeviceTree Bindings in json-schema
 ==========================================
 
 Devicetree bindings are written using json-schema vocabulary. Schema files are
 written in a JSON compatible subset of YAML. YAML is used instead of JSON as it
-considered more human readable and has some advantages such as allowing
+is considered more human readable and has some advantages such as allowing
 comments (Prefixed with '#').
 
 Schema Contents
@@ -19,7 +19,7 @@ $id
   A json-schema unique identifier string. The string must be a valid
   URI typically containing the binding's filename and path. For DT schema, it must
   begin with "http://devicetree.org/schemas/". The URL is used in constructing
-  references to other files specified in schema "$ref" properties. A $ref values
+  references to other files specified in schema "$ref" properties. A $ref value
   with a leading '/' will have the hostname prepended. A $ref value a relative
   path or filename only will be prepended with the hostname and path components
   of the current schema file's '$id' value. A URL is used even for local files,
@@ -124,9 +124,12 @@ dtc must also be built with YAML output support enabled. This requires that
 libyaml and its headers be installed on the host system. For some distributions
 that involves installing the development package, such as:
 
-Debian:
+Debian::
+
   apt-get install libyaml-dev
-Fedora:
+
+Fedora::
+
   dnf -y install libyaml-devel
 
 Running checks
@@ -146,6 +149,10 @@ In order to perform validation of DT source files, use the ``dtbs_check`` target
 Note that ``dtbs_check`` will skip any binding schema files with errors. It is
 necessary to use ``dt_binding_check`` to get all the validation errors in the
 binding schema files.
+
+It is possible to run both in a single command::
+
+    make dt_binding_check dtbs_check
 
 It is also possible to run checks with a single schema file by setting the
 ``DT_SCHEMA_FILES`` variable to a specific schema file.

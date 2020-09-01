@@ -12,14 +12,15 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/extable.h>
+#include <linux/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mce.h>
 #include <asm/machdep.h>
-#include <asm/pgtable.h>
 #include <asm/pte-walk.h>
 #include <asm/sstep.h>
 #include <asm/exception-64s.h>
 #include <asm/extable.h>
+#include <asm/inst.h>
 
 /*
  * Convert an address related to an mm to a PFN. NOTE: we are in real
@@ -27,7 +28,7 @@
  */
 unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 {
-	pte_t *ptep;
+	pte_t *ptep, pte;
 	unsigned int shift;
 	unsigned long pfn, flags;
 	struct mm_struct *mm;
@@ -39,19 +40,23 @@ unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 
 	local_irq_save(flags);
 	ptep = __find_linux_pte(mm->pgd, addr, NULL, &shift);
+	if (!ptep) {
+		pfn = ULONG_MAX;
+		goto out;
+	}
+	pte = READ_ONCE(*ptep);
 
-	if (!ptep || pte_special(*ptep)) {
+	if (!pte_present(pte) || pte_special(pte)) {
 		pfn = ULONG_MAX;
 		goto out;
 	}
 
 	if (shift <= PAGE_SHIFT)
-		pfn = pte_pfn(*ptep);
+		pfn = pte_pfn(pte);
 	else {
 		unsigned long rpnmask = (1ul << shift) - PAGE_SIZE;
-		pfn = pte_pfn(__pte(pte_val(*ptep) | (addr & rpnmask)));
+		pfn = pte_pfn(__pte(pte_val(pte) | (addr & rpnmask)));
 	}
-
 out:
 	local_irq_restore(flags);
 	return pfn;
@@ -238,6 +243,45 @@ static const struct mce_ierror_table mce_p9_ierror_table[] = {
   MCE_INITIATOR_CPU,  MCE_SEV_SEVERE, true },
 { 0, 0, 0, 0, 0, 0, 0 } };
 
+static const struct mce_ierror_table mce_p10_ierror_table[] = {
+{ 0x00000000081c0000, 0x0000000000040000, true,
+  MCE_ERROR_TYPE_UE,  MCE_UE_ERROR_IFETCH, MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,  MCE_SEV_SEVERE, true },
+{ 0x00000000081c0000, 0x0000000000080000, true,
+  MCE_ERROR_TYPE_SLB, MCE_SLB_ERROR_PARITY, MCE_ECLASS_HARD_INDETERMINATE,
+  MCE_INITIATOR_CPU,  MCE_SEV_SEVERE, true },
+{ 0x00000000081c0000, 0x00000000000c0000, true,
+  MCE_ERROR_TYPE_SLB, MCE_SLB_ERROR_MULTIHIT, MCE_ECLASS_SOFT_INDETERMINATE,
+  MCE_INITIATOR_CPU,  MCE_SEV_WARNING, true },
+{ 0x00000000081c0000, 0x0000000000100000, true,
+  MCE_ERROR_TYPE_ERAT, MCE_ERAT_ERROR_MULTIHIT, MCE_ECLASS_SOFT_INDETERMINATE,
+  MCE_INITIATOR_CPU,  MCE_SEV_WARNING, true },
+{ 0x00000000081c0000, 0x0000000000140000, true,
+  MCE_ERROR_TYPE_TLB, MCE_TLB_ERROR_MULTIHIT, MCE_ECLASS_SOFT_INDETERMINATE,
+  MCE_INITIATOR_CPU,  MCE_SEV_WARNING, true },
+{ 0x00000000081c0000, 0x0000000000180000, true,
+  MCE_ERROR_TYPE_UE,  MCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH, MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,  MCE_SEV_SEVERE, true },
+{ 0x00000000081c0000, 0x00000000001c0000, true,
+  MCE_ERROR_TYPE_RA,  MCE_RA_ERROR_IFETCH_FOREIGN, MCE_ECLASS_SOFTWARE,
+  MCE_INITIATOR_CPU,  MCE_SEV_SEVERE, true },
+{ 0x00000000081c0000, 0x0000000008080000, true,
+  MCE_ERROR_TYPE_USER,MCE_USER_ERROR_SCV, MCE_ECLASS_SOFTWARE,
+  MCE_INITIATOR_CPU,  MCE_SEV_WARNING, true },
+{ 0x00000000081c0000, 0x00000000080c0000, true,
+  MCE_ERROR_TYPE_RA,  MCE_RA_ERROR_IFETCH, MCE_ECLASS_SOFTWARE,
+  MCE_INITIATOR_CPU,  MCE_SEV_SEVERE, true },
+{ 0x00000000081c0000, 0x0000000008100000, true,
+  MCE_ERROR_TYPE_RA,  MCE_RA_ERROR_PAGE_TABLE_WALK_IFETCH, MCE_ECLASS_SOFTWARE,
+  MCE_INITIATOR_CPU,  MCE_SEV_SEVERE, true },
+{ 0x00000000081c0000, 0x0000000008140000, false,
+  MCE_ERROR_TYPE_RA,  MCE_RA_ERROR_STORE, MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,  MCE_SEV_FATAL, false }, /* ASYNC is fatal */
+{ 0x00000000081c0000, 0x00000000081c0000, true, MCE_ECLASS_HARDWARE,
+  MCE_ERROR_TYPE_RA,  MCE_RA_ERROR_PAGE_TABLE_WALK_IFETCH_FOREIGN,
+  MCE_INITIATOR_CPU,  MCE_SEV_SEVERE, true },
+{ 0, 0, 0, 0, 0, 0, 0 } };
+
 struct mce_derror_table {
 	unsigned long dsisr_value;
 	bool dar_valid; /* dar is a valid indicator of faulting address */
@@ -356,6 +400,46 @@ static const struct mce_derror_table mce_p9_derror_table[] = {
   MCE_INITIATOR_CPU,   MCE_SEV_SEVERE, true },
 { 0, false, 0, 0, 0, 0, 0 } };
 
+static const struct mce_derror_table mce_p10_derror_table[] = {
+{ 0x00008000, false,
+  MCE_ERROR_TYPE_UE,   MCE_UE_ERROR_LOAD_STORE, MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,   MCE_SEV_SEVERE, true },
+{ 0x00004000, true,
+  MCE_ERROR_TYPE_UE,   MCE_UE_ERROR_PAGE_TABLE_WALK_LOAD_STORE,
+  MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,   MCE_SEV_SEVERE, true },
+{ 0x00000800, true,
+  MCE_ERROR_TYPE_ERAT, MCE_ERAT_ERROR_MULTIHIT, MCE_ECLASS_SOFT_INDETERMINATE,
+  MCE_INITIATOR_CPU,   MCE_SEV_WARNING, true },
+{ 0x00000400, true,
+  MCE_ERROR_TYPE_TLB,  MCE_TLB_ERROR_MULTIHIT, MCE_ECLASS_SOFT_INDETERMINATE,
+  MCE_INITIATOR_CPU,   MCE_SEV_WARNING, true },
+{ 0x00000200, false,
+  MCE_ERROR_TYPE_USER, MCE_USER_ERROR_TLBIE, MCE_ECLASS_SOFTWARE,
+  MCE_INITIATOR_CPU,   MCE_SEV_WARNING, true },
+{ 0x00000080, true,
+  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,	/* Before PARITY */
+  MCE_ECLASS_SOFT_INDETERMINATE,
+  MCE_INITIATOR_CPU,   MCE_SEV_WARNING, true },
+{ 0x00000100, true,
+  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_PARITY, MCE_ECLASS_HARD_INDETERMINATE,
+  MCE_INITIATOR_CPU,   MCE_SEV_SEVERE, true },
+{ 0x00000040, true,
+  MCE_ERROR_TYPE_RA,   MCE_RA_ERROR_LOAD, MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,   MCE_SEV_SEVERE, true },
+{ 0x00000020, false,
+  MCE_ERROR_TYPE_RA,   MCE_RA_ERROR_PAGE_TABLE_WALK_LOAD_STORE,
+  MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,   MCE_SEV_SEVERE, true },
+{ 0x00000010, false,
+  MCE_ERROR_TYPE_RA,   MCE_RA_ERROR_PAGE_TABLE_WALK_LOAD_STORE_FOREIGN,
+  MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,   MCE_SEV_SEVERE, true },
+{ 0x00000008, false,
+  MCE_ERROR_TYPE_RA,   MCE_RA_ERROR_LOAD_STORE_FOREIGN, MCE_ECLASS_HARDWARE,
+  MCE_INITIATOR_CPU,   MCE_SEV_SEVERE, true },
+{ 0, false, 0, 0, 0, 0, 0 } };
+
 static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 					uint64_t *phys_addr)
 {
@@ -365,7 +449,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	 * in real-mode is tricky and can lead to recursive
 	 * faults
 	 */
-	int instr;
+	struct ppc_inst instr;
 	unsigned long pfn, instr_addr;
 	struct instruction_op op;
 	struct pt_regs tmp = *regs;
@@ -373,7 +457,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	pfn = addr_to_pfn(regs, regs->nip);
 	if (pfn != ULONG_MAX) {
 		instr_addr = (pfn << PAGE_SHIFT) + (regs->nip & ~PAGE_MASK);
-		instr = *(unsigned int *)(instr_addr);
+		instr = ppc_inst_read((struct ppc_inst *)instr_addr);
 		if (!analyse_instr(&op, &tmp, instr)) {
 			pfn = addr_to_pfn(regs, op.ea);
 			*addr = op.ea;
@@ -579,14 +663,10 @@ static long mce_handle_ue_error(struct pt_regs *regs,
 				struct mce_error_info *mce_err)
 {
 	long handled = 0;
-	const struct exception_table_entry *entry;
 
-	entry = search_kernel_exception_table(regs->nip);
-	if (entry) {
-		mce_err->ignore_event = true;
-		regs->nip = extable_fixup(entry);
+	mce_common_process_ue(regs, mce_err);
+	if (mce_err->ignore_event)
 		return 1;
-	}
 
 	/*
 	 * On specific SCOM read via MMIO we may get a machine check
@@ -655,4 +735,9 @@ long __machine_check_early_realmode_p9(struct pt_regs *regs)
 		return 1;
 
 	return mce_handle_error(regs, mce_p9_derror_table, mce_p9_ierror_table);
+}
+
+long __machine_check_early_realmode_p10(struct pt_regs *regs)
+{
+	return mce_handle_error(regs, mce_p10_derror_table, mce_p10_ierror_table);
 }

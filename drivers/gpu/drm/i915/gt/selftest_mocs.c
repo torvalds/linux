@@ -12,10 +12,25 @@
 #include "selftests/igt_spinner.h"
 
 struct live_mocs {
-	struct drm_i915_mocs_table table;
+	struct drm_i915_mocs_table mocs;
+	struct drm_i915_mocs_table l3cc;
 	struct i915_vma *scratch;
 	void *vaddr;
 };
+
+static struct intel_context *mocs_context_create(struct intel_engine_cs *engine)
+{
+	struct intel_context *ce;
+
+	ce = intel_context_create(engine);
+	if (IS_ERR(ce))
+		return ce;
+
+	/* We build large requests to read the registers from the ring */
+	ce->ring = __intel_context_ring_size(SZ_16K);
+
+	return ce;
+}
 
 static int request_add_sync(struct i915_request *rq, int err)
 {
@@ -70,10 +85,21 @@ static struct i915_vma *create_scratch(struct intel_gt *gt)
 
 static int live_mocs_init(struct live_mocs *arg, struct intel_gt *gt)
 {
+	struct drm_i915_mocs_table table;
+	unsigned int flags;
 	int err;
 
-	if (!get_mocs_settings(gt->i915, &arg->table))
+	memset(arg, 0, sizeof(*arg));
+
+	flags = get_mocs_settings(gt->i915, &table);
+	if (!flags)
 		return -EINVAL;
+
+	if (flags & HAS_RENDER_L3CC)
+		arg->l3cc = table;
+
+	if (flags & (HAS_GLOBAL_MOCS | HAS_ENGINE_MOCS))
+		arg->mocs = table;
 
 	arg->scratch = create_scratch(gt);
 	if (IS_ERR(arg->scratch))
@@ -131,7 +157,7 @@ static int read_mocs_table(struct i915_request *rq,
 {
 	u32 addr;
 
-	if (HAS_GLOBAL_MOCS_REGISTERS(rq->i915))
+	if (HAS_GLOBAL_MOCS_REGISTERS(rq->engine->i915))
 		addr = global_mocs_offset();
 	else
 		addr = mocs_offset(rq->engine);
@@ -223,9 +249,9 @@ static int check_mocs_engine(struct live_mocs *arg,
 	/* Read the mocs tables back using SRM */
 	offset = i915_ggtt_offset(vma);
 	if (!err)
-		err = read_mocs_table(rq, &arg->table, &offset);
+		err = read_mocs_table(rq, &arg->mocs, &offset);
 	if (!err && ce->engine->class == RENDER_CLASS)
-		err = read_l3cc_table(rq, &arg->table, &offset);
+		err = read_l3cc_table(rq, &arg->l3cc, &offset);
 	offset -= i915_ggtt_offset(vma);
 	GEM_BUG_ON(offset > PAGE_SIZE);
 
@@ -236,9 +262,9 @@ static int check_mocs_engine(struct live_mocs *arg,
 	/* Compare the results against the expected tables */
 	vaddr = arg->vaddr;
 	if (!err)
-		err = check_mocs_table(ce->engine, &arg->table, &vaddr);
+		err = check_mocs_table(ce->engine, &arg->mocs, &vaddr);
 	if (!err && ce->engine->class == RENDER_CLASS)
-		err = check_l3cc_table(ce->engine, &arg->table, &vaddr);
+		err = check_l3cc_table(ce->engine, &arg->l3cc, &vaddr);
 	if (err)
 		return err;
 
@@ -289,7 +315,7 @@ static int live_mocs_clean(void *arg)
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
 
-		ce = intel_context_create(engine);
+		ce = mocs_context_create(engine);
 		if (IS_ERR(ce)) {
 			err = PTR_ERR(ce);
 			break;
@@ -383,7 +409,7 @@ static int live_mocs_reset(void *arg)
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
 
-		ce = intel_context_create(engine);
+		ce = mocs_context_create(engine);
 		if (IS_ERR(ce)) {
 			err = PTR_ERR(ce);
 			break;

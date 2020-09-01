@@ -21,6 +21,8 @@ properties:
       - goodix,gt911
       - goodix,gt9110
       - goodix,gt912
+      - goodix,gt9147
+      - goodix,gt917s
       - goodix,gt927
       - goodix,gt9271
       - goodix,gt928
@@ -33,9 +35,8 @@ properties:
     maxItems: 1
 
   irq-gpios:
-    description: GPIO pin used for IRQ.
-                 The driver uses the interrupt gpio pin as
-                 output to reset the device.
+    description: GPIO pin used for IRQ. The driver uses the interrupt gpio pin
+      as output to reset the device.
     maxItems: 1
 
   reset-gpios:
@@ -61,7 +62,7 @@ required:
   - interrupts
 
 examples:
-- |
+  - |
     i2c {
       #address-cells = <1>;
       #size-cells = <0>;

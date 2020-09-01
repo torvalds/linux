@@ -267,20 +267,15 @@ static int evm_sw_setup(struct i2c_client *client, int gpio,
 		evm_sw_gpio[i] = gpio++;
 
 		status = gpio_direction_input(evm_sw_gpio[i]);
-		if (status) {
-			gpio_free(evm_sw_gpio[i]);
-			evm_sw_gpio[i] = -EINVAL;
+		if (status)
 			goto out_free;
-		}
 
 		status = gpio_export(evm_sw_gpio[i], 0);
-		if (status) {
-			gpio_free(evm_sw_gpio[i]);
-			evm_sw_gpio[i] = -EINVAL;
+		if (status)
 			goto out_free;
-		}
 	}
-	return status;
+	return 0;
+
 out_free:
 	for (i = 0; i < 4; ++i) {
 		if (evm_sw_gpio[i] != -EINVAL) {

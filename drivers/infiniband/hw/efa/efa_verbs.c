@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/vmalloc.h>
@@ -37,13 +37,16 @@ struct efa_user_mmap_entry {
 	op(EFA_RX_DROPS, "rx_drops") \
 	op(EFA_SUBMITTED_CMDS, "submitted_cmds") \
 	op(EFA_COMPLETED_CMDS, "completed_cmds") \
+	op(EFA_CMDS_ERR, "cmds_err") \
 	op(EFA_NO_COMPLETION_CMDS, "no_completion_cmds") \
 	op(EFA_KEEP_ALIVE_RCVD, "keep_alive_rcvd") \
 	op(EFA_ALLOC_PD_ERR, "alloc_pd_err") \
 	op(EFA_CREATE_QP_ERR, "create_qp_err") \
+	op(EFA_CREATE_CQ_ERR, "create_cq_err") \
 	op(EFA_REG_MR_ERR, "reg_mr_err") \
 	op(EFA_ALLOC_UCONTEXT_ERR, "alloc_ucontext_err") \
-	op(EFA_CREATE_AH_ERR, "create_ah_err")
+	op(EFA_CREATE_AH_ERR, "create_ah_err") \
+	op(EFA_MMAP_ERR, "mmap_err")
 
 #define EFA_STATS_ENUM(ename, name) ename,
 #define EFA_STATS_STR(ename, name) [ename] = name,
@@ -144,9 +147,6 @@ static inline bool is_rdma_read_cap(struct efa_dev *dev)
 	return dev->dev_attr.device_caps & EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK;
 }
 
-#define field_avail(x, fld, sz) (offsetof(typeof(x), fld) + \
-				 sizeof_field(typeof(x), fld) <= (sz))
-
 #define is_reserved_cleared(reserved) \
 	!memchr_inv(reserved, 0, sizeof(reserved))
 
@@ -167,6 +167,14 @@ static void *efa_zalloc_mapped(struct efa_dev *dev, dma_addr_t *dma_addr,
 	}
 
 	return addr;
+}
+
+static void efa_free_mapped(struct efa_dev *dev, void *cpu_addr,
+			    dma_addr_t dma_addr,
+			    size_t size, enum dma_data_direction dir)
+{
+	dma_unmap_single(&dev->pdev->dev, dma_addr, size, dir);
+	free_pages_exact(cpu_addr, size);
 }
 
 int efa_query_device(struct ib_device *ibdev,
@@ -204,6 +212,7 @@ int efa_query_device(struct ib_device *ibdev,
 	props->max_send_sge = dev_attr->max_sq_sge;
 	props->max_recv_sge = dev_attr->max_rq_sge;
 	props->max_sge_rd = dev_attr->max_wr_rdma_sge;
+	props->max_pkeys = 1;
 
 	if (udata && udata->outlen) {
 		resp.max_sq_sge = dev_attr->max_sq_sge;
@@ -402,6 +411,9 @@ int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	int err;
 
 	ibdev_dbg(&dev->ibdev, "Destroy qp[%u]\n", ibqp->qp_num);
+
+	efa_qp_user_mmap_entries_remove(qp);
+
 	err = efa_destroy_qp_handle(dev, qp->qp_handle);
 	if (err)
 		return err;
@@ -411,11 +423,10 @@ int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 			  "qp->cpu_addr[0x%p] freed: size[%lu], dma[%pad]\n",
 			  qp->rq_cpu_addr, qp->rq_size,
 			  &qp->rq_dma_addr);
-		dma_unmap_single(&dev->pdev->dev, qp->rq_dma_addr, qp->rq_size,
-				 DMA_TO_DEVICE);
+		efa_free_mapped(dev, qp->rq_cpu_addr, qp->rq_dma_addr,
+				qp->rq_size, DMA_TO_DEVICE);
 	}
 
-	efa_qp_user_mmap_entries_remove(qp);
 	kfree(qp);
 	return 0;
 }
@@ -599,7 +610,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	if (err)
 		goto err_out;
 
-	if (!field_avail(cmd, driver_qp_type, udata->inlen)) {
+	if (offsetofend(typeof(cmd), driver_qp_type) > udata->inlen) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, no input udata\n");
 		err = -EINVAL;
@@ -720,13 +731,9 @@ err_remove_mmap_entries:
 err_destroy_qp:
 	efa_destroy_qp_handle(dev, create_qp_resp.qp_handle);
 err_free_mapped:
-	if (qp->rq_size) {
-		dma_unmap_single(&dev->pdev->dev, qp->rq_dma_addr, qp->rq_size,
-				 DMA_TO_DEVICE);
-
-		if (!qp->rq_mmap_entry)
-			free_pages_exact(qp->rq_cpu_addr, qp->rq_size);
-	}
+	if (qp->rq_size)
+		efa_free_mapped(dev, qp->rq_cpu_addr, qp->rq_dma_addr,
+				qp->rq_size, DMA_TO_DEVICE);
 err_free_qp:
 	kfree(qp);
 err_out:
@@ -845,10 +852,10 @@ void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
 		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
 
-	efa_destroy_cq_idx(dev, cq->cq_idx);
-	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
-			 DMA_FROM_DEVICE);
 	rdma_user_mmap_entry_remove(cq->mmap_entry);
+	efa_destroy_cq_idx(dev, cq->cq_idx);
+	efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
+			DMA_FROM_DEVICE);
 }
 
 static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
@@ -890,7 +897,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		goto err_out;
 	}
 
-	if (!field_avail(cmd, num_sub_cqs, udata->inlen)) {
+	if (offsetofend(typeof(cmd), num_sub_cqs) > udata->inlen) {
 		ibdev_dbg(ibdev,
 			  "Incompatible ABI params, no input udata\n");
 		err = -EINVAL;
@@ -985,10 +992,8 @@ err_remove_mmap:
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 err_free_mapped:
-	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
-			 DMA_FROM_DEVICE);
-	if (!cq->mmap_entry)
-		free_pages_exact(cq->cpu_addr, cq->size);
+	efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
+			DMA_FROM_DEVICE);
 
 err_out:
 	atomic64_inc(&dev->stats.sw_stats.create_cq_err);
@@ -1497,11 +1502,39 @@ static int efa_dealloc_uar(struct efa_dev *dev, u16 uarn)
 	return efa_com_dealloc_uar(&dev->edev, &params);
 }
 
+#define EFA_CHECK_USER_COMP(_dev, _comp_mask, _attr, _mask, _attr_str) \
+	(_attr_str = (!(_dev)->dev_attr._attr || ((_comp_mask) & (_mask))) ? \
+		     NULL : #_attr)
+
+static int efa_user_comp_handshake(const struct ib_ucontext *ibucontext,
+				   const struct efa_ibv_alloc_ucontext_cmd *cmd)
+{
+	struct efa_dev *dev = to_edev(ibucontext->device);
+	char *attr_str;
+
+	if (EFA_CHECK_USER_COMP(dev, cmd->comp_mask, max_tx_batch,
+				EFA_ALLOC_UCONTEXT_CMD_COMP_TX_BATCH, attr_str))
+		goto err;
+
+	if (EFA_CHECK_USER_COMP(dev, cmd->comp_mask, min_sq_depth,
+				EFA_ALLOC_UCONTEXT_CMD_COMP_MIN_SQ_WR,
+				attr_str))
+		goto err;
+
+	return 0;
+
+err:
+	ibdev_dbg(&dev->ibdev, "Userspace handshake failed for %s attribute\n",
+		  attr_str);
+	return -EOPNOTSUPP;
+}
+
 int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 {
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_dev *dev = to_edev(ibucontext->device);
 	struct efa_ibv_alloc_ucontext_resp resp = {};
+	struct efa_ibv_alloc_ucontext_cmd cmd = {};
 	struct efa_com_alloc_uar_result result;
 	int err;
 
@@ -1509,6 +1542,18 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 	 * it's fine if the driver does not know all request fields,
 	 * we will ack input fields in our response.
 	 */
+
+	err = ib_copy_from_udata(&cmd, udata,
+				 min(sizeof(cmd), udata->inlen));
+	if (err) {
+		ibdev_dbg(&dev->ibdev,
+			  "Cannot copy udata for alloc_ucontext\n");
+		goto err_out;
+	}
+
+	err = efa_user_comp_handshake(ibucontext, &cmd);
+	if (err)
+		goto err_out;
 
 	err = efa_com_alloc_uar(&dev->edev, &result);
 	if (err)
@@ -1521,6 +1566,8 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 	resp.sub_cqs_per_cq = dev->dev_attr.sub_cqs_per_cq;
 	resp.inline_buf_size = dev->dev_attr.inline_buf_size;
 	resp.max_llq_size = dev->dev_attr.max_llq_size;
+	resp.max_tx_batch = dev->dev_attr.max_tx_batch;
+	resp.min_sq_wr = dev->dev_attr.min_sq_depth;
 
 	if (udata && udata->outlen) {
 		err = ib_copy_to_udata(udata, &resp,
@@ -1550,10 +1597,6 @@ void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
 {
 	struct efa_user_mmap_entry *entry = to_emmap(rdma_entry);
 
-	/* DMA mapping is already gone, now free the pages */
-	if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
-		free_pages_exact(phys_to_virt(entry->address),
-				 entry->rdma_entry.npages * PAGE_SIZE);
 	kfree(entry);
 }
 
@@ -1571,6 +1614,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		ibdev_dbg(&dev->ibdev,
 			  "pgoff[%#lx] does not have valid entry\n",
 			  vma->vm_pgoff);
+		atomic64_inc(&dev->stats.sw_stats.mmap_err);
 		return -EINVAL;
 	}
 	entry = to_emmap(rdma_entry);
@@ -1606,12 +1650,14 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		err = -EINVAL;
 	}
 
-	if (err)
+	if (err) {
 		ibdev_dbg(
 			&dev->ibdev,
 			"Couldn't mmap address[%#llx] length[%#zx] mmap_flag[%d] err[%d]\n",
 			entry->address, rdma_entry->npages * PAGE_SIZE,
 			entry->mmap_flag, err);
+		atomic64_inc(&dev->stats.sw_stats.mmap_err);
+	}
 
 	rdma_user_mmap_entry_put(rdma_entry);
 	return err;
@@ -1642,10 +1688,10 @@ static int efa_ah_destroy(struct efa_dev *dev, struct efa_ah *ah)
 }
 
 int efa_create_ah(struct ib_ah *ibah,
-		  struct rdma_ah_attr *ah_attr,
-		  u32 flags,
+		  struct rdma_ah_init_attr *init_attr,
 		  struct ib_udata *udata)
 {
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	struct efa_dev *dev = to_edev(ibah->device);
 	struct efa_com_create_ah_params params = {};
 	struct efa_ibv_create_ah_resp resp = {};
@@ -1653,7 +1699,7 @@ int efa_create_ah(struct ib_ah *ibah,
 	struct efa_ah *ah = to_eah(ibah);
 	int err;
 
-	if (!(flags & RDMA_CREATE_AH_SLEEPABLE)) {
+	if (!(init_attr->flags & RDMA_CREATE_AH_SLEEPABLE)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Create address handle is not supported in atomic context\n");
 		err = -EOPNOTSUPP;
@@ -1750,15 +1796,18 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	as = &dev->edev.aq.stats;
 	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);
 	stats->value[EFA_COMPLETED_CMDS] = atomic64_read(&as->completed_cmd);
+	stats->value[EFA_CMDS_ERR] = atomic64_read(&as->cmd_err);
 	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->no_completion);
 
 	s = &dev->stats;
 	stats->value[EFA_KEEP_ALIVE_RCVD] = atomic64_read(&s->keep_alive_rcvd);
 	stats->value[EFA_ALLOC_PD_ERR] = atomic64_read(&s->sw_stats.alloc_pd_err);
 	stats->value[EFA_CREATE_QP_ERR] = atomic64_read(&s->sw_stats.create_qp_err);
+	stats->value[EFA_CREATE_CQ_ERR] = atomic64_read(&s->sw_stats.create_cq_err);
 	stats->value[EFA_REG_MR_ERR] = atomic64_read(&s->sw_stats.reg_mr_err);
 	stats->value[EFA_ALLOC_UCONTEXT_ERR] = atomic64_read(&s->sw_stats.alloc_ucontext_err);
 	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->sw_stats.create_ah_err);
+	stats->value[EFA_MMAP_ERR] = atomic64_read(&s->sw_stats.mmap_err);
 
 	return ARRAY_SIZE(efa_stats_names);
 }

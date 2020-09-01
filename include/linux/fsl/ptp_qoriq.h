@@ -135,7 +135,7 @@ struct ptp_qoriq_registers {
 #define DEFAULT_CKSEL		1
 #define DEFAULT_TMR_PRSC	2
 #define DEFAULT_FIPER1_PERIOD	1000000000
-#define DEFAULT_FIPER2_PERIOD	100000
+#define DEFAULT_FIPER2_PERIOD	1000000000
 
 struct ptp_qoriq {
 	void __iomem *base;
@@ -149,8 +149,6 @@ struct ptp_qoriq {
 	bool extts_fifo_support;
 	int irq;
 	int phc_index;
-	u64 alarm_interval; /* for periodic alarm */
-	u64 alarm_value;
 	u32 tclk_period;  /* nanoseconds */
 	u32 tmr_prsc;
 	u32 tmr_add;

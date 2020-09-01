@@ -121,7 +121,7 @@
 	};
 
 	/* Apalis SD1 */
-	sdhci@78000000 {
+	mmc@78000000 {
 		status = "okay";
 		bus-width = <4>;
 		/* SD1_CD# */
@@ -130,7 +130,7 @@
 	};
 
 	/* Apalis MMC1 */
-	sdhci@78000400 {
+	mmc@78000400 {
 		status = "okay";
 		bus-width = <8>;
 		/* MMC1_CD# */
@@ -196,7 +196,7 @@
 		 * edt,et057090dhu: EDT 5.7" LCD TFT
 		 * edt,et070080dh6: EDT 7.0" LCD TFT
 		 */
-		compatible = "edt,et057090dhu", "simple-panel";
+		compatible = "edt,et057090dhu";
 		backlight = <&backlight>;
 		power-supply = <&reg_3v3>;
 	};
@@ -248,8 +248,8 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-type = "voltage";
 		gpios = <&gpio TEGRA_GPIO(J, 5) GPIO_ACTIVE_HIGH>;
-		states = <1800000 0x0
-			  3300000 0x1>;
+		states = <1800000 0x0>,
+			 <3300000 0x1>;
 		startup-delay-us = <100000>;
 		vin-supply = <&vddio_sdmmc_1v8_reg>;
 	};

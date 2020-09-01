@@ -59,8 +59,7 @@
 /*  */
 /* defined for TX DESC Operation */
 /*  */
-typedef struct txdesc_8723b
-{
+typedef struct txdesc_8723b {
 	/*  Offset 0 */
 	u32 pktlen:16;
 	u32 offset:8;
@@ -176,7 +175,7 @@ typedef struct txdesc_8723b
 	u32 txbf_path:1;
 	u32 seq:12;
 	u32 final_data_rate:8;
-}TXDESC_8723B, *PTXDESC_8723B;
+} TXDESC_8723B, *PTXDESC_8723B;
 
 #ifndef __INC_HAL8723BDESC_H
 #define __INC_HAL8723BDESC_H

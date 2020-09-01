@@ -3,6 +3,8 @@
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
+ *
+ * include file for HSR and PRP.
  */
 
 #ifndef __HSR_FRAMEREG_H
@@ -12,12 +14,26 @@
 
 struct hsr_node;
 
+struct hsr_frame_info {
+	struct sk_buff *skb_std;
+	struct sk_buff *skb_hsr;
+	struct sk_buff *skb_prp;
+	struct hsr_port *port_rcv;
+	struct hsr_node *node_src;
+	u16 sequence_nr;
+	bool is_supervision;
+	bool is_vlan;
+	bool is_local_dest;
+	bool is_local_exclusive;
+	bool is_from_san;
+};
+
 void hsr_del_self_node(struct hsr_priv *hsr);
 void hsr_del_nodes(struct list_head *node_db);
-struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
-			      bool is_sup);
-void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
-			  struct hsr_port *port);
+struct hsr_node *hsr_get_node(struct hsr_port *port, struct list_head *node_db,
+			      struct sk_buff *skb, bool is_sup,
+			      enum hsr_port_type rx_port);
+void hsr_handle_sup_frame(struct hsr_frame_info *frame);
 bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr);
 
 void hsr_addr_subst_source(struct hsr_node *node, struct sk_buff *skb);
@@ -47,6 +63,10 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 		      int *if2_age,
 		      u16 *if2_seq);
 
+void prp_handle_san_frame(bool san, enum hsr_port_type port,
+			  struct hsr_node *node);
+void prp_update_san_info(struct hsr_node *node, bool is_sup);
+
 struct hsr_node {
 	struct list_head	mac_list;
 	unsigned char		macaddress_A[ETH_ALEN];
@@ -55,6 +75,9 @@ struct hsr_node {
 	enum hsr_port_type	addr_B_port;
 	unsigned long		time_in[HSR_PT_PORTS];
 	bool			time_in_stale[HSR_PT_PORTS];
+	/* if the node is a SAN */
+	bool			san_a;
+	bool			san_b;
 	u16			seq_out[HSR_PT_PORTS];
 	struct rcu_head		rcu_head;
 };

@@ -11,6 +11,8 @@
 
 /* Algorithm resource per hardware SEC queue */
 struct sec_alg_res {
+	u8 *pbuf;
+	dma_addr_t pbuf_dma;
 	u8 *c_ivin;
 	dma_addr_t c_ivin_dma;
 	u8 *out_mac;
@@ -23,6 +25,8 @@ struct sec_cipher_req {
 	dma_addr_t c_in_dma;
 	struct hisi_acc_hw_sgl *c_out;
 	dma_addr_t c_out_dma;
+	u8 *c_ivin;
+	dma_addr_t c_ivin_dma;
 	struct skcipher_request *sk_req;
 	u32 c_len;
 	bool encrypt;
@@ -42,12 +46,15 @@ struct sec_req {
 
 	struct sec_cipher_req c_req;
 	struct sec_aead_req aead_req;
+	struct list_head backlog_head;
 
 	int err_type;
 	int req_id;
+	int flag;
 
 	/* Status of the SEC request */
 	bool fake_busy;
+	bool use_pbuf;
 };
 
 /**
@@ -99,6 +106,7 @@ struct sec_qp_ctx {
 	struct sec_alg_res res[QM_Q_DEPTH];
 	struct sec_ctx *ctx;
 	struct mutex req_lock;
+	struct list_head backlog;
 	struct hisi_acc_sgl_pool *c_in_pool;
 	struct hisi_acc_sgl_pool *c_out_pool;
 	atomic_t pending_reqs;
@@ -114,6 +122,7 @@ struct sec_ctx {
 	struct sec_qp_ctx *qp_ctx;
 	struct sec_dev *sec;
 	const struct sec_req_op *req_op;
+	struct hisi_qp **qps;
 
 	/* Half queues for encipher, and half for decipher */
 	u32 hlf_q_num;
@@ -128,6 +137,7 @@ struct sec_ctx {
 	atomic_t dec_qcyclic;
 
 	enum sec_alg_type alg_type;
+	bool pbuf_supported;
 	struct sec_cipher_ctx c_ctx;
 	struct sec_auth_ctx a_ctx;
 };
@@ -153,6 +163,11 @@ struct sec_debug_file {
 struct sec_dfx {
 	atomic64_t send_cnt;
 	atomic64_t recv_cnt;
+	atomic64_t send_busy_cnt;
+	atomic64_t recv_busy_cnt;
+	atomic64_t err_bd_cnt;
+	atomic64_t invalid_req_cnt;
+	atomic64_t done_flag_cnt;
 };
 
 struct sec_debug {
@@ -162,14 +177,14 @@ struct sec_debug {
 
 struct sec_dev {
 	struct hisi_qm qm;
-	struct list_head list;
 	struct sec_debug debug;
 	u32 ctx_q_num;
-	u32 num_vfs;
+	bool iommu_used;
 	unsigned long status;
 };
 
-struct sec_dev *sec_find_device(int node);
+void sec_destroy_qps(struct hisi_qp **qps, int qp_num);
+struct hisi_qp **sec_create_qps(void);
 int sec_register_to_crypto(void);
 void sec_unregister_from_crypto(void);
 #endif

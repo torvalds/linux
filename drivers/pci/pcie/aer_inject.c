@@ -6,7 +6,7 @@
  * trigger various real hardware errors. Software based error
  * injection can fake almost all kinds of errors with the help of a
  * user space helper tool aer-inject, which can be gotten from:
- *   http://www.kernel.org/pub/linux/utils/pci/aer-inject/
+ *   https://www.kernel.org/pub/linux/utils/pci/aer-inject/
  *
  * Copyright 2009 Intel Corporation.
  *     Huang Ying <ying.huang@intel.com>
@@ -16,7 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -468,9 +468,7 @@ static int aer_inject(struct aer_error_inj *einj)
 		}
 		pci_info(edev->port, "Injecting errors %08x/%08x into device %s\n",
 			 einj->cor_status, einj->uncor_status, pci_name(dev));
-		local_irq_disable();
-		generic_handle_irq(edev->irq);
-		local_irq_enable();
+		ret = irq_inject_interrupt(edev->irq);
 	} else {
 		pci_err(rpdev, "AER device not found\n");
 		ret = -ENODEV;

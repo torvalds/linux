@@ -8,7 +8,7 @@
 
 struct rcu_string {
 	struct rcu_head rcu;
-	char str[0];
+	char str[];
 };
 
 static inline struct rcu_string *rcu_string_strdup(const char *src, gfp_t mask)

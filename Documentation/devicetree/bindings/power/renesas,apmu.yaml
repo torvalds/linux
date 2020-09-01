@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/power/renesas,apmu.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Renesas Advanced Power Management Unit
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+  - Magnus Damm <magnus.damm@gmail.com>
+
+description:
+  Renesas R-Car Gen2 and RZ/G1 SoCs utilize one or more APMU hardware units for
+  CPU core power domain control including SMP boot and CPU Hotplug.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,r8a7742-apmu  # RZ/G1H
+          - renesas,r8a7743-apmu  # RZ/G1M
+          - renesas,r8a7744-apmu  # RZ/G1N
+          - renesas,r8a7745-apmu  # RZ/G1E
+          - renesas,r8a77470-apmu # RZ/G1C
+          - renesas,r8a7790-apmu  # R-Car H2
+          - renesas,r8a7791-apmu  # R-Car M2-W
+          - renesas,r8a7792-apmu  # R-Car V2H
+          - renesas,r8a7793-apmu  # R-Car M2-N
+          - renesas,r8a7794-apmu  # R-Car E2
+      - const: renesas,apmu
+
+  reg:
+    maxItems: 1
+
+  cpus:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      Array of phandles pointing to CPU cores, which should match the order of
+      CPU cores used by the WUPCR and PSTR registers in the Advanced Power
+      Management Unit section of the device's datasheet.
+
+required:
+  - compatible
+  - reg
+  - cpus
+
+additionalProperties: false
+
+examples:
+  - |
+    apmu@e6152000 {
+            compatible = "renesas,r8a7791-apmu", "renesas,apmu";
+            reg = <0xe6152000 0x188>;
+            cpus = <&cpu0 &cpu1>;
+    };

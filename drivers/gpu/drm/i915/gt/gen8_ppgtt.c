@@ -8,6 +8,7 @@
 #include "gen8_ppgtt.h"
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
+#include "i915_pvinfo.h"
 #include "i915_vgpu.h"
 #include "intel_gt.h"
 #include "intel_gtt.h"
@@ -23,6 +24,30 @@ static u64 gen8_pde_encode(const dma_addr_t addr,
 		pde |= PPAT_UNCACHED;
 
 	return pde;
+}
+
+static u64 gen8_pte_encode(dma_addr_t addr,
+			   enum i915_cache_level level,
+			   u32 flags)
+{
+	gen8_pte_t pte = addr | _PAGE_PRESENT | _PAGE_RW;
+
+	if (unlikely(flags & PTE_READ_ONLY))
+		pte &= ~_PAGE_RW;
+
+	switch (level) {
+	case I915_CACHE_NONE:
+		pte |= PPAT_UNCACHED;
+		break;
+	case I915_CACHE_WT:
+		pte |= PPAT_DISPLAY_ELLC;
+		break;
+	default:
+		pte |= PPAT_CACHED;
+		break;
+	}
+
+	return pte;
 }
 
 static void gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
@@ -364,6 +389,16 @@ static int gen8_ppgtt_alloc(struct i915_address_space *vm,
 	return err;
 }
 
+static __always_inline void
+write_pte(gen8_pte_t *pte, const gen8_pte_t val)
+{
+	/* Magic delays? Or can we refine these to flush all in one pass? */
+	*pte = val;
+	wmb(); /* cpu to cache */
+	clflush(pte); /* cache to memory */
+	wmb(); /* visible to all */
+}
+
 static __always_inline u64
 gen8_ppgtt_insert_pte(struct i915_ppgtt *ppgtt,
 		      struct i915_page_directory *pdp,
@@ -380,7 +415,8 @@ gen8_ppgtt_insert_pte(struct i915_ppgtt *ppgtt,
 	vaddr = kmap_atomic_px(i915_pt_entry(pd, gen8_pd_index(idx, 1)));
 	do {
 		GEM_BUG_ON(iter->sg->length < I915_GTT_PAGE_SIZE);
-		vaddr[gen8_pd_index(idx, 0)] = pte_encode | iter->dma;
+		write_pte(&vaddr[gen8_pd_index(idx, 0)],
+			  pte_encode | iter->dma);
 
 		iter->dma += I915_GTT_PAGE_SIZE;
 		if (iter->dma >= iter->max) {
@@ -462,7 +498,7 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 
 		do {
 			GEM_BUG_ON(iter->sg->length < page_size);
-			vaddr[index++] = encode | iter->dma;
+			write_pte(&vaddr[index++], encode | iter->dma);
 
 			start += page_size;
 			iter->dma += page_size;
@@ -705,6 +741,8 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt)
 	ppgtt->vm.insert_entries = gen8_ppgtt_insert;
 	ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc;
 	ppgtt->vm.clear_range = gen8_ppgtt_clear;
+
+	ppgtt->vm.pte_encode = gen8_pte_encode;
 
 	if (intel_vgpu_active(gt->i915))
 		gen8_ppgtt_notify_vgt(ppgtt, true);

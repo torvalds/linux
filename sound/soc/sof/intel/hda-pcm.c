@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -27,7 +27,7 @@
 #define SDnFMT_BITS(x)	((x) << 4)
 #define SDnFMT_CHAN(x)	((x) << 0)
 
-static inline u32 get_mult_div(struct snd_sof_dev *sdev, int rate)
+u32 hda_dsp_get_mult_div(struct snd_sof_dev *sdev, int rate)
 {
 	switch (rate) {
 	case 8000:
@@ -61,7 +61,7 @@ static inline u32 get_mult_div(struct snd_sof_dev *sdev, int rate)
 	}
 };
 
-static inline u32 get_bits(struct snd_sof_dev *sdev, int sample_bits)
+u32 hda_dsp_get_bits(struct snd_sof_dev *sdev, int sample_bits)
 {
 	switch (sample_bits) {
 	case 8:
@@ -95,8 +95,8 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	u32 size, rate, bits;
 
 	size = params_buffer_bytes(params);
-	rate = get_mult_div(sdev, params_rate(params));
-	bits = get_bits(sdev, params_width(params));
+	rate = hda_dsp_get_mult_div(sdev, params_rate(params));
+	bits = hda_dsp_get_bits(sdev, params_width(params));
 
 	hstream->substream = substream;
 
@@ -147,7 +147,7 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *scomp = sdev->component;
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;

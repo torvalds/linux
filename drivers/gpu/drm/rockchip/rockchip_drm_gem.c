@@ -6,6 +6,7 @@
 
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
+#include <linux/vmalloc.h>
 
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
@@ -391,7 +392,7 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 		goto err_handle_create;
 
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 
 	return rk_obj;
 

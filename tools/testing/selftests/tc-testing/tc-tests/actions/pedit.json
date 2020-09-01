@@ -1472,6 +1472,31 @@
         ]
     },
     {
+        "id": "94bb",
+        "name": "Add pedit action with LAYERED_OP ip6 traffic_class",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge ip6 traffic_class set 0x40 continue",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "ipv6\\+0: val 04000000 mask f00fffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
         "id": "6f5e",
         "name": "Add pedit action with LAYERED_OP ip6 flow_lbl",
         "category": [

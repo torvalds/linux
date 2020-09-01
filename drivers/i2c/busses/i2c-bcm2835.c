@@ -392,7 +392,7 @@ static const struct i2c_algorithm bcm2835_i2c_algo = {
 
 /*
  * The BCM2835 was reported to have problems with clock stretching:
- * http://www.advamation.com/knowhow/raspberrypi/rpi-i2c-bug.html
+ * https://www.advamation.com/knowhow/raspberrypi/rpi-i2c-bug.html
  * https://www.raspberrypi.org/forums/viewtopic.php?p=146272
  */
 static const struct i2c_adapter_quirks bcm2835_i2c_quirks = {
@@ -439,7 +439,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_warn(&pdev->dev,
 			 "Could not read clock-frequency property\n");
-		bus_clk_rate = 100000;
+		bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
 	ret = clk_set_rate_exclusive(i2c_dev->bus_clk, bus_clk_rate);

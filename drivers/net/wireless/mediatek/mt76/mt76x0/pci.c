@@ -20,7 +20,7 @@ static int mt76x0e_start(struct ieee80211_hw *hw)
 				     MT_MAC_WORK_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
-	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 
 	return 0;
 }
@@ -29,6 +29,7 @@ static void mt76x0e_stop_hw(struct mt76x02_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
+	clear_bit(MT76_RESTART, &dev->mphy.state);
 
 	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY,
 		       0, 1000))
@@ -47,7 +48,7 @@ static void mt76x0e_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	mt76x0e_stop_hw(dev);
 }
 
@@ -67,6 +68,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.configure_filter = mt76x02_configure_filter,
 	.bss_info_changed = mt76x02_bss_info_changed,
 	.sta_state = mt76_sta_state,
+	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
 	.sw_scan_start = mt76_sw_scan,
@@ -82,6 +84,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.set_coverage_class = mt76x02_set_coverage_class,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
 	.get_antenna = mt76_get_antenna,
+	.reconfig_complete = mt76x02_reconfig_complete,
 };
 
 static int mt76x0e_register_device(struct mt76x02_dev *dev)
@@ -124,7 +127,7 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		return err;
 
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	return 0;
 }
@@ -195,7 +198,7 @@ error:
 
 static void mt76x0e_cleanup(struct mt76x02_dev *dev)
 {
-	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	mt76x0_chip_onoff(dev, false, false);
 	mt76x0e_stop_hw(dev);
@@ -215,6 +218,7 @@ mt76x0e_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id mt76x0e_device_table[] = {
+	{ PCI_DEVICE(0x14c3, 0x7610) },
 	{ PCI_DEVICE(0x14c3, 0x7630) },
 	{ PCI_DEVICE(0x14c3, 0x7650) },
 	{ },

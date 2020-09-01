@@ -3,14 +3,14 @@ include ../scripts/Makefile.include
 
 prefix ?= /usr/local
 
-CC = gcc
 LEX = flex
 YACC = bison
 MAKE = make
 INSTALL ?= install
 
 CFLAGS += -Wall -O2
-CFLAGS += -D__EXPORTED_HEADERS__ -I$(srctree)/include/uapi -I$(srctree)/include
+CFLAGS += -D__EXPORTED_HEADERS__ -I$(srctree)/tools/include/uapi \
+	  -I$(srctree)/tools/include
 
 # This will work when bpf is built in tools env. where srctree
 # isn't set and when invoked from selftests build, where srctree
@@ -64,12 +64,12 @@ $(OUTPUT)%.lex.c: $(srctree)/tools/bpf/%.l
 	$(QUIET_FLEX)$(LEX) -o $@ $<
 
 $(OUTPUT)%.o: $(srctree)/tools/bpf/%.c
-	$(QUIET_CC)$(COMPILE.c) -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OUTPUT)%.yacc.o: $(OUTPUT)%.yacc.c
-	$(QUIET_CC)$(COMPILE.c) -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
 $(OUTPUT)%.lex.o: $(OUTPUT)%.lex.c
-	$(QUIET_CC)$(COMPILE.c) -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
 
 PROGS = $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg $(OUTPUT)bpf_asm
 
@@ -124,5 +124,12 @@ runqslower_install:
 runqslower_clean:
 	$(call descend,runqslower,clean)
 
+resolve_btfids:
+	$(call descend,resolve_btfids)
+
+resolve_btfids_clean:
+	$(call descend,resolve_btfids,clean)
+
 .PHONY: all install clean bpftool bpftool_install bpftool_clean \
-	runqslower runqslower_install runqslower_clean
+	runqslower runqslower_install runqslower_clean \
+	resolve_btfids resolve_btfids_clean

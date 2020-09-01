@@ -57,14 +57,14 @@
 &soc0 {
 		/include/ "keystone-k2hk-clocks.dtsi"
 
-		msm_ram: msmram@c000000 {
+		msm_ram: sram@c000000 {
 			compatible = "mmio-sram";
 			reg = <0x0c000000 0x600000>;
 			ranges = <0x0 0x0c000000 0x600000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			sram-bm@5f0000 {
+			bm-sram@5f0000 {
 				reg = <0x5f0000 0x8000>;
 			};
 		};

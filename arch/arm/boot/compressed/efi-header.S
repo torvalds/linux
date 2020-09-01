@@ -60,7 +60,7 @@ optional_header:
 		.long	__pecoff_code_size		@ SizeOfCode
 		.long	__pecoff_data_size		@ SizeOfInitializedData
 		.long	0				@ SizeOfUninitializedData
-		.long	efi_stub_entry - start		@ AddressOfEntryPoint
+		.long	efi_pe_entry - start		@ AddressOfEntryPoint
 		.long	start_offset			@ BaseOfCode
 		.long	__pecoff_data_start - start	@ BaseOfData
 
@@ -70,8 +70,8 @@ extra_header_fields:
 		.long	SZ_512				@ FileAlignment
 		.short	0				@ MajorOsVersion
 		.short	0				@ MinorOsVersion
-		.short	0				@ MajorImageVersion
-		.short	0				@ MinorImageVersion
+		.short	LINUX_EFISTUB_MAJOR_VERSION	@ MajorImageVersion
+		.short	LINUX_EFISTUB_MINOR_VERSION	@ MinorImageVersion
 		.short	0				@ MajorSubsystemVersion
 		.short	0				@ MinorSubsystemVersion
 		.long	0				@ Win32VersionValue

@@ -134,7 +134,6 @@ static const struct drm_display_mode lb035q02_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 2,
 	.vtotal = 240 + 4 + 2 + 18,
-	.vrefresh = 60,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm = 70,

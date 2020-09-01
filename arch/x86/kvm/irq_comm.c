@@ -285,7 +285,7 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		switch (ue->u.irqchip.irqchip) {
 		case KVM_IRQCHIP_PIC_SLAVE:
 			e->irqchip.pin += PIC_NUM_PINS / 2;
-			/* fall through */
+			fallthrough;
 		case KVM_IRQCHIP_PIC_MASTER:
 			if (ue->u.irqchip.pin >= PIC_NUM_PINS / 2)
 				return -EINVAL;

@@ -132,9 +132,6 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_raw_ethy_qp = le32_to_cpu(sb->max_raw_eth_qp);
 	attr->max_ah = le32_to_cpu(sb->max_ah);
 
-	attr->max_fmr = le32_to_cpu(sb->max_fmr);
-	attr->max_map_per_fmr = sb->max_map_per_fmr;
-
 	attr->max_srq = le16_to_cpu(sb->max_srq);
 	attr->max_srq_wqes = le32_to_cpu(sb->max_srq_wr) - 1;
 	attr->max_srq_sges = sb->max_srq_sge;
@@ -585,7 +582,7 @@ int bnxt_qplib_free_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw)
 
 	/* Free the qplib's MRW memory */
 	if (mrw->hwq.max_elements)
-		bnxt_qplib_free_hwq(res->pdev, &mrw->hwq);
+		bnxt_qplib_free_hwq(res, &mrw->hwq);
 
 	return 0;
 }
@@ -646,7 +643,7 @@ int bnxt_qplib_dereg_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw,
 	if (mrw->hwq.max_elements) {
 		mrw->va = 0;
 		mrw->total_size = 0;
-		bnxt_qplib_free_hwq(res->pdev, &mrw->hwq);
+		bnxt_qplib_free_hwq(res, &mrw->hwq);
 	}
 
 	return 0;
@@ -656,10 +653,12 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 		      u64 *pbl_tbl, int num_pbls, bool block, u32 buf_pg_size)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
-	struct cmdq_register_mr req;
+	struct bnxt_qplib_hwq_attr hwq_attr = {};
+	struct bnxt_qplib_sg_info sginfo = {};
 	struct creq_register_mr_resp resp;
-	u16 cmd_flags = 0, level;
+	struct cmdq_register_mr req;
 	int pg_ptrs, pages, i, rc;
+	u16 cmd_flags = 0, level;
 	dma_addr_t **pbl_ptr;
 	u32 pg_size;
 
@@ -674,20 +673,23 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 		if (pages > MAX_PBL_LVL_1_PGS) {
 			dev_err(&res->pdev->dev,
-				"SP: Reg MR pages requested (0x%x) exceeded max (0x%x)\n",
+				"SP: Reg MR: pages requested (0x%x) exceeded max (0x%x)\n",
 				pages, MAX_PBL_LVL_1_PGS);
 			return -ENOMEM;
 		}
 		/* Free the hwq if it already exist, must be a rereg */
 		if (mr->hwq.max_elements)
-			bnxt_qplib_free_hwq(res->pdev, &mr->hwq);
-
-		mr->hwq.max_elements = pages;
+			bnxt_qplib_free_hwq(res, &mr->hwq);
 		/* Use system PAGE_SIZE */
-		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &mr->hwq, NULL,
-					       &mr->hwq.max_elements,
-					       PAGE_SIZE, 0, PAGE_SIZE,
-					       HWQ_TYPE_CTX);
+		hwq_attr.res = res;
+		hwq_attr.depth = pages;
+		hwq_attr.stride = PAGE_SIZE;
+		hwq_attr.type = HWQ_TYPE_MR;
+		hwq_attr.sginfo = &sginfo;
+		hwq_attr.sginfo->npages = pages;
+		hwq_attr.sginfo->pgsize = PAGE_SIZE;
+		hwq_attr.sginfo->pgshft = PAGE_SHIFT;
+		rc = bnxt_qplib_alloc_init_hwq(&mr->hwq, &hwq_attr);
 		if (rc) {
 			dev_err(&res->pdev->dev,
 				"SP: Reg MR memory allocation failed\n");
@@ -734,7 +736,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 fail:
 	if (mr->hwq.max_elements)
-		bnxt_qplib_free_hwq(res->pdev, &mr->hwq);
+		bnxt_qplib_free_hwq(res, &mr->hwq);
 	return rc;
 }
 
@@ -742,6 +744,8 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 					struct bnxt_qplib_frpl *frpl,
 					int max_pg_ptrs)
 {
+	struct bnxt_qplib_hwq_attr hwq_attr = {};
+	struct bnxt_qplib_sg_info sginfo = {};
 	int pg_ptrs, pages, rc;
 
 	/* Re-calculate the max to fit the HWQ allocation model */
@@ -753,10 +757,15 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 	if (pages > MAX_PBL_LVL_1_PGS)
 		return -ENOMEM;
 
-	frpl->hwq.max_elements = pages;
-	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &frpl->hwq, NULL,
-				       &frpl->hwq.max_elements, PAGE_SIZE, 0,
-				       PAGE_SIZE, HWQ_TYPE_CTX);
+	sginfo.pgsize = PAGE_SIZE;
+	sginfo.nopte = true;
+
+	hwq_attr.res = res;
+	hwq_attr.depth = pg_ptrs;
+	hwq_attr.stride = PAGE_SIZE;
+	hwq_attr.sginfo = &sginfo;
+	hwq_attr.type = HWQ_TYPE_CTX;
+	rc = bnxt_qplib_alloc_init_hwq(&frpl->hwq, &hwq_attr);
 	if (!rc)
 		frpl->max_pg_ptrs = pg_ptrs;
 
@@ -766,7 +775,7 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 int bnxt_qplib_free_fast_reg_page_list(struct bnxt_qplib_res *res,
 				       struct bnxt_qplib_frpl *frpl)
 {
-	bnxt_qplib_free_hwq(res->pdev, &frpl->hwq);
+	bnxt_qplib_free_hwq(res, &frpl->hwq);
 	return 0;
 }
 

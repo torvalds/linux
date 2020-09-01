@@ -25,6 +25,33 @@
 	.idProduct = prod, \
 	.bInterfaceClass = USB_CLASS_VENDOR_SPEC
 
+#define QUIRK_RENAME_DEVICE(_vendor, _device)				\
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) { \
+		.vendor_name = _vendor,					\
+		.product_name = _device,				\
+		.ifnum = QUIRK_NO_INTERFACE				\
+	}
+
+#define QUIRK_DEVICE_PROFILE(_vendor, _device, _profile)		\
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) { \
+		.vendor_name = _vendor,					\
+		.product_name = _device,				\
+		.profile_name = _profile,				\
+		.ifnum = QUIRK_NO_INTERFACE				\
+	}
+
+/* HP Thunderbolt Dock Audio Headset */
+{
+	USB_DEVICE(0x03f0, 0x0269),
+	QUIRK_DEVICE_PROFILE("HP", "Thunderbolt Dock Audio Headset",
+			     "HP-Thunderbolt-Dock-Audio-Headset"),
+},
+/* HP Thunderbolt Dock Audio Module */
+{
+	USB_DEVICE(0x03f0, 0x0567),
+	QUIRK_DEVICE_PROFILE("HP", "Thunderbolt Dock Audio Module",
+			     "HP-Thunderbolt-Dock-Audio-Module"),
+},
 /* FTDI devices */
 {
 	USB_DEVICE(0x0403, 0xb8d8),
@@ -61,20 +88,12 @@
 /* Creative/E-Mu devices */
 {
 	USB_DEVICE(0x041e, 0x3010),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Creative Labs",
-		.product_name = "Sound Blaster MP3+",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_RENAME_DEVICE("Creative Labs", "Sound Blaster MP3+")
 },
 /* Creative/Toshiba Multimedia Center SB-0500 */
 {
 	USB_DEVICE(0x041e, 0x3048),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Toshiba",
-		.product_name = "SB-0500",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_RENAME_DEVICE("Toshiba", "SB-0500")
 },
 {
 	/* E-Mu 0202 USB */
@@ -108,7 +127,7 @@
 /*
  * HP Wireless Audio
  * When not ignored, causes instability issues for some users, forcing them to
- * blacklist the entire module.
+ * skip the entire module.
  */
 {
 	USB_DEVICE(0x0424, 0xb832),
@@ -207,11 +226,7 @@
 	.idProduct = 0x0990,
 	.bInterfaceClass = USB_CLASS_AUDIO,
 	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Logitech, Inc.",
-		.product_name = "QuickCam Pro 9000",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_RENAME_DEVICE("Logitech, Inc.", "QuickCam Pro 9000")
 },
 
 /*
@@ -2596,11 +2611,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 {
 	USB_DEVICE(0x0ccd, 0x0028),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "TerraTec",
-		.product_name = "Aureon5.1MkII",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_RENAME_DEVICE("TerraTec", "Aureon5.1MkII")
 },
 {
 	USB_DEVICE(0x0ccd, 0x0035),
@@ -2615,19 +2626,11 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 /* Stanton/N2IT Final Scratch v1 device ('Scratchamp') */
 {
 	USB_DEVICE(0x103d, 0x0100),
-		.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Stanton",
-		.product_name = "ScratchAmp",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_RENAME_DEVICE("Stanton", "ScratchAmp")
 },
 {
 	USB_DEVICE(0x103d, 0x0101),
-		.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Stanton",
-		.product_name = "ScratchAmp",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_RENAME_DEVICE("Stanton", "ScratchAmp")
 },
 
 /* Novation EMS devices */
@@ -2677,6 +2680,10 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.data = (const struct snd_usb_audio_quirk[]) {
 			{
 				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_MIXER,
+			},
+			{
+				.ifnum = 0,
 				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
 				.data = &(const struct audioformat) {
 					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
@@ -2687,6 +2694,32 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 					.attributes = UAC_EP_CS_ATTR_SAMPLE_RATE,
 					.endpoint = 0x01,
 					.ep_attr = USB_ENDPOINT_XFER_ISOC,
+					.datainterval = 1,
+					.maxpacksize = 0x024c,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000,
+					.rate_min = 44100,
+					.rate_max = 48000,
+					.nr_rates = 2,
+					.rate_table = (unsigned int[]) {
+						44100, 48000
+					}
+				}
+			},
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 2,
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = 0,
+					.endpoint = 0x82,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC,
+					.datainterval = 1,
+					.maxpacksize = 0x0126,
 					.rates = SNDRV_PCM_RATE_44100 |
 						 SNDRV_PCM_RATE_48000,
 					.rate_min = 44100,
@@ -2756,90 +2789,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.type = QUIRK_MIDI_NOVATION
 	}
 },
-{
-	/*
-	 * Focusrite Scarlett Solo 2nd generation
-	 * Reports that playback should use Synch: Synchronous
-	 * while still providing a feedback endpoint. Synchronous causes
-	 * snapping on some sample rates.
-	 * Force it to use Synch: Asynchronous.
-	 */
-	USB_DEVICE(0x1235, 0x8205),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_COMPOSITE,
-		.data = (const struct snd_usb_audio_quirk[]) {
-			{
-				.ifnum = 1,
-				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
-				.data = & (const struct audioformat) {
-					.formats = SNDRV_PCM_FMTBIT_S32_LE,
-					.channels = 2,
-					.iface = 1,
-					.altsetting = 1,
-					.altset_idx = 1,
-					.attributes = 0,
-					.endpoint = 0x01,
-					.ep_attr = USB_ENDPOINT_XFER_ISOC |
-						   USB_ENDPOINT_SYNC_ASYNC,
-					.protocol = UAC_VERSION_2,
-					.rates = SNDRV_PCM_RATE_44100 |
-						 SNDRV_PCM_RATE_48000 |
-						 SNDRV_PCM_RATE_88200 |
-						 SNDRV_PCM_RATE_96000 |
-						 SNDRV_PCM_RATE_176400 |
-						 SNDRV_PCM_RATE_192000,
-					.rate_min = 44100,
-					.rate_max = 192000,
-					.nr_rates = 6,
-					.rate_table = (unsigned int[]) {
-						44100, 48000, 88200,
-						96000, 176400, 192000
-					},
-					.clock = 41
-				}
-			},
-			{
-				.ifnum = 2,
-				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
-				.data = & (const struct audioformat) {
-					.formats = SNDRV_PCM_FMTBIT_S32_LE,
-					.channels = 2,
-					.iface = 2,
-					.altsetting = 1,
-					.altset_idx = 1,
-					.attributes = 0,
-					.endpoint = 0x82,
-					.ep_attr = USB_ENDPOINT_XFER_ISOC |
-						   USB_ENDPOINT_SYNC_ASYNC |
-						   USB_ENDPOINT_USAGE_IMPLICIT_FB,
-					.protocol = UAC_VERSION_2,
-					.rates = SNDRV_PCM_RATE_44100 |
-						 SNDRV_PCM_RATE_48000 |
-						 SNDRV_PCM_RATE_88200 |
-						 SNDRV_PCM_RATE_96000 |
-						 SNDRV_PCM_RATE_176400 |
-						 SNDRV_PCM_RATE_192000,
-					.rate_min = 44100,
-					.rate_max = 192000,
-					.nr_rates = 6,
-					.rate_table = (unsigned int[]) {
-						44100, 48000, 88200,
-						96000, 176400, 192000
-					},
-					.clock = 41
-				}
-			},
-			{
-				.ifnum = 3,
-				.type = QUIRK_IGNORE_INTERFACE
-			},
-			{
-				.ifnum = -1
-			}
-		}
-	}
-},
 
 /* Access Music devices */
 {
@@ -2872,11 +2821,20 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 {
 	/* aka. Serato Scratch Live DJ Box */
 	USB_DEVICE(0x13e5, 0x0001),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Rane",
-		.product_name = "SL-1",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_RENAME_DEVICE("Rane", "SL-1")
+},
+
+/* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
+{
+	USB_DEVICE(0x17aa, 0x1046),
+	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Rear",
+			     "Lenovo-ThinkStation-P620-Rear"),
+},
+/* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
+{
+	USB_DEVICE(0x17aa, 0x104d),
+	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Main",
+			     "Lenovo-ThinkStation-P620-Main"),
 },
 
 /* Native Instruments MK2 series */
@@ -3337,16 +3295,17 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 	}
 },
 
+/*
+ * The original product_name is "USB Sound Device", however this name
+ * is also used by the CM106 based cards, so make it unique.
+ */
 {
-	/*
-	 * The original product_name is "USB Sound Device", however this name
-	 * is also used by the CM106 based cards, so make it unique.
-	 */
+	USB_DEVICE(0x0d8c, 0x0102),
+	QUIRK_RENAME_DEVICE(NULL, "ICUSBAUDIO7D")
+},
+{
 	USB_DEVICE(0x0d8c, 0x0103),
-	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
-		.product_name = "Audio Advantage MicroII",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_RENAME_DEVICE(NULL, "Audio Advantage MicroII")
 },
 
 /* disabled due to regression for other devices;
@@ -3452,12 +3411,7 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 /* Dell WD15 Dock */
 {
 	USB_DEVICE(0x0bda, 0x4014),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Dell",
-		.product_name = "WD15 Dock",
-		.profile_name = "Dell-WD15-Dock",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_DEVICE_PROFILE("Dell", "WD15 Dock", "Dell-WD15-Dock")
 },
 /* Dell WD19 Dock */
 {
@@ -3472,7 +3426,7 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 },
 /* MOTU Microbook II */
 {
-	USB_DEVICE(0x07fd, 0x0004),
+	USB_DEVICE_VENDOR_SPEC(0x07fd, 0x0004),
 	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
 		.vendor_name = "MOTU",
 		.product_name = "MicroBookII",
@@ -3584,6 +3538,253 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 					.rate_max = 44100,
 					.nr_rates = 1,
 					.rate_table = (unsigned int[]) { 44100 }
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
+	/*
+	 * Pioneer DJ DJM-250MK2
+	 * PCM is 8 channels out @ 48 fixed (endpoints 0x01).
+	 * The output from computer to the mixer is usable.
+	 *
+	 * The input (phono or line to computer) is not working.
+	 * It should be at endpoint 0x82 and probably also 8 channels,
+	 * but it seems that it works only with Pioneer proprietary software.
+	 * Even on officially supported OS, the Audacity was unable to record
+	 * and Mixxx to recognize the control vinyls.
+	 */
+	USB_DEVICE_VENDOR_SPEC(0x2b73, 0x0017),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 8, // outputs
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.endpoint = 0x01,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC|
+						USB_ENDPOINT_SYNC_ASYNC,
+					.rates = SNDRV_PCM_RATE_48000,
+					.rate_min = 48000,
+					.rate_max = 48000,
+					.nr_rates = 1,
+					.rate_table = (unsigned int[]) { 48000 }
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
+	/*
+	 * PIONEER DJ DDJ-RB
+	 * PCM is 4 channels out, 2 dummy channels in @ 44.1 fixed
+	 * The feedback for the output is the dummy input.
+	 */
+	USB_DEVICE_VENDOR_SPEC(0x2b73, 0x000e),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 4,
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.endpoint = 0x01,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC|
+						   USB_ENDPOINT_SYNC_ASYNC,
+					.rates = SNDRV_PCM_RATE_44100,
+					.rate_min = 44100,
+					.rate_max = 44100,
+					.nr_rates = 1,
+					.rate_table = (unsigned int[]) { 44100 }
+				}
+			},
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 2,
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.endpoint = 0x82,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC|
+						 USB_ENDPOINT_SYNC_ASYNC|
+						 USB_ENDPOINT_USAGE_IMPLICIT_FB,
+					.rates = SNDRV_PCM_RATE_44100,
+					.rate_min = 44100,
+					.rate_max = 44100,
+					.nr_rates = 1,
+					.rate_table = (unsigned int[]) { 44100 }
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+
+#define ALC1220_VB_DESKTOP(vend, prod) { \
+	USB_DEVICE(vend, prod),	\
+	QUIRK_DEVICE_PROFILE("Realtek", "ALC1220-VB-DT", \
+			     "Realtek-ALC1220-VB-Desktop") \
+}
+ALC1220_VB_DESKTOP(0x0414, 0xa002), /* Gigabyte TRX40 Aorus Pro WiFi */
+ALC1220_VB_DESKTOP(0x0db0, 0x0d64), /* MSI TRX40 Creator */
+ALC1220_VB_DESKTOP(0x0db0, 0x543d), /* MSI TRX40 */
+ALC1220_VB_DESKTOP(0x26ce, 0x0a01), /* Asrock TRX40 Creator */
+#undef ALC1220_VB_DESKTOP
+
+/* Two entries for Gigabyte TRX40 Aorus Master:
+ * TRX40 Aorus Master has two USB-audio devices, one for the front headphone
+ * with ESS SABRE9218 DAC chip, while another for the rest I/O (the rear
+ * panel and the front mic) with Realtek ALC1220-VB.
+ * Here we provide two distinct names for making UCM profiles easier.
+ */
+{
+	USB_DEVICE(0x0414, 0xa000),
+	QUIRK_DEVICE_PROFILE("Gigabyte", "Aorus Master Front Headphone",
+			     "Gigabyte-Aorus-Master-Front-Headphone")
+},
+{
+	USB_DEVICE(0x0414, 0xa001),
+	QUIRK_DEVICE_PROFILE("Gigabyte", "Aorus Master Main Audio",
+			     "Gigabyte-Aorus-Master-Main-Audio")
+},
+{
+	/*
+	 * Pioneer DJ DJM-900NXS2
+	 * 10 channels playback & 12 channels capture @ 44.1/48/96kHz S24LE
+	 */
+	USB_DEVICE_VENDOR_SPEC(0x2b73, 0x000a),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 10,
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.endpoint = 0x01,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC|
+					    USB_ENDPOINT_SYNC_ASYNC,
+					.rates = SNDRV_PCM_RATE_44100|
+					    SNDRV_PCM_RATE_48000|
+					    SNDRV_PCM_RATE_96000,
+					.rate_min = 44100,
+					.rate_max = 96000,
+					.nr_rates = 3,
+					.rate_table = (unsigned int[]) {
+						44100, 48000, 96000
+					}
+				}
+			},
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 12,
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.endpoint = 0x82,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC|
+					    USB_ENDPOINT_SYNC_ASYNC|
+					    USB_ENDPOINT_USAGE_IMPLICIT_FB,
+					.rates = SNDRV_PCM_RATE_44100|
+					    SNDRV_PCM_RATE_48000|
+					    SNDRV_PCM_RATE_96000,
+					.rate_min = 44100,
+					.rate_max = 96000,
+					.nr_rates = 3,
+					.rate_table = (unsigned int[]) {
+						44100, 48000, 96000
+					}
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+
+/*
+ * MacroSilicon MS2109 based HDMI capture cards
+ *
+ * These claim 96kHz 1ch in the descriptors, but are actually 48kHz 2ch.
+ * They also need QUIRK_AUDIO_ALIGN_TRANSFER, which makes one wonder if
+ * they pretend to be 96kHz mono as a workaround for stereo being broken
+ * by that...
+ *
+ * They also have an issue with initial stream alignment that causes the
+ * channels to be swapped and out of phase, which is dealt with in quirks.c.
+ */
+{
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.idVendor = 0x534d,
+	.idProduct = 0x2109,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "MacroSilicon",
+		.product_name = "MS2109",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = &(const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_MIXER,
+			},
+			{
+				.ifnum = 3,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S16_LE,
+					.channels = 2,
+					.iface = 3,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = 0,
+					.endpoint = 0x82,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC |
+						USB_ENDPOINT_SYNC_ASYNC,
+					.rates = SNDRV_PCM_RATE_CONTINUOUS,
+					.rate_min = 48000,
+					.rate_max = 48000,
 				}
 			},
 			{

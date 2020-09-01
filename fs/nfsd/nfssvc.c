@@ -221,7 +221,7 @@ int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change)
 	case NFSD_TEST:
 		if (nn->nfsd_versions)
 			return nn->nfsd_versions[vers];
-		/* Fallthrough */
+		fallthrough;
 	case NFSD_AVAIL:
 		return nfsd_support_version(vers);
 	}
@@ -601,6 +601,11 @@ static const struct svc_serv_ops nfsd_thread_sv_ops = {
 	.svo_module		= THIS_MODULE,
 };
 
+bool i_am_nfsd(void)
+{
+	return kthread_func(current) == nfsd;
+}
+
 int nfsd_create_serv(struct net *net)
 {
 	int error;
@@ -748,6 +753,9 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 
 	if (nrservs == 0 && nn->nfsd_serv == NULL)
 		goto out;
+
+	strlcpy(nn->nfsd_name, utsname()->nodename,
+		sizeof(nn->nfsd_name));
 
 	error = nfsd_create_serv(net);
 	if (error)
@@ -1008,6 +1016,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 		*statp = rpc_garbage_args;
 		return 1;
 	}
+	rqstp->rq_lease_breaker = NULL;
 	/*
 	 * Give the xdr decoder a chance to change this if it wants
 	 * (necessary in the NFSv4.0 compound case)

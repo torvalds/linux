@@ -19,6 +19,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
+#include <linux/wait.h>
 #include <linux/aer.h>
 #include <linux/interrupt.h>
 #include <linux/ethtool.h>
@@ -34,8 +35,14 @@
 #include <linux/ctype.h>
 #include <linux/bpf.h>
 #include <linux/avf/virtchnl.h>
+#include <linux/cpu_rmap.h>
+#include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock.h>
+#include <net/geneve.h>
+#include <net/gre.h>
+#include <net/udp_tunnel.h>
+#include <net/vxlan.h>
 #include "ice_devids.h"
 #include "ice_type.h"
 #include "ice_txrx.h"
@@ -45,9 +52,10 @@
 #include "ice_sched.h"
 #include "ice_virtchnl_pf.h"
 #include "ice_sriov.h"
+#include "ice_fdir.h"
 #include "ice_xsk.h"
+#include "ice_arfs.h"
 
-extern const char ice_drv_ver[];
 #define ICE_BAR0		0
 #define ICE_REQ_DESC_MULTIPLE	32
 #define ICE_MIN_NUM_DESC	64
@@ -60,8 +68,8 @@ extern const char ice_drv_ver[];
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
 #define ICE_AQ_LEN		64
 #define ICE_MBXSQ_LEN		64
-#define ICE_MBXRQ_LEN		512
 #define ICE_MIN_MSIX		2
+#define ICE_FDIR_MSIX		1
 #define ICE_NO_VSI		0xffff
 #define ICE_VSI_MAP_CONTIG	0
 #define ICE_VSI_MAP_SCATTER	1
@@ -70,7 +78,6 @@ extern const char ice_drv_ver[];
 #define ICE_Q_WAIT_RETRY_LIMIT	10
 #define ICE_Q_WAIT_MAX_RETRY	(5 * ICE_Q_WAIT_RETRY_LIMIT)
 #define ICE_MAX_LG_RSS_QS	256
-#define ICE_MAX_SMALL_RSS_QS	8
 #define ICE_RES_VALID_BIT	0x8000
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
@@ -91,6 +98,7 @@ extern const char ice_drv_ver[];
 #define ICE_TX_DESC(R, i) (&(((struct ice_tx_desc *)((R)->desc))[i]))
 #define ICE_RX_DESC(R, i) (&(((union ice_32b_rx_flex_desc *)((R)->desc))[i]))
 #define ICE_TX_CTX_DESC(R, i) (&(((struct ice_tx_ctx_desc *)((R)->desc))[i]))
+#define ICE_TX_FDIRDESC(R, i) (&(((struct ice_fltr_desc *)((R)->desc))[i]))
 
 /* Macro for each VSI in a PF */
 #define ice_for_each_vsi(pf, i) \
@@ -211,7 +219,12 @@ enum ice_state {
 	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
 	__ICE_SERVICE_DIS,
+	__ICE_FD_FLUSH_REQ,
 	__ICE_OICR_INTR_DIS,		/* Global OICR interrupt disabled */
+	__ICE_MDD_VF_PRINT_PENDING,	/* set when MDD event handle */
+	__ICE_VF_RESETS_DISABLED,	/* disable resets during ice_remove */
+	__ICE_LINK_DEFAULT_OVERRIDE_PENDING,
+	__ICE_PHY_INIT_COMPLETE,
 	__ICE_STATE_NBITS		/* must be last */
 };
 
@@ -243,8 +256,9 @@ struct ice_vsi {
 	u32 tx_busy;
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
-	int num_q_vectors;
-	int base_vector;		/* IRQ base for OS reserved vectors */
+	u32 rx_gro_dropped;
+	u16 num_q_vectors;
+	u16 base_vector;		/* IRQ base for OS reserved vectors */
 	enum ice_vsi_type type;
 	u16 vsi_num;			/* HW (absolute) index of this VSI */
 	u16 idx;			/* software index in pf->vsi[] */
@@ -252,6 +266,8 @@ struct ice_vsi {
 	s16 vf_id;			/* VF ID for SR-IOV VSIs */
 
 	u16 ethtype;			/* Ethernet protocol for pause frame */
+	u16 num_gfltr;
+	u16 num_bfltr;
 
 	/* RSS config */
 	u16 rss_table_size;	/* HW RSS table size */
@@ -259,6 +275,14 @@ struct ice_vsi {
 	u8 *rss_hkey_user;	/* User configured hash keys */
 	u8 *rss_lut_user;	/* User configured lookup table entries */
 	u8 rss_lut_type;	/* used to configure Get/Set RSS LUT AQ call */
+
+	/* aRFS members only allocated for the PF VSI */
+#define ICE_MAX_ARFS_LIST	1024
+#define ICE_ARFS_LST_MASK	(ICE_MAX_ARFS_LIST - 1)
+	struct hlist_head *arfs_fltr_list;
+	struct ice_arfs_active_fltr_cntrs *arfs_fltr_cntrs;
+	spinlock_t arfs_lock;	/* protects aRFS hash table and filter state */
+	atomic_t *arfs_last_fltr_id;
 
 	u16 max_frame;
 	u16 rx_buf_len;
@@ -334,17 +358,28 @@ enum ice_pf_flags {
 	ICE_FLAG_SRIOV_CAPABLE,
 	ICE_FLAG_DCB_CAPABLE,
 	ICE_FLAG_DCB_ENA,
+	ICE_FLAG_FD_ENA,
 	ICE_FLAG_ADV_FEATURES,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
+	ICE_FLAG_TOTAL_PORT_SHUTDOWN_ENA,
 	ICE_FLAG_NO_MEDIA,
 	ICE_FLAG_FW_LLDP_AGENT,
 	ICE_FLAG_ETHTOOL_CTXT,		/* set when ethtool holds RTNL lock */
 	ICE_FLAG_LEGACY_RX,
+	ICE_FLAG_VF_TRUE_PROMISC_ENA,
+	ICE_FLAG_MDD_AUTO_RESET_VF,
+	ICE_FLAG_LINK_LENIENT_MODE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
 struct ice_pf {
 	struct pci_dev *pdev;
+
+	/* devlink port data */
+	struct devlink_port devlink_port;
+
+	struct devlink_region *nvm_region;
+	struct devlink_region *devcaps_region;
 
 	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
@@ -355,14 +390,18 @@ struct ice_pf {
 	 */
 	u16 sriov_base_vector;
 
+	u16 ctrl_vsi_idx;		/* control VSI index in pf->vsi array */
+
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
 	/* Virtchnl/SR-IOV config info */
 	struct ice_vf *vf;
-	int num_alloc_vfs;		/* actual number of VFs allocated */
+	u16 num_alloc_vfs;		/* actual number of VFs allocated */
 	u16 num_vfs_supported;		/* num VFs supported for this PF */
-	u16 num_vf_qps;			/* num queue pairs per VF */
-	u16 num_vf_msix;		/* num vectors per VF */
+	u16 num_qps_per_vf;
+	u16 num_msix_per_vf;
+	/* used to ratelimit the MDD event logging */
+	unsigned long last_printed_mdd_jiffies;
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
 	DECLARE_BITMAP(flags, ICE_PF_FLAGS_NBITS);
 	unsigned long *avail_txqs;	/* bitmap to track PF Tx queue usage */
@@ -375,12 +414,18 @@ struct ice_pf {
 	struct mutex sw_mutex;		/* lock for protecting VSI alloc flow */
 	struct mutex tc_mutex;		/* lock to protect TC changes */
 	u32 msg_enable;
+
+	/* spinlock to protect the AdminQ wait list */
+	spinlock_t aq_wait_lock;
+	struct hlist_head aq_wait_list;
+	wait_queue_head_t aq_wait_queue;
+
 	u32 hw_csum_rx_error;
-	u32 oicr_idx;		/* Other interrupt cause MSIX vector index */
-	u32 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
+	u16 oicr_idx;		/* Other interrupt cause MSIX vector index */
+	u16 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
 	u16 max_pf_txqs;	/* Total Tx queues PF wide */
 	u16 max_pf_rxqs;	/* Total Rx queues PF wide */
-	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
+	u16 num_lan_msix;	/* Total MSIX vectors for base driver */
 	u16 num_lan_tx;		/* num LAN Tx queues setup */
 	u16 num_lan_rx;		/* num LAN Rx queues setup */
 	u16 next_vsi;		/* Next free slot in pf->vsi[] - 0-based! */
@@ -390,6 +435,8 @@ struct ice_pf {
 	u16 empr_count;		/* EMP reset count */
 	u16 pfr_count;		/* PF reset count */
 
+	u8 wol_ena : 1;		/* software state of WoL */
+	u32 wakeup_reason;	/* last wakeup reason */
 	struct ice_hw_port_stats stats;
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
@@ -402,6 +449,10 @@ struct ice_pf {
 	u32 tx_timeout_recovery_level;
 	char int_name[ICE_INT_NAME_STR_LEN];
 	u32 sw_int_count;
+
+	__le64 nvm_phy_type_lo; /* NVM PHY type low */
+	__le64 nvm_phy_type_hi; /* NVM PHY type high */
+	struct ice_link_default_override_tlv link_dflt_override;
 };
 
 struct ice_netdev_priv {
@@ -491,8 +542,27 @@ static inline struct ice_vsi *ice_get_main_vsi(struct ice_pf *pf)
 	return NULL;
 }
 
+/**
+ * ice_get_ctrl_vsi - Get the control VSI
+ * @pf: PF instance
+ */
+static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
+{
+	/* if pf->ctrl_vsi_idx is ICE_NO_VSI, control VSI was not set up */
+	if (!pf->vsi || pf->ctrl_vsi_idx == ICE_NO_VSI)
+		return NULL;
+
+	return pf->vsi[pf->ctrl_vsi_idx];
+}
+
+#define ICE_FD_STAT_CTR_BLOCK_COUNT	256
+#define ICE_FD_STAT_PF_IDX(base_idx) \
+			((base_idx) * ICE_FD_STAT_CTR_BLOCK_COUNT)
+#define ICE_FD_SB_STAT_IDX(base_idx) ICE_FD_STAT_PF_IDX(base_idx)
+
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
+int ice_vsi_open_ctrl(struct ice_vsi *vsi);
 void ice_set_ethtool_ops(struct net_device *netdev);
 void ice_set_ethtool_safe_mode_ops(struct net_device *netdev);
 u16 ice_get_avail_txq_count(struct ice_pf *pf);
@@ -514,7 +584,27 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
 int ice_schedule_reset(struct ice_pf *pf, enum ice_reset_req reset);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
+const char *ice_stat_str(enum ice_status stat_err);
+const char *ice_aq_str(enum ice_aq_err aq_err);
+bool ice_is_wol_supported(struct ice_pf *pf);
+int
+ice_fdir_write_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input, bool add,
+		    bool is_tun);
+void ice_vsi_manage_fdir(struct ice_vsi *vsi, bool ena);
+int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd);
+int ice_del_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd);
+int ice_get_ethtool_fdir_entry(struct ice_hw *hw, struct ethtool_rxnfc *cmd);
+int
+ice_get_fdir_fltr_ids(struct ice_hw *hw, struct ethtool_rxnfc *cmd,
+		      u32 *rule_locs);
+void ice_fdir_release_flows(struct ice_hw *hw);
+void ice_fdir_replay_flows(struct ice_hw *hw);
+void ice_fdir_replay_fltrs(struct ice_pf *pf);
+int ice_fdir_create_dflt_rules(struct ice_pf *pf);
+int ice_aq_wait_for_event(struct ice_pf *pf, u16 opcode, unsigned long timeout,
+			  struct ice_rq_event_info *event);
 int ice_open(struct net_device *netdev);
 int ice_stop(struct net_device *netdev);
+void ice_service_task_schedule(struct ice_pf *pf);
 
 #endif /* _ICE_H_ */

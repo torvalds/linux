@@ -115,9 +115,8 @@ static void mtk_musb_clks_disable(struct mtk_glue *glue)
 	clk_disable_unprepare(glue->main);
 }
 
-static int musb_usb_role_sx_set(struct device *dev, enum usb_role role)
+static int mtk_otg_switch_set(struct mtk_glue *glue, enum usb_role role)
 {
-	struct mtk_glue *glue = dev_get_drvdata(dev);
 	struct musb *musb = glue->musb;
 	u8 devctl = readb(musb->mregs + MUSB_DEVCTL);
 	enum usb_role new_role;
@@ -168,9 +167,14 @@ static int musb_usb_role_sx_set(struct device *dev, enum usb_role role)
 	return 0;
 }
 
-static enum usb_role musb_usb_role_sx_get(struct device *dev)
+static int musb_usb_role_sx_set(struct usb_role_switch *sw, enum usb_role role)
 {
-	struct mtk_glue *glue = dev_get_drvdata(dev);
+	return mtk_otg_switch_set(usb_role_switch_get_drvdata(sw), role);
+}
+
+static enum usb_role musb_usb_role_sx_get(struct usb_role_switch *sw)
+{
+	struct mtk_glue *glue = usb_role_switch_get_drvdata(sw);
 
 	return glue->role;
 }
@@ -182,6 +186,7 @@ static int mtk_otg_switch_init(struct mtk_glue *glue)
 	role_sx_desc.set = musb_usb_role_sx_set;
 	role_sx_desc.get = musb_usb_role_sx_get;
 	role_sx_desc.fwnode = dev_fwnode(glue->dev);
+	role_sx_desc.driver_data = glue;
 	glue->role_sw = usb_role_switch_register(glue->dev, &role_sx_desc);
 
 	return PTR_ERR_OR_ZERO(glue->role_sw);
@@ -202,6 +207,12 @@ static irqreturn_t generic_interrupt(int irq, void *__hci)
 	musb->int_usb = musb_clearb(musb->mregs, MUSB_INTRUSB);
 	musb->int_rx = musb_clearw(musb->mregs, MUSB_INTRRX);
 	musb->int_tx = musb_clearw(musb->mregs, MUSB_INTRTX);
+
+	if ((musb->int_usb & MUSB_INTR_RESET) && !is_host_active(musb)) {
+		/* ep0 FADDR must be 0 when (re)entering peripheral mode */
+		musb_ep_select(musb->mregs, 0);
+		musb_writeb(musb->mregs, MUSB_FADDR, 0);
+	}
 
 	if (musb->int_usb || musb->int_tx || musb->int_rx)
 		retval = musb_interrupt(musb);
@@ -288,8 +299,7 @@ static int mtk_musb_set_mode(struct musb *musb, u8 mode)
 		return -EINVAL;
 	}
 
-	glue->role = new_role;
-	musb_usb_role_sx_set(dev, glue->role);
+	mtk_otg_switch_set(glue, new_role);
 	return 0;
 }
 
@@ -444,7 +454,7 @@ static int mtk_musb_probe(struct platform_device *pdev)
 	struct platform_device_info pinfo;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	int ret = -ENOMEM;
+	int ret;
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)

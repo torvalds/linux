@@ -21,9 +21,6 @@
 #include <asm/oplib.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
-
-#define UCTRL_MINOR	174
 
 #define DEBUG 1
 #ifdef DEBUG

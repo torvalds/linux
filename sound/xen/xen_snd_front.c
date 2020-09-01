@@ -114,7 +114,7 @@ int xen_snd_front_stream_prepare(struct xen_snd_front_evtchnl *evtchnl,
 
 int xen_snd_front_stream_close(struct xen_snd_front_evtchnl *evtchnl)
 {
-	struct xensnd_req *req;
+	__always_unused struct xensnd_req *req;
 	int ret;
 
 	mutex_lock(&evtchnl->u.req.req_io_lock);
@@ -246,11 +246,8 @@ static void sndback_changed(struct xenbus_device *xb_dev,
 
 	switch (backend_state) {
 	case XenbusStateReconfiguring:
-		/* fall through */
 	case XenbusStateReconfigured:
-		/* fall through */
 	case XenbusStateInitialised:
-		/* fall through */
 		break;
 
 	case XenbusStateInitialising:
@@ -289,7 +286,6 @@ static void sndback_changed(struct xenbus_device *xb_dev,
 		break;
 
 	case XenbusStateUnknown:
-		/* fall through */
 	case XenbusStateClosed:
 		if (xb_dev->state == XenbusStateClosed)
 			break;

@@ -254,6 +254,23 @@ enum drm_panel_orientation {
 	DRM_MODE_PANEL_ORIENTATION_RIGHT_UP,
 };
 
+/**
+ * struct drm_monitor_range_info - Panel's Monitor range in EDID for
+ * &drm_display_info
+ *
+ * This struct is used to store a frequency range supported by panel
+ * as parsed from EDID's detailed monitor range descriptor block.
+ *
+ * @min_vfreq: This is the min supported refresh rate in Hz from
+ *             EDID's detailed monitor range.
+ * @max_vfreq: This is the max supported refresh rate in Hz from
+ *             EDID's detailed monitor range
+ */
+struct drm_monitor_range_info {
+	u8 min_vfreq;
+	u8 max_vfreq;
+};
+
 /*
  * This is a consolidated colorimetry list supported by HDMI and
  * DP protocol standard. The respective connectors will register
@@ -303,51 +320,97 @@ enum drm_panel_orientation {
  * opposite edge of the driving edge. Transmitters and receivers may however
  * need to take other signal timings into account to convert between driving
  * and sample edges.
- *
- * @DRM_BUS_FLAG_DE_LOW:		The Data Enable signal is active low
- * @DRM_BUS_FLAG_DE_HIGH:		The Data Enable signal is active high
- * @DRM_BUS_FLAG_PIXDATA_POSEDGE:	Legacy value, do not use
- * @DRM_BUS_FLAG_PIXDATA_NEGEDGE:	Legacy value, do not use
- * @DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE:	Data is driven on the rising edge of
- *					the pixel clock
- * @DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE:	Data is driven on the falling edge of
- *					the pixel clock
- * @DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE: Data is sampled on the rising edge of
- *					the pixel clock
- * @DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE: Data is sampled on the falling edge of
- *					the pixel clock
- * @DRM_BUS_FLAG_DATA_MSB_TO_LSB:	Data is transmitted MSB to LSB on the bus
- * @DRM_BUS_FLAG_DATA_LSB_TO_MSB:	Data is transmitted LSB to MSB on the bus
- * @DRM_BUS_FLAG_SYNC_POSEDGE:		Legacy value, do not use
- * @DRM_BUS_FLAG_SYNC_NEGEDGE:		Legacy value, do not use
- * @DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE:	Sync signals are driven on the rising
- *					edge of the pixel clock
- * @DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE:	Sync signals are driven on the falling
- *					edge of the pixel clock
- * @DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE:	Sync signals are sampled on the rising
- *					edge of the pixel clock
- * @DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE:	Sync signals are sampled on the falling
- *					edge of the pixel clock
- * @DRM_BUS_FLAG_SHARP_SIGNALS:		Set if the Sharp-specific signals
- *					(SPL, CLS, PS, REV) must be used
  */
 enum drm_bus_flags {
+	/**
+	 * @DRM_BUS_FLAG_DE_LOW:
+	 *
+	 * The Data Enable signal is active low
+	 */
 	DRM_BUS_FLAG_DE_LOW = BIT(0),
+
+	/**
+	 * @DRM_BUS_FLAG_DE_HIGH:
+	 *
+	 * The Data Enable signal is active high
+	 */
 	DRM_BUS_FLAG_DE_HIGH = BIT(1),
-	DRM_BUS_FLAG_PIXDATA_POSEDGE = BIT(2),
-	DRM_BUS_FLAG_PIXDATA_NEGEDGE = BIT(3),
-	DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE = DRM_BUS_FLAG_PIXDATA_POSEDGE,
-	DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
-	DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
-	DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE:
+	 *
+	 * Data is driven on the rising edge of the pixel clock
+	 */
+	DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE = BIT(2),
+
+	/**
+	 * @DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE:
+	 *
+	 * Data is driven on the falling edge of the pixel clock
+	 */
+	DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE = BIT(3),
+
+	/**
+	 * @DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE:
+	 *
+	 * Data is sampled on the rising edge of the pixel clock
+	 */
+	DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE = DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE:
+	 *
+	 * Data is sampled on the falling edge of the pixel clock
+	 */
+	DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_DATA_MSB_TO_LSB:
+	 *
+	 * Data is transmitted MSB to LSB on the bus
+	 */
 	DRM_BUS_FLAG_DATA_MSB_TO_LSB = BIT(4),
+
+	/**
+	 * @DRM_BUS_FLAG_DATA_LSB_TO_MSB:
+	 *
+	 * Data is transmitted LSB to MSB on the bus
+	 */
 	DRM_BUS_FLAG_DATA_LSB_TO_MSB = BIT(5),
-	DRM_BUS_FLAG_SYNC_POSEDGE = BIT(6),
-	DRM_BUS_FLAG_SYNC_NEGEDGE = BIT(7),
-	DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE = DRM_BUS_FLAG_SYNC_POSEDGE,
-	DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE = DRM_BUS_FLAG_SYNC_NEGEDGE,
-	DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE = DRM_BUS_FLAG_SYNC_NEGEDGE,
-	DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE = DRM_BUS_FLAG_SYNC_POSEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE:
+	 *
+	 * Sync signals are driven on the rising edge of the pixel clock
+	 */
+	DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE = BIT(6),
+
+	/**
+	 * @DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE:
+	 *
+	 * Sync signals are driven on the falling edge of the pixel clock
+	 */
+	DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE = BIT(7),
+
+	/**
+	 * @DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE:
+	 *
+	 * Sync signals are sampled on the rising edge of the pixel clock
+	 */
+	DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE = DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE:
+	 *
+	 * Sync signals are sampled on the falling edge of the pixel clock
+	 */
+	DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE = DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_SHARP_SIGNALS:
+	 *
+	 *  Set if the Sharp-specific signals (SPL, CLS, PS, REV) must be used
+	 */
 	DRM_BUS_FLAG_SHARP_SIGNALS = BIT(8),
 };
 
@@ -435,6 +498,14 @@ struct drm_display_info {
 	bool dvi_dual;
 
 	/**
+	 * @is_hdmi: True if the sink is an HDMI device.
+	 *
+	 * This field shall be used instead of calling
+	 * drm_detect_hdmi_monitor() when possible.
+	 */
+	bool is_hdmi;
+
+	/**
 	 * @has_hdmi_infoframe: Does the sink support the HDMI infoframe?
 	 */
 	bool has_hdmi_infoframe;
@@ -465,6 +536,11 @@ struct drm_display_info {
 	 * @non_desktop: Non desktop display (HMD).
 	 */
 	bool non_desktop;
+
+	/**
+	 * @monitor_range: Frequency range supported by monitor range descriptor
+	 */
+	struct drm_monitor_range_info monitor_range;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
@@ -1299,6 +1375,8 @@ struct drm_connector {
 	enum drm_connector_force force;
 	/** @override_edid: has the EDID been overwritten through debugfs for testing? */
 	bool override_edid;
+	/** @epoch_counter: used to detect any other changes in connector, besides status */
+	u64 epoch_counter;
 
 	/**
 	 * @possible_encoders: Bit mask of encoders that can drive this
@@ -1357,6 +1435,12 @@ struct drm_connector {
 	 * rev1.1 4.2.2.6
 	 */
 	bool edid_corrupt;
+	/**
+	 * @real_edid_checksum: real edid checksum for corrupted edid block.
+	 * Required in Displayport 1.4 compliance testing
+	 * rev1.1 4.2.2.6
+	 */
+	u8 real_edid_checksum;
 
 	/** @debugfs_entry: debugfs directory for this connector */
 	struct dentry *debugfs_entry;
@@ -1512,6 +1596,7 @@ drm_connector_is_unregistered(struct drm_connector *connector)
 		DRM_CONNECTOR_UNREGISTERED;
 }
 
+const char *drm_get_connector_type_name(unsigned int connector_type);
 const char *drm_get_connector_status_name(enum drm_connector_status status);
 const char *drm_get_subpixel_order_name(enum subpixel_order order);
 const char *drm_get_dpms_name(int val);
@@ -1552,8 +1637,13 @@ void drm_connector_set_link_status_property(struct drm_connector *connector,
 					    uint64_t link_status);
 void drm_connector_set_vrr_capable_property(
 		struct drm_connector *connector, bool capable);
-int drm_connector_init_panel_orientation_property(
-	struct drm_connector *connector, int width, int height);
+int drm_connector_set_panel_orientation(
+	struct drm_connector *connector,
+	enum drm_panel_orientation panel_orientation);
+int drm_connector_set_panel_orientation_with_quirk(
+	struct drm_connector *connector,
+	enum drm_panel_orientation panel_orientation,
+	int width, int height);
 int drm_connector_attach_max_bpc_property(struct drm_connector *connector,
 					  int min, int max);
 
@@ -1575,9 +1665,9 @@ struct drm_tile_group {
 };
 
 struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
-						  char topology[8]);
+						  const char topology[8]);
 struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
-					       char topology[8]);
+					       const char topology[8]);
 void drm_mode_put_tile_group(struct drm_device *dev,
 			     struct drm_tile_group *tg);
 

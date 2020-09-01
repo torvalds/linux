@@ -16,11 +16,9 @@
 #define BYTE_OFFSET(nr)		((nr) % BITS_PER_BYTE)
 #endif
 
-#define IS_IMMEDIATE(nr)	(__builtin_constant_p(nr))
-
 static inline void __set_bit(int nr, volatile unsigned long *addr)
 {
-	if (IS_IMMEDIATE(nr)) {
+	if (__builtin_constant_p(nr)) {
 		__asm__ __volatile__ (
 			"bset.b %1, @(%O2,%0)		! __set_bit\n\t"
 			: "+r" (addr)
@@ -37,7 +35,7 @@ static inline void __set_bit(int nr, volatile unsigned long *addr)
 
 static inline void __clear_bit(int nr, volatile unsigned long *addr)
 {
-	if (IS_IMMEDIATE(nr)) {
+	if (__builtin_constant_p(nr)) {
 		__asm__ __volatile__ (
 			"bclr.b %1, @(%O2,%0)		! __clear_bit\n\t"
 			: "+r" (addr)
@@ -64,7 +62,7 @@ static inline void __clear_bit(int nr, volatile unsigned long *addr)
  */
 static inline void __change_bit(int nr, volatile unsigned long *addr)
 {
-	if (IS_IMMEDIATE(nr)) {
+	if (__builtin_constant_p(nr)) {
 		__asm__ __volatile__ (
 			"bxor.b %1, @(%O2,%0)		! __change_bit\n\t"
 			: "+r" (addr)

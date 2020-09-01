@@ -25,12 +25,10 @@ static void __xfrm_transport_prep(struct xfrm_state *x, struct sk_buff *skb,
 	struct xfrm_offload *xo = xfrm_offload(skb);
 
 	skb_reset_mac_len(skb);
-	pskb_pull(skb, skb->mac_len + hsize + x->props.header_len);
-
-	if (xo->flags & XFRM_GSO_SEGMENT) {
-		skb_reset_transport_header(skb);
+	if (xo->flags & XFRM_GSO_SEGMENT)
 		skb->transport_header -= x->props.header_len;
-	}
+
+	pskb_pull(skb, skb_transport_offset(skb) + x->props.header_len);
 }
 
 static void __xfrm_mode_tunnel_prep(struct xfrm_state *x, struct sk_buff *skb,
@@ -44,6 +42,25 @@ static void __xfrm_mode_tunnel_prep(struct xfrm_state *x, struct sk_buff *skb,
 
 	skb_reset_mac_len(skb);
 	pskb_pull(skb, skb->mac_len + x->props.header_len);
+}
+
+static void __xfrm_mode_beet_prep(struct xfrm_state *x, struct sk_buff *skb,
+				  unsigned int hsize)
+{
+	struct xfrm_offload *xo = xfrm_offload(skb);
+	int phlen = 0;
+
+	if (xo->flags & XFRM_GSO_SEGMENT)
+		skb->transport_header = skb->network_header + hsize;
+
+	skb_reset_mac_len(skb);
+	if (x->sel.family != AF_INET6) {
+		phlen = IPV4_BEET_PHMAXLEN;
+		if (x->outer_mode.family == AF_INET6)
+			phlen += sizeof(struct ipv6hdr) - sizeof(struct iphdr);
+	}
+
+	pskb_pull(skb, skb->mac_len + hsize + (x->props.header_len - phlen));
 }
 
 /* Adjust pointers into the packet when IPsec is done at layer2 */
@@ -66,9 +83,16 @@ static void xfrm_outer_mode_prep(struct xfrm_state *x, struct sk_buff *skb)
 			return __xfrm_transport_prep(x, skb,
 						     sizeof(struct ipv6hdr));
 		break;
+	case XFRM_MODE_BEET:
+		if (x->outer_mode.family == AF_INET)
+			return __xfrm_mode_beet_prep(x, skb,
+						     sizeof(struct iphdr));
+		if (x->outer_mode.family == AF_INET6)
+			return __xfrm_mode_beet_prep(x, skb,
+						     sizeof(struct ipv6hdr));
+		break;
 	case XFRM_MODE_ROUTEOPTIMIZATION:
 	case XFRM_MODE_IN_TRIGGER:
-	case XFRM_MODE_BEET:
 		break;
 	}
 }
@@ -78,13 +102,14 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 	int err;
 	unsigned long flags;
 	struct xfrm_state *x;
-	struct sk_buff *skb2, *nskb;
 	struct softnet_data *sd;
+	struct sk_buff *skb2, *nskb, *pskb = NULL;
 	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct net_device *dev = skb->dev;
 	struct sec_path *sp;
 
-	if (!xo)
+	if (!xo || (xo->flags & XFRM_XMIT))
 		return skb;
 
 	if (!(features & NETIF_F_HW_ESP))
@@ -93,6 +118,10 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 	sp = skb_sec_path(skb);
 	x = sp->xvec[sp->len - 1];
 	if (xo->flags & XFRM_GRO || x->xso.flags & XFRM_OFFLOAD_INBOUND)
+		return skb;
+
+	/* This skb was already validated on the upper/virtual dev */
+	if ((x->xso.dev != dev) && (x->xso.real_dev == dev))
 		return skb;
 
 	local_irq_save(flags);
@@ -105,25 +134,22 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		return skb;
 	}
 
-	if (skb_is_gso(skb)) {
-		struct net_device *dev = skb->dev;
+	xo->flags |= XFRM_XMIT;
 
-		if (unlikely(x->xso.dev != dev)) {
-			struct sk_buff *segs;
+	if (skb_is_gso(skb) && unlikely(x->xso.dev != dev)) {
+		struct sk_buff *segs;
 
-			/* Packet got rerouted, fixup features and segment it. */
-			esp_features = esp_features & ~(NETIF_F_HW_ESP
-							| NETIF_F_GSO_ESP);
+		/* Packet got rerouted, fixup features and segment it. */
+		esp_features = esp_features & ~(NETIF_F_HW_ESP | NETIF_F_GSO_ESP);
 
-			segs = skb_gso_segment(skb, esp_features);
-			if (IS_ERR(segs)) {
-				kfree_skb(skb);
-				atomic_long_inc(&dev->tx_dropped);
-				return NULL;
-			} else {
-				consume_skb(skb);
-				skb = segs;
-			}
+		segs = skb_gso_segment(skb, esp_features);
+		if (IS_ERR(segs)) {
+			kfree_skb(skb);
+			atomic_long_inc(&dev->tx_dropped);
+			return NULL;
+		} else {
+			consume_skb(skb);
+			skb = segs;
 		}
 	}
 
@@ -168,14 +194,14 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		} else {
 			if (skb == skb2)
 				skb = nskb;
-
-			if (!skb)
-				return NULL;
+			else
+				pskb->next = nskb;
 
 			continue;
 		}
 
 		skb_push(skb2, skb2->data - skb_mac_header(skb2));
+		pskb = skb2;
 	}
 
 	return skb;
@@ -235,6 +261,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 	}
 
 	xso->dev = dev;
+	xso->real_dev = dev;
 	xso->num_exthdrs = 1;
 	xso->flags = xuo->flags;
 
@@ -383,6 +410,7 @@ static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void
 		return xfrm_dev_feat_change(dev);
 
 	case NETDEV_DOWN:
+	case NETDEV_UNREGISTER:
 		return xfrm_dev_down(dev);
 	}
 	return NOTIFY_DONE;

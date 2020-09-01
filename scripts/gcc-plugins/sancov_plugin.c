@@ -11,7 +11,7 @@
  *
  * You can read about it more here:
  *  https://gcc.gnu.org/viewcvs/gcc?limit_changes=0&view=revision&revision=231296
- *  http://lwn.net/Articles/674854/
+ *  https://lwn.net/Articles/674854/
  *  https://github.com/google/syzkaller
  *  https://lwn.net/Articles/677764/
  *

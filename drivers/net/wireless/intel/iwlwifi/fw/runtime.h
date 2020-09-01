@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,7 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,8 +69,6 @@
 #include "iwl-eeprom-parse.h"
 #include "fw/acpi.h"
 
-#define IWL_FW_DBG_DOMAIN		IWL_TRANS_FW_DBG_DOMAIN(fwrt->trans)
-
 struct iwl_fw_runtime_ops {
 	int (*dump_start)(void *ctx);
 	void (*dump_end)(void *ctx);
@@ -88,6 +86,7 @@ struct iwl_fwrt_shared_mem_cfg {
 		u32 rxfifo1_size;
 	} lmac[MAX_NUM_LMAC];
 	u32 rxfifo2_size;
+	u32 rxfifo2_control_size;
 	u32 internal_txfifo_addr;
 	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
@@ -100,8 +99,16 @@ struct iwl_fwrt_shared_mem_cfg {
  * @fw_pkt: packet received from FW
  */
 struct iwl_fwrt_dump_data {
-	struct iwl_fw_ini_trigger_tlv *trig;
-	struct iwl_rx_packet *fw_pkt;
+	union {
+		struct {
+			struct iwl_fw_ini_trigger_tlv *trig;
+			struct iwl_rx_packet *fw_pkt;
+		};
+		struct {
+			const struct iwl_fw_dump_desc *desc;
+			bool monitor_only;
+		};
+	};
 };
 
 /**
@@ -164,8 +171,6 @@ struct iwl_fw_runtime {
 
 	/* debug */
 	struct {
-		const struct iwl_fw_dump_desc *desc;
-		bool monitor_only;
 		struct iwl_fwrt_wk_data wks[IWL_FW_RUNTIME_DUMP_WK_NUM];
 		unsigned long active_wks;
 
@@ -237,5 +242,6 @@ int iwl_init_paging(struct iwl_fw_runtime *fwrt, enum iwl_ucode_type type);
 void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt);
 
 void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt);
+int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt);
 
 #endif /* __iwl_fw_runtime_h__ */

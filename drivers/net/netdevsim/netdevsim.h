@@ -13,6 +13,7 @@
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  */
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -29,6 +30,7 @@
 
 #define NSIM_IPSEC_MAX_SA_COUNT		33
 #define NSIM_IPSEC_VALID		BIT(31)
+#define NSIM_UDP_TUNNEL_N_PORTS		4
 
 struct nsim_sa {
 	struct xfrm_state *xs;
@@ -72,11 +74,22 @@ struct netdevsim {
 
 	bool bpf_map_accept;
 	struct nsim_ipsec ipsec;
+	struct {
+		u32 inject_error;
+		u32 sleep;
+		u32 ports[2][NSIM_UDP_TUNNEL_N_PORTS];
+		struct debugfs_u32_array dfs_ports[2];
+	} udp_ports;
 };
 
 struct netdevsim *
 nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port);
 void nsim_destroy(struct netdevsim *ns);
+
+void nsim_udp_tunnels_debugfs_create(struct nsim_dev *nsim_dev);
+int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,
+				 struct net_device *dev);
+void nsim_udp_tunnels_info_destroy(struct net_device *dev);
 
 #ifdef CONFIG_BPF_SYSCALL
 int nsim_bpf_dev_init(struct nsim_dev *nsim_dev);
@@ -108,7 +121,7 @@ static inline void nsim_bpf_uninit(struct netdevsim *ns)
 
 static inline int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 {
-	return bpf->command == XDP_QUERY_PROG ? 0 : -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static inline int nsim_bpf_disable_tc(struct netdevsim *ns)
@@ -178,6 +191,17 @@ struct nsim_dev {
 	bool fail_reload;
 	struct devlink_region *dummy_region;
 	struct nsim_dev_health health;
+	struct flow_action_cookie *fa_cookie;
+	spinlock_t fa_cookie_lock; /* protects fa_cookie */
+	bool fail_trap_group_set;
+	bool fail_trap_policer_set;
+	bool fail_trap_policer_counter_get;
+	struct {
+		bool sync_all;
+		bool open_only;
+		bool ipv4_only;
+		u32 sleep;
+	} udp_ports;
 };
 
 static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)

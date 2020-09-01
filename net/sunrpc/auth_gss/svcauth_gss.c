@@ -55,10 +55,6 @@
 #include "gss_rpc_upcall.h"
 
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define RPCDBG_FACILITY	RPCDBG_AUTH
-#endif
-
 /* The rpcsec_init cache is used for mapping RPCSEC_GSS_{,CONT_}INIT requests
  * into replies.
  *
@@ -184,6 +180,11 @@ static struct cache_head *rsi_alloc(void)
 		return NULL;
 }
 
+static int rsi_upcall(struct cache_detail *cd, struct cache_head *h)
+{
+	return sunrpc_cache_pipe_upcall_timeout(cd, h);
+}
+
 static void rsi_request(struct cache_detail *cd,
 		       struct cache_head *h,
 		       char **bpp, int *blen)
@@ -282,6 +283,7 @@ static const struct cache_detail rsi_cache_template = {
 	.hash_size	= RSI_HASHMAX,
 	.name           = "auth.rpcsec.init",
 	.cache_put      = rsi_put,
+	.cache_upcall	= rsi_upcall,
 	.cache_request  = rsi_request,
 	.cache_parse    = rsi_parse,
 	.match		= rsi_match,
@@ -330,7 +332,7 @@ static struct rsi *rsi_update(struct cache_detail *cd, struct rsi *new, struct r
 
 struct gss_svc_seq_data {
 	/* highest seq number seen so far: */
-	int			sd_max;
+	u32			sd_max;
 	/* for i such that sd_max-GSS_SEQ_WIN < i <= sd_max, the i-th bit of
 	 * sd_win is nonzero iff sequence number i has been seen already: */
 	unsigned long		sd_win[GSS_SEQ_WIN/BITS_PER_LONG];
@@ -426,6 +428,11 @@ rsc_alloc(void)
 		return &rsci->h;
 	else
 		return NULL;
+}
+
+static int rsc_upcall(struct cache_detail *cd, struct cache_head *h)
+{
+	return -EINVAL;
 }
 
 static int rsc_parse(struct cache_detail *cd,
@@ -554,6 +561,7 @@ static const struct cache_detail rsc_cache_template = {
 	.hash_size	= RSC_HASHMAX,
 	.name		= "auth.rpcsec.context",
 	.cache_put	= rsc_put,
+	.cache_upcall	= rsc_upcall,
 	.cache_parse	= rsc_parse,
 	.match		= rsc_match,
 	.init		= rsc_init,
@@ -605,16 +613,29 @@ gss_svc_searchbyctx(struct cache_detail *cd, struct xdr_netobj *handle)
 	return found;
 }
 
-/* Implements sequence number algorithm as specified in RFC 2203. */
-static int
-gss_check_seq_num(struct rsc *rsci, int seq_num)
+/**
+ * gss_check_seq_num - GSS sequence number window check
+ * @rqstp: RPC Call to use when reporting errors
+ * @rsci: cached GSS context state (updated on return)
+ * @seq_num: sequence number to check
+ *
+ * Implements sequence number algorithm as specified in
+ * RFC 2203, Section 5.3.3.1. "Context Management".
+ *
+ * Return values:
+ *   %true: @rqstp's GSS sequence number is inside the window
+ *   %false: @rqstp's GSS sequence number is outside the window
+ */
+static bool gss_check_seq_num(const struct svc_rqst *rqstp, struct rsc *rsci,
+			      u32 seq_num)
 {
 	struct gss_svc_seq_data *sd = &rsci->seqdata;
+	bool result = false;
 
 	spin_lock(&sd->sd_lock);
 	if (seq_num > sd->sd_max) {
 		if (seq_num >= sd->sd_max + GSS_SEQ_WIN) {
-			memset(sd->sd_win,0,sizeof(sd->sd_win));
+			memset(sd->sd_win, 0, sizeof(sd->sd_win));
 			sd->sd_max = seq_num;
 		} else while (sd->sd_max < seq_num) {
 			sd->sd_max++;
@@ -623,17 +644,25 @@ gss_check_seq_num(struct rsc *rsci, int seq_num)
 		__set_bit(seq_num % GSS_SEQ_WIN, sd->sd_win);
 		goto ok;
 	} else if (seq_num <= sd->sd_max - GSS_SEQ_WIN) {
-		goto drop;
+		goto toolow;
 	}
-	/* sd_max - GSS_SEQ_WIN < seq_num <= sd_max */
 	if (__test_and_set_bit(seq_num % GSS_SEQ_WIN, sd->sd_win))
-		goto drop;
+		goto alreadyseen;
+
 ok:
+	result = true;
+out:
 	spin_unlock(&sd->sd_lock);
-	return 1;
-drop:
-	spin_unlock(&sd->sd_lock);
-	return 0;
+	return result;
+
+toolow:
+	trace_rpcgss_svc_seqno_low(rqstp, seq_num,
+				   sd->sd_max - GSS_SEQ_WIN,
+				   sd->sd_max);
+	goto out;
+alreadyseen:
+	trace_rpcgss_svc_seqno_seen(rqstp, seq_num);
+	goto out;
 }
 
 static inline u32 round_up_to_quad(u32 i)
@@ -713,16 +742,12 @@ gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 	}
 
 	if (gc->gc_seq > MAXSEQ) {
-		dprintk("RPC:       svcauth_gss: discarding request with "
-				"large sequence number %d\n", gc->gc_seq);
+		trace_rpcgss_svc_seqno_large(rqstp, gc->gc_seq);
 		*authp = rpcsec_gsserr_ctxproblem;
 		return SVC_DENIED;
 	}
-	if (!gss_check_seq_num(rsci, gc->gc_seq)) {
-		dprintk("RPC:       svcauth_gss: discarding request with "
-				"old sequence number %d\n", gc->gc_seq);
+	if (!gss_check_seq_num(rqstp, rsci, gc->gc_seq))
 		return SVC_DROP;
-	}
 	return SVC_OK;
 }
 
@@ -803,7 +828,7 @@ u32 svcauth_gss_flavor(struct auth_domain *dom)
 
 EXPORT_SYMBOL_GPL(svcauth_gss_flavor);
 
-int
+struct auth_domain *
 svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 {
 	struct gss_domain	*new;
@@ -820,21 +845,23 @@ svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 	new->h.flavour = &svcauthops_gss;
 	new->pseudoflavor = pseudoflavor;
 
-	stat = 0;
 	test = auth_domain_lookup(name, &new->h);
-	if (test != &new->h) { /* Duplicate registration */
+	if (test != &new->h) {
+		pr_warn("svc: duplicate registration of gss pseudo flavour %s.\n",
+			name);
+		stat = -EADDRINUSE;
 		auth_domain_put(test);
-		kfree(new->h.name);
-		goto out_free_dom;
+		goto out_free_name;
 	}
-	return 0;
+	return test;
 
+out_free_name:
+	kfree(new->h.name);
 out_free_dom:
 	kfree(new);
 out:
-	return stat;
+	return ERR_PTR(stat);
 }
-
 EXPORT_SYMBOL_GPL(svcauth_gss_register_pseudoflavor);
 
 static inline int
@@ -858,10 +885,12 @@ read_u32_from_xdr_buf(struct xdr_buf *buf, int base, u32 *obj)
 static int
 unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 {
+	u32 integ_len, rseqno, maj_stat;
 	int stat = -EINVAL;
-	u32 integ_len, maj_stat;
 	struct xdr_netobj mic;
 	struct xdr_buf integ_buf;
+
+	mic.data = NULL;
 
 	/* NFS READ normally uses splice to send data in-place. However
 	 * the data in cache can change after the reply's MIC is computed
@@ -877,34 +906,44 @@ unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct g
 
 	integ_len = svc_getnl(&buf->head[0]);
 	if (integ_len & 3)
-		return stat;
+		goto unwrap_failed;
 	if (integ_len > buf->len)
-		return stat;
-	if (xdr_buf_subsegment(buf, &integ_buf, 0, integ_len)) {
-		WARN_ON_ONCE(1);
-		return stat;
-	}
+		goto unwrap_failed;
+	if (xdr_buf_subsegment(buf, &integ_buf, 0, integ_len))
+		goto unwrap_failed;
+
 	/* copy out mic... */
 	if (read_u32_from_xdr_buf(buf, integ_len, &mic.len))
-		return stat;
+		goto unwrap_failed;
 	if (mic.len > RPC_MAX_AUTH_SIZE)
-		return stat;
+		goto unwrap_failed;
 	mic.data = kmalloc(mic.len, GFP_KERNEL);
 	if (!mic.data)
-		return stat;
+		goto unwrap_failed;
 	if (read_bytes_from_xdr_buf(buf, integ_len + 4, mic.data, mic.len))
-		goto out;
+		goto unwrap_failed;
 	maj_stat = gss_verify_mic(ctx, &integ_buf, &mic);
 	if (maj_stat != GSS_S_COMPLETE)
-		goto out;
-	if (svc_getnl(&buf->head[0]) != seq)
-		goto out;
+		goto bad_mic;
+	rseqno = svc_getnl(&buf->head[0]);
+	if (rseqno != seq)
+		goto bad_seqno;
 	/* trim off the mic and padding at the end before returning */
-	buf->len -= 4 + round_up_to_quad(mic.len);
+	xdr_buf_trim(buf, round_up_to_quad(mic.len) + 4);
 	stat = 0;
 out:
 	kfree(mic.data);
 	return stat;
+
+unwrap_failed:
+	trace_rpcgss_svc_unwrap_failed(rqstp);
+	goto out;
+bad_seqno:
+	trace_rpcgss_svc_seqno_bad(rqstp, seq, rseqno);
+	goto out;
+bad_mic:
+	trace_rpcgss_svc_mic(rqstp, maj_stat);
+	goto out;
 }
 
 static inline int
@@ -928,7 +967,8 @@ static int
 unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 {
 	u32 priv_len, maj_stat;
-	int pad, saved_len, remaining_len, offset;
+	int pad, remaining_len, offset;
+	u32 rseqno;
 
 	clear_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 
@@ -943,36 +983,42 @@ unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gs
 	 * not yet read from the head, so these two values are different: */
 	remaining_len = total_buf_len(buf);
 	if (priv_len > remaining_len)
-		return -EINVAL;
+		goto unwrap_failed;
 	pad = remaining_len - priv_len;
 	buf->len -= pad;
 	fix_priv_head(buf, pad);
 
-	/* Maybe it would be better to give gss_unwrap a length parameter: */
-	saved_len = buf->len;
-	buf->len = priv_len;
-	maj_stat = gss_unwrap(ctx, 0, buf);
+	maj_stat = gss_unwrap(ctx, 0, priv_len, buf);
 	pad = priv_len - buf->len;
-	buf->len = saved_len;
-	buf->len -= pad;
 	/* The upper layers assume the buffer is aligned on 4-byte boundaries.
 	 * In the krb5p case, at least, the data ends up offset, so we need to
 	 * move it around. */
 	/* XXX: This is very inefficient.  It would be better to either do
 	 * this while we encrypt, or maybe in the receive code, if we can peak
 	 * ahead and work out the service and mechanism there. */
-	offset = buf->head[0].iov_len % 4;
+	offset = xdr_pad_size(buf->head[0].iov_len);
 	if (offset) {
 		buf->buflen = RPCSVC_MAXPAYLOAD;
 		xdr_shift_buf(buf, offset);
 		fix_priv_head(buf, pad);
 	}
 	if (maj_stat != GSS_S_COMPLETE)
-		return -EINVAL;
+		goto bad_unwrap;
 out_seq:
-	if (svc_getnl(&buf->head[0]) != seq)
-		return -EINVAL;
+	rseqno = svc_getnl(&buf->head[0]);
+	if (rseqno != seq)
+		goto bad_seqno;
 	return 0;
+
+unwrap_failed:
+	trace_rpcgss_svc_unwrap_failed(rqstp);
+	return -EINVAL;
+bad_seqno:
+	trace_rpcgss_svc_seqno_bad(rqstp, seq, rseqno);
+	return -EINVAL;
+bad_unwrap:
+	trace_rpcgss_svc_unwrap(rqstp, maj_stat);
+	return -EINVAL;
 }
 
 struct gss_svc_data {
@@ -1245,7 +1291,6 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 	if (!ud->found_creds) {
 		/* userspace seem buggy, we should always get at least a
 		 * mapping to nobody */
-		dprintk("RPC:       No creds found!\n");
 		goto out;
 	} else {
 		struct timespec64 boot;
@@ -1311,8 +1356,7 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 	if (status)
 		goto out;
 
-	trace_rpcgss_accept_upcall(rqstp->rq_xid, ud.major_status,
-				   ud.minor_status);
+	trace_rpcgss_svc_accept_upcall(rqstp, ud.major_status, ud.minor_status);
 
 	switch (ud.major_status) {
 	case GSS_S_CONTINUE_NEEDED:
@@ -1320,31 +1364,23 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 		break;
 	case GSS_S_COMPLETE:
 		status = gss_proxy_save_rsc(sn->rsc_cache, &ud, &handle);
-		if (status) {
-			pr_info("%s: gss_proxy_save_rsc failed (%d)\n",
-				__func__, status);
+		if (status)
 			goto out;
-		}
 		cli_handle.data = (u8 *)&handle;
 		cli_handle.len = sizeof(handle);
 		break;
 	default:
-		ret = SVC_CLOSE;
 		goto out;
 	}
 
 	/* Got an answer to the upcall; use it: */
 	if (gss_write_init_verf(sn->rsc_cache, rqstp,
-				&cli_handle, &ud.major_status)) {
-		pr_info("%s: gss_write_init_verf failed\n", __func__);
+				&cli_handle, &ud.major_status))
 		goto out;
-	}
 	if (gss_write_resv(resv, PAGE_SIZE,
 			   &cli_handle, &ud.out_token,
-			   ud.major_status, ud.minor_status)) {
-		pr_info("%s: gss_write_resv failed\n", __func__);
+			   ud.major_status, ud.minor_status))
 		goto out;
-	}
 
 	ret = SVC_COMPLETE;
 out:
@@ -1495,9 +1531,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	int		ret;
 	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
 
-	dprintk("RPC:       svcauth_gss: argv->iov_len = %zd\n",
-			argv->iov_len);
-
 	*authp = rpc_autherr_badcred;
 	if (!svcdata)
 		svcdata = kmalloc(sizeof(*svcdata), GFP_KERNEL);
@@ -1614,6 +1647,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 					GSS_C_QOP_DEFAULT,
 					gc->gc_svc);
 		ret = SVC_OK;
+		trace_rpcgss_svc_authenticate(rqstp, gc);
 		goto out;
 	}
 garbage_args:
@@ -1680,7 +1714,8 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 		goto out;
 	integ_offset = (u8 *)(p + 1) - (u8 *)resbuf->head[0].iov_base;
 	integ_len = resbuf->len - integ_offset;
-	BUG_ON(integ_len % 4);
+	if (integ_len & 3)
+		goto out;
 	*p++ = htonl(integ_len);
 	*p++ = htonl(gc->gc_seq);
 	if (xdr_buf_subsegment(resbuf, &integ_buf, integ_offset, integ_len)) {
@@ -1704,7 +1739,8 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 	resv->iov_len += XDR_QUADLEN(mic.len) << 2;
 	/* not strictly required: */
 	resbuf->len += XDR_QUADLEN(mic.len) << 2;
-	BUG_ON(resv->iov_len > PAGE_SIZE);
+	if (resv->iov_len > PAGE_SIZE)
+		goto out_err;
 out:
 	stat = 0;
 out_err:
@@ -1740,9 +1776,11 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	 * both the head and tail.
 	 */
 	if (resbuf->tail[0].iov_base) {
-		BUG_ON(resbuf->tail[0].iov_base >= resbuf->head[0].iov_base
-							+ PAGE_SIZE);
-		BUG_ON(resbuf->tail[0].iov_base < resbuf->head[0].iov_base);
+		if (resbuf->tail[0].iov_base >=
+			resbuf->head[0].iov_base + PAGE_SIZE)
+			return -EINVAL;
+		if (resbuf->tail[0].iov_base < resbuf->head[0].iov_base)
+			return -EINVAL;
 		if (resbuf->tail[0].iov_len + resbuf->head[0].iov_len
 				+ 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
 			return -ENOMEM;

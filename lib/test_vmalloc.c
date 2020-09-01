@@ -15,6 +15,8 @@
 #include <linux/delay.h>
 #include <linux/rwsem.h>
 #include <linux/mm.h>
+#include <linux/rcupdate.h>
+#include <linux/slab.h>
 
 #define __param(type, name, init, msg)		\
 	static type name = init;				\
@@ -35,14 +37,18 @@ __param(int, test_loop_count, 1000000,
 
 __param(int, run_test_mask, INT_MAX,
 	"Set tests specified in the mask.\n\n"
-		"\t\tid: 1,   name: fix_size_alloc_test\n"
-		"\t\tid: 2,   name: full_fit_alloc_test\n"
-		"\t\tid: 4,   name: long_busy_list_alloc_test\n"
-		"\t\tid: 8,   name: random_size_alloc_test\n"
-		"\t\tid: 16,  name: fix_align_alloc_test\n"
-		"\t\tid: 32,  name: random_size_align_alloc_test\n"
-		"\t\tid: 64,  name: align_shift_alloc_test\n"
-		"\t\tid: 128, name: pcpu_alloc_test\n"
+		"\t\tid: 1,    name: fix_size_alloc_test\n"
+		"\t\tid: 2,    name: full_fit_alloc_test\n"
+		"\t\tid: 4,    name: long_busy_list_alloc_test\n"
+		"\t\tid: 8,    name: random_size_alloc_test\n"
+		"\t\tid: 16,   name: fix_align_alloc_test\n"
+		"\t\tid: 32,   name: random_size_align_alloc_test\n"
+		"\t\tid: 64,   name: align_shift_alloc_test\n"
+		"\t\tid: 128,  name: pcpu_alloc_test\n"
+		"\t\tid: 256,  name: kvfree_rcu_1_arg_vmalloc_test\n"
+		"\t\tid: 512,  name: kvfree_rcu_2_arg_vmalloc_test\n"
+		"\t\tid: 1024, name: kvfree_rcu_1_arg_slab_test\n"
+		"\t\tid: 2048, name: kvfree_rcu_2_arg_slab_test\n"
 		/* Add a new test case description here. */
 );
 
@@ -91,12 +97,8 @@ static int random_size_align_alloc_test(void)
 		 */
 		size = ((rnd % 10) + 1) * PAGE_SIZE;
 
-		ptr = __vmalloc_node_range(size, align,
-		   VMALLOC_START, VMALLOC_END,
-		   GFP_KERNEL | __GFP_ZERO,
-		   PAGE_KERNEL,
-		   0, 0, __builtin_return_address(0));
-
+		ptr = __vmalloc_node(size, align, GFP_KERNEL | __GFP_ZERO, 0,
+				__builtin_return_address(0));
 		if (!ptr)
 			return -1;
 
@@ -118,12 +120,8 @@ static int align_shift_alloc_test(void)
 	for (i = 0; i < BITS_PER_LONG; i++) {
 		align = ((unsigned long) 1) << i;
 
-		ptr = __vmalloc_node_range(PAGE_SIZE, align,
-			VMALLOC_START, VMALLOC_END,
-			GFP_KERNEL | __GFP_ZERO,
-			PAGE_KERNEL,
-			0, 0, __builtin_return_address(0));
-
+		ptr = __vmalloc_node(PAGE_SIZE, align, GFP_KERNEL|__GFP_ZERO, 0,
+				__builtin_return_address(0));
 		if (!ptr)
 			return -1;
 
@@ -139,13 +137,9 @@ static int fix_align_alloc_test(void)
 	int i;
 
 	for (i = 0; i < test_loop_count; i++) {
-		ptr = __vmalloc_node_range(5 * PAGE_SIZE,
-			THREAD_ALIGN << 1,
-			VMALLOC_START, VMALLOC_END,
-			GFP_KERNEL | __GFP_ZERO,
-			PAGE_KERNEL,
-			0, 0, __builtin_return_address(0));
-
+		ptr = __vmalloc_node(5 * PAGE_SIZE, THREAD_ALIGN << 1,
+				GFP_KERNEL | __GFP_ZERO, 0,
+				__builtin_return_address(0));
 		if (!ptr)
 			return -1;
 
@@ -328,6 +322,83 @@ pcpu_alloc_test(void)
 	return rv;
 }
 
+struct test_kvfree_rcu {
+	struct rcu_head rcu;
+	unsigned char array[20];
+};
+
+static int
+kvfree_rcu_1_arg_vmalloc_test(void)
+{
+	struct test_kvfree_rcu *p;
+	int i;
+
+	for (i = 0; i < test_loop_count; i++) {
+		p = vmalloc(1 * PAGE_SIZE);
+		if (!p)
+			return -1;
+
+		p->array[0] = 'a';
+		kvfree_rcu(p);
+	}
+
+	return 0;
+}
+
+static int
+kvfree_rcu_2_arg_vmalloc_test(void)
+{
+	struct test_kvfree_rcu *p;
+	int i;
+
+	for (i = 0; i < test_loop_count; i++) {
+		p = vmalloc(1 * PAGE_SIZE);
+		if (!p)
+			return -1;
+
+		p->array[0] = 'a';
+		kvfree_rcu(p, rcu);
+	}
+
+	return 0;
+}
+
+static int
+kvfree_rcu_1_arg_slab_test(void)
+{
+	struct test_kvfree_rcu *p;
+	int i;
+
+	for (i = 0; i < test_loop_count; i++) {
+		p = kmalloc(sizeof(*p), GFP_KERNEL);
+		if (!p)
+			return -1;
+
+		p->array[0] = 'a';
+		kvfree_rcu(p);
+	}
+
+	return 0;
+}
+
+static int
+kvfree_rcu_2_arg_slab_test(void)
+{
+	struct test_kvfree_rcu *p;
+	int i;
+
+	for (i = 0; i < test_loop_count; i++) {
+		p = kmalloc(sizeof(*p), GFP_KERNEL);
+		if (!p)
+			return -1;
+
+		p->array[0] = 'a';
+		kvfree_rcu(p, rcu);
+	}
+
+	return 0;
+}
+
 struct test_case_desc {
 	const char *test_name;
 	int (*test_func)(void);
@@ -342,6 +413,10 @@ static struct test_case_desc test_case_array[] = {
 	{ "random_size_align_alloc_test", random_size_align_alloc_test },
 	{ "align_shift_alloc_test", align_shift_alloc_test },
 	{ "pcpu_alloc_test", pcpu_alloc_test },
+	{ "kvfree_rcu_1_arg_vmalloc_test", kvfree_rcu_1_arg_vmalloc_test },
+	{ "kvfree_rcu_2_arg_vmalloc_test", kvfree_rcu_2_arg_vmalloc_test },
+	{ "kvfree_rcu_1_arg_slab_test", kvfree_rcu_1_arg_slab_test },
+	{ "kvfree_rcu_2_arg_slab_test", kvfree_rcu_2_arg_slab_test },
 	/* Add a new test case here. */
 };
 

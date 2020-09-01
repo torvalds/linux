@@ -83,6 +83,7 @@ struct hwlat_sample {
 	u64			nmi_total_ts;	/* Total time spent in NMIs */
 	struct timespec64	timestamp;	/* wall time */
 	int			nmi_count;	/* # NMIs during this sample */
+	int			count;		/* # of iteratons over threash */
 };
 
 /* keep the global state somewhere. */
@@ -124,6 +125,7 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 	entry->timestamp		= sample->timestamp;
 	entry->nmi_total_ts		= sample->nmi_total_ts;
 	entry->nmi_count		= sample->nmi_count;
+	entry->count			= sample->count;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
 		trace_buffer_unlock_commit_nostack(buffer, event);
@@ -167,12 +169,14 @@ void trace_hwlat_callback(bool enter)
 static int get_sample(void)
 {
 	struct trace_array *tr = hwlat_trace;
+	struct hwlat_sample s;
 	time_type start, t1, t2, last_t2;
-	s64 diff, total, last_total = 0;
+	s64 diff, outer_diff, total, last_total = 0;
 	u64 sample = 0;
 	u64 thresh = tracing_thresh;
 	u64 outer_sample = 0;
 	int ret = -1;
+	unsigned int count = 0;
 
 	do_div(thresh, NSEC_PER_USEC); /* modifies interval value */
 
@@ -186,6 +190,7 @@ static int get_sample(void)
 
 	init_time(last_t2, 0);
 	start = time_get(); /* start timestamp */
+	outer_diff = 0;
 
 	do {
 
@@ -194,14 +199,14 @@ static int get_sample(void)
 
 		if (time_u64(last_t2)) {
 			/* Check the delta from outer loop (t2 to next t1) */
-			diff = time_to_us(time_sub(t1, last_t2));
+			outer_diff = time_to_us(time_sub(t1, last_t2));
 			/* This shouldn't happen */
-			if (diff < 0) {
+			if (outer_diff < 0) {
 				pr_err(BANNER "time running backwards\n");
 				goto out;
 			}
-			if (diff > outer_sample)
-				outer_sample = diff;
+			if (outer_diff > outer_sample)
+				outer_sample = outer_diff;
 		}
 		last_t2 = t2;
 
@@ -216,6 +221,12 @@ static int get_sample(void)
 
 		/* This checks the inner loop (t1 to t2) */
 		diff = time_to_us(time_sub(t2, t1));     /* current diff */
+
+		if (diff > thresh || outer_diff > thresh) {
+			if (!count)
+				ktime_get_real_ts64(&s.timestamp);
+			count++;
+		}
 
 		/* This shouldn't happen */
 		if (diff < 0) {
@@ -236,7 +247,6 @@ static int get_sample(void)
 
 	/* If we exceed the threshold value, we have found a hardware latency */
 	if (sample > thresh || outer_sample > thresh) {
-		struct hwlat_sample s;
 		u64 latency;
 
 		ret = 1;
@@ -249,9 +259,9 @@ static int get_sample(void)
 		s.seqnum = hwlat_data.count;
 		s.duration = sample;
 		s.outer_duration = outer_sample;
-		ktime_get_real_ts64(&s.timestamp);
 		s.nmi_total_ts = nmi_total_ts;
 		s.nmi_count = nmi_count;
+		s.count = count;
 		trace_hwlat_sample(&s);
 
 		latency = max(sample, outer_sample);
@@ -273,6 +283,7 @@ static bool disable_migrate;
 static void move_to_next_cpu(void)
 {
 	struct cpumask *current_mask = &save_cpumask;
+	struct trace_array *tr = hwlat_trace;
 	int next_cpu;
 
 	if (disable_migrate)
@@ -286,7 +297,7 @@ static void move_to_next_cpu(void)
 		goto disable;
 
 	get_online_cpus();
-	cpumask_and(current_mask, cpu_online_mask, tracing_buffer_mask);
+	cpumask_and(current_mask, cpu_online_mask, tr->tracing_cpumask);
 	next_cpu = cpumask_next(smp_processor_id(), current_mask);
 	put_online_cpus();
 
@@ -361,9 +372,8 @@ static int start_kthread(struct trace_array *tr)
 		return 0;
 
 	/* Just pick the first CPU on first iteration */
-	current_mask = &save_cpumask;
 	get_online_cpus();
-	cpumask_and(current_mask, cpu_online_mask, tracing_buffer_mask);
+	cpumask_and(current_mask, cpu_online_mask, tr->tracing_cpumask);
 	put_online_cpus();
 	next_cpu = cpumask_first(current_mask);
 

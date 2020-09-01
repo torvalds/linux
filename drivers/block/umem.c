@@ -519,14 +519,15 @@ static int mm_check_plugged(struct cardinfo *card)
 	return !!blk_check_plugged(mm_unplug, card, sizeof(struct blk_plug_cb));
 }
 
-static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t mm_submit_bio(struct bio *bio)
 {
-	struct cardinfo *card = q->queuedata;
+	struct cardinfo *card = bio->bi_disk->private_data;
+
 	pr_debug("mm_make_request %llu %u\n",
 		 (unsigned long long)bio->bi_iter.bi_sector,
 		 bio->bi_iter.bi_size);
 
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
 	spin_lock_irq(&card->lock);
 	*card->biotail = bio;
@@ -778,13 +779,14 @@ static int mm_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 
 static const struct block_device_operations mm_fops = {
 	.owner		= THIS_MODULE,
+	.submit_bio	= mm_submit_bio,
 	.getgeo		= mm_getgeo,
 	.revalidate_disk = mm_revalidate,
 };
 
 static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	int ret = -ENODEV;
+	int ret;
 	struct cardinfo *card = &cards[num_cards];
 	unsigned char	mem_present;
 	unsigned char	batt_status;
@@ -885,12 +887,9 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	card->biotail = &card->bio;
 	spin_lock_init(&card->lock);
 
-	card->queue = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
+	card->queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (!card->queue)
 		goto failed_alloc;
-
-	blk_queue_make_request(card->queue, mm_make_request);
-	card->queue->queuedata = card;
 
 	tasklet_init(&card->tasklet, process_page, (unsigned long)card);
 

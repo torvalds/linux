@@ -134,11 +134,16 @@
 /* MAC and PHY tx_config_Reg[15:0] for SGMII in-band auto-negotiation.*/
 #define ADVERTISE_SGMII		0x0001	/* MAC can do SGMII            */
 #define LPA_SGMII		0x0001	/* PHY can do SGMII            */
+#define LPA_SGMII_SPD_MASK	0x0c00	/* SGMII speed mask            */
+#define LPA_SGMII_FULL_DUPLEX	0x1000	/* SGMII full duplex           */
 #define LPA_SGMII_DPX_SPD_MASK	0x1C00	/* SGMII duplex and speed bits */
+#define LPA_SGMII_10		0x0000	/* 10Mbps                      */
 #define LPA_SGMII_10HALF	0x0000	/* Can do 10mbps half-duplex   */
 #define LPA_SGMII_10FULL	0x1000	/* Can do 10mbps full-duplex   */
+#define LPA_SGMII_100		0x0400	/* 100Mbps                     */
 #define LPA_SGMII_100HALF	0x0400	/* Can do 100mbps half-duplex  */
 #define LPA_SGMII_100FULL	0x1400	/* Can do 100mbps full-duplex  */
+#define LPA_SGMII_1000		0x0800	/* 1000Mbps                    */
 #define LPA_SGMII_1000HALF	0x0800	/* Can do 1000mbps half-duplex */
 #define LPA_SGMII_1000FULL	0x1800	/* Can do 1000mbps full-duplex */
 #define LPA_SGMII_LINK		0x8000	/* PHY link with copper-side partner */
@@ -146,11 +151,13 @@
 /* 1000BASE-T Control register */
 #define ADVERTISE_1000FULL	0x0200  /* Advertise 1000BASE-T full duplex */
 #define ADVERTISE_1000HALF	0x0100  /* Advertise 1000BASE-T half duplex */
+#define CTL1000_PREFER_MASTER	0x0400  /* prefer to operate as master */
 #define CTL1000_AS_MASTER	0x0800
 #define CTL1000_ENABLE_MASTER	0x1000
 
 /* 1000BASE-T Status register */
 #define LPA_1000MSFAIL		0x8000	/* Master/Slave resolution failure */
+#define LPA_1000MSRES		0x4000	/* Master/Slave resolution status */
 #define LPA_1000LOCALRXOK	0x2000	/* Link partner local receiver status */
 #define LPA_1000REMRXOK		0x1000	/* Link partner remote receiver status */
 #define LPA_1000FULL		0x0800	/* Link partner 1000BASE-T full duplex */

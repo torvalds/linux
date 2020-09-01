@@ -48,7 +48,7 @@ int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
 	return bit;
 }
 
-void amdgpu_gfx_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
+void amdgpu_queue_mask_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
 				 int *mec, int *pipe, int *queue)
 {
 	*queue = bit % adev->gfx.mec.num_queue_per_pipe;
@@ -192,6 +192,14 @@ static bool amdgpu_gfx_is_multipipe_capable(struct amdgpu_device *adev)
 	return adev->gfx.mec.num_mec > 1;
 }
 
+bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
+					       int queue)
+{
+	/* Policy: make queue 0 of each pipe as high priority compute queue */
+	return (queue == 0);
+
+}
+
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 {
 	int i, queue, pipe, mec;
@@ -266,7 +274,7 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
 			continue;
 
-		amdgpu_gfx_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
+		amdgpu_queue_mask_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
 
 		/*
 		 * 1. Using pipes 2/3 from MEC 2 seems cause problems.
@@ -296,10 +304,6 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 
 	spin_lock_init(&kiq->ring_lock);
 
-	r = amdgpu_device_wb_get(adev, &kiq->reg_val_offs);
-	if (r)
-		return r;
-
 	ring->adev = NULL;
 	ring->ring_obj = NULL;
 	ring->use_doorbell = true;
@@ -310,9 +314,11 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 		return r;
 
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
+	ring->no_scheduler = true;
 	sprintf(ring->name, "kiq_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 	r = amdgpu_ring_init(adev, ring, 1024,
-			     irq, AMDGPU_CP_KIQ_IRQ_DRIVER0);
+			     irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
+			     AMDGPU_RING_PRIO_DEFAULT);
 	if (r)
 		dev_warn(adev->dev, "(%d) failed to init kiq ring\n", r);
 
@@ -321,7 +327,6 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring)
 {
-	amdgpu_device_wb_free(ring->adev, ring->adev->gfx.kiq.reg_val_offs);
 	amdgpu_ring_fini(ring);
 }
 
@@ -477,7 +482,20 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.compute_ring[i],
 					   RESET_QUEUES, 0, 0);
 
-	return amdgpu_ring_test_ring(kiq_ring);
+	return amdgpu_ring_test_helper(kiq_ring);
+}
+
+int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
+					int queue_bit)
+{
+	int mec, pipe, queue;
+	int set_resource_bit = 0;
+
+	amdgpu_queue_mask_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
+
+	set_resource_bit = mec * 4 * 8 + pipe * 8 + queue;
+
+	return set_resource_bit;
 }
 
 int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
@@ -502,7 +520,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 			break;
 		}
 
-		queue_mask |= (1ull << i);
+		queue_mask |= (1ull << amdgpu_queue_mask_bit_to_set_resource_bit(adev, i));
 	}
 
 	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
@@ -560,12 +578,25 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
 }
 
+int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value)
+{
+
+	int r = 0;
+
+	mutex_lock(&adev->gfx.gfx_off_mutex);
+
+	r = smu_get_status_gfxoff(adev, value);
+
+	mutex_unlock(&adev->gfx.gfx_off_mutex);
+
+	return r;
+}
+
 int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
 {
 	int r;
 	struct ras_fs_if fs_info = {
 		.sysfs_name = "gfx_err_count",
-		.debugfs_name = "gfx_err_inject",
 	};
 	struct ras_ih_if ih_info = {
 		.cb = amdgpu_gfx_process_ras_data_cb,
@@ -663,16 +694,23 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 {
 	signed long r, cnt = 0;
 	unsigned long flags;
-	uint32_t seq;
+	uint32_t seq, reg_val_offs = 0, value = 0;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	struct amdgpu_ring *ring = &kiq->ring;
 
 	BUG_ON(!ring->funcs->emit_rreg);
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
+	if (amdgpu_device_wb_get(adev, &reg_val_offs)) {
+		pr_err("critical bug! too many kiq readers\n");
+		goto failed_unlock;
+	}
 	amdgpu_ring_alloc(ring, 32);
-	amdgpu_ring_emit_rreg(ring, reg);
-	amdgpu_fence_emit_polling(ring, &seq);
+	amdgpu_ring_emit_rreg(ring, reg, reg_val_offs);
+	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
+	if (r)
+		goto failed_undo;
+
 	amdgpu_ring_commit(ring);
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 
@@ -698,9 +736,18 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 	if (cnt > MAX_KIQ_REG_TRY)
 		goto failed_kiq_read;
 
-	return adev->wb.wb[kiq->reg_val_offs];
+	mb();
+	value = adev->wb.wb[reg_val_offs];
+	amdgpu_device_wb_free(adev, reg_val_offs);
+	return value;
 
+failed_undo:
+	amdgpu_ring_undo(ring);
+failed_unlock:
+	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_read:
+	if (reg_val_offs)
+		amdgpu_device_wb_free(adev, reg_val_offs);
 	pr_err("failed to read reg:%x\n", reg);
 	return ~0;
 }
@@ -718,7 +765,10 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 	spin_lock_irqsave(&kiq->ring_lock, flags);
 	amdgpu_ring_alloc(ring, 32);
 	amdgpu_ring_emit_wreg(ring, reg, v);
-	amdgpu_fence_emit_polling(ring, &seq);
+	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
+	if (r)
+		goto failed_undo;
+
 	amdgpu_ring_commit(ring);
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 
@@ -747,6 +797,9 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 
 	return;
 
+failed_undo:
+	amdgpu_ring_undo(ring);
+	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_write:
 	pr_err("failed to write reg:%x\n", reg);
 }

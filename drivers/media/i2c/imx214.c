@@ -4,7 +4,7 @@
  *
  * Copyright 2018 Qtechnology A/S
  *
- * Ricardo Ribalda <ricardo.ribalda@gmail.com>
+ * Ricardo Ribalda <ribalda@kernel.org>
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -803,7 +803,6 @@ err_rpm_put:
 static int imx214_g_frame_interval(struct v4l2_subdev *subdev,
 				   struct v4l2_subdev_frame_interval *fival)
 {
-	fival->pad = 0;
 	fival->interval.numerator = 1;
 	fival->interval.denominator = IMX214_FPS;
 
@@ -1121,5 +1120,5 @@ static struct i2c_driver imx214_i2c_driver = {
 module_i2c_driver(imx214_i2c_driver);
 
 MODULE_DESCRIPTION("Sony IMX214 Camera driver");
-MODULE_AUTHOR("Ricardo Ribalda <ricardo.ribalda@gmail.com>");
+MODULE_AUTHOR("Ricardo Ribalda <ribalda@kernel.org>");
 MODULE_LICENSE("GPL v2");

@@ -1,19 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-self.flags = flags
 
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
+[ -e /dev/tpm0 ] || exit $ksft_skip
 
-if [ -f /dev/tpm0 ] ; then
-	python -m unittest -v tpm2_tests.SmokeTest
-	python -m unittest -v tpm2_tests.AsyncTest
-else
-	exit $ksft_skip
-fi
-
-CLEAR_CMD=$(which tpm2_clear)
-if [ -n $CLEAR_CMD ]; then
-	tpm2_clear -T device
-fi
+python3 -m unittest -v tpm2_tests.SmokeTest
+python3 -m unittest -v tpm2_tests.AsyncTest

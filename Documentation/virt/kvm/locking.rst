@@ -96,18 +96,17 @@ will happen:
 We dirty-log for gfn1, that means gfn2 is lost in dirty-bitmap.
 
 For direct sp, we can easily avoid it since the spte of direct sp is fixed
-to gfn. For indirect sp, before we do cmpxchg, we call gfn_to_pfn_atomic()
-to pin gfn to pfn, because after gfn_to_pfn_atomic():
+to gfn.  For indirect sp, we disabled fast page fault for simplicity.
+
+A solution for indirect sp could be to pin the gfn, for example via
+kvm_vcpu_gfn_to_pfn_atomic, before the cmpxchg.  After the pinning:
 
 - We have held the refcount of pfn that means the pfn can not be freed and
   be reused for another gfn.
-- The pfn is writable that means it can not be shared between different gfns
+- The pfn is writable and therefore it cannot be shared between different gfns
   by KSM.
 
 Then, we can ensure the dirty bitmaps is correctly set for a gfn.
-
-Currently, to simplify the whole things, we disable fast page fault for
-indirect shadow page.
 
 2) Dirty bit tracking
 

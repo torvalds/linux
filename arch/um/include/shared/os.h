@@ -181,6 +181,7 @@ extern int os_falloc_punch(int fd, unsigned long long offset, int count);
 extern int os_eventfd(unsigned int initval, int flags);
 extern int os_sendmsg_fds(int fd, const void *buf, unsigned int len,
 			  const int *fds, unsigned int fds_num);
+int os_poll(unsigned int n, const int *fds);
 
 /* start_up.c */
 extern void os_early_checks(void);

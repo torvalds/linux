@@ -415,7 +415,8 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(soc15_allowed_read_registers); i++) {
 		en = &soc15_allowed_read_registers[i];
-		if (reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
+		if (adev->reg_offset[en->hwip][en->inst] &&
+			reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
 					+ en->reg_offset))
 			continue;
 
@@ -531,6 +532,15 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 	bool baco_reset = false;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
+	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
+	    amdgpu_reset_method == AMD_RESET_METHOD_MODE2 ||
+		amdgpu_reset_method == AMD_RESET_METHOD_BACO)
+		return amdgpu_reset_method;
+
+	if (amdgpu_reset_method != -1)
+		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
+				  amdgpu_reset_method);
+
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
@@ -564,19 +574,16 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
 	/* original raven doesn't have full asic reset */
-	if (adev->pdev->device == 0x15dd && adev->rev_id < 0x8)
+	if ((adev->apu_flags & AMD_APU_IS_RAVEN) &&
+	    !(adev->apu_flags & AMD_APU_IS_RAVEN2))
 		return 0;
 
 	switch (soc15_asic_reset_method(adev)) {
 		case AMD_RESET_METHOD_BACO:
-			if (!adev->in_suspend)
-				amdgpu_inc_vram_lost(adev);
 			return soc15_asic_baco_reset(adev);
 		case AMD_RESET_METHOD_MODE2:
 			return amdgpu_dpm_mode2_reset(adev);
 		default:
-			if (!adev->in_suspend)
-				amdgpu_inc_vram_lost(adev);
 			return soc15_asic_mode1_reset(adev);
 	}
 }
@@ -671,15 +678,28 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio.funcs->get_rev_id(adev);
 }
 
-int soc15_set_ip_blocks(struct amdgpu_device *adev)
+static void soc15_reg_base_init(struct amdgpu_device *adev)
 {
+	int r;
+
 	/* Set IP register base before any HW register access */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
-	case CHIP_RENOIR:
 		vega10_reg_base_init(adev);
+		break;
+	case CHIP_RENOIR:
+		/* It's safe to do ip discovery here for Renior,
+		 * it doesn't support SRIOV. */
+		if (amdgpu_discovery) {
+			r = amdgpu_discovery_reg_base_init(adev);
+			if (r) {
+				DRM_WARN("failed to init reg base from ip discovery table, "
+					 "fallback to legacy init method\n");
+				vega10_reg_base_init(adev);
+			}
+		}
 		break;
 	case CHIP_VEGA20:
 		vega20_reg_base_init(adev);
@@ -688,8 +708,26 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		arct_reg_base_init(adev);
 		break;
 	default:
-		return -EINVAL;
+		DRM_ERROR("Unsupported asic type: %d!\n", adev->asic_type);
+		break;
 	}
+}
+
+void soc15_set_virt_ops(struct amdgpu_device *adev)
+{
+	adev->virt.ops = &xgpu_ai_virt_ops;
+
+	/* init soc15 reg base early enough so we can
+	 * request request full access for sriov before
+	 * set_ip_blocks. */
+	soc15_reg_base_init(adev);
+}
+
+int soc15_set_ip_blocks(struct amdgpu_device *adev)
+{
+	/* for bare metal case */
+	if (!amdgpu_sriov_vf(adev))
+		soc15_reg_base_init(adev);
 
 	if (adev->asic_type == CHIP_VEGA20 || adev->asic_type == CHIP_ARCTURUS)
 		adev->gmc.xgmi.supported = true;
@@ -712,10 +750,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		adev->df.funcs = &df_v1_7_funcs;
 
 	adev->rev_id = soc15_get_rev_id(adev);
-	adev->nbio.funcs->detect_hw_virt(adev);
-
-	if (amdgpu_sriov_vf(adev))
-		adev->virt.ops = &xgpu_ai_virt_ops;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
@@ -852,6 +886,15 @@ static bool soc15_need_full_reset(struct amdgpu_device *adev)
 	/* change this when we implement soft reset */
 	return true;
 }
+
+static void vega20_reset_hdp_ras_error_count(struct amdgpu_device *adev)
+{
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__HDP))
+		return;
+	/*read back hdp ras counter to reset it to 0 */
+	RREG32_SOC15(HDP, 0, mmHDP_EDC_CNT);
+}
+
 static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 				 uint64_t *count1)
 {
@@ -1019,6 +1062,7 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.get_config_memsize = &soc15_get_config_memsize,
 	.flush_hdp = &soc15_flush_hdp,
 	.invalidate_hdp = &soc15_invalidate_hdp,
+	.reset_hdp_ras_error_count = &vega20_reset_hdp_ras_error_count,
 	.need_full_reset = &soc15_need_full_reset,
 	.init_doorbell_index = &vega20_doorbell_index_init,
 	.get_pcie_usage = &vega20_get_pcie_usage,
@@ -1124,16 +1168,23 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_RAVEN:
 		adev->asic_funcs = &soc15_asic_funcs;
+		if (adev->pdev->device == 0x15dd)
+			adev->apu_flags |= AMD_APU_IS_RAVEN;
+		if (adev->pdev->device == 0x15d8)
+			adev->apu_flags |= AMD_APU_IS_PICASSO;
 		if (adev->rev_id >= 0x8)
+			adev->apu_flags |= AMD_APU_IS_RAVEN2;
+
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			adev->external_rev_id = adev->rev_id + 0x79;
-		else if (adev->pdev->device == 0x15d8)
+		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
 			adev->external_rev_id = adev->rev_id + 0x41;
 		else if (adev->rev_id == 1)
 			adev->external_rev_id = adev->rev_id + 0x20;
 		else
 			adev->external_rev_id = adev->rev_id + 0x01;
 
-		if (adev->rev_id >= 0x8) {
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2) {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				AMD_CG_SUPPORT_GFX_MGLS |
 				AMD_CG_SUPPORT_GFX_CP_LS |
@@ -1151,7 +1202,7 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_VCN_MGCG;
 
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA | AMD_PG_SUPPORT_VCN;
-		} else if (adev->pdev->device == 0x15d8) {
+		} else if (adev->apu_flags & AMD_APU_IS_PICASSO) {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				AMD_CG_SUPPORT_GFX_MGLS |
 				AMD_CG_SUPPORT_GFX_CP_LS |
@@ -1212,11 +1263,12 @@ static int soc15_common_early_init(void *handle)
 			AMD_CG_SUPPORT_IH_CG |
 			AMD_CG_SUPPORT_VCN_MGCG |
 			AMD_CG_SUPPORT_JPEG_MGCG;
-		adev->pg_flags = 0;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN | AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x32;
 		break;
 	case CHIP_RENOIR:
 		adev->asic_funcs = &soc15_asic_funcs;
+		adev->apu_flags |= AMD_APU_IS_RENOIR;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				 AMD_CG_SUPPORT_GFX_MGLS |
 				 AMD_CG_SUPPORT_GFX_3D_CGCG |
@@ -1263,6 +1315,10 @@ static int soc15_common_late_init(void *handle)
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_get_irq(adev);
+
+	if (adev->asic_funcs &&
+	    adev->asic_funcs->reset_hdp_ras_error_count)
+		adev->asic_funcs->reset_hdp_ras_error_count(adev);
 
 	if (adev->nbio.funcs->ras_late_init)
 		r = adev->nbio.funcs->ras_late_init(adev);

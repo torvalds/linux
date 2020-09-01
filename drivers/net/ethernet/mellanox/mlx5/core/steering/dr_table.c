@@ -14,7 +14,7 @@ int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 	if (action && action->action_type != DR_ACTION_TYP_FT)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&tbl->dmn->mutex);
+	mlx5dr_domain_lock(tbl->dmn);
 
 	if (!list_empty(&tbl->matcher_list))
 		last_matcher = list_last_entry(&tbl->matcher_list,
@@ -78,7 +78,7 @@ int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 		refcount_inc(&action->refcount);
 
 out:
-	mutex_unlock(&tbl->dmn->mutex);
+	mlx5dr_domain_unlock(tbl->dmn);
 	return ret;
 }
 
@@ -95,7 +95,7 @@ static void dr_table_uninit_fdb(struct mlx5dr_table *tbl)
 
 static void dr_table_uninit(struct mlx5dr_table *tbl)
 {
-	mutex_lock(&tbl->dmn->mutex);
+	mlx5dr_domain_lock(tbl->dmn);
 
 	switch (tbl->dmn->type) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
@@ -112,7 +112,7 @@ static void dr_table_uninit(struct mlx5dr_table *tbl)
 		break;
 	}
 
-	mutex_unlock(&tbl->dmn->mutex);
+	mlx5dr_domain_unlock(tbl->dmn);
 }
 
 static int dr_table_init_nic(struct mlx5dr_domain *dmn,
@@ -128,16 +128,20 @@ static int dr_table_init_nic(struct mlx5dr_domain *dmn,
 						  DR_CHUNK_SIZE_1,
 						  MLX5DR_STE_LU_TYPE_DONT_CARE,
 						  0);
-	if (!nic_tbl->s_anchor)
+	if (!nic_tbl->s_anchor) {
+		mlx5dr_err(dmn, "Failed allocating htbl\n");
 		return -ENOMEM;
+	}
 
 	info.type = CONNECT_MISS;
 	info.miss_icm_addr = nic_dmn->default_icm_addr;
 	ret = mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn,
 						nic_tbl->s_anchor,
 						&info, true);
-	if (ret)
+	if (ret) {
+		mlx5dr_err(dmn, "Failed int and send htbl\n");
 		goto free_s_anchor;
+	}
 
 	mlx5dr_htbl_get(nic_tbl->s_anchor);
 
@@ -173,7 +177,7 @@ static int dr_table_init(struct mlx5dr_table *tbl)
 
 	INIT_LIST_HEAD(&tbl->matcher_list);
 
-	mutex_lock(&tbl->dmn->mutex);
+	mlx5dr_domain_lock(tbl->dmn);
 
 	switch (tbl->dmn->type) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
@@ -197,7 +201,7 @@ static int dr_table_init(struct mlx5dr_table *tbl)
 		break;
 	}
 
-	mutex_unlock(&tbl->dmn->mutex);
+	mlx5dr_domain_unlock(tbl->dmn);
 
 	return ret;
 }

@@ -594,8 +594,8 @@ static int synthvid_get_supported_resolution(struct hv_device *hdev)
 	t = wait_for_completion_timeout(&par->wait, VSP_TIMEOUT);
 	if (!t) {
 		pr_err("Time out on waiting resolution response\n");
-			ret = -ETIMEDOUT;
-			goto out;
+		ret = -ETIMEDOUT;
+		goto out;
 	}
 
 	if (msg->resolution_resp.resolution_count == 0) {
@@ -648,13 +648,13 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN10);
 		if (!ret)
 			break;
-		/* Fallthrough */
+		fallthrough;
 	case VERSION_WIN8:
 	case VERSION_WIN8_1:
 		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN8);
 		if (!ret)
 			break;
-		/* Fallthrough */
+		fallthrough;
 	case VERSION_WS2008:
 	case VERSION_WIN7:
 		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN7);

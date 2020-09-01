@@ -3,15 +3,15 @@
 // Copyright 2016 Freescale Semiconductor, Inc.
 
 #include <linux/clk.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/sizes.h>
 #include <linux/thermal.h>
+#include <linux/units.h>
 
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
@@ -24,6 +24,7 @@
 #define TMTMIR_DEFAULT	0x0000000f
 #define TIER_DISABLE	0x0
 #define TEUMR0_V2		0x51009c00
+#define TMSARA_V2		0xe
 #define TMU_VER1		0x1
 #define TMU_VER2		0x2
 
@@ -51,6 +52,9 @@
 					    * Site Register
 					    */
 #define TRITSR_V	BIT(31)
+#define REGS_V2_TMSAR(n)	(0x304 + 16 * (n))	/* TMU monitoring
+						* site adjustment register
+						*/
 #define REGS_TTRnCR(n)	(0xf10 + 4 * (n)) /* Temperature Range n
 					   * Control Register
 					   */
@@ -86,12 +90,21 @@ static int tmu_get_temp(void *p, int *temp)
 	/*
 	 * REGS_TRITSR(id) has the following layout:
 	 *
+	 * For TMU Rev1:
 	 * 31  ... 7 6 5 4 3 2 1 0
 	 *  V          TEMP
 	 *
 	 * Where V bit signifies if the measurement is ready and is
 	 * within sensor range. TEMP is an 8 bit value representing
-	 * temperature in C.
+	 * temperature in Celsius.
+
+	 * For TMU Rev2:
+	 * 31  ... 8 7 6 5 4 3 2 1 0
+	 *  V          TEMP
+	 *
+	 * Where V bit signifies if the measurement is ready and is
+	 * within sensor range. TEMP is an 9 bit value representing
+	 * temperature in KelVin.
 	 */
 	if (regmap_read_poll_timeout(qdata->regmap,
 				     REGS_TRITSR(qsensor->id),
@@ -101,7 +114,10 @@ static int tmu_get_temp(void *p, int *temp)
 				     10 * USEC_PER_MSEC))
 		return -ENODATA;
 
-	*temp = (val & 0xff) * 1000;
+	if (qdata->ver == TMU_VER1)
+		*temp = (val & GENMASK(7, 0)) * MILLIDEGREE_PER_DEGREE;
+	else
+		*temp = kelvin_to_millicelsius(val & GENMASK(8, 0));
 
 	return 0;
 }
@@ -193,6 +209,8 @@ static int qoriq_tmu_calibration(struct device *dev,
 
 static void qoriq_tmu_init_device(struct qoriq_tmu_data *data)
 {
+	int i;
+
 	/* Disable interrupt, using polling instead */
 	regmap_write(data->regmap, REGS_TIER, TIER_DISABLE);
 
@@ -203,6 +221,8 @@ static void qoriq_tmu_init_device(struct qoriq_tmu_data *data)
 	} else {
 		regmap_write(data->regmap, REGS_V2_TMTMIR, TMTMIR_DEFAULT);
 		regmap_write(data->regmap, REGS_V2_TEUMR(0), TEUMR0_V2);
+		for (i = 0; i < SITES_MAX; i++)
+			regmap_write(data->regmap, REGS_V2_TMSAR(i), TMSARA_V2);
 	}
 
 	/* Disable monitoring */
@@ -213,6 +233,7 @@ static const struct regmap_range qoriq_yes_ranges[] = {
 	regmap_reg_range(REGS_TMR, REGS_TSCFGR),
 	regmap_reg_range(REGS_TTRnCR(0), REGS_TTRnCR(3)),
 	regmap_reg_range(REGS_V2_TEUMR(0), REGS_V2_TEUMR(2)),
+	regmap_reg_range(REGS_V2_TMSAR(0), REGS_V2_TMSAR(15)),
 	regmap_reg_range(REGS_IPBRR(0), REGS_IPBRR(1)),
 	/* Read only registers below */
 	regmap_reg_range(REGS_TRITSR(0), REGS_TRITSR(15)),
@@ -227,6 +248,14 @@ static const struct regmap_access_table qoriq_rd_table = {
 	.yes_ranges	= qoriq_yes_ranges,
 	.n_yes_ranges	= ARRAY_SIZE(qoriq_yes_ranges),
 };
+
+static void qoriq_tmu_action(void *p)
+{
+	struct qoriq_tmu_data *data = p;
+
+	regmap_write(data->regmap, REGS_TMR, TMR_DISABLE);
+	clk_disable_unprepare(data->clk);
+}
 
 static int qoriq_tmu_probe(struct platform_device *pdev)
 {
@@ -278,6 +307,10 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = devm_add_action_or_reset(dev, qoriq_tmu_action, data);
+	if (ret)
+		return ret;
+
 	/* version register offset at: 0xbf8 on both v1 and v2 */
 	ret = regmap_read(data->regmap, REGS_IPBRR(0), &ver);
 	if (ret) {
@@ -290,33 +323,15 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 
 	ret = qoriq_tmu_calibration(dev, data);	/* TMU calibration */
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	ret = qoriq_tmu_register_tmu_zone(dev, data);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register sensors\n");
-		ret = -ENODEV;
-		goto err;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, data);
-
-	return 0;
-
-err:
-	clk_disable_unprepare(data->clk);
-
-	return ret;
-}
-
-static int qoriq_tmu_remove(struct platform_device *pdev)
-{
-	struct qoriq_tmu_data *data = platform_get_drvdata(pdev);
-
-	/* Disable monitoring */
-	regmap_write(data->regmap, REGS_TMR, TMR_DISABLE);
-
-	clk_disable_unprepare(data->clk);
 
 	return 0;
 }
@@ -365,7 +380,6 @@ static struct platform_driver qoriq_tmu = {
 		.of_match_table	= qoriq_tmu_match,
 	},
 	.probe	= qoriq_tmu_probe,
-	.remove	= qoriq_tmu_remove,
 };
 module_platform_driver(qoriq_tmu);
 

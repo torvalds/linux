@@ -38,6 +38,7 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/virtio.h>
+#include <linux/cdev.h>
 #include <linux/completion.h>
 #include <linux/idr.h>
 #include <linux/of.h>
@@ -73,7 +74,7 @@ struct resource_table {
 	u32 ver;
 	u32 num;
 	u32 reserved[2];
-	u32 offset[0];
+	u32 offset[];
 } __packed;
 
 /**
@@ -87,7 +88,7 @@ struct resource_table {
  */
 struct fw_rsc_hdr {
 	u32 type;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**
@@ -306,7 +307,7 @@ struct fw_rsc_vdev {
 	u8 status;
 	u8 num_of_vrings;
 	u8 reserved[2];
-	struct fw_rsc_vdev_vring vring[0];
+	struct fw_rsc_vdev_vring vring[];
 } __packed;
 
 struct rproc;
@@ -329,7 +330,7 @@ struct rproc;
 struct rproc_mem_entry {
 	void *va;
 	dma_addr_t dma;
-	int len;
+	size_t len;
 	u32 da;
 	void *priv;
 	char name[32];
@@ -355,8 +356,11 @@ enum rsc_handling_status {
 
 /**
  * struct rproc_ops - platform-specific device handlers
+ * @prepare:	prepare device for code loading
+ * @unprepare:	unprepare device after stop
  * @start:	power on the device and boot it
  * @stop:	power off the device
+ * @attach:	attach to a device that his already powered up
  * @kick:	kick a virtqueue (virtqueue id given as a parameter)
  * @da_to_va:	optional platform hook to perform address translations
  * @parse_fw:	parse firmware to extract information (e.g. resource table)
@@ -369,12 +373,17 @@ enum rsc_handling_status {
  *			expects to find it
  * @sanity_check:	sanity check the fw image
  * @get_boot_addr:	get boot address to entry point specified in firmware
+ * @panic:	optional callback to react to system panic, core will delay
+ *		panic at least the returned number of milliseconds
  */
 struct rproc_ops {
+	int (*prepare)(struct rproc *rproc);
+	int (*unprepare)(struct rproc *rproc);
 	int (*start)(struct rproc *rproc);
 	int (*stop)(struct rproc *rproc);
+	int (*attach)(struct rproc *rproc);
 	void (*kick)(struct rproc *rproc, int vqid);
-	void * (*da_to_va)(struct rproc *rproc, u64 da, int len);
+	void * (*da_to_va)(struct rproc *rproc, u64 da, size_t len);
 	int (*parse_fw)(struct rproc *rproc, const struct firmware *fw);
 	int (*handle_rsc)(struct rproc *rproc, u32 rsc_type, void *rsc,
 			  int offset, int avail);
@@ -382,7 +391,8 @@ struct rproc_ops {
 				struct rproc *rproc, const struct firmware *fw);
 	int (*load)(struct rproc *rproc, const struct firmware *fw);
 	int (*sanity_check)(struct rproc *rproc, const struct firmware *fw);
-	u32 (*get_boot_addr)(struct rproc *rproc, const struct firmware *fw);
+	u64 (*get_boot_addr)(struct rproc *rproc, const struct firmware *fw);
+	unsigned long (*panic)(struct rproc *rproc);
 };
 
 /**
@@ -393,6 +403,8 @@ struct rproc_ops {
  * @RPROC_RUNNING:	device is up and running
  * @RPROC_CRASHED:	device has crashed; need to start recovery
  * @RPROC_DELETED:	device is deleted
+ * @RPROC_DETACHED:	device has been booted by another entity and waiting
+ *			for the core to attach to it
  * @RPROC_LAST:		just keep this one at the end
  *
  * Please note that the values of these states are used as indices
@@ -407,7 +419,8 @@ enum rproc_state {
 	RPROC_RUNNING	= 2,
 	RPROC_CRASHED	= 3,
 	RPROC_DELETED	= 4,
-	RPROC_LAST	= 5,
+	RPROC_DETACHED	= 5,
+	RPROC_LAST	= 6,
 };
 
 /**
@@ -428,6 +441,20 @@ enum rproc_crash_type {
 };
 
 /**
+ * enum rproc_dump_mechanism - Coredump options for core
+ * @RPROC_COREDUMP_DEFAULT:	Copy dump to separate buffer and carry on with
+				recovery
+ * @RPROC_COREDUMP_INLINE:	Read segments directly from device memory. Stall
+				recovery until all segments are read
+ * @RPROC_COREDUMP_DISABLED:	Don't perform any dump
+ */
+enum rproc_dump_mechanism {
+	RPROC_COREDUMP_DEFAULT,
+	RPROC_COREDUMP_INLINE,
+	RPROC_COREDUMP_DISABLED,
+};
+
+/**
  * struct rproc_dump_segment - segment info from ELF header
  * @node:	list node related to the rproc segment list
  * @da:		device address of the segment
@@ -444,7 +471,7 @@ struct rproc_dump_segment {
 
 	void *priv;
 	void (*dump)(struct rproc *rproc, struct rproc_dump_segment *segment,
-		     void *dest);
+		     void *dest, size_t offset, size_t size);
 	loff_t offset;
 };
 
@@ -459,6 +486,7 @@ struct rproc_dump_segment {
  * @dev: virtual device for refcounting and common remoteproc behavior
  * @power: refcount of users who need this rproc powered up
  * @state: state of the device
+ * @dump_conf: Currently selected coredump configuration
  * @lock: lock which protects concurrent manipulations of the rproc
  * @dbg_dir: debugfs directory of this rproc device
  * @traces: list of trace buffers
@@ -479,26 +507,30 @@ struct rproc_dump_segment {
  * @table_sz: size of @cached_table
  * @has_iommu: flag to indicate if remote processor is behind an MMU
  * @auto_boot: flag to indicate if remote processor should be auto-started
+ * @autonomous: true if an external entity has booted the remote processor
  * @dump_segments: list of segments in the firmware
  * @nb_vdev: number of vdev currently handled by rproc
+ * @char_dev: character device of the rproc
+ * @cdev_put_on_release: flag to indicate if remoteproc should be shutdown on @char_dev release
  */
 struct rproc {
 	struct list_head node;
 	struct iommu_domain *domain;
 	const char *name;
-	char *firmware;
+	const char *firmware;
 	void *priv;
 	struct rproc_ops *ops;
 	struct device dev;
 	atomic_t power;
 	unsigned int state;
+	enum rproc_dump_mechanism dump_conf;
 	struct mutex lock;
 	struct dentry *dbg_dir;
 	struct list_head traces;
 	int num_traces;
 	struct list_head carveouts;
 	struct list_head mappings;
-	u32 bootaddr;
+	u64 bootaddr;
 	struct list_head rvdevs;
 	struct list_head subdevs;
 	struct idr notifyids;
@@ -512,8 +544,13 @@ struct rproc {
 	size_t table_sz;
 	bool has_iommu;
 	bool auto_boot;
+	bool autonomous;
 	struct list_head dump_segments;
 	int nb_vdev;
+	u8 elf_class;
+	u16 elf_machine;
+	struct cdev cdev;
+	bool cdev_put_on_release;
 };
 
 /**
@@ -594,18 +631,24 @@ void rproc_put(struct rproc *rproc);
 int rproc_add(struct rproc *rproc);
 int rproc_del(struct rproc *rproc);
 void rproc_free(struct rproc *rproc);
+void rproc_resource_cleanup(struct rproc *rproc);
+
+struct rproc *devm_rproc_alloc(struct device *dev, const char *name,
+			       const struct rproc_ops *ops,
+			       const char *firmware, int len);
+int devm_rproc_add(struct device *dev, struct rproc *rproc);
 
 void rproc_add_carveout(struct rproc *rproc, struct rproc_mem_entry *mem);
 
 struct rproc_mem_entry *
 rproc_mem_entry_init(struct device *dev,
-		     void *va, dma_addr_t dma, int len, u32 da,
+		     void *va, dma_addr_t dma, size_t len, u32 da,
 		     int (*alloc)(struct rproc *, struct rproc_mem_entry *),
 		     int (*release)(struct rproc *, struct rproc_mem_entry *),
 		     const char *name, ...);
 
 struct rproc_mem_entry *
-rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, int len,
+rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, size_t len,
 			     u32 da, const char *name, ...);
 
 int rproc_boot(struct rproc *rproc);
@@ -616,8 +659,10 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 				      dma_addr_t da, size_t size,
 				      void (*dumpfn)(struct rproc *rproc,
 						     struct rproc_dump_segment *segment,
-						     void *dest),
+						     void *dest, size_t offset,
+						     size_t size),
 				      void *priv);
+int rproc_coredump_set_elf_info(struct rproc *rproc, u8 class, u16 machine);
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {

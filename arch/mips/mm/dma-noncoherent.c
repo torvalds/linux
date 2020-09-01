@@ -33,6 +33,7 @@ static inline bool cpu_needs_post_dma_flush(void)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_BMIPS5000:
+	case CPU_LOONGSON2EF:
 		return true;
 	default:
 		/*
@@ -49,14 +50,9 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 	dma_cache_wback_inv((unsigned long)page_address(page), size);
 }
 
-void *uncached_kernel_address(void *addr)
+void *arch_dma_set_uncached(void *addr, size_t size)
 {
 	return (void *)(__pa(addr) + UNCAC_BASE);
-}
-
-void *cached_kernel_address(void *addr)
-{
-	return __va(addr) - UNCAC_BASE;
 }
 
 static inline void dma_sync_virt(void *addr, size_t size,

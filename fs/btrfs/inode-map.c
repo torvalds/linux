@@ -495,7 +495,8 @@ again:
 	/* Just to make sure we have enough space */
 	prealloc += 8 * PAGE_SIZE;
 
-	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, 0, prealloc);
+	ret = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved, 0,
+					   prealloc);
 	if (ret)
 		goto out_put;
 
@@ -515,7 +516,7 @@ out_release:
 	trace_btrfs_space_reservation(fs_info, "ino_cache", trans->transid,
 				      trans->bytes_reserved, 0);
 	btrfs_block_rsv_release(fs_info, trans->block_rsv,
-				trans->bytes_reserved);
+				trans->bytes_reserved, NULL);
 out:
 	trans->block_rsv = rsv;
 	trans->bytes_reserved = num_bytes;

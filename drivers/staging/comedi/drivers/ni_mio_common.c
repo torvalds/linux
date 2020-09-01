@@ -2199,9 +2199,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	case TRIG_EXT:
 		ai_trig |= NISTC_AI_TRIG_START1_SEL(
-			ni_get_reg_value_roffs(CR_CHAN(cmd->start_arg),
-					       NI_AI_StartTrigger,
-					       &devpriv->routing_tables, 1));
+				ni_get_reg_value_roffs(
+					CR_CHAN(cmd->start_arg),
+					NI_AI_StartTrigger,
+					&devpriv->routing_tables, 1));
 
 		if (cmd->start_arg & CR_INVERT)
 			ai_trig |= NISTC_AI_TRIG_START1_POLARITY;
@@ -2311,10 +2312,12 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		    (cmd->scan_begin_arg & ~CR_EDGE) !=
 		    (cmd->convert_arg & ~CR_EDGE))
 			start_stop_select |= NISTC_AI_START_SYNC;
+
 		start_stop_select |= NISTC_AI_START_SEL(
-			ni_get_reg_value_roffs(CR_CHAN(cmd->scan_begin_arg),
-					       NI_AI_SampleClock,
-					       &devpriv->routing_tables, 1));
+					ni_get_reg_value_roffs(
+						CR_CHAN(cmd->scan_begin_arg),
+						NI_AI_SampleClock,
+						&devpriv->routing_tables, 1));
 		ni_stc_writew(dev, start_stop_select, NISTC_AI_START_STOP_REG);
 		break;
 	}
@@ -2343,9 +2346,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	case TRIG_EXT:
 		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(
-			ni_get_reg_value_roffs(CR_CHAN(cmd->convert_arg),
-					       NI_AI_ConvertClock,
-					       &devpriv->routing_tables, 1));
+				ni_get_reg_value_roffs(
+						CR_CHAN(cmd->convert_arg),
+						NI_AI_ConvertClock,
+						&devpriv->routing_tables, 1));
 		if ((cmd->convert_arg & CR_INVERT) == 0)
 			mode1 |= NISTC_AI_MODE1_CONVERT_POLARITY;
 		ni_stc_writew(dev, mode1, NISTC_AI_MODE1_REG);
@@ -2386,7 +2390,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #endif
 			break;
 		case AIMODE_SAMPLE:
-			/*generate FIFO interrupts on non-empty */
+			/* generate FIFO interrupts on non-empty */
 			ni_stc_writew(dev, NISTC_AI_MODE3_FIFO_MODE_NE,
 				      NISTC_AI_MODE3_REG);
 			break;
@@ -2970,9 +2974,11 @@ static void ni_ao_cmd_set_trigger(struct comedi_device *dev,
 			  NISTC_AO_TRIG_START1_SYNC;
 	} else { /* TRIG_EXT */
 		trigsel = NISTC_AO_TRIG_START1_SEL(
-			ni_get_reg_value_roffs(CR_CHAN(cmd->start_arg),
-					       NI_AO_StartTrigger,
-					       &devpriv->routing_tables, 1));
+				ni_get_reg_value_roffs(
+						CR_CHAN(cmd->start_arg),
+						NI_AO_StartTrigger,
+						&devpriv->routing_tables, 1));
+
 		/* 0=active high, 1=active low. see daq-stc 3-24 (p186) */
 		if (cmd->start_arg & CR_INVERT)
 			trigsel |= NISTC_AO_TRIG_START1_POLARITY;
@@ -3079,12 +3085,10 @@ static void ni_ao_cmd_set_update(struct comedi_device *dev,
 	 * zero out these bit fields to be set below. Does an ao-reset do this
 	 * automatically?
 	 */
-	devpriv->ao_mode1 &= ~(
-	  NISTC_AO_MODE1_UI_SRC_MASK         |
-	  NISTC_AO_MODE1_UI_SRC_POLARITY     |
-	  NISTC_AO_MODE1_UPDATE_SRC_MASK     |
-	  NISTC_AO_MODE1_UPDATE_SRC_POLARITY
-	);
+	devpriv->ao_mode1 &=  ~(NISTC_AO_MODE1_UI_SRC_MASK	   |
+				NISTC_AO_MODE1_UI_SRC_POLARITY	   |
+				NISTC_AO_MODE1_UPDATE_SRC_MASK	   |
+				NISTC_AO_MODE1_UPDATE_SRC_POLARITY);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		unsigned int trigvar;
@@ -3134,9 +3138,10 @@ static void ni_ao_cmd_set_update(struct comedi_device *dev,
 		/* FIXME:  assert scan_begin_arg != 0, ret failure otherwise */
 		devpriv->ao_cmd2  |= NISTC_AO_CMD2_BC_GATE_ENA;
 		devpriv->ao_mode1 |= NISTC_AO_MODE1_UPDATE_SRC(
-			ni_get_reg_value(CR_CHAN(cmd->scan_begin_arg),
-					 NI_AO_SampleClock,
-					 &devpriv->routing_tables));
+					ni_get_reg_value(
+						CR_CHAN(cmd->scan_begin_arg),
+						NI_AO_SampleClock,
+						&devpriv->routing_tables));
 		if (cmd->scan_begin_arg & CR_INVERT)
 			devpriv->ao_mode1 |= NISTC_AO_MODE1_UPDATE_SRC_POLARITY;
 	}
@@ -3673,9 +3678,10 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	cdo_mode_bits = NI_M_CDO_MODE_FIFO_MODE |
 			NI_M_CDO_MODE_HALT_ON_ERROR |
 			NI_M_CDO_MODE_SAMPLE_SRC(
-				ni_get_reg_value(CR_CHAN(cmd->scan_begin_arg),
-						 NI_DO_SampleClock,
-						 &devpriv->routing_tables));
+				ni_get_reg_value(
+					CR_CHAN(cmd->scan_begin_arg),
+					NI_DO_SampleClock,
+					&devpriv->routing_tables));
 	if (cmd->scan_begin_arg & CR_INVERT)
 		cdo_mode_bits |= NI_M_CDO_MODE_POLARITY;
 	ni_writel(dev, cdo_mode_bits, NI_M_CDO_MODE_REG);
@@ -5975,6 +5981,7 @@ static int ni_E_init(struct comedi_device *dev,
 
 	/* prepare the device for globally-named routes. */
 	if (ni_assign_device_routes(dev_family, board->name,
+				    board->alt_route_name,
 				    &devpriv->routing_tables) < 0) {
 		dev_warn(dev->class_dev, "%s: %s device has no signal routing table.\n",
 			 __func__, board->name);

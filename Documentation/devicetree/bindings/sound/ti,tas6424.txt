@@ -19,4 +19,4 @@ tas6424: tas6424@6a {
 };
 
 For more product information please see the link below:
-http://www.ti.com/product/TAS6424-Q1
+https://www.ti.com/product/TAS6424-Q1

@@ -453,6 +453,8 @@ extern bool hibernation_available(void);
 asmlinkage int swsusp_save(void);
 extern struct pbe *restore_pblist;
 int pfn_is_nosave(unsigned long pfn);
+
+int hibernate_quiet_exec(int (*func)(void *data), void *data);
 #else /* CONFIG_HIBERNATION */
 static inline void register_nosave_region(unsigned long b, unsigned long e) {}
 static inline void register_nosave_region_late(unsigned long b, unsigned long e) {}
@@ -464,7 +466,17 @@ static inline void hibernation_set_ops(const struct platform_hibernation_ops *op
 static inline int hibernate(void) { return -ENOSYS; }
 static inline bool system_entering_hibernation(void) { return false; }
 static inline bool hibernation_available(void) { return false; }
+
+static inline int hibernate_quiet_exec(int (*func)(void *data), void *data) {
+	return -ENOTSUPP;
+}
 #endif /* CONFIG_HIBERNATION */
+
+#ifdef CONFIG_HIBERNATION_SNAPSHOT_DEV
+int is_hibernate_resume_dev(const struct inode *);
+#else
+static inline int is_hibernate_resume_dev(const struct inode *i) { return 0; }
+#endif
 
 /* Hibernation and suspend events */
 #define PM_HIBERNATION_PREPARE	0x0001 /* Going to hibernate */
@@ -565,39 +577,5 @@ void queue_up_suspend_work(void);
 static inline void queue_up_suspend_work(void) {}
 
 #endif /* !CONFIG_PM_AUTOSLEEP */
-
-#ifdef CONFIG_ARCH_SAVE_PAGE_KEYS
-/*
- * The ARCH_SAVE_PAGE_KEYS functions can be used by an architecture
- * to save/restore additional information to/from the array of page
- * frame numbers in the hibernation image. For s390 this is used to
- * save and restore the storage key for each page that is included
- * in the hibernation image.
- */
-unsigned long page_key_additional_pages(unsigned long pages);
-int page_key_alloc(unsigned long pages);
-void page_key_free(void);
-void page_key_read(unsigned long *pfn);
-void page_key_memorize(unsigned long *pfn);
-void page_key_write(void *address);
-
-#else /* !CONFIG_ARCH_SAVE_PAGE_KEYS */
-
-static inline unsigned long page_key_additional_pages(unsigned long pages)
-{
-	return 0;
-}
-
-static inline int  page_key_alloc(unsigned long pages)
-{
-	return 0;
-}
-
-static inline void page_key_free(void) {}
-static inline void page_key_read(unsigned long *pfn) {}
-static inline void page_key_memorize(unsigned long *pfn) {}
-static inline void page_key_write(void *address) {}
-
-#endif /* !CONFIG_ARCH_SAVE_PAGE_KEYS */
 
 #endif /* _LINUX_SUSPEND_H */

@@ -69,6 +69,20 @@ EXPORT_SYMBOL_GPL(pernet_ops_rwsem);
 
 static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
 
+static atomic64_t cookie_gen;
+
+u64 net_gen_cookie(struct net *net)
+{
+	while (1) {
+		u64 res = atomic64_read(&net->net_cookie);
+
+		if (res)
+			return res;
+		res = atomic64_inc_return(&cookie_gen);
+		atomic64_cmpxchg(&net->net_cookie, 0, res);
+	}
+}
+
 static struct net_generic *net_alloc_generic(void)
 {
 	struct net_generic *ng;
@@ -1087,6 +1101,7 @@ static int __init net_ns_init(void)
 		panic("Could not allocate generic netns");
 
 	rcu_assign_pointer(init_net.gen, ng);
+	net_gen_cookie(&init_net);
 
 	down_write(&pernet_ops_rwsem);
 	if (setup_net(&init_net, &init_user_ns))
@@ -1338,12 +1353,13 @@ static void netns_put(struct ns_common *ns)
 	put_net(to_net_ns(ns));
 }
 
-static int netns_install(struct nsproxy *nsproxy, struct ns_common *ns)
+static int netns_install(struct nsset *nsset, struct ns_common *ns)
 {
+	struct nsproxy *nsproxy = nsset->nsproxy;
 	struct net *net = to_net_ns(ns);
 
 	if (!ns_capable(net->user_ns, CAP_SYS_ADMIN) ||
-	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+	    !ns_capable(nsset->cred->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	put_net(nsproxy->net_ns);

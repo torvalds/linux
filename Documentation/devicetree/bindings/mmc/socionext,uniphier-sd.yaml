@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/socionext,uniphier-sd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UniPhier SD/SDIO/eMMC controller
+
+maintainers:
+  - Masahiro Yamada <yamada.masahiro@socionext.com>
+
+properties:
+  compatible:
+    description: version 2.91, 3.1, 3.1.1, respectively
+    enum:
+      - socionext,uniphier-sd-v2.91
+      - socionext,uniphier-sd-v3.1
+      - socionext,uniphier-sd-v3.1.1
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  reset-names:
+    description: |
+      There are three reset signals at maximum
+        host:   mandatory for all variants
+        bridge: exist only for version 2.91
+        hw:     optional. exist if eMMC hw reset line is available
+    oneOf:
+      - const: host
+      - items:
+          - const: host
+          - const: bridge
+      - items:
+          - const: host
+          - const: hw
+      - items:
+          - const: host
+          - const: bridge
+          - const: hw
+
+  resets:
+    minItems: 1
+    maxItems: 3
+
+allOf:
+  - $ref: mmc-controller.yaml
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-sd-v2.91
+    then:
+      properties:
+        reset-names:
+          contains:
+            const: bridge
+    else:
+      properties:
+        reset-names:
+          not:
+            contains:
+              const: bridge
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - reset-names
+  - resets
+
+examples:
+  - |
+    sd: mmc@5a400000 {
+        compatible = "socionext,uniphier-sd-v2.91";
+        reg = <0x5a400000 0x200>;
+        interrupts = <0 76 4>;
+        pinctrl-names = "default", "uhs";
+        pinctrl-0 = <&pinctrl_sd>;
+        pinctrl-1 = <&pinctrl_sd_uhs>;
+        clocks = <&mio_clk 0>;
+        reset-names = "host", "bridge";
+        resets = <&mio_rst 0>, <&mio_rst 3>;
+        dma-names = "rx-tx";
+        dmas = <&dmac 4>;
+        bus-width = <4>;
+        cap-sd-highspeed;
+        sd-uhs-sdr12;
+        sd-uhs-sdr25;
+        sd-uhs-sdr50;
+    };

@@ -38,12 +38,9 @@
 #define RX_MAX_QUEUE				2
 
 #define MAX_SUBFRAME_COUNT	64
-extern u8 rtw_rfc1042_header[];
-extern u8 rtw_bridge_tunnel_header[];
 
 /* for Rx reordering buffer control */
-struct recv_reorder_ctrl
-{
+struct recv_reorder_ctrl {
 	struct adapter	*padapter;
 	u8 enable;
 	u16 indicate_seq;/* wstart_b, init_value = 0xffff */
@@ -114,8 +111,7 @@ struct phy_info {
 };
 
 #ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
-struct rx_raw_rssi
-{
+struct rx_raw_rssi {
 	u8 data_rate;
 	u8 pwdball;
 	s8 pwr_all;
@@ -187,7 +183,7 @@ struct rx_pkt_attrib	{
 
 
 /* These definition is used for Rx packet reordering. */
-#define SN_LESS(a, b)		(((a-b)&0x800)!= 0)
+#define SN_LESS(a, b)		(((a - b) & 0x800) != 0)
 #define SN_EQUAL(a, b)	(a == b)
 /* define REORDER_WIN_SIZE	128 */
 /* define REORDER_ENTRY_NUM	128 */
@@ -294,8 +290,7 @@ struct sta_recv_priv {
 };
 
 
-struct recv_buf
-{
+struct recv_buf {
 	struct list_head list;
 
 	_lock recvbuf_lock;
@@ -333,8 +328,7 @@ struct recv_buf
 	len = (unsigned int)(tail - data);
 
 */
-struct recv_frame_hdr
-{
+struct recv_frame_hdr {
 	struct list_head	list;
 #ifndef CONFIG_BSD_RX_USE_MBUF
 	struct sk_buff	 *pkt;
@@ -369,12 +363,12 @@ struct recv_frame_hdr
 };
 
 
-union recv_frame{
+union recv_frame {
 	union{
 		struct list_head list;
 		struct recv_frame_hdr hdr;
 		uint mem[RECVFRAME_HDR_ALIGN>>2];
-	}u;
+	} u;
 
 	/* uint mem[MAX_RXSZ>>2]; */
 
@@ -388,8 +382,8 @@ enum RX_PACKET_TYPE {
 	C2H_PACKET
 };
 
-extern union recv_frame *_rtw_alloc_recvframe (struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
-extern union recv_frame *rtw_alloc_recvframe (struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
+extern union recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
+extern union recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
 extern int	 rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_queue);
 
 #define rtw_dequeue_recvframe(queue) rtw_alloc_recvframe(queue)
@@ -401,7 +395,7 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter);
 
 sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue);
 sint rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue);
-struct recv_buf *rtw_dequeue_recvbuf (struct __queue *queue);
+struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue);
 
 void rtw_reordering_ctrl_timeout_handler(struct timer_list *t);
 
@@ -444,7 +438,7 @@ static inline u8 *recvframe_pull(union recv_frame *precvframe, sint sz)
 		return NULL;
 	}
 
-	precvframe->u.hdr.len -=sz;
+	precvframe->u.hdr.len -= sz;
 
 	return precvframe->u.hdr.rx_data;
 
@@ -471,7 +465,7 @@ static inline u8 *recvframe_put(union recv_frame *precvframe, sint sz)
 		return NULL;
 	}
 
-	precvframe->u.hdr.len +=sz;
+	precvframe->u.hdr.len += sz;
 
 	return precvframe->u.hdr.rx_tail;
 
@@ -497,7 +491,7 @@ static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, sint sz)
 		return NULL;
 	}
 
-	precvframe->u.hdr.len -=sz;
+	precvframe->u.hdr.len -= sz;
 
 	return precvframe->u.hdr.rx_tail;
 

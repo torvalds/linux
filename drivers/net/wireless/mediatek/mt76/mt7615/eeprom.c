@@ -5,6 +5,7 @@
  *         Felix Fietkau <nbd@nbd.name>
  */
 
+#include <linux/of.h>
 #include "mt7615.h"
 #include "eeprom.h"
 
@@ -40,11 +41,11 @@ static int mt7615_efuse_read(struct mt7615_dev *dev, u32 base,
 	return 0;
 }
 
-static int mt7615_efuse_init(struct mt7615_dev *dev)
+static int mt7615_efuse_init(struct mt7615_dev *dev, u32 base)
 {
-	u32 val, base = mt7615_reg_map(dev, MT_EFUSE_BASE);
 	int i, len = MT7615_EEPROM_SIZE;
 	void *buf;
+	u32 val;
 
 	val = mt76_rr(dev, base + MT_EFUSE_BASE_CTRL);
 	if (val & MT_EFUSE_BASE_CTRL_EMPTY)
@@ -67,15 +68,15 @@ static int mt7615_efuse_init(struct mt7615_dev *dev)
 	return 0;
 }
 
-static int mt7615_eeprom_load(struct mt7615_dev *dev)
+static int mt7615_eeprom_load(struct mt7615_dev *dev, u32 addr)
 {
 	int ret;
 
-	ret = mt76_eeprom_init(&dev->mt76, MT7615_EEPROM_SIZE);
+	ret = mt76_eeprom_init(&dev->mt76, MT7615_EEPROM_FULL_SIZE);
 	if (ret < 0)
 		return ret;
 
-	return mt7615_efuse_init(dev);
+	return mt7615_efuse_init(dev, addr);
 }
 
 static int mt7615_check_eeprom(struct mt76_dev *dev)
@@ -84,17 +85,36 @@ static int mt7615_check_eeprom(struct mt76_dev *dev)
 
 	switch (val) {
 	case 0x7615:
+	case 0x7622:
 		return 0;
 	default:
 		return -EINVAL;
 	}
 }
 
-static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
+static void
+mt7615_eeprom_parse_hw_band_cap(struct mt7615_dev *dev)
 {
-	u8 *eeprom = dev->mt76.eeprom.data;
-	u8 tx_mask, rx_mask, max_nss;
-	u32 val;
+	u8 val, *eeprom = dev->mt76.eeprom.data;
+
+	if (is_mt7663(&dev->mt76)) {
+		/* dual band */
+		dev->mt76.cap.has_2ghz = true;
+		dev->mt76.cap.has_5ghz = true;
+		return;
+	}
+
+	if (is_mt7622(&dev->mt76)) {
+		/* 2GHz only */
+		dev->mt76.cap.has_2ghz = true;
+		return;
+	}
+
+	if (is_mt7611(&dev->mt76)) {
+		/* 5GHz only */
+		dev->mt76.cap.has_5ghz = true;
+		return;
+	}
 
 	val = FIELD_GET(MT_EE_NIC_WIFI_CONF_BAND_SEL,
 			eeprom[MT_EE_WIFI_CONF]);
@@ -110,30 +130,67 @@ static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
 		dev->mt76.cap.has_5ghz = true;
 		break;
 	}
+}
 
-	/* read tx-rx mask from eeprom */
-	val = mt76_rr(dev, MT_TOP_STRAP_STA);
-	max_nss = val & MT_TOP_3NSS ? 3 : 4;
+static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
+{
+	u8 *eeprom = dev->mt76.eeprom.data;
+	u8 tx_mask, max_nss;
 
-	rx_mask =  FIELD_GET(MT_EE_NIC_CONF_RX_MASK,
-			     eeprom[MT_EE_NIC_CONF_0]);
-	if (!rx_mask || rx_mask > max_nss)
-		rx_mask = max_nss;
+	mt7615_eeprom_parse_hw_band_cap(dev);
 
-	tx_mask =  FIELD_GET(MT_EE_NIC_CONF_TX_MASK,
-			     eeprom[MT_EE_NIC_CONF_0]);
+	if (is_mt7663(&dev->mt76)) {
+		max_nss = 2;
+		tx_mask = FIELD_GET(MT_EE_HW_CONF1_TX_MASK,
+				    eeprom[MT7663_EE_HW_CONF1]);
+	} else {
+		u32 val;
+
+		/* read tx-rx mask from eeprom */
+		val = mt76_rr(dev, MT_TOP_STRAP_STA);
+		max_nss = val & MT_TOP_3NSS ? 3 : 4;
+
+		tx_mask =  FIELD_GET(MT_EE_NIC_CONF_TX_MASK,
+				     eeprom[MT_EE_NIC_CONF_0]);
+	}
 	if (!tx_mask || tx_mask > max_nss)
 		tx_mask = max_nss;
 
-	dev->mt76.chainmask = tx_mask << 8 | rx_mask;
-	dev->mt76.antenna_mask = BIT(tx_mask) - 1;
+	dev->chainmask = BIT(tx_mask) - 1;
+	dev->mphy.antenna_mask = dev->chainmask;
+	dev->phy.chainmask = dev->chainmask;
 }
 
-int mt7615_eeprom_get_power_index(struct mt7615_dev *dev,
-				  struct ieee80211_channel *chan,
-				  u8 chain_idx)
+static int mt7663_eeprom_get_target_power_index(struct mt7615_dev *dev,
+						struct ieee80211_channel *chan,
+						u8 chain_idx)
+{
+	int index, group;
+
+	if (chain_idx > 1)
+		return -EINVAL;
+
+	if (chan->band == NL80211_BAND_2GHZ)
+		return MT7663_EE_TX0_2G_TARGET_POWER + (chain_idx << 4);
+
+	group = mt7615_get_channel_group(chan->hw_value);
+	if (chain_idx == 1)
+		index = MT7663_EE_TX1_5G_G0_TARGET_POWER;
+	else
+		index = MT7663_EE_TX0_5G_G0_TARGET_POWER;
+
+	return index + group * 3;
+}
+
+int mt7615_eeprom_get_target_power_index(struct mt7615_dev *dev,
+					 struct ieee80211_channel *chan,
+					 u8 chain_idx)
 {
 	int index;
+
+	if (is_mt7663(&dev->mt76))
+		return mt7663_eeprom_get_target_power_index(dev, chan,
+							    chain_idx);
 
 	if (chain_idx > 3)
 		return -EINVAL;
@@ -173,6 +230,23 @@ int mt7615_eeprom_get_power_index(struct mt7615_dev *dev,
 	return index;
 }
 
+int mt7615_eeprom_get_power_delta_index(struct mt7615_dev *dev,
+					enum nl80211_band band)
+{
+	/* assume the first rate has the highest power offset */
+	if (is_mt7663(&dev->mt76)) {
+		if (band == NL80211_BAND_2GHZ)
+			return MT_EE_TX0_5G_G0_TARGET_POWER;
+		else
+			return MT7663_EE_5G_RATE_POWER;
+	}
+
+	if (band == NL80211_BAND_2GHZ)
+		return MT_EE_2G_RATE_POWER;
+	else
+		return MT_EE_5G_RATE_POWER;
+}
+
 static void mt7615_apply_cal_free_data(struct mt7615_dev *dev)
 {
 	static const u16 ical[] = {
@@ -209,20 +283,60 @@ static void mt7615_apply_cal_free_data(struct mt7615_dev *dev)
 		eeprom[ical_nocheck[i]] = otp[ical_nocheck[i]];
 }
 
-int mt7615_eeprom_init(struct mt7615_dev *dev)
+static void mt7622_apply_cal_free_data(struct mt7615_dev *dev)
+{
+	static const u16 ical[] = {
+		0x53, 0x54, 0x55, 0x56, 0xf4, 0xf7, 0x144, 0x156, 0x15b
+	};
+	u8 *eeprom = dev->mt76.eeprom.data;
+	u8 *otp = dev->mt76.otp.data;
+	int i;
+
+	if (!otp)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(ical); i++) {
+		if (!otp[ical[i]])
+			continue;
+
+		eeprom[ical[i]] = otp[ical[i]];
+	}
+}
+
+static void mt7615_cal_free_data(struct mt7615_dev *dev)
+{
+	struct device_node *np = dev->mt76.dev->of_node;
+
+	if (!np || !of_property_read_bool(np, "mediatek,eeprom-merge-otp"))
+		return;
+
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7622:
+		mt7622_apply_cal_free_data(dev);
+		break;
+	case 0x7615:
+	case 0x7611:
+		mt7615_apply_cal_free_data(dev);
+		break;
+	}
+}
+
+int mt7615_eeprom_init(struct mt7615_dev *dev, u32 addr)
 {
 	int ret;
 
-	ret = mt7615_eeprom_load(dev);
+	ret = mt7615_eeprom_load(dev, addr);
 	if (ret < 0)
 		return ret;
 
 	ret = mt7615_check_eeprom(&dev->mt76);
-	if (ret && dev->mt76.otp.data)
+	if (ret && dev->mt76.otp.data) {
 		memcpy(dev->mt76.eeprom.data, dev->mt76.otp.data,
 		       MT7615_EEPROM_SIZE);
-	else
-		mt7615_apply_cal_free_data(dev);
+	} else {
+		dev->flash_eeprom = true;
+		mt7615_cal_free_data(dev);
+	}
 
 	mt7615_eeprom_parse_hw_cap(dev);
 	memcpy(dev->mt76.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
@@ -232,3 +346,4 @@ int mt7615_eeprom_init(struct mt7615_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_eeprom_init);

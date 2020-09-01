@@ -71,6 +71,16 @@ report::
 --tid=<tid>::
         stat events on existing thread id (comma separated list)
 
+ifdef::HAVE_LIBPFM[]
+--pfm-events events::
+Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)
+including support for event filters. For example '--pfm-events
+inst_retired:any_p:u:c=1:i'. More than one event can be passed to the
+option using the comma separator. Hardware events and generic hardware
+events cannot be mixed together. The latter must be used with the -e
+option. The -e option and this one can be mixed and matched.  Events
+can be grouped using the {} notation.
+endif::HAVE_LIBPFM[]
 
 -a::
 --all-cpus::
@@ -93,7 +103,9 @@ report::
 
 -B::
 --big-num::
-        print large numbers with thousands' separators according to locale
+        print large numbers with thousands' separators according to locale.
+	Enabled by default. Use "--no-big-num" to disable.
+	Default setting can be changed with "perf config stat.big-num=false".
 
 -C::
 --cpu=::
@@ -164,6 +176,45 @@ with it.  --append may be used here.  Examples:
      3>results  perf stat --log-fd 3          -- $cmd
      3>>results perf stat --log-fd 3 --append -- $cmd
 
+--control fd:ctl-fd[,ack-fd]
+Listen on ctl-fd descriptor for command to control measurement ('enable': enable events,
+'disable': disable events). Measurements can be started with events disabled using
+--delay=-1 option. Optionally send control command completion ('ack\n') to ack-fd descriptor
+to synchronize with the controlling process. Example of bash shell script to enable and
+disable events during measurements:
+
+#!/bin/bash
+
+ctl_dir=/tmp/
+
+ctl_fifo=${ctl_dir}perf_ctl.fifo
+test -p ${ctl_fifo} && unlink ${ctl_fifo}
+mkfifo ${ctl_fifo}
+exec {ctl_fd}<>${ctl_fifo}
+
+ctl_ack_fifo=${ctl_dir}perf_ctl_ack.fifo
+test -p ${ctl_ack_fifo} && unlink ${ctl_ack_fifo}
+mkfifo ${ctl_ack_fifo}
+exec {ctl_fd_ack}<>${ctl_ack_fifo}
+
+perf stat -D -1 -e cpu-cycles -a -I 1000       \
+          --control fd:${ctl_fd},${ctl_fd_ack} \
+          -- sleep 30 &
+perf_pid=$!
+
+sleep 5  && echo 'enable' >&${ctl_fd} && read -u ${ctl_fd_ack} e1 && echo "enabled(${e1})"
+sleep 10 && echo 'disable' >&${ctl_fd} && read -u ${ctl_fd_ack} d1 && echo "disabled(${d1})"
+
+exec {ctl_fd_ack}>&-
+unlink ${ctl_ack_fifo}
+
+exec {ctl_fd}>&-
+unlink ${ctl_fifo}
+
+wait -n ${perf_pid}
+exit $?
+
+
 --pre::
 --post::
 	Pre and post measurement hooks, e.g.:
@@ -175,6 +226,8 @@ perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- m
 Print count deltas every N milliseconds (minimum: 1ms)
 The overhead percentage could be high in some cases, for instance with small, sub 100ms intervals.  Use with caution.
 	example: 'perf stat -I 1000 -e cycles -a sleep 5'
+
+If the metric exists, it is calculated by the counts generated in this interval and the metric is printed after #.
 
 --interval-count times::
 Print count deltas for fixed number of times.
@@ -224,13 +277,33 @@ mode, use --per-node in addition to -a. (system-wide).
 
 -D msecs::
 --delay msecs::
-After starting the program, wait msecs before measuring. This is useful to
-filter out the startup phase of the program, which is often very different.
+After starting the program, wait msecs before measuring (-1: start with events
+disabled). This is useful to filter out the startup phase of the program,
+which is often very different.
 
 -T::
 --transaction::
 
 Print statistics of transactional execution if supported.
+
+--metric-no-group::
+By default, events to compute a metric are placed in weak groups. The
+group tries to enforce scheduling all or none of the events. The
+--metric-no-group option places events outside of groups and may
+increase the chance of the event being scheduled - leading to more
+accuracy. However, as events may not be scheduled together accuracy
+for metrics like instructions per cycle can be lower - as both metrics
+may no longer be being measured at the same time.
+
+--metric-no-merge::
+By default metric events in different weak groups can be shared if one
+group contains all the events needed by another. In such cases one
+group will be eliminated reducing event multiplexing and making it so
+that certain groups of metrics sum to 100%. A downside to sharing a
+group is that the group may require multiplexing and so accuracy for a
+small group that need not have multiplexing is lowered. This option
+forbids the event merging logic from sharing events between groups and
+may be used to increase accuracy in this case.
 
 STAT RECORD
 -----------
@@ -333,6 +406,15 @@ Configure all used events to run in kernel space.
 
 --all-user::
 Configure all used events to run in user space.
+
+--percore-show-thread::
+The event modifier "percore" has supported to sum up the event counts
+for all hardware threads in a core and show the counts per core.
+
+This option with event modifier "percore" enabled also sums up the event
+counts for all hardware threads in a core but show the sum counts per
+hardware thread. This is essentially a replacement for the any bit and
+convenient for post processing.
 
 EXAMPLES
 --------

@@ -19,8 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <linux/mmu_context.h>
-
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 #include "gc/gc_9_0_offset.h"
@@ -47,28 +45,6 @@ enum hqd_dequeue_request_type {
 	DRAIN_PIPE,
 	RESET_WAVES
 };
-
-
-/* Because of REG_GET_FIELD() being used, we put this function in the
- * asic specific file.
- */
-int kgd_gfx_v9_get_tile_config(struct kgd_dev *kgd,
-		struct tile_config *config)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-
-	config->gb_addr_config = adev->gfx.config.gb_addr_config;
-
-	config->tile_config_ptr = adev->gfx.config.tile_mode_array;
-	config->num_tile_configs =
-			ARRAY_SIZE(adev->gfx.config.tile_mode_array);
-	config->macro_tile_config_ptr =
-			adev->gfx.config.macrotile_mode_array;
-	config->num_macro_tile_configs =
-			ARRAY_SIZE(adev->gfx.config.macrotile_mode_array);
-
-	return 0;
-}
 
 static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
 {
@@ -219,19 +195,32 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 				unsigned int engine_id,
 				unsigned int queue_id)
 {
-	uint32_t sdma_engine_reg_base[2] = {
-		SOC15_REG_OFFSET(SDMA0, 0,
-				 mmSDMA0_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL,
-		SOC15_REG_OFFSET(SDMA1, 0,
-				 mmSDMA1_RLC0_RB_CNTL) - mmSDMA1_RLC0_RB_CNTL
-	};
-	uint32_t retval = sdma_engine_reg_base[engine_id]
+	uint32_t sdma_engine_reg_base = 0;
+	uint32_t sdma_rlc_reg_offset;
+
+	switch (engine_id) {
+	default:
+		dev_warn(adev->dev,
+			 "Invalid sdma engine id (%d), using engine id 0\n",
+			 engine_id);
+		fallthrough;
+	case 0:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA0, 0,
+				mmSDMA0_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL;
+		break;
+	case 1:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA1, 0,
+				mmSDMA1_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL;
+		break;
+	}
+
+	sdma_rlc_reg_offset = sdma_engine_reg_base
 		+ queue_id * (mmSDMA0_RLC1_RB_CNTL - mmSDMA0_RLC0_RB_CNTL);
 
 	pr_debug("RLC register offset for SDMA%d RLC%d: 0x%x\n", engine_id,
-			queue_id, retval);
+		 queue_id, sdma_rlc_reg_offset);
 
-	return retval;
+	return sdma_rlc_reg_offset;
 }
 
 static inline struct v9_mqd *get_mqd(void *mqd)
@@ -736,7 +725,7 @@ const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
 	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
 	.get_atc_vmid_pasid_mapping_info =
 			kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
-	.get_tile_config = kgd_gfx_v9_get_tile_config,
 	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
 	.get_hive_id = amdgpu_amdkfd_get_hive_id,
+	.get_unique_id = amdgpu_amdkfd_get_unique_id,
 };

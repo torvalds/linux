@@ -24,7 +24,7 @@
 #define PVCALLS_VERSIONS "1"
 #define MAX_RING_ORDER XENBUS_MAX_RING_GRANT_ORDER
 
-struct pvcalls_back_global {
+static struct pvcalls_back_global {
 	struct list_head frontends;
 	struct semaphore frontends_lock;
 } pvcalls_back_global;
@@ -300,7 +300,7 @@ static struct sock_mapping *pvcalls_new_active_socket(
 		struct pvcalls_fedata *fedata,
 		uint64_t id,
 		grant_ref_t ref,
-		uint32_t evtchn,
+		evtchn_port_t evtchn,
 		struct socket *sock)
 {
 	int ret;
@@ -905,7 +905,8 @@ static irqreturn_t pvcalls_back_conn_event(int irq, void *sock_map)
 
 static int backend_connect(struct xenbus_device *dev)
 {
-	int err, evtchn;
+	int err;
+	evtchn_port_t evtchn;
 	grant_ref_t ring_ref;
 	struct pvcalls_fedata *fedata = NULL;
 
@@ -1087,7 +1088,8 @@ static void set_backend_state(struct xenbus_device *dev,
 		case XenbusStateInitialised:
 			switch (state) {
 			case XenbusStateConnected:
-				backend_connect(dev);
+				if (backend_connect(dev))
+					return;
 				xenbus_switch_state(dev, XenbusStateConnected);
 				break;
 			case XenbusStateClosing:

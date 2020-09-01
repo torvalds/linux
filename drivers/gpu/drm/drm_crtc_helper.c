@@ -185,6 +185,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 
 	drm_for_each_crtc(crtc, dev) {
 		const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		if (!crtc->enabled) {
 			if (crtc_funcs->disable)
@@ -243,10 +244,6 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
 
 		/* Disable unused encoders */
 		if (encoder->crtc == NULL)
-			drm_encoder_disable(encoder);
-		/* Disable encoders whose CRTC is about to change */
-		if (encoder_funcs->get_crtc &&
-		    encoder->crtc != (*encoder_funcs->get_crtc)(encoder))
 			drm_encoder_disable(encoder);
 	}
 }
@@ -888,6 +885,7 @@ int drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 	if (mode < old_dpms) {
 		if (crtc) {
 			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+
 			if (crtc_funcs->dpms)
 				(*crtc_funcs->dpms) (crtc,
 						     drm_helper_choose_crtc_dpms(crtc));
@@ -902,6 +900,7 @@ int drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 			drm_helper_encoder_dpms(encoder, encoder_dpms);
 		if (crtc) {
 			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+
 			if (crtc_funcs->dpms)
 				(*crtc_funcs->dpms) (crtc,
 						     drm_helper_choose_crtc_dpms(crtc));

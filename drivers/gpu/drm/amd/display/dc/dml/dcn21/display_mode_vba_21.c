@@ -3190,6 +3190,7 @@ static void CalculateFlipSchedule(
 	double TimeForFetchingRowInVBlankImmediateFlip;
 	double ImmediateFlipBW;
 	double HostVMInefficiencyFactor;
+	double VRatioClamped;
 
 	if (GPUVMEnable == true && HostVMEnable == true) {
 		HostVMInefficiencyFactor =
@@ -3222,31 +3223,32 @@ static void CalculateFlipSchedule(
 
 	*DestinationLinesToRequestRowInImmediateFlip = dml_ceil(4.0 * (TimeForFetchingRowInVBlankImmediateFlip / LineTime), 1) / 4.0;
 	*final_flip_bw = dml_max(PDEAndMetaPTEBytesPerFrame * HostVMInefficiencyFactor / (*DestinationLinesToRequestVMInImmediateFlip * LineTime), (MetaRowBytes + DPTEBytesPerRow) * HostVMInefficiencyFactor / (*DestinationLinesToRequestRowInImmediateFlip * LineTime));
+	VRatioClamped = (VRatio < 1.0) ? 1.0 : VRatio;
 	if (SourcePixelFormat == dm_420_8 || SourcePixelFormat == dm_420_10) {
 		if (GPUVMEnable == true && DCCEnable != true) {
 			min_row_time = dml_min(
-					dpte_row_height * LineTime / VRatio,
-					dpte_row_height_chroma * LineTime / (VRatio / 2));
+					dpte_row_height * LineTime / VRatioClamped,
+					dpte_row_height_chroma * LineTime / (VRatioClamped / 2));
 		} else if (GPUVMEnable != true && DCCEnable == true) {
 			min_row_time = dml_min(
-					meta_row_height * LineTime / VRatio,
-					meta_row_height_chroma * LineTime / (VRatio / 2));
+					meta_row_height * LineTime / VRatioClamped,
+					meta_row_height_chroma * LineTime / (VRatioClamped / 2));
 		} else {
 			min_row_time = dml_min4(
-					dpte_row_height * LineTime / VRatio,
-					meta_row_height * LineTime / VRatio,
-					dpte_row_height_chroma * LineTime / (VRatio / 2),
-					meta_row_height_chroma * LineTime / (VRatio / 2));
+					dpte_row_height * LineTime / VRatioClamped,
+					meta_row_height * LineTime / VRatioClamped,
+					dpte_row_height_chroma * LineTime / (VRatioClamped / 2),
+					meta_row_height_chroma * LineTime / (VRatioClamped / 2));
 		}
 	} else {
 		if (GPUVMEnable == true && DCCEnable != true) {
-			min_row_time = dpte_row_height * LineTime / VRatio;
+			min_row_time = dpte_row_height * LineTime / VRatioClamped;
 		} else if (GPUVMEnable != true && DCCEnable == true) {
-			min_row_time = meta_row_height * LineTime / VRatio;
+			min_row_time = meta_row_height * LineTime / VRatioClamped;
 		} else {
 			min_row_time = dml_min(
-					dpte_row_height * LineTime / VRatio,
-					meta_row_height * LineTime / VRatio);
+					dpte_row_height * LineTime / VRatioClamped,
+					meta_row_height * LineTime / VRatioClamped);
 		}
 	}
 
@@ -5944,7 +5946,7 @@ static void CalculateMetaAndPTETimes(
 						* PixelPTEReqHeightY[k];
 			}
 			dpte_groups_per_row_luma_ub = dml_ceil(
-					dpte_row_width_luma_ub[k] / dpte_group_width_luma,
+					(float) dpte_row_width_luma_ub[k] / dpte_group_width_luma,
 					1);
 			time_per_pte_group_nom_luma[k] = DST_Y_PER_PTE_ROW_NOM_L[k] * HTotal[k]
 					/ PixelClock[k] / dpte_groups_per_row_luma_ub;
@@ -5968,7 +5970,7 @@ static void CalculateMetaAndPTETimes(
 							* PixelPTEReqHeightC[k];
 				}
 				dpte_groups_per_row_chroma_ub = dml_ceil(
-						dpte_row_width_chroma_ub[k]
+						(float) dpte_row_width_chroma_ub[k]
 								/ dpte_group_width_chroma,
 						1);
 				time_per_pte_group_nom_chroma[k] = DST_Y_PER_PTE_ROW_NOM_C[k]

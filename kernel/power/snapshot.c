@@ -34,7 +34,6 @@
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>
 
@@ -1664,7 +1663,7 @@ static unsigned long minimum_image_size(unsigned long saveable)
 {
 	unsigned long size;
 
-	size = global_node_page_state(NR_SLAB_RECLAIMABLE)
+	size = global_node_page_state_pages(NR_SLAB_RECLAIMABLE_B)
 		+ global_node_page_state(NR_ACTIVE_ANON)
 		+ global_node_page_state(NR_INACTIVE_ANON)
 		+ global_node_page_state(NR_ACTIVE_FILE)
@@ -1743,9 +1742,6 @@ int hibernate_preallocate_memory(void)
 	avail_normal = count;
 	count += highmem;
 	count -= totalreserve_pages;
-
-	/* Add number of pages required for page keys (s390 only). */
-	size += page_key_additional_pages(saveable);
 
 	/* Compute the maximum number of saveable pages to leave in memory. */
 	max_size = (count - (size + PAGES_FOR_IO)) / 2
@@ -2027,7 +2023,7 @@ static int init_header_complete(struct swsusp_info *info)
 	return 0;
 }
 
-static char *check_image_kernel(struct swsusp_info *info)
+static const char *check_image_kernel(struct swsusp_info *info)
 {
 	if (info->version_code != LINUX_VERSION_CODE)
 		return "kernel version";
@@ -2075,8 +2071,6 @@ static inline void pack_pfns(unsigned long *buf, struct memory_bitmap *bm)
 		buf[j] = memory_bm_next_pfn(bm);
 		if (unlikely(buf[j] == BM_END_OF_MAP))
 			break;
-		/* Save page key for data page (s390 only). */
-		page_key_read(buf + j);
 	}
 }
 
@@ -2182,7 +2176,7 @@ static void mark_unsafe_pages(struct memory_bitmap *bm)
 
 static int check_header(struct swsusp_info *info)
 {
-	char *reason;
+	const char *reason;
 
 	reason = check_image_kernel(info);
 	if (!reason && info->num_physpages != get_num_physpages())
@@ -2225,9 +2219,6 @@ static int unpack_orig_pfns(unsigned long *buf, struct memory_bitmap *bm)
 	for (j = 0; j < PAGE_SIZE / sizeof(long); j++) {
 		if (unlikely(buf[j] == BM_END_OF_MAP))
 			break;
-
-		/* Extract and buffer page key for data page (s390 only). */
-		page_key_memorize(buf + j);
 
 		if (pfn_valid(buf[j]) && memory_bm_pfn_present(bm, buf[j]))
 			memory_bm_set_bit(bm, buf[j]);
@@ -2623,11 +2614,6 @@ int snapshot_write_next(struct snapshot_handle *handle)
 		if (error)
 			return error;
 
-		/* Allocate buffer for page keys. */
-		error = page_key_alloc(nr_copy_pages);
-		if (error)
-			return error;
-
 		hibernate_restore_protection_begin();
 	} else if (handle->cur <= nr_meta_pages + 1) {
 		error = unpack_orig_pfns(buffer, &copy_bm);
@@ -2649,8 +2635,6 @@ int snapshot_write_next(struct snapshot_handle *handle)
 		}
 	} else {
 		copy_last_highmem_page();
-		/* Restore page key for data page (s390 only). */
-		page_key_write(handle->buffer);
 		hibernate_restore_protect_page(handle->buffer);
 		handle->buffer = get_buffer(&orig_bm, &ca);
 		if (IS_ERR(handle->buffer))
@@ -2673,9 +2657,6 @@ int snapshot_write_next(struct snapshot_handle *handle)
 void snapshot_write_finalize(struct snapshot_handle *handle)
 {
 	copy_last_highmem_page();
-	/* Restore page key for data page (s390 only). */
-	page_key_write(handle->buffer);
-	page_key_free();
 	hibernate_restore_protect_page(handle->buffer);
 	/* Do that only if we have loaded the image entirely */
 	if (handle->cur > 1 && handle->cur > nr_meta_pages + nr_copy_pages) {

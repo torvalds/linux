@@ -24,16 +24,12 @@ struct module;
 struct tty_struct;
 struct notifier_block;
 
-/*
- * this is what the terminal answers to a ESC-Z or csi0c query.
- */
-#define VT100ID "\033[?1;2c"
-#define VT102ID "\033[?6c"
-
 enum con_scroll {
 	SM_UP,
 	SM_DOWN,
 };
+
+enum vc_intensity;
 
 /**
  * struct consw - callbacks for consoles
@@ -74,8 +70,9 @@ struct consw {
 	void	(*con_scrolldelta)(struct vc_data *vc, int lines);
 	int	(*con_set_origin)(struct vc_data *vc);
 	void	(*con_save_screen)(struct vc_data *vc);
-	u8	(*con_build_attr)(struct vc_data *vc, u8 color, u8 intensity,
-			u8 blink, u8 underline, u8 reverse, u8 italic);
+	u8	(*con_build_attr)(struct vc_data *vc, u8 color,
+			enum vc_intensity intensity,
+			bool blink, bool underline, bool reverse, bool italic);
 	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
 	u16    *(*con_screen_pos)(struct vc_data *vc, int offset);
 	unsigned long (*con_getxy)(struct vc_data *vc, unsigned long position,
@@ -134,7 +131,7 @@ static inline int con_debug_leave(void)
  */
 
 #define CON_PRINTBUFFER	(1)
-#define CON_CONSDEV	(2) /* Last on the command line */
+#define CON_CONSDEV	(2) /* Preferred console, /dev/console */
 #define CON_ENABLED	(4)
 #define CON_BOOT	(8)
 #define CON_ANYTIME	(16) /* Safe to call when cpu is offline */
@@ -148,6 +145,7 @@ struct console {
 	struct tty_driver *(*device)(struct console *, int *);
 	void	(*unblank)(void);
 	int	(*setup)(struct console *, char *);
+	int	(*exit)(struct console *);
 	int	(*match)(struct console *, char *name, int idx, char *options);
 	short	flags;
 	short	index;

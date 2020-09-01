@@ -118,6 +118,7 @@ struct tcmu_dev {
 #define TCMU_DEV_BIT_OPEN 0
 #define TCMU_DEV_BIT_BROKEN 1
 #define TCMU_DEV_BIT_BLOCKED 2
+#define TCMU_DEV_BIT_TMR_NOTIFY 3
 	unsigned long flags;
 
 	struct uio_info uio_info;
@@ -137,6 +138,7 @@ struct tcmu_dev {
 
 	struct mutex cmdr_lock;
 	struct list_head qfull_queue;
+	struct list_head tmr_queue;
 
 	uint32_t dbi_max;
 	uint32_t dbi_thresh;
@@ -181,9 +183,17 @@ struct tcmu_cmd {
 	unsigned long deadline;
 
 #define TCMU_CMD_BIT_EXPIRED 0
-#define TCMU_CMD_BIT_INFLIGHT 1
 	unsigned long flags;
 };
+
+struct tcmu_tmr {
+	struct list_head queue_entry;
+
+	uint8_t tmr_type;
+	uint32_t tmr_cmd_cnt;
+	int16_t tmr_cmd_ids[0];
+};
+
 /*
  * To avoid dead lock the mutex lock order should always be:
  *
@@ -542,6 +552,8 @@ tcmu_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 
 static inline void tcmu_free_cmd(struct tcmu_cmd *tcmu_cmd)
 {
+	if (tcmu_cmd->se_cmd)
+		tcmu_cmd->se_cmd->priv = NULL;
 	kfree(tcmu_cmd->dbi);
 	kmem_cache_free(tcmu_cmd_cache, tcmu_cmd);
 }
@@ -601,7 +613,7 @@ static inline void tcmu_flush_dcache_range(void *vaddr, size_t size)
 	size = round_up(size+offset, PAGE_SIZE);
 
 	while (size) {
-		flush_dcache_page(virt_to_page(start));
+		flush_dcache_page(vmalloc_to_page(start));
 		start += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
@@ -676,8 +688,10 @@ static void scatter_data_area(struct tcmu_dev *udev,
 		from = kmap_atomic(sg_page(sg)) + sg->offset;
 		while (sg_remaining > 0) {
 			if (block_remaining == 0) {
-				if (to)
+				if (to) {
+					flush_dcache_page(page);
 					kunmap_atomic(to);
+				}
 
 				block_remaining = DATA_BLOCK_SIZE;
 				dbi = tcmu_cmd_get_dbi(tcmu_cmd);
@@ -722,7 +736,6 @@ static void scatter_data_area(struct tcmu_dev *udev,
 				memcpy(to + offset,
 				       from + sg->length - sg_remaining,
 				       copy_bytes);
-				tcmu_flush_dcache_range(to, copy_bytes);
 			}
 
 			sg_remaining -= copy_bytes;
@@ -731,8 +744,10 @@ static void scatter_data_area(struct tcmu_dev *udev,
 		kunmap_atomic(from - sg->offset);
 	}
 
-	if (to)
+	if (to) {
+		flush_dcache_page(page);
 		kunmap_atomic(to);
+	}
 }
 
 static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
@@ -778,13 +793,13 @@ static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 				dbi = tcmu_cmd_get_dbi(cmd);
 				page = tcmu_get_block_page(udev, dbi);
 				from = kmap_atomic(page);
+				flush_dcache_page(page);
 			}
 			copy_bytes = min_t(size_t, sg_remaining,
 					block_remaining);
 			if (read_len < copy_bytes)
 				copy_bytes = read_len;
 			offset = DATA_BLOCK_SIZE - block_remaining;
-			tcmu_flush_dcache_range(from, copy_bytes);
 			memcpy(to + sg->length - sg_remaining, from + offset,
 					copy_bytes);
 
@@ -840,6 +855,9 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 		return false;
 	}
 
+	if (!data_needed)
+		return true;
+
 	/* try to check and get the data blocks as needed */
 	space = spc_bitmap_free(udev->data_bitmap, udev->dbi_thresh);
 	if ((space * DATA_BLOCK_SIZE) < data_needed) {
@@ -882,41 +900,24 @@ static inline size_t tcmu_cmd_get_cmd_size(struct tcmu_cmd *tcmu_cmd,
 	return command_size;
 }
 
-static int tcmu_setup_cmd_timer(struct tcmu_cmd *tcmu_cmd, unsigned int tmo,
-				struct timer_list *timer)
+static void tcmu_setup_cmd_timer(struct tcmu_cmd *tcmu_cmd, unsigned int tmo,
+				 struct timer_list *timer)
 {
-	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
-	int cmd_id;
-
-	if (tcmu_cmd->cmd_id)
-		goto setup_timer;
-
-	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 1, USHRT_MAX, GFP_NOWAIT);
-	if (cmd_id < 0) {
-		pr_err("tcmu: Could not allocate cmd id.\n");
-		return cmd_id;
-	}
-	tcmu_cmd->cmd_id = cmd_id;
-
-	pr_debug("allocated cmd %u for dev %s tmo %lu\n", tcmu_cmd->cmd_id,
-		 udev->name, tmo / MSEC_PER_SEC);
-
-setup_timer:
 	if (!tmo)
-		return 0;
+		return;
 
 	tcmu_cmd->deadline = round_jiffies_up(jiffies + msecs_to_jiffies(tmo));
 	if (!timer_pending(timer))
 		mod_timer(timer, tcmu_cmd->deadline);
 
-	return 0;
+	pr_debug("Timeout set up for cmd %p, dev = %s, tmo = %lu\n", tcmu_cmd,
+		 tcmu_cmd->tcmu_dev->name, tmo / MSEC_PER_SEC);
 }
 
 static int add_to_qfull_queue(struct tcmu_cmd *tcmu_cmd)
 {
 	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
 	unsigned int tmo;
-	int ret;
 
 	/*
 	 * For backwards compat if qfull_time_out is not set use
@@ -931,14 +932,40 @@ static int add_to_qfull_queue(struct tcmu_cmd *tcmu_cmd)
 	else
 		tmo = TCMU_TIME_OUT;
 
-	ret = tcmu_setup_cmd_timer(tcmu_cmd, tmo, &udev->qfull_timer);
-	if (ret)
-		return ret;
+	tcmu_setup_cmd_timer(tcmu_cmd, tmo, &udev->qfull_timer);
 
 	list_add_tail(&tcmu_cmd->queue_entry, &udev->qfull_queue);
-	pr_debug("adding cmd %u on dev %s to ring space wait queue\n",
-		 tcmu_cmd->cmd_id, udev->name);
+	pr_debug("adding cmd %p on dev %s to ring space wait queue\n",
+		 tcmu_cmd, udev->name);
 	return 0;
+}
+
+static uint32_t ring_insert_padding(struct tcmu_dev *udev, size_t cmd_size)
+{
+	struct tcmu_cmd_entry_hdr *hdr;
+	struct tcmu_mailbox *mb = udev->mb_addr;
+	uint32_t cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
+
+	/* Insert a PAD if end-of-ring space is too small */
+	if (head_to_end(cmd_head, udev->cmdr_size) < cmd_size) {
+		size_t pad_size = head_to_end(cmd_head, udev->cmdr_size);
+
+		hdr = (void *) mb + CMDR_OFF + cmd_head;
+		tcmu_hdr_set_op(&hdr->len_op, TCMU_OP_PAD);
+		tcmu_hdr_set_len(&hdr->len_op, pad_size);
+		hdr->cmd_id = 0; /* not used for PAD */
+		hdr->kflags = 0;
+		hdr->uflags = 0;
+		tcmu_flush_dcache_range(hdr, sizeof(*hdr));
+
+		UPDATE_HEAD(mb->cmd_head, pad_size, udev->cmdr_size);
+		tcmu_flush_dcache_range(mb, sizeof(*mb));
+
+		cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
+		WARN_ON(cmd_head != 0);
+	}
+
+	return cmd_head;
 }
 
 /**
@@ -956,10 +983,10 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
 	struct se_cmd *se_cmd = tcmu_cmd->se_cmd;
 	size_t base_command_size, command_size;
-	struct tcmu_mailbox *mb;
+	struct tcmu_mailbox *mb = udev->mb_addr;
 	struct tcmu_cmd_entry *entry;
 	struct iovec *iov;
-	int iov_cnt, ret;
+	int iov_cnt, cmd_id;
 	uint32_t cmd_head;
 	uint64_t cdb_off;
 	bool copy_to_data_area;
@@ -995,8 +1022,6 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	if (!list_empty(&udev->qfull_queue))
 		goto queue;
 
-	mb = udev->mb_addr;
-	cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
 	if ((command_size > (udev->cmdr_size / 2)) ||
 	    data_length > udev->data_size) {
 		pr_warn("TCMU: Request of size %zu/%zu is too big for %u/%zu "
@@ -1016,24 +1041,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 		goto queue;
 	}
 
-	/* Insert a PAD if end-of-ring space is too small */
-	if (head_to_end(cmd_head, udev->cmdr_size) < command_size) {
-		size_t pad_size = head_to_end(cmd_head, udev->cmdr_size);
-
-		entry = (void *) mb + CMDR_OFF + cmd_head;
-		tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_PAD);
-		tcmu_hdr_set_len(&entry->hdr.len_op, pad_size);
-		entry->hdr.cmd_id = 0; /* not used for PAD */
-		entry->hdr.kflags = 0;
-		entry->hdr.uflags = 0;
-		tcmu_flush_dcache_range(entry, sizeof(*entry));
-
-		UPDATE_HEAD(mb->cmd_head, pad_size, udev->cmdr_size);
-		tcmu_flush_dcache_range(mb, sizeof(*mb));
-
-		cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
-		WARN_ON(cmd_head != 0);
-	}
+	cmd_head = ring_insert_padding(udev, command_size);
 
 	entry = (void *) mb + CMDR_OFF + cmd_head;
 	memset(entry, 0, command_size);
@@ -1060,14 +1068,21 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	}
 	entry->req.iov_bidi_cnt = iov_cnt;
 
-	ret = tcmu_setup_cmd_timer(tcmu_cmd, udev->cmd_time_out,
-				   &udev->cmd_timer);
-	if (ret) {
-		tcmu_cmd_free_data(tcmu_cmd, tcmu_cmd->dbi_cnt);
+	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 1, USHRT_MAX, GFP_NOWAIT);
+	if (cmd_id < 0) {
+		pr_err("tcmu: Could not allocate cmd id.\n");
 
+		tcmu_cmd_free_data(tcmu_cmd, tcmu_cmd->dbi_cnt);
 		*scsi_err = TCM_OUT_OF_RESOURCES;
 		return -1;
 	}
+	tcmu_cmd->cmd_id = cmd_id;
+
+	pr_debug("allocated cmd id %u for cmd %p dev %s\n", tcmu_cmd->cmd_id,
+		 tcmu_cmd, udev->name);
+
+	tcmu_setup_cmd_timer(tcmu_cmd, udev->cmd_time_out, &udev->cmd_timer);
+
 	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
 
 	/*
@@ -1084,13 +1099,12 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	cdb_off = CMDR_OFF + cmd_head + base_command_size;
 	memcpy((void *) mb + cdb_off, se_cmd->t_task_cdb, scsi_command_size(se_cmd->t_task_cdb));
 	entry->req.cdb_off = cdb_off;
-	tcmu_flush_dcache_range(entry, sizeof(*entry));
+	tcmu_flush_dcache_range(entry, command_size);
 
 	UPDATE_HEAD(mb->cmd_head, command_size, udev->cmdr_size);
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
 
 	list_add_tail(&tcmu_cmd->queue_entry, &udev->inflight_queue);
-	set_bit(TCMU_CMD_BIT_INFLIGHT, &tcmu_cmd->flags);
 
 	/* TODO: only if FLUSH and FUA? */
 	uio_event_notify(&udev->uio_info);
@@ -1106,25 +1120,175 @@ queue:
 	return 1;
 }
 
+/**
+ * queue_tmr_ring - queue tmr info to ring or internally
+ * @udev: related tcmu_dev
+ * @tmr: tcmu_tmr containing tmr info to queue
+ *
+ * Returns:
+ *  0 success
+ *  1 internally queued to wait for ring memory to free.
+ */
+static int
+queue_tmr_ring(struct tcmu_dev *udev, struct tcmu_tmr *tmr)
+{
+	struct tcmu_tmr_entry *entry;
+	int cmd_size;
+	int id_list_sz;
+	struct tcmu_mailbox *mb = udev->mb_addr;
+	uint32_t cmd_head;
+
+	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags))
+		goto out_free;
+
+	id_list_sz = sizeof(tmr->tmr_cmd_ids[0]) * tmr->tmr_cmd_cnt;
+	cmd_size = round_up(sizeof(*entry) + id_list_sz, TCMU_OP_ALIGN_SIZE);
+
+	if (!list_empty(&udev->tmr_queue) ||
+	    !is_ring_space_avail(udev, NULL, cmd_size, 0)) {
+		list_add_tail(&tmr->queue_entry, &udev->tmr_queue);
+		pr_debug("adding tmr %p on dev %s to TMR ring space wait queue\n",
+			 tmr, udev->name);
+		return 1;
+	}
+
+	cmd_head = ring_insert_padding(udev, cmd_size);
+
+	entry = (void *)mb + CMDR_OFF + cmd_head;
+	memset(entry, 0, cmd_size);
+	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_TMR);
+	tcmu_hdr_set_len(&entry->hdr.len_op, cmd_size);
+	entry->tmr_type = tmr->tmr_type;
+	entry->cmd_cnt = tmr->tmr_cmd_cnt;
+	memcpy(&entry->cmd_ids[0], &tmr->tmr_cmd_ids[0], id_list_sz);
+	tcmu_flush_dcache_range(entry, cmd_size);
+
+	UPDATE_HEAD(mb->cmd_head, cmd_size, udev->cmdr_size);
+	tcmu_flush_dcache_range(mb, sizeof(*mb));
+
+	uio_event_notify(&udev->uio_info);
+
+out_free:
+	kfree(tmr);
+
+	return 0;
+}
+
 static sense_reason_t
 tcmu_queue_cmd(struct se_cmd *se_cmd)
 {
 	struct se_device *se_dev = se_cmd->se_dev;
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	struct tcmu_cmd *tcmu_cmd;
-	sense_reason_t scsi_ret;
-	int ret;
+	sense_reason_t scsi_ret = TCM_CHECK_CONDITION_ABORT_CMD;
+	int ret = -1;
 
 	tcmu_cmd = tcmu_alloc_cmd(se_cmd);
 	if (!tcmu_cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	mutex_lock(&udev->cmdr_lock);
-	ret = queue_cmd_ring(tcmu_cmd, &scsi_ret);
-	mutex_unlock(&udev->cmdr_lock);
+	se_cmd->priv = tcmu_cmd;
+	if (!(se_cmd->transport_state & CMD_T_ABORTED))
+		ret = queue_cmd_ring(tcmu_cmd, &scsi_ret);
 	if (ret < 0)
 		tcmu_free_cmd(tcmu_cmd);
+	mutex_unlock(&udev->cmdr_lock);
 	return scsi_ret;
+}
+
+static void tcmu_set_next_deadline(struct list_head *queue,
+				   struct timer_list *timer)
+{
+	struct tcmu_cmd *cmd;
+
+	if (!list_empty(queue)) {
+		cmd = list_first_entry(queue, struct tcmu_cmd, queue_entry);
+		mod_timer(timer, cmd->deadline);
+	} else
+		del_timer(timer);
+}
+
+static int
+tcmu_tmr_type(enum tcm_tmreq_table tmf)
+{
+	switch (tmf) {
+	case TMR_ABORT_TASK:		return TCMU_TMR_ABORT_TASK;
+	case TMR_ABORT_TASK_SET:	return TCMU_TMR_ABORT_TASK_SET;
+	case TMR_CLEAR_ACA:		return TCMU_TMR_CLEAR_ACA;
+	case TMR_CLEAR_TASK_SET:	return TCMU_TMR_CLEAR_TASK_SET;
+	case TMR_LUN_RESET:		return TCMU_TMR_LUN_RESET;
+	case TMR_TARGET_WARM_RESET:	return TCMU_TMR_TARGET_WARM_RESET;
+	case TMR_TARGET_COLD_RESET:	return TCMU_TMR_TARGET_COLD_RESET;
+	case TMR_LUN_RESET_PRO:		return TCMU_TMR_LUN_RESET_PRO;
+	default:			return TCMU_TMR_UNKNOWN;
+	}
+}
+
+static void
+tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
+		struct list_head *cmd_list)
+{
+	int i = 0, cmd_cnt = 0;
+	bool unqueued = false;
+	uint16_t *cmd_ids = NULL;
+	struct tcmu_cmd *cmd;
+	struct se_cmd *se_cmd;
+	struct tcmu_tmr *tmr;
+	struct tcmu_dev *udev = TCMU_DEV(se_dev);
+
+	mutex_lock(&udev->cmdr_lock);
+
+	/* First we check for aborted commands in qfull_queue */
+	list_for_each_entry(se_cmd, cmd_list, state_list) {
+		i++;
+		if (!se_cmd->priv)
+			continue;
+		cmd = se_cmd->priv;
+		/* Commands on qfull queue have no id yet */
+		if (cmd->cmd_id) {
+			cmd_cnt++;
+			continue;
+		}
+		pr_debug("Removing aborted command %p from queue on dev %s.\n",
+			 cmd, udev->name);
+
+		list_del_init(&cmd->queue_entry);
+		tcmu_free_cmd(cmd);
+		target_complete_cmd(se_cmd, SAM_STAT_TASK_ABORTED);
+		unqueued = true;
+	}
+	if (unqueued)
+		tcmu_set_next_deadline(&udev->qfull_queue, &udev->qfull_timer);
+
+	if (!test_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags))
+		goto unlock;
+
+	pr_debug("TMR event %d on dev %s, aborted cmds %d, afflicted cmd_ids %d\n",
+		 tcmu_tmr_type(tmf), udev->name, i, cmd_cnt);
+
+	tmr = kmalloc(sizeof(*tmr) + cmd_cnt * sizeof(*cmd_ids), GFP_KERNEL);
+	if (!tmr)
+		goto unlock;
+
+	tmr->tmr_type = tcmu_tmr_type(tmf);
+	tmr->tmr_cmd_cnt = cmd_cnt;
+
+	if (cmd_cnt != 0) {
+		cmd_cnt = 0;
+		list_for_each_entry(se_cmd, cmd_list, state_list) {
+			if (!se_cmd->priv)
+				continue;
+			cmd = se_cmd->priv;
+			if (cmd->cmd_id)
+				tmr->tmr_cmd_ids[cmd_cnt++] = cmd->cmd_id;
+		}
+	}
+
+	queue_tmr_ring(udev, tmr);
+
+unlock:
+	mutex_unlock(&udev->cmdr_lock);
 }
 
 static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *entry)
@@ -1190,35 +1354,47 @@ done:
 		target_complete_cmd(cmd->se_cmd, entry->rsp.scsi_status);
 
 out:
-	cmd->se_cmd = NULL;
 	tcmu_cmd_free_data(cmd, cmd->dbi_cnt);
 	tcmu_free_cmd(cmd);
 }
 
-static void tcmu_set_next_deadline(struct list_head *queue,
-				   struct timer_list *timer)
+static int tcmu_run_tmr_queue(struct tcmu_dev *udev)
 {
-	struct tcmu_cmd *tcmu_cmd, *tmp_cmd;
-	unsigned long deadline = 0;
+	struct tcmu_tmr *tmr, *tmp;
+	LIST_HEAD(tmrs);
 
-	list_for_each_entry_safe(tcmu_cmd, tmp_cmd, queue, queue_entry) {
-		if (!time_after(jiffies, tcmu_cmd->deadline)) {
-			deadline = tcmu_cmd->deadline;
-			break;
+	if (list_empty(&udev->tmr_queue))
+		return 1;
+
+	pr_debug("running %s's tmr queue\n", udev->name);
+
+	list_splice_init(&udev->tmr_queue, &tmrs);
+
+	list_for_each_entry_safe(tmr, tmp, &tmrs, queue_entry) {
+		list_del_init(&tmr->queue_entry);
+
+		pr_debug("removing tmr %p on dev %s from queue\n",
+			 tmr, udev->name);
+
+		if (queue_tmr_ring(udev, tmr)) {
+			pr_debug("ran out of space during tmr queue run\n");
+			/*
+			 * tmr was requeued, so just put all tmrs back in
+			 * the queue
+			 */
+			list_splice_tail(&tmrs, &udev->tmr_queue);
+			return 0;
 		}
 	}
 
-	if (deadline)
-		mod_timer(timer, deadline);
-	else
-		del_timer(timer);
+	return 1;
 }
 
 static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 {
 	struct tcmu_mailbox *mb;
 	struct tcmu_cmd *cmd;
-	int handled = 0;
+	bool free_space = false;
 
 	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags)) {
 		pr_err("ring broken, not handling completions\n");
@@ -1232,9 +1408,19 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 
 		struct tcmu_cmd_entry *entry = (void *) mb + CMDR_OFF + udev->cmdr_last_cleaned;
 
-		tcmu_flush_dcache_range(entry, sizeof(*entry));
+		/*
+		 * Flush max. up to end of cmd ring since current entry might
+		 * be a padding that is shorter than sizeof(*entry)
+		 */
+		size_t ring_left = head_to_end(udev->cmdr_last_cleaned,
+					       udev->cmdr_size);
+		tcmu_flush_dcache_range(entry, ring_left < sizeof(*entry) ?
+					ring_left : sizeof(*entry));
 
-		if (tcmu_hdr_get_op(entry->hdr.len_op) == TCMU_OP_PAD) {
+		free_space = true;
+
+		if (tcmu_hdr_get_op(entry->hdr.len_op) == TCMU_OP_PAD ||
+		    tcmu_hdr_get_op(entry->hdr.len_op) == TCMU_OP_TMR) {
 			UPDATE_HEAD(udev->cmdr_last_cleaned,
 				    tcmu_hdr_get_len(entry->hdr.len_op),
 				    udev->cmdr_size);
@@ -1255,74 +1441,58 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 		UPDATE_HEAD(udev->cmdr_last_cleaned,
 			    tcmu_hdr_get_len(entry->hdr.len_op),
 			    udev->cmdr_size);
-
-		handled++;
 	}
+	if (free_space)
+		free_space = tcmu_run_tmr_queue(udev);
 
-	if (mb->cmd_tail == mb->cmd_head) {
-		/* no more pending commands */
-		del_timer(&udev->cmd_timer);
-
-		if (list_empty(&udev->qfull_queue)) {
-			/*
-			 * no more pending or waiting commands so try to
-			 * reclaim blocks if needed.
-			 */
-			if (atomic_read(&global_db_count) >
-			    tcmu_global_max_blocks)
-				schedule_delayed_work(&tcmu_unmap_work, 0);
-		}
-	} else if (udev->cmd_time_out) {
+	if (atomic_read(&global_db_count) > tcmu_global_max_blocks &&
+	    idr_is_empty(&udev->commands) && list_empty(&udev->qfull_queue)) {
+		/*
+		 * Allocated blocks exceeded global block limit, currently no
+		 * more pending or waiting commands so try to reclaim blocks.
+		 */
+		schedule_delayed_work(&tcmu_unmap_work, 0);
+	}
+	if (udev->cmd_time_out)
 		tcmu_set_next_deadline(&udev->inflight_queue, &udev->cmd_timer);
-	}
 
-	return handled;
+	return free_space;
 }
 
-static int tcmu_check_expired_cmd(int id, void *p, void *data)
+static void tcmu_check_expired_ring_cmd(struct tcmu_cmd *cmd)
 {
-	struct tcmu_cmd *cmd = p;
-	struct tcmu_dev *udev = cmd->tcmu_dev;
-	u8 scsi_status;
 	struct se_cmd *se_cmd;
-	bool is_running;
 
-	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags))
-		return 0;
+	if (!time_after_eq(jiffies, cmd->deadline))
+		return;
 
-	if (!time_after(jiffies, cmd->deadline))
-		return 0;
-
-	is_running = test_bit(TCMU_CMD_BIT_INFLIGHT, &cmd->flags);
+	set_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags);
+	list_del_init(&cmd->queue_entry);
 	se_cmd = cmd->se_cmd;
+	se_cmd->priv = NULL;
+	cmd->se_cmd = NULL;
 
-	if (is_running) {
-		/*
-		 * If cmd_time_out is disabled but qfull is set deadline
-		 * will only reflect the qfull timeout. Ignore it.
-		 */
-		if (!udev->cmd_time_out)
-			return 0;
+	pr_debug("Timing out inflight cmd %u on dev %s.\n",
+		 cmd->cmd_id, cmd->tcmu_dev->name);
 
-		set_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags);
-		/*
-		 * target_complete_cmd will translate this to LUN COMM FAILURE
-		 */
-		scsi_status = SAM_STAT_CHECK_CONDITION;
-		list_del_init(&cmd->queue_entry);
-		cmd->se_cmd = NULL;
-	} else {
-		list_del_init(&cmd->queue_entry);
-		idr_remove(&udev->commands, id);
-		tcmu_free_cmd(cmd);
-		scsi_status = SAM_STAT_TASK_SET_FULL;
-	}
+	target_complete_cmd(se_cmd, SAM_STAT_CHECK_CONDITION);
+}
 
-	pr_debug("Timing out cmd %u on dev %s that is %s.\n",
-		 id, udev->name, is_running ? "inflight" : "queued");
+static void tcmu_check_expired_queue_cmd(struct tcmu_cmd *cmd)
+{
+	struct se_cmd *se_cmd;
 
-	target_complete_cmd(se_cmd, scsi_status);
-	return 0;
+	if (!time_after_eq(jiffies, cmd->deadline))
+		return;
+
+	pr_debug("Timing out queued cmd %p on dev %s.\n",
+		  cmd, cmd->tcmu_dev->name);
+
+	list_del_init(&cmd->queue_entry);
+	se_cmd = cmd->se_cmd;
+	tcmu_free_cmd(cmd);
+
+	target_complete_cmd(se_cmd, SAM_STAT_TASK_SET_FULL);
 }
 
 static void tcmu_device_timedout(struct tcmu_dev *udev)
@@ -1396,6 +1566,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&udev->node);
 	INIT_LIST_HEAD(&udev->timedout_entry);
 	INIT_LIST_HEAD(&udev->qfull_queue);
+	INIT_LIST_HEAD(&udev->tmr_queue);
 	INIT_LIST_HEAD(&udev->inflight_queue);
 	idr_init(&udev->commands);
 
@@ -1407,16 +1578,15 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	return &udev->se_dev;
 }
 
-static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
+static void run_qfull_queue(struct tcmu_dev *udev, bool fail)
 {
 	struct tcmu_cmd *tcmu_cmd, *tmp_cmd;
 	LIST_HEAD(cmds);
-	bool drained = true;
 	sense_reason_t scsi_ret;
 	int ret;
 
 	if (list_empty(&udev->qfull_queue))
-		return true;
+		return;
 
 	pr_debug("running %s's cmdr queue forcefail %d\n", udev->name, fail);
 
@@ -1425,11 +1595,10 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 	list_for_each_entry_safe(tcmu_cmd, tmp_cmd, &cmds, queue_entry) {
 		list_del_init(&tcmu_cmd->queue_entry);
 
-	        pr_debug("removing cmd %u on dev %s from queue\n",
-		         tcmu_cmd->cmd_id, udev->name);
+		pr_debug("removing cmd %p on dev %s from queue\n",
+			 tcmu_cmd, udev->name);
 
 		if (fail) {
-			idr_remove(&udev->commands, tcmu_cmd->cmd_id);
 			/*
 			 * We were not able to even start the command, so
 			 * fail with busy to allow a retry in case runner
@@ -1444,10 +1613,8 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 
 		ret = queue_cmd_ring(tcmu_cmd, &scsi_ret);
 		if (ret < 0) {
-		        pr_debug("cmd %u on dev %s failed with %u\n",
-			         tcmu_cmd->cmd_id, udev->name, scsi_ret);
-
-			idr_remove(&udev->commands, tcmu_cmd->cmd_id);
+			pr_debug("cmd %p on dev %s failed with %u\n",
+				 tcmu_cmd, udev->name, scsi_ret);
 			/*
 			 * Ignore scsi_ret for now. target_complete_cmd
 			 * drops it.
@@ -1462,13 +1629,11 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 			 * the queue
 			 */
 			list_splice_tail(&cmds, &udev->qfull_queue);
-			drained = false;
 			break;
 		}
 	}
 
 	tcmu_set_next_deadline(&udev->qfull_queue, &udev->qfull_timer);
-	return drained;
 }
 
 static int tcmu_irqcontrol(struct uio_info *info, s32 irq_on)
@@ -1476,8 +1641,8 @@ static int tcmu_irqcontrol(struct uio_info *info, s32 irq_on)
 	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
 
 	mutex_lock(&udev->cmdr_lock);
-	tcmu_handle_completions(udev);
-	run_qfull_queue(udev, false);
+	if (tcmu_handle_completions(udev))
+		run_qfull_queue(udev, false);
 	mutex_unlock(&udev->cmdr_lock);
 
 	return 0;
@@ -1630,6 +1795,16 @@ static void tcmu_blocks_release(struct radix_tree_root *blocks,
 	}
 }
 
+static void tcmu_remove_all_queued_tmr(struct tcmu_dev *udev)
+{
+	struct tcmu_tmr *tmr, *tmp;
+
+	list_for_each_entry_safe(tmr, tmp, &udev->tmr_queue, queue_entry) {
+		list_del_init(&tmr->queue_entry);
+		kfree(tmr);
+	}
+}
+
 static void tcmu_dev_kref_release(struct kref *kref)
 {
 	struct tcmu_dev *udev = container_of(kref, struct tcmu_dev, kref);
@@ -1652,6 +1827,10 @@ static void tcmu_dev_kref_release(struct kref *kref)
 		if (tcmu_check_and_free_pending_cmd(cmd) != 0)
 			all_expired = false;
 	}
+	/* There can be left over TMR cmds. Remove them. */
+	tcmu_remove_all_queued_tmr(udev);
+	if (!list_empty(&udev->qfull_queue))
+		all_expired = false;
 	idr_destroy(&udev->commands);
 	WARN_ON(!all_expired);
 
@@ -1904,7 +2083,9 @@ static int tcmu_configure_device(struct se_device *dev)
 	/* Initialise the mailbox of the ring buffer */
 	mb = udev->mb_addr;
 	mb->version = TCMU_MAILBOX_VERSION;
-	mb->flags = TCMU_MAILBOX_FLAG_CAP_OOOC | TCMU_MAILBOX_FLAG_CAP_READ_LEN;
+	mb->flags = TCMU_MAILBOX_FLAG_CAP_OOOC |
+		    TCMU_MAILBOX_FLAG_CAP_READ_LEN |
+		    TCMU_MAILBOX_FLAG_CAP_TMR;
 	mb->cmdr_off = CMDR_OFF;
 	mb->cmdr_size = udev->cmdr_size;
 
@@ -2037,9 +2218,6 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 	mutex_lock(&udev->cmdr_lock);
 
 	idr_for_each_entry(&udev->commands, cmd, i) {
-		if (!test_bit(TCMU_CMD_BIT_INFLIGHT, &cmd->flags))
-			continue;
-
 		pr_debug("removing cmd %u on dev %s from ring (is expired %d)\n",
 			  cmd->cmd_id, udev->name,
 			  test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags));
@@ -2073,8 +2251,20 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 	mb->cmd_tail = 0;
 	mb->cmd_head = 0;
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
+	clear_bit(TCMU_DEV_BIT_BROKEN, &udev->flags);
 
 	del_timer(&udev->cmd_timer);
+
+	/*
+	 * ring is empty and qfull queue never contains aborted commands.
+	 * So TMRs in tmr queue do not contain relevant cmd_ids.
+	 * After a ring reset userspace should do a fresh start, so
+	 * even LUN RESET message is no longer relevant.
+	 * Therefore remove all TMRs from qfull queue
+	 */
+	tcmu_remove_all_queued_tmr(udev);
+
+	run_qfull_queue(udev, false);
 
 	mutex_unlock(&udev->cmdr_lock);
 }
@@ -2520,6 +2710,39 @@ static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 }
 CONFIGFS_ATTR(tcmu_, emulate_write_cache);
 
+static ssize_t tcmu_tmr_notification_show(struct config_item *item, char *page)
+{
+	struct se_dev_attrib *da = container_of(to_config_group(item),
+					struct se_dev_attrib, da_group);
+	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
+
+	return snprintf(page, PAGE_SIZE, "%i\n",
+			test_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags));
+}
+
+static ssize_t tcmu_tmr_notification_store(struct config_item *item,
+					   const char *page, size_t count)
+{
+	struct se_dev_attrib *da = container_of(to_config_group(item),
+					struct se_dev_attrib, da_group);
+	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
+	u8 val;
+	int ret;
+
+	ret = kstrtou8(page, 0, &val);
+	if (ret < 0)
+		return ret;
+	if (val > 1)
+		return -EINVAL;
+
+	if (val)
+		set_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags);
+	else
+		clear_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags);
+	return count;
+}
+CONFIGFS_ATTR(tcmu_, tmr_notification);
+
 static ssize_t tcmu_block_dev_show(struct config_item *item, char *page)
 {
 	struct se_device *se_dev = container_of(to_config_group(item),
@@ -2601,6 +2824,7 @@ static struct configfs_attribute *tcmu_attrib_attrs[] = {
 	&tcmu_attr_dev_config,
 	&tcmu_attr_dev_size,
 	&tcmu_attr_emulate_write_cache,
+	&tcmu_attr_tmr_notification,
 	&tcmu_attr_nl_reply_supported,
 	NULL,
 };
@@ -2616,7 +2840,9 @@ static struct configfs_attribute *tcmu_action_attrs[] = {
 static struct target_backend_ops tcmu_ops = {
 	.name			= "user",
 	.owner			= THIS_MODULE,
-	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH,
+	.transport_flags_default = TRANSPORT_FLAG_PASSTHROUGH,
+	.transport_flags_changeable = TRANSPORT_FLAG_PASSTHROUGH_PGR |
+				      TRANSPORT_FLAG_PASSTHROUGH_ALUA,
 	.attach_hba		= tcmu_attach_hba,
 	.detach_hba		= tcmu_detach_hba,
 	.alloc_device		= tcmu_alloc_device,
@@ -2624,6 +2850,7 @@ static struct target_backend_ops tcmu_ops = {
 	.destroy_device		= tcmu_destroy_device,
 	.free_device		= tcmu_free_device,
 	.parse_cdb		= tcmu_parse_cdb,
+	.tmr_notify		= tcmu_tmr_notify,
 	.set_configfs_dev_params = tcmu_set_configfs_dev_params,
 	.show_configfs_dev_params = tcmu_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
@@ -2650,7 +2877,8 @@ static void find_free_blocks(void)
 		}
 
 		/* Try to complete the finished commands first */
-		tcmu_handle_completions(udev);
+		if (tcmu_handle_completions(udev))
+			run_qfull_queue(udev, false);
 
 		/* Skip the udevs in idle */
 		if (!udev->dbi_thresh) {
@@ -2697,6 +2925,7 @@ static void find_free_blocks(void)
 static void check_timedout_devices(void)
 {
 	struct tcmu_dev *udev, *tmp_dev;
+	struct tcmu_cmd *cmd, *tmp_cmd;
 	LIST_HEAD(devs);
 
 	spin_lock_bh(&timed_out_udevs_lock);
@@ -2707,9 +2936,24 @@ static void check_timedout_devices(void)
 		spin_unlock_bh(&timed_out_udevs_lock);
 
 		mutex_lock(&udev->cmdr_lock);
-		idr_for_each(&udev->commands, tcmu_check_expired_cmd, NULL);
 
-		tcmu_set_next_deadline(&udev->inflight_queue, &udev->cmd_timer);
+		/*
+		 * If cmd_time_out is disabled but qfull is set deadline
+		 * will only reflect the qfull timeout. Ignore it.
+		 */
+		if (udev->cmd_time_out) {
+			list_for_each_entry_safe(cmd, tmp_cmd,
+						 &udev->inflight_queue,
+						 queue_entry) {
+				tcmu_check_expired_ring_cmd(cmd);
+			}
+			tcmu_set_next_deadline(&udev->inflight_queue,
+					       &udev->cmd_timer);
+		}
+		list_for_each_entry_safe(cmd, tmp_cmd, &udev->qfull_queue,
+					 queue_entry) {
+			tcmu_check_expired_queue_cmd(cmd);
+		}
 		tcmu_set_next_deadline(&udev->qfull_queue, &udev->qfull_timer);
 
 		mutex_unlock(&udev->cmdr_lock);
@@ -2752,12 +2996,12 @@ static int __init tcmu_module_init(void)
 		goto out_unreg_device;
 	}
 
-	for (i = 0; passthrough_attrib_attrs[i] != NULL; i++) {
+	for (i = 0; passthrough_attrib_attrs[i] != NULL; i++)
 		len += sizeof(struct configfs_attribute *);
-	}
-	for (i = 0; tcmu_attrib_attrs[i] != NULL; i++) {
+	for (i = 0; passthrough_pr_attrib_attrs[i] != NULL; i++)
 		len += sizeof(struct configfs_attribute *);
-	}
+	for (i = 0; tcmu_attrib_attrs[i] != NULL; i++)
+		len += sizeof(struct configfs_attribute *);
 	len += sizeof(struct configfs_attribute *);
 
 	tcmu_attrs = kzalloc(len, GFP_KERNEL);
@@ -2766,13 +3010,12 @@ static int __init tcmu_module_init(void)
 		goto out_unreg_genl;
 	}
 
-	for (i = 0; passthrough_attrib_attrs[i] != NULL; i++) {
+	for (i = 0; passthrough_attrib_attrs[i] != NULL; i++)
 		tcmu_attrs[i] = passthrough_attrib_attrs[i];
-	}
-	for (k = 0; tcmu_attrib_attrs[k] != NULL; k++) {
-		tcmu_attrs[i] = tcmu_attrib_attrs[k];
-		i++;
-	}
+	for (k = 0; passthrough_pr_attrib_attrs[k] != NULL; k++)
+		tcmu_attrs[i++] = passthrough_pr_attrib_attrs[k];
+	for (k = 0; tcmu_attrib_attrs[k] != NULL; k++)
+		tcmu_attrs[i++] = tcmu_attrib_attrs[k];
 	tcmu_ops.tb_dev_attrib_attrs = tcmu_attrs;
 
 	ret = transport_backend_register(&tcmu_ops);

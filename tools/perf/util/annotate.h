@@ -74,6 +74,7 @@ bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 #define ANNOTATION__CYCLES_WIDTH 6
 #define ANNOTATION__MINMAX_CYCLES_WIDTH 19
 #define ANNOTATION__AVG_IPC_WIDTH 36
+#define ANNOTATION_DUMMY_LEN	256
 
 struct annotation_options {
 	bool hide_src_code,
@@ -143,7 +144,7 @@ struct annotation_line {
 	u32			 idx;
 	int			 idx_asm;
 	int			 data_nr;
-	struct annotation_data	 data[0];
+	struct annotation_data	 data[];
 };
 
 struct disasm_line {
@@ -226,7 +227,7 @@ void symbol__calc_percent(struct symbol *sym, struct evsel *evsel);
 struct sym_hist {
 	u64		      nr_samples;
 	u64		      period;
-	struct sym_hist_entry addr[0];
+	struct sym_hist_entry addr[];
 };
 
 struct cyc_hist {
@@ -279,7 +280,6 @@ struct annotation {
 	struct annotation_options *options;
 	struct annotation_line	**offsets;
 	int			nr_events;
-	int			nr_jumps;
 	int			max_jump_sources;
 	int			nr_entries;
 	int			nr_asm_entries;

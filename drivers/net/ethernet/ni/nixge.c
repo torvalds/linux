@@ -502,7 +502,8 @@ static int nixge_check_tx_bd_space(struct nixge_priv *priv,
 	return 0;
 }
 
-static int nixge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t nixge_start_xmit(struct sk_buff *skb,
+				    struct net_device *ndev)
 {
 	struct nixge_priv *priv = netdev_priv(ndev);
 	struct nixge_hw_dma_bd *cur_p;
@@ -1019,27 +1020,6 @@ static int nixge_ethtools_set_coalesce(struct net_device *ndev,
 		return -EBUSY;
 	}
 
-	if (ecoalesce->rx_coalesce_usecs ||
-	    ecoalesce->rx_coalesce_usecs_irq ||
-	    ecoalesce->rx_max_coalesced_frames_irq ||
-	    ecoalesce->tx_coalesce_usecs ||
-	    ecoalesce->tx_coalesce_usecs_irq ||
-	    ecoalesce->tx_max_coalesced_frames_irq ||
-	    ecoalesce->stats_block_coalesce_usecs ||
-	    ecoalesce->use_adaptive_rx_coalesce ||
-	    ecoalesce->use_adaptive_tx_coalesce ||
-	    ecoalesce->pkt_rate_low ||
-	    ecoalesce->rx_coalesce_usecs_low ||
-	    ecoalesce->rx_max_coalesced_frames_low ||
-	    ecoalesce->tx_coalesce_usecs_low ||
-	    ecoalesce->tx_max_coalesced_frames_low ||
-	    ecoalesce->pkt_rate_high ||
-	    ecoalesce->rx_coalesce_usecs_high ||
-	    ecoalesce->rx_max_coalesced_frames_high ||
-	    ecoalesce->tx_coalesce_usecs_high ||
-	    ecoalesce->tx_max_coalesced_frames_high ||
-	    ecoalesce->rate_sample_interval)
-		return -EOPNOTSUPP;
 	if (ecoalesce->rx_max_coalesced_frames)
 		priv->coalesce_count_rx = ecoalesce->rx_max_coalesced_frames;
 	if (ecoalesce->tx_max_coalesced_frames)
@@ -1083,6 +1063,7 @@ static int nixge_ethtools_set_phys_id(struct net_device *ndev,
 }
 
 static const struct ethtool_ops nixge_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo    = nixge_ethtools_get_drvinfo,
 	.get_coalesce   = nixge_ethtools_get_coalesce,
 	.set_coalesce   = nixge_ethtools_set_coalesce,
@@ -1318,19 +1299,21 @@ static int nixge_probe(struct platform_device *pdev)
 	netif_napi_add(ndev, &priv->napi, nixge_poll, NAPI_POLL_WEIGHT);
 	err = nixge_of_get_resources(pdev);
 	if (err)
-		return err;
+		goto free_netdev;
 	__nixge_hw_set_mac_address(ndev);
 
 	priv->tx_irq = platform_get_irq_byname(pdev, "tx");
 	if (priv->tx_irq < 0) {
 		netdev_err(ndev, "could not find 'tx' irq");
-		return priv->tx_irq;
+		err = priv->tx_irq;
+		goto free_netdev;
 	}
 
 	priv->rx_irq = platform_get_irq_byname(pdev, "rx");
 	if (priv->rx_irq < 0) {
 		netdev_err(ndev, "could not find 'rx' irq");
-		return priv->rx_irq;
+		err = priv->rx_irq;
+		goto free_netdev;
 	}
 
 	priv->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;

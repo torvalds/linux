@@ -18,7 +18,6 @@
 #include <linux/kcmp.h>
 
 #include "pidfd.h"
-#include "../kselftest.h"
 #include "../kselftest_harness.h"
 
 /*
@@ -32,11 +31,6 @@ static int sys_kcmp(pid_t pid1, pid_t pid2, int type, unsigned long idx1,
 		    unsigned long idx2)
 {
 	return syscall(__NR_kcmp, pid1, pid2, type, idx1, idx2);
-}
-
-static int sys_memfd_create(const char *name, unsigned int flags)
-{
-	return syscall(__NR_memfd_create, name, flags);
 }
 
 static int __child(int sk, int memfd)

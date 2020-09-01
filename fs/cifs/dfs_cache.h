@@ -19,6 +19,7 @@ struct dfs_cache_tgt_list {
 
 struct dfs_cache_tgt_iterator {
 	char *it_name;
+	int it_path_consumed;
 	struct list_head it_list;
 };
 
@@ -48,6 +49,8 @@ extern int dfs_cache_add_vol(char *mntdata, struct smb_vol *vol,
 extern int dfs_cache_update_vol(const char *fullpath,
 				struct TCP_Server_Info *server);
 extern void dfs_cache_del_vol(const char *fullpath);
+extern int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it,
+				   char **share, char **prefix);
 
 static inline struct dfs_cache_tgt_iterator *
 dfs_cache_get_next_tgt(struct dfs_cache_tgt_list *tl,

@@ -28,12 +28,20 @@ enum hisi_zip_error_type {
 	HZIP_NC_ERR = 0x0d,
 };
 
+struct hisi_zip_dfx {
+	atomic64_t send_cnt;
+	atomic64_t recv_cnt;
+	atomic64_t send_busy_cnt;
+	atomic64_t err_bd_cnt;
+};
+
 struct hisi_zip_ctrl;
 
 struct hisi_zip {
 	struct hisi_qm qm;
 	struct list_head list;
 	struct hisi_zip_ctrl *ctrl;
+	struct hisi_zip_dfx dfx;
 };
 
 struct hisi_zip_sqe {
@@ -68,7 +76,7 @@ struct hisi_zip_sqe {
 	u32 rsvd1[4];
 };
 
-struct hisi_zip *find_zip_device(int node);
+int zip_create_qps(struct hisi_qp **qps, int ctx_num, int node);
 int hisi_zip_register_to_crypto(void);
 void hisi_zip_unregister_from_crypto(void);
 #endif

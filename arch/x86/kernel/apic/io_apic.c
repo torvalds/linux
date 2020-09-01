@@ -154,19 +154,6 @@ static inline bool mp_is_legacy_irq(int irq)
 	return irq >= 0 && irq < nr_legacy_irqs();
 }
 
-/*
- * Initialize all legacy IRQs and all pins on the first IOAPIC
- * if we have legacy interrupt controller. Kernel boot option "pirq="
- * may rely on non-legacy pins on the first IOAPIC.
- */
-static inline int mp_init_irq_at_boot(int ioapic, int irq)
-{
-	if (!nr_legacy_irqs())
-		return 0;
-
-	return ioapic == 0 || mp_is_legacy_irq(irq);
-}
-
 static inline struct irq_domain *mp_ioapic_irqdomain(int ioapic)
 {
 	return ioapics[ioapic].irqdomain;
@@ -813,7 +800,7 @@ static int irq_polarity(int idx)
 		return IOAPIC_POL_HIGH;
 	case MP_IRQPOL_RESERVED:
 		pr_warn("IOAPIC: Invalid polarity: 2, defaulting to low\n");
-		/* fall through */
+		fallthrough;
 	case MP_IRQPOL_ACTIVE_LOW:
 	default: /* Pointless default required due to do gcc stupidity */
 		return IOAPIC_POL_LOW;
@@ -861,7 +848,7 @@ static int irq_trigger(int idx)
 		return IOAPIC_EDGE;
 	case MP_IRQTRIG_RESERVED:
 		pr_warn("IOAPIC: Invalid trigger mode 2 defaulting to level\n");
-		/* fall through */
+		fallthrough;
 	case MP_IRQTRIG_LEVEL:
 	default: /* Pointless default required due to do gcc stupidity */
 		return IOAPIC_LEVEL;
@@ -2329,12 +2316,12 @@ static int mp_irqdomain_create(int ioapic)
 	ip->irqdomain = irq_domain_create_linear(fn, hwirqs, cfg->ops,
 						 (void *)(long)ioapic);
 
-	/* Release fw handle if it was allocated above */
-	if (!cfg->dev)
-		irq_domain_free_fwnode(fn);
-
-	if (!ip->irqdomain)
+	if (!ip->irqdomain) {
+		/* Release fw handle if it was allocated above */
+		if (!cfg->dev)
+			irq_domain_free_fwnode(fn);
 		return -ENOMEM;
+	}
 
 	ip->irqdomain->parent = parent;
 
@@ -2348,8 +2335,13 @@ static int mp_irqdomain_create(int ioapic)
 
 static void ioapic_destroy_irqdomain(int idx)
 {
+	struct ioapic_domain_cfg *cfg = &ioapics[idx].irqdomain_cfg;
+	struct fwnode_handle *fn = ioapics[idx].irqdomain->fwnode;
+
 	if (ioapics[idx].irqdomain) {
 		irq_domain_remove(ioapics[idx].irqdomain);
+		if (!cfg->dev)
+			irq_domain_free_fwnode(fn);
 		ioapics[idx].irqdomain = NULL;
 	}
 }

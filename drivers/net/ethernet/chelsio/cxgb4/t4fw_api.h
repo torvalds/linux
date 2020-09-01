@@ -737,7 +737,7 @@ struct fw_flowc_mnemval {
 struct fw_flowc_wr {
 	__be32 op_to_nparams;
 	__be32 flowid_len16;
-	struct fw_flowc_mnemval mnemval[0];
+	struct fw_flowc_mnemval mnemval[];
 };
 
 #define FW_FLOWC_WR_NPARAMS_S           0
@@ -1205,6 +1205,7 @@ enum fw_caps_config_crypto {
 	FW_CAPS_CONFIG_CRYPTO_LOOKASIDE = 0x00000001,
 	FW_CAPS_CONFIG_TLS_INLINE = 0x00000002,
 	FW_CAPS_CONFIG_IPSEC_INLINE = 0x00000004,
+	FW_CAPS_CONFIG_TLS_HW = 0x00000008,
 };
 
 enum fw_caps_config_fcoe {
@@ -1328,6 +1329,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK = 0x2A,
 	FW_PARAMS_PARAM_DEV_NUM_TM_CLASS = 0x2B,
 	FW_PARAMS_PARAM_DEV_FILTER = 0x2E,
+	FW_PARAMS_PARAM_DEV_KTLS_HW = 0x31,
 };
 
 /*
@@ -1408,6 +1410,12 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13,
 	FW_PARAMS_PARAM_DMAQ_EQ_TIMERIX	= 0x15,
 	FW_PARAMS_PARAM_DMAQ_CONM_CTXT = 0x20,
+};
+
+enum fw_params_param_dev_ktls_hw {
+	FW_PARAMS_PARAM_DEV_KTLS_HW_DISABLE      = 0x00,
+	FW_PARAMS_PARAM_DEV_KTLS_HW_ENABLE       = 0x01,
+	FW_PARAMS_PARAM_DEV_KTLS_HW_USER_ENABLE  = 0x01,
 };
 
 enum fw_params_param_dev_phyfw {

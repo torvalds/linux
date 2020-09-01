@@ -3,17 +3,29 @@ if GREYBUS
 
 config GREYBUS_AUDIO
 	tristate "Greybus Audio Class driver"
-	depends on SOUND
-	---help---
+	depends on SOUND && SND_SOC
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Audio Class specification.
 
 	  To compile this code as a module, chose M here: the module
 	  will be called gb-audio.ko
 
+config GREYBUS_AUDIO_APB_CODEC
+	tristate "Greybus APBridge Audio codec driver"
+	depends on SND_SOC && GREYBUS_AUDIO
+	help
+	  Select this option if you have a Toshiba APB device that has I2S
+          ports and acts as a Greybus "Dummy codec". This device is a
+          bridge from an APB-I2S port to a Unipro network.
+
+	  To compile this code as a module, chose M here: the module
+	  will be called gb-audio-codec.ko
+
+
 config GREYBUS_BOOTROM
 	tristate "Greybus Bootrom Class driver"
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Bootrom Class specification.
 
@@ -23,7 +35,7 @@ config GREYBUS_BOOTROM
 config GREYBUS_CAMERA
 	tristate "Greybus Camera Class driver"
 	depends on MEDIA_SUPPORT && LEDS_CLASS_FLASH && BROKEN
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Camera Class specification.
 
@@ -33,7 +45,7 @@ config GREYBUS_CAMERA
 config GREYBUS_FIRMWARE
 	tristate "Greybus Firmware Download Class driver"
 	depends on SPI
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Firmware Download Class specification.
 
@@ -43,7 +55,7 @@ config GREYBUS_FIRMWARE
 config GREYBUS_HID
 	tristate "Greybus HID Class driver"
 	depends on HID && INPUT
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus HID Class specification.
 
@@ -53,7 +65,7 @@ config GREYBUS_HID
 config GREYBUS_LIGHT
 	tristate "Greybus LED Class driver"
 	depends on LEDS_CLASS
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus LED Class specification.
 
@@ -62,7 +74,7 @@ config GREYBUS_LIGHT
 
 config GREYBUS_LOG
 	tristate "Greybus Debug Log Class driver"
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Debug Log Class specification.
 
@@ -71,7 +83,7 @@ config GREYBUS_LOG
 
 config GREYBUS_LOOPBACK
 	tristate "Greybus Loopback Class driver"
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Debug Log Class specification.
 
@@ -81,7 +93,7 @@ config GREYBUS_LOOPBACK
 config GREYBUS_POWER
 	tristate "Greybus Powersupply Class driver"
 	depends on POWER_SUPPLY
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Powersupply Class specification.
 
@@ -90,7 +102,7 @@ config GREYBUS_POWER
 
 config GREYBUS_RAW
 	tristate "Greybus Raw Class driver"
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Raw Class specification.
 
@@ -99,7 +111,7 @@ config GREYBUS_RAW
 
 config GREYBUS_VIBRATOR
 	tristate "Greybus Vibrator Motor Class driver"
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus Vibrator Motor Class specification.
 
@@ -108,7 +120,7 @@ config GREYBUS_VIBRATOR
 
 menuconfig GREYBUS_BRIDGED_PHY
 	tristate "Greybus Bridged PHY Class drivers"
-	---help---
+	help
 	  Select this option to pick from a variety of Greybus Bridged
 	  PHY class drivers.  These drivers emulate a number of
 	  different "traditional" busses by tunneling them over Greybus.
@@ -123,7 +135,7 @@ config GREYBUS_GPIO
 	tristate "Greybus GPIO Bridged PHY driver"
 	depends on GPIOLIB
 	select GPIOLIB_IRQCHIP
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus GPIO Bridged PHY Class specification.
 
@@ -133,7 +145,7 @@ config GREYBUS_GPIO
 config GREYBUS_I2C
 	tristate "Greybus I2C Bridged PHY driver"
 	depends on I2C
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus I2C Bridged PHY Class specification.
 
@@ -143,7 +155,7 @@ config GREYBUS_I2C
 config GREYBUS_PWM
 	tristate "Greybus PWM Bridged PHY driver"
 	depends on PWM
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus PWM Bridged PHY Class specification.
 
@@ -153,7 +165,7 @@ config GREYBUS_PWM
 config GREYBUS_SDIO
 	tristate "Greybus SDIO Bridged PHY driver"
 	depends on MMC
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus SDIO Bridged PHY Class specification.
 
@@ -163,7 +175,7 @@ config GREYBUS_SDIO
 config GREYBUS_SPI
 	tristate "Greybus SPI Bridged PHY driver"
 	depends on SPI
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus SPI Bridged PHY Class specification.
 
@@ -173,7 +185,7 @@ config GREYBUS_SPI
 config GREYBUS_UART
 	tristate "Greybus UART Bridged PHY driver"
 	depends on TTY
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus UART Bridged PHY Class specification.
 
@@ -183,7 +195,7 @@ config GREYBUS_UART
 config GREYBUS_USB
 	tristate "Greybus USB Host Bridged PHY driver"
 	depends on USB
-	---help---
+	help
 	  Select this option if you have a device that follows the
 	  Greybus USB Host Bridged PHY Class specification.
 
@@ -195,7 +207,7 @@ endif	# GREYBUS_BRIDGED_PHY
 config GREYBUS_ARCHE
 	tristate "Greybus Arche Platform driver"
 	depends on USB_HSIC_USB3613 || COMPILE_TEST
-	---help---
+	help
 	  Select this option if you have an Arche device.
 
 	  To compile this code as a module, chose M here: the module

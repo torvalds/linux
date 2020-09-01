@@ -4,6 +4,8 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
+#include <dt-bindings/clock/dm814.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/dm814x.h>
 
@@ -306,14 +308,30 @@
 				ti,hwmods = "mcspi4";
 			};
 
-			timer1: timer@2e000 {
-				compatible = "ti,dm814-timer";
-				reg = <0x2e000 0x2000>;
-				interrupts = <67>;
-				ti,hwmods = "timer1";
-				ti,timer-alwon;
+			timer1_target: target-module@2e000 {
+				compatible = "ti,sysc-omap4-timer", "ti,sysc";
+				reg = <0x2e000 0x4>,
+				      <0x2e010 0x4>;
+				reg-names = "rev", "sysc";
+				ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>,
+						<SYSC_IDLE_SMART>,
+						<SYSC_IDLE_SMART_WKUP>;
 				clocks = <&timer1_fck>;
 				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x2e000 0x1000>;
+
+				timer1: timer@0 {
+					compatible = "ti,am335x-timer-1ms";
+					reg = <0x0 0x400>;
+					interrupts = <67>;
+					ti,timer-alwon;
+					clocks = <&timer1_fck>;
+					clock-names = "fck";
+				};
 			};
 
 			uart1: uart@20000 {
@@ -346,13 +364,29 @@
 				dma-names = "tx", "rx";
 			};
 
-			timer2: timer@40000 {
-				compatible = "ti,dm814-timer";
-				reg = <0x40000 0x2000>;
-				interrupts = <68>;
-				ti,hwmods = "timer2";
+			timer2_target: target-module@40000 {
+				compatible = "ti,sysc-omap4-timer", "ti,sysc";
+				reg = <0x40000 0x4>,
+				      <0x40010 0x4>;
+				reg-names = "rev", "sysc";
+				ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>,
+						<SYSC_IDLE_SMART>,
+						<SYSC_IDLE_SMART_WKUP>;
 				clocks = <&timer2_fck>;
 				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x40000 0x1000>;
+
+				timer2: timer@0 {
+					compatible = "ti,dm814-timer";
+					reg = <0 0x1000>;
+					interrupts = <68>;
+					clocks = <&timer2_fck>;
+					clock-names = "fck";
+				};
 			};
 
 			timer3: timer@42000 {
@@ -519,53 +553,123 @@
 			reg = <0x47810000 0x1000>;
 		};
 
-		edma: edma@49000000 {
-			compatible = "ti,edma3-tpcc";
-			ti,hwmods = "tpcc";
-			reg =	<0x49000000 0x10000>;
-			reg-names = "edma3_cc";
-			interrupts = <12 13 14>;
-			interrupt-names = "edma3_ccint", "edma3_mperr",
-					  "edma3_ccerrint";
-			dma-requests = <64>;
-			#dma-cells = <2>;
+		target-module@49000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49000000 0x4>;
+			reg-names = "rev";
+			clocks = <&alwon_clkctrl DM814_TPCC_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49000000 0x10000>;
 
-			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
-				   <&edma_tptc2 3>, <&edma_tptc3 0>;
+			edma: dma@0 {
+				compatible = "ti,edma3-tpcc";
+				reg = <0 0x10000>;
+				reg-names = "edma3_cc";
+				interrupts = <12 13 14>;
+				interrupt-names = "edma3_ccint", "edma3_mperr",
+						  "edma3_ccerrint";
+				dma-requests = <64>;
+				#dma-cells = <2>;
 
-			ti,edma-memcpy-channels = <20 21>;
+				ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
+					   <&edma_tptc2 3>, <&edma_tptc3 0>;
+
+				ti,edma-memcpy-channels = <20 21>;
+			};
 		};
 
-		edma_tptc0: tptc@49800000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc0";
-			reg =	<0x49800000 0x100000>;
-			interrupts = <112>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49800000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49800000 0x4>,
+			      <0x49800010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&alwon_clkctrl DM814_TPTC0_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49800000 0x100000>;
+
+			edma_tptc0: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <112>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
-		edma_tptc1: tptc@49900000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc1";
-			reg =	<0x49900000 0x100000>;
-			interrupts = <113>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49900000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49900000 0x4>,
+			      <0x49900010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&alwon_clkctrl DM814_TPTC1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49900000 0x100000>;
+
+			edma_tptc1: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <113>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
-		edma_tptc2: tptc@49a00000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc2";
-			reg =	<0x49a00000 0x100000>;
-			interrupts = <114>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49a00000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49a00000 0x4>,
+			      <0x49a00010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&alwon_clkctrl DM814_TPTC2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49a00000 0x100000>;
+
+			edma_tptc2: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <114>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
-		edma_tptc3: tptc@49b00000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc3";
-			reg =	<0x49b00000 0x100000>;
-			interrupts = <115>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49b00000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49b00000 0x4>,
+			      <0x49b00010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&alwon_clkctrl DM814_TPTC3_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49b00000 0x100000>;
+
+			edma_tptc3: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <115>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
 		/* See TRM "Table 1-318. L4HS Instance Summary" */
@@ -574,57 +678,73 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x4a000000 0x1b4040>;
-		};
 
-		/* REVISIT: Move to live under l4hs once driver is fixed */
-		mac: ethernet@4a100000 {
-			compatible = "ti,cpsw";
-			ti,hwmods = "cpgmac0";
-			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
-			clock-names = "fck", "cpts";
-			cpdma_channels = <8>;
-			ale_entries = <1024>;
-			bd_ram_size = <0x2000>;
-			mac_control = <0x20>;
-			slaves = <2>;
-			active_slave = <0>;
-			cpts_clock_mult = <0x80000000>;
-			cpts_clock_shift = <29>;
-			reg = <0x4a100000 0x800
-			       0x4a100900 0x100>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			interrupt-parent = <&intc>;
-			/*
-			 * c0_rx_thresh_pend
-			 * c0_rx_pend
-			 * c0_tx_pend
-			 * c0_misc_pend
-			 */
-			interrupts = <40 41 42 43>;
-			ranges;
-			syscon = <&scm_conf>;
-
-			davinci_mdio: mdio@4a100800 {
-				compatible = "ti,davinci_mdio";
+			target-module@100000 {
+				compatible = "ti,sysc-omap4-simple", "ti,sysc";
+				reg = <0x100900 0x4>,
+				      <0x100908 0x4>,
+				      <0x100904 0x4>;
+				reg-names = "rev", "sysc", "syss";
+				ti,sysc-mask = <0>;
+				ti,sysc-midle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>;
+				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>;
+				ti,syss-mask = <1>;
+				clocks = <&alwon_ethernet_clkctrl DM814_ETHERNET_CPGMAC0_CLKCTRL 0>;
+				clock-names = "fck";
 				#address-cells = <1>;
-				#size-cells = <0>;
-				ti,hwmods = "davinci_mdio";
-				bus_freq = <1000000>;
-				reg = <0x4a100800 0x100>;
-			};
+				#size-cells = <1>;
+				ranges = <0 0x100000 0x8000>;
 
-			cpsw_emac0: slave@4a100200 {
-				/* Filled in by U-Boot */
-				mac-address = [ 00 00 00 00 00 00 ];
-				phys = <&phy_gmii_sel 1>;
+				mac: ethernet@0 {
+					compatible = "ti,cpsw";
+					clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
+					clock-names = "fck", "cpts";
+					cpdma_channels = <8>;
+					ale_entries = <1024>;
+					bd_ram_size = <0x2000>;
+					mac_control = <0x20>;
+					slaves = <2>;
+					active_slave = <0>;
+					cpts_clock_mult = <0x80000000>;
+					cpts_clock_shift = <29>;
+					reg = <0 0x800>,
+					      <0x900 0x100>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					/*
+					* c0_rx_thresh_pend
+					* c0_rx_pend
+					* c0_tx_pend
+					* c0_misc_pend
+					*/
+					interrupts = <40 41 42 43>;
+					ranges = <0 0 0x8000>;
+					syscon = <&scm_conf>;
 
-			};
+					davinci_mdio: mdio@800 {
+						compatible = "ti,cpsw-mdio", "ti,davinci_mdio";
+						clocks = <&cpsw_125mhz_gclk>;
+						clock-names = "fck";
+						#address-cells = <1>;
+						#size-cells = <0>;
+						bus_freq = <1000000>;
+						reg = <0x800 0x100>;
+					};
 
-			cpsw_emac1: slave@4a100300 {
-				/* Filled in by U-Boot */
-				mac-address = [ 00 00 00 00 00 00 ];
-				phys = <&phy_gmii_sel 2>;
+					cpsw_emac0: slave@200 {
+						/* Filled in by U-Boot */
+						mac-address = [ 00 00 00 00 00 00 ];
+						phys = <&phy_gmii_sel 1>;
+					};
+
+					cpsw_emac1: slave@300 {
+						/* Filled in by U-Boot */
+						mac-address = [ 00 00 00 00 00 00 ];
+						phys = <&phy_gmii_sel 2>;
+					};
+				};
 			};
 		};
 
@@ -647,3 +767,23 @@
 };
 
 #include "dm814x-clocks.dtsi"
+
+/* Preferred always-on timer for clocksource */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&timer1_fck>;
+		assigned-clock-parents = <&devosc_ck>;
+	};
+};
+
+/* Preferred timer for clockevent */
+&timer2_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&timer2_fck>;
+		assigned-clock-parents = <&devosc_ck>;
+	};
+};

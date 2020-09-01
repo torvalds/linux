@@ -28,7 +28,8 @@ parser.add_argument('devname', metavar='DEV',
 parser.add_argument('--cgroup', action='append', metavar='REGEX',
                     help='Regex for target cgroups, ')
 parser.add_argument('--interval', '-i', metavar='SECONDS', type=float, default=1,
-                    help='Monitoring interval in seconds')
+                    help='Monitoring interval in seconds (0 exits immediately '
+                    'after checking requirements)')
 parser.add_argument('--json', action='store_true',
                     help='Output in json')
 args = parser.parse_args()
@@ -112,14 +113,14 @@ class IocStat:
 
     def dict(self, now):
         return { 'device'               : devname,
-                 'timestamp'            : str(now),
-                 'enabled'              : str(int(self.enabled)),
-                 'running'              : str(int(self.running)),
-                 'period_ms'            : str(self.period_ms),
-                 'period_at'            : str(self.period_at),
-                 'period_vtime_at'      : str(self.vperiod_at),
-                 'busy_level'           : str(self.busy_level),
-                 'vrate_pct'            : str(self.vrate_pct), }
+                 'timestamp'            : now,
+                 'enabled'              : self.enabled,
+                 'running'              : self.running,
+                 'period_ms'            : self.period_ms,
+                 'period_at'            : self.period_at,
+                 'period_vtime_at'      : self.vperiod_at,
+                 'busy_level'           : self.busy_level,
+                 'vrate_pct'            : self.vrate_pct, }
 
     def table_preamble_str(self):
         state = ('RUN' if self.running else 'IDLE') if self.enabled else 'OFF'
@@ -159,7 +160,12 @@ class IocgStat:
         else:
             self.inflight_pct = 0
 
-        self.debt_ms = iocg.abs_vdebt.counter.value_() / VTIME_PER_USEC / 1000
+        # vdebt used to be an atomic64_t and is now u64, support both
+        try:
+            self.debt_ms = iocg.abs_vdebt.counter.value_() / VTIME_PER_USEC / 1000
+        except:
+            self.debt_ms = iocg.abs_vdebt.value_() / VTIME_PER_USEC / 1000
+
         self.use_delay = blkg.use_delay.counter.value_()
         self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
 
@@ -167,26 +173,26 @@ class IocgStat:
         self.usages = []
         self.usage = 0
         for i in range(NR_USAGE_SLOTS):
-            usage = iocg.usages[(usage_idx + i) % NR_USAGE_SLOTS].value_()
+            usage = iocg.usages[(usage_idx + 1 + i) % NR_USAGE_SLOTS].value_()
             upct = usage * 100 / HWEIGHT_WHOLE
             self.usages.append(upct)
             self.usage = max(self.usage, upct)
 
     def dict(self, now, path):
         out = { 'cgroup'                : path,
-                'timestamp'             : str(now),
-                'is_active'             : str(int(self.is_active)),
-                'weight'                : str(self.weight),
-                'weight_active'         : str(self.active),
-                'weight_inuse'          : str(self.inuse),
-                'hweight_active_pct'    : str(self.hwa_pct),
-                'hweight_inuse_pct'     : str(self.hwi_pct),
-                'inflight_pct'          : str(self.inflight_pct),
-                'debt_ms'               : str(self.debt_ms),
-                'use_delay'             : str(self.use_delay),
-                'delay_ms'              : str(self.delay_ms),
-                'usage_pct'             : str(self.usage),
-                'address'               : str(hex(self.address)) }
+                'timestamp'             : now,
+                'is_active'             : self.is_active,
+                'weight'                : self.weight,
+                'weight_active'         : self.active,
+                'weight_inuse'          : self.inuse,
+                'hweight_active_pct'    : self.hwa_pct,
+                'hweight_inuse_pct'     : self.hwi_pct,
+                'inflight_pct'          : self.inflight_pct,
+                'debt_ms'               : self.debt_ms,
+                'use_delay'             : self.use_delay,
+                'delay_ms'              : self.delay_ms,
+                'usage_pct'             : self.usage,
+                'address'               : self.address }
         for i in range(len(self.usages)):
             out[f'usage_pct_{i}'] = str(self.usages[i])
         return out
@@ -242,6 +248,9 @@ for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree.address_of_()):
 
 if ioc is None:
     err(f'Could not find ioc for {devname}');
+
+if interval == 0:
+    sys.exit(0)
 
 # Keep printing
 while True:

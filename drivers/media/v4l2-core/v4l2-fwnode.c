@@ -557,33 +557,28 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_alloc_parse);
 
-int v4l2_fwnode_parse_link(struct fwnode_handle *__fwnode,
+int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
 			   struct v4l2_fwnode_link *link)
 {
-	const char *port_prop = is_of_node(__fwnode) ? "reg" : "port";
-	struct fwnode_handle *fwnode;
+	struct fwnode_endpoint fwep;
 
 	memset(link, 0, sizeof(*link));
 
-	fwnode = fwnode_get_parent(__fwnode);
-	fwnode_property_read_u32(fwnode, port_prop, &link->local_port);
-	fwnode = fwnode_get_next_parent(fwnode);
-	if (is_of_node(fwnode) && of_node_name_eq(to_of_node(fwnode), "ports"))
-		fwnode = fwnode_get_next_parent(fwnode);
-	link->local_node = fwnode;
+	fwnode_graph_parse_endpoint(fwnode, &fwep);
+	link->local_id = fwep.id;
+	link->local_port = fwep.port;
+	link->local_node = fwnode_graph_get_port_parent(fwnode);
 
-	fwnode = fwnode_graph_get_remote_endpoint(__fwnode);
+	fwnode = fwnode_graph_get_remote_endpoint(fwnode);
 	if (!fwnode) {
 		fwnode_handle_put(fwnode);
 		return -ENOLINK;
 	}
 
-	fwnode = fwnode_get_parent(fwnode);
-	fwnode_property_read_u32(fwnode, port_prop, &link->remote_port);
-	fwnode = fwnode_get_next_parent(fwnode);
-	if (is_of_node(fwnode) && of_node_name_eq(to_of_node(fwnode), "ports"))
-		fwnode = fwnode_get_next_parent(fwnode);
-	link->remote_node = fwnode;
+	fwnode_graph_parse_endpoint(fwnode, &fwep);
+	link->remote_id = fwep.id;
+	link->remote_port = fwep.port;
+	link->remote_node = fwnode_graph_get_port_parent(fwnode);
 
 	return 0;
 }
@@ -595,6 +590,213 @@ void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link)
 	fwnode_handle_put(link->remote_node);
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_put_link);
+
+static const struct v4l2_fwnode_connector_conv {
+	enum v4l2_connector_type type;
+	const char *compatible;
+} connectors[] = {
+	{
+		.type = V4L2_CONN_COMPOSITE,
+		.compatible = "composite-video-connector",
+	}, {
+		.type = V4L2_CONN_SVIDEO,
+		.compatible = "svideo-connector",
+	},
+};
+
+static enum v4l2_connector_type
+v4l2_fwnode_string_to_connector_type(const char *con_str)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(connectors); i++)
+		if (!strcmp(con_str, connectors[i].compatible))
+			return connectors[i].type;
+
+	return V4L2_CONN_UNKNOWN;
+}
+
+static void
+v4l2_fwnode_connector_parse_analog(struct fwnode_handle *fwnode,
+				   struct v4l2_fwnode_connector *vc)
+{
+	u32 stds;
+	int ret;
+
+	ret = fwnode_property_read_u32(fwnode, "sdtv-standards", &stds);
+
+	/* The property is optional. */
+	vc->connector.analog.sdtv_stds = ret ? V4L2_STD_ALL : stds;
+}
+
+void v4l2_fwnode_connector_free(struct v4l2_fwnode_connector *connector)
+{
+	struct v4l2_connector_link *link, *tmp;
+
+	if (IS_ERR_OR_NULL(connector) || connector->type == V4L2_CONN_UNKNOWN)
+		return;
+
+	list_for_each_entry_safe(link, tmp, &connector->links, head) {
+		v4l2_fwnode_put_link(&link->fwnode_link);
+		list_del(&link->head);
+		kfree(link);
+	}
+
+	kfree(connector->label);
+	connector->label = NULL;
+	connector->type = V4L2_CONN_UNKNOWN;
+}
+EXPORT_SYMBOL_GPL(v4l2_fwnode_connector_free);
+
+static enum v4l2_connector_type
+v4l2_fwnode_get_connector_type(struct fwnode_handle *fwnode)
+{
+	const char *type_name;
+	int err;
+
+	if (!fwnode)
+		return V4L2_CONN_UNKNOWN;
+
+	/* The connector-type is stored within the compatible string. */
+	err = fwnode_property_read_string(fwnode, "compatible", &type_name);
+	if (err)
+		return V4L2_CONN_UNKNOWN;
+
+	return v4l2_fwnode_string_to_connector_type(type_name);
+}
+
+int v4l2_fwnode_connector_parse(struct fwnode_handle *fwnode,
+				struct v4l2_fwnode_connector *connector)
+{
+	struct fwnode_handle *connector_node;
+	enum v4l2_connector_type connector_type;
+	const char *label;
+	int err;
+
+	if (!fwnode)
+		return -EINVAL;
+
+	memset(connector, 0, sizeof(*connector));
+
+	INIT_LIST_HEAD(&connector->links);
+
+	connector_node = fwnode_graph_get_port_parent(fwnode);
+	connector_type = v4l2_fwnode_get_connector_type(connector_node);
+	if (connector_type == V4L2_CONN_UNKNOWN) {
+		fwnode_handle_put(connector_node);
+		connector_node = fwnode_graph_get_remote_port_parent(fwnode);
+		connector_type = v4l2_fwnode_get_connector_type(connector_node);
+	}
+
+	if (connector_type == V4L2_CONN_UNKNOWN) {
+		pr_err("Unknown connector type\n");
+		err = -ENOTCONN;
+		goto out;
+	}
+
+	connector->type = connector_type;
+	connector->name = fwnode_get_name(connector_node);
+	err = fwnode_property_read_string(connector_node, "label", &label);
+	connector->label = err ? NULL : kstrdup_const(label, GFP_KERNEL);
+
+	/* Parse the connector specific properties. */
+	switch (connector->type) {
+	case V4L2_CONN_COMPOSITE:
+	case V4L2_CONN_SVIDEO:
+		v4l2_fwnode_connector_parse_analog(connector_node, connector);
+		break;
+	/* Avoid compiler warnings */
+	case V4L2_CONN_UNKNOWN:
+		break;
+	}
+
+out:
+	fwnode_handle_put(connector_node);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(v4l2_fwnode_connector_parse);
+
+int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
+				   struct v4l2_fwnode_connector *connector)
+{
+	struct fwnode_handle *connector_ep;
+	struct v4l2_connector_link *link;
+	int err;
+
+	if (!fwnode || !connector || connector->type == V4L2_CONN_UNKNOWN)
+		return -EINVAL;
+
+	connector_ep = fwnode_graph_get_remote_endpoint(fwnode);
+	if (!connector_ep)
+		return -ENOTCONN;
+
+	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	if (!link) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	err = v4l2_fwnode_parse_link(connector_ep, &link->fwnode_link);
+	if (err)
+		goto err;
+
+	fwnode_handle_put(connector_ep);
+
+	list_add(&link->head, &connector->links);
+	connector->nr_of_links++;
+
+	return 0;
+
+err:
+	kfree(link);
+	fwnode_handle_put(connector_ep);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(v4l2_fwnode_connector_add_link);
+
+int v4l2_fwnode_device_parse(struct device *dev,
+			     struct v4l2_fwnode_device_properties *props)
+{
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	u32 val;
+	int ret;
+
+	memset(props, 0, sizeof(*props));
+
+	props->orientation = V4L2_FWNODE_PROPERTY_UNSET;
+	ret = fwnode_property_read_u32(fwnode, "orientation", &val);
+	if (!ret) {
+		switch (val) {
+		case V4L2_FWNODE_ORIENTATION_FRONT:
+		case V4L2_FWNODE_ORIENTATION_BACK:
+		case V4L2_FWNODE_ORIENTATION_EXTERNAL:
+			break;
+		default:
+			dev_warn(dev, "Unsupported device orientation: %u\n", val);
+			return -EINVAL;
+		}
+
+		props->orientation = val;
+		dev_dbg(dev, "device orientation: %u\n", val);
+	}
+
+	props->rotation = V4L2_FWNODE_PROPERTY_UNSET;
+	ret = fwnode_property_read_u32(fwnode, "rotation", &val);
+	if (!ret) {
+		if (val >= 360) {
+			dev_warn(dev, "Unsupported device rotation: %u\n", val);
+			return -EINVAL;
+		}
+
+		props->rotation = val;
+		dev_dbg(dev, "device rotation: %u\n", val);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_fwnode_device_parse);
 
 static int
 v4l2_async_notifier_fwnode_parse_endpoint(struct device *dev,
@@ -820,7 +1022,7 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
  *
  * THIS EXAMPLE EXISTS MERELY TO DOCUMENT THIS FUNCTION. DO NOT USE IT AS A
  * REFERENCE IN HOW ACPI TABLES SHOULD BE WRITTEN!! See documentation under
- * Documentation/acpi/dsd instead and especially graph.txt,
+ * Documentation/firmware-guide/acpi/dsd/ instead and especially graph.txt,
  * data-node-references.txt and leds.txt .
  *
  *	Scope (\_SB.PCI0.I2C2)
@@ -1162,68 +1364,6 @@ out_cleanup:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(v4l2_async_register_subdev_sensor_common);
-
-int v4l2_async_register_fwnode_subdev(struct v4l2_subdev *sd,
-				      size_t asd_struct_size,
-				      unsigned int *ports,
-				      unsigned int num_ports,
-				      parse_endpoint_func parse_endpoint)
-{
-	struct v4l2_async_notifier *notifier;
-	struct device *dev = sd->dev;
-	struct fwnode_handle *fwnode;
-	int ret;
-
-	if (WARN_ON(!dev))
-		return -ENODEV;
-
-	fwnode = dev_fwnode(dev);
-	if (!fwnode_device_is_available(fwnode))
-		return -ENODEV;
-
-	notifier = kzalloc(sizeof(*notifier), GFP_KERNEL);
-	if (!notifier)
-		return -ENOMEM;
-
-	v4l2_async_notifier_init(notifier);
-
-	if (!ports) {
-		ret = v4l2_async_notifier_parse_fwnode_endpoints(dev, notifier,
-								 asd_struct_size,
-								 parse_endpoint);
-		if (ret < 0)
-			goto out_cleanup;
-	} else {
-		unsigned int i;
-
-		for (i = 0; i < num_ports; i++) {
-			ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(dev, notifier, asd_struct_size, ports[i], parse_endpoint);
-			if (ret < 0)
-				goto out_cleanup;
-		}
-	}
-
-	ret = v4l2_async_subdev_notifier_register(sd, notifier);
-	if (ret < 0)
-		goto out_cleanup;
-
-	ret = v4l2_async_register_subdev(sd);
-	if (ret < 0)
-		goto out_unregister;
-
-	sd->subdev_notifier = notifier;
-
-	return 0;
-
-out_unregister:
-	v4l2_async_notifier_unregister(notifier);
-out_cleanup:
-	v4l2_async_notifier_cleanup(notifier);
-	kfree(notifier);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(v4l2_async_register_fwnode_subdev);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");

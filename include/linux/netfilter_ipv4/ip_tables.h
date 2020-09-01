@@ -25,6 +25,12 @@
 int ipt_register_table(struct net *net, const struct xt_table *table,
 		       const struct ipt_replace *repl,
 		       const struct nf_hook_ops *ops, struct xt_table **res);
+
+void ipt_unregister_table_pre_exit(struct net *net, struct xt_table *table,
+		       const struct nf_hook_ops *ops);
+
+void ipt_unregister_table_exit(struct net *net, struct xt_table *table);
+
 void ipt_unregister_table(struct net *net, struct xt_table *table,
 			  const struct nf_hook_ops *ops);
 
@@ -76,7 +82,7 @@ struct compat_ipt_entry {
 	__u16 next_offset;
 	compat_uint_t comefrom;
 	struct compat_xt_counters counters;
-	unsigned char elems[0];
+	unsigned char elems[];
 };
 
 /* Helper functions */

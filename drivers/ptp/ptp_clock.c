@@ -146,6 +146,15 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 		else
 			err = ops->adjfreq(ops, ppb);
 		ptp->dialed_frequency = tx->freq;
+	} else if (tx->modes & ADJ_OFFSET) {
+		if (ops->adjphase) {
+			s32 offset = tx->offset;
+
+			if (!(tx->modes & ADJ_NANO))
+				offset *= NSEC_PER_USEC;
+
+			err = ops->adjphase(ops, offset);
+		}
 	} else if (tx->modes == 0) {
 		tx->freq = ptp->dialed_frequency;
 		err = 0;
@@ -348,7 +357,6 @@ int ptp_find_pin(struct ptp_clock *ptp,
 	struct ptp_pin_desc *pin = NULL;
 	int i;
 
-	mutex_lock(&ptp->pincfg_mux);
 	for (i = 0; i < ptp->info->n_pins; i++) {
 		if (ptp->info->pin_config[i].func == func &&
 		    ptp->info->pin_config[i].chan == chan) {
@@ -356,11 +364,25 @@ int ptp_find_pin(struct ptp_clock *ptp,
 			break;
 		}
 	}
-	mutex_unlock(&ptp->pincfg_mux);
 
 	return pin ? i : -1;
 }
 EXPORT_SYMBOL(ptp_find_pin);
+
+int ptp_find_pin_unlocked(struct ptp_clock *ptp,
+			  enum ptp_pin_function func, unsigned int chan)
+{
+	int result;
+
+	mutex_lock(&ptp->pincfg_mux);
+
+	result = ptp_find_pin(ptp, func, chan);
+
+	mutex_unlock(&ptp->pincfg_mux);
+
+	return result;
+}
+EXPORT_SYMBOL(ptp_find_pin_unlocked);
 
 int ptp_schedule_worker(struct ptp_clock *ptp, unsigned long delay)
 {

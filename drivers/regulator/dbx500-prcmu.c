@@ -110,13 +110,6 @@ static int ux500_regulator_status_show(struct seq_file *s, void *p)
 }
 DEFINE_SHOW_ATTRIBUTE(ux500_regulator_status);
 
-int __attribute__((weak)) dbx500_regulator_testcase(
-	struct dbx500_regulator_info *regulator_info,
-	int num_regulators)
-{
-	return 0;
-}
-
 int
 ux500_regulator_debug_init(struct platform_device *pdev,
 	struct dbx500_regulator_info *regulator_info,
@@ -152,7 +145,6 @@ ux500_regulator_debug_init(struct platform_device *pdev,
 	if (!rdebug.state_after_suspend)
 		goto exit_free;
 
-	dbx500_regulator_testcase(regulator_info, num_regulators);
 	return 0;
 
 exit_free:

@@ -33,6 +33,21 @@
 	.max_power              = 30, \
 }
 
+#define CHAN6G(_channel, _freq, _flags) { \
+	.band                   = NL80211_BAND_6GHZ, \
+	.hw_value               = (_channel), \
+	.center_freq            = (_freq), \
+	.flags                  = (_flags), \
+	.max_antenna_gain       = 0, \
+	.max_power              = 30, \
+}
+
+/* frame mode values are mapped as per enum ath11k_hw_txrx_mode */
+static unsigned int ath11k_frame_mode = ATH11K_HW_TXRX_NATIVE_WIFI;
+module_param_named(frame_mode, ath11k_frame_mode, uint, 0644);
+MODULE_PARM_DESC(frame_mode,
+		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
+
 static const struct ieee80211_channel ath11k_2ghz_channels[] = {
 	CHAN2G(1, 2412, 0),
 	CHAN2G(2, 2417, 0),
@@ -78,6 +93,68 @@ static const struct ieee80211_channel ath11k_5ghz_channels[] = {
 	CHAN5G(165, 5825, 0),
 	CHAN5G(169, 5845, 0),
 	CHAN5G(173, 5865, 0),
+};
+
+static const struct ieee80211_channel ath11k_6ghz_channels[] = {
+	CHAN6G(1, 5955, 0),
+	CHAN6G(5, 5975, 0),
+	CHAN6G(9, 5995, 0),
+	CHAN6G(13, 6015, 0),
+	CHAN6G(17, 6035, 0),
+	CHAN6G(21, 6055, 0),
+	CHAN6G(25, 6075, 0),
+	CHAN6G(29, 6095, 0),
+	CHAN6G(33, 6115, 0),
+	CHAN6G(37, 6135, 0),
+	CHAN6G(41, 6155, 0),
+	CHAN6G(45, 6175, 0),
+	CHAN6G(49, 6195, 0),
+	CHAN6G(53, 6215, 0),
+	CHAN6G(57, 6235, 0),
+	CHAN6G(61, 6255, 0),
+	CHAN6G(65, 6275, 0),
+	CHAN6G(69, 6295, 0),
+	CHAN6G(73, 6315, 0),
+	CHAN6G(77, 6335, 0),
+	CHAN6G(81, 6355, 0),
+	CHAN6G(85, 6375, 0),
+	CHAN6G(89, 6395, 0),
+	CHAN6G(93, 6415, 0),
+	CHAN6G(97, 6435, 0),
+	CHAN6G(101, 6455, 0),
+	CHAN6G(105, 6475, 0),
+	CHAN6G(109, 6495, 0),
+	CHAN6G(113, 6515, 0),
+	CHAN6G(117, 6535, 0),
+	CHAN6G(121, 6555, 0),
+	CHAN6G(125, 6575, 0),
+	CHAN6G(129, 6595, 0),
+	CHAN6G(133, 6615, 0),
+	CHAN6G(137, 6635, 0),
+	CHAN6G(141, 6655, 0),
+	CHAN6G(145, 6675, 0),
+	CHAN6G(149, 6695, 0),
+	CHAN6G(153, 6715, 0),
+	CHAN6G(157, 6735, 0),
+	CHAN6G(161, 6755, 0),
+	CHAN6G(165, 6775, 0),
+	CHAN6G(169, 6795, 0),
+	CHAN6G(173, 6815, 0),
+	CHAN6G(177, 6835, 0),
+	CHAN6G(181, 6855, 0),
+	CHAN6G(185, 6875, 0),
+	CHAN6G(189, 6895, 0),
+	CHAN6G(193, 6915, 0),
+	CHAN6G(197, 6935, 0),
+	CHAN6G(201, 6955, 0),
+	CHAN6G(205, 6975, 0),
+	CHAN6G(209, 6995, 0),
+	CHAN6G(213, 7015, 0),
+	CHAN6G(217, 7035, 0),
+	CHAN6G(221, 7055, 0),
+	CHAN6G(225, 7075, 0),
+	CHAN6G(229, 7095, 0),
+	CHAN6G(233, 7115, 0),
 };
 
 static struct ieee80211_rate ath11k_legacy_rates[] = {
@@ -128,6 +205,17 @@ ath11k_phymodes[NUM_NL80211_BANDS][ATH11K_CHAN_WIDTH_NUM] = {
 			[NL80211_CHAN_WIDTH_160] = MODE_11AX_HE160,
 			[NL80211_CHAN_WIDTH_80P80] = MODE_11AX_HE80_80,
 	},
+	[NL80211_BAND_6GHZ] = {
+			[NL80211_CHAN_WIDTH_5] = MODE_UNKNOWN,
+			[NL80211_CHAN_WIDTH_10] = MODE_UNKNOWN,
+			[NL80211_CHAN_WIDTH_20_NOHT] = MODE_11AX_HE20,
+			[NL80211_CHAN_WIDTH_20] = MODE_11AX_HE20,
+			[NL80211_CHAN_WIDTH_40] = MODE_11AX_HE40,
+			[NL80211_CHAN_WIDTH_80] = MODE_11AX_HE80,
+			[NL80211_CHAN_WIDTH_160] = MODE_11AX_HE160,
+			[NL80211_CHAN_WIDTH_80P80] = MODE_11AX_HE80_80,
+	},
+
 };
 
 const struct htt_rx_ring_tlv_filter ath11k_mac_mon_status_filter_default = {
@@ -176,6 +264,22 @@ u8 ath11k_mac_bw_to_mac80211_bw(u8 bw)
 	}
 
 	return ret;
+}
+
+enum ath11k_supported_bw ath11k_mac_mac80211_bw_to_ath11k_bw(enum rate_info_bw bw)
+{
+	switch (bw) {
+	case RATE_INFO_BW_20:
+		return ATH11K_BW_20;
+	case RATE_INFO_BW_40:
+		return ATH11K_BW_40;
+	case RATE_INFO_BW_80:
+		return ATH11K_BW_80;
+	case RATE_INFO_BW_160:
+		return ATH11K_BW_160;
+	default:
+		return ATH11K_BW_20;
+	}
 }
 
 int ath11k_mac_hw_ratecode_to_legacy_rate(u8 hw_rc, u8 preamble, u8 *rateidx,
@@ -369,8 +473,10 @@ struct ath11k_vif *ath11k_mac_get_arvif(struct ath11k *ar, u32 vdev_id)
 						   flags,
 						   ath11k_get_arvif_iter,
 						   &arvif_iter);
-	if (!arvif_iter.arvif)
+	if (!arvif_iter.arvif) {
+		ath11k_warn(ar->ab, "No VIF found for vdev %d\n", vdev_id);
 		return NULL;
+	}
 
 	return arvif_iter.arvif;
 }
@@ -398,14 +504,12 @@ struct ath11k *ath11k_mac_get_ar_by_vdev_id(struct ath11k_base *ab, u32 vdev_id)
 {
 	int i;
 	struct ath11k_pdev *pdev;
-	struct ath11k_vif *arvif;
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = rcu_dereference(ab->pdevs_active[i]);
 		if (pdev && pdev->ar) {
-			arvif = ath11k_mac_get_arvif(pdev->ar, vdev_id);
-			if (arvif)
-				return arvif->ar;
+			if (pdev->ar->allocated_vdev_map & (1LL << vdev_id))
+				return pdev->ar;
 		}
 	}
 
@@ -676,6 +780,8 @@ static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
 	struct ieee80211_vif *vif = arvif->vif;
 	struct ieee80211_mutable_offsets offs = {};
 	struct sk_buff *bcn;
+	struct ieee80211_mgmt *mgmt;
+	u8 *ies;
 	int ret;
 
 	if (arvif->vdev_type != WMI_VDEV_TYPE_AP)
@@ -686,6 +792,17 @@ static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
 		ath11k_warn(ab, "failed to get beacon template from mac80211\n");
 		return -EPERM;
 	}
+
+	ies = bcn->data + ieee80211_get_hdrlen_from_skb(bcn);
+	ies += sizeof(mgmt->u.beacon);
+
+	if (cfg80211_find_ie(WLAN_EID_RSN, ies, (skb_tail_pointer(bcn) - ies)))
+		arvif->rsnie_present = true;
+
+	if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+				    WLAN_OUI_TYPE_MICROSOFT_WPA,
+				    ies, (skb_tail_pointer(bcn) - ies)))
+		arvif->wpaie_present = true;
 
 	ret = ath11k_wmi_bcn_tmpl(ar, arvif->vdev_id, &offs, bcn);
 
@@ -776,6 +893,7 @@ static void ath11k_peer_assoc_h_crypto(struct ath11k *ar,
 	struct ieee80211_bss_conf *info = &vif->bss_conf;
 	struct cfg80211_chan_def def;
 	struct cfg80211_bss *bss;
+	struct ath11k_vif *arvif = (struct ath11k_vif *)vif->drv_priv;
 	const u8 *rsnie = NULL;
 	const u8 *wpaie = NULL;
 
@@ -786,7 +904,12 @@ static void ath11k_peer_assoc_h_crypto(struct ath11k *ar,
 
 	bss = cfg80211_get_bss(ar->hw->wiphy, def.chan, info->bssid, NULL, 0,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
-	if (bss) {
+
+	if (arvif->rsnie_present || arvif->wpaie_present) {
+		arg->need_ptk_4_way = true;
+		if (arvif->wpaie_present)
+			arg->need_gtk_2_way = true;
+	} else if (bss) {
 		const struct cfg80211_bss_ies *ies;
 
 		rcu_read_lock();
@@ -1126,6 +1249,10 @@ static void ath11k_peer_assoc_h_vht(struct ath11k *ar,
 	arg->tx_mcs_set &= ~IEEE80211_VHT_MCS_SUPPORT_0_11_MASK;
 	arg->tx_mcs_set |= IEEE80211_DISABLE_VHT_MCS_SUPPORT_0_11;
 
+	if ((arg->tx_mcs_set & IEEE80211_VHT_MCS_NOT_SUPPORTED) ==
+			IEEE80211_VHT_MCS_NOT_SUPPORTED)
+		arg->peer_vht_caps &= ~IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
+
 	/* TODO:  Check */
 	arg->tx_max_mcs_nss = 0xFF;
 
@@ -1152,8 +1279,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	       sizeof(arg->peer_he_cap_macinfo));
 	memcpy(&arg->peer_he_cap_phyinfo, he_cap->he_cap_elem.phy_cap_info,
 	       sizeof(arg->peer_he_cap_phyinfo));
-	memcpy(&arg->peer_he_ops, &vif->bss_conf.he_operation,
-	       sizeof(arg->peer_he_ops));
+	arg->peer_he_ops = vif->bss_conf.he_oper.params;
 
 	/* the top most byte is used to indicate BSS color info */
 	arg->peer_he_ops &= 0xffffff;
@@ -1464,6 +1590,7 @@ static void ath11k_peer_assoc_h_phymode(struct ath11k *ar,
 		}
 		break;
 	case NL80211_BAND_5GHZ:
+	case NL80211_BAND_6GHZ:
 		/* Check HE first */
 		if (sta->he_cap.has_he) {
 			phymode = ath11k_mac_get_phymode_he(ar, sta);
@@ -1940,6 +2067,31 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		ath11k_wmi_send_obss_spr_cmd(ar, arvif->vdev_id,
 					     &info->he_obss_pd);
 
+	if (changed & BSS_CHANGED_HE_BSS_COLOR) {
+		if (vif->type == NL80211_IFTYPE_AP) {
+			ret = ath11k_wmi_send_obss_color_collision_cfg_cmd(
+				ar, arvif->vdev_id, info->he_bss_color.color,
+				ATH11K_BSS_COLOR_COLLISION_DETECTION_AP_PERIOD_MS,
+				info->he_bss_color.enabled);
+			if (ret)
+				ath11k_warn(ar->ab, "failed to set bss color collision on vdev %i: %d\n",
+					    arvif->vdev_id,  ret);
+		} else if (vif->type == NL80211_IFTYPE_STATION) {
+			ret = ath11k_wmi_send_bss_color_change_enable_cmd(ar,
+									  arvif->vdev_id,
+									  1);
+			if (ret)
+				ath11k_warn(ar->ab, "failed to enable bss color change on vdev %i: %d\n",
+					    arvif->vdev_id,  ret);
+			ret = ath11k_wmi_send_obss_color_collision_cfg_cmd(
+				ar, arvif->vdev_id, 0,
+				ATH11K_BSS_COLOR_COLLISION_DETECTION_STA_PERIOD_MS, 1);
+			if (ret)
+				ath11k_warn(ar->ab, "failed to set bss color collision on vdev %i: %d\n",
+					    arvif->vdev_id,  ret);
+		}
+	}
+
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -2074,6 +2226,9 @@ static int ath11k_start_scan(struct ath11k *ar,
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
+
+	if (ath11k_spectral_get_mode(ar) == ATH11K_SPECTRAL_BACKGROUND)
+		ath11k_spectral_reset_buffer(ar);
 
 	ret = ath11k_wmi_send_scan_start_cmd(ar, arg);
 	if (ret)
@@ -2309,6 +2464,7 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_peer *peer;
+	struct ath11k_sta *arsta;
 	const u8 *peer_addr;
 	int ret = 0;
 	u32 flags = 0;
@@ -2366,15 +2522,53 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		goto exit;
 	}
 
+	ret = ath11k_dp_peer_rx_pn_replay_config(arvif, peer_addr, cmd, key);
+	if (ret) {
+		ath11k_warn(ab, "failed to offload PN replay detection %d\n", ret);
+		goto exit;
+	}
+
 	spin_lock_bh(&ab->base_lock);
 	peer = ath11k_peer_find(ab, arvif->vdev_id, peer_addr);
-	if (peer && cmd == SET_KEY)
+	if (peer && cmd == SET_KEY) {
 		peer->keys[key->keyidx] = key;
-	else if (peer && cmd == DISABLE_KEY)
+		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
+			peer->ucast_keyidx = key->keyidx;
+			peer->sec_type = ath11k_dp_tx_get_encrypt_type(key->cipher);
+		} else {
+			peer->mcast_keyidx = key->keyidx;
+			peer->sec_type_grp = ath11k_dp_tx_get_encrypt_type(key->cipher);
+		}
+	} else if (peer && cmd == DISABLE_KEY) {
 		peer->keys[key->keyidx] = NULL;
-	else if (!peer)
+		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+			peer->ucast_keyidx = 0;
+		else
+			peer->mcast_keyidx = 0;
+	} else if (!peer)
 		/* impossible unless FW goes crazy */
 		ath11k_warn(ab, "peer %pM disappeared!\n", peer_addr);
+
+	if (sta) {
+		arsta = (struct ath11k_sta *)sta->drv_priv;
+
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_TKIP:
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
+			if (cmd == SET_KEY)
+				arsta->pn_type = HAL_PN_TYPE_WPA;
+			else
+				arsta->pn_type = HAL_PN_TYPE_NONE;
+			break;
+		default:
+			arsta->pn_type = HAL_PN_TYPE_NONE;
+			break;
+		}
+	}
+
 	spin_unlock_bh(&ab->base_lock);
 
 exit:
@@ -2786,6 +2980,7 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 	struct ath11k *ar = hw->priv;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_peer *peer;
 	int ret = 0;
 
 	/* cancel must be done outside the mutex to avoid deadlock */
@@ -2818,6 +3013,17 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 				   sta->addr, arvif->vdev_id);
 
 		ath11k_mac_dec_num_stations(arvif, sta);
+		spin_lock_bh(&ar->ab->base_lock);
+		peer = ath11k_peer_find(ar->ab, arvif->vdev_id, sta->addr);
+		if (peer && peer->sta == sta) {
+			ath11k_warn(ar->ab, "Found peer entry %pM n vdev %i after it was supposedly removed\n",
+				    vif->addr, arvif->vdev_id);
+			peer->sta = NULL;
+			list_del(&peer->list);
+			kfree(peer);
+			ar->num_peers--;
+		}
+		spin_unlock_bh(&ar->ab->base_lock);
 
 		kfree(arsta->tx_stats);
 		arsta->tx_stats = NULL;
@@ -3310,7 +3516,7 @@ static void ath11k_mac_setup_ht_vht_cap(struct ath11k *ar,
 						    rate_cap_rx_chainmask);
 	}
 
-	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP) {
+	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP && !ar->supports_6ghz) {
 		band = &ar->mac.sbands[NL80211_BAND_5GHZ];
 		ht_cap = cap->band[NL80211_BAND_5GHZ].ht_cap_info;
 		if (ht_cap_info)
@@ -3431,6 +3637,35 @@ ath11k_mac_filter_he_cap_mesh(struct ieee80211_he_cap_elem *he_cap_elem)
 	he_cap_elem->phy_cap_info[9] &= ~m;
 }
 
+static __le16 ath11k_mac_setup_he_6ghz_cap(struct ath11k_pdev_cap *pcap,
+					   struct ath11k_band_cap *bcap)
+{
+	u8 val;
+
+	bcap->he_6ghz_capa = IEEE80211_HT_MPDU_DENSITY_NONE;
+	if (bcap->ht_cap_info & WMI_HT_CAP_DYNAMIC_SMPS)
+		bcap->he_6ghz_capa |=
+			FIELD_PREP(IEEE80211_HE_6GHZ_CAP_SM_PS,
+				   WLAN_HT_CAP_SM_PS_DYNAMIC);
+	else
+		bcap->he_6ghz_capa |=
+			FIELD_PREP(IEEE80211_HE_6GHZ_CAP_SM_PS,
+				   WLAN_HT_CAP_SM_PS_DISABLED);
+	val = FIELD_GET(IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK,
+			pcap->vht_cap);
+	bcap->he_6ghz_capa |=
+		FIELD_PREP(IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP, val);
+	val = FIELD_GET(IEEE80211_VHT_CAP_MAX_MPDU_MASK, pcap->vht_cap);
+	bcap->he_6ghz_capa |=
+		FIELD_PREP(IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN, val);
+	if (pcap->vht_cap & IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN)
+		bcap->he_6ghz_capa |= IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
+	if (pcap->vht_cap & IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN)
+		bcap->he_6ghz_capa |= IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS;
+
+	return cpu_to_le16(bcap->he_6ghz_capa);
+}
+
 static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 				  struct ath11k_pdev_cap *cap,
 				  struct ieee80211_sband_iftype_data *data,
@@ -3461,7 +3696,7 @@ static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 		memcpy(he_cap_elem->phy_cap_info, band_cap->he_cap_phy_info,
 		       sizeof(he_cap_elem->phy_cap_info));
 
-		he_cap_elem->mac_cap_info[1] |=
+		he_cap_elem->mac_cap_info[1] &=
 			IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_MASK;
 		he_cap_elem->phy_cap_info[4] &=
 			~IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_MASK;
@@ -3477,6 +3712,8 @@ static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 
 		switch (i) {
 		case NL80211_IFTYPE_AP:
+			he_cap_elem->phy_cap_info[3] &=
+				~IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK;
 			he_cap_elem->phy_cap_info[9] |=
 				IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU;
 			break;
@@ -3511,6 +3748,11 @@ static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 		    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT)
 			ath11k_gen_ppe_thresh(&band_cap->he_ppet,
 					      he_cap->ppe_thres);
+
+		if (band == NL80211_BAND_6GHZ) {
+			data[idx].he_6ghz_capa.capa =
+				ath11k_mac_setup_he_6ghz_cap(cap, band_cap);
+		}
 		idx++;
 	}
 
@@ -3538,6 +3780,16 @@ static void ath11k_mac_setup_he_cap(struct ath11k *ar,
 					       NL80211_BAND_5GHZ);
 		band = &ar->mac.sbands[NL80211_BAND_5GHZ];
 		band->iftype_data = ar->mac.iftype[NL80211_BAND_5GHZ];
+		band->n_iftype_data = count;
+	}
+
+	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP &&
+	    ar->supports_6ghz) {
+		count = ath11k_mac_copy_he_cap(ar, cap,
+					       ar->mac.iftype[NL80211_BAND_6GHZ],
+					       NL80211_BAND_6GHZ);
+		band = &ar->mac.sbands[NL80211_BAND_6GHZ];
+		band->iftype_data = ar->mac.iftype[NL80211_BAND_6GHZ];
 		band->n_iftype_data = count;
 	}
 }
@@ -3590,10 +3842,10 @@ static int __ath11k_set_antenna(struct ath11k *ar, u32 tx_ant, u32 rx_ant)
 
 int ath11k_mac_tx_mgmt_pending_free(int buf_id, void *skb, void *ctx)
 {
-	struct ath11k *ar = ctx;
-	struct ath11k_base *ab = ar->ab;
 	struct sk_buff *msdu = skb;
 	struct ieee80211_tx_info *info;
+	struct ath11k *ar = ctx;
+	struct ath11k_base *ab = ar->ab;
 
 	spin_lock_bh(&ar->txmgmt_idr_lock);
 	idr_remove(&ar->txmgmt_idr, buf_id);
@@ -3633,6 +3885,7 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info;
 	dma_addr_t paddr;
 	int buf_id;
 	int ret;
@@ -3644,11 +3897,14 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 	if (buf_id < 0)
 		return -ENOSPC;
 
-	if ((ieee80211_is_action(hdr->frame_control) ||
-	     ieee80211_is_deauth(hdr->frame_control) ||
-	     ieee80211_is_disassoc(hdr->frame_control)) &&
-	     ieee80211_has_protected(hdr->frame_control)) {
-		skb_put(skb, IEEE80211_CCMP_MIC_LEN);
+	info = IEEE80211_SKB_CB(skb);
+	if (!(info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP)) {
+		if ((ieee80211_is_action(hdr->frame_control) ||
+		     ieee80211_is_deauth(hdr->frame_control) ||
+		     ieee80211_is_disassoc(hdr->frame_control)) &&
+		     ieee80211_has_protected(hdr->frame_control)) {
+			skb_put(skb, IEEE80211_CCMP_MIC_LEN);
+		}
 	}
 
 	paddr = dma_map_single(ab->dev, skb->data, skb->len, DMA_TO_DEVICE);
@@ -3697,15 +3953,30 @@ static void ath11k_mgmt_over_wmi_tx_work(struct work_struct *work)
 
 	while ((skb = skb_dequeue(&ar->wmi_mgmt_tx_queue)) != NULL) {
 		info = IEEE80211_SKB_CB(skb);
-		arvif = ath11k_vif_to_arvif(info->control.vif);
-
-		ret = ath11k_mac_mgmt_tx_wmi(ar, arvif, skb);
-		if (ret) {
-			ath11k_warn(ar->ab, "failed to transmit management frame %d\n",
-				    ret);
+		if (!info->control.vif) {
+			ath11k_warn(ar->ab, "no vif found for mgmt frame, flags 0x%x\n",
+				    info->control.flags);
 			ieee80211_free_txskb(ar->hw, skb);
+			continue;
+		}
+
+		arvif = ath11k_vif_to_arvif(info->control.vif);
+		if (ar->allocated_vdev_map & (1LL << arvif->vdev_id) &&
+		    arvif->is_started) {
+			ret = ath11k_mac_mgmt_tx_wmi(ar, arvif, skb);
+			if (ret) {
+				ath11k_warn(ar->ab, "failed to tx mgmt frame, vdev_id %d :%d\n",
+					    arvif->vdev_id, ret);
+				ieee80211_free_txskb(ar->hw, skb);
+			} else {
+				atomic_inc(&ar->num_pending_mgmt_tx);
+			}
 		} else {
-			atomic_inc(&ar->num_pending_mgmt_tx);
+			ath11k_warn(ar->ab,
+				    "dropping mgmt frame for vdev %d, flags 0x%x is_started %d\n",
+				    arvif->vdev_id, info->control.flags,
+				    arvif->is_started);
+			ieee80211_free_txskb(ar->hw, skb);
 		}
 	}
 }
@@ -3745,6 +4016,7 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
 			     struct ieee80211_tx_control *control,
 			     struct sk_buff *skb)
 {
+	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB(skb);
 	struct ath11k *ar = hw->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
@@ -3753,7 +4025,9 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
 	bool is_prb_rsp;
 	int ret;
 
-	if (ieee80211_is_mgmt(hdr->frame_control)) {
+	if (info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP) {
+		skb_cb->flags |= ATH11K_SKB_HW_80211_ENCAP;
+	} else if (ieee80211_is_mgmt(hdr->frame_control)) {
 		is_prb_rsp = ieee80211_is_probe_resp(hdr->frame_control);
 		ret = ath11k_mac_mgmt_tx(ar, skb, is_prb_rsp);
 		if (ret) {
@@ -3785,8 +4059,10 @@ static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 	struct htt_rx_ring_tlv_filter tlv_filter = {0};
 	u32 ring_id;
 
-	if (enable)
+	if (enable) {
 		tlv_filter = ath11k_mac_mon_status_filter_default;
+		tlv_filter.rx_filter = ath11k_debug_rx_filter(ar);
+	}
 
 	ring_id = ar->dp.rx_mon_status_refill_ring.refill_buf_ring.ring_id;
 
@@ -3874,6 +4150,7 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 	ar->num_started_vdevs = 0;
 	ar->num_created_vdevs = 0;
 	ar->num_peers = 0;
+	ar->allocated_vdev_map = 0;
 
 	/* Configure monitor status ring with default rx_filter to get rx status
 	 * such as rssi, rx_duration.
@@ -3884,6 +4161,9 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 			   ret);
 		goto err;
 	}
+
+	/* Configure the hash seed for hash based reo dest ring selection */
+	ath11k_wmi_pdev_lro_cfg(ar, ar->pdev->pdev_id);
 
 	mutex_unlock(&ar->conf_mutex);
 
@@ -3953,6 +4233,11 @@ ath11k_mac_setup_vdev_create_params(struct ath11k_vif *arvif,
 	if (pdev->cap.supported_bands & WMI_HOST_WLAN_5G_CAP) {
 		params->chains[NL80211_BAND_5GHZ].tx = ar->num_tx_chains;
 		params->chains[NL80211_BAND_5GHZ].rx = ar->num_rx_chains;
+	}
+	if (pdev->cap.supported_bands & WMI_HOST_WLAN_5G_CAP &&
+	    ar->supports_6ghz) {
+		params->chains[NL80211_BAND_6GHZ].tx = ar->num_tx_chains;
+		params->chains[NL80211_BAND_6GHZ].rx = ar->num_rx_chains;
 	}
 }
 
@@ -4028,6 +4313,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	struct vdev_create_params vdev_param = {0};
 	struct peer_create_params peer_param;
 	u32 param_id, param_value;
+	int hw_encap = 0;
 	u16 nss;
 	int i;
 	int ret;
@@ -4112,14 +4398,32 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	}
 
 	ar->num_created_vdevs++;
-
+	ath11k_dbg(ab, ATH11K_DBG_MAC, "vdev %pM created, vdev_id %d\n",
+		   vif->addr, arvif->vdev_id);
+	ar->allocated_vdev_map |= 1LL << arvif->vdev_id;
 	ab->free_vdev_map &= ~(1LL << arvif->vdev_id);
+
 	spin_lock_bh(&ar->data_lock);
 	list_add(&arvif->list, &ar->arvifs);
 	spin_unlock_bh(&ar->data_lock);
 
 	param_id = WMI_VDEV_PARAM_TX_ENCAP_TYPE;
-	param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
+	if (ath11k_frame_mode == ATH11K_HW_TXRX_ETHERNET)
+		switch (vif->type) {
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_AP:
+			hw_encap = 1;
+			break;
+		default:
+			break;
+		}
+
+	if (ieee80211_set_hw_80211_encap(vif, hw_encap))
+		param_value = ATH11K_HW_TXRX_ETHERNET;
+	else
+		param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
+
 	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
 					    param_id, param_value);
 	if (ret) {
@@ -4227,6 +4531,7 @@ err_peer_del:
 err_vdev_del:
 	ath11k_wmi_vdev_delete(ar, arvif->vdev_id);
 	ar->num_created_vdevs--;
+	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
 	ab->free_vdev_map |= 1LL << arvif->vdev_id;
 	spin_lock_bh(&ar->data_lock);
 	list_del(&arvif->list);
@@ -4263,7 +4568,6 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 	ath11k_dbg(ab, ATH11K_DBG_MAC, "mac remove interface (vdev %d)\n",
 		   arvif->vdev_id);
 
-	ab->free_vdev_map |= 1LL << (arvif->vdev_id);
 	spin_lock_bh(&ar->data_lock);
 	list_del(&arvif->list);
 	spin_unlock_bh(&ar->data_lock);
@@ -4281,6 +4585,10 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 			    arvif->vdev_id, ret);
 
 	ar->num_created_vdevs--;
+	ath11k_dbg(ab, ATH11K_DBG_MAC, "vdev %pM deleted, vdev_id %d\n",
+		   vif->addr, arvif->vdev_id);
+	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
+	ab->free_vdev_map |= 1LL << (arvif->vdev_id);
 
 	ath11k_peer_cleanup(ar, arvif->vdev_id);
 
@@ -4544,6 +4852,8 @@ ath11k_mac_vdev_start_restart(struct ath11k_vif *arvif,
 	}
 
 	ar->num_started_vdevs++;
+	ath11k_dbg(ab, ATH11K_DBG_MAC,  "vdev %pM started, vdev_id %d\n",
+		   arvif->vif->addr, arvif->vdev_id);
 
 	/* Enable CAC Flag in the driver by checking the channel DFS cac time,
 	 * i.e dfs_cac_ms value which will be valid only for radar channels
@@ -4602,6 +4912,8 @@ static int ath11k_mac_vdev_stop(struct ath11k_vif *arvif)
 	WARN_ON(ar->num_started_vdevs == 0);
 
 	ar->num_started_vdevs--;
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev %pM stopped, vdev_id %d\n",
+		   arvif->vif->addr, arvif->vdev_id);
 
 	if (test_bit(ATH11K_CAC_RUNNING, &ar->dev_flags)) {
 		clear_bit(ATH11K_CAC_RUNNING, &ar->dev_flags);
@@ -5059,7 +5371,7 @@ ath11k_mac_get_single_legacy_rate(struct ath11k *ar,
 
 	rate_idx = ffs(mask->control[band].legacy) - 1;
 
-	if (band == NL80211_BAND_5GHZ)
+	if (band == NL80211_BAND_5GHZ || band == NL80211_BAND_6GHZ)
 		rate_idx += ATH11K_MAC_FIRST_OFDM_RATE_IDX;
 
 	hw_rate = ath11k_legacy_rates[rate_idx].hw_value;
@@ -5525,7 +5837,8 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 	void *channels;
 
 	BUILD_BUG_ON((ARRAY_SIZE(ath11k_2ghz_channels) +
-		      ARRAY_SIZE(ath11k_5ghz_channels)) !=
+		      ARRAY_SIZE(ath11k_5ghz_channels) +
+		      ARRAY_SIZE(ath11k_6ghz_channels)) !=
 		     ATH11K_NUM_CHANS);
 
 	reg_cap = &ar->ab->hal_reg_cap[ar->pdev_idx];
@@ -5538,6 +5851,7 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 			return -ENOMEM;
 
 		band = &ar->mac.sbands[NL80211_BAND_2GHZ];
+		band->band = NL80211_BAND_2GHZ;
 		band->n_channels = ARRAY_SIZE(ath11k_2ghz_channels);
 		band->channels = channels;
 		band->n_bitrates = ath11k_g_rates_size;
@@ -5549,23 +5863,48 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 	}
 
 	if (supported_bands & WMI_HOST_WLAN_5G_CAP) {
-		channels = kmemdup(ath11k_5ghz_channels,
-				   sizeof(ath11k_5ghz_channels),
-				   GFP_KERNEL);
-		if (!channels) {
-			kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
-			return -ENOMEM;
+		if (reg_cap->high_5ghz_chan >= ATH11K_MAX_6G_FREQ) {
+			channels = kmemdup(ath11k_6ghz_channels,
+					   sizeof(ath11k_6ghz_channels), GFP_KERNEL);
+			if (!channels) {
+				kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
+				return -ENOMEM;
+			}
+
+			ar->supports_6ghz = true;
+			band = &ar->mac.sbands[NL80211_BAND_6GHZ];
+			band->band = NL80211_BAND_6GHZ;
+			band->n_channels = ARRAY_SIZE(ath11k_6ghz_channels);
+			band->channels = channels;
+			band->n_bitrates = ath11k_a_rates_size;
+			band->bitrates = ath11k_a_rates;
+			ar->hw->wiphy->bands[NL80211_BAND_6GHZ] = band;
+			ath11k_mac_update_ch_list(ar, band,
+						  reg_cap->low_5ghz_chan,
+						  reg_cap->high_5ghz_chan);
 		}
 
-		band = &ar->mac.sbands[NL80211_BAND_5GHZ];
-		band->n_channels = ARRAY_SIZE(ath11k_5ghz_channels);
-		band->channels = channels;
-		band->n_bitrates = ath11k_a_rates_size;
-		band->bitrates = ath11k_a_rates;
-		ar->hw->wiphy->bands[NL80211_BAND_5GHZ] = band;
-		ath11k_mac_update_ch_list(ar, band,
-					  reg_cap->low_5ghz_chan,
-					  reg_cap->high_5ghz_chan);
+		if (reg_cap->low_5ghz_chan < ATH11K_MIN_6G_FREQ) {
+			channels = kmemdup(ath11k_5ghz_channels,
+					   sizeof(ath11k_5ghz_channels),
+					   GFP_KERNEL);
+			if (!channels) {
+				kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
+				kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
+				return -ENOMEM;
+			}
+
+			band = &ar->mac.sbands[NL80211_BAND_5GHZ];
+			band->band = NL80211_BAND_5GHZ;
+			band->n_channels = ARRAY_SIZE(ath11k_5ghz_channels);
+			band->channels = channels;
+			band->n_bitrates = ath11k_a_rates_size;
+			band->bitrates = ath11k_a_rates;
+			ar->hw->wiphy->bands[NL80211_BAND_5GHZ] = band;
+			ath11k_mac_update_ch_list(ar, band,
+						  reg_cap->low_5ghz_chan,
+						  reg_cap->high_5ghz_chan);
+		}
 	}
 
 	return 0;
@@ -5619,6 +5958,7 @@ static void __ath11k_mac_unregister(struct ath11k *ar)
 
 	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_5GHZ].channels);
+	kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
 
 	SET_IEEE80211_DEV(ar->hw, NULL);
 }
@@ -5699,6 +6039,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 		ieee80211_hw_set(ar->hw, TX_AMPDU_SETUP_IN_HW);
 		ieee80211_hw_set(ar->hw, SUPPORTS_REORDERING_BUFFER);
 		ieee80211_hw_set(ar->hw, SUPPORTS_AMSDU_IN_AMPDU);
+		ieee80211_hw_set(ar->hw, USES_RSS);
 	}
 
 	ar->hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
@@ -5730,6 +6071,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ar->hw->wiphy->max_ap_assoc_sta = ar->max_num_stations;
 
 	ar->hw->queues = ATH11K_HW_MAX_QUEUES;
+	ar->hw->wiphy->tx_queue_len = ATH11K_QUEUE_LEN;
 	ar->hw->offchannel_tx_hw_queue = ATH11K_HW_MAX_QUEUES - 1;
 	ar->hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 
@@ -5789,6 +6131,9 @@ int ath11k_mac_register(struct ath11k_base *ab)
 	struct ath11k_pdev *pdev;
 	int i;
 	int ret;
+
+	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
+		return 0;
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
@@ -5873,6 +6218,8 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
 		init_completion(&ar->bss_survey_done);
 		init_completion(&ar->scan.started);
 		init_completion(&ar->scan.completed);
+		init_completion(&ar->thermal.wmi_sync);
+
 		INIT_DELAYED_WORK(&ar->scan.timeout, ath11k_scan_timeout_work);
 		INIT_WORK(&ar->regd_update_work, ath11k_regd_update_work);
 

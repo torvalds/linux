@@ -38,6 +38,7 @@
 #include <drm/amdgpu_drm.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-fence-array.h>
+#include <linux/pci-p2pdma.h>
 
 /**
  * amdgpu_gem_prime_vmap - &dma_buf_ops.vmap implementation
@@ -179,6 +180,9 @@ static int amdgpu_dma_buf_attach(struct dma_buf *dmabuf,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	int r;
 
+	if (pci_p2pdma_distance_many(adev->pdev, &attach->dev, 1, true) < 0)
+		attach->peer2peer = false;
+
 	if (attach->dev->driver == adev->dev->driver)
 		return 0;
 
@@ -223,6 +227,37 @@ static void amdgpu_dma_buf_detach(struct dma_buf *dmabuf,
 }
 
 /**
+ * amdgpu_dma_buf_pin - &dma_buf_ops.pin implementation
+ *
+ * @attach: attachment to pin down
+ *
+ * Pin the BO which is backing the DMA-buf so that it can't move any more.
+ */
+static int amdgpu_dma_buf_pin(struct dma_buf_attachment *attach)
+{
+	struct drm_gem_object *obj = attach->dmabuf->priv;
+	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+
+	/* pin buffer into GTT */
+	return amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
+}
+
+/**
+ * amdgpu_dma_buf_unpin - &dma_buf_ops.unpin implementation
+ *
+ * @attach: attachment to unpin
+ *
+ * Unpin a previously pinned BO to make it movable again.
+ */
+static void amdgpu_dma_buf_unpin(struct dma_buf_attachment *attach)
+{
+	struct drm_gem_object *obj = attach->dmabuf->priv;
+	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+
+	amdgpu_bo_unpin(bo);
+}
+
+/**
  * amdgpu_dma_buf_map - &dma_buf_ops.map_dma_buf implementation
  * @attach: DMA-buf attachment
  * @dir: DMA direction
@@ -241,27 +276,58 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 	struct dma_buf *dma_buf = attach->dmabuf;
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct sg_table *sgt;
 	long r;
 
-	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
-	if (r)
-		return ERR_PTR(r);
+	if (!bo->pin_count) {
+		/* move buffer into GTT or VRAM */
+		struct ttm_operation_ctx ctx = { false, false };
+		unsigned domains = AMDGPU_GEM_DOMAIN_GTT;
 
-	sgt = drm_prime_pages_to_sg(bo->tbo.ttm->pages, bo->tbo.num_pages);
-	if (IS_ERR(sgt))
-		return sgt;
+		if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM &&
+		    attach->peer2peer) {
+			bo->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+			domains |= AMDGPU_GEM_DOMAIN_VRAM;
+		}
+		amdgpu_bo_placement_from_domain(bo, domains);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+		if (r)
+			return ERR_PTR(r);
 
-	if (!dma_map_sg_attrs(attach->dev, sgt->sgl, sgt->nents, dir,
-			      DMA_ATTR_SKIP_CPU_SYNC))
-		goto error_free;
+	} else if (!(amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type) &
+		     AMDGPU_GEM_DOMAIN_GTT)) {
+		return ERR_PTR(-EBUSY);
+	}
+
+	switch (bo->tbo.mem.mem_type) {
+	case TTM_PL_TT:
+		sgt = drm_prime_pages_to_sg(bo->tbo.ttm->pages,
+					    bo->tbo.num_pages);
+		if (IS_ERR(sgt))
+			return sgt;
+
+		if (dma_map_sgtable(attach->dev, sgt, dir,
+				    DMA_ATTR_SKIP_CPU_SYNC))
+			goto error_free;
+		break;
+
+	case TTM_PL_VRAM:
+		r = amdgpu_vram_mgr_alloc_sgt(adev, &bo->tbo.mem, attach->dev,
+					      dir, &sgt);
+		if (r)
+			return ERR_PTR(r);
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
 
 	return sgt;
 
 error_free:
 	sg_free_table(sgt);
 	kfree(sgt);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EBUSY);
 }
 
 /**
@@ -277,13 +343,18 @@ static void amdgpu_dma_buf_unmap(struct dma_buf_attachment *attach,
 				 struct sg_table *sgt,
 				 enum dma_data_direction dir)
 {
-	struct drm_gem_object *obj = attach->dmabuf->priv;
+	struct dma_buf *dma_buf = attach->dmabuf;
+	struct drm_gem_object *obj = dma_buf->priv;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 
-	dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents, dir);
-	sg_free_table(sgt);
-	kfree(sgt);
-	amdgpu_bo_unpin(bo);
+	if (sgt->sgl->page_link) {
+		dma_unmap_sgtable(attach->dev, sgt, dir, 0);
+		sg_free_table(sgt);
+		kfree(sgt);
+	} else {
+		amdgpu_vram_mgr_free_sgt(adev, attach->dev, dir, sgt);
+	}
 }
 
 /**
@@ -327,9 +398,10 @@ static int amdgpu_dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 }
 
 const struct dma_buf_ops amdgpu_dmabuf_ops = {
-	.dynamic_mapping = true,
 	.attach = amdgpu_dma_buf_attach,
 	.detach = amdgpu_dma_buf_detach,
+	.pin = amdgpu_dma_buf_pin,
+	.unpin = amdgpu_dma_buf_unpin,
 	.map_dma_buf = amdgpu_dma_buf_map,
 	.unmap_dma_buf = amdgpu_dma_buf_unmap,
 	.release = drm_gem_dmabuf_release,
@@ -413,6 +485,74 @@ error:
 }
 
 /**
+ * amdgpu_dma_buf_move_notify - &attach.move_notify implementation
+ *
+ * @attach: the DMA-buf attachment
+ *
+ * Invalidate the DMA-buf attachment, making sure that the we re-create the
+ * mapping before the next use.
+ */
+static void
+amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
+{
+	struct drm_gem_object *obj = attach->importer_priv;
+	struct ww_acquire_ctx *ticket = dma_resv_locking_ctx(obj->resv);
+	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	struct ttm_operation_ctx ctx = { false, false };
+	struct ttm_placement placement = {};
+	struct amdgpu_vm_bo_base *bo_base;
+	int r;
+
+	if (bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
+		return;
+
+	r = ttm_bo_validate(&bo->tbo, &placement, &ctx);
+	if (r) {
+		DRM_ERROR("Failed to invalidate DMA-buf import (%d))\n", r);
+		return;
+	}
+
+	for (bo_base = bo->vm_bo; bo_base; bo_base = bo_base->next) {
+		struct amdgpu_vm *vm = bo_base->vm;
+		struct dma_resv *resv = vm->root.base.bo->tbo.base.resv;
+
+		if (ticket) {
+			/* When we get an error here it means that somebody
+			 * else is holding the VM lock and updating page tables
+			 * So we can just continue here.
+			 */
+			r = dma_resv_lock(resv, ticket);
+			if (r)
+				continue;
+
+		} else {
+			/* TODO: This is more problematic and we actually need
+			 * to allow page tables updates without holding the
+			 * lock.
+			 */
+			if (!dma_resv_trylock(resv))
+				continue;
+		}
+
+		r = amdgpu_vm_clear_freed(adev, vm, NULL);
+		if (!r)
+			r = amdgpu_vm_handle_moved(adev, vm);
+
+		if (r && r != -EBUSY)
+			DRM_ERROR("Failed to invalidate VM page tables (%d))\n",
+				  r);
+
+		dma_resv_unlock(resv);
+	}
+}
+
+static const struct dma_buf_attach_ops amdgpu_dma_buf_attach_ops = {
+	.allow_peer2peer = true,
+	.move_notify = amdgpu_dma_buf_move_notify
+};
+
+/**
  * amdgpu_gem_prime_import - &drm_driver.gem_prime_import implementation
  * @dev: DRM device
  * @dma_buf: Shared DMA buffer
@@ -444,7 +584,8 @@ struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 	if (IS_ERR(obj))
 		return obj;
 
-	attach = dma_buf_dynamic_attach(dma_buf, dev->dev, true);
+	attach = dma_buf_dynamic_attach(dma_buf, dev->dev,
+					&amdgpu_dma_buf_attach_ops, obj);
 	if (IS_ERR(attach)) {
 		drm_gem_object_put(obj);
 		return ERR_CAST(attach);

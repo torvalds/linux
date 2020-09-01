@@ -92,7 +92,6 @@
 #include <linux/user_namespace.h>
 #include <linux/fs_struct.h>
 
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include "internal.h"
 
@@ -248,8 +247,8 @@ void render_sigset_t(struct seq_file *m, const char *header,
 	seq_putc(m, '\n');
 }
 
-static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *ign,
-				    sigset_t *catch)
+static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *sigign,
+				    sigset_t *sigcatch)
 {
 	struct k_sigaction *k;
 	int i;
@@ -257,9 +256,9 @@ static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *ign,
 	k = p->sighand->action;
 	for (i = 1; i <= _NSIG; ++i, ++k) {
 		if (k->sa.sa_handler == SIG_IGN)
-			sigaddset(ign, i);
+			sigaddset(sigign, i);
 		else if (k->sa.sa_handler != SIG_DFL)
-			sigaddset(catch, i);
+			sigaddset(sigcatch, i);
 	}
 }
 
@@ -342,6 +341,8 @@ static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
 	seq_put_decimal_ull(m, "NoNewPrivs:\t", task_no_new_privs(p));
 #ifdef CONFIG_SECCOMP
 	seq_put_decimal_ull(m, "\nSeccomp:\t", p->seccomp.mode);
+	seq_put_decimal_ull(m, "\nSeccomp_filters:\t",
+			    atomic_read(&p->seccomp.filter_count));
 #endif
 	seq_puts(m, "\nSpeculation_Store_Bypass:\t");
 	switch (arch_prctl_spec_ctrl_get(p, PR_SPEC_STORE_BYPASS)) {
@@ -635,28 +636,35 @@ int proc_tgid_stat(struct seq_file *m, struct pid_namespace *ns,
 int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
 			struct pid *pid, struct task_struct *task)
 {
-	unsigned long size = 0, resident = 0, shared = 0, text = 0, data = 0;
 	struct mm_struct *mm = get_task_mm(task);
 
 	if (mm) {
+		unsigned long size;
+		unsigned long resident = 0;
+		unsigned long shared = 0;
+		unsigned long text = 0;
+		unsigned long data = 0;
+
 		size = task_statm(mm, &shared, &text, &data, &resident);
 		mmput(mm);
-	}
-	/*
-	 * For quick read, open code by putting numbers directly
-	 * expected format is
-	 * seq_printf(m, "%lu %lu %lu %lu 0 %lu 0\n",
-	 *               size, resident, shared, text, data);
-	 */
-	seq_put_decimal_ull(m, "", size);
-	seq_put_decimal_ull(m, " ", resident);
-	seq_put_decimal_ull(m, " ", shared);
-	seq_put_decimal_ull(m, " ", text);
-	seq_put_decimal_ull(m, " ", 0);
-	seq_put_decimal_ull(m, " ", data);
-	seq_put_decimal_ull(m, " ", 0);
-	seq_putc(m, '\n');
 
+		/*
+		 * For quick read, open code by putting numbers directly
+		 * expected format is
+		 * seq_printf(m, "%lu %lu %lu %lu 0 %lu 0\n",
+		 *               size, resident, shared, text, data);
+		 */
+		seq_put_decimal_ull(m, "", size);
+		seq_put_decimal_ull(m, " ", resident);
+		seq_put_decimal_ull(m, " ", shared);
+		seq_put_decimal_ull(m, " ", text);
+		seq_put_decimal_ull(m, " ", 0);
+		seq_put_decimal_ull(m, " ", data);
+		seq_put_decimal_ull(m, " ", 0);
+		seq_putc(m, '\n');
+	} else {
+		seq_write(m, "0 0 0 0 0 0 0\n", 14);
+	}
 	return 0;
 }
 
@@ -721,7 +729,7 @@ static int children_seq_show(struct seq_file *seq, void *v)
 {
 	struct inode *inode = file_inode(seq->file);
 
-	seq_printf(seq, "%d ", pid_nr_ns(v, proc_pid_ns(inode)));
+	seq_printf(seq, "%d ", pid_nr_ns(v, proc_pid_ns(inode->i_sb)));
 	return 0;
 }
 

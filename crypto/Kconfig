@@ -316,7 +316,6 @@ config CRYPTO_AEGIS128
 config CRYPTO_AEGIS128_SIMD
 	bool "Support SIMD acceleration for AEGIS-128"
 	depends on CRYPTO_AEGIS128 && ((ARM || ARM64) && KERNEL_MODE_NEON)
-	depends on !ARM || CC_IS_CLANG || GCC_VERSION >= 40800
 	default y
 
 config CRYPTO_AEGIS128_AESNI_SSE2
@@ -370,7 +369,6 @@ config CRYPTO_CFB
 config CRYPTO_CTR
 	tristate "CTR support"
 	select CRYPTO_SKCIPHER
-	select CRYPTO_SEQIV
 	select CRYPTO_MANAGER
 	help
 	  CTR: Counter mode
@@ -550,7 +548,7 @@ config CRYPTO_XCBC
 	select CRYPTO_MANAGER
 	help
 	  XCBC: Keyed-Hashing with encryption algorithm
-		http://www.ietf.org/rfc/rfc3566.txt
+		https://www.ietf.org/rfc/rfc3566.txt
 		http://csrc.nist.gov/encryption/modes/proposedmodes/
 		 xcbc-mac/xcbc-mac-spec.pdf
 
@@ -563,7 +561,7 @@ config CRYPTO_VMAC
 	  very high speed on 64-bit architectures.
 
 	  See also:
-	  <http://fastcrypto.org/vmac>
+	  <https://fastcrypto.org/vmac>
 
 comment "Digest"
 
@@ -818,7 +816,7 @@ config CRYPTO_RMD128
 	  RIPEMD-160 should be used.
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD160
 	tristate "RIPEMD-160 digest algorithm"
@@ -835,7 +833,7 @@ config CRYPTO_RMD160
 	  against RIPEMD-160.
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD256
 	tristate "RIPEMD-256 digest algorithm"
@@ -847,7 +845,7 @@ config CRYPTO_RMD256
 	  (than RIPEMD-128).
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD320
 	tristate "RIPEMD-320 digest algorithm"
@@ -859,7 +857,7 @@ config CRYPTO_RMD320
 	  (than RIPEMD-160).
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
@@ -1047,7 +1045,7 @@ config CRYPTO_TGR192
 	  Tiger was developed by Ross Anderson and Eli Biham.
 
 	  See also:
-	  <http://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
+	  <https://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
 
 config CRYPTO_WP512
 	tristate "Whirlpool digest algorithms"
@@ -1223,7 +1221,7 @@ config CRYPTO_BLOWFISH
 	  designed for use on "large microprocessors".
 
 	  See also:
-	  <http://www.schneier.com/blowfish.html>
+	  <https://www.schneier.com/blowfish.html>
 
 config CRYPTO_BLOWFISH_COMMON
 	tristate
@@ -1232,7 +1230,7 @@ config CRYPTO_BLOWFISH_COMMON
 	  generic c and the assembler implementations.
 
 	  See also:
-	  <http://www.schneier.com/blowfish.html>
+	  <https://www.schneier.com/blowfish.html>
 
 config CRYPTO_BLOWFISH_X86_64
 	tristate "Blowfish cipher algorithm (x86_64)"
@@ -1247,7 +1245,7 @@ config CRYPTO_BLOWFISH_X86_64
 	  designed for use on "large microprocessors".
 
 	  See also:
-	  <http://www.schneier.com/blowfish.html>
+	  <https://www.schneier.com/blowfish.html>
 
 config CRYPTO_CAMELLIA
 	tristate "Camellia cipher algorithms"
@@ -1443,10 +1441,10 @@ config CRYPTO_SALSA20
 	  Salsa20 stream cipher algorithm.
 
 	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
-	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
+	  Stream Cipher Project. See <https://www.ecrypt.eu.org/stream/>
 
 	  The Salsa20 stream cipher algorithm is designed by Daniel J.
-	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
+	  Bernstein <djb@cr.yp.to>. See <https://cr.yp.to/snuffle.html>
 
 config CRYPTO_CHACHA20
 	tristate "ChaCha stream cipher algorithms"
@@ -1458,7 +1456,7 @@ config CRYPTO_CHACHA20
 	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
 	  Bernstein and further specified in RFC7539 for use in IETF protocols.
 	  This is the portable C implementation of ChaCha20.  See also:
-	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
+	  <https://cr.yp.to/chacha/chacha-20080128.pdf>
 
 	  XChaCha20 is the application of the XSalsa20 construction to ChaCha20
 	  rather than to Salsa20.  XChaCha20 extends ChaCha20's nonce length
@@ -1511,7 +1509,7 @@ config CRYPTO_SERPENT
 	  variant of Serpent for compatibility with old kerneli.org code.
 
 	  See also:
-	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
 
 config CRYPTO_SERPENT_SSE2_X86_64
 	tristate "Serpent cipher algorithm (x86_64/SSE2)"
@@ -1530,7 +1528,7 @@ config CRYPTO_SERPENT_SSE2_X86_64
 	  blocks parallel using SSE2 instruction set.
 
 	  See also:
-	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
 
 config CRYPTO_SERPENT_SSE2_586
 	tristate "Serpent cipher algorithm (i586/SSE2)"
@@ -1549,7 +1547,7 @@ config CRYPTO_SERPENT_SSE2_586
 	  blocks parallel using SSE2 instruction set.
 
 	  See also:
-	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
 
 config CRYPTO_SERPENT_AVX_X86_64
 	tristate "Serpent cipher algorithm (x86_64/AVX)"
@@ -1569,7 +1567,7 @@ config CRYPTO_SERPENT_AVX_X86_64
 	  eight blocks parallel using the AVX instruction set.
 
 	  See also:
-	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
 
 config CRYPTO_SERPENT_AVX2_X86_64
 	tristate "Serpent cipher algorithm (x86_64/AVX2)"
@@ -1585,7 +1583,7 @@ config CRYPTO_SERPENT_AVX2_X86_64
 	  blocks parallel using AVX2 instruction set.
 
 	  See also:
-	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
 
 config CRYPTO_SM4
 	tristate "SM4 cipher algorithm"
@@ -1642,7 +1640,7 @@ config CRYPTO_TWOFISH
 	  bits.
 
 	  See also:
-	  <http://www.schneier.com/twofish.html>
+	  <https://www.schneier.com/twofish.html>
 
 config CRYPTO_TWOFISH_COMMON
 	tristate
@@ -1664,7 +1662,7 @@ config CRYPTO_TWOFISH_586
 	  bits.
 
 	  See also:
-	  <http://www.schneier.com/twofish.html>
+	  <https://www.schneier.com/twofish.html>
 
 config CRYPTO_TWOFISH_X86_64
 	tristate "Twofish cipher algorithm (x86_64)"
@@ -1680,7 +1678,7 @@ config CRYPTO_TWOFISH_X86_64
 	  bits.
 
 	  See also:
-	  <http://www.schneier.com/twofish.html>
+	  <https://www.schneier.com/twofish.html>
 
 config CRYPTO_TWOFISH_X86_64_3WAY
 	tristate "Twofish cipher algorithm (x86_64, 3-way parallel)"
@@ -1701,7 +1699,7 @@ config CRYPTO_TWOFISH_X86_64_3WAY
 	  blocks parallel, utilizing resources of out-of-order CPUs better.
 
 	  See also:
-	  <http://www.schneier.com/twofish.html>
+	  <https://www.schneier.com/twofish.html>
 
 config CRYPTO_TWOFISH_AVX_X86_64
 	tristate "Twofish cipher algorithm (x86_64/AVX)"
@@ -1724,7 +1722,7 @@ config CRYPTO_TWOFISH_AVX_X86_64
 	  eight blocks parallel using the AVX Instruction Set.
 
 	  See also:
-	  <http://www.schneier.com/twofish.html>
+	  <https://www.schneier.com/twofish.html>
 
 comment "Compression"
 
@@ -1820,7 +1818,7 @@ config CRYPTO_DRBG_HASH
 config CRYPTO_DRBG_CTR
 	bool "Enable CTR DRBG"
 	select CRYPTO_AES
-	depends on CRYPTO_CTR
+	select CRYPTO_CTR
 	help
 	  Enable the CTR DRBG variant as defined in NIST SP800-90A.
 

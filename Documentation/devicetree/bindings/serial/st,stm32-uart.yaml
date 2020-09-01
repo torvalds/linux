@@ -35,8 +35,10 @@ properties:
     description: label associated with this uart
 
   st,hw-flow-ctrl:
-    description: enable hardware flow control
+    description: enable hardware flow control (deprecated)
     $ref: /schemas/types.yaml#/definitions/flag
+
+  uart-has-rtscts: true
 
   dmas:
     minItems: 1
@@ -48,12 +50,26 @@ properties:
     minItems: 1
     maxItems: 2
 
+  cts-gpios:
+    maxItems: 1
+
+  rts-gpios:
+    maxItems: 1
+
   wakeup-source: true
 
   rs485-rts-delay: true
   rs485-rts-active-low: true
   linux,rs485-enabled-at-boot-time: true
   rs485-rx-during-tx: true
+
+if:
+  required:
+    - st,hw-flow-ctrl
+then:
+  properties:
+    cts-gpios: false
+    rts-gpios: false
 
 required:
   - compatible

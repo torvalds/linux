@@ -539,7 +539,7 @@ static int usb6fire_control_add_virtual(
 		ret = snd_ctl_add(card, control);
 		if (ret < 0)
 			return ret;
-		ret = snd_ctl_add_slave(vmaster, control);
+		ret = snd_ctl_add_follower(vmaster, control);
 		if (ret < 0)
 			return ret;
 		i++;

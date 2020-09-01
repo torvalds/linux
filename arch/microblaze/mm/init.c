@@ -49,17 +49,6 @@ unsigned long lowmem_size;
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
 EXPORT_SYMBOL(kmap_pte);
-pgprot_t kmap_prot;
-EXPORT_SYMBOL(kmap_prot);
-
-static inline pte_t *virt_to_kpte(unsigned long vaddr)
-{
-	pgd_t *pgd = pgd_offset_k(vaddr);
-	p4d_t *p4d = p4d_offset(pgd, vaddr);
-	pud_t *pud = pud_offset(p4d, vaddr);
-
-	return pte_offset_kernel(pmd_offset(pud, vaddr), vaddr);
-}
 
 static void __init highmem_init(void)
 {
@@ -68,7 +57,6 @@ static void __init highmem_init(void)
 	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
 
 	kmap_pte = virt_to_kpte(__fix_to_virt(FIX_KMAP_BEGIN));
-	kmap_prot = PAGE_KERNEL;
 }
 
 static void highmem_setup(void)
@@ -112,7 +100,7 @@ static void __init paging_init(void)
 #endif
 
 	/* We don't have holes in memory map */
-	free_area_init_nodes(zones_size);
+	free_area_init(zones_size);
 }
 
 void __init setup_memory(void)
@@ -184,9 +172,6 @@ void __init setup_memory(void)
 				  &memblock.memory, 0);
 	}
 
-	/* XXX need to clip this if using highmem? */
-	sparse_memory_present_with_active_regions(0);
-
 	paging_init();
 }
 
@@ -201,18 +186,6 @@ void __init mem_init(void)
 #endif
 
 	mem_init_print_info(NULL);
-#ifdef CONFIG_MMU
-	pr_info("Kernel virtual memory layout:\n");
-	pr_info("  * 0x%08lx..0x%08lx  : fixmap\n", FIXADDR_START, FIXADDR_TOP);
-#ifdef CONFIG_HIGHMEM
-	pr_info("  * 0x%08lx..0x%08lx  : highmem PTEs\n",
-		PKMAP_BASE, PKMAP_ADDR(LAST_PKMAP));
-#endif /* CONFIG_HIGHMEM */
-	pr_info("  * 0x%08lx..0x%08lx  : early ioremap\n",
-		ioremap_bot, ioremap_base);
-	pr_info("  * 0x%08lx..0x%08lx  : vmalloc & ioremap\n",
-		(unsigned long)VMALLOC_START, VMALLOC_END);
-#endif
 	mem_init_done = 1;
 }
 
@@ -346,6 +319,8 @@ asmlinkage void __init mmu_init(void)
 	/* This will also cause that unflatten device tree will be allocated
 	 * inside 768MB limit */
 	memblock_set_current_limit(memory_start + lowmem_size - 1);
+
+	parse_early_param();
 
 	/* CMA initialization */
 	dma_contiguous_reserve(memory_start + lowmem_size - 1);

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /*
  * hw.h - DesignWare HS OTG Controller hardware definitions
  *
@@ -54,6 +54,12 @@
 #define GOTGCTL_HSTSETHNPEN		BIT(10)
 #define GOTGCTL_HNPREQ			BIT(9)
 #define GOTGCTL_HSTNEGSCS		BIT(8)
+#define GOTGCTL_BVALOVAL		BIT(7)
+#define GOTGCTL_BVALOEN			BIT(6)
+#define GOTGCTL_AVALOVAL		BIT(5)
+#define GOTGCTL_AVALOEN			BIT(4)
+#define GOTGCTL_VBVALOVAL		BIT(3)
+#define GOTGCTL_VBVALOEN		BIT(2)
 #define GOTGCTL_SESREQ			BIT(1)
 #define GOTGCTL_SESREQSCS		BIT(0)
 
@@ -120,6 +126,7 @@
 #define GRSTCTL				HSOTG_REG(0x010)
 #define GRSTCTL_AHBIDLE			BIT(31)
 #define GRSTCTL_DMAREQ			BIT(30)
+#define GRSTCTL_CSFTRST_DONE		BIT(29)
 #define GRSTCTL_TXFNUM_MASK		(0x1f << 6)
 #define GRSTCTL_TXFNUM_SHIFT		6
 #define GRSTCTL_TXFNUM_LIMIT		0x1f
@@ -227,6 +234,8 @@
 #define GPVNDCTL			HSOTG_REG(0x0034)
 #define GGPIO				HSOTG_REG(0x0038)
 #define GGPIO_STM32_OTG_GCCFG_PWRDWN	BIT(16)
+#define GGPIO_STM32_OTG_GCCFG_VBDEN	BIT(21)
+#define GGPIO_STM32_OTG_GCCFG_IDEN	BIT(22)
 
 #define GUID				HSOTG_REG(0x003c)
 #define GSNPSID				HSOTG_REG(0x0040)

@@ -442,7 +442,7 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
 /*
  * ksmd, and unmerge_and_remove_all_rmap_items(), must not touch an mm's
  * page tables after it has passed through ksm_exit() - which, if necessary,
- * takes mmap_sem briefly to serialize against them.  ksm_exit() does not set
+ * takes mmap_lock briefly to serialize against them.  ksm_exit() does not set
  * a special flag: they can just back out as soon as mm_users goes to zero.
  * ksm_test_exit() is used throughout to make this test for exit: in some
  * places for correctness, in some places just to avoid unnecessary work.
@@ -455,7 +455,7 @@ static inline bool ksm_test_exit(struct mm_struct *mm)
 /*
  * We use break_ksm to break COW on a ksm page: it's a stripped down
  *
- *	if (get_user_pages(addr, 1, 1, 1, &page, NULL) == 1)
+ *	if (get_user_pages(addr, 1, FOLL_WRITE, &page, NULL) == 1)
  *		put_page(page);
  *
  * but taking great care only to touch a ksm page, in a VM_MERGEABLE vma,
@@ -480,7 +480,8 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
 			break;
 		if (PageKsm(page))
 			ret = handle_mm_fault(vma, addr,
-					FAULT_FLAG_WRITE | FAULT_FLAG_REMOTE);
+					      FAULT_FLAG_WRITE | FAULT_FLAG_REMOTE,
+					      NULL);
 		else
 			ret = VM_FAULT_WRITE;
 		put_page(page);
@@ -542,11 +543,11 @@ static void break_cow(struct rmap_item *rmap_item)
 	 */
 	put_anon_vma(rmap_item->anon_vma);
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_mergeable_vma(mm, addr);
 	if (vma)
 		break_ksm(vma, addr);
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 }
 
 static struct page *get_mergeable_page(struct rmap_item *rmap_item)
@@ -556,7 +557,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
 	struct vm_area_struct *vma;
 	struct page *page;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_mergeable_vma(mm, addr);
 	if (!vma)
 		goto out;
@@ -572,7 +573,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
 out:
 		page = NULL;
 	}
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return page;
 }
 
@@ -612,7 +613,7 @@ static struct stable_node *alloc_stable_node_chain(struct stable_node *dup,
 		 * Move the old stable node to the second dimension
 		 * queued in the hlist_dup. The invariant is that all
 		 * dup stable_nodes in the chain->hlist point to pages
-		 * that are wrprotected and have the exact same
+		 * that are write protected and have the exact same
 		 * content.
 		 */
 		stable_node_chain_add_dup(dup, chain);
@@ -831,7 +832,7 @@ static void remove_trailing_rmap_items(struct mm_slot *mm_slot,
  * Though it's very tempting to unmerge rmap_items from stable tree rather
  * than check every pte of a given vma, the locking doesn't quite work for
  * that - an rmap_item is assigned to the stable tree after inserting ksm
- * page and upping mmap_sem.  Nor does it fit with the way we skip dup'ing
+ * page and upping mmap_lock.  Nor does it fit with the way we skip dup'ing
  * rmap_items from parent to child at fork time (so as not to waste time
  * if exit comes before the next scan reaches it).
  *
@@ -976,7 +977,7 @@ static int unmerge_and_remove_all_rmap_items(void)
 	for (mm_slot = ksm_scan.mm_slot;
 			mm_slot != &ksm_mm_head; mm_slot = ksm_scan.mm_slot) {
 		mm = mm_slot->mm;
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
 			if (ksm_test_exit(mm))
 				break;
@@ -989,7 +990,7 @@ static int unmerge_and_remove_all_rmap_items(void)
 		}
 
 		remove_trailing_rmap_items(mm_slot, &mm_slot->rmap_list);
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 
 		spin_lock(&ksm_mmlist_lock);
 		ksm_scan.mm_slot = list_entry(mm_slot->mm_list.next,
@@ -1012,7 +1013,7 @@ static int unmerge_and_remove_all_rmap_items(void)
 	return 0;
 
 error:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	spin_lock(&ksm_mmlist_lock);
 	ksm_scan.mm_slot = &ksm_mm_head;
 	spin_unlock(&ksm_mmlist_lock);
@@ -1148,7 +1149,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 
 	/*
 	 * No need to check ksm_use_zero_pages here: we can only have a
-	 * zero_page here if ksm_use_zero_pages was enabled alreaady.
+	 * zero_page here if ksm_use_zero_pages was enabled already.
 	 */
 	if (!is_zero_pfn(page_to_pfn(kpage))) {
 		get_page(kpage);
@@ -1280,7 +1281,7 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
 	struct vm_area_struct *vma;
 	int err = -EFAULT;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_mergeable_vma(mm, rmap_item->address);
 	if (!vma)
 		goto out;
@@ -1292,11 +1293,11 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
 	/* Unstable nid is in union with stable anon_vma: remove first */
 	remove_rmap_item_from_tree(rmap_item);
 
-	/* Must get reference to anon_vma while still holding mmap_sem */
+	/* Must get reference to anon_vma while still holding mmap_lock */
 	rmap_item->anon_vma = vma->anon_vma;
 	get_anon_vma(vma->anon_vma);
 out:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return err;
 }
 
@@ -1608,7 +1609,7 @@ again:
 			 * continue. All KSM pages belonging to the
 			 * stable_node dups in a stable_node chain
 			 * have the same content and they're
-			 * wrprotected at all times. Any will work
+			 * write protected at all times. Any will work
 			 * fine to continue the walk.
 			 */
 			tree_page = get_ksm_page(stable_node_any,
@@ -1843,7 +1844,7 @@ again:
 			 * continue. All KSM pages belonging to the
 			 * stable_node dups in a stable_node chain
 			 * have the same content and they're
-			 * wrprotected at all times. Any will work
+			 * write protected at all times. Any will work
 			 * fine to continue the walk.
 			 */
 			tree_page = get_ksm_page(stable_node_any,
@@ -2001,7 +2002,7 @@ static void stable_tree_append(struct rmap_item *rmap_item,
 	 * duplicate. page_migration could break later if rmap breaks,
 	 * so we can as well crash here. We really need to check for
 	 * rmap_hlist_len == STABLE_NODE_CHAIN, but we can as well check
-	 * for other negative values as an undeflow if detected here
+	 * for other negative values as an underflow if detected here
 	 * for the first time (and not when decreasing rmap_hlist_len)
 	 * would be sign of memory corruption in the stable_node.
 	 */
@@ -2110,11 +2111,19 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	if (ksm_use_zero_pages && (checksum == zero_checksum)) {
 		struct vm_area_struct *vma;
 
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		vma = find_mergeable_vma(mm, rmap_item->address);
-		err = try_to_merge_one_page(vma, page,
-					    ZERO_PAGE(rmap_item->address));
-		up_read(&mm->mmap_sem);
+		if (vma) {
+			err = try_to_merge_one_page(vma, page,
+					ZERO_PAGE(rmap_item->address));
+		} else {
+			/*
+			 * If the vma is out of date, we do not need to
+			 * continue.
+			 */
+			err = 0;
+		}
+		mmap_read_unlock(mm);
 		/*
 		 * In case of failure, the page was not really empty, so we
 		 * need to continue. Otherwise we're done.
@@ -2277,7 +2286,7 @@ next_mm:
 	}
 
 	mm = slot->mm;
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	if (ksm_test_exit(mm))
 		vma = NULL;
 	else
@@ -2311,7 +2320,7 @@ next_mm:
 					ksm_scan.address += PAGE_SIZE;
 				} else
 					put_page(*page);
-				up_read(&mm->mmap_sem);
+				mmap_read_unlock(mm);
 				return rmap_item;
 			}
 			put_page(*page);
@@ -2335,13 +2344,13 @@ next_mm:
 						struct mm_slot, mm_list);
 	if (ksm_scan.address == 0) {
 		/*
-		 * We've completed a full scan of all vmas, holding mmap_sem
+		 * We've completed a full scan of all vmas, holding mmap_lock
 		 * throughout, and found no VM_MERGEABLE: so do the same as
 		 * __ksm_exit does to remove this mm from all our lists now.
 		 * This applies either when cleaning up after __ksm_exit
 		 * (but beware: we can reach here even before __ksm_exit),
 		 * or when all VM_MERGEABLE areas have been unmapped (and
-		 * mmap_sem then protects against race with MADV_MERGEABLE).
+		 * mmap_lock then protects against race with MADV_MERGEABLE).
 		 */
 		hash_del(&slot->link);
 		list_del(&slot->mm_list);
@@ -2349,12 +2358,12 @@ next_mm:
 
 		free_mm_slot(slot);
 		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		mmdrop(mm);
 	} else {
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		/*
-		 * up_read(&mm->mmap_sem) first because after
+		 * mmap_read_unlock(mm) first because after
 		 * spin_unlock(&ksm_mmlist_lock) run, the "mm" may
 		 * already have been freed under us by __ksm_exit()
 		 * because the "mm_slot" is still hashed and
@@ -2379,7 +2388,7 @@ next_mm:
 static void ksm_do_scan(unsigned int scan_npages)
 {
 	struct rmap_item *rmap_item;
-	struct page *uninitialized_var(page);
+	struct page *page;
 
 	while (scan_npages-- && likely(!freezing(current))) {
 		cond_resched();
@@ -2528,7 +2537,7 @@ void __ksm_exit(struct mm_struct *mm)
 	 * This process is exiting: if it's straightforward (as is the
 	 * case when ksmd was never running), free mm_slot immediately.
 	 * But if it's at the cursor or has rmap_items linked to it, use
-	 * mmap_sem to synchronize with any break_cows before pagetables
+	 * mmap_lock to synchronize with any break_cows before pagetables
 	 * are freed, and leave the mm_slot on the list for ksmd to free.
 	 * Beware: ksm may already have noticed it exiting and freed the slot.
 	 */
@@ -2552,8 +2561,8 @@ void __ksm_exit(struct mm_struct *mm)
 		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
 		mmdrop(mm);
 	} else if (mm_slot) {
-		down_write(&mm->mmap_sem);
-		up_write(&mm->mmap_sem);
+		mmap_write_lock(mm);
+		mmap_write_unlock(mm);
 	}
 }
 
@@ -2813,8 +2822,7 @@ static int ksm_memory_callback(struct notifier_block *self,
 		 */
 		ksm_check_stable_tree(mn->start_pfn,
 				      mn->start_pfn + mn->nr_pages);
-		/* fallthrough */
-
+		fallthrough;
 	case MEM_CANCEL_OFFLINE:
 		mutex_lock(&ksm_thread_mutex);
 		ksm_run &= ~KSM_RUN_OFFLINE;

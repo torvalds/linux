@@ -87,9 +87,21 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 	int retval;
 	struct kfd_mem_obj *mqd_mem_obj = NULL;
 
-	/* From V9,  for CWSR, the control stack is located on the next page
-	 * boundary after the mqd, we will use the gtt allocation function
-	 * instead of sub-allocation function.
+	/* For V9 only, due to a HW bug, the control stack of a user mode
+	 * compute queue needs to be allocated just behind the page boundary
+	 * of its regular MQD buffer. So we allocate an enlarged MQD buffer:
+	 * the first page of the buffer serves as the regular MQD buffer
+	 * purpose and the remaining is for control stack. Although the two
+	 * parts are in the same buffer object, they need different memory
+	 * types: MQD part needs UC (uncached) as usual, while control stack
+	 * needs NC (non coherent), which is different from the UC type which
+	 * is used when control stack is allocated in user space.
+	 *
+	 * Because of all those, we use the gtt allocation function instead
+	 * of sub-allocation function for this enlarged MQD buffer. Moreover,
+	 * in order to achieve two memory types in a single buffer object, we
+	 * pass a special bo flag AMDGPU_GEM_CREATE_CP_MQD_GFX9 to instruct
+	 * amdgpu memory functions to do so.
 	 */
 	if (kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
 		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
@@ -148,7 +160,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 
 	m->cp_hqd_quantum = 1 << CP_HQD_QUANTUM__QUANTUM_EN__SHIFT |
 			1 << CP_HQD_QUANTUM__QUANTUM_SCALE__SHIFT |
-			10 << CP_HQD_QUANTUM__QUANTUM_DURATION__SHIFT;
+			1 << CP_HQD_QUANTUM__QUANTUM_DURATION__SHIFT;
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
 		m->cp_hqd_aql_control =

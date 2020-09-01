@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
+#include <linux/efi_embedded_fw.h>
 
 #define TEST_FIRMWARE_NAME	"test-firmware.bin"
 #define TEST_FIRMWARE_NUM_REQS	4
@@ -309,27 +310,13 @@ static int test_dev_config_update_bool(const char *buf, size_t size,
 	return ret;
 }
 
-static ssize_t
-test_dev_config_show_bool(char *buf,
-			  bool config)
+static ssize_t test_dev_config_show_bool(char *buf, bool val)
 {
-	bool val;
-
-	mutex_lock(&test_fw_mutex);
-	val = config;
-	mutex_unlock(&test_fw_mutex);
-
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t test_dev_config_show_int(char *buf, int cfg)
+static ssize_t test_dev_config_show_int(char *buf, int val)
 {
-	int val;
-
-	mutex_lock(&test_fw_mutex);
-	val = cfg;
-	mutex_unlock(&test_fw_mutex);
-
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
@@ -353,14 +340,8 @@ static int test_dev_config_update_u8(const char *buf, size_t size, u8 *cfg)
 	return size;
 }
 
-static ssize_t test_dev_config_show_u8(char *buf, u8 cfg)
+static ssize_t test_dev_config_show_u8(char *buf, u8 val)
 {
-	u8 val;
-
-	mutex_lock(&test_fw_mutex);
-	val = cfg;
-	mutex_unlock(&test_fw_mutex);
-
 	return snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
@@ -506,6 +487,57 @@ out:
 	return rc;
 }
 static DEVICE_ATTR_WO(trigger_request);
+
+#ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
+static ssize_t trigger_request_platform_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t count)
+{
+	static const u8 test_data[] = {
+		0x55, 0xaa, 0x55, 0xaa, 0x01, 0x02, 0x03, 0x04,
+		0x55, 0xaa, 0x55, 0xaa, 0x05, 0x06, 0x07, 0x08,
+		0x55, 0xaa, 0x55, 0xaa, 0x10, 0x20, 0x30, 0x40,
+		0x55, 0xaa, 0x55, 0xaa, 0x50, 0x60, 0x70, 0x80
+	};
+	struct efi_embedded_fw efi_embedded_fw;
+	const struct firmware *firmware = NULL;
+	char *name;
+	int rc;
+
+	name = kstrndup(buf, count, GFP_KERNEL);
+	if (!name)
+		return -ENOSPC;
+
+	pr_info("inserting test platform fw '%s'\n", name);
+	efi_embedded_fw.name = name;
+	efi_embedded_fw.data = (void *)test_data;
+	efi_embedded_fw.length = sizeof(test_data);
+	list_add(&efi_embedded_fw.list, &efi_embedded_fw_list);
+
+	pr_info("loading '%s'\n", name);
+	rc = firmware_request_platform(&firmware, name, dev);
+	if (rc) {
+		pr_info("load of '%s' failed: %d\n", name, rc);
+		goto out;
+	}
+	if (firmware->size != sizeof(test_data) ||
+	    memcmp(firmware->data, test_data, sizeof(test_data)) != 0) {
+		pr_info("firmware contents mismatch for '%s'\n", name);
+		rc = -EINVAL;
+		goto out;
+	}
+	pr_info("loaded: %zu\n", firmware->size);
+	rc = count;
+
+out:
+	release_firmware(firmware);
+	list_del(&efi_embedded_fw.list);
+	kfree(name);
+
+	return rc;
+}
+static DEVICE_ATTR_WO(trigger_request_platform);
+#endif
 
 static DECLARE_COMPLETION(async_fw_done);
 
@@ -903,6 +935,9 @@ static struct attribute *test_dev_attrs[] = {
 	TEST_FW_DEV_ATTR(trigger_request),
 	TEST_FW_DEV_ATTR(trigger_async_request),
 	TEST_FW_DEV_ATTR(trigger_custom_fallback),
+#ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
+	TEST_FW_DEV_ATTR(trigger_request_platform),
+#endif
 
 	/* These use the config and can use the test_result */
 	TEST_FW_DEV_ATTR(trigger_batched_requests),

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  HID driver for Logitech Unifying receivers
+ *  HID driver for Logitech receivers
  *
  *  Copyright (c) 2011 Logitech
  */
@@ -16,11 +16,11 @@
 #include <asm/unaligned.h>
 #include "hid-ids.h"
 
-#define DJ_MAX_PAIRED_DEVICES			6
+#define DJ_MAX_PAIRED_DEVICES			7
 #define DJ_MAX_NUMBER_NOTIFS			8
 #define DJ_RECEIVER_INDEX			0
 #define DJ_DEVICE_INDEX_MIN			1
-#define DJ_DEVICE_INDEX_MAX			6
+#define DJ_DEVICE_INDEX_MAX			7
 
 #define DJREPORT_SHORT_LENGTH			15
 #define DJREPORT_LONG_LENGTH			32
@@ -701,7 +701,7 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 			type_str, dj_hiddev->product);
 	} else {
 		snprintf(dj_hiddev->name, sizeof(dj_hiddev->name),
-			"Logitech Unifying Device. Wireless PID:%04x",
+			"Logitech Wireless Device PID:%04x",
 			dj_hiddev->product);
 	}
 
@@ -844,7 +844,7 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 			workitem.type = WORKITEM_TYPE_EMPTY;
 			break;
 		}
-		/* fall-through */
+		fallthrough;
 	case REPORT_TYPE_NOTIF_DEVICE_UNPAIRED:
 		workitem.quad_id_msb =
 			dj_report->report_params[DEVICE_PAIRED_PARAM_EQUAD_ID_MSB];
@@ -978,6 +978,11 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		workitem.reports_supported |= STD_KEYBOARD;
 		break;
+	}
+
+	/* custom receiver device (eg. powerplay) */
+	if (hidpp_report->device_index == 7) {
+		workitem.reports_supported |= HIDPP;
 	}
 
 	if (workitem.type == WORKITEM_TYPE_EMPTY) {
@@ -1148,7 +1153,7 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 	if (!dj_report)
 		return -ENOMEM;
 	dj_report->report_id = REPORT_ID_DJ_SHORT;
-	dj_report->device_index = 0xFF;
+	dj_report->device_index = HIDPP_RECEIVER_INDEX;
 	dj_report->report_type = REPORT_TYPE_CMD_GET_PAIRED_DEVICES;
 	retval = logi_dj_recv_send_report(djrcv_dev, dj_report);
 	kfree(dj_report);
@@ -1170,7 +1175,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 
 	if (djrcv_dev->type == recvr_type_dj) {
 		dj_report->report_id = REPORT_ID_DJ_SHORT;
-		dj_report->device_index = 0xFF;
+		dj_report->device_index = HIDPP_RECEIVER_INDEX;
 		dj_report->report_type = REPORT_TYPE_CMD_SWITCH;
 		dj_report->report_params[CMD_SWITCH_PARAM_DEVBITFIELD] = 0x3F;
 		dj_report->report_params[CMD_SWITCH_PARAM_TIMEOUT_SECONDS] =
@@ -1199,7 +1204,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	memset(buf, 0, HIDPP_REPORT_SHORT_LENGTH);
 
 	buf[0] = REPORT_ID_HIDPP_SHORT;
-	buf[1] = 0xFF;
+	buf[1] = HIDPP_RECEIVER_INDEX;
 	buf[2] = 0x80;
 	buf[3] = 0x00;
 	buf[4] = 0x00;
@@ -1368,6 +1373,8 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 	}
 
 	if (djdev->reports_supported & HIDPP) {
+		dbg_hid("%s: sending a HID++ descriptor, reports_supported: %llx\n",
+			__func__, djdev->reports_supported);
 		rdcat(rdesc, &rsize, hidpp_descriptor,
 		      sizeof(hidpp_descriptor));
 	}

@@ -47,9 +47,9 @@
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: the address of the originator
  *
- * Return: the orig_node corresponding to the specified address. If such object
- * does not exist it is allocated here. In case of allocation failure returns
- * NULL.
+ * Return: the orig_node corresponding to the specified address. If such an
+ * object does not exist, it is allocated here. In case of allocation failure
+ * returns NULL.
  */
 struct batadv_orig_node *batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
 					       const u8 *addr)
@@ -88,7 +88,7 @@ static void batadv_v_ogm_start_queue_timer(struct batadv_hard_iface *hard_iface)
 	unsigned int msecs = BATADV_MAX_AGGREGATION_MS * 1000;
 
 	/* msecs * [0.9, 1.1] */
-	msecs += prandom_u32() % (msecs / 5) - (msecs / 10);
+	msecs += prandom_u32_max(msecs / 5) - (msecs / 10);
 	queue_delayed_work(batadv_event_workqueue, &hard_iface->bat_v.aggr_wq,
 			   msecs_to_jiffies(msecs / 1000));
 }
@@ -107,7 +107,7 @@ static void batadv_v_ogm_start_timer(struct batadv_priv *bat_priv)
 		return;
 
 	msecs = atomic_read(&bat_priv->orig_interval) - BATADV_JITTER;
-	msecs += prandom_u32() % (2 * BATADV_JITTER);
+	msecs += prandom_u32_max(2 * BATADV_JITTER);
 	queue_delayed_work(batadv_event_workqueue, &bat_priv->bat_v.ogm_wq,
 			   msecs_to_jiffies(msecs));
 }
@@ -172,7 +172,7 @@ static bool batadv_v_ogm_queue_left(struct sk_buff *skb,
  * batadv_v_ogm_aggr_list_free - free all elements in an aggregation queue
  * @hard_iface: the interface holding the aggregation queue
  *
- * Empties the OGMv2 aggregation queue and frees all the skbs it contained.
+ * Empties the OGMv2 aggregation queue and frees all the skbs it contains.
  *
  * Caller needs to hold the hard_iface->bat_v.aggr_list.lock.
  */
@@ -378,7 +378,7 @@ static void batadv_v_ogm_send(struct work_struct *work)
  * batadv_v_ogm_aggr_work() - OGM queue periodic task per interface
  * @work: work queue item
  *
- * Emits aggregated OGM message in regular intervals.
+ * Emits aggregated OGM messages in regular intervals.
  */
 void batadv_v_ogm_aggr_work(struct work_struct *work)
 {
@@ -399,7 +399,7 @@ void batadv_v_ogm_aggr_work(struct work_struct *work)
  * batadv_v_ogm_iface_enable() - prepare an interface for B.A.T.M.A.N. V
  * @hard_iface: the interface to prepare
  *
- * Takes care of scheduling own OGM sending routine for this interface.
+ * Takes care of scheduling its own OGM sending routine for this interface.
  *
  * Return: 0 on success or a negative error code otherwise
  */
@@ -455,15 +455,17 @@ unlock:
  * @throughput: the current throughput
  *
  * Apply a penalty on the current throughput metric value based on the
- * characteristic of the interface where the OGM has been received. The return
- * value is computed as follows:
+ * characteristic of the interface where the OGM has been received.
+ *
+ * Initially the per hardif hop penalty is applied to the throughput. After
+ * that the return value is then computed as follows:
  * - throughput * 50%          if the incoming and outgoing interface are the
  *                             same WiFi interface and the throughput is above
  *                             1MBit/s
  * - throughput                if the outgoing interface is the default
  *                             interface (i.e. this OGM is processed for the
  *                             internal table and not forwarded)
- * - throughput * hop penalty  otherwise
+ * - throughput * node hop penalty  otherwise
  *
  * Return: the penalised throughput metric.
  */
@@ -472,8 +474,13 @@ static u32 batadv_v_forward_penalty(struct batadv_priv *bat_priv,
 				    struct batadv_hard_iface *if_outgoing,
 				    u32 throughput)
 {
+	int if_hop_penalty = atomic_read(&if_incoming->hop_penalty);
 	int hop_penalty = atomic_read(&bat_priv->hop_penalty);
 	int hop_penalty_max = BATADV_TQ_MAX_VALUE;
+
+	/* Apply per hardif hop penalty */
+	throughput = throughput * (hop_penalty_max - if_hop_penalty) /
+		     hop_penalty_max;
 
 	/* Don't apply hop penalty in default originator table. */
 	if (if_outgoing == BATADV_IF_DEFAULT)
@@ -847,7 +854,7 @@ batadv_v_ogm_aggr_packet(int buff_pos, int packet_len,
  * batadv_v_ogm_process() - process an incoming batman v OGM
  * @skb: the skb containing the OGM
  * @ogm_offset: offset to the OGM which should be processed (for aggregates)
- * @if_incoming: the interface where this packet was receved
+ * @if_incoming: the interface where this packet was received
  */
 static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 				 struct batadv_hard_iface *if_incoming)
@@ -893,7 +900,7 @@ static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 
 	orig_node = batadv_v_ogm_orig_get(bat_priv, ogm_packet->orig);
 	if (!orig_node)
-		return;
+		goto out;
 
 	neigh_node = batadv_neigh_node_get_or_create(orig_node, if_incoming,
 						     ethhdr->h_source);

@@ -2,7 +2,7 @@
 /**
  * omap-usb-tll.c - The USB TLL driver for OMAP EHCI & OHCI
  *
- * Copyright (C) 2012-2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2012-2013 Texas Instruments Incorporated - https://www.ti.com
  * Author: Keshava Munegowda <keshava_mgowda@ti.com>
  * Author: Roger Quadros <rogerq@ti.com>
  */
@@ -99,7 +99,7 @@
 struct usbtll_omap {
 	void __iomem	*base;
 	int		nch;		/* num. of channels */
-	struct clk	*ch_clk[0];	/* must be the last member */
+	struct clk	*ch_clk[];	/* must be the last member */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -199,6 +199,8 @@ static unsigned ohci_omap3_fslsmode(enum usbhs_omap_port_mode mode)
  * usbtll_omap_probe - initialize TI-based HCDs
  *
  * Allocates basic resources for this USB host controller.
+ *
+ * @pdev: Pointer to this device's platform device structure
  */
 static int usbtll_omap_probe(struct platform_device *pdev)
 {
@@ -304,7 +306,7 @@ MODULE_DEVICE_TABLE(of, usbtll_omap_dt_ids);
 
 static struct platform_driver usbtll_omap_driver = {
 	.driver = {
-		.name		= (char *)usbtll_driver_name,
+		.name		= usbtll_driver_name,
 		.of_match_table = usbtll_omap_dt_ids,
 	},
 	.probe		= usbtll_omap_probe,

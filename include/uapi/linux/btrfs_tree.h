@@ -519,15 +519,6 @@ struct btrfs_extent_inline_ref {
 	__le64 offset;
 } __attribute__ ((__packed__));
 
-/* old style backrefs item */
-struct btrfs_extent_ref_v0 {
-	__le64 root;
-	__le64 generation;
-	__le64 objectid;
-	__le32 count;
-} __attribute__ ((__packed__));
-
-
 /* dev extents record free space on individual devices.  The owner
  * field points back to the chunk allocation mapping tree that allocated
  * the extent.  The chunk tree uuid field is a way to double check the owner
@@ -922,9 +913,9 @@ struct btrfs_free_space_info {
 #define BTRFS_FREE_SPACE_USING_BITMAPS (1ULL << 0)
 
 #define BTRFS_QGROUP_LEVEL_SHIFT		48
-static inline __u64 btrfs_qgroup_level(__u64 qgroupid)
+static inline __u16 btrfs_qgroup_level(__u64 qgroupid)
 {
-	return qgroupid >> BTRFS_QGROUP_LEVEL_SHIFT;
+	return (__u16)(qgroupid >> BTRFS_QGROUP_LEVEL_SHIFT);
 }
 
 /*

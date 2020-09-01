@@ -146,6 +146,7 @@ Code  Seq#    Include File                                           Comments
 'H'   40-4F  sound/hdspm.h                                           conflict!
 'H'   40-4F  sound/hdsp.h                                            conflict!
 'H'   90     sound/usb/usx2y/usb_stream.h
+'H'   00-0F  uapi/misc/habanalabs.h                                  conflict!
 'H'   A0     uapi/linux/usb/cdc-wdm.h
 'H'   C0-F0  net/bluetooth/hci.h                                     conflict!
 'H'   C0-DF  net/bluetooth/hidp/hidp.h                               conflict!
@@ -201,6 +202,7 @@ Code  Seq#    Include File                                           Comments
 'W'   00-1F  linux/wanrouter.h                                       conflict! (pre 3.9)
 'W'   00-3F  sound/asound.h                                          conflict!
 'W'   40-5F  drivers/pci/switch/switchtec.c
+'W'   60-61  linux/watch_queue.h
 'X'   all    fs/xfs/xfs_fs.h,                                        conflict!
              fs/xfs/linux-2.6/xfs_ioctl32.h,
              include/linux/falloc.h,
@@ -266,7 +268,6 @@ Code  Seq#    Include File                                           Comments
 'o'   01-A1  `linux/dvb/*.h`                                         DVB
 'p'   00-0F  linux/phantom.h                                         conflict! (OpenHaptics needs this)
 'p'   00-1F  linux/rtc.h                                             conflict!
-'p'   00-3F  linux/mc146818rtc.h                                     conflict!
 'p'   40-7F  linux/nvram.h
 'p'   80-9F  linux/ppdev.h                                           user-space parport
                                                                      <mailto:tim@cyberelk.net>
@@ -287,6 +288,7 @@ Code  Seq#    Include File                                           Comments
 'v'   00-1F  linux/fs.h                                              conflict!
 'v'   00-0F  linux/sonypi.h                                          conflict!
 'v'   00-0F  media/v4l2-subdev.h                                     conflict!
+'v'   20-27  arch/powerpc/include/uapi/asm/vas-api.h		     VAS API
 'v'   C0-FF  linux/meye.h                                            conflict!
 'w'   all                                                            CERN SCI driver
 'y'   00-1F                                                          packet based user level communications
@@ -337,6 +339,7 @@ Code  Seq#    Include File                                           Comments
 0xB4  00-0F  linux/gpio.h                                            <mailto:linux-gpio@vger.kernel.org>
 0xB5  00-0F  uapi/linux/rpmsg.h                                      <mailto:linux-remoteproc@vger.kernel.org>
 0xB6  all    linux/fpga-dfl.h
+0xB7  all    uapi/linux/remoteproc_cdev.h                            <mailto:linux-remoteproc@vger.kernel.org>
 0xC0  00-0F  linux/usb/iowarrior.h
 0xCA  00-0F  uapi/misc/cxl.h
 0xCA  10-2F  uapi/misc/ocxl.h

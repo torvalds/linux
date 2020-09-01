@@ -36,7 +36,8 @@ int vega20_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 
 	if (data->smu_features[GNLD_PPT].enabled)
 		return smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SetPptLimit, n);
+				PPSMC_MSG_SetPptLimit, n,
+				NULL);
 
 	return 0;
 }
@@ -51,7 +52,8 @@ static int vega20_set_overdrive_target_percentage(struct pp_hwmgr *hwmgr,
 		uint32_t adjust_percent)
 {
 	return smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_OverDriveSetPercentage, adjust_percent);
+			PPSMC_MSG_OverDriveSetPercentage, adjust_percent,
+			NULL);
 }
 
 int vega20_power_control_set_level(struct pp_hwmgr *hwmgr)

@@ -36,7 +36,7 @@ static struct fsnotify_group *audit_fsnotify_group;
 
 /* fsnotify events we care about. */
 #define AUDIT_FS_EVENTS (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
-			 FS_MOVE_SELF | FS_EVENT_ON_CHILD)
+			 FS_MOVE_SELF)
 
 static void audit_fsnotify_mark_free(struct audit_fsnotify_mark *audit_mark)
 {
@@ -152,44 +152,31 @@ static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
 }
 
 /* Update mark data in audit rules based on fsnotify events. */
-static int audit_mark_handle_event(struct fsnotify_group *group,
-				    struct inode *to_tell,
-				    u32 mask, const void *data, int data_type,
-				    const struct qstr *dname, u32 cookie,
-				    struct fsnotify_iter_info *iter_info)
+static int audit_mark_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
+				   struct inode *inode, struct inode *dir,
+				   const struct qstr *dname)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct audit_fsnotify_mark *audit_mark;
-	const struct inode *inode = NULL;
 
 	audit_mark = container_of(inode_mark, struct audit_fsnotify_mark, mark);
 
-	BUG_ON(group != audit_fsnotify_group);
-
-	switch (data_type) {
-	case (FSNOTIFY_EVENT_PATH):
-		inode = ((const struct path *)data)->dentry->d_inode;
-		break;
-	case (FSNOTIFY_EVENT_INODE):
-		inode = (const struct inode *)data;
-		break;
-	default:
-		BUG();
+	if (WARN_ON_ONCE(inode_mark->group != audit_fsnotify_group) ||
+	    WARN_ON_ONCE(!inode))
 		return 0;
-	}
 
 	if (mask & (FS_CREATE|FS_MOVED_TO|FS_DELETE|FS_MOVED_FROM)) {
 		if (audit_compare_dname_path(dname, audit_mark->path, AUDIT_NAME_FULL))
 			return 0;
 		audit_update_mark(audit_mark, inode);
-	} else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF))
+	} else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF)) {
 		audit_autoremove_mark_rule(audit_mark);
+	}
 
 	return 0;
 }
 
 static const struct fsnotify_ops audit_mark_fsnotify_ops = {
-	.handle_event =	audit_mark_handle_event,
+	.handle_inode_event = audit_mark_handle_event,
 	.free_mark = audit_fsnotify_free_mark,
 };
 

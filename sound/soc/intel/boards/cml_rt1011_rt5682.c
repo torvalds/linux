@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright(c) 2019 Intel Corporation.
 
 /*
@@ -30,6 +30,35 @@
 #define CML_RT5682_CODEC_DAI "rt5682-aif1"
 #define NAME_SIZE 32
 
+#define SOF_RT1011_SPEAKER_WL		BIT(0)
+#define SOF_RT1011_SPEAKER_WR		BIT(1)
+#define SOF_RT1011_SPEAKER_TL		BIT(2)
+#define SOF_RT1011_SPEAKER_TR		BIT(3)
+
+/* Default: Woofer speakers  */
+static unsigned long sof_rt1011_quirk = SOF_RT1011_SPEAKER_WL |
+					SOF_RT1011_SPEAKER_WR;
+
+static int sof_rt1011_quirk_cb(const struct dmi_system_id *id)
+{
+	sof_rt1011_quirk = (unsigned long)id->driver_data;
+	return 1;
+}
+
+static const struct dmi_system_id sof_rt1011_quirk_table[] = {
+	{
+		.callback = sof_rt1011_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Helios"),
+	},
+		.driver_data = (void *)(SOF_RT1011_SPEAKER_WL | SOF_RT1011_SPEAKER_WR |
+					SOF_RT1011_SPEAKER_TL | SOF_RT1011_SPEAKER_TR),
+	},
+	{
+	}
+};
+
 static struct snd_soc_jack hdmi_jack[3];
 
 struct hdmi_pcm {
@@ -48,15 +77,16 @@ struct card_private {
 static const struct snd_kcontrol_new cml_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("TL Ext Spk"),
-	SOC_DAPM_PIN_SWITCH("TR Ext Spk"),
 	SOC_DAPM_PIN_SWITCH("WL Ext Spk"),
 	SOC_DAPM_PIN_SWITCH("WR Ext Spk"),
 };
 
+static const struct snd_kcontrol_new cml_rt1011_tt_controls[] = {
+	SOC_DAPM_PIN_SWITCH("TL Ext Spk"),
+	SOC_DAPM_PIN_SWITCH("TR Ext Spk"),
+};
+
 static const struct snd_soc_dapm_widget cml_rt1011_rt5682_widgets[] = {
-	SND_SOC_DAPM_SPK("TL Ext Spk", NULL),
-	SND_SOC_DAPM_SPK("TR Ext Spk", NULL),
 	SND_SOC_DAPM_SPK("WL Ext Spk", NULL),
 	SND_SOC_DAPM_SPK("WR Ext Spk", NULL),
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
@@ -64,10 +94,13 @@ static const struct snd_soc_dapm_widget cml_rt1011_rt5682_widgets[] = {
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
 };
 
+static const struct snd_soc_dapm_widget cml_rt1011_tt_widgets[] = {
+	SND_SOC_DAPM_SPK("TL Ext Spk", NULL),
+	SND_SOC_DAPM_SPK("TR Ext Spk", NULL),
+};
+
 static const struct snd_soc_dapm_route cml_rt1011_rt5682_map[] = {
-	/*speaker*/
-	{"TL Ext Spk", NULL, "TL SPO"},
-	{"TR Ext Spk", NULL, "TR SPO"},
+	/*WL/WR speaker*/
 	{"WL Ext Spk", NULL, "WL SPO"},
 	{"WR Ext Spk", NULL, "WR SPO"},
 
@@ -82,10 +115,16 @@ static const struct snd_soc_dapm_route cml_rt1011_rt5682_map[] = {
 	{"DMic", NULL, "SoC DMIC"},
 };
 
+static const struct snd_soc_dapm_route cml_rt1011_tt_map[] = {
+	/*TL/TR speaker*/
+	{"TL Ext Spk", NULL, "TL SPO" },
+	{"TR Ext Spk", NULL, "TR SPO" },
+};
+
 static int cml_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	struct snd_soc_jack *jack;
 	int ret;
 
@@ -121,11 +160,47 @@ static int cml_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 };
 
+static void cml_rt5682_codec_exit(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
+
+	snd_soc_component_set_jack(component, NULL, NULL);
+}
+
+static int cml_rt1011_spk_init(struct snd_soc_pcm_runtime *rtd)
+{
+	int ret = 0;
+	struct snd_soc_card *card = rtd->card;
+
+	if (sof_rt1011_quirk & (SOF_RT1011_SPEAKER_TL |
+				SOF_RT1011_SPEAKER_TR)) {
+
+		ret = snd_soc_add_card_controls(card, cml_rt1011_tt_controls,
+					ARRAY_SIZE(cml_rt1011_tt_controls));
+		if (ret)
+			return ret;
+
+		ret = snd_soc_dapm_new_controls(&card->dapm,
+					cml_rt1011_tt_widgets,
+					ARRAY_SIZE(cml_rt1011_tt_widgets));
+		if (ret)
+			return ret;
+
+		ret = snd_soc_dapm_add_routes(&card->dapm, cml_rt1011_tt_map,
+					ARRAY_SIZE(cml_rt1011_tt_map));
+
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static int cml_rt5682_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int clk_id, clk_freq, pll_out, ret;
 
 	clk_id = RT5682_PLL1_S_MCLK;
@@ -157,15 +232,14 @@ static int cml_rt5682_hw_params(struct snd_pcm_substream *substream,
 static int cml_rt1011_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_card *card = rtd->card;
 	int srate, i, ret = 0;
 
 	srate = params_rate(params);
 
-	for (i = 0; i < rtd->num_codecs; i++) {
-		codec_dai = rtd->codec_dais[i];
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 
 		/* 100 Fs to drive 24 bit data */
 		ret = snd_soc_dai_set_pll(codec_dai, 0, RT1011_PLL1_S_BCLK,
@@ -192,30 +266,38 @@ static int cml_rt1011_hw_params(struct snd_pcm_substream *substream,
 		 * The feedback is captured for each codec individually.
 		 * Hence all 4 codecs use 1 Tx slot each for feedback.
 		 */
-		if (!strcmp(codec_dai->component->name, "i2c-10EC1011:00")) {
-			ret = snd_soc_dai_set_tdm_slot(codec_dai,
-						       0x4, 0x1, 4, 24);
-			if (ret < 0)
-				break;
+		if (sof_rt1011_quirk & (SOF_RT1011_SPEAKER_WL |
+					SOF_RT1011_SPEAKER_WR)) {
+			if (!strcmp(codec_dai->component->name, "i2c-10EC1011:00")) {
+				ret = snd_soc_dai_set_tdm_slot(codec_dai,
+							       0x4, 0x1, 4, 24);
+				if (ret < 0)
+					break;
+			}
+
+			if (!strcmp(codec_dai->component->name, "i2c-10EC1011:01")) {
+				ret = snd_soc_dai_set_tdm_slot(codec_dai,
+							       0x8, 0x2, 4, 24);
+				if (ret < 0)
+					break;
+			}
 		}
-		if (!strcmp(codec_dai->component->name, "i2c-10EC1011:02")) {
-			ret = snd_soc_dai_set_tdm_slot(codec_dai,
-						       0x1, 0x1, 4, 24);
-			if (ret < 0)
-				break;
-		}
-		/* TDM Rx slot 2 is used for Right Woofer & Tweeters pair */
-		if (!strcmp(codec_dai->component->name, "i2c-10EC1011:01")) {
-			ret = snd_soc_dai_set_tdm_slot(codec_dai,
-						       0x8, 0x2, 4, 24);
-			if (ret < 0)
-				break;
-		}
-		if (!strcmp(codec_dai->component->name, "i2c-10EC1011:03")) {
-			ret = snd_soc_dai_set_tdm_slot(codec_dai,
-						       0x2, 0x2, 4, 24);
-			if (ret < 0)
-				break;
+
+		if (sof_rt1011_quirk & (SOF_RT1011_SPEAKER_TL |
+					SOF_RT1011_SPEAKER_TR)) {
+			if (!strcmp(codec_dai->component->name, "i2c-10EC1011:02")) {
+				ret = snd_soc_dai_set_tdm_slot(codec_dai,
+							       0x1, 0x1, 4, 24);
+				if (ret < 0)
+					break;
+			}
+
+			if (!strcmp(codec_dai->component->name, "i2c-10EC1011:03")) {
+				ret = snd_soc_dai_set_tdm_slot(codec_dai,
+							       0x2, 0x2, 4, 24);
+				if (ret < 0)
+					break;
+			}
 		}
 	}
 	if (ret < 0)
@@ -275,7 +357,7 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = rtd->codec_dai;
+	struct snd_soc_dai *dai = asoc_rtd_to_codec(rtd, 0);
 	struct hdmi_pcm *pcm;
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
@@ -300,12 +382,17 @@ SND_SOC_DAILINK_DEF(ssp0_codec,
 
 SND_SOC_DAILINK_DEF(ssp1_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("SSP1 Pin")));
-SND_SOC_DAILINK_DEF(ssp1_codec,
+SND_SOC_DAILINK_DEF(ssp1_codec_2spk,
+	DAILINK_COMP_ARRAY(
+	/* WL */ COMP_CODEC("i2c-10EC1011:00", CML_RT1011_CODEC_DAI),
+	/* WR */ COMP_CODEC("i2c-10EC1011:01", CML_RT1011_CODEC_DAI)));
+SND_SOC_DAILINK_DEF(ssp1_codec_4spk,
 	DAILINK_COMP_ARRAY(
 	/* WL */ COMP_CODEC("i2c-10EC1011:00", CML_RT1011_CODEC_DAI),
 	/* WR */ COMP_CODEC("i2c-10EC1011:01", CML_RT1011_CODEC_DAI),
 	/* TL */ COMP_CODEC("i2c-10EC1011:02", CML_RT1011_CODEC_DAI),
 	/* TR */ COMP_CODEC("i2c-10EC1011:03", CML_RT1011_CODEC_DAI)));
+
 
 SND_SOC_DAILINK_DEF(dmic_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("DMIC01 Pin")));
@@ -341,6 +428,7 @@ static struct snd_soc_dai_link cml_rt1011_rt5682_dailink[] = {
 		.name = "SSP0-Codec",
 		.id = 0,
 		.init = cml_rt5682_codec_init,
+		.exit = cml_rt5682_codec_exit,
 		.ignore_pmdown_time = 1,
 		.ops = &cml_rt5682_ops,
 		.dpcm_playback = 1,
@@ -399,8 +487,9 @@ static struct snd_soc_dai_link cml_rt1011_rt5682_dailink[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1, /* Capture stream provides Feedback */
 		.no_pcm = 1,
+		.init = cml_rt1011_spk_init,
 		.ops = &cml_rt1011_ops,
-		SND_SOC_DAILINK_REG(ssp1_pin, ssp1_codec, platform),
+		SND_SOC_DAILINK_REG(ssp1_pin, ssp1_codec_2spk, platform),
 	},
 };
 
@@ -413,6 +502,7 @@ static struct snd_soc_codec_conf rt1011_conf[] = {
 		.dlc = COMP_CODEC_CONF("i2c-10EC1011:01"),
 		.name_prefix = "WR",
 	},
+	/* single configuration structure for 2 and 4 channels */
 	{
 		.dlc = COMP_CODEC_CONF("i2c-10EC1011:02"),
 		.name_prefix = "TL",
@@ -426,6 +516,7 @@ static struct snd_soc_codec_conf rt1011_conf[] = {
 /* Cometlake audio machine driver for RT1011 and RT5682 */
 static struct snd_soc_card snd_soc_card_cml = {
 	.name = "cml_rt1011_rt5682",
+	.owner = THIS_MODULE,
 	.dai_link = cml_rt1011_rt5682_dailink,
 	.num_links = ARRAY_SIZE(cml_rt1011_rt5682_dailink),
 	.codec_conf = rt1011_conf,
@@ -442,19 +533,36 @@ static struct snd_soc_card snd_soc_card_cml = {
 
 static int snd_cml_rt1011_probe(struct platform_device *pdev)
 {
+	struct snd_soc_dai_link *dai_link;
 	struct card_private *ctx;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
-	int ret;
+	int ret, i;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
-	mach = (&pdev->dev)->platform_data;
+	mach = pdev->dev.platform_data;
 	snd_soc_card_cml.dev = &pdev->dev;
 	platform_name = mach->mach_params.platform;
+
+	dmi_check_system(sof_rt1011_quirk_table);
+
+	dev_dbg(&pdev->dev, "sof_rt1011_quirk = %lx\n", sof_rt1011_quirk);
+
+	/* when 4 speaker is available, update codec config */
+	if (sof_rt1011_quirk & (SOF_RT1011_SPEAKER_TL |
+				SOF_RT1011_SPEAKER_TR)) {
+		for_each_card_prelinks(&snd_soc_card_cml, i, dai_link) {
+			if (!strcmp(dai_link->codecs[0].dai_name,
+				    CML_RT1011_CODEC_DAI)) {
+				dai_link->codecs = ssp1_codec_4spk;
+				dai_link->num_codecs = ARRAY_SIZE(ssp1_codec_4spk);
+			}
+		}
+	}
 
 	/* set platform name for each dailink */
 	ret = snd_soc_fixup_dai_links_platform_name(&snd_soc_card_cml,
@@ -483,5 +591,6 @@ MODULE_DESCRIPTION("Cometlake Audio Machine driver - RT1011 and RT5682 in I2S mo
 MODULE_AUTHOR("Naveen Manohar <naveen.m@intel.com>");
 MODULE_AUTHOR("Sathya Prakash M R <sathya.prakash.m.r@intel.com>");
 MODULE_AUTHOR("Shuming Fan <shumingf@realtek.com>");
+MODULE_AUTHOR("Mac Chiang <mac.chiang@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:cml_rt1011_rt5682");

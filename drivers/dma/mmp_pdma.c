@@ -290,7 +290,7 @@ static void mmp_pdma_free_phy(struct mmp_pdma_chan *pchan)
 	spin_unlock_irqrestore(&pdev->phy_lock, flags);
 }
 
-/**
+/*
  * start_pending_queue - transfer any pending transactions
  * pending list ==> running list
  */
@@ -381,7 +381,7 @@ mmp_pdma_alloc_descriptor(struct mmp_pdma_chan *chan)
 	return desc;
 }
 
-/**
+/*
  * mmp_pdma_alloc_chan_resources - Allocate resources for DMA channel.
  *
  * This function will create a dma pool for descriptor allocation.
@@ -854,7 +854,7 @@ static enum dma_status mmp_pdma_tx_status(struct dma_chan *dchan,
 	return ret;
 }
 
-/**
+/*
  * mmp_pdma_issue_pending - Issue the DMA start command
  * pending list ==> running list
  */
@@ -1060,7 +1060,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 	pdev->dma_channels = dma_channels;
 
 	for (i = 0; i < dma_channels; i++) {
-		if (platform_get_irq(op, i) > 0)
+		if (platform_get_irq_optional(op, i) > 0)
 			irq_num++;
 	}
 

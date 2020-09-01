@@ -51,6 +51,7 @@
 #include "dce112/dce112_resource.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
+#include "dce/dce_panel_cntl.h"
 
 #include "soc15_hw_ip.h"
 #include "vega10_ip_offset.h"
@@ -180,6 +181,14 @@ enum dcn10_clk_src_array_id {
 #define SRII(reg_name, block, id)\
 	.reg_name[id] = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 					mm ## block ## id ## _ ## reg_name
+
+#define VUPDATE_SRII(reg_name, block, id)\
+	.reg_name[id] = BASE(mm ## reg_name ## 0 ## _ ## block ## id ## _BASE_IDX) + \
+					mm ## reg_name ## 0 ## _ ## block ## id
+
+/* set field/register/bitfield name */
+#define SFRB(field_name, reg_name, bitfield, post_fix)\
+	.field_name = reg_name ## __ ## bitfield ## post_fix
 
 /* NBIO */
 #define NBIO_BASE_INNER(seg) \
@@ -321,6 +330,18 @@ static const struct dcn10_link_enc_mask le_mask = {
 		LINK_ENCODER_MASK_SH_LIST_DCN10(_MASK)
 };
 
+static const struct dce_panel_cntl_registers panel_cntl_regs[] = {
+	{ DCN_PANEL_CNTL_REG_LIST() }
+};
+
+static const struct dce_panel_cntl_shift panel_cntl_shift = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_panel_cntl_mask panel_cntl_mask = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(_MASK)
+};
+
 static const struct dce110_aux_registers_shift aux_shift = {
 	DCN10_AUX_MASK_SH_LIST(__SHIFT)
 };
@@ -419,11 +440,13 @@ static const struct dcn_mpc_registers mpc_regs = {
 };
 
 static const struct dcn_mpc_shift mpc_shift = {
-	MPC_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT)
+	MPC_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT),\
+	SFRB(CUR_VUPDATE_LOCK_SET, CUR0_VUPDATE_LOCK_SET0, CUR0_VUPDATE_LOCK_SET, __SHIFT)
 };
 
 static const struct dcn_mpc_mask mpc_mask = {
-	MPC_COMMON_MASK_SH_LIST_DCN1_0(_MASK),
+	MPC_COMMON_MASK_SH_LIST_DCN1_0(_MASK),\
+	SFRB(CUR_VUPDATE_LOCK_SET, CUR0_VUPDATE_LOCK_SET0, CUR0_VUPDATE_LOCK_SET, _MASK)
 };
 
 #define tg_regs(id)\
@@ -552,7 +575,8 @@ static const struct dc_plane_cap plane_cap = {
 	.pixel_format_support = {
 			.argb8888 = true,
 			.nv12 = true,
-			.fp16 = true
+			.fp16 = true,
+			.p010 = true
 	},
 
 	.max_upscale_factor = {
@@ -570,7 +594,7 @@ static const struct dc_plane_cap plane_cap = {
 
 static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = true,
-		.disable_dmcu = true,
+		.disable_dmcu = false,
 		.force_abm_enable = false,
 		.timing_trace = false,
 		.clock_trace = true,
@@ -584,7 +608,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.disable_pplib_clock_request = false,
 		.disable_pplib_wm_range = false,
 		.pplib_wm_report_mode = WM_REPORT_DEFAULT,
-		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
 		.force_single_disp_pipe_split = true,
 		.disable_dcc = DCC_ENABLE,
 		.voltage_align_fclk = true,
@@ -598,7 +622,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
-		.disable_dmcu = true,
+		.disable_dmcu = false,
 		.force_abm_enable = false,
 		.timing_trace = true,
 		.clock_trace = true,
@@ -804,6 +828,23 @@ struct link_encoder *dcn10_link_encoder_create(
 				      &le_mask);
 
 	return &enc10->base;
+}
+
+static struct panel_cntl *dcn10_panel_cntl_create(const struct panel_cntl_init_data *init_data)
+{
+	struct dce_panel_cntl *panel_cntl =
+		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+
+	if (!panel_cntl)
+		return NULL;
+
+	dce_panel_cntl_construct(panel_cntl,
+			init_data,
+			&panel_cntl_regs[init_data->inst],
+			&panel_cntl_shift,
+			&panel_cntl_mask);
+
+	return &panel_cntl->base;
 }
 
 struct clock_source *dcn10_clock_source_create(
@@ -1080,24 +1121,6 @@ static enum dc_status build_mapped_resource(
 {
 	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
 
-	/*TODO Seems unneeded anymore */
-	/*	if (old_context && resource_is_stream_unchanged(old_context, stream)) {
-			if (stream != NULL && old_context->streams[i] != NULL) {
-				 todo: shouldn't have to copy missing parameter here
-				resource_build_bit_depth_reduction_params(stream,
-						&stream->bit_depth_params);
-				stream->clamping.pixel_encoding =
-						stream->timing.pixel_encoding;
-
-				resource_build_bit_depth_reduction_params(stream,
-								&stream->bit_depth_params);
-				build_clamping_params(stream);
-
-				continue;
-			}
-		}
-	*/
-
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
 
@@ -1190,6 +1213,7 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 	bool video_large = false;
 	bool desktop_large = false;
 	bool dcc_disabled = false;
+	bool mpo_enabled = false;
 
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->stream_status[i].plane_count == 0)
@@ -1197,6 +1221,9 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 
 		if (context->stream_status[i].plane_count > 2)
 			return DC_FAIL_UNSUPPORTED_1;
+
+		if (context->stream_status[i].plane_count > 1)
+			mpo_enabled = true;
 
 		for (j = 0; j < context->stream_status[i].plane_count; j++) {
 			struct dc_plane_state *plane =
@@ -1221,6 +1248,10 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 		}
 	}
 
+	/* Disable MPO in multi-display configurations. */
+	if (context->stream_count > 1 && mpo_enabled)
+		return DC_FAIL_UNSUPPORTED_1;
+
 	/*
 	 * Workaround: On DCN10 there is UMC issue that causes underflow when
 	 * playing 4k video on 4k desktop with video downscaled and single channel
@@ -1233,7 +1264,7 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 	return DC_OK;
 }
 
-static enum dc_status dcn10_get_default_swizzle_mode(struct dc_plane_state *plane_state)
+static enum dc_status dcn10_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
 	enum dc_status result = DC_OK;
 
@@ -1290,12 +1321,13 @@ static const struct dc_cap_funcs cap_funcs = {
 static const struct resource_funcs dcn10_res_pool_funcs = {
 	.destroy = dcn10_destroy_resource_pool,
 	.link_enc_create = dcn10_link_encoder_create,
+	.panel_cntl_create = dcn10_panel_cntl_create,
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
 	.validate_plane = dcn10_validate_plane,
 	.validate_global = dcn10_validate_global,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
-	.get_default_swizzle_mode = dcn10_get_default_swizzle_mode,
+	.patch_unknown_plane_state = dcn10_patch_unknown_plane_state,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
 };
 
@@ -1351,6 +1383,40 @@ static bool dcn10_resource_construct(
 
 	/* Raven DP PHY HBR2 eye diagram pattern is not stable. Use TP4 */
 	dc->caps.force_dp_tps4_for_cp2520 = true;
+
+	/* Color pipeline capabilities */
+	dc->caps.color.dpp.dcn_arch = 1;
+	dc->caps.color.dpp.input_lut_shared = 1;
+	dc->caps.color.dpp.icsc = 1;
+	dc->caps.color.dpp.dgam_ram = 1;
+	dc->caps.color.dpp.dgam_rom_caps.srgb = 1;
+	dc->caps.color.dpp.dgam_rom_caps.bt2020 = 1;
+	dc->caps.color.dpp.dgam_rom_caps.gamma2_2 = 0;
+	dc->caps.color.dpp.dgam_rom_caps.pq = 0;
+	dc->caps.color.dpp.dgam_rom_caps.hlg = 0;
+	dc->caps.color.dpp.post_csc = 0;
+	dc->caps.color.dpp.gamma_corr = 0;
+
+	dc->caps.color.dpp.hw_3d_lut = 0;
+	dc->caps.color.dpp.ogam_ram = 1; // RGAM on DCN1
+	dc->caps.color.dpp.ogam_rom_caps.srgb = 1;
+	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 1;
+	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
+	dc->caps.color.dpp.ogam_rom_caps.pq = 0;
+	dc->caps.color.dpp.ogam_rom_caps.hlg = 0;
+	dc->caps.color.dpp.ocsc = 1;
+
+	/* no post-blend color operations */
+	dc->caps.color.mpc.gamut_remap = 0;
+	dc->caps.color.mpc.num_3dluts = 0;
+	dc->caps.color.mpc.shared_3d_lut = 0;
+	dc->caps.color.mpc.ogam_ram = 0;
+	dc->caps.color.mpc.ogam_rom_caps.srgb = 0;
+	dc->caps.color.mpc.ogam_rom_caps.bt2020 = 0;
+	dc->caps.color.mpc.ogam_rom_caps.gamma2_2 = 0;
+	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
+	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
+	dc->caps.color.mpc.ocsc = 0;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

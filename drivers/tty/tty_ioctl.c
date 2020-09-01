@@ -866,7 +866,7 @@ static int __tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 			ld->ops->flush_buffer(tty);
 			tty_unthrottle(tty);
 		}
-		/* fall through */
+		fallthrough;
 	case TCOFLUSH:
 		tty_driver_flush_buffer(tty);
 		break;

@@ -92,7 +92,7 @@ static int ativic32_irq_domain_map(struct irq_domain *id, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops ativic32_ops = {
+static const struct irq_domain_ops ativic32_ops = {
 	.map = ativic32_irq_domain_map,
 	.xlate = irq_domain_xlate_onecell
 };

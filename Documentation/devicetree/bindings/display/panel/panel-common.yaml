@@ -48,19 +48,23 @@ properties:
   rotation:
     description:
       Display rotation in degrees counter clockwise (0,90,180,270)
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 90, 180, 270 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 90, 180, 270]
 
   # Display Timings
   panel-timing:
-    type: object
     description:
       Most display panels are restricted to a single resolution and
       require specific display timings. The panel-timing subnode expresses those
-      timings as specified in the timing subnode section of the display timing
-      bindings defined in
-      Documentation/devicetree/bindings/display/panel/display-timing.txt.
+      timings.
+    $ref: panel-timing.yaml#
+
+  display-timings:
+    description:
+      Some display panels support several resolutions with different timings.
+      The display-timings bindings supports specifying several timings and
+      optionally specifying which is the native mode.
+    $ref: display-timings.yaml#
 
   # Connectivity
   port:
@@ -89,6 +93,12 @@ properties:
       (hot plug detect) signal, but the signal isn't hooked up so we should
       hardcode the max delay from the panel spec when powering up the panel.
 
+  hpd-gpios:
+    maxItems: 1
+    description:
+      If Hot Plug Detect (HPD) is connected to a GPIO in the system rather
+      than a dedicated HPD pin the pin can be specified here.
+
   # Control I/Os
 
   # Many display panels can be controlled through pins driven by GPIOs. The nature
@@ -116,6 +126,13 @@ properties:
       The reset signal is active low and resets the panel internal logic
       while active. Active high reset signals can be supported by inverting the
       GPIO specifier polarity flag.
+
+  te-gpios:
+    maxItems: 1
+    description:
+      GPIO spec for the tearing effect synchronization signal.
+      The tearing effect signal is active high. Active low signals can be
+      supported by inverting the GPIO specifier polarity flag.
 
   # Power
   power-supply:

@@ -47,7 +47,7 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout);
 #if 0
 #define dprintk(args...) printk(KERN_DEBUG args)
 #else
-#define dprintk(args...)
+#define dprintk(args...) do {} while (0)
 #endif
 
 /* Maybe we'll add some more in the future. */
@@ -273,6 +273,10 @@ static int llc_ui_autobind(struct socket *sock, struct sockaddr_llc *addr)
 
 	if (!sock_flag(sk, SOCK_ZAPPED))
 		goto out;
+	if (!addr->sllc_arphrd)
+		addr->sllc_arphrd = ARPHRD_ETHER;
+	if (addr->sllc_arphrd != ARPHRD_ETHER)
+		goto out;
 	rc = -ENODEV;
 	if (sk->sk_bound_dev_if) {
 		llc->dev = dev_get_by_index(&init_net, sk->sk_bound_dev_if);
@@ -328,7 +332,9 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 	if (unlikely(!sock_flag(sk, SOCK_ZAPPED) || addrlen != sizeof(*addr)))
 		goto out;
 	rc = -EAFNOSUPPORT;
-	if (unlikely(addr->sllc_family != AF_LLC))
+	if (!addr->sllc_arphrd)
+		addr->sllc_arphrd = ARPHRD_ETHER;
+	if (unlikely(addr->sllc_family != AF_LLC || addr->sllc_arphrd != ARPHRD_ETHER))
 		goto out;
 	dprintk("%s: binding %02X\n", __func__, addr->sllc_sap);
 	rc = -ENODEV;
@@ -336,8 +342,6 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 	if (sk->sk_bound_dev_if) {
 		llc->dev = dev_get_by_index_rcu(&init_net, sk->sk_bound_dev_if);
 		if (llc->dev) {
-			if (!addr->sllc_arphrd)
-				addr->sllc_arphrd = llc->dev->type;
 			if (is_zero_ether_addr(addr->sllc_mac))
 				memcpy(addr->sllc_mac, llc->dev->dev_addr,
 				       IFHWADDRLEN);
@@ -980,7 +984,6 @@ out:
  *	llc_ui_getname - return the address info of a socket
  *	@sock: Socket to get address of.
  *	@uaddr: Address structure to return information.
- *	@uaddrlen: Length of address structure.
  *	@peer: Does user want local or remote address information.
  *
  *	Return the address information of a socket.
@@ -1050,7 +1053,7 @@ static int llc_ui_ioctl(struct socket *sock, unsigned int cmd,
  *	Set various connection specific parameters.
  */
 static int llc_ui_setsockopt(struct socket *sock, int level, int optname,
-			     char __user *optval, unsigned int optlen)
+			     sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
@@ -1060,7 +1063,7 @@ static int llc_ui_setsockopt(struct socket *sock, int level, int optname,
 	lock_sock(sk);
 	if (unlikely(level != SOL_LLC || optlen != sizeof(int)))
 		goto out;
-	rc = get_user(opt, (int __user *)optval);
+	rc = copy_from_sockptr(&opt, optval, sizeof(opt));
 	if (rc)
 		goto out;
 	rc = -EINVAL;

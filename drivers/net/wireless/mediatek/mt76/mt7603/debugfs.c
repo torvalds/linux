@@ -113,7 +113,7 @@ void mt7603_init_debugfs(struct mt7603_dev *dev)
 		return;
 
 	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
-	debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
+	debugfs_create_devm_seqfile(dev->mt76.dev, "xmit-queues", dir,
 				    mt76_queues_read);
 	debugfs_create_file("edcca", 0600, dir, dev, &fops_edcca);
 	debugfs_create_u32("reset_test", 0600, dir, &dev->reset_test);
@@ -121,4 +121,8 @@ void mt7603_init_debugfs(struct mt7603_dev *dev)
 				    mt7603_reset_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
 				    mt7603_radio_read);
+	debugfs_create_u8("sensitivity_limit", 0600, dir,
+			    &dev->sensitivity_limit);
+	debugfs_create_bool("dynamic_sensitivity", 0600, dir,
+			    &dev->dynamic_sensitivity);
 }

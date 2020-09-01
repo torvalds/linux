@@ -51,13 +51,13 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 
 	ret = armada_gem_linear_back(dev, obj);
 	if (ret) {
-		drm_gem_object_put_unlocked(&obj->obj);
+		drm_gem_object_put(&obj->obj);
 		return ret;
 	}
 
 	ptr = armada_gem_map_object(dev, obj);
 	if (!ptr) {
-		drm_gem_object_put_unlocked(&obj->obj);
+		drm_gem_object_put(&obj->obj);
 		return -ENOMEM;
 	}
 
@@ -67,7 +67,7 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 	 * A reference is now held by the framebuffer object if
 	 * successful, otherwise this drops the ref for the error path.
 	 */
-	drm_gem_object_put_unlocked(&obj->obj);
+	drm_gem_object_put(&obj->obj);
 
 	if (IS_ERR(dfb))
 		return PTR_ERR(dfb);
@@ -129,16 +129,10 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, fbh, &armada_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, fbh, 1);
+	ret = drm_fb_helper_init(dev, fbh);
 	if (ret) {
 		DRM_ERROR("failed to initialize drm fb helper\n");
 		goto err_fb_helper;
-	}
-
-	ret = drm_fb_helper_single_add_all_connectors(fbh);
-	if (ret) {
-		DRM_ERROR("failed to add fb connectors\n");
-		goto err_fb_setup;
 	}
 
 	ret = drm_fb_helper_initial_config(fbh, 32);

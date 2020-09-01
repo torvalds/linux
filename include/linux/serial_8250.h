@@ -81,6 +81,7 @@ struct uart_8250_em485 {
 	struct hrtimer		stop_tx_timer;  /* "rs485 stop tx" timer */
 	struct hrtimer		*active_timer;  /* pointer to active timer */
 	struct uart_8250_port	*port;          /* for hrtimer callbacks */
+	unsigned int		tx_stopped:1;	/* tx is currently stopped */
 };
 
 /*
@@ -132,6 +133,8 @@ struct uart_8250_port {
 	void			(*dl_write)(struct uart_8250_port *, int);
 
 	struct uart_8250_em485 *em485;
+	void			(*rs485_start_tx)(struct uart_8250_port *);
+	void			(*rs485_stop_tx)(struct uart_8250_port *);
 
 	/* Serial port overrun backoff */
 	struct delayed_work overrun_backoff;
@@ -152,6 +155,8 @@ extern int early_serial_setup(struct uart_port *port);
 
 extern int early_serial8250_setup(struct earlycon_device *device,
 					 const char *options);
+extern void serial8250_update_uartclk(struct uart_port *port,
+				      unsigned int uartclk);
 extern void serial8250_do_set_termios(struct uart_port *port,
 		struct ktermios *termios, struct ktermios *old);
 extern void serial8250_do_set_ldisc(struct uart_port *port,
@@ -176,6 +181,7 @@ void serial8250_set_defaults(struct uart_8250_port *up);
 void serial8250_console_write(struct uart_8250_port *up, const char *s,
 			      unsigned int count);
 int serial8250_console_setup(struct uart_port *port, char *options, bool probe);
+int serial8250_console_exit(struct uart_port *port);
 
 extern void serial8250_set_isa_configurator(void (*v)
 					(int port, struct uart_port *up,

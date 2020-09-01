@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/fsl,imx-gpcv2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX General Power Controller v2
+
+maintainers:
+  - Andrey Smirnov <andrew.smirnov@gmail.com>
+
+description: |
+  The i.MX7S/D General Power Control (GPC) block contains Power Gating
+  Control (PGC) for various power domains.
+
+  Power domains contained within GPC node are generic power domain
+  providers, documented in
+  Documentation/devicetree/bindings/power/power-domain.yaml, which are
+  described as subnodes of the power gating controller 'pgc' node.
+
+  IP cores belonging to a power domain should contain a 'power-domains'
+  property that is a phandle for PGC node representing the domain.
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx7d-gpc
+      - fsl,imx8mq-gpc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  pgc:
+    type: object
+    description: list of power domains provided by this controller.
+
+    patternProperties:
+      "power-domain@[0-9]$":
+        type: object
+        properties:
+
+          '#power-domain-cells':
+            const: 0
+
+          reg:
+            description: |
+              Power domain index. Valid values are defined in
+              include/dt-bindings/power/imx7-power.h for fsl,imx7d-gpc and
+              include/dt-bindings/power/imx8m-power.h for fsl,imx8mq-gpc
+            maxItems: 1
+
+          clocks:
+            description: |
+              A number of phandles to clocks that need to be enabled during domain
+              power-up sequencing to ensure reset propagation into devices located
+              inside this power domain.
+            minItems: 1
+            maxItems: 5
+
+          power-supply: true
+
+        required:
+          - '#power-domain-cells'
+          - reg
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - pgc
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    gpc@303a0000 {
+        compatible = "fsl,imx7d-gpc";
+        reg = <0x303a0000 0x1000>;
+        interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+
+        pgc {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            pgc_mipi_phy: power-domain@0 {
+                #power-domain-cells = <0>;
+                reg = <0>;
+                power-supply = <&reg_1p0d>;
+            };
+
+            pgc_pcie_phy: power-domain@1 {
+                #power-domain-cells = <0>;
+                reg = <1>;
+                power-supply = <&reg_1p0d>;
+            };
+
+            pgc_hsic_phy: power-domain@2 {
+                #power-domain-cells = <0>;
+                reg = <2>;
+                power-supply = <&reg_1p2>;
+            };
+        };
+    };

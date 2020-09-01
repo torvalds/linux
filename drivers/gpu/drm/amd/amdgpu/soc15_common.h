@@ -35,6 +35,9 @@
 #define RREG32_SOC15(ip, inst, reg) \
 	RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
 
+#define RREG32_SOC15_NO_KIQ(ip, inst, reg) \
+	RREG32_NO_KIQ(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
+
 #define RREG32_SOC15_OFFSET(ip, inst, reg, offset) \
 	RREG32((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset)
 
@@ -47,18 +50,19 @@
 #define WREG32_SOC15_OFFSET(ip, inst, reg, offset, value) \
 	WREG32((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, value)
 
-#define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask, ret) \
+#define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask) \
+({	int ret = 0;						\
 	do {							\
-		uint32_t old_ = 0;	\
+		uint32_t old_ = 0;				\
 		uint32_t tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 		uint32_t loop = adev->usec_timeout;		\
 		ret = 0;					\
 		while ((tmp_ & (mask)) != (expected_value)) {	\
 			if (old_ != tmp_) {			\
 				loop = adev->usec_timeout;	\
-				old_ = tmp_;				\
-			} else						\
-				udelay(1);				\
+				old_ = tmp_;			\
+			} else					\
+				udelay(1);			\
 			tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 			loop--;					\
 			if (!loop) {				\
@@ -68,12 +72,13 @@
 				break;				\
 			}					\
 		}						\
-	} while (0)
+	} while (0);						\
+	ret;							\
+})
 
-#define AMDGPU_VIRT_SUPPORT_RLC_PRG_REG(a) (amdgpu_sriov_vf((a)) && !amdgpu_sriov_runtime((a)))
 #define WREG32_RLC(reg, value) \
 	do {							\
-		if (AMDGPU_VIRT_SUPPORT_RLC_PRG_REG(adev)) {    \
+		if (amdgpu_sriov_fullaccess(adev)) {    \
 			uint32_t i = 0;	\
 			uint32_t retries = 50000;	\
 			uint32_t r0 = adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG0;	\
@@ -98,7 +103,7 @@
 #define WREG32_SOC15_RLC_SHADOW(ip, inst, reg, value) \
 	do {							\
 		uint32_t target_reg = adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg;\
-		if (AMDGPU_VIRT_SUPPORT_RLC_PRG_REG(adev)) {    \
+		if (amdgpu_sriov_fullaccess(adev)) {    \
 			uint32_t r2 = adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG2;	\
 			uint32_t r3 = adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG3;	\
 			uint32_t grbm_cntl = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_CNTL_BASE_IDX] + mmGRBM_GFX_CNTL;   \

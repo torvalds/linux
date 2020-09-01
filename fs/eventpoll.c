@@ -218,12 +218,17 @@ struct eventpoll {
 	struct file *file;
 
 	/* used to optimize loop detection check */
-	int visited;
 	struct list_head visited_list_link;
+	int visited;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	/* used to track busy poll napi_id */
 	unsigned int napi_id;
+#endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/* tracks wakeup nests for lockdep validation */
+	u8 nests;
 #endif
 };
 
@@ -545,30 +550,47 @@ out_unlock:
  */
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
-static DEFINE_PER_CPU(int, wakeup_nest);
-
-static void ep_poll_safewake(wait_queue_head_t *wq)
+static void ep_poll_safewake(struct eventpoll *ep, struct epitem *epi)
 {
+	struct eventpoll *ep_src;
 	unsigned long flags;
-	int subclass;
+	u8 nests = 0;
 
-	local_irq_save(flags);
-	preempt_disable();
-	subclass = __this_cpu_read(wakeup_nest);
-	spin_lock_nested(&wq->lock, subclass + 1);
-	__this_cpu_inc(wakeup_nest);
-	wake_up_locked_poll(wq, POLLIN);
-	__this_cpu_dec(wakeup_nest);
-	spin_unlock(&wq->lock);
-	local_irq_restore(flags);
-	preempt_enable();
+	/*
+	 * To set the subclass or nesting level for spin_lock_irqsave_nested()
+	 * it might be natural to create a per-cpu nest count. However, since
+	 * we can recurse on ep->poll_wait.lock, and a non-raw spinlock can
+	 * schedule() in the -rt kernel, the per-cpu variable are no longer
+	 * protected. Thus, we are introducing a per eventpoll nest field.
+	 * If we are not being call from ep_poll_callback(), epi is NULL and
+	 * we are at the first level of nesting, 0. Otherwise, we are being
+	 * called from ep_poll_callback() and if a previous wakeup source is
+	 * not an epoll file itself, we are at depth 1 since the wakeup source
+	 * is depth 0. If the wakeup source is a previous epoll file in the
+	 * wakeup chain then we use its nests value and record ours as
+	 * nests + 1. The previous epoll file nests value is stable since its
+	 * already holding its own poll_wait.lock.
+	 */
+	if (epi) {
+		if ((is_file_epoll(epi->ffd.file))) {
+			ep_src = epi->ffd.file->private_data;
+			nests = ep_src->nests;
+		} else {
+			nests = 1;
+		}
+	}
+	spin_lock_irqsave_nested(&ep->poll_wait.lock, flags, nests);
+	ep->nests = nests + 1;
+	wake_up_locked_poll(&ep->poll_wait, EPOLLIN);
+	ep->nests = 0;
+	spin_unlock_irqrestore(&ep->poll_wait.lock, flags);
 }
 
 #else
 
-static void ep_poll_safewake(wait_queue_head_t *wq)
+static void ep_poll_safewake(struct eventpoll *ep, struct epitem *epi)
 {
-	wake_up_poll(wq, EPOLLIN);
+	wake_up_poll(&ep->poll_wait, EPOLLIN);
 }
 
 #endif
@@ -789,7 +811,7 @@ static void ep_free(struct eventpoll *ep)
 
 	/* We need to release all tasks waiting for these file */
 	if (waitqueue_active(&ep->poll_wait))
-		ep_poll_safewake(&ep->poll_wait);
+		ep_poll_safewake(ep, NULL);
 
 	/*
 	 * We need to lock this because we could be hit by
@@ -1149,6 +1171,10 @@ static inline bool chain_epi_lockless(struct epitem *epi)
 {
 	struct eventpoll *ep = epi->ep;
 
+	/* Fast preliminary check */
+	if (epi->next != EP_UNACTIVE_PTR)
+		return false;
+
 	/* Check that the same epi has not been just chained from another CPU */
 	if (cmpxchg(&epi->next, EP_UNACTIVE_PTR, NULL) != EP_UNACTIVE_PTR)
 		return false;
@@ -1215,16 +1241,12 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	 * chained in ep->ovflist and requeued later on.
 	 */
 	if (READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR) {
-		if (epi->next == EP_UNACTIVE_PTR &&
-		    chain_epi_lockless(epi))
+		if (chain_epi_lockless(epi))
 			ep_pm_stay_awake_rcu(epi);
-		goto out_unlock;
-	}
-
-	/* If this file is already in the ready list we exit soon */
-	if (!ep_is_linked(epi) &&
-	    list_add_tail_lockless(&epi->rdllink, &ep->rdllist)) {
-		ep_pm_stay_awake_rcu(epi);
+	} else if (!ep_is_linked(epi)) {
+		/* In the usual case, add event to ready list. */
+		if (list_add_tail_lockless(&epi->rdllink, &ep->rdllist))
+			ep_pm_stay_awake_rcu(epi);
 	}
 
 	/*
@@ -1258,7 +1280,7 @@ out_unlock:
 
 	/* We have to call this outside the lock */
 	if (pwake)
-		ep_poll_safewake(&ep->poll_wait);
+		ep_poll_safewake(ep, epi);
 
 	if (!(epi->event.events & EPOLLEXCLUSIVE))
 		ewake = 1;
@@ -1562,7 +1584,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 
 	/* We have to call this outside the lock */
 	if (pwake)
-		ep_poll_safewake(&ep->poll_wait);
+		ep_poll_safewake(ep, NULL);
 
 	return 0;
 
@@ -1666,7 +1688,7 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 
 	/* We have to call this outside the lock */
 	if (pwake)
-		ep_poll_safewake(&ep->poll_wait);
+		ep_poll_safewake(ep, NULL);
 
 	return 0;
 }
@@ -1800,7 +1822,6 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 {
 	int res = 0, eavail, timed_out = 0;
 	u64 slack = 0;
-	bool waiter = false;
 	wait_queue_entry_t wait;
 	ktime_t expires, *to = NULL;
 
@@ -1845,55 +1866,75 @@ fetch_events:
 	 */
 	ep_reset_busy_poll_napi_id(ep);
 
-	/*
-	 * We don't have any available event to return to the caller.  We need
-	 * to sleep here, and we will be woken by ep_poll_callback() when events
-	 * become available.
-	 */
-	if (!waiter) {
-		waiter = true;
-		init_waitqueue_entry(&wait, current);
+	do {
+		/*
+		 * Internally init_wait() uses autoremove_wake_function(),
+		 * thus wait entry is removed from the wait queue on each
+		 * wakeup. Why it is important? In case of several waiters
+		 * each new wakeup will hit the next waiter, giving it the
+		 * chance to harvest new event. Otherwise wakeup can be
+		 * lost. This is also good performance-wise, because on
+		 * normal wakeup path no need to call __remove_wait_queue()
+		 * explicitly, thus ep->lock is not taken, which halts the
+		 * event delivery.
+		 */
+		init_wait(&wait);
 
-		spin_lock_irq(&ep->wq.lock);
-		__add_wait_queue_exclusive(&ep->wq, &wait);
-		spin_unlock_irq(&ep->wq.lock);
+		write_lock_irq(&ep->lock);
+		/*
+		 * Barrierless variant, waitqueue_active() is called under
+		 * the same lock on wakeup ep_poll_callback() side, so it
+		 * is safe to avoid an explicit barrier.
+		 */
+		__set_current_state(TASK_INTERRUPTIBLE);
+
+		/*
+		 * Do the final check under the lock. ep_scan_ready_list()
+		 * plays with two lists (->rdllist and ->ovflist) and there
+		 * is always a race when both lists are empty for short
+		 * period of time although events are pending, so lock is
+		 * important.
+		 */
+		eavail = ep_events_available(ep);
+		if (!eavail) {
+			if (signal_pending(current))
+				res = -EINTR;
+			else
+				__add_wait_queue_exclusive(&ep->wq, &wait);
+		}
+		write_unlock_irq(&ep->lock);
+
+		if (eavail || res)
+			break;
+
+		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS)) {
+			timed_out = 1;
+			break;
+		}
+
+		/* We were woken up, thus go and try to harvest some events */
+		eavail = 1;
+
+	} while (0);
+
+	__set_current_state(TASK_RUNNING);
+
+	if (!list_empty_careful(&wait.entry)) {
+		write_lock_irq(&ep->lock);
+		__remove_wait_queue(&ep->wq, &wait);
+		write_unlock_irq(&ep->lock);
 	}
 
-	for (;;) {
-		/*
-		 * We don't want to sleep if the ep_poll_callback() sends us
-		 * a wakeup in between. That's why we set the task state
-		 * to TASK_INTERRUPTIBLE before doing the checks.
-		 */
-		set_current_state(TASK_INTERRUPTIBLE);
+send_events:
+	if (fatal_signal_pending(current)) {
 		/*
 		 * Always short-circuit for fatal signals to allow
 		 * threads to make a timely exit without the chance of
 		 * finding more events available and fetching
 		 * repeatedly.
 		 */
-		if (fatal_signal_pending(current)) {
-			res = -EINTR;
-			break;
-		}
-
-		eavail = ep_events_available(ep);
-		if (eavail)
-			break;
-		if (signal_pending(current)) {
-			res = -EINTR;
-			break;
-		}
-
-		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS)) {
-			timed_out = 1;
-			break;
-		}
+		res = -EINTR;
 	}
-
-	__set_current_state(TASK_RUNNING);
-
-send_events:
 	/*
 	 * Try to transfer events to user space. In case we get 0 events and
 	 * there's still timeout left over, we go trying again in search of
@@ -1902,12 +1943,6 @@ send_events:
 	if (!res && eavail &&
 	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
 		goto fetch_events;
-
-	if (waiter) {
-		spin_lock_irq(&ep->wq.lock);
-		__remove_wait_queue(&ep->wq, &wait);
-		spin_unlock_irq(&ep->wq.lock);
-	}
 
 	return res;
 }
@@ -1959,9 +1994,11 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 			 * not already there, and calling reverse_path_check()
 			 * during ep_insert().
 			 */
-			if (list_empty(&epi->ffd.file->f_tfile_llink))
+			if (list_empty(&epi->ffd.file->f_tfile_llink)) {
+				get_file(epi->ffd.file);
 				list_add(&epi->ffd.file->f_tfile_llink,
 					 &tfile_check_list);
+			}
 		}
 	}
 	mutex_unlock(&ep->mtx);
@@ -2005,6 +2042,7 @@ static void clear_tfile_check_list(void)
 		file = list_first_entry(&tfile_check_list, struct file,
 					f_tfile_llink);
 		list_del_init(&file->f_tfile_llink);
+		fput(file);
 	}
 	INIT_LIST_HEAD(&tfile_check_list);
 }
@@ -2165,25 +2203,22 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 			full_check = 1;
 			if (is_file_epoll(tf.file)) {
 				error = -ELOOP;
-				if (ep_loop_check(ep, tf.file) != 0) {
-					clear_tfile_check_list();
+				if (ep_loop_check(ep, tf.file) != 0)
 					goto error_tgt_fput;
-				}
-			} else
+			} else {
+				get_file(tf.file);
 				list_add(&tf.file->f_tfile_llink,
 							&tfile_check_list);
-			error = epoll_mutex_lock(&ep->mtx, 0, nonblock);
-			if (error) {
-out_del:
-				list_del(&tf.file->f_tfile_llink);
-				goto error_tgt_fput;
 			}
+			error = epoll_mutex_lock(&ep->mtx, 0, nonblock);
+			if (error)
+				goto error_tgt_fput;
 			if (is_file_epoll(tf.file)) {
 				tep = tf.file->private_data;
 				error = epoll_mutex_lock(&tep->mtx, 1, nonblock);
 				if (error) {
 					mutex_unlock(&ep->mtx);
-					goto out_del;
+					goto error_tgt_fput;
 				}
 			}
 		}
@@ -2204,8 +2239,6 @@ out_del:
 			error = ep_insert(ep, epds, tf.file, fd, full_check);
 		} else
 			error = -EEXIST;
-		if (full_check)
-			clear_tfile_check_list();
 		break;
 	case EPOLL_CTL_DEL:
 		if (epi)
@@ -2228,8 +2261,10 @@ out_del:
 	mutex_unlock(&ep->mtx);
 
 error_tgt_fput:
-	if (full_check)
+	if (full_check) {
+		clear_tfile_check_list();
 		mutex_unlock(&epmutex);
+	}
 
 	fdput(tf);
 error_fput:

@@ -30,10 +30,10 @@
 
 #include <drm/drm_mm.h>
 
+#include "gt/intel_ggtt_fencing.h"
 #include "gem/i915_gem_object.h"
 
 #include "i915_gem_gtt.h"
-#include "i915_gem_fence_reg.h"
 
 #include "i915_active.h"
 #include "i915_request.h"
@@ -203,6 +203,7 @@ bool i915_vma_misplaced(const struct i915_vma *vma,
 			u64 size, u64 alignment, u64 flags);
 void __i915_vma_set_map_and_fenceable(struct i915_vma *vma);
 void i915_vma_revoke_mmap(struct i915_vma *vma);
+void __i915_vma_evict(struct i915_vma *vma);
 int __i915_vma_unbind(struct i915_vma *vma);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 void i915_vma_unlink_ctx(struct i915_vma *vma);
@@ -326,7 +327,7 @@ static inline struct page *i915_vma_first_page(struct i915_vma *vma)
  * True if the vma has a fence, false otherwise.
  */
 int __must_check i915_vma_pin_fence(struct i915_vma *vma);
-int __must_check i915_vma_revoke_fence(struct i915_vma *vma);
+void i915_vma_revoke_fence(struct i915_vma *vma);
 
 int __i915_vma_pin_fence(struct i915_vma *vma);
 
@@ -374,6 +375,8 @@ void i915_vma_free(struct i915_vma *vma);
 struct i915_vma *i915_vma_make_unshrinkable(struct i915_vma *vma);
 void i915_vma_make_shrinkable(struct i915_vma *vma);
 void i915_vma_make_purgeable(struct i915_vma *vma);
+
+int i915_vma_wait_for_bind(struct i915_vma *vma);
 
 static inline int i915_vma_sync(struct i915_vma *vma)
 {

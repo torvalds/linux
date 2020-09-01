@@ -445,6 +445,8 @@ struct mei_fw_version {
  * @device_list : mei client bus list
  * @cl_bus_lock : client bus list lock
  *
+ * @kind        : kind of mei device
+ *
  * @dbgfs_dir   : debugfs mei root directory
  *
  * @ops:        : hw specific operations
@@ -528,12 +530,14 @@ struct mei_device {
 	struct list_head device_list;
 	struct mutex cl_bus_lock;
 
+	const char *kind;
+
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;
 #endif /* CONFIG_DEBUG_FS */
 
 	const struct mei_hw_ops *ops;
-	char hw[0] __aligned(sizeof(void *));
+	char hw[] __aligned(sizeof(void *));
 };
 
 static inline unsigned long mei_secs_to_jiffies(unsigned long sec)

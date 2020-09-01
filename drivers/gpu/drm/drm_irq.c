@@ -111,10 +111,6 @@ int drm_irq_install(struct drm_device *dev, int irq)
 	if (irq == 0)
 		return -EINVAL;
 
-	/* Driver must have been initialized */
-	if (!dev->dev_private)
-		return -EINVAL;
-
 	if (dev->irq_enabled)
 		return -EBUSY;
 	dev->irq_enabled = true;
@@ -185,7 +181,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 	 * vblank/irq handling. KMS drivers must ensure that vblanks are all
 	 * disabled when uninstalling the irq handler.
 	 */
-	if (dev->num_crtcs) {
+	if (drm_dev_has_vblank(dev)) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		for (i = 0; i < dev->num_crtcs; i++) {
 			struct drm_vblank_crtc *vblank = &dev->vblank[i];

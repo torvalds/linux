@@ -42,6 +42,8 @@
 #define FIRMWARE_NAVI10 	"amdgpu/navi10_vcn.bin"
 #define FIRMWARE_NAVI14 	"amdgpu/navi14_vcn.bin"
 #define FIRMWARE_NAVI12 	"amdgpu/navi12_vcn.bin"
+#define FIRMWARE_SIENNA_CICHLID 	"amdgpu/sienna_cichlid_vcn.bin"
+#define FIRMWARE_NAVY_FLOUNDER 	"amdgpu/navy_flounder_vcn.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
 MODULE_FIRMWARE(FIRMWARE_PICASSO);
@@ -51,6 +53,8 @@ MODULE_FIRMWARE(FIRMWARE_RENOIR);
 MODULE_FIRMWARE(FIRMWARE_NAVI10);
 MODULE_FIRMWARE(FIRMWARE_NAVI14);
 MODULE_FIRMWARE(FIRMWARE_NAVI12);
+MODULE_FIRMWARE(FIRMWARE_SIENNA_CICHLID);
+MODULE_FIRMWARE(FIRMWARE_NAVY_FLOUNDER);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
@@ -63,12 +67,16 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	int i, r;
 
 	INIT_DELAYED_WORK(&adev->vcn.idle_work, amdgpu_vcn_idle_work_handler);
+	mutex_init(&adev->vcn.vcn_pg_lock);
+	atomic_set(&adev->vcn.total_submission_cnt, 0);
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
+		atomic_set(&adev->vcn.inst[i].dpg_enc_submission_cnt, 0);
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		if (adev->rev_id >= 8)
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			fw_name = FIRMWARE_RAVEN2;
-		else if (adev->pdev->device == 0x15d8)
+		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
 			fw_name = FIRMWARE_PICASSO;
 		else
 			fw_name = FIRMWARE_RAVEN;
@@ -99,6 +107,18 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		break;
 	case CHIP_NAVI12:
 		fw_name = FIRMWARE_NAVI12;
+		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
+		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
+			adev->vcn.indirect_sram = true;
+		break;
+	case CHIP_SIENNA_CICHLID:
+		fw_name = FIRMWARE_SIENNA_CICHLID;
+		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
+		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
+			adev->vcn.indirect_sram = true;
+		break;
+	case CHIP_NAVY_FLOUNDER:
+		fw_name = FIRMWARE_NAVY_FLOUNDER;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
@@ -156,6 +176,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_CONTEXT_SIZE;
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
+	bo_size += AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared));
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 		if (adev->vcn.harvest_config & (1 << i))
@@ -168,6 +189,11 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			dev_err(adev->dev, "(%d) failed to allocate vcn bo\n", r);
 			return r;
 		}
+
+		adev->vcn.inst[i].fw_shared_cpu_addr = adev->vcn.inst[i].cpu_addr +
+				bo_size - AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared));
+		adev->vcn.inst[i].fw_shared_gpu_addr = adev->vcn.inst[i].gpu_addr +
+				bo_size - AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared));
 
 		if (adev->vcn.indirect_sram) {
 			r = amdgpu_bo_create_kernel(adev, 64 * 2 * 4, PAGE_SIZE,
@@ -192,6 +218,7 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
+
 		if (adev->vcn.indirect_sram) {
 			amdgpu_bo_free_kernel(&adev->vcn.inst[j].dpg_sram_bo,
 						  &adev->vcn.inst[j].dpg_sram_gpu_addr,
@@ -210,6 +237,7 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	}
 
 	release_firmware(adev->vcn.fw);
+	mutex_destroy(&adev->vcn.vcn_pg_lock);
 
 	return 0;
 }
@@ -295,7 +323,8 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)	{
 			struct dpg_pause_state new_state;
 
-			if (fence[j])
+			if (fence[j] ||
+				unlikely(atomic_read(&adev->vcn.inst[j].dpg_enc_submission_cnt)))
 				new_state.fw_based = VCN_DPG_STATE__PAUSE;
 			else
 				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
@@ -307,8 +336,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		fences += fence[j];
 	}
 
-	if (fences == 0) {
-		amdgpu_gfx_off_ctrl(adev, true);
+	if (!fences && !atomic_read(&adev->vcn.total_submission_cnt)) {
 		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
 		       AMD_PG_STATE_GATE);
 	} else {
@@ -319,36 +347,46 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
-	if (set_clocks) {
-		amdgpu_gfx_off_ctrl(adev, false);
-		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
-		       AMD_PG_STATE_UNGATE);
-	}
+	atomic_inc(&adev->vcn.total_submission_cnt);
+	cancel_delayed_work_sync(&adev->vcn.idle_work);
+
+	mutex_lock(&adev->vcn.vcn_pg_lock);
+	amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+	       AMD_PG_STATE_UNGATE);
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)	{
 		struct dpg_pause_state new_state;
-		unsigned int fences = 0;
-		unsigned int i;
 
-		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
-			fences += amdgpu_fence_count_emitted(&adev->vcn.inst[ring->me].ring_enc[i]);
+		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC) {
+			atomic_inc(&adev->vcn.inst[ring->me].dpg_enc_submission_cnt);
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		} else {
+			unsigned int fences = 0;
+			unsigned int i;
+
+			for (i = 0; i < adev->vcn.num_enc_rings; ++i)
+				fences += amdgpu_fence_count_emitted(&adev->vcn.inst[ring->me].ring_enc[i]);
+
+			if (fences || atomic_read(&adev->vcn.inst[ring->me].dpg_enc_submission_cnt))
+				new_state.fw_based = VCN_DPG_STATE__PAUSE;
+			else
+				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 		}
-		if (fences)
-			new_state.fw_based = VCN_DPG_STATE__PAUSE;
-		else
-			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
-
-		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
-			new_state.fw_based = VCN_DPG_STATE__PAUSE;
 
 		adev->vcn.pause_dpg_mode(adev, ring->me, &new_state);
 	}
+	mutex_unlock(&adev->vcn.vcn_pg_lock);
 }
 
 void amdgpu_vcn_ring_end_use(struct amdgpu_ring *ring)
 {
+	if (ring->adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG &&
+		ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+		atomic_dec(&ring->adev->vcn.inst[ring->me].dpg_enc_submission_cnt);
+
+	atomic_dec(&ring->adev->vcn.total_submission_cnt);
+
 	schedule_delayed_work(&ring->adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
 }
 
@@ -358,6 +396,10 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 	uint32_t tmp = 0;
 	unsigned i;
 	int r;
+
+	/* VCN in SRIOV does not support direct register read/write */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	WREG32(adev->vcn.inst[ring->me].external.scratch9, 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
@@ -390,7 +432,8 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 	uint64_t addr;
 	int i, r;
 
-	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
+	r = amdgpu_job_alloc_with_ib(adev, 64,
+					AMDGPU_IB_POOL_DIRECT, &job);
 	if (r)
 		goto err;
 
@@ -493,13 +536,8 @@ static int amdgpu_vcn_dec_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 
 int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
-	struct amdgpu_device *adev = ring->adev;
 	struct dma_fence *fence;
 	long r;
-
-	/* temporarily disable ib test for sriov */
-	if (amdgpu_sriov_vf(adev))
-		return 0;
 
 	r = amdgpu_vcn_dec_get_create_msg(ring, 1, NULL);
 	if (r)
@@ -526,6 +564,9 @@ int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
 	uint32_t rptr;
 	unsigned i;
 	int r;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r)
@@ -559,7 +600,8 @@ static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 	uint64_t addr;
 	int i, r;
 
-	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4,
+					AMDGPU_IB_POOL_DIRECT, &job);
 	if (r)
 		return r;
 
@@ -612,7 +654,8 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 	uint64_t addr;
 	int i, r;
 
-	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4,
+					AMDGPU_IB_POOL_DIRECT, &job);
 	if (r)
 		return r;
 
@@ -656,14 +699,9 @@ err:
 
 int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
-	struct amdgpu_device *adev = ring->adev;
 	struct dma_fence *fence = NULL;
 	struct amdgpu_bo *bo = NULL;
 	long r;
-
-	/* temporarily disable ib test for sriov */
-	if (amdgpu_sriov_vf(adev))
-		return 0;
 
 	r = amdgpu_bo_create_reserved(ring->adev, 128 * 1024, PAGE_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,

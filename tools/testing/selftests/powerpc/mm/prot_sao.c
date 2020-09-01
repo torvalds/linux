@@ -18,8 +18,9 @@ int test_prot_sao(void)
 {
 	char *p;
 
-	/* 2.06 or later should support SAO */
-	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
+	/* SAO was introduced in 2.06 and removed in 3.1 */
+	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06) ||
+		have_hwcap2(PPC_FEATURE2_ARCH_3_1));
 
 	/*
 	 * Ensure we can ask for PROT_SAO.

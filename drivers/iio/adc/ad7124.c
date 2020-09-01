@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
@@ -47,6 +48,15 @@
 #define AD7124_ADC_CTRL_MODE_MSK	GENMASK(5, 2)
 #define AD7124_ADC_CTRL_MODE(x)	FIELD_PREP(AD7124_ADC_CTRL_MODE_MSK, x)
 
+/* AD7124 ID */
+#define AD7124_DEVICE_ID_MSK		GENMASK(7, 4)
+#define AD7124_DEVICE_ID_GET(x)		FIELD_GET(AD7124_DEVICE_ID_MSK, x)
+#define AD7124_SILICON_REV_MSK		GENMASK(3, 0)
+#define AD7124_SILICON_REV_GET(x)	FIELD_GET(AD7124_SILICON_REV_MSK, x)
+
+#define CHIPID_AD7124_4			0x0
+#define CHIPID_AD7124_8			0x1
+
 /* AD7124_CHANNEL_X */
 #define AD7124_CHANNEL_EN_MSK		BIT(15)
 #define AD7124_CHANNEL_EN(x)		FIELD_PREP(AD7124_CHANNEL_EN_MSK, x)
@@ -70,6 +80,11 @@
 /* AD7124_FILTER_X */
 #define AD7124_FILTER_FS_MSK		GENMASK(10, 0)
 #define AD7124_FILTER_FS(x)		FIELD_PREP(AD7124_FILTER_FS_MSK, x)
+#define AD7124_FILTER_TYPE_MSK		GENMASK(23, 21)
+#define AD7124_FILTER_TYPE_SEL(x)	FIELD_PREP(AD7124_FILTER_TYPE_MSK, x)
+
+#define AD7124_SINC3_FILTER 2
+#define AD7124_SINC4_FILTER 0
 
 enum ad7124_ids {
 	ID_AD7124_4,
@@ -93,6 +108,14 @@ static const unsigned int ad7124_gain[8] = {
 	1, 2, 4, 8, 16, 32, 64, 128
 };
 
+static const unsigned int ad7124_reg_size[] = {
+	1, 2, 3, 3, 2, 1, 3, 3, 1, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3
+};
+
 static const int ad7124_master_clk_freq_hz[3] = {
 	[AD7124_LOW_POWER] = 76800,
 	[AD7124_MID_POWER] = 153600,
@@ -107,6 +130,8 @@ static const char * const ad7124_ref_names[] = {
 };
 
 struct ad7124_chip_info {
+	const char *name;
+	unsigned int chip_id;
 	unsigned int num_inputs;
 };
 
@@ -119,6 +144,7 @@ struct ad7124_channel_config {
 	unsigned int vref_mv;
 	unsigned int pga_bits;
 	unsigned int odr;
+	unsigned int filter_type;
 };
 
 struct ad7124_state {
@@ -138,7 +164,8 @@ static const struct iio_chan_spec ad7124_channel_template = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_OFFSET) |
-		BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),
 	.scan_type = {
 		.sign = 'u',
 		.realbits = 24,
@@ -150,9 +177,13 @@ static const struct iio_chan_spec ad7124_channel_template = {
 
 static struct ad7124_chip_info ad7124_chip_info_tbl[] = {
 	[ID_AD7124_4] = {
+		.name = "ad7127-4",
+		.chip_id = CHIPID_AD7124_4,
 		.num_inputs = 8,
 	},
 	[ID_AD7124_8] = {
+		.name = "ad7127-8",
+		.chip_id = CHIPID_AD7124_8,
 		.num_inputs = 16,
 	},
 };
@@ -281,6 +312,58 @@ static int ad7124_set_channel_gain(struct ad7124_state *st,
 	return 0;
 }
 
+static int ad7124_get_3db_filter_freq(struct ad7124_state *st,
+				      unsigned int channel)
+{
+	unsigned int fadc;
+
+	fadc = st->channel_config[channel].odr;
+
+	switch (st->channel_config[channel].filter_type) {
+	case AD7124_SINC3_FILTER:
+		return DIV_ROUND_CLOSEST(fadc * 230, 1000);
+	case AD7124_SINC4_FILTER:
+		return DIV_ROUND_CLOSEST(fadc * 262, 1000);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad7124_set_3db_filter_freq(struct ad7124_state *st,
+				      unsigned int channel,
+				      unsigned int freq)
+{
+	unsigned int sinc4_3db_odr;
+	unsigned int sinc3_3db_odr;
+	unsigned int new_filter;
+	unsigned int new_odr;
+
+	sinc4_3db_odr = DIV_ROUND_CLOSEST(freq * 1000, 230);
+	sinc3_3db_odr = DIV_ROUND_CLOSEST(freq * 1000, 262);
+
+	if (sinc4_3db_odr > sinc3_3db_odr) {
+		new_filter = AD7124_SINC3_FILTER;
+		new_odr = sinc4_3db_odr;
+	} else {
+		new_filter = AD7124_SINC4_FILTER;
+		new_odr = sinc3_3db_odr;
+	}
+
+	if (st->channel_config[channel].filter_type != new_filter) {
+		int ret;
+
+		st->channel_config[channel].filter_type = new_filter;
+		ret = ad7124_spi_write_mask(st, AD7124_FILTER(channel),
+					    AD7124_FILTER_TYPE_MSK,
+					    AD7124_FILTER_TYPE_SEL(new_filter),
+					    3);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ad7124_set_channel_odr(st, channel, new_odr);
+}
+
 static int ad7124_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
@@ -323,6 +406,9 @@ static int ad7124_read_raw(struct iio_dev *indio_dev,
 		*val = st->channel_config[chan->address].odr;
 
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		*val = ad7124_get_3db_filter_freq(st, chan->scan_index);
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -355,9 +441,35 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 		gain = DIV_ROUND_CLOSEST(res, val2);
 
 		return ad7124_set_channel_gain(st, chan->address, gain);
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		if (val2 != 0)
+			return -EINVAL;
+
+		return ad7124_set_3db_filter_freq(st, chan->address, val);
 	default:
 		return -EINVAL;
 	}
+}
+
+static int ad7124_reg_access(struct iio_dev *indio_dev,
+			     unsigned int reg,
+			     unsigned int writeval,
+			     unsigned int *readval)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+	int ret;
+
+	if (reg >= ARRAY_SIZE(ad7124_reg_size))
+		return -EINVAL;
+
+	if (readval)
+		ret = ad_sd_read_reg(&st->sd, reg, ad7124_reg_size[reg],
+				     readval);
+	else
+		ret = ad_sd_write_reg(&st->sd, reg, ad7124_reg_size[reg],
+				      writeval);
+
+	return ret;
 }
 
 static IIO_CONST_ATTR(in_voltage_scale_available,
@@ -375,6 +487,7 @@ static const struct attribute_group ad7124_attrs_group = {
 static const struct iio_info ad7124_info = {
 	.read_raw = ad7124_read_raw,
 	.write_raw = ad7124_write_raw,
+	.debugfs_reg_access = &ad7124_reg_access,
 	.validate_trigger = ad_sd_validate_trigger,
 	.attrs = &ad7124_attrs_group,
 };
@@ -404,6 +517,34 @@ static int ad7124_soft_reset(struct ad7124_state *st)
 	dev_err(&st->sd.spi->dev, "Soft reset failed\n");
 
 	return -EIO;
+}
+
+static int ad7124_check_chip_id(struct ad7124_state *st)
+{
+	unsigned int readval, chip_id, silicon_rev;
+	int ret;
+
+	ret = ad_sd_read_reg(&st->sd, AD7124_ID, 1, &readval);
+	if (ret < 0)
+		return ret;
+
+	chip_id = AD7124_DEVICE_ID_GET(readval);
+	silicon_rev = AD7124_SILICON_REV_GET(readval);
+
+	if (chip_id != st->chip_info->chip_id) {
+		dev_err(&st->sd.spi->dev,
+			"Chip ID mismatch: expected %u, got %u\n",
+			st->chip_info->chip_id, chip_id);
+		return -ENODEV;
+	}
+
+	if (silicon_rev == 0) {
+		dev_err(&st->sd.spi->dev,
+			"Silicon revision empty. Chip may not be present\n");
+		return -ENODEV;
+	}
+
+	return 0;
 }
 
 static int ad7124_init_channel_vref(struct ad7124_state *st,
@@ -568,10 +709,14 @@ static int ad7124_setup(struct ad7124_state *st)
 
 static int ad7124_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id;
+	const struct ad7124_chip_info *info;
 	struct ad7124_state *st;
 	struct iio_dev *indio_dev;
 	int i, ret;
+
+	info = of_device_get_match_data(&spi->dev);
+	if (!info)
+		return -ENODEV;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
@@ -579,15 +724,13 @@ static int ad7124_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	id = spi_get_device_id(spi);
-	st->chip_info = &ad7124_chip_info_tbl[id->driver_data];
+	st->chip_info = info;
 
 	ad_sd_init(&st->sd, indio_dev, spi, &ad7124_sigma_delta_info);
 
 	spi_set_drvdata(spi, indio_dev);
 
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7124_info;
 
@@ -623,6 +766,10 @@ static int ad7124_probe(struct spi_device *spi)
 
 	ret = ad7124_soft_reset(st);
 	if (ret < 0)
+		goto error_clk_disable_unprepare;
+
+	ret = ad7124_check_chip_id(st);
+	if (ret)
 		goto error_clk_disable_unprepare;
 
 	ret = ad7124_setup(st);
@@ -672,16 +819,11 @@ static int ad7124_remove(struct spi_device *spi)
 	return 0;
 }
 
-static const struct spi_device_id ad7124_id_table[] = {
-	{ "ad7124-4", ID_AD7124_4 },
-	{ "ad7124-8", ID_AD7124_8 },
-	{}
-};
-MODULE_DEVICE_TABLE(spi, ad7124_id_table);
-
 static const struct of_device_id ad7124_of_match[] = {
-	{ .compatible = "adi,ad7124-4" },
-	{ .compatible = "adi,ad7124-8" },
+	{ .compatible = "adi,ad7124-4",
+		.data = &ad7124_chip_info_tbl[ID_AD7124_4], },
+	{ .compatible = "adi,ad7124-8",
+		.data = &ad7124_chip_info_tbl[ID_AD7124_8], },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ad7124_of_match);
@@ -693,7 +835,6 @@ static struct spi_driver ad71124_driver = {
 	},
 	.probe = ad7124_probe,
 	.remove	= ad7124_remove,
-	.id_table = ad7124_id_table,
 };
 module_spi_driver(ad71124_driver);
 

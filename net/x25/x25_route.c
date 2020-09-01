@@ -142,7 +142,7 @@ struct net_device *x25_dev_get(char *devname)
 
 /**
  * 	x25_get_route -	Find a route given an X.25 address.
- * 	@addr - address to find a route for
+ *	@addr: - address to find a route for
  *
  * 	Find a route given an X.25 address.
  */

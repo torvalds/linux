@@ -228,7 +228,7 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 			goto exit_unsupported;
 		if (read_write == I2C_SMBUS_READ)
 			outb_p(data->block[0], SMBHSTDAT0);
-		/* Fall through */
+		fallthrough;
 	case I2C_SMBUS_BLOCK_DATA:
 		outb_p(command, SMBHSTCMD);
 		if (read_write == I2C_SMBUS_WRITE) {
@@ -489,9 +489,9 @@ static void __exit i2c_vt596_exit(void)
 	}
 }
 
-MODULE_AUTHOR("Kyosti Malkki <kmalkki@cc.hut.fi>, "
-	      "Mark D. Studebaker <mdsxyz123@yahoo.com> and "
-	      "Jean Delvare <jdelvare@suse.de>");
+MODULE_AUTHOR("Kyosti Malkki <kmalkki@cc.hut.fi>");
+MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("vt82c596 SMBus driver");
 MODULE_LICENSE("GPL");
 

@@ -322,7 +322,6 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	props->max_mcast_grp = 0;
 	props->max_mcast_qp_attach = 0;
 	props->max_total_mcast_qp_attach = 0;
-	props->max_map_per_fmr = 0;
 	/* Owned by Userspace
 	 * max_qp_wr, max_sge, max_sge_rd, max_cqe */
 	mutex_unlock(&us_ibdev->usdev_lock);
@@ -504,7 +503,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	if (init_attr->qp_type != IB_QPT_UD) {
 		usnic_err("%s asked to make a non-UD QP: %d\n",
 			  dev_name(&us_ibdev->ib_dev.dev), init_attr->qp_type);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	trans_spec = cmd.spec;

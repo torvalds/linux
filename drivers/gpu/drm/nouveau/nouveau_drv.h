@@ -132,13 +132,17 @@ nouveau_cli(struct drm_file *fpriv)
 }
 
 #include <nvif/object.h>
+#include <nvif/parent.h>
 
 struct nouveau_drm {
+	struct nvif_parent parent;
 	struct nouveau_cli master;
 	struct nouveau_cli client;
 	struct drm_device *dev;
 
 	struct list_head clients;
+
+	u8 old_pm_cap;
 
 	struct {
 		struct agp_bridge_data *bridge;
@@ -182,7 +186,6 @@ struct nouveau_drm {
 	struct nouveau_channel *channel;
 	struct nvkm_gpuobj *notify;
 	struct nouveau_fbdev *fbcon;
-	struct nvif_object nvsw;
 	struct nvif_object ntfy;
 
 	/* nv10-nv40 tiling regions */

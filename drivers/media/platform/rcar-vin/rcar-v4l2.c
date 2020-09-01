@@ -66,6 +66,10 @@ static const struct rvin_video_format rvin_formats[] = {
 		.fourcc			= V4L2_PIX_FMT_ABGR32,
 		.bpp			= 4,
 	},
+	{
+		.fourcc			= V4L2_PIX_FMT_SRGGB8,
+		.bpp			= 1,
+	},
 };
 
 const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
@@ -73,11 +77,22 @@ const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
 {
 	int i;
 
-	if (vin->info->model == RCAR_M1 && pixelformat == V4L2_PIX_FMT_XBGR32)
-		return NULL;
-
-	if (pixelformat == V4L2_PIX_FMT_NV12 && !vin->info->nv12)
-		return NULL;
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_XBGR32:
+		if (vin->info->model == RCAR_M1)
+			return NULL;
+		break;
+	case V4L2_PIX_FMT_NV12:
+		/*
+		 * If NV12 is supported it's only supported on channels 0, 1, 4,
+		 * 5, 8, 9, 12 and 13.
+		 */
+		if (!vin->info->nv12 || !(BIT(vin->id) & 0x3333))
+			return NULL;
+		break;
+	default:
+		break;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(rvin_formats); i++)
 		if (rvin_formats[i].fourcc == pixelformat)
@@ -106,6 +121,9 @@ static u32 rvin_format_bytesperline(struct rvin_dev *vin,
 		align = 0x10;
 		break;
 	}
+
+	if (V4L2_FIELD_IS_SEQUENTIAL(pix->field))
+		align = 0x80;
 
 	return ALIGN(pix->width, align) * fmt->bpp;
 }
@@ -137,6 +155,8 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
 	case V4L2_FIELD_ALTERNATE:
+	case V4L2_FIELD_SEQ_TB:
+	case V4L2_FIELD_SEQ_BT:
 		break;
 	default:
 		pix->field = RVIN_DEFAULT_FIELD;
@@ -326,6 +346,34 @@ static int rvin_enum_fmt_vid_cap(struct file *file, void *priv,
 	struct rvin_dev *vin = video_drvdata(file);
 	unsigned int i;
 	int matched;
+
+	/*
+	 * If mbus_code is set only enumerate supported pixel formats for that
+	 * bus code. Converting from YCbCr to RGB and RGB to YCbCr is possible
+	 * with VIN, so all supported YCbCr and RGB media bus codes can produce
+	 * all of the related pixel formats. If mbus_code is not set enumerate
+	 * all possible pixelformats.
+	 *
+	 * TODO: Once raw MEDIA_BUS_FMT_SRGGB12_1X12 format is added to the
+	 * driver this needs to be extended so raw media bus code only result in
+	 * raw pixel format.
+	 */
+	switch (f->mbus_code) {
+	case 0:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY10_2X10:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+		break;
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SRGGB8;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 
 	matched = -1;
 	for (i = 0; i < ARRAY_SIZE(rvin_formats); i++) {
@@ -751,28 +799,12 @@ static int rvin_mc_s_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int rvin_mc_enum_input(struct file *file, void *priv,
-			      struct v4l2_input *i)
-{
-	if (i->index != 0)
-		return -EINVAL;
-
-	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strscpy(i->name, "Camera", sizeof(i->name));
-
-	return 0;
-}
-
 static const struct v4l2_ioctl_ops rvin_mc_ioctl_ops = {
 	.vidioc_querycap		= rvin_querycap,
 	.vidioc_try_fmt_vid_cap		= rvin_mc_try_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap		= rvin_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= rvin_mc_s_fmt_vid_cap,
 	.vidioc_enum_fmt_vid_cap	= rvin_enum_fmt_vid_cap,
-
-	.vidioc_enum_input		= rvin_mc_enum_input,
-	.vidioc_g_input			= rvin_g_input,
-	.vidioc_s_input			= rvin_s_input,
 
 	.vidioc_reqbufs			= vb2_ioctl_reqbufs,
 	.vidioc_create_bufs		= vb2_ioctl_create_bufs,
@@ -826,7 +858,7 @@ static int rvin_open(struct file *file)
 		goto err_unlock;
 
 	if (vin->info->use_mc)
-		ret = v4l2_pipeline_pm_use(&vin->vdev.entity, 1);
+		ret = v4l2_pipeline_pm_get(&vin->vdev.entity);
 	else if (v4l2_fh_is_singular_file(file))
 		ret = rvin_power_parallel(vin, true);
 
@@ -842,7 +874,7 @@ static int rvin_open(struct file *file)
 	return 0;
 err_power:
 	if (vin->info->use_mc)
-		v4l2_pipeline_pm_use(&vin->vdev.entity, 0);
+		v4l2_pipeline_pm_put(&vin->vdev.entity);
 	else if (v4l2_fh_is_singular_file(file))
 		rvin_power_parallel(vin, false);
 err_open:
@@ -870,7 +902,7 @@ static int rvin_release(struct file *file)
 	ret = _vb2_fop_release(file, NULL);
 
 	if (vin->info->use_mc) {
-		v4l2_pipeline_pm_use(&vin->vdev.entity, 0);
+		v4l2_pipeline_pm_put(&vin->vdev.entity);
 	} else {
 		if (fh_singular)
 			rvin_power_parallel(vin, false);
@@ -945,6 +977,7 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 	vin->format.colorspace = RVIN_DEFAULT_COLORSPACE;
 
 	if (vin->info->use_mc) {
+		vdev->device_caps |= V4L2_CAP_IO_MC;
 		vdev->ioctl_ops = &rvin_mc_ioctl_ops;
 	} else {
 		vdev->ioctl_ops = &rvin_ioctl_ops;
@@ -953,7 +986,7 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 
 	rvin_format_align(vin, &vin->format);
 
-	ret = video_register_device(&vin->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&vin->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		vin_err(vin, "Failed to register video device\n");
 		return ret;

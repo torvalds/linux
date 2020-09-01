@@ -356,7 +356,7 @@ NOTE:
     http://www.rapidio.org/education/technology_comparisons/
 
 [3] RapidIO support for Linux.
-    http://lwn.net/Articles/139118/
+    https://lwn.net/Articles/139118/
 
 [4] Matt Porter. RapidIO for Linux. Ottawa Linux Symposium, 2005
-    http://www.kernel.org/doc/ols/2005/ols2005v2-pages-43-56.pdf
+    https://www.kernel.org/doc/ols/2005/ols2005v2-pages-43-56.pdf

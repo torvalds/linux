@@ -27,7 +27,6 @@
 
 #include <asm/thread_info.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 /*
  * Copy the thread state to a regset that can be interpreted by userspace.
@@ -45,29 +44,15 @@
  */
 static int genregs_get(struct task_struct *target,
 		       const struct user_regset *regset,
-		       unsigned int pos, unsigned int count,
-		       void *kbuf, void __user * ubuf)
+		       struct membuf to)
 {
 	const struct pt_regs *regs = task_pt_regs(target);
-	int ret;
 
 	/* r0 */
-	ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf, 0, 4);
-
-	if (!ret)
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					  regs->gpr+1, 4, 4*32);
-	if (!ret)
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &regs->pc, 4*32, 4*33);
-	if (!ret)
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					  &regs->sr, 4*33, 4*34);
-	if (!ret)
-		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       4*34, -1);
-
-	return ret;
+	membuf_zero(&to, 4);
+	membuf_write(&to, regs->gpr + 1, 31 * 4);
+	membuf_store(&to, regs->pc);
+	return membuf_store(&to, regs->sr);
 }
 
 /*
@@ -115,7 +100,7 @@ static const struct user_regset or1k_regsets[] = {
 			    .n = ELF_NGREG,
 			    .size = sizeof(long),
 			    .align = sizeof(long),
-			    .get = genregs_get,
+			    .regset_get = genregs_get,
 			    .set = genregs_set,
 			    },
 };

@@ -151,6 +151,29 @@ note some tests will require root privileges::
    $ cd kselftest
    $ ./run_kselftest.sh
 
+Packaging selftests
+===================
+
+In some cases packaging is desired, such as when tests need to run on a
+different system. To package selftests, run::
+
+   $ make -C tools/testing/selftests gen_tar
+
+This generates a tarball in the `INSTALL_PATH/kselftest-packages` directory. By
+default, `.gz` format is used. The tar format can be overridden by specifying
+a `FORMAT` make variable. Any value recognized by `tar's auto-compress`_ option
+is supported, such as::
+
+    $ make -C tools/testing/selftests gen_tar FORMAT=.xz
+
+`make gen_tar` invokes `make install` so you can use it to package a subset of
+tests by using variables specified in `Running a subset of selftests`_
+section::
+
+    $ make -C tools/testing/selftests gen_tar TARGETS="bpf" FORMAT=.xz
+
+.. _tar's auto-compress: https://www.gnu.org/software/tar/manual/html_node/gzip.html#auto_002dcompress
+
 Contributing new tests
 ======================
 
@@ -301,7 +324,8 @@ Helpers
 
 .. kernel-doc:: tools/testing/selftests/kselftest_harness.h
     :functions: TH_LOG TEST TEST_SIGNAL FIXTURE FIXTURE_DATA FIXTURE_SETUP
-                FIXTURE_TEARDOWN TEST_F TEST_HARNESS_MAIN
+                FIXTURE_TEARDOWN TEST_F TEST_HARNESS_MAIN FIXTURE_VARIANT
+                FIXTURE_VARIANT_ADD
 
 Operators
 ---------

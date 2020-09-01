@@ -249,7 +249,7 @@ int snd_tea575x_enum_freq_bands(struct snd_tea575x *tea,
 			index = BAND_AM;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}

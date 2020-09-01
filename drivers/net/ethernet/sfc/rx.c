@@ -40,14 +40,6 @@
 #define EFX_RX_MAX_FRAGS DIV_ROUND_UP(EFX_MAX_FRAME_LEN(EFX_MAX_MTU), \
 				      EFX_RX_USR_BUF_SIZE)
 
-static inline void efx_sync_rx_buffer(struct efx_nic *efx,
-				      struct efx_rx_buffer *rx_buf,
-				      unsigned int len)
-{
-	dma_sync_single_for_cpu(&efx->pci_dev->dev, rx_buf->dma_addr, len,
-				DMA_FROM_DEVICE);
-}
-
 static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 				     struct efx_rx_buffer *rx_buf,
 				     int len)
@@ -302,12 +294,13 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 	       efx->rx_prefix_size);
 
 	xdp.data = *ehp;
-	xdp.data_hard_start = xdp.data - XDP_PACKET_HEADROOM;
+	xdp.data_hard_start = xdp.data - EFX_XDP_HEADROOM;
 
 	/* No support yet for XDP metadata */
 	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + rx_buf->len;
 	xdp.rxq = &rx_queue->xdp_rxq_info;
+	xdp.frame_sz = efx->rx_page_buf_step;
 
 	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
 	rcu_read_unlock();
@@ -328,7 +321,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 
 	case XDP_TX:
 		/* Buffer ownership passes to tx on success. */
-		xdpf = convert_to_xdp_frame(&xdp);
+		xdpf = xdp_convert_buff_to_frame(&xdp);
 		err = efx_xdp_tx_buffers(efx, 1, &xdpf, true);
 		if (unlikely(err != 1)) {
 			efx_free_rx_buffers(rx_queue, rx_buf, 1);
@@ -365,7 +358,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 
 	case XDP_ABORTED:
 		trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
-		/* Fall through */
+		fallthrough;
 	case XDP_DROP:
 		efx_free_rx_buffers(rx_queue, rx_buf, 1);
 		channel->n_rx_xdp_drops++;
@@ -410,243 +403,9 @@ void __efx_rx_packet(struct efx_channel *channel)
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
 
 	if ((rx_buf->flags & EFX_RX_PKT_TCP) && !channel->type->receive_skb)
-		efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh);
+		efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh, 0);
 	else
 		efx_rx_deliver(channel, eh, rx_buf, channel->rx_pkt_n_frags);
 out:
 	channel->rx_pkt_n_frags = 0;
 }
-
-#ifdef CONFIG_RFS_ACCEL
-
-static void efx_filter_rfs_work(struct work_struct *data)
-{
-	struct efx_async_filter_insertion *req = container_of(data, struct efx_async_filter_insertion,
-							      work);
-	struct efx_nic *efx = netdev_priv(req->net_dev);
-	struct efx_channel *channel = efx_get_channel(efx, req->rxq_index);
-	int slot_idx = req - efx->rps_slot;
-	struct efx_arfs_rule *rule;
-	u16 arfs_id = 0;
-	int rc;
-
-	rc = efx->type->filter_insert(efx, &req->spec, true);
-	if (rc >= 0)
-		/* Discard 'priority' part of EF10+ filter ID (mcdi_filters) */
-		rc %= efx->type->max_rx_ip_filters;
-	if (efx->rps_hash_table) {
-		spin_lock_bh(&efx->rps_hash_lock);
-		rule = efx_rps_hash_find(efx, &req->spec);
-		/* The rule might have already gone, if someone else's request
-		 * for the same spec was already worked and then expired before
-		 * we got around to our work.  In that case we have nothing
-		 * tying us to an arfs_id, meaning that as soon as the filter
-		 * is considered for expiry it will be removed.
-		 */
-		if (rule) {
-			if (rc < 0)
-				rule->filter_id = EFX_ARFS_FILTER_ID_ERROR;
-			else
-				rule->filter_id = rc;
-			arfs_id = rule->arfs_id;
-		}
-		spin_unlock_bh(&efx->rps_hash_lock);
-	}
-	if (rc >= 0) {
-		/* Remember this so we can check whether to expire the filter
-		 * later.
-		 */
-		mutex_lock(&efx->rps_mutex);
-		if (channel->rps_flow_id[rc] == RPS_FLOW_ID_INVALID)
-			channel->rfs_filter_count++;
-		channel->rps_flow_id[rc] = req->flow_id;
-		mutex_unlock(&efx->rps_mutex);
-
-		if (req->spec.ether_type == htons(ETH_P_IP))
-			netif_info(efx, rx_status, efx->net_dev,
-				   "steering %s %pI4:%u:%pI4:%u to queue %u [flow %u filter %d id %u]\n",
-				   (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
-				   req->spec.rem_host, ntohs(req->spec.rem_port),
-				   req->spec.loc_host, ntohs(req->spec.loc_port),
-				   req->rxq_index, req->flow_id, rc, arfs_id);
-		else
-			netif_info(efx, rx_status, efx->net_dev,
-				   "steering %s [%pI6]:%u:[%pI6]:%u to queue %u [flow %u filter %d id %u]\n",
-				   (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
-				   req->spec.rem_host, ntohs(req->spec.rem_port),
-				   req->spec.loc_host, ntohs(req->spec.loc_port),
-				   req->rxq_index, req->flow_id, rc, arfs_id);
-		channel->n_rfs_succeeded++;
-	} else {
-		if (req->spec.ether_type == htons(ETH_P_IP))
-			netif_dbg(efx, rx_status, efx->net_dev,
-				  "failed to steer %s %pI4:%u:%pI4:%u to queue %u [flow %u rc %d id %u]\n",
-				  (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
-				  req->spec.rem_host, ntohs(req->spec.rem_port),
-				  req->spec.loc_host, ntohs(req->spec.loc_port),
-				  req->rxq_index, req->flow_id, rc, arfs_id);
-		else
-			netif_dbg(efx, rx_status, efx->net_dev,
-				  "failed to steer %s [%pI6]:%u:[%pI6]:%u to queue %u [flow %u rc %d id %u]\n",
-				  (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
-				  req->spec.rem_host, ntohs(req->spec.rem_port),
-				  req->spec.loc_host, ntohs(req->spec.loc_port),
-				  req->rxq_index, req->flow_id, rc, arfs_id);
-		channel->n_rfs_failed++;
-		/* We're overloading the NIC's filter tables, so let's do a
-		 * chunk of extra expiry work.
-		 */
-		__efx_filter_rfs_expire(channel, min(channel->rfs_filter_count,
-						     100u));
-	}
-
-	/* Release references */
-	clear_bit(slot_idx, &efx->rps_slot_map);
-	dev_put(req->net_dev);
-}
-
-int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
-		   u16 rxq_index, u32 flow_id)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_async_filter_insertion *req;
-	struct efx_arfs_rule *rule;
-	struct flow_keys fk;
-	int slot_idx;
-	bool new;
-	int rc;
-
-	/* find a free slot */
-	for (slot_idx = 0; slot_idx < EFX_RPS_MAX_IN_FLIGHT; slot_idx++)
-		if (!test_and_set_bit(slot_idx, &efx->rps_slot_map))
-			break;
-	if (slot_idx >= EFX_RPS_MAX_IN_FLIGHT)
-		return -EBUSY;
-
-	if (flow_id == RPS_FLOW_ID_INVALID) {
-		rc = -EINVAL;
-		goto out_clear;
-	}
-
-	if (!skb_flow_dissect_flow_keys(skb, &fk, 0)) {
-		rc = -EPROTONOSUPPORT;
-		goto out_clear;
-	}
-
-	if (fk.basic.n_proto != htons(ETH_P_IP) && fk.basic.n_proto != htons(ETH_P_IPV6)) {
-		rc = -EPROTONOSUPPORT;
-		goto out_clear;
-	}
-	if (fk.control.flags & FLOW_DIS_IS_FRAGMENT) {
-		rc = -EPROTONOSUPPORT;
-		goto out_clear;
-	}
-
-	req = efx->rps_slot + slot_idx;
-	efx_filter_init_rx(&req->spec, EFX_FILTER_PRI_HINT,
-			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
-			   rxq_index);
-	req->spec.match_flags =
-		EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_IP_PROTO |
-		EFX_FILTER_MATCH_LOC_HOST | EFX_FILTER_MATCH_LOC_PORT |
-		EFX_FILTER_MATCH_REM_HOST | EFX_FILTER_MATCH_REM_PORT;
-	req->spec.ether_type = fk.basic.n_proto;
-	req->spec.ip_proto = fk.basic.ip_proto;
-
-	if (fk.basic.n_proto == htons(ETH_P_IP)) {
-		req->spec.rem_host[0] = fk.addrs.v4addrs.src;
-		req->spec.loc_host[0] = fk.addrs.v4addrs.dst;
-	} else {
-		memcpy(req->spec.rem_host, &fk.addrs.v6addrs.src,
-		       sizeof(struct in6_addr));
-		memcpy(req->spec.loc_host, &fk.addrs.v6addrs.dst,
-		       sizeof(struct in6_addr));
-	}
-
-	req->spec.rem_port = fk.ports.src;
-	req->spec.loc_port = fk.ports.dst;
-
-	if (efx->rps_hash_table) {
-		/* Add it to ARFS hash table */
-		spin_lock(&efx->rps_hash_lock);
-		rule = efx_rps_hash_add(efx, &req->spec, &new);
-		if (!rule) {
-			rc = -ENOMEM;
-			goto out_unlock;
-		}
-		if (new)
-			rule->arfs_id = efx->rps_next_id++ % RPS_NO_FILTER;
-		rc = rule->arfs_id;
-		/* Skip if existing or pending filter already does the right thing */
-		if (!new && rule->rxq_index == rxq_index &&
-		    rule->filter_id >= EFX_ARFS_FILTER_ID_PENDING)
-			goto out_unlock;
-		rule->rxq_index = rxq_index;
-		rule->filter_id = EFX_ARFS_FILTER_ID_PENDING;
-		spin_unlock(&efx->rps_hash_lock);
-	} else {
-		/* Without an ARFS hash table, we just use arfs_id 0 for all
-		 * filters.  This means if multiple flows hash to the same
-		 * flow_id, all but the most recently touched will be eligible
-		 * for expiry.
-		 */
-		rc = 0;
-	}
-
-	/* Queue the request */
-	dev_hold(req->net_dev = net_dev);
-	INIT_WORK(&req->work, efx_filter_rfs_work);
-	req->rxq_index = rxq_index;
-	req->flow_id = flow_id;
-	schedule_work(&req->work);
-	return rc;
-out_unlock:
-	spin_unlock(&efx->rps_hash_lock);
-out_clear:
-	clear_bit(slot_idx, &efx->rps_slot_map);
-	return rc;
-}
-
-bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota)
-{
-	bool (*expire_one)(struct efx_nic *efx, u32 flow_id, unsigned int index);
-	struct efx_nic *efx = channel->efx;
-	unsigned int index, size, start;
-	u32 flow_id;
-
-	if (!mutex_trylock(&efx->rps_mutex))
-		return false;
-	expire_one = efx->type->filter_rfs_expire_one;
-	index = channel->rfs_expire_index;
-	start = index;
-	size = efx->type->max_rx_ip_filters;
-	while (quota) {
-		flow_id = channel->rps_flow_id[index];
-
-		if (flow_id != RPS_FLOW_ID_INVALID) {
-			quota--;
-			if (expire_one(efx, flow_id, index)) {
-				netif_info(efx, rx_status, efx->net_dev,
-					   "expired filter %d [channel %u flow %u]\n",
-					   index, channel->channel, flow_id);
-				channel->rps_flow_id[index] = RPS_FLOW_ID_INVALID;
-				channel->rfs_filter_count--;
-			}
-		}
-		if (++index == size)
-			index = 0;
-		/* If we were called with a quota that exceeds the total number
-		 * of filters in the table (which shouldn't happen, but could
-		 * if two callers race), ensure that we don't loop forever -
-		 * stop when we've examined every row of the table.
-		 */
-		if (index == start)
-			break;
-	}
-
-	channel->rfs_expire_index = index;
-	mutex_unlock(&efx->rps_mutex);
-	return true;
-}
-
-#endif /* CONFIG_RFS_ACCEL */

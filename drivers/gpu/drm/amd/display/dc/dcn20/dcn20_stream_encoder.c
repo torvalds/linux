@@ -152,11 +152,11 @@ static void enc2_stream_encoder_update_hdmi_info_packets(
 
 	/*Always add mandatory packets first followed by optional ones*/
 	enc2_update_hdmi_info_packet(enc1, 0, &info_frame->avi);
-	enc2_update_hdmi_info_packet(enc1, 5, &info_frame->hfvsif);
+	enc2_update_hdmi_info_packet(enc1, 1, &info_frame->hfvsif);
 	enc2_update_hdmi_info_packet(enc1, 2, &info_frame->gamut);
-	enc2_update_hdmi_info_packet(enc1, 1, &info_frame->vendor);
-	enc2_update_hdmi_info_packet(enc1, 3, &info_frame->spd);
-	enc2_update_hdmi_info_packet(enc1, 4, &info_frame->hdrsmd);
+	enc2_update_hdmi_info_packet(enc1, 3, &info_frame->vendor);
+	enc2_update_hdmi_info_packet(enc1, 4, &info_frame->spd);
+	enc2_update_hdmi_info_packet(enc1, 5, &info_frame->hdrsmd);
 }
 
 static void enc2_stream_encoder_stop_hdmi_info_packets(
@@ -616,5 +616,6 @@ void dcn20_stream_encoder_construct(
 	enc1->regs = regs;
 	enc1->se_shift = se_shift;
 	enc1->se_mask = se_mask;
+	enc1->base.stream_enc_inst = eng_id - ENGINE_ID_DIGA;
 }
 

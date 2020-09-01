@@ -13,6 +13,8 @@
 #include <linux/net.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <net/ipv6.h>
+#include <net/transp_v6.h>
 #include <net/tcp.h>
 #include <net/tls.h>
 
@@ -30,8 +32,8 @@ static DEFINE_MUTEX(cdev_mutex);
 
 static DEFINE_MUTEX(notify_mutex);
 static RAW_NOTIFIER_HEAD(listen_notify_list);
-static struct proto chtls_cpl_prot;
-struct request_sock_ops chtls_rsk_ops;
+static struct proto chtls_cpl_prot, chtls_cpl_protv6;
+struct request_sock_ops chtls_rsk_ops, chtls_rsk_opsv6;
 static uint send_page_order = (14 - PAGE_SHIFT < 0) ? 0 : 14 - PAGE_SHIFT;
 
 static void register_listen_notifier(struct notifier_block *nb)
@@ -174,9 +176,16 @@ static inline void chtls_dev_release(struct kref *kref)
 {
 	struct tls_toe_device *dev;
 	struct chtls_dev *cdev;
+	struct adapter *adap;
 
 	dev = container_of(kref, struct tls_toe_device, kref);
 	cdev = to_chtls_dev(dev);
+
+	/* Reset tls rx/tx stats */
+	adap = pci_get_drvdata(cdev->pdev);
+	atomic_set(&adap->chcr_stats.tls_pdu_tx, 0);
+	atomic_set(&adap->chcr_stats.tls_pdu_rx, 0);
+
 	chtls_free_uld(cdev);
 }
 
@@ -229,8 +238,7 @@ static void *chtls_uld_add(const struct cxgb4_lld_info *info)
 	struct chtls_dev *cdev;
 	int i, j;
 
-	cdev = kzalloc(sizeof(*cdev) + info->nports *
-		      (sizeof(struct net_device *)), GFP_KERNEL);
+	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
 		goto out;
 
@@ -480,7 +488,7 @@ static int chtls_getsockopt(struct sock *sk, int level, int optname,
 }
 
 static int do_chtls_setsockopt(struct sock *sk, int optname,
-			       char __user *optval, unsigned int optlen)
+			       sockptr_t optval, unsigned int optlen)
 {
 	struct tls_crypto_info *crypto_info, tmp_crypto_info;
 	struct chtls_sock *csk;
@@ -490,12 +498,12 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 
 	csk = rcu_dereference_sk_user_data(sk);
 
-	if (!optval || optlen < sizeof(*crypto_info)) {
+	if (sockptr_is_null(optval) || optlen < sizeof(*crypto_info)) {
 		rc = -EINVAL;
 		goto out;
 	}
 
-	rc = copy_from_user(&tmp_crypto_info, optval, sizeof(*crypto_info));
+	rc = copy_from_sockptr(&tmp_crypto_info, optval, sizeof(*crypto_info));
 	if (rc) {
 		rc = -EFAULT;
 		goto out;
@@ -517,8 +525,9 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 		/* Obtain version and type from previous copy */
 		crypto_info[0] = tmp_crypto_info;
 		/* Now copy the following data */
-		rc = copy_from_user((char *)crypto_info + sizeof(*crypto_info),
-				optval + sizeof(*crypto_info),
+		rc = copy_from_sockptr_offset((char *)crypto_info +
+				sizeof(*crypto_info),
+				optval, sizeof(*crypto_info),
 				sizeof(struct tls12_crypto_info_aes_gcm_128)
 				- sizeof(*crypto_info));
 
@@ -533,8 +542,9 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 	}
 	case TLS_CIPHER_AES_GCM_256: {
 		crypto_info[0] = tmp_crypto_info;
-		rc = copy_from_user((char *)crypto_info + sizeof(*crypto_info),
-				    optval + sizeof(*crypto_info),
+		rc = copy_from_sockptr_offset((char *)crypto_info +
+				sizeof(*crypto_info),
+				optval, sizeof(*crypto_info),
 				sizeof(struct tls12_crypto_info_aes_gcm_256)
 				- sizeof(*crypto_info));
 
@@ -557,7 +567,7 @@ out:
 }
 
 static int chtls_setsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, unsigned int optlen)
+			    sockptr_t optval, unsigned int optlen)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
 
@@ -580,7 +590,10 @@ static struct cxgb4_uld_info chtls_uld_info = {
 
 void chtls_install_cpl_ops(struct sock *sk)
 {
-	sk->sk_prot = &chtls_cpl_prot;
+	if (sk->sk_family == AF_INET)
+		sk->sk_prot = &chtls_cpl_prot;
+	else
+		sk->sk_prot = &chtls_cpl_protv6;
 }
 
 static void __init chtls_init_ulp_ops(void)
@@ -597,6 +610,11 @@ static void __init chtls_init_ulp_ops(void)
 	chtls_cpl_prot.recvmsg		= chtls_recvmsg;
 	chtls_cpl_prot.setsockopt	= chtls_setsockopt;
 	chtls_cpl_prot.getsockopt	= chtls_getsockopt;
+#if IS_ENABLED(CONFIG_IPV6)
+	chtls_cpl_protv6		= chtls_cpl_prot;
+	chtls_init_rsk_ops(&chtls_cpl_protv6, &chtls_rsk_opsv6,
+			   &tcpv6_prot, PF_INET6);
+#endif
 }
 
 static int __init chtls_register(void)

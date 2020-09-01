@@ -13,6 +13,23 @@
 
 #include "dsa_priv.h"
 
+static int dsa_broadcast(unsigned long e, void *v)
+{
+	struct dsa_switch_tree *dst;
+	int err = 0;
+
+	list_for_each_entry(dst, &dsa_tree_list, list) {
+		struct raw_notifier_head *nh = &dst->nh;
+
+		err = raw_notifier_call_chain(nh, e, v);
+		err = notifier_to_errno(err);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static int dsa_port_notify(const struct dsa_port *dp, unsigned long e, void *v)
 {
 	struct raw_notifier_head *nh = &dp->ds->dst->nh;
@@ -120,6 +137,7 @@ void dsa_port_disable(struct dsa_port *dp)
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 {
 	struct dsa_notifier_bridge_info info = {
+		.tree_index = dp->ds->dst->index,
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.br = br,
@@ -136,7 +154,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 	 */
 	dp->bridge_dev = br;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_BRIDGE_JOIN, &info);
+	err = dsa_broadcast(DSA_NOTIFIER_BRIDGE_JOIN, &info);
 
 	/* The bridging is rolled back on error */
 	if (err) {
@@ -150,6 +168,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 {
 	struct dsa_notifier_bridge_info info = {
+		.tree_index = dp->ds->dst->index,
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.br = br,
@@ -161,7 +180,7 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	 */
 	dp->bridge_dev = NULL;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
+	err = dsa_broadcast(DSA_NOTIFIER_BRIDGE_LEAVE, &info);
 	if (err)
 		pr_err("DSA: failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
 
@@ -238,6 +257,20 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	return 0;
 }
 
+/* This enforces legacy behavior for switch drivers which assume they can't
+ * receive VLAN configuration when enslaved to a bridge with vlan_filtering=0
+ */
+bool dsa_port_skip_vlan_configuration(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (!dp->bridge_dev)
+		return false;
+
+	return (!ds->configure_vlan_while_not_filtering &&
+		!br_vlan_enabled(dp->bridge_dev));
+}
+
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 			 struct switchdev_trans *trans)
 {
@@ -295,6 +328,19 @@ int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
 		return ds->ops->port_egress_floods ? 0 : -EOPNOTSUPP;
 
 	return ds->ops->port_egress_floods(ds, port, true, mrouter);
+}
+
+int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
+			bool propagate_upstream)
+{
+	struct dsa_notifier_mtu_info info = {
+		.sw_index = dp->ds->index,
+		.propagate_upstream = propagate_upstream,
+		.port = dp->index,
+		.mtu = new_mtu,
+	};
+
+	return dsa_port_notify(dp, DSA_NOTIFIER_MTU, &info);
 }
 
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
@@ -457,6 +503,7 @@ static void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
+	int err;
 
 	/* Only called for inband modes */
 	if (!ds->ops->phylink_mac_link_state) {
@@ -464,8 +511,12 @@ static void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
 		return;
 	}
 
-	if (ds->ops->phylink_mac_link_state(ds, dp->index, state) < 0)
+	err = ds->ops->phylink_mac_link_state(ds, dp->index, state);
+	if (err < 0) {
+		dev_err(ds->dev, "p%d: phylink_mac_link_state() failed: %d\n",
+			dp->index, err);
 		state->link = 0;
+	}
 }
 
 static void dsa_port_phylink_mac_config(struct phylink_config *config,
@@ -513,9 +564,11 @@ static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 }
 
 static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
+					 struct phy_device *phydev,
 					 unsigned int mode,
 					 phy_interface_t interface,
-					 struct phy_device *phydev)
+					 int speed, int duplex,
+					 bool tx_pause, bool rx_pause)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
@@ -526,7 +579,8 @@ static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 		return;
 	}
 
-	ds->ops->phylink_mac_link_up(ds, dp->index, mode, interface, phydev);
+	ds->ops->phylink_mac_link_up(ds, dp->index, mode, interface, phydev,
+				     speed, duplex, tx_pause, rx_pause);
 }
 
 const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
@@ -649,11 +703,16 @@ int dsa_port_link_register_of(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct device_node *phy_np;
+	int port = dp->index;
 
 	if (!ds->ops->adjust_link) {
 		phy_np = of_parse_phandle(dp->dn, "phy-handle", 0);
-		if (of_phy_is_fixed_link(dp->dn) || phy_np)
+		if (of_phy_is_fixed_link(dp->dn) || phy_np) {
+			if (ds->ops->phylink_mac_link_down)
+				ds->ops->phylink_mac_link_down(ds, port,
+					MLO_AN_FIXED, PHY_INTERFACE_MODE_NA);
 			return dsa_port_phylink_register(dp);
+		}
 		return 0;
 	}
 

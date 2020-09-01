@@ -33,6 +33,7 @@
 
 #include "i915_drv.h"
 #include "intel_connector.h"
+#include "intel_display_debugfs.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
 
@@ -123,6 +124,8 @@ int intel_connector_register(struct drm_connector *connector)
 		goto err_backlight;
 	}
 
+	intel_connector_debugfs_add(connector);
+
 	return 0;
 
 err_backlight:
@@ -153,7 +156,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 bool intel_connector_get_hw_state(struct intel_connector *connector)
 {
 	enum pipe pipe = 0;
-	struct intel_encoder *encoder = connector->encoder;
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 
 	return encoder->get_hw_state(encoder, &pipe);
 }
@@ -162,7 +165,8 @@ enum pipe intel_connector_get_pipe(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
 
-	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+	drm_WARN_ON(dev,
+		    !drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
 	if (!connector->base.state->crtc)
 		return INVALID_PIPE;
@@ -289,7 +293,7 @@ intel_attach_colorspace_property(struct drm_connector *connector)
 			return;
 		break;
 	default:
-		DRM_DEBUG_KMS("Colorspace property not supported\n");
+		MISSING_CASE(connector->connector_type);
 		return;
 	}
 

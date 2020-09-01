@@ -14,22 +14,18 @@
 #include <linux/kvm_host.h>
 #include <linux/rculist.h>
 
-#include <asm/kvm_host.h>
 #include <asm/kvm_page_track.h>
 
-#include "mmu.h"
+#include "mmu_internal.h"
 
-void kvm_page_track_free_memslot(struct kvm_memory_slot *free,
-				 struct kvm_memory_slot *dont)
+void kvm_page_track_free_memslot(struct kvm_memory_slot *slot)
 {
 	int i;
 
-	for (i = 0; i < KVM_PAGE_TRACK_MAX; i++)
-		if (!dont || free->arch.gfn_track[i] !=
-		      dont->arch.gfn_track[i]) {
-			kvfree(free->arch.gfn_track[i]);
-			free->arch.gfn_track[i] = NULL;
-		}
+	for (i = 0; i < KVM_PAGE_TRACK_MAX; i++) {
+		kvfree(slot->arch.gfn_track[i]);
+		slot->arch.gfn_track[i] = NULL;
+	}
 }
 
 int kvm_page_track_create_memslot(struct kvm_memory_slot *slot,
@@ -48,7 +44,7 @@ int kvm_page_track_create_memslot(struct kvm_memory_slot *slot,
 	return 0;
 
 track_free:
-	kvm_page_track_free_memslot(slot, NULL);
+	kvm_page_track_free_memslot(slot);
 	return -ENOMEM;
 }
 
@@ -65,7 +61,7 @@ static void update_gfn_track(struct kvm_memory_slot *slot, gfn_t gfn,
 {
 	int index, val;
 
-	index = gfn_to_index(gfn, slot->base_gfn, PT_PAGE_TABLE_LEVEL);
+	index = gfn_to_index(gfn, slot->base_gfn, PG_LEVEL_4K);
 
 	val = slot->arch.gfn_track[mode][index];
 
@@ -155,7 +151,7 @@ bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 	if (!slot)
 		return false;
 
-	index = gfn_to_index(gfn, slot->base_gfn, PT_PAGE_TABLE_LEVEL);
+	index = gfn_to_index(gfn, slot->base_gfn, PG_LEVEL_4K);
 	return !!READ_ONCE(slot->arch.gfn_track[mode][index]);
 }
 

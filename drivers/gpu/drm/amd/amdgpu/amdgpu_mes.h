@@ -24,10 +24,32 @@
 #ifndef __AMDGPU_MES_H__
 #define __AMDGPU_MES_H__
 
+#define AMDGPU_MES_MAX_COMPUTE_PIPES        8
+#define AMDGPU_MES_MAX_GFX_PIPES            2
+#define AMDGPU_MES_MAX_SDMA_PIPES           2
+
+enum amdgpu_mes_priority_level {
+	AMDGPU_MES_PRIORITY_LEVEL_LOW       = 0,
+	AMDGPU_MES_PRIORITY_LEVEL_NORMAL    = 1,
+	AMDGPU_MES_PRIORITY_LEVEL_MEDIUM    = 2,
+	AMDGPU_MES_PRIORITY_LEVEL_HIGH      = 3,
+	AMDGPU_MES_PRIORITY_LEVEL_REALTIME  = 4,
+	AMDGPU_MES_PRIORITY_NUM_LEVELS
+};
+
 struct amdgpu_mes_funcs;
 
 struct amdgpu_mes {
-	struct amdgpu_adev *adev;
+	struct amdgpu_device            *adev;
+
+	uint32_t                        total_max_queue;
+	uint32_t                        doorbell_id_offset;
+	uint32_t                        max_doorbell_slices;
+
+	uint64_t                        default_process_quantum;
+	uint64_t                        default_gang_quantum;
+
+	struct amdgpu_ring              ring;
 
 	const struct firmware           *fw;
 
@@ -45,8 +67,27 @@ struct amdgpu_mes {
 	uint32_t                        data_fw_version;
 	uint64_t                        data_start_addr;
 
+	/* eop gpu obj */
+	struct amdgpu_bo		*eop_gpu_obj;
+	uint64_t                        eop_gpu_addr;
+
+	void                            *mqd_backup;
+
+	uint32_t                        vmid_mask_gfxhub;
+	uint32_t                        vmid_mask_mmhub;
+	uint32_t                        compute_hqd_mask[AMDGPU_MES_MAX_COMPUTE_PIPES];
+	uint32_t                        gfx_hqd_mask[AMDGPU_MES_MAX_GFX_PIPES];
+	uint32_t                        sdma_hqd_mask[AMDGPU_MES_MAX_SDMA_PIPES];
+	uint32_t                        agreegated_doorbells[AMDGPU_MES_PRIORITY_NUM_LEVELS];
+	uint32_t                        sch_ctx_offs;
+	uint64_t			sch_ctx_gpu_addr;
+	uint64_t			*sch_ctx_ptr;
+	uint32_t			query_status_fence_offs;
+	uint64_t			query_status_fence_gpu_addr;
+	uint64_t			*query_status_fence_ptr;
+
 	/* ip specific functions */
-	struct amdgpu_mes_funcs *funcs;
+	const struct amdgpu_mes_funcs   *funcs;
 };
 
 struct mes_add_queue_input {

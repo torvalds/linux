@@ -21,7 +21,6 @@
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 
-#include "sti_crtc.h"
 #include "sti_drv.h"
 #include "sti_plane.h"
 
@@ -93,24 +92,16 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 	{"fps_get", sti_drm_fps_dbg_show, 0},
 };
 
-static int sti_drm_dbg_init(struct drm_minor *minor)
+static void sti_drm_dbg_init(struct drm_minor *minor)
 {
-	int ret;
-
-	ret = drm_debugfs_create_files(sti_drm_dbg_list,
-				       ARRAY_SIZE(sti_drm_dbg_list),
-				       minor->debugfs_root, minor);
-	if (ret)
-		goto err;
+	drm_debugfs_create_files(sti_drm_dbg_list,
+				 ARRAY_SIZE(sti_drm_dbg_list),
+				 minor->debugfs_root, minor);
 
 	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, minor->debugfs_root,
 			    minor->dev, &sti_drm_fps_fops);
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
-	return 0;
-err:
-	DRM_ERROR("%s: cannot install debugfs\n", DRIVER_NAME);
-	return ret;
 }
 
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
@@ -141,21 +132,8 @@ DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
 
 static struct drm_driver sti_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.dumb_create = drm_gem_cma_dumb_create,
 	.fops = &sti_driver_fops,
-
-	.enable_vblank = sti_crtc_enable_vblank,
-	.disable_vblank = sti_crtc_disable_vblank,
-
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap = drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+	DRM_GEM_CMA_DRIVER_OPS,
 
 	.debugfs_init = sti_drm_dbg_init,
 

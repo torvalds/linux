@@ -17,7 +17,6 @@
 #include <linux/string.h>
 #include <linux/gfp.h>
 
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/smp_plat.h>
 #include <asm/unwind.h>
@@ -54,6 +53,13 @@ void *module_alloc(unsigned long size)
 				__builtin_return_address(0));
 }
 #endif
+
+bool module_init_section(const char *name)
+{
+	return strstarts(name, ".init") ||
+		strstarts(name, ".ARM.extab.init") ||
+		strstarts(name, ".ARM.exidx.init");
+}
 
 bool module_exit_section(const char *name)
 {
@@ -409,8 +415,17 @@ module_arch_cleanup(struct module *mod)
 #ifdef CONFIG_ARM_UNWIND
 	int i;
 
-	for (i = 0; i < ARM_SEC_MAX; i++)
-		if (mod->arch.unwind[i])
-			unwind_table_del(mod->arch.unwind[i]);
+	for (i = 0; i < ARM_SEC_MAX; i++) {
+		unwind_table_del(mod->arch.unwind[i]);
+		mod->arch.unwind[i] = NULL;
+	}
+#endif
+}
+
+void __weak module_arch_freeing_init(struct module *mod)
+{
+#ifdef CONFIG_ARM_UNWIND
+	unwind_table_del(mod->arch.unwind[ARM_SEC_INIT]);
+	mod->arch.unwind[ARM_SEC_INIT] = NULL;
 #endif
 }

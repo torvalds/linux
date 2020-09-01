@@ -43,6 +43,9 @@
  */
 
 #define AMDGPU_DM_MAX_DISPLAY_INDEX 31
+
+#define AMDGPU_DM_MAX_CRTC 6
+
 /*
 #include "include/amdgpu_dal_power_if.h"
 #include "amdgpu_dm_irq.h"
@@ -90,15 +93,41 @@ struct dm_comressor_info {
 };
 
 /**
- * struct amdgpu_dm_backlight_caps - Usable range of backlight values from ACPI
- * @min_input_signal: minimum possible input in range 0-255
- * @max_input_signal: maximum possible input in range 0-255
- * @caps_valid: true if these values are from the ACPI interface
+ * struct amdgpu_dm_backlight_caps - Information about backlight
+ *
+ * Describe the backlight support for ACPI or eDP AUX.
  */
 struct amdgpu_dm_backlight_caps {
+	/**
+	 * @ext_caps: Keep the data struct with all the information about the
+	 * display support for HDR.
+	 */
+	union dpcd_sink_ext_caps *ext_caps;
+	/**
+	 * @aux_min_input_signal: Min brightness value supported by the display
+	 */
+	u32 aux_min_input_signal;
+	/**
+	 * @aux_max_input_signal: Max brightness value supported by the display
+	 * in nits.
+	 */
+	u32 aux_max_input_signal;
+	/**
+	 * @min_input_signal: minimum possible input in range 0-255.
+	 */
 	int min_input_signal;
+	/**
+	 * @max_input_signal: maximum possible input in range 0-255.
+	 */
 	int max_input_signal;
+	/**
+	 * @caps_valid: true if these values are from the ACPI interface.
+	 */
 	bool caps_valid;
+	/**
+	 * @aux_support: Describes if the display supports AUX backlight.
+	 */
+	bool aux_support;
 };
 
 /**
@@ -113,10 +142,12 @@ struct amdgpu_dm_backlight_caps {
  * @backlight_link: Link on which to control backlight
  * @backlight_caps: Capabilities of the backlight device
  * @freesync_module: Module handling freesync calculations
+ * @hdcp_workqueue: AMDGPU content protection queue
  * @fw_dmcu: Reference to DMCU firmware
  * @dmcu_fw_version: Version of the DMCU firmware
  * @soc_bounding_box: SOC bounding box values provided by gpu_info FW
  * @cached_state: Caches device atomic state for suspend/resume
+ * @cached_dc_state: Cached state of content streams
  * @compressor: Frame buffer compression buffer. See &struct dm_comressor_info
  */
 struct amdgpu_display_manager {
@@ -289,6 +320,7 @@ struct amdgpu_display_manager {
 #endif
 
 	struct drm_atomic_state *cached_state;
+	struct dc_state *cached_dc_state;
 
 	struct dm_comressor_info compressor;
 
@@ -301,6 +333,13 @@ struct amdgpu_display_manager {
 	 * available in FW
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
+
+	/**
+	 * @mst_encoders:
+	 *
+	 * fake encoders used for DP MST.
+	 */
+	struct amdgpu_encoder mst_encoders[AMDGPU_DM_MAX_CRTC];
 };
 
 struct amdgpu_dm_connector {
@@ -329,7 +368,6 @@ struct amdgpu_dm_connector {
 	struct amdgpu_dm_dp_aux dm_dp_aux;
 	struct drm_dp_mst_port *port;
 	struct amdgpu_dm_connector *mst_port;
-	struct amdgpu_encoder *mst_encoder;
 	struct drm_dp_aux *dsc_aux;
 
 	/* TODO see if we can merge with ddc_bus or make a dm_connector */
@@ -376,7 +414,6 @@ struct dm_crtc_state {
 
 	int update_type;
 	int active_planes;
-	bool interrupts_enabled;
 
 	int crc_skip_count;
 	enum amdgpu_dm_pipe_crc_source crc_src;
@@ -456,6 +493,9 @@ void amdgpu_dm_init_color_mod(void);
 int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc);
 int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 				      struct dc_plane_state *dc_plane_state);
+
+void amdgpu_dm_update_connector_after_detect(
+		struct amdgpu_dm_connector *aconnector);
 
 extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 

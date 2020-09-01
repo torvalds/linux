@@ -122,7 +122,7 @@ static unsigned long nid_to_addroffset(unsigned int nid)
 static void __init szmem(unsigned int node)
 {
 	u32 i, mem_type;
-	static unsigned long num_physpages = 0;
+	static unsigned long num_physpages;
 	u64 node_id, node_psize, start_pfn, end_pfn, mem_start, mem_size;
 
 	/* Parse memory information and activate */
@@ -220,7 +220,6 @@ static __init void prom_meminit(void)
 			cpumask_clear(&__node_cpumask[node]);
 		}
 	}
-	memblocks_present();
 	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
 	for (cpu = 0; cpu < loongson_sysconf.nr_cpus; cpu++) {
@@ -247,7 +246,7 @@ void __init paging_init(void)
 	zones_size[ZONE_DMA32] = MAX_DMA32_PFN;
 #endif
 	zones_size[ZONE_NORMAL] = max_low_pfn;
-	free_area_init_nodes(zones_size);
+	free_area_init(zones_size);
 }
 
 void __init mem_init(void)

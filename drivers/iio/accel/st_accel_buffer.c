@@ -33,14 +33,9 @@ static int st_accel_buffer_postenable(struct iio_dev *indio_dev)
 {
 	int err;
 
-	err = iio_triggered_buffer_postenable(indio_dev);
+	err = st_sensors_set_axis_enable(indio_dev, indio_dev->active_scan_mask[0]);
 	if (err < 0)
 		return err;
-
-	err = st_sensors_set_axis_enable(indio_dev,
-					 (u8)indio_dev->active_scan_mask[0]);
-	if (err < 0)
-		goto st_accel_buffer_predisable;
 
 	err = st_sensors_set_enable(indio_dev, true);
 	if (err < 0)
@@ -50,27 +45,19 @@ static int st_accel_buffer_postenable(struct iio_dev *indio_dev)
 
 st_accel_buffer_enable_all_axis:
 	st_sensors_set_axis_enable(indio_dev, ST_SENSORS_ENABLE_ALL_AXIS);
-st_accel_buffer_predisable:
-	iio_triggered_buffer_predisable(indio_dev);
 	return err;
 }
 
 static int st_accel_buffer_predisable(struct iio_dev *indio_dev)
 {
-	int err, err2;
+	int err;
 
 	err = st_sensors_set_enable(indio_dev, false);
 	if (err < 0)
-		goto st_accel_buffer_predisable;
+		return err;
 
-	err = st_sensors_set_axis_enable(indio_dev, ST_SENSORS_ENABLE_ALL_AXIS);
-
-st_accel_buffer_predisable:
-	err2 = iio_triggered_buffer_predisable(indio_dev);
-	if (!err)
-		err = err2;
-
-	return err;
+	return st_sensors_set_axis_enable(indio_dev,
+					  ST_SENSORS_ENABLE_ALL_AXIS);
 }
 
 static const struct iio_buffer_setup_ops st_accel_buffer_setup_ops = {

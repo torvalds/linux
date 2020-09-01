@@ -168,6 +168,33 @@ LIBBPF_API int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
 LIBBPF_API int bpf_prog_detach2(int prog_fd, int attachable_fd,
 				enum bpf_attach_type type);
 
+union bpf_iter_link_info; /* defined in up-to-date linux/bpf.h */
+struct bpf_link_create_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	__u32 flags;
+	union bpf_iter_link_info *iter_info;
+	__u32 iter_info_len;
+};
+#define bpf_link_create_opts__last_field iter_info_len
+
+LIBBPF_API int bpf_link_create(int prog_fd, int target_fd,
+			       enum bpf_attach_type attach_type,
+			       const struct bpf_link_create_opts *opts);
+
+LIBBPF_API int bpf_link_detach(int link_fd);
+
+struct bpf_link_update_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	__u32 flags;	   /* extra flags */
+	__u32 old_prog_fd; /* expected old program FD */
+};
+#define bpf_link_update_opts__last_field old_prog_fd
+
+LIBBPF_API int bpf_link_update(int link_fd, int new_prog_fd,
+			       const struct bpf_link_update_opts *opts);
+
+LIBBPF_API int bpf_iter_create(int link_fd);
+
 struct bpf_prog_test_run_attr {
 	int prog_fd;
 	int repeat;
@@ -197,10 +224,12 @@ LIBBPF_API int bpf_prog_test_run(int prog_fd, int repeat, void *data,
 LIBBPF_API int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id);
 LIBBPF_API int bpf_map_get_next_id(__u32 start_id, __u32 *next_id);
 LIBBPF_API int bpf_btf_get_next_id(__u32 start_id, __u32 *next_id);
+LIBBPF_API int bpf_link_get_next_id(__u32 start_id, __u32 *next_id);
 LIBBPF_API int bpf_prog_get_fd_by_id(__u32 id);
 LIBBPF_API int bpf_map_get_fd_by_id(__u32 id);
 LIBBPF_API int bpf_btf_get_fd_by_id(__u32 id);
-LIBBPF_API int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len);
+LIBBPF_API int bpf_link_get_fd_by_id(__u32 id);
+LIBBPF_API int bpf_obj_get_info_by_fd(int bpf_fd, void *info, __u32 *info_len);
 LIBBPF_API int bpf_prog_query(int target_fd, enum bpf_attach_type type,
 			      __u32 query_flags, __u32 *attach_flags,
 			      __u32 *prog_ids, __u32 *prog_cnt);
@@ -210,6 +239,9 @@ LIBBPF_API int bpf_load_btf(void *btf, __u32 btf_size, char *log_buf,
 LIBBPF_API int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf,
 				 __u32 *buf_len, __u32 *prog_id, __u32 *fd_type,
 				 __u64 *probe_offset, __u64 *probe_addr);
+
+enum bpf_stats_type; /* defined in up-to-date linux/bpf.h */
+LIBBPF_API int bpf_enable_stats(enum bpf_stats_type type);
 
 #ifdef __cplusplus
 } /* extern "C" */

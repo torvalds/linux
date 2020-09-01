@@ -2,7 +2,7 @@
 /*
  * DaVinci Power Management Routines
  *
- * Copyright (C) 2009 Texas Instruments, Inc. http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments, Inc. https://www.ti.com/
  */
 
 #include <linux/pm.h>

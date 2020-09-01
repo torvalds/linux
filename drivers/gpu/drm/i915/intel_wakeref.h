@@ -8,6 +8,7 @@
 #define INTEL_WAKEREF_H
 
 #include <linux/atomic.h>
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/lockdep.h>
 #include <linux/mutex.h>
@@ -41,7 +42,7 @@ struct intel_wakeref {
 	struct intel_runtime_pm *rpm;
 	const struct intel_wakeref_ops *ops;
 
-	struct work_struct work;
+	struct delayed_work work;
 };
 
 struct intel_wakeref_lockclass {
@@ -117,6 +118,11 @@ intel_wakeref_get_if_active(struct intel_wakeref *wf)
 	return atomic_inc_not_zero(&wf->count);
 }
 
+enum {
+	INTEL_WAKEREF_PUT_ASYNC_BIT = 0,
+	__INTEL_WAKEREF_PUT_LAST_BIT__
+};
+
 /**
  * intel_wakeref_put_flags: Release the wakeref
  * @wf: the wakeref
@@ -134,7 +140,9 @@ intel_wakeref_get_if_active(struct intel_wakeref *wf)
  */
 static inline void
 __intel_wakeref_put(struct intel_wakeref *wf, unsigned long flags)
-#define INTEL_WAKEREF_PUT_ASYNC BIT(0)
+#define INTEL_WAKEREF_PUT_ASYNC BIT(INTEL_WAKEREF_PUT_ASYNC_BIT)
+#define INTEL_WAKEREF_PUT_DELAY \
+	GENMASK(BITS_PER_LONG - 1, __INTEL_WAKEREF_PUT_LAST_BIT__)
 {
 	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count) <= 0);
 	if (unlikely(!atomic_add_unless(&wf->count, -1, 1)))
@@ -152,6 +160,14 @@ static inline void
 intel_wakeref_put_async(struct intel_wakeref *wf)
 {
 	__intel_wakeref_put(wf, INTEL_WAKEREF_PUT_ASYNC);
+}
+
+static inline void
+intel_wakeref_put_delay(struct intel_wakeref *wf, unsigned long delay)
+{
+	__intel_wakeref_put(wf,
+			    INTEL_WAKEREF_PUT_ASYNC |
+			    FIELD_PREP(INTEL_WAKEREF_PUT_DELAY, delay));
 }
 
 /**
@@ -194,7 +210,7 @@ intel_wakeref_unlock_wait(struct intel_wakeref *wf)
 {
 	mutex_lock(&wf->mutex);
 	mutex_unlock(&wf->mutex);
-	flush_work(&wf->work);
+	flush_delayed_work(&wf->work);
 }
 
 /**

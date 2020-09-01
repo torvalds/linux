@@ -1042,7 +1042,7 @@ static void lan9303_adjust_link(struct dsa_switch *ds, int port,
 				struct phy_device *phydev)
 {
 	struct lan9303 *chip = ds->priv;
-	int ctl, res;
+	int ctl;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
 		return;
@@ -1063,15 +1063,14 @@ static void lan9303_adjust_link(struct dsa_switch *ds, int port,
 	else
 		ctl &= ~BMCR_FULLDPLX;
 
-	res =  lan9303_phy_write(ds, port, MII_BMCR, ctl);
+	lan9303_phy_write(ds, port, MII_BMCR, ctl);
 
 	if (port == chip->phy_addr_base) {
 		/* Virtual Phy: Remove Turbo 200Mbit mode */
 		lan9303_read(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, &ctl);
 
 		ctl &= ~LAN9303_VIRT_SPECIAL_TURBO;
-		res =  regmap_write(chip->regmap,
-				    LAN9303_VIRT_SPECIAL_CTRL, ctl);
+		regmap_write(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, ctl);
 	}
 }
 

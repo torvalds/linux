@@ -84,6 +84,14 @@ static void virtual_link_encoder_destroy(struct link_encoder **enc)
 	*enc = NULL;
 }
 
+static void virtual_link_encoder_get_max_link_cap(struct link_encoder *enc,
+		struct dc_link_settings *link_settings)
+{
+	/* Set Default link settings */
+	struct dc_link_settings max_link_cap = {LANE_COUNT_FOUR, LINK_RATE_HIGH,
+				LINK_SPREAD_05_DOWNSPREAD_30KHZ, false, 0};
+	*link_settings = max_link_cap;
+}
 
 static const struct link_encoder_funcs virtual_lnk_enc_funcs = {
 	.validate_output_with_stream =
@@ -94,6 +102,7 @@ static const struct link_encoder_funcs virtual_lnk_enc_funcs = {
 	.enable_dp_output = virtual_link_encoder_enable_dp_output,
 	.enable_dp_mst_output = virtual_link_encoder_enable_dp_mst_output,
 	.disable_output = virtual_link_encoder_disable_output,
+	.get_max_link_cap = virtual_link_encoder_get_max_link_cap,
 	.dp_set_lane_settings = virtual_link_encoder_dp_set_lane_settings,
 	.dp_set_phy_pattern = virtual_link_encoder_dp_set_phy_pattern,
 	.update_mst_stream_allocation_table =

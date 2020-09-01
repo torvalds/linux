@@ -103,7 +103,7 @@ struct img_hash_request_ctx {
 	struct ahash_request	fallback_req;
 
 	/* Zero length buffer must remain last member of struct */
-	u8 buffer[0] __aligned(sizeof(u32));
+	u8 buffer[] __aligned(sizeof(u32));
 };
 
 struct img_hash_ctx {
@@ -330,7 +330,7 @@ static int img_hash_write_via_dma(struct img_hash_dev *hdev)
 static int img_hash_dma_init(struct img_hash_dev *hdev)
 {
 	struct dma_slave_config dma_conf;
-	int err = -EINVAL;
+	int err;
 
 	hdev->dma_lch = dma_request_chan(hdev->dev, "tx");
 	if (IS_ERR(hdev->dma_lch)) {

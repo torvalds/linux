@@ -90,7 +90,8 @@ static const struct link_encoder_funcs dcn10_lnk_enc_funcs = {
 	.is_dig_enabled = dcn10_is_dig_enabled,
 	.get_dig_frontend = dcn10_get_dig_frontend,
 	.get_dig_mode = dcn10_get_dig_mode,
-	.destroy = dcn10_link_encoder_destroy
+	.destroy = dcn10_link_encoder_destroy,
+	.get_max_link_cap = dcn10_link_encoder_get_max_link_cap,
 };
 
 static enum bp_result link_transmitter_control(
@@ -618,10 +619,16 @@ bool dcn10_link_encoder_validate_dvi_output(
 static bool dcn10_link_encoder_validate_hdmi_output(
 	const struct dcn10_link_encoder *enc10,
 	const struct dc_crtc_timing *crtc_timing,
+	const struct dc_edid_caps *edid_caps,
 	int adjusted_pix_clk_100hz)
 {
 	enum dc_color_depth max_deep_color =
 			enc10->base.features.max_hdmi_deep_color;
+
+	// check pixel clock against edid specified max TMDS clk
+	if (edid_caps->max_tmds_clk_mhz != 0 &&
+			adjusted_pix_clk_100hz > edid_caps->max_tmds_clk_mhz * 10000)
+		return false;
 
 	if (max_deep_color < crtc_timing->display_color_depth)
 		return false;
@@ -782,6 +789,11 @@ bool dcn10_link_encoder_validate_output_with_stream(
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	bool is_valid;
 
+	//if SCDC (340-600MHz) is disabled, set to HDMI 1.4 timing limit
+	if (stream->sink->edid_caps.panel_patch.skip_scdc_overwrite &&
+		enc10->base.features.max_hdmi_pixel_clock > 300000)
+		enc10->base.features.max_hdmi_pixel_clock = 300000;
+
 	switch (stream->signal) {
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
@@ -795,6 +807,7 @@ bool dcn10_link_encoder_validate_output_with_stream(
 		is_valid = dcn10_link_encoder_validate_hdmi_output(
 				enc10,
 				&stream->timing,
+				&stream->sink->edid_caps,
 				stream->phy_pix_clk * 10);
 	break;
 	case SIGNAL_TYPE_DISPLAY_PORT:
@@ -1365,7 +1378,6 @@ void dcn10_link_encoder_disable_hpd(struct link_encoder *enc)
 			DC_HPD_EN, 0);
 }
 
-
 #define AUX_REG(reg)\
 	(enc10->aux_regs->reg)
 
@@ -1420,3 +1432,19 @@ enum signal_type dcn10_get_dig_mode(
 	return SIGNAL_TYPE_NONE;
 }
 
+void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings)
+{
+	/* Set Default link settings */
+	struct dc_link_settings max_link_cap = {LANE_COUNT_FOUR, LINK_RATE_HIGH,
+			LINK_SPREAD_05_DOWNSPREAD_30KHZ, false, 0};
+
+	/* Higher link settings based on feature supported */
+	if (enc->features.flags.bits.IS_HBR2_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_HIGH2;
+
+	if (enc->features.flags.bits.IS_HBR3_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_HIGH3;
+
+	*link_settings = max_link_cap;
+}

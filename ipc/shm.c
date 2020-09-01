@@ -711,8 +711,7 @@ no_file:
 /*
  * Called with shm_ids.rwsem and ipcp locked.
  */
-static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
-				struct ipc_params *params)
+static int shm_more_checks(struct kern_ipc_perm *ipcp, struct ipc_params *params)
 {
 	struct shmid_kernel *shp;
 
@@ -1180,7 +1179,7 @@ static long ksys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf, int ver
 	case IPC_SET:
 		if (copy_shmid_from_user(&sem64, buf, version))
 			return -EFAULT;
-		/* fallthru */
+		fallthrough;
 	case IPC_RMID:
 		return shmctl_down(ns, shmid, cmd, &sem64);
 	case SHM_LOCK:
@@ -1332,7 +1331,7 @@ static int copy_compat_shmid_from_user(struct shmid64_ds *out, void __user *buf,
 	}
 }
 
-long compat_ksys_shmctl(int shmid, int cmd, void __user *uptr, int version)
+static long compat_ksys_shmctl(int shmid, int cmd, void __user *uptr, int version)
 {
 	struct ipc_namespace *ns;
 	struct shmid64_ds sem64;
@@ -1375,13 +1374,12 @@ long compat_ksys_shmctl(int shmid, int cmd, void __user *uptr, int version)
 	case IPC_SET:
 		if (copy_compat_shmid_from_user(&sem64, uptr, version))
 			return -EFAULT;
-		/* fallthru */
+		fallthrough;
 	case IPC_RMID:
 		return shmctl_down(ns, shmid, cmd, &sem64);
 	case SHM_LOCK:
 	case SHM_UNLOCK:
 		return shmctl_do_lock(ns, shmid, cmd);
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -1544,7 +1542,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	if (err)
 		goto out_fput;
 
-	if (down_write_killable(&current->mm->mmap_sem)) {
+	if (mmap_write_lock_killable(current->mm)) {
 		err = -EINTR;
 		goto out_fput;
 	}
@@ -1558,13 +1556,13 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 			goto invalid;
 	}
 
-	addr = do_mmap_pgoff(file, addr, size, prot, flags, 0, &populate, NULL);
+	addr = do_mmap(file, addr, size, prot, flags, 0, &populate, NULL);
 	*raddr = addr;
 	err = 0;
 	if (IS_ERR_VALUE(addr))
 		err = (long)addr;
 invalid:
-	up_write(&current->mm->mmap_sem);
+	mmap_write_unlock(current->mm);
 	if (populate)
 		mm_populate(addr, populate);
 
@@ -1638,7 +1636,7 @@ long ksys_shmdt(char __user *shmaddr)
 	if (addr & ~PAGE_MASK)
 		return retval;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
 	/*
@@ -1726,7 +1724,7 @@ long ksys_shmdt(char __user *shmaddr)
 
 #endif
 
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return retval;
 }
 

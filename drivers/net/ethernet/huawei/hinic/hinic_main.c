@@ -18,6 +18,7 @@
 #include <linux/semaphore.h>
 #include <linux/workqueue.h>
 #include <net/ip.h>
+#include <net/devlink.h>
 #include <linux/bitops.h>
 #include <linux/bitmap.h>
 #include <linux/delay.h>
@@ -25,10 +26,12 @@
 
 #include "hinic_hw_qp.h"
 #include "hinic_hw_dev.h"
+#include "hinic_devlink.h"
 #include "hinic_port.h"
 #include "hinic_tx.h"
 #include "hinic_rx.h"
 #include "hinic_dev.h"
+#include "hinic_sriov.h"
 
 MODULE_AUTHOR("Huawei Technologies CO., Ltd");
 MODULE_DESCRIPTION("Huawei Intelligent NIC driver");
@@ -46,6 +49,7 @@ MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
 #define HINIC_DEV_ID_DUAL_PORT_100GE        0x0200
 #define HINIC_DEV_ID_DUAL_PORT_100GE_MEZZ   0x0205
 #define HINIC_DEV_ID_QUAD_PORT_25GE_MEZZ    0x0210
+#define HINIC_DEV_ID_VF    0x375e
 
 #define HINIC_WQ_NAME                   "hinic_dev"
 
@@ -64,6 +68,12 @@ MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
 
 #define rx_mode_work_to_nic_dev(rx_mode_work) \
 		container_of(rx_mode_work, struct hinic_dev, rx_mode_work)
+
+#define HINIC_WAIT_SRIOV_CFG_TIMEOUT	15000
+
+#define HINIC_DEAULT_TXRX_MSIX_PENDING_LIMIT		2
+#define HINIC_DEAULT_TXRX_MSIX_COALESC_TIMER_CFG	32
+#define HINIC_DEAULT_TXRX_MSIX_RESEND_TIMER_CFG		7
 
 static int change_mac_addr(struct net_device *netdev, const u8 *addr);
 
@@ -322,7 +332,6 @@ static void hinic_enable_rss(struct hinic_dev *nic_dev)
 	int i, node, err = 0;
 	u16 num_cpus = 0;
 
-	nic_dev->max_qps = hinic_hwdev_max_num_qps(hwdev);
 	if (nic_dev->max_qps <= 1) {
 		nic_dev->flags &= ~HINIC_RSS_ENABLE;
 		nic_dev->rss_limit = nic_dev->max_qps;
@@ -368,14 +377,15 @@ static void hinic_enable_rss(struct hinic_dev *nic_dev)
 		netif_err(nic_dev, drv, netdev, "Failed to init rss\n");
 }
 
-static int hinic_open(struct net_device *netdev)
+int hinic_open(struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	enum hinic_port_link_state link_state;
 	int err, ret;
 
 	if (!(nic_dev->flags & HINIC_INTF_UP)) {
-		err = hinic_hwdev_ifup(nic_dev->hwdev);
+		err = hinic_hwdev_ifup(nic_dev->hwdev, nic_dev->sq_depth,
+				       nic_dev->rq_depth);
 		if (err) {
 			netif_err(nic_dev, drv, netdev,
 				  "Failed - HW interface up\n");
@@ -423,9 +433,6 @@ static int hinic_open(struct net_device *netdev)
 		goto err_func_port_state;
 	}
 
-	/* Wait up to 3 sec between port enable to link state */
-	msleep(3000);
-
 	down(&nic_dev->mgmt_lock);
 
 	err = hinic_port_link_state(nic_dev, &link_state);
@@ -434,8 +441,14 @@ static int hinic_open(struct net_device *netdev)
 		goto err_port_link;
 	}
 
-	if (link_state == HINIC_LINK_STATE_UP)
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_notify_all_vfs_link_changed(nic_dev->hwdev, link_state);
+
+	if (link_state == HINIC_LINK_STATE_UP) {
 		nic_dev->flags |= HINIC_LINK_UP;
+		nic_dev->cable_unplugged = false;
+		nic_dev->module_unrecognized = false;
+	}
 
 	nic_dev->flags |= HINIC_INTF_UP;
 
@@ -479,11 +492,10 @@ err_create_txqs:
 	return err;
 }
 
-static int hinic_close(struct net_device *netdev)
+int hinic_close(struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	unsigned int flags;
-	int err;
 
 	down(&nic_dev->mgmt_lock);
 
@@ -497,20 +509,12 @@ static int hinic_close(struct net_device *netdev)
 
 	up(&nic_dev->mgmt_lock);
 
-	err = hinic_port_set_func_state(nic_dev, HINIC_FUNC_PORT_DISABLE);
-	if (err) {
-		netif_err(nic_dev, drv, netdev,
-			  "Failed to set func port state\n");
-		nic_dev->flags |= (flags & HINIC_INTF_UP);
-		return err;
-	}
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_notify_all_vfs_link_changed(nic_dev->hwdev, 0);
 
-	err = hinic_port_set_state(nic_dev, HINIC_PORT_DISABLE);
-	if (err) {
-		netif_err(nic_dev, drv, netdev, "Failed to set port state\n");
-		nic_dev->flags |= (flags & HINIC_INTF_UP);
-		return err;
-	}
+	hinic_port_set_state(nic_dev, HINIC_PORT_DISABLE);
+
+	hinic_port_set_func_state(nic_dev, HINIC_FUNC_PORT_DISABLE);
 
 	if (nic_dev->flags & HINIC_RSS_ENABLE) {
 		hinic_rss_deinit(nic_dev);
@@ -685,7 +689,7 @@ static int hinic_vlan_rx_add_vid(struct net_device *netdev,
 	}
 
 	err = hinic_port_add_mac(nic_dev, netdev->dev_addr, vid);
-	if (err) {
+	if (err && err != HINIC_PF_SET_VF_ALREADY) {
 		netif_err(nic_dev, drv, netdev, "Failed to set mac\n");
 		goto err_add_mac;
 	}
@@ -737,8 +741,6 @@ static void set_rx_mode(struct work_struct *work)
 	struct hinic_rx_mode_work *rx_mode_work = work_to_rx_mode_work(work);
 	struct hinic_dev *nic_dev = rx_mode_work_to_nic_dev(rx_mode_work);
 
-	netif_info(nic_dev, drv, nic_dev->netdev, "set rx mode work\n");
-
 	hinic_port_set_rx_mode(nic_dev, rx_mode_work->rx_mode);
 
 	__dev_uc_sync(nic_dev->netdev, add_mac_addr, remove_mac_addr);
@@ -757,10 +759,12 @@ static void hinic_set_rx_mode(struct net_device *netdev)
 		  HINIC_RX_MODE_MC |
 		  HINIC_RX_MODE_BC;
 
-	if (netdev->flags & IFF_PROMISC)
-		rx_mode |= HINIC_RX_MODE_PROMISC;
-	else if (netdev->flags & IFF_ALLMULTI)
+	if (netdev->flags & IFF_PROMISC) {
+		if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+			rx_mode |= HINIC_RX_MODE_PROMISC;
+	} else if (netdev->flags & IFF_ALLMULTI) {
 		rx_mode |= HINIC_RX_MODE_MC_ALL;
+	}
 
 	rx_mode_work->rx_mode = rx_mode;
 
@@ -770,8 +774,26 @@ static void hinic_set_rx_mode(struct net_device *netdev)
 static void hinic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u16 sw_pi, hw_ci, sw_ci;
+	struct hinic_sq *sq;
+	u16 num_sqs, q_id;
+
+	num_sqs = hinic_hwdev_num_qps(nic_dev->hwdev);
 
 	netif_err(nic_dev, drv, netdev, "Tx timeout\n");
+
+	for (q_id = 0; q_id < num_sqs; q_id++) {
+		if (!netif_xmit_stopped(netdev_get_tx_queue(netdev, q_id)))
+			continue;
+
+		sq = hinic_hwdev_get_sq(nic_dev->hwdev, q_id);
+		sw_pi = atomic_read(&sq->wq->prod_idx) & sq->wq->mask;
+		hw_ci = be16_to_cpu(*(u16 *)(sq->hw_ci_addr)) & sq->wq->mask;
+		sw_ci = atomic_read(&sq->wq->cons_idx) & sq->wq->mask;
+		netif_err(nic_dev, drv, netdev, "Txq%d: sw_pi: %d, hw_ci: %d, sw_ci: %d, napi->state: 0x%lx\n",
+			  q_id, sw_pi, hw_ci, sw_ci,
+			  nic_dev->txqs[q_id].napi.state);
+	}
 }
 
 static void hinic_get_stats64(struct net_device *netdev,
@@ -837,6 +859,29 @@ static const struct net_device_ops hinic_netdev_ops = {
 	.ndo_get_stats64 = hinic_get_stats64,
 	.ndo_fix_features = hinic_fix_features,
 	.ndo_set_features = hinic_set_features,
+	.ndo_set_vf_mac	= hinic_ndo_set_vf_mac,
+	.ndo_set_vf_vlan = hinic_ndo_set_vf_vlan,
+	.ndo_get_vf_config = hinic_ndo_get_vf_config,
+	.ndo_set_vf_trust = hinic_ndo_set_vf_trust,
+	.ndo_set_vf_rate = hinic_ndo_set_vf_bw,
+	.ndo_set_vf_spoofchk = hinic_ndo_set_vf_spoofchk,
+	.ndo_set_vf_link_state = hinic_ndo_set_vf_link_state,
+};
+
+static const struct net_device_ops hinicvf_netdev_ops = {
+	.ndo_open = hinic_open,
+	.ndo_stop = hinic_close,
+	.ndo_change_mtu = hinic_change_mtu,
+	.ndo_set_mac_address = hinic_set_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_vlan_rx_add_vid = hinic_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = hinic_vlan_rx_kill_vid,
+	.ndo_set_rx_mode = hinic_set_rx_mode,
+	.ndo_start_xmit = hinic_xmit_frame,
+	.ndo_tx_timeout = hinic_tx_timeout,
+	.ndo_get_stats64 = hinic_get_stats64,
+	.ndo_fix_features = hinic_fix_features,
+	.ndo_set_features = hinic_set_features,
 };
 
 static void netdev_features_init(struct net_device *netdev)
@@ -849,6 +894,26 @@ static void netdev_features_init(struct net_device *netdev)
 	netdev->vlan_features = netdev->hw_features;
 
 	netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_CTAG_FILTER;
+}
+
+static void hinic_refresh_nic_cfg(struct hinic_dev *nic_dev)
+{
+	struct hinic_nic_cfg *nic_cfg = &nic_dev->hwdev->func_to_io.nic_cfg;
+	struct hinic_pause_config pause_info = {0};
+	struct hinic_port_cap port_cap = {0};
+
+	if (hinic_port_get_cap(nic_dev, &port_cap))
+		return;
+
+	mutex_lock(&nic_cfg->cfg_mutex);
+	if (nic_cfg->pause_set || !port_cap.autoneg_state) {
+		nic_cfg->auto_neg = port_cap.autoneg_state;
+		pause_info.auto_neg = nic_cfg->auto_neg;
+		pause_info.rx_pause = nic_cfg->rx_pause;
+		pause_info.tx_pause = nic_cfg->tx_pause;
+		hinic_set_hw_pause_info(nic_dev->hwdev, &pause_info);
+	}
+	mutex_unlock(&nic_cfg->cfg_mutex);
 }
 
 /**
@@ -873,6 +938,8 @@ static void link_status_event_handler(void *handle, void *buf_in, u16 in_size,
 		down(&nic_dev->mgmt_lock);
 
 		nic_dev->flags |= HINIC_LINK_UP;
+		nic_dev->cable_unplugged = false;
+		nic_dev->module_unrecognized = false;
 
 		if ((nic_dev->flags & (HINIC_LINK_UP | HINIC_INTF_UP)) ==
 		    (HINIC_LINK_UP | HINIC_INTF_UP)) {
@@ -881,6 +948,9 @@ static void link_status_event_handler(void *handle, void *buf_in, u16 in_size,
 		}
 
 		up(&nic_dev->mgmt_lock);
+
+		if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+			hinic_refresh_nic_cfg(nic_dev);
 
 		netif_info(nic_dev, drv, nic_dev->netdev, "HINIC_Link is UP\n");
 	} else {
@@ -896,10 +966,47 @@ static void link_status_event_handler(void *handle, void *buf_in, u16 in_size,
 		netif_info(nic_dev, drv, nic_dev->netdev, "HINIC_Link is DOWN\n");
 	}
 
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_notify_all_vfs_link_changed(nic_dev->hwdev,
+						  link_status->link);
+
 	ret_link_status = buf_out;
 	ret_link_status->status = 0;
 
 	*out_size = sizeof(*ret_link_status);
+}
+
+static void cable_plug_event(void *handle,
+			     void *buf_in, u16 in_size,
+			     void *buf_out, u16 *out_size)
+{
+	struct hinic_cable_plug_event *plug_event = buf_in;
+	struct hinic_dev *nic_dev = handle;
+
+	nic_dev->cable_unplugged = plug_event->plugged ? false : true;
+
+	*out_size = sizeof(*plug_event);
+	plug_event = buf_out;
+	plug_event->status = 0;
+}
+
+static void link_err_event(void *handle,
+			   void *buf_in, u16 in_size,
+			   void *buf_out, u16 *out_size)
+{
+	struct hinic_link_err_event *link_err = buf_in;
+	struct hinic_dev *nic_dev = handle;
+
+	if (link_err->err_type >= LINK_ERR_NUM)
+		netif_info(nic_dev, link, nic_dev->netdev,
+			   "Link failed, Unknown error type: 0x%x\n",
+			   link_err->err_type);
+	else
+		nic_dev->module_unrecognized = true;
+
+	*out_size = sizeof(*link_err);
+	link_err = buf_out;
+	link_err->status = 0;
 }
 
 static int set_features(struct hinic_dev *nic_dev,
@@ -908,28 +1015,93 @@ static int set_features(struct hinic_dev *nic_dev,
 {
 	netdev_features_t changed = force_change ? ~0 : pre_features ^ features;
 	u32 csum_en = HINIC_RX_CSUM_OFFLOAD_EN;
+	netdev_features_t failed_features = 0;
+	int ret = 0;
 	int err = 0;
 
-	if (changed & NETIF_F_TSO)
-		err = hinic_port_set_tso(nic_dev, (features & NETIF_F_TSO) ?
+	if (changed & NETIF_F_TSO) {
+		ret = hinic_port_set_tso(nic_dev, (features & NETIF_F_TSO) ?
 					 HINIC_TSO_ENABLE : HINIC_TSO_DISABLE);
+		if (ret) {
+			err = ret;
+			failed_features |= NETIF_F_TSO;
+		}
+	}
 
-	if (changed & NETIF_F_RXCSUM)
-		err = hinic_set_rx_csum_offload(nic_dev, csum_en);
+	if (changed & NETIF_F_RXCSUM) {
+		ret = hinic_set_rx_csum_offload(nic_dev, csum_en);
+		if (ret) {
+			err = ret;
+			failed_features |= NETIF_F_RXCSUM;
+		}
+	}
 
 	if (changed & NETIF_F_LRO) {
-		err = hinic_set_rx_lro_state(nic_dev,
+		ret = hinic_set_rx_lro_state(nic_dev,
 					     !!(features & NETIF_F_LRO),
 					     HINIC_LRO_RX_TIMER_DEFAULT,
 					     HINIC_LRO_MAX_WQE_NUM_DEFAULT);
+		if (ret) {
+			err = ret;
+			failed_features |= NETIF_F_LRO;
+		}
 	}
 
-	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
-		err = hinic_set_rx_vlan_offload(nic_dev,
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
+		ret = hinic_set_rx_vlan_offload(nic_dev,
 						!!(features &
 						   NETIF_F_HW_VLAN_CTAG_RX));
+		if (ret) {
+			err = ret;
+			failed_features |= NETIF_F_HW_VLAN_CTAG_RX;
+		}
+	}
 
-	return err;
+	if (err) {
+		nic_dev->netdev->features = features ^ failed_features;
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int hinic_init_intr_coalesce(struct hinic_dev *nic_dev)
+{
+	u64 size;
+	u16 i;
+
+	size = sizeof(struct hinic_intr_coal_info) * nic_dev->max_qps;
+	nic_dev->rx_intr_coalesce = kzalloc(size, GFP_KERNEL);
+	if (!nic_dev->rx_intr_coalesce)
+		return -ENOMEM;
+	nic_dev->tx_intr_coalesce = kzalloc(size, GFP_KERNEL);
+	if (!nic_dev->tx_intr_coalesce) {
+		kfree(nic_dev->rx_intr_coalesce);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < nic_dev->max_qps; i++) {
+		nic_dev->rx_intr_coalesce[i].pending_limt =
+			HINIC_DEAULT_TXRX_MSIX_PENDING_LIMIT;
+		nic_dev->rx_intr_coalesce[i].coalesce_timer_cfg =
+			HINIC_DEAULT_TXRX_MSIX_COALESC_TIMER_CFG;
+		nic_dev->rx_intr_coalesce[i].resend_timer_cfg =
+			HINIC_DEAULT_TXRX_MSIX_RESEND_TIMER_CFG;
+		nic_dev->tx_intr_coalesce[i].pending_limt =
+			HINIC_DEAULT_TXRX_MSIX_PENDING_LIMIT;
+		nic_dev->tx_intr_coalesce[i].coalesce_timer_cfg =
+			HINIC_DEAULT_TXRX_MSIX_COALESC_TIMER_CFG;
+		nic_dev->tx_intr_coalesce[i].resend_timer_cfg =
+			HINIC_DEAULT_TXRX_MSIX_RESEND_TIMER_CFG;
+	}
+
+	return 0;
+}
+
+static void hinic_free_intr_coalesce(struct hinic_dev *nic_dev)
+{
+	kfree(nic_dev->tx_intr_coalesce);
+	kfree(nic_dev->rx_intr_coalesce);
 }
 
 /**
@@ -946,11 +1118,19 @@ static int nic_dev_init(struct pci_dev *pdev)
 	struct hinic_dev *nic_dev;
 	struct net_device *netdev;
 	struct hinic_hwdev *hwdev;
+	struct devlink *devlink;
 	int err, num_qps;
 
-	hwdev = hinic_init_hwdev(pdev);
+	devlink = hinic_devlink_alloc();
+	if (!devlink) {
+		dev_err(&pdev->dev, "Hinic devlink alloc failed\n");
+		return -ENOMEM;
+	}
+
+	hwdev = hinic_init_hwdev(pdev, devlink);
 	if (IS_ERR(hwdev)) {
 		dev_err(&pdev->dev, "Failed to initialize HW device\n");
+		hinic_devlink_free(devlink);
 		return PTR_ERR(hwdev);
 	}
 
@@ -968,8 +1148,11 @@ static int nic_dev_init(struct pci_dev *pdev)
 		goto err_alloc_etherdev;
 	}
 
-	hinic_set_ethtool_ops(netdev);
-	netdev->netdev_ops = &hinic_netdev_ops;
+	if (!HINIC_IS_VF(hwdev->hwif))
+		netdev->netdev_ops = &hinic_netdev_ops;
+	else
+		netdev->netdev_ops = &hinicvf_netdev_ops;
+
 	netdev->max_mtu = ETH_MAX_MTU;
 
 	nic_dev = netdev_priv(netdev);
@@ -981,6 +1164,14 @@ static int nic_dev_init(struct pci_dev *pdev)
 	nic_dev->rxqs = NULL;
 	nic_dev->tx_weight = tx_weight;
 	nic_dev->rx_weight = rx_weight;
+	nic_dev->sq_depth = HINIC_SQ_DEPTH;
+	nic_dev->rq_depth = HINIC_RQ_DEPTH;
+	nic_dev->sriov_info.hwdev = hwdev;
+	nic_dev->sriov_info.pdev = pdev;
+	nic_dev->max_qps = num_qps;
+	nic_dev->devlink = devlink;
+
+	hinic_set_ethtool_ops(netdev);
 
 	sema_init(&nic_dev->mgmt_lock, 1);
 
@@ -1007,11 +1198,25 @@ static int nic_dev_init(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, netdev);
 
 	err = hinic_port_get_mac(nic_dev, netdev->dev_addr);
-	if (err)
-		dev_warn(&pdev->dev, "Failed to get mac address\n");
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get mac address\n");
+		goto err_get_mac;
+	}
+
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		if (!HINIC_IS_VF(nic_dev->hwdev->hwif)) {
+			dev_err(&pdev->dev, "Invalid MAC address\n");
+			err = -EIO;
+			goto err_add_mac;
+		}
+
+		dev_info(&pdev->dev, "Invalid MAC address %pM, using random\n",
+			 netdev->dev_addr);
+		eth_hw_addr_random(netdev);
+	}
 
 	err = hinic_port_add_mac(nic_dev, netdev->dev_addr, 0);
-	if (err) {
+	if (err && err != HINIC_PF_SET_VF_ALREADY) {
 		dev_err(&pdev->dev, "Failed to add mac\n");
 		goto err_add_mac;
 	}
@@ -1031,12 +1236,29 @@ static int nic_dev_init(struct pci_dev *pdev)
 
 	hinic_hwdev_cb_register(nic_dev->hwdev, HINIC_MGMT_MSG_CMD_LINK_STATUS,
 				nic_dev, link_status_event_handler);
+	hinic_hwdev_cb_register(nic_dev->hwdev,
+				HINIC_MGMT_MSG_CMD_CABLE_PLUG_EVENT,
+				nic_dev, cable_plug_event);
+	hinic_hwdev_cb_register(nic_dev->hwdev,
+				HINIC_MGMT_MSG_CMD_LINK_ERR_EVENT,
+				nic_dev, link_err_event);
 
 	err = set_features(nic_dev, 0, nic_dev->netdev->features, true);
 	if (err)
 		goto err_set_features;
 
+	/* enable pause and disable pfc by default */
+	err = hinic_dcb_set_pfc(nic_dev->hwdev, 0, 0);
+	if (err)
+		goto err_set_pfc;
+
 	SET_NETDEV_DEV(netdev, &pdev->dev);
+
+	err = hinic_init_intr_coalesce(nic_dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init_intr_coalesce\n");
+		goto err_init_intr;
+	}
 
 	err = register_netdev(netdev);
 	if (err) {
@@ -1047,16 +1269,24 @@ static int nic_dev_init(struct pci_dev *pdev)
 	return 0;
 
 err_reg_netdev:
+	hinic_free_intr_coalesce(nic_dev);
+err_init_intr:
+err_set_pfc:
 err_set_features:
+	hinic_hwdev_cb_unregister(nic_dev->hwdev,
+				  HINIC_MGMT_MSG_CMD_LINK_ERR_EVENT);
+	hinic_hwdev_cb_unregister(nic_dev->hwdev,
+				  HINIC_MGMT_MSG_CMD_CABLE_PLUG_EVENT);
 	hinic_hwdev_cb_unregister(nic_dev->hwdev,
 				  HINIC_MGMT_MSG_CMD_LINK_STATUS);
 	cancel_work_sync(&rx_mode_work->work);
 
 err_set_mtu:
+	hinic_port_del_mac(nic_dev, netdev->dev_addr, 0);
 err_add_mac:
+err_get_mac:
 	pci_set_drvdata(pdev, NULL);
 	destroy_workqueue(nic_dev->workq);
-
 err_workq:
 err_vlan_bitmap:
 	free_netdev(netdev);
@@ -1064,6 +1294,7 @@ err_vlan_bitmap:
 err_alloc_etherdev:
 err_num_qps:
 	hinic_free_hwdev(hwdev);
+	hinic_devlink_free(devlink);
 	return err;
 }
 
@@ -1126,14 +1357,48 @@ err_pci_regions:
 	return err;
 }
 
+#define HINIC_WAIT_SRIOV_CFG_TIMEOUT	15000
+
+static void wait_sriov_cfg_complete(struct hinic_dev *nic_dev)
+{
+	struct hinic_sriov_info *sriov_info = &nic_dev->sriov_info;
+	u32 loop_cnt = 0;
+
+	set_bit(HINIC_FUNC_REMOVE, &sriov_info->state);
+	usleep_range(9900, 10000);
+
+	while (loop_cnt < HINIC_WAIT_SRIOV_CFG_TIMEOUT) {
+		if (!test_bit(HINIC_SRIOV_ENABLE, &sriov_info->state) &&
+		    !test_bit(HINIC_SRIOV_DISABLE, &sriov_info->state))
+			return;
+
+		usleep_range(9900, 10000);
+		loop_cnt++;
+	}
+}
+
 static void hinic_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	struct devlink *devlink = nic_dev->devlink;
 	struct hinic_rx_mode_work *rx_mode_work;
+
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif)) {
+		wait_sriov_cfg_complete(nic_dev);
+		hinic_pci_sriov_disable(pdev);
+	}
 
 	unregister_netdev(netdev);
 
+	hinic_free_intr_coalesce(nic_dev);
+
+	hinic_port_del_mac(nic_dev, netdev->dev_addr, 0);
+
+	hinic_hwdev_cb_unregister(nic_dev->hwdev,
+				  HINIC_MGMT_MSG_CMD_LINK_ERR_EVENT);
+	hinic_hwdev_cb_unregister(nic_dev->hwdev,
+				  HINIC_MGMT_MSG_CMD_CABLE_PLUG_EVENT);
 	hinic_hwdev_cb_unregister(nic_dev->hwdev,
 				  HINIC_MGMT_MSG_CMD_LINK_STATUS);
 
@@ -1147,6 +1412,8 @@ static void hinic_remove(struct pci_dev *pdev)
 	hinic_free_hwdev(nic_dev->hwdev);
 
 	free_netdev(netdev);
+
+	hinic_devlink_free(devlink);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -1164,6 +1431,7 @@ static const struct pci_device_id hinic_pci_table[] = {
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_DUAL_PORT_100GE), 0},
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_DUAL_PORT_100GE_MEZZ), 0},
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_QUAD_PORT_25GE_MEZZ), 0},
+	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_VF), 0},
 	{ 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, hinic_pci_table);
@@ -1174,6 +1442,7 @@ static struct pci_driver hinic_driver = {
 	.probe          = hinic_probe,
 	.remove         = hinic_remove,
 	.shutdown       = hinic_shutdown,
+	.sriov_configure = hinic_pci_sriov_configure,
 };
 
 module_pci_driver(hinic_driver);

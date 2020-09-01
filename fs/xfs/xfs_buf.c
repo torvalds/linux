@@ -14,6 +14,9 @@
 #include "xfs_mount.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
+#include "xfs_log_recover.h"
+#include "xfs_trans.h"
+#include "xfs_buf_item.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 
@@ -211,9 +214,7 @@ _xfs_buf_alloc(
 	int			i;
 
 	*bpp = NULL;
-	bp = kmem_zone_zalloc(xfs_buf_zone, KM_NOFS);
-	if (unlikely(!bp))
-		return -ENOMEM;
+	bp = kmem_cache_zalloc(xfs_buf_zone, GFP_NOFS | __GFP_NOFAIL);
 
 	/*
 	 * We don't want certain flags to appear in b_flags unless they are
@@ -327,6 +328,9 @@ xfs_buf_free(
 
 			__free_page(page);
 		}
+		if (current->reclaim_state)
+			current->reclaim_state->reclaimed_slab +=
+							bp->b_page_count;
 	} else if (bp->b_flags & _XBF_KMEM)
 		kmem_free(bp->b_addr);
 	_xfs_buf_free_pages(bp);
@@ -474,7 +478,7 @@ _xfs_buf_map_pages(
 		nofs_flag = memalloc_nofs_save();
 		do {
 			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
-						-1, PAGE_KERNEL);
+						-1);
 			if (bp->b_addr)
 				break;
 			vm_unmap_aliases();
@@ -652,7 +656,6 @@ found:
 	 */
 	if (bp->b_flags & XBF_STALE) {
 		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
-		ASSERT(bp->b_iodone == NULL);
 		bp->b_flags &= _XBF_KMEM | _XBF_PAGES;
 		bp->b_ops = NULL;
 	}
@@ -727,8 +730,9 @@ found:
 	if (!bp->b_addr) {
 		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
-			xfs_warn(target->bt_mount,
-				"%s: failed to map pagesn", __func__);
+			xfs_warn_ratelimited(target->bt_mount,
+				"%s: failed to map %u pages", __func__,
+				bp->b_page_count);
 			xfs_buf_relse(bp);
 			return error;
 		}
@@ -1187,21 +1191,39 @@ xfs_buf_ioend(
 	if (!bp->b_error && bp->b_io_error)
 		xfs_buf_ioerror(bp, bp->b_io_error);
 
-	/* Only validate buffers that were read without errors */
-	if (read && !bp->b_error && bp->b_ops) {
-		ASSERT(!bp->b_iodone);
-		bp->b_ops->verify_read(bp);
+	if (read) {
+		if (!bp->b_error && bp->b_ops)
+			bp->b_ops->verify_read(bp);
+		if (!bp->b_error)
+			bp->b_flags |= XBF_DONE;
+		xfs_buf_ioend_finish(bp);
+		return;
 	}
 
-	if (!bp->b_error)
+	if (!bp->b_error) {
+		bp->b_flags &= ~XBF_WRITE_FAIL;
 		bp->b_flags |= XBF_DONE;
+	}
 
-	if (bp->b_iodone)
-		(*(bp->b_iodone))(bp);
-	else if (bp->b_flags & XBF_ASYNC)
-		xfs_buf_relse(bp);
-	else
-		complete(&bp->b_iowait);
+	/*
+	 * If this is a log recovery buffer, we aren't doing transactional IO
+	 * yet so we need to let it handle IO completions.
+	 */
+	if (bp->b_flags & _XBF_LOGRECOVERY) {
+		xlog_recover_iodone(bp);
+		return;
+	}
+
+	if (bp->b_flags & _XBF_INODES) {
+		xfs_buf_inode_iodone(bp);
+		return;
+	}
+
+	if (bp->b_flags & _XBF_DQUOTS) {
+		xfs_buf_dquot_iodone(bp);
+		return;
+	}
+	xfs_buf_iodone(bp);
 }
 
 static void
@@ -1238,10 +1260,26 @@ xfs_buf_ioerror_alert(
 	struct xfs_buf		*bp,
 	xfs_failaddr_t		func)
 {
-	xfs_alert(bp->b_mount,
-"metadata I/O error in \"%pS\" at daddr 0x%llx len %d error %d",
-			func, (uint64_t)XFS_BUF_ADDR(bp), bp->b_length,
-			-bp->b_error);
+	xfs_buf_alert_ratelimited(bp, "XFS: metadata IO error",
+		"metadata I/O error in \"%pS\" at daddr 0x%llx len %d error %d",
+				  func, (uint64_t)XFS_BUF_ADDR(bp),
+				  bp->b_length, -bp->b_error);
+}
+
+/*
+ * To simulate an I/O failure, the buffer must be locked and held with at least
+ * three references. The LRU reference is dropped by the stale call. The buf
+ * item reference is dropped via ioend processing. The third reference is owned
+ * by the caller and is dropped on I/O completion if the buffer is XBF_ASYNC.
+ */
+void
+xfs_buf_ioend_fail(
+	struct xfs_buf	*bp)
+{
+	bp->b_flags &= ~XBF_DONE;
+	xfs_buf_stale(bp);
+	xfs_buf_ioerror(bp, -EIO);
+	xfs_buf_ioend(bp);
 }
 
 int
@@ -1254,7 +1292,7 @@ xfs_bwrite(
 
 	bp->b_flags |= XBF_WRITE;
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
-			 XBF_WRITE_FAIL | XBF_DONE);
+			 XBF_DONE);
 
 	error = xfs_buf_submit(bp);
 	if (error)
@@ -1267,6 +1305,11 @@ xfs_buf_bio_end_io(
 	struct bio		*bio)
 {
 	struct xfs_buf		*bp = (struct xfs_buf *)bio->bi_private;
+
+	if (!bio->bi_status &&
+	    (bp->b_flags & XBF_WRITE) && (bp->b_flags & XBF_ASYNC) &&
+	    XFS_TEST_ERROR(false, bp->b_mount, XFS_ERRTAG_BUF_IOERROR))
+		bio->bi_status = BLK_STS_IOERR;
 
 	/*
 	 * don't overwrite existing errors - otherwise we can lose errors on
@@ -1476,10 +1519,7 @@ __xfs_buf_submit(
 
 	/* on shutdown we stale and complete the buffer immediately */
 	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
-		xfs_buf_ioerror(bp, -EIO);
-		bp->b_flags &= ~XBF_DONE;
-		xfs_buf_stale(bp);
-		xfs_buf_ioend(bp);
+		xfs_buf_ioend_fail(bp);
 		return -EIO;
 	}
 
@@ -1573,6 +1613,28 @@ xfs_buf_zero(
 }
 
 /*
+ * Log a message about and stale a buffer that a caller has decided is corrupt.
+ *
+ * This function should be called for the kinds of metadata corruption that
+ * cannot be detect from a verifier, such as incorrect inter-block relationship
+ * data.  Do /not/ call this function from a verifier function.
+ *
+ * The buffer must be XBF_DONE prior to the call.  Afterwards, the buffer will
+ * be marked stale, but b_error will not be set.  The caller is responsible for
+ * releasing the buffer or fixing it.
+ */
+void
+__xfs_buf_mark_corrupt(
+	struct xfs_buf		*bp,
+	xfs_failaddr_t		fa)
+{
+	ASSERT(bp->b_flags & XBF_DONE);
+
+	xfs_buf_corruption_error(bp, fa);
+	xfs_buf_stale(bp);
+}
+
+/*
  *	Handling of buffer targets (buftargs).
  */
 
@@ -1616,7 +1678,8 @@ xfs_wait_buftarg(
 	struct xfs_buftarg	*btp)
 {
 	LIST_HEAD(dispose);
-	int loop = 0;
+	int			loop = 0;
+	bool			write_fail = false;
 
 	/*
 	 * First wait on the buftarg I/O count for all in-flight buffers to be
@@ -1644,16 +1707,28 @@ xfs_wait_buftarg(
 			bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
 			list_del_init(&bp->b_lru);
 			if (bp->b_flags & XBF_WRITE_FAIL) {
-				xfs_alert(btp->bt_mount,
+				write_fail = true;
+				xfs_buf_alert_ratelimited(bp,
+					"XFS: Corruption Alert",
 "Corruption Alert: Buffer at daddr 0x%llx had permanent write failures!",
 					(long long)bp->b_bn);
-				xfs_alert(btp->bt_mount,
-"Please run xfs_repair to determine the extent of the problem.");
 			}
 			xfs_buf_rele(bp);
 		}
 		if (loop++ != 0)
 			delay(100);
+	}
+
+	/*
+	 * If one or more failed buffers were freed, that means dirty metadata
+	 * was thrown away. This should only ever happen after I/O completion
+	 * handling has elevated I/O error(s) to permanent failures and shuts
+	 * down the fs.
+	 */
+	if (write_fail) {
+		ASSERT(XFS_FORCED_SHUTDOWN(btp->bt_mount));
+		xfs_alert(btp->bt_mount,
+	      "Please run xfs_repair to determine the extent of the problem.");
 	}
 }
 
@@ -1786,6 +1861,13 @@ xfs_alloc_buftarg(
 	btp->bt_dev =  bdev->bd_dev;
 	btp->bt_bdev = bdev;
 	btp->bt_daxdev = dax_dev;
+
+	/*
+	 * Buffer IO error rate limiting. Limit it to no more than 10 messages
+	 * per 30 seconds so as to not spam logs too much on repeated errors.
+	 */
+	ratelimit_state_init(&btp->bt_ioerror_rl, 30 * HZ,
+			     DEFAULT_RATELIMIT_BURST);
 
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error_free;
@@ -1957,7 +2039,7 @@ xfs_buf_delwri_submit_buffers(
 		 * synchronously. Otherwise, drop the buffer from the delwri
 		 * queue and submit async.
 		 */
-		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_WRITE_FAIL);
+		bp->b_flags &= ~_XBF_DELWRI_Q;
 		bp->b_flags |= XBF_WRITE;
 		if (wait_list) {
 			bp->b_flags &= ~XBF_ASYNC;
@@ -2091,9 +2173,11 @@ xfs_buf_delwri_pushbuf(
 int __init
 xfs_buf_init(void)
 {
-	xfs_buf_zone = kmem_cache_create("xfs_buf",
-					 sizeof(struct xfs_buf), 0,
-					 SLAB_HWCACHE_ALIGN, NULL);
+	xfs_buf_zone = kmem_cache_create("xfs_buf", sizeof(struct xfs_buf), 0,
+					 SLAB_HWCACHE_ALIGN |
+					 SLAB_RECLAIM_ACCOUNT |
+					 SLAB_MEM_SPREAD,
+					 NULL);
 	if (!xfs_buf_zone)
 		goto out;
 

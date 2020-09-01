@@ -59,7 +59,7 @@ EXPORT_SYMBOL(bdev_dax_pgoff);
 #if IS_ENABLED(CONFIG_FS_DAX)
 struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 {
-	if (!blk_queue_dax(bdev->bd_queue))
+	if (!blk_queue_dax(bdev->bd_disk->queue))
 		return NULL;
 	return dax_get_by_host(bdev->bd_disk->disk_name);
 }
@@ -80,14 +80,14 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	int err, id;
 
 	if (blocksize != PAGE_SIZE) {
-		pr_debug("%s: error: unsupported blocksize for dax\n",
+		pr_info("%s: error: unsupported blocksize for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
 
 	err = bdev_dax_pgoff(bdev, start, PAGE_SIZE, &pgoff);
 	if (err) {
-		pr_debug("%s: error: unaligned partition for dax\n",
+		pr_info("%s: error: unaligned partition for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -95,7 +95,13 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	last_page = PFN_DOWN((start + sectors - 1) * 512) * PAGE_SIZE / 512;
 	err = bdev_dax_pgoff(bdev, last_page, PAGE_SIZE, &pgoff_end);
 	if (err) {
-		pr_debug("%s: error: unaligned partition for dax\n",
+		pr_info("%s: error: unaligned partition for dax\n",
+				bdevname(bdev, buf));
+		return false;
+	}
+
+	if (!dax_dev && !bdev_dax_supported(bdev, blocksize)) {
+		pr_debug("%s: error: dax unsupported by block device\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -103,11 +109,11 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	id = dax_read_lock();
 	len = dax_direct_access(dax_dev, pgoff, 1, &kaddr, &pfn);
 	len2 = dax_direct_access(dax_dev, pgoff_end, 1, &end_kaddr, &end_pfn);
-	dax_read_unlock(id);
 
 	if (len < 1 || len2 < 1) {
-		pr_debug("%s: error: dax access failed (%ld)\n",
+		pr_info("%s: error: dax access failed (%ld)\n",
 				bdevname(bdev, buf), len < 1 ? len : len2);
+		dax_read_unlock(id);
 		return false;
 	}
 
@@ -137,9 +143,10 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 		put_dev_pagemap(end_pgmap);
 
 	}
+	dax_read_unlock(id);
 
 	if (!dax_enabled) {
-		pr_debug("%s: error: dax support not enabled\n",
+		pr_info("%s: error: dax support not enabled\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -343,6 +350,23 @@ size_t dax_copy_to_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 	return dax_dev->ops->copy_to_iter(dax_dev, pgoff, addr, bytes, i);
 }
 EXPORT_SYMBOL_GPL(dax_copy_to_iter);
+
+int dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
+			size_t nr_pages)
+{
+	if (!dax_alive(dax_dev))
+		return -ENXIO;
+	/*
+	 * There are no callers that want to zero more than one page as of now.
+	 * Once users are there, this check can be removed after the
+	 * device mapper code has been updated to split ranges across targets.
+	 */
+	if (nr_pages != 1)
+		return -EIO;
+
+	return dax_dev->ops->zero_page_range(dax_dev, pgoff, nr_pages);
+}
+EXPORT_SYMBOL_GPL(dax_zero_page_range);
 
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 void arch_wb_cache_pmem(void *addr, size_t size);
@@ -551,9 +575,16 @@ struct dax_device *alloc_dax(void *private, const char *__host,
 	dev_t devt;
 	int minor;
 
+	if (ops && !ops->zero_page_range) {
+		pr_debug("%s: error: device does not provide dax"
+			 " operation zero_page_range()\n",
+			 __host ? __host : "Unknown");
+		return ERR_PTR(-EINVAL);
+	}
+
 	host = kstrdup(__host, GFP_KERNEL);
 	if (__host && !host)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	minor = ida_simple_get(&dax_minor_ida, 0, MINORMASK+1, GFP_KERNEL);
 	if (minor < 0)
@@ -576,7 +607,7 @@ struct dax_device *alloc_dax(void *private, const char *__host,
 	ida_simple_remove(&dax_minor_ida, minor);
  err_minor:
 	kfree(host);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL_GPL(alloc_dax);
 

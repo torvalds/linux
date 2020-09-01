@@ -379,7 +379,7 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 				"can't set up VCOM amplitude (%d)\n", ret);
 			return ret;
 		}
-	};
+	}
 
 	if (ili->vcom_high != U8_MAX) {
 		ret = regmap_write(ili->regmap, ILI9322_VCOM_HIGH,
@@ -388,7 +388,7 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 			dev_err(ili->dev, "can't set up VCOM high (%d)\n", ret);
 			return ret;
 		}
-	};
+	}
 
 	/* Set up gamma correction */
 	for (i = 0; i < ARRAY_SIZE(ili->gamma); i++) {
@@ -540,7 +540,7 @@ static int ili9322_enable(struct drm_panel *panel)
 
 /* Serial RGB modes */
 static const struct drm_display_mode srgb_320x240_mode = {
-	.clock = 2453500,
+	.clock = 24535,
 	.hdisplay = 320,
 	.hsync_start = 320 + 359,
 	.hsync_end = 320 + 359 + 1,
@@ -549,12 +549,11 @@ static const struct drm_display_mode srgb_320x240_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 static const struct drm_display_mode srgb_360x240_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 360,
 	.hsync_start = 360 + 35,
 	.hsync_end = 360 + 35 + 1,
@@ -563,13 +562,12 @@ static const struct drm_display_mode srgb_360x240_mode = {
 	.vsync_start = 240 + 21,
 	.vsync_end = 240 + 21 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 /* This is the only mode listed for parallel RGB in the datasheet */
 static const struct drm_display_mode prgb_320x240_mode = {
-	.clock = 6400000,
+	.clock = 64000,
 	.hdisplay = 320,
 	.hsync_start = 320 + 38,
 	.hsync_end = 320 + 38 + 1,
@@ -578,13 +576,12 @@ static const struct drm_display_mode prgb_320x240_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 /* YUV modes */
 static const struct drm_display_mode yuv_640x320_mode = {
-	.clock = 2454000,
+	.clock = 24540,
 	.hdisplay = 640,
 	.hsync_start = 640 + 252,
 	.hsync_end = 640 + 252 + 1,
@@ -593,12 +590,11 @@ static const struct drm_display_mode yuv_640x320_mode = {
 	.vsync_start = 320 + 4,
 	.vsync_end = 320 + 4 + 1,
 	.vtotal = 320 + 4 + 1 + 18,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 static const struct drm_display_mode yuv_720x360_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 720,
 	.hsync_start = 720 + 252,
 	.hsync_end = 720 + 252 + 1,
@@ -607,13 +603,12 @@ static const struct drm_display_mode yuv_720x360_mode = {
 	.vsync_start = 360 + 4,
 	.vsync_end = 360 + 4 + 1,
 	.vtotal = 360 + 4 + 1 + 18,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 /* BT.656 VGA mode, 640x480 */
 static const struct drm_display_mode itu_r_bt_656_640_mode = {
-	.clock = 2454000,
+	.clock = 24540,
 	.hdisplay = 640,
 	.hsync_start = 640 + 3,
 	.hsync_end = 640 + 3 + 1,
@@ -622,13 +617,12 @@ static const struct drm_display_mode itu_r_bt_656_640_mode = {
 	.vsync_start = 480 + 4,
 	.vsync_end = 480 + 4 + 1,
 	.vtotal = 500,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 /* BT.656 D1 mode 720x480 */
 static const struct drm_display_mode itu_r_bt_656_720_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 720,
 	.hsync_start = 720 + 3,
 	.hsync_end = 720 + 3 + 1,
@@ -637,7 +631,6 @@ static const struct drm_display_mode itu_r_bt_656_720_mode = {
 	.vsync_start = 480 + 4,
 	.vsync_end = 480 + 4 + 1,
 	.vtotal = 500,
-	.vrefresh = 60,
 	.flags = 0,
 };
 

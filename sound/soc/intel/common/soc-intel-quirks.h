@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * soc-intel-quirks.h - prototypes for quirk autodetection
  *
@@ -15,13 +15,11 @@
 #include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
 
-#define ICPU(model)	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, }
-
 #define SOC_INTEL_IS_CPU(soc, type)				\
 static inline bool soc_intel_is_##soc(void)			\
 {								\
 	static const struct x86_cpu_id soc##_cpu_ids[] = {	\
-		ICPU(type),					\
+		X86_MATCH_INTEL_FAM6_MODEL(type, NULL),		\
 		{}						\
 	};							\
 	const struct x86_cpu_id *id;				\
@@ -32,11 +30,11 @@ static inline bool soc_intel_is_##soc(void)			\
 	return false;						\
 }
 
-SOC_INTEL_IS_CPU(byt, INTEL_FAM6_ATOM_SILVERMONT);
-SOC_INTEL_IS_CPU(cht, INTEL_FAM6_ATOM_AIRMONT);
-SOC_INTEL_IS_CPU(apl, INTEL_FAM6_ATOM_GOLDMONT);
-SOC_INTEL_IS_CPU(glk, INTEL_FAM6_ATOM_GOLDMONT_PLUS);
-SOC_INTEL_IS_CPU(cml, INTEL_FAM6_KABYLAKE_L);
+SOC_INTEL_IS_CPU(byt, ATOM_SILVERMONT);
+SOC_INTEL_IS_CPU(cht, ATOM_AIRMONT);
+SOC_INTEL_IS_CPU(apl, ATOM_GOLDMONT);
+SOC_INTEL_IS_CPU(glk, ATOM_GOLDMONT_PLUS);
+SOC_INTEL_IS_CPU(cml, KABYLAKE_L);
 
 static inline bool soc_intel_is_byt_cr(struct platform_device *pdev)
 {

@@ -227,6 +227,42 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
+static int
+__drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper,
+					    bool force)
+{
+	bool do_delayed;
+	int ret;
+
+	if (!drm_fbdev_emulation || !fb_helper)
+		return -ENODEV;
+
+	if (READ_ONCE(fb_helper->deferred_setup))
+		return 0;
+
+	mutex_lock(&fb_helper->lock);
+	if (force) {
+		/*
+		 * Yes this is the _locked version which expects the master lock
+		 * to be held. But for forced restores we're intentionally
+		 * racing here, see drm_fb_helper_set_par().
+		 */
+		ret = drm_client_modeset_commit_locked(&fb_helper->client);
+	} else {
+		ret = drm_client_modeset_commit(&fb_helper->client);
+	}
+
+	do_delayed = fb_helper->delayed_hotplug;
+	if (do_delayed)
+		fb_helper->delayed_hotplug = false;
+	mutex_unlock(&fb_helper->lock);
+
+	if (do_delayed)
+		drm_fb_helper_hotplug_event(fb_helper);
+
+	return ret;
+}
+
 /**
  * drm_fb_helper_restore_fbdev_mode_unlocked - restore fbdev configuration
  * @fb_helper: driver-allocated fbdev helper, can be NULL
@@ -240,37 +276,7 @@ EXPORT_SYMBOL(drm_fb_helper_debug_leave);
  */
 int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 {
-	bool do_delayed;
-	int ret;
-
-	if (!drm_fbdev_emulation || !fb_helper)
-		return -ENODEV;
-
-	if (READ_ONCE(fb_helper->deferred_setup))
-		return 0;
-
-	mutex_lock(&fb_helper->lock);
-	/*
-	 * TODO:
-	 * We should bail out here if there is a master by dropping _force.
-	 * Currently these igt tests fail if we do that:
-	 * - kms_fbcon_fbt@psr
-	 * - kms_fbcon_fbt@psr-suspend
-	 *
-	 * So first these tests need to be fixed so they drop master or don't
-	 * have an fd open.
-	 */
-	ret = drm_client_modeset_commit_force(&fb_helper->client);
-
-	do_delayed = fb_helper->delayed_hotplug;
-	if (do_delayed)
-		fb_helper->delayed_hotplug = false;
-	mutex_unlock(&fb_helper->lock);
-
-	if (do_delayed)
-		drm_fb_helper_hotplug_event(fb_helper);
-
-	return ret;
+	return __drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper, false);
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
 
@@ -294,7 +300,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 			continue;
 
 		mutex_lock(&helper->lock);
-		ret = drm_client_modeset_commit_force(&helper->client);
+		ret = drm_client_modeset_commit_locked(&helper->client);
 		if (ret)
 			error = true;
 		mutex_unlock(&helper->lock);
@@ -317,13 +323,13 @@ static void drm_fb_helper_sysrq(int dummy1)
 	schedule_work(&drm_fb_helper_restore_work);
 }
 
-static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
+static const struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
 	.handler = drm_fb_helper_sysrq,
 	.help_msg = "force-fb(V)",
 	.action_msg = "Restore framebuffer console",
 };
 #else
-static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = { };
+static const struct sysrq_key_op sysrq_drm_fb_helper_restore_op = { };
 #endif
 
 static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
@@ -393,7 +399,11 @@ static void drm_fb_helper_dirty_blit_real(struct drm_fb_helper *fb_helper,
 	unsigned int y;
 
 	for (y = clip->y1; y < clip->y2; y++) {
-		memcpy(dst, src, len);
+		if (!fb_helper->dev->mode_config.fbdev_use_iomem)
+			memcpy(dst, src, len);
+		else
+			memcpy_toio((void __iomem *)dst, src, len);
+
 		src += fb->pitches[0];
 		dst += fb->pitches[0];
 	}
@@ -460,7 +470,6 @@ EXPORT_SYMBOL(drm_fb_helper_prepare);
  * drm_fb_helper_init - initialize a &struct drm_fb_helper
  * @dev: drm device
  * @fb_helper: driver-allocated fbdev helper structure to initialize
- * @max_conn_count: max connector count (not used)
  *
  * This allocates the structures for the fbdev helper with the given limits.
  * Note that this won't yet touch the hardware (through the driver interfaces)
@@ -473,8 +482,7 @@ EXPORT_SYMBOL(drm_fb_helper_prepare);
  * Zero if everything went ok, nonzero otherwise.
  */
 int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *fb_helper,
-		       int max_conn_count)
+		       struct drm_fb_helper *fb_helper)
 {
 	int ret;
 
@@ -526,6 +534,14 @@ struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper)
 	if (ret)
 		goto err_release;
 
+	/*
+	 * TODO: We really should be smarter here and alloc an apperture
+	 * for each IORESOURCE_MEM resource helper->dev->dev has and also
+	 * init the ranges of the appertures based on the resources.
+	 * Note some drivers currently count on there being only 1 empty
+	 * aperture and fill this themselves, these will need to be dealt
+	 * with somehow when fixing this.
+	 */
 	info->apertures = alloc_apertures(1);
 	if (!info->apertures) {
 		ret = -ENOMEM;
@@ -1322,6 +1338,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct fb_var_screeninfo *var = &info->var;
+	bool force;
 
 	if (oops_in_progress)
 		return -EBUSY;
@@ -1331,7 +1348,25 @@ int drm_fb_helper_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
+	/*
+	 * Normally we want to make sure that a kms master takes precedence over
+	 * fbdev, to avoid fbdev flickering and occasionally stealing the
+	 * display status. But Xorg first sets the vt back to text mode using
+	 * the KDSET IOCTL with KD_TEXT, and only after that drops the master
+	 * status when exiting.
+	 *
+	 * In the past this was caught by drm_fb_helper_lastclose(), but on
+	 * modern systems where logind always keeps a drm fd open to orchestrate
+	 * the vt switching, this doesn't work.
+	 *
+	 * To not break the userspace ABI we have this special case here, which
+	 * is only used for the above case. Everything else uses the normal
+	 * commit function, which ensures that we never steal the display from
+	 * an active drm master.
+	 */
+	force = var->activate & FB_ACTIVATE_KD_TEXT;
+
+	__drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper, force);
 
 	return 0;
 }
@@ -1357,7 +1392,7 @@ static int pan_display_atomic(struct fb_var_screeninfo *var,
 
 	pan_set(fb_helper, var->xoffset, var->yoffset);
 
-	ret = drm_client_modeset_commit_force(&fb_helper->client);
+	ret = drm_client_modeset_commit_locked(&fb_helper->client);
 	if (!ret) {
 		info->var.xoffset = var->xoffset;
 		info->var.yoffset = var->yoffset;
@@ -1788,7 +1823,7 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 	if (ret < 0)
 		return ret;
 
-	dev_info(dev->dev, "fb%d: %s frame buffer device\n",
+	drm_info(dev, "fb%d: %s frame buffer device\n",
 		 info->node, info->fix.id);
 
 	mutex_lock(&kernel_fb_helper_lock);
@@ -2135,7 +2170,7 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 
 	drm_fb_helper_prepare(dev, fb_helper, &drm_fb_helper_generic_funcs);
 
-	ret = drm_fb_helper_init(dev, fb_helper, 0);
+	ret = drm_fb_helper_init(dev, fb_helper);
 	if (ret)
 		goto err;
 
@@ -2174,6 +2209,8 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
  *
  * This function sets up generic fbdev emulation for drivers that supports
  * dumb buffers with a virtual address and that can be mmap'ed.
+ * drm_fbdev_generic_setup() shall be called after the DRM driver registered
+ * the new DRM device with drm_dev_register().
  *
  * Restore, hotplug events and teardown are all taken care of. Drivers that do
  * suspend/resume need to call drm_fb_helper_set_suspend_unlocked() themselves.
@@ -2190,29 +2227,30 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
  * Setup will be retried on the next hotplug event.
  *
  * The fbdev is destroyed by drm_dev_unregister().
- *
- * Returns:
- * Zero on success or negative error code on failure.
  */
-int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
+void drm_fbdev_generic_setup(struct drm_device *dev,
+			     unsigned int preferred_bpp)
 {
 	struct drm_fb_helper *fb_helper;
 	int ret;
 
-	WARN(dev->fb_helper, "fb_helper is already set!\n");
+	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
 	if (!drm_fbdev_emulation)
-		return 0;
+		return;
 
 	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
-	if (!fb_helper)
-		return -ENOMEM;
+	if (!fb_helper) {
+		drm_err(dev, "Failed to allocate fb_helper\n");
+		return;
+	}
 
 	ret = drm_client_init(dev, &fb_helper->client, "fbdev", &drm_fbdev_client_funcs);
 	if (ret) {
 		kfree(fb_helper);
 		drm_err(dev, "Failed to register client: %d\n", ret);
-		return ret;
+		return;
 	}
 
 	if (!preferred_bpp)
@@ -2226,8 +2264,6 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
 
 	drm_client_register(&fb_helper->client);
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_fbdev_generic_setup);
 

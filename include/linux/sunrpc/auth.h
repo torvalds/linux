@@ -76,7 +76,7 @@ struct rpc_auth {
 	unsigned int		au_verfsize;	/* size of reply verifier */
 	unsigned int		au_ralign;	/* words before UL header */
 
-	unsigned int		au_flags;
+	unsigned long		au_flags;
 	const struct rpc_authops *au_ops;
 	rpc_authflavor_t	au_flavor;	/* pseudoflavor (note may
 						 * differ from the flavor in
@@ -89,7 +89,8 @@ struct rpc_auth {
 };
 
 /* rpc_auth au_flags */
-#define RPCAUTH_AUTH_DATATOUCH	0x00000002
+#define RPCAUTH_AUTH_DATATOUCH		(1)
+#define RPCAUTH_AUTH_UPDATE_SLACK	(2)
 
 struct rpc_auth_create_args {
 	rpc_authflavor_t pseudoflavor;

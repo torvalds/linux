@@ -35,6 +35,9 @@ bool dcn20_set_shaper_3dlut(
 void dcn20_program_front_end_for_ctx(
 		struct dc *dc,
 		struct dc_state *context);
+void dcn20_post_unlock_program_front_end(
+		struct dc *dc,
+		struct dc_state *context);
 void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx);
 bool dcn20_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
@@ -58,10 +61,6 @@ void dcn20_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,
 	bool lock);
-void dcn20_pipe_control_lock_global(
-		struct dc *dc,
-		struct pipe_ctx *pipe,
-		bool lock);
 void dcn20_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context);
@@ -133,5 +132,10 @@ int dcn20_init_sys_ctx(struct dce_hwseq *hws,
 		struct dc *dc,
 		struct dc_phy_addr_space_config *pa_config);
 
+#ifndef TRIM_FSFT
+bool dcn20_optimize_timing_for_fsft(struct dc *dc,
+		struct dc_crtc_timing *timing,
+		unsigned int max_input_rate_in_khz);
+#endif
 #endif /* __DC_HWSS_DCN20_H__ */
 

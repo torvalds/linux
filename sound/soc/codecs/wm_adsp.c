@@ -355,9 +355,11 @@ static void wm_adsp_buf_free(struct list_head *list)
 #define WM_ADSP_FW_ASR      7
 #define WM_ADSP_FW_TRACE    8
 #define WM_ADSP_FW_SPK_PROT 9
-#define WM_ADSP_FW_MISC     10
+#define WM_ADSP_FW_SPK_CALI 10
+#define WM_ADSP_FW_SPK_DIAG 11
+#define WM_ADSP_FW_MISC     12
 
-#define WM_ADSP_NUM_FW      11
+#define WM_ADSP_NUM_FW      13
 
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =  "MBC/VSS",
@@ -370,6 +372,8 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_ASR] =      "ASR Assist",
 	[WM_ADSP_FW_TRACE] =    "Dbg Trace",
 	[WM_ADSP_FW_SPK_PROT] = "Protection",
+	[WM_ADSP_FW_SPK_CALI] = "Calibration",
+	[WM_ADSP_FW_SPK_DIAG] = "Diagnostic",
 	[WM_ADSP_FW_MISC] =     "Misc",
 };
 
@@ -586,6 +590,8 @@ static const struct {
 		.caps = trace_caps,
 	},
 	[WM_ADSP_FW_SPK_PROT] = { .file = "spk-prot" },
+	[WM_ADSP_FW_SPK_CALI] = { .file = "spk-cali" },
+	[WM_ADSP_FW_SPK_DIAG] = { .file = "spk-diag" },
 	[WM_ADSP_FW_MISC] =     { .file = "misc" },
 };
 
@@ -1436,12 +1442,12 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		subname = NULL; /* don't append subname */
 		break;
 	case 2:
-		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+		ret = scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
 				"%s%c %.12s %x", dsp->name, *region_name,
 				wm_adsp_fw_text[dsp->fw], alg_region->alg);
 		break;
 	default:
-		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+		ret = scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
 				"%s %.12s %x", dsp->name,
 				wm_adsp_fw_text[dsp->fw], alg_region->alg);
 		break;
@@ -2615,6 +2621,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		switch (type) {
 		case (WMFW_NAME_TEXT << 8):
 		case (WMFW_INFO_TEXT << 8):
+		case (WMFW_METADATA << 8):
 			break;
 		case (WMFW_ABSOLUTE << 8):
 			/*
@@ -3467,22 +3474,22 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 
 	if (wm_adsp_fw[dsp->fw].num_caps == 0) {
 		adsp_err(dsp, "%s: Firmware does not support compressed API\n",
-			 rtd->codec_dai->name);
+			 asoc_rtd_to_codec(rtd, 0)->name);
 		ret = -ENXIO;
 		goto out;
 	}
 
 	if (wm_adsp_fw[dsp->fw].compr_direction != stream->direction) {
 		adsp_err(dsp, "%s: Firmware does not support stream direction\n",
-			 rtd->codec_dai->name);
+			 asoc_rtd_to_codec(rtd, 0)->name);
 		ret = -EINVAL;
 		goto out;
 	}
 
 	list_for_each_entry(tmp, &dsp->compr_list, list) {
-		if (!strcmp(tmp->name, rtd->codec_dai->name)) {
+		if (!strcmp(tmp->name, asoc_rtd_to_codec(rtd, 0)->name)) {
 			adsp_err(dsp, "%s: Only a single stream supported per dai\n",
-				 rtd->codec_dai->name);
+				 asoc_rtd_to_codec(rtd, 0)->name);
 			ret = -EBUSY;
 			goto out;
 		}
@@ -3496,7 +3503,7 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 
 	compr->dsp = dsp;
 	compr->stream = stream;
-	compr->name = rtd->codec_dai->name;
+	compr->name = asoc_rtd_to_codec(rtd, 0)->name;
 
 	list_add_tail(&compr->list, &dsp->compr_list);
 
@@ -3509,7 +3516,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_open);
 
-int wm_adsp_compr_free(struct snd_compr_stream *stream)
+int wm_adsp_compr_free(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
 	struct wm_adsp *dsp = compr->dsp;
@@ -3583,7 +3591,8 @@ static inline unsigned int wm_adsp_compr_frag_words(struct wm_adsp_compr *compr)
 	return compr->size.fragment_size / WM_ADSP_DATA_WORD_SIZE;
 }
 
-int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
+int wm_adsp_compr_set_params(struct snd_soc_component *component,
+			     struct snd_compr_stream *stream,
 			     struct snd_compr_params *params)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
@@ -3610,7 +3619,8 @@ int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_set_params);
 
-int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
+int wm_adsp_compr_get_caps(struct snd_soc_component *component,
+			   struct snd_compr_stream *stream,
 			   struct snd_compr_caps *caps)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
@@ -3976,7 +3986,8 @@ static int wm_adsp_buffer_get_error(struct wm_adsp_compr_buf *buf)
 	return 0;
 }
 
-int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
+int wm_adsp_compr_trigger(struct snd_soc_component *component,
+			  struct snd_compr_stream *stream, int cmd)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
 	struct wm_adsp *dsp = compr->dsp;
@@ -4139,7 +4150,8 @@ static int wm_adsp_buffer_reenable_irq(struct wm_adsp_compr_buf *buf)
 				    buf->irq_count);
 }
 
-int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
+int wm_adsp_compr_pointer(struct snd_soc_component *component,
+			  struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
@@ -4297,7 +4309,8 @@ static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 	return ntotal;
 }
 
-int wm_adsp_compr_copy(struct snd_compr_stream *stream, char __user *buf,
+int wm_adsp_compr_copy(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream, char __user *buf,
 		       size_t count)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;

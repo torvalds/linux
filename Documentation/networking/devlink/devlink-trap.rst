@@ -55,7 +55,7 @@ The following diagram provides a general overview of ``devlink-trap``::
                           |                |
                           +-------^--------+
                                   |
-                                  |
+                                  | Non-control traps
                                   |
                              +----+----+
                              |         |      Kernel's Rx path
@@ -97,6 +97,12 @@ The ``devlink-trap`` mechanism supports the following packet trap types:
     processed by ``devlink`` and injected to the kernel's Rx path. Changing the
     action of such traps is not allowed, as it can easily break the control
     plane.
+  * ``control``: Trapped packets were trapped by the device because these are
+    control packets required for the correct functioning of the control plane.
+    For example, ARP request and IGMP query packets. Packets are injected to
+    the kernel's Rx path, but not reported to the kernel's drop monitor.
+    Changing the action of such traps is not allowed, as it can easily break
+    the control plane.
 
 .. _Trap-Actions:
 
@@ -107,6 +113,8 @@ The ``devlink-trap`` mechanism supports the following packet trap actions:
 
   * ``trap``: The sole copy of the packet is sent to the CPU.
   * ``drop``: The packet is dropped by the underlying device and a copy is not
+    sent to the CPU.
+  * ``mirror``: The packet is forwarded by the underlying device and a copy is
     sent to the CPU.
 
 Generic Packet Traps
@@ -238,6 +246,169 @@ be added to the following table:
      - ``drop``
      - Traps NVE packets that the device decided to drop because their overlay
        source MAC is multicast
+   * - ``ingress_flow_action_drop``
+     - ``drop``
+     - Traps packets dropped during processing of ingress flow action drop
+   * - ``egress_flow_action_drop``
+     - ``drop``
+     - Traps packets dropped during processing of egress flow action drop
+   * - ``stp``
+     - ``control``
+     - Traps STP packets
+   * - ``lacp``
+     - ``control``
+     - Traps LACP packets
+   * - ``lldp``
+     - ``control``
+     - Traps LLDP packets
+   * - ``igmp_query``
+     - ``control``
+     - Traps IGMP Membership Query packets
+   * - ``igmp_v1_report``
+     - ``control``
+     - Traps IGMP Version 1 Membership Report packets
+   * - ``igmp_v2_report``
+     - ``control``
+     - Traps IGMP Version 2 Membership Report packets
+   * - ``igmp_v3_report``
+     - ``control``
+     - Traps IGMP Version 3 Membership Report packets
+   * - ``igmp_v2_leave``
+     - ``control``
+     - Traps IGMP Version 2 Leave Group packets
+   * - ``mld_query``
+     - ``control``
+     - Traps MLD Multicast Listener Query packets
+   * - ``mld_v1_report``
+     - ``control``
+     - Traps MLD Version 1 Multicast Listener Report packets
+   * - ``mld_v2_report``
+     - ``control``
+     - Traps MLD Version 2 Multicast Listener Report packets
+   * - ``mld_v1_done``
+     - ``control``
+     - Traps MLD Version 1 Multicast Listener Done packets
+   * - ``ipv4_dhcp``
+     - ``control``
+     - Traps IPv4 DHCP packets
+   * - ``ipv6_dhcp``
+     - ``control``
+     - Traps IPv6 DHCP packets
+   * - ``arp_request``
+     - ``control``
+     - Traps ARP request packets
+   * - ``arp_response``
+     - ``control``
+     - Traps ARP response packets
+   * - ``arp_overlay``
+     - ``control``
+     - Traps NVE-decapsulated ARP packets that reached the overlay network.
+       This is required, for example, when the address that needs to be
+       resolved is a local address
+   * - ``ipv6_neigh_solicit``
+     - ``control``
+     - Traps IPv6 Neighbour Solicitation packets
+   * - ``ipv6_neigh_advert``
+     - ``control``
+     - Traps IPv6 Neighbour Advertisement packets
+   * - ``ipv4_bfd``
+     - ``control``
+     - Traps IPv4 BFD packets
+   * - ``ipv6_bfd``
+     - ``control``
+     - Traps IPv6 BFD packets
+   * - ``ipv4_ospf``
+     - ``control``
+     - Traps IPv4 OSPF packets
+   * - ``ipv6_ospf``
+     - ``control``
+     - Traps IPv6 OSPF packets
+   * - ``ipv4_bgp``
+     - ``control``
+     - Traps IPv4 BGP packets
+   * - ``ipv6_bgp``
+     - ``control``
+     - Traps IPv6 BGP packets
+   * - ``ipv4_vrrp``
+     - ``control``
+     - Traps IPv4 VRRP packets
+   * - ``ipv6_vrrp``
+     - ``control``
+     - Traps IPv6 VRRP packets
+   * - ``ipv4_pim``
+     - ``control``
+     - Traps IPv4 PIM packets
+   * - ``ipv6_pim``
+     - ``control``
+     - Traps IPv6 PIM packets
+   * - ``uc_loopback``
+     - ``control``
+     - Traps unicast packets that need to be routed through the same layer 3
+       interface from which they were received. Such packets are routed by the
+       kernel, but also cause it to potentially generate ICMP redirect packets
+   * - ``local_route``
+     - ``control``
+     - Traps unicast packets that hit a local route and need to be locally
+       delivered
+   * - ``external_route``
+     - ``control``
+     - Traps packets that should be routed through an external interface (e.g.,
+       management interface) that does not belong to the same device (e.g.,
+       switch ASIC) as the ingress interface
+   * - ``ipv6_uc_dip_link_local_scope``
+     - ``control``
+     - Traps unicast IPv6 packets that need to be routed and have a destination
+       IP address with a link-local scope (i.e., fe80::/10). The trap allows
+       device drivers to avoid programming link-local routes, but still receive
+       packets for local delivery
+   * - ``ipv6_dip_all_nodes``
+     - ``control``
+     - Traps IPv6 packets that their destination IP address is the "All Nodes
+       Address" (i.e., ff02::1)
+   * - ``ipv6_dip_all_routers``
+     - ``control``
+     - Traps IPv6 packets that their destination IP address is the "All Routers
+       Address" (i.e., ff02::2)
+   * - ``ipv6_router_solicit``
+     - ``control``
+     - Traps IPv6 Router Solicitation packets
+   * - ``ipv6_router_advert``
+     - ``control``
+     - Traps IPv6 Router Advertisement packets
+   * - ``ipv6_redirect``
+     - ``control``
+     - Traps IPv6 Redirect Message packets
+   * - ``ipv4_router_alert``
+     - ``control``
+     - Traps IPv4 packets that need to be routed and include the Router Alert
+       option. Such packets need to be locally delivered to raw sockets that
+       have the IP_ROUTER_ALERT socket option set
+   * - ``ipv6_router_alert``
+     - ``control``
+     - Traps IPv6 packets that need to be routed and include the Router Alert
+       option in their Hop-by-Hop extension header. Such packets need to be
+       locally delivered to raw sockets that have the IPV6_ROUTER_ALERT socket
+       option set
+   * - ``ptp_event``
+     - ``control``
+     - Traps PTP time-critical event messages (Sync, Delay_req, Pdelay_Req and
+       Pdelay_Resp)
+   * - ``ptp_general``
+     - ``control``
+     - Traps PTP general messages (Announce, Follow_Up, Delay_Resp,
+       Pdelay_Resp_Follow_Up, management and signaling)
+   * - ``flow_action_sample``
+     - ``control``
+     - Traps packets sampled during processing of flow action sample (e.g., via
+       tc's sample action)
+   * - ``flow_action_trap``
+     - ``control``
+     - Traps packets logged during processing of flow action trap (e.g., via
+       tc's trap action)
+   * - ``early_drop``
+     - ``drop``
+     - Traps packets dropped due to the RED (Random Early Detection) algorithm
+       (i.e., early drops)
 
 Driver-specific Packet Traps
 ============================
@@ -250,6 +421,8 @@ drivers:
 
   * :doc:`netdevsim`
   * :doc:`mlxsw`
+
+.. _Generic-Packet-Trap-Groups:
 
 Generic Packet Trap Groups
 ==========================
@@ -269,14 +442,99 @@ narrow. The description of these groups must be added to the following table:
      - Contains packet traps for packets that were dropped by the device during
        layer 2 forwarding (i.e., bridge)
    * - ``l3_drops``
-     - Contains packet traps for packets that were dropped by the device or hit
-       an exception (e.g., TTL error) during layer 3 forwarding
+     - Contains packet traps for packets that were dropped by the device during
+       layer 3 forwarding
+   * - ``l3_exceptions``
+     - Contains packet traps for packets that hit an exception (e.g., TTL
+       error) during layer 3 forwarding
    * - ``buffer_drops``
      - Contains packet traps for packets that were dropped by the device due to
        an enqueue decision
    * - ``tunnel_drops``
      - Contains packet traps for packets that were dropped by the device during
        tunnel encapsulation / decapsulation
+   * - ``acl_drops``
+     - Contains packet traps for packets that were dropped by the device during
+       ACL processing
+   * - ``stp``
+     - Contains packet traps for STP packets
+   * - ``lacp``
+     - Contains packet traps for LACP packets
+   * - ``lldp``
+     - Contains packet traps for LLDP packets
+   * - ``mc_snooping``
+     - Contains packet traps for IGMP and MLD packets required for multicast
+       snooping
+   * - ``dhcp``
+     - Contains packet traps for DHCP packets
+   * - ``neigh_discovery``
+     - Contains packet traps for neighbour discovery packets (e.g., ARP, IPv6
+       ND)
+   * - ``bfd``
+     - Contains packet traps for BFD packets
+   * - ``ospf``
+     - Contains packet traps for OSPF packets
+   * - ``bgp``
+     - Contains packet traps for BGP packets
+   * - ``vrrp``
+     - Contains packet traps for VRRP packets
+   * - ``pim``
+     - Contains packet traps for PIM packets
+   * - ``uc_loopback``
+     - Contains a packet trap for unicast loopback packets (i.e.,
+       ``uc_loopback``). This trap is singled-out because in cases such as
+       one-armed router it will be constantly triggered. To limit the impact on
+       the CPU usage, a packet trap policer with a low rate can be bound to the
+       group without affecting other traps
+   * - ``local_delivery``
+     - Contains packet traps for packets that should be locally delivered after
+       routing, but do not match more specific packet traps (e.g.,
+       ``ipv4_bgp``)
+   * - ``external_delivery``
+     - Contains packet traps for packets that should be routed through an
+       external interface (e.g., management interface) that does not belong to
+       the same device (e.g., switch ASIC) as the ingress interface
+   * - ``ipv6``
+     - Contains packet traps for various IPv6 control packets (e.g., Router
+       Advertisements)
+   * - ``ptp_event``
+     - Contains packet traps for PTP time-critical event messages (Sync,
+       Delay_req, Pdelay_Req and Pdelay_Resp)
+   * - ``ptp_general``
+     - Contains packet traps for PTP general messages (Announce, Follow_Up,
+       Delay_Resp, Pdelay_Resp_Follow_Up, management and signaling)
+   * - ``acl_sample``
+     - Contains packet traps for packets that were sampled by the device during
+       ACL processing
+   * - ``acl_trap``
+     - Contains packet traps for packets that were trapped (logged) by the
+       device during ACL processing
+
+Packet Trap Policers
+====================
+
+As previously explained, the underlying device can trap certain packets to the
+CPU for processing. In most cases, the underlying device is capable of handling
+packet rates that are several orders of magnitude higher compared to those that
+can be handled by the CPU.
+
+Therefore, in order to prevent the underlying device from overwhelming the CPU,
+devices usually include packet trap policers that are able to police the
+trapped packets to rates that can be handled by the CPU.
+
+The ``devlink-trap`` mechanism allows capable device drivers to register their
+supported packet trap policers with ``devlink``. The device driver can choose
+to associate these policers with supported packet trap groups (see
+:ref:`Generic-Packet-Trap-Groups`) during its initialization, thereby exposing
+its default control plane policy to user space.
+
+Device drivers should allow user space to change the parameters of the policers
+(e.g., rate, burst size) as well as the association between the policers and
+trap groups by implementing the relevant callbacks.
+
+If possible, device drivers should implement a callback that allows user space
+to retrieve the number of packets that were dropped by the policer because its
+configured policy was violated.
 
 Testing
 =======

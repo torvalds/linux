@@ -490,9 +490,7 @@ static int truly_nt35597_panel_add(struct truly_nt35597 *ctx)
 {
 	struct device *dev = ctx->dev;
 	int ret, i;
-	const struct nt35597_config *config;
 
-	config = ctx->config;
 	for (i = 0; i < ARRAY_SIZE(ctx->supplies); i++)
 		ctx->supplies[i].supply = regulator_names[i];
 
@@ -536,7 +534,6 @@ static const struct drm_display_mode qcom_sdm845_mtp_2k_mode = {
 	.vsync_start = 2560 + 8,
 	.vsync_end = 2560 + 8 + 1,
 	.vtotal = 2560 + 8 + 1 + 7,
-	.vrefresh = 60,
 	.flags = 0,
 };
 

@@ -279,7 +279,8 @@ bnxt_tc_parse_pedit(struct bnxt *bp, struct bnxt_tc_actions *actions,
 
 static int bnxt_tc_parse_actions(struct bnxt *bp,
 				 struct bnxt_tc_actions *actions,
-				 struct flow_action *flow_action)
+				 struct flow_action *flow_action,
+				 struct netlink_ext_ack *extack)
 {
 	/* Used to store the L2 rewrite mask for dmac (6 bytes) followed by
 	 * smac (6 bytes) if rewrite of both is specified, otherwise either
@@ -298,6 +299,9 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 		netdev_info(bp->dev, "no actions\n");
 		return -EINVAL;
 	}
+
+	if (!flow_action_basic_hw_stats_check(flow_action, extack))
+		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
@@ -491,7 +495,8 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 		flow->tun_mask.tp_src = match.mask->src;
 	}
 
-	return bnxt_tc_parse_actions(bp, &flow->actions, &rule->action);
+	return bnxt_tc_parse_actions(bp, &flow->actions, &rule->action,
+				     tc_flow_cmd->common.extack);
 }
 
 static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp,
@@ -1633,8 +1638,8 @@ static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 	lastused = flow->lastused;
 	spin_unlock(&flow->stats_lock);
 
-	flow_stats_update(&tc_flow_cmd->stats, stats.bytes, stats.packets,
-			  lastused);
+	flow_stats_update(&tc_flow_cmd->stats, stats.bytes, stats.packets, 0,
+			  lastused, FLOW_ACTION_HW_STATS_DELAYED);
 	return 0;
 }
 
@@ -1883,8 +1888,9 @@ static void bnxt_tc_setup_indr_rel(void *cb_priv)
 	kfree(priv);
 }
 
-static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
-				    struct flow_block_offload *f)
+static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct Qdisc *sch, struct bnxt *bp,
+				    struct flow_block_offload *f, void *data,
+				    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	struct bnxt_flower_indr_block_cb_priv *cb_priv;
 	struct flow_block_cb *block_cb;
@@ -1902,9 +1908,10 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
 		cb_priv->bp = bp;
 		list_add(&cb_priv->list, &bp->tc_indr_block_list);
 
-		block_cb = flow_block_cb_alloc(bnxt_tc_setup_indr_block_cb,
-					       cb_priv, cb_priv,
-					       bnxt_tc_setup_indr_rel);
+		block_cb = flow_indr_block_cb_alloc(bnxt_tc_setup_indr_block_cb,
+						    cb_priv, cb_priv,
+						    bnxt_tc_setup_indr_rel, f,
+						    netdev, sch, data, bp, cleanup);
 		if (IS_ERR(block_cb)) {
 			list_del(&cb_priv->list);
 			kfree(cb_priv);
@@ -1925,7 +1932,7 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
 		if (!block_cb)
 			return -ENOENT;
 
-		flow_block_cb_remove(block_cb, f);
+		flow_indr_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		break;
 	default:
@@ -1934,53 +1941,27 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
 	return 0;
 }
 
-static int bnxt_tc_setup_indr_cb(struct net_device *netdev, void *cb_priv,
-				 enum tc_setup_type type, void *type_data)
-{
-	switch (type) {
-	case TC_SETUP_BLOCK:
-		return bnxt_tc_setup_indr_block(netdev, cb_priv, type_data);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static bool bnxt_is_netdev_indr_offload(struct net_device *netdev)
 {
 	return netif_is_vxlan(netdev);
 }
 
-static int bnxt_tc_indr_block_event(struct notifier_block *nb,
-				    unsigned long event, void *ptr)
+static int bnxt_tc_setup_indr_cb(struct net_device *netdev, struct Qdisc *sch, void *cb_priv,
+				 enum tc_setup_type type, void *type_data,
+				 void *data,
+				 void (*cleanup)(struct flow_block_cb *block_cb))
 {
-	struct net_device *netdev;
-	struct bnxt *bp;
-	int rc;
-
-	netdev = netdev_notifier_info_to_dev(ptr);
 	if (!bnxt_is_netdev_indr_offload(netdev))
-		return NOTIFY_OK;
+		return -EOPNOTSUPP;
 
-	bp = container_of(nb, struct bnxt, tc_netdev_nb);
-
-	switch (event) {
-	case NETDEV_REGISTER:
-		rc = __flow_indr_block_cb_register(netdev, bp,
-						   bnxt_tc_setup_indr_cb,
-						   bp);
-		if (rc)
-			netdev_info(bp->dev,
-				    "Failed to register indirect blk: dev: %s\n",
-				    netdev->name);
-		break;
-	case NETDEV_UNREGISTER:
-		__flow_indr_block_cb_unregister(netdev,
-						bnxt_tc_setup_indr_cb,
-						bp);
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return bnxt_tc_setup_indr_block(netdev, sch, cb_priv, type_data, data, cleanup);
+	default:
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return -EOPNOTSUPP;
 }
 
 static const struct rhashtable_params bnxt_tc_flow_ht_params = {
@@ -2019,11 +2000,8 @@ int bnxt_init_tc(struct bnxt *bp)
 	struct bnxt_tc_info *tc_info;
 	int rc;
 
-	if (bp->hwrm_spec_code < 0x10803) {
-		netdev_warn(bp->dev,
-			    "Firmware does not support TC flower offload.\n");
-		return -ENOTSUPP;
-	}
+	if (bp->hwrm_spec_code < 0x10803)
+		return 0;
 
 	tc_info = kzalloc(sizeof(*tc_info), GFP_KERNEL);
 	if (!tc_info)
@@ -2069,8 +2047,8 @@ int bnxt_init_tc(struct bnxt *bp)
 
 	/* init indirect block notifications */
 	INIT_LIST_HEAD(&bp->tc_indr_block_list);
-	bp->tc_netdev_nb.notifier_call = bnxt_tc_indr_block_event;
-	rc = register_netdevice_notifier(&bp->tc_netdev_nb);
+
+	rc = flow_indr_dev_register(bnxt_tc_setup_indr_cb, bp);
 	if (!rc)
 		return 0;
 
@@ -2096,7 +2074,8 @@ void bnxt_shutdown_tc(struct bnxt *bp)
 	if (!bnxt_tc_flower_enabled(bp))
 		return;
 
-	unregister_netdevice_notifier(&bp->tc_netdev_nb);
+	flow_indr_dev_unregister(bnxt_tc_setup_indr_cb, bp,
+				 bnxt_tc_setup_indr_rel);
 	rhashtable_destroy(&tc_info->flow_table);
 	rhashtable_destroy(&tc_info->l2_table);
 	rhashtable_destroy(&tc_info->decap_l2_table);

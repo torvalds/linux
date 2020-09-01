@@ -50,11 +50,22 @@
 
 #define AMD64_L3_SLICE_SHIFT				48
 #define AMD64_L3_SLICE_MASK				\
-	((0xFULL) << AMD64_L3_SLICE_SHIFT)
+	(0xFULL << AMD64_L3_SLICE_SHIFT)
+#define AMD64_L3_SLICEID_MASK				\
+	(0x7ULL << AMD64_L3_SLICE_SHIFT)
 
 #define AMD64_L3_THREAD_SHIFT				56
 #define AMD64_L3_THREAD_MASK				\
-	((0xFFULL) << AMD64_L3_THREAD_SHIFT)
+	(0xFFULL << AMD64_L3_THREAD_SHIFT)
+#define AMD64_L3_F19H_THREAD_MASK			\
+	(0x3ULL << AMD64_L3_THREAD_SHIFT)
+
+#define AMD64_L3_EN_ALL_CORES				BIT_ULL(47)
+#define AMD64_L3_EN_ALL_SLICES				BIT_ULL(46)
+
+#define AMD64_L3_COREID_SHIFT				42
+#define AMD64_L3_COREID_MASK				\
+	(0x7ULL << AMD64_L3_COREID_SHIFT)
 
 #define X86_RAW_EVENT_MASK		\
 	(ARCH_PERFMON_EVENTSEL_EVENT |	\
@@ -131,6 +142,46 @@ union cpuid10_edx {
 	unsigned int full;
 };
 
+/*
+ * Intel Architectural LBR CPUID detection/enumeration details:
+ */
+union cpuid28_eax {
+	struct {
+		/* Supported LBR depth values */
+		unsigned int	lbr_depth_mask:8;
+		unsigned int	reserved:22;
+		/* Deep C-state Reset */
+		unsigned int	lbr_deep_c_reset:1;
+		/* IP values contain LIP */
+		unsigned int	lbr_lip:1;
+	} split;
+	unsigned int		full;
+};
+
+union cpuid28_ebx {
+	struct {
+		/* CPL Filtering Supported */
+		unsigned int    lbr_cpl:1;
+		/* Branch Filtering Supported */
+		unsigned int    lbr_filter:1;
+		/* Call-stack Mode Supported */
+		unsigned int    lbr_call_stack:1;
+	} split;
+	unsigned int            full;
+};
+
+union cpuid28_ecx {
+	struct {
+		/* Mispredict Bit Supported */
+		unsigned int    lbr_mispred:1;
+		/* Timed LBRs Supported */
+		unsigned int    lbr_timed_lbr:1;
+		/* Branch Type Field Supported */
+		unsigned int    lbr_br_type:1;
+	} split;
+	unsigned int            full;
+};
+
 struct x86_pmu_capability {
 	int		version;
 	int		num_counters_gp;
@@ -181,8 +232,28 @@ struct x86_pmu_capability {
 #define GLOBAL_STATUS_UNC_OVF				BIT_ULL(61)
 #define GLOBAL_STATUS_ASIF				BIT_ULL(60)
 #define GLOBAL_STATUS_COUNTERS_FROZEN			BIT_ULL(59)
-#define GLOBAL_STATUS_LBRS_FROZEN			BIT_ULL(58)
+#define GLOBAL_STATUS_LBRS_FROZEN_BIT			58
+#define GLOBAL_STATUS_LBRS_FROZEN			BIT_ULL(GLOBAL_STATUS_LBRS_FROZEN_BIT)
 #define GLOBAL_STATUS_TRACE_TOPAPMI			BIT_ULL(55)
+
+/*
+ * We model guest LBR event tracing as another fixed-mode PMC like BTS.
+ *
+ * We choose bit 58 because it's used to indicate LBR stack frozen state
+ * for architectural perfmon v4, also we unconditionally mask that bit in
+ * the handle_pmi_common(), so it'll never be set in the overflow handling.
+ *
+ * With this fake counter assigned, the guest LBR event user (such as KVM),
+ * can program the LBR registers on its own, and we don't actually do anything
+ * with then in the host context.
+ */
+#define INTEL_PMC_IDX_FIXED_VLBR	(GLOBAL_STATUS_LBRS_FROZEN_BIT)
+
+/*
+ * Pseudo-encoding the guest LBR event as event=0x00,umask=0x1b,
+ * since it would claim bit 58 which is effectively Fixed26.
+ */
+#define INTEL_FIXED_VLBR_EVENT	0x1b00
 
 /*
  * Adaptive PEBS v4
@@ -209,14 +280,6 @@ struct pebs_gprs {
 
 struct pebs_xmm {
 	u64 xmm[16*2];	/* two entries for each register */
-};
-
-struct pebs_lbr_entry {
-	u64 from, to, info;
-};
-
-struct pebs_lbr {
-	struct pebs_lbr_entry lbr[0]; /* Variable length */
 };
 
 /*
@@ -322,6 +385,13 @@ struct perf_guest_switch_msr {
 	u64 host, guest;
 };
 
+struct x86_pmu_lbr {
+	unsigned int	nr;
+	unsigned int	from;
+	unsigned int	to;
+	unsigned int	info;
+};
+
 extern void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap);
 extern void perf_check_microcode(void);
 extern int x86_perf_rdpmc_index(struct perf_event *event);
@@ -337,11 +407,16 @@ static inline void perf_check_microcode(void) { }
 
 #if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_INTEL)
 extern struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr);
+extern int x86_perf_get_lbr(struct x86_pmu_lbr *lbr);
 #else
 static inline struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr)
 {
 	*nr = 0;
 	return NULL;
+}
+static inline int x86_perf_get_lbr(struct x86_pmu_lbr *lbr)
+{
+	return -1;
 }
 #endif
 

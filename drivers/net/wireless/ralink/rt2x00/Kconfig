@@ -2,7 +2,7 @@
 menuconfig RT2X00
 	tristate "Ralink driver support"
 	depends on MAC80211 && HAS_DMA
-	---help---
+	help
 	  This will enable the support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.
 
@@ -24,7 +24,7 @@ config RT2400PCI
 	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_PCI
 	select EEPROM_93CX6
-	---help---
+	help
 	  This adds support for rt2400 wireless chipset family.
 	  Supported chips: RT2460.
 
@@ -36,7 +36,7 @@ config RT2500PCI
 	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_PCI
 	select EEPROM_93CX6
-	---help---
+	help
 	  This adds support for rt2500 wireless chipset family.
 	  Supported chips: RT2560.
 
@@ -51,7 +51,7 @@ config RT61PCI
 	select RT2X00_LIB_CRYPTO
 	select CRC_ITU_T
 	select EEPROM_93CX6
-	---help---
+	help
 	  This adds support for rt2501 wireless chipset family.
 	  Supported chips: RT2561, RT2561S & RT2661.
 
@@ -68,7 +68,7 @@ config RT2800PCI
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
 	select EEPROM_93CX6
-	---help---
+	help
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
 	  Supported chips: RT2760, RT2790, RT2860, RT2880, RT2890, RT3052,
 			   RT3090, RT3091 & RT3092
@@ -80,7 +80,7 @@ if RT2800PCI
 config RT2800PCI_RT33XX
 	bool "rt2800pci - Include support for rt33xx devices"
 	default y
-	---help---
+	help
 	  This adds support for rt33xx wireless chipset family to the
 	  rt2800pci driver.
 	  Supported chips: RT3390
@@ -88,7 +88,7 @@ config RT2800PCI_RT33XX
 config RT2800PCI_RT35XX
 	bool "rt2800pci - Include support for rt35xx devices (EXPERIMENTAL)"
 	default y
-	---help---
+	help
 	  This adds support for rt35xx wireless chipset family to the
 	  rt2800pci driver.
 	  Supported chips: RT3060, RT3062, RT3562, RT3592
@@ -97,7 +97,7 @@ config RT2800PCI_RT35XX
 config RT2800PCI_RT53XX
 	bool "rt2800pci - Include support for rt53xx devices (EXPERIMENTAL)"
 	default y
-	---help---
+	help
 	  This adds support for rt53xx wireless chipset family to the
 	  rt2800pci driver.
 	  Supported chips: RT5390
@@ -105,7 +105,7 @@ config RT2800PCI_RT53XX
 config RT2800PCI_RT3290
 	bool "rt2800pci - Include support for rt3290 devices (EXPERIMENTAL)"
 	default y
-	---help---
+	help
 	  This adds support for rt3290 wireless chipset family to the
 	  rt2800pci driver.
 	  Supported chips: RT3290
@@ -116,7 +116,7 @@ config RT2500USB
 	depends on USB
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_CRYPTO
-	---help---
+	help
 	  This adds support for rt2500 wireless chipset family.
 	  Supported chips: RT2571 & RT2572.
 
@@ -129,7 +129,7 @@ config RT73USB
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_ITU_T
-	---help---
+	help
 	  This adds support for rt2501 wireless chipset family.
 	  Supported chips: RT2571W, RT2573 & RT2671.
 
@@ -143,7 +143,7 @@ config RT2800USB
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
-	---help---
+	help
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
 	  Supported chips: RT2770, RT2870 & RT3070, RT3071 & RT3072
 
@@ -154,7 +154,7 @@ if RT2800USB
 config RT2800USB_RT33XX
 	bool "rt2800usb - Include support for rt33xx devices"
 	default y
-	---help---
+	help
 	  This adds support for rt33xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3370
@@ -162,27 +162,27 @@ config RT2800USB_RT33XX
 config RT2800USB_RT35XX
 	bool "rt2800usb - Include support for rt35xx devices (EXPERIMENTAL)"
 	default y
-	---help---
+	help
 	  This adds support for rt35xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3572
 
 config RT2800USB_RT3573
 	bool "rt2800usb - Include support for rt3573 devices (EXPERIMENTAL)"
-	---help---
+	help
 	  This enables support for RT3573 chipset based wireless USB devices
 	  in the rt2800usb driver.
 
 config RT2800USB_RT53XX
 	bool "rt2800usb - Include support for rt53xx devices (EXPERIMENTAL)"
-	---help---
+	help
 	  This adds support for rt53xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT5370
 
 config RT2800USB_RT55XX
 	bool "rt2800usb - Include support for rt55xx devices (EXPERIMENTAL)"
-	---help---
+	help
 	  This adds support for rt55xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT5572
@@ -190,7 +190,7 @@ config RT2800USB_RT55XX
 config RT2800USB_UNKNOWN
 	bool "rt2800usb - Include support for unknown (USB) devices"
 	default n
-	---help---
+	help
 	  This adds support for rt2800usb devices that are known to
 	  have a rt28xx family compatible chipset, but for which the exact
 	  chipset is unknown.
@@ -209,7 +209,7 @@ config RT2800SOC
 	select RT2X00_LIB_FIRMWARE
 	select RT2800_LIB
 	select RT2800_LIB_MMIO
-	---help---
+	help
 	  This adds support for Ralink WiSoC devices.
 	  Supported chips: RT2880, RT3050, RT3052, RT3350, RT3352.
 
@@ -256,7 +256,7 @@ config RT2X00_LIB_LEDS
 config RT2X00_LIB_DEBUGFS
 	bool "Ralink debugfs support"
 	depends on RT2X00_LIB && MAC80211_DEBUGFS
-	---help---
+	help
 	  Enable creation of debugfs files for the rt2x00 drivers.
 	  These debugfs files support both reading and writing of the
 	  most important register types of the rt2x00 hardware.
@@ -264,7 +264,7 @@ config RT2X00_LIB_DEBUGFS
 config RT2X00_DEBUG
 	bool "Ralink debug output"
 	depends on RT2X00_LIB
-	---help---
+	help
 	  Enable debugging output for all rt2x00 modules
 
 endif

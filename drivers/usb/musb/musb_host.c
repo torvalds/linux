@@ -360,7 +360,7 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 				qh = first_qh(head);
 				break;
 			}
-			/* fall through */
+			fallthrough;
 
 		case USB_ENDPOINT_XFER_ISOC:
 		case USB_ENDPOINT_XFER_INT:
@@ -1019,7 +1019,7 @@ static bool musb_h_ep0_continue(struct musb *musb, u16 len, struct urb *urb)
 			musb->ep0_stage = MUSB_EP0_OUT;
 			more = true;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case MUSB_EP0_OUT:
 		fifo_count = min_t(size_t, qh->maxpacket,
 				   urb->transfer_buffer_length -
@@ -1436,10 +1436,7 @@ done:
 	 * We need to map sg if the transfer_buffer is
 	 * NULL.
 	 */
-	if (!urb->transfer_buffer)
-		qh->use_sg = true;
-
-	if (qh->use_sg) {
+	if (!urb->transfer_buffer) {
 		/* sg_miter_start is already done in musb_ep_program */
 		if (!sg_miter_next(&qh->sg_miter)) {
 			dev_err(musb->controller, "error: sg list empty\n");
@@ -1447,9 +1444,8 @@ done:
 			status = -EINVAL;
 			goto done;
 		}
-		urb->transfer_buffer = qh->sg_miter.addr;
 		length = min_t(u32, length, qh->sg_miter.length);
-		musb_write_fifo(hw_ep, length, urb->transfer_buffer);
+		musb_write_fifo(hw_ep, length, qh->sg_miter.addr);
 		qh->sg_miter.consumed = length;
 		sg_miter_stop(&qh->sg_miter);
 	} else {
@@ -1457,11 +1453,6 @@ done:
 	}
 
 	qh->segsize = length;
-
-	if (qh->use_sg) {
-		if (offset + length >= urb->transfer_buffer_length)
-			qh->use_sg = false;
-	}
 
 	musb_ep_select(mbase, epnum);
 	musb_writew(epio, MUSB_TXCSR,
@@ -1783,9 +1774,15 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		status = -EPIPE;
 
 	} else if (rx_csr & MUSB_RXCSR_H_ERROR) {
-		musb_dbg(musb, "end %d RX proto error", epnum);
+		dev_err(musb->controller, "ep%d RX three-strikes error", epnum);
 
-		status = -EPROTO;
+		/*
+		 * The three-strikes error could only happen when the USB
+		 * device is not accessible, for example detached or powered
+		 * off. So return the fatal error -ESHUTDOWN so hopefully the
+		 * USB device drivers won't immediately resubmit the same URB.
+		 */
+		status = -ESHUTDOWN;
 		musb_writeb(epio, MUSB_RXINTERVAL, 0);
 
 		rx_csr &= ~MUSB_RXCSR_H_ERROR;
@@ -1977,8 +1974,10 @@ finish:
 	urb->actual_length += xfer_len;
 	qh->offset += xfer_len;
 	if (done) {
-		if (qh->use_sg)
+		if (qh->use_sg) {
 			qh->use_sg = false;
+			urb->transfer_buffer = NULL;
+		}
 
 		if (urb->status == -EINPROGRESS)
 			urb->status = status;
@@ -2223,7 +2222,7 @@ static int musb_urb_enqueue(
 			interval = max_t(u8, epd->bInterval, 1);
 			break;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case USB_ENDPOINT_XFER_ISOC:
 		/* ISO always uses logarithmic encoding */
 		interval = min_t(u8, epd->bInterval, 16);
@@ -2550,7 +2549,7 @@ static int musb_bus_resume(struct usb_hcd *hcd)
 struct musb_temp_buffer {
 	void *kmalloc_ptr;
 	void *old_xfer_buffer;
-	u8 data[0];
+	u8 data[];
 };
 
 static void musb_free_temp_buffer(struct urb *urb)

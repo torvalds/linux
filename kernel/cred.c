@@ -315,6 +315,9 @@ struct cred *prepare_exec_creds(void)
 	new->process_keyring = NULL;
 #endif
 
+	new->suid = new->fsuid = new->euid;
+	new->sgid = new->fsgid = new->egid;
+
 	return new;
 }
 
@@ -675,8 +678,6 @@ void __init cred_init(void)
  * The caller may change these controls afterwards if desired.
  *
  * Returns the new credentials or NULL if out of memory.
- *
- * Does not take, and does not return holding current->cred_replace_mutex.
  */
 struct cred *prepare_kernel_cred(struct task_struct *daemon)
 {

@@ -1112,6 +1112,6 @@ static struct pci_driver apci3120_pci_driver = {
 };
 module_comedi_pci_driver(apci3120_driver, apci3120_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("ADDI-DATA APCI-3120, Analog input board");
 MODULE_LICENSE("GPL");

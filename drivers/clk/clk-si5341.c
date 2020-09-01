@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for Silicon Labs Si5341/Si5340 Clock generator
+ * Driver for Silicon Labs Si5340, Si5341, Si5342, Si5344 and Si5345
  * Copyright (C) 2019 Topic Embedded Products
  * Author: Mike Looijmans <mike.looijmans@topic.nl>
+ *
+ * The Si5341 has 10 outputs and 5 synthesizers.
+ * The Si5340 is a smaller version of the Si5341 with only 4 outputs.
+ * The Si5345 is similar to the Si5341, with the addition of fractional input
+ * dividers and automatic input selection.
+ * The Si5342 and Si5344 are smaller versions of the Si5345.
  */
 
 #include <linux/clk.h>
@@ -16,11 +22,19 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
-#define SI5341_MAX_NUM_OUTPUTS 10
-#define SI5340_MAX_NUM_OUTPUTS 4
+#define SI5341_NUM_INPUTS 4
 
-#define SI5341_NUM_SYNTH 5
+#define SI5340_MAX_NUM_OUTPUTS 4
+#define SI5341_MAX_NUM_OUTPUTS 10
+#define SI5342_MAX_NUM_OUTPUTS 2
+#define SI5344_MAX_NUM_OUTPUTS 4
+#define SI5345_MAX_NUM_OUTPUTS 10
+
 #define SI5340_NUM_SYNTH 4
+#define SI5341_NUM_SYNTH 5
+#define SI5342_NUM_SYNTH 2
+#define SI5344_NUM_SYNTH 4
+#define SI5345_NUM_SYNTH 5
 
 /* Range of the synthesizer fractional divider */
 #define SI5341_SYNTH_N_MIN	10
@@ -56,13 +70,14 @@ struct clk_si5341 {
 	struct i2c_client *i2c_client;
 	struct clk_si5341_synth synth[SI5341_NUM_SYNTH];
 	struct clk_si5341_output clk[SI5341_MAX_NUM_OUTPUTS];
-	struct clk *pxtal;
-	const char *pxtal_name;
+	struct clk *input_clk[SI5341_NUM_INPUTS];
+	const char *input_clk_name[SI5341_NUM_INPUTS];
 	const u16 *reg_output_offset;
 	const u16 *reg_rdiv_offset;
 	u64 freq_vco; /* 13500–14256 MHz */
 	u8 num_outputs;
 	u8 num_synth;
+	u16 chip_id;
 };
 #define to_clk_si5341(_hw)	container_of(_hw, struct clk_si5341, hw)
 
@@ -78,10 +93,25 @@ struct clk_si5341_output_config {
 #define SI5341_DEVICE_REV	0x0005
 #define SI5341_STATUS		0x000C
 #define SI5341_SOFT_RST		0x001C
+#define SI5341_IN_SEL		0x0021
+#define SI5341_XAXB_CFG		0x090E
+#define SI5341_IN_EN		0x0949
+#define SI5341_INX_TO_PFD_EN	0x094A
+
+/* Input selection */
+#define SI5341_IN_SEL_MASK	0x06
+#define SI5341_IN_SEL_SHIFT	1
+#define SI5341_IN_SEL_REGCTRL	0x01
+#define SI5341_INX_TO_PFD_SHIFT	4
+
+/* XTAL config bits */
+#define SI5341_XAXB_CFG_EXTCLK_EN	BIT(0)
+#define SI5341_XAXB_CFG_PDNB		BIT(1)
 
 /* Input dividers (48-bit) */
 #define SI5341_IN_PDIV(x)	(0x0208 + ((x) * 10))
 #define SI5341_IN_PSET(x)	(0x020E + ((x) * 10))
+#define SI5341_PX_UPD		0x0230
 
 /* PLL configuration */
 #define SI5341_PLL_M_NUM	0x0235
@@ -120,7 +150,12 @@ struct si5341_reg_default {
 	u8 value;
 };
 
+static const char * const si5341_input_clock_names[] = {
+	"in0", "in1", "in2", "xtal"
+};
+
 /* Output configuration registers 0..9 are not quite logically organized */
+/* Also for si5345 */
 static const u16 si5341_reg_output_offset[] = {
 	0x0108,
 	0x010D,
@@ -134,6 +169,7 @@ static const u16 si5341_reg_output_offset[] = {
 	0x013A,
 };
 
+/* for si5340, si5342 and si5344 */
 static const u16 si5340_reg_output_offset[] = {
 	0x0112,
 	0x0117,
@@ -390,7 +426,112 @@ static unsigned long si5341_clk_recalc_rate(struct clk_hw *hw,
 	return (unsigned long)res;
 }
 
+static int si5341_clk_get_selected_input(struct clk_si5341 *data)
+{
+	int err;
+	u32 val;
+
+	err = regmap_read(data->regmap, SI5341_IN_SEL, &val);
+	if (err < 0)
+		return err;
+
+	return (val & SI5341_IN_SEL_MASK) >> SI5341_IN_SEL_SHIFT;
+}
+
+static u8 si5341_clk_get_parent(struct clk_hw *hw)
+{
+	struct clk_si5341 *data = to_clk_si5341(hw);
+	int res = si5341_clk_get_selected_input(data);
+
+	if (res < 0)
+		return 0; /* Apparently we cannot report errors */
+
+	return res;
+}
+
+static int si5341_clk_reparent(struct clk_si5341 *data, u8 index)
+{
+	int err;
+	u8 val;
+
+	val = (index << SI5341_IN_SEL_SHIFT) & SI5341_IN_SEL_MASK;
+	/* Enable register-based input selection */
+	val |= SI5341_IN_SEL_REGCTRL;
+
+	err = regmap_update_bits(data->regmap,
+		SI5341_IN_SEL, SI5341_IN_SEL_REGCTRL | SI5341_IN_SEL_MASK, val);
+	if (err < 0)
+		return err;
+
+	if (index < 3) {
+		/* Enable input buffer for selected input */
+		err = regmap_update_bits(data->regmap,
+				SI5341_IN_EN, 0x07, BIT(index));
+		if (err < 0)
+			return err;
+
+		/* Enables the input to phase detector */
+		err = regmap_update_bits(data->regmap, SI5341_INX_TO_PFD_EN,
+				0x7 << SI5341_INX_TO_PFD_SHIFT,
+				BIT(index + SI5341_INX_TO_PFD_SHIFT));
+		if (err < 0)
+			return err;
+
+		/* Power down XTAL oscillator and buffer */
+		err = regmap_update_bits(data->regmap, SI5341_XAXB_CFG,
+				SI5341_XAXB_CFG_PDNB, 0);
+		if (err < 0)
+			return err;
+
+		/*
+		 * Set the P divider to "1". There's no explanation in the
+		 * datasheet of these registers, but the clockbuilder software
+		 * programs a "1" when the input is being used.
+		 */
+		err = regmap_write(data->regmap, SI5341_IN_PDIV(index), 1);
+		if (err < 0)
+			return err;
+
+		err = regmap_write(data->regmap, SI5341_IN_PSET(index), 1);
+		if (err < 0)
+			return err;
+
+		/* Set update PDIV bit */
+		err = regmap_write(data->regmap, SI5341_PX_UPD, BIT(index));
+		if (err < 0)
+			return err;
+	} else {
+		/* Disable all input buffers */
+		err = regmap_update_bits(data->regmap, SI5341_IN_EN, 0x07, 0);
+		if (err < 0)
+			return err;
+
+		/* Disable input to phase detector */
+		err = regmap_update_bits(data->regmap, SI5341_INX_TO_PFD_EN,
+				0x7 << SI5341_INX_TO_PFD_SHIFT, 0);
+		if (err < 0)
+			return err;
+
+		/* Power up XTAL oscillator and buffer */
+		err = regmap_update_bits(data->regmap, SI5341_XAXB_CFG,
+				SI5341_XAXB_CFG_PDNB, SI5341_XAXB_CFG_PDNB);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static int si5341_clk_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct clk_si5341 *data = to_clk_si5341(hw);
+
+	return si5341_clk_reparent(data, index);
+}
+
 static const struct clk_ops si5341_clk_ops = {
+	.set_parent = si5341_clk_set_parent,
+	.get_parent = si5341_clk_get_parent,
 	.recalc_rate = si5341_clk_recalc_rate,
 };
 
@@ -848,11 +989,31 @@ static int si5341_probe_chip_id(struct clk_si5341 *data)
 		data->reg_output_offset = si5341_reg_output_offset;
 		data->reg_rdiv_offset = si5341_reg_rdiv_offset;
 		break;
+	case 0x5342:
+		data->num_outputs = SI5342_MAX_NUM_OUTPUTS;
+		data->num_synth = SI5342_NUM_SYNTH;
+		data->reg_output_offset = si5340_reg_output_offset;
+		data->reg_rdiv_offset = si5340_reg_rdiv_offset;
+		break;
+	case 0x5344:
+		data->num_outputs = SI5344_MAX_NUM_OUTPUTS;
+		data->num_synth = SI5344_NUM_SYNTH;
+		data->reg_output_offset = si5340_reg_output_offset;
+		data->reg_rdiv_offset = si5340_reg_rdiv_offset;
+		break;
+	case 0x5345:
+		data->num_outputs = SI5345_MAX_NUM_OUTPUTS;
+		data->num_synth = SI5345_NUM_SYNTH;
+		data->reg_output_offset = si5341_reg_output_offset;
+		data->reg_rdiv_offset = si5341_reg_rdiv_offset;
+		break;
 	default:
 		dev_err(&data->i2c_client->dev, "Model '%x' not supported\n",
 			model);
 		return -EINVAL;
 	}
+
+	data->chip_id = model;
 
 	return 0;
 }
@@ -928,6 +1089,11 @@ static const struct si5341_reg_default si5341_preamble[] = {
 	{ 0x0B4E, 0x1A },
 };
 
+static const struct si5341_reg_default si5345_preamble[] = {
+	{ 0x0B25, 0x00 },
+	{ 0x0540, 0x01 },
+};
+
 static int si5341_send_preamble(struct clk_si5341 *data)
 {
 	int res;
@@ -942,8 +1108,14 @@ static int si5341_send_preamble(struct clk_si5341 *data)
 	res = regmap_write(data->regmap, 0xB24, revision < 2 ? 0xD8 : 0xC0);
 	if (res < 0)
 		return res;
-	res = si5341_write_multiple(data,
-		si5341_preamble, ARRAY_SIZE(si5341_preamble));
+
+	/* The si5342..si5345 require a different preamble */
+	if (data->chip_id > 0x5341)
+		res = si5341_write_multiple(data,
+			si5345_preamble, ARRAY_SIZE(si5345_preamble));
+	else
+		res = si5341_write_multiple(data,
+			si5341_preamble, ARRAY_SIZE(si5341_preamble));
 	if (res < 0)
 		return res;
 
@@ -969,6 +1141,13 @@ static int si5341_finalize_defaults(struct clk_si5341 *data)
 	if (res < 0)
 		return res;
 
+	/* The si5342..si5345 have an additional post-amble */
+	if (data->chip_id > 0x5341) {
+		res = regmap_write(data->regmap, 0x540, 0x0);
+		if (res < 0)
+			return res;
+	}
+
 	/* Datasheet does not explain these nameless registers */
 	res = regmap_write(data->regmap, 0xB24, revision < 2 ? 0xDB : 0xC3);
 	if (res < 0)
@@ -985,7 +1164,8 @@ static const struct regmap_range si5341_regmap_volatile_range[] = {
 	regmap_reg_range(0x000C, 0x0012), /* Status */
 	regmap_reg_range(0x001C, 0x001E), /* reset, finc/fdec */
 	regmap_reg_range(0x00E2, 0x00FE), /* NVM, interrupts, device ready */
-	/* Update bits for synth config */
+	/* Update bits for P divider and synth config */
+	regmap_reg_range(SI5341_PX_UPD, SI5341_PX_UPD),
 	regmap_reg_range(SI5341_SYNTH_N_UPD(0), SI5341_SYNTH_N_UPD(0)),
 	regmap_reg_range(SI5341_SYNTH_N_UPD(1), SI5341_SYNTH_N_UPD(1)),
 	regmap_reg_range(SI5341_SYNTH_N_UPD(2), SI5341_SYNTH_N_UPD(2)),
@@ -1122,6 +1302,7 @@ static int si5341_initialize_pll(struct clk_si5341 *data)
 	struct device_node *np = data->i2c_client->dev.of_node;
 	u32 m_num = 0;
 	u32 m_den = 0;
+	int sel;
 
 	if (of_property_read_u32(np, "silabs,pll-m-num", &m_num)) {
 		dev_err(&data->i2c_client->dev,
@@ -1135,7 +1316,11 @@ static int si5341_initialize_pll(struct clk_si5341 *data)
 	if (!m_num || !m_den) {
 		dev_err(&data->i2c_client->dev,
 			"PLL configuration invalid, assume 14GHz\n");
-		m_den = clk_get_rate(data->pxtal) / 10;
+		sel = si5341_clk_get_selected_input(data);
+		if (sel < 0)
+			return sel;
+
+		m_den = clk_get_rate(data->input_clk[sel]) / 10;
 		m_num = 1400000000;
 	}
 
@@ -1143,11 +1328,52 @@ static int si5341_initialize_pll(struct clk_si5341 *data)
 			SI5341_PLL_M_NUM, m_num, m_den);
 }
 
+static int si5341_clk_select_active_input(struct clk_si5341 *data)
+{
+	int res;
+	int err;
+	int i;
+
+	res = si5341_clk_get_selected_input(data);
+	if (res < 0)
+		return res;
+
+	/* If the current register setting is invalid, pick the first input */
+	if (!data->input_clk[res]) {
+		dev_dbg(&data->i2c_client->dev,
+			"Input %d not connected, rerouting\n", res);
+		res = -ENODEV;
+		for (i = 0; i < SI5341_NUM_INPUTS; ++i) {
+			if (data->input_clk[i]) {
+				res = i;
+				break;
+			}
+		}
+		if (res < 0) {
+			dev_err(&data->i2c_client->dev,
+				"No clock input available\n");
+			return res;
+		}
+	}
+
+	/* Make sure the selected clock is also enabled and routed */
+	err = si5341_clk_reparent(data, res);
+	if (err < 0)
+		return err;
+
+	err = clk_prepare_enable(data->input_clk[res]);
+	if (err < 0)
+		return err;
+
+	return res;
+}
+
 static int si5341_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct clk_si5341 *data;
 	struct clk_init_data init;
+	struct clk *input;
 	const char *root_clock_name;
 	const char *synth_clock_names[SI5341_NUM_SYNTH];
 	int err;
@@ -1161,12 +1387,16 @@ static int si5341_probe(struct i2c_client *client,
 
 	data->i2c_client = client;
 
-	data->pxtal = devm_clk_get(&client->dev, "xtal");
-	if (IS_ERR(data->pxtal)) {
-		if (PTR_ERR(data->pxtal) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		dev_err(&client->dev, "Missing xtal clock input\n");
+	for (i = 0; i < SI5341_NUM_INPUTS; ++i) {
+		input = devm_clk_get(&client->dev, si5341_input_clock_names[i]);
+		if (IS_ERR(input)) {
+			if (PTR_ERR(input) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			data->input_clk_name[i] = si5341_input_clock_names[i];
+		} else {
+			data->input_clk[i] = input;
+			data->input_clk_name[i] = __clk_get_name(input);
+		}
 	}
 
 	err = si5341_dt_parse_dt(client, config);
@@ -1187,9 +1417,6 @@ static int si5341_probe(struct i2c_client *client,
 	err = si5341_probe_chip_id(data);
 	if (err < 0)
 		return err;
-
-	/* "Activate" the xtal (usually a fixed clock) */
-	clk_prepare_enable(data->pxtal);
 
 	if (of_property_read_bool(client->dev.of_node, "silabs,reprogram")) {
 		initialization_required = true;
@@ -1223,7 +1450,14 @@ static int si5341_probe(struct i2c_client *client,
 					ARRAY_SIZE(si5341_reg_defaults));
 		if (err < 0)
 			return err;
+	}
 
+	/* Input must be up and running at this point */
+	err = si5341_clk_select_active_input(data);
+	if (err < 0)
+		return err;
+
+	if (initialization_required) {
 		/* PLL configuration is required */
 		err = si5341_initialize_pll(data);
 		if (err < 0)
@@ -1231,9 +1465,8 @@ static int si5341_probe(struct i2c_client *client,
 	}
 
 	/* Register the PLL */
-	data->pxtal_name = __clk_get_name(data->pxtal);
-	init.parent_names = &data->pxtal_name;
-	init.num_parents = 1; /* For now, only XTAL input supported */
+	init.parent_names = data->input_clk_name;
+	init.num_parents = SI5341_NUM_INPUTS;
 	init.ops = &si5341_clk_ops;
 	init.flags = 0;
 	data->hw.init = &init;
@@ -1319,6 +1552,9 @@ static int si5341_probe(struct i2c_client *client,
 static const struct i2c_device_id si5341_id[] = {
 	{ "si5340", 0 },
 	{ "si5341", 1 },
+	{ "si5342", 2 },
+	{ "si5344", 4 },
+	{ "si5345", 5 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si5341_id);
@@ -1326,6 +1562,9 @@ MODULE_DEVICE_TABLE(i2c, si5341_id);
 static const struct of_device_id clk_si5341_of_match[] = {
 	{ .compatible = "silabs,si5340" },
 	{ .compatible = "silabs,si5341" },
+	{ .compatible = "silabs,si5342" },
+	{ .compatible = "silabs,si5344" },
+	{ .compatible = "silabs,si5345" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_si5341_of_match);

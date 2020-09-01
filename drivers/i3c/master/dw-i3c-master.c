@@ -221,7 +221,7 @@ struct dw_i3c_xfer {
 	struct completion comp;
 	int ret;
 	unsigned int ncmds;
-	struct dw_i3c_cmd cmds[0];
+	struct dw_i3c_cmd cmds[];
 };
 
 struct dw_i3c_master {
@@ -603,7 +603,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 		ret = dw_i2c_clk_cfg(master);
 		if (ret)
 			return ret;
-		/* fall through */
+		fallthrough;
 	case I3C_BUS_MODE_PURE:
 		ret = dw_i3c_clk_cfg(master);
 		if (ret)

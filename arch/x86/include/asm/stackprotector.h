@@ -55,8 +55,13 @@
 /*
  * Initialize the stackprotector canary value.
  *
- * NOTE: this must only be called from functions that never return,
+ * NOTE: this must only be called from functions that never return
  * and it must always be inlined.
+ *
+ * In addition, it should be called from a compilation unit for which
+ * stack protector is disabled. Alternatively, the caller should not end
+ * with a function call which gets tail-call optimized as that would
+ * lead to checking a modified canary value.
  */
 static __always_inline void boot_init_stack_canary(void)
 {
@@ -82,6 +87,15 @@ static __always_inline void boot_init_stack_canary(void)
 	this_cpu_write(fixed_percpu_data.stack_canary, canary);
 #else
 	this_cpu_write(stack_canary.canary, canary);
+#endif
+}
+
+static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle)
+{
+#ifdef CONFIG_X86_64
+	per_cpu(fixed_percpu_data.stack_canary, cpu) = idle->stack_canary;
+#else
+	per_cpu(stack_canary.canary, cpu) = idle->stack_canary;
 #endif
 }
 
@@ -112,6 +126,9 @@ static inline void load_stack_canary_segment(void)
 /* dummy boot_init_stack_canary() is defined in linux/stackprotector.h */
 
 static inline void setup_stack_canary_segment(int cpu)
+{ }
+
+static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle)
 { }
 
 static inline void load_stack_canary_segment(void)

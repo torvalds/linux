@@ -113,7 +113,7 @@ We have added 2 new ioctl()s that are specific to the EFI driver:
 
 	Read the current state of the alarm::
 
-		ioctl(d, RTC_WKLAM_RD, &wkt)
+		ioctl(d, RTC_WKALM_RD, &wkt)
 
 	Set the alarm or change its status::
 

@@ -32,6 +32,9 @@ description: |+
     http://infocenter.arm.com/help/topic/com.arm.doc.den0022c/DEN0022C_Power_State_Coordination_Interface.pdf
 
 properties:
+  $nodename:
+    const: psci
+
   compatible:
     oneOf:
       - description:
@@ -66,13 +69,11 @@ properties:
 
   method:
     description: The method of calling the PSCI firmware.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string-array
-      - enum:
-          # SMC #0, with the register assignments specified in this binding.
-          - smc
-          # HVC #0, with the register assignments specified in this binding.
-          - hvc
+    $ref: /schemas/types.yaml#/definitions/string-array
+    enum:
+      - smc
+      # HVC #0, with the register assignments specified in this binding.
+      - hvc
 
   cpu_suspend:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -104,8 +105,8 @@ properties:
 
 patternProperties:
   "^power-domain-":
-    allOf:
-      - $ref: "../power/power-domain.yaml#"
+    $ref: "../power/power-domain.yaml#"
+
     type: object
     description: |
       ARM systems can have multiple cores, sometimes in an hierarchical
@@ -140,6 +141,8 @@ allOf:
       required:
         - cpu_off
         - cpu_on
+
+additionalProperties: false
 
 examples:
   - |+

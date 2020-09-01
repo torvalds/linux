@@ -41,6 +41,15 @@
 #define AMDGPU_MAX_GFX_QUEUES KGD_MAX_QUEUES
 #define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
 
+enum gfx_pipe_priority {
+	AMDGPU_GFX_PIPE_PRIO_NORMAL = 1,
+	AMDGPU_GFX_PIPE_PRIO_HIGH,
+	AMDGPU_GFX_PIPE_PRIO_MAX
+};
+
+#define AMDGPU_GFX_QUEUE_PRIORITY_MINIMUM  0
+#define AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM  15
+
 struct amdgpu_mec {
 	struct amdgpu_bo	*hpd_eop_obj;
 	u64			hpd_eop_gpu_addr;
@@ -94,7 +103,6 @@ struct amdgpu_kiq {
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
 	const struct kiq_pm4_funcs *pmf;
-	uint32_t			reg_val_offs;
 };
 
 /*
@@ -126,6 +134,7 @@ struct gb_addr_config {
 	uint8_t num_banks;
 	uint8_t num_se;
 	uint8_t num_rb_per_se;
+	uint8_t num_pkrs;
 };
 
 struct amdgpu_gfx_config {
@@ -151,6 +160,8 @@ struct amdgpu_gfx_config {
 	unsigned num_gpus;
 	unsigned multi_gpu_tile_size;
 	unsigned mc_arb_ramcfg;
+	unsigned num_banks;
+	unsigned num_ranks;
 	unsigned gb_addr_config;
 	unsigned num_rbs;
 	unsigned gs_vgt_table_depth;
@@ -204,6 +215,7 @@ struct amdgpu_gfx_funcs {
 				 u32 queue, u32 vmid);
 	int (*ras_error_inject)(struct amdgpu_device *adev, void *inject_if);
 	int (*query_ras_error_count) (struct amdgpu_device *adev, void *ras_error_status);
+	void (*reset_ras_error_count) (struct amdgpu_device *adev);
 };
 
 struct sq_work {
@@ -274,12 +286,8 @@ struct amdgpu_gfx {
 	bool				me_fw_write_wait;
 	bool				cp_fw_write_wait;
 	struct amdgpu_ring		gfx_ring[AMDGPU_MAX_GFX_RINGS];
-	struct drm_gpu_scheduler	*gfx_sched[AMDGPU_MAX_GFX_RINGS];
-	uint32_t			num_gfx_sched;
 	unsigned			num_gfx_rings;
 	struct amdgpu_ring		compute_ring[AMDGPU_MAX_COMPUTE_RINGS];
-	struct drm_gpu_scheduler	*compute_sched[AMDGPU_MAX_COMPUTE_RINGS];
-	uint32_t			num_compute_sched;
 	unsigned			num_compute_rings;
 	struct amdgpu_irq_src		eop_irq;
 	struct amdgpu_irq_src		priv_reg_irq;
@@ -357,10 +365,12 @@ void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev);
 
 int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
 				int pipe, int queue);
-void amdgpu_gfx_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
+void amdgpu_queue_mask_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
 				 int *mec, int *pipe, int *queue);
 bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int mec,
 				     int pipe, int queue);
+bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
+					       int queue);
 int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev, int me,
 			       int pipe, int queue);
 void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
@@ -368,6 +378,7 @@ void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
+int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value);
 int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_gfx_ras_fini(struct amdgpu_device *adev);
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,

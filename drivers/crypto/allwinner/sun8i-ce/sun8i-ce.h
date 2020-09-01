@@ -181,12 +181,14 @@ struct sun8i_ce_dev {
 
 /*
  * struct sun8i_cipher_req_ctx - context for a skcipher request
- * @op_dir:	direction (encrypt vs decrypt) for this request
- * @flow:	the flow to use for this request
+ * @op_dir:		direction (encrypt vs decrypt) for this request
+ * @flow:		the flow to use for this request
+ * @fallback_req:	request struct for invoking the fallback skcipher TFM
  */
 struct sun8i_cipher_req_ctx {
 	u32 op_dir;
 	int flow;
+	struct skcipher_request fallback_req;   // keep at the end
 };
 
 /*
@@ -202,7 +204,7 @@ struct sun8i_cipher_tfm_ctx {
 	u32 *key;
 	u32 keylen;
 	struct sun8i_ce_dev *ce;
-	struct crypto_sync_skcipher *fallback_tfm;
+	struct crypto_skcipher *fallback_tfm;
 };
 
 /*
@@ -214,7 +216,7 @@ struct sun8i_cipher_tfm_ctx {
  *			this template
  * @alg:		one of sub struct must be used
  * @stat_req:		number of request done on this template
- * @stat_fb:		total of all data len done on this template
+ * @stat_fb:		number of request which has fallbacked
  */
 struct sun8i_ce_alg_template {
 	u32 type;

@@ -381,7 +381,7 @@
 			interrupts = <1 13 0xf01>;
 		};
 
-		l2: l2-cache {
+		l2: cache-controller {
 			compatible = "arm,pl310-cache";
 			reg = <0x00a10000 0x100000>;
 			interrupts = <0 15 4>;

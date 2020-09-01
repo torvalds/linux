@@ -44,19 +44,20 @@
  *   in the system, for instance when the memory is restricted with
  *   ``mem=`` command line parameter
  * * ``reserved`` - describes the regions that were allocated
- * * ``physmap`` - describes the actual physical memory regardless of
- *   the possible restrictions; the ``physmap`` type is only available
- *   on some architectures.
+ * * ``physmem`` - describes the actual physical memory available during
+ *   boot regardless of the possible restrictions and memory hot(un)plug;
+ *   the ``physmem`` type is only available on some architectures.
  *
  * Each region is represented by :c:type:`struct memblock_region` that
  * defines the region extents, its attributes and NUMA node id on NUMA
  * systems. Every memory type is described by the :c:type:`struct
  * memblock_type` which contains an array of memory regions along with
- * the allocator metadata. The memory types are nicely wrapped with
- * :c:type:`struct memblock`. This structure is statically initialzed
- * at build time. The region arrays for the "memory" and "reserved"
- * types are initially sized to %INIT_MEMBLOCK_REGIONS and for the
- * "physmap" type to %INIT_PHYSMEM_REGIONS.
+ * the allocator metadata. The "memory" and "reserved" types are nicely
+ * wrapped with :c:type:`struct memblock`. This structure is statically
+ * initialized at build time. The region arrays are initially sized to
+ * %INIT_MEMBLOCK_REGIONS for "memory" and %INIT_MEMBLOCK_RESERVED_REGIONS
+ * for "reserved". The region array for "physmem" is initially sized to
+ * %INIT_PHYSMEM_REGIONS.
  * The memblock_allow_resize() enables automatic resizing of the region
  * arrays during addition of new regions. This feature should be used
  * with care so that memory allocated for the region array will not
@@ -78,7 +79,7 @@
  * * memblock_alloc*() - these functions return the **virtual** address
  *   of the allocated memory.
  *
- * Note, that both API variants use implict assumptions about allowed
+ * Note, that both API variants use implicit assumptions about allowed
  * memory ranges and the fallback methods. Consult the documentation
  * of memblock_alloc_internal() and memblock_alloc_range_nid()
  * functions for more elaborate description.
@@ -87,8 +88,8 @@
  * function frees all the memory to the buddy page allocator.
  *
  * Unless an architecture enables %CONFIG_ARCH_KEEP_MEMBLOCK, the
- * memblock data structures will be discarded after the system
- * initialization completes.
+ * memblock data structures (except "physmem") will be discarded after the
+ * system initialization completes.
  */
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -104,7 +105,7 @@ unsigned long long max_possible_pfn;
 static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
 static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_RESERVED_REGIONS] __initdata_memblock;
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS] __initdata_memblock;
+static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS];
 #endif
 
 struct memblock memblock __initdata_memblock = {
@@ -118,16 +119,18 @@ struct memblock memblock __initdata_memblock = {
 	.reserved.max		= INIT_MEMBLOCK_RESERVED_REGIONS,
 	.reserved.name		= "reserved",
 
-#ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-	.physmem.regions	= memblock_physmem_init_regions,
-	.physmem.cnt		= 1,	/* empty dummy entry */
-	.physmem.max		= INIT_PHYSMEM_REGIONS,
-	.physmem.name		= "physmem",
-#endif
-
 	.bottom_up		= false,
 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
 };
+
+#ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
+struct memblock_type physmem = {
+	.regions		= memblock_physmem_init_regions,
+	.cnt			= 1,	/* empty dummy entry */
+	.max			= INIT_PHYSMEM_REGIONS,
+	.name			= "physmem",
+};
+#endif
 
 int memblock_debug __initdata_memblock;
 static bool system_has_some_mirror __initdata_memblock = false;
@@ -620,7 +623,7 @@ repeat:
 		 * area, insert that portion.
 		 */
 		if (rbase > base) {
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 			WARN_ON(nid != memblock_get_region_node(rgn));
 #endif
 			WARN_ON(flags != rgn->flags);
@@ -838,7 +841,7 @@ int __init_memblock memblock_physmem_add(phys_addr_t base, phys_addr_t size)
 	memblock_dbg("%s: [%pa-%pa] %pS\n", __func__,
 		     &base, &end, (void *)_RET_IP_);
 
-	return memblock_add_range(&memblock.physmem, base, size, MAX_NUMNODES, 0);
+	return memblock_add_range(&physmem, base, size, MAX_NUMNODES, 0);
 }
 #endif
 
@@ -1019,12 +1022,10 @@ static bool should_skip_region(struct memblock_region *m, int nid, int flags)
  * As both region arrays are sorted, the function advances the two indices
  * in lockstep and returns each intersection.
  */
-void __init_memblock __next_mem_range(u64 *idx, int nid,
-				      enum memblock_flags flags,
-				      struct memblock_type *type_a,
-				      struct memblock_type *type_b,
-				      phys_addr_t *out_start,
-				      phys_addr_t *out_end, int *out_nid)
+void __next_mem_range(u64 *idx, int nid, enum memblock_flags flags,
+		      struct memblock_type *type_a,
+		      struct memblock_type *type_b, phys_addr_t *out_start,
+		      phys_addr_t *out_end, int *out_nid)
 {
 	int idx_a = *idx & 0xffffffff;
 	int idx_b = *idx >> 32;
@@ -1197,7 +1198,6 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 	*idx = ULLONG_MAX;
 }
 
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 /*
  * Common iterator interface used to define for_each_mem_pfn_range().
  */
@@ -1207,13 +1207,15 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 {
 	struct memblock_type *type = &memblock.memory;
 	struct memblock_region *r;
+	int r_nid;
 
 	while (++*idx < type->cnt) {
 		r = &type->regions[*idx];
+		r_nid = memblock_get_region_node(r);
 
 		if (PFN_UP(r->base) >= PFN_DOWN(r->base + r->size))
 			continue;
-		if (nid == MAX_NUMNODES || nid == r->nid)
+		if (nid == MAX_NUMNODES || nid == r_nid)
 			break;
 	}
 	if (*idx >= type->cnt) {
@@ -1226,7 +1228,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 	if (out_end_pfn)
 		*out_end_pfn = PFN_DOWN(r->base + r->size);
 	if (out_nid)
-		*out_nid = r->nid;
+		*out_nid = r_nid;
 }
 
 /**
@@ -1245,6 +1247,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
 				      struct memblock_type *type, int nid)
 {
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	int start_rgn, end_rgn;
 	int i, ret;
 
@@ -1256,9 +1259,10 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
 		memblock_set_region_node(&type->regions[i], nid);
 
 	memblock_merge_regions(type);
+#endif
 	return 0;
 }
-#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 /**
  * __next_mem_pfn_range_in_zone - iterator for for_each_*_range_in_zone()
@@ -1349,7 +1353,7 @@ __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
  * Return:
  * Physical address of allocated memory block on success, %0 on failure.
  */
-static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
+phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 					phys_addr_t align, phys_addr_t start,
 					phys_addr_t end, int nid,
 					bool exact_nid)
@@ -1698,7 +1702,7 @@ static phys_addr_t __init_memblock __find_max_addr(phys_addr_t limit)
 
 void __init memblock_enforce_memory_limit(phys_addr_t limit)
 {
-	phys_addr_t max_addr = PHYS_ADDR_MAX;
+	phys_addr_t max_addr;
 
 	if (!limit)
 		return;
@@ -1797,7 +1801,6 @@ bool __init_memblock memblock_is_map_memory(phys_addr_t addr)
 	return !memblock_is_nomap(&memblock.memory.regions[i]);
 }
 
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
 			 unsigned long *start_pfn, unsigned long *end_pfn)
 {
@@ -1810,9 +1813,8 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
 	*start_pfn = PFN_DOWN(type->regions[mid].base);
 	*end_pfn = PFN_DOWN(type->regions[mid].base + type->regions[mid].size);
 
-	return type->regions[mid].nid;
+	return memblock_get_region_node(&type->regions[mid]);
 }
-#endif
 
 /**
  * memblock_is_region_memory - check if a region is a subset of memory
@@ -1903,7 +1905,7 @@ static void __init_memblock memblock_dump(struct memblock_type *type)
 		size = rgn->size;
 		end = base + size - 1;
 		flags = rgn->flags;
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
 				 memblock_get_region_node(rgn));
@@ -1923,7 +1925,7 @@ void __init_memblock __memblock_dump_all(void)
 	memblock_dump(&memblock.memory);
 	memblock_dump(&memblock.reserved);
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-	memblock_dump(&memblock.physmem);
+	memblock_dump(&physmem);
 #endif
 }
 
@@ -2063,8 +2065,8 @@ static int __init memblock_init_debugfs(void)
 	debugfs_create_file("reserved", 0444, root,
 			    &memblock.reserved, &memblock_debug_fops);
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-	debugfs_create_file("physmem", 0444, root,
-			    &memblock.physmem, &memblock_debug_fops);
+	debugfs_create_file("physmem", 0444, root, &physmem,
+			    &memblock_debug_fops);
 #endif
 
 	return 0;

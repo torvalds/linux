@@ -80,15 +80,10 @@ struct ksz_device {
 	struct vlan_table *vlan_cache;
 
 	struct ksz_port *ports;
-	struct timer_list mib_read_timer;
-	struct work_struct mib_read;
+	struct delayed_work mib_read;
 	unsigned long mib_read_interval;
 	u16 br_member;
 	u16 member;
-	u16 live_ports;
-	u16 on_ports;			/* ports enabled by DSA */
-	u16 rx_ports;
-	u16 tx_ports;
 	u16 mirror_rx;
 	u16 mirror_tx;
 	u32 features;			/* chip specific features */
@@ -120,8 +115,6 @@ struct ksz_dev_ops {
 	u32 (*get_port_addr)(int port, int offset);
 	void (*cfg_port_member)(struct ksz_device *dev, int port, u8 member);
 	void (*flush_dyn_mac_table)(struct ksz_device *dev, int port);
-	void (*phy_setup)(struct ksz_device *dev, int port,
-			  struct phy_device *phy);
 	void (*port_cleanup)(struct ksz_device *dev, int port);
 	void (*port_setup)(struct ksz_device *dev, int port, bool cpu_port);
 	void (*r_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
@@ -160,8 +153,8 @@ void ksz_init_mib_timer(struct ksz_device *dev);
 
 int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg);
 int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val);
-void ksz_adjust_link(struct dsa_switch *ds, int port,
-		     struct phy_device *phydev);
+void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+		       phy_interface_t interface);
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset);
 void ksz_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *buf);
 int ksz_port_bridge_join(struct dsa_switch *ds, int port,
@@ -180,7 +173,6 @@ void ksz_port_mdb_add(struct dsa_switch *ds, int port,
 int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_mdb *mdb);
 int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
-void ksz_disable_port(struct dsa_switch *ds, int port);
 
 /* Common register access functions */
 

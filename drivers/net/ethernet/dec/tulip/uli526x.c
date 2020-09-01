@@ -7,8 +7,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"uli526x"
-#define DRV_VERSION	"0.9.3"
-#define DRV_RELDATE	"2005-7-29"
 
 #include <linux/module.h>
 
@@ -196,10 +194,6 @@ enum uli526x_CR6_bits {
 };
 
 /* Global variable declaration ----------------------------- */
-static int printed_version;
-static const char version[] =
-	"ULi M5261/M5263 net driver, version " DRV_VERSION " (" DRV_RELDATE ")";
-
 static int uli526x_debug;
 static unsigned char uli526x_media_mode = ULI526X_AUTO;
 static u32 uli526x_cr6_user_set;
@@ -281,9 +275,6 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	int i, err;
 
 	ULI526X_DBUG(0, "uli526x_init_one()", 0);
-
-	if (!printed_version++)
-		pr_info("%s\n", version);
 
 	/* Init network device */
 	dev = alloc_etherdev(sizeof(*db));
@@ -972,7 +963,6 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	struct uli526x_board_info *np = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pdev), sizeof(info->bus_info));
 }
 
@@ -1173,22 +1163,15 @@ static void uli526x_dynamic_reset(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-
-#ifdef CONFIG_PM
-
 /*
  *	Suspend the interface.
  */
 
-static int uli526x_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused uli526x_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	pci_power_t power_state;
-	int err;
+	struct net_device *dev = dev_get_drvdata(dev_d);
 
 	ULI526X_DBUG(0, "uli526x_suspend", 0);
-
-	pci_save_state(pdev);
 
 	if (!netif_running(dev))
 		return 0;
@@ -1196,41 +1179,24 @@ static int uli526x_suspend(struct pci_dev *pdev, pm_message_t state)
 	netif_device_detach(dev);
 	uli526x_reset_prepare(dev);
 
-	power_state = pci_choose_state(pdev, state);
-	pci_enable_wake(pdev, power_state, 0);
-	err = pci_set_power_state(pdev, power_state);
-	if (err) {
-		netif_device_attach(dev);
-		/* Re-initialize ULI526X board */
-		uli526x_init(dev);
-		/* Restart upper layer interface */
-		netif_wake_queue(dev);
-	}
+	device_set_wakeup_enable(dev_d, 0);
 
-	return err;
+	return 0;
 }
 
 /*
  *	Resume the interface.
  */
 
-static int uli526x_resume(struct pci_dev *pdev)
+static int __maybe_unused uli526x_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	int err;
+	struct net_device *dev = dev_get_drvdata(dev_d);
 
 	ULI526X_DBUG(0, "uli526x_resume", 0);
 
-	pci_restore_state(pdev);
 
 	if (!netif_running(dev))
 		return 0;
-
-	err = pci_set_power_state(pdev, PCI_D0);
-	if (err) {
-		netdev_warn(dev, "Could not put device into D0\n");
-		return err;
-	}
 
 	netif_device_attach(dev);
 	/* Re-initialize ULI526X board */
@@ -1240,14 +1206,6 @@ static int uli526x_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-
-#else /* !CONFIG_PM */
-
-#define uli526x_suspend	NULL
-#define uli526x_resume	NULL
-
-#endif /* !CONFIG_PM */
-
 
 /*
  *	free all allocated rx buffer
@@ -1771,14 +1729,14 @@ static const struct pci_device_id uli526x_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, uli526x_pci_tbl);
 
+static SIMPLE_DEV_PM_OPS(uli526x_pm_ops, uli526x_suspend, uli526x_resume);
 
 static struct pci_driver uli526x_driver = {
 	.name		= "uli526x",
 	.id_table	= uli526x_pci_tbl,
 	.probe		= uli526x_init_one,
 	.remove		= uli526x_remove_one,
-	.suspend	= uli526x_suspend,
-	.resume		= uli526x_resume,
+	.driver.pm	= &uli526x_pm_ops,
 };
 
 MODULE_AUTHOR("Peer Chen, peer.chen@uli.com.tw");
@@ -1798,9 +1756,6 @@ MODULE_PARM_DESC(mode, "ULi M5261/M5263: Bit 0: 10/100Mbps, bit 2: duplex, bit 8
 
 static int __init uli526x_init_module(void)
 {
-
-	pr_info("%s\n", version);
-	printed_version = 1;
 
 	ULI526X_DBUG(0, "init_module() ", debug);
 

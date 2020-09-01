@@ -6,25 +6,34 @@
 #include <linux/of.h>
 #include <linux/io.h>
 
+struct of_bus;
+
 struct of_pci_range_parser {
 	struct device_node *node;
+	struct of_bus *bus;
 	const __be32 *range;
 	const __be32 *end;
-	int np;
+	int na;
+	int ns;
 	int pna;
 	bool dma;
 };
+#define of_range_parser of_pci_range_parser
 
 struct of_pci_range {
-	u32 pci_space;
-	u64 pci_addr;
+	union {
+		u64 pci_addr;
+		u64 bus_addr;
+	};
 	u64 cpu_addr;
 	u64 size;
 	u32 flags;
 };
+#define of_range of_pci_range
 
 #define for_each_of_pci_range(parser, range) \
 	for (; of_pci_range_parser_one(parser, range);)
+#define for_each_of_range for_each_of_pci_range
 
 /* Translate a DMA address from device space to CPU space */
 extern u64 of_translate_dma_address(struct device_node *dev,
@@ -113,6 +122,7 @@ static inline void __iomem *of_iomap(struct device_node *device, int index)
 	return NULL;
 }
 #endif
+#define of_range_parser_init of_pci_range_parser_init
 
 #if defined(CONFIG_OF_ADDRESS) && defined(CONFIG_PCI)
 extern const __be32 *of_get_pci_address(struct device_node *dev, int bar_no,
@@ -143,4 +153,3 @@ static inline int of_pci_range_to_resource(struct of_pci_range *range,
 #endif /* CONFIG_OF_ADDRESS && CONFIG_PCI */
 
 #endif /* __OF_ADDRESS_H */
-

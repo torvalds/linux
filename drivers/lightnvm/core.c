@@ -236,10 +236,6 @@ err_dev:
 	return tgt_dev;
 }
 
-static const struct block_device_operations nvm_fops = {
-	.owner		= THIS_MODULE,
-};
-
 static struct nvm_tgt_type *__nvm_find_target_type(const char *name)
 {
 	struct nvm_tgt_type *tt;
@@ -380,18 +376,17 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		goto err_dev;
 	}
 
-	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
+	tqueue = blk_alloc_queue(dev->q->node);
 	if (!tqueue) {
 		ret = -ENOMEM;
 		goto err_disk;
 	}
-	blk_queue_make_request(tqueue, tt->make_rq);
 
 	strlcpy(tdisk->disk_name, create->tgtname, sizeof(tdisk->disk_name));
 	tdisk->flags = GENHD_FL_EXT_DEVT;
 	tdisk->major = 0;
 	tdisk->first_minor = 0;
-	tdisk->fops = &nvm_fops;
+	tdisk->fops = tt->bops;
 	tdisk->queue = tqueue;
 
 	targetdata = tt->init(tgt_dev, tdisk, create->flags);

@@ -35,7 +35,7 @@ struct compat_ethtool_rxnfc {
 	compat_u64			data;
 	struct compat_ethtool_rx_flow_spec fs;
 	u32				rule_cnt;
-	u32				rule_locs[0];
+	u32				rule_locs[];
 };
 
 #endif /* CONFIG_COMPAT */
@@ -85,6 +85,22 @@ struct net_device;
 /* Some generic methods drivers may use in their ethtool_ops */
 u32 ethtool_op_get_link(struct net_device *dev);
 int ethtool_op_get_ts_info(struct net_device *dev, struct ethtool_ts_info *eti);
+
+
+/**
+ * struct ethtool_link_ext_state_info - link extended state and substate.
+ */
+struct ethtool_link_ext_state_info {
+	enum ethtool_link_ext_state link_ext_state;
+	union {
+		enum ethtool_link_ext_substate_autoneg autoneg;
+		enum ethtool_link_ext_substate_link_training link_training;
+		enum ethtool_link_ext_substate_link_logical_mismatch link_logical_mismatch;
+		enum ethtool_link_ext_substate_bad_signal_integrity bad_signal_integrity;
+		enum ethtool_link_ext_substate_cable_issue cable_issue;
+		u8 __link_ext_substate;
+	};
+};
 
 /**
  * ethtool_rxfh_indir_default - get default value for RX flow hash indirection
@@ -177,8 +193,57 @@ void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
 bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 				     const unsigned long *src);
 
+#define ETHTOOL_COALESCE_RX_USECS		BIT(0)
+#define ETHTOOL_COALESCE_RX_MAX_FRAMES		BIT(1)
+#define ETHTOOL_COALESCE_RX_USECS_IRQ		BIT(2)
+#define ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ	BIT(3)
+#define ETHTOOL_COALESCE_TX_USECS		BIT(4)
+#define ETHTOOL_COALESCE_TX_MAX_FRAMES		BIT(5)
+#define ETHTOOL_COALESCE_TX_USECS_IRQ		BIT(6)
+#define ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ	BIT(7)
+#define ETHTOOL_COALESCE_STATS_BLOCK_USECS	BIT(8)
+#define ETHTOOL_COALESCE_USE_ADAPTIVE_RX	BIT(9)
+#define ETHTOOL_COALESCE_USE_ADAPTIVE_TX	BIT(10)
+#define ETHTOOL_COALESCE_PKT_RATE_LOW		BIT(11)
+#define ETHTOOL_COALESCE_RX_USECS_LOW		BIT(12)
+#define ETHTOOL_COALESCE_RX_MAX_FRAMES_LOW	BIT(13)
+#define ETHTOOL_COALESCE_TX_USECS_LOW		BIT(14)
+#define ETHTOOL_COALESCE_TX_MAX_FRAMES_LOW	BIT(15)
+#define ETHTOOL_COALESCE_PKT_RATE_HIGH		BIT(16)
+#define ETHTOOL_COALESCE_RX_USECS_HIGH		BIT(17)
+#define ETHTOOL_COALESCE_RX_MAX_FRAMES_HIGH	BIT(18)
+#define ETHTOOL_COALESCE_TX_USECS_HIGH		BIT(19)
+#define ETHTOOL_COALESCE_TX_MAX_FRAMES_HIGH	BIT(20)
+#define ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL	BIT(21)
+
+#define ETHTOOL_COALESCE_USECS						\
+	(ETHTOOL_COALESCE_RX_USECS | ETHTOOL_COALESCE_TX_USECS)
+#define ETHTOOL_COALESCE_MAX_FRAMES					\
+	(ETHTOOL_COALESCE_RX_MAX_FRAMES | ETHTOOL_COALESCE_TX_MAX_FRAMES)
+#define ETHTOOL_COALESCE_USECS_IRQ					\
+	(ETHTOOL_COALESCE_RX_USECS_IRQ | ETHTOOL_COALESCE_TX_USECS_IRQ)
+#define ETHTOOL_COALESCE_MAX_FRAMES_IRQ		\
+	(ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ |	\
+	 ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ)
+#define ETHTOOL_COALESCE_USE_ADAPTIVE					\
+	(ETHTOOL_COALESCE_USE_ADAPTIVE_RX | ETHTOOL_COALESCE_USE_ADAPTIVE_TX)
+#define ETHTOOL_COALESCE_USECS_LOW_HIGH					\
+	(ETHTOOL_COALESCE_RX_USECS_LOW | ETHTOOL_COALESCE_TX_USECS_LOW | \
+	 ETHTOOL_COALESCE_RX_USECS_HIGH | ETHTOOL_COALESCE_TX_USECS_HIGH)
+#define ETHTOOL_COALESCE_MAX_FRAMES_LOW_HIGH	\
+	(ETHTOOL_COALESCE_RX_MAX_FRAMES_LOW |	\
+	 ETHTOOL_COALESCE_TX_MAX_FRAMES_LOW |	\
+	 ETHTOOL_COALESCE_RX_MAX_FRAMES_HIGH |	\
+	 ETHTOOL_COALESCE_TX_MAX_FRAMES_HIGH)
+#define ETHTOOL_COALESCE_PKT_RATE_RX_USECS				\
+	(ETHTOOL_COALESCE_USE_ADAPTIVE_RX |				\
+	 ETHTOOL_COALESCE_RX_USECS_LOW | ETHTOOL_COALESCE_RX_USECS_HIGH | \
+	 ETHTOOL_COALESCE_PKT_RATE_LOW | ETHTOOL_COALESCE_PKT_RATE_HIGH | \
+	 ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL)
+
 /**
  * struct ethtool_ops - optional netdev operations
+ * @supported_coalesce_params: supported types of interrupt coalescing.
  * @get_drvinfo: Report driver/device information.  Should only set the
  *	@driver, @version, @fw_version and @bus_info fields.  If not
  *	implemented, the @driver and @bus_info fields will be filled in
@@ -196,6 +261,11 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  * @get_link: Report whether physical link is up.  Will only be called if
  *	the netdev is up.  Should usually be set to ethtool_op_get_link(),
  *	which uses netif_carrier_ok().
+ * @get_link_ext_state: Report link extended state. Should set link_ext_state and
+ *	link_ext_substate (link_ext_substate of 0 means link_ext_substate is unknown,
+ *	do not attach ext_substate attribute to netlink message). If link_ext_state
+ *	and link_ext_substate are unknown, return -ENODATA. If not implemented,
+ *	link_ext_state and link_ext_substate will not be sent to userspace.
  * @get_eeprom: Read data from the device EEPROM.
  *	Should fill in the magic field.  Don't need to check len for zero
  *	or wraparound.  Fill in the data argument with the eeprom values
@@ -207,8 +277,9 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  *	or zero.
  * @get_coalesce: Get interrupt coalescing parameters.  Returns a negative
  *	error code or zero.
- * @set_coalesce: Set interrupt coalescing parameters.  Returns a negative
- *	error code or zero.
+ * @set_coalesce: Set interrupt coalescing parameters.  Supported coalescing
+ *	types should be set in @supported_coalesce_params.
+ *	Returns a negative error code or zero.
  * @get_ringparam: Report ring sizes
  * @set_ringparam: Set ring sizes.  Returns a negative error code or zero.
  * @get_pauseparam: Report pause parameters
@@ -292,7 +363,8 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  * @set_per_queue_coalesce: Set interrupt coalescing parameters per queue.
  *	It must check that the given queue number is valid. If neither a RX nor
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
- *	queue has this number, ignore the inapplicable fields.
+ *	queue has this number, ignore the inapplicable fields. Supported
+ *	coalescing types should be set in @supported_coalesce_params.
  *	Returns a negative error code or zero.
  * @get_link_ksettings: Get various device settings including Ethernet link
  *	settings. The %cmd and %link_mode_masks_nwords fields should be
@@ -323,6 +395,7 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  * of the generic netdev features interface.
  */
 struct ethtool_ops {
+	u32	supported_coalesce_params;
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
 	int	(*get_regs_len)(struct net_device *);
 	void	(*get_regs)(struct net_device *, struct ethtool_regs *, void *);
@@ -332,6 +405,8 @@ struct ethtool_ops {
 	void	(*set_msglevel)(struct net_device *, u32);
 	int	(*nway_reset)(struct net_device *);
 	u32	(*get_link)(struct net_device *);
+	int	(*get_link_ext_state)(struct net_device *,
+				      struct ethtool_link_ext_state_info *);
 	int	(*get_eeprom_len)(struct net_device *);
 	int	(*get_eeprom)(struct net_device *,
 			      struct ethtool_eeprom *, u8 *);
@@ -406,9 +481,11 @@ struct ethtool_ops {
 					 struct ethtool_stats *, u64 *);
 };
 
+int ethtool_check_ops(const struct ethtool_ops *ops);
+
 struct ethtool_rx_flow_rule {
 	struct flow_rule	*rule;
-	unsigned long		priv[0];
+	unsigned long		priv[];
 };
 
 struct ethtool_rx_flow_spec_input {
@@ -419,5 +496,43 @@ struct ethtool_rx_flow_spec_input {
 struct ethtool_rx_flow_rule *
 ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input);
 void ethtool_rx_flow_rule_destroy(struct ethtool_rx_flow_rule *rule);
+
+bool ethtool_virtdev_validate_cmd(const struct ethtool_link_ksettings *cmd);
+int ethtool_virtdev_set_link_ksettings(struct net_device *dev,
+				       const struct ethtool_link_ksettings *cmd,
+				       u32 *dev_speed, u8 *dev_duplex);
+
+struct netlink_ext_ack;
+struct phy_device;
+struct phy_tdr_config;
+
+/**
+ * struct ethtool_phy_ops - Optional PHY device options
+ * @get_sset_count: Get number of strings that @get_strings will write.
+ * @get_strings: Return a set of strings that describe the requested objects
+ * @get_stats: Return extended statistics about the PHY device.
+ * @start_cable_test - Start a cable test
+ * @start_cable_test_tdr - Start a Time Domain Reflectometry cable test
+ *
+ * All operations are optional (i.e. the function pointer may be set to %NULL)
+ * and callers must take this into account. Callers must hold the RTNL lock.
+ */
+struct ethtool_phy_ops {
+	int (*get_sset_count)(struct phy_device *dev);
+	int (*get_strings)(struct phy_device *dev, u8 *data);
+	int (*get_stats)(struct phy_device *dev,
+			 struct ethtool_stats *stats, u64 *data);
+	int (*start_cable_test)(struct phy_device *phydev,
+				struct netlink_ext_ack *extack);
+	int (*start_cable_test_tdr)(struct phy_device *phydev,
+				    struct netlink_ext_ack *extack,
+				    const struct phy_tdr_config *config);
+};
+
+/**
+ * ethtool_set_ethtool_phy_ops - Set the ethtool_phy_ops singleton
+ * @ops: Ethtool PHY operations to set
+ */
+void ethtool_set_ethtool_phy_ops(const struct ethtool_phy_ops *ops);
 
 #endif /* _LINUX_ETHTOOL_H */

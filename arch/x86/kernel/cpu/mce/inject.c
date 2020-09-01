@@ -146,9 +146,9 @@ static void raise_exception(struct mce *m, struct pt_regs *pregs)
 		regs.cs = m->cs;
 		pregs = &regs;
 	}
-	/* in mcheck exeception handler, irq will be disabled */
+	/* do_machine_check() expects interrupts disabled -- at least */
 	local_irq_save(flags);
-	do_machine_check(pregs, 0);
+	do_machine_check(pregs);
 	local_irq_restore(flags);
 	m->finished = 0;
 }
@@ -199,7 +199,7 @@ static int raise_local(void)
 			 * calling irq_enter, but the necessary
 			 * machinery isn't exported currently.
 			 */
-			/*FALL THROUGH*/
+			fallthrough;
 		case MCJ_CTX_PROCESS:
 			raise_exception(m, NULL);
 			break;
@@ -511,7 +511,7 @@ static void do_inject(void)
 	 */
 	if (inj_type == DFR_INT_INJ) {
 		i_mce.status |= MCI_STATUS_DEFERRED;
-		i_mce.status |= (i_mce.status & ~MCI_STATUS_UC);
+		i_mce.status &= ~MCI_STATUS_UC;
 	}
 
 	/*

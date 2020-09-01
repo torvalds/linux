@@ -5116,12 +5116,12 @@ static int dsi_init_output(struct dsi_data *dsi)
 	out->dispc_channel = dsi_get_channel(dsi);
 	out->ops = &dsi_ops;
 	out->owner = THIS_MODULE;
-	out->of_ports = BIT(0);
+	out->of_port = 0;
 	out->bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE
 		       | DRM_BUS_FLAG_DE_HIGH
 		       | DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE;
 
-	r = omapdss_device_init_output(out);
+	r = omapdss_device_init_output(out, NULL);
 	if (r < 0)
 		return r;
 
@@ -5467,6 +5467,7 @@ static int dsi_runtime_resume(struct device *dev)
 static const struct dev_pm_ops dsi_pm_ops = {
 	.runtime_suspend = dsi_runtime_suspend,
 	.runtime_resume = dsi_runtime_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 struct platform_driver omap_dsihw_driver = {

@@ -209,7 +209,7 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 					    NFP_FL_OUT_FLAGS_USE_TUN);
 		output->port = cpu_to_be32(NFP_FL_PORT_TYPE_TUN | tun_type);
 	} else if (netif_is_lag_master(out_dev) &&
-		   priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+		   priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		int gid;
 
 		output->flags = cpu_to_be16(tmp_flags);
@@ -297,7 +297,7 @@ nfp_fl_get_tun_from_act(struct nfp_app *app,
 	case htons(GENEVE_UDP_PORT):
 		if (priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)
 			return NFP_FL_TUNNEL_GENEVE;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		return NFP_FL_TUNNEL_NONE;
 	}
@@ -956,7 +956,7 @@ nfp_flower_output_action(struct nfp_app *app,
 
 	*a_len += sizeof(struct nfp_fl_output);
 
-	if (priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+	if (priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		/* nfp_fl_pre_lag returns -err or size of prelag action added.
 		 * This will be 0 if it is not egressing to a lag dev.
 		 */
@@ -1206,6 +1206,10 @@ int nfp_flower_compile_action(struct nfp_app *app,
 	struct flow_action_entry *act;
 	bool pkt_host = false;
 	u32 csum_updated = 0;
+
+	if (!flow_action_hw_stats_check(&flow->rule->action, extack,
+					FLOW_ACTION_HW_STATS_DELAYED_BIT))
+		return -EOPNOTSUPP;
 
 	memset(nfp_flow->action_data, 0, NFP_FL_MAX_A_SIZ);
 	nfp_flow->meta.act_len = 0;

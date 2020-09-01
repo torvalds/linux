@@ -509,7 +509,7 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 	nfs4_init_seqid_counter(&sp->so_seqid);
 	atomic_set(&sp->so_count, 1);
 	INIT_LIST_HEAD(&sp->so_lru);
-	seqcount_init(&sp->so_reclaim_seqcount);
+	seqcount_spinlock_init(&sp->so_reclaim_seqcount, &sp->so_lock);
 	mutex_init(&sp->so_delegreturn_mutex);
 	return sp;
 }
@@ -734,9 +734,9 @@ nfs4_get_open_state(struct inode *inode, struct nfs4_state_owner *owner)
 		state = new;
 		state->owner = owner;
 		atomic_inc(&owner->so_count);
-		list_add_rcu(&state->inode_states, &nfsi->open_states);
 		ihold(inode);
 		state->inode = inode;
+		list_add_rcu(&state->inode_states, &nfsi->open_states);
 		spin_unlock(&inode->i_lock);
 		/* Note: The reclaim code dictates that we add stateless
 		 * and read-only stateids to the end of the list */
@@ -1530,7 +1530,7 @@ restart:
 		default:
 			pr_err("NFS: %s: unhandled error %d\n",
 					__func__, status);
-			/* Fall through */
+			fallthrough;
 		case -ENOMEM:
 		case -NFS4ERR_DENIED:
 		case -NFS4ERR_RECLAIM_BAD:
@@ -1667,7 +1667,7 @@ restart:
 				break;
 			}
 			printk(KERN_ERR "NFS: %s: unhandled error %d\n", __func__, status);
-			/* Fall through */
+			fallthrough;
 		case -ENOENT:
 		case -ENOMEM:
 		case -EACCES:
@@ -1683,7 +1683,7 @@ restart:
 				set_bit(ops->state_flag_bit, &state->flags);
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_OLD_STATEID:
@@ -1695,7 +1695,7 @@ restart:
 		case -NFS4ERR_EXPIRED:
 		case -NFS4ERR_NO_GRACE:
 			nfs4_state_mark_reclaim_nograce(sp->so_server->nfs_client, state);
-			/* Fall through */
+			fallthrough;
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_BADSESSION:
 		case -NFS4ERR_BADSLOT:
@@ -2273,11 +2273,11 @@ again:
 	case -ETIMEDOUT:
 		if (clnt->cl_softrtry)
 			break;
-		/* Fall through */
+		fallthrough;
 	case -NFS4ERR_DELAY:
 	case -EAGAIN:
 		ssleep(1);
-		/* Fall through */
+		fallthrough;
 	case -NFS4ERR_STALE_CLIENTID:
 		dprintk("NFS: %s after status %d, retrying\n",
 			__func__, status);
@@ -2289,7 +2289,7 @@ again:
 		}
 		if (clnt->cl_auth->au_flavor == RPC_AUTH_UNIX)
 			break;
-		/* Fall through */
+		fallthrough;
 	case -NFS4ERR_CLID_INUSE:
 	case -NFS4ERR_WRONGSEC:
 		/* No point in retrying if we already used RPC_AUTH_UNIX */
@@ -2524,12 +2524,31 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 	}
 	return 0;
 }
+
+static void nfs4_layoutreturn_any_run(struct nfs_client *clp)
+{
+	int iomode = 0;
+
+	if (test_and_clear_bit(NFS4CLNT_RECALL_ANY_LAYOUT_READ, &clp->cl_state))
+		iomode += IOMODE_READ;
+	if (test_and_clear_bit(NFS4CLNT_RECALL_ANY_LAYOUT_RW, &clp->cl_state))
+		iomode += IOMODE_RW;
+	/* Note: IOMODE_READ + IOMODE_RW == IOMODE_ANY */
+	if (iomode) {
+		pnfs_layout_return_unused_byclid(clp, iomode);
+		set_bit(NFS4CLNT_RUN_MANAGER, &clp->cl_state);
+	}
+}
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
 
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
 	return 0;
+}
+
+static void nfs4_layoutreturn_any_run(struct nfs_client *clp)
+{
 }
 #endif /* CONFIG_NFS_V4_1 */
 
@@ -2635,12 +2654,13 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		nfs4_end_drain_session(clp);
 		nfs4_clear_state_manager_bit(clp);
 
-		if (!test_and_set_bit(NFS4CLNT_DELEGRETURN_RUNNING, &clp->cl_state)) {
+		if (!test_and_set_bit(NFS4CLNT_RECALL_RUNNING, &clp->cl_state)) {
 			if (test_and_clear_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state)) {
 				nfs_client_return_marked_delegations(clp);
 				set_bit(NFS4CLNT_RUN_MANAGER, &clp->cl_state);
 			}
-			clear_bit(NFS4CLNT_DELEGRETURN_RUNNING, &clp->cl_state);
+			nfs4_layoutreturn_any_run(clp);
+			clear_bit(NFS4CLNT_RECALL_RUNNING, &clp->cl_state);
 		}
 
 		/* Did we race with an attempt to give us more work? */

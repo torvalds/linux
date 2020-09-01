@@ -372,3 +372,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("limit");
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_LIMIT);
+MODULE_DESCRIPTION("nftables limit expression support");

@@ -431,8 +431,8 @@
 			snps,perfect-filter-entries = <128>;
 			tx-fifo-depth = <4096>;
 			rx-fifo-depth = <16384>;
-			clocks = <&l4_mp_clk>;
-			clock-names = "stmmaceth";
+			clocks = <&l4_mp_clk>, <&peri_emac_ptp_clk>;
+			clock-names = "stmmaceth", "ptp_ref";
 			resets = <&rst EMAC0_RESET>, <&rst EMAC0_OCP_RESET>;
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			snps,axi-config = <&socfpga_axi_setup>;
@@ -451,8 +451,8 @@
 			snps,perfect-filter-entries = <128>;
 			tx-fifo-depth = <4096>;
 			rx-fifo-depth = <16384>;
-			clocks = <&l4_mp_clk>;
-			clock-names = "stmmaceth";
+			clocks = <&l4_mp_clk>, <&peri_emac_ptp_clk>;
+			clock-names = "stmmaceth", "ptp_ref";
 			resets = <&rst EMAC1_RESET>, <&rst EMAC1_OCP_RESET>;
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			snps,axi-config = <&socfpga_axi_setup>;
@@ -471,8 +471,8 @@
 			snps,perfect-filter-entries = <128>;
 			tx-fifo-depth = <4096>;
 			rx-fifo-depth = <16384>;
-			clocks = <&l4_mp_clk>;
-			clock-names = "stmmaceth";
+			clocks = <&l4_mp_clk>, <&peri_emac_ptp_clk>;
+			clock-names = "stmmaceth", "ptp_ref";
 			resets = <&rst EMAC2_RESET>, <&rst EMAC2_OCP_RESET>;
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			snps,axi-config = <&socfpga_axi_setup>;
@@ -613,6 +613,7 @@
 			/*32bit_access;*/
 			clocks = <&spi_m_clk>;
 			resets = <&rst SPIM0_RESET>;
+			reset-names = "spi";
 			status = "disabled";
 		};
 
@@ -628,6 +629,7 @@
 			rx-dma-channel = <&pdma 17>;
 			clocks = <&spi_m_clk>;
 			resets = <&rst SPIM1_RESET>;
+			reset-names = "spi";
 			status = "disabled";
 		};
 
@@ -636,7 +638,7 @@
 			reg = <0xffcfb100 0x80>;
 		};
 
-		L2: l2-cache@fffff000 {
+		L2: cache-controller@fffff000 {
 			compatible = "arm,pl310-cache";
 			reg = <0xfffff000 0x1000>;
 			interrupts = <0 18 IRQ_TYPE_LEVEL_HIGH>;

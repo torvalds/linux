@@ -243,6 +243,7 @@ done:
 		/* Fall back to a 3 byte encoding */
 		word.bytes = 3;
 		word.word &= 0x00ffffff;
+		fallthrough;
 	case 3:
 		/* 3 byte encoding */
 		word.word |= 0x82000000;

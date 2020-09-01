@@ -192,7 +192,7 @@ static inline union recv_frame *try_alloc_recvframe(struct recv_priv *precvpriv,
 		rtw_enqueue_recvbuf_to_head(precvbuf,
 					    &precvpriv->recv_buf_pending_queue);
 
-		/*  The case of can't allocte recvframe should be temporary, */
+		/*  The case of can't allocate recvframe should be temporary, */
 		/*  schedule again and hope recvframe is available next time. */
 		tasklet_schedule(&precvpriv->recv_tasklet);
 	}
@@ -311,38 +311,20 @@ static void rtl8723bs_recv_tasklet(unsigned long priv)
 				}
 
 				pkt_copy = rtw_skb_alloc(alloc_sz);
-
-				if (pkt_copy) {
-					pkt_copy->dev = padapter->pnetdev;
-					precvframe->u.hdr.pkt = pkt_copy;
-					skb_reserve(pkt_copy, 8 - ((SIZE_PTR)(pkt_copy->data) & 7));/* force pkt_copy->data at 8-byte alignment address */
-					skb_reserve(pkt_copy, shift_sz);/* force ip_hdr at 8-byte alignment address according to shift_sz. */
-					memcpy(pkt_copy->data, (ptr + rx_report_sz + pattrib->shift_sz), skb_len);
-					precvframe->u.hdr.rx_head = pkt_copy->head;
-					precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pkt_copy->data;
-					precvframe->u.hdr.rx_end = skb_end_pointer(pkt_copy);
-				} else {
-					if ((pattrib->mfrag == 1) && (pattrib->frag_num == 0)) {
-						DBG_8192C("%s: alloc_skb fail, drop frag frame\n", __func__);
-						rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
-						break;
-					}
-
-					precvframe->u.hdr.pkt = rtw_skb_clone(precvbuf->pskb);
-					if (precvframe->u.hdr.pkt) {
-						_pkt *pkt_clone = precvframe->u.hdr.pkt;
-
-						pkt_clone->data = ptr + rx_report_sz + pattrib->shift_sz;
-						skb_reset_tail_pointer(pkt_clone);
-						precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail
-							= pkt_clone->data;
-						precvframe->u.hdr.rx_end = pkt_clone->data + skb_len;
-					} else {
-						DBG_8192C("%s: rtw_skb_clone fail\n", __func__);
-						rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
-						break;
-					}
+				if (!pkt_copy) {
+					DBG_8192C("%s: alloc_skb fail, drop frame\n", __func__);
+					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+					break;
 				}
+
+				pkt_copy->dev = padapter->pnetdev;
+				precvframe->u.hdr.pkt = pkt_copy;
+				skb_reserve(pkt_copy, 8 - ((SIZE_PTR)(pkt_copy->data) & 7));/* force pkt_copy->data at 8-byte alignment address */
+				skb_reserve(pkt_copy, shift_sz);/* force ip_hdr at 8-byte alignment address according to shift_sz. */
+				memcpy(pkt_copy->data, (ptr + rx_report_sz + pattrib->shift_sz), skb_len);
+				precvframe->u.hdr.rx_head = pkt_copy->head;
+				precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pkt_copy->data;
+				precvframe->u.hdr.rx_end = skb_end_pointer(pkt_copy);
 
 				recvframe_put(precvframe, skb_len);
 				/* recvframe_pull(precvframe, drvinfo_sz + RXDESC_SIZE); */
@@ -480,10 +462,8 @@ initbuferror:
 		precvpriv->precv_buf = NULL;
 	}
 
-	if (precvpriv->pallocated_recv_buf) {
-		kfree(precvpriv->pallocated_recv_buf);
-		precvpriv->pallocated_recv_buf = NULL;
-	}
+	kfree(precvpriv->pallocated_recv_buf);
+	precvpriv->pallocated_recv_buf = NULL;
 
 exit:
 	return res;
@@ -518,8 +498,6 @@ void rtl8723bs_free_recv_priv(struct adapter *padapter)
 		precvpriv->precv_buf = NULL;
 	}
 
-	if (precvpriv->pallocated_recv_buf) {
-		kfree(precvpriv->pallocated_recv_buf);
-		precvpriv->pallocated_recv_buf = NULL;
-	}
+	kfree(precvpriv->pallocated_recv_buf);
+	precvpriv->pallocated_recv_buf = NULL;
 }

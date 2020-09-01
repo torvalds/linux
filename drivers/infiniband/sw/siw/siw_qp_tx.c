@@ -920,20 +920,27 @@ static int siw_fastreg_mr(struct ib_pd *pd, struct siw_sqe *sqe)
 {
 	struct ib_mr *base_mr = (struct ib_mr *)(uintptr_t)sqe->base_mr;
 	struct siw_device *sdev = to_siw_dev(pd->device);
-	struct siw_mem *mem = siw_mem_id2obj(sdev, sqe->rkey  >> 8);
+	struct siw_mem *mem;
 	int rv = 0;
 
 	siw_dbg_pd(pd, "STag 0x%08x\n", sqe->rkey);
 
-	if (unlikely(!mem || !base_mr)) {
+	if (unlikely(!base_mr)) {
 		pr_warn("siw: fastreg: STag 0x%08x unknown\n", sqe->rkey);
 		return -EINVAL;
 	}
+
 	if (unlikely(base_mr->rkey >> 8 != sqe->rkey  >> 8)) {
 		pr_warn("siw: fastreg: STag 0x%08x: bad MR\n", sqe->rkey);
-		rv = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
+
+	mem = siw_mem_id2obj(sdev, sqe->rkey  >> 8);
+	if (unlikely(!mem)) {
+		pr_warn("siw: fastreg: STag 0x%08x unknown\n", sqe->rkey);
+		return -EINVAL;
+	}
+
 	if (unlikely(mem->pd != pd)) {
 		pr_warn("siw: fastreg: PD mismatch\n");
 		rv = -EINVAL;
@@ -1035,7 +1042,7 @@ next_wqe:
 		case SIW_OP_SEND_REMOTE_INV:
 		case SIW_OP_WRITE:
 			siw_wqe_put_mem(wqe, tx_type);
-			/* Fall through */
+			fallthrough;
 
 		case SIW_OP_INVAL_STAG:
 		case SIW_OP_REG_MR:
@@ -1121,7 +1128,7 @@ next_wqe:
 		case SIW_OP_READ:
 		case SIW_OP_READ_LOCAL_INV:
 			siw_wqe_put_mem(wqe, tx_type);
-			/* Fall through */
+			fallthrough;
 
 		case SIW_OP_INVAL_STAG:
 		case SIW_OP_REG_MR:

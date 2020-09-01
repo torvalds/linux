@@ -18,7 +18,7 @@
 #include <crypto/skcipher.h>
 #include "fscrypt_private.h"
 
-/**
+/*
  * struct fscrypt_nokey_name - identifier for directory entry when key is absent
  *
  * When userspace lists an encrypted directory without access to the key, the
@@ -61,35 +61,13 @@ struct fscrypt_nokey_name {
  */
 #define FSCRYPT_NOKEY_NAME_MAX	offsetofend(struct fscrypt_nokey_name, sha256)
 
-static struct crypto_shash *sha256_hash_tfm;
-
-static int fscrypt_do_sha256(const u8 *data, unsigned int data_len, u8 *result)
+static void fscrypt_do_sha256(const u8 *data, unsigned int data_len, u8 *result)
 {
-	struct crypto_shash *tfm = READ_ONCE(sha256_hash_tfm);
+	struct sha256_state sctx;
 
-	if (unlikely(!tfm)) {
-		struct crypto_shash *prev_tfm;
-
-		tfm = crypto_alloc_shash("sha256", 0, 0);
-		if (IS_ERR(tfm)) {
-			fscrypt_err(NULL,
-				    "Error allocating SHA-256 transform: %ld",
-				    PTR_ERR(tfm));
-			return PTR_ERR(tfm);
-		}
-		prev_tfm = cmpxchg(&sha256_hash_tfm, NULL, tfm);
-		if (prev_tfm) {
-			crypto_free_shash(tfm);
-			tfm = prev_tfm;
-		}
-	}
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-
-		return crypto_shash_digest(desc, data, data_len, result);
-	}
+	sha256_init(&sctx);
+	sha256_update(&sctx, data, data_len);
+	sha256_final(&sctx, result);
 }
 
 static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
@@ -105,9 +83,12 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
 
 /**
  * fscrypt_fname_encrypt() - encrypt a filename
- *
- * The output buffer must be at least as large as the input buffer.
- * Any extra space is filled with NUL padding before encryption.
+ * @inode: inode of the parent directory (for regular filenames)
+ *	   or of the symlink (for symlink targets)
+ * @iname: the filename to encrypt
+ * @out: (output) the encrypted filename
+ * @olen: size of the encrypted filename.  It must be at least @iname->len.
+ *	  Any extra space is filled with NUL padding before encryption.
  *
  * Return: 0 on success, -errno on failure
  */
@@ -117,7 +98,7 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
 	const struct fscrypt_info *ci = inode->i_crypt_info;
-	struct crypto_skcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
 	union fscrypt_iv iv;
 	struct scatterlist sg;
 	int res;
@@ -157,8 +138,11 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 
 /**
  * fname_decrypt() - decrypt a filename
- *
- * The caller must have allocated sufficient memory for the @oname string.
+ * @inode: inode of the parent directory (for regular filenames)
+ *	   or of the symlink (for symlink targets)
+ * @iname: the encrypted filename to decrypt
+ * @oname: (output) the decrypted filename.  The caller must have allocated
+ *	   enough space for this, e.g. using fscrypt_fname_alloc_buffer().
  *
  * Return: 0 on success, -errno on failure
  */
@@ -170,7 +154,7 @@ static int fname_decrypt(const struct inode *inode,
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist src_sg, dst_sg;
 	const struct fscrypt_info *ci = inode->i_crypt_info;
-	struct crypto_skcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
 	union fscrypt_iv iv;
 	int res;
 
@@ -206,7 +190,10 @@ static const char lookup_table[65] =
 #define BASE64_CHARS(nbytes)	DIV_ROUND_UP((nbytes) * 4, 3)
 
 /**
- * base64_encode() -
+ * base64_encode() - base64-encode some bytes
+ * @src: the bytes to encode
+ * @len: number of bytes to encode
+ * @dst: (output) the base64-encoded string.  Not NUL-terminated.
  *
  * Encodes the input string using characters from the set [A-Za-z0-9+,].
  * The encoded string is roughly 4/3 times the size of the input string.
@@ -272,7 +259,12 @@ bool fscrypt_fname_encrypted_size(const struct inode *inode, u32 orig_len,
 }
 
 /**
- * fscrypt_fname_alloc_buffer - allocate a buffer for presented filenames
+ * fscrypt_fname_alloc_buffer() - allocate a buffer for presented filenames
+ * @inode: inode of the parent directory (for regular filenames)
+ *	   or of the symlink (for symlink targets)
+ * @max_encrypted_len: maximum length of encrypted filenames the buffer will be
+ *		       used to present
+ * @crypto_str: (output) buffer to allocate
  *
  * Allocate a buffer that is large enough to hold any decrypted or encoded
  * filename (null-terminated), for the given maximum encrypted filename length.
@@ -297,9 +289,10 @@ int fscrypt_fname_alloc_buffer(const struct inode *inode,
 EXPORT_SYMBOL(fscrypt_fname_alloc_buffer);
 
 /**
- * fscrypt_fname_free_buffer - free the buffer for presented filenames
+ * fscrypt_fname_free_buffer() - free a buffer for presented filenames
+ * @crypto_str: the buffer to free
  *
- * Free the buffer allocated by fscrypt_fname_alloc_buffer().
+ * Free a buffer that was allocated by fscrypt_fname_alloc_buffer().
  */
 void fscrypt_fname_free_buffer(struct fscrypt_str *crypto_str)
 {
@@ -311,10 +304,19 @@ void fscrypt_fname_free_buffer(struct fscrypt_str *crypto_str)
 EXPORT_SYMBOL(fscrypt_fname_free_buffer);
 
 /**
- * fscrypt_fname_disk_to_usr() - converts a filename from disk space to user
- * space
- *
- * The caller must have allocated sufficient memory for the @oname string.
+ * fscrypt_fname_disk_to_usr() - convert an encrypted filename to
+ *				 user-presentable form
+ * @inode: inode of the parent directory (for regular filenames)
+ *	   or of the symlink (for symlink targets)
+ * @hash: first part of the name's dirhash, if applicable.  This only needs to
+ *	  be provided if the filename is located in an indexed directory whose
+ *	  encryption key may be unavailable.  Not needed for symlink targets.
+ * @minor_hash: second part of the name's dirhash, if applicable
+ * @iname: encrypted filename to convert.  May also be "." or "..", which
+ *	   aren't actually encrypted.
+ * @oname: output buffer for the user-presentable filename.  The caller must
+ *	   have allocated enough space for this, e.g. using
+ *	   fscrypt_fname_alloc_buffer().
  *
  * If the key is available, we'll decrypt the disk name.  Otherwise, we'll
  * encode it for presentation in fscrypt_nokey_name format.
@@ -330,7 +332,6 @@ int fscrypt_fname_disk_to_usr(const struct inode *inode,
 	const struct qstr qname = FSTR_TO_QSTR(iname);
 	struct fscrypt_nokey_name nokey_name;
 	u32 size; /* size of the unencoded no-key name */
-	int err;
 
 	if (fscrypt_is_dot_dotdot(&qname)) {
 		oname->name[0] = '.';
@@ -368,11 +369,9 @@ int fscrypt_fname_disk_to_usr(const struct inode *inode,
 	} else {
 		memcpy(nokey_name.bytes, iname->name, sizeof(nokey_name.bytes));
 		/* Compute strong hash of remaining part of name. */
-		err = fscrypt_do_sha256(&iname->name[sizeof(nokey_name.bytes)],
-					iname->len - sizeof(nokey_name.bytes),
-					nokey_name.sha256);
-		if (err)
-			return err;
+		fscrypt_do_sha256(&iname->name[sizeof(nokey_name.bytes)],
+				  iname->len - sizeof(nokey_name.bytes),
+				  nokey_name.sha256);
 		size = FSCRYPT_NOKEY_NAME_MAX;
 	}
 	oname->len = base64_encode((const u8 *)&nokey_name, size, oname->name);
@@ -511,9 +510,8 @@ bool fscrypt_match_name(const struct fscrypt_name *fname,
 		return false;
 	if (memcmp(de_name, nokey_name->bytes, sizeof(nokey_name->bytes)))
 		return false;
-	if (fscrypt_do_sha256(&de_name[sizeof(nokey_name->bytes)],
-			      de_name_len - sizeof(nokey_name->bytes), sha256))
-		return false;
+	fscrypt_do_sha256(&de_name[sizeof(nokey_name->bytes)],
+			  de_name_len - sizeof(nokey_name->bytes), sha256);
 	return !memcmp(sha256, nokey_name->sha256, sizeof(sha256));
 }
 EXPORT_SYMBOL_GPL(fscrypt_match_name);

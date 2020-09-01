@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -37,8 +37,6 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -48,7 +46,6 @@
 #include "lpfc.h"
 #include "lpfc_scsi.h"
 #include "lpfc_nvme.h"
-#include "lpfc_nvmet.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_version.h"
 #include "lpfc_compat.h"
@@ -2231,66 +2228,6 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 }
 
 /**
- * lpfc_fips_level_show - Return the current FIPS level for the HBA
- * @dev: class unused variable.
- * @attr: device attribute, not used.
- * @buf: on return contains the module description text.
- *
- * Returns: size of formatted string.
- **/
-static ssize_t
-lpfc_fips_level_show(struct device *dev,  struct device_attribute *attr,
-		     char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n", phba->fips_level);
-}
-
-/**
- * lpfc_fips_rev_show - Return the FIPS Spec revision for the HBA
- * @dev: class unused variable.
- * @attr: device attribute, not used.
- * @buf: on return contains the module description text.
- *
- * Returns: size of formatted string.
- **/
-static ssize_t
-lpfc_fips_rev_show(struct device *dev,  struct device_attribute *attr,
-		   char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n", phba->fips_spec_rev);
-}
-
-/**
- * lpfc_dss_show - Return the current state of dss and the configured state
- * @dev: class converted to a Scsi_host structure.
- * @attr: device attribute, not used.
- * @buf: on return contains the formatted text.
- *
- * Returns: size of formatted string.
- **/
-static ssize_t
-lpfc_dss_show(struct device *dev, struct device_attribute *attr,
-	      char *buf)
-{
-	struct Scsi_Host *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	return scnprintf(buf, PAGE_SIZE, "%s - %sOperational\n",
-			(phba->cfg_enable_dss) ? "Enabled" : "Disabled",
-			(phba->sli3_options & LPFC_SLI3_DSS_ENABLED) ?
-				"" : "Not ");
-}
-
-/**
  * lpfc_sriov_hw_max_virtfn_show - Return maximum number of virtual functions
  * @dev: class converted to a Scsi_host structure.
  * @attr: device attribute, not used.
@@ -2705,9 +2642,6 @@ static DEVICE_ATTR(max_xri, S_IRUGO, lpfc_max_xri_show, NULL);
 static DEVICE_ATTR(used_xri, S_IRUGO, lpfc_used_xri_show, NULL);
 static DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
 static DEVICE_ATTR_RO(lpfc_temp_sensor);
-static DEVICE_ATTR_RO(lpfc_fips_level);
-static DEVICE_ATTR_RO(lpfc_fips_rev);
-static DEVICE_ATTR_RO(lpfc_dss);
 static DEVICE_ATTR_RO(lpfc_sriov_hw_max_virtfn);
 static DEVICE_ATTR(protocol, S_IRUGO, lpfc_sli4_protocol_show, NULL);
 static DEVICE_ATTR(lpfc_xlane_supported, S_IRUGO, lpfc_oas_supported_show,
@@ -3868,12 +3802,9 @@ LPFC_VPORT_ATTR_R(enable_da_id, 1, 0, 1,
 
 /*
 # lun_queue_depth:  This parameter is used to limit the number of outstanding
-# commands per FCP LUN. Value range is [1,512]. Default value is 30.
-# If this parameter value is greater than 1/8th the maximum number of exchanges
-# supported by the HBA port, then the lun queue depth will be reduced to
-# 1/8th the maximum number of exchanges.
+# commands per FCP LUN.
 */
-LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 512,
+LPFC_VPORT_ATTR_R(lun_queue_depth, 64, 1, 512,
 		  "Max number of FCP commands we can queue to a specific LUN");
 
 /*
@@ -4783,7 +4714,7 @@ static DEVICE_ATTR_RW(lpfc_aer_support);
  * Description:
  * If the @buf contains 1 and the device currently has the AER support
  * enabled, then invokes the kernel AER helper routine
- * pci_cleanup_aer_uncorrect_error_status to clean up the uncorrectable
+ * pci_aer_clear_nonfatal_status() to clean up the uncorrectable
  * error status register.
  *
  * Notes:
@@ -4809,7 +4740,7 @@ lpfc_aer_cleanup_state(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	if (phba->hba_flag & HBA_AER_ENABLED)
-		rc = pci_cleanup_aer_uncorrect_error_status(phba->pcidev);
+		rc = pci_aer_clear_nonfatal_status(phba->pcidev);
 
 	if (rc == 0)
 		return strlen(buf);
@@ -4943,7 +4874,7 @@ lpfc_request_firmware_upgrade_store(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
-	int val = 0, rc = -EINVAL;
+	int val = 0, rc;
 
 	/* Sanity check on user data */
 	if (!isdigit(buf[0]))
@@ -5770,17 +5701,69 @@ LPFC_ATTR_R(hdw_queue,
 	    LPFC_HBA_HDWQ_MIN, LPFC_HBA_HDWQ_MAX,
 	    "Set the number of I/O Hardware Queues");
 
-static inline void
-lpfc_assign_default_irq_numa(struct lpfc_hba *phba)
+#if IS_ENABLED(CONFIG_X86)
+/**
+ * lpfc_cpumask_irq_mode_init - initalizes cpumask of phba based on
+ *				irq_chann_mode
+ * @phba: Pointer to HBA context object.
+ **/
+static void
+lpfc_cpumask_irq_mode_init(struct lpfc_hba *phba)
+{
+	unsigned int cpu, first_cpu, numa_node = NUMA_NO_NODE;
+	const struct cpumask *sibling_mask;
+	struct cpumask *aff_mask = &phba->sli4_hba.irq_aff_mask;
+
+	cpumask_clear(aff_mask);
+
+	if (phba->irq_chann_mode == NUMA_MODE) {
+		/* Check if we're a NUMA architecture */
+		numa_node = dev_to_node(&phba->pcidev->dev);
+		if (numa_node == NUMA_NO_NODE) {
+			phba->irq_chann_mode = NORMAL_MODE;
+			return;
+		}
+	}
+
+	for_each_possible_cpu(cpu) {
+		switch (phba->irq_chann_mode) {
+		case NUMA_MODE:
+			if (cpu_to_node(cpu) == numa_node)
+				cpumask_set_cpu(cpu, aff_mask);
+			break;
+		case NHT_MODE:
+			sibling_mask = topology_sibling_cpumask(cpu);
+			first_cpu = cpumask_first(sibling_mask);
+			if (first_cpu < nr_cpu_ids)
+				cpumask_set_cpu(first_cpu, aff_mask);
+			break;
+		default:
+			break;
+		}
+	}
+}
+#endif
+
+static void
+lpfc_assign_default_irq_chann(struct lpfc_hba *phba)
 {
 #if IS_ENABLED(CONFIG_X86)
-	/* If AMD architecture, then default is LPFC_IRQ_CHANN_NUMA */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		phba->cfg_irq_numa = 1;
-	else
-		phba->cfg_irq_numa = 0;
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+		/* If AMD architecture, then default is NUMA_MODE */
+		phba->irq_chann_mode = NUMA_MODE;
+		break;
+	case X86_VENDOR_INTEL:
+		/* If Intel architecture, then default is no hyperthread mode */
+		phba->irq_chann_mode = NHT_MODE;
+		break;
+	default:
+		phba->irq_chann_mode = NORMAL_MODE;
+		break;
+	}
+	lpfc_cpumask_irq_mode_init(phba);
 #else
-	phba->cfg_irq_numa = 0;
+	phba->irq_chann_mode = NORMAL_MODE;
 #endif
 }
 
@@ -5792,6 +5775,7 @@ lpfc_assign_default_irq_numa(struct lpfc_hba *phba)
  *
  *	0		= Configure number of IRQ Channels to:
  *			  if AMD architecture, number of CPUs on HBA's NUMA node
+ *			  if Intel architecture, number of physical CPUs.
  *			  otherwise, number of active CPUs.
  *	[1,256]		= Manually specify how many IRQ Channels to use.
  *
@@ -5817,35 +5801,44 @@ MODULE_PARM_DESC(lpfc_irq_chann, "Set number of interrupt vectors to allocate");
 static int
 lpfc_irq_chann_init(struct lpfc_hba *phba, uint32_t val)
 {
-	const struct cpumask *numa_mask;
+	const struct cpumask *aff_mask;
 
 	if (phba->cfg_use_msi != 2) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"8532 use_msi = %u ignoring cfg_irq_numa\n",
 				phba->cfg_use_msi);
-		phba->cfg_irq_numa = 0;
-		phba->cfg_irq_chann = LPFC_IRQ_CHANN_MIN;
+		phba->irq_chann_mode = NORMAL_MODE;
+		phba->cfg_irq_chann = LPFC_IRQ_CHANN_DEF;
 		return 0;
 	}
 
 	/* Check if default setting was passed */
 	if (val == LPFC_IRQ_CHANN_DEF)
-		lpfc_assign_default_irq_numa(phba);
+		lpfc_assign_default_irq_chann(phba);
 
-	if (phba->cfg_irq_numa) {
-		numa_mask = &phba->sli4_hba.numa_mask;
+	if (phba->irq_chann_mode != NORMAL_MODE) {
+		aff_mask = &phba->sli4_hba.irq_aff_mask;
 
-		if (cpumask_empty(numa_mask)) {
+		if (cpumask_empty(aff_mask)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"8533 Could not identify NUMA node, "
-					"ignoring cfg_irq_numa\n");
-			phba->cfg_irq_numa = 0;
-			phba->cfg_irq_chann = LPFC_IRQ_CHANN_MIN;
+					"8533 Could not identify CPUS for "
+					"mode %d, ignoring\n",
+					phba->irq_chann_mode);
+			phba->irq_chann_mode = NORMAL_MODE;
+			phba->cfg_irq_chann = LPFC_IRQ_CHANN_DEF;
 		} else {
-			phba->cfg_irq_chann = cpumask_weight(numa_mask);
+			phba->cfg_irq_chann = cpumask_weight(aff_mask);
+
+			/* If no hyperthread mode, then set hdwq count to
+			 * aff_mask weight as well
+			 */
+			if (phba->irq_chann_mode == NHT_MODE)
+				phba->cfg_hdw_queue = phba->cfg_irq_chann;
+
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"8543 lpfc_irq_chann set to %u "
-					"(numa)\n", phba->cfg_irq_chann);
+					"(mode: %d)\n", phba->cfg_irq_chann,
+					phba->irq_chann_mode);
 		}
 	} else {
 		if (val > LPFC_IRQ_CHANN_MAX) {
@@ -5856,7 +5849,7 @@ lpfc_irq_chann_init(struct lpfc_hba *phba, uint32_t val)
 					val,
 					LPFC_IRQ_CHANN_MIN,
 					LPFC_IRQ_CHANN_MAX);
-			phba->cfg_irq_chann = LPFC_IRQ_CHANN_MIN;
+			phba->cfg_irq_chann = LPFC_IRQ_CHANN_DEF;
 			return -EINVAL;
 		}
 		phba->cfg_irq_chann = val;
@@ -6254,9 +6247,6 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_pt,
 	&dev_attr_txq_hw,
 	&dev_attr_txcmplq_hw,
-	&dev_attr_lpfc_fips_level,
-	&dev_attr_lpfc_fips_rev,
-	&dev_attr_lpfc_dss,
 	&dev_attr_lpfc_sriov_hw_max_virtfn,
 	&dev_attr_protocol,
 	&dev_attr_lpfc_xlane_supported,
@@ -6292,8 +6282,6 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_lpfc_max_scsicmpl_time,
 	&dev_attr_lpfc_stat_data_ctrl,
 	&dev_attr_lpfc_static_vport,
-	&dev_attr_lpfc_fips_level,
-	&dev_attr_lpfc_fips_rev,
 	NULL,
 };
 
@@ -6691,8 +6679,14 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 		}
 	} else if (lpfc_is_link_up(phba) && (phba->hba_flag & HBA_FCOE_MODE)) {
 		switch (phba->fc_linkspeed) {
+		case LPFC_ASYNC_LINK_SPEED_1GBPS:
+			fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
+			break;
 		case LPFC_ASYNC_LINK_SPEED_10GBPS:
 			fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_20GBPS:
+			fc_host_speed(shost) = FC_PORTSPEED_20GBIT;
 			break;
 		case LPFC_ASYNC_LINK_SPEED_25GBPS:
 			fc_host_speed(shost) = FC_PORTSPEED_25GBIT;
@@ -7402,7 +7396,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	lpfc_delay_discovery_init(phba, lpfc_delay_discovery);
 	lpfc_sli_mode_init(phba, lpfc_sli_mode);
-	phba->cfg_enable_dss = 1;
 	lpfc_enable_mds_diags_init(phba, lpfc_enable_mds_diags);
 	lpfc_ras_fwlog_buffsize_init(phba, lpfc_ras_fwlog_buffsize);
 	lpfc_ras_fwlog_level_init(phba, lpfc_ras_fwlog_level);
@@ -7419,12 +7412,26 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 void
 lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 {
-	if (phba->cfg_hdw_queue > phba->sli4_hba.num_present_cpu)
+	int  logit = 0;
+
+	if (phba->cfg_hdw_queue > phba->sli4_hba.num_present_cpu) {
 		phba->cfg_hdw_queue = phba->sli4_hba.num_present_cpu;
-	if (phba->cfg_irq_chann > phba->sli4_hba.num_present_cpu)
+		logit = 1;
+	}
+	if (phba->cfg_irq_chann > phba->sli4_hba.num_present_cpu) {
 		phba->cfg_irq_chann = phba->sli4_hba.num_present_cpu;
-	if (phba->cfg_irq_chann > phba->cfg_hdw_queue)
+		logit = 1;
+	}
+	if (phba->cfg_irq_chann > phba->cfg_hdw_queue) {
 		phba->cfg_irq_chann = phba->cfg_hdw_queue;
+		logit = 1;
+	}
+	if (logit)
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2006 Reducing Queues - CPU limitation: "
+				"IRQ %d HDWQ %d\n",
+				phba->cfg_irq_chann,
+				phba->cfg_hdw_queue);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME &&
 	    phba->nvmet_support) {

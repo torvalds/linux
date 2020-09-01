@@ -63,13 +63,14 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 static void _rtl92e_pci_disconnect(struct pci_dev *pdev);
 static irqreturn_t _rtl92e_irq(int irq, void *netdev);
 
+static SIMPLE_DEV_PM_OPS(rtl92e_pm_ops, rtl92e_suspend, rtl92e_resume);
+
 static struct pci_driver rtl8192_pci_driver = {
 	.name = DRV_NAME,	/* Driver name   */
 	.id_table = rtl8192_pci_id_tbl,	/* PCI_ID table  */
 	.probe	= _rtl92e_pci_probe,	/* probe fn      */
 	.remove	 = _rtl92e_pci_disconnect,	/* remove fn */
-	.suspend = rtl92e_suspend,	/* PM suspend fn */
-	.resume = rtl92e_resume,                 /* PM resume fn  */
+	.driver.pm = &rtl92e_pm_ops,
 };
 
 static short _rtl92e_is_tx_queue_empty(struct net_device *dev);
@@ -81,8 +82,8 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void _rtl92e_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_pci_initdescring(struct net_device *dev);
-static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv);
-static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv);
+static void _rtl92e_irq_tx_tasklet(unsigned long data);
+static void _rtl92e_irq_rx_tasklet(unsigned long data);
 static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv);
 static int _rtl92e_up(struct net_device *dev, bool is_silent_reset);
 static int _rtl92e_try_up(struct net_device *dev);
@@ -145,21 +146,21 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	unsigned long flag;
 
 	RT_TRACE((COMP_PS | COMP_RF),
-		 "===>rtl92e_set_rf_state(): StateToSet(%d)\n", StateToSet);
+		 "===>%s: StateToSet(%d)\n", __func__, StateToSet);
 
 	while (true) {
 		spin_lock_irqsave(&priv->rf_ps_lock, flag);
 		if (priv->RFChangeInProgress) {
 			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 			RT_TRACE((COMP_PS | COMP_RF),
-				 "rtl92e_set_rf_state(): RF Change in progress! Wait to set..StateToSet(%d).\n",
-				 StateToSet);
+				 "%s: RF Change in progress! Wait to set..StateToSet(%d).\n",
+				 __func__, StateToSet);
 
 			while (priv->RFChangeInProgress) {
 				RFWaitCounter++;
 				RT_TRACE((COMP_PS | COMP_RF),
-					 "rtl92e_set_rf_state(): Wait 1 ms (%d times)...\n",
-					 RFWaitCounter);
+					 "%s: Wait 1 ms (%d times)...\n",
+					 __func__, RFWaitCounter);
 				mdelay(1);
 
 				if (RFWaitCounter > 100) {
@@ -195,8 +196,8 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 				bConnectBySSID = true;
 		} else {
 			RT_TRACE((COMP_PS | COMP_RF),
-				 "rtl92e_set_rf_state - eRfon reject pMgntInfo->RfOffReason= 0x%x, ChangeSource=0x%X\n",
-				  priv->rtllib->RfOffReason, ChangeSource);
+				 "%s - eRfon reject pMgntInfo->RfOffReason= 0x%x, ChangeSource=0x%X\n",
+				 __func__, priv->rtllib->RfOffReason, ChangeSource);
 	}
 
 		break;
@@ -232,8 +233,8 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 	if (bActionAllowed) {
 		RT_TRACE((COMP_PS | COMP_RF),
-			 "rtl92e_set_rf_state(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n",
-			 StateToSet, priv->rtllib->RfOffReason);
+			 "%s: Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n",
+			 __func__, StateToSet, priv->rtllib->RfOffReason);
 		PHY_SetRFPowerState(dev, StateToSet);
 		if (StateToSet == eRfOn) {
 
@@ -245,15 +246,15 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		}
 	} else {
 		RT_TRACE((COMP_PS | COMP_RF),
-			 "rtl92e_set_rf_state(): Action is rejected.... StateToSet(%d), ChangeSource(%#X), RfOffReason(%#X)\n",
-			 StateToSet, ChangeSource, priv->rtllib->RfOffReason);
+			 "%s: Action is rejected.... StateToSet(%d), ChangeSource(%#X), RfOffReason(%#X)\n",
+			 __func__, StateToSet, ChangeSource, priv->rtllib->RfOffReason);
 	}
 
 	spin_lock_irqsave(&priv->rf_ps_lock, flag);
 	priv->RFChangeInProgress = false;
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 
-	RT_TRACE((COMP_PS | COMP_RF), "<===rtl92e_set_rf_state()\n");
+	RT_TRACE((COMP_PS | COMP_RF), "<===%s\n", __func__);
 	return bActionAllowed;
 }
 
@@ -516,8 +517,9 @@ static int _rtl92e_handle_assoc_response(struct net_device *dev,
 	return 0;
 }
 
-static void _rtl92e_prepare_beacon(struct r8192_priv *priv)
+static void _rtl92e_prepare_beacon(unsigned long data)
 {
+	struct r8192_priv *priv = (struct r8192_priv *)data;
 	struct net_device *dev = priv->rtllib->dev;
 	struct sk_buff *pskb = NULL, *pnewskb = NULL;
 	struct cb_desc *tcb_desc = NULL;
@@ -732,7 +734,7 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					(&priv->rtllib->PowerSaveControl);
-	bool init_status = true;
+	bool init_status;
 
 	priv->bDriverIsGoingToUnload = false;
 	priv->bdisable_nic = false;
@@ -1007,14 +1009,11 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 			      (void *)rtl92e_hw_wakeup_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_sleep_wq,
 			      (void *)rtl92e_hw_sleep_wq, dev);
-	tasklet_init(&priv->irq_rx_tasklet,
-		     (void(*)(unsigned long))_rtl92e_irq_rx_tasklet,
+	tasklet_init(&priv->irq_rx_tasklet, _rtl92e_irq_rx_tasklet,
 		     (unsigned long)priv);
-	tasklet_init(&priv->irq_tx_tasklet,
-		     (void(*)(unsigned long))_rtl92e_irq_tx_tasklet,
+	tasklet_init(&priv->irq_tx_tasklet, _rtl92e_irq_tx_tasklet,
 		     (unsigned long)priv);
-	tasklet_init(&priv->irq_prepare_beacon_tasklet,
-		     (void(*)(unsigned long))_rtl92e_prepare_beacon,
+	tasklet_init(&priv->irq_prepare_beacon_tasklet, _rtl92e_prepare_beacon,
 		     (unsigned long)priv);
 }
 
@@ -1559,17 +1558,16 @@ static void _rtl92e_free_rx_ring(struct net_device *dev)
 			if (!skb)
 				continue;
 
-			pci_unmap_single(priv->pdev,
-				*((dma_addr_t *)skb->cb),
-				priv->rxbuffersize, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev,
+					 *((dma_addr_t *)skb->cb),
+					 priv->rxbuffersize, DMA_FROM_DEVICE);
 			kfree_skb(skb);
 		}
 
-		pci_free_consistent(priv->pdev,
-			sizeof(*priv->rx_ring[rx_queue_idx]) *
-			priv->rxringcount,
-			priv->rx_ring[rx_queue_idx],
-			priv->rx_ring_dma[rx_queue_idx]);
+		dma_free_coherent(&priv->pdev->dev,
+				  sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
+				  priv->rx_ring[rx_queue_idx],
+				  priv->rx_ring_dma[rx_queue_idx]);
 		priv->rx_ring[rx_queue_idx] = NULL;
 	}
 }
@@ -1583,14 +1581,15 @@ static void _rtl92e_free_tx_ring(struct net_device *dev, unsigned int prio)
 		struct tx_desc *entry = &ring->desc[ring->idx];
 		struct sk_buff *skb = __skb_dequeue(&ring->queue);
 
-		pci_unmap_single(priv->pdev, entry->TxBuffAddr,
-			skb->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&priv->pdev->dev, entry->TxBuffAddr,
+				 skb->len, DMA_TO_DEVICE);
 		kfree_skb(skb);
 		ring->idx = (ring->idx + 1) % ring->entries;
 	}
 
-	pci_free_consistent(priv->pdev, sizeof(*ring->desc) * ring->entries,
-	ring->desc, ring->dma);
+	dma_free_coherent(&priv->pdev->dev,
+			  sizeof(*ring->desc) * ring->entries, ring->desc,
+			  ring->dma);
 	ring->desc = NULL;
 }
 
@@ -1677,8 +1676,8 @@ static void _rtl92e_tx_isr(struct net_device *dev, int prio)
 		}
 
 		skb = __skb_dequeue(&ring->queue);
-		pci_unmap_single(priv->pdev, entry->TxBuffAddr,
-		skb->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&priv->pdev->dev, entry->TxBuffAddr,
+				 skb->len, DMA_TO_DEVICE);
 
 		kfree_skb(skb);
 	}
@@ -1783,9 +1782,10 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 	int i, rx_queue_idx;
 
 	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx++) {
-		priv->rx_ring[rx_queue_idx] = pci_zalloc_consistent(priv->pdev,
-					      sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
-					      &priv->rx_ring_dma[rx_queue_idx]);
+		priv->rx_ring[rx_queue_idx] = dma_alloc_coherent(&priv->pdev->dev,
+								 sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
+								 &priv->rx_ring_dma[rx_queue_idx],
+								 GFP_ATOMIC);
 		if (!priv->rx_ring[rx_queue_idx] ||
 		    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
 			netdev_warn(dev, "Cannot allocate RX ring\n");
@@ -1804,11 +1804,10 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 			skb->dev = dev;
 			priv->rx_buf[rx_queue_idx][i] = skb;
 			mapping = (dma_addr_t *)skb->cb;
-			*mapping = pci_map_single(priv->pdev,
+			*mapping = dma_map_single(&priv->pdev->dev,
 						  skb_tail_pointer_rsl(skb),
-						  priv->rxbuffersize,
-						  PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(priv->pdev, *mapping)) {
+						  priv->rxbuffersize, DMA_FROM_DEVICE);
+			if (dma_mapping_error(&priv->pdev->dev, *mapping)) {
 				dev_kfree_skb_any(skb);
 				return -1;
 			}
@@ -1832,7 +1831,8 @@ static int _rtl92e_alloc_tx_ring(struct net_device *dev, unsigned int prio,
 	dma_addr_t dma;
 	int i;
 
-	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
+	ring = dma_alloc_coherent(&priv->pdev->dev, sizeof(*ring) * entries,
+				  &dma, GFP_ATOMIC);
 	if (!ring || (unsigned long)ring & 0xFF) {
 		netdev_warn(dev, "Cannot allocate TX ring (prio = %d)\n", prio);
 		return -ENOMEM;
@@ -1906,9 +1906,9 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 				struct sk_buff *skb =
 						 __skb_dequeue(&ring->queue);
 
-				pci_unmap_single(priv->pdev,
-						 entry->TxBuffAddr,
-						 skb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(&priv->pdev->dev,
+						 entry->TxBuffAddr, skb->len,
+						 DMA_TO_DEVICE);
 				kfree_skb(skb);
 				ring->idx = (ring->idx + 1) % ring->entries;
 			}
@@ -2029,10 +2029,8 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 		if (unlikely(!new_skb))
 			goto done;
 
-		pci_unmap_single(priv->pdev,
-				*((dma_addr_t *)skb->cb),
-				priv->rxbuffersize,
-				PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&priv->pdev->dev, *((dma_addr_t *)skb->cb),
+				 priv->rxbuffersize, DMA_FROM_DEVICE);
 
 		skb_put(skb, pdesc->Length);
 		skb_reserve(skb, stats.RxDrvInfoSize +
@@ -2075,12 +2073,10 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 
 		priv->rx_buf[rx_queue_idx][priv->rx_idx[rx_queue_idx]] =
 								 skb;
-		*((dma_addr_t *)skb->cb) = pci_map_single(priv->pdev,
-					    skb_tail_pointer_rsl(skb),
-					    priv->rxbuffersize,
-					    PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(priv->pdev,
-					  *((dma_addr_t *)skb->cb))) {
+		*((dma_addr_t *)skb->cb) = dma_map_single(&priv->pdev->dev,
+							  skb_tail_pointer_rsl(skb),
+							  priv->rxbuffersize, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&priv->pdev->dev, *((dma_addr_t *)skb->cb))) {
 			dev_kfree_skb_any(skb);
 			return;
 		}
@@ -2113,13 +2109,17 @@ static void _rtl92e_tx_resume(struct net_device *dev)
 	}
 }
 
-static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv)
+static void _rtl92e_irq_tx_tasklet(unsigned long data)
 {
+	struct r8192_priv *priv = (struct r8192_priv *)data;
+
 	_rtl92e_tx_resume(priv->rtllib->dev);
 }
 
-static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv)
+static void _rtl92e_irq_rx_tasklet(unsigned long data)
 {
+	struct r8192_priv *priv = (struct r8192_priv *)data;
+
 	_rtl92e_rx_normal(priv->rtllib->dev);
 
 	rtl92e_writel(priv->rtllib->dev, INTA_MASK,
@@ -2414,8 +2414,8 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
+		if (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 			dev_info(&pdev->dev,
 				 "Unable to obtain 32bit DMA for consistent allocations\n");
 			goto err_pci_disable;
