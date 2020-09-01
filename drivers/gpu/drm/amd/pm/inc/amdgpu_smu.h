@@ -600,6 +600,7 @@ struct pptable_funcs {
 	int (*gfx_ulv_control)(struct smu_context *smu, bool enablement);
 	int (*deep_sleep_control)(struct smu_context *smu, bool enablement);
 	int (*get_fan_parameters)(struct smu_context *smu);
+	int (*post_init)(struct smu_context *smu);
 };
 
 typedef enum {

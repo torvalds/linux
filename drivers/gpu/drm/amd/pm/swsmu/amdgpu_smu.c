@@ -473,6 +473,12 @@ static int smu_late_init(void *handle)
 	if (!smu->pm_enabled)
 		return 0;
 
+	ret = smu_post_init(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to post smu init!\n");
+		return ret;
+	}
+
 	ret = smu_set_default_od_settings(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to setup default OD settings!\n");
