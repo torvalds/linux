@@ -5622,9 +5622,7 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 		/* SGMII in-band mode receives the speed and duplex from
 		 * the PHY. Flow control information is not received. */
-		an &= ~(MVPP2_GMAC_FORCE_LINK_DOWN |
-			MVPP2_GMAC_FORCE_LINK_PASS |
-			MVPP2_GMAC_CONFIG_MII_SPEED |
+		an &= ~(MVPP2_GMAC_CONFIG_MII_SPEED |
 			MVPP2_GMAC_CONFIG_GMII_SPEED |
 			MVPP2_GMAC_CONFIG_FULL_DUPLEX);
 		an |= MVPP2_GMAC_IN_BAND_AUTONEG |
@@ -5637,9 +5635,7 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		 * speed and full duplex here.
 		 */
 		ctrl0 |= MVPP2_GMAC_PORT_TYPE_MASK;
-		an &= ~(MVPP2_GMAC_FORCE_LINK_DOWN |
-			MVPP2_GMAC_FORCE_LINK_PASS |
-			MVPP2_GMAC_CONFIG_MII_SPEED |
+		an &= ~(MVPP2_GMAC_CONFIG_MII_SPEED |
 			MVPP2_GMAC_CONFIG_GMII_SPEED |
 			MVPP2_GMAC_CONFIG_FULL_DUPLEX);
 		an |= MVPP2_GMAC_IN_BAND_AUTONEG |
@@ -5663,11 +5659,6 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 	if ((old_ctrl0 ^ ctrl0) & MVPP2_GMAC_PORT_TYPE_MASK ||
 	    (old_ctrl2 ^ ctrl2) & MVPP2_GMAC_INBAND_AN_MASK ||
 	    (old_an ^ an) & MVPP2_GMAC_AN_PORT_DOWN_MASK) {
-		/* Force link down */
-		old_an &= ~MVPP2_GMAC_FORCE_LINK_PASS;
-		old_an |= MVPP2_GMAC_FORCE_LINK_DOWN;
-		writel(old_an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-
 		/* Set the GMAC in a reset state - do this in a way that
 		 * ensures we clear it below.
 		 */
@@ -5700,6 +5691,26 @@ static int mvpp2_mac_prepare(struct phylink_config *config, unsigned int mode,
 	if (mvpp2_is_xlg(interface) && port->gop_id != 0) {
 		netdev_err(port->dev, "Invalid mode on %s\n", port->dev->name);
 		return -EINVAL;
+	}
+
+	if (port->phy_interface != interface ||
+	    phylink_autoneg_inband(mode)) {
+		/* Force the link down when changing the interface or if in
+		 * in-band mode to ensure we do not change the configuration
+		 * while the hardware is indicating link is up. We force both
+		 * XLG and GMAC down to ensure that they're both in a known
+		 * state.
+		 */
+		mvpp2_modify(port->base + MVPP2_GMAC_AUTONEG_CONFIG,
+			     MVPP2_GMAC_FORCE_LINK_PASS |
+			     MVPP2_GMAC_FORCE_LINK_DOWN,
+			     MVPP2_GMAC_FORCE_LINK_DOWN);
+
+		if (mvpp2_port_supports_xlg(port))
+			mvpp2_modify(port->base + MVPP22_XLG_CTRL0_REG,
+				     MVPP22_XLG_CTRL0_FORCE_LINK_PASS |
+				     MVPP22_XLG_CTRL0_FORCE_LINK_DOWN,
+				     MVPP22_XLG_CTRL0_FORCE_LINK_DOWN);
 	}
 
 	/* Make sure the port is disabled when reconfiguring the mode */
@@ -5749,6 +5760,20 @@ static int mvpp2_mac_finish(struct phylink_config *config, unsigned int mode,
 	}
 
 	mvpp2_port_enable(port);
+
+	/* Allow the link to come up if in in-band mode, otherwise the
+	 * link is forced via mac_link_down()/mac_link_up()
+	 */
+	if (phylink_autoneg_inband(mode)) {
+		if (mvpp2_is_xlg(interface))
+			mvpp2_modify(port->base + MVPP22_XLG_CTRL0_REG,
+				     MVPP22_XLG_CTRL0_FORCE_LINK_PASS |
+				     MVPP22_XLG_CTRL0_FORCE_LINK_DOWN, 0);
+		else
+			mvpp2_modify(port->base + MVPP2_GMAC_AUTONEG_CONFIG,
+				     MVPP2_GMAC_FORCE_LINK_PASS |
+				     MVPP2_GMAC_FORCE_LINK_DOWN, 0);
+	}
 
 	return 0;
 }
