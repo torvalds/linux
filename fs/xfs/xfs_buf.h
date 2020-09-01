@@ -269,7 +269,6 @@ static inline void xfs_buf_relse(xfs_buf_t *bp)
 
 /* Buffer Read and Write Routines */
 extern int xfs_bwrite(struct xfs_buf *bp);
-extern void xfs_buf_ioend(struct xfs_buf *bp);
 static inline void xfs_buf_ioend_finish(struct xfs_buf *bp)
 {
 	if (bp->b_flags & XBF_ASYNC)

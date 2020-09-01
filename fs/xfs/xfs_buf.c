@@ -1174,7 +1174,7 @@ xfs_buf_wait_unpin(
  *	Buffer Utility Routines
  */
 
-void
+static void
 xfs_buf_ioend(
 	struct xfs_buf	*bp)
 {
