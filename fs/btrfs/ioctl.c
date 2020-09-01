@@ -3475,15 +3475,12 @@ static long btrfs_ioctl_space_info(struct btrfs_fs_info *fs_info,
 		struct btrfs_space_info *tmp;
 
 		info = NULL;
-		rcu_read_lock();
-		list_for_each_entry_rcu(tmp, &fs_info->space_info,
-					list) {
+		list_for_each_entry(tmp, &fs_info->space_info, list) {
 			if (tmp->flags == types[i]) {
 				info = tmp;
 				break;
 			}
 		}
-		rcu_read_unlock();
 
 		if (!info)
 			continue;
@@ -3531,15 +3528,12 @@ static long btrfs_ioctl_space_info(struct btrfs_fs_info *fs_info,
 			break;
 
 		info = NULL;
-		rcu_read_lock();
-		list_for_each_entry_rcu(tmp, &fs_info->space_info,
-					list) {
+		list_for_each_entry(tmp, &fs_info->space_info, list) {
 			if (tmp->flags == types[i]) {
 				info = tmp;
 				break;
 			}
 		}
-		rcu_read_unlock();
 
 		if (!info)
 			continue;

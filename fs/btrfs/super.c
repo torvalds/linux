@@ -2164,8 +2164,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	u64 thresh = 0;
 	int mixed = 0;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(found, &fs_info->space_info, list) {
+	list_for_each_entry(found, &fs_info->space_info, list) {
 		if (found->flags & BTRFS_BLOCK_GROUP_DATA) {
 			int i;
 
@@ -2193,8 +2192,6 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 		total_used += found->disk_used;
 	}
-
-	rcu_read_unlock();
 
 	buf->f_blocks = div_u64(btrfs_super_total_bytes(disk_super), factor);
 	buf->f_blocks >>= bits;

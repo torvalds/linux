@@ -175,10 +175,8 @@ void btrfs_clear_space_info_full(struct btrfs_fs_info *info)
 	struct list_head *head = &info->space_info;
 	struct btrfs_space_info *found;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(found, head, list)
+	list_for_each_entry(found, head, list)
 		found->full = 0;
-	rcu_read_unlock();
 }
 
 static int create_space_info(struct btrfs_fs_info *info, u64 flags)
@@ -213,7 +211,7 @@ static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 	if (ret)
 		return ret;
 
-	list_add_rcu(&space_info->list, &info->space_info);
+	list_add(&space_info->list, &info->space_info);
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		info->data_sinfo = space_info;
 
@@ -290,14 +288,10 @@ struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 
 	flags &= BTRFS_BLOCK_GROUP_TYPE_MASK;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(found, head, list) {
-		if (found->flags & flags) {
-			rcu_read_unlock();
+	list_for_each_entry(found, head, list) {
+		if (found->flags & flags)
 			return found;
-		}
 	}
-	rcu_read_unlock();
 	return NULL;
 }
 

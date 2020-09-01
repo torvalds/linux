@@ -2031,8 +2031,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		btrfs_release_path(path);
 	}
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(space_info, &info->space_info, list) {
+	list_for_each_entry(space_info, &info->space_info, list) {
 		if (!(btrfs_get_alloc_profile(info, space_info->flags) &
 		      (BTRFS_BLOCK_GROUP_RAID10 |
 		       BTRFS_BLOCK_GROUP_RAID1_MASK |
@@ -2052,7 +2051,6 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 				list)
 			inc_block_group_ro(cache, 1);
 	}
-	rcu_read_unlock();
 
 	btrfs_init_global_block_rsv(info);
 	ret = check_chunk_block_group_mappings(info);
@@ -3007,12 +3005,10 @@ static void force_metadata_allocation(struct btrfs_fs_info *info)
 	struct list_head *head = &info->space_info;
 	struct btrfs_space_info *found;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(found, head, list) {
+	list_for_each_entry(found, head, list) {
 		if (found->flags & BTRFS_BLOCK_GROUP_METADATA)
 			found->force_alloc = CHUNK_ALLOC_FORCE;
 	}
-	rcu_read_unlock();
 }
 
 static int should_alloc_chunk(struct btrfs_fs_info *fs_info,
@@ -3342,14 +3338,6 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		spin_lock(&info->block_group_cache_lock);
 	}
 	spin_unlock(&info->block_group_cache_lock);
-
-	/*
-	 * Now that all the block groups are freed, go through and free all the
-	 * space_info structs.  This is only called during the final stages of
-	 * unmount, and so we know nobody is using them.  We call
-	 * synchronize_rcu() once before we start, just to be on the safe side.
-	 */
-	synchronize_rcu();
 
 	btrfs_release_global_block_rsv(info);
 
