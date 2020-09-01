@@ -227,6 +227,8 @@
 #define XTYPE_MASK		7
 
 /**
+ * struct marvell_hw_ecc_layout - layout of Marvell ECC
+ *
  * Marvell ECC engine works differently than the others, in order to limit the
  * size of the IP, hardware engineers chose to set a fixed strength at 16 bits
  * per subpage, and depending on a the desired strength needed by the NAND chip,
@@ -292,6 +294,8 @@ static const struct marvell_hw_ecc_layout marvell_nfc_layouts[] = {
 };
 
 /**
+ * struct marvell_nand_chip_sel - CS line description
+ *
  * The Nand Flash Controller has up to 4 CE and 2 RB pins. The CE selection
  * is made by a field in NDCB0 register, and in another field in NDCB2 register.
  * The datasheet describes the logic with an error: ADDR5 field is once
@@ -312,14 +316,15 @@ struct marvell_nand_chip_sel {
 };
 
 /**
- * NAND chip structure: stores NAND chip device related information
+ * struct marvell_nand_chip - stores NAND chip device related information
  *
  * @chip:		Base NAND chip structure
  * @node:		Used to store NAND chips into a list
- * @layout		NAND layout when using hardware ECC
+ * @layout:		NAND layout when using hardware ECC
  * @ndcr:		Controller register value for this NAND chip
  * @ndtr0:		Timing registers 0 value for this NAND chip
  * @ndtr1:		Timing registers 1 value for this NAND chip
+ * @addr_cyc:		Amount of cycles needed to pass column address
  * @selected_die:	Current active CS
  * @nsels:		Number of CS lines required by the NAND chip
  * @sels:		Array of CS lines descriptions
@@ -349,7 +354,8 @@ static inline struct marvell_nand_chip_sel *to_nand_sel(struct marvell_nand_chip
 }
 
 /**
- * NAND controller capabilities for distinction between compatible strings
+ * struct marvell_nfc_caps - NAND controller capabilities for distinction
+ *                           between compatible strings
  *
  * @max_cs_nb:		Number of Chip Select lines available
  * @max_rb_nb:		Number of Ready/Busy lines available
@@ -372,7 +378,7 @@ struct marvell_nfc_caps {
 };
 
 /**
- * NAND controller structure: stores Marvell NAND controller information
+ * struct marvell_nfc - stores Marvell NAND controller information
  *
  * @controller:		Base controller structure
  * @dev:		Parent device (used to print error messages)
@@ -383,7 +389,9 @@ struct marvell_nfc_caps {
  * @assigned_cs:	Bitmask describing already assigned CS lines
  * @chips:		List containing all the NAND chips attached to
  *			this NAND controller
+ * @selected_chip:	Currently selected target chip
  * @caps:		NAND controller capabilities for each compatible string
+ * @use_dma:		Whetner DMA is used
  * @dma_chan:		DMA channel (NFCv1 only)
  * @dma_buf:		32-bit aligned buffer for DMA transfers (NFCv1 only)
  */
@@ -411,7 +419,8 @@ static inline struct marvell_nfc *to_marvell_nfc(struct nand_controller *ctrl)
 }
 
 /**
- * NAND controller timings expressed in NAND Controller clock cycles
+ * struct marvell_nfc_timings - NAND controller timings expressed in NAND
+ *                              Controller clock cycles
  *
  * @tRP:		ND_nRE pulse width
  * @tRH:		ND_nRE high duration
@@ -455,8 +464,8 @@ struct marvell_nfc_timings {
 						     period_ns))
 
 /**
- * NAND driver structure filled during the parsing of the ->exec_op() subop
- * subset of instructions.
+ * struct marvell_nfc_op - filled during the parsing of the ->exec_op()
+ *                         subop subset of instructions.
  *
  * @ndcb:		Array of values written to NDCBx registers
  * @cle_ale_delay_ns:	Optional delay after the last CMD or ADDR cycle
