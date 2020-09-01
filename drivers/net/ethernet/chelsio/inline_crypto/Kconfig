@@ -5,6 +5,7 @@
 
 config CHELSIO_INLINE_CRYPTO
 	bool "Chelsio Inline Crypto support"
+	depends on CHELSIO_T4
 	default y
 	help
 	  Enable support for inline crypto.
@@ -14,7 +15,6 @@ if CHELSIO_INLINE_CRYPTO
 
 config CRYPTO_DEV_CHELSIO_TLS
 	tristate "Chelsio Crypto Inline TLS Driver"
-	depends on CHELSIO_T4
 	depends on TLS_TOE
 	help
 	  Support Chelsio Inline TLS with Chelsio crypto accelerator.
@@ -25,7 +25,6 @@ config CRYPTO_DEV_CHELSIO_TLS
 
 config CHELSIO_IPSEC_INLINE
        tristate "Chelsio IPSec XFRM Tx crypto offload"
-       depends on CHELSIO_T4
        depends on XFRM_OFFLOAD
        depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
        help
