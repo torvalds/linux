@@ -45,8 +45,7 @@ except:
     err('The kernel does not have iocost enabled')
 
 IOC_RUNNING     = prog['IOC_RUNNING'].value_()
-NR_USAGE_SLOTS  = prog['NR_USAGE_SLOTS'].value_()
-HWEIGHT_WHOLE   = prog['HWEIGHT_WHOLE'].value_()
+WEIGHT_ONE      = prog['WEIGHT_ONE'].value_()
 VTIME_PER_SEC   = prog['VTIME_PER_SEC'].value_()
 VTIME_PER_USEC  = prog['VTIME_PER_USEC'].value_()
 AUTOP_SSD_FAST  = prog['AUTOP_SSD_FAST'].value_()
@@ -100,7 +99,7 @@ class IocStat:
         self.period_ms = ioc.period_us.value_() / 1_000
         self.period_at = ioc.period_at.value_() / 1_000_000
         self.vperiod_at = ioc.period_at_vtime.value_() / VTIME_PER_SEC
-        self.vrate_pct = ioc.vtime_rate.counter.value_() * 100 / VTIME_PER_USEC
+        self.vrate_pct = ioc.vtime_base_rate.value_() * 100 / VTIME_PER_USEC
         self.busy_level = ioc.busy_level.value_()
         self.autop_idx = ioc.autop_idx.value_()
         self.user_cost_model = ioc.user_cost_model.value_()
@@ -136,7 +135,7 @@ class IocStat:
 
     def table_header_str(self):
         return f'{"":25} active {"weight":>9} {"hweight%":>13} {"inflt%":>6} ' \
-               f'{"dbt":>3} {"delay":>6} {"usages%"}'
+               f'{"debt":>7} {"delay":>7} {"usage%"}'
 
 class IocgStat:
     def __init__(self, iocg):
@@ -144,11 +143,11 @@ class IocgStat:
         blkg = iocg.pd.blkg
 
         self.is_active = not list_empty(iocg.active_list.address_of_())
-        self.weight = iocg.weight.value_()
-        self.active = iocg.active.value_()
-        self.inuse = iocg.inuse.value_()
-        self.hwa_pct = iocg.hweight_active.value_() * 100 / HWEIGHT_WHOLE
-        self.hwi_pct = iocg.hweight_inuse.value_() * 100 / HWEIGHT_WHOLE
+        self.weight = iocg.weight.value_() / WEIGHT_ONE
+        self.active = iocg.active.value_() / WEIGHT_ONE
+        self.inuse = iocg.inuse.value_() / WEIGHT_ONE
+        self.hwa_pct = iocg.hweight_active.value_() * 100 / WEIGHT_ONE
+        self.hwi_pct = iocg.hweight_inuse.value_() * 100 / WEIGHT_ONE
         self.address = iocg.value_()
 
         vdone = iocg.done_vtime.counter.value_()
@@ -160,23 +159,13 @@ class IocgStat:
         else:
             self.inflight_pct = 0
 
-        # vdebt used to be an atomic64_t and is now u64, support both
-        try:
-            self.debt_ms = iocg.abs_vdebt.counter.value_() / VTIME_PER_USEC / 1000
-        except:
-            self.debt_ms = iocg.abs_vdebt.value_() / VTIME_PER_USEC / 1000
-
-        self.use_delay = blkg.use_delay.counter.value_()
-        self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
-
-        usage_idx = iocg.usage_idx.value_()
-        self.usages = []
-        self.usage = 0
-        for i in range(NR_USAGE_SLOTS):
-            usage = iocg.usages[(usage_idx + 1 + i) % NR_USAGE_SLOTS].value_()
-            upct = usage * 100 / HWEIGHT_WHOLE
-            self.usages.append(upct)
-            self.usage = max(self.usage, upct)
+        self.usage = (100 * iocg.usage_delta_us.value_() /
+                      ioc.period_us.value_()) if self.active else 0
+        self.debt_ms = iocg.abs_vdebt.value_() / VTIME_PER_USEC / 1000
+        if blkg.use_delay.counter.value_() != 0:
+            self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
+        else:
+            self.delay_ms = 0
 
     def dict(self, now, path):
         out = { 'cgroup'                : path,
@@ -189,25 +178,20 @@ class IocgStat:
                 'hweight_inuse_pct'     : self.hwi_pct,
                 'inflight_pct'          : self.inflight_pct,
                 'debt_ms'               : self.debt_ms,
-                'use_delay'             : self.use_delay,
                 'delay_ms'              : self.delay_ms,
                 'usage_pct'             : self.usage,
                 'address'               : self.address }
-        for i in range(len(self.usages)):
-            out[f'usage_pct_{i}'] = str(self.usages[i])
         return out
 
     def table_row_str(self, path):
         out = f'{path[-28:]:28} ' \
               f'{"*" if self.is_active else " "} ' \
-              f'{self.inuse:5}/{self.active:5} ' \
+              f'{round(self.inuse):5}/{round(self.active):5} ' \
               f'{self.hwi_pct:6.2f}/{self.hwa_pct:6.2f} ' \
               f'{self.inflight_pct:6.2f} ' \
-              f'{min(math.ceil(self.debt_ms), 999):3} ' \
-              f'{min(self.use_delay, 99):2}*'\
-              f'{min(math.ceil(self.delay_ms), 999):03} '
-        for u in self.usages:
-            out += f'{min(round(u), 999):03d}:'
+              f'{self.debt_ms:7.2f} ' \
+              f'{self.delay_ms:7.2f} '\
+              f'{min(self.usage, 999):6.2f}'
         out = out.rstrip(':')
         return out
 
