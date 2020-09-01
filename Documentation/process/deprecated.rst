@@ -304,7 +304,8 @@ to allocate for a structure containing an array of this kind as a member::
 In the example above, we had to remember to calculate ``count - 1`` when using
 the struct_size() helper, otherwise we would have --unintentionally-- allocated
 memory for one too many ``items`` objects. The cleanest and least error-prone way
-to implement this is through the use of a `flexible array member`::
+to implement this is through the use of a `flexible array member`, together with
+struct_size() and flex_array_size() helpers::
 
         struct something {
                 size_t count;
@@ -316,5 +317,4 @@ to implement this is through the use of a `flexible array member`::
         instance = kmalloc(struct_size(instance, items, count), GFP_KERNEL);
         instance->count = count;
 
-        size = sizeof(instance->items[0]) * instance->count;
-        memcpy(instance->items, source, size);
+        memcpy(instance->items, source, flex_array_size(instance, items, instance->count));
