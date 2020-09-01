@@ -1688,7 +1688,7 @@ static int haptics_init_custom_effect(struct haptics_chip *chip)
 	chip->custom_effect->vmax_mv = chip->config.vmax_mv;
 	chip->custom_effect->t_lra_us = chip->config.t_lra_us;
 	chip->custom_effect->src = FIFO;
-	chip->custom_effect->auto_res_disable = false;
+	chip->custom_effect->auto_res_disable = true;
 
 	return 0;
 }
