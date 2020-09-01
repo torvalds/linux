@@ -1005,8 +1005,6 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
 	return hw;
 }
 
-void mt76_tx_free(struct mt76_dev *dev);
-struct mt76_txwi_cache *mt76_get_txwi(struct mt76_dev *dev);
 void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
 void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 		      struct napi_struct *napi);

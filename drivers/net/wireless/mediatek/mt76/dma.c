@@ -7,6 +7,76 @@
 #include "mt76.h"
 #include "dma.h"
 
+static struct mt76_txwi_cache *
+mt76_alloc_txwi(struct mt76_dev *dev)
+{
+	struct mt76_txwi_cache *t;
+	dma_addr_t addr;
+	u8 *txwi;
+	int size;
+
+	size = L1_CACHE_ALIGN(dev->drv->txwi_size + sizeof(*t));
+	txwi = devm_kzalloc(dev->dev, size, GFP_ATOMIC);
+	if (!txwi)
+		return NULL;
+
+	addr = dma_map_single(dev->dev, txwi, dev->drv->txwi_size,
+			      DMA_TO_DEVICE);
+	t = (struct mt76_txwi_cache *)(txwi + dev->drv->txwi_size);
+	t->dma_addr = addr;
+
+	return t;
+}
+
+static struct mt76_txwi_cache *
+__mt76_get_txwi(struct mt76_dev *dev)
+{
+	struct mt76_txwi_cache *t = NULL;
+
+	spin_lock(&dev->lock);
+	if (!list_empty(&dev->txwi_cache)) {
+		t = list_first_entry(&dev->txwi_cache, struct mt76_txwi_cache,
+				     list);
+		list_del(&t->list);
+	}
+	spin_unlock(&dev->lock);
+
+	return t;
+}
+
+static struct mt76_txwi_cache *
+mt76_get_txwi(struct mt76_dev *dev)
+{
+	struct mt76_txwi_cache *t = __mt76_get_txwi(dev);
+
+	if (t)
+		return t;
+
+	return mt76_alloc_txwi(dev);
+}
+
+void
+mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+{
+	if (!t)
+		return;
+
+	spin_lock(&dev->lock);
+	list_add(&t->list, &dev->txwi_cache);
+	spin_unlock(&dev->lock);
+}
+EXPORT_SYMBOL_GPL(mt76_put_txwi);
+
+static void
+mt76_free_pending_txwi(struct mt76_dev *dev)
+{
+	struct mt76_txwi_cache *t;
+
+	while ((t = __mt76_get_txwi(dev)) != NULL)
+		dma_unmap_single(dev->dev, t->dma_addr, dev->drv->txwi_size,
+				 DMA_TO_DEVICE);
+}
+
 static int
 mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 		     int idx, int n_desc, int bufsize,
@@ -598,5 +668,7 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 		netif_napi_del(&dev->napi[i]);
 		mt76_dma_rx_cleanup(dev, &dev->q_rx[i]);
 	}
+
+	mt76_free_pending_txwi(dev);
 }
 EXPORT_SYMBOL_GPL(mt76_dma_cleanup);
