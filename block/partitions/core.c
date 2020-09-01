@@ -278,6 +278,15 @@ static void hd_struct_free_work(struct work_struct *work)
 {
 	struct hd_struct *part =
 		container_of(to_rcu_work(work), struct hd_struct, rcu_work);
+	struct gendisk *disk = part_to_disk(part);
+
+	/*
+	 * Release the disk reference acquired in delete_partition here.
+	 * We can't release it in hd_struct_free because the final put_device
+	 * needs process context and thus can't be run directly from a
+	 * percpu_ref ->release handler.
+	 */
+	put_device(disk_to_dev(disk));
 
 	part->start_sect = 0;
 	part->nr_sects = 0;
@@ -293,7 +302,6 @@ static void hd_struct_free(struct percpu_ref *ref)
 		rcu_dereference_protected(disk->part_tbl, 1);
 
 	rcu_assign_pointer(ptbl->last_lookup, NULL);
-	put_device(disk_to_dev(disk));
 
 	INIT_RCU_WORK(&part->rcu_work, hd_struct_free_work);
 	queue_rcu_work(system_wq, &part->rcu_work);
