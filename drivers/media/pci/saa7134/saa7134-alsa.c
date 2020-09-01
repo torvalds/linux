@@ -252,7 +252,8 @@ static int snd_card_saa7134_capture_trigger(struct snd_pcm_substream * substream
 	return err;
 }
 
-static int saa7134_alsa_dma_init(struct saa7134_dev *dev, int nr_pages)
+static int saa7134_alsa_dma_init(struct saa7134_dev *dev,
+				 unsigned long nr_pages)
 {
 	struct saa7134_dmasound *dma = &dev->dmasound;
 	struct page *pg;
@@ -260,11 +261,11 @@ static int saa7134_alsa_dma_init(struct saa7134_dev *dev, int nr_pages)
 
 	dma->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == dma->vaddr) {
-		pr_debug("vmalloc_32(%d pages) failed\n", nr_pages);
+		pr_debug("vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	pr_debug("vmalloc is at addr %p, size=%d\n",
+	pr_debug("vmalloc is at addr %p, size=%lu\n",
 		 dma->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
