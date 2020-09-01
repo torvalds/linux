@@ -958,7 +958,7 @@ int dm_pool_metadata_close(struct dm_pool_metadata *pmd)
 	}
 
 	pmd_write_lock_in_core(pmd);
-	if (!dm_bm_is_read_only(pmd->bm) && !pmd->fail_io) {
+	if (!pmd->fail_io && !dm_bm_is_read_only(pmd->bm)) {
 		r = __commit_transaction(pmd);
 		if (r < 0)
 			DMWARN("%s: __commit_transaction() failed, error = %d",
