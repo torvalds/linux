@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/usb/otg.h>
+#include <linux/phy/phy.h>
 
 #include "gadget.h"
 #include "drd.h"
@@ -157,6 +158,7 @@ int cdns3_drd_host_on(struct cdns3 *cdns)
 	if (ret)
 		dev_err(cdns->dev, "timeout waiting for xhci_ready\n");
 
+	phy_set_mode(cdns->usb3_phy, PHY_MODE_USB_HOST);
 	return ret;
 }
 
@@ -176,6 +178,7 @@ void cdns3_drd_host_off(struct cdns3 *cdns)
 	readl_poll_timeout_atomic(&cdns->otg_regs->state, val,
 				  !(val & OTGSTATE_HOST_STATE_MASK),
 				  1, 2000000);
+	phy_set_mode(cdns->usb3_phy, PHY_MODE_INVALID);
 }
 
 /**
@@ -202,6 +205,7 @@ int cdns3_drd_gadget_on(struct cdns3 *cdns)
 		return ret;
 	}
 
+	phy_set_mode(cdns->usb3_phy, PHY_MODE_USB_DEVICE);
 	return 0;
 }
 
@@ -225,6 +229,7 @@ void cdns3_drd_gadget_off(struct cdns3 *cdns)
 	readl_poll_timeout_atomic(&cdns->otg_regs->state, val,
 				  !(val & OTGSTATE_DEV_STATE_MASK),
 				  1, 2000000);
+	phy_set_mode(cdns->usb3_phy, PHY_MODE_INVALID);
 }
 
 /**
