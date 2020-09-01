@@ -1045,23 +1045,26 @@ xfs_buf_ioerror_permanent(
  *
  * Multi-state return value:
  *
- * XBF_IOERROR_FINISH: clear IO error retry state and run callback completions
- * XBF_IOERROR_DONE: resubmitted immediately, do not run any completions
- * XBF_IOERROR_FAIL: transient error, run failure callback completions and then
+ * XBF_IOEND_FINISH: run callback completions
+ * XBF_IOEND_DONE: resubmitted immediately, do not run any completions
+ * XBF_IOEND_FAIL: transient error, run failure callback completions and then
  *    release the buffer
  */
-enum {
-	XBF_IOERROR_FINISH,
-	XBF_IOERROR_DONE,
-	XBF_IOERROR_FAIL,
+enum xfs_buf_ioend_disposition {
+	XBF_IOEND_FINISH,
+	XBF_IOEND_DONE,
+	XBF_IOEND_FAIL,
 };
 
-static int
-xfs_buf_iodone_error(
+static enum xfs_buf_ioend_disposition
+xfs_buf_ioend_disposition(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_error_cfg	*cfg;
+
+	if (likely(!bp->b_error))
+		return XBF_IOEND_FINISH;
 
 	if (xfs_buf_ioerror_fail_without_retry(bp))
 		goto out_stale;
@@ -1072,7 +1075,7 @@ xfs_buf_iodone_error(
 	if (xfs_buf_ioerror_retry(bp, cfg)) {
 		xfs_buf_ioerror(bp, 0);
 		xfs_buf_submit(bp);
-		return XBF_IOERROR_DONE;
+		return XBF_IOEND_DONE;
 	}
 
 	/*
@@ -1085,13 +1088,13 @@ xfs_buf_iodone_error(
 	}
 
 	/* Still considered a transient error. Caller will schedule retries. */
-	return XBF_IOERROR_FAIL;
+	return XBF_IOEND_FAIL;
 
 out_stale:
 	xfs_buf_stale(bp);
 	bp->b_flags |= XBF_DONE;
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
-	return XBF_IOERROR_FINISH;
+	return XBF_IOEND_FINISH;
 }
 
 static void
@@ -1127,6 +1130,19 @@ xfs_buf_clear_ioerror_retry_state(
 	bp->b_first_retry_time = 0;
 }
 
+static void
+xfs_buf_inode_io_fail(
+	struct xfs_buf		*bp)
+{
+	struct xfs_log_item	*lip;
+
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
+		set_bit(XFS_LI_FAILED, &lip->li_flags);
+
+	xfs_buf_ioerror(bp, 0);
+	xfs_buf_relse(bp);
+}
+
 /*
  * Inode buffer iodone callback function.
  */
@@ -1134,28 +1150,34 @@ void
 xfs_buf_inode_iodone(
 	struct xfs_buf		*bp)
 {
-	if (bp->b_error) {
-		struct xfs_log_item *lip;
-		int ret = xfs_buf_iodone_error(bp);
-
-		if (ret == XBF_IOERROR_FINISH)
-			goto finish_iodone;
-		if (ret == XBF_IOERROR_DONE)
-			return;
-		ASSERT(ret == XBF_IOERROR_FAIL);
-		list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
-			set_bit(XFS_LI_FAILED, &lip->li_flags);
-		}
-		xfs_buf_ioerror(bp, 0);
-		xfs_buf_relse(bp);
+	switch (xfs_buf_ioend_disposition(bp)) {
+	case XBF_IOEND_DONE:
 		return;
+	case XBF_IOEND_FAIL:
+		xfs_buf_inode_io_fail(bp);
+		return;
+	default:
+		break;
 	}
 
-finish_iodone:
 	xfs_buf_clear_ioerror_retry_state(bp);
 	xfs_buf_item_done(bp);
 	xfs_iflush_done(bp);
 	xfs_buf_ioend_finish(bp);
+}
+
+static void
+xfs_buf_dquot_io_fail(
+	struct xfs_buf		*bp)
+{
+	struct xfs_log_item	*lip;
+
+	spin_lock(&bp->b_mount->m_ail->ail_lock);
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
+		xfs_set_li_failed(lip, bp);
+	spin_unlock(&bp->b_mount->m_ail->ail_lock);
+	xfs_buf_ioerror(bp, 0);
+	xfs_buf_relse(bp);
 }
 
 /*
@@ -1165,26 +1187,16 @@ void
 xfs_buf_dquot_iodone(
 	struct xfs_buf		*bp)
 {
-	if (bp->b_error) {
-		struct xfs_log_item *lip;
-		int ret = xfs_buf_iodone_error(bp);
-
-		if (ret == XBF_IOERROR_FINISH)
-			goto finish_iodone;
-		if (ret == XBF_IOERROR_DONE)
-			return;
-		ASSERT(ret == XBF_IOERROR_FAIL);
-		spin_lock(&bp->b_mount->m_ail->ail_lock);
-		list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
-			xfs_set_li_failed(lip, bp);
-		}
-		spin_unlock(&bp->b_mount->m_ail->ail_lock);
-		xfs_buf_ioerror(bp, 0);
-		xfs_buf_relse(bp);
+	switch (xfs_buf_ioend_disposition(bp)) {
+	case XBF_IOEND_DONE:
 		return;
+	case XBF_IOEND_FAIL:
+		xfs_buf_dquot_io_fail(bp);
+		return;
+	default:
+		break;
 	}
 
-finish_iodone:
 	xfs_buf_clear_ioerror_retry_state(bp);
 	/* a newly allocated dquot buffer might have a log item attached */
 	xfs_buf_item_done(bp);
@@ -1202,21 +1214,18 @@ void
 xfs_buf_iodone(
 	struct xfs_buf		*bp)
 {
-	if (bp->b_error) {
-		int ret = xfs_buf_iodone_error(bp);
-
-		if (ret == XBF_IOERROR_FINISH)
-			goto finish_iodone;
-		if (ret == XBF_IOERROR_DONE)
-			return;
-		ASSERT(ret == XBF_IOERROR_FAIL);
+	switch (xfs_buf_ioend_disposition(bp)) {
+	case XBF_IOEND_DONE:
+		return;
+	case XBF_IOEND_FAIL:
 		ASSERT(list_empty(&bp->b_li_list));
 		xfs_buf_ioerror(bp, 0);
 		xfs_buf_relse(bp);
 		return;
+	default:
+		break;
 	}
 
-finish_iodone:
 	xfs_buf_clear_ioerror_retry_state(bp);
 	xfs_buf_item_done(bp);
 	xfs_buf_ioend_finish(bp);
