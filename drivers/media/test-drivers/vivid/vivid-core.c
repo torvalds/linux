@@ -832,56 +832,16 @@ static int vivid_create_queue(struct vivid_dev *dev,
 	return vb2_queue_init(q);
 }
 
-static int vivid_create_instance(struct platform_device *pdev, int inst)
+static int vivid_detect_feature_set(struct vivid_dev *dev, int inst,
+				    unsigned node_type,
+				    bool *has_tuner,
+				    bool *has_modulator,
+				    int *ccs_cap,
+				    int *ccs_out,
+				    unsigned in_type_counter[4],
+				    unsigned out_type_counter[4])
 {
-	static const struct v4l2_dv_timings def_dv_timings =
-					V4L2_DV_BT_CEA_1280X720P60;
-	unsigned in_type_counter[4] = { 0, 0, 0, 0 };
-	unsigned out_type_counter[4] = { 0, 0, 0, 0 };
-	int ccs_cap = ccs_cap_mode[inst];
-	int ccs_out = ccs_out_mode[inst];
-	bool has_tuner;
-	bool has_modulator;
-	struct vivid_dev *dev;
-	struct video_device *vfd;
-	unsigned node_type = node_types[inst];
-	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
-	int ret;
 	int i;
-#ifdef CONFIG_VIDEO_VIVID_CEC
-	unsigned int cec_tx_bus_cnt = 0;
-#endif
-
-	/* allocate main vivid state structure */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
-
-	dev->inst = inst;
-
-#ifdef CONFIG_MEDIA_CONTROLLER
-	dev->v4l2_dev.mdev = &dev->mdev;
-
-	/* Initialize media device */
-	strscpy(dev->mdev.model, VIVID_MODULE_NAME, sizeof(dev->mdev.model));
-	snprintf(dev->mdev.bus_info, sizeof(dev->mdev.bus_info),
-		 "platform:%s-%03d", VIVID_MODULE_NAME, inst);
-	dev->mdev.dev = &pdev->dev;
-	media_device_init(&dev->mdev);
-	dev->mdev.ops = &vivid_media_ops;
-#endif
-
-	/* register v4l2_device */
-	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
-			"%s-%03d", VIVID_MODULE_NAME, inst);
-	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
-	if (ret) {
-		kfree(dev);
-		return ret;
-	}
-	dev->v4l2_dev.release = vivid_dev_release;
-
-	/* start detecting feature set */
 
 	/* do we use single- or multi-planar? */
 	dev->multiplanar = multiplanar[inst] > 1;
@@ -947,14 +907,12 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	    !dev->has_vid_cap && !dev->has_meta_cap) {
 		v4l2_warn(&dev->v4l2_dev,
 			  "Webcam or HDMI input without video or metadata nodes\n");
-		kfree(dev);
 		return -EINVAL;
 	}
 	if ((in_type_counter[TV] || in_type_counter[SVID]) &&
 	    !dev->has_vid_cap && !dev->has_vbi_cap && !dev->has_meta_cap) {
 		v4l2_warn(&dev->v4l2_dev,
 			  "TV or S-Video input without video, VBI or metadata nodes\n");
-		kfree(dev);
 		return -EINVAL;
 	}
 
@@ -976,13 +934,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	    !dev->has_vid_out && !dev->has_vbi_out && !dev->has_meta_out) {
 		v4l2_warn(&dev->v4l2_dev,
 			  "S-Video output without video, VBI or metadata nodes\n");
-		kfree(dev);
 		return -EINVAL;
 	}
 	if (out_type_counter[HDMI] && !dev->has_vid_out && !dev->has_meta_out) {
 		v4l2_warn(&dev->v4l2_dev,
 			  "HDMI output without video or metadata nodes\n");
-		kfree(dev);
 		return -EINVAL;
 	}
 
@@ -999,25 +955,25 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	dev->has_tv_tuner = in_type_counter[TV];
 
 	/* do we have a tuner? */
-	has_tuner = ((dev->has_vid_cap || dev->has_vbi_cap) && in_type_counter[TV]) ||
-		    dev->has_radio_rx || dev->has_sdr_cap;
+	*has_tuner = ((dev->has_vid_cap || dev->has_vbi_cap) && in_type_counter[TV]) ||
+		      dev->has_radio_rx || dev->has_sdr_cap;
 
 	/* do we have a modulator? */
-	has_modulator = dev->has_radio_tx;
+	*has_modulator = dev->has_radio_tx;
 
 	if (dev->has_vid_cap)
 		/* do we have a framebuffer for overlay testing? */
 		dev->has_fb = node_type & 0x10000;
 
 	/* can we do crop/compose/scaling while capturing? */
-	if (no_error_inj && ccs_cap == -1)
-		ccs_cap = 7;
+	if (no_error_inj && *ccs_cap == -1)
+		*ccs_cap = 7;
 
 	/* if ccs_cap == -1, then the user can select it using controls */
-	if (ccs_cap != -1) {
-		dev->has_crop_cap = ccs_cap & 1;
-		dev->has_compose_cap = ccs_cap & 2;
-		dev->has_scaler_cap = ccs_cap & 4;
+	if (*ccs_cap != -1) {
+		dev->has_crop_cap = *ccs_cap & 1;
+		dev->has_compose_cap = *ccs_cap & 2;
+		dev->has_scaler_cap = *ccs_cap & 4;
 		v4l2_info(&dev->v4l2_dev, "Capture Crop: %c Compose: %c Scaler: %c\n",
 			dev->has_crop_cap ? 'Y' : 'N',
 			dev->has_compose_cap ? 'Y' : 'N',
@@ -1025,14 +981,14 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	}
 
 	/* can we do crop/compose/scaling with video output? */
-	if (no_error_inj && ccs_out == -1)
-		ccs_out = 7;
+	if (no_error_inj && *ccs_out == -1)
+		*ccs_out = 7;
 
 	/* if ccs_out == -1, then the user can select it using controls */
-	if (ccs_out != -1) {
-		dev->has_crop_out = ccs_out & 1;
-		dev->has_compose_out = ccs_out & 2;
-		dev->has_scaler_out = ccs_out & 4;
+	if (*ccs_out != -1) {
+		dev->has_crop_out = *ccs_out & 1;
+		dev->has_compose_out = *ccs_out & 2;
+		dev->has_scaler_out = *ccs_out & 4;
 		v4l2_info(&dev->v4l2_dev, "Output Crop: %c Compose: %c Scaler: %c\n",
 			dev->has_crop_out ? 'Y' : 'N',
 			dev->has_compose_out ? 'Y' : 'N',
@@ -1042,7 +998,66 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	/* do we create a touch capture device */
 	dev->has_touch_cap = node_type & 0x80000;
 
-	/* end detecting feature set */
+	return 0;
+}
+
+static int vivid_create_instance(struct platform_device *pdev, int inst)
+{
+	static const struct v4l2_dv_timings def_dv_timings =
+					V4L2_DV_BT_CEA_1280X720P60;
+	unsigned in_type_counter[4] = { 0, 0, 0, 0 };
+	unsigned out_type_counter[4] = { 0, 0, 0, 0 };
+	int ccs_cap = ccs_cap_mode[inst];
+	int ccs_out = ccs_out_mode[inst];
+	bool has_tuner;
+	bool has_modulator;
+	struct vivid_dev *dev;
+	struct video_device *vfd;
+	unsigned node_type = node_types[inst];
+	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
+	int ret;
+	int i;
+#ifdef CONFIG_VIDEO_VIVID_CEC
+	unsigned int cec_tx_bus_cnt = 0;
+#endif
+
+	/* allocate main vivid state structure */
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
+	dev->inst = inst;
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	dev->v4l2_dev.mdev = &dev->mdev;
+
+	/* Initialize media device */
+	strscpy(dev->mdev.model, VIVID_MODULE_NAME, sizeof(dev->mdev.model));
+	snprintf(dev->mdev.bus_info, sizeof(dev->mdev.bus_info),
+		 "platform:%s-%03d", VIVID_MODULE_NAME, inst);
+	dev->mdev.dev = &pdev->dev;
+	media_device_init(&dev->mdev);
+	dev->mdev.ops = &vivid_media_ops;
+#endif
+
+	/* register v4l2_device */
+	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
+			"%s-%03d", VIVID_MODULE_NAME, inst);
+	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
+	if (ret) {
+		kfree(dev);
+		return ret;
+	}
+	dev->v4l2_dev.release = vivid_dev_release;
+
+	ret = vivid_detect_feature_set(dev, inst, node_type,
+				       &has_tuner, &has_modulator,
+				       &ccs_cap, &ccs_out,
+				       in_type_counter, out_type_counter);
+	if (ret) {
+		kfree(dev);
+		return ret;
+	}
 
 	if (dev->has_vid_cap) {
 		/* set up the capabilities of the video capture device */
