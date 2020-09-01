@@ -939,10 +939,10 @@ static int __battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 {
 	int rc;
 
-	if (bcdev->restrict_chg_en)
+	if (bcdev->restrict_chg_en) {
+		fcc_ua = min_t(u32, fcc_ua, bcdev->restrict_fcc_ua);
 		fcc_ua = min_t(u32, fcc_ua, bcdev->thermal_fcc_ua);
-	else
-		fcc_ua = bcdev->thermal_fcc_ua;
+	}
 
 	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_BATTERY],
 				BATT_CHG_CTRL_LIM, fcc_ua);
@@ -958,7 +958,7 @@ static int battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 					int val)
 {
 	int rc;
-	u32 fcc_ua;
+	u32 fcc_ua, prev_fcc_ua;
 
 	if (!bcdev->num_thermal_levels)
 		return 0;
@@ -972,12 +972,14 @@ static int battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 		return -EINVAL;
 
 	fcc_ua = bcdev->thermal_levels[val];
+	prev_fcc_ua = bcdev->thermal_fcc_ua;
+	bcdev->thermal_fcc_ua = fcc_ua;
 
 	rc = __battery_psy_set_charge_current(bcdev, fcc_ua);
-	if (!rc) {
+	if (!rc)
 		bcdev->curr_thermal_level = val;
-		bcdev->thermal_fcc_ua = fcc_ua;
-	}
+	else
+		bcdev->thermal_fcc_ua = prev_fcc_ua;
 
 	return rc;
 }
@@ -1392,18 +1394,20 @@ static ssize_t restrict_cur_store(struct class *c, struct class_attribute *attr,
 	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
 						battery_class);
 	int rc;
-	u32 val;
+	u32 fcc_ua, prev_fcc_ua;
 
-	if (kstrtou32(buf, 0, &val) || val > bcdev->thermal_fcc_ua)
+	if (kstrtou32(buf, 0, &fcc_ua) || fcc_ua > bcdev->thermal_fcc_ua)
 		return -EINVAL;
 
+	prev_fcc_ua = bcdev->restrict_fcc_ua;
+	bcdev->restrict_fcc_ua = fcc_ua;
 	if (bcdev->restrict_chg_en) {
-		rc = __battery_psy_set_charge_current(bcdev, val);
-		if (rc < 0)
+		rc = __battery_psy_set_charge_current(bcdev, fcc_ua);
+		if (rc < 0) {
+			bcdev->restrict_fcc_ua = prev_fcc_ua;
 			return rc;
+		}
 	}
-
-	bcdev->restrict_fcc_ua = val;
 
 	return count;
 }
@@ -1430,8 +1434,8 @@ static ssize_t restrict_chg_store(struct class *c, struct class_attribute *attr,
 		return -EINVAL;
 
 	bcdev->restrict_chg_en = val;
-
-	rc = __battery_psy_set_charge_current(bcdev, bcdev->restrict_fcc_ua);
+	rc = __battery_psy_set_charge_current(bcdev, bcdev->restrict_chg_en ?
+			bcdev->restrict_fcc_ua : bcdev->thermal_fcc_ua);
 	if (rc < 0)
 		return rc;
 
