@@ -1283,6 +1283,14 @@ xfs_buf_ioend_disposition(
 	}
 
 	/* Still considered a transient error. Caller will schedule retries. */
+	if (bp->b_flags & _XBF_INODES)
+		xfs_buf_inode_io_fail(bp);
+	else if (bp->b_flags & _XBF_DQUOTS)
+		xfs_buf_dquot_io_fail(bp);
+	else
+		ASSERT(list_empty(&bp->b_li_list));
+	xfs_buf_ioerror(bp, 0);
+	xfs_buf_relse(bp);
 	return XBF_IOEND_FAIL;
 
 resubmit:
@@ -1336,14 +1344,6 @@ xfs_buf_ioend(
 		case XBF_IOEND_DONE:
 			return;
 		case XBF_IOEND_FAIL:
-			if (bp->b_flags & _XBF_INODES)
-				xfs_buf_inode_io_fail(bp);
-			else if (bp->b_flags & _XBF_DQUOTS)
-				xfs_buf_dquot_io_fail(bp);
-			else
-				ASSERT(list_empty(&bp->b_li_list));
-			xfs_buf_ioerror(bp, 0);
-			xfs_buf_relse(bp);
 			return;
 		default:
 			break;
