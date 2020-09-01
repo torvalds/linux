@@ -40,16 +40,8 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	struct private_data *priv = policy->driver_data;
 	unsigned long freq = policy->freq_table[index].frequency;
-	int ret;
 
-	ret = dev_pm_opp_set_rate(priv->cpu_dev, freq * 1000);
-
-	if (!ret) {
-		arch_set_freq_scale(policy->related_cpus, freq,
-				    policy->cpuinfo.max_freq);
-	}
-
-	return ret;
+	return dev_pm_opp_set_rate(priv->cpu_dev, freq * 1000);
 }
 
 /*
