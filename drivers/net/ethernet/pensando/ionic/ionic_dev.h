@@ -199,16 +199,17 @@ struct ionic_desc_info {
 
 struct ionic_queue {
 	struct device *dev;
-	u64 dbell_count;
-	u64 drop;
-	u64 stop;
-	u64 wake;
 	struct ionic_lif *lif;
 	struct ionic_desc_info *info;
-	struct ionic_dev *idev;
 	u16 head_idx;
 	u16 tail_idx;
 	unsigned int index;
+	unsigned int num_descs;
+	u64 dbell_count;
+	u64 stop;
+	u64 wake;
+	u64 drop;
+	struct ionic_dev *idev;
 	unsigned int type;
 	unsigned int hw_index;
 	unsigned int hw_type;
@@ -226,7 +227,6 @@ struct ionic_queue {
 	};
 	dma_addr_t base_pa;
 	dma_addr_t sg_base_pa;
-	unsigned int num_descs;
 	unsigned int desc_size;
 	unsigned int sg_desc_size;
 	unsigned int pid;
@@ -246,8 +246,6 @@ struct ionic_intr_info {
 };
 
 struct ionic_cq {
-	void *base;
-	dma_addr_t base_pa;
 	struct ionic_lif *lif;
 	struct ionic_cq_info *info;
 	struct ionic_queue *bound_q;
@@ -255,8 +253,10 @@ struct ionic_cq {
 	u16 tail_idx;
 	bool done_color;
 	unsigned int num_descs;
-	u64 compl_count;
 	unsigned int desc_size;
+	u64 compl_count;
+	void *base;
+	dma_addr_t base_pa;
 };
 
 struct ionic;
