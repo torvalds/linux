@@ -1283,12 +1283,13 @@ xfs_buf_ioend_handle_error(
 
 resubmit:
 	xfs_buf_ioerror(bp, 0);
-	bp->b_flags |= (XBF_WRITE | XBF_DONE | XBF_WRITE_FAIL);
+	bp->b_flags |= (XBF_DONE | XBF_WRITE_FAIL);
 	xfs_buf_submit(bp);
 	return true;
 out_stale:
 	xfs_buf_stale(bp);
 	bp->b_flags |= XBF_DONE;
+	bp->b_flags &= ~XBF_WRITE;
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
 	return false;
 }
@@ -1297,11 +1298,7 @@ static void
 xfs_buf_ioend(
 	struct xfs_buf	*bp)
 {
-	bool		read = bp->b_flags & XBF_READ;
-
 	trace_xfs_buf_iodone(bp, _RET_IP_);
-
-	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 
 	/*
 	 * Pull in IO completion errors now. We are guaranteed to be running
@@ -1310,7 +1307,7 @@ xfs_buf_ioend(
 	if (!bp->b_error && bp->b_io_error)
 		xfs_buf_ioerror(bp, bp->b_io_error);
 
-	if (read) {
+	if (bp->b_flags & XBF_READ) {
 		if (!bp->b_error && bp->b_ops)
 			bp->b_ops->verify_read(bp);
 		if (!bp->b_error)
@@ -1349,6 +1346,8 @@ xfs_buf_ioend(
 		else if (bp->b_flags & _XBF_DQUOTS)
 			xfs_buf_dquot_iodone(bp);
 	}
+
+	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 
 	if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
