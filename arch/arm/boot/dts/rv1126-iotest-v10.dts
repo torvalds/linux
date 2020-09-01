@@ -331,7 +331,6 @@
 
 	pmuio0-supply = <&vcc1v8_pmu>;
 	pmuio1-supply = <&vcc3v3_sys>;
-	vccio1-supply = <&vcc_1v8>;
 	vccio2-supply = <&vcc_3v3>;
 	vccio3-supply = <&vcc_3v3>;
 	vccio4-supply = <&vcc_3v3>;

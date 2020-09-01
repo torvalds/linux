@@ -173,7 +173,6 @@
 
 	pmuio0-supply = <&vcc_1v8>;
 	pmuio1-supply = <&vcc_3v3>;
-	vccio1-supply = <&vccio_flash>;
 	vccio2-supply = <&vccio_sd>;
 	vccio3-supply = <&vcc_1v8>;
 	vccio4-supply = <&vcc_1v8>;
