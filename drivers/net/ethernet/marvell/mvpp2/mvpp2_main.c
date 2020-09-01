@@ -57,13 +57,7 @@ static struct {
 /* The prototype is added here to be used in start_dev when using ACPI. This
  * will be removed once phylink is used for all modes (dt+ACPI).
  */
-static void mvpp2_mac_config(struct phylink_config *config, unsigned int mode,
-			     const struct phylink_link_state *state);
-static void mvpp2_mac_link_up(struct phylink_config *config,
-			      struct phy_device *phy,
-			      unsigned int mode, phy_interface_t interface,
-			      int speed, int duplex,
-			      bool tx_pause, bool rx_pause);
+static void mvpp2_acpi_start(struct mvpp2_port *port);
 
 /* Queue modes */
 #define MVPP2_QDIST_SINGLE_MODE	0
@@ -4007,17 +4001,7 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	if (port->phylink) {
 		phylink_start(port->phylink);
 	} else {
-		/* Phylink isn't used as of now for ACPI, so the MAC has to be
-		 * configured manually when the interface is started. This will
-		 * be removed as soon as the phylink ACPI support lands in.
-		 */
-		struct phylink_link_state state = {
-			.interface = port->phy_interface,
-		};
-		mvpp2_mac_config(&port->phylink_config, MLO_AN_INBAND, &state);
-		mvpp2_mac_link_up(&port->phylink_config, NULL,
-				  MLO_AN_INBAND, port->phy_interface,
-				  SPEED_UNKNOWN, DUPLEX_UNKNOWN, false, false);
+		mvpp2_acpi_start(port);
 	}
 
 	netif_tx_start_all_queues(port->dev);
@@ -5849,6 +5833,22 @@ static const struct phylink_mac_ops mvpp2_phylink_ops = {
 	.mac_link_up = mvpp2_mac_link_up,
 	.mac_link_down = mvpp2_mac_link_down,
 };
+
+/* Work-around for ACPI */
+static void mvpp2_acpi_start(struct mvpp2_port *port)
+{
+	/* Phylink isn't used as of now for ACPI, so the MAC has to be
+	 * configured manually when the interface is started. This will
+	 * be removed as soon as the phylink ACPI support lands in.
+	 */
+	struct phylink_link_state state = {
+		.interface = port->phy_interface,
+	};
+	mvpp2_mac_config(&port->phylink_config, MLO_AN_INBAND, &state);
+	mvpp2_mac_link_up(&port->phylink_config, NULL,
+			  MLO_AN_INBAND, port->phy_interface,
+			  SPEED_UNKNOWN, DUPLEX_UNKNOWN, false, false);
+}
 
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
