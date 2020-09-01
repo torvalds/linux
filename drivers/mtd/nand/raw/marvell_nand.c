@@ -2790,10 +2790,7 @@ static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
 	if (IS_ERR(nfc->dma_chan)) {
 		ret = PTR_ERR(nfc->dma_chan);
 		nfc->dma_chan = NULL;
-		if (ret != -EPROBE_DEFER)
-			dev_err(nfc->dev, "DMA channel request failed: %d\n",
-				ret);
-		return ret;
+		return dev_err_probe(nfc->dev, ret, "DMA channel request failed\n");
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
