@@ -229,17 +229,18 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 		task->lldd_task = NULL;
 
 		if (!sas_protocol_ata(task->task_proto)) {
-			struct sas_ssp_task *ssp_task = &task->ssp_task;
-			struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-
 			if (slot->n_elem)
 				dma_unmap_sg(dev, task->scatter,
 					     task->num_scatter,
 					     task->data_dir);
-			if (slot->n_elem_dif)
+			if (slot->n_elem_dif) {
+				struct sas_ssp_task *ssp_task = &task->ssp_task;
+				struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
+
 				dma_unmap_sg(dev, scsi_prot_sglist(scsi_cmnd),
 					     scsi_prot_sg_count(scsi_cmnd),
 					     task->data_dir);
+			}
 		}
 	}
 
