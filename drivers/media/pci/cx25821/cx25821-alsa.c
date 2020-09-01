@@ -53,8 +53,8 @@ struct cx25821_audio_buffer {
 	struct cx25821_riscmem risc;
 	void			*vaddr;
 	struct scatterlist	*sglist;
-	int                     sglen;
-	int                     nr_pages;
+	int			sglen;
+	unsigned long		nr_pages;
 };
 
 struct cx25821_audio_dev {
@@ -131,7 +131,8 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 #define PCI_MSK_AUD_EXT   (1 <<  4)
 #define PCI_MSK_AUD_INT   (1 <<  3)
 
-static int cx25821_alsa_dma_init(struct cx25821_audio_dev *chip, int nr_pages)
+static int cx25821_alsa_dma_init(struct cx25821_audio_dev *chip,
+				 unsigned long nr_pages)
 {
 	struct cx25821_audio_buffer *buf = chip->buf;
 	struct page *pg;
@@ -139,11 +140,11 @@ static int cx25821_alsa_dma_init(struct cx25821_audio_dev *chip, int nr_pages)
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == buf->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr 0x%p, size=%d\n",
+	dprintk(1, "vmalloc is at addr 0x%p, size=%lu\n",
 				buf->vaddr,
 				nr_pages << PAGE_SHIFT);
 
