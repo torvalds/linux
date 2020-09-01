@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019-2020, Mellanox Technologies inc. All rights reserved. */
 
 #include <net/xdp_sock_drv.h>
-#include "umem.h"
+#include "pool.h"
 #include "setup.h"
 #include "en/params.h"
 
-static int mlx5e_xsk_map_umem(struct mlx5e_priv *priv,
-			      struct xdp_umem *umem)
+static int mlx5e_xsk_map_pool(struct mlx5e_priv *priv,
+			      struct xsk_buff_pool *pool)
 {
 	struct device *dev = priv->mdev->device;
 
-	return xsk_buff_dma_map(umem, dev, 0);
+	return xsk_pool_dma_map(pool, dev, 0);
 }
 
-static void mlx5e_xsk_unmap_umem(struct mlx5e_priv *priv,
-				 struct xdp_umem *umem)
+static void mlx5e_xsk_unmap_pool(struct mlx5e_priv *priv,
+				 struct xsk_buff_pool *pool)
 {
-	return xsk_buff_dma_unmap(umem, 0);
+	return xsk_pool_dma_unmap(pool, 0);
 }
 
-static int mlx5e_xsk_get_umems(struct mlx5e_xsk *xsk)
+static int mlx5e_xsk_get_pools(struct mlx5e_xsk *xsk)
 {
-	if (!xsk->umems) {
-		xsk->umems = kcalloc(MLX5E_MAX_NUM_CHANNELS,
-				     sizeof(*xsk->umems), GFP_KERNEL);
-		if (unlikely(!xsk->umems))
+	if (!xsk->pools) {
+		xsk->pools = kcalloc(MLX5E_MAX_NUM_CHANNELS,
+				     sizeof(*xsk->pools), GFP_KERNEL);
+		if (unlikely(!xsk->pools))
 			return -ENOMEM;
 	}
 
@@ -35,68 +35,68 @@ static int mlx5e_xsk_get_umems(struct mlx5e_xsk *xsk)
 	return 0;
 }
 
-static void mlx5e_xsk_put_umems(struct mlx5e_xsk *xsk)
+static void mlx5e_xsk_put_pools(struct mlx5e_xsk *xsk)
 {
 	if (!--xsk->refcnt) {
-		kfree(xsk->umems);
-		xsk->umems = NULL;
+		kfree(xsk->pools);
+		xsk->pools = NULL;
 	}
 }
 
-static int mlx5e_xsk_add_umem(struct mlx5e_xsk *xsk, struct xdp_umem *umem, u16 ix)
+static int mlx5e_xsk_add_pool(struct mlx5e_xsk *xsk, struct xsk_buff_pool *pool, u16 ix)
 {
 	int err;
 
-	err = mlx5e_xsk_get_umems(xsk);
+	err = mlx5e_xsk_get_pools(xsk);
 	if (unlikely(err))
 		return err;
 
-	xsk->umems[ix] = umem;
+	xsk->pools[ix] = pool;
 	return 0;
 }
 
-static void mlx5e_xsk_remove_umem(struct mlx5e_xsk *xsk, u16 ix)
+static void mlx5e_xsk_remove_pool(struct mlx5e_xsk *xsk, u16 ix)
 {
-	xsk->umems[ix] = NULL;
+	xsk->pools[ix] = NULL;
 
-	mlx5e_xsk_put_umems(xsk);
+	mlx5e_xsk_put_pools(xsk);
 }
 
-static bool mlx5e_xsk_is_umem_sane(struct xdp_umem *umem)
+static bool mlx5e_xsk_is_pool_sane(struct xsk_buff_pool *pool)
 {
-	return xsk_umem_get_headroom(umem) <= 0xffff &&
-		xsk_umem_get_chunk_size(umem) <= 0xffff;
+	return xsk_pool_get_headroom(pool) <= 0xffff &&
+		xsk_pool_get_chunk_size(pool) <= 0xffff;
 }
 
-void mlx5e_build_xsk_param(struct xdp_umem *umem, struct mlx5e_xsk_param *xsk)
+void mlx5e_build_xsk_param(struct xsk_buff_pool *pool, struct mlx5e_xsk_param *xsk)
 {
-	xsk->headroom = xsk_umem_get_headroom(umem);
-	xsk->chunk_size = xsk_umem_get_chunk_size(umem);
+	xsk->headroom = xsk_pool_get_headroom(pool);
+	xsk->chunk_size = xsk_pool_get_chunk_size(pool);
 }
 
 static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
-				   struct xdp_umem *umem, u16 ix)
+				   struct xsk_buff_pool *pool, u16 ix)
 {
 	struct mlx5e_params *params = &priv->channels.params;
 	struct mlx5e_xsk_param xsk;
 	struct mlx5e_channel *c;
 	int err;
 
-	if (unlikely(mlx5e_xsk_get_umem(&priv->channels.params, &priv->xsk, ix)))
+	if (unlikely(mlx5e_xsk_get_pool(&priv->channels.params, &priv->xsk, ix)))
 		return -EBUSY;
 
-	if (unlikely(!mlx5e_xsk_is_umem_sane(umem)))
+	if (unlikely(!mlx5e_xsk_is_pool_sane(pool)))
 		return -EINVAL;
 
-	err = mlx5e_xsk_map_umem(priv, umem);
+	err = mlx5e_xsk_map_pool(priv, pool);
 	if (unlikely(err))
 		return err;
 
-	err = mlx5e_xsk_add_umem(&priv->xsk, umem, ix);
+	err = mlx5e_xsk_add_pool(&priv->xsk, pool, ix);
 	if (unlikely(err))
-		goto err_unmap_umem;
+		goto err_unmap_pool;
 
-	mlx5e_build_xsk_param(umem, &xsk);
+	mlx5e_build_xsk_param(pool, &xsk);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		/* XSK objects will be created on open. */
@@ -112,9 +112,9 @@ static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
 
 	c = priv->channels.c[ix];
 
-	err = mlx5e_open_xsk(priv, params, &xsk, umem, c);
+	err = mlx5e_open_xsk(priv, params, &xsk, pool, c);
 	if (unlikely(err))
-		goto err_remove_umem;
+		goto err_remove_pool;
 
 	mlx5e_activate_xsk(c);
 
@@ -132,11 +132,11 @@ err_deactivate:
 	mlx5e_deactivate_xsk(c);
 	mlx5e_close_xsk(c);
 
-err_remove_umem:
-	mlx5e_xsk_remove_umem(&priv->xsk, ix);
+err_remove_pool:
+	mlx5e_xsk_remove_pool(&priv->xsk, ix);
 
-err_unmap_umem:
-	mlx5e_xsk_unmap_umem(priv, umem);
+err_unmap_pool:
+	mlx5e_xsk_unmap_pool(priv, pool);
 
 	return err;
 
@@ -146,7 +146,7 @@ validate_closed:
 	 */
 	if (!mlx5e_validate_xsk_param(params, &xsk, priv->mdev)) {
 		err = -EINVAL;
-		goto err_remove_umem;
+		goto err_remove_pool;
 	}
 
 	return 0;
@@ -154,45 +154,45 @@ validate_closed:
 
 static int mlx5e_xsk_disable_locked(struct mlx5e_priv *priv, u16 ix)
 {
-	struct xdp_umem *umem = mlx5e_xsk_get_umem(&priv->channels.params,
+	struct xsk_buff_pool *pool = mlx5e_xsk_get_pool(&priv->channels.params,
 						   &priv->xsk, ix);
 	struct mlx5e_channel *c;
 
-	if (unlikely(!umem))
+	if (unlikely(!pool))
 		return -EINVAL;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		goto remove_umem;
+		goto remove_pool;
 
 	/* XSK RQ and SQ are only created if XDP program is set. */
 	if (!priv->channels.params.xdp_prog)
-		goto remove_umem;
+		goto remove_pool;
 
 	c = priv->channels.c[ix];
 	mlx5e_xsk_redirect_rqt_to_drop(priv, ix);
 	mlx5e_deactivate_xsk(c);
 	mlx5e_close_xsk(c);
 
-remove_umem:
-	mlx5e_xsk_remove_umem(&priv->xsk, ix);
-	mlx5e_xsk_unmap_umem(priv, umem);
+remove_pool:
+	mlx5e_xsk_remove_pool(&priv->xsk, ix);
+	mlx5e_xsk_unmap_pool(priv, pool);
 
 	return 0;
 }
 
-static int mlx5e_xsk_enable_umem(struct mlx5e_priv *priv, struct xdp_umem *umem,
+static int mlx5e_xsk_enable_pool(struct mlx5e_priv *priv, struct xsk_buff_pool *pool,
 				 u16 ix)
 {
 	int err;
 
 	mutex_lock(&priv->state_lock);
-	err = mlx5e_xsk_enable_locked(priv, umem, ix);
+	err = mlx5e_xsk_enable_locked(priv, pool, ix);
 	mutex_unlock(&priv->state_lock);
 
 	return err;
 }
 
-static int mlx5e_xsk_disable_umem(struct mlx5e_priv *priv, u16 ix)
+static int mlx5e_xsk_disable_pool(struct mlx5e_priv *priv, u16 ix)
 {
 	int err;
 
@@ -203,7 +203,7 @@ static int mlx5e_xsk_disable_umem(struct mlx5e_priv *priv, u16 ix)
 	return err;
 }
 
-int mlx5e_xsk_setup_umem(struct net_device *dev, struct xdp_umem *umem, u16 qid)
+int mlx5e_xsk_setup_pool(struct net_device *dev, struct xsk_buff_pool *pool, u16 qid)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_params *params = &priv->channels.params;
@@ -212,6 +212,6 @@ int mlx5e_xsk_setup_umem(struct net_device *dev, struct xdp_umem *umem, u16 qid)
 	if (unlikely(!mlx5e_qid_get_ch_if_in_group(params, qid, MLX5E_RQ_GROUP_XSK, &ix)))
 		return -EINVAL;
 
-	return umem ? mlx5e_xsk_enable_umem(priv, umem, ix) :
-		      mlx5e_xsk_disable_umem(priv, ix);
+	return pool ? mlx5e_xsk_enable_pool(priv, pool, ix) :
+		      mlx5e_xsk_disable_pool(priv, ix);
 }

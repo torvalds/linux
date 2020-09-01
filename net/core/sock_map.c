@@ -184,8 +184,6 @@ static int sock_map_init_proto(struct sock *sk, struct sk_psock *psock)
 {
 	struct proto *prot;
 
-	sock_owned_by_me(sk);
-
 	switch (sk->sk_type) {
 	case SOCK_STREAM:
 		prot = tcp_bpf_get_proto(sk, psock);
@@ -272,8 +270,8 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 		}
 	} else {
 		psock = sk_psock_init(sk, map->numa_node);
-		if (!psock) {
-			ret = -ENOMEM;
+		if (IS_ERR(psock)) {
+			ret = PTR_ERR(psock);
 			goto out_progs;
 		}
 	}
@@ -322,8 +320,8 @@ static int sock_map_link_no_progs(struct bpf_map *map, struct sock *sk)
 
 	if (!psock) {
 		psock = sk_psock_init(sk, map->numa_node);
-		if (!psock)
-			return -ENOMEM;
+		if (IS_ERR(psock))
+			return PTR_ERR(psock);
 	}
 
 	ret = sock_map_init_proto(sk, psock);
@@ -478,8 +476,6 @@ static int sock_map_update_common(struct bpf_map *map, u32 idx,
 		return -EINVAL;
 	if (unlikely(idx >= map->max_entries))
 		return -E2BIG;
-	if (inet_csk_has_ulp(sk))
-		return -EINVAL;
 
 	link = sk_psock_init_link();
 	if (!link)
@@ -563,10 +559,12 @@ static bool sock_map_sk_state_allowed(const struct sock *sk)
 	return false;
 }
 
-static int sock_map_update_elem(struct bpf_map *map, void *key,
-				void *value, u64 flags)
+static int sock_hash_update_common(struct bpf_map *map, void *key,
+				   struct sock *sk, u64 flags);
+
+int sock_map_update_elem_sys(struct bpf_map *map, void *key, void *value,
+			     u64 flags)
 {
-	u32 idx = *(u32 *)key;
 	struct socket *sock;
 	struct sock *sk;
 	int ret;
@@ -595,11 +593,35 @@ static int sock_map_update_elem(struct bpf_map *map, void *key,
 	sock_map_sk_acquire(sk);
 	if (!sock_map_sk_state_allowed(sk))
 		ret = -EOPNOTSUPP;
+	else if (map->map_type == BPF_MAP_TYPE_SOCKMAP)
+		ret = sock_map_update_common(map, *(u32 *)key, sk, flags);
 	else
-		ret = sock_map_update_common(map, idx, sk, flags);
+		ret = sock_hash_update_common(map, key, sk, flags);
 	sock_map_sk_release(sk);
 out:
 	fput(sock->file);
+	return ret;
+}
+
+static int sock_map_update_elem(struct bpf_map *map, void *key,
+				void *value, u64 flags)
+{
+	struct sock *sk = (struct sock *)value;
+	int ret;
+
+	if (!sock_map_sk_is_suitable(sk))
+		return -EOPNOTSUPP;
+
+	local_bh_disable();
+	bh_lock_sock(sk);
+	if (!sock_map_sk_state_allowed(sk))
+		ret = -EOPNOTSUPP;
+	else if (map->map_type == BPF_MAP_TYPE_SOCKMAP)
+		ret = sock_map_update_common(map, *(u32 *)key, sk, flags);
+	else
+		ret = sock_hash_update_common(map, key, sk, flags);
+	bh_unlock_sock(sk);
+	local_bh_enable();
 	return ret;
 }
 
@@ -683,6 +705,7 @@ const struct bpf_func_proto bpf_msg_redirect_map_proto = {
 
 static int sock_map_btf_id;
 const struct bpf_map_ops sock_map_ops = {
+	.map_meta_equal		= bpf_map_meta_equal,
 	.map_alloc		= sock_map_alloc,
 	.map_free		= sock_map_free,
 	.map_get_next_key	= sock_map_get_next_key,
@@ -855,8 +878,6 @@ static int sock_hash_update_common(struct bpf_map *map, void *key,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	if (unlikely(flags > BPF_EXIST))
 		return -EINVAL;
-	if (inet_csk_has_ulp(sk))
-		return -EINVAL;
 
 	link = sk_psock_init_link();
 	if (!link)
@@ -912,45 +933,6 @@ out_unlock:
 	sk_psock_put(sk, psock);
 out_free:
 	sk_psock_free_link(link);
-	return ret;
-}
-
-static int sock_hash_update_elem(struct bpf_map *map, void *key,
-				 void *value, u64 flags)
-{
-	struct socket *sock;
-	struct sock *sk;
-	int ret;
-	u64 ufd;
-
-	if (map->value_size == sizeof(u64))
-		ufd = *(u64 *)value;
-	else
-		ufd = *(u32 *)value;
-	if (ufd > S32_MAX)
-		return -EINVAL;
-
-	sock = sockfd_lookup(ufd, &ret);
-	if (!sock)
-		return ret;
-	sk = sock->sk;
-	if (!sk) {
-		ret = -EINVAL;
-		goto out;
-	}
-	if (!sock_map_sk_is_suitable(sk)) {
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
-
-	sock_map_sk_acquire(sk);
-	if (!sock_map_sk_state_allowed(sk))
-		ret = -EOPNOTSUPP;
-	else
-		ret = sock_hash_update_common(map, key, sk, flags);
-	sock_map_sk_release(sk);
-out:
-	fput(sock->file);
 	return ret;
 }
 
@@ -1219,10 +1201,11 @@ const struct bpf_func_proto bpf_msg_redirect_hash_proto = {
 
 static int sock_hash_map_btf_id;
 const struct bpf_map_ops sock_hash_ops = {
+	.map_meta_equal		= bpf_map_meta_equal,
 	.map_alloc		= sock_hash_alloc,
 	.map_free		= sock_hash_free,
 	.map_get_next_key	= sock_hash_get_next_key,
-	.map_update_elem	= sock_hash_update_elem,
+	.map_update_elem	= sock_map_update_elem,
 	.map_delete_elem	= sock_hash_delete_elem,
 	.map_lookup_elem	= sock_hash_lookup,
 	.map_lookup_elem_sys_only = sock_hash_lookup_sys,

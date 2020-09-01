@@ -1967,7 +1967,7 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	    (new_rx_count == vsi->rx_rings[0]->count))
 		return 0;
 
-	/* If there is a AF_XDP UMEM attached to any of Rx rings,
+	/* If there is a AF_XDP page pool attached to any of Rx rings,
 	 * disallow changing the number of descriptors -- regardless
 	 * if the netdev is running or not.
 	 */

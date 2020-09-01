@@ -280,8 +280,8 @@ static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq,
 static inline int mlx5e_page_alloc(struct mlx5e_rq *rq,
 				   struct mlx5e_dma_info *dma_info)
 {
-	if (rq->umem)
-		return mlx5e_xsk_page_alloc_umem(rq, dma_info);
+	if (rq->xsk_pool)
+		return mlx5e_xsk_page_alloc_pool(rq, dma_info);
 	else
 		return mlx5e_page_alloc_pool(rq, dma_info);
 }
@@ -312,7 +312,7 @@ static inline void mlx5e_page_release(struct mlx5e_rq *rq,
 				      struct mlx5e_dma_info *dma_info,
 				      bool recycle)
 {
-	if (rq->umem)
+	if (rq->xsk_pool)
 		/* The `recycle` parameter is ignored, and the page is always
 		 * put into the Reuse Ring, because there is no way to return
 		 * the page to the userspace when the interface goes down.
@@ -399,14 +399,14 @@ static int mlx5e_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, u8 wqe_bulk)
 	int err;
 	int i;
 
-	if (rq->umem) {
+	if (rq->xsk_pool) {
 		int pages_desired = wqe_bulk << rq->wqe.info.log_num_frags;
 
 		/* Check in advance that we have enough frames, instead of
 		 * allocating one-by-one, failing and moving frames to the
 		 * Reuse Ring.
 		 */
-		if (unlikely(!xsk_buff_can_alloc(rq->umem, pages_desired)))
+		if (unlikely(!xsk_buff_can_alloc(rq->xsk_pool, pages_desired)))
 			return -ENOMEM;
 	}
 
@@ -504,8 +504,8 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	/* Check in advance that we have enough frames, instead of allocating
 	 * one-by-one, failing and moving frames to the Reuse Ring.
 	 */
-	if (rq->umem &&
-	    unlikely(!xsk_buff_can_alloc(rq->umem, MLX5_MPWRQ_PAGES_PER_WQE))) {
+	if (rq->xsk_pool &&
+	    unlikely(!xsk_buff_can_alloc(rq->xsk_pool, MLX5_MPWRQ_PAGES_PER_WQE))) {
 		err = -ENOMEM;
 		goto err;
 	}
@@ -753,7 +753,7 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 	 * the driver when it refills the Fill Ring.
 	 * 2. Otherwise, busy poll by rescheduling the NAPI poll.
 	 */
-	if (unlikely(alloc_err == -ENOMEM && rq->umem))
+	if (unlikely(alloc_err == -ENOMEM && rq->xsk_pool))
 		return true;
 
 	return false;

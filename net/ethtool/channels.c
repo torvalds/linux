@@ -223,7 +223,7 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 	from_channel = channels.combined_count +
 		       min(channels.rx_count, channels.tx_count);
 	for (i = from_channel; i < old_total; i++)
-		if (xdp_get_umem_from_qid(dev, i)) {
+		if (xsk_get_pool_from_qid(dev, i)) {
 			GENL_SET_ERR_MSG(info, "requested channel counts are too low for existing zerocopy AF_XDP sockets");
 			return -EINVAL;
 		}

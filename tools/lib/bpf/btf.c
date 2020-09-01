@@ -21,9 +21,6 @@
 #include "libbpf_internal.h"
 #include "hashmap.h"
 
-/* make sure libbpf doesn't use kernel-only integer typedefs */
-#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
-
 #define BTF_MAX_NR_TYPES 0x7fffffffU
 #define BTF_MAX_STR_OFFSET 0x7fffffffU
 
@@ -61,7 +58,7 @@ static int btf_add_type(struct btf *btf, struct btf_type *t)
 		expand_by = max(btf->types_size >> 2, 16U);
 		new_size = min(BTF_MAX_NR_TYPES, btf->types_size + expand_by);
 
-		new_types = realloc(btf->types, sizeof(*new_types) * new_size);
+		new_types = libbpf_reallocarray(btf->types, new_size, sizeof(*new_types));
 		if (!new_types)
 			return -ENOMEM;
 
@@ -1131,14 +1128,14 @@ static int btf_ext_setup_line_info(struct btf_ext *btf_ext)
 	return btf_ext_setup_info(btf_ext, &param);
 }
 
-static int btf_ext_setup_field_reloc(struct btf_ext *btf_ext)
+static int btf_ext_setup_core_relos(struct btf_ext *btf_ext)
 {
 	struct btf_ext_sec_setup_param param = {
-		.off = btf_ext->hdr->field_reloc_off,
-		.len = btf_ext->hdr->field_reloc_len,
-		.min_rec_size = sizeof(struct bpf_field_reloc),
-		.ext_info = &btf_ext->field_reloc_info,
-		.desc = "field_reloc",
+		.off = btf_ext->hdr->core_relo_off,
+		.len = btf_ext->hdr->core_relo_len,
+		.min_rec_size = sizeof(struct bpf_core_relo),
+		.ext_info = &btf_ext->core_relo_info,
+		.desc = "core_relo",
 	};
 
 	return btf_ext_setup_info(btf_ext, &param);
@@ -1217,10 +1214,9 @@ struct btf_ext *btf_ext__new(__u8 *data, __u32 size)
 	if (err)
 		goto done;
 
-	if (btf_ext->hdr->hdr_len <
-	    offsetofend(struct btf_ext_header, field_reloc_len))
+	if (btf_ext->hdr->hdr_len < offsetofend(struct btf_ext_header, core_relo_len))
 		goto done;
-	err = btf_ext_setup_field_reloc(btf_ext);
+	err = btf_ext_setup_core_relos(btf_ext);
 	if (err)
 		goto done;
 
@@ -1575,7 +1571,7 @@ static int btf_dedup_hypot_map_add(struct btf_dedup *d,
 		__u32 *new_list;
 
 		d->hypot_cap += max((size_t)16, d->hypot_cap / 2);
-		new_list = realloc(d->hypot_list, sizeof(__u32) * d->hypot_cap);
+		new_list = libbpf_reallocarray(d->hypot_list, d->hypot_cap, sizeof(__u32));
 		if (!new_list)
 			return -ENOMEM;
 		d->hypot_list = new_list;
@@ -1871,8 +1867,7 @@ static int btf_dedup_strings(struct btf_dedup *d)
 			struct btf_str_ptr *new_ptrs;
 
 			strs.cap += max(strs.cnt / 2, 16U);
-			new_ptrs = realloc(strs.ptrs,
-					   sizeof(strs.ptrs[0]) * strs.cap);
+			new_ptrs = libbpf_reallocarray(strs.ptrs, strs.cap, sizeof(strs.ptrs[0]));
 			if (!new_ptrs) {
 				err = -ENOMEM;
 				goto done;
@@ -2957,8 +2952,8 @@ static int btf_dedup_compact_types(struct btf_dedup *d)
 	d->btf->nr_types = next_type_id - 1;
 	d->btf->types_size = d->btf->nr_types;
 	d->btf->hdr->type_len = p - types_start;
-	new_types = realloc(d->btf->types,
-			    (1 + d->btf->nr_types) * sizeof(struct btf_type *));
+	new_types = libbpf_reallocarray(d->btf->types, (1 + d->btf->nr_types),
+					sizeof(struct btf_type *));
 	if (!new_types)
 		return -ENOMEM;
 	d->btf->types = new_types;

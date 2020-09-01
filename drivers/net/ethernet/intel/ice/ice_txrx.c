@@ -145,7 +145,7 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 {
 	u16 i;
 
-	if (ice_ring_is_xdp(tx_ring) && tx_ring->xsk_umem) {
+	if (ice_ring_is_xdp(tx_ring) && tx_ring->xsk_pool) {
 		ice_xsk_clean_xdp_ring(tx_ring);
 		goto tx_skip_free;
 	}
@@ -375,7 +375,7 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 	if (!rx_ring->rx_buf)
 		return;
 
-	if (rx_ring->xsk_umem) {
+	if (rx_ring->xsk_pool) {
 		ice_xsk_clean_rx_ring(rx_ring);
 		goto rx_skip_free;
 	}
@@ -1610,7 +1610,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	ice_for_each_ring(ring, q_vector->tx) {
-		bool wd = ring->xsk_umem ?
+		bool wd = ring->xsk_pool ?
 			  ice_clean_tx_irq_zc(ring, budget) :
 			  ice_clean_tx_irq(ring, budget);
 
@@ -1640,7 +1640,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		 * comparison in the irq context instead of many inside the
 		 * ice_clean_rx_irq function and makes the codebase cleaner.
 		 */
-		cleaned = ring->xsk_umem ?
+		cleaned = ring->xsk_pool ?
 			  ice_clean_rx_irq_zc(ring, budget_per_ring) :
 			  ice_clean_rx_irq(ring, budget_per_ring);
 		work_done += cleaned;

@@ -839,6 +839,7 @@ static void stack_map_free(struct bpf_map *map)
 
 static int stack_trace_map_btf_id;
 const struct bpf_map_ops stack_trace_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = stack_map_alloc,
 	.map_free = stack_map_free,
 	.map_get_next_key = stack_map_get_next_key,

@@ -1706,7 +1706,7 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 		min(channels.rx_count, channels.tx_count);
 	to_channel = curr.combined_count + max(curr.rx_count, curr.tx_count);
 	for (i = from_channel; i < to_channel; i++)
-		if (xdp_get_umem_from_qid(dev, i))
+		if (xsk_get_pool_from_qid(dev, i))
 			return -EINVAL;
 
 	ret = dev->ethtool_ops->set_channels(dev, &channels);

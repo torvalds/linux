@@ -57,7 +57,7 @@
 #include "en/monitor_stats.h"
 #include "en/health.h"
 #include "en/params.h"
-#include "en/xsk/umem.h"
+#include "en/xsk/pool.h"
 #include "en/xsk/setup.h"
 #include "en/xsk/rx.h"
 #include "en/xsk/tx.h"
@@ -363,7 +363,7 @@ static void mlx5e_rq_err_cqe_work(struct work_struct *recover_work)
 static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			  struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk,
-			  struct xdp_umem *umem,
+			  struct xsk_buff_pool *xsk_pool,
 			  struct mlx5e_rq_param *rqp,
 			  struct mlx5e_rq *rq)
 {
@@ -389,9 +389,9 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq->mdev    = mdev;
 	rq->hw_mtu  = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	rq->xdpsq   = &c->rq_xdpsq;
-	rq->umem    = umem;
+	rq->xsk_pool = xsk_pool;
 
-	if (rq->umem)
+	if (rq->xsk_pool)
 		rq->stats = &c->priv->channel_stats[c->ix].xskrq;
 	else
 		rq->stats = &c->priv->channel_stats[c->ix].rq;
@@ -477,7 +477,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	if (xsk) {
 		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
 						 MEM_TYPE_XSK_BUFF_POOL, NULL);
-		xsk_buff_set_rxq_info(rq->umem, &rq->xdp_rxq);
+		xsk_pool_set_rxq_info(rq->xsk_pool, &rq->xdp_rxq);
 	} else {
 		/* Create a page_pool and register it with rxq */
 		pp_params.order     = 0;
@@ -816,11 +816,11 @@ void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 
 int mlx5e_open_rq(struct mlx5e_channel *c, struct mlx5e_params *params,
 		  struct mlx5e_rq_param *param, struct mlx5e_xsk_param *xsk,
-		  struct xdp_umem *umem, struct mlx5e_rq *rq)
+		  struct xsk_buff_pool *xsk_pool, struct mlx5e_rq *rq)
 {
 	int err;
 
-	err = mlx5e_alloc_rq(c, params, xsk, umem, param, rq);
+	err = mlx5e_alloc_rq(c, params, xsk, xsk_pool, param, rq);
 	if (err)
 		return err;
 
@@ -925,7 +925,7 @@ static int mlx5e_alloc_xdpsq_db(struct mlx5e_xdpsq *sq, int numa)
 
 static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 			     struct mlx5e_params *params,
-			     struct xdp_umem *umem,
+			     struct xsk_buff_pool *xsk_pool,
 			     struct mlx5e_sq_param *param,
 			     struct mlx5e_xdpsq *sq,
 			     bool is_redirect)
@@ -941,9 +941,9 @@ static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
 	sq->min_inline_mode = params->tx_min_inline_mode;
 	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
-	sq->umem      = umem;
+	sq->xsk_pool  = xsk_pool;
 
-	sq->stats = sq->umem ?
+	sq->stats = sq->xsk_pool ?
 		&c->priv->channel_stats[c->ix].xsksq :
 		is_redirect ?
 			&c->priv->channel_stats[c->ix].xdpsq :
@@ -1408,13 +1408,13 @@ void mlx5e_close_icosq(struct mlx5e_icosq *sq)
 }
 
 int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
-		     struct mlx5e_sq_param *param, struct xdp_umem *umem,
+		     struct mlx5e_sq_param *param, struct xsk_buff_pool *xsk_pool,
 		     struct mlx5e_xdpsq *sq, bool is_redirect)
 {
 	struct mlx5e_create_sq_param csp = {};
 	int err;
 
-	err = mlx5e_alloc_xdpsq(c, params, umem, param, sq, is_redirect);
+	err = mlx5e_alloc_xdpsq(c, params, xsk_pool, param, sq, is_redirect);
 	if (err)
 		return err;
 
@@ -1907,7 +1907,7 @@ static u8 mlx5e_enumerate_lag_port(struct mlx5_core_dev *mdev, int ix)
 static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 			      struct mlx5e_params *params,
 			      struct mlx5e_channel_param *cparam,
-			      struct xdp_umem *umem,
+			      struct xsk_buff_pool *xsk_pool,
 			      struct mlx5e_channel **cp)
 {
 	int cpu = cpumask_first(mlx5_comp_irq_get_affinity_mask(priv->mdev, ix));
@@ -1946,9 +1946,9 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (unlikely(err))
 		goto err_napi_del;
 
-	if (umem) {
-		mlx5e_build_xsk_param(umem, &xsk);
-		err = mlx5e_open_xsk(priv, params, &xsk, umem, c);
+	if (xsk_pool) {
+		mlx5e_build_xsk_param(xsk_pool, &xsk);
+		err = mlx5e_open_xsk(priv, params, &xsk, xsk_pool, c);
 		if (unlikely(err))
 			goto err_close_queues;
 	}
@@ -2309,12 +2309,12 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 
 	mlx5e_build_channel_param(priv, &chs->params, cparam);
 	for (i = 0; i < chs->num; i++) {
-		struct xdp_umem *umem = NULL;
+		struct xsk_buff_pool *xsk_pool = NULL;
 
 		if (chs->params.xdp_prog)
-			umem = mlx5e_xsk_get_umem(&chs->params, chs->params.xsk, i);
+			xsk_pool = mlx5e_xsk_get_pool(&chs->params, chs->params.xsk, i);
 
-		err = mlx5e_open_channel(priv, i, &chs->params, cparam, umem, &chs->c[i]);
+		err = mlx5e_open_channel(priv, i, &chs->params, cparam, xsk_pool, &chs->c[i]);
 		if (err)
 			goto err_close_channels;
 	}
@@ -3892,13 +3892,14 @@ static bool mlx5e_xsk_validate_mtu(struct net_device *netdev,
 	u16 ix;
 
 	for (ix = 0; ix < chs->params.num_channels; ix++) {
-		struct xdp_umem *umem = mlx5e_xsk_get_umem(&chs->params, chs->params.xsk, ix);
+		struct xsk_buff_pool *xsk_pool =
+			mlx5e_xsk_get_pool(&chs->params, chs->params.xsk, ix);
 		struct mlx5e_xsk_param xsk;
 
-		if (!umem)
+		if (!xsk_pool)
 			continue;
 
-		mlx5e_build_xsk_param(umem, &xsk);
+		mlx5e_build_xsk_param(xsk_pool, &xsk);
 
 		if (!mlx5e_validate_xsk_param(new_params, &xsk, mdev)) {
 			u32 hr = mlx5e_get_linear_rq_headroom(new_params, &xsk);
@@ -4423,8 +4424,8 @@ static int mlx5e_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return mlx5e_xdp_set(dev, xdp->prog);
-	case XDP_SETUP_XSK_UMEM:
-		return mlx5e_xsk_setup_umem(dev, xdp->xsk.umem,
+	case XDP_SETUP_XSK_POOL:
+		return mlx5e_xsk_setup_pool(dev, xdp->xsk.pool,
 					    xdp->xsk.queue_id);
 	default:
 		return -EINVAL;

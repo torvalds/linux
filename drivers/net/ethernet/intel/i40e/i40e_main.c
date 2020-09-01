@@ -3122,12 +3122,12 @@ static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 }
 
 /**
- * i40e_xsk_umem - Retrieve the AF_XDP ZC if XDP and ZC is enabled
+ * i40e_xsk_pool - Retrieve the AF_XDP buffer pool if XDP and ZC is enabled
  * @ring: The Tx or Rx ring
  *
- * Returns the UMEM or NULL.
+ * Returns the AF_XDP buffer pool or NULL.
  **/
-static struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
+static struct xsk_buff_pool *i40e_xsk_pool(struct i40e_ring *ring)
 {
 	bool xdp_on = i40e_enabled_xdp_vsi(ring->vsi);
 	int qid = ring->queue_index;
@@ -3138,7 +3138,7 @@ static struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
 	if (!xdp_on || !test_bit(qid, ring->vsi->af_xdp_zc_qps))
 		return NULL;
 
-	return xdp_get_umem_from_qid(ring->vsi->netdev, qid);
+	return xsk_get_pool_from_qid(ring->vsi->netdev, qid);
 }
 
 /**
@@ -3157,7 +3157,7 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	u32 qtx_ctl = 0;
 
 	if (ring_is_xdp(ring))
-		ring->xsk_umem = i40e_xsk_umem(ring);
+		ring->xsk_pool = i40e_xsk_pool(ring);
 
 	/* some ATR related tx ring init */
 	if (vsi->back->flags & I40E_FLAG_FD_ATR_ENABLED) {
@@ -3280,12 +3280,13 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
 
 	kfree(ring->rx_bi);
-	ring->xsk_umem = i40e_xsk_umem(ring);
-	if (ring->xsk_umem) {
+	ring->xsk_pool = i40e_xsk_pool(ring);
+	if (ring->xsk_pool) {
 		ret = i40e_alloc_rx_bi_zc(ring);
 		if (ret)
 			return ret;
-		ring->rx_buf_len = xsk_umem_get_rx_frame_size(ring->xsk_umem);
+		ring->rx_buf_len =
+		  xsk_pool_get_rx_frame_size(ring->xsk_pool);
 		/* For AF_XDP ZC, we disallow packets to span on
 		 * multiple buffers, thus letting us skip that
 		 * handling in the fast-path.
@@ -3368,8 +3369,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);
 	writel(0, ring->tail);
 
-	if (ring->xsk_umem) {
-		xsk_buff_set_rxq_info(ring->xsk_umem, &ring->xdp_rxq);
+	if (ring->xsk_pool) {
+		xsk_pool_set_rxq_info(ring->xsk_pool, &ring->xdp_rxq);
 		ok = i40e_alloc_rx_buffers_zc(ring, I40E_DESC_UNUSED(ring));
 	} else {
 		ok = !i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
@@ -3380,7 +3381,7 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		 */
 		dev_info(&vsi->back->pdev->dev,
 			 "Failed to allocate some buffers on %sRx ring %d (pf_q %d)\n",
-			 ring->xsk_umem ? "UMEM enabled " : "",
+			 ring->xsk_pool ? "AF_XDP ZC enabled " : "",
 			 ring->queue_index, pf_q);
 	}
 
@@ -12644,7 +12645,7 @@ static int i40e_xdp_setup(struct i40e_vsi *vsi,
 	 */
 	if (need_reset && prog)
 		for (i = 0; i < vsi->num_queue_pairs; i++)
-			if (vsi->xdp_rings[i]->xsk_umem)
+			if (vsi->xdp_rings[i]->xsk_pool)
 				(void)i40e_xsk_wakeup(vsi->netdev, i,
 						      XDP_WAKEUP_RX);
 
@@ -12923,8 +12924,8 @@ static int i40e_xdp(struct net_device *dev,
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return i40e_xdp_setup(vsi, xdp->prog);
-	case XDP_SETUP_XSK_UMEM:
-		return i40e_xsk_umem_setup(vsi, xdp->xsk.umem,
+	case XDP_SETUP_XSK_POOL:
+		return i40e_xsk_pool_setup(vsi, xdp->xsk.pool,
 					   xdp->xsk.queue_id);
 	default:
 		return -EINVAL;

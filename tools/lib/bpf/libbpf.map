@@ -299,3 +299,12 @@ LIBBPF_0.1.0 {
 		btf__set_fd;
 		btf__set_pointer_size;
 } LIBBPF_0.0.9;
+
+LIBBPF_0.2.0 {
+	global:
+		perf_buffer__buffer_cnt;
+		perf_buffer__buffer_fd;
+		perf_buffer__epoll_fd;
+		perf_buffer__consume_buffer;
+		xsk_socket__create_shared;
+} LIBBPF_0.1.0;

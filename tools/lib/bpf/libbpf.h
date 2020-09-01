@@ -588,8 +588,12 @@ perf_buffer__new_raw(int map_fd, size_t page_cnt,
 		     const struct perf_buffer_raw_opts *opts);
 
 LIBBPF_API void perf_buffer__free(struct perf_buffer *pb);
+LIBBPF_API int perf_buffer__epoll_fd(const struct perf_buffer *pb);
 LIBBPF_API int perf_buffer__poll(struct perf_buffer *pb, int timeout_ms);
 LIBBPF_API int perf_buffer__consume(struct perf_buffer *pb);
+LIBBPF_API int perf_buffer__consume_buffer(struct perf_buffer *pb, size_t buf_idx);
+LIBBPF_API size_t perf_buffer__buffer_cnt(const struct perf_buffer *pb);
+LIBBPF_API int perf_buffer__buffer_fd(const struct perf_buffer *pb, size_t buf_idx);
 
 typedef enum bpf_perf_event_ret
 	(*bpf_perf_event_print_t)(struct perf_event_header *hdr,

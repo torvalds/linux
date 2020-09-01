@@ -10,6 +10,7 @@
 #include <linux/filter.h>
 #include <linux/perf_event.h>
 #include <uapi/linux/btf.h>
+#include <linux/rcupdate_trace.h>
 
 #include "map_in_map.h"
 
@@ -487,6 +488,13 @@ static int array_map_mmap(struct bpf_map *map, struct vm_area_struct *vma)
 				   vma->vm_pgoff + pgoff);
 }
 
+static bool array_map_meta_equal(const struct bpf_map *meta0,
+				 const struct bpf_map *meta1)
+{
+	return meta0->max_entries == meta1->max_entries &&
+		bpf_map_meta_equal(meta0, meta1);
+}
+
 struct bpf_iter_seq_array_map_info {
 	struct bpf_map *map;
 	void *percpu_value_buf;
@@ -625,6 +633,7 @@ static const struct bpf_iter_seq_info iter_seq_info = {
 
 static int array_map_btf_id;
 const struct bpf_map_ops array_map_ops = {
+	.map_meta_equal = array_map_meta_equal,
 	.map_alloc_check = array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
@@ -647,6 +656,7 @@ const struct bpf_map_ops array_map_ops = {
 
 static int percpu_array_map_btf_id;
 const struct bpf_map_ops percpu_array_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
@@ -1003,6 +1013,11 @@ static void prog_array_map_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
+/* prog_array->aux->{type,jited} is a runtime binding.
+ * Doing static check alone in the verifier is not enough.
+ * Thus, prog_array_map cannot be used as an inner_map
+ * and map_meta_equal is not implemented.
+ */
 static int prog_array_map_btf_id;
 const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
@@ -1101,6 +1116,7 @@ static void perf_event_fd_array_release(struct bpf_map *map,
 
 static int perf_event_array_map_btf_id;
 const struct bpf_map_ops perf_event_array_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = fd_array_map_free,
@@ -1137,6 +1153,7 @@ static void cgroup_fd_array_free(struct bpf_map *map)
 
 static int cgroup_array_map_btf_id;
 const struct bpf_map_ops cgroup_array_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = cgroup_fd_array_free,

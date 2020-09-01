@@ -234,14 +234,14 @@ static bool veth_is_xdp_frame(void *ptr)
 	return (unsigned long)ptr & VETH_XDP_FLAG;
 }
 
-static void *veth_ptr_to_xdp(void *ptr)
+static struct xdp_frame *veth_ptr_to_xdp(void *ptr)
 {
 	return (void *)((unsigned long)ptr & ~VETH_XDP_FLAG);
 }
 
-static void *veth_xdp_to_ptr(void *ptr)
+static void *veth_xdp_to_ptr(struct xdp_frame *xdp)
 {
-	return (void *)((unsigned long)ptr | VETH_XDP_FLAG);
+	return (void *)((unsigned long)xdp | VETH_XDP_FLAG);
 }
 
 static void veth_ptr_free(void *ptr)

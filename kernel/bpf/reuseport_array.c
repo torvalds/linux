@@ -351,6 +351,7 @@ static int reuseport_array_get_next_key(struct bpf_map *map, void *key,
 
 static int reuseport_array_map_btf_id;
 const struct bpf_map_ops reuseport_array_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = reuseport_array_alloc_check,
 	.map_alloc = reuseport_array_alloc,
 	.map_free = reuseport_array_free,
