@@ -1430,7 +1430,6 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 		} else {
 			hisi_sas_phy_down(hisi_hba, phy_no, 0);
 		}
-
 	}
 }
 
