@@ -217,12 +217,14 @@ enum {
 	MAX_PERIOD		= USEC_PER_SEC,
 
 	/*
-	 * A cgroup's vtime can run 50% behind the device vtime, which
+	 * iocg->vtime is targeted at 50% behind the device vtime, which
 	 * serves as its IO credit buffer.  Surplus weight adjustment is
 	 * immediately canceled if the vtime margin runs below 10%.
 	 */
 	MARGIN_MIN_PCT		= 10,
-	MARGIN_MAX_PCT		= 50,
+	MARGIN_LOW_PCT		= 20,
+	MARGIN_TARGET_PCT	= 50,
+	MARGIN_MAX_PCT		= 100,
 
 	/* Have some play in timer operations */
 	TIMER_SLACK_PCT		= 1,
@@ -233,17 +235,6 @@ enum {
 	 * period counter indicates that it's older than 5mins.
 	 */
 	VTIME_VALID_DUR		= 300 * USEC_PER_SEC,
-
-	/*
-	 * Remember the past three non-zero usages and use the max for
-	 * surplus calculation.  Three slots guarantee that we remember one
-	 * full period usage from the last active stretch even after
-	 * partial deactivation and re-activation periods.  Don't start
-	 * giving away weight before collecting two data points to prevent
-	 * hweight adjustments based on one partial activation period.
-	 */
-	NR_USAGE_SLOTS		= 3,
-	MIN_VALID_USAGES	= 2,
 
 	/* 1/64k is granular enough and can easily be handled w/ u32 */
 	WEIGHT_ONE		= 1 << 16,
@@ -279,14 +270,6 @@ enum {
 
 	/* don't let cmds which take a very long time pin lagging for too long */
 	MAX_LAGGING_PERIODS	= 10,
-
-	/*
-	 * If usage% * 1.25 + 2% is lower than hweight% by more than 3%,
-	 * donate the surplus.
-	 */
-	SURPLUS_SCALE_PCT	= 125,			/* * 125% */
-	SURPLUS_SCALE_ABS	= WEIGHT_ONE / 50,	/* + 2% */
-	SURPLUS_MIN_ADJ_DELTA	= WEIGHT_ONE / 33,	/* 3% */
 
 	/* switch iff the conditions are met for longer than this */
 	AUTOP_CYCLE_NSEC	= 10LLU * NSEC_PER_SEC,
@@ -376,6 +359,8 @@ struct ioc_params {
 
 struct ioc_margins {
 	s64				min;
+	s64				low;
+	s64				target;
 	s64				max;
 };
 
@@ -514,11 +499,7 @@ struct ioc_gq {
 	struct iocg_stat		desc_stat;
 	struct iocg_stat		last_stat;
 	u64				last_stat_abs_vusage;
-
-	/* usage is recorded as fractions of WEIGHT_ONE */
-	u32				usage_delta_us;
-	int				usage_idx;
-	u32				usages[NR_USAGE_SLOTS];
+	u64				usage_delta_us;
 
 	/* this iocg's depth in the hierarchy and ancestors including self */
 	int				level;
@@ -737,6 +718,8 @@ static void ioc_refresh_margins(struct ioc *ioc)
 	u64 vrate = atomic64_read(&ioc->vtime_rate);
 
 	margins->min = (period_us * MARGIN_MIN_PCT / 100) * vrate;
+	margins->low = (period_us * MARGIN_LOW_PCT / 100) * vrate;
+	margins->target = (period_us * MARGIN_TARGET_PCT / 100) * vrate;
 	margins->max = (period_us * MARGIN_MAX_PCT / 100) * vrate;
 }
 
@@ -1228,7 +1211,7 @@ static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now)
 		return false;
 	}
 	if (!atomic_read(&blkg->use_delay) &&
-	    time_before_eq64(vtime, now->vnow + ioc->margins.max))
+	    time_before_eq64(vtime, now->vnow + ioc->margins.target))
 		return false;
 
 	/* use delay */
@@ -1527,7 +1510,7 @@ static u32 hweight_after_donation(struct ioc_gq *iocg, u32 hwm, u32 usage,
 {
 	struct ioc *ioc = iocg->ioc;
 	u64 vtime = atomic64_read(&iocg->vtime);
-	s64 excess;
+	s64 excess, delta, target, new_hwi;
 
 	/* see whether minimum margin requirement is met */
 	if (waitqueue_active(&iocg->waitq) ||
@@ -1542,15 +1525,28 @@ static u32 hweight_after_donation(struct ioc_gq *iocg, u32 hwm, u32 usage,
 		vtime += excess;
 	}
 
-	/* add margin */
-	usage = DIV_ROUND_UP(usage * SURPLUS_SCALE_PCT, 100);
-	usage += SURPLUS_SCALE_ABS;
+	/*
+	 * Let's say the distance between iocg's and device's vtimes as a
+	 * fraction of period duration is delta. Assuming that the iocg will
+	 * consume the usage determined above, we want to determine new_hwi so
+	 * that delta equals MARGIN_TARGET at the end of the next period.
+	 *
+	 * We need to execute usage worth of IOs while spending the sum of the
+	 * new budget (1 - MARGIN_TARGET) and the leftover from the last period
+	 * (delta):
+	 *
+	 *   usage = (1 - MARGIN_TARGET + delta) * new_hwi
+	 *
+	 * Therefore, the new_hwi is:
+	 *
+	 *   new_hwi = usage / (1 - MARGIN_TARGET + delta)
+	 */
+	delta = div64_s64(WEIGHT_ONE * (now->vnow - vtime),
+			  now->vnow - ioc->period_at_vtime);
+	target = WEIGHT_ONE * MARGIN_TARGET_PCT / 100;
+	new_hwi = div64_s64(WEIGHT_ONE * usage, WEIGHT_ONE - target + delta);
 
-	/* don't bother if the surplus is too small */
-	if (usage + SURPLUS_MIN_ADJ_DELTA > hwm)
-		return hwm;
-
-	return usage;
+	return clamp_t(s64, new_hwi, 1, hwm);
 }
 
 /*
@@ -1812,7 +1808,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 	u32 ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
 	u32 missed_ppm[2], rq_wait_pct;
 	u64 period_vtime;
-	int prev_busy_level, i;
+	int prev_busy_level;
 
 	/* how were the latencies during the period? */
 	ioc_lat_stat(ioc, missed_ppm, &rq_wait_pct);
@@ -1857,11 +1853,10 @@ static void ioc_timer_fn(struct timer_list *timer)
 	}
 	commit_weights(ioc);
 
-	/* calc usages and see whether some weights need to be moved around */
+	/* calc usage and see whether some weights need to be moved around */
 	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
-		u64 vdone, vtime, usage_us;
-		u32 hw_active, hw_inuse, usage;
-		int uidx, nr_valid;
+		u64 vdone, vtime, usage_us, usage_dur;
+		u32 usage, hw_active, hw_inuse;
 
 		/*
 		 * Collect unused and wind vtime closer to vnow to prevent
@@ -1886,15 +1881,11 @@ static void ioc_timer_fn(struct timer_list *timer)
 			nr_lagging++;
 
 		/*
-		 * Determine absolute usage factoring in pending and in-flight
-		 * IOs to avoid stalls and high-latency completions appearing as
-		 * idle.
+		 * Determine absolute usage factoring in in-flight IOs to avoid
+		 * high-latency completions appearing as idle.
 		 */
 		usage_us = iocg->usage_delta_us;
-		if (waitqueue_active(&iocg->waitq) && time_before64(vtime, now.vnow))
-			usage_us += DIV64_U64_ROUND_UP(
-				cost_to_abs_cost(now.vnow - vtime, hw_inuse),
-				now.vrate);
+
 		if (vdone != vtime) {
 			u64 inflight_us = DIV64_U64_ROUND_UP(
 				cost_to_abs_cost(vtime - vdone, hw_inuse),
@@ -1902,43 +1893,22 @@ static void ioc_timer_fn(struct timer_list *timer)
 			usage_us = max(usage_us, inflight_us);
 		}
 
-		/* convert to hweight based usage ratio and record */
-		uidx = (iocg->usage_idx + 1) % NR_USAGE_SLOTS;
+		/* convert to hweight based usage ratio */
+		if (time_after64(iocg->activated_at, ioc->period_at))
+			usage_dur = max_t(u64, now.now - iocg->activated_at, 1);
+		else
+			usage_dur = max_t(u64, now.now - ioc->period_at, 1);
 
-		if (time_after64(vtime, now.vnow - ioc->margins.min)) {
-			iocg->usage_idx = uidx;
-			iocg->usages[uidx] = WEIGHT_ONE;
-		} else if (usage_us) {
-			u64 started_at, dur;
-
-			if (time_after64(iocg->activated_at, ioc->period_at))
-				started_at = iocg->activated_at;
-			else
-				started_at = ioc->period_at;
-
-			dur = max_t(u64, now.now - started_at, 1);
-
-			iocg->usage_idx = uidx;
-			iocg->usages[uidx] = clamp_t(u32,
-				DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE, dur),
+		usage = clamp_t(u32,
+				DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE,
+						   usage_dur),
 				1, WEIGHT_ONE);
-		}
-
-		/* base the decision on max historical usage */
-		for (i = 0, usage = 0, nr_valid = 0; i < NR_USAGE_SLOTS; i++) {
-			if (iocg->usages[i]) {
-				usage = max(usage, iocg->usages[i]);
-				nr_valid++;
-			}
-		}
-		if (nr_valid < MIN_VALID_USAGES)
-			usage = WEIGHT_ONE;
 
 		/* see whether there's surplus vtime */
 		WARN_ON_ONCE(!list_empty(&iocg->surplus_list));
 		if (hw_inuse < hw_active ||
 		    (!waitqueue_active(&iocg->waitq) &&
-		     time_before64(vtime, now.vnow - ioc->margins.max))) {
+		     time_before64(vtime, now.vnow - ioc->margins.low))) {
 			u32 hwa, hwm, new_hwi;
 
 			/*
@@ -2175,13 +2145,12 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	if (!ioc->enabled || !iocg->level)
 		return;
 
-	/* always activate so that even 0 cost IOs get protected to some level */
-	if (!iocg_activate(iocg, &now))
-		return;
-
 	/* calculate the absolute vtime cost */
 	abs_cost = calc_vtime_cost(bio, iocg, false);
 	if (!abs_cost)
+		return;
+
+	if (!iocg_activate(iocg, &now))
 		return;
 
 	iocg->cursor = bio_end_sector(bio);
