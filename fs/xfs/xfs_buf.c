@@ -1197,33 +1197,26 @@ xfs_buf_ioend(
 		if (!bp->b_error)
 			bp->b_flags |= XBF_DONE;
 		xfs_buf_ioend_finish(bp);
-		return;
-	}
-
-	if (!bp->b_error) {
-		bp->b_flags &= ~XBF_WRITE_FAIL;
-		bp->b_flags |= XBF_DONE;
-	}
-
-	/*
-	 * If this is a log recovery buffer, we aren't doing transactional IO
-	 * yet so we need to let it handle IO completions.
-	 */
-	if (bp->b_flags & _XBF_LOGRECOVERY) {
+	} else if (bp->b_flags & _XBF_LOGRECOVERY) {
+		/*
+		 * If this is a log recovery buffer, we aren't doing
+		 * transactional I/O yet so we need to let the log recovery code
+		 * handle I/O completions:
+		 */
 		xlog_recover_iodone(bp);
-		return;
-	}
+	} else {
+		if (!bp->b_error) {
+			bp->b_flags &= ~XBF_WRITE_FAIL;
+			bp->b_flags |= XBF_DONE;
+		}
 
-	if (bp->b_flags & _XBF_INODES) {
-		xfs_buf_inode_iodone(bp);
-		return;
+		if (bp->b_flags & _XBF_INODES)
+			xfs_buf_inode_iodone(bp);
+		else if (bp->b_flags & _XBF_DQUOTS)
+			xfs_buf_dquot_iodone(bp);
+		else
+			xfs_buf_iodone(bp);
 	}
-
-	if (bp->b_flags & _XBF_DQUOTS) {
-		xfs_buf_dquot_iodone(bp);
-		return;
-	}
-	xfs_buf_iodone(bp);
 }
 
 static void
