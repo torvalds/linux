@@ -2702,10 +2702,8 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 		if (IS_ERR(nandc->tx_chan)) {
 			ret = PTR_ERR(nandc->tx_chan);
 			nandc->tx_chan = NULL;
-			if (ret != -EPROBE_DEFER)
-				dev_err(nandc->dev,
-					"tx DMA channel request failed: %d\n",
-					ret);
+			dev_err_probe(nandc->dev, ret,
+				      "tx DMA channel request failed\n");
 			goto unalloc;
 		}
 
@@ -2713,10 +2711,8 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 		if (IS_ERR(nandc->rx_chan)) {
 			ret = PTR_ERR(nandc->rx_chan);
 			nandc->rx_chan = NULL;
-			if (ret != -EPROBE_DEFER)
-				dev_err(nandc->dev,
-					"rx DMA channel request failed: %d\n",
-					ret);
+			dev_err_probe(nandc->dev, ret,
+				      "rx DMA channel request failed\n");
 			goto unalloc;
 		}
 
@@ -2724,10 +2720,8 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 		if (IS_ERR(nandc->cmd_chan)) {
 			ret = PTR_ERR(nandc->cmd_chan);
 			nandc->cmd_chan = NULL;
-			if (ret != -EPROBE_DEFER)
-				dev_err(nandc->dev,
-					"cmd DMA channel request failed: %d\n",
-					ret);
+			dev_err_probe(nandc->dev, ret,
+				      "cmd DMA channel request failed\n");
 			goto unalloc;
 		}
 
@@ -2750,10 +2744,8 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 		if (IS_ERR(nandc->chan)) {
 			ret = PTR_ERR(nandc->chan);
 			nandc->chan = NULL;
-			if (ret != -EPROBE_DEFER)
-				dev_err(nandc->dev,
-					"rxtx DMA channel request failed: %d\n",
-					ret);
+			dev_err_probe(nandc->dev, ret,
+				      "rxtx DMA channel request failed\n");
 			return ret;
 		}
 	}
