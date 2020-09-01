@@ -7,6 +7,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
@@ -141,7 +142,7 @@
 						 <1200000>, <1200000>,
 						 <1200000>, <1200000>;
 
-		clocks {
+		s5m8767_osc: clocks {
 			compatible = "samsung,s5m8767-clk";
 			#clock-cells = <1>;
 			clock-output-names = "en32khz_ap",
@@ -520,6 +521,12 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&s5m8767_osc S2MPS11_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &sd1_bus4 {
