@@ -741,7 +741,8 @@ static int set_sctp(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int ovs_vport_output(struct net *net, struct sock *sk,
+			    struct sk_buff *skb)
 {
 	struct ovs_frag_data *data = this_cpu_ptr(&ovs_frag_data_storage);
 	struct vport *vport = data->vport;
@@ -920,7 +921,7 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	upcall.mru = OVS_CB(skb)->mru;
 
 	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
-		 a = nla_next(a, &rem)) {
+	     a = nla_next(a, &rem)) {
 		switch (nla_type(a)) {
 		case OVS_USERSPACE_ATTR_USERDATA:
 			upcall.userdata = a;

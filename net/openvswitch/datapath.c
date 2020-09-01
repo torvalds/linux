@@ -182,7 +182,7 @@ struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no)
 
 	head = vport_hash_bucket(dp, port_no);
 	hlist_for_each_entry_rcu(vport, head, dp_hash_node,
-				lockdep_ovsl_is_held()) {
+				 lockdep_ovsl_is_held()) {
 		if (vport->port_no == port_no)
 			return vport;
 	}
@@ -254,7 +254,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	error = ovs_execute_actions(dp, skb, sf_acts, key);
 	if (unlikely(error))
 		net_dbg_ratelimited("ovs: action execution error on datapath %s: %d\n",
-							ovs_dp_name(dp), error);
+				    ovs_dp_name(dp), error);
 
 	stats_counter = &stats->n_hit;
 
@@ -302,7 +302,7 @@ err:
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 			     const struct sw_flow_key *key,
 			     const struct dp_upcall_info *upcall_info,
-				 uint32_t cutlen)
+			     uint32_t cutlen)
 {
 	unsigned int gso_type = skb_shinfo(skb)->gso_type;
 	struct sw_flow_key later_key;
@@ -1080,11 +1080,12 @@ error:
 }
 
 /* Factor out action copy to avoid "Wframe-larger-than=1024" warning. */
-static noinline_for_stack struct sw_flow_actions *get_flow_actions(struct net *net,
-						const struct nlattr *a,
-						const struct sw_flow_key *key,
-						const struct sw_flow_mask *mask,
-						bool log)
+static noinline_for_stack
+struct sw_flow_actions *get_flow_actions(struct net *net,
+					 const struct nlattr *a,
+					 const struct sw_flow_key *key,
+					 const struct sw_flow_mask *mask,
+					 bool log)
 {
 	struct sw_flow_actions *acts;
 	struct sw_flow_key masked_key;
@@ -1383,7 +1384,8 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 
 			ovs_notify(&dp_flow_genl_family, reply, info);
 		} else {
-			netlink_set_err(sock_net(skb->sk)->genl_sock, 0, 0, PTR_ERR(reply));
+			netlink_set_err(sock_net(skb->sk)->genl_sock, 0, 0,
+					PTR_ERR(reply));
 		}
 	}
 
@@ -1513,7 +1515,7 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 	int err;
 
 	ovs_header = genlmsg_put(skb, portid, seq, &dp_datapath_genl_family,
-				   flags, cmd);
+				 flags, cmd);
 	if (!ovs_header)
 		goto error;
 
@@ -1572,11 +1574,13 @@ static struct datapath *lookup_datapath(struct net *net,
 	return dp ? dp : ERR_PTR(-ENODEV);
 }
 
-static void ovs_dp_reset_user_features(struct sk_buff *skb, struct genl_info *info)
+static void ovs_dp_reset_user_features(struct sk_buff *skb,
+				       struct genl_info *info)
 {
 	struct datapath *dp;
 
-	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
+	dp = lookup_datapath(sock_net(skb->sk), info->userhdr,
+			     info->attrs);
 	if (IS_ERR(dp))
 		return;
 
@@ -2075,7 +2079,7 @@ static unsigned int ovs_get_max_headroom(struct datapath *dp)
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
 		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node,
-					lockdep_ovsl_is_held()) {
+					 lockdep_ovsl_is_held()) {
 			dev = vport->dev;
 			dev_headroom = netdev_get_fwd_headroom(dev);
 			if (dev_headroom > max_headroom)
@@ -2093,10 +2097,11 @@ static void ovs_update_headroom(struct datapath *dp, unsigned int new_headroom)
 	int i;
 
 	dp->max_headroom = new_headroom;
-	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++)
+	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
 		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node,
-					lockdep_ovsl_is_held())
+					 lockdep_ovsl_is_held())
 			netdev_set_rx_headroom(vport->dev, new_headroom);
+	}
 }
 
 static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
@@ -2551,7 +2556,8 @@ static int __init dp_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > sizeof_field(struct sk_buff, cb));
+	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) >
+		     sizeof_field(struct sk_buff, cb));
 
 	pr_info("Open vSwitch switching datapath\n");
 
