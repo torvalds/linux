@@ -74,14 +74,9 @@ static inline struct dwc3_request *next_request(struct list_head *list)
 static inline void dwc3_gadget_move_queued_request(struct dwc3_request *req)
 {
 	struct dwc3_ep		*dep = req->dep;
-	struct dwc3_trb		*trb;
-	u8			tmp = dep->trb_enqueue;
 
-	if (!tmp)
-		tmp = DWC3_TRB_NUM - 1;
-
-	trb = &dep->trb_pool[tmp - 1];
-	trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
+	if (req->trb)
+		req->trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
 	req->status = DWC3_REQUEST_STATUS_QUEUED;
 	list_move_tail(&req->list, &dep->pending_list);
 }

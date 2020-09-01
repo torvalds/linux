@@ -2613,12 +2613,12 @@ static int dwc3_gadget_ep_cleanup_completed_request(struct dwc3_ep *dep,
 			 */
 			req->remaining = 0;
 			req->needs_extra_trb = false;
+			dwc3_gadget_move_queued_request(req);
 			if (req->trb)
 				usb_gadget_unmap_request_by_dev(dwc->sysdev,
 								&req->request,
 								req->direction);
 			req->trb = NULL;
-			dwc3_gadget_move_queued_request(req);
 		} else {
 			__dwc3_gadget_kick_transfer(dep);
 		}
