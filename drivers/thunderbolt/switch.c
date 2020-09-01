@@ -1648,7 +1648,7 @@ static struct attribute *switch_attrs[] = {
 static umode_t switch_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct tb_switch *sw = tb_to_switch(dev);
 
 	if (attr == &dev_attr_device.attr) {
