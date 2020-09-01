@@ -32,6 +32,49 @@
 #include "b53/b53_priv.h"
 #include "b53/b53_regs.h"
 
+/* Return the number of active ports, not counting the IMP (CPU) port */
+static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned int port, count = 0;
+
+	for (port = 0; port < ARRAY_SIZE(priv->port_sts); port++) {
+		if (dsa_is_cpu_port(ds, port))
+			continue;
+		if (priv->port_sts[port].enabled)
+			count++;
+	}
+
+	return count;
+}
+
+static void bcm_sf2_recalc_clock(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned long new_rate;
+	unsigned int ports_active;
+	/* Frequenty in Mhz */
+	const unsigned long rate_table[] = {
+		59220000,
+		60820000,
+		62500000,
+		62500000,
+	};
+
+	ports_active = bcm_sf2_num_active_ports(ds);
+	if (ports_active == 0 || !priv->clk_mdiv)
+		return;
+
+	/* If we overflow our table, just use the recommended operational
+	 * frequency
+	 */
+	if (ports_active > ARRAY_SIZE(rate_table))
+		new_rate = 90000000;
+	else
+		new_rate = rate_table[ports_active - 1];
+	clk_set_rate(priv->clk_mdiv, new_rate);
+}
+
 static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
@@ -83,6 +126,8 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 		reg &= ~(RX_DIS | TX_DIS);
 		core_writel(priv, reg, CORE_G_PCTL_PORT(port));
 	}
+
+	priv->port_sts[port].enabled = true;
 }
 
 static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
@@ -167,6 +212,10 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 
 	if (!dsa_is_user_port(ds, port))
 		return 0;
+
+	priv->port_sts[port].enabled = true;
+
+	bcm_sf2_recalc_clock(ds);
 
 	/* Clear the memory power down */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
@@ -261,6 +310,10 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port)
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
 	reg |= P_TXQ_PSM_VDD(port);
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
+
+	priv->port_sts[port].enabled = false;
+
+	bcm_sf2_recalc_clock(ds);
 }
 
 
@@ -1202,10 +1255,18 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(priv->clk);
 
+	priv->clk_mdiv = devm_clk_get_optional(&pdev->dev, "sw_switch_mdiv");
+	if (IS_ERR(priv->clk_mdiv)) {
+		ret = PTR_ERR(priv->clk_mdiv);
+		goto out_clk;
+	}
+
+	clk_prepare_enable(priv->clk_mdiv);
+
 	ret = bcm_sf2_sw_rst(priv);
 	if (ret) {
 		pr_err("unable to software reset switch: %d\n", ret);
-		goto out_clk;
+		goto out_clk_mdiv;
 	}
 
 	bcm_sf2_gphy_enable_set(priv->dev->ds, true);
@@ -1213,7 +1274,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	ret = bcm_sf2_mdio_register(ds);
 	if (ret) {
 		pr_err("failed to register MDIO bus\n");
-		goto out_clk;
+		goto out_clk_mdiv;
 	}
 
 	bcm_sf2_gphy_enable_set(priv->dev->ds, false);
@@ -1280,6 +1341,8 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 out_mdio:
 	bcm_sf2_mdio_unregister(priv);
+out_clk_mdiv:
+	clk_disable_unprepare(priv->clk_mdiv);
 out_clk:
 	clk_disable_unprepare(priv->clk);
 	return ret;
@@ -1295,6 +1358,7 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	dsa_unregister_switch(priv->dev->ds);
 	bcm_sf2_cfp_exit(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);
+	clk_disable_unprepare(priv->clk_mdiv);
 	clk_disable_unprepare(priv->clk);
 	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev))
 		reset_control_assert(priv->rcdev);
