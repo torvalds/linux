@@ -7,6 +7,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/clock/maxim,max77686.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include "exynos5250.dtsi"
@@ -129,13 +130,14 @@
 		reg = <0x50>;
 	};
 
-	max77686@9 {
+	max77686: pmic@9 {
 		compatible = "maxim,max77686";
 		reg = <0x09>;
 		interrupt-parent = <&gpx3>;
 		interrupts = <2 IRQ_TYPE_NONE>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max77686_irq>;
+		#clock-cells = <1>;
 		wakeup-source;
 
 		voltage-regulators {
@@ -368,6 +370,8 @@
 
 &rtc {
 	status = "okay";
+	clocks = <&clock CLK_RTC>, <&max77686 MAX77686_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &sata {
