@@ -917,7 +917,6 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 
 	cdev_init(&teedev->cdev, &tee_fops);
 	teedev->cdev.owner = teedesc->owner;
-	teedev->cdev.kobj.parent = &teedev->dev.kobj;
 
 	dev_set_drvdata(&teedev->dev, driver_data);
 	device_initialize(&teedev->dev);
@@ -985,22 +984,13 @@ int tee_device_register(struct tee_device *teedev)
 		return -EINVAL;
 	}
 
-	rc = cdev_add(&teedev->cdev, teedev->dev.devt, 1);
+	rc = cdev_device_add(&teedev->cdev, &teedev->dev);
 	if (rc) {
 		dev_err(&teedev->dev,
-			"unable to cdev_add() %s, major %d, minor %d, err=%d\n",
+			"unable to cdev_device_add() %s, major %d, minor %d, err=%d\n",
 			teedev->name, MAJOR(teedev->dev.devt),
 			MINOR(teedev->dev.devt), rc);
 		return rc;
-	}
-
-	rc = device_add(&teedev->dev);
-	if (rc) {
-		dev_err(&teedev->dev,
-			"unable to device_add() %s, major %d, minor %d, err=%d\n",
-			teedev->name, MAJOR(teedev->dev.devt),
-			MINOR(teedev->dev.devt), rc);
-		goto err_device_add;
 	}
 
 	rc = sysfs_create_group(&teedev->dev.kobj, &tee_dev_group);
@@ -1014,9 +1004,7 @@ int tee_device_register(struct tee_device *teedev)
 	return 0;
 
 err_sysfs_create_group:
-	device_del(&teedev->dev);
-err_device_add:
-	cdev_del(&teedev->cdev);
+	cdev_device_del(&teedev->cdev, &teedev->dev);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tee_device_register);
@@ -1062,8 +1050,7 @@ void tee_device_unregister(struct tee_device *teedev)
 
 	if (teedev->flags & TEE_DEVICE_FLAG_REGISTERED) {
 		sysfs_remove_group(&teedev->dev.kobj, &tee_dev_group);
-		cdev_del(&teedev->cdev);
-		device_del(&teedev->dev);
+		cdev_device_del(&teedev->cdev, &teedev->dev);
 	}
 
 	tee_device_put(teedev);
