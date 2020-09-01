@@ -43,6 +43,9 @@ int rtl8366_set_vlan(struct realtek_smi *smi, int vid, u32 member,
 	int ret;
 	int i;
 
+	if (!smi->ops->is_vlan_valid(smi, vid))
+		return -EINVAL;
+
 	dev_dbg(smi->dev,
 		"setting VLAN%d 4k members: 0x%02x, untagged: 0x%02x\n",
 		vid, member, untag);
@@ -117,6 +120,9 @@ int rtl8366_set_pvid(struct realtek_smi *smi, unsigned int port,
 	struct rtl8366_vlan_4k vlan4k;
 	int ret;
 	int i;
+
+	if (!smi->ops->is_vlan_valid(smi, vid))
+		return -EINVAL;
 
 	/* Try to find an existing MC entry for this VID */
 	for (i = 0; i < smi->num_vlan_mc; i++) {
