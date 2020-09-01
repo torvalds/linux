@@ -352,6 +352,7 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		     sys_div <= max_sys_div;
 		     sys_div += 2 - (sys_div & 1)) {
 			uint16_t pix_div = DIV_ROUND_UP(vt_div, sys_div);
+			uint16_t rounded_div;
 
 			if (pix_div < lim->vt_bk.min_pix_clk_div
 			    || pix_div > lim->vt_bk.max_pix_clk_div) {
@@ -363,10 +364,15 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 				continue;
 			}
 
+			rounded_div = roundup(vt_div, best_pix_div);
+
 			/* Check if this one is better. */
-			if (pix_div * sys_div
-			    <= roundup(vt_div, best_pix_div))
+			if (pix_div * sys_div <= rounded_div)
 				best_pix_div = pix_div;
+
+			/* Bail out if we've already found the best value. */
+			if (vt_div == rounded_div)
+				break;
 		}
 		if (best_pix_div < INT_MAX >> 1)
 			break;
