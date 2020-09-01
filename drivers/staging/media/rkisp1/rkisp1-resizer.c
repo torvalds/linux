@@ -437,6 +437,17 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 	u32 pad = code->pad;
 	int ret;
 
+	if (code->pad == RKISP1_RSZ_PAD_SRC) {
+		/* supported mbus codes on the src are the same as in the capture */
+		struct rkisp1_capture *cap = &rsz->rkisp1->capture_devs[rsz->id];
+
+		return rkisp1_cap_enum_mbus_codes(cap, code);
+	}
+
+	/*
+	 * The selfpath capture doesn't support bayer formats. Therefore the selfpath resizer
+	 * should support only YUV422 on the sink pad
+	 */
 	if (rsz->id == RKISP1_SELFPATH) {
 		if (code->index > 0)
 			return -EINVAL;
@@ -444,7 +455,7 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	/* supported mbus codes are the same in isp video src pad */
+	/* supported mbus codes on the sink pad are the same as isp src pad */
 	code->pad = RKISP1_ISP_PAD_SOURCE_VIDEO;
 	ret = v4l2_subdev_call(&rsz->rkisp1->isp.sd, pad, enum_mbus_code,
 			       &dummy_cfg, code);
