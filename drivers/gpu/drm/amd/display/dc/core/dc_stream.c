@@ -123,7 +123,6 @@ static bool dc_stream_construct(struct dc_stream_state *stream,
 		return false;
 	}
 	stream->out_transfer_func->type = TF_TYPE_BYPASS;
-	stream->out_transfer_func->ctx = stream->ctx;
 
 	stream->stream_id = stream->ctx->dc_stream_id_count;
 	stream->ctx->dc_stream_id_count++;
