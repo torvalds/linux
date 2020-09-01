@@ -1479,8 +1479,8 @@ static void mvpp2_port_loopback_set(struct mvpp2_port *port,
 	else
 		val &= ~MVPP2_GMAC_GMII_LB_EN_MASK;
 
-	if (phy_interface_mode_is_8023z(port->phy_interface) ||
-	    port->phy_interface == PHY_INTERFACE_MODE_SGMII)
+	if (phy_interface_mode_is_8023z(state->interface) ||
+	    state->interface == PHY_INTERFACE_MODE_SGMII)
 		val |= MVPP2_GMAC_PCS_LB_EN_MASK;
 	else
 		val &= ~MVPP2_GMAC_PCS_LB_EN_MASK;
@@ -5376,6 +5376,174 @@ static struct mvpp2_port *mvpp2_phylink_to_port(struct phylink_config *config)
 	return container_of(config, struct mvpp2_port, phylink_config);
 }
 
+static struct mvpp2_port *mvpp2_pcs_to_port(struct phylink_pcs *pcs)
+{
+	return container_of(pcs, struct mvpp2_port, phylink_pcs);
+}
+
+static void mvpp22_xlg_pcs_get_state(struct mvpp2_port *port,
+				     struct phylink_link_state *state)
+{
+	u32 val;
+
+	state->speed = SPEED_10000;
+	state->duplex = 1;
+	state->an_complete = 1;
+
+	val = readl(port->base + MVPP22_XLG_STATUS);
+	state->link = !!(val & MVPP22_XLG_STATUS_LINK_UP);
+
+	state->pause = 0;
+	val = readl(port->base + MVPP22_XLG_CTRL0_REG);
+	if (val & MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN)
+		state->pause |= MLO_PAUSE_TX;
+	if (val & MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN)
+		state->pause |= MLO_PAUSE_RX;
+}
+
+static void mvpp2_gmac_pcs_get_state(struct mvpp2_port *port,
+				     struct phylink_link_state *state)
+{
+	u32 val;
+
+	val = readl(port->base + MVPP2_GMAC_STATUS0);
+
+	state->an_complete = !!(val & MVPP2_GMAC_STATUS0_AN_COMPLETE);
+	state->link = !!(val & MVPP2_GMAC_STATUS0_LINK_UP);
+	state->duplex = !!(val & MVPP2_GMAC_STATUS0_FULL_DUPLEX);
+
+	switch (port->phy_interface) {
+	case PHY_INTERFACE_MODE_1000BASEX:
+		state->speed = SPEED_1000;
+		break;
+	case PHY_INTERFACE_MODE_2500BASEX:
+		state->speed = SPEED_2500;
+		break;
+	default:
+		if (val & MVPP2_GMAC_STATUS0_GMII_SPEED)
+			state->speed = SPEED_1000;
+		else if (val & MVPP2_GMAC_STATUS0_MII_SPEED)
+			state->speed = SPEED_100;
+		else
+			state->speed = SPEED_10;
+	}
+
+	state->pause = 0;
+	if (val & MVPP2_GMAC_STATUS0_RX_PAUSE)
+		state->pause |= MLO_PAUSE_RX;
+	if (val & MVPP2_GMAC_STATUS0_TX_PAUSE)
+		state->pause |= MLO_PAUSE_TX;
+}
+
+static void mvpp2_phylink_pcs_get_state(struct phylink_pcs *pcs,
+					struct phylink_link_state *state)
+{
+	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
+
+	if (port->priv->hw_version == MVPP22 && port->gop_id == 0) {
+		u32 mode = readl(port->base + MVPP22_XLG_CTRL3_REG);
+		mode &= MVPP22_XLG_CTRL3_MACMODESELECT_MASK;
+
+		if (mode == MVPP22_XLG_CTRL3_MACMODESELECT_10G) {
+			mvpp22_xlg_pcs_get_state(port, state);
+			return;
+		}
+	}
+
+	mvpp2_gmac_pcs_get_state(port, state);
+}
+
+static int mvpp2_gmac_pcs_config(struct mvpp2_port *port, unsigned int mode,
+				 phy_interface_t interface,
+				 const unsigned long *advertising,
+				 bool permit_pause_to_mac)
+{
+	u32 mask, val, an, old_an, changed;
+
+	mask = MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS |
+	       MVPP2_GMAC_IN_BAND_AUTONEG |
+	       MVPP2_GMAC_AN_SPEED_EN |
+	       MVPP2_GMAC_FLOW_CTRL_AUTONEG |
+	       MVPP2_GMAC_AN_DUPLEX_EN;
+
+	if (phylink_autoneg_inband(mode)) {
+		mask |= MVPP2_GMAC_CONFIG_MII_SPEED |
+			MVPP2_GMAC_CONFIG_GMII_SPEED |
+			MVPP2_GMAC_CONFIG_FULL_DUPLEX;
+		val = MVPP2_GMAC_IN_BAND_AUTONEG;
+
+		if (interface == PHY_INTERFACE_MODE_SGMII) {
+			/* SGMII mode receives the speed and duplex from PHY */
+			val |= MVPP2_GMAC_AN_SPEED_EN |
+			       MVPP2_GMAC_AN_DUPLEX_EN;
+		} else {
+			/* 802.3z mode has fixed speed and duplex */
+			val |= MVPP2_GMAC_CONFIG_GMII_SPEED |
+			       MVPP2_GMAC_CONFIG_FULL_DUPLEX;
+
+			/* The FLOW_CTRL_AUTONEG bit selects either the hardware
+			 * automatically or the bits in MVPP22_GMAC_CTRL_4_REG
+			 * manually controls the GMAC pause modes.
+			 */
+			if (permit_pause_to_mac)
+				val |= MVPP2_GMAC_FLOW_CTRL_AUTONEG;
+
+			/* Configure advertisement bits */
+			mask |= MVPP2_GMAC_FC_ADV_EN | MVPP2_GMAC_FC_ADV_ASM_EN;
+			if (phylink_test(advertising, Pause))
+				val |= MVPP2_GMAC_FC_ADV_EN;
+			if (phylink_test(advertising, Asym_Pause))
+				val |= MVPP2_GMAC_FC_ADV_ASM_EN;
+		}
+	} else {
+		val = 0;
+	}
+
+	old_an = an = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	an = (an & ~mask) | val;
+	changed = an ^ old_an;
+	if (changed)
+		writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+	/* We are only interested in the advertisement bits changing */
+	return changed & (MVPP2_GMAC_FC_ADV_EN | MVPP2_GMAC_FC_ADV_ASM_EN);
+}
+
+static int mvpp2_phylink_pcs_config(struct phylink_pcs *pcs,
+				    unsigned int mode,
+		                    phy_interface_t interface,
+				    const unsigned long *advertising,
+				    bool permit_pause_to_mac)
+{
+	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
+	int ret;
+
+	if (mvpp2_is_xlg(interface))
+		ret = 0;
+	else
+		ret = mvpp2_gmac_pcs_config(port, mode, interface, advertising,
+					    permit_pause_to_mac);
+
+	return ret;
+}
+
+static void mvpp2_phylink_pcs_an_restart(struct phylink_pcs *pcs)
+{
+	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
+	u32 val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+	writel(val | MVPP2_GMAC_IN_BAND_RESTART_AN,
+	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	writel(val & ~MVPP2_GMAC_IN_BAND_RESTART_AN,
+	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+}
+
+static const struct phylink_pcs_ops mvpp2_phylink_pcs_ops = {
+	.pcs_get_state = mvpp2_phylink_pcs_get_state,
+	.pcs_config = mvpp2_phylink_pcs_config,
+	.pcs_an_restart = mvpp2_phylink_pcs_an_restart,
+};
+
 static void mvpp2_phylink_validate(struct phylink_config *config,
 				   unsigned long *supported,
 				   struct phylink_link_state *state)
@@ -5464,89 +5632,6 @@ empty_set:
 	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static void mvpp22_xlg_pcs_get_state(struct mvpp2_port *port,
-				     struct phylink_link_state *state)
-{
-	u32 val;
-
-	state->speed = SPEED_10000;
-	state->duplex = 1;
-	state->an_complete = 1;
-
-	val = readl(port->base + MVPP22_XLG_STATUS);
-	state->link = !!(val & MVPP22_XLG_STATUS_LINK_UP);
-
-	state->pause = 0;
-	val = readl(port->base + MVPP22_XLG_CTRL0_REG);
-	if (val & MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN)
-		state->pause |= MLO_PAUSE_TX;
-	if (val & MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN)
-		state->pause |= MLO_PAUSE_RX;
-}
-
-static void mvpp2_gmac_pcs_get_state(struct mvpp2_port *port,
-				     struct phylink_link_state *state)
-{
-	u32 val;
-
-	val = readl(port->base + MVPP2_GMAC_STATUS0);
-
-	state->an_complete = !!(val & MVPP2_GMAC_STATUS0_AN_COMPLETE);
-	state->link = !!(val & MVPP2_GMAC_STATUS0_LINK_UP);
-	state->duplex = !!(val & MVPP2_GMAC_STATUS0_FULL_DUPLEX);
-
-	switch (port->phy_interface) {
-	case PHY_INTERFACE_MODE_1000BASEX:
-		state->speed = SPEED_1000;
-		break;
-	case PHY_INTERFACE_MODE_2500BASEX:
-		state->speed = SPEED_2500;
-		break;
-	default:
-		if (val & MVPP2_GMAC_STATUS0_GMII_SPEED)
-			state->speed = SPEED_1000;
-		else if (val & MVPP2_GMAC_STATUS0_MII_SPEED)
-			state->speed = SPEED_100;
-		else
-			state->speed = SPEED_10;
-	}
-
-	state->pause = 0;
-	if (val & MVPP2_GMAC_STATUS0_RX_PAUSE)
-		state->pause |= MLO_PAUSE_RX;
-	if (val & MVPP2_GMAC_STATUS0_TX_PAUSE)
-		state->pause |= MLO_PAUSE_TX;
-}
-
-static void mvpp2_phylink_mac_pcs_get_state(struct phylink_config *config,
-					    struct phylink_link_state *state)
-{
-	struct mvpp2_port *port = mvpp2_phylink_to_port(config);
-
-	if (port->priv->hw_version == MVPP22 && port->gop_id == 0) {
-		u32 mode = readl(port->base + MVPP22_XLG_CTRL3_REG);
-		mode &= MVPP22_XLG_CTRL3_MACMODESELECT_MASK;
-
-		if (mode == MVPP22_XLG_CTRL3_MACMODESELECT_10G) {
-			mvpp22_xlg_pcs_get_state(port, state);
-			return;
-		}
-	}
-
-	mvpp2_gmac_pcs_get_state(port, state);
-}
-
-static void mvpp2_mac_an_restart(struct phylink_config *config)
-{
-	struct mvpp2_port *port = mvpp2_phylink_to_port(config);
-	u32 val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-
-	writel(val | MVPP2_GMAC_IN_BAND_RESTART_AN,
-	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-	writel(val & ~MVPP2_GMAC_IN_BAND_RESTART_AN,
-	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-}
-
 static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 			     const struct phylink_link_state *state)
 {
@@ -5570,20 +5655,14 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 			      const struct phylink_link_state *state)
 {
-	u32 old_an, an;
 	u32 old_ctrl0, ctrl0;
 	u32 old_ctrl2, ctrl2;
 	u32 old_ctrl4, ctrl4;
 
-	old_an = an = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 	old_ctrl0 = ctrl0 = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
 	old_ctrl2 = ctrl2 = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
 	old_ctrl4 = ctrl4 = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
 
-	an &= ~(MVPP2_GMAC_AN_SPEED_EN | MVPP2_GMAC_FC_ADV_EN |
-		MVPP2_GMAC_FC_ADV_ASM_EN | MVPP2_GMAC_FLOW_CTRL_AUTONEG |
-		MVPP2_GMAC_AN_DUPLEX_EN | MVPP2_GMAC_IN_BAND_AUTONEG |
-		MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS);
 	ctrl0 &= ~MVPP2_GMAC_PORT_TYPE_MASK;
 	ctrl2 &= ~(MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PCS_ENABLE_MASK);
 
@@ -5607,12 +5686,6 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 			 MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
 	}
 
-	/* Configure advertisement bits */
-	if (phylink_test(state->advertising, Pause))
-		an |= MVPP2_GMAC_FC_ADV_EN;
-	if (phylink_test(state->advertising, Asym_Pause))
-		an |= MVPP2_GMAC_FC_ADV_ASM_EN;
-
 	/* Configure negotiation style */
 	if (!phylink_autoneg_inband(mode)) {
 		/* Phy or fixed speed - no in-band AN, nothing to do, leave the
@@ -5621,12 +5694,6 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 		/* SGMII in-band mode receives the speed and duplex from
 		 * the PHY. Flow control information is not received. */
-		an &= ~(MVPP2_GMAC_CONFIG_MII_SPEED |
-			MVPP2_GMAC_CONFIG_GMII_SPEED |
-			MVPP2_GMAC_CONFIG_FULL_DUPLEX);
-		an |= MVPP2_GMAC_IN_BAND_AUTONEG |
-		      MVPP2_GMAC_AN_SPEED_EN |
-		      MVPP2_GMAC_AN_DUPLEX_EN;
 	} else if (phy_interface_mode_is_8023z(state->interface)) {
 		/* 1000BaseX and 2500BaseX ports cannot negotiate speed nor can
 		 * they negotiate duplex: they are always operating with a fixed
@@ -5634,15 +5701,6 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		 * speed and full duplex here.
 		 */
 		ctrl0 |= MVPP2_GMAC_PORT_TYPE_MASK;
-		an &= ~(MVPP2_GMAC_CONFIG_MII_SPEED |
-			MVPP2_GMAC_CONFIG_GMII_SPEED |
-			MVPP2_GMAC_CONFIG_FULL_DUPLEX);
-		an |= MVPP2_GMAC_IN_BAND_AUTONEG |
-		      MVPP2_GMAC_CONFIG_GMII_SPEED |
-		      MVPP2_GMAC_CONFIG_FULL_DUPLEX;
-
-		if (state->pause & MLO_PAUSE_AN && state->an_enabled)
-			an |= MVPP2_GMAC_FLOW_CTRL_AUTONEG;
 	}
 
 	if (old_ctrl0 != ctrl0)
@@ -5651,8 +5709,6 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		writel(ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
 	if (old_ctrl4 != ctrl4)
 		writel(ctrl4, port->base + MVPP22_GMAC_CTRL_4_REG);
-	if (old_an != an)
-		writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 }
 
 static int mvpp2_mac_prepare(struct phylink_config *config, unsigned int mode,
@@ -5861,8 +5917,6 @@ static void mvpp2_mac_link_down(struct phylink_config *config,
 
 static const struct phylink_mac_ops mvpp2_phylink_ops = {
 	.validate = mvpp2_phylink_validate,
-	.mac_pcs_get_state = mvpp2_phylink_mac_pcs_get_state,
-	.mac_an_restart = mvpp2_mac_an_restart,
 	.mac_prepare = mvpp2_mac_prepare,
 	.mac_config = mvpp2_mac_config,
 	.mac_finish = mvpp2_mac_finish,
@@ -5883,6 +5937,9 @@ static void mvpp2_acpi_start(struct mvpp2_port *port)
 	mvpp2_mac_prepare(&port->phylink_config, MLO_AN_INBAND,
 			  port->phy_interface);
 	mvpp2_mac_config(&port->phylink_config, MLO_AN_INBAND, &state);
+	mvpp2_phylink_pcs_config(&port->phylink_pcs, MLO_AN_INBAND,
+				 port->phy_interface, state.advertising,
+				 false);
 	mvpp2_mac_finish(&port->phylink_config, MLO_AN_INBAND,
 			 port->phy_interface);
 	mvpp2_mac_link_up(&port->phylink_config, NULL,
@@ -6114,6 +6171,9 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 			goto err_free_port_pcpu;
 		}
 		port->phylink = phylink;
+
+		port->phylink_pcs.ops = &mvpp2_phylink_pcs_ops;
+		phylink_set_pcs(phylink, &port->phylink_pcs);
 	} else {
 		port->phylink = NULL;
 	}
