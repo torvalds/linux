@@ -437,6 +437,13 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 	u32 pad = code->pad;
 	int ret;
 
+	if (rsz->id == RKISP1_SELFPATH) {
+		if (code->index > 0)
+			return -EINVAL;
+		code->code = MEDIA_BUS_FMT_YUYV8_2X8;
+		return 0;
+	}
+
 	/* supported mbus codes are the same in isp video src pad */
 	code->pad = RKISP1_ISP_PAD_SOURCE_VIDEO;
 	ret = v4l2_subdev_call(&rsz->rkisp1->isp.sd, pad, enum_mbus_code,
@@ -541,7 +548,11 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SRC, which);
 	sink_crop = rkisp1_rsz_get_pad_crop(rsz, cfg, RKISP1_RSZ_PAD_SINK,
 					    which);
-	sink_fmt->code = format->code;
+	if (rsz->id == RKISP1_SELFPATH)
+		sink_fmt->code = MEDIA_BUS_FMT_YUYV8_2X8;
+	else
+		sink_fmt->code = format->code;
+
 	mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
 	if (!mbus_info || !(mbus_info->direction & RKISP1_ISP_SD_SRC)) {
 		sink_fmt->code = RKISP1_DEF_FMT;

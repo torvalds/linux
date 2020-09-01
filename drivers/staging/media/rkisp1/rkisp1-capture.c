@@ -1176,13 +1176,6 @@ static int rkisp1_capture_link_validate(struct media_link *link)
 	struct v4l2_subdev_format sd_fmt;
 	int ret;
 
-	if (cap->id == RKISP1_SELFPATH &&
-	    isp->src_fmt->mbus_code != MEDIA_BUS_FMT_YUYV8_2X8) {
-		dev_err(cap->rkisp1->dev,
-			"selfpath only supports MEDIA_BUS_FMT_YUYV8_2X8\n");
-		return -EPIPE;
-	}
-
 	if (cap_pix_enc != isp_pix_enc &&
 	    !(isp_pix_enc == V4L2_PIXEL_ENC_YUV &&
 	      cap_pix_enc == V4L2_PIXEL_ENC_RGB)) {
