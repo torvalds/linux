@@ -19,9 +19,11 @@
  *  Author: Manjunatha Halli <manjunatha_halli@ti.com>
  */
 
-#include <linux/module.h>
-#include <linux/firmware.h>
 #include <linux/delay.h>
+#include <linux/firmware.h>
+#include <linux/module.h>
+#include <linux/nospec.h>
+
 #include "fmdrv.h"
 #include "fmdrv_v4l2.h"
 #include "fmdrv_common.h"
@@ -700,7 +702,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 	struct fm_rds *rds = &fmdev->rx.rds;
 	unsigned long group_idx, flags;
 	u8 *rds_data, meta_data, tmpbuf[FM_RDS_BLK_SIZE];
-	u8 type, blk_idx;
+	u8 type, blk_idx, idx;
 	u16 cur_picode;
 	u32 rds_len;
 
@@ -733,9 +735,11 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 		}
 
 		/* Skip checkword (control) byte and copy only data byte */
-		memcpy(&rds_fmt.data.groupdatabuff.
-				buff[blk_idx * (FM_RDS_BLK_SIZE - 1)],
-				rds_data, (FM_RDS_BLK_SIZE - 1));
+		idx = array_index_nospec(blk_idx * (FM_RDS_BLK_SIZE - 1),
+					 FM_RX_RDS_INFO_FIELD_MAX - (FM_RDS_BLK_SIZE - 1));
+
+		memcpy(&rds_fmt.data.groupdatabuff.buff[idx], rds_data,
+		       FM_RDS_BLK_SIZE - 1);
 
 		rds->last_blk_idx = blk_idx;
 
