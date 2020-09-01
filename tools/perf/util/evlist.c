@@ -1802,6 +1802,7 @@ static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
 	char c;
 	size_t bytes_read = 0;
 
+	*cmd = EVLIST_CTL_CMD_UNSUPPORTED;
 	memset(cmd_data, 0, data_size);
 	data_size--;
 
@@ -1813,17 +1814,22 @@ static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
 			cmd_data[bytes_read++] = c;
 			if (bytes_read == data_size)
 				break;
-		} else {
-			if (err == -1)
+			continue;
+		} else if (err == -1) {
+			if (errno == EINTR)
+				continue;
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				err = 0;
+			else
 				pr_err("Failed to read from ctlfd %d: %m\n", evlist->ctl_fd.fd);
-			break;
 		}
+		break;
 	} while (1);
 
 	pr_debug("Message from ctl_fd: \"%s%s\"\n", cmd_data,
 		 bytes_read == data_size ? "" : c == '\n' ? "\\n" : "\\0");
 
-	if (err > 0) {
+	if (bytes_read > 0) {
 		if (!strncmp(cmd_data, EVLIST_CTL_CMD_ENABLE_TAG,
 			     (sizeof(EVLIST_CTL_CMD_ENABLE_TAG)-1))) {
 			*cmd = EVLIST_CTL_CMD_ENABLE;
@@ -1833,7 +1839,7 @@ static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
 		}
 	}
 
-	return err;
+	return bytes_read ? (int)bytes_read : err;
 }
 
 static int evlist__ctlfd_ack(struct evlist *evlist)
