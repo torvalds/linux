@@ -278,7 +278,7 @@ static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 		goto remove_pd;
 
 	/* Try to enable OSI mode. */
-	ret = psci_set_osi_mode();
+	ret = psci_set_osi_mode(true);
 	if (ret) {
 		pr_warn("failed to enable OSI mode: %d\n", ret);
 		psci_pd_remove_topology(np);
