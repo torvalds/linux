@@ -31,9 +31,6 @@ static __always_inline bool dma_alloc_need_uncached(struct device *dev,
 		return false;
 	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING)
 		return false;
-	if (IS_ENABLED(CONFIG_DMA_NONCOHERENT_CACHE_SYNC) &&
-	    (attrs & DMA_ATTR_NON_CONSISTENT))
-		return false;
 	return true;
 }
 

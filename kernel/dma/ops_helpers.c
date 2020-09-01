@@ -3,6 +3,7 @@
  * Helpers for DMA ops implementations.  These generally rely on the fact that
  * the allocated memory contains normal pages in the direct kernel mapping.
  */
+#include <linux/dma-contiguous.h>
 #include <linux/dma-noncoherent.h>
 
 /*
@@ -48,4 +49,38 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 #else
 	return -ENXIO;
 #endif /* CONFIG_MMU */
+}
+
+struct page *dma_common_alloc_pages(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	struct page *page;
+
+	page = dma_alloc_contiguous(dev, size, gfp);
+	if (!page)
+		page = alloc_pages_node(dev_to_node(dev), gfp, get_order(size));
+	if (!page)
+		return NULL;
+
+	*dma_handle = ops->map_page(dev, page, 0, size, dir,
+				    DMA_ATTR_SKIP_CPU_SYNC);
+	if (*dma_handle == DMA_MAPPING_ERROR) {
+		dma_free_contiguous(dev, page, size);
+		return NULL;
+	}
+
+	memset(page_address(page), 0, size);
+	return page;
+}
+
+void dma_common_free_pages(struct device *dev, size_t size, struct page *page,
+		dma_addr_t dma_handle, enum dma_data_direction dir)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (ops->unmap_page)
+		ops->unmap_page(dev, dma_handle, size, dir,
+				DMA_ATTR_SKIP_CPU_SYNC);
+	dma_free_contiguous(dev, page, size);
 }

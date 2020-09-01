@@ -506,9 +506,6 @@ static void *jazz_dma_alloc(struct device *dev, size_t size,
 	*dma_handle = vdma_alloc(virt_to_phys(ret), size);
 	if (*dma_handle == DMA_MAPPING_ERROR)
 		goto out_free_pages;
-
-	if (attrs & DMA_ATTR_NON_CONSISTENT)
-		return ret;
 	arch_dma_prep_coherent(page, size);
 	return (void *)(UNCAC_BASE + __pa(ret));
 
@@ -521,8 +518,6 @@ static void jazz_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
 	vdma_free(dma_handle);
-	if (!(attrs & DMA_ATTR_NON_CONSISTENT))
-		vaddr = __va(vaddr - UNCAC_BASE);
 	__free_pages(virt_to_page(vaddr), get_order(size));
 }
 
@@ -622,5 +617,7 @@ const struct dma_map_ops jazz_dma_ops = {
 	.sync_sg_for_device	= jazz_dma_sync_sg_for_device,
 	.mmap			= dma_common_mmap,
 	.get_sgtable		= dma_common_get_sgtable,
+	.alloc_pages		= dma_common_alloc_pages,
+	.free_pages		= dma_common_free_pages,
 };
 EXPORT_SYMBOL(jazz_dma_ops);

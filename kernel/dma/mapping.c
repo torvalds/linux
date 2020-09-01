@@ -341,9 +341,7 @@ pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs)
 {
 	if (force_dma_unencrypted(dev))
 		prot = pgprot_decrypted(prot);
-	if (dev_is_dma_coherent(dev) ||
-	    (IS_ENABLED(CONFIG_DMA_NONCOHERENT_CACHE_SYNC) &&
-             (attrs & DMA_ATTR_NON_CONSISTENT)))
+	if (dev_is_dma_coherent(dev))
 		return prot;
 #ifdef CONFIG_ARCH_HAS_DMA_WRITE_COMBINE
 	if (attrs & DMA_ATTR_WRITE_COMBINE)
@@ -471,6 +469,65 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 		ops->free(dev, size, cpu_addr, dma_handle, attrs);
 }
 EXPORT_SYMBOL(dma_free_attrs);
+
+struct page *dma_alloc_pages(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	struct page *page;
+
+	if (WARN_ON_ONCE(!dev->coherent_dma_mask))
+		return NULL;
+	if (WARN_ON_ONCE(gfp & (__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM)))
+		return NULL;
+
+	size = PAGE_ALIGN(size);
+	if (dma_alloc_direct(dev, ops))
+		page = dma_direct_alloc_pages(dev, size, dma_handle, dir, gfp);
+	else if (ops->alloc_pages)
+		page = ops->alloc_pages(dev, size, dma_handle, dir, gfp);
+	else
+		return NULL;
+
+	debug_dma_map_page(dev, page, 0, size, dir, *dma_handle);
+
+	return page;
+}
+EXPORT_SYMBOL_GPL(dma_alloc_pages);
+
+void dma_free_pages(struct device *dev, size_t size, struct page *page,
+		dma_addr_t dma_handle, enum dma_data_direction dir)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	size = PAGE_ALIGN(size);
+	debug_dma_unmap_page(dev, dma_handle, size, dir);
+
+	if (dma_alloc_direct(dev, ops))
+		dma_direct_free_pages(dev, size, page, dma_handle, dir);
+	else if (ops->free_pages)
+		ops->free_pages(dev, size, page, dma_handle, dir);
+}
+EXPORT_SYMBOL_GPL(dma_free_pages);
+
+void *dma_alloc_noncoherent(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp)
+{
+	struct page *page;
+
+	page = dma_alloc_pages(dev, size, dma_handle, dir, gfp);
+	if (!page)
+		return NULL;
+	return page_address(page);
+}
+EXPORT_SYMBOL_GPL(dma_alloc_noncoherent);
+
+void dma_free_noncoherent(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_handle, enum dma_data_direction dir)
+{
+	dma_free_pages(dev, size, virt_to_page(vaddr), dma_handle, dir);
+}
+EXPORT_SYMBOL_GPL(dma_free_noncoherent);
 
 int dma_supported(struct device *dev, u64 mask)
 {
