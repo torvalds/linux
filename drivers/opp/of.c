@@ -886,11 +886,25 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 	const __be32 *val;
 	int nr, ret = 0;
 
+	mutex_lock(&opp_table->lock);
+	if (opp_table->parsed_static_opps) {
+		opp_table->parsed_static_opps++;
+		mutex_unlock(&opp_table->lock);
+		return 0;
+	}
+
+	opp_table->parsed_static_opps = 1;
+	mutex_unlock(&opp_table->lock);
+
 	prop = of_find_property(dev->of_node, "operating-points", NULL);
-	if (!prop)
-		return -ENODEV;
-	if (!prop->value)
-		return -ENODATA;
+	if (!prop) {
+		ret = -ENODEV;
+		goto remove_static_opp;
+	}
+	if (!prop->value) {
+		ret = -ENODATA;
+		goto remove_static_opp;
+	}
 
 	/*
 	 * Each OPP is a set of tuples consisting of frequency and
@@ -899,12 +913,9 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 	nr = prop->length / sizeof(u32);
 	if (nr % 2) {
 		dev_err(dev, "%s: Invalid OPP table\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto remove_static_opp;
 	}
-
-	mutex_lock(&opp_table->lock);
-	opp_table->parsed_static_opps = 1;
-	mutex_unlock(&opp_table->lock);
 
 	val = prop->value;
 	while (nr) {
@@ -915,11 +926,13 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP %ld (%d)\n",
 				__func__, freq, ret);
-			_opp_remove_all_static(opp_table);
-			return ret;
+			goto remove_static_opp;
 		}
 		nr -= 2;
 	}
+
+remove_static_opp:
+	_opp_remove_all_static(opp_table);
 
 	return ret;
 }
