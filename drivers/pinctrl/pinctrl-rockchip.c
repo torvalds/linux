@@ -4328,6 +4328,36 @@ static void rockchip_irq_disable(struct irq_data *d)
 	clk_disable(bank->clk);
 }
 
+static void rockchip_irq_ack(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	clk_enable(bank->clk);
+	irq_gc_ack_set_bit(d);
+	clk_disable(bank->clk);
+}
+
+static void rockchip_irq_mask(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	clk_enable(bank->clk);
+	irq_gc_mask_set_bit(d);
+	clk_disable(bank->clk);
+}
+
+static void rockchip_irq_unmask(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	clk_enable(bank->clk);
+	irq_gc_mask_clr_bit(d);
+	clk_disable(bank->clk);
+}
+
 static int rockchip_interrupts_register(struct platform_device *pdev,
 						struct rockchip_pinctrl *info)
 {
@@ -4381,9 +4411,9 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		gc->private = bank;
 		gc->chip_types[0].regs.mask = bank->gpio_regs->int_mask;
 		gc->chip_types[0].regs.ack = bank->gpio_regs->port_eoi;
-		gc->chip_types[0].chip.irq_ack = irq_gc_ack_set_bit;
-		gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
-		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_clr_bit;
+		gc->chip_types[0].chip.irq_ack = rockchip_irq_ack;
+		gc->chip_types[0].chip.irq_mask = rockchip_irq_mask;
+		gc->chip_types[0].chip.irq_unmask = rockchip_irq_unmask;
 		gc->chip_types[0].chip.irq_enable = rockchip_irq_enable;
 		gc->chip_types[0].chip.irq_disable = rockchip_irq_disable;
 		gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
