@@ -1382,7 +1382,7 @@ static int hw_init_v2_hw(struct hisi_hba *hisi_hba)
 
 	rc = reset_hw_v2_hw(hisi_hba);
 	if (rc) {
-		dev_err(dev, "hisi_sas_reset_hw failed, rc=%d", rc);
+		dev_err(dev, "hisi_sas_reset_hw failed, rc=%d\n", rc);
 		return rc;
 	}
 
