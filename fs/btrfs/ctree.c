@@ -4580,9 +4580,7 @@ int btrfs_duplicate_item(struct btrfs_trans_handle *trans,
 		return ret;
 
 	path->slots[0]++;
-	setup_items_for_insert(root, path, new_key, &item_size,
-			       item_size, item_size +
-			       sizeof(struct btrfs_item), 1);
+	setup_items_for_insert(root, path, new_key, &item_size, item_size, 1);
 	leaf = path->nodes[0];
 	memcpy_extent_buffer(leaf,
 			     btrfs_item_ptr_offset(leaf, path->slots[0]),
@@ -4762,7 +4760,7 @@ void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
  */
 void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 			    const struct btrfs_key *cpu_key, u32 *data_size,
-			    u32 total_data, u32 total_size, int nr)
+			    u32 total_data, int nr)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_item *item;
@@ -4773,6 +4771,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 	struct extent_buffer *leaf;
 	int slot;
 	struct btrfs_map_token token;
+	const u32 total_size = total_data + (nr * sizeof(struct btrfs_item));
 
 	if (path->slots[0] == 0) {
 		btrfs_cpu_key_to_disk(&disk_key, cpu_key);
@@ -4875,8 +4874,7 @@ int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 	slot = path->slots[0];
 	BUG_ON(slot < 0);
 
-	setup_items_for_insert(root, path, cpu_key, data_size,
-			       total_data, total_size, nr);
+	setup_items_for_insert(root, path, cpu_key, data_size, total_data, nr);
 	return 0;
 }
 
