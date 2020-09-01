@@ -1004,10 +1004,8 @@ static int acquire_dma_channels(struct gpmi_nand_data *this)
 	/* request dma channel */
 	dma_chan = dma_request_chan(&pdev->dev, "rx-tx");
 	if (IS_ERR(dma_chan)) {
-		ret = PTR_ERR(dma_chan);
-		if (ret != -EPROBE_DEFER)
-			dev_err(this->dev, "DMA channel request failed: %d\n",
-				ret);
+		ret = dev_err_probe(this->dev, PTR_ERR(dma_chan),
+				    "DMA channel request failed\n");
 		release_dma_channels(this);
 	} else {
 		this->dma_chans[0] = dma_chan;
