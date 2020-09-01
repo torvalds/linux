@@ -346,9 +346,9 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_cmn_feature_update_enable_state(struct smu_context *smu,
-					       uint64_t feature_mask,
-					       bool enabled)
+int smu_cmn_feature_update_enable_state(struct smu_context *smu,
+					uint64_t feature_mask,
+					bool enabled)
 {
 	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;

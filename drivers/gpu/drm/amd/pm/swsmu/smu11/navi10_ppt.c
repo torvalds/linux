@@ -279,9 +279,6 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_FW_CTF_BIT)
 				| FEATURE_MASK(FEATURE_OUT_OF_BAND_MONITOR_BIT);
 
-	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
-
 	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
 
@@ -290,11 +287,6 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 
 	if (adev->pm.pp_feature & PP_DCEFCLK_DPM_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT);
-
-	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
-				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
-				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
 
 	if (adev->pm.pp_feature & PP_ULV_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_ULV_BIT);
@@ -320,19 +312,12 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 	if (smu->dc_controlled_by_gpio)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ACDC_BIT);
 
-	/* disable DPM UCLK and DS SOCCLK on navi10 A0 secure board */
-	if (is_asic_secure(smu)) {
-		/* only for navi10 A0 */
-		if ((adev->asic_type == CHIP_NAVI10) &&
-			(adev->rev_id == 0)) {
-			*(uint64_t *)feature_mask &=
-					~(FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
-					  | FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
-					  | FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT));
-			*(uint64_t *)feature_mask &=
-					~FEATURE_MASK(FEATURE_DS_SOCCLK_BIT);
-		}
-	}
+	/* DS SOCCLK enablement should be skipped for navi10 A0 secure board */
+	if (is_asic_secure(smu) &&
+	    (adev->asic_type == CHIP_NAVI10) &&
+	    (adev->rev_id == 0))
+		*(uint64_t *)feature_mask &=
+				~FEATURE_MASK(FEATURE_DS_SOCCLK_BIT);
 
 	return 0;
 }
@@ -2578,6 +2563,38 @@ static int navi10_enable_mgpu_fan_boost(struct smu_context *smu)
 					       NULL);
 }
 
+static int navi10_post_smu_init(struct smu_context *smu)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	struct amdgpu_device *adev = smu->adev;
+	uint64_t feature_mask = 0;
+
+	/* For Naiv1x, enable these features only after DAL initialization */
+	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
+		feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
+
+	/* DPM UCLK enablement should be skipped for navi10 A0 secure board */
+	if (!(is_asic_secure(smu) &&
+	     (adev->asic_type == CHIP_NAVI10) &&
+	     (adev->rev_id == 0)) &&
+	    (adev->pm.pp_feature & PP_MCLK_DPM_MASK))
+		feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
+				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
+				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
+
+	if (!feature_mask)
+		return 0;
+
+	bitmap_or(feature->allowed,
+		  feature->allowed,
+		  (unsigned long *)(&feature_mask),
+		  SMU_FEATURE_MAX);
+
+	return smu_cmn_feature_update_enable_state(smu,
+						   feature_mask,
+						   true);
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
@@ -2661,6 +2678,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.gfx_ulv_control = smu_v11_0_gfx_ulv_control,
 	.deep_sleep_control = smu_v11_0_deep_sleep_control,
 	.get_fan_parameters = navi10_get_fan_parameters,
+	.post_init = navi10_post_smu_init,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
