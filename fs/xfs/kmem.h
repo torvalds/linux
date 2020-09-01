@@ -71,12 +71,6 @@ kmem_zalloc(size_t size, xfs_km_flags_t flags)
 	return kmem_alloc(size, flags | KM_ZERO);
 }
 
-static inline void *
-kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
-{
-	return kmem_alloc_large(size, flags | KM_ZERO);
-}
-
 /*
  * Zone interfaces
  */

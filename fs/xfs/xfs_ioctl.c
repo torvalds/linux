@@ -404,7 +404,7 @@ xfs_ioc_attr_list(
 	     context.cursor.offset))
 		return -EINVAL;
 
-	buffer = kmem_zalloc_large(bufsize, 0);
+	buffer = kvzalloc(bufsize, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1691,7 +1691,7 @@ xfs_ioc_getbmap(
 	if (bmx.bmv_count > ULONG_MAX / recsize)
 		return -ENOMEM;
 
-	buf = kmem_zalloc_large(bmx.bmv_count * sizeof(*buf), 0);
+	buf = kvzalloc(bmx.bmv_count * sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

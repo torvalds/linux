@@ -862,7 +862,7 @@ xfs_alloc_rsum_cache(
 	 * lower bound on the minimum level with any free extents. We can
 	 * continue without the cache if it couldn't be allocated.
 	 */
-	mp->m_rsum_cache = kmem_zalloc_large(rbmblocks, 0);
+	mp->m_rsum_cache = kvzalloc(rbmblocks, GFP_KERNEL);
 	if (!mp->m_rsum_cache)
 		xfs_warn(mp, "could not allocate realtime summary cache");
 }
