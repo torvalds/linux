@@ -4809,7 +4809,8 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 
 		if (old_data < data_end) {
 			btrfs_print_leaf(leaf);
-			btrfs_crit(fs_info, "slot %d old_data %d data_end %d",
+			btrfs_crit(fs_info,
+		"item at slot %d with data offset %u beyond data end of leaf %u",
 				   slot, old_data, data_end);
 			BUG();
 		}
