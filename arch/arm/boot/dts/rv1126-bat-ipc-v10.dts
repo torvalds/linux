@@ -31,6 +31,20 @@
 		};
 	};
 
+	i2s0_sound: i2s0-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,i2s0-sound";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&es8311>;
+		};
+	};
+
 	/delete-node/ vdd-npu;
 	/delete-node/ vdd-vepu;
 
@@ -148,11 +162,46 @@
 	};
 };
 
+&i2c4 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c4m1_xfer>;
+
+	es8311: es8311@18 {
+		compatible = "everest,es8311";
+		reg = <0x18>;
+		clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0m0_mclk &spk_ctl>;
+		assigned-clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
+		assigned-clock-parents = <&cru MCLK_I2S0_TX>;
+		spk-ctl-gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&i2s0_8ch {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <1>;
+	rockchip,i2s-rx-route = <3 0 1 2>;
+	pinctrl-0 = <&i2s0m0_sclk_tx
+		     &i2s0m0_lrck_tx
+		     &i2s0m0_sdo0
+		     &i2s0m0_sdo1_sdi3>;
+};
+
 &npu {
 	npu-supply = <&vdd_npu_vepu>;
 };
 
 &pinctrl {
+	es8311 {
+		spk_ctl: spk-ctl {
+			rockchip,pins = <2 RK_PA5 0 &pcfg_pull_none>;
+		};
+	};
 	regulator {
 		/omit-if-no-ref/
 		power_hold: power-hold {
