@@ -1001,6 +1001,88 @@ static int vivid_detect_feature_set(struct vivid_dev *dev, int inst,
 	return 0;
 }
 
+static void vivid_set_capabilities(struct vivid_dev *dev)
+{
+	if (dev->has_vid_cap) {
+		/* set up the capabilities of the video capture device */
+		dev->vid_cap_caps = dev->multiplanar ?
+			V4L2_CAP_VIDEO_CAPTURE_MPLANE :
+			V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY;
+		dev->vid_cap_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_inputs)
+			dev->vid_cap_caps |= V4L2_CAP_AUDIO;
+		if (dev->has_tv_tuner)
+			dev->vid_cap_caps |= V4L2_CAP_TUNER;
+	}
+	if (dev->has_vid_out) {
+		/* set up the capabilities of the video output device */
+		dev->vid_out_caps = dev->multiplanar ?
+			V4L2_CAP_VIDEO_OUTPUT_MPLANE :
+			V4L2_CAP_VIDEO_OUTPUT;
+		if (dev->has_fb)
+			dev->vid_out_caps |= V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		dev->vid_out_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_outputs)
+			dev->vid_out_caps |= V4L2_CAP_AUDIO;
+	}
+	if (dev->has_vbi_cap) {
+		/* set up the capabilities of the vbi capture device */
+		dev->vbi_cap_caps = (dev->has_raw_vbi_cap ? V4L2_CAP_VBI_CAPTURE : 0) |
+				    (dev->has_sliced_vbi_cap ? V4L2_CAP_SLICED_VBI_CAPTURE : 0);
+		dev->vbi_cap_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_inputs)
+			dev->vbi_cap_caps |= V4L2_CAP_AUDIO;
+		if (dev->has_tv_tuner)
+			dev->vbi_cap_caps |= V4L2_CAP_TUNER;
+	}
+	if (dev->has_vbi_out) {
+		/* set up the capabilities of the vbi output device */
+		dev->vbi_out_caps = (dev->has_raw_vbi_out ? V4L2_CAP_VBI_OUTPUT : 0) |
+				    (dev->has_sliced_vbi_out ? V4L2_CAP_SLICED_VBI_OUTPUT : 0);
+		dev->vbi_out_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_outputs)
+			dev->vbi_out_caps |= V4L2_CAP_AUDIO;
+	}
+	if (dev->has_sdr_cap) {
+		/* set up the capabilities of the sdr capture device */
+		dev->sdr_cap_caps = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_TUNER;
+		dev->sdr_cap_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+	}
+	/* set up the capabilities of the radio receiver device */
+	if (dev->has_radio_rx)
+		dev->radio_rx_caps = V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE |
+				     V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_TUNER |
+				     V4L2_CAP_READWRITE;
+	/* set up the capabilities of the radio transmitter device */
+	if (dev->has_radio_tx)
+		dev->radio_tx_caps = V4L2_CAP_RDS_OUTPUT | V4L2_CAP_MODULATOR |
+				     V4L2_CAP_READWRITE;
+
+	/* set up the capabilities of meta capture device */
+	if (dev->has_meta_cap) {
+		dev->meta_cap_caps = V4L2_CAP_META_CAPTURE |
+				     V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_inputs)
+			dev->meta_cap_caps |= V4L2_CAP_AUDIO;
+		if (dev->has_tv_tuner)
+			dev->meta_cap_caps |= V4L2_CAP_TUNER;
+	}
+	/* set up the capabilities of meta output device */
+	if (dev->has_meta_out) {
+		dev->meta_out_caps = V4L2_CAP_META_OUTPUT |
+				     V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_outputs)
+			dev->meta_out_caps |= V4L2_CAP_AUDIO;
+	}
+	/* set up the capabilities of the touch capture device */
+	if (dev->has_touch_cap) {
+		dev->touch_cap_caps = V4L2_CAP_TOUCH | V4L2_CAP_STREAMING |
+				      V4L2_CAP_READWRITE;
+		dev->touch_cap_caps |= dev->multiplanar ?
+			V4L2_CAP_VIDEO_CAPTURE_MPLANE : V4L2_CAP_VIDEO_CAPTURE;
+	}
+}
+
 static void vivid_disable_unused_ioctls(struct vivid_dev *dev,
 					bool has_tuner,
 					bool has_modulator,
@@ -1153,84 +1235,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		return ret;
 	}
 
-	if (dev->has_vid_cap) {
-		/* set up the capabilities of the video capture device */
-		dev->vid_cap_caps = dev->multiplanar ?
-			V4L2_CAP_VIDEO_CAPTURE_MPLANE :
-			V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY;
-		dev->vid_cap_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-		if (dev->has_audio_inputs)
-			dev->vid_cap_caps |= V4L2_CAP_AUDIO;
-		if (dev->has_tv_tuner)
-			dev->vid_cap_caps |= V4L2_CAP_TUNER;
-	}
-	if (dev->has_vid_out) {
-		/* set up the capabilities of the video output device */
-		dev->vid_out_caps = dev->multiplanar ?
-			V4L2_CAP_VIDEO_OUTPUT_MPLANE :
-			V4L2_CAP_VIDEO_OUTPUT;
-		if (dev->has_fb)
-			dev->vid_out_caps |= V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
-		dev->vid_out_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-		if (dev->has_audio_outputs)
-			dev->vid_out_caps |= V4L2_CAP_AUDIO;
-	}
-	if (dev->has_vbi_cap) {
-		/* set up the capabilities of the vbi capture device */
-		dev->vbi_cap_caps = (dev->has_raw_vbi_cap ? V4L2_CAP_VBI_CAPTURE : 0) |
-				    (dev->has_sliced_vbi_cap ? V4L2_CAP_SLICED_VBI_CAPTURE : 0);
-		dev->vbi_cap_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-		if (dev->has_audio_inputs)
-			dev->vbi_cap_caps |= V4L2_CAP_AUDIO;
-		if (dev->has_tv_tuner)
-			dev->vbi_cap_caps |= V4L2_CAP_TUNER;
-	}
-	if (dev->has_vbi_out) {
-		/* set up the capabilities of the vbi output device */
-		dev->vbi_out_caps = (dev->has_raw_vbi_out ? V4L2_CAP_VBI_OUTPUT : 0) |
-				    (dev->has_sliced_vbi_out ? V4L2_CAP_SLICED_VBI_OUTPUT : 0);
-		dev->vbi_out_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-		if (dev->has_audio_outputs)
-			dev->vbi_out_caps |= V4L2_CAP_AUDIO;
-	}
-	if (dev->has_sdr_cap) {
-		/* set up the capabilities of the sdr capture device */
-		dev->sdr_cap_caps = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_TUNER;
-		dev->sdr_cap_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-	}
-	/* set up the capabilities of the radio receiver device */
-	if (dev->has_radio_rx)
-		dev->radio_rx_caps = V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE |
-				     V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_TUNER |
-				     V4L2_CAP_READWRITE;
-	/* set up the capabilities of the radio transmitter device */
-	if (dev->has_radio_tx)
-		dev->radio_tx_caps = V4L2_CAP_RDS_OUTPUT | V4L2_CAP_MODULATOR |
-				     V4L2_CAP_READWRITE;
-
-	/* set up the capabilities of meta capture device */
-	if (dev->has_meta_cap) {
-		dev->meta_cap_caps = V4L2_CAP_META_CAPTURE |
-				     V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-		if (dev->has_audio_inputs)
-			dev->meta_cap_caps |= V4L2_CAP_AUDIO;
-		if (dev->has_tv_tuner)
-			dev->meta_cap_caps |= V4L2_CAP_TUNER;
-	}
-	/* set up the capabilities of meta output device */
-	if (dev->has_meta_out) {
-		dev->meta_out_caps = V4L2_CAP_META_OUTPUT |
-				     V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-		if (dev->has_audio_outputs)
-			dev->meta_out_caps |= V4L2_CAP_AUDIO;
-	}
-	/* set up the capabilities of the touch capture device */
-	if (dev->has_touch_cap) {
-		dev->touch_cap_caps = V4L2_CAP_TOUCH | V4L2_CAP_STREAMING |
-				      V4L2_CAP_READWRITE;
-		dev->touch_cap_caps |= dev->multiplanar ?
-			V4L2_CAP_VIDEO_CAPTURE_MPLANE : V4L2_CAP_VIDEO_CAPTURE;
-	}
+	vivid_set_capabilities(dev);
 
 	ret = -ENOMEM;
 	/* initialize the test pattern generator */
