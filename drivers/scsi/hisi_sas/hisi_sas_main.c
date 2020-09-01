@@ -3334,21 +3334,6 @@ enum {
 	HISI_SAS_BIST_LOOPBACK_MODE_REMOTE,
 };
 
-enum {
-	HISI_SAS_BIST_CODE_MODE_PRBS7 = 0,
-	HISI_SAS_BIST_CODE_MODE_PRBS23,
-	HISI_SAS_BIST_CODE_MODE_PRBS31,
-	HISI_SAS_BIST_CODE_MODE_JTPAT,
-	HISI_SAS_BIST_CODE_MODE_CJTPAT,
-	HISI_SAS_BIST_CODE_MODE_SCRAMBED_0,
-	HISI_SAS_BIST_CODE_MODE_TRAIN,
-	HISI_SAS_BIST_CODE_MODE_TRAIN_DONE,
-	HISI_SAS_BIST_CODE_MODE_HFTP,
-	HISI_SAS_BIST_CODE_MODE_MFTP,
-	HISI_SAS_BIST_CODE_MODE_LFTP,
-	HISI_SAS_BIST_CODE_MODE_FIXED_DATA,
-};
-
 static const struct {
 	int		value;
 	char		*name;
@@ -3965,6 +3950,16 @@ static void hisi_sas_debugfs_bist_init(struct hisi_hba *hisi_hba)
 	debugfs_create_file("code_mode", 0600,
 			    hisi_hba->debugfs_bist_dentry, hisi_hba,
 			    &hisi_sas_debugfs_bist_code_mode_ops);
+
+	debugfs_create_file("fixed_code", 0600,
+			    hisi_hba->debugfs_bist_dentry,
+			    &hisi_hba->debugfs_bist_fixed_code[0],
+			    &hisi_sas_debugfs_ops);
+
+	debugfs_create_file("fixed_code_1", 0600,
+			    hisi_hba->debugfs_bist_dentry,
+			    &hisi_hba->debugfs_bist_fixed_code[1],
+			    &hisi_sas_debugfs_ops);
 
 	debugfs_create_file("phy_id", 0600, hisi_hba->debugfs_bist_dentry,
 			    hisi_hba, &hisi_sas_debugfs_bist_phy_ops);

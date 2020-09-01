@@ -285,6 +285,27 @@ enum hisi_sas_debugfs_bist_ffe_cfg {
 	FFE_CFG_MAX
 };
 
+enum hisi_sas_debugfs_bist_fixed_code {
+	FIXED_CODE,
+	FIXED_CODE_1,
+	FIXED_CODE_MAX
+};
+
+enum {
+	HISI_SAS_BIST_CODE_MODE_PRBS7,
+	HISI_SAS_BIST_CODE_MODE_PRBS23,
+	HISI_SAS_BIST_CODE_MODE_PRBS31,
+	HISI_SAS_BIST_CODE_MODE_JTPAT,
+	HISI_SAS_BIST_CODE_MODE_CJTPAT,
+	HISI_SAS_BIST_CODE_MODE_SCRAMBED_0,
+	HISI_SAS_BIST_CODE_MODE_TRAIN,
+	HISI_SAS_BIST_CODE_MODE_TRAIN_DONE,
+	HISI_SAS_BIST_CODE_MODE_HFTP,
+	HISI_SAS_BIST_CODE_MODE_MFTP,
+	HISI_SAS_BIST_CODE_MODE_LFTP,
+	HISI_SAS_BIST_CODE_MODE_FIXED_DATA,
+};
+
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
 	void (*setup_itct)(struct hisi_hba *hisi_hba,
@@ -453,6 +474,7 @@ struct hisi_hba {
 	u32 debugfs_bist_cnt;
 	int debugfs_bist_enable;
 	u32 debugfs_bist_ffe[HISI_SAS_MAX_PHYS][FFE_CFG_MAX];
+	u32 debugfs_bist_fixed_code[FIXED_CODE_MAX];
 
 	/* debugfs memories */
 	/* Put Global AXI and RAS Register into register array */
