@@ -105,12 +105,6 @@ static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 		[IEEE80211_AC_VI] = 4,
 		[IEEE80211_AC_VO] = 6
 	};
-	static const u8 hw_queue_map[] = {
-		[IEEE80211_AC_BK] = 0,
-		[IEEE80211_AC_BE] = 1,
-		[IEEE80211_AC_VI] = 2,
-		[IEEE80211_AC_VO] = 3,
-	};
 	struct ieee80211_sta *sta;
 	struct mt7915_sta *msta;
 	u32 tx_time[IEEE80211_NUM_ACS], rx_time[IEEE80211_NUM_ACS];
@@ -169,8 +163,9 @@ static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 		sta = container_of((void *)msta, struct ieee80211_sta,
 				   drv_priv);
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-			u32 tx_cur = tx_time[i];
-			u32 rx_cur = rx_time[hw_queue_map[i]];
+			u8 q = mt7915_lmac_mapping(dev, i);
+			u32 tx_cur = tx_time[q];
+			u32 rx_cur = rx_time[q];
 			u8 tid = ac_to_tid[i];
 
 			if (!tx_cur && !rx_cur)
