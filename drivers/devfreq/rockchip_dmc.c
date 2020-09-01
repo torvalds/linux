@@ -2287,6 +2287,7 @@ static int rockchip_ddr_set_auto_self_refresh(uint32_t en)
 
 struct dmcfreq_wait_ctrl_t {
 	wait_queue_head_t wait_wq;
+	int complt_irq;
 	int wait_flag;
 	int wait_en;
 	int wait_time_out_ms;
@@ -2328,6 +2329,7 @@ int rockchip_dmcfreq_wait_complete(void)
 	}
 	wait_ctrl.wait_flag = -1;
 
+	enable_irq(wait_ctrl.complt_irq);
 	/*
 	 * CPUs only enter WFI when idle to make sure that
 	 * FIQn can quick response.
@@ -2343,6 +2345,7 @@ int rockchip_dmcfreq_wait_complete(void)
 			   msecs_to_jiffies(wait_ctrl.wait_time_out_ms));
 
 	pm_qos_update_request(&pm_qos, PM_QOS_DEFAULT_VALUE);
+	disable_irq(wait_ctrl.complt_irq);
 
 	return 0;
 }
@@ -2393,6 +2396,7 @@ static __maybe_unused int px30_dmc_init(struct platform_device *pdev,
 			complt_irq);
 		return complt_irq;
 	}
+	wait_ctrl.complt_irq = complt_irq;
 
 	ret = devm_request_irq(&pdev->dev, complt_irq, wait_complete_irq,
 			       0, dev_name(&pdev->dev), &wait_ctrl);
@@ -2400,6 +2404,7 @@ static __maybe_unused int px30_dmc_init(struct platform_device *pdev,
 		dev_err(&pdev->dev, "cannot request complete_irq\n");
 		return ret;
 	}
+	disable_irq(complt_irq);
 
 	complt_irq_data = irq_get_irq_data(complt_irq);
 	complt_hwirq = irqd_to_hwirq(complt_irq_data);
@@ -2468,6 +2473,7 @@ static __maybe_unused int rk1808_dmc_init(struct platform_device *pdev,
 			complt_irq);
 		return complt_irq;
 	}
+	wait_ctrl.complt_irq = complt_irq;
 
 	ret = devm_request_irq(&pdev->dev, complt_irq, wait_dcf_complete_irq,
 			       0, dev_name(&pdev->dev), &wait_ctrl);
@@ -2475,6 +2481,7 @@ static __maybe_unused int rk1808_dmc_init(struct platform_device *pdev,
 		dev_err(&pdev->dev, "cannot request complete_irq\n");
 		return ret;
 	}
+	disable_irq(complt_irq);
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
@@ -2881,6 +2888,7 @@ static __maybe_unused int rv1126_dmc_init(struct platform_device *pdev,
 			complt_irq);
 		return complt_irq;
 	}
+	wait_ctrl.complt_irq = complt_irq;
 
 	ret = devm_request_irq(&pdev->dev, complt_irq, wait_dcf_complete_irq,
 			       0, dev_name(&pdev->dev), &wait_ctrl);
@@ -2888,6 +2896,7 @@ static __maybe_unused int rv1126_dmc_init(struct platform_device *pdev,
 		dev_err(&pdev->dev, "cannot request complt_irq\n");
 		return ret;
 	}
+	disable_irq(complt_irq);
 
 	if (of_property_read_u32(pdev->dev.of_node, "update_drv_odt_cfg",
 				 &ddr_psci_param->update_drv_odt_cfg))
