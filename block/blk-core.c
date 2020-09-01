@@ -1145,14 +1145,14 @@ EXPORT_SYMBOL(submit_bio);
  *    limits when retrying requests on other queues. Those requests need
  *    to be checked against the new queue limits again during dispatch.
  */
-static int blk_cloned_rq_check_limits(struct request_queue *q,
+static blk_status_t blk_cloned_rq_check_limits(struct request_queue *q,
 				      struct request *rq)
 {
 	if (blk_rq_sectors(rq) > blk_queue_get_max_sectors(q, req_op(rq))) {
 		printk(KERN_ERR "%s: over max size limit. (%u > %u)\n",
 			__func__, blk_rq_sectors(rq),
 			blk_queue_get_max_sectors(q, req_op(rq)));
-		return -EIO;
+		return BLK_STS_IOERR;
 	}
 
 	/*
@@ -1165,10 +1165,10 @@ static int blk_cloned_rq_check_limits(struct request_queue *q,
 	if (rq->nr_phys_segments > queue_max_segments(q)) {
 		printk(KERN_ERR "%s: over max segments limit. (%hu > %hu)\n",
 			__func__, rq->nr_phys_segments, queue_max_segments(q));
-		return -EIO;
+		return BLK_STS_IOERR;
 	}
 
-	return 0;
+	return BLK_STS_OK;
 }
 
 /**
