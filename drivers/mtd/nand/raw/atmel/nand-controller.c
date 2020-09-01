@@ -2027,13 +2027,9 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 	platform_set_drvdata(pdev, nc);
 
 	nc->pmecc = devm_atmel_pmecc_get(dev);
-	if (IS_ERR(nc->pmecc)) {
-		ret = PTR_ERR(nc->pmecc);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Could not get PMECC object (err = %d)\n",
-				ret);
-		return ret;
-	}
+	if (IS_ERR(nc->pmecc))
+		return dev_err_probe(dev, PTR_ERR(nc->pmecc),
+				     "Could not get PMECC object\n");
 
 	if (nc->caps->has_dma && !atmel_nand_avoid_dma) {
 		dma_cap_mask_t mask;
