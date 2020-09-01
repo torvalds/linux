@@ -68,7 +68,7 @@
  * gets 300/(100+300) or 75% share, and A0 and A1 equally splits the rest,
  * 12.5% each.  The distribution mechanism only cares about these flattened
  * shares.  They're called hweights (hierarchical weights) and always add
- * upto 1 (HWEIGHT_WHOLE).
+ * upto 1 (WEIGHT_ONE).
  *
  * A given cgroup's vtime runs slower in inverse proportion to its hweight.
  * For example, with 12.5% weight, A0's time runs 8 times slower (100/12.5)
@@ -246,7 +246,7 @@ enum {
 	MIN_VALID_USAGES	= 2,
 
 	/* 1/64k is granular enough and can easily be handled w/ u32 */
-	HWEIGHT_WHOLE		= 1 << 16,
+	WEIGHT_ONE		= 1 << 16,
 
 	/*
 	 * As vtime is used to calculate the cost of each IO, it needs to
@@ -285,8 +285,8 @@ enum {
 	 * donate the surplus.
 	 */
 	SURPLUS_SCALE_PCT	= 125,			/* * 125% */
-	SURPLUS_SCALE_ABS	= HWEIGHT_WHOLE / 50,	/* + 2% */
-	SURPLUS_MIN_ADJ_DELTA	= HWEIGHT_WHOLE / 33,	/* 3% */
+	SURPLUS_SCALE_ABS	= WEIGHT_ONE / 50,	/* + 2% */
+	SURPLUS_MIN_ADJ_DELTA	= WEIGHT_ONE / 33,	/* 3% */
 
 	/* switch iff the conditions are met for longer than this */
 	AUTOP_CYCLE_NSEC	= 10LLU * NSEC_PER_SEC,
@@ -491,7 +491,7 @@ struct ioc_gq {
 	struct hrtimer			waitq_timer;
 	struct hrtimer			delay_timer;
 
-	/* usage is recorded as fractions of HWEIGHT_WHOLE */
+	/* usage is recorded as fractions of WEIGHT_ONE */
 	int				usage_idx;
 	u32				usages[NR_USAGE_SLOTS];
 
@@ -658,7 +658,7 @@ static struct ioc_cgrp *blkcg_to_iocc(struct blkcg *blkcg)
  */
 static u64 abs_cost_to_cost(u64 abs_cost, u32 hw_inuse)
 {
-	return DIV64_U64_ROUND_UP(abs_cost * HWEIGHT_WHOLE, hw_inuse);
+	return DIV64_U64_ROUND_UP(abs_cost * WEIGHT_ONE, hw_inuse);
 }
 
 /*
@@ -666,7 +666,7 @@ static u64 abs_cost_to_cost(u64 abs_cost, u32 hw_inuse)
  */
 static u64 cost_to_abs_cost(u64 cost, u32 hw_inuse)
 {
-	return DIV64_U64_ROUND_UP(cost * hw_inuse, HWEIGHT_WHOLE);
+	return DIV64_U64_ROUND_UP(cost * hw_inuse, WEIGHT_ONE);
 }
 
 static void iocg_commit_bio(struct ioc_gq *iocg, struct bio *bio, u64 cost)
@@ -980,7 +980,7 @@ static void current_hweight(struct ioc_gq *iocg, u32 *hw_activep, u32 *hw_inusep
 	 */
 	smp_rmb();
 
-	hwa = hwi = HWEIGHT_WHOLE;
+	hwa = hwi = WEIGHT_ONE;
 	for (lvl = 0; lvl <= iocg->level - 1; lvl++) {
 		struct ioc_gq *parent = iocg->ancestors[lvl];
 		struct ioc_gq *child = iocg->ancestors[lvl + 1];
@@ -2088,8 +2088,8 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	atomic64_set(&iocg->done_vtime, now.vnow);
 	atomic64_set(&iocg->active_period, atomic64_read(&ioc->cur_period));
 	INIT_LIST_HEAD(&iocg->active_list);
-	iocg->hweight_active = HWEIGHT_WHOLE;
-	iocg->hweight_inuse = HWEIGHT_WHOLE;
+	iocg->hweight_active = WEIGHT_ONE;
+	iocg->hweight_inuse = WEIGHT_ONE;
 
 	init_waitqueue_head(&iocg->waitq);
 	hrtimer_init(&iocg->waitq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
