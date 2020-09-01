@@ -1223,28 +1223,16 @@ xfs_buf_ioerror_permanent(
  * If we get repeated async write failures, then we take action according to the
  * error configuration we have been set up to use.
  *
- * Multi-state return value:
- *
- * XBF_IOEND_FINISH: run callback completions
- * XBF_IOEND_DONE: resubmitted immediately, do not run any completions
- * XBF_IOEND_FAIL: transient error, run failure callback completions and then
- *    release the buffer
+ * Returns true if this function took care of error handling and the caller must
+ * not touch the buffer again.  Return false if the caller should proceed with
+ * normal I/O completion handling.
  */
-enum xfs_buf_ioend_disposition {
-	XBF_IOEND_FINISH,
-	XBF_IOEND_DONE,
-	XBF_IOEND_FAIL,
-};
-
-static enum xfs_buf_ioend_disposition
-xfs_buf_ioend_disposition(
+static bool
+xfs_buf_ioend_handle_error(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_error_cfg	*cfg;
-
-	if (likely(!bp->b_error))
-		return XBF_IOEND_FINISH;
 
 	/*
 	 * If we've already decided to shutdown the filesystem because of I/O
@@ -1291,18 +1279,18 @@ xfs_buf_ioend_disposition(
 		ASSERT(list_empty(&bp->b_li_list));
 	xfs_buf_ioerror(bp, 0);
 	xfs_buf_relse(bp);
-	return XBF_IOEND_FAIL;
+	return true;
 
 resubmit:
 	xfs_buf_ioerror(bp, 0);
 	bp->b_flags |= (XBF_WRITE | XBF_DONE | XBF_WRITE_FAIL);
 	xfs_buf_submit(bp);
-	return XBF_IOEND_DONE;
+	return true;
 out_stale:
 	xfs_buf_stale(bp);
 	bp->b_flags |= XBF_DONE;
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
-	return XBF_IOEND_FINISH;
+	return false;
 }
 
 static void
@@ -1340,14 +1328,8 @@ xfs_buf_ioend(
 			bp->b_flags |= XBF_DONE;
 		}
 
-		switch (xfs_buf_ioend_disposition(bp)) {
-		case XBF_IOEND_DONE:
+		if (unlikely(bp->b_error) && xfs_buf_ioend_handle_error(bp))
 			return;
-		case XBF_IOEND_FAIL:
-			return;
-		default:
-			break;
-		}
 
 		/* clear the retry state */
 		bp->b_last_error = 0;
