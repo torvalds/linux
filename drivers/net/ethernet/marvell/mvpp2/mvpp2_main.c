@@ -5381,9 +5381,10 @@ static struct mvpp2_port *mvpp2_pcs_to_port(struct phylink_pcs *pcs)
 	return container_of(pcs, struct mvpp2_port, phylink_pcs);
 }
 
-static void mvpp22_xlg_pcs_get_state(struct mvpp2_port *port,
-				     struct phylink_link_state *state)
+static void mvpp2_xlg_pcs_get_state(struct phylink_pcs *pcs,
+				    struct phylink_link_state *state)
 {
+	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
 	u32 val;
 
 	state->speed = SPEED_10000;
@@ -5401,9 +5402,24 @@ static void mvpp22_xlg_pcs_get_state(struct mvpp2_port *port,
 		state->pause |= MLO_PAUSE_RX;
 }
 
-static void mvpp2_gmac_pcs_get_state(struct mvpp2_port *port,
+static int mvpp2_xlg_pcs_config(struct phylink_pcs *pcs,
+				unsigned int mode,
+				phy_interface_t interface,
+				const unsigned long *advertising,
+				bool permit_pause_to_mac)
+{
+	return 0;
+}
+
+static const struct phylink_pcs_ops mvpp2_phylink_xlg_pcs_ops = {
+	.pcs_get_state = mvpp2_xlg_pcs_get_state,
+	.pcs_config = mvpp2_xlg_pcs_config,
+};
+
+static void mvpp2_gmac_pcs_get_state(struct phylink_pcs *pcs,
 				     struct phylink_link_state *state)
 {
+	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
 	u32 val;
 
 	val = readl(port->base + MVPP2_GMAC_STATUS0);
@@ -5435,29 +5451,12 @@ static void mvpp2_gmac_pcs_get_state(struct mvpp2_port *port,
 		state->pause |= MLO_PAUSE_TX;
 }
 
-static void mvpp2_phylink_pcs_get_state(struct phylink_pcs *pcs,
-					struct phylink_link_state *state)
-{
-	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
-
-	if (port->priv->hw_version == MVPP22 && port->gop_id == 0) {
-		u32 mode = readl(port->base + MVPP22_XLG_CTRL3_REG);
-		mode &= MVPP22_XLG_CTRL3_MACMODESELECT_MASK;
-
-		if (mode == MVPP22_XLG_CTRL3_MACMODESELECT_10G) {
-			mvpp22_xlg_pcs_get_state(port, state);
-			return;
-		}
-	}
-
-	mvpp2_gmac_pcs_get_state(port, state);
-}
-
-static int mvpp2_gmac_pcs_config(struct mvpp2_port *port, unsigned int mode,
+static int mvpp2_gmac_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 				 phy_interface_t interface,
 				 const unsigned long *advertising,
 				 bool permit_pause_to_mac)
 {
+	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
 	u32 mask, val, an, old_an, changed;
 
 	mask = MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS |
@@ -5509,25 +5508,7 @@ static int mvpp2_gmac_pcs_config(struct mvpp2_port *port, unsigned int mode,
 	return changed & (MVPP2_GMAC_FC_ADV_EN | MVPP2_GMAC_FC_ADV_ASM_EN);
 }
 
-static int mvpp2_phylink_pcs_config(struct phylink_pcs *pcs,
-				    unsigned int mode,
-		                    phy_interface_t interface,
-				    const unsigned long *advertising,
-				    bool permit_pause_to_mac)
-{
-	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
-	int ret;
-
-	if (mvpp2_is_xlg(interface))
-		ret = 0;
-	else
-		ret = mvpp2_gmac_pcs_config(port, mode, interface, advertising,
-					    permit_pause_to_mac);
-
-	return ret;
-}
-
-static void mvpp2_phylink_pcs_an_restart(struct phylink_pcs *pcs)
+static void mvpp2_gmac_pcs_an_restart(struct phylink_pcs *pcs)
 {
 	struct mvpp2_port *port = mvpp2_pcs_to_port(pcs);
 	u32 val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
@@ -5538,10 +5519,10 @@ static void mvpp2_phylink_pcs_an_restart(struct phylink_pcs *pcs)
 	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 }
 
-static const struct phylink_pcs_ops mvpp2_phylink_pcs_ops = {
-	.pcs_get_state = mvpp2_phylink_pcs_get_state,
-	.pcs_config = mvpp2_phylink_pcs_config,
-	.pcs_an_restart = mvpp2_phylink_pcs_an_restart,
+static const struct phylink_pcs_ops mvpp2_phylink_gmac_pcs_ops = {
+	.pcs_get_state = mvpp2_gmac_pcs_get_state,
+	.pcs_config = mvpp2_gmac_pcs_config,
+	.pcs_an_restart = mvpp2_gmac_pcs_an_restart,
 };
 
 static void mvpp2_phylink_validate(struct phylink_config *config,
@@ -5711,8 +5692,8 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		writel(ctrl4, port->base + MVPP22_GMAC_CTRL_4_REG);
 }
 
-static int mvpp2_mac_prepare(struct phylink_config *config, unsigned int mode,
-			     phy_interface_t interface)
+static int mvpp2__mac_prepare(struct phylink_config *config, unsigned int mode,
+			      phy_interface_t interface)
 {
 	struct mvpp2_port *port = mvpp2_phylink_to_port(config);
 
@@ -5758,7 +5739,29 @@ static int mvpp2_mac_prepare(struct phylink_config *config, unsigned int mode,
 		}
 	}
 
+	/* Select the appropriate PCS operations depending on the
+	 * configured interface mode. We will only switch to a mode
+	 * that the validate() checks have already passed.
+	 */
+	if (mvpp2_is_xlg(interface))
+		port->phylink_pcs.ops = &mvpp2_phylink_xlg_pcs_ops;
+	else
+		port->phylink_pcs.ops = &mvpp2_phylink_gmac_pcs_ops;
+
 	return 0;
+}
+
+static int mvpp2_mac_prepare(struct phylink_config *config, unsigned int mode,
+			     phy_interface_t interface)
+{
+	struct mvpp2_port *port = mvpp2_phylink_to_port(config);
+	int ret;
+
+	ret = mvpp2__mac_prepare(config, mode, interface);
+	if (ret == 0)
+		phylink_set_pcs(port->phylink, &port->phylink_pcs);
+
+	return ret;
 }
 
 static void mvpp2_mac_config(struct phylink_config *config, unsigned int mode,
@@ -5934,12 +5937,12 @@ static void mvpp2_acpi_start(struct mvpp2_port *port)
 	struct phylink_link_state state = {
 		.interface = port->phy_interface,
 	};
-	mvpp2_mac_prepare(&port->phylink_config, MLO_AN_INBAND,
-			  port->phy_interface);
+	mvpp2__mac_prepare(&port->phylink_config, MLO_AN_INBAND,
+			   port->phy_interface);
 	mvpp2_mac_config(&port->phylink_config, MLO_AN_INBAND, &state);
-	mvpp2_phylink_pcs_config(&port->phylink_pcs, MLO_AN_INBAND,
-				 port->phy_interface, state.advertising,
-				 false);
+	port->phylink_pcs.ops->pcs_config(&port->phylink_pcs, MLO_AN_INBAND,
+					  port->phy_interface,
+					  state.advertising, false);
 	mvpp2_mac_finish(&port->phylink_config, MLO_AN_INBAND,
 			 port->phy_interface);
 	mvpp2_mac_link_up(&port->phylink_config, NULL,
@@ -6171,9 +6174,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 			goto err_free_port_pcpu;
 		}
 		port->phylink = phylink;
-
-		port->phylink_pcs.ops = &mvpp2_phylink_pcs_ops;
-		phylink_set_pcs(phylink, &port->phylink_pcs);
 	} else {
 		port->phylink = NULL;
 	}
