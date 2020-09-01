@@ -95,7 +95,7 @@ DECLARE_EVENT_CLASS(iocg_inuse_update,
 	)
 );
 
-DEFINE_EVENT(iocg_inuse_update, iocost_inuse_takeback,
+DEFINE_EVENT(iocg_inuse_update, iocost_inuse_shortage,
 
 	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
 		u32 old_inuse, u32 new_inuse,
@@ -105,7 +105,7 @@ DEFINE_EVENT(iocg_inuse_update, iocost_inuse_takeback,
 		old_hw_inuse, new_hw_inuse)
 );
 
-DEFINE_EVENT(iocg_inuse_update, iocost_inuse_giveaway,
+DEFINE_EVENT(iocg_inuse_update, iocost_inuse_transfer,
 
 	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
 		u32 old_inuse, u32 new_inuse,
@@ -115,7 +115,7 @@ DEFINE_EVENT(iocg_inuse_update, iocost_inuse_giveaway,
 		old_hw_inuse, new_hw_inuse)
 );
 
-DEFINE_EVENT(iocg_inuse_update, iocost_inuse_reset,
+DEFINE_EVENT(iocg_inuse_update, iocost_inuse_adjust,
 
 	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
 		u32 old_inuse, u32 new_inuse,

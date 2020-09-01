@@ -1919,6 +1919,12 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
 		inuse = DIV64_U64_ROUND_UP(
 			parent->child_adjusted_sum * iocg->hweight_after_donation,
 			parent->hweight_inuse);
+
+		TRACE_IOCG_PATH(inuse_transfer, iocg, now,
+				iocg->inuse, inuse,
+				iocg->hweight_inuse,
+				iocg->hweight_after_donation);
+
 		__propagate_weights(iocg, iocg->active, inuse, true, now);
 	}
 
@@ -2076,6 +2082,10 @@ static void ioc_timer_fn(struct timer_list *timer)
 				iocg->hweight_after_donation = new_hwi;
 				list_add(&iocg->surplus_list, &surpluses);
 			} else {
+				TRACE_IOCG_PATH(inuse_shortage, iocg, &now,
+						iocg->inuse, iocg->active,
+						iocg->hweight_inuse, new_hwi);
+
 				__propagate_weights(iocg, iocg->active,
 						    iocg->active, true, &now);
 				nr_shortages++;
@@ -2248,11 +2258,13 @@ static u64 adjust_inuse_and_calc_cost(struct ioc_gq *iocg, u64 vtime,
 	struct ioc *ioc = iocg->ioc;
 	struct ioc_margins *margins = &ioc->margins;
 	u32 adj_step = DIV_ROUND_UP(iocg->active * INUSE_ADJ_STEP_PCT, 100);
+	u32 __maybe_unused old_inuse = iocg->inuse, __maybe_unused old_hwi;
 	u32 hwi;
 	s64 margin;
 	u64 cost, new_inuse;
 
 	current_hweight(iocg, NULL, &hwi);
+	old_hwi = hwi;
 	cost = abs_cost_to_cost(abs_cost, hwi);
 	margin = now->vnow - vtime - cost;
 
@@ -2287,6 +2299,10 @@ static u64 adjust_inuse_and_calc_cost(struct ioc_gq *iocg, u64 vtime,
 		 iocg->inuse != iocg->active);
 
 	spin_unlock_irq(&ioc->lock);
+
+	TRACE_IOCG_PATH(inuse_adjust, iocg, now,
+			old_inuse, iocg->inuse, old_hwi, hwi);
+
 	return cost;
 }
 
