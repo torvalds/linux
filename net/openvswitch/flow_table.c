@@ -461,18 +461,14 @@ static void flow_tbl_destroy_rcu_cb(struct rcu_head *rcu)
 static void table_instance_flow_free(struct flow_table *table,
 				     struct table_instance *ti,
 				     struct table_instance *ufid_ti,
-				     struct sw_flow *flow,
-				     bool count)
+				     struct sw_flow *flow)
 {
 	hlist_del_rcu(&flow->flow_table.node[ti->node_ver]);
-	if (count)
-		table->count--;
+	table->count--;
 
 	if (ovs_identifier_is_ufid(&flow->id)) {
 		hlist_del_rcu(&flow->ufid_table.node[ufid_ti->node_ver]);
-
-		if (count)
-			table->ufid_count--;
+		table->ufid_count--;
 	}
 
 	flow_mask_remove(table, flow->mask);
@@ -497,9 +493,15 @@ void table_instance_flow_flush(struct flow_table *table,
 					  flow_table.node[ti->node_ver]) {
 
 			table_instance_flow_free(table, ti, ufid_ti,
-						 flow, false);
+						 flow);
 			ovs_flow_free(flow, true);
 		}
+	}
+
+	if (WARN_ON(table->count != 0 ||
+		    table->ufid_count != 0)) {
+		table->count = 0;
+		table->ufid_count = 0;
 	}
 }
 
@@ -637,8 +639,6 @@ int ovs_flow_tbl_flush(struct flow_table *flow_table)
 	rcu_assign_pointer(flow_table->ti, new_ti);
 	rcu_assign_pointer(flow_table->ufid_ti, new_ufid_ti);
 	flow_table->last_rehash = jiffies;
-	flow_table->count = 0;
-	flow_table->ufid_count = 0;
 
 	table_instance_flow_flush(flow_table, old_ti, old_ufid_ti);
 	table_instance_destroy(old_ti, old_ufid_ti);
@@ -956,7 +956,7 @@ void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow)
 	struct table_instance *ufid_ti = ovsl_dereference(table->ufid_ti);
 
 	BUG_ON(table->count == 0);
-	table_instance_flow_free(table, ti, ufid_ti, flow, true);
+	table_instance_flow_free(table, ti, ufid_ti, flow);
 }
 
 static struct sw_flow_mask *mask_alloc(void)
