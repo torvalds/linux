@@ -532,19 +532,20 @@ int bdev_add_partition(struct block_device *bdev, int partno,
 int bdev_del_partition(struct block_device *bdev, int partno)
 {
 	struct block_device *bdevp;
-	struct hd_struct *part;
-	int ret = 0;
+	struct hd_struct *part = NULL;
+	int ret;
 
-	part = disk_get_part(bdev->bd_disk, partno);
-	if (!part)
-		return -ENXIO;
-
-	ret = -ENOMEM;
-	bdevp = bdget(part_devt(part));
+	bdevp = bdget_disk(bdev->bd_disk, partno);
 	if (!bdevp)
-		goto out_put_part;
+		return -ENOMEM;
 
 	mutex_lock(&bdevp->bd_mutex);
+	mutex_lock_nested(&bdev->bd_mutex, 1);
+
+	ret = -ENXIO;
+	part = disk_get_part(bdev->bd_disk, partno);
+	if (!part)
+		goto out_unlock;
 
 	ret = -EBUSY;
 	if (bdevp->bd_openers)
@@ -553,16 +554,14 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	sync_blockdev(bdevp);
 	invalidate_bdev(bdevp);
 
-	mutex_lock_nested(&bdev->bd_mutex, 1);
 	delete_partition(bdev->bd_disk, part);
-	mutex_unlock(&bdev->bd_mutex);
-
 	ret = 0;
 out_unlock:
+	mutex_unlock(&bdev->bd_mutex);
 	mutex_unlock(&bdevp->bd_mutex);
 	bdput(bdevp);
-out_put_part:
-	disk_put_part(part);
+	if (part)
+		disk_put_part(part);
 	return ret;
 }
 
