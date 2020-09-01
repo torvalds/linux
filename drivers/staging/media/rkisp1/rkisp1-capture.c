@@ -84,6 +84,10 @@ struct rkisp1_capture_config {
 	} mi;
 };
 
+/*
+ * The supported pixel formats for mainpath. NOTE, pixel formats with identical 'mbus'
+ * are grouped together. This is assumed and used by the function rkisp1_cap_enum_mbus_codes
+ */
 static const struct rkisp1_capture_fmt_cfg rkisp1_mp_fmts[] = {
 	/* yuv422 */
 	{
@@ -110,6 +114,13 @@ static const struct rkisp1_capture_fmt_cfg rkisp1_mp_fmts[] = {
 		.fourcc = V4L2_PIX_FMT_YVU422M,
 		.uv_swap = 1,
 		.write_format = RKISP1_MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
+	},
+	/* yuv400 */
+	{
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.uv_swap = 0,
+		.write_format = RKISP1_MI_CTRL_MP_WRITE_YUVINT,
 		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
 	},
 	/* yuv420 */
@@ -143,13 +154,6 @@ static const struct rkisp1_capture_fmt_cfg rkisp1_mp_fmts[] = {
 		.uv_swap = 1,
 		.write_format = RKISP1_MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
 		.mbus = MEDIA_BUS_FMT_YUYV8_1_5X8,
-	},
-	/* yuv400 */
-	{
-		.fourcc = V4L2_PIX_FMT_GREY,
-		.uv_swap = 0,
-		.write_format = RKISP1_MI_CTRL_MP_WRITE_YUVINT,
-		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
 	},
 	/* raw */
 	{
@@ -203,6 +207,10 @@ static const struct rkisp1_capture_fmt_cfg rkisp1_mp_fmts[] = {
 	},
 };
 
+/*
+ * The supported pixel formats for selfpath. NOTE, pixel formats with identical 'mbus'
+ * are grouped together. This is assumed and used by the function rkisp1_cap_enum_mbus_codes
+ */
 static const struct rkisp1_capture_fmt_cfg rkisp1_sp_fmts[] = {
 	/* yuv422 */
 	{
@@ -234,6 +242,26 @@ static const struct rkisp1_capture_fmt_cfg rkisp1_sp_fmts[] = {
 		.uv_swap = 1,
 		.write_format = RKISP1_MI_CTRL_SP_WRITE_PLA,
 		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_YUV422,
+		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
+	},
+	/* yuv400 */
+	{
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.uv_swap = 0,
+		.write_format = RKISP1_MI_CTRL_SP_WRITE_INT,
+		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_YUV400,
+		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
+	},
+	/* rgb */
+	{
+		.fourcc = V4L2_PIX_FMT_XBGR32,
+		.write_format = RKISP1_MI_CTRL_SP_WRITE_PLA,
+		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_RGB888,
+		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
+	}, {
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.write_format = RKISP1_MI_CTRL_SP_WRITE_PLA,
+		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_RGB565,
 		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
 	},
 	/* yuv420 */
@@ -274,26 +302,6 @@ static const struct rkisp1_capture_fmt_cfg rkisp1_sp_fmts[] = {
 		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_YUV420,
 		.mbus = MEDIA_BUS_FMT_YUYV8_1_5X8,
 	},
-	/* yuv400 */
-	{
-		.fourcc = V4L2_PIX_FMT_GREY,
-		.uv_swap = 0,
-		.write_format = RKISP1_MI_CTRL_SP_WRITE_INT,
-		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_YUV400,
-		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
-	},
-	/* rgb */
-	{
-		.fourcc = V4L2_PIX_FMT_XBGR32,
-		.write_format = RKISP1_MI_CTRL_SP_WRITE_PLA,
-		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_RGB888,
-		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
-	}, {
-		.fourcc = V4L2_PIX_FMT_RGB565,
-		.write_format = RKISP1_MI_CTRL_SP_WRITE_PLA,
-		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_RGB565,
-		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
-	},
 };
 
 static const struct rkisp1_capture_config rkisp1_capture_config_mp = {
@@ -332,6 +340,30 @@ static inline struct rkisp1_vdev_node *
 rkisp1_vdev_to_node(struct video_device *vdev)
 {
 	return container_of(vdev, struct rkisp1_vdev_node, vdev);
+}
+
+int rkisp1_cap_enum_mbus_codes(struct rkisp1_capture *cap,
+			       struct v4l2_subdev_mbus_code_enum *code)
+{
+	const struct rkisp1_capture_fmt_cfg *fmts = cap->config->fmts;
+	/*
+	 * initialize curr_mbus to non existing mbus code 0 to ensure it is
+	 * different from fmts[0].mbus
+	 */
+	u32 curr_mbus = 0;
+	int i, n = 0;
+
+	for (i = 0; i < cap->config->fmt_size; i++) {
+		if (fmts[i].mbus == curr_mbus)
+			continue;
+
+		curr_mbus = fmts[i].mbus;
+		if (n++ == code->index) {
+			code->code = curr_mbus;
+			return 0;
+		}
+	}
+	return -EINVAL;
 }
 
 /* ----------------------------------------------------------------------------

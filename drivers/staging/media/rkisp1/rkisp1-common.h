@@ -411,6 +411,17 @@ static inline u32 rkisp1_read(struct rkisp1_device *rkisp1, unsigned int addr)
 }
 
 /*
+ * rkisp1_cap_enum_mbus_codes - A helper function that return the i'th supported mbus code
+ *				of the capture entity. This is used to enumerate the supported
+ *				mbus codes on the source pad of the resizer.
+ *
+ * @cap:  the capture entity
+ * @code: the mbus code, the function reads the code->index and fills the code->code
+ */
+int rkisp1_cap_enum_mbus_codes(struct rkisp1_capture *cap,
+			       struct v4l2_subdev_mbus_code_enum *code);
+
+/*
  * rkisp1_sd_adjust_crop_rect - adjust a rectangle to fit into another rectangle.
  *
  * @crop:   rectangle to adjust.
