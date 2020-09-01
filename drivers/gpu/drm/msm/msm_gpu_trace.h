@@ -140,6 +140,32 @@ TRACE_EVENT(msm_gem_purge_vmaps,
 		TP_printk("Purging %u vmaps", __entry->unmapped)
 );
 
+
+TRACE_EVENT(msm_gpu_suspend,
+		TP_PROTO(int dummy),
+		TP_ARGS(dummy),
+		TP_STRUCT__entry(
+			__field(u32, dummy)
+			),
+		TP_fast_assign(
+			__entry->dummy = dummy;
+			),
+		TP_printk("%u", __entry->dummy)
+);
+
+
+TRACE_EVENT(msm_gpu_resume,
+		TP_PROTO(int dummy),
+		TP_ARGS(dummy),
+		TP_STRUCT__entry(
+			__field(u32, dummy)
+			),
+		TP_fast_assign(
+			__entry->dummy = dummy;
+			),
+		TP_printk("%u", __entry->dummy)
+);
+
 #endif
 
 #undef TRACE_INCLUDE_PATH
