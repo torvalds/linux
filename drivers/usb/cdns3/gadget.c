@@ -2990,12 +2990,12 @@ void cdns3_gadget_exit(struct cdns3 *cdns)
 
 	priv_dev = cdns->gadget_dev;
 
-	devm_free_irq(cdns->dev, cdns->dev_irq, priv_dev);
 
 	pm_runtime_mark_last_busy(cdns->dev);
 	pm_runtime_put_autosuspend(cdns->dev);
 
 	usb_del_gadget_udc(&priv_dev->gadget);
+	devm_free_irq(cdns->dev, cdns->dev_irq, priv_dev);
 
 	cdns3_free_all_eps(priv_dev);
 
