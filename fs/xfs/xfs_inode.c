@@ -3542,8 +3542,8 @@ xfs_iflush(
 	 *
 	 * What we do is move the bits to the ili_last_fields field.  When
 	 * logging the inode, these bits are moved back to the ili_fields field.
-	 * In the xfs_iflush_done() routine we clear ili_last_fields, since we
-	 * know that the information those bits represent is permanently on
+	 * In the xfs_buf_inode_iodone() routine we clear ili_last_fields, since
+	 * we know that the information those bits represent is permanently on
 	 * disk.  As long as the flush completes before the inode is logged
 	 * again, then both ili_fields and ili_last_fields will be cleared.
 	 */
@@ -3557,7 +3557,7 @@ flush_out:
 
 	/*
 	 * Store the current LSN of the inode so that we can tell whether the
-	 * item has moved in the AIL from xfs_iflush_done().
+	 * item has moved in the AIL from xfs_buf_inode_iodone().
 	 */
 	xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 				&iip->ili_item.li_lsn);

@@ -1107,7 +1107,7 @@ xfs_qm_dqflush_done(
 }
 
 void
-xfs_dquot_done(
+xfs_buf_dquot_iodone(
 	struct xfs_buf		*bp)
 {
 	struct xfs_log_item	*lip, *n;
@@ -1116,6 +1116,18 @@ xfs_dquot_done(
 		list_del_init(&lip->li_bio_list);
 		xfs_qm_dqflush_done(lip);
 	}
+}
+
+void
+xfs_buf_dquot_io_fail(
+	struct xfs_buf		*bp)
+{
+	struct xfs_log_item	*lip;
+
+	spin_lock(&bp->b_mount->m_ail->ail_lock);
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
+		xfs_set_li_failed(lip, bp);
+	spin_unlock(&bp->b_mount->m_ail->ail_lock);
 }
 
 /* Check incore dquot for errors before we flush. */

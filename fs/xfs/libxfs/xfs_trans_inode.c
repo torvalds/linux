@@ -177,9 +177,9 @@ xfs_trans_log_inode(
 
 	/*
 	 * Always OR in the bits from the ili_last_fields field.  This is to
-	 * coordinate with the xfs_iflush() and xfs_iflush_done() routines in
-	 * the eventual clearing of the ili_fields bits.  See the big comment in
-	 * xfs_iflush() for an explanation of this coordination mechanism.
+	 * coordinate with the xfs_iflush() and xfs_buf_inode_iodone() routines
+	 * in the eventual clearing of the ili_fields bits.  See the big comment
+	 * in xfs_iflush() for an explanation of this coordination mechanism.
 	 */
 	iip->ili_fields |= (flags | iip->ili_last_fields | iversion_flags);
 	spin_unlock(&iip->ili_lock);
