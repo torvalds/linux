@@ -917,20 +917,6 @@ static bool gpmc_cs_reserved(int cs)
 	return gpmc->flags & GPMC_CS_RESERVED;
 }
 
-static void gpmc_cs_set_name(int cs, const char *name)
-{
-	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
-
-	gpmc->name = name;
-}
-
-static const char *gpmc_cs_get_name(int cs)
-{
-	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
-
-	return gpmc->name;
-}
-
 static unsigned long gpmc_mem_align(unsigned long size)
 {
 	int order;
@@ -974,49 +960,6 @@ static int gpmc_cs_delete_mem(int cs)
 	spin_unlock(&gpmc_mem_lock);
 
 	return r;
-}
-
-/**
- * gpmc_cs_remap - remaps a chip-select physical base address
- * @cs:		chip-select to remap
- * @base:	physical base address to re-map chip-select to
- *
- * Re-maps a chip-select to a new physical base address specified by
- * "base". Returns 0 on success and appropriate negative error code
- * on failure.
- */
-static int gpmc_cs_remap(int cs, u32 base)
-{
-	int ret;
-	u32 old_base, size;
-
-	if (cs >= gpmc_cs_num) {
-		pr_err("%s: requested chip-select is disabled\n", __func__);
-		return -ENODEV;
-	}
-
-	/*
-	 * Make sure we ignore any device offsets from the GPMC partition
-	 * allocated for the chip select and that the new base confirms
-	 * to the GPMC 16MB minimum granularity.
-	 */
-	base &= ~(SZ_16M - 1);
-
-	gpmc_cs_get_memconf(cs, &old_base, &size);
-	if (base == old_base)
-		return 0;
-
-	ret = gpmc_cs_delete_mem(cs);
-	if (ret < 0)
-		return ret;
-
-	ret = gpmc_cs_insert_mem(cs, base, size);
-	if (ret < 0)
-		return ret;
-
-	ret = gpmc_cs_set_memconf(cs, base, size);
-
-	return ret;
 }
 
 int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
@@ -1941,6 +1884,63 @@ static const struct of_device_id gpmc_dt_ids[] = {
 	{ .compatible = "ti,am3352-gpmc" },	/* am335x devices */
 	{ }
 };
+
+static void gpmc_cs_set_name(int cs, const char *name)
+{
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+
+	gpmc->name = name;
+}
+
+static const char *gpmc_cs_get_name(int cs)
+{
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+
+	return gpmc->name;
+}
+
+/**
+ * gpmc_cs_remap - remaps a chip-select physical base address
+ * @cs:		chip-select to remap
+ * @base:	physical base address to re-map chip-select to
+ *
+ * Re-maps a chip-select to a new physical base address specified by
+ * "base". Returns 0 on success and appropriate negative error code
+ * on failure.
+ */
+static int gpmc_cs_remap(int cs, u32 base)
+{
+	int ret;
+	u32 old_base, size;
+
+	if (cs >= gpmc_cs_num) {
+		pr_err("%s: requested chip-select is disabled\n", __func__);
+		return -ENODEV;
+	}
+
+	/*
+	 * Make sure we ignore any device offsets from the GPMC partition
+	 * allocated for the chip select and that the new base confirms
+	 * to the GPMC 16MB minimum granularity.
+	 */
+	base &= ~(SZ_16M - 1);
+
+	gpmc_cs_get_memconf(cs, &old_base, &size);
+	if (base == old_base)
+		return 0;
+
+	ret = gpmc_cs_delete_mem(cs);
+	if (ret < 0)
+		return ret;
+
+	ret = gpmc_cs_insert_mem(cs, base, size);
+	if (ret < 0)
+		return ret;
+
+	ret = gpmc_cs_set_memconf(cs, base, size);
+
+	return ret;
+}
 
 /**
  * gpmc_read_settings_dt - read gpmc settings from device-tree
