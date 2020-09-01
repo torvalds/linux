@@ -33,11 +33,11 @@ static int sditf_g_frame_interval(struct v4l2_subdev *sd,
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev *sensor_sd;
 
-	if (!cif_dev->active_sensor)
+	if (!cif_dev->terminal_sensor.sd)
 		rkcif_update_sensor_info(&cif_dev->stream[0]);
 
-	if (cif_dev->active_sensor) {
-		sensor_sd = cif_dev->active_sensor->sd;
+	if (cif_dev->terminal_sensor.sd) {
+		sensor_sd = cif_dev->terminal_sensor.sd;
 		return v4l2_subdev_call(sensor_sd, video, g_frame_interval, fi);
 	}
 
