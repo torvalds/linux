@@ -547,7 +547,7 @@ static int serial_ir_probe(struct platform_device *dev)
 
 	/* Reserve io region. */
 	if ((iommap &&
-	     (devm_request_mem_region(&dev->dev, iommap, 8 << ioshift,
+	     (devm_request_mem_region(&dev->dev, iommap, 8UL << ioshift,
 				      KBUILD_MODNAME) == NULL)) ||
 	     (!iommap && (devm_request_region(&dev->dev, io, 8,
 			  KBUILD_MODNAME) == NULL))) {
