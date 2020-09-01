@@ -373,6 +373,23 @@ static const struct ts_dmi_data jumper_ezpad_mini3_data = {
 	.properties	= jumper_ezpad_mini3_props,
 };
 
+static const struct property_entry mpman_converter9_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 8),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 8),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1664),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 880),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-mpman-converter9.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct ts_dmi_data mpman_converter9_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= mpman_converter9_props,
+};
+
 static const struct property_entry mpman_mpwin895cl_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 3),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 9),
@@ -974,6 +991,14 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDIACOM"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FlexBook edge11 - M-FBE11"),
+		},
+	},
+	{
+		/* MP Man Converter 9 */
+		.driver_data = (void *)&mpman_converter9_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MPMAN"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Converter9"),
 		},
 	},
 	{
