@@ -7,8 +7,6 @@
 
 #include "core.h"
 
-extern int venus_fw_debug;
-
 void venus_dbgfs_init(struct venus_core *core)
 {
 	core->root = debugfs_create_dir("venus", NULL);
