@@ -258,17 +258,8 @@ mt7915_ext_phy(struct mt7915_dev *dev)
 
 static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
 {
-	static const u8 lmac_queue_map[] = {
-		[IEEE80211_AC_BK] = MT_LMAC_AC00,
-		[IEEE80211_AC_BE] = MT_LMAC_AC01,
-		[IEEE80211_AC_VI] = MT_LMAC_AC02,
-		[IEEE80211_AC_VO] = MT_LMAC_AC03,
-	};
-
-	if (WARN_ON_ONCE(ac >= ARRAY_SIZE(lmac_queue_map)))
-		return MT_LMAC_AC01; /* BE */
-
-	return lmac_queue_map[ac];
+	/* LMAC uses the reverse order of mac80211 AC indexes */
+	return 3 - ac;
 }
 
 extern const struct ieee80211_ops mt7915_ops;
