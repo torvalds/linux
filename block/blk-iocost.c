@@ -897,7 +897,10 @@ static void __propagate_weights(struct ioc_gq *iocg, u32 active, u32 inuse)
 
 	lockdep_assert_held(&ioc->lock);
 
-	inuse = min(active, inuse);
+	inuse = clamp_t(u32, inuse, 1, active);
+
+	if (active == iocg->active && inuse == iocg->inuse)
+		return;
 
 	for (lvl = iocg->level - 1; lvl >= 0; lvl--) {
 		struct ioc_gq *parent = iocg->ancestors[lvl];
