@@ -5585,8 +5585,7 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		MVPP2_GMAC_AN_DUPLEX_EN | MVPP2_GMAC_IN_BAND_AUTONEG |
 		MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS);
 	ctrl0 &= ~MVPP2_GMAC_PORT_TYPE_MASK;
-	ctrl2 &= ~(MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PORT_RESET_MASK |
-		   MVPP2_GMAC_PCS_ENABLE_MASK);
+	ctrl2 &= ~(MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PCS_ENABLE_MASK);
 
 	/* Configure port type */
 	if (phy_interface_mode_is_8023z(state->interface)) {
@@ -5646,26 +5645,6 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 			an |= MVPP2_GMAC_FLOW_CTRL_AUTONEG;
 	}
 
-/* Some fields of the auto-negotiation register require the port to be down when
- * their value is updated.
- */
-#define MVPP2_GMAC_AN_PORT_DOWN_MASK	\
-		(MVPP2_GMAC_IN_BAND_AUTONEG | \
-		 MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS | \
-		 MVPP2_GMAC_CONFIG_MII_SPEED | MVPP2_GMAC_CONFIG_GMII_SPEED | \
-		 MVPP2_GMAC_AN_SPEED_EN | MVPP2_GMAC_CONFIG_FULL_DUPLEX | \
-		 MVPP2_GMAC_AN_DUPLEX_EN)
-
-	if ((old_ctrl0 ^ ctrl0) & MVPP2_GMAC_PORT_TYPE_MASK ||
-	    (old_ctrl2 ^ ctrl2) & MVPP2_GMAC_INBAND_AN_MASK ||
-	    (old_an ^ an) & MVPP2_GMAC_AN_PORT_DOWN_MASK) {
-		/* Set the GMAC in a reset state - do this in a way that
-		 * ensures we clear it below.
-		 */
-		old_ctrl2 |= MVPP2_GMAC_PORT_RESET_MASK;
-		writel(old_ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
-	}
-
 	if (old_ctrl0 != ctrl0)
 		writel(ctrl0, port->base + MVPP2_GMAC_CTRL_0_REG);
 	if (old_ctrl2 != ctrl2)
@@ -5674,12 +5653,6 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		writel(ctrl4, port->base + MVPP22_GMAC_CTRL_4_REG);
 	if (old_an != an)
 		writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-
-	if (old_ctrl2 & MVPP2_GMAC_PORT_RESET_MASK) {
-		while (readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
-		       MVPP2_GMAC_PORT_RESET_MASK)
-			continue;
-	}
 }
 
 static int mvpp2_mac_prepare(struct phylink_config *config, unsigned int mode,
@@ -5716,11 +5689,17 @@ static int mvpp2_mac_prepare(struct phylink_config *config, unsigned int mode,
 	/* Make sure the port is disabled when reconfiguring the mode */
 	mvpp2_port_disable(port);
 
-	if (port->priv->hw_version == MVPP22 &&
-	    port->phy_interface != interface) {
-		mvpp22_gop_mask_irq(port);
+	if (port->phy_interface != interface) {
+		/* Place GMAC into reset */
+		mvpp2_modify(port->base + MVPP2_GMAC_CTRL_2_REG,
+			     MVPP2_GMAC_PORT_RESET_MASK,
+			     MVPP2_GMAC_PORT_RESET_MASK);
 
-		phy_power_off(port->comphy);
+		if (port->priv->hw_version == MVPP22) {
+			mvpp22_gop_mask_irq(port);
+
+			phy_power_off(port->comphy);
+		}
 	}
 
 	return 0;
@@ -5757,6 +5736,16 @@ static int mvpp2_mac_finish(struct phylink_config *config, unsigned int mode,
 
 		/* Unmask interrupts */
 		mvpp22_gop_unmask_irq(port);
+	}
+
+	if (!mvpp2_is_xlg(interface)) {
+		/* Release GMAC reset and wait */
+		mvpp2_modify(port->base + MVPP2_GMAC_CTRL_2_REG,
+			     MVPP2_GMAC_PORT_RESET_MASK, 0);
+
+		while (readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
+		       MVPP2_GMAC_PORT_RESET_MASK)
+			continue;
 	}
 
 	mvpp2_port_enable(port);
