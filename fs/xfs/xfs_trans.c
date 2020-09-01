@@ -468,7 +468,7 @@ xfs_trans_apply_sb_deltas(
 	xfs_buf_t	*bp;
 	int		whole = 0;
 
-	bp = xfs_trans_getsb(tp, tp->t_mountp);
+	bp = xfs_trans_getsb(tp);
 	sbp = bp->b_addr;
 
 	/*
