@@ -226,6 +226,8 @@ enum {
 	MARGIN_TARGET_PCT	= 50,
 	MARGIN_MAX_PCT		= 100,
 
+	INUSE_ADJ_STEP_PCT	= 25,
+
 	/* Have some play in timer operations */
 	TIMER_SLACK_PCT		= 1,
 
@@ -443,12 +445,17 @@ struct ioc_gq {
 	 *
 	 * `last_inuse` remembers `inuse` while an iocg is idle to persist
 	 * surplus adjustments.
+	 *
+	 * `inuse` may be adjusted dynamically during period. `saved_*` are used
+	 * to determine and track adjustments.
 	 */
 	u32				cfg_weight;
 	u32				weight;
 	u32				active;
 	u32				inuse;
+
 	u32				last_inuse;
+	s64				saved_margin;
 
 	sector_t			cursor;		/* to detect randio */
 
@@ -934,9 +941,11 @@ static void ioc_start_period(struct ioc *ioc, struct ioc_now *now)
 
 /*
  * Update @iocg's `active` and `inuse` to @active and @inuse, update level
- * weight sums and propagate upwards accordingly.
+ * weight sums and propagate upwards accordingly. If @save, the current margin
+ * is saved to be used as reference for later inuse in-period adjustments.
  */
-static void __propagate_weights(struct ioc_gq *iocg, u32 active, u32 inuse)
+static void __propagate_weights(struct ioc_gq *iocg, u32 active, u32 inuse,
+				bool save, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
 	int lvl;
@@ -944,6 +953,10 @@ static void __propagate_weights(struct ioc_gq *iocg, u32 active, u32 inuse)
 	lockdep_assert_held(&ioc->lock);
 
 	inuse = clamp_t(u32, inuse, 1, active);
+
+	iocg->last_inuse = iocg->inuse;
+	if (save)
+		iocg->saved_margin = now->vnow - atomic64_read(&iocg->vtime);
 
 	if (active == iocg->active && inuse == iocg->inuse)
 		return;
@@ -996,9 +1009,10 @@ static void commit_weights(struct ioc *ioc)
 	}
 }
 
-static void propagate_weights(struct ioc_gq *iocg, u32 active, u32 inuse)
+static void propagate_weights(struct ioc_gq *iocg, u32 active, u32 inuse,
+			      bool save, struct ioc_now *now)
 {
-	__propagate_weights(iocg, active, inuse);
+	__propagate_weights(iocg, active, inuse, save, now);
 	commit_weights(iocg->ioc);
 }
 
@@ -1082,7 +1096,7 @@ static u32 current_hweight_max(struct ioc_gq *iocg)
 	return max_t(u32, hwm, 1);
 }
 
-static void weight_updated(struct ioc_gq *iocg)
+static void weight_updated(struct ioc_gq *iocg, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
 	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
@@ -1093,9 +1107,7 @@ static void weight_updated(struct ioc_gq *iocg)
 
 	weight = iocg->cfg_weight ?: iocc->dfl_weight;
 	if (weight != iocg->weight && iocg->active)
-		propagate_weights(iocg, weight,
-				  DIV64_U64_ROUND_UP((u64)iocg->inuse * weight,
-						     iocg->weight));
+		propagate_weights(iocg, weight, iocg->inuse, true, now);
 	iocg->weight = weight;
 }
 
@@ -1165,8 +1177,9 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 	 */
 	iocg->hweight_gen = atomic_read(&ioc->hweight_gen) - 1;
 	list_add(&iocg->active_list, &ioc->active_iocgs);
+
 	propagate_weights(iocg, iocg->weight,
-			  iocg->last_inuse ?: iocg->weight);
+			  iocg->last_inuse ?: iocg->weight, true, now);
 
 	TRACE_IOCG_PATH(iocg_activate, iocg, now,
 			last_period, cur_period, vtime);
@@ -1789,7 +1802,7 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
 		inuse = DIV64_U64_ROUND_UP(
 			parent->child_adjusted_sum * iocg->hweight_after_donation,
 			parent->hweight_inuse);
-		__propagate_weights(iocg, iocg->active, inuse);
+		__propagate_weights(iocg, iocg->active, inuse, true, now);
 	}
 
 	/* walk list should be dissolved after use */
@@ -1844,8 +1857,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 			iocg_kick_waitq(iocg, true, &now);
 		} else if (iocg_is_idle(iocg)) {
 			/* no waiter and idle, deactivate */
-			iocg->last_inuse = iocg->inuse;
-			__propagate_weights(iocg, 0, 0);
+			__propagate_weights(iocg, 0, 0, false, &now);
 			list_del_init(&iocg->active_list);
 		}
 
@@ -1925,7 +1937,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 				list_add(&iocg->surplus_list, &surpluses);
 			} else {
 				__propagate_weights(iocg, iocg->active,
-						    iocg->active);
+						    iocg->active, true, &now);
 				nr_shortages++;
 			}
 		} else {
@@ -2055,6 +2067,50 @@ static void ioc_timer_fn(struct timer_list *timer)
 	spin_unlock_irq(&ioc->lock);
 }
 
+static u64 adjust_inuse_and_calc_cost(struct ioc_gq *iocg, u64 vtime,
+				      u64 abs_cost, struct ioc_now *now)
+{
+	struct ioc *ioc = iocg->ioc;
+	struct ioc_margins *margins = &ioc->margins;
+	u32 adj_step = DIV_ROUND_UP(iocg->active * INUSE_ADJ_STEP_PCT, 100);
+	u32 hwi;
+	s64 margin;
+	u64 cost, new_inuse;
+
+	current_hweight(iocg, NULL, &hwi);
+	cost = abs_cost_to_cost(abs_cost, hwi);
+	margin = now->vnow - vtime - cost;
+
+	/*
+	 * We only increase inuse during period and do so iff the margin has
+	 * deteriorated since the previous adjustment.
+	 */
+	if (margin >= iocg->saved_margin || margin >= margins->low ||
+	    iocg->inuse == iocg->active)
+		return cost;
+
+	spin_lock_irq(&ioc->lock);
+
+	/* we own inuse only when @iocg is in the normal active state */
+	if (list_empty(&iocg->active_list)) {
+		spin_unlock_irq(&ioc->lock);
+		return cost;
+	}
+
+	/* bump up inuse till @abs_cost fits in the existing budget */
+	new_inuse = iocg->inuse;
+	do {
+		new_inuse = new_inuse + adj_step;
+		propagate_weights(iocg, iocg->active, new_inuse, true, now);
+		current_hweight(iocg, NULL, &hwi);
+		cost = abs_cost_to_cost(abs_cost, hwi);
+	} while (time_after64(vtime + cost, now->vnow) &&
+		 iocg->inuse != iocg->active);
+
+	spin_unlock_irq(&ioc->lock);
+	return cost;
+}
+
 static void calc_vtime_cost_builtin(struct bio *bio, struct ioc_gq *iocg,
 				    bool is_merge, u64 *costp)
 {
@@ -2136,7 +2192,6 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	struct ioc_gq *iocg = blkg_to_iocg(blkg);
 	struct ioc_now now;
 	struct iocg_wait wait;
-	u32 hw_active, hw_inuse;
 	u64 abs_cost, cost, vtime;
 	bool use_debt, ioc_locked;
 	unsigned long flags;
@@ -2154,21 +2209,8 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 		return;
 
 	iocg->cursor = bio_end_sector(bio);
-
 	vtime = atomic64_read(&iocg->vtime);
-	current_hweight(iocg, &hw_active, &hw_inuse);
-
-	if (hw_inuse < hw_active &&
-	    time_after_eq64(vtime + ioc->margins.min, now.vnow)) {
-		TRACE_IOCG_PATH(inuse_reset, iocg, &now,
-				iocg->inuse, iocg->weight, hw_inuse, hw_active);
-		spin_lock_irq(&ioc->lock);
-		propagate_weights(iocg, iocg->weight, iocg->weight);
-		spin_unlock_irq(&ioc->lock);
-		current_hweight(iocg, &hw_active, &hw_inuse);
-	}
-
-	cost = abs_cost_to_cost(abs_cost, hw_inuse);
+	cost = adjust_inuse_and_calc_cost(iocg, vtime, abs_cost, &now);
 
 	/*
 	 * If no one's waiting and within budget, issue right away.  The
@@ -2190,7 +2232,7 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	 */
 	use_debt = bio_issue_as_root_blkg(bio) || fatal_signal_pending(current);
 	ioc_locked = use_debt || READ_ONCE(iocg->abs_vdebt);
-
+retry_lock:
 	iocg_lock(iocg, ioc_locked, &flags);
 
 	/*
@@ -2230,6 +2272,17 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 					(bio->bi_opf & REQ_SWAP) == REQ_SWAP);
 		iocg_unlock(iocg, ioc_locked, &flags);
 		return;
+	}
+
+	/* guarantee that iocgs w/ waiters have maximum inuse */
+	if (iocg->inuse != iocg->active) {
+		if (!ioc_locked) {
+			iocg_unlock(iocg, false, &flags);
+			ioc_locked = true;
+			goto retry_lock;
+		}
+		propagate_weights(iocg, iocg->active, iocg->active, true,
+				  &now);
 	}
 
 	/*
@@ -2274,8 +2327,7 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 	struct ioc *ioc = iocg->ioc;
 	sector_t bio_end = bio_end_sector(bio);
 	struct ioc_now now;
-	u32 hw_inuse;
-	u64 abs_cost, cost;
+	u64 vtime, abs_cost, cost;
 	unsigned long flags;
 
 	/* bypass if disabled or for root cgroup */
@@ -2287,8 +2339,9 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 		return;
 
 	ioc_now(ioc, &now);
-	current_hweight(iocg, NULL, &hw_inuse);
-	cost = abs_cost_to_cost(abs_cost, hw_inuse);
+
+	vtime = atomic64_read(&iocg->vtime);
+	cost = adjust_inuse_and_calc_cost(iocg, vtime, abs_cost, &now);
 
 	/* update cursor if backmerging into the request at the cursor */
 	if (blk_rq_pos(rq) < bio_end &&
@@ -2530,7 +2583,7 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	}
 
 	spin_lock_irqsave(&ioc->lock, flags);
-	weight_updated(iocg);
+	weight_updated(iocg, &now);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 }
 
@@ -2544,7 +2597,10 @@ static void ioc_pd_free(struct blkg_policy_data *pd)
 		spin_lock_irqsave(&ioc->lock, flags);
 
 		if (!list_empty(&iocg->active_list)) {
-			propagate_weights(iocg, 0, 0);
+			struct ioc_now now;
+
+			ioc_now(ioc, &now);
+			propagate_weights(iocg, 0, 0, false, &now);
 			list_del_init(&iocg->active_list);
 		}
 
@@ -2612,6 +2668,7 @@ static ssize_t ioc_weight_write(struct kernfs_open_file *of, char *buf,
 	struct blkcg *blkcg = css_to_blkcg(of_css(of));
 	struct ioc_cgrp *iocc = blkcg_to_iocc(blkcg);
 	struct blkg_conf_ctx ctx;
+	struct ioc_now now;
 	struct ioc_gq *iocg;
 	u32 v;
 	int ret;
@@ -2632,7 +2689,8 @@ static ssize_t ioc_weight_write(struct kernfs_open_file *of, char *buf,
 
 			if (iocg) {
 				spin_lock_irq(&iocg->ioc->lock);
-				weight_updated(iocg);
+				ioc_now(iocg->ioc, &now);
+				weight_updated(iocg, &now);
 				spin_unlock_irq(&iocg->ioc->lock);
 			}
 		}
@@ -2658,7 +2716,8 @@ static ssize_t ioc_weight_write(struct kernfs_open_file *of, char *buf,
 
 	spin_lock(&iocg->ioc->lock);
 	iocg->cfg_weight = v * WEIGHT_ONE;
-	weight_updated(iocg);
+	ioc_now(iocg->ioc, &now);
+	weight_updated(iocg, &now);
 	spin_unlock(&iocg->ioc->lock);
 
 	blkg_conf_finish(&ctx);
