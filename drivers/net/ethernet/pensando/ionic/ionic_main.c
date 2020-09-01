@@ -305,32 +305,6 @@ int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	return ionic_adminq_check_err(lif, ctx, (remaining == 0));
 }
 
-int ionic_napi(struct napi_struct *napi, int budget, ionic_cq_cb cb,
-	       ionic_cq_done_cb done_cb, void *done_arg)
-{
-	struct ionic_qcq *qcq = napi_to_qcq(napi);
-	struct ionic_cq *cq = &qcq->cq;
-	u32 work_done, flags = 0;
-
-	work_done = ionic_cq_service(cq, budget, cb, done_cb, done_arg);
-
-	if (work_done < budget && napi_complete_done(napi, work_done)) {
-		flags |= IONIC_INTR_CRED_UNMASK;
-		DEBUG_STATS_INTR_REARM(cq->bound_intr);
-	}
-
-	if (work_done || flags) {
-		flags |= IONIC_INTR_CRED_RESET_COALESCE;
-		ionic_intr_credits(cq->lif->ionic->idev.intr_ctrl,
-				   cq->bound_intr->index,
-				   work_done, flags);
-	}
-
-	DEBUG_STATS_NAPI_POLL(qcq, work_done);
-
-	return work_done;
-}
-
 static void ionic_dev_cmd_clean(struct ionic *ionic)
 {
 	union ionic_dev_cmd_regs *regs = ionic->idev.dev_cmd_regs;

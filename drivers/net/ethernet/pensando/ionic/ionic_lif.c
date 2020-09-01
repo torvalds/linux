@@ -800,21 +800,6 @@ static bool ionic_notifyq_service(struct ionic_cq *cq,
 	return true;
 }
 
-static int ionic_notifyq_clean(struct ionic_lif *lif, int budget)
-{
-	struct ionic_dev *idev = &lif->ionic->idev;
-	struct ionic_cq *cq = &lif->notifyqcq->cq;
-	u32 work_done;
-
-	work_done = ionic_cq_service(cq, budget, ionic_notifyq_service,
-				     NULL, NULL);
-	if (work_done)
-		ionic_intr_credits(idev->intr_ctrl, cq->bound_intr->index,
-				   work_done, IONIC_INTR_CRED_RESET_COALESCE);
-
-	return work_done;
-}
-
 static bool ionic_adminq_service(struct ionic_cq *cq,
 				 struct ionic_cq_info *cq_info)
 {
@@ -830,15 +815,36 @@ static bool ionic_adminq_service(struct ionic_cq *cq,
 
 static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 {
+	struct ionic_intr_info *intr = napi_to_cq(napi)->bound_intr;
 	struct ionic_lif *lif = napi_to_cq(napi)->lif;
+	struct ionic_dev *idev = &lif->ionic->idev;
+	unsigned int flags = 0;
 	int n_work = 0;
 	int a_work = 0;
+	int work_done;
 
-	if (likely(lif->notifyqcq && lif->notifyqcq->flags & IONIC_QCQ_F_INITED))
-		n_work = ionic_notifyq_clean(lif, budget);
-	a_work = ionic_napi(napi, budget, ionic_adminq_service, NULL, NULL);
+	if (lif->notifyqcq && lif->notifyqcq->flags & IONIC_QCQ_F_INITED)
+		n_work = ionic_cq_service(&lif->notifyqcq->cq, budget,
+					  ionic_notifyq_service, NULL, NULL);
 
-	return max(n_work, a_work);
+	if (lif->adminqcq && lif->adminqcq->flags & IONIC_QCQ_F_INITED)
+		a_work = ionic_cq_service(&lif->adminqcq->cq, budget,
+					  ionic_adminq_service, NULL, NULL);
+
+	work_done = max(n_work, a_work);
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
+		flags |= IONIC_INTR_CRED_UNMASK;
+		DEBUG_STATS_INTR_REARM(intr);
+	}
+
+	if (work_done || flags) {
+		flags |= IONIC_INTR_CRED_RESET_COALESCE;
+		ionic_intr_credits(idev->intr_ctrl,
+				   intr->index,
+				   n_work + a_work, flags);
+	}
+
+	return work_done;
 }
 
 void ionic_get_stats64(struct net_device *netdev,
