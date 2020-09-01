@@ -409,7 +409,7 @@ struct ioc {
 	atomic64_t			vtime_rate;
 
 	seqcount_spinlock_t		period_seqcount;
-	u32				period_at;	/* wallclock starttime */
+	u64				period_at;	/* wallclock starttime */
 	u64				period_at_vtime; /* vtime starttime */
 
 	atomic64_t			cur_period;	/* inc'd each period */
@@ -508,7 +508,7 @@ struct ioc_cgrp {
 
 struct ioc_now {
 	u64				now_ns;
-	u32				now;
+	u64				now;
 	u64				vnow;
 	u64				vrate;
 };
