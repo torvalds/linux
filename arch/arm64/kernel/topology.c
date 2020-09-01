@@ -246,6 +246,13 @@ static int __init init_amu_fie(void)
 		static_branch_enable(&amu_fie_key);
 	}
 
+	/*
+	 * If the system is not fully invariant after AMU init, disable
+	 * partial use of counters for frequency invariance.
+	 */
+	if (!topology_scale_freq_invariant())
+		static_branch_disable(&amu_fie_key);
+
 free_valid_mask:
 	free_cpumask_var(valid_cpus);
 
