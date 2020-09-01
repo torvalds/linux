@@ -1312,6 +1312,34 @@ static void check_disk_size_change(struct gendisk *disk,
 }
 
 /**
+ * revalidate_disk_size - checks for disk size change and adjusts bdev size.
+ * @disk: struct gendisk to check
+ * @verbose: if %true log a message about a size change if there is any
+ *
+ * This routine checks to see if the bdev size does not match the disk size
+ * and adjusts it if it differs. When shrinking the bdev size, its all caches
+ * are freed.
+ */
+void revalidate_disk_size(struct gendisk *disk, bool verbose)
+{
+	struct block_device *bdev;
+
+	/*
+	 * Hidden disks don't have associated bdev so there's no point in
+	 * revalidating them.
+	 */
+	if (disk->flags & GENHD_FL_HIDDEN)
+		return;
+
+	bdev = bdget_disk(disk, 0);
+	if (bdev) {
+		check_disk_size_change(disk, bdev, verbose);
+		bdput(bdev);
+	}
+}
+EXPORT_SYMBOL(revalidate_disk_size);
+
+/**
  * revalidate_disk - wrapper for lower-level driver's revalidate_disk call-back
  * @disk: struct gendisk to be revalidated
  *
@@ -1325,19 +1353,7 @@ int revalidate_disk(struct gendisk *disk)
 
 	if (disk->fops->revalidate_disk)
 		ret = disk->fops->revalidate_disk(disk);
-
-	/*
-	 * Hidden disks don't have associated bdev so there's no point in
-	 * revalidating it.
-	 */
-	if (!(disk->flags & GENHD_FL_HIDDEN)) {
-		struct block_device *bdev = bdget_disk(disk, 0);
-
-		if (bdev) {
-			check_disk_size_change(disk, bdev, ret == 0);
-			bdput(bdev);
-		}
-	}
+	revalidate_disk_size(disk, ret == 0);
 	return ret;
 }
 EXPORT_SYMBOL(revalidate_disk);
