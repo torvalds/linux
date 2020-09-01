@@ -34,6 +34,7 @@
 #define SDW_INTEL_MASTER_DISABLE_PM_RUNTIME		BIT(0)
 #define SDW_INTEL_MASTER_DISABLE_CLOCK_STOP		BIT(1)
 #define SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE	BIT(2)
+#define SDW_INTEL_MASTER_DISABLE_MULTI_LINK		BIT(3)
 
 static int md_flags;
 module_param_named(sdw_md_flags, md_flags, int, 0444);
@@ -551,6 +552,19 @@ static int intel_shim_sync_go_unlocked(struct sdw_intel *sdw)
 
 	if (ret < 0)
 		dev_err(sdw->cdns.dev, "SyncGO clear failed: %d\n", ret);
+
+	return ret;
+}
+
+static int intel_shim_sync_go(struct sdw_intel *sdw)
+{
+	int ret;
+
+	mutex_lock(sdw->link_res->shim_lock);
+
+	ret = intel_shim_sync_go_unlocked(sdw);
+
+	mutex_unlock(sdw->link_res->shim_lock);
 
 	return ret;
 }
@@ -1303,10 +1317,7 @@ static int intel_init(struct sdw_intel *sdw)
 
 	intel_shim_init(sdw, clock_stop);
 
-	if (clock_stop)
-		return 0;
-
-	return sdw_cdns_init(&sdw->cdns);
+	return 0;
 }
 
 /*
@@ -1372,6 +1383,7 @@ int intel_master_startup(struct platform_device *pdev)
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_bus *bus = &cdns->bus;
 	int link_flags;
+	bool multi_link;
 	u32 clock_stop_quirks;
 	int ret;
 
@@ -1382,7 +1394,16 @@ int intel_master_startup(struct platform_device *pdev)
 		return 0;
 	}
 
-	/* Initialize shim, controller and Cadence IP */
+	link_flags = md_flags >> (bus->link_id * 8);
+	multi_link = !(link_flags & SDW_INTEL_MASTER_DISABLE_MULTI_LINK);
+	if (!multi_link) {
+		dev_dbg(dev, "Multi-link is disabled\n");
+		bus->multi_link = false;
+	} else {
+		bus->multi_link = true;
+	}
+
+	/* Initialize shim, controller */
 	ret = intel_init(sdw);
 	if (ret)
 		goto err_init;
@@ -1401,10 +1422,31 @@ int intel_master_startup(struct platform_device *pdev)
 		goto err_init;
 	}
 
+	/*
+	 * follow recommended programming flows to avoid timeouts when
+	 * gsync is enabled
+	 */
+	if (multi_link)
+		intel_shim_sync_arm(sdw);
+
+	ret = sdw_cdns_init(cdns);
+	if (ret < 0) {
+		dev_err(dev, "unable to initialize Cadence IP\n");
+		goto err_interrupt;
+	}
+
 	ret = sdw_cdns_exit_reset(cdns);
 	if (ret < 0) {
 		dev_err(dev, "unable to exit bus reset sequence\n");
 		goto err_interrupt;
+	}
+
+	if (multi_link) {
+		ret = intel_shim_sync_go(sdw);
+		if (ret < 0) {
+			dev_err(dev, "sync go failed: %d\n", ret);
+			goto err_interrupt;
+		}
 	}
 
 	/* Register DAIs */
@@ -1418,7 +1460,6 @@ int intel_master_startup(struct platform_device *pdev)
 	intel_debugfs_init(sdw);
 
 	/* Enable runtime PM */
-	link_flags = md_flags >> (bus->link_id * 8);
 	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME)) {
 		pm_runtime_set_autosuspend_delay(dev,
 						 INTEL_MASTER_SUSPEND_DELAY_MS);
@@ -1654,6 +1695,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_bus *bus = &cdns->bus;
 	int link_flags;
+	bool multi_link;
 	int ret;
 
 	if (bus->prop.hw_disabled) {
@@ -1661,6 +1703,9 @@ static int __maybe_unused intel_resume(struct device *dev)
 			bus->link_id);
 		return 0;
 	}
+
+	link_flags = md_flags >> (bus->link_id * 8);
+	multi_link = !(link_flags & SDW_INTEL_MASTER_DISABLE_MULTI_LINK);
 
 	if (pm_runtime_suspended(dev)) {
 		dev_dbg(dev, "%s: pm_runtime status was suspended, forcing active\n", __func__);
@@ -1672,6 +1717,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 		pm_runtime_enable(dev);
 
 		link_flags = md_flags >> (bus->link_id * 8);
+
 		if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE))
 			pm_runtime_idle(dev);
 	}
@@ -1694,10 +1740,31 @@ static int __maybe_unused intel_resume(struct device *dev)
 		return ret;
 	}
 
+	/*
+	 * follow recommended programming flows to avoid timeouts when
+	 * gsync is enabled
+	 */
+	if (multi_link)
+		intel_shim_sync_arm(sdw);
+
+	ret = sdw_cdns_init(&sdw->cdns);
+	if (ret < 0) {
+		dev_err(dev, "unable to initialize Cadence IP during resume\n");
+		return ret;
+	}
+
 	ret = sdw_cdns_exit_reset(cdns);
 	if (ret < 0) {
 		dev_err(dev, "unable to exit bus reset sequence during resume\n");
 		return ret;
+	}
+
+	if (multi_link) {
+		ret = intel_shim_sync_go(sdw);
+		if (ret < 0) {
+			dev_err(dev, "sync go failed during resume\n");
+			return ret;
+		}
 	}
 
 	/*
@@ -1722,6 +1789,8 @@ static int intel_resume_runtime(struct device *dev)
 	struct sdw_bus *bus = &cdns->bus;
 	u32 clock_stop_quirks;
 	bool clock_stop0;
+	int link_flags;
+	bool multi_link;
 	int status;
 	int ret;
 
@@ -1730,6 +1799,9 @@ static int intel_resume_runtime(struct device *dev)
 			bus->link_id);
 		return 0;
 	}
+
+	link_flags = md_flags >> (bus->link_id * 8);
+	multi_link = !(link_flags & SDW_INTEL_MASTER_DISABLE_MULTI_LINK);
 
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
 
@@ -1752,10 +1824,31 @@ static int intel_resume_runtime(struct device *dev)
 			return ret;
 		}
 
+		/*
+		 * follow recommended programming flows to avoid
+		 * timeouts when gsync is enabled
+		 */
+		if (multi_link)
+			intel_shim_sync_arm(sdw);
+
+		ret = sdw_cdns_init(&sdw->cdns);
+		if (ret < 0) {
+			dev_err(dev, "unable to initialize Cadence IP during resume\n");
+			return ret;
+		}
+
 		ret = sdw_cdns_exit_reset(cdns);
 		if (ret < 0) {
 			dev_err(dev, "unable to exit bus reset sequence during resume\n");
 			return ret;
+		}
+
+		if (multi_link) {
+			ret = intel_shim_sync_go(sdw);
+			if (ret < 0) {
+				dev_err(dev, "sync go failed during resume\n");
+				return ret;
+			}
 		}
 	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET) {
 		ret = intel_init(sdw);
@@ -1773,11 +1866,18 @@ static int intel_resume_runtime(struct device *dev)
 		 */
 		clock_stop0 = sdw_cdns_is_clock_stop(&sdw->cdns);
 
-		/*
-		 * make sure all Slaves are tagged as UNATTACHED and
-		 * provide reason for reinitialization
-		 */
 		if (!clock_stop0) {
+
+			/*
+			 * Re-initialize the IP since it was powered-off
+			 */
+			sdw_cdns_init(&sdw->cdns);
+
+			/*
+			 * make sure all Slaves are tagged as UNATTACHED and
+			 * provide reason for reinitialization
+			 */
+
 			status = SDW_UNATTACH_REQUEST_MASTER_RESET;
 			sdw_clear_slave_status(bus, status);
 		}
