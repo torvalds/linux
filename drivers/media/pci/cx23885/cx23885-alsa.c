@@ -68,7 +68,8 @@ MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 #define AUD_INT_MCHG_IRQ        (1 << 21)
 #define GP_COUNT_CONTROL_RESET	0x3
 
-static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
+static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip,
+				 unsigned long nr_pages)
 {
 	struct cx23885_audio_buffer *buf = chip->buf;
 	struct page *pg;
@@ -76,11 +77,11 @@ static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == buf->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+	dprintk(1, "vmalloc is at addr %p, size=%lu\n",
 		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
