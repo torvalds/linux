@@ -4753,10 +4753,16 @@ void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
 	}
 }
 
-/*
- * this is a helper for btrfs_insert_empty_items, the main goal here is
- * to save stack depth by doing the bulk of the work in a function
- * that doesn't call btrfs_search_slot
+/**
+ * setup_items_for_insert - Helper called before inserting one or more items
+ * to a leaf. Main purpose is to save stack depth by doing the bulk of the work
+ * in a function that doesn't call btrfs_search_slot
+ *
+ * @root:	root we are inserting items to
+ * @path:	points to the leaf/slot where we are going to insert new items
+ * @cpu_key:	array of keys for items to be inserted
+ * @data_size:	size of the body of each item we are going to insert
+ * @nr:		size of @cpu_key/@data_size arrays
  */
 void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 			    const struct btrfs_key *cpu_key, u32 *data_size,
