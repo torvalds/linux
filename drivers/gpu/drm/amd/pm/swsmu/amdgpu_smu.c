@@ -975,12 +975,6 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 	}
 
-	ret = smu_disable_umc_cdr_12gbps_workaround(smu);
-	if (ret) {
-		dev_err(adev->dev, "Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
-		return ret;
-	}
-
 	/*
 	 * For Navi1X, manually switch it to AC mode as PMFW
 	 * may boot it with DC mode.

@@ -2568,6 +2568,7 @@ static int navi10_post_smu_init(struct smu_context *smu)
 	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
 	uint64_t feature_mask = 0;
+	int ret = 0;
 
 	/* For Naiv1x, enable these features only after DAL initialization */
 	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
@@ -2590,9 +2591,19 @@ static int navi10_post_smu_init(struct smu_context *smu)
 		  (unsigned long *)(&feature_mask),
 		  SMU_FEATURE_MAX);
 
-	return smu_cmn_feature_update_enable_state(smu,
-						   feature_mask,
-						   true);
+	ret = smu_cmn_feature_update_enable_state(smu,
+						  feature_mask,
+						  true);
+	if (ret) {
+		dev_err(adev->dev, "Failed to post uclk/socclk dpm enablement!\n");
+		return ret;
+	}
+
+	ret = navi10_disable_umc_cdr_12gbps_workaround(smu);
+	if (ret)
+		dev_err(adev->dev, "Failed to apply umc cdr workaround!\n");
+
+	return ret;
 }
 
 static const struct pptable_funcs navi10_ppt_funcs = {
@@ -2669,7 +2680,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.set_default_od_settings = navi10_set_default_od_settings,
 	.od_edit_dpm_table = navi10_od_edit_dpm_table,
 	.run_btc = navi10_run_btc,
-	.disable_umc_cdr_12gbps_workaround = navi10_disable_umc_cdr_12gbps_workaround,
 	.set_power_source = smu_v11_0_set_power_source,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
