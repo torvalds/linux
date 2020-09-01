@@ -578,6 +578,7 @@ static void process_evlist(struct evlist *evlist, unsigned int interval)
 				process_interval();
 			pr_info(EVLIST_DISABLED_MSG);
 			break;
+		case EVLIST_CTL_CMD_SNAPSHOT:
 		case EVLIST_CTL_CMD_ACK:
 		case EVLIST_CTL_CMD_UNSUPPORTED:
 		default:

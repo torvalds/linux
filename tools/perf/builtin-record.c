@@ -1593,6 +1593,16 @@ static int record__init_clock(struct record *rec)
 	return 0;
 }
 
+static void hit_auxtrace_snapshot_trigger(struct record *rec)
+{
+	if (trigger_is_ready(&auxtrace_snapshot_trigger)) {
+		trigger_hit(&auxtrace_snapshot_trigger);
+		auxtrace_record__snapshot_started = 1;
+		if (auxtrace_record__snapshot_start(rec->itr))
+			trigger_error(&auxtrace_snapshot_trigger);
+	}
+}
+
 static int __cmd_record(struct record *rec, int argc, const char **argv)
 {
 	int err;
@@ -1936,6 +1946,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 				break;
 			case EVLIST_CTL_CMD_DISABLE:
 				pr_info(EVLIST_DISABLED_MSG);
+				break;
+			case EVLIST_CTL_CMD_SNAPSHOT:
+				hit_auxtrace_snapshot_trigger(rec);
+				evlist__ctlfd_ack(rec->evlist);
 				break;
 			case EVLIST_CTL_CMD_ACK:
 			case EVLIST_CTL_CMD_UNSUPPORTED:
@@ -2589,7 +2603,8 @@ static struct option __record_options[] = {
 		parse_libpfm_events_option),
 #endif
 	OPT_CALLBACK(0, "control", &record.opts, "fd:ctl-fd[,ack-fd] or fifo:ctl-fifo[,ack-fifo]",
-		     "Listen on ctl-fd descriptor for command to control measurement ('enable': enable events, 'disable': disable events).\n"
+		     "Listen on ctl-fd descriptor for command to control measurement ('enable': enable events, 'disable': disable events,\n"
+		     "\t\t\t  'snapshot': AUX area tracing snapshot).\n"
 		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.\n"
 		     "\t\t\t  Alternatively, ctl-fifo / ack-fifo will be opened and used as ctl-fd / ack-fd.",
 		      parse_control_option),
@@ -2842,12 +2857,7 @@ static void snapshot_sig_handler(int sig __maybe_unused)
 {
 	struct record *rec = &record;
 
-	if (trigger_is_ready(&auxtrace_snapshot_trigger)) {
-		trigger_hit(&auxtrace_snapshot_trigger);
-		auxtrace_record__snapshot_started = 1;
-		if (auxtrace_record__snapshot_start(record.itr))
-			trigger_error(&auxtrace_snapshot_trigger);
-	}
+	hit_auxtrace_snapshot_trigger(rec);
 
 	if (switch_output_signal(rec))
 		trigger_hit(&switch_output_trigger);

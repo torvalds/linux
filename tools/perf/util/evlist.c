@@ -1887,13 +1887,17 @@ static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
 		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_DISABLE_TAG,
 				    (sizeof(EVLIST_CTL_CMD_DISABLE_TAG)-1))) {
 			*cmd = EVLIST_CTL_CMD_DISABLE;
+		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_SNAPSHOT_TAG,
+				    (sizeof(EVLIST_CTL_CMD_SNAPSHOT_TAG)-1))) {
+			*cmd = EVLIST_CTL_CMD_SNAPSHOT;
+			pr_debug("is snapshot\n");
 		}
 	}
 
 	return bytes_read ? (int)bytes_read : err;
 }
 
-static int evlist__ctlfd_ack(struct evlist *evlist)
+int evlist__ctlfd_ack(struct evlist *evlist)
 {
 	int err;
 
@@ -1929,13 +1933,16 @@ int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 			case EVLIST_CTL_CMD_DISABLE:
 				evlist__disable(evlist);
 				break;
+			case EVLIST_CTL_CMD_SNAPSHOT:
+				break;
 			case EVLIST_CTL_CMD_ACK:
 			case EVLIST_CTL_CMD_UNSUPPORTED:
 			default:
 				pr_debug("ctlfd: unsupported %d\n", *cmd);
 				break;
 			}
-			if (!(*cmd == EVLIST_CTL_CMD_ACK || *cmd == EVLIST_CTL_CMD_UNSUPPORTED))
+			if (!(*cmd == EVLIST_CTL_CMD_ACK || *cmd == EVLIST_CTL_CMD_UNSUPPORTED ||
+			      *cmd == EVLIST_CTL_CMD_SNAPSHOT))
 				evlist__ctlfd_ack(evlist);
 		}
 	}

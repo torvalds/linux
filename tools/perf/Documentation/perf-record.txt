@@ -635,10 +635,10 @@ endif::HAVE_LIBPFM[]
 --control=fd:ctl-fd[,ack-fd]::
 ctl-fifo / ack-fifo are opened and used as ctl-fd / ack-fd as follows.
 Listen on ctl-fd descriptor for command to control measurement ('enable': enable events,
-'disable': disable events). Measurements can be started with events disabled using
---delay=-1 option. Optionally send control command completion ('ack\n') to ack-fd descriptor
-to synchronize with the controlling process. Example of bash shell script to enable and
-disable events during measurements:
+'disable': disable events, 'snapshot': AUX area tracing snapshot). Measurements can be
+started with events disabled using --delay=-1 option. Optionally send control command
+completion ('ack\n') to ack-fd descriptor to synchronize with the controlling process.
+Example of bash shell script to enable and disable events during measurements:
 
  #!/bin/bash
 
