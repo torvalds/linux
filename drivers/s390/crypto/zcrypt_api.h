@@ -162,6 +162,8 @@ void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus);
 int zcrypt_device_status_ext(int card, int queue,
 			     struct zcrypt_device_status_ext *devstatus);
 
+int zcrypt_wait_api_operational(void);
+
 static inline unsigned long z_copy_from_user(bool userspace,
 					     void *to,
 					     const void __user *from,
