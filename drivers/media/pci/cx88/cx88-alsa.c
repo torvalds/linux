@@ -42,12 +42,12 @@
  */
 
 struct cx88_audio_buffer {
-	unsigned int               bpl;
-	struct cx88_riscmem        risc;
+	unsigned int		bpl;
+	struct cx88_riscmem	risc;
 	void			*vaddr;
 	struct scatterlist	*sglist;
 	int                     sglen;
-	int                     nr_pages;
+	unsigned long		nr_pages;
 };
 
 struct cx88_audio_dev {
@@ -271,7 +271,8 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
+static int cx88_alsa_dma_init(struct cx88_audio_dev *chip,
+			      unsigned long nr_pages)
 {
 	struct cx88_audio_buffer *buf = chip->buf;
 	struct page *pg;
@@ -279,11 +280,11 @@ static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (!buf->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+	dprintk(1, "vmalloc is at addr %p, size=%lu\n",
 		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
