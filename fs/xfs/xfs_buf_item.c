@@ -958,8 +958,6 @@ void
 xfs_buf_item_done(
 	struct xfs_buf		*bp)
 {
-	struct xfs_buf_log_item	*bip = bp->b_log_item;
-
 	/*
 	 * If we are forcibly shutting down, this may well be off the AIL
 	 * already. That's because we simulate the log-committed callbacks to
@@ -969,8 +967,7 @@ xfs_buf_item_done(
 	 *
 	 * Either way, AIL is useless if we're forcing a shutdown.
 	 */
-	xfs_trans_ail_delete(&bip->bli_item, SHUTDOWN_CORRUPT_INCORE);
-	bp->b_log_item = NULL;
-	xfs_buf_item_free(bip);
-	xfs_buf_rele(bp);
+	xfs_trans_ail_delete(&bp->b_log_item->bli_item,
+			     SHUTDOWN_CORRUPT_INCORE);
+	xfs_buf_item_relse(bp);
 }
