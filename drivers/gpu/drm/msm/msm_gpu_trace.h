@@ -114,6 +114,32 @@ TRACE_EVENT(msm_gmu_freq_change,
 		TP_printk("freq=%u, perf_index=%u", __entry->freq, __entry->perf_index)
 );
 
+
+TRACE_EVENT(msm_gem_purge,
+		TP_PROTO(u32 bytes),
+		TP_ARGS(bytes),
+		TP_STRUCT__entry(
+			__field(u32, bytes)
+			),
+		TP_fast_assign(
+			__entry->bytes = bytes;
+			),
+		TP_printk("Purging %u bytes", __entry->bytes)
+);
+
+
+TRACE_EVENT(msm_gem_purge_vmaps,
+		TP_PROTO(u32 unmapped),
+		TP_ARGS(unmapped),
+		TP_STRUCT__entry(
+			__field(u32, unmapped)
+			),
+		TP_fast_assign(
+			__entry->unmapped = unmapped;
+			),
+		TP_printk("Purging %u vmaps", __entry->unmapped)
+);
+
 #endif
 
 #undef TRACE_INCLUDE_PATH
