@@ -3268,14 +3268,14 @@ xlog_do_log_recovery(
  */
 STATIC int
 xlog_do_recover(
-	struct xlog	*log,
-	xfs_daddr_t	head_blk,
-	xfs_daddr_t	tail_blk)
+	struct xlog		*log,
+	xfs_daddr_t		head_blk,
+	xfs_daddr_t		tail_blk)
 {
-	struct xfs_mount *mp = log->l_mp;
-	int		error;
-	xfs_buf_t	*bp;
-	xfs_sb_t	*sbp;
+	struct xfs_mount	*mp = log->l_mp;
+	struct xfs_buf		*bp = mp->m_sb_bp;
+	struct xfs_sb		*sbp = &mp->m_sb;
+	int			error;
 
 	trace_xfs_log_recover(log, head_blk, tail_blk);
 
@@ -3289,9 +3289,8 @@ xlog_do_recover(
 	/*
 	 * If IO errors happened during recovery, bail out.
 	 */
-	if (XFS_FORCED_SHUTDOWN(mp)) {
+	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
-	}
 
 	/*
 	 * We now update the tail_lsn since much of the recovery has completed
@@ -3305,10 +3304,12 @@ xlog_do_recover(
 	xlog_assign_tail_lsn(mp);
 
 	/*
-	 * Now that we've finished replaying all buffer and inode
-	 * updates, re-read in the superblock and reverify it.
+	 * Now that we've finished replaying all buffer and inode updates,
+	 * re-read the superblock and reverify it.
 	 */
-	bp = xfs_getsb(mp);
+	xfs_buf_lock(bp);
+	xfs_buf_hold(bp);
+	ASSERT(bp->b_flags & XBF_DONE);
 	bp->b_flags &= ~(XBF_DONE | XBF_ASYNC);
 	ASSERT(!(bp->b_flags & XBF_WRITE));
 	bp->b_flags |= XBF_READ;
@@ -3325,7 +3326,6 @@ xlog_do_recover(
 	}
 
 	/* Convert superblock from on-disk format */
-	sbp = &mp->m_sb;
 	xfs_sb_from_disk(sbp, bp->b_addr);
 	xfs_buf_relse(bp);
 
