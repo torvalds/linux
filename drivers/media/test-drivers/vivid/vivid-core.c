@@ -1218,6 +1218,93 @@ static int vivid_init_dv_timings(struct vivid_dev *dev)
 	return 0;
 }
 
+static int vivid_create_queues(struct vivid_dev *dev)
+{
+	int ret;
+
+	/* start creating the vb2 queues */
+	if (dev->has_vid_cap) {
+		/* initialize vid_cap queue */
+		ret = vivid_create_queue(dev, &dev->vb_vid_cap_q,
+					 V4L2_BUF_TYPE_VIDEO_CAPTURE, 2,
+					 &vivid_vid_cap_qops);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->has_vid_out) {
+		/* initialize vid_out queue */
+		ret = vivid_create_queue(dev, &dev->vb_vid_out_q,
+					 V4L2_BUF_TYPE_VIDEO_OUTPUT, 2,
+					 &vivid_vid_out_qops);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->has_vbi_cap) {
+		/* initialize vbi_cap queue */
+		ret = vivid_create_queue(dev, &dev->vb_vbi_cap_q,
+					 V4L2_BUF_TYPE_VBI_CAPTURE, 2,
+					 &vivid_vbi_cap_qops);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->has_vbi_out) {
+		/* initialize vbi_out queue */
+		ret = vivid_create_queue(dev, &dev->vb_vbi_out_q,
+					 V4L2_BUF_TYPE_VBI_OUTPUT, 2,
+					 &vivid_vbi_out_qops);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->has_sdr_cap) {
+		/* initialize sdr_cap queue */
+		ret = vivid_create_queue(dev, &dev->vb_sdr_cap_q,
+					 V4L2_BUF_TYPE_SDR_CAPTURE, 8,
+					 &vivid_sdr_cap_qops);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->has_meta_cap) {
+		/* initialize meta_cap queue */
+		ret = vivid_create_queue(dev, &dev->vb_meta_cap_q,
+					 V4L2_BUF_TYPE_META_CAPTURE, 2,
+					 &vivid_meta_cap_qops);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->has_meta_out) {
+		/* initialize meta_out queue */
+		ret = vivid_create_queue(dev, &dev->vb_meta_out_q,
+					 V4L2_BUF_TYPE_META_OUTPUT, 1,
+					 &vivid_meta_out_qops);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->has_touch_cap) {
+		/* initialize touch_cap queue */
+		ret = vivid_create_queue(dev, &dev->vb_touch_cap_q,
+					 V4L2_BUF_TYPE_VIDEO_CAPTURE, 1,
+					 &vivid_touch_cap_qops);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->has_fb) {
+		/* Create framebuffer for testing capture/output overlay */
+		ret = vivid_fb_init(dev);
+		if (ret)
+			return ret;
+		v4l2_info(&dev->v4l2_dev, "Framebuffer device registered as fb%d\n",
+			  dev->fb_info.node);
+	}
+	return 0;
+}
 
 static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
@@ -1399,8 +1486,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	 * Same as create_singlethread_workqueue, but now I can use the
 	 * string formatting of alloc_ordered_workqueue.
 	 */
-	dev->cec_workqueue =
-		alloc_ordered_workqueue("vivid-%03d-cec", WQ_MEM_RECLAIM, inst);
+	dev->cec_workqueue = alloc_ordered_workqueue("vivid-%03d-cec",
+						     WQ_MEM_RECLAIM, inst);
 	if (!dev->cec_workqueue) {
 		ret = -ENOMEM;
 		goto unreg_dev;
@@ -1409,87 +1496,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (allocators[inst] == 1)
 		dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
-	/* start creating the vb2 queues */
-	if (dev->has_vid_cap) {
-		/* initialize vid_cap queue */
-		ret = vivid_create_queue(dev, &dev->vb_vid_cap_q,
-					 V4L2_BUF_TYPE_VIDEO_CAPTURE, 2,
-					 &vivid_vid_cap_qops);
-		if (ret)
-			goto unreg_dev;
-	}
-
-	if (dev->has_vid_out) {
-		/* initialize vid_out queue */
-		ret = vivid_create_queue(dev, &dev->vb_vid_out_q,
-					 V4L2_BUF_TYPE_VIDEO_OUTPUT, 2,
-					 &vivid_vid_out_qops);
-		if (ret)
-			goto unreg_dev;
-	}
-
-	if (dev->has_vbi_cap) {
-		/* initialize vbi_cap queue */
-		ret = vivid_create_queue(dev, &dev->vb_vbi_cap_q,
-					 V4L2_BUF_TYPE_VBI_CAPTURE, 2,
-					 &vivid_vbi_cap_qops);
-		if (ret)
-			goto unreg_dev;
-	}
-
-	if (dev->has_vbi_out) {
-		/* initialize vbi_out queue */
-		ret = vivid_create_queue(dev, &dev->vb_vbi_out_q,
-					 V4L2_BUF_TYPE_VBI_OUTPUT, 2,
-					 &vivid_vbi_out_qops);
-		if (ret)
-			goto unreg_dev;
-	}
-
-	if (dev->has_sdr_cap) {
-		/* initialize sdr_cap queue */
-		ret = vivid_create_queue(dev, &dev->vb_sdr_cap_q,
-					 V4L2_BUF_TYPE_SDR_CAPTURE, 8,
-					 &vivid_sdr_cap_qops);
-		if (ret)
-			goto unreg_dev;
-	}
-
-	if (dev->has_meta_cap) {
-		/* initialize meta_cap queue */
-		ret = vivid_create_queue(dev, &dev->vb_meta_cap_q,
-					 V4L2_BUF_TYPE_META_CAPTURE, 2,
-					 &vivid_meta_cap_qops);
-		if (ret)
-			goto unreg_dev;
-	}
-
-	if (dev->has_meta_out) {
-		/* initialize meta_out queue */
-		ret = vivid_create_queue(dev, &dev->vb_meta_out_q,
-					 V4L2_BUF_TYPE_META_OUTPUT, 1,
-					 &vivid_meta_out_qops);
-		if (ret)
-			goto unreg_dev;
-	}
-
-	if (dev->has_touch_cap) {
-		/* initialize touch_cap queue */
-		ret = vivid_create_queue(dev, &dev->vb_touch_cap_q,
-					 V4L2_BUF_TYPE_VIDEO_CAPTURE, 1,
-					 &vivid_touch_cap_qops);
-		if (ret)
-			goto unreg_dev;
-	}
-
-	if (dev->has_fb) {
-		/* Create framebuffer for testing capture/output overlay */
-		ret = vivid_fb_init(dev);
-		if (ret)
-			goto unreg_dev;
-		v4l2_info(&dev->v4l2_dev, "Framebuffer device registered as fb%d\n",
-			  dev->fb_info.node);
-	}
+	ret = vivid_create_queues(dev);
+	if (ret)
+		goto unreg_dev;
 
 #ifdef CONFIG_VIDEO_VIVID_CEC
 	if (dev->has_vid_cap && in_type_counter[HDMI]) {
