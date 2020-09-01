@@ -191,6 +191,8 @@
 #define PHY_CFG_PHY_RST_OFF		3
 #define PHY_CFG_PHY_RST_MSK		(0x1 << PHY_CFG_PHY_RST_OFF)
 #define PROG_PHY_LINK_RATE		(PORT_BASE + 0x8)
+#define CFG_PROG_PHY_LINK_RATE_OFF	0
+#define CFG_PROG_PHY_LINK_RATE_MSK	(0xff << CFG_PROG_PHY_LINK_RATE_OFF)
 #define CFG_PROG_OOB_PHY_LINK_RATE_OFF	8
 #define CFG_PROG_OOB_PHY_LINK_RATE_MSK	(0xf << CFG_PROG_OOB_PHY_LINK_RATE_OFF)
 #define PHY_CTRL			(PORT_BASE + 0x14)
@@ -598,20 +600,19 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, HYPER_STREAM_ID_EN_CFG, 1);
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
+		enum sas_linkrate max;
 		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
 		struct asd_sas_phy *sas_phy = &phy->sas_phy;
-		u32 prog_phy_link_rate = 0x800;
+		u32 prog_phy_link_rate = hisi_sas_phy_read32(hisi_hba, i,
+							   PROG_PHY_LINK_RATE);
 
+		prog_phy_link_rate &= ~CFG_PROG_PHY_LINK_RATE_MSK;
 		if (!sas_phy->phy || (sas_phy->phy->maximum_linkrate <
-				SAS_LINK_RATE_1_5_GBPS)) {
-			prog_phy_link_rate = 0x855;
-		} else {
-			enum sas_linkrate max = sas_phy->phy->maximum_linkrate;
-
-			prog_phy_link_rate =
-				hisi_sas_get_prog_phy_linkrate_mask(max) |
-				0x800;
-		}
+				SAS_LINK_RATE_1_5_GBPS))
+			max = SAS_LINK_RATE_12_0_GBPS;
+		else
+			max = sas_phy->phy->maximum_linkrate;
+		prog_phy_link_rate |= hisi_sas_get_prog_phy_linkrate_mask(max);
 		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE,
 			prog_phy_link_rate);
 		hisi_sas_phy_write32(hisi_hba, i, SERDES_CFG, 0xffc00);
@@ -2501,8 +2502,10 @@ static void phy_set_linkrate_v3_hw(struct hisi_hba *hisi_hba, int phy_no,
 		struct sas_phy_linkrates *r)
 {
 	enum sas_linkrate max = r->maximum_linkrate;
-	u32 prog_phy_link_rate = 0x800;
+	u32 prog_phy_link_rate = hisi_sas_phy_read32(hisi_hba, phy_no,
+						     PROG_PHY_LINK_RATE);
 
+	prog_phy_link_rate &= ~CFG_PROG_PHY_LINK_RATE_MSK;
 	prog_phy_link_rate |= hisi_sas_get_prog_phy_linkrate_mask(max);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PROG_PHY_LINK_RATE,
 			     prog_phy_link_rate);
