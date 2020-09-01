@@ -494,9 +494,9 @@ struct ioc_gq {
 	int				hweight_gen;
 	u32				hweight_active;
 	u32				hweight_inuse;
-	bool				has_surplus;
 
 	struct list_head		walk_list;
+	struct list_head		surplus_list;
 
 	struct wait_queue_head		waitq;
 	struct hrtimer			waitq_timer;
@@ -1507,6 +1507,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 	struct ioc *ioc = container_of(timer, struct ioc, timer);
 	struct ioc_gq *iocg, *tiocg;
 	struct ioc_now now;
+	LIST_HEAD(surpluses);
 	int nr_surpluses = 0, nr_shortages = 0, nr_lagging = 0;
 	u32 ppm_rthr = MILLION - ioc->params.qos[QOS_RPPM];
 	u32 ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
@@ -1630,8 +1631,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 		/* see whether there's surplus vtime */
 		vmin = now.vnow - ioc->margins.max;
 
-		iocg->has_surplus = false;
-
+		WARN_ON_ONCE(!list_empty(&iocg->surplus_list));
 		if (!waitqueue_active(&iocg->waitq) &&
 		    time_before64(vtime, vmin)) {
 			u64 delta = vmin - vtime;
@@ -1641,7 +1641,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 			atomic64_add(delta, &iocg->done_vtime);
 			/* if usage is sufficiently low, maybe it can donate */
 			if (surplus_adjusted_hweight_inuse(usage, hw_inuse)) {
-				iocg->has_surplus = true;
+				list_add(&iocg->surplus_list, &surpluses);
 				nr_surpluses++;
 			}
 		} else if (hw_inuse < hw_active) {
@@ -1677,12 +1677,9 @@ static void ioc_timer_fn(struct timer_list *timer)
 		goto skip_surplus_transfers;
 
 	/* there are both shortages and surpluses, transfer surpluses */
-	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
+	list_for_each_entry(iocg, &surpluses, surplus_list) {
 		u32 usage, hw_active, hw_inuse, new_hwi, new_inuse;
 		int nr_valid = 0;
-
-		if (!iocg->has_surplus)
-			continue;
 
 		/* base the decision on max historical usage */
 		for (i = 0, usage = 0; i < NR_USAGE_SLOTS; i++) {
@@ -1710,6 +1707,10 @@ static void ioc_timer_fn(struct timer_list *timer)
 	}
 skip_surplus_transfers:
 	commit_weights(ioc);
+
+	/* surplus list should be dissolved after use */
+	list_for_each_entry_safe(iocg, tiocg, &surpluses, surplus_list)
+		list_del_init(&iocg->surplus_list);
 
 	/*
 	 * If q is getting clogged or we're missing too much, we're issuing
@@ -2284,6 +2285,7 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	atomic64_set(&iocg->active_period, atomic64_read(&ioc->cur_period));
 	INIT_LIST_HEAD(&iocg->active_list);
 	INIT_LIST_HEAD(&iocg->walk_list);
+	INIT_LIST_HEAD(&iocg->surplus_list);
 	iocg->hweight_active = WEIGHT_ONE;
 	iocg->hweight_inuse = WEIGHT_ONE;
 
@@ -2320,6 +2322,7 @@ static void ioc_pd_free(struct blkg_policy_data *pd)
 		}
 
 		WARN_ON_ONCE(!list_empty(&iocg->walk_list));
+		WARN_ON_ONCE(!list_empty(&iocg->surplus_list));
 
 		spin_unlock_irqrestore(&ioc->lock, flags);
 
