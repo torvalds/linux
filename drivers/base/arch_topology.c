@@ -21,13 +21,13 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 
-__weak bool arch_freq_counters_available(struct cpumask *cpus)
+__weak bool arch_freq_counters_available(const struct cpumask *cpus)
 {
 	return false;
 }
 DEFINE_PER_CPU(unsigned long, freq_scale) = SCHED_CAPACITY_SCALE;
 
-void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
+void arch_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,
 			 unsigned long max_freq)
 {
 	unsigned long scale;
