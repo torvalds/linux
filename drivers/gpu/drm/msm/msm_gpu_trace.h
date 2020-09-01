@@ -83,6 +83,37 @@ TRACE_EVENT(msm_gpu_submit_retired,
 		    __entry->start_ticks, __entry->end_ticks)
 );
 
+
+TRACE_EVENT(msm_gpu_freq_change,
+		TP_PROTO(u32 freq),
+		TP_ARGS(freq),
+		TP_STRUCT__entry(
+			__field(u32, freq)
+			),
+		TP_fast_assign(
+			/* trace freq in MHz to match intel_gpu_freq_change, to make life easier
+			 * for userspace
+			 */
+			__entry->freq = DIV_ROUND_UP(freq, 1000000);
+			),
+		TP_printk("new_freq=%u", __entry->freq)
+);
+
+
+TRACE_EVENT(msm_gmu_freq_change,
+		TP_PROTO(u32 freq, u32 perf_index),
+		TP_ARGS(freq, perf_index),
+		TP_STRUCT__entry(
+			__field(u32, freq)
+			__field(u32, perf_index)
+			),
+		TP_fast_assign(
+			__entry->freq = freq;
+			__entry->perf_index = perf_index;
+			),
+		TP_printk("freq=%u, perf_index=%u", __entry->freq, __entry->perf_index)
+);
+
 #endif
 
 #undef TRACE_INCLUDE_PATH

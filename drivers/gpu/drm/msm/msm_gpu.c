@@ -32,6 +32,8 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
+	trace_msm_gpu_freq_change(dev_pm_opp_get_freq(opp));
+
 	if (gpu->funcs->gpu_set_freq)
 		gpu->funcs->gpu_set_freq(gpu, opp);
 	else
