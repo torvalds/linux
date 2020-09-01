@@ -689,9 +689,9 @@ static int sdw_bank_switch(struct sdw_bus *bus, int m_rt_count)
 
 	/*
 	 * Set the multi_link flag only when both the hardware supports
-	 * and there is a stream handled by multiple masters
+	 * and hardware-based sync is required
 	 */
-	multi_link = bus->multi_link && (m_rt_count > 1);
+	multi_link = bus->multi_link && (m_rt_count >= bus->hw_sync_min_links);
 
 	if (multi_link)
 		ret = sdw_transfer_defer(bus, wr_msg, &bus->defer_msg);
@@ -760,13 +760,16 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 	const struct sdw_master_ops *ops;
 	struct sdw_bus *bus;
 	bool multi_link = false;
+	int m_rt_count;
 	int ret = 0;
+
+	m_rt_count = stream->m_rt_count;
 
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
 		bus = m_rt->bus;
 		ops = bus->ops;
 
-		if (bus->multi_link) {
+		if (bus->multi_link && m_rt_count >= bus->hw_sync_min_links) {
 			multi_link = true;
 			mutex_lock(&bus->msg_lock);
 		}
@@ -787,7 +790,7 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 		 * synchronized across all Masters and happens later as a
 		 * part of post_bank_switch ops.
 		 */
-		ret = sdw_bank_switch(bus, stream->m_rt_count);
+		ret = sdw_bank_switch(bus, m_rt_count);
 		if (ret < 0) {
 			dev_err(bus->dev, "Bank switch failed: %d\n", ret);
 			goto error;
@@ -813,7 +816,7 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 					ret);
 				goto error;
 			}
-		} else if (bus->multi_link && stream->m_rt_count > 1) {
+		} else if (multi_link) {
 			dev_err(bus->dev,
 				"Post bank switch ops not implemented\n");
 			goto error;
@@ -831,7 +834,7 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 			goto error;
 		}
 
-		if (bus->multi_link)
+		if (multi_link)
 			mutex_unlock(&bus->msg_lock);
 	}
 
