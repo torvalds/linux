@@ -117,8 +117,12 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 	unsigned int freq, diff, best_freq = 0, diff_min = ~0;
 	int i;
 
-	/* tested only on R-Car Gen2+ currently; may work for others */
-	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
+	/*
+	 * We simply return the current rate if a) we are not on a R-Car Gen2+
+	 * SoC (may work for others, but untested) or b) if the SCC needs its
+	 * clock during tuning, so we don't change the external clock setup.
+	 */
+	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2) || mmc_doing_tune(host->mmc))
 		return clk_get_rate(priv->clk);
 
 	/*
