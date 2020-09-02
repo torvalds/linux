@@ -263,7 +263,7 @@ DMA
   dmam_pool_destroy()
 
 DRM
-  devm_drm_dev_init()
+  devm_drm_dev_alloc()
 
 GPIO
   devm_gpiod_get()

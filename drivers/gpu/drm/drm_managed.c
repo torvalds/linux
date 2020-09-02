@@ -27,7 +27,7 @@
  * be done directly with drmm_kmalloc() and the related functions. Everything
  * will be released on the final drm_dev_put() in reverse order of how the
  * release actions have been added and memory has been allocated since driver
- * loading started with drm_dev_init().
+ * loading started with devm_drm_dev_alloc().
  *
  * Note that release actions and managed memory can also be added and removed
  * during the lifetime of the driver, all the functions are fully concurrent
