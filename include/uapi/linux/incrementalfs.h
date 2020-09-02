@@ -97,6 +97,10 @@
 #define INCFS_IOC_CREATE_MAPPED_FILE \
 	_IOWR(INCFS_IOCTL_BASE_CODE, 35, struct incfs_create_mapped_file_args)
 
+/* Get number of blocks, total and filled */
+#define INCFS_IOC_GET_BLOCK_COUNT \
+	_IOR(INCFS_IOCTL_BASE_CODE, 36, struct incfs_get_block_count_args)
+
 /* ===== sysfs feature flags ===== */
 /*
  * Each flag is represented by a file in /sys/fs/incremental-fs/features
@@ -425,6 +429,14 @@ struct incfs_create_mapped_file_args {
 	 * INCFS_DATA_FILE_BLOCK_SIZE
 	 */
 	__aligned_u64 source_offset;
+};
+
+struct incfs_get_block_count_args {
+	/* Total number of data blocks in the file */
+	__u32 total_blocks_out;
+
+	/* Number of filled data blocks in the file */
+	__u32 filled_blocks_out;
 };
 
 #endif /* _UAPI_LINUX_INCREMENTALFS_H */

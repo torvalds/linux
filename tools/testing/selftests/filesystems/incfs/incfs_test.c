@@ -3052,6 +3052,99 @@ out:
 	return result;
 }
 
+static int validate_block_count(const char *mount_dir, struct test_file *file)
+{
+	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
+	char *filename = concat_file_name(mount_dir, file->name);
+	int fd;
+	struct incfs_get_block_count_args bca = {};
+	int test_result = TEST_FAILURE;
+	int result;
+	int i;
+
+	fd = open(filename, O_RDONLY | O_CLOEXEC);
+	if (fd <= 0)
+		goto out;
+
+	result = ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca);
+	if (result != 0)
+		goto out;
+
+	if (bca.total_blocks_out != block_cnt ||
+	    bca.filled_blocks_out != 0)
+		goto out;
+
+	for (i = 0; i < block_cnt; i += 2)
+		if (emit_test_block(mount_dir, file, i))
+			goto out;
+
+	result = ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca);
+	if (result != 0)
+		goto out;
+
+	if (bca.total_blocks_out != block_cnt ||
+	    bca.filled_blocks_out != (block_cnt + 1) / 2)
+		goto out;
+
+	close(fd);
+	fd = open(filename, O_RDONLY | O_CLOEXEC);
+	if (fd <= 0)
+		goto out;
+
+	result = ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca);
+	if (result != 0)
+		goto out;
+
+	if (bca.total_blocks_out != block_cnt ||
+	    bca.filled_blocks_out != (block_cnt + 1) / 2)
+		goto out;
+
+	test_result = TEST_SUCCESS;
+out:
+	free(filename);
+	close(fd);
+	return test_result;
+}
+
+static int block_count_test(const char *mount_dir)
+{
+	char *backing_dir;
+	int result = TEST_FAILURE;
+	int cmd_fd = -1;
+	int i;
+	struct test_files_set test = get_test_files_set();
+	const int file_num = test.files_count;
+
+	backing_dir = create_backing_dir(mount_dir);
+	if (!backing_dir)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
+		goto failure;
+
+	cmd_fd = open_commands_file(mount_dir);
+	if (cmd_fd < 0)
+		goto failure;
+
+	for (i = 0; i < file_num; ++i) {
+		struct test_file *file = &test.files[i];
+
+		if (emit_file(cmd_fd, NULL, file->name, &file->id, file->size,
+					NULL) < 0)
+			goto failure;
+
+		result = validate_block_count(mount_dir, file);
+		if (result)
+			goto failure;
+	}
+
+failure:
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -3163,6 +3256,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(large_file_test),
 		MAKE_TEST(mapped_file_test),
 		MAKE_TEST(compatibility_test),
+		MAKE_TEST(block_count_test),
 	};
 #undef MAKE_TEST
 

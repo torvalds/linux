@@ -85,8 +85,6 @@ static const struct file_operations incfs_dir_fops = {
 	.iterate = iterate_incfs_dir,
 	.open = file_open,
 	.release = file_release,
-	.unlocked_ioctl = dispatch_ioctl,
-	.compat_ioctl = dispatch_ioctl
 };
 
 static const struct dentry_operations incfs_dentry_ops = {
@@ -663,6 +661,25 @@ static long ioctl_get_filled_blocks(struct file *f, void __user *arg)
 	return error;
 }
 
+static long ioctl_get_block_count(struct file *f, void __user *arg)
+{
+	struct incfs_get_block_count_args __user *args_usr_ptr = arg;
+	struct incfs_get_block_count_args args = {};
+	struct data_file *df = get_incfs_data_file(f);
+	int error;
+
+	if (!df)
+		return -EINVAL;
+
+	args.total_blocks_out = df->df_data_block_count;
+	args.filled_blocks_out = atomic_read(&df->df_data_blocks_written);
+
+	if (copy_to_user(args_usr_ptr, &args, sizeof(args)))
+		return -EFAULT;
+
+	return error;
+}
+
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 {
 	switch (req) {
@@ -672,6 +689,8 @@ static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 		return ioctl_read_file_signature(f, (void __user *)arg);
 	case INCFS_IOC_GET_FILLED_BLOCKS:
 		return ioctl_get_filled_blocks(f, (void __user *)arg);
+	case INCFS_IOC_GET_BLOCK_COUNT:
+		return ioctl_get_block_count(f, (void __user *)arg);
 	default:
 		return -EINVAL;
 	}
