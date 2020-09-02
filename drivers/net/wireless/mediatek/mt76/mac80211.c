@@ -879,7 +879,6 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	struct ieee80211_hw *hw;
 	struct mt76_wcid *wcid = status->wcid;
 	bool ps;
-	int i;
 
 	hw = mt76_phy_hw(dev, status->ext_phy);
 	if (ieee80211_is_pspoll(hdr->frame_control) && !wcid) {
@@ -929,20 +928,6 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 
 	dev->drv->sta_ps(dev, sta, ps);
 	ieee80211_sta_ps_transition(sta, ps);
-
-	if (ps)
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
-		struct mt76_txq *mtxq;
-
-		if (!sta->txq[i])
-			continue;
-
-		mtxq = (struct mt76_txq *)sta->txq[i]->drv_priv;
-		if (!skb_queue_empty(&mtxq->retry_q))
-			ieee80211_schedule_txq(hw, sta->txq[i]);
-	}
 }
 
 void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
@@ -1004,8 +989,6 @@ mt76_sta_add(struct mt76_dev *dev, struct ieee80211_vif *vif,
 
 		mtxq = (struct mt76_txq *)sta->txq[i]->drv_priv;
 		mtxq->wcid = wcid;
-
-		mt76_txq_init(dev, sta->txq[i]);
 	}
 
 	ewma_signal_init(&wcid->rssi);
@@ -1033,8 +1016,6 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		dev->drv->sta_remove(dev, vif, sta);
 
 	mt76_tx_status_check(dev, wcid, true);
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		mt76_txq_remove(dev, sta->txq[i]);
 	mt76_wcid_mask_clear(dev->wcid_mask, idx);
 	mt76_wcid_mask_clear(dev->wcid_phy_mask, idx);
 }

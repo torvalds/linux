@@ -75,7 +75,6 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mtxq = (struct mt76_txq *)vif->txq->drv_priv;
 	mtxq->wcid = &mvif->sta.wcid;
-	mt76_txq_init(&dev->mt76, vif->txq);
 	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 
 out:
@@ -99,7 +98,6 @@ mt7603_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mt7603_beacon_set_timer(dev, mvif->idx, 0);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
-	mt76_txq_remove(&dev->mt76, vif->txq);
 
 	spin_lock_bh(&dev->sta_poll_lock);
 	if (!list_empty(&msta->poll_list))
