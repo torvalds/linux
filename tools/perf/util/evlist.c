@@ -1727,12 +1727,63 @@ struct evsel *perf_evlist__reset_weak_group(struct evlist *evsel_list,
 	return leader;
 }
 
-int evlist__parse_control(const char *str, int *ctl_fd, int *ctl_fd_ack)
+static int evlist__parse_control_fifo(const char *str, int *ctl_fd, int *ctl_fd_ack, bool *ctl_fd_close)
+{
+	char *s, *p;
+	int ret = 0, fd;
+
+	if (strncmp(str, "fifo:", 5))
+		return -EINVAL;
+
+	str += 5;
+	if (!*str || *str == ',')
+		return -EINVAL;
+
+	s = strdup(str);
+	if (!s)
+		return -ENOMEM;
+
+	p = strchr(s, ',');
+	if (p)
+		*p = '\0';
+
+	/*
+	 * O_RDWR avoids POLLHUPs which is necessary to allow the other
+	 * end of a FIFO to be repeatedly opened and closed.
+	 */
+	fd = open(s, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0) {
+		pr_err("Failed to open '%s'\n", s);
+		ret = -errno;
+		goto out_free;
+	}
+	*ctl_fd = fd;
+	*ctl_fd_close = true;
+
+	if (p && *++p) {
+		/* O_RDWR | O_NONBLOCK means the other end need not be open */
+		fd = open(p, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+		if (fd < 0) {
+			pr_err("Failed to open '%s'\n", p);
+			ret = -errno;
+			goto out_free;
+		}
+		*ctl_fd_ack = fd;
+	}
+
+out_free:
+	free(s);
+	return ret;
+}
+
+int evlist__parse_control(const char *str, int *ctl_fd, int *ctl_fd_ack, bool *ctl_fd_close)
 {
 	char *comma = NULL, *endptr = NULL;
 
+	*ctl_fd_close = false;
+
 	if (strncmp(str, "fd:", 3))
-		return -EINVAL;
+		return evlist__parse_control_fifo(str, ctl_fd, ctl_fd_ack, ctl_fd_close);
 
 	*ctl_fd = strtoul(&str[3], &endptr, 0);
 	if (endptr == &str[3])

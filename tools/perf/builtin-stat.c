@@ -1047,7 +1047,17 @@ static int parse_control_option(const struct option *opt,
 {
 	struct perf_stat_config *config = opt->value;
 
-	return evlist__parse_control(str, &config->ctl_fd, &config->ctl_fd_ack);
+	return evlist__parse_control(str, &config->ctl_fd, &config->ctl_fd_ack, &config->ctl_fd_close);
+}
+
+static void close_control_option(struct perf_stat_config *config)
+{
+	if (config->ctl_fd_close) {
+		config->ctl_fd_close = false;
+		close(config->ctl_fd);
+		if (config->ctl_fd_ack >= 0)
+			close(config->ctl_fd_ack);
+	}
 }
 
 static struct option stat_options[] = {
@@ -1153,9 +1163,10 @@ static struct option stat_options[] = {
 		"libpfm4 event selector. use 'perf list' to list available events",
 		parse_libpfm_events_option),
 #endif
-	OPT_CALLBACK(0, "control", &stat_config, "fd:ctl-fd[,ack-fd]",
+	OPT_CALLBACK(0, "control", &stat_config, "fd:ctl-fd[,ack-fd] or fifo:ctl-fifo[,ack-fifo]",
 		     "Listen on ctl-fd descriptor for command to control measurement ('enable': enable events, 'disable': disable events).\n"
-		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.",
+		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.\n"
+		     "\t\t\t  Alternatively, ctl-fifo / ack-fifo will be opened and used as ctl-fd / ack-fd.",
 		      parse_control_option),
 	OPT_END()
 };
@@ -2398,6 +2409,7 @@ out:
 
 	metricgroup__rblist_exit(&stat_config.metric_events);
 	runtime_stat_delete(&stat_config);
+	close_control_option(&stat_config);
 
 	return status;
 }

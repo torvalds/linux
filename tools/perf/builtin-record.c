@@ -2236,7 +2236,17 @@ static int parse_control_option(const struct option *opt,
 {
 	struct record_opts *opts = opt->value;
 
-	return evlist__parse_control(str, &opts->ctl_fd, &opts->ctl_fd_ack);
+	return evlist__parse_control(str, &opts->ctl_fd, &opts->ctl_fd_ack, &opts->ctl_fd_close);
+}
+
+static void close_control_option(struct record_opts *opts)
+{
+	if (opts->ctl_fd_close) {
+		opts->ctl_fd_close = false;
+		close(opts->ctl_fd);
+		if (opts->ctl_fd_ack >= 0)
+			close(opts->ctl_fd_ack);
+	}
 }
 
 static void switch_output_size_warn(struct record *rec)
@@ -2578,9 +2588,10 @@ static struct option __record_options[] = {
 		"libpfm4 event selector. use 'perf list' to list available events",
 		parse_libpfm_events_option),
 #endif
-	OPT_CALLBACK(0, "control", &record.opts, "fd:ctl-fd[,ack-fd]",
+	OPT_CALLBACK(0, "control", &record.opts, "fd:ctl-fd[,ack-fd] or fifo:ctl-fifo[,ack-fifo]",
 		     "Listen on ctl-fd descriptor for command to control measurement ('enable': enable events, 'disable': disable events).\n"
-		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.",
+		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.\n"
+		     "\t\t\t  Alternatively, ctl-fifo / ack-fifo will be opened and used as ctl-fd / ack-fd.",
 		      parse_control_option),
 	OPT_END()
 };
@@ -2653,12 +2664,14 @@ int cmd_record(int argc, const char **argv)
 	    !perf_can_record_switch_events()) {
 		ui__error("kernel does not support recording context switch events\n");
 		parse_options_usage(record_usage, record_options, "switch-events", 0);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_opts;
 	}
 
 	if (switch_output_setup(rec)) {
 		parse_options_usage(record_usage, record_options, "switch-output", 0);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_opts;
 	}
 
 	if (rec->switch_output.time) {
@@ -2669,8 +2682,10 @@ int cmd_record(int argc, const char **argv)
 	if (rec->switch_output.num_files) {
 		rec->switch_output.filenames = calloc(sizeof(char *),
 						      rec->switch_output.num_files);
-		if (!rec->switch_output.filenames)
-			return -EINVAL;
+		if (!rec->switch_output.filenames) {
+			err = -EINVAL;
+			goto out_opts;
+		}
 	}
 
 	/*
@@ -2686,7 +2701,8 @@ int cmd_record(int argc, const char **argv)
 		rec->affinity_mask.bits = bitmap_alloc(rec->affinity_mask.nbits);
 		if (!rec->affinity_mask.bits) {
 			pr_err("Failed to allocate thread mask for %zd cpus\n", rec->affinity_mask.nbits);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto out_opts;
 		}
 		pr_debug2("thread mask[%zd]: empty\n", rec->affinity_mask.nbits);
 	}
@@ -2817,6 +2833,8 @@ out:
 	evlist__delete(rec->evlist);
 	symbol__exit();
 	auxtrace_record__free(rec->itr);
+out_opts:
+	close_control_option(&rec->opts);
 	return err;
 }
 
