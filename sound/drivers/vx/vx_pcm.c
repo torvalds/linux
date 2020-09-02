@@ -530,7 +530,6 @@ static int vx_pcm_playback_open(struct snd_pcm_substream *subs)
 		err = vx_alloc_pipe(chip, 0, audio, 2, &pipe); /* stereo playback */
 		if (err < 0)
 			return err;
-		chip->playback_pipes[audio] = pipe;
 	}
 	/* open for playback */
 	pipe->references++;
