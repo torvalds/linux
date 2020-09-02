@@ -786,15 +786,14 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
 static void handle_debug(struct pt_regs *regs, unsigned long dr6)
 {
 	struct task_struct *tsk = current;
-	bool user_icebp;
-	int si_code;
+	bool icebp;
 
 	/*
 	 * If dr6 has no reason to give us about the origin of this trap,
 	 * then it's very likely the result of an icebp/int01 trap.
 	 * User wants a sigtrap for that.
 	 */
-	user_icebp = !dr6;
+	icebp = !dr6;
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
@@ -813,6 +812,11 @@ static void handle_debug(struct pt_regs *regs, unsigned long dr6)
 		goto out;
 	}
 
+	/*
+	 * Reload dr6, the notifier might have changed it.
+	 */
+	dr6 = tsk->thread.debugreg6;
+
 	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
 		/*
 		 * Historical junk that used to handle SYSENTER single-stepping.
@@ -825,9 +829,8 @@ static void handle_debug(struct pt_regs *regs, unsigned long dr6)
 		regs->flags &= ~X86_EFLAGS_TF;
 	}
 
-	si_code = get_si_code(tsk->thread.debugreg6);
-	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
-		send_sigtrap(regs, 0, si_code);
+	if (dr6 & (DR_STEP | DR_TRAP_BITS) || icebp)
+		send_sigtrap(regs, 0, get_si_code(dr6));
 
 out:
 	cond_local_irq_disable(regs);
