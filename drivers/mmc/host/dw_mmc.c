@@ -3161,12 +3161,9 @@ int dw_mci_probe(struct dw_mci *host)
 
 	if (!host->pdata) {
 		host->pdata = dw_mci_parse_dt(host);
-		if (PTR_ERR(host->pdata) == -EPROBE_DEFER) {
-			return -EPROBE_DEFER;
-		} else if (IS_ERR(host->pdata)) {
-			dev_err(host->dev, "platform data not available\n");
-			return -EINVAL;
-		}
+		if (IS_ERR(host->pdata))
+			return dev_err_probe(host->dev, PTR_ERR(host->pdata),
+					     "platform data not available\n");
 	}
 
 	host->biu_clk = devm_clk_get(host->dev, "biu");
