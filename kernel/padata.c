@@ -215,12 +215,13 @@ int padata_do_parallel(struct padata_shell *ps,
 	padata->pd = pd;
 	padata->cb_cpu = *cb_cpu;
 
-	rcu_read_unlock_bh();
-
 	spin_lock(&padata_works_lock);
 	padata->seq_nr = ++pd->seq_nr;
 	pw = padata_work_alloc();
 	spin_unlock(&padata_works_lock);
+
+	rcu_read_unlock_bh();
+
 	if (pw) {
 		padata_work_init(pw, padata_parallel_worker, padata, 0);
 		queue_work(pinst->parallel_wq, &pw->pw_work);
