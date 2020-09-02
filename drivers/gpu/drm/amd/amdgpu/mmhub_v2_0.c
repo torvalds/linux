@@ -36,6 +36,63 @@
 #define mmDAGB0_CNTL_MISC2_Sienna_Cichlid                       0x0070
 #define mmDAGB0_CNTL_MISC2_Sienna_Cichlid_BASE_IDX              0
 
+static const char *mmhub_client_ids_navi1x[][2] = {
+	[3][0] = "DCEDMC",
+	[4][0] = "DCEVGA",
+	[5][0] = "MP0",
+	[6][0] = "MP1",
+	[13][0] = "VMC",
+	[14][0] = "HDP",
+	[15][0] = "OSS",
+	[16][0] = "VCNU",
+	[17][0] = "JPEG",
+	[18][0] = "VCN",
+	[3][1] = "DCEDMC",
+	[4][1] = "DCEXFC",
+	[5][1] = "DCEVGA",
+	[6][1] = "DCEDWB",
+	[7][1] = "MP0",
+	[8][1] = "MP1",
+	[9][1] = "DBGU1",
+	[10][1] = "DBGU0",
+	[11][1] = "XDP",
+	[14][1] = "HDP",
+	[15][1] = "OSS",
+	[16][1] = "VCNU",
+	[17][1] = "JPEG",
+	[18][1] = "VCN",
+};
+
+static const char *mmhub_client_ids_sienna_cichlid[][2] = {
+	[3][0] = "DCEDMC",
+	[4][0] = "DCEVGA",
+	[5][0] = "MP0",
+	[6][0] = "MP1",
+	[8][0] = "VMC",
+	[9][0] = "VCNU0",
+	[10][0] = "JPEG",
+	[12][0] = "VCNU1",
+	[13][0] = "VCN1",
+	[14][0] = "HDP",
+	[15][0] = "OSS",
+	[32+11][0] = "VCN0",
+	[0][1] = "DBGU0",
+	[1][1] = "DBGU1",
+	[2][1] = "DCEDWB",
+	[3][1] = "DCEDMC",
+	[4][1] = "DCEVGA",
+	[5][1] = "MP0",
+	[6][1] = "MP1",
+	[7][1] = "XDP",
+	[9][1] = "VCNU0",
+	[10][1] = "JPEG",
+	[11][1] = "VCN0",
+	[12][1] = "VCNU1",
+	[13][1] = "VCN1",
+	[14][1] = "HDP",
+	[15][1] = "OSS",
+};
+
 static uint32_t mmhub_v2_0_get_invalidate_req(unsigned int vmid,
 					      uint32_t flush_type)
 {
@@ -60,12 +117,33 @@ static void
 mmhub_v2_0_print_l2_protection_fault_status(struct amdgpu_device *adev,
 					     uint32_t status)
 {
+	uint32_t cid, rw;
+	const char *mmhub_cid = NULL;
+
+	cid = REG_GET_FIELD(status,
+			    MMVM_L2_PROTECTION_FAULT_STATUS, CID);
+	rw = REG_GET_FIELD(status,
+			   MMVM_L2_PROTECTION_FAULT_STATUS, RW);
+
 	dev_err(adev->dev,
 		"MMVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 		status);
-	dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%lx\n",
-		REG_GET_FIELD(status,
-		MMVM_L2_PROTECTION_FAULT_STATUS, CID));
+	switch (adev->asic_type) {
+	case CHIP_NAVI10:
+	case CHIP_NAVI12:
+	case CHIP_NAVI14:
+		mmhub_cid = mmhub_client_ids_navi1x[cid][rw];
+		break;
+	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
+		mmhub_cid = mmhub_client_ids_sienna_cichlid[cid][rw];
+		break;
+	default:
+		mmhub_cid = NULL;
+		break;
+	}
+	dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+		mmhub_cid ? mmhub_cid : "unknown", cid);
 	dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
 		REG_GET_FIELD(status,
 		MMVM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
@@ -78,9 +156,7 @@ mmhub_v2_0_print_l2_protection_fault_status(struct amdgpu_device *adev,
 	dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
 		REG_GET_FIELD(status,
 		MMVM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
-	dev_err(adev->dev, "\t RW: 0x%lx\n",
-		REG_GET_FIELD(status,
-		MMVM_L2_PROTECTION_FAULT_STATUS, RW));
+	dev_err(adev->dev, "\t RW: 0x%x\n", rw);
 }
 
 static void mmhub_v2_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
