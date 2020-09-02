@@ -130,6 +130,7 @@ static u32 ccs_get_limit(struct ccs_sensor *sensor,
 			 unsigned int limit, unsigned int offset)
 {
 	void *ptr;
+	u32 val;
 	int ret;
 
 	ret = ccs_limit_ptr(sensor, limit, offset, &ptr);
@@ -138,16 +139,20 @@ static u32 ccs_get_limit(struct ccs_sensor *sensor,
 
 	switch (ccs_reg_width(ccs_limits[ccs_limit_offsets[limit].info].reg)) {
 	case sizeof(u8):
-		return *(u8 *)ptr;
+		val = *(u8 *)ptr;
+		break;
 	case sizeof(u16):
-		return *(u16 *)ptr;
+		val = *(u16 *)ptr;
+		break;
 	case sizeof(u32):
-		return *(u32 *)ptr;
+		val = *(u32 *)ptr;
+		break;
+	default:
+		WARN_ON(1);
+		return 0;
 	}
 
-	WARN_ON(1);
-
-	return 0;
+	return ccs_reg_conv(sensor, ccs_limits[limit].reg, val);
 }
 
 #define CCS_LIM(sensor, limit) \
@@ -188,7 +193,7 @@ static int ccs_read_all_limits(struct ccs_sensor *sensor)
 		     j++, reg += width, ptr += width) {
 			u32 val;
 
-			ret = ccs_read_addr(sensor, reg, &val);
+			ret = ccs_read_addr_noconv(sensor, reg, &val);
 			if (ret)
 				goto out_err;
 
