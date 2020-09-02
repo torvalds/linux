@@ -2402,9 +2402,6 @@ static void pnv_pci_ioda_create_dbgfs(void)
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		phb = hose->private_data;
 
-		/* Notify initialization of PHB done */
-		phb->initialized = 1;
-
 		sprintf(name, "PCI%04x", hose->global_number);
 		phb->dbgfs = debugfs_create_dir(name, powerpc_debugfs_root);
 
@@ -2601,16 +2598,7 @@ static resource_size_t pnv_pci_default_alignment(void)
  */
 static bool pnv_pci_enable_device_hook(struct pci_dev *dev)
 {
-	struct pnv_phb *phb = pci_bus_to_pnvhb(dev->bus);
 	struct pci_dn *pdn;
-
-	/* The function is probably called while the PEs have
-	 * not be created yet. For example, resource reassignment
-	 * during PCI probe period. We just skip the check if
-	 * PEs isn't ready.
-	 */
-	if (!phb->initialized)
-		return true;
 
 	pdn = pci_get_pdn(dev);
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE) {
@@ -2623,13 +2611,8 @@ static bool pnv_pci_enable_device_hook(struct pci_dev *dev)
 
 static bool pnv_ocapi_enable_device_hook(struct pci_dev *dev)
 {
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct pnv_phb *phb = hose->private_data;
 	struct pci_dn *pdn;
 	struct pnv_ioda_pe *pe;
-
-	if (!phb->initialized)
-		return true;
 
 	pdn = pci_get_pdn(dev);
 	if (!pdn)
