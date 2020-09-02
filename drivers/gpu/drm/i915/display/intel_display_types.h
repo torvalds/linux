@@ -483,8 +483,6 @@ struct intel_atomic_state {
 
 	bool dpll_set, modeset;
 
-	u8 active_pipes;
-
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
 
 	/*
@@ -494,11 +492,6 @@ struct intel_atomic_state {
 	bool skip_intermediate_wm;
 
 	bool rps_interactive;
-
-	/*
-	 * active_pipes
-	 */
-	bool global_state_changed;
 
 	struct i915_sw_fence commit_ready;
 

@@ -14649,16 +14649,8 @@ u8 intel_calc_active_pipes(struct intel_atomic_state *state,
 static int intel_modeset_checks(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	int ret;
 
 	state->modeset = true;
-	state->active_pipes = intel_calc_active_pipes(state, dev_priv->active_pipes);
-
-	if (state->active_pipes != dev_priv->active_pipes) {
-		ret = _intel_atomic_lock_global_state(state);
-		if (ret)
-			return ret;
-	}
 
 	if (IS_HASWELL(dev_priv))
 		return hsw_mode_set_planes_workaround(state);
@@ -15770,14 +15762,6 @@ static void intel_atomic_track_fbs(struct intel_atomic_state *state)
 					plane->frontbuffer_bit);
 }
 
-static void assert_global_state_locked(struct drm_i915_private *dev_priv)
-{
-	struct intel_crtc *crtc;
-
-	for_each_intel_crtc(&dev_priv->drm, crtc)
-		drm_modeset_lock_assert_held(&crtc->base.mutex);
-}
-
 static int intel_atomic_commit(struct drm_device *dev,
 			       struct drm_atomic_state *_state,
 			       bool nonblock)
@@ -15852,12 +15836,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	dev_priv->wm.distrust_bios_wm = false;
 	intel_shared_dpll_swap_state(state);
 	intel_atomic_track_fbs(state);
-
-	if (state->global_state_changed) {
-		assert_global_state_locked(dev_priv);
-
-		dev_priv->active_pipes = state->active_pipes;
-	}
 
 	drm_atomic_state_get(&state->base);
 	INIT_WORK(&state->base.commit_work, intel_atomic_commit_work);

@@ -56,8 +56,4 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			       struct intel_crtc *intel_crtc,
 			       struct intel_crtc_state *crtc_state);
 
-int _intel_atomic_lock_global_state(struct intel_atomic_state *state);
-
-int _intel_atomic_serialize_global_state(struct intel_atomic_state *state);
-
 #endif /* __INTEL_ATOMIC_H__ */
