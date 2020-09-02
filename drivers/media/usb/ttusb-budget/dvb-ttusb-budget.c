@@ -72,6 +72,9 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define TTUSB_REV_2_2	0x22
 #define TTUSB_BUDGET_NAME "ttusb_stc_fw"
 
+#define MAX_SEND	0x28
+#define MAX_RCV		0x20
+
 /*
  *  since we're casting (struct ttusb*) <-> (struct dvb_demux*) around
  *  the dvb_demux field must be the first in struct!!
@@ -119,87 +122,72 @@ struct ttusb {
 	int cc;			/* MuxCounter - will increment on EVERY MUX PACKET */
 	/* (including stuffing. yes. really.) */
 
-	u8 last_result[32];
+	u8 send_buf[MAX_SEND];
+	u8 last_result[MAX_RCV];
 
 	int revision;
 
 	struct dvb_frontend* fe;
 };
 
-/* ugly workaround ... don't know why it's necessary to read */
-/* all result codes. */
-
-static int ttusb_cmd(struct ttusb *ttusb,
-	      const u8 * data, int len, int needresult)
+static int ttusb_cmd(struct ttusb *ttusb, u8 *data, int len, int len_result)
 {
 	int actual_len;
 	int err;
-	int i;
-
-	if (debug >= 3) {
-		printk(KERN_DEBUG ">");
-		for (i = 0; i < len; ++i)
-			printk(KERN_CONT " %02x", data[i]);
-		printk(KERN_CONT "\n");
-	}
 
 	if (mutex_lock_interruptible(&ttusb->semusb) < 0)
 		return -EAGAIN;
 
+	if (debug >= 3)
+		printk(KERN_DEBUG "> %*ph\n", len, data);
+
+	memcpy(data, ttusb->send_buf, len);
+
 	err = usb_bulk_msg(ttusb->dev, ttusb->bulk_out_pipe,
-			   (u8 *) data, len, &actual_len, 1000);
+			   ttusb->send_buf, len, &actual_len, 1000);
 	if (err != 0) {
 		dprintk("%s: usb_bulk_msg(send) failed, err == %i!\n",
 			__func__, err);
-		mutex_unlock(&ttusb->semusb);
-		return err;
+		goto err;
 	}
 	if (actual_len != len) {
+		err = -EIO;
 		dprintk("%s: only wrote %d of %d bytes\n", __func__,
 			actual_len, len);
-		mutex_unlock(&ttusb->semusb);
-		return -1;
+		goto err;
 	}
 
 	err = usb_bulk_msg(ttusb->dev, ttusb->bulk_in_pipe,
-			   ttusb->last_result, 32, &actual_len, 1000);
+			   ttusb->last_result, MAX_RCV, &actual_len, 1000);
 
 	if (err != 0) {
 		printk("%s: failed, receive error %d\n", __func__,
 		       err);
-		mutex_unlock(&ttusb->semusb);
-		return err;
+		goto err;
 	}
 
 	if (debug >= 3) {
 		actual_len = ttusb->last_result[3] + 4;
-		printk(KERN_DEBUG "<");
-		for (i = 0; i < actual_len; ++i)
-			printk(KERN_CONT " %02x", ttusb->last_result[i]);
-		printk(KERN_CONT "\n");
+		printk(KERN_DEBUG "< %*ph\n", actual_len, ttusb->last_result);
 	}
 
-	if (!needresult)
-		mutex_unlock(&ttusb->semusb);
-	return 0;
-}
+	if (len_result)
+		memcpy(ttusb->send_buf, ttusb->last_result, len_result);
 
-static int ttusb_result(struct ttusb *ttusb, u8 * data, int len)
-{
-	memcpy(data, ttusb->last_result, len);
+err:
 	mutex_unlock(&ttusb->semusb);
-	return 0;
+	return err;
 }
 
 static int ttusb_i2c_msg(struct ttusb *ttusb,
 		  u8 addr, u8 * snd_buf, u8 snd_len, u8 * rcv_buf,
 		  u8 rcv_len)
 {
-	u8 b[0x28];
+	u8 b[MAX_SEND];
 	u8 id = ++ttusb->c;
 	int i, err;
 
-	if (snd_len > 0x28 - 7 || rcv_len > 0x20 - 7)
+	if (snd_len > MAX_SEND - 7 || rcv_len > MAX_RCV - 7)
 		return -EINVAL;
 
 	b[0] = 0xaa;
@@ -213,12 +201,10 @@ static int ttusb_i2c_msg(struct ttusb *ttusb,
 	for (i = 0; i < snd_len; i++)
 		b[7 + i] = snd_buf[i];
 
-	err = ttusb_cmd(ttusb, b, snd_len + 7, 1);
+	err = ttusb_cmd(ttusb, b, snd_len + 7, MAX_RCV);
 
 	if (err)
 		return -EREMOTEIO;
-
-	err = ttusb_result(ttusb, b, 0x20);
 
 	/* check if the i2c transaction was successful */
 	if ((snd_len != b[5]) || (rcv_len != b[6])) return -EREMOTEIO;
@@ -400,8 +386,6 @@ static int ttusb_init_controller(struct ttusb *ttusb)
 	/* i2c write read: 5 bytes, addr 0x10, 0x02 bytes write, 1 bytes read. */
 	u8 b3[] =
 	    { 0xaa, ++ttusb->c, 0x31, 5, 0x10, 0x02, 0x01, 0x00, 0x1e };
-	u8 b4[] =
-	    { 0x55, ttusb->c, 0x31, 4, 0x10, 0x02, 0x01, 0x00, 0x1e };
 
 	u8 get_version[] = { 0xaa, ++ttusb->c, 0x17, 5, 0, 0, 0, 0, 0 };
 	u8 get_dsp_version[0x20] =
@@ -422,15 +406,11 @@ static int ttusb_init_controller(struct ttusb *ttusb)
 	if ((err = ttusb_cmd(ttusb, b2, sizeof(b2), 0)))
 		return err;
 
-	if ((err = ttusb_cmd(ttusb, b3, sizeof(b3), 1)))
+	if ((err = ttusb_cmd(ttusb, b3, sizeof(b3), 0)))
 		return err;
 
-	err = ttusb_result(ttusb, b4, sizeof(b4));
-
-	if ((err = ttusb_cmd(ttusb, get_version, sizeof(get_version), 1)))
-		return err;
-
-	if ((err = ttusb_result(ttusb, get_version, sizeof(get_version))))
+	if ((err = ttusb_cmd(ttusb, get_version,
+			     sizeof(get_version), sizeof(get_version))))
 		return err;
 
 	dprintk("%s: stc-version: %c%c%c%c%c\n", __func__,
@@ -451,14 +431,11 @@ static int ttusb_init_controller(struct ttusb *ttusb)
 			   (get_version[8] - '0');
 
 	err =
-	    ttusb_cmd(ttusb, get_dsp_version, sizeof(get_dsp_version), 1);
+	    ttusb_cmd(ttusb, get_dsp_version,
+		      sizeof(get_dsp_version), sizeof(get_dsp_version));
 	if (err)
 		return err;
 
-	err =
-	    ttusb_result(ttusb, get_dsp_version, sizeof(get_dsp_version));
-	if (err)
-		return err;
 	printk("%s: dsp-version: %c%c%c\n", __func__,
 	       get_dsp_version[4], get_dsp_version[5], get_dsp_version[6]);
 	return 0;
