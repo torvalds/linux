@@ -1798,7 +1798,6 @@ static struct btrfs_block_group *btrfs_create_block_group_cache(
 
 	cache->fs_info = fs_info;
 	cache->full_stripe_len = btrfs_full_stripe_len(fs_info, start);
-	set_free_space_tree_thresholds(cache);
 
 	cache->discard_index = BTRFS_DISCARD_INDEX_UNUSED;
 
@@ -1911,6 +1910,8 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	ret = read_block_group_item(cache, path, key);
 	if (ret < 0)
 		goto error;
+
+	set_free_space_tree_thresholds(cache);
 
 	if (need_clear) {
 		/*
@@ -2132,6 +2133,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 		return -ENOMEM;
 
 	cache->length = size;
+	set_free_space_tree_thresholds(cache);
 	cache->used = bytes_used;
 	cache->flags = type;
 	cache->last_byte_to_unpin = (u64)-1;
