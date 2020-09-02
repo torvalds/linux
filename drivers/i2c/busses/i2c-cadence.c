@@ -1251,11 +1251,10 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 		 "Cadence I2C at %08lx", (unsigned long)r_mem->start);
 
 	id->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(id->clk)) {
-		if (PTR_ERR(id->clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "input clock not found.\n");
-		return PTR_ERR(id->clk);
-	}
+	if (IS_ERR(id->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(id->clk),
+				     "input clock not found.\n");
+
 	ret = clk_prepare_enable(id->clk);
 	if (ret)
 		dev_err(&pdev->dev, "Unable to enable clock.\n");
