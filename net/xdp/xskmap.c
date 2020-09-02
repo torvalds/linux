@@ -185,11 +185,6 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 
 	xs = (struct xdp_sock *)sock->sk;
 
-	if (!xsk_is_setup_for_bpf_map(xs)) {
-		sockfd_put(sock);
-		return -EOPNOTSUPP;
-	}
-
 	map_entry = &m->xsk_map[i];
 	node = xsk_map_node_alloc(m, map_entry);
 	if (IS_ERR(node)) {
