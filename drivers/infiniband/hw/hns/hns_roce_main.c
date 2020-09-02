@@ -454,6 +454,8 @@ static const struct ib_device_ops hns_roce_dev_mr_ops = {
 static const struct ib_device_ops hns_roce_dev_mw_ops = {
 	.alloc_mw = hns_roce_alloc_mw,
 	.dealloc_mw = hns_roce_dealloc_mw,
+
+	INIT_RDMA_OBJ_SIZE(ib_mw, hns_roce_mw, ibmw),
 };
 
 static const struct ib_device_ops hns_roce_dev_frmr_ops = {

@@ -611,37 +611,27 @@ int mlx4_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	return 0;
 }
 
-struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
-			       struct ib_udata *udata)
+int mlx4_ib_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 {
-	struct mlx4_ib_dev *dev = to_mdev(pd->device);
-	struct mlx4_ib_mw *mw;
+	struct mlx4_ib_dev *dev = to_mdev(ibmw->device);
+	struct mlx4_ib_mw *mw = to_mmw(ibmw);
 	int err;
 
-	mw = kmalloc(sizeof(*mw), GFP_KERNEL);
-	if (!mw)
-		return ERR_PTR(-ENOMEM);
-
-	err = mlx4_mw_alloc(dev->dev, to_mpd(pd)->pdn,
-			    to_mlx4_type(type), &mw->mmw);
+	err = mlx4_mw_alloc(dev->dev, to_mpd(ibmw->pd)->pdn,
+			    to_mlx4_type(ibmw->type), &mw->mmw);
 	if (err)
-		goto err_free;
+		return err;
 
 	err = mlx4_mw_enable(dev->dev, &mw->mmw);
 	if (err)
 		goto err_mw;
 
-	mw->ibmw.rkey = mw->mmw.key;
-
-	return &mw->ibmw;
+	ibmw->rkey = mw->mmw.key;
+	return 0;
 
 err_mw:
 	mlx4_mw_free(dev->dev, &mw->mmw);
-
-err_free:
-	kfree(mw);
-
-	return ERR_PTR(err);
+	return err;
 }
 
 int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
@@ -649,8 +639,6 @@ int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
 	struct mlx4_ib_mw *mw = to_mmw(ibmw);
 
 	mlx4_mw_free(to_mdev(ibmw->device)->dev, &mw->mmw);
-	kfree(mw);
-
 	return 0;
 }
 

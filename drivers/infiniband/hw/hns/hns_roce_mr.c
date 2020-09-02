@@ -589,28 +589,22 @@ err_table:
 	return ret;
 }
 
-struct ib_mw *hns_roce_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
-				struct ib_udata *udata)
+int hns_roce_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(ib_pd->device);
-	struct hns_roce_mw *mw;
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibmw->device);
+	struct hns_roce_mw *mw = to_hr_mw(ibmw);
 	unsigned long index = 0;
 	int ret;
-
-	mw = kmalloc(sizeof(*mw), GFP_KERNEL);
-	if (!mw)
-		return ERR_PTR(-ENOMEM);
 
 	/* Allocate a key for mw from bitmap */
 	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
 	if (ret)
-		goto err_bitmap;
+		return ret;
 
 	mw->rkey = hw_index_to_key(index);
 
-	mw->ibmw.rkey = mw->rkey;
-	mw->ibmw.type = type;
-	mw->pdn = to_hr_pd(ib_pd)->pdn;
+	ibmw->rkey = mw->rkey;
+	mw->pdn = to_hr_pd(ibmw->pd)->pdn;
 	mw->pbl_hop_num = hr_dev->caps.pbl_hop_num;
 	mw->pbl_ba_pg_sz = hr_dev->caps.pbl_ba_pg_sz;
 	mw->pbl_buf_pg_sz = hr_dev->caps.pbl_buf_pg_sz;
@@ -619,15 +613,11 @@ struct ib_mw *hns_roce_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 	if (ret)
 		goto err_mw;
 
-	return &mw->ibmw;
+	return 0;
 
 err_mw:
 	hns_roce_mw_free(hr_dev, mw);
-
-err_bitmap:
-	kfree(mw);
-
-	return ERR_PTR(ret);
+	return ret;
 }
 
 int hns_roce_dealloc_mw(struct ib_mw *ibmw)
@@ -636,8 +626,6 @@ int hns_roce_dealloc_mw(struct ib_mw *ibmw)
 	struct hns_roce_mw *mw = to_hr_mw(ibmw);
 
 	hns_roce_mw_free(hr_dev, mw);
-	kfree(mw);
-
 	return 0;
 }
 

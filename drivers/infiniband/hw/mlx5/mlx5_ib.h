@@ -1166,8 +1166,7 @@ int mlx5_ib_advise_mr(struct ib_pd *pd,
 		      struct ib_sge *sg_list,
 		      u32 num_sge,
 		      struct uverbs_attr_bundle *attrs);
-struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
-			       struct ib_udata *udata);
+int mlx5_ib_alloc_mw(struct ib_mw *mw, struct ib_udata *udata);
 int mlx5_ib_dealloc_mw(struct ib_mw *mw);
 int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		       int page_shift, int flags);

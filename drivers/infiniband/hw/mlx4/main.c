@@ -2582,6 +2582,8 @@ static const struct ib_device_ops mlx4_ib_dev_wq_ops = {
 static const struct ib_device_ops mlx4_ib_dev_mw_ops = {
 	.alloc_mw = mlx4_ib_alloc_mw,
 	.dealloc_mw = mlx4_ib_dealloc_mw,
+
+	INIT_RDMA_OBJ_SIZE(ib_mw, mlx4_ib_mw, ibmw),
 };
 
 static const struct ib_device_ops mlx4_ib_dev_xrc_ops = {

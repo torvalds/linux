@@ -858,7 +858,7 @@ static int ib_uverbs_dereg_mr(struct uverbs_attr_bundle *attrs)
 static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_alloc_mw      cmd;
-	struct ib_uverbs_alloc_mw_resp resp;
+	struct ib_uverbs_alloc_mw_resp resp = {};
 	struct ib_uobject             *uobj;
 	struct ib_pd                  *pd;
 	struct ib_mw                  *mw;
@@ -884,15 +884,21 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 		goto err_put;
 	}
 
-	mw = pd->device->ops.alloc_mw(pd, cmd.mw_type, &attrs->driver_udata);
-	if (IS_ERR(mw)) {
-		ret = PTR_ERR(mw);
+	mw = rdma_zalloc_drv_obj(ib_dev, ib_mw);
+	if (!mw) {
+		ret = -ENOMEM;
 		goto err_put;
 	}
 
-	mw->device  = pd->device;
-	mw->pd      = pd;
+	mw->device = ib_dev;
+	mw->pd = pd;
 	mw->uobject = uobj;
+	mw->type = cmd.mw_type;
+
+	ret = pd->device->ops.alloc_mw(mw, &attrs->driver_udata);
+	if (ret)
+		goto err_alloc;
+
 	atomic_inc(&pd->usecnt);
 
 	uobj->object = mw;
@@ -903,6 +909,8 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 	resp.mw_handle = uobj->id;
 	return uverbs_response(attrs, &resp, sizeof(resp));
 
+err_alloc:
+	kfree(mw);
 err_put:
 	uobj_put_obj_read(pd);
 err_free:

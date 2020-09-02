@@ -1204,8 +1204,7 @@ int hns_roce_hw_destroy_mpt(struct hns_roce_dev *hr_dev,
 			    unsigned long mpt_index);
 unsigned long key_to_hw_index(u32 key);
 
-struct ib_mw *hns_roce_alloc_mw(struct ib_pd *pd, enum ib_mw_type,
-				struct ib_udata *udata);
+int hns_roce_alloc_mw(struct ib_mw *mw, struct ib_udata *udata);
 int hns_roce_dealloc_mw(struct ib_mw *ibmw);
 
 void hns_roce_buf_free(struct hns_roce_dev *hr_dev, struct hns_roce_buf *buf);
