@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-y := cpu.o system.o irq-common.o
 
-obj-$(CONFIG_SOC_IMX21) += mm-imx21.o
-
 obj-$(CONFIG_SOC_IMX25) += cpu-imx25.o mach-imx25.o pm-imx25.o
 
 obj-$(CONFIG_SOC_IMX27) += cpu-imx27.o pm-imx27.o
@@ -36,9 +34,6 @@ ifdef CONFIG_SND_SOC_IMX_PCM_FIQ
 obj-y += ssi-fiq.o
 obj-y += ssi-fiq-ksym.o
 endif
-
-# i.MX21 based machines
-obj-$(CONFIG_MACH_MX21ADS) += mach-mx21ads.o
 
 # i.MX27 based machines
 obj-$(CONFIG_MACH_MX27ADS) += mach-mx27ads.o
