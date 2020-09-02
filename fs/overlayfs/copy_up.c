@@ -840,14 +840,14 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 	 * don't want that to happen for normal copy-up operation.
 	 */
 	if (capability) {
-		err = ovl_do_setxattr(upperpath.dentry, XATTR_NAME_CAPS,
-				      capability, cap_size, 0);
+		err = vfs_setxattr(upperpath.dentry, XATTR_NAME_CAPS,
+				   capability, cap_size, 0);
 		if (err)
 			goto out_free;
 	}
 
 
-	err = vfs_removexattr(upperpath.dentry, OVL_XATTR_METACOPY);
+	err = ovl_do_removexattr(upperpath.dentry, OVL_XATTR_METACOPY);
 	if (err)
 		goto out_free;
 

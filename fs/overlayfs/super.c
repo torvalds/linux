@@ -1327,7 +1327,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		pr_warn("upper fs does not support xattr, falling back to index=off and metacopy=off.\n");
 		err = 0;
 	} else {
-		vfs_removexattr(ofs->workdir, OVL_XATTR_OPAQUE);
+		ovl_do_removexattr(ofs->workdir, OVL_XATTR_OPAQUE);
 	}
 
 	/*
