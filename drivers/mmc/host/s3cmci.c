@@ -1519,7 +1519,7 @@ static int s3cmci_probe_dt(struct s3cmci_host *host)
 	struct mmc_host *mmc = host->mmc;
 	int ret;
 
-	host->is2440 = (int) of_device_get_match_data(&pdev->dev);
+	host->is2440 = (long) of_device_get_match_data(&pdev->dev);
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
