@@ -218,41 +218,7 @@ intel_teardown_mchbar(struct drm_i915_private *dev_priv)
 /* part #1: call before irq install */
 static int i915_driver_modeset_probe_noirq(struct drm_i915_private *i915)
 {
-	int ret;
-
-	if (i915_inject_probe_failure(i915))
-		return -ENODEV;
-
-	if (HAS_DISPLAY(i915) && INTEL_DISPLAY_ENABLED(i915)) {
-		ret = drm_vblank_init(&i915->drm,
-				      INTEL_NUM_PIPES(i915));
-		if (ret)
-			return ret;
-	}
-
-	intel_bios_init(i915);
-
-	ret = intel_vga_register(i915);
-	if (ret)
-		goto cleanup_bios;
-
-	intel_power_domains_init_hw(i915, false);
-
-	intel_csr_ucode_init(i915);
-
-	ret = intel_modeset_init_noirq(i915);
-	if (ret)
-		goto cleanup_vga_client_pw_domain_csr;
-
-	return 0;
-
-cleanup_vga_client_pw_domain_csr:
-	intel_csr_ucode_fini(i915);
-	intel_power_domains_driver_remove(i915);
-	intel_vga_unregister(i915);
-cleanup_bios:
-	intel_bios_driver_remove(i915);
-	return ret;
+	return intel_modeset_init_noirq(i915);
 }
 
 /* part #2: call after irq install */

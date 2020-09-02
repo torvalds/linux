@@ -67,6 +67,7 @@
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_color.h"
+#include "intel_csr.h"
 #include "intel_display_types.h"
 #include "intel_dp_link_training.h"
 #include "intel_fbc.h"
@@ -17878,6 +17879,27 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 {
 	int ret;
 
+	if (i915_inject_probe_failure(i915))
+		return -ENODEV;
+
+	if (HAS_DISPLAY(i915) && INTEL_DISPLAY_ENABLED(i915)) {
+		ret = drm_vblank_init(&i915->drm,
+				      INTEL_NUM_PIPES(i915));
+		if (ret)
+			return ret;
+	}
+
+	intel_bios_init(i915);
+
+	ret = intel_vga_register(i915);
+	if (ret)
+		goto cleanup_bios;
+
+	/* FIXME: completely on the wrong abstraction layer */
+	intel_power_domains_init_hw(i915, false);
+
+	intel_csr_ucode_init(i915);
+
 	i915->modeset_wq = alloc_ordered_workqueue("i915_modeset", 0);
 	i915->flip_wq = alloc_workqueue("i915_flip", WQ_HIGHPRI |
 					WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
@@ -17886,15 +17908,15 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 
 	ret = intel_cdclk_init(i915);
 	if (ret)
-		return ret;
+		goto cleanup_vga_client_pw_domain_csr;
 
 	ret = intel_dbuf_init(i915);
 	if (ret)
-		return ret;
+		goto cleanup_vga_client_pw_domain_csr;
 
 	ret = intel_bw_init(i915);
 	if (ret)
-		return ret;
+		goto cleanup_vga_client_pw_domain_csr;
 
 	init_llist_head(&i915->atomic_helper.free_list);
 	INIT_WORK(&i915->atomic_helper.free_work,
@@ -17905,6 +17927,15 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	intel_fbc_init(i915);
 
 	return 0;
+
+cleanup_vga_client_pw_domain_csr:
+	intel_csr_ucode_fini(i915);
+	intel_power_domains_driver_remove(i915);
+	intel_vga_unregister(i915);
+cleanup_bios:
+	intel_bios_driver_remove(i915);
+
+	return ret;
 }
 
 /* part #2: call after irq install, but before gem init */
