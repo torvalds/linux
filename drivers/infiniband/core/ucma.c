@@ -1453,7 +1453,7 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 	mc = kzalloc(sizeof(*mc), GFP_KERNEL);
 	if (!mc) {
 		ret = -ENOMEM;
-		goto err1;
+		goto err_put_ctx;
 	}
 
 	mc->ctx = ctx;
@@ -1464,7 +1464,7 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 	if (xa_alloc(&multicast_table, &mc->id, NULL, xa_limit_32b,
 		     GFP_KERNEL)) {
 		ret = -ENOMEM;
-		goto err1;
+		goto err_free_mc;
 	}
 
 	mutex_lock(&ctx->mutex);
@@ -1472,13 +1472,13 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 				  join_state, mc);
 	mutex_unlock(&ctx->mutex);
 	if (ret)
-		goto err2;
+		goto err_xa_erase;
 
 	resp.id = mc->id;
 	if (copy_to_user(u64_to_user_ptr(cmd->response),
 			 &resp, sizeof(resp))) {
 		ret = -EFAULT;
-		goto err3;
+		goto err_leave_multicast;
 	}
 
 	xa_store(&multicast_table, mc->id, mc, 0);
@@ -1486,15 +1486,16 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 	ucma_put_ctx(ctx);
 	return 0;
 
-err3:
+err_leave_multicast:
 	mutex_lock(&ctx->mutex);
 	rdma_leave_multicast(ctx->cm_id, (struct sockaddr *) &mc->addr);
 	mutex_unlock(&ctx->mutex);
 	ucma_cleanup_mc_events(mc);
-err2:
+err_xa_erase:
 	xa_erase(&multicast_table, mc->id);
+err_free_mc:
 	kfree(mc);
-err1:
+err_put_ctx:
 	ucma_put_ctx(ctx);
 	return ret;
 }
