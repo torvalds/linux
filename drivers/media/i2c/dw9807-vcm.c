@@ -324,6 +324,6 @@ static struct i2c_driver dw9807_i2c_driver = {
 
 module_i2c_driver(dw9807_i2c_driver);
 
-MODULE_AUTHOR("Chiang, Alan <alanx.chiang@intel.com>");
+MODULE_AUTHOR("Chiang, Alan");
 MODULE_DESCRIPTION("DW9807 VCM driver");
 MODULE_LICENSE("GPL v2");
