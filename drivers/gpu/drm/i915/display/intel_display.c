@@ -17907,8 +17907,8 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	return 0;
 }
 
-/* part #2: call after irq install */
-int intel_modeset_init(struct drm_i915_private *i915)
+/* part #2: call after irq install, but before gem init */
+int intel_modeset_init_nogem(struct drm_i915_private *i915)
 {
 	struct drm_device *dev = &i915->drm;
 	enum pipe pipe;
@@ -18003,6 +18003,30 @@ int intel_modeset_init(struct drm_i915_private *i915)
 	ret = intel_initial_commit(dev);
 	if (ret)
 		drm_dbg_kms(&i915->drm, "Initial commit in probe failed.\n");
+
+	return 0;
+}
+
+/* part #3: call after gem init */
+int intel_modeset_init(struct drm_i915_private *i915)
+{
+	int ret;
+
+	intel_overlay_setup(i915);
+
+	if (!HAS_DISPLAY(i915) || !INTEL_DISPLAY_ENABLED(i915))
+		return 0;
+
+	ret = intel_fbdev_init(&i915->drm);
+	if (ret)
+		return ret;
+
+	/* Only enable hotplug handling once the fbdev is fully set up. */
+	intel_hpd_init(i915);
+
+	intel_init_ipc(i915);
+
+	intel_psr_set_force_mode_changed(i915->psr.dp);
 
 	return 0;
 }

@@ -58,7 +58,6 @@
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pipe_crc.h"
-#include "display/intel_psr.h"
 #include "display/intel_sprite.h"
 #include "display/intel_vga.h"
 
@@ -263,7 +262,7 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
-	ret = intel_modeset_init(i915);
+	ret = intel_modeset_init_nogem(i915);
 	if (ret)
 		goto out;
 
@@ -271,21 +270,9 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 	if (ret)
 		goto cleanup_modeset;
 
-	intel_overlay_setup(i915);
-
-	if (!HAS_DISPLAY(i915) || !INTEL_DISPLAY_ENABLED(i915))
-		return 0;
-
-	ret = intel_fbdev_init(&i915->drm);
+	ret = intel_modeset_init(i915);
 	if (ret)
 		goto cleanup_gem;
-
-	/* Only enable hotplug handling once the fbdev is fully set up. */
-	intel_hpd_init(i915);
-
-	intel_init_ipc(i915);
-
-	intel_psr_set_force_mode_changed(i915->psr.dp);
 
 	return 0;
 
