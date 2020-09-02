@@ -1303,7 +1303,7 @@ static int sof_core_enable(struct snd_sof_dev *sdev, int core)
 	if (sdev->enabled_cores_mask & BIT(core))
 		return 0;
 
-	/* power up the core */
+	/* power up the core if it is host managed */
 	ret = snd_sof_dsp_core_power_up(sdev, BIT(core));
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: %d powering up core %d\n",
@@ -1311,16 +1311,24 @@ static int sof_core_enable(struct snd_sof_dev *sdev, int core)
 		return ret;
 	}
 
-	/* update enabled cores mask */
-	sdev->enabled_cores_mask |= BIT(core);
-
-	/* Now notify DSP that the core has been powered up */
+	/* Now notify DSP */
 	ret = sof_ipc_tx_message(sdev->ipc, pm_core_config.hdr.cmd,
 				 &pm_core_config, sizeof(pm_core_config),
 				 &pm_core_config, sizeof(pm_core_config));
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "error: core %d enable ipc failure %d\n",
 			core, ret);
+		goto err;
+	}
+
+	/* update enabled cores mask */
+	sdev->enabled_cores_mask |= BIT(core);
+
+	return ret;
+err:
+	/* power down core if it is host managed and return the original error if this fails too */
+	if (snd_sof_dsp_core_power_down(sdev, BIT(core)) < 0)
+		dev_err(sdev->dev, "error: powering down core %d\n", core);
 
 	return ret;
 }
