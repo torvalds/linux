@@ -1678,19 +1678,30 @@ static void cma_release_port(struct rdma_id_private *id_priv)
 	mutex_unlock(&lock);
 }
 
-static void cma_leave_roce_mc_group(struct rdma_id_private *id_priv,
-				    struct cma_multicast *mc)
+static void destroy_mc(struct rdma_id_private *id_priv,
+		       struct cma_multicast *mc)
 {
-	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
-	struct net_device *ndev = NULL;
-
-	if (dev_addr->bound_dev_if)
-		ndev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
-	if (ndev) {
-		cma_igmp_send(ndev, &mc->multicast.ib->rec.mgid, false);
-		dev_put(ndev);
+	if (rdma_cap_ib_mcast(id_priv->id.device, id_priv->id.port_num)) {
+		ib_sa_free_multicast(mc->multicast.ib);
+		kfree(mc);
+		return;
 	}
-	kref_put(&mc->mcref, release_mc);
+
+	if (rdma_protocol_roce(id_priv->id.device,
+				      id_priv->id.port_num)) {
+		struct rdma_dev_addr *dev_addr =
+			&id_priv->id.route.addr.dev_addr;
+		struct net_device *ndev = NULL;
+
+		if (dev_addr->bound_dev_if)
+			ndev = dev_get_by_index(dev_addr->net,
+						dev_addr->bound_dev_if);
+		if (ndev) {
+			cma_igmp_send(ndev, &mc->multicast.ib->rec.mgid, false);
+			dev_put(ndev);
+		}
+		kref_put(&mc->mcref, release_mc);
+	}
 }
 
 static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
@@ -1698,16 +1709,10 @@ static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
 	struct cma_multicast *mc;
 
 	while (!list_empty(&id_priv->mc_list)) {
-		mc = container_of(id_priv->mc_list.next,
-				  struct cma_multicast, list);
+		mc = list_first_entry(&id_priv->mc_list, struct cma_multicast,
+				      list);
 		list_del(&mc->list);
-		if (rdma_cap_ib_mcast(id_priv->cma_dev->device,
-				      id_priv->id.port_num)) {
-			ib_sa_free_multicast(mc->multicast.ib);
-			kfree(mc);
-		} else {
-			cma_leave_roce_mc_group(id_priv, mc);
-		}
+		destroy_mc(id_priv, mc);
 	}
 }
 
@@ -4327,20 +4332,14 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 	id_priv = container_of(id, struct rdma_id_private, id);
 	spin_lock_irq(&id_priv->lock);
 	list_for_each_entry(mc, &id_priv->mc_list, list) {
-		if (!memcmp(&mc->addr, addr, rdma_addr_size(addr))) {
-			list_del(&mc->list);
-			spin_unlock_irq(&id_priv->lock);
+		if (memcmp(&mc->addr, addr, rdma_addr_size(addr)) != 0)
+			continue;
+		list_del(&mc->list);
+		spin_unlock_irq(&id_priv->lock);
 
-			BUG_ON(id_priv->cma_dev->device != id->device);
-
-			if (rdma_cap_ib_mcast(id->device, id->port_num)) {
-				ib_sa_free_multicast(mc->multicast.ib);
-				kfree(mc);
-			} else if (rdma_protocol_roce(id->device, id->port_num)) {
-				cma_leave_roce_mc_group(id_priv, mc);
-			}
-			return;
-		}
+		WARN_ON(id_priv->cma_dev->device != id->device);
+		destroy_mc(id_priv, mc);
+		return;
 	}
 	spin_unlock_irq(&id_priv->lock);
 }
