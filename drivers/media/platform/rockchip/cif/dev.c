@@ -695,6 +695,29 @@ int rkcif_attach_hw(struct rkcif_device *cif_dev)
 	return 0;
 }
 
+static int rkcif_detach_hw(struct rkcif_device *cif_dev)
+{
+	struct rkcif_hw *hw = cif_dev->hw_dev;
+	int i;
+
+	for (i = 0; i < hw->dev_num; i++) {
+		if (hw->cif_dev[i] == cif_dev) {
+			if ((i + 1) < hw->dev_num) {
+				hw->cif_dev[i] = hw->cif_dev[i + 1];
+				hw->cif_dev[i + 1] = NULL;
+			} else {
+				hw->cif_dev[i] = NULL;
+			}
+
+			hw->dev_num--;
+			dev_info(cif_dev->dev, "detach to cif hw node\n");
+			break;
+		}
+	}
+
+	return 0;
+}
+
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id)
 {
 	struct device *dev = cif_dev->dev;
@@ -853,8 +876,10 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	}
 
 	ret = rkcif_plat_init(cif_dev, node, data->inf_id);
-	if (ret)
+	if (ret) {
+		rkcif_detach_hw(cif_dev);
 		return ret;
+	}
 
 	rkcif_soft_reset(cif_dev, true);
 	pm_runtime_enable(&pdev->dev);
@@ -866,7 +891,9 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 {
 	struct rkcif_device *cif_dev = platform_get_drvdata(pdev);
 
-	return rkcif_plat_uninit(cif_dev);
+	rkcif_plat_uninit(cif_dev);
+	rkcif_detach_hw(cif_dev);
+	return 0;
 }
 
 static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
