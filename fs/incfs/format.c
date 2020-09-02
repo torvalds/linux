@@ -316,6 +316,53 @@ err:
 	return result;
 }
 
+static int write_new_status_to_backing_file(struct backing_file_context *bfc,
+				       u32 blocks_written)
+{
+	struct incfs_status is = {};
+	int result;
+	loff_t rollback_pos;
+
+	if (!bfc)
+		return -EFAULT;
+
+	LOCK_REQUIRED(bfc->bc_mutex);
+
+	rollback_pos = incfs_get_end_offset(bfc->bc_file);
+
+	is.is_header.h_md_entry_type = INCFS_MD_STATUS;
+	is.is_header.h_record_size = cpu_to_le16(sizeof(is));
+	is.is_blocks_written = cpu_to_le32(blocks_written);
+
+	result = append_md_to_backing_file(bfc, &is.is_header);
+	if (result)
+		truncate_backing_file(bfc, rollback_pos);
+
+	return result;
+}
+
+int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
+				       loff_t status_offset,
+				       u32 blocks_written)
+{
+	struct incfs_status is;
+	int result;
+
+	if (status_offset == 0)
+		return write_new_status_to_backing_file(bfc, blocks_written);
+
+	result = incfs_kread(bfc->bc_file, &is, sizeof(is), status_offset);
+	if (result != sizeof(is))
+		return -EIO;
+
+	is.is_blocks_written = cpu_to_le32(blocks_written);
+	result = incfs_kwrite(bfc->bc_file, &is, sizeof(is), status_offset);
+	if (result != sizeof(is))
+		return -EIO;
+
+	return 0;
+}
+
 /*
  * Write a backing file header
  * It should always be called only on empty file.
@@ -636,6 +683,11 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 		if (handler->handle_signature)
 			res = handler->handle_signature(
 				&handler->md_buffer.signature, handler);
+		break;
+	case INCFS_MD_STATUS:
+		if (handler->handle_status)
+			res = handler->handle_status(
+				&handler->md_buffer.status, handler);
 		break;
 	default:
 		res = -ENOTSUPP;
