@@ -35,6 +35,80 @@
 			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
+
+	headset_micbias_reg: regulator-fixed-3 {
+		compatible = "regulator-fixed";
+		regulator-name = "Headset_Micbias";
+		gpio = <&gpj2 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&headset_micbias_ena>;
+	};
+
+	main_micbias_reg: regulator-fixed-4 {
+		compatible = "regulator-fixed";
+		regulator-name = "Main_Micbias";
+		gpio = <&gpj4 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_micbias_ena>;
+	};
+
+	sound {
+		compatible = "samsung,fascinate4g-wm8994";
+
+		model = "Fascinate4G";
+
+		extcon = <&fsa9480>;
+
+		main-micbias-supply = <&main_micbias_reg>;
+		headset-micbias-supply = <&headset_micbias_reg>;
+
+		earpath-sel-gpios = <&gpj2 6 GPIO_ACTIVE_HIGH>;
+
+		io-channels = <&adc 3>;
+		io-channel-names = "headset-detect";
+		headset-detect-gpios = <&gph0 6 GPIO_ACTIVE_HIGH>;
+		headset-key-gpios = <&gph3 6 GPIO_ACTIVE_HIGH>;
+
+		samsung,audio-routing =
+			"HP", "HPOUT1L",
+			"HP", "HPOUT1R",
+
+			"SPK", "SPKOUTLN",
+			"SPK", "SPKOUTLP",
+
+			"RCV", "HPOUT2N",
+			"RCV", "HPOUT2P",
+
+			"LINE", "LINEOUT2N",
+			"LINE", "LINEOUT2P",
+
+			"IN1LP", "Main Mic",
+			"IN1LN", "Main Mic",
+
+			"IN1RP", "Headset Mic",
+			"IN1RN", "Headset Mic",
+
+			"Modem Out", "Modem TX",
+			"Modem RX", "Modem In",
+
+			"Bluetooth SPK", "TX",
+			"RX", "Bluetooth Mic";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&headset_det &earpath_sel>;
+
+		cpu {
+			sound-dai = <&i2s0>, <&bt_codec>;
+		};
+
+		codec {
+			sound-dai = <&wm8994>;
+		};
+	};
 };
 
 &fg {
@@ -51,9 +125,33 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep_cfg>;
 
+	headset_det: headset-det {
+		samsung,pins = "gph0-6", "gph3-6";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+	};
+
 	fg_irq: fg-irq {
 		samsung,pins = "gph3-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	headset_micbias_ena: headset-micbias-ena {
+		samsung,pins = "gpj2-5";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	earpath_sel: earpath-sel {
+		samsung,pins = "gpj2-6";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	main_micbias_ena: main-micbias-ena {
+		samsung,pins = "gpj4-2";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};

@@ -47,6 +47,11 @@
 		};
 	};
 
+	bt_codec: bt_sco {
+		compatible = "linux,bt-sco";
+		#sound-dai-cells = <0>;
+	};
+
 	vibrator_pwr: regulator-fixed-0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vibrator-en";
@@ -622,6 +627,11 @@
 		pinctrl-0 = <&ts_irq>;
 		reset-gpios = <&gpj1 3 GPIO_ACTIVE_HIGH>;
 	};
+};
+
+&i2s0 {
+	dmas = <&pdma0 9>, <&pdma0 10>, <&pdma0 11>;
+	status = "okay";
 };
 
 &mfc {
