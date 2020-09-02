@@ -170,6 +170,12 @@ static inline int ovl_do_symlink(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
+static inline ssize_t ovl_do_getxattr(struct dentry *dentry, const char *name,
+				      void *value, size_t size)
+{
+	return vfs_getxattr(dentry, name, value, size);
+}
+
 static inline int ovl_do_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {

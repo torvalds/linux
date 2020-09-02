@@ -748,7 +748,8 @@ unsigned int ovl_get_nlink(struct dentry *lowerdentry,
 	if (!lowerdentry || !upperdentry || d_inode(lowerdentry)->i_nlink == 1)
 		return fallback;
 
-	err = vfs_getxattr(upperdentry, OVL_XATTR_NLINK, &buf, sizeof(buf) - 1);
+	err = ovl_do_getxattr(upperdentry, OVL_XATTR_NLINK,
+			      &buf, sizeof(buf) - 1);
 	if (err < 0)
 		goto fail;
 

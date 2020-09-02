@@ -109,7 +109,7 @@ static struct ovl_fh *ovl_get_fh(struct dentry *dentry, const char *name)
 	int res, err;
 	struct ovl_fh *fh = NULL;
 
-	res = vfs_getxattr(dentry, name, NULL, 0);
+	res = ovl_do_getxattr(dentry, name, NULL, 0);
 	if (res < 0) {
 		if (res == -ENODATA || res == -EOPNOTSUPP)
 			return NULL;
@@ -123,7 +123,7 @@ static struct ovl_fh *ovl_get_fh(struct dentry *dentry, const char *name)
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
-	res = vfs_getxattr(dentry, name, fh->buf, res);
+	res = ovl_do_getxattr(dentry, name, fh->buf, res);
 	if (res < 0)
 		goto fail;
 
