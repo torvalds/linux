@@ -1230,8 +1230,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 			&soc_component_dev_aic32x4, &aic32x4_dai, 1);
 	if (ret) {
 		dev_err(dev, "Failed to register component\n");
-		aic32x4_disable_regulators(aic32x4);
-		return ret;
+		goto err_disable_regulators;
 	}
 
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
@@ -1242,9 +1241,14 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 
 	ret = aic32x4_register_clocks(dev, aic32x4->mclk_name);
 	if (ret)
-		return ret;
+		goto err_disable_regulators;
 
 	return 0;
+
+err_disable_regulators:
+	aic32x4_disable_regulators(aic32x4);
+
+	return ret;
 }
 EXPORT_SYMBOL(aic32x4_probe);
 
