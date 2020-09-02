@@ -274,7 +274,6 @@ static int suspend_test_thread(void *arg)
 {
 	int cpu = (long)arg;
 	int i, nb_suspend = 0, nb_shallow_sleep = 0, nb_err = 0;
-	struct sched_param sched_priority = { .sched_priority = MAX_RT_PRIO-1 };
 	struct cpuidle_device *dev;
 	struct cpuidle_driver *drv;
 	/* No need for an actual callback, we just want to wake up the CPU. */
@@ -284,9 +283,7 @@ static int suspend_test_thread(void *arg)
 	wait_for_completion(&suspend_threads_started);
 
 	/* Set maximum priority to preempt all other threads on this CPU. */
-	if (sched_setscheduler_nocheck(current, SCHED_FIFO, &sched_priority))
-		pr_warn("Failed to set suspend thread scheduler on CPU %d\n",
-			cpu);
+	sched_set_fifo(current);
 
 	dev = this_cpu_read(cpuidle_devices);
 	drv = cpuidle_get_cpu_driver(dev);
@@ -351,11 +348,6 @@ static int suspend_test_thread(void *arg)
 	if (atomic_dec_return_relaxed(&nb_active_threads) == 0)
 		complete(&suspend_threads_done);
 
-	/* Give up on RT scheduling and wait for termination. */
-	sched_priority.sched_priority = 0;
-	if (sched_setscheduler_nocheck(current, SCHED_NORMAL, &sched_priority))
-		pr_warn("Failed to set suspend thread scheduler on CPU %d\n",
-			cpu);
 	for (;;) {
 		/* Needs to be set first to avoid missing a wakeup. */
 		set_current_state(TASK_INTERRUPTIBLE);

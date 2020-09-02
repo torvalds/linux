@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for am3517 SoC
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -9,6 +9,10 @@
  */
 
 #include "omap3.dtsi"
+
+/* AM3517 doesn't appear to have the crypto engines defined in omap3.dtsi */
+/delete-node/ &aes1_target;
+/delete-node/ &aes2_target;
 
 / {
 	aliases {

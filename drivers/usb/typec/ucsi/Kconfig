@@ -18,7 +18,7 @@ config TYPEC_UCSI
 	  for every supported interface method.
 
 	  The UCSI specification can be downloaded from:
-	  http://www.intel.com/content/www/us/en/io/universal-serial-bus/usb-type-c-ucsi-spec.html
+	  https://www.intel.com/content/www/us/en/io/universal-serial-bus/usb-type-c-ucsi-spec.html
 
 	  To compile the driver as a module, choose M here: the module will be
 	  called typec_ucsi.

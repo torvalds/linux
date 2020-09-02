@@ -160,7 +160,7 @@
 146	i386	writev			sys_writev			compat_sys_writev
 147	i386	getsid			sys_getsid
 148	i386	fdatasync		sys_fdatasync
-149	i386	_sysctl			sys_sysctl			compat_sys_sysctl
+149	i386	_sysctl			sys_ni_syscall
 150	i386	mlock			sys_mlock
 151	i386	munlock			sys_munlock
 152	i386	mlockall		sys_mlockall
@@ -376,8 +376,8 @@
 362	i386	connect			sys_connect
 363	i386	listen			sys_listen
 364	i386	accept4			sys_accept4
-365	i386	getsockopt		sys_getsockopt			compat_sys_getsockopt
-366	i386	setsockopt		sys_setsockopt			compat_sys_setsockopt
+365	i386	getsockopt		sys_getsockopt			sys_getsockopt
+366	i386	setsockopt		sys_setsockopt			sys_setsockopt
 367	i386	getsockname		sys_getsockname
 368	i386	getpeername		sys_getpeername
 369	i386	sendto			sys_sendto
@@ -440,6 +440,7 @@
 433	i386	fspick			sys_fspick
 434	i386	pidfd_open		sys_pidfd_open
 435	i386	clone3			sys_clone3
+436	i386	close_range		sys_close_range
 437	i386	openat2			sys_openat2
 438	i386	pidfd_getfd		sys_pidfd_getfd
 439	i386	faccessat2		sys_faccessat2

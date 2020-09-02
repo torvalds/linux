@@ -395,7 +395,6 @@ static int mux_probe(struct platform_device *pdev)
 	mux->cached_state = -1;
 
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &mux_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mux->chan;

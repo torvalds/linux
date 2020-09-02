@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Driver for Microsemi VSC85xx PHYs
+ * Driver for Microsemi VSC85xx PHYs - MACsec support
  *
- * Author: Nagaraju Lakkaraju
+ * Author: Antoine Tenart
  * License: Dual MIT/GPL
- * Copyright (c) 2016 Microsemi Corporation
+ * Copyright (c) 2020 Microsemi Corporation
  */
 
 #include <linux/phy.h>
@@ -285,7 +285,9 @@ static void vsc8584_macsec_mac_init(struct phy_device *phydev,
 				 MSCC_MAC_CFG_PKTINF_CFG_STRIP_PREAMBLE_ENA |
 				 MSCC_MAC_CFG_PKTINF_CFG_INSERT_PREAMBLE_ENA |
 				 (bank == HOST_MAC ?
-				  MSCC_MAC_CFG_PKTINF_CFG_ENABLE_TX_PADDING : 0));
+				  MSCC_MAC_CFG_PKTINF_CFG_ENABLE_TX_PADDING : 0) |
+				 (IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING) ?
+				  MSCC_MAC_CFG_PKTINF_CFG_MACSEC_BYPASS_NUM_PTP_STALL_CLKS(0x8) : 0));
 
 	val = vsc8584_macsec_phy_read(phydev, bank, MSCC_MAC_CFG_MODE_CFG);
 	val &= ~MSCC_MAC_CFG_MODE_CFG_DISABLE_DIC;
@@ -383,21 +385,23 @@ static void vsc8584_macsec_flow(struct phy_device *phydev,
 	}
 
 	if (bank == MACSEC_INGR && flow->match.sci && flow->rx_sa->sc->sci) {
+		u64 sci = (__force u64)flow->rx_sa->sc->sci;
+
 		match |= MSCC_MS_SAM_MISC_MATCH_TCI(BIT(3));
 		mask |= MSCC_MS_SAM_MASK_TCI_MASK(BIT(3)) |
 			MSCC_MS_SAM_MASK_SCI_MASK;
 
 		vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_SAM_MATCH_SCI_LO(idx),
-					 lower_32_bits(flow->rx_sa->sc->sci));
+					 lower_32_bits(sci));
 		vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_SAM_MATCH_SCI_HI(idx),
-					 upper_32_bits(flow->rx_sa->sc->sci));
+					 upper_32_bits(sci));
 	}
 
 	if (flow->match.etype) {
 		mask |= MSCC_MS_SAM_MASK_MAC_ETYPE_MASK;
 
 		vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_SAM_MAC_SA_MATCH_HI(idx),
-					 MSCC_MS_SAM_MAC_SA_MATCH_HI_ETYPE(htons(flow->etype)));
+					 MSCC_MS_SAM_MAC_SA_MATCH_HI_ETYPE((__force u32)htons(flow->etype)));
 	}
 
 	match |= MSCC_MS_SAM_MISC_MATCH_PRIORITY(flow->priority);
@@ -521,7 +525,7 @@ static int vsc8584_macsec_transformation(struct phy_device *phydev,
 	int i, ret, index = flow->index;
 	u32 rec = 0, control = 0;
 	u8 hkey[16];
-	sci_t sci;
+	u64 sci;
 
 	ret = vsc8584_macsec_derive_key(flow->key, priv->secy->key_len, hkey);
 	if (ret)
@@ -579,7 +583,7 @@ static int vsc8584_macsec_transformation(struct phy_device *phydev,
 					 priv->secy->replay_window);
 
 	/* Set the input vectors */
-	sci = bank == MACSEC_INGR ? flow->rx_sa->sc->sci : priv->secy->sci;
+	sci = (__force u64)(bank == MACSEC_INGR ? flow->rx_sa->sc->sci : priv->secy->sci);
 	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_XFORM_REC(index, rec++),
 				 lower_32_bits(sci));
 	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_XFORM_REC(index, rec++),

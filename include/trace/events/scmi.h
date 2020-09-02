@@ -35,7 +35,7 @@ TRACE_EVENT(scmi_xfer_begin,
 
 TRACE_EVENT(scmi_xfer_end,
 	TP_PROTO(int transfer_id, u8 msg_id, u8 protocol_id, u16 seq,
-		 u32 status),
+		 int status),
 	TP_ARGS(transfer_id, msg_id, protocol_id, seq, status),
 
 	TP_STRUCT__entry(
@@ -43,7 +43,7 @@ TRACE_EVENT(scmi_xfer_end,
 		__field(u8, msg_id)
 		__field(u8, protocol_id)
 		__field(u16, seq)
-		__field(u32, status)
+		__field(int, status)
 	),
 
 	TP_fast_assign(
@@ -54,7 +54,7 @@ TRACE_EVENT(scmi_xfer_end,
 		__entry->status = status;
 	),
 
-	TP_printk("transfer_id=%d msg_id=%u protocol_id=%u seq=%u status=%u",
+	TP_printk("transfer_id=%d msg_id=%u protocol_id=%u seq=%u status=%d",
 		__entry->transfer_id, __entry->msg_id, __entry->protocol_id,
 		__entry->seq, __entry->status)
 );

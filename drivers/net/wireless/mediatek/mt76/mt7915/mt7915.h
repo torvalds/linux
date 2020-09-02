@@ -99,15 +99,10 @@ struct mt7915_vif {
 	u8 band_idx;
 	u8 wmm_idx;
 
-	struct {
-		u16 cw_min;
-		u16 cw_max;
-		u16 txop;
-		u8 aifs;
-	} wmm[IEEE80211_NUM_ACS];
-
 	struct mt7915_sta sta;
 	struct mt7915_dev *dev;
+
+	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 };
 
 struct mib_stats {
@@ -125,7 +120,6 @@ struct mt7915_phy {
 	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
 
 	u32 rxfilter;
-	u32 vif_mask;
 	u32 omac_mask;
 
 	u16 noise;
@@ -200,6 +194,16 @@ enum {
 };
 
 enum {
+	MT_LMAC_AC00,
+	MT_LMAC_AC01,
+	MT_LMAC_AC02,
+	MT_LMAC_AC03,
+	MT_LMAC_ALTX0 = 0x10,
+	MT_LMAC_BMC0,
+	MT_LMAC_BCN0,
+};
+
+enum {
 	MT_RX_SEL0,
 	MT_RX_SEL1,
 };
@@ -252,6 +256,21 @@ mt7915_ext_phy(struct mt7915_dev *dev)
 		return NULL;
 
 	return phy->priv;
+}
+
+static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
+{
+	static const u8 lmac_queue_map[] = {
+		[IEEE80211_AC_BK] = MT_LMAC_AC00,
+		[IEEE80211_AC_BE] = MT_LMAC_AC01,
+		[IEEE80211_AC_VI] = MT_LMAC_AC02,
+		[IEEE80211_AC_VO] = MT_LMAC_AC03,
+	};
+
+	if (WARN_ON_ONCE(ac >= ARRAY_SIZE(lmac_queue_map)))
+		return MT_LMAC_AC01; /* BE */
+
+	return lmac_queue_map[ac];
 }
 
 static inline void

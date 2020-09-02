@@ -32,8 +32,8 @@ struct section {
 	GElf_Shdr sh;
 	struct rb_root symbol_tree;
 	struct list_head symbol_list;
-	struct list_head rela_list;
-	struct section *base, *rela;
+	struct list_head reloc_list;
+	struct section *base, *reloc;
 	struct symbol *sym;
 	Elf_Data *data;
 	char *name;
@@ -58,10 +58,13 @@ struct symbol {
 	bool uaccess_safe;
 };
 
-struct rela {
+struct reloc {
 	struct list_head list;
 	struct hlist_node hash;
-	GElf_Rela rela;
+	union {
+		GElf_Rela rela;
+		GElf_Rel  rel;
+	};
 	struct section *sec;
 	struct symbol *sym;
 	unsigned long offset;
@@ -84,7 +87,7 @@ struct elf {
 	DECLARE_HASHTABLE(symbol_name_hash, ELF_HASH_BITS);
 	DECLARE_HASHTABLE(section_hash, ELF_HASH_BITS);
 	DECLARE_HASHTABLE(section_name_hash, ELF_HASH_BITS);
-	DECLARE_HASHTABLE(rela_hash, ELF_HASH_BITS);
+	DECLARE_HASHTABLE(reloc_hash, ELF_HASH_BITS);
 };
 
 #define OFFSET_STRIDE_BITS	4
@@ -111,19 +114,19 @@ static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
 	return ol;
 }
 
-static inline u32 rela_hash(struct rela *rela)
+static inline u32 reloc_hash(struct reloc *reloc)
 {
-	return sec_offset_hash(rela->sec, rela->offset);
+	return sec_offset_hash(reloc->sec, reloc->offset);
 }
 
 struct elf *elf_open_read(const char *name, int flags);
 struct section *elf_create_section(struct elf *elf, const char *name, size_t entsize, int nr);
-struct section *elf_create_rela_section(struct elf *elf, struct section *base);
-void elf_add_rela(struct elf *elf, struct rela *rela);
+struct section *elf_create_reloc_section(struct elf *elf, struct section *base, int reltype);
+void elf_add_reloc(struct elf *elf, struct reloc *reloc);
 int elf_write_insn(struct elf *elf, struct section *sec,
 		   unsigned long offset, unsigned int len,
 		   const char *insn);
-int elf_write_rela(struct elf *elf, struct rela *rela);
+int elf_write_reloc(struct elf *elf, struct reloc *reloc);
 int elf_write(struct elf *elf);
 void elf_close(struct elf *elf);
 
@@ -132,11 +135,11 @@ struct symbol *find_func_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_name(const struct elf *elf, const char *name);
 struct symbol *find_symbol_containing(const struct section *sec, unsigned long offset);
-struct rela *find_rela_by_dest(const struct elf *elf, struct section *sec, unsigned long offset);
-struct rela *find_rela_by_dest_range(const struct elf *elf, struct section *sec,
+struct reloc *find_reloc_by_dest(const struct elf *elf, struct section *sec, unsigned long offset);
+struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *sec,
 				     unsigned long offset, unsigned int len);
 struct symbol *find_func_containing(struct section *sec, unsigned long offset);
-int elf_rebuild_rela_section(struct elf *elf, struct section *sec);
+int elf_rebuild_reloc_section(struct elf *elf, struct section *sec);
 
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)

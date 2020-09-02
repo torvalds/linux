@@ -381,12 +381,12 @@ struct sja1105_static_config {
 	struct sja1105_table tables[BLK_IDX_MAX];
 };
 
-extern struct sja1105_table_ops sja1105e_table_ops[BLK_IDX_MAX];
-extern struct sja1105_table_ops sja1105t_table_ops[BLK_IDX_MAX];
-extern struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX];
-extern struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX];
-extern struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX];
-extern struct sja1105_table_ops sja1105s_table_ops[BLK_IDX_MAX];
+extern const struct sja1105_table_ops sja1105e_table_ops[BLK_IDX_MAX];
+extern const struct sja1105_table_ops sja1105t_table_ops[BLK_IDX_MAX];
+extern const struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX];
+extern const struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX];
+extern const struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX];
+extern const struct sja1105_table_ops sja1105s_table_ops[BLK_IDX_MAX];
 
 size_t sja1105_table_header_packing(void *buf, void *hdr, enum packing_op op);
 void

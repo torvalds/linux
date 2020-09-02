@@ -177,10 +177,10 @@ properties:
 dependencies:
   # 'vendor,bool-property' is only allowed when 'vendor,string-array-property'
   # is present
-  vendor,bool-property: [ vendor,string-array-property ]
+  vendor,bool-property: [ 'vendor,string-array-property' ]
   # Expressing 2 properties in both orders means all of the set of properties
   # must be present or none of them.
-  vendor,string-array-property: [ vendor,bool-property ]
+  vendor,string-array-property: [ 'vendor,bool-property' ]
 
 required:
   - compatible

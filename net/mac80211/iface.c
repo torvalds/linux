@@ -978,7 +978,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* relies on synchronize_rcu() below */
 		RCU_INIT_POINTER(local->p2p_sdata, NULL);
-		/* fall through */
+		fallthrough;
 	default:
 		cancel_work_sync(&sdata->work);
 		/*
@@ -1048,7 +1048,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
 			break;
 
-		/* fall through */
+		fallthrough;
 	default:
 		if (going_down)
 			drv_remove_interface(local, sdata);
@@ -1183,17 +1183,24 @@ static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr;
-	struct ieee80211_radiotap_header *rtap = (void *)skb->data;
+	int len_rthdr;
 
 	if (local->hw.queues < IEEE80211_NUM_ACS)
 		return 0;
 
-	if (skb->len < 4 ||
-	    skb->len < le16_to_cpu(rtap->it_len) + 2 /* frame control */)
+	/* reset flags and info before parsing radiotap header */
+	memset(info, 0, sizeof(*info));
+
+	if (!ieee80211_parse_tx_radiotap(skb, dev))
 		return 0; /* doesn't matter, frame will be dropped */
 
-	hdr = (void *)((u8 *)skb->data + le16_to_cpu(rtap->it_len));
+	len_rthdr = ieee80211_get_radiotap_len(skb->data);
+	hdr = (struct ieee80211_hdr *)(skb->data + len_rthdr);
+	if (skb->len < len_rthdr + 2 ||
+	    skb->len < len_rthdr + ieee80211_hdrlen(hdr->frame_control))
+		return 0; /* doesn't matter, frame will be dropped */
 
 	return ieee80211_select_queue_80211(sdata, skb, hdr);
 }
@@ -1497,7 +1504,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		type = NL80211_IFTYPE_AP;
 		sdata->vif.type = type;
 		sdata->vif.p2p = true;
-		/* fall through */
+		fallthrough;
 	case NL80211_IFTYPE_AP:
 		skb_queue_head_init(&sdata->u.ap.ps.bc_buf);
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
@@ -1507,7 +1514,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		type = NL80211_IFTYPE_STATION;
 		sdata->vif.type = type;
 		sdata->vif.p2p = true;
-		/* fall through */
+		fallthrough;
 	case NL80211_IFTYPE_STATION:
 		sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
 		ieee80211_sta_setup_sdata(sdata);
@@ -1703,7 +1710,7 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 				goto out_unlock;
 			}
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		/* assign a new address if possible -- try n_addresses first */
 		for (i = 0; i < local->hw.wiphy->n_addresses; i++) {

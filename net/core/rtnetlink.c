@@ -1000,6 +1000,16 @@ static size_t rtnl_prop_list_size(const struct net_device *dev)
 	return size;
 }
 
+static size_t rtnl_proto_down_size(const struct net_device *dev)
+{
+	size_t size = nla_total_size(1);
+
+	if (dev->proto_down_reason)
+		size += nla_total_size(0) + nla_total_size(4);
+
+	return size;
+}
+
 static noinline size_t if_nlmsg_size(const struct net_device *dev,
 				     u32 ext_filter_mask)
 {
@@ -1041,7 +1051,7 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4)  /* IFLA_EVENT */
 	       + nla_total_size(4)  /* IFLA_NEW_NETNSID */
 	       + nla_total_size(4)  /* IFLA_NEW_IFINDEX */
-	       + nla_total_size(1)  /* IFLA_PROTO_DOWN */
+	       + rtnl_proto_down_size(dev)  /* proto down */
 	       + nla_total_size(4)  /* IFLA_TARGET_NETNSID */
 	       + nla_total_size(4)  /* IFLA_CARRIER_UP_COUNT */
 	       + nla_total_size(4)  /* IFLA_CARRIER_DOWN_COUNT */
@@ -1416,13 +1426,12 @@ static u32 rtnl_xdp_prog_skb(struct net_device *dev)
 
 static u32 rtnl_xdp_prog_drv(struct net_device *dev)
 {
-	return __dev_xdp_query(dev, dev->netdev_ops->ndo_bpf, XDP_QUERY_PROG);
+	return dev_xdp_prog_id(dev, XDP_MODE_DRV);
 }
 
 static u32 rtnl_xdp_prog_hw(struct net_device *dev)
 {
-	return __dev_xdp_query(dev, dev->netdev_ops->ndo_bpf,
-			       XDP_QUERY_PROG_HW);
+	return dev_xdp_prog_id(dev, XDP_MODE_HW);
 }
 
 static int rtnl_xdp_report_one(struct sk_buff *skb, struct net_device *dev,
@@ -1658,6 +1667,35 @@ nest_cancel:
 	return ret;
 }
 
+static int rtnl_fill_proto_down(struct sk_buff *skb,
+				const struct net_device *dev)
+{
+	struct nlattr *pr;
+	u32 preason;
+
+	if (nla_put_u8(skb, IFLA_PROTO_DOWN, dev->proto_down))
+		goto nla_put_failure;
+
+	preason = dev->proto_down_reason;
+	if (!preason)
+		return 0;
+
+	pr = nla_nest_start(skb, IFLA_PROTO_DOWN_REASON);
+	if (!pr)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(skb, IFLA_PROTO_DOWN_REASON_VALUE, preason)) {
+		nla_nest_cancel(skb, pr);
+		goto nla_put_failure;
+	}
+
+	nla_nest_end(skb, pr);
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
 static int rtnl_fill_ifinfo(struct sk_buff *skb,
 			    struct net_device *dev, struct net *src_net,
 			    int type, u32 pid, u32 seq, u32 change,
@@ -1708,11 +1746,13 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	    nla_put_u32(skb, IFLA_CARRIER_CHANGES,
 			atomic_read(&dev->carrier_up_count) +
 			atomic_read(&dev->carrier_down_count)) ||
-	    nla_put_u8(skb, IFLA_PROTO_DOWN, dev->proto_down) ||
 	    nla_put_u32(skb, IFLA_CARRIER_UP_COUNT,
 			atomic_read(&dev->carrier_up_count)) ||
 	    nla_put_u32(skb, IFLA_CARRIER_DOWN_COUNT,
 			atomic_read(&dev->carrier_down_count)))
+		goto nla_put_failure;
+
+	if (rtnl_fill_proto_down(skb, dev))
 		goto nla_put_failure;
 
 	if (event != IFLA_EVENT_NONE) {
@@ -1834,6 +1874,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_ALT_IFNAME]	= { .type = NLA_STRING,
 				    .len = ALTIFNAMSIZ - 1 },
 	[IFLA_PERM_ADDRESS]	= { .type = NLA_REJECT },
+	[IFLA_PROTO_DOWN_REASON] = { .type = NLA_NESTED },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -2483,6 +2524,67 @@ static int do_set_master(struct net_device *dev, int ifindex,
 	return 0;
 }
 
+static const struct nla_policy ifla_proto_down_reason_policy[IFLA_PROTO_DOWN_REASON_VALUE + 1] = {
+	[IFLA_PROTO_DOWN_REASON_MASK]	= { .type = NLA_U32 },
+	[IFLA_PROTO_DOWN_REASON_VALUE]	= { .type = NLA_U32 },
+};
+
+static int do_set_proto_down(struct net_device *dev,
+			     struct nlattr *nl_proto_down,
+			     struct nlattr *nl_proto_down_reason,
+			     struct netlink_ext_ack *extack)
+{
+	struct nlattr *pdreason[IFLA_PROTO_DOWN_REASON_MAX + 1];
+	const struct net_device_ops *ops = dev->netdev_ops;
+	unsigned long mask = 0;
+	u32 value;
+	bool proto_down;
+	int err;
+
+	if (!ops->ndo_change_proto_down) {
+		NL_SET_ERR_MSG(extack,  "Protodown not supported by device");
+		return -EOPNOTSUPP;
+	}
+
+	if (nl_proto_down_reason) {
+		err = nla_parse_nested_deprecated(pdreason,
+						  IFLA_PROTO_DOWN_REASON_MAX,
+						  nl_proto_down_reason,
+						  ifla_proto_down_reason_policy,
+						  NULL);
+		if (err < 0)
+			return err;
+
+		if (!pdreason[IFLA_PROTO_DOWN_REASON_VALUE]) {
+			NL_SET_ERR_MSG(extack, "Invalid protodown reason value");
+			return -EINVAL;
+		}
+
+		value = nla_get_u32(pdreason[IFLA_PROTO_DOWN_REASON_VALUE]);
+
+		if (pdreason[IFLA_PROTO_DOWN_REASON_MASK])
+			mask = nla_get_u32(pdreason[IFLA_PROTO_DOWN_REASON_MASK]);
+
+		dev_change_proto_down_reason(dev, mask, value);
+	}
+
+	if (nl_proto_down) {
+		proto_down = nla_get_u8(nl_proto_down);
+
+		/* Dont turn off protodown if there are active reasons */
+		if (!proto_down && dev->proto_down_reason) {
+			NL_SET_ERR_MSG(extack, "Cannot clear protodown, active reasons");
+			return -EBUSY;
+		}
+		err = dev_change_proto_down(dev,
+					    proto_down);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 #define DO_SETLINK_MODIFIED	0x01
 /* notify flag means notify + modified. */
 #define DO_SETLINK_NOTIFY	0x03
@@ -2771,9 +2873,9 @@ static int do_setlink(const struct sk_buff *skb,
 	}
 	err = 0;
 
-	if (tb[IFLA_PROTO_DOWN]) {
-		err = dev_change_proto_down(dev,
-					    nla_get_u8(tb[IFLA_PROTO_DOWN]));
+	if (tb[IFLA_PROTO_DOWN] || tb[IFLA_PROTO_DOWN_REASON]) {
+		err = do_set_proto_down(dev, tb[IFLA_PROTO_DOWN],
+					tb[IFLA_PROTO_DOWN_REASON], extack);
 		if (err)
 			goto errout;
 		status |= DO_SETLINK_NOTIFY;

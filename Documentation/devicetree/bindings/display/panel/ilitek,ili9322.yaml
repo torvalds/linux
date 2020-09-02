@@ -25,8 +25,7 @@ properties:
   compatible:
     items:
       - enum:
-        - dlink,dir-685-panel
-
+          - dlink,dir-685-panel
       - const: ilitek,ili9322
 
   reset-gpios: true

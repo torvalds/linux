@@ -344,6 +344,31 @@ static ssize_t rtw_debugfs_set_write_reg(struct file *filp,
 	return count;
 }
 
+static ssize_t rtw_debugfs_set_h2c(struct file *filp,
+				   const char __user *buffer,
+				   size_t count, loff_t *loff)
+{
+	struct rtw_debugfs_priv *debugfs_priv = filp->private_data;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+	char tmp[32 + 1];
+	u8 param[8];
+	int num;
+
+	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 3);
+
+	num = sscanf(tmp, "%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx",
+		     &param[0], &param[1], &param[2], &param[3],
+		     &param[4], &param[5], &param[6], &param[7]);
+	if (num != 8) {
+		rtw_info(rtwdev, "invalid H2C command format for debug\n");
+		return -EINVAL;
+	}
+
+	rtw_fw_h2c_cmd_dbg(rtwdev, param);
+
+	return count;
+}
+
 static ssize_t rtw_debugfs_set_rf_write(struct file *filp,
 					const char __user *buffer,
 					size_t count, loff_t *loff)
@@ -808,6 +833,10 @@ static struct rtw_debugfs_priv rtw_debug_priv_write_reg = {
 	.cb_write = rtw_debugfs_set_write_reg,
 };
 
+static struct rtw_debugfs_priv rtw_debug_priv_h2c = {
+	.cb_write = rtw_debugfs_set_h2c,
+};
+
 static struct rtw_debugfs_priv rtw_debug_priv_rf_write = {
 	.cb_write = rtw_debugfs_set_rf_write,
 };
@@ -877,6 +906,7 @@ void rtw_debugfs_init(struct rtw_dev *rtwdev)
 	rtw_debugfs_add_r(phy_info);
 	rtw_debugfs_add_r(coex_info);
 	rtw_debugfs_add_rw(coex_enable);
+	rtw_debugfs_add_w(h2c);
 	rtw_debugfs_add_r(mac_0);
 	rtw_debugfs_add_r(mac_1);
 	rtw_debugfs_add_r(mac_2);

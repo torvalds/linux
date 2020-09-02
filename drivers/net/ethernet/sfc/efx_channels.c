@@ -23,10 +23,7 @@
  * 1 => MSI
  * 2 => legacy
  */
-static unsigned int interrupt_mode;
-module_param(interrupt_mode, uint, 0444);
-MODULE_PARM_DESC(interrupt_mode,
-		 "Interrupt mode (0=>MSIX 1=>MSI 2=>legacy)");
+unsigned int efx_interrupt_mode = EFX_INT_MODE_MSIX;
 
 /* This is the requested number of CPUs to use for Receive-Side Scaling (RSS),
  * i.e. the number of CPUs among which we may distribute simultaneous
@@ -35,9 +32,7 @@ MODULE_PARM_DESC(interrupt_mode,
  * Cards without MSI-X will only target one CPU via legacy or MSI interrupt.
  * The default (0) means to assign an interrupt to each core.
  */
-static unsigned int rss_cpus;
-module_param(rss_cpus, uint, 0444);
-MODULE_PARM_DESC(rss_cpus, "Number of CPUs to use for Receive-Side Scaling");
+unsigned int rss_cpus;
 
 static unsigned int irq_adapt_low_thresh = 8000;
 module_param(irq_adapt_low_thresh, uint, 0644);
@@ -172,6 +167,13 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 		netif_err(efx, drv, efx->net_dev,
 			  "Insufficient resources for %d XDP event queues (%d other channels, max %d)\n",
 			  n_xdp_ev, n_channels, max_channels);
+		efx->n_xdp_channels = 0;
+		efx->xdp_tx_per_channel = 0;
+		efx->xdp_tx_queue_count = 0;
+	} else if (n_channels + n_xdp_tx > efx->max_vis) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Insufficient resources for %d XDP TX queues (%d other channels, max VIs %d)\n",
+			  n_xdp_tx, n_channels, efx->max_vis);
 		efx->n_xdp_channels = 0;
 		efx->xdp_tx_per_channel = 0;
 		efx->xdp_tx_queue_count = 0;
@@ -522,7 +524,8 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 	for (j = 0; j < EFX_TXQ_TYPES; j++) {
 		tx_queue = &channel->tx_queue[j];
 		tx_queue->efx = efx;
-		tx_queue->queue = i * EFX_TXQ_TYPES + j;
+		tx_queue->queue = -1;
+		tx_queue->label = j;
 		tx_queue->channel = channel;
 	}
 
@@ -550,14 +553,11 @@ int efx_init_channels(struct efx_nic *efx)
 	}
 
 	/* Higher numbered interrupt modes are less capable! */
-	if (WARN_ON_ONCE(efx->type->max_interrupt_mode >
-			 efx->type->min_interrupt_mode)) {
-		return -EIO;
-	}
-	efx->interrupt_mode = max(efx->type->max_interrupt_mode,
-				  interrupt_mode);
 	efx->interrupt_mode = min(efx->type->min_interrupt_mode,
-				  interrupt_mode);
+				  efx_interrupt_mode);
+
+	efx->max_channels = EFX_MAX_CHANNELS;
+	efx->max_tx_channels = EFX_MAX_CHANNELS;
 
 	return 0;
 }
@@ -727,7 +727,7 @@ void efx_remove_channel(struct efx_channel *channel)
 
 	efx_for_each_channel_rx_queue(rx_queue, channel)
 		efx_remove_rx_queue(rx_queue);
-	efx_for_each_possible_channel_tx_queue(tx_queue, channel)
+	efx_for_each_channel_tx_queue(tx_queue, channel)
 		efx_remove_tx_queue(tx_queue);
 	efx_remove_eventq(channel);
 	channel->type->post_remove(channel);
@@ -854,9 +854,11 @@ rollback:
 
 int efx_set_channels(struct efx_nic *efx)
 {
-	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
+	struct efx_channel *channel;
+	unsigned int next_queue = 0;
 	int xdp_queue_number;
+	int rc;
 
 	efx->tx_channel_offset =
 		efx_separate_tx_channels ?
@@ -884,18 +886,38 @@ int efx_set_channels(struct efx_nic *efx)
 		else
 			channel->rx_queue.core_index = -1;
 
-		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			tx_queue->queue -= (efx->tx_channel_offset *
-					    EFX_TXQ_TYPES);
-
-			if (efx_channel_is_xdp_tx(channel) &&
-			    xdp_queue_number < efx->xdp_tx_queue_count) {
-				efx->xdp_tx_queues[xdp_queue_number] = tx_queue;
-				xdp_queue_number++;
+		if (channel->channel >= efx->tx_channel_offset) {
+			if (efx_channel_is_xdp_tx(channel)) {
+				efx_for_each_channel_tx_queue(tx_queue, channel) {
+					tx_queue->queue = next_queue++;
+					netif_dbg(efx, drv, efx->net_dev, "Channel %u TXQ %u is XDP %u, HW %u\n",
+						  channel->channel, tx_queue->label,
+						  xdp_queue_number, tx_queue->queue);
+					/* We may have a few left-over XDP TX
+					 * queues owing to xdp_tx_queue_count
+					 * not dividing evenly by EFX_TXQ_TYPES.
+					 * We still allocate and probe those
+					 * TXQs, but never use them.
+					 */
+					if (xdp_queue_number < efx->xdp_tx_queue_count)
+						efx->xdp_tx_queues[xdp_queue_number] = tx_queue;
+					xdp_queue_number++;
+				}
+			} else {
+				efx_for_each_channel_tx_queue(tx_queue, channel) {
+					tx_queue->queue = next_queue++;
+					netif_dbg(efx, drv, efx->net_dev, "Channel %u TXQ %u is HW %u\n",
+						  channel->channel, tx_queue->label,
+						  tx_queue->queue);
+				}
 			}
 		}
 	}
-	return 0;
+
+	rc = netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
+	if (rc)
+		return rc;
+	return netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
 }
 
 bool efx_default_channel_want_txqs(struct efx_channel *channel)
@@ -1091,7 +1113,7 @@ void efx_stop_channels(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		efx_for_each_channel_rx_queue(rx_queue, channel)
 			efx_fini_rx_queue(rx_queue);
-		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
+		efx_for_each_channel_tx_queue(tx_queue, channel)
 			efx_fini_tx_queue(tx_queue);
 	}
 }

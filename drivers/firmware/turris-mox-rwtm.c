@@ -7,6 +7,7 @@
 
 #include <linux/armada-37xx-rwtm-mailbox.h>
 #include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/hw_random.h>
 #include <linux/mailbox_client.h>
@@ -69,6 +70,18 @@ struct mox_rwtm {
 	/* public key burned in eFuse */
 	int has_pubkey;
 	u8 pubkey[135];
+
+#ifdef CONFIG_DEBUG_FS
+	/*
+	 * Signature process. This is currently done via debugfs, because it
+	 * does not conform to the sysfs standard "one file per attribute".
+	 * It should be rewritten via crypto API once akcipher API is available
+	 * from userspace.
+	 */
+	struct dentry *debugfs_root;
+	u32 last_sig[34];
+	int last_sig_done;
+#endif
 };
 
 struct mox_kobject {
@@ -279,6 +292,152 @@ unlock_mutex:
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int rwtm_debug_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+
+	return nonseekable_open(inode, file);
+}
+
+static ssize_t do_sign_read(struct file *file, char __user *buf, size_t len,
+			    loff_t *ppos)
+{
+	struct mox_rwtm *rwtm = file->private_data;
+	ssize_t ret;
+
+	/* only allow one read, of 136 bytes, from position 0 */
+	if (*ppos != 0)
+		return 0;
+
+	if (len < 136)
+		return -EINVAL;
+
+	if (!rwtm->last_sig_done)
+		return -ENODATA;
+
+	/* 2 arrays of 17 32-bit words are 136 bytes */
+	ret = simple_read_from_buffer(buf, len, ppos, rwtm->last_sig, 136);
+	rwtm->last_sig_done = 0;
+
+	return ret;
+}
+
+static ssize_t do_sign_write(struct file *file, const char __user *buf,
+			     size_t len, loff_t *ppos)
+{
+	struct mox_rwtm *rwtm = file->private_data;
+	struct armada_37xx_rwtm_rx_msg *reply = &rwtm->reply;
+	struct armada_37xx_rwtm_tx_msg msg;
+	loff_t dummy = 0;
+	ssize_t ret;
+
+	/* the input is a SHA-512 hash, so exactly 64 bytes have to be read */
+	if (len != 64)
+		return -EINVAL;
+
+	/* if last result is not zero user has not read that information yet */
+	if (rwtm->last_sig_done)
+		return -EBUSY;
+
+	if (!mutex_trylock(&rwtm->busy))
+		return -EBUSY;
+
+	/*
+	 * Here we have to send:
+	 *   1. Address of the input to sign.
+	 *      The input is an array of 17 32-bit words, the first (most
+	 *      significat) is 0, the rest 16 words are copied from the SHA-512
+	 *      hash given by the user and converted from BE to LE.
+	 *   2. Address of the buffer where ECDSA signature value R shall be
+	 *      stored by the rWTM firmware.
+	 *   3. Address of the buffer where ECDSA signature value S shall be
+	 *      stored by the rWTM firmware.
+	 */
+	memset(rwtm->buf, 0, 4);
+	ret = simple_write_to_buffer(rwtm->buf + 4, 64, &dummy, buf, len);
+	if (ret < 0)
+		goto unlock_mutex;
+	be32_to_cpu_array(rwtm->buf, rwtm->buf, 17);
+
+	msg.command = MBOX_CMD_SIGN;
+	msg.args[0] = 1;
+	msg.args[1] = rwtm->buf_phys;
+	msg.args[2] = rwtm->buf_phys + 68;
+	msg.args[3] = rwtm->buf_phys + 2 * 68;
+	ret = mbox_send_message(rwtm->mbox, &msg);
+	if (ret < 0)
+		goto unlock_mutex;
+
+	ret = wait_for_completion_interruptible(&rwtm->cmd_done);
+	if (ret < 0)
+		goto unlock_mutex;
+
+	ret = MBOX_STS_VALUE(reply->retval);
+	if (MBOX_STS_ERROR(reply->retval) != MBOX_STS_SUCCESS)
+		goto unlock_mutex;
+
+	/*
+	 * Here we read the R and S values of the ECDSA signature
+	 * computed by the rWTM firmware and convert their words from
+	 * LE to BE.
+	 */
+	memcpy(rwtm->last_sig, rwtm->buf + 68, 136);
+	cpu_to_be32_array(rwtm->last_sig, rwtm->last_sig, 34);
+	rwtm->last_sig_done = 1;
+
+	mutex_unlock(&rwtm->busy);
+	return len;
+unlock_mutex:
+	mutex_unlock(&rwtm->busy);
+	return ret;
+}
+
+static const struct file_operations do_sign_fops = {
+	.owner	= THIS_MODULE,
+	.open	= rwtm_debug_open,
+	.read	= do_sign_read,
+	.write	= do_sign_write,
+	.llseek	= no_llseek,
+};
+
+static int rwtm_register_debugfs(struct mox_rwtm *rwtm)
+{
+	struct dentry *root, *entry;
+
+	root = debugfs_create_dir("turris-mox-rwtm", NULL);
+
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	entry = debugfs_create_file_unsafe("do_sign", 0600, root, rwtm,
+					   &do_sign_fops);
+	if (IS_ERR(entry))
+		goto err_remove;
+
+	rwtm->debugfs_root = root;
+
+	return 0;
+err_remove:
+	debugfs_remove_recursive(root);
+	return PTR_ERR(entry);
+}
+
+static void rwtm_unregister_debugfs(struct mox_rwtm *rwtm)
+{
+	debugfs_remove_recursive(rwtm->debugfs_root);
+}
+#else
+static inline int rwtm_register_debugfs(struct mox_rwtm *rwtm)
+{
+	return 0;
+}
+
+static inline void rwtm_unregister_debugfs(struct mox_rwtm *rwtm)
+{
+}
+#endif
+
 static int turris_mox_rwtm_probe(struct platform_device *pdev)
 {
 	struct mox_rwtm *rwtm;
@@ -340,6 +499,12 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 		goto free_channel;
 	}
 
+	ret = rwtm_register_debugfs(rwtm);
+	if (ret < 0) {
+		dev_err(dev, "Failed creating debugfs entries: %i\n", ret);
+		goto free_channel;
+	}
+
 	return 0;
 
 free_channel:
@@ -355,6 +520,7 @@ static int turris_mox_rwtm_remove(struct platform_device *pdev)
 {
 	struct mox_rwtm *rwtm = platform_get_drvdata(pdev);
 
+	rwtm_unregister_debugfs(rwtm);
 	sysfs_remove_files(rwtm_to_kobj(rwtm), mox_rwtm_attrs);
 	kobject_put(rwtm_to_kobj(rwtm));
 	mbox_free_channel(rwtm->mbox);

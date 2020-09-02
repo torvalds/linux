@@ -159,15 +159,15 @@ void test_bpf_obj_id(void)
 		/* Check getting link info */
 		info_len = sizeof(struct bpf_link_info) * 2;
 		bzero(&link_infos[i], info_len);
-		link_infos[i].raw_tracepoint.tp_name = (__u64)&tp_name;
+		link_infos[i].raw_tracepoint.tp_name = ptr_to_u64(&tp_name);
 		link_infos[i].raw_tracepoint.tp_name_len = sizeof(tp_name);
 		err = bpf_obj_get_info_by_fd(bpf_link__fd(links[i]),
 					     &link_infos[i], &info_len);
 		if (CHECK(err ||
 			  link_infos[i].type != BPF_LINK_TYPE_RAW_TRACEPOINT ||
 			  link_infos[i].prog_id != prog_infos[i].id ||
-			  link_infos[i].raw_tracepoint.tp_name != (__u64)&tp_name ||
-			  strcmp((char *)link_infos[i].raw_tracepoint.tp_name,
+			  link_infos[i].raw_tracepoint.tp_name != ptr_to_u64(&tp_name) ||
+			  strcmp(u64_to_ptr(link_infos[i].raw_tracepoint.tp_name),
 				 "sys_enter") ||
 			  info_len != sizeof(struct bpf_link_info),
 			  "get-link-info(fd)",
@@ -178,7 +178,7 @@ void test_bpf_obj_id(void)
 			  link_infos[i].type, BPF_LINK_TYPE_RAW_TRACEPOINT,
 			  link_infos[i].id,
 			  link_infos[i].prog_id, prog_infos[i].id,
-			  (char *)link_infos[i].raw_tracepoint.tp_name,
+			  (const char *)u64_to_ptr(link_infos[i].raw_tracepoint.tp_name),
 			  "sys_enter"))
 			goto done;
 

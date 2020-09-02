@@ -293,8 +293,8 @@ static inline void dvb_register_media_controller(struct dvb_adapter *adap,
  *
  * @adap:			pointer to &struct dvb_adapter
  */
-static inline struct media_device
-*dvb_get_media_controller(struct dvb_adapter *adap)
+static inline struct media_device *
+dvb_get_media_controller(struct dvb_adapter *adap)
 {
 	return adap->mdev;
 }
@@ -385,7 +385,7 @@ struct i2c_client;
  * with dvb_module_probe() should use dvb_module_release() to unbind.
  *
  * Return:
- *	On success, return an &struct i2c_client, pointing the the bound
+ *	On success, return an &struct i2c_client, pointing to the bound
  *	I2C device. %NULL otherwise.
  *
  * .. note::

@@ -88,6 +88,7 @@ static void huge_put_pages(struct drm_i915_gem_object *obj,
 }
 
 static const struct drm_i915_gem_object_ops huge_ops = {
+	.name = "huge-gem",
 	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE,
 	.get_pages = huge_get_pages,
 	.put_pages = huge_put_pages,

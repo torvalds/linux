@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/prctl.h>
+#include <asm/cputable.h>
 
 #include "event.h"
 #include "utils.h"
@@ -103,6 +104,9 @@ static int test_body(void)
 {
 	struct event events[3];
 	u64 overhead;
+
+	// The STCX_FAIL event we use works on Power8 or later
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
 
 	setup_event(&events[0], PERF_COUNT_HW_INSTRUCTIONS, PERF_TYPE_HARDWARE, "instructions");
 	setup_event(&events[1], PERF_COUNT_HW_CPU_CYCLES, PERF_TYPE_HARDWARE, "cycles");

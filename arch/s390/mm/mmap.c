@@ -17,7 +17,6 @@
 #include <linux/random.h>
 #include <linux/compat.h>
 #include <linux/security.h>
-#include <asm/pgalloc.h>
 #include <asm/elf.h>
 
 static unsigned long stack_maxrandom_size(void)

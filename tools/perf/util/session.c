@@ -115,12 +115,12 @@ static int perf_session__open(struct perf_session *session)
 	if (perf_header__has_feat(&session->header, HEADER_STAT))
 		return 0;
 
-	if (!perf_evlist__valid_sample_type(session->evlist)) {
+	if (!evlist__valid_sample_type(session->evlist)) {
 		pr_err("non matching sample_type\n");
 		return -1;
 	}
 
-	if (!perf_evlist__valid_sample_id_all(session->evlist)) {
+	if (!evlist__valid_sample_id_all(session->evlist)) {
 		pr_err("non matching sample_id_all\n");
 		return -1;
 	}
@@ -252,10 +252,10 @@ struct perf_session *perf_session__new(struct perf_data *data,
 
 	/*
 	 * In pipe-mode, evlist is empty until PERF_RECORD_HEADER_ATTR is
-	 * processed, so perf_evlist__sample_id_all is not meaningful here.
+	 * processed, so evlist__sample_id_all is not meaningful here.
 	 */
 	if ((!data || !data->is_pipe) && tool && tool->ordering_requires_timestamps &&
-	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
+	    tool->ordered_events && !evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_events = false;
 	}
@@ -490,6 +490,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->ksymbol = perf_event__process_ksymbol;
 	if (tool->bpf == NULL)
 		tool->bpf = perf_event__process_bpf;
+	if (tool->text_poke == NULL)
+		tool->text_poke = perf_event__process_text_poke;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -657,6 +659,24 @@ static void perf_event__switch_swap(union perf_event *event, bool sample_id_all)
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->context_switch + 1);
+}
+
+static void perf_event__text_poke_swap(union perf_event *event, bool sample_id_all)
+{
+	event->text_poke.addr    = bswap_64(event->text_poke.addr);
+	event->text_poke.old_len = bswap_16(event->text_poke.old_len);
+	event->text_poke.new_len = bswap_16(event->text_poke.new_len);
+
+	if (sample_id_all) {
+		size_t len = sizeof(event->text_poke.old_len) +
+			     sizeof(event->text_poke.new_len) +
+			     event->text_poke.old_len +
+			     event->text_poke.new_len;
+		void *data = &event->text_poke.old_len;
+
+		data += PERF_ALIGN(len, sizeof(u64));
+		swap_sample_id_all(event, data);
+	}
 }
 
 static void perf_event__throttle_swap(union perf_event *event,
@@ -932,6 +952,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_SWITCH]		  = perf_event__switch_swap,
 	[PERF_RECORD_SWITCH_CPU_WIDE]	  = perf_event__switch_swap,
 	[PERF_RECORD_NAMESPACES]	  = perf_event__namespaces_swap,
+	[PERF_RECORD_TEXT_POKE]		  = perf_event__text_poke_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -1160,10 +1181,10 @@ static void perf_evlist__print_tstamp(struct evlist *evlist,
 				       union perf_event *event,
 				       struct perf_sample *sample)
 {
-	u64 sample_type = __perf_evlist__combined_sample_type(evlist);
+	u64 sample_type = __evlist__combined_sample_type(evlist);
 
 	if (event->header.type != PERF_RECORD_SAMPLE &&
-	    !perf_evlist__sample_id_all(evlist)) {
+	    !evlist__sample_id_all(evlist)) {
 		fputs("-1 -1 ", stdout);
 		return;
 	}
@@ -1474,6 +1495,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->ksymbol(tool, event, sample, machine);
 	case PERF_RECORD_BPF_EVENT:
 		return tool->bpf(tool, event, sample, machine);
+	case PERF_RECORD_TEXT_POKE:
+		return tool->text_poke(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;
@@ -1655,7 +1678,7 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 		return -1;
 
 	if (session->header.needs_swap)
-		event_swap(event, perf_evlist__sample_id_all(session->evlist));
+		event_swap(event, evlist__sample_id_all(session->evlist));
 
 out_parse_sample:
 
@@ -1704,7 +1727,7 @@ static s64 perf_session__process_event(struct perf_session *session,
 	int ret;
 
 	if (session->header.needs_swap)
-		event_swap(event, perf_evlist__sample_id_all(evlist));
+		event_swap(event, evlist__sample_id_all(evlist));
 
 	if (event->header.type >= PERF_RECORD_HEADER_MAX)
 		return -EINVAL;

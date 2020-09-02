@@ -99,7 +99,7 @@ static int hisi_rng_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id hisi_rng_dt_ids[] = {
+static const struct of_device_id hisi_rng_dt_ids[] __maybe_unused = {
 	{ .compatible = "hisilicon,hip04-rng" },
 	{ .compatible = "hisilicon,hip05-rng" },
 	{ }

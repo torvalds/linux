@@ -157,7 +157,6 @@ with the kernel as a block device by registering the following general
 		cdrom_release,		/∗ release ∗/
 		NULL,			/∗ fsync ∗/
 		NULL,			/∗ fasync ∗/
-		cdrom_media_changed,	/∗ media change ∗/
 		NULL			/∗ revalidate ∗/
 	};
 
@@ -368,19 +367,6 @@ which may or may not be in the drive). If the drive is not a changer,
 
 ::
 
-	int media_changed(struct cdrom_device_info *cdi, int disc_nr)
-
-This function is very similar to the original function in $struct
-file_operations*. It returns 1 if the medium of the device *cdi->dev*
-has changed since the last call, and 0 otherwise. The parameter
-*disc_nr* identifies a specific slot in a juke-box, it should be
-ignored for single-disc drives. Note that by `re-routing` this
-function through *cdrom_media_changed()*, we can implement separate
-queues for the VFS and a new *ioctl()* function that can report device
-changes to software (e. g., an auto-mounting daemon).
-
-::
-
 	int tray_move(struct cdrom_device_info *cdi, int position)
 
 This function, if implemented, should control the tray movement. (No
@@ -571,7 +557,7 @@ phase. Currently, the capabilities are any of::
 	CDC_DRIVE_STATUS	/* driver implements drive status */
 
 The capability flag is declared *const*, to prevent drivers from
-accidentally tampering with the contents. The capability fags actually
+accidentally tampering with the contents. The capability flags actually
 inform `cdrom.c` of what the driver can do. If the drive found
 by the driver does not have the capability, is can be masked out by
 the *cdrom_device_info* variable *mask*. For instance, the SCSI CD-ROM
@@ -750,7 +736,7 @@ Description of routines in `cdrom.c`
 
 Only a few routines in `cdrom.c` are exported to the drivers. In this
 new section we will discuss these, as well as the functions that `take
-over' the CD-ROM interface to the kernel. The header file belonging
+over` the CD-ROM interface to the kernel. The header file belonging
 to `cdrom.c` is called `cdrom.h`. Formerly, some of the contents of this
 file were placed in the file `ucdrom.h`, but this file has now been
 merged back into `cdrom.h`.
@@ -917,9 +903,7 @@ commands can be identified by the underscores in their names.
 	maximum number of discs in the juke-box found in the *cdrom_dops*.
 `CDROM_MEDIA_CHANGED`
 	Returns 1 if a disc has been changed since the last call.
-	Note that calls to *cdrom_media_changed* by the VFS are treated
-	by an independent queue, so both mechanisms will detect a
-	media change once. For juke-boxes, an extra argument *arg*
+	For juke-boxes, an extra argument *arg*
 	specifies the slot for which the information is given. The special
 	value *CDSL_CURRENT* requests that information about the currently
 	selected slot be returned.

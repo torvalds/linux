@@ -120,7 +120,7 @@ static void ci_hdrc_pci_remove(struct pci_dev *pdev)
 	usb_phy_generic_unregister(ci->phy);
 }
 
-/**
+/*
  * PCI device table
  * PCI device structure
  *

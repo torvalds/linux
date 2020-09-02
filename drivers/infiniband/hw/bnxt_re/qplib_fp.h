@@ -39,6 +39,51 @@
 #ifndef __BNXT_QPLIB_FP_H__
 #define __BNXT_QPLIB_FP_H__
 
+/* Few helper structures temporarily defined here
+ * should get rid of these when roce_hsi.h is updated
+ * in original code base
+ */
+struct sq_ud_ext_hdr {
+	__le32 dst_qp;
+	__le32 avid;
+	__le64 rsvd;
+};
+
+struct sq_raw_ext_hdr {
+	__le32 cfa_meta;
+	__le32 rsvd0;
+	__le64 rsvd1;
+};
+
+struct sq_rdma_ext_hdr {
+	__le64 remote_va;
+	__le32 remote_key;
+	__le32 rsvd;
+};
+
+struct sq_atomic_ext_hdr {
+	__le64 swap_data;
+	__le64 cmp_data;
+};
+
+struct sq_fr_pmr_ext_hdr {
+	__le64 pblptr;
+	__le64 va;
+};
+
+struct sq_bind_ext_hdr {
+	__le64 va;
+	__le32 length_lo;
+	__le32 length_hi;
+};
+
+struct rq_ext_hdr {
+	__le64 rsvd1;
+	__le64 rsvd2;
+};
+
+/* Helper structures end */
+
 struct bnxt_qplib_srq {
 	struct bnxt_qplib_pd		*pd;
 	struct bnxt_qplib_dpi		*dpi;
@@ -74,6 +119,8 @@ struct bnxt_qplib_swq {
 	u8				flags;
 	u32				start_psn;
 	u32				next_psn;
+	u32				slot_idx;
+	u8				slots;
 	struct sq_psn_search		*psn_search;
 	struct sq_psn_search_ext	*psn_ext;
 };
@@ -213,6 +260,8 @@ struct bnxt_qplib_q {
 	u32				phantom_cqe_cnt;
 	u32				next_cq_cons;
 	bool				flushed;
+	u32				swq_start;
+	u32				swq_last;
 };
 
 struct bnxt_qplib_qp {
@@ -224,9 +273,10 @@ struct bnxt_qplib_qp {
 	u32				id;
 	u8				type;
 	u8				sig_type;
-	u32				modify_flags;
+	u8				wqe_mode;
 	u8				state;
 	u8				cur_qp_state;
+	u64				modify_flags;
 	u32				max_inline_data;
 	u32				mtu;
 	u8				path_mtu;
@@ -300,11 +350,18 @@ struct bnxt_qplib_qp {
 	(!!((hdr)->cqe_type_toggle & CQ_BASE_TOGGLE) ==		\
 	   !((raw_cons) & (cp_bit)))
 
-static inline bool bnxt_qplib_queue_full(struct bnxt_qplib_q *qplib_q)
+static inline bool bnxt_qplib_queue_full(struct bnxt_qplib_q *que,
+					 u8 slots)
 {
-	return HWQ_CMP((qplib_q->hwq.prod + qplib_q->q_full_delta),
-		       &qplib_q->hwq) == HWQ_CMP(qplib_q->hwq.cons,
-						 &qplib_q->hwq);
+	struct bnxt_qplib_hwq *hwq;
+	int avail;
+
+	hwq = &que->hwq;
+	/* False full is possible, retrying post-send makes sense */
+	avail = hwq->cons - hwq->prod;
+	if (hwq->cons <= hwq->prod)
+		avail += hwq->depth;
+	return avail <= slots;
 }
 
 struct bnxt_qplib_cqe {
@@ -489,4 +546,64 @@ int bnxt_qplib_process_flush_list(struct bnxt_qplib_cq *cq,
 				  struct bnxt_qplib_cqe *cqe,
 				  int num_cqes);
 void bnxt_qplib_flush_cqn_wq(struct bnxt_qplib_qp *qp);
+
+static inline void *bnxt_qplib_get_swqe(struct bnxt_qplib_q *que, u32 *swq_idx)
+{
+	u32 idx;
+
+	idx = que->swq_start;
+	if (swq_idx)
+		*swq_idx = idx;
+	return &que->swq[idx];
+}
+
+static inline void bnxt_qplib_swq_mod_start(struct bnxt_qplib_q *que, u32 idx)
+{
+	que->swq_start = que->swq[idx].next_idx;
+}
+
+static inline u32 bnxt_qplib_get_depth(struct bnxt_qplib_q *que)
+{
+	return (que->wqe_size * que->max_wqe) / sizeof(struct sq_sge);
+}
+
+static inline u32 bnxt_qplib_set_sq_size(struct bnxt_qplib_q *que, u8 wqe_mode)
+{
+	return (wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
+		que->max_wqe : bnxt_qplib_get_depth(que);
+}
+
+static inline u32 bnxt_qplib_set_sq_max_slot(u8 wqe_mode)
+{
+	return (wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
+		sizeof(struct sq_send) / sizeof(struct sq_sge) : 1;
+}
+
+static inline u32 bnxt_qplib_set_rq_max_slot(u32 wqe_size)
+{
+	return (wqe_size / sizeof(struct sq_sge));
+}
+
+static inline u16 __xlate_qfd(u16 delta, u16 wqe_bytes)
+{
+	/* For Cu/Wh delta = 128, stride = 16, wqe_bytes = 128
+	 * For Gen-p5 B/C mode delta = 0, stride = 16, wqe_bytes = 128.
+	 * For Gen-p5 delta = 0, stride = 16, 32 <= wqe_bytes <= 512.
+	 * when 8916 is disabled.
+	 */
+	return (delta * wqe_bytes) / sizeof(struct sq_sge);
+}
+
+static inline u16 bnxt_qplib_calc_ilsize(struct bnxt_qplib_swqe *wqe, u16 max)
+{
+	u16 size = 0;
+	int indx;
+
+	for (indx = 0; indx < wqe->num_sge; indx++)
+		size += wqe->sg_list[indx].size;
+	if (size > max)
+		size = max;
+
+	return size;
+}
 #endif /* __BNXT_QPLIB_FP_H__ */

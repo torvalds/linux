@@ -126,7 +126,6 @@ static int ds1803_probe(struct i2c_client *client,
 	data->client = client;
 	data->cfg = &ds1803_cfg[id->driver_data];
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &ds1803_info;
 	indio_dev->channels = ds1803_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ds1803_channels);

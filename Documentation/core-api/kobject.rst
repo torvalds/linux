@@ -6,7 +6,7 @@ Everything you never wanted to know about kobjects, ksets, and ktypes
 :Last updated: December 19, 2007
 
 Based on an original article by Jon Corbet for lwn.net written October 1,
-2003 and located at http://lwn.net/Articles/51437/
+2003 and located at https://lwn.net/Articles/51437/
 
 Part of the difficulty in understanding the driver model - and the kobject
 abstraction upon which it is built - is that there is no obvious starting

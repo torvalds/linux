@@ -47,6 +47,9 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: Phandle to the device SRAM
 
+  iommus:
+    maxItems: 1
+
   memory-region:
     description:
       CMA pool to use for buffers allocation instead of the default

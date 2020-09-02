@@ -276,5 +276,5 @@ temperature measurement device. As a result, the temperature reported on CPUTIN
 will not reflect a usable value. It often reports unreasonably high
 temperatures, and in some cases the reported temperature declines if the actual
 temperature increases (similar to the raw PECI temperature value - see PECI
-specification for details). CPUTIN should therefore be be ignored on ASUS
+specification for details). CPUTIN should therefore be ignored on ASUS
 boards. The CPU temperature on ASUS boards is reported from PECI 0.

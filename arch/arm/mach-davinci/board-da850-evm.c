@@ -1,7 +1,7 @@
 /*
  * TI DA850/OMAP-L138 EVM board
  *
- * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments Incorporated - https://www.ti.com/
  *
  * Derived from: arch/arm/mach-davinci/board-da830-evm.c
  * Original Copyrights follow:

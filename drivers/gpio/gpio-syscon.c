@@ -24,16 +24,16 @@
 
 /**
  * struct syscon_gpio_data - Configuration for the device.
- * compatible:		SYSCON driver compatible string.
- * flags:		Set of GPIO_SYSCON_FEAT_ flags:
+ * @compatible:		SYSCON driver compatible string.
+ * @flags:		Set of GPIO_SYSCON_FEAT_ flags:
  *			GPIO_SYSCON_FEAT_IN:	GPIOs supports input,
  *			GPIO_SYSCON_FEAT_OUT:	GPIOs supports output,
  *			GPIO_SYSCON_FEAT_DIR:	GPIOs supports switch direction.
- * bit_count:		Number of bits used as GPIOs.
- * dat_bit_offset:	Offset (in bits) to the first GPIO bit.
- * dir_bit_offset:	Optional offset (in bits) to the first bit to switch
+ * @bit_count:		Number of bits used as GPIOs.
+ * @dat_bit_offset:	Offset (in bits) to the first GPIO bit.
+ * @dir_bit_offset:	Optional offset (in bits) to the first bit to switch
  *			GPIO direction (Used with GPIO_SYSCON_FEAT_DIR flag).
- * set:		HW specific callback to assigns output value
+ * @set:		HW specific callback to assigns output value
  *			for signal "offset"
  */
 

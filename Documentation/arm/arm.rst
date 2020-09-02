@@ -184,10 +184,8 @@ Kernel entry (head.S)
   We group machine (or platform) support code into machine classes.  A
   class typically based around one or more system on a chip devices, and
   acts as a natural container around the actual implementations.  These
-  classes are given directories - arch/arm/mach-<class> and
-  arch/arm/mach-<class> - which contain the source files to/include/mach
-  support the machine class.  This directories also contain any machine
-  specific supporting code.
+  classes are given directories - arch/arm/mach-<class> - which contain
+  the source files and include/mach/ to support the machine class.
 
   For example, the SA1100 class is based upon the SA1100 and SA1110 SoC
   devices, and contains the code to support the way the on-board and off-

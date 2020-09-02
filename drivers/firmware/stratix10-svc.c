@@ -305,8 +305,14 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 		cb_data->status = BIT(SVC_STATUS_COMPLETED);
 		break;
 	case COMMAND_RSU_RETRY:
+	case COMMAND_RSU_MAX_RETRY:
 		cb_data->status = BIT(SVC_STATUS_OK);
 		cb_data->kaddr1 = &res.a1;
+		break;
+	case COMMAND_RSU_DCMF_VERSION:
+		cb_data->status = BIT(SVC_STATUS_OK);
+		cb_data->kaddr1 = &res.a1;
+		cb_data->kaddr2 = &res.a2;
 		break;
 	default:
 		pr_warn("it shouldn't happen\n");
@@ -406,6 +412,16 @@ static int svc_normal_to_secure_thread(void *data)
 			a1 = 0;
 			a2 = 0;
 			break;
+		case COMMAND_RSU_MAX_RETRY:
+			a0 = INTEL_SIP_SMC_RSU_MAX_RETRY;
+			a1 = 0;
+			a2 = 0;
+			break;
+		case COMMAND_RSU_DCMF_VERSION:
+			a0 = INTEL_SIP_SMC_RSU_DCMF_VERSION;
+			a1 = 0;
+			a2 = 0;
+			break;
 		default:
 			pr_warn("it shouldn't happen\n");
 			break;
@@ -474,6 +490,7 @@ static int svc_normal_to_secure_thread(void *data)
 			 * doesn't support RSU notify or retry
 			 */
 			if ((pdata->command == COMMAND_RSU_RETRY) ||
+			    (pdata->command == COMMAND_RSU_MAX_RETRY) ||
 				(pdata->command == COMMAND_RSU_NOTIFY)) {
 				cbdata->status =
 					BIT(SVC_STATUS_NO_SUPPORT);

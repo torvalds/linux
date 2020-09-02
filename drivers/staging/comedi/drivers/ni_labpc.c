@@ -27,7 +27,7 @@
  * Kernel-level ISA plug-and-play support for the lab-pc-1200 boards
  * has not yet been added to the driver, mainly due to the fact that
  * I don't know the device id numbers. If you have one of these boards,
- * please file a bug report at http://comedi.org/ so I can get the
+ * please file a bug report at https://comedi.org/ so I can get the
  * necessary information from you.
  *
  * The 1200 series boards have onboard calibration dacs for correcting
@@ -111,6 +111,6 @@ static struct comedi_driver labpc_driver = {
 };
 module_comedi_driver(labpc_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for NI Lab-PC ISA boards");
 MODULE_LICENSE("GPL");

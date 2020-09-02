@@ -94,7 +94,7 @@ parameters may be changed at runtime by the command
 			(/proc/sys/dev/scsi/logging_level).
 			There is also a nice 'scsi_logging_level' script in the
 			S390-tools package, available for download at
-			http://www-128.ibm.com/developerworks/linux/linux390/s390-tools-1.5.4.html
+			https://github.com/ibm-s390-tools/s390-tools/blob/master/scripts/scsi_logging_level
 
 	scsi_mod.scan=	[SCSI] sync (default) scans SCSI busses as they are
 			discovered.  async scans them in kernel threads,

@@ -224,7 +224,7 @@ void qxl_bo_unref(struct qxl_bo **bo)
 	if ((*bo) == NULL)
 		return;
 
-	drm_gem_object_put_unlocked(&(*bo)->tbo.base);
+	drm_gem_object_put(&(*bo)->tbo.base);
 	*bo = NULL;
 }
 
@@ -326,7 +326,7 @@ void qxl_bo_force_delete(struct qxl_device *qdev)
 		list_del_init(&bo->list);
 		mutex_unlock(&qdev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_put_unlocked(&bo->tbo.base);
+		drm_gem_object_put(&bo->tbo.base);
 	}
 }
 

@@ -24,7 +24,7 @@ Available fault injection capabilities
 
   injects disk IO errors on devices permitted by setting
   /sys/block/<device>/make-it-fail or
-  /sys/block/<device>/<partition>/make-it-fail. (generic_make_request())
+  /sys/block/<device>/<partition>/make-it-fail. (submit_bio_noacct())
 
 - fail_mmc_request
 

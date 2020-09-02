@@ -20,6 +20,10 @@
 #define HW_DPLL_1                         (0x8b00)
 #define HW_DPLL_2                         (0x8c00)
 #define HW_DPLL_3                         (0x8d00)
+#define HW_DPLL_4                         (0x8e00)
+#define HW_DPLL_5                         (0x8f00)
+#define HW_DPLL_6                         (0x9000)
+#define HW_DPLL_7                         (0x9100)
 
 #define HW_DPLL_TOD_SW_TRIG_ADDR__0       (0x080)
 #define HW_DPLL_TOD_CTRL_1                (0x089)
@@ -56,6 +60,43 @@
 #define SYNCTRL1_FBDIV_SYNC_TRIG	BIT(2)
 #define SYNCTRL1_Q1_DIV_SYNC_TRIG	BIT(1)
 #define SYNCTRL1_Q0_DIV_SYNC_TRIG	BIT(0)
+
+#define HW_Q8_CTRL_SPARE  (0xa7d4)
+#define HW_Q11_CTRL_SPARE (0xa7ec)
+
+/**
+ * Select FOD5 as sync_trigger for Q8 divider.
+ * Transition from logic zero to one
+ * sets trigger to sync Q8 divider.
+ *
+ * Unused when FOD4 is driving Q8 divider (normal operation).
+ */
+#define Q9_TO_Q8_SYNC_TRIG  BIT(1)
+
+/**
+ * Enable FOD5 as driver for clock and sync for Q8 divider.
+ * Enable fanout buffer for FOD5.
+ *
+ * Unused when FOD4 is driving Q8 divider (normal operation).
+ */
+#define Q9_TO_Q8_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK  (BIT(0) | BIT(2))
+
+/**
+ * Select FOD6 as sync_trigger for Q11 divider.
+ * Transition from logic zero to one
+ * sets trigger to sync Q11 divider.
+ *
+ * Unused when FOD7 is driving Q11 divider (normal operation).
+ */
+#define Q10_TO_Q11_SYNC_TRIG  BIT(1)
+
+/**
+ * Enable FOD6 as driver for clock and sync for Q11 divider.
+ * Enable fanout buffer for FOD6.
+ *
+ * Unused when FOD7 is driving Q11 divider (normal operation).
+ */
+#define Q10_TO_Q11_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK  (BIT(0) | BIT(2))
 
 #define RESET_CTRL                        0xc000
 #define SM_RESET                          0x0012
@@ -191,6 +232,7 @@
 
 #define DPLL_CTRL_0                       0xc600
 #define DPLL_CTRL_DPLL_MANU_REF_CFG       0x0001
+#define DPLL_CTRL_COMBO_MASTER_CFG        0x003a
 
 #define DPLL_CTRL_1                       0xc63c
 
@@ -646,6 +688,9 @@
 /* Bit definitions for the TOD_WRITE_CMD register */
 #define TOD_WRITE_SELECTION_SHIFT         (0)
 #define TOD_WRITE_SELECTION_MASK          (0xf)
+/* 4.8.7 */
+#define TOD_WRITE_TYPE_SHIFT              (4)
+#define TOD_WRITE_TYPE_MASK               (0x3)
 
 /* Bit definitions for the TOD_READ_PRIMARY_SEL_CFG_0 register */
 #define RD_PWM_DECODER_INDEX_SHIFT        (4)
@@ -657,5 +702,8 @@
 #define TOD_READ_TRIGGER_MODE             BIT(4)
 #define TOD_READ_TRIGGER_SHIFT            (0)
 #define TOD_READ_TRIGGER_MASK             (0xf)
+
+/* Bit definitions for the DPLL_CTRL_COMBO_MASTER_CFG register */
+#define COMBO_MASTER_HOLD                 BIT(0)
 
 #endif

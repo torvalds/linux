@@ -153,7 +153,6 @@ static const struct drm_display_mode feiyang_default_mode = {
 	.vsync_start	= 600 + 12,
 	.vsync_end	= 600 + 12 + 2,
 	.vtotal		= 600 + 12 + 2 + 21,
-	.vrefresh	= 60,
 
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 };
@@ -169,7 +168,7 @@ static int feiyang_get_modes(struct drm_panel *panel,
 		DRM_DEV_ERROR(&ctx->dsi->dev, "failed to add mode %ux%ux@%u\n",
 			      feiyang_default_mode.hdisplay,
 			      feiyang_default_mode.vdisplay,
-			      feiyang_default_mode.vrefresh);
+			      drm_mode_vrefresh(&feiyang_default_mode));
 		return -ENOMEM;
 	}
 

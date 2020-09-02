@@ -43,6 +43,8 @@ struct perf_pmu {
 	struct list_head list;    /* ELEM */
 };
 
+extern struct perf_pmu perf_pmu__fake;
+
 struct perf_pmu_info {
 	const char *unit;
 	const char *metric_expr;

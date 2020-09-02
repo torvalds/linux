@@ -6,7 +6,7 @@ Is is programmable through an SPI interface.
 
 The internal DACs are loaded when the LOADDACS pin is pulled down.
 
-http://www.ti.com/lit/ds/sbas106/sbas106.pdf
+https://www.ti.com/lit/ds/sbas106/sbas106.pdf
 
 Required Properties:
 - compatible: Should be one of:

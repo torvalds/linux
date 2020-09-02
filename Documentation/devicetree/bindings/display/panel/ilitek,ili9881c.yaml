@@ -13,8 +13,7 @@ properties:
   compatible:
     items:
       - enum:
-        - bananapi,lhr050h41
-
+          - bananapi,lhr050h41
       - const: ilitek,ili9881c
 
   backlight: true

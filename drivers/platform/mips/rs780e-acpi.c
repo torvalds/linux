@@ -69,7 +69,7 @@ static void acpi_hw_clear_status(void)
 	outl(inl(ACPI_GPE0_BLK), ACPI_GPE0_BLK);
 }
 
-void acpi_registers_setup(void)
+static void acpi_registers_setup(void)
 {
 	u32 value;
 

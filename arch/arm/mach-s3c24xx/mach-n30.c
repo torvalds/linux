@@ -9,7 +9,7 @@
 // Copyright (c) 2005-2008 Christer Weinigel <christer@weinigel.se>
 //
 // There is a wiki with more information about the n30 port at
-// http://handhelds.org/moin/moin.cgi/AcerN30Documentation .
+// https://handhelds.org/moin/moin.cgi/AcerN30Documentation .
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -45,6 +45,7 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/gpio-cfg.h>
 #include <linux/platform_data/mmc-s3cmci.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <plat/samsung-time.h>
@@ -246,17 +247,33 @@ static struct platform_device n35_button_device = {
 };
 
 /* This is the bluetooth LED on the device. */
+
+static struct gpiod_lookup_table n30_blue_led_gpio_table = {
+	.dev_id = "s3c24xx_led.1",
+	.table = {
+		GPIO_LOOKUP("GPG", 6, NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct s3c24xx_led_platdata n30_blue_led_pdata = {
 	.name		= "blue_led",
-	.gpio		= S3C2410_GPG(6),
 	.def_trigger	= "",
 };
 
 /* This is the blue LED on the device. Originally used to indicate GPS activity
  * by flashing. */
+
+static struct gpiod_lookup_table n35_blue_led_gpio_table = {
+	.dev_id = "s3c24xx_led.1",
+	.table = {
+		GPIO_LOOKUP("GPD", 8, NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct s3c24xx_led_platdata n35_blue_led_pdata = {
 	.name		= "blue_led",
-	.gpio		= S3C2410_GPD(8),
 	.def_trigger	= "",
 };
 
@@ -264,17 +281,30 @@ static struct s3c24xx_led_platdata n35_blue_led_pdata = {
  * red, blinking green or solid green when the battery is low,
  * charging or full respectively.  By driving GPD9 low, it's possible
  * to force the LED to blink red, so call that warning LED.  */
+
+static struct gpiod_lookup_table n30_warning_led_gpio_table = {
+	.dev_id = "s3c24xx_led.2",
+	.table = {
+		GPIO_LOOKUP("GPD", 9, NULL, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct s3c24xx_led_platdata n30_warning_led_pdata = {
 	.name		= "warning_led",
-	.flags          = S3C24XX_LEDF_ACTLOW,
-	.gpio		= S3C2410_GPD(9),
 	.def_trigger	= "",
+};
+
+static struct gpiod_lookup_table n35_warning_led_gpio_table = {
+	.dev_id = "s3c24xx_led.2",
+	.table = {
+		GPIO_LOOKUP("GPD", 9, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
 };
 
 static struct s3c24xx_led_platdata n35_warning_led_pdata = {
 	.name		= "warning_led",
-	.flags          = S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
-	.gpio		= S3C2410_GPD(9),
 	.def_trigger	= "",
 };
 
@@ -577,6 +607,12 @@ static void __init n30_init(void)
 				      S3C2410_MISCCR_USBSUSPND0 |
 				      S3C2410_MISCCR_USBSUSPND1, 0x0);
 
+		/* Disable pull-up and add GPIO tables */
+		s3c_gpio_setpull(S3C2410_GPG(6), S3C_GPIO_PULL_NONE);
+		s3c_gpio_setpull(S3C2410_GPD(9), S3C_GPIO_PULL_NONE);
+		gpiod_add_lookup_table(&n30_blue_led_gpio_table);
+		gpiod_add_lookup_table(&n30_warning_led_gpio_table);
+
 		platform_add_devices(n30_devices, ARRAY_SIZE(n30_devices));
 	}
 
@@ -593,6 +629,12 @@ static void __init n30_init(void)
 				      S3C2410_MISCCR_USBSUSPND0 |
 				      S3C2410_MISCCR_USBSUSPND1,
 				      S3C2410_MISCCR_USBSUSPND0);
+
+		/* Disable pull-up and add GPIO tables */
+		s3c_gpio_setpull(S3C2410_GPD(8), S3C_GPIO_PULL_NONE);
+		s3c_gpio_setpull(S3C2410_GPD(9), S3C_GPIO_PULL_NONE);
+		gpiod_add_lookup_table(&n35_blue_led_gpio_table);
+		gpiod_add_lookup_table(&n35_warning_led_gpio_table);
 
 		platform_add_devices(n35_devices, ARRAY_SIZE(n35_devices));
 	}

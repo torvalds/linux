@@ -3,7 +3,7 @@
  *  Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
  *
  *  Support functions for calculating clocks/divisors for the ICST
- *  clock generators.  See http://www.idt.com/ for more information
+ *  clock generators.  See https://www.idt.com/ for more information
  *  on these devices.
  */
 #ifndef ICST_H

@@ -1,0 +1,183 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/adv7180.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices ADV7180 analog video decoder family
+
+maintainers:
+  - Lars-Peter Clausen <lars@metafoo.de>
+
+description:
+  The adv7180 family devices are used to capture analog video to different
+  digital interfaces like MIPI CSI-2 or parallel video.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - adi,adv7180
+          - adi,adv7180cp
+          - adi,adv7180st
+          - adi,adv7182
+          - adi,adv7280
+          - adi,adv7280-m
+          - adi,adv7281
+          - adi,adv7281-m
+          - adi,adv7281-ma
+          - adi,adv7282
+          - adi,adv7282-m
+
+  reg:
+    maxItems: 1
+
+  powerdown-gpios:
+    maxItems: 1
+
+  port:
+    type: object
+    description:
+      A node containing a single endpoint as doucmented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
+
+  ports:
+    type: object
+    description:
+      A node containing input and output port nodes with endpoint definitions
+      as documented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - adi,adv7180
+            - adi,adv7182
+            - adi,adv7280
+            - adi,adv7280-m
+            - adi,adv7281
+            - adi,adv7281-m
+            - adi,adv7281-ma
+            - adi,adv7282
+            - adi,adv7282-m
+    then:
+      required:
+        - port
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,adv7180cp
+    then:
+      properties:
+        ports:
+          properties:
+            '#address-cells':
+              const: 1
+            '#size-cells':
+              const: 0
+            port@3:
+              type: object
+              description: Output port
+
+          patternProperties:
+            "^port@[0-2]$":
+              type: object
+              description: Input port
+
+          required:
+            - port@3
+
+          additionalProperties: false
+
+      required:
+        - ports
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,adv7180st
+    then:
+      properties:
+        ports:
+          properties:
+            '#address-cells':
+              const: 1
+            '#size-cells':
+              const: 0
+            port@6:
+              type: object
+              description: Output port
+
+          patternProperties:
+            "^port@[0-5]$":
+              type: object
+              description: Input port
+
+          required:
+            - port@6
+
+          additionalProperties: false
+
+      required:
+        - ports
+
+examples:
+  - |
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            composite-in@20 {
+                    compatible = "adi,adv7180";
+                    reg = <0x20>;
+
+                    port {
+                            adv7180: endpoint {
+                                    bus-width = <8>;
+                                    remote-endpoint = <&vin1ep>;
+                            };
+                    };
+            };
+
+    };
+
+  - |
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            composite-in@20 {
+                    compatible = "adi,adv7180cp";
+                    reg = <0x20>;
+
+                    ports {
+                            #address-cells = <1>;
+                            #size-cells = <0>;
+
+                            port@0 {
+                                    reg = <0>;
+                                    adv7180_in: endpoint {
+                                            remote-endpoint = <&composite_con_in>;
+                                    };
+                            };
+
+                            port@3 {
+                                    reg = <3>;
+                                    adv7180_out: endpoint {
+                                            remote-endpoint = <&vin4_in>;
+                                    };
+                            };
+                    };
+            };
+    };

@@ -18,6 +18,7 @@ properties:
   compatible:
     enum:
       - qcom,ipq8074-qmp-pcie-phy
+      - qcom,ipq8074-qmp-usb3-phy
       - qcom,msm8996-qmp-pcie-phy
       - qcom,msm8996-qmp-ufs-phy
       - qcom,msm8996-qmp-usb3-phy
@@ -36,7 +37,7 @@ properties:
       - description: Address and length of PHY's common serdes block.
 
   "#clock-cells":
-     enum: [ 1, 2 ]
+    enum: [ 1, 2 ]
 
   "#address-cells":
     enum: [ 1, 2 ]
@@ -64,16 +65,15 @@ properties:
 
   vdda-phy-supply:
     description:
-        Phandle to a regulator supply to PHY core block.
+      Phandle to a regulator supply to PHY core block.
 
   vdda-pll-supply:
     description:
-        Phandle to 1.8V regulator supply to PHY refclk pll block.
+      Phandle to 1.8V regulator supply to PHY refclk pll block.
 
   vddp-ref-clk-supply:
     description:
-        Phandle to a regulator supply to any specific refclk
-        pll block.
+      Phandle to a regulator supply to any specific refclk pll block.
 
 #Required nodes:
 patternProperties:
@@ -161,6 +161,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,ipq8074-qmp-usb3-phy
               - qcom,msm8996-qmp-usb3-phy
               - qcom,msm8998-qmp-pcie-phy
               - qcom,msm8998-qmp-usb3-phy
@@ -182,8 +183,8 @@ allOf:
             - description: phy common block reset.
         reset-names:
           items:
-             - const: phy
-             - const: common
+            - const: phy
+            - const: common
   - if:
       properties:
         compatible:

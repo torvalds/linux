@@ -11,7 +11,7 @@
 #include <asm-generic/mman-common.h>
 
 
-#define PROT_SAO	0x10		/* Strong Access Ordering */
+#define PROT_SAO	0x10		/* Unsupported since v5.9 */
 
 #define MAP_RENAME      MAP_ANONYMOUS   /* In SunOS terminology */
 #define MAP_NORESERVE   0x40            /* don't reserve swap pages */

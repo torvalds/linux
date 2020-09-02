@@ -90,6 +90,7 @@ extern asmlinkage void handle_tr(void);
 extern asmlinkage void handle_msa_fpe(void);
 extern asmlinkage void handle_fpe(void);
 extern asmlinkage void handle_ftlb(void);
+extern asmlinkage void handle_gsexc(void);
 extern asmlinkage void handle_msa(void);
 extern asmlinkage void handle_mdmx(void);
 extern asmlinkage void handle_watch(void);
@@ -1680,7 +1681,7 @@ __setup("nol2par", nol2parity);
  * Some MIPS CPUs can enable/disable for cache parity detection, but do
  * it different ways.
  */
-static inline void parity_protection_init(void)
+static inline __init void parity_protection_init(void)
 {
 #define ERRCTL_PE	0x80000000
 #define ERRCTL_L2P	0x00800000
@@ -1900,6 +1901,37 @@ asmlinkage void do_ftlb(void)
 	}
 	/* Just print the cacheerr bits for now */
 	cache_parity_error();
+}
+
+asmlinkage void do_gsexc(struct pt_regs *regs, u32 diag1)
+{
+	u32 exccode = (diag1 & LOONGSON_DIAG1_EXCCODE) >>
+			LOONGSON_DIAG1_EXCCODE_SHIFT;
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
+
+	switch (exccode) {
+	case 0x08:
+		/* Undocumented exception, will trigger on certain
+		 * also-undocumented instructions accessible from userspace.
+		 * Processor state is not otherwise corrupted, but currently
+		 * we don't know how to proceed. Maybe there is some
+		 * undocumented control flag to enable the instructions?
+		 */
+		force_sig(SIGILL);
+		break;
+
+	default:
+		/* None of the other exceptions, documented or not, have
+		 * further details given; none are encountered in the wild
+		 * either. Panic in case some of them turn out to be fatal.
+		 */
+		show_regs(regs);
+		panic("Unhandled Loongson exception - GSCause = %08x", diag1);
+	}
+
+	exception_exit(prev_state);
 }
 
 /*
@@ -2457,7 +2489,11 @@ void __init trap_init(void)
 	if (cpu_has_fpu && !cpu_has_nofpuex)
 		set_except_vector(EXCCODE_FPE, handle_fpe);
 
-	set_except_vector(MIPS_EXCCODE_TLBPAR, handle_ftlb);
+	if (cpu_has_ftlbparex)
+		set_except_vector(MIPS_EXCCODE_TLBPAR, handle_ftlb);
+
+	if (cpu_has_gsexcex)
+		set_except_vector(LOONGSON_EXCCODE_GSEXC, handle_gsexc);
 
 	if (cpu_has_rixiex) {
 		set_except_vector(EXCCODE_TLBRI, tlb_do_page_fault_0);

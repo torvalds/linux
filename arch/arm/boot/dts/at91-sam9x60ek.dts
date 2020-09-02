@@ -309,6 +309,10 @@
 	};
 };
 
+&gpbr {
+	status = "okay";
+};
+
 &i2s {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2s_default>;
@@ -470,9 +474,9 @@
 		pinctrl_classd_default: classd {
 			atmel,pins =
 				<AT91_PIOA 24 AT91_PERIPH_C AT91_PINCTRL_PULL_UP
-				 AT91_PIOA 25 AT91_PERIPH_C AT91_PINCTRL_PULL_UP
+				 AT91_PIOA 25 AT91_PERIPH_C AT91_PINCTRL_PULL_DOWN
 				 AT91_PIOA 26 AT91_PERIPH_C AT91_PINCTRL_PULL_UP
-				 AT91_PIOA 27 AT91_PERIPH_C AT91_PINCTRL_PULL_UP>;
+				 AT91_PIOA 27 AT91_PERIPH_C AT91_PINCTRL_PULL_DOWN>;
 		};
 	};
 
@@ -634,6 +638,11 @@
 			reg = <0x200000 0x600000>;
 		};
 	};
+};
+
+&rtt {
+	atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
+	status = "okay";
 };
 
 &shutdown_controller {

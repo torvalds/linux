@@ -149,7 +149,6 @@ struct mobiveil_rp_ops {
 };
 
 struct mobiveil_root_port {
-	char root_bus_nr;
 	void __iomem *config_axi_slave_base;	/* endpoint config base */
 	struct resource *ob_io_res;
 	struct mobiveil_rp_ops *ops;

@@ -89,6 +89,13 @@ hardware descriptions such as device tree or ACPI:
   Consumer Electronics Control bus using only GPIO. It is used to communicate
   with devices on the HDMI bus.
 
+- gpio-charger: drivers/power/supply/gpio-charger.c is used if you need to do
+  battery charging and all you have to go by to check the presence of the
+  AC charger or more complex tasks such as indicating charging status using
+  nothing but GPIO lines, this driver provides that and also a clearly defined
+  way to pass the charging parameters from hardware descriptions such as the
+  device tree.
+
 Apart from this there are special GPIO drivers in subsystems like MMC/SD to
 read card detect and write protect GPIO lines, and in the TTY serial subsystem
 to emulate MCTRL (modem control) signals CTS/RTS by using two GPIO lines. The

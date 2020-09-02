@@ -635,10 +635,10 @@ int
 ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
 		struct ice_aqc_add_tx_qgrp *qg_buf)
 {
+	u8 buf_len = struct_size(qg_buf, txqs, 1);
 	struct ice_tlan_ctx tlan_ctx = { 0 };
 	struct ice_aqc_add_txqs_perq *txq;
 	struct ice_pf *pf = vsi->back;
-	u8 buf_len = sizeof(*qg_buf);
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status status;
 	u16 pf_q;

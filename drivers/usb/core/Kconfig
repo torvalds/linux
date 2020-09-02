@@ -55,18 +55,18 @@ config USB_OTG
 	  Select this only if your board has Mini-AB/Micro-AB
 	  connector.
 
-config USB_OTG_WHITELIST
+config USB_OTG_PRODUCTLIST
 	bool "Rely on OTG and EH Targeted Peripherals List"
 	depends on USB
 	help
-	  If you say Y here, the "otg_whitelist.h" file will be used as a
-	  product whitelist, so USB peripherals not listed there will be
+	  If you say Y here, the "otg_productlist.h" file will be used as a
+	  product list, so USB peripherals not listed there will be
 	  rejected during enumeration.  This behavior is required by the
 	  USB OTG and EH specification for all devices not on your product's
 	  "Targeted Peripherals List".  "Embedded Hosts" are likewise
 	  allowed to support only a limited number of peripherals.
 
-config USB_OTG_BLACKLIST_HUB
+config USB_OTG_DISABLE_EXTERNAL_HUB
 	bool "Disable external hubs"
 	depends on USB_OTG || EXPERT
 	help

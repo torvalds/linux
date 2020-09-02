@@ -19,8 +19,6 @@
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
 
-#define ATOMIC_INIT(i)	{ (i) }
-
 /*
  * This Xtensa implementation assumes that the right mechanism
  * for exclusion is for locking interrupts to level EXCM_LEVEL.

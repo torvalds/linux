@@ -370,15 +370,6 @@ config PWM_PCA9685
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-pca9685.
 
-config PWM_PUV3
-	tristate "PKUnity NetBook-0916 PWM support"
-	depends on ARCH_PUV3
-	help
-	  Generic PWM framework driver for PKUnity NetBook-0916.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-puv3.
-
 config PWM_PXA
 	tristate "PXA PWM support"
 	depends on ARCH_PXA || COMPILE_TEST

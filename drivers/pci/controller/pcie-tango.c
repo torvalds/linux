@@ -273,10 +273,8 @@ static int tango_pcie_probe(struct platform_device *pdev)
 		writel_relaxed(0, pcie->base + SMP8759_ENABLE + offset);
 
 	virq = platform_get_irq(pdev, 1);
-	if (virq < 0) {
-		dev_err(dev, "Failed to map IRQ\n");
+	if (virq < 0)
 		return virq;
-	}
 
 	irq_dom = irq_domain_create_linear(fwnode, MSI_MAX, &dom_ops, pcie);
 	if (!irq_dom) {

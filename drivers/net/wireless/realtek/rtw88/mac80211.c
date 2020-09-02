@@ -231,6 +231,23 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
+static int rtw_ops_change_interface(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    enum nl80211_iftype type, bool p2p)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	rtw_info(rtwdev, "change vif %pM (%d)->(%d), p2p (%d)->(%d)\n",
+		 vif->addr, vif->type, type, vif->p2p, p2p);
+
+	rtw_ops_remove_interface(hw, vif);
+
+	vif->type = type;
+	vif->p2p = p2p;
+
+	return rtw_ops_add_interface(hw, vif);
+}
+
 static void rtw_ops_configure_filter(struct ieee80211_hw *hw,
 				     unsigned int changed_flags,
 				     unsigned int *new_flags,
@@ -372,6 +389,15 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON)
 		rtw_fw_download_rsvd_page(rtwdev);
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		if (conf->enable_beacon)
+			rtw_write32_set(rtwdev, REG_FWHW_TXQ_CTRL,
+					BIT_EN_BCNQ_DL);
+		else
+			rtw_write32_clr(rtwdev, REG_FWHW_TXQ_CTRL,
+					BIT_EN_BCNQ_DL);
+	}
 
 	if (changed & BSS_CHANGED_MU_GROUPS)
 		rtw_chip_set_gid_table(rtwdev, vif, conf);
@@ -827,6 +853,7 @@ const struct ieee80211_ops rtw_ops = {
 	.config			= rtw_ops_config,
 	.add_interface		= rtw_ops_add_interface,
 	.remove_interface	= rtw_ops_remove_interface,
+	.change_interface	= rtw_ops_change_interface,
 	.configure_filter	= rtw_ops_configure_filter,
 	.bss_info_changed	= rtw_ops_bss_info_changed,
 	.conf_tx		= rtw_ops_conf_tx,

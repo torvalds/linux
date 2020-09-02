@@ -135,7 +135,7 @@ nvbios_perfEp(struct nvkm_bios *bios, int idx,
 		break;
 	case 0x30:
 		info->script   = nvbios_rd16(bios, perf + 0x02);
-		/* fall through */
+		fallthrough;
 	case 0x35:
 		info->fanspeed = nvbios_rd08(bios, perf + 0x06);
 		info->voltage  = nvbios_rd08(bios, perf + 0x07);

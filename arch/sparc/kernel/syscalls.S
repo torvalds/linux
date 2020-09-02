@@ -86,19 +86,22 @@ sys32_rt_sigreturn:
 	 * during system calls...
 	 */
 	.align	32
-sys_vfork: /* Under Linux, vfork and fork are just special cases of clone. */
-	sethi	%hi(0x4000 | 0x0100 | SIGCHLD), %o0
-	or	%o0, %lo(0x4000 | 0x0100 | SIGCHLD), %o0
-	ba,pt	%xcc, sys_clone
+sys_vfork:
+	flushw
+	ba,pt	%xcc, sparc_vfork
+	 add	%sp, PTREGS_OFF, %o0
+
+	.align	32
 sys_fork:
-	 clr	%o1
-	mov	SIGCHLD, %o0
+	flushw
+	ba,pt	%xcc, sparc_fork
+	 add	%sp, PTREGS_OFF, %o0
+
+	.align	32
 sys_clone:
 	flushw
-	movrz	%o1, %fp, %o1
-	mov	0, %o3
-	ba,pt	%xcc, sparc_do_fork
-	 add	%sp, PTREGS_OFF, %o2
+	ba,pt	%xcc, sparc_clone
+	 add	%sp, PTREGS_OFF, %o0
 
 	.globl	ret_from_fork
 ret_from_fork:

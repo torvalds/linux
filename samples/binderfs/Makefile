@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-userprogs := binderfs_example
-always-y := $(userprogs)
+userprogs-always-y += binderfs_example
 
 userccflags += -I usr/include

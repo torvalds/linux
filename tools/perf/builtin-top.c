@@ -1627,7 +1627,7 @@ int cmd_top(int argc, const char **argv)
 		goto out_delete_evlist;
 
 	if (!top.evlist->core.nr_entries &&
-	    perf_evlist__add_default(top.evlist) < 0) {
+	    evlist__add_default(top.evlist) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out_delete_evlist;
 	}

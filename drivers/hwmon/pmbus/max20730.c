@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for MAX20730, MAX20734, and MAX20743 Integrated, Step-Down
- * Switching Regulators
+ * Driver for MAX20710, MAX20730, MAX20734, and MAX20743 Integrated,
+ * Step-Down Switching Regulators
  *
  * Copyright 2019 Google LLC.
+ * Copyright 2020 Maxim Integrated
  */
 
 #include <linux/bits.h>
@@ -19,6 +20,7 @@
 #include "pmbus.h"
 
 enum chips {
+	max20710,
 	max20730,
 	max20734,
 	max20743
@@ -80,6 +82,7 @@ static long direct_to_val(u16 w, enum pmbus_sensor_classes class,
 }
 
 static u32 max_current[][5] = {
+	[max20710] = { 6200, 8000, 9700, 11600 },
 	[max20730] = { 13000, 16600, 20100, 23600 },
 	[max20734] = { 21000, 27000, 32000, 38000 },
 	[max20743] = { 18900, 24100, 29200, 34100 },
@@ -164,6 +167,35 @@ static int max20730_write_word_data(struct i2c_client *client, int page,
 }
 
 static const struct pmbus_driver_info max20730_info[] = {
+	[max20710] = {
+		.pages = 1,
+		.read_word_data = max20730_read_word_data,
+		.write_word_data = max20730_write_word_data,
+
+		/* Source : Maxim AN6140 and AN6042 */
+		.format[PSC_TEMPERATURE] = direct,
+		.m[PSC_TEMPERATURE] = 21,
+		.b[PSC_TEMPERATURE] = 5887,
+		.R[PSC_TEMPERATURE] = -1,
+
+		.format[PSC_VOLTAGE_IN] = direct,
+		.m[PSC_VOLTAGE_IN] = 3609,
+		.b[PSC_VOLTAGE_IN] = 0,
+		.R[PSC_VOLTAGE_IN] = -2,
+
+		.format[PSC_CURRENT_OUT] = direct,
+		.m[PSC_CURRENT_OUT] = 153,
+		.b[PSC_CURRENT_OUT] = 4976,
+		.R[PSC_CURRENT_OUT] = -1,
+
+		.format[PSC_VOLTAGE_OUT] = linear,
+
+		.func[0] = PMBUS_HAVE_VIN |
+			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
+			PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
+			PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP |
+			PMBUS_HAVE_STATUS_INPUT,
+	},
 	[max20730] = {
 		.pages = 1,
 		.read_word_data = max20730_read_word_data,
@@ -200,7 +232,8 @@ static const struct pmbus_driver_info max20730_info[] = {
 		.func[0] = PMBUS_HAVE_VIN |
 			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
 			PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
-			PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
+			PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP |
+			PMBUS_HAVE_STATUS_INPUT,
 	},
 	[max20734] = {
 		.pages = 1,
@@ -228,7 +261,8 @@ static const struct pmbus_driver_info max20730_info[] = {
 		.func[0] = PMBUS_HAVE_VIN |
 			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
 			PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
-			PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
+			PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP |
+			PMBUS_HAVE_STATUS_INPUT,
 	},
 	[max20743] = {
 		.pages = 1,
@@ -256,7 +290,8 @@ static const struct pmbus_driver_info max20730_info[] = {
 		.func[0] = PMBUS_HAVE_VIN |
 			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
 			PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
-			PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
+			PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP |
+			PMBUS_HAVE_STATUS_INPUT,
 	},
 };
 
@@ -339,6 +374,7 @@ static int max20730_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id max20730_id[] = {
+	{ "max20710", max20710 },
 	{ "max20730", max20730 },
 	{ "max20734", max20734 },
 	{ "max20743", max20743 },
@@ -348,6 +384,7 @@ static const struct i2c_device_id max20730_id[] = {
 MODULE_DEVICE_TABLE(i2c, max20730_id);
 
 static const struct of_device_id max20730_of_match[] = {
+	{ .compatible = "maxim,max20710", .data = (void *)max20710 },
 	{ .compatible = "maxim,max20730", .data = (void *)max20730 },
 	{ .compatible = "maxim,max20734", .data = (void *)max20734 },
 	{ .compatible = "maxim,max20743", .data = (void *)max20743 },
@@ -369,5 +406,5 @@ static struct i2c_driver max20730_driver = {
 module_i2c_driver(max20730_driver);
 
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
-MODULE_DESCRIPTION("PMBus driver for Maxim MAX20730 / MAX20734 / MAX20743");
+MODULE_DESCRIPTION("PMBus driver for Maxim MAX20710 / MAX20730 / MAX20734 / MAX20743");
 MODULE_LICENSE("GPL");

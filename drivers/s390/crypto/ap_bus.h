@@ -83,39 +83,39 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_INTR_ENABLED		1	/* AP interrupt enabled */
 
 /*
- * AP device states
+ * AP queue state machine states
  */
-enum ap_state {
-	AP_STATE_RESET_START,
-	AP_STATE_RESET_WAIT,
-	AP_STATE_SETIRQ_WAIT,
-	AP_STATE_IDLE,
-	AP_STATE_WORKING,
-	AP_STATE_QUEUE_FULL,
-	AP_STATE_REMOVE,	/* about to be removed from driver */
-	AP_STATE_UNBOUND,	/* momentary not bound to a driver */
-	AP_STATE_BORKED,	/* broken */
-	NR_AP_STATES
+enum ap_sm_state {
+	AP_SM_STATE_RESET_START,
+	AP_SM_STATE_RESET_WAIT,
+	AP_SM_STATE_SETIRQ_WAIT,
+	AP_SM_STATE_IDLE,
+	AP_SM_STATE_WORKING,
+	AP_SM_STATE_QUEUE_FULL,
+	AP_SM_STATE_REMOVE,	/* about to be removed from driver */
+	AP_SM_STATE_UNBOUND,	/* momentary not bound to a driver */
+	AP_SM_STATE_BORKED,	/* broken */
+	NR_AP_SM_STATES
 };
 
 /*
- * AP device events
+ * AP queue state machine events
  */
-enum ap_event {
-	AP_EVENT_POLL,
-	AP_EVENT_TIMEOUT,
-	NR_AP_EVENTS
+enum ap_sm_event {
+	AP_SM_EVENT_POLL,
+	AP_SM_EVENT_TIMEOUT,
+	NR_AP_SM_EVENTS
 };
 
 /*
- * AP wait behaviour
+ * AP queue state wait behaviour
  */
-enum ap_wait {
-	AP_WAIT_AGAIN,		/* retry immediately */
-	AP_WAIT_TIMEOUT,	/* wait for timeout */
-	AP_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
-	AP_WAIT_NONE,		/* no wait */
-	NR_AP_WAIT
+enum ap_sm_wait {
+	AP_SM_WAIT_AGAIN,	/* retry immediately */
+	AP_SM_WAIT_TIMEOUT,	/* wait for timeout */
+	AP_SM_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
+	AP_SM_WAIT_NONE,	/* no wait */
+	NR_AP_SM_WAIT
 };
 
 struct ap_device;
@@ -172,7 +172,7 @@ struct ap_queue {
 	ap_qid_t qid;			/* AP queue id. */
 	int interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */
-	enum ap_state state;		/* State of the AP device. */
+	enum ap_sm_state sm_state;	/* ap queue state machine state */
 	int pendingq_count;		/* # requests on pendingq list. */
 	int requestq_count;		/* # requests on requestq list. */
 	u64 total_request_count;	/* # requests ever for this AP device.*/
@@ -185,21 +185,22 @@ struct ap_queue {
 
 #define to_ap_queue(x) container_of((x), struct ap_queue, ap_dev.device)
 
-typedef enum ap_wait (ap_func_t)(struct ap_queue *queue);
+typedef enum ap_sm_wait (ap_func_t)(struct ap_queue *queue);
 
 struct ap_message {
 	struct list_head list;		/* Request queueing. */
 	unsigned long long psmid;	/* Message id. */
-	void *message;			/* Pointer to message buffer. */
-	size_t length;			/* Message length. */
+	void *msg;			/* Pointer to message buffer. */
+	unsigned int len;		/* Message length. */
+	u32 flags;			/* Flags, see AP_MSG_FLAG_xxx */
 	int rc;				/* Return code for this message */
-
 	void *private;			/* ap driver private pointer. */
-	unsigned int special:1;		/* Used for special commands. */
 	/* receive is called from tasklet context */
 	void (*receive)(struct ap_queue *, struct ap_message *,
 			struct ap_message *);
 };
+
+#define AP_MSG_FLAG_SPECIAL  (1 << 16)	/* flag msg as 'special' with NQAP */
 
 /**
  * ap_init_message() - Initialize ap_message.
@@ -218,8 +219,8 @@ static inline void ap_init_message(struct ap_message *ap_msg)
  */
 static inline void ap_release_message(struct ap_message *ap_msg)
 {
-	kzfree(ap_msg->message);
-	kzfree(ap_msg->private);
+	kfree_sensitive(ap_msg->msg);
+	kfree_sensitive(ap_msg->private);
 }
 
 /*
@@ -230,15 +231,15 @@ static inline void ap_release_message(struct ap_message *ap_msg)
 int ap_send(ap_qid_t, unsigned long long, void *, size_t);
 int ap_recv(ap_qid_t, unsigned long long *, void *, size_t);
 
-enum ap_wait ap_sm_event(struct ap_queue *aq, enum ap_event event);
-enum ap_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_event event);
+enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event);
+enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event);
 
 void ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg);
 void ap_cancel_message(struct ap_queue *aq, struct ap_message *ap_msg);
 void ap_flush_queue(struct ap_queue *aq);
 
 void *ap_airq_ptr(void);
-void ap_wait(enum ap_wait wait);
+void ap_wait(enum ap_sm_wait wait);
 void ap_request_timeout(struct timer_list *t);
 void ap_bus_force_rescan(void);
 

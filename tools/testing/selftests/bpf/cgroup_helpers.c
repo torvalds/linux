@@ -290,3 +290,26 @@ free_mem:
 	free(fhp);
 	return ret;
 }
+
+int cgroup_setup_and_join(const char *path) {
+	int cg_fd;
+
+	if (setup_cgroup_environment()) {
+		fprintf(stderr, "Failed to setup cgroup environment\n");
+		return -EINVAL;
+	}
+
+	cg_fd = create_and_get_cgroup(path);
+	if (cg_fd < 0) {
+		fprintf(stderr, "Failed to create test cgroup\n");
+		cleanup_cgroup_environment();
+		return cg_fd;
+	}
+
+	if (join_cgroup(path)) {
+		fprintf(stderr, "Failed to join cgroup\n");
+		cleanup_cgroup_environment();
+		return -EINVAL;
+	}
+	return cg_fd;
+}

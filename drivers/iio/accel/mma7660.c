@@ -188,7 +188,6 @@ static int mma7660_probe(struct i2c_client *client,
 	mutex_init(&data->lock);
 	data->mode = MMA7660_MODE_STANDBY;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &mma7660_info;
 	indio_dev->name = MMA7660_DRIVER_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;

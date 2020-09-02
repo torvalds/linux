@@ -115,21 +115,21 @@ nvbios_timingEp(struct nvkm_bios *bios, int idx,
 		switch (min_t(u8, *hdr, 25)) {
 		case 25:
 			p->timing_10_24  = nvbios_rd08(bios, data + 0x18);
-			/* fall through */
+			fallthrough;
 		case 24:
 		case 23:
 		case 22:
 			p->timing_10_21  = nvbios_rd08(bios, data + 0x15);
-			/* fall through */
+			fallthrough;
 		case 21:
 			p->timing_10_20  = nvbios_rd08(bios, data + 0x14);
-			/* fall through */
+			fallthrough;
 		case 20:
 			p->timing_10_CWL = nvbios_rd08(bios, data + 0x13);
-			/* fall through */
+			fallthrough;
 		case 19:
 			p->timing_10_18  = nvbios_rd08(bios, data + 0x12);
-			/* fall through */
+			fallthrough;
 		case 18:
 		case 17:
 			p->timing_10_16  = nvbios_rd08(bios, data + 0x10);

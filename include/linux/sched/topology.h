@@ -217,6 +217,16 @@ static inline bool cpus_share_cache(int this_cpu, int that_cpu)
 #endif	/* !CONFIG_SMP */
 
 #ifndef arch_scale_cpu_capacity
+/**
+ * arch_scale_cpu_capacity - get the capacity scale factor of a given CPU.
+ * @cpu: the CPU in question.
+ *
+ * Return: the CPU scale factor normalized against SCHED_CAPACITY_SCALE, i.e.
+ *
+ *             max_perf(cpu)
+ *      ----------------------------- * SCHED_CAPACITY_SCALE
+ *      max(max_perf(c) : c \in CPUs)
+ */
 static __always_inline
 unsigned long arch_scale_cpu_capacity(int cpu)
 {
@@ -230,6 +240,13 @@ unsigned long arch_scale_thermal_pressure(int cpu)
 {
 	return 0;
 }
+#endif
+
+#ifndef arch_set_thermal_pressure
+static __always_inline
+void arch_set_thermal_pressure(const struct cpumask *cpus,
+			       unsigned long th_pressure)
+{ }
 #endif
 
 static inline int task_node(const struct task_struct *p)

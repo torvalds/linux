@@ -17,6 +17,15 @@
 #include "mic_x100.h"
 #include "mic_smpt.h"
 
+static const u16 mic_x100_intr_init[] = {
+		MIC_X100_DOORBELL_IDX_START,
+		MIC_X100_DMA_IDX_START,
+		MIC_X100_ERR_IDX_START,
+		MIC_X100_NUM_DOORBELL,
+		MIC_X100_NUM_DMA,
+		MIC_X100_NUM_ERR,
+};
+
 /**
  * mic_x100_write_spad - write to the scratchpad register
  * @mdev: pointer to mic_device instance
@@ -112,6 +121,7 @@ static void mic_x100_disable_interrupts(struct mic_device *mdev)
 /**
  * mic_x100_send_sbox_intr - Send an MIC_X100_SBOX interrupt to MIC.
  * @mdev: pointer to mic_device instance
+ * @doorbell: doorbell number
  */
 static void mic_x100_send_sbox_intr(struct mic_device *mdev,
 				    int doorbell)
@@ -133,6 +143,7 @@ static void mic_x100_send_sbox_intr(struct mic_device *mdev,
 /**
  * mic_x100_send_rdmasr_intr - Send an RDMASR interrupt to MIC.
  * @mdev: pointer to mic_device instance
+ * @doorbell: doorbell number
  */
 static void mic_x100_send_rdmasr_intr(struct mic_device *mdev,
 				      int doorbell)
@@ -494,6 +505,8 @@ static u32 mic_x100_get_postcode(struct mic_device *mdev)
 /**
  * mic_x100_smpt_set - Update an SMPT entry with a DMA address.
  * @mdev: pointer to mic_device instance
+ * @dma_addr: DMA address to use
+ * @index: entry to write to
  *
  * RETURNS: none.
  */

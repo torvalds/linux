@@ -64,7 +64,8 @@ void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				function_trace_op, regs);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (ftrace_graph_return != (trace_func_graph_ret_t) ftrace_stub ||
+	if (dereference_function_descriptor(ftrace_graph_return) !=
+	    dereference_function_descriptor(ftrace_stub) ||
 	    ftrace_graph_entry != ftrace_graph_entry_stub) {
 		unsigned long *parent_rp;
 

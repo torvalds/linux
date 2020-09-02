@@ -121,7 +121,6 @@
 #define CURSOR_UPDATE_LOCK             (1 << 16)
 #define CURSOR_DISABLE_MULTIPLE_UPDATE (1 << 24)
 
-#define AMDGPU_NUM_OF_VMIDS                     8
 #define SI_CRTC0_REGISTER_OFFSET                0
 #define SI_CRTC1_REGISTER_OFFSET                0x300
 #define SI_CRTC2_REGISTER_OFFSET                0x2600

@@ -610,6 +610,19 @@ config CHARGER_BQ24735
 	help
 	  Say Y to enable support for the TI BQ24735 battery charger.
 
+config CHARGER_BQ2515X
+	tristate "TI BQ2515X battery charger family"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ2515X family of battery
+	  charging integrated circuits. The BQ2515X are highly integrated
+	  battery charge management ICs that integrate the most common
+	  functions for wearable devices, namely a charger, an output voltage
+	  rail, ADC for battery and system monitoring, and push-button
+	  controller.
+
 config CHARGER_BQ25890
 	tristate "TI BQ25890 battery charger driver"
 	depends on I2C

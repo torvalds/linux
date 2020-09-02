@@ -8,6 +8,7 @@
  * interface. A frame is identified by its source MAC address and its HSR
  * sequence number. This code keeps track of senders and their sequence numbers
  * to allow filtering of duplicate frames, and to detect HSR ring errors.
+ * Same code handles filtering of duplicates for PRP as well.
  */
 
 #include <linux/if_ether.h>
@@ -126,6 +127,19 @@ void hsr_del_nodes(struct list_head *node_db)
 		kfree(node);
 }
 
+void prp_handle_san_frame(bool san, enum hsr_port_type port,
+			  struct hsr_node *node)
+{
+	/* Mark if the SAN node is over LAN_A or LAN_B */
+	if (port == HSR_PT_SLAVE_A) {
+		node->san_a = true;
+		return;
+	}
+
+	if (port == HSR_PT_SLAVE_B)
+		node->san_b = true;
+}
+
 /* Allocate an hsr_node and add it to node_db. 'addr' is the node's address_A;
  * seq_out is used to initialize filtering of outgoing duplicate frames
  * originating from the newly added node.
@@ -133,7 +147,8 @@ void hsr_del_nodes(struct list_head *node_db)
 static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 				     struct list_head *node_db,
 				     unsigned char addr[],
-				     u16 seq_out)
+				     u16 seq_out, bool san,
+				     enum hsr_port_type rx_port)
 {
 	struct hsr_node *new_node, *node;
 	unsigned long now;
@@ -154,6 +169,9 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 	for (i = 0; i < HSR_PT_PORTS; i++)
 		new_node->seq_out[i] = seq_out;
 
+	if (san && hsr->proto_ops->handle_san_frame)
+		hsr->proto_ops->handle_san_frame(san, rx_port, new_node);
+
 	spin_lock_bh(&hsr->list_lock);
 	list_for_each_entry_rcu(node, node_db, mac_list,
 				lockdep_is_held(&hsr->list_lock)) {
@@ -171,15 +189,26 @@ out:
 	return node;
 }
 
+void prp_update_san_info(struct hsr_node *node, bool is_sup)
+{
+	if (!is_sup)
+		return;
+
+	node->san_a = false;
+	node->san_b = false;
+}
+
 /* Get the hsr_node from which 'skb' was sent.
  */
-struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
-			      bool is_sup)
+struct hsr_node *hsr_get_node(struct hsr_port *port, struct list_head *node_db,
+			      struct sk_buff *skb, bool is_sup,
+			      enum hsr_port_type rx_port)
 {
-	struct list_head *node_db = &port->hsr->node_db;
 	struct hsr_priv *hsr = port->hsr;
 	struct hsr_node *node;
 	struct ethhdr *ethhdr;
+	struct prp_rct *rct;
+	bool san = false;
 	u16 seq_out;
 
 	if (!skb_mac_header_was_set(skb))
@@ -188,14 +217,21 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	list_for_each_entry_rcu(node, node_db, mac_list) {
-		if (ether_addr_equal(node->macaddress_A, ethhdr->h_source))
+		if (ether_addr_equal(node->macaddress_A, ethhdr->h_source)) {
+			if (hsr->proto_ops->update_san_info)
+				hsr->proto_ops->update_san_info(node, is_sup);
 			return node;
-		if (ether_addr_equal(node->macaddress_B, ethhdr->h_source))
+		}
+		if (ether_addr_equal(node->macaddress_B, ethhdr->h_source)) {
+			if (hsr->proto_ops->update_san_info)
+				hsr->proto_ops->update_san_info(node, is_sup);
 			return node;
+		}
 	}
 
-	/* Everyone may create a node entry, connected node to a HSR device. */
-
+	/* Everyone may create a node entry, connected node to a HSR/PRP
+	 * device.
+	 */
 	if (ethhdr->h_proto == htons(ETH_P_PRP) ||
 	    ethhdr->h_proto == htons(ETH_P_HSR)) {
 		/* Use the existing sequence_nr from the tag as starting point
@@ -203,30 +239,46 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 		 */
 		seq_out = hsr_get_skb_sequence_nr(skb) - 1;
 	} else {
-		/* this is called also for frames from master port and
-		 * so warn only for non master ports
-		 */
-		if (port->type != HSR_PT_MASTER)
-			WARN_ONCE(1, "%s: Non-HSR frame\n", __func__);
-		seq_out = HSR_SEQNR_START;
+		rct = skb_get_PRP_rct(skb);
+		if (rct && prp_check_lsdu_size(skb, rct, is_sup)) {
+			seq_out = prp_get_skb_sequence_nr(rct);
+		} else {
+			if (rx_port != HSR_PT_MASTER)
+				san = true;
+			seq_out = HSR_SEQNR_START;
+		}
 	}
 
-	return hsr_add_node(hsr, node_db, ethhdr->h_source, seq_out);
+	return hsr_add_node(hsr, node_db, ethhdr->h_source, seq_out,
+			    san, rx_port);
 }
 
 /* Use the Supervision frame's info about an eventual macaddress_B for merging
  * nodes that has previously had their macaddress_B registered as a separate
  * node.
  */
-void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
-			  struct hsr_port *port_rcv)
+void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 {
+	struct hsr_node *node_curr = frame->node_src;
+	struct hsr_port *port_rcv = frame->port_rcv;
 	struct hsr_priv *hsr = port_rcv->hsr;
 	struct hsr_sup_payload *hsr_sp;
 	struct hsr_node *node_real;
+	struct sk_buff *skb = NULL;
 	struct list_head *node_db;
 	struct ethhdr *ethhdr;
 	int i;
+
+	/* Here either frame->skb_hsr or frame->skb_prp should be
+	 * valid as supervision frame always will have protocol
+	 * header info.
+	 */
+	if (frame->skb_hsr)
+		skb = frame->skb_hsr;
+	else if (frame->skb_prp)
+		skb = frame->skb_prp;
+	if (!skb)
+		return;
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
@@ -248,7 +300,8 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 	if (!node_real)
 		/* No frame received from AddrA of this node yet */
 		node_real = hsr_add_node(hsr, node_db, hsr_sp->macaddress_A,
-					 HSR_SEQNR_START - 1);
+					 HSR_SEQNR_START - 1, true,
+					 port_rcv->type);
 	if (!node_real)
 		goto done; /* No mem */
 	if (node_real == node_curr)
@@ -274,7 +327,11 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 	kfree_rcu(node_curr, rcu_head);
 
 done:
-	skb_push(skb, sizeof(struct hsrv1_ethhdr_sp));
+	/* PRP uses v0 header */
+	if (ethhdr->h_proto == htons(ETH_P_HSR))
+		skb_push(skb, sizeof(struct hsrv1_ethhdr_sp));
+	else
+		skb_push(skb, sizeof(struct hsrv0_ethhdr_sp));
 }
 
 /* 'skb' is a frame meant for this host, that is to be passed to upper layers.

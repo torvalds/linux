@@ -60,7 +60,7 @@ int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 	aead_request_set_ad(aead_req, GMAC_AAD_LEN + data_len);
 
 	crypto_aead_encrypt(aead_req);
-	kzfree(aead_req);
+	kfree_sensitive(aead_req);
 
 	return 0;
 }

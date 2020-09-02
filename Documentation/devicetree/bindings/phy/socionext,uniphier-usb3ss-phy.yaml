@@ -37,15 +37,15 @@ properties:
   clock-names:
     oneOf:
       - items:             # for Pro4, Pro5
-        - const: gio
-        - const: link
+          - const: gio
+          - const: link
       - items:             # for PXs3 with phy-ext
-        - const: link
-        - const: phy
-        - const: phy-ext
+          - const: link
+          - const: phy
+          - const: phy-ext
       - items:             # for others
-        - const: link
-        - const: phy
+          - const: link
+          - const: phy
 
   resets:
     maxItems: 2
@@ -53,11 +53,11 @@ properties:
   reset-names:
     oneOf:
       - items:              # for Pro4,Pro5
-        - const: gio
-        - const: link
+          - const: gio
+          - const: link
       - items:              # for others
-        - const: link
-        - const: phy
+          - const: link
+          - const: phy
 
   vbus-supply:
     description: A phandle to the regulator for USB VBUS

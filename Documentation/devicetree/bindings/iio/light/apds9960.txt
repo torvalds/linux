@@ -1,6 +1,6 @@
 * Avago APDS9960 gesture/RGB/ALS/proximity sensor
 
-http://www.avagotech.com/docs/AV02-4191EN
+https://www.avagotech.com/docs/AV02-4191EN
 
 Required properties:
 

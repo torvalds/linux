@@ -39,6 +39,8 @@
 #define POWER_HIGH_LOCK         BIT_ULL(63)
 #define POWER_LOW_LOCK          BIT(31)
 
+#define POWER_LIMIT4_MASK		0x1FFF
+
 #define TIME_WINDOW1_MASK       (0x7FULL<<17)
 #define TIME_WINDOW2_MASK       (0x7FULL<<49)
 
@@ -82,6 +84,7 @@ enum unit_type {
 
 static const char pl1_name[] = "long_term";
 static const char pl2_name[] = "short_term";
+static const char pl4_name[] = "peak_power";
 
 #define power_zone_to_rapl_domain(_zone) \
 	container_of(_zone, struct rapl_domain, power_zone)
@@ -93,6 +96,7 @@ struct rapl_defaults {
 	u64 (*compute_time_window)(struct rapl_package *rp, u64 val,
 				    bool to_raw);
 	unsigned int dram_domain_energy_unit;
+	unsigned int psys_domain_energy_unit;
 };
 static struct rapl_defaults *rapl_defaults;
 
@@ -337,6 +341,9 @@ static int set_power_limit(struct powercap_zone *power_zone, int cid,
 	case PL2_ENABLE:
 		rapl_write_data_raw(rd, POWER_LIMIT2, power_limit);
 		break;
+	case PL4_ENABLE:
+		rapl_write_data_raw(rd, POWER_LIMIT4, power_limit);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -370,6 +377,9 @@ static int get_current_power_limit(struct powercap_zone *power_zone, int cid,
 		break;
 	case PL2_ENABLE:
 		prim = POWER_LIMIT2;
+		break;
+	case PL4_ENABLE:
+		prim = POWER_LIMIT4;
 		break;
 	default:
 		put_online_cpus();
@@ -440,6 +450,13 @@ static int get_time_window(struct powercap_zone *power_zone, int cid,
 	case PL2_ENABLE:
 		ret = rapl_read_data_raw(rd, TIME_WINDOW2, true, &val);
 		break;
+	case PL4_ENABLE:
+		/*
+		 * Time window parameter is not applicable for PL4 entry
+		 * so assigining '0' as default value.
+		 */
+		val = 0;
+		break;
 	default:
 		put_online_cpus();
 		return -EINVAL;
@@ -483,6 +500,9 @@ static int get_max_power(struct powercap_zone *power_zone, int id, u64 *data)
 	case PL2_ENABLE:
 		prim = MAX_POWER;
 		break;
+	case PL4_ENABLE:
+		prim = MAX_POWER;
+		break;
 	default:
 		put_online_cpus();
 		return -EINVAL;
@@ -491,6 +511,10 @@ static int get_max_power(struct powercap_zone *power_zone, int id, u64 *data)
 		ret = -EIO;
 	else
 		*data = val;
+
+	/* As a generalization rule, PL4 would be around two times PL2. */
+	if (rd->rpl[id].prim_id == PL4_ENABLE)
+		*data = *data * 2;
 
 	put_online_cpus();
 
@@ -524,21 +548,42 @@ static void rapl_init_domains(struct rapl_package *rp)
 		rd->id = i;
 		rd->rpl[0].prim_id = PL1_ENABLE;
 		rd->rpl[0].name = pl1_name;
-		/* some domain may support two power limits */
-		if (rp->priv->limits[i] == 2) {
+
+		/*
+		 * The PL2 power domain is applicable for limits two
+		 * and limits three
+		 */
+		if (rp->priv->limits[i] >= 2) {
 			rd->rpl[1].prim_id = PL2_ENABLE;
 			rd->rpl[1].name = pl2_name;
+		}
+
+		/* Enable PL4 domain if the total power limits are three */
+		if (rp->priv->limits[i] == 3) {
+			rd->rpl[2].prim_id = PL4_ENABLE;
+			rd->rpl[2].name = pl4_name;
 		}
 
 		for (j = 0; j < RAPL_DOMAIN_REG_MAX; j++)
 			rd->regs[j] = rp->priv->regs[i][j];
 
-		if (i == RAPL_DOMAIN_DRAM) {
+		switch (i) {
+		case RAPL_DOMAIN_DRAM:
 			rd->domain_energy_unit =
 			    rapl_defaults->dram_domain_energy_unit;
 			if (rd->domain_energy_unit)
 				pr_info("DRAM domain energy unit %dpj\n",
 					rd->domain_energy_unit);
+			break;
+		case RAPL_DOMAIN_PLATFORM:
+			rd->domain_energy_unit =
+			    rapl_defaults->psys_domain_energy_unit;
+			if (rd->domain_energy_unit)
+				pr_info("Platform domain energy unit %dpj\n",
+					rd->domain_energy_unit);
+			break;
+		default:
+			break;
 		}
 		rd++;
 	}
@@ -587,6 +632,8 @@ static struct rapl_primitive_info rpi[] = {
 			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
 	PRIMITIVE_INFO_INIT(POWER_LIMIT2, POWER_LIMIT2_MASK, 32,
 			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
+	PRIMITIVE_INFO_INIT(POWER_LIMIT4, POWER_LIMIT4_MASK, 0,
+				RAPL_DOMAIN_REG_PL4, POWER_UNIT, 0),
 	PRIMITIVE_INFO_INIT(FW_LOCK, POWER_LOW_LOCK, 31,
 			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
 	PRIMITIVE_INFO_INIT(PL1_ENABLE, POWER_LIMIT1_ENABLE, 15,
@@ -597,6 +644,8 @@ static struct rapl_primitive_info rpi[] = {
 			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
 	PRIMITIVE_INFO_INIT(PL2_CLAMP, POWER_LIMIT2_CLAMP, 48,
 			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
+	PRIMITIVE_INFO_INIT(PL4_ENABLE, POWER_LIMIT4_MASK, 0,
+				RAPL_DOMAIN_REG_PL4, ARBITRARY_UNIT, 0),
 	PRIMITIVE_INFO_INIT(TIME_WINDOW1, TIME_WINDOW1_MASK, 17,
 			    RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
 	PRIMITIVE_INFO_INIT(TIME_WINDOW2, TIME_WINDOW2_MASK, 49,
@@ -919,6 +968,14 @@ static const struct rapl_defaults rapl_defaults_hsw_server = {
 	.dram_domain_energy_unit = 15300,
 };
 
+static const struct rapl_defaults rapl_defaults_spr_server = {
+	.check_unit = rapl_check_unit_core,
+	.set_floor_freq = set_floor_freq_default,
+	.compute_time_window = rapl_compute_time_window_core,
+	.dram_domain_energy_unit = 15300,
+	.psys_domain_energy_unit = 1000000000,
+};
+
 static const struct rapl_defaults rapl_defaults_byt = {
 	.floor_freq_reg_addr = IOSF_CPU_POWER_BUDGET_CTL_BYT,
 	.check_unit = rapl_check_unit_atom,
@@ -978,6 +1035,7 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L,		&rapl_defaults_core),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		&rapl_defaults_core),
 	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE_L,		&rapl_defaults_core),
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&rapl_defaults_spr_server),
 
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT,	&rapl_defaults_byt),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT,	&rapl_defaults_cht),
@@ -1252,6 +1310,7 @@ void rapl_remove_package(struct rapl_package *rp)
 		if (find_nr_power_limit(rd) > 1) {
 			rapl_write_data_raw(rd, PL2_ENABLE, 0);
 			rapl_write_data_raw(rd, PL2_CLAMP, 0);
+			rapl_write_data_raw(rd, PL4_ENABLE, 0);
 		}
 		if (rd->id == RAPL_DOMAIN_PACKAGE) {
 			rd_package = rd;
@@ -1360,6 +1419,13 @@ static void power_limit_state_save(void)
 				if (ret)
 					rd->rpl[i].last_power_limit = 0;
 				break;
+			case PL4_ENABLE:
+				ret = rapl_read_data_raw(rd,
+						 POWER_LIMIT4, true,
+						 &rd->rpl[i].last_power_limit);
+				if (ret)
+					rd->rpl[i].last_power_limit = 0;
+				break;
 			}
 		}
 	}
@@ -1388,6 +1454,11 @@ static void power_limit_state_restore(void)
 			case PL2_ENABLE:
 				if (rd->rpl[i].last_power_limit)
 					rapl_write_data_raw(rd, POWER_LIMIT2,
+					    rd->rpl[i].last_power_limit);
+				break;
+			case PL4_ENABLE:
+				if (rd->rpl[i].last_power_limit)
+					rapl_write_data_raw(rd, POWER_LIMIT4,
 					    rd->rpl[i].last_power_limit);
 				break;
 			}

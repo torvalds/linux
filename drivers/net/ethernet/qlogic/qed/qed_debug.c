@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/module.h>
@@ -971,7 +972,7 @@ static void qed_read_storm_fw_info(struct qed_hwfn *p_hwfn,
 {
 	struct storm_defs *storm = &s_storm_defs[storm_id];
 	struct fw_info_location fw_info_location;
-	u32 addr, i, *dest;
+	u32 addr, i, size, *dest;
 
 	memset(&fw_info_location, 0, sizeof(fw_info_location));
 	memset(fw_info, 0, sizeof(*fw_info));
@@ -984,20 +985,29 @@ static void qed_read_storm_fw_info(struct qed_hwfn *p_hwfn,
 	    sizeof(fw_info_location);
 
 	dest = (u32 *)&fw_info_location;
+	size = BYTES_TO_DWORDS(sizeof(fw_info_location));
 
-	for (i = 0; i < BYTES_TO_DWORDS(sizeof(fw_info_location));
-	     i++, addr += BYTES_IN_DWORD)
+	for (i = 0; i < size; i++, addr += BYTES_IN_DWORD)
 		dest[i] = qed_rd(p_hwfn, p_ptt, addr);
 
+	/* qed_rq() fetches data in CPU byteorder. Swap it back to
+	 * the device's to get right structure layout.
+	 */
+	cpu_to_le32_array(dest, size);
+
 	/* Read FW version info from Storm RAM */
-	if (fw_info_location.size > 0 && fw_info_location.size <=
-	    sizeof(*fw_info)) {
-		addr = fw_info_location.grc_addr;
-		dest = (u32 *)fw_info;
-		for (i = 0; i < BYTES_TO_DWORDS(fw_info_location.size);
-		     i++, addr += BYTES_IN_DWORD)
-			dest[i] = qed_rd(p_hwfn, p_ptt, addr);
-	}
+	size = le32_to_cpu(fw_info_location.size);
+	if (!size || size > sizeof(*fw_info))
+		return;
+
+	addr = le32_to_cpu(fw_info_location.grc_addr);
+	dest = (u32 *)fw_info;
+	size = BYTES_TO_DWORDS(size);
+
+	for (i = 0; i < size; i++, addr += BYTES_IN_DWORD)
+		dest[i] = qed_rd(p_hwfn, p_ptt, addr);
+
+	cpu_to_le32_array(dest, size);
 }
 
 /* Dumps the specified string to the specified buffer.
@@ -1121,9 +1131,8 @@ static u32 qed_dump_fw_ver_param(struct qed_hwfn *p_hwfn,
 				     dump, "fw-version", fw_ver_str);
 	offset += qed_dump_str_param(dump_buf + offset,
 				     dump, "fw-image", fw_img_str);
-	offset += qed_dump_num_param(dump_buf + offset,
-				     dump,
-				     "fw-timestamp", fw_info.ver.timestamp);
+	offset += qed_dump_num_param(dump_buf + offset, dump, "fw-timestamp",
+				     le32_to_cpu(fw_info.ver.timestamp));
 
 	return offset;
 }
@@ -4440,9 +4449,11 @@ static u32 qed_fw_asserts_dump(struct qed_hwfn *p_hwfn,
 			continue;
 		}
 
+		addr = le16_to_cpu(asserts->section_ram_line_offset);
 		fw_asserts_section_addr = storm->sem_fast_mem_addr +
-			SEM_FAST_REG_INT_RAM +
-			RAM_LINES_TO_BYTES(asserts->section_ram_line_offset);
+					  SEM_FAST_REG_INT_RAM +
+					  RAM_LINES_TO_BYTES(addr);
+
 		next_list_idx_addr = fw_asserts_section_addr +
 			DWORDS_TO_BYTES(asserts->list_next_index_dword_offset);
 		next_list_idx = qed_rd(p_hwfn, p_ptt, next_list_idx_addr);
@@ -7656,8 +7667,7 @@ static int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
 {
 	struct qed_hwfn *p_hwfn =
 		&cdev->hwfns[cdev->engine_for_debug];
-	u32 len_rounded, i;
-	__be32 val;
+	u32 len_rounded;
 	int rc;
 
 	*num_dumped_bytes = 0;
@@ -7676,10 +7686,9 @@ static int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
 
 	/* QED_NVM_IMAGE_NVM_META image is not swapped like other images */
 	if (image_id != QED_NVM_IMAGE_NVM_META)
-		for (i = 0; i < len_rounded; i += 4) {
-			val = cpu_to_be32(*(u32 *)(buffer + i));
-			*(u32 *)(buffer + i) = val;
-		}
+		cpu_to_be32_array((__force __be32 *)buffer,
+				  (const u32 *)buffer,
+				  len_rounded / sizeof(u32));
 
 	*num_dumped_bytes = len_rounded;
 

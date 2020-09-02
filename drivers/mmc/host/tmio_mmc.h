@@ -118,6 +118,9 @@ struct tmio_mmc_dma_ops {
 	void (*release)(struct tmio_mmc_host *host);
 	void (*abort)(struct tmio_mmc_host *host);
 	void (*dataend)(struct tmio_mmc_host *host);
+
+	/* optional */
+	void (*end)(struct tmio_mmc_host *host);	/* held host->lock */
 };
 
 struct tmio_mmc_host {

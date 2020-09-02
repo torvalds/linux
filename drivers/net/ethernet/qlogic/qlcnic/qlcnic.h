@@ -536,8 +536,6 @@ struct qlcnic_hardware_context {
 	u8 extend_lb_time;
 	u8 phys_port_id[ETH_ALEN];
 	u8 lb_mode;
-	u8 vxlan_port_count;
-	u16 vxlan_port;
 	struct device *hwmon_dev;
 	u32 post_mode;
 	bool run_post;
@@ -1025,9 +1023,6 @@ struct qlcnic_ipaddr {
 #define QLCNIC_APP_CHANGED_FLAGS	0x20000
 #define QLCNIC_HAS_PHYS_PORT_ID		0x40000
 #define QLCNIC_TSS_RSS			0x80000
-
-#define QLCNIC_ADD_VXLAN_PORT		0x100000
-#define QLCNIC_DEL_VXLAN_PORT		0x200000
 
 #define QLCNIC_VLAN_FILTERING		0x800000
 
@@ -1700,6 +1695,8 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *);
 int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
+int qlcnic_set_vxlan_port(struct qlcnic_adapter *adapter, u16 port);
+int qlcnic_set_vxlan_parsing(struct qlcnic_adapter *adapter, u16 port);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);

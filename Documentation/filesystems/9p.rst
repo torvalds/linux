@@ -18,7 +18,7 @@ and Maya Gokhale.  Additional development by Greg Watson
 The best detailed explanation of the Linux implementation and applications of
 the 9p client is available in the form of a USENIX paper:
 
-   http://www.usenix.org/events/usenix05/tech/freenix/hensbergen.html
+   https://www.usenix.org/events/usenix05/tech/freenix/hensbergen.html
 
 Other applications are described in the following papers:
 

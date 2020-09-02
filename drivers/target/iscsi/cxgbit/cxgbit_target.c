@@ -284,18 +284,6 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 	}
 }
 
-static bool cxgbit_lock_sock(struct cxgbit_sock *csk)
-{
-	spin_lock_bh(&csk->lock);
-
-	if (before(csk->write_seq, csk->snd_una + csk->snd_win))
-		csk->lock_owner = true;
-
-	spin_unlock_bh(&csk->lock);
-
-	return csk->lock_owner;
-}
-
 static void cxgbit_unlock_sock(struct cxgbit_sock *csk)
 {
 	struct sk_buff_head backlogq;
@@ -325,20 +313,16 @@ static int cxgbit_queue_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
 	int ret = 0;
 
-	wait_event_interruptible(csk->ack_waitq, cxgbit_lock_sock(csk));
+	spin_lock_bh(&csk->lock);
+	csk->lock_owner = true;
+	spin_unlock_bh(&csk->lock);
 
 	if (unlikely((csk->com.state != CSK_STATE_ESTABLISHED) ||
 		     signal_pending(current))) {
 		__kfree_skb(skb);
 		__skb_queue_purge(&csk->ppodq);
 		ret = -1;
-		spin_lock_bh(&csk->lock);
-		if (csk->lock_owner) {
-			spin_unlock_bh(&csk->lock);
-			goto unlock;
-		}
-		spin_unlock_bh(&csk->lock);
-		return ret;
+		goto unlock;
 	}
 
 	csk->write_seq += skb->len +

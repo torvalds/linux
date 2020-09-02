@@ -10,7 +10,7 @@
  *
  * For more information about the SPI controller see documentation on Cirrus
  * Logic web site:
- *     http://www.cirrus.com/en/pubs/manual/EP93xx_Users_Guide_UM1.pdf
+ *     https://www.cirrus.com/en/pubs/manual/EP93xx_Users_Guide_UM1.pdf
  */
 
 #include <linux/io.h>
@@ -214,7 +214,7 @@ static void ep93xx_do_read(struct spi_master *master)
 
 /**
  * ep93xx_spi_read_write() - perform next RX/TX transfer
- * @espi: ep93xx SPI controller struct
+ * @master: SPI master
  *
  * This function transfers next bytes (or half-words) to/from RX/TX FIFOs. If
  * called several times, the whole transfer will be completed. Returns

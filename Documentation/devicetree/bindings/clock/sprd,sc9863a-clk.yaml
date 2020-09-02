@@ -16,7 +16,7 @@ properties:
   "#clock-cells":
     const: 1
 
-  compatible :
+  compatible:
     enum:
       - sprd,sc9863a-ap-clk
       - sprd,sc9863a-aon-clk

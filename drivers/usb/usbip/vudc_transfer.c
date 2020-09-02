@@ -404,7 +404,7 @@ restart:
 			 * for now, give unlimited bandwidth
 			 */
 			limit += urb->transfer_buffer_length;
-			/* fallthrough */
+			fallthrough;
 		default:
 treat_control_like_bulk:
 			total -= transfer(udc, urb, ep, limit);
@@ -479,7 +479,7 @@ void v_kick_timer(struct vudc *udc, unsigned long time)
 		return;
 	case VUDC_TR_IDLE:
 		t->state = VUDC_TR_RUNNING;
-		/* fallthrough */
+		fallthrough;
 	case VUDC_TR_STOPPED:
 		/* we may want to kick timer to unqueue urbs */
 		mod_timer(&t->timer, time);

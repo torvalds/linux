@@ -541,9 +541,9 @@ static const struct irq_domain_ops regmap_domain_ops = {
 };
 
 /**
- * regmap_add_irq_chip_np() - Use standard regmap IRQ controller handling
+ * regmap_add_irq_chip_fwnode() - Use standard regmap IRQ controller handling
  *
- * @np: The device_node where the IRQ domain should be added to.
+ * @fwnode: The firmware node where the IRQ domain should be added to.
  * @map: The regmap for the device.
  * @irq: The IRQ the device uses to signal interrupts.
  * @irq_flags: The IRQF_ flags to use for the primary interrupt.
@@ -557,10 +557,11 @@ static const struct irq_domain_ops regmap_domain_ops = {
  * register cache.  The chip driver is responsible for restoring the
  * register values used by the IRQ controller over suspend and resume.
  */
-int regmap_add_irq_chip_np(struct device_node *np, struct regmap *map, int irq,
-			   int irq_flags, int irq_base,
-			   const struct regmap_irq_chip *chip,
-			   struct regmap_irq_chip_data **data)
+int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
+			       struct regmap *map, int irq,
+			       int irq_flags, int irq_base,
+			       const struct regmap_irq_chip *chip,
+			       struct regmap_irq_chip_data **data)
 {
 	struct regmap_irq_chip_data *d;
 	int i;
@@ -771,10 +772,12 @@ int regmap_add_irq_chip_np(struct device_node *np, struct regmap *map, int irq,
 	}
 
 	if (irq_base)
-		d->domain = irq_domain_add_legacy(np, chip->num_irqs, irq_base,
+		d->domain = irq_domain_add_legacy(to_of_node(fwnode),
+						  chip->num_irqs, irq_base,
 						  0, &regmap_domain_ops, d);
 	else
-		d->domain = irq_domain_add_linear(np, chip->num_irqs,
+		d->domain = irq_domain_add_linear(to_of_node(fwnode),
+						  chip->num_irqs,
 						  &regmap_domain_ops, d);
 	if (!d->domain) {
 		dev_err(map->dev, "Failed to create IRQ domain\n");
@@ -808,7 +811,7 @@ err_alloc:
 	kfree(d);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(regmap_add_irq_chip_np);
+EXPORT_SYMBOL_GPL(regmap_add_irq_chip_fwnode);
 
 /**
  * regmap_add_irq_chip() - Use standard regmap IRQ controller handling
@@ -822,15 +825,15 @@ EXPORT_SYMBOL_GPL(regmap_add_irq_chip_np);
  *
  * Returns 0 on success or an errno on failure.
  *
- * This is the same as regmap_add_irq_chip_np, except that the device
+ * This is the same as regmap_add_irq_chip_fwnode, except that the firmware
  * node of the regmap is used.
  */
 int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			int irq_base, const struct regmap_irq_chip *chip,
 			struct regmap_irq_chip_data **data)
 {
-	return regmap_add_irq_chip_np(map->dev->of_node, map, irq, irq_flags,
-				      irq_base, chip, data);
+	return regmap_add_irq_chip_fwnode(dev_fwnode(map->dev), map, irq,
+					  irq_flags, irq_base, chip, data);
 }
 EXPORT_SYMBOL_GPL(regmap_add_irq_chip);
 
@@ -899,10 +902,10 @@ static int devm_regmap_irq_chip_match(struct device *dev, void *res, void *data)
 }
 
 /**
- * devm_regmap_add_irq_chip_np() - Resource manager regmap_add_irq_chip_np()
+ * devm_regmap_add_irq_chip_fwnode() - Resource managed regmap_add_irq_chip_fwnode()
  *
  * @dev: The device pointer on which irq_chip belongs to.
- * @np: The device_node where the IRQ domain should be added to.
+ * @fwnode: The firmware node where the IRQ domain should be added to.
  * @map: The regmap for the device.
  * @irq: The IRQ the device uses to signal interrupts
  * @irq_flags: The IRQF_ flags to use for the primary interrupt.
@@ -915,11 +918,12 @@ static int devm_regmap_irq_chip_match(struct device *dev, void *res, void *data)
  * The &regmap_irq_chip_data will be automatically released when the device is
  * unbound.
  */
-int devm_regmap_add_irq_chip_np(struct device *dev, struct device_node *np,
-				struct regmap *map, int irq, int irq_flags,
-				int irq_base,
-				const struct regmap_irq_chip *chip,
-				struct regmap_irq_chip_data **data)
+int devm_regmap_add_irq_chip_fwnode(struct device *dev,
+				    struct fwnode_handle *fwnode,
+				    struct regmap *map, int irq,
+				    int irq_flags, int irq_base,
+				    const struct regmap_irq_chip *chip,
+				    struct regmap_irq_chip_data **data)
 {
 	struct regmap_irq_chip_data **ptr, *d;
 	int ret;
@@ -929,8 +933,8 @@ int devm_regmap_add_irq_chip_np(struct device *dev, struct device_node *np,
 	if (!ptr)
 		return -ENOMEM;
 
-	ret = regmap_add_irq_chip_np(np, map, irq, irq_flags, irq_base,
-				     chip, &d);
+	ret = regmap_add_irq_chip_fwnode(fwnode, map, irq, irq_flags, irq_base,
+					 chip, &d);
 	if (ret < 0) {
 		devres_free(ptr);
 		return ret;
@@ -941,7 +945,7 @@ int devm_regmap_add_irq_chip_np(struct device *dev, struct device_node *np,
 	*data = d;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip_np);
+EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip_fwnode);
 
 /**
  * devm_regmap_add_irq_chip() - Resource manager regmap_add_irq_chip()
@@ -964,8 +968,9 @@ int devm_regmap_add_irq_chip(struct device *dev, struct regmap *map, int irq,
 			     const struct regmap_irq_chip *chip,
 			     struct regmap_irq_chip_data **data)
 {
-	return devm_regmap_add_irq_chip_np(dev, map->dev->of_node, map, irq,
-					   irq_flags, irq_base, chip, data);
+	return devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(map->dev), map,
+					       irq, irq_flags, irq_base, chip,
+					       data);
 }
 EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip);
 

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_llh.c: Definitions of bitfield and register access functions for
@@ -11,6 +12,50 @@
 #include "hw_atl_llh.h"
 #include "hw_atl_llh_internal.h"
 #include "../aq_hw_utils.h"
+
+void hw_atl_ts_reset_set(struct aq_hw_s *aq_hw, u32 val)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TS_RESET_ADR,
+			    HW_ATL_TS_RESET_MSK,
+			    HW_ATL_TS_RESET_SHIFT,
+			    val);
+}
+
+void hw_atl_ts_power_down_set(struct aq_hw_s *aq_hw, u32 val)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TS_POWER_DOWN_ADR,
+			    HW_ATL_TS_POWER_DOWN_MSK,
+			    HW_ATL_TS_POWER_DOWN_SHIFT,
+			    val);
+}
+
+u32 hw_atl_ts_power_down_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_TS_POWER_DOWN_ADR,
+				  HW_ATL_TS_POWER_DOWN_MSK,
+				  HW_ATL_TS_POWER_DOWN_SHIFT);
+}
+
+u32 hw_atl_ts_ready_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_TS_READY_ADR,
+				  HW_ATL_TS_READY_MSK,
+				  HW_ATL_TS_READY_SHIFT);
+}
+
+u32 hw_atl_ts_ready_latch_high_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_TS_READY_LATCH_HIGH_ADR,
+				  HW_ATL_TS_READY_LATCH_HIGH_MSK,
+				  HW_ATL_TS_READY_LATCH_HIGH_SHIFT);
+}
+
+u32 hw_atl_ts_data_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_TS_DATA_OUT_ADR,
+				  HW_ATL_TS_DATA_OUT_MSK,
+				  HW_ATL_TS_DATA_OUT_SHIFT);
+}
 
 /* global */
 void hw_atl_reg_glb_cpu_sem_set(struct aq_hw_s *aq_hw, u32 glb_cpu_sem,
@@ -1722,6 +1767,16 @@ u32 hw_atl_sem_ram_get(struct aq_hw_s *self)
 u32 hw_atl_sem_mdio_get(struct aq_hw_s *self)
 {
 	return hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_MDIO);
+}
+
+u32 hw_atl_sem_reset1_get(struct aq_hw_s *self)
+{
+	return hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RESET1);
+}
+
+u32 hw_atl_sem_reset2_get(struct aq_hw_s *self)
+{
+	return hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RESET2);
 }
 
 u32 hw_atl_scrpad_get(struct aq_hw_s *aq_hw, u32 scratch_scp)

@@ -35,10 +35,9 @@
 #include <asm/fpu.h>
 #include <linux/uaccess.h>
 #include <asm/traps.h>
-#include <asm/pgalloc.h>
 #include <asm/machdep.h>
 #include <asm/siginfo.h>
-
+#include <asm/tlbflush.h>
 
 static const char *vec_names[] = {
 	[VEC_RESETSP]	= "RESET SP",

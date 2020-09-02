@@ -1,7 +1,7 @@
 /*
  * pbias-regulator.c
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Balaji T K <balajitk@ti.com>
  *
  * This program is free software; you can redistribute it and/or

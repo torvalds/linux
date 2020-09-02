@@ -1056,6 +1056,7 @@ static void chtls_pass_accept_rpl(struct sk_buff *skb,
 	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWRENO);
 	opt2 |= T5_ISS_F;
 	opt2 |= T5_OPT_2_VALID_F;
+	opt2 |= WND_SCALE_EN_V(WSCALE_OK(tp));
 	rpl5->opt0 = cpu_to_be64(opt0);
 	rpl5->opt2 = cpu_to_be32(opt2);
 	rpl5->iss = cpu_to_be32((prandom_u32() & ~7UL) - 1);
@@ -1347,7 +1348,7 @@ static void chtls_pass_accept_request(struct sock *sk,
 
 	oreq->rsk_rcv_wnd = 0;
 	oreq->rsk_window_clamp = 0;
-	oreq->cookie_ts = 0;
+	oreq->syncookie = 0;
 	oreq->mss = 0;
 	oreq->ts_recent = 0;
 

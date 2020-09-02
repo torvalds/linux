@@ -75,15 +75,17 @@ struct ctl_table inotify_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static inline __u32 inotify_arg_to_mask(u32 arg)
+static inline __u32 inotify_arg_to_mask(struct inode *inode, u32 arg)
 {
 	__u32 mask;
 
 	/*
-	 * everything should accept their own ignored, cares about children,
-	 * and should receive events when the inode is unmounted
+	 * Everything should accept their own ignored and should receive events
+	 * when the inode is unmounted.  All directories care about children.
 	 */
-	mask = (FS_IN_IGNORED | FS_EVENT_ON_CHILD | FS_UNMOUNT);
+	mask = (FS_IN_IGNORED | FS_UNMOUNT);
+	if (S_ISDIR(inode->i_mode))
+		mask |= FS_EVENT_ON_CHILD;
 
 	/* mask off the flags used to open the fd */
 	mask |= (arg & (IN_ALL_EVENTS | IN_ONESHOT | IN_EXCL_UNLINK));
@@ -490,8 +492,8 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 					   fsn_mark);
 
 	/* Queue ignore event for the watch */
-	inotify_handle_event(group, NULL, FS_IN_IGNORED, NULL,
-			     FSNOTIFY_EVENT_NONE, NULL, 0, &iter_info);
+	inotify_handle_event(group, FS_IN_IGNORED, NULL, FSNOTIFY_EVENT_NONE,
+			     NULL, NULL, 0, &iter_info);
 
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 	/* remove this mark from the idr */
@@ -512,7 +514,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	int create = (arg & IN_MASK_CREATE);
 	int ret;
 
-	mask = inotify_arg_to_mask(arg);
+	mask = inotify_arg_to_mask(inode, arg);
 
 	fsn_mark = fsnotify_find_mark(&inode->i_fsnotify_marks, group);
 	if (!fsn_mark)
@@ -565,7 +567,7 @@ static int inotify_new_watch(struct fsnotify_group *group,
 	struct idr *idr = &group->inotify_data.idr;
 	spinlock_t *idr_lock = &group->inotify_data.idr_lock;
 
-	mask = inotify_arg_to_mask(arg);
+	mask = inotify_arg_to_mask(inode, arg);
 
 	tmp_i_mark = kmem_cache_alloc(inotify_inode_mark_cachep, GFP_KERNEL);
 	if (unlikely(!tmp_i_mark))

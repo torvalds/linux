@@ -39,6 +39,8 @@ Library functionality that is used throughout the kernel.
    rbtree
    generic-radix-tree
    packing
+   bus-virt-phys-mapping
+   this_cpu_ops
    timekeeping
    errseq
 
@@ -82,6 +84,7 @@ more memory-management documentation in :doc:`/vm/index`.
    :maxdepth: 1
 
    memory-allocation
+   unaligned-memory-access
    dma-api
    dma-api-howto
    dma-attributes

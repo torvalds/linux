@@ -575,8 +575,6 @@ struct nfp_net_dp {
  * @rx_coalesce_max_frames: RX interrupt moderation frame count parameter
  * @tx_coalesce_usecs:      TX interrupt moderation usecs delay parameter
  * @tx_coalesce_max_frames: TX interrupt moderation frame count parameter
- * @vxlan_ports:	VXLAN ports for RX inner csum offload communicated to HW
- * @vxlan_usecnt:	IPv4/IPv6 VXLAN port use counts
  * @qcp_cfg:            Pointer to QCP queue used for configuration notification
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
@@ -660,9 +658,6 @@ struct nfp_net {
 	u32 rx_coalesce_max_frames;
 	u32 tx_coalesce_usecs;
 	u32 tx_coalesce_max_frames;
-
-	__be16 vxlan_ports[NFP_NET_N_VXLAN_PORTS];
-	u8 vxlan_usecnt[NFP_NET_N_VXLAN_PORTS];
 
 	u8 __iomem *qcp_cfg;
 

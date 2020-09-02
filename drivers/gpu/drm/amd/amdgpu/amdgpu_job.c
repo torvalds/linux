@@ -184,16 +184,13 @@ static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_vm *vm = job->vm;
 	struct dma_fence *fence;
-	bool explicit = false;
 	int r;
 
-	fence = amdgpu_sync_get_fence(&job->sync, &explicit);
-	if (fence && explicit) {
-		if (drm_sched_dependency_optimized(fence, s_entity)) {
-			r = amdgpu_sync_fence(&job->sched_sync, fence, false);
-			if (r)
-				DRM_ERROR("Error adding fence (%d)\n", r);
-		}
+	fence = amdgpu_sync_get_fence(&job->sync);
+	if (fence && drm_sched_dependency_optimized(fence, s_entity)) {
+		r = amdgpu_sync_fence(&job->sched_sync, fence);
+		if (r)
+			DRM_ERROR("Error adding fence (%d)\n", r);
 	}
 
 	while (fence == NULL && vm && !job->vmid) {
@@ -203,7 +200,7 @@ static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
 
-		fence = amdgpu_sync_get_fence(&job->sync, NULL);
+		fence = amdgpu_sync_get_fence(&job->sync);
 	}
 
 	return fence;

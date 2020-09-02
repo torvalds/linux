@@ -209,6 +209,7 @@
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH 0>;
 			#dma-cells = <1>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC0_PERILP>;
 			clock-names = "apb_pclk";
 		};
@@ -219,6 +220,7 @@
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH 0>;
 			#dma-cells = <1>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC1_PERILP>;
 			clock-names = "apb_pclk";
 		};
@@ -845,9 +847,9 @@
 		rockchip,grf = <&grf>;
 		rockchip,hw-tshut-temp = <95000>;
 		pinctrl-names = "init", "default", "sleep";
-		pinctrl-0 = <&otp_gpio>;
+		pinctrl-0 = <&otp_pin>;
 		pinctrl-1 = <&otp_out>;
-		pinctrl-2 = <&otp_gpio>;
+		pinctrl-2 = <&otp_pin>;
 		#thermal-sensor-cells = <1>;
 		status = "disabled";
 	};
@@ -1394,6 +1396,17 @@
 
 		io_domains: io-domains {
 			compatible = "rockchip,rk3399-io-voltage-domain";
+			status = "disabled";
+		};
+
+		mipi_dphy_rx0: mipi-dphy-rx0 {
+			compatible = "rockchip,rk3399-mipi-dphy-rx0";
+			clocks = <&cru SCLK_MIPIDPHY_REF>,
+				 <&cru SCLK_DPHY_RX0_CFG>,
+				 <&cru PCLK_VIO_GRF>;
+			clock-names = "dphy-ref", "dphy-cfg", "grf";
+			power-domains = <&power RK3399_PD_VIO>;
+			#phy-cells = <0>;
 			status = "disabled";
 		};
 
@@ -2485,7 +2498,7 @@
 		};
 
 		tsadc {
-			otp_gpio: otp-gpio {
+			otp_pin: otp-pin {
 				rockchip,pins = <1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 

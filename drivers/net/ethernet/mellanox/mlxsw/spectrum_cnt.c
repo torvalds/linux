@@ -121,7 +121,6 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 {
 	unsigned int sub_pools_count = ARRAY_SIZE(mlxsw_sp_counter_sub_pools);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
-	struct mlxsw_sp_counter_sub_pool *sub_pool;
 	struct mlxsw_sp_counter_pool *pool;
 	unsigned int map_size;
 	int err;
@@ -131,9 +130,9 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	if (!pool)
 		return -ENOMEM;
 	mlxsw_sp->counter_pool = pool;
-	memcpy(pool->sub_pools, mlxsw_sp_counter_sub_pools,
-	       sub_pools_count * sizeof(*sub_pool));
 	pool->sub_pools_count = sub_pools_count;
+	memcpy(pool->sub_pools, mlxsw_sp_counter_sub_pools,
+	       flex_array_size(pool, sub_pools, pool->sub_pools_count));
 	spin_lock_init(&pool->counter_pool_lock);
 	atomic_set(&pool->active_entries_count, 0);
 

@@ -128,13 +128,6 @@ enum rx_pkt_type {
 #define MT_CRXV_HE_BEAM_CHNG		BIT(13)
 #define MT_CRXV_HE_DOPPLER		BIT(16)
 
-struct mt7915_rxv {
-	u32 phy;
-
-	/* P-RXV: bit 0~1, C-RXV: bit 2~19 */
-	__le32 v[20];
-};
-
 enum tx_header_format {
 	MT_HDR_FORMAT_802_3,
 	MT_HDR_FORMAT_CMD,
@@ -147,16 +140,6 @@ enum tx_pkt_type {
 	MT_TX_TYPE_SF,
 	MT_TX_TYPE_CMD,
 	MT_TX_TYPE_FW,
-};
-
-enum tx_pkt_queue_idx {
-	MT_LMAC_AC00,
-	MT_LMAC_AC01,
-	MT_LMAC_AC02,
-	MT_LMAC_AC03,
-	MT_LMAC_ALTX0 = 0x10,
-	MT_LMAC_BMC0 = 0x10,
-	MT_LMAC_BCN0 = 0x12,
 };
 
 enum tx_port_idx {

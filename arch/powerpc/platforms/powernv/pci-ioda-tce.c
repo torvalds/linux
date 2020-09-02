@@ -166,7 +166,7 @@ int pnv_tce_xchg(struct iommu_table *tbl, long index,
 	if (!ptce) {
 		ptce = pnv_tce(tbl, false, idx, alloc);
 		if (!ptce)
-			return alloc ? H_HARDWARE : H_TOO_HARD;
+			return -ENOMEM;
 	}
 
 	if (newtce & TCE_PCI_WRITE)

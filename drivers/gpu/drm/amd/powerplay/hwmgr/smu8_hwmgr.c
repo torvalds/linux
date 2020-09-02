@@ -1879,7 +1879,7 @@ static int smu8_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 	return 0;
 }
 
-int smu8_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+static int smu8_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct phm_uvd_clock_voltage_dependency_table *ptable =

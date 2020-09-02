@@ -56,8 +56,9 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 	 */
 	info = FIELD_PREP(MT_TXD_INFO_LEN, round_up(skb->len, 4)) |
 	       FIELD_PREP(MT_TXD_INFO_DPORT, port) | flags;
+	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
 
-	return mt76u_skb_dma_info(skb, info);
+	return mt76_skb_adjust_pad(skb);
 }
 
 int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,

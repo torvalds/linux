@@ -5,7 +5,7 @@ menuconfig IP_DCCP
 	help
 	  Datagram Congestion Control Protocol (RFC 4340)
 
-	  From http://www.ietf.org/rfc/rfc4340.txt:
+	  From https://www.ietf.org/rfc/rfc4340.txt:
 
 	  The Datagram Congestion Control Protocol (DCCP) is a transport
 	  protocol that implements bidirectional, unicast connections of

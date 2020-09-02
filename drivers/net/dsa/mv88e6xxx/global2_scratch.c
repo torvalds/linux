@@ -44,7 +44,8 @@ static int mv88e6xxx_g2_scratch_write(struct mv88e6xxx_chip *chip, int reg,
 /**
  * mv88e6xxx_g2_scratch_gpio_get_bit - get a bit
  * @chip: chip private data
- * @nr: bit index
+ * @base_reg: base of scratch bits
+ * @offset: index of bit within the register
  * @set: is bit set?
  */
 static int mv88e6xxx_g2_scratch_get_bit(struct mv88e6xxx_chip *chip,
@@ -68,8 +69,9 @@ static int mv88e6xxx_g2_scratch_get_bit(struct mv88e6xxx_chip *chip,
 /**
  * mv88e6xxx_g2_scratch_gpio_set_bit - set (or clear) a bit
  * @chip: chip private data
- * @nr: bit index
- * @set: set if true, clear if false
+ * @base_reg: base of scratch bits
+ * @offset: index of bit within the register
+ * @set: should this bit be set?
  *
  * Helper function for dealing with the direction and data registers.
  */
@@ -165,6 +167,7 @@ static int mv88e6352_g2_scratch_gpio_get_dir(struct mv88e6xxx_chip *chip,
  * mv88e6352_g2_scratch_gpio_set_dir - set direction of gpio pin
  * @chip: chip private data
  * @pin: gpio index
+ * @input: should the gpio be an input, or an output?
  */
 static int mv88e6352_g2_scratch_gpio_set_dir(struct mv88e6xxx_chip *chip,
 					     unsigned int pin, bool input)

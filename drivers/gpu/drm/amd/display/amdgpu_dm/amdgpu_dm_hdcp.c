@@ -390,6 +390,42 @@ void hdcp_destroy(struct hdcp_workqueue *hdcp_work)
 	kfree(hdcp_work);
 }
 
+
+static bool enable_assr(void *handle, struct dc_link *link)
+{
+
+	struct hdcp_workqueue *hdcp_work = handle;
+	struct mod_hdcp hdcp = hdcp_work->hdcp;
+	struct psp_context *psp = hdcp.config.psp.handle;
+	struct ta_dtm_shared_memory *dtm_cmd;
+	bool res = true;
+
+	if (!psp->dtm_context.dtm_initialized) {
+		DRM_INFO("Failed to enable ASSR, DTM TA is not initialized.");
+		return false;
+	}
+
+	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
+
+	mutex_lock(&psp->dtm_context.mutex);
+	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
+
+	dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_ASSR_ENABLE;
+	dtm_cmd->dtm_in_message.topology_assr_enable.display_topology_dig_be_index = link->link_enc_hw_inst;
+	dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
+
+	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
+
+	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS) {
+		DRM_INFO("Failed to enable ASSR");
+		res = false;
+	}
+
+	mutex_unlock(&psp->dtm_context.mutex);
+
+	return res;
+}
+
 static void update_config(void *handle, struct cp_psp_stream_config *config)
 {
 	struct hdcp_workqueue *hdcp_work = handle;
@@ -601,6 +637,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 	}
 
 	cp_psp->funcs.update_stream_config = update_config;
+	cp_psp->funcs.enable_assr = enable_assr;
 	cp_psp->handle = hdcp_work;
 
 	/* File created at /sys/class/drm/card0/device/hdcp_srm*/

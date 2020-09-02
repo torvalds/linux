@@ -334,7 +334,7 @@ static void mv_otg_update_state(struct mv_otg *mvotg)
 	switch (old_state) {
 	case OTG_STATE_UNDEFINED:
 		mvotg->phy.otg->state = OTG_STATE_B_IDLE;
-		/* FALL THROUGH */
+		fallthrough;
 	case OTG_STATE_B_IDLE:
 		if (otg_ctrl->id == 0)
 			mvotg->phy.otg->state = OTG_STATE_A_IDLE;

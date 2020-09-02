@@ -476,9 +476,7 @@ xchk_da_btree(
 	ds.dargs.whichfork = whichfork;
 	ds.dargs.trans = sc->tp;
 	ds.dargs.op_flags = XFS_DA_OP_OKNOENT;
-	ds.state = xfs_da_state_alloc();
-	ds.state->args = &ds.dargs;
-	ds.state->mp = mp;
+	ds.state = xfs_da_state_alloc(&ds.dargs);
 	ds.sc = sc;
 	ds.private = private;
 	if (whichfork == XFS_ATTR_FORK) {

@@ -34,10 +34,6 @@ static bool fanotify_fh_equal(struct fanotify_fh *fh1,
 	if (fh1->type != fh2->type || fh1->len != fh2->len)
 		return false;
 
-	/* Do not merge events if we failed to encode fh */
-	if (fh1->type == FILEID_INVALID)
-		return false;
-
 	return !fh1->len ||
 		!memcmp(fanotify_fh_buf(fh1), fanotify_fh_buf(fh2), fh1->len);
 }
@@ -53,25 +49,47 @@ static bool fanotify_fid_event_equal(struct fanotify_fid_event *ffe1,
 		fanotify_fh_equal(&ffe1->object_fh, &ffe2->object_fh);
 }
 
+static bool fanotify_info_equal(struct fanotify_info *info1,
+				struct fanotify_info *info2)
+{
+	if (info1->dir_fh_totlen != info2->dir_fh_totlen ||
+	    info1->file_fh_totlen != info2->file_fh_totlen ||
+	    info1->name_len != info2->name_len)
+		return false;
+
+	if (info1->dir_fh_totlen &&
+	    !fanotify_fh_equal(fanotify_info_dir_fh(info1),
+			       fanotify_info_dir_fh(info2)))
+		return false;
+
+	if (info1->file_fh_totlen &&
+	    !fanotify_fh_equal(fanotify_info_file_fh(info1),
+			       fanotify_info_file_fh(info2)))
+		return false;
+
+	return !info1->name_len ||
+		!memcmp(fanotify_info_name(info1), fanotify_info_name(info2),
+			info1->name_len);
+}
+
 static bool fanotify_name_event_equal(struct fanotify_name_event *fne1,
 				      struct fanotify_name_event *fne2)
 {
-	/*
-	 * Do not merge name events without dir fh.
-	 * FAN_DIR_MODIFY does not encode object fh, so it may be empty.
-	 */
-	if (!fne1->dir_fh.len)
+	struct fanotify_info *info1 = &fne1->info;
+	struct fanotify_info *info2 = &fne2->info;
+
+	/* Do not merge name events without dir fh */
+	if (!info1->dir_fh_totlen)
 		return false;
 
-	if (fne1->name_len != fne2->name_len ||
-	    !fanotify_fh_equal(&fne1->dir_fh, &fne2->dir_fh))
+	if (!fanotify_fsid_equal(&fne1->fsid, &fne2->fsid))
 		return false;
 
-	return !memcmp(fne1->name, fne2->name, fne1->name_len);
+	return fanotify_info_equal(info1, info2);
 }
 
 static bool fanotify_should_merge(struct fsnotify_event *old_fsn,
-			 struct fsnotify_event *new_fsn)
+				  struct fsnotify_event *new_fsn)
 {
 	struct fanotify_event *old, *new;
 
@@ -83,22 +101,22 @@ static bool fanotify_should_merge(struct fsnotify_event *old_fsn,
 	    old->type != new->type || old->pid != new->pid)
 		return false;
 
+	/*
+	 * We want to merge many dirent events in the same dir (i.e.
+	 * creates/unlinks/renames), but we do not want to merge dirent
+	 * events referring to subdirs with dirent events referring to
+	 * non subdirs, otherwise, user won't be able to tell from a
+	 * mask FAN_CREATE|FAN_DELETE|FAN_ONDIR if it describes mkdir+
+	 * unlink pair or rmdir+create pair of events.
+	 */
+	if ((old->mask & FS_ISDIR) != (new->mask & FS_ISDIR))
+		return false;
+
 	switch (old->type) {
 	case FANOTIFY_EVENT_TYPE_PATH:
 		return fanotify_path_equal(fanotify_event_path(old),
 					   fanotify_event_path(new));
 	case FANOTIFY_EVENT_TYPE_FID:
-		/*
-		 * We want to merge many dirent events in the same dir (i.e.
-		 * creates/unlinks/renames), but we do not want to merge dirent
-		 * events referring to subdirs with dirent events referring to
-		 * non subdirs, otherwise, user won't be able to tell from a
-		 * mask FAN_CREATE|FAN_DELETE|FAN_ONDIR if it describes mkdir+
-		 * unlink pair or rmdir+create pair of events.
-		 */
-		if ((old->mask & FS_ISDIR) != (new->mask & FS_ISDIR))
-			return false;
-
 		return fanotify_fid_event_equal(FANOTIFY_FE(old),
 						FANOTIFY_FE(new));
 	case FANOTIFY_EVENT_TYPE_FID_NAME:
@@ -208,23 +226,29 @@ out:
 static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 				     struct fsnotify_iter_info *iter_info,
 				     u32 event_mask, const void *data,
-				     int data_type)
+				     int data_type, struct inode *dir)
 {
 	__u32 marks_mask = 0, marks_ignored_mask = 0;
-	__u32 test_mask, user_mask = FANOTIFY_OUTGOING_EVENTS;
+	__u32 test_mask, user_mask = FANOTIFY_OUTGOING_EVENTS |
+				     FANOTIFY_EVENT_FLAGS;
 	const struct path *path = fsnotify_data_path(data, data_type);
+	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
 	struct fsnotify_mark *mark;
 	int type;
 
 	pr_debug("%s: report_mask=%x mask=%x data=%p data_type=%d\n",
 		 __func__, iter_info->report_mask, event_mask, data, data_type);
 
-	if (!FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+	if (!fid_mode) {
 		/* Do we have path to open a file descriptor? */
 		if (!path)
 			return 0;
 		/* Path type events are only relevant for files and dirs */
 		if (!d_is_reg(path->dentry) && !d_can_lookup(path->dentry))
+			return 0;
+	} else if (!(fid_mode & FAN_REPORT_FID)) {
+		/* Do we have a directory inode to report? */
+		if (!dir && !(event_mask & FS_ISDIR))
 			return 0;
 	}
 
@@ -244,12 +268,12 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 			continue;
 
 		/*
-		 * If the event is for a child and this mark doesn't care about
-		 * events on a child, don't send it!
+		 * If the event is for a child and this mark is on a parent not
+		 * watching children, don't send it!
 		 */
 		if (event_mask & FS_EVENT_ON_CHILD &&
-		    (type != FSNOTIFY_OBJ_TYPE_INODE ||
-		     !(mark->mask & FS_EVENT_ON_CHILD)))
+		    type == FSNOTIFY_OBJ_TYPE_INODE &&
+		     !(mark->mask & FS_EVENT_ON_CHILD))
 			continue;
 
 		marks_mask |= mark->mask;
@@ -264,67 +288,102 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 	 *
 	 * For backward compatibility and consistency, do not report FAN_ONDIR
 	 * to user in legacy fanotify mode (reporting fd) and report FAN_ONDIR
-	 * to user in FAN_REPORT_FID mode for all event types.
+	 * to user in fid mode for all event types.
+	 *
+	 * We never report FAN_EVENT_ON_CHILD to user, but we do pass it in to
+	 * fanotify_alloc_event() when group is reporting fid as indication
+	 * that event happened on child.
 	 */
-	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
-		/* Do not report FAN_ONDIR without any event */
-		if (!(test_mask & ~FAN_ONDIR))
+	if (fid_mode) {
+		/* Do not report event flags without any event */
+		if (!(test_mask & ~FANOTIFY_EVENT_FLAGS))
 			return 0;
 	} else {
-		user_mask &= ~FAN_ONDIR;
+		user_mask &= ~FANOTIFY_EVENT_FLAGS;
 	}
 
 	return test_mask & user_mask;
 }
 
-static void fanotify_encode_fh(struct fanotify_fh *fh, struct inode *inode,
-			       gfp_t gfp)
+/*
+ * Check size needed to encode fanotify_fh.
+ *
+ * Return size of encoded fh without fanotify_fh header.
+ * Return 0 on failure to encode.
+ */
+static int fanotify_encode_fh_len(struct inode *inode)
 {
-	int dwords, type, bytes = 0;
+	int dwords = 0;
+
+	if (!inode)
+		return 0;
+
+	exportfs_encode_inode_fh(inode, NULL, &dwords, NULL);
+
+	return dwords << 2;
+}
+
+/*
+ * Encode fanotify_fh.
+ *
+ * Return total size of encoded fh including fanotify_fh header.
+ * Return 0 on failure to encode.
+ */
+static int fanotify_encode_fh(struct fanotify_fh *fh, struct inode *inode,
+			      unsigned int fh_len, gfp_t gfp)
+{
+	int dwords, type = 0;
 	char *ext_buf = NULL;
 	void *buf = fh->buf;
 	int err;
 
+	fh->type = FILEID_ROOT;
+	fh->len = 0;
+	fh->flags = 0;
 	if (!inode)
-		goto out;
+		return 0;
 
-	dwords = 0;
+	/*
+	 * !gpf means preallocated variable size fh, but fh_len could
+	 * be zero in that case if encoding fh len failed.
+	 */
 	err = -ENOENT;
-	type = exportfs_encode_inode_fh(inode, NULL, &dwords, NULL);
-	if (!dwords)
+	if (fh_len < 4 || WARN_ON_ONCE(fh_len % 4))
 		goto out_err;
 
-	bytes = dwords << 2;
-	if (bytes > FANOTIFY_INLINE_FH_LEN) {
-		/* Treat failure to allocate fh as failure to allocate event */
+	/* No external buffer in a variable size allocated fh */
+	if (gfp && fh_len > FANOTIFY_INLINE_FH_LEN) {
+		/* Treat failure to allocate fh as failure to encode fh */
 		err = -ENOMEM;
-		ext_buf = kmalloc(bytes, gfp);
+		ext_buf = kmalloc(fh_len, gfp);
 		if (!ext_buf)
 			goto out_err;
 
 		*fanotify_fh_ext_buf_ptr(fh) = ext_buf;
 		buf = ext_buf;
+		fh->flags |= FANOTIFY_FH_FLAG_EXT_BUF;
 	}
 
+	dwords = fh_len >> 2;
 	type = exportfs_encode_inode_fh(inode, buf, &dwords, NULL);
 	err = -EINVAL;
-	if (!type || type == FILEID_INVALID || bytes != dwords << 2)
+	if (!type || type == FILEID_INVALID || fh_len != dwords << 2)
 		goto out_err;
 
 	fh->type = type;
-	fh->len = bytes;
+	fh->len = fh_len;
 
-	return;
+	return FANOTIFY_FH_HDR_LEN + fh_len;
 
 out_err:
 	pr_warn_ratelimited("fanotify: failed to encode fid (type=%d, len=%d, err=%i)\n",
-			    type, bytes, err);
+			    type, fh_len, err);
 	kfree(ext_buf);
 	*fanotify_fh_ext_buf_ptr(fh) = NULL;
-out:
 	/* Report the event without a file identifier on encode error */
 	fh->type = FILEID_INVALID;
 	fh->len = 0;
+	return 0;
 }
 
 /*
@@ -335,27 +394,179 @@ out:
  * FS_ATTRIB reports the child inode even if reported on a watched parent.
  * FS_CREATE reports the modified dir inode and not the created inode.
  */
-static struct inode *fanotify_fid_inode(struct inode *to_tell, u32 event_mask,
-					const void *data, int data_type)
+static struct inode *fanotify_fid_inode(u32 event_mask, const void *data,
+					int data_type, struct inode *dir)
 {
 	if (event_mask & ALL_FSNOTIFY_DIRENT_EVENTS)
-		return to_tell;
+		return dir;
 
-	return (struct inode *)fsnotify_data_inode(data, data_type);
+	return fsnotify_data_inode(data, data_type);
 }
 
-struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
-					    struct inode *inode, u32 mask,
-					    const void *data, int data_type,
-					    const struct qstr *file_name,
-					    __kernel_fsid_t *fsid)
+/*
+ * The inode to use as identifier when reporting dir fid depends on the event.
+ * Report the modified directory inode on dirent modification events.
+ * Report the "victim" inode if "victim" is a directory.
+ * Report the parent inode if "victim" is not a directory and event is
+ * reported to parent.
+ * Otherwise, do not report dir fid.
+ */
+static struct inode *fanotify_dfid_inode(u32 event_mask, const void *data,
+					 int data_type, struct inode *dir)
+{
+	struct inode *inode = fsnotify_data_inode(data, data_type);
+
+	if (event_mask & ALL_FSNOTIFY_DIRENT_EVENTS)
+		return dir;
+
+	if (S_ISDIR(inode->i_mode))
+		return inode;
+
+	return dir;
+}
+
+static struct fanotify_event *fanotify_alloc_path_event(const struct path *path,
+							gfp_t gfp)
+{
+	struct fanotify_path_event *pevent;
+
+	pevent = kmem_cache_alloc(fanotify_path_event_cachep, gfp);
+	if (!pevent)
+		return NULL;
+
+	pevent->fae.type = FANOTIFY_EVENT_TYPE_PATH;
+	pevent->path = *path;
+	path_get(path);
+
+	return &pevent->fae;
+}
+
+static struct fanotify_event *fanotify_alloc_perm_event(const struct path *path,
+							gfp_t gfp)
+{
+	struct fanotify_perm_event *pevent;
+
+	pevent = kmem_cache_alloc(fanotify_perm_event_cachep, gfp);
+	if (!pevent)
+		return NULL;
+
+	pevent->fae.type = FANOTIFY_EVENT_TYPE_PATH_PERM;
+	pevent->response = 0;
+	pevent->state = FAN_EVENT_INIT;
+	pevent->path = *path;
+	path_get(path);
+
+	return &pevent->fae;
+}
+
+static struct fanotify_event *fanotify_alloc_fid_event(struct inode *id,
+						       __kernel_fsid_t *fsid,
+						       gfp_t gfp)
+{
+	struct fanotify_fid_event *ffe;
+
+	ffe = kmem_cache_alloc(fanotify_fid_event_cachep, gfp);
+	if (!ffe)
+		return NULL;
+
+	ffe->fae.type = FANOTIFY_EVENT_TYPE_FID;
+	ffe->fsid = *fsid;
+	fanotify_encode_fh(&ffe->object_fh, id, fanotify_encode_fh_len(id),
+			   gfp);
+
+	return &ffe->fae;
+}
+
+static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
+							__kernel_fsid_t *fsid,
+							const struct qstr *file_name,
+							struct inode *child,
+							gfp_t gfp)
+{
+	struct fanotify_name_event *fne;
+	struct fanotify_info *info;
+	struct fanotify_fh *dfh, *ffh;
+	unsigned int dir_fh_len = fanotify_encode_fh_len(id);
+	unsigned int child_fh_len = fanotify_encode_fh_len(child);
+	unsigned int size;
+
+	size = sizeof(*fne) + FANOTIFY_FH_HDR_LEN + dir_fh_len;
+	if (child_fh_len)
+		size += FANOTIFY_FH_HDR_LEN + child_fh_len;
+	if (file_name)
+		size += file_name->len + 1;
+	fne = kmalloc(size, gfp);
+	if (!fne)
+		return NULL;
+
+	fne->fae.type = FANOTIFY_EVENT_TYPE_FID_NAME;
+	fne->fsid = *fsid;
+	info = &fne->info;
+	fanotify_info_init(info);
+	dfh = fanotify_info_dir_fh(info);
+	info->dir_fh_totlen = fanotify_encode_fh(dfh, id, dir_fh_len, 0);
+	if (child_fh_len) {
+		ffh = fanotify_info_file_fh(info);
+		info->file_fh_totlen = fanotify_encode_fh(ffh, child, child_fh_len, 0);
+	}
+	if (file_name)
+		fanotify_info_copy_name(info, file_name);
+
+	pr_debug("%s: ino=%lu size=%u dir_fh_len=%u child_fh_len=%u name_len=%u name='%.*s'\n",
+		 __func__, id->i_ino, size, dir_fh_len, child_fh_len,
+		 info->name_len, info->name_len, fanotify_info_name(info));
+
+	return &fne->fae;
+}
+
+static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
+						   u32 mask, const void *data,
+						   int data_type, struct inode *dir,
+						   const struct qstr *file_name,
+						   __kernel_fsid_t *fsid)
 {
 	struct fanotify_event *event = NULL;
-	struct fanotify_fid_event *ffe = NULL;
-	struct fanotify_name_event *fne = NULL;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
-	struct inode *id = fanotify_fid_inode(inode, mask, data, data_type);
+	struct inode *id = fanotify_fid_inode(mask, data, data_type, dir);
+	struct inode *dirid = fanotify_dfid_inode(mask, data, data_type, dir);
 	const struct path *path = fsnotify_data_path(data, data_type);
+	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
+	struct inode *child = NULL;
+	bool name_event = false;
+
+	if ((fid_mode & FAN_REPORT_DIR_FID) && dirid) {
+		/*
+		 * With both flags FAN_REPORT_DIR_FID and FAN_REPORT_FID, we
+		 * report the child fid for events reported on a non-dir child
+		 * in addition to reporting the parent fid and maybe child name.
+		 */
+		if ((fid_mode & FAN_REPORT_FID) &&
+		    id != dirid && !(mask & FAN_ONDIR))
+			child = id;
+
+		id = dirid;
+
+		/*
+		 * We record file name only in a group with FAN_REPORT_NAME
+		 * and when we have a directory inode to report.
+		 *
+		 * For directory entry modification event, we record the fid of
+		 * the directory and the name of the modified entry.
+		 *
+		 * For event on non-directory that is reported to parent, we
+		 * record the fid of the parent and the name of the child.
+		 *
+		 * Even if not reporting name, we need a variable length
+		 * fanotify_name_event if reporting both parent and child fids.
+		 */
+		if (!(fid_mode & FAN_REPORT_NAME)) {
+			name_event = !!child;
+			file_name = NULL;
+		} else if ((mask & ALL_FSNOTIFY_DIRENT_EVENTS) ||
+			   !(mask & FAN_ONDIR)) {
+			name_event = true;
+		}
+	}
 
 	/*
 	 * For queues with unlimited length lost events are not expected and
@@ -372,87 +583,30 @@ struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	memalloc_use_memcg(group->memcg);
 
 	if (fanotify_is_perm_event(mask)) {
-		struct fanotify_perm_event *pevent;
-
-		pevent = kmem_cache_alloc(fanotify_perm_event_cachep, gfp);
-		if (!pevent)
-			goto out;
-
-		event = &pevent->fae;
-		event->type = FANOTIFY_EVENT_TYPE_PATH_PERM;
-		pevent->response = 0;
-		pevent->state = FAN_EVENT_INIT;
-		goto init;
-	}
-
-	/*
-	 * For FAN_DIR_MODIFY event, we report the fid of the directory and
-	 * the name of the modified entry.
-	 * Allocate an fanotify_name_event struct and copy the name.
-	 */
-	if (mask & FAN_DIR_MODIFY && !(WARN_ON_ONCE(!file_name))) {
-		fne = kmalloc(sizeof(*fne) + file_name->len + 1, gfp);
-		if (!fne)
-			goto out;
-
-		event = &fne->fae;
-		event->type = FANOTIFY_EVENT_TYPE_FID_NAME;
-		fne->name_len = file_name->len;
-		strcpy(fne->name, file_name->name);
-		goto init;
-	}
-
-	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
-		ffe = kmem_cache_alloc(fanotify_fid_event_cachep, gfp);
-		if (!ffe)
-			goto out;
-
-		event = &ffe->fae;
-		event->type = FANOTIFY_EVENT_TYPE_FID;
+		event = fanotify_alloc_perm_event(path, gfp);
+	} else if (name_event && (file_name || child)) {
+		event = fanotify_alloc_name_event(id, fsid, file_name, child,
+						  gfp);
+	} else if (fid_mode) {
+		event = fanotify_alloc_fid_event(id, fsid, gfp);
 	} else {
-		struct fanotify_path_event *pevent;
-
-		pevent = kmem_cache_alloc(fanotify_path_event_cachep, gfp);
-		if (!pevent)
-			goto out;
-
-		event = &pevent->fae;
-		event->type = FANOTIFY_EVENT_TYPE_PATH;
+		event = fanotify_alloc_path_event(path, gfp);
 	}
 
-init:
+	if (!event)
+		goto out;
+
 	/*
 	 * Use the victim inode instead of the watching inode as the id for
 	 * event queue, so event reported on parent is merged with event
 	 * reported on child when both directory and child watches exist.
 	 */
-	fsnotify_init_event(&event->fse, (unsigned long)id);
-	event->mask = mask;
+	fanotify_init_event(event, (unsigned long)id, mask);
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_TID))
 		event->pid = get_pid(task_pid(current));
 	else
 		event->pid = get_pid(task_tgid(current));
 
-	if (fsid && fanotify_event_fsid(event))
-		*fanotify_event_fsid(event) = *fsid;
-
-	if (fanotify_event_object_fh(event))
-		fanotify_encode_fh(fanotify_event_object_fh(event), id, gfp);
-
-	if (fanotify_event_dir_fh(event))
-		fanotify_encode_fh(fanotify_event_dir_fh(event), id, gfp);
-
-	if (fanotify_event_has_path(event)) {
-		struct path *p = fanotify_event_path(event);
-
-		if (path) {
-			*p = *path;
-			path_get(path);
-		} else {
-			p->mnt = NULL;
-			p->dentry = NULL;
-		}
-	}
 out:
 	memalloc_unuse_memcg();
 	return event;
@@ -491,9 +645,9 @@ static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
 	return fsid;
 }
 
-static int fanotify_handle_event(struct fsnotify_group *group,
-				 struct inode *inode,
-				 u32 mask, const void *data, int data_type,
+static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
+				 const void *data, int data_type,
+				 struct inode *dir,
 				 const struct qstr *file_name, u32 cookie,
 				 struct fsnotify_iter_info *iter_info)
 {
@@ -512,7 +666,6 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_MOVED_FROM != FS_MOVED_FROM);
 	BUILD_BUG_ON(FAN_CREATE != FS_CREATE);
 	BUILD_BUG_ON(FAN_DELETE != FS_DELETE);
-	BUILD_BUG_ON(FAN_DIR_MODIFY != FS_DIR_MODIFY);
 	BUILD_BUG_ON(FAN_DELETE_SELF != FS_DELETE_SELF);
 	BUILD_BUG_ON(FAN_MOVE_SELF != FS_MOVE_SELF);
 	BUILD_BUG_ON(FAN_EVENT_ON_CHILD != FS_EVENT_ON_CHILD);
@@ -526,12 +679,11 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 19);
 
 	mask = fanotify_group_event_mask(group, iter_info, mask, data,
-					 data_type);
+					 data_type, dir);
 	if (!mask)
 		return 0;
 
-	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
-		 mask);
+	pr_debug("%s: group=%p mask=%x\n", __func__, group, mask);
 
 	if (fanotify_is_perm_event(mask)) {
 		/*
@@ -542,14 +694,14 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 			return 0;
 	}
 
-	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+	if (FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS)) {
 		fsid = fanotify_get_fsid(iter_info);
 		/* Racing with mark destruction or creation? */
 		if (!fsid.val[0] && !fsid.val[1])
 			return 0;
 	}
 
-	event = fanotify_alloc_event(group, inode, mask, data, data_type,
+	event = fanotify_alloc_event(group, mask, data, data_type, dir,
 				     file_name, &fsid);
 	ret = -ENOMEM;
 	if (unlikely(!event)) {
@@ -614,11 +766,7 @@ static void fanotify_free_fid_event(struct fanotify_event *event)
 
 static void fanotify_free_name_event(struct fanotify_event *event)
 {
-	struct fanotify_name_event *fne = FANOTIFY_NE(event);
-
-	if (fanotify_fh_has_ext_buf(&fne->dir_fh))
-		kfree(fanotify_fh_ext_buf(&fne->dir_fh));
-	kfree(fne);
+	kfree(FANOTIFY_NE(event));
 }
 
 static void fanotify_free_event(struct fsnotify_event *fsn_event)
@@ -639,6 +787,9 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 		break;
 	case FANOTIFY_EVENT_TYPE_FID_NAME:
 		fanotify_free_name_event(event);
+		break;
+	case FANOTIFY_EVENT_TYPE_OVERFLOW:
+		kfree(event);
 		break;
 	default:
 		WARN_ON_ONCE(1);

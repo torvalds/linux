@@ -11,10 +11,8 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0193       | 0x0146         |
- * |                              |                    | 0x015b-0x0160	|
- * |                              |                    | 0x016e		|
- * | Mailbox commands             |       0x1206       | 0x11a2-0x11ff	|
+ * | Module Init and Probe        |       0x0199       |                |
+ * | Mailbox commands             |       0x1206       | 0x11a5-0x11ff	|
  * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
  * |				  | 		       | 0x211a         |
  * |                              |                    | 0x211c-0x2128  |
@@ -26,11 +24,7 @@
  * |                              |                    | 0x3036,0x3038  |
  * |                              |                    | 0x303a		|
  * | DPC Thread                   |       0x4023       | 0x4002,0x4013  |
- * | Async Events                 |       0x5090       | 0x502b-0x502f  |
- * |				  | 		       | 0x5047         |
- * |                              |                    | 0x5084,0x5075	|
- * |                              |                    | 0x503d,0x5044  |
- * |                              |                    | 0x505f		|
+ * | Async Events                 |       0x509c       |                |
  * | Timer Routines               |       0x6012       |                |
  * | User Space Interactions      |       0x70e3       | 0x7018,0x702e  |
  * |				  |		       | 0x7020,0x7024  |
@@ -1063,7 +1057,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha)
 	}
 
 	if (rval == QLA_SUCCESS)
-		qla2xxx_copy_queues(ha, &fw->risc_ram[cnt]);
+		qla2xxx_copy_queues(ha, &fw->queue_dump[0]);
 
 	qla2xxx_dump_post_process(base_vha, rval);
 }
@@ -2447,6 +2441,23 @@ qla83xx_fw_dump_failed_0:
 /*                         Driver Debug Functions.                          */
 /****************************************************************************/
 
+/* Write the debug message prefix into @pbuf. */
+static void ql_dbg_prefix(char *pbuf, int pbuf_size,
+			  const scsi_qla_host_t *vha, uint msg_id)
+{
+	if (vha) {
+		const struct pci_dev *pdev = vha->hw->pdev;
+
+		/* <module-name> [<dev-name>]-<msg-id>:<host>: */
+		snprintf(pbuf, pbuf_size, "%s [%s]-%04x:%ld: ", QL_MSGHDR,
+			 dev_name(&(pdev->dev)), msg_id, vha->host_no);
+	} else {
+		/* <module-name> [<dev-name>]-<msg-id>: : */
+		snprintf(pbuf, pbuf_size, "%s [%s]-%04x: : ", QL_MSGHDR,
+			 "0000:00:00.0", msg_id);
+	}
+}
+
 /*
  * This function is for formatting and logging debug information.
  * It is to be used when vha is available. It formats the message
@@ -2465,41 +2476,19 @@ ql_dbg(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 {
 	va_list va;
 	struct va_format vaf;
+	char pbuf[64];
 
 	va_start(va, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	if (!ql_mask_match(level)) {
-		char pbuf[64];
+	ql_dbg_prefix(pbuf, ARRAY_SIZE(pbuf), vha, id);
 
-		if (vha != NULL) {
-			const struct pci_dev *pdev = vha->hw->pdev;
-			/* <module-name> <msg-id>:<host> Message */
-			snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x:%ld: ",
-			    QL_MSGHDR, dev_name(&(pdev->dev)), id,
-			    vha->host_no);
-		} else {
-			snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
-			    QL_MSGHDR, "0000:00:00.0", id);
-		}
-		pbuf[sizeof(pbuf) - 1] = 0;
+	if (!ql_mask_match(level))
 		trace_ql_dbg_log(pbuf, &vaf);
-		va_end(va);
-		return;
-	}
-
-	if (vha != NULL) {
-		const struct pci_dev *pdev = vha->hw->pdev;
-		/* <module-name> <pci-name> <msg-id>:<host> Message */
-		pr_warn("%s [%s]-%04x:%ld: %pV",
-			QL_MSGHDR, dev_name(&(pdev->dev)), id + ql_dbg_offset,
-			vha->host_no, &vaf);
-	} else {
-		pr_warn("%s [%s]-%04x: : %pV",
-			QL_MSGHDR, "0000:00:00.0", id + ql_dbg_offset, &vaf);
-	}
+	else
+		pr_warn("%s%pV", pbuf, &vaf);
 
 	va_end(va);
 
@@ -2524,6 +2513,7 @@ ql_dbg_pci(uint level, struct pci_dev *pdev, uint id, const char *fmt, ...)
 {
 	va_list va;
 	struct va_format vaf;
+	char pbuf[128];
 
 	if (pdev == NULL)
 		return;
@@ -2535,9 +2525,8 @@ ql_dbg_pci(uint level, struct pci_dev *pdev, uint id, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	/* <module-name> <dev-name>:<msg-id> Message */
-	pr_warn("%s [%s]-%04x: : %pV",
-		QL_MSGHDR, dev_name(&(pdev->dev)), id + ql_dbg_offset, &vaf);
+	ql_dbg_prefix(pbuf, ARRAY_SIZE(pbuf), NULL, id + ql_dbg_offset);
+	pr_warn("%s%pV", pbuf, &vaf);
 
 	va_end(va);
 }
@@ -2565,16 +2554,7 @@ ql_log(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 	if (level > ql_errlev)
 		return;
 
-	if (vha != NULL) {
-		const struct pci_dev *pdev = vha->hw->pdev;
-		/* <module-name> <msg-id>:<host> Message */
-		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x:%ld: ",
-			QL_MSGHDR, dev_name(&(pdev->dev)), id, vha->host_no);
-	} else {
-		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
-			QL_MSGHDR, "0000:00:00.0", id);
-	}
-	pbuf[sizeof(pbuf) - 1] = 0;
+	ql_dbg_prefix(pbuf, ARRAY_SIZE(pbuf), vha, id);
 
 	va_start(va, fmt);
 
@@ -2625,10 +2605,7 @@ ql_log_pci(uint level, struct pci_dev *pdev, uint id, const char *fmt, ...)
 	if (level > ql_errlev)
 		return;
 
-	/* <module-name> <dev-name>:<msg-id> Message */
-	snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
-		 QL_MSGHDR, dev_name(&(pdev->dev)), id);
-	pbuf[sizeof(pbuf) - 1] = 0;
+	ql_dbg_prefix(pbuf, ARRAY_SIZE(pbuf), NULL, id);
 
 	va_start(va, fmt);
 
@@ -2679,7 +2656,6 @@ ql_dump_regs(uint level, scsi_qla_host_t *vha, uint id)
 		    "mbox[%d] %#04x\n", i, rd_reg_word(mbx_reg));
 }
 
-
 void
 ql_dump_buffer(uint level, scsi_qla_host_t *vha, uint id, const void *buf,
 	       uint size)
@@ -2724,16 +2700,7 @@ ql_log_qp(uint32_t level, struct qla_qpair *qpair, int32_t id,
 	if (level > ql_errlev)
 		return;
 
-	if (qpair != NULL) {
-		const struct pci_dev *pdev = qpair->pdev;
-		/* <module-name> <msg-id>:<host> Message */
-		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: ",
-			QL_MSGHDR, dev_name(&(pdev->dev)), id);
-	} else {
-		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
-			QL_MSGHDR, "0000:00:00.0", id);
-	}
-	pbuf[sizeof(pbuf) - 1] = 0;
+	ql_dbg_prefix(pbuf, ARRAY_SIZE(pbuf), qpair ? qpair->vha : NULL, id);
 
 	va_start(va, fmt);
 
@@ -2777,6 +2744,7 @@ ql_dbg_qp(uint32_t level, struct qla_qpair *qpair, int32_t id,
 {
 	va_list va;
 	struct va_format vaf;
+	char pbuf[128];
 
 	if (!ql_mask_match(level))
 		return;
@@ -2786,16 +2754,9 @@ ql_dbg_qp(uint32_t level, struct qla_qpair *qpair, int32_t id,
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	if (qpair != NULL) {
-		const struct pci_dev *pdev = qpair->pdev;
-		/* <module-name> <pci-name> <msg-id>:<host> Message */
-		pr_warn("%s [%s]-%04x: %pV",
-		    QL_MSGHDR, dev_name(&(pdev->dev)), id + ql_dbg_offset,
-		    &vaf);
-	} else {
-		pr_warn("%s [%s]-%04x: : %pV",
-			QL_MSGHDR, "0000:00:00.0", id + ql_dbg_offset, &vaf);
-	}
+	ql_dbg_prefix(pbuf, ARRAY_SIZE(pbuf), qpair ? qpair->vha : NULL,
+		      id + ql_dbg_offset);
+	pr_warn("%s%pV", pbuf, &vaf);
 
 	va_end(va);
 

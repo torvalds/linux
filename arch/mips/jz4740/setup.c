@@ -14,6 +14,7 @@
 #include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 #include <linux/pm.h>
+#include <linux/sizes.h>
 #include <linux/suspend.h>
 
 #include <asm/bootinfo.h>
@@ -22,33 +23,10 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 
-#define JZ4740_EMC_BASE_ADDR 0x13010000
-
-#define JZ4740_EMC_SDRAM_CTRL 0x80
-
-static void __init jz4740_detect_mem(void)
-{
-	void __iomem *jz_emc_base;
-	u32 ctrl, bus, bank, rows, cols;
-	phys_addr_t size;
-
-	jz_emc_base = ioremap(JZ4740_EMC_BASE_ADDR, 0x100);
-	ctrl = readl(jz_emc_base + JZ4740_EMC_SDRAM_CTRL);
-	bus = 2 - ((ctrl >> 31) & 1);
-	bank = 1 + ((ctrl >> 19) & 1);
-	cols = 8 + ((ctrl >> 26) & 7);
-	rows = 11 + ((ctrl >> 20) & 3);
-	printk(KERN_DEBUG
-		"SDRAM preconfigured: bus:%u bank:%u rows:%u cols:%u\n",
-		bus, bank, rows, cols);
-	iounmap(jz_emc_base);
-
-	size = 1 << (bus + bank + cols + rows);
-	add_memory_region(0, size, BOOT_MEM_RAM);
-}
-
 static unsigned long __init get_board_mach_type(const void *fdt)
 {
+	if (!fdt_node_check_compatible(fdt, 0, "ingenic,x2000"))
+		return MACH_INGENIC_X2000;
 	if (!fdt_node_check_compatible(fdt, 0, "ingenic,x1830"))
 		return MACH_INGENIC_X1830;
 	if (!fdt_node_check_compatible(fdt, 0, "ingenic,x1000"))
@@ -57,25 +35,25 @@ static unsigned long __init get_board_mach_type(const void *fdt)
 		return MACH_INGENIC_JZ4780;
 	if (!fdt_node_check_compatible(fdt, 0, "ingenic,jz4770"))
 		return MACH_INGENIC_JZ4770;
+	if (!fdt_node_check_compatible(fdt, 0, "ingenic,jz4725b"))
+		return MACH_INGENIC_JZ4725B;
 
 	return MACH_INGENIC_JZ4740;
 }
 
 void __init plat_mem_setup(void)
 {
-	int offset;
-	void *dtb;
-
-	if (__dtb_start != __dtb_end)
-		dtb = __dtb_start;
-	else
-		dtb = (void *)fw_passed_dtb;
+	void *dtb = (void *)fw_passed_dtb;
 
 	__dt_setup_arch(dtb);
 
-	offset = fdt_path_offset(dtb, "/memory");
-	if (offset < 0)
-		jz4740_detect_mem();
+	/*
+	 * Old devicetree files for the qi,lb60 board did not have a /memory
+	 * node. Hardcode the memory info here.
+	 */
+	if (!fdt_node_check_compatible(dtb, 0, "qi,lb60") &&
+	    fdt_path_offset(dtb, "/memory") < 0)
+		early_init_dt_add_memory_arch(0, SZ_32M);
 
 	mips_machtype = get_board_mach_type(dtb);
 }
@@ -91,6 +69,8 @@ void __init device_tree_init(void)
 const char *get_system_type(void)
 {
 	switch (mips_machtype) {
+	case MACH_INGENIC_X2000:
+		return "X2000";
 	case MACH_INGENIC_X1830:
 		return "X1830";
 	case MACH_INGENIC_X1000:
@@ -99,6 +79,8 @@ const char *get_system_type(void)
 		return "JZ4780";
 	case MACH_INGENIC_JZ4770:
 		return "JZ4770";
+	case MACH_INGENIC_JZ4725B:
+		return "JZ4725B";
 	default:
 		return "JZ4740";
 	}

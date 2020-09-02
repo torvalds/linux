@@ -167,17 +167,37 @@ the ``mbus_code`` field is handled differently:
       - The hardware decoder for this compressed bytestream format (aka coded
 	format) is capable of parsing a continuous bytestream. Applications do
 	not need to parse the bytestream themselves to find the boundaries
-	between frames/fields. This flag can only be used in combination with
-	the ``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to compressed
+	between frames/fields.
+
+	This flag can only be used in combination with the
+	``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to compressed
 	formats only. This flag is valid for stateful decoders only.
     * - ``V4L2_FMT_FLAG_DYN_RESOLUTION``
       - 0x0008
       - Dynamic resolution switching is supported by the device for this
 	compressed bytestream format (aka coded format). It will notify the user
 	via the event ``V4L2_EVENT_SOURCE_CHANGE`` when changes in the video
-	parameters are detected. This flag can only be used in combination
-	with the ``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to
-	compressed formats only. It is also only applies to stateful codecs.
+	parameters are detected.
+
+	This flag can only be used in combination with the
+	``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to
+	compressed formats only. This flag is valid for stateful codecs only.
+    * - ``V4L2_FMT_FLAG_ENC_CAP_FRAME_INTERVAL``
+      - 0x0010
+      - The hardware encoder supports setting the ``CAPTURE`` coded frame
+	interval separately from the ``OUTPUT`` raw frame interval.
+	Setting the ``OUTPUT`` raw frame interval with :ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>`
+	also sets the ``CAPTURE`` coded frame interval to the same value.
+	If this flag is set, then the ``CAPTURE`` coded frame interval can be
+	set to a different value afterwards. This is typically used for
+	offline encoding where the ``OUTPUT`` raw frame interval is used as
+	a hint for reserving hardware encoder resources and the ``CAPTURE`` coded
+	frame interval is the actual frame rate embedded in the encoded video
+	stream.
+
+	This flag can only be used in combination with the
+	``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to
+        compressed formats only. This flag is valid for stateful encoders only.
 
 
 Return Value
