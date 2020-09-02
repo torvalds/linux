@@ -60,7 +60,6 @@ static void vx_pcm_read_per_bytes(struct vx_core *chip, struct snd_pcm_runtime *
 	*buf++ = vx_inb(chip, RXL);
 	if (++offset >= pipe->buffer_bytes) {
 		offset = 0;
-		buf = (unsigned char *)runtime->dma_area;
 	}
 	pipe->hw_ptr = offset;
 }
