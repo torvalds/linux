@@ -5265,7 +5265,7 @@ static int scsi_debug_host_reset(struct scsi_cmnd *SCpnt)
 static void sdebug_build_parts(unsigned char *ramp, unsigned long store_size)
 {
 	struct msdos_partition *pp;
-	int starts[SDEBUG_MAX_PARTS + 2];
+	int starts[SDEBUG_MAX_PARTS + 2], max_part_secs;
 	int sectors_per_part, num_sectors, k;
 	int heads_by_sects, start_sec, end_sec;
 
@@ -5281,9 +5281,13 @@ static void sdebug_build_parts(unsigned char *ramp, unsigned long store_size)
 			   / sdebug_num_parts;
 	heads_by_sects = sdebug_heads * sdebug_sectors_per;
 	starts[0] = sdebug_sectors_per;
-	for (k = 1; k < sdebug_num_parts; ++k)
+	max_part_secs = sectors_per_part;
+	for (k = 1; k < sdebug_num_parts; ++k) {
 		starts[k] = ((k * sectors_per_part) / heads_by_sects)
 			    * heads_by_sects;
+		if (starts[k] - starts[k - 1] < max_part_secs)
+			max_part_secs = starts[k] - starts[k - 1];
+	}
 	starts[sdebug_num_parts] = num_sectors;
 	starts[sdebug_num_parts + 1] = 0;
 
@@ -5292,7 +5296,7 @@ static void sdebug_build_parts(unsigned char *ramp, unsigned long store_size)
 	pp = (struct msdos_partition *)(ramp + 0x1be);
 	for (k = 0; starts[k + 1]; ++k, ++pp) {
 		start_sec = starts[k];
-		end_sec = starts[k + 1] - 1;
+		end_sec = starts[k] + max_part_secs - 1;
 		pp->boot_ind = 0;
 
 		pp->cyl = start_sec / heads_by_sects;
