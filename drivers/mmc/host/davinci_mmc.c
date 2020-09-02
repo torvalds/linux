@@ -1240,9 +1240,8 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 		pdev->id_entry = match->data;
 		ret = mmc_of_parse(mmc);
 		if (ret) {
-			if (ret != -EPROBE_DEFER)
-				dev_err(&pdev->dev,
-					"could not parse of data: %d\n", ret);
+			dev_err_probe(&pdev->dev, ret,
+				      "could not parse of data\n");
 			goto parse_fail;
 		}
 	} else {
