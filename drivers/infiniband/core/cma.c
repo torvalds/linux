@@ -404,17 +404,6 @@ struct cma_req_info {
 	u16 pkey;
 };
 
-static int cma_comp(struct rdma_id_private *id_priv, enum rdma_cm_state comp)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&id_priv->lock, flags);
-	ret = (id_priv->state == comp);
-	spin_unlock_irqrestore(&id_priv->lock, flags);
-	return ret;
-}
-
 static int cma_comp_exch(struct rdma_id_private *id_priv,
 			 enum rdma_cm_state comp, enum rdma_cm_state exch)
 {
@@ -4363,8 +4352,8 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 
 	id_priv = mc->id_priv;
 	mutex_lock(&id_priv->handler_mutex);
-	if (id_priv->state != RDMA_CM_ADDR_BOUND &&
-	    id_priv->state != RDMA_CM_ADDR_RESOLVED)
+	if (READ_ONCE(id_priv->state) == RDMA_CM_DEVICE_REMOVAL ||
+	    READ_ONCE(id_priv->state) == RDMA_CM_DESTROYING)
 		goto out;
 
 	if (!status)
@@ -4630,16 +4619,14 @@ out1:
 int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
 			u8 join_state, void *context)
 {
-	struct rdma_id_private *id_priv;
+	struct rdma_id_private *id_priv =
+		container_of(id, struct rdma_id_private, id);
 	struct cma_multicast *mc;
 	int ret;
 
-	if (!id->device)
-		return -EINVAL;
-
-	id_priv = container_of(id, struct rdma_id_private, id);
-	if (!cma_comp(id_priv, RDMA_CM_ADDR_BOUND) &&
-	    !cma_comp(id_priv, RDMA_CM_ADDR_RESOLVED))
+	/* ULP is calling this wrong. */
+	if (!id->device || (READ_ONCE(id_priv->state) != RDMA_CM_ADDR_BOUND &&
+			    READ_ONCE(id_priv->state) != RDMA_CM_ADDR_RESOLVED))
 		return -EINVAL;
 
 	mc = kmalloc(sizeof *mc, GFP_KERNEL);
