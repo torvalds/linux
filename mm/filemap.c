@@ -2015,57 +2015,36 @@ reset:
  * @mapping:	The address_space to search
  * @start:	The starting page cache index
  * @end:	The final page index (inclusive).
- * @pvec:	Where the resulting entries are placed.
+ * @fbatch:	Where the resulting entries are placed.
  * @indices:	The cache indices corresponding to the entries in @entries
  *
  * find_get_entries() will search for and return a batch of entries in
- * the mapping.  The entries are placed in @pvec.  find_get_entries()
- * takes a reference on any actual pages it returns.
+ * the mapping.  The entries are placed in @fbatch.  find_get_entries()
+ * takes a reference on any actual folios it returns.
  *
- * The search returns a group of mapping-contiguous page cache entries
- * with ascending indexes.  There may be holes in the indices due to
- * not-present pages.
+ * The entries have ascending indexes.  The indices may not be consecutive
+ * due to not-present entries or large folios.
  *
- * Any shadow entries of evicted pages, or swap entries from
+ * Any shadow entries of evicted folios, or swap entries from
  * shmem/tmpfs, are included in the returned array.
  *
- * If it finds a Transparent Huge Page, head or tail, find_get_entries()
- * stops at that page: the caller is likely to have a better way to handle
- * the compound page as a whole, and then skip its extent, than repeatedly
- * calling find_get_entries() to return all its tails.
- *
- * Return: the number of pages and shadow entries which were found.
+ * Return: The number of entries which were found.
  */
 unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
-		pgoff_t end, struct pagevec *pvec, pgoff_t *indices)
+		pgoff_t end, struct folio_batch *fbatch, pgoff_t *indices)
 {
 	XA_STATE(xas, &mapping->i_pages, start);
 	struct folio *folio;
-	unsigned int ret = 0;
-	unsigned nr_entries = PAGEVEC_SIZE;
 
 	rcu_read_lock();
 	while ((folio = find_get_entry(&xas, end, XA_PRESENT)) != NULL) {
-		struct page *page = &folio->page;
-		/*
-		 * Terminate early on finding a THP, to allow the caller to
-		 * handle it all at once; but continue if this is hugetlbfs.
-		 */
-		if (!xa_is_value(folio) && folio_test_large(folio) &&
-				!folio_test_hugetlb(folio)) {
-			page = folio_file_page(folio, xas.xa_index);
-			nr_entries = ret + 1;
-		}
-
-		indices[ret] = xas.xa_index;
-		pvec->pages[ret] = page;
-		if (++ret == nr_entries)
+		indices[fbatch->nr] = xas.xa_index;
+		if (!folio_batch_add(fbatch, folio))
 			break;
 	}
 	rcu_read_unlock();
 
-	pvec->nr = ret;
-	return ret;
+	return folio_batch_count(fbatch);
 }
 
 /**

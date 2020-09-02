@@ -920,6 +920,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 	unsigned int partial_start = lstart & (PAGE_SIZE - 1);
 	unsigned int partial_end = (lend + 1) & (PAGE_SIZE - 1);
 	struct pagevec pvec;
+	struct folio_batch fbatch;
 	pgoff_t indices[PAGEVEC_SIZE];
 	long nr_swaps_freed = 0;
 	pgoff_t index;
@@ -987,11 +988,12 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 	if (start >= end)
 		return;
 
+	folio_batch_init(&fbatch);
 	index = start;
 	while (index < end) {
 		cond_resched();
 
-		if (!find_get_entries(mapping, index, end - 1, &pvec,
+		if (!find_get_entries(mapping, index, end - 1, &fbatch,
 				indices)) {
 			/* If all gone or hole-punch or unfalloc, we're done */
 			if (index == start || end != -1)
@@ -1000,14 +1002,14 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 			index = start;
 			continue;
 		}
-		for (i = 0; i < pagevec_count(&pvec); i++) {
-			struct page *page = pvec.pages[i];
+		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+			struct folio *folio = fbatch.folios[i];
 
 			index = indices[i];
-			if (xa_is_value(page)) {
+			if (xa_is_value(folio)) {
 				if (unfalloc)
 					continue;
-				if (shmem_free_swap(mapping, index, page)) {
+				if (shmem_free_swap(mapping, index, folio)) {
 					/* Swap was replaced by page: retry */
 					index--;
 					break;
@@ -1016,33 +1018,35 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 				continue;
 			}
 
-			lock_page(page);
+			folio_lock(folio);
 
-			if (!unfalloc || !PageUptodate(page)) {
-				if (page_mapping(page) != mapping) {
+			if (!unfalloc || !folio_test_uptodate(folio)) {
+				struct page *page = folio_file_page(folio,
+									index);
+				if (folio_mapping(folio) != mapping) {
 					/* Page was replaced by swap: retry */
-					unlock_page(page);
+					folio_unlock(folio);
 					index--;
 					break;
 				}
-				VM_BUG_ON_PAGE(PageWriteback(page), page);
+				VM_BUG_ON_FOLIO(folio_test_writeback(folio),
+						folio);
 				if (shmem_punch_compound(page, start, end))
-					truncate_inode_folio(mapping,
-							     page_folio(page));
+					truncate_inode_folio(mapping, folio);
 				else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
 					/* Wipe the page and don't get stuck */
 					clear_highpage(page);
 					flush_dcache_page(page);
-					set_page_dirty(page);
+					folio_mark_dirty(folio);
 					if (index <
 					    round_up(start, HPAGE_PMD_NR))
 						start = index + 1;
 				}
 			}
-			unlock_page(page);
+			folio_unlock(folio);
 		}
-		pagevec_remove_exceptionals(&pvec);
-		pagevec_release(&pvec);
+		folio_batch_remove_exceptionals(&fbatch);
+		folio_batch_release(&fbatch);
 		index++;
 	}
 
