@@ -128,6 +128,24 @@ struct nested_calls {
 	spinlock_t lock;
 };
 
+/* Wait structure used by the poll hooks */
+struct eppoll_entry {
+	/* List header used to link this structure to the "struct epitem" */
+	struct eppoll_entry *next;
+
+	/* The "base" pointer is set to the container "struct epitem" */
+	struct epitem *base;
+
+	/*
+	 * Wait queue item that will be linked to the target file wait
+	 * queue head.
+	 */
+	wait_queue_entry_t wait;
+
+	/* The wait queue head that linked the "wait" wait queue item */
+	wait_queue_head_t *whead;
+};
+
 /*
  * Each file descriptor added to the eventpoll interface will
  * have an entry of this type linked to the "rbr" RB tree.
@@ -158,7 +176,7 @@ struct epitem {
 	int nwait;
 
 	/* List containing poll wait queues */
-	struct list_head pwqlist;
+	struct eppoll_entry *pwqlist;
 
 	/* The "container" of this item */
 	struct eventpoll *ep;
@@ -229,24 +247,6 @@ struct eventpoll {
 	/* tracks wakeup nests for lockdep validation */
 	u8 nests;
 #endif
-};
-
-/* Wait structure used by the poll hooks */
-struct eppoll_entry {
-	/* List header used to link this structure to the "struct epitem" */
-	struct list_head llink;
-
-	/* The "base" pointer is set to the container "struct epitem" */
-	struct epitem *base;
-
-	/*
-	 * Wait queue item that will be linked to the target file wait
-	 * queue head.
-	 */
-	wait_queue_entry_t wait;
-
-	/* The wait queue head that linked the "wait" wait queue item */
-	wait_queue_head_t *whead;
 };
 
 /* Wrapper struct used by poll queueing */
@@ -617,13 +617,11 @@ static void ep_remove_wait_queue(struct eppoll_entry *pwq)
  */
 static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
 {
-	struct list_head *lsthead = &epi->pwqlist;
+	struct eppoll_entry **p = &epi->pwqlist;
 	struct eppoll_entry *pwq;
 
-	while (!list_empty(lsthead)) {
-		pwq = list_first_entry(lsthead, struct eppoll_entry, llink);
-
-		list_del(&pwq->llink);
+	while ((pwq = *p) != NULL) {
+		*p = pwq->next;
 		ep_remove_wait_queue(pwq);
 		kmem_cache_free(pwq_cache, pwq);
 	}
@@ -1320,7 +1318,8 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 			add_wait_queue_exclusive(whead, &pwq->wait);
 		else
 			add_wait_queue(whead, &pwq->wait);
-		list_add_tail(&pwq->llink, &epi->pwqlist);
+		pwq->next = epi->pwqlist;
+		epi->pwqlist = pwq;
 		epi->nwait++;
 	} else {
 		/* We have to signal that an error occurred */
@@ -1507,7 +1506,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	/* Item initialization follow here ... */
 	INIT_LIST_HEAD(&epi->rdllink);
 	INIT_LIST_HEAD(&epi->fllink);
-	INIT_LIST_HEAD(&epi->pwqlist);
+	epi->pwqlist = NULL;
 	epi->ep = ep;
 	ep_set_ffd(&epi->ffd, tfile, fd);
 	epi->event = *event;
