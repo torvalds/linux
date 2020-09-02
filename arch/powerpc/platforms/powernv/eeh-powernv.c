@@ -1641,24 +1641,6 @@ static struct eeh_ops pnv_eeh_ops = {
 	.notify_resume		= NULL
 };
 
-#ifdef CONFIG_PCI_IOV
-static void pnv_pci_fixup_vf_mps(struct pci_dev *pdev)
-{
-	struct pci_dn *pdn = pci_get_pdn(pdev);
-	int parent_mps;
-
-	if (!pdev->is_virtfn)
-		return;
-
-	/* Synchronize MPS for VF and PF */
-	parent_mps = pcie_get_mps(pdev->physfn);
-	if ((128 << pdev->pcie_mpss) >= parent_mps)
-		pcie_set_mps(pdev, parent_mps);
-	pdn->mps = pcie_get_mps(pdev);
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pnv_pci_fixup_vf_mps);
-#endif /* CONFIG_PCI_IOV */
-
 /**
  * eeh_powernv_init - Register platform dependent EEH operations
  *
