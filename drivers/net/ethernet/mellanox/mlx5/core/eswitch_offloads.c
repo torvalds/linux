@@ -2108,11 +2108,9 @@ esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 	if (err)
 		return err;
 
-	if (mlx5_eswitch_is_vf_vport(esw, vport->vport)) {
-		err = esw_acl_egress_ofld_setup(esw, vport);
-		if (err)
-			goto egress_err;
-	}
+	err = esw_acl_egress_ofld_setup(esw, vport);
+	if (err)
+		goto egress_err;
 
 	return 0;
 
