@@ -105,7 +105,7 @@ int virtio_gpu_init(struct drm_device *dev)
 	/* this will expand later */
 	struct virtqueue *vqs[2];
 	u32 num_scanouts, num_capsets;
-	int ret;
+	int ret = 0;
 
 	if (!virtio_has_feature(dev_to_virtio(dev->dev), VIRTIO_F_VERSION_1))
 		return -ENODEV;
