@@ -363,12 +363,6 @@ struct cma_work {
 	struct rdma_cm_event	event;
 };
 
-struct cma_ndev_work {
-	struct work_struct	work;
-	struct rdma_id_private	*id;
-	struct rdma_cm_event	event;
-};
-
 struct iboe_mcast_work {
 	struct work_struct	 work;
 	struct rdma_id_private	*id;
@@ -2647,31 +2641,13 @@ static void cma_work_handler(struct work_struct *_work)
 	struct rdma_id_private *id_priv = work->id;
 
 	mutex_lock(&id_priv->handler_mutex);
-	if (!cma_comp_exch(id_priv, work->old_state, work->new_state))
+	if (READ_ONCE(id_priv->state) == RDMA_CM_DESTROYING ||
+	    READ_ONCE(id_priv->state) == RDMA_CM_DEVICE_REMOVAL)
 		goto out_unlock;
-
-	if (cma_cm_event_handler(id_priv, &work->event)) {
-		cma_id_put(id_priv);
-		destroy_id_handler_unlock(id_priv);
-		goto out_free;
+	if (work->old_state != 0 || work->new_state != 0) {
+		if (!cma_comp_exch(id_priv, work->old_state, work->new_state))
+			goto out_unlock;
 	}
-
-out_unlock:
-	mutex_unlock(&id_priv->handler_mutex);
-	cma_id_put(id_priv);
-out_free:
-	kfree(work);
-}
-
-static void cma_ndev_work_handler(struct work_struct *_work)
-{
-	struct cma_ndev_work *work = container_of(_work, struct cma_ndev_work, work);
-	struct rdma_id_private *id_priv = work->id;
-
-	mutex_lock(&id_priv->handler_mutex);
-	if (id_priv->state == RDMA_CM_DESTROYING ||
-	    id_priv->state == RDMA_CM_DEVICE_REMOVAL)
-		goto out_unlock;
 
 	if (cma_cm_event_handler(id_priv, &work->event)) {
 		cma_id_put(id_priv);
@@ -4698,7 +4674,7 @@ EXPORT_SYMBOL(rdma_leave_multicast);
 static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id_priv)
 {
 	struct rdma_dev_addr *dev_addr;
-	struct cma_ndev_work *work;
+	struct cma_work *work;
 
 	dev_addr = &id_priv->id.route.addr.dev_addr;
 
@@ -4711,7 +4687,7 @@ static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id
 		if (!work)
 			return -ENOMEM;
 
-		INIT_WORK(&work->work, cma_ndev_work_handler);
+		INIT_WORK(&work->work, cma_work_handler);
 		work->id = id_priv;
 		work->event.event = RDMA_CM_EVENT_ADDR_CHANGE;
 		cma_id_get(id_priv);
