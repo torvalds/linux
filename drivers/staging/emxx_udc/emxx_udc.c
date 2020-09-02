@@ -793,7 +793,7 @@ static int _nbu2ss_out_dma(struct nbu2ss_udc *udc, struct nbu2ss_req *req,
 	u32		dmacnt;
 	u32		burst = 1;
 	u32		data;
-	int		result = -EINVAL;
+	int		result;
 	struct fc_regs __iomem *preg = udc->p_regs;
 
 	if (req->dma_flag)
@@ -1288,8 +1288,6 @@ static void _nbu2ss_set_endpoint_stall(struct nbu2ss_udc *udc,
 
 			_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, data);
 		} else {
-			/* Clear STALL */
-			ep->stalled = false;
 			if (ep_adrs & USB_DIR_IN) {
 				_nbu2ss_bitclr(&preg->EP_REGS[num].EP_CONTROL
 						, EPN_ISTL);
@@ -1304,6 +1302,7 @@ static void _nbu2ss_set_endpoint_stall(struct nbu2ss_udc *udc,
 						, data);
 			}
 
+			/* Clear STALL */
 			ep->stalled = false;
 			if (ep->halted) {
 				ep->halted = false;
@@ -3073,8 +3072,8 @@ static int nbu2ss_drv_contest_init(struct platform_device *pdev,
  */
 static int nbu2ss_drv_probe(struct platform_device *pdev)
 {
-	int	status = -ENODEV;
-	struct nbu2ss_udc	*udc;
+	int status;
+	struct nbu2ss_udc *udc;
 	int irq;
 	void __iomem *mmio_base;
 
