@@ -81,12 +81,20 @@ static int uverbs_free_rwq_ind_tbl(struct ib_uobject *uobject,
 {
 	struct ib_rwq_ind_table *rwq_ind_tbl = uobject->object;
 	struct ib_wq **ind_tbl = rwq_ind_tbl->ind_tbl;
-	int ret;
+	u32 table_size = (1 << rwq_ind_tbl->log_ind_tbl_size);
+	int ret, i;
 
-	ret = ib_destroy_rwq_ind_table(rwq_ind_tbl);
+	if (atomic_read(&rwq_ind_tbl->usecnt))
+		return -EBUSY;
+
+	ret = rwq_ind_tbl->device->ops.destroy_rwq_ind_table(rwq_ind_tbl);
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
+	for (i = 0; i < table_size; i++)
+		atomic_dec(&ind_tbl[i]->usecnt);
+
+	kfree(rwq_ind_tbl);
 	kfree(ind_tbl);
 	return ret;
 }

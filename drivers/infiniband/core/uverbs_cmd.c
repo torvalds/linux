@@ -2993,11 +2993,11 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_ex_create_rwq_ind_table cmd;
 	struct ib_uverbs_ex_create_rwq_ind_table_resp  resp = {};
-	struct ib_uobject		  *uobj;
+	struct ib_uobject *uobj;
 	int err;
 	struct ib_rwq_ind_table_init_attr init_attr = {};
 	struct ib_rwq_ind_table *rwq_ind_tbl;
-	struct ib_wq	**wqs = NULL;
+	struct ib_wq **wqs = NULL;
 	u32 *wqs_handles = NULL;
 	struct ib_wq	*wq = NULL;
 	int i, num_read_wqs;
@@ -3055,16 +3055,14 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 		goto put_wqs;
 	}
 
-	init_attr.log_ind_tbl_size = cmd.log_ind_tbl_size;
-	init_attr.ind_tbl = wqs;
-
-	rwq_ind_tbl = ib_dev->ops.create_rwq_ind_table(ib_dev, &init_attr,
-						       &attrs->driver_udata);
-
-	if (IS_ERR(rwq_ind_tbl)) {
-		err = PTR_ERR(rwq_ind_tbl);
+	rwq_ind_tbl = rdma_zalloc_drv_obj(ib_dev, ib_rwq_ind_table);
+	if (!rwq_ind_tbl) {
+		err = -ENOMEM;
 		goto err_uobj;
 	}
+
+	init_attr.log_ind_tbl_size = cmd.log_ind_tbl_size;
+	init_attr.ind_tbl = wqs;
 
 	rwq_ind_tbl->ind_tbl = wqs;
 	rwq_ind_tbl->log_ind_tbl_size = init_attr.log_ind_tbl_size;
@@ -3072,6 +3070,11 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 	uobj->object = rwq_ind_tbl;
 	rwq_ind_tbl->device = ib_dev;
 	atomic_set(&rwq_ind_tbl->usecnt, 0);
+
+	err = ib_dev->ops.create_rwq_ind_table(rwq_ind_tbl, &init_attr,
+					       &attrs->driver_udata);
+	if (err)
+		goto err_create;
 
 	for (i = 0; i < num_wq_handles; i++)
 		rdma_lookup_put_uobject(&wqs[i]->uobject->uevent.uobject,
@@ -3084,6 +3087,8 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 	return uverbs_response(attrs, &resp, sizeof(resp));
 
+err_create:
+	kfree(rwq_ind_tbl);
 err_uobj:
 	uobj_alloc_abort(uobj, attrs);
 put_wqs:

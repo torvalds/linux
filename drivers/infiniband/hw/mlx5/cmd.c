@@ -168,14 +168,14 @@ void mlx5_cmd_destroy_tis(struct mlx5_core_dev *dev, u32 tisn, u16 uid)
 	mlx5_cmd_exec_in(dev, destroy_tis, in);
 }
 
-void mlx5_cmd_destroy_rqt(struct mlx5_core_dev *dev, u32 rqtn, u16 uid)
+int mlx5_cmd_destroy_rqt(struct mlx5_core_dev *dev, u32 rqtn, u16 uid)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_rqt_in)] = {};
 
 	MLX5_SET(destroy_rqt_in, in, opcode, MLX5_CMD_OP_DESTROY_RQT);
 	MLX5_SET(destroy_rqt_in, in, rqtn, rqtn);
 	MLX5_SET(destroy_rqt_in, in, uid, uid);
-	mlx5_cmd_exec_in(dev, destroy_rqt, in);
+	return mlx5_cmd_exec_in(dev, destroy_rqt, in);
 }
 
 int mlx5_cmd_alloc_transport_domain(struct mlx5_core_dev *dev, u32 *tdn,
