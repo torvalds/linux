@@ -1026,6 +1026,13 @@ static void qedr_notify(struct qedr_dev *dev, enum qede_rdma_event event)
 	case QEDE_CHANGE_ADDR:
 		qedr_mac_address_change(dev);
 		break;
+	case QEDE_CHANGE_MTU:
+		if (rdma_protocol_iwarp(&dev->ibdev, 1))
+			if (dev->ndev->mtu != dev->iwarp_max_mtu)
+				DP_NOTICE(dev,
+					  "Mtu was changed from %d to %d. This will not take affect for iWARP until qedr is reloaded\n",
+					  dev->iwarp_max_mtu, dev->ndev->mtu);
+		break;
 	default:
 		pr_err("Event not supported\n");
 	}

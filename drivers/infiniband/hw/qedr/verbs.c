@@ -231,15 +231,16 @@ int qedr_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *attr)
 		attr->phys_state = IB_PORT_PHYS_STATE_DISABLED;
 	}
 	attr->max_mtu = IB_MTU_4096;
-	attr->active_mtu = iboe_get_mtu(dev->ndev->mtu);
 	attr->lid = 0;
 	attr->lmc = 0;
 	attr->sm_lid = 0;
 	attr->sm_sl = 0;
 	attr->ip_gids = true;
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
+		attr->active_mtu = iboe_get_mtu(dev->iwarp_max_mtu);
 		attr->gid_tbl_len = 1;
 	} else {
+		attr->active_mtu = iboe_get_mtu(dev->ndev->mtu);
 		attr->gid_tbl_len = QEDR_MAX_SGID;
 		attr->pkey_tbl_len = QEDR_ROCE_PKEY_TABLE_LEN;
 	}
