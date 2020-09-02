@@ -6,7 +6,7 @@ obj-$(CONFIG_SOC_IMX25) += cpu-imx25.o mach-imx25.o pm-imx25.o
 obj-$(CONFIG_SOC_IMX27) += cpu-imx27.o pm-imx27.o mach-imx27.o
 obj-$(CONFIG_SOC_IMX27) += mm-imx27.o ehci-imx27.o
 
-obj-$(CONFIG_SOC_IMX31) += mm-imx3.o cpu-imx31.o iomux-imx31.o ehci-imx31.o
+obj-$(CONFIG_SOC_IMX31) += mm-imx3.o cpu-imx31.o iomux-imx31.o ehci-imx31.o mach-imx31.o
 obj-$(CONFIG_SOC_IMX35) += mm-imx3.o cpu-imx35.o ehci-imx35.o
 
 imx5-pm-$(CONFIG_PM) += pm-imx5.o
@@ -34,21 +34,6 @@ ifdef CONFIG_SND_SOC_IMX_PCM_FIQ
 obj-y += ssi-fiq.o
 obj-y += ssi-fiq-ksym.o
 endif
-
-# i.MX31 based machines
-obj-$(CONFIG_MACH_MX31ADS) += mach-mx31ads.o
-obj-$(CONFIG_MACH_MX31LILLY) += mach-mx31lilly.o mx31lilly-db.o
-obj-$(CONFIG_MACH_MX31LITE) += mach-mx31lite.o mx31lite-db.o
-obj-$(CONFIG_MACH_PCM037) += mach-pcm037.o
-obj-$(CONFIG_MACH_PCM037_EET) += mach-pcm037_eet.o
-obj-$(CONFIG_MACH_MX31_3DS) += mach-mx31_3ds.o
-obj-$(CONFIG_MACH_MX31MOBOARD) += mach-mx31moboard.o mx31moboard-devboard.o \
-		mx31moboard-marxbot.o mx31moboard-smartbot.o
-obj-$(CONFIG_MACH_QONG) += mach-qong.o
-obj-$(CONFIG_MACH_ARMADILLO5X0) += mach-armadillo5x0.o
-obj-$(CONFIG_MACH_KZM_ARM11_01) += mach-kzm_arm11_01.o
-obj-$(CONFIG_MACH_BUG) += mach-bug.o
-obj-$(CONFIG_MACH_IMX31_DT) += imx31-dt.o
 
 # i.MX35 based machines
 obj-$(CONFIG_MACH_PCM043) += mach-pcm043.o
