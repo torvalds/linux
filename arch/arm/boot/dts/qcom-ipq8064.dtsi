@@ -786,7 +786,6 @@
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				max-frequency   = <192000000>;
-				#mmc-ddr-1_8v;
 				sd-uhs-sdr104;
 				sd-uhs-ddr50;
 				vqmmc-supply = <&vsdcc_fixed>;
