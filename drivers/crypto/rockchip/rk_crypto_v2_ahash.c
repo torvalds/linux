@@ -433,6 +433,8 @@ static void rk_ahash_dma_start(struct rk_crypto_info *dev)
 	hw_info->desc->dma_ctrl = 0x00000401;
 	hw_info->desc->user_define = 0x7;
 
+	dma_wmb();
+
 	CRYPTO_WRITE(dev, CRYPTO_DMA_LLI_ADDR, hw_info->desc_dma);
 	CRYPTO_WRITE(dev, CRYPTO_HASH_CTL,
 		     (CRYPTO_HASH_ENABLE <<
