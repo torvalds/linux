@@ -271,4 +271,13 @@ int amdgpu_mes_ctx_map_meta_data(struct amdgpu_device *adev,
 
 int amdgpu_mes_self_test(struct amdgpu_device *adev);
 
+int amdgpu_mes_alloc_process_doorbells(struct amdgpu_device *adev,
+					unsigned int *doorbell_index);
+void amdgpu_mes_free_process_doorbells(struct amdgpu_device *adev,
+					unsigned int doorbell_index);
+unsigned int amdgpu_mes_get_doorbell_dw_offset_in_bar(
+					struct amdgpu_device *adev,
+					uint32_t doorbell_index,
+					unsigned int doorbell_id);
+int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev);
 #endif /* __AMDGPU_MES_H__ */
