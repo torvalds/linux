@@ -723,7 +723,7 @@ static int ovl_set_nlink_common(struct dentry *dentry,
 		return -EIO;
 
 	return ovl_do_setxattr(ovl_dentry_upper(dentry),
-			       OVL_XATTR_NLINK, buf, len, 0);
+			       OVL_XATTR_NLINK, buf, len);
 }
 
 int ovl_set_nlink_upper(struct dentry *dentry)

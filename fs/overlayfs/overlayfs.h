@@ -177,11 +177,11 @@ static inline ssize_t ovl_do_getxattr(struct dentry *dentry, const char *name,
 }
 
 static inline int ovl_do_setxattr(struct dentry *dentry, const char *name,
-				  const void *value, size_t size, int flags)
+				  const void *value, size_t size)
 {
-	int err = vfs_setxattr(dentry, name, value, size, flags);
-	pr_debug("setxattr(%pd2, \"%s\", \"%*pE\", %zu, 0x%x) = %i\n",
-		 dentry, name, min((int)size, 48), value, size, flags, err);
+	int err = vfs_setxattr(dentry, name, value, size, 0);
+	pr_debug("setxattr(%pd2, \"%s\", \"%*pE\", %zu, 0) = %i\n",
+		 dentry, name, min((int)size, 48), value, size, err);
 	return err;
 }
 

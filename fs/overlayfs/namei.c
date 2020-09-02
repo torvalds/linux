@@ -456,7 +456,7 @@ int ovl_verify_set_fh(struct dentry *dentry, const char *name,
 
 	err = ovl_verify_fh(dentry, name, fh);
 	if (set && err == -ENODATA)
-		err = ovl_do_setxattr(dentry, name, fh->buf, fh->fb.len, 0);
+		err = ovl_do_setxattr(dentry, name, fh->buf, fh->fb.len);
 	if (err)
 		goto fail;
 
