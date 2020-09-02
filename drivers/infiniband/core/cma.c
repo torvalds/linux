@@ -3248,32 +3248,54 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 	return rdma_bind_addr(id, src_addr);
 }
 
-int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-		      const struct sockaddr *dst_addr, unsigned long timeout_ms)
+/*
+ * If required, resolve the source address for bind and leave the id_priv in
+ * state RDMA_CM_ADDR_BOUND. This oddly uses the state to determine the prior
+ * calls made by ULP, a previously bound ID will not be re-bound and src_addr is
+ * ignored.
+ */
+static int resolve_prepare_src(struct rdma_id_private *id_priv,
+			       struct sockaddr *src_addr,
+			       const struct sockaddr *dst_addr)
 {
-	struct rdma_id_private *id_priv;
 	int ret;
 
-	id_priv = container_of(id, struct rdma_id_private, id);
 	memcpy(cma_dst_addr(id_priv), dst_addr, rdma_addr_size(dst_addr));
-	if (id_priv->state == RDMA_CM_IDLE) {
-		ret = cma_bind_addr(id, src_addr, dst_addr);
-		if (ret) {
-			memset(cma_dst_addr(id_priv), 0,
-			       rdma_addr_size(dst_addr));
-			return ret;
+	if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND, RDMA_CM_ADDR_QUERY)) {
+		/* For a well behaved ULP state will be RDMA_CM_IDLE */
+		ret = cma_bind_addr(&id_priv->id, src_addr, dst_addr);
+		if (ret)
+			goto err_dst;
+		if (WARN_ON(!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND,
+					   RDMA_CM_ADDR_QUERY))) {
+			ret = -EINVAL;
+			goto err_dst;
 		}
 	}
 
 	if (cma_family(id_priv) != dst_addr->sa_family) {
-		memset(cma_dst_addr(id_priv), 0, rdma_addr_size(dst_addr));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_state;
 	}
+	return 0;
 
-	if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND, RDMA_CM_ADDR_QUERY)) {
-		memset(cma_dst_addr(id_priv), 0, rdma_addr_size(dst_addr));
-		return -EINVAL;
-	}
+err_state:
+	cma_comp_exch(id_priv, RDMA_CM_ADDR_QUERY, RDMA_CM_ADDR_BOUND);
+err_dst:
+	memset(cma_dst_addr(id_priv), 0, rdma_addr_size(dst_addr));
+	return ret;
+}
+
+int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
+		      const struct sockaddr *dst_addr, unsigned long timeout_ms)
+{
+	struct rdma_id_private *id_priv =
+		container_of(id, struct rdma_id_private, id);
+	int ret;
+
+	ret = resolve_prepare_src(id_priv, src_addr, dst_addr);
+	if (ret)
+		return ret;
 
 	if (cma_any_addr(dst_addr)) {
 		ret = cma_resolve_loopback(id_priv);
@@ -3646,19 +3668,20 @@ static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 
 int rdma_listen(struct rdma_cm_id *id, int backlog)
 {
-	struct rdma_id_private *id_priv;
+	struct rdma_id_private *id_priv =
+		container_of(id, struct rdma_id_private, id);
 	int ret;
 
-	id_priv = container_of(id, struct rdma_id_private, id);
-	if (id_priv->state == RDMA_CM_IDLE) {
+	if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND, RDMA_CM_LISTEN)) {
+		/* For a well behaved ULP state will be RDMA_CM_IDLE */
 		id->route.addr.src_addr.ss_family = AF_INET;
 		ret = rdma_bind_addr(id, cma_src_addr(id_priv));
 		if (ret)
 			return ret;
+		if (WARN_ON(!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND,
+					   RDMA_CM_LISTEN)))
+			return -EINVAL;
 	}
-
-	if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND, RDMA_CM_LISTEN))
-		return -EINVAL;
 
 	if (id_priv->reuseaddr) {
 		ret = cma_bind_listen(id_priv);
