@@ -184,10 +184,8 @@ static int imx_icc_register_nodes(struct icc_provider *provider,
 
 		node = imx_icc_node_add(provider, node_desc);
 		if (IS_ERR(node)) {
-			ret = PTR_ERR(node);
-			if (ret != -EPROBE_DEFER)
-				dev_err(provider->dev, "failed to add %s: %d\n",
-					node_desc->name, ret);
+			ret = dev_err_probe(provider->dev, PTR_ERR(node),
+					    "failed to add %s\n", node_desc->name);
 			goto err;
 		}
 		provider_data->nodes[node->id] = node;
