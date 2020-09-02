@@ -60,8 +60,8 @@ static void sdhci_sparx5_adma_write_desc(struct sdhci_host *host, void **desc,
 		return;
 	}
 
-	pr_debug("%s: write_desc: splitting dma len %d, offset 0x%0llx\n",
-		 mmc_hostname(host->mmc), len, addr);
+	pr_debug("%s: write_desc: splitting dma len %d, offset %pad\n",
+		 mmc_hostname(host->mmc), len, &addr);
 
 	offset = addr & (SZ_128M - 1);
 	tmplen = SZ_128M - offset;
