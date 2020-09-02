@@ -59,22 +59,20 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 	du.num_pages = umem->npgs;
 	du.chunk_size = umem->chunk_size;
 	du.headroom = umem->headroom;
-	du.ifindex = pool->netdev ? pool->netdev->ifindex : 0;
-	du.queue_id = pool->queue_id;
+	du.ifindex = (pool && pool->netdev) ? pool->netdev->ifindex : 0;
+	du.queue_id = pool ? pool->queue_id : 0;
 	du.flags = 0;
 	if (umem->zc)
 		du.flags |= XDP_DU_F_ZEROCOPY;
 	du.refs = refcount_read(&umem->users);
 
 	err = nla_put(nlskb, XDP_DIAG_UMEM, sizeof(du), &du);
-
-	if (!err && pool->fq)
+	if (!err && pool && pool->fq)
 		err = xsk_diag_put_ring(pool->fq,
 					XDP_DIAG_UMEM_FILL_RING, nlskb);
-	if (!err && pool->cq) {
-		err = xsk_diag_put_ring(pool->cq, XDP_DIAG_UMEM_COMPLETION_RING,
-					nlskb);
-	}
+	if (!err && pool && pool->cq)
+		err = xsk_diag_put_ring(pool->cq,
+					XDP_DIAG_UMEM_COMPLETION_RING, nlskb);
 	return err;
 }
 
