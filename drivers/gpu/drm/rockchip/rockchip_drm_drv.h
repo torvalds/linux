@@ -249,5 +249,6 @@ extern struct platform_driver rockchip_dp_driver;
 extern struct platform_driver rockchip_lvds_driver;
 extern struct platform_driver rockchip_tve_driver;
 extern struct platform_driver vop_platform_driver;
+extern struct platform_driver vop2_platform_driver;
 extern struct platform_driver rockchip_rgb_driver;
 #endif /* _ROCKCHIP_DRM_DRV_H_ */
