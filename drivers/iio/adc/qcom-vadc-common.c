@@ -929,9 +929,26 @@ static int qcom_vadc_scale_hw_smb1398_temp(
 				const struct adc5_data *data,
 				u16 adc_code, int *result_mdec)
 {
-	*result_mdec = qcom_vadc_scale_code_voltage_factor(adc_code * 100,
-			prescale, data, PMIC5_SMB1398_TEMP_SCALE_FACTOR);
-	*result_mdec = PMIC5_SMB1398_TEMP_CONSTANT - *result_mdec;
+	s64 voltage = 0, adc_vdd_ref_mv = 1875;
+	u64 temp;
+
+	if (adc_code > VADC5_MAX_CODE)
+		adc_code = 0;
+
+	/* (ADC code * vref_vadc (1.875V)) / full_scale_code */
+	voltage = (s64) adc_code * adc_vdd_ref_mv * 1000;
+	voltage = div64_s64(voltage, data->full_scale_code_volt);
+	if (voltage > 0) {
+		temp = voltage * prescale->denominator;
+		temp *= 100;
+		do_div(temp, prescale->numerator * PMIC5_SMB1398_TEMP_SCALE_FACTOR);
+		voltage = temp;
+	} else {
+		voltage = 0;
+	}
+
+	voltage = voltage - PMIC5_SMB1398_TEMP_CONSTANT;
+	*result_mdec = voltage;
 
 	return 0;
 }
