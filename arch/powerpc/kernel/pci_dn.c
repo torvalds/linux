@@ -443,46 +443,6 @@ void *pci_traverse_device_nodes(struct device_node *start,
 }
 EXPORT_SYMBOL_GPL(pci_traverse_device_nodes);
 
-static struct pci_dn *pci_dn_next_one(struct pci_dn *root,
-				      struct pci_dn *pdn)
-{
-	struct list_head *next = pdn->child_list.next;
-
-	if (next != &pdn->child_list)
-		return list_entry(next, struct pci_dn, list);
-
-	while (1) {
-		if (pdn == root)
-			return NULL;
-
-		next = pdn->list.next;
-		if (next != &pdn->parent->child_list)
-			break;
-
-		pdn = pdn->parent;
-	}
-
-	return list_entry(next, struct pci_dn, list);
-}
-
-void *traverse_pci_dn(struct pci_dn *root,
-		      void *(*fn)(struct pci_dn *, void *),
-		      void *data)
-{
-	struct pci_dn *pdn = root;
-	void *ret;
-
-	/* Only scan the child nodes */
-	for (pdn = pci_dn_next_one(root, pdn); pdn;
-	     pdn = pci_dn_next_one(root, pdn)) {
-		ret = fn(pdn, data);
-		if (ret)
-			return ret;
-	}
-
-	return NULL;
-}
-
 static void *add_pdn(struct device_node *dn, void *data)
 {
 	struct pci_controller *hose = data;
