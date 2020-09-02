@@ -697,11 +697,13 @@ struct regmap *__regmap_init(struct device *dev,
 
 	if (config->disable_locking) {
 		map->lock = map->unlock = regmap_lock_unlock_none;
+		map->can_sleep = config->can_sleep;
 		regmap_debugfs_disable(map);
 	} else if (config->lock && config->unlock) {
 		map->lock = config->lock;
 		map->unlock = config->unlock;
 		map->lock_arg = config->lock_arg;
+		map->can_sleep = config->can_sleep;
 	} else if (config->use_hwlock) {
 		map->hwlock = hwspin_lock_request_specific(config->hwlock_id);
 		if (!map->hwlock) {
@@ -737,6 +739,7 @@ struct regmap *__regmap_init(struct device *dev,
 			mutex_init(&map->mutex);
 			map->lock = regmap_lock_mutex;
 			map->unlock = regmap_unlock_mutex;
+			map->can_sleep = true;
 			lockdep_set_class_and_name(&map->mutex,
 						   lock_key, lock_name);
 		}
@@ -2230,8 +2233,12 @@ static int _regmap_range_multi_paged_reg_write(struct regmap *map,
 				if (ret != 0)
 					return ret;
 
-				if (regs[i].delay_us)
-					fsleep(regs[i].delay_us);
+				if (regs[i].delay_us) {
+					if (map->can_sleep)
+						fsleep(regs[i].delay_us);
+					else
+						udelay(regs[i].delay_us);
+				}
 
 				base += n;
 				n = 0;
@@ -2267,8 +2274,12 @@ static int _regmap_multi_reg_write(struct regmap *map,
 			if (ret != 0)
 				return ret;
 
-			if (regs[i].delay_us)
-				fsleep(regs[i].delay_us);
+			if (regs[i].delay_us) {
+				if (map->can_sleep)
+					fsleep(regs[i].delay_us);
+				else
+					udelay(regs[i].delay_us);
+			}
 		}
 		return 0;
 	}

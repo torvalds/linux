@@ -342,6 +342,7 @@ typedef void (*regmap_unlock)(void *);
  * @hwlock_id: Specify the hardware spinlock id.
  * @hwlock_mode: The hardware spinlock mode, should be HWLOCK_IRQSTATE,
  *		 HWLOCK_IRQ or 0.
+ * @can_sleep: Optional, specifies whether regmap operations can sleep.
  */
 struct regmap_config {
 	const char *name;
@@ -398,6 +399,8 @@ struct regmap_config {
 	bool use_hwlock;
 	unsigned int hwlock_id;
 	unsigned int hwlock_mode;
+
+	bool can_sleep;
 };
 
 /**
