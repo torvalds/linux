@@ -33,6 +33,9 @@
 #define NUM_EVENT_TYPES_VEGA20		1
 #define NUM_EVENTS_VEGA20_XGMI		2
 #define NUM_EVENTS_VEGA20_MAX		NUM_EVENTS_VEGA20_XGMI
+#define NUM_EVENT_TYPES_ARCTURUS	1
+#define NUM_EVENTS_ARCTURUS_XGMI	6
+#define NUM_EVENTS_ARCTURUS_MAX		NUM_EVENTS_ARCTURUS_XGMI
 
 struct amdgpu_pmu_event_attribute {
 	struct device_attribute attr;
@@ -170,6 +173,36 @@ static struct amdgpu_pmu_config df_vega20_config = {
 	.num_events = ARRAY_SIZE(df_vega20_events),
 	.types = NULL,
 	.num_types = 0
+};
+
+/* Arcturus events */
+static struct amdgpu_pmu_attr arcturus_events[NUM_EVENTS_ARCTURUS_MAX] = {
+	{ .name = "xgmi_link0_data_outbound",
+			.config = "event=0x7,instance=0x4b,umask=0x2" },
+	{ .name = "xgmi_link1_data_outbound",
+			.config = "event=0x7,instance=0x4c,umask=0x2" },
+	{ .name = "xgmi_link2_data_outbound",
+			.config = "event=0x7,instance=0x4d,umask=0x2" },
+	{ .name = "xgmi_link3_data_outbound",
+			.config = "event=0x7,instance=0x4e,umask=0x2" },
+	{ .name = "xgmi_link4_data_outbound",
+			.config = "event=0x7,instance=0x4f,umask=0x2" },
+	{ .name = "xgmi_link5_data_outbound",
+			.config = "event=0x7,instance=0x50,umask=0x2" }
+};
+
+static struct amdgpu_pmu_type arcturus_types[NUM_EVENT_TYPES_ARCTURUS] = {
+	{ .type = AMDGPU_PMU_EVENT_CONFIG_TYPE_XGMI,
+				.num_of_type = NUM_EVENTS_ARCTURUS_XGMI }
+};
+
+static struct amdgpu_pmu_config arcturus_config = {
+	.formats = amdgpu_pmu_formats,
+	.num_formats = ARRAY_SIZE(amdgpu_pmu_formats),
+	.events = arcturus_events,
+	.num_events = ARRAY_SIZE(arcturus_events),
+	.types = arcturus_types,
+	.num_types = ARRAY_SIZE(arcturus_types)
 };
 
 /* initialize perf counter */
@@ -603,6 +636,22 @@ int amdgpu_pmu_init(struct amdgpu_device *adev)
 		}
 
 		break;
+	case CHIP_ARCTURUS:
+		pmu_entry = create_pmu_entry(adev, AMDGPU_PMU_PERF_TYPE_ALL,
+						"", "amdgpu");
+		if (!pmu_entry)
+			return -ENOMEM;
+
+		ret = init_pmu_entry_by_type_and_add(pmu_entry,
+							&arcturus_config);
+
+		if (ret) {
+			kfree(pmu_entry);
+			return -ENOMEM;
+		}
+
+		break;
+
 	default:
 		return 0;
 	};
