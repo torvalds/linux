@@ -172,9 +172,6 @@ struct epitem {
 	/* The file descriptor information this item refers to */
 	struct epoll_filefd ffd;
 
-	/* Number of active wait queue attached to poll operations */
-	int nwait;
-
 	/* List containing poll wait queues */
 	struct eppoll_entry *pwqlist;
 
@@ -349,12 +346,6 @@ static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_entry_t *p)
 static inline struct epitem *ep_item_from_wait(wait_queue_entry_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait)->base;
-}
-
-/* Get the "struct epitem" from an epoll queue wrapper */
-static inline struct epitem *ep_item_from_epqueue(poll_table *p)
-{
-	return container_of(p, struct ep_pqueue, pt)->epi;
 }
 
 /* Initialize the poll safe wake up structure */
@@ -1307,24 +1298,28 @@ out_unlock:
 static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 				 poll_table *pt)
 {
-	struct epitem *epi = ep_item_from_epqueue(pt);
+	struct ep_pqueue *epq = container_of(pt, struct ep_pqueue, pt);
+	struct epitem *epi = epq->epi;
 	struct eppoll_entry *pwq;
 
-	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
-		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
-		pwq->whead = whead;
-		pwq->base = epi;
-		if (epi->event.events & EPOLLEXCLUSIVE)
-			add_wait_queue_exclusive(whead, &pwq->wait);
-		else
-			add_wait_queue(whead, &pwq->wait);
-		pwq->next = epi->pwqlist;
-		epi->pwqlist = pwq;
-		epi->nwait++;
-	} else {
-		/* We have to signal that an error occurred */
-		epi->nwait = -1;
+	if (unlikely(!epi))	// an earlier allocation has failed
+		return;
+
+	pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL);
+	if (unlikely(!pwq)) {
+		epq->epi = NULL;
+		return;
 	}
+
+	init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
+	pwq->whead = whead;
+	pwq->base = epi;
+	if (epi->event.events & EPOLLEXCLUSIVE)
+		add_wait_queue_exclusive(whead, &pwq->wait);
+	else
+		add_wait_queue(whead, &pwq->wait);
+	pwq->next = epi->pwqlist;
+	epi->pwqlist = pwq;
 }
 
 static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
@@ -1510,7 +1505,6 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	epi->ep = ep;
 	ep_set_ffd(&epi->ffd, tfile, fd);
 	epi->event = *event;
-	epi->nwait = 0;
 	epi->next = EP_UNACTIVE_PTR;
 	if (epi->event.events & EPOLLWAKEUP) {
 		error = ep_create_wakeup_source(epi);
@@ -1555,7 +1549,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	 * high memory pressure.
 	 */
 	error = -ENOMEM;
-	if (epi->nwait < 0)
+	if (!epq.epi)
 		goto error_unregister;
 
 	/* We have to drop the new item inside our item list to keep track of it */
