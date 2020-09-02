@@ -4522,6 +4522,7 @@ static int __maybe_unused ice_suspend(struct device *dev)
 	}
 	ice_clear_interrupt_scheme(pf);
 
+	pci_save_state(pdev);
 	pci_wake_from_d3(pdev, pf->wol_ena);
 	pci_set_power_state(pdev, PCI_D3hot);
 	return 0;
