@@ -132,17 +132,38 @@ static void test_task_stack(void)
 	bpf_iter_task_stack__destroy(skel);
 }
 
+static void *do_nothing(void *arg)
+{
+	pthread_exit(arg);
+}
+
 static void test_task_file(void)
 {
 	struct bpf_iter_task_file *skel;
+	pthread_t thread_id;
+	void *ret;
 
 	skel = bpf_iter_task_file__open_and_load();
 	if (CHECK(!skel, "bpf_iter_task_file__open_and_load",
 		  "skeleton open_and_load failed\n"))
 		return;
 
+	skel->bss->tgid = getpid();
+
+	if (CHECK(pthread_create(&thread_id, NULL, &do_nothing, NULL),
+		  "pthread_create", "pthread_create failed\n"))
+		goto done;
+
 	do_dummy_read(skel->progs.dump_task_file);
 
+	if (CHECK(pthread_join(thread_id, &ret) || ret != NULL,
+		  "pthread_join", "pthread_join failed\n"))
+		goto done;
+
+	CHECK(skel->bss->count != 0, "check_count",
+	      "invalid non pthread file visit count %d\n", skel->bss->count);
+
+done:
 	bpf_iter_task_file__destroy(skel);
 }
 
