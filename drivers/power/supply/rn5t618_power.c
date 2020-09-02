@@ -487,7 +487,7 @@ static int rn5t618_power_probe(struct platform_device *pdev)
 		 * gauge will get decalibrated.
 		 */
 		dev_info(&pdev->dev, "Fuel gauge not enabled, enabling now\n");
-		dev_info(&pdev->dev, "Expect unprecise results\n");
+		dev_info(&pdev->dev, "Expect imprecise results\n");
 		regmap_update_bits(info->rn5t618->regmap, RN5T618_CONTROL,
 				   FG_ENABLE, FG_ENABLE);
 	}
