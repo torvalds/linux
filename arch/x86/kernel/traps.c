@@ -806,12 +806,6 @@ static void handle_debug(struct pt_regs *regs, unsigned long dr6, bool user)
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
 
-#ifdef CONFIG_KPROBES
-	if (kprobe_debug_handler(regs)) {
-		return;
-	}
-#endif
-
 	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, 0,
 		       SIGTRAP) == NOTIFY_STOP) {
 		return;
@@ -877,8 +871,12 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	if ((dr6 & DR_STEP) && is_sysenter_singlestep(regs))
 		dr6 &= ~DR_STEP;
 
+	if (kprobe_debug_handler(regs))
+		goto out;
+
 	handle_debug(regs, dr6, false);
 
+out:
 	instrumentation_end();
 	idtentry_exit_nmi(regs, irq_state);
 
