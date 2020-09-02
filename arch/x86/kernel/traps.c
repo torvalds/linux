@@ -749,6 +749,12 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
 	dr6 ^= DR6_RESERVED; /* Flip to positive polarity */
 
 	/*
+	 * Clear the virtual DR6 value, ptrace routines will set bits here for
+	 * things we want signals for.
+	 */
+	current->thread.virtual_dr6 = 0;
+
+	/*
 	 * The SDM says "The processor clears the BTF flag when it
 	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
 	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
@@ -785,16 +791,15 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
 
 static bool notify_debug(struct pt_regs *regs, unsigned long *dr6)
 {
-	struct task_struct *tsk = current;
-
-	/* Store the virtualized DR6 value */
-	tsk->thread.debugreg6 = *dr6;
-
+	/*
+	 * Notifiers will clear bits in @dr6 to indicate the event has been
+	 * consumed - hw_breakpoint_handler(), single_stop_cont().
+	 *
+	 * Notifiers will set bits in @virtual_dr6 to indicate the desire
+	 * for signals - ptrace_triggered(), kgdb_hw_overflow_handler().
+	 */
 	if (notify_die(DIE_DEBUG, "debug", regs, (long)dr6, 0, SIGTRAP) == NOTIFY_STOP)
 		return true;
-
-	/* Reload the DR6 value, the notifier might have changed it */
-	*dr6 = tsk->thread.debugreg6;
 
 	return false;
 }
@@ -853,7 +858,7 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	 * A known way to trigger this is through QEMU's GDB stub,
 	 * which leaks #DB into the guest and causes IST recursion.
 	 */
-	if (WARN_ON_ONCE(current->thread.debugreg6 & DR_STEP))
+	if (WARN_ON_ONCE(dr6 & DR_STEP))
 		regs->flags &= ~X86_EFLAGS_TF;
 out:
 	instrumentation_end();
@@ -903,6 +908,8 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 		goto out_irq;
 	}
 
+	/* Add the virtual_dr6 bits for signals. */
+	dr6 |= current->thread.virtual_dr6;
 	if (dr6 & (DR_STEP | DR_TRAP_BITS) || icebp)
 		send_sigtrap(regs, 0, get_si_code(dr6));
 

@@ -454,7 +454,7 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 		t->ptrace_bps[i] = NULL;
 	}
 
-	t->debugreg6 = 0;
+	t->virtual_dr6 = 0;
 	t->ptrace_dr7 = 0;
 }
 
@@ -489,8 +489,8 @@ static int hw_breakpoint_handler(struct die_args *args)
 {
 	int i, rc = NOTIFY_STOP;
 	struct perf_event *bp;
-	unsigned long dr6;
 	unsigned long *dr6_p;
+	unsigned long dr6;
 
 	/* The DR6 value is pointed by args->err */
 	dr6_p = (unsigned long *)ERR_PTR(args->err);
@@ -503,12 +503,6 @@ static int hw_breakpoint_handler(struct die_args *args)
 	/* Do an early return if no trap bits are set in DR6 */
 	if ((dr6 & DR_TRAP_BITS) == 0)
 		return NOTIFY_DONE;
-
-	/*
-	 * Reset the DRn bits in the virtualized register value.
-	 * The ptrace trigger routine will add in whatever is needed.
-	 */
-	current->thread.debugreg6 &= ~DR_TRAP_BITS;
 
 	/* Handle all the breakpoints that were triggered */
 	for (i = 0; i < HBP_NUM; ++i) {
@@ -554,7 +548,7 @@ static int hw_breakpoint_handler(struct die_args *args)
 	 * breakpoints (to generate signals) and b) when the system has
 	 * taken exception due to multiple causes
 	 */
-	if ((current->thread.debugreg6 & DR_TRAP_BITS) ||
+	if ((current->thread.virtual_dr6 & DR_TRAP_BITS) ||
 	    (dr6 & (~DR_TRAP_BITS)))
 		rc = NOTIFY_DONE;
 

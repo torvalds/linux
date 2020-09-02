@@ -517,7 +517,7 @@ struct thread_struct {
 	/* Save middle states of ptrace breakpoints */
 	struct perf_event	*ptrace_bps[HBP_NUM];
 	/* Debug status used for traps, single steps, etc... */
-	unsigned long           debugreg6;
+	unsigned long           virtual_dr6;
 	/* Keep track of the exact dr7 value set by the user */
 	unsigned long           ptrace_dr7;
 	/* Fault info: */
