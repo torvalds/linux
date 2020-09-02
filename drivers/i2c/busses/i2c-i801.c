@@ -1274,6 +1274,7 @@ static const struct {
 	/*
 	 * Additional individual entries were added after verification.
 	 */
+	{ "Latitude 5480",      0x29 },
 	{ "Vostro V131",        0x1d },
 };
 
