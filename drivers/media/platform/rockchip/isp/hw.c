@@ -532,8 +532,7 @@ static void disable_sys_clk(struct rkisp_hw_dev *dev)
 			disable_irq(dev->mipi_irq);
 	}
 
-	if (!dev->is_thunderboot)
-		isp_config_clk(dev, false);
+	isp_config_clk(dev, false);
 
 	for (i = dev->num_clks - 1; i >= 0; i--)
 		if (!IS_ERR(dev->clks[i]))
@@ -552,10 +551,8 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 		}
 	}
 
-	if (!dev->is_thunderboot) {
-		rkisp_soft_reset(dev);
-		isp_config_clk(dev, true);
-	}
+	rkisp_soft_reset(dev);
+	isp_config_clk(dev, true);
 
 	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
 		/* disable csi_rx interrupt */
