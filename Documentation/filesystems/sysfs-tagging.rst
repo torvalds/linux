@@ -15,7 +15,7 @@ To avoid that problem and allow existing applications in network
 namespaces to see the same interface that is currently presented in
 sysfs, sysfs now has tagging directory support.
 
-By using the network namespace pointers as tags to separate out the
+By using the network namespace pointers as tags to separate out
 the sysfs directory entries we ensure that we don't have conflicts
 in the directories and applications only see a limited set of
 the network devices.

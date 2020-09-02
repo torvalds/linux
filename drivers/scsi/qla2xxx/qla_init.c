@@ -3749,7 +3749,7 @@ enable_82xx_npiv:
 		}
 
 		/* Enable PUREX PASSTHRU */
-		if (ql2xrdpenable)
+		if (ql2xrdpenable || ha->flags.scm_supported_f)
 			qla25xx_set_els_cmds_supported(vha);
 	} else
 		goto failed;
@@ -3962,7 +3962,7 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 			ha->fw_options[2] &= ~BIT_8;
 	}
 
-	if (ql2xrdpenable)
+	if (ql2xrdpenable || ha->flags.scm_supported_f)
 		ha->fw_options[1] |= ADD_FO1_ENABLE_PUREX_IOCB;
 
 	/* Enable Async 8130/8131 events -- transceiver insertion/removal */
@@ -6996,36 +6996,41 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 static int
 qla2x00_restart_isp(scsi_qla_host_t *vha)
 {
-	int status = 0;
+	int status;
 	struct qla_hw_data *ha = vha->hw;
 
 	/* If firmware needs to be loaded */
 	if (qla2x00_isp_firmware(vha)) {
 		vha->flags.online = 0;
 		status = ha->isp_ops->chip_diag(vha);
-		if (!status)
-			status = qla2x00_setup_chip(vha);
+		if (status)
+			return status;
+		status = qla2x00_setup_chip(vha);
+		if (status)
+			return status;
 	}
 
-	if (!status && !(status = qla2x00_init_rings(vha))) {
-		clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
-		ha->flags.chip_reset_done = 1;
+	status = qla2x00_init_rings(vha);
+	if (status)
+		return status;
 
-		/* Initialize the queues in use */
-		qla25xx_init_queues(ha);
+	clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
+	ha->flags.chip_reset_done = 1;
 
-		status = qla2x00_fw_ready(vha);
-		if (!status) {
-			/* Issue a marker after FW becomes ready. */
-			qla2x00_marker(vha, ha->base_qpair, 0, 0, MK_SYNC_ALL);
-			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-		}
+	/* Initialize the queues in use */
+	qla25xx_init_queues(ha);
 
+	status = qla2x00_fw_ready(vha);
+	if (status) {
 		/* if no cable then assume it's good */
-		if ((vha->device_flags & DFLG_NO_CABLE))
-			status = 0;
+		return vha->device_flags & DFLG_NO_CABLE ? 0 : status;
 	}
-	return (status);
+
+	/* Issue a marker after FW becomes ready. */
+	qla2x00_marker(vha, ha->base_qpair, 0, 0, MK_SYNC_ALL);
+	set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+
+	return 0;
 }
 
 static int
@@ -8512,6 +8517,11 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		 */
 		memcpy(icb->node_name, icb->port_name, WWN_SIZE);
 		icb->node_name[0] &= 0xF0;
+	}
+
+	if (IS_QLA28XX(ha) || IS_QLA27XX(ha)) {
+		if ((nv->enhanced_features & BIT_7) == 0)
+			ha->flags.scm_supported_a = 1;
 	}
 
 	/* Set host adapter parameters. */

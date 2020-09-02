@@ -854,14 +854,14 @@ static int caam_rsa_dec(struct akcipher_request *req)
 
 static void caam_rsa_free_key(struct caam_rsa_key *key)
 {
-	kzfree(key->d);
-	kzfree(key->p);
-	kzfree(key->q);
-	kzfree(key->dp);
-	kzfree(key->dq);
-	kzfree(key->qinv);
-	kzfree(key->tmp1);
-	kzfree(key->tmp2);
+	kfree_sensitive(key->d);
+	kfree_sensitive(key->p);
+	kfree_sensitive(key->q);
+	kfree_sensitive(key->dp);
+	kfree_sensitive(key->dq);
+	kfree_sensitive(key->qinv);
+	kfree_sensitive(key->tmp1);
+	kfree_sensitive(key->tmp2);
 	kfree(key->e);
 	kfree(key->n);
 	memset(key, 0, sizeof(*key));
@@ -1018,17 +1018,17 @@ static void caam_rsa_set_priv_key_form(struct caam_rsa_ctx *ctx,
 	return;
 
 free_dq:
-	kzfree(rsa_key->dq);
+	kfree_sensitive(rsa_key->dq);
 free_dp:
-	kzfree(rsa_key->dp);
+	kfree_sensitive(rsa_key->dp);
 free_tmp2:
-	kzfree(rsa_key->tmp2);
+	kfree_sensitive(rsa_key->tmp2);
 free_tmp1:
-	kzfree(rsa_key->tmp1);
+	kfree_sensitive(rsa_key->tmp1);
 free_q:
-	kzfree(rsa_key->q);
+	kfree_sensitive(rsa_key->q);
 free_p:
-	kzfree(rsa_key->p);
+	kfree_sensitive(rsa_key->p);
 }
 
 static int caam_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,

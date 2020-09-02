@@ -18,6 +18,7 @@
 		l	synthesize last branch entries (use with i or x)
 		L	synthesize last branch entries on existing event records
 		s       skip initial number of events
+		q	quicker (less detailed) decoding
 
 	The default is all events i.e. the same as --itrace=ibxwpe,
 	except for perf script where it is --itrace=ce
@@ -47,3 +48,16 @@
 	--itrace=i0nss1000000
 
 	skips the first million instructions.
+
+	The 'e' option may be followed by flags which affect what errors will or
+	will not be reported. Each flag must be preceded by either '+' or '-'.
+	The flags are:
+		o	overflow
+		l	trace data lost
+
+	If supported, the 'd' option may be followed by flags which affect what
+	debug messages will or will not be logged. Each flag must be preceded
+	by either '+' or '-'. The flags are:
+		a	all perf events
+
+	If supported, the 'q' option may be repeated to increase the effect.

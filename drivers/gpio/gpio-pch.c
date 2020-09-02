@@ -95,7 +95,7 @@ struct pch_gpio {
 	spinlock_t spinlock;
 };
 
-static void pch_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
+static void pch_gpio_set(struct gpio_chip *gpio, unsigned int nr, int val)
 {
 	u32 reg_val;
 	struct pch_gpio *chip =	gpiochip_get_data(gpio);
@@ -112,14 +112,14 @@ static void pch_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 }
 
-static int pch_gpio_get(struct gpio_chip *gpio, unsigned nr)
+static int pch_gpio_get(struct gpio_chip *gpio, unsigned int nr)
 {
 	struct pch_gpio *chip =	gpiochip_get_data(gpio);
 
 	return !!(ioread32(&chip->reg->pi) & BIT(nr));
 }
 
-static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
+static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned int nr,
 				     int val)
 {
 	struct pch_gpio *chip =	gpiochip_get_data(gpio);
@@ -146,7 +146,7 @@ static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 	return 0;
 }
 
-static int pch_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
+static int pch_gpio_direction_input(struct gpio_chip *gpio, unsigned int nr)
 {
 	struct pch_gpio *chip =	gpiochip_get_data(gpio);
 	u32 pm;
@@ -196,9 +196,10 @@ static void __maybe_unused pch_gpio_restore_reg_conf(struct pch_gpio *chip)
 		iowrite32(chip->pch_gpio_reg.gpio_use_sel_reg, &chip->reg->gpio_use_sel);
 }
 
-static int pch_gpio_to_irq(struct gpio_chip *gpio, unsigned offset)
+static int pch_gpio_to_irq(struct gpio_chip *gpio, unsigned int offset)
 {
 	struct pch_gpio *chip = gpiochip_get_data(gpio);
+
 	return chip->irq_base + offset;
 }
 
@@ -304,9 +305,10 @@ static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
 	unsigned long reg_val = ioread32(&chip->reg->istatus);
 	int i;
 
-	dev_dbg(chip->dev, "irq=%d  status=0x%lx\n", irq, reg_val);
+	dev_vdbg(chip->dev, "irq=%d  status=0x%lx\n", irq, reg_val);
 
 	reg_val &= BIT(gpio_pins[chip->ioh]) - 1;
+
 	for_each_set_bit(i, &reg_val, gpio_pins[chip->ioh])
 		generic_handle_irq(chip->irq_base + i);
 

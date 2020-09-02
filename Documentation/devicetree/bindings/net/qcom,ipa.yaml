@@ -43,7 +43,7 @@ description:
 
 properties:
   compatible:
-      const: "qcom,sdm845-ipa"
+    const: "qcom,sdm845-ipa"
 
   reg:
     items:
@@ -64,7 +64,7 @@ properties:
     maxItems: 1
 
   clock-names:
-      const: core
+    const: core
 
   interrupts:
     items:
@@ -96,8 +96,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: State bits used in by the AP to signal the modem.
     items:
-    - description: Whether the "ipa-clock-enabled" state bit is valid
-    - description: Whether the IPA clock is enabled (if valid)
+      - description: Whether the "ipa-clock-enabled" state bit is valid
+      - description: Whether the IPA clock is enabled (if valid)
 
   qcom,smem-state-names:
     $ref: /schemas/types.yaml#/definitions/string-array
@@ -140,9 +140,9 @@ required:
 
 oneOf:
   - required:
-    - modem-init
+      - modem-init
   - required:
-    - memory-region
+      - memory-region
 
 examples:
   - |

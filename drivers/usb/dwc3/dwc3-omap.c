@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * dwc3-omap.c - OMAP Specific Glue layer
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors: Felipe Balbi <balbi@ti.com>,
  *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
@@ -457,8 +457,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	int			ret;
 	int			irq;
 
-	u32			reg;
-
 	void __iomem		*base;
 
 	if (!node) {
@@ -502,9 +500,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 	dwc3_omap_map_offset(omap);
 	dwc3_omap_set_utmi_mode(omap);
-
-	/* check the DMA Status */
-	reg = dwc3_omap_readl(omap->base, USBOTGSS_SYSCONFIG);
 
 	ret = dwc3_omap_extcon_register(omap);
 	if (ret < 0)

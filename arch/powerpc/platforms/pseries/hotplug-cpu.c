@@ -35,53 +35,9 @@
 #include <asm/topology.h>
 
 #include "pseries.h"
-#include "offline_states.h"
 
 /* This version can't take the spinlock, because it never returns */
 static int rtas_stop_self_token = RTAS_UNKNOWN_SERVICE;
-
-static DEFINE_PER_CPU(enum cpu_state_vals, preferred_offline_state) =
-							CPU_STATE_OFFLINE;
-static DEFINE_PER_CPU(enum cpu_state_vals, current_state) = CPU_STATE_OFFLINE;
-
-static enum cpu_state_vals default_offline_state = CPU_STATE_OFFLINE;
-
-static bool cede_offline_enabled __read_mostly = true;
-
-/*
- * Enable/disable cede_offline when available.
- */
-static int __init setup_cede_offline(char *str)
-{
-	return (kstrtobool(str, &cede_offline_enabled) == 0);
-}
-
-__setup("cede_offline=", setup_cede_offline);
-
-enum cpu_state_vals get_cpu_current_state(int cpu)
-{
-	return per_cpu(current_state, cpu);
-}
-
-void set_cpu_current_state(int cpu, enum cpu_state_vals state)
-{
-	per_cpu(current_state, cpu) = state;
-}
-
-enum cpu_state_vals get_preferred_offline_state(int cpu)
-{
-	return per_cpu(preferred_offline_state, cpu);
-}
-
-void set_preferred_offline_state(int cpu, enum cpu_state_vals state)
-{
-	per_cpu(preferred_offline_state, cpu) = state;
-}
-
-void set_default_offline_state(int cpu)
-{
-	per_cpu(preferred_offline_state, cpu) = default_offline_state;
-}
 
 static void rtas_stop_self(void)
 {
@@ -101,9 +57,7 @@ static void rtas_stop_self(void)
 
 static void pseries_mach_cpu_die(void)
 {
-	unsigned int cpu = smp_processor_id();
 	unsigned int hwcpu = hard_smp_processor_id();
-	u8 cede_latency_hint = 0;
 
 	local_irq_disable();
 	idle_task_exit();
@@ -112,49 +66,6 @@ static void pseries_mach_cpu_die(void)
 	else
 		xics_teardown_cpu();
 
-	if (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
-		set_cpu_current_state(cpu, CPU_STATE_INACTIVE);
-		if (ppc_md.suspend_disable_cpu)
-			ppc_md.suspend_disable_cpu();
-
-		cede_latency_hint = 2;
-
-		get_lppaca()->idle = 1;
-		if (!lppaca_shared_proc(get_lppaca()))
-			get_lppaca()->donate_dedicated_cpu = 1;
-
-		while (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
-			while (!prep_irq_for_idle()) {
-				local_irq_enable();
-				local_irq_disable();
-			}
-
-			extended_cede_processor(cede_latency_hint);
-		}
-
-		local_irq_disable();
-
-		if (!lppaca_shared_proc(get_lppaca()))
-			get_lppaca()->donate_dedicated_cpu = 0;
-		get_lppaca()->idle = 0;
-
-		if (get_preferred_offline_state(cpu) == CPU_STATE_ONLINE) {
-			unregister_slb_shadow(hwcpu);
-
-			hard_irq_disable();
-			/*
-			 * Call to start_secondary_resume() will not return.
-			 * Kernel stack will be reset and start_secondary()
-			 * will be called to continue the online operation.
-			 */
-			start_secondary_resume();
-		}
-	}
-
-	/* Requested state is CPU_STATE_OFFLINE at this point */
-	WARN_ON(get_preferred_offline_state(cpu) != CPU_STATE_OFFLINE);
-
-	set_cpu_current_state(cpu, CPU_STATE_OFFLINE);
 	unregister_slb_shadow(hwcpu);
 	rtas_stop_self();
 
@@ -196,33 +107,28 @@ static int pseries_cpu_disable(void)
  */
 static void pseries_cpu_die(unsigned int cpu)
 {
-	int tries;
 	int cpu_status = 1;
 	unsigned int pcpu = get_hard_smp_processor_id(cpu);
+	unsigned long timeout = jiffies + msecs_to_jiffies(120000);
 
-	if (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
-		cpu_status = 1;
-		for (tries = 0; tries < 5000; tries++) {
-			if (get_cpu_current_state(cpu) == CPU_STATE_INACTIVE) {
-				cpu_status = 0;
-				break;
-			}
-			msleep(1);
-		}
-	} else if (get_preferred_offline_state(cpu) == CPU_STATE_OFFLINE) {
+	while (true) {
+		cpu_status = smp_query_cpu_stopped(pcpu);
+		if (cpu_status == QCSS_STOPPED ||
+		    cpu_status == QCSS_HARDWARE_ERROR)
+			break;
 
-		for (tries = 0; tries < 25; tries++) {
-			cpu_status = smp_query_cpu_stopped(pcpu);
-			if (cpu_status == QCSS_STOPPED ||
-			    cpu_status == QCSS_HARDWARE_ERROR)
-				break;
-			cpu_relax();
+		if (time_after(jiffies, timeout)) {
+			pr_warn("CPU %i (hwid %i) didn't die after 120 seconds\n",
+				cpu, pcpu);
+			timeout = jiffies + msecs_to_jiffies(120000);
 		}
+
+		cond_resched();
 	}
 
-	if (cpu_status != 0) {
-		printk("Querying DEAD? cpu %i (%i) shows %i\n",
-		       cpu, pcpu, cpu_status);
+	if (cpu_status == QCSS_HARDWARE_ERROR) {
+		pr_warn("CPU %i (hwid %i) reported error while dying\n",
+			cpu, pcpu);
 	}
 
 	/* Isolation and deallocation are definitely done by
@@ -359,28 +265,14 @@ static int dlpar_offline_cpu(struct device_node *dn)
 			if (get_hard_smp_processor_id(cpu) != thread)
 				continue;
 
-			if (get_cpu_current_state(cpu) == CPU_STATE_OFFLINE)
+			if (!cpu_online(cpu))
 				break;
 
-			if (get_cpu_current_state(cpu) == CPU_STATE_ONLINE) {
-				set_preferred_offline_state(cpu,
-							    CPU_STATE_OFFLINE);
-				cpu_maps_update_done();
-				timed_topology_update(1);
-				rc = device_offline(get_cpu_device(cpu));
-				if (rc)
-					goto out;
-				cpu_maps_update_begin();
-				break;
-			}
-
-			/*
-			 * The cpu is in CPU_STATE_INACTIVE.
-			 * Upgrade it's state to CPU_STATE_OFFLINE.
-			 */
-			set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
-			WARN_ON(plpar_hcall_norets(H_PROD, thread) != H_SUCCESS);
-			__cpu_die(cpu);
+			cpu_maps_update_done();
+			rc = device_offline(get_cpu_device(cpu));
+			if (rc)
+				goto out;
+			cpu_maps_update_begin();
 			break;
 		}
 		if (cpu == num_possible_cpus()) {
@@ -414,10 +306,7 @@ static int dlpar_online_cpu(struct device_node *dn)
 		for_each_present_cpu(cpu) {
 			if (get_hard_smp_processor_id(cpu) != thread)
 				continue;
-			BUG_ON(get_cpu_current_state(cpu)
-					!= CPU_STATE_OFFLINE);
 			cpu_maps_update_done();
-			timed_topology_update(1);
 			find_and_online_cpu_nid(cpu);
 			rc = device_online(get_cpu_device(cpu));
 			if (rc) {
@@ -854,7 +743,6 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	parent = of_find_node_by_path("/cpus");
 	if (!parent) {
 		pr_warn("Could not find CPU root node in device tree\n");
-		kfree(cpu_drcs);
 		return -1;
 	}
 
@@ -893,25 +781,6 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	}
 
 	kfree(cpu_drcs);
-	return rc;
-}
-
-int dlpar_cpu_readd(int cpu)
-{
-	struct device_node *dn;
-	struct device *dev;
-	u32 drc_index;
-	int rc;
-
-	dev = get_cpu_device(cpu);
-	dn = dev->of_node;
-
-	rc = of_property_read_u32(dn, "ibm,my-drc-index", &drc_index);
-
-	rc = dlpar_cpu_remove_by_index(drc_index);
-	if (!rc)
-		rc = dlpar_cpu_add(drc_index);
-
 	return rc;
 }
 
@@ -1013,27 +882,8 @@ static struct notifier_block pseries_smp_nb = {
 	.notifier_call = pseries_smp_notifier,
 };
 
-#define MAX_CEDE_LATENCY_LEVELS		4
-#define	CEDE_LATENCY_PARAM_LENGTH	10
-#define CEDE_LATENCY_PARAM_MAX_LENGTH	\
-	(MAX_CEDE_LATENCY_LEVELS * CEDE_LATENCY_PARAM_LENGTH * sizeof(char))
-#define CEDE_LATENCY_TOKEN		45
-
-static char cede_parameters[CEDE_LATENCY_PARAM_MAX_LENGTH];
-
-static int parse_cede_parameters(void)
-{
-	memset(cede_parameters, 0, CEDE_LATENCY_PARAM_MAX_LENGTH);
-	return rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
-			 NULL,
-			 CEDE_LATENCY_TOKEN,
-			 __pa(cede_parameters),
-			 CEDE_LATENCY_PARAM_MAX_LENGTH);
-}
-
 static int __init pseries_cpu_hotplug_init(void)
 {
-	int cpu;
 	int qcss_tok;
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
@@ -1056,16 +906,8 @@ static int __init pseries_cpu_hotplug_init(void)
 	smp_ops->cpu_die = pseries_cpu_die;
 
 	/* Processors can be added/removed only on LPAR */
-	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		of_reconfig_notifier_register(&pseries_smp_nb);
-		cpu_maps_update_begin();
-		if (cede_offline_enabled && parse_cede_parameters() == 0) {
-			default_offline_state = CPU_STATE_INACTIVE;
-			for_each_online_cpu(cpu)
-				set_default_offline_state(cpu);
-		}
-		cpu_maps_update_done();
-	}
 
 	return 0;
 }

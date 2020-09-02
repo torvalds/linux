@@ -1004,7 +1004,6 @@ int bmp280_common_probe(struct device *dev,
 	mutex_init(&data->lock);
 	data->dev = dev;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->channels = bmp280_channels;
 	indio_dev->info = &bmp280_info;

@@ -30,7 +30,7 @@ config PRISM54
 
 	  For more information refer to the p54 wiki:
 
-	  http://wireless.kernel.org/en/users/Drivers/p54
+	  http://wireless.wiki.kernel.org/en/users/Drivers/p54
 
 	  Note: You need a motherboard with DMA support to use any of these cards
 

@@ -285,8 +285,9 @@ config INTEL_IDMA64
 config INTEL_IDXD
 	tristate "Intel Data Accelerators support"
 	depends on PCI && X86_64
+	depends on PCI_MSI
+	depends on SBITMAP
 	select DMA_ENGINE
-	select SBITMAP
 	help
 	  Enable support for the Intel(R) data accelerators present
 	  in Intel Xeon CPU.
@@ -706,6 +707,16 @@ config XILINX_ZYNQMP_DMA
 	select DMA_ENGINE
 	help
 	  Enable support for Xilinx ZynqMP DMA controller.
+
+config XILINX_ZYNQMP_DPDMA
+	tristate "Xilinx DPDMA Engine"
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for Xilinx ZynqMP DisplayPort DMA. Choose this option
+	  if you have a Xilinx ZynqMP SoC with a DisplayPort subsystem. The
+	  driver provides the dmaengine required by the DisplayPort subsystem
+	  display driver.
 
 config ZX_DMA
 	tristate "ZTE ZX DMA support"

@@ -556,7 +556,7 @@ static void __exit ni_routes_module_exit(void)
 module_init(ni_routes_module_init);
 module_exit(ni_routes_module_exit);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi helper for routing signals-->terminals for NI");
 MODULE_LICENSE("GPL");
 /* **** END simple module entry/exit functions **** */

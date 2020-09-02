@@ -203,7 +203,8 @@ examples:
            };
 
            refclk-dig {
-                  clocks = <&k3_clks 292 11>, <&k3_clks 292 0>, <&dummy_cmn_refclk>, <&dummy_cmn_refclk1>;
+                  clocks = <&k3_clks 292 11>, <&k3_clks 292 0>, 
+                          <&dummy_cmn_refclk>, <&dummy_cmn_refclk1>;
                   #clock-cells = <0>;
                   assigned-clocks = <&wiz0_refclk_dig>;
                   assigned-clock-parents = <&k3_clks 292 11>;

@@ -106,6 +106,11 @@ static inline bool ish_should_enter_d0i3(struct pci_dev *pdev)
 	return !pm_suspend_via_firmware() || pdev->device == CHV_DEVICE_ID;
 }
 
+static inline bool ish_should_leave_d0i3(struct pci_dev *pdev)
+{
+	return !pm_resume_via_firmware() || pdev->device == CHV_DEVICE_ID;
+}
+
 /**
  * ish_probe() - PCI driver probe callback
  * @pdev:	pci device
@@ -215,9 +220,7 @@ static void __maybe_unused ish_resume_handler(struct work_struct *work)
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
 	int ret;
 
-	/* Check the NO_D3 flag to distinguish the resume paths */
-	if (pdev->dev_flags & PCI_DEV_FLAGS_NO_D3) {
-		pdev->dev_flags &= ~PCI_DEV_FLAGS_NO_D3;
+	if (ish_should_leave_d0i3(pdev) && !dev->suspend_flag) {
 		disable_irq_wake(pdev->irq);
 
 		ishtp_send_resume(dev);
@@ -281,8 +284,11 @@ static int __maybe_unused ish_suspend(struct device *device)
 			 */
 			ish_disable_dma(dev);
 		} else {
-			/* Set the NO_D3 flag, the ISH would enter D0i3 */
-			pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
+			/*
+			 * Save state so PCI core will keep the device at D0,
+			 * the ISH would enter D0i3
+			 */
+			pci_save_state(pdev);
 
 			enable_irq_wake(pdev->irq);
 		}

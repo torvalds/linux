@@ -130,7 +130,7 @@ examples:
         #clock-cells = <1>;
     };
 
-    esdhc@53fb4000 {
+    mmc@53fb4000 {
         compatible = "fsl,imx35-esdhc";
         reg = <0x53fb4000 0x4000>;
         interrupts = <7>;

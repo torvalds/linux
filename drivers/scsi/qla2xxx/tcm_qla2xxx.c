@@ -1971,6 +1971,7 @@ static int __init tcm_qla2xxx_init(void)
 	BUILD_BUG_ON(sizeof(struct ctio_crc2_to_fw) != 64);
 	BUILD_BUG_ON(sizeof(struct ctio_crc_from_fw) != 64);
 	BUILD_BUG_ON(sizeof(struct ctio_to_2xxx) != 64);
+	BUILD_BUG_ON(sizeof(struct fcp_hdr) != 24);
 	BUILD_BUG_ON(sizeof(struct fcp_hdr_le) != 24);
 	BUILD_BUG_ON(sizeof(struct nack_to_isp) != 64);
 

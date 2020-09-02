@@ -953,3 +953,42 @@ void hinic_ceqs_free(struct hinic_ceqs *ceqs)
 	for (q_id = 0; q_id < ceqs->num_ceqs; q_id++)
 		remove_eq(&ceqs->ceq[q_id]);
 }
+
+void hinic_dump_ceq_info(struct hinic_hwdev *hwdev)
+{
+	struct hinic_eq *eq = NULL;
+	u32 addr, ci, pi;
+	int q_id;
+
+	for (q_id = 0; q_id < hwdev->func_to_io.ceqs.num_ceqs; q_id++) {
+		eq = &hwdev->func_to_io.ceqs.ceq[q_id];
+		addr = EQ_CONS_IDX_REG_ADDR(eq);
+		ci = hinic_hwif_read_reg(hwdev->hwif, addr);
+		addr = EQ_PROD_IDX_REG_ADDR(eq);
+		pi = hinic_hwif_read_reg(hwdev->hwif, addr);
+		dev_err(&hwdev->hwif->pdev->dev, "Ceq id: %d, ci: 0x%08x, sw_ci: 0x%08x, pi: 0x%x, tasklet_state: 0x%lx, wrap: %d, ceqe: 0x%x\n",
+			q_id, ci, eq->cons_idx, pi,
+			eq->ceq_tasklet.state,
+			eq->wrapped, be32_to_cpu(*(__be32 *)(GET_CURR_CEQ_ELEM(eq))));
+	}
+}
+
+void hinic_dump_aeq_info(struct hinic_hwdev *hwdev)
+{
+	struct hinic_aeq_elem *aeqe_pos = NULL;
+	struct hinic_eq *eq = NULL;
+	u32 addr, ci, pi;
+	int q_id;
+
+	for (q_id = 0; q_id < hwdev->aeqs.num_aeqs; q_id++) {
+		eq = &hwdev->aeqs.aeq[q_id];
+		addr = EQ_CONS_IDX_REG_ADDR(eq);
+		ci = hinic_hwif_read_reg(hwdev->hwif, addr);
+		addr = EQ_PROD_IDX_REG_ADDR(eq);
+		pi = hinic_hwif_read_reg(hwdev->hwif, addr);
+		aeqe_pos = GET_CURR_AEQ_ELEM(eq);
+		dev_err(&hwdev->hwif->pdev->dev, "Aeq id: %d, ci: 0x%08x, pi: 0x%x, work_state: 0x%x, wrap: %d, desc: 0x%x\n",
+			q_id, ci, pi, work_busy(&eq->aeq_work.work),
+			eq->wrapped, be32_to_cpu(aeqe_pos->desc));
+	}
+}

@@ -16,8 +16,6 @@
  * We do not have SMP m68k systems, so we don't have to deal with that.
  */
 
-#define ATOMIC_INIT(i)	{ (i) }
-
 #define atomic_read(v)		READ_ONCE((v)->counter)
 #define atomic_set(v, i)	WRITE_ONCE(((v)->counter), (i))
 

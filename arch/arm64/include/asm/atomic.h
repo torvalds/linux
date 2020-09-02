@@ -99,8 +99,6 @@ static inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 	return __lse_ll_sc_body(atomic64_dec_if_positive, v);
 }
 
-#define ATOMIC_INIT(i)	{ (i) }
-
 #define arch_atomic_read(v)			__READ_ONCE((v)->counter)
 #define arch_atomic_set(v, i)			__WRITE_ONCE(((v)->counter), (i))
 

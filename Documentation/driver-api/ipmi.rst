@@ -18,7 +18,7 @@ management software that can use the IPMI system.
 
 This document describes how to use the IPMI driver for Linux.  If you
 are not familiar with IPMI itself, see the web site at
-http://www.intel.com/design/servers/ipmi/index.htm.  IPMI is a big
+https://www.intel.com/design/servers/ipmi/index.htm.  IPMI is a big
 subject and I can't cover it all here!
 
 Configuration
@@ -516,6 +516,7 @@ at module load time (for a module) with::
 	slave_addrs=<addr1>,<addr2>,...
 	tryacpi=[0|1] trydmi=[0|1]
 	[dbg_probe=1]
+	alerts_broken
 
 The addresses are normal I2C addresses.  The adapter is the string
 name of the adapter, as shown in /sys/class/i2c-adapter/i2c-<n>/name.
@@ -536,6 +537,9 @@ detection process for BMCs on the SMBusses.
 The slave_addrs specifies the IPMI address of the local BMC.  This is
 usually 0x20 and the driver defaults to that, but in case it's not, it
 can be specified when the driver starts up.
+
+alerts_broken does not enable SMBus alert for SSIF. Otherwise SMBus
+alert will be enabled on supported hardware.
 
 Discovering the IPMI compliant BMC on the SMBus can cause devices on
 the I2C bus to fail. The SMBus driver writes a "Get Device ID" IPMI

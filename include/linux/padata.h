@@ -67,17 +67,6 @@ struct padata_serial_queue {
 };
 
 /**
- * struct padata_parallel_queue - The percpu padata parallel queue
- *
- * @reorder: List to wait for reordering after parallel processing.
- * @num_obj: Number of objects that are processed by this cpu.
- */
-struct padata_parallel_queue {
-       struct padata_list    reorder;
-       atomic_t              num_obj;
-};
-
-/**
  * struct padata_cpumask - The cpumasks for the parallel/serial workers
  *
  * @pcpu: cpumask for the parallel workers.
@@ -93,7 +82,7 @@ struct padata_cpumask {
  * that depends on the cpumask in use.
  *
  * @ps: padata_shell object.
- * @pqueue: percpu padata queues used for parallelization.
+ * @reorder_list: percpu reorder lists
  * @squeue: percpu padata queues used for serialuzation.
  * @refcnt: Number of objects holding a reference on this parallel_data.
  * @seq_nr: Sequence number of the parallelized data object.
@@ -105,7 +94,7 @@ struct padata_cpumask {
  */
 struct parallel_data {
 	struct padata_shell		*ps;
-	struct padata_parallel_queue	__percpu *pqueue;
+	struct padata_list		__percpu *reorder_list;
 	struct padata_serial_queue	__percpu *squeue;
 	atomic_t			refcnt;
 	unsigned int			seq_nr;
@@ -167,7 +156,6 @@ struct padata_mt_job {
  * @serial_wq: The workqueue used for serial work.
  * @pslist: List of padata_shell objects attached to this instance.
  * @cpumask: User supplied cpumasks for parallel and serial works.
- * @rcpumask: Actual cpumasks based on user cpumask and cpu_online_mask.
  * @kobj: padata instance kernel object.
  * @lock: padata instance lock.
  * @flags: padata flags.
@@ -179,7 +167,6 @@ struct padata_instance {
 	struct workqueue_struct		*serial_wq;
 	struct list_head		pslist;
 	struct padata_cpumask		cpumask;
-	struct padata_cpumask		rcpumask;
 	struct kobject                   kobj;
 	struct mutex			 lock;
 	u8				 flags;
@@ -194,7 +181,7 @@ extern void __init padata_init(void);
 static inline void __init padata_init(void) {}
 #endif
 
-extern struct padata_instance *padata_alloc_possible(const char *name);
+extern struct padata_instance *padata_alloc(const char *name);
 extern void padata_free(struct padata_instance *pinst);
 extern struct padata_shell *padata_alloc_shell(struct padata_instance *pinst);
 extern void padata_free_shell(struct padata_shell *ps);
@@ -204,6 +191,4 @@ extern void padata_do_serial(struct padata_priv *padata);
 extern void __init padata_do_multithreaded(struct padata_mt_job *job);
 extern int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 			      cpumask_var_t cpumask);
-extern int padata_start(struct padata_instance *pinst);
-extern void padata_stop(struct padata_instance *pinst);
 #endif

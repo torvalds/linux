@@ -7,4 +7,5 @@ generic-y += mcs_spinlock.h
 generic-y += param.h
 generic-y += qrwlock.h
 generic-y += qspinlock.h
+generic-y += seccomp.h
 generic-y += user.h

@@ -62,7 +62,7 @@
  * @current_range:	current range which the device is configured for
  * @data:		spi transfer buffers
  * @fault_mask:		software masking of events
- * @lock	lock to protect the data buffer during SPI ops
+ * @lock:		lock to protect the data buffer during SPI ops
  */
 struct ad5421_state {
 	struct spi_device		*spi;
@@ -487,7 +487,6 @@ static int ad5421_probe(struct spi_device *spi)
 
 	st->spi = spi;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = "ad5421";
 	indio_dev->info = &ad5421_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

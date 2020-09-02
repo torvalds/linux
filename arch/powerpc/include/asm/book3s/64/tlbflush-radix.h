@@ -2,9 +2,24 @@
 #ifndef _ASM_POWERPC_TLBFLUSH_RADIX_H
 #define _ASM_POWERPC_TLBFLUSH_RADIX_H
 
+#include <asm/hvcall.h>
+
 struct vm_area_struct;
 struct mm_struct;
 struct mmu_gather;
+
+static inline u64 psize_to_rpti_pgsize(unsigned long psize)
+{
+	if (psize == MMU_PAGE_4K)
+		return H_RPTI_PAGE_4K;
+	if (psize == MMU_PAGE_64K)
+		return H_RPTI_PAGE_64K;
+	if (psize == MMU_PAGE_2M)
+		return H_RPTI_PAGE_2M;
+	if (psize == MMU_PAGE_1G)
+		return H_RPTI_PAGE_1G;
+	return H_RPTI_PAGE_ALL;
+}
 
 static inline int mmu_get_ap(int psize)
 {

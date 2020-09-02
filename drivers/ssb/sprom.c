@@ -186,7 +186,7 @@ int ssb_fill_sprom_with_fallback(struct ssb_bus *bus, struct ssb_sprom *out)
 	return get_fallback_sprom(bus, out);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/IsSpromAvailable */
+/* https://bcm-v4.sipsolutions.net/802.11/IsSpromAvailable */
 bool ssb_is_sprom_available(struct ssb_bus *bus)
 {
 	/* status register only exists on chipcomon rev >= 11 and we need check

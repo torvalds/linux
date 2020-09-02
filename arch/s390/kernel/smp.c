@@ -146,7 +146,7 @@ static int pcpu_sigp_retry(struct pcpu *pcpu, u8 order, u32 parm)
 
 static inline int pcpu_stopped(struct pcpu *pcpu)
 {
-	u32 uninitialized_var(status);
+	u32 status;
 
 	if (__pcpu_sigp(pcpu->address, SIGP_SENSE,
 			0, &status) != SIGP_CC_STATUS_STORED)
@@ -1012,10 +1012,6 @@ void __init smp_prepare_boot_cpu(void)
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 }
 
-void __init smp_cpus_done(unsigned int max_cpus)
-{
-}
-
 void __init smp_setup_processor_id(void)
 {
 	pcpu_devices[0].address = stap();
@@ -1145,6 +1141,7 @@ static int smp_cpu_online(unsigned int cpu)
 
 	return sysfs_create_group(&s->kobj, &cpu_online_attr_group);
 }
+
 static int smp_cpu_pre_down(unsigned int cpu)
 {
 	struct device *s = &per_cpu(cpu_device, cpu)->dev;

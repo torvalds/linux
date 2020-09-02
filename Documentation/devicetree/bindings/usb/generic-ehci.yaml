@@ -80,7 +80,7 @@ properties:
   companion:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-     Phandle of a companion.
+      Phandle of a companion.
 
   phys:
     description: PHY specifier for the USB PHY

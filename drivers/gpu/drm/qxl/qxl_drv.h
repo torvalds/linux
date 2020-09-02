@@ -134,7 +134,6 @@ struct qxl_memslot {
 	uint64_t	start_phys_addr;
 	uint64_t	size;
 	uint64_t	high_bits;
-	uint64_t        gpu_offset;
 };
 
 enum {
@@ -307,10 +306,9 @@ qxl_bo_physical_address(struct qxl_device *qdev, struct qxl_bo *bo,
 		(bo->tbo.mem.mem_type == TTM_PL_VRAM)
 		? &qdev->main_slot : &qdev->surfaces_slot;
 
-	WARN_ON_ONCE((bo->tbo.offset & slot->gpu_offset) != slot->gpu_offset);
+       /* TODO - need to hold one of the locks to read bo->tbo.mem.start */
 
-	/* TODO - need to hold one of the locks to read tbo.offset */
-	return slot->high_bits | (bo->tbo.offset - slot->gpu_offset + offset);
+	return slot->high_bits | ((bo->tbo.mem.start << PAGE_SHIFT) + offset);
 }
 
 /* qxl_display.c */

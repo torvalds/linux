@@ -20,7 +20,6 @@
 
 #include "pidfd.h"
 #include "../clone3/clone3_selftests.h"
-#include "../kselftest.h"
 #include "../kselftest_harness.h"
 
 enum {
@@ -32,6 +31,7 @@ enum {
 	PIDFD_NS_NET,
 	PIDFD_NS_CGROUP,
 	PIDFD_NS_PIDCLD,
+	PIDFD_NS_TIME,
 	PIDFD_NS_MAX
 };
 
@@ -47,6 +47,7 @@ const struct ns_info {
 	[PIDFD_NS_NET]    = { "net",              CLONE_NEWNET,    },
 	[PIDFD_NS_CGROUP] = { "cgroup",           CLONE_NEWCGROUP, },
 	[PIDFD_NS_PIDCLD] = { "pid_for_children", 0,               },
+	[PIDFD_NS_TIME]	  = { "time",             CLONE_NEWTIME,   },
 };
 
 FIXTURE(current_nsset)
@@ -83,9 +84,49 @@ pid_t create_child(int *pidfd, unsigned flags)
 	return sys_clone3(&args, sizeof(struct clone_args));
 }
 
+static bool switch_timens(void)
+{
+	int fd, ret;
+
+	if (unshare(CLONE_NEWTIME))
+		return false;
+
+	fd = open("/proc/self/ns/time_for_children", O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return false;
+
+	ret = setns(fd, CLONE_NEWTIME);
+	close(fd);
+	return ret == 0;
+}
+
+static ssize_t read_nointr(int fd, void *buf, size_t count)
+{
+	ssize_t ret;
+
+	do {
+		ret = read(fd, buf, count);
+	} while (ret < 0 && errno == EINTR);
+
+	return ret;
+}
+
+static ssize_t write_nointr(int fd, const void *buf, size_t count)
+{
+	ssize_t ret;
+
+	do {
+		ret = write(fd, buf, count);
+	} while (ret < 0 && errno == EINTR);
+
+	return ret;
+}
+
 FIXTURE_SETUP(current_nsset)
 {
 	int i, proc_fd, ret;
+	int ipc_sockets[2];
+	char c;
 
 	for (i = 0; i < PIDFD_NS_MAX; i++) {
 		self->nsfds[i]		= -EBADF;
@@ -130,6 +171,9 @@ FIXTURE_SETUP(current_nsset)
 		TH_LOG("%m - Failed to open pidfd for process %d", self->pid);
 	}
 
+	ret = socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets);
+	EXPECT_EQ(ret, 0);
+
 	/* Create tasks that will be stopped. */
 	self->child_pid1 = create_child(&self->child_pidfd1,
 					CLONE_NEWUSER | CLONE_NEWNS |
@@ -139,9 +183,26 @@ FIXTURE_SETUP(current_nsset)
 	EXPECT_GE(self->child_pid1, 0);
 
 	if (self->child_pid1 == 0) {
+		close(ipc_sockets[0]);
+
+		if (!switch_timens())
+			_exit(EXIT_FAILURE);
+
+		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+			_exit(EXIT_FAILURE);
+
+		close(ipc_sockets[1]);
+
 		pause();
 		_exit(EXIT_SUCCESS);
 	}
+
+	close(ipc_sockets[1]);
+	ASSERT_EQ(read_nointr(ipc_sockets[0], &c, 1), 1);
+	close(ipc_sockets[0]);
+
+	ret = socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets);
+	EXPECT_EQ(ret, 0);
 
 	self->child_pid2 = create_child(&self->child_pidfd2,
 					CLONE_NEWUSER | CLONE_NEWNS |
@@ -151,9 +212,23 @@ FIXTURE_SETUP(current_nsset)
 	EXPECT_GE(self->child_pid2, 0);
 
 	if (self->child_pid2 == 0) {
+		close(ipc_sockets[0]);
+
+		if (!switch_timens())
+			_exit(EXIT_FAILURE);
+
+		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+			_exit(EXIT_FAILURE);
+
+		close(ipc_sockets[1]);
+
 		pause();
 		_exit(EXIT_SUCCESS);
 	}
+
+	close(ipc_sockets[1]);
+	ASSERT_EQ(read_nointr(ipc_sockets[0], &c, 1), 1);
+	close(ipc_sockets[0]);
 
 	for (i = 0; i < PIDFD_NS_MAX; i++) {
 		char p[100];

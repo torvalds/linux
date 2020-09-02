@@ -478,7 +478,7 @@ static int macfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			break;
 		/*
 		 * 24-bit colour almost doesn't exist on 68k Macs --
-		 * http://support.apple.com/kb/TA28634 (Old Article: 10992)
+		 * https://support.apple.com/kb/TA28634 (Old Article: 10992)
 		 */
 		case 24:
 		case 32:

@@ -168,16 +168,6 @@
 				};
 			};
 
-			pdmic@f8018000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_pdmic_default>;
-				atmel,model = "PDMIC @ sama5d2_xplained";
-				atmel,mic-min-freq = <1000000>;
-				atmel,mic-max-freq = <3246000>;
-				atmel,mic-offset = <0x0>;
-				status = "okay";
-			};
-
 			uart1: serial@f8020000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart1_default>;
@@ -490,12 +480,16 @@
 					bias-pull-up;
 				};
 
-				pinctrl_classd_default: classd_default {
+				pinctrl_classd_default_pfets: classd_default_pfets {
 					pinmux = <PIN_PB1__CLASSD_R0>,
-						 <PIN_PB2__CLASSD_R1>,
-						 <PIN_PB3__CLASSD_R2>,
-						 <PIN_PB4__CLASSD_R3>;
+						 <PIN_PB3__CLASSD_R2>;
 					bias-pull-up;
+				};
+
+				pinctrl_classd_default_nfets: classd_default_nfets {
+					pinmux = <PIN_PB2__CLASSD_R1>,
+						 <PIN_PB4__CLASSD_R3>;
+					bias-pull-down;
 				};
 
 				pinctrl_flx0_default: flx0_default {
@@ -595,12 +589,6 @@
 					bias-disable;
 				};
 
-				pinctrl_pdmic_default: pdmic_default {
-					pinmux = <PIN_PB26__PDMIC_DAT>,
-						<PIN_PB27__PDMIC_CLK>;
-					bias-disable;
-				};
-
 				pinctrl_qspi0_default: qspi0_default {
 					sck_cs {
 						pinmux = <PIN_PA22__QSPI0_SCK>,
@@ -696,7 +684,7 @@
 
 			classd: classd@fc048000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_classd_default>;
+				pinctrl-0 = <&pinctrl_classd_default_pfets &pinctrl_classd_default_nfets>;
 				atmel,pwm-type = "diff";
 				atmel,non-overlap-time = <10>;
 				status = "okay";

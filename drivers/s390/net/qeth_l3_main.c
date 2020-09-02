@@ -58,7 +58,7 @@ static struct qeth_ipaddr *qeth_l3_find_addr_by_ip(struct qeth_card *card,
 	struct qeth_ipaddr *addr;
 
 	if (query->is_multicast) {
-		hash_for_each_possible(card->ip_mc_htable, addr, hnode, key)
+		hash_for_each_possible(card->rx_mode_addrs, addr, hnode, key)
 			if (qeth_l3_addr_match_ip(addr, query))
 				return addr;
 	} else {
@@ -239,7 +239,7 @@ static void qeth_l3_drain_rx_mode_cache(struct qeth_card *card)
 	struct hlist_node *tmp;
 	int i;
 
-	hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
+	hash_for_each_safe(card->rx_mode_addrs, i, tmp, addr, hnode) {
 		hash_del(&addr->hnode);
 		kfree(addr);
 	}
@@ -1093,7 +1093,7 @@ static int qeth_l3_add_mcast_rtnl(struct net_device *dev, int vid, void *arg)
 		if (!ipm)
 			continue;
 
-		hash_add(card->ip_mc_htable, &ipm->hnode,
+		hash_add(card->rx_mode_addrs, &ipm->hnode,
 			 qeth_l3_ipaddr_hash(ipm));
 	}
 
@@ -1124,8 +1124,8 @@ walk_ipv6:
 		if (!ipm)
 			continue;
 
-		hash_add(card->ip_mc_htable,
-				&ipm->hnode, qeth_l3_ipaddr_hash(ipm));
+		hash_add(card->rx_mode_addrs, &ipm->hnode,
+			 qeth_l3_ipaddr_hash(ipm));
 
 	}
 	read_unlock_bh(&in6_dev->lock);
@@ -1169,7 +1169,6 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 		qeth_l3_clear_ip_htable(card, 1);
 		qeth_clear_ipacmd_list(card);
 		qeth_drain_output_queues(card);
-		cancel_delayed_work_sync(&card->buffer_reclaim_work);
 		card->state = CARD_STATE_DOWN;
 	}
 
@@ -1219,7 +1218,7 @@ static void qeth_l3_rx_mode_work(struct work_struct *work)
 			vlan_for_each(card->dev, qeth_l3_add_mcast_rtnl, card);
 		rtnl_unlock();
 
-		hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
+		hash_for_each_safe(card->rx_mode_addrs, i, tmp, addr, hnode) {
 			switch (addr->disp_flag) {
 			case QETH_DISP_ADDR_DELETE:
 				rc = qeth_l3_deregister_addr_entry(card, addr);
@@ -1919,12 +1918,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		return rc;
 
 	if (IS_OSD(card) || IS_OSX(card)) {
-		if ((card->info.link_type == QETH_LINK_TYPE_LANE_TR) ||
-		    (card->info.link_type == QETH_LINK_TYPE_HSTR)) {
-			pr_info("qeth_l3: ignoring TR device\n");
-			return -ENODEV;
-		}
-
 		card->dev->netdev_ops = &qeth_l3_osa_netdev_ops;
 
 		/*IPv6 address autoconfiguration stuff*/
@@ -2004,7 +1997,6 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 		}
 	}
 
-	hash_init(card->ip_mc_htable);
 	INIT_WORK(&card->rx_mode_work, qeth_l3_rx_mode_work);
 	return 0;
 }

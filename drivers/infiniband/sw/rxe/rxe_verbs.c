@@ -83,22 +83,11 @@ static int rxe_query_port(struct ib_device *dev,
 static int rxe_query_pkey(struct ib_device *device,
 			  u8 port_num, u16 index, u16 *pkey)
 {
-	struct rxe_dev *rxe = to_rdev(device);
-	struct rxe_port *port;
+	if (index > 0)
+		return -EINVAL;
 
-	port = &rxe->port;
-
-	if (unlikely(index >= port->attr.pkey_tbl_len)) {
-		dev_warn(device->dev.parent, "invalid index = %d\n",
-			 index);
-		goto err1;
-	}
-
-	*pkey = port->pkey_tbl[index];
+	*pkey = IB_DEFAULT_PKEY_FULL;
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static int rxe_modify_device(struct ib_device *dev,
@@ -141,9 +130,7 @@ static int rxe_modify_port(struct ib_device *dev,
 static enum rdma_link_layer rxe_get_link_layer(struct ib_device *dev,
 					       u8 port_num)
 {
-	struct rxe_dev *rxe = to_rdev(dev);
-
-	return rxe_link_layer(rxe, port_num);
+	return IB_LINK_LAYER_ETHERNET;
 }
 
 static int rxe_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
@@ -684,6 +671,7 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, const struct ib_send_wr *wr,
 	unsigned int mask;
 	unsigned int length = 0;
 	int i;
+	struct ib_send_wr *next;
 
 	while (wr) {
 		mask = wr_opcode_mask(wr->opcode, qp);
@@ -700,6 +688,8 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, const struct ib_send_wr *wr,
 			break;
 		}
 
+		next = wr->next;
+
 		length = 0;
 		for (i = 0; i < wr->num_sge; i++)
 			length += wr->sg_list[i].length;
@@ -710,7 +700,7 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, const struct ib_send_wr *wr,
 			*bad_wr = wr;
 			break;
 		}
-		wr = wr->next;
+		wr = next;
 	}
 
 	rxe_run_task(&qp->req.task, 1);
@@ -901,30 +891,16 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
 	struct rxe_mem *mr;
-	int err;
 
 	mr = rxe_alloc(&rxe->mr_pool);
-	if (!mr) {
-		err = -ENOMEM;
-		goto err1;
-	}
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
 
 	rxe_add_index(mr);
-
 	rxe_add_ref(pd);
-
-	err = rxe_mem_init_dma(pd, access, mr);
-	if (err)
-		goto err2;
+	rxe_mem_init_dma(pd, access, mr);
 
 	return &mr->ibmr;
-
-err2:
-	rxe_drop_ref(pd);
-	rxe_drop_index(mr);
-	rxe_drop_ref(mr);
-err1:
-	return ERR_PTR(err);
 }
 
 static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
@@ -975,7 +951,7 @@ static int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 }
 
 static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
-				  u32 max_num_sg, struct ib_udata *udata)
+				  u32 max_num_sg)
 {
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);

@@ -32,9 +32,11 @@ properties:
           - enum:
               - renesas,ipmmu-r8a774a1 # RZ/G2M
               - renesas,ipmmu-r8a774b1 # RZ/G2N
+              - renesas,ipmmu-r8a774e1 # RZ/G2H
               - renesas,ipmmu-r8a774c0 # RZ/G2E
               - renesas,ipmmu-r8a7795  # R-Car H3
               - renesas,ipmmu-r8a7796  # R-Car M3-W
+              - renesas,ipmmu-r8a77961 # R-Car M3-W+
               - renesas,ipmmu-r8a77965 # R-Car M3-N
               - renesas,ipmmu-r8a77970 # R-Car V3M
               - renesas,ipmmu-r8a77980 # R-Car V3H

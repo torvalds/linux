@@ -8,6 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -21,6 +22,8 @@
 
 #define NEMC_SMCRn(n)		(0x14 + (((n) - 1) * 4))
 #define NEMC_NFCSR		0x50
+
+#define NEMC_REG_LEN		0x54
 
 #define NEMC_SMCR_SMT		BIT(0)
 #define NEMC_SMCR_BW_SHIFT	6
@@ -288,7 +291,19 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 	nemc->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	nemc->base = devm_ioremap_resource(dev, res);
+
+	/*
+	 * The driver currently only uses the registers up to offset
+	 * NEMC_REG_LEN. Since the EFUSE registers are in the middle of the
+	 * NEMC registers, we only request the registers we will use for now;
+	 * that way the EFUSE driver can probe too.
+	 */
+	if (!devm_request_mem_region(dev, res->start, NEMC_REG_LEN, dev_name(dev))) {
+		dev_err(dev, "unable to request I/O memory region\n");
+		return -EBUSY;
+	}
+
+	nemc->base = devm_ioremap(dev, res->start, NEMC_REG_LEN);
 	if (IS_ERR(nemc->base)) {
 		dev_err(dev, "failed to get I/O memory\n");
 		return PTR_ERR(nemc->base);

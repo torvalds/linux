@@ -142,7 +142,7 @@ Footnotes
 =========
 
 [1] Remote Network Driver Interface Specification,
-[[http://msdn.microsoft.com/en-us/library/ee484414.aspx]].
+[[https://msdn.microsoft.com/en-us/library/ee484414.aspx]].
 
 [2] Communications Device Class Abstract Control Model, spec for this
 and other USB classes can be found at
@@ -150,9 +150,9 @@ and other USB classes can be found at
 
 [3] CDC Ethernet Control Model.
 
-[4] [[http://msdn.microsoft.com/en-us/library/ff537109(v=VS.85).aspx]]
+[4] [[https://msdn.microsoft.com/en-us/library/ff537109(v=VS.85).aspx]]
 
-[5] [[http://msdn.microsoft.com/en-us/library/ff539234(v=VS.85).aspx]]
+[5] [[https://msdn.microsoft.com/en-us/library/ff539234(v=VS.85).aspx]]
 
 [6] To put it in some other nice words, Windows failed to respond to
 any user input.
@@ -160,6 +160,6 @@ any user input.
 [7] You may find [[http://www.cygnal.org/ubb/Forum9/HTML/001050.html]]
 useful.
 
-[8] http://www.nirsoft.net/utils/usb_devices_view.html
+[8] https://www.nirsoft.net/utils/usb_devices_view.html
 
-[9] [[http://msdn.microsoft.com/en-us/library/ff570620.aspx]]
+[9] [[https://msdn.microsoft.com/en-us/library/ff570620.aspx]]

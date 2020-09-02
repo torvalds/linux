@@ -768,7 +768,7 @@ static const u8 *get_vec5_feature(unsigned int index)
 	return vec5 + index;
 }
 
-static bool xive_spapr_disabled(void)
+static bool __init xive_spapr_disabled(void)
 {
 	const u8 *vec5_xive;
 

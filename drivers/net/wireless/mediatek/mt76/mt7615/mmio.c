@@ -17,7 +17,6 @@ const u32 mt7615e_reg_map[] = {
 	[MT_CSR_BASE]		= 0x07000,
 	[MT_PLE_BASE]		= 0x08000,
 	[MT_PSE_BASE]		= 0x0c000,
-	[MT_PHY_BASE]		= 0x10000,
 	[MT_CFG_BASE]		= 0x20200,
 	[MT_AGG_BASE]		= 0x20a00,
 	[MT_TMAC_BASE]		= 0x21000,
@@ -44,7 +43,7 @@ const u32 mt7663e_reg_map[] = {
 	[MT_CSR_BASE]		= 0x07000,
 	[MT_PLE_BASE]		= 0x08000,
 	[MT_PSE_BASE]		= 0x0c000,
-	[MT_PHY_BASE]		= 0x10000,
+	[MT_PP_BASE]            = 0x0e000,
 	[MT_CFG_BASE]		= 0x20000,
 	[MT_AGG_BASE]		= 0x22000,
 	[MT_TMAC_BASE]		= 0x24000,
@@ -140,6 +139,38 @@ static void mt7615_irq_tasklet(unsigned long data)
 	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
+static u32 __mt7615_reg_addr(struct mt7615_dev *dev, u32 addr)
+{
+	if (addr < 0x100000)
+		return addr;
+
+	return mt7615_reg_map(dev, addr);
+}
+
+static u32 mt7615_rr(struct mt76_dev *mdev, u32 offset)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	u32 addr = __mt7615_reg_addr(dev, offset);
+
+	return dev->bus_ops->rr(mdev, addr);
+}
+
+static void mt7615_wr(struct mt76_dev *mdev, u32 offset, u32 val)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	u32 addr = __mt7615_reg_addr(dev, offset);
+
+	dev->bus_ops->wr(mdev, addr, val);
+}
+
+static u32 mt7615_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	u32 addr = __mt7615_reg_addr(dev, offset);
+
+	return dev->bus_ops->rmw(mdev, addr, mask, val);
+}
+
 int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 		      int irq, const u32 *map)
 {
@@ -159,6 +190,7 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 		.sta_remove = mt7615_mac_sta_remove,
 		.update_survey = mt7615_update_channel,
 	};
+	struct mt76_bus_ops *bus_ops;
 	struct ieee80211_ops *ops;
 	struct mt7615_dev *dev;
 	struct mt76_dev *mdev;
@@ -181,6 +213,19 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
+
+	dev->bus_ops = dev->mt76.bus;
+	bus_ops = devm_kmemdup(dev->mt76.dev, dev->bus_ops, sizeof(*bus_ops),
+			       GFP_KERNEL);
+	if (!bus_ops) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	bus_ops->rr = mt7615_rr;
+	bus_ops->wr = mt7615_wr;
+	bus_ops->rmw = mt7615_rmw;
+	dev->mt76.bus = bus_ops;
 
 	ret = devm_request_irq(mdev->dev, irq, mt7615_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);

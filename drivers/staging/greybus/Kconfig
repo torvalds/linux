@@ -3,13 +3,25 @@ if GREYBUS
 
 config GREYBUS_AUDIO
 	tristate "Greybus Audio Class driver"
-	depends on SOUND
+	depends on SOUND && SND_SOC
 	help
 	  Select this option if you have a device that follows the
 	  Greybus Audio Class specification.
 
 	  To compile this code as a module, chose M here: the module
 	  will be called gb-audio.ko
+
+config GREYBUS_AUDIO_APB_CODEC
+	tristate "Greybus APBridge Audio codec driver"
+	depends on SND_SOC && GREYBUS_AUDIO
+	help
+	  Select this option if you have a Toshiba APB device that has I2S
+          ports and acts as a Greybus "Dummy codec". This device is a
+          bridge from an APB-I2S port to a Unipro network.
+
+	  To compile this code as a module, chose M here: the module
+	  will be called gb-audio-codec.ko
+
 
 config GREYBUS_BOOTROM
 	tristate "Greybus Bootrom Class driver"

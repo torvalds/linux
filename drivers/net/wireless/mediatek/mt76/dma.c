@@ -370,6 +370,12 @@ unmap:
 				 tx_info.buf[n].len, DMA_TO_DEVICE);
 
 free:
+#ifdef CONFIG_NL80211_TESTMODE
+	/* fix tx_done accounting on queue overflow */
+	if (tx_info.skb == dev->test.tx_skb)
+		dev->test.tx_done--;
+#endif
+
 	e.skb = tx_info.skb;
 	e.txwi = t;
 	dev->drv->tx_complete_skb(dev, qid, &e);

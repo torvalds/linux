@@ -549,7 +549,6 @@
 &pwm5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm5>;
-	#pwm-cells = <3>;
 	status = "okay";
 };
 

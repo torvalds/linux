@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra30-asus-nexus7-grouper-maxim-pmic.dtsi"
+#include "tegra30-asus-nexus7-tilapia.dtsi"
+
+/ {
+	model = "ASUS Google Nexus 7 (Project Bach / ME370TG) E1565";
+};

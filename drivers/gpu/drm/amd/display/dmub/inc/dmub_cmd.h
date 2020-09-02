@@ -26,16 +26,251 @@
 #ifndef _DMUB_CMD_H_
 #define _DMUB_CMD_H_
 
-#include "dmub_types.h"
-#include "dmub_cmd_dal.h"
-#include "dmub_cmd_vbios.h"
+#include <asm/byteorder.h>
+#include <linux/types.h>
+#include <linux/string.h>
+#include <linux/delay.h>
+#include <stdarg.h>
+
 #include "atomfirmware.h"
+
+/* Firmware versioning. */
+#ifdef DMUB_EXPOSE_VERSION
+#define DMUB_FW_VERSION_GIT_HASH 0xe6d590b09
+#define DMUB_FW_VERSION_MAJOR 0
+#define DMUB_FW_VERSION_MINOR 0
+#define DMUB_FW_VERSION_REVISION 25
+#define DMUB_FW_VERSION_UCODE ((DMUB_FW_VERSION_MAJOR << 24) | (DMUB_FW_VERSION_MINOR << 16) | DMUB_FW_VERSION_REVISION)
+#endif
+
+//<DMUB_TYPES>==================================================================
+/* Basic type definitions. */
+
+#define SET_ABM_PIPE_GRADUALLY_DISABLE           0
+#define SET_ABM_PIPE_IMMEDIATELY_DISABLE         255
+#define SET_ABM_PIPE_NORMAL                      1
+
+/* Maximum number of streams on any ASIC. */
+#define DMUB_MAX_STREAMS 6
+
+/* Maximum number of planes on any ASIC. */
+#define DMUB_MAX_PLANES 6
+
+#ifndef PHYSICAL_ADDRESS_LOC
+#define PHYSICAL_ADDRESS_LOC union large_integer
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+#ifndef dmub_memcpy
+#define dmub_memcpy(dest, source, bytes) memcpy((dest), (source), (bytes))
+#endif
+
+#ifndef dmub_memset
+#define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
+#endif
+
+#ifndef dmub_udelay
+#define dmub_udelay(microseconds) udelay(microseconds)
+#endif
+
+union dmub_addr {
+	struct {
+		uint32_t low_part;
+		uint32_t high_part;
+	} u;
+	uint64_t quad_part;
+};
+
+union dmub_psr_debug_flags {
+	struct {
+		uint32_t visual_confirm : 1;
+		uint32_t use_hw_lock_mgr : 1;
+	} bitfields;
+
+	uint32_t u32All;
+};
+
+#if defined(__cplusplus)
+}
+#endif
+
+
+
+//==============================================================================
+//</DMUB_TYPES>=================================================================
+//==============================================================================
+//< DMUB_META>==================================================================
+//==============================================================================
+#pragma pack(push, 1)
+
+/* Magic value for identifying dmub_fw_meta_info */
+#define DMUB_FW_META_MAGIC 0x444D5542
+
+/* Offset from the end of the file to the dmub_fw_meta_info */
+#define DMUB_FW_META_OFFSET 0x24
+
+/**
+ * struct dmub_fw_meta_info - metadata associated with fw binary
+ *
+ * NOTE: This should be considered a stable API. Fields should
+ *       not be repurposed or reordered. New fields should be
+ *       added instead to extend the structure.
+ *
+ * @magic_value: magic value identifying DMUB firmware meta info
+ * @fw_region_size: size of the firmware state region
+ * @trace_buffer_size: size of the tracebuffer region
+ * @fw_version: the firmware version information
+ * @dal_fw: 1 if the firmware is DAL
+ */
+struct dmub_fw_meta_info {
+	uint32_t magic_value;
+	uint32_t fw_region_size;
+	uint32_t trace_buffer_size;
+	uint32_t fw_version;
+	uint8_t dal_fw;
+	uint8_t reserved[3];
+};
+
+/* Ensure that the structure remains 64 bytes. */
+union dmub_fw_meta {
+	struct dmub_fw_meta_info info;
+	uint8_t reserved[64];
+};
+
+#pragma pack(pop)
+
+//==============================================================================
+//< DMUB_STATUS>================================================================
+//==============================================================================
+
+/**
+ * DMCUB scratch registers can be used to determine firmware status.
+ * Current scratch register usage is as follows:
+ *
+ * SCRATCH0: FW Boot Status register
+ * SCRATCH15: FW Boot Options register
+ */
+
+/* Register bit definition for SCRATCH0 */
+union dmub_fw_boot_status {
+	struct {
+		uint32_t dal_fw : 1;
+		uint32_t mailbox_rdy : 1;
+		uint32_t optimized_init_done : 1;
+		uint32_t reserved : 29;
+	} bits;
+	uint32_t all;
+};
+
+enum dmub_fw_boot_status_bit {
+	DMUB_FW_BOOT_STATUS_BIT_DAL_FIRMWARE = (1 << 0),
+	DMUB_FW_BOOT_STATUS_BIT_MAILBOX_READY = (1 << 1),
+	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2),
+};
+
+/* Register bit definition for SCRATCH15 */
+union dmub_fw_boot_options {
+	struct {
+		uint32_t pemu_env : 1;
+		uint32_t fpga_env : 1;
+		uint32_t optimized_init : 1;
+		uint32_t reserved : 29;
+	} bits;
+	uint32_t all;
+};
+
+enum dmub_fw_boot_options_bit {
+	DMUB_FW_BOOT_OPTION_BIT_PEMU_ENV = (1 << 0),
+	DMUB_FW_BOOT_OPTION_BIT_FPGA_ENV = (1 << 1),
+	DMUB_FW_BOOT_OPTION_BIT_OPTIMIZED_INIT_DONE = (1 << 2),
+};
+
+//==============================================================================
+//</DMUB_STATUS>================================================================
+//==============================================================================
+//< DMUB_VBIOS>=================================================================
+//==============================================================================
+
+/*
+ * Command IDs should be treated as stable ABI.
+ * Do not reuse or modify IDs.
+ */
+
+enum dmub_cmd_vbios_type {
+	DMUB_CMD__VBIOS_DIGX_ENCODER_CONTROL = 0,
+	DMUB_CMD__VBIOS_DIG1_TRANSMITTER_CONTROL = 1,
+	DMUB_CMD__VBIOS_SET_PIXEL_CLOCK = 2,
+	DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING = 3,
+};
+
+//==============================================================================
+//</DMUB_VBIOS>=================================================================
+//==============================================================================
+//< DMUB_GPINT>=================================================================
+//==============================================================================
+
+/**
+ * The shifts and masks below may alternatively be used to format and read
+ * the command register bits.
+ */
+
+#define DMUB_GPINT_DATA_PARAM_MASK 0xFFFF
+#define DMUB_GPINT_DATA_PARAM_SHIFT 0
+
+#define DMUB_GPINT_DATA_COMMAND_CODE_MASK 0xFFF
+#define DMUB_GPINT_DATA_COMMAND_CODE_SHIFT 16
+
+#define DMUB_GPINT_DATA_STATUS_MASK 0xF
+#define DMUB_GPINT_DATA_STATUS_SHIFT 28
+
+/**
+ * Command responses.
+ */
+
+#define DMUB_GPINT__STOP_FW_RESPONSE 0xDEADDEAD
+
+/**
+ * The register format for sending a command via the GPINT.
+ */
+union dmub_gpint_data_register {
+	struct {
+		uint32_t param : 16;
+		uint32_t command_code : 12;
+		uint32_t status : 4;
+	} bits;
+	uint32_t all;
+};
+
+/*
+ * Command IDs should be treated as stable ABI.
+ * Do not reuse or modify IDs.
+ */
+
+enum dmub_gpint_command {
+	DMUB_GPINT__INVALID_COMMAND = 0,
+	DMUB_GPINT__GET_FW_VERSION = 1,
+	DMUB_GPINT__STOP_FW = 2,
+	DMUB_GPINT__GET_PSR_STATE = 7,
+	/**
+	 * DESC: Notifies DMCUB of the currently active streams.
+	 * ARGS: Stream mask, 1 bit per active stream index.
+	 */
+	DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK = 8,
+};
+
+//==============================================================================
+//</DMUB_GPINT>=================================================================
+//==============================================================================
+//< DMUB_CMD>===================================================================
+//==============================================================================
 
 #define DMUB_RB_CMD_SIZE 64
 #define DMUB_RB_MAX_ENTRY 128
 #define DMUB_RB_SIZE (DMUB_RB_CMD_SIZE * DMUB_RB_MAX_ENTRY)
 #define REG_SET_MASK 0xFFFF
-
 
 /*
  * Command IDs should be treated as stable ABI.
@@ -51,6 +286,7 @@ enum dmub_cmd_type {
 	DMUB_CMD__PLAT_54186_WA = 5,
 	DMUB_CMD__PSR = 64,
 	DMUB_CMD__ABM = 66,
+	DMUB_CMD__HW_LOCK = 69,
 	DMUB_CMD__VBIOS = 128,
 };
 
@@ -106,13 +342,11 @@ struct dmub_cmd_reg_field_update_sequence {
 };
 
 #define DMUB_REG_FIELD_UPDATE_SEQ__MAX		7
-
 struct dmub_rb_cmd_reg_field_update_sequence {
 	struct dmub_cmd_header header;
 	uint32_t addr;
 	struct dmub_cmd_reg_field_update_sequence seq[DMUB_REG_FIELD_UPDATE_SEQ__MAX];
 };
-
 
 /*
  * Burst write
@@ -147,10 +381,6 @@ struct dmub_rb_cmd_reg_wait {
 	struct dmub_cmd_header header;
 	struct dmub_cmd_reg_wait_data reg_wait;
 };
-
-#ifndef PHYSICAL_ADDRESS_LOC
-#define PHYSICAL_ADDRESS_LOC union large_integer
-#endif
 
 struct dmub_cmd_PLAT_54186_wa {
 	uint32_t DCSURF_SURFACE_CONTROL;
@@ -215,7 +445,26 @@ struct dmub_rb_cmd_dpphy_init {
 	uint8_t reserved[60];
 };
 
+/*
+ * Command IDs should be treated as stable ABI.
+ * Do not reuse or modify IDs.
+ */
+
+enum dmub_cmd_psr_type {
+	DMUB_CMD__PSR_SET_VERSION		= 0,
+	DMUB_CMD__PSR_COPY_SETTINGS		= 1,
+	DMUB_CMD__PSR_ENABLE			= 2,
+	DMUB_CMD__PSR_DISABLE			= 3,
+	DMUB_CMD__PSR_SET_LEVEL			= 4,
+};
+
+enum psr_version {
+	PSR_VERSION_1				= 0,
+	PSR_VERSION_UNSUPPORTED			= 0xFFFFFFFF,
+};
+
 struct dmub_cmd_psr_copy_settings_data {
+	union dmub_psr_debug_flags debug;
 	uint16_t psr_level;
 	uint8_t dpp_inst;
 	uint8_t mpcc_inst;
@@ -228,7 +477,9 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t smu_optimizations_en;
 	uint8_t frame_delay;
 	uint8_t frame_cap_ind;
-	struct dmub_psr_debug_flags debug;
+	uint8_t pad[3];
+	uint16_t init_sdp_deadline;
+	uint16_t pad2;
 };
 
 struct dmub_rb_cmd_psr_copy_settings {
@@ -238,6 +489,7 @@ struct dmub_rb_cmd_psr_copy_settings {
 
 struct dmub_cmd_psr_set_level_data {
 	uint16_t psr_level;
+	uint8_t pad[2];
 };
 
 struct dmub_rb_cmd_psr_set_level {
@@ -258,11 +510,93 @@ struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_psr_set_version_data psr_set_version_data;
 };
 
+union dmub_hw_lock_flags {
+	struct {
+		uint8_t lock_pipe   : 1;
+		uint8_t lock_cursor : 1;
+		uint8_t lock_dig    : 1;
+		uint8_t triple_buffer_lock : 1;
+	} bits;
+
+	uint8_t u8All;
+};
+
+struct dmub_hw_lock_inst_flags {
+	uint8_t otg_inst;
+	uint8_t opp_inst;
+	uint8_t dig_inst;
+	uint8_t pad;
+};
+
+enum hw_lock_client {
+	HW_LOCK_CLIENT_DRIVER = 0,
+	HW_LOCK_CLIENT_FW,
+	HW_LOCK_CLIENT_INVALID = 0xFFFFFFFF,
+};
+
+struct dmub_cmd_lock_hw_data {
+	enum hw_lock_client client;
+	struct dmub_hw_lock_inst_flags inst_flags;
+	union dmub_hw_lock_flags hw_locks;
+	uint8_t lock;
+	uint8_t should_release;
+	uint8_t pad;
+};
+
+struct dmub_rb_cmd_lock_hw {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_lock_hw_data lock_hw_data;
+};
+
+enum dmub_cmd_abm_type {
+	DMUB_CMD__ABM_INIT_CONFIG	= 0,
+	DMUB_CMD__ABM_SET_PIPE		= 1,
+	DMUB_CMD__ABM_SET_BACKLIGHT	= 2,
+	DMUB_CMD__ABM_SET_LEVEL		= 3,
+	DMUB_CMD__ABM_SET_AMBIENT_LEVEL	= 4,
+	DMUB_CMD__ABM_SET_PWM_FRAC	= 5,
+};
+
+#define NUM_AMBI_LEVEL                  5
+#define NUM_AGGR_LEVEL                  4
+#define NUM_POWER_FN_SEGS               8
+#define NUM_BL_CURVE_SEGS               16
+
+/*
+ * Parameters for ABM2.4 algorithm.
+ * Padded explicitly to 32-bit boundary.
+ */
+struct abm_config_table {
+	/* Parameters for crgb conversion */
+	uint16_t crgb_thresh[NUM_POWER_FN_SEGS];                 // 0B
+	uint16_t crgb_offset[NUM_POWER_FN_SEGS];                 // 15B
+	uint16_t crgb_slope[NUM_POWER_FN_SEGS];                  // 31B
+
+	/* Parameters for custom curve */
+	uint16_t backlight_thresholds[NUM_BL_CURVE_SEGS];        // 47B
+	uint16_t backlight_offsets[NUM_BL_CURVE_SEGS];           // 79B
+
+	uint16_t ambient_thresholds_lux[NUM_AMBI_LEVEL];         // 111B
+	uint16_t min_abm_backlight;                              // 121B
+
+	uint8_t min_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 123B
+	uint8_t max_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 143B
+	uint8_t bright_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL]; // 163B
+	uint8_t dark_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 183B
+	uint8_t hybrid_factor[NUM_AGGR_LEVEL];                   // 203B
+	uint8_t contrast_factor[NUM_AGGR_LEVEL];                 // 207B
+	uint8_t deviation_gain[NUM_AGGR_LEVEL];                  // 211B
+	uint8_t min_knee[NUM_AGGR_LEVEL];                        // 215B
+	uint8_t max_knee[NUM_AGGR_LEVEL];                        // 219B
+	uint8_t iir_curve[NUM_AMBI_LEVEL];                       // 223B
+	uint8_t pad3[3];                                         // 228B
+};
+
 struct dmub_cmd_abm_set_pipe_data {
-	uint32_t ramping_boundary;
-	uint32_t otg_inst;
-	uint32_t panel_inst;
-	uint32_t set_pipe_option;
+	uint8_t otg_inst;
+	uint8_t panel_inst;
+	uint8_t set_pipe_option;
+	uint8_t ramping_boundary; // TODO: Remove this
 };
 
 struct dmub_rb_cmd_abm_set_pipe {
@@ -272,6 +606,7 @@ struct dmub_rb_cmd_abm_set_pipe {
 
 struct dmub_cmd_abm_set_backlight_data {
 	uint32_t frame_ramp;
+	uint32_t backlight_user_level;
 };
 
 struct dmub_rb_cmd_abm_set_backlight {
@@ -317,6 +652,7 @@ struct dmub_rb_cmd_abm_init_config {
 };
 
 union dmub_rb_cmd {
+	struct dmub_rb_cmd_lock_hw lock_hw;
 	struct dmub_rb_cmd_read_modify_write read_modify_write;
 	struct dmub_rb_cmd_reg_field_update_sequence reg_field_update_seq;
 	struct dmub_rb_cmd_burst_write burst_write;
@@ -341,5 +677,138 @@ union dmub_rb_cmd {
 };
 
 #pragma pack(pop)
+
+
+//==============================================================================
+//</DMUB_CMD>===================================================================
+//==============================================================================
+//< DMUB_RB>====================================================================
+//==============================================================================
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+struct dmub_rb_init_params {
+	void *ctx;
+	void *base_address;
+	uint32_t capacity;
+	uint32_t read_ptr;
+	uint32_t write_ptr;
+};
+
+struct dmub_rb {
+	void *base_address;
+	uint32_t data_count;
+	uint32_t rptr;
+	uint32_t wrpt;
+	uint32_t capacity;
+
+	void *ctx;
+	void *dmub;
+};
+
+
+static inline bool dmub_rb_empty(struct dmub_rb *rb)
+{
+	return (rb->wrpt == rb->rptr);
+}
+
+static inline bool dmub_rb_full(struct dmub_rb *rb)
+{
+	uint32_t data_count;
+
+	if (rb->wrpt >= rb->rptr)
+		data_count = rb->wrpt - rb->rptr;
+	else
+		data_count = rb->capacity - (rb->rptr - rb->wrpt);
+
+	return (data_count == (rb->capacity - DMUB_RB_CMD_SIZE));
+}
+
+static inline bool dmub_rb_push_front(struct dmub_rb *rb,
+				      const union dmub_rb_cmd *cmd)
+{
+	uint64_t volatile *dst = (uint64_t volatile *)(rb->base_address) + rb->wrpt / sizeof(uint64_t);
+	const uint64_t *src = (const uint64_t *)cmd;
+	int i;
+
+	if (dmub_rb_full(rb))
+		return false;
+
+	// copying data
+	for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
+		*dst++ = *src++;
+
+	rb->wrpt += DMUB_RB_CMD_SIZE;
+
+	if (rb->wrpt >= rb->capacity)
+		rb->wrpt %= rb->capacity;
+
+	return true;
+}
+
+static inline bool dmub_rb_front(struct dmub_rb *rb,
+				 union dmub_rb_cmd  *cmd)
+{
+	uint8_t *rd_ptr = (uint8_t *)rb->base_address + rb->rptr;
+
+	if (dmub_rb_empty(rb))
+		return false;
+
+	dmub_memcpy(cmd, rd_ptr, DMUB_RB_CMD_SIZE);
+
+	return true;
+}
+
+static inline bool dmub_rb_pop_front(struct dmub_rb *rb)
+{
+	if (dmub_rb_empty(rb))
+		return false;
+
+	rb->rptr += DMUB_RB_CMD_SIZE;
+
+	if (rb->rptr >= rb->capacity)
+		rb->rptr %= rb->capacity;
+
+	return true;
+}
+
+static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
+{
+	uint32_t rptr = rb->rptr;
+	uint32_t wptr = rb->wrpt;
+
+	while (rptr != wptr) {
+		uint64_t volatile *data = (uint64_t volatile *)rb->base_address + rptr / sizeof(uint64_t);
+		//uint64_t volatile *p = (uint64_t volatile *)data;
+		uint64_t temp;
+		int i;
+
+		for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
+			temp = *data++;
+
+		rptr += DMUB_RB_CMD_SIZE;
+		if (rptr >= rb->capacity)
+			rptr %= rb->capacity;
+	}
+}
+
+static inline void dmub_rb_init(struct dmub_rb *rb,
+				struct dmub_rb_init_params *init_params)
+{
+	rb->base_address = init_params->base_address;
+	rb->capacity = init_params->capacity;
+	rb->rptr = init_params->read_ptr;
+	rb->wrpt = init_params->write_ptr;
+}
+
+#if defined(__cplusplus)
+}
+#endif
+
+//==============================================================================
+//</DMUB_RB>====================================================================
+//==============================================================================
 
 #endif /* _DMUB_CMD_H_ */

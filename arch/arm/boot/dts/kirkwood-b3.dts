@@ -9,7 +9,7 @@
  * L2 cache. If your B3 silently fails to boot, u-boot is probably too
  * old. Either upgrade, or consider the following email:
  *
- * http://lists.debian.org/debian-arm/2012/08/msg00128.html
+ * https://lists.debian.org/debian-arm/2012/08/msg00128.html
  */
 
 /dts-v1/;

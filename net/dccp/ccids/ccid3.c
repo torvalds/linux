@@ -7,7 +7,7 @@
  *  An implementation of the DCCP protocol
  *
  *  This code has been developed by the University of Waikato WAND
- *  research group. For further information please see http://www.wand.net.nz/
+ *  research group. For further information please see https://www.wand.net.nz/
  *
  *  This code also uses code from Lulea University, rereleased as GPL by its
  *  authors:

@@ -628,12 +628,12 @@ static struct pmbus_data *pmbus_update_device(struct device *dev)
  * Convert linear sensor values to milli- or micro-units
  * depending on sensor type.
  */
-static long pmbus_reg2data_linear(struct pmbus_data *data,
-				  struct pmbus_sensor *sensor)
+static s64 pmbus_reg2data_linear(struct pmbus_data *data,
+				 struct pmbus_sensor *sensor)
 {
 	s16 exponent;
 	s32 mantissa;
-	long val;
+	s64 val;
 
 	if (sensor->class == PSC_VOLTAGE_OUT) {	/* LINEAR16 */
 		exponent = data->exponent[sensor->page];
@@ -647,11 +647,11 @@ static long pmbus_reg2data_linear(struct pmbus_data *data,
 
 	/* scale result to milli-units for all sensors except fans */
 	if (sensor->class != PSC_FAN)
-		val = val * 1000L;
+		val = val * 1000LL;
 
 	/* scale result to micro-units for power sensors */
 	if (sensor->class == PSC_POWER)
-		val = val * 1000L;
+		val = val * 1000LL;
 
 	if (exponent >= 0)
 		val <<= exponent;
@@ -665,8 +665,8 @@ static long pmbus_reg2data_linear(struct pmbus_data *data,
  * Convert direct sensor values to milli- or micro-units
  * depending on sensor type.
  */
-static long pmbus_reg2data_direct(struct pmbus_data *data,
-				  struct pmbus_sensor *sensor)
+static s64 pmbus_reg2data_direct(struct pmbus_data *data,
+				 struct pmbus_sensor *sensor)
 {
 	s64 b, val = (s16)sensor->data;
 	s32 m, R;
@@ -702,15 +702,15 @@ static long pmbus_reg2data_direct(struct pmbus_data *data,
 	}
 
 	val = div_s64(val - b, m);
-	return clamp_val(val, LONG_MIN, LONG_MAX);
+	return val;
 }
 
 /*
  * Convert VID sensor values to milli- or micro-units
  * depending on sensor type.
  */
-static long pmbus_reg2data_vid(struct pmbus_data *data,
-			       struct pmbus_sensor *sensor)
+static s64 pmbus_reg2data_vid(struct pmbus_data *data,
+			      struct pmbus_sensor *sensor)
 {
 	long val = sensor->data;
 	long rv = 0;
@@ -740,9 +740,9 @@ static long pmbus_reg2data_vid(struct pmbus_data *data,
 	return rv;
 }
 
-static long pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
+static s64 pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
 {
-	long val;
+	s64 val;
 
 	if (!sensor->convert)
 		return sensor->data;
@@ -766,7 +766,7 @@ static long pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
 #define MIN_MANTISSA	(511 * 1000)
 
 static u16 pmbus_data2reg_linear(struct pmbus_data *data,
-				 struct pmbus_sensor *sensor, long val)
+				 struct pmbus_sensor *sensor, s64 val)
 {
 	s16 exponent = 0, mantissa;
 	bool negative = false;
@@ -788,8 +788,8 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 			val <<= -data->exponent[sensor->page];
 		else
 			val >>= data->exponent[sensor->page];
-		val = DIV_ROUND_CLOSEST(val, 1000);
-		return val & 0xffff;
+		val = DIV_ROUND_CLOSEST_ULL(val, 1000);
+		return clamp_val(val, 0, 0xffff);
 	}
 
 	if (val < 0) {
@@ -799,14 +799,14 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 
 	/* Power is in uW. Convert to mW before converting. */
 	if (sensor->class == PSC_POWER)
-		val = DIV_ROUND_CLOSEST(val, 1000L);
+		val = DIV_ROUND_CLOSEST_ULL(val, 1000);
 
 	/*
 	 * For simplicity, convert fan data to milli-units
 	 * before calculating the exponent.
 	 */
 	if (sensor->class == PSC_FAN)
-		val = val * 1000;
+		val = val * 1000LL;
 
 	/* Reduce large mantissa until it fits into 10 bit */
 	while (val >= MAX_MANTISSA && exponent < 15) {
@@ -820,11 +820,7 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 	}
 
 	/* Convert mantissa from milli-units to units */
-	mantissa = DIV_ROUND_CLOSEST(val, 1000);
-
-	/* Ensure that resulting number is within range */
-	if (mantissa > 0x3ff)
-		mantissa = 0x3ff;
+	mantissa = clamp_val(DIV_ROUND_CLOSEST_ULL(val, 1000), 0, 0x3ff);
 
 	/* restore sign */
 	if (negative)
@@ -835,9 +831,9 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 }
 
 static u16 pmbus_data2reg_direct(struct pmbus_data *data,
-				 struct pmbus_sensor *sensor, long val)
+				 struct pmbus_sensor *sensor, s64 val)
 {
-	s64 b, val64 = val;
+	s64 b;
 	s32 m, R;
 
 	m = data->info->m[sensor->class];
@@ -855,30 +851,30 @@ static u16 pmbus_data2reg_direct(struct pmbus_data *data,
 		R -= 3;		/* Adjust R and b for data in milli-units */
 		b *= 1000;
 	}
-	val64 = val64 * m + b;
+	val = val * m + b;
 
 	while (R > 0) {
-		val64 *= 10;
+		val *= 10;
 		R--;
 	}
 	while (R < 0) {
-		val64 = div_s64(val64 + 5LL, 10L);  /* round closest */
+		val = div_s64(val + 5LL, 10L);  /* round closest */
 		R++;
 	}
 
-	return (u16)clamp_val(val64, S16_MIN, S16_MAX);
+	return (u16)clamp_val(val, S16_MIN, S16_MAX);
 }
 
 static u16 pmbus_data2reg_vid(struct pmbus_data *data,
-			      struct pmbus_sensor *sensor, long val)
+			      struct pmbus_sensor *sensor, s64 val)
 {
 	val = clamp_val(val, 500, 1600);
 
-	return 2 + DIV_ROUND_CLOSEST((1600 - val) * 100, 625);
+	return 2 + DIV_ROUND_CLOSEST_ULL((1600LL - val) * 100LL, 625);
 }
 
 static u16 pmbus_data2reg(struct pmbus_data *data,
-			  struct pmbus_sensor *sensor, long val)
+			  struct pmbus_sensor *sensor, s64 val)
 {
 	u16 regval;
 
@@ -944,7 +940,7 @@ static int pmbus_get_boolean(struct pmbus_data *data, struct pmbus_boolean *b,
 		WARN(1, "Bad boolean descriptor %p: s1=%p, s2=%p\n", b, s1, s2);
 		return 0;
 	} else {
-		long v1, v2;
+		s64 v1, v2;
 
 		if (s1->data < 0)
 			return s1->data;
@@ -981,7 +977,7 @@ static ssize_t pmbus_show_sensor(struct device *dev,
 	if (sensor->data < 0)
 		return sensor->data;
 
-	return snprintf(buf, PAGE_SIZE, "%ld\n", pmbus_reg2data(data, sensor));
+	return snprintf(buf, PAGE_SIZE, "%lld\n", pmbus_reg2data(data, sensor));
 }
 
 static ssize_t pmbus_set_sensor(struct device *dev,
@@ -992,11 +988,11 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	struct pmbus_sensor *sensor = to_pmbus_sensor(devattr);
 	ssize_t rv = count;
-	long val = 0;
+	s64 val;
 	int ret;
 	u16 regval;
 
-	if (kstrtol(buf, 10, &val) < 0)
+	if (kstrtos64(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);

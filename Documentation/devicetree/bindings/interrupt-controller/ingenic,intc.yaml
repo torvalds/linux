@@ -16,20 +16,20 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - ingenic,jz4740-intc
-        - ingenic,jz4760-intc
-        - ingenic,jz4780-intc
+          - ingenic,jz4740-intc
+          - ingenic,jz4760-intc
+          - ingenic,jz4780-intc
       - items:
-        - enum:
-          - ingenic,jz4775-intc
-          - ingenic,jz4770-intc
-        - const: ingenic,jz4760-intc
+          - enum:
+              - ingenic,jz4775-intc
+              - ingenic,jz4770-intc
+          - const: ingenic,jz4760-intc
       - items:
-        - const: ingenic,x1000-intc
-        - const: ingenic,jz4780-intc
+          - const: ingenic,x1000-intc
+          - const: ingenic,jz4780-intc
       - items:
-        - const: ingenic,jz4725b-intc
-        - const: ingenic,jz4740-intc
+          - const: ingenic,jz4725b-intc
+          - const: ingenic,jz4740-intc
 
   "#interrupt-cells":
     const: 1

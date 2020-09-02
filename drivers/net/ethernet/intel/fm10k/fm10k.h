@@ -221,12 +221,6 @@ struct fm10k_iov_data {
 	struct fm10k_vf_info	vf_info[];
 };
 
-struct fm10k_udp_port {
-	struct list_head	list;
-	sa_family_t		sa_family;
-	__be16			port;
-};
-
 enum fm10k_macvlan_request_type {
 	FM10K_UC_MAC_REQUEST,
 	FM10K_MC_MAC_REQUEST,
@@ -370,8 +364,8 @@ struct fm10k_intfc {
 	u32 rssrk[FM10K_RSSRK_SIZE];
 
 	/* UDP encapsulation port tracking information */
-	struct list_head vxlan_port;
-	struct list_head geneve_port;
+	__be16 vxlan_port;
+	__be16 geneve_port;
 
 	/* MAC/VLAN update queue */
 	struct list_head macvlan_requests;
@@ -476,7 +470,6 @@ struct fm10k_cb {
 
 /* main */
 extern char fm10k_driver_name[];
-extern const char fm10k_driver_version[];
 int fm10k_init_queueing_scheme(struct fm10k_intfc *interface);
 void fm10k_clear_queueing_scheme(struct fm10k_intfc *interface);
 __be16 fm10k_tx_encap_offload(struct sk_buff *skb);

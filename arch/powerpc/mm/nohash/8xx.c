@@ -13,7 +13,6 @@
 #include <asm/fixmap.h>
 #include <asm/code-patching.h>
 #include <asm/inst.h>
-#include <asm/pgalloc.h>
 
 #include <mm/mmu_decl.h>
 

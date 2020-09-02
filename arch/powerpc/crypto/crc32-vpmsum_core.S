@@ -19,7 +19,7 @@
  * We then use fixed point Barrett reduction to compute a mod n over GF(2)
  * for n = CRC using POWER8 instructions. We use x = 32.
  *
- * http://en.wikipedia.org/wiki/Barrett_reduction
+ * https://en.wikipedia.org/wiki/Barrett_reduction
  *
  * Copyright (C) 2015 Anton Blanchard <anton@au.ibm.com>, IBM
 */

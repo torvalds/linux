@@ -656,7 +656,7 @@ static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
 
 /**
  * atc_tx_submit - set the prepared descriptor(s) to be executed by the engine
- * @desc: descriptor at the head of the transaction chain
+ * @tx: descriptor at the head of the transaction chain
  *
  * Queue chain if DMA engine is working already
  *
@@ -1196,7 +1196,7 @@ err:
 	return NULL;
 }
 
-/**
+/*
  * atc_dma_cyclic_check_values
  * Check for too big/unaligned periods and unaligned DMA buffer
  */
@@ -1217,7 +1217,7 @@ err_out:
 	return -EINVAL;
 }
 
-/**
+/*
  * atc_dma_cyclic_fill_desc - Fill one period descriptor
  */
 static int

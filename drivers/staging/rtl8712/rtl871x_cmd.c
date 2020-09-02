@@ -168,14 +168,9 @@ void r8712_free_cmd_obj(struct cmd_obj *pcmd)
 	kfree(pcmd);
 }
 
-/*
- *	r8712_sitesurvey_cmd(~)
- *		### NOTE:#### (!!!!)
- *		MUST TAKE CARE THAT BEFORE CALLING THIS FUNC,
- *		YOU SHOULD HAVE LOCKED pmlmepriv->lock
- */
 u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 			struct ndis_802_11_ssid *pssid)
+	__must_hold(&padapter->mlmepriv.lock)
 {
 	struct cmd_obj	*ph2c;
 	struct sitesurvey_parm	*psurveyPara;

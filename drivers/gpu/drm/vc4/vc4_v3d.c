@@ -308,7 +308,7 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 						    struct vc4_bo, unref_head);
 
 		list_del(&bo->unref_head);
-		drm_gem_object_put_unlocked(&bo->base.base);
+		drm_gem_object_put(&bo->base.base);
 	}
 
 	return ret;
@@ -344,7 +344,7 @@ static void bin_bo_release(struct kref *ref)
 	if (WARN_ON_ONCE(!vc4->bin_bo))
 		return;
 
-	drm_gem_object_put_unlocked(&vc4->bin_bo->base.base);
+	drm_gem_object_put(&vc4->bin_bo->base.base);
 	vc4->bin_bo = NULL;
 }
 

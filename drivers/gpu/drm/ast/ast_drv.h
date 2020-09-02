@@ -52,7 +52,6 @@
 
 #define PCI_CHIP_AST2000 0x2000
 #define PCI_CHIP_AST2100 0x2010
-#define PCI_CHIP_AST1180 0x1180
 
 
 enum ast_chip {
@@ -64,7 +63,6 @@ enum ast_chip {
 	AST2300,
 	AST2400,
 	AST2500,
-	AST1180,
 };
 
 enum ast_tx_chip {
@@ -112,12 +110,12 @@ struct ast_private {
 	uint32_t dram_bus_width;
 	uint32_t dram_type;
 	uint32_t mclk;
-	uint32_t vram_size;
 
 	int fb_mtrr;
 
 	struct {
 		struct drm_gem_vram_object *gbo[AST_DEFAULT_HWC_NUM];
+		void __iomem *vaddr[AST_DEFAULT_HWC_NUM];
 		unsigned int next_index;
 	} cursor;
 
@@ -137,6 +135,11 @@ struct ast_private {
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
 };
+
+static inline struct ast_private *to_ast_private(struct drm_device *dev)
+{
+	return dev->dev_private;
+}
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags);
 void ast_driver_unload(struct drm_device *dev);
@@ -234,12 +237,6 @@ struct ast_connector {
 	struct ast_i2c_chan *i2c;
 };
 
-struct ast_crtc {
-	struct drm_crtc base;
-	u8 offset_x, offset_y;
-};
-
-#define to_ast_crtc(x) container_of(x, struct ast_crtc, base)
 #define to_ast_connector(x) container_of(x, struct ast_connector, base)
 
 struct ast_vbios_stdtable {
@@ -288,14 +285,12 @@ struct ast_crtc_state {
 
 #define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
 
-extern int ast_mode_init(struct drm_device *dev);
-extern void ast_mode_fini(struct drm_device *dev);
+int ast_mode_config_init(struct ast_private *ast);
 
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
 
 int ast_mm_init(struct ast_private *ast);
-void ast_mm_fini(struct ast_private *ast);
 
 /* ast post */
 void ast_enable_vga(struct drm_device *dev);
@@ -311,4 +306,13 @@ bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
 void ast_release_firmware(struct drm_device *dev);
+
+/* ast_cursor.c */
+int ast_cursor_init(struct ast_private *ast);
+int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
+void ast_cursor_page_flip(struct ast_private *ast);
+void ast_cursor_show(struct ast_private *ast, int x, int y,
+		     unsigned int offset_x, unsigned int offset_y);
+void ast_cursor_hide(struct ast_private *ast);
+
 #endif

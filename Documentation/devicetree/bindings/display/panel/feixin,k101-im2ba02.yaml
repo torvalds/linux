@@ -19,11 +19,11 @@ properties:
   backlight: true
   reset-gpios: true
   avdd-supply:
-     description: regulator that supplies the AVDD voltage
+    description: regulator that supplies the AVDD voltage
   dvdd-supply:
-     description: regulator that supplies the DVDD voltage
+    description: regulator that supplies the DVDD voltage
   cvdd-supply:
-     description: regulator that supplies the CVDD voltage
+    description: regulator that supplies the CVDD voltage
 
 required:
   - compatible

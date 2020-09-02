@@ -207,7 +207,7 @@ static inline struct akcipher_request *akcipher_request_alloc(
  */
 static inline void akcipher_request_free(struct akcipher_request *req)
 {
-	kzfree(req);
+	kfree_sensitive(req);
 }
 
 /**

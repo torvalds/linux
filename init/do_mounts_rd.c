@@ -14,12 +14,12 @@
 
 #include <linux/decompress/generic.h>
 
-
-int __initdata rd_prompt = 1;/* 1 = prompt for RAM disk, 0 = don't prompt */
+static struct file *in_file, *out_file;
+static loff_t in_pos, out_pos;
 
 static int __init prompt_ramdisk(char *str)
 {
-	rd_prompt = simple_strtol(str,NULL,0) & 1;
+	pr_warn("ignoring the deprecated prompt_ramdisk= option\n");
 	return 1;
 }
 __setup("prompt_ramdisk=", prompt_ramdisk);
@@ -33,7 +33,7 @@ static int __init ramdisk_start_setup(char *str)
 }
 __setup("ramdisk_start=", ramdisk_start_setup);
 
-static int __init crd_load(int in_fd, int out_fd, decompress_fn deco);
+static int __init crd_load(decompress_fn deco);
 
 /*
  * This routine tries to find a RAM disk image to load, and returns the
@@ -55,7 +55,8 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco);
  *	lz4
  */
 static int __init
-identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
+identify_ramdisk_image(struct file *file, loff_t pos,
+		decompress_fn *decompressor)
 {
 	const int size = 512;
 	struct minix_super_block *minixsb;
@@ -66,6 +67,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	unsigned char *buf;
 	const char *compress_name;
 	unsigned long n;
+	int start_block = rd_image_start;
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
@@ -80,8 +82,8 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	/*
 	 * Read block 0 to test for compressed kernel
 	 */
-	ksys_lseek(fd, start_block * BLOCK_SIZE, 0);
-	ksys_read(fd, buf, size);
+	pos = start_block * BLOCK_SIZE;
+	kernel_read(file, buf, size, &pos);
 
 	*decompressor = decompress_method(buf, size, &compress_name);
 	if (compress_name) {
@@ -126,8 +128,8 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	/*
 	 * Read 512 bytes further to check if cramfs is padded
 	 */
-	ksys_lseek(fd, start_block * BLOCK_SIZE + 0x200, 0);
-	ksys_read(fd, buf, size);
+	pos = start_block * BLOCK_SIZE + 0x200;
+	kernel_read(file, buf, size, &pos);
 
 	if (cramfsb->magic == CRAMFS_MAGIC) {
 		printk(KERN_NOTICE
@@ -140,8 +142,8 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	/*
 	 * Read block 1 to test for minix and ext2 superblock
 	 */
-	ksys_lseek(fd, (start_block+1) * BLOCK_SIZE, 0);
-	ksys_read(fd, buf, size);
+	pos = (start_block + 1) * BLOCK_SIZE;
+	kernel_read(file, buf, size, &pos);
 
 	/* Try minix */
 	if (minixsb->s_magic == MINIX_SUPER_MAGIC ||
@@ -168,17 +170,24 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	       start_block);
 
 done:
-	ksys_lseek(fd, start_block * BLOCK_SIZE, 0);
 	kfree(buf);
 	return nblocks;
+}
+
+static unsigned long nr_blocks(struct file *file)
+{
+	struct inode *inode = file->f_mapping->host;
+
+	if (!S_ISBLK(inode->i_mode))
+		return 0;
+	return i_size_read(inode) >> 10;
 }
 
 int __init rd_load_image(char *from)
 {
 	int res = 0;
-	int in_fd, out_fd;
 	unsigned long rd_blocks, devblocks;
-	int nblocks, i, disk;
+	int nblocks, i;
 	char *buf = NULL;
 	unsigned short rotate = 0;
 	decompress_fn decompressor = NULL;
@@ -186,20 +195,21 @@ int __init rd_load_image(char *from)
 	char rotator[4] = { '|' , '/' , '-' , '\\' };
 #endif
 
-	out_fd = ksys_open("/dev/ram", O_RDWR, 0);
-	if (out_fd < 0)
+	out_file = filp_open("/dev/ram", O_RDWR, 0);
+	if (IS_ERR(out_file))
 		goto out;
 
-	in_fd = ksys_open(from, O_RDONLY, 0);
-	if (in_fd < 0)
+	in_file = filp_open(from, O_RDONLY, 0);
+	if (IS_ERR(in_file))
 		goto noclose_input;
 
-	nblocks = identify_ramdisk_image(in_fd, rd_image_start, &decompressor);
+	in_pos = rd_image_start * BLOCK_SIZE;
+	nblocks = identify_ramdisk_image(in_file, in_pos, &decompressor);
 	if (nblocks < 0)
 		goto done;
 
 	if (nblocks == 0) {
-		if (crd_load(in_fd, out_fd, decompressor) == 0)
+		if (crd_load(decompressor) == 0)
 			goto successful_load;
 		goto done;
 	}
@@ -208,11 +218,7 @@ int __init rd_load_image(char *from)
 	 * NOTE NOTE: nblocks is not actually blocks but
 	 * the number of kibibytes of data to load into a ramdisk.
 	 */
-	if (ksys_ioctl(out_fd, BLKGETSIZE, (unsigned long)&rd_blocks) < 0)
-		rd_blocks = 0;
-	else
-		rd_blocks >>= 1;
-
+	rd_blocks = nr_blocks(out_file);
 	if (nblocks > rd_blocks) {
 		printk("RAMDISK: image too big! (%dKiB/%ldKiB)\n",
 		       nblocks, rd_blocks);
@@ -222,13 +228,10 @@ int __init rd_load_image(char *from)
 	/*
 	 * OK, time to copy in the data
 	 */
-	if (ksys_ioctl(in_fd, BLKGETSIZE, (unsigned long)&devblocks) < 0)
-		devblocks = 0;
-	else
-		devblocks >>= 1;
-
 	if (strcmp(from, "/initrd.image") == 0)
 		devblocks = nblocks;
+	else
+		devblocks = nr_blocks(in_file);
 
 	if (devblocks == 0) {
 		printk(KERN_ERR "RAMDISK: could not determine device size\n");
@@ -243,24 +246,15 @@ int __init rd_load_image(char *from)
 
 	printk(KERN_NOTICE "RAMDISK: Loading %dKiB [%ld disk%s] into ram disk... ",
 		nblocks, ((nblocks-1)/devblocks)+1, nblocks>devblocks ? "s" : "");
-	for (i = 0, disk = 1; i < nblocks; i++) {
+	for (i = 0; i < nblocks; i++) {
 		if (i && (i % devblocks == 0)) {
-			pr_cont("done disk #%d.\n", disk++);
+			pr_cont("done disk #1.\n");
 			rotate = 0;
-			if (ksys_close(in_fd)) {
-				printk("Error closing the disk.\n");
-				goto noclose_input;
-			}
-			change_floppy("disk #%d", disk);
-			in_fd = ksys_open(from, O_RDONLY, 0);
-			if (in_fd < 0)  {
-				printk("Error opening disk.\n");
-				goto noclose_input;
-			}
-			printk("Loading disk #%d... ", disk);
+			fput(in_file);
+			break;
 		}
-		ksys_read(in_fd, buf, BLOCK_SIZE);
-		ksys_write(out_fd, buf, BLOCK_SIZE);
+		kernel_read(in_file, buf, BLOCK_SIZE, &in_pos);
+		kernel_write(out_file, buf, BLOCK_SIZE, &out_pos);
 #if !defined(CONFIG_S390)
 		if (!(i % 16)) {
 			pr_cont("%c\b", rotator[rotate & 0x3]);
@@ -273,19 +267,17 @@ int __init rd_load_image(char *from)
 successful_load:
 	res = 1;
 done:
-	ksys_close(in_fd);
+	fput(in_file);
 noclose_input:
-	ksys_close(out_fd);
+	fput(out_file);
 out:
 	kfree(buf);
-	ksys_unlink("/dev/ram");
+	init_unlink("/dev/ram");
 	return res;
 }
 
 int __init rd_load_disk(int n)
 {
-	if (rd_prompt)
-		change_floppy("root floppy disk to be loaded into RAM disk");
 	create_dev("/dev/root", ROOT_DEV);
 	create_dev("/dev/ram", MKDEV(RAMDISK_MAJOR, n));
 	return rd_load_image("/dev/root");
@@ -293,11 +285,10 @@ int __init rd_load_disk(int n)
 
 static int exit_code;
 static int decompress_error;
-static int crd_infd, crd_outfd;
 
 static long __init compr_fill(void *buf, unsigned long len)
 {
-	long r = ksys_read(crd_infd, buf, len);
+	long r = kernel_read(in_file, buf, len, &in_pos);
 	if (r < 0)
 		printk(KERN_ERR "RAMDISK: error while reading compressed data");
 	else if (r == 0)
@@ -307,7 +298,7 @@ static long __init compr_fill(void *buf, unsigned long len)
 
 static long __init compr_flush(void *window, unsigned long outcnt)
 {
-	long written = ksys_write(crd_outfd, window, outcnt);
+	long written = kernel_write(out_file, window, outcnt, &out_pos);
 	if (written != outcnt) {
 		if (decompress_error == 0)
 			printk(KERN_ERR
@@ -326,11 +317,9 @@ static void __init error(char *x)
 	decompress_error = 1;
 }
 
-static int __init crd_load(int in_fd, int out_fd, decompress_fn deco)
+static int __init crd_load(decompress_fn deco)
 {
 	int result;
-	crd_infd = in_fd;
-	crd_outfd = out_fd;
 
 	if (!deco) {
 		pr_emerg("Invalid ramdisk decompression routine.  "

@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
+#include <linux/blkdev.h>
 
 #include "efs.h"
 #include <linux/efs_vh.h>

@@ -25,7 +25,7 @@ struct nv_pmu_args {
 #define NV_PMU_UNIT_ACR                                                    0x0a
 
 struct nv_pmu_init_msg {
-	struct nv_falcon_msg hdr;
+	struct nvfw_falcon_msg hdr;
 #define NV_PMU_INIT_MSG_INIT                                               0x00
 	u8 msg_type;
 
@@ -44,7 +44,7 @@ struct nv_pmu_init_msg {
 };
 
 struct nv_pmu_acr_cmd {
-	struct nv_falcon_cmd hdr;
+	struct nvfw_falcon_cmd hdr;
 #define NV_PMU_ACR_CMD_INIT_WPR_REGION                                     0x00
 #define NV_PMU_ACR_CMD_BOOTSTRAP_FALCON                                    0x01
 #define NV_PMU_ACR_CMD_BOOTSTRAP_MULTIPLE_FALCONS                          0x03
@@ -52,7 +52,7 @@ struct nv_pmu_acr_cmd {
 };
 
 struct nv_pmu_acr_msg {
-	struct nv_falcon_cmd hdr;
+	struct nvfw_falcon_cmd hdr;
 	u8 msg_type;
 };
 

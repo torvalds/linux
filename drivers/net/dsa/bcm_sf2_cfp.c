@@ -128,12 +128,12 @@ static inline unsigned int bcm_sf2_get_num_udf_slices(const u8 *layout)
 	return count;
 }
 
-static inline u32 udf_upper_bits(unsigned int num_udf)
+static inline u32 udf_upper_bits(int num_udf)
 {
 	return GENMASK(num_udf - 1, 0) >> (UDFS_PER_SLICE - 1);
 }
 
-static inline u32 udf_lower_bits(unsigned int num_udf)
+static inline u32 udf_lower_bits(int num_udf)
 {
 	return (u8)GENMASK(num_udf - 1, 0);
 }
@@ -348,8 +348,8 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 				     unsigned int queue_num,
 				     struct ethtool_rx_flow_spec *fs)
 {
+	__be16 vlan_tci = 0, vlan_m_tci = htons(0xffff);
 	struct ethtool_rx_flow_spec_input input = {};
-	__be16 vlan_tci = 0 , vlan_m_tci = 0xffff;
 	const struct cfp_udf_layout *layout;
 	unsigned int slice_num, rule_index;
 	struct ethtool_rx_flow_rule *flow;
@@ -629,8 +629,8 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 				     unsigned int queue_num,
 				     struct ethtool_rx_flow_spec *fs)
 {
+	__be16 vlan_tci = 0, vlan_m_tci = htons(0xffff);
 	struct ethtool_rx_flow_spec_input input = {};
-	__be16 vlan_tci = 0, vlan_m_tci = 0xffff;
 	unsigned int slice_num, rule_index[2];
 	const struct cfp_udf_layout *layout;
 	struct ethtool_rx_flow_rule *flow;

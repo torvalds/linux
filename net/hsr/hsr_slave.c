@@ -3,6 +3,8 @@
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
+ *
+ * Frame handler other utility functions for HSR and PRP.
  */
 
 #include "hsr_slave.h"
@@ -14,11 +16,21 @@
 #include "hsr_forward.h"
 #include "hsr_framereg.h"
 
+bool hsr_invalid_dan_ingress_frame(__be16 protocol)
+{
+	return (protocol != htons(ETH_P_PRP) && protocol != htons(ETH_P_HSR));
+}
+
 static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct hsr_port *port;
+	struct hsr_priv *hsr;
 	__be16 protocol;
+
+	/* Packets from dev_loopback_xmit() do not have L2 header, bail out */
+	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
+		return RX_HANDLER_PASS;
 
 	if (!skb_mac_header_was_set(skb)) {
 		WARN_ONCE(1, "%s: skb invalid", __func__);
@@ -28,6 +40,7 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 	port = hsr_port_get_rcu(skb->dev);
 	if (!port)
 		goto finish_pass;
+	hsr = port->hsr;
 
 	if (hsr_addr_is_self(port->hsr, eth_hdr(skb)->h_source)) {
 		/* Directly kill frames sent by ourselves */
@@ -35,11 +48,22 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 		goto finish_consume;
 	}
 
+	/* For HSR, only tagged frames are expected, but for PRP
+	 * there could be non tagged frames as well from Single
+	 * attached nodes (SANs).
+	 */
 	protocol = eth_hdr(skb)->h_proto;
-	if (protocol != htons(ETH_P_PRP) && protocol != htons(ETH_P_HSR))
+	if (hsr->proto_ops->invalid_dan_ingress_frame &&
+	    hsr->proto_ops->invalid_dan_ingress_frame(protocol))
 		goto finish_pass;
 
 	skb_push(skb, ETH_HLEN);
+
+	if (skb_mac_header(skb) != skb->data) {
+		WARN_ONCE(1, "%s:%d: Malformed frame at source port %s)\n",
+			  __func__, __LINE__, port->dev->name);
+		goto finish_consume;
+	}
 
 	hsr_forward_skb(skb, port);
 

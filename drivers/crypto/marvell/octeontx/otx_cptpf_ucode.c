@@ -878,11 +878,11 @@ static int copy_ucode_to_dma_mem(struct device *dev,
 
 	/* Byte swap 64-bit */
 	for (i = 0; i < (ucode->size / 8); i++)
-		((u64 *)ucode->align_va)[i] =
+		((__be64 *)ucode->align_va)[i] =
 				cpu_to_be64(((u64 *)ucode->align_va)[i]);
 	/*  Ucode needs 16-bit swap */
 	for (i = 0; i < (ucode->size / 2); i++)
-		((u16 *)ucode->align_va)[i] =
+		((__be16 *)ucode->align_va)[i] =
 				cpu_to_be16(((u16 *)ucode->align_va)[i]);
 	return 0;
 }
@@ -1463,8 +1463,8 @@ int otx_cpt_try_create_default_eng_grps(struct pci_dev *pdev,
 					struct otx_cpt_eng_grps *eng_grps,
 					int pf_type)
 {
-	struct tar_ucode_info_t *tar_info[OTX_CPT_MAX_ETYPES_PER_GRP] = { 0 };
-	struct otx_cpt_engines engs[OTX_CPT_MAX_ETYPES_PER_GRP] = { {0} };
+	struct tar_ucode_info_t *tar_info[OTX_CPT_MAX_ETYPES_PER_GRP] = {};
+	struct otx_cpt_engines engs[OTX_CPT_MAX_ETYPES_PER_GRP] = {};
 	struct tar_arch_info_t *tar_arch = NULL;
 	char *tar_filename;
 	int i, ret = 0;

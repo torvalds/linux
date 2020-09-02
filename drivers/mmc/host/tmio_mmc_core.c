@@ -57,6 +57,12 @@ static inline void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 		host->dma_ops->start(host, data);
 }
 
+static inline void tmio_mmc_end_dma(struct tmio_mmc_host *host)
+{
+	if (host->dma_ops && host->dma_ops->end)
+		host->dma_ops->end(host);
+}
+
 static inline void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
 	if (host->dma_ops)
@@ -796,6 +802,8 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->lock, flags);
+
+	tmio_mmc_end_dma(host);
 
 	mrq = host->mrq;
 	if (IS_ERR_OR_NULL(mrq)) {

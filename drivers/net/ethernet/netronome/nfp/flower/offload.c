@@ -1491,7 +1491,7 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 		nfp_flower_update_merge_stats(app, nfp_flow);
 
 	flow_stats_update(&flow->stats, priv->stats[ctx_id].bytes,
-			  priv->stats[ctx_id].pkts, priv->stats[ctx_id].used,
+			  priv->stats[ctx_id].pkts, 0, priv->stats[ctx_id].used,
 			  FLOW_ACTION_HW_STATS_DELAYED);
 
 	priv->stats[ctx_id].pkts = 0;
@@ -1646,7 +1646,7 @@ void nfp_flower_setup_indr_tc_release(void *cb_priv)
 }
 
 static int
-nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
+nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct Qdisc *sch, struct nfp_app *app,
 			       struct flow_block_offload *f, void *data,
 			       void (*cleanup)(struct flow_block_cb *block_cb))
 {
@@ -1680,7 +1680,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		block_cb = flow_indr_block_cb_alloc(nfp_flower_setup_indr_block_cb,
 						    cb_priv, cb_priv,
 						    nfp_flower_setup_indr_tc_release,
-						    f, netdev, data, app, cleanup);
+						    f, netdev, sch, data, app, cleanup);
 		if (IS_ERR(block_cb)) {
 			list_del(&cb_priv->list);
 			kfree(cb_priv);
@@ -1711,7 +1711,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 }
 
 int
-nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
+nfp_flower_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch, void *cb_priv,
 			    enum tc_setup_type type, void *type_data,
 			    void *data,
 			    void (*cleanup)(struct flow_block_cb *block_cb))
@@ -1721,7 +1721,7 @@ nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return nfp_flower_setup_indr_tc_block(netdev, cb_priv,
+		return nfp_flower_setup_indr_tc_block(netdev, sch, cb_priv,
 						      type_data, data, cleanup);
 	default:
 		return -EOPNOTSUPP;

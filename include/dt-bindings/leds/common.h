@@ -30,7 +30,10 @@
 #define LED_COLOR_ID_VIOLET	5
 #define LED_COLOR_ID_YELLOW	6
 #define LED_COLOR_ID_IR		7
-#define LED_COLOR_ID_MAX	8
+#define LED_COLOR_ID_MULTI	8	/* For multicolor LEDs */
+#define LED_COLOR_ID_RGB	9	/* For multicolor LEDs that can do arbitrary color,
+					   so this would include RGBW and similar */
+#define LED_COLOR_ID_MAX	10
 
 /* Standard LED functions */
 /* Keyboard LEDs, usually it would be input4::capslock etc. */

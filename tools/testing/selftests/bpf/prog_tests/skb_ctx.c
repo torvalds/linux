@@ -11,6 +11,7 @@ void test_skb_ctx(void)
 		.cb[3] = 4,
 		.cb[4] = 5,
 		.priority = 6,
+		.ifindex = 1,
 		.tstamp = 7,
 		.wire_len = 100,
 		.gso_segs = 8,
@@ -80,7 +81,7 @@ void test_skb_ctx(void)
 
 	CHECK_ATTR(tattr.ctx_size_out != sizeof(skb),
 		   "ctx_size_out",
-		   "incorrect output size, want %lu have %u\n",
+		   "incorrect output size, want %zu have %u\n",
 		   sizeof(skb), tattr.ctx_size_out);
 
 	for (i = 0; i < 5; i++)
@@ -92,6 +93,10 @@ void test_skb_ctx(void)
 		   "ctx_out_priority",
 		   "skb->priority == %d, expected %d\n",
 		   skb.priority, 7);
+	CHECK_ATTR(skb.ifindex != 1,
+		   "ctx_out_ifindex",
+		   "skb->ifindex == %d, expected %d\n",
+		   skb.ifindex, 1);
 	CHECK_ATTR(skb.tstamp != 8,
 		   "ctx_out_tstamp",
 		   "skb->tstamp == %lld, expected %d\n",

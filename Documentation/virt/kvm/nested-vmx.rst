@@ -22,7 +22,7 @@ its implementation and its performance characteristics, in the OSDI 2010 paper
 "The Turtles Project: Design and Implementation of Nested Virtualization",
 available at:
 
-	http://www.usenix.org/events/osdi10/tech/full_papers/Ben-Yehuda.pdf
+	https://www.usenix.org/events/osdi10/tech/full_papers/Ben-Yehuda.pdf
 
 
 Terminology

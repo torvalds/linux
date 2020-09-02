@@ -312,7 +312,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 		/* Enable the PWM */
 		pwm_enable(par->pwm);
 
-		dev_dbg(&par->client->dev, "Using PWM%d with a %dns period.\n",
+		dev_dbg(&par->client->dev, "Using PWM%d with a %lluns period.\n",
 			par->pwm->pwm, pwm_get_period(par->pwm));
 	}
 

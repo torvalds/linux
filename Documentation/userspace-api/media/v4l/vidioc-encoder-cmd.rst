@@ -51,25 +51,26 @@ To send a command applications must initialize all fields of a struct
 ``VIDIOC_ENCODER_CMD`` or ``VIDIOC_TRY_ENCODER_CMD`` with a pointer to
 this structure.
 
-The ``cmd`` field must contain the command code. The ``flags`` field is
-currently only used by the STOP command and contains one bit: If the
-``V4L2_ENC_CMD_STOP_AT_GOP_END`` flag is set, encoding will continue
-until the end of the current *Group Of Pictures*, otherwise it will stop
-immediately.
+The ``cmd`` field must contain the command code. Some commands use the
+``flags`` field for additional information.
 
-A :ref:`read() <func-read>` or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
-call sends an implicit START command to the encoder if it has not been
-started yet. After a STOP command, :ref:`read() <func-read>` calls will read
+After a STOP command, :ref:`read() <func-read>` calls will read
 the remaining data buffered by the driver. When the buffer is empty,
 :ref:`read() <func-read>` will return zero and the next :ref:`read() <func-read>`
 call will restart the encoder.
 
+A :ref:`read() <func-read>` or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
+call sends an implicit START command to the encoder if it has not been
+started yet. Applies to both queues of mem2mem encoders.
+
 A :ref:`close() <func-close>` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP to
-the encoder, and all buffered data is discarded.
+the encoder, and all buffered data is discarded. Applies to both queues of
+mem2mem encoders.
 
 These ioctls are optional, not all drivers may support them. They were
-introduced in Linux 2.6.21.
+introduced in Linux 2.6.21. They are, however, mandatory for stateful mem2mem
+encoders (as further documented in :ref:`encoder`).
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -109,21 +110,24 @@ introduced in Linux 2.6.21.
       - 0
       - Start the encoder. When the encoder is already running or paused,
 	this command does nothing. No flags are defined for this command.
+
+	For a device implementing the :ref:`encoder`, once the drain sequence
+	is initiated with the ``V4L2_ENC_CMD_STOP`` command, it must be driven
+	to completion before this command can be invoked.  Any attempt to
+	invoke the command while the drain sequence is in progress will trigger
+	an ``EBUSY`` error code. See :ref:`encoder` for more details.
     * - ``V4L2_ENC_CMD_STOP``
       - 1
       - Stop the encoder. When the ``V4L2_ENC_CMD_STOP_AT_GOP_END`` flag
 	is set, encoding will continue until the end of the current *Group
 	Of Pictures*, otherwise encoding will stop immediately. When the
-	encoder is already stopped, this command does nothing. mem2mem
-	encoders will send a ``V4L2_EVENT_EOS`` event when the last frame
-	has been encoded and all frames are ready to be dequeued and will
-	set the ``V4L2_BUF_FLAG_LAST`` buffer flag on the last buffer of
-	the capture queue to indicate there will be no new buffers
-	produced to dequeue. This buffer may be empty, indicated by the
-	driver setting the ``bytesused`` field to 0. Once the
-	``V4L2_BUF_FLAG_LAST`` flag was set, the
-	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
-	but return an ``EPIPE`` error code.
+	encoder is already stopped, this command does nothing.
+
+	For a device implementing the :ref:`encoder`, the command will initiate
+	the drain sequence as documented in :ref:`encoder`. No flags or other
+	arguments are accepted in this case. Any attempt to invoke the command
+	again before the sequence completes will trigger an ``EBUSY`` error
+	code.
     * - ``V4L2_ENC_CMD_PAUSE``
       - 2
       - Pause the encoder. When the encoder has not been started yet, the
@@ -152,6 +156,8 @@ introduced in Linux 2.6.21.
       - Stop encoding at the end of the current *Group Of Pictures*,
 	rather than immediately.
 
+        Does not apply to :ref:`encoder`.
+
 
 Return Value
 ============
@@ -159,6 +165,11 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
+
+EBUSY
+    A drain sequence of a device implementing the :ref:`encoder` is still in
+    progress. It is not allowed to issue another encoder command until it
+    completes.
 
 EINVAL
     The ``cmd`` field is invalid.

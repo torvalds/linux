@@ -17,7 +17,7 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0 : 1)) << 2)
+#define RND4(x)	(((x >> 2) + ((x & 3) != 0)) << 2)
 
 struct intf_priv {
 	u8 *intf_dev;

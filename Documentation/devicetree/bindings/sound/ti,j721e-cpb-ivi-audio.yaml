@@ -50,28 +50,23 @@ properties:
 
   ti,cpb-mcasp:
     description: phandle to McASP used on CPB
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,cpb-codec:
     description: phandle to the pcm3168a codec used on the CPB
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,ivi-mcasp:
     description: phandle to McASP used on IVI
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,ivi-codec-a:
     description: phandle to the pcm3168a-A codec on the expansion board
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,ivi-codec-b:
     description: phandle to the pcm3168a-B codec on the expansion board
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   clocks:
     items:

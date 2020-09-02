@@ -20,8 +20,8 @@ properties:
     oneOf:
       - const: allwinner,sun8i-h3-deinterlace
       - items:
-        - const: allwinner,sun50i-a64-deinterlace
-        - const: allwinner,sun8i-h3-deinterlace
+          - const: allwinner,sun50i-a64-deinterlace
+          - const: allwinner,sun8i-h3-deinterlace
 
   reg:
     maxItems: 1

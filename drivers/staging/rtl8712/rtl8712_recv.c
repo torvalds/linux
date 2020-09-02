@@ -18,6 +18,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/ip.h>
+#include <net/cfg80211.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
@@ -26,12 +27,6 @@
 #include "ethernet.h"
 #include "usb_ops.h"
 #include "wifi.h"
-
-/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-static u8 bridge_tunnel_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
-
-/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
-static u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
 static void recv_tasklet(unsigned long priv);
 
@@ -148,9 +143,8 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 	/*TODO:
 	 * Offset 0
 	 */
-	pattrib->bdecrypted = ((le32_to_cpu(prxstat->rxdw0) & BIT(27)) >> 27)
-				 ? 0 : 1;
-	pattrib->crc_err = (le32_to_cpu(prxstat->rxdw0) & BIT(14)) >> 14;
+	pattrib->bdecrypted = (le32_to_cpu(prxstat->rxdw0) & BIT(27)) == 0;
+	pattrib->crc_err = (le32_to_cpu(prxstat->rxdw0) & BIT(14)) != 0;
 	/*Offset 4*/
 	/*Offset 8*/
 	/*Offset 12*/
@@ -487,8 +481,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 			plist = plist->next;
 		else if (SN_EQUAL(pnextattrib->seq_num, pattrib->seq_num))
 			return false;
-		else
-			break;
+		break;
 	}
 	list_del_init(&(prframe->u.hdr.list));
 	list_add_tail(&(prframe->u.hdr.list), plist);
@@ -1037,24 +1030,17 @@ static void recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		 */
 		alloc_sz += 6;
 		pkt_copy = netdev_alloc_skb(padapter->pnetdev, alloc_sz);
-		if (pkt_copy) {
-			precvframe->u.hdr.pkt = pkt_copy;
-			skb_reserve(pkt_copy, 4 - ((addr_t)(pkt_copy->data)
-				    % 4));
-			skb_reserve(pkt_copy, shift_sz);
-			memcpy(pkt_copy->data, pbuf, tmp_len);
-			precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data =
-				 precvframe->u.hdr.rx_tail = pkt_copy->data;
-			precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
-		} else {
-			precvframe->u.hdr.pkt = skb_clone(pskb, GFP_ATOMIC);
-			if (!precvframe->u.hdr.pkt)
-				return;
-			precvframe->u.hdr.rx_head = pbuf;
-			precvframe->u.hdr.rx_data = pbuf;
-			precvframe->u.hdr.rx_tail = pbuf;
-			precvframe->u.hdr.rx_end = pbuf + alloc_sz;
-		}
+		if (!pkt_copy)
+			return;
+
+		precvframe->u.hdr.pkt = pkt_copy;
+		skb_reserve(pkt_copy, 4 - ((addr_t)(pkt_copy->data) % 4));
+		skb_reserve(pkt_copy, shift_sz);
+		memcpy(pkt_copy->data, pbuf, tmp_len);
+		precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data =
+			precvframe->u.hdr.rx_tail = pkt_copy->data;
+		precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
+
 		recvframe_put(precvframe, tmp_len);
 		recvframe_pull(precvframe, drvinfo_sz + RXDESC_SIZE);
 		/* because the endian issue, driver avoid reference to the

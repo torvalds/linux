@@ -74,13 +74,6 @@ static inline void nvt_set_reg_bit(struct nvt_dev *nvt, u8 val, u8 reg)
 	nvt_cr_write(nvt, tmp, reg);
 }
 
-/* clear config register bit without changing other bits */
-static inline void nvt_clear_reg_bit(struct nvt_dev *nvt, u8 val, u8 reg)
-{
-	u8 tmp = nvt_cr_read(nvt, reg) & ~val;
-	nvt_cr_write(nvt, tmp, reg);
-}
-
 /* enter extended function mode */
 static inline int nvt_efm_enable(struct nvt_dev *nvt)
 {
@@ -631,30 +624,6 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 	return carrier;
 }
 #endif
-/*
- * set carrier frequency
- *
- * set carrier on 2 registers: CP & CC
- * always set CP as 0x81
- * set CC by SPEC, CC = 3MHz/carrier - 1
- */
-static int nvt_set_tx_carrier(struct rc_dev *dev, u32 carrier)
-{
-	struct nvt_dev *nvt = dev->priv;
-	u16 val;
-
-	if (carrier == 0)
-		return -EINVAL;
-
-	nvt_cir_reg_write(nvt, 1, CIR_CP);
-	val = 3000000 / (carrier) - 1;
-	nvt_cir_reg_write(nvt, val & 0xff, CIR_CC);
-
-	nvt_dbg("cp: 0x%x cc: 0x%x\n",
-		nvt_cir_reg_read(nvt, CIR_CP), nvt_cir_reg_read(nvt, CIR_CC));
-
-	return 0;
-}
 
 static int nvt_ir_raw_set_wakeup_filter(struct rc_dev *dev,
 					struct rc_scancode_filter *sc_filter)
@@ -1022,7 +991,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->encode_wakeup = true;
 	rdev->open = nvt_open;
 	rdev->close = nvt_close;
-	rdev->s_tx_carrier = nvt_set_tx_carrier;
 	rdev->s_wakeup_filter = nvt_ir_raw_set_wakeup_filter;
 	rdev->device_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
 	rdev->input_phys = "nuvoton/cir0";

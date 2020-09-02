@@ -144,11 +144,6 @@ static const struct amdgpu_pcs_ras_field wafl_pcs_ras_fields[] = {
 	 SOC15_REG_FIELD(PCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS, RecoveryRelockAttemptErr)},
 };
 
-void *amdgpu_xgmi_hive_try_lock(struct amdgpu_hive_info *hive)
-{
-	return &hive->device_list;
-}
-
 /**
  * DOC: AMDGPU XGMI Support
  *

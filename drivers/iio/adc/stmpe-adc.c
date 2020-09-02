@@ -297,7 +297,6 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	indio_dev->name		= dev_name(&pdev->dev);
-	indio_dev->dev.parent	= &pdev->dev;
 	indio_dev->info		= &stmpe_adc_iio_info;
 	indio_dev->modes	= INDIO_DIRECT_MODE;
 

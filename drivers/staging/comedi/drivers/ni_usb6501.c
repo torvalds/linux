@@ -79,7 +79,7 @@
  *	RES: 00 01 00 0C 00 08 01 00 00 00 00 02
  *
  *
- *	Please  visit http://www.brickedbrain.com if you need
+ *	Please  visit https://www.brickedbrain.com if you need
  *	additional information or have any questions.
  *
  */

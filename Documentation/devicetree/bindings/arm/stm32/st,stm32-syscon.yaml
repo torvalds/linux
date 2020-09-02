@@ -16,6 +16,9 @@ properties:
       - items:
           - enum:
               - st,stm32mp157-syscfg
+              - st,stm32mp151-pwr-mcu
+              - st,stm32-syscfg
+              - st,stm32-power-config
           - const: syscon
 
   reg:
@@ -27,7 +30,16 @@ properties:
 required:
   - compatible
   - reg
-  - clocks
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - st,stm32mp157-syscfg
+then:
+  required:
+    - clocks
 
 additionalProperties: false
 

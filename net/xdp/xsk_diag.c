@@ -76,6 +76,19 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 	return err;
 }
 
+static int xsk_diag_put_stats(const struct xdp_sock *xs, struct sk_buff *nlskb)
+{
+	struct xdp_diag_stats du = {};
+
+	du.n_rx_dropped = xs->rx_dropped;
+	du.n_rx_invalid = xskq_nb_invalid_descs(xs->rx);
+	du.n_rx_full = xs->rx_queue_full;
+	du.n_fill_ring_empty = xs->umem ? xskq_nb_queue_empty_descs(xs->umem->fq) : 0;
+	du.n_tx_invalid = xskq_nb_invalid_descs(xs->tx);
+	du.n_tx_ring_empty = xskq_nb_queue_empty_descs(xs->tx);
+	return nla_put(nlskb, XDP_DIAG_STATS, sizeof(du), &du);
+}
+
 static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 			 struct xdp_diag_req *req,
 			 struct user_namespace *user_ns,
@@ -116,6 +129,10 @@ static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 
 	if ((req->xdiag_show & XDP_SHOW_MEMINFO) &&
 	    sock_diag_put_meminfo(sk, nlskb, XDP_DIAG_MEMINFO))
+		goto out_nlmsg_trim;
+
+	if ((req->xdiag_show & XDP_SHOW_STATS) &&
+	    xsk_diag_put_stats(xs, nlskb))
 		goto out_nlmsg_trim;
 
 	mutex_unlock(&xs->mutex);

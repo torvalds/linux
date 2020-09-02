@@ -311,6 +311,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				min = pvr & 0xFF;
 				break;
 			case 0x004e: /* POWER9 bits 12-15 give chip type */
+			case 0x0080: /* POWER10 bit 12 gives SMT8/4 */
 				maj = (pvr >> 8) & 0x0F;
 				min = pvr & 0xFF;
 				break;
@@ -927,6 +928,9 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Reserve large chunks of memory for use by CMA for KVM. */
 	kvm_cma_reserve();
+
+	/*  Reserve large chunks of memory for us by CMA for hugetlb */
+	gigantic_hugetlb_cma_reserve();
 
 	klp_init_thread_info(&init_task);
 

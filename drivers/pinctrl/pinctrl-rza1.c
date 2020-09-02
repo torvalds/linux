@@ -75,7 +75,7 @@
  * RZ/A1 pinmux flags
  */
 
-/**
+/*
  * rza1_bidir_pin - describe a single pin that needs bidir flag applied.
  */
 struct rza1_bidir_pin {
@@ -83,7 +83,7 @@ struct rza1_bidir_pin {
 	u8 func: 4;
 };
 
-/**
+/*
  * rza1_bidir_entry - describe a list of pins that needs bidir flag applied.
  *		      Each struct rza1_bidir_entry describes a port.
  */
@@ -92,7 +92,7 @@ struct rza1_bidir_entry {
 	const struct rza1_bidir_pin *pins;
 };
 
-/**
+/*
  * rza1_swio_pin - describe a single pin that needs swio flag applied.
  */
 struct rza1_swio_pin {
@@ -102,7 +102,7 @@ struct rza1_swio_pin {
 	u16 input: 1;
 };
 
-/**
+/*
  * rza1_swio_entry - describe a list of pins that needs swio flag applied
  */
 struct rza1_swio_entry {
@@ -110,7 +110,7 @@ struct rza1_swio_entry {
 	const struct rza1_swio_pin *pins;
 };
 
-/**
+/*
  * rza1_pinmux_conf - group together bidir and swio pinmux flag tables
  */
 struct rza1_pinmux_conf {
@@ -431,7 +431,7 @@ static const struct rza1_pinmux_conf rza1l_pmx_conf = {
  * RZ/A1 types
  */
 /**
- * rza1_mux_conf - describes a pin multiplexing operation
+ * struct rza1_mux_conf - describes a pin multiplexing operation
  *
  * @id: the pin identifier from 0 to RZA1_NPINS
  * @port: the port where pin sits on
@@ -450,7 +450,7 @@ struct rza1_mux_conf {
 };
 
 /**
- * rza1_port - describes a pin port
+ * struct rza1_port - describes a pin port
  *
  * This is mostly useful to lock register writes per-bank and not globally.
  *
@@ -467,12 +467,12 @@ struct rza1_port {
 };
 
 /**
- * rza1_pinctrl - RZ pincontroller device
+ * struct rza1_pinctrl - RZ pincontroller device
  *
  * @dev: parent device structure
  * @mutex: protect [pinctrl|pinmux]_generic functions
  * @base: logical address base
- * @nports: number of pin controller ports
+ * @nport: number of pin controller ports
  * @ports: pin controller banks
  * @pins: pin array for pinctrl core
  * @desc: pincontroller desc for pinctrl core
@@ -536,7 +536,7 @@ static inline int rza1_pinmux_get_swio(unsigned int port,
 	return -ENOENT;
 }
 
-/**
+/*
  * rza1_pinmux_get_flags() - return pinmux flags associated to a pin
  */
 static unsigned int rza1_pinmux_get_flags(unsigned int port, unsigned int pin,
@@ -566,7 +566,7 @@ static unsigned int rza1_pinmux_get_flags(unsigned int port, unsigned int pin,
  * RZ/A1 SoC operations
  */
 
-/**
+/*
  * rza1_set_bit() - un-locked set/clear a single bit in pin configuration
  *		    registers
  */
@@ -664,7 +664,7 @@ static inline int rza1_pin_get(struct rza1_port *port, unsigned int pin)
 /**
  * rza1_pin_mux_single() - configure pin multiplexing on a single pin
  *
- * @pinctrl: RZ/A1 pin controller device
+ * @rza1_pctl: RZ/A1 pin controller device
  * @mux_conf: pin multiplexing descriptor
  */
 static int rza1_pin_mux_single(struct rza1_pinctrl *rza1_pctl,

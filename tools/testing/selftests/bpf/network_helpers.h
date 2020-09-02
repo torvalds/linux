@@ -33,10 +33,11 @@ struct ipv6_packet {
 } __packed;
 extern struct ipv6_packet pkt_v6;
 
-int start_server(int family, int type);
-int start_server_with_port(int family, int type, __u16 port);
-int connect_to_fd(int family, int type, int server_fd);
-int connect_fd_to_fd(int client_fd, int server_fd);
-int connect_wait(int client_fd);
+int start_server(int family, int type, const char *addr, __u16 port,
+		 int timeout_ms);
+int connect_to_fd(int server_fd, int timeout_ms);
+int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms);
+int make_sockaddr(int family, const char *addr_str, __u16 port,
+		  struct sockaddr_storage *addr, socklen_t *len);
 
 #endif

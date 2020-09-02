@@ -353,7 +353,7 @@ static struct instruction *find_last_insn(struct objtool_file *file,
 static int add_dead_ends(struct objtool_file *file)
 {
 	struct section *sec;
-	struct rela *rela;
+	struct reloc *reloc;
 	struct instruction *insn;
 
 	/*
@@ -371,24 +371,24 @@ static int add_dead_ends(struct objtool_file *file)
 	if (!sec)
 		goto reachable;
 
-	list_for_each_entry(rela, &sec->rela_list, list) {
-		if (rela->sym->type != STT_SECTION) {
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", sec->name);
 			return -1;
 		}
-		insn = find_insn(file, rela->sym->sec, rela->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (insn)
 			insn = list_prev_entry(insn, list);
-		else if (rela->addend == rela->sym->sec->len) {
-			insn = find_last_insn(file, rela->sym->sec);
+		else if (reloc->addend == reloc->sym->sec->len) {
+			insn = find_last_insn(file, reloc->sym->sec);
 			if (!insn) {
 				WARN("can't find unreachable insn at %s+0x%x",
-				     rela->sym->sec->name, rela->addend);
+				     reloc->sym->sec->name, reloc->addend);
 				return -1;
 			}
 		} else {
 			WARN("can't find unreachable insn at %s+0x%x",
-			     rela->sym->sec->name, rela->addend);
+			     reloc->sym->sec->name, reloc->addend);
 			return -1;
 		}
 
@@ -406,24 +406,24 @@ reachable:
 	if (!sec)
 		return 0;
 
-	list_for_each_entry(rela, &sec->rela_list, list) {
-		if (rela->sym->type != STT_SECTION) {
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", sec->name);
 			return -1;
 		}
-		insn = find_insn(file, rela->sym->sec, rela->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (insn)
 			insn = list_prev_entry(insn, list);
-		else if (rela->addend == rela->sym->sec->len) {
-			insn = find_last_insn(file, rela->sym->sec);
+		else if (reloc->addend == reloc->sym->sec->len) {
+			insn = find_last_insn(file, reloc->sym->sec);
 			if (!insn) {
 				WARN("can't find reachable insn at %s+0x%x",
-				     rela->sym->sec->name, rela->addend);
+				     reloc->sym->sec->name, reloc->addend);
 				return -1;
 			}
 		} else {
 			WARN("can't find reachable insn at %s+0x%x",
-			     rela->sym->sec->name, rela->addend);
+			     reloc->sym->sec->name, reloc->addend);
 			return -1;
 		}
 
@@ -441,26 +441,26 @@ static void add_ignores(struct objtool_file *file)
 	struct instruction *insn;
 	struct section *sec;
 	struct symbol *func;
-	struct rela *rela;
+	struct reloc *reloc;
 
 	sec = find_section_by_name(file->elf, ".rela.discard.func_stack_frame_non_standard");
 	if (!sec)
 		return;
 
-	list_for_each_entry(rela, &sec->rela_list, list) {
-		switch (rela->sym->type) {
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		switch (reloc->sym->type) {
 		case STT_FUNC:
-			func = rela->sym;
+			func = reloc->sym;
 			break;
 
 		case STT_SECTION:
-			func = find_func_by_offset(rela->sym->sec, rela->addend);
+			func = find_func_by_offset(reloc->sym->sec, reloc->addend);
 			if (!func)
 				continue;
 			break;
 
 		default:
-			WARN("unexpected relocation symbol type in %s: %d", sec->name, rela->sym->type);
+			WARN("unexpected relocation symbol type in %s: %d", sec->name, reloc->sym->type);
 			continue;
 		}
 
@@ -580,20 +580,20 @@ static void add_uaccess_safe(struct objtool_file *file)
 static int add_ignore_alternatives(struct objtool_file *file)
 {
 	struct section *sec;
-	struct rela *rela;
+	struct reloc *reloc;
 	struct instruction *insn;
 
 	sec = find_section_by_name(file->elf, ".rela.discard.ignore_alts");
 	if (!sec)
 		return 0;
 
-	list_for_each_entry(rela, &sec->rela_list, list) {
-		if (rela->sym->type != STT_SECTION) {
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", sec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, rela->sym->sec, rela->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (!insn) {
 			WARN("bad .discard.ignore_alts entry");
 			return -1;
@@ -611,7 +611,7 @@ static int add_ignore_alternatives(struct objtool_file *file)
 static int add_jump_destinations(struct objtool_file *file)
 {
 	struct instruction *insn;
-	struct rela *rela;
+	struct reloc *reloc;
 	struct section *dest_sec;
 	unsigned long dest_off;
 
@@ -622,19 +622,19 @@ static int add_jump_destinations(struct objtool_file *file)
 		if (insn->ignore || insn->offset == FAKE_JUMP_OFFSET)
 			continue;
 
-		rela = find_rela_by_dest_range(file->elf, insn->sec,
+		reloc = find_reloc_by_dest_range(file->elf, insn->sec,
 					       insn->offset, insn->len);
-		if (!rela) {
+		if (!reloc) {
 			dest_sec = insn->sec;
 			dest_off = arch_jump_destination(insn);
-		} else if (rela->sym->type == STT_SECTION) {
-			dest_sec = rela->sym->sec;
-			dest_off = arch_dest_rela_offset(rela->addend);
-		} else if (rela->sym->sec->idx) {
-			dest_sec = rela->sym->sec;
-			dest_off = rela->sym->sym.st_value +
-				   arch_dest_rela_offset(rela->addend);
-		} else if (strstr(rela->sym->name, "_indirect_thunk_")) {
+		} else if (reloc->sym->type == STT_SECTION) {
+			dest_sec = reloc->sym->sec;
+			dest_off = arch_dest_reloc_offset(reloc->addend);
+		} else if (reloc->sym->sec->idx) {
+			dest_sec = reloc->sym->sec;
+			dest_off = reloc->sym->sym.st_value +
+				   arch_dest_reloc_offset(reloc->addend);
+		} else if (strstr(reloc->sym->name, "_indirect_thunk_")) {
 			/*
 			 * Retpoline jumps are really dynamic jumps in
 			 * disguise, so convert them accordingly.
@@ -648,7 +648,7 @@ static int add_jump_destinations(struct objtool_file *file)
 			continue;
 		} else {
 			/* external sibling call */
-			insn->call_dest = rela->sym;
+			insn->call_dest = reloc->sym;
 			continue;
 		}
 
@@ -724,15 +724,15 @@ static int add_call_destinations(struct objtool_file *file)
 {
 	struct instruction *insn;
 	unsigned long dest_off;
-	struct rela *rela;
+	struct reloc *reloc;
 
 	for_each_insn(file, insn) {
 		if (insn->type != INSN_CALL)
 			continue;
 
-		rela = find_rela_by_dest_range(file->elf, insn->sec,
+		reloc = find_reloc_by_dest_range(file->elf, insn->sec,
 					       insn->offset, insn->len);
-		if (!rela) {
+		if (!reloc) {
 			dest_off = arch_jump_destination(insn);
 			insn->call_dest = find_func_by_offset(insn->sec, dest_off);
 			if (!insn->call_dest)
@@ -752,19 +752,19 @@ static int add_call_destinations(struct objtool_file *file)
 				return -1;
 			}
 
-		} else if (rela->sym->type == STT_SECTION) {
-			dest_off = arch_dest_rela_offset(rela->addend);
-			insn->call_dest = find_func_by_offset(rela->sym->sec,
+		} else if (reloc->sym->type == STT_SECTION) {
+			dest_off = arch_dest_reloc_offset(reloc->addend);
+			insn->call_dest = find_func_by_offset(reloc->sym->sec,
 							      dest_off);
 			if (!insn->call_dest) {
 				WARN_FUNC("can't find call dest symbol at %s+0x%lx",
 					  insn->sec, insn->offset,
-					  rela->sym->sec->name,
+					  reloc->sym->sec->name,
 					  dest_off);
 				return -1;
 			}
 		} else
-			insn->call_dest = rela->sym;
+			insn->call_dest = reloc->sym;
 
 		/*
 		 * Many compilers cannot disable KCOV with a function attribute
@@ -773,9 +773,9 @@ static int add_call_destinations(struct objtool_file *file)
 		 */
 		if (insn->sec->noinstr &&
 		    !strncmp(insn->call_dest->name, "__sanitizer_cov_", 16)) {
-			if (rela) {
-				rela->type = R_NONE;
-				elf_write_rela(file->elf, rela);
+			if (reloc) {
+				reloc->type = R_NONE;
+				elf_write_reloc(file->elf, reloc);
 			}
 
 			elf_write_insn(file->elf, insn->sec,
@@ -890,7 +890,7 @@ static int handle_group_alt(struct objtool_file *file,
 		 */
 		if ((insn->offset != special_alt->new_off ||
 		    (insn->type != INSN_CALL && !is_static_jump(insn))) &&
-		    find_rela_by_dest_range(file->elf, insn->sec, insn->offset, insn->len)) {
+		    find_reloc_by_dest_range(file->elf, insn->sec, insn->offset, insn->len)) {
 
 			WARN_FUNC("unsupported relocation in alternatives section",
 				  insn->sec, insn->offset);
@@ -1036,34 +1036,34 @@ out:
 }
 
 static int add_jump_table(struct objtool_file *file, struct instruction *insn,
-			    struct rela *table)
+			    struct reloc *table)
 {
-	struct rela *rela = table;
+	struct reloc *reloc = table;
 	struct instruction *dest_insn;
 	struct alternative *alt;
 	struct symbol *pfunc = insn->func->pfunc;
 	unsigned int prev_offset = 0;
 
 	/*
-	 * Each @rela is a switch table relocation which points to the target
+	 * Each @reloc is a switch table relocation which points to the target
 	 * instruction.
 	 */
-	list_for_each_entry_from(rela, &table->sec->rela_list, list) {
+	list_for_each_entry_from(reloc, &table->sec->reloc_list, list) {
 
 		/* Check for the end of the table: */
-		if (rela != table && rela->jump_table_start)
+		if (reloc != table && reloc->jump_table_start)
 			break;
 
 		/* Make sure the table entries are consecutive: */
-		if (prev_offset && rela->offset != prev_offset + 8)
+		if (prev_offset && reloc->offset != prev_offset + 8)
 			break;
 
 		/* Detect function pointers from contiguous objects: */
-		if (rela->sym->sec == pfunc->sec &&
-		    rela->addend == pfunc->offset)
+		if (reloc->sym->sec == pfunc->sec &&
+		    reloc->addend == pfunc->offset)
 			break;
 
-		dest_insn = find_insn(file, rela->sym->sec, rela->addend);
+		dest_insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (!dest_insn)
 			break;
 
@@ -1079,7 +1079,7 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 
 		alt->insn = dest_insn;
 		list_add_tail(&alt->list, &insn->alts);
-		prev_offset = rela->offset;
+		prev_offset = reloc->offset;
 	}
 
 	if (!prev_offset) {
@@ -1134,11 +1134,11 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
  *
  *    NOTE: RETPOLINE made it harder still to decode dynamic jumps.
  */
-static struct rela *find_jump_table(struct objtool_file *file,
+static struct reloc *find_jump_table(struct objtool_file *file,
 				      struct symbol *func,
 				      struct instruction *insn)
 {
-	struct rela *text_rela, *table_rela;
+	struct reloc *text_reloc, *table_reloc;
 	struct instruction *dest_insn, *orig_insn = insn;
 	struct section *table_sec;
 	unsigned long table_offset;
@@ -1163,16 +1163,16 @@ static struct rela *find_jump_table(struct objtool_file *file,
 		    break;
 
 		/* look for a relocation which references .rodata */
-		text_rela = find_rela_by_dest_range(file->elf, insn->sec,
+		text_reloc = find_reloc_by_dest_range(file->elf, insn->sec,
 						    insn->offset, insn->len);
-		if (!text_rela || text_rela->sym->type != STT_SECTION ||
-		    !text_rela->sym->sec->rodata)
+		if (!text_reloc || text_reloc->sym->type != STT_SECTION ||
+		    !text_reloc->sym->sec->rodata)
 			continue;
 
-		table_offset = text_rela->addend;
-		table_sec = text_rela->sym->sec;
+		table_offset = text_reloc->addend;
+		table_sec = text_reloc->sym->sec;
 
-		if (text_rela->type == R_X86_64_PC32)
+		if (text_reloc->type == R_X86_64_PC32)
 			table_offset += 4;
 
 		/*
@@ -1189,14 +1189,14 @@ static struct rela *find_jump_table(struct objtool_file *file,
 			continue;
 
 		/*
-		 * Each table entry has a rela associated with it.  The rela
+		 * Each table entry has a reloc associated with it.  The reloc
 		 * should reference text in the same function as the original
 		 * instruction.
 		 */
-		table_rela = find_rela_by_dest(file->elf, table_sec, table_offset);
-		if (!table_rela)
+		table_reloc = find_reloc_by_dest(file->elf, table_sec, table_offset);
+		if (!table_reloc)
 			continue;
-		dest_insn = find_insn(file, table_rela->sym->sec, table_rela->addend);
+		dest_insn = find_insn(file, table_reloc->sym->sec, table_reloc->addend);
 		if (!dest_insn || !dest_insn->func || dest_insn->func->pfunc != func)
 			continue;
 
@@ -1205,10 +1205,10 @@ static struct rela *find_jump_table(struct objtool_file *file,
 		 * indicates a rare GCC quirk/bug which can leave dead code
 		 * behind.
 		 */
-		if (text_rela->type == R_X86_64_PC32)
+		if (text_reloc->type == R_X86_64_PC32)
 			file->ignore_unreachables = true;
 
-		return table_rela;
+		return table_reloc;
 	}
 
 	return NULL;
@@ -1222,7 +1222,7 @@ static void mark_func_jump_tables(struct objtool_file *file,
 				    struct symbol *func)
 {
 	struct instruction *insn, *last = NULL;
-	struct rela *rela;
+	struct reloc *reloc;
 
 	func_for_each_insn(file, func, insn) {
 		if (!last)
@@ -1245,10 +1245,10 @@ static void mark_func_jump_tables(struct objtool_file *file,
 		if (insn->type != INSN_JUMP_DYNAMIC)
 			continue;
 
-		rela = find_jump_table(file, func, insn);
-		if (rela) {
-			rela->jump_table_start = true;
-			insn->jump_table = rela;
+		reloc = find_jump_table(file, func, insn);
+		if (reloc) {
+			reloc->jump_table_start = true;
+			insn->jump_table = reloc;
 		}
 	}
 }
@@ -1302,8 +1302,8 @@ static int add_jump_table_alts(struct objtool_file *file)
 
 static int read_unwind_hints(struct objtool_file *file)
 {
-	struct section *sec, *relasec;
-	struct rela *rela;
+	struct section *sec, *relocsec;
+	struct reloc *reloc;
 	struct unwind_hint *hint;
 	struct instruction *insn;
 	struct cfi_reg *cfa;
@@ -1313,8 +1313,8 @@ static int read_unwind_hints(struct objtool_file *file)
 	if (!sec)
 		return 0;
 
-	relasec = sec->rela;
-	if (!relasec) {
+	relocsec = sec->reloc;
+	if (!relocsec) {
 		WARN("missing .rela.discard.unwind_hints section");
 		return -1;
 	}
@@ -1329,13 +1329,13 @@ static int read_unwind_hints(struct objtool_file *file)
 	for (i = 0; i < sec->len / sizeof(struct unwind_hint); i++) {
 		hint = (struct unwind_hint *)sec->data->d_buf + i;
 
-		rela = find_rela_by_dest(file->elf, sec, i * sizeof(*hint));
-		if (!rela) {
-			WARN("can't find rela for unwind_hints[%d]", i);
+		reloc = find_reloc_by_dest(file->elf, sec, i * sizeof(*hint));
+		if (!reloc) {
+			WARN("can't find reloc for unwind_hints[%d]", i);
 			return -1;
 		}
 
-		insn = find_insn(file, rela->sym->sec, rela->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (!insn) {
 			WARN("can't find insn for unwind_hints[%d]", i);
 			return -1;
@@ -1393,19 +1393,19 @@ static int read_retpoline_hints(struct objtool_file *file)
 {
 	struct section *sec;
 	struct instruction *insn;
-	struct rela *rela;
+	struct reloc *reloc;
 
 	sec = find_section_by_name(file->elf, ".rela.discard.retpoline_safe");
 	if (!sec)
 		return 0;
 
-	list_for_each_entry(rela, &sec->rela_list, list) {
-		if (rela->sym->type != STT_SECTION) {
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", sec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, rela->sym->sec, rela->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (!insn) {
 			WARN("bad .discard.retpoline_safe entry");
 			return -1;
@@ -1428,19 +1428,19 @@ static int read_instr_hints(struct objtool_file *file)
 {
 	struct section *sec;
 	struct instruction *insn;
-	struct rela *rela;
+	struct reloc *reloc;
 
 	sec = find_section_by_name(file->elf, ".rela.discard.instr_end");
 	if (!sec)
 		return 0;
 
-	list_for_each_entry(rela, &sec->rela_list, list) {
-		if (rela->sym->type != STT_SECTION) {
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", sec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, rela->sym->sec, rela->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (!insn) {
 			WARN("bad .discard.instr_end entry");
 			return -1;
@@ -1453,13 +1453,13 @@ static int read_instr_hints(struct objtool_file *file)
 	if (!sec)
 		return 0;
 
-	list_for_each_entry(rela, &sec->rela_list, list) {
-		if (rela->sym->type != STT_SECTION) {
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", sec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, rela->sym->sec, rela->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (!insn) {
 			WARN("bad .discard.instr_begin entry");
 			return -1;
@@ -1475,22 +1475,22 @@ static int read_intra_function_calls(struct objtool_file *file)
 {
 	struct instruction *insn;
 	struct section *sec;
-	struct rela *rela;
+	struct reloc *reloc;
 
 	sec = find_section_by_name(file->elf, ".rela.discard.intra_function_calls");
 	if (!sec)
 		return 0;
 
-	list_for_each_entry(rela, &sec->rela_list, list) {
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
 		unsigned long dest_off;
 
-		if (rela->sym->type != STT_SECTION) {
+		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s",
 			     sec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, rela->sym->sec, rela->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (!insn) {
 			WARN("bad .discard.intra_function_call entry");
 			return -1;

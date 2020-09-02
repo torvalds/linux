@@ -260,7 +260,6 @@ int mma7455_core_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev->info = &mma7455_info;
 	indio_dev->name = name;
-	indio_dev->dev.parent = dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mma7455_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mma7455_channels);

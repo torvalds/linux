@@ -307,6 +307,23 @@ TRACE_EVENT(urandom_read,
 		  __entry->pool_left, __entry->input_left)
 );
 
+TRACE_EVENT(prandom_u32,
+
+	TP_PROTO(unsigned int ret),
+
+	TP_ARGS(ret),
+
+	TP_STRUCT__entry(
+		__field(   unsigned int, ret)
+	),
+
+	TP_fast_assign(
+		__entry->ret = ret;
+	),
+
+	TP_printk("ret=%u" , __entry->ret)
+);
+
 #endif /* _TRACE_RANDOM_H */
 
 /* This part must be outside protection */

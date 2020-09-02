@@ -1,0 +1,146 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/mti,gic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MIPS Global Interrupt Controller
+
+maintainers:
+  - Paul Burton <paulburton@kernel.org>
+  - Thomas Bogendoerfer <tsbogend@alpha.franken.de>
+
+description: |
+  The MIPS GIC routes external interrupts to individual VPEs and IRQ pins.
+  It also supports local (per-processor) interrupts and software-generated
+  interrupts which can be used as IPIs. The GIC also includes a free-running
+  global timer, per-CPU count/compare timers, and a watchdog.
+
+properties:
+  compatible:
+    const: mti,gic
+
+  "#interrupt-cells":
+    const: 3
+    description: |
+      The 1st cell is the type of interrupt: local or shared defined in the
+      file 'dt-bindings/interrupt-controller/mips-gic.h'. The 2nd cell is the
+      GIC interrupt number. The 3d cell encodes the interrupt flags setting up
+      the IRQ trigger modes, which are defined in the file
+      'dt-bindings/interrupt-controller/irq.h'.
+
+  reg:
+    description: |
+      Base address and length of the GIC registers space. If not present,
+      the base address reported by the hardware GCR_GIC_BASE will be used.
+    maxItems: 1
+
+  interrupt-controller: true
+
+  mti,reserved-cpu-vectors:
+    description: |
+      Specifies the list of CPU interrupt vectors to which the GIC may not
+      route interrupts. This property is ignored if the CPU is started in EIC
+      mode.
+    $ref: /schemas/types.yaml#definitions/uint32-array
+    minItems: 1
+    maxItems: 6
+    uniqueItems: true
+    items:
+      minimum: 2
+      maximum: 7
+
+  mti,reserved-ipi-vectors:
+    description: |
+      Specifies the range of GIC interrupts that are reserved for IPIs.
+      It accepts two values: the 1st is the starting interrupt and the 2nd is
+      the size of the reserved range. If not specified, the driver will
+      allocate the last (2 * number of VPEs in the system).
+    $ref: /schemas/types.yaml#definitions/uint32-array
+    items:
+      - minimum: 0
+        maximum: 254
+      - minimum: 2
+        maximum: 254
+
+  timer:
+    type: object
+    description: |
+      MIPS GIC includes a free-running global timer, per-CPU count/compare
+      timers, and a watchdog. Currently only the GIC Timer is supported.
+    properties:
+      compatible:
+        const: mti,gic-timer
+
+      interrupts:
+        description: |
+          Interrupt for the GIC local timer, so normally it's suppose to be of
+          <GIC_LOCAL X IRQ_TYPE_NONE> format.
+        maxItems: 1
+
+      clocks:
+        maxItems: 1
+
+      clock-frequency: true
+
+    required:
+      - compatible
+      - interrupts
+
+    oneOf:
+      - required:
+          - clocks
+      - required:
+          - clock-frequency
+
+    additionalProperties: false
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - "#interrupt-cells"
+  - interrupt-controller
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/mips-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    interrupt-controller@1bdc0000 {
+      compatible = "mti,gic";
+      reg = <0x1bdc0000 0x20000>;
+      interrupt-controller;
+      #interrupt-cells = <3>;
+      mti,reserved-cpu-vectors = <7>;
+      mti,reserved-ipi-vectors = <40 8>;
+
+      timer {
+        compatible = "mti,gic-timer";
+        interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+        clock-frequency = <50000000>;
+      };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/mips-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    interrupt-controller@1bdc0000 {
+      compatible = "mti,gic";
+      reg = <0x1bdc0000 0x20000>;
+      interrupt-controller;
+      #interrupt-cells = <3>;
+
+      timer {
+        compatible = "mti,gic-timer";
+        interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+        clocks = <&cpu_pll>;
+      };
+    };
+  - |
+    interrupt-controller {
+      compatible = "mti,gic";
+      interrupt-controller;
+      #interrupt-cells = <3>;
+    };
+...

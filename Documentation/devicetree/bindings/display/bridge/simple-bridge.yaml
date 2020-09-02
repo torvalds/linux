@@ -18,16 +18,16 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - ti,ths8134a
-          - ti,ths8134b
-        - const: ti,ths8134
+          - enum:
+              - ti,ths8134a
+              - ti,ths8134b
+          - const: ti,ths8134
       - enum:
-        - adi,adv7123
-        - dumb-vga-dac
-        - ti,opa362
-        - ti,ths8134
-        - ti,ths8135
+          - adi,adv7123
+          - dumb-vga-dac
+          - ti,opa362
+          - ti,ths8134
+          - ti,ths8135
 
   ports:
     type: object

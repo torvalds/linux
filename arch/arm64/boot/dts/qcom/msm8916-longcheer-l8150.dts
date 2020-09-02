@@ -108,31 +108,6 @@
 	};
 };
 
-&msmgpio {
-	gpio_keys_default: gpio-keys-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio107";
-		};
-		pinconf {
-			pins = "gpio107";
-			drive-strength = <2>;
-			bias-pull-up;
-		};
-	};
-
-	usb_vbus_default: usb-vbus-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio62";
-		};
-		pinconf {
-			pins = "gpio62";
-			bias-pull-up;
-		};
-	};
-};
-
 &spmi_bus {
 	pm8916@0 {
 		pon@800 {
@@ -256,5 +231,22 @@
 	l18 {
 		regulator-min-microvolt = <2700000>;
 		regulator-max-microvolt = <2700000>;
+	};
+};
+
+&msmgpio {
+	gpio_keys_default: gpio-keys-default {
+		pins = "gpio107";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	usb_vbus_default: usb-vbus-default {
+		pins = "gpio62";
+		function = "gpio";
+
+		bias-pull-up;
 	};
 };

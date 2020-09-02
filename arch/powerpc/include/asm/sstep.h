@@ -40,6 +40,7 @@ enum instruction_type {
 	CACHEOP,
 	BARRIER,
 	SYSCALL,
+	SYSCALL_VECTORED_0,
 	MFMSR,
 	MTMSR,
 	RFI,
@@ -103,6 +104,12 @@ enum instruction_type {
 #define GETLENGTH(t)   (((t) & PREFIXED) ? 8 : 4)
 
 #define MKOP(t, f, s)	((t) | (f) | SIZE(s))
+
+/* Prefix instruction operands */
+#define GET_PREFIX_RA(i)	(((i) >> 16) & 0x1f)
+#define GET_PREFIX_R(i)		((i) & (1ul << 20))
+
+extern s32 patch__exec_instr;
 
 struct instruction_op {
 	int type;

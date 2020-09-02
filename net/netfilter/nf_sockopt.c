@@ -89,78 +89,32 @@ out:
 	return ops;
 }
 
-/* Call get/setsockopt() */
-static int nf_sockopt(struct sock *sk, u_int8_t pf, int val,
-		      char __user *opt, int *len, int get)
+int nf_setsockopt(struct sock *sk, u_int8_t pf, int val, sockptr_t opt,
+		  unsigned int len)
 {
 	struct nf_sockopt_ops *ops;
 	int ret;
 
-	ops = nf_sockopt_find(sk, pf, val, get);
+	ops = nf_sockopt_find(sk, pf, val, 0);
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
-
-	if (get)
-		ret = ops->get(sk, val, opt, len);
-	else
-		ret = ops->set(sk, val, opt, *len);
-
+	ret = ops->set(sk, val, opt, len);
 	module_put(ops->owner);
 	return ret;
-}
-
-int nf_setsockopt(struct sock *sk, u_int8_t pf, int val, char __user *opt,
-		  unsigned int len)
-{
-	return nf_sockopt(sk, pf, val, opt, &len, 0);
 }
 EXPORT_SYMBOL(nf_setsockopt);
 
 int nf_getsockopt(struct sock *sk, u_int8_t pf, int val, char __user *opt,
 		  int *len)
 {
-	return nf_sockopt(sk, pf, val, opt, len, 1);
-}
-EXPORT_SYMBOL(nf_getsockopt);
-
-#ifdef CONFIG_COMPAT
-static int compat_nf_sockopt(struct sock *sk, u_int8_t pf, int val,
-			     char __user *opt, int *len, int get)
-{
 	struct nf_sockopt_ops *ops;
 	int ret;
 
-	ops = nf_sockopt_find(sk, pf, val, get);
+	ops = nf_sockopt_find(sk, pf, val, 1);
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
-
-	if (get) {
-		if (ops->compat_get)
-			ret = ops->compat_get(sk, val, opt, len);
-		else
-			ret = ops->get(sk, val, opt, len);
-	} else {
-		if (ops->compat_set)
-			ret = ops->compat_set(sk, val, opt, *len);
-		else
-			ret = ops->set(sk, val, opt, *len);
-	}
-
+	ret = ops->get(sk, val, opt, len);
 	module_put(ops->owner);
 	return ret;
 }
-
-int compat_nf_setsockopt(struct sock *sk, u_int8_t pf,
-		int val, char __user *opt, unsigned int len)
-{
-	return compat_nf_sockopt(sk, pf, val, opt, &len, 0);
-}
-EXPORT_SYMBOL(compat_nf_setsockopt);
-
-int compat_nf_getsockopt(struct sock *sk, u_int8_t pf,
-		int val, char __user *opt, int *len)
-{
-	return compat_nf_sockopt(sk, pf, val, opt, len, 1);
-}
-EXPORT_SYMBOL(compat_nf_getsockopt);
-#endif
+EXPORT_SYMBOL(nf_getsockopt);

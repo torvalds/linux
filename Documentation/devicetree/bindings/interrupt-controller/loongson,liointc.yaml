@@ -51,8 +51,8 @@ properties:
     description: |
       This property points how the children interrupts will be mapped into CPU
       interrupt lines. Each cell refers to a parent interrupt line from 0 to 3
-      and each bit in the cell refers to a children interrupt fron 0 to 31.
-      If a CPU interrupt line didn't connected with liointc, then keep it's
+      and each bit in the cell refers to a child interrupt from 0 to 31.
+      If a CPU interrupt line didn't connect with liointc, then keep its
       cell with zero.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 4

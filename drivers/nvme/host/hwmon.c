@@ -62,7 +62,7 @@ static int nvme_hwmon_get_smart_log(struct nvme_hwmon_data *data)
 	int ret;
 
 	ret = nvme_get_log(data->ctrl, NVME_NSID_ALL, NVME_LOG_SMART, 0,
-			   &data->log, sizeof(data->log), 0);
+			   NVME_CSI_NVM, &data->log, sizeof(data->log), 0);
 
 	return ret <= 0 ? ret : -EIO;
 }
@@ -241,7 +241,8 @@ void nvme_hwmon_init(struct nvme_ctrl *ctrl)
 
 	err = nvme_hwmon_get_smart_log(data);
 	if (err) {
-		dev_warn(dev, "Failed to read smart log (error %d)\n", err);
+		dev_warn(ctrl->device,
+			"Failed to read smart log (error %d)\n", err);
 		devm_kfree(dev, data);
 		return;
 	}
