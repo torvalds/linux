@@ -1769,8 +1769,12 @@ static void cdns3_check_usb_interrupt_proceed(struct cdns3_device *priv_dev,
 static irqreturn_t cdns3_device_irq_handler(int irq, void *data)
 {
 	struct cdns3_device *priv_dev = data;
+	struct cdns3 *cdns = dev_get_drvdata(priv_dev->dev);
 	irqreturn_t ret = IRQ_NONE;
 	u32 reg;
+
+	if (cdns->in_lpm)
+		return ret;
 
 	/* check USB device interrupt */
 	reg = readl(&priv_dev->regs->usb_ists);
