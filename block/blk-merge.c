@@ -996,13 +996,11 @@ static enum bio_merge_status blk_attempt_bio_merge(struct request_queue *q,
 
 	switch (blk_try_merge(rq, bio)) {
 	case ELEVATOR_BACK_MERGE:
-		if (!sched_allow_merge ||
-		    (sched_allow_merge && blk_mq_sched_allow_merge(q, rq, bio)))
+		if (!sched_allow_merge || blk_mq_sched_allow_merge(q, rq, bio))
 			return bio_attempt_back_merge(rq, bio, nr_segs);
 		break;
 	case ELEVATOR_FRONT_MERGE:
-		if (!sched_allow_merge ||
-		    (sched_allow_merge && blk_mq_sched_allow_merge(q, rq, bio)))
+		if (!sched_allow_merge || blk_mq_sched_allow_merge(q, rq, bio))
 			return bio_attempt_front_merge(rq, bio, nr_segs);
 		break;
 	case ELEVATOR_DISCARD_MERGE:
