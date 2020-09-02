@@ -375,12 +375,43 @@ int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle)
 	return rc;
 }
 
+static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
+			u64 cb_handle, u32 *usage_cnt)
+{
+	struct hl_cb *cb;
+	u32 handle;
+	int rc = 0;
+
+	/* The CB handle was given to user to do mmap, so need to shift it back
+	 * to the value which was allocated by the IDR module.
+	 */
+	cb_handle >>= PAGE_SHIFT;
+	handle = (u32) cb_handle;
+
+	spin_lock(&mgr->cb_lock);
+
+	cb = idr_find(&mgr->cb_handles, handle);
+	if (!cb) {
+		dev_err(hdev->dev,
+			"CB info failed, no match to handle 0x%x\n", handle);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	*usage_cnt = atomic_read(&cb->cs_cnt);
+
+out:
+	spin_unlock(&mgr->cb_lock);
+	return rc;
+}
+
 int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_cb_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
 	enum hl_device_status status;
 	u64 handle = 0;
+	u32 usage_cnt = 0;
 	int rc;
 
 	if (!hl_device_operational(hdev, &status)) {
@@ -411,6 +442,13 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 	case HL_CB_OP_DESTROY:
 		rc = hl_cb_destroy(hdev, &hpriv->cb_mgr,
 					args->in.cb_handle);
+		break;
+
+	case HL_CB_OP_INFO:
+		rc = hl_cb_info(hdev, &hpriv->cb_mgr, args->in.cb_handle,
+				&usage_cnt);
+		memset(args, 0, sizeof(*args));
+		args->out.usage_cnt = usage_cnt;
 		break;
 
 	default:
