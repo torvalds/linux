@@ -991,9 +991,7 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"could not parse device properties: %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "could not parse device properties\n");
 		goto err_free_host;
 	}
 
