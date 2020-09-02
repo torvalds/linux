@@ -168,39 +168,36 @@ static int __ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val,
 	return 0;
 }
 
-int ccs_read_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 *val)
-{
-	return __ccs_read_addr(
-		sensor, reg, val,
-		ccs_needs_quirk(sensor, CCS_QUIRK_FLAG_8BIT_READ_ONLY));
-}
-
-static int ccs_read_addr_quirk(struct ccs_sensor *sensor, u32 reg, u32 *val,
-			       bool force8)
+static int ccs_read_addr_raw(struct ccs_sensor *sensor, u32 reg, u32 *val,
+			     bool force8, bool quirk)
 {
 	int rval;
 
-	*val = 0;
-	rval = ccs_call_quirk(sensor, reg_access, false, &reg, val);
-	if (rval == -ENOIOCTLCMD)
-		return 0;
-	if (rval < 0)
-		return rval;
+	if (quirk) {
+		*val = 0;
+		rval = ccs_call_quirk(sensor, reg_access, false, &reg, val);
+		if (rval == -ENOIOCTLCMD)
+			return 0;
+		if (rval < 0)
+			return rval;
 
-	if (force8)
-		return __ccs_read_addr(sensor, reg, val, true);
+		if (force8)
+			return __ccs_read_addr(sensor, reg, val, true);
+	}
 
-	return ccs_read_addr_no_quirk(sensor, reg, val);
+	return __ccs_read_addr(sensor, reg, val,
+			       ccs_needs_quirk(sensor,
+					       CCS_QUIRK_FLAG_8BIT_READ_ONLY));
 }
 
 int ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
-	return ccs_read_addr_quirk(sensor, reg, val, false);
+	return ccs_read_addr_raw(sensor, reg, val, false, true);
 }
 
 int ccs_read_addr_8only(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
-	return ccs_read_addr_quirk(sensor, reg, val, true);
+	return ccs_read_addr_raw(sensor, reg, val, true, true);
 }
 
 int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
