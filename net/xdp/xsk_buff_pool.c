@@ -287,7 +287,7 @@ static struct xsk_dma_map *xp_create_dma_map(struct device *dev, struct net_devi
 		return NULL;
 
 	dma_map->dma_pages = kvcalloc(nr_pages, sizeof(*dma_map->dma_pages), GFP_KERNEL);
-	if (!dma_map) {
+	if (!dma_map->dma_pages) {
 		kfree(dma_map);
 		return NULL;
 	}
