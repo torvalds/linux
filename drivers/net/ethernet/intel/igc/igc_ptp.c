@@ -17,8 +17,7 @@
 #define IGC_PTP_TX_TIMEOUT		(HZ * 15)
 
 /* SYSTIM read access for I225 */
-static void igc_ptp_read_i225(struct igc_adapter *adapter,
-			      struct timespec64 *ts)
+void igc_ptp_read(struct igc_adapter *adapter, struct timespec64 *ts)
 {
 	struct igc_hw *hw = &adapter->hw;
 	u32 sec, nsec;
@@ -75,7 +74,7 @@ static int igc_ptp_adjtime_i225(struct ptp_clock_info *ptp, s64 delta)
 
 	spin_lock_irqsave(&igc->tmreg_lock, flags);
 
-	igc_ptp_read_i225(igc, &now);
+	igc_ptp_read(igc, &now);
 	now = timespec64_add(now, then);
 	igc_ptp_write_i225(igc, (const struct timespec64 *)&now);
 
@@ -517,7 +516,7 @@ void igc_ptp_init(struct igc_adapter *adapter)
 
 static void igc_ptp_time_save(struct igc_adapter *adapter)
 {
-	igc_ptp_read_i225(adapter, &adapter->prev_ptp_time);
+	igc_ptp_read(adapter, &adapter->prev_ptp_time);
 	adapter->ptp_reset_start = ktime_get();
 }
 
