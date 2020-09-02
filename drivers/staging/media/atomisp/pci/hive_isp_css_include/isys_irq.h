@@ -21,19 +21,7 @@
 
 #if defined(ISP2401)
 
-#ifndef __INLINE_ISYS2401_IRQ__
-
-#define STORAGE_CLASS_ISYS2401_IRQ_H extern
-#define STORAGE_CLASS_ISYS2401_IRQ_C extern
 #include "isys_irq_public.h"
-
-#else  /* __INLINE_ISYS2401_IRQ__ */
-
-#define STORAGE_CLASS_ISYS2401_IRQ_H static inline
-#define STORAGE_CLASS_ISYS2401_IRQ_C static inline
-#include "isys_irq_private.h"
-
-#endif /* __INLINE_ISYS2401_IRQ__ */
 
 #endif /* defined(ISP2401) */
 
