@@ -487,7 +487,7 @@ EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
  */
 static int hw_breakpoint_handler(struct die_args *args)
 {
-	int i, cpu, rc = NOTIFY_STOP;
+	int i, rc = NOTIFY_STOP;
 	struct perf_event *bp;
 	unsigned long dr6;
 	unsigned long *dr6_p;
@@ -505,12 +505,10 @@ static int hw_breakpoint_handler(struct die_args *args)
 		return NOTIFY_DONE;
 
 	/*
-	 * Assert that local interrupts are disabled
 	 * Reset the DRn bits in the virtualized register value.
 	 * The ptrace trigger routine will add in whatever is needed.
 	 */
 	current->thread.debugreg6 &= ~DR_TRAP_BITS;
-	cpu = get_cpu();
 
 	/* Handle all the breakpoints that were triggered */
 	for (i = 0; i < HBP_NUM; ++i) {
@@ -525,7 +523,7 @@ static int hw_breakpoint_handler(struct die_args *args)
 		 */
 		rcu_read_lock();
 
-		bp = per_cpu(bp_per_reg[i], cpu);
+		bp = this_cpu_read(bp_per_reg[i]);
 		/*
 		 * Reset the 'i'th TRAP bit in dr6 to denote completion of
 		 * exception handling
@@ -559,8 +557,6 @@ static int hw_breakpoint_handler(struct die_args *args)
 	if ((current->thread.debugreg6 & DR_TRAP_BITS) ||
 	    (dr6 & (~DR_TRAP_BITS)))
 		rc = NOTIFY_DONE;
-
-	put_cpu();
 
 	return rc;
 }
