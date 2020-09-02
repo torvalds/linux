@@ -264,6 +264,7 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_unreg_media_dev;
 
+	rkispp_proc_init(ispp_dev);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
@@ -281,6 +282,7 @@ static int rkispp_plat_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
+	rkispp_proc_cleanup(ispp_dev);
 	rkispp_unregister_subdev(ispp_dev);
 	rkispp_unregister_stats_vdev(ispp_dev);
 	rkispp_unregister_params_vdev(ispp_dev);

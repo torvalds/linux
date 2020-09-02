@@ -7,4 +7,5 @@ video_rkispp-objs += dev.o \
 		stream.o \
 		params.o \
 		stats.o \
-		hw.o
+		hw.o \
+		procfs.o

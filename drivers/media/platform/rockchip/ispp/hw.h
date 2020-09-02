@@ -13,9 +13,20 @@ struct ispp_clk_info {
 	u32 refer_data;
 };
 
+struct ispp_match_data {
+	int clks_num;
+	const char * const *clks;
+	int clk_rate_tbl_num;
+	const struct ispp_clk_info *clk_rate_tbl;
+	enum rkispp_ver ispp_ver;
+	struct irqs_data *irqs;
+	int num_irqs;
+};
+
 struct rkispp_hw_dev {
 	struct device *dev;
 	void __iomem *base_addr;
+	const struct ispp_match_data *match_data;
 	const struct ispp_clk_info *clk_rate_tbl;
 	struct clk *clks[ISPP_MAX_BUS_CLK];
 	struct rkispp_device *ispp[DEV_MAX];

@@ -33,16 +33,6 @@ struct irqs_data {
 	irqreturn_t (*irq_hdl)(int irq, void *ctx);
 };
 
-struct match_data {
-	int clks_num;
-	const char * const *clks;
-	int clk_rate_tbl_num;
-	const struct ispp_clk_info *clk_rate_tbl;
-	enum rkispp_ver ispp_ver;
-	struct irqs_data *irqs;
-	int num_irqs;
-};
-
 /* using default value if reg no write for multi device */
 static void default_sw_reg_flag(struct rkispp_device *dev)
 {
@@ -170,7 +160,7 @@ static struct irqs_data rv1126_ispp_irqs[] = {
 	{"fec_irq", irq_hdl},
 };
 
-static const struct match_data rv1126_ispp_match_data = {
+static const struct ispp_match_data rv1126_ispp_match_data = {
 	.clks = rv1126_ispp_clks,
 	.clks_num = ARRAY_SIZE(rv1126_ispp_clks),
 	.clk_rate_tbl = rv1126_ispp_clk_rate,
@@ -191,7 +181,7 @@ static const struct of_device_id rkispp_hw_of_match[] = {
 static int rkispp_hw_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	const struct match_data *match_data;
+	const struct ispp_match_data *match_data;
 	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct rkispp_hw_dev *hw_dev;
@@ -209,6 +199,7 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, hw_dev);
 	hw_dev->dev = dev;
 	match_data = match->data;
+	hw_dev->match_data = match->data;
 	hw_dev->max_in.w = 0;
 	hw_dev->max_in.h = 0;
 	hw_dev->max_in.fps = 0;

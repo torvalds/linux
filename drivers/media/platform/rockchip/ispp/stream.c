@@ -335,6 +335,13 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 		stream->curr_buf->vb.vb2_buf.timestamp = ns;
 		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
+
+		ns = ktime_get_ns();
+		stream->dbg.interval = ns - stream->dbg.timestamp;
+		stream->dbg.timestamp = ns;
+		stream->dbg.delay = ns - stream->curr_buf->vb.vb2_buf.timestamp;
+		stream->dbg.id = stream->curr_buf->vb.sequence;
+
 		stream->curr_buf = NULL;
 	}
 
@@ -1523,6 +1530,8 @@ static int start_isp(struct rkispp_device *dev)
 	if (dev->isp_mode & ISP_ISPP_QUICK)
 		rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0, GLB_QUICK_EN);
 
+	dev->isr_cnt = 0;
+	dev->isr_err_cnt = 0;
 	ret = v4l2_subdev_call(&ispp_sdev->sd, video, s_stream, true);
 err:
 	mutex_unlock(&dev->hw_dev->dev_lock);
@@ -1708,7 +1717,7 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 		    sdev->out_fmt.width < RKISPP_MIN_WIDTH ||
 		    sdev->out_fmt.height < RKISPP_MIN_HEIGHT) {
 			v4l2_err(&dev->v4l2_dev,
-				 "ispp input max:%dx%d min:%dx%d\n",
+				 "ispp input min:%dx%d max:%dx%d\n",
 				 RKISPP_MIN_WIDTH, RKISPP_MIN_HEIGHT,
 				 RKISPP_MAX_WIDTH, RKISPP_MAX_HEIGHT);
 			stream->out_fmt.width = 0;
@@ -1996,6 +2005,10 @@ static void fec_work_event(struct rkispp_device *dev,
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
 			 "FEC start seq:%d | Y_SHD rd:0x%x\n",
 			 seq, readl(base + RKISPP_FEC_RD_Y_BASE_SHD));
+
+		vdev->fec.dbg.id = seq;
+		vdev->fec.dbg.timestamp = ktime_get_ns();
+
 		writel(FEC_ST, base + RKISPP_CTRL_STRT);
 		vdev->fec.is_end = false;
 	}
@@ -2172,6 +2185,8 @@ static void nr_work_event(struct rkispp_device *dev,
 				stream->ops->stop(stream);
 		}
 
+		vdev->nr.dbg.id = seq;
+		vdev->nr.dbg.timestamp = ktime_get_ns();
 		if (!is_quick)
 			writel(NR_SHP_ST, base + RKISPP_CTRL_STRT);
 		vdev->nr.is_end = false;
@@ -2357,6 +2372,10 @@ static void tnr_work_event(struct rkispp_device *dev,
 			     rkispp_read(dev, RKISPP_TNR_WR_Y_BASE));
 		rkispp_write(dev, RKISPP_TNR_IIR_UV_BASE,
 			     rkispp_read(dev, RKISPP_TNR_WR_UV_BASE));
+
+		vdev->tnr.dbg.id = seq;
+		vdev->tnr.dbg.timestamp = ktime_get_ns();
+
 		writel(TNR_ST, base + RKISPP_CTRL_STRT);
 		vdev->tnr.is_end = false;
 	}
@@ -2400,14 +2419,25 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	u32 i, err_mask = NR_LOST_ERR | TNR_LOST_ERR |
 		FBCH_EMPTY_NR | FBCH_EMPTY_TNR | FBCD_DEC_ERR_NR |
 		FBCD_DEC_ERR_TNR | BUS_ERR_NR | BUS_ERR_TNR;
+	u64 ns = ktime_get_ns();
 
 	v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
 		 "isr:0x%x\n", mis_val);
 
 	vdev = &dev->stream_vdev;
-	if (mis_val & err_mask)
+	dev->isr_cnt++;
+	if (mis_val & err_mask) {
+		dev->isr_err_cnt++;
 		v4l2_err(&dev->v4l2_dev,
 			 "ispp err:0x%x\n", mis_val);
+	}
+
+	if (mis_val & TNR_INT)
+		vdev->tnr.dbg.interval = ns - vdev->tnr.dbg.timestamp;
+	if (mis_val & NR_INT)
+		vdev->nr.dbg.interval = ns - vdev->nr.dbg.timestamp;
+	if (mis_val & FEC_INT)
+		vdev->fec.dbg.interval = ns - vdev->fec.dbg.timestamp;
 
 	if (mis_val & (CMD_TNR_ST_DONE | CMD_NR_SHP_ST_DONE) &&
 	    (dev->isp_mode & ISP_ISPP_QUICK || dev->inp == INP_DDR))

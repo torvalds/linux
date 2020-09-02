@@ -275,8 +275,17 @@ static int rkispp_sd_s_rx_buffer(struct v4l2_subdev *sd,
 	if (!buf)
 		return -EINVAL;
 
-	if (ispp_sdev->state == ISPP_START)
+	if (ispp_sdev->state == ISPP_START) {
+		struct rkisp_ispp_buf *dbufs = buf;
+		struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+		u64 ns = ktime_get_ns();
+
+		vdev->dbg.interval = ns - vdev->dbg.timestamp;
+		vdev->dbg.timestamp = ns;
+		vdev->dbg.delay = ns - dbufs->frame_timestamp;
+		vdev->dbg.id = dbufs->frame_id;
 		cmd = CMD_QUEUE_DMABUF;
+	}
 
 	return rkispp_event_handle(dev, cmd, buf);
 }

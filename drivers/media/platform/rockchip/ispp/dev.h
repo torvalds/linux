@@ -9,6 +9,7 @@
 #include "stream.h"
 #include "stats.h"
 #include "hw.h"
+#include "procfs.h"
 
 #define DRIVER_NAME			"rkispp"
 #define II_VDEV_NAME DRIVER_NAME	"_input_image"
@@ -36,6 +37,7 @@ struct rkispp_device {
 	struct rkispp_stream_vdev stream_vdev;
 	struct rkispp_params_vdev params_vdev;
 	struct rkispp_stats_vdev stats_vdev;
+	struct proc_dir_entry *procfs;
 
 	enum rkispp_ver	ispp_ver;
 	/* mutex to serialize the calls from user */
@@ -45,6 +47,8 @@ struct rkispp_device {
 	enum rkispp_input inp;
 	u32 dev_id;
 	u32 isp_mode;
+	u32 isr_cnt;
+	u32 isr_err_cnt;
 	wait_queue_head_t sync_onoff;
 	bool stream_sync;
 

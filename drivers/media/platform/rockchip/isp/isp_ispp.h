@@ -44,6 +44,7 @@ enum rkisp_ispp_work_mode {
 struct frame_debug_info {
 	u64 timestamp;
 	u32 interval;
+	u32 delay;
 	u32 id;
 };
 
