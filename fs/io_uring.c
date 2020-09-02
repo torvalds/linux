@@ -6996,9 +6996,38 @@ static void io_put_sq_data(struct io_sq_data *sqd)
 	}
 }
 
+static struct io_sq_data *io_attach_sq_data(struct io_uring_params *p)
+{
+	struct io_ring_ctx *ctx_attach;
+	struct io_sq_data *sqd;
+	struct fd f;
+
+	f = fdget(p->wq_fd);
+	if (!f.file)
+		return ERR_PTR(-ENXIO);
+	if (f.file->f_op != &io_uring_fops) {
+		fdput(f);
+		return ERR_PTR(-EINVAL);
+	}
+
+	ctx_attach = f.file->private_data;
+	sqd = ctx_attach->sq_data;
+	if (!sqd) {
+		fdput(f);
+		return ERR_PTR(-EINVAL);
+	}
+
+	refcount_inc(&sqd->refs);
+	fdput(f);
+	return sqd;
+}
+
 static struct io_sq_data *io_get_sq_data(struct io_uring_params *p)
 {
 	struct io_sq_data *sqd;
+
+	if (p->flags & IORING_SETUP_ATTACH_WQ)
+		return io_attach_sq_data(p);
 
 	sqd = kzalloc(sizeof(*sqd), GFP_KERNEL);
 	if (!sqd)
@@ -7751,6 +7780,9 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		if (!ctx->sq_thread_idle)
 			ctx->sq_thread_idle = HZ;
 
+		if (sqd->thread)
+			goto done;
+
 		if (p->flags & IORING_SETUP_SQ_AFF) {
 			int cpu = p->sq_thread_cpu;
 
@@ -7780,6 +7812,7 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		goto err;
 	}
 
+done:
 	ret = io_init_wq_offload(ctx, p);
 	if (ret)
 		goto err;
