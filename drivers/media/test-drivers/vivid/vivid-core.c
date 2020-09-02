@@ -1698,10 +1698,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 				       &has_tuner, &has_modulator,
 				       &ccs_cap, &ccs_out,
 				       in_type_counter, out_type_counter);
-	if (ret) {
-		kfree(dev);
-		return ret;
-	}
+	if (ret)
+		goto free_dev;
 
 	vivid_set_capabilities(dev);
 
