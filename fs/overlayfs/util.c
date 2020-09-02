@@ -882,8 +882,8 @@ bool ovl_is_metacopy_dentry(struct dentry *dentry)
 	return (oe->numlower > 1);
 }
 
-ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value,
-		     size_t padding)
+static ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value,
+			    size_t padding)
 {
 	ssize_t res;
 	char *buf = NULL;

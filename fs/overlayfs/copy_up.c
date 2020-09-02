@@ -784,6 +784,39 @@ static bool ovl_need_meta_copy_up(struct dentry *dentry, umode_t mode,
 	return true;
 }
 
+static ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value,
+			    size_t padding)
+{
+	ssize_t res;
+	char *buf = NULL;
+
+	res = vfs_getxattr(dentry, name, NULL, 0);
+	if (res < 0) {
+		if (res == -ENODATA || res == -EOPNOTSUPP)
+			return -ENODATA;
+		goto fail;
+	}
+
+	if (res != 0) {
+		buf = kzalloc(res + padding, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		res = vfs_getxattr(dentry, name, buf, res);
+		if (res < 0)
+			goto fail;
+	}
+	*value = buf;
+
+	return res;
+
+fail:
+	pr_warn_ratelimited("failed to get xattr %s: err=%zi)\n",
+			    name, res);
+	kfree(buf);
+	return res;
+}
+
 /* Copy up data of an inode which was copied up metadata only in the past. */
 static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 {
