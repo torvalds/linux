@@ -143,14 +143,23 @@ unsigned int ccs_reg_width(u32 reg)
 	return sizeof(uint8_t);
 }
 
+u32 ccs_reg_conv(struct ccs_sensor *sensor, u32 reg, u32 val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+
+	if (reg & CCS_FL_FLOAT_IREAL)
+		val = float_to_u32_mul_1000000(client, val);
+
+	return val;
+}
+
 /*
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
  * Returns zero if successful, or non-zero otherwise.
  */
 static int __ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val,
-			   bool only8)
+			   bool only8, bool conv)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	unsigned int len = ccs_reg_width(reg);
 	int rval;
 
@@ -162,14 +171,16 @@ static int __ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val,
 	if (rval < 0)
 		return rval;
 
-	if (reg & CCS_FL_FLOAT_IREAL)
-		*val = float_to_u32_mul_1000000(client, *val);
+	if (!conv)
+		return 0;
+
+	*val = ccs_reg_conv(sensor, reg, *val);
 
 	return 0;
 }
 
 static int ccs_read_addr_raw(struct ccs_sensor *sensor, u32 reg, u32 *val,
-			     bool force8, bool quirk)
+			     bool force8, bool quirk, bool conv)
 {
 	int rval;
 
@@ -182,22 +193,28 @@ static int ccs_read_addr_raw(struct ccs_sensor *sensor, u32 reg, u32 *val,
 			return rval;
 
 		if (force8)
-			return __ccs_read_addr(sensor, reg, val, true);
+			return __ccs_read_addr(sensor, reg, val, true, conv);
 	}
 
 	return __ccs_read_addr(sensor, reg, val,
 			       ccs_needs_quirk(sensor,
-					       CCS_QUIRK_FLAG_8BIT_READ_ONLY));
+					       CCS_QUIRK_FLAG_8BIT_READ_ONLY),
+			       conv);
 }
 
 int ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
-	return ccs_read_addr_raw(sensor, reg, val, false, true);
+	return ccs_read_addr_raw(sensor, reg, val, false, true, true);
 }
 
 int ccs_read_addr_8only(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
-	return ccs_read_addr_raw(sensor, reg, val, true, true);
+	return ccs_read_addr_raw(sensor, reg, val, true, true, true);
+}
+
+int ccs_read_addr_noconv(struct ccs_sensor *sensor, u32 reg, u32 *val)
+{
+	return ccs_read_addr_raw(sensor, reg, val, false, true, false);
 }
 
 int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
