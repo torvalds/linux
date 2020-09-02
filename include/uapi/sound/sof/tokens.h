@@ -73,6 +73,7 @@
 /* Token retired with ABI 3.2, do not use for new capabilities
  * #define SOF_TKN_COMP_PRELOAD_COUNT		403
  */
+#define SOF_TKN_COMP_CORE_ID			404
 
 /* SSP */
 #define SOF_TKN_INTEL_SSP_CLKS_CONTROL		500

@@ -142,6 +142,22 @@ static int sof_restore_kcontrols(struct device *dev)
 	return 0;
 }
 
+const struct sof_ipc_pipe_new *snd_sof_pipeline_find(struct snd_sof_dev *sdev,
+						     int pipeline_id)
+{
+	const struct snd_sof_widget *swidget;
+
+	list_for_each_entry(swidget, &sdev->widget_list, list)
+		if (swidget->id == snd_soc_dapm_scheduler) {
+			const struct sof_ipc_pipe_new *pipeline =
+				swidget->private;
+			if (pipeline->pipeline_id == pipeline_id)
+				return pipeline;
+		}
+
+	return NULL;
+}
+
 int sof_restore_pipelines(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
@@ -160,6 +176,15 @@ int sof_restore_pipelines(struct device *dev)
 		/* skip if there is no private data */
 		if (!swidget->private)
 			continue;
+
+		ret = sof_pipeline_core_enable(sdev, swidget);
+		if (ret < 0) {
+			dev_err(dev,
+				"error: failed to enable target core: %d\n",
+				ret);
+
+			return ret;
+		}
 
 		switch (swidget->id) {
 		case snd_soc_dapm_dai_in:
