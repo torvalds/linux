@@ -1764,7 +1764,7 @@ static int __os04a10_power_on(struct os04a10 *os04a10)
 		return ret;
 	}
 	if (!IS_ERR(os04a10->reset_gpio))
-		gpiod_set_value_cansleep(os04a10->reset_gpio, 1);
+		gpiod_direction_output(os04a10->reset_gpio, 1);
 
 	ret = regulator_bulk_enable(OS04A10_NUM_SUPPLIES, os04a10->supplies);
 	if (ret < 0) {
@@ -1773,11 +1773,11 @@ static int __os04a10_power_on(struct os04a10 *os04a10)
 	}
 
 	if (!IS_ERR(os04a10->reset_gpio))
-		gpiod_set_value_cansleep(os04a10->reset_gpio, 0);
+		gpiod_direction_output(os04a10->reset_gpio, 0);
 
 	usleep_range(500, 1000);
 	if (!IS_ERR(os04a10->pwdn_gpio))
-		gpiod_set_value_cansleep(os04a10->pwdn_gpio, 1);
+		gpiod_direction_output(os04a10->pwdn_gpio, 1);
 	/*
 	 * There is no need to wait for the delay of RC circuit
 	 * if the reset signal is directly controlled by GPIO.
@@ -1803,25 +1803,23 @@ static void __os04a10_power_off(struct os04a10 *os04a10)
 {
 	int ret;
 	struct device *dev = &os04a10->client->dev;
-	bool is_first_streamoff = false;
 
 	if (os04a10->is_thunderboot) {
 		if (os04a10->is_first_streamoff) {
 			os04a10->is_thunderboot = false;
 			os04a10->is_first_streamoff = false;
-			is_first_streamoff = true;
 		} else {
 			return;
 		}
 	}
 
 	if (!IS_ERR(os04a10->pwdn_gpio))
-		gpiod_set_value_cansleep(os04a10->pwdn_gpio, 0);
+		gpiod_direction_output(os04a10->pwdn_gpio, 0);
 
 	clk_disable_unprepare(os04a10->xvclk);
 
 	if (!IS_ERR(os04a10->reset_gpio))
-		gpiod_set_value_cansleep(os04a10->reset_gpio, 0);
+		gpiod_direction_output(os04a10->reset_gpio, 0);
 	if (!IS_ERR_OR_NULL(os04a10->pins_sleep)) {
 		ret = pinctrl_select_state(os04a10->pinctrl,
 					   os04a10->pins_sleep);
@@ -2222,11 +2220,11 @@ static int os04a10_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	os04a10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	os04a10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(os04a10->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	os04a10->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+	os04a10->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(os04a10->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
