@@ -313,6 +313,12 @@ ENTRY(startup_kdump)
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
 	l	%r15,.Lstack-.LPG0(%r13)
+	// Clear decompressor's BSS section
+	larl	%r2,_bss
+	slgr	%r3,%r3
+	larl	%r4,_ebss
+	slgr	%r4,%r2
+	brasl	%r14,memset
 	brasl	%r14,verify_facilities
 	brasl	%r14,startup_kernel
 

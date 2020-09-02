@@ -21,7 +21,7 @@ unsigned long __bootdata(memory_end);
 int __bootdata(memory_end_set);
 int __bootdata(noexec_disabled);
 
-int kaslr_enabled __section(.data);
+int kaslr_enabled;
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
@@ -209,7 +209,7 @@ static void modify_fac_list(char *str)
 	check_cleared_facilities();
 }
 
-static char command_line_buf[COMMAND_LINE_SIZE] __section(.data);
+static char command_line_buf[COMMAND_LINE_SIZE];
 void parse_boot_command_line(void)
 {
 	char *param, *val;

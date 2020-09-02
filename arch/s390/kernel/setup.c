@@ -307,7 +307,7 @@ void machine_power_off(void)
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL_GPL(pm_power_off);
 
-void *restart_stack __section(.data);
+void *restart_stack;
 
 unsigned long stack_alloc(void)
 {

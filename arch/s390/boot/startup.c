@@ -120,6 +120,9 @@ static void handle_relocs(unsigned long offset)
 	}
 }
 
+/*
+ * This function clears the BSS section of the decompressed Linux kernel and NOT the decompressor's.
+ */
 static void clear_bss_section(void)
 {
 	memset((void *)vmlinux.default_lma + vmlinux.image_size, 0, vmlinux.bss_size);
