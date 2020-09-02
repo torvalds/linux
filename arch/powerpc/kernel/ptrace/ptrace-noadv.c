@@ -57,6 +57,8 @@ void ppc_gethwdinfo(struct ppc_debug_info *dbginfo)
 	} else {
 		dbginfo->features = 0;
 	}
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		dbginfo->features |= PPC_DEBUG_FEATURE_DATA_BP_ARCH_31;
 }
 
 int ptrace_get_debugreg(struct task_struct *child, unsigned long addr,
