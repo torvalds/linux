@@ -47,7 +47,10 @@ int dump_bpf_hash_map(struct bpf_iter__bpf_map_elem *ctx)
 	__u32 seq_num = ctx->meta->seq_num;
 	struct bpf_map *map = ctx->map;
 	struct key_t *key = ctx->key;
+	struct key_t tmp_key;
 	__u64 *val = ctx->value;
+	__u64 tmp_val = 0;
+	int ret;
 
 	if (in_test_mode) {
 		/* test mode is used by selftests to
@@ -59,6 +62,18 @@ int dump_bpf_hash_map(struct bpf_iter__bpf_map_elem *ctx)
 		 * size.
 		 */
 		if (key == (void *)0 || val == (void *)0)
+			return 0;
+
+		/* update the value and then delete the <key, value> pair.
+		 * it should not impact the existing 'val' which is still
+		 * accessible under rcu.
+		 */
+		__builtin_memcpy(&tmp_key, key, sizeof(struct key_t));
+		ret = bpf_map_update_elem(&hashmap1, &tmp_key, &tmp_val, 0);
+		if (ret)
+			return 0;
+		ret = bpf_map_delete_elem(&hashmap1, &tmp_key);
+		if (ret)
 			return 0;
 
 		key_sum_a += key->a;
