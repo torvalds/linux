@@ -87,6 +87,203 @@ static const char *gfxhub_client_ids[] = {
 	"PA",
 };
 
+static const char *mmhub_client_ids_raven[][2] = {
+	[0][0] = "MP1",
+	[1][0] = "MP0",
+	[2][0] = "VCN",
+	[3][0] = "VCNU",
+	[4][0] = "HDP",
+	[5][0] = "DCE",
+	[13][0] = "UTCL2",
+	[19][0] = "TLS",
+	[26][0] = "OSS",
+	[27][0] = "SDMA0",
+	[0][1] = "MP1",
+	[1][1] = "MP0",
+	[2][1] = "VCN",
+	[3][1] = "VCNU",
+	[4][1] = "HDP",
+	[5][1] = "XDP",
+	[6][1] = "DBGU0",
+	[7][1] = "DCE",
+	[8][1] = "DCEDWB0",
+	[9][1] = "DCEDWB1",
+	[26][1] = "OSS",
+	[27][1] = "SDMA0",
+};
+
+static const char *mmhub_client_ids_renoir[][2] = {
+	[0][0] = "MP1",
+	[1][0] = "MP0",
+	[2][0] = "HDP",
+	[4][0] = "DCEDMC",
+	[5][0] = "DCEVGA",
+	[13][0] = "UTCL2",
+	[19][0] = "TLS",
+	[26][0] = "OSS",
+	[27][0] = "SDMA0",
+	[28][0] = "VCN",
+	[29][0] = "VCNU",
+	[30][0] = "JPEG",
+	[0][1] = "MP1",
+	[1][1] = "MP0",
+	[2][1] = "HDP",
+	[3][1] = "XDP",
+	[6][1] = "DBGU0",
+	[7][1] = "DCEDMC",
+	[8][1] = "DCEVGA",
+	[9][1] = "DCEDWB",
+	[26][1] = "OSS",
+	[27][1] = "SDMA0",
+	[28][1] = "VCN",
+	[29][1] = "VCNU",
+	[30][1] = "JPEG",
+};
+
+static const char *mmhub_client_ids_vega10[][2] = {
+	[0][0] = "MP0",
+	[1][0] = "UVD",
+	[2][0] = "UVDU",
+	[3][0] = "HDP",
+	[13][0] = "UTCL2",
+	[14][0] = "OSS",
+	[15][0] = "SDMA1",
+	[32+0][0] = "VCE0",
+	[32+1][0] = "VCE0U",
+	[32+2][0] = "XDMA",
+	[32+3][0] = "DCE",
+	[32+4][0] = "MP1",
+	[32+14][0] = "SDMA0",
+	[0][1] = "MP0",
+	[1][1] = "UVD",
+	[2][1] = "UVDU",
+	[3][1] = "DBGU0",
+	[4][1] = "HDP",
+	[5][1] = "XDP",
+	[14][1] = "OSS",
+	[15][1] = "SDMA0",
+	[32+0][1] = "VCE0",
+	[32+1][1] = "VCE0U",
+	[32+2][1] = "XDMA",
+	[32+3][1] = "DCE",
+	[32+4][1] = "DCEDWB",
+	[32+5][1] = "MP1",
+	[32+6][1] = "DBGU1",
+	[32+14][1] = "SDMA1",
+};
+
+static const char *mmhub_client_ids_vega12[][2] = {
+	[0][0] = "MP0",
+	[1][0] = "VCE0",
+	[2][0] = "VCE0U",
+	[3][0] = "HDP",
+	[13][0] = "UTCL2",
+	[14][0] = "OSS",
+	[15][0] = "SDMA1",
+	[32+0][0] = "DCE",
+	[32+1][0] = "XDMA",
+	[32+2][0] = "UVD",
+	[32+3][0] = "UVDU",
+	[32+4][0] = "MP1",
+	[32+15][0] = "SDMA0",
+	[0][1] = "MP0",
+	[1][1] = "VCE0",
+	[2][1] = "VCE0U",
+	[3][1] = "DBGU0",
+	[4][1] = "HDP",
+	[5][1] = "XDP",
+	[14][1] = "OSS",
+	[15][1] = "SDMA0",
+	[32+0][1] = "DCE",
+	[32+1][1] = "DCEDWB",
+	[32+2][1] = "XDMA",
+	[32+3][1] = "UVD",
+	[32+4][1] = "UVDU",
+	[32+5][1] = "MP1",
+	[32+6][1] = "DBGU1",
+	[32+15][1] = "SDMA1",
+};
+
+static const char *mmhub_client_ids_vega20[][2] = {
+	[0][0] = "XDMA",
+	[1][0] = "DCE",
+	[2][0] = "VCE0",
+	[3][0] = "VCE0U",
+	[4][0] = "UVD",
+	[5][0] = "UVD1U",
+	[13][0] = "OSS",
+	[14][0] = "HDP",
+	[15][0] = "SDMA0",
+	[32+0][0] = "UVD",
+	[32+1][0] = "UVDU",
+	[32+2][0] = "MP1",
+	[32+3][0] = "MP0",
+	[32+12][0] = "UTCL2",
+	[32+14][0] = "SDMA1",
+	[0][1] = "XDMA",
+	[1][1] = "DCE",
+	[2][1] = "DCEDWB",
+	[3][1] = "VCE0",
+	[4][1] = "VCE0U",
+	[5][1] = "UVD1",
+	[6][1] = "UVD1U",
+	[7][1] = "DBGU0",
+	[8][1] = "XDP",
+	[13][1] = "OSS",
+	[14][1] = "HDP",
+	[15][1] = "SDMA0",
+	[32+0][1] = "UVD",
+	[32+1][1] = "UVDU",
+	[32+2][1] = "DBGU1",
+	[32+3][1] = "MP1",
+	[32+4][1] = "MP0",
+	[32+14][1] = "SDMA1",
+};
+
+static const char *mmhub_client_ids_arcturus[][2] = {
+	[2][0] = "MP1",
+	[3][0] = "MP0",
+	[10][0] = "UTCL2",
+	[13][0] = "OSS",
+	[14][0] = "HDP",
+	[15][0] = "SDMA0",
+	[32+15][0] = "SDMA1",
+	[64+15][0] = "SDMA2",
+	[96+15][0] = "SDMA3",
+	[128+15][0] = "SDMA4",
+	[160+11][0] = "JPEG",
+	[160+12][0] = "VCN",
+	[160+13][0] = "VCNU",
+	[160+15][0] = "SDMA5",
+	[192+10][0] = "UTCL2",
+	[192+11][0] = "JPEG1",
+	[192+12][0] = "VCN1",
+	[192+13][0] = "VCN1U",
+	[192+15][0] = "SDMA6",
+	[224+15][0] = "SDMA7",
+	[0][1] = "DBGU1",
+	[1][1] = "XDP",
+	[2][1] = "MP1",
+	[3][1] = "MP0",
+	[13][1] = "OSS",
+	[14][1] = "HDP",
+	[15][1] = "SDMA0",
+	[32+15][1] = "SDMA1",
+	[32+15][1] = "SDMA1",
+	[64+15][1] = "SDMA2",
+	[96+15][1] = "SDMA3",
+	[128+15][1] = "SDMA4",
+	[160+11][1] = "JPEG",
+	[160+12][1] = "VCN",
+	[160+13][1] = "VCNU",
+	[160+15][1] = "SDMA5",
+	[192+11][1] = "JPEG1",
+	[192+12][1] = "VCN1",
+	[192+13][1] = "VCN1U",
+	[192+15][1] = "SDMA6",
+	[224+15][1] = "SDMA7",
+};
+
 static const u32 golden_settings_vega10_hdp[] =
 {
 	0xf64, 0x0fffffff, 0x00000000,
@@ -319,9 +516,10 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 {
 	struct amdgpu_vmhub *hub;
 	bool retry_fault = !!(entry->src_data[1] & 0x80);
-	uint32_t status = 0, cid = 0;
+	uint32_t status = 0, cid = 0, rw = 0;
 	u64 addr;
 	char hub_name[10];
+	const char *mmhub_cid;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
@@ -358,6 +556,8 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		status = RREG32(hub->vm_l2_pro_fault_status);
 		cid = REG_GET_FIELD(status,
 				    VM_L2_PROTECTION_FAULT_STATUS, CID);
+		rw = REG_GET_FIELD(status,
+				   VM_L2_PROTECTION_FAULT_STATUS, RW);
 		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 	}
 
@@ -380,13 +580,37 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			dev_err(adev->dev,
 				"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 				status);
-			if (hub == &adev->vmhub[AMDGPU_GFXHUB_0])
+			if (hub == &adev->vmhub[AMDGPU_GFXHUB_0]) {
 				dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
 					cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" : gfxhub_client_ids[cid],
 					cid);
-			else
-				dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%x\n",
-					cid);
+			} else {
+				switch (adev->asic_type) {
+				case CHIP_VEGA10:
+					mmhub_cid = mmhub_client_ids_vega10[cid][rw];
+					break;
+				case CHIP_VEGA12:
+					mmhub_cid = mmhub_client_ids_vega12[cid][rw];
+					break;
+				case CHIP_VEGA20:
+					mmhub_cid = mmhub_client_ids_vega20[cid][rw];
+					break;
+				case CHIP_ARCTURUS:
+					mmhub_cid = mmhub_client_ids_arcturus[cid][rw];
+					break;
+				case CHIP_RAVEN:
+					mmhub_cid = mmhub_client_ids_raven[cid][rw];
+					break;
+				case CHIP_RENOIR:
+					mmhub_cid = mmhub_client_ids_renoir[cid][rw];
+					break;
+				default:
+					mmhub_cid = NULL;
+					break;
+				}
+				dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+					mmhub_cid ? mmhub_cid : "unknown", cid);
+			}
 			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
 				REG_GET_FIELD(status,
 				VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
@@ -399,10 +623,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
 				REG_GET_FIELD(status,
 				VM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
-			dev_err(adev->dev, "\t RW: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, RW));
-
+			dev_err(adev->dev, "\t RW: 0x%x\n", rw);
 		}
 	}
 
