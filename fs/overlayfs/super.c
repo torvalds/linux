@@ -1319,7 +1319,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 	/*
 	 * Check if upper/work fs supports trusted.overlay.* xattr
 	 */
-	err = ovl_do_setxattr(ofs->workdir, OVL_XATTR_OPAQUE, "0", 1);
+	err = ovl_do_setxattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE, "0", 1);
 	if (err) {
 		ofs->noxattr = true;
 		ofs->config.index = false;
@@ -1327,7 +1327,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		pr_warn("upper fs does not support xattr, falling back to index=off and metacopy=off.\n");
 		err = 0;
 	} else {
-		ovl_do_removexattr(ofs->workdir, OVL_XATTR_OPAQUE);
+		ovl_do_removexattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE);
 	}
 
 	/*
@@ -1430,8 +1430,8 @@ static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
 		return err;
 
 	/* Verify lower root is upper root origin */
-	err = ovl_verify_origin(upperpath->dentry, oe->lowerstack[0].dentry,
-				true);
+	err = ovl_verify_origin(ofs, upperpath->dentry,
+				oe->lowerstack[0].dentry, true);
 	if (err) {
 		pr_err("failed to verify upper root origin\n");
 		goto out;
@@ -1462,13 +1462,15 @@ static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
 		 * "trusted.overlay.upper" to indicate that index may have
 		 * directory entries.
 		 */
-		if (ovl_check_origin_xattr(ofs->indexdir)) {
-			err = ovl_verify_set_fh(ofs->indexdir, OVL_XATTR_ORIGIN,
+		if (ovl_check_origin_xattr(ofs, ofs->indexdir)) {
+			err = ovl_verify_set_fh(ofs, ofs->indexdir,
+						OVL_XATTR_ORIGIN,
 						upperpath->dentry, true, false);
 			if (err)
 				pr_err("failed to verify index dir 'origin' xattr\n");
 		}
-		err = ovl_verify_upper(ofs->indexdir, upperpath->dentry, true);
+		err = ovl_verify_upper(ofs, ofs->indexdir, upperpath->dentry,
+				       true);
 		if (err)
 			pr_err("failed to verify index dir 'upper' xattr\n");
 
@@ -1834,7 +1836,7 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 		ino = d_inode(upperdentry)->i_ino;
 		fsid = 0;
 		ovl_dentry_set_upper_alias(root);
-		if (ovl_is_impuredir(upperdentry))
+		if (ovl_is_impuredir(sb, upperdentry))
 			ovl_set_flag(OVL_IMPURE, d_inode(root));
 	}
 

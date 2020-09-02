@@ -327,7 +327,7 @@ static const char *ovl_get_link(struct dentry *dentry,
 	return p;
 }
 
-bool ovl_is_private_xattr(const char *name)
+bool ovl_is_private_xattr(struct super_block *sb, const char *name)
 {
 	return strncmp(name, OVL_XATTR_PREFIX,
 		       sizeof(OVL_XATTR_PREFIX) - 1) == 0;
@@ -391,14 +391,14 @@ int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 	return res;
 }
 
-static bool ovl_can_list(const char *s)
+static bool ovl_can_list(struct super_block *sb, const char *s)
 {
 	/* List all non-trusted xatts */
 	if (strncmp(s, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) != 0)
 		return true;
 
 	/* Never list trusted.overlay, list other trusted for superuser only */
-	return !ovl_is_private_xattr(s) &&
+	return !ovl_is_private_xattr(sb, s) &&
 	       ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
 }
 
@@ -425,7 +425,7 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
 			return -EIO;
 
 		len -= slen;
-		if (!ovl_can_list(s)) {
+		if (!ovl_can_list(dentry->d_sb, s)) {
 			res -= slen;
 			memmove(s, s + slen, len);
 		} else {
@@ -722,7 +722,7 @@ static int ovl_set_nlink_common(struct dentry *dentry,
 	if (WARN_ON(len >= sizeof(buf)))
 		return -EIO;
 
-	return ovl_do_setxattr(ovl_dentry_upper(dentry),
+	return ovl_do_setxattr(OVL_FS(inode->i_sb), ovl_dentry_upper(dentry),
 			       OVL_XATTR_NLINK, buf, len);
 }
 
@@ -736,7 +736,7 @@ int ovl_set_nlink_lower(struct dentry *dentry)
 	return ovl_set_nlink_common(dentry, ovl_dentry_lower(dentry), "L%+i");
 }
 
-unsigned int ovl_get_nlink(struct dentry *lowerdentry,
+unsigned int ovl_get_nlink(struct ovl_fs *ofs, struct dentry *lowerdentry,
 			   struct dentry *upperdentry,
 			   unsigned int fallback)
 {
@@ -748,7 +748,7 @@ unsigned int ovl_get_nlink(struct dentry *lowerdentry,
 	if (!lowerdentry || !upperdentry || d_inode(lowerdentry)->i_nlink == 1)
 		return fallback;
 
-	err = ovl_do_getxattr(upperdentry, OVL_XATTR_NLINK,
+	err = ovl_do_getxattr(ofs, upperdentry, OVL_XATTR_NLINK,
 			      &buf, sizeof(buf) - 1);
 	if (err < 0)
 		goto fail;
@@ -947,6 +947,7 @@ static struct inode *ovl_iget5(struct super_block *sb, struct inode *newinode,
 struct inode *ovl_get_inode(struct super_block *sb,
 			    struct ovl_inode_params *oip)
 {
+	struct ovl_fs *ofs = OVL_FS(sb);
 	struct dentry *upperdentry = oip->upperdentry;
 	struct ovl_path *lowerpath = oip->lowerpath;
 	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
@@ -994,7 +995,8 @@ struct inode *ovl_get_inode(struct super_block *sb,
 
 		/* Recalculate nlink for non-dir due to indexing */
 		if (!is_dir)
-			nlink = ovl_get_nlink(lowerdentry, upperdentry, nlink);
+			nlink = ovl_get_nlink(ofs, lowerdentry, upperdentry,
+					      nlink);
 		set_nlink(inode, nlink);
 		ino = key->i_ino;
 	} else {
@@ -1010,7 +1012,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
 	ovl_inode_init(inode, oip, ino, fsid);
 
-	if (upperdentry && ovl_is_impuredir(upperdentry))
+	if (upperdentry && ovl_is_impuredir(sb, upperdentry))
 		ovl_set_flag(OVL_IMPURE, inode);
 
 	if (oip->index)
@@ -1024,7 +1026,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 	/* Check for non-merge dir that may have whiteouts */
 	if (is_dir) {
 		if (((upperdentry && lowerdentry) || oip->numlower > 1) ||
-		    ovl_check_origin_xattr(upperdentry ?: lowerdentry)) {
+		    ovl_check_origin_xattr(ofs, upperdentry ?: lowerdentry)) {
 			ovl_set_flag(OVL_WHITEOUTS, inode);
 		}
 	}

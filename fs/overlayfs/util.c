@@ -544,11 +544,11 @@ void ovl_copy_up_end(struct dentry *dentry)
 	ovl_inode_unlock(d_inode(dentry));
 }
 
-bool ovl_check_origin_xattr(struct dentry *dentry)
+bool ovl_check_origin_xattr(struct ovl_fs *ofs, struct dentry *dentry)
 {
 	int res;
 
-	res = ovl_do_getxattr(dentry, OVL_XATTR_ORIGIN, NULL, 0);
+	res = ovl_do_getxattr(ofs, dentry, OVL_XATTR_ORIGIN, NULL, 0);
 
 	/* Zero size value means "copied up but origin unknown" */
 	if (res >= 0)
@@ -557,7 +557,8 @@ bool ovl_check_origin_xattr(struct dentry *dentry)
 	return false;
 }
 
-bool ovl_check_dir_xattr(struct dentry *dentry, const char *name)
+bool ovl_check_dir_xattr(struct super_block *sb, struct dentry *dentry,
+			 const char *name)
 {
 	int res;
 	char val;
@@ -565,7 +566,7 @@ bool ovl_check_dir_xattr(struct dentry *dentry, const char *name)
 	if (!d_is_dir(dentry))
 		return false;
 
-	res = ovl_do_getxattr(dentry, name, &val, 1);
+	res = ovl_do_getxattr(OVL_FS(sb), dentry, name, &val, 1);
 	if (res == 1 && val == 'y')
 		return true;
 
@@ -582,7 +583,7 @@ int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 	if (ofs->noxattr)
 		return xerr;
 
-	err = ovl_do_setxattr(upperdentry, name, value, size);
+	err = ovl_do_setxattr(ofs, upperdentry, name, value, size);
 
 	if (err == -EOPNOTSUPP) {
 		pr_warn("cannot set %s xattr on upper\n", name);
@@ -845,7 +846,7 @@ err:
 }
 
 /* err < 0, 0 if no metacopy xattr, 1 if metacopy xattr found */
-int ovl_check_metacopy_xattr(struct dentry *dentry)
+int ovl_check_metacopy_xattr(struct ovl_fs *ofs, struct dentry *dentry)
 {
 	int res;
 
@@ -853,7 +854,7 @@ int ovl_check_metacopy_xattr(struct dentry *dentry)
 	if (!S_ISREG(d_inode(dentry)->i_mode))
 		return 0;
 
-	res = ovl_do_getxattr(dentry, OVL_XATTR_METACOPY, NULL, 0);
+	res = ovl_do_getxattr(ofs, dentry, OVL_XATTR_METACOPY, NULL, 0);
 	if (res < 0) {
 		if (res == -ENODATA || res == -EOPNOTSUPP)
 			return 0;
@@ -882,12 +883,13 @@ bool ovl_is_metacopy_dentry(struct dentry *dentry)
 	return (oe->numlower > 1);
 }
 
-char *ovl_get_redirect_xattr(struct dentry *dentry, int padding)
+char *ovl_get_redirect_xattr(struct ovl_fs *ofs, struct dentry *dentry,
+			     int padding)
 {
 	int res;
 	char *s, *next, *buf = NULL;
 
-	res = ovl_do_getxattr(dentry, OVL_XATTR_REDIRECT, NULL, 0);
+	res = ovl_do_getxattr(ofs, dentry, OVL_XATTR_REDIRECT, NULL, 0);
 	if (res == -ENODATA || res == -EOPNOTSUPP)
 		return NULL;
 	if (res < 0)
@@ -899,7 +901,7 @@ char *ovl_get_redirect_xattr(struct dentry *dentry, int padding)
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	res = ovl_do_getxattr(dentry, OVL_XATTR_REDIRECT, buf, res);
+	res = ovl_do_getxattr(ofs, dentry, OVL_XATTR_REDIRECT, buf, res);
 	if (res < 0)
 		goto fail;
 	if (res == 0)
