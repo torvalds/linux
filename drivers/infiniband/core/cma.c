@@ -421,6 +421,15 @@ static int cma_comp_exch(struct rdma_id_private *id_priv,
 	unsigned long flags;
 	int ret;
 
+	/*
+	 * The FSM uses a funny double locking where state is protected by both
+	 * the handler_mutex and the spinlock. State is not allowed to change
+	 * away from a handler_mutex protected value without also holding
+	 * handler_mutex.
+	 */
+	if (comp == RDMA_CM_CONNECT)
+		lockdep_assert_held(&id_priv->handler_mutex);
+
 	spin_lock_irqsave(&id_priv->lock, flags);
 	if ((ret = (id_priv->state == comp)))
 		id_priv->state = exch;
@@ -1949,13 +1958,15 @@ static int cma_ib_handler(struct ib_cm_id *cm_id,
 {
 	struct rdma_id_private *id_priv = cm_id->context;
 	struct rdma_cm_event event = {};
+	enum rdma_cm_state state;
 	int ret;
 
 	mutex_lock(&id_priv->handler_mutex);
+	state = READ_ONCE(id_priv->state);
 	if ((ib_event->event != IB_CM_TIMEWAIT_EXIT &&
-	     id_priv->state != RDMA_CM_CONNECT) ||
+	     state != RDMA_CM_CONNECT) ||
 	    (ib_event->event == IB_CM_TIMEWAIT_EXIT &&
-	     id_priv->state != RDMA_CM_DISCONNECT))
+	     state != RDMA_CM_DISCONNECT))
 		goto out;
 
 	switch (ib_event->event) {
@@ -1965,7 +1976,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id,
 		event.status = -ETIMEDOUT;
 		break;
 	case IB_CM_REP_RECEIVED:
-		if (cma_comp(id_priv, RDMA_CM_CONNECT) &&
+		if (state == RDMA_CM_CONNECT &&
 		    (id_priv->id.qp_type != IB_QPT_UD)) {
 			trace_cm_send_mra(id_priv);
 			ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
@@ -2226,8 +2237,8 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 		goto net_dev_put;
 	}
 
-	if (cma_comp(conn_id, RDMA_CM_CONNECT) &&
-	    (conn_id->id.qp_type != IB_QPT_UD)) {
+	if (READ_ONCE(conn_id->state) == RDMA_CM_CONNECT &&
+	    conn_id->id.qp_type != IB_QPT_UD) {
 		trace_cm_send_mra(cm_id->context);
 		ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
 	}
@@ -2288,7 +2299,7 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 	struct sockaddr *raddr = (struct sockaddr *)&iw_event->remote_addr;
 
 	mutex_lock(&id_priv->handler_mutex);
-	if (id_priv->state != RDMA_CM_CONNECT)
+	if (READ_ONCE(id_priv->state) != RDMA_CM_CONNECT)
 		goto out;
 
 	switch (iw_event->event) {
@@ -3778,7 +3789,7 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 	int ret;
 
 	mutex_lock(&id_priv->handler_mutex);
-	if (id_priv->state != RDMA_CM_CONNECT)
+	if (READ_ONCE(id_priv->state) != RDMA_CM_CONNECT)
 		goto out;
 
 	switch (ib_event->event) {
@@ -4014,12 +4025,15 @@ out:
 
 int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 {
-	struct rdma_id_private *id_priv;
+	struct rdma_id_private *id_priv =
+		container_of(id, struct rdma_id_private, id);
 	int ret;
 
-	id_priv = container_of(id, struct rdma_id_private, id);
-	if (!cma_comp_exch(id_priv, RDMA_CM_ROUTE_RESOLVED, RDMA_CM_CONNECT))
-		return -EINVAL;
+	mutex_lock(&id_priv->handler_mutex);
+	if (!cma_comp_exch(id_priv, RDMA_CM_ROUTE_RESOLVED, RDMA_CM_CONNECT)) {
+		ret = -EINVAL;
+		goto err_unlock;
+	}
 
 	if (!id->qp) {
 		id_priv->qp_num = conn_param->qp_num;
@@ -4036,11 +4050,13 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 	else
 		ret = -ENOSYS;
 	if (ret)
-		goto err;
-
+		goto err_state;
+	mutex_unlock(&id_priv->handler_mutex);
 	return 0;
-err:
+err_state:
 	cma_comp_exch(id_priv, RDMA_CM_CONNECT, RDMA_CM_ROUTE_RESOLVED);
+err_unlock:
+	mutex_unlock(&id_priv->handler_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(rdma_connect);
