@@ -1240,8 +1240,8 @@ static int qedr_copy_srq_uresp(struct qedr_dev *dev,
 }
 
 static void qedr_copy_rq_uresp(struct qedr_dev *dev,
-			      struct qedr_create_qp_uresp *uresp,
-			      struct qedr_qp *qp)
+			       struct qedr_create_qp_uresp *uresp,
+			       struct qedr_qp *qp)
 {
 	/* iWARP requires two doorbells per RQ. */
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
