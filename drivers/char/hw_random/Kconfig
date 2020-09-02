@@ -512,6 +512,16 @@ config HW_RANDOM_CCTRNG
 	  will be called cctrng.
 	  If unsure, say 'N'.
 
+config HW_RANDOM_XIPHERA
+	tristate "Xiphera FPGA based True Random Number Generator support"
+	depends on HAS_IOMEM
+	help
+	  This driver provides kernel-side support for Xiphera True Random
+	  Number Generator Intellectual Property Core.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xiphera-trng.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
