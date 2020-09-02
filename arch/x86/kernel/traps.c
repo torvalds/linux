@@ -745,9 +745,8 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
 	 * Keep it simple: clear DR6 immediately.
 	 */
 	get_debugreg(dr6, 6);
-	set_debugreg(0, 6);
-	/* Filter out all the reserved bits which are preset to 1 */
-	dr6 &= ~DR6_RESERVED;
+	set_debugreg(DR6_RESERVED, 6);
+	dr6 ^= DR6_RESERVED; /* Flip to positive polarity */
 
 	/*
 	 * The SDM says "The processor clears the BTF flag when it
