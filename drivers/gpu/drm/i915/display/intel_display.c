@@ -18946,6 +18946,18 @@ void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
 	intel_fbc_cleanup_cfb(i915);
 }
 
+/* part #3: call after gem init */
+void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915)
+{
+	intel_csr_ucode_fini(i915);
+
+	intel_power_domains_driver_remove(i915);
+
+	intel_vga_unregister(i915);
+
+	intel_bios_driver_remove(i915);
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
 struct intel_display_error_state {
