@@ -33,10 +33,13 @@ struct renesas_sdhi_of_data {
 	unsigned short max_segs;
 };
 
+#define SDHI_CALIB_TABLE_MAX 32
+
 struct renesas_sdhi_quirks {
 	bool hs400_disabled;
 	bool hs400_4taps;
 	u32 hs400_bad_taps;
+	const u8 (*hs400_calib_table)[SDHI_CALIB_TABLE_MAX];
 };
 
 struct tmio_mmc_dma {
@@ -58,6 +61,8 @@ struct renesas_sdhi {
 	void __iomem *scc_ctl;
 	u32 scc_tappos;
 	u32 scc_tappos_hs400;
+	const u8 *adjust_hs400_calib_table;
+	bool needs_adjust_hs400;
 	bool doing_tune;
 
 	/* Tuning values: 1 for success, 0 for failure */
