@@ -385,8 +385,7 @@ int ia_css_bufq_enqueue_psys_event(
     u8 evt_payload_1,
     uint8_t evt_payload_2)
 {
-
-    int error = 0;
+	int error = 0;
 	ia_css_queue_t *q;
 
 	IA_CSS_ENTER_PRIVATE("evt_id=%d", evt_id);

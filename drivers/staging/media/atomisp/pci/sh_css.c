@@ -5091,24 +5091,23 @@ sh_css_pipes_stop(struct ia_css_stream *stream)
 			stream->pipes[i]->pipeline.pipe_id);
 		err = ia_css_pipeline_request_stop(&stream->pipes[i]->pipeline);
 
-	/*
-	 * Exit this loop if "ia_css_pipeline_request_stop()"
-	 * returns the error code.
-	 *
-	 * The error code would be generated in the following
-	 * two cases:
-	 * (1) The Scalar Processor has already been stopped.
-	 * (2) The "Host->SP" event queue is full.
-	 *
-	 * As the convention of using CSS API 2.0/2.1, such CSS
-	 * error code would be propogated from the CSS-internal
-	 * API returned value to the CSS API returned value. Then
-	 * the CSS driver should capture these error code and
-	 * handle it in the driver exception handling mechanism.
-	 */
-	if (err) {
-		goto ERR;
-	}
+		/*
+		* Exit this loop if "ia_css_pipeline_request_stop()"
+		* returns the error code.
+		*
+		* The error code would be generated in the following
+		* two cases:
+		* (1) The Scalar Processor has already been stopped.
+		* (2) The "Host->SP" event queue is full.
+		*
+		* As the convention of using CSS API 2.0/2.1, such CSS
+		* error code would be propogated from the CSS-internal
+		* API returned value to the CSS API returned value. Then
+		* the CSS driver should capture these error code and
+		* handle it in the driver exception handling mechanism.
+		*/
+		if (err)
+			goto ERR;
 	}
 
 	/*
@@ -8768,47 +8767,27 @@ ia_css_acc_pipe_create(struct ia_css_pipe *pipe) {
 	return err;
 }
 
-int
-ia_css_pipe_create(const struct ia_css_pipe_config *config,
-		    struct ia_css_pipe **pipe) {
-#ifndef ISP2401
-	if (!config)
-#else
+int ia_css_pipe_create(const struct ia_css_pipe_config *config,
+		       struct ia_css_pipe **pipe)
+{
 	int err = 0;
 
 	IA_CSS_ENTER_PRIVATE("config = %p, pipe = %p", config, pipe);
 
-	if (!config)
-	{
+	if (!config || !pipe) {
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
-#endif
 		return -EINVAL;
-#ifndef ISP2401
-	if (!pipe)
-#else
-}
+	}
 
-if (!pipe)
-{
-	IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
-#endif
-		return -EINVAL;
-#ifndef ISP2401
-	return ia_css_pipe_create_extra(config, NULL, pipe);
-#else
-}
+	err = ia_css_pipe_create_extra(config, NULL, pipe);
 
-err = ia_css_pipe_create_extra(config, NULL, pipe);
+	if (err == 0) {
+		IA_CSS_LOG("pipe created successfully = %p", *pipe);
+	}
 
-if (err == 0)
-{
-	IA_CSS_LOG("pipe created successfully = %p", *pipe);
-}
+	IA_CSS_LEAVE_ERR_PRIVATE(err);
 
-IA_CSS_LEAVE_ERR_PRIVATE(err);
-
-return err;
-#endif
+	return err;
 }
 
 int

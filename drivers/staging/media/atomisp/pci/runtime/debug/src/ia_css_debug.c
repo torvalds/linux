@@ -2127,9 +2127,9 @@ void ia_css_debug_dump_isys_state(void)
 	input_system_get_state(INPUT_SYSTEM0_ID, &state);
 
 #ifndef ISP2401
-		debug_print_isys_state(&state);
+	debug_print_isys_state(&state);
 #else
-		input_system_dump_state(INPUT_SYSTEM0_ID, &state);
+	input_system_dump_state(INPUT_SYSTEM0_ID, &state);
 #endif
 }
 
