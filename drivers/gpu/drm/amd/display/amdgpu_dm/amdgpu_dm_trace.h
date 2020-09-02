@@ -31,40 +31,33 @@
 
 #include <linux/tracepoint.h>
 
-TRACE_EVENT(amdgpu_dc_rreg,
-	TP_PROTO(unsigned long *read_count, uint32_t reg, uint32_t value),
-	TP_ARGS(read_count, reg, value),
-	TP_STRUCT__entry(
-			__field(uint32_t, reg)
-			__field(uint32_t, value)
-		),
-	TP_fast_assign(
-			__entry->reg = reg;
-			__entry->value = value;
-			*read_count = *read_count + 1;
-		),
-	TP_printk("reg=0x%08lx, value=0x%08lx",
-			(unsigned long)__entry->reg,
-			(unsigned long)__entry->value)
+DECLARE_EVENT_CLASS(amdgpu_dc_reg_template,
+		    TP_PROTO(unsigned long *count, uint32_t reg, uint32_t value),
+		    TP_ARGS(count, reg, value),
+
+		    TP_STRUCT__entry(
+				     __field(uint32_t, reg)
+				     __field(uint32_t, value)
+		    ),
+
+		    TP_fast_assign(
+				   __entry->reg = reg;
+				   __entry->value = value;
+				   *count = *count + 1;
+		    ),
+
+		    TP_printk("reg=0x%08lx, value=0x%08lx",
+			      (unsigned long)__entry->reg,
+			      (unsigned long)__entry->value)
 );
 
-TRACE_EVENT(amdgpu_dc_wreg,
-	TP_PROTO(unsigned long *write_count, uint32_t reg, uint32_t value),
-	TP_ARGS(write_count, reg, value),
-	TP_STRUCT__entry(
-			__field(uint32_t, reg)
-			__field(uint32_t, value)
-		),
-	TP_fast_assign(
-			__entry->reg = reg;
-			__entry->value = value;
-			*write_count = *write_count + 1;
-		),
-	TP_printk("reg=0x%08lx, value=0x%08lx",
-			(unsigned long)__entry->reg,
-			(unsigned long)__entry->value)
-);
+DEFINE_EVENT(amdgpu_dc_reg_template, amdgpu_dc_rreg,
+	     TP_PROTO(unsigned long *count, uint32_t reg, uint32_t value),
+	     TP_ARGS(count, reg, value));
 
+DEFINE_EVENT(amdgpu_dc_reg_template, amdgpu_dc_wreg,
+	     TP_PROTO(unsigned long *count, uint32_t reg, uint32_t value),
+	     TP_ARGS(count, reg, value));
 
 TRACE_EVENT(amdgpu_dc_performance,
 	TP_PROTO(unsigned long read_count, unsigned long write_count,
