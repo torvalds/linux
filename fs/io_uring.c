@@ -287,7 +287,9 @@ struct io_ring_ctx {
 	/* Only used for accounting purposes */
 	struct mm_struct	*mm_account;
 
-	wait_queue_head_t	sqo_wait;
+	struct wait_queue_head	*sqo_wait;
+	struct wait_queue_head	__sqo_wait;
+	struct wait_queue_entry	sqo_wait_entry;
 
 	/*
 	 * If used, fixed file set. Writers must ensure that ->refs is dead,
@@ -1057,7 +1059,8 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 		goto err;
 
 	ctx->flags = p->flags;
-	init_waitqueue_head(&ctx->sqo_wait);
+	init_waitqueue_head(&ctx->__sqo_wait);
+	ctx->sqo_wait = &ctx->__sqo_wait;
 	init_waitqueue_head(&ctx->cq_wait);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	init_completion(&ctx->ref_comp);
@@ -1340,8 +1343,8 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 {
 	if (waitqueue_active(&ctx->wait))
 		wake_up(&ctx->wait);
-	if (waitqueue_active(&ctx->sqo_wait))
-		wake_up(&ctx->sqo_wait);
+	if (waitqueue_active(ctx->sqo_wait))
+		wake_up(ctx->sqo_wait);
 	if (io_should_trigger_evfd(ctx))
 		eventfd_signal(ctx->cq_ev_fd, 1);
 }
@@ -2448,9 +2451,8 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	else
 		list_add_tail(&req->inflight_entry, &ctx->iopoll_list);
 
-	if ((ctx->flags & IORING_SETUP_SQPOLL) &&
-	    wq_has_sleeper(&ctx->sqo_wait))
-		wake_up(&ctx->sqo_wait);
+	if ((ctx->flags & IORING_SETUP_SQPOLL) && wq_has_sleeper(ctx->sqo_wait))
+		wake_up(ctx->sqo_wait);
 }
 
 static void __io_state_file_put(struct io_submit_state *state)
@@ -6627,9 +6629,10 @@ static int io_sq_thread(void *data)
 {
 	struct io_ring_ctx *ctx = data;
 	const struct cred *old_cred;
-	DEFINE_WAIT(wait);
 	unsigned long timeout;
 	int ret = 0;
+
+	init_wait(&ctx->sqo_wait_entry);
 
 	complete(&ctx->sq_thread_comp);
 
@@ -6680,7 +6683,7 @@ static int io_sq_thread(void *data)
 				continue;
 			}
 
-			prepare_to_wait(&ctx->sqo_wait, &wait,
+			prepare_to_wait(ctx->sqo_wait, &ctx->sqo_wait_entry,
 						TASK_INTERRUPTIBLE);
 
 			/*
@@ -6692,7 +6695,7 @@ static int io_sq_thread(void *data)
 			 */
 			if ((ctx->flags & IORING_SETUP_IOPOLL) &&
 			    !list_empty_careful(&ctx->iopoll_list)) {
-				finish_wait(&ctx->sqo_wait, &wait);
+				finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
 				continue;
 			}
 
@@ -6701,22 +6704,22 @@ static int io_sq_thread(void *data)
 			to_submit = io_sqring_entries(ctx);
 			if (!to_submit || ret == -EBUSY) {
 				if (kthread_should_park()) {
-					finish_wait(&ctx->sqo_wait, &wait);
+					finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
 					break;
 				}
 				if (io_run_task_work()) {
-					finish_wait(&ctx->sqo_wait, &wait);
+					finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
 					io_ring_clear_wakeup_flag(ctx);
 					continue;
 				}
 				schedule();
-				finish_wait(&ctx->sqo_wait, &wait);
+				finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
 
 				io_ring_clear_wakeup_flag(ctx);
 				ret = 0;
 				continue;
 			}
-			finish_wait(&ctx->sqo_wait, &wait);
+			finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
 
 			io_ring_clear_wakeup_flag(ctx);
 		}
@@ -8659,7 +8662,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		if (!list_empty_careful(&ctx->cq_overflow_list))
 			io_cqring_overflow_flush(ctx, false, NULL, NULL);
 		if (flags & IORING_ENTER_SQ_WAKEUP)
-			wake_up(&ctx->sqo_wait);
+			wake_up(ctx->sqo_wait);
 		submitted = to_submit;
 	} else if (to_submit) {
 		ret = io_uring_add_task_file(f.file);
