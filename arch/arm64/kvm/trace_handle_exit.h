@@ -22,7 +22,7 @@ TRACE_EVENT(kvm_wfx_arm64,
 		__entry->is_wfe  = is_wfe;
 	),
 
-	TP_printk("guest executed wf%c at: 0x%08lx",
+	TP_printk("guest executed wf%c at: 0x%016lx",
 		  __entry->is_wfe ? 'e' : 'i', __entry->vcpu_pc)
 );
 
@@ -42,7 +42,7 @@ TRACE_EVENT(kvm_hvc_arm64,
 		__entry->imm = imm;
 	),
 
-	TP_printk("HVC at 0x%08lx (r0: 0x%08lx, imm: 0x%lx)",
+	TP_printk("HVC at 0x%016lx (r0: 0x%016lx, imm: 0x%lx)",
 		  __entry->vcpu_pc, __entry->r0, __entry->imm)
 );
 
@@ -135,7 +135,7 @@ TRACE_EVENT(trap_reg,
 		__entry->write_value = write_value;
 	),
 
-	TP_printk("%s %s reg %d (0x%08llx)", __entry->fn,  __entry->is_write?"write to":"read from", __entry->reg, __entry->write_value)
+	TP_printk("%s %s reg %d (0x%016llx)", __entry->fn,  __entry->is_write?"write to":"read from", __entry->reg, __entry->write_value)
 );
 
 TRACE_EVENT(kvm_handle_sys_reg,
