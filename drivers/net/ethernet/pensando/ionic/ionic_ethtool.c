@@ -298,8 +298,8 @@ static void ionic_get_pauseparam(struct net_device *netdev,
 
 	pause_type = lif->ionic->idev.port_info->config.pause_type;
 	if (pause_type) {
-		pause->rx_pause = pause_type & IONIC_PAUSE_F_RX ? 1 : 0;
-		pause->tx_pause = pause_type & IONIC_PAUSE_F_TX ? 1 : 0;
+		pause->rx_pause = (pause_type & IONIC_PAUSE_F_RX) ? 1 : 0;
+		pause->tx_pause = (pause_type & IONIC_PAUSE_F_TX) ? 1 : 0;
 	}
 }
 

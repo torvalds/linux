@@ -467,9 +467,7 @@ int ionic_cq_init(struct ionic_lif *lif, struct ionic_cq *cq,
 		  struct ionic_intr_info *intr,
 		  unsigned int num_descs, size_t desc_size)
 {
-	struct ionic_cq_info *cur;
 	unsigned int ring_size;
-	unsigned int i;
 
 	if (desc_size == 0 || !is_power_of_2(num_descs))
 		return -EINVAL;
@@ -484,19 +482,6 @@ int ionic_cq_init(struct ionic_lif *lif, struct ionic_cq *cq,
 	cq->desc_size = desc_size;
 	cq->tail_idx = 0;
 	cq->done_color = 1;
-
-	cur = cq->info;
-
-	for (i = 0; i < num_descs; i++) {
-		if (i + 1 == num_descs) {
-			cur->next = cq->info;
-			cur->last = true;
-		} else {
-			cur->next = cur + 1;
-		}
-		cur->index = i;
-		cur++;
-	}
 
 	return 0;
 }
@@ -551,9 +536,7 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 		 unsigned int num_descs, size_t desc_size,
 		 size_t sg_desc_size, unsigned int pid)
 {
-	struct ionic_desc_info *cur;
 	unsigned int ring_size;
-	unsigned int i;
 
 	if (desc_size == 0 || !is_power_of_2(num_descs))
 		return -EINVAL;
@@ -573,18 +556,6 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 	q->pid = pid;
 
 	snprintf(q->name, sizeof(q->name), "L%d-%s%u", lif->index, name, index);
-
-	cur = q->info;
-
-	for (i = 0; i < num_descs; i++) {
-		if (i + 1 == num_descs)
-			cur->next = q->info;
-		else
-			cur->next = cur + 1;
-		cur->index = i;
-		cur->left = num_descs - i;
-		cur++;
-	}
 
 	return 0;
 }
@@ -652,6 +623,7 @@ void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
 	struct ionic_desc_info *desc_info;
 	ionic_desc_cb cb;
 	void *cb_arg;
+	u16 index;
 
 	/* check for empty queue */
 	if (q->tail_idx == q->head_idx)
@@ -665,6 +637,7 @@ void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
 
 	do {
 		desc_info = &q->info[q->tail_idx];
+		index = q->tail_idx;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 
 		cb = desc_info->cb;
@@ -675,5 +648,5 @@ void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
 
 		if (cb)
 			cb(q, desc_info, cq_info, cb_arg);
-	} while (desc_info->index != stop_index);
+	} while (index != stop_index);
 }

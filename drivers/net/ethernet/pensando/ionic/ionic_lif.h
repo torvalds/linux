@@ -16,32 +16,32 @@
 #define IONIC_TX_BUDGET_DEFAULT		256
 
 struct ionic_tx_stats {
-	u64 dma_map_err;
 	u64 pkts;
 	u64 bytes;
-	u64 clean;
-	u64 linearize;
 	u64 csum_none;
 	u64 csum;
-	u64 crc32_csum;
 	u64 tso;
 	u64 tso_bytes;
 	u64 frags;
 	u64 vlan_inserted;
+	u64 clean;
+	u64 linearize;
+	u64 crc32_csum;
 	u64 sg_cntr[IONIC_MAX_NUM_SG_CNTR];
+	u64 dma_map_err;
 };
 
 struct ionic_rx_stats {
-	u64 dma_map_err;
-	u64 alloc_err;
 	u64 pkts;
 	u64 bytes;
 	u64 csum_none;
 	u64 csum_complete;
-	u64 csum_error;
 	u64 buffers_posted;
 	u64 dropped;
 	u64 vlan_stripped;
+	u64 csum_error;
+	u64 dma_map_err;
+	u64 alloc_err;
 };
 
 #define IONIC_QCQ_F_INITED		BIT(0)
