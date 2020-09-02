@@ -1287,17 +1287,25 @@ static void multipath_wait_for_pg_init_completion(struct multipath *m)
 static void flush_multipath_work(struct multipath *m)
 {
 	if (m->hw_handler_name) {
-		set_bit(MPATHF_PG_INIT_DISABLED, &m->flags);
-		smp_mb__after_atomic();
+		unsigned long flags;
 
-		if (atomic_read(&m->pg_init_in_progress))
+		if (!atomic_read(&m->pg_init_in_progress))
+			goto skip;
+
+		spin_lock_irqsave(&m->lock, flags);
+		if (atomic_read(&m->pg_init_in_progress) &&
+		    !test_and_set_bit(MPATHF_PG_INIT_DISABLED, &m->flags)) {
+			spin_unlock_irqrestore(&m->lock, flags);
+
 			flush_workqueue(kmpath_handlerd);
-		multipath_wait_for_pg_init_completion(m);
+			multipath_wait_for_pg_init_completion(m);
 
-		clear_bit(MPATHF_PG_INIT_DISABLED, &m->flags);
-		smp_mb__after_atomic();
+			spin_lock_irqsave(&m->lock, flags);
+			clear_bit(MPATHF_PG_INIT_DISABLED, &m->flags);
+		}
+		spin_unlock_irqrestore(&m->lock, flags);
 	}
-
+skip:
 	if (m->queue_mode == DM_TYPE_BIO_BASED)
 		flush_work(&m->process_queued_bios);
 	flush_work(&m->trigger_event);
