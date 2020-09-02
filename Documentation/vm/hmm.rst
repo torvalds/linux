@@ -1,4 +1,4 @@
-.. hmm:
+.. _hmm:
 
 =====================================
 Heterogeneous Memory Management (HMM)
