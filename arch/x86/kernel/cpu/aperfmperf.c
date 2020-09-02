@@ -19,6 +19,7 @@
 
 struct aperfmperf_sample {
 	unsigned int	khz;
+	atomic_t	scfpending;
 	ktime_t	time;
 	u64	aperf;
 	u64	mperf;
@@ -62,17 +63,20 @@ static void aperfmperf_snapshot_khz(void *dummy)
 	s->aperf = aperf;
 	s->mperf = mperf;
 	s->khz = div64_u64((cpu_khz * aperf_delta), mperf_delta);
+	atomic_set_release(&s->scfpending, 0);
 }
 
 static bool aperfmperf_snapshot_cpu(int cpu, ktime_t now, bool wait)
 {
 	s64 time_delta = ktime_ms_delta(now, per_cpu(samples.time, cpu));
+	struct aperfmperf_sample *s = per_cpu_ptr(&samples, cpu);
 
 	/* Don't bother re-computing within the cache threshold time. */
 	if (time_delta < APERFMPERF_CACHE_THRESHOLD_MS)
 		return true;
 
-	smp_call_function_single(cpu, aperfmperf_snapshot_khz, NULL, wait);
+	if (!atomic_xchg(&s->scfpending, 1) || wait)
+		smp_call_function_single(cpu, aperfmperf_snapshot_khz, NULL, wait);
 
 	/* Return false if the previous iteration was too long ago. */
 	return time_delta <= APERFMPERF_STALE_THRESHOLD_MS;
@@ -118,6 +122,8 @@ void arch_freq_prepare_all(void)
 
 unsigned int arch_freq_get_on_cpu(int cpu)
 {
+	struct aperfmperf_sample *s = per_cpu_ptr(&samples, cpu);
+
 	if (!cpu_khz)
 		return 0;
 
@@ -131,6 +137,8 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 		return per_cpu(samples.khz, cpu);
 
 	msleep(APERFMPERF_REFRESH_DELAY_MS);
+	atomic_set(&s->scfpending, 1);
+	smp_mb(); /* ->scfpending before smp_call_function_single(). */
 	smp_call_function_single(cpu, aperfmperf_snapshot_khz, NULL, 1);
 
 	return per_cpu(samples.khz, cpu);
