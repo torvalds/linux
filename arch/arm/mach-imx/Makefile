@@ -7,7 +7,7 @@ obj-$(CONFIG_SOC_IMX27) += cpu-imx27.o pm-imx27.o mach-imx27.o
 obj-$(CONFIG_SOC_IMX27) += mm-imx27.o ehci-imx27.o
 
 obj-$(CONFIG_SOC_IMX31) += mm-imx3.o cpu-imx31.o iomux-imx31.o ehci-imx31.o mach-imx31.o
-obj-$(CONFIG_SOC_IMX35) += mm-imx3.o cpu-imx35.o ehci-imx35.o
+obj-$(CONFIG_SOC_IMX35) += mm-imx3.o cpu-imx35.o ehci-imx35.o mach-imx35.o
 
 imx5-pm-$(CONFIG_PM) += pm-imx5.o
 obj-$(CONFIG_SOC_IMX5) += cpu-imx5.o $(imx5-pm-y)
@@ -34,12 +34,6 @@ ifdef CONFIG_SND_SOC_IMX_PCM_FIQ
 obj-y += ssi-fiq.o
 obj-y += ssi-fiq-ksym.o
 endif
-
-# i.MX35 based machines
-obj-$(CONFIG_MACH_PCM043) += mach-pcm043.o
-obj-$(CONFIG_MACH_MX35_3DS) += mach-mx35_3ds.o
-obj-$(CONFIG_MACH_VPR200) += mach-vpr200.o
-obj-$(CONFIG_MACH_IMX35_DT) += imx35-dt.o
 
 obj-$(CONFIG_HAVE_IMX_ANATOP) += anatop.o
 obj-$(CONFIG_HAVE_IMX_GPC) += gpc.o
