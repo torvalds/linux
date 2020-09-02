@@ -2195,7 +2195,7 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 	}
 
 	mutex_lock(&listen_id->handler_mutex);
-	if (listen_id->state != RDMA_CM_LISTEN) {
+	if (READ_ONCE(listen_id->state) != RDMA_CM_LISTEN) {
 		ret = -ECONNABORTED;
 		goto err_unlock;
 	}
@@ -2373,7 +2373,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	listen_id = cm_id->context;
 
 	mutex_lock(&listen_id->handler_mutex);
-	if (listen_id->state != RDMA_CM_LISTEN)
+	if (READ_ONCE(listen_id->state) != RDMA_CM_LISTEN)
 		goto out;
 
 	/* Create a new RDMA id for the new IW CM ID */
@@ -3327,7 +3327,8 @@ int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse)
 
 	id_priv = container_of(id, struct rdma_id_private, id);
 	spin_lock_irqsave(&id_priv->lock, flags);
-	if (reuse || id_priv->state == RDMA_CM_IDLE) {
+	if ((reuse && id_priv->state != RDMA_CM_LISTEN) ||
+	    id_priv->state == RDMA_CM_IDLE) {
 		id_priv->reuseaddr = reuse;
 		ret = 0;
 	} else {
@@ -3521,8 +3522,7 @@ static int cma_check_port(struct rdma_bind_list *bind_list,
 		if (id_priv == cur_id)
 			continue;
 
-		if ((cur_id->state != RDMA_CM_LISTEN) && reuseaddr &&
-		    cur_id->reuseaddr)
+		if (reuseaddr && cur_id->reuseaddr)
 			continue;
 
 		cur_addr = cma_src_addr(cur_id);
@@ -3560,18 +3560,6 @@ static int cma_use_port(enum rdma_ucm_port_space ps,
 		if (!ret)
 			cma_bind_port(bind_list, id_priv);
 	}
-	return ret;
-}
-
-static int cma_bind_listen(struct rdma_id_private *id_priv)
-{
-	struct rdma_bind_list *bind_list = id_priv->bind_list;
-	int ret = 0;
-
-	mutex_lock(&lock);
-	if (bind_list->owners.first->next)
-		ret = cma_check_port(bind_list, id_priv, 0);
-	mutex_unlock(&lock);
 	return ret;
 }
 
@@ -3683,8 +3671,16 @@ int rdma_listen(struct rdma_cm_id *id, int backlog)
 			return -EINVAL;
 	}
 
+	/*
+	 * Once the ID reaches RDMA_CM_LISTEN it is not allowed to be reusable
+	 * any more, and has to be unique in the bind list.
+	 */
 	if (id_priv->reuseaddr) {
-		ret = cma_bind_listen(id_priv);
+		mutex_lock(&lock);
+		ret = cma_check_port(id_priv->bind_list, id_priv, 0);
+		if (!ret)
+			id_priv->reuseaddr = 0;
+		mutex_unlock(&lock);
 		if (ret)
 			goto err;
 	}
@@ -3709,6 +3705,10 @@ int rdma_listen(struct rdma_cm_id *id, int backlog)
 	return 0;
 err:
 	id_priv->backlog = 0;
+	/*
+	 * All the failure paths that lead here will not allow the req_handler's
+	 * to have run.
+	 */
 	cma_comp_exch(id_priv, RDMA_CM_LISTEN, RDMA_CM_ADDR_BOUND);
 	return ret;
 }
