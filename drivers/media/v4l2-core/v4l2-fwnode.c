@@ -547,8 +547,8 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 		}
 
 		for (i = 0; i < vep->nr_of_link_frequencies; i++)
-			pr_info("link-frequencies %u value %llu\n", i,
-				vep->link_frequencies[i]);
+			pr_debug("link-frequencies %u value %llu\n", i,
+				 vep->link_frequencies[i]);
 	}
 
 	pr_debug("===== end parsing endpoint %pfw\n", fwnode);
