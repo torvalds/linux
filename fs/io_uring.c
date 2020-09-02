@@ -6709,8 +6709,6 @@ static int io_sq_thread(void *data)
 					io_ring_clear_wakeup_flag(ctx);
 					continue;
 				}
-				if (signal_pending(current))
-					flush_signals(current);
 				schedule();
 				finish_wait(&ctx->sqo_wait, &wait);
 
