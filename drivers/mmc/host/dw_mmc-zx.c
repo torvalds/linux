@@ -155,7 +155,6 @@ static int dw_mci_zx_parse_dt(struct dw_mci *host)
 	struct device_node *node;
 	struct dw_mci_zx_priv_data *priv;
 	struct regmap *sysc_base;
-	int ret;
 
 	/* syscon is needed only by emmc */
 	node = of_parse_phandle(np, "zte,aon-syscon", 0);
@@ -163,13 +162,9 @@ static int dw_mci_zx_parse_dt(struct dw_mci *host)
 		sysc_base = syscon_node_to_regmap(node);
 		of_node_put(node);
 
-		if (IS_ERR(sysc_base)) {
-			ret = PTR_ERR(sysc_base);
-			if (ret != -EPROBE_DEFER)
-				dev_err(host->dev, "Can't get syscon: %d\n",
-					ret);
-			return ret;
-		}
+		if (IS_ERR(sysc_base))
+			return dev_err_probe(host->dev, PTR_ERR(sysc_base),
+					     "Can't get syscon\n");
 	} else {
 		return 0;
 	}
