@@ -15,7 +15,6 @@
 #include <asm/iommu.h>
 
 #define STA2X11_SWIOTLB_SIZE (4*1024*1024)
-extern int swiotlb_late_init_with_default_size(size_t default_size);
 
 /*
  * We build a list of bus numbers that are under the ConneXt. The
