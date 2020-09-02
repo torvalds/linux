@@ -558,7 +558,7 @@ bool ovl_check_origin_xattr(struct ovl_fs *ofs, struct dentry *dentry)
 }
 
 bool ovl_check_dir_xattr(struct super_block *sb, struct dentry *dentry,
-			 const char *name)
+			 enum ovl_xattr ox)
 {
 	int res;
 	char val;
@@ -566,15 +566,36 @@ bool ovl_check_dir_xattr(struct super_block *sb, struct dentry *dentry,
 	if (!d_is_dir(dentry))
 		return false;
 
-	res = ovl_do_getxattr(OVL_FS(sb), dentry, name, &val, 1);
+	res = ovl_do_getxattr(OVL_FS(sb), dentry, ox, &val, 1);
 	if (res == 1 && val == 'y')
 		return true;
 
 	return false;
 }
 
+#define OVL_XATTR_OPAQUE_POSTFIX	"opaque"
+#define OVL_XATTR_REDIRECT_POSTFIX	"redirect"
+#define OVL_XATTR_ORIGIN_POSTFIX	"origin"
+#define OVL_XATTR_IMPURE_POSTFIX	"impure"
+#define OVL_XATTR_NLINK_POSTFIX		"nlink"
+#define OVL_XATTR_UPPER_POSTFIX		"upper"
+#define OVL_XATTR_METACOPY_POSTFIX	"metacopy"
+
+#define OVL_XATTR_TAB_ENTRY(x) \
+	[x] = OVL_XATTR_PREFIX x ## _POSTFIX
+
+const char *ovl_xattr_table[] = {
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_OPAQUE),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_REDIRECT),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_ORIGIN),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_IMPURE),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_NLINK),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_UPPER),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_METACOPY),
+};
+
 int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
-		       const char *name, const void *value, size_t size,
+		       enum ovl_xattr ox, const void *value, size_t size,
 		       int xerr)
 {
 	int err;
@@ -583,10 +604,10 @@ int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 	if (ofs->noxattr)
 		return xerr;
 
-	err = ovl_do_setxattr(ofs, upperdentry, name, value, size);
+	err = ovl_do_setxattr(ofs, upperdentry, ox, value, size);
 
 	if (err == -EOPNOTSUPP) {
-		pr_warn("cannot set %s xattr on upper\n", name);
+		pr_warn("cannot set %s xattr on upper\n", ovl_xattr(ofs, ox));
 		ofs->noxattr = true;
 		return xerr;
 	}
