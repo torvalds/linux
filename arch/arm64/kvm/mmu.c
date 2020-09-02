@@ -1964,7 +1964,12 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		(fault_status == FSC_PERM &&
 		 stage2_is_exec(mmu, fault_ipa, vma_pagesize));
 
-	if (vma_pagesize == PUD_SIZE) {
+	/*
+	 * If PUD_SIZE == PMD_SIZE, there is no real PUD level, and
+	 * all we have is a 2-level page table. Trying to map a PUD in
+	 * this case would be fatally wrong.
+	 */
+	if (PUD_SIZE != PMD_SIZE && vma_pagesize == PUD_SIZE) {
 		pud_t new_pud = kvm_pfn_pud(pfn, mem_type);
 
 		new_pud = kvm_pud_mkhuge(new_pud);
