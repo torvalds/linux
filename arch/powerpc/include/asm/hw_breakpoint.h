@@ -42,6 +42,7 @@ struct arch_hw_breakpoint {
 #else
 #define HW_BREAKPOINT_SIZE  0x8
 #endif
+#define HW_BREAKPOINT_SIZE_QUADWORD	0x10
 
 #define DABR_MAX_LEN	8
 #define DAWR_MAX_LEN	512
