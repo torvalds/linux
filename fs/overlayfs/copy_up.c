@@ -784,36 +784,26 @@ static bool ovl_need_meta_copy_up(struct dentry *dentry, umode_t mode,
 	return true;
 }
 
-static ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value,
-			    size_t padding)
+static ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value)
 {
 	ssize_t res;
-	char *buf = NULL;
+	char *buf;
 
 	res = vfs_getxattr(dentry, name, NULL, 0);
-	if (res < 0) {
-		if (res == -ENODATA || res == -EOPNOTSUPP)
-			return -ENODATA;
-		goto fail;
-	}
+	if (res == -ENODATA || res == -EOPNOTSUPP)
+		res = 0;
 
-	if (res != 0) {
-		buf = kzalloc(res + padding, GFP_KERNEL);
+	if (res > 0) {
+		buf = kzalloc(res, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 
 		res = vfs_getxattr(dentry, name, buf, res);
 		if (res < 0)
-			goto fail;
+			kfree(buf);
+		else
+			*value = buf;
 	}
-	*value = buf;
-
-	return res;
-
-fail:
-	pr_warn_ratelimited("failed to get xattr %s: err=%zi)\n",
-			    name, res);
-	kfree(buf);
 	return res;
 }
 
@@ -836,8 +826,8 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 
 	if (c->stat.size) {
 		err = cap_size = ovl_getxattr(upperpath.dentry, XATTR_NAME_CAPS,
-					      &capability, 0);
-		if (err < 0 && err != -ENODATA)
+					      &capability);
+		if (cap_size < 0)
 			goto out;
 	}
 
