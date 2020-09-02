@@ -2300,8 +2300,11 @@ end_req:
 static bool io_rw_reissue(struct io_kiocb *req, long res)
 {
 #ifdef CONFIG_BLOCK
+	umode_t mode = file_inode(req->file)->i_mode;
 	int ret;
 
+	if (!S_ISBLK(mode) && !S_ISREG(mode))
+		return false;
 	if ((res != -EAGAIN && res != -EOPNOTSUPP) || io_wq_current_is_worker())
 		return false;
 
@@ -3146,6 +3149,9 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		/* IOPOLL retry should happen for io-wq threads */
 		if (!force_nonblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto done;
+		/* no retry on NONBLOCK marked file */
+		if (req->file->f_flags & O_NONBLOCK)
+			goto done;
 		/* some cases will consume bytes even on error returns */
 		iov_iter_revert(iter, iov_count - iov_iter_count(iter));
 		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
@@ -3287,10 +3293,14 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	 */
 	if (ret2 == -EOPNOTSUPP && (kiocb->ki_flags & IOCB_NOWAIT))
 		ret2 = -EAGAIN;
+	/* no retry on NONBLOCK marked file */
+	if (ret2 == -EAGAIN && (req->file->f_flags & O_NONBLOCK))
+		goto done;
 	if (!force_nonblock || ret2 != -EAGAIN) {
 		/* IOPOLL retry should happen for io-wq threads */
 		if ((req->ctx->flags & IORING_SETUP_IOPOLL) && ret2 == -EAGAIN)
 			goto copy_iov;
+done:
 		kiocb_done(kiocb, ret2, cs);
 	} else {
 copy_iov:
