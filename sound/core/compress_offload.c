@@ -1032,7 +1032,7 @@ static const struct file_operations snd_compr_file_ops = {
 
 static int snd_compress_dev_register(struct snd_device *device)
 {
-	int ret = -EINVAL;
+	int ret;
 	struct snd_compr *compr;
 
 	if (snd_BUG_ON(!device || !device->device_data))
