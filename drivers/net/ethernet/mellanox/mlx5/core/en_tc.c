@@ -2624,6 +2624,22 @@ static struct mlx5_fields fields[] = {
 	OFFLOAD(UDP_DPORT, 16, U16_MAX, udp.dest,   0, udp_dport),
 };
 
+static unsigned long mask_to_le(unsigned long mask, int size)
+{
+	__be32 mask_be32;
+	__be16 mask_be16;
+
+	if (size == 32) {
+		mask_be32 = (__force __be32)(mask);
+		mask = (__force unsigned long)cpu_to_le32(be32_to_cpu(mask_be32));
+	} else if (size == 16) {
+		mask_be32 = (__force __be32)(mask);
+		mask_be16 = *(__be16 *)&mask_be32;
+		mask = (__force unsigned long)cpu_to_le16(be16_to_cpu(mask_be16));
+	}
+
+	return mask;
+}
 static int offload_pedit_fields(struct mlx5e_priv *priv,
 				int namespace,
 				struct pedit_headers_action *hdrs,
@@ -2637,9 +2653,7 @@ static int offload_pedit_fields(struct mlx5e_priv *priv,
 	u32 *s_masks_p, *a_masks_p, s_mask, a_mask;
 	struct mlx5e_tc_mod_hdr_acts *mod_acts;
 	struct mlx5_fields *f;
-	unsigned long mask;
-	__be32 mask_be32;
-	__be16 mask_be16;
+	unsigned long mask, field_mask;
 	int err;
 	u8 cmd;
 
@@ -2705,14 +2719,7 @@ static int offload_pedit_fields(struct mlx5e_priv *priv,
 		if (skip)
 			continue;
 
-		if (f->field_bsize == 32) {
-			mask_be32 = (__force __be32)(mask);
-			mask = (__force unsigned long)cpu_to_le32(be32_to_cpu(mask_be32));
-		} else if (f->field_bsize == 16) {
-			mask_be32 = (__force __be32)(mask);
-			mask_be16 = *(__be16 *)&mask_be32;
-			mask = (__force unsigned long)cpu_to_le16(be16_to_cpu(mask_be16));
-		}
+		mask = mask_to_le(mask, f->field_bsize);
 
 		first = find_first_bit(&mask, f->field_bsize);
 		next_z = find_next_zero_bit(&mask, f->field_bsize, first);
@@ -2743,9 +2750,10 @@ static int offload_pedit_fields(struct mlx5e_priv *priv,
 		if (cmd == MLX5_ACTION_TYPE_SET) {
 			int start;
 
+			field_mask = mask_to_le(f->field_mask, f->field_bsize);
+
 			/* if field is bit sized it can start not from first bit */
-			start = find_first_bit((unsigned long *)&f->field_mask,
-					       f->field_bsize);
+			start = find_first_bit(&field_mask, f->field_bsize);
 
 			MLX5_SET(set_action_in, action, offset, first - start);
 			/* length is num of bits to be written, zero means length of 32 */
