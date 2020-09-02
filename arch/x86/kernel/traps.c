@@ -749,6 +749,13 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
 	/* Filter out all the reserved bits which are preset to 1 */
 	dr6 &= ~DR6_RESERVED;
 
+	/*
+	 * The SDM says "The processor clears the BTF flag when it
+	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
+	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
+	 */
+	clear_thread_flag(TIF_BLOCKSTEP);
+
 	return dr6;
 }
 
@@ -781,13 +788,6 @@ static void handle_debug(struct pt_regs *regs, unsigned long dr6, bool user)
 	struct task_struct *tsk = current;
 	bool user_icebp;
 	int si_code;
-
-	/*
-	 * The SDM says "The processor clears the BTF flag when it
-	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
-	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
-	 */
-	clear_thread_flag(TIF_BLOCKSTEP);
 
 	/*
 	 * If DR6 is zero, no point in trying to handle it. The kernel is
