@@ -783,25 +783,18 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
  *
  * May run on IST stack.
  */
-static void handle_debug(struct pt_regs *regs, unsigned long dr6, bool user)
+static void handle_debug(struct pt_regs *regs, unsigned long dr6)
 {
 	struct task_struct *tsk = current;
 	bool user_icebp;
 	int si_code;
 
 	/*
-	 * If DR6 is zero, no point in trying to handle it. The kernel is
-	 * not using INT1.
-	 */
-	if (!user && !dr6)
-		return;
-
-	/*
 	 * If dr6 has no reason to give us about the origin of this trap,
 	 * then it's very likely the result of an icebp/int01 trap.
 	 * User wants a sigtrap for that.
 	 */
-	user_icebp = user && !dr6;
+	user_icebp = !dr6;
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
@@ -874,7 +867,13 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	if (kprobe_debug_handler(regs))
 		goto out;
 
-	handle_debug(regs, dr6, false);
+	/*
+	 * The kernel doesn't use INT1
+	 */
+	if (!dr6)
+		goto out;
+
+	handle_debug(regs, dr6);
 
 out:
 	instrumentation_end();
@@ -904,7 +903,7 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 	irqentry_enter_from_user_mode(regs);
 	instrumentation_begin();
 
-	handle_debug(regs, dr6, true);
+	handle_debug(regs, dr6);
 
 	instrumentation_end();
 	irqentry_exit_to_user_mode(regs);
