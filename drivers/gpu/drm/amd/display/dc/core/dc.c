@@ -2986,7 +2986,7 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 			if (enable && !link->psr_settings.psr_allow_active)
 				return dc_link_set_psr_allow_active(link, true, false);
 			else if (!enable && link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, false, false);
+				return dc_link_set_psr_allow_active(link, false, true);
 		}
 	}
 
