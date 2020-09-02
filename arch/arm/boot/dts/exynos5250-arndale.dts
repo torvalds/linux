@@ -542,11 +542,6 @@
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <40000>;
-
-	sata_phy_i2c: sata-phy@38 {
-		compatible = "samsung,exynos-sataphy-i2c";
-		reg = <0x38>;
-	};
 };
 
 &i2s0 {
@@ -616,6 +611,10 @@
 &sata_phy {
 	status = "okay";
 	samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+};
+
+&sata_phy_i2c {
+	status = "okay";
 };
 
 &soc {

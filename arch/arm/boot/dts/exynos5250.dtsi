@@ -473,6 +473,12 @@
 			clocks = <&clock CLK_SATA_PHYI2C>;
 			clock-names = "i2c";
 			status = "disabled";
+
+			sata_phy_i2c: sata-phy-i2c@38 {
+				compatible = "samsung,exynos-sataphy-i2c";
+				reg = <0x38>;
+				status = "disabled";
+			};
 		};
 
 		spi_0: spi@12d20000 {
