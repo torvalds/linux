@@ -445,6 +445,8 @@ ingenic_clk_round_rate(struct clk_hw *hw, unsigned long req_rate,
 		div = ingenic_clk_calc_div(clk_info, *parent_rate, req_rate);
 	else if (clk_info->type & CGU_CLK_FIXDIV)
 		div = clk_info->fixdiv.div;
+	else if (clk_hw_can_set_rate_parent(hw))
+		*parent_rate = req_rate;
 
 	return DIV_ROUND_UP(*parent_rate, div);
 }
