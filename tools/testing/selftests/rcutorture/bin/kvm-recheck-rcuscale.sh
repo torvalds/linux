@@ -1,9 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Analyze a given results directory for rcuperf performance measurements.
+# Analyze a given results directory for rcuscale scalability measurements.
 #
-# Usage: kvm-recheck-rcuperf.sh resdir
+# Usage: kvm-recheck-rcuscale.sh resdir
 #
 # Copyright (C) IBM Corporation, 2016
 #
@@ -20,7 +20,7 @@ fi
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
 . functions.sh
 
-if kvm-recheck-rcuperf-ftrace.sh $i
+if kvm-recheck-rcuscale-ftrace.sh $i
 then
 	# ftrace data was successfully analyzed, call it good!
 	exit 0
@@ -30,12 +30,12 @@ configfile=`echo $i | sed -e 's/^.*\///'`
 
 sed -e 's/^\[[^]]*]//' < $i/console.log |
 awk '
-/-perf: .* gps: .* batches:/ {
+/-scale: .* gps: .* batches:/ {
 	ngps = $9;
 	nbatches = $11;
 }
 
-/-perf: .*writer-duration/ {
+/-scale: .*writer-duration/ {
 	gptimes[++n] = $5 / 1000.;
 	sum += $5 / 1000.;
 }
@@ -43,7 +43,7 @@ awk '
 END {
 	newNR = asort(gptimes);
 	if (newNR <= 0) {
-		print "No rcuperf records found???"
+		print "No rcuscale records found???"
 		exit;
 	}
 	pct50 = int(newNR * 50 / 100);
@@ -79,5 +79,5 @@ END {
 	print "99th percentile grace-period duration: " gptimes[pct99];
 	print "Maximum grace-period duration: " gptimes[newNR];
 	print "Grace periods: " ngps + 0 " Batches: " nbatches + 0 " Ratio: " ngps / nbatches;
-	print "Computed from rcuperf printk output.";
+	print "Computed from rcuscale printk output.";
 }'
