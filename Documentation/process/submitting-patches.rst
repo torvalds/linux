@@ -396,6 +396,9 @@ for their time.  Code review is a tiring and time-consuming process, and
 reviewers sometimes get grumpy.  Even in that case, though, respond
 politely and address the problems they have pointed out.
 
+See :ref:`Documentation/process/email-clients.rst` for recommendations on email
+clients and mailing list etiquette.
+
 
 Don't get discouraged - or impatient
 ------------------------------------
