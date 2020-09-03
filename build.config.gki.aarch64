@@ -9,5 +9,6 @@ android/abi_gki_aarch64_cuttlefish
 android/abi_gki_aarch64_qcom
 "
 TRIM_NONLISTED_KMI=1
+KMI_SYMBOL_LIST_ADD_ONLY=1
 KMI_SYMBOL_LIST_STRICT_MODE=1
 KMI_ENFORCED=1
