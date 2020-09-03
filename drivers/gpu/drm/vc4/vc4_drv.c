@@ -252,6 +252,7 @@ static int vc4_drm_bind(struct device *dev)
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
 	struct device_node *node;
+	struct drm_crtc *crtc;
 	int ret = 0;
 
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
@@ -297,6 +298,9 @@ static int vc4_drm_bind(struct device *dev)
 	ret = vc4_kms_load(drm);
 	if (ret < 0)
 		goto unbind_all;
+
+	drm_for_each_crtc(crtc, drm)
+		vc4_crtc_disable_at_boot(crtc);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
