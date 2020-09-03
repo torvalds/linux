@@ -8,6 +8,8 @@
 #include "dev.h"
 #include "procfs.h"
 #include "version.h"
+#include "regs.h"
+#include "regs_v2x.h"
 
 #ifdef CONFIG_PROC_FS
 static int isp_show(struct seq_file *p, void *v)
@@ -15,7 +17,18 @@ static int isp_show(struct seq_file *p, void *v)
 	struct rkisp_device *dev = p->private;
 	struct rkisp_isp_subdev *sdev = &dev->isp_sdev;
 	struct rkisp_sensor_info *sensor = dev->active_sensor;
+	u32 full_range_flg = CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA | CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA;
 	u32 val = 0;
+	static const char * const effect[] = {
+		"BLACKWHITE",
+		"NEGATIVE",
+		"SEPIA",
+		"COLOR_SEL",
+		"EMBOSS",
+		"SKETCH",
+		"SHARPEN",
+		"RKSHARPEN"
+	};
 
 	seq_printf(p, "%-10s Version:v%02x.%02x.%02x\n",
 		   dev->name,
@@ -51,6 +64,91 @@ static int isp_show(struct seq_file *p, void *v)
 			   dev->hw_dev->match_data->clks[val],
 			   clk_get_rate(dev->hw_dev->clks[val]));
 	}
+
+	if (!(dev->isp_state & ISP_START))
+		return 0;
+
+	val = rkisp_read(dev, ISP_DPCC0_MODE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "DPCC0", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_DPCC1_MODE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "DPCC1", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_DPCC2_MODE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "DPCC2", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_BLS_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "BLS", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, CIF_ISP_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "SDG",
+		(val & CIF_ISP_CTRL_ISP_GAMMA_IN_ENA) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_LSC_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "LSC", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, CIF_ISP_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x) (gain: 0x%08x, 0x%08x)\n", "AWBGAIN",
+		(val & CIF_ISP_CTRL_ISP_AWB_ENA) ? "ON" : "OFF", val,
+		rkisp_read(dev, CIF_ISP_AWB_GAIN_G_V12, false),
+		rkisp_read(dev, CIF_ISP_AWB_GAIN_RB_V12, false));
+	val = rkisp_read(dev, ISP_DEBAYER_CONTROL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "DEBAYER", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_CCM_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "CCM", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_GAMMA_OUT_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "GAMMA_OUT", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, CPROC_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "CPROC", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, CIF_IMG_EFF_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x) (effect: %s)\n", "IE",
+		(val & 1) ? "ON" : "OFF", val,
+		effect[(val & CIF_IMG_EFF_CTRL_MODE_MASK) >> 1]);
+	val = rkisp_read(dev, ISP_WDR_CTRL0, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "WDR", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_HDRTMO_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "HDRTMO", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_HDRMGE_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "HDRMGE", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_RAWNR_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWNR", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_GIC_CONTROL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "GIC", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_DHAZ_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "DHAZ", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_3DLUT_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "3DLUT", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_GAIN_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "GAIN", val ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_LDCH_STS, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "LDCH", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "CSM",
+		(val & full_range_flg) ? "FULL" : "LIMITED", val);
+
+	val = rkisp_read(dev, ISP_AFM_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "SIAF", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, CIF_ISP_AWB_PROP_V10, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "SIAWB",
+		(val & CIF_ISP_AWB_ENABLE) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_YUVAE_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "YUVAE", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_HIST_HIST_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "SIHST", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_RAWAF_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWAF", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_RAWAWB_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWAWB", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_RAWAE_LITE_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWAE0", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, RAWAE_BIG2_BASE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWAE1", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, RAWAE_BIG3_BASE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWAE2", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, RAWAE_BIG1_BASE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWAE3", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_RAWHIST_LITE_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWHIST0", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_RAWHIST_BIG2_BASE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWHIST1", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_RAWHIST_BIG3_BASE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWHIST2", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP_RAWHIST_BIG1_BASE, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "RAWHIST3", (val & 1) ? "ON" : "OFF", val);
 	return 0;
 }
 
