@@ -43,6 +43,7 @@
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/rational.h>
+#include <linux/reset.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_drm_eld.h>
 #include <sound/pcm_params.h>
@@ -52,6 +53,31 @@
 #include "vc4_hdmi.h"
 #include "vc4_hdmi_regs.h"
 #include "vc4_regs.h"
+
+#define VC5_HDMI_HORZA_HFP_SHIFT		16
+#define VC5_HDMI_HORZA_HFP_MASK			VC4_MASK(28, 16)
+#define VC5_HDMI_HORZA_VPOS			BIT(15)
+#define VC5_HDMI_HORZA_HPOS			BIT(14)
+#define VC5_HDMI_HORZA_HAP_SHIFT		0
+#define VC5_HDMI_HORZA_HAP_MASK			VC4_MASK(13, 0)
+
+#define VC5_HDMI_HORZB_HBP_SHIFT		16
+#define VC5_HDMI_HORZB_HBP_MASK			VC4_MASK(26, 16)
+#define VC5_HDMI_HORZB_HSP_SHIFT		0
+#define VC5_HDMI_HORZB_HSP_MASK			VC4_MASK(10, 0)
+
+#define VC5_HDMI_VERTA_VSP_SHIFT		24
+#define VC5_HDMI_VERTA_VSP_MASK			VC4_MASK(28, 24)
+#define VC5_HDMI_VERTA_VFP_SHIFT		16
+#define VC5_HDMI_VERTA_VFP_MASK			VC4_MASK(22, 16)
+#define VC5_HDMI_VERTA_VAL_SHIFT		0
+#define VC5_HDMI_VERTA_VAL_MASK			VC4_MASK(12, 0)
+
+#define VC5_HDMI_VERTB_VSPO_SHIFT		16
+#define VC5_HDMI_VERTB_VSPO_MASK		VC4_MASK(29, 16)
+
+# define VC4_HD_M_SW_RST			BIT(2)
+# define VC4_HD_M_ENABLE			BIT(0)
 
 #define CEC_CLOCK_FREQ 40000
 #define VC4_HSM_MID_CLOCK 149985000
@@ -81,6 +107,16 @@ static void vc4_hdmi_reset(struct vc4_hdmi *vc4_hdmi)
 		   VC4_HDMI_SW_RESET_FORMAT_DETECT);
 
 	HDMI_WRITE(HDMI_SW_RESET_CONTROL, 0);
+}
+
+static void vc5_hdmi_reset(struct vc4_hdmi *vc4_hdmi)
+{
+	reset_control_reset(vc4_hdmi->reset);
+
+	HDMI_WRITE(HDMI_DVP_CTL, 0);
+
+	HDMI_WRITE(HDMI_CLOCK_STOP,
+		   HDMI_READ(HDMI_CLOCK_STOP) | VC4_DVP_HT_CLOCK_STOP_PIXEL);
 }
 
 static enum drm_connector_status
@@ -393,6 +429,45 @@ static void vc4_hdmi_csc_setup(struct vc4_hdmi *vc4_hdmi, bool enable)
 	HDMI_WRITE(HDMI_CSC_CTL, csc_ctl);
 }
 
+static void vc5_hdmi_csc_setup(struct vc4_hdmi *vc4_hdmi, bool enable)
+{
+	u32 csc_ctl;
+
+	csc_ctl = 0x07;	/* RGB_CONVERT_MODE = custom matrix, || USE_RGB_TO_YCBCR */
+
+	if (enable) {
+		/* CEA VICs other than #1 requre limited range RGB
+		 * output unless overridden by an AVI infoframe.
+		 * Apply a colorspace conversion to squash 0-255 down
+		 * to 16-235.  The matrix here is:
+		 *
+		 * [ 0.8594 0      0      16]
+		 * [ 0      0.8594 0      16]
+		 * [ 0      0      0.8594 16]
+		 * [ 0      0      0       1]
+		 * Matrix is signed 2p13 fixed point, with signed 9p6 offsets
+		 */
+		HDMI_WRITE(HDMI_CSC_12_11, (0x0000 << 16) | 0x1b80);
+		HDMI_WRITE(HDMI_CSC_14_13, (0x0400 << 16) | 0x0000);
+		HDMI_WRITE(HDMI_CSC_22_21, (0x1b80 << 16) | 0x0000);
+		HDMI_WRITE(HDMI_CSC_24_23, (0x0400 << 16) | 0x0000);
+		HDMI_WRITE(HDMI_CSC_32_31, (0x0000 << 16) | 0x0000);
+		HDMI_WRITE(HDMI_CSC_34_33, (0x0400 << 16) | 0x1b80);
+	} else {
+		/* Still use the matrix for full range, but make it unity.
+		 * Matrix is signed 2p13 fixed point, with signed 9p6 offsets
+		 */
+		HDMI_WRITE(HDMI_CSC_12_11, (0x0000 << 16) | 0x2000);
+		HDMI_WRITE(HDMI_CSC_14_13, (0x0000 << 16) | 0x0000);
+		HDMI_WRITE(HDMI_CSC_22_21, (0x2000 << 16) | 0x0000);
+		HDMI_WRITE(HDMI_CSC_24_23, (0x0000 << 16) | 0x0000);
+		HDMI_WRITE(HDMI_CSC_32_31, (0x0000 << 16) | 0x0000);
+		HDMI_WRITE(HDMI_CSC_34_33, (0x0000 << 16) | 0x2000);
+	}
+
+	HDMI_WRITE(HDMI_CSC_CTL, csc_ctl);
+}
+
 static void vc4_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
 				 struct drm_display_mode *mode)
 {
@@ -436,6 +511,53 @@ static void vc4_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
 
 	HDMI_WRITE(HDMI_VERTB0, vertb_even);
 	HDMI_WRITE(HDMI_VERTB1, vertb);
+}
+static void vc5_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
+				 struct drm_display_mode *mode)
+{
+	bool hsync_pos = mode->flags & DRM_MODE_FLAG_PHSYNC;
+	bool vsync_pos = mode->flags & DRM_MODE_FLAG_PVSYNC;
+	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
+	u32 pixel_rep = (mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1;
+	u32 verta = (VC4_SET_FIELD(mode->crtc_vsync_end - mode->crtc_vsync_start,
+				   VC5_HDMI_VERTA_VSP) |
+		     VC4_SET_FIELD(mode->crtc_vsync_start - mode->crtc_vdisplay,
+				   VC5_HDMI_VERTA_VFP) |
+		     VC4_SET_FIELD(mode->crtc_vdisplay, VC5_HDMI_VERTA_VAL));
+	u32 vertb = (VC4_SET_FIELD(0, VC5_HDMI_VERTB_VSPO) |
+		     VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end,
+				   VC4_HDMI_VERTB_VBP));
+	u32 vertb_even = (VC4_SET_FIELD(0, VC5_HDMI_VERTB_VSPO) |
+			  VC4_SET_FIELD(mode->crtc_vtotal -
+					mode->crtc_vsync_end -
+					interlaced,
+					VC4_HDMI_VERTB_VBP));
+
+	HDMI_WRITE(HDMI_VEC_INTERFACE_XBAR, 0x354021);
+	HDMI_WRITE(HDMI_HORZA,
+		   (vsync_pos ? VC5_HDMI_HORZA_VPOS : 0) |
+		   (hsync_pos ? VC5_HDMI_HORZA_HPOS : 0) |
+		   VC4_SET_FIELD(mode->hdisplay * pixel_rep,
+				 VC5_HDMI_HORZA_HAP) |
+		   VC4_SET_FIELD((mode->hsync_start -
+				  mode->hdisplay) * pixel_rep,
+				 VC5_HDMI_HORZA_HFP));
+
+	HDMI_WRITE(HDMI_HORZB,
+		   VC4_SET_FIELD((mode->htotal -
+				  mode->hsync_end) * pixel_rep,
+				 VC5_HDMI_HORZB_HBP) |
+		   VC4_SET_FIELD((mode->hsync_end -
+				  mode->hsync_start) * pixel_rep,
+				 VC5_HDMI_HORZB_HSP));
+
+	HDMI_WRITE(HDMI_VERTA0, verta);
+	HDMI_WRITE(HDMI_VERTA1, verta);
+
+	HDMI_WRITE(HDMI_VERTB0, vertb_even);
+	HDMI_WRITE(HDMI_VERTB1, vertb);
+
+	HDMI_WRITE(HDMI_CLOCK_STOP, 0);
 }
 
 static void vc4_hdmi_recenter_fifo(struct vc4_hdmi *vc4_hdmi)
@@ -664,6 +786,18 @@ static u32 vc4_hdmi_channel_map(struct vc4_hdmi *vc4_hdmi, u32 channel_mask)
 	for (i = 0; i < 8; i++) {
 		if (channel_mask & BIT(i))
 			channel_map |= i << (3 * i);
+	}
+	return channel_map;
+}
+
+static u32 vc5_hdmi_channel_map(struct vc4_hdmi *vc4_hdmi, u32 channel_mask)
+{
+	int i;
+	u32 channel_map = 0;
+
+	for (i = 0; i < 8; i++) {
+		if (channel_mask & BIT(i))
+			channel_map |= i << (4 * i);
 	}
 	return channel_map;
 }
@@ -1399,6 +1533,104 @@ static int vc4_hdmi_init_resources(struct vc4_hdmi *vc4_hdmi)
 	return 0;
 }
 
+static int vc5_hdmi_init_resources(struct vc4_hdmi *vc4_hdmi)
+{
+	struct platform_device *pdev = vc4_hdmi->pdev;
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi");
+	if (!res)
+		return -ENODEV;
+
+	vc4_hdmi->hdmicore_regs = devm_ioremap(dev, res->start,
+					       resource_size(res));
+	if (IS_ERR(vc4_hdmi->hdmicore_regs))
+		return PTR_ERR(vc4_hdmi->hdmicore_regs);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hd");
+	if (!res)
+		return -ENODEV;
+
+	vc4_hdmi->hd_regs = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(vc4_hdmi->hd_regs))
+		return PTR_ERR(vc4_hdmi->hd_regs);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cec");
+	if (!res)
+		return -ENODEV;
+
+	vc4_hdmi->cec_regs = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(vc4_hdmi->cec_regs))
+		return PTR_ERR(vc4_hdmi->cec_regs);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csc");
+	if (!res)
+		return -ENODEV;
+
+	vc4_hdmi->csc_regs = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(vc4_hdmi->csc_regs))
+		return PTR_ERR(vc4_hdmi->csc_regs);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dvp");
+	if (!res)
+		return -ENODEV;
+
+	vc4_hdmi->dvp_regs = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(vc4_hdmi->dvp_regs))
+		return PTR_ERR(vc4_hdmi->dvp_regs);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
+	if (!res)
+		return -ENODEV;
+
+	vc4_hdmi->phy_regs = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(vc4_hdmi->phy_regs))
+		return PTR_ERR(vc4_hdmi->phy_regs);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "packet");
+	if (!res)
+		return -ENODEV;
+
+	vc4_hdmi->ram_regs = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(vc4_hdmi->ram_regs))
+		return PTR_ERR(vc4_hdmi->ram_regs);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rm");
+	if (!res)
+		return -ENODEV;
+
+	vc4_hdmi->rm_regs = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(vc4_hdmi->rm_regs))
+		return PTR_ERR(vc4_hdmi->rm_regs);
+
+	vc4_hdmi->hsm_clock = devm_clk_get(dev, "hdmi");
+	if (IS_ERR(vc4_hdmi->hsm_clock)) {
+		DRM_ERROR("Failed to get HDMI state machine clock\n");
+		return PTR_ERR(vc4_hdmi->hsm_clock);
+	}
+
+	vc4_hdmi->pixel_bvb_clock = devm_clk_get(dev, "bvb");
+	if (IS_ERR(vc4_hdmi->pixel_bvb_clock)) {
+		DRM_ERROR("Failed to get pixel bvb clock\n");
+		return PTR_ERR(vc4_hdmi->pixel_bvb_clock);
+	}
+
+	vc4_hdmi->audio_clock = devm_clk_get(dev, "audio");
+	if (IS_ERR(vc4_hdmi->audio_clock)) {
+		DRM_ERROR("Failed to get audio clock\n");
+		return PTR_ERR(vc4_hdmi->audio_clock);
+	}
+
+	vc4_hdmi->reset = devm_reset_control_get(dev, NULL);
+	if (IS_ERR(vc4_hdmi->reset)) {
+		DRM_ERROR("Failed to get HDMI reset line\n");
+		return PTR_ERR(vc4_hdmi->reset);
+	}
+
+	return 0;
+}
+
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 	const struct vc4_hdmi_variant *variant = of_device_get_match_data(dev);
@@ -1569,8 +1801,60 @@ static const struct vc4_hdmi_variant bcm2835_variant = {
 	.channel_map		= vc4_hdmi_channel_map,
 };
 
+static const struct vc4_hdmi_variant bcm2711_hdmi0_variant = {
+	.encoder_type		= VC4_ENCODER_TYPE_HDMI0,
+	.debugfs_name		= "hdmi0_regs",
+	.card_name		= "vc4-hdmi-0",
+	.max_pixel_clock	= 297000000,
+	.registers		= vc5_hdmi_hdmi0_fields,
+	.num_registers		= ARRAY_SIZE(vc5_hdmi_hdmi0_fields),
+	.phy_lane_mapping	= {
+		PHY_LANE_0,
+		PHY_LANE_1,
+		PHY_LANE_2,
+		PHY_LANE_CK,
+	},
+
+	.init_resources		= vc5_hdmi_init_resources,
+	.csc_setup		= vc5_hdmi_csc_setup,
+	.reset			= vc5_hdmi_reset,
+	.set_timings		= vc5_hdmi_set_timings,
+	.phy_init		= vc5_hdmi_phy_init,
+	.phy_disable		= vc5_hdmi_phy_disable,
+	.phy_rng_enable		= vc5_hdmi_phy_rng_enable,
+	.phy_rng_disable	= vc5_hdmi_phy_rng_disable,
+	.channel_map		= vc5_hdmi_channel_map,
+};
+
+static const struct vc4_hdmi_variant bcm2711_hdmi1_variant = {
+	.encoder_type		= VC4_ENCODER_TYPE_HDMI1,
+	.debugfs_name		= "hdmi1_regs",
+	.card_name		= "vc4-hdmi-1",
+	.max_pixel_clock	= 297000000,
+	.registers		= vc5_hdmi_hdmi1_fields,
+	.num_registers		= ARRAY_SIZE(vc5_hdmi_hdmi1_fields),
+	.phy_lane_mapping	= {
+		PHY_LANE_1,
+		PHY_LANE_0,
+		PHY_LANE_CK,
+		PHY_LANE_2,
+	},
+
+	.init_resources		= vc5_hdmi_init_resources,
+	.csc_setup		= vc5_hdmi_csc_setup,
+	.reset			= vc5_hdmi_reset,
+	.set_timings		= vc5_hdmi_set_timings,
+	.phy_init		= vc5_hdmi_phy_init,
+	.phy_disable		= vc5_hdmi_phy_disable,
+	.phy_rng_enable		= vc5_hdmi_phy_rng_enable,
+	.phy_rng_disable	= vc5_hdmi_phy_rng_disable,
+	.channel_map		= vc5_hdmi_channel_map,
+};
+
 static const struct of_device_id vc4_hdmi_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-hdmi", .data = &bcm2835_variant },
+	{ .compatible = "brcm,bcm2711-hdmi0", .data = &bcm2711_hdmi0_variant },
+	{ .compatible = "brcm,bcm2711-hdmi1", .data = &bcm2711_hdmi1_variant },
 	{}
 };
 

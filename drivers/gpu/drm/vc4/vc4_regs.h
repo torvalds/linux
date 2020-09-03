@@ -744,6 +744,8 @@
 # define VC4_HD_CSC_CTL_RGB2YCC			BIT(1)
 # define VC4_HD_CSC_CTL_ENABLE			BIT(0)
 
+# define VC4_DVP_HT_CLOCK_STOP_PIXEL		BIT(1)
+
 /* HVS display list information. */
 #define HVS_BOOTLOADER_DLIST_END                32
 

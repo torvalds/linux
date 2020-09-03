@@ -26,6 +26,13 @@ struct drm_display_mode;
 struct vc4_hdmi;
 struct vc4_hdmi_register;
 
+enum vc4_hdmi_phy_channel {
+	PHY_LANE_0 = 0,
+	PHY_LANE_1,
+	PHY_LANE_2,
+	PHY_LANE_CK,
+};
+
 struct vc4_hdmi_variant {
 	/* Encoder Type for that controller */
 	enum vc4_encoder_type encoder_type;
@@ -47,6 +54,13 @@ struct vc4_hdmi_variant {
 
 	/* Number of registers on that variant */
 	unsigned int num_registers;
+
+	/* BCM2711 Only.
+	 * The variants don't map the lane in the same order in the
+	 * PHY, so this is an array mapping the HDMI channel (index)
+	 * to the PHY lane (value).
+	 */
+	enum vc4_hdmi_phy_channel phy_lane_mapping[4];
 
 	/* Callback to get the resources (memory region, interrupts,
 	 * clocks, etc) for that variant.
@@ -108,6 +122,20 @@ struct vc4_hdmi {
 	struct i2c_adapter *ddc;
 	void __iomem *hdmicore_regs;
 	void __iomem *hd_regs;
+
+	/* VC5 Only */
+	void __iomem *cec_regs;
+	/* VC5 Only */
+	void __iomem *csc_regs;
+	/* VC5 Only */
+	void __iomem *dvp_regs;
+	/* VC5 Only */
+	void __iomem *phy_regs;
+	/* VC5 Only */
+	void __iomem *ram_regs;
+	/* VC5 Only */
+	void __iomem *rm_regs;
+
 	int hpd_gpio;
 	bool hpd_active_low;
 
@@ -120,6 +148,8 @@ struct vc4_hdmi {
 	struct clk *hsm_clock;
 	struct clk *audio_clock;
 	struct clk *pixel_bvb_clock;
+
+	struct reset_control *reset;
 
 	struct debugfs_regset32 hdmi_regset;
 	struct debugfs_regset32 hd_regset;
@@ -144,5 +174,11 @@ void vc4_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
 void vc4_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi);
 void vc4_hdmi_phy_rng_enable(struct vc4_hdmi *vc4_hdmi);
 void vc4_hdmi_phy_rng_disable(struct vc4_hdmi *vc4_hdmi);
+
+void vc5_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
+		       struct drm_display_mode *mode);
+void vc5_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi);
+void vc5_hdmi_phy_rng_enable(struct vc4_hdmi *vc4_hdmi);
+void vc5_hdmi_phy_rng_disable(struct vc4_hdmi *vc4_hdmi);
 
 #endif /* _VC4_HDMI_H_ */
