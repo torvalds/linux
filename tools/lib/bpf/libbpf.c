@@ -4241,75 +4241,6 @@ err_out:
 	return err;
 }
 
-static int
-check_btf_ext_reloc_err(struct bpf_program *prog, int err,
-			void *btf_prog_info, const char *info_name)
-{
-	if (err != -ENOENT) {
-		pr_warn("Error in loading %s for sec %s.\n",
-			info_name, prog->section_name);
-		return err;
-	}
-
-	/* err == -ENOENT (i.e. prog->section_name not found in btf_ext) */
-
-	if (btf_prog_info) {
-		/*
-		 * Some info has already been found but has problem
-		 * in the last btf_ext reloc. Must have to error out.
-		 */
-		pr_warn("Error in relocating %s for sec %s.\n",
-			info_name, prog->section_name);
-		return err;
-	}
-
-	/* Have problem loading the very first info. Ignore the rest. */
-	pr_warn("Cannot find %s for main program sec %s. Ignore all %s.\n",
-		info_name, prog->section_name, info_name);
-	return 0;
-}
-
-static int
-bpf_program_reloc_btf_ext(struct bpf_program *prog, struct bpf_object *obj,
-			  const char *section_name,  __u32 insn_offset)
-{
-	int err;
-
-	if (!insn_offset || prog->func_info) {
-		/*
-		 * !insn_offset => main program
-		 *
-		 * For sub prog, the main program's func_info has to
-		 * be loaded first (i.e. prog->func_info != NULL)
-		 */
-		err = btf_ext__reloc_func_info(obj->btf, obj->btf_ext,
-					       section_name, insn_offset,
-					       &prog->func_info,
-					       &prog->func_info_cnt);
-		if (err)
-			return check_btf_ext_reloc_err(prog, err,
-						       prog->func_info,
-						       "bpf_func_info");
-
-		prog->func_info_rec_size = btf_ext__func_info_rec_size(obj->btf_ext);
-	}
-
-	if (!insn_offset || prog->line_info) {
-		err = btf_ext__reloc_line_info(obj->btf, obj->btf_ext,
-					       section_name, insn_offset,
-					       &prog->line_info,
-					       &prog->line_info_cnt);
-		if (err)
-			return check_btf_ext_reloc_err(prog, err,
-						       prog->line_info,
-						       "bpf_line_info");
-
-		prog->line_info_rec_size = btf_ext__line_info_rec_size(obj->btf_ext);
-	}
-
-	return 0;
-}
-
 #define BPF_CORE_SPEC_MAX_LEN 64
 
 /* represents BPF CO-RE field or array element accessor */
@@ -5855,6 +5786,147 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 	return 0;
 }
 
+static int adjust_prog_btf_ext_info(const struct bpf_object *obj,
+				    const struct bpf_program *prog,
+				    const struct btf_ext_info *ext_info,
+				    void **prog_info, __u32 *prog_rec_cnt,
+				    __u32 *prog_rec_sz)
+{
+	void *copy_start = NULL, *copy_end = NULL;
+	void *rec, *rec_end, *new_prog_info;
+	const struct btf_ext_info_sec *sec;
+	size_t old_sz, new_sz;
+	const char *sec_name;
+	int i, off_adj;
+
+	for_each_btf_ext_sec(ext_info, sec) {
+		sec_name = btf__name_by_offset(obj->btf, sec->sec_name_off);
+		if (!sec_name)
+			return -EINVAL;
+		if (strcmp(sec_name, prog->section_name) != 0)
+			continue;
+
+		for_each_btf_ext_rec(ext_info, sec, i, rec) {
+			__u32 insn_off = *(__u32 *)rec / BPF_INSN_SZ;
+
+			if (insn_off < prog->sec_insn_off)
+				continue;
+			if (insn_off >= prog->sec_insn_off + prog->sec_insn_cnt)
+				break;
+
+			if (!copy_start)
+				copy_start = rec;
+			copy_end = rec + ext_info->rec_size;
+		}
+
+		if (!copy_start)
+			return -ENOENT;
+
+		/* append func/line info of a given (sub-)program to the main
+		 * program func/line info
+		 */
+		old_sz = (*prog_rec_cnt) * ext_info->rec_size;
+		new_sz = old_sz + (copy_end - copy_start);
+		new_prog_info = realloc(*prog_info, new_sz);
+		if (!new_prog_info)
+			return -ENOMEM;
+		*prog_info = new_prog_info;
+		*prog_rec_cnt = new_sz / ext_info->rec_size;
+		memcpy(new_prog_info + old_sz, copy_start, copy_end - copy_start);
+
+		/* Kernel instruction offsets are in units of 8-byte
+		 * instructions, while .BTF.ext instruction offsets generated
+		 * by Clang are in units of bytes. So convert Clang offsets
+		 * into kernel offsets and adjust offset according to program
+		 * relocated position.
+		 */
+		off_adj = prog->sub_insn_off - prog->sec_insn_off;
+		rec = new_prog_info + old_sz;
+		rec_end = new_prog_info + new_sz;
+		for (; rec < rec_end; rec += ext_info->rec_size) {
+			__u32 *insn_off = rec;
+
+			*insn_off = *insn_off / BPF_INSN_SZ + off_adj;
+		}
+		*prog_rec_sz = ext_info->rec_size;
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+static int
+reloc_prog_func_and_line_info(const struct bpf_object *obj,
+			      struct bpf_program *main_prog,
+			      const struct bpf_program *prog)
+{
+	int err;
+
+	/* no .BTF.ext relocation if .BTF.ext is missing or kernel doesn't
+	 * supprot func/line info
+	 */
+	if (!obj->btf_ext || !kernel_supports(FEAT_BTF_FUNC))
+		return 0;
+
+	/* only attempt func info relocation if main program's func_info
+	 * relocation was successful
+	 */
+	if (main_prog != prog && !main_prog->func_info)
+		goto line_info;
+
+	err = adjust_prog_btf_ext_info(obj, prog, &obj->btf_ext->func_info,
+				       &main_prog->func_info,
+				       &main_prog->func_info_cnt,
+				       &main_prog->func_info_rec_size);
+	if (err) {
+		if (err != -ENOENT) {
+			pr_warn("prog '%s': error relocating .BTF.ext function info: %d\n",
+				prog->name, err);
+			return err;
+		}
+		if (main_prog->func_info) {
+			/*
+			 * Some info has already been found but has problem
+			 * in the last btf_ext reloc. Must have to error out.
+			 */
+			pr_warn("prog '%s': missing .BTF.ext function info.\n", prog->name);
+			return err;
+		}
+		/* Have problem loading the very first info. Ignore the rest. */
+		pr_warn("prog '%s': missing .BTF.ext function info for the main program, skipping all of .BTF.ext func info.\n",
+			prog->name);
+	}
+
+line_info:
+	/* don't relocate line info if main program's relocation failed */
+	if (main_prog != prog && !main_prog->line_info)
+		return 0;
+
+	err = adjust_prog_btf_ext_info(obj, prog, &obj->btf_ext->line_info,
+				       &main_prog->line_info,
+				       &main_prog->line_info_cnt,
+				       &main_prog->line_info_rec_size);
+	if (err) {
+		if (err != -ENOENT) {
+			pr_warn("prog '%s': error relocating .BTF.ext line info: %d\n",
+				prog->name, err);
+			return err;
+		}
+		if (main_prog->line_info) {
+			/*
+			 * Some info has already been found but has problem
+			 * in the last btf_ext reloc. Must have to error out.
+			 */
+			pr_warn("prog '%s': missing .BTF.ext line info.\n", prog->name);
+			return err;
+		}
+		/* Have problem loading the very first info. Ignore the rest. */
+		pr_warn("prog '%s': missing .BTF.ext line info for the main program, skipping all of .BTF.ext line info.\n",
+			prog->name);
+	}
+	return 0;
+}
+
 static int cmp_relo_by_insn_idx(const void *key, const void *elem)
 {
 	size_t insn_idx = *(const size_t *)key;
@@ -6063,13 +6135,6 @@ bpf_object__relocate_calls(struct bpf_object *obj, struct bpf_program *prog)
 {
 	struct bpf_program *subprog;
 	int i, j, err;
-
-	if (obj->btf_ext) {
-		err = bpf_program_reloc_btf_ext(prog, obj,
-						prog->section_name, 0);
-		if (err)
-			return err;
-	}
 
 	/* mark all subprogs as not relocated (yet) within the context of
 	 * current main program
