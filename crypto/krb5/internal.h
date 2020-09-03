@@ -5,6 +5,7 @@
  * Written by David Howells (dhowells@redhat.com)
  */
 
+#include <linux/scatterlist.h>
 #include <crypto/krb5.h>
 
 /*
@@ -130,3 +131,8 @@ int krb5_derive_Ke(const struct krb5_enctype *krb5, const struct krb5_buffer *TK
 		   u32 usage, struct krb5_buffer *key, gfp_t gfp);
 int krb5_derive_Ki(const struct krb5_enctype *krb5, const struct krb5_buffer *TK,
 		   u32 usage, struct krb5_buffer *key, gfp_t gfp);
+
+/*
+ * rfc3961_simplified.c
+ */
+extern const struct krb5_crypto_profile rfc3961_simplified_profile;
