@@ -120,11 +120,6 @@ static bool l2tp_sk_is_v6(struct sock *sk)
 }
 #endif
 
-static inline struct l2tp_tunnel *l2tp_tunnel(struct sock *sk)
-{
-	return sk->sk_user_data;
-}
-
 static inline struct l2tp_net *l2tp_pernet(const struct net *net)
 {
 	return net_generic(net, l2tp_net_id);
@@ -162,19 +157,23 @@ static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 
 static void l2tp_session_free(struct l2tp_session *session)
 {
-	struct l2tp_tunnel *tunnel = session->tunnel;
-
 	trace_free_session(session);
-
-	if (tunnel) {
-		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
-			goto out;
-		l2tp_tunnel_dec_refcount(tunnel);
-	}
-
-out:
+	if (session->tunnel)
+		l2tp_tunnel_dec_refcount(session->tunnel);
 	kfree(session);
 }
+
+struct l2tp_tunnel *l2tp_sk_to_tunnel(struct sock *sk)
+{
+	struct l2tp_tunnel *tunnel = sk->sk_user_data;
+
+	if (tunnel)
+		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
+			return NULL;
+
+	return tunnel;
+}
+EXPORT_SYMBOL_GPL(l2tp_sk_to_tunnel);
 
 void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
 {
@@ -782,9 +781,6 @@ static void l2tp_session_queue_purge(struct l2tp_session *session)
 {
 	struct sk_buff *skb = NULL;
 
-	if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
-		return;
-
 	while ((skb = skb_dequeue(&session->reorder_q))) {
 		atomic_long_inc(&session->stats.rx_errors);
 		kfree_skb(skb);
@@ -898,8 +894,16 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2tp_tunnel *tunnel;
 
+	/* Note that this is called from the encap_rcv hook inside an
+	 * RCU-protected region, but without the socket being locked.
+	 * Hence we use rcu_dereference_sk_user_data to access the
+	 * tunnel data structure rather the usual l2tp_sk_to_tunnel
+	 * accessor function.
+	 */
 	tunnel = rcu_dereference_sk_user_data(sk);
 	if (!tunnel)
+		goto pass_up;
+	if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
 		goto pass_up;
 
 	if (l2tp_udp_recv_core(tunnel, skb))
@@ -1118,7 +1122,7 @@ EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
  */
 static void l2tp_tunnel_destruct(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_tunnel(sk);
+	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
 
 	if (!tunnel)
 		goto end;
@@ -1219,7 +1223,7 @@ again:
 /* Tunnel socket destroy hook for UDP encapsulation */
 static void l2tp_udp_encap_destroy(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_tunnel(sk);
+	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
 
 	if (tunnel)
 		l2tp_tunnel_delete(tunnel);

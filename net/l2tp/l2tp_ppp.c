@@ -1065,6 +1065,9 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		if (!session)
 			return -ENOTCONN;
 
+		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
+			return -EBADF;
+
 		/* Not defined for tunnels */
 		if (!session->session_id && !session->peer_session_id)
 			return -ENOSYS;
@@ -1079,6 +1082,9 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		if (!session)
 			return -ENOTCONN;
 
+		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
+			return -EBADF;
+
 		/* Not defined for tunnels */
 		if (!session->session_id && !session->peer_session_id)
 			return -ENOSYS;
@@ -1091,6 +1097,9 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		session = sock->sk->sk_user_data;
 		if (!session)
 			return -ENOTCONN;
+
+		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
+			return -EBADF;
 
 		/* Session 0 represents the parent tunnel */
 		if (!session->session_id && !session->peer_session_id) {

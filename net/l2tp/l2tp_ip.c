@@ -233,8 +233,8 @@ static void l2tp_ip_close(struct sock *sk, long timeout)
 
 static void l2tp_ip_destroy_sock(struct sock *sk)
 {
+	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
 	struct sk_buff *skb;
-	struct l2tp_tunnel *tunnel = sk->sk_user_data;
 
 	while ((skb = __skb_dequeue_tail(&sk->sk_write_queue)) != NULL)
 		kfree_skb(skb);

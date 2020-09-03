@@ -273,6 +273,11 @@ void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
 /* IOCTL helper for IP encap modules. */
 int l2tp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 
+/* Extract the tunnel structure from a socket's sk_user_data pointer,
+ * validating the tunnel magic feather.
+ */
+struct l2tp_tunnel *l2tp_sk_to_tunnel(struct sock *sk);
+
 static inline int l2tp_get_l2specific_len(struct l2tp_session *session)
 {
 	switch (session->l2specific_type) {
