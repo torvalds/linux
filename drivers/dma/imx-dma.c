@@ -173,7 +173,6 @@ enum imx_dma_type {
 
 struct imxdma_engine {
 	struct device			*dev;
-	struct device_dma_parameters	dma_parms;
 	struct dma_device		dma_device;
 	void __iomem			*base;
 	struct clk			*dma_ahb;
@@ -1196,7 +1195,6 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, imxdma);
 
 	imxdma->dma_device.copy_align = DMAENGINE_ALIGN_4_BYTES;
-	imxdma->dma_device.dev->dma_parms = &imxdma->dma_parms;
 	dma_set_max_seg_size(imxdma->dma_device.dev, 0xffffff);
 
 	ret = dma_async_device_register(&imxdma->dma_device);
