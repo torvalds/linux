@@ -85,6 +85,8 @@ Description:	This attribute holds current Thunderbolt security level
 		usbonly  Automatically tunnel USB controller of the
 			 connected Thunderbolt dock (and Display Port). All
 			 PCIe links downstream of the dock are removed.
+		nopcie   USB4 system where PCIe tunneling is disabled from
+			 the BIOS.
 		=======  ==================================================
 
 What: /sys/bus/thunderbolt/devices/.../authorized

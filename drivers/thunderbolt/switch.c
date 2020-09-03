@@ -1774,7 +1774,11 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	if (attr == &dev_attr_device.attr) {
+	if (attr == &dev_attr_authorized.attr) {
+		if (sw->tb->security_level == TB_SECURITY_NOPCIE ||
+		    sw->tb->security_level == TB_SECURITY_DPONLY)
+			return 0;
+	} else if (attr == &dev_attr_device.attr) {
 		if (!sw->device)
 			return 0;
 	} else if (attr == &dev_attr_device_name.attr) {

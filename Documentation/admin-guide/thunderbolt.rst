@@ -47,6 +47,9 @@ be DMA masters and thus read contents of the host memory without CPU and OS
 knowing about it. There are ways to prevent this by setting up an IOMMU but
 it is not always available for various reasons.
 
+Some USB4 systems have a BIOS setting to disable PCIe tunneling. This is
+treated as another security level (nopcie).
+
 The security levels are as follows:
 
   none
@@ -76,6 +79,10 @@ The security levels are as follows:
     The firmware automatically creates tunnels for the USB controller and
     Display Port in a dock. All PCIe links downstream of the dock are
     removed.
+
+  nopcie
+    PCIe tunneling is disabled/forbidden from the BIOS. Available in some
+    USB4 systems.
 
 The current security level can be read from
 ``/sys/bus/thunderbolt/devices/domainX/security`` where ``domainX`` is
