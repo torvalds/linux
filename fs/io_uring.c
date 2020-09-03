@@ -301,6 +301,7 @@ struct io_ring_ctx {
 
 	struct io_sq_data	*sq_data;	/* if using sq thread polling */
 
+	struct wait_queue_head	sqo_sq_wait;
 	struct wait_queue_entry	sqo_wait_entry;
 	struct list_head	sqd_list;
 
@@ -1072,6 +1073,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 		goto err;
 
 	ctx->flags = p->flags;
+	init_waitqueue_head(&ctx->sqo_sq_wait);
 	INIT_LIST_HEAD(&ctx->sqd_list);
 	init_waitqueue_head(&ctx->cq_wait);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
@@ -1322,6 +1324,13 @@ static void io_commit_cqring(struct io_ring_ctx *ctx)
 
 	if (unlikely(!list_empty(&ctx->defer_list)))
 		__io_queue_deferred(ctx);
+}
+
+static inline bool io_sqring_full(struct io_ring_ctx *ctx)
+{
+	struct io_rings *r = ctx->rings;
+
+	return READ_ONCE(r->sq.tail) - ctx->cached_sq_head == r->sq_ring_entries;
 }
 
 static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
@@ -6736,6 +6745,10 @@ again:
 	if (likely(!percpu_ref_is_dying(&ctx->refs)))
 		ret = io_submit_sqes(ctx, to_submit);
 	mutex_unlock(&ctx->uring_lock);
+
+	if (!io_sqring_full(ctx) && wq_has_sleeper(&ctx->sqo_sq_wait))
+		wake_up(&ctx->sqo_sq_wait);
+
 	return SQT_DID_WORK;
 }
 
@@ -8231,8 +8244,7 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	 * io_commit_cqring
 	 */
 	smp_rmb();
-	if (READ_ONCE(ctx->rings->sq.tail) - ctx->cached_sq_head !=
-	    ctx->rings->sq_ring_entries)
+	if (!io_sqring_full(ctx))
 		mask |= EPOLLOUT | EPOLLWRNORM;
 	if (io_cqring_events(ctx, false))
 		mask |= EPOLLIN | EPOLLRDNORM;
@@ -8801,6 +8813,25 @@ static unsigned long io_uring_nommu_get_unmapped_area(struct file *file,
 
 #endif /* !CONFIG_MMU */
 
+static void io_sqpoll_wait_sq(struct io_ring_ctx *ctx)
+{
+	DEFINE_WAIT(wait);
+
+	do {
+		if (!io_sqring_full(ctx))
+			break;
+
+		prepare_to_wait(&ctx->sqo_sq_wait, &wait, TASK_INTERRUPTIBLE);
+
+		if (!io_sqring_full(ctx))
+			break;
+
+		schedule();
+	} while (!signal_pending(current));
+
+	finish_wait(&ctx->sqo_sq_wait, &wait);
+}
+
 SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		u32, min_complete, u32, flags, const sigset_t __user *, sig,
 		size_t, sigsz)
@@ -8812,7 +8843,8 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 
 	io_run_task_work();
 
-	if (flags & ~(IORING_ENTER_GETEVENTS | IORING_ENTER_SQ_WAKEUP))
+	if (flags & ~(IORING_ENTER_GETEVENTS | IORING_ENTER_SQ_WAKEUP |
+			IORING_ENTER_SQ_WAIT))
 		return -EINVAL;
 
 	f = fdget(fd);
@@ -8843,6 +8875,8 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			io_cqring_overflow_flush(ctx, false, NULL, NULL);
 		if (flags & IORING_ENTER_SQ_WAKEUP)
 			wake_up(&ctx->sq_data->wait);
+		if (flags & IORING_ENTER_SQ_WAIT)
+			io_sqpoll_wait_sq(ctx);
 		submitted = to_submit;
 	} else if (to_submit) {
 		ret = io_uring_add_task_file(f.file);

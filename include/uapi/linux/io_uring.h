@@ -225,6 +225,7 @@ struct io_cqring_offsets {
  */
 #define IORING_ENTER_GETEVENTS	(1U << 0)
 #define IORING_ENTER_SQ_WAKEUP	(1U << 1)
+#define IORING_ENTER_SQ_WAIT	(1U << 2)
 
 /*
  * Passed in for io_uring_setup(2). Copied back with updated info on success
