@@ -13,6 +13,7 @@ if sphinx.version_info[0] < 2 or \
 else:
     from sphinx.errors import NoUri
 import re
+from itertools import chain
 
 #
 # Regex nastiness.  Of course.
@@ -21,7 +22,8 @@ import re
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
 #
-RE_function = re.compile(r'([\w_][\w\d_]+\(\))')
+RE_function = re.compile(r'(([\w_][\w\d_]+)\(\))')
+RE_type = re.compile(r'(struct|union|enum|typedef)\s+([\w_][\w\d_]+)')
 
 #
 # Many places in the docs refer to common system calls.  It is
@@ -35,31 +37,39 @@ Skipfuncs = [ 'open', 'close', 'read', 'write', 'fcntl', 'mmap',
               'socket' ]
 
 #
-# Find all occurrences of function() and try to replace them with
-# appropriate cross references.
+# Find all occurrences of C references (function() and struct/union/enum/typedef
+# type_name) and try to replace them with appropriate cross references.
 #
-def markup_funcs(docname, app, node):
+def markup_c_refs(docname, app, node):
+    class_str = {RE_function: 'c-func', RE_type: 'c-type'}
+    reftype_str = {RE_function: 'function', RE_type: 'type'}
+
     cdom = app.env.domains['c']
     t = node.astext()
     done = 0
     repl = [ ]
-    for m in RE_function.finditer(t):
+    #
+    # Sort all C references by the starting position in text
+    #
+    sorted_matches = sorted(chain(RE_type.finditer(t), RE_function.finditer(t)),
+                            key=lambda m: m.start())
+    for m in sorted_matches:
         #
-        # Include any text prior to function() as a normal text node.
+        # Include any text prior to match as a normal text node.
         #
         if m.start() > done:
             repl.append(nodes.Text(t[done:m.start()]))
         #
         # Go through the dance of getting an xref out of the C domain
         #
-        target = m.group(1)[:-2]
-        target_text = nodes.Text(target + '()')
+        target = m.group(2)
+        target_text = nodes.Text(m.group(0))
         xref = None
-        if target not in Skipfuncs:
-            lit_text = nodes.literal(classes=['xref', 'c', 'c-func'])
+        if not (m.re == RE_function and target in Skipfuncs):
+            lit_text = nodes.literal(classes=['xref', 'c', class_str[m.re]])
             lit_text += target_text
             pxref = addnodes.pending_xref('', refdomain = 'c',
-                                          reftype = 'function',
+                                          reftype = reftype_str[m.re],
                                           reftarget = target, modname = None,
                                           classname = None)
             #
@@ -68,7 +78,8 @@ def markup_funcs(docname, app, node):
             #
             try:
                 xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                         'function', target, pxref, lit_text)
+                                         reftype_str[m.re], target, pxref,
+                                         lit_text)
             except NoUri:
                 xref = None
         #
@@ -97,7 +108,7 @@ def auto_markup(app, doctree, name):
     for para in doctree.traverse(nodes.paragraph):
         for node in para.traverse(nodes.Text):
             if not isinstance(node.parent, nodes.literal):
-                node.parent.replace(node, markup_funcs(name, app, node))
+                node.parent.replace(node, markup_c_refs(name, app, node))
 
 def setup(app):
     app.connect('doctree-resolved', auto_markup)
