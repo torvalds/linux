@@ -198,8 +198,9 @@ LIBBPF_API void bpf_program__set_ifindex(struct bpf_program *prog,
 					 __u32 ifindex);
 
 LIBBPF_API const char *bpf_program__name(const struct bpf_program *prog);
-LIBBPF_API const char *bpf_program__title(const struct bpf_program *prog,
-					  bool needs_copy);
+LIBBPF_API const char *bpf_program__section_name(const struct bpf_program *prog);
+LIBBPF_API LIBBPF_DEPRECATED("BPF program title is confusing term; please use bpf_program__section_name() instead")
+const char *bpf_program__title(const struct bpf_program *prog, bool needs_copy);
 LIBBPF_API bool bpf_program__autoload(const struct bpf_program *prog);
 LIBBPF_API int bpf_program__set_autoload(struct bpf_program *prog, bool autoload);
 
