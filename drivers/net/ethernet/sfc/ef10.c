@@ -2367,7 +2367,7 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 	unsigned int write_ptr;
 	efx_qword_t *txd;
 
-	tx_queue->xmit_more_available = false;
+	tx_queue->xmit_pending = false;
 	if (unlikely(tx_queue->write_count == tx_queue->insert_count))
 		return;
 

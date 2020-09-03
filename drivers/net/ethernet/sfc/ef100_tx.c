@@ -131,7 +131,7 @@ void ef100_notify_tx_desc(struct efx_tx_queue *tx_queue)
 	efx_writed_page(tx_queue->efx, &reg,
 			ER_GZ_TX_RING_DOORBELL, tx_queue->queue);
 	tx_queue->notify_count = tx_queue->write_count;
-	tx_queue->xmit_more_available = false;
+	tx_queue->xmit_pending = false;
 }
 
 static void ef100_tx_push_buffers(struct efx_tx_queue *tx_queue)
@@ -373,14 +373,14 @@ int ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	}
 
 	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb->len, xmit_more))
-		tx_queue->xmit_more_available = false; /* push doorbell */
+		tx_queue->xmit_pending = false; /* push doorbell */
 	else if (tx_queue->write_count - tx_queue->notify_count > 255)
 		/* Ensure we never push more than 256 packets at once */
-		tx_queue->xmit_more_available = false; /* push */
+		tx_queue->xmit_pending = false; /* push */
 	else
-		tx_queue->xmit_more_available = true; /* don't push yet */
+		tx_queue->xmit_pending = true; /* don't push yet */
 
-	if (!tx_queue->xmit_more_available)
+	if (!tx_queue->xmit_pending)
 		ef100_tx_push_buffers(tx_queue);
 
 	if (segments) {
@@ -400,9 +400,9 @@ err:
 	/* If we're not expecting another transmit and we had something to push
 	 * on this queue then we need to push here to get the previous packets
 	 * out.  We only enter this branch from before the 'Update BQL' section
-	 * above, so xmit_more_available still refers to the old state.
+	 * above, so xmit_pending still refers to the old state.
 	 */
-	if (tx_queue->xmit_more_available && !xmit_more)
+	if (tx_queue->xmit_pending && !xmit_more)
 		ef100_tx_push_buffers(tx_queue);
 	return rc;
 }
