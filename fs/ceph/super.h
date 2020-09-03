@@ -451,6 +451,12 @@ ceph_sb_to_client(const struct super_block *sb)
 	return (struct ceph_fs_client *)sb->s_fs_info;
 }
 
+static inline struct ceph_mds_client *
+ceph_sb_to_mdsc(const struct super_block *sb)
+{
+	return (struct ceph_mds_client *)ceph_sb_to_client(sb)->mdsc;
+}
+
 static inline struct ceph_vino
 ceph_vino(const struct inode *inode)
 {

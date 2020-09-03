@@ -182,8 +182,7 @@ static void put_bvecs(struct bio_vec *bvecs, int num_bvecs, bool should_dirty)
 static struct ceph_mds_request *
 prepare_open_request(struct super_block *sb, int flags, int create_mode)
 {
-	struct ceph_fs_client *fsc = ceph_sb_to_client(sb);
-	struct ceph_mds_client *mdsc = fsc->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(sb);
 	struct ceph_mds_request *req;
 	int want_auth = USE_ANY_MDS;
 	int op = (flags & O_CREAT) ? CEPH_MDS_OP_CREATE : CEPH_MDS_OP_OPEN;
@@ -283,7 +282,7 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
  */
 int ceph_renew_caps(struct inode *inode, int fmode)
 {
-	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_request *req;
 	int err, flags, wanted;
@@ -1027,8 +1026,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	struct inode *inode = req->r_inode;
 	struct ceph_aio_request *aio_req = req->r_priv;
 	struct ceph_osd_data *osd_data = osd_req_op_extent_osd_data(req, 0);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_client_metric *metric = &fsc->mdsc->metric;
+	struct ceph_client_metric *metric = &ceph_sb_to_mdsc(inode->i_sb)->metric;
 
 	BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_BVECS);
 	BUG_ON(!osd_data->num_bvecs);
