@@ -501,7 +501,7 @@ struct pptable_funcs {
 	bool (*is_dpm_running)(struct smu_context *smu);
 	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
 	int (*set_watermarks_table)(struct smu_context *smu,
-				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
+				    struct pp_smu_wm_range_sets *clock_ranges);
 	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
 	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);
 	int (*set_default_od_settings)(struct smu_context *smu);
@@ -755,7 +755,7 @@ enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu);
 int smu_write_watermarks_table(struct smu_context *smu);
 int smu_set_watermarks_for_clock_ranges(
 		struct smu_context *smu,
-		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
+		struct pp_smu_wm_range_sets *clock_ranges);
 
 /* smu to display interface */
 extern int smu_display_configuration_change(struct smu_context *smu, const

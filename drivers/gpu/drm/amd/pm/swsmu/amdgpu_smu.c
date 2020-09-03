@@ -1828,7 +1828,7 @@ int smu_write_watermarks_table(struct smu_context *smu)
 }
 
 int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
-		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
+		struct pp_smu_wm_range_sets *clock_ranges)
 {
 	int ret = 0;
 

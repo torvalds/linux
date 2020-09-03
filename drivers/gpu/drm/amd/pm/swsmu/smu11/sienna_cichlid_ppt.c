@@ -1407,58 +1407,43 @@ static int sienna_cichlid_notify_smc_display_config(struct smu_context *smu)
 }
 
 static int sienna_cichlid_set_watermarks_table(struct smu_context *smu,
-					       struct dm_pp_wm_sets_with_clock_ranges_soc15
-					       *clock_ranges)
+					       struct pp_smu_wm_range_sets *clock_ranges)
 {
 	Watermarks_t *table = smu->smu_table.watermarks_table;
 	int ret = 0;
 	int i;
 
 	if (clock_ranges) {
-		if (clock_ranges->num_wm_dmif_sets > 4 ||
-		    clock_ranges->num_wm_mcif_sets > 4)
+		if (clock_ranges->num_reader_wm_sets > NUM_WM_RANGES ||
+		    clock_ranges->num_writer_wm_sets > NUM_WM_RANGES)
 			return -EINVAL;
 
-		for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
-			table->WatermarkRow[1][i].MinClock =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz /
-				1000));
-			table->WatermarkRow[1][i].MaxClock =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz /
-				1000));
-			table->WatermarkRow[1][i].MinUclk =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz /
-				1000));
-			table->WatermarkRow[1][i].MaxUclk =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz /
-				1000));
-			table->WatermarkRow[1][i].WmSetting = (uint8_t)
-					clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+		for (i = 0; i < clock_ranges->num_reader_wm_sets; i++) {
+			table->WatermarkRow[WM_DCEFCLK][i].MinClock =
+				clock_ranges->reader_wm_sets[i].min_drain_clk_mhz;
+			table->WatermarkRow[WM_DCEFCLK][i].MaxClock =
+				clock_ranges->reader_wm_sets[i].max_drain_clk_mhz;
+			table->WatermarkRow[WM_DCEFCLK][i].MinUclk =
+				clock_ranges->reader_wm_sets[i].min_fill_clk_mhz;
+			table->WatermarkRow[WM_DCEFCLK][i].MaxUclk =
+				clock_ranges->reader_wm_sets[i].max_fill_clk_mhz;
+
+			table->WatermarkRow[WM_DCEFCLK][i].WmSetting =
+				clock_ranges->reader_wm_sets[i].wm_inst;
 		}
 
-		for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
-			table->WatermarkRow[0][i].MinClock =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz /
-				1000));
-			table->WatermarkRow[0][i].MaxClock =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz /
-				1000));
-			table->WatermarkRow[0][i].MinUclk =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz /
-				1000));
-			table->WatermarkRow[0][i].MaxUclk =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz /
-				1000));
-			table->WatermarkRow[0][i].WmSetting = (uint8_t)
-					clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
+		for (i = 0; i < clock_ranges->num_writer_wm_sets; i++) {
+			table->WatermarkRow[WM_SOCCLK][i].MinClock =
+				clock_ranges->writer_wm_sets[i].min_fill_clk_mhz;
+			table->WatermarkRow[WM_SOCCLK][i].MaxClock =
+				clock_ranges->writer_wm_sets[i].max_fill_clk_mhz;
+			table->WatermarkRow[WM_SOCCLK][i].MinUclk =
+				clock_ranges->writer_wm_sets[i].min_drain_clk_mhz;
+			table->WatermarkRow[WM_SOCCLK][i].MaxUclk =
+				clock_ranges->writer_wm_sets[i].max_drain_clk_mhz;
+
+			table->WatermarkRow[WM_SOCCLK][i].WmSetting =
+				clock_ranges->writer_wm_sets[i].wm_inst;
 		}
 
 		smu->watermarks_bitmap |= WATERMARKS_EXIST;
