@@ -295,7 +295,10 @@ static void sf_pdma_donebh_tasklet(unsigned long arg)
 	}
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	dmaengine_desc_get_callback_invoke(desc->async_tx, NULL);
+	spin_lock_irqsave(&chan->vchan.lock, flags);
+	list_del(&chan->desc->vdesc.node);
+	vchan_cookie_complete(&chan->desc->vdesc);
+	spin_unlock_irqrestore(&chan->vchan.lock, flags);
 }
 
 static void sf_pdma_errbh_tasklet(unsigned long arg)
@@ -332,8 +335,7 @@ static irqreturn_t sf_pdma_done_isr(int irq, void *dev_id)
 	residue = readq(regs->residue);
 
 	if (!residue) {
-		list_del(&chan->desc->vdesc.node);
-		vchan_cookie_complete(&chan->desc->vdesc);
+		tasklet_hi_schedule(&chan->done_tasklet);
 	} else {
 		/* submit next trascatioin if possible */
 		struct sf_pdma_desc *desc = chan->desc;
@@ -346,8 +348,6 @@ static irqreturn_t sf_pdma_done_isr(int irq, void *dev_id)
 	}
 
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
-
-	tasklet_hi_schedule(&chan->done_tasklet);
 
 	return IRQ_HANDLED;
 }
