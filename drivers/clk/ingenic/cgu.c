@@ -21,6 +21,12 @@
 
 #define MHZ (1000 * 1000)
 
+static inline const struct ingenic_cgu_clk_info *
+to_clk_info(struct ingenic_clk *clk)
+{
+	return &clk->cgu->clock_info[clk->idx];
+}
+
 /**
  * ingenic_cgu_gate_get() - get the value of clock gate register bit
  * @cgu: reference to the CGU whose registers should be read
@@ -71,14 +77,13 @@ static unsigned long
 ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
 	const struct ingenic_cgu_pll_info *pll_info;
 	unsigned m, n, od_enc, od;
 	bool bypass;
 	u32 ctl;
 
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 	BUG_ON(clk_info->type != CGU_CLK_PLL);
 	pll_info = &clk_info->pll;
 
@@ -142,18 +147,6 @@ ingenic_pll_calc(const struct ingenic_cgu_clk_info *clk_info,
 
 	return div_u64((u64)parent_rate * m * pll_info->rate_multiplier,
 		n * od);
-}
-
-static inline const struct ingenic_cgu_clk_info *to_clk_info(
-		struct ingenic_clk *ingenic_clk)
-{
-	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
-	BUG_ON(clk_info->type != CGU_CLK_PLL);
-
-	return clk_info;
 }
 
 static long
@@ -290,12 +283,10 @@ static const struct clk_ops ingenic_pll_ops = {
 static u8 ingenic_clk_get_parent(struct clk_hw *hw)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
 	u32 reg;
 	u8 i, hw_idx, idx = 0;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_MUX) {
 		reg = readl(cgu->base + clk_info->mux.reg);
@@ -318,13 +309,11 @@ static u8 ingenic_clk_get_parent(struct clk_hw *hw)
 static int ingenic_clk_set_parent(struct clk_hw *hw, u8 idx)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
 	unsigned long flags;
 	u8 curr_idx, hw_idx, num_poss;
 	u32 reg, mask;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_MUX) {
 		/*
@@ -368,12 +357,10 @@ static unsigned long
 ingenic_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
 	unsigned long rate = parent_rate;
 	u32 div_reg, div;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_DIV) {
 		div_reg = readl(cgu->base + clk_info->div.reg);
@@ -443,11 +430,8 @@ ingenic_clk_round_rate(struct clk_hw *hw, unsigned long req_rate,
 		       unsigned long *parent_rate)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
-	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	unsigned int div = 1;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_DIV)
 		div = ingenic_clk_calc_div(clk_info, *parent_rate, req_rate);
@@ -462,15 +446,13 @@ ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 		     unsigned long parent_rate)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
 	const unsigned timeout = 100;
 	unsigned long rate, flags;
 	unsigned int hw_div, div, i;
 	u32 reg, mask;
 	int ret = 0;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_DIV) {
 		div = ingenic_clk_calc_div(clk_info, parent_rate, req_rate);
@@ -525,11 +507,9 @@ ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 static int ingenic_clk_enable(struct clk_hw *hw)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
 	unsigned long flags;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_GATE) {
 		/* ungate the clock */
@@ -547,11 +527,9 @@ static int ingenic_clk_enable(struct clk_hw *hw)
 static void ingenic_clk_disable(struct clk_hw *hw)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
 	unsigned long flags;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_GATE) {
 		/* gate the clock */
@@ -564,11 +542,9 @@ static void ingenic_clk_disable(struct clk_hw *hw)
 static int ingenic_clk_is_enabled(struct clk_hw *hw)
 {
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const struct ingenic_cgu_clk_info *clk_info;
 	int enabled = 1;
-
-	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_GATE)
 		enabled = !ingenic_cgu_gate_get(cgu, &clk_info->gate);
