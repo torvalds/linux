@@ -54,6 +54,7 @@
 #include "vc4_regs.h"
 
 #define CEC_CLOCK_FREQ 40000
+#define VC4_HSM_MID_CLOCK 149985000
 
 static int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 {
@@ -344,6 +345,7 @@ static void vc4_hdmi_encoder_post_crtc_powerdown(struct drm_encoder *encoder)
 	HDMI_WRITE(HDMI_VID_CTL,
 		   HDMI_READ(HDMI_VID_CTL) & ~VC4_HD_VID_CTL_ENABLE);
 
+	clk_disable_unprepare(vc4_hdmi->pixel_bvb_clock);
 	clk_disable_unprepare(vc4_hdmi->hsm_clock);
 	clk_disable_unprepare(vc4_hdmi->pixel_clock);
 
@@ -512,6 +514,27 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder)
 	ret = clk_prepare_enable(vc4_hdmi->hsm_clock);
 	if (ret) {
 		DRM_ERROR("Failed to turn on HSM clock: %d\n", ret);
+		clk_disable_unprepare(vc4_hdmi->pixel_clock);
+		return;
+	}
+
+	/*
+	 * FIXME: When the pixel freq is 594MHz (4k60), this needs to be setup
+	 * at 300MHz.
+	 */
+	ret = clk_set_min_rate(vc4_hdmi->pixel_bvb_clock,
+			       (hsm_rate > VC4_HSM_MID_CLOCK ? 150000000 : 75000000));
+	if (ret) {
+		DRM_ERROR("Failed to set pixel bvb clock rate: %d\n", ret);
+		clk_disable_unprepare(vc4_hdmi->hsm_clock);
+		clk_disable_unprepare(vc4_hdmi->pixel_clock);
+		return;
+	}
+
+	ret = clk_prepare_enable(vc4_hdmi->pixel_bvb_clock);
+	if (ret) {
+		DRM_ERROR("Failed to turn on pixel bvb clock: %d\n", ret);
+		clk_disable_unprepare(vc4_hdmi->hsm_clock);
 		clk_disable_unprepare(vc4_hdmi->pixel_clock);
 		return;
 	}

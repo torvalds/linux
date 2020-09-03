@@ -119,6 +119,7 @@ struct vc4_hdmi {
 	struct clk *pixel_clock;
 	struct clk *hsm_clock;
 	struct clk *audio_clock;
+	struct clk *pixel_bvb_clock;
 
 	struct debugfs_regset32 hdmi_regset;
 	struct debugfs_regset32 hd_regset;
