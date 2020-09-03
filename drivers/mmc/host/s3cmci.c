@@ -150,8 +150,8 @@ static void s3cmci_reset(struct s3cmci_host *host);
 
 static void dbg_dumpregs(struct s3cmci_host *host, char *prefix)
 {
-	u32 con, pre, cmdarg, cmdcon, cmdsta, r0, r1, r2, r3, timer, bsize;
-	u32 datcon, datcnt, datsta, fsta, imask;
+	u32 con, pre, cmdarg, cmdcon, cmdsta, r0, r1, r2, r3, timer;
+	u32 datcon, datcnt, datsta, fsta;
 
 	con 	= readl(host->base + S3C2410_SDICON);
 	pre 	= readl(host->base + S3C2410_SDIPRE);
@@ -163,12 +163,10 @@ static void dbg_dumpregs(struct s3cmci_host *host, char *prefix)
 	r2 	= readl(host->base + S3C2410_SDIRSP2);
 	r3 	= readl(host->base + S3C2410_SDIRSP3);
 	timer 	= readl(host->base + S3C2410_SDITIMER);
-	bsize 	= readl(host->base + S3C2410_SDIBSIZE);
 	datcon 	= readl(host->base + S3C2410_SDIDCON);
 	datcnt 	= readl(host->base + S3C2410_SDIDCNT);
 	datsta 	= readl(host->base + S3C2410_SDIDSTA);
 	fsta 	= readl(host->base + S3C2410_SDIFSTA);
-	imask   = readl(host->base + host->sdiimsk);
 
 	dbg(host, dbg_debug, "%s  CON:[%08x]  PRE:[%08x]  TMR:[%08x]\n",
 				prefix, con, pre, timer);
