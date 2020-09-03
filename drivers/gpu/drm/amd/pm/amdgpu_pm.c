@@ -825,6 +825,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 	while (isspace(*++tmp_str));
 
 	while ((sub_str = strsep(&tmp_str, delimiter)) != NULL) {
+		if (strlen(sub_str) == 0)
+			continue;
 		ret = kstrtol(sub_str, 0, &parameter[parameter_size]);
 		if (ret)
 			return -EINVAL;
