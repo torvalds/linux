@@ -19,6 +19,7 @@
  * each CRTC.
  */
 
+#include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/platform_device.h>
 
@@ -540,6 +541,20 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	hvs->regset.regs = hvs_regs;
 	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
 
+	if (hvs->hvs5) {
+		hvs->core_clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(hvs->core_clk)) {
+			dev_err(&pdev->dev, "Couldn't get core clock\n");
+			return PTR_ERR(hvs->core_clk);
+		}
+
+		ret = clk_prepare_enable(hvs->core_clk);
+		if (ret) {
+			dev_err(&pdev->dev, "Couldn't enable the core clock\n");
+			return ret;
+		}
+	}
+
 	if (!hvs->hvs5)
 		hvs->dlist = hvs->regs + SCALER_DLIST_START;
 	else
@@ -624,12 +639,15 @@ static void vc4_hvs_unbind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = drm->dev_private;
+	struct vc4_hvs *hvs = vc4->hvs;
 
 	if (drm_mm_node_allocated(&vc4->hvs->mitchell_netravali_filter))
 		drm_mm_remove_node(&vc4->hvs->mitchell_netravali_filter);
 
 	drm_mm_takedown(&vc4->hvs->dlist_mm);
 	drm_mm_takedown(&vc4->hvs->lbm_mm);
+
+	clk_disable_unprepare(hvs->core_clk);
 
 	vc4->hvs = NULL;
 }
