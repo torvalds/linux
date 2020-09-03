@@ -182,6 +182,7 @@ ingenic_pll_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	const struct ingenic_cgu_pll_info *pll_info = &clk_info->pll;
 	unsigned long rate, flags;
 	unsigned int m, n, od;
+	int ret = 0;
 	u32 ctl;
 
 	rate = ingenic_pll_calc(clk_info, req_rate, parent_rate,
@@ -203,9 +204,14 @@ ingenic_pll_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	ctl |= pll_info->od_encoding[od - 1] << pll_info->od_shift;
 
 	writel(ctl, cgu->base + pll_info->reg);
+
+	/* If the PLL is enabled, verify that it's stable */
+	if (ctl & BIT(pll_info->enable_bit))
+		ret = ingenic_pll_check_stable(cgu, pll_info);
+
 	spin_unlock_irqrestore(&cgu->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int ingenic_pll_enable(struct clk_hw *hw)
@@ -662,7 +668,6 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 		}
 	} else if (caps & CGU_CLK_PLL) {
 		clk_init.ops = &ingenic_pll_ops;
-		clk_init.flags |= CLK_SET_RATE_GATE;
 
 		caps &= ~CGU_CLK_PLL;
 
