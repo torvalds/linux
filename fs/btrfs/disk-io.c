@@ -1503,10 +1503,12 @@ void btrfs_check_leaked_roots(struct btrfs_fs_info *fs_info)
 	struct btrfs_root *root;
 
 	while (!list_empty(&fs_info->allocated_roots)) {
+		char buf[BTRFS_ROOT_NAME_BUF_LEN];
+
 		root = list_first_entry(&fs_info->allocated_roots,
 					struct btrfs_root, leak_list);
-		btrfs_err(fs_info, "leaked root %llu-%llu refcount %d",
-			  root->root_key.objectid, root->root_key.offset,
+		btrfs_err(fs_info, "leaked root %s refcount %d",
+			  btrfs_root_name(root->root_key.objectid, buf),
 			  refcount_read(&root->refs));
 		while (refcount_read(&root->refs) > 1)
 			btrfs_put_root(root);
