@@ -117,10 +117,12 @@ static efx_oword_t *ef100_tx_desc(struct efx_tx_queue *tx_queue, unsigned int in
 		return NULL;
 }
 
-void ef100_notify_tx_desc(struct efx_tx_queue *tx_queue)
+static void ef100_notify_tx_desc(struct efx_tx_queue *tx_queue)
 {
 	unsigned int write_ptr;
 	efx_dword_t reg;
+
+	tx_queue->xmit_pending = false;
 
 	if (unlikely(tx_queue->notify_count == tx_queue->write_count))
 		return;
@@ -131,7 +133,6 @@ void ef100_notify_tx_desc(struct efx_tx_queue *tx_queue)
 	efx_writed_page(tx_queue->efx, &reg,
 			ER_GZ_TX_RING_DOORBELL, tx_queue->queue);
 	tx_queue->notify_count = tx_queue->write_count;
-	tx_queue->xmit_pending = false;
 }
 
 static void ef100_tx_push_buffers(struct efx_tx_queue *tx_queue)
@@ -372,15 +373,14 @@ int ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 			netif_tx_start_queue(tx_queue->core_txq);
 	}
 
-	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb->len, xmit_more))
-		tx_queue->xmit_pending = false; /* push doorbell */
-	else if (tx_queue->write_count - tx_queue->notify_count > 255)
-		/* Ensure we never push more than 256 packets at once */
-		tx_queue->xmit_pending = false; /* push */
-	else
-		tx_queue->xmit_pending = true; /* don't push yet */
+	tx_queue->xmit_pending = true;
 
-	if (!tx_queue->xmit_pending)
+	/* If xmit_more then we don't need to push the doorbell, unless there
+	 * are 256 descriptors already queued in which case we have to push to
+	 * ensure we never push more than 256 at once.
+	 */
+	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb->len, xmit_more) ||
+	    tx_queue->write_count - tx_queue->notify_count > 255)
 		ef100_tx_push_buffers(tx_queue);
 
 	if (segments) {
@@ -399,7 +399,7 @@ err:
 
 	/* If we're not expecting another transmit and we had something to push
 	 * on this queue then we need to push here to get the previous packets
-	 * out.  We only enter this branch from before the 'Update BQL' section
+	 * out.  We only enter this branch from before the xmit_more handling
 	 * above, so xmit_pending still refers to the old state.
 	 */
 	if (tx_queue->xmit_pending && !xmit_more)
