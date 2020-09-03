@@ -629,6 +629,13 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 
 	caps = clk_info->type;
 
+	if (caps & CGU_CLK_DIV) {
+		caps &= ~CGU_CLK_DIV;
+	} else if (!(caps & CGU_CLK_CUSTOM)) {
+		/* pass rate changes to the parent clock */
+		clk_init.flags |= CLK_SET_RATE_PARENT;
+	}
+
 	if (caps & (CGU_CLK_MUX | CGU_CLK_CUSTOM)) {
 		clk_init.num_parents = 0;
 
@@ -688,13 +695,6 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 			clk_init.flags |= CLK_SET_PARENT_GATE;
 
 		caps &= ~(CGU_CLK_MUX | CGU_CLK_MUX_GLITCHFREE);
-	}
-
-	if (caps & CGU_CLK_DIV) {
-		caps &= ~CGU_CLK_DIV;
-	} else {
-		/* pass rate changes to the parent clock */
-		clk_init.flags |= CLK_SET_RATE_PARENT;
 	}
 
 	if (caps) {
