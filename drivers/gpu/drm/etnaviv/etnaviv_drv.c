@@ -535,7 +535,6 @@ static int etnaviv_bind(struct device *dev)
 	}
 	drm->dev_private = priv;
 
-	dev->dma_parms = &priv->dma_parms;
 	dma_set_max_seg_size(dev, SZ_2G);
 
 	mutex_init(&priv->gem_lock);
@@ -584,8 +583,6 @@ static void etnaviv_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 
 	component_unbind_all(dev, drm);
-
-	dev->dma_parms = NULL;
 
 	etnaviv_cmdbuf_suballoc_destroy(priv->cmdbuf_suballoc);
 
