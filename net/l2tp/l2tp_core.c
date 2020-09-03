@@ -985,8 +985,7 @@ static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 	return bufp - optr;
 }
 
-static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
-			   struct flowi *fl, size_t data_len)
+static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, struct flowi *fl)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	unsigned int len = skb->len;
@@ -1098,7 +1097,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
 		break;
 	}
 
-	l2tp_xmit_core(session, skb, fl, data_len);
+	l2tp_xmit_core(session, skb, fl);
 out_unlock:
 	bh_unlock_sock(sk);
 
