@@ -1178,11 +1178,51 @@ static const struct cec_adap_ops vc4_hdmi_cec_adap_ops = {
 };
 #endif
 
+static int vc4_hdmi_init_resources(struct vc4_hdmi *vc4_hdmi)
+{
+	struct platform_device *pdev = vc4_hdmi->pdev;
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	vc4_hdmi->hdmicore_regs = vc4_ioremap_regs(pdev, 0);
+	if (IS_ERR(vc4_hdmi->hdmicore_regs))
+		return PTR_ERR(vc4_hdmi->hdmicore_regs);
+
+	vc4_hdmi->hd_regs = vc4_ioremap_regs(pdev, 1);
+	if (IS_ERR(vc4_hdmi->hd_regs))
+		return PTR_ERR(vc4_hdmi->hd_regs);
+
+	vc4_hdmi->hdmi_regset.base = vc4_hdmi->hdmicore_regs;
+	vc4_hdmi->hdmi_regset.regs = hdmi_regs;
+	vc4_hdmi->hdmi_regset.nregs = ARRAY_SIZE(hdmi_regs);
+
+	vc4_hdmi->hd_regset.base = vc4_hdmi->hd_regs;
+	vc4_hdmi->hd_regset.regs = hd_regs;
+	vc4_hdmi->hd_regset.nregs = ARRAY_SIZE(hd_regs);
+
+	vc4_hdmi->pixel_clock = devm_clk_get(dev, "pixel");
+	if (IS_ERR(vc4_hdmi->pixel_clock)) {
+		ret = PTR_ERR(vc4_hdmi->pixel_clock);
+		if (ret != -EPROBE_DEFER)
+			DRM_ERROR("Failed to get pixel clock\n");
+		return ret;
+	}
+
+	vc4_hdmi->hsm_clock = devm_clk_get(dev, "hdmi");
+	if (IS_ERR(vc4_hdmi->hsm_clock)) {
+		DRM_ERROR("Failed to get HDMI state machine clock\n");
+		return PTR_ERR(vc4_hdmi->hsm_clock);
+	}
+
+	return 0;
+}
+
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 #ifdef CONFIG_DRM_VC4_HDMI_CEC
 	struct cec_connector_info conn_info;
 #endif
+	const struct vc4_hdmi_variant *variant = of_device_get_match_data(dev);
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_hdmi *vc4_hdmi;
@@ -1199,34 +1239,11 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	encoder = &vc4_hdmi->encoder.base.base;
 	vc4_hdmi->encoder.base.type = VC4_ENCODER_TYPE_HDMI0;
 	vc4_hdmi->pdev = pdev;
+	vc4_hdmi->variant = variant;
 
-	vc4_hdmi->hdmicore_regs = vc4_ioremap_regs(pdev, 0);
-	if (IS_ERR(vc4_hdmi->hdmicore_regs))
-		return PTR_ERR(vc4_hdmi->hdmicore_regs);
-
-	vc4_hdmi->hd_regs = vc4_ioremap_regs(pdev, 1);
-	if (IS_ERR(vc4_hdmi->hd_regs))
-		return PTR_ERR(vc4_hdmi->hd_regs);
-
-	vc4_hdmi->hdmi_regset.base = vc4_hdmi->hdmicore_regs;
-	vc4_hdmi->hdmi_regset.regs = hdmi_regs;
-	vc4_hdmi->hdmi_regset.nregs = ARRAY_SIZE(hdmi_regs);
-	vc4_hdmi->hd_regset.base = vc4_hdmi->hd_regs;
-	vc4_hdmi->hd_regset.regs = hd_regs;
-	vc4_hdmi->hd_regset.nregs = ARRAY_SIZE(hd_regs);
-
-	vc4_hdmi->pixel_clock = devm_clk_get(dev, "pixel");
-	if (IS_ERR(vc4_hdmi->pixel_clock)) {
-		ret = PTR_ERR(vc4_hdmi->pixel_clock);
-		if (ret != -EPROBE_DEFER)
-			DRM_ERROR("Failed to get pixel clock\n");
+	ret = variant->init_resources(vc4_hdmi);
+	if (ret)
 		return ret;
-	}
-	vc4_hdmi->hsm_clock = devm_clk_get(dev, "hdmi");
-	if (IS_ERR(vc4_hdmi->hsm_clock)) {
-		DRM_ERROR("Failed to get HDMI state machine clock\n");
-		return PTR_ERR(vc4_hdmi->hsm_clock);
-	}
 
 	ddc_node = of_parse_phandle(dev->of_node, "ddc", 0);
 	if (!ddc_node) {
@@ -1403,8 +1420,12 @@ static int vc4_hdmi_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct vc4_hdmi_variant bcm2835_variant = {
+	.init_resources		= vc4_hdmi_init_resources,
+};
+
 static const struct of_device_id vc4_hdmi_dt_match[] = {
-	{ .compatible = "brcm,bcm2835-hdmi" },
+	{ .compatible = "brcm,bcm2835-hdmi", .data = &bcm2835_variant },
 	{}
 };
 
