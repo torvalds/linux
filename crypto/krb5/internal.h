@@ -120,3 +120,13 @@ struct crypto_aead *krb5_prepare_encryption(const struct krb5_enctype *krb5,
 struct crypto_shash *krb5_prepare_checksum(const struct krb5_enctype *krb5,
 					   const struct krb5_buffer *Kc,
 					   gfp_t gfp);
+
+/*
+ * krb5_kdf.c
+ */
+int krb5_derive_Kc(const struct krb5_enctype *krb5, const struct krb5_buffer *TK,
+		   u32 usage, struct krb5_buffer *key, gfp_t gfp);
+int krb5_derive_Ke(const struct krb5_enctype *krb5, const struct krb5_buffer *TK,
+		   u32 usage, struct krb5_buffer *key, gfp_t gfp);
+int krb5_derive_Ki(const struct krb5_enctype *krb5, const struct krb5_buffer *TK,
+		   u32 usage, struct krb5_buffer *key, gfp_t gfp);

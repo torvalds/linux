@@ -4,6 +4,7 @@
 #
 
 krb5-y += \
+	krb5_kdf.o \
 	krb5_api.o
 
 obj-$(CONFIG_CRYPTO_KRB5) += krb5.o
