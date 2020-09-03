@@ -1681,10 +1681,6 @@ efx_channel_tx_fill_level(struct efx_channel *channel)
 	struct efx_tx_queue *tx_queue;
 	unsigned int fill_level = 0;
 
-	/* This function is currently only used by EF100, which maybe
-	 * could do something simpler and just compute the fill level
-	 * of the single TXQ that's really in use.
-	 */
 	efx_for_each_channel_tx_queue(tx_queue, channel)
 		fill_level = max(fill_level,
 				 tx_queue->insert_count - tx_queue->read_count);

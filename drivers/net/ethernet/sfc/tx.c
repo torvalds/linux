@@ -59,13 +59,12 @@ u8 *efx_tx_get_copy_buffer_limited(struct efx_tx_queue *tx_queue,
 
 static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 {
-	/* We need to consider both queues that the net core sees as one */
-	struct efx_tx_queue *txq2 = efx_tx_queue_partner(txq1);
+	/* We need to consider all queues that the net core sees as one */
 	struct efx_nic *efx = txq1->efx;
+	struct efx_tx_queue *txq2;
 	unsigned int fill_level;
 
-	fill_level = max(txq1->insert_count - txq1->old_read_count,
-			 txq2->insert_count - txq2->old_read_count);
+	fill_level = efx_channel_tx_old_fill_level(txq1->channel);
 	if (likely(fill_level < efx->txq_stop_thresh))
 		return;
 
@@ -85,11 +84,10 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
-	txq1->old_read_count = READ_ONCE(txq1->read_count);
-	txq2->old_read_count = READ_ONCE(txq2->read_count);
+	efx_for_each_channel_tx_queue(txq2, txq1->channel)
+		txq2->old_read_count = READ_ONCE(txq2->read_count);
 
-	fill_level = max(txq1->insert_count - txq1->old_read_count,
-			 txq2->insert_count - txq2->old_read_count);
+	fill_level = efx_channel_tx_old_fill_level(txq1->channel);
 	EFX_WARN_ON_ONCE_PARANOID(fill_level >= efx->txq_entries);
 	if (likely(fill_level < efx->txq_stop_thresh)) {
 		smp_mb();
