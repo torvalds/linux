@@ -765,8 +765,11 @@ static int b53_switch_reset(struct b53_device *dev)
 			usleep_range(1000, 2000);
 		} while (timeout-- > 0);
 
-		if (timeout == 0)
+		if (timeout == 0) {
+			dev_err(dev->dev,
+				"Timeout waiting for SW_RST to clear!\n");
 			return -ETIMEDOUT;
+		}
 	}
 
 	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, &mgmt);
