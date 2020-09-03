@@ -85,7 +85,7 @@ static void pwm_lpss_prepare(struct pwm_lpss_chip *lpwm, struct pwm_device *pwm,
 	unsigned long long on_time_div;
 	unsigned long c = lpwm->info->clk_rate, base_unit_range;
 	unsigned long long base_unit, freq = NSEC_PER_SEC;
-	u32 orig_ctrl, ctrl;
+	u32 ctrl;
 
 	do_div(freq, period_ns);
 
@@ -104,16 +104,14 @@ static void pwm_lpss_prepare(struct pwm_lpss_chip *lpwm, struct pwm_device *pwm,
 	do_div(on_time_div, period_ns);
 	on_time_div = 255ULL - on_time_div;
 
-	orig_ctrl = ctrl = pwm_lpss_read(pwm);
+	ctrl = pwm_lpss_read(pwm);
 	ctrl &= ~PWM_ON_TIME_DIV_MASK;
 	ctrl &= ~((base_unit_range - 1) << PWM_BASE_UNIT_SHIFT);
 	ctrl |= (u32) base_unit << PWM_BASE_UNIT_SHIFT;
 	ctrl |= on_time_div;
 
-	if (orig_ctrl != ctrl) {
-		pwm_lpss_write(pwm, ctrl);
-		pwm_lpss_write(pwm, ctrl | PWM_SW_UPDATE);
-	}
+	pwm_lpss_write(pwm, ctrl);
+	pwm_lpss_write(pwm, ctrl | PWM_SW_UPDATE);
 }
 
 static inline void pwm_lpss_cond_enable(struct pwm_device *pwm, bool cond)
@@ -124,8 +122,7 @@ static inline void pwm_lpss_cond_enable(struct pwm_device *pwm, bool cond)
 
 static int pwm_lpss_prepare_enable(struct pwm_lpss_chip *lpwm,
 				   struct pwm_device *pwm,
-				   const struct pwm_state *state,
-				   bool enable)
+				   const struct pwm_state *state)
 {
 	int ret;
 
@@ -134,12 +131,12 @@ static int pwm_lpss_prepare_enable(struct pwm_lpss_chip *lpwm,
 		return ret;
 
 	pwm_lpss_prepare(lpwm, pwm, state->duty_cycle, state->period);
-	pwm_lpss_cond_enable(pwm, enable && lpwm->info->bypass == false);
+	pwm_lpss_cond_enable(pwm, lpwm->info->bypass == false);
 	ret = pwm_lpss_wait_for_update(pwm);
 	if (ret)
 		return ret;
 
-	pwm_lpss_cond_enable(pwm, enable && lpwm->info->bypass == true);
+	pwm_lpss_cond_enable(pwm, lpwm->info->bypass == true);
 	return 0;
 }
 
@@ -152,11 +149,11 @@ static int pwm_lpss_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (state->enabled) {
 		if (!pwm_is_enabled(pwm)) {
 			pm_runtime_get_sync(chip->dev);
-			ret = pwm_lpss_prepare_enable(lpwm, pwm, state, true);
+			ret = pwm_lpss_prepare_enable(lpwm, pwm, state);
 			if (ret)
 				pm_runtime_put(chip->dev);
 		} else {
-			ret = pwm_lpss_prepare_enable(lpwm, pwm, state, false);
+			ret = pwm_lpss_prepare_enable(lpwm, pwm, state);
 		}
 	} else if (pwm_is_enabled(pwm)) {
 		pwm_lpss_write(pwm, pwm_lpss_read(pwm) & ~PWM_ENABLE);
