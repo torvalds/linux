@@ -86,7 +86,7 @@
 		ti,interrupt-ranges = <8 392 56>;
 	};
 
-	main_navss {
+	main-navss {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -888,7 +888,7 @@
 		no-1-8-v;
 	};
 
-	usbss0: cdns_usb@4104000 {
+	usbss0: cdns-usb@4104000 {
 		compatible = "ti,j721e-usb";
 		reg = <0x00 0x4104000 0x00 0x100>;
 		dma-coherent;
@@ -918,7 +918,7 @@
 		};
 	};
 
-	usbss1: cdns_usb@4114000 {
+	usbss1: cdns-usb@4114000 {
 		compatible = "ti,j721e-usb";
 		reg = <0x00 0x4114000 0x00 0x100>;
 		dma-coherent;

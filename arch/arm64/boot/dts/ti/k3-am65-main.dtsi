@@ -305,7 +305,7 @@
 		no-1-8-v;
 	};
 
-	scm_conf: scm_conf@100000 {
+	scm_conf: scm-conf@100000 {
 		compatible = "syscon", "simple-mfd";
 		reg = <0 0x00100000 0 0x1c000>;
 		#address-cells = <1>;
@@ -344,7 +344,7 @@
 					<0x4090 0x3>; /* SERDES1 lane select */
 		};
 
-		dss_oldi_io_ctrl: dss_oldi_io_ctrl@41e0 {
+		dss_oldi_io_ctrl: dss-oldi-io-ctrl@41e0 {
 			compatible = "syscon";
 			reg = <0x0000041e0 0x14>;
 		};
@@ -445,7 +445,7 @@
 		ti,interrupt-ranges = <0 392 32>;
 	};
 
-	main_navss {
+	main-navss {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;

@@ -249,7 +249,7 @@
 		};
 	};
 
-	mcu_navss {
+	mcu-navss {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
