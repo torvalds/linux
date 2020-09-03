@@ -436,7 +436,6 @@ static const struct drm_crtc_helper_funcs vc4_txp_crtc_helper_funcs = {
 	.atomic_flush	= vc4_hvs_atomic_flush,
 	.atomic_enable	= vc4_txp_atomic_enable,
 	.atomic_disable	= vc4_txp_atomic_disable,
-	.mode_set_nofb	= vc4_hvs_mode_set_nofb,
 };
 
 static irqreturn_t vc4_txp_interrupt(int irq, void *data)
