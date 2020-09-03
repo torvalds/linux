@@ -205,25 +205,39 @@ static ssize_t mlxsw_hwmon_pwm_store(struct device *dev,
 	return len;
 }
 
-static ssize_t mlxsw_hwmon_module_temp_show(struct device *dev,
-					    struct device_attribute *attr,
-					    char *buf)
+static int mlxsw_hwmon_module_temp_get(struct device *dev,
+				       struct device_attribute *attr,
+				       int *p_temp)
 {
 	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	u8 module;
-	int temp;
 	int err;
 
 	module = mlwsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
 	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
 			    false, false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err) {
+		dev_err(dev, "Failed to query module temperature\n");
+		return err;
+	}
+	mlxsw_reg_mtmp_unpack(mtmp_pl, p_temp, NULL, NULL);
+
+	return 0;
+}
+
+static ssize_t mlxsw_hwmon_module_temp_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	int err, temp;
+
+	err = mlxsw_hwmon_module_temp_get(dev, attr, &temp);
 	if (err)
 		return err;
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
 
 	return sprintf(buf, "%d\n", temp);
 }
@@ -270,26 +284,59 @@ static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,
 	return sprintf(buf, "%u\n", fault);
 }
 
-static ssize_t
-mlxsw_hwmon_module_temp_critical_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static int mlxsw_hwmon_module_temp_critical_get(struct device *dev,
+						struct device_attribute *attr,
+						int *p_temp)
 {
 	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
-	int temp;
 	u8 module;
 	int err;
 
 	module = mlwsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
 	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, module,
-						   SFP_TEMP_HIGH_WARN, &temp);
+						   SFP_TEMP_HIGH_WARN, p_temp);
 	if (err) {
 		dev_err(dev, "Failed to query module temperature thresholds\n");
 		return err;
 	}
 
+	return 0;
+}
+
+static ssize_t
+mlxsw_hwmon_module_temp_critical_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	int err, temp;
+
+	err = mlxsw_hwmon_module_temp_critical_get(dev, attr, &temp);
+	if (err)
+		return err;
+
 	return sprintf(buf, "%u\n", temp);
+}
+
+static int mlxsw_hwmon_module_temp_emergency_get(struct device *dev,
+						 struct device_attribute *attr,
+						 int *p_temp)
+{
+	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
+			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
+	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
+	u8 module;
+	int err;
+
+	module = mlwsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
+	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, module,
+						   SFP_TEMP_HIGH_ALARM, p_temp);
+	if (err) {
+		dev_err(dev, "Failed to query module temperature thresholds\n");
+		return err;
+	}
+
+	return 0;
 }
 
 static ssize_t
@@ -297,20 +344,11 @@ mlxsw_hwmon_module_temp_emergency_show(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
-			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
-	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
-	u8 module;
-	int temp;
-	int err;
+	int err, temp;
 
-	module = mlwsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
-	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, module,
-						   SFP_TEMP_HIGH_ALARM, &temp);
-	if (err) {
-		dev_err(dev, "Failed to query module temperature thresholds\n");
+	err = mlxsw_hwmon_module_temp_emergency_get(dev, attr, &temp);
+	if (err)
 		return err;
-	}
 
 	return sprintf(buf, "%u\n", temp);
 }
