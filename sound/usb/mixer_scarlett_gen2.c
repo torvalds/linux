@@ -1946,7 +1946,7 @@ static void scarlett2_mixer_interrupt(struct urb *urb)
 		goto requeue;
 
 	if (len == 8) {
-		data = le32_to_cpu(*(u32 *)urb->transfer_buffer);
+		data = le32_to_cpu(*(__le32 *)urb->transfer_buffer);
 		if (data & SCARLETT2_USB_INTERRUPT_VOL_CHANGE)
 			scarlett2_mixer_interrupt_vol_change(mixer);
 		if (data & SCARLETT2_USB_INTERRUPT_BUTTON_CHANGE)

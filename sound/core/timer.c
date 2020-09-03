@@ -173,7 +173,7 @@ EXPORT_SYMBOL(snd_timer_instance_free);
  */
 static struct snd_timer *snd_timer_find(struct snd_timer_id *tid)
 {
-	struct snd_timer *timer = NULL;
+	struct snd_timer *timer;
 
 	list_for_each_entry(timer, &snd_timer_list, device_list) {
 		if (timer->tmr_class != tid->dev_class)
@@ -1280,8 +1280,8 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 		list_for_each_entry(ti, &timer->open_list_head, open_list)
 			snd_iprintf(buffer, "  Client %s : %s\n",
 				    ti->owner ? ti->owner : "unknown",
-				    ti->flags & (SNDRV_TIMER_IFLG_START |
-						 SNDRV_TIMER_IFLG_RUNNING)
+				    (ti->flags & (SNDRV_TIMER_IFLG_START |
+						  SNDRV_TIMER_IFLG_RUNNING))
 				    ? "running" : "stopped");
 	}
 	mutex_unlock(&register_mutex);
