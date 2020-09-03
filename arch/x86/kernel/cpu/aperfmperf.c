@@ -14,6 +14,7 @@
 #include <linux/cpufreq.h>
 #include <linux/smp.h>
 #include <linux/sched/isolation.h>
+#include <linux/rcupdate.h>
 
 #include "cpu.h"
 
@@ -93,6 +94,9 @@ unsigned int aperfmperf_get_khz(int cpu)
 	if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
 		return 0;
 
+	if (rcu_is_idle_cpu(cpu))
+		return 0; /* Idle CPUs are completely uninteresting. */
+
 	aperfmperf_snapshot_cpu(cpu, ktime_get(), true);
 	return per_cpu(samples.khz, cpu);
 }
@@ -112,6 +116,8 @@ void arch_freq_prepare_all(void)
 	for_each_online_cpu(cpu) {
 		if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
 			continue;
+		if (rcu_is_idle_cpu(cpu))
+			continue; /* Idle CPUs are completely uninteresting. */
 		if (!aperfmperf_snapshot_cpu(cpu, now, false))
 			wait = true;
 	}
