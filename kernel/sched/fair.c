@@ -9219,8 +9219,12 @@ static struct sched_group *find_busiest_group(struct lb_env *env)
 
 	if (sched_energy_enabled()) {
 		struct root_domain *rd = env->dst_rq->rd;
+		int out_balance = 1;
 
-		if (rcu_dereference(rd->pd) && !READ_ONCE(rd->overutilized))
+		trace_android_rvh_find_busiest_group(sds.busiest, env->dst_rq,
+					&out_balance);
+		if (rcu_dereference(rd->pd) && !READ_ONCE(rd->overutilized)
+					&& out_balance)
 			goto out_balanced;
 	}
 
