@@ -327,12 +327,12 @@
 			reg = <0x00000210 0x4>;
 		};
 
-		serdes0_clk: serdes_clk@4080 {
+		serdes0_clk: clock@4080 {
 			compatible = "syscon";
 			reg = <0x00004080 0x4>;
 		};
 
-		serdes1_clk: serdes_clk@4090 {
+		serdes1_clk: clock@4090 {
 			compatible = "syscon";
 			reg = <0x00004090 0x4>;
 		};
@@ -349,7 +349,7 @@
 			reg = <0x0000041e0 0x14>;
 		};
 
-		ehrpwm_tbclk: syscon@4140 {
+		ehrpwm_tbclk: clock@4140 {
 			compatible = "ti,am654-ehrpwm-tbclk", "syscon";
 			reg = <0x4140 0x18>;
 			#clock-cells = <1>;
