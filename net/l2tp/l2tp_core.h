@@ -261,8 +261,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 
 /* Transmit path helpers for sending packets over the tunnel socket. */
 void l2tp_session_set_header_len(struct l2tp_session *session, int version);
-int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb,
-		  int hdr_len);
+int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb);
 
 /* Pseudowire management.
  * Pseudowires should register with l2tp core on module init, and unregister

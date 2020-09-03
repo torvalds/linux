@@ -1017,7 +1017,7 @@ static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 /* If caller requires the skb to have a ppp header, the header must be
  * inserted in the skb data before calling this function.
  */
-int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len)
+int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
 {
 	int data_len = skb->len;
 	struct l2tp_tunnel *tunnel = session->tunnel;
@@ -1035,7 +1035,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	 * make room. Adjust truesize.
 	 */
 	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
-		uhlen + hdr_len;
+		uhlen + session->hdr_len;
 	if (skb_cow_head(skb, headroom)) {
 		kfree_skb(skb);
 		return NET_XMIT_DROP;
@@ -1043,9 +1043,9 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 
 	/* Setup L2TP header */
 	if (tunnel->version == L2TP_HDR_VER_2)
-		l2tp_build_l2tpv2_header(session, __skb_push(skb, hdr_len));
+		l2tp_build_l2tpv2_header(session, __skb_push(skb, session->hdr_len));
 	else
-		l2tp_build_l2tpv3_header(session, __skb_push(skb, hdr_len));
+		l2tp_build_l2tpv3_header(session, __skb_push(skb, session->hdr_len));
 
 	/* Reset skb netfilter state */
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
@@ -1079,7 +1079,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 		uh = udp_hdr(skb);
 		uh->source = inet->inet_sport;
 		uh->dest = inet->inet_dport;
-		udp_len = uhlen + hdr_len + data_len;
+		udp_len = uhlen + session->hdr_len + data_len;
 		uh->len = htons(udp_len);
 
 		/* Calculate UDP checksum if configured to do so */
