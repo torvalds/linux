@@ -12,11 +12,14 @@
 #include <linux/clkdev.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/time.h>
+
 #include "cgu.h"
 
 #define MHZ (1000 * 1000)
@@ -159,6 +162,16 @@ ingenic_pll_round_rate(struct clk_hw *hw, unsigned long req_rate,
 	return ingenic_pll_calc(clk_info, req_rate, *prate, NULL, NULL, NULL);
 }
 
+static inline int ingenic_pll_check_stable(struct ingenic_cgu *cgu,
+					   const struct ingenic_cgu_pll_info *pll_info)
+{
+	u32 ctl;
+
+	return readl_poll_timeout(cgu->base + pll_info->reg, ctl,
+				  ctl & BIT(pll_info->stable_bit),
+				  0, 100 * USEC_PER_MSEC);
+}
+
 static int
 ingenic_pll_set_rate(struct clk_hw *hw, unsigned long req_rate,
 		     unsigned long parent_rate)
@@ -201,9 +214,8 @@ static int ingenic_pll_enable(struct clk_hw *hw)
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
 	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	const struct ingenic_cgu_pll_info *pll_info = &clk_info->pll;
-	const unsigned int timeout = 100;
 	unsigned long flags;
-	unsigned int i;
+	int ret;
 	u32 ctl;
 
 	spin_lock_irqsave(&cgu->lock, flags);
@@ -219,20 +231,10 @@ static int ingenic_pll_enable(struct clk_hw *hw)
 
 	writel(ctl, cgu->base + pll_info->reg);
 
-	/* wait for the PLL to stabilise */
-	for (i = 0; i < timeout; i++) {
-		ctl = readl(cgu->base + pll_info->reg);
-		if (ctl & BIT(pll_info->stable_bit))
-			break;
-		mdelay(1);
-	}
-
+	ret = ingenic_pll_check_stable(cgu, pll_info);
 	spin_unlock_irqrestore(&cgu->lock, flags);
 
-	if (i == timeout)
-		return -EBUSY;
-
-	return 0;
+	return ret;
 }
 
 static void ingenic_pll_disable(struct clk_hw *hw)
@@ -441,6 +443,16 @@ ingenic_clk_round_rate(struct clk_hw *hw, unsigned long req_rate,
 	return DIV_ROUND_UP(*parent_rate, div);
 }
 
+static inline int ingenic_clk_check_stable(struct ingenic_cgu *cgu,
+					   const struct ingenic_cgu_clk_info *clk_info)
+{
+	u32 reg;
+
+	return readl_poll_timeout(cgu->base + clk_info->div.reg, reg,
+				  !(reg & BIT(clk_info->div.busy_bit)),
+				  0, 100 * USEC_PER_MSEC);
+}
+
 static int
 ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 		     unsigned long parent_rate)
@@ -448,9 +460,8 @@ ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
 	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
-	const unsigned timeout = 100;
 	unsigned long rate, flags;
-	unsigned int hw_div, div, i;
+	unsigned int hw_div, div;
 	u32 reg, mask;
 	int ret = 0;
 
@@ -486,16 +497,8 @@ ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 		writel(reg, cgu->base + clk_info->div.reg);
 
 		/* wait for the change to take effect */
-		if (clk_info->div.busy_bit != -1) {
-			for (i = 0; i < timeout; i++) {
-				reg = readl(cgu->base + clk_info->div.reg);
-				if (!(reg & BIT(clk_info->div.busy_bit)))
-					break;
-				mdelay(1);
-			}
-			if (i == timeout)
-				ret = -EBUSY;
-		}
+		if (clk_info->div.busy_bit != -1)
+			ret = ingenic_clk_check_stable(cgu, clk_info);
 
 		spin_unlock_irqrestore(&cgu->lock, flags);
 		return ret;
