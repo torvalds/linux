@@ -145,8 +145,6 @@ struct axi_dmac {
 
 	struct dma_device dma_dev;
 	struct axi_dmac_chan chan;
-
-	struct device_dma_parameters dma_parms;
 };
 
 static struct axi_dmac *chan_to_axi_dmac(struct axi_dmac_chan *chan)
@@ -948,7 +946,6 @@ static int axi_dmac_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&dmac->chan.active_descs);
 
-	pdev->dev.dma_parms = &dmac->dma_parms;
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	dma_dev = &dmac->dma_dev;
