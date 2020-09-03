@@ -23,6 +23,10 @@
 		status = "okay";
 		ircut-open-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
 		ircut-close-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ircut_pins>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
 	};
 
 	vcc_1v8: vcc-1v8 {
@@ -163,7 +167,7 @@
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-OT1607-FV1";
-		rockchip,camera-module-lens-name = "M12-4IR-4MP-F16";
+		rockchip,camera-module-lens-name = "M12-40IRC-4MP-F16";
 		ir-cut = <&cam_ircut0>;
 
 		port {
@@ -188,6 +192,16 @@
 
 &npu {
 	npu-supply = <&vdd_logic_npu_vepu_fixed>;
+};
+
+&pinctrl {
+	ircut {
+		/omit-if-no-ref/
+		ircut_pins: ircut-pins {
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
+					<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };
 
 &pmu_io_domains {
