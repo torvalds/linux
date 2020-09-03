@@ -360,15 +360,19 @@ int ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		goto err;
 	ef100_tx_make_descriptors(tx_queue, skb, segments);
 
-	fill_level = efx_channel_tx_fill_level(tx_queue->channel);
+	fill_level = efx_channel_tx_old_fill_level(tx_queue->channel);
 	if (fill_level > efx->txq_stop_thresh) {
+		struct efx_tx_queue *txq2;
+
 		netif_tx_stop_queue(tx_queue->core_txq);
 		/* Re-read after a memory barrier in case we've raced with
 		 * the completion path. Otherwise there's a danger we'll never
 		 * restart the queue if all completions have just happened.
 		 */
 		smp_mb();
-		fill_level = efx_channel_tx_fill_level(tx_queue->channel);
+		efx_for_each_channel_tx_queue(txq2, tx_queue->channel)
+			txq2->old_read_count = READ_ONCE(txq2->read_count);
+		fill_level = efx_channel_tx_old_fill_level(tx_queue->channel);
 		if (fill_level < efx->txq_stop_thresh)
 			netif_tx_start_queue(tx_queue->core_txq);
 	}

@@ -1692,6 +1692,20 @@ efx_channel_tx_fill_level(struct efx_channel *channel)
 	return fill_level;
 }
 
+/* Conservative approximation of efx_channel_tx_fill_level using cached value */
+static inline unsigned int
+efx_channel_tx_old_fill_level(struct efx_channel *channel)
+{
+	struct efx_tx_queue *tx_queue;
+	unsigned int fill_level = 0;
+
+	efx_for_each_channel_tx_queue(tx_queue, channel)
+		fill_level = max(fill_level,
+				 tx_queue->insert_count - tx_queue->old_read_count);
+
+	return fill_level;
+}
+
 /* Get all supported features.
  * If a feature is not fixed, it is present in hw_features.
  * If a feature is fixed, it does not present in hw_features, but
