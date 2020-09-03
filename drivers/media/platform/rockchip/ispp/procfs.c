@@ -15,6 +15,7 @@
 static int ispp_show(struct seq_file *p, void *v)
 {
 	struct rkispp_device *dev = p->private;
+	enum rkispp_state state = dev->ispp_sdev.state;
 	struct rkispp_stream *stream;
 	u32 val;
 
@@ -50,26 +51,34 @@ static int ispp_show(struct seq_file *p, void *v)
 			   stream->dbg.interval / 1000 / 1000,
 			   stream->dbg.delay / 1000 / 1000);
 	}
+	if (state != ISPP_START)
+		return 0;
+
 	val = rkispp_read(dev, RKISPP_TNR_CORE_CTRL);
-	seq_printf(p, "%-10s %s(0x%x) (frame:%d time:%dms) CNT:0x%x STATE:0x%x\n",
+	seq_printf(p, "%-10s %s(0x%x) (mode: %s) (global gain: %s) (frame:%d time:%dms) CNT:0x%x STATE:0x%x\n",
 		   "TNR",
 		   (val & 1) ? "ON" : "OFF", val,
+		   (val & SW_TNR_MODE_SHD) ? "3to1" : "2to1",
+		   (val & SW_TNR_GLB_GAIN_EN_SHD) ? "enable" : "disable",
 		   dev->stream_vdev.tnr.dbg.id,
 		   dev->stream_vdev.tnr.dbg.interval / 1000 / 1000,
 		   rkispp_read(dev, RKISPP_TNR_TILE_CNT),
 		   rkispp_read(dev, RKISPP_TNR_STATE));
 	val = rkispp_read(dev, RKISPP_NR_UVNR_CTRL_PARA);
-	seq_printf(p, "%-10s %s(0x%x) (frame:%d time:%dms) 0x%x:0x%x 0x%x:0x%x\n",
+	seq_printf(p, "%-10s %s(0x%x) (external gain: %s) (frame:%d time:%dms) 0x%x:0x%x 0x%x:0x%x\n",
 		   "NR",
 		   (val & 1) ? "ON" : "OFF", val,
+		   (val & SW_NR_GAIN_BYPASS) ? "disable" : "enable",
 		   dev->stream_vdev.nr.dbg.id,
 		   dev->stream_vdev.nr.dbg.interval / 1000 / 1000,
 		   RKISPP_NR_BLOCK_CNT, rkispp_read(dev, RKISPP_NR_BLOCK_CNT),
 		   RKISPP_NR_BUFFER_READY, rkispp_read(dev, RKISPP_NR_BUFFER_READY));
 	val = rkispp_read(dev, RKISPP_SHARP_CORE_CTRL);
-	seq_printf(p, "%-10s %s(0x%x) 0x%x:0x%x\n",
+	seq_printf(p, "%-10s %s(0x%x) (YNR input filter: %s) (local ratio: %s) 0x%x:0x%x\n",
 		   "SHARP",
 		   (val & 1) ? "ON" : "OFF", val,
+		   (val & SW_SHP_YIN_FLT_EN) ? "ON" : "OFF",
+		   (val & SW_SHP_ALPHA_ADP_EN) ? "ON" : "OFF",
 		   RKISPP_SHARP_TILE_IDX, rkispp_read(dev, RKISPP_SHARP_TILE_IDX));
 	val = rkispp_read(dev, RKISPP_FEC_CORE_CTRL);
 	seq_printf(p, "%-10s %s(0x%x) (frame:%d time:%dms) 0x%x:0x%x\n",
@@ -78,6 +87,10 @@ static int ispp_show(struct seq_file *p, void *v)
 		   dev->stream_vdev.fec.dbg.id,
 		   dev->stream_vdev.fec.dbg.interval / 1000 / 1000,
 		   RKISPP_FEC_DMA_STATUS, rkispp_read(dev, RKISPP_FEC_DMA_STATUS));
+	val = rkispp_read(dev, RKISPP_ORB_CORE_CTRL);
+	seq_printf(p, "%-10s %s(0x%x)\n",
+		   "ORB",
+		   (val & 1) ? "ON" : "OFF", val);
 	seq_printf(p, "%-10s Cnt:%d ErrCnt:%d\n",
 		   "Interrupt",
 		   dev->isr_cnt,
