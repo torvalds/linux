@@ -213,6 +213,7 @@ static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 static struct platform_driver tmio_mmc_driver = {
 	.driver = {
 		.name = "tmio-mmc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm = &tmio_mmc_dev_pm_ops,
 	},
 	.probe = tmio_mmc_probe,

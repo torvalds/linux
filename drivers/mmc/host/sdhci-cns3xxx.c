@@ -98,6 +98,7 @@ static int sdhci_cns3xxx_probe(struct platform_device *pdev)
 static struct platform_driver sdhci_cns3xxx_driver = {
 	.driver		= {
 		.name	= "sdhci-cns3xxx",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &sdhci_pltfm_pmops,
 	},
 	.probe		= sdhci_cns3xxx_probe,

@@ -1027,6 +1027,7 @@ static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 static struct platform_driver sdhci_acpi_driver = {
 	.driver = {
 		.name			= "sdhci-acpi",
+		.probe_type		= PROBE_PREFER_ASYNCHRONOUS,
 		.acpi_match_table	= sdhci_acpi_ids,
 		.pm			= &sdhci_acpi_pm_ops,
 	},

@@ -1458,6 +1458,7 @@ static struct platform_driver rtsx_usb_sdmmc_driver = {
 	.id_table       = rtsx_usb_sdmmc_ids,
 	.driver		= {
 		.name	= "rtsx_usb_sdmmc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &rtsx_usb_sdmmc_dev_pm_ops,
 	},
 };

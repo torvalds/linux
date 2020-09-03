@@ -784,6 +784,7 @@ static struct platform_driver sdhci_s3c_driver = {
 	.id_table	= sdhci_s3c_driver_ids,
 	.driver		= {
 		.name	= "s3c-sdhci",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(sdhci_s3c_dt_match),
 		.pm	= &sdhci_s3c_pmops,
 	},
