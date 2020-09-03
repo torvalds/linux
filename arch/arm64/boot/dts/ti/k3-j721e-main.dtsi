@@ -327,7 +327,7 @@
 		};
 	};
 
-	main_pmx0: pinmux@11c000 {
+	main_pmx0: pinctrl@11c000 {
 		compatible = "pinctrl-single";
 		/* Proxy 0 addressing */
 		reg = <0x0 0x11c000 0x0 0x2b4>;
