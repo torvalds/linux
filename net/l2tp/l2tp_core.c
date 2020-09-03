@@ -120,11 +120,6 @@ static bool l2tp_sk_is_v6(struct sock *sk)
 }
 #endif
 
-static inline struct l2tp_tunnel *l2tp_tunnel(struct sock *sk)
-{
-	return sk->sk_user_data;
-}
-
 static inline struct l2tp_net *l2tp_pernet(const struct net *net)
 {
 	return net_generic(net, l2tp_net_id);
@@ -162,19 +157,23 @@ static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 
 static void l2tp_session_free(struct l2tp_session *session)
 {
-	struct l2tp_tunnel *tunnel = session->tunnel;
-
 	trace_free_session(session);
-
-	if (tunnel) {
-		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
-			goto out;
-		l2tp_tunnel_dec_refcount(tunnel);
-	}
-
-out:
+	if (session->tunnel)
+		l2tp_tunnel_dec_refcount(session->tunnel);
 	kfree(session);
 }
+
+struct l2tp_tunnel *l2tp_sk_to_tunnel(struct sock *sk)
+{
+	struct l2tp_tunnel *tunnel = sk->sk_user_data;
+
+	if (tunnel)
+		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
+			return NULL;
+
+	return tunnel;
+}
+EXPORT_SYMBOL_GPL(l2tp_sk_to_tunnel);
 
 void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
 {
@@ -782,9 +781,6 @@ static void l2tp_session_queue_purge(struct l2tp_session *session)
 {
 	struct sk_buff *skb = NULL;
 
-	if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
-		return;
-
 	while ((skb = skb_dequeue(&session->reorder_q))) {
 		atomic_long_inc(&session->stats.rx_errors);
 		kfree_skb(skb);
@@ -898,8 +894,16 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2tp_tunnel *tunnel;
 
+	/* Note that this is called from the encap_rcv hook inside an
+	 * RCU-protected region, but without the socket being locked.
+	 * Hence we use rcu_dereference_sk_user_data to access the
+	 * tunnel data structure rather the usual l2tp_sk_to_tunnel
+	 * accessor function.
+	 */
 	tunnel = rcu_dereference_sk_user_data(sk);
 	if (!tunnel)
+		goto pass_up;
+	if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
 		goto pass_up;
 
 	if (l2tp_udp_recv_core(tunnel, skb))
@@ -985,57 +989,39 @@ static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 	return bufp - optr;
 }
 
-static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
-			   struct flowi *fl, size_t data_len)
+/* Queue the packet to IP for output: tunnel socket lock must be held */
+static int l2tp_xmit_queue(struct l2tp_tunnel *tunnel, struct sk_buff *skb, struct flowi *fl)
 {
-	struct l2tp_tunnel *tunnel = session->tunnel;
-	unsigned int len = skb->len;
-	int error;
+	int err;
 
-	/* Queue the packet to IP for output */
 	skb->ignore_df = 1;
 	skb_dst_drop(skb);
 #if IS_ENABLED(CONFIG_IPV6)
 	if (l2tp_sk_is_v6(tunnel->sock))
-		error = inet6_csk_xmit(tunnel->sock, skb, NULL);
+		err = inet6_csk_xmit(tunnel->sock, skb, NULL);
 	else
 #endif
-		error = ip_queue_xmit(tunnel->sock, skb, fl);
+		err = ip_queue_xmit(tunnel->sock, skb, fl);
 
-	/* Update stats */
-	if (error >= 0) {
-		atomic_long_inc(&tunnel->stats.tx_packets);
-		atomic_long_add(len, &tunnel->stats.tx_bytes);
-		atomic_long_inc(&session->stats.tx_packets);
-		atomic_long_add(len, &session->stats.tx_bytes);
-	} else {
-		atomic_long_inc(&tunnel->stats.tx_errors);
-		atomic_long_inc(&session->stats.tx_errors);
-	}
+	return err >= 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
 }
 
-/* If caller requires the skb to have a ppp header, the header must be
- * inserted in the skb data before calling this function.
- */
-int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len)
+static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb)
 {
-	int data_len = skb->len;
 	struct l2tp_tunnel *tunnel = session->tunnel;
+	unsigned int data_len = skb->len;
 	struct sock *sk = tunnel->sock;
-	struct flowi *fl;
-	struct udphdr *uh;
-	struct inet_sock *inet;
-	int headroom;
-	int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
-	int udp_len;
+	int headroom, uhlen, udp_len;
 	int ret = NET_XMIT_SUCCESS;
+	struct inet_sock *inet;
+	struct udphdr *uh;
 
 	/* Check that there's enough headroom in the skb to insert IP,
 	 * UDP and L2TP headers. If not enough, expand it to
 	 * make room. Adjust truesize.
 	 */
-	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
-		uhlen + hdr_len;
+	uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(*uh) : 0;
+	headroom = NET_SKB_PAD + sizeof(struct iphdr) + uhlen + session->hdr_len;
 	if (skb_cow_head(skb, headroom)) {
 		kfree_skb(skb);
 		return NET_XMIT_DROP;
@@ -1043,14 +1029,13 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 
 	/* Setup L2TP header */
 	if (tunnel->version == L2TP_HDR_VER_2)
-		l2tp_build_l2tpv2_header(session, __skb_push(skb, hdr_len));
+		l2tp_build_l2tpv2_header(session, __skb_push(skb, session->hdr_len));
 	else
-		l2tp_build_l2tpv3_header(session, __skb_push(skb, hdr_len));
+		l2tp_build_l2tpv3_header(session, __skb_push(skb, session->hdr_len));
 
 	/* Reset skb netfilter state */
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
-			      IPSKB_REROUTED);
+	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED | IPSKB_REROUTED);
 	nf_reset_ct(skb);
 
 	bh_lock_sock(sk);
@@ -1070,7 +1055,6 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	}
 
 	inet = inet_sk(sk);
-	fl = &inet->cork.fl;
 	switch (tunnel->encap) {
 	case L2TP_ENCAPTYPE_UDP:
 		/* Setup UDP header */
@@ -1079,7 +1063,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 		uh = udp_hdr(skb);
 		uh->source = inet->inet_sport;
 		uh->dest = inet->inet_dport;
-		udp_len = uhlen + hdr_len + data_len;
+		udp_len = uhlen + session->hdr_len + data_len;
 		uh->len = htons(udp_len);
 
 		/* Calculate UDP checksum if configured to do so */
@@ -1098,10 +1082,32 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 		break;
 	}
 
-	l2tp_xmit_core(session, skb, fl, data_len);
+	ret = l2tp_xmit_queue(tunnel, skb, &inet->cork.fl);
+
 out_unlock:
 	bh_unlock_sock(sk);
 
+	return ret;
+}
+
+/* If caller requires the skb to have a ppp header, the header must be
+ * inserted in the skb data before calling this function.
+ */
+int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
+{
+	unsigned int len = skb->len;
+	int ret;
+
+	ret = l2tp_xmit_core(session, skb);
+	if (ret == NET_XMIT_SUCCESS) {
+		atomic_long_inc(&session->tunnel->stats.tx_packets);
+		atomic_long_add(len, &session->tunnel->stats.tx_bytes);
+		atomic_long_inc(&session->stats.tx_packets);
+		atomic_long_add(len, &session->stats.tx_bytes);
+	} else {
+		atomic_long_inc(&session->tunnel->stats.tx_errors);
+		atomic_long_inc(&session->stats.tx_errors);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
@@ -1116,7 +1122,7 @@ EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
  */
 static void l2tp_tunnel_destruct(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_tunnel(sk);
+	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
 
 	if (!tunnel)
 		goto end;
@@ -1185,22 +1191,10 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 again:
 		hlist_for_each_safe(walk, tmp, &tunnel->session_hlist[hash]) {
 			session = hlist_entry(walk, struct l2tp_session, hlist);
-
 			hlist_del_init(&session->hlist);
 
-			if (test_and_set_bit(0, &session->dead))
-				goto again;
-
 			write_unlock_bh(&tunnel->hlist_lock);
-
-			l2tp_session_unhash(session);
-			l2tp_session_queue_purge(session);
-
-			if (session->session_close)
-				(*session->session_close)(session);
-
-			l2tp_session_dec_refcount(session);
-
+			l2tp_session_delete(session);
 			write_lock_bh(&tunnel->hlist_lock);
 
 			/* Now restart from the beginning of this hash
@@ -1217,7 +1211,7 @@ again:
 /* Tunnel socket destroy hook for UDP encapsulation */
 static void l2tp_udp_encap_destroy(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_tunnel(sk);
+	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
 
 	if (tunnel)
 		l2tp_tunnel_delete(tunnel);
@@ -1382,7 +1376,7 @@ out:
 
 static struct lock_class_key l2tp_socket_class;
 
-int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 peer_tunnel_id,
+int l2tp_tunnel_create(int fd, int version, u32 tunnel_id, u32 peer_tunnel_id,
 		       struct l2tp_tunnel_cfg *cfg, struct l2tp_tunnel **tunnelp)
 {
 	struct l2tp_tunnel *tunnel = NULL;

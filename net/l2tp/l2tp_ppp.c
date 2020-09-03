@@ -316,7 +316,7 @@ static int pppol2tp_sendmsg(struct socket *sock, struct msghdr *m,
 	}
 
 	local_bh_disable();
-	l2tp_xmit_skb(session, skb, session->hdr_len);
+	l2tp_xmit_skb(session, skb);
 	local_bh_enable();
 
 	sock_put(sk);
@@ -375,7 +375,7 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	skb->data[1] = PPP_UI;
 
 	local_bh_disable();
-	l2tp_xmit_skb(session, skb, session->hdr_len);
+	l2tp_xmit_skb(session, skb);
 	local_bh_enable();
 
 	sock_put(sk);
@@ -712,7 +712,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 				goto end;
 			}
 
-			error = l2tp_tunnel_create(sock_net(sk), info.fd,
+			error = l2tp_tunnel_create(info.fd,
 						   info.version,
 						   info.tunnel_id,
 						   info.peer_tunnel_id, &tcfg,
@@ -1065,6 +1065,9 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		if (!session)
 			return -ENOTCONN;
 
+		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
+			return -EBADF;
+
 		/* Not defined for tunnels */
 		if (!session->session_id && !session->peer_session_id)
 			return -ENOSYS;
@@ -1079,6 +1082,9 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		if (!session)
 			return -ENOTCONN;
 
+		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
+			return -EBADF;
+
 		/* Not defined for tunnels */
 		if (!session->session_id && !session->peer_session_id)
 			return -ENOSYS;
@@ -1091,6 +1097,9 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		session = sock->sk->sk_user_data;
 		if (!session)
 			return -ENOTCONN;
+
+		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
+			return -EBADF;
 
 		/* Session 0 represents the parent tunnel */
 		if (!session->session_id && !session->peer_session_id) {

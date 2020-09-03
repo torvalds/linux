@@ -235,7 +235,7 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
  * Creation of a new instance is a two-step process: create, then register.
  * Destruction is triggered using the *_delete functions, and completes asynchronously.
  */
-int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id,
+int l2tp_tunnel_create(int fd, int version, u32 tunnel_id,
 		       u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg,
 		       struct l2tp_tunnel **tunnelp);
 int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
@@ -261,8 +261,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 
 /* Transmit path helpers for sending packets over the tunnel socket. */
 void l2tp_session_set_header_len(struct l2tp_session *session, int version);
-int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb,
-		  int hdr_len);
+int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb);
 
 /* Pseudowire management.
  * Pseudowires should register with l2tp core on module init, and unregister
@@ -273,6 +272,11 @@ void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
 
 /* IOCTL helper for IP encap modules. */
 int l2tp_ioctl(struct sock *sk, int cmd, unsigned long arg);
+
+/* Extract the tunnel structure from a socket's sk_user_data pointer,
+ * validating the tunnel magic feather.
+ */
+struct l2tp_tunnel *l2tp_sk_to_tunnel(struct sock *sk);
 
 static inline int l2tp_get_l2specific_len(struct l2tp_session *session)
 {

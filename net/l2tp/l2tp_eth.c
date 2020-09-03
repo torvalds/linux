@@ -76,7 +76,7 @@ static netdev_tx_t l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev
 	struct l2tp_eth *priv = netdev_priv(dev);
 	struct l2tp_session *session = priv->session;
 	unsigned int len = skb->len;
-	int ret = l2tp_xmit_skb(session, skb, session->hdr_len);
+	int ret = l2tp_xmit_skb(session, skb);
 
 	if (likely(ret == NET_XMIT_SUCCESS)) {
 		atomic_long_add(len, &priv->tx_bytes);
