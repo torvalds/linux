@@ -42,10 +42,13 @@ static void ceph_inode_work(struct work_struct *work);
 static int ceph_set_ino_cb(struct inode *inode, void *data)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
 
 	ci->i_vino = *(struct ceph_vino *)data;
 	inode->i_ino = ceph_vino_to_ino_t(ci->i_vino);
 	inode_set_iversion_raw(inode, 0);
+	percpu_counter_inc(&mdsc->metric.total_inodes);
+
 	return 0;
 }
 
@@ -538,10 +541,13 @@ void ceph_free_inode(struct inode *inode)
 void ceph_evict_inode(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
 	struct ceph_inode_frag *frag;
 	struct rb_node *n;
 
 	dout("evict_inode %p ino %llx.%llx\n", inode, ceph_vinop(inode));
+
+	percpu_counter_dec(&mdsc->metric.total_inodes);
 
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
@@ -558,7 +564,6 @@ void ceph_evict_inode(struct inode *inode)
 	 * caps in i_snap_caps.
 	 */
 	if (ci->i_snap_realm) {
-		struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
 		if (ceph_snap(inode) == CEPH_NOSNAP) {
 			struct ceph_snap_realm *realm = ci->i_snap_realm;
 			dout(" dropping residual ref to snap realm %p\n",

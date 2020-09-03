@@ -4283,13 +4283,30 @@ void __ceph_touch_fmode(struct ceph_inode_info *ci,
 
 void ceph_get_fmode(struct ceph_inode_info *ci, int fmode, int count)
 {
-	int i;
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(ci->vfs_inode.i_sb);
 	int bits = (fmode << 1) | 1;
+	bool is_opened = false;
+	int i;
+
+	if (count == 1)
+		atomic64_inc(&mdsc->metric.opened_files);
+
 	spin_lock(&ci->i_ceph_lock);
 	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
 		if (bits & (1 << i))
 			ci->i_nr_by_mode[i] += count;
+
+		/*
+		 * If any of the mode ref is larger than 1,
+		 * that means it has been already opened by
+		 * others. Just skip checking the PIN ref.
+		 */
+		if (i && ci->i_nr_by_mode[i] > 1)
+			is_opened = true;
 	}
+
+	if (!is_opened)
+		percpu_counter_inc(&mdsc->metric.opened_inodes);
 	spin_unlock(&ci->i_ceph_lock);
 }
 
@@ -4300,15 +4317,32 @@ void ceph_get_fmode(struct ceph_inode_info *ci, int fmode, int count)
  */
 void ceph_put_fmode(struct ceph_inode_info *ci, int fmode, int count)
 {
-	int i;
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(ci->vfs_inode.i_sb);
 	int bits = (fmode << 1) | 1;
+	bool is_closed = true;
+	int i;
+
+	if (count == 1)
+		atomic64_dec(&mdsc->metric.opened_files);
+
 	spin_lock(&ci->i_ceph_lock);
 	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
 		if (bits & (1 << i)) {
 			BUG_ON(ci->i_nr_by_mode[i] < count);
 			ci->i_nr_by_mode[i] -= count;
 		}
+
+		/*
+		 * If any of the mode ref is not 0 after
+		 * decreased, that means it is still opened
+		 * by others. Just skip checking the PIN ref.
+		 */
+		if (i && ci->i_nr_by_mode[i])
+			is_closed = false;
 	}
+
+	if (is_closed)
+		percpu_counter_dec(&mdsc->metric.opened_inodes);
 	spin_unlock(&ci->i_ceph_lock);
 }
 

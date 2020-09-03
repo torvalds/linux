@@ -148,6 +148,17 @@ static int metric_show(struct seq_file *s, void *p)
 	int nr_caps = 0;
 	s64 total, sum, avg, min, max, sq;
 
+	sum = percpu_counter_sum(&m->total_inodes);
+	seq_printf(s, "item                               total\n");
+	seq_printf(s, "------------------------------------------\n");
+	seq_printf(s, "%-35s%lld / %lld\n", "opened files  / total inodes",
+		   atomic64_read(&m->opened_files), sum);
+	seq_printf(s, "%-35s%lld / %lld\n", "pinned i_caps / total inodes",
+		   atomic64_read(&m->total_caps), sum);
+	seq_printf(s, "%-35s%lld / %lld\n", "opened inodes / total inodes",
+		   percpu_counter_sum(&m->opened_inodes), sum);
+
+	seq_printf(s, "\n");
 	seq_printf(s, "item          total       avg_lat(us)     min_lat(us)     max_lat(us)     stdev(us)\n");
 	seq_printf(s, "-----------------------------------------------------------------------------------\n");
 
