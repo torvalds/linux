@@ -1802,6 +1802,16 @@ int evlist__parse_control(const char *str, int *ctl_fd, int *ctl_fd_ack, bool *c
 	return 0;
 }
 
+void evlist__close_control(int ctl_fd, int ctl_fd_ack, bool *ctl_fd_close)
+{
+	if (*ctl_fd_close) {
+		*ctl_fd_close = false;
+		close(ctl_fd);
+		if (ctl_fd_ack >= 0)
+			close(ctl_fd_ack);
+	}
+}
+
 int evlist__initialize_ctlfd(struct evlist *evlist, int fd, int ack)
 {
 	if (fd == -1) {

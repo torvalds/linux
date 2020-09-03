@@ -1051,16 +1051,6 @@ static int parse_control_option(const struct option *opt,
 	return evlist__parse_control(str, &config->ctl_fd, &config->ctl_fd_ack, &config->ctl_fd_close);
 }
 
-static void close_control_option(struct perf_stat_config *config)
-{
-	if (config->ctl_fd_close) {
-		config->ctl_fd_close = false;
-		close(config->ctl_fd);
-		if (config->ctl_fd_ack >= 0)
-			close(config->ctl_fd_ack);
-	}
-}
-
 static struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
@@ -2410,7 +2400,7 @@ out:
 
 	metricgroup__rblist_exit(&stat_config.metric_events);
 	runtime_stat_delete(&stat_config);
-	close_control_option(&stat_config);
+	evlist__close_control(stat_config.ctl_fd, stat_config.ctl_fd_ack, &stat_config.ctl_fd_close);
 
 	return status;
 }

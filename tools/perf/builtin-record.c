@@ -2253,16 +2253,6 @@ static int parse_control_option(const struct option *opt,
 	return evlist__parse_control(str, &opts->ctl_fd, &opts->ctl_fd_ack, &opts->ctl_fd_close);
 }
 
-static void close_control_option(struct record_opts *opts)
-{
-	if (opts->ctl_fd_close) {
-		opts->ctl_fd_close = false;
-		close(opts->ctl_fd);
-		if (opts->ctl_fd_ack >= 0)
-			close(opts->ctl_fd_ack);
-	}
-}
-
 static void switch_output_size_warn(struct record *rec)
 {
 	u64 wakeup_size = evlist__mmap_size(rec->opts.mmap_pages);
@@ -2849,7 +2839,7 @@ out:
 	symbol__exit();
 	auxtrace_record__free(rec->itr);
 out_opts:
-	close_control_option(&rec->opts);
+	evlist__close_control(rec->opts.ctl_fd, rec->opts.ctl_fd_ack, &rec->opts.ctl_fd_close);
 	return err;
 }
 
