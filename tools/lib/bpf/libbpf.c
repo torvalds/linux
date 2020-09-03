@@ -2753,6 +2753,18 @@ static bool ignore_elf_section(GElf_Shdr *hdr, const char *name)
 	return false;
 }
 
+static int cmp_progs(const void *_a, const void *_b)
+{
+	const struct bpf_program *a = _a;
+	const struct bpf_program *b = _b;
+
+	if (a->sec_idx != b->sec_idx)
+		return a->sec_idx < b->sec_idx ? -1 : 1;
+
+	/* sec_insn_off can't be the same within the section */
+	return a->sec_insn_off < b->sec_insn_off ? -1 : 1;
+}
+
 static int bpf_object__elf_collect(struct bpf_object *obj)
 {
 	Elf *elf = obj->efile.elf;
@@ -2887,6 +2899,11 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		pr_warn("elf: symbol strings section missing or invalid in %s\n", obj->path);
 		return -LIBBPF_ERRNO__FORMAT;
 	}
+
+	/* sort BPF programs by section name and in-section instruction offset
+	 * for faster search */
+	qsort(obj->programs, obj->nr_programs, sizeof(*obj->programs), cmp_progs);
+
 	return bpf_object__init_btf(obj, btf_data, btf_ext_data);
 }
 
@@ -3413,6 +3430,37 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	reloc_desc->map_idx = map_idx;
 	reloc_desc->sym_off = sym->st_value;
 	return 0;
+}
+
+static bool prog_contains_insn(const struct bpf_program *prog, size_t insn_idx)
+{
+	return insn_idx >= prog->sec_insn_off &&
+	       insn_idx < prog->sec_insn_off + prog->sec_insn_cnt;
+}
+
+static struct bpf_program *find_prog_by_sec_insn(const struct bpf_object *obj,
+						 size_t sec_idx, size_t insn_idx)
+{
+	int l = 0, r = obj->nr_programs - 1, m;
+	struct bpf_program *prog;
+
+	while (l < r) {
+		m = l + (r - l + 1) / 2;
+		prog = &obj->programs[m];
+
+		if (prog->sec_idx < sec_idx ||
+		    (prog->sec_idx == sec_idx && prog->sec_insn_off <= insn_idx))
+			l = m;
+		else
+			r = m - 1;
+	}
+	/* matching program could be at index l, but it still might be the
+	 * wrong one, so we need to double check conditions for the last time
+	 */
+	prog = &obj->programs[l];
+	if (prog->sec_idx == sec_idx && prog_contains_insn(prog, insn_idx))
+		return prog;
+	return NULL;
 }
 
 static int
@@ -5229,6 +5277,11 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 	if (relo->insn_off % BPF_INSN_SZ)
 		return -EINVAL;
 	insn_idx = relo->insn_off / BPF_INSN_SZ;
+	/* adjust insn_idx from section frame of reference to the local
+	 * program's frame of reference; (sub-)program code is not yet
+	 * relocated, so it's enough to just subtract in-section offset
+	 */
+	insn_idx = insn_idx - prog->sec_insn_off;
 	insn = &prog->insns[insn_idx];
 	class = BPF_CLASS(insn->code);
 
@@ -5619,7 +5672,7 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 	struct bpf_program *prog;
 	struct btf *targ_btf;
 	const char *sec_name;
-	int i, err = 0;
+	int i, err = 0, insn_idx, sec_idx;
 
 	if (obj->btf_ext->core_relo_info.len == 0)
 		return 0;
@@ -5646,24 +5699,37 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 			err = -EINVAL;
 			goto out;
 		}
+		/* bpf_object's ELF is gone by now so it's not easy to find
+		 * section index by section name, but we can find *any*
+		 * bpf_program within desired section name and use it's
+		 * prog->sec_idx to do a proper search by section index and
+		 * instruction offset
+		 */
 		prog = NULL;
 		for (i = 0; i < obj->nr_programs; i++) {
-			if (!strcmp(obj->programs[i].section_name, sec_name)) {
-				prog = &obj->programs[i];
+			prog = &obj->programs[i];
+			if (strcmp(prog->section_name, sec_name) == 0)
 				break;
-			}
 		}
 		if (!prog) {
-			pr_warn("failed to find program '%s' for CO-RE offset relocation\n",
-				sec_name);
-			err = -EINVAL;
-			goto out;
+			pr_warn("sec '%s': failed to find a BPF program\n", sec_name);
+			return -ENOENT;
 		}
+		sec_idx = prog->sec_idx;
 
 		pr_debug("sec '%s': found %d CO-RE relocations\n",
 			 sec_name, sec->num_info);
 
 		for_each_btf_ext_rec(seg, sec, i, rec) {
+			insn_idx = rec->insn_off / BPF_INSN_SZ;
+			prog = find_prog_by_sec_insn(obj, sec_idx, insn_idx);
+			if (!prog) {
+				pr_warn("sec '%s': failed to find program at insn #%d for CO-RE offset relocation #%d\n",
+					sec_name, insn_idx, i);
+				err = -EINVAL;
+				goto out;
+			}
+
 			err = bpf_core_apply_relo(prog, rec, i, obj->btf,
 						  targ_btf, cand_cache);
 			if (err) {
