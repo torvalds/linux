@@ -17,7 +17,7 @@
 #define MLXSW_HWMON_GEARBOXES_MAX_COUNT 32
 
 #define MLXSW_HWMON_ATTR_PER_SENSOR 3
-#define MLXSW_HWMON_ATTR_PER_MODULE 5
+#define MLXSW_HWMON_ATTR_PER_MODULE 7
 #define MLXSW_HWMON_ATTR_PER_GEARBOX 4
 
 #define MLXSW_HWMON_ATTR_COUNT (MLXSW_HWMON_SENSORS_MAX_COUNT * MLXSW_HWMON_ATTR_PER_SENSOR + \
@@ -388,6 +388,53 @@ mlxsw_hwmon_gbox_temp_label_show(struct device *dev,
 	return sprintf(buf, "gearbox %03u\n", index);
 }
 
+static ssize_t mlxsw_hwmon_temp_critical_alarm_show(struct device *dev,
+						    struct device_attribute *attr,
+						    char *buf)
+{
+	int err, temp, emergency_temp, critic_temp;
+
+	err = mlxsw_hwmon_module_temp_get(dev, attr, &temp);
+	if (err)
+		return err;
+
+	if (temp <= 0)
+		return sprintf(buf, "%d\n", false);
+
+	err = mlxsw_hwmon_module_temp_emergency_get(dev, attr, &emergency_temp);
+	if (err)
+		return err;
+
+	if (temp >= emergency_temp)
+		return sprintf(buf, "%d\n", false);
+
+	err = mlxsw_hwmon_module_temp_critical_get(dev, attr, &critic_temp);
+	if (err)
+		return err;
+
+	return sprintf(buf, "%d\n", temp >= critic_temp);
+}
+
+static ssize_t mlxsw_hwmon_temp_emergency_alarm_show(struct device *dev,
+						     struct device_attribute *attr,
+						     char *buf)
+{
+	int err, temp, emergency_temp;
+
+	err = mlxsw_hwmon_module_temp_get(dev, attr, &temp);
+	if (err)
+		return err;
+
+	if (temp <= 0)
+		return sprintf(buf, "%d\n", false);
+
+	err = mlxsw_hwmon_module_temp_emergency_get(dev, attr, &emergency_temp);
+	if (err)
+		return err;
+
+	return sprintf(buf, "%d\n", temp >= emergency_temp);
+}
+
 enum mlxsw_hwmon_attr_type {
 	MLXSW_HWMON_ATTR_TYPE_TEMP,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MAX,
@@ -401,6 +448,8 @@ enum mlxsw_hwmon_attr_type {
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_EMERG,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_LABEL,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_GBOX_LABEL,
+	MLXSW_HWMON_ATTR_TYPE_TEMP_CRIT_ALARM,
+	MLXSW_HWMON_ATTR_TYPE_TEMP_EMERGENCY_ALARM,
 };
 
 static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
@@ -490,6 +539,20 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_label", num + 1);
+		break;
+	case MLXSW_HWMON_ATTR_TYPE_TEMP_CRIT_ALARM:
+		mlxsw_hwmon_attr->dev_attr.show =
+			mlxsw_hwmon_temp_critical_alarm_show;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
+		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
+			 "temp%u_crit_alarm", num + 1);
+		break;
+	case MLXSW_HWMON_ATTR_TYPE_TEMP_EMERGENCY_ALARM:
+		mlxsw_hwmon_attr->dev_attr.show =
+			mlxsw_hwmon_temp_emergency_alarm_show;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
+		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
+			 "temp%u_emergency_alarm", num + 1);
 		break;
 	default:
 		WARN_ON(1);
@@ -612,6 +675,12 @@ static int mlxsw_hwmon_module_init(struct mlxsw_hwmon *mlxsw_hwmon)
 				     i, i);
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
 				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_LABEL,
+				     i, i);
+		mlxsw_hwmon_attr_add(mlxsw_hwmon,
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_CRIT_ALARM,
+				     i, i);
+		mlxsw_hwmon_attr_add(mlxsw_hwmon,
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_EMERGENCY_ALARM,
 				     i, i);
 	}
 
