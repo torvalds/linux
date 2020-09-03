@@ -493,32 +493,16 @@
 
 #define SCALER5_DLIST_START			0x00004000
 
-#define VC4_HDMI_CORE_REV			0x000
-
-#define VC4_HDMI_SW_RESET_CONTROL		0x004
 # define VC4_HDMI_SW_RESET_FORMAT_DETECT	BIT(1)
 # define VC4_HDMI_SW_RESET_HDMI			BIT(0)
 
-#define VC4_HDMI_HOTPLUG_INT			0x008
-
-#define VC4_HDMI_HOTPLUG			0x00c
 # define VC4_HDMI_HOTPLUG_CONNECTED		BIT(0)
 
-/* 3 bits per field, where each field maps from that corresponding MAI
- * bus channel to the given HDMI channel.
- */
-#define VC4_HDMI_MAI_CHANNEL_MAP		0x090
-
-#define VC4_HDMI_MAI_CONFIG			0x094
 # define VC4_HDMI_MAI_CONFIG_FORMAT_REVERSE		BIT(27)
 # define VC4_HDMI_MAI_CONFIG_BIT_REVERSE		BIT(26)
 # define VC4_HDMI_MAI_CHANNEL_MASK_MASK			VC4_MASK(15, 0)
 # define VC4_HDMI_MAI_CHANNEL_MASK_SHIFT		0
 
-/* Last received format word on the MAI bus. */
-#define VC4_HDMI_MAI_FORMAT			0x098
-
-#define VC4_HDMI_AUDIO_PACKET_CONFIG		0x09c
 # define VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_SAMPLE_FLAT		BIT(29)
 # define VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_INACTIVE_CHANNELS	BIT(24)
 # define VC4_HDMI_AUDIO_PACKET_FORCE_SAMPLE_PRESENT		BIT(19)
@@ -532,12 +516,8 @@
 # define VC4_HDMI_AUDIO_PACKET_CEA_MASK_MASK			VC4_MASK(7, 0)
 # define VC4_HDMI_AUDIO_PACKET_CEA_MASK_SHIFT			0
 
-#define VC4_HDMI_RAM_PACKET_CONFIG		0x0a0
 # define VC4_HDMI_RAM_PACKET_ENABLE		BIT(16)
 
-#define VC4_HDMI_RAM_PACKET_STATUS		0x0a4
-
-#define VC4_HDMI_CRP_CFG			0x0a8
 /* When set, the CTS_PERIOD counts based on MAI bus sync pulse instead
  * of pixel clock.
  */
@@ -551,23 +531,12 @@
 # define VC4_HDMI_CRP_CFG_N_MASK		VC4_MASK(19, 0)
 # define VC4_HDMI_CRP_CFG_N_SHIFT		0
 
-/* 20-bit fields containing CTS values to be transmitted if !EXTERNAL_CTS_EN */
-#define VC4_HDMI_CTS_0				0x0ac
-#define VC4_HDMI_CTS_1				0x0b0
-/* 20-bit fields containing number of clocks to send CTS0/1 before
- * switching to the other one.
- */
-#define VC4_HDMI_CTS_PERIOD_0			0x0b4
-#define VC4_HDMI_CTS_PERIOD_1			0x0b8
-
-#define VC4_HDMI_HORZA				0x0c4
 # define VC4_HDMI_HORZA_VPOS			BIT(14)
 # define VC4_HDMI_HORZA_HPOS			BIT(13)
 /* Horizontal active pixels (hdisplay). */
 # define VC4_HDMI_HORZA_HAP_MASK		VC4_MASK(12, 0)
 # define VC4_HDMI_HORZA_HAP_SHIFT		0
 
-#define VC4_HDMI_HORZB				0x0c8
 /* Horizontal pack porch (htotal - hsync_end). */
 # define VC4_HDMI_HORZB_HBP_MASK		VC4_MASK(29, 20)
 # define VC4_HDMI_HORZB_HBP_SHIFT		20
@@ -578,7 +547,6 @@
 # define VC4_HDMI_HORZB_HFP_MASK		VC4_MASK(9, 0)
 # define VC4_HDMI_HORZB_HFP_SHIFT		0
 
-#define VC4_HDMI_FIFO_CTL			0x05c
 # define VC4_HDMI_FIFO_CTL_RECENTER_DONE	BIT(14)
 # define VC4_HDMI_FIFO_CTL_USE_EMPTY		BIT(13)
 # define VC4_HDMI_FIFO_CTL_ON_VB		BIT(7)
@@ -591,15 +559,12 @@
 # define VC4_HDMI_FIFO_CTL_MASTER_SLAVE_N	BIT(0)
 # define VC4_HDMI_FIFO_VALID_WRITE_MASK		0xefff
 
-#define VC4_HDMI_SCHEDULER_CONTROL		0x0c0
 # define VC4_HDMI_SCHEDULER_CONTROL_MANUAL_FORMAT BIT(15)
 # define VC4_HDMI_SCHEDULER_CONTROL_IGNORE_VSYNC_PREDICTS BIT(5)
 # define VC4_HDMI_SCHEDULER_CONTROL_VERT_ALWAYS_KEEPOUT	BIT(3)
 # define VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE	BIT(1)
 # define VC4_HDMI_SCHEDULER_CONTROL_MODE_HDMI	BIT(0)
 
-#define VC4_HDMI_VERTA0				0x0cc
-#define VC4_HDMI_VERTA1				0x0d4
 /* Vertical sync pulse (vsync_end - vsync_start). */
 # define VC4_HDMI_VERTA_VSP_MASK		VC4_MASK(24, 20)
 # define VC4_HDMI_VERTA_VSP_SHIFT		20
@@ -610,8 +575,6 @@
 # define VC4_HDMI_VERTA_VAL_MASK		VC4_MASK(12, 0)
 # define VC4_HDMI_VERTA_VAL_SHIFT		0
 
-#define VC4_HDMI_VERTB0				0x0d0
-#define VC4_HDMI_VERTB1				0x0d8
 /* Vertical sync pulse offset (for interlaced) */
 # define VC4_HDMI_VERTB_VSPO_MASK		VC4_MASK(21, 9)
 # define VC4_HDMI_VERTB_VSPO_SHIFT		9
@@ -619,7 +582,6 @@
 # define VC4_HDMI_VERTB_VBP_MASK		VC4_MASK(8, 0)
 # define VC4_HDMI_VERTB_VBP_SHIFT		0
 
-#define VC4_HDMI_CEC_CNTRL_1			0x0e8
 /* Set when the transmission has ended. */
 # define VC4_HDMI_CEC_TX_EOM			BIT(31)
 /* If set, transmission was acked on the 1st or 2nd attempt (only one
@@ -660,7 +622,6 @@
 /* Set these fields to how many bit clock cycles get to that many
  * microseconds.
  */
-#define VC4_HDMI_CEC_CNTRL_2			0x0ec
 # define VC4_HDMI_CEC_CNT_TO_1500_US_MASK	VC4_MASK(30, 24)
 # define VC4_HDMI_CEC_CNT_TO_1500_US_SHIFT	24
 # define VC4_HDMI_CEC_CNT_TO_1300_US_MASK	VC4_MASK(23, 17)
@@ -672,7 +633,6 @@
 # define VC4_HDMI_CEC_CNT_TO_400_US_MASK	VC4_MASK(4, 0)
 # define VC4_HDMI_CEC_CNT_TO_400_US_SHIFT	0
 
-#define VC4_HDMI_CEC_CNTRL_3			0x0f0
 # define VC4_HDMI_CEC_CNT_TO_2750_US_MASK	VC4_MASK(31, 24)
 # define VC4_HDMI_CEC_CNT_TO_2750_US_SHIFT	24
 # define VC4_HDMI_CEC_CNT_TO_2400_US_MASK	VC4_MASK(23, 16)
@@ -682,7 +642,6 @@
 # define VC4_HDMI_CEC_CNT_TO_1700_US_MASK	VC4_MASK(7, 0)
 # define VC4_HDMI_CEC_CNT_TO_1700_US_SHIFT	0
 
-#define VC4_HDMI_CEC_CNTRL_4			0x0f4
 # define VC4_HDMI_CEC_CNT_TO_4300_US_MASK	VC4_MASK(31, 24)
 # define VC4_HDMI_CEC_CNT_TO_4300_US_SHIFT	24
 # define VC4_HDMI_CEC_CNT_TO_3900_US_MASK	VC4_MASK(23, 16)
@@ -692,7 +651,6 @@
 # define VC4_HDMI_CEC_CNT_TO_3500_US_MASK	VC4_MASK(7, 0)
 # define VC4_HDMI_CEC_CNT_TO_3500_US_SHIFT	0
 
-#define VC4_HDMI_CEC_CNTRL_5			0x0f8
 # define VC4_HDMI_CEC_TX_SW_RESET		BIT(27)
 # define VC4_HDMI_CEC_RX_SW_RESET		BIT(26)
 # define VC4_HDMI_CEC_PAD_SW_RESET		BIT(25)
@@ -705,39 +663,11 @@
 # define VC4_HDMI_CEC_CNT_TO_4500_US_MASK	VC4_MASK(7, 0)
 # define VC4_HDMI_CEC_CNT_TO_4500_US_SHIFT	0
 
-/* Transmit data, first byte is low byte of the 32-bit reg.  MSB of
- * each byte transmitted first.
- */
-#define VC4_HDMI_CEC_TX_DATA_1			0x0fc
-#define VC4_HDMI_CEC_TX_DATA_2			0x100
-#define VC4_HDMI_CEC_TX_DATA_3			0x104
-#define VC4_HDMI_CEC_TX_DATA_4			0x108
-#define VC4_HDMI_CEC_RX_DATA_1			0x10c
-#define VC4_HDMI_CEC_RX_DATA_2			0x110
-#define VC4_HDMI_CEC_RX_DATA_3			0x114
-#define VC4_HDMI_CEC_RX_DATA_4			0x118
-
-#define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
-
-#define VC4_HDMI_TX_PHY_CTL0			0x2c4
 # define VC4_HDMI_TX_PHY_RNG_PWRDN		BIT(25)
 
-/* Interrupt status bits */
-#define VC4_HDMI_CPU_STATUS			0x340
-#define VC4_HDMI_CPU_SET			0x344
-#define VC4_HDMI_CPU_CLEAR			0x348
 # define VC4_HDMI_CPU_CEC			BIT(6)
 # define VC4_HDMI_CPU_HOTPLUG			BIT(0)
 
-#define VC4_HDMI_CPU_MASK_STATUS		0x34c
-#define VC4_HDMI_CPU_MASK_SET			0x350
-#define VC4_HDMI_CPU_MASK_CLEAR			0x354
-
-#define VC4_HDMI_GCP(x)				(0x400 + ((x) * 0x4))
-#define VC4_HDMI_RAM_PACKET(x)			(0x400 + ((x) * 0x24))
-#define VC4_HDMI_PACKET_STRIDE			0x24
-
-#define VC4_HD_M_CTL				0x00c
 /* Debug: Current receive value on the CEC pad. */
 # define VC4_HD_CECRXD				BIT(9)
 /* Debug: Override CEC output to 0. */
@@ -747,7 +677,6 @@
 # define VC4_HD_M_SW_RST			BIT(2)
 # define VC4_HD_M_ENABLE			BIT(0)
 
-#define VC4_HD_MAI_CTL				0x014
 /* Set when audio stream is received at a slower rate than the
  * sampling period, so MAI fifo goes empty.  Write 1 to clear.
  */
@@ -772,7 +701,6 @@
 /* Single-shot reset bit.  Read value is undefined. */
 # define VC4_HD_MAI_CTL_RESET			BIT(0)
 
-#define VC4_HD_MAI_THR				0x018
 # define VC4_HD_MAI_THR_PANICHIGH_MASK		VC4_MASK(29, 24)
 # define VC4_HD_MAI_THR_PANICHIGH_SHIFT		24
 # define VC4_HD_MAI_THR_PANICLOW_MASK		VC4_MASK(21, 16)
@@ -782,31 +710,20 @@
 # define VC4_HD_MAI_THR_DREQLOW_MASK		VC4_MASK(5, 0)
 # define VC4_HD_MAI_THR_DREQLOW_SHIFT		0
 
-/* Format header to be placed on the MAI data. Unused. */
-#define VC4_HD_MAI_FMT				0x01c
-
-/* Register for DMAing in audio data to be transported over the MAI
- * bus to the Falcon core.
- */
-#define VC4_HD_MAI_DATA				0x020
-
 /* Divider from HDMI HSM clock to MAI serial clock.  Sampling period
  * converges to N / (M + 1) cycles.
  */
-#define VC4_HD_MAI_SMP				0x02c
 # define VC4_HD_MAI_SMP_N_MASK			VC4_MASK(31, 8)
 # define VC4_HD_MAI_SMP_N_SHIFT			8
 # define VC4_HD_MAI_SMP_M_MASK			VC4_MASK(7, 0)
 # define VC4_HD_MAI_SMP_M_SHIFT			0
 
-#define VC4_HD_VID_CTL				0x038
 # define VC4_HD_VID_CTL_ENABLE			BIT(31)
 # define VC4_HD_VID_CTL_UNDERFLOW_ENABLE	BIT(30)
 # define VC4_HD_VID_CTL_FRAME_COUNTER_RESET	BIT(29)
 # define VC4_HD_VID_CTL_VSYNC_LOW		BIT(28)
 # define VC4_HD_VID_CTL_HSYNC_LOW		BIT(27)
 
-#define VC4_HD_CSC_CTL				0x040
 # define VC4_HD_CSC_CTL_ORDER_MASK		VC4_MASK(7, 5)
 # define VC4_HD_CSC_CTL_ORDER_SHIFT		5
 # define VC4_HD_CSC_CTL_ORDER_RGB		0
@@ -823,15 +740,6 @@
 # define VC4_HD_CSC_CTL_MODE_CUSTOM		3
 # define VC4_HD_CSC_CTL_RGB2YCC			BIT(1)
 # define VC4_HD_CSC_CTL_ENABLE			BIT(0)
-
-#define VC4_HD_CSC_12_11			0x044
-#define VC4_HD_CSC_14_13			0x048
-#define VC4_HD_CSC_22_21			0x04c
-#define VC4_HD_CSC_24_23			0x050
-#define VC4_HD_CSC_32_31			0x054
-#define VC4_HD_CSC_34_33			0x058
-
-#define VC4_HD_FRAME_COUNT			0x068
 
 /* HVS display list information. */
 #define HVS_BOOTLOADER_DLIST_END                32

@@ -22,8 +22,15 @@ to_vc4_hdmi_encoder(struct drm_encoder *encoder)
 }
 
 struct vc4_hdmi;
+struct vc4_hdmi_register;
 
 struct vc4_hdmi_variant {
+	/* List of the registers available on that variant */
+	const struct vc4_hdmi_register *registers;
+
+	/* Number of registers on that variant */
+	unsigned int num_registers;
+
 	/* Callback to get the resources (memory region, interrupts,
 	 * clocks, etc) for that variant.
 	 */
@@ -84,10 +91,5 @@ encoder_to_vc4_hdmi(struct drm_encoder *encoder)
 
 	return container_of(_encoder, struct vc4_hdmi, encoder);
 }
-
-#define HDMI_READ(offset) readl(vc4_hdmi->hdmicore_regs + offset)
-#define HDMI_WRITE(offset, val) writel(val, vc4_hdmi->hdmicore_regs + offset)
-#define HD_READ(offset) readl(vc4_hdmi->hd_regs + offset)
-#define HD_WRITE(offset, val) writel(val, vc4_hdmi->hd_regs + offset)
 
 #endif /* _VC4_HDMI_H_ */
