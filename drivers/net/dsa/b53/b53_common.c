@@ -17,8 +17,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
@@ -2620,8 +2618,9 @@ int b53_switch_detect(struct b53_device *dev)
 			dev->chip_id = id32;
 			break;
 		default:
-			pr_err("unsupported switch detected (BCM53%02x/BCM%x)\n",
-			       id8, id32);
+			dev_err(dev->dev,
+				"unsupported switch detected (BCM53%02x/BCM%x)\n",
+				id8, id32);
 			return -ENODEV;
 		}
 	}
@@ -2651,7 +2650,8 @@ int b53_switch_register(struct b53_device *dev)
 	if (ret)
 		return ret;
 
-	pr_info("found switch: %s, rev %i\n", dev->name, dev->core_rev);
+	dev_info(dev->dev, "found switch: %s, rev %i\n",
+		 dev->name, dev->core_rev);
 
 	return dsa_register_switch(dev->ds);
 }
