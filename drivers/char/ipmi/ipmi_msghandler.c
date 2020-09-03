@@ -89,19 +89,19 @@ static int panic_op_read_handler(char *buffer, const struct kernel_param *kp)
 {
 	switch (ipmi_send_panic_event) {
 	case IPMI_SEND_PANIC_EVENT_NONE:
-		strcpy(buffer, "none");
+		strcpy(buffer, "none\n");
 		break;
 
 	case IPMI_SEND_PANIC_EVENT:
-		strcpy(buffer, "event");
+		strcpy(buffer, "event\n");
 		break;
 
 	case IPMI_SEND_PANIC_EVENT_STRING:
-		strcpy(buffer, "string");
+		strcpy(buffer, "string\n");
 		break;
 
 	default:
-		strcpy(buffer, "???");
+		strcpy(buffer, "???\n");
 		break;
 	}
 
