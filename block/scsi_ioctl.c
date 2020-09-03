@@ -852,7 +852,7 @@ EXPORT_SYMBOL(scsi_cmd_ioctl);
 
 int scsi_verify_blk_ioctl(struct block_device *bd, unsigned int cmd)
 {
-	if (bd && bd == bd->bd_contains)
+	if (bd && !bdev_is_partition(bd))
 		return 0;
 
 	if (capable(CAP_SYS_RAWIO))

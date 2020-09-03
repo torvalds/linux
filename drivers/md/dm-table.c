@@ -903,7 +903,7 @@ static int device_is_rq_stackable(struct dm_target *ti, struct dm_dev *dev,
 	struct request_queue *q = bdev_get_queue(bdev);
 
 	/* request-based cannot stack on partitions! */
-	if (bdev != bdev->bd_contains)
+	if (bdev_is_partition(bdev))
 		return false;
 
 	return queue_is_mq(q);

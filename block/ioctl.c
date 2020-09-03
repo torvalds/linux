@@ -23,7 +23,7 @@ static int blkpg_do_ioctl(struct block_device *bdev,
 		return -EACCES;
 	if (copy_from_user(&p, upart, sizeof(struct blkpg_partition)))
 		return -EFAULT;
-	if (bdev != bdev->bd_contains)
+	if (bdev_is_partition(bdev))
 		return -EINVAL;
 
 	if (p.pno <= 0)
@@ -94,7 +94,7 @@ static int blkdev_reread_part(struct block_device *bdev)
 {
 	int ret;
 
-	if (!disk_part_scan_enabled(bdev->bd_disk) || bdev != bdev->bd_contains)
+	if (!disk_part_scan_enabled(bdev->bd_disk) || bdev_is_partition(bdev))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;

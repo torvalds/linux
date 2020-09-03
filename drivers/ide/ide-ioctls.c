@@ -49,7 +49,7 @@ read_val:
 	return err >= 0 ? put_user_long(err, arg) : err;
 
 set_val:
-	if (bdev != bdev->bd_contains)
+	if (bdev_is_partition(bdev))
 		err = -EINVAL;
 	else {
 		if (!capable(CAP_SYS_ADMIN))
@@ -257,7 +257,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct block_device *bdev,
 	switch (cmd) {
 	case HDIO_OBSOLETE_IDENTITY:
 	case HDIO_GET_IDENTITY:
-		if (bdev != bdev->bd_contains)
+		if (bdev_is_partition(bdev))
 			return -EINVAL;
 		return ide_get_identity_ioctl(drive, cmd, argp);
 	case HDIO_GET_NICE:
