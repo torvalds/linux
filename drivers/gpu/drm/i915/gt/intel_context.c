@@ -271,6 +271,15 @@ err_release:
 	i915_active_release(&ce->active);
 err_ctx_unpin:
 	intel_context_post_unpin(ce);
+
+	/*
+	 * Unlock the hwsp_ggtt object since it's shared.
+	 * In principle we can unlock all the global state locked above
+	 * since it's pinned and doesn't need fencing, and will
+	 * thus remain resident until it is explicitly unpinned.
+	 */
+	i915_gem_ww_unlock_single(ce->timeline->hwsp_ggtt->obj);
+
 	return err;
 }
 
