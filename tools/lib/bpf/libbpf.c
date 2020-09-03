@@ -217,20 +217,45 @@ struct bpf_sec_def {
  * linux/filter.h.
  */
 struct bpf_program {
-	/* Index in elf obj file, for relocation use. */
-	int idx;
-	char *name;
-	int prog_ifindex;
-	char *section_name;
 	const struct bpf_sec_def *sec_def;
+	char *section_name;
+	size_t sec_idx;
+	/* this program's instruction offset (in number of instructions)
+	 * within its containing ELF section
+	 */
+	size_t sec_insn_off;
+	/* number of original instructions in ELF section belonging to this
+	 * program, not taking into account subprogram instructions possible
+	 * appended later during relocation
+	 */
+	size_t sec_insn_cnt;
+	/* Offset (in number of instructions) of the start of instruction
+	 * belonging to this BPF program  within its containing main BPF
+	 * program. For the entry-point (main) BPF program, this is always
+	 * zero. For a sub-program, this gets reset before each of main BPF
+	 * programs are processed and relocated and is used to determined
+	 * whether sub-program was already appended to the main program, and
+	 * if yes, at which instruction offset.
+	 */
+	size_t sub_insn_off;
+
+	char *name;
 	/* section_name with / replaced by _; makes recursive pinning
 	 * in bpf_object__pin_programs easier
 	 */
 	char *pin_name;
+
+	/* instructions that belong to BPF program; insns[0] is located at
+	 * sec_insn_off instruction within its ELF section in ELF file, so
+	 * when mapping ELF file instruction index to the local instruction,
+	 * one needs to subtract sec_insn_off; and vice versa.
+	 */
 	struct bpf_insn *insns;
+	/* actual number of instruction in this BPF program's image; for
+	 * entry-point BPF programs this includes the size of main program
+	 * itself plus all the used sub-programs, appended at the end
+	 */
 	size_t insns_cnt, main_prog_cnt;
-	enum bpf_prog_type type;
-	bool load;
 
 	struct reloc_desc *reloc_desc;
 	int nr_reloc;
@@ -246,7 +271,10 @@ struct bpf_program {
 	void *priv;
 	bpf_program_clear_priv_t clear_priv;
 
+	bool load;
+	enum bpf_prog_type type;
 	enum bpf_attach_type expected_attach_type;
+	int prog_ifindex;
 	__u32 attach_btf_id;
 	__u32 attach_prog_fd;
 	void *func_info;
@@ -446,6 +474,8 @@ static Elf_Scn *elf_sec_by_name(const struct bpf_object *obj, const char *name);
 static int elf_sec_hdr(const struct bpf_object *obj, Elf_Scn *scn, GElf_Shdr *hdr);
 static const char *elf_sec_name(const struct bpf_object *obj, Elf_Scn *scn);
 static Elf_Data *elf_sec_data(const struct bpf_object *obj, Elf_Scn *scn);
+static int elf_sym_by_sec_off(const struct bpf_object *obj, size_t sec_idx,
+			      size_t off, __u32 sym_type, GElf_Sym *sym);
 
 void bpf_program__unload(struct bpf_program *prog)
 {
@@ -493,7 +523,7 @@ static void bpf_program__exit(struct bpf_program *prog)
 
 	prog->nr_reloc = 0;
 	prog->insns_cnt = 0;
-	prog->idx = -1;
+	prog->sec_idx = -1;
 }
 
 static char *__bpf_program__pin_name(struct bpf_program *prog)
@@ -508,130 +538,118 @@ static char *__bpf_program__pin_name(struct bpf_program *prog)
 }
 
 static int
-bpf_program__init(void *data, size_t size, const char *section_name, int idx,
-		  struct bpf_program *prog)
+bpf_program__init(struct bpf_program *prog, const char *name,
+		  size_t sec_idx, const char *sec_name, size_t sec_off,
+		  void *insn_data, size_t insn_data_sz)
 {
-	const size_t bpf_insn_sz = sizeof(struct bpf_insn);
-
-	if (size == 0 || size % bpf_insn_sz) {
-		pr_warn("corrupted section '%s', size: %zu\n",
-			section_name, size);
+	if (insn_data_sz == 0 || insn_data_sz % BPF_INSN_SZ || sec_off % BPF_INSN_SZ) {
+		pr_warn("sec '%s': corrupted program '%s', offset %zu, size %zu\n",
+			sec_name, name, sec_off, insn_data_sz);
 		return -EINVAL;
 	}
 
-	memset(prog, 0, sizeof(*prog));
+	prog->sec_idx = sec_idx;
+	prog->sec_insn_off = sec_off / BPF_INSN_SZ;
+	prog->sec_insn_cnt = insn_data_sz / BPF_INSN_SZ;
+	/* insns_cnt can later be increased by appending used subprograms */
+	prog->insns_cnt = prog->sec_insn_cnt;
 
-	prog->section_name = strdup(section_name);
-	if (!prog->section_name) {
-		pr_warn("failed to alloc name for prog under section(%d) %s\n",
-			idx, section_name);
-		goto errout;
-	}
-
-	prog->pin_name = __bpf_program__pin_name(prog);
-	if (!prog->pin_name) {
-		pr_warn("failed to alloc pin name for prog under section(%d) %s\n",
-			idx, section_name);
-		goto errout;
-	}
-
-	prog->insns = malloc(size);
-	if (!prog->insns) {
-		pr_warn("failed to alloc insns for prog under section %s\n",
-			section_name);
-		goto errout;
-	}
-	prog->insns_cnt = size / bpf_insn_sz;
-	memcpy(prog->insns, data, size);
-	prog->idx = idx;
-	prog->instances.fds = NULL;
-	prog->instances.nr = -1;
 	prog->type = BPF_PROG_TYPE_UNSPEC;
 	prog->load = true;
 
+	prog->instances.fds = NULL;
+	prog->instances.nr = -1;
+
+	prog->section_name = strdup(sec_name);
+	if (!prog->section_name)
+		goto errout;
+
+	prog->name = strdup(name);
+	if (!prog->name)
+		goto errout;
+
+	prog->pin_name = __bpf_program__pin_name(prog);
+	if (!prog->pin_name)
+		goto errout;
+
+	prog->insns = malloc(insn_data_sz);
+	if (!prog->insns)
+		goto errout;
+	memcpy(prog->insns, insn_data, insn_data_sz);
+
 	return 0;
 errout:
+	pr_warn("sec '%s': failed to allocate memory for prog '%s'\n", sec_name, name);
 	bpf_program__exit(prog);
 	return -ENOMEM;
 }
 
 static int
-bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
-			const char *section_name, int idx)
+bpf_object__add_programs(struct bpf_object *obj, Elf_Data *sec_data,
+			 const char *sec_name, int sec_idx)
 {
-	struct bpf_program prog, *progs;
+	struct bpf_program *prog, *progs;
+	void *data = sec_data->d_buf;
+	size_t sec_sz = sec_data->d_size, sec_off, prog_sz;
 	int nr_progs, err;
-
-	err = bpf_program__init(data, size, section_name, idx, &prog);
-	if (err)
-		return err;
+	const char *name;
+	GElf_Sym sym;
 
 	progs = obj->programs;
 	nr_progs = obj->nr_programs;
+	sec_off = 0;
 
-	progs = libbpf_reallocarray(progs, nr_progs + 1, sizeof(progs[0]));
-	if (!progs) {
-		/*
-		 * In this case the original obj->programs
-		 * is still valid, so don't need special treat for
-		 * bpf_close_object().
-		 */
-		pr_warn("failed to alloc a new program under section '%s'\n",
-			section_name);
-		bpf_program__exit(&prog);
-		return -ENOMEM;
-	}
-
-	pr_debug("elf: found program '%s'\n", prog.section_name);
-	obj->programs = progs;
-	obj->nr_programs = nr_progs + 1;
-	prog.obj = obj;
-	progs[nr_progs] = prog;
-	return 0;
-}
-
-static int
-bpf_object__init_prog_names(struct bpf_object *obj)
-{
-	Elf_Data *symbols = obj->efile.symbols;
-	struct bpf_program *prog;
-	size_t pi, si;
-
-	for (pi = 0; pi < obj->nr_programs; pi++) {
-		const char *name = NULL;
-
-		prog = &obj->programs[pi];
-
-		for (si = 0; si < symbols->d_size / sizeof(GElf_Sym) && !name; si++) {
-			GElf_Sym sym;
-
-			if (!gelf_getsym(symbols, si, &sym))
-				continue;
-			if (sym.st_shndx != prog->idx)
-				continue;
-			if (GELF_ST_BIND(sym.st_info) != STB_GLOBAL)
-				continue;
-
-			name = elf_sym_str(obj, sym.st_name);
-			if (!name) {
-				pr_warn("prog '%s': failed to get symbol name\n",
-					prog->section_name);
-				return -LIBBPF_ERRNO__LIBELF;
-			}
+	while (sec_off < sec_sz) {
+		if (elf_sym_by_sec_off(obj, sec_idx, sec_off, STT_FUNC, &sym)) {
+			pr_warn("sec '%s': failed to find program symbol at offset %zu\n",
+				sec_name, sec_off);
+			return -LIBBPF_ERRNO__FORMAT;
 		}
 
-		if (!name && prog->idx == obj->efile.text_shndx)
-			name = ".text";
+		prog_sz = sym.st_size;
 
+		name = elf_sym_str(obj, sym.st_name);
 		if (!name) {
-			pr_warn("prog '%s': failed to find program symbol\n",
-				prog->section_name);
-			return -EINVAL;
+			pr_warn("sec '%s': failed to get symbol name for offset %zu\n",
+				sec_name, sec_off);
+			return -LIBBPF_ERRNO__FORMAT;
 		}
 
-		prog->name = strdup(name);
-		if (!prog->name)
+		if (sec_off + prog_sz > sec_sz) {
+			pr_warn("sec '%s': program at offset %zu crosses section boundary\n",
+				sec_name, sec_off);
+			return -LIBBPF_ERRNO__FORMAT;
+		}
+
+		pr_debug("sec '%s': found program '%s' at offset %zu, code size %zu bytes\n",
+			 sec_name, name, sec_off, prog_sz);
+
+		progs = reallocarray(progs, nr_progs + 1, sizeof(*progs));
+		if (!progs) {
+			/*
+			 * In this case the original obj->programs
+			 * is still valid, so don't need special treat for
+			 * bpf_close_object().
+			 */
+			pr_warn("sec '%s': failed to alloc memory for new program '%s'\n",
+				sec_name, name);
 			return -ENOMEM;
+		}
+		obj->programs = progs;
+
+		prog = &progs[nr_progs];
+		memset(prog, 0, sizeof(*prog));
+		prog->obj = obj;
+
+		err = bpf_program__init(prog, name, sec_idx, sec_name, sec_off,
+					data + sec_off, prog_sz);
+		if (err)
+			return err;
+
+		nr_progs++;
+		obj->nr_programs = nr_progs;
+
+		sec_off += prog_sz;
 	}
 
 	return 0;
@@ -2675,6 +2693,26 @@ static Elf_Data *elf_sec_data(const struct bpf_object *obj, Elf_Scn *scn)
 	return data;
 }
 
+static int elf_sym_by_sec_off(const struct bpf_object *obj, size_t sec_idx,
+			      size_t off, __u32 sym_type, GElf_Sym *sym)
+{
+	Elf_Data *symbols = obj->efile.symbols;
+	size_t n = symbols->d_size / sizeof(GElf_Sym);
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if (!gelf_getsym(symbols, i, sym))
+			continue;
+		if (sym->st_shndx != sec_idx || sym->st_value != off)
+			continue;
+		if (GELF_ST_TYPE(sym->st_info) != sym_type)
+			continue;
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
 static bool is_sec_name_dwarf(const char *name)
 {
 	/* approximation, but the actual list is too long */
@@ -2795,9 +2833,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			if (sh.sh_flags & SHF_EXECINSTR) {
 				if (strcmp(name, ".text") == 0)
 					obj->efile.text_shndx = idx;
-				err = bpf_object__add_program(obj, data->d_buf,
-							      data->d_size,
-							      name, idx);
+				err = bpf_object__add_programs(obj, data, name, idx);
 				if (err)
 					return err;
 			} else if (strcmp(name, DATA_SEC) == 0) {
@@ -3183,7 +3219,7 @@ bpf_object__find_prog_by_idx(struct bpf_object *obj, int idx)
 
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
-		if (prog->idx == idx)
+		if (prog->sec_idx == idx)
 			return prog;
 	}
 	return NULL;
@@ -5660,7 +5696,7 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 	size_t new_cnt;
 	int err;
 
-	if (prog->idx != obj->efile.text_shndx && prog->main_prog_cnt == 0) {
+	if (prog->sec_idx != obj->efile.text_shndx && prog->main_prog_cnt == 0) {
 		text = bpf_object__find_prog_by_idx(obj, obj->efile.text_shndx);
 		if (!text) {
 			pr_warn("no .text section found yet relo into text exist\n");
@@ -5783,7 +5819,7 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 	 */
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
-		if (prog->idx != obj->efile.text_shndx)
+		if (prog->sec_idx != obj->efile.text_shndx)
 			continue;
 
 		err = bpf_program__relocate(prog, obj);
@@ -5799,7 +5835,7 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 	 */
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
-		if (prog->idx == obj->efile.text_shndx)
+		if (prog->sec_idx == obj->efile.text_shndx)
 			continue;
 
 		err = bpf_program__relocate(prog, obj);
@@ -6215,7 +6251,7 @@ out:
 static bool bpf_program__is_function_storage(const struct bpf_program *prog,
 					     const struct bpf_object *obj)
 {
-	return prog->idx == obj->efile.text_shndx && obj->has_pseudo_calls;
+	return prog->sec_idx == obj->efile.text_shndx && obj->has_pseudo_calls;
 }
 
 static int
@@ -6298,7 +6334,6 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	err = err ? : bpf_object__collect_externs(obj);
 	err = err ? : bpf_object__finalize_btf(obj);
 	err = err ? : bpf_object__init_maps(obj, opts);
-	err = err ? : bpf_object__init_prog_names(obj);
 	err = err ? : bpf_object__collect_reloc(obj);
 	if (err)
 		goto out;
