@@ -261,8 +261,7 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		goto disable_clk;
 	}
 
-	dev->dma_parms = &mdev->dma_parms;
-	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+	dma_set_max_seg_size(dev, U32_MAX);
 
 	mdev->iommu = iommu_get_domain_for_dev(mdev->dev);
 	if (!mdev->iommu)
