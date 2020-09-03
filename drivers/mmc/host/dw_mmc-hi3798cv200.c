@@ -200,6 +200,7 @@ static struct platform_driver dw_mci_hi3798cv200_driver = {
 	.remove = dw_mci_hi3798cv200_remove,
 	.driver = {
 		.name = "dwmmc_hi3798cv200",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = dw_mci_hi3798cv200_match,
 	},
 };
