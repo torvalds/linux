@@ -255,6 +255,7 @@ MODULE_DEVICE_TABLE(of, sdhci_sparx5_of_match);
 static struct platform_driver sdhci_sparx5_driver = {
 	.driver = {
 		.name = "sdhci-sparx5",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_sparx5_of_match,
 		.pm = &sdhci_pltfm_pmops,
 	},
