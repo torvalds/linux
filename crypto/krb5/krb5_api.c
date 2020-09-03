@@ -17,6 +17,8 @@ MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");
 
 static const struct krb5_enctype *const krb5_supported_enctypes[] = {
+	&krb5_aes128_cts_hmac_sha1_96,
+	&krb5_aes256_cts_hmac_sha1_96,
 };
 
 /**
