@@ -24,8 +24,8 @@ of the mechanical work done for you, though you'll still need to prepare
 and document a sensible set of patches.  In general, use of ``git`` will make
 your life as a kernel developer easier.
 
-0) Obtain a current source tree
--------------------------------
+Obtain a current source tree
+----------------------------
 
 If you do not have a repository with the current kernel source handy, use
 ``git`` to obtain one.  You'll want to start with the mainline repository,
@@ -99,8 +99,8 @@ is another popular alternative.
 
 .. _describe_changes:
 
-2) Describe your changes
-------------------------
+Describe your changes
+---------------------
 
 Describe your problem.  Whether your patch is a one-line bug fix or
 5000 lines of a new feature, there must be an underlying problem that
@@ -203,8 +203,8 @@ An example call::
 
 .. _split_changes:
 
-3) Separate your changes
-------------------------
+Separate your changes
+---------------------
 
 Separate each **logical change** into a separate patch.
 
@@ -236,8 +236,8 @@ then only post say 15 or so at a time and wait for review and integration.
 
 
 
-4) Style-check your changes
----------------------------
+Style-check your changes
+------------------------
 
 Check your patch for basic style violations, details of which can be
 found in
@@ -267,8 +267,8 @@ You should be able to justify all violations that remain in your
 patch.
 
 
-5) Select the recipients for your patch
----------------------------------------
+Select the recipients for your patch
+------------------------------------
 
 You should always copy the appropriate subsystem maintainer(s) on any patch
 to code that they maintain; look through the MAINTAINERS file and the
@@ -343,8 +343,8 @@ Trivial patches must qualify for one of the following rules:
 
 
 
-6) No MIME, no links, no compression, no attachments.  Just plain text
-----------------------------------------------------------------------
+No MIME, no links, no compression, no attachments.  Just plain text
+-------------------------------------------------------------------
 
 Linus and other kernel developers need to be able to read and comment
 on the changes you are submitting.  It is important for a kernel
@@ -371,8 +371,8 @@ See :ref:`Documentation/process/email-clients.rst <email_clients>`
 for hints about configuring your e-mail client so that it sends your patches
 untouched.
 
-7) E-mail size
---------------
+E-mail size
+-----------
 
 Large changes are not appropriate for mailing lists, and some
 maintainers.  If your patch, uncompressed, exceeds 300 kB in size,
@@ -381,8 +381,8 @@ server, and provide instead a URL (link) pointing to your patch.  But note
 that if your patch exceeds 300 kB, it almost certainly needs to be broken up
 anyway.
 
-8) Respond to review comments
------------------------------
+Respond to review comments
+--------------------------
 
 Your patch will almost certainly get comments from reviewers on ways in
 which the patch can be improved.  You must respond to those comments;
@@ -397,8 +397,8 @@ reviewers sometimes get grumpy.  Even in that case, though, respond
 politely and address the problems they have pointed out.
 
 
-9) Don't get discouraged - or impatient
----------------------------------------
+Don't get discouraged - or impatient
+------------------------------------
 
 After you have submitted your change, be patient and wait.  Reviewers are
 busy people and may not get to your patch right away.
@@ -411,8 +411,8 @@ one week before resubmitting or pinging reviewers - possibly longer during
 busy times like merge windows.
 
 
-10) Include PATCH in the subject
---------------------------------
+Include PATCH in the subject
+-----------------------------
 
 Due to high e-mail traffic to Linus, and to linux-kernel, it is common
 convention to prefix your subject line with [PATCH].  This lets Linus
@@ -421,8 +421,8 @@ e-mail discussions.
 
 
 
-11) Sign your work - the Developer's Certificate of Origin
-----------------------------------------------------------
+Sign your work - the Developer's Certificate of Origin
+------------------------------------------------------
 
 To improve tracking of who did what, especially with patches that can
 percolate to their final resting place in the kernel through several
@@ -518,8 +518,8 @@ tracking your trees, and to people trying to troubleshoot bugs in your
 tree.
 
 
-12) When to use Acked-by:, Cc:, and Co-developed-by:
--------------------------------------------------------
+When to use Acked-by:, Cc:, and Co-developed-by:
+------------------------------------------------
 
 The Signed-off-by: tag indicates that the signer was involved in the
 development of the patch, or that he/she was in the patch's delivery path.
@@ -587,8 +587,8 @@ Example of a patch submitted by a Co-developed-by: author::
 	Signed-off-by: Submitting Co-Author <sub@coauthor.example.org>
 
 
-13) Using Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: and Fixes:
---------------------------------------------------------------------------
+Using Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: and Fixes:
+----------------------------------------------------------------------
 
 The Reported-by tag gives credit to people who find bugs and report them and it
 hopefully inspires them to help us again in the future.  Please note that if
@@ -651,8 +651,8 @@ for more details.
 
 .. _the_canonical_patch_format:
 
-14) The canonical patch format
-------------------------------
+The canonical patch format
+--------------------------
 
 This section describes how the patch itself should be formatted.  Note
 that, if you have your patches stored in a ``git`` repository, proper patch
@@ -774,8 +774,8 @@ references.
 
 .. _explicit_in_reply_to:
 
-15) Explicit In-Reply-To headers
---------------------------------
+Explicit In-Reply-To headers
+----------------------------
 
 It can be helpful to manually add In-Reply-To: headers to a patch
 (e.g., when using ``git send-email``) to associate the patch with
@@ -788,8 +788,8 @@ helpful, you can use the https://lkml.kernel.org/ redirector (e.g., in
 the cover email text) to link to an earlier version of the patch series.
 
 
-16) Providing base tree information
------------------------------------
+Providing base tree information
+-------------------------------
 
 When other developers receive your patches and start the review process,
 it is often useful for them to know where in the tree history they
@@ -839,8 +839,8 @@ either below the ``---`` line or at the very bottom of all other
 content, right before your email signature.
 
 
-17) Sending ``git pull`` requests
----------------------------------
+Sending ``git pull`` requests
+-----------------------------
 
 If you have a series of patches, it may be most convenient to have the
 maintainer pull them directly into the subsystem repository with a
