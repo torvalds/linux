@@ -161,7 +161,6 @@ struct mount_info {
 
 	/* Number of blocks written since mount */
 	atomic_t mi_blocks_written;
-
 };
 
 struct data_file_block {
@@ -289,6 +288,23 @@ struct dentry_info {
 	struct path backing_path;
 };
 
+enum FILL_PERMISSION {
+	CANT_FILL = 0,
+	CAN_FILL = 1,
+};
+
+struct incfs_file_data {
+	/* Does this file handle have INCFS_IOC_FILL_BLOCKS permission */
+	enum FILL_PERMISSION fd_fill_permission;
+
+	/* If INCFS_IOC_GET_FILLED_BLOCKS has been called, where are we */
+	int fd_get_block_pos;
+
+	/* And how many filled blocks are there up to that point */
+	int fd_filled_data_blocks;
+	int fd_filled_hash_blocks;
+};
+
 struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 					  struct mount_options *options,
 					  struct path *backing_dir_path);
@@ -313,6 +329,7 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 				   struct mem_range tmp);
 
 int incfs_get_filled_blocks(struct data_file *df,
+			    struct incfs_file_data *fd,
 			    struct incfs_get_filled_blocks_args *arg);
 
 int incfs_read_file_signature(struct data_file *df, struct mem_range dst);
