@@ -985,56 +985,39 @@ static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 	return bufp - optr;
 }
 
-static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, struct flowi *fl)
+/* Queue the packet to IP for output: tunnel socket lock must be held */
+static int l2tp_xmit_queue(struct l2tp_tunnel *tunnel, struct sk_buff *skb, struct flowi *fl)
 {
-	struct l2tp_tunnel *tunnel = session->tunnel;
-	unsigned int len = skb->len;
-	int error;
+	int err;
 
-	/* Queue the packet to IP for output */
 	skb->ignore_df = 1;
 	skb_dst_drop(skb);
 #if IS_ENABLED(CONFIG_IPV6)
 	if (l2tp_sk_is_v6(tunnel->sock))
-		error = inet6_csk_xmit(tunnel->sock, skb, NULL);
+		err = inet6_csk_xmit(tunnel->sock, skb, NULL);
 	else
 #endif
-		error = ip_queue_xmit(tunnel->sock, skb, fl);
+		err = ip_queue_xmit(tunnel->sock, skb, fl);
 
-	/* Update stats */
-	if (error >= 0) {
-		atomic_long_inc(&tunnel->stats.tx_packets);
-		atomic_long_add(len, &tunnel->stats.tx_bytes);
-		atomic_long_inc(&session->stats.tx_packets);
-		atomic_long_add(len, &session->stats.tx_bytes);
-	} else {
-		atomic_long_inc(&tunnel->stats.tx_errors);
-		atomic_long_inc(&session->stats.tx_errors);
-	}
+	return err >= 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
 }
 
-/* If caller requires the skb to have a ppp header, the header must be
- * inserted in the skb data before calling this function.
- */
-int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
+static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb)
 {
-	int data_len = skb->len;
 	struct l2tp_tunnel *tunnel = session->tunnel;
+	unsigned int data_len = skb->len;
 	struct sock *sk = tunnel->sock;
-	struct flowi *fl;
-	struct udphdr *uh;
-	struct inet_sock *inet;
-	int headroom;
-	int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
-	int udp_len;
+	int headroom, uhlen, udp_len;
 	int ret = NET_XMIT_SUCCESS;
+	struct inet_sock *inet;
+	struct udphdr *uh;
 
 	/* Check that there's enough headroom in the skb to insert IP,
 	 * UDP and L2TP headers. If not enough, expand it to
 	 * make room. Adjust truesize.
 	 */
-	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
-		uhlen + session->hdr_len;
+	uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(*uh) : 0;
+	headroom = NET_SKB_PAD + sizeof(struct iphdr) + uhlen + session->hdr_len;
 	if (skb_cow_head(skb, headroom)) {
 		kfree_skb(skb);
 		return NET_XMIT_DROP;
@@ -1048,8 +1031,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
 
 	/* Reset skb netfilter state */
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
-			      IPSKB_REROUTED);
+	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED | IPSKB_REROUTED);
 	nf_reset_ct(skb);
 
 	bh_lock_sock(sk);
@@ -1069,7 +1051,6 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
 	}
 
 	inet = inet_sk(sk);
-	fl = &inet->cork.fl;
 	switch (tunnel->encap) {
 	case L2TP_ENCAPTYPE_UDP:
 		/* Setup UDP header */
@@ -1097,10 +1078,32 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
 		break;
 	}
 
-	l2tp_xmit_core(session, skb, fl);
+	ret = l2tp_xmit_queue(tunnel, skb, &inet->cork.fl);
+
 out_unlock:
 	bh_unlock_sock(sk);
 
+	return ret;
+}
+
+/* If caller requires the skb to have a ppp header, the header must be
+ * inserted in the skb data before calling this function.
+ */
+int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
+{
+	unsigned int len = skb->len;
+	int ret;
+
+	ret = l2tp_xmit_core(session, skb);
+	if (ret == NET_XMIT_SUCCESS) {
+		atomic_long_inc(&session->tunnel->stats.tx_packets);
+		atomic_long_add(len, &session->tunnel->stats.tx_bytes);
+		atomic_long_inc(&session->stats.tx_packets);
+		atomic_long_add(len, &session->stats.tx_bytes);
+	} else {
+		atomic_long_inc(&session->tunnel->stats.tx_errors);
+		atomic_long_inc(&session->stats.tx_errors);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
