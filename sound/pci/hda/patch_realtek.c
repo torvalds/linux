@@ -5868,6 +5868,39 @@ static void alc275_fixup_gpio4_off(struct hda_codec *codec,
 	}
 }
 
+/* Quirk for Thinkpad X1 7th and 8th Gen
+ * The following fixed routing needed
+ * DAC1 (NID 0x02) -> Speaker (NID 0x14); some eq applied secretly
+ * DAC2 (NID 0x03) -> Bass (NID 0x17) & Headphone (NID 0x21); sharing a DAC
+ * DAC3 (NID 0x06) -> Unused, due to the lack of volume amp
+ */
+static void alc285_fixup_thinkpad_x1_gen7(struct hda_codec *codec,
+					  const struct hda_fixup *fix, int action)
+{
+	static const hda_nid_t conn[] = { 0x02, 0x03 }; /* exclude 0x06 */
+	static const hda_nid_t preferred_pairs[] = {
+		0x14, 0x02, 0x17, 0x03, 0x21, 0x03, 0
+	};
+	struct alc_spec *spec = codec->spec;
+
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		snd_hda_override_conn_list(codec, 0x17, ARRAY_SIZE(conn), conn);
+		spec->gen.preferred_dacs = preferred_pairs;
+		break;
+	case HDA_FIXUP_ACT_BUILD:
+		/* The generic parser creates somewhat unintuitive volume ctls
+		 * with the fixed routing above, and the shared DAC2 may be
+		 * confusing for PA.
+		 * Rename those to unique names so that PA doesn't touch them
+		 * and use only Master volume.
+		 */
+		rename_ctl(codec, "Front Playback Volume", "DAC1 Playback Volume");
+		rename_ctl(codec, "Bass Speaker Playback Volume", "DAC2 Playback Volume");
+		break;
+	}
+}
+
 static void alc233_alc662_fixup_lenovo_dual_codecs(struct hda_codec *codec,
 					 const struct hda_fixup *fix,
 					 int action)
@@ -6136,6 +6169,7 @@ enum {
 	ALC289_FIXUP_DUAL_SPK,
 	ALC294_FIXUP_SPK2_TO_DAC1,
 	ALC294_FIXUP_ASUS_DUAL_SPK,
+	ALC285_FIXUP_THINKPAD_X1_GEN7,
 	ALC285_FIXUP_THINKPAD_HEADSET_JACK,
 	ALC294_FIXUP_ASUS_HPE,
 	ALC294_FIXUP_ASUS_COEF_1B,
@@ -7281,11 +7315,17 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC294_FIXUP_SPK2_TO_DAC1
 	},
+	[ALC285_FIXUP_THINKPAD_X1_GEN7] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc285_fixup_thinkpad_x1_gen7,
+		.chained = true,
+		.chain_id = ALC269_FIXUP_THINKPAD_ACPI
+	},
 	[ALC285_FIXUP_THINKPAD_HEADSET_JACK] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_jack,
 		.chained = true,
-		.chain_id = ALC285_FIXUP_SPEAKER2_TO_DAC1
+		.chain_id = ALC285_FIXUP_THINKPAD_X1_GEN7
 	},
 	[ALC294_FIXUP_ASUS_HPE] = {
 		.type = HDA_FIXUP_VERBS,
