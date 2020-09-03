@@ -286,9 +286,19 @@
 
 #define SCALER_DISPID                           0x00000008
 #define SCALER_DISPECTRL                        0x0000000c
+# define SCALER_DISPECTRL_DSP2_MUX_SHIFT	31
+# define SCALER_DISPECTRL_DSP2_MUX_MASK		VC4_MASK(31, 31)
+
 #define SCALER_DISPPROF                         0x00000010
+
 #define SCALER_DISPDITHER                       0x00000014
+# define SCALER_DISPDITHER_DSP5_MUX_SHIFT	30
+# define SCALER_DISPDITHER_DSP5_MUX_MASK	VC4_MASK(31, 30)
+
 #define SCALER_DISPEOLN                         0x00000018
+# define SCALER_DISPEOLN_DSP4_MUX_SHIFT		30
+# define SCALER_DISPEOLN_DSP4_MUX_MASK		VC4_MASK(31, 30)
+
 #define SCALER_DISPLIST0                        0x00000020
 #define SCALER_DISPLIST1                        0x00000024
 #define SCALER_DISPLIST2                        0x00000028

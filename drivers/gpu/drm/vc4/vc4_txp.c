@@ -452,6 +452,7 @@ static irqreturn_t vc4_txp_interrupt(int irq, void *data)
 }
 
 static const struct vc4_crtc_data vc4_txp_crtc_data = {
+	.hvs_available_channels = BIT(2),
 	.hvs_output = 2,
 };
 

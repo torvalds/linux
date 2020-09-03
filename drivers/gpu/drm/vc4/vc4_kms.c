@@ -146,6 +146,107 @@ vc4_ctm_commit(struct vc4_dev *vc4, struct drm_atomic_state *state)
 		  VC4_SET_FIELD(ctm_state->fifo, SCALER_OLEDOFFS_DISPFIFO));
 }
 
+static void vc4_hvs_pv_muxing_commit(struct vc4_dev *vc4,
+				     struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	unsigned int i;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
+		u32 dispctrl;
+		u32 dsp3_mux;
+
+		if (!crtc_state->active)
+			continue;
+
+		if (vc4_state->assigned_channel != 2)
+			continue;
+
+		/*
+		 * SCALER_DISPCTRL_DSP3 = X, where X < 2 means 'connect DSP3 to
+		 * FIFO X'.
+		 * SCALER_DISPCTRL_DSP3 = 3 means 'disable DSP 3'.
+		 *
+		 * DSP3 is connected to FIFO2 unless the transposer is
+		 * enabled. In this case, FIFO 2 is directly accessed by the
+		 * TXP IP, and we need to disable the FIFO2 -> pixelvalve1
+		 * route.
+		 */
+		if (vc4_state->feed_txp)
+			dsp3_mux = VC4_SET_FIELD(3, SCALER_DISPCTRL_DSP3_MUX);
+		else
+			dsp3_mux = VC4_SET_FIELD(2, SCALER_DISPCTRL_DSP3_MUX);
+
+		dispctrl = HVS_READ(SCALER_DISPCTRL) &
+			   ~SCALER_DISPCTRL_DSP3_MUX_MASK;
+		HVS_WRITE(SCALER_DISPCTRL, dispctrl | dsp3_mux);
+	}
+}
+
+static void vc5_hvs_pv_muxing_commit(struct vc4_dev *vc4,
+				     struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	unsigned char dsp2_mux = 0;
+	unsigned char dsp3_mux = 3;
+	unsigned char dsp4_mux = 3;
+	unsigned char dsp5_mux = 3;
+	unsigned int i;
+	u32 reg;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
+		struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+
+		if (!crtc_state->active)
+			continue;
+
+		switch (vc4_crtc->data->hvs_output) {
+		case 2:
+			dsp2_mux = (vc4_state->assigned_channel == 2) ? 0 : 1;
+			break;
+
+		case 3:
+			dsp3_mux = vc4_state->assigned_channel;
+			break;
+
+		case 4:
+			dsp4_mux = vc4_state->assigned_channel;
+			break;
+
+		case 5:
+			dsp5_mux = vc4_state->assigned_channel;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	reg = HVS_READ(SCALER_DISPECTRL);
+	HVS_WRITE(SCALER_DISPECTRL,
+		  (reg & ~SCALER_DISPECTRL_DSP2_MUX_MASK) |
+		  VC4_SET_FIELD(dsp2_mux, SCALER_DISPECTRL_DSP2_MUX));
+
+	reg = HVS_READ(SCALER_DISPCTRL);
+	HVS_WRITE(SCALER_DISPCTRL,
+		  (reg & ~SCALER_DISPCTRL_DSP3_MUX_MASK) |
+		  VC4_SET_FIELD(dsp3_mux, SCALER_DISPCTRL_DSP3_MUX));
+
+	reg = HVS_READ(SCALER_DISPEOLN);
+	HVS_WRITE(SCALER_DISPEOLN,
+		  (reg & ~SCALER_DISPEOLN_DSP4_MUX_MASK) |
+		  VC4_SET_FIELD(dsp4_mux, SCALER_DISPEOLN_DSP4_MUX));
+
+	reg = HVS_READ(SCALER_DISPDITHER);
+	HVS_WRITE(SCALER_DISPDITHER,
+		  (reg & ~SCALER_DISPDITHER_DSP5_MUX_MASK) |
+		  VC4_SET_FIELD(dsp5_mux, SCALER_DISPDITHER_DSP5_MUX));
+}
+
 static void
 vc4_atomic_complete_commit(struct drm_atomic_state *state)
 {
@@ -157,12 +258,13 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 	int i;
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+		struct vc4_crtc_state *vc4_crtc_state;
 
 		if (!new_crtc_state->commit)
 			continue;
 
-		vc4_hvs_mask_underrun(dev, vc4_crtc->channel);
+		vc4_crtc_state = to_vc4_crtc_state(new_crtc_state);
+		vc4_hvs_mask_underrun(dev, vc4_crtc_state->assigned_channel);
 	}
 
 	if (vc4->hvs->hvs5)
@@ -175,6 +277,11 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	vc4_ctm_commit(vc4, state);
+
+	if (vc4->hvs->hvs5)
+		vc5_hvs_pv_muxing_commit(vc4, state);
+	else
+		vc4_hvs_pv_muxing_commit(vc4, state);
 
 	drm_atomic_helper_commit_planes(dev, state, 0);
 
@@ -385,8 +492,11 @@ vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 
 		/* CTM is being enabled or the matrix changed. */
 		if (new_crtc_state->ctm) {
+			struct vc4_crtc_state *vc4_crtc_state =
+				to_vc4_crtc_state(new_crtc_state);
+
 			/* fifo is 1-based since 0 disables CTM. */
-			int fifo = to_vc4_crtc(crtc)->channel + 1;
+			int fifo = vc4_crtc_state->assigned_channel + 1;
 
 			/* Check userland isn't trying to turn on CTM for more
 			 * than one CRTC at a time.
@@ -496,10 +606,60 @@ static const struct drm_private_state_funcs vc4_load_tracker_state_funcs = {
 	.atomic_destroy_state = vc4_load_tracker_destroy_state,
 };
 
+#define NUM_OUTPUTS  6
+#define NUM_CHANNELS 3
+
 static int
 vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
-	int ret;
+	unsigned long unassigned_channels = GENMASK(NUM_CHANNELS - 1, 0);
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i, ret;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		struct vc4_crtc_state *vc4_crtc_state =
+			to_vc4_crtc_state(crtc_state);
+		struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+		unsigned int matching_channels;
+
+		if (!crtc_state->active)
+			continue;
+
+		/*
+		 * The problem we have to solve here is that we have
+		 * up to 7 encoders, connected to up to 6 CRTCs.
+		 *
+		 * Those CRTCs, depending on the instance, can be
+		 * routed to 1, 2 or 3 HVS FIFOs, and we need to set
+		 * the change the muxing between FIFOs and outputs in
+		 * the HVS accordingly.
+		 *
+		 * It would be pretty hard to come up with an
+		 * algorithm that would generically solve
+		 * this. However, the current routing trees we support
+		 * allow us to simplify a bit the problem.
+		 *
+		 * Indeed, with the current supported layouts, if we
+		 * try to assign in the ascending crtc index order the
+		 * FIFOs, we can't fall into the situation where an
+		 * earlier CRTC that had multiple routes is assigned
+		 * one that was the only option for a later CRTC.
+		 *
+		 * If the layout changes and doesn't give us that in
+		 * the future, we will need to have something smarter,
+		 * but it works so far.
+		 */
+		matching_channels = unassigned_channels & vc4_crtc->data->hvs_available_channels;
+		if (matching_channels) {
+			unsigned int channel = ffs(matching_channels) - 1;
+
+			vc4_crtc_state->assigned_channel = channel;
+			unassigned_channels &= ~BIT(channel);
+		} else {
+			return -EINVAL;
+		}
+	}
 
 	ret = vc4_ctm_atomic_check(dev, state);
 	if (ret < 0)

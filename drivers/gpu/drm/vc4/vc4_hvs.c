@@ -161,6 +161,7 @@ static void vc4_hvs_lut_load(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	u32 i;
 
 	/* The LUT memory is laid out with each HVS channel in order,
@@ -169,7 +170,7 @@ static void vc4_hvs_lut_load(struct drm_crtc *crtc)
 	 */
 	HVS_WRITE(SCALER_GAMADDR,
 		  SCALER_GAMADDR_AUTOINC |
-		  (vc4_crtc->channel * 3 * crtc->gamma_size));
+		  (vc4_state->assigned_channel * 3 * crtc->gamma_size));
 
 	for (i = 0; i < crtc->gamma_size; i++)
 		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_r[i]);
@@ -249,12 +250,12 @@ static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
 			crtc->state->event = NULL;
 		}
 
-		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+		HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
 			  vc4_state->mm.start);
 
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	} else {
-		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+		HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
 			  vc4_state->mm.start);
 	}
 }
@@ -264,7 +265,6 @@ void vc4_hvs_atomic_enable(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	bool oneshot = vc4_state->feed_txp;
@@ -292,7 +292,7 @@ void vc4_hvs_atomic_enable(struct drm_crtc *crtc,
 					  SCALER5_DISPCTRLX_HEIGHT) |
 			    (oneshot ? SCALER5_DISPCTRLX_ONESHOT : 0);
 
-	HVS_WRITE(SCALER_DISPCTRLX(vc4_crtc->channel), dispctrl);
+	HVS_WRITE(SCALER_DISPCTRLX(vc4_state->assigned_channel), dispctrl);
 }
 
 void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
@@ -300,8 +300,8 @@ void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	u32 chan = vc4_crtc->channel;
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(old_state);
+	unsigned int chan = vc4_state->assigned_channel;
 
 	if (HVS_READ(SCALER_DISPCTRLX(chan)) &
 	    SCALER_DISPCTRLX_ENABLE) {
@@ -332,7 +332,6 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_plane *plane;
 	struct vc4_plane_state *vc4_plane_state;
@@ -374,8 +373,8 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 		/* This sets a black background color fill, as is the case
 		 * with other DRM drivers.
 		 */
-		HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
-			  HVS_READ(SCALER_DISPBKGNDX(vc4_crtc->channel)) |
+		HVS_WRITE(SCALER_DISPBKGNDX(vc4_state->assigned_channel),
+			  HVS_READ(SCALER_DISPBKGNDX(vc4_state->assigned_channel)) |
 			  SCALER_DISPBKGND_FILL);
 
 	/* Only update DISPLIST if the CRTC was already running and is not
@@ -389,7 +388,7 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 		vc4_hvs_update_dlist(crtc);
 
 	if (crtc->state->color_mgmt_changed) {
-		u32 dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(vc4_crtc->channel));
+		u32 dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(vc4_state->assigned_channel));
 
 		if (crtc->state->gamma_lut) {
 			vc4_hvs_update_gamma_lut(crtc);
@@ -401,7 +400,7 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 			 */
 			dispbkgndx &= ~SCALER_DISPBKGND_GAMMA;
 		}
-		HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel), dispbkgndx);
+		HVS_WRITE(SCALER_DISPBKGNDX(vc4_state->assigned_channel), dispbkgndx);
 	}
 
 	if (debug_dump_regs) {
@@ -414,12 +413,11 @@ void vc4_hvs_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
 
-	if (vc4_crtc->data->hvs_output == 2) {
+	if (vc4_state->assigned_channel == 2) {
 		u32 dispctrl;
 		u32 dsp3_mux;
 
@@ -443,7 +441,7 @@ void vc4_hvs_mode_set_nofb(struct drm_crtc *crtc)
 		HVS_WRITE(SCALER_DISPCTRL, dispctrl | dsp3_mux);
 	}
 
-	HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
+	HVS_WRITE(SCALER_DISPBKGNDX(vc4_state->assigned_channel),
 		  SCALER_DISPBKGND_AUTOHS |
 		  SCALER_DISPBKGND_GAMMA |
 		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
