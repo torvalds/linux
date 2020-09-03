@@ -1059,7 +1059,8 @@ static const struct hci_uart_proto intel_proto = {
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id intel_acpi_match[] = {
 	{ "INT33E1", 0 },
-	{ },
+	{ "INT33E3", 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, intel_acpi_match);
 #endif
@@ -1121,9 +1122,9 @@ static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
 static const struct acpi_gpio_params host_wake_gpios = { 1, 0, false };
 
 static const struct acpi_gpio_mapping acpi_hci_intel_gpios[] = {
-	{ "reset-gpios", &reset_gpios, 1 },
-	{ "host-wake-gpios", &host_wake_gpios, 1 },
-	{ },
+	{ "reset-gpios", &reset_gpios, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
+	{ "host-wake-gpios", &host_wake_gpios, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
+	{ }
 };
 
 static int intel_probe(struct platform_device *pdev)
