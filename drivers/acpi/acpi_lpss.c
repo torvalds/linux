@@ -67,7 +67,15 @@ ACPI_MODULE_NAME("acpi_lpss");
 #define LPSS_CLK_DIVIDER		BIT(2)
 #define LPSS_LTR			BIT(3)
 #define LPSS_SAVE_CTX			BIT(4)
-#define LPSS_NO_D3_DELAY		BIT(5)
+/*
+ * For some devices the DSDT AML code for another device turns off the device
+ * before our suspend handler runs, causing us to read/save all 1-s (0xffffffff)
+ * as ctx register values.
+ * Luckily these devices always use the same ctx register values, so we can
+ * work around this by saving the ctx registers once on activation.
+ */
+#define LPSS_SAVE_CTX_ONCE		BIT(5)
+#define LPSS_NO_D3_DELAY		BIT(6)
 
 struct lpss_private_data;
 
@@ -254,7 +262,7 @@ static const struct lpss_device_desc byt_pwm_dev_desc = {
 };
 
 static const struct lpss_device_desc bsw_pwm_dev_desc = {
-	.flags = LPSS_SAVE_CTX | LPSS_NO_D3_DELAY,
+	.flags = LPSS_SAVE_CTX_ONCE | LPSS_NO_D3_DELAY,
 	.prv_offset = 0x800,
 	.setup = bsw_pwm_setup,
 	.resume_from_noirq = true,
@@ -885,8 +893,13 @@ static int acpi_lpss_activate(struct device *dev)
 	 * we have to deassert reset line to be sure that ->probe() will
 	 * recognize the device.
 	 */
-	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
+	if (pdata->dev_desc->flags & (LPSS_SAVE_CTX | LPSS_SAVE_CTX_ONCE))
 		lpss_deassert_reset(pdata);
+
+#ifdef CONFIG_PM
+	if (pdata->dev_desc->flags & LPSS_SAVE_CTX_ONCE)
+		acpi_lpss_save_ctx(dev, pdata);
+#endif
 
 	return 0;
 }
@@ -1031,7 +1044,7 @@ static int acpi_lpss_resume(struct device *dev)
 
 	acpi_lpss_d3_to_d0_delay(pdata);
 
-	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
+	if (pdata->dev_desc->flags & (LPSS_SAVE_CTX | LPSS_SAVE_CTX_ONCE))
 		acpi_lpss_restore_ctx(dev, pdata);
 
 	return 0;
