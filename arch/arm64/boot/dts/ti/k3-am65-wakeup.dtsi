@@ -80,7 +80,7 @@
 		ti,interrupt-ranges = <0 712 16>;
 	};
 
-	wkup_gpio0: wkup_gpio0@42110000 {
+	wkup_gpio0: gpio@42110000 {
 		compatible = "ti,am654-gpio", "ti,keystone-gpio";
 		reg = <0x42110000 0x100>;
 		gpio-controller;
