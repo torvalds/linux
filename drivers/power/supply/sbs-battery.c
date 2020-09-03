@@ -962,11 +962,10 @@ static int sbs_get_property(struct power_supply *psy,
 	if (!chip->gpio_detect && chip->is_present != (ret >= 0)) {
 		bool old_present = chip->is_present;
 		union power_supply_propval val;
-
-		ret = sbs_get_battery_presence_and_health(
+		int err = sbs_get_battery_presence_and_health(
 				client, POWER_SUPPLY_PROP_PRESENT, &val);
 
-		sbs_update_presence(chip, !ret && val.intval);
+		sbs_update_presence(chip, !err && val.intval);
 
 		if (old_present != chip->is_present)
 			power_supply_changed(chip->power_supply);
@@ -976,19 +975,14 @@ done:
 	if (!ret) {
 		/* Convert units to match requirements for power supply class */
 		sbs_unit_adjustment(client, psp, val);
+		dev_dbg(&client->dev,
+			"%s: property = %d, value = %x\n", __func__,
+			psp, val->intval);
+	} else if (!chip->is_present)  {
+		/* battery not present, so return NODATA for properties */
+		ret = -ENODATA;
 	}
-
-	dev_dbg(&client->dev,
-		"%s: property = %d, value = %x\n", __func__, psp, val->intval);
-
-	if (ret && chip->is_present)
-		return ret;
-
-	/* battery not present, so return NODATA for properties */
-	if (ret)
-		return -ENODATA;
-
-	return 0;
+	return ret;
 }
 
 static void sbs_supply_changed(struct sbs_info *chip)
