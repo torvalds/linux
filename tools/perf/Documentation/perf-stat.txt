@@ -416,6 +416,9 @@ counts for all hardware threads in a core but show the sum counts per
 hardware thread. This is essentially a replacement for the any bit and
 convenient for post processing.
 
+--summary::
+Print summary for interval mode (-I).
+
 EXAMPLES
 --------
 
