@@ -88,6 +88,8 @@ struct reset_bulk_data	{
 #define PCIE_RESBAR_CTRL_REG0_REG	0x2a8
 #define PCIE_SB_BAR0_MASK_REG		0x100010
 
+#define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
+
 struct rk_pcie {
 	struct dw_pcie			*pci;
 	enum rk_pcie_device_mode	mode;
@@ -320,6 +322,16 @@ static inline void rk_pcie_set_mode(struct rk_pcie *rk_pcie)
 		break;
 	case RK_PCIE_RC_TYPE:
 		rk_pcie_writel_apb(rk_pcie, 0x0, 0xf00040);
+		/*
+		 * Disable order rule for CPL can't pass halted P queue.
+		 * Need to check producer-consumer model.
+		 * Just for RK1808 platform.
+		 */
+		if (of_device_is_compatible(pdev->dev.of_node,
+					    "rockchip,rk1808-pcie"))
+			rk_pcie_writel_dbi(rk_pcie,
+					   PCIE_PL_ORDER_RULE_CTRL_OFF,
+					   0xff00);
 		break;
 	}
 }
