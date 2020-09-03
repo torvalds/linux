@@ -30,6 +30,11 @@ properties:
           For implementations of the EC is connected through RPMSG.
         const: google,cros-ec-rpmsg
 
+  controller-data:
+    description:
+      SPI controller data, see bindings/spi/spi-samsung.txt
+    type: object
+
   google,cros-ec-spi-pre-delay:
     description:
       This property specifies the delay in usecs between the
@@ -62,6 +67,9 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  wakeup-source:
+    description: Button can wake-up the system.
 
 required:
   - compatible
