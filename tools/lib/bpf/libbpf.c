@@ -73,8 +73,6 @@
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
 static struct bpf_map *bpf_object__add_map(struct bpf_object *obj);
-static struct bpf_program *bpf_object__find_prog_by_idx(struct bpf_object *obj,
-							int idx);
 static const struct btf_type *
 skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id);
 
@@ -3247,20 +3245,6 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 		}
 	}
 	return 0;
-}
-
-static struct bpf_program *
-bpf_object__find_prog_by_idx(struct bpf_object *obj, int idx)
-{
-	struct bpf_program *prog;
-	size_t i;
-
-	for (i = 0; i < obj->nr_programs; i++) {
-		prog = &obj->programs[i];
-		if (prog->sec_idx == idx)
-			return prog;
-	}
-	return NULL;
 }
 
 struct bpf_program *
@@ -8198,7 +8182,7 @@ static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 	const struct btf *btf;
 	struct bpf_map *map;
 	Elf_Data *symbols;
-	unsigned int moff;
+	unsigned int moff, insn_idx;
 	const char *name;
 	__u32 member_idx;
 	GElf_Sym sym;
@@ -8243,6 +8227,12 @@ static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 				map->name, (size_t)rel.r_offset, shdr_idx);
 			return -LIBBPF_ERRNO__RELOC;
 		}
+		if (sym.st_value % BPF_INSN_SZ) {
+			pr_warn("struct_ops reloc %s: invalid target program offset %llu\n",
+				map->name, (__u64)sym.st_value);
+			return -LIBBPF_ERRNO__FORMAT;
+		}
+		insn_idx = sym.st_value / BPF_INSN_SZ;
 
 		member = find_member_by_offset(st_ops->type, moff * 8);
 		if (!member) {
@@ -8259,7 +8249,7 @@ static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 			return -EINVAL;
 		}
 
-		prog = bpf_object__find_prog_by_idx(obj, shdr_idx);
+		prog = find_prog_by_sec_insn(obj, shdr_idx, insn_idx);
 		if (!prog) {
 			pr_warn("struct_ops reloc %s: cannot find prog at shdr_idx %u to relocate func ptr %s\n",
 				map->name, shdr_idx, name);
