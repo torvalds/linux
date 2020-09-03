@@ -93,6 +93,7 @@ Contents:
    sctp
    secid
    seg6-sysctl
+   statistics
    strparser
    switchdev
    tc-actions-env-rules
