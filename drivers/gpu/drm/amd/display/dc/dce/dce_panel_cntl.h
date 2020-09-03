@@ -54,7 +54,7 @@
 	SR(BL_PWM_CNTL2), \
 	SR(BL_PWM_PERIOD_CNTL), \
 	SR(BL_PWM_GRP1_REG_LOCK), \
-	SR(BIOS_SCRATCH_2)
+	NBIO_SR(BIOS_SCRATCH_2)
 
 #define DCE_PANEL_CNTL_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
