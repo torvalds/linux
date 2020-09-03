@@ -2201,11 +2201,10 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	}
 
 	pdata->clk = devm_clk_get(dev, variant->clk_names[0]);
-	if (IS_ERR(pdata->clk)) {
-		dev_err(dev, "failed to find secss clock %s\n",
-			variant->clk_names[0]);
-		return -ENOENT;
-	}
+	if (IS_ERR(pdata->clk))
+		return dev_err_probe(dev, PTR_ERR(pdata->clk),
+				     "failed to find secss clock %s\n",
+				     variant->clk_names[0]);
 
 	err = clk_prepare_enable(pdata->clk);
 	if (err < 0) {
@@ -2217,9 +2216,9 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	if (variant->clk_names[1]) {
 		pdata->pclk = devm_clk_get(dev, variant->clk_names[1]);
 		if (IS_ERR(pdata->pclk)) {
-			dev_err(dev, "failed to find clock %s\n",
-				variant->clk_names[1]);
-			err = -ENOENT;
+			err = dev_err_probe(dev, PTR_ERR(pdata->pclk),
+					    "failed to find clock %s\n",
+					    variant->clk_names[1]);
 			goto err_clk;
 		}
 
