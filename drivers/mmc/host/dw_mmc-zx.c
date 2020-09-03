@@ -222,6 +222,7 @@ static struct platform_driver dw_mci_zx_pltfm_driver = {
 	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dwmmc_zx",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= dw_mci_zx_match,
 		.pm		= &dw_mci_zx_dev_pm_ops,
 	},
