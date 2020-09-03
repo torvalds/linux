@@ -53,7 +53,7 @@ int __rxe_do_task(struct rxe_task *task);
  * work to do someone must reschedule the task before
  * leaving
  */
-void rxe_do_task(unsigned long data);
+void rxe_do_task(struct tasklet_struct *t);
 
 /* run a task, else schedule it to run as a tasklet, The decision
  * to run or schedule tasklet is based on the parameter sched.

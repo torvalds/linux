@@ -28,12 +28,12 @@ int __rxe_do_task(struct rxe_task *task)
  * a second caller finds the task already running
  * but looks just after the last call to func
  */
-void rxe_do_task(unsigned long data)
+void rxe_do_task(struct tasklet_struct *t)
 {
 	int cont;
 	int ret;
 	unsigned long flags;
-	struct rxe_task *task = (struct rxe_task *)data;
+	struct rxe_task *task = from_tasklet(task, t, tasklet);
 
 	spin_lock_irqsave(&task->state_lock, flags);
 	switch (task->state) {
@@ -96,7 +96,7 @@ int rxe_init_task(void *obj, struct rxe_task *task,
 	snprintf(task->name, sizeof(task->name), "%s", name);
 	task->destroyed	= false;
 
-	tasklet_init(&task->tasklet, rxe_do_task, (unsigned long)task);
+	tasklet_setup(&task->tasklet, rxe_do_task);
 
 	task->state = TASK_STATE_START;
 	spin_lock_init(&task->state_lock);
@@ -132,7 +132,7 @@ void rxe_run_task(struct rxe_task *task, int sched)
 	if (sched)
 		tasklet_schedule(&task->tasklet);
 	else
-		rxe_do_task((unsigned long)task);
+		rxe_do_task(&task->tasklet);
 }
 
 void rxe_disable_task(struct rxe_task *task)

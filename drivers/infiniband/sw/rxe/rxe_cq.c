@@ -39,9 +39,9 @@ err1:
 	return -EINVAL;
 }
 
-static void rxe_send_complete(unsigned long data)
+static void rxe_send_complete(struct tasklet_struct *t)
 {
-	struct rxe_cq *cq = (struct rxe_cq *)data;
+	struct rxe_cq *cq = from_tasklet(cq, t, comp_task);
 	unsigned long flags;
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
@@ -80,7 +80,7 @@ int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
 
 	cq->is_dying = false;
 
-	tasklet_init(&cq->comp_task, rxe_send_complete, (unsigned long)cq);
+	tasklet_setup(&cq->comp_task, rxe_send_complete);
 
 	spin_lock_init(&cq->cq_lock);
 	cq->ibcq.cqe = cqe;
