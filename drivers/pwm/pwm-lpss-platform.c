@@ -89,7 +89,6 @@ static int pwm_lpss_prepare(struct device *dev)
 
 static const struct dev_pm_ops pwm_lpss_platform_pm_ops = {
 	.prepare = pwm_lpss_prepare,
-	SET_SYSTEM_SLEEP_PM_OPS(pwm_lpss_suspend, pwm_lpss_resume)
 };
 
 static const struct acpi_device_id pwm_lpss_acpi_match[] = {
