@@ -344,6 +344,7 @@ int panfrost_gpu_init(struct panfrost_device *pfdev)
 
 	dma_set_mask_and_coherent(pfdev->dev,
 		DMA_BIT_MASK(FIELD_GET(0xff00, pfdev->features.mmu_features)));
+	dma_set_max_seg_size(pfdev->dev, UINT_MAX);
 
 	irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "gpu");
 	if (irq <= 0)
