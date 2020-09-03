@@ -525,6 +525,7 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 	struct incfs_fill_blocks fill_blocks;
 	struct incfs_fill_block __user *usr_fill_block_array;
 	struct data_file *df = get_incfs_data_file(f);
+	struct incfs_file_data *fd = f->private_data;
 	const ssize_t data_buf_size = 2 * INCFS_DATA_FILE_BLOCK_SIZE;
 	u8 *data_buf = NULL;
 	ssize_t error = 0;
@@ -533,7 +534,7 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 	if (!df)
 		return -EBADF;
 
-	if ((uintptr_t)f->private_data != CAN_FILL)
+	if (!fd || fd->fd_fill_permission != CAN_FILL)
 		return -EPERM;
 
 	if (copy_from_user(&fill_blocks, usr_fill_blocks, sizeof(fill_blocks)))
@@ -642,18 +643,19 @@ static long ioctl_get_filled_blocks(struct file *f, void __user *arg)
 	struct incfs_get_filled_blocks_args __user *args_usr_ptr = arg;
 	struct incfs_get_filled_blocks_args args = {};
 	struct data_file *df = get_incfs_data_file(f);
+	struct incfs_file_data *fd = f->private_data;
 	int error;
 
-	if (!df)
+	if (!df || !fd)
 		return -EINVAL;
 
-	if ((uintptr_t)f->private_data != CAN_FILL)
+	if (fd->fd_fill_permission != CAN_FILL)
 		return -EPERM;
 
 	if (copy_from_user(&args, args_usr_ptr, sizeof(args)) > 0)
 		return -EINVAL;
 
-	error = incfs_get_filled_blocks(df, &args);
+	error = incfs_get_filled_blocks(df, fd, &args);
 
 	if (copy_to_user(args_usr_ptr, &args, sizeof(args)))
 		return -EFAULT;
@@ -1115,6 +1117,8 @@ static int file_open(struct inode *inode, struct file *file)
 	int flags = O_NOATIME | O_LARGEFILE |
 		(S_ISDIR(inode->i_mode) ? O_RDONLY : O_RDWR);
 
+	WARN_ON(file->private_data);
+
 	if (!mi)
 		return -EBADF;
 
@@ -1132,8 +1136,20 @@ static int file_open(struct inode *inode, struct file *file)
 	}
 
 	if (S_ISREG(inode->i_mode)) {
+		struct incfs_file_data *fd = kzalloc(sizeof(*fd), GFP_NOFS);
+
+		if (!fd) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		*fd = (struct incfs_file_data) {
+			.fd_fill_permission = CANT_FILL,
+		};
+		file->private_data = fd;
+
 		err = make_inode_ready_for_data_ops(mi, inode, backing_file);
-		file->private_data = (void *)CANT_FILL;
+
 	} else if (S_ISDIR(inode->i_mode)) {
 		struct dir_file *dir = NULL;
 
@@ -1146,9 +1162,17 @@ static int file_open(struct inode *inode, struct file *file)
 		err = -EBADF;
 
 out:
-	if (err)
-		pr_debug("incfs: %s name:%s err: %d\n", __func__,
-			file->f_path.dentry->d_name.name, err);
+	if (err) {
+		pr_debug("name:%s err: %d\n",
+			 file->f_path.dentry->d_name.name, err);
+		if (S_ISREG(inode->i_mode))
+			kfree(file->private_data);
+		else if (S_ISDIR(inode->i_mode))
+			incfs_free_dir_file(file->private_data);
+
+		file->private_data = NULL;
+	}
+
 	if (backing_file)
 		fput(backing_file);
 	return err;
@@ -1157,9 +1181,8 @@ out:
 static int file_release(struct inode *inode, struct file *file)
 {
 	if (S_ISREG(inode->i_mode)) {
-		/* Do nothing.
-		 * data_file is released only by inode eviction.
-		 */
+		kfree(file->private_data);
+		file->private_data = NULL;
 	} else if (S_ISDIR(inode->i_mode)) {
 		struct dir_file *dir = get_incfs_dir_file(file);
 

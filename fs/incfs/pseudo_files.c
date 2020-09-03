@@ -274,6 +274,7 @@ static long ioctl_permit_fill(struct file *f, void __user *arg)
 	struct incfs_permit_fill permit_fill;
 	long error = 0;
 	struct file *file = NULL;
+	struct incfs_file_data *fd;
 
 	if (copy_from_user(&permit_fill, usr_permit_fill, sizeof(permit_fill)))
 		return -EFAULT;
@@ -292,9 +293,11 @@ static long ioctl_permit_fill(struct file *f, void __user *arg)
 		goto out;
 	}
 
-	switch ((uintptr_t)file->private_data) {
+	fd = file->private_data;
+
+	switch (fd->fd_fill_permission) {
 	case CANT_FILL:
-		file->private_data = (void *)CAN_FILL;
+		fd->fd_fill_permission = CAN_FILL;
 		break;
 
 	case CAN_FILL:

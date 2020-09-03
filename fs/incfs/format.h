@@ -123,7 +123,6 @@ enum incfs_metadata_type {
 };
 
 enum incfs_file_header_flags {
-	INCFS_FILE_COMPLETE = 1 << 0,
 	INCFS_FILE_MAPPED = 1 << 1,
 };
 
@@ -254,7 +253,7 @@ struct incfs_status {
 	__le32 is_hash_blocks_written; /* Number of hash blocks written */
 
 	__le32 is_dummy[6]; /* Spare fields */
-};
+} __packed;
 
 /* State of the backing file. */
 struct backing_file_context {
@@ -329,8 +328,6 @@ int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
 				       loff_t status_offset,
 				       u32 data_blocks_written,
 				       u32 hash_blocks_written);
-
-int incfs_write_file_header_flags(struct backing_file_context *bfc, u32 flags);
 
 int incfs_make_empty_backing_file(struct backing_file_context *bfc,
 				  incfs_uuid_t *uuid, u64 file_size);

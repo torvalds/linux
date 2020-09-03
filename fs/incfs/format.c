@@ -205,15 +205,6 @@ static int append_md_to_backing_file(struct backing_file_context *bfc,
 	return result;
 }
 
-int incfs_write_file_header_flags(struct backing_file_context *bfc, u32 flags)
-{
-	if (!bfc)
-		return -EFAULT;
-
-	return write_to_bf(bfc, &flags, sizeof(flags),
-			   offsetof(struct incfs_file_header, fh_flags));
-}
-
 /*
  * Reserve 0-filled space for the blockmap body, and append
  * incfs_blockmap metadata record pointing to it.
