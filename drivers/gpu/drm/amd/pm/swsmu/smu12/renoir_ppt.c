@@ -887,6 +887,8 @@ static int renoir_set_watermarks_table(
 
 			table->WatermarkRow[WM_DCFCLK][i].WmSetting =
 				clock_ranges->reader_wm_sets[i].wm_inst;
+			table->WatermarkRow[WM_DCFCLK][i].WmType =
+				clock_ranges->reader_wm_sets[i].wm_type;
 		}
 
 		for (i = 0; i < clock_ranges->num_writer_wm_sets; i++) {
@@ -901,6 +903,8 @@ static int renoir_set_watermarks_table(
 
 			table->WatermarkRow[WM_SOCCLK][i].WmSetting =
 				clock_ranges->writer_wm_sets[i].wm_inst;
+			table->WatermarkRow[WM_SOCCLK][i].WmType =
+				clock_ranges->writer_wm_sets[i].wm_type;
 		}
 
 		smu->watermarks_bitmap |= WATERMARKS_EXIST;
