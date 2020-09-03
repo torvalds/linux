@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config COMMON_CLK_ROCKCHIP_REGMAP
+	tristate
+
+config CLK_RK618
+	tristate "Clock driver for Rockchip RK618"
+	depends on MFD_RK618
+	default MFD_RK618
+	select COMMON_CLK_ROCKCHIP_REGMAP
