@@ -236,12 +236,38 @@ int ccs_read_addr_noconv(struct ccs_sensor *sensor, u32 reg, u32 *val)
 	return ccs_read_addr_raw(sensor, reg, val, false, true, false);
 }
 
+static int ccs_write_retry(struct i2c_client *client, struct i2c_msg *msg)
+{
+	unsigned int retries;
+	int r;
+
+	for (retries = 0; retries < 10; retries++) {
+		/*
+		 * Due to unknown reason sensor stops responding. This
+		 * loop is a temporaty solution until the root cause
+		 * is found.
+		 */
+		r = i2c_transfer(client->adapter, msg, 1);
+		if (r != 1) {
+			usleep_range(1000, 2000);
+			continue;
+		}
+
+		if (retries)
+			dev_err(&client->dev,
+				"sensor i2c stall encountered. retries: %d\n",
+				retries);
+		return 0;
+	}
+
+	return r;
+}
+
 int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
 	unsigned char data[6];
-	unsigned int retries;
 	unsigned int len = ccs_reg_width(reg);
 	int r;
 
@@ -256,27 +282,11 @@ int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
 	put_unaligned_be16(CCS_REG_ADDR(reg), data);
 	put_unaligned_be32(val << (8 * (sizeof(val) - len)), data + 2);
 
-	for (retries = 0; retries < 10; retries++) {
-		/*
-		 * Due to unknown reason sensor stops responding. This
-		 * loop is a temporaty solution until the root cause
-		 * is found.
-		 */
-		r = i2c_transfer(client->adapter, &msg, 1);
-		if (r == 1) {
-			if (retries)
-				dev_err(&client->dev,
-					"sensor i2c stall encountered. retries: %d\n",
-					retries);
-			return 0;
-		}
-
-		usleep_range(1000, 2000);
-	}
-
-	dev_err(&client->dev,
-		"wrote 0x%x to offset 0x%x error %d\n", val,
-		CCS_REG_ADDR(reg), r);
+	r = ccs_write_retry(client, &msg);
+	if (r)
+		dev_err(&client->dev,
+			"wrote 0x%x to offset 0x%x error %d\n", val,
+			CCS_REG_ADDR(reg), r);
 
 	return r;
 }
@@ -296,4 +306,44 @@ int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val)
 		return rval;
 
 	return ccs_write_addr_no_quirk(sensor, reg, val);
+}
+
+#define MAX_WRITE_LEN	32U
+
+int ccs_write_data_regs(struct ccs_sensor *sensor, struct ccs_reg *regs,
+			size_t num_regs)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	unsigned char buf[2 + MAX_WRITE_LEN];
+	struct i2c_msg msg = {
+		.addr = client->addr,
+		.buf = buf,
+	};
+	size_t i;
+
+	for (i = 0; i < num_regs; i++, regs++) {
+		unsigned char *regdata = regs->value;
+		unsigned int j;
+
+		for (j = 0; j < regs->len;
+		     j += msg.len - 2, regdata += msg.len - 2) {
+			int rval;
+
+			msg.len = min(regs->len - j, MAX_WRITE_LEN);
+
+			put_unaligned_be16(regs->addr + j, buf);
+			memcpy(buf + 2, regdata, msg.len);
+			msg.len += 2;
+
+			rval = ccs_write_retry(client, &msg);
+			if (rval) {
+				dev_err(&client->dev,
+					"error writing %u octets to address 0x%4.4x\n",
+					msg.len, regs->addr + j);
+				return rval;
+			}
+		}
+	}
+
+	return 0;
 }

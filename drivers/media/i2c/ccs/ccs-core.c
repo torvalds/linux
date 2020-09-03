@@ -1278,6 +1278,21 @@ out:
  * Power management
  */
 
+static int ccs_write_msr_regs(struct ccs_sensor *sensor)
+{
+	int rval;
+
+	rval = ccs_write_data_regs(sensor,
+				   sensor->sdata.sensor_manufacturer_regs,
+				   sensor->sdata.num_sensor_manufacturer_regs);
+	if (rval)
+		return rval;
+
+	return ccs_write_data_regs(sensor,
+				   sensor->mdata.module_manufacturer_regs,
+				   sensor->mdata.num_module_manufacturer_regs);
+}
+
 static int ccs_power_on(struct device *dev)
 {
 	struct v4l2_subdev *subdev = dev_get_drvdata(dev);
@@ -1381,6 +1396,10 @@ static int ccs_power_on(struct device *dev)
 	/* DPHY control done by sensor based on requested link rate */
 	rval = ccs_write(sensor, PHY_CTRL, CCS_PHY_CTRL_UI);
 	if (rval < 0)
+		goto out_cci_addr_fail;
+
+	rval = ccs_write_msr_regs(sensor);
+	if (rval)
 		goto out_cci_addr_fail;
 
 	rval = ccs_call_quirk(sensor, post_poweron);
@@ -3218,6 +3237,10 @@ static int ccs_probe(struct i2c_client *client)
 	rval = media_entity_pads_init(&sensor->src->sd.entity, 2,
 				 sensor->src->pads);
 	if (rval < 0)
+		goto out_media_entity_cleanup;
+
+	rval = ccs_write_msr_regs(sensor);
+	if (rval)
 		goto out_media_entity_cleanup;
 
 	pm_runtime_set_active(&client->dev);
