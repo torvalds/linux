@@ -2307,8 +2307,7 @@ err_algs:
 	tasklet_kill(&pdata->tasklet);
 
 err_irq:
-	if (pdata->pclk)
-		clk_disable_unprepare(pdata->pclk);
+	clk_disable_unprepare(pdata->pclk);
 
 err_clk:
 	clk_disable_unprepare(pdata->clk);
@@ -2338,8 +2337,7 @@ static int s5p_aes_remove(struct platform_device *pdev)
 		pdata->use_hash = false;
 	}
 
-	if (pdata->pclk)
-		clk_disable_unprepare(pdata->pclk);
+	clk_disable_unprepare(pdata->pclk);
 
 	clk_disable_unprepare(pdata->clk);
 	s5p_dev = NULL;
