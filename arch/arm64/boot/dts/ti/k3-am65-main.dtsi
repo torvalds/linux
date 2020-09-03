@@ -344,9 +344,9 @@
 					<0x4090 0x3>; /* SERDES1 lane select */
 		};
 
-		dss_oldi_io_ctrl: dss_oldi_io_ctrl@41E0 {
+		dss_oldi_io_ctrl: dss_oldi_io_ctrl@41e0 {
 			compatible = "syscon";
-			reg = <0x0000041E0 0x14>;
+			reg = <0x0000041e0 0x14>;
 		};
 
 		ehrpwm_tbclk: syscon@4140 {
