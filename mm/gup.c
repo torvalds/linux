@@ -843,7 +843,7 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 			goto unmap;
 		*page = pte_page(*pte);
 	}
-	if (unlikely(!try_get_page(*page))) {
+	if (unlikely(!try_grab_page(*page, gup_flags))) {
 		ret = -ENOMEM;
 		goto unmap;
 	}
