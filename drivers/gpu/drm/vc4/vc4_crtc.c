@@ -403,6 +403,24 @@ static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
 	ret = wait_for(!(CRTC_READ(PV_V_CONTROL) & PV_VCONTROL_VIDEN), 1);
 	WARN_ONCE(ret, "Timeout waiting for !PV_VCONTROL_VIDEN\n");
 
+	/*
+	 * This delay is needed to avoid to get a pixel stuck in an
+	 * unflushable FIFO between the pixelvalve and the HDMI
+	 * controllers on the BCM2711.
+	 *
+	 * Timing is fairly sensitive here, so mdelay is the safest
+	 * approach.
+	 *
+	 * If it was to be reworked, the stuck pixel happens on a
+	 * BCM2711 when changing mode with a good probability, so a
+	 * script that changes mode on a regular basis should trigger
+	 * the bug after less than 10 attempts. It manifests itself with
+	 * every pixels being shifted by one to the right, and thus the
+	 * last pixel of a line actually being displayed as the first
+	 * pixel on the next line.
+	 */
+	mdelay(20);
+
 	if (vc4_encoder->post_crtc_disable)
 		vc4_encoder->post_crtc_disable(encoder);
 
