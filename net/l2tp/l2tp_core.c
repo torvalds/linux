@@ -1191,22 +1191,10 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 again:
 		hlist_for_each_safe(walk, tmp, &tunnel->session_hlist[hash]) {
 			session = hlist_entry(walk, struct l2tp_session, hlist);
-
 			hlist_del_init(&session->hlist);
 
-			if (test_and_set_bit(0, &session->dead))
-				goto again;
-
 			write_unlock_bh(&tunnel->hlist_lock);
-
-			l2tp_session_unhash(session);
-			l2tp_session_queue_purge(session);
-
-			if (session->session_close)
-				(*session->session_close)(session);
-
-			l2tp_session_dec_refcount(session);
-
+			l2tp_session_delete(session);
 			write_lock_bh(&tunnel->hlist_lock);
 
 			/* Now restart from the beginning of this hash
