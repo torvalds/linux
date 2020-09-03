@@ -53,12 +53,12 @@ struct vc4_hdmi_audio {
 
 /* General HDMI hardware state. */
 struct vc4_hdmi {
+	struct vc4_hdmi_audio audio;
+
 	struct platform_device *pdev;
 
 	struct vc4_hdmi_encoder encoder;
 	struct vc4_hdmi_connector connector;
-
-	struct vc4_hdmi_audio audio;
 
 	struct i2c_adapter *ddc;
 	void __iomem *hdmicore_regs;
