@@ -407,7 +407,6 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 		     struct ia_css_stream_info *info) {
 	int err = -EINVAL;
 	unsigned int port;
-	struct ia_css_frame_info mipi_intermediate_info;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "allocate_mipi_frames(%p) enter:\n", pipe);
@@ -485,17 +484,6 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 #endif
 
 	ref_count_mipi_allocation[port]++;
-
-	/* TODO: Cleaning needed. */
-	/* This code needs to modified to allocate the MIPI frames in the correct normal way
-	  with an allocate from info, by justin */
-	mipi_intermediate_info = pipe->pipe_settings.video.video_binary.internal_frame_info;
-	mipi_intermediate_info.res.width = 0;
-	mipi_intermediate_info.res.height = 0;
-	/* To indicate it is not (yet) valid format. */
-	mipi_intermediate_info.format = IA_CSS_FRAME_FORMAT_NUM;
-	mipi_intermediate_info.padded_width = 0;
-	mipi_intermediate_info.raw_bit_depth = 0;
 
 	/* AM TODO: mipi frames number should come from stream struct. */
 	my_css.num_mipi_frames[port] = NUM_MIPI_FRAMES_PER_STREAM;

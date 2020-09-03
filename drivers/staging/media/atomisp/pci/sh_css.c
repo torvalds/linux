@@ -1363,15 +1363,9 @@ static void
 start_binary(struct ia_css_pipe *pipe,
 	     struct ia_css_binary *binary)
 {
-	struct ia_css_stream *stream;
-
 	assert(pipe);
 	/* Acceleration uses firmware, the binary thus can be NULL */
 	/* assert(binary != NULL); */
-
-	(void)binary;
-
-	stream = pipe->stream;
 
 	if (binary)
 		sh_css_metrics_start_binary(&binary->metrics);
@@ -2699,7 +2693,6 @@ alloc_continuous_frames(
 	bool continuous;
 	unsigned int i, idx;
 	unsigned int num_frames;
-	struct ia_css_pipe *capture_pipe = NULL;
 
 	IA_CSS_ENTER_PRIVATE("pipe = %p, init_time = %d", pipe, init_time);
 
@@ -2761,17 +2754,12 @@ alloc_continuous_frames(
 	}
 
 	/* Write format back to binary */
-	if (pipe_id == IA_CSS_PIPE_ID_PREVIEW)
-	{
+	if (pipe_id == IA_CSS_PIPE_ID_PREVIEW) {
 		pipe->pipe_settings.preview.preview_binary.in_frame_info.format =
 		    ref_info.format;
-		capture_pipe = pipe->pipe_settings.preview.capture_pipe;
-	} else if (pipe_id == IA_CSS_PIPE_ID_VIDEO)
-	{
+	} else if (pipe_id == IA_CSS_PIPE_ID_VIDEO) {
 		pipe->pipe_settings.video.video_binary.in_frame_info.format = ref_info.format;
-		capture_pipe = pipe->pipe_settings.video.capture_pipe;
-	} else
-	{
+	} else {
 		/* should not happen */
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 		return -EINVAL;
@@ -2828,7 +2816,7 @@ load_preview_binaries(struct ia_css_pipe *pipe) {
 	struct ia_css_binary_descr preview_descr;
 	bool online;
 	int err = 0;
-	bool continuous, need_vf_pp = false;
+	bool need_vf_pp = false;
 	bool need_isp_copy_binary = false;
 #ifdef ISP2401
 	bool sensor = false;
@@ -2843,7 +2831,6 @@ load_preview_binaries(struct ia_css_pipe *pipe) {
 	assert(pipe->mode == IA_CSS_PIPE_ID_PREVIEW);
 
 	online = pipe->stream->config.online;
-	continuous = pipe->stream->config.continuous;
 #ifdef ISP2401
 	sensor = pipe->stream->config.mode == IA_CSS_INPUT_MODE_SENSOR;
 #endif
@@ -3531,7 +3518,6 @@ static int create_host_video_pipeline(struct ia_css_pipe *pipe)
 	bool need_copy   = false;
 	bool need_vf_pp  = false;
 	bool need_yuv_pp = false;
-	unsigned int num_output_pins;
 	bool need_in_frameinfo_memory = false;
 
 	unsigned int i, num_yuv_scaler;
@@ -3588,7 +3574,6 @@ static int create_host_video_pipeline(struct ia_css_pipe *pipe)
 	copy_binary  = &pipe->pipe_settings.video.copy_binary;
 	video_binary = &pipe->pipe_settings.video.video_binary;
 	vf_pp_binary = &pipe->pipe_settings.video.vf_pp_binary;
-	num_output_pins = video_binary->info->num_output_pins;
 
 	yuv_scaler_binary = pipe->pipe_settings.video.yuv_scaler_binary;
 	num_yuv_scaler  = pipe->pipe_settings.video.num_yuv_scaler;
@@ -3933,8 +3918,6 @@ static void send_raw_frames(struct ia_css_pipe *pipe)
 
 static int
 preview_start(struct ia_css_pipe *pipe) {
-	struct ia_css_pipeline *me;
-	struct ia_css_binary *copy_binary, *preview_binary, *vf_pp_binary = NULL;
 	int err = 0;
 	struct ia_css_pipe *copy_pipe, *capture_pipe;
 	struct ia_css_pipe *acc_pipe;
@@ -3950,18 +3933,11 @@ preview_start(struct ia_css_pipe *pipe) {
 		return -EINVAL;
 	}
 
-	me = &pipe->pipeline;
-
 	preview_pipe_input_mode = pipe->stream->config.mode;
 
 	copy_pipe    = pipe->pipe_settings.preview.copy_pipe;
 	capture_pipe = pipe->pipe_settings.preview.capture_pipe;
 	acc_pipe     = pipe->pipe_settings.preview.acc_pipe;
-
-	copy_binary    = &pipe->pipe_settings.preview.copy_binary;
-	preview_binary = &pipe->pipe_settings.preview.preview_binary;
-	if (pipe->pipe_settings.preview.vf_pp_binary.info)
-		vf_pp_binary = &pipe->pipe_settings.preview.vf_pp_binary;
 
 	sh_css_metrics_start_frame();
 
@@ -5746,7 +5722,6 @@ unload_video_binaries(struct ia_css_pipe *pipe) {
 
 static int video_start(struct ia_css_pipe *pipe)
 {
-	struct ia_css_binary *copy_binary;
 	int err = 0;
 	struct ia_css_pipe *copy_pipe, *capture_pipe;
 	enum sh_css_pipe_config_override copy_ovrd;
@@ -5765,8 +5740,6 @@ static int video_start(struct ia_css_pipe *pipe)
 
 	copy_pipe    = pipe->pipe_settings.video.copy_pipe;
 	capture_pipe = pipe->pipe_settings.video.capture_pipe;
-
-	copy_binary  = &pipe->pipe_settings.video.copy_binary;
 
 	sh_css_metrics_start_frame();
 
@@ -6009,8 +5982,6 @@ static int load_primary_binaries(
     struct ia_css_pipe *pipe)
 {
 	bool online = false;
-	bool memory = false;
-	bool continuous = false;
 	bool need_pp = false;
 	bool need_isp_copy_binary = false;
 	bool need_ldc = false;
@@ -6036,8 +6007,6 @@ static int load_primary_binaries(
 	       pipe->mode == IA_CSS_PIPE_ID_COPY);
 
 	online = pipe->stream->config.online;
-	memory = pipe->stream->config.mode == IA_CSS_INPUT_MODE_MEMORY;
-	continuous = pipe->stream->config.continuous;
 #ifdef ISP2401
 	sensor = (pipe->stream->config.mode == IA_CSS_INPUT_MODE_SENSOR);
 #endif
@@ -7326,7 +7295,6 @@ unload_yuvpp_binaries(struct ia_css_pipe *pipe) {
 
 static int yuvpp_start(struct ia_css_pipe *pipe)
 {
-	struct ia_css_binary *copy_binary;
 	int err = 0;
 	enum sh_css_pipe_config_override copy_ovrd;
 	enum ia_css_input_mode yuvpp_pipe_input_mode;
@@ -7338,8 +7306,6 @@ static int yuvpp_start(struct ia_css_pipe *pipe)
 	}
 
 	yuvpp_pipe_input_mode = pipe->stream->config.mode;
-
-	copy_binary  = &pipe->pipe_settings.yuvpp.copy_binary;
 
 	sh_css_metrics_start_frame();
 
@@ -7456,7 +7422,7 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe) {
 		*vf_pp_binary,
 		*yuv_scaler_binary;
 	bool need_scaler = false;
-	unsigned int num_stage, num_vf_pp_stage, num_output_stage;
+	unsigned int num_stage, num_output_stage;
 	unsigned int i, j;
 
 	struct ia_css_frame *in_frame = NULL;
@@ -7487,7 +7453,6 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe) {
 	}
 	ia_css_pipe_util_create_output_frames(bin_out_frame);
 	num_stage  = pipe->pipe_settings.yuvpp.num_yuv_scaler;
-	num_vf_pp_stage   = pipe->pipe_settings.yuvpp.num_vf_pp;
 	num_output_stage   = pipe->pipe_settings.yuvpp.num_output;
 
 #ifdef ISP2401
@@ -10417,14 +10382,12 @@ ia_css_update_continuous_frames(struct ia_css_stream *stream) {
 void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map)
 {
 	unsigned int thread_id;
-	enum ia_css_pipe_id pipe_id;
 	unsigned int pipe_num;
 	bool need_input_queue;
 
 	IA_CSS_ENTER("");
 	assert(pipe);
 
-	pipe_id = pipe->mode;
 	pipe_num = pipe->pipe_num;
 
 	ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);

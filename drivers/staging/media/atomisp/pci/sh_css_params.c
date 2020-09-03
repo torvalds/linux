@@ -1096,7 +1096,7 @@ ia_css_params_alloc_convert_sctbl(
 {
 	const struct ia_css_binary *binary = stage->binary;
 	struct ia_css_host_data    *sctbl;
-	unsigned int i, j, aligned_width, row_padding;
+	unsigned int i, j, aligned_width;
 	unsigned int sctbl_size;
 	short int    *ptr;
 
@@ -1111,7 +1111,6 @@ ia_css_params_alloc_convert_sctbl(
 	}
 
 	aligned_width = binary->sctbl_aligned_width_per_color;
-	row_padding = aligned_width - shading_table->width;
 	sctbl_size = shading_table->height * IA_CSS_SC_NUM_COLORS * aligned_width *
 		     sizeof(short);
 

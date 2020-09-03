@@ -2811,7 +2811,6 @@ int atomisp_get_metadata(struct atomisp_sub_device *asd, int flag,
 			 struct atomisp_metadata *md)
 {
 	struct atomisp_device *isp = asd->isp;
-	struct ia_css_stream_config *stream_config;
 	struct ia_css_stream_info *stream_info;
 	struct camera_mipi_info *mipi_info;
 	struct atomisp_metadata_buf *md_buf;
@@ -2821,8 +2820,6 @@ int atomisp_get_metadata(struct atomisp_sub_device *asd, int flag,
 	if (flag != 0)
 		return -EINVAL;
 
-	stream_config = &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
-			stream_config;
 	stream_info = &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
 		      stream_info;
 
@@ -2890,7 +2887,6 @@ int atomisp_get_metadata_by_type(struct atomisp_sub_device *asd, int flag,
 				 struct atomisp_metadata_with_type *md)
 {
 	struct atomisp_device *isp = asd->isp;
-	struct ia_css_stream_config *stream_config;
 	struct ia_css_stream_info *stream_info;
 	struct camera_mipi_info *mipi_info;
 	struct atomisp_metadata_buf *md_buf;
@@ -2900,8 +2896,6 @@ int atomisp_get_metadata_by_type(struct atomisp_sub_device *asd, int flag,
 	if (flag != 0)
 		return -EINVAL;
 
-	stream_config = &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
-			stream_config;
 	stream_info = &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
 		      stream_info;
 
