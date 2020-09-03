@@ -755,7 +755,7 @@ struct io_op_def {
 	unsigned		needs_fsize : 1;
 };
 
-static const struct io_op_def io_op_defs[] = {
+static const struct io_op_def io_op_defs[] __read_mostly = {
 	[IORING_OP_NOP] = {},
 	[IORING_OP_READV] = {
 		.async_ctx		= 1,
@@ -950,7 +950,7 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 
 static struct kmem_cache *req_cachep;
 
-static const struct file_operations io_uring_fops;
+static const struct file_operations io_uring_fops __read_mostly;
 
 struct sock *io_uring_get_socket(struct file *file)
 {
