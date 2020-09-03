@@ -712,7 +712,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 				goto end;
 			}
 
-			error = l2tp_tunnel_create(sock_net(sk), info.fd,
+			error = l2tp_tunnel_create(info.fd,
 						   info.version,
 						   info.tunnel_id,
 						   info.peer_tunnel_id, &tcfg,

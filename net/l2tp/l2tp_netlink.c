@@ -233,7 +233,7 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 	switch (cfg.encap) {
 	case L2TP_ENCAPTYPE_UDP:
 	case L2TP_ENCAPTYPE_IP:
-		ret = l2tp_tunnel_create(net, fd, proto_version, tunnel_id,
+		ret = l2tp_tunnel_create(fd, proto_version, tunnel_id,
 					 peer_tunnel_id, &cfg, &tunnel);
 		break;
 	}

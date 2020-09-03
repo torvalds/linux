@@ -235,7 +235,7 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
  * Creation of a new instance is a two-step process: create, then register.
  * Destruction is triggered using the *_delete functions, and completes asynchronously.
  */
-int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id,
+int l2tp_tunnel_create(int fd, int version, u32 tunnel_id,
 		       u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg,
 		       struct l2tp_tunnel **tunnelp);
 int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
