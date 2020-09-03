@@ -41,6 +41,7 @@ FEATURE_TESTS_BASIC :=                  \
         gtk2                            \
         gtk2-infobar                    \
         libbfd                          \
+        libbfd-buildid			\
         libcap                          \
         libelf                          \
         libelf-getphdrnum               \
@@ -113,6 +114,7 @@ FEATURE_DISPLAY ?=              \
          glibc                  \
          gtk2                   \
          libbfd                 \
+         libbfd-buildid		\
          libcap                 \
          libelf                 \
          libnuma                \
