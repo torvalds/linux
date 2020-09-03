@@ -524,6 +524,9 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 	/* IOMMU can map any pages, so himem can also be used here */
 	gfp |= __GFP_NOWARN | __GFP_HIGHMEM;
 
+	/* It makes no sense to muck about with huge pages */
+	gfp &= ~__GFP_COMP;
+
 	while (count) {
 		struct page *page = NULL;
 		unsigned int order_size;
@@ -544,15 +547,9 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 			page = alloc_pages_node(nid, alloc_flags, order);
 			if (!page)
 				continue;
-			if (!order)
-				break;
-			if (!PageCompound(page)) {
+			if (order)
 				split_page(page, order);
-				break;
-			} else if (!split_huge_page(page)) {
-				break;
-			}
-			__free_pages(page, order);
+			break;
 		}
 		if (!page) {
 			__iommu_dma_free_pages(pages, i);
