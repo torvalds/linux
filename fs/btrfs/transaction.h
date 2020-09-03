@@ -112,6 +112,7 @@ struct btrfs_transaction {
 #define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
 
 #define BTRFS_SEND_TRANS_STUB	((void *)1)
+#define BTRFS_DIO_SYNC_STUB	((void *)2)
 
 struct btrfs_trans_handle {
 	u64 transid;

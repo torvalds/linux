@@ -2023,7 +2023,40 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		atomic_inc(&BTRFS_I(inode)->sync_writers);
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
+		/*
+		 * 1. We must always clear IOCB_DSYNC in order to not deadlock
+		 *    in iomap, as it calls generic_write_sync() in this case.
+		 * 2. If we are async, we can call iomap_dio_complete() either
+		 *    in
+		 *
+		 *    2.1. A worker thread from the last bio completed.  In this
+		 *	   case we need to mark the btrfs_dio_data that it is
+		 *	   async in order to call generic_write_sync() properly.
+		 *	   This is handled by setting BTRFS_DIO_SYNC_STUB in the
+		 *	   current->journal_info.
+		 *    2.2  The submitter context, because all IO completed
+		 *         before we exited iomap_dio_rw().  In this case we can
+		 *         just re-set the IOCB_DSYNC on the iocb and we'll do
+		 *         the sync below.  If our ->end_io() gets called and
+		 *         current->journal_info is set, then we know we're in
+		 *         our current context and we will clear
+		 *         current->journal_info to indicate that we need to
+		 *         sync below.
+		 */
+		if (sync) {
+			ASSERT(current->journal_info == NULL);
+			iocb->ki_flags &= ~IOCB_DSYNC;
+			current->journal_info = BTRFS_DIO_SYNC_STUB;
+		}
 		num_written = __btrfs_direct_write(iocb, from);
+
+		/*
+		 * As stated above, we cleared journal_info, so we need to do
+		 * the sync ourselves.
+		 */
+		if (sync && current->journal_info == NULL)
+			iocb->ki_flags |= IOCB_DSYNC;
+		current->journal_info = NULL;
 	} else {
 		num_written = btrfs_buffered_write(iocb, from);
 		if (num_written > 0)

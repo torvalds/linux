@@ -62,6 +62,7 @@ struct btrfs_dio_data {
 	loff_t length;
 	ssize_t submitted;
 	struct extent_changeset *data_reserved;
+	bool sync;
 };
 
 static const struct inode_operations btrfs_dir_inode_operations;
@@ -7337,6 +7338,17 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	int ret = 0;
 	u64 len = length;
 	bool unlock_extents = false;
+	bool sync = (current->journal_info == BTRFS_DIO_SYNC_STUB);
+
+	/*
+	 * We used current->journal_info here to see if we were sync, but
+	 * there's a lot of tests in the enospc machinery to not do flushing if
+	 * we have a journal_info set, so we need to clear this out and re-set
+	 * it in iomap_end.
+	 */
+	ASSERT(current->journal_info == NULL ||
+	       current->journal_info == BTRFS_DIO_SYNC_STUB);
+	current->journal_info = NULL;
 
 	if (!write)
 		len = min_t(u64, len, fs_info->sectorsize);
@@ -7362,6 +7374,7 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	if (!dio_data)
 		return -ENOMEM;
 
+	dio_data->sync = sync;
 	dio_data->length = length;
 	if (write) {
 		dio_data->reserve = round_up(length, fs_info->sectorsize);
@@ -7509,6 +7522,14 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 		extent_changeset_free(dio_data->data_reserved);
 	}
 out:
+	/*
+	 * We're all done, we can re-set the current->journal_info now safely
+	 * for our endio.
+	 */
+	if (dio_data->sync) {
+		ASSERT(current->journal_info == NULL);
+		current->journal_info = BTRFS_DIO_SYNC_STUB;
+	}
 	kfree(dio_data);
 	iomap->private = NULL;
 
@@ -7917,6 +7938,30 @@ out:
 	return retval;
 }
 
+static inline int btrfs_maybe_fsync_end_io(struct kiocb *iocb, ssize_t size,
+					   int error, unsigned flags)
+{
+	/*
+	 * Now if we're still in the context of our submitter we know we can't
+	 * safely run generic_write_sync(), so clear our flag here so that the
+	 * caller knows to follow up with a sync.
+	 */
+	if (current->journal_info == BTRFS_DIO_SYNC_STUB) {
+		current->journal_info = NULL;
+		return error;
+	}
+
+	if (error)
+		return error;
+
+	if (size) {
+		iocb->ki_flags |= IOCB_DSYNC;
+		return generic_write_sync(iocb, size);
+	}
+
+	return 0;
+}
+
 static const struct iomap_ops btrfs_dio_iomap_ops = {
 	.iomap_begin            = btrfs_dio_iomap_begin,
 	.iomap_end              = btrfs_dio_iomap_end,
@@ -7924,6 +7969,11 @@ static const struct iomap_ops btrfs_dio_iomap_ops = {
 
 static const struct iomap_dio_ops btrfs_dio_ops = {
 	.submit_io		= btrfs_submit_direct,
+};
+
+static const struct iomap_dio_ops btrfs_sync_dops = {
+	.submit_io		= btrfs_submit_direct,
+	.end_io			= btrfs_maybe_fsync_end_io,
 };
 
 ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
@@ -7954,8 +8004,16 @@ ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		down_read(&BTRFS_I(inode)->dio_sem);
 	}
 
-	ret = iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops, &btrfs_dio_ops,
-			is_sync_kiocb(iocb));
+	/*
+	 * We have are actually a sync iocb, so we need our fancy endio to know
+	 * if we need to sync.
+	 */
+	if (current->journal_info)
+		ret = iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops,
+				   &btrfs_sync_dops, is_sync_kiocb(iocb));
+	else
+		ret = iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops,
+				   &btrfs_dio_ops, is_sync_kiocb(iocb));
 
 	if (ret == -ENOTBLK)
 		ret = 0;
