@@ -383,7 +383,7 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
 	 * Name(_ADR, 0x40000000), with bits 31..28 representing the
 	 * SoundWire link so filter accordingly
 	 */
-	if ((adr & GENMASK(31, 28)) >> 28 != SDW_LINK_TYPE)
+	if (FIELD_GET(GENMASK(31, 28), adr) != SDW_LINK_TYPE)
 		return AE_OK; /* keep going */
 
 	/* device found, stop namespace walk */
