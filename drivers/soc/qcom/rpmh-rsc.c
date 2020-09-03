@@ -1064,7 +1064,7 @@ static int rpmh_rsc_pd_cb(struct notifier_block *nb,
 
 	/* We don't need to lock as domin on/off are serialized */
 	if ((action == GENPD_NOTIFY_PRE_OFF) &&
-	    (rpmh_rsc_ctrlr_is_busy(drv) || rpmh_flush(&drv->client)))
+	    (rpmh_rsc_ctrlr_is_busy(drv) || _rpmh_flush(&drv->client)))
 		return NOTIFY_BAD;
 
 	return NOTIFY_OK;
