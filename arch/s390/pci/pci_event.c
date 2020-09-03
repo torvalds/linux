@@ -143,6 +143,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			zpci_remove_device(zdev);
 		}
 
+		zdev->fh = ccdf->fh;
+		zpci_disable_device(zdev);
 		zdev->state = ZPCI_FN_STATE_STANDBY;
 		if (!clp_get_state(ccdf->fid, &state) &&
 		    state == ZPCI_FN_STATE_RESERVED) {
