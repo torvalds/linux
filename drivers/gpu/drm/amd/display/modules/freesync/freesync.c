@@ -41,9 +41,9 @@
 #define BTR_MAX_MARGIN 2500
 /* Threshold to change BTR multiplier (to avoid frequent changes) */
 #define BTR_DRIFT_MARGIN 2000
-/*Threshold to exit fixed refresh rate*/
+/* Threshold to exit fixed refresh rate */
 #define FIXED_REFRESH_EXIT_MARGIN_IN_HZ 4
-/* Number of consecutive frames to check before entering/exiting fixed refresh*/
+/* Number of consecutive frames to check before entering/exiting fixed refresh */
 #define FIXED_REFRESH_ENTER_FRAME_COUNT 5
 #define FIXED_REFRESH_EXIT_FRAME_COUNT 5
 
@@ -85,7 +85,7 @@ void mod_freesync_destroy(struct mod_freesync *mod_freesync)
 	kfree(core_freesync);
 }
 
-#if 0 /* unused currently */
+#if 0 /* Unused currently */
 static unsigned int calc_refresh_in_uhz_from_duration(
 		unsigned int duration_in_ns)
 {
@@ -184,7 +184,7 @@ static void update_v_total_for_static_ramp(
 	bool ramp_direction_is_up = (current_duration_in_us >
 				target_duration_in_us) ? true : false;
 
-	/* Calc ratio between new and current frame duration with 3 digit */
+	/* Calculate ratio between new and current frame duration with 3 digit */
 	unsigned int frame_duration_ratio = div64_u64(1000000,
 		(1000 +  div64_u64(((unsigned long long)(
 		STATIC_SCREEN_RAMP_DELTA_REFRESH_RATE_PER_FRAME) *
@@ -204,10 +204,10 @@ static void update_v_total_for_static_ramp(
 
 	/* Going to a higher refresh rate (lower frame duration) */
 	if (ramp_direction_is_up) {
-		/* reduce frame duration */
+		/* Reduce frame duration */
 		current_duration_in_us -= ramp_rate_interpolated;
 
-		/* adjust for frame duration below min */
+		/* Adjust for frame duration below min */
 		if (current_duration_in_us <= target_duration_in_us) {
 			in_out_vrr->fixed.ramping_active = false;
 			in_out_vrr->fixed.ramping_done = true;
@@ -217,10 +217,10 @@ static void update_v_total_for_static_ramp(
 		}
 	/* Going to a lower refresh rate (larger frame duration) */
 	} else {
-		/* increase frame duration */
+		/* Increase frame duration */
 		current_duration_in_us += ramp_rate_interpolated;
 
-		/* adjust for frame duration above max */
+		/* Adjust for frame duration above max */
 		if (current_duration_in_us >= target_duration_in_us) {
 			in_out_vrr->fixed.ramping_active = false;
 			in_out_vrr->fixed.ramping_done = true;
@@ -289,7 +289,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 	} else {
 
 		/* Calculate number of midPoint frames that could fit within
-		 * the render time interval- take ceil of this value
+		 * the render time interval - take ceil of this value
 		 */
 		mid_point_frames_ceil = (last_render_time_in_us +
 				in_out_vrr->btr.mid_point_in_us - 1) /
@@ -306,7 +306,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		}
 
 		/* Calculate number of midPoint frames that could fit within
-		 * the render time interval- take floor of this value
+		 * the render time interval - take floor of this value
 		 */
 		mid_point_frames_floor = last_render_time_in_us /
 				in_out_vrr->btr.mid_point_in_us;
@@ -559,7 +559,7 @@ static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 	 */
 	infopacket->sb[8] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
 
-	//FreeSync HDR
+	/* FreeSync HDR */
 	infopacket->sb[9] = 0;
 	infopacket->sb[10] = 0;
 }
@@ -897,15 +897,15 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	min_refresh_in_uhz = in_config->min_refresh_in_uhz;
 	max_refresh_in_uhz = in_config->max_refresh_in_uhz;
 
-	// Full range may be larger than current video timing, so cap at nominal
+	/* Full range may be larger than current video timing, so cap at nominal */
 	if (max_refresh_in_uhz > nominal_field_rate_in_uhz)
 		max_refresh_in_uhz = nominal_field_rate_in_uhz;
 
-	// Full range may be larger than current video timing, so cap at nominal
+	/* Full range may be larger than current video timing, so cap at nominal */
 	if (min_refresh_in_uhz > max_refresh_in_uhz)
 		min_refresh_in_uhz = max_refresh_in_uhz;
 
-	// If a monitor reports exactly max refresh of 2x of min, enforce it on nominal
+	/* If a monitor reports exactly max refresh of 2x of min, enforce it on nominal */
 	rounded_nominal_in_uhz =
 			div_u64(nominal_field_rate_in_uhz + 50000, 100000) * 100000;
 	if (in_config->max_refresh_in_uhz == (2 * in_config->min_refresh_in_uhz) &&
@@ -1042,7 +1042,7 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 		last_render_time_in_us = curr_time_stamp_in_us -
 				plane->time.prev_update_time_in_us;
 
-		// Sum off all entries except oldest one
+		/* Sum off all entries except oldest one */
 		for (i = 0; i < DC_PLANE_UPDATE_TIMES_MAX; i++) {
 			average_render_time_in_us +=
 					plane->time.time_elapsed_in_us[i];
@@ -1050,7 +1050,7 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 		average_render_time_in_us -=
 				plane->time.time_elapsed_in_us[oldest_index];
 
-		// Add render time for current flip
+		/* Add render time for current flip */
 		average_render_time_in_us += last_render_time_in_us;
 		average_render_time_in_us /= DC_PLANE_UPDATE_TIMES_MAX;
 
@@ -1125,8 +1125,9 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 	if (in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE)
 		in_out_vrr->fixed.ramping_active = false;
 
-	/* Gradual Static Screen Ramping Logic */
-	/* Execute if ramp is active and user enabled freesync static screen*/
+	/* Gradual Static Screen Ramping Logic
+	 * Execute if ramp is active and user enabled freesync static screen
+	 */
 	if (in_out_vrr->state == VRR_STATE_ACTIVE_FIXED &&
 				in_out_vrr->fixed.ramping_active) {
 		update_v_total_for_static_ramp(
@@ -1214,20 +1215,20 @@ bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 	min_refresh_cap_in_uhz /= 1000000;
 	max_refresh_cap_in_uhz /= 1000000;
 
-	// Check nominal is within range
+	/* Check nominal is within range */
 	if (nominal_field_rate_in_uhz > max_refresh_cap_in_uhz ||
 		nominal_field_rate_in_uhz < min_refresh_cap_in_uhz)
 		return false;
 
-	// If nominal is less than max, limit the max allowed refresh rate
+	/* If nominal is less than max, limit the max allowed refresh rate */
 	if (nominal_field_rate_in_uhz < max_refresh_cap_in_uhz)
 		max_refresh_cap_in_uhz = nominal_field_rate_in_uhz;
 
-	// Check min is within range
+	/* Check min is within range */
 	if (min_refresh_cap_in_uhz > max_refresh_cap_in_uhz)
 		return false;
 
-	// For variable range, check for at least 10 Hz range
+	/* For variable range, check for at least 10 Hz range */
 	if (nominal_field_rate_in_uhz - min_refresh_cap_in_uhz < 10)
 		return false;
 
