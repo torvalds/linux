@@ -613,12 +613,27 @@ static bool intel_dp_hdisplay_bad(struct drm_i915_private *dev_priv,
 
 static enum drm_mode_status
 intel_dp_mode_valid_downstream(struct intel_connector *connector,
+			       const struct drm_display_mode *mode,
 			       int target_clock)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	const struct drm_display_info *info = &connector->base.display_info;
+	int tmds_clock;
 
 	if (intel_dp->dfp.max_dotclock &&
 	    target_clock > intel_dp->dfp.max_dotclock)
+		return MODE_CLOCK_HIGH;
+
+	/* Assume 8bpc for the DP++/HDMI/DVI TMDS clock check */
+	tmds_clock = target_clock;
+	if (drm_mode_is_420_only(info, mode))
+		tmds_clock /= 2;
+
+	if (intel_dp->dfp.min_tmds_clock &&
+	    tmds_clock < intel_dp->dfp.min_tmds_clock)
+		return MODE_CLOCK_LOW;
+	if (intel_dp->dfp.max_tmds_clock &&
+	    tmds_clock > intel_dp->dfp.max_tmds_clock)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -697,7 +712,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return MODE_H_ILLEGAL;
 
-	status = intel_dp_mode_valid_downstream(intel_connector, target_clock);
+	status = intel_dp_mode_valid_downstream(intel_connector,
+						mode, target_clock);
 	if (status != MODE_OK)
 		return status;
 
@@ -6070,10 +6086,22 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 		drm_dp_downstream_max_dotclock(intel_dp->dpcd,
 					       intel_dp->downstream_ports);
 
+	intel_dp->dfp.min_tmds_clock =
+		drm_dp_downstream_min_tmds_clock(intel_dp->dpcd,
+						 intel_dp->downstream_ports,
+						 edid);
+	intel_dp->dfp.max_tmds_clock =
+		drm_dp_downstream_max_tmds_clock(intel_dp->dpcd,
+						 intel_dp->downstream_ports,
+						 edid);
+
 	drm_dbg_kms(&i915->drm,
-		    "[CONNECTOR:%d:%s] DFP max bpc %d, max dotclock %d\n",
+		    "[CONNECTOR:%d:%s] DFP max bpc %d, max dotclock %d, TMDS clock %d-%d\n",
 		    connector->base.base.id, connector->base.name,
-		    intel_dp->dfp.max_bpc, intel_dp->dfp.max_dotclock);
+		    intel_dp->dfp.max_bpc,
+		    intel_dp->dfp.max_dotclock,
+		    intel_dp->dfp.min_tmds_clock,
+		    intel_dp->dfp.max_tmds_clock);
 
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
 		intel_dp->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
@@ -6099,6 +6127,8 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 
 	intel_dp->dfp.max_bpc = 0;
 	intel_dp->dfp.max_dotclock = 0;
+	intel_dp->dfp.min_tmds_clock = 0;
+	intel_dp->dfp.max_tmds_clock = 0;
 }
 
 static int
