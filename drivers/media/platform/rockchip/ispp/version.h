@@ -27,6 +27,11 @@
  * 1. add clk rate set for rv1126
  * 2. safe to enable shp/fec output
  * 3. tnr skip input buf if no output buf
+ *
+ * v0.1.5:
+ * 1. add proc fs
+ * 2. add iq part information to procfs
+ * 3. fix config err for stream switch
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION
