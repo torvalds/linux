@@ -138,51 +138,51 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 {
 	scsi_qla_host_t *vha = s->private;
 	struct qla_hw_data *ha = vha->hw;
-	struct gid_list_info *gid_list, *gid;
+	struct gid_list_info *gid_list;
 	dma_addr_t gid_list_dma;
 	fc_port_t fc_port;
+	char *id_iter;
 	int rc, i;
 	uint16_t entries, loop_id;
-	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 
 	seq_printf(s, "%s\n", vha->host_str);
-	if (tgt) {
-		gid_list = dma_alloc_coherent(&ha->pdev->dev,
-		    qla2x00_gid_list_size(ha),
-		    &gid_list_dma, GFP_KERNEL);
-		if (!gid_list) {
-			ql_dbg(ql_dbg_user, vha, 0x7018,
-			    "DMA allocation failed for %u\n",
-			     qla2x00_gid_list_size(ha));
-			return 0;
-		}
-
-		rc = qla24xx_gidlist_wait(vha, gid_list, gid_list_dma,
-		    &entries);
-		if (rc != QLA_SUCCESS)
-			goto out_free_id_list;
-
-		gid = gid_list;
-
-		seq_puts(s, "Port Name	Port ID 	Loop ID\n");
-
-		for (i = 0; i < entries; i++) {
-			loop_id = le16_to_cpu(gid->loop_id);
-			memset(&fc_port, 0, sizeof(fc_port_t));
-
-			fc_port.loop_id = loop_id;
-
-			rc = qla24xx_gpdb_wait(vha, &fc_port, 0);
-			seq_printf(s, "%8phC  %02x%02x%02x  %d\n",
-				fc_port.port_name, fc_port.d_id.b.domain,
-				fc_port.d_id.b.area, fc_port.d_id.b.al_pa,
-				fc_port.loop_id);
-			gid = (void *)gid + ha->gid_list_info_size;
-		}
-out_free_id_list:
-		dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),
-		    gid_list, gid_list_dma);
+	gid_list = dma_alloc_coherent(&ha->pdev->dev,
+				      qla2x00_gid_list_size(ha),
+				      &gid_list_dma, GFP_KERNEL);
+	if (!gid_list) {
+		ql_dbg(ql_dbg_user, vha, 0x7018,
+		       "DMA allocation failed for %u\n",
+		       qla2x00_gid_list_size(ha));
+		return 0;
 	}
+
+	rc = qla24xx_gidlist_wait(vha, gid_list, gid_list_dma,
+				  &entries);
+	if (rc != QLA_SUCCESS)
+		goto out_free_id_list;
+
+	id_iter = (char *)gid_list;
+
+	seq_puts(s, "Port Name	Port ID		Loop ID\n");
+
+	for (i = 0; i < entries; i++) {
+		struct gid_list_info *gid =
+			(struct gid_list_info *)id_iter;
+		loop_id = le16_to_cpu(gid->loop_id);
+		memset(&fc_port, 0, sizeof(fc_port_t));
+
+		fc_port.loop_id = loop_id;
+
+		rc = qla24xx_gpdb_wait(vha, &fc_port, 0);
+		seq_printf(s, "%8phC  %02x%02x%02x  %d\n",
+			   fc_port.port_name, fc_port.d_id.b.domain,
+			   fc_port.d_id.b.area, fc_port.d_id.b.al_pa,
+			   fc_port.loop_id);
+		id_iter += ha->gid_list_info_size;
+	}
+out_free_id_list:
+	dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),
+			  gid_list, gid_list_dma);
 
 	return 0;
 }
