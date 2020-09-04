@@ -1783,19 +1783,16 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_mixer *mixer;
+	size_t ipc_size = sizeof(*mixer);
 	int ret;
 
-	mixer = kzalloc(sizeof(*mixer), GFP_KERNEL);
+	mixer = (struct sof_ipc_comp_mixer *)
+		sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!mixer)
 		return -ENOMEM;
 
 	/* configure mixer IPC message */
-	mixer->comp.hdr.size = sizeof(*mixer);
-	mixer->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	mixer->comp.id = swidget->comp_id;
 	mixer->comp.type = SOF_COMP_MIXER;
-	mixer->comp.pipeline_id = index;
-	mixer->comp.core = core;
 	mixer->config.hdr.size = sizeof(mixer->config);
 
 	ret = sof_parse_tokens(scomp, &mixer->config, comp_tokens,
@@ -1813,7 +1810,7 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
 	swidget->private = mixer;
 
 	ret = sof_ipc_tx_message(sdev->ipc, mixer->comp.hdr.cmd, mixer,
-				 sizeof(*mixer), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret < 0)
 		kfree(mixer);
 
