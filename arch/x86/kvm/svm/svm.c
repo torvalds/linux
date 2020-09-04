@@ -2277,6 +2277,7 @@ static int cr_interception(struct vcpu_svm *svm)
 	if (cr >= 16) { /* mov to cr */
 		cr -= 16;
 		val = kvm_register_read(&svm->vcpu, reg);
+		trace_kvm_cr_write(cr, val);
 		switch (cr) {
 		case 0:
 			if (!check_selective_cr0_intercepted(svm, val))
@@ -2322,6 +2323,7 @@ static int cr_interception(struct vcpu_svm *svm)
 			return 1;
 		}
 		kvm_register_write(&svm->vcpu, reg, val);
+		trace_kvm_cr_read(cr, val);
 	}
 	return kvm_complete_insn_gp(&svm->vcpu, err);
 }
