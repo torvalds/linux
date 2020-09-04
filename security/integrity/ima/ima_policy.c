@@ -241,6 +241,8 @@ static int __init policy_setup(char *str)
 			ima_use_secure_boot = true;
 		else if (strcmp(p, "fail_securely") == 0)
 			ima_fail_unverifiable_sigs = true;
+		else
+			pr_err("policy \"%s\" not found", p);
 	}
 
 	return 1;

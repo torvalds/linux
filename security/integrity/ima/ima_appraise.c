@@ -33,6 +33,8 @@ static int __init default_appraise_setup(char *str)
 		ima_appraise = IMA_APPRAISE_FIX;
 	else if (strncmp(str, "enforce", 7) == 0)
 		ima_appraise = IMA_APPRAISE_ENFORCE;
+	else
+		pr_err("invalid \"%s\" appraise option", str);
 #endif
 	return 1;
 }
