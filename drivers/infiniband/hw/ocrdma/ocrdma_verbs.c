@@ -815,9 +815,8 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 			    u32 num_pbes)
 {
 	struct ocrdma_pbe *pbe;
-	struct sg_dma_page_iter sg_iter;
+	struct ib_block_iter biter;
 	struct ocrdma_pbl *pbl_tbl = mr->hwmr.pbl_table;
-	struct ib_umem *umem = mr->umem;
 	int pbe_cnt, total_num_pbes = 0;
 	u64 pg_addr;
 
@@ -827,9 +826,9 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 	pbe = (struct ocrdma_pbe *)pbl_tbl->va;
 	pbe_cnt = 0;
 
-	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+	rdma_umem_for_each_dma_block (mr->umem, &biter, PAGE_SIZE) {
 		/* store the page address in pbe */
-		pg_addr = sg_page_iter_dma_address(&sg_iter);
+		pg_addr = rdma_block_iter_dma_address(&biter);
 		pbe->pa_lo = cpu_to_le32(pg_addr);
 		pbe->pa_hi = cpu_to_le32(upper_32_bits(pg_addr));
 		pbe_cnt += 1;

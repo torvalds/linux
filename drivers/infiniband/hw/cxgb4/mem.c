@@ -510,7 +510,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	__be64 *pages;
 	int shift, n, i;
 	int err = -ENOMEM;
-	struct sg_dma_page_iter sg_iter;
+	struct ib_block_iter biter;
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
 	struct c4iw_mr *mhp;
@@ -561,8 +561,8 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	i = n = 0;
 
-	for_each_sg_dma_page(mhp->umem->sg_head.sgl, &sg_iter, mhp->umem->nmap, 0) {
-		pages[i++] = cpu_to_be64(sg_page_iter_dma_address(&sg_iter));
+	rdma_umem_for_each_dma_block(mhp->umem, &biter, 1 << shift) {
+		pages[i++] = cpu_to_be64(rdma_block_iter_dma_address(&biter));
 		if (i == PAGE_SIZE / sizeof(*pages)) {
 			err = write_pbl(&mhp->rhp->rdev, pages,
 					mhp->attr.pbl_addr + (n << 3), i,

@@ -850,7 +850,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				       u64 virt, int acc, struct ib_udata *udata)
 {
 	struct mthca_dev *dev = to_mdev(pd->device);
-	struct sg_dma_page_iter sg_iter;
+	struct ib_block_iter biter;
 	struct mthca_ucontext *context = rdma_udata_to_drv_context(
 		udata, struct mthca_ucontext, ibucontext);
 	struct mthca_mr *mr;
@@ -899,8 +899,8 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	write_mtt_size = min(mthca_write_mtt_size(dev), (int) (PAGE_SIZE / sizeof *pages));
 
-	for_each_sg_dma_page(mr->umem->sg_head.sgl, &sg_iter, mr->umem->nmap, 0) {
-		pages[i++] = sg_page_iter_dma_address(&sg_iter);
+	rdma_umem_for_each_dma_block(mr->umem, &biter, PAGE_SIZE) {
+		pages[i++] = rdma_block_iter_dma_address(&biter);
 
 		/*
 		 * Be friendly to write_mtt and pass it chunks
