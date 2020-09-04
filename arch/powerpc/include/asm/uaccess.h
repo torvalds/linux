@@ -189,14 +189,14 @@ extern long __put_user_bad(void);
 
 #define __put_user_size_allowed(x, ptr, size, retval)		\
 do {								\
+	__label__ __pu_failed;					\
+								\
 	retval = 0;						\
-	switch (size) {						\
-	  case 1: __put_user_asm(x, ptr, retval, "stb"); break;	\
-	  case 2: __put_user_asm(x, ptr, retval, "sth"); break;	\
-	  case 4: __put_user_asm(x, ptr, retval, "stw"); break;	\
-	  case 8: __put_user_asm2(x, ptr, retval); break;	\
-	  default: __put_user_bad();				\
-	}							\
+	__put_user_size_goto(x, ptr, size, __pu_failed);	\
+	break;							\
+								\
+__pu_failed:							\
+	retval = -EFAULT;					\
 } while (0)
 
 #define __put_user_size(x, ptr, size, retval)			\
