@@ -605,6 +605,7 @@
 		pinctrl-0 = <&pinctrl_typec>, <&pinctrl_tcpc>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "irq";
 
 		connector {
 			ports {
