@@ -2197,12 +2197,6 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	int ret;
 	int i;
 
-	if (type == SOF_COMP_NONE) {
-		dev_err(scomp->dev, "error: invalid process comp type %d\n",
-			type);
-		return -EINVAL;
-	}
-
 	/* allocate struct for widget control data sizes and types */
 	if (widget->num_kcontrols) {
 		wdata = kcalloc(widget->num_kcontrols,
