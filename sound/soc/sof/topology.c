@@ -2231,18 +2231,15 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 		ipc_data_size = 0;
 	}
 
-	process = kzalloc(ipc_size, GFP_KERNEL);
+	process = (struct sof_ipc_comp_process *)
+		  sof_comp_alloc(swidget, &ipc_size, index, 0);
 	if (!process) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	/* configure iir IPC message */
-	process->comp.hdr.size = ipc_size;
-	process->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	process->comp.id = swidget->comp_id;
 	process->comp.type = type;
-	process->comp.pipeline_id = index;
 	process->config.hdr.size = sizeof(process->config);
 
 	ret = sof_parse_tokens(scomp, &process->config, comp_tokens,
