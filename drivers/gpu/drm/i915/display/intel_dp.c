@@ -247,29 +247,6 @@ intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 	return max_link_clock * max_lanes;
 }
 
-static int
-intel_dp_downstream_max_dotclock(struct intel_dp *intel_dp)
-{
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct intel_encoder *encoder = &dig_port->base;
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int max_dotclk = dev_priv->max_dotclk_freq;
-	int ds_max_dotclk;
-
-	int type = intel_dp->downstream_ports[0] & DP_DS_PORT_TYPE_MASK;
-
-	if (type != DP_DS_PORT_TYPE_VGA)
-		return max_dotclk;
-
-	ds_max_dotclk = drm_dp_downstream_max_dotclock(intel_dp->dpcd,
-						       intel_dp->downstream_ports);
-
-	if (ds_max_dotclk != 0)
-		max_dotclk = min(max_dotclk, ds_max_dotclk);
-
-	return max_dotclk;
-}
-
 static int cnl_max_source_rate(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -635,6 +612,19 @@ static bool intel_dp_hdisplay_bad(struct drm_i915_private *dev_priv,
 }
 
 static enum drm_mode_status
+intel_dp_mode_valid_downstream(struct intel_connector *connector,
+			       int target_clock)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+
+	if (intel_dp->dfp.max_dotclock &&
+	    target_clock > intel_dp->dfp.max_dotclock)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
+static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
@@ -644,14 +634,13 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	int target_clock = mode->clock;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
-	int max_dotclk;
+	int max_dotclk = dev_priv->max_dotclk_freq;
 	u16 dsc_max_output_bpp = 0;
 	u8 dsc_slice_count = 0;
+	enum drm_mode_status status;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
-
-	max_dotclk = intel_dp_downstream_max_dotclock(intel_dp);
 
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
 		if (mode->hdisplay > fixed_mode->hdisplay)
@@ -707,6 +696,10 @@ intel_dp_mode_valid(struct drm_connector *connector,
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return MODE_H_ILLEGAL;
+
+	status = intel_dp_mode_valid_downstream(intel_connector, target_clock);
+	if (status != MODE_OK)
+		return status;
 
 	return intel_mode_valid_max_plane_size(dev_priv, mode);
 }
@@ -6073,9 +6066,14 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 		drm_dp_downstream_max_bpc(intel_dp->dpcd,
 					  intel_dp->downstream_ports, edid);
 
-	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] DFP max bpc %d\n",
+	intel_dp->dfp.max_dotclock =
+		drm_dp_downstream_max_dotclock(intel_dp->dpcd,
+					       intel_dp->downstream_ports);
+
+	drm_dbg_kms(&i915->drm,
+		    "[CONNECTOR:%d:%s] DFP max bpc %d, max dotclock %d\n",
 		    connector->base.base.id, connector->base.name,
-		    intel_dp->dfp.max_bpc);
+		    intel_dp->dfp.max_bpc, intel_dp->dfp.max_dotclock);
 
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
 		intel_dp->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
@@ -6100,6 +6098,7 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 	intel_dp->edid_quirks = 0;
 
 	intel_dp->dfp.max_bpc = 0;
+	intel_dp->dfp.max_dotclock = 0;
 }
 
 static int
