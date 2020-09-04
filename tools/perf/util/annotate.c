@@ -3127,6 +3127,8 @@ static int annotation__config(const char *var, const char *value, void *data)
 								value);
 	} else if (!strcmp(var, "annotate.use_offset")) {
 		opt->use_offset = perf_config_bool("use_offset", value);
+	} else if (!strcmp(var, "annotate.disassembler_style")) {
+		opt->disassembler_style = value;
 	} else {
 		pr_debug("%s variable unknown, ignoring...", var);
 	}
