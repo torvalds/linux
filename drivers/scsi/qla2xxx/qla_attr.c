@@ -2726,6 +2726,9 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	struct link_statistics *stats;
 	dma_addr_t stats_dma;
 	struct fc_host_statistics *p = &vha->fc_host_stat;
+	struct qla_qpair *qpair;
+	int i;
+	u64 ib = 0, ob = 0, ir = 0, or = 0;
 
 	memset(p, -1, sizeof(*p));
 
@@ -2762,6 +2765,27 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (rval != QLA_SUCCESS)
 		goto done_free;
 
+	/* --- */
+	for (i = 0; i < vha->hw->max_qpairs; i++) {
+		qpair = vha->hw->queue_pair_map[i];
+		if (!qpair)
+			continue;
+		ir += qpair->counters.input_requests;
+		or += qpair->counters.output_requests;
+		ib += qpair->counters.input_bytes;
+		ob += qpair->counters.output_bytes;
+	}
+	ir += ha->base_qpair->counters.input_requests;
+	or += ha->base_qpair->counters.output_requests;
+	ib += ha->base_qpair->counters.input_bytes;
+	ob += ha->base_qpair->counters.output_bytes;
+
+	ir += vha->qla_stats.input_requests;
+	or += vha->qla_stats.output_requests;
+	ib += vha->qla_stats.input_bytes;
+	ob += vha->qla_stats.output_bytes;
+	/* --- */
+
 	p->link_failure_count = le32_to_cpu(stats->link_fail_cnt);
 	p->loss_of_sync_count = le32_to_cpu(stats->loss_sync_cnt);
 	p->loss_of_signal_count = le32_to_cpu(stats->loss_sig_cnt);
@@ -2781,15 +2805,16 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 			p->rx_words = le64_to_cpu(stats->fpm_recv_word_cnt);
 			p->tx_words = le64_to_cpu(stats->fpm_xmit_word_cnt);
 		} else {
-			p->rx_words = vha->qla_stats.input_bytes;
-			p->tx_words = vha->qla_stats.output_bytes;
+			p->rx_words = ib >> 2;
+			p->tx_words = ob >> 2;
 		}
 	}
+
 	p->fcp_control_requests = vha->qla_stats.control_requests;
-	p->fcp_input_requests = vha->qla_stats.input_requests;
-	p->fcp_output_requests = vha->qla_stats.output_requests;
-	p->fcp_input_megabytes = vha->qla_stats.input_bytes >> 20;
-	p->fcp_output_megabytes = vha->qla_stats.output_bytes >> 20;
+	p->fcp_input_requests = ir;
+	p->fcp_output_requests = or;
+	p->fcp_input_megabytes  = ib >> 20;
+	p->fcp_output_megabytes = ob >> 20;
 	p->seconds_since_last_reset =
 	    get_jiffies_64() - vha->qla_stats.jiffies_at_last_reset;
 	do_div(p->seconds_since_last_reset, HZ);
@@ -2809,9 +2834,18 @@ qla2x00_reset_host_stats(struct Scsi_Host *shost)
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	struct link_statistics *stats;
 	dma_addr_t stats_dma;
+	int i;
+	struct qla_qpair *qpair;
 
 	memset(&vha->qla_stats, 0, sizeof(vha->qla_stats));
 	memset(&vha->fc_host_stat, 0, sizeof(vha->fc_host_stat));
+	for (i = 0; i < vha->hw->max_qpairs; i++) {
+		qpair = vha->hw->queue_pair_map[i];
+		if (!qpair)
+			continue;
+		memset(&qpair->counters, 0, sizeof(qpair->counters));
+	}
+	memset(&ha->base_qpair->counters, 0, sizeof(qpair->counters));
 
 	vha->qla_stats.jiffies_at_last_reset = get_jiffies_64();
 

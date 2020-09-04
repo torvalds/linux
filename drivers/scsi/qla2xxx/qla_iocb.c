@@ -594,6 +594,7 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	uint32_t dsd_list_len;
 	struct dsd_dma *dsd_ptr;
 	struct ct6_dsd *ctx;
+	struct qla_qpair *qpair = sp->qpair;
 
 	cmd = GET_CMD_SP(sp);
 
@@ -612,12 +613,12 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	/* Set transfer direction */
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cmd_pkt->control_flags = cpu_to_le16(CF_WRITE_DATA);
-		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
-		vha->qla_stats.output_requests++;
+		qpair->counters.output_bytes += scsi_bufflen(cmd);
+		qpair->counters.output_requests++;
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->control_flags = cpu_to_le16(CF_READ_DATA);
-		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
-		vha->qla_stats.input_requests++;
+		qpair->counters.input_bytes += scsi_bufflen(cmd);
+		qpair->counters.input_requests++;
 	}
 
 	cur_seg = scsi_sglist(cmd);
@@ -704,6 +705,7 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	struct scsi_cmnd *cmd;
 	struct scatterlist *sg;
 	int i;
+	struct qla_qpair *qpair = sp->qpair;
 
 	cmd = GET_CMD_SP(sp);
 
@@ -721,12 +723,12 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	/* Set transfer direction */
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cmd_pkt->task_mgmt_flags = cpu_to_le16(TMF_WRITE_DATA);
-		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
-		vha->qla_stats.output_requests++;
+		qpair->counters.output_bytes += scsi_bufflen(cmd);
+		qpair->counters.output_requests++;
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->task_mgmt_flags = cpu_to_le16(TMF_READ_DATA);
-		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
-		vha->qla_stats.input_requests++;
+		qpair->counters.input_bytes += scsi_bufflen(cmd);
+		qpair->counters.input_requests++;
 	}
 
 	/* One DSD is available in the Command Type 3 IOCB */

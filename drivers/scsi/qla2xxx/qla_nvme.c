@@ -428,8 +428,8 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	/* No data transfer how do we check buffer len == 0?? */
 	if (fd->io_dir == NVMEFC_FCP_READ) {
 		cmd_pkt->control_flags = cpu_to_le16(CF_READ_DATA);
-		vha->qla_stats.input_bytes += fd->payload_length;
-		vha->qla_stats.input_requests++;
+		qpair->counters.input_bytes += fd->payload_length;
+		qpair->counters.input_requests++;
 	} else if (fd->io_dir == NVMEFC_FCP_WRITE) {
 		cmd_pkt->control_flags = cpu_to_le16(CF_WRITE_DATA);
 		if ((vha->flags.nvme_first_burst) &&
@@ -441,8 +441,8 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 				cmd_pkt->control_flags |=
 					cpu_to_le16(CF_NVME_FIRST_BURST_ENABLE);
 		}
-		vha->qla_stats.output_bytes += fd->payload_length;
-		vha->qla_stats.output_requests++;
+		qpair->counters.output_bytes += fd->payload_length;
+		qpair->counters.output_requests++;
 	} else if (fd->io_dir == 0) {
 		cmd_pkt->control_flags = 0;
 	}

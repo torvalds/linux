@@ -3700,9 +3700,7 @@ execute_fw_with_lr:
 					goto execute_fw_with_lr;
 				}
 
-				if ((IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
-				    IS_QLA28XX(ha)) &&
-				    (ha->zio_mode == QLA_ZIO_MODE_6))
+				if (IS_ZIO_THRESHOLD_CAPABLE(ha))
 					qla27xx_set_zio_threshold(vha,
 					    ha->last_zio_threshold);
 

@@ -2443,12 +2443,6 @@ typedef struct fc_port {
 	struct list_head list;
 	struct scsi_qla_host *vha;
 
-	uint8_t node_name[WWN_SIZE];
-	uint8_t port_name[WWN_SIZE];
-	port_id_t d_id;
-	uint16_t loop_id;
-	uint16_t old_loop_id;
-
 	unsigned int conf_compl_supported:1;
 	unsigned int deleted:2;
 	unsigned int free_pending:1;
@@ -2465,6 +2459,13 @@ typedef struct fc_port {
 	unsigned int n2n_flag:1;
 	unsigned int explicit_logout:1;
 	unsigned int prli_pend_timer:1;
+	uint8_t nvme_flag;
+
+	uint8_t node_name[WWN_SIZE];
+	uint8_t port_name[WWN_SIZE];
+	port_id_t d_id;
+	uint16_t loop_id;
+	uint16_t old_loop_id;
 
 	struct completion nvme_del_done;
 	uint32_t nvme_prli_service_param;
@@ -2473,7 +2474,7 @@ typedef struct fc_port {
 #define NVME_PRLI_SP_TARGET     BIT_4
 #define NVME_PRLI_SP_DISCOVERY  BIT_3
 #define NVME_PRLI_SP_FIRST_BURST	BIT_0
-	uint8_t nvme_flag;
+
 	uint32_t nvme_first_burst_size;
 #define NVME_FLAG_REGISTERED 4
 #define NVME_FLAG_DELETING 2
@@ -3510,6 +3511,14 @@ struct qla_tgt_counters {
 	uint64_t num_term_xchg_sent;
 };
 
+struct qla_counters {
+	uint64_t input_bytes;
+	uint64_t input_requests;
+	uint64_t output_bytes;
+	uint64_t output_requests;
+
+};
+
 struct qla_qpair;
 
 /* Response queue data structure */
@@ -3594,6 +3603,7 @@ struct qla_qpair {
 	uint32_t enable_class_2:1;
 	uint32_t enable_explicit_conf:1;
 	uint32_t use_shadow_reg:1;
+	uint32_t rcv_intr:1;
 
 	uint16_t id;			/* qp number used with FW */
 	uint16_t vp_idx;		/* vport ID */
@@ -3609,13 +3619,16 @@ struct qla_qpair {
 	struct qla_msix_entry *msix; /* point to &ha->msix_entries[x] */
 	struct qla_hw_data *hw;
 	struct work_struct q_work;
+	struct qla_counters counters;
+
 	struct list_head qp_list_elem; /* vha->qp_list */
 	struct list_head hints_list;
-	uint16_t cpuid;
+
 	uint16_t retry_term_cnt;
 	__le32	retry_term_exchg_addr;
 	uint64_t retry_term_jiff;
 	struct qla_tgt_counters tgt_counters;
+	uint16_t cpuid;
 };
 
 /* Place holder for FW buffer parameters */
@@ -4128,6 +4141,10 @@ struct qla_hw_data {
 	 IS_QLA27XX(ha) || IS_QLA28XX(ha))
 #define USE_ASYNC_SCAN(ha) (IS_QLA25XX(ha) || IS_QLA81XX(ha) ||\
 	IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
+
+#define IS_ZIO_THRESHOLD_CAPABLE(ha) \
+	((IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&\
+	 (ha->zio_mode == QLA_ZIO_MODE_6))
 
 	/* HBA serial number */
 	uint8_t		serial0;
