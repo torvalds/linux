@@ -1186,50 +1186,43 @@ int btrfs_sysfs_add_space_info_type(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-/* when one_device is NULL, it removes all device links */
-
-int btrfs_sysfs_remove_devices_dir(struct btrfs_fs_devices *fs_devices,
-		struct btrfs_device *one_device)
+static void btrfs_sysfs_remove_device(struct btrfs_device *device)
 {
 	struct hd_struct *disk;
 	struct kobject *disk_kobj;
+	struct kobject *devices_kobj;
 
-	if (!fs_devices->devices_kobj)
-		return -EINVAL;
+	/*
+	 * Seed fs_devices devices_kobj aren't used, fetch kobject from the
+	 * fs_info::fs_devices.
+	 */
+	devices_kobj = device->fs_info->fs_devices->devices_kobj;
+	ASSERT(devices_kobj);
 
-	if (one_device) {
-		if (one_device->bdev) {
-			disk = one_device->bdev->bd_part;
-			disk_kobj = &part_to_dev(disk)->kobj;
-			sysfs_remove_link(fs_devices->devices_kobj,
-					  disk_kobj->name);
-		}
+	if (device->bdev) {
+		disk = device->bdev->bd_part;
+		disk_kobj = &part_to_dev(disk)->kobj;
+		sysfs_remove_link(devices_kobj, disk_kobj->name);
+	}
 
-		if (one_device->devid_kobj.state_initialized) {
-			kobject_del(&one_device->devid_kobj);
-			kobject_put(&one_device->devid_kobj);
+	if (device->devid_kobj.state_initialized) {
+		kobject_del(&device->devid_kobj);
+		kobject_put(&device->devid_kobj);
+		wait_for_completion(&device->kobj_unregister);
+	}
+}
 
-			wait_for_completion(&one_device->kobj_unregister);
-		}
-
+/* When @device is NULL, remove all devices link */
+int btrfs_sysfs_remove_devices_dir(struct btrfs_fs_devices *fs_devices,
+				   struct btrfs_device *device)
+{
+	if (device) {
+		btrfs_sysfs_remove_device(device);
 		return 0;
 	}
 
-	list_for_each_entry(one_device, &fs_devices->devices, dev_list) {
-
-		if (one_device->bdev) {
-			disk = one_device->bdev->bd_part;
-			disk_kobj = &part_to_dev(disk)->kobj;
-			sysfs_remove_link(fs_devices->devices_kobj,
-					  disk_kobj->name);
-		}
-		if (one_device->devid_kobj.state_initialized) {
-			kobject_del(&one_device->devid_kobj);
-			kobject_put(&one_device->devid_kobj);
-
-			wait_for_completion(&one_device->kobj_unregister);
-		}
-	}
+	list_for_each_entry(device, &fs_devices->devices, dev_list)
+		btrfs_sysfs_remove_device(device);
 
 	return 0;
 }
