@@ -1144,8 +1144,7 @@ static int umem_to_page_list(struct efa_dev *dev,
 	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
 		  hp_cnt, pages_in_hp);
 
-	rdma_for_each_block(umem->sg_head.sgl, &biter, umem->nmap,
-			    BIT(hp_shift))
+	rdma_umem_for_each_dma_block(umem, &biter, BIT(hp_shift))
 		page_list[hp_idx++] = rdma_block_iter_dma_address(&biter);
 
 	return 0;

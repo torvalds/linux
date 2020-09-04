@@ -268,8 +268,7 @@ int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 	}
 
 	/* convert system page cnt to hw page cnt */
-	rdma_for_each_block(umem->sg_head.sgl, &biter, umem->nmap,
-			    1 << page_shift) {
+	rdma_umem_for_each_dma_block(umem, &biter, 1 << page_shift) {
 		addr = rdma_block_iter_dma_address(&biter);
 		if (idx >= start) {
 			bufs[total++] = addr;
