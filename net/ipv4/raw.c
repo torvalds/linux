@@ -610,7 +610,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	} else if (!ipc.oif) {
 		ipc.oif = inet->uc_index;
 	} else if (ipv4_is_lbcast(daddr) && inet->uc_index) {
-		/* oif is set, packet is to local broadcast and
+		/* oif is set, packet is to local broadcast
 		 * and uc_index is set. oif is most likely set
 		 * by sk_bound_dev_if. If uc_index != oif check if the
 		 * oif is an L3 master and uc_index is an L3 slave.

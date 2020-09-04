@@ -2537,7 +2537,7 @@ void vhost_disable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 	if (!vhost_has_feature(vq, VIRTIO_RING_F_EVENT_IDX)) {
 		r = vhost_update_used_flags(vq);
 		if (r)
-			vq_err(vq, "Failed to enable notification at %p: %d\n",
+			vq_err(vq, "Failed to disable notification at %p: %d\n",
 			       &vq->used->flags, r);
 	}
 }

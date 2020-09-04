@@ -401,22 +401,24 @@ struct afs_vlserver {
 #define AFS_VLSERVER_FL_PROBED	0		/* The VL server has been probed */
 #define AFS_VLSERVER_FL_PROBING	1		/* VL server is being probed */
 #define AFS_VLSERVER_FL_IS_YFS	2		/* Server is YFS not AFS */
+#define AFS_VLSERVER_FL_RESPONDING 3		/* VL server is responding */
 	rwlock_t		lock;		/* Lock on addresses */
 	atomic_t		usage;
+	unsigned int		rtt;		/* Server's current RTT in uS */
 
 	/* Probe state */
 	wait_queue_head_t	probe_wq;
 	atomic_t		probe_outstanding;
 	spinlock_t		probe_lock;
 	struct {
-		unsigned int	rtt;		/* RTT as ktime/64 */
+		unsigned int	rtt;		/* RTT in uS */
 		u32		abort_code;
 		short		error;
-		bool		have_result;
-		bool		responded:1;
-		bool		is_yfs:1;
-		bool		not_yfs:1;
-		bool		local_failure:1;
+		unsigned short	flags;
+#define AFS_VLSERVER_PROBE_RESPONDED		0x01 /* At least once response (may be abort) */
+#define AFS_VLSERVER_PROBE_IS_YFS		0x02 /* The peer appears to be YFS */
+#define AFS_VLSERVER_PROBE_NOT_YFS		0x04 /* The peer appears not to be YFS */
+#define AFS_VLSERVER_PROBE_LOCAL_FAILURE	0x08 /* A local failure prevented a probe */
 	} probe;
 
 	u16			port;
