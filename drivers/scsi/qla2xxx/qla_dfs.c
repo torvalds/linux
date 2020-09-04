@@ -65,12 +65,52 @@ DEFINE_DEBUGFS_ATTRIBUTE(qla_dfs_rport_##_attr##_fops,		\
 		qla_dfs_rport_##_attr##_get,			\
 		qla_dfs_rport_##_attr##_set, "%llu\n")
 
+/*
+ * Wrapper for getting fc_port fields.
+ *
+ * _attr    : Attribute name.
+ * _get_val : Accessor macro to retrieve the value.
+ */
+#define DEFINE_QLA_DFS_RPORT_FIELD_GET(_attr, _get_val)			\
+static int qla_dfs_rport_field_##_attr##_get(void *data, u64 *val)	\
+{									\
+	struct fc_port *fp = data;					\
+	*val = _get_val;						\
+	return 0;							\
+}									\
+DEFINE_DEBUGFS_ATTRIBUTE(qla_dfs_rport_field_##_attr##_fops,		\
+		qla_dfs_rport_field_##_attr##_get,			\
+		NULL, "%llu\n")
+
+#define DEFINE_QLA_DFS_RPORT_ACCESS(_attr, _get_val) \
+	DEFINE_QLA_DFS_RPORT_FIELD_GET(_attr, _get_val)
+
+#define DEFINE_QLA_DFS_RPORT_FIELD(_attr) \
+	DEFINE_QLA_DFS_RPORT_FIELD_GET(_attr, fp->_attr)
+
 DEFINE_QLA_DFS_RPORT_RW_ATTR(QLA_DFS_RPORT_DEVLOSS_TMO, dev_loss_tmo);
+
+DEFINE_QLA_DFS_RPORT_FIELD(disc_state);
+DEFINE_QLA_DFS_RPORT_FIELD(scan_state);
+DEFINE_QLA_DFS_RPORT_FIELD(fw_login_state);
+DEFINE_QLA_DFS_RPORT_FIELD(login_pause);
+DEFINE_QLA_DFS_RPORT_FIELD(flags);
+DEFINE_QLA_DFS_RPORT_FIELD(nvme_flag);
+DEFINE_QLA_DFS_RPORT_FIELD(last_rscn_gen);
+DEFINE_QLA_DFS_RPORT_FIELD(rscn_gen);
+DEFINE_QLA_DFS_RPORT_FIELD(login_gen);
+DEFINE_QLA_DFS_RPORT_FIELD(loop_id);
+DEFINE_QLA_DFS_RPORT_FIELD_GET(port_id, fp->d_id.b24);
+DEFINE_QLA_DFS_RPORT_FIELD_GET(sess_kref, kref_read(&fp->sess_kref));
 
 void
 qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp)
 {
 	char wwn[32];
+
+#define QLA_CREATE_RPORT_FIELD_ATTR(_attr)			\
+	debugfs_create_file(#_attr, 0400, fp->dfs_rport_dir,	\
+		fp, &qla_dfs_rport_field_##_attr##_fops)
 
 	if (!vha->dfs_rport_root || fp->dfs_rport_dir)
 		return;
@@ -82,6 +122,19 @@ qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp)
 	if (NVME_TARGET(vha->hw, fp))
 		debugfs_create_file("dev_loss_tmo", 0600, fp->dfs_rport_dir,
 				    fp, &qla_dfs_rport_dev_loss_tmo_fops);
+
+	QLA_CREATE_RPORT_FIELD_ATTR(disc_state);
+	QLA_CREATE_RPORT_FIELD_ATTR(scan_state);
+	QLA_CREATE_RPORT_FIELD_ATTR(fw_login_state);
+	QLA_CREATE_RPORT_FIELD_ATTR(login_pause);
+	QLA_CREATE_RPORT_FIELD_ATTR(flags);
+	QLA_CREATE_RPORT_FIELD_ATTR(nvme_flag);
+	QLA_CREATE_RPORT_FIELD_ATTR(last_rscn_gen);
+	QLA_CREATE_RPORT_FIELD_ATTR(rscn_gen);
+	QLA_CREATE_RPORT_FIELD_ATTR(login_gen);
+	QLA_CREATE_RPORT_FIELD_ATTR(loop_id);
+	QLA_CREATE_RPORT_FIELD_ATTR(port_id);
+	QLA_CREATE_RPORT_FIELD_ATTR(sess_kref);
 }
 
 void
