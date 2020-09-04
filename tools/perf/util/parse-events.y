@@ -511,7 +511,7 @@ PE_PREFIX_MEM PE_VALUE '/' PE_VALUE ':' PE_MODIFIER_BP sep_dc
 	list = alloc_list();
 	ABORT_ON(!list);
 	err = parse_events_add_breakpoint(list, &parse_state->idx,
-					(void *) $2, $6, $4);
+					(void *)(uintptr_t) $2, $6, $4);
 	free($6);
 	if (err) {
 		free(list);
@@ -528,7 +528,7 @@ PE_PREFIX_MEM PE_VALUE '/' PE_VALUE sep_dc
 	list = alloc_list();
 	ABORT_ON(!list);
 	if (parse_events_add_breakpoint(list, &parse_state->idx,
-						(void *) $2, NULL, $4)) {
+						(void *)(uintptr_t) $2, NULL, $4)) {
 		free(list);
 		YYABORT;
 	}
@@ -544,7 +544,7 @@ PE_PREFIX_MEM PE_VALUE ':' PE_MODIFIER_BP sep_dc
 	list = alloc_list();
 	ABORT_ON(!list);
 	err = parse_events_add_breakpoint(list, &parse_state->idx,
-					(void *) $2, $4, 0);
+					(void *)(uintptr_t) $2, $4, 0);
 	free($4);
 	if (err) {
 		free(list);
@@ -561,7 +561,7 @@ PE_PREFIX_MEM PE_VALUE sep_dc
 	list = alloc_list();
 	ABORT_ON(!list);
 	if (parse_events_add_breakpoint(list, &parse_state->idx,
-						(void *) $2, NULL, 0)) {
+						(void *)(uintptr_t) $2, NULL, 0)) {
 		free(list);
 		YYABORT;
 	}

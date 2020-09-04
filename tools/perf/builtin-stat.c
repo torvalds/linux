@@ -404,7 +404,7 @@ static void read_counters(struct timespec *rs)
 {
 	struct evsel *counter;
 
-	if (!stat_config.summary && (read_affinity_counters(rs) < 0))
+	if (!stat_config.stop_read_counter && (read_affinity_counters(rs) < 0))
 		return;
 
 	evlist__for_each_entry(evsel_list, counter) {
@@ -897,9 +897,9 @@ try_again_reset:
 	if (stat_config.walltime_run_table)
 		stat_config.walltime_run[run_idx] = t1 - t0;
 
-	if (interval) {
+	if (interval && stat_config.summary) {
 		stat_config.interval = 0;
-		stat_config.summary = true;
+		stat_config.stop_read_counter = true;
 		init_stats(&walltime_nsecs_stats);
 		update_stats(&walltime_nsecs_stats, t1 - t0);
 
@@ -1164,6 +1164,8 @@ static struct option stat_options[] = {
 		    "Use with 'percore' event qualifier to show the event "
 		    "counts of one hardware thread by sum up total hardware "
 		    "threads of same physical core"),
+	OPT_BOOLEAN(0, "summary", &stat_config.summary,
+		       "print summary for interval mode"),
 #ifdef HAVE_LIBPFM
 	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
 		"libpfm4 event selector. use 'perf list' to list available events",
