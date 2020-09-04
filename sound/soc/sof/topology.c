@@ -1506,49 +1506,57 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_dai comp_dai;
+	struct sof_ipc_comp_dai *comp_dai;
+	size_t ipc_size = sizeof(*comp_dai);
 	int ret;
 
-	/* configure dai IPC message */
-	memset(&comp_dai, 0, sizeof(comp_dai));
-	comp_dai.comp.hdr.size = sizeof(comp_dai);
-	comp_dai.comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	comp_dai.comp.id = swidget->comp_id;
-	comp_dai.comp.type = SOF_COMP_DAI;
-	comp_dai.comp.pipeline_id = index;
-	comp_dai.comp.core = core;
-	comp_dai.config.hdr.size = sizeof(comp_dai.config);
+	comp_dai = (struct sof_ipc_comp_dai *)
+		   sof_comp_alloc(swidget, &ipc_size, index, core);
+	if (!comp_dai)
+		return -ENOMEM;
 
-	ret = sof_parse_tokens(scomp, &comp_dai, dai_tokens,
+	/* configure dai IPC message */
+	comp_dai->comp.type = SOF_COMP_DAI;
+	comp_dai->config.hdr.size = sizeof(comp_dai->config);
+
+	ret = sof_parse_tokens(scomp, comp_dai, dai_tokens,
 			       ARRAY_SIZE(dai_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai tokens failed %d\n",
 			le32_to_cpu(private->size));
-		return ret;
+		goto finish;
 	}
 
-	ret = sof_parse_tokens(scomp, &comp_dai.config, comp_tokens,
+	ret = sof_parse_tokens(scomp, &comp_dai->config, comp_tokens,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai.cfg tokens failed %d\n",
 			private->size);
-		return ret;
+		goto finish;
 	}
 
 	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
-		swidget->widget->name, comp_dai.type, comp_dai.dai_index);
-	sof_dbg_comp_config(scomp, &comp_dai.config);
+		swidget->widget->name, comp_dai->type, comp_dai->dai_index);
+	sof_dbg_comp_config(scomp, &comp_dai->config);
 
-	ret = sof_ipc_tx_message(sdev->ipc, comp_dai.comp.hdr.cmd,
-				 &comp_dai, sizeof(comp_dai), r, sizeof(*r));
+	ret = sof_ipc_tx_message(sdev->ipc, comp_dai->comp.hdr.cmd,
+				 comp_dai, ipc_size, r, sizeof(*r));
 
 	if (ret == 0 && dai) {
 		dai->scomp = scomp;
-		memcpy(&dai->comp_dai, &comp_dai, sizeof(comp_dai));
+
+		/*
+		 * copy only the sof_ipc_comp_dai to avoid collapsing
+		 * the snd_sof_dai, the extended data is kept in the
+		 * snd_sof_widget.
+		 */
+		memcpy(&dai->comp_dai, comp_dai, sizeof(*comp_dai));
 	}
 
+finish:
+	kfree(comp_dai);
 	return ret;
 }
 
