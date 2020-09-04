@@ -96,8 +96,8 @@
 		regulator-name = "vdd_logic_npu_vepu-fixed";
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <825000>;
-		regulator-max-microvolt = <825000>;
+		regulator-min-microvolt = <850000>;
+		regulator-max-microvolt = <850000>;
 	};
 
 	adc-keys {
