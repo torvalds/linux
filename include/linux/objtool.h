@@ -3,6 +3,8 @@
 #define _LINUX_OBJTOOL_H
 
 #ifdef CONFIG_STACK_VALIDATION
+
+#ifndef __ASSEMBLY__
 /*
  * This macro marks the given function's stack frame as "non-standard", which
  * tells objtool to ignore the function when doing stack metadata validation.
@@ -15,6 +17,8 @@
 	static void __used __section(.discard.func_stack_frame_non_standard) \
 		*__func_stack_frame_non_standard_##func = func
 
+#else /* __ASSEMBLY__ */
+
 /*
  * This macro indicates that the following intra-function call is valid.
  * Any non-annotated intra-function call will cause objtool to issue a warning.
@@ -24,6 +28,8 @@
 	.pushsection .discard.intra_function_calls;		\
 	.long 999b;						\
 	.popsection;
+
+#endif /* __ASSEMBLY__ */
 
 #else /* !CONFIG_STACK_VALIDATION */
 
