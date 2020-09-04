@@ -156,8 +156,13 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 		return 0;
 
 	va = virt;
-	/* max page size not to exceed MR length */
-	mask = roundup_pow_of_two(umem->length);
+	/* The best result is the smallest page size that results in the minimum
+	 * number of required pages. Compute the largest page size that could
+	 * work based on VA address bits that don't change.
+	 */
+	mask = pgsz_bitmap &
+	       GENMASK(BITS_PER_LONG - 1,
+		       bits_per((umem->length - 1 + virt) ^ virt));
 	/* offset into first SGL */
 	pgoff = umem->address & ~PAGE_MASK;
 
