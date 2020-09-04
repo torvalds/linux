@@ -142,7 +142,7 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			goto err_cq;
 		}
 
-		npages = ib_umem_page_count(cq->umem);
+		npages = ib_umem_num_dma_blocks(cq->umem, PAGE_SIZE);
 	} else {
 		/* One extra page for shared ring state */
 		npages = 1 + (entries * sizeof(struct pvrdma_cqe) +

@@ -152,7 +152,7 @@ int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 		goto err_srq;
 	}
 
-	srq->npages = ib_umem_page_count(srq->umem);
+	srq->npages = ib_umem_num_dma_blocks(srq->umem, PAGE_SIZE);
 
 	if (srq->npages < 0 || srq->npages > PVRDMA_PAGE_DIR_MAX_PAGES) {
 		dev_warn(&dev->pdev->dev,
