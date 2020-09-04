@@ -8224,7 +8224,7 @@ static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 		}
 		if (sym.st_value % BPF_INSN_SZ) {
 			pr_warn("struct_ops reloc %s: invalid target program offset %llu\n",
-				map->name, (__u64)sym.st_value);
+				map->name, (unsigned long long)sym.st_value);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 		insn_idx = sym.st_value / BPF_INSN_SZ;
