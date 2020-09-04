@@ -640,7 +640,6 @@
 		clock-output-names = "pmic_clk";
 		interrupt-parent = <&gpio1>;
 		interrupts = <7 GPIO_ACTIVE_LOW>;
-		interrupt-names = "irq";
 		rohm,reset-snvs-powered;
 
 		regulators {
