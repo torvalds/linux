@@ -185,7 +185,6 @@ struct ocrdma_hw_mr {
 	u32 num_pbes;
 	u32 pbl_size;
 	u32 pbe_size;
-	u64 fbo;
 	u64 va;
 };
 
