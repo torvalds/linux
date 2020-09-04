@@ -936,11 +936,13 @@
 				status = "disabled";
 			};
 
-			uart2: serial@a90000 {
+			uart12: serial@a90000 {
 				compatible = "qcom,geni-debug-uart";
 				reg = <0x0 0x00a90000 0x0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S4_CLK>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&qup_uart12_default>;
 				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
@@ -1879,6 +1881,13 @@
 					       "gpio2", "gpio3";
 					drive-strength = <6>;
 					bias-disable;
+				};
+			};
+
+			qup_uart12_default: qup-uart12-default {
+				mux {
+					pins = "gpio34", "gpio35";
+					function = "qup12";
 				};
 			};
 		};
