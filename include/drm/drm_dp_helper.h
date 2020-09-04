@@ -407,6 +407,10 @@ struct drm_device;
 # define DP_DS_DVI_HIGH_COLOR_DEPTH	    (1 << 2)
 /* offset 3 for HDMI */
 # define DP_DS_HDMI_FRAME_SEQ_TO_FRAME_PACK (1 << 0)
+# define DP_DS_HDMI_YCBCR422_PASS_THROUGH   (1 << 1)
+# define DP_DS_HDMI_YCBCR420_PASS_THROUGH   (1 << 2)
+# define DP_DS_HDMI_YCBCR444_TO_422_CONV    (1 << 3)
+# define DP_DS_HDMI_YCBCR444_TO_420_CONV    (1 << 4)
 
 #define DP_MAX_DOWNSTREAM_PORTS		    0x10
 
@@ -1663,6 +1667,10 @@ int drm_dp_downstream_min_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			      const u8 port_cap[4],
 			      const struct edid *edid);
+bool drm_dp_downstream_420_passthrough(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				       const u8 port_cap[4]);
+bool drm_dp_downstream_444_to_420_conversion(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+					     const u8 port_cap[4]);
 struct drm_display_mode *drm_dp_downstream_mode(struct drm_device *dev,
 						const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 						const u8 port_cap[4]);
