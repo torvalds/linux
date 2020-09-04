@@ -21,7 +21,7 @@ LINK COMMANDS
 
 |	**bpftool** **link { show | list }** [*LINK*]
 |	**bpftool** **link pin** *LINK* *FILE*
-|	**bpftool** **link detach *LINK*
+|	**bpftool** **link detach** *LINK*
 |	**bpftool** **link help**
 |
 |	*LINK* := { **id** *LINK_ID* | **pinned** *FILE* }
