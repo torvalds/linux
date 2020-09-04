@@ -12,6 +12,8 @@
 
 #include "elf.h"
 
+#define __weak __attribute__((weak))
+
 struct objtool_file {
 	struct elf *elf;
 	struct list_head insn_list;
