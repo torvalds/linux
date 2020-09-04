@@ -6069,7 +6069,11 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	edid = intel_dp_get_edid(intel_dp);
 	intel_connector->detect_edid = edid;
 
-	intel_dp->has_audio = drm_detect_monitor_audio(edid);
+	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
+		intel_dp->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+		intel_dp->has_audio = drm_detect_monitor_audio(edid);
+	}
+
 	drm_dp_cec_set_edid(&intel_dp->aux, edid);
 	intel_dp->edid_quirks = drm_dp_get_edid_quirks(edid);
 }
@@ -6083,6 +6087,7 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 	kfree(intel_connector->detect_edid);
 	intel_connector->detect_edid = NULL;
 
+	intel_dp->has_hdmi_sink = false;
 	intel_dp->has_audio = false;
 	intel_dp->edid_quirks = 0;
 }

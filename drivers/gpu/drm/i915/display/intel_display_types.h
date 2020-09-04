@@ -1279,6 +1279,7 @@ struct intel_dp {
 	u8 sink_count;
 	bool link_mst;
 	bool link_trained;
+	bool has_hdmi_sink;
 	bool has_audio;
 	bool reset_link_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
