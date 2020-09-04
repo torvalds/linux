@@ -12,9 +12,12 @@
 
 #include "progs/test_cls_redirect.h"
 #include "test_cls_redirect.skel.h"
+#include "test_cls_redirect_subprogs.skel.h"
 
 #define ENCAP_IP INADDR_LOOPBACK
 #define ENCAP_PORT (1234)
+
+static int duration = 0;
 
 struct addr_port {
 	in_port_t port;
@@ -361,29 +364,17 @@ static void close_fds(int *fds, int n)
 			close(fds[i]);
 }
 
-void test_cls_redirect(void)
+static void test_cls_redirect_common(struct bpf_program *prog)
 {
-	struct test_cls_redirect *skel = NULL;
 	struct bpf_prog_test_run_attr tattr = {};
 	int families[] = { AF_INET, AF_INET6 };
 	struct sockaddr_storage ss;
 	struct sockaddr *addr;
 	socklen_t slen;
 	int i, j, err;
-
 	int servers[__NR_KIND][ARRAY_SIZE(families)] = {};
 	int conns[__NR_KIND][ARRAY_SIZE(families)] = {};
 	struct tuple tuples[__NR_KIND][ARRAY_SIZE(families)];
-
-	skel = test_cls_redirect__open();
-	if (CHECK_FAIL(!skel))
-		return;
-
-	skel->rodata->ENCAPSULATION_IP = htonl(ENCAP_IP);
-	skel->rodata->ENCAPSULATION_PORT = htons(ENCAP_PORT);
-
-	if (CHECK_FAIL(test_cls_redirect__load(skel)))
-		goto cleanup;
 
 	addr = (struct sockaddr *)&ss;
 	for (i = 0; i < ARRAY_SIZE(families); i++) {
@@ -402,7 +393,7 @@ void test_cls_redirect(void)
 			goto cleanup;
 	}
 
-	tattr.prog_fd = bpf_program__fd(skel->progs.cls_redirect);
+	tattr.prog_fd = bpf_program__fd(prog);
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct test_cfg *test = &tests[i];
 
@@ -450,7 +441,58 @@ void test_cls_redirect(void)
 	}
 
 cleanup:
-	test_cls_redirect__destroy(skel);
 	close_fds((int *)servers, sizeof(servers) / sizeof(servers[0][0]));
 	close_fds((int *)conns, sizeof(conns) / sizeof(conns[0][0]));
+}
+
+static void test_cls_redirect_inlined(void)
+{
+	struct test_cls_redirect *skel;
+	int err;
+
+	skel = test_cls_redirect__open();
+	if (CHECK(!skel, "skel_open", "failed\n"))
+		return;
+
+	skel->rodata->ENCAPSULATION_IP = htonl(ENCAP_IP);
+	skel->rodata->ENCAPSULATION_PORT = htons(ENCAP_PORT);
+
+	err = test_cls_redirect__load(skel);
+	if (CHECK(err, "skel_load", "failed: %d\n", err))
+		goto cleanup;
+
+	test_cls_redirect_common(skel->progs.cls_redirect);
+
+cleanup:
+	test_cls_redirect__destroy(skel);
+}
+
+static void test_cls_redirect_subprogs(void)
+{
+	struct test_cls_redirect_subprogs *skel;
+	int err;
+
+	skel = test_cls_redirect_subprogs__open();
+	if (CHECK(!skel, "skel_open", "failed\n"))
+		return;
+
+	skel->rodata->ENCAPSULATION_IP = htonl(ENCAP_IP);
+	skel->rodata->ENCAPSULATION_PORT = htons(ENCAP_PORT);
+
+	err = test_cls_redirect_subprogs__load(skel);
+	if (CHECK(err, "skel_load", "failed: %d\n", err))
+		goto cleanup;
+
+	test_cls_redirect_common(skel->progs.cls_redirect);
+
+cleanup:
+	test_cls_redirect_subprogs__destroy(skel);
+}
+
+void test_cls_redirect(void)
+{
+	if (test__start_subtest("cls_redirect_inlined"))
+		test_cls_redirect_inlined();
+	if (test__start_subtest("cls_redirect_subprogs"))
+		test_cls_redirect_subprogs();
 }

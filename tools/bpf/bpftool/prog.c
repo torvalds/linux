@@ -1304,7 +1304,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		enum bpf_prog_type prog_type = common_prog_type;
 
 		if (prog_type == BPF_PROG_TYPE_UNSPEC) {
-			const char *sec_name = bpf_program__title(pos, false);
+			const char *sec_name = bpf_program__section_name(pos);
 
 			err = get_prog_type_by_name(sec_name, &prog_type,
 						    &expected_attach_type);
@@ -1398,7 +1398,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		err = bpf_obj_pin(bpf_program__fd(prog), pinfile);
 		if (err) {
 			p_err("failed to pin program %s",
-			      bpf_program__title(prog, false));
+			      bpf_program__section_name(prog));
 			goto err_close_obj;
 		}
 	} else {
