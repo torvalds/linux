@@ -161,7 +161,7 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 	if (WARN_ON(!(pgsz_bitmap & GENMASK(PAGE_SHIFT, 0))))
 		return 0;
 
-	va = virt;
+	umem->iova = va = virt;
 	/* The best result is the smallest page size that results in the minimum
 	 * number of required pages. Compute the largest page size that could
 	 * work based on VA address bits that don't change.
@@ -240,6 +240,11 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 	umem->ibdev      = device;
 	umem->length     = size;
 	umem->address    = addr;
+	/*
+	 * Drivers should call ib_umem_find_best_pgsz() to set the iova
+	 * correctly.
+	 */
+	umem->iova = addr;
 	umem->writable   = ib_access_writable(access);
 	umem->owning_mm = mm = current->mm;
 	mmgrab(mm);

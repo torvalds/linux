@@ -881,7 +881,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		goto err;
 	}
 
-	n = ib_umem_num_pages(mr->umem);
+	n = ib_umem_num_dma_blocks(mr->umem, PAGE_SIZE);
 
 	mr->mtt = mthca_alloc_mtt(dev, n);
 	if (IS_ERR(mr->mtt)) {

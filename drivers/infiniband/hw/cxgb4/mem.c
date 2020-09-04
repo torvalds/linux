@@ -548,7 +548,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	shift = PAGE_SHIFT;
 
-	n = ib_umem_num_pages(mhp->umem);
+	n = ib_umem_num_dma_blocks(mhp->umem, 1 << shift);
 	err = alloc_pbl(mhp, n);
 	if (err)
 		goto err_umem_release;

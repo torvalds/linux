@@ -133,7 +133,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		return ERR_CAST(umem);
 	}
 
-	npages = ib_umem_num_pages(umem);
+	npages = ib_umem_num_dma_blocks(umem, PAGE_SIZE);
 	if (npages < 0 || npages > PVRDMA_PAGE_DIR_MAX_PAGES) {
 		dev_warn(&dev->pdev->dev, "overflow %d pages in mem region\n",
 			 npages);
