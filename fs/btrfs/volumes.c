@@ -1962,16 +1962,13 @@ static struct btrfs_device * btrfs_find_next_active_device(
  * this_dev) which is active.
  */
 void __cold btrfs_assign_next_active_device(struct btrfs_device *device,
-				     struct btrfs_device *this_dev)
+					    struct btrfs_device *next_device)
 {
 	struct btrfs_fs_info *fs_info = device->fs_info;
-	struct btrfs_device *next_device;
 
-	if (this_dev)
-		next_device = this_dev;
-	else
+	if (!next_device)
 		next_device = btrfs_find_next_active_device(fs_info->fs_devices,
-								device);
+							    device);
 	ASSERT(next_device);
 
 	if (fs_info->sb->s_bdev &&
