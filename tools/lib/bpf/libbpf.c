@@ -5802,7 +5802,7 @@ static int adjust_prog_btf_ext_info(const struct bpf_object *obj,
 		/* append func/line info of a given (sub-)program to the main
 		 * program func/line info
 		 */
-		old_sz = (*prog_rec_cnt) * ext_info->rec_size;
+		old_sz = (size_t)(*prog_rec_cnt) * ext_info->rec_size;
 		new_sz = old_sz + (copy_end - copy_start);
 		new_prog_info = realloc(*prog_info, new_sz);
 		if (!new_prog_info)
