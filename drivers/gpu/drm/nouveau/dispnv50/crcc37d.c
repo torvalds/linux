@@ -6,7 +6,7 @@
 #include "disp.h"
 #include "head.h"
 
-#include <nvif/push507c.h>
+#include <nvif/pushc37b.h>
 
 #include <nvhw/class/clc37d.h>
 

@@ -20,6 +20,6 @@
         PUSH_ASSERT(!((o) & ~DRF_SMASK(NV507C_DMA_JUMP_OFFSET)), "offset"); \
 	PUSH_DATA__((p), NVDEF(NV507C, DMA, OPCODE, JUMP) |                 \
 			 NVVAL(NV507C, DMA, JUMP_OFFSET, (o) >> 2),         \
-		    "jump 0x%08x - %s", (u32)(o), __func__);                \
+		    " jump 0x%08x - %s", (u32)(o), __func__);               \
 } while(0)
 #endif
