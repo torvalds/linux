@@ -1987,10 +1987,17 @@ void bdput(struct block_device *);
 
 #ifdef CONFIG_BLOCK
 void invalidate_bdev(struct block_device *bdev);
+int truncate_bdev_range(struct block_device *bdev, fmode_t mode, loff_t lstart,
+			loff_t lend);
 int sync_blockdev(struct block_device *bdev);
 #else
 static inline void invalidate_bdev(struct block_device *bdev)
 {
+}
+static inline int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
+				      loff_t lstart, loff_t lend)
+{
+	return 0;
 }
 static inline int sync_blockdev(struct block_device *bdev)
 {

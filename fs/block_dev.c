@@ -103,6 +103,35 @@ void invalidate_bdev(struct block_device *bdev)
 }
 EXPORT_SYMBOL(invalidate_bdev);
 
+/*
+ * Drop all buffers & page cache for given bdev range. This function bails
+ * with error if bdev has other exclusive owner (such as filesystem).
+ */
+int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
+			loff_t lstart, loff_t lend)
+{
+	struct block_device *claimed_bdev = NULL;
+	int err;
+
+	/*
+	 * If we don't hold exclusive handle for the device, upgrade to it
+	 * while we discard the buffer cache to avoid discarding buffers
+	 * under live filesystem.
+	 */
+	if (!(mode & FMODE_EXCL)) {
+		claimed_bdev = bdev->bd_contains;
+		err = bd_prepare_to_claim(bdev, claimed_bdev,
+					  truncate_bdev_range);
+		if (err)
+			return err;
+	}
+	truncate_inode_pages_range(bdev->bd_inode->i_mapping, lstart, lend);
+	if (claimed_bdev)
+		bd_abort_claiming(bdev, claimed_bdev, truncate_bdev_range);
+	return 0;
+}
+EXPORT_SYMBOL(truncate_bdev_range);
+
 static void set_init_blocksize(struct block_device *bdev)
 {
 	bdev->bd_inode->i_blkbits = blksize_bits(bdev_logical_block_size(bdev));
@@ -1968,7 +1997,6 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 			     loff_t len)
 {
 	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
-	struct address_space *mapping;
 	loff_t end = start + len - 1;
 	loff_t isize;
 	int error;
@@ -1996,8 +2024,9 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 		return -EINVAL;
 
 	/* Invalidate the page cache, including dirty pages. */
-	mapping = bdev->bd_inode->i_mapping;
-	truncate_inode_pages_range(mapping, start, end);
+	error = truncate_bdev_range(bdev, file->f_mode, start, end);
+	if (error)
+		return error;
 
 	switch (mode) {
 	case FALLOC_FL_ZERO_RANGE:
@@ -2024,7 +2053,7 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 	 * the caller will be given -EBUSY.  The third argument is
 	 * inclusive, so the rounding here is safe.
 	 */
-	return invalidate_inode_pages2_range(mapping,
+	return invalidate_inode_pages2_range(bdev->bd_inode->i_mapping,
 					     start >> PAGE_SHIFT,
 					     end >> PAGE_SHIFT);
 }
