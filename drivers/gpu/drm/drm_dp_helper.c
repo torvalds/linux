@@ -363,6 +363,66 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read_link_status);
 
+static bool is_edid_digital_input_dp(const struct edid *edid)
+{
+	return edid && edid->revision >= 4 &&
+		edid->input & DRM_EDID_INPUT_DIGITAL &&
+		(edid->input & DRM_EDID_DIGITAL_TYPE_MASK) == DRM_EDID_DIGITAL_TYPE_DP;
+}
+
+/**
+ * drm_dp_downstream_is_type() - is the downstream facing port of certain type?
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ *
+ * Caveat: Only works with DPCD 1.1+ port caps.
+ *
+ * Returns: whether the downstream facing port matches the type.
+ */
+bool drm_dp_downstream_is_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4], u8 type)
+{
+	return drm_dp_is_branch(dpcd) &&
+		dpcd[DP_DPCD_REV] >= 0x11 &&
+		(port_cap[0] & DP_DS_PORT_TYPE_MASK) == type;
+}
+EXPORT_SYMBOL(drm_dp_downstream_is_type);
+
+/**
+ * drm_dp_downstream_is_tmds() - is the downstream facing port TMDS?
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ * @edid: EDID
+ *
+ * Returns: whether the downstream facing port is TMDS (HDMI/DVI).
+ */
+bool drm_dp_downstream_is_tmds(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4],
+			       const struct edid *edid)
+{
+	if (dpcd[DP_DPCD_REV] < 0x11) {
+		switch (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) {
+		case DP_DWN_STRM_PORT_TYPE_TMDS:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		if (is_edid_digital_input_dp(edid))
+			return false;
+		fallthrough;
+	case DP_DS_PORT_TYPE_DVI:
+	case DP_DS_PORT_TYPE_HDMI:
+		return true;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_is_tmds);
+
 /**
  * drm_dp_send_real_edid_checksum() - send back real edid checksum value
  * @aux: DisplayPort AUX channel

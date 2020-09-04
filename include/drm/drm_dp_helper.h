@@ -1638,6 +1638,11 @@ bool drm_dp_send_real_edid_checksum(struct drm_dp_aux *aux,
 int drm_dp_read_downstream_info(struct drm_dp_aux *aux,
 				const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS]);
+bool drm_dp_downstream_is_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4], u8 type);
+bool drm_dp_downstream_is_tmds(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4],
+			       const struct edid *edid);
 int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				const u8 port_cap[4]);
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
