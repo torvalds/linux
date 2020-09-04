@@ -12,6 +12,61 @@
 static struct dentry *qla2x00_dfs_root;
 static atomic_t qla2x00_dfs_root_count;
 
+#define QLA_DFS_RPORT_DEVLOSS_TMO	1
+
+static int
+qla_dfs_rport_get(struct fc_port *fp, int attr_id, u64 *val)
+{
+	switch (attr_id) {
+	case QLA_DFS_RPORT_DEVLOSS_TMO:
+		/* Only supported for FC-NVMe devices that are registered. */
+		if (!(fp->nvme_flag & NVME_FLAG_REGISTERED))
+			return -EIO;
+		*val = fp->nvme_remote_port->dev_loss_tmo;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int
+qla_dfs_rport_set(struct fc_port *fp, int attr_id, u64 val)
+{
+	switch (attr_id) {
+	case QLA_DFS_RPORT_DEVLOSS_TMO:
+		/* Only supported for FC-NVMe devices that are registered. */
+		if (!(fp->nvme_flag & NVME_FLAG_REGISTERED))
+			return -EIO;
+#if (IS_ENABLED(CONFIG_NVME_FC))
+		return nvme_fc_set_remoteport_devloss(fp->nvme_remote_port,
+						      val);
+#else /* CONFIG_NVME_FC */
+		return -EINVAL;
+#endif /* CONFIG_NVME_FC */
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+#define DEFINE_QLA_DFS_RPORT_RW_ATTR(_attr_id, _attr)		\
+static int qla_dfs_rport_##_attr##_get(void *data, u64 *val)	\
+{								\
+	struct fc_port *fp = data;				\
+	return qla_dfs_rport_get(fp, _attr_id, val);		\
+}								\
+static int qla_dfs_rport_##_attr##_set(void *data, u64 val)	\
+{								\
+	struct fc_port *fp = data;				\
+	return qla_dfs_rport_set(fp, _attr_id, val);		\
+}								\
+DEFINE_DEBUGFS_ATTRIBUTE(qla_dfs_rport_##_attr##_fops,		\
+		qla_dfs_rport_##_attr##_get,			\
+		qla_dfs_rport_##_attr##_set, "%llu\n")
+
+DEFINE_QLA_DFS_RPORT_RW_ATTR(QLA_DFS_RPORT_DEVLOSS_TMO, dev_loss_tmo);
+
 void
 qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp)
 {
@@ -24,6 +79,9 @@ qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp)
 	fp->dfs_rport_dir = debugfs_create_dir(wwn, vha->dfs_rport_root);
 	if (!fp->dfs_rport_dir)
 		return;
+	if (NVME_TARGET(vha->hw, fp))
+		debugfs_create_file("dev_loss_tmo", 0600, fp->dfs_rport_dir,
+				    fp, &qla_dfs_rport_dev_loss_tmo_fops);
 }
 
 void
