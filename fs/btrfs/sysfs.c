@@ -1213,18 +1213,16 @@ static void btrfs_sysfs_remove_device(struct btrfs_device *device)
 }
 
 /* When @device is NULL, remove all devices link */
-int btrfs_sysfs_remove_devices_dir(struct btrfs_fs_devices *fs_devices,
-				   struct btrfs_device *device)
+void btrfs_sysfs_remove_devices_dir(struct btrfs_fs_devices *fs_devices,
+				    struct btrfs_device *device)
 {
 	if (device) {
 		btrfs_sysfs_remove_device(device);
-		return 0;
+		return;
 	}
 
 	list_for_each_entry(device, &fs_devices->devices, dev_list)
 		btrfs_sysfs_remove_device(device);
-
-	return 0;
 }
 
 static ssize_t btrfs_devinfo_in_fs_metadata_show(struct kobject *kobj,
