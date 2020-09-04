@@ -2278,7 +2278,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 }
 
 bool intel_hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
-				    int bpc, bool has_hdmi_sink)
+				    int bpc, bool has_hdmi_sink, bool ycbcr420_output)
 {
 	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct drm_connector_state *connector_state;
@@ -2297,7 +2297,7 @@ bool intel_hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		if (connector_state->crtc != crtc_state->uapi.crtc)
 			continue;
 
-		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
+		if (ycbcr420_output) {
 			const struct drm_hdmi_info *hdmi = &info->hdmi;
 
 			if (bpc == 12 && !(hdmi->y420_dc_modes &
@@ -2348,7 +2348,9 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		return false;
 
 	return intel_hdmi_deep_color_possible(crtc_state, bpc,
-					      crtc_state->has_hdmi_sink);
+					      crtc_state->has_hdmi_sink,
+					      crtc_state->output_format ==
+					      INTEL_OUTPUT_FORMAT_YCBCR420);
 }
 
 static int
