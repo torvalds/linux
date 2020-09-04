@@ -91,7 +91,6 @@
 		 */
 		.macro dbgkc, begin, end, cbegin, cend
 #ifdef DEBUG
-		kputc   #'\n'
 		kputc   #'C'
 		kputc   #':'
 		kputc   #'0'
@@ -111,7 +110,6 @@
 		kputc	#'x'
 		kphex	\cend, 8	/* End of kernel copy */
 		kputc	#'\n'
-		kputc	#'\r'
 #endif
 		.endm
 
