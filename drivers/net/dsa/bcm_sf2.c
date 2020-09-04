@@ -489,9 +489,11 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct device_node *dn;
+	struct device_node *dn, *child;
+	struct phy_device *phydev;
+	struct property *prop;
 	static int index;
-	int err;
+	int err, reg;
 
 	/* Find our integrated MDIO bus node */
 	dn = of_find_compatible_node(NULL, NULL, "brcm,unimac-mdio");
@@ -533,6 +535,31 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	ds->slave_mii_bus = priv->slave_mii_bus;
 	priv->slave_mii_bus->parent = ds->dev->parent;
 	priv->slave_mii_bus->phy_mask = ~priv->indir_phy_mask;
+
+	/* We need to make sure that of_phy_connect() will not work by
+	 * removing the 'phandle' and 'linux,phandle' properties and
+	 * unregister the existing PHY device that was already registered.
+	 */
+	for_each_available_child_of_node(dn, child) {
+		if (of_property_read_u32(child, "reg", &reg) ||
+		    reg >= PHY_MAX_ADDR)
+			continue;
+
+		if (!(priv->indir_phy_mask & BIT(reg)))
+			continue;
+
+		prop = of_find_property(child, "phandle", NULL);
+		if (prop)
+			of_remove_property(child, prop);
+
+		prop = of_find_property(child, "linux,phandle", NULL);
+		if (prop)
+			of_remove_property(child, prop);
+
+		phydev = of_phy_find_device(child);
+		if (phydev)
+			phy_device_remove(phydev);
+	}
 
 	err = mdiobus_register(priv->slave_mii_bus);
 	if (err && dn)
