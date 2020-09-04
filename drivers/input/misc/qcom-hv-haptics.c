@@ -57,6 +57,9 @@
 #define FIFO_EMPTY_BIT				BIT(1)
 
 /* config register definitions in HAPTICS_CFG module */
+#define HAP_CFG_EN_CTL_REG			0x46
+#define HAPTICS_EN_BIT				BIT(7)
+
 #define HAP_CFG_DRV_CTRL_REG			0x47
 #define PSTG_DLY_MASK				GENMASK(7, 6)
 #define DRV_SLEW_RATE_MASK			GENMASK(2, 0)
@@ -4027,6 +4030,56 @@ static int haptics_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int haptics_suspend(struct device *dev)
+{
+	struct haptics_chip *chip = dev_get_drvdata(dev);
+	struct haptics_play_info *play = &chip->play;
+	u8 val = 0;
+	int rc;
+
+	if (chip->cfg_revision == HAP_CFG_V1)
+		return 0;
+
+	if ((play->pattern_src == FIFO) &&
+			atomic_read(&play->fifo_status.is_busy)) {
+		if (atomic_read(&play->fifo_status.written_done) == 0) {
+			dev_dbg(chip->dev, "cancelling FIFO playing\n");
+			atomic_set(&play->fifo_status.cancelled, 1);
+		}
+
+		rc = haptics_stop_fifo_play(chip);
+		if (rc < 0) {
+			dev_err(chip->dev, "stop FIFO playing failed, rc=%d\n");
+			return rc;
+		}
+	} else {
+		rc = haptics_enable_play(chip, false);
+		if (rc < 0)
+			return rc;
+	}
+
+	return haptics_write(chip, chip->cfg_addr_base,
+		HAP_CFG_EN_CTL_REG, &val, 1);
+}
+
+static int haptics_resume(struct device *dev)
+{
+	struct haptics_chip *chip = dev_get_drvdata(dev);
+	u8 val = HAPTICS_EN_BIT;
+
+	if (chip->cfg_revision == HAP_CFG_V1)
+		return 0;
+
+	return haptics_write(chip, chip->cfg_addr_base,
+		HAP_CFG_EN_CTL_REG, &val, 1);
+}
+#endif
+
+static const struct dev_pm_ops haptics_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(haptics_suspend, haptics_resume)
+};
+
 static const struct of_device_id haptics_match_table[] = {
 	{ .compatible = "qcom,hv-haptics" },
 	{ .compatible = "qcom,pm8350b-haptics" },
@@ -4037,6 +4090,7 @@ static struct platform_driver haptics_driver = {
 	.driver		= {
 		.name = "qcom-hv-haptics",
 		.of_match_table = haptics_match_table,
+		.pm		= &haptics_pm_ops,
 	},
 	.probe		= haptics_probe,
 	.remove		= haptics_remove,
