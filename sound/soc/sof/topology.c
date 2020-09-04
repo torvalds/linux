@@ -1453,6 +1453,51 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	return 0;
 }
 
+/**
+ * sof_comp_alloc - allocate and initialize buffer for a new component
+ * @swidget: pointer to struct snd_sof_widget containing extended data
+ * @ipc_size: IPC payload size that will be updated depending on valid
+ *  extended data.
+ * @index: ID of the pipeline the component belongs to
+ * @core: index of the DSP core that the component should run on
+ *
+ * Return: The pointer to the new allocated component, NULL if failed.
+ */
+static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
+					   size_t *ipc_size, int index,
+					   int core)
+{
+	u8 nil_uuid[SOF_UUID_SIZE] = {0};
+	struct sof_ipc_comp *comp;
+	size_t total_size = *ipc_size;
+
+	/* only non-zero UUID is valid */
+	if (memcmp(&swidget->comp_ext, nil_uuid, SOF_UUID_SIZE))
+		total_size += sizeof(swidget->comp_ext);
+
+	comp = kzalloc(total_size, GFP_KERNEL);
+	if (!comp)
+		return NULL;
+
+	/* configure comp new IPC message */
+	comp->hdr.size = total_size;
+	comp->hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
+	comp->id = swidget->comp_id;
+	comp->pipeline_id = index;
+	comp->core = core;
+
+	/* handle the extended data if needed */
+	if (total_size > *ipc_size) {
+		/* append extended data to the end of the component */
+		memcpy((u8 *)comp + *ipc_size, &swidget->comp_ext, sizeof(swidget->comp_ext));
+		comp->ext_data_length = sizeof(swidget->comp_ext);
+	}
+
+	/* update ipc_size and return */
+	*ipc_size = total_size;
+	return comp;
+}
+
 static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 			       struct snd_sof_widget *swidget, int core,
 			       struct snd_soc_tplg_dapm_widget *tw,
