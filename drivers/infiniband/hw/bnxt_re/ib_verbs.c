@@ -941,7 +941,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 
 	qp->sumem = umem;
 	qplib_qp->sq.sg_info.sghead = umem->sg_head.sgl;
-	qplib_qp->sq.sg_info.npages = ib_umem_num_pages(umem);
+	qplib_qp->sq.sg_info.npages = ib_umem_num_dma_blocks(umem, PAGE_SIZE);
 	qplib_qp->sq.sg_info.nmap = umem->nmap;
 	qplib_qp->sq.sg_info.pgsize = PAGE_SIZE;
 	qplib_qp->sq.sg_info.pgshft = PAGE_SHIFT;
@@ -956,7 +956,8 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 			goto rqfail;
 		qp->rumem = umem;
 		qplib_qp->rq.sg_info.sghead = umem->sg_head.sgl;
-		qplib_qp->rq.sg_info.npages = ib_umem_num_pages(umem);
+		qplib_qp->rq.sg_info.npages =
+			ib_umem_num_dma_blocks(umem, PAGE_SIZE);
 		qplib_qp->rq.sg_info.nmap = umem->nmap;
 		qplib_qp->rq.sg_info.pgsize = PAGE_SIZE;
 		qplib_qp->rq.sg_info.pgshft = PAGE_SHIFT;
@@ -1612,7 +1613,7 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 
 	srq->umem = umem;
 	qplib_srq->sg_info.sghead = umem->sg_head.sgl;
-	qplib_srq->sg_info.npages = ib_umem_num_pages(umem);
+	qplib_srq->sg_info.npages = ib_umem_num_dma_blocks(umem, PAGE_SIZE);
 	qplib_srq->sg_info.nmap = umem->nmap;
 	qplib_srq->sg_info.pgsize = PAGE_SIZE;
 	qplib_srq->sg_info.pgshft = PAGE_SHIFT;
@@ -2865,7 +2866,8 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			goto fail;
 		}
 		cq->qplib_cq.sg_info.sghead = cq->umem->sg_head.sgl;
-		cq->qplib_cq.sg_info.npages = ib_umem_num_pages(cq->umem);
+		cq->qplib_cq.sg_info.npages =
+			ib_umem_num_dma_blocks(cq->umem, PAGE_SIZE);
 		cq->qplib_cq.sg_info.nmap = cq->umem->nmap;
 		cq->qplib_cq.dpi = &uctx->dpi;
 	} else {
@@ -3763,23 +3765,6 @@ int bnxt_re_dealloc_mw(struct ib_mw *ib_mw)
 	return rc;
 }
 
-static int bnxt_re_page_size_ok(int page_shift)
-{
-	switch (page_shift) {
-	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_4K:
-	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_8K:
-	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_64K:
-	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_2M:
-	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_256K:
-	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_1M:
-	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_4M:
-	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_1G:
-		return 1;
-	default:
-		return 0;
-	}
-}
-
 static int fill_umem_pbl_tbl(struct ib_umem *umem, u64 *pbl_tbl_orig,
 			     int page_shift)
 {
@@ -3803,7 +3788,8 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	struct bnxt_re_mr *mr;
 	struct ib_umem *umem;
 	u64 *pbl_tbl = NULL;
-	int umem_pgs, page_shift, rc;
+	unsigned long page_size;
+	int umem_pgs, rc;
 
 	if (length > BNXT_RE_MAX_MR_SIZE) {
 		ibdev_err(&rdev->ibdev, "MR Size: %lld > Max supported:%lld\n",
@@ -3837,42 +3823,34 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	mr->ib_umem = umem;
 
 	mr->qplib_mr.va = virt_addr;
-	umem_pgs = ib_umem_page_count(umem);
-	if (!umem_pgs) {
-		ibdev_err(&rdev->ibdev, "umem is invalid!");
-		rc = -EINVAL;
+	page_size = ib_umem_find_best_pgsz(
+		umem, BNXT_RE_PAGE_SIZE_4K | BNXT_RE_PAGE_SIZE_2M, virt_addr);
+	if (!page_size) {
+		ibdev_err(&rdev->ibdev, "umem page size unsupported!");
+		rc = -EFAULT;
 		goto free_umem;
 	}
 	mr->qplib_mr.total_size = length;
 
+	if (page_size == BNXT_RE_PAGE_SIZE_4K &&
+	    length > BNXT_RE_MAX_MR_SIZE_LOW) {
+		ibdev_err(&rdev->ibdev, "Requested MR Sz:%llu Max sup:%llu",
+			  length, (u64)BNXT_RE_MAX_MR_SIZE_LOW);
+		rc = -EINVAL;
+		goto free_umem;
+	}
+
+	umem_pgs = ib_umem_num_dma_blocks(umem, page_size);
 	pbl_tbl = kcalloc(umem_pgs, sizeof(u64 *), GFP_KERNEL);
 	if (!pbl_tbl) {
 		rc = -ENOMEM;
 		goto free_umem;
 	}
 
-	page_shift = __ffs(ib_umem_find_best_pgsz(umem,
-				BNXT_RE_PAGE_SIZE_4K | BNXT_RE_PAGE_SIZE_2M,
-				virt_addr));
-
-	if (!bnxt_re_page_size_ok(page_shift)) {
-		ibdev_err(&rdev->ibdev, "umem page size unsupported!");
-		rc = -EFAULT;
-		goto fail;
-	}
-
-	if (page_shift == BNXT_RE_PAGE_SHIFT_4K &&
-	    length > BNXT_RE_MAX_MR_SIZE_LOW) {
-		ibdev_err(&rdev->ibdev, "Requested MR Sz:%llu Max sup:%llu",
-			  length, (u64)BNXT_RE_MAX_MR_SIZE_LOW);
-		rc = -EINVAL;
-		goto fail;
-	}
-
 	/* Map umem buf ptrs to the PBL */
-	umem_pgs = fill_umem_pbl_tbl(umem, pbl_tbl, page_shift);
+	umem_pgs = fill_umem_pbl_tbl(umem, pbl_tbl, order_base_2(page_size));
 	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, pbl_tbl,
-			       umem_pgs, false, 1 << page_shift);
+			       umem_pgs, false, page_size);
 	if (rc) {
 		ibdev_err(&rdev->ibdev, "Failed to register user MR");
 		goto fail;
