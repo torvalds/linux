@@ -1973,13 +1973,12 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
-	int bpp, bpc;
+	int bpp;
 
 	bpp = pipe_config->pipe_bpp;
-	bpc = drm_dp_downstream_max_bpc(intel_dp->dpcd, intel_dp->downstream_ports);
 
-	if (bpc > 0)
-		bpp = min(bpp, 3*bpc);
+	if (intel_dp->dfp.max_bpc)
+		bpp = min(bpp, 3 * intel_dp->dfp.max_bpc);
 
 	if (intel_dp_is_edp(intel_dp)) {
 		/* Get bpp from vbt only for panels that dont have bpp in edid */
@@ -6062,12 +6061,21 @@ intel_dp_get_edid(struct intel_dp *intel_dp)
 static void
 intel_dp_set_edid(struct intel_dp *intel_dp)
 {
-	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct edid *edid;
 
 	intel_dp_unset_edid(intel_dp);
 	edid = intel_dp_get_edid(intel_dp);
-	intel_connector->detect_edid = edid;
+	connector->detect_edid = edid;
+
+	intel_dp->dfp.max_bpc =
+		drm_dp_downstream_max_bpc(intel_dp->dpcd,
+					  intel_dp->downstream_ports);
+
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] DFP max bpc %d\n",
+		    connector->base.base.id, connector->base.name,
+		    intel_dp->dfp.max_bpc);
 
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
 		intel_dp->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
@@ -6090,6 +6098,8 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 	intel_dp->has_hdmi_sink = false;
 	intel_dp->has_audio = false;
 	intel_dp->edid_quirks = 0;
+
+	intel_dp->dfp.max_bpc = 0;
 }
 
 static int
