@@ -151,42 +151,6 @@ static inline int __access_ok(unsigned long addr, unsigned long size,
 
 extern long __put_user_bad(void);
 
-/*
- * We don't tell gcc that we are accessing memory, but this is OK
- * because we do not write to any memory gcc knows about, so there
- * are no aliasing issues.
- */
-#define __put_user_asm(x, addr, err, op)			\
-	__asm__ __volatile__(					\
-		"1:	" op "%U2%X2 %1,%2	# put_user\n"	\
-		"2:\n"						\
-		".section .fixup,\"ax\"\n"			\
-		"3:	li %0,%3\n"				\
-		"	b 2b\n"					\
-		".previous\n"					\
-		EX_TABLE(1b, 3b)				\
-		: "=r" (err)					\
-		: "r" (x), "m<>" (*addr), "i" (-EFAULT), "0" (err))
-
-#ifdef __powerpc64__
-#define __put_user_asm2(x, ptr, retval)				\
-	  __put_user_asm(x, ptr, retval, "std")
-#else /* __powerpc64__ */
-#define __put_user_asm2(x, addr, err)				\
-	__asm__ __volatile__(					\
-		"1:	stw%X2 %1,%2\n"			\
-		"2:	stw%X2 %L1,%L2\n"			\
-		"3:\n"						\
-		".section .fixup,\"ax\"\n"			\
-		"4:	li %0,%3\n"				\
-		"	b 3b\n"					\
-		".previous\n"					\
-		EX_TABLE(1b, 4b)				\
-		EX_TABLE(2b, 4b)				\
-		: "=r" (err)					\
-		: "r" (x), "m" (*addr), "i" (-EFAULT), "0" (err))
-#endif /* __powerpc64__ */
-
 #define __put_user_size_allowed(x, ptr, size, retval)		\
 do {								\
 	__label__ __pu_failed;					\
@@ -249,6 +213,11 @@ do {								\
 })
 
 
+/*
+ * We don't tell gcc that we are accessing memory, but this is OK
+ * because we do not write to any memory gcc knows about, so there
+ * are no aliasing issues.
+ */
 #define __put_user_asm_goto(x, addr, label, op)			\
 	asm volatile goto(					\
 		"1:	" op "%U1%X1 %0,%1	# put_user\n"	\
