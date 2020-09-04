@@ -644,6 +644,114 @@ int drm_dp_downstream_max_dotclock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 EXPORT_SYMBOL(drm_dp_downstream_max_dotclock);
 
 /**
+ * drm_dp_downstream_max_tmds_clock() - extract downstream facing port max TMDS clock
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ * @edid: EDID
+ *
+ * Returns: HDMI/DVI downstream facing port max TMDS clock in kHz on success,
+ * or 0 if max TMDS clock not defined
+ */
+int drm_dp_downstream_max_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				     const u8 port_cap[4],
+				     const struct edid *edid)
+{
+	if (!drm_dp_is_branch(dpcd))
+		return 0;
+
+	if (dpcd[DP_DPCD_REV] < 0x11) {
+		switch (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) {
+		case DP_DWN_STRM_PORT_TYPE_TMDS:
+			return 165000;
+		default:
+			return 0;
+		}
+	}
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		if (is_edid_digital_input_dp(edid))
+			return 0;
+		/*
+		 * It's left up to the driver to check the
+		 * DP dual mode adapter's max TMDS clock.
+		 *
+		 * Unfortunatley it looks like branch devices
+		 * may not fordward that the DP dual mode i2c
+		 * access so we just usually get i2c nak :(
+		 */
+		fallthrough;
+	case DP_DS_PORT_TYPE_HDMI:
+		 /*
+		  * We should perhaps assume 165 MHz when detailed cap
+		  * info is not available. But looks like many typical
+		  * branch devices fall into that category and so we'd
+		  * probably end up with users complaining that they can't
+		  * get high resolution modes with their favorite dongle.
+		  *
+		  * So let's limit to 300 MHz instead since DPCD 1.4
+		  * HDMI 2.0 DFPs are required to have the detailed cap
+		  * info. So it's more likely we're dealing with a HDMI 1.4
+		  * compatible* device here.
+		  */
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return 300000;
+		return port_cap[1] * 2500;
+	case DP_DS_PORT_TYPE_DVI:
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return 165000;
+		/* FIXME what to do about DVI dual link? */
+		return port_cap[1] * 2500;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_max_tmds_clock);
+
+/**
+ * drm_dp_downstream_min_tmds_clock() - extract downstream facing port min TMDS clock
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ * @edid: EDID
+ *
+ * Returns: HDMI/DVI downstream facing port min TMDS clock in kHz on success,
+ * or 0 if max TMDS clock not defined
+ */
+int drm_dp_downstream_min_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				     const u8 port_cap[4],
+				     const struct edid *edid)
+{
+	if (!drm_dp_is_branch(dpcd))
+		return 0;
+
+	if (dpcd[DP_DPCD_REV] < 0x11) {
+		switch (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) {
+		case DP_DWN_STRM_PORT_TYPE_TMDS:
+			return 25000;
+		default:
+			return 0;
+		}
+	}
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		if (is_edid_digital_input_dp(edid))
+			return 0;
+		fallthrough;
+	case DP_DS_PORT_TYPE_DVI:
+	case DP_DS_PORT_TYPE_HDMI:
+		/*
+		 * Unclear whether the protocol converter could
+		 * utilize pixel replication. Assume it won't.
+		 */
+		return 25000;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_min_tmds_clock);
+
+/**
  * drm_dp_downstream_max_bpc() - extract downstream facing port max
  *                               bits per component
  * @dpcd: DisplayPort configuration data
@@ -787,6 +895,14 @@ void drm_dp_downstream_debug(struct seq_file *m,
 		clk = drm_dp_downstream_max_dotclock(dpcd, port_cap);
 		if (clk > 0)
 			seq_printf(m, "\t\tMax dot clock: %d kHz\n", clk);
+
+		clk = drm_dp_downstream_max_tmds_clock(dpcd, port_cap, edid);
+		if (clk > 0)
+			seq_printf(m, "\t\tMax TMDS clock: %d kHz\n", clk);
+
+		clk = drm_dp_downstream_min_tmds_clock(dpcd, port_cap, edid);
+		if (clk > 0)
+			seq_printf(m, "\t\tMin TMDS clock: %d kHz\n", clk);
 
 		bpc = drm_dp_downstream_max_bpc(dpcd, port_cap, edid);
 
