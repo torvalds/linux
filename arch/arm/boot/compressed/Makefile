@@ -12,6 +12,7 @@ HEAD	= head.o
 OBJS	+= misc.o decompress.o
 ifeq ($(CONFIG_DEBUG_UNCOMPRESS),y)
 OBJS	+= debug.o
+AFLAGS_head.o += -DDEBUG
 endif
 FONTC	= $(srctree)/lib/fonts/font_acorn_8x8.c
 
