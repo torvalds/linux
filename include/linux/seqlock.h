@@ -790,13 +790,17 @@ static inline void raw_write_seqcount_latch(seqcount_latch_t *s)
  *    - Documentation/locking/seqlock.rst
  */
 typedef struct {
-	struct seqcount seqcount;
+	/*
+	 * Make sure that readers don't starve writers on PREEMPT_RT: use
+	 * seqcount_spinlock_t instead of seqcount_t. Check __SEQ_LOCK().
+	 */
+	seqcount_spinlock_t seqcount;
 	spinlock_t lock;
 } seqlock_t;
 
 #define __SEQLOCK_UNLOCKED(lockname)					\
 	{								\
-		.seqcount = SEQCNT_ZERO(lockname),			\
+		.seqcount = SEQCNT_SPINLOCK_ZERO(lockname, &(lockname).lock), \
 		.lock =	__SPIN_LOCK_UNLOCKED(lockname)			\
 	}
 
@@ -806,8 +810,8 @@ typedef struct {
  */
 #define seqlock_init(sl)						\
 	do {								\
-		seqcount_init(&(sl)->seqcount);				\
 		spin_lock_init(&(sl)->lock);				\
+		seqcount_spinlock_init(&(sl)->seqcount, &(sl)->lock);	\
 	} while (0)
 
 /**
@@ -854,6 +858,12 @@ static inline unsigned read_seqretry(const seqlock_t *sl, unsigned start)
 	return read_seqcount_retry(&sl->seqcount, start);
 }
 
+/*
+ * For all seqlock_t write side functions, use write_seqcount_*t*_begin()
+ * instead of the generic write_seqcount_begin(). This way, no redundant
+ * lockdep_assert_held() checks are added.
+ */
+
 /**
  * write_seqlock() - start a seqlock_t write side critical section
  * @sl: Pointer to seqlock_t
@@ -870,7 +880,7 @@ static inline unsigned read_seqretry(const seqlock_t *sl, unsigned start)
 static inline void write_seqlock(seqlock_t *sl)
 {
 	spin_lock(&sl->lock);
-	write_seqcount_t_begin(&sl->seqcount);
+	write_seqcount_t_begin(&sl->seqcount.seqcount);
 }
 
 /**
@@ -882,7 +892,7 @@ static inline void write_seqlock(seqlock_t *sl)
  */
 static inline void write_sequnlock(seqlock_t *sl)
 {
-	write_seqcount_t_end(&sl->seqcount);
+	write_seqcount_t_end(&sl->seqcount.seqcount);
 	spin_unlock(&sl->lock);
 }
 
@@ -896,7 +906,7 @@ static inline void write_sequnlock(seqlock_t *sl)
 static inline void write_seqlock_bh(seqlock_t *sl)
 {
 	spin_lock_bh(&sl->lock);
-	write_seqcount_t_begin(&sl->seqcount);
+	write_seqcount_t_begin(&sl->seqcount.seqcount);
 }
 
 /**
@@ -909,7 +919,7 @@ static inline void write_seqlock_bh(seqlock_t *sl)
  */
 static inline void write_sequnlock_bh(seqlock_t *sl)
 {
-	write_seqcount_t_end(&sl->seqcount);
+	write_seqcount_t_end(&sl->seqcount.seqcount);
 	spin_unlock_bh(&sl->lock);
 }
 
@@ -923,7 +933,7 @@ static inline void write_sequnlock_bh(seqlock_t *sl)
 static inline void write_seqlock_irq(seqlock_t *sl)
 {
 	spin_lock_irq(&sl->lock);
-	write_seqcount_t_begin(&sl->seqcount);
+	write_seqcount_t_begin(&sl->seqcount.seqcount);
 }
 
 /**
@@ -935,7 +945,7 @@ static inline void write_seqlock_irq(seqlock_t *sl)
  */
 static inline void write_sequnlock_irq(seqlock_t *sl)
 {
-	write_seqcount_t_end(&sl->seqcount);
+	write_seqcount_t_end(&sl->seqcount.seqcount);
 	spin_unlock_irq(&sl->lock);
 }
 
@@ -944,7 +954,7 @@ static inline unsigned long __write_seqlock_irqsave(seqlock_t *sl)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sl->lock, flags);
-	write_seqcount_t_begin(&sl->seqcount);
+	write_seqcount_t_begin(&sl->seqcount.seqcount);
 	return flags;
 }
 
@@ -973,7 +983,7 @@ static inline unsigned long __write_seqlock_irqsave(seqlock_t *sl)
 static inline void
 write_sequnlock_irqrestore(seqlock_t *sl, unsigned long flags)
 {
-	write_seqcount_t_end(&sl->seqcount);
+	write_seqcount_t_end(&sl->seqcount.seqcount);
 	spin_unlock_irqrestore(&sl->lock, flags);
 }
 
