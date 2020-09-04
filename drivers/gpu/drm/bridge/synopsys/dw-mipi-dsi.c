@@ -605,15 +605,30 @@ static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
 {
+	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
+	unsigned int esc_rate; /* in MHz */
+	u32 esc_clk_division;
+	int ret;
+
 	/*
 	 * The maximum permitted escape clock is 20MHz and it is derived from
-	 * lanebyteclk, which is running at "lane_mbps / 8".  Thus we want:
-	 *
-	 *     (lane_mbps >> 3) / esc_clk_division < 20
-	 * which is:
-	 *     (lane_mbps >> 3) / 20 > esc_clk_division
+	 * lanebyteclk, which is running at "lane_mbps / 8".
 	 */
-	u32 esc_clk_division = (dsi->lane_mbps >> 3) / 20 + 1;
+	if (phy_ops->get_esc_clk_rate) {
+		ret = phy_ops->get_esc_clk_rate(dsi->plat_data->priv_data,
+						&esc_rate);
+		if (ret)
+			DRM_DEBUG_DRIVER("Phy get_esc_clk_rate() failed\n");
+	} else
+		esc_rate = 20; /* Default to 20MHz */
+
+	/*
+	 * We want :
+	 *     (lane_mbps >> 3) / esc_clk_division < X
+	 * which is:
+	 *     (lane_mbps >> 3) / X > esc_clk_division
+	 */
+	esc_clk_division = (dsi->lane_mbps >> 3) / esc_rate + 1;
 
 	dsi_write(dsi, DSI_PWR_UP, RESET);
 
