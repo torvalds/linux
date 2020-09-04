@@ -2854,7 +2854,7 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 
 	if (err) {
 		dev_err(hdev->dev,
-			"Failed to communicate with ARM CPU (ArmCP timeout)\n");
+			"Failed to communicate with Device CPU (CPU-CP timeout)\n");
 		return -EIO;
 	}
 
@@ -5616,7 +5616,7 @@ static bool gaudi_tpc_read_interrupts(struct hl_device *hdev, u8 tpc_id,
 	bool soft_reset_required = false;
 
 	/* Accessing the TPC_INTR_CAUSE registers requires disabling the clock
-	 * gating, and thus cannot be done in ArmCP and should be done instead
+	 * gating, and thus cannot be done in CPU-CP and should be done instead
 	 * by the driver.
 	 */
 

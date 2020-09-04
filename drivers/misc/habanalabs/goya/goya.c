@@ -4509,7 +4509,7 @@ static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
 	total_pkt_size = sizeof(struct cpucp_unmask_irq_arr_packet) +
 			irq_arr_size;
 
-	/* data should be aligned to 8 bytes in order to ArmCP to copy it */
+	/* data should be aligned to 8 bytes in order to CPU-CP to copy it */
 	total_pkt_size = (total_pkt_size + 0x7) & ~0x7;
 
 	/* total_pkt_size is casted to u16 later on */

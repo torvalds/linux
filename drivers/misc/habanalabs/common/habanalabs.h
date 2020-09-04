@@ -466,7 +466,7 @@ struct hl_cs_job;
 #define HL_EQ_LENGTH			64
 #define HL_EQ_SIZE_IN_BYTES		(HL_EQ_LENGTH * HL_EQ_ENTRY_SIZE)
 
-/* Host <-> ArmCP shared memory size */
+/* Host <-> CPU-CP shared memory size */
 #define HL_CPU_ACCESSIBLE_MEM_SIZE	SZ_2M
 
 /**
@@ -648,7 +648,7 @@ enum div_select_defs {
  * @debugfs_read32: debug interface for reading u32 from DRAM/SRAM.
  * @debugfs_write32: debug interface for writing u32 to DRAM/SRAM.
  * @add_device_attr: add ASIC specific device attributes.
- * @handle_eqe: handle event queue entry (IRQ) from ArmCP.
+ * @handle_eqe: handle event queue entry (IRQ) from CPU-CP.
  * @set_pll_profile: change PLL profile (manual/automatic).
  * @get_events_stat: retrieve event queue entries histogram.
  * @read_pte: read MMU page table entry from DRAM.
@@ -657,7 +657,7 @@ enum div_select_defs {
  *                        (L1 only) or hard (L0 & L1) flush.
  * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
  *                              ASID-VA-size mask.
- * @send_heartbeat: send is-alive packet to ArmCP and verify response.
+ * @send_heartbeat: send is-alive packet to CPU-CP and verify response.
  * @set_clock_gating: enable/disable clock gating per engine according to
  *                    clock gating mask in hdev
  * @disable_clock_gating: disable clock gating completely
@@ -1438,8 +1438,8 @@ struct hl_device_idle_busy_ts {
  * @dev: related kernel basic device structure.
  * @dev_ctrl: related kernel device structure for the control device
  * @work_freq: delayed work to lower device frequency if possible.
- * @work_heartbeat: delayed work for ArmCP is-alive check.
- * @asic_name: ASIC specific nmae.
+ * @work_heartbeat: delayed work for CPU-CP is-alive check.
+ * @asic_name: ASIC specific name.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
  * @cq_wq: work queues of completion queues for executing work in process
@@ -1450,14 +1450,14 @@ struct hl_device_idle_busy_ts {
  * @hw_queues_mirror_list: CS mirror list for TDR.
  * @hw_queues_mirror_lock: protects hw_queues_mirror_list.
  * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CGs.
- * @event_queue: event queue for IRQ from ArmCP.
+ * @event_queue: event queue for IRQ from CPU-CP.
  * @dma_pool: DMA pool for small allocations.
- * @cpu_accessible_dma_mem: Host <-> ArmCP shared memory CPU address.
- * @cpu_accessible_dma_address: Host <-> ArmCP shared memory DMA address.
- * @cpu_accessible_dma_pool: Host <-> ArmCP shared memory pool.
+ * @cpu_accessible_dma_mem: Host <-> CPU-CP shared memory CPU address.
+ * @cpu_accessible_dma_address: Host <-> CPU-CP shared memory DMA address.
+ * @cpu_accessible_dma_pool: Host <-> CPU-CP shared memory pool.
  * @asid_bitmap: holds used/available ASIDs.
  * @asid_mutex: protects asid_bitmap.
- * @send_cpu_message_lock: enforces only one message in Host <-> ArmCP queue.
+ * @send_cpu_message_lock: enforces only one message in Host <-> CPU-CP queue.
  * @debug_lock: protects critical section of setting debug mode for device
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
@@ -1511,7 +1511,7 @@ struct hl_device_idle_busy_ts {
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
  * @hard_reset_pending: is there a hard reset work pending.
- * @heartbeat: is heartbeat sanity check towards ArmCP enabled.
+ * @heartbeat: is heartbeat sanity check towards CPU-CP enabled.
  * @reset_on_lockup: true if a reset should be done in case of stuck CS, false
  *                   otherwise.
  * @dram_supports_virtual_memory: is MMU enabled towards DRAM.

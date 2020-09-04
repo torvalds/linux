@@ -175,7 +175,7 @@ int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
 	total_pkt_size = sizeof(struct cpucp_unmask_irq_arr_packet) +
 			irq_arr_size;
 
-	/* data should be aligned to 8 bytes in order to ArmCP to copy it */
+	/* data should be aligned to 8 bytes in order to CPU-CP to copy it */
 	total_pkt_size = (total_pkt_size + 0x7) & ~0x7;
 
 	/* total_pkt_size is casted to u16 later on */
@@ -283,7 +283,7 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev)
 					&cpucp_info_dma_addr);
 	if (!cpucp_info_cpu_addr) {
 		dev_err(hdev->dev,
-			"Failed to allocate DMA memory for ArmCP info packet\n");
+			"Failed to allocate DMA memory for CPU-CP info packet\n");
 		return -ENOMEM;
 	}
 
@@ -298,7 +298,7 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev)
 					HL_CPUCP_INFO_TIMEOUT_USEC, &result);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to handle ArmCP info pkt, error %d\n", rc);
+			"Failed to handle CPU-CP info pkt, error %d\n", rc);
 		goto out;
 	}
 
@@ -333,7 +333,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 					max_size, &eeprom_info_dma_addr);
 	if (!eeprom_info_cpu_addr) {
 		dev_err(hdev->dev,
-			"Failed to allocate DMA memory for ArmCP EEPROM packet\n");
+			"Failed to allocate DMA memory for CPU-CP EEPROM packet\n");
 		return -ENOMEM;
 	}
 
@@ -349,7 +349,8 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to handle ArmCP EEPROM packet, error %d\n", rc);
+			"Failed to handle CPU-CP EEPROM packet, error %d\n",
+			rc);
 		goto out;
 	}
 
@@ -379,7 +380,7 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 					HL_CPUCP_INFO_TIMEOUT_USEC, &result);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to handle ArmCP PCI info pkt, error %d\n", rc);
+			"Failed to handle CPU-CP PCI info pkt, error %d\n", rc);
 		return rc;
 	}
 	counters->rx_throughput = result;
@@ -390,7 +391,7 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 					HL_CPUCP_INFO_TIMEOUT_USEC, &result);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to handle ArmCP PCI info pkt, error %d\n", rc);
+			"Failed to handle CPU-CP PCI info pkt, error %d\n", rc);
 		return rc;
 	}
 	counters->tx_throughput = result;
@@ -403,7 +404,7 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to handle ArmCP PCI info pkt, error %d\n", rc);
+			"Failed to handle CPU-CP PCI info pkt, error %d\n", rc);
 		return rc;
 	}
 	counters->replay_cnt = (u32) result;
