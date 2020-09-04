@@ -350,18 +350,6 @@ void ib_umem_release(struct ib_umem *umem)
 }
 EXPORT_SYMBOL(ib_umem_release);
 
-int ib_umem_page_count(struct ib_umem *umem)
-{
-	int i, n = 0;
-	struct scatterlist *sg;
-
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i)
-		n += sg_dma_len(sg) >> PAGE_SHIFT;
-
-	return n;
-}
-EXPORT_SYMBOL(ib_umem_page_count);
-
 /*
  * Copy from the given ib_umem's pages to the given buffer.
  *

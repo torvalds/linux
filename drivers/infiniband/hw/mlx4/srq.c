@@ -115,8 +115,9 @@ int mlx4_ib_create_srq(struct ib_srq *ib_srq,
 		if (IS_ERR(srq->umem))
 			return PTR_ERR(srq->umem);
 
-		err = mlx4_mtt_init(dev->dev, ib_umem_page_count(srq->umem),
-				    PAGE_SHIFT, &srq->mtt);
+		err = mlx4_mtt_init(
+			dev->dev, ib_umem_num_dma_blocks(srq->umem, PAGE_SIZE),
+			PAGE_SHIFT, &srq->mtt);
 		if (err)
 			goto err_buf;
 

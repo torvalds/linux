@@ -271,6 +271,8 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
 	u64 total_len = 0;
 	int i;
 
+	*num_of_mtts = ib_umem_num_dma_blocks(umem, PAGE_SIZE);
+
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i) {
 		/*
 		 * Initialization - save the first chunk start as the
@@ -421,7 +423,6 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		goto err_free;
 	}
 
-	n = ib_umem_page_count(mr->umem);
 	shift = mlx4_ib_umem_calc_optimal_mtt_size(mr->umem, start, &n);
 
 	err = mlx4_mr_alloc(dev->dev, to_mpd(pd)->pdn, virt_addr, length,
@@ -511,7 +512,7 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			mmr->umem = NULL;
 			goto release_mpt_entry;
 		}
-		n = ib_umem_page_count(mmr->umem);
+		n = ib_umem_num_dma_blocks(mmr->umem, PAGE_SIZE);
 		shift = PAGE_SHIFT;
 
 		err = mlx4_mr_rereg_mem_write(dev->dev, &mmr->mmr,

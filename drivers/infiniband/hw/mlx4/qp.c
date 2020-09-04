@@ -922,7 +922,6 @@ static int create_rq(struct ib_pd *pd, struct ib_qp_init_attr *init_attr,
 		goto err;
 	}
 
-	n = ib_umem_page_count(qp->umem);
 	shift = mlx4_ib_umem_calc_optimal_mtt_size(qp->umem, 0, &n);
 	err = mlx4_mtt_init(dev->dev, n, shift, &qp->mtt);
 
@@ -1117,7 +1116,6 @@ static int create_qp_common(struct ib_pd *pd, struct ib_qp_init_attr *init_attr,
 			goto err;
 		}
 
-		n = ib_umem_page_count(qp->umem);
 		shift = mlx4_ib_umem_calc_optimal_mtt_size(qp->umem, 0, &n);
 		err = mlx4_mtt_init(dev->dev, n, shift, &qp->mtt);
 
