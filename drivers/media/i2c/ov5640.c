@@ -3072,6 +3072,13 @@ static int ov5640_probe(struct i2c_client *client)
 		return ret;
 	}
 
+	if (sensor->ep.bus_type != V4L2_MBUS_PARALLEL &&
+	    sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY &&
+	    sensor->ep.bus_type != V4L2_MBUS_BT656) {
+		dev_err(dev, "Unsupported bus type %d\n", sensor->ep.bus_type);
+		return -EINVAL;
+	}
+
 	/* get system clock (xclk) */
 	sensor->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(sensor->xclk)) {
