@@ -1362,18 +1362,22 @@ static int btrfs_sysfs_add_fs_devices(struct btrfs_fs_devices *fs_devices)
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		ret = btrfs_sysfs_add_device(device);
 		if (ret)
-			return ret;
+			goto fail;
 	}
 
 	list_for_each_entry(seed, &fs_devices->seed_list, seed_list) {
 		list_for_each_entry(device, &seed->devices, dev_list) {
 			ret = btrfs_sysfs_add_device(device);
 			if (ret)
-				return ret;
+				goto fail;
 		}
 	}
 
 	return 0;
+
+fail:
+	btrfs_sysfs_remove_fs_devices(fs_devices);
+	return ret;
 }
 
 void btrfs_kobject_uevent(struct block_device *bdev, enum kobject_action action)
