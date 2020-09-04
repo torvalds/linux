@@ -2855,7 +2855,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	int logit = 1;
 	int res = 0;
 	uint16_t state_flags = 0;
-	uint16_t retry_delay = 0;
+	uint16_t sts_qual = 0;
 
 	if (IS_FWI2_CAPABLE(ha)) {
 		comp_status = le16_to_cpu(sts24->comp_status);
@@ -2953,8 +2953,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	sense_len = par_sense_len = rsp_info_len = resid_len =
 	    fw_resid_len = 0;
 	if (IS_FWI2_CAPABLE(ha)) {
-		u16 sts24_retry_delay = le16_to_cpu(sts24->retry_delay);
-
 		if (scsi_status & SS_SENSE_LEN_VALID)
 			sense_len = le32_to_cpu(sts24->sense_len);
 		if (scsi_status & SS_RESPONSE_INFO_LEN_VALID)
@@ -2968,13 +2966,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		host_to_fcp_swap(sts24->data, sizeof(sts24->data));
 		ox_id = le16_to_cpu(sts24->ox_id);
 		par_sense_len = sizeof(sts24->data);
-		/* Valid values of the retry delay timer are 0x1-0xffef */
-		if (sts24_retry_delay > 0 && sts24_retry_delay < 0xfff1) {
-			retry_delay = sts24_retry_delay & 0x3fff;
-			ql_dbg(ql_dbg_io, sp->vha, 0x3033,
-			    "%s: scope=%#x retry_delay=%#x\n", __func__,
-			    sts24_retry_delay >> 14, retry_delay);
-		}
+		sts_qual = le16_to_cpu(sts24->status_qualifier);
 	} else {
 		if (scsi_status & SS_SENSE_LEN_VALID)
 			sense_len = le16_to_cpu(sts->req_sense_length);
@@ -3012,9 +3004,9 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	 * Check retry_delay_timer value if we receive a busy or
 	 * queue full.
 	 */
-	if (lscsi_status == SAM_STAT_TASK_SET_FULL ||
-	    lscsi_status == SAM_STAT_BUSY)
-		qla2x00_set_retry_delay_timestamp(fcport, retry_delay);
+	if (unlikely(lscsi_status == SAM_STAT_TASK_SET_FULL ||
+		     lscsi_status == SAM_STAT_BUSY))
+		qla2x00_set_retry_delay_timestamp(fcport, sts_qual);
 
 	/*
 	 * Based on Host and scsi status generate status code for Linux

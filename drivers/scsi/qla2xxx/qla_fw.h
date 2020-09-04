@@ -619,7 +619,7 @@ struct sts_entry_24xx {
 #define SF_NVME_ERSP            BIT_6
 #define SF_FCP_RSP_DMA		BIT_0
 
-	__le16	retry_delay;
+	__le16	status_qualifier;
 	__le16	scsi_status;		/* SCSI status. */
 #define SS_CONFIRMATION_REQ		BIT_12
 

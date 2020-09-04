@@ -271,11 +271,41 @@ qla2x00_handle_mbx_completion(struct qla_hw_data *ha, int status)
 }
 
 static inline void
-qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t retry_delay)
+qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t sts_qual)
 {
-	if (retry_delay)
-		fcport->retry_delay_timestamp = jiffies +
-		    (retry_delay * HZ / 10);
+	u8 scope;
+	u16 qual;
+#define SQ_SCOPE_MASK		0xc000 /* SAM-6 rev5 5.3.2 */
+#define SQ_SCOPE_SHIFT		14
+#define SQ_QUAL_MASK		0x3fff
+
+#define SQ_MAX_WAIT_SEC		60 /* Max I/O hold off time in seconds. */
+#define SQ_MAX_WAIT_TIME	(SQ_MAX_WAIT_SEC * 10) /* in 100ms. */
+
+	if (!sts_qual) /* Common case. */
+		return;
+
+	scope = (sts_qual & SQ_SCOPE_MASK) >> SQ_SCOPE_SHIFT;
+	/* Handle only scope 1 or 2, which is for I-T nexus. */
+	if (scope != 1 && scope != 2)
+		return;
+
+	/* Skip processing, if retry delay timer is already in effect. */
+	if (fcport->retry_delay_timestamp &&
+	    time_before(jiffies, fcport->retry_delay_timestamp))
+		return;
+
+	qual = sts_qual & SQ_QUAL_MASK;
+	if (qual < 1 || qual > 0x3fef)
+		return;
+	qual = min(qual, (u16)SQ_MAX_WAIT_TIME);
+
+	/* qual is expressed in 100ms increments. */
+	fcport->retry_delay_timestamp = jiffies + (qual * HZ / 10);
+
+	ql_log(ql_log_warn, fcport->vha, 0x5101,
+	       "%8phC: I/O throttling requested (status qualifier = %04xh), holding off I/Os for %ums.\n",
+	       fcport->port_name, sts_qual, qual * 100);
 }
 
 static inline bool
