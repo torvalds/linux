@@ -178,7 +178,7 @@ static int cx25821_alsa_dma_map(struct cx25821_audio_dev *dev)
 	struct cx25821_audio_buffer *buf = dev->buf;
 
 	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
-			buf->nr_pages, PCI_DMA_FROMDEVICE);
+			buf->nr_pages, DMA_FROM_DEVICE);
 
 	if (0 == buf->sglen) {
 		pr_warn("%s: cx25821_alsa_map_sg failed\n", __func__);
@@ -194,7 +194,7 @@ static int cx25821_alsa_dma_unmap(struct cx25821_audio_dev *dev)
 	if (!buf->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->sglen, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->nr_pages, DMA_FROM_DEVICE);
 	buf->sglen = 0;
 	return 0;
 }

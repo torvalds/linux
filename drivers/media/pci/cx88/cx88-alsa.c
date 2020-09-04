@@ -317,7 +317,7 @@ static int cx88_alsa_dma_map(struct cx88_audio_dev *dev)
 	struct cx88_audio_buffer *buf = dev->buf;
 
 	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
-			buf->nr_pages, PCI_DMA_FROMDEVICE);
+			buf->nr_pages, DMA_FROM_DEVICE);
 
 	if (buf->sglen == 0) {
 		pr_warn("%s: cx88_alsa_map_sg failed\n", __func__);
@@ -333,8 +333,8 @@ static int cx88_alsa_dma_unmap(struct cx88_audio_dev *dev)
 	if (!buf->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->sglen,
-		     PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->nr_pages,
+		     DMA_FROM_DEVICE);
 	buf->sglen = 0;
 	return 0;
 }

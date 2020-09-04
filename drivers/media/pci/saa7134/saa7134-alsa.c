@@ -298,7 +298,7 @@ static int saa7134_alsa_dma_map(struct saa7134_dev *dev)
 	struct saa7134_dmasound *dma = &dev->dmasound;
 
 	dma->sglen = dma_map_sg(&dev->pci->dev, dma->sglist,
-			dma->nr_pages, PCI_DMA_FROMDEVICE);
+			dma->nr_pages, DMA_FROM_DEVICE);
 
 	if (0 == dma->sglen) {
 		pr_warn("%s: saa7134_alsa_map_sg failed\n", __func__);
@@ -314,7 +314,7 @@ static int saa7134_alsa_dma_unmap(struct saa7134_dev *dev)
 	if (!dma->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, dma->sglist, dma->sglen, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, dma->sglist, dma->nr_pages, DMA_FROM_DEVICE);
 	dma->sglen = 0;
 	return 0;
 }
