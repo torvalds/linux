@@ -934,12 +934,39 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 	return 0;
 }
 
+static int smu_v11_0_ack_ac_dc_interrupt(struct smu_context *smu)
+{
+	return smu_cmn_send_smc_msg(smu,
+				SMU_MSG_ReenableAcDcInterrupt,
+				NULL);
+}
+
+static int smu_v11_0_process_pending_interrupt(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (smu->dc_controlled_by_gpio &&
+	    smu_cmn_feature_is_enabled(smu, SMU_FEATURE_ACDC_BIT))
+		ret = smu_v11_0_ack_ac_dc_interrupt(smu);
+
+	return ret;
+}
+
 int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 {
-	if (smu->smu_table.thermal_controller_type)
-		return amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
+	int ret = 0;
 
-	return 0;
+	if (smu->smu_table.thermal_controller_type) {
+		ret = amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * After init there might have been missed interrupts triggered
+	 * before driver registers for interrupt (Ex. AC/DC).
+	 */
+	return smu_v11_0_process_pending_interrupt(smu);
 }
 
 int smu_v11_0_disable_thermal_alert(struct smu_context *smu)
@@ -1233,13 +1260,6 @@ static int smu_v11_0_set_irq_state(struct amdgpu_device *adev,
 	}
 
 	return 0;
-}
-
-static int smu_v11_0_ack_ac_dc_interrupt(struct smu_context *smu)
-{
-	return smu_cmn_send_smc_msg(smu,
-				SMU_MSG_ReenableAcDcInterrupt,
-				NULL);
 }
 
 #define THM_11_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
