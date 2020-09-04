@@ -14,9 +14,6 @@
 #include "qla_def.h"
 #include "qla_dsd.h"
 
-/* default dev loss time (seconds) before transport tears down ctrl */
-#define NVME_FC_DEV_LOSS_TMO  30
-
 #define NVME_ATIO_CMD_OFF 32
 #define NVME_FIRST_PACKET_CMDLEN (64 - NVME_ATIO_CMD_OFF)
 #define Q2T_NVME_NUM_TAGS 2048
