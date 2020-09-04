@@ -186,6 +186,8 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify);
  * - if verify is enabled and a cur_mkvp and/or old_mkvp
  *   value is given, then refetch the cca_info and make sure the current
  *   cur_mkvp or old_mkvp values of the apqn are used.
+ * The mktype determines which set of master keys to use:
+ *   0 = AES_MK_SET - AES MK set, 1 = APKA MK_SET - APKA MK set
  * The array of apqn entries is allocated with kmalloc and returned in *apqns;
  * the number of apqns stored into the list is returned in *nr_apqns. One apqn
  * entry is simple a 32 bit value with 16 bit cardnr and 16 bit domain nr and
@@ -194,18 +196,28 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify);
  * -ENODEV is returned.
  */
 int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
-		  int minhwtype, u64 cur_mkvp, u64 old_mkvp, int verify);
+		  int minhwtype, int mktype, u64 cur_mkvp, u64 old_mkvp,
+		  int verify);
+
+#define AES_MK_SET  0
+#define APKA_MK_SET 1
 
 /* struct to hold info for each CCA queue */
 struct cca_info {
-	int  hwtype;	    /* one of the defined AP_DEVICE_TYPE_* */
-	char new_mk_state;  /* '1' empty, '2' partially full, '3' full */
-	char cur_mk_state;  /* '1' invalid, '2' valid */
-	char old_mk_state;  /* '1' invalid, '2' valid */
-	u64  new_mkvp;	    /* truncated sha256 hash of new master key */
-	u64  cur_mkvp;	    /* truncated sha256 hash of current master key */
-	u64  old_mkvp;	    /* truncated sha256 hash of old master key */
-	char serial[9];     /* serial number string (8 ascii numbers + 0x00) */
+	int  hwtype;		/* one of the defined AP_DEVICE_TYPE_* */
+	char new_aes_mk_state;	/* '1' empty, '2' partially full, '3' full */
+	char cur_aes_mk_state;	/* '1' invalid, '2' valid */
+	char old_aes_mk_state;	/* '1' invalid, '2' valid */
+	char new_apka_mk_state; /* '1' empty, '2' partially full, '3' full */
+	char cur_apka_mk_state; /* '1' invalid, '2' valid */
+	char old_apka_mk_state; /* '1' invalid, '2' valid */
+	u64  new_aes_mkvp;	/* truncated sha256 of new aes master key */
+	u64  cur_aes_mkvp;	/* truncated sha256 of current aes master key */
+	u64  old_aes_mkvp;	/* truncated sha256 of old aes master key */
+	u64  new_apka_mkvp;	/* truncated sha256 of new apka master key */
+	u64  cur_apka_mkvp;	/* truncated sha256 of current apka mk */
+	u64  old_apka_mkvp;	/* truncated sha256 of old apka mk */
+	char serial[9];		/* serial number (8 ascii numbers + 0x00) */
 };
 
 /*

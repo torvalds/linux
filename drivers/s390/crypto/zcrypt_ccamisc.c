@@ -1506,21 +1506,38 @@ static int fetch_cca_info(u16 cardnr, u16 domain, struct cca_info *ci)
 				       rarray, &rlen, varray, &vlen);
 	if (rc == 0 && rlen >= 10*8 && vlen >= 204) {
 		memcpy(ci->serial, rarray, 8);
-		ci->new_mk_state = (char) rarray[7*8];
-		ci->cur_mk_state = (char) rarray[8*8];
-		ci->old_mk_state = (char) rarray[9*8];
-		if (ci->old_mk_state == '2')
-			memcpy(&ci->old_mkvp, varray + 172, 8);
-		if (ci->cur_mk_state == '2')
-			memcpy(&ci->cur_mkvp, varray + 184, 8);
-		if (ci->new_mk_state == '3')
-			memcpy(&ci->new_mkvp, varray + 196, 8);
-		found = 1;
+		ci->new_aes_mk_state = (char) rarray[7*8];
+		ci->cur_aes_mk_state = (char) rarray[8*8];
+		ci->old_aes_mk_state = (char) rarray[9*8];
+		if (ci->old_aes_mk_state == '2')
+			memcpy(&ci->old_aes_mkvp, varray + 172, 8);
+		if (ci->cur_aes_mk_state == '2')
+			memcpy(&ci->cur_aes_mkvp, varray + 184, 8);
+		if (ci->new_aes_mk_state == '3')
+			memcpy(&ci->new_aes_mkvp, varray + 196, 8);
+		found++;
+	}
+	if (!found)
+		goto out;
+	rlen = vlen = PAGE_SIZE/2;
+	rc = cca_query_crypto_facility(cardnr, domain, "STATICSB",
+				       rarray, &rlen, varray, &vlen);
+	if (rc == 0 && rlen >= 10*8 && vlen >= 240) {
+		ci->new_apka_mk_state = (char) rarray[7*8];
+		ci->cur_apka_mk_state = (char) rarray[8*8];
+		ci->old_apka_mk_state = (char) rarray[9*8];
+		if (ci->old_apka_mk_state == '2')
+			memcpy(&ci->old_apka_mkvp, varray + 208, 8);
+		if (ci->cur_apka_mk_state == '2')
+			memcpy(&ci->cur_apka_mkvp, varray + 220, 8);
+		if (ci->new_apka_mk_state == '3')
+			memcpy(&ci->new_apka_mkvp, varray + 232, 8);
+		found++;
 	}
 
+out:
 	free_page((unsigned long) pg);
-
-	return found ? 0 : -ENOENT;
+	return found == 2 ? 0 : -ENOENT;
 }
 
 /*
@@ -1574,16 +1591,16 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 			/* enabled CCA card, check current mkvp from cache */
 			if (cca_info_cache_fetch(card, dom, &ci) == 0 &&
 			    ci.hwtype >= minhwtype &&
-			    ci.cur_mk_state == '2' &&
-			    ci.cur_mkvp == mkvp) {
+			    ci.cur_aes_mk_state == '2' &&
+			    ci.cur_aes_mkvp == mkvp) {
 				if (!verify)
 					break;
 				/* verify: refresh card info */
 				if (fetch_cca_info(card, dom, &ci) == 0) {
 					cca_info_cache_update(card, dom, &ci);
 					if (ci.hwtype >= minhwtype &&
-					    ci.cur_mk_state == '2' &&
-					    ci.cur_mkvp == mkvp)
+					    ci.cur_aes_mk_state == '2' &&
+					    ci.cur_aes_mkvp == mkvp)
 						break;
 				}
 			}
@@ -1605,12 +1622,12 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 			if (fetch_cca_info(card, dom, &ci) == 0) {
 				cca_info_cache_update(card, dom, &ci);
 				if (ci.hwtype >= minhwtype &&
-				    ci.cur_mk_state == '2' &&
-				    ci.cur_mkvp == mkvp)
+				    ci.cur_aes_mk_state == '2' &&
+				    ci.cur_aes_mkvp == mkvp)
 					break;
 				if (ci.hwtype >= minhwtype &&
-				    ci.old_mk_state == '2' &&
-				    ci.old_mkvp == mkvp &&
+				    ci.old_aes_mk_state == '2' &&
+				    ci.old_aes_mkvp == mkvp &&
 				    oi < 0)
 					oi = i;
 			}
@@ -1664,7 +1681,8 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify)
 EXPORT_SYMBOL(cca_findcard);
 
 int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
-		  int minhwtype, u64 cur_mkvp, u64 old_mkvp, int verify)
+		  int minhwtype, int mktype, u64 cur_mkvp, u64 old_mkvp,
+		  int verify)
 {
 	struct zcrypt_device_status_ext *device_status;
 	u32 *_apqns = NULL, _nr_apqns = 0;
@@ -1706,7 +1724,9 @@ int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 		if (cca_get_info(card, dom, &ci, verify))
 			continue;
 		/* current master key needs to be valid */
-		if (ci.cur_mk_state != '2')
+		if (mktype == AES_MK_SET && ci.cur_aes_mk_state != '2')
+			continue;
+		if (mktype == APKA_MK_SET && ci.cur_apka_mk_state != '2')
 			continue;
 		/* check min hardware type */
 		if (minhwtype > 0 && minhwtype > ci.hwtype)
@@ -1714,13 +1734,20 @@ int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 		if (cur_mkvp || old_mkvp) {
 			/* check mkvps */
 			curmatch = oldmatch = 0;
-			if (cur_mkvp && cur_mkvp == ci.cur_mkvp)
-				curmatch = 1;
-			if (old_mkvp && ci.old_mk_state == '2' &&
-			    old_mkvp == ci.old_mkvp)
-				oldmatch = 1;
-			if ((cur_mkvp || old_mkvp) &&
-			    (curmatch + oldmatch < 1))
+			if (mktype == AES_MK_SET) {
+				if (cur_mkvp && cur_mkvp == ci.cur_aes_mkvp)
+					curmatch = 1;
+				if (old_mkvp && ci.old_aes_mk_state == '2' &&
+				    old_mkvp == ci.old_aes_mkvp)
+					oldmatch = 1;
+			} else {
+				if (cur_mkvp && cur_mkvp == ci.cur_apka_mkvp)
+					curmatch = 1;
+				if (old_mkvp && ci.old_apka_mk_state == '2' &&
+				    old_mkvp == ci.old_apka_mkvp)
+					oldmatch = 1;
+			}
+			if (curmatch + oldmatch < 1)
 				continue;
 		}
 		/* apqn passed all filtering criterons, add to the array */

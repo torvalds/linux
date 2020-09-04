@@ -109,25 +109,52 @@ static ssize_t cca_mkvps_show(struct device *dev,
 		     AP_QID_QUEUE(zq->queue->qid),
 		     &ci, zq->online);
 
-	if (ci.new_mk_state >= '1' && ci.new_mk_state <= '3')
+	if (ci.new_aes_mk_state >= '1' && ci.new_aes_mk_state <= '3')
 		n = scnprintf(buf, PAGE_SIZE, "AES NEW: %s 0x%016llx\n",
-			      new_state[ci.new_mk_state - '1'], ci.new_mkvp);
+			      new_state[ci.new_aes_mk_state - '1'],
+			      ci.new_aes_mkvp);
 	else
 		n = scnprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
 
-	if (ci.cur_mk_state >= '1' && ci.cur_mk_state <= '2')
+	if (ci.cur_aes_mk_state >= '1' && ci.cur_aes_mk_state <= '2')
 		n += scnprintf(buf + n, PAGE_SIZE - n,
 			       "AES CUR: %s 0x%016llx\n",
-			       cao_state[ci.cur_mk_state - '1'], ci.cur_mkvp);
+			       cao_state[ci.cur_aes_mk_state - '1'],
+			       ci.cur_aes_mkvp);
 	else
 		n += scnprintf(buf + n, PAGE_SIZE - n, "AES CUR: - -\n");
 
-	if (ci.old_mk_state >= '1' && ci.old_mk_state <= '2')
+	if (ci.old_aes_mk_state >= '1' && ci.old_aes_mk_state <= '2')
 		n += scnprintf(buf + n, PAGE_SIZE - n,
 			       "AES OLD: %s 0x%016llx\n",
-			       cao_state[ci.old_mk_state - '1'], ci.old_mkvp);
+			       cao_state[ci.old_aes_mk_state - '1'],
+			       ci.old_aes_mkvp);
 	else
 		n += scnprintf(buf + n, PAGE_SIZE - n, "AES OLD: - -\n");
+
+	if (ci.new_apka_mk_state >= '1' && ci.new_apka_mk_state <= '3')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA NEW: %s 0x%016llx\n",
+			       new_state[ci.new_apka_mk_state - '1'],
+			       ci.new_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA NEW: - -\n");
+
+	if (ci.cur_apka_mk_state >= '1' && ci.cur_apka_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA CUR: %s 0x%016llx\n",
+			       cao_state[ci.cur_apka_mk_state - '1'],
+			       ci.cur_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA CUR: - -\n");
+
+	if (ci.old_apka_mk_state >= '1' && ci.old_apka_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA OLD: %s 0x%016llx\n",
+			       cao_state[ci.old_apka_mk_state - '1'],
+			       ci.old_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA OLD: - -\n");
 
 	return n;
 }

@@ -661,13 +661,14 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 			*ksize = (enum pkey_key_size) t->bitsize;
 
 		rc = cca_findcard2(&_apqns, &_nr_apqns, *cardnr, *domain,
-				   ZCRYPT_CEX3C, t->mkvp, 0, 1);
+				   ZCRYPT_CEX3C, AES_MK_SET, t->mkvp, 0, 1);
 		if (rc == 0 && flags)
 			*flags = PKEY_FLAGS_MATCH_CUR_MKVP;
 		if (rc == -ENODEV) {
 			rc = cca_findcard2(&_apqns, &_nr_apqns,
 					   *cardnr, *domain,
-					   ZCRYPT_CEX3C, 0, t->mkvp, 1);
+					   ZCRYPT_CEX3C, AES_MK_SET,
+					   0, t->mkvp, 1);
 			if (rc == 0 && flags)
 				*flags = PKEY_FLAGS_MATCH_ALT_MKVP;
 		}
@@ -697,13 +698,14 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		}
 
 		rc = cca_findcard2(&_apqns, &_nr_apqns, *cardnr, *domain,
-				   ZCRYPT_CEX6, t->mkvp0, 0, 1);
+				   ZCRYPT_CEX6, AES_MK_SET, t->mkvp0, 0, 1);
 		if (rc == 0 && flags)
 			*flags = PKEY_FLAGS_MATCH_CUR_MKVP;
 		if (rc == -ENODEV) {
 			rc = cca_findcard2(&_apqns, &_nr_apqns,
 					   *cardnr, *domain,
-					   ZCRYPT_CEX6, 0, t->mkvp0, 1);
+					   ZCRYPT_CEX6, AES_MK_SET,
+					   0, t->mkvp0, 1);
 			if (rc == 0 && flags)
 				*flags = PKEY_FLAGS_MATCH_ALT_MKVP;
 		}
@@ -863,7 +865,8 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			return -EINVAL;
 		}
 		rc = cca_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
-				   minhwtype, cur_mkvp, old_mkvp, 1);
+				   minhwtype, AES_MK_SET,
+				   cur_mkvp, old_mkvp, 1);
 		if (rc)
 			goto out;
 	} else
@@ -900,7 +903,8 @@ static int pkey_apqns4keytype(enum pkey_key_type ktype,
 		if (ktype == PKEY_TYPE_CCA_CIPHER)
 			minhwtype = ZCRYPT_CEX6;
 		rc = cca_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
-				   minhwtype, cur_mkvp, old_mkvp, 1);
+				   minhwtype, AES_MK_SET,
+				   cur_mkvp, old_mkvp, 1);
 		if (rc)
 			goto out;
 	} else if (ktype == PKEY_TYPE_EP11) {
@@ -1589,7 +1593,7 @@ static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
 
 	/* build a list of apqns able to generate an cipher key */
 	rc = cca_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			   ZCRYPT_CEX6, 0, 0, 0);
+			   ZCRYPT_CEX6, 0, 0, 0, 0);
 	if (rc)
 		return rc;
 
