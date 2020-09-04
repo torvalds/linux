@@ -29,7 +29,7 @@ acpi_hw_gpe_enable_write(u8 enable_mask,
  * FUNCTION:    acpi_hw_gpe_read
  *
  * PARAMETERS:  value               - Where the value is returned
- *              reg                 - GAS register structure
+ *              reg                 - GPE register structure
  *
  * RETURN:      Status
  *
@@ -40,7 +40,7 @@ acpi_hw_gpe_enable_write(u8 enable_mask,
  *
  ******************************************************************************/
 
-acpi_status acpi_hw_gpe_read(u64 *value, struct acpi_generic_address *reg)
+acpi_status acpi_hw_gpe_read(u64 *value, struct acpi_gpe_address *reg)
 {
 	acpi_status status;
 	u32 value32;
@@ -65,7 +65,7 @@ acpi_status acpi_hw_gpe_read(u64 *value, struct acpi_generic_address *reg)
  * FUNCTION:    acpi_hw_gpe_write
  *
  * PARAMETERS:  value               - Value to be written
- *              reg                 - GAS register structure
+ *              reg                 - GPE register structure
  *
  * RETURN:      Status
  *
@@ -73,7 +73,7 @@ acpi_status acpi_hw_gpe_read(u64 *value, struct acpi_generic_address *reg)
  *
  ******************************************************************************/
 
-acpi_status acpi_hw_gpe_write(u64 value, struct acpi_generic_address *reg)
+acpi_status acpi_hw_gpe_write(u64 value, struct acpi_gpe_address *reg)
 {
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 		return acpi_os_write_memory((acpi_physical_address)reg->address,

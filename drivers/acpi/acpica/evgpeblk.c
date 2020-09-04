@@ -233,12 +233,6 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 		this_register->status_address.space_id = gpe_block->space_id;
 		this_register->enable_address.space_id = gpe_block->space_id;
-		this_register->status_address.bit_width =
-		    ACPI_GPE_REGISTER_WIDTH;
-		this_register->enable_address.bit_width =
-		    ACPI_GPE_REGISTER_WIDTH;
-		this_register->status_address.bit_offset = 0;
-		this_register->enable_address.bit_offset = 0;
 
 		/* Init the event_info for each GPE within this register */
 
