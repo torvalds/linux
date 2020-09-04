@@ -35,8 +35,6 @@
 #error "Number of MSI interrupts must be smaller or equal to GAUDI_MSI_ENTRIES"
 #endif
 
-#define QMAN_FENCE_TIMEOUT_USEC		10000		/* 10 ms */
-
 #define CORESIGHT_TIMEOUT_USEC		100000		/* 100 ms */
 
 #define GAUDI_MAX_CLK_FREQ		2200000000ull	/* 2200 MHz */
