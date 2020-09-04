@@ -157,7 +157,9 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
  */
 
 /*
- * SEQCOUNT_LOCKNAME() - Instantiate seqcount_LOCKNAME_t and helpers
+ * SEQCOUNT_LOCKNAME()	- Instantiate seqcount_LOCKNAME_t and helpers
+ * seqprop_LOCKNAME_*()	- Property accessors for seqcount_LOCKNAME_t
+ *
  * @lockname:		"LOCKNAME" part of seqcount_LOCKNAME_t
  * @locktype:		LOCKNAME canonical C data type
  * @preemptible:	preemptibility of above lockname
@@ -177,19 +179,19 @@ seqcount_##lockname##_init(seqcount_##lockname##_t *s, locktype *lock)	\
 }									\
 									\
 static __always_inline seqcount_t *					\
-__seqcount_##lockname##_ptr(seqcount_##lockname##_t *s)			\
+__seqprop_##lockname##_ptr(seqcount_##lockname##_t *s)			\
 {									\
 	return &s->seqcount;						\
 }									\
 									\
 static __always_inline bool						\
-__seqcount_##lockname##_preemptible(seqcount_##lockname##_t *s)		\
+__seqprop_##lockname##_preemptible(const seqcount_##lockname##_t *s)	\
 {									\
 	return preemptible;						\
 }									\
 									\
 static __always_inline void						\
-__seqcount_##lockname##_assert(seqcount_##lockname##_t *s)		\
+__seqprop_##lockname##_assert(const seqcount_##lockname##_t *s)		\
 {									\
 	__SEQ_LOCK(lockdep_assert_held(lockmember));			\
 }
@@ -198,17 +200,17 @@ __seqcount_##lockname##_assert(seqcount_##lockname##_t *s)		\
  * __seqprop() for seqcount_t
  */
 
-static inline seqcount_t *__seqcount_ptr(seqcount_t *s)
+static inline seqcount_t *__seqprop_ptr(seqcount_t *s)
 {
 	return s;
 }
 
-static inline bool __seqcount_preemptible(seqcount_t *s)
+static inline bool __seqprop_preemptible(const seqcount_t *s)
 {
 	return false;
 }
 
-static inline void __seqcount_assert(seqcount_t *s)
+static inline void __seqprop_assert(const seqcount_t *s)
 {
 	lockdep_assert_preemption_disabled();
 }
@@ -237,10 +239,10 @@ SEQCOUNT_LOCKNAME(ww_mutex,	struct ww_mutex,	true,	&s->lock->base)
 #define SEQCNT_WW_MUTEX_ZERO(name, lock) 	SEQCOUNT_LOCKNAME_ZERO(name, lock)
 
 #define __seqprop_case(s, lockname, prop)				\
-	seqcount_##lockname##_t: __seqcount_##lockname##_##prop((void *)(s))
+	seqcount_##lockname##_t: __seqprop_##lockname##_##prop((void *)(s))
 
 #define __seqprop(s, prop) _Generic(*(s),				\
-	seqcount_t:		__seqcount_##prop((void *)(s)),		\
+	seqcount_t:		__seqprop_##prop((void *)(s)),		\
 	__seqprop_case((s),	raw_spinlock,	prop),			\
 	__seqprop_case((s),	spinlock,	prop),			\
 	__seqprop_case((s),	rwlock,		prop),			\
