@@ -319,8 +319,6 @@ void *fwnode_connection_find_match(struct fwnode_handle *fwnode,
 void *device_connection_find_match(struct device *dev, const char *con_id,
 				   void *data, devcon_match_fn_t match);
 
-struct device *device_connection_find(struct device *dev, const char *con_id);
-
 void device_connection_add(struct device_connection *con);
 void device_connection_remove(struct device_connection *con);
 
