@@ -68,7 +68,8 @@
 	FEATURE_MASK(FEATURE_DPM_LINK_BIT)       | \
 	FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)     | \
 	FEATURE_MASK(FEATURE_DPM_FCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT))
+	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)	 | \
+	FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT))
 
 #define SMU_11_0_7_GFX_BUSY_THRESHOLD 15
 
@@ -229,6 +230,7 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT)
 				| FEATURE_MASK(FEATURE_DPM_FCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_DCEFCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_FCLK_BIT)
@@ -1147,10 +1149,14 @@ static bool sienna_cichlid_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
 	uint32_t feature_mask[2];
-	unsigned long feature_enabled;
+	uint64_t feature_enabled;
+
 	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
-	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
-			   ((uint64_t)feature_mask[1] << 32));
+	if (ret)
+		return false;
+
+	feature_enabled = (uint64_t)feature_mask[1] << 32 | feature_mask[0];
+
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 

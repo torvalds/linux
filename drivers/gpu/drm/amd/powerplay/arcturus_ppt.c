@@ -1840,10 +1840,14 @@ static bool arcturus_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
 	uint32_t feature_mask[2];
-	unsigned long feature_enabled;
+	uint64_t feature_enabled;
+
 	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
-	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
-			   ((uint64_t)feature_mask[1] << 32));
+	if (ret)
+		return false;
+
+	feature_enabled = (uint64_t)feature_mask[1] << 32 | feature_mask[0];
+
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
