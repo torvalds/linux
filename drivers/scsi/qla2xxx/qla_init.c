@@ -5496,6 +5496,8 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	qla2x00_iidma_fcport(vha, fcport);
 
+	qla2x00_dfs_create_rport(vha, fcport);
+
 	if (NVME_TARGET(vha->hw, fcport)) {
 		qla_nvme_register_remote(vha, fcport);
 		qla2x00_set_fcport_disc_state(fcport, DSC_LOGIN_COMPLETE);

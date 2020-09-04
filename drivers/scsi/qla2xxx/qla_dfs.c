@@ -12,6 +12,29 @@
 static struct dentry *qla2x00_dfs_root;
 static atomic_t qla2x00_dfs_root_count;
 
+void
+qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp)
+{
+	char wwn[32];
+
+	if (!vha->dfs_rport_root || fp->dfs_rport_dir)
+		return;
+
+	sprintf(wwn, "pn-%016llx", wwn_to_u64(fp->port_name));
+	fp->dfs_rport_dir = debugfs_create_dir(wwn, vha->dfs_rport_root);
+	if (!fp->dfs_rport_dir)
+		return;
+}
+
+void
+qla2x00_dfs_remove_rport(scsi_qla_host_t *vha, struct fc_port *fp)
+{
+	if (!vha->dfs_rport_root || !fp->dfs_rport_dir)
+		return;
+	debugfs_remove_recursive(fp->dfs_rport_dir);
+	fp->dfs_rport_dir = NULL;
+}
+
 static int
 qla2x00_dfs_tgt_sess_show(struct seq_file *s, void *unused)
 {
@@ -473,9 +496,21 @@ create_nodes:
 	ha->tgt.dfs_tgt_sess = debugfs_create_file("tgt_sess",
 		S_IRUSR, ha->dfs_dir, vha, &dfs_tgt_sess_ops);
 
-	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))
+	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha)) {
 		ha->tgt.dfs_naqp = debugfs_create_file("naqp",
 		    0400, ha->dfs_dir, vha, &dfs_naqp_ops);
+		if (!ha->tgt.dfs_naqp) {
+			ql_log(ql_log_warn, vha, 0xd011,
+			       "Unable to create debugFS naqp node.\n");
+			goto out;
+		}
+	}
+	vha->dfs_rport_root = debugfs_create_dir("rports", ha->dfs_dir);
+	if (!vha->dfs_rport_root) {
+		ql_log(ql_log_warn, vha, 0xd012,
+		       "Unable to create debugFS rports node.\n");
+		goto out;
+	}
 out:
 	return 0;
 }
@@ -513,6 +548,11 @@ qla2x00_dfs_remove(scsi_qla_host_t *vha)
 	if (ha->dfs_fce) {
 		debugfs_remove(ha->dfs_fce);
 		ha->dfs_fce = NULL;
+	}
+
+	if (vha->dfs_rport_root) {
+		debugfs_remove_recursive(vha->dfs_rport_root);
+		vha->dfs_rport_root = NULL;
 	}
 
 	if (ha->dfs_dir) {

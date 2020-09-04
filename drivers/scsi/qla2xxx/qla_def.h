@@ -2544,6 +2544,8 @@ typedef struct fc_port {
 	u8 last_login_state;
 	u16 n2n_link_reset_cnt;
 	u16 n2n_chip_reset;
+
+	struct dentry *dfs_rport_dir;
 } fc_port_t;
 
 enum {
@@ -4779,6 +4781,8 @@ typedef struct scsi_qla_host {
 	uint16_t qlini_mode;
 	uint16_t ql2xexchoffld;
 	uint16_t ql2xiniexchg;
+
+	struct dentry *dfs_rport_root;
 
 	struct purex_list {
 		struct list_head head;
