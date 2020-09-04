@@ -832,8 +832,58 @@ static int renoir_set_performance_level(struct smu_context *smu,
 		ret = renoir_force_dpm_limit_value(smu, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
-	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		ret = renoir_unforce_dpm_levels(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetHardMinGfxClk,
+						      RENOIR_UMD_PSTATE_GFXCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetHardMinFclkByFreq,
+						      RENOIR_UMD_PSTATE_FCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetHardMinSocclkByFreq,
+						      RENOIR_UMD_PSTATE_SOCCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetHardMinVcn,
+						      RENOIR_UMD_PSTATE_VCNCLK,
+						      NULL);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetSoftMaxGfxClk,
+						      RENOIR_UMD_PSTATE_GFXCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetSoftMaxFclkByFreq,
+						      RENOIR_UMD_PSTATE_FCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetSoftMaxSocclkByFreq,
+						      RENOIR_UMD_PSTATE_SOCCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetSoftMaxVcn,
+						      RENOIR_UMD_PSTATE_VCNCLK,
+						      NULL);
+		if (ret)
+			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
