@@ -1003,8 +1003,13 @@ static int start_ii(struct rkispp_stream *stream)
 
 static int config_ii(struct rkispp_stream *stream)
 {
+	int ret;
+
 	stream->is_cfg = true;
-	return config_modules(stream->isppdev);
+	ret = config_modules(stream->isppdev);
+	if (!ret)
+		rkispp_frame_end(stream);
+	return ret;
 }
 
 static int is_stopped_ii(struct rkispp_stream *stream)
@@ -1091,6 +1096,9 @@ static int config_mb(struct rkispp_stream *stream)
 		mult = 0;
 	set_vir_stride(stream, ALIGN(stream->out_fmt.width * mult, 16) >> 2);
 
+	/* config first buf */
+	rkispp_frame_end(stream);
+
 	if (dev->ispp_sdev.state == ISPP_STOP)
 		secure_config_mb(stream);
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
@@ -1168,6 +1176,8 @@ static int config_scl(struct rkispp_stream *stream)
 		SW_SCL_WR_YUYV_FORMAT | SW_SCL_WR_YUV_FORMAT |
 		SW_SCL_WR_UV_DIS | SW_SCL_BYPASS;
 
+	/* config first buf */
+	rkispp_frame_end(stream);
 	if (hy_fac == 8193 && vy_fac == 8193)
 		val |= SW_SCL_BYPASS;
 	if (fmt->wr_fmt & FMT_YUYV)
@@ -1573,9 +1583,6 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 			goto free_dummy_buf;
 	}
 
-	/* config first buf */
-	rkispp_frame_end(stream);
-
 	/* start from ddr */
 	if (stream->ops->start)
 		stream->ops->start(stream);
@@ -1807,7 +1814,8 @@ static int rkispp_s_fmt_vid_mplane(struct file *file,
 	struct rkispp_vdev_node *node = vdev_to_node(vdev);
 	struct rkispp_device *dev = stream->isppdev;
 
-	if (vb2_is_busy(&node->buf_queue)) {
+	/* Change not allowed if queue is streaming. */
+	if (vb2_is_streaming(&node->buf_queue)) {
 		v4l2_err(&dev->v4l2_dev, "%s queue busy\n", __func__);
 		return -EBUSY;
 	}
