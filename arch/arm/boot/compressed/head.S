@@ -113,6 +113,28 @@
 #endif
 		.endm
 
+		/*
+		 * Debug print of the final appended DTB location
+		 */
+		.macro dbgadtb, begin, end
+#ifdef DEBUG
+		kputc   #'D'
+		kputc   #'T'
+		kputc   #'B'
+		kputc   #':'
+		kputc   #'0'
+		kputc   #'x'
+		kphex   \begin, 8	/* Start of appended DTB */
+		kputc	#' '
+		kputc	#'('
+		kputc	#'0'
+		kputc	#'x'
+		kphex	\end, 8		/* End of appended DTB */
+		kputc	#')'
+		kputc	#'\n'
+#endif
+		.endm
+
 		.macro	enable_cp15_barriers, reg
 		mrc	p15, 0, \reg, c1, c0, 0	@ read SCTLR
 		tst	\reg, #(1 << 5)		@ CP15BEN bit set?
@@ -330,6 +352,7 @@ restart:	adr	r0, LC1
 		mov	r5, r5, ror #8
 		eor	r5, r5, r1, lsr #8
 #endif
+		dbgadtb	r6, r5
 		/* 50% DTB growth should be good enough */
 		add	r5, r5, r5, lsr #1
 		/* preserve 64-bit alignment */
