@@ -36,6 +36,10 @@ properties:
             - fsl,imx6sx-uart
             - fsl,imx6ul-uart
             - fsl,imx7d-uart
+            - fsl,imx8mm-uart
+            - fsl,imx8mn-uart
+            - fsl,imx8mp-uart
+            - fsl,imx8mq-uart
           - const: fsl,imx6q-uart
 
   reg:
