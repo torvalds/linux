@@ -4,6 +4,7 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/log2.h>
 
 #include <rdma/ib_addr.h>
 #include <rdma/ib_umem.h>
@@ -1540,9 +1541,8 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_unmap;
 	}
 
-	params.page_shift = __ffs(pg_sz);
-	params.page_num = DIV_ROUND_UP(length + (start & (pg_sz - 1)),
-				       pg_sz);
+	params.page_shift = order_base_2(pg_sz);
+	params.page_num = ib_umem_num_dma_blocks(mr->umem, pg_sz);
 
 	ibdev_dbg(&dev->ibdev,
 		  "start %#llx length %#llx params.page_shift %u params.page_num %u\n",
