@@ -675,8 +675,6 @@ enum div_select_defs {
  *                    ASIC
  * @get_hw_state: retrieve the H/W state
  * @pci_bars_map: Map PCI BARs.
- * @set_dram_bar_base: Set DRAM BAR to map specific device address. Returns
- *                     old address the bar pointed to or U64_MAX for failure
  * @init_iatu: Initialize the iATU unit inside the PCI controller.
  * @rreg: Read a register. Needed for simulator support.
  * @wreg: Write a register. Needed for simulator support.
@@ -779,7 +777,6 @@ struct hl_asic_funcs {
 				u16 len, u32 timeout, long *result);
 	enum hl_device_hw_state (*get_hw_state)(struct hl_device *hdev);
 	int (*pci_bars_map)(struct hl_device *hdev);
-	u64 (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
 	int (*init_iatu)(struct hl_device *hdev);
 	u32 (*rreg)(struct hl_device *hdev, u32 reg);
 	void (*wreg)(struct hl_device *hdev, u32 reg, u32 val);
@@ -1874,8 +1871,6 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);
 int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data);
-int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
-				u64 addr);
 int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 		struct hl_inbound_pci_region *pci_region);
 int hl_pci_set_outbound_region(struct hl_device *hdev,

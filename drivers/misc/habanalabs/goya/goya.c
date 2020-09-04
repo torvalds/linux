@@ -5377,7 +5377,6 @@ static const struct hl_asic_funcs goya_funcs = {
 	.send_cpu_message = goya_send_cpu_message,
 	.get_hw_state = goya_get_hw_state,
 	.pci_bars_map = goya_pci_bars_map,
-	.set_dram_bar_base = goya_set_ddr_bar_base,
 	.init_iatu = goya_init_iatu,
 	.rreg = hl_rreg,
 	.wreg = hl_wreg,
