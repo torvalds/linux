@@ -1950,19 +1950,16 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_src *src;
+	size_t ipc_size = sizeof(*src);
 	int ret;
 
-	src = kzalloc(sizeof(*src), GFP_KERNEL);
+	src = (struct sof_ipc_comp_src *)
+	      sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!src)
 		return -ENOMEM;
 
 	/* configure src IPC message */
-	src->comp.hdr.size = sizeof(*src);
-	src->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	src->comp.id = swidget->comp_id;
 	src->comp.type = SOF_COMP_SRC;
-	src->comp.pipeline_id = index;
-	src->comp.core = core;
 	src->config.hdr.size = sizeof(src->config);
 
 	ret = sof_parse_tokens(scomp, src, src_tokens,
@@ -1990,7 +1987,7 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 	swidget->private = src;
 
 	ret = sof_ipc_tx_message(sdev->ipc, src->comp.hdr.cmd, src,
-				 sizeof(*src), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret >= 0)
 		return ret;
 err:
