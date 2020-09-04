@@ -379,10 +379,16 @@ properties:
               - fsl,imx8mq-evk            # i.MX8MQ EVK Board
               - google,imx8mq-phanbell    # Google Coral Edge TPU
               - purism,librem5-devkit     # Purism Librem5 devkit
-              - purism,librem5r2          # Purism Librem5 phone "Chestnut"
-              - purism,librem5r3          # Purism Librem5 phone "Dogwood"
               - solidrun,hummingboard-pulse # SolidRun Hummingboard Pulse
               - technexion,pico-pi-imx8m  # TechNexion PICO-PI-8M evk
+          - const: fsl,imx8mq
+
+      - description: Purism Librem5 phones
+        items:
+          - enum:
+              - purism,librem5r2          # Purism Librem5 phone "Chestnut"
+              - purism,librem5r3          # Purism Librem5 phone "Dogwood"
+          - const: purism,librem5
           - const: fsl,imx8mq
 
       - description: Zodiac Inflight Innovations Ultra Boards
