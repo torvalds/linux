@@ -7,8 +7,8 @@
 #include <linux/platform_device.h>
 #include <media/v4l2-subdev.h>
 
-#define RKISPP_BUF_MAX 3
-#define RKISP_ISPP_BUF_MAX (RKISPP_BUF_MAX + (2 * DEV_MAX))
+#define RKISPP_BUF_MAX 5
+#define RKISP_ISPP_BUF_MAX (RKISPP_BUF_MAX + (2 * (DEV_MAX - 1)))
 
 #define RKISP_ISPP_CMD_SET_MODE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct rkisp_ispp_mode)
@@ -66,6 +66,7 @@ struct rkisp_ispp_buf {
 	u64 frame_timestamp;
 	u32 frame_id;
 	u32 index;
+	bool is_isp;
 };
 
 #if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)

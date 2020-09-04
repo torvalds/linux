@@ -189,6 +189,7 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 		if (!pool->dbufs)
 			break;
 	}
+	dbufs->is_isp = true;
 	pool->dbufs = dbufs;
 	if (rkispp_debug)
 		dev_info(hw->dev, "%s dbufs[%d]:0x%p\n",

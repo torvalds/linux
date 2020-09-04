@@ -171,11 +171,6 @@ static void tnr_config(struct rkispp_params_vdev *params_vdev,
 	rkispp_write(params_vdev->dev, RKISPP_TNR_CORE_WEIGHT, val);
 }
 
-static void tnr_enable(struct rkispp_params_vdev *params_vdev, bool en)
-{
-	rkispp_set_bits(params_vdev->dev, RKISPP_TNR_CORE_CTRL, SW_TNR_EN, en);
-}
-
 static bool is_tnr_enable(struct rkispp_params_vdev *params_vdev)
 {
 	u32 cur_en;
@@ -184,6 +179,13 @@ static bool is_tnr_enable(struct rkispp_params_vdev *params_vdev)
 	cur_en &= SW_TNR_EN;
 
 	return (!!cur_en);
+}
+
+static void tnr_enable(struct rkispp_params_vdev *params_vdev, bool en)
+{
+	if (en && !is_tnr_enable(params_vdev))
+		rkispp_set_bits(params_vdev->dev, RKISPP_TNR_CTRL, 0, SW_TNR_1ST_FRM);
+	rkispp_set_bits(params_vdev->dev, RKISPP_TNR_CORE_CTRL, SW_TNR_EN, en);
 }
 
 static void nr_config(struct rkispp_params_vdev *params_vdev,
