@@ -9,9 +9,6 @@
 #include <linux/device.h>
 #include <linux/property.h>
 
-static DEFINE_MUTEX(devcon_lock);
-static LIST_HEAD(devcon_list);
-
 static void *
 fwnode_graph_devcon_match(struct fwnode_handle *fwnode, const char *con_id,
 			  void *data, devcon_match_fn_t match)
@@ -99,60 +96,6 @@ EXPORT_SYMBOL_GPL(fwnode_connection_find_match);
 void *device_connection_find_match(struct device *dev, const char *con_id,
 				   void *data, devcon_match_fn_t match)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	const char *devname = dev_name(dev);
-	struct device_connection *con;
-	void *ret = NULL;
-	int ep;
-
-	if (!match)
-		return NULL;
-
-	ret = fwnode_connection_find_match(fwnode, con_id, data, match);
-	if (ret)
-		return ret;
-
-	mutex_lock(&devcon_lock);
-
-	list_for_each_entry(con, &devcon_list, list) {
-		ep = match_string(con->endpoint, 2, devname);
-		if (ep < 0)
-			continue;
-
-		if (con_id && strcmp(con->id, con_id))
-			continue;
-
-		ret = match(con, !ep, data);
-		if (ret)
-			break;
-	}
-
-	mutex_unlock(&devcon_lock);
-
-	return ret;
+	return fwnode_connection_find_match(dev_fwnode(dev), con_id, data, match);
 }
 EXPORT_SYMBOL_GPL(device_connection_find_match);
-
-/**
- * device_connection_add - Register a connection description
- * @con: The connection description to be registered
- */
-void device_connection_add(struct device_connection *con)
-{
-	mutex_lock(&devcon_lock);
-	list_add_tail(&con->list, &devcon_list);
-	mutex_unlock(&devcon_lock);
-}
-EXPORT_SYMBOL_GPL(device_connection_add);
-
-/**
- * device_connections_remove - Unregister connection description
- * @con: The connection description to be unregistered
- */
-void device_connection_remove(struct device_connection *con)
-{
-	mutex_lock(&devcon_lock);
-	list_del(&con->list);
-	mutex_unlock(&devcon_lock);
-}
-EXPORT_SYMBOL_GPL(device_connection_remove);
