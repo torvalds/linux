@@ -53,6 +53,7 @@
 #define SBPI_ENABLE_MASK		GENMASK(16, 16)
 
 #define OTPC_TIMEOUT			10000
+#define OTPC_TIMEOUT_PROG		100000
 
 #define RV1126_OTP_NVM_CEB		0x00
 #define RV1126_OTP_NVM_RSTB		0x04
@@ -60,7 +61,14 @@
 #define RV1126_OTP_NVM_RADDR		0x1C
 #define RV1126_OTP_NVM_RSTART		0x20
 #define RV1126_OTP_NVM_RDATA		0x24
+#define RV1126_OTP_NVM_TRWH		0x28
 #define RV1126_OTP_READ_ST		0x30
+#define RV1126_OTP_NVM_PRADDR		0x34
+#define RV1126_OTP_NVM_PRLEN		0x38
+#define RV1126_OTP_NVM_PRDATA		0x3c
+#define RV1126_OTP_NVM_FAILTIME		0x40
+#define RV1126_OTP_NVM_PRSTART		0x44
+#define RV1126_OTP_NVM_PRSTATE		0x48
 
 struct rockchip_otp {
 	struct device *dev;
@@ -68,6 +76,7 @@ struct rockchip_otp {
 	struct clk_bulk_data	*clks;
 	int num_clks;
 	struct reset_control *rst;
+	struct nvmem_config *config;
 };
 
 struct rockchip_data {
@@ -75,6 +84,7 @@ struct rockchip_data {
 	const char * const *clocks;
 	int num_clks;
 	nvmem_reg_read_t reg_read;
+	nvmem_reg_write_t reg_write;
 	int (*init)(struct rockchip_otp *otp);
 };
 
@@ -208,6 +218,8 @@ static int rv1126_otp_init(struct rockchip_otp *otp)
 		return ret;
 	}
 
+	otp->config->read_only = false;
+
 	return 0;
 }
 
@@ -234,6 +246,61 @@ static int rv1126_otp_read(void *context, unsigned int offset, void *val,
 	}
 
 	return 0;
+}
+
+static int rv1126_otp_prog(struct rockchip_otp *otp, u32 bit_offset, u32 data,
+			   u32 bit_len)
+{
+	u32 status = 0;
+	int ret = 0;
+
+	if (!data)
+		return 0;
+
+	writel(bit_offset, otp->base + RV1126_OTP_NVM_PRADDR);
+	writel(bit_len - 1, otp->base + RV1126_OTP_NVM_PRLEN);
+	writel(data, otp->base + RV1126_OTP_NVM_PRDATA);
+	writel(1, otp->base + RV1126_OTP_NVM_PRSTART);
+	/* Wait max 100 ms */
+	ret = readl_poll_timeout_atomic(otp->base + RV1126_OTP_NVM_PRSTATE,
+					status, status == 0, 1,
+					OTPC_TIMEOUT_PROG);
+	if (ret < 0)
+		dev_err(otp->dev, "timeout during prog\n");
+
+	return ret;
+}
+
+static int rv1126_otp_write(void *context, unsigned int offset, void *val,
+			    size_t bytes)
+{
+	struct rockchip_otp *otp = context;
+	u8 *buf = val;
+	u8 val_r, val_w;
+	int ret = 0;
+
+	while (bytes--) {
+		ret = rv1126_otp_read(context, offset, &val_r, 1);
+		if (ret)
+			return ret;
+		val_w = *buf & (~val_r);
+		ret = rv1126_otp_prog(otp, offset * 8, val_w, 8);
+		if (ret)
+			return ret;
+		buf++;
+		offset++;
+	}
+
+	return 0;
+}
+
+static int rv1126_otp_oem_write(void *context, unsigned int offset, void *val,
+				size_t bytes)
+{
+	if (offset < 256 || offset > 511 || bytes > 256 || offset + bytes > 512)
+		return -EINVAL;
+
+	return rv1126_otp_write(context, offset, val, bytes);
 }
 
 static struct nvmem_config otp_config = {
@@ -265,6 +332,7 @@ static const struct rockchip_data rv1126_data = {
 	.num_clks = ARRAY_SIZE(rv1126_otp_clocks),
 	.init = rv1126_otp_init,
 	.reg_read = rv1126_otp_read,
+	.reg_write = rv1126_otp_oem_write,
 };
 
 static const struct of_device_id rockchip_otp_match[] = {
@@ -325,17 +393,20 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 	if (IS_ERR(otp->rst))
 		return PTR_ERR(otp->rst);
 
+	otp->config = &otp_config;
+	otp->config->size = data->size;
+	otp->config->reg_read = data->reg_read;
+	otp->config->reg_write = data->reg_write;
+	otp->config->priv = otp;
+	otp->config->dev = dev;
+
 	if (data->init) {
 		ret = data->init(otp);
 		if (ret)
 			return ret;
 	}
 
-	otp_config.size = data->size;
-	otp_config.reg_read = data->reg_read;
-	otp_config.priv = otp;
-	otp_config.dev = dev;
-	nvmem = devm_nvmem_register(dev, &otp_config);
+	nvmem = devm_nvmem_register(dev, otp->config);
 
 	return PTR_ERR_OR_ZERO(nvmem);
 }
