@@ -653,36 +653,44 @@ int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 EXPORT_SYMBOL(drm_dp_downstream_max_clock);
 
 /**
- * drm_dp_downstream_max_bpc() - extract branch device max
+ * drm_dp_downstream_max_bpc() - extract downstream facing port max
  *                               bits per component
  * @dpcd: DisplayPort configuration data
- * @port_cap: port capabilities
- *
- * See also:
- * drm_dp_read_downstream_info()
- * drm_dp_downstream_max_clock()
+ * @port_cap: downstream facing port capabilities
+ * @edid: EDID
  *
  * Returns: Max bpc on success or 0 if max bpc not defined
  */
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-			      const u8 port_cap[4])
+			      const u8 port_cap[4],
+			      const struct edid *edid)
 {
-	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
-	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-		DP_DETAILED_CAP_INFO_AVAILABLE;
-	int bpc;
-
-	if (!detailed_cap_info)
+	if (!drm_dp_is_branch(dpcd))
 		return 0;
 
-	switch (type) {
-	case DP_DS_PORT_TYPE_VGA:
-	case DP_DS_PORT_TYPE_DVI:
-	case DP_DS_PORT_TYPE_HDMI:
-	case DP_DS_PORT_TYPE_DP_DUALMODE:
-		bpc = port_cap[2] & DP_DS_MAX_BPC_MASK;
+	if (dpcd[DP_DPCD_REV] < 0x11) {
+		switch (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) {
+		case DP_DWN_STRM_PORT_TYPE_DP:
+			return 0;
+		default:
+			return 8;
+		}
+	}
 
-		switch (bpc) {
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_DP:
+		return 0;
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		if (is_edid_digital_input_dp(edid))
+			return 0;
+		fallthrough;
+	case DP_DS_PORT_TYPE_HDMI:
+	case DP_DS_PORT_TYPE_DVI:
+	case DP_DS_PORT_TYPE_VGA:
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return 8;
+
+		switch (port_cap[2] & DP_DS_MAX_BPC_MASK) {
 		case DP_DS_8BPC:
 			return 8;
 		case DP_DS_10BPC:
@@ -691,10 +699,12 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			return 12;
 		case DP_DS_16BPC:
 			return 16;
+		default:
+			return 8;
 		}
-		fallthrough;
+		break;
 	default:
-		return 0;
+		return 8;
 	}
 }
 EXPORT_SYMBOL(drm_dp_downstream_max_bpc);
@@ -717,12 +727,15 @@ EXPORT_SYMBOL(drm_dp_downstream_id);
  * @m: pointer for debugfs file
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
+ * @edid: EDID
  * @aux: DisplayPort AUX channel
  *
  */
 void drm_dp_downstream_debug(struct seq_file *m,
 			     const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-			     const u8 port_cap[4], struct drm_dp_aux *aux)
+			     const u8 port_cap[4],
+			     const struct edid *edid,
+			     struct drm_dp_aux *aux)
 {
 	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 				 DP_DETAILED_CAP_INFO_AVAILABLE;
@@ -789,7 +802,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 				seq_printf(m, "\t\tMax TMDS clock: %d kHz\n", clk);
 		}
 
-		bpc = drm_dp_downstream_max_bpc(dpcd, port_cap);
+		bpc = drm_dp_downstream_max_bpc(dpcd, port_cap, edid);
 
 		if (bpc > 0)
 			seq_printf(m, "\t\tMax bpc: %d\n", bpc);
