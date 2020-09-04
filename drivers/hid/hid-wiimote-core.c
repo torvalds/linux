@@ -1586,7 +1586,7 @@ struct wiiproto_handler {
 	void (*func)(struct wiimote_data *wdata, const __u8 *payload);
 };
 
-static struct wiiproto_handler handlers[] = {
+static const struct wiiproto_handler handlers[] = {
 	{ .id = WIIPROTO_REQ_STATUS, .size = 6, .func = handler_status },
 	{ .id = WIIPROTO_REQ_STATUS, .size = 2, .func = handler_status_K },
 	{ .id = WIIPROTO_REQ_DATA, .size = 21, .func = handler_data },
@@ -1618,7 +1618,7 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 							u8 *raw_data, int size)
 {
 	struct wiimote_data *wdata = hid_get_drvdata(hdev);
-	struct wiiproto_handler *h;
+	const struct wiiproto_handler *h;
 	int i;
 	unsigned long flags;
 
