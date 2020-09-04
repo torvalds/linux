@@ -7195,16 +7195,14 @@ void btrfs_init_devices_late(struct btrfs_fs_info *fs_info)
 	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry(device, &fs_devices->devices, dev_list)
 		device->fs_info = fs_info;
-	mutex_unlock(&fs_devices->device_list_mutex);
 
 	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list) {
-		mutex_lock(&seed_devs->device_list_mutex);
 		list_for_each_entry(device, &seed_devs->devices, dev_list)
 			device->fs_info = fs_info;
-		mutex_unlock(&seed_devs->device_list_mutex);
 
 		seed_devs->fs_info = fs_info;
 	}
+	mutex_unlock(&fs_devices->device_list_mutex);
 }
 
 static u64 btrfs_dev_stats_value(const struct extent_buffer *eb,
