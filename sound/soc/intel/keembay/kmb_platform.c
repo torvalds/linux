@@ -515,7 +515,7 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 
 		write_val = ((config->chan_nr / 2) << TDM_CHANNEL_CONFIG_BIT) |
 				(config->data_width << DATA_WIDTH_CONFIG_BIT) |
-				!MASTER_MODE | TDM_OPERATION;
+				TDM_OPERATION;
 
 		writel(write_val, kmb_i2s->pss_base + I2S_GEN_CFG_0);
 		break;
