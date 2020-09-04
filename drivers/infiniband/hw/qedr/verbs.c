@@ -784,9 +784,7 @@ static inline int qedr_init_user_queue(struct ib_udata *udata,
 		return PTR_ERR(q->umem);
 	}
 
-	fw_pages = ib_umem_page_count(q->umem) <<
-	    (PAGE_SHIFT - FW_PAGE_SHIFT);
-
+	fw_pages = ib_umem_num_dma_blocks(q->umem, 1 << FW_PAGE_SHIFT);
 	rc = qedr_prepare_pbl_tbl(dev, &q->pbl_info, fw_pages, 0);
 	if (rc)
 		goto err0;
@@ -2856,7 +2854,8 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 		goto err0;
 	}
 
-	rc = init_mr_info(dev, &mr->info, ib_umem_page_count(mr->umem), 1);
+	rc = init_mr_info(dev, &mr->info,
+			  ib_umem_num_dma_blocks(mr->umem, PAGE_SIZE), 1);
 	if (rc)
 		goto err1;
 
