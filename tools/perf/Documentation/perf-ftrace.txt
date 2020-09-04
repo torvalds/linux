@@ -33,7 +33,8 @@ OPTIONS
 
 -F::
 --funcs::
-        List all available functions to trace.
+        List available functions to trace. It accepts a pattern to
+        only list interested functions.
 
 -p::
 --pid=::

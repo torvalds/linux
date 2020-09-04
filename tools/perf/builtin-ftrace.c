@@ -25,6 +25,7 @@
 #include "target.h"
 #include "cpumap.h"
 #include "thread_map.h"
+#include "strfilter.h"
 #include "util/cap.h"
 #include "util/config.h"
 #include "util/units.h"
@@ -36,7 +37,6 @@ struct perf_ftrace {
 	struct evlist		*evlist;
 	struct target		target;
 	const char		*tracer;
-	bool			list_avail_functions;
 	struct list_head	filters;
 	struct list_head	notrace;
 	struct list_head	graph_funcs;
@@ -179,6 +179,40 @@ out_close:
 out:
 	put_tracing_file(file);
 	return ret;
+}
+
+static int read_tracing_file_by_line(const char *name,
+				     void (*cb)(char *str, void *arg),
+				     void *cb_arg)
+{
+	char *line = NULL;
+	size_t len = 0;
+	char *file;
+	FILE *fp;
+
+	file = get_tracing_file(name);
+	if (!file) {
+		pr_debug("cannot get tracing file: %s\n", name);
+		return -1;
+	}
+
+	fp = fopen(file, "r");
+	if (fp == NULL) {
+		pr_debug("cannot open tracing file: %s\n", name);
+		put_tracing_file(file);
+		return -1;
+	}
+
+	while (getline(&line, &len, fp) != -1) {
+		cb(line, cb_arg);
+	}
+
+	if (line)
+		free(line);
+
+	fclose(fp);
+	put_tracing_file(file);
+	return 0;
 }
 
 static int write_tracing_file_int(const char *name, int value)
@@ -557,9 +591,6 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGPIPE, sig_handler);
 
-	if (ftrace->list_avail_functions)
-		return read_tracing_file_to_stdout("available_filter_functions");
-
 	if (reset_tracing_files(ftrace) < 0) {
 		pr_err("failed to reset ftrace\n");
 		goto out;
@@ -681,6 +712,46 @@ static int perf_ftrace_config(const char *var, const char *value, void *cb)
 
 	pr_err("Please select \"function_graph\" (default) or \"function\"\n");
 	return -1;
+}
+
+static void list_function_cb(char *str, void *arg)
+{
+	struct strfilter *filter = (struct strfilter *)arg;
+
+	if (strfilter__compare(filter, str))
+		printf("%s", str);
+}
+
+static int opt_list_avail_functions(const struct option *opt __maybe_unused,
+				    const char *str, int unset)
+{
+	struct strfilter *filter;
+	const char *err = NULL;
+	int ret;
+
+	if (unset || !str)
+		return -1;
+
+	filter = strfilter__new(str, &err);
+	if (!filter)
+		return err ? -EINVAL : -ENOMEM;
+
+	ret = strfilter__or(filter, str, &err);
+	if (ret == -EINVAL) {
+		pr_err("Filter parse error at %td.\n", err - str + 1);
+		pr_err("Source: \"%s\"\n", str);
+		pr_err("         %*c\n", (int)(err - str + 1), '^');
+		strfilter__delete(filter);
+		return ret;
+	}
+
+	ret = read_tracing_file_by_line("available_filter_functions",
+					list_function_cb, filter);
+	strfilter__delete(filter);
+	if (ret < 0)
+		return ret;
+
+	exit(0);
 }
 
 static int parse_filter_func(const struct option *opt, const char *str,
@@ -817,8 +888,9 @@ int cmd_ftrace(int argc, const char **argv)
 	const struct option ftrace_options[] = {
 	OPT_STRING('t', "tracer", &ftrace.tracer, "tracer",
 		   "Tracer to use: function_graph(default) or function"),
-	OPT_BOOLEAN('F', "funcs", &ftrace.list_avail_functions,
-		    "Show available functions to filter"),
+	OPT_CALLBACK_DEFAULT('F', "funcs", NULL, "[FILTER]",
+			     "Show available functions to filter",
+			     opt_list_avail_functions, "*"),
 	OPT_STRING('p', "pid", &ftrace.target.pid, "pid",
 		   "Trace on existing process id"),
 	/* TODO: Add short option -t after -t/--tracer can be removed. */
