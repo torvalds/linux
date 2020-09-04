@@ -6,6 +6,7 @@ Supported chips:
 
   * Maxim ds18*20 based temperature sensors.
   * Maxim ds1825 based temperature sensors.
+  * GXCAS GC20MH01 temperature sensor.
 
 Author: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 
@@ -13,8 +14,8 @@ Author: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 Description
 -----------
 
-w1_therm provides basic temperature conversion for ds18*20 devices, and the
-ds28ea00 device.
+w1_therm provides basic temperature conversion for ds18*20, ds28ea00, GX20MH01
+devices.
 
 Supported family codes:
 
@@ -130,4 +131,12 @@ conversion and temperature reads 85.00 (powerup value) or 127.94 (insufficient
 power), the driver returns a conversion error. Bit mask ``2`` enables poll for
 conversion completion (normal power only) by generating read cycles on the bus
 after conversion starts. In parasite power mode this feature is not available.
-Feature bit masks may be combined (OR).
+Feature bit masks may be combined (OR). See accompanying sysfs documentation:
+:ref:`Documentation/w1/slaves/w1_therm.rst <w1_therm>`
+
+GX20MH01 device shares family number 0x28 with DS18*20. The device is generally
+compatible with DS18B20. Added are lowest 2^-5, 2^-6 temperature bits in Config
+register; R2 bit in Config register enabling 13 and 14 bit resolutions. The
+device is powered up in 14-bit resolution mode. The conversion times specified
+in the datasheet are too low and have to be increased. The device supports
+driver features ``1`` and ``2``.

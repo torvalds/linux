@@ -80,6 +80,18 @@ static u16 bulk_read_device_counter; /* =0 as per C standard */
 #define W1_POLL_CONVERT_TEMP 2000	/* Timeout for W1_CONVERT_TEMP, ms */
 #define W1_POLL_RECALL_EEPROM 500	/* Timeout for W1_RECALL_EEPROM, ms*/
 
+/* Masks for resolution functions, work with all devices */
+/* Bit mask for config register for all devices, bits 7,6,5 */
+#define W1_THERM_RESOLUTION_MASK 0xE0
+/* Bit offset of resolution in config register for all devices */
+#define W1_THERM_RESOLUTION_SHIFT 5
+/* Bit offset of resolution in config register for all devices */
+#define W1_THERM_RESOLUTION_SHIFT 5
+/* Add this to bit value to get resolution */
+#define W1_THERM_RESOLUTION_MIN 9
+/* Maximum allowed value */
+#define W1_THERM_RESOLUTION_MAX 14
+
 /* Helpers Macros */
 
 /*
@@ -523,7 +535,9 @@ static inline int w1_DS18B20_convert_time(struct w1_slave *sl)
 	if (SLAVE_CONV_TIME_OVERRIDE(sl) != CONV_TIME_DEFAULT)
 		return SLAVE_CONV_TIME_OVERRIDE(sl);
 
-	/* Return the conversion time from datasheet, depending on resolution */
+	/* Return the conversion time, depending on resolution,
+	 * select maximum conversion time among all compatible devices
+	 */
 	switch (SLAVE_RESOLUTION(sl)) {
 	case 9:
 		ret = 95;
@@ -535,6 +549,14 @@ static inline int w1_DS18B20_convert_time(struct w1_slave *sl)
 		ret = 375;
 		break;
 	case 12:
+		ret = 750;
+		break;
+	case 13:
+		ret = 850;  /* GX20MH01 only. Datasheet says 500ms, but that's not enough. */
+		break;
+	case 14:
+		ret = 1600; /* GX20MH01 only. Datasheet says 1000ms - not enough */
+		break;
 	default:
 		ret = 750;
 	}
@@ -568,62 +590,71 @@ static inline int w1_DS18S20_write_data(struct w1_slave *sl,
 static inline int w1_DS18B20_set_resolution(struct w1_slave *sl, int val)
 {
 	int ret;
-	u8 new_config_register[3];	/* array of data to be written */
 	struct therm_info info, info2;
 
-	/* resolution of DS18B20 is in the range [9..12] bits */
-	if (val < 9 || val > 12)
+	/* DS18B20 resolution is 9 to 12 bits */
+	/* GX20MH01 resolution is 9 to 14 bits */
+	if (val < W1_THERM_RESOLUTION_MIN || val > W1_THERM_RESOLUTION_MAX)
 		return -EINVAL;
 
-	val -= 9; /* soustract 9 the lowest resolution in bit */
-	val = (val << 5); /* shift to position bit 5 & bit 6 */
+	/* Calc bit value from resolution */
+	val = (val - W1_THERM_RESOLUTION_MIN) << W1_THERM_RESOLUTION_SHIFT;
 
 	/*
 	 * Read the scratchpad to change only the required bits
 	 * (bit5 & bit 6 from byte 4)
 	 */
 	ret = read_scratchpad(sl, &info);
-	if (!ret) {
-		new_config_register[0] = info.rom[2];
-		new_config_register[1] = info.rom[3];
-		/* config register is byte 4 & mask 0b10011111*/
-		new_config_register[2] = (info.rom[4] & 0x9F) |
-					(u8) val;
-	} else
+
+	if (ret)
 		return ret;
+
+
+	info.rom[4] &= ~W1_THERM_RESOLUTION_MASK;
+	info.rom[4] |= val;
 
 	/* Write data in the device RAM */
-	ret = w1_DS18B20_write_data(sl, new_config_register);
+	ret = w1_DS18B20_write_data(sl, info.rom + 2);
 	if (ret)
 		return ret;
 
-	/* Some DS18B20 clones don't support resolution change, read back to verify */
+	/* Have to read back the resolution to verify an actual value
+	 * GX20MH01 and DS18B20 are indistinguishable by family number, but resolutions differ
+	 * Some DS18B20 clones don't support resolution change
+	 */
 	ret = read_scratchpad(sl, &info2);
 	if (ret)
+		/* Scratchpad read fail */
 		return ret;
 
-	if ((info2.rom[4] & 0x9F) == (info.rom[4] & 0x9F))
+	if ((info2.rom[4] & W1_THERM_RESOLUTION_MASK) == (info.rom[4] & W1_THERM_RESOLUTION_MASK))
 		return 0;
-	else
-		return -EIO;
+
+	/* Resolution verify error */
+	return -EIO;
 }
 
 static inline int w1_DS18B20_get_resolution(struct w1_slave *sl)
 {
 	int ret;
-	u8 config_register;
+	int resolution;
 	struct therm_info info;
 
 	ret = read_scratchpad(sl, &info);
 
-	if (!ret)	{
-		config_register = info.rom[4]; /* config register is byte 4 */
-		config_register &= 0x60; /* 0b01100000 keep only bit 5 & 6 */
-		config_register = (config_register >> 5);	/* shift */
-		config_register += 9; /* add 9 the lowest resolution in bit */
-		ret = (int) config_register;
-	}
-	return ret;
+	if (ret)
+		return ret;
+
+	resolution = ((info.rom[4] & W1_THERM_RESOLUTION_MASK) >> W1_THERM_RESOLUTION_SHIFT)
+		+ W1_THERM_RESOLUTION_MIN;
+	/* GX20MH01 has one special case:
+	 *   >=14 means 14 bits when getting resolution from bit value.
+	 * Other devices have no more then 12 bits.
+	 */
+	if (resolution > W1_THERM_RESOLUTION_MAX)
+		resolution = W1_THERM_RESOLUTION_MAX;
+
+	return resolution;
 }
 
 /**
@@ -636,10 +667,27 @@ static inline int w1_DS18B20_get_resolution(struct w1_slave *sl)
  */
 static inline int w1_DS18B20_convert_temp(u8 rom[9])
 {
-	s16 t = le16_to_cpup((__le16 *)rom);
+	int t;
+	u32 bv;
 
+	/* Config register bit R2 = 1 - GX20MH01 in 13 or 14 bit resolution mode */
+	if (rom[4] & 0x80) {
+		/* Signed 16-bit value to unsigned, cpu order */
+		bv = le16_to_cpup((__le16 *)rom);
+
+		/* Insert two temperature bits from config register */
+		/* Avoid arithmetic shift of signed value */
+		bv = (bv << 2) | (rom[4] & 3);
+
+		t = (int) sign_extend32(bv, 17); /* Degrees, lowest bit is 2^-6 */
+		return (t*1000)/64;  /* Millidegrees */
+	}
+
+	t = (int)le16_to_cpup((__le16 *)rom);
 	return t*1000/16;
 }
+
+
 
 /**
  * w1_DS18S20_convert_temp() - temperature computation for DS18S20
@@ -672,6 +720,7 @@ static inline int w1_DS18S20_convert_temp(u8 rom[9])
 }
 
 /* Device capability description */
+/* GX20MH01 device shares family number and structure with DS18B20 */
 
 static struct w1_therm_family_converter w1_therm_families[] = {
 	{
@@ -693,6 +742,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.bulk_read			= true
 	},
 	{
+		/* Also used for GX20MH01 */
 		.f				= &w1_therm_family_DS18B20,
 		.convert			= w1_DS18B20_convert_temp,
 		.get_conversion_time	= w1_DS18B20_convert_time,

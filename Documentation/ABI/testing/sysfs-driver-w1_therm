@@ -49,7 +49,7 @@ Description:
 		will be changed only in device RAM, so it will be cleared when
 		power is lost. Trigger a 'save' to EEPROM command to keep
 		values after power-on. Read or write are :
-			* '9..12': device resolution in bit
+			* '9..14': device resolution in bit
 			or resolution to set in bit
 			* '-xx': xx is kernel error when reading the resolution
 			* Anything else: do nothing
@@ -89,7 +89,7 @@ Description:
 		*write* :
 			* '0' : save the 2 or 3 bytes to the device EEPROM
 			(i.e. TH, TL and config register)
-			* '9..12' : set the device resolution in RAM
+			* '9..14' : set the device resolution in RAM
 			(if supported)
 			* Anything else: do nothing
 		refer to Documentation/w1/slaves/w1_therm.rst for detailed
