@@ -88,4 +88,6 @@ unsigned long arch_dest_reloc_offset(int addend);
 
 const char *arch_nop_insn(int len);
 
+int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg);
+
 #endif /* _ARCH_H */
