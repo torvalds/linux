@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_FRAME_H
-#define _LINUX_FRAME_H
+#ifndef _LINUX_OBJTOOL_H
+#define _LINUX_OBJTOOL_H
 
 #ifdef CONFIG_STACK_VALIDATION
 /*
@@ -32,4 +32,4 @@
 
 #endif /* CONFIG_STACK_VALIDATION */
 
-#endif /* _LINUX_FRAME_H */
+#endif /* _LINUX_OBJTOOL_H */

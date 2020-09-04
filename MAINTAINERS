@@ -12481,6 +12481,7 @@ M:	Josh Poimboeuf <jpoimboe@redhat.com>
 M:	Peter Zijlstra <peterz@infradead.org>
 S:	Supported
 F:	tools/objtool/
+F:	include/linux/objtool.h
 
 OCELOT ETHERNET SWITCH DRIVER
 M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
