@@ -261,8 +261,8 @@ intel_dp_downstream_max_dotclock(struct intel_dp *intel_dp)
 	if (type != DP_DS_PORT_TYPE_VGA)
 		return max_dotclk;
 
-	ds_max_dotclk = drm_dp_downstream_max_clock(intel_dp->dpcd,
-						    intel_dp->downstream_ports);
+	ds_max_dotclk = drm_dp_downstream_max_dotclock(intel_dp->dpcd,
+						       intel_dp->downstream_ports);
 
 	if (ds_max_dotclk != 0)
 		max_dotclk = min(max_dotclk, ds_max_dotclk);

@@ -616,41 +616,32 @@ int drm_dp_read_downstream_info(struct drm_dp_aux *aux,
 EXPORT_SYMBOL(drm_dp_read_downstream_info);
 
 /**
- * drm_dp_downstream_max_clock() - extract branch device max
- *                                 pixel rate for legacy VGA
- *                                 converter or max TMDS clock
- *                                 rate for others
+ * drm_dp_downstream_max_dotclock() - extract downstream facing port max dot clock
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
  *
- * See also:
- * drm_dp_read_downstream_info()
- * drm_dp_downstream_max_bpc()
- *
- * Returns: Max clock in kHz on success or 0 if max clock not defined
+ * Returns: Downstream facing port max dot clock in kHz on success,
+ * or 0 if max clock not defined
  */
-int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-				const u8 port_cap[4])
+int drm_dp_downstream_max_dotclock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				   const u8 port_cap[4])
 {
-	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
-	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-		DP_DETAILED_CAP_INFO_AVAILABLE;
-
-	if (!detailed_cap_info)
+	if (!drm_dp_is_branch(dpcd))
 		return 0;
 
-	switch (type) {
+	if (dpcd[DP_DPCD_REV] < 0x11)
+		return 0;
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
 	case DP_DS_PORT_TYPE_VGA:
-		return port_cap[1] * 8 * 1000;
-	case DP_DS_PORT_TYPE_DVI:
-	case DP_DS_PORT_TYPE_HDMI:
-	case DP_DS_PORT_TYPE_DP_DUALMODE:
-		return port_cap[1] * 2500;
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return 0;
+		return port_cap[1] * 8000;
 	default:
 		return 0;
 	}
 }
-EXPORT_SYMBOL(drm_dp_downstream_max_clock);
+EXPORT_SYMBOL(drm_dp_downstream_max_dotclock);
 
 /**
  * drm_dp_downstream_max_bpc() - extract downstream facing port max
@@ -793,14 +784,9 @@ void drm_dp_downstream_debug(struct seq_file *m,
 		seq_printf(m, "\t\tSW: %d.%d\n", rev[0], rev[1]);
 
 	if (detailed_cap_info) {
-		clk = drm_dp_downstream_max_clock(dpcd, port_cap);
-
-		if (clk > 0) {
-			if (type == DP_DS_PORT_TYPE_VGA)
-				seq_printf(m, "\t\tMax dot clock: %d kHz\n", clk);
-			else
-				seq_printf(m, "\t\tMax TMDS clock: %d kHz\n", clk);
-		}
+		clk = drm_dp_downstream_max_dotclock(dpcd, port_cap);
+		if (clk > 0)
+			seq_printf(m, "\t\tMax dot clock: %d kHz\n", clk);
 
 		bpc = drm_dp_downstream_max_bpc(dpcd, port_cap, edid);
 
