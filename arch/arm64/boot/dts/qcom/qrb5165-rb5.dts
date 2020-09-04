@@ -412,6 +412,53 @@
 	status = "okay";
 };
 
+&pm8150_gpios {
+	gpio-reserved-ranges = <1 1>, <3 2>, <7 1>;
+	gpio-line-names =
+		"NC",
+		"OPTION2",
+		"PM_GPIO-F",
+		"PM_SLP_CLK_IN",
+		"OPTION1",
+		"VOL_UP_N",
+		"PM8250_GPIO7", /* Blue LED */
+		"SP_ARI_PWR_ALARM",
+		"GPIO_9_P", /* Yellow LED */
+		"GPIO_10_P"; /* Green LED */
+};
+
+&pm8150b_gpios {
+	gpio-line-names =
+		"NC",
+		"NC",
+		"NC",
+		"NC",
+		"HAP_BOOST_EN", /* SOM */
+		"SMB_STAT", /* SOM */
+		"NC",
+		"NC",
+		"SDM_FORCE_USB_BOOT",
+		"NC",
+		"NC",
+		"NC";
+};
+
+&pm8150l_gpios {
+	gpio-line-names =
+		"NC",
+		"PM3003A_EN",
+		"NC",
+		"NC",
+		"PM_GPIO5", /* HDMI RST_N */
+		"PM_GPIO-A", /* PWM */
+		"PM_GPIO7",
+		"NC",
+		"NC",
+		"PM_GPIO-B",
+		"NC",
+		"PM3003A_MODE";
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
