@@ -143,10 +143,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Create dev top level debugfs entry */
-	snprintf(name, sizeof(name), "%s%s_%02x:%02d.%d",
-		 ADF_DEVICE_NAME_PREFIX, hw_data->dev_class->name,
-		 pdev->bus->number, PCI_SLOT(pdev->devfn),
-		 PCI_FUNC(pdev->devfn));
+	snprintf(name, sizeof(name), "%s%s_%s", ADF_DEVICE_NAME_PREFIX,
+		 hw_data->dev_class->name, pci_name(pdev));
 
 	accel_dev->debugfs_dir = debugfs_create_dir(name, NULL);
 
