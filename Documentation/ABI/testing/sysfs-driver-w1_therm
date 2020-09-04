@@ -53,6 +53,9 @@ Description:
 			or resolution to set in bit
 			* '-xx': xx is kernel error when reading the resolution
 			* Anything else: do nothing
+		Some DS18B20 clones are fixed in 12-bit resolution, so the
+		actual resolution is read back from the chip and verified. Error
+		is reported if the results differ.
 Users:		any user space application which wants to communicate with
 		w1_term device
 
@@ -114,3 +117,47 @@ Description:
 		of the bulk read command (not the current temperature).
 Users:		any user space application which wants to communicate with
 		w1_term device
+
+
+What:		/sys/bus/w1/devices/.../conv_time
+Date:		July 2020
+Contact:	Ivan Zaentsev <ivan.zaentsev@wirenboard.ru>
+Description:
+		(RW) Get, set, or measure a temperature conversion time. The
+		setting remains active until a resolution change. Then it is
+		reset to default (datasheet) conversion time for a new
+		resolution.
+
+		*read*: Actual conversion time in milliseconds. *write*:
+			'0': Set the default conversion time from the datasheet.
+			'1': Measure and set the conversion time. Make a single
+			     temperature conversion, measure an actual value.
+			     Increase it by 20% for temperature range. A new
+			     conversion time can be obtained by reading this
+			     same attribute.
+			other positive value:
+			     Set the conversion time in milliseconds.
+
+Users:		An application using the w1_term device
+
+
+What:		/sys/bus/w1/devices/.../features
+Date:		July 2020
+Contact:	Ivan Zaentsev <ivan.zaentsev@wirenboard.ru>
+Description:
+		(RW) Control optional driver settings.
+		Bit masks to read/write (logical OR):
+
+                1: Enable check for conversion success. If byte 6 of
+                   scratchpad memory is 0xC after conversion, and
+                   temperature reads 85.00 (powerup value) or 127.94
+                   (insufficient power) - return a conversion error.
+
+                2: Enable poll for conversion completion. Generate read cycles
+                   after the conversion start and wait for 1's. In parasite
+                   power mode this feature is not available.
+
+		*read*:  Currently selected features, bitwise OR.
+		*write*: Select features, bitwise OR.
+
+Users:		An application using the w1_term device

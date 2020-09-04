@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/hwmon.h>
 #include <linux/string.h>
+#include <linux/jiffies.h>
 
 #include <linux/w1.h>
 
@@ -65,6 +66,20 @@ static u16 bulk_read_device_counter; /* =0 as per C standard */
 #define MIN_TEMP	-55	/* min temperature that can be mesured */
 #define MAX_TEMP	125	/* max temperature that can be mesured */
 
+/* Allowed values for sysfs conv_time attribute */
+#define CONV_TIME_DEFAULT 0
+#define CONV_TIME_MEASURE 1
+
+/* Bits in sysfs "features" value */
+#define W1_THERM_CHECK_RESULT 1	/* Enable conversion success check */
+#define W1_THERM_POLL_COMPLETION 2	/* Poll for conversion completion */
+#define W1_THERM_FEATURES_MASK 3		/* All values mask */
+
+/* Poll period in milliseconds. Should be less then a shortest operation on the device */
+#define W1_POLL_PERIOD 32
+#define W1_POLL_CONVERT_TEMP 2000	/* Timeout for W1_CONVERT_TEMP, ms */
+#define W1_POLL_RECALL_EEPROM 500	/* Timeout for W1_RECALL_EEPROM, ms*/
+
 /* Helpers Macros */
 
 /*
@@ -87,6 +102,20 @@ static u16 bulk_read_device_counter; /* =0 as per C standard */
  */
 #define SLAVE_RESOLUTION(sl) \
 	(((struct w1_therm_family_data *)(sl->family_data))->resolution)
+
+/*
+ * return the conv_time_override of the sl slave
+ * always test family data existence before using this macro
+ */
+ #define SLAVE_CONV_TIME_OVERRIDE(sl) \
+	(((struct w1_therm_family_data *)(sl->family_data))->conv_time_override)
+
+/*
+ * return the features of the sl slave
+ * always test family data existence before using this macro
+ */
+ #define SLAVE_FEATURES(sl) \
+	(((struct w1_therm_family_data *)(sl->family_data))->features)
 
 /*
  * return whether or not a converT command has been issued to the slave
@@ -136,6 +165,8 @@ struct w1_therm_family_converter {
  *				-x error or undefined
  * @resolution: current device resolution
  * @convert_triggered: conversion state of the device
+ * @conv_time_override: user selected conversion time or CONV_TIME_DEFAULT
+ * @features: bit mask - enable temperature validity check, poll for completion
  * @specific_functions: pointer to struct of device specific function
  */
 struct w1_therm_family_data {
@@ -144,6 +175,8 @@ struct w1_therm_family_data {
 	int external_powered;
 	int resolution;
 	int convert_triggered;
+	int conv_time_override;
+	unsigned int features;
 	struct w1_therm_family_converter *specific_functions;
 };
 
@@ -285,6 +318,19 @@ static ssize_t therm_bulk_read_store(struct device *device,
 static ssize_t therm_bulk_read_show(struct device *device,
 	struct device_attribute *attr, char *buf);
 
+static ssize_t conv_time_show(struct device *device,
+			      struct device_attribute *attr, char *buf);
+
+static ssize_t conv_time_store(struct device *device,
+			       struct device_attribute *attr, const char *buf,
+			       size_t size);
+
+static ssize_t features_show(struct device *device,
+			      struct device_attribute *attr, char *buf);
+
+static ssize_t features_store(struct device *device,
+			       struct device_attribute *attr, const char *buf,
+			       size_t size);
 /* Attributes declarations */
 
 static DEVICE_ATTR_RW(w1_slave);
@@ -294,6 +340,8 @@ static DEVICE_ATTR_RO(ext_power);
 static DEVICE_ATTR_RW(resolution);
 static DEVICE_ATTR_WO(eeprom);
 static DEVICE_ATTR_RW(alarms);
+static DEVICE_ATTR_RW(conv_time);
+static DEVICE_ATTR_RW(features);
 
 static DEVICE_ATTR_RW(therm_bulk_read); /* attribut at master level */
 
@@ -328,6 +376,8 @@ static struct attribute *w1_therm_attrs[] = {
 	&dev_attr_resolution.attr,
 	&dev_attr_eeprom.attr,
 	&dev_attr_alarms.attr,
+	&dev_attr_conv_time.attr,
+	&dev_attr_features.attr,
 	NULL,
 };
 
@@ -337,6 +387,8 @@ static struct attribute *w1_ds18s20_attrs[] = {
 	&dev_attr_ext_power.attr,
 	&dev_attr_eeprom.attr,
 	&dev_attr_alarms.attr,
+	&dev_attr_conv_time.attr,
+	&dev_attr_features.attr,
 	NULL,
 };
 
@@ -348,6 +400,8 @@ static struct attribute *w1_ds28ea00_attrs[] = {
 	&dev_attr_resolution.attr,
 	&dev_attr_eeprom.attr,
 	&dev_attr_alarms.attr,
+	&dev_attr_conv_time.attr,
+	&dev_attr_features.attr,
 	NULL,
 };
 
@@ -466,7 +520,10 @@ static inline int w1_DS18B20_convert_time(struct w1_slave *sl)
 	if (!sl->family_data)
 		return -ENODEV;	/* device unknown */
 
-	/* return time in ms for conversion operation */
+	if (SLAVE_CONV_TIME_OVERRIDE(sl) != CONV_TIME_DEFAULT)
+		return SLAVE_CONV_TIME_OVERRIDE(sl);
+
+	/* Return the conversion time from datasheet, depending on resolution */
 	switch (SLAVE_RESOLUTION(sl)) {
 	case 9:
 		ret = 95;
@@ -486,8 +543,13 @@ static inline int w1_DS18B20_convert_time(struct w1_slave *sl)
 
 static inline int w1_DS18S20_convert_time(struct w1_slave *sl)
 {
-	(void)(sl);
-	return 750; /* always 750ms for DS18S20 */
+	if (!sl->family_data)
+		return -ENODEV;	/* device unknown */
+
+	if (SLAVE_CONV_TIME_OVERRIDE(sl) == CONV_TIME_DEFAULT)
+		return 750; /* default for DS18S20 */
+	else
+		return SLAVE_CONV_TIME_OVERRIDE(sl);
 }
 
 static inline int w1_DS18B20_write_data(struct w1_slave *sl,
@@ -507,7 +569,7 @@ static inline int w1_DS18B20_set_resolution(struct w1_slave *sl, int val)
 {
 	int ret;
 	u8 new_config_register[3];	/* array of data to be written */
-	struct therm_info info;
+	struct therm_info info, info2;
 
 	/* resolution of DS18B20 is in the range [9..12] bits */
 	if (val < 9 || val > 12)
@@ -532,8 +594,18 @@ static inline int w1_DS18B20_set_resolution(struct w1_slave *sl, int val)
 
 	/* Write data in the device RAM */
 	ret = w1_DS18B20_write_data(sl, new_config_register);
+	if (ret)
+		return ret;
 
-	return ret;
+	/* Some DS18B20 clones don't support resolution change, read back to verify */
+	ret = read_scratchpad(sl, &info2);
+	if (ret)
+		return ret;
+
+	if ((info2.rom[4] & 0x9F) == (info.rom[4] & 0x9F))
+		return 0;
+	else
+		return -EIO;
 }
 
 static inline int w1_DS18B20_get_resolution(struct w1_slave *sl)
@@ -697,6 +769,22 @@ static inline bool bus_mutex_lock(struct mutex *lock)
 		return false;	/* Didn't acquire the bus mutex */
 
 	return true;
+}
+
+/**
+ * check_family_data() - Check if family data and specific functions are present
+ * @sl: W1 device data
+ *
+ * Return: 0 - OK, negative value - error
+ */
+static int check_family_data(struct w1_slave *sl)
+{
+	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
+		dev_info(&sl->dev,
+			 "%s: Device is not supported by the driver\n", __func__);
+		return -EINVAL;  /* No device family */
+	}
+	return 0;
 }
 
 /**
@@ -883,6 +971,34 @@ static int reset_select_slave(struct w1_slave *sl)
 	return 0;
 }
 
+/**
+ * w1_poll_completion - Poll for operation completion, with timeout
+ * @dev_master: the device master of the bus
+ * @tout_ms: timeout in milliseconds
+ *
+ * The device is answering 0's while an operation is in progress and 1's after it completes
+ * Timeout may happen if the previous command was not recognised due to a line noise
+ *
+ * Return: 0 - OK, negative error - timeout
+ */
+int w1_poll_completion(struct w1_master *dev_master, int tout_ms)
+{
+	int i;
+
+	for (i = 0; i < tout_ms/W1_POLL_PERIOD; i++) {
+		/* Delay is before poll, for device to recognize a command */
+		msleep(W1_POLL_PERIOD);
+
+		/* Compare all 8 bits to mitigate a noise on the bus */
+		if (w1_read_8(dev_master) == 0xFF)
+			break;
+	}
+	if (i == tout_ms/W1_POLL_PERIOD)
+		return -EIO;
+
+	return 0;
+}
+
 static int convert_t(struct w1_slave *sl, struct therm_info *info)
 {
 	struct w1_master *dev_master = sl->master;
@@ -897,6 +1013,13 @@ static int convert_t(struct w1_slave *sl, struct therm_info *info)
 	strong_pullup = (w1_strong_pullup == 2 ||
 					(!SLAVE_POWERMODE(sl) &&
 					w1_strong_pullup));
+
+	if (strong_pullup && SLAVE_FEATURES(sl) & W1_THERM_POLL_COMPLETION) {
+		dev_warn(&sl->dev,
+			"%s: Disabling W1_THERM_POLL_COMPLETION in parasite power mode.\n",
+			__func__);
+		SLAVE_FEATURES(sl) &= ~W1_THERM_POLL_COMPLETION;
+	}
 
 	/* get conversion duration device and id dependent */
 	t_conv = conversion_time(sl);
@@ -933,20 +1056,113 @@ static int convert_t(struct w1_slave *sl, struct therm_info *info)
 				}
 				mutex_unlock(&dev_master->bus_mutex);
 			} else { /*no device need pullup */
-				mutex_unlock(&dev_master->bus_mutex);
-
-				sleep_rem = msleep_interruptible(t_conv);
-				if (sleep_rem != 0) {
-					ret = -EINTR;
-					goto dec_refcnt;
+				if (SLAVE_FEATURES(sl) & W1_THERM_POLL_COMPLETION) {
+					ret = w1_poll_completion(dev_master, W1_POLL_CONVERT_TEMP);
+					if (ret) {
+						dev_dbg(&sl->dev, "%s: Timeout\n", __func__);
+						goto mt_unlock;
+					}
+					mutex_unlock(&dev_master->bus_mutex);
+				} else {
+					/* Fixed delay */
+					mutex_unlock(&dev_master->bus_mutex);
+					sleep_rem = msleep_interruptible(t_conv);
+					if (sleep_rem != 0) {
+						ret = -EINTR;
+						goto dec_refcnt;
+					}
 				}
 			}
 			ret = read_scratchpad(sl, info);
+
+			/* If enabled, check for conversion success */
+			if ((SLAVE_FEATURES(sl) & W1_THERM_CHECK_RESULT) &&
+				(info->rom[6] == 0xC) &&
+				((info->rom[1] == 0x5 && info->rom[0] == 0x50) ||
+				(info->rom[1] == 0x7 && info->rom[0] == 0xFF))
+			) {
+				/* Invalid reading (scratchpad byte 6 = 0xC)
+				 * due to insufficient conversion time
+				 * or power failure.
+				 */
+				ret = -EIO;
+			}
+
 			goto dec_refcnt;
 		}
 
 	}
 
+mt_unlock:
+	mutex_unlock(&dev_master->bus_mutex);
+dec_refcnt:
+	atomic_dec(THERM_REFCNT(sl->family_data));
+error:
+	return ret;
+}
+
+static int conv_time_measure(struct w1_slave *sl, int *conv_time)
+{
+	struct therm_info inf,
+		*info = &inf;
+	struct w1_master *dev_master = sl->master;
+	int max_trying = W1_THERM_MAX_TRY;
+	int ret = -ENODEV;
+	bool strong_pullup;
+
+	if (!sl->family_data)
+		goto error;
+
+	strong_pullup = (w1_strong_pullup == 2 ||
+		(!SLAVE_POWERMODE(sl) &&
+		w1_strong_pullup));
+
+	if (strong_pullup) {
+		pr_info("%s: Measure with strong_pullup is not supported.\n", __func__);
+		return -EINVAL;
+	}
+
+	memset(info->rom, 0, sizeof(info->rom));
+
+	/* prevent the slave from going away in sleep */
+	atomic_inc(THERM_REFCNT(sl->family_data));
+
+	if (!bus_mutex_lock(&dev_master->bus_mutex)) {
+		ret = -EAGAIN;	/* Didn't acquire the mutex */
+		goto dec_refcnt;
+	}
+
+	while (max_trying-- && ret) { /* ret should be 0 */
+		info->verdict = 0;
+		info->crc = 0;
+		/* safe version to select slave */
+		if (!reset_select_slave(sl)) {
+			int j_start, j_end;
+
+			/*no device need pullup */
+			w1_write_8(dev_master, W1_CONVERT_TEMP);
+
+			j_start = jiffies;
+			ret = w1_poll_completion(dev_master, W1_POLL_CONVERT_TEMP);
+			if (ret) {
+				dev_dbg(&sl->dev, "%s: Timeout\n", __func__);
+				goto mt_unlock;
+			}
+			j_end = jiffies;
+			/* 1.2x increase for variation and changes over temperature range */
+			*conv_time = jiffies_to_msecs(j_end-j_start)*12/10;
+			pr_debug("W1 Measure complete, conv_time = %d, HZ=%d.\n",
+				*conv_time, HZ);
+			if (*conv_time <= CONV_TIME_MEASURE) {
+				ret = -EIO;
+				goto mt_unlock;
+			}
+			mutex_unlock(&dev_master->bus_mutex);
+			ret = read_scratchpad(sl, info);
+			goto dec_refcnt;
+		}
+
+	}
 mt_unlock:
 	mutex_unlock(&dev_master->bus_mutex);
 dec_refcnt:
@@ -1118,10 +1334,7 @@ static int recall_eeprom(struct w1_slave *sl)
 		if (!reset_select_slave(sl)) {
 
 			w1_write_8(dev_master, W1_RECALL_EEPROM);
-
-			ret = 1; /* Slave will pull line to 0 */
-			while (ret)
-				ret = 1 - w1_touch_bit(dev_master, 1);
+			ret = w1_poll_completion(dev_master, W1_POLL_RECALL_EEPROM);
 		}
 
 	}
@@ -1345,11 +1558,13 @@ static ssize_t w1_slave_store(struct device *device,
 	}
 
 	if (ret) {
-		dev_info(device,
-			"%s: writing error %d\n", __func__, ret);
-		/* return size to avoid call back again */
-	} else
-		SLAVE_RESOLUTION(sl) = val;
+		dev_warn(device, "%s: Set resolution - error %d\n", __func__, ret);
+		/* Propagate error to userspace */
+		return ret;
+	}
+	SLAVE_RESOLUTION(sl) = val;
+	/* Reset the conversion time to default - it depends on resolution */
+	SLAVE_CONV_TIME_OVERRIDE(sl) = CONV_TIME_DEFAULT;
 
 	return size; /* always return size to avoid infinite calling */
 }
@@ -1465,12 +1680,12 @@ static ssize_t resolution_store(struct device *device,
 	/* get the correct function depending on the device */
 	ret = SLAVE_SPECIFIC_FUNC(sl)->set_resolution(sl, val);
 
-	if (ret) {
-		dev_info(device,
-			"%s: writing error %d\n", __func__, ret);
-		/* return size to avoid call back again */
-	} else
-		SLAVE_RESOLUTION(sl) = val;
+	if (ret)
+		return ret;
+
+	SLAVE_RESOLUTION(sl) = val;
+	/* Reset the conversion time to default because it depends on resolution */
+	SLAVE_CONV_TIME_OVERRIDE(sl) = CONV_TIME_DEFAULT;
 
 	return size;
 }
@@ -1658,6 +1873,96 @@ static ssize_t therm_bulk_read_show(struct device *device,
 	}
 show_result:
 	return sprintf(buf, "%d\n", ret);
+}
+
+static ssize_t conv_time_show(struct device *device,
+	struct device_attribute *attr, char *buf)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+
+	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
+		dev_info(device,
+			"%s: Device is not supported by the driver\n", __func__);
+		return 0;  /* No device family */
+	}
+	return sprintf(buf, "%d\n", conversion_time(sl));
+}
+
+static ssize_t conv_time_store(struct device *device,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	int val, ret = 0;
+	struct w1_slave *sl = dev_to_w1_slave(device);
+
+	if (kstrtoint(buf, 10, &val)) /* converting user entry to int */
+		return -EINVAL;
+
+	if (check_family_data(sl))
+		return -ENODEV;
+
+	if (val != CONV_TIME_MEASURE) {
+		if (val >= CONV_TIME_DEFAULT)
+			SLAVE_CONV_TIME_OVERRIDE(sl) = val;
+		else
+			return -EINVAL;
+
+	} else {
+		int conv_time;
+
+		ret = conv_time_measure(sl, &conv_time);
+		if (ret)
+			return -EIO;
+		SLAVE_CONV_TIME_OVERRIDE(sl) = conv_time;
+	}
+	return size;
+}
+
+static ssize_t features_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+
+	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
+		dev_info(device,
+			 "%s: Device not supported by the driver\n", __func__);
+		return 0;  /* No device family */
+	}
+	return sprintf(buf, "%u\n", SLAVE_FEATURES(sl));
+}
+
+static ssize_t features_store(struct device *device,
+			      struct device_attribute *attr, const char *buf, size_t size)
+{
+	int val, ret = 0;
+	bool strong_pullup;
+	struct w1_slave *sl = dev_to_w1_slave(device);
+
+	ret = kstrtouint(buf, 10, &val); /* converting user entry to int */
+	if (ret)
+		return -EINVAL;  /* invalid number */
+
+	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
+		dev_info(device, "%s: Device not supported by the driver\n", __func__);
+		return -ENODEV;
+	}
+
+	if ((val & W1_THERM_FEATURES_MASK) != val)
+		return -EINVAL;
+
+	SLAVE_FEATURES(sl) = val;
+
+	strong_pullup = (w1_strong_pullup == 2 ||
+			 (!SLAVE_POWERMODE(sl) &&
+			  w1_strong_pullup));
+
+	if (strong_pullup && SLAVE_FEATURES(sl) & W1_THERM_POLL_COMPLETION) {
+		dev_warn(&sl->dev,
+			 "%s: W1_THERM_POLL_COMPLETION disabled in parasite power mode.\n",
+			 __func__);
+		SLAVE_FEATURES(sl) &= ~W1_THERM_POLL_COMPLETION;
+	}
+
+	return size;
 }
 
 #if IS_REACHABLE(CONFIG_HWMON)

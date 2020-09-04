@@ -52,6 +52,19 @@ read is sent but one sensor is not read immediately, the next access to
 temperature on this device will return the temperature measured at the
 time of issue of the bulk read command (not the current temperature).
 
+A strong pullup will be applied during the conversion if required.
+
+``conv_time`` sysfs entry is used to get current conversion time (read), and
+adjust it (write). A temperature conversion time depends on the device type and
+it's current resolution. Default conversion time is set by the driver according
+to the device datasheet. A conversion time for many original device clones
+deviate from datasheet specs. There are three options: 1) manually set the
+correct conversion time by writing a value in milliseconds to ``conv_time``; 2)
+auto measure and set a conversion time by writing ``1`` to
+``conv_time``; 3) use ``features`` entry to enable poll for conversion
+completion. Options 2, 3 can't be used in parasite power mode. To get back to
+the default conversion time write ``0`` to ``conv_time``.
+
 Writing a value between 9 and 12 to the sysfs w1_slave file will change the
 precision of the sensor for the next readings. This value is in (volatile)
 SRAM, so it is reset when the sensor gets power-cycled.
@@ -61,11 +74,14 @@ has to be written to the sysfs w1_slave file. Since the EEPROM has a limited
 amount of writes (>50k), this command should be used wisely.
 
 Alternatively, resolution can be set or read (value from 9 to 12) using the
-dedicated resolution sysfs entry on each device. This sysfs entry is not
-present for devices not supporting this feature. Driver will adjust the
-correct conversion time for each device regarding to its resolution setting.
-In particular, strong pullup will be applied if required during the conversion
-duration.
+dedicated resolution sysfs entry on each device. This sysfs entry is not present
+for devices not supporting this feature.
+
+Some non-genuine DS18B20 chips are
+fixed in 12-bit mode only, so the actual resolution is read back from the chip
+and verified by the driver.
+
+Note: Changing the resolution reverts the conversion time to default.
 
 The write-only sysfs entry eeprom is an alternative for EEPROM operations:
   * 'save': will save device RAM to EEPROM
@@ -104,3 +120,14 @@ location of the chip in the 1-wire bus without needing pre-existing
 knowledge of the bus ordering.  Support is provided through the sysfs
 w1_seq file.  The file will contain a single line with an integer value
 representing the device index in the bus starting at 0.
+
+``features`` sysfs entry controls optional driver settings per device.
+Insufficient power in parasite mode, line noise and insufficient conversion time
+may lead to conversion failure. Original DS18B20 and some clones allow for
+detection of invalid conversion. Write bit mask ``1`` to ``features`` to enable
+checking the conversion success. If byte 6 of scratchpad memory is 0xC after
+conversion and temperature reads 85.00 (powerup value) or 127.94 (insufficient
+power), the driver returns a conversion error. Bit mask ``2`` enables poll for
+conversion completion (normal power only) by generating read cycles on the bus
+after conversion starts. In parasite power mode this feature is not available.
+Feature bit masks may be combined (OR).
