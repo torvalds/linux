@@ -386,12 +386,18 @@
 # define DP_DS_PORT_TYPE_WIRELESS           6
 # define DP_DS_PORT_HPD			    (1 << 3)
 /* offset 1 for VGA is maximum megapixels per second / 8 */
-/* offset 2 */
+/* offset 1 for DVI/HDMI is maximum TMDS clock in Mbps / 2.5 */
+/* offset 2 for VGA/DVI/HDMI */
 # define DP_DS_MAX_BPC_MASK	            (3 << 0)
 # define DP_DS_8BPC		            0
 # define DP_DS_10BPC		            1
 # define DP_DS_12BPC		            2
 # define DP_DS_16BPC		            3
+/* offset 3 for DVI */
+# define DP_DS_DVI_DUAL_LINK		    (1 << 1)
+# define DP_DS_DVI_HIGH_COLOR_DEPTH	    (1 << 2)
+/* offset 3 for HDMI */
+# define DP_DS_HDMI_FRAME_SEQ_TO_FRAME_PACK (1 << 0)
 
 #define DP_MAX_DOWNSTREAM_PORTS		    0x10
 
