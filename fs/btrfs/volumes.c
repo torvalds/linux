@@ -6753,19 +6753,17 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 	ret = open_fs_devices(fs_devices, FMODE_READ, fs_info->bdev_holder);
 	if (ret) {
 		free_fs_devices(fs_devices);
-		fs_devices = ERR_PTR(ret);
-		goto out;
+		return ERR_PTR(ret);
 	}
 
 	if (!fs_devices->seeding) {
 		close_fs_devices(fs_devices);
 		free_fs_devices(fs_devices);
-		fs_devices = ERR_PTR(-EINVAL);
-		goto out;
+		return ERR_PTR(-EINVAL);
 	}
 
 	list_add(&fs_devices->seed_list, &fs_info->fs_devices->seed_list);
-out:
+
 	return fs_devices;
 }
 
