@@ -972,6 +972,14 @@ void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 	}
 }
 
+static void btrfs_sysfs_remove_fs_devices(struct btrfs_fs_devices *fs_devices)
+{
+	struct btrfs_device *device;
+
+	list_for_each_entry(device, &fs_devices->devices, dev_list)
+		btrfs_sysfs_remove_device(device);
+}
+
 void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 {
 	struct kobject *fsid_kobj = &fs_info->fs_devices->fsid_kobj;
@@ -999,7 +1007,7 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 	addrm_unknown_feature_attrs(fs_info, false);
 	sysfs_remove_group(fsid_kobj, &btrfs_feature_attr_group);
 	sysfs_remove_files(fsid_kobj, btrfs_attrs);
-	btrfs_sysfs_remove_devices_dir(fs_info->fs_devices, NULL);
+	btrfs_sysfs_remove_fs_devices(fs_info->fs_devices);
 }
 
 static const char * const btrfs_feature_set_names[FEAT_MAX] = {
@@ -1186,7 +1194,7 @@ int btrfs_sysfs_add_space_info_type(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-static void btrfs_sysfs_remove_device(struct btrfs_device *device)
+void btrfs_sysfs_remove_device(struct btrfs_device *device)
 {
 	struct hd_struct *disk;
 	struct kobject *disk_kobj;
@@ -1210,19 +1218,6 @@ static void btrfs_sysfs_remove_device(struct btrfs_device *device)
 		kobject_put(&device->devid_kobj);
 		wait_for_completion(&device->kobj_unregister);
 	}
-}
-
-/* When @device is NULL, remove all devices link */
-void btrfs_sysfs_remove_devices_dir(struct btrfs_fs_devices *fs_devices,
-				    struct btrfs_device *device)
-{
-	if (device) {
-		btrfs_sysfs_remove_device(device);
-		return;
-	}
-
-	list_for_each_entry(device, &fs_devices->devices, dev_list)
-		btrfs_sysfs_remove_device(device);
 }
 
 static ssize_t btrfs_devinfo_in_fs_metadata_show(struct kobject *kobj,
@@ -1459,7 +1454,7 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 
 	error = sysfs_create_files(fsid_kobj, btrfs_attrs);
 	if (error) {
-		btrfs_sysfs_remove_devices_dir(fs_devs, NULL);
+		btrfs_sysfs_remove_fs_devices(fs_devs);
 		return error;
 	}
 
