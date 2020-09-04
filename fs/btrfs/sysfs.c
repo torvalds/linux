@@ -1312,44 +1312,70 @@ static struct kobj_type devid_ktype = {
 	.release	= btrfs_release_devid_kobj,
 };
 
-int btrfs_sysfs_add_devices_dir(struct btrfs_fs_devices *fs_devices,
-				struct btrfs_device *one_device)
+static int btrfs_sysfs_add_device(struct btrfs_device *device)
 {
-	int error = 0;
-	struct btrfs_device *dev;
+	int ret;
 	unsigned int nofs_flag;
+	struct kobject *devices_kobj;
+	struct kobject *devinfo_kobj;
+
+	/*
+	 * Make sure we use the fs_info::fs_devices to fetch the kobjects even
+	 * for the seed fs_devices
+	 */
+	devices_kobj = device->fs_info->fs_devices->devices_kobj;
+	devinfo_kobj = device->fs_info->fs_devices->devinfo_kobj;
+	ASSERT(devices_kobj);
+	ASSERT(devinfo_kobj);
 
 	nofs_flag = memalloc_nofs_save();
-	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
 
-		if (one_device && one_device != dev)
-			continue;
+	if (device->bdev) {
+		struct hd_struct *disk;
+		struct kobject *disk_kobj;
 
-		if (dev->bdev) {
-			struct hd_struct *disk;
-			struct kobject *disk_kobj;
+		disk = device->bdev->bd_part;
+		disk_kobj = &part_to_dev(disk)->kobj;
 
-			disk = dev->bdev->bd_part;
-			disk_kobj = &part_to_dev(disk)->kobj;
-
-			error = sysfs_create_link(fs_devices->devices_kobj,
-						  disk_kobj, disk_kobj->name);
-			if (error)
-				break;
-		}
-
-		init_completion(&dev->kobj_unregister);
-		error = kobject_init_and_add(&dev->devid_kobj, &devid_ktype,
-					     fs_devices->devinfo_kobj, "%llu",
-					     dev->devid);
-		if (error) {
-			kobject_put(&dev->devid_kobj);
-			break;
+		ret = sysfs_create_link(devices_kobj, disk_kobj, disk_kobj->name);
+		if (ret) {
+			btrfs_warn(device->fs_info,
+				"creating sysfs device link for devid %llu failed: %d",
+				device->devid, ret);
+			goto out;
 		}
 	}
-	memalloc_nofs_restore(nofs_flag);
 
-	return error;
+	init_completion(&device->kobj_unregister);
+	ret = kobject_init_and_add(&device->devid_kobj, &devid_ktype,
+				   devinfo_kobj, "%llu", device->devid);
+	if (ret) {
+		kobject_put(&device->devid_kobj);
+		btrfs_warn(device->fs_info,
+			   "devinfo init for devid %llu failed: %d",
+			   device->devid, ret);
+	}
+
+out:
+	memalloc_nofs_restore(nofs_flag);
+	return ret;
+}
+
+int btrfs_sysfs_add_devices_dir(struct btrfs_fs_devices *fs_devices,
+				struct btrfs_device *device)
+{
+	int ret;
+
+	if (device)
+		return btrfs_sysfs_add_device(device);
+
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		ret = btrfs_sysfs_add_device(device);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 void btrfs_kobject_uevent(struct block_device *bdev, enum kobject_action action)
