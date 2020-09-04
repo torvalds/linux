@@ -61,7 +61,7 @@ xfs_attr_shortform_list(
 	int				error = 0;
 
 	ASSERT(dp->i_afp != NULL);
-	sf = (xfs_attr_shortform_t *)dp->i_afp->if_u1.if_data;
+	sf = (struct xfs_attr_shortform *)dp->i_afp->if_u1.if_data;
 	ASSERT(sf != NULL);
 	if (!sf->hdr.count)
 		return 0;

@@ -89,12 +89,12 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_OFFSET(xfs_attr_leaf_name_remote_t, namelen,	8);
 	XFS_CHECK_OFFSET(xfs_attr_leaf_name_remote_t, name,	9);
 	XFS_CHECK_STRUCT_SIZE(xfs_attr_leafblock_t,		40);
-	XFS_CHECK_OFFSET(xfs_attr_shortform_t, hdr.totsize,	0);
-	XFS_CHECK_OFFSET(xfs_attr_shortform_t, hdr.count,	2);
-	XFS_CHECK_OFFSET(xfs_attr_shortform_t, list[0].namelen,	4);
-	XFS_CHECK_OFFSET(xfs_attr_shortform_t, list[0].valuelen, 5);
-	XFS_CHECK_OFFSET(xfs_attr_shortform_t, list[0].flags,	6);
-	XFS_CHECK_OFFSET(xfs_attr_shortform_t, list[0].nameval,	7);
+	XFS_CHECK_OFFSET(struct xfs_attr_shortform, hdr.totsize, 0);
+	XFS_CHECK_OFFSET(struct xfs_attr_shortform, hdr.count,	 2);
+	XFS_CHECK_OFFSET(struct xfs_attr_shortform, list[0].namelen,	4);
+	XFS_CHECK_OFFSET(struct xfs_attr_shortform, list[0].valuelen,	5);
+	XFS_CHECK_OFFSET(struct xfs_attr_shortform, list[0].flags,	6);
+	XFS_CHECK_OFFSET(struct xfs_attr_shortform, list[0].nameval,	7);
 	XFS_CHECK_STRUCT_SIZE(xfs_da_blkinfo_t,			12);
 	XFS_CHECK_STRUCT_SIZE(xfs_da_intnode_t,			16);
 	XFS_CHECK_STRUCT_SIZE(xfs_da_node_entry_t,		8);
