@@ -3792,6 +3792,28 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
+void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 tmp;
+
+	if (intel_dp->dpcd[DP_DPCD_REV] < 0x13)
+		return;
+
+	if (!drm_dp_is_branch(intel_dp->dpcd))
+		return;
+
+	tmp = intel_dp->has_hdmi_sink ?
+		DP_HDMI_DVI_OUTPUT_CONFIG : 0;
+
+	if (drm_dp_dpcd_writeb(&intel_dp->aux,
+			       DP_PROTOCOL_CONVERTER_CONTROL_0, tmp) <= 0)
+		drm_dbg_kms(&i915->drm, "Failed to set protocol converter HDMI mode to %s\n",
+			    enableddisabled(intel_dp->has_hdmi_sink));
+
+	/* TODO: configure YCbCr 4:2:2/4:2:0 conversion */
+}
+
 static void intel_enable_dp(struct intel_atomic_state *state,
 			    struct intel_encoder *encoder,
 			    const struct intel_crtc_state *pipe_config,
@@ -3829,6 +3851,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	}
 
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	intel_dp_configure_protocol_converter(intel_dp);
 	intel_dp_start_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 
