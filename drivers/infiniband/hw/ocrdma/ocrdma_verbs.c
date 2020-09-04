@@ -811,13 +811,12 @@ static int ocrdma_build_pbl_tbl(struct ocrdma_dev *dev, struct ocrdma_hw_mr *mr)
 	return status;
 }
 
-static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
-			    u32 num_pbes)
+static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr)
 {
 	struct ocrdma_pbe *pbe;
 	struct ib_block_iter biter;
 	struct ocrdma_pbl *pbl_tbl = mr->hwmr.pbl_table;
-	int pbe_cnt, total_num_pbes = 0;
+	int pbe_cnt;
 	u64 pg_addr;
 
 	if (!mr->hwmr.num_pbes)
@@ -832,12 +831,7 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 		pbe->pa_lo = cpu_to_le32(pg_addr);
 		pbe->pa_hi = cpu_to_le32(upper_32_bits(pg_addr));
 		pbe_cnt += 1;
-		total_num_pbes += 1;
 		pbe++;
-
-		/* if done building pbes, issue the mbx cmd. */
-		if (total_num_pbes == num_pbes)
-			return;
 
 		/* if the given pbl is full storing the pbes,
 		 * move to next pbl.
@@ -857,7 +851,6 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	struct ocrdma_mr *mr;
 	struct ocrdma_pd *pd;
-	u32 num_pbes;
 
 	pd = get_ocrdma_pd(ibpd);
 
@@ -872,8 +865,8 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 		status = -EFAULT;
 		goto umem_err;
 	}
-	num_pbes = ib_umem_page_count(mr->umem);
-	status = ocrdma_get_pbl_info(dev, mr, num_pbes);
+	status = ocrdma_get_pbl_info(
+		dev, mr, ib_umem_num_dma_blocks(mr->umem, PAGE_SIZE));
 	if (status)
 		goto umem_err;
 
@@ -889,7 +882,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	status = ocrdma_build_pbl_tbl(dev, &mr->hwmr);
 	if (status)
 		goto umem_err;
-	build_user_pbes(dev, mr, num_pbes);
+	build_user_pbes(dev, mr);
 	status = ocrdma_reg_mr(dev, &mr->hwmr, pd->id, acc);
 	if (status)
 		goto mbx_err;
