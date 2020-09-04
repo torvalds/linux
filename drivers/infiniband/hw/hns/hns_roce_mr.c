@@ -707,19 +707,6 @@ static inline size_t mtr_bufs_size(struct hns_roce_buf_attr *attr)
 	return size;
 }
 
-static inline int mtr_umem_page_count(struct ib_umem *umem,
-				      unsigned int page_shift)
-{
-	int count = ib_umem_page_count(umem);
-
-	if (page_shift >= PAGE_SHIFT)
-		count >>= page_shift - PAGE_SHIFT;
-	else
-		count <<= PAGE_SHIFT - page_shift;
-
-	return count;
-}
-
 static inline size_t mtr_kmem_direct_size(bool is_direct, size_t alloc_size,
 					  unsigned int page_shift)
 {
@@ -767,12 +754,10 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			  struct ib_udata *udata, unsigned long user_addr)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
-	unsigned int max_pg_shift = buf_attr->page_shift;
-	unsigned int best_pg_shift = 0;
+	unsigned int best_pg_shift;
 	int all_pg_count = 0;
 	size_t direct_size;
 	size_t total_size;
-	unsigned long tmp;
 	int ret;
 
 	total_size = mtr_bufs_size(buf_attr);
@@ -782,6 +767,9 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	}
 
 	if (udata) {
+		unsigned long pgsz_bitmap;
+		unsigned long page_size;
+
 		mtr->kmem = NULL;
 		mtr->umem = ib_umem_get(ibdev, user_addr, total_size,
 					buf_attr->user_access);
@@ -790,15 +778,17 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 				  PTR_ERR(mtr->umem));
 			return -ENOMEM;
 		}
-		if (buf_attr->fixed_page) {
-			best_pg_shift = max_pg_shift;
-		} else {
-			tmp = GENMASK(max_pg_shift, 0);
-			ret = ib_umem_find_best_pgsz(mtr->umem, tmp, user_addr);
-			best_pg_shift = (ret <= PAGE_SIZE) ?
-					PAGE_SHIFT : ilog2(ret);
-		}
-		all_pg_count = mtr_umem_page_count(mtr->umem, best_pg_shift);
+		if (buf_attr->fixed_page)
+			pgsz_bitmap = 1 << buf_attr->page_shift;
+		else
+			pgsz_bitmap = GENMASK(buf_attr->page_shift, PAGE_SHIFT);
+
+		page_size = ib_umem_find_best_pgsz(mtr->umem, pgsz_bitmap,
+						   user_addr);
+		if (!page_size)
+			return -EINVAL;
+		best_pg_shift = order_base_2(page_size);
+		all_pg_count = ib_umem_num_dma_blocks(mtr->umem, page_size);
 		ret = 0;
 	} else {
 		mtr->umem = NULL;
@@ -808,16 +798,15 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			return -ENOMEM;
 		}
 		direct_size = mtr_kmem_direct_size(is_direct, total_size,
-						   max_pg_shift);
+						   buf_attr->page_shift);
 		ret = hns_roce_buf_alloc(hr_dev, total_size, direct_size,
-					 mtr->kmem, max_pg_shift);
+					 mtr->kmem, buf_attr->page_shift);
 		if (ret) {
 			ibdev_err(ibdev, "Failed to alloc kmem, ret %d\n", ret);
 			goto err_alloc_mem;
-		} else {
-			best_pg_shift = max_pg_shift;
-			all_pg_count = mtr->kmem->npages;
 		}
+		best_pg_shift = buf_attr->page_shift;
+		all_pg_count = mtr->kmem->npages;
 	}
 
 	/* must bigger than minimum hardware page shift */
