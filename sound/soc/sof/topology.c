@@ -2401,6 +2401,16 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
+	ret = sof_parse_tokens(scomp, &swidget->comp_ext, comp_ext_tokens,
+			       ARRAY_SIZE(comp_ext_tokens), tw->priv.array,
+			       le32_to_cpu(tw->priv.size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parsing comp_ext_tokens failed %d\n",
+			ret);
+		kfree(swidget);
+		return ret;
+	}
+
 	/* handle any special case widgets */
 	switch (w->id) {
 	case snd_soc_dapm_dai_in:
