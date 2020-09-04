@@ -6,8 +6,10 @@ if [ -z "$SRCARCH" ]; then
 	exit 1
 fi
 
+FILES="include/linux/objtool.h"
+
 if [ "$SRCARCH" = "x86" ]; then
-FILES="
+FILES="$FILES
 arch/x86/include/asm/inat_types.h
 arch/x86/include/asm/orc_types.h
 arch/x86/include/asm/emulate_prefix.h

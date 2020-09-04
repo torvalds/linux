@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <linux/objtool.h>
+#include <asm/orc_types.h>
+
 #include "check.h"
 #include "warn.h"
 
@@ -146,7 +149,7 @@ int create_orc_sections(struct objtool_file *file)
 	struct orc_entry empty = {
 		.sp_reg = ORC_REG_UNDEFINED,
 		.bp_reg  = ORC_REG_UNDEFINED,
-		.type    = ORC_TYPE_CALL,
+		.type    = UNWIND_HINT_TYPE_CALL,
 	};
 
 	sec = find_section_by_name(file->elf, ".orc_unwind");

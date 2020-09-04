@@ -14,6 +14,7 @@
 #include "warn.h"
 #include "arch_elf.h"
 
+#include <linux/objtool.h>
 #include <linux/hashtable.h>
 #include <linux/kernel.h>
 #include <linux/static_call_types.h>
@@ -1805,7 +1806,8 @@ static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
 		return 0;
 	}
 
-	if (cfi->type == ORC_TYPE_REGS || cfi->type == ORC_TYPE_REGS_IRET)
+	if (cfi->type == UNWIND_HINT_TYPE_REGS ||
+	    cfi->type == UNWIND_HINT_TYPE_REGS_PARTIAL)
 		return update_cfi_state_regs(insn, cfi, op);
 
 	switch (op->dest.type) {
