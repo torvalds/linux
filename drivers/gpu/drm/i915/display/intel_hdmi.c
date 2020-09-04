@@ -2277,35 +2277,18 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	return intel_mode_valid_max_plane_size(dev_priv, mode);
 }
 
-static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
-				     int bpc)
+bool intel_hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
+				    int bpc, bool has_hdmi_sink)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(crtc_state->uapi.crtc->dev);
 	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct drm_connector_state *connector_state;
 	struct drm_connector *connector;
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
 	int i;
-
-	if (HAS_GMCH(dev_priv))
-		return false;
-
-	if (bpc == 10 && INTEL_GEN(dev_priv) < 11)
-		return false;
 
 	if (crtc_state->pipe_bpp < bpc * 3)
 		return false;
 
-	if (!crtc_state->has_hdmi_sink)
-		return false;
-
-	/*
-	 * HDMI deep color affects the clocks, so it's only possible
-	 * when not cloning with other encoder types.
-	 */
-	if (crtc_state->output_types != 1 << INTEL_OUTPUT_HDMI)
+	if (!has_hdmi_sink)
 		return false;
 
 	for_each_new_connector_in_state(state, connector, connector_state, i) {
@@ -2333,6 +2316,30 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		}
 	}
 
+	return true;
+}
+
+static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
+				     int bpc)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(crtc_state->uapi.crtc->dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (HAS_GMCH(dev_priv))
+		return false;
+
+	if (bpc == 10 && INTEL_GEN(dev_priv) < 11)
+		return false;
+
+	/*
+	 * HDMI deep color affects the clocks, so it's only possible
+	 * when not cloning with other encoder types.
+	 */
+	if (crtc_state->output_types != BIT(INTEL_OUTPUT_HDMI))
+		return false;
+
 	/* Display Wa_1405510057:icl,ehl */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
 	    bpc == 10 && IS_GEN(dev_priv, 11) &&
@@ -2340,7 +2347,8 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 	     adjusted_mode->crtc_hblank_start) % 8 == 2)
 		return false;
 
-	return true;
+	return intel_hdmi_deep_color_possible(crtc_state, bpc,
+					      crtc_state->has_hdmi_sink);
 }
 
 static int

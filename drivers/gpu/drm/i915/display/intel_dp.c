@@ -1977,18 +1977,69 @@ static bool intel_dp_supports_dsc(struct intel_dp *intel_dp,
 		drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd);
 }
 
-static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
-				struct intel_crtc_state *pipe_config)
+static bool intel_dp_hdmi_ycbcr420(struct intel_dp *intel_dp,
+				   const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420;
+}
+
+static int intel_dp_hdmi_tmds_clock(struct intel_dp *intel_dp,
+				    const struct intel_crtc_state *crtc_state, int bpc)
+{
+	int clock = crtc_state->hw.adjusted_mode.crtc_clock * bpc / 8;
+
+	if (intel_dp_hdmi_ycbcr420(intel_dp, crtc_state))
+		clock /= 2;
+
+	return clock;
+}
+
+static bool intel_dp_hdmi_tmds_clock_valid(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state, int bpc)
+{
+	int tmds_clock = intel_dp_hdmi_tmds_clock(intel_dp, crtc_state, bpc);
+
+	if (intel_dp->dfp.min_tmds_clock &&
+	    tmds_clock < intel_dp->dfp.min_tmds_clock)
+		return false;
+
+	if (intel_dp->dfp.max_tmds_clock &&
+	    tmds_clock > intel_dp->dfp.max_tmds_clock)
+		return false;
+
+	return true;
+}
+
+static bool intel_dp_hdmi_deep_color_possible(struct intel_dp *intel_dp,
+					      const struct intel_crtc_state *crtc_state,
+					      int bpc)
+{
+	bool has_hdmi_sink = intel_dp->has_hdmi_sink;
+
+	return intel_hdmi_deep_color_possible(crtc_state, bpc, has_hdmi_sink) &&
+		intel_dp_hdmi_tmds_clock_valid(intel_dp, crtc_state, bpc);
+}
+
+static int intel_dp_max_bpp(struct intel_dp *intel_dp,
+			    const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
-	int bpp;
+	int bpp, bpc;
 
-	bpp = pipe_config->pipe_bpp;
+	bpc = crtc_state->pipe_bpp / 3;
 
 	if (intel_dp->dfp.max_bpc)
-		bpp = min(bpp, 3 * intel_dp->dfp.max_bpc);
+		bpc = min_t(int, bpc, intel_dp->dfp.max_bpc);
 
+	if (intel_dp->dfp.min_tmds_clock) {
+		for (; bpc >= 10; bpc -= 2) {
+			if (intel_dp_hdmi_deep_color_possible(intel_dp, crtc_state, bpc))
+				break;
+		}
+	}
+
+	bpp = bpc * 3;
 	if (intel_dp_is_edp(intel_dp)) {
 		/* Get bpp from vbt only for panels that dont have bpp in edid */
 		if (intel_connector->base.display_info.bpc == 0 &&
@@ -2310,7 +2361,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
 	limits.min_bpp = intel_dp_min_bpp(pipe_config);
-	limits.max_bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
+	limits.max_bpp = intel_dp_max_bpp(intel_dp, pipe_config);
 
 	if (intel_dp_is_edp(intel_dp)) {
 		/*
