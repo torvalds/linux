@@ -310,8 +310,6 @@ static struct attribute_group armv8_pmuv3_format_attr_group = {
  */
 #define	ARMV8_IDX_CYCLE_COUNTER	0
 #define	ARMV8_IDX_COUNTER0	1
-#define	ARMV8_IDX_COUNTER_LAST(cpu_pmu) \
-	(ARMV8_IDX_CYCLE_COUNTER + cpu_pmu->num_events - 1)
 
 
 /*
@@ -366,12 +364,6 @@ static inline void armv8pmu_pmcr_write(u32 val)
 static inline int armv8pmu_has_overflowed(u32 pmovsr)
 {
 	return pmovsr & ARMV8_PMU_OVERFLOWED_MASK;
-}
-
-static inline int armv8pmu_counter_valid(struct arm_pmu *cpu_pmu, int idx)
-{
-	return idx >= ARMV8_IDX_CYCLE_COUNTER &&
-		idx <= ARMV8_IDX_COUNTER_LAST(cpu_pmu);
 }
 
 static inline int armv8pmu_counter_has_overflowed(u32 pmnc, int idx)
@@ -443,15 +435,11 @@ static u64 armv8pmu_unbias_long_counter(struct perf_event *event, u64 value)
 
 static u64 armv8pmu_read_counter(struct perf_event *event)
 {
-	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 	u64 value = 0;
 
-	if (!armv8pmu_counter_valid(cpu_pmu, idx))
-		pr_err("CPU%u reading wrong counter %d\n",
-			smp_processor_id(), idx);
-	else if (idx == ARMV8_IDX_CYCLE_COUNTER)
+	if (idx == ARMV8_IDX_CYCLE_COUNTER)
 		value = read_sysreg(pmccntr_el0);
 	else
 		value = armv8pmu_read_hw_counter(event);
@@ -480,16 +468,12 @@ static inline void armv8pmu_write_hw_counter(struct perf_event *event,
 
 static void armv8pmu_write_counter(struct perf_event *event, u64 value)
 {
-	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
 	value = armv8pmu_bias_long_counter(event, value);
 
-	if (!armv8pmu_counter_valid(cpu_pmu, idx))
-		pr_err("CPU%u writing wrong counter %d\n",
-			smp_processor_id(), idx);
-	else if (idx == ARMV8_IDX_CYCLE_COUNTER)
+	if (idx == ARMV8_IDX_CYCLE_COUNTER)
 		write_sysreg(value, pmccntr_el0);
 	else
 		armv8pmu_write_hw_counter(event, value);
