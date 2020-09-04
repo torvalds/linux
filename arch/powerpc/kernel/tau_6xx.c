@@ -40,6 +40,8 @@ static struct tau_temp
 	unsigned char grew;
 } tau[NR_CPUS];
 
+static bool tau_int_enable;
+
 #undef DEBUG
 
 /* TODO: put these in a /proc interface, with some sanity checks, and maybe
@@ -54,22 +56,13 @@ static struct tau_temp
 
 static void set_thresholds(unsigned long cpu)
 {
-#ifdef CONFIG_TAU_INT
-	/*
-	 * setup THRM1,
-	 * threshold, valid bit, enable interrupts, interrupt when below threshold
-	 */
-	mtspr(SPRN_THRM1, THRM1_THRES(tau[cpu].low) | THRM1_V | THRM1_TIE | THRM1_TID);
+	u32 maybe_tie = tau_int_enable ? THRM1_TIE : 0;
 
-	/* setup THRM2,
-	 * threshold, valid bit, enable interrupts, interrupt when above threshold
-	 */
-	mtspr (SPRN_THRM2, THRM1_THRES(tau[cpu].high) | THRM1_V | THRM1_TIE);
-#else
-	/* same thing but don't enable interrupts */
-	mtspr(SPRN_THRM1, THRM1_THRES(tau[cpu].low) | THRM1_V | THRM1_TID);
-	mtspr(SPRN_THRM2, THRM1_THRES(tau[cpu].high) | THRM1_V);
-#endif
+	/* setup THRM1, threshold, valid bit, interrupt when below threshold */
+	mtspr(SPRN_THRM1, THRM1_THRES(tau[cpu].low) | THRM1_V | maybe_tie | THRM1_TID);
+
+	/* setup THRM2, threshold, valid bit, interrupt when above threshold */
+	mtspr(SPRN_THRM2, THRM1_THRES(tau[cpu].high) | THRM1_V | maybe_tie);
 }
 
 static void TAUupdate(int cpu)
@@ -142,9 +135,8 @@ static void tau_timeout(void * info)
 	local_irq_save(flags);
 	cpu = smp_processor_id();
 
-#ifndef CONFIG_TAU_INT
-	TAUupdate(cpu);
-#endif
+	if (!tau_int_enable)
+		TAUupdate(cpu);
 
 	size = tau[cpu].high - tau[cpu].low;
 	if (size > min_window && ! tau[cpu].grew) {
@@ -225,6 +217,9 @@ static int __init TAU_init(void)
 		return 1;
 	}
 
+	tau_int_enable = IS_ENABLED(CONFIG_TAU_INT) &&
+			 !strcmp(cur_cpu_spec->platform, "ppc750");
+
 	tau_workq = alloc_workqueue("tau", WQ_UNBOUND, 1);
 	if (!tau_workq)
 		return -ENOMEM;
@@ -234,7 +229,7 @@ static int __init TAU_init(void)
 	queue_work(tau_workq, &tau_work);
 
 	pr_info("Thermal assist unit using %s, shrink_timer: %d ms\n",
-		IS_ENABLED(CONFIG_TAU_INT) ? "interrupts" : "workqueue", shrink_timer);
+		tau_int_enable ? "interrupts" : "workqueue", shrink_timer);
 	tau_initialized = 1;
 
 	return 0;
