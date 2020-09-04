@@ -492,6 +492,16 @@ static int get_token_u16(void *elem, void *object, u32 offset, u32 size)
 	return 0;
 }
 
+static int get_token_uuid(void *elem, void *object, u32 offset, u32 size)
+{
+	struct snd_soc_tplg_vendor_uuid_elem *velem = elem;
+	u8 *dst = (u8 *)object + offset;
+
+	memcpy(dst, velem->uuid, UUID_SIZE);
+
+	return 0;
+}
+
 static int get_token_comp_format(void *elem, void *object, u32 offset, u32 size)
 {
 	struct snd_soc_tplg_vendor_string_elem *velem = elem;
@@ -723,6 +733,13 @@ static const struct sof_topology_token core_tokens[] = {
 	{SOF_TKN_COMP_CORE_ID,
 		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc_comp, core), 0},
+};
+
+/* Component extended tokens */
+static const struct sof_topology_token comp_ext_tokens[] = {
+	{SOF_TKN_COMP_UUID,
+		SND_SOC_TPLG_TUPLE_TYPE_UUID, get_token_uuid,
+		offsetof(struct sof_ipc_comp_ext, uuid), 0},
 };
 
 /*
