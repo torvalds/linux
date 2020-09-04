@@ -317,6 +317,23 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 		return_ACPI_STATUS(AE_OK);
 	}
 
+	/* Validate the space_ID */
+
+	if ((space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY) &&
+	    (space_id != ACPI_ADR_SPACE_SYSTEM_IO)) {
+		ACPI_ERROR((AE_INFO,
+			    "Unsupported address space: 0x%X", space_id));
+		return_ACPI_STATUS(AE_SUPPORT);
+	}
+
+	if (space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+		status = acpi_hw_validate_io_block(address,
+						   ACPI_GPE_REGISTER_WIDTH,
+						   register_count);
+		if (ACPI_FAILURE(status))
+			return_ACPI_STATUS(status);
+	}
+
 	/* Allocate a new GPE block */
 
 	gpe_block = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_block_info));

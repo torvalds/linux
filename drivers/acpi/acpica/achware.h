@@ -73,6 +73,8 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width);
 
 acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width);
 
+acpi_status acpi_hw_validate_io_block(u64 address, u32 bit_width, u32 count);
+
 /*
  * hwgpe - GPE support
  */
