@@ -2007,19 +2007,16 @@ static int sof_widget_load_asrc(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_asrc *asrc;
+	size_t ipc_size = sizeof(*asrc);
 	int ret;
 
-	asrc = kzalloc(sizeof(*asrc), GFP_KERNEL);
+	asrc = (struct sof_ipc_comp_asrc *)
+	       sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!asrc)
 		return -ENOMEM;
 
 	/* configure ASRC IPC message */
-	asrc->comp.hdr.size = sizeof(*asrc);
-	asrc->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	asrc->comp.id = swidget->comp_id;
 	asrc->comp.type = SOF_COMP_ASRC;
-	asrc->comp.pipeline_id = index;
-	asrc->comp.core = core;
 	asrc->config.hdr.size = sizeof(asrc->config);
 
 	ret = sof_parse_tokens(scomp, asrc, asrc_tokens,
@@ -2049,7 +2046,7 @@ static int sof_widget_load_asrc(struct snd_soc_component *scomp, int index,
 	swidget->private = asrc;
 
 	ret = sof_ipc_tx_message(sdev->ipc, asrc->comp.hdr.cmd, asrc,
-				 sizeof(*asrc), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret >= 0)
 		return ret;
 err:
