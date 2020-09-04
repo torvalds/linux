@@ -3336,30 +3336,6 @@ static inline bool rdma_cap_read_inv(struct ib_device *dev, u32 port_num)
 }
 
 /**
- * rdma_find_pg_bit - Find page bit given address and HW supported page sizes
- *
- * @addr: address
- * @pgsz_bitmap: bitmap of HW supported page sizes
- */
-static inline unsigned int rdma_find_pg_bit(unsigned long addr,
-					    unsigned long pgsz_bitmap)
-{
-	unsigned long align;
-	unsigned long pgsz;
-
-	align = addr & -addr;
-
-	/* Find page bit such that addr is aligned to the highest supported
-	 * HW page size
-	 */
-	pgsz = pgsz_bitmap & ~(-align << 1);
-	if (!pgsz)
-		return __ffs(pgsz_bitmap);
-
-	return __fls(pgsz);
-}
-
-/**
  * rdma_core_cap_opa_port - Return whether the RDMA Port is OPA or not.
  * @device: Device
  * @port_num: 1 based Port number

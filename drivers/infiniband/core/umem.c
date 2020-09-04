@@ -39,6 +39,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/count_zeros.h>
 #include <rdma/ib_umem_odp.h>
 
 #include "uverbs.h"
@@ -146,7 +147,6 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 				     unsigned long virt)
 {
 	struct scatterlist *sg;
-	unsigned int best_pg_bit;
 	unsigned long va, pgoff;
 	dma_addr_t mask;
 	int i;
@@ -186,9 +186,14 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 			mask |= va;
 		pgoff = 0;
 	}
-	best_pg_bit = rdma_find_pg_bit(mask, pgsz_bitmap);
 
-	return BIT_ULL(best_pg_bit);
+	/* The mask accumulates 1's in each position where the VA and physical
+	 * address differ, thus the length of trailing 0 is the largest page
+	 * size that can pass the VA through to the physical.
+	 */
+	if (mask)
+		pgsz_bitmap &= GENMASK(count_trailing_zeros(mask), 0);
+	return rounddown_pow_of_two(pgsz_bitmap);
 }
 EXPORT_SYMBOL(ib_umem_find_best_pgsz);
 
