@@ -151,6 +151,12 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 	dma_addr_t mask;
 	int i;
 
+	/* rdma_for_each_block() has a bug if the page size is smaller than the
+	 * page size used to build the umem. For now prevent smaller page sizes
+	 * from being returned.
+	 */
+	pgsz_bitmap &= GENMASK(BITS_PER_LONG - 1, PAGE_SHIFT);
+
 	/* At minimum, drivers must support PAGE_SIZE or smaller */
 	if (WARN_ON(!(pgsz_bitmap & GENMASK(PAGE_SHIFT, 0))))
 		return 0;
