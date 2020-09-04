@@ -410,6 +410,7 @@ struct cpucp_info {
 	__u8 fuse_version[VERSION_MAX_LEN];
 	__u8 thermal_version[VERSION_MAX_LEN];
 	__u8 cpucp_version[VERSION_MAX_LEN];
+	__le32 reserved2;
 	__le64 dram_size;
 	char card_name[CARD_NAME_MAX_LEN];
 };
