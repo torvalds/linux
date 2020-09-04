@@ -69,6 +69,14 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 		return ret;
 	}
 
+	if (fcport->nvme_prli_service_param & NVME_PRLI_SP_SLER)
+		ql_log(ql_log_info, vha, 0x212a,
+		       "PortID:%06x Supports SLER\n", req.port_id);
+
+	if (fcport->nvme_prli_service_param & NVME_PRLI_SP_PI_CTRL)
+		ql_log(ql_log_info, vha, 0x212b,
+		       "PortID:%06x Supports PI control\n", req.port_id);
+
 	rport = fcport->nvme_remote_port->private;
 	rport->fcport = fcport;
 
@@ -368,6 +376,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	struct srb_iocb *nvme = &sp->u.iocb_cmd;
 	struct scatterlist *sgl, *sg;
 	struct nvmefc_fcp_req *fd = nvme->u.nvme.desc;
+	struct nvme_fc_cmd_iu *cmd = fd->cmdaddr;
 	uint32_t        rval = QLA_SUCCESS;
 
 	/* Setup qpair pointers */
@@ -399,8 +408,6 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	}
 
 	if (unlikely(!fd->sqid)) {
-		struct nvme_fc_cmd_iu *cmd = fd->cmdaddr;
-
 		if (cmd->sqe.common.opcode == nvme_admin_async_event) {
 			nvme->u.nvme.aen_op = 1;
 			atomic_inc(&ha->nvme_active_aen_cnt);
@@ -445,6 +452,11 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 		qpair->counters.output_requests++;
 	} else if (fd->io_dir == 0) {
 		cmd_pkt->control_flags = 0;
+	}
+	/* Set BIT_13 of control flags for Async event */
+	if (vha->flags.nvme2_enabled &&
+	    cmd->sqe.common.opcode == nvme_admin_async_event) {
+		cmd_pkt->control_flags |= cpu_to_le16(CF_ADMIN_ASYNC_EVENT);
 	}
 
 	/* Set NPORT-ID */

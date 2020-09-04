@@ -54,6 +54,7 @@ struct cmd_nvme {
 	uint64_t rsvd;
 
 	__le16	control_flags;		/* Control Flags */
+#define CF_ADMIN_ASYNC_EVENT		BIT_13
 #define CF_NVME_FIRST_BURST_ENABLE	BIT_11
 #define CF_DIF_SEG_DESCR_ENABLE         BIT_3
 #define CF_DATA_SEG_DESCR_ENABLE        BIT_2

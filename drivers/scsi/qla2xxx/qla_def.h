@@ -2476,6 +2476,8 @@ typedef struct fc_port {
 
 	struct completion nvme_del_done;
 	uint32_t nvme_prli_service_param;
+#define NVME_PRLI_SP_PI_CTRL	BIT_9
+#define NVME_PRLI_SP_SLER	BIT_8
 #define NVME_PRLI_SP_CONF       BIT_7
 #define NVME_PRLI_SP_INITIATOR  BIT_5
 #define NVME_PRLI_SP_TARGET     BIT_4
@@ -4309,6 +4311,7 @@ struct qla_hw_data {
 #define FW_ATTR_EXT0_SCM_BROCADE	0x00001000
 	/* Cisco fabric attached */
 #define FW_ATTR_EXT0_SCM_CISCO		0x00002000
+#define FW_ATTR_EXT0_NVME2	BIT_13
 	uint16_t	fw_attributes_ext[2];
 	uint32_t	fw_memory_size;
 	uint32_t	fw_transfer_size;
@@ -4658,6 +4661,7 @@ typedef struct scsi_qla_host {
 		uint32_t	qpairs_rsp_created:1;
 		uint32_t	nvme_enabled:1;
 		uint32_t        nvme_first_burst:1;
+		uint32_t        nvme2_enabled:1;
 	} flags;
 
 	atomic_t	loop_state;
