@@ -1303,7 +1303,7 @@ static struct kobj_type devid_ktype = {
 	.release	= btrfs_release_devid_kobj,
 };
 
-static int btrfs_sysfs_add_device(struct btrfs_device *device)
+int btrfs_sysfs_add_device(struct btrfs_device *device)
 {
 	int ret;
 	unsigned int nofs_flag;
@@ -1352,13 +1352,10 @@ out:
 	return ret;
 }
 
-int btrfs_sysfs_add_devices_dir(struct btrfs_fs_devices *fs_devices,
-				struct btrfs_device *device)
+static int btrfs_sysfs_add_fs_devices(struct btrfs_fs_devices *fs_devices)
 {
 	int ret;
-
-	if (device)
-		return btrfs_sysfs_add_device(device);
+	struct btrfs_device *device;
 
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		ret = btrfs_sysfs_add_device(device);
@@ -1456,7 +1453,7 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 	struct btrfs_fs_devices *fs_devs = fs_info->fs_devices;
 	struct kobject *fsid_kobj = &fs_devs->fsid_kobj;
 
-	error = btrfs_sysfs_add_devices_dir(fs_devs, NULL);
+	error = btrfs_sysfs_add_fs_devices(fs_devs);
 	if (error)
 		return error;
 
