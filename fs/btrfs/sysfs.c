@@ -975,9 +975,15 @@ void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 static void btrfs_sysfs_remove_fs_devices(struct btrfs_fs_devices *fs_devices)
 {
 	struct btrfs_device *device;
+	struct btrfs_fs_devices *seed;
 
 	list_for_each_entry(device, &fs_devices->devices, dev_list)
 		btrfs_sysfs_remove_device(device);
+
+	list_for_each_entry(seed, &fs_devices->seed_list, seed_list) {
+		list_for_each_entry(device, &seed->devices, dev_list)
+			btrfs_sysfs_remove_device(device);
+	}
 }
 
 void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
@@ -1351,11 +1357,20 @@ static int btrfs_sysfs_add_fs_devices(struct btrfs_fs_devices *fs_devices)
 {
 	int ret;
 	struct btrfs_device *device;
+	struct btrfs_fs_devices *seed;
 
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		ret = btrfs_sysfs_add_device(device);
 		if (ret)
 			return ret;
+	}
+
+	list_for_each_entry(seed, &fs_devices->seed_list, seed_list) {
+		list_for_each_entry(device, &seed->devices, dev_list) {
+			ret = btrfs_sysfs_add_device(device);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
