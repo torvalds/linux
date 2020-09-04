@@ -545,8 +545,13 @@ int drm_dp_read_downstream_info(struct drm_dp_aux *aux,
 	ret = drm_dp_dpcd_read(aux, DP_DOWNSTREAM_PORT_0, downstream_ports, len);
 	if (ret < 0)
 		return ret;
+	if (ret != len)
+		return -EIO;
 
-	return ret == len ? 0 : -EIO;
+	DRM_DEBUG_KMS("%s: DPCD DFP: %*ph\n",
+		      aux->name, len, downstream_ports);
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_dp_read_downstream_info);
 
