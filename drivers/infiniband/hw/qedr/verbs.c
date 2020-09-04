@@ -2882,10 +2882,8 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	mr->hw_mr.pbl_two_level = mr->info.pbl_info.two_layered;
 	mr->hw_mr.pbl_page_size_log = ilog2(mr->info.pbl_info.pbl_size);
 	mr->hw_mr.page_size_log = PAGE_SHIFT;
-	mr->hw_mr.fbo = ib_umem_offset(mr->umem);
 	mr->hw_mr.length = len;
 	mr->hw_mr.vaddr = usr_addr;
-	mr->hw_mr.zbva = false;
 	mr->hw_mr.phy_mr = false;
 	mr->hw_mr.dma_mr = false;
 
@@ -2978,10 +2976,8 @@ static struct qedr_mr *__qedr_alloc_mr(struct ib_pd *ibpd,
 	mr->hw_mr.pbl_ptr = 0;
 	mr->hw_mr.pbl_two_level = mr->info.pbl_info.two_layered;
 	mr->hw_mr.pbl_page_size_log = ilog2(mr->info.pbl_info.pbl_size);
-	mr->hw_mr.fbo = 0;
 	mr->hw_mr.length = 0;
 	mr->hw_mr.vaddr = 0;
-	mr->hw_mr.zbva = false;
 	mr->hw_mr.phy_mr = true;
 	mr->hw_mr.dma_mr = false;
 
