@@ -13,17 +13,17 @@ static void *
 fwnode_graph_devcon_match(struct fwnode_handle *fwnode, const char *con_id,
 			  void *data, devcon_match_fn_t match)
 {
-	struct device_connection con = { .id = con_id };
+	struct fwnode_handle *node;
 	struct fwnode_handle *ep;
 	void *ret;
 
 	fwnode_graph_for_each_endpoint(fwnode, ep) {
-		con.fwnode = fwnode_graph_get_remote_port_parent(ep);
-		if (!fwnode_device_is_available(con.fwnode))
+		node = fwnode_graph_get_remote_port_parent(ep);
+		if (!fwnode_device_is_available(node))
 			continue;
 
-		ret = match(&con, -1, data);
-		fwnode_handle_put(con.fwnode);
+		ret = match(node, con_id, data);
+		fwnode_handle_put(node);
 		if (ret) {
 			fwnode_handle_put(ep);
 			return ret;
@@ -36,17 +36,17 @@ static void *
 fwnode_devcon_match(struct fwnode_handle *fwnode, const char *con_id,
 		    void *data, devcon_match_fn_t match)
 {
-	struct device_connection con = { };
+	struct fwnode_handle *node;
 	void *ret;
 	int i;
 
 	for (i = 0; ; i++) {
-		con.fwnode = fwnode_find_reference(fwnode, con_id, i);
-		if (IS_ERR(con.fwnode))
+		node = fwnode_find_reference(fwnode, con_id, i);
+		if (IS_ERR(node))
 			break;
 
-		ret = match(&con, -1, data);
-		fwnode_handle_put(con.fwnode);
+		ret = match(node, NULL, data);
+		fwnode_handle_put(node);
 		if (ret)
 			return ret;
 	}

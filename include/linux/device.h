@@ -292,23 +292,7 @@ struct device_dma_parameters {
 	unsigned long segment_boundary_mask;
 };
 
-/**
- * struct device_connection - Device Connection Descriptor
- * @fwnode: The device node of the connected device
- * @endpoint: The names of the two devices connected together
- * @id: Unique identifier for the connection
- *
- * NOTE: @fwnode is not used together with @endpoint. @fwnode is used when
- * platform firmware defines the connection. When the connection is registered
- * with device_connection_add() @endpoint is used instead.
- */
-struct device_connection {
-	struct fwnode_handle	*fwnode;
-	const char		*endpoint[2];
-	const char		*id;
-};
-
-typedef void *(*devcon_match_fn_t)(struct device_connection *con, int ep,
+typedef void *(*devcon_match_fn_t)(struct fwnode_handle *fwnode, const char *id,
 				   void *data);
 
 void *fwnode_connection_find_match(struct fwnode_handle *fwnode,
