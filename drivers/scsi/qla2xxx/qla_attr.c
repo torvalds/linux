@@ -3214,46 +3214,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_max_npiv_vports(vha->host) = ha->max_npiv_vports;
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
-	if (IS_CNA_CAPABLE(ha))
-		speeds = FC_PORTSPEED_10GBIT;
-	else if (IS_QLA28XX(ha) || IS_QLA27XX(ha)) {
-		if (ha->max_supported_speed == 2) {
-			if (ha->min_supported_speed <= 6)
-				speeds |= FC_PORTSPEED_64GBIT;
-		}
-		if (ha->max_supported_speed == 2 ||
-		    ha->max_supported_speed == 1) {
-			if (ha->min_supported_speed <= 5)
-				speeds |= FC_PORTSPEED_32GBIT;
-		}
-		if (ha->max_supported_speed == 2 ||
-		    ha->max_supported_speed == 1 ||
-		    ha->max_supported_speed == 0) {
-			if (ha->min_supported_speed <= 4)
-				speeds |= FC_PORTSPEED_16GBIT;
-		}
-		if (ha->max_supported_speed == 1 ||
-		    ha->max_supported_speed == 0) {
-			if (ha->min_supported_speed <= 3)
-				speeds |= FC_PORTSPEED_8GBIT;
-		}
-		if (ha->max_supported_speed == 0) {
-			if (ha->min_supported_speed <= 2)
-				speeds |= FC_PORTSPEED_4GBIT;
-		}
-	} else if (IS_QLA2031(ha))
-		speeds = FC_PORTSPEED_16GBIT|FC_PORTSPEED_8GBIT|
-			FC_PORTSPEED_4GBIT;
-	else if (IS_QLA25XX(ha) || IS_QLAFX00(ha))
-		speeds = FC_PORTSPEED_8GBIT|FC_PORTSPEED_4GBIT|
-			FC_PORTSPEED_2GBIT|FC_PORTSPEED_1GBIT;
-	else if (IS_QLA24XX_TYPE(ha))
-		speeds = FC_PORTSPEED_4GBIT|FC_PORTSPEED_2GBIT|
-			FC_PORTSPEED_1GBIT;
-	else if (IS_QLA23XX(ha))
-		speeds = FC_PORTSPEED_2GBIT|FC_PORTSPEED_1GBIT;
-	else
-		speeds = FC_PORTSPEED_1GBIT;
+	speeds = qla25xx_fdmi_port_speed_capability(ha);
 
 	fc_host_supported_speeds(vha->host) = speeds;
 }
