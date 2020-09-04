@@ -162,17 +162,20 @@ static int check_all_bounds(struct device *dev,
 #define PHY_CONST_DIV		16
 
 static void
-__ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
-		       const struct ccs_pll_branch_limits_bk *op_lim_bk,
-		       struct ccs_pll *pll, struct ccs_pll_branch_fr *pll_fr,
-		       struct ccs_pll_branch_bk *op_pll_bk, bool cphy,
-		       uint32_t phy_const)
+ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
+		     const struct ccs_pll_branch_limits_bk *op_lim_bk,
+		     struct ccs_pll *pll, struct ccs_pll_branch_fr *pll_fr,
+		     struct ccs_pll_branch_bk *op_pll_bk, bool cphy,
+		     uint32_t phy_const)
 {
 	uint32_t sys_div;
 	uint32_t best_pix_div = INT_MAX >> 1;
 	uint32_t vt_op_binning_div;
 	uint32_t min_vt_div, max_vt_div, vt_div;
 	uint32_t min_sys_div, max_sys_div;
+
+	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
+		goto out_calc_pixel_rate;
 
 	/*
 	 * Find out whether a sensor supports derating. If it does not, VT and
@@ -313,6 +316,10 @@ __ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
 		pll_fr->pll_op_clk_freq_hz / pll->vt_bk.sys_clk_div;
 	pll->vt_bk.pix_clk_freq_hz =
 		pll->vt_bk.sys_clk_freq_hz / pll->vt_bk.pix_clk_div;
+
+out_calc_pixel_rate:
+	pll->pixel_rate_pixel_array =
+		pll->vt_bk.pix_clk_freq_hz * pll->vt_lanes;
 }
 
 /*
@@ -327,12 +334,12 @@ __ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
  * @return Zero on success, error code on error.
  */
 static int
-__ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
-		    const struct ccs_pll_branch_limits_fr *op_lim_fr,
-		    const struct ccs_pll_branch_limits_bk *op_lim_bk,
-		    struct ccs_pll *pll, struct ccs_pll_branch_fr *op_pll_fr,
-		    struct ccs_pll_branch_bk *op_pll_bk, uint32_t mul,
-		    uint32_t div, uint32_t l, bool cphy, uint32_t phy_const)
+ccs_pll_calculate_op(struct device *dev, const struct ccs_pll_limits *lim,
+		     const struct ccs_pll_branch_limits_fr *op_lim_fr,
+		     const struct ccs_pll_branch_limits_bk *op_lim_bk,
+		     struct ccs_pll *pll, struct ccs_pll_branch_fr *op_pll_fr,
+		     struct ccs_pll_branch_bk *op_pll_bk, uint32_t mul,
+		     uint32_t div, uint32_t l, bool cphy, uint32_t phy_const)
 {
 	/*
 	 * Higher multipliers (and divisors) are often required than
@@ -430,15 +437,7 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 
 	dev_dbg(dev, "op_pix_clk_div: %u\n", op_pll_bk->pix_clk_div);
 
-	if (!(pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS))
-		__ccs_pll_calculate_vt(dev, lim, op_lim_bk, pll, op_pll_fr,
-				       op_pll_bk, cphy, phy_const);
-
-	pll->pixel_rate_pixel_array =
-		pll->vt_bk.pix_clk_freq_hz * pll->vt_lanes;
-
-	return check_all_bounds(dev, lim, op_lim_fr, op_lim_bk, pll, op_pll_fr,
-				op_pll_bk);
+	return 0;
 }
 
 int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
@@ -558,13 +557,22 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	     op_pll_fr->pre_pll_clk_div +=
 		     (pll->flags & CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER) ? 1 :
 		     2 - (op_pll_fr->pre_pll_clk_div & 1)) {
-		rval = __ccs_pll_calculate(dev, lim, op_lim_fr, op_lim_bk, pll,
-					   op_pll_fr, op_pll_bk, mul, div, l,
-					   cphy, phy_const);
+		rval = ccs_pll_calculate_op(dev, lim, op_lim_fr, op_lim_bk, pll,
+					    op_pll_fr, op_pll_bk, mul, div, l,
+					    cphy, phy_const);
+		if (rval)
+			continue;
+
+		ccs_pll_calculate_vt(dev, lim, op_lim_bk, pll, op_pll_fr,
+				     op_pll_bk, cphy, phy_const);
+
+		rval = check_all_bounds(dev, lim, op_lim_fr, op_lim_bk, pll,
+					op_pll_fr, op_pll_bk);
 		if (rval)
 			continue;
 
 		print_pll(dev, pll);
+
 		return 0;
 	}
 
