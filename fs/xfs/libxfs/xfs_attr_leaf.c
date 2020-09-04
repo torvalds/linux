@@ -992,9 +992,8 @@ xfs_attr_shortform_allfit(
 			return 0;
 		if (be16_to_cpu(name_loc->valuelen) >= XFS_ATTR_SF_ENTSIZE_MAX)
 			return 0;
-		bytes += sizeof(struct xfs_attr_sf_entry) - 1
-				+ name_loc->namelen
-				+ be16_to_cpu(name_loc->valuelen);
+		bytes += XFS_ATTR_SF_ENTSIZE_BYNAME(name_loc->namelen,
+					be16_to_cpu(name_loc->valuelen));
 	}
 	if ((dp->i_mount->m_flags & XFS_MOUNT_ATTR2) &&
 	    (dp->i_df.if_format != XFS_DINODE_FMT_BTREE) &&
@@ -1039,7 +1038,7 @@ xfs_attr_shortform_verify(
 		 * xfs_attr_sf_entry is defined with a 1-byte variable
 		 * array at the end, so we must subtract that off.
 		 */
-		if (((char *)sfep + sizeof(*sfep) - 1) >= endp)
+		if (((char *)sfep + sizeof(*sfep)) >= endp)
 			return __this_address;
 
 		/* Don't allow names with known bad length. */
