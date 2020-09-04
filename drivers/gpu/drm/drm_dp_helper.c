@@ -809,6 +809,60 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 EXPORT_SYMBOL(drm_dp_downstream_max_bpc);
 
 /**
+ * drm_dp_downstream_mode() - return a mode for downstream facing port
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ *
+ * Provides a suitable mode for downstream facing ports without EDID.
+ *
+ * Returns: A new drm_display_mode on success or NULL on failure
+ */
+struct drm_display_mode *
+drm_dp_downstream_mode(struct drm_device *dev,
+		       const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+		       const u8 port_cap[4])
+
+{
+	u8 vic;
+
+	if (!drm_dp_is_branch(dpcd))
+		return NULL;
+
+	if (dpcd[DP_DPCD_REV] < 0x11)
+		return NULL;
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_NON_EDID:
+		switch (port_cap[0] & DP_DS_NON_EDID_MASK) {
+		case DP_DS_NON_EDID_720x480i_60:
+			vic = 6;
+			break;
+		case DP_DS_NON_EDID_720x480i_50:
+			vic = 21;
+			break;
+		case DP_DS_NON_EDID_1920x1080i_60:
+			vic = 5;
+			break;
+		case DP_DS_NON_EDID_1920x1080i_50:
+			vic = 20;
+			break;
+		case DP_DS_NON_EDID_1280x720_60:
+			vic = 4;
+			break;
+		case DP_DS_NON_EDID_1280x720_50:
+			vic = 19;
+			break;
+		default:
+			return NULL;
+		}
+		return drm_display_mode_from_cea_vic(dev, vic);
+	default:
+		return NULL;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_mode);
+
+/**
  * drm_dp_downstream_id() - identify branch device
  * @aux: DisplayPort AUX channel
  * @id: DisplayPort branch device id

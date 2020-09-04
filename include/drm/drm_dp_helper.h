@@ -28,6 +28,8 @@
 #include <linux/types.h>
 #include <drm/drm_connector.h>
 
+struct drm_device;
+
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
  * DP and DPCD versions are independent.  Differences from 1.0 are not noted,
@@ -385,6 +387,13 @@
 # define DP_DS_PORT_TYPE_DP_DUALMODE        5
 # define DP_DS_PORT_TYPE_WIRELESS           6
 # define DP_DS_PORT_HPD			    (1 << 3)
+# define DP_DS_NON_EDID_MASK		    (0xf << 4)
+# define DP_DS_NON_EDID_720x480i_60	    (1 << 4)
+# define DP_DS_NON_EDID_720x480i_50	    (2 << 4)
+# define DP_DS_NON_EDID_1920x1080i_60	    (3 << 4)
+# define DP_DS_NON_EDID_1920x1080i_50	    (4 << 4)
+# define DP_DS_NON_EDID_1280x720_60	    (5 << 4)
+# define DP_DS_NON_EDID_1280x720_50	    (7 << 4)
 /* offset 1 for VGA is maximum megapixels per second / 8 */
 /* offset 1 for DVI/HDMI is maximum TMDS clock in Mbps / 2.5 */
 /* offset 2 for VGA/DVI/HDMI */
@@ -1654,6 +1663,9 @@ int drm_dp_downstream_min_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			      const u8 port_cap[4],
 			      const struct edid *edid);
+struct drm_display_mode *drm_dp_downstream_mode(struct drm_device *dev,
+						const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+						const u8 port_cap[4]);
 int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6]);
 void drm_dp_downstream_debug(struct seq_file *m,
 			     const u8 dpcd[DP_RECEIVER_CAP_SIZE],
