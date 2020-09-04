@@ -601,11 +601,9 @@ static void qedr_populate_pbls(struct qedr_dev *dev, struct ib_umem *umem,
 			       struct qedr_pbl_info *pbl_info, u32 pg_shift)
 {
 	int pbe_cnt, total_num_pbes = 0;
-	u32 fw_pg_cnt, fw_pg_per_umem_pg;
 	struct qedr_pbl *pbl_tbl;
-	struct sg_dma_page_iter sg_iter;
+	struct ib_block_iter biter;
 	struct regpair *pbe;
-	u64 pg_addr;
 
 	if (!pbl_info->num_pbes)
 		return;
@@ -626,32 +624,25 @@ static void qedr_populate_pbls(struct qedr_dev *dev, struct ib_umem *umem,
 
 	pbe_cnt = 0;
 
-	fw_pg_per_umem_pg = BIT(PAGE_SHIFT - pg_shift);
+	rdma_umem_for_each_dma_block (umem, &biter, BIT(pg_shift)) {
+		u64 pg_addr = rdma_block_iter_dma_address(&biter);
 
-	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
-		pg_addr = sg_page_iter_dma_address(&sg_iter);
-		for (fw_pg_cnt = 0; fw_pg_cnt < fw_pg_per_umem_pg;) {
-			pbe->lo = cpu_to_le32(pg_addr);
-			pbe->hi = cpu_to_le32(upper_32_bits(pg_addr));
+		pbe->lo = cpu_to_le32(pg_addr);
+		pbe->hi = cpu_to_le32(upper_32_bits(pg_addr));
 
-			pg_addr += BIT(pg_shift);
-			pbe_cnt++;
-			total_num_pbes++;
-			pbe++;
+		pbe_cnt++;
+		total_num_pbes++;
+		pbe++;
 
-			if (total_num_pbes == pbl_info->num_pbes)
-				return;
+		if (total_num_pbes == pbl_info->num_pbes)
+			return;
 
-			/* If the given pbl is full storing the pbes,
-			 * move to next pbl.
-			 */
-			if (pbe_cnt == (pbl_info->pbl_size / sizeof(u64))) {
-				pbl_tbl++;
-				pbe = (struct regpair *)pbl_tbl->va;
-				pbe_cnt = 0;
-			}
-
-			fw_pg_cnt++;
+		/* If the given pbl is full storing the pbes, move to next pbl.
+		 */
+		if (pbe_cnt == (pbl_info->pbl_size / sizeof(u64))) {
+			pbl_tbl++;
+			pbe = (struct regpair *)pbl_tbl->va;
+			pbe_cnt = 0;
 		}
 	}
 }
