@@ -71,15 +71,37 @@ static __init void *get_cert_list(efi_char16_t *name, efi_guid_t *guid,
  * Load the certs contained in the UEFI MokListRT database into the
  * platform trusted keyring.
  *
+ * This routine checks the EFI MOK config table first. If and only if
+ * that fails, this routine uses the MokListRT ordinary UEFI variable.
+ *
  * Return:	Status
  */
 static int __init load_moklist_certs(void)
 {
+	struct efi_mokvar_table_entry *mokvar_entry;
 	efi_guid_t mok_var = EFI_SHIM_LOCK_GUID;
 	void *mok;
 	unsigned long moksize;
 	efi_status_t status;
 	int rc;
+
+	/* First try to load certs from the EFI MOKvar config table.
+	 * It's not an error if the MOKvar config table doesn't exist
+	 * or the MokListRT entry is not found in it.
+	 */
+	mokvar_entry = efi_mokvar_entry_find("MokListRT");
+	if (mokvar_entry) {
+		rc = parse_efi_signature_list("UEFI:MokListRT (MOKvar table)",
+					      mokvar_entry->data,
+					      mokvar_entry->data_size,
+					      get_handler_for_db);
+		/* All done if that worked. */
+		if (!rc)
+			return rc;
+
+		pr_err("Couldn't parse MokListRT signatures from EFI MOKvar config table: %d\n",
+		       rc);
+	}
 
 	/* Get MokListRT. It might not exist, so it isn't an error
 	 * if we can't get it.
