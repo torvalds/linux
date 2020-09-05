@@ -435,7 +435,7 @@ static void rtl8723e_dm_bt_set_fw_tdma_ctrl(struct ieee80211_hw *hw,
 		if (TDMA_1ANT == ant_num) {
 			rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_TRACE,
 				"[BTCoex], TDMA_1ANT\n");
-				h2c_parameter[0] |= BIT(1);
+			h2c_parameter[0] |= BIT(1);
 		} else if (TDMA_2ANT == ant_num) {
 			rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_TRACE,
 				"[BTCoex], TDMA_2ANT\n");
