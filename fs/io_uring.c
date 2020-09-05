@@ -2672,18 +2672,12 @@ static ssize_t io_import_fixed(struct io_kiocb *req, int rw,
 	struct io_ring_ctx *ctx = req->ctx;
 	size_t len = req->rw.len;
 	struct io_mapped_ubuf *imu;
-	u16 index, buf_index;
+	u16 index, buf_index = req->buf_index;
 	size_t offset;
 	u64 buf_addr;
 
-	/* attempt to use fixed buffers without having provided iovecs */
-	if (unlikely(!ctx->user_bufs))
-		return -EFAULT;
-
-	buf_index = req->buf_index;
 	if (unlikely(buf_index >= ctx->nr_user_bufs))
 		return -EFAULT;
-
 	index = array_index_nospec(buf_index, ctx->nr_user_bufs);
 	imu = &ctx->user_bufs[index];
 	buf_addr = req->rw.addr;
