@@ -35,7 +35,7 @@
 #define RTL8366RB_SGCR_MAX_LENGTH_1522		RTL8366RB_SGCR_MAX_LENGTH(0x0)
 #define RTL8366RB_SGCR_MAX_LENGTH_1536		RTL8366RB_SGCR_MAX_LENGTH(0x1)
 #define RTL8366RB_SGCR_MAX_LENGTH_1552		RTL8366RB_SGCR_MAX_LENGTH(0x2)
-#define RTL8366RB_SGCR_MAX_LENGTH_9216		RTL8366RB_SGCR_MAX_LENGTH(0x3)
+#define RTL8366RB_SGCR_MAX_LENGTH_16000		RTL8366RB_SGCR_MAX_LENGTH(0x3)
 #define RTL8366RB_SGCR_EN_VLAN			BIT(13)
 #define RTL8366RB_SGCR_EN_VLAN_4KTB		BIT(14)
 
@@ -1077,6 +1077,40 @@ rtl8366rb_port_disable(struct dsa_switch *ds, int port)
 	rb8366rb_set_port_led(smi, port, false);
 }
 
+static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	struct realtek_smi *smi = ds->priv;
+	u32 len;
+
+	/* The first setting, 1522 bytes, is max IP packet 1500 bytes,
+	 * plus ethernet header, 1518 bytes, plus CPU tag, 4 bytes.
+	 * This function should consider the parameter an SDU, so the
+	 * MTU passed for this setting is 1518 bytes. The same logic
+	 * of subtracting the DSA tag of 4 bytes apply to the other
+	 * settings.
+	 */
+	if (new_mtu <= 1518)
+		len = RTL8366RB_SGCR_MAX_LENGTH_1522;
+	else if (new_mtu > 1518 && new_mtu <= 1532)
+		len = RTL8366RB_SGCR_MAX_LENGTH_1536;
+	else if (new_mtu > 1532 && new_mtu <= 1548)
+		len = RTL8366RB_SGCR_MAX_LENGTH_1552;
+	else
+		len = RTL8366RB_SGCR_MAX_LENGTH_16000;
+
+	return regmap_update_bits(smi->map, RTL8366RB_SGCR,
+				  RTL8366RB_SGCR_MAX_LENGTH_MASK,
+				  len);
+}
+
+static int rtl8366rb_max_mtu(struct dsa_switch *ds, int port)
+{
+	/* The max MTU is 16000 bytes, so we subtract the CPU tag
+	 * and the max presented to the system is 15996 bytes.
+	 */
+	return 15996;
+}
+
 static int rtl8366rb_get_vlan_4k(struct realtek_smi *smi, u32 vid,
 				 struct rtl8366_vlan_4k *vlan4k)
 {
@@ -1415,6 +1449,8 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.port_vlan_del = rtl8366_vlan_del,
 	.port_enable = rtl8366rb_port_enable,
 	.port_disable = rtl8366rb_port_disable,
+	.port_change_mtu = rtl8366rb_change_mtu,
+	.port_max_mtu = rtl8366rb_max_mtu,
 };
 
 static const struct realtek_smi_ops rtl8366rb_smi_ops = {
