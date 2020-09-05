@@ -16,7 +16,7 @@
 #include "clk.h"
 
 /**
- * DOC: basic gatable clock which can gate and ungate it's ouput
+ * DOC: basic gateable clock which can gate and ungate its output
  *
  * Traits of this clock:
  * prepare - clk_(un)prepare only ensures parent is (un)prepared
