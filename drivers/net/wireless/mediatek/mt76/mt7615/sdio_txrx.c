@@ -158,6 +158,24 @@ static void mt7663s_tx_update_quota(struct mt76_sdio *sdio, enum mt76_txq_id qid
 	mutex_unlock(&sdio->sched.lock);
 }
 
+static int __mt7663s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
+{
+	struct mt76_sdio *sdio = &dev->sdio;
+	int err;
+
+	if (len > sdio->func->cur_blksize)
+		len = roundup(len, sdio->func->cur_blksize);
+
+	sdio_claim_host(sdio->func);
+	err = sdio_writesb(sdio->func, MCR_WTDR1, data, len);
+	sdio_release_host(sdio->func);
+
+	if (err)
+		dev_err(dev->dev, "sdio write failed: %d\n", err);
+
+	return err;
+}
+
 static int mt7663s_tx_run_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 {
 	int nframes = 0, pse_sz = 0, ple_sz = 0;
@@ -166,24 +184,15 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 
 	while (q->first != q->head) {
 		struct mt76_queue_entry *e = &q->entry[q->first];
-		int err, len = e->skb->len;
+		int err;
 
 		if (mt7663s_tx_pick_quota(dev, qid, e->buf_sz, &pse_sz,
 					  &ple_sz))
 			break;
 
-		if (len > sdio->func->cur_blksize)
-			len = roundup(len, sdio->func->cur_blksize);
-
-		/* TODO: skb_walk_frags and then write to SDIO port */
-		sdio_claim_host(sdio->func);
-		err = sdio_writesb(sdio->func, MCR_WTDR1, e->skb->data, len);
-		sdio_release_host(sdio->func);
-
-		if (err) {
-			dev_err(dev->dev, "sdio write failed: %d\n", err);
-			return -EIO;
-		}
+		err = __mt7663s_xmit_queue(dev, e->skb->data, e->skb->len);
+		if (err)
+			return err;
 
 		e->done = true;
 		q->first = (q->first + 1) % q->ndesc;
