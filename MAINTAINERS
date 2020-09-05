@@ -10314,7 +10314,7 @@ LYNX PCS MODULE
 M:	Ioana Ciornei <ioana.ciornei@nxp.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/phy/pcs-lynx.c
+F:	drivers/net/pcs/pcs-lynx.c
 F:	include/linux/pcs-lynx.h
 
 M68K ARCHITECTURE
