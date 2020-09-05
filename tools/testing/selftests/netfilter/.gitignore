@@ -1,4 +1,2 @@
 # SPDX-License-Identifier: GPL-2.0-only
-get_syscall_info
-peeksiginfo
-vmaccess
+nf-queue
