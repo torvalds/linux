@@ -46,6 +46,7 @@ extern const struct kfd2kgd_calls gfx_v7_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v8_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v9_kfd2kgd;
 extern const struct kfd2kgd_calls arcturus_kfd2kgd;
+extern const struct kfd2kgd_calls aldebaran_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
 
@@ -71,7 +72,7 @@ static const struct kfd2kgd_calls *kfd2kgd_funcs[] = {
 	[CHIP_VEGA20] = &gfx_v9_kfd2kgd,
 	[CHIP_RENOIR] = &gfx_v9_kfd2kgd,
 	[CHIP_ARCTURUS] = &arcturus_kfd2kgd,
-	[CHIP_ALDEBARAN] = &arcturus_kfd2kgd,
+	[CHIP_ALDEBARAN] = &aldebaran_kfd2kgd,
 	[CHIP_NAVI10] = &gfx_v10_kfd2kgd,
 	[CHIP_NAVI12] = &gfx_v10_kfd2kgd,
 	[CHIP_NAVI14] = &gfx_v10_kfd2kgd,
