@@ -1,0 +1,338 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2020 Fuzhou Rockchip Electronics Co., Ltd
+
+#include <dt-bindings/reset/rk628-rgu.h>
+#include <dt-bindings/clock/rk628-cgu.h>
+
+/ {
+	xin_osc0_func: xin-osc0-func {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "xin_osc0_func";
+	};
+
+	xin_osc0_half: xin-osc0-half {
+		compatible = "fixed-factor-clock";
+		#clock-cells = <0>;
+		clocks = <&xin_osc0_func>;
+		clock-mult = <1>;
+		clock-div = <2>;
+		clock-output-names = "xin_osc0_half";
+	};
+};
+
+&rk628 {
+	compatible = "rockchip,rk628";
+
+	rk628_cru: cru {
+		compatible = "rockchip,rk628-cru";
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		status = "okay";
+	};
+
+	rk628_efuse: efuse {
+		compatible = "rockchip,rk628-efuse";
+		clocks = <&rk628_cru CGU_PCLK_EFUSE>;
+		clock-names = "pclk";
+		resets = <&rk628_cru RGU_EFUSE>;
+		#phy-cells = <0>;
+		status = "disabled";
+	};
+
+	rk628_pinctrl: pinctrl {
+		compatible = "rockchip,rk628-pinctrl";
+		status = "okay";
+
+		rk628_gpio0: rk628-gpio0 {
+			clocks = <&rk628_cru CGU_PCLK_GPIO0>;
+			clock-names = "pclk";
+			resets = <&rk628_cru RGU_GPIO0>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		rk628_gpio1: rk628-gpio1 {
+			clocks = <&rk628_cru CGU_PCLK_GPIO1>;
+			clock-names = "pclk";
+			resets = <&rk628_cru RGU_GPIO1>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		rk628_gpio2: rk628-gpio2 {
+			clocks = <&rk628_cru CGU_PCLK_GPIO2>;
+			clock-names = "pclk";
+			resets = <&rk628_cru RGU_GPIO2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		rk628_gpio3: rk628-gpio3 {
+			clocks = <&rk628_cru CGU_PCLK_GPIO3>;
+			clock-names = "pclk";
+			resets = <&rk628_cru RGU_GPIO3>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		i2sm0_pins: i2sm0 {
+			pins = "gpio0a2", /* i2sm0_sck */
+			       "gpio0a3", /* i2sm0_lr */
+			       "gpio0a4", /* i2sm0_d0 */
+			       "gpio0a5", /* i2sm0_d1 */
+			       "gpio0a6", /* i2sm0_d2 */
+			       "gpio0a7"; /* i2sm0_d3 */
+			function = "i2sm0";
+		};
+
+		hpd_in_pins: hpd-in {
+			pins = "gpio0b0";
+			function = "hpd_in";
+		};
+
+		ddc_tx_pins: ddc-tx {
+			pins = "gpio0b1", /* ddc_tx_sda */
+			       "gpio0b2"; /* ddc_tx_scl */
+			function = "ddc_tx";
+		};
+
+		cec_tx_pins: cec-tx {
+			pins = "gpio0b3";
+			function = "cec_tx";
+		};
+
+		test_clkout_pins: test-clkout {
+			pins = "gpio1a0";
+			function = "test_clkout";
+		};
+
+		i2sm1_pins: i2sm1 {
+			pins = "gpio1a2", /* i2sm1_sck */
+			       "gpio1a3", /* i2sm1_lr */
+			       "gpio1a4", /* i2sm1_d0 */
+			       "gpio1a5", /* i2sm1_d1 */
+			       "gpio1a6", /* i2sm1_d2 */
+			       "gpio1a7"; /* i2sm1_d3 */
+			function = "i2sm1";
+		};
+
+		hpdm0_out_pins: hpdm0-out {
+			pins = "gpio1b0";
+			function = "hpdm0_out";
+		};
+
+		ddcm0_rx_pins: ddcm0-rx {
+			pins = "gpio1b1", /* ddcm0_rx_sda */
+			       "gpio1b2"; /* ddcm0_rx_scl */
+			function = "ddcm0_rx";
+		};
+
+		cecm0_rx_pins: cecm0_rx {
+			pins = "gpio1b3";
+			function = "cecm0_rx";
+		};
+
+		vop_pins: vop {
+			pins = "gpio2a0", /* vop_d0 */
+			       "gpio2a1", /* vop_d1 */
+			       "gpio2a2", /* vop_d2 */
+			       "gpio2a3", /* vop_d3 */
+			       "gpio2a4", /* vop_d4 */
+			       "gpio2a5", /* vop_d5 */
+			       "gpio2a6", /* vop_d6 */
+			       "gpio2a7", /* vop_d7 */
+			       "gpio2b0", /* vop_d8 */
+			       "gpio2b1", /* vop_d9 */
+			       "gpio2b2", /* vop_d10 */
+			       "gpio2b3", /* vop_d11 */
+			       "gpio2b4", /* vop_d12 */
+			       "gpio2b5", /* vop_d13 */
+			       "gpio2b6", /* vop_d14 */
+			       "gpio2b7", /* vop_d15 */
+			       "gpio2c0", /* vop_d16 */
+			       "gpio2c1", /* vop_d17 */
+			       "gpio2c2", /* vop_d18 */
+			       "gpio2c3", /* vop_d19 */
+			       "gpio2c4", /* vop_d20 */
+			       "gpio2c5", /* vop_d21 */
+			       "gpio2c6", /* vop_d22 */
+			       "gpio2c7", /* vop_d23 */
+			       "gpio3a0", /* vop_den */
+			       "gpio3a1", /* vop_hsync */
+			       "gpio3a3", /* vop_vsync */
+			       "gpio3b0"; /* vop_dclk */
+			function = "vop";
+		};
+
+		hpdm1_out: hpdm1-out {
+			pins = "gpio3a4";
+			function = "hpdm1_out";
+		};
+
+		ddcm1_rx_pins: ddcm1-rx {
+			pins = "gpio3a5", /* ddcm1_rx_sda */
+			       "gpio3a6"; /* ddcm1_rx_scl */
+			function = "ddcm1_rx";
+		};
+
+		cecm1_rx_pins: cecm1-rx {
+			pins = "gpio3a7";
+			function = "cecm1_rx";
+		};
+
+		gvi_hpd_pins: gvi-hpd {
+			pins = "gpio3b1";
+			function = "gvi_hpd";
+		};
+
+		gvi_lock_pins: gvi-lock {
+			pins = "gpio3b2";
+			function = "gvi_lock";
+		};
+
+		hdmirx_cec0: hdmirx-cec0 {
+			pins = "hdmirx_cec";
+			function = "hdmirx_cec0";
+		};
+
+		hdmirx_cec1: hdmirx-cec1 {
+			pins = "hdmirx_cec";
+			function = "hdmirx_cec1";
+		};
+
+		rxddc_input0: rxddc-input0 {
+			pins = "rxddc_scl",
+			       "rxddc_sda";
+			function = "rxddc_input0";
+		};
+
+		rxddc_input1: rxddc-input1 {
+			pins = "rxddc_scl",
+			       "rxddc_sda";
+			function = "rxddc_input1";
+		};
+
+		i2sm0_input: i2sm0-input {
+			pins = "i2sm_sck",
+			       "i2sm_d",
+			       "i2sm_lr";
+			function = "i2sm0_input";
+		};
+
+		i2sm1_input: i2sm1-input {
+			pins = "i2sm_sck",
+			       "i2sm_d",
+			       "i2sm_lr";
+			function = "i2sm1_input";
+		};
+	};
+
+	rk628_combtxphy: combtxphy {
+		compatible = "rockchip,rk628-combtxphy";
+		clocks = <&rk628_cru CGU_PCLK_TXPHY_CON>;
+		clock-names = "pclk";
+		resets = <&rk628_cru RGU_TXPHY_CON>;
+		#phy-cells = <0>;
+		status = "disabled";
+	};
+
+	rk628_combrxphy: combrxphy {
+		compatible = "rockchip,rk628-combrxphy";
+		clocks = <&rk628_cru CGU_PCLK_RXPHY>;
+		clock-names = "pclk";
+		resets = <&rk628_cru RGU_RXPHY>;
+		#phy-cells = <0>;
+		status = "disabled";
+	};
+
+	rk628_dsi0: dsi0 {
+		compatible = "rockchip,rk628-dsi0";
+		clocks = <&rk628_cru CGU_PCLK_DSI0>,
+			 <&rk628_cru CGU_CLK_CFG_DPHY0>;
+		clock-names = "pclk", "cfg";
+		resets = <&rk628_cru RGU_DSI0>;
+		phys = <&rk628_combtxphy>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	rk628_dsi1: dsi1 {
+		compatible = "rockchip,rk628-dsi1";
+		clocks = <&rk628_cru CGU_PCLK_DSI1>,
+			 <&rk628_cru CGU_CLK_CFG_DPHY1>;
+		clock-names = "pclk", "cfg";
+		resets = <&rk628_cru RGU_DSI1>;
+		phys = <&rk628_combtxphy>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	rk628_lvds: lvds {
+		compatible = "rockchip,rk628-lvds";
+		phys = <&rk628_combtxphy>;
+		status = "disabled";
+	};
+
+	rk628_gvi: gvi {
+		compatible = "rockchip,rk628-gvi";
+		clocks = <&rk628_cru CGU_PCLK_GVIHOST>;
+		clock-names = "pclk";
+		resets = <&rk628_cru RGU_GVIHOST>;
+		phys = <&rk628_combtxphy>;
+		status = "disabled";
+	};
+
+	rk628_rgb: rgb {
+		compatible = "rockchip,rk628-rgb";
+		status = "disabled";
+	};
+
+	rk628_post_process: post-process {
+		compatible = "rockchip,rk628-post-process";
+		clocks = <&rk628_cru CGU_SCLK_VOP>,
+			 <&rk628_cru CGU_CLK_RX_READ>;
+		clock-names = "sclk_vop", "rx_read";
+		resets = <&rk628_cru RGU_DECODER>,
+			 <&rk628_cru RGU_CLK_RX>,
+			 <&rk628_cru RGU_VOP>;
+		reset-names = "decoder", "clk_rx", "vop";
+		status = "disabled";
+	};
+
+	rk628_hdmi: hdmi {
+		compatible = "rockchip,rk628-hdmi";
+		clocks = <&rk628_cru CGU_PCLK_HDMITX>,
+			 <&rk628_cru CGU_SCLK_VOP>;
+		clock-names = "pclk", "dclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hpd_in_pins &ddc_tx_pins &i2sm0_pins>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	rk628_hdmirx: hdmirx {
+		compatible = "rockchip,rk628-hdmirx";
+		clocks = <&rk628_cru CGU_PCLK_HDMIRX>,
+			 <&rk628_cru CGU_CLK_HDMIRX_CEC>,
+			 <&rk628_cru CGU_CLK_HDMIRX_AUD>,
+			 <&rk628_cru CGU_CLK_IMODET>;
+		clock-names = "pclk", "cec", "audio", "imodet";
+		resets = <&rk628_cru RGU_HDMIRX>,
+			 <&rk628_cru RGU_HDMIRX_PON>;
+		reset-names = "hdmirx", "hdmirx_pon";
+		phys = <&rk628_combrxphy>;
+		status = "disabled";
+	};
+};
