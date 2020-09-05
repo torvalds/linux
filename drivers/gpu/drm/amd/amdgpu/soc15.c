@@ -891,6 +891,9 @@ static void soc15_reg_base_init(struct amdgpu_device *adev)
 	case CHIP_ARCTURUS:
 		arct_reg_base_init(adev);
 		break;
+	case CHIP_ALDEBARAN:
+		aldebaran_reg_base_init(adev);
+		break;
 	default:
 		DRM_ERROR("Unsupported asic type: %d!\n", adev->asic_type);
 		break;
