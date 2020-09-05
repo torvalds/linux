@@ -19,21 +19,40 @@
 #include "sdio.h"
 #include "mac.h"
 
-static void mt7663s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
+static int mt7663s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
 {
+	u32 ple_ac_data_quota[] = {
+		FIELD_GET(TXQ_CNT_L, data[4]), /* VO */
+		FIELD_GET(TXQ_CNT_H, data[3]), /* VI */
+		FIELD_GET(TXQ_CNT_L, data[3]), /* BE */
+		FIELD_GET(TXQ_CNT_H, data[2]), /* BK */
+	};
+	u32 pse_ac_data_quota[] = {
+		FIELD_GET(TXQ_CNT_H, data[1]), /* VO */
+		FIELD_GET(TXQ_CNT_L, data[1]), /* VI */
+		FIELD_GET(TXQ_CNT_H, data[0]), /* BE */
+		FIELD_GET(TXQ_CNT_L, data[0]), /* BK */
+	};
+	u32 pse_mcu_quota = FIELD_GET(TXQ_CNT_L, data[2]);
+	u32 pse_data_quota = 0, ple_data_quota = 0;
 	struct mt76_sdio *sdio = &dev->sdio;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pse_ac_data_quota); i++) {
+		pse_data_quota += pse_ac_data_quota[i];
+		ple_data_quota += ple_ac_data_quota[i];
+	}
+
+	if (!pse_data_quota && !ple_data_quota && !pse_mcu_quota)
+		return 0;
 
 	mutex_lock(&sdio->sched.lock);
-	sdio->sched.pse_data_quota += FIELD_GET(TXQ_CNT_L, data[0]) + /* BK */
-				      FIELD_GET(TXQ_CNT_H, data[0]) + /* BE */
-				      FIELD_GET(TXQ_CNT_L, data[1]) + /* VI */
-				      FIELD_GET(TXQ_CNT_H, data[1]);  /* VO */
-	sdio->sched.ple_data_quota += FIELD_GET(TXQ_CNT_H, data[2]) + /* BK */
-				      FIELD_GET(TXQ_CNT_L, data[3]) + /* BE */
-				      FIELD_GET(TXQ_CNT_H, data[3]) + /* VI */
-				      FIELD_GET(TXQ_CNT_L, data[4]);  /* VO */
-	sdio->sched.pse_mcu_quota += FIELD_GET(TXQ_CNT_L, data[2]);
+	sdio->sched.pse_mcu_quota += pse_mcu_quota;
+	sdio->sched.pse_data_quota += pse_data_quota;
+	sdio->sched.ple_data_quota += ple_data_quota;
 	mutex_unlock(&sdio->sched.lock);
+
+	return pse_data_quota + ple_data_quota + pse_mcu_quota;
 }
 
 static struct sk_buff *mt7663s_build_rx_skb(void *data, int data_len,
@@ -259,10 +278,8 @@ void mt7663s_rx_work(struct work_struct *work)
 		}
 	}
 
-	if (intr->isr & WHIER_TX_DONE_INT_EN) {
-		mt7663s_refill_sched_quota(dev, intr->tx.wtqcr);
+	if (mt7663s_refill_sched_quota(dev, intr->tx.wtqcr))
 		queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
-	}
 
 	if (nframes) {
 		queue_work(sdio->txrx_wq, &sdio->rx.recv_work);
