@@ -6293,7 +6293,7 @@ EXPORT_SYMBOL(__napi_schedule);
  *	@n: napi context
  *
  * Test if NAPI routine is already running, and if not mark
- * it as running.  This is used as a condition variable
+ * it as running.  This is used as a condition variable to
  * insure only one NAPI poll instance runs.  We also make
  * sure there is no pending NAPI disable.
  */
