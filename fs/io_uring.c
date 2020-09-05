@@ -3071,7 +3071,10 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw,
 	if (unlikely(ret < 0))
 		return ret;
 
-	io_req_map_rw(req, iov, iorw->fast_iov, &iorw->iter);
+	iorw->bytes_done = 0;
+	iorw->free_iovec = iov;
+	if (iov)
+		req->flags |= REQ_F_NEED_CLEANUP;
 	return 0;
 }
 
