@@ -246,7 +246,7 @@ static int __init sh_early_platform_driver_probe_id(char *class_str,
 		case EARLY_PLATFORM_ID_ERROR:
 			pr_warn("%s: unable to parse %s parameter\n",
 				class_str, epdrv->pdrv->driver.name);
-			/* fall-through */
+			fallthrough;
 		case EARLY_PLATFORM_ID_UNSET:
 			match = NULL;
 			break;

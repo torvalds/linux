@@ -654,7 +654,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 		kfree(int_params->msix_table);
 		if (force_mode)
 			goto out;
-		/* Fallthrough */
+		fallthrough;
 
 	case QED_INT_MODE_MSI:
 		if (cdev->num_hwfns == 1) {
@@ -668,7 +668,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 			if (force_mode)
 				goto out;
 		}
-		/* Fallthrough */
+		fallthrough;
 
 	case QED_INT_MODE_INTA:
 			int_params->out.int_mode = QED_INT_MODE_INTA;

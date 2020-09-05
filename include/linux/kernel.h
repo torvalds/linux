@@ -186,7 +186,7 @@
  * lower_32_bits - return bits 0-31 of a number
  * @n: the number we're accessing
  */
-#define lower_32_bits(n) ((u32)(n))
+#define lower_32_bits(n) ((u32)((n) & 0xffffffff))
 
 struct completion;
 struct pt_regs;

@@ -733,7 +733,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (params_channels(params)) {
 	case 6:
 		val |= MOD_DC2_EN;
-		/* Fall through */
+		fallthrough;
 	case 4:
 		val |= MOD_DC1_EN;
 		break;

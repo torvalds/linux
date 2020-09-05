@@ -2939,7 +2939,7 @@ csio_hws_quiescing(struct csio_hw *hw, enum csio_hw_ev evt)
 		case CSIO_HWE_FW_DLOAD:
 			csio_set_state(&hw->sm, csio_hws_resetting);
 			/* Download firmware */
-			/* Fall through */
+			fallthrough;
 
 		case CSIO_HWE_HBA_RESET:
 			csio_set_state(&hw->sm, csio_hws_resetting);

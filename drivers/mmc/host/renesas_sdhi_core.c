@@ -685,7 +685,7 @@ static int renesas_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 	case HOST_MODE:
 		if (host->pdata->flags & TMIO_MMC_HAVE_CBSY)
 			bit = TMIO_STAT_CMD_BUSY;
-		/* fallthrough */
+		fallthrough;
 	case CTL_SD_CARD_CLK_CTL:
 		return renesas_sdhi_wait_idle(host, bit);
 	}

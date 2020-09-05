@@ -860,6 +860,18 @@ config PPC_SUBPAGE_PROT
 
 	  If unsure, say N here.
 
+config PPC_PROT_SAO_LPAR
+	bool "Support PROT_SAO mappings in LPARs"
+	depends on PPC_BOOK3S_64
+	help
+	  This option adds support for PROT_SAO mappings from userspace
+	  inside LPARs on supported CPUs.
+
+	  This may cause issues when performing guest migration from
+	  a CPU that supports SAO to one that does not.
+
+	  If unsure, say N here.
+
 config PPC_COPRO_BASE
 	bool
 
