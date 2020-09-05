@@ -3065,16 +3065,14 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw,
 				   bool force_nonblock)
 {
 	struct io_async_rw *iorw = &req->io->rw;
-	struct iovec *iov;
+	struct iovec *iov = iorw->fast_iov;
 	ssize_t ret;
 
-	iorw->iter.iov = iov = iorw->fast_iov;
 	ret = __io_import_iovec(rw, req, &iov, &iorw->iter, !force_nonblock);
 	if (unlikely(ret < 0))
 		return ret;
 
-	iorw->iter.iov = iov;
-	io_req_map_rw(req, iorw->iter.iov, iorw->fast_iov, &iorw->iter);
+	io_req_map_rw(req, iov, iorw->fast_iov, &iorw->iter);
 	return 0;
 }
 
