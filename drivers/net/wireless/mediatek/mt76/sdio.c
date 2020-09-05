@@ -226,12 +226,13 @@ mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 		       struct sk_buff *skb, u32 tx_info)
 {
 	struct mt76_queue *q = dev->q_tx[qid];
-	int ret = -ENOSPC, len = skb->len;
+	int ret = -ENOSPC, len = skb->len, pad;
 
 	if (q->queued == q->ndesc)
 		goto error;
 
-	ret = mt76_skb_adjust_pad(skb);
+	pad = round_up(skb->len, 4) - skb->len;
+	ret = mt76_skb_adjust_pad(skb, pad);
 	if (ret)
 		goto error;
 

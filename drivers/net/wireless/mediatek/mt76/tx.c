@@ -589,13 +589,9 @@ u8 mt76_ac_to_hwq(u8 ac)
 }
 EXPORT_SYMBOL_GPL(mt76_ac_to_hwq);
 
-int mt76_skb_adjust_pad(struct sk_buff *skb)
+int mt76_skb_adjust_pad(struct sk_buff *skb, int pad)
 {
 	struct sk_buff *iter, *last = skb;
-	u32 pad;
-
-	/* Add zero pad of 4 - 7 bytes */
-	pad = round_up(skb->len, 4) + 4 - skb->len;
 
 	/* First packet of a A-MSDU burst keeps track of the whole burst
 	 * length, need to update length of it and the last packet.

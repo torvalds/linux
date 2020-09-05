@@ -247,6 +247,7 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct sk_buff *skb = tx_info->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int pad;
 
 	if ((info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) &&
 	    !msta->rate_probe) {
@@ -262,9 +263,12 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		u32 len = skb->len;
 
 		put_unaligned_le32(len, skb_push(skb, sizeof(len)));
+		pad = round_up(skb->len, 4) + 4 - skb->len;
+	} else {
+		pad = round_up(skb->len, 4) - skb->len;
 	}
 
-	return mt76_skb_adjust_pad(skb);
+	return mt76_skb_adjust_pad(skb, pad);
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_prepare_skb);
 

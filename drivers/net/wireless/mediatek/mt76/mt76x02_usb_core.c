@@ -45,7 +45,7 @@ EXPORT_SYMBOL_GPL(mt76x02u_mac_start);
 
 int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 {
-	u32 info;
+	u32 info, pad;
 
 	/* Buffer layout:
 	 *	|   4B   | xfer len |      pad       |  4B  |
@@ -57,7 +57,8 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 	       FIELD_PREP(MT_TXD_INFO_DPORT, port) | flags;
 	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
 
-	return mt76_skb_adjust_pad(skb);
+	pad = round_up(skb->len, 4) + 4 - skb->len;
+	return mt76_skb_adjust_pad(skb, pad);
 }
 
 int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,

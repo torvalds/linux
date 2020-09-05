@@ -190,6 +190,8 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 					  &ple_sz))
 			break;
 
+		__skb_put_zero(e->skb, 4);
+
 		err = __mt7663s_xmit_queue(dev, e->skb->data, e->skb->len);
 		if (err)
 			return err;
