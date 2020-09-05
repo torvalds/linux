@@ -647,8 +647,7 @@ static void macb_mac_link_up(struct phylink_config *config,
 				ctrl |= GEM_BIT(GBE);
 		}
 
-		/* We do not support MLO_PAUSE_RX yet */
-		if (tx_pause)
+		if (rx_pause)
 			ctrl |= MACB_BIT(PAE);
 
 		macb_set_tx_clk(bp->tx_clk, speed, ndev);
