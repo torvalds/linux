@@ -1486,6 +1486,17 @@ config VIDEO_SC132GS
 	  To compile this driver as a module, choose M here: the
 	  module will be called sc132gs.
 
+config VIDEO_SC200AI
+	tristate "smartsens,sc200ai sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	---help---
+	  Support for the smartsens,sc200ai sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sc200ai.
+
 config VIDEO_SC210IOT
 	tristate "SmartSens SC210iot sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
