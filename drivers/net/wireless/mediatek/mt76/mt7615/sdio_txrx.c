@@ -124,16 +124,14 @@ static int mt7663s_tx_update_sched(struct mt76_dev *dev,
 				   bool mcu)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
-	struct mt76_phy *mphy = &dev->phy;
-	struct ieee80211_hdr *hdr;
 	int size, ret = -EBUSY;
+
+	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
+		return 0;
 
 	size = DIV_ROUND_UP(e->buf_sz + sdio->sched.deficit, MT_PSE_PAGE_SZ);
 
 	if (mcu) {
-		if (!test_bit(MT76_STATE_MCU_RUNNING, &mphy->state))
-			return 0;
-
 		mutex_lock(&sdio->sched.lock);
 		if (sdio->sched.pse_mcu_quota > size) {
 			sdio->sched.pse_mcu_quota -= size;
@@ -143,10 +141,6 @@ static int mt7663s_tx_update_sched(struct mt76_dev *dev,
 
 		return ret;
 	}
-
-	hdr = (struct ieee80211_hdr *)(e->skb->data + MT_USB_TXD_SIZE);
-	if (ieee80211_is_ctl(hdr->frame_control))
-		return 0;
 
 	mutex_lock(&sdio->sched.lock);
 	if (sdio->sched.pse_data_quota > size &&
