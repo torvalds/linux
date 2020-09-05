@@ -346,7 +346,7 @@ static int mt7663s_probe(struct sdio_func *func,
 	struct ieee80211_ops *ops;
 	struct mt7615_dev *dev;
 	struct mt76_dev *mdev;
-	int ret;
+	int i, ret;
 
 	ops = devm_kmemdup(&func->dev, &mt7615_ops, sizeof(mt7615_ops),
 			   GFP_KERNEL);
@@ -385,6 +385,16 @@ static int mt7663s_probe(struct sdio_func *func,
 	if (!mdev->sdio.intr_data) {
 		ret = -ENOMEM;
 		goto err_deinit;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(mdev->sdio.xmit_buf); i++) {
+		mdev->sdio.xmit_buf[i] = devm_kmalloc(mdev->dev,
+						      MT76S_XMIT_BUF_SZ,
+						      GFP_KERNEL);
+		if (!mdev->sdio.xmit_buf[i]) {
+			ret = -ENOMEM;
+			goto err_deinit;
+		}
 	}
 
 	ret = mt76s_alloc_queues(&dev->mt76);

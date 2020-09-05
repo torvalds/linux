@@ -138,14 +138,10 @@ static int mt7663s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 	return i;
 }
 
-static int mt7663s_tx_pick_quota(struct mt76_dev *dev, enum mt76_txq_id qid,
+static int mt7663s_tx_pick_quota(struct mt76_sdio *sdio, enum mt76_txq_id qid,
 				 int buf_sz, int *pse_size, int *ple_size)
 {
-	struct mt76_sdio *sdio = &dev->sdio;
 	int pse_sz;
-
-	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
-		return 0;
 
 	pse_sz = DIV_ROUND_UP(buf_sz + sdio->sched.deficit, MT_PSE_PAGE_SZ);
 
@@ -197,27 +193,52 @@ static int __mt7663s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
 
 static int mt7663s_tx_run_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 {
-	int nframes = 0, pse_sz = 0, ple_sz = 0;
+	int err, nframes = 0, len = 0, pse_sz = 0, ple_sz = 0;
 	struct mt76_queue *q = dev->q_tx[qid];
 	struct mt76_sdio *sdio = &dev->sdio;
 
 	while (q->first != q->head) {
 		struct mt76_queue_entry *e = &q->entry[q->first];
-		int err;
+		struct sk_buff *iter;
 
-		if (mt7663s_tx_pick_quota(dev, qid, e->buf_sz, &pse_sz,
+		if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state)) {
+			__skb_put_zero(e->skb, 4);
+			err = __mt7663s_xmit_queue(dev, e->skb->data,
+						   e->skb->len);
+			if (err)
+				return err;
+
+			goto next;
+		}
+
+		if (len + e->skb->len + 4 > MT76S_XMIT_BUF_SZ)
+			break;
+
+		if (mt7663s_tx_pick_quota(sdio, qid, e->buf_sz, &pse_sz,
 					  &ple_sz))
 			break;
 
-		__skb_put_zero(e->skb, 4);
+		memcpy(sdio->xmit_buf[qid] + len, e->skb->data,
+		       skb_headlen(e->skb));
+		len += skb_headlen(e->skb);
+		nframes++;
 
-		err = __mt7663s_xmit_queue(dev, e->skb->data, e->skb->len);
+		skb_walk_frags(e->skb, iter) {
+			memcpy(sdio->xmit_buf[qid] + len, iter->data,
+			       iter->len);
+			len += iter->len;
+			nframes++;
+		}
+next:
+		q->first = (q->first + 1) % q->ndesc;
+		e->done = true;
+	}
+
+	if (nframes) {
+		memset(sdio->xmit_buf[qid] + len, 0, 4);
+		err = __mt7663s_xmit_queue(dev, sdio->xmit_buf[qid], len + 4);
 		if (err)
 			return err;
-
-		e->done = true;
-		q->first = (q->first + 1) % q->ndesc;
-		nframes++;
 	}
 	mt7663s_tx_update_quota(sdio, qid, pse_sz, ple_sz);
 
