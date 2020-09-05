@@ -541,6 +541,11 @@ struct io_statx {
 	struct statx __user		*buffer;
 };
 
+struct io_shutdown {
+	struct file			*file;
+	int				how;
+};
+
 struct io_completion {
 	struct file			*file;
 	struct list_head		list;
@@ -667,6 +672,7 @@ struct io_kiocb {
 		struct io_splice	splice;
 		struct io_provide_buf	pbuf;
 		struct io_statx		statx;
+		struct io_shutdown	shutdown;
 		/* use only after cleaning per-op data, see io_clean_op() */
 		struct io_completion	compl;
 	};
@@ -933,6 +939,9 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
+	},
+	[IORING_OP_SHUTDOWN] = {
+		.needs_file		= 1,
 	},
 };
 
@@ -3591,6 +3600,44 @@ out_free:
 	return ret;
 }
 
+static int io_shutdown_prep(struct io_kiocb *req,
+			    const struct io_uring_sqe *sqe)
+{
+#if defined(CONFIG_NET)
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (sqe->ioprio || sqe->off || sqe->addr || sqe->rw_flags ||
+	    sqe->buf_index)
+		return -EINVAL;
+
+	req->shutdown.how = READ_ONCE(sqe->len);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int io_shutdown(struct io_kiocb *req, bool force_nonblock)
+{
+#if defined(CONFIG_NET)
+	struct socket *sock;
+	int ret;
+
+	if (force_nonblock)
+		return -EAGAIN;
+
+	sock = sock_from_file(req->file, &ret);
+	if (unlikely(!sock))
+		return ret;
+
+	ret = __sys_shutdown_sock(sock, req->shutdown.how);
+	io_req_complete(req, ret);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
 static int __io_splice_prep(struct io_kiocb *req,
 			    const struct io_uring_sqe *sqe)
 {
@@ -5775,6 +5822,8 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return io_remove_buffers_prep(req, sqe);
 	case IORING_OP_TEE:
 		return io_tee_prep(req, sqe);
+	case IORING_OP_SHUTDOWN:
+		return io_shutdown_prep(req, sqe);
 	}
 
 	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
@@ -6017,6 +6066,9 @@ static int io_issue_sqe(struct io_kiocb *req, bool force_nonblock,
 		break;
 	case IORING_OP_TEE:
 		ret = io_tee(req, force_nonblock);
+		break;
+	case IORING_OP_SHUTDOWN:
+		ret = io_shutdown(req, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
