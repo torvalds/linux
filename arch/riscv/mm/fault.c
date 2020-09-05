@@ -234,7 +234,8 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 
 	if (cause == EXC_STORE_PAGE_FAULT)
 		flags |= FAULT_FLAG_WRITE;
-
+	else if (cause == EXC_INST_PAGE_FAULT)
+		flags |= FAULT_FLAG_INSTRUCTION;
 retry:
 	mmap_read_lock(mm);
 	vma = find_vma(mm, addr);
