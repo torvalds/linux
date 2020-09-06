@@ -761,7 +761,9 @@ static int mlx90632_read_raw(struct iio_dev *indio_dev,
 			*val2 = data->emissivity * 1000;
 		}
 		return IIO_VAL_INT_PLUS_MICRO;
-
+	case IIO_CHAN_INFO_CALIBAMBIENT:
+		*val = data->object_ambient_temperature;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -781,6 +783,9 @@ static int mlx90632_write_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		data->emissivity = val * 1000 + val2 / 1000;
 		return 0;
+	case IIO_CHAN_INFO_CALIBAMBIENT:
+		data->object_ambient_temperature = val;
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -798,7 +803,7 @@ static const struct iio_chan_spec mlx90632_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_TEMP_OBJECT,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
-			BIT(IIO_CHAN_INFO_CALIBEMISSIVITY),
+			BIT(IIO_CHAN_INFO_CALIBEMISSIVITY) | BIT(IIO_CHAN_INFO_CALIBAMBIENT),
 	},
 };
 

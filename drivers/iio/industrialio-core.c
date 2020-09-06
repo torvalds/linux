@@ -166,6 +166,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_CALIBEMISSIVITY] = "calibemissivity",
 	[IIO_CHAN_INFO_OVERSAMPLING_RATIO] = "oversampling_ratio",
 	[IIO_CHAN_INFO_THERMOCOUPLE_TYPE] = "thermocouple_type",
+	[IIO_CHAN_INFO_CALIBAMBIENT] = "calibambient",
 };
 
 #if defined(CONFIG_DEBUG_FS)
