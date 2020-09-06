@@ -1101,6 +1101,16 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
+	/* Due to hardware bugs, S/G Display on raven requires a 1:1 IOMMU mapping,
+	 * however, SME requires an indirect IOMMU mapping because the encryption
+	 * bit is beyond the DMA mask of the chip.
+	 */
+	if (mem_encrypt_active() && ((flags & AMD_ASIC_MASK) == CHIP_RAVEN)) {
+		dev_info(&pdev->dev,
+			 "SME is not compatible with RAVEN\n");
+		return -ENOTSUPP;
+	}
+
 #ifdef CONFIG_DRM_AMDGPU_SI
 	if (!amdgpu_si_support) {
 		switch (flags & AMD_ASIC_MASK) {
