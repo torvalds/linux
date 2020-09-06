@@ -406,6 +406,15 @@
 
 &rkvenc {
 	venc-supply = <&vdd_npu_vepu>;
+	status = "okay";
+};
+
+&rkvenc_mmu {
+	status = "okay";
+};
+
+&mpp_srv {
+	status = "okay";
 };
 
 &rockchip_suspend {
