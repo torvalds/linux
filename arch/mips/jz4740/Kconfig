@@ -1,15 +1,21 @@
 # SPDX-License-Identifier: GPL-2.0
-choice
-	prompt "Machine type"
-	depends on MACH_INGENIC
-	default INGENIC_GENERIC_BOARD
 
-config INGENIC_GENERIC_BOARD
-	bool "Generic board"
+config MACH_INGENIC_GENERIC
+	bool
+	select MACH_INGENIC
 	select MACH_JZ4740
 	select MACH_JZ4770
 	select MACH_JZ4780
 	select MACH_X1000
+
+choice
+	prompt "Machine type"
+	depends on MACH_INGENIC_SOC
+	default INGENIC_GENERIC_BOARD
+
+config INGENIC_GENERIC_BOARD
+	bool "Generic board"
+	select MACH_INGENIC_GENERIC
 
 config JZ4740_QI_LB60
 	bool "Qi Hardware Ben NanoNote"

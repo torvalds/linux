@@ -96,6 +96,23 @@ config MIPS_FIXUP_BIGPHYS_ADDR
 config MIPS_GENERIC
 	bool
 
+config MACH_INGENIC
+	bool
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_ZBOOT
+	select CPU_SUPPORTS_HUGEPAGES
+	select DMA_NONCOHERENT
+	select IRQ_MIPS_CPU
+	select PINCTRL
+	select GPIOLIB
+	select COMMON_CLK
+	select GENERIC_IRQ_CHIP
+	select BUILTIN_DTB if MIPS_NO_APPENDED_DTB
+	select USE_OF
+	select CPU_SUPPORTS_CPUFREQ
+	select MIPS_EXTERNAL_TIMER
+
 menu "Machine selection"
 
 choice
@@ -394,20 +411,11 @@ config MACH_JAZZ
 	  Members include the Acer PICA, MIPS Magnum 4000, MIPS Millennium and
 	  Olivetti M700-10 workstations.
 
-config MACH_INGENIC
+config MACH_INGENIC_SOC
 	bool "Ingenic SoC based machines"
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select MIPS_GENERIC
+	select MACH_INGENIC
 	select SYS_SUPPORTS_ZBOOT_UART16550
-	select CPU_SUPPORTS_HUGEPAGES
-	select DMA_NONCOHERENT
-	select IRQ_MIPS_CPU
-	select PINCTRL
-	select GPIOLIB
-	select COMMON_CLK
-	select GENERIC_IRQ_CHIP
-	select BUILTIN_DTB if MIPS_NO_APPENDED_DTB
-	select USE_OF
 
 config LANTIQ
 	bool "Lantiq based platforms"

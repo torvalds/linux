@@ -8,7 +8,10 @@
 # option) any later version.
 #
 
+# Note: order matters, keep the asm/mach-generic include last.
+cflags-$(CONFIG_MACH_INGENIC_SOC)	+= -I$(srctree)/arch/mips/include/asm/mach-jz4740
 cflags-$(CONFIG_MIPS_GENERIC)	+= -I$(srctree)/arch/mips/include/asm/mach-generic
+
 load-$(CONFIG_MIPS_GENERIC)	+= 0xffffffff80100000
 zload-$(CONFIG_MIPS_GENERIC)	+= 0xffffffff81000000
 all-$(CONFIG_MIPS_GENERIC)	:= vmlinux.gz.itb
