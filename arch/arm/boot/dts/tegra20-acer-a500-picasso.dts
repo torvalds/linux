@@ -435,8 +435,6 @@
 			compatible = "atmel,maxtouch";
 			reg = <0x4c>;
 
-			atmel,cfg_name = "maxtouch-acer-iconia-tab-a500.cfg";
-
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(V, 6) IRQ_TYPE_LEVEL_LOW>;
 
