@@ -45,7 +45,8 @@ static struct dmaengine_buffer *iio_buffer_to_dmaengine_buffer(
 	return container_of(buffer, struct dmaengine_buffer, queue.buffer);
 }
 
-static void iio_dmaengine_buffer_block_done(void *data)
+static void iio_dmaengine_buffer_block_done(void *data,
+		const struct dmaengine_result *result)
 {
 	struct iio_dma_buffer_block *block = data;
 	unsigned long flags;
@@ -53,6 +54,7 @@ static void iio_dmaengine_buffer_block_done(void *data)
 	spin_lock_irqsave(&block->queue->list_lock, flags);
 	list_del(&block->head);
 	spin_unlock_irqrestore(&block->queue->list_lock, flags);
+	block->bytes_used -= result->residue;
 	iio_dma_buffer_block_done(block);
 }
 
@@ -74,7 +76,7 @@ static int iio_dmaengine_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 	if (!desc)
 		return -ENOMEM;
 
-	desc->callback = iio_dmaengine_buffer_block_done;
+	desc->callback_result = iio_dmaengine_buffer_block_done;
 	desc->callback_param = block;
 
 	cookie = dmaengine_submit(desc);

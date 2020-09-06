@@ -20,6 +20,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -299,13 +300,11 @@ static int adc108s102_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id adc108s102_of_match[] = {
 	{ .compatible = "ti,adc108s102" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adc108s102_of_match);
-#endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id adc108s102_acpi_ids[] = {
@@ -324,7 +323,7 @@ MODULE_DEVICE_TABLE(spi, adc108s102_id);
 static struct spi_driver adc108s102_driver = {
 	.driver = {
 		.name   = "adc108s102",
-		.of_match_table = of_match_ptr(adc108s102_of_match),
+		.of_match_table = adc108s102_of_match,
 		.acpi_match_table = ACPI_PTR(adc108s102_acpi_ids),
 	},
 	.probe		= adc108s102_probe,

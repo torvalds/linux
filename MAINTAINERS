@@ -943,6 +943,13 @@ S:	Supported
 F:	arch/arm64/boot/dts/amd/amd-seattle-xgbe*.dtsi
 F:	drivers/net/ethernet/amd/xgbe/
 
+AMS AS73211 DRIVER
+M:	Christian Eggers <ceggers@arri.de>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/light/ams,as73211.yaml
+F:	drivers/iio/light/as73211.c
+
 ANALOG DEVICES INC AD5686 DRIVER
 M:	Michael Hennerich <Michael.Hennerich@analog.com>
 L:	linux-pm@vger.kernel.org
@@ -1107,6 +1114,13 @@ M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/adv7842*
+
+ANALOG DEVICES INC ADXRS290 DRIVER
+M:	Nishant Malpani <nish.malpani25@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	drivers/iio/gyro/adxrs290.c
+F:	Documentation/devicetree/bindings/iio/gyroscope/adi,adxrs290.yaml
 
 ANALOG DEVICES INC ASOC CODEC DRIVERS
 M:	Lars-Peter Clausen <lars@metafoo.de>

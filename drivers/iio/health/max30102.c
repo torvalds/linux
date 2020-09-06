@@ -2,7 +2,7 @@
 /*
  * max30102.c - Support for MAX30102 heart rate and pulse oximeter sensor
  *
- * Copyright (C) 2017 Matt Ranostay <matt@ranostay.consulting>
+ * Copyright (C) 2017 Matt Ranostay <matt.ranostay@konsulko.com>
  *
  * Support for MAX30105 optical particle sensor
  * Copyright (C) 2017 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
@@ -632,6 +632,6 @@ static struct i2c_driver max30102_driver = {
 };
 module_i2c_driver(max30102_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt@ranostay.consulting>");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
 MODULE_DESCRIPTION("MAX30102 heart rate/pulse oximeter and MAX30105 particle sensor driver");
 MODULE_LICENSE("GPL");
