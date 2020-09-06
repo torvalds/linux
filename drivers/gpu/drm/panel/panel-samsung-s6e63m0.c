@@ -179,28 +179,24 @@ static int s6e63m0_check_lcd_type(struct s6e63m0 *ctx)
 
 	ret = s6e63m0_clear_error(ctx);
 	if (ret) {
-		DRM_DEV_ERROR(ctx->dev, "error checking LCD type (%d)\n",
-			      ret);
+		dev_err(ctx->dev, "error checking LCD type (%d)\n", ret);
 		ctx->lcd_type = 0x00;
 		return ret;
 	}
 
-	DRM_DEV_INFO(ctx->dev, "MTP ID: %02x %02x %02x\n", id1, id2, id3);
+	dev_info(ctx->dev, "MTP ID: %02x %02x %02x\n", id1, id2, id3);
 
 	/* We attempt to detect what panel is mounted on the controller */
 	switch (id2) {
 	case S6E63M0_LCD_ID_VALUE_M2:
-		DRM_DEV_INFO(ctx->dev,
-			     "detected LCD panel AMS397GE MIPI M2\n");
+		dev_info(ctx->dev, "detected LCD panel AMS397GE MIPI M2\n");
 		break;
 	case S6E63M0_LCD_ID_VALUE_SM2:
 	case S6E63M0_LCD_ID_VALUE_SM2_1:
-		DRM_DEV_INFO(ctx->dev,
-			     "detected LCD panel AMS397GE MIPI SM2\n");
+		dev_info(ctx->dev, "detected LCD panel AMS397GE MIPI SM2\n");
 		break;
 	default:
-		DRM_DEV_INFO(ctx->dev,
-			     "unknown LCD panel type %02x\n", id2);
+		dev_info(ctx->dev, "unknown LCD panel type %02x\n", id2);
 		break;
 	}
 

@@ -41,7 +41,7 @@ static int s6e63m0_spi_dcs_write(struct device *dev, const u8 *data, size_t len)
 {
 	int ret = 0;
 
-	DRM_DEV_DEBUG(dev, "SPI writing dcs seq: %*ph\n", (int)len, data);
+	dev_dbg(dev, "SPI writing dcs seq: %*ph\n", (int)len, data);
 	ret = s6e63m0_spi_write_word(dev, *data);
 
 	while (!ret && --len) {
@@ -50,8 +50,8 @@ static int s6e63m0_spi_dcs_write(struct device *dev, const u8 *data, size_t len)
 	}
 
 	if (ret) {
-		DRM_DEV_ERROR(dev, "SPI error %d writing dcs seq: %*ph\n", ret,
-			      (int)len, data);
+		dev_err(dev, "SPI error %d writing dcs seq: %*ph\n", ret,
+			(int)len, data);
 	}
 
 	usleep_range(300, 310);
@@ -68,7 +68,7 @@ static int s6e63m0_spi_probe(struct spi_device *spi)
 	spi->mode = SPI_MODE_3;
 	ret = spi_setup(spi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "spi setup failed.\n");
+		dev_err(dev, "spi setup failed.\n");
 		return ret;
 	}
 	return s6e63m0_probe(dev, s6e63m0_spi_dcs_read, s6e63m0_spi_dcs_write,

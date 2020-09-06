@@ -23,11 +23,11 @@ static int s6e63m0_dsi_dcs_read(struct device *dev, const u8 cmd, u8 *data)
 
 	ret = mipi_dsi_dcs_read(dsi, cmd, data, 1);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "could not read DCS CMD %02x\n", cmd);
+		dev_err(dev, "could not read DCS CMD %02x\n", cmd);
 		return ret;
 	}
 
-	DRM_DEV_INFO(dev, "DSI read CMD %02x = %02x\n", cmd, *data);
+	dev_info(dev, "DSI read CMD %02x = %02x\n", cmd, *data);
 
 	return 0;
 }
@@ -42,7 +42,7 @@ static int s6e63m0_dsi_dcs_write(struct device *dev, const u8 *data, size_t len)
 	int chunk;
 	int ret;
 
-	DRM_DEV_INFO(dev, "DSI writing dcs seq: %*ph\n", (int)len, data);
+	dev_info(dev, "DSI writing dcs seq: %*ph\n", (int)len, data);
 
 	/* Pick out and skip past the DCS command */
 	cmd = *seqp;
@@ -56,9 +56,7 @@ static int s6e63m0_dsi_dcs_write(struct device *dev, const u8 *data, size_t len)
 		chunk = S6E63M0_DSI_MAX_CHUNK;
 	ret = mipi_dsi_dcs_write(dsi, cmd, seqp, chunk);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev,
-			      "error sending DCS command seq cmd %02x\n",
-			      cmd);
+		dev_err(dev, "error sending DCS command seq cmd %02x\n", cmd);
 		return ret;
 	}
 	cmdwritten += chunk;
@@ -70,23 +68,19 @@ static int s6e63m0_dsi_dcs_write(struct device *dev, const u8 *data, size_t len)
 			chunk = S6E63M0_DSI_MAX_CHUNK;
 		ret = mipi_dsi_dcs_write(dsi, MCS_GLOBAL_PARAM, &cmdwritten, 1);
 		if (ret < 0) {
-			DRM_DEV_ERROR(dev,
-				      "error sending CMD %02x global param %02x\n",
-				      cmd, cmdwritten);
+			dev_err(dev, "error sending CMD %02x global param %02x\n",
+				cmd, cmdwritten);
 			return ret;
 		}
 		ret = mipi_dsi_dcs_write(dsi, cmd, seqp, chunk);
 		if (ret < 0) {
-			DRM_DEV_ERROR(dev,
-				      "error sending CMD %02x chunk\n",
-				      cmd);
+			dev_err(dev, "error sending CMD %02x chunk\n", cmd);
 			return ret;
 		}
 		cmdwritten += chunk;
 		seqp += chunk;
 	}
-	DRM_DEV_INFO(dev, "sent command %02x %02x bytes\n",
-		     cmd, cmdwritten);
+	dev_info(dev, "sent command %02x %02x bytes\n", cmd, cmdwritten);
 
 	usleep_range(8000, 9000);
 
