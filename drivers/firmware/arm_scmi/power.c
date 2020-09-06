@@ -184,7 +184,7 @@ static char *scmi_power_name_get(const struct scmi_handle *handle, u32 domain)
 	return dom->name;
 }
 
-static struct scmi_power_ops power_ops = {
+static const struct scmi_power_ops power_ops = {
 	.num_domains_get = scmi_power_num_domains_get,
 	.name_get = scmi_power_name_get,
 	.state_set = scmi_power_state_set,

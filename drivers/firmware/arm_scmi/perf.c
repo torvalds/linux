@@ -748,7 +748,7 @@ static bool scmi_fast_switch_possible(const struct scmi_handle *handle,
 	return dom->fc_info && dom->fc_info->level_set_addr;
 }
 
-static struct scmi_perf_ops perf_ops = {
+static const struct scmi_perf_ops perf_ops = {
 	.limits_set = scmi_perf_limits_set,
 	.limits_get = scmi_perf_limits_get,
 	.level_set = scmi_perf_level_set,

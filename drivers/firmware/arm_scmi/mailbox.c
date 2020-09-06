@@ -181,7 +181,7 @@ mailbox_poll_done(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
 	return shmem_poll_done(smbox->shmem, xfer);
 }
 
-static struct scmi_transport_ops scmi_mailbox_ops = {
+static const struct scmi_transport_ops scmi_mailbox_ops = {
 	.chan_available = mailbox_chan_available,
 	.chan_setup = mailbox_chan_setup,
 	.chan_free = mailbox_chan_free,

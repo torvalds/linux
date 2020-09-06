@@ -210,7 +210,7 @@ struct scmi_transport_ops {
  * @max_msg_size: Maximum size of data per message that can be handled.
  */
 struct scmi_desc {
-	struct scmi_transport_ops *ops;
+	const struct scmi_transport_ops *ops;
 	int max_rx_timeout_ms;
 	int max_msg;
 	int max_msg_size;

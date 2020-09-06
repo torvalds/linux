@@ -318,7 +318,7 @@ scmi_clock_info_get(const struct scmi_handle *handle, u32 clk_id)
 	return clk;
 }
 
-static struct scmi_clk_ops clk_ops = {
+static const struct scmi_clk_ops clk_ops = {
 	.count_get = scmi_clock_count_get,
 	.info_get = scmi_clock_info_get,
 	.rate_get = scmi_clock_rate_get,
