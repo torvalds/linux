@@ -107,7 +107,7 @@ config PCI_KEYSTONE
 
 config PCI_KEYSTONE_HOST
 	bool "PCI Keystone Host Mode"
-	depends on ARCH_KEYSTONE || ARCH_K3 || ((ARM || ARM64) && COMPILE_TEST)
+	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	select PCI_KEYSTONE
@@ -119,7 +119,7 @@ config PCI_KEYSTONE_HOST
 
 config PCI_KEYSTONE_EP
 	bool "PCI Keystone Endpoint Mode"
-	depends on ARCH_KEYSTONE || ARCH_K3 || ((ARM || ARM64) && COMPILE_TEST)
+	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
 	select PCI_KEYSTONE
