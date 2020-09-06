@@ -539,12 +539,6 @@ static int gmac_init(struct net_device *netdev)
 	return 0;
 }
 
-static void gmac_uninit(struct net_device *netdev)
-{
-	if (netdev->phydev)
-		phy_disconnect(netdev->phydev);
-}
-
 static int gmac_setup_txqs(struct net_device *netdev)
 {
 	struct gemini_ethernet_port *port = netdev_priv(netdev);
@@ -1768,15 +1762,6 @@ static int gmac_open(struct net_device *netdev)
 	struct gemini_ethernet_port *port = netdev_priv(netdev);
 	int err;
 
-	if (!netdev->phydev) {
-		err = gmac_setup_phy(netdev);
-		if (err) {
-			netif_err(port, ifup, netdev,
-				  "PHY init failed: %d\n", err);
-			return err;
-		}
-	}
-
 	err = request_irq(netdev->irq, gmac_irq,
 			  IRQF_SHARED, netdev->name, netdev);
 	if (err) {
@@ -2209,7 +2194,6 @@ static void gmac_get_drvinfo(struct net_device *netdev,
 
 static const struct net_device_ops gmac_351x_ops = {
 	.ndo_init		= gmac_init,
-	.ndo_uninit		= gmac_uninit,
 	.ndo_open		= gmac_open,
 	.ndo_stop		= gmac_stop,
 	.ndo_start_xmit		= gmac_start_xmit,
@@ -2295,8 +2279,10 @@ static irqreturn_t gemini_port_irq(int irq, void *data)
 
 static void gemini_port_remove(struct gemini_ethernet_port *port)
 {
-	if (port->netdev)
+	if (port->netdev) {
+		phy_disconnect(port->netdev->phydev);
 		unregister_netdev(port->netdev);
+	}
 	clk_disable_unprepare(port->pclk);
 	geth_cleanup_freeq(port->geth);
 }
@@ -2505,6 +2491,13 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	if (ret)
 		goto unprepare;
 
+	ret = gmac_setup_phy(netdev);
+	if (ret) {
+		netdev_err(netdev,
+			   "PHY init failed\n");
+		goto unprepare;
+	}
+
 	ret = register_netdev(netdev);
 	if (ret)
 		goto unprepare;
@@ -2513,10 +2506,6 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 		    "irq %d, DMA @ 0x%pap, GMAC @ 0x%pap\n",
 		    port->irq, &dmares->start,
 		    &gmacres->start);
-	ret = gmac_setup_phy(netdev);
-	if (ret)
-		netdev_info(netdev,
-			    "PHY init failed, deferring to ifup time\n");
 	return 0;
 
 unprepare:
@@ -2529,6 +2518,7 @@ static int gemini_ethernet_port_remove(struct platform_device *pdev)
 	struct gemini_ethernet_port *port = platform_get_drvdata(pdev);
 
 	gemini_port_remove(port);
+
 	return 0;
 }
 
