@@ -14,6 +14,10 @@
 	compatible = "acer,picasso", "nvidia,tegra20";
 
 	aliases {
+		mmc0 = &sdmmc4; /* eMMC */
+		mmc1 = &sdmmc3; /* MicroSD */
+		mmc2 = &sdmmc1; /* WiFi */
+
 		rtc0 = &pmic;
 		rtc1 = "/rtc@7000e000";
 
@@ -720,7 +724,7 @@
 		power-off-delay-us = <300>;
 	};
 
-	mmc@c8000000 {
+	sdmmc1: mmc@c8000000 {
 		status = "okay";
 
 		#address-cells = <1>;
@@ -745,7 +749,7 @@
 		};
 	};
 
-	mmc@c8000400 {
+	sdmmc3: mmc@c8000400 {
 		status = "okay";
 		bus-width = <4>;
 		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
@@ -754,7 +758,7 @@
 		vqmmc-supply = <&vdd_3v3_sys>;
 	};
 
-	mmc@c8000600 {
+	sdmmc4: mmc@c8000600 {
 		status = "okay";
 		bus-width = <8>;
 		vmmc-supply = <&vcore_emmc>;
