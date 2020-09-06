@@ -31,6 +31,15 @@
 		};
 	};
 
+	cam_ircut0: cam_ircut {
+		status = "okay";
+		compatible = "rockchip,ircut";
+		ircut-open-gpios = <&gpio2 RK_PD4 GPIO_ACTIVE_HIGH>;
+		ircut-close-gpios  = <&gpio2 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+	};
+
 	i2s0_sound: i2s0-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -47,6 +56,13 @@
 
 	/delete-node/ vdd-npu;
 	/delete-node/ vdd-vepu;
+
+	vcc1v2_dvdd: vcc1v8_dovdd: vcc2v8_avdd: vcc-camera {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_camera";
+		gpio = <&gpio0 RK_PA7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
 	vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
@@ -115,6 +131,36 @@
 	};
 };
 
+&csi_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_csi2_input>;
+			};
+		};
+	};
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
@@ -162,6 +208,37 @@
 	};
 };
 
+&i2c1 {
+	status = "okay";
+
+	ov2718: ov2718@10 {
+		compatible = "ovti,ov2718";
+		status = "okay";
+		reg = <0x10>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		avdd-supply = <&vcc2v8_avdd>;
+		dovdd-supply = <&vcc1v8_dovdd>;
+		dvdd-supply = <&vcc1v2_dvdd>;
+		pwd-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "YT-RV1109-3-V1";
+		rockchip,camera-module-lens-name = "M43-4IR-2MP-F2";
+		ir-cut = <&cam_ircut0>;
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
 &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -192,8 +269,45 @@
 		     &i2s0m0_sdo1_sdi3>;
 };
 
+&isp_reserved {
+	size = <0x05c00000>;
+};
+
 &npu {
 	npu-supply = <&vdd_npu_vepu>;
+};
+
+&mipi_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &pinctrl {
@@ -227,6 +341,67 @@
 	vccio4-supply = <&vcc_1v8>;
 	vccio5-supply = <&vcc_3v3>;
 	vccio7-supply = <&vcc_3v3>;
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+			data-lanes = <1 2>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_in>;
+			data-lanes = <1 2>;
+		};
+	};
+};
+
+&rkisp_thunderboot {
+	reg = <0x10000000 (72 * 0x00100000)>;
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_lvds_sditf>;
+			};
+		};
+	};
+};
+
+&rkispp {
+	status = "okay";
+};
+
+&rkispp_vir0 {
+	status = "okay";
+};
+
+&rkispp_mmu {
+	status = "okay";
 };
 
 &rkvenc {
