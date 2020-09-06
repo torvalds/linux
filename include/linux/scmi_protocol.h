@@ -279,12 +279,12 @@ struct scmi_notify_ops {
 struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
-	struct scmi_perf_ops *perf_ops;
-	struct scmi_clk_ops *clk_ops;
-	struct scmi_power_ops *power_ops;
-	struct scmi_sensor_ops *sensor_ops;
-	struct scmi_reset_ops *reset_ops;
-	struct scmi_notify_ops *notify_ops;
+	const struct scmi_perf_ops *perf_ops;
+	const struct scmi_clk_ops *clk_ops;
+	const struct scmi_power_ops *power_ops;
+	const struct scmi_sensor_ops *sensor_ops;
+	const struct scmi_reset_ops *reset_ops;
+	const struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
 	void *perf_priv;
 	void *clk_priv;
