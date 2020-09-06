@@ -10,6 +10,9 @@
 
 / {
 	aliases {
+		mmc0 = &sdmmc4; /* eMMC */
+		mmc1 = &sdmmc3; /* WiFi */
+
 		rtc0 = &pmic;
 		rtc1 = "/rtc@7000e000";
 
@@ -936,7 +939,7 @@
 		power-off-delay-us = <300>;
 	};
 
-	mmc@78000400 {
+	sdmmc3: mmc@78000400 {
 		status = "okay";
 
 		#address-cells = <1>;
@@ -960,7 +963,7 @@
 		};
 	};
 
-	mmc@78000600 {
+	sdmmc4: mmc@78000600 {
 		status = "okay";
 		bus-width = <8>;
 		vmmc-supply = <&vcore_emmc>;
