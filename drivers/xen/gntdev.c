@@ -731,7 +731,7 @@ static int gntdev_get_page(struct gntdev_copy_batch *batch, void __user *virt,
 	unsigned long xen_pfn;
 	int ret;
 
-	ret = get_user_pages_fast(addr, 1, batch->writeable ? FOLL_WRITE : 0, &page);
+	ret = pin_user_pages_fast(addr, 1, batch->writeable ? FOLL_WRITE : 0, &page);
 	if (ret < 0)
 		return ret;
 
@@ -745,13 +745,7 @@ static int gntdev_get_page(struct gntdev_copy_batch *batch, void __user *virt,
 
 static void gntdev_put_pages(struct gntdev_copy_batch *batch)
 {
-	unsigned int i;
-
-	for (i = 0; i < batch->nr_pages; i++) {
-		if (batch->writeable && !PageDirty(batch->pages[i]))
-			set_page_dirty_lock(batch->pages[i]);
-		put_page(batch->pages[i]);
-	}
+	unpin_user_pages_dirty_lock(batch->pages, batch->nr_pages, batch->writeable);
 	batch->nr_pages = 0;
 	batch->writeable = false;
 }
