@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3568-evb.dtsi"
+#include "rk3568-android.dtsi"
+
+/ {
+	model = "Rockchip RK3568 EVB6 DDR3 V10 Board";
+	compatible = "rockchip,rk3568-evb6-ddr3-v10", "rockchip,rk3568";
+};
