@@ -39,24 +39,13 @@
 .endm
 
 .macro EXCEPTION_PROLOG_1 for_rtas=0
-#ifdef CONFIG_VMAP_STACK
-	.ifeq	\for_rtas
-	li	r11, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
-	mtmsr	r11
-	isync
-	.endif
 	subi	r11, r1, INT_FRAME_SIZE		/* use r1 if kernel */
-#else
-	tophys(r11,r1)			/* use tophys(r1) if kernel */
-	subi	r11, r11, INT_FRAME_SIZE	/* alloc exc. frame */
-#endif
 	beq	1f
 	mfspr	r11,SPRN_SPRG_THREAD
-	tovirt_vmstack r11, r11
 	lwz	r11,TASK_STACK-THREAD(r11)
 	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
-	tophys_novmstack r11, r11
 1:
+	tophys_novmstack r11, r11
 #ifdef CONFIG_VMAP_STACK
 	mtcrf	0x7f, r11
 	bt	32 - THREAD_ALIGN_SHIFT, stack_overflow
@@ -64,12 +53,11 @@
 .endm
 
 .macro EXCEPTION_PROLOG_2 handle_dar_dsisr=0
-#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S)
-BEGIN_MMU_FTR_SECTION
+#ifdef CONFIG_VMAP_STACK
 	mtcr	r10
-FTR_SECTION_ELSE
-	stw	r10, _CCR(r11)
-ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
+	li	r10, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
+	mtmsr	r10
+	isync
 #else
 	stw	r10,_CCR(r11)		/* save registers */
 #endif
@@ -77,11 +65,9 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 	stw	r12,GPR12(r11)
 	stw	r9,GPR9(r11)
 	stw	r10,GPR10(r11)
-#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S)
-BEGIN_MMU_FTR_SECTION
+#ifdef CONFIG_VMAP_STACK
 	mfcr	r10
 	stw	r10, _CCR(r11)
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 #endif
 	mfspr	r12,SPRN_SPRG_SCRATCH1
 	stw	r12,GPR11(r11)
@@ -97,11 +83,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	stw	r10, _DSISR(r11)
 	.endif
 	lwz	r9, SRR1(r12)
-#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S)
-BEGIN_MMU_FTR_SECTION
 	andi.	r10, r9, MSR_PR
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
-#endif
 	lwz	r12, SRR0(r12)
 #else
 	mfspr	r12,SPRN_SRR0
@@ -328,7 +310,6 @@ label:
 #ifdef CONFIG_VMAP_STACK
 #ifdef CONFIG_SMP
 	mfspr	r11, SPRN_SPRG_THREAD
-	tovirt(r11, r11)
 	lwz	r11, TASK_CPU - THREAD(r11)
 	slwi	r11, r11, 3
 	addis	r11, r11, emergency_ctx@ha
