@@ -2345,13 +2345,17 @@ EXPORT_SYMBOL(ib_alloc_xrcd_user);
  */
 int ib_dealloc_xrcd_user(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
+	int ret;
+
 	if (atomic_read(&xrcd->usecnt))
 		return -EBUSY;
 
 	WARN_ON(!xa_empty(&xrcd->tgt_qps));
-	xrcd->device->ops.dealloc_xrcd(xrcd, udata);
+	ret = xrcd->device->ops.dealloc_xrcd(xrcd, udata);
+	if (ret)
+		return ret;
 	kfree(xrcd);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(ib_dealloc_xrcd_user);
 
