@@ -428,23 +428,11 @@ static int ef100_reset(struct efx_nic *efx, enum reset_type reset_type)
 		__clear_bit(reset_type, &efx->reset_pending);
 		rc = dev_open(efx->net_dev, NULL);
 	} else if (reset_type == RESET_TYPE_ALL) {
-		/* A RESET_TYPE_ALL will cause filters to be removed, so we remove filters
-		 * and reprobe after reset to avoid removing filters twice
-		 */
-		down_write(&efx->filter_sem);
-		ef100_filter_table_down(efx);
-		up_write(&efx->filter_sem);
 		rc = efx_mcdi_reset(efx, reset_type);
 		if (rc)
 			return rc;
 
 		netif_device_attach(efx->net_dev);
-
-		down_write(&efx->filter_sem);
-		rc = ef100_filter_table_up(efx);
-		up_write(&efx->filter_sem);
-		if (rc)
-			return rc;
 
 		rc = dev_open(efx->net_dev, NULL);
 	} else {
