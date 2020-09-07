@@ -266,6 +266,12 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_buffer_object *bo,
 				 uint32_t page_flags);
 int ttm_agp_tt_populate(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_operation_ctx *ctx);
 void ttm_agp_tt_unpopulate(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+int ttm_agp_bind(struct ttm_bo_device *bdev,
+		 struct ttm_tt *ttm, struct ttm_resource *bo_mem);
+void ttm_agp_unbind(struct ttm_bo_device *bdev,
+		    struct ttm_tt *ttm);
+void ttm_agp_destroy(struct ttm_bo_device *bdev,
+		     struct ttm_tt *ttm);
 #endif
 
 #endif
