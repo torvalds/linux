@@ -89,6 +89,9 @@ struct snd_sof_widget {
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
 
+	/* extended data for UUID components */
+	struct sof_ipc_comp_ext comp_ext;
+
 	void *private;		/* core does not touch this */
 };
 

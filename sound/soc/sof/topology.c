@@ -492,6 +492,16 @@ static int get_token_u16(void *elem, void *object, u32 offset, u32 size)
 	return 0;
 }
 
+static int get_token_uuid(void *elem, void *object, u32 offset, u32 size)
+{
+	struct snd_soc_tplg_vendor_uuid_elem *velem = elem;
+	u8 *dst = (u8 *)object + offset;
+
+	memcpy(dst, velem->uuid, UUID_SIZE);
+
+	return 0;
+}
+
 static int get_token_comp_format(void *elem, void *object, u32 offset, u32 size)
 {
 	struct snd_soc_tplg_vendor_string_elem *velem = elem;
@@ -723,6 +733,13 @@ static const struct sof_topology_token core_tokens[] = {
 	{SOF_TKN_COMP_CORE_ID,
 		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc_comp, core), 0},
+};
+
+/* Component extended tokens */
+static const struct sof_topology_token comp_ext_tokens[] = {
+	{SOF_TKN_COMP_UUID,
+		SND_SOC_TPLG_TUPLE_TYPE_UUID, get_token_uuid,
+		offsetof(struct sof_ipc_comp_ext, uuid), 0},
 };
 
 /*
@@ -1436,6 +1453,51 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	return 0;
 }
 
+/**
+ * sof_comp_alloc - allocate and initialize buffer for a new component
+ * @swidget: pointer to struct snd_sof_widget containing extended data
+ * @ipc_size: IPC payload size that will be updated depending on valid
+ *  extended data.
+ * @index: ID of the pipeline the component belongs to
+ * @core: index of the DSP core that the component should run on
+ *
+ * Return: The pointer to the new allocated component, NULL if failed.
+ */
+static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
+					   size_t *ipc_size, int index,
+					   int core)
+{
+	u8 nil_uuid[SOF_UUID_SIZE] = {0};
+	struct sof_ipc_comp *comp;
+	size_t total_size = *ipc_size;
+
+	/* only non-zero UUID is valid */
+	if (memcmp(&swidget->comp_ext, nil_uuid, SOF_UUID_SIZE))
+		total_size += sizeof(swidget->comp_ext);
+
+	comp = kzalloc(total_size, GFP_KERNEL);
+	if (!comp)
+		return NULL;
+
+	/* configure comp new IPC message */
+	comp->hdr.size = total_size;
+	comp->hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
+	comp->id = swidget->comp_id;
+	comp->pipeline_id = index;
+	comp->core = core;
+
+	/* handle the extended data if needed */
+	if (total_size > *ipc_size) {
+		/* append extended data to the end of the component */
+		memcpy((u8 *)comp + *ipc_size, &swidget->comp_ext, sizeof(swidget->comp_ext));
+		comp->ext_data_length = sizeof(swidget->comp_ext);
+	}
+
+	/* update ipc_size and return */
+	*ipc_size = total_size;
+	return comp;
+}
+
 static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 			       struct snd_sof_widget *swidget, int core,
 			       struct snd_soc_tplg_dapm_widget *tw,
@@ -1444,49 +1506,57 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_dai comp_dai;
+	struct sof_ipc_comp_dai *comp_dai;
+	size_t ipc_size = sizeof(*comp_dai);
 	int ret;
 
-	/* configure dai IPC message */
-	memset(&comp_dai, 0, sizeof(comp_dai));
-	comp_dai.comp.hdr.size = sizeof(comp_dai);
-	comp_dai.comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	comp_dai.comp.id = swidget->comp_id;
-	comp_dai.comp.type = SOF_COMP_DAI;
-	comp_dai.comp.pipeline_id = index;
-	comp_dai.comp.core = core;
-	comp_dai.config.hdr.size = sizeof(comp_dai.config);
+	comp_dai = (struct sof_ipc_comp_dai *)
+		   sof_comp_alloc(swidget, &ipc_size, index, core);
+	if (!comp_dai)
+		return -ENOMEM;
 
-	ret = sof_parse_tokens(scomp, &comp_dai, dai_tokens,
+	/* configure dai IPC message */
+	comp_dai->comp.type = SOF_COMP_DAI;
+	comp_dai->config.hdr.size = sizeof(comp_dai->config);
+
+	ret = sof_parse_tokens(scomp, comp_dai, dai_tokens,
 			       ARRAY_SIZE(dai_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai tokens failed %d\n",
 			le32_to_cpu(private->size));
-		return ret;
+		goto finish;
 	}
 
-	ret = sof_parse_tokens(scomp, &comp_dai.config, comp_tokens,
+	ret = sof_parse_tokens(scomp, &comp_dai->config, comp_tokens,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai.cfg tokens failed %d\n",
 			private->size);
-		return ret;
+		goto finish;
 	}
 
 	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
-		swidget->widget->name, comp_dai.type, comp_dai.dai_index);
-	sof_dbg_comp_config(scomp, &comp_dai.config);
+		swidget->widget->name, comp_dai->type, comp_dai->dai_index);
+	sof_dbg_comp_config(scomp, &comp_dai->config);
 
-	ret = sof_ipc_tx_message(sdev->ipc, comp_dai.comp.hdr.cmd,
-				 &comp_dai, sizeof(comp_dai), r, sizeof(*r));
+	ret = sof_ipc_tx_message(sdev->ipc, comp_dai->comp.hdr.cmd,
+				 comp_dai, ipc_size, r, sizeof(*r));
 
 	if (ret == 0 && dai) {
 		dai->scomp = scomp;
-		memcpy(&dai->comp_dai, &comp_dai, sizeof(comp_dai));
+
+		/*
+		 * copy only the sof_ipc_comp_dai to avoid collapsing
+		 * the snd_sof_dai, the extended data is kept in the
+		 * snd_sof_widget.
+		 */
+		memcpy(&dai->comp_dai, comp_dai, sizeof(*comp_dai));
 	}
 
+finish:
+	kfree(comp_dai);
 	return ret;
 }
 
@@ -1574,19 +1644,16 @@ static int sof_widget_load_pcm(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_host *host;
+	size_t ipc_size = sizeof(*host);
 	int ret;
 
-	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	host = (struct sof_ipc_comp_host *)
+	       sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!host)
 		return -ENOMEM;
 
 	/* configure host comp IPC message */
-	host->comp.hdr.size = sizeof(*host);
-	host->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	host->comp.id = swidget->comp_id;
 	host->comp.type = SOF_COMP_HOST;
-	host->comp.pipeline_id = index;
-	host->comp.core = core;
 	host->direction = dir;
 	host->config.hdr.size = sizeof(host->config);
 
@@ -1614,7 +1681,7 @@ static int sof_widget_load_pcm(struct snd_soc_component *scomp, int index,
 	swidget->private = host;
 
 	ret = sof_ipc_tx_message(sdev->ipc, host->comp.hdr.cmd, host,
-				 sizeof(*host), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret >= 0)
 		return ret;
 err:
@@ -1713,19 +1780,16 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_mixer *mixer;
+	size_t ipc_size = sizeof(*mixer);
 	int ret;
 
-	mixer = kzalloc(sizeof(*mixer), GFP_KERNEL);
+	mixer = (struct sof_ipc_comp_mixer *)
+		sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!mixer)
 		return -ENOMEM;
 
 	/* configure mixer IPC message */
-	mixer->comp.hdr.size = sizeof(*mixer);
-	mixer->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	mixer->comp.id = swidget->comp_id;
 	mixer->comp.type = SOF_COMP_MIXER;
-	mixer->comp.pipeline_id = index;
-	mixer->comp.core = core;
 	mixer->config.hdr.size = sizeof(mixer->config);
 
 	ret = sof_parse_tokens(scomp, &mixer->config, comp_tokens,
@@ -1743,7 +1807,7 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
 	swidget->private = mixer;
 
 	ret = sof_ipc_tx_message(sdev->ipc, mixer->comp.hdr.cmd, mixer,
-				 sizeof(*mixer), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret < 0)
 		kfree(mixer);
 
@@ -1761,19 +1825,16 @@ static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_mux *mux;
+	size_t ipc_size = sizeof(*mux);
 	int ret;
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = (struct sof_ipc_comp_mux *)
+	      sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!mux)
 		return -ENOMEM;
 
 	/* configure mux IPC message */
-	mux->comp.hdr.size = sizeof(*mux);
-	mux->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	mux->comp.id = swidget->comp_id;
 	mux->comp.type = SOF_COMP_MUX;
-	mux->comp.pipeline_id = index;
-	mux->comp.core = core;
 	mux->config.hdr.size = sizeof(mux->config);
 
 	ret = sof_parse_tokens(scomp, &mux->config, comp_tokens,
@@ -1791,7 +1852,7 @@ static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
 	swidget->private = mux;
 
 	ret = sof_ipc_tx_message(sdev->ipc, mux->comp.hdr.cmd, mux,
-				 sizeof(*mux), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret < 0)
 		kfree(mux);
 
@@ -1811,11 +1872,13 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_volume *volume;
 	struct snd_sof_control *scontrol;
+	size_t ipc_size = sizeof(*volume);
 	int min_step;
 	int max_step;
 	int ret;
 
-	volume = kzalloc(sizeof(*volume), GFP_KERNEL);
+	volume = (struct sof_ipc_comp_volume *)
+		 sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!volume)
 		return -ENOMEM;
 
@@ -1827,12 +1890,7 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 	}
 
 	/* configure volume IPC message */
-	volume->comp.hdr.size = sizeof(*volume);
-	volume->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	volume->comp.id = swidget->comp_id;
 	volume->comp.type = SOF_COMP_VOLUME;
-	volume->comp.pipeline_id = index;
-	volume->comp.core = core;
 	volume->config.hdr.size = sizeof(volume->config);
 
 	ret = sof_parse_tokens(scomp, volume, volume_tokens,
@@ -1869,7 +1927,7 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 	}
 
 	ret = sof_ipc_tx_message(sdev->ipc, volume->comp.hdr.cmd, volume,
-				 sizeof(*volume), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret >= 0)
 		return ret;
 err:
@@ -1889,19 +1947,16 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_src *src;
+	size_t ipc_size = sizeof(*src);
 	int ret;
 
-	src = kzalloc(sizeof(*src), GFP_KERNEL);
+	src = (struct sof_ipc_comp_src *)
+	      sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!src)
 		return -ENOMEM;
 
 	/* configure src IPC message */
-	src->comp.hdr.size = sizeof(*src);
-	src->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	src->comp.id = swidget->comp_id;
 	src->comp.type = SOF_COMP_SRC;
-	src->comp.pipeline_id = index;
-	src->comp.core = core;
 	src->config.hdr.size = sizeof(src->config);
 
 	ret = sof_parse_tokens(scomp, src, src_tokens,
@@ -1929,7 +1984,7 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 	swidget->private = src;
 
 	ret = sof_ipc_tx_message(sdev->ipc, src->comp.hdr.cmd, src,
-				 sizeof(*src), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret >= 0)
 		return ret;
 err:
@@ -1949,19 +2004,16 @@ static int sof_widget_load_asrc(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_asrc *asrc;
+	size_t ipc_size = sizeof(*asrc);
 	int ret;
 
-	asrc = kzalloc(sizeof(*asrc), GFP_KERNEL);
+	asrc = (struct sof_ipc_comp_asrc *)
+	       sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!asrc)
 		return -ENOMEM;
 
 	/* configure ASRC IPC message */
-	asrc->comp.hdr.size = sizeof(*asrc);
-	asrc->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	asrc->comp.id = swidget->comp_id;
 	asrc->comp.type = SOF_COMP_ASRC;
-	asrc->comp.pipeline_id = index;
-	asrc->comp.core = core;
 	asrc->config.hdr.size = sizeof(asrc->config);
 
 	ret = sof_parse_tokens(scomp, asrc, asrc_tokens,
@@ -1991,7 +2043,7 @@ static int sof_widget_load_asrc(struct snd_soc_component *scomp, int index,
 	swidget->private = asrc;
 
 	ret = sof_ipc_tx_message(sdev->ipc, asrc->comp.hdr.cmd, asrc,
-				 sizeof(*asrc), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret >= 0)
 		return ret;
 err:
@@ -2011,19 +2063,16 @@ static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_tone *tone;
+	size_t ipc_size = sizeof(*tone);
 	int ret;
 
-	tone = kzalloc(sizeof(*tone), GFP_KERNEL);
+	tone = (struct sof_ipc_comp_tone *)
+	       sof_comp_alloc(swidget, &ipc_size, index, core);
 	if (!tone)
 		return -ENOMEM;
 
 	/* configure siggen IPC message */
-	tone->comp.hdr.size = sizeof(*tone);
-	tone->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	tone->comp.id = swidget->comp_id;
 	tone->comp.type = SOF_COMP_TONE;
-	tone->comp.pipeline_id = index;
-	tone->comp.core = core;
 	tone->config.hdr.size = sizeof(tone->config);
 
 	ret = sof_parse_tokens(scomp, tone, tone_tokens,
@@ -2051,7 +2100,7 @@ static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
 	swidget->private = tone;
 
 	ret = sof_ipc_tx_message(sdev->ipc, tone->comp.hdr.cmd, tone,
-				 sizeof(*tone), r, sizeof(*r));
+				 ipc_size, r, sizeof(*r));
 	if (ret >= 0)
 		return ret;
 err:
@@ -2148,12 +2197,6 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	int ret;
 	int i;
 
-	if (type == SOF_COMP_NONE) {
-		dev_err(scomp->dev, "error: invalid process comp type %d\n",
-			type);
-		return -EINVAL;
-	}
-
 	/* allocate struct for widget control data sizes and types */
 	if (widget->num_kcontrols) {
 		wdata = kcalloc(widget->num_kcontrols,
@@ -2179,18 +2222,15 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 		ipc_data_size = 0;
 	}
 
-	process = kzalloc(ipc_size, GFP_KERNEL);
+	process = (struct sof_ipc_comp_process *)
+		  sof_comp_alloc(swidget, &ipc_size, index, 0);
 	if (!process) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	/* configure iir IPC message */
-	process->comp.hdr.size = ipc_size;
-	process->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	process->comp.id = swidget->comp_id;
 	process->comp.type = type;
-	process->comp.pipeline_id = index;
 	process->config.hdr.size = sizeof(process->config);
 
 	ret = sof_parse_tokens(scomp, &process->config, comp_tokens,
@@ -2380,6 +2420,16 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	ret = sof_core_enable(sdev, comp.core);
 	if (ret < 0) {
 		dev_err(scomp->dev, "error: enable core: %d\n", ret);
+		kfree(swidget);
+		return ret;
+	}
+
+	ret = sof_parse_tokens(scomp, &swidget->comp_ext, comp_ext_tokens,
+			       ARRAY_SIZE(comp_ext_tokens), tw->priv.array,
+			       le32_to_cpu(tw->priv.size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parsing comp_ext_tokens failed %d\n",
+			ret);
 		kfree(swidget);
 		return ret;
 	}

@@ -165,8 +165,9 @@ int sof_restore_pipelines(struct device *dev)
 	struct snd_sof_route *sroute;
 	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_dai *dai;
-	struct sof_ipc_comp_dai *comp_dai;
 	struct sof_ipc_cmd_hdr *hdr;
+	struct sof_ipc_comp *comp;
+	size_t ipc_size;
 	int ret;
 
 	/* restore pipeline components */
@@ -189,12 +190,24 @@ int sof_restore_pipelines(struct device *dev)
 		switch (swidget->id) {
 		case snd_soc_dapm_dai_in:
 		case snd_soc_dapm_dai_out:
+			ipc_size = sizeof(struct sof_ipc_comp_dai) +
+				   sizeof(struct sof_ipc_comp_ext);
+			comp = kzalloc(ipc_size, GFP_KERNEL);
+			if (!comp)
+				return -ENOMEM;
+
 			dai = swidget->private;
-			comp_dai = &dai->comp_dai;
-			ret = sof_ipc_tx_message(sdev->ipc,
-						 comp_dai->comp.hdr.cmd,
-						 comp_dai, sizeof(*comp_dai),
+			memcpy(comp, &dai->comp_dai,
+			       sizeof(struct sof_ipc_comp_dai));
+
+			/* append extended data to the end of the component */
+			memcpy((u8 *)comp + sizeof(struct sof_ipc_comp_dai),
+			       &swidget->comp_ext, sizeof(swidget->comp_ext));
+
+			ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd,
+						 comp, ipc_size,
 						 &r, sizeof(r));
+			kfree(comp);
 			break;
 		case snd_soc_dapm_scheduler:
 
