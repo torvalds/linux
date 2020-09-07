@@ -3802,46 +3802,15 @@ static inline int ib_post_recv(struct ib_qp *qp,
 	return qp->device->ops.post_recv(qp, recv_wr, bad_recv_wr ? : &dummy);
 }
 
-struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
-				 int nr_cqe, int comp_vector,
-				 enum ib_poll_context poll_ctx,
-				 const char *caller, struct ib_udata *udata);
-
-/**
- * ib_alloc_cq_user: Allocate kernel/user CQ
- * @dev: The IB device
- * @private: Private data attached to the CQE
- * @nr_cqe: Number of CQEs in the CQ
- * @comp_vector: Completion vector used for the IRQs
- * @poll_ctx: Context used for polling the CQ
- * @udata: Valid user data or NULL for kernel objects
- */
-static inline struct ib_cq *ib_alloc_cq_user(struct ib_device *dev,
-					     void *private, int nr_cqe,
-					     int comp_vector,
-					     enum ib_poll_context poll_ctx,
-					     struct ib_udata *udata)
-{
-	return __ib_alloc_cq_user(dev, private, nr_cqe, comp_vector, poll_ctx,
-				  KBUILD_MODNAME, udata);
-}
-
-/**
- * ib_alloc_cq: Allocate kernel CQ
- * @dev: The IB device
- * @private: Private data attached to the CQE
- * @nr_cqe: Number of CQEs in the CQ
- * @comp_vector: Completion vector used for the IRQs
- * @poll_ctx: Context used for polling the CQ
- *
- * NOTE: for user cq use ib_alloc_cq_user with valid udata!
- */
+struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private, int nr_cqe,
+			    int comp_vector, enum ib_poll_context poll_ctx,
+			    const char *caller);
 static inline struct ib_cq *ib_alloc_cq(struct ib_device *dev, void *private,
 					int nr_cqe, int comp_vector,
 					enum ib_poll_context poll_ctx)
 {
-	return ib_alloc_cq_user(dev, private, nr_cqe, comp_vector, poll_ctx,
-				NULL);
+	return __ib_alloc_cq(dev, private, nr_cqe, comp_vector, poll_ctx,
+			     KBUILD_MODNAME);
 }
 
 struct ib_cq *__ib_alloc_cq_any(struct ib_device *dev, void *private,
@@ -3863,26 +3832,7 @@ static inline struct ib_cq *ib_alloc_cq_any(struct ib_device *dev,
 				 KBUILD_MODNAME);
 }
 
-/**
- * ib_free_cq_user - Free kernel/user CQ
- * @cq: The CQ to free
- * @udata: Valid user data or NULL for kernel objects
- *
- * NOTE: This function shouldn't be called on shared CQs.
- */
-void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata);
-
-/**
- * ib_free_cq - Free kernel CQ
- * @cq: The CQ to free
- *
- * NOTE: for user cq use ib_free_cq_user with valid udata!
- */
-static inline void ib_free_cq(struct ib_cq *cq)
-{
-	ib_free_cq_user(cq, NULL);
-}
-
+void ib_free_cq(struct ib_cq *cq);
 int ib_process_cq_direct(struct ib_cq *cq, int budget);
 
 /**
