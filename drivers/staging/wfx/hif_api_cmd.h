@@ -500,25 +500,23 @@ struct hif_igtk_group_key {
 	u8     ipn[HIF_API_IPN_SIZE];
 } __packed;
 
-union hif_privacy_key_data {
-	struct hif_wep_pairwise_key  wep_pairwise_key;
-	struct hif_wep_group_key     wep_group_key;
-	struct hif_tkip_pairwise_key tkip_pairwise_key;
-	struct hif_tkip_group_key    tkip_group_key;
-	struct hif_aes_pairwise_key  aes_pairwise_key;
-	struct hif_aes_group_key     aes_group_key;
-	struct hif_wapi_pairwise_key wapi_pairwise_key;
-	struct hif_wapi_group_key    wapi_group_key;
-	struct hif_igtk_group_key    igtk_group_key;
-};
-
 struct hif_req_add_key {
 	u8     type;
 	u8     entry_index;
 	u8     int_id:2;
 	u8     reserved1:6;
 	u8     reserved2;
-	union hif_privacy_key_data key;
+	union {
+		struct hif_wep_pairwise_key  wep_pairwise_key;
+		struct hif_wep_group_key     wep_group_key;
+		struct hif_tkip_pairwise_key tkip_pairwise_key;
+		struct hif_tkip_group_key    tkip_group_key;
+		struct hif_aes_pairwise_key  aes_pairwise_key;
+		struct hif_aes_group_key     aes_group_key;
+		struct hif_wapi_pairwise_key wapi_pairwise_key;
+		struct hif_wapi_group_key    wapi_group_key;
+		struct hif_igtk_group_key    igtk_group_key;
+	} key;
 } __packed;
 
 struct hif_cnf_add_key {
