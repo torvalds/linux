@@ -135,20 +135,23 @@ static void ttm_buffer_object_destroy(struct ttm_buffer_object *bo)
 static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
 				   unsigned long pl_flag)
 {
+	u32 invariant_flags = 0;
 	unsigned int i;
 	unsigned int c = 0;
-	u32 invariant_flags = pl_flag & TTM_PL_FLAG_TOPDOWN;
+
+	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_TOPDOWN)
+		pl_flag = TTM_PL_FLAG_TOPDOWN;
 
 	gbo->placement.placement = gbo->placements;
 	gbo->placement.busy_placement = gbo->placements;
 
-	if (pl_flag & TTM_PL_FLAG_VRAM)
+	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_VRAM)
 		gbo->placements[c++].flags = TTM_PL_FLAG_WC |
 					     TTM_PL_FLAG_UNCACHED |
 					     TTM_PL_FLAG_VRAM |
 					     invariant_flags;
 
-	if (pl_flag & TTM_PL_FLAG_SYSTEM)
+	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_SYSTEM)
 		gbo->placements[c++].flags = TTM_PL_MASK_CACHING |
 					     TTM_PL_FLAG_SYSTEM |
 					     invariant_flags;
@@ -189,7 +192,8 @@ static int drm_gem_vram_init(struct drm_device *dev,
 	acc_size = ttm_bo_dma_acc_size(bdev, size, sizeof(*gbo));
 
 	gbo->bo.bdev = bdev;
-	drm_gem_vram_placement(gbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
+	drm_gem_vram_placement(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
+			       DRM_GEM_VRAM_PL_FLAG_SYSTEM);
 
 	ret = ttm_bo_init(bdev, &gbo->bo, size, ttm_bo_type_device,
 			  &gbo->placement, pg_align, false, acc_size,
@@ -647,7 +651,7 @@ static bool drm_is_gem_vram(struct ttm_buffer_object *bo)
 static void drm_gem_vram_bo_driver_evict_flags(struct drm_gem_vram_object *gbo,
 					       struct ttm_placement *pl)
 {
-	drm_gem_vram_placement(gbo, TTM_PL_FLAG_SYSTEM);
+	drm_gem_vram_placement(gbo, DRM_GEM_VRAM_PL_FLAG_SYSTEM);
 	*pl = gbo->placement;
 }
 

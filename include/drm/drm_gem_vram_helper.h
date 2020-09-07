@@ -9,7 +9,6 @@
 #include <drm/drm_modes.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
 
 #include <linux/kernel.h> /* for container_of() */
 
@@ -20,9 +19,9 @@ struct drm_simple_display_pipe;
 struct filp;
 struct vm_area_struct;
 
-#define DRM_GEM_VRAM_PL_FLAG_VRAM	TTM_PL_FLAG_VRAM
-#define DRM_GEM_VRAM_PL_FLAG_SYSTEM	TTM_PL_FLAG_SYSTEM
-#define DRM_GEM_VRAM_PL_FLAG_TOPDOWN	TTM_PL_FLAG_TOPDOWN
+#define DRM_GEM_VRAM_PL_FLAG_SYSTEM	(1 << 0)
+#define DRM_GEM_VRAM_PL_FLAG_VRAM	(1 << 1)
+#define DRM_GEM_VRAM_PL_FLAG_TOPDOWN	(1 << 2)
 
 /*
  * Buffer-object helpers
