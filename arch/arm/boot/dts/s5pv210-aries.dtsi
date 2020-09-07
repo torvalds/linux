@@ -59,7 +59,7 @@
 		gpio = <&gpj1 1 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
-		pinctr-0 = <&vibrator_ena>;
+		pinctrl-0 = <&vibrator_ena>;
 	};
 
 	touchkey_vdd: regulator-fixed-1 {
