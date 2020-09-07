@@ -336,26 +336,22 @@ struct hif_cnf_edca_queue_params {
 	__le32 status;
 } __packed;
 
-struct hif_join_flags {
-	u8     reserved1:2;
-	u8     force_no_beacon:1;
-	u8     force_with_ind:1;
-	u8     reserved2:4;
-} __packed;
-
 struct hif_req_join {
 	u8     infrastructure_bss_mode:1;
 	u8     reserved1:7;
 	u8     band;
 	u8     channel_number;
-	u8     reserved;
+	u8     reserved2;
 	u8     bssid[ETH_ALEN];
 	__le16 atim_window;
 	u8     short_preamble:1;
-	u8     reserved2:7;
+	u8     reserved3:7;
 	u8     probe_for_join;
-	u8     reserved3;
-	struct hif_join_flags join_flags;
+	u8     reserved4;
+	u8     reserved5:2;
+	u8     force_no_beacon:1;
+	u8     force_with_ind:1;
+	u8     reserved6:4;
 	__le32 ssid_length;
 	u8     ssid[HIF_API_SSID_SIZE];
 	__le32 beacon_interval;
