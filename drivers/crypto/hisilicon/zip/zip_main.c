@@ -805,18 +805,20 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = hisi_zip_debugfs_init(qm);
 	if (ret)
-		dev_err(&pdev->dev, "Failed to init debugfs (%d)!\n", ret);
+		pci_err(pdev, "failed to init debugfs (%d)!\n", ret);
 
 	ret = hisi_qm_alg_register(qm, &zip_devices);
 	if (ret < 0) {
-		pci_err(pdev, "Failed to register driver to crypto.\n");
+		pci_err(pdev, "failed to register driver to crypto!\n");
 		goto err_qm_stop;
 	}
 
 	if (qm->uacce) {
 		ret = uacce_register(qm->uacce);
-		if (ret)
+		if (ret) {
+			pci_err(pdev, "failed to register uacce (%d)!\n", ret);
 			goto err_qm_alg_unregister;
+		}
 	}
 
 	if (qm->fun_type == QM_HW_PF && vfs_num > 0) {

@@ -146,7 +146,7 @@ static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *ctx,
 
 	ret = hisi_qm_start_qp(qp, 0);
 	if (ret < 0) {
-		dev_err(dev, "start qp failed!\n");
+		dev_err(dev, "failed to start qp (%d)!\n", ret);
 		return ret;
 	}
 
@@ -169,7 +169,7 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int
 
 	ret = zip_create_qps(qps, HZIP_CTX_Q_NUM, node);
 	if (ret) {
-		pr_err("Can not create zip qps!\n");
+		pr_err("failed to create zip qps (%d)!\n", ret);
 		return -ENODEV;
 	}
 
@@ -380,19 +380,28 @@ static int hisi_zip_acomp_init(struct crypto_acomp *tfm)
 {
 	const char *alg_name = crypto_tfm_alg_name(&tfm->base);
 	struct hisi_zip_ctx *ctx = crypto_tfm_ctx(&tfm->base);
+	struct device *dev;
 	int ret;
 
 	ret = hisi_zip_ctx_init(ctx, COMP_NAME_TO_TYPE(alg_name), tfm->base.node);
-	if (ret)
+	if (ret) {
+		pr_err("failed to init ctx (%d)!\n", ret);
 		return ret;
+	}
+
+	dev = &ctx->qp_ctx[0].qp->qm->pdev->dev;
 
 	ret = hisi_zip_create_req_q(ctx);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "failed to create request queue (%d)!\n", ret);
 		goto err_ctx_exit;
+	}
 
 	ret = hisi_zip_create_sgl_pool(ctx);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "failed to create sgl pool (%d)!\n", ret);
 		goto err_release_req_q;
+	}
 
 	hisi_zip_set_acomp_cb(ctx, hisi_zip_acomp_cb);
 
@@ -422,8 +431,10 @@ static int add_comp_head(struct scatterlist *dst, u8 req_type)
 	int ret;
 
 	ret = sg_copy_from_buffer(dst, sg_nents(dst), head, head_size);
-	if (ret != head_size)
+	if (ret != head_size) {
+		pr_err("the head size of buffer is wrong (%d)!\n", ret);
 		return -ENOMEM;
+	}
 
 	return head_size;
 }
@@ -504,14 +515,19 @@ static int hisi_zip_do_work(struct hisi_zip_req *req,
 
 	req->hw_src = hisi_acc_sg_buf_map_to_hw_sgl(dev, a_req->src, pool,
 						    req->req_id << 1, &input);
-	if (IS_ERR(req->hw_src))
+	if (IS_ERR(req->hw_src)) {
+		dev_err(dev, "failed to map the src buffer to hw sgl (%ld)!\n",
+			PTR_ERR(req->hw_src));
 		return PTR_ERR(req->hw_src);
+	}
 	req->dma_src = input;
 
 	req->hw_dst = hisi_acc_sg_buf_map_to_hw_sgl(dev, a_req->dst, pool,
 						    (req->req_id << 1) + 1,
 						    &output);
 	if (IS_ERR(req->hw_dst)) {
+		dev_err(dev, "failed to map the dst buffer to hw slg (%ld)!\n",
+			PTR_ERR(req->hw_dst));
 		ret = PTR_ERR(req->hw_dst);
 		goto err_unmap_input;
 	}
@@ -527,6 +543,7 @@ static int hisi_zip_do_work(struct hisi_zip_req *req,
 	ret = hisi_qp_send(qp, &zip_sqe);
 	if (ret < 0) {
 		atomic64_inc(&dfx->send_busy_cnt);
+		dev_dbg_ratelimited(dev, "failed to send request!\n");
 		goto err_unmap_output;
 	}
 
@@ -543,22 +560,28 @@ static int hisi_zip_acompress(struct acomp_req *acomp_req)
 {
 	struct hisi_zip_ctx *ctx = crypto_tfm_ctx(acomp_req->base.tfm);
 	struct hisi_zip_qp_ctx *qp_ctx = &ctx->qp_ctx[HZIP_QPC_COMP];
+	struct device *dev = &qp_ctx->qp->qm->pdev->dev;
 	struct hisi_zip_req *req;
 	int head_size;
 	int ret;
 
 	/* let's output compression head now */
 	head_size = add_comp_head(acomp_req->dst, qp_ctx->qp->req_type);
-	if (head_size < 0)
-		return -ENOMEM;
+	if (head_size < 0) {
+		dev_err_ratelimited(dev, "failed to add comp head (%d)!\n",
+				    head_size);
+		return head_size;
+	}
 
 	req = hisi_zip_create_req(acomp_req, qp_ctx, (size_t)head_size, true);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
 	ret = hisi_zip_do_work(req, qp_ctx);
-	if (ret != -EINPROGRESS)
+	if (ret != -EINPROGRESS) {
+		dev_info_ratelimited(dev, "failed to do compress (%d)!\n", ret);
 		hisi_zip_remove_req(qp_ctx, req);
+	}
 
 	return ret;
 }
@@ -567,6 +590,7 @@ static int hisi_zip_adecompress(struct acomp_req *acomp_req)
 {
 	struct hisi_zip_ctx *ctx = crypto_tfm_ctx(acomp_req->base.tfm);
 	struct hisi_zip_qp_ctx *qp_ctx = &ctx->qp_ctx[HZIP_QPC_DECOMP];
+	struct device *dev = &qp_ctx->qp->qm->pdev->dev;
 	struct hisi_zip_req *req;
 	size_t head_size;
 	int ret;
@@ -578,8 +602,11 @@ static int hisi_zip_adecompress(struct acomp_req *acomp_req)
 		return PTR_ERR(req);
 
 	ret = hisi_zip_do_work(req, qp_ctx);
-	if (ret != -EINPROGRESS)
+	if (ret != -EINPROGRESS) {
+		dev_info_ratelimited(dev, "failed to do decompress (%d)!\n",
+				     ret);
 		hisi_zip_remove_req(qp_ctx, req);
+	}
 
 	return ret;
 }
@@ -618,13 +645,13 @@ int hisi_zip_register_to_crypto(void)
 
 	ret = crypto_register_acomp(&hisi_zip_acomp_zlib);
 	if (ret) {
-		pr_err("Zlib acomp algorithm registration failed\n");
+		pr_err("failed to register to zlib (%d)!\n", ret);
 		return ret;
 	}
 
 	ret = crypto_register_acomp(&hisi_zip_acomp_gzip);
 	if (ret) {
-		pr_err("Gzip acomp algorithm registration failed\n");
+		pr_err("failed to register to gzip (%d)!\n", ret);
 		crypto_unregister_acomp(&hisi_zip_acomp_zlib);
 	}
 
