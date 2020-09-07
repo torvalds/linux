@@ -117,7 +117,7 @@ err_bound:
 	return ret;
 }
 
-static void mlx5_ib_destroy_counters(struct ib_counters *counters)
+static int mlx5_ib_destroy_counters(struct ib_counters *counters)
 {
 	struct mlx5_ib_mcounters *mcounters = to_mcounters(counters);
 
@@ -125,6 +125,7 @@ static void mlx5_ib_destroy_counters(struct ib_counters *counters)
 	if (mcounters->hw_cntrs_hndl)
 		mlx5_fc_destroy(to_mdev(counters->device)->mdev,
 				mcounters->hw_cntrs_hndl);
+	return 0;
 }
 
 static int mlx5_ib_create_counters(struct ib_counters *counters,
