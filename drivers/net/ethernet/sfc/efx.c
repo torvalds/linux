@@ -33,7 +33,7 @@
 #include "selftest.h"
 #include "sriov.h"
 
-#include "mcdi.h"
+#include "mcdi_port_common.h"
 #include "mcdi_pcol.h"
 #include "workarounds.h"
 
@@ -149,23 +149,17 @@ static int efx_init_port(struct efx_nic *efx)
 
 	mutex_lock(&efx->mac_lock);
 
-	rc = efx->phy_op->init(efx);
-	if (rc)
-		goto fail1;
-
 	efx->port_initialized = true;
 
 	/* Ensure the PHY advertises the correct flow control settings */
-	rc = efx->phy_op->reconfigure(efx);
+	rc = efx_mcdi_port_reconfigure(efx);
 	if (rc && rc != -EPERM)
-		goto fail2;
+		goto fail;
 
 	mutex_unlock(&efx->mac_lock);
 	return 0;
 
-fail2:
-	efx->phy_op->fini(efx);
-fail1:
+fail:
 	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
@@ -177,7 +171,6 @@ static void efx_fini_port(struct efx_nic *efx)
 	if (!efx->port_initialized)
 		return;
 
-	efx->phy_op->fini(efx);
 	efx->port_initialized = false;
 
 	efx->link_state.up = false;
@@ -1229,7 +1222,7 @@ static int efx_pm_thaw(struct device *dev)
 			goto fail;
 
 		mutex_lock(&efx->mac_lock);
-		efx->phy_op->reconfigure(efx);
+		efx_mcdi_port_reconfigure(efx);
 		mutex_unlock(&efx->mac_lock);
 
 		efx_start_all(efx);

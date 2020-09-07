@@ -19,6 +19,7 @@
 #include "rx_common.h"
 #include "tx_common.h"
 #include "nic.h"
+#include "mcdi_port_common.h"
 #include "io.h"
 #include "mcdi_pcol.h"
 
@@ -544,7 +545,7 @@ void efx_start_all(struct efx_nic *efx)
 	 * to poll now because we could have missed a change
 	 */
 	mutex_lock(&efx->mac_lock);
-	if (efx->phy_op->poll(efx))
+	if (efx_mcdi_phy_poll(efx))
 		efx_link_status_changed(efx);
 	mutex_unlock(&efx->mac_lock);
 
@@ -714,9 +715,6 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	mutex_lock(&efx->mac_lock);
 	down_write(&efx->filter_sem);
 	mutex_lock(&efx->rss_lock);
-	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
-	    method != RESET_TYPE_DATAPATH)
-		efx->phy_op->fini(efx);
 	efx->type->fini(efx);
 }
 
@@ -759,10 +757,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
 	    method != RESET_TYPE_DATAPATH) {
-		rc = efx->phy_op->init(efx);
-		if (rc)
-			goto fail;
-		rc = efx->phy_op->reconfigure(efx);
+		rc = efx_mcdi_port_reconfigure(efx);
 		if (rc && rc != -EPERM)
 			netif_err(efx, drv, efx->net_dev,
 				  "could not restore PHY settings\n");
@@ -959,7 +954,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 
 /**************************************************************************
  *
- * Dummy PHY/MAC operations
+ * Dummy NIC operations
  *
  * Can be used for some unimplemented operations
  * Needed so all function pointers are valid and do not have to be tested
@@ -971,18 +966,6 @@ int efx_port_dummy_op_int(struct efx_nic *efx)
 	return 0;
 }
 void efx_port_dummy_op_void(struct efx_nic *efx) {}
-
-static bool efx_port_dummy_op_poll(struct efx_nic *efx)
-{
-	return false;
-}
-
-static const struct efx_phy_operations efx_dummy_phy_operations = {
-	.init		 = efx_port_dummy_op_int,
-	.reconfigure	 = efx_port_dummy_op_int,
-	.poll		 = efx_port_dummy_op_poll,
-	.fini		 = efx_port_dummy_op_void,
-};
 
 /**************************************************************************
  *
@@ -1037,7 +1020,6 @@ int efx_init_struct(struct efx_nic *efx,
 	efx->rps_hash_table = kcalloc(EFX_ARFS_HASH_TABLE_SIZE,
 				      sizeof(*efx->rps_hash_table), GFP_KERNEL);
 #endif
-	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	init_waitqueue_head(&efx->flush_wq);
