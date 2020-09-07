@@ -1333,7 +1333,7 @@ static int qedf_offload_connection(struct qedf_ctx *qedf,
 	ether_addr_copy(conn_info.dst_mac, qedf->ctlr.dest_addr);
 
 	conn_info.tx_max_fc_pay_len = fcport->rdata->maxframe_size;
-	conn_info.e_d_tov_timer_val = qedf->lport->e_d_tov / 20;
+	conn_info.e_d_tov_timer_val = qedf->lport->e_d_tov;
 	conn_info.rec_tov_timer_val = 3; /* I think this is what E3 was */
 	conn_info.rx_max_fc_pay_len = fcport->rdata->maxframe_size;
 
