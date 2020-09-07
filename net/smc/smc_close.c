@@ -116,7 +116,6 @@ static void smc_close_cancel_work(struct smc_sock *smc)
 	cancel_work_sync(&smc->conn.close_work);
 	cancel_delayed_work_sync(&smc->conn.tx_work);
 	lock_sock(sk);
-	sk->sk_state = SMC_CLOSED;
 }
 
 /* terminate smc socket abnormally - active abort
@@ -134,22 +133,22 @@ void smc_close_active_abort(struct smc_sock *smc)
 	}
 	switch (sk->sk_state) {
 	case SMC_ACTIVE:
-		sk->sk_state = SMC_PEERABORTWAIT;
-		smc_close_cancel_work(smc);
-		sk->sk_state = SMC_CLOSED;
-		sock_put(sk); /* passive closing */
-		break;
 	case SMC_APPCLOSEWAIT1:
 	case SMC_APPCLOSEWAIT2:
+		sk->sk_state = SMC_PEERABORTWAIT;
 		smc_close_cancel_work(smc);
+		if (sk->sk_state != SMC_PEERABORTWAIT)
+			break;
 		sk->sk_state = SMC_CLOSED;
-		sock_put(sk); /* postponed passive closing */
+		sock_put(sk); /* (postponed) passive closing */
 		break;
 	case SMC_PEERCLOSEWAIT1:
 	case SMC_PEERCLOSEWAIT2:
 	case SMC_PEERFINCLOSEWAIT:
 		sk->sk_state = SMC_PEERABORTWAIT;
 		smc_close_cancel_work(smc);
+		if (sk->sk_state != SMC_PEERABORTWAIT)
+			break;
 		sk->sk_state = SMC_CLOSED;
 		smc_conn_free(&smc->conn);
 		release_clcsock = true;
@@ -159,6 +158,8 @@ void smc_close_active_abort(struct smc_sock *smc)
 	case SMC_APPFINCLOSEWAIT:
 		sk->sk_state = SMC_PEERABORTWAIT;
 		smc_close_cancel_work(smc);
+		if (sk->sk_state != SMC_PEERABORTWAIT)
+			break;
 		sk->sk_state = SMC_CLOSED;
 		smc_conn_free(&smc->conn);
 		release_clcsock = true;
