@@ -19,7 +19,6 @@
 #define GZIP_HEAD_FEXTRA_XLEN			2
 #define GZIP_HEAD_FHCRC_SIZE			2
 
-#define HZIP_CTX_Q_NUM				2
 #define HZIP_GZIP_HEAD_BUF			256
 #define HZIP_ALG_PRIORITY			300
 #define HZIP_SGL_SGE_NR				10
@@ -30,6 +29,12 @@ static const u8 gzip_head[HZIP_GZIP_HEAD_SIZE] = {0x1f, 0x8b, 0x08, 0x0, 0x0,
 enum hisi_zip_alg_type {
 	HZIP_ALG_TYPE_COMP = 0,
 	HZIP_ALG_TYPE_DECOMP = 1,
+};
+
+enum {
+	HZIP_QPC_COMP,
+	HZIP_QPC_DECOMP,
+	HZIP_CTX_Q_NUM
 };
 
 #define COMP_NAME_TO_TYPE(alg_name)					\
@@ -71,8 +76,6 @@ struct hisi_zip_qp_ctx {
 };
 
 struct hisi_zip_ctx {
-#define QPC_COMP	0
-#define QPC_DECOMP	1
 	struct hisi_zip_qp_ctx qp_ctx[HZIP_CTX_Q_NUM];
 };
 
@@ -264,11 +267,11 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 	return 0;
 
 err_free_loop1:
-	kfree(ctx->qp_ctx[QPC_DECOMP].req_q.req_bitmap);
+	kfree(ctx->qp_ctx[HZIP_QPC_DECOMP].req_q.req_bitmap);
 err_free_loop0:
-	kfree(ctx->qp_ctx[QPC_COMP].req_q.q);
+	kfree(ctx->qp_ctx[HZIP_QPC_COMP].req_q.q);
 err_free_bitmap:
-	kfree(ctx->qp_ctx[QPC_COMP].req_q.req_bitmap);
+	kfree(ctx->qp_ctx[HZIP_QPC_COMP].req_q.req_bitmap);
 	return ret;
 }
 
@@ -303,8 +306,8 @@ static int hisi_zip_create_sgl_pool(struct hisi_zip_ctx *ctx)
 	return 0;
 
 err_free_sgl_pool0:
-	hisi_acc_free_sgl_pool(&ctx->qp_ctx[QPC_COMP].qp->qm->pdev->dev,
-			       ctx->qp_ctx[QPC_COMP].sgl_pool);
+	hisi_acc_free_sgl_pool(&ctx->qp_ctx[HZIP_QPC_COMP].qp->qm->pdev->dev,
+			       ctx->qp_ctx[HZIP_QPC_COMP].sgl_pool);
 	return -ENOMEM;
 }
 
@@ -539,7 +542,7 @@ err_unmap_input:
 static int hisi_zip_acompress(struct acomp_req *acomp_req)
 {
 	struct hisi_zip_ctx *ctx = crypto_tfm_ctx(acomp_req->base.tfm);
-	struct hisi_zip_qp_ctx *qp_ctx = &ctx->qp_ctx[QPC_COMP];
+	struct hisi_zip_qp_ctx *qp_ctx = &ctx->qp_ctx[HZIP_QPC_COMP];
 	struct hisi_zip_req *req;
 	int head_size;
 	int ret;
@@ -563,7 +566,7 @@ static int hisi_zip_acompress(struct acomp_req *acomp_req)
 static int hisi_zip_adecompress(struct acomp_req *acomp_req)
 {
 	struct hisi_zip_ctx *ctx = crypto_tfm_ctx(acomp_req->base.tfm);
-	struct hisi_zip_qp_ctx *qp_ctx = &ctx->qp_ctx[QPC_DECOMP];
+	struct hisi_zip_qp_ctx *qp_ctx = &ctx->qp_ctx[HZIP_QPC_DECOMP];
 	struct hisi_zip_req *req;
 	size_t head_size;
 	int ret;
