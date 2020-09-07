@@ -85,8 +85,6 @@ void choose_random_location(unsigned long input,
 			    unsigned long *output,
 			    unsigned long output_size,
 			    unsigned long *virt_addr);
-/* cpuflags.c */
-bool has_cpuflag(int flag);
 #else
 static inline void choose_random_location(unsigned long input,
 					  unsigned long input_size,
@@ -96,6 +94,9 @@ static inline void choose_random_location(unsigned long input,
 {
 }
 #endif
+
+/* cpuflags.c */
+bool has_cpuflag(int flag);
 
 #ifdef CONFIG_X86_64
 extern int set_page_decrypted(unsigned long address);
