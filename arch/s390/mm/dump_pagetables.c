@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/set_memory.h>
 #include <linux/ptdump.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -130,7 +131,9 @@ static int ptdump_show(struct seq_file *m, void *v)
 	};
 
 	get_online_mems();
+	mutex_lock(&cpa_mutex);
 	ptdump_walk_pgd(&st.ptdump, &init_mm, NULL);
+	mutex_unlock(&cpa_mutex);
 	put_online_mems();
 	return 0;
 }
