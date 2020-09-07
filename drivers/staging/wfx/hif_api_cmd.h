@@ -283,7 +283,12 @@ enum hif_ri_flags_encrypt {
 	HIF_RI_FLAGS_WAPI_ENCRYPTED                = 0x4
 };
 
-struct hif_rx_flags {
+struct hif_ind_rx {
+	__le32 status;
+	u8     channel_number;
+	u8     reserved1;
+	u8     rxed_rate;
+	u8     rcpi_rssi;
 	u8     encryp:3;
 	u8     in_aggr:1;
 	u8     first_aggr:1;
@@ -295,7 +300,7 @@ struct hif_rx_flags {
 	u8     match_ssid:1;
 	u8     match_bssid:1;
 	u8     more:1;
-	u8     reserved1:1;
+	u8     reserved2:1;
 	u8     ht:1;
 	u8     stbc:1;
 	u8     match_uc_addr:1;
@@ -303,22 +308,12 @@ struct hif_rx_flags {
 	u8     match_bc_addr:1;
 	u8     key_type:1;
 	u8     key_index:4;
-	u8     reserved2:1;
+	u8     reserved3:1;
 	u8     peer_sta_id:4;
-	u8     reserved3:2;
-	u8     reserved4:1;
-} __packed;
-
-struct hif_ind_rx {
-	__le32 status;
-	u8     channel_number;
-	u8     reserved;
-	u8     rxed_rate;
-	u8     rcpi_rssi;
-	struct hif_rx_flags rx_flags;
+	u8     reserved4:2;
+	u8     reserved5:1;
 	u8     frame[];
 } __packed;
-
 
 struct hif_req_edca_queue_params {
 	u8     queue_id;
