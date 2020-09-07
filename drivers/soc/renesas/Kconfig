@@ -244,6 +244,12 @@ config ARCH_R8A77970
 	help
 	  This enables support for the Renesas R-Car V3M SoC.
 
+config ARCH_R8A779A0
+	bool "ARM64 Platform support for R-Car V3U"
+	select ARCH_RCAR_GEN3
+	help
+	  This enables support for the Renesas R-Car V3U SoC.
+
 config ARCH_R8A774C0
 	bool "ARM64 Platform support for RZ/G2E"
 	select ARCH_RCAR_GEN3
