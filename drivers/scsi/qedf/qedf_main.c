@@ -105,6 +105,12 @@ module_param_named(dp_level, qedf_dp_level, uint, S_IRUGO);
 MODULE_PARM_DESC(dp_level, " printk verbosity control passed to qed module  "
 	"during probe (0-3: 0 more verbose).");
 
+static bool qedf_enable_recovery = true;
+module_param_named(enable_recovery, qedf_enable_recovery,
+		bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(enable_recovery, "Enable/disable recovery on driver/firmware "
+		"interface level errors 0 = Disabled, 1 = Enabled (Default: 1).");
+
 struct workqueue_struct *qedf_io_wq;
 
 static struct fcoe_percpu_s qedf_global;
@@ -690,6 +696,7 @@ static struct qed_fcoe_cb_ops qedf_cb_ops = {
 		.dcbx_aen = qedf_dcbx_handler,
 		.get_generic_tlv_data = qedf_get_generic_tlv_data,
 		.get_protocol_tlv_data = qedf_get_protocol_tlv_data,
+		.schedule_hw_err_handler = qedf_schedule_hw_err_handler,
 	}
 };
 
@@ -3797,6 +3804,44 @@ void qedf_wq_grcdump(struct work_struct *work)
 
 	QEDF_ERR(&(qedf->dbg_ctx), "Collecting GRC dump.\n");
 	qedf_capture_grc_dump(qedf);
+}
+
+void qedf_schedule_hw_err_handler(void *dev, enum qed_hw_err_type err_type)
+{
+	struct qedf_ctx *qedf = dev;
+
+	QEDF_ERR(&(qedf->dbg_ctx),
+			"Hardware error handler scheduled, event=%d.\n",
+			err_type);
+
+	if (test_bit(QEDF_IN_RECOVERY, &qedf->flags)) {
+		QEDF_ERR(&(qedf->dbg_ctx),
+				"Already in recovery, not scheduling board disable work.\n");
+		return;
+	}
+
+	switch (err_type) {
+	case QED_HW_ERR_FAN_FAIL:
+		schedule_delayed_work(&qedf->board_disable_work, 0);
+		break;
+	case QED_HW_ERR_MFW_RESP_FAIL:
+	case QED_HW_ERR_HW_ATTN:
+	case QED_HW_ERR_DMAE_FAIL:
+	case QED_HW_ERR_FW_ASSERT:
+		/* Prevent HW attentions from being reasserted */
+		qed_ops->common->attn_clr_enable(qedf->cdev, true);
+		break;
+	case QED_HW_ERR_RAMROD_FAIL:
+		/* Prevent HW attentions from being reasserted */
+		qed_ops->common->attn_clr_enable(qedf->cdev, true);
+
+		if (qedf_enable_recovery)
+			qed_ops->common->recovery_process(qedf->cdev);
+
+		break;
+	default:
+		break;
+	}
 }
 
 /*
