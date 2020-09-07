@@ -292,15 +292,6 @@ struct device_dma_parameters {
 	unsigned long segment_boundary_mask;
 };
 
-typedef void *(*devcon_match_fn_t)(struct fwnode_handle *fwnode, const char *id,
-				   void *data);
-
-void *fwnode_connection_find_match(struct fwnode_handle *fwnode,
-				   const char *con_id, void *data,
-				   devcon_match_fn_t match);
-void *device_connection_find_match(struct device *dev, const char *con_id,
-				   void *data, devcon_match_fn_t match);
-
 /**
  * enum device_link_state - Device link states.
  * @DL_STATE_NONE: The presence of the drivers is not being tracked.
