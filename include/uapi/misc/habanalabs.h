@@ -914,6 +914,9 @@ struct hl_debug_args {
  * inside the kernel until the CS has finished or until the user-requested
  * timeout has expired.
  *
+ * If the timeout value is 0, the driver won't sleep at all. It will check
+ * the status of the CS and return immediately
+ *
  * The return value of the IOCTL is a standard Linux error code. The possible
  * values are:
  *

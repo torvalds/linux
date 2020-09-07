@@ -1180,8 +1180,11 @@ static long _hl_cs_wait_ioctl(struct hl_device *hdev,
 				"Can't wait on CS %llu because current CS is at seq %llu\n",
 				seq, ctx->cs_sequence);
 	} else if (fence) {
-		rc = wait_for_completion_interruptible_timeout(
-				&fence->completion, timeout);
+		if (!timeout_us)
+			rc = completion_done(&fence->completion);
+		else
+			rc = wait_for_completion_interruptible_timeout(
+					&fence->completion, timeout);
 
 		if (fence->error == -ETIMEDOUT)
 			rc = -ETIMEDOUT;
