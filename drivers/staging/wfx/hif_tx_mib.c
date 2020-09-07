@@ -29,7 +29,7 @@ int hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
 				 unsigned int dtim_interval,
 				 unsigned int listen_interval)
 {
-	struct hif_mib_beacon_wake_up_period val = {
+	struct hif_mib_beacon_wake_up_period arg = {
 		.wakeup_period_min = dtim_interval,
 		.receive_dtim = 0,
 		.wakeup_period_max = listen_interval,
@@ -39,7 +39,7 @@ int hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
 		return -EINVAL;
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_BEACON_WAKEUP_PERIOD,
-			     &val, sizeof(val));
+			     &arg, sizeof(arg));
 }
 
 int hif_set_rcpi_rssi_threshold(struct wfx_vif *wvif,
@@ -92,31 +92,31 @@ int hif_set_macaddr(struct wfx_vif *wvif, u8 *mac)
 int hif_set_rx_filter(struct wfx_vif *wvif,
 		      bool filter_bssid, bool filter_prbreq)
 {
-	struct hif_mib_rx_filter val = { };
+	struct hif_mib_rx_filter arg = { };
 
 	if (filter_bssid)
-		val.bssid_filter = 1;
+		arg.bssid_filter = 1;
 	if (!filter_prbreq)
-		val.fwd_probe_req = 1;
+		arg.fwd_probe_req = 1;
 	return hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_RX_FILTER,
-			     &val, sizeof(val));
+			     &arg, sizeof(arg));
 }
 
 int hif_set_beacon_filter_table(struct wfx_vif *wvif, int tbl_len,
 				const struct hif_ie_table_entry *tbl)
 {
 	int ret;
-	struct hif_mib_bcn_filter_table *val;
-	int buf_len = struct_size(val, ie_table, tbl_len);
+	struct hif_mib_bcn_filter_table *arg;
+	int buf_len = struct_size(arg, ie_table, tbl_len);
 
-	val = kzalloc(buf_len, GFP_KERNEL);
-	if (!val)
+	arg = kzalloc(buf_len, GFP_KERNEL);
+	if (!arg)
 		return -ENOMEM;
-	val->num_of_info_elmts = cpu_to_le32(tbl_len);
-	memcpy(val->ie_table, tbl, flex_array_size(val, ie_table, tbl_len));
+	arg->num_of_info_elmts = cpu_to_le32(tbl_len);
+	memcpy(arg->ie_table, tbl, flex_array_size(arg, ie_table, tbl_len));
 	ret = hif_write_mib(wvif->wdev, wvif->id,
-			    HIF_MIB_ID_BEACON_FILTER_TABLE, val, buf_len);
-	kfree(val);
+			    HIF_MIB_ID_BEACON_FILTER_TABLE, arg, buf_len);
+	kfree(arg);
 	return ret;
 }
 
@@ -134,13 +134,13 @@ int hif_beacon_filter_control(struct wfx_vif *wvif,
 
 int hif_set_operational_mode(struct wfx_dev *wdev, enum hif_op_power_mode mode)
 {
-	struct hif_mib_gl_operational_power_mode val = {
+	struct hif_mib_gl_operational_power_mode arg = {
 		.power_mode = mode,
 		.wup_ind_activation = 1,
 	};
 
 	return hif_write_mib(wdev, -1, HIF_MIB_ID_GL_OPERATIONAL_POWER_MODE,
-			     &val, sizeof(val));
+			     &arg, sizeof(arg));
 }
 
 int hif_set_template_frame(struct wfx_vif *wvif, struct sk_buff *skb,
@@ -161,36 +161,36 @@ int hif_set_template_frame(struct wfx_vif *wvif, struct sk_buff *skb,
 
 int hif_set_mfp(struct wfx_vif *wvif, bool capable, bool required)
 {
-	struct hif_mib_protected_mgmt_policy val = { };
+	struct hif_mib_protected_mgmt_policy arg = { };
 
 	WARN(required && !capable, "incoherent arguments");
 	if (capable) {
-		val.pmf_enable = 1;
-		val.host_enc_auth_frames = 1;
+		arg.pmf_enable = 1;
+		arg.host_enc_auth_frames = 1;
 	}
 	if (!required)
-		val.unpmf_allowed = 1;
+		arg.unpmf_allowed = 1;
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_PROTECTED_MGMT_POLICY,
-			     &val, sizeof(val));
+			     &arg, sizeof(arg));
 }
 
 int hif_set_block_ack_policy(struct wfx_vif *wvif,
 			     u8 tx_tid_policy, u8 rx_tid_policy)
 {
-	struct hif_mib_block_ack_policy val = {
+	struct hif_mib_block_ack_policy arg = {
 		.block_ack_tx_tid_policy = tx_tid_policy,
 		.block_ack_rx_tid_policy = rx_tid_policy,
 	};
 
 	return hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_BLOCK_ACK_POLICY,
-			     &val, sizeof(val));
+			     &arg, sizeof(arg));
 }
 
 int hif_set_association_mode(struct wfx_vif *wvif, int ampdu_density,
 			     bool greenfield, bool short_preamble)
 {
-	struct hif_mib_set_association_mode val = {
+	struct hif_mib_set_association_mode arg = {
 		.preambtype_use = 1,
 		.mode = 1,
 		.spacing = 1,
@@ -200,7 +200,7 @@ int hif_set_association_mode(struct wfx_vif *wvif, int ampdu_density,
 	};
 
 	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_SET_ASSOCIATION_MODE, &val, sizeof(val));
+			     HIF_MIB_ID_SET_ASSOCIATION_MODE, &arg, sizeof(arg));
 }
 
 int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
