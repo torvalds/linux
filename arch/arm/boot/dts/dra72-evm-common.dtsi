@@ -462,10 +462,6 @@
 	};
 };
 
-&mac {
-	status = "okay";
-};
-
 &dcan1 {
 	status = "okay";
 	pinctrl-names = "default", "sleep", "active";
