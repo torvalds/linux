@@ -366,13 +366,9 @@ struct hif_ind_join_complete {
 	__le32 status;
 } __packed;
 
-struct hif_bss_flags {
+struct hif_req_set_bss_params {
 	u8     lost_count_only:1;
 	u8     reserved:7;
-} __packed;
-
-struct hif_req_set_bss_params {
-	struct hif_bss_flags bss_flags;
 	u8     beacon_lost_count;
 	__le16 aid;
 	__le32 operational_rate_set;
