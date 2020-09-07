@@ -266,11 +266,6 @@
 	reg = <0x11000 0x100>;
 };
 
-&i2c1 {
-	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-	reg = <0x11100 0x100>;
-};
-
 &mpic {
 	reg = <0x20a00 0x2d0>, <0x21070 0x58>;
 };
