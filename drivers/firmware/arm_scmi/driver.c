@@ -929,7 +929,21 @@ static struct platform_driver scmi_driver = {
 	.remove = scmi_remove,
 };
 
-module_platform_driver(scmi_driver);
+static int __init scmi_driver_init(void)
+{
+	scmi_bus_init();
+
+	return platform_driver_register(&scmi_driver);
+}
+module_init(scmi_driver_init);
+
+static void __exit scmi_driver_exit(void)
+{
+	scmi_bus_exit();
+
+	platform_driver_unregister(&scmi_driver);
+}
+module_exit(scmi_driver_exit);
 
 MODULE_ALIAS("platform: arm-scmi");
 MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");

@@ -156,6 +156,9 @@ void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
 
 int scmi_base_protocol_init(struct scmi_handle *h);
 
+int __init scmi_bus_init(void);
+void __exit scmi_bus_exit(void);
+
 /* SCMI Transport */
 /**
  * struct scmi_chan_info - Structure representing a SCMI channel information
