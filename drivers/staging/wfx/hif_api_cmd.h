@@ -113,25 +113,6 @@ struct hif_cnf_update_ie {
 	__le32 status;
 } __packed;
 
-struct hif_scan_type {
-	u8     type:1;
-	u8     mode:1;
-	u8     reserved:6;
-} __packed;
-
-struct hif_scan_flags {
-	u8     fbg:1;
-	u8     reserved1:1;
-	u8     pre:1;
-	u8     reserved2:5;
-} __packed;
-
-struct hif_auto_scan_param {
-	__le16 interval;
-	u8     reserved;
-	s8     rssi_thr;
-} __packed;
-
 struct hif_ssid_def {
 	__le32 ssid_length;
 	u8     ssid[HIF_API_SSID_SIZE];
@@ -142,10 +123,17 @@ struct hif_ssid_def {
 
 struct hif_req_start_scan_alt {
 	u8     band;
-	struct hif_scan_type scan_type;
-	struct hif_scan_flags scan_flags;
+	u8     maintain_current_bss:1;
+	u8     periodic:1;
+	u8     reserved1:6;
+	u8     disallow_ps:1;
+	u8     reserved2:1;
+	u8     short_preamble:1;
+	u8     reserved3:5;
 	u8     max_transmit_rate;
-	struct hif_auto_scan_param auto_scan_param;
+	__le16 periodic_interval;
+	u8     reserved4;
+	s8     periodic_rssi_thr;
 	u8     num_of_probe_requests;
 	u8     probe_delay;
 	u8     num_of_ssids;

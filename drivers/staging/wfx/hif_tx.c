@@ -256,9 +256,8 @@ int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
 			cpu_to_le32(req->ssids[i].ssid_len);
 	}
 	body->num_of_ssids = HIF_API_MAX_NB_SSIDS;
-	// Background scan is always a good idea
-	body->scan_type.type = 1;
-	body->scan_flags.fbg = 1;
+	body->maintain_current_bss = 1;
+	body->disallow_ps = 1;
 	body->tx_power_level =
 		cpu_to_le32(req->channels[chan_start_idx]->max_power);
 	body->num_of_channels = chan_num;
