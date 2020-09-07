@@ -113,7 +113,6 @@ enum hif_api_rate_index {
 	API_RATE_NUM_ENTRIES       = 22
 };
 
-
 enum hif_fw_type {
 	HIF_FW_TYPE_ETF  = 0x0,
 	HIF_FW_TYPE_WFM  = 0x1,
