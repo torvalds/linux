@@ -1086,17 +1086,7 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 
 	pci_set_master(pci_dev);
 
-	/* Set the PCI DMA mask.  Try all possibilities from our
-	 * genuine mask down to 32 bits, because some architectures
-	 * (e.g. x86_64 with iommu_sac_force set) will allow 40 bit
-	 * masks event though they reject 46 bit masks.
-	 */
-	while (dma_mask > 0x7fffffffUL) {
-		rc = dma_set_mask_and_coherent(&pci_dev->dev, dma_mask);
-		if (rc == 0)
-			break;
-		dma_mask >>= 1;
-	}
+	rc = dma_set_mask_and_coherent(&pci_dev->dev, dma_mask);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "could not find a suitable DMA mask\n");
