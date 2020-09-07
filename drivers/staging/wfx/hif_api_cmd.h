@@ -378,14 +378,10 @@ struct hif_cnf_set_bss_params {
 	__le32 status;
 } __packed;
 
-struct hif_pm_mode {
+struct hif_req_set_pm_mode {
 	u8     enter_psm:1;
 	u8     reserved:6;
 	u8     fast_psm:1;
-} __packed;
-
-struct hif_req_set_pm_mode {
-	struct hif_pm_mode pm_mode;
 	u8     fast_psm_idle_period;
 	u8     ap_psm_change_period;
 	u8     min_auto_ps_poll_period;

@@ -439,11 +439,11 @@ int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
 	if (!hif)
 		return -ENOMEM;
 	if (ps) {
-		body->pm_mode.enter_psm = 1;
+		body->enter_psm = 1;
 		// Firmware does not support more than 128ms
 		body->fast_psm_idle_period = min(dynamic_ps_timeout * 2, 255);
 		if (body->fast_psm_idle_period)
-			body->pm_mode.fast_psm = 1;
+			body->fast_psm = 1;
 	}
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_SET_PM_MODE, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
