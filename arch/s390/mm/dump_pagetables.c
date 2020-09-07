@@ -129,7 +129,9 @@ static int ptdump_show(struct seq_file *m, void *v)
 		.marker = address_markers,
 	};
 
+	get_online_mems();
 	ptdump_walk_pgd(&st.ptdump, &init_mm, NULL);
+	put_online_mems();
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(ptdump);
