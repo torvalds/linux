@@ -547,19 +547,6 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&wdev->conf_mutex);
 
-	/* TODO: BSS_CHANGED_QOS */
-	if (changed & BSS_CHANGED_ARP_FILTER) {
-		for (i = 0; i < HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES; i++) {
-			__be32 *arp_addr = &info->arp_addr_list[i];
-
-			if (info->arp_addr_cnt > HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES)
-				arp_addr = NULL;
-			if (i >= info->arp_addr_cnt)
-				arp_addr = NULL;
-			hif_set_arp_ipv4_filter(wvif, i, arp_addr);
-		}
-	}
-
 	if (changed & BSS_CHANGED_BASIC_RATES ||
 	    changed & BSS_CHANGED_BEACON_INT ||
 	    changed & BSS_CHANGED_BSSID) {
@@ -567,12 +554,15 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			wfx_do_join(wvif);
 	}
 
-	if (changed & BSS_CHANGED_AP_PROBE_RESP ||
-	    changed & BSS_CHANGED_BEACON)
-		wfx_upload_ap_templates(wvif);
-
-	if (changed & BSS_CHANGED_BEACON_ENABLED)
-		wfx_enable_beacon(wvif, info->enable_beacon);
+	if (changed & BSS_CHANGED_ASSOC) {
+		if (info->assoc || info->ibss_joined)
+			wfx_join_finalize(wvif, info);
+		else if (!info->assoc && vif->type == NL80211_IFTYPE_STATION)
+			wfx_reset(wvif);
+		else
+			dev_warn(wdev->dev, "%s: misunderstood change: ASSOC\n",
+				 __func__);
+	}
 
 	if (changed & BSS_CHANGED_BEACON_INFO) {
 		if (vif->type != NL80211_IFTYPE_STATION)
@@ -585,15 +575,24 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_filter_beacon(wvif, true);
 	}
 
-	if (changed & BSS_CHANGED_ASSOC) {
-		if (info->assoc || info->ibss_joined)
-			wfx_join_finalize(wvif, info);
-		else if (!info->assoc && vif->type == NL80211_IFTYPE_STATION)
-			wfx_reset(wvif);
-		else
-			dev_warn(wdev->dev, "%s: misunderstood change: ASSOC\n",
-				 __func__);
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		for (i = 0; i < HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES; i++) {
+			__be32 *arp_addr = &info->arp_addr_list[i];
+
+			if (info->arp_addr_cnt > HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES)
+				arp_addr = NULL;
+			if (i >= info->arp_addr_cnt)
+				arp_addr = NULL;
+			hif_set_arp_ipv4_filter(wvif, i, arp_addr);
+		}
 	}
+
+	if (changed & BSS_CHANGED_AP_PROBE_RESP ||
+	    changed & BSS_CHANGED_BEACON)
+		wfx_upload_ap_templates(wvif);
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED)
+		wfx_enable_beacon(wvif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_KEEP_ALIVE)
 		hif_keep_alive_period(wvif, info->max_idle_period *
