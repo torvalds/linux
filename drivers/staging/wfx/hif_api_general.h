@@ -122,25 +122,6 @@ enum hif_fw_type {
 	HIF_FW_TYPE_WSM  = 0x2
 };
 
-struct hif_capabilities {
-	u8     link_mode:2;
-	u8     reserved1:6;
-	u8     reserved2;
-	u8     reserved3;
-	u8     reserved4;
-} __packed;
-
-struct hif_otp_regul_sel_mode_info {
-	u8     region_sel_mode:4;
-	u8     reserved:4;
-} __packed;
-
-struct hif_otp_phy_info {
-	u8     phy1_region:3;
-	u8     phy0_region:3;
-	u8     otp_phy_ver:2;
-} __packed;
-
 struct hif_ind_startup {
 	// As the others, this struct is interpreted as little endian by the
 	// device. However, this struct is also used by the driver. We prefer to
@@ -156,14 +137,21 @@ struct hif_ind_startup {
 	u8     mac_addr[2][ETH_ALEN];
 	u8     api_version_minor;
 	u8     api_version_major;
-	struct hif_capabilities capabilities;
+	u8     link_mode:2;
+	u8     reserved1:6;
+	u8     reserved2;
+	u8     reserved3;
+	u8     reserved4;
 	u8     firmware_build;
 	u8     firmware_minor;
 	u8     firmware_major;
 	u8     firmware_type;
 	u8     disabled_channel_list[2];
-	struct hif_otp_regul_sel_mode_info regul_sel_mode_info;
-	struct hif_otp_phy_info otp_phy_info;
+	u8     region_sel_mode:4;
+	u8     reserved5:4;
+	u8     phy1_region:3;
+	u8     phy0_region:3;
+	u8     otp_phy_ver:2;
 	u32    supported_rate_mask;
 	u8     firmware_label[128];
 } __packed;

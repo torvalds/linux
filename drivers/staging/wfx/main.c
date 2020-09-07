@@ -359,9 +359,8 @@ int wfx_probe(struct wfx_dev *wdev)
 	dev_info(wdev->dev, "started firmware %d.%d.%d \"%s\" (API: %d.%d, keyset: %02X, caps: 0x%.8X)\n",
 		 wdev->hw_caps.firmware_major, wdev->hw_caps.firmware_minor,
 		 wdev->hw_caps.firmware_build, wdev->hw_caps.firmware_label,
-		 wdev->hw_caps.api_version_major,
-		 wdev->hw_caps.api_version_minor,
-		 wdev->keyset, *((u32 *)&wdev->hw_caps.capabilities));
+		 wdev->hw_caps.api_version_major, wdev->hw_caps.api_version_minor,
+		 wdev->keyset, wdev->hw_caps.link_mode);
 	snprintf(wdev->hw->wiphy->fw_version,
 		 sizeof(wdev->hw->wiphy->fw_version),
 		 "%d.%d.%d",
@@ -377,13 +376,13 @@ int wfx_probe(struct wfx_dev *wdev)
 		goto err0;
 	}
 
-	if (wdev->hw_caps.capabilities.link_mode == SEC_LINK_ENFORCED) {
+	if (wdev->hw_caps.link_mode == SEC_LINK_ENFORCED) {
 		dev_err(wdev->dev,
 			"chip require secure_link, but can't negotiate it\n");
 		goto err0;
 	}
 
-	if (wdev->hw_caps.regul_sel_mode_info.region_sel_mode) {
+	if (wdev->hw_caps.region_sel_mode) {
 		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[11].flags |= IEEE80211_CHAN_NO_IR;
 		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[12].flags |= IEEE80211_CHAN_NO_IR;
 		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[13].flags |= IEEE80211_CHAN_DISABLED;
