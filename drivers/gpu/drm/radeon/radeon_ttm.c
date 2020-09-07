@@ -625,7 +625,7 @@ static int radeon_ttm_tt_populate(struct ttm_bo_device *bdev,
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP) {
-		return ttm_agp_tt_populate(bdev, ttm, ctx);
+		return ttm_pool_populate(ttm, ctx);
 	}
 #endif
 
@@ -655,7 +655,7 @@ static void radeon_ttm_tt_unpopulate(struct ttm_bo_device *bdev, struct ttm_tt *
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP) {
-		ttm_agp_tt_unpopulate(bdev, ttm);
+		ttm_pool_unpopulate(ttm);
 		return;
 	}
 #endif
