@@ -27,12 +27,6 @@
 #define ISPP_PACK_2SHORT(a, b) \
 	(((a) & 0xFFFF) << 0 | ((b) & 0xFFFF) << 16)
 
-#define ISPP_PARAM_UD_CK \
-	(ISPP_MODULE_TNR | \
-	 ISPP_MODULE_NR | \
-	 ISPP_MODULE_SHP | \
-	 ISPP_MODULE_ORB)
-
 #define ISPP_NOBIG_OVERFLOW_SIZE	(2560 * 1440)
 
 static inline size_t get_input_size(struct rkispp_params_vdev *params_vdev)
@@ -180,6 +174,16 @@ static void tnr_config(struct rkispp_params_vdev *params_vdev,
 static void tnr_enable(struct rkispp_params_vdev *params_vdev, bool en)
 {
 	rkispp_set_bits(params_vdev->dev, RKISPP_TNR_CORE_CTRL, SW_TNR_EN, en);
+}
+
+static bool is_tnr_enable(struct rkispp_params_vdev *params_vdev)
+{
+	u32 cur_en;
+
+	cur_en = rkispp_read(params_vdev->dev, RKISPP_TNR_CORE_CTRL);
+	cur_en &= SW_TNR_EN;
+
+	return (!!cur_en);
 }
 
 static void nr_config(struct rkispp_params_vdev *params_vdev,
@@ -332,6 +336,16 @@ static void nr_enable(struct rkispp_params_vdev *params_vdev, bool en,
 			SW_UVNR_BIG_EN | SW_NR_EN, val);
 }
 
+static bool is_nr_enable(struct rkispp_params_vdev *params_vdev)
+{
+	u32 cur_en;
+
+	cur_en = rkispp_read(params_vdev->dev, RKISPP_NR_UVNR_CTRL_PARA);
+	cur_en &= SW_NR_EN;
+
+	return (!!cur_en);
+}
+
 static void shp_config(struct rkispp_params_vdev *params_vdev,
 		       struct rkispp_sharp_config *arg)
 {
@@ -478,6 +492,16 @@ static void shp_enable(struct rkispp_params_vdev *params_vdev, bool en,
 			SW_SHP_EDGE_AVG_EN | SW_SHP_EN, val);
 }
 
+static bool is_shp_enable(struct rkispp_params_vdev *params_vdev)
+{
+	u32 cur_en;
+
+	cur_en = rkispp_read(params_vdev->dev, RKISPP_SHARP_CORE_CTRL);
+	cur_en &= SW_SHP_EN;
+
+	return (!!cur_en);
+}
+
 static void fec_config(struct rkispp_params_vdev *params_vdev,
 		       struct rkispp_fec_config *arg)
 {
@@ -524,6 +548,16 @@ static void fec_enable(struct rkispp_params_vdev *params_vdev, bool en)
 	rkispp_set_bits(params_vdev->dev, RKISPP_FEC_CORE_CTRL, SW_FEC_EN, en);
 }
 
+static bool is_fec_enable(struct rkispp_params_vdev *params_vdev)
+{
+	u32 cur_en;
+
+	cur_en = rkispp_read(params_vdev->dev, RKISPP_FEC_CORE_CTRL);
+	cur_en &= SW_FEC_EN;
+
+	return (!!cur_en);
+}
+
 static void orb_config(struct rkispp_params_vdev *params_vdev,
 		       struct rkispp_orb_config *arg)
 {
@@ -534,6 +568,16 @@ static void orb_config(struct rkispp_params_vdev *params_vdev,
 static void orb_enable(struct rkispp_params_vdev *params_vdev, bool en)
 {
 	rkispp_set_bits(params_vdev->dev, RKISPP_ORB_CORE_CTRL, SW_ORB_EN, en);
+}
+
+static bool is_orb_enable(struct rkispp_params_vdev *params_vdev)
+{
+	u32 cur_en;
+
+	cur_en = rkispp_read(params_vdev->dev, RKISPP_ORB_CORE_CTRL);
+	cur_en &= SW_ORB_EN;
+
+	return (!!cur_en);
 }
 
 static int rkispp_params_enum_fmt_meta_out(struct file *file, void *priv,
@@ -798,7 +842,8 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 {
 	struct rkispp_params_cfg *new_params = NULL;
 	u32 module_en_update, module_cfg_update;
-	u32 module_ens, module_init_ens;
+	u32 module_ens, module_cur_ens;
+	bool isr_sync;
 
 	spin_lock(&params_vdev->config_lock);
 	if (!params_vdev->streamon) {
@@ -819,77 +864,119 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 	}
 	new_params = (struct rkispp_params_cfg *)(params_vdev->cur_buf->vaddr[0]);
 
-	module_init_ens = new_params->module_init_ens;
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
-	module_ens = new_params->module_ens & module_init_ens;
+	module_ens = new_params->module_ens;
 
+	isr_sync = true;
+	if ((module_en_update & ISPP_MODULE_TNR) &&
+	    (module_ens & ISPP_MODULE_TNR) &&
+	    !is_tnr_enable(params_vdev))
+		isr_sync = false;
 	if (module_cfg_update & ISPP_MODULE_TNR &&
-	    mis & TNR_INT) {
+	    (mis & TNR_INT || !isr_sync)) {
 		tnr_config(params_vdev,
 			   &new_params->tnr_cfg);
 		module_cfg_update &= ~ISPP_MODULE_TNR;
 	}
 	if (module_en_update & ISPP_MODULE_TNR &&
-	    mis & TNR_INT) {
+	    (mis & TNR_INT || !isr_sync)) {
 		tnr_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_TNR));
 		module_en_update &= ~ISPP_MODULE_TNR;
 	}
 
+	isr_sync = true;
+	if ((module_en_update & ISPP_MODULE_NR) &&
+	    (module_ens & ISPP_MODULE_NR) &&
+	    !is_nr_enable(params_vdev))
+		isr_sync = false;
 	if (module_cfg_update & ISPP_MODULE_NR &&
-	    mis & NR_INT) {
+	    (mis & NR_INT || !isr_sync)) {
 		nr_config(params_vdev,
 			  &new_params->nr_cfg);
 		module_cfg_update &= ~ISPP_MODULE_NR;
 	}
 	if (module_en_update & ISPP_MODULE_NR &&
-	    mis & NR_INT) {
+	    (mis & NR_INT || !isr_sync)) {
 		nr_enable(params_vdev,
 			  !!(module_ens & ISPP_MODULE_NR),
 			  &new_params->nr_cfg);
 		module_en_update &= ~ISPP_MODULE_NR;
 	}
 
+	isr_sync = true;
+	if ((module_en_update & ISPP_MODULE_SHP) &&
+	    (module_ens & ISPP_MODULE_SHP) &&
+	    !is_shp_enable(params_vdev))
+		isr_sync = false;
 	if (module_cfg_update & ISPP_MODULE_SHP &&
-	    mis & SHP_INT) {
+	    (mis & SHP_INT || !isr_sync)) {
 		shp_config(params_vdev,
 			   &new_params->shp_cfg);
 		module_cfg_update &= ~ISPP_MODULE_SHP;
 	}
 	if (module_en_update & ISPP_MODULE_SHP &&
-	    mis & SHP_INT) {
+	    (mis & SHP_INT || !isr_sync)) {
 		shp_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_SHP),
 			   &new_params->shp_cfg);
 		module_en_update &= ~ISPP_MODULE_SHP;
 	}
 
+	isr_sync = true;
+	if ((module_en_update & ISPP_MODULE_ORB) &&
+	    (module_ens & ISPP_MODULE_ORB) &&
+	    !is_orb_enable(params_vdev))
+		isr_sync = false;
 	if (module_cfg_update & ISPP_MODULE_ORB &&
-	    mis & ORB_INT) {
+	    (mis & ORB_INT || !isr_sync)) {
 		orb_config(params_vdev,
 			   &new_params->orb_cfg);
 		module_cfg_update &= ~ISPP_MODULE_ORB;
 	}
 	if (module_en_update & ISPP_MODULE_ORB &&
-	    mis & ORB_INT) {
+	    (mis & ORB_INT || !isr_sync)) {
 		orb_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_ORB));
 		module_en_update &= ~ISPP_MODULE_ORB;
 	}
 
+	isr_sync = true;
+	if ((module_en_update & ISPP_MODULE_FEC) &&
+	    (module_ens & ISPP_MODULE_FEC) &&
+	    !is_fec_enable(params_vdev))
+		isr_sync = false;
 	if (module_cfg_update & ISPP_MODULE_FEC &&
-	    mis & FEC_INT) {
+	    (mis & FEC_INT || !isr_sync)) {
 		fec_config(params_vdev,
 			   &new_params->fec_cfg);
 		module_cfg_update &= ~ISPP_MODULE_FEC;
+	}
+	if (module_en_update & ISPP_MODULE_FEC &&
+	    (mis & FEC_INT || !isr_sync)) {
+		fec_enable(params_vdev,
+			   !!(module_ens & ISPP_MODULE_FEC));
+		module_en_update &= ~ISPP_MODULE_FEC;
 	}
 
 	new_params->module_en_update = module_en_update;
 	new_params->module_cfg_update = module_cfg_update;
 
-	if (!(module_en_update & ISPP_PARAM_UD_CK) &&
-	    !(module_cfg_update & (ISPP_PARAM_UD_CK | ISPP_MODULE_FEC))) {
+	module_cur_ens = 0;
+	if (is_tnr_enable(params_vdev))
+		module_cur_ens |= ISPP_MODULE_TNR;
+	if (is_nr_enable(params_vdev))
+		module_cur_ens |= ISPP_MODULE_NR;
+	if (is_shp_enable(params_vdev))
+		module_cur_ens |= ISPP_MODULE_SHP;
+	if (is_orb_enable(params_vdev))
+		module_cur_ens |= ISPP_MODULE_ORB;
+	if (is_fec_enable(params_vdev))
+		module_cur_ens |= ISPP_MODULE_FEC;
+
+	if (!(module_en_update & module_cur_ens) &&
+	    !(module_cfg_update & module_cur_ens)) {
 		vb2_buffer_done(&params_vdev->cur_buf->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 		params_vdev->cur_buf = NULL;
