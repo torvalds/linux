@@ -15,10 +15,10 @@
 #include "blk-cgroup-rwstat.h"
 
 /* Max dispatch from a group in 1 round */
-static int throtl_grp_quantum = 8;
+#define THROTL_GRP_QUANTUM 8
 
 /* Total max dispatch from all groups in one round */
-static int throtl_quantum = 32;
+#define THROTL_QUANTUM 32
 
 /* Throttling is performed over a slice and after that slice is renewed */
 #define DFL_THROTL_SLICE_HD (HZ / 10)
@@ -1175,8 +1175,8 @@ static int throtl_dispatch_tg(struct throtl_grp *tg)
 {
 	struct throtl_service_queue *sq = &tg->service_queue;
 	unsigned int nr_reads = 0, nr_writes = 0;
-	unsigned int max_nr_reads = throtl_grp_quantum*3/4;
-	unsigned int max_nr_writes = throtl_grp_quantum - max_nr_reads;
+	unsigned int max_nr_reads = THROTL_GRP_QUANTUM * 3 / 4;
+	unsigned int max_nr_writes = THROTL_GRP_QUANTUM - max_nr_reads;
 	struct bio *bio;
 
 	/* Try to dispatch 75% READS and 25% WRITES */
@@ -1226,7 +1226,7 @@ static int throtl_select_dispatch(struct throtl_service_queue *parent_sq)
 		if (sq->nr_queued[0] || sq->nr_queued[1])
 			tg_update_disptime(tg);
 
-		if (nr_disp >= throtl_quantum)
+		if (nr_disp >= THROTL_QUANTUM)
 			break;
 	}
 
