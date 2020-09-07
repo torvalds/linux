@@ -1858,7 +1858,7 @@ int ocrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	return status;
 }
 
-void ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+int ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct ocrdma_srq *srq;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibsrq->device);
@@ -1873,6 +1873,7 @@ void ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 
 	kfree(srq->idx_bit_fields);
 	kfree(srq->rqe_wr_id_tbl);
+	return 0;
 }
 
 /* unprivileged verbs and their support functions. */

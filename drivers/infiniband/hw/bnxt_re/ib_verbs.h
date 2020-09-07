@@ -176,7 +176,7 @@ int bnxt_re_modify_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr,
 		       enum ib_srq_attr_mask srq_attr_mask,
 		       struct ib_udata *udata);
 int bnxt_re_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
-void bnxt_re_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
+int bnxt_re_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
 int bnxt_re_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *recv_wr,
 			  const struct ib_recv_wr **bad_recv_wr);
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *pd,

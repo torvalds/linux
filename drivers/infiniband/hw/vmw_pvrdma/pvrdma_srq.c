@@ -240,7 +240,7 @@ static void pvrdma_free_srq(struct pvrdma_dev *dev, struct pvrdma_srq *srq)
  *
  * @return: 0 for success.
  */
-void pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
+int pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
 	struct pvrdma_srq *vsrq = to_vsrq(srq);
 	union pvrdma_cmd_req req;
@@ -259,6 +259,7 @@ void pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 			 ret);
 
 	pvrdma_free_srq(dev, vsrq);
+	return 0;
 }
 
 /**

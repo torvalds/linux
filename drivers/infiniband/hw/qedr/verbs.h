@@ -67,7 +67,7 @@ int qedr_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *attr,
 int qedr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int qedr_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
-void qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
+int qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_recv_wr);
 int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,

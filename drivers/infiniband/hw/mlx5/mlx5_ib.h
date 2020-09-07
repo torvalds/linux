@@ -1128,7 +1128,7 @@ int mlx5_ib_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *init_attr,
 int mlx5_ib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		       enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr);
-void mlx5_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
+int mlx5_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
 int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);
 int mlx5_ib_enable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);

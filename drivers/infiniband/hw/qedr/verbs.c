@@ -1592,7 +1592,7 @@ err0:
 	return -EFAULT;
 }
 
-void qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+int qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct qed_rdma_destroy_srq_in_params in_params = {};
 	struct qedr_dev *dev = get_qedr_dev(ibsrq->device);
@@ -1610,6 +1610,7 @@ void qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	DP_DEBUG(dev, QEDR_MSG_SRQ,
 		 "destroy srq: destroyed srq with srq_id=0x%0x\n",
 		 srq->srq_id);
+	return 0;
 }
 
 int qedr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,

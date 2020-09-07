@@ -1224,7 +1224,7 @@ int hns_roce_create_srq(struct ib_srq *srq,
 int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
 			enum ib_srq_attr_mask srq_attr_mask,
 			struct ib_udata *udata);
-void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
+int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 
 struct ib_qp *hns_roce_create_qp(struct ib_pd *ib_pd,
 				 struct ib_qp_init_attr *init_attr,

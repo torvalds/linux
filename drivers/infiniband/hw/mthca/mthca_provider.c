@@ -442,7 +442,7 @@ static int mthca_create_srq(struct ib_srq *ibsrq,
 	return 0;
 }
 
-static void mthca_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
+static int mthca_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
 	if (udata) {
 		struct mthca_ucontext *context =
@@ -456,6 +456,7 @@ static void mthca_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 	}
 
 	mthca_free_srq(to_mdev(srq->device), to_msrq(srq));
+	return 0;
 }
 
 static struct ib_qp *mthca_create_qp(struct ib_pd *pd,

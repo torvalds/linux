@@ -260,7 +260,7 @@ int mlx4_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	return 0;
 }
 
-void mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
+int mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(srq->device);
 	struct mlx4_ib_srq *msrq = to_msrq(srq);
@@ -282,6 +282,7 @@ void mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 		mlx4_db_free(dev->dev, &msrq->db);
 	}
 	ib_umem_release(msrq->umem);
+	return 0;
 }
 
 void mlx4_ib_free_srq_wqe(struct mlx4_ib_srq *srq, int wqe_index)

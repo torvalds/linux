@@ -1068,10 +1068,14 @@ EXPORT_SYMBOL(ib_query_srq);
 
 int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata)
 {
+	int ret;
+
 	if (atomic_read(&srq->usecnt))
 		return -EBUSY;
 
-	srq->device->ops.destroy_srq(srq, udata);
+	ret = srq->device->ops.destroy_srq(srq, udata);
+	if (ret)
+		return ret;
 
 	atomic_dec(&srq->pd->usecnt);
 	if (srq->srq_type == IB_SRQT_XRC)
@@ -1080,7 +1084,7 @@ int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata)
 		atomic_dec(&srq->ext.cq->usecnt);
 	kfree(srq);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(ib_destroy_srq_user);
 

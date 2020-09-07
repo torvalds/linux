@@ -78,7 +78,7 @@ int siw_create_srq(struct ib_srq *base_srq, struct ib_srq_init_attr *attr,
 int siw_modify_srq(struct ib_srq *base_srq, struct ib_srq_attr *attr,
 		   enum ib_srq_attr_mask mask, struct ib_udata *udata);
 int siw_query_srq(struct ib_srq *base_srq, struct ib_srq_attr *attr);
-void siw_destroy_srq(struct ib_srq *base_srq, struct ib_udata *udata);
+int siw_destroy_srq(struct ib_srq *base_srq, struct ib_udata *udata);
 int siw_post_srq_recv(struct ib_srq *base_srq, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr);
 int siw_mmap(struct ib_ucontext *ctx, struct vm_area_struct *vma);

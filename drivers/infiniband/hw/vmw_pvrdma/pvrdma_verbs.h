@@ -423,7 +423,7 @@ int pvrdma_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *init_attr,
 int pvrdma_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		      enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int pvrdma_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
-void pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
+int pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
 
 struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			       struct ib_qp_init_attr *init_attr,
