@@ -641,7 +641,6 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
-	evict_mem.bus.base = 0;
 	evict_mem.bus.offset = 0;
 	evict_mem.bus.addr = NULL;
 
@@ -1076,7 +1075,6 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	mem.num_pages = bo->num_pages;
 	mem.size = mem.num_pages << PAGE_SHIFT;
 	mem.page_alignment = bo->mem.page_alignment;
-	mem.bus.base = 0;
 	mem.bus.offset = 0;
 	mem.bus.addr = NULL;
 	mem.mm_node = NULL;
@@ -1235,7 +1233,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	bo->mem.num_pages = bo->num_pages;
 	bo->mem.mm_node = NULL;
 	bo->mem.page_alignment = page_alignment;
-	bo->mem.bus.base = 0;
 	bo->mem.bus.offset = 0;
 	bo->mem.bus.addr = NULL;
 	bo->moving = NULL;

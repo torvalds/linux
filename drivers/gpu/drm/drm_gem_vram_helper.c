@@ -1042,8 +1042,7 @@ static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
 	case TTM_PL_SYSTEM:	/* nothing to do */
 		break;
 	case TTM_PL_VRAM:
-		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = vmm->vram_base;
+		mem->bus.offset = (mem->start << PAGE_SHIFT) + vmm->vram_base;
 		mem->bus.is_iomem = true;
 		break;
 	default:

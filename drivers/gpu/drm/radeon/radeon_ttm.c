@@ -372,8 +372,8 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 #if IS_ENABLED(CONFIG_AGP)
 		if (rdev->flags & RADEON_IS_AGP) {
 			/* RADEON_IS_AGP is set only if AGP is active */
-			mem->bus.offset = mem->start << PAGE_SHIFT;
-			mem->bus.base = rdev->mc.agp_base;
+			mem->bus.offset = (mem->start << PAGE_SHIFT) +
+				rdev->mc.agp_base;
 			mem->bus.is_iomem = !rdev->ddev->agp->cant_use_aperture;
 		}
 #endif
@@ -383,7 +383,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 		/* check if it's visible */
 		if ((mem->bus.offset + bus_size) > rdev->mc.visible_vram_size)
 			return -EINVAL;
-		mem->bus.base = rdev->mc.aper_base;
+		mem->bus.offset += rdev->mc.aper_base;
 		mem->bus.is_iomem = true;
 #ifdef __alpha__
 		/*
@@ -392,12 +392,10 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 		 */
 		if (mem->placement & TTM_PL_FLAG_WC)
 			mem->bus.addr =
-				ioremap_wc(mem->bus.base + mem->bus.offset,
-					   bus_size);
+				ioremap_wc(mem->bus.offset, bus_size);
 		else
 			mem->bus.addr =
-				ioremap(mem->bus.base + mem->bus.offset,
-					bus_size);
+				ioremap(mem->bus.offset, bus_size);
 		if (!mem->bus.addr)
 			return -ENOMEM;
 
@@ -407,7 +405,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 		 * It then can be used to build PTEs for VRAM
 		 * access, as done in ttm_bo_vm_fault().
 		 */
-		mem->bus.base = (mem->bus.base & 0x0ffffffffUL) +
+		mem->bus.offset = (mem->bus.offset & 0x0ffffffffUL) +
 			rdev->ddev->hose->dense_mem_base;
 #endif
 		break;

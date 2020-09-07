@@ -94,7 +94,7 @@ EXPORT_SYMBOL(ttm_bo_move_ttm);
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_resource *mem)
 {
-	if (mem->bus.base || mem->bus.offset || mem->bus.addr)
+	if (mem->bus.offset || mem->bus.addr)
 		return 0;
 
 	mem->bus.is_iomem = false;
@@ -107,13 +107,12 @@ int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 void ttm_mem_io_free(struct ttm_bo_device *bdev,
 		     struct ttm_resource *mem)
 {
-	if (!mem->bus.base && !mem->bus.offset && !mem->bus.addr)
+	if (!mem->bus.offset && !mem->bus.addr)
 		return;
 
 	if (bdev->driver->io_mem_free)
 		bdev->driver->io_mem_free(bdev, mem);
 
-	mem->bus.base = 0;
 	mem->bus.offset = 0;
 	mem->bus.addr = NULL;
 }
@@ -136,11 +135,9 @@ static int ttm_resource_ioremap(struct ttm_bo_device *bdev,
 		size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
 
 		if (mem->placement & TTM_PL_FLAG_WC)
-			addr = ioremap_wc(mem->bus.base + mem->bus.offset,
-					  bus_size);
+			addr = ioremap_wc(mem->bus.offset, bus_size);
 		else
-			addr = ioremap(mem->bus.base + mem->bus.offset,
-				       bus_size);
+			addr = ioremap(mem->bus.offset, bus_size);
 		if (!addr) {
 			ttm_mem_io_free(bdev, mem);
 			return -ENOMEM;
@@ -427,12 +424,10 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 	} else {
 		map->bo_kmap_type = ttm_bo_map_iomap;
 		if (mem->placement & TTM_PL_FLAG_WC)
-			map->virtual = ioremap_wc(bo->mem.bus.base +
-						  bo->mem.bus.offset + offset,
+			map->virtual = ioremap_wc(bo->mem.bus.offset + offset,
 						  size);
 		else
-			map->virtual = ioremap(bo->mem.bus.base +
-					       bo->mem.bus.offset + offset,
+			map->virtual = ioremap(bo->mem.bus.offset + offset,
 					       size);
 	}
 	return (!map->virtual) ? -ENOMEM : 0;

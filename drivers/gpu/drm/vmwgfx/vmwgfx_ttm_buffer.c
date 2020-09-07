@@ -725,8 +725,8 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resourc
 	case VMW_PL_MOB:
 		return 0;
 	case TTM_PL_VRAM:
-		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = dev_priv->vram_start;
+		mem->bus.offset = (mem->start << PAGE_SHIFT) +
+			dev_priv->vram_start;
 		mem->bus.is_iomem = true;
 		break;
 	default:

@@ -148,16 +148,14 @@ struct ttm_resource_manager {
  * struct ttm_bus_placement
  *
  * @addr:		mapped virtual address
- * @base:		bus base address
+ * @offset:		physical addr
  * @is_iomem:		is this io memory ?
- * @offset:		offset from the base address
  *
  * Structure indicating the bus placement of an object.
  */
 struct ttm_bus_placement {
 	void		*addr;
-	phys_addr_t	base;
-	unsigned long	offset;
+	phys_addr_t	offset;
 	bool		is_iomem;
 };
 

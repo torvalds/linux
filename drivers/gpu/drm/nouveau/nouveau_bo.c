@@ -1081,8 +1081,8 @@ retry:
 	case TTM_PL_TT:
 #if IS_ENABLED(CONFIG_AGP)
 		if (drm->agp.bridge) {
-			reg->bus.offset = reg->start << PAGE_SHIFT;
-			reg->bus.base = drm->agp.base;
+			reg->bus.offset = (reg->start << PAGE_SHIFT) +
+				drm->agp.base;
 			reg->bus.is_iomem = !drm->agp.cma;
 		}
 #endif
@@ -1094,8 +1094,8 @@ retry:
 		}
 		fallthrough;	/* tiled memory */
 	case TTM_PL_VRAM:
-		reg->bus.offset = reg->start << PAGE_SHIFT;
-		reg->bus.base = device->func->resource_addr(device, 1);
+		reg->bus.offset = (reg->start << PAGE_SHIFT) +
+			device->func->resource_addr(device, 1);
 		reg->bus.is_iomem = true;
 		if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
 			union {
@@ -1133,7 +1133,6 @@ retry:
 				goto out;
 			}
 
-			reg->bus.base = 0;
 			reg->bus.offset = handle;
 			ret = 0;
 		}

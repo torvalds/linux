@@ -101,8 +101,7 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
 	if (bdev->driver->io_mem_pfn)
 		return bdev->driver->io_mem_pfn(bo, page_offset);
 
-	return ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT)
-		+ page_offset;
+	return (bo->mem.bus.offset >> PAGE_SHIFT) + page_offset;
 }
 
 /**
