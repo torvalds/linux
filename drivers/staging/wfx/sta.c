@@ -499,8 +499,23 @@ static void wfx_join(struct wfx_vif *wvif)
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
+	struct ieee80211_sta *sta = NULL;
+	int ampdu_density = 0;
+	bool greenfield = false;
+
+	rcu_read_lock(); // protect sta
+	if (info->bssid && !info->ibss_joined)
+		sta = ieee80211_find_sta(wvif->vif, info->bssid);
+	if (sta && sta->ht_cap.ht_supported)
+		ampdu_density = sta->ht_cap.ampdu_density;
+	if (sta && sta->ht_cap.ht_supported &&
+	    !(info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT))
+		greenfield = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
+	rcu_read_unlock();
+
 	wvif->join_in_progress = false;
-	hif_set_association_mode(wvif, info);
+	hif_set_association_mode(wvif, ampdu_density, greenfield,
+				 info->use_short_preamble);
 	hif_keep_alive_period(wvif, 0);
 	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
 	// the same value.
