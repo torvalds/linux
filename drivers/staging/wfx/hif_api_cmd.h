@@ -8,6 +8,8 @@
 #ifndef WFX_HIF_API_CMD_H
 #define WFX_HIF_API_CMD_H
 
+#include <linux/ieee80211.h>
+
 #include "hif_api_general.h"
 
 #define HIF_API_SSID_SIZE                      API_SSID_SIZE
@@ -93,12 +95,6 @@ struct hif_cnf_write_mib {
 	__le32 status;
 } __packed;
 
-struct hif_ie_tlv {
-	u8     type;
-	u8     length;
-	u8     data[];
-} __packed;
-
 struct hif_req_update_ie {
 	u8     beacon:1;
 	u8     probe_resp:1;
@@ -106,7 +102,7 @@ struct hif_req_update_ie {
 	u8     reserved1:5;
 	u8     reserved2;
 	__le16 num_ies;
-	struct hif_ie_tlv ie[];
+	struct element ie[];
 } __packed;
 
 struct hif_cnf_update_ie {
