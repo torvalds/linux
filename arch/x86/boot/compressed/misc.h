@@ -37,6 +37,9 @@
 #define memptr unsigned
 #endif
 
+/* boot/compressed/vmlinux start and end markers */
+extern char _head[], _end[];
+
 /* misc.c */
 extern memptr free_mem_ptr;
 extern memptr free_mem_end_ptr;
@@ -145,5 +148,8 @@ extern pteval_t __default_kernel_pte_mask;
 /* idt_64.c */
 extern gate_desc boot_idt[BOOT_IDT_ENTRIES];
 extern struct desc_ptr boot_idt_desc;
+
+/* IDT Entry Points */
+void boot_page_fault(void);
 
 #endif /* BOOT_COMPRESSED_MISC_H */
