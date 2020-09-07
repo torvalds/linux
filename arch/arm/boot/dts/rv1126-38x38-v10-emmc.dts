@@ -475,3 +475,8 @@
 	status = "okay";
 	vmmc-supply = <&vcc_sd>;
 };
+
+&soc_crit {
+	/* millicelsius */
+	temperature = <125000>;
+};
