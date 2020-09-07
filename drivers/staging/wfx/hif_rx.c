@@ -47,12 +47,7 @@ static int hif_generic_confirm(struct wfx_dev *wdev,
 	}
 	wdev->hif_cmd.ret = status;
 
-	if (!wdev->hif_cmd.async) {
-		complete(&wdev->hif_cmd.done);
-	} else {
-		wdev->hif_cmd.buf_send = NULL;
-		mutex_unlock(&wdev->hif_cmd.lock);
-	}
+	complete(&wdev->hif_cmd.done);
 	return status;
 }
 

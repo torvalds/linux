@@ -47,15 +47,13 @@ static void *wfx_alloc_hif(size_t body_len, struct hif_msg **hif)
 }
 
 int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
-		 void *reply, size_t reply_len, bool async)
+		 void *reply, size_t reply_len, bool no_reply)
 {
 	const char *mib_name = "";
 	const char *mib_sep = "";
 	int cmd = request->id;
 	int vif = request->interface;
 	int ret;
-
-	WARN(wdev->hif_cmd.buf_recv && wdev->hif_cmd.async, "API usage error");
 
 	// Do not wait for any reply if chip is frozen
 	if (wdev->chip_frozen)
@@ -69,14 +67,18 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 	wdev->hif_cmd.buf_send = request;
 	wdev->hif_cmd.buf_recv = reply;
 	wdev->hif_cmd.len_recv = reply_len;
-	wdev->hif_cmd.async = async;
 	complete(&wdev->hif_cmd.ready);
 
 	wfx_bh_request_tx(wdev);
 
-	// NOTE: no timeout is caught async is enabled
-	if (async)
+	if (no_reply) {
+		// Chip won't reply. Give enough time to the wq to send the
+		// buffer.
+		msleep(100);
+		wdev->hif_cmd.buf_send = NULL;
+		mutex_unlock(&wdev->hif_cmd.lock);
 		return 0;
+	}
 
 	if (wdev->poll_irq)
 		wfx_bh_poll_irq(wdev);
@@ -118,29 +120,21 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 }
 
 // This function is special. After HIF_REQ_ID_SHUT_DOWN, chip won't reply to any
-// request anymore. We need to slightly hack struct wfx_hif_cmd for that job. Be
-// careful to only call this function during device unregister.
+// request anymore. Obviously, only call this function during device unregister.
 int hif_shutdown(struct wfx_dev *wdev)
 {
 	int ret;
 	struct hif_msg *hif;
 
-	if (wdev->chip_frozen)
-		return 0;
 	wfx_alloc_hif(0, &hif);
 	if (!hif)
 		return -ENOMEM;
 	wfx_fill_header(hif, -1, HIF_REQ_ID_SHUT_DOWN, 0);
 	ret = wfx_cmd_send(wdev, hif, NULL, 0, true);
-	// After this command, chip won't reply. Be sure to give enough time to
-	// bh to send buffer:
-	msleep(100);
-	wdev->hif_cmd.buf_send = NULL;
 	if (wdev->pdata.gpio_wakeup)
 		gpiod_set_value(wdev->pdata.gpio_wakeup, 0);
 	else
 		control_reg_write(wdev, 0);
-	mutex_unlock(&wdev->hif_cmd.lock);
 	kfree(hif);
 	return ret;
 }

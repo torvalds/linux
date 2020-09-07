@@ -22,7 +22,6 @@ struct wfx_hif_cmd {
 	struct mutex      lock;
 	struct completion ready;
 	struct completion done;
-	bool              async;
 	struct hif_msg    *buf_send;
 	void              *buf_recv;
 	size_t            len_recv;
