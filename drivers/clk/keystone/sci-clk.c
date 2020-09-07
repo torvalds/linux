@@ -221,7 +221,8 @@ static int sci_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct sci_clk *clk = to_sci_clk(hw);
 
 	return clk->provider->ops->set_freq(clk->provider->sci, clk->dev_id,
-					    clk->clk_id, rate, rate, rate);
+					    clk->clk_id, rate / 10 * 9, rate,
+					    rate / 10 * 11);
 }
 
 /**
