@@ -83,101 +83,101 @@
 };
 
 &pmic {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pmic>;
-		interrupt-parent = <&gpio6>;
-		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pmic>;
+	interrupt-parent = <&gpio6>;
+	interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
 
-		regulators {
-			reg_vddcore: sw1ab {
-				regulator-min-microvolt = <300000>;
-				regulator-max-microvolt = <1875000>;
-				regulator-always-on;
-			};
-
-			reg_vddsoc: sw1c {
-				regulator-min-microvolt = <300000>;
-				regulator-max-microvolt = <1875000>;
-				regulator-always-on;
-			};
-
-			reg_gen_3v3: sw2 {
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			reg_ddr_1v5a: sw3a {
-				regulator-min-microvolt = <400000>;
-				regulator-max-microvolt = <1975000>;
-				regulator-always-on;
-			};
-
-			reg_ddr_1v5b: sw3b {
-				regulator-min-microvolt = <400000>;
-				regulator-max-microvolt = <1975000>;
-				regulator-always-on;
-			};
-
-			sw4_reg: sw4 {
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			reg_5v_600mA: swbst {
-				regulator-min-microvolt = <5000000>;
-				regulator-max-microvolt = <5150000>;
-				regulator-always-on;
-			};
-
-			reg_snvs_3v: vsnvs {
-				regulator-min-microvolt = <1500000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-always-on;
-			};
-
-			reg_vrefddr: vrefddr {
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			reg_vgen1_1v5: vgen1 {
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1550000>;
-				/* not used */
-			};
-
-			reg_vgen2_1v2_eth: vgen2 {
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1550000>;
-				regulator-always-on;
-			};
-
-			reg_vgen3_2v8: vgen3 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			reg_vgen4_1v8: vgen4 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			reg_vgen5_1v8_eth: vgen5 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			reg_vgen6_3v3: vgen6 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
+	regulators {
+		reg_vddcore: sw1ab {
+			regulator-min-microvolt = <300000>;
+			regulator-max-microvolt = <1875000>;
+			regulator-always-on;
 		};
+
+		reg_vddsoc: sw1c {
+			regulator-min-microvolt = <300000>;
+			regulator-max-microvolt = <1875000>;
+			regulator-always-on;
+		};
+
+		reg_gen_3v3: sw2 {
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_ddr_1v5a: sw3a {
+			regulator-min-microvolt = <400000>;
+			regulator-max-microvolt = <1975000>;
+			regulator-always-on;
+		};
+
+		reg_ddr_1v5b: sw3b {
+			regulator-min-microvolt = <400000>;
+			regulator-max-microvolt = <1975000>;
+			regulator-always-on;
+		};
+
+		sw4_reg: sw4 {
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_5v_600mA: swbst {
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5150000>;
+			regulator-always-on;
+		};
+
+		reg_snvs_3v: vsnvs {
+			regulator-min-microvolt = <1500000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-always-on;
+		};
+
+		reg_vrefddr: vrefddr {
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		reg_vgen1_1v5: vgen1 {
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1550000>;
+			/* not used */
+		};
+
+		reg_vgen2_1v2_eth: vgen2 {
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1550000>;
+			regulator-always-on;
+		};
+
+		reg_vgen3_2v8: vgen3 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_vgen4_1v8: vgen4 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_vgen5_1v8_eth: vgen5 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_vgen6_3v3: vgen6 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+	};
 };
 
 /* eMMC */
