@@ -942,7 +942,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	bo_va->flags &= ~RADEON_VM_PAGE_VALID;
 	bo_va->flags &= ~RADEON_VM_PAGE_SYSTEM;
 	bo_va->flags &= ~RADEON_VM_PAGE_SNOOPED;
-	if (bo_va->bo && radeon_ttm_tt_is_readonly(bo_va->bo->tbo.ttm))
+	if (bo_va->bo && radeon_ttm_tt_is_readonly(rdev, bo_va->bo->tbo.ttm))
 		bo_va->flags &= ~RADEON_VM_PAGE_WRITEABLE;
 
 	if (mem) {

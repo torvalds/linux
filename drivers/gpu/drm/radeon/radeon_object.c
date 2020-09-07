@@ -331,7 +331,7 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 	struct ttm_operation_ctx ctx = { false, false };
 	int r, i;
 
-	if (radeon_ttm_tt_has_userptr(bo->tbo.ttm))
+	if (radeon_ttm_tt_has_userptr(bo->rdev, bo->tbo.ttm))
 		return -EPERM;
 
 	if (bo->pin_count) {

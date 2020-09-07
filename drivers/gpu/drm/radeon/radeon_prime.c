@@ -121,7 +121,7 @@ struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
 					int flags)
 {
 	struct radeon_bo *bo = gem_to_radeon_bo(gobj);
-	if (radeon_ttm_tt_has_userptr(bo->tbo.ttm))
+	if (radeon_ttm_tt_has_userptr(bo->rdev, bo->tbo.ttm))
 		return ERR_PTR(-EPERM);
 	return drm_gem_prime_export(gobj, flags);
 }
