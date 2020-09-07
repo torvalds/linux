@@ -43,7 +43,7 @@
 		compatible = "samsung,s3c2410-pwm";
 		reg = <0x51000000 0x1000>;
 		interrupts = <0 0 10 3>, <0 0 11 3>, <0 0 12 3>, <0 0 13 3>, <0 0 14 3>;
-		#pwm-cells = <4>;
+		#pwm-cells = <3>;
 	};
 
 	uart0: serial@50000000 {
