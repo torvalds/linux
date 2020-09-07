@@ -82,14 +82,6 @@ struct hif_mib_gl_set_multi_msg {
 	u8     reserved2[3];
 } __packed;
 
-struct hif_mib_set_data_filtering {
-	u8     invert_matching:1;
-	u8     reserved1:7;
-	u8     enable:1;
-	u8     reserved2:7;
-	u8     reserved3[2];
-} __packed;
-
 enum hif_arp_ns_frame_treatment {
 	HIF_ARP_NS_FILTERING_DISABLE = 0x0,
 	HIF_ARP_NS_FILTERING_ENABLE  = 0x1,

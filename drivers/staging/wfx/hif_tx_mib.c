@@ -228,17 +228,6 @@ int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
 	return ret;
 }
 
-int hif_set_data_filtering(struct wfx_vif *wvif, bool enable, bool invert)
-{
-	struct hif_mib_set_data_filtering val = {
-		.enable = enable,
-		.invert_matching = invert,
-	};
-
-	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_SET_DATA_FILTERING, &val, sizeof(val));
-}
-
 int hif_keep_alive_period(struct wfx_vif *wvif, int period)
 {
 	struct hif_mib_keep_alive_period arg = {

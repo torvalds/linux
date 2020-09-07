@@ -120,8 +120,6 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 			filter_beacon = true;
 		wfx_filter_beacon(wvif, filter_beacon);
 
-		hif_set_data_filtering(wvif, false, true);
-
 		if (*total_flags & FIF_OTHER_BSS)
 			filter_bssid = false;
 		else
