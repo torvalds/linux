@@ -440,11 +440,6 @@ struct hif_cnf_start {
 	__le32 status;
 } __packed;
 
-enum hif_beacon {
-	HIF_BEACON_STOP                       = 0x0,
-	HIF_BEACON_START                      = 0x1
-};
-
 struct hif_req_beacon_transmit {
 	u8     enable_beaconing;
 	u8     reserved[3];
