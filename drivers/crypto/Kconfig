@@ -873,6 +873,7 @@ config CRYPTO_DEV_SA2UL
 	select CRYPTO_AES
 	select CRYPTO_AES_ARM64
 	select CRYPTO_ALGAPI
+	select CRYPTO_AUTHENC
 	select HW_RANDOM
 	select SG_SPLIT
 	help
