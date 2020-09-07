@@ -548,15 +548,13 @@ enum hif_ps_mode_error {
 	HIF_PS_ERROR_AP_NO_DATA_AFTER_TIM          = 4
 };
 
-union hif_event_data {
-	u8     rcpi_rssi;
-	__le32 ps_mode_error;
-	__le32 peer_sta_set;
-};
-
 struct hif_ind_event {
 	__le32 event_id;
-	union hif_event_data event_data;
+	union {
+		u8     rcpi_rssi;
+		__le32 ps_mode_error;
+		__le32 peer_sta_set;
+	} event_data;
 } __packed;
 
 
