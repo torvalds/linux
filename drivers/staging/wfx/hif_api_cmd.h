@@ -446,16 +446,12 @@ struct hif_cnf_map_link {
 	__le32 status;
 } __packed;
 
-struct hif_suspend_resume_flags {
+struct hif_ind_suspend_resume_tx {
 	u8     resume:1;
 	u8     reserved1:2;
 	u8     bc_mc_only:1;
 	u8     reserved2:4;
 	u8     reserved3;
-} __packed;
-
-struct hif_ind_suspend_resume_tx {
-	struct hif_suspend_resume_flags suspend_resume_flags;
 	__le16 peer_sta_set;
 } __packed;
 
