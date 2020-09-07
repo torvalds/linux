@@ -113,8 +113,8 @@ struct igmpmsg {
 	__u32 unused1,unused2;
 	unsigned char im_msgtype;		/* What is this */
 	unsigned char im_mbz;			/* Must be zero */
-	unsigned char im_vif;			/* Interface (this ought to be a vifi_t!) */
-	unsigned char unused3;
+	unsigned char im_vif;			/* Low 8 bits of Interface */
+	unsigned char im_vif_hi;		/* High 8 bits of Interface */
 	struct in_addr im_src,im_dst;
 };
 
