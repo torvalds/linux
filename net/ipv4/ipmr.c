@@ -2432,7 +2432,7 @@ static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt)
 	rtgenm = nlmsg_data(nlh);
 	rtgenm->rtgen_family = RTNL_FAMILY_IPMR;
 	if (nla_put_u8(skb, IPMRA_CREPORT_MSGTYPE, msg->im_msgtype) ||
-	    nla_put_u32(skb, IPMRA_CREPORT_VIF_ID, msg->im_vif) ||
+	    nla_put_u32(skb, IPMRA_CREPORT_VIF_ID, msg->im_vif | (msg->im_vif_hi << 8)) ||
 	    nla_put_in_addr(skb, IPMRA_CREPORT_SRC_ADDR,
 			    msg->im_src.s_addr) ||
 	    nla_put_in_addr(skb, IPMRA_CREPORT_DST_ADDR,
