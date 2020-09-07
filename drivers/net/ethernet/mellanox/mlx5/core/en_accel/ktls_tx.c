@@ -138,6 +138,7 @@ void mlx5e_ktls_del_tx(struct net_device *netdev, struct tls_context *tls_ctx)
 	priv = netdev_priv(netdev);
 	mdev = priv->mdev;
 
+	atomic64_inc(&priv_tx->sw_stats->tx_tls_del);
 	mlx5e_destroy_tis(mdev, priv_tx->tisn);
 	mlx5_ktls_destroy_key(mdev, priv_tx->key_id);
 	kfree(priv_tx);
