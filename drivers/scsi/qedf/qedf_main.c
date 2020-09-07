@@ -3267,11 +3267,16 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	void *task_start, *task_end;
 	struct qed_slowpath_params slowpath_params;
 	struct qed_probe_params qed_params;
+	u16 retry_cnt = 10;
 
 	/*
 	 * When doing error recovery we didn't reap the lport so don't try
 	 * to reallocate it.
 	 */
+retry_probe:
+	if (mode == QEDF_MODE_RECOVERY)
+		msleep(2000);
+
 	if (mode != QEDF_MODE_RECOVERY) {
 		lport = libfc_host_alloc(&qedf_host_template,
 		    sizeof(struct qedf_ctx));
@@ -3358,6 +3363,12 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	qed_params.is_vf = is_vf;
 	qedf->cdev = qed_ops->common->probe(pdev, &qed_params);
 	if (!qedf->cdev) {
+		if ((mode == QEDF_MODE_RECOVERY) && retry_cnt) {
+			QEDF_ERR(&qedf->dbg_ctx,
+				"Retry %d initialize hardware\n", retry_cnt);
+			retry_cnt--;
+			goto retry_probe;
+		}
 		QEDF_ERR(&qedf->dbg_ctx, "common probe failed.\n");
 		rc = -ENODEV;
 		goto err1;
