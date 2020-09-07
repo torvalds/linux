@@ -170,7 +170,7 @@ int hif_reset(struct wfx_vif *wvif, bool reset_stat)
 
 	if (!hif)
 		return -ENOMEM;
-	body->reset_flags.reset_stat = reset_stat;
+	body->reset_stat = reset_stat;
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_RESET, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
