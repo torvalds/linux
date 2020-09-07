@@ -26,21 +26,17 @@ static u8 rts5260_get_ic_version(struct rtsx_pcr *pcr)
 
 static void rts5260_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 {
-	u8 driving_3v3[6][3] = {
-		{0x94, 0x94, 0x94},
-		{0x11, 0x11, 0x18},
-		{0x55, 0x55, 0x5C},
-		{0x94, 0x94, 0x94},
-		{0x94, 0x94, 0x94},
-		{0xFF, 0xFF, 0xFF},
+	u8 driving_3v3[4][3] = {
+		{0x11, 0x11, 0x11},
+		{0x22, 0x22, 0x22},
+		{0x55, 0x55, 0x55},
+		{0x33, 0x33, 0x33},
 	};
-	u8 driving_1v8[6][3] = {
-		{0x9A, 0x89, 0x89},
-		{0xC4, 0xC4, 0xC4},
-		{0x3C, 0x3C, 0x3C},
+	u8 driving_1v8[4][3] = {
+		{0x35, 0x33, 0x33},
+		{0x8A, 0x88, 0x88},
+		{0xBD, 0xBB, 0xBB},
 		{0x9B, 0x99, 0x99},
-		{0x9A, 0x89, 0x89},
-		{0xFE, 0xFE, 0xFE},
 	};
 	u8 (*driving)[3], drive_sel;
 
@@ -58,7 +54,7 @@ static void rts5260_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 	rtsx_pci_write_register(pcr, SD30_CMD_DRIVE_SEL,
 			 0xFF, driving[drive_sel][1]);
 
-	rtsx_pci_write_register(pcr, SD30_CMD_DRIVE_SEL,
+	rtsx_pci_write_register(pcr, SD30_DAT_DRIVE_SEL,
 			 0xFF, driving[drive_sel][2]);
 }
 
@@ -82,6 +78,8 @@ static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 
 	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
+	if (rtsx_check_mmc_support(reg))
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
 	if (rtsx_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
@@ -558,6 +556,8 @@ static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 	else
 		rtsx_pci_write_register(pcr, PETXCFG,
 				 FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
+
+	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x10, 0x00);
 
 	return 0;
 }
