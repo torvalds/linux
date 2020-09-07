@@ -191,53 +191,32 @@ enum hif_frame_format {
 	HIF_FRAME_FORMAT_GF_HT_11N                 = 0x2
 };
 
-enum hif_stbc {
-	HIF_STBC_NOT_ALLOWED                       = 0x0,
-	HIF_STBC_ALLOWED                           = 0x1
-};
-
-struct hif_queue {
-	u8     queue_id:2;
-	u8     peer_sta_id:4;
-	u8     reserved:2;
-} __packed;
-
-struct hif_data_flags {
-	u8     more:1;
-	u8     fc_offset:3;
-	u8     after_dtim:1;
-	u8     reserved:3;
-} __packed;
-
-struct hif_tx_flags {
-	u8     start_exp:1;
-	u8     reserved:3;
-	u8     retry_policy_index:4;
-} __packed;
-
-struct hif_ht_tx_parameters {
-	u8     frame_format:4;
-	u8     fec_coding:1;
-	u8     short_gi:1;
-	u8     reserved1:1;
-	u8     stbc:1;
-	u8     reserved2;
-	u8     aggregation:1;
-	u8     reserved3:7;
-	u8     reserved4;
-} __packed;
-
 struct hif_req_tx {
 	// packet_id is not interpreted by the device, so it is not necessary to
 	// declare it little endian
 	u32    packet_id;
 	u8     max_tx_rate;
-	struct hif_queue queue_id;
-	struct hif_data_flags data_flags;
-	struct hif_tx_flags tx_flags;
-	__le32 reserved;
+	u8     queue_id:2;
+	u8     peer_sta_id:4;
+	u8     reserved1:2;
+	u8     more:1;
+	u8     fc_offset:3;
+	u8     after_dtim:1;
+	u8     reserved2:3;
+	u8     start_exp:1;
+	u8     reserved3:3;
+	u8     retry_policy_index:4;
+	__le32 reserved4;
 	__le32 expire_time;
-	struct hif_ht_tx_parameters ht_tx_parameters;
+	u8     frame_format:4;
+	u8     fec_coding:1;
+	u8     short_gi:1;
+	u8     reserved5:1;
+	u8     stbc:1;
+	u8     reserved6;
+	u8     aggregation:1;
+	u8     reserved7:7;
+	u8     reserved8;
 	u8     frame[];
 } __packed;
 

@@ -300,23 +300,14 @@ static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
 	return rate_id;
 }
 
-static struct hif_ht_tx_parameters wfx_tx_get_tx_parms(struct wfx_dev *wdev,
-						       struct ieee80211_tx_info *tx_info)
+static int wfx_tx_get_frame_format(struct ieee80211_tx_info *tx_info)
 {
-	struct ieee80211_tx_rate *rate = &tx_info->driver_rates[0];
-	struct hif_ht_tx_parameters ret = { };
-
-	if (!(rate->flags & IEEE80211_TX_RC_MCS))
-		ret.frame_format = HIF_FRAME_FORMAT_NON_HT;
-	else if (!(rate->flags & IEEE80211_TX_RC_GREEN_FIELD))
-		ret.frame_format = HIF_FRAME_FORMAT_MIXED_FORMAT_HT;
+	if (!(tx_info->driver_rates[0].flags & IEEE80211_TX_RC_MCS))
+		return HIF_FRAME_FORMAT_NON_HT;
+	else if (!(tx_info->driver_rates[0].flags & IEEE80211_TX_RC_GREEN_FIELD))
+		return HIF_FRAME_FORMAT_MIXED_FORMAT_HT;
 	else
-		ret.frame_format = HIF_FRAME_FORMAT_GF_HT_11N;
-	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-		ret.short_gi = 1;
-	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
-		ret.stbc = 0; // FIXME: Not yet supported by firmware?
-	return ret;
+		return HIF_FRAME_FORMAT_GF_HT_11N;
 }
 
 static int wfx_tx_get_icv_len(struct ieee80211_key_conf *hw_key)
@@ -377,14 +368,16 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	req->packet_id |= IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl)) << 16;
 	req->packet_id |= queue_id << 28;
 
-	req->data_flags.fc_offset = offset;
+	req->fc_offset = offset;
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
-		req->data_flags.after_dtim = 1;
-	req->queue_id.peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
+		req->after_dtim = 1;
+	req->peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
 	// Queue index are inverted between firmware and Linux
-	req->queue_id.queue_id = 3 - queue_id;
-	req->ht_tx_parameters = wfx_tx_get_tx_parms(wvif->wdev, tx_info);
-	req->tx_flags.retry_policy_index = wfx_tx_get_rate_id(wvif, tx_info);
+	req->queue_id = 3 - queue_id;
+	req->retry_policy_index = wfx_tx_get_rate_id(wvif, tx_info);
+	req->frame_format = wfx_tx_get_frame_format(tx_info);
+	if (tx_info->driver_rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
+		req->short_gi = 1;
 
 	// Auxiliary operations
 	wfx_tx_queues_put(wvif, skb);
@@ -436,10 +429,10 @@ static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
 	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
 	unsigned int offset = sizeof(struct hif_msg) +
 			      sizeof(struct hif_req_tx) +
-			      req->data_flags.fc_offset;
+			      req->fc_offset;
 
 	WARN_ON(!wvif);
-	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
+	wfx_tx_policy_put(wvif, req->retry_policy_index);
 	skb_pull(skb, offset);
 	ieee80211_tx_status_irqsafe(wvif->wdev->hw, skb);
 }
