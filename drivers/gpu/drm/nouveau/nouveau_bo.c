@@ -668,6 +668,33 @@ nouveau_ttm_tt_create(struct ttm_buffer_object *bo, uint32_t page_flags)
 	return nouveau_sgdma_create_ttm(bo, page_flags);
 }
 
+static int
+nouveau_ttm_tt_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm,
+		    struct ttm_resource *reg)
+{
+#if IS_ENABLED(CONFIG_AGP)
+	struct nouveau_drm *drm = nouveau_bdev(bdev);
+
+	if (drm->agp.bridge)
+		return ttm_agp_bind(bdev, ttm, reg);
+#endif
+	return nouveau_sgdma_bind(bdev, ttm, reg);
+}
+
+static void
+nouveau_ttm_tt_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+{
+#if IS_ENABLED(CONFIG_AGP)
+	struct nouveau_drm *drm = nouveau_bdev(bdev);
+
+	if (drm->agp.bridge) {
+		ttm_agp_unbind(bdev, ttm);
+		return;
+	}
+#endif
+	nouveau_sgdma_unbind(bdev, ttm);
+}
+
 static void
 nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 {
@@ -1284,6 +1311,20 @@ nouveau_ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 	ttm_unmap_and_unpopulate_pages(dev, ttm_dma);
 }
 
+static void
+nouveau_ttm_tt_destroy(struct ttm_bo_device *bdev,
+		       struct ttm_tt *ttm)
+{
+#if IS_ENABLED(CONFIG_AGP)
+	struct nouveau_drm *drm = nouveau_bdev(bdev);
+	if (drm->agp.bridge) {
+		ttm_agp_destroy(bdev, ttm);
+		return;
+	}
+#endif
+	nouveau_sgdma_destroy(bdev, ttm);
+}
+
 void
 nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence, bool exclusive)
 {
@@ -1299,6 +1340,9 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
 	.ttm_tt_populate = &nouveau_ttm_tt_populate,
 	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
+	.ttm_tt_bind = &nouveau_ttm_tt_bind,
+	.ttm_tt_unbind = &nouveau_ttm_tt_unbind,
+	.ttm_tt_destroy = &nouveau_ttm_tt_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = nouveau_bo_evict_flags,
 	.move_notify = nouveau_bo_move_ntfy,

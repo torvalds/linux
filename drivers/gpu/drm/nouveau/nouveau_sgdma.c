@@ -14,7 +14,7 @@ struct nouveau_sgdma_be {
 	struct nouveau_mem *mem;
 };
 
-static void
+void
 nouveau_sgdma_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
@@ -25,10 +25,11 @@ nouveau_sgdma_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 	}
 }
 
-static int
-nv04_sgdma_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *reg)
+int
+nouveau_sgdma_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *reg)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
+	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	int ret;
 
@@ -36,64 +37,33 @@ nv04_sgdma_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resou
 	if (ret)
 		return ret;
 
-	ret = nouveau_mem_map(mem, &mem->cli->vmm.vmm, &mem->vma[0]);
-	if (ret) {
-		nouveau_mem_fini(mem);
-		return ret;
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+		ret = nouveau_mem_map(mem, &mem->cli->vmm.vmm, &mem->vma[0]);
+		if (ret) {
+			nouveau_mem_fini(mem);
+			return ret;
+		}
 	}
 
 	nvbe->mem = mem;
 	return 0;
 }
 
-static void
-nv04_sgdma_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+void
+nouveau_sgdma_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	nouveau_mem_fini(nvbe->mem);
 }
 
-static struct ttm_backend_func nv04_sgdma_backend = {
-	.bind			= nv04_sgdma_bind,
-	.unbind			= nv04_sgdma_unbind,
-	.destroy		= nouveau_sgdma_destroy
-};
-
-static int
-nv50_sgdma_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *reg)
-{
-	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
-	struct nouveau_mem *mem = nouveau_mem(reg);
-	int ret;
-
-	ret = nouveau_mem_host(reg, &nvbe->ttm);
-	if (ret)
-		return ret;
-
-	nvbe->mem = mem;
-	return 0;
-}
-
-static struct ttm_backend_func nv50_sgdma_backend = {
-	.bind			= nv50_sgdma_bind,
-	.unbind			= nv04_sgdma_unbind,
-	.destroy		= nouveau_sgdma_destroy
-};
-
 struct ttm_tt *
 nouveau_sgdma_create_ttm(struct ttm_buffer_object *bo, uint32_t page_flags)
 {
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_sgdma_be *nvbe;
 
 	nvbe = kzalloc(sizeof(*nvbe), GFP_KERNEL);
 	if (!nvbe)
 		return NULL;
-
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA)
-		nvbe->ttm.ttm.func = &nv04_sgdma_backend;
-	else
-		nvbe->ttm.ttm.func = &nv50_sgdma_backend;
 
 	if (ttm_dma_tt_init(&nvbe->ttm, bo, page_flags)) {
 		kfree(nvbe);
