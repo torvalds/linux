@@ -2396,6 +2396,7 @@ static size_t igmpmsg_netlink_msgsize(size_t payloadlen)
 		+ nla_total_size(4)	/* IPMRA_CREPORT_VIF_ID */
 		+ nla_total_size(4)	/* IPMRA_CREPORT_SRC_ADDR */
 		+ nla_total_size(4)	/* IPMRA_CREPORT_DST_ADDR */
+		+ nla_total_size(4)	/* IPMRA_CREPORT_TABLE */
 					/* IPMRA_CREPORT_PKT */
 		+ nla_total_size(payloadlen)
 		;
@@ -2431,7 +2432,8 @@ static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt)
 	    nla_put_in_addr(skb, IPMRA_CREPORT_SRC_ADDR,
 			    msg->im_src.s_addr) ||
 	    nla_put_in_addr(skb, IPMRA_CREPORT_DST_ADDR,
-			    msg->im_dst.s_addr))
+			    msg->im_dst.s_addr) ||
+	    nla_put_u32(skb, IPMRA_CREPORT_TABLE, mrt->id))
 		goto nla_put_failure;
 
 	nla = nla_reserve(skb, IPMRA_CREPORT_PKT, payloadlen);
