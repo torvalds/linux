@@ -17,8 +17,6 @@
 #define __packed __attribute__((__packed__))
 #endif
 
-#define API_SSID_SIZE             32
-
 #define HIF_ID_IS_INDICATION      0x80
 #define HIF_COUNTER_MAX           7
 

@@ -245,8 +245,6 @@ int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
 	WARN(chan_num > HIF_API_MAX_NB_CHANNELS, "invalid params");
 	WARN(req->n_ssids > HIF_API_MAX_NB_SSIDS, "invalid params");
 
-	compiletime_assert(IEEE80211_MAX_SSID_LEN == HIF_API_SSID_SIZE,
-			   "API inconsistency");
 	if (!hif)
 		return -ENOMEM;
 	for (i = 0; i < req->n_ssids; i++) {
