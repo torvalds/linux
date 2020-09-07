@@ -1428,8 +1428,8 @@ static void tg_conf_updated(struct throtl_grp *tg, bool global)
 	 * that a group's limit are dropped suddenly and we don't want to
 	 * account recently dispatched IO with new low rate.
 	 */
-	throtl_start_new_slice(tg, 0);
-	throtl_start_new_slice(tg, 1);
+	throtl_start_new_slice(tg, READ);
+	throtl_start_new_slice(tg, WRITE);
 
 	if (tg->flags & THROTL_TG_PENDING) {
 		tg_update_disptime(tg);
