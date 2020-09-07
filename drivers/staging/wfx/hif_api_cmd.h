@@ -93,14 +93,6 @@ struct hif_cnf_write_mib {
 	__le32 status;
 } __packed;
 
-struct hif_ie_flags {
-	u8     beacon:1;
-	u8     probe_resp:1;
-	u8     probe_req:1;
-	u8     reserved1:5;
-	u8     reserved2;
-} __packed;
-
 struct hif_ie_tlv {
 	u8     type;
 	u8     length;
@@ -108,7 +100,11 @@ struct hif_ie_tlv {
 } __packed;
 
 struct hif_req_update_ie {
-	struct hif_ie_flags ie_flags;
+	u8     beacon:1;
+	u8     probe_resp:1;
+	u8     probe_req:1;
+	u8     reserved1:5;
+	u8     reserved2;
 	__le16 num_ies;
 	struct hif_ie_tlv ie[];
 } __packed;

@@ -520,7 +520,7 @@ int hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len)
 
 	if (!hif)
 		return -ENOMEM;
-	body->ie_flags.beacon = 1;
+	body->beacon = 1;
 	body->num_ies = cpu_to_le16(1);
 	memcpy(body->ie, ies, ies_len);
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_UPDATE_IE, buf_len);
