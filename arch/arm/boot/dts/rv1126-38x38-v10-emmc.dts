@@ -480,3 +480,10 @@
 	/* millicelsius */
 	temperature = <125000>;
 };
+
+&uart3 {
+	wakeup-source;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3m2_xfer &uart3m2_ctsn &uart3m2_rtsn>;
+	status = "okay";
+};
