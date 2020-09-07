@@ -167,6 +167,7 @@ int qxl_bo_kmap(struct qxl_bo *bo, void **ptr)
 void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 			      struct qxl_bo *bo, int page_offset)
 {
+	unsigned long offset;
 	void *rptr;
 	int ret;
 	struct io_mapping *map;
@@ -178,9 +179,8 @@ void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 	else
 		goto fallback;
 
-	ret = qxl_ttm_io_mem_reserve(bo->tbo.bdev, &bo->tbo.mem);
-
-	return io_mapping_map_atomic_wc(map, bo->tbo.mem.bus.offset + page_offset);
+	offset = bo->tbo.mem.start << PAGE_SHIFT;
+	return io_mapping_map_atomic_wc(map, offset + page_offset);
 fallback:
 	if (bo->kptr) {
 		rptr = bo->kptr + (page_offset * PAGE_SIZE);
