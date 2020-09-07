@@ -1863,6 +1863,29 @@ static inline void tss_setup_io_bitmap(struct tss_struct *tss)
 }
 
 /*
+ * Setup everything needed to handle exceptions from the IDT, including the IST
+ * exceptions which use paranoid_entry().
+ */
+void cpu_init_exception_handling(void)
+{
+	struct tss_struct *tss = this_cpu_ptr(&cpu_tss_rw);
+	int cpu = raw_smp_processor_id();
+
+	/* paranoid_entry() gets the CPU number from the GDT */
+	setup_getcpu(cpu);
+
+	/* IST vectors need TSS to be set up. */
+	tss_setup_ist(tss);
+	tss_setup_io_bitmap(tss);
+	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
+
+	load_TR_desc();
+
+	/* Finally load the IDT */
+	load_current_idt();
+}
+
+/*
  * cpu_init() initializes state that is per-CPU. Some data is already
  * initialized (naturally) in the bootstrap process, such as the GDT
  * and IDT. We reload them nevertheless, this function acts as a
