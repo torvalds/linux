@@ -111,8 +111,10 @@
 			reg = <0x800000 0x1000>;
 			/* timer00 & timer01 */
 			interrupts = <0 0 4>, <0 1 4>;
-			clocks = <&clock HI3620_TIMER0_MUX>, <&clock HI3620_TIMER1_MUX>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_TIMER0_MUX>,
+				 <&clock HI3620_TIMER1_MUX>,
+				 <&clock HI3620_TIMER0_MUX>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -121,8 +123,10 @@
 			reg = <0x801000 0x1000>;
 			/* timer10 & timer11 */
 			interrupts = <0 2 4>, <0 3 4>;
-			clocks = <&clock HI3620_TIMER2_MUX>, <&clock HI3620_TIMER3_MUX>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_TIMER2_MUX>,
+				 <&clock HI3620_TIMER3_MUX>,
+				 <&clock HI3620_TIMER2_MUX>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -131,8 +135,10 @@
 			reg = <0xa01000 0x1000>;
 			/* timer20 & timer21 */
 			interrupts = <0 4 4>, <0 5 4>;
-			clocks = <&clock HI3620_TIMER4_MUX>, <&clock HI3620_TIMER5_MUX>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_TIMER4_MUX>,
+				 <&clock HI3620_TIMER5_MUX>,
+				 <&clock HI3620_TIMER4_MUX>;
+			clock-names = "timer0lck", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -141,8 +147,10 @@
 			reg = <0xa02000 0x1000>;
 			/* timer30 & timer31 */
 			interrupts = <0 6 4>, <0 7 4>;
-			clocks = <&clock HI3620_TIMER6_MUX>, <&clock HI3620_TIMER7_MUX>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_TIMER6_MUX>,
+				 <&clock HI3620_TIMER7_MUX>,
+				 <&clock HI3620_TIMER6_MUX>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -151,8 +159,10 @@
 			reg = <0xa03000 0x1000>;
 			/* timer40 & timer41 */
 			interrupts = <0 96 4>, <0 97 4>;
-			clocks = <&clock HI3620_TIMER8_MUX>, <&clock HI3620_TIMER9_MUX>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_TIMER8_MUX>,
+				 <&clock HI3620_TIMER9_MUX>,
+				 <&clock HI3620_TIMER8_MUX>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 
