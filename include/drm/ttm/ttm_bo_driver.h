@@ -91,6 +91,42 @@ struct ttm_bo_driver {
 	void (*ttm_tt_unpopulate)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
 
 	/**
+	 * ttm_tt_bind
+	 *
+	 * @bdev: Pointer to a ttm device
+	 * @ttm: Pointer to a struct ttm_tt.
+	 * @bo_mem: Pointer to a struct ttm_resource describing the
+	 * memory type and location for binding.
+	 *
+	 * Bind the backend pages into the aperture in the location
+	 * indicated by @bo_mem. This function should be able to handle
+	 * differences between aperture and system page sizes.
+	 */
+	int (*ttm_tt_bind)(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *bo_mem);
+
+	/**
+	 * ttm_tt_unbind
+	 *
+	 * @bdev: Pointer to a ttm device
+	 * @ttm: Pointer to a struct ttm_tt.
+	 *
+	 * Unbind previously bound backend pages. This function should be
+	 * able to handle differences between aperture and system page sizes.
+	 */
+	void (*ttm_tt_unbind)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+
+	/**
+	 * ttm_tt_destroy
+	 *
+	 * @bdev: Pointer to a ttm device
+	 * @ttm: Pointer to a struct ttm_tt.
+	 *
+	 * Destroy the backend. This will be call back from ttm_tt_destroy so
+	 * don't call ttm_tt_destroy from the callback or infinite loop.
+	 */
+	void (*ttm_tt_destroy)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+
+	/**
 	 * struct ttm_bo_driver member eviction_valuable
 	 *
 	 * @bo: the buffer object to be evicted

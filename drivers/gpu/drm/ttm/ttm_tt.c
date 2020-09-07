@@ -222,7 +222,10 @@ void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 		fput(ttm->swap_storage);
 
 	ttm->swap_storage = NULL;
-	ttm->func->destroy(bdev, ttm);
+	if (bdev->driver->ttm_tt_destroy)
+		bdev->driver->ttm_tt_destroy(bdev, ttm);
+	else
+		ttm->func->destroy(bdev, ttm);
 }
 
 static void ttm_tt_init_fields(struct ttm_tt *ttm,
@@ -310,7 +313,10 @@ EXPORT_SYMBOL(ttm_dma_tt_fini);
 void ttm_tt_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	if (ttm->state == tt_bound) {
-		ttm->func->unbind(bdev, ttm);
+		if (bdev->driver->ttm_tt_unbind)
+			bdev->driver->ttm_tt_unbind(bdev, ttm);
+		else
+			ttm->func->unbind(bdev, ttm);
 		ttm->state = tt_unbound;
 	}
 }
@@ -331,7 +337,10 @@ int ttm_tt_bind(struct ttm_bo_device *bdev,
 	if (ret)
 		return ret;
 
-	ret = ttm->func->bind(bdev, ttm, bo_mem);
+	if (bdev->driver->ttm_tt_bind)
+		ret = bdev->driver->ttm_tt_bind(bdev, ttm, bo_mem);
+	else
+		ret = ttm->func->bind(bdev, ttm, bo_mem);
 	if (unlikely(ret != 0))
 		return ret;
 
