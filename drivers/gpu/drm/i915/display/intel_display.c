@@ -15577,6 +15577,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	if (state->modeset) {
 		drm_atomic_helper_update_legacy_modeset_state(dev, &state->base);
+		drm_atomic_helper_calc_timestamping_constants(&state->base);
 
 		intel_set_cdclk_pre_plane_update(state);
 
