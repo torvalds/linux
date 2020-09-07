@@ -37,11 +37,10 @@ static void _rtl8723be_return_beacon_queue_skb(struct ieee80211_hw *hw)
 		struct rtl_tx_desc *entry = &ring->desc[ring->idx];
 		struct sk_buff *skb = __skb_dequeue(&ring->queue);
 
-		pci_unmap_single(rtlpci->pdev,
-				 rtlpriv->cfg->ops->get_desc(
-				 hw,
-				 (u8 *)entry, true, HW_DESC_TXBUFF_ADDR),
-				 skb->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&rtlpci->pdev->dev,
+				 rtlpriv->cfg->ops->get_desc(hw, (u8 *)entry,
+						true, HW_DESC_TXBUFF_ADDR),
+				 skb->len, DMA_TO_DEVICE);
 		kfree_skb(skb);
 		ring->idx = (ring->idx + 1) % ring->entries;
 	}

@@ -515,9 +515,9 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 		memset(skb->data, 0, EM_HDR_LEN);
 	}
 	buf_len = skb->len;
-	mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
-				 PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
+	mapping = dma_map_single(&rtlpci->pdev->dev, skb->data, skb->len,
+				 DMA_TO_DEVICE);
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
 		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
 			"DMA mapping error\n");
 		return;
@@ -674,14 +674,13 @@ void rtl88ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	u8 fw_queue = QSLT_BEACON;
 	__le32 *pdesc = (__le32 *)pdesc8;
 
-	dma_addr_t mapping = pci_map_single(rtlpci->pdev,
-					    skb->data, skb->len,
-					    PCI_DMA_TODEVICE);
+	dma_addr_t mapping = dma_map_single(&rtlpci->pdev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
 
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	__le16 fc = hdr->frame_control;
 
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
 		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
 			"DMA mapping error\n");
 		return;
