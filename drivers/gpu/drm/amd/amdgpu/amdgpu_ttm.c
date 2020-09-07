@@ -1256,12 +1256,6 @@ static void amdgpu_ttm_backend_destroy(struct ttm_bo_device *bdev,
 	kfree(gtt);
 }
 
-static struct ttm_backend_func amdgpu_backend_func = {
-	.bind = &amdgpu_ttm_backend_bind,
-	.unbind = &amdgpu_ttm_backend_unbind,
-	.destroy = &amdgpu_ttm_backend_destroy,
-};
-
 /**
  * amdgpu_ttm_tt_create - Create a ttm_tt object for a given BO
  *
@@ -1278,7 +1272,6 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (gtt == NULL) {
 		return NULL;
 	}
-	gtt->ttm.ttm.func = &amdgpu_backend_func;
 	gtt->gobj = &bo->base;
 
 	/* allocate space for the uninitialized page entries */
@@ -1680,6 +1673,9 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.ttm_tt_create = &amdgpu_ttm_tt_create,
 	.ttm_tt_populate = &amdgpu_ttm_tt_populate,
 	.ttm_tt_unpopulate = &amdgpu_ttm_tt_unpopulate,
+	.ttm_tt_bind = &amdgpu_ttm_backend_bind,
+	.ttm_tt_unbind = &amdgpu_ttm_backend_unbind,
+	.ttm_tt_destroy = &amdgpu_ttm_backend_destroy,
 	.eviction_valuable = amdgpu_ttm_bo_eviction_valuable,
 	.evict_flags = &amdgpu_evict_flags,
 	.move = &amdgpu_bo_move,
