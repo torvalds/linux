@@ -725,7 +725,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 			}
 		}
 
-		do_each_thread(g, p) {
+		for_each_process_thread(g, p) {
 			if (i >= ks->thr_query && !finished) {
 				int_to_threadref(thref, p->pid);
 				ptr = pack_threadid(ptr, thref);
@@ -735,7 +735,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 					finished = 1;
 			}
 			i++;
-		} while_each_thread(g, p);
+		}
 
 		*(--ptr) = '\0';
 		break;
