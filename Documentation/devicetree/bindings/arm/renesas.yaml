@@ -281,6 +281,10 @@ properties:
               - renesas,draak # Draak (RTP0RC77995SEB0010S)
           - const: renesas,r8a77995
 
+      - description: R-Car V3U (R8A779A0)
+        items:
+          - const: renesas,r8a779a0
+
       - description: RZ/N1D (R9A06G032)
         items:
           - enum:
