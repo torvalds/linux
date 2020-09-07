@@ -417,6 +417,7 @@ struct hl_cb_mgr {
  * struct hl_cb - describes a Command Buffer.
  * @refcount: reference counter for usage of the CB.
  * @hdev: pointer to device this CB belongs to.
+ * @ctx: pointer to the CB owner's context.
  * @lock: spinlock to protect mmap/cs flows.
  * @debugfs_list: node in debugfs list of command buffers.
  * @pool_list: node in pool list of command buffers.
@@ -426,7 +427,6 @@ struct hl_cb_mgr {
  * @mmap_size: Holds the CB's size that was mmaped.
  * @size: holds the CB's size.
  * @cs_cnt: holds number of CS that this CB participates in.
- * @ctx_id: holds the ID of the owner's context.
  * @mmap: true if the CB is currently mmaped to user.
  * @is_pool: true if CB was acquired from the pool, false otherwise.
  * @is_internal: internaly allocated
@@ -434,6 +434,7 @@ struct hl_cb_mgr {
 struct hl_cb {
 	struct kref		refcount;
 	struct hl_device	*hdev;
+	struct hl_ctx		*ctx;
 	spinlock_t		lock;
 	struct list_head	debugfs_list;
 	struct list_head	pool_list;
@@ -443,7 +444,6 @@ struct hl_cb {
 	u32			mmap_size;
 	u32			size;
 	u32			cs_cnt;
-	u32			ctx_id;
 	u8			mmap;
 	u8			is_pool;
 	u8			is_internal;
@@ -1838,8 +1838,9 @@ void hl_sysfs_fini(struct hl_device *hdev);
 int hl_hwmon_init(struct hl_device *hdev);
 void hl_hwmon_fini(struct hl_device *hdev);
 
-int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr, u32 cb_size,
-		u64 *handle, int ctx_id, bool internal_cb);
+int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
+			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
+			u64 *handle);
 int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle);
 int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
 struct hl_cb *hl_cb_get(struct hl_device *hdev,	struct hl_cb_mgr *mgr,

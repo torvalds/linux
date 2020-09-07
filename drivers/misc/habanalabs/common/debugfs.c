@@ -111,7 +111,7 @@ static int command_buffers_show(struct seq_file *s, void *data)
 		}
 		seq_printf(s,
 			"   %03llu        %d    0x%08x      %d          %d          %d\n",
-			cb->id, cb->ctx_id, cb->size,
+			cb->id, cb->ctx->asid, cb->size,
 			kref_read(&cb->refcount),
 			cb->mmap, cb->cs_cnt);
 	}

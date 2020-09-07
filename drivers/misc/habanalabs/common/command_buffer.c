@@ -47,6 +47,8 @@ static void cb_release(struct kref *ref)
 
 	hl_debugfs_remove_cb(cb);
 
+	hl_ctx_put(cb->ctx);
+
 	cb_do_release(hdev, cb);
 }
 
@@ -107,11 +109,12 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 }
 
 int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
-			u32 cb_size, u64 *handle, int ctx_id, bool internal_cb)
+			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
+			u64 *handle)
 {
 	struct hl_cb *cb;
 	bool alloc_new_cb = true;
-	int rc;
+	int rc, ctx_id = ctx->asid;
 
 	/*
 	 * Can't use generic function to check this because of special case
@@ -163,7 +166,8 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	}
 
 	cb->hdev = hdev;
-	cb->ctx_id = ctx_id;
+	cb->ctx = ctx;
+	hl_ctx_get(hdev, cb->ctx);
 
 	spin_lock(&mgr->cb_lock);
 	rc = idr_alloc(&mgr->cb_handles, cb, 1, 0, GFP_ATOMIC);
@@ -191,6 +195,7 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	return 0;
 
 release_cb:
+	hl_ctx_put(cb->ctx);
 	cb_do_release(hdev, cb);
 out_err:
 	*handle = 0;
@@ -250,9 +255,8 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 				args->in.cb_size, HL_MAX_CB_SIZE);
 			rc = -EINVAL;
 		} else {
-			rc = hl_cb_create(hdev, &hpriv->cb_mgr,
-					args->in.cb_size, &handle,
-					hpriv->ctx->asid, false);
+			rc = hl_cb_create(hdev, &hpriv->cb_mgr, hpriv->ctx,
+					args->in.cb_size, false, &handle);
 		}
 
 		memset(args, 0, sizeof(*args));
@@ -424,7 +428,7 @@ void hl_cb_mgr_fini(struct hl_device *hdev, struct hl_cb_mgr *mgr)
 		if (kref_put(&cb->refcount, cb_release) != 1)
 			dev_err(hdev->dev,
 				"CB %d for CTX ID %d is still alive\n",
-				id, cb->ctx_id);
+				id, cb->ctx->asid);
 	}
 
 	idr_destroy(&mgr->cb_handles);
@@ -437,8 +441,8 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
 	struct hl_cb *cb;
 	int rc;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, cb_size, &cb_handle,
-			HL_KERNEL_ASID_ID, internal_cb);
+	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx, cb_size,
+				internal_cb, &cb_handle);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to allocate CB for the kernel driver %d\n", rc);
