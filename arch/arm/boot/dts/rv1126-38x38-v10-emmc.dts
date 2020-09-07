@@ -333,6 +333,10 @@
 	npu-supply = <&vdd_logic_npu_vepu_fixed>;
 };
 
+&npu_opp_table {
+	/delete-node/ opp-800000000;
+};
+
 &pinctrl {
 	es8311 {
 		spk_ctl: spk-ctl {
