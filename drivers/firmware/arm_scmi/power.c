@@ -301,9 +301,4 @@ static int scmi_power_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_power_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_POWER,
-				      &scmi_power_protocol_init);
-}
-subsys_initcall(scmi_power_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_POWER, power)

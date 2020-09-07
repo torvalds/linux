@@ -890,9 +890,4 @@ static int scmi_perf_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_perf_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_PERF,
-				      &scmi_perf_protocol_init);
-}
-subsys_initcall(scmi_perf_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_PERF, perf)

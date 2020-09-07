@@ -313,9 +313,4 @@ static int scmi_reset_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_reset_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_RESET,
-				      &scmi_reset_protocol_init);
-}
-subsys_initcall(scmi_reset_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_RESET, reset)

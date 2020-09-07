@@ -365,9 +365,4 @@ static int scmi_sensors_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_sensors_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_SENSOR,
-				      &scmi_sensors_protocol_init);
-}
-subsys_initcall(scmi_sensors_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_SENSOR, sensors)

@@ -128,9 +128,4 @@ static int scmi_system_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_system_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_SYSTEM,
-				      &scmi_system_protocol_init);
-}
-subsys_initcall(scmi_system_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_SYSTEM, system)
