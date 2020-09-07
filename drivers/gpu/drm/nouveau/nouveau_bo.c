@@ -676,7 +676,7 @@ nouveau_ttm_tt_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm,
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 
 	if (drm->agp.bridge)
-		return ttm_agp_bind(bdev, ttm, reg);
+		return ttm_agp_bind(ttm, reg);
 #endif
 	return nouveau_sgdma_bind(bdev, ttm, reg);
 }
@@ -688,7 +688,7 @@ nouveau_ttm_tt_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 
 	if (drm->agp.bridge) {
-		ttm_agp_unbind(bdev, ttm);
+		ttm_agp_unbind(ttm);
 		return;
 	}
 #endif
@@ -1318,7 +1318,7 @@ nouveau_ttm_tt_destroy(struct ttm_bo_device *bdev,
 #if IS_ENABLED(CONFIG_AGP)
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	if (drm->agp.bridge) {
-		ttm_agp_destroy(bdev, ttm);
+		ttm_agp_destroy(ttm);
 		return;
 	}
 #endif

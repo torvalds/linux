@@ -48,8 +48,7 @@ struct ttm_agp_backend {
 	struct agp_bridge_data *bridge;
 };
 
-int ttm_agp_bind(struct ttm_bo_device *bdev,
-		 struct ttm_tt *ttm, struct ttm_resource *bo_mem)
+int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
 	struct page *dummy_read_page = ttm_bo_glob.dummy_read_page;
@@ -84,8 +83,7 @@ int ttm_agp_bind(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_agp_bind);
 
-void ttm_agp_unbind(struct ttm_bo_device *bdev,
-		    struct ttm_tt *ttm)
+void ttm_agp_unbind(struct ttm_tt *ttm)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
 
@@ -100,13 +98,12 @@ void ttm_agp_unbind(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_agp_unbind);
 
-void ttm_agp_destroy(struct ttm_bo_device *bdev,
-		     struct ttm_tt *ttm)
+void ttm_agp_destroy(struct ttm_tt *ttm)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
 
 	if (agp_be->mem)
-		ttm_agp_unbind(bdev, ttm);
+		ttm_agp_unbind(ttm);
 	ttm_tt_fini(ttm);
 	kfree(agp_be);
 }

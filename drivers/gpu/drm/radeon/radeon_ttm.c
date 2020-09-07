@@ -693,7 +693,7 @@ static int radeon_ttm_tt_bind(struct ttm_bo_device *bdev,
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP)
-		return ttm_agp_bind(bdev, ttm, bo_mem);
+		return ttm_agp_bind(ttm, bo_mem);
 #endif
 
 	return radeon_ttm_backend_bind(bdev, ttm, bo_mem);
@@ -706,7 +706,7 @@ static void radeon_ttm_tt_unbind(struct ttm_bo_device *bdev,
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
 
 	if (rdev->flags & RADEON_IS_AGP) {
-		ttm_agp_unbind(bdev, ttm);
+		ttm_agp_unbind(ttm);
 		return;
 	}
 #endif
@@ -720,7 +720,7 @@ static void radeon_ttm_tt_destroy(struct ttm_bo_device *bdev,
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
 
 	if (rdev->flags & RADEON_IS_AGP) {
-		ttm_agp_destroy(bdev, ttm);
+		ttm_agp_destroy(ttm);
 		return;
 	}
 #endif
