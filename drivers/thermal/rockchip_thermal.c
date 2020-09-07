@@ -623,7 +623,7 @@ static int rk_tsadcv2_code_to_temp(const struct chip_tsadc_table *table,
 	unsigned long denom;
 
 	if (table->kNum) {
-		*temp = ((code - table->bNum) * 10000 / table->kNum) * 100;
+		*temp = (((int)code - table->bNum) * 10000 / table->kNum) * 100;
 		if (*temp < MIN_TEMP || *temp > MAX_TEMP)
 			return -EAGAIN;
 		return 0;
