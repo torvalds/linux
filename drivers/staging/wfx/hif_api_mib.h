@@ -305,7 +305,7 @@ struct hif_mib_set_uapsd_information {
 	__le16 auto_trigger_step;
 } __packed;
 
-struct hif_mib_tx_rate_retry_policy {
+struct hif_tx_rate_retry_policy {
 	u8     policy_index;
 	u8     short_retry_count;
 	u8     long_retry_count;
@@ -324,7 +324,7 @@ struct hif_mib_tx_rate_retry_policy {
 struct hif_mib_set_tx_rate_retry_policy {
 	u8     num_tx_rate_policies;
 	u8     reserved[3];
-	struct hif_mib_tx_rate_retry_policy tx_rate_retry_policy[];
+	struct hif_tx_rate_retry_policy tx_rate_retry_policy[];
 } __packed;
 
 struct hif_mib_protected_mgmt_policy {
