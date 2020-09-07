@@ -668,12 +668,6 @@ static void vmw_ttm_unpopulate(struct ttm_bo_device *bdev,
 		ttm_pool_unpopulate(ttm);
 }
 
-static struct ttm_backend_func vmw_ttm_func = {
-	.bind = vmw_ttm_bind,
-	.unbind = vmw_ttm_unbind,
-	.destroy = vmw_ttm_destroy,
-};
-
 static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,
 					uint32_t page_flags)
 {
@@ -684,7 +678,6 @@ static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (!vmw_be)
 		return NULL;
 
-	vmw_be->dma_ttm.ttm.func = &vmw_ttm_func;
 	vmw_be->dev_priv = container_of(bo->bdev, struct vmw_private, bdev);
 	vmw_be->mob = NULL;
 
@@ -770,6 +763,9 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.ttm_tt_create = &vmw_ttm_tt_create,
 	.ttm_tt_populate = &vmw_ttm_populate,
 	.ttm_tt_unpopulate = &vmw_ttm_unpopulate,
+	.ttm_tt_bind = &vmw_ttm_bind,
+	.ttm_tt_unbind = &vmw_ttm_unbind,
+	.ttm_tt_destroy = &vmw_ttm_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vmw_evict_flags,
 	.move = NULL,
