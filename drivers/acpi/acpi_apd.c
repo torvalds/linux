@@ -23,15 +23,7 @@ ACPI_MODULE_NAME("acpi_apd");
 struct apd_private_data;
 
 /**
- * ACPI_APD_SYSFS : add device attributes in sysfs
- * ACPI_APD_PM : attach power domain to device
- */
-#define ACPI_APD_SYSFS	BIT(0)
-#define ACPI_APD_PM	BIT(1)
-
-/**
  * struct apd_device_desc - a descriptor for apd device
- * @flags: device flags like %ACPI_APD_SYSFS, %ACPI_APD_PM
  * @fixed_clk_rate: fixed rate input clock source for acpi device;
  *			0 means no fixed rate input clock source
  * @properties: build-in properties of the device such as UART
@@ -40,7 +32,6 @@ struct apd_private_data;
  * Device description defined as acpi_device_id.driver_data
  */
 struct apd_device_desc {
-	unsigned int flags;
 	unsigned int fixed_clk_rate;
 	struct property_entry *properties;
 	int (*setup)(struct apd_private_data *pdata);
