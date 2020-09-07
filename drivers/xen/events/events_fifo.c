@@ -275,19 +275,9 @@ static uint32_t clear_linked(volatile event_word_t *word)
 	return w & EVTCHN_FIFO_LINK_MASK;
 }
 
-static void handle_irq_for_port(unsigned port)
-{
-	int irq;
-
-	irq = get_evtchn_to_irq(port);
-	if (irq != -1)
-		generic_handle_irq(irq);
-}
-
-static void consume_one_event(unsigned cpu,
+static void consume_one_event(unsigned cpu, struct evtchn_loop_ctrl *ctrl,
 			      struct evtchn_fifo_control_block *control_block,
-			      unsigned priority, unsigned long *ready,
-			      bool drop)
+			      unsigned priority, unsigned long *ready)
 {
 	struct evtchn_fifo_queue *q = &per_cpu(cpu_queue, cpu);
 	uint32_t head;
@@ -320,16 +310,17 @@ static void consume_one_event(unsigned cpu,
 		clear_bit(priority, ready);
 
 	if (evtchn_fifo_is_pending(port) && !evtchn_fifo_is_masked(port)) {
-		if (unlikely(drop))
+		if (unlikely(!ctrl))
 			pr_warn("Dropping pending event for port %u\n", port);
 		else
-			handle_irq_for_port(port);
+			handle_irq_for_port(port, ctrl);
 	}
 
 	q->head[priority] = head;
 }
 
-static void __evtchn_fifo_handle_events(unsigned cpu, bool drop)
+static void __evtchn_fifo_handle_events(unsigned cpu,
+					struct evtchn_loop_ctrl *ctrl)
 {
 	struct evtchn_fifo_control_block *control_block;
 	unsigned long ready;
@@ -341,14 +332,15 @@ static void __evtchn_fifo_handle_events(unsigned cpu, bool drop)
 
 	while (ready) {
 		q = find_first_bit(&ready, EVTCHN_FIFO_MAX_QUEUES);
-		consume_one_event(cpu, control_block, q, &ready, drop);
+		consume_one_event(cpu, ctrl, control_block, q, &ready);
 		ready |= xchg(&control_block->ready, 0);
 	}
 }
 
-static void evtchn_fifo_handle_events(unsigned cpu)
+static void evtchn_fifo_handle_events(unsigned cpu,
+				      struct evtchn_loop_ctrl *ctrl)
 {
-	__evtchn_fifo_handle_events(cpu, false);
+	__evtchn_fifo_handle_events(cpu, ctrl);
 }
 
 static void evtchn_fifo_resume(void)
@@ -416,7 +408,7 @@ static int evtchn_fifo_percpu_init(unsigned int cpu)
 
 static int evtchn_fifo_percpu_deinit(unsigned int cpu)
 {
-	__evtchn_fifo_handle_events(cpu, true);
+	__evtchn_fifo_handle_events(cpu, NULL);
 	return 0;
 }
 
