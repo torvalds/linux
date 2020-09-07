@@ -262,6 +262,7 @@ enum hif_error {
 	HIF_ERROR_HIF_TX_QUEUE_FULL           = 0x0d,
 	HIF_ERROR_HIF_BUS                     = 0x0f,
 	HIF_ERROR_PDS_TESTFEATURE             = 0x10,
+	HIF_ERROR_SLK_UNCONFIGURED            = 0x11,
 };
 
 struct hif_ind_error {

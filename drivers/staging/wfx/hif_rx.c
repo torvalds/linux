@@ -301,6 +301,8 @@ static const struct {
 		"secure link overflow" },
 	{ HIF_ERROR_SLK_WRONG_ENCRYPTION_STATE,
 		"secure link messages list does not match message encryption" },
+	{ HIF_ERROR_SLK_UNCONFIGURED,
+		"secure link not yet configured" },
 	{ HIF_ERROR_HIF_BUS_FREQUENCY_TOO_LOW,
 		"bus clock is too slow (<1kHz)" },
 	{ HIF_ERROR_HIF_RX_DATA_TOO_LARGE,
