@@ -41,7 +41,7 @@ u8 mcdi_to_ethtool_media(u32 media);
 void efx_mcdi_phy_decode_link(struct efx_nic *efx,
 			      struct efx_link_state *link_state,
 			      u32 speed, u32 flags, u32 fcntl);
-u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap);
+u32 ethtool_fec_caps_to_mcdi(u32 supported_cap, u32 ethtool_cap);
 u32 mcdi_fec_caps_to_ethtool(u32 caps, bool is_25g);
 void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa);
 bool efx_mcdi_phy_poll(struct efx_nic *efx);
