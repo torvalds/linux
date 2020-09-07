@@ -83,20 +83,18 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	struct zpci_dev *zdev = container_of(hotplug_slot, struct zpci_dev,
 					     hotplug_slot);
 	struct pci_dev *pdev;
-	struct zpci_bus *zbus = zdev->zbus;
 	int rc;
 
 	if (!zpci_fn_configured(zdev->state))
 		return -EIO;
 
-	pdev = pci_get_slot(zbus->bus, zdev->devfn);
-	if (pdev) {
-		if (pci_num_vf(pdev))
-			return -EBUSY;
-
-		pci_stop_and_remove_bus_device_locked(pdev);
+	pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
+	if (pdev && pci_num_vf(pdev)) {
 		pci_dev_put(pdev);
+		return -EBUSY;
 	}
+
+	zpci_remove_device(zdev);
 
 	rc = zpci_disable_device(zdev);
 	if (rc)

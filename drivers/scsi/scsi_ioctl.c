@@ -117,14 +117,14 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 		case NOT_READY:	/* This happens if there is no disc in drive */
 			if (sdev->removable)
 				break;
-			/* FALLTHROUGH */
+			fallthrough;
 		case UNIT_ATTENTION:
 			if (sdev->removable) {
 				sdev->changed = 1;
 				result = 0;	/* This is no longer considered an error */
 				break;
 			}
-			/* FALLTHROUGH -- for non-removable media */
+			fallthrough;	/* for non-removable media */
 		default:
 			sdev_printk(KERN_INFO, sdev,
 				    "ioctl_internal_command return code = %x\n",

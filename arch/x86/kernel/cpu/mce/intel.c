@@ -193,7 +193,7 @@ unsigned long cmci_intel_adjust_timer(unsigned long interval)
 		if (!atomic_sub_return(1, &cmci_storm_on_cpus))
 			pr_notice("CMCI storm subsided: switching to interrupt mode\n");
 
-		/* FALLTHROUGH */
+		fallthrough;
 
 	case CMCI_STORM_SUBSIDED:
 		/*

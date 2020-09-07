@@ -446,7 +446,7 @@ static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
 	unsigned int i, j;
 	u8 nhg_fdb = 0;
 
-	if (len & (sizeof(struct nexthop_grp) - 1)) {
+	if (!len || len & (sizeof(struct nexthop_grp) - 1)) {
 		NL_SET_ERR_MSG(extack,
 			       "Invalid length for nexthop group attribute");
 		return -EINVAL;
@@ -1186,6 +1186,9 @@ static struct nexthop *nexthop_create_group(struct net *net,
 	struct nh_group *nhg;
 	struct nexthop *nh;
 	int i;
+
+	if (WARN_ON(!num_nh))
+		return ERR_PTR(-EINVAL);
 
 	nh = nexthop_alloc();
 	if (!nh)

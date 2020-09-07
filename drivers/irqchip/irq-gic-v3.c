@@ -965,10 +965,10 @@ static void gic_cpu_sys_reg_init(void)
 		case 7:
 			write_gicreg(0, ICC_AP0R3_EL1);
 			write_gicreg(0, ICC_AP0R2_EL1);
-		/* Fall through */
+			fallthrough;
 		case 6:
 			write_gicreg(0, ICC_AP0R1_EL1);
-		/* Fall through */
+			fallthrough;
 		case 5:
 		case 4:
 			write_gicreg(0, ICC_AP0R0_EL1);
@@ -982,10 +982,10 @@ static void gic_cpu_sys_reg_init(void)
 	case 7:
 		write_gicreg(0, ICC_AP1R3_EL1);
 		write_gicreg(0, ICC_AP1R2_EL1);
-		/* Fall through */
+		fallthrough;
 	case 6:
 		write_gicreg(0, ICC_AP1R1_EL1);
-		/* Fall through */
+		fallthrough;
 	case 5:
 	case 4:
 		write_gicreg(0, ICC_AP1R0_EL1);
