@@ -508,7 +508,7 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	struct dnet *bp = netdev_priv(dev);
 	u32 tx_status, irq_enable;
-	unsigned int len, i, tx_cmd, wrsz;
+	unsigned int i, tx_cmd, wrsz;
 	unsigned long flags;
 	unsigned int *bufp;
 
@@ -517,9 +517,6 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	pr_debug("start_xmit: len %u head %p data %p\n",
 	       skb->len, skb->head, skb->data);
 	dnet_print_skb(skb);
-
-	/* frame size (words) */
-	len = (skb->len + 3) >> 2;
 
 	spin_lock_irqsave(&bp->lock, flags);
 
