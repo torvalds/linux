@@ -12,6 +12,7 @@
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include "s5pv210.dtsi"
 
@@ -366,7 +367,7 @@
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
 		interrupt-parent = <&gpj0>;
-		interrupts = <5 2>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 
 		atmel,x-line = <17>;
 		atmel,y-line = <11>;
