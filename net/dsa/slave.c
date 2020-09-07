@@ -1792,8 +1792,9 @@ int dsa_slave_create(struct dsa_port *port)
 
 	ret = dsa_slave_phy_setup(slave_dev);
 	if (ret) {
-		netdev_err(master, "error %d setting up slave PHY for %s\n",
-			   ret, slave_dev->name);
+		netdev_err(slave_dev,
+			   "error %d setting up PHY for tree %d, switch %d, port %d\n",
+			   ret, ds->dst->index, ds->index, port->index);
 		goto out_gcells;
 	}
 
