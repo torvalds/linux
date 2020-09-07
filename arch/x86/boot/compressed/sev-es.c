@@ -16,6 +16,7 @@
 #include <asm/trapnr.h>
 #include <asm/trap_pf.h>
 #include <asm/msr-index.h>
+#include <asm/fpu/xcr.h>
 #include <asm/ptrace.h>
 #include <asm/svm.h>
 
@@ -182,6 +183,9 @@ void do_boot_stage2_vc(struct pt_regs *regs, unsigned long exit_code)
 	switch (exit_code) {
 	case SVM_EXIT_IOIO:
 		result = vc_handle_ioio(boot_ghcb, &ctxt);
+		break;
+	case SVM_EXIT_CPUID:
+		result = vc_handle_cpuid(boot_ghcb, &ctxt);
 		break;
 	default:
 		result = ES_UNSUPPORTED;
