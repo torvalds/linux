@@ -38,8 +38,10 @@
 #define HZIP_SGL_SGE_NR				10
 
 static const u8 zlib_head[HZIP_ZLIB_HEAD_SIZE] = {0x78, 0x9c};
-static const u8 gzip_head[HZIP_GZIP_HEAD_SIZE] = {0x1f, 0x8b, 0x08, 0x0, 0x0,
-						  0x0, 0x0, 0x0, 0x0, 0x03};
+static const u8 gzip_head[HZIP_GZIP_HEAD_SIZE] = {
+	0x1f, 0x8b, 0x08, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x03
+};
+
 enum hisi_zip_alg_type {
 	HZIP_ALG_TYPE_COMP = 0,
 	HZIP_ALG_TYPE_DECOMP = 1,
@@ -359,7 +361,6 @@ static void hisi_zip_acomp_cb(struct hisi_qp *qp, void *data)
 
 	atomic64_inc(&dfx->recv_cnt);
 	status = sqe->dw3 & HZIP_BD_STATUS_M;
-
 	if (status != 0 && status != HZIP_NC_ERR) {
 		dev_err(dev, "%scompress fail in qp%u: %u, output: %u\n",
 			(qp->alg_type == 0) ? "" : "de", qp->qp_id, status,
@@ -520,8 +521,7 @@ static int hisi_zip_do_work(struct hisi_zip_req *req,
 	struct hisi_acc_sgl_pool *pool = qp_ctx->sgl_pool;
 	struct hisi_zip_dfx *dfx = &qp_ctx->zip_dev->dfx;
 	struct hisi_zip_sqe zip_sqe;
-	dma_addr_t input;
-	dma_addr_t output;
+	dma_addr_t input, output;
 	int ret;
 
 	if (!a_req->src || !a_req->slen || !a_req->dst || !a_req->dlen)
@@ -540,9 +540,9 @@ static int hisi_zip_do_work(struct hisi_zip_req *req,
 						    (req->req_id << 1) + 1,
 						    &output);
 	if (IS_ERR(req->hw_dst)) {
-		dev_err(dev, "failed to map the dst buffer to hw slg (%ld)!\n",
-			PTR_ERR(req->hw_dst));
 		ret = PTR_ERR(req->hw_dst);
+		dev_err(dev, "failed to map the dst buffer to hw slg (%d)!\n",
+			ret);
 		goto err_unmap_input;
 	}
 	req->dma_dst = output;

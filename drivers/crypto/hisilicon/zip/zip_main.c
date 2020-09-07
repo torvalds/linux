@@ -258,6 +258,7 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	/* qm cache */
 	writel(AXI_M_CFG, base + QM_AXI_M_CFG);
 	writel(AXI_M_CFG_ENABLE, base + QM_AXI_M_CFG_ENABLE);
+
 	/* disable FLR triggered by BME(bus master enable) */
 	writel(PEH_AXUSER_CFG, base + QM_PEH_AXUSER_CFG);
 	writel(PEH_AXUSER_CFG_ENABLE, base + QM_PEH_AXUSER_CFG_ENABLE);
@@ -311,7 +312,7 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 	writel(0x1, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
 	writel(0x0, qm->io_base + HZIP_CORE_INT_RAS_FE_ENB);
 	writel(HZIP_CORE_INT_RAS_NFE_ENABLE,
-		qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
+	       qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
 
 	/* enable ZIP hw error interrupts */
 	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
@@ -487,7 +488,6 @@ static const struct file_operations ctrl_debug_fops = {
 	.write = hisi_zip_ctrl_debug_write,
 };
 
-
 static int zip_debugfs_atomic64_set(void *data, u64 val)
 {
 	if (val)
@@ -632,7 +632,7 @@ static void hisi_zip_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 	while (err->msg) {
 		if (err->int_msk & err_sts) {
 			dev_err(dev, "%s [error status=0x%x] found\n",
-				 err->msg, err->int_msk);
+				err->msg, err->int_msk);
 
 			if (err->int_msk & HZIP_CORE_INT_STATUS_M_ECC) {
 				err_val = readl(qm->io_base +
@@ -640,9 +640,6 @@ static void hisi_zip_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 				dev_err(dev, "hisi-zip multi ecc sram num=0x%x\n",
 					((err_val >>
 					HZIP_SRAM_ECC_ERR_NUM_SHIFT) & 0xFF));
-				dev_err(dev, "hisi-zip multi ecc sram addr=0x%x\n",
-					(err_val >>
-					HZIP_SRAM_ECC_ERR_ADDR_SHIFT));
 			}
 		}
 		err++;
@@ -902,14 +899,9 @@ static int __init hisi_zip_init(void)
 
 	ret = pci_register_driver(&hisi_zip_pci_driver);
 	if (ret < 0) {
+		hisi_zip_unregister_debugfs();
 		pr_err("Failed to register pci driver.\n");
-		goto err_pci;
 	}
-
-	return 0;
-
-err_pci:
-	hisi_zip_unregister_debugfs();
 
 	return ret;
 }
