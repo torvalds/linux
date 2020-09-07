@@ -152,13 +152,6 @@ static struct attribute_group rtrs_srv_stats_attr_group = {
 	.attrs = rtrs_srv_stats_attrs,
 };
 
-static void rtrs_srv_dev_release(struct device *dev)
-{
-	struct rtrs_srv *srv = container_of(dev, struct rtrs_srv, dev);
-
-	kfree(srv);
-}
-
 static int rtrs_srv_create_once_sysfs_root_folders(struct rtrs_srv_sess *sess)
 {
 	struct rtrs_srv *srv = sess->srv;
@@ -172,7 +165,6 @@ static int rtrs_srv_create_once_sysfs_root_folders(struct rtrs_srv_sess *sess)
 		goto unlock;
 	}
 	srv->dev.class = rtrs_dev_class;
-	srv->dev.release = rtrs_srv_dev_release;
 	err = dev_set_name(&srv->dev, "%s", sess->s.sessname);
 	if (err)
 		goto unlock;
