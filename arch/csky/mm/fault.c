@@ -59,7 +59,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 
 	si_code = SEGV_MAPERR;
 
-#ifndef CONFIG_CPU_HAS_TLBI
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
 	 * 'reference' page table is init_mm.pgd.
@@ -84,10 +83,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 		pmd_t *pmd, *pmd_k;
 		pte_t *pte_k;
 
-		unsigned long pgd_base;
-
-		pgd_base = (unsigned long)__va(get_pgd());
-		pgd = (pgd_t *)pgd_base + offset;
+		pgd = get_pgd() + offset;
 		pgd_k = init_mm.pgd + offset;
 
 		if (!pgd_present(*pgd_k))
@@ -110,7 +106,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 			goto no_context;
 		return;
 	}
-#endif
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	/*

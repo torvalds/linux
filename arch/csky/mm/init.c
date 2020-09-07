@@ -28,9 +28,12 @@
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
 #include <asm/tlb.h>
+#include <asm/cacheflush.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
 pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned_bss;
+pte_t kernel_pte_tables[(PTRS_PER_PGD - USER_PTRS_PER_PGD)*PTRS_PER_PTE] __page_aligned_bss;
+
 EXPORT_SYMBOL(invalid_pte_table);
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
 						__page_aligned_bss;
@@ -130,20 +133,32 @@ void pgd_init(unsigned long *p)
 
 	for (i = 0; i < PTRS_PER_PGD; i++)
 		p[i] = __pa(invalid_pte_table);
+
+	flush_tlb_all();
+	local_icache_inv_all(NULL);
 }
 
-void __init pre_mmu_init(void)
+void __init mmu_init(unsigned long min_pfn, unsigned long max_pfn)
 {
-	/*
-	 * Setup page-table and enable TLB-hardrefill
-	 */
+	int i;
+
+	for (i = 0; i < USER_PTRS_PER_PGD; i++)
+		swapper_pg_dir[i].pgd = __pa(invalid_pte_table);
+
+	for (i = USER_PTRS_PER_PGD; i < PTRS_PER_PGD; i++)
+		swapper_pg_dir[i].pgd =
+			__pa(kernel_pte_tables + (PTRS_PER_PTE * (i - USER_PTRS_PER_PGD)));
+
+	for (i = min_pfn; i < max_pfn; i++)
+		set_pte(&kernel_pte_tables[i - PFN_DOWN(va_pa_offset)], pfn_pte(i, PAGE_KERNEL));
+
 	flush_tlb_all();
-	pgd_init((unsigned long *)swapper_pg_dir);
-	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir);
-	TLBMISS_HANDLER_SETUP_PGD_KERNEL(swapper_pg_dir);
+	local_icache_inv_all(NULL);
 
 	/* Setup page mask to 4k */
 	write_mmu_pagemask(0);
+
+	setup_pgd(swapper_pg_dir);
 }
 
 void __init fixrange_init(unsigned long start, unsigned long end,

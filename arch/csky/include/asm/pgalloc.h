@@ -71,7 +71,7 @@ do {							\
 } while (0)
 
 extern void pagetable_init(void);
-extern void pre_mmu_init(void);
+extern void mmu_init(unsigned long min_pfn, unsigned long max_pfn);
 extern void pre_trap_init(void);
 
 #endif /* __ASM_CSKY_PGALLOC_H */

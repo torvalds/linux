@@ -14,6 +14,10 @@
  */
 ENTRY(csky_cmpxchg)
 	USPTOKSP
+
+	RD_MEH	a3
+	WR_MEH	a3
+
 	mfcr	a3, epc
 	addi	a3, TRAP0_SIZE
 

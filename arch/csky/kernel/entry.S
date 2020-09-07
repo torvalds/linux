@@ -49,6 +49,7 @@ ENTRY(csky_\name)
 
 	RD_PGDR	r6
 	RD_MEH	a3
+	WR_MEH	a3
 #ifdef CONFIG_CPU_HAS_TLBI
 	tlbi.vaas a3
 	sync.is
@@ -64,10 +65,11 @@ ENTRY(csky_\name)
 	WR_MCIR	a2
 #endif
 	bclri   r6, 0
+	lrw	a2, PAGE_OFFSET
+	add	r6, a2
 	lrw	a2, va_pa_offset
 	ld.w	a2, (a2, 0)
 	subu	r6, a2
-	bseti	r6, 31
 
 	mov     a2, a3
 	lsri    a2, _PGDIR_SHIFT
@@ -75,10 +77,11 @@ ENTRY(csky_\name)
 	addu    r6, a2
 	ldw     r6, (r6)
 
+	lrw	a2, PAGE_OFFSET
+	add	r6, a2
 	lrw	a2, va_pa_offset
 	ld.w	a2, (a2, 0)
 	subu	r6, a2
-	bseti	r6, 31
 
 	lsri    a3, PTE_INDX_SHIFT
 	lrw     a2, PTE_INDX_MSK
@@ -313,6 +316,9 @@ ENTRY(csky_trap)
  */
 ENTRY(csky_get_tls)
 	USPTOKSP
+
+	RD_MEH	a0
+	WR_MEH	a0
 
 	/* increase epc for continue */
 	mfcr	a0, epc

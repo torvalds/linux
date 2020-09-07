@@ -100,16 +100,16 @@ static inline void tlb_invalid_indexed(void)
 	mtcr("cr<8, 15>", 0x02000000);
 }
 
-static inline void setup_pgd(unsigned long pgd, bool kernel)
+static inline void setup_pgd(pgd_t *pgd)
 {
-	if (kernel)
-		mtcr("cr<28, 15>", pgd | BIT(0));
-	else
-		mtcr("cr<29, 15>", pgd | BIT(0));
+#ifdef CONFIG_CPU_HAS_TLBI
+	mtcr("cr<28, 15>", __pa(pgd) | BIT(0));
+#endif
+	mtcr("cr<29, 15>", __pa(pgd) | BIT(0));
 }
 
-static inline unsigned long get_pgd(void)
+static inline pgd_t *get_pgd(void)
 {
-	return mfcr("cr<29, 15>") & ~BIT(0);
+	return __va(mfcr("cr<29, 15>") & ~BIT(0));
 }
 #endif /* __ASM_CSKY_CKMMUV2_H */

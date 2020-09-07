@@ -45,12 +45,16 @@ static void __init csky_memblock_init(void)
 
 	if (size >= lowmem_size) {
 		max_low_pfn = min_low_pfn + lowmem_size;
+#ifdef CONFIG_PAGE_OFFSET_80000000
 		write_mmu_msa1(read_mmu_msa0() + SSEG_SIZE);
+#endif
 	} else if (size > sseg_size) {
 		max_low_pfn = min_low_pfn + sseg_size;
 	}
 
 	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
+
+	mmu_init(min_low_pfn, max_low_pfn);
 
 #ifdef CONFIG_HIGHMEM
 	max_zone_pfn[ZONE_HIGHMEM] = max_pfn;
@@ -101,16 +105,26 @@ void __init setup_arch(char **cmdline_p)
 unsigned long va_pa_offset;
 EXPORT_SYMBOL(va_pa_offset);
 
+static inline unsigned long read_mmu_msa(void)
+{
+#ifdef CONFIG_PAGE_OFFSET_80000000
+	return read_mmu_msa0();
+#endif
+
+#ifdef CONFIG_PAGE_OFFSET_A0000000
+	return read_mmu_msa1();
+#endif
+}
+
 asmlinkage __visible void __init csky_start(unsigned int unused,
 					    void *dtb_start)
 {
 	/* Clean up bss section */
 	memset(__bss_start, 0, __bss_stop - __bss_start);
 
-	va_pa_offset = read_mmu_msa0() & ~(SSEG_SIZE - 1);
+	va_pa_offset = read_mmu_msa() & ~(SSEG_SIZE - 1);
 
 	pre_trap_init();
-	pre_mmu_init();
 
 	if (dtb_start == NULL)
 		early_init_dt_scan(__dtb_start);

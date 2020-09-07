@@ -89,13 +89,13 @@ static inline void tlb_invalid_indexed(void)
 	cpwcr("cpcr8", 0x02000000);
 }
 
-static inline void setup_pgd(unsigned long pgd, bool kernel)
+static inline void setup_pgd(pgd_t *pgd)
 {
-	cpwcr("cpcr29", pgd | BIT(0));
+	cpwcr("cpcr29", __pa(pgd) | BIT(0));
 }
 
-static inline unsigned long get_pgd(void)
+static inline pgd_t *get_pgd(void)
 {
-	return cprcr("cpcr29") & ~BIT(0);
+	return __va(cprcr("cpcr29") & ~BIT(0));
 }
 #endif /* __ASM_CSKY_CKMMUV1_H */

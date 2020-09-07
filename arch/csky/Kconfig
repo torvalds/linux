@@ -192,6 +192,22 @@ config CPU_CK860
 endchoice
 
 choice
+	prompt "PAGE OFFSET"
+	default PAGE_OFFSET_80000000
+
+config PAGE_OFFSET_80000000
+	bool "PAGE OFFSET 2G (user:kernel = 2:2)"
+
+config PAGE_OFFSET_A0000000
+	bool "PAGE OFFSET 2.5G (user:kernel = 2.5:1.5)"
+endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0x80000000 if PAGE_OFFSET_80000000
+	default 0xa0000000 if PAGE_OFFSET_A0000000
+choice
+
 	prompt "C-SKY PMU type"
 	depends on PERF_EVENTS
 	depends on CPU_CK807 || CPU_CK810 || CPU_CK860
