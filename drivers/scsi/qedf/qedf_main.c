@@ -41,7 +41,7 @@ MODULE_PARM_DESC(dev_loss_tmo,  " dev_loss_tmo setting for attached "
 	"remote ports (default 60)");
 
 uint qedf_debug = QEDF_LOG_INFO;
-module_param_named(debug, qedf_debug, uint, S_IRUGO);
+module_param_named(debug, qedf_debug, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug, " Debug mask. Pass '1' to enable default debugging"
 	" mask");
 
