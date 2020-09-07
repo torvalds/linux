@@ -792,7 +792,7 @@ out:
 	return ret;
 }
 
-static void mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+static int mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	if (udata) {
 		struct mthca_ucontext *context =
@@ -811,6 +811,7 @@ static void mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 				    to_mcq(cq)->set_ci_db_index);
 	}
 	mthca_free_cq(to_mdev(cq->device), to_mcq(cq));
+	return 0;
 }
 
 static inline u32 convert_access(int acc)

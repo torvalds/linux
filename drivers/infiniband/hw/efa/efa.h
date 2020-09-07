@@ -139,7 +139,7 @@ int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata);
-void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
+int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata);
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,

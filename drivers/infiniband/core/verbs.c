@@ -2023,16 +2023,21 @@ EXPORT_SYMBOL(rdma_set_cq_moderation);
 
 int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 {
+	int ret;
+
 	if (WARN_ON_ONCE(cq->shared))
 		return -EOPNOTSUPP;
 
 	if (atomic_read(&cq->usecnt))
 		return -EBUSY;
 
+	ret = cq->device->ops.destroy_cq(cq, udata);
+	if (ret)
+		return ret;
+
 	rdma_restrack_del(&cq->res);
-	cq->device->ops.destroy_cq(cq, udata);
 	kfree(cq);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(ib_destroy_cq_user);
 

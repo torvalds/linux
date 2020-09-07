@@ -311,7 +311,7 @@ err_cq_buf:
 	return ret;
 }
 
-void hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+int hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
@@ -322,6 +322,7 @@ void hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	free_cq_buf(hr_dev, hr_cq);
 	free_cq_db(hr_dev, hr_cq, udata);
 	free_cqc(hr_dev, hr_cq);
+	return 0;
 }
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)

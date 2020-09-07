@@ -475,7 +475,7 @@ out:
 	return err;
 }
 
-void mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+int mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(cq->device);
 	struct mlx4_ib_cq *mcq = to_mcq(cq);
@@ -495,6 +495,7 @@ void mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 		mlx4_db_free(dev->dev, &mcq->db);
 	}
 	ib_umem_release(mcq->umem);
+	return 0;
 }
 
 static void dump_cqe(void *cqe)
