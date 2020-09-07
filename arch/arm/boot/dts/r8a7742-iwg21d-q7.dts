@@ -131,8 +131,24 @@
 	};
 };
 
+&can1 {
+	pinctrl-0 = <&can1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
 &cmt0 {
 	status = "okay";
+};
+
+&gpio1 {
+	can-trx-en-gpio{
+		gpio-hog;
+		gpios = <28 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "can-trx-en-gpio";
+	};
 };
 
 &hsusb {
@@ -201,6 +217,11 @@
 	avb_pins: avb {
 		groups = "avb_mdio", "avb_gmii";
 		function = "avb";
+	};
+
+	can1_pins: can1 {
+		groups = "can1_data_b";
+		function = "can1";
 	};
 
 	i2c2_pins: i2c2 {
