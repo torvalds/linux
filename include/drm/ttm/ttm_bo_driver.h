@@ -521,6 +521,23 @@ static inline void ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo
 }
 
 /**
+ * ttm_bo_move_null = assign memory for a buffer object.
+ * @bo: The bo to assign the memory to
+ * @new_mem: The memory to be assigned.
+ *
+ * Assign the memory from new_mem to the memory of the buffer object bo.
+ */
+static inline void ttm_bo_move_null(struct ttm_buffer_object *bo,
+				    struct ttm_resource *new_mem)
+{
+	struct ttm_resource *old_mem = &bo->mem;
+
+	WARN_ON(old_mem->mm_node != NULL);
+	*old_mem = *new_mem;
+	new_mem->mm_node = NULL;
+}
+
+/**
  * ttm_bo_unreserve
  *
  * @bo: A pointer to a struct ttm_buffer_object.

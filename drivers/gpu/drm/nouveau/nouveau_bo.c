@@ -993,9 +993,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	/* Fake bo copy. */
 	if (old_reg->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
-		BUG_ON(bo->mem.mm_node != NULL);
-		bo->mem = *new_reg;
-		new_reg->mm_node = NULL;
+		ttm_bo_move_null(bo, new_reg);
 		goto out;
 	}
 

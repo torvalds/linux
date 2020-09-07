@@ -175,24 +175,6 @@ static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 }
 
 /**
- * amdgpu_move_null - Register memory for a buffer object
- *
- * @bo: The bo to assign the memory to
- * @new_mem: The memory to be assigned.
- *
- * Assign the memory from new_mem to the memory of the buffer object bo.
- */
-static void amdgpu_move_null(struct ttm_buffer_object *bo,
-			     struct ttm_resource *new_mem)
-{
-	struct ttm_resource *old_mem = &bo->mem;
-
-	BUG_ON(old_mem->mm_node != NULL);
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
-}
-
-/**
  * amdgpu_mm_node_addr - Compute the GPU relative offset of a GTT buffer.
  *
  * @bo: The bo to assign the memory to.
@@ -676,7 +658,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	adev = amdgpu_ttm_adev(bo->bdev);
 
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		amdgpu_move_null(bo, new_mem);
+		ttm_bo_move_null(bo, new_mem);
 		return 0;
 	}
 	if ((old_mem->mem_type == TTM_PL_TT &&
@@ -684,7 +666,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	    (old_mem->mem_type == TTM_PL_SYSTEM &&
 	     new_mem->mem_type == TTM_PL_TT)) {
 		/* bind is enough */
-		amdgpu_move_null(bo, new_mem);
+		ttm_bo_move_null(bo, new_mem);
 		return 0;
 	}
 	if (old_mem->mem_type == AMDGPU_PL_GDS ||
@@ -694,7 +676,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	    new_mem->mem_type == AMDGPU_PL_GWS ||
 	    new_mem->mem_type == AMDGPU_PL_OA) {
 		/* Nothing to save here */
-		amdgpu_move_null(bo, new_mem);
+		ttm_bo_move_null(bo, new_mem);
 		return 0;
 	}
 

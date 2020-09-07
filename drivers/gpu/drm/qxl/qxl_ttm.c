@@ -158,16 +158,6 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 	return &gtt->ttm;
 }
 
-static void qxl_move_null(struct ttm_buffer_object *bo,
-			     struct ttm_resource *new_mem)
-{
-	struct ttm_resource *old_mem = &bo->mem;
-
-	BUG_ON(old_mem->mm_node != NULL);
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
-}
-
 static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 		       struct ttm_operation_ctx *ctx,
 		       struct ttm_resource *new_mem)
@@ -180,7 +170,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 		return ret;
 
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		qxl_move_null(bo, new_mem);
+		ttm_bo_move_null(bo, new_mem);
 		return 0;
 	}
 	return ttm_bo_move_memcpy(bo, ctx, new_mem);

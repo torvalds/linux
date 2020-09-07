@@ -148,16 +148,6 @@ static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 					  filp->private_data);
 }
 
-static void radeon_move_null(struct ttm_buffer_object *bo,
-			     struct ttm_resource *new_mem)
-{
-	struct ttm_resource *old_mem = &bo->mem;
-
-	BUG_ON(old_mem->mm_node != NULL);
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
-}
-
 static int radeon_move_blit(struct ttm_buffer_object *bo,
 			bool evict, bool no_wait_gpu,
 			struct ttm_resource *new_mem,
@@ -316,7 +306,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	rdev = radeon_get_rdev(bo->bdev);
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		radeon_move_null(bo, new_mem);
+		ttm_bo_move_null(bo, new_mem);
 		return 0;
 	}
 	if ((old_mem->mem_type == TTM_PL_TT &&
@@ -324,7 +314,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 	    (old_mem->mem_type == TTM_PL_SYSTEM &&
 	     new_mem->mem_type == TTM_PL_TT)) {
 		/* bind is enough */
-		radeon_move_null(bo, new_mem);
+		ttm_bo_move_null(bo, new_mem);
 		return 0;
 	}
 	if (!rdev->ring[radeon_copy_ring_index(rdev)].ready ||
