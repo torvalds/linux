@@ -124,7 +124,7 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	task = qedf_get_task_mem(&qedf->tasks, xid);
 	qedf_init_mp_task(els_req, task, sqe);
 
-	/* Put timer on original I/O request */
+	/* Put timer on els request */
 	if (timer_msec)
 		qedf_cmd_timer_set(qedf, els_req, timer_msec);
 
