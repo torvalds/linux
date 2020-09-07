@@ -434,20 +434,11 @@ struct hif_cnf_beacon_transmit {
 #define HIF_LINK_ID_MAX            14
 #define HIF_LINK_ID_NOT_ASSOCIATED (HIF_LINK_ID_MAX + 1)
 
-enum hif_sta_map_direction {
-	HIF_STA_MAP                       = 0x0,
-	HIF_STA_UNMAP                     = 0x1
-};
-
-struct hif_map_link_flags {
-	u8     map_direction:1;
-	u8     mfpc:1;
-	u8     reserved:6;
-} __packed;
-
 struct hif_req_map_link {
 	u8     mac_addr[ETH_ALEN];
-	struct hif_map_link_flags map_link_flags;
+	u8     unmap:1;
+	u8     mfpc:1;
+	u8     reserved:6;
 	u8     peer_sta_id;
 } __packed;
 

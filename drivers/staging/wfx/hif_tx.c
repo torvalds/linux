@@ -502,8 +502,8 @@ int hif_map_link(struct wfx_vif *wvif, bool unmap, u8 *mac_addr, int sta_id, boo
 		return -ENOMEM;
 	if (mac_addr)
 		ether_addr_copy(body->mac_addr, mac_addr);
-	body->map_link_flags.mfpc = mfp ? 1 : 0;
-	body->map_link_flags.map_direction = unmap ? 1 : 0;
+	body->mfpc = mfp ? 1 : 0;
+	body->unmap = unmap ? 1 : 0;
 	body->peer_sta_id = sta_id;
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_MAP_LINK, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
