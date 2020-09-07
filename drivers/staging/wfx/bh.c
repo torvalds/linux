@@ -12,7 +12,6 @@
 #include "wfx.h"
 #include "hwio.h"
 #include "traces.h"
-#include "secure_link.h"
 #include "hif_rx.h"
 #include "hif_api_cmd.h"
 
@@ -88,36 +87,17 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	_trace_piggyback(piggyback, false);
 
 	hif = (struct hif_msg *)skb->data;
-	WARN(hif->encrypted & 0x1, "unsupported encryption type");
-	if (hif->encrypted == 0x2) {
-		if (WARN(read_len < sizeof(struct hif_sl_msg), "corrupted read"))
-			goto err;
-		computed_len = le16_to_cpu(((struct hif_sl_msg *)hif)->len);
-		computed_len = round_up(computed_len - sizeof(u16), 16);
-		computed_len += sizeof(struct hif_sl_msg);
-		computed_len += sizeof(struct hif_sl_tag);
-	} else {
-		if (WARN(read_len < sizeof(struct hif_msg), "corrupted read"))
-			goto err;
-		computed_len = le16_to_cpu(hif->len);
-		computed_len = round_up(computed_len, 2);
-	}
+	WARN(hif->encrypted & 0x3, "encryption is unsupported");
+	if (WARN(read_len < sizeof(struct hif_msg), "corrupted read"))
+		goto err;
+	computed_len = le16_to_cpu(hif->len);
+	computed_len = round_up(computed_len, 2);
 	if (computed_len != read_len) {
 		dev_err(wdev->dev, "inconsistent message length: %zu != %zu\n",
 			computed_len, read_len);
 		print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET, 16, 1,
 			       hif, read_len, true);
 		goto err;
-	}
-	if (hif->encrypted == 0x2) {
-		if (wfx_sl_decode(wdev, (struct hif_sl_msg *)hif)) {
-			dev_kfree_skb(skb);
-			// If frame was a confirmation, expect trouble in next
-			// exchange. However, it is harmless to fail to decode
-			// an indication frame, so try to continue. Anyway,
-			// piggyback is probably correct.
-			return piggyback;
-		}
 	}
 
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {
@@ -199,23 +179,7 @@ static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
 	hif->seqnum = wdev->hif.tx_seqnum;
 	wdev->hif.tx_seqnum = (wdev->hif.tx_seqnum + 1) % (HIF_COUNTER_MAX + 1);
 
-	if (wfx_is_secure_command(wdev, hif->id)) {
-		len = round_up(len - sizeof(hif->len), 16) + sizeof(hif->len) +
-			sizeof(struct hif_sl_msg_hdr) +
-			sizeof(struct hif_sl_tag);
-		// AES support encryption in-place. However, mac80211 access to
-		// 802.11 header after frame was sent (to get MAC addresses).
-		// So, keep origin buffer clear.
-		data = kmalloc(len, GFP_KERNEL);
-		if (!data)
-			goto end;
-		is_encrypted = true;
-		ret = wfx_sl_encode(wdev, hif, data);
-		if (ret)
-			goto end;
-	} else {
-		data = hif;
-	}
+	data = hif;
 	WARN(len > wdev->hw_caps.size_inp_ch_buf,
 	     "%s: request exceed WFx capability: %zu > %d\n", __func__,
 	     len, wdev->hw_caps.size_inp_ch_buf);

@@ -20,7 +20,6 @@ struct wfx_vif;
 
 struct wfx_hif_cmd {
 	struct mutex      lock;
-	struct mutex      key_renew_lock;
 	struct completion ready;
 	struct completion done;
 	bool              async;
@@ -58,10 +57,5 @@ int hif_beacon_transmit(struct wfx_vif *wvif, bool enable);
 int hif_map_link(struct wfx_vif *wvif,
 		 bool unmap, u8 *mac_addr, int sta_id, bool mfp);
 int hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len);
-int hif_sl_set_mac_key(struct wfx_dev *wdev,
-		       const u8 *slk_key, int destination);
-int hif_sl_config(struct wfx_dev *wdev, const unsigned long *bitmap);
-int hif_sl_send_pub_keys(struct wfx_dev *wdev,
-			 const u8 *pubkey, const u8 *pubkey_hmac);
 
 #endif

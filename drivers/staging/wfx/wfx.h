@@ -20,7 +20,6 @@
 #include "data_tx.h"
 #include "main.h"
 #include "queue.h"
-#include "secure_link.h"
 #include "hif_tx.h"
 
 #define USEC_PER_TXOP 32 // see struct ieee80211_tx_queue_params
@@ -41,7 +40,6 @@ struct wfx_dev {
 	struct completion	firmware_ready;
 	struct hif_ind_startup	hw_caps;
 	struct wfx_hif		hif;
-	struct sl_context	sl;
 	struct delayed_work	cooling_timeout_work;
 	bool			poll_irq;
 	bool			chip_frozen;

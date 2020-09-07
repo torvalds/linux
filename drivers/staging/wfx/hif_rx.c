@@ -15,7 +15,6 @@
 #include "bh.h"
 #include "sta.h"
 #include "data_rx.h"
-#include "secure_link.h"
 #include "hif_api_cmd.h"
 
 static int hif_generic_confirm(struct wfx_dev *wdev,
@@ -53,8 +52,6 @@ static int hif_generic_confirm(struct wfx_dev *wdev,
 	} else {
 		wdev->hif_cmd.buf_send = NULL;
 		mutex_unlock(&wdev->hif_cmd.lock);
-		if (cmd != HIF_REQ_ID_SL_EXCHANGE_PUB_KEYS)
-			mutex_unlock(&wdev->hif_cmd.key_renew_lock);
 	}
 	return status;
 }
@@ -107,21 +104,6 @@ static int hif_wakeup_indication(struct wfx_dev *wdev,
 		dev_warn(wdev->dev, "unexpected wake-up indication\n");
 		return -EIO;
 	}
-	return 0;
-}
-
-static int hif_keys_indication(struct wfx_dev *wdev,
-			       const struct hif_msg *hif, const void *buf)
-{
-	const struct hif_ind_sl_exchange_pub_keys *body = buf;
-	u8 pubkey[API_NCP_PUB_KEY_SIZE];
-
-	// SL_PUB_KEY_EXCHANGE_STATUS_SUCCESS is used by legacy secure link
-	if (body->status && body->status != HIF_STATUS_SLK_NEGO_SUCCESS)
-		dev_warn(wdev->dev, "secure link negotiation error\n");
-	memcpy(pubkey, body->ncp_pub_key, sizeof(pubkey));
-	memreverse(pubkey, sizeof(pubkey));
-	wfx_sl_check_pubkey(wdev, pubkey, body->ncp_pub_key_mac);
 	return 0;
 }
 
@@ -380,7 +362,6 @@ static const struct {
 	{ HIF_IND_ID_SET_PM_MODE_CMPL,     hif_pm_mode_complete_indication },
 	{ HIF_IND_ID_SCAN_CMPL,            hif_scan_complete_indication },
 	{ HIF_IND_ID_SUSPEND_RESUME_TX,    hif_suspend_resume_indication },
-	{ HIF_IND_ID_SL_EXCHANGE_PUB_KEYS, hif_keys_indication },
 	{ HIF_IND_ID_EVENT,                hif_event_indication },
 	{ HIF_IND_ID_GENERIC,              hif_generic_indication },
 	{ HIF_IND_ID_ERROR,                hif_error_indication },

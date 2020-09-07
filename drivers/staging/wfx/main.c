@@ -30,7 +30,6 @@
 #include "scan.h"
 #include "debug.h"
 #include "data_tx.h"
-#include "secure_link.h"
 #include "hif_tx_mib.h"
 #include "hif_api_cmd.h"
 
@@ -271,8 +270,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	hw->queues = 4;
 	hw->max_rates = 8;
 	hw->max_rate_tries = 8;
-	hw->extra_tx_headroom = sizeof(struct hif_sl_msg_hdr) +
-				sizeof(struct hif_msg)
+	hw->extra_tx_headroom = sizeof(struct hif_msg)
 				+ sizeof(struct hif_req_tx)
 				+ 4 /* alignment */ + 8 /* TKIP IV */;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
@@ -309,7 +307,6 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 		return ERR_CAST(wdev->pdata.gpio_wakeup);
 	if (wdev->pdata.gpio_wakeup)
 		gpiod_set_consumer_name(wdev->pdata.gpio_wakeup, "wfx wakeup");
-	wfx_sl_fill_pdata(dev, &wdev->pdata);
 
 	mutex_init(&wdev->conf_mutex);
 	mutex_init(&wdev->rx_stats_lock);
@@ -381,8 +378,7 @@ int wfx_probe(struct wfx_dev *wdev)
 		goto err0;
 	}
 
-	err = wfx_sl_init(wdev);
-	if (err && wdev->hw_caps.capabilities.link_mode == SEC_LINK_ENFORCED) {
+	if (wdev->hw_caps.capabilities.link_mode == SEC_LINK_ENFORCED) {
 		dev_err(wdev->dev,
 			"chip require secure_link, but can't negotiate it\n");
 		goto err0;
@@ -466,7 +462,6 @@ void wfx_release(struct wfx_dev *wdev)
 	hif_shutdown(wdev);
 	wdev->hwbus_ops->irq_unsubscribe(wdev->hwbus_priv);
 	wfx_bh_unregister(wdev);
-	wfx_sl_deinit(wdev);
 }
 
 static int __init wfx_core_init(void)

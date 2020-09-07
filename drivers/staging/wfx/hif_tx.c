@@ -20,7 +20,6 @@ void wfx_init_hif_cmd(struct wfx_hif_cmd *hif_cmd)
 	init_completion(&hif_cmd->ready);
 	init_completion(&hif_cmd->done);
 	mutex_init(&hif_cmd->lock);
-	mutex_init(&hif_cmd->key_renew_lock);
 }
 
 static void wfx_fill_header(struct hif_msg *hif, int if_id,
@@ -61,9 +60,6 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 	// Do not wait for any reply if chip is frozen
 	if (wdev->chip_frozen)
 		return -ETIMEDOUT;
-
-	if (cmd != HIF_REQ_ID_SL_EXCHANGE_PUB_KEYS)
-		mutex_lock(&wdev->hif_cmd.key_renew_lock);
 
 	mutex_lock(&wdev->hif_cmd.lock);
 	WARN(wdev->hif_cmd.buf_send, "data locking error");
@@ -118,8 +114,6 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 			 "WSM request %s%s%s (%#.2x) on vif %d returned status %d\n",
 			 get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
 
-	if (cmd != HIF_REQ_ID_SL_EXCHANGE_PUB_KEYS)
-		mutex_unlock(&wdev->hif_cmd.key_renew_lock);
 	return ret;
 }
 
@@ -147,7 +141,6 @@ int hif_shutdown(struct wfx_dev *wdev)
 	else
 		control_reg_write(wdev, 0);
 	mutex_unlock(&wdev->hif_cmd.lock);
-	mutex_unlock(&wdev->hif_cmd.key_renew_lock);
 	kfree(hif);
 	return ret;
 }
@@ -533,64 +526,5 @@ int hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len)
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_UPDATE_IE, buf_len);
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
-	return ret;
-}
-
-int hif_sl_send_pub_keys(struct wfx_dev *wdev,
-			 const u8 *pubkey, const u8 *pubkey_hmac)
-{
-	int ret;
-	struct hif_msg *hif;
-	struct hif_req_sl_exchange_pub_keys *body = wfx_alloc_hif(sizeof(*body),
-								  &hif);
-
-	if (!hif)
-		return -ENOMEM;
-	body->algorithm = HIF_SL_CURVE25519;
-	memcpy(body->host_pub_key, pubkey, sizeof(body->host_pub_key));
-	memcpy(body->host_pub_key_mac, pubkey_hmac,
-	       sizeof(body->host_pub_key_mac));
-	wfx_fill_header(hif, -1, HIF_REQ_ID_SL_EXCHANGE_PUB_KEYS,
-			sizeof(*body));
-	ret = wfx_cmd_send(wdev, hif, NULL, 0, false);
-	kfree(hif);
-	// Compatibility with legacy secure link
-	if (ret == le32_to_cpu(HIF_STATUS_SLK_NEGO_SUCCESS))
-		ret = 0;
-	return ret;
-}
-
-int hif_sl_config(struct wfx_dev *wdev, const unsigned long *bitmap)
-{
-	int ret;
-	struct hif_msg *hif;
-	struct hif_req_sl_configure *body = wfx_alloc_hif(sizeof(*body), &hif);
-
-	if (!hif)
-		return -ENOMEM;
-	memcpy(body->encr_bmp, bitmap, sizeof(body->encr_bmp));
-	wfx_fill_header(hif, -1, HIF_REQ_ID_SL_CONFIGURE, sizeof(*body));
-	ret = wfx_cmd_send(wdev, hif, NULL, 0, false);
-	kfree(hif);
-	return ret;
-}
-
-int hif_sl_set_mac_key(struct wfx_dev *wdev, const u8 *slk_key, int destination)
-{
-	int ret;
-	struct hif_msg *hif;
-	struct hif_req_set_sl_mac_key *body = wfx_alloc_hif(sizeof(*body),
-							    &hif);
-
-	if (!hif)
-		return -ENOMEM;
-	memcpy(body->key_value, slk_key, sizeof(body->key_value));
-	body->otp_or_ram = destination;
-	wfx_fill_header(hif, -1, HIF_REQ_ID_SET_SL_MAC_KEY, sizeof(*body));
-	ret = wfx_cmd_send(wdev, hif, NULL, 0, false);
-	kfree(hif);
-	// Compatibility with legacy secure link
-	if (ret == le32_to_cpu(HIF_STATUS_SLK_SET_KEY_SUCCESS))
-		ret = 0;
 	return ret;
 }
