@@ -33,6 +33,13 @@
 			0x50000000 0x08000000>;
 	};
 
+	pmic_ap_clk: clock-0 {
+		/* Workaround for missing clock on PMIC */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
+
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -224,6 +231,11 @@
 					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 				};
+
+				ap32khz_reg: EN32KHz-AP {
+					regulator-name = "32KHz AP";
+					regulator-always-on;
+				};
 			};
 		};
 	};
@@ -306,6 +318,11 @@
 
 &uart3 {
 	status = "okay";
+};
+
+&rtc {
+	clocks = <&clocks CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &sdhci0 {
