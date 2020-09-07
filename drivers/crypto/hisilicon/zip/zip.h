@@ -39,7 +39,6 @@ struct hisi_zip_ctrl;
 
 struct hisi_zip {
 	struct hisi_qm qm;
-	struct list_head list;
 	struct hisi_zip_ctrl *ctrl;
 	struct hisi_zip_dfx dfx;
 };
