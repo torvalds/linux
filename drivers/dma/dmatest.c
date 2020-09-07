@@ -7,6 +7,7 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
@@ -452,8 +453,13 @@ static unsigned int min_odd(unsigned int x, unsigned int y)
 static void result(const char *err, unsigned int n, unsigned int src_off,
 		   unsigned int dst_off, unsigned int len, unsigned long data)
 {
-	pr_info("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)\n",
-		current->comm, n, err, src_off, dst_off, len, data);
+	if (IS_ERR_VALUE(data)) {
+		pr_info("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%ld)\n",
+			current->comm, n, err, src_off, dst_off, len, data);
+	} else {
+		pr_info("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)\n",
+			current->comm, n, err, src_off, dst_off, len, data);
+	}
 }
 
 static void dbg_result(const char *err, unsigned int n, unsigned int src_off,
