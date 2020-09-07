@@ -1329,7 +1329,7 @@ static int __init efx_init_module(void)
 {
 	int rc;
 
-	printk(KERN_INFO "Solarflare NET driver v" EFX_DRIVER_VERSION "\n");
+	printk(KERN_INFO "Solarflare NET driver\n");
 
 	rc = register_netdevice_notifier(&efx_netdev_notifier);
 	if (rc)
@@ -1391,4 +1391,3 @@ MODULE_AUTHOR("Solarflare Communications and "
 MODULE_DESCRIPTION("Solarflare network driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, efx_pci_table);
-MODULE_VERSION(EFX_DRIVER_VERSION);
