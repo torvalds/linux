@@ -133,12 +133,6 @@ static void qxl_ttm_backend_destroy(struct ttm_bo_device *bdev,
 	kfree(gtt);
 }
 
-static struct ttm_backend_func qxl_backend_func = {
-	.bind = &qxl_ttm_backend_bind,
-	.unbind = &qxl_ttm_backend_unbind,
-	.destroy = &qxl_ttm_backend_destroy,
-};
-
 static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 					uint32_t page_flags)
 {
@@ -149,7 +143,6 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 	gtt = kzalloc(sizeof(struct qxl_ttm_tt), GFP_KERNEL);
 	if (gtt == NULL)
 		return NULL;
-	gtt->ttm.func = &qxl_backend_func;
 	gtt->qdev = qdev;
 	if (ttm_tt_init(&gtt->ttm, bo, page_flags)) {
 		kfree(gtt);
@@ -194,6 +187,9 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 
 static struct ttm_bo_driver qxl_bo_driver = {
 	.ttm_tt_create = &qxl_ttm_tt_create,
+	.ttm_tt_bind = &qxl_ttm_backend_bind,
+	.ttm_tt_destroy = &qxl_ttm_backend_destroy,
+	.ttm_tt_unbind = &qxl_ttm_backend_unbind,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
