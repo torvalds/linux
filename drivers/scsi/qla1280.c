@@ -2184,13 +2184,12 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 		nv->cntr_flags_1.disable_loading_risc_code;
 
 	if (IS_ISP1040(ha)) {
-		uint16_t hwrev, cfg1, cdma_conf, ddma_conf;
+		uint16_t hwrev, cfg1, cdma_conf;
 
 		hwrev = RD_REG_WORD(&reg->cfg_0) & ISP_CFG0_HWMSK;
 
 		cfg1 = RD_REG_WORD(&reg->cfg_1) & ~(BIT_4 | BIT_5 | BIT_6);
 		cdma_conf = RD_REG_WORD(&reg->cdma_cfg);
-		ddma_conf = RD_REG_WORD(&reg->ddma_cfg);
 
 		/* Busted fifo, says mjacob. */
 		if (hwrev != ISP_CFG0_1040A)
