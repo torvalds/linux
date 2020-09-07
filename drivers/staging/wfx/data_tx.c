@@ -518,8 +518,7 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct hif_cnf_tx *arg)
 		else
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	} else if (arg->status == HIF_STATUS_TX_FAIL_REQUEUE) {
-		WARN(!arg->tx_result_flags.requeue,
-		     "incoherent status and result_flags");
+		WARN(!arg->requeue, "incoherent status and result_flags");
 		if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 			wvif->after_dtim_tx_allowed = false; // DTIM period elapsed
 			schedule_work(&wvif->update_tim_work);

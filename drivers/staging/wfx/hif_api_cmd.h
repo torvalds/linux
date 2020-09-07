@@ -248,15 +248,6 @@ enum hif_qos_ackplcy {
 	HIF_QOS_ACKPLCY_BLCKACK                        = 0x3
 };
 
-struct hif_tx_result_flags {
-	u8     aggr:1;
-	u8     requeue:1;
-	u8     ack_policy:2;
-	u8     txop_limit:1;
-	u8     reserved1:3;
-	u8     reserved2;
-} __packed;
-
 struct hif_cnf_tx {
 	__le32 status;
 	// packet_id is copied from struct hif_req_tx without been interpreted
@@ -264,7 +255,12 @@ struct hif_cnf_tx {
 	u32    packet_id;
 	u8     txed_rate;
 	u8     ack_failures;
-	struct hif_tx_result_flags tx_result_flags;
+	u8     aggr:1;
+	u8     requeue:1;
+	u8     ack_policy:2;
+	u8     txop_limit:1;
+	u8     reserved1:3;
+	u8     reserved2;
 	__le32 media_delay;
 	__le32 tx_queue_delay;
 } __packed;
