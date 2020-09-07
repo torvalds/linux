@@ -340,54 +340,6 @@ void wfx_reset(struct wfx_vif *wvif)
 		wfx_update_pm(wvif);
 }
 
-static void wfx_do_join(struct wfx_vif *wvif)
-{
-	int ret;
-	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
-	struct cfg80211_bss *bss = NULL;
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	const u8 *ssidie = NULL;
-	int ssidlen = 0;
-
-	wfx_tx_lock_flush(wvif->wdev);
-
-	bss = cfg80211_get_bss(wvif->wdev->hw->wiphy, wvif->channel,
-			       conf->bssid, NULL, 0,
-			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
-	if (!bss && !conf->ibss_joined) {
-		wfx_tx_unlock(wvif->wdev);
-		return;
-	}
-
-	rcu_read_lock(); // protect ssidie
-	if (bss)
-		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
-	if (ssidie) {
-		ssidlen = ssidie[1];
-		if (ssidlen > IEEE80211_MAX_SSID_LEN)
-			ssidlen = IEEE80211_MAX_SSID_LEN;
-		memcpy(ssid, &ssidie[2], ssidlen);
-	}
-	rcu_read_unlock();
-
-	cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
-
-	wvif->join_in_progress = true;
-	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
-	if (ret) {
-		ieee80211_connection_loss(wvif->vif);
-		wfx_reset(wvif);
-	} else {
-		/* Due to beacon filtering it is possible that the
-		 * AP's beacon is not known for the mac80211 stack.
-		 * Disable filtering temporary to make sure the stack
-		 * receives at least one
-		 */
-		wfx_filter_beacon(wvif, false);
-	}
-	wfx_tx_unlock(wvif->wdev);
-}
-
 int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta)
 {
@@ -496,6 +448,54 @@ void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wfx_reset(wvif);
 }
 
+static void wfx_join(struct wfx_vif *wvif)
+{
+	int ret;
+	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
+	struct cfg80211_bss *bss = NULL;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	const u8 *ssidie = NULL;
+	int ssidlen = 0;
+
+	wfx_tx_lock_flush(wvif->wdev);
+
+	bss = cfg80211_get_bss(wvif->wdev->hw->wiphy, wvif->channel,
+			       conf->bssid, NULL, 0,
+			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
+	if (!bss && !conf->ibss_joined) {
+		wfx_tx_unlock(wvif->wdev);
+		return;
+	}
+
+	rcu_read_lock(); // protect ssidie
+	if (bss)
+		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
+	if (ssidie) {
+		ssidlen = ssidie[1];
+		if (ssidlen > IEEE80211_MAX_SSID_LEN)
+			ssidlen = IEEE80211_MAX_SSID_LEN;
+		memcpy(ssid, &ssidie[2], ssidlen);
+	}
+	rcu_read_unlock();
+
+	cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
+
+	wvif->join_in_progress = true;
+	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
+	if (ret) {
+		ieee80211_connection_loss(wvif->vif);
+		wfx_reset(wvif);
+	} else {
+		/* Due to beacon filtering it is possible that the
+		 * AP's beacon is not known for the mac80211 stack.
+		 * Disable filtering temporary to make sure the stack
+		 * receives at least one
+		 */
+		wfx_filter_beacon(wvif, false);
+	}
+	wfx_tx_unlock(wvif->wdev);
+}
+
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
@@ -514,7 +514,7 @@ int wfx_join_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	wfx_upload_ap_templates(wvif);
-	wfx_do_join(wvif);
+	wfx_join(wvif);
 	return 0;
 }
 
@@ -551,7 +551,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	    changed & BSS_CHANGED_BEACON_INT ||
 	    changed & BSS_CHANGED_BSSID) {
 		if (vif->type == NL80211_IFTYPE_STATION)
-			wfx_do_join(wvif);
+			wfx_join(wvif);
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
