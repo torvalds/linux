@@ -44,6 +44,11 @@ KBUILD_CFLAGS += $(call cc-option,-fmacro-prefix-map=$(srctree)/=)
 KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 KBUILD_CFLAGS += -D__DISABLE_EXPORTS
 
+# sev-es.c indirectly inludes inat-table.h which is generated during
+# compilation and stored in $(objtree). Add the directory to the includes so
+# that the compiler finds it even with out-of-tree builds (make O=/some/path).
+CFLAGS_sev-es.o += -I$(objtree)/arch/x86/lib/
+
 KBUILD_AFLAGS  := $(KBUILD_CFLAGS) -D__ASSEMBLY__
 GCOV_PROFILE := n
 UBSAN_SANITIZE :=n

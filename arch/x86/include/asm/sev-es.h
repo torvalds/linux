@@ -9,7 +9,14 @@
 #define __ASM_ENCRYPTED_STATE_H
 
 #include <linux/types.h>
+#include <asm/insn.h>
 
+#define GHCB_SEV_INFO		0x001UL
+#define GHCB_SEV_INFO_REQ	0x002UL
+#define		GHCB_INFO(v)		((v) & 0xfffUL)
+#define		GHCB_PROTO_MAX(v)	(((v) >> 48) & 0xffffUL)
+#define		GHCB_PROTO_MIN(v)	(((v) >> 32) & 0xffffUL)
+#define		GHCB_PROTO_OUR		0x0001UL
 #define GHCB_SEV_CPUID_REQ	0x004UL
 #define		GHCB_CPUID_REQ_EAX	0
 #define		GHCB_CPUID_REQ_EBX	1
@@ -19,11 +26,43 @@
 					(((unsigned long)reg & 3) << 30) | \
 					(((unsigned long)fn) << 32))
 
+#define	GHCB_PROTOCOL_MAX	0x0001UL
+#define GHCB_DEFAULT_USAGE	0x0000UL
+
 #define GHCB_SEV_CPUID_RESP	0x005UL
 #define GHCB_SEV_TERMINATE	0x100UL
+#define		GHCB_SEV_TERMINATE_REASON(reason_set, reason_val)	\
+			(((((u64)reason_set) &  0x7) << 12) |		\
+			 ((((u64)reason_val) & 0xff) << 16))
+#define		GHCB_SEV_ES_REASON_GENERAL_REQUEST	0
+#define		GHCB_SEV_ES_REASON_PROTOCOL_UNSUPPORTED	1
 
 #define	GHCB_SEV_GHCB_RESP_CODE(v)	((v) & 0xfff)
 #define	VMGEXIT()			{ asm volatile("rep; vmmcall\n\r"); }
+
+enum es_result {
+	ES_OK,			/* All good */
+	ES_UNSUPPORTED,		/* Requested operation not supported */
+	ES_VMM_ERROR,		/* Unexpected state from the VMM */
+	ES_DECODE_FAILED,	/* Instruction decoding failed */
+	ES_EXCEPTION,		/* Instruction caused exception */
+	ES_RETRY,		/* Retry instruction emulation */
+};
+
+struct es_fault_info {
+	unsigned long vector;
+	unsigned long error_code;
+	unsigned long cr2;
+};
+
+struct pt_regs;
+
+/* ES instruction emulation context */
+struct es_em_ctxt {
+	struct pt_regs *regs;
+	struct insn insn;
+	struct es_fault_info fi;
+};
 
 void do_vc_no_ghcb(struct pt_regs *regs, unsigned long exit_code);
 

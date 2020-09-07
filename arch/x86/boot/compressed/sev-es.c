@@ -13,9 +13,16 @@
 #include "misc.h"
 
 #include <asm/sev-es.h>
+#include <asm/trapnr.h>
+#include <asm/trap_pf.h>
 #include <asm/msr-index.h>
 #include <asm/ptrace.h>
 #include <asm/svm.h>
+
+#include "error.h"
+
+struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
+struct ghcb *boot_ghcb;
 
 static inline u64 sev_es_rd_ghcb_msr(void)
 {
@@ -38,8 +45,112 @@ static inline void sev_es_wr_ghcb_msr(u64 val)
 			"a"(low), "d" (high) : "memory");
 }
 
+static enum es_result vc_decode_insn(struct es_em_ctxt *ctxt)
+{
+	char buffer[MAX_INSN_SIZE];
+	enum es_result ret;
+
+	memcpy(buffer, (unsigned char *)ctxt->regs->ip, MAX_INSN_SIZE);
+
+	insn_init(&ctxt->insn, buffer, MAX_INSN_SIZE, 1);
+	insn_get_length(&ctxt->insn);
+
+	ret = ctxt->insn.immediate.got ? ES_OK : ES_DECODE_FAILED;
+
+	return ret;
+}
+
+static enum es_result vc_write_mem(struct es_em_ctxt *ctxt,
+				   void *dst, char *buf, size_t size)
+{
+	memcpy(dst, buf, size);
+
+	return ES_OK;
+}
+
+static enum es_result vc_read_mem(struct es_em_ctxt *ctxt,
+				  void *src, char *buf, size_t size)
+{
+	memcpy(buf, src, size);
+
+	return ES_OK;
+}
+
 #undef __init
+#undef __pa
 #define __init
+#define __pa(x)	((unsigned long)(x))
+
+#define __BOOT_COMPRESSED
+
+/* Basic instruction decoding support needed */
+#include "../../lib/inat.c"
+#include "../../lib/insn.c"
 
 /* Include code for early handlers */
 #include "../../kernel/sev-es-shared.c"
+
+static bool early_setup_sev_es(void)
+{
+	if (!sev_es_negotiate_protocol())
+		sev_es_terminate(GHCB_SEV_ES_REASON_PROTOCOL_UNSUPPORTED);
+
+	if (set_page_decrypted((unsigned long)&boot_ghcb_page))
+		return false;
+
+	/* Page is now mapped decrypted, clear it */
+	memset(&boot_ghcb_page, 0, sizeof(boot_ghcb_page));
+
+	boot_ghcb = &boot_ghcb_page;
+
+	/* Initialize lookup tables for the instruction decoder */
+	inat_init_tables();
+
+	return true;
+}
+
+void sev_es_shutdown_ghcb(void)
+{
+	if (!boot_ghcb)
+		return;
+
+	/*
+	 * GHCB Page must be flushed from the cache and mapped encrypted again.
+	 * Otherwise the running kernel will see strange cache effects when
+	 * trying to use that page.
+	 */
+	if (set_page_encrypted((unsigned long)&boot_ghcb_page))
+		error("Can't map GHCB page encrypted");
+}
+
+void do_boot_stage2_vc(struct pt_regs *regs, unsigned long exit_code)
+{
+	struct es_em_ctxt ctxt;
+	enum es_result result;
+
+	if (!boot_ghcb && !early_setup_sev_es())
+		sev_es_terminate(GHCB_SEV_ES_REASON_GENERAL_REQUEST);
+
+	vc_ghcb_invalidate(boot_ghcb);
+	result = vc_init_em_ctxt(&ctxt, regs, exit_code);
+	if (result != ES_OK)
+		goto finish;
+
+	switch (exit_code) {
+	default:
+		result = ES_UNSUPPORTED;
+		break;
+	}
+
+finish:
+	if (result == ES_OK) {
+		vc_finish_insn(&ctxt);
+	} else if (result != ES_RETRY) {
+		/*
+		 * For now, just halt the machine. That makes debugging easier,
+		 * later we just call sev_es_terminate() here.
+		 */
+		while (true)
+			asm volatile("hlt\n");
+	}
+}
