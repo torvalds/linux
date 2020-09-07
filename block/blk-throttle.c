@@ -150,7 +150,7 @@ struct throtl_grp {
 	/* user configured IOPS limits */
 	unsigned int iops_conf[2][LIMIT_CNT];
 
-	/* Number of bytes disptached in current slice */
+	/* Number of bytes dispatched in current slice */
 	uint64_t bytes_disp[2];
 	/* Number of bio's dispatched in current slice */
 	unsigned int io_disp[2];
@@ -852,7 +852,7 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 	/*
 	 * A bio has been dispatched. Also adjust slice_end. It might happen
 	 * that initially cgroup limit was very low resulting in high
-	 * slice_end, but later limit was bumped up and bio was dispached
+	 * slice_end, but later limit was bumped up and bio was dispatched
 	 * sooner, then we need to reduce slice_end. A high bogus slice_end
 	 * is bad because it does not allow new slice to start.
 	 */
@@ -1082,7 +1082,7 @@ static void throtl_add_bio_tg(struct bio *bio, struct throtl_qnode *qn,
 	 * If @tg doesn't currently have any bios queued in the same
 	 * direction, queueing @bio can change when @tg should be
 	 * dispatched.  Mark that @tg was empty.  This is automatically
-	 * cleaered on the next tg_update_disptime().
+	 * cleared on the next tg_update_disptime().
 	 */
 	if (!sq->nr_queued[rw])
 		tg->flags |= THROTL_TG_WAS_EMPTY;
@@ -1303,7 +1303,7 @@ again:
 			}
 		}
 	} else {
-		/* reached the top-level, queue issueing */
+		/* reached the top-level, queue issuing */
 		queue_work(kthrotld_workqueue, &td->dispatch_work);
 	}
 out_unlock:
@@ -1314,8 +1314,8 @@ out_unlock:
  * blk_throtl_dispatch_work_fn - work function for throtl_data->dispatch_work
  * @work: work item being executed
  *
- * This function is queued for execution when bio's reach the bio_lists[]
- * of throtl_data->service_queue.  Those bio's are ready and issued by this
+ * This function is queued for execution when bios reach the bio_lists[]
+ * of throtl_data->service_queue.  Those bios are ready and issued by this
  * function.
  */
 static void blk_throtl_dispatch_work_fn(struct work_struct *work)
@@ -2230,7 +2230,7 @@ again:
 
 		/*
 		 * @bio passed through this layer without being throttled.
-		 * Climb up the ladder.  If we''re already at the top, it
+		 * Climb up the ladder.  If we're already at the top, it
 		 * can be executed directly.
 		 */
 		qn = &tg->qnode_on_parent[rw];
