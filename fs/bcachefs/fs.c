@@ -1428,6 +1428,24 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 	return ret;
 }
 
+static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
+{
+	struct bch_fs *c = root->d_sb->s_fs_info;
+	struct bch_dev *ca;
+	unsigned i;
+	bool first = true;
+
+	for_each_online_member(ca, c, i) {
+		if (!first)
+			seq_putc(seq, ':');
+		first = false;
+		seq_puts(seq, "/dev/");
+		seq_puts(seq, ca->name);
+	}
+
+	return 0;
+}
+
 static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct bch_fs *c = root->d_sb->s_fs_info;
@@ -1451,7 +1469,6 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 	}
 
 	return 0;
-
 }
 
 static const struct super_operations bch_super_operations = {
@@ -1461,6 +1478,7 @@ static const struct super_operations bch_super_operations = {
 	.evict_inode	= bch2_evict_inode,
 	.sync_fs	= bch2_sync_fs,
 	.statfs		= bch2_statfs,
+	.show_devname	= bch2_show_devname,
 	.show_options	= bch2_show_options,
 	.remount_fs	= bch2_remount,
 #if 0

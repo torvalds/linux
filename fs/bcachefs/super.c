@@ -1790,7 +1790,6 @@ err:
 /* return with ref on ca->ref: */
 struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *path)
 {
-
 	struct bch_dev *ca;
 	dev_t dev;
 	unsigned i;
@@ -1816,6 +1815,7 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 {
 	struct bch_sb_handle *sb = NULL;
 	struct bch_fs *c = NULL;
+	struct bch_sb_field_members *mi;
 	unsigned i, best_sb = 0;
 	const char *err;
 	int ret = -ENOMEM;
@@ -1851,10 +1851,22 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 		    le64_to_cpu(sb[best_sb].sb->seq))
 			best_sb = i;
 
-	for (i = 0; i < nr_devices; i++) {
+	mi = bch2_sb_get_members(sb[best_sb].sb);
+
+	i = 0;
+	while (i < nr_devices) {
+		if (i != best_sb &&
+		    !bch2_dev_exists(sb[best_sb].sb, mi, sb[i].sb->dev_idx)) {
+			pr_info("%pg has been removed, skipping", sb[i].bdev);
+			bch2_free_super(&sb[i]);
+			array_remove_item(sb, nr_devices, i);
+			continue;
+		}
+
 		err = bch2_dev_in_fs(sb[best_sb].sb, sb[i].sb);
 		if (err)
 			goto err_print;
+		i++;
 	}
 
 	ret = -ENOMEM;
