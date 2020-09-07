@@ -48,47 +48,9 @@ enum ttm_caching_state {
 	tt_cached
 };
 
-struct ttm_backend_func {
-	/**
-	 * struct ttm_backend_func member bind
-	 *
-	 * @ttm: Pointer to a struct ttm_tt.
-	 * @bo_mem: Pointer to a struct ttm_resource describing the
-	 * memory type and location for binding.
-	 *
-	 * Bind the backend pages into the aperture in the location
-	 * indicated by @bo_mem. This function should be able to handle
-	 * differences between aperture and system page sizes.
-	 */
-	int (*bind) (struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *bo_mem);
-
-	/**
-	 * struct ttm_backend_func member unbind
-	 *
-	 * @ttm: Pointer to a struct ttm_tt.
-	 *
-	 * Unbind previously bound backend pages. This function should be
-	 * able to handle differences between aperture and system page sizes.
-	 */
-	void (*unbind) (struct ttm_bo_device *bdev, struct ttm_tt *ttm);
-
-	/**
-	 * struct ttm_backend_func member destroy
-	 *
-	 * @ttm: Pointer to a struct ttm_tt.
-	 *
-	 * Destroy the backend. This will be call back from ttm_tt_destroy so
-	 * don't call ttm_tt_destroy from the callback or infinite loop.
-	 */
-	void (*destroy) (struct ttm_bo_device *bdev, struct ttm_tt *ttm);
-};
-
 /**
  * struct ttm_tt
  *
- * @func: Pointer to a struct ttm_backend_func that describes
- * the backend methods.
- * pointer.
  * @pages: Array of pages backing the data.
  * @num_pages: Number of pages in the page array.
  * @bdev: Pointer to the current struct ttm_bo_device.
@@ -102,7 +64,6 @@ struct ttm_backend_func {
  * memory.
  */
 struct ttm_tt {
-	struct ttm_backend_func *func;
 	struct page **pages;
 	uint32_t page_flags;
 	unsigned long num_pages;
