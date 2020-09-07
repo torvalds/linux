@@ -272,8 +272,6 @@ enum dpio_phy {
 	DPIO_PHY2,
 };
 
-#define I915_NUM_PHYS_VLV 2
-
 enum aux_ch {
 	AUX_CH_A,
 	AUX_CH_B,

@@ -1030,8 +1030,6 @@ struct drm_i915_private {
 	 */
 	u8 active_pipes;
 
-	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
-
 	struct i915_wa_list gt_wa_list;
 
 	struct i915_frontbuffer_tracking fb_tracking;
