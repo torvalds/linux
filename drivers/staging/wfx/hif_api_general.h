@@ -221,15 +221,12 @@ struct hif_tx_power_loop_info {
 	u8     reserved;
 } __packed;
 
-union hif_indication_data {
-	struct hif_rx_stats rx_stats;
-	struct hif_tx_power_loop_info tx_power_loop_info;
-	u8     raw_data[1];
-};
-
 struct hif_ind_generic {
-	__le32 indication_type;
-	union hif_indication_data indication_data;
+	__le32 type;
+	union {
+		struct hif_rx_stats rx_stats;
+		struct hif_tx_power_loop_info tx_power_loop_info;
+	} data;
 } __packed;
 
 enum hif_error {

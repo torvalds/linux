@@ -225,29 +225,28 @@ static int hif_generic_indication(struct wfx_dev *wdev,
 				  const struct hif_msg *hif, const void *buf)
 {
 	const struct hif_ind_generic *body = buf;
-	int type = le32_to_cpu(body->indication_type);
+	int type = le32_to_cpu(body->type);
 
 	switch (type) {
 	case HIF_GENERIC_INDICATION_TYPE_RAW:
 		return 0;
 	case HIF_GENERIC_INDICATION_TYPE_STRING:
-		dev_info(wdev->dev, "firmware says: %s\n",
-			 (char *)body->indication_data.raw_data);
+		dev_info(wdev->dev, "firmware says: %s\n", (char *)&body->data);
 		return 0;
 	case HIF_GENERIC_INDICATION_TYPE_RX_STATS:
 		mutex_lock(&wdev->rx_stats_lock);
 		// Older firmware send a generic indication beside RxStats
 		if (!wfx_api_older_than(wdev, 1, 4))
 			dev_info(wdev->dev, "Rx test ongoing. Temperature: %d°C\n",
-				 body->indication_data.rx_stats.current_temp);
-		memcpy(&wdev->rx_stats, &body->indication_data.rx_stats,
+				 body->data.rx_stats.current_temp);
+		memcpy(&wdev->rx_stats, &body->data.rx_stats,
 		       sizeof(wdev->rx_stats));
 		mutex_unlock(&wdev->rx_stats_lock);
 		return 0;
 	case HIF_GENERIC_INDICATION_TYPE_TX_POWER_LOOP_INFO:
 		mutex_lock(&wdev->tx_power_loop_info_lock);
 		memcpy(&wdev->tx_power_loop_info,
-		       &body->indication_data.tx_power_loop_info,
+		       &body->data.tx_power_loop_info,
 		       sizeof(wdev->tx_power_loop_info));
 		mutex_unlock(&wdev->tx_power_loop_info_lock);
 		return 0;
