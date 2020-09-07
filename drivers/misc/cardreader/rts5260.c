@@ -87,21 +87,6 @@ static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		pcr->flags |= PCR_REVERSE_SOCKET;
 }
 
-static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
-{
-	/* Set relink_time to 0 */
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, MASK_8_BIT_DEF, 0);
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 2, MASK_8_BIT_DEF, 0);
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 3,
-				RELINK_TIME_MASK, 0);
-
-	if (pm_state == HOST_ENTER_S3)
-		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3,
-					D3_DELINK_MODE_EN, D3_DELINK_MODE_EN);
-
-	rtsx_pci_write_register(pcr, FPDCTL, ALL_POWER_DOWN, ALL_POWER_DOWN);
-}
-
 static int rtsx_base_enable_auto_blink(struct rtsx_pcr *pcr)
 {
 	return rtsx_pci_write_register(pcr, OLT_LED_CTL,
@@ -620,7 +605,6 @@ static const struct pcr_ops rts5260_pcr_ops = {
 	.card_power_on = rts5260_card_power_on,
 	.card_power_off = rts5260_card_power_off,
 	.switch_output_voltage = rts5260_switch_output_voltage,
-	.force_power_down = rtsx_base_force_power_down,
 	.stop_cmd = rts5260_stop_cmd,
 	.set_l1off_cfg_sub_d0 = rts5260_set_l1off_cfg_sub_d0,
 	.enable_ocp = rts5260_enable_ocp,
