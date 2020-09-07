@@ -1186,13 +1186,32 @@ drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
 			crtc->x = new_plane_state->src_x >> 16;
 			crtc->y = new_plane_state->src_y >> 16;
 		}
+	}
 
+	drm_atomic_helper_calc_timestamping_constants(old_state);
+}
+EXPORT_SYMBOL(drm_atomic_helper_update_legacy_modeset_state);
+
+/**
+ * drm_atomic_helper_calc_timestamping_constants - update vblank timestamping constants
+ * @state: atomic state object
+ *
+ * Updates the timestamping constants used for precise vblank timestamps
+ * by calling drm_calc_timestamping_constants() for all enabled crtcs in @state.
+ */
+void drm_atomic_helper_calc_timestamping_constants(struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (new_crtc_state->enable)
 			drm_calc_timestamping_constants(crtc,
 							&new_crtc_state->adjusted_mode);
 	}
 }
-EXPORT_SYMBOL(drm_atomic_helper_update_legacy_modeset_state);
+EXPORT_SYMBOL(drm_atomic_helper_calc_timestamping_constants);
 
 static void
 crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
