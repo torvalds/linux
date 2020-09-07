@@ -383,13 +383,14 @@ err_out:
 	return err;
 }
 
-void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
+int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_pd *pd = to_epd(ibpd);
 
 	ibdev_dbg(&dev->ibdev, "Dealloc pd[%d]\n", pd->pdn);
 	efa_pd_dealloc(dev, pd->pdn);
+	return 0;
 }
 
 static int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle)

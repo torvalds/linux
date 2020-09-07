@@ -329,7 +329,7 @@ EXPORT_SYMBOL(__ib_alloc_pd);
  * exist.  The caller is responsible to synchronously destroy them and
  * guarantee no new allocations will happen.
  */
-void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
+int ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 {
 	int ret;
 
@@ -343,9 +343,13 @@ void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 	   requires the caller to guarantee we can't race here. */
 	WARN_ON(atomic_read(&pd->usecnt));
 
+	ret = pd->device->ops.dealloc_pd(pd, udata);
+	if (ret)
+		return ret;
+
 	rdma_restrack_del(&pd->res);
-	pd->device->ops.dealloc_pd(pd, udata);
 	kfree(pd);
+	return ret;
 }
 EXPORT_SYMBOL(ib_dealloc_pd_user);
 

@@ -190,7 +190,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return ret;
 }
 
-static void c4iw_deallocate_pd(struct ib_pd *pd, struct ib_udata *udata)
+static int c4iw_deallocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
@@ -202,6 +202,7 @@ static void c4iw_deallocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 	mutex_lock(&rhp->rdev.stats.lock);
 	rhp->rdev.stats.pd.cur--;
 	mutex_unlock(&rhp->rdev.stats.lock);
+	return 0;
 }
 
 static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_udata *udata)

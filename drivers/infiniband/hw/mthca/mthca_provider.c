@@ -373,9 +373,10 @@ static int mthca_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	return 0;
 }
 
-static void mthca_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
+static int mthca_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	mthca_pd_free(to_mdev(pd->device), to_mpd(pd));
+	return 0;
 }
 
 static int mthca_ah_create(struct ib_ah *ibah,

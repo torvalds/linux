@@ -122,8 +122,7 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	ib_dealloc_pd_user(pd, &attrs->driver_udata);
-	return 0;
+	return ib_dealloc_pd_user(pd, &attrs->driver_udata);
 }
 
 void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue)

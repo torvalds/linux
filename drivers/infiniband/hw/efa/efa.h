@@ -134,7 +134,7 @@ int efa_query_gid(struct ib_device *ibdev, u8 port, int index,
 int efa_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 		   u16 *pkey);
 int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
-void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
+int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,

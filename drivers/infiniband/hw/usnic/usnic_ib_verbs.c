@@ -449,9 +449,10 @@ int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	return 0;
 }
 
-void usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
+int usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	usnic_uiom_dealloc_pd((to_upd(pd))->umem_pd);
+	return 0;
 }
 
 struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,

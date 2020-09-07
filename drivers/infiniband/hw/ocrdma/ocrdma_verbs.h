@@ -67,7 +67,7 @@ void ocrdma_dealloc_ucontext(struct ib_ucontext *uctx);
 int ocrdma_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
 
 int ocrdma_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
-void ocrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
+int ocrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 
 int ocrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		     struct ib_udata *udata);

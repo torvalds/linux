@@ -664,7 +664,7 @@ exit:
 	return status;
 }
 
-void ocrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
+int ocrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
@@ -682,10 +682,11 @@ void ocrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 
 		if (is_ucontext_pd(uctx, pd)) {
 			ocrdma_release_ucontext_pd(uctx);
-			return;
+			return 0;
 		}
 	}
 	_ocrdma_dealloc_pd(dev, pd);
+	return 0;
 }
 
 static int ocrdma_alloc_lkey(struct ocrdma_dev *dev, struct ocrdma_mr *mr,

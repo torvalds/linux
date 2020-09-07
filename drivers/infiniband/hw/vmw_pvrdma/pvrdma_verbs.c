@@ -479,9 +479,9 @@ err:
  * @pd: the protection domain to be released
  * @udata: user data or null for kernel object
  *
- * @return: 0 on success, otherwise errno.
+ * @return: Always 0
  */
-void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
+int pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);
 	union pvrdma_cmd_req req = {};
@@ -498,6 +498,7 @@ void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 			 ret);
 
 	atomic_dec(&dev->num_pds);
+	return 0;
 }
 
 /**

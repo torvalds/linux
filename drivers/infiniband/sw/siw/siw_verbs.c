@@ -234,12 +234,13 @@ int siw_alloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 	return 0;
 }
 
-void siw_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
+int siw_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct siw_device *sdev = to_siw_dev(pd->device);
 
 	siw_dbg_pd(pd, "free PD\n");
 	atomic_dec(&sdev->num_pd);
+	return 0;
 }
 
 void siw_qp_get_ref(struct ib_qp *base_qp)

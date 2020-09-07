@@ -148,11 +148,12 @@ static int rxe_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	return rxe_add_to_pool(&rxe->pd_pool, &pd->pelem);
 }
 
-static void rxe_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
+static int rxe_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct rxe_pd *pd = to_rpd(ibpd);
 
 	rxe_drop_ref(pd);
+	return 0;
 }
 
 static int rxe_create_ah(struct ib_ah *ibah,

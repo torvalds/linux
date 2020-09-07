@@ -532,7 +532,7 @@ fail:
 }
 
 /* Protection Domains */
-void bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
+int bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -542,6 +542,7 @@ void bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
 	if (pd->qplib_pd.id)
 		bnxt_qplib_dealloc_pd(&rdev->qplib_res, &rdev->qplib_res.pd_tbl,
 				      &pd->qplib_pd);
+	return 0;
 }
 
 int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
