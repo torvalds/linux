@@ -345,7 +345,7 @@ struct scmi_driver {
 
 #define to_scmi_driver(d) container_of(d, struct scmi_driver, driver)
 
-#ifdef CONFIG_ARM_SCMI_PROTOCOL
+#if IS_REACHABLE(CONFIG_ARM_SCMI_PROTOCOL)
 int scmi_driver_register(struct scmi_driver *driver,
 			 struct module *owner, const char *mod_name);
 void scmi_driver_unregister(struct scmi_driver *driver);
