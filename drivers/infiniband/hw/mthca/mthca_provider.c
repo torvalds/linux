@@ -390,9 +390,10 @@ static int mthca_ah_create(struct ib_ah *ibah,
 			       init_attr->ah_attr, ah);
 }
 
-static void mthca_ah_destroy(struct ib_ah *ah, u32 flags)
+static int mthca_ah_destroy(struct ib_ah *ah, u32 flags)
 {
 	mthca_destroy_ah(to_mdev(ah->device), to_mah(ah));
+	return 0;
 }
 
 static int mthca_create_srq(struct ib_srq *ibsrq,

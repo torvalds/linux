@@ -168,7 +168,7 @@ int bnxt_re_create_ah(struct ib_ah *ah, struct rdma_ah_init_attr *init_attr,
 		      struct ib_udata *udata);
 int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
-void bnxt_re_destroy_ah(struct ib_ah *ah, u32 flags);
+int bnxt_re_destroy_ah(struct ib_ah *ah, u32 flags);
 int bnxt_re_create_srq(struct ib_srq *srq,
 		       struct ib_srq_init_attr *srq_init_attr,
 		       struct ib_udata *udata);

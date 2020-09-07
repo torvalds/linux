@@ -1873,7 +1873,7 @@ err_out:
 	return err;
 }
 
-void efa_destroy_ah(struct ib_ah *ibah, u32 flags)
+int efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct efa_dev *dev = to_edev(ibah->pd->device);
 	struct efa_ah *ah = to_eah(ibah);
@@ -1883,10 +1883,11 @@ void efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 	if (!(flags & RDMA_DESTROY_AH_SLEEPABLE)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Destroy address handle is not supported in atomic context\n");
-		return;
+		return -EOPNOTSUPP;
 	}
 
 	efa_ah_destroy(dev, ah);
+	return 0;
 }
 
 struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num)
