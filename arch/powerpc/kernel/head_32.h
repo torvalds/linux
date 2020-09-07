@@ -39,15 +39,24 @@
 .endm
 
 .macro EXCEPTION_PROLOG_1 for_rtas=0
+#ifdef CONFIG_VMAP_STACK
+	mr	r11, r1
+	subi	r1, r1, INT_FRAME_SIZE		/* use r1 if kernel */
+	beq	1f
+	mfspr	r1,SPRN_SPRG_THREAD
+	lwz	r1,TASK_STACK-THREAD(r1)
+	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
+#else
 	subi	r11, r1, INT_FRAME_SIZE		/* use r1 if kernel */
 	beq	1f
 	mfspr	r11,SPRN_SPRG_THREAD
 	lwz	r11,TASK_STACK-THREAD(r11)
 	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
+#endif
 1:
 	tophys_novmstack r11, r11
 #ifdef CONFIG_VMAP_STACK
-	mtcrf	0x7f, r11
+	mtcrf	0x7f, r1
 	bt	32 - THREAD_ALIGN_SHIFT, stack_overflow
 #endif
 .endm
@@ -62,6 +71,15 @@
 	stw	r10,_CCR(r11)		/* save registers */
 #endif
 	mfspr	r10, SPRN_SPRG_SCRATCH0
+#ifdef CONFIG_VMAP_STACK
+	stw	r11,GPR1(r1)
+	stw	r11,0(r1)
+	mr	r11, r1
+#else
+	stw	r1,GPR1(r11)
+	stw	r1,0(r11)
+	tovirt(r1, r11)		/* set new kernel sp */
+#endif
 	stw	r12,GPR12(r11)
 	stw	r9,GPR9(r11)
 	stw	r10,GPR10(r11)
@@ -89,9 +107,6 @@
 	mfspr	r12,SPRN_SRR0
 	mfspr	r9,SPRN_SRR1
 #endif
-	stw	r1,GPR1(r11)
-	stw	r1,0(r11)
-	tovirt_novmstack r1, r11	/* set new kernel sp */
 #ifdef CONFIG_40x
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
 #else
@@ -309,19 +324,19 @@ label:
 .macro vmap_stack_overflow_exception
 #ifdef CONFIG_VMAP_STACK
 #ifdef CONFIG_SMP
-	mfspr	r11, SPRN_SPRG_THREAD
-	lwz	r11, TASK_CPU - THREAD(r11)
-	slwi	r11, r11, 3
-	addis	r11, r11, emergency_ctx@ha
+	mfspr	r1, SPRN_SPRG_THREAD
+	lwz	r1, TASK_CPU - THREAD(r1)
+	slwi	r1, r1, 3
+	addis	r1, r1, emergency_ctx@ha
 #else
-	lis	r11, emergency_ctx@ha
+	lis	r1, emergency_ctx@ha
 #endif
-	lwz	r11, emergency_ctx@l(r11)
-	cmpwi	cr1, r11, 0
+	lwz	r1, emergency_ctx@l(r1)
+	cmpwi	cr1, r1, 0
 	bne	cr1, 1f
-	lis	r11, init_thread_union@ha
-	addi	r11, r11, init_thread_union@l
-1:	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
+	lis	r1, init_thread_union@ha
+	addi	r1, r1, init_thread_union@l
+1:	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
 	EXCEPTION_PROLOG_2
 	SAVE_NVGPRS(r11)
 	addi	r3, r1, STACK_FRAME_OVERHEAD
