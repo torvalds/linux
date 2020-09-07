@@ -17,7 +17,7 @@ obj-vdso64 := $(addprefix $(obj)/, $(obj-vdso64))
 obj-cvdso64 := $(addprefix $(obj)/, $(obj-cvdso64))
 
 KBUILD_AFLAGS += -DBUILD_VDSO
-KBUILD_CFLAGS += -DBUILD_VDSO
+KBUILD_CFLAGS += -DBUILD_VDSO -DDISABLE_BRANCH_PROFILING
 
 KBUILD_AFLAGS_64 := $(filter-out -m64,$(KBUILD_AFLAGS))
 KBUILD_AFLAGS_64 += -m64 -s
