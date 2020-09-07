@@ -82,42 +82,6 @@ struct hif_mib_gl_set_multi_msg {
 	u8     reserved2[3];
 } __packed;
 
-enum hif_mac_addr_type {
-	HIF_MAC_ADDR_A1 = 0x0,
-	HIF_MAC_ADDR_A2 = 0x1,
-	HIF_MAC_ADDR_A3 = 0x2
-};
-
-struct hif_mib_mac_addr_data_frame_condition {
-	u8     condition_idx;
-	u8     address_type;
-	u8     mac_address[ETH_ALEN];
-} __packed;
-
-#define HIF_FILTER_UNICAST   0x1
-#define HIF_FILTER_MULTICAST 0x2
-#define HIF_FILTER_BROADCAST 0x4
-
-struct hif_mib_uc_mc_bc_data_frame_condition {
-	u8     condition_idx;
-	u8     allowed_frames;
-	u8     reserved[2];
-} __packed;
-
-struct hif_mib_config_data_filter {
-	u8     filter_idx;
-	u8     enable;
-	u8     reserved1[2];
-	u8     eth_type_cond;
-	u8     port_cond;
-	u8     magic_cond;
-	u8     mac_cond;
-	u8     ipv4_cond;
-	u8     ipv6_cond;
-	u8     uc_mc_bc_cond;
-	u8     reserved2;
-} __packed;
-
 struct hif_mib_set_data_filtering {
 	u8     invert_matching:1;
 	u8     reserved1:7;

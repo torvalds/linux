@@ -142,7 +142,6 @@ static const struct ieee80211_ops wfx_ops = {
 	.set_rts_threshold	= wfx_set_rts_threshold,
 	.set_default_unicast_key = wfx_set_default_unicast_key,
 	.bss_info_changed	= wfx_bss_info_changed,
-	.prepare_multicast	= wfx_prepare_multicast,
 	.configure_filter	= wfx_configure_filter,
 	.ampdu_action		= wfx_ampdu_action,
 	.flush			= wfx_flush,

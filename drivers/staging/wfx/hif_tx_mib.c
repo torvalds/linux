@@ -228,46 +228,6 @@ int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
 	return ret;
 }
 
-int hif_set_mac_addr_condition(struct wfx_vif *wvif,
-			       int idx, const u8 *mac_addr)
-{
-	struct hif_mib_mac_addr_data_frame_condition val = {
-		.condition_idx = idx,
-		.address_type = HIF_MAC_ADDR_A1,
-	};
-
-	ether_addr_copy(val.mac_address, mac_addr);
-	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_MAC_ADDR_DATAFRAME_CONDITION,
-			     &val, sizeof(val));
-}
-
-int hif_set_uc_mc_bc_condition(struct wfx_vif *wvif, int idx, u8 allowed_frames)
-{
-	struct hif_mib_uc_mc_bc_data_frame_condition val = {
-		.condition_idx = idx,
-		.allowed_frames = allowed_frames,
-	};
-
-	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_UC_MC_BC_DATAFRAME_CONDITION,
-			     &val, sizeof(val));
-}
-
-int hif_set_config_data_filter(struct wfx_vif *wvif, bool enable, int idx,
-			       int mac_filters, int frames_types_filters)
-{
-	struct hif_mib_config_data_filter val = {
-		.enable = enable,
-		.filter_idx = idx,
-		.mac_cond = mac_filters,
-		.uc_mc_bc_cond = frames_types_filters,
-	};
-
-	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_CONFIG_DATA_FILTER, &val, sizeof(val));
-}
-
 int hif_set_data_filtering(struct wfx_vif *wvif, bool enable, bool invert)
 {
 	struct hif_mib_set_data_filtering val = {

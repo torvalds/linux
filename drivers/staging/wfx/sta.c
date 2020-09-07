@@ -91,59 +91,12 @@ static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 	}
 }
 
-static void wfx_filter_mcast(struct wfx_vif *wvif, bool filter_mcast)
-{
-	int i;
-
-	// Temporary workaround for filters
-	hif_set_data_filtering(wvif, false, true);
-	return;
-
-	if (!filter_mcast) {
-		hif_set_data_filtering(wvif, false, true);
-		return;
-	}
-	for (i = 0; i < wvif->filter_mcast_count; i++)
-		hif_set_mac_addr_condition(wvif, i, wvif->filter_mcast_addr[i]);
-	hif_set_uc_mc_bc_condition(wvif, 0,
-				   HIF_FILTER_UNICAST | HIF_FILTER_BROADCAST);
-	hif_set_config_data_filter(wvif, true, 0, BIT(1),
-				   BIT(wvif->filter_mcast_count) - 1);
-	hif_set_data_filtering(wvif, true, true);
-}
-
-u64 wfx_prepare_multicast(struct ieee80211_hw *hw,
-			  struct netdev_hw_addr_list *mc_list)
-{
-	int i;
-	struct netdev_hw_addr *ha;
-	struct wfx_vif *wvif = NULL;
-	struct wfx_dev *wdev = hw->priv;
-	int count = netdev_hw_addr_list_count(mc_list);
-
-	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		if (count > ARRAY_SIZE(wvif->filter_mcast_addr)) {
-			wvif->filter_mcast_count = 0;
-			continue;
-		}
-		wvif->filter_mcast_count = count;
-
-		i = 0;
-		netdev_hw_addr_list_for_each(ha, mc_list) {
-			ether_addr_copy(wvif->filter_mcast_addr[i], ha->addr);
-			i++;
-		}
-	}
-
-	return 0;
-}
-
 void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 			  unsigned int *total_flags, u64 unused)
 {
 	struct wfx_vif *wvif = NULL;
 	struct wfx_dev *wdev = hw->priv;
-	bool filter_bssid, filter_prbreq, filter_beacon, filter_mcast;
+	bool filter_bssid, filter_prbreq, filter_beacon;
 
 	// Notes:
 	//   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
@@ -167,15 +120,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 			filter_beacon = true;
 		wfx_filter_beacon(wvif, filter_beacon);
 
-		if (*total_flags & FIF_ALLMULTI) {
-			filter_mcast = false;
-		} else if (!wvif->filter_mcast_count) {
-			dev_dbg(wdev->dev, "disabling unconfigured multicast filter");
-			filter_mcast = false;
-		} else {
-			filter_mcast = true;
-		}
-		wfx_filter_mcast(wvif, filter_mcast);
+		hif_set_data_filtering(wvif, false, true);
 
 		if (*total_flags & FIF_OTHER_BSS)
 			filter_bssid = false;

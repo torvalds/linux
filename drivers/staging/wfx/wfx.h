@@ -79,9 +79,6 @@ struct wfx_vif {
 
 	struct work_struct	update_tim_work;
 
-	int			filter_mcast_count;
-	u8			filter_mcast_addr[8][ETH_ALEN];
-
 	unsigned long		uapsd_mask;
 
 	/* avoid some operations in parallel with scan */

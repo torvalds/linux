@@ -37,12 +37,6 @@ int hif_set_association_mode(struct wfx_vif *wvif, int ampdu_density,
 			     bool greenfield, bool short_preamble);
 int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
 				 int policy_index, u8 *rates);
-int hif_set_mac_addr_condition(struct wfx_vif *wvif,
-			       int idx, const u8 *mac_addr);
-int hif_set_uc_mc_bc_condition(struct wfx_vif *wvif,
-			       int idx, u8 allowed_frames);
-int hif_set_config_data_filter(struct wfx_vif *wvif, bool enable, int idx,
-			       int mac_filters, int frames_types_filters);
 int hif_set_data_filtering(struct wfx_vif *wvif, bool enable, bool invert);
 int hif_keep_alive_period(struct wfx_vif *wvif, int period);
 int hif_set_arp_ipv4_filter(struct wfx_vif *wvif, int idx, __be32 *addr);
