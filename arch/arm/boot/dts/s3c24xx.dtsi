@@ -39,7 +39,7 @@
 		};
 	};
 
-	timer: timer@51000000 {
+	timer: pwm@51000000 {
 		compatible = "samsung,s3c2410-pwm";
 		reg = <0x51000000 0x1000>;
 		interrupts = <0 0 10 3>, <0 0 11 3>, <0 0 12 3>, <0 0 13 3>, <0 0 14 3>;
