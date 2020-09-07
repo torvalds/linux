@@ -60,12 +60,6 @@ enum hif_indications_ids {
 	HIF_IND_ID_EVENT                = 0x85
 };
 
-union hif_commands_ids {
-	enum hif_requests_ids request;
-	enum hif_confirmations_ids confirmation;
-	enum hif_indications_ids indication;
-};
-
 struct hif_reset_flags {
 	u8     reset_stat:1;
 	u8     reset_all_int:1;
