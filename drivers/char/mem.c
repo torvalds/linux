@@ -733,14 +733,20 @@ static ssize_t read_zero(struct file *file, char __user *buf,
 
 	while (count) {
 		size_t chunk = min_t(size_t, count, PAGE_SIZE);
+		size_t left;
 
-		if (clear_user(buf + cleared, chunk))
-			return cleared ? cleared : -EFAULT;
+		left = clear_user(buf + cleared, chunk);
+		if (unlikely(left)) {
+			cleared += (chunk - left);
+			if (!cleared)
+				return -EFAULT;
+			break;
+		}
 		cleared += chunk;
 		count -= chunk;
 
 		if (signal_pending(current))
-			return cleared ? cleared : -ERESTARTSYS;
+			break;
 		cond_resched();
 	}
 
