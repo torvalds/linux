@@ -999,7 +999,7 @@ static const struct drm_bridge_funcs dw_mipi_dsi_bridge_funcs = {
 
 #ifdef CONFIG_DEBUG_FS
 
-int dw_mipi_dsi_debugfs_write(void *data, u64 val)
+static int dw_mipi_dsi_debugfs_write(void *data, u64 val)
 {
 	struct debugfs_entries *vpg = data;
 	struct dw_mipi_dsi *dsi;
@@ -1024,7 +1024,7 @@ int dw_mipi_dsi_debugfs_write(void *data, u64 val)
 	return 0;
 }
 
-int dw_mipi_dsi_debugfs_show(void *data, u64 *val)
+static int dw_mipi_dsi_debugfs_show(void *data, u64 *val)
 {
 	struct debugfs_entries *vpg = data;
 
