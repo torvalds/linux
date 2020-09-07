@@ -209,6 +209,16 @@
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		vqmmc: regulator@1948000 {
+			compatible = "qcom,vqmmc-ipq4019-regulator";
+			reg = <0x01948000 0x4>;
+			regulator-name = "vqmmc";
+			regulator-min-microvolt = <1500000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-always-on;
+			status = "disabled";
+		};
+
 		sdhci: sdhci@7824900 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x7824900 0x11c>, <0x7824000 0x800>;
