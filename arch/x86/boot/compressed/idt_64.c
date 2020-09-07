@@ -32,6 +32,10 @@ void load_stage1_idt(void)
 {
 	boot_idt_desc.address = (unsigned long)boot_idt;
 
+
+	if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT))
+		set_idt_entry(X86_TRAP_VC, boot_stage1_vc);
+
 	load_boot_idt(&boot_idt_desc);
 }
 

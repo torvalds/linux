@@ -141,5 +141,6 @@ extern struct desc_ptr boot_idt_desc;
 
 /* IDT Entry Points */
 void boot_page_fault(void);
+void boot_stage1_vc(void);
 
 #endif /* BOOT_COMPRESSED_MISC_H */
