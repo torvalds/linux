@@ -544,6 +544,11 @@ void qedf_ctx_soft_reset(struct fc_lport *lport);
 
 #define FCOE_WORD_TO_BYTE  4
 #define QEDF_MAX_TASK_NUM	0xFFFF
+#define QL45xxx			0x165C
+#define QL41xxx			0x8080
+#define MAX_CT_PAYLOAD		2048
+#define DISCOVERED_PORTS	4
+#define NUMBER_OF_PORTS		1
 
 struct fip_vlan {
 	struct ethhdr eth;

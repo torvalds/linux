@@ -1645,11 +1645,13 @@ static void qedf_fcoe_ctlr_setup(struct qedf_ctx *qedf)
 static void qedf_setup_fdmi(struct qedf_ctx *qedf)
 {
 	struct fc_lport *lport = qedf->lport;
-	struct fc_host_attrs *fc_host = shost_to_fc_host(lport->host);
-	u64 dsn;
+	u8 buf[8];
+	int pos;
+	uint32_t i;
 
 	/*
-	 * fdmi_enabled needs to be set for libfc to execute FDMI registration.
+	 * fdmi_enabled needs to be set for libfc
+	 * to execute FDMI registration
 	 */
 	lport->fdmi_enabled = 1;
 
@@ -1659,32 +1661,53 @@ static void qedf_setup_fdmi(struct qedf_ctx *qedf)
 	 */
 
 	/* Get the PCI-e Device Serial Number Capability */
-	dsn = pci_get_dsn(qedf->pdev);
-	if (dsn)
-		snprintf(fc_host->serial_number,
-		    sizeof(fc_host->serial_number), "%016llX", dsn);
-	else
-		snprintf(fc_host->serial_number,
-		    sizeof(fc_host->serial_number), "Unknown");
+	pos = pci_find_ext_capability(qedf->pdev, PCI_EXT_CAP_ID_DSN);
+	if (pos) {
+		pos += 4;
+		for (i = 0; i < 8; i++)
+			pci_read_config_byte(qedf->pdev, pos + i, &buf[i]);
 
-	snprintf(fc_host->manufacturer,
-	    sizeof(fc_host->manufacturer), "%s", "Cavium Inc.");
+		snprintf(fc_host_serial_number(lport->host),
+		    FC_SERIAL_NUMBER_SIZE,
+		    "%02X%02X%02X%02X%02X%02X%02X%02X",
+		    buf[7], buf[6], buf[5], buf[4],
+		    buf[3], buf[2], buf[1], buf[0]);
+	} else
+		snprintf(fc_host_serial_number(lport->host),
+		    FC_SERIAL_NUMBER_SIZE, "Unknown");
 
-	snprintf(fc_host->model, sizeof(fc_host->model), "%s", "QL41000");
+	snprintf(fc_host_manufacturer(lport->host),
+	    FC_SERIAL_NUMBER_SIZE, "%s", "Marvell Semiconductor Inc.");
 
-	snprintf(fc_host->model_description, sizeof(fc_host->model_description),
-	    "%s", "QLogic FastLinQ QL41000 Series 10/25/40/50GGbE Controller"
-	    "(FCoE)");
+	if (qedf->pdev->device == QL45xxx) {
+		snprintf(fc_host_model(lport->host),
+			FC_SYMBOLIC_NAME_SIZE, "%s", "QL45xxx");
 
-	snprintf(fc_host->hardware_version, sizeof(fc_host->hardware_version),
-	    "Rev %d", qedf->pdev->revision);
+		snprintf(fc_host_model_description(lport->host),
+			FC_SYMBOLIC_NAME_SIZE, "%s",
+			"Marvell FastLinQ QL45xxx FCoE Adapter");
+	}
 
-	snprintf(fc_host->driver_version, sizeof(fc_host->driver_version),
-	    "%s", QEDF_VERSION);
+	if (qedf->pdev->device == QL41xxx) {
+		snprintf(fc_host_model(lport->host),
+			FC_SYMBOLIC_NAME_SIZE, "%s", "QL41xxx");
 
-	snprintf(fc_host->firmware_version, sizeof(fc_host->firmware_version),
-	    "%d.%d.%d.%d", FW_MAJOR_VERSION, FW_MINOR_VERSION,
-	    FW_REVISION_VERSION, FW_ENGINEERING_VERSION);
+		snprintf(fc_host_model_description(lport->host),
+			FC_SYMBOLIC_NAME_SIZE, "%s",
+			"Marvell FastLinQ QL41xxx FCoE Adapter");
+	}
+
+	snprintf(fc_host_hardware_version(lport->host),
+	    FC_VERSION_STRING_SIZE, "Rev %d", qedf->pdev->revision);
+
+	snprintf(fc_host_driver_version(lport->host),
+	    FC_VERSION_STRING_SIZE, "%s", QEDF_VERSION);
+
+	snprintf(fc_host_firmware_version(lport->host),
+	    FC_VERSION_STRING_SIZE, "%d.%d.%d.%d",
+	    FW_MAJOR_VERSION, FW_MINOR_VERSION, FW_REVISION_VERSION,
+	    FW_ENGINEERING_VERSION);
+
 }
 
 static int qedf_lport_setup(struct qedf_ctx *qedf)
@@ -1731,8 +1754,13 @@ static int qedf_lport_setup(struct qedf_ctx *qedf)
 	fc_host_dev_loss_tmo(lport->host) = qedf_dev_loss_tmo;
 
 	/* Set symbolic node name */
-	snprintf(fc_host_symbolic_name(lport->host), 256,
-	    "QLogic %s v%s", QEDF_MODULE_NAME, QEDF_VERSION);
+	if (qedf->pdev->device == QL45xxx)
+		snprintf(fc_host_symbolic_name(lport->host), 256,
+			"Marvell FastLinQ 45xxx FCoE v%s", QEDF_VERSION);
+
+	if (qedf->pdev->device == QL41xxx)
+		snprintf(fc_host_symbolic_name(lport->host), 256,
+			"Marvell FastLinQ 41xxx FCoE v%s", QEDF_VERSION);
 
 	qedf_setup_fdmi(qedf);
 
