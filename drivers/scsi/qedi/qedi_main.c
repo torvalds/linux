@@ -1356,7 +1356,7 @@ static int qedi_request_msix_irq(struct qedi_ctx *qedi)
 	u16 idx;
 
 	cpu = cpumask_first(cpu_online_mask);
-	for (i = 0; i < qedi->int_info.msix_cnt; i++) {
+	for (i = 0; i < qedi->msix_count; i++) {
 		idx = i * qedi->dev_info.common.num_hwfns +
 			  qedi_ops->common->get_affin_hwfn_idx(qedi->cdev);
 
@@ -1386,7 +1386,12 @@ static int qedi_setup_int(struct qedi_ctx *qedi)
 {
 	int rc = 0;
 
-	rc = qedi_ops->common->set_fp_int(qedi->cdev, num_online_cpus());
+	rc = qedi_ops->common->set_fp_int(qedi->cdev, qedi->num_queues);
+	if (rc < 0)
+		goto exit_setup_int;
+
+	qedi->msix_count = rc;
+
 	rc = qedi_ops->common->get_fp_int(qedi->cdev, &qedi->int_info);
 	if (rc)
 		goto exit_setup_int;

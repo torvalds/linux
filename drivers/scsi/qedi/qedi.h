@@ -305,6 +305,7 @@ struct qedi_ctx {
 	u32 max_sqes;
 	u8 num_queues;
 	u32 max_active_conns;
+	s32 msix_count;
 
 	struct iscsi_cid_queue cid_que;
 	struct qedi_endpoint **ep_tbl;
