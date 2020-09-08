@@ -2659,7 +2659,7 @@ static int btrfs_insert_clone_extent(struct btrfs_trans_handle *trans,
  * extents without inserting a new one, so we must abort the transaction to avoid
  * a corruption.
  */
-int btrfs_punch_hole_range(struct inode *inode, struct btrfs_path *path,
+int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 			   const u64 start, const u64 end,
 			   struct btrfs_replace_extent_info *extent_info,
 			   struct btrfs_trans_handle **trans_out)
@@ -3007,7 +3007,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		goto out;
 	}
 
-	ret = btrfs_punch_hole_range(inode, path, lockstart, lockend, NULL,
+	ret = btrfs_replace_file_extents(inode, path, lockstart, lockend, NULL,
 				     &trans);
 	btrfs_free_path(path);
 	if (ret)

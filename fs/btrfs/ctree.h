@@ -3088,7 +3088,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode, u64 start,
 		       u64 end, int drop_cache);
-int btrfs_punch_hole_range(struct inode *inode, struct btrfs_path *path,
+int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 			   const u64 start, const u64 end,
 			   struct btrfs_replace_extent_info *extent_info,
 			   struct btrfs_trans_handle **trans_out);

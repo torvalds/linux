@@ -9625,7 +9625,7 @@ static struct btrfs_trans_handle *insert_prealloc_file_extent(
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
-	ret = btrfs_punch_hole_range(inode, path, file_offset,
+	ret = btrfs_replace_file_extents(inode, path, file_offset,
 				     file_offset + len - 1, &extent_info,
 				     &trans);
 	btrfs_free_path(path);
