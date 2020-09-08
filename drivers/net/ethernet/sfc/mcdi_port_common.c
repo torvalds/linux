@@ -484,15 +484,15 @@ int efx_mcdi_phy_probe(struct efx_nic *efx)
 	if (rc != 0)
 		goto fail;
 	/* The MC indicates that LOOPBACK_NONE is a valid loopback mode,
-	 * but by convention we don't */
+	 * but by convention we don't
+	 */
 	efx->loopback_modes &= ~(1 << LOOPBACK_NONE);
 
 	/* Set the initial link mode */
-	efx_mcdi_phy_decode_link(
-		efx, &efx->link_state,
-		MCDI_DWORD(outbuf, GET_LINK_OUT_LINK_SPEED),
-		MCDI_DWORD(outbuf, GET_LINK_OUT_FLAGS),
-		MCDI_DWORD(outbuf, GET_LINK_OUT_FCNTL));
+	efx_mcdi_phy_decode_link(efx, &efx->link_state,
+				 MCDI_DWORD(outbuf, GET_LINK_OUT_LINK_SPEED),
+				 MCDI_DWORD(outbuf, GET_LINK_OUT_FLAGS),
+				 MCDI_DWORD(outbuf, GET_LINK_OUT_FCNTL));
 
 	/* Record the initial FEC configuration (or nearest approximation
 	 * representable in the ethtool configuration space)
@@ -798,7 +798,7 @@ out:
 	return rc;
 }
 
-int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results, unsigned flags)
+int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results, unsigned int flags)
 {
 	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 mode;
@@ -813,7 +813,8 @@ int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 	}
 
 	/* If we support both LONG and SHORT, then run each in response to
-	 * break or not. Otherwise, run the one we support */
+	 * break or not. Otherwise, run the one we support
+	 */
 	mode = 0;
 	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_SHORT_LBN)) {
 		if ((flags & ETH_TEST_FL_OFFLINE) &&
@@ -888,9 +889,9 @@ static int efx_mcdi_phy_get_module_eeprom_page(struct efx_nic *efx,
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX);
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN);
-	size_t outlen;
 	unsigned int payload_len;
 	unsigned int to_copy;
+	size_t outlen;
 	int rc;
 
 	if (offset > SFP_PAGE_SIZE)
@@ -925,8 +926,8 @@ static int efx_mcdi_phy_get_module_eeprom_byte(struct efx_nic *efx,
 					       unsigned int page,
 					       u8 byte)
 {
-	int rc;
 	u8 data;
+	int rc;
 
 	rc = efx_mcdi_phy_get_module_eeprom_page(efx, page, &data, byte, 1);
 	if (rc == 1)
@@ -1049,7 +1050,7 @@ int efx_mcdi_phy_get_module_info(struct efx_nic *efx, struct ethtool_modinfo *mo
 		 */
 		diag_type = efx_mcdi_phy_diag_type(efx);
 
-		if ((sff_8472_level == 0) ||
+		if (sff_8472_level == 0 ||
 		    (diag_type & SFF_DIAG_ADDR_CHANGE)) {
 			modinfo->type = ETH_MODULE_SFF_8079;
 			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;

@@ -53,7 +53,7 @@ int efx_mcdi_phy_get_fecparam(struct efx_nic *efx, struct ethtool_fecparam *fec)
 int efx_mcdi_phy_set_fecparam(struct efx_nic *efx, const struct ethtool_fecparam *fec);
 int efx_mcdi_phy_test_alive(struct efx_nic *efx);
 int efx_mcdi_port_reconfigure(struct efx_nic *efx);
-int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results, unsigned flags);
+int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results, unsigned int flags);
 const char *efx_mcdi_phy_test_name(struct efx_nic *efx, unsigned int index);
 int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx, struct ethtool_eeprom *ee, u8 *data);
 int efx_mcdi_phy_get_module_info(struct efx_nic *efx, struct ethtool_modinfo *modinfo);
