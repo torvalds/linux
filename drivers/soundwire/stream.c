@@ -25,8 +25,10 @@
 int sdw_rows[SDW_FRAME_ROWS] = {48, 50, 60, 64, 75, 80, 125, 147,
 			96, 100, 120, 128, 150, 160, 250, 0,
 			192, 200, 240, 256, 72, 144, 90, 180};
+EXPORT_SYMBOL(sdw_rows);
 
 int sdw_cols[SDW_FRAME_COLS] = {2, 4, 6, 8, 10, 12, 14, 16};
+EXPORT_SYMBOL(sdw_cols);
 
 int sdw_find_col_index(int col)
 {
@@ -1781,6 +1783,16 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 		/* TODO: Update this during Device-Device support */
 		bus->params.bandwidth -= m_rt->stream->params.rate *
 			m_rt->ch_count * m_rt->stream->params.bps;
+
+		/* Compute params */
+		if (bus->compute_params) {
+			ret = bus->compute_params(bus);
+			if (ret < 0) {
+				dev_err(bus->dev, "Compute params failed: %d",
+					ret);
+				return ret;
+			}
+		}
 
 		/* Program params */
 		ret = sdw_program_params(bus, false);
