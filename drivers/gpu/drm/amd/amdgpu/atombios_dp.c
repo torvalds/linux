@@ -60,7 +60,7 @@ static int amdgpu_atombios_dp_process_aux_ch(struct amdgpu_i2c_chan *chan,
 				      u8 delay, u8 *ack)
 {
 	struct drm_device *dev = chan->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	union aux_channel_transaction args;
 	int index = GetIndexIntoMasterTable(COMMAND, ProcessAuxChannelTransaction);
 	unsigned char *base;
@@ -305,7 +305,7 @@ static u8 amdgpu_atombios_dp_encoder_service(struct amdgpu_device *adev,
 u8 amdgpu_atombios_dp_get_sinktype(struct amdgpu_connector *amdgpu_connector)
 {
 	struct drm_device *dev = amdgpu_connector->base.dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	return amdgpu_atombios_dp_encoder_service(adev, ATOM_DP_ACTION_GET_SINK_TYPE, 0,
 					   amdgpu_connector->ddc_bus->rec.i2c_id, 0);
@@ -718,7 +718,7 @@ void amdgpu_atombios_dp_link_train(struct drm_encoder *encoder,
 			    struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct amdgpu_connector *amdgpu_connector;
 	struct amdgpu_connector_atom_dig *dig_connector;

@@ -36,11 +36,20 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xe6d590b09
+#define DMUB_FW_VERSION_GIT_HASH 0x4e5b2f46f
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 25
-#define DMUB_FW_VERSION_UCODE ((DMUB_FW_VERSION_MAJOR << 24) | (DMUB_FW_VERSION_MINOR << 16) | DMUB_FW_VERSION_REVISION)
+#define DMUB_FW_VERSION_REVISION 29
+#define DMUB_FW_VERSION_TEST 0
+#define DMUB_FW_VERSION_VBIOS 0
+#define DMUB_FW_VERSION_HOTFIX 0
+#define DMUB_FW_VERSION_UCODE (((DMUB_FW_VERSION_MAJOR & 0xFF) << 24) | \
+		((DMUB_FW_VERSION_MINOR & 0xFF) << 16) | \
+		((DMUB_FW_VERSION_REVISION & 0xFF) << 8) | \
+		((DMUB_FW_VERSION_TEST & 0x1) << 7) | \
+		((DMUB_FW_VERSION_VBIOS & 0x1) << 6) | \
+		(DMUB_FW_VERSION_HOTFIX & 0x3F))
+
 #endif
 
 //<DMUB_TYPES>==================================================================
@@ -204,6 +213,7 @@ enum dmub_cmd_vbios_type {
 	DMUB_CMD__VBIOS_DIG1_TRANSMITTER_CONTROL = 1,
 	DMUB_CMD__VBIOS_SET_PIXEL_CLOCK = 2,
 	DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING = 3,
+	DMUB_CMD__VBIOS_LVTMA_CONTROL = 15,
 };
 
 //==============================================================================

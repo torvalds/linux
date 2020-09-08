@@ -1716,8 +1716,8 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
  */
 static void amdgpu_ttm_fw_reserve_vram_fini(struct amdgpu_device *adev)
 {
-	amdgpu_bo_free_kernel(&adev->fw_vram_usage.reserved_bo,
-		NULL, &adev->fw_vram_usage.va);
+	amdgpu_bo_free_kernel(&adev->mman.fw_vram_usage_reserved_bo,
+		NULL, &adev->mman.fw_vram_usage_va);
 }
 
 /**
@@ -1731,19 +1731,19 @@ static int amdgpu_ttm_fw_reserve_vram_init(struct amdgpu_device *adev)
 {
 	uint64_t vram_size = adev->gmc.visible_vram_size;
 
-	adev->fw_vram_usage.va = NULL;
-	adev->fw_vram_usage.reserved_bo = NULL;
+	adev->mman.fw_vram_usage_va = NULL;
+	adev->mman.fw_vram_usage_reserved_bo = NULL;
 
-	if (adev->fw_vram_usage.size == 0 ||
-	    adev->fw_vram_usage.size > vram_size)
+	if (adev->mman.fw_vram_usage_size == 0 ||
+	    adev->mman.fw_vram_usage_size > vram_size)
 		return 0;
 
 	return amdgpu_bo_create_kernel_at(adev,
-					  adev->fw_vram_usage.start_offset,
-					  adev->fw_vram_usage.size,
+					  adev->mman.fw_vram_usage_start_offset,
+					  adev->mman.fw_vram_usage_size,
 					  AMDGPU_GEM_DOMAIN_VRAM,
-					  &adev->fw_vram_usage.reserved_bo,
-					  &adev->fw_vram_usage.va);
+					  &adev->mman.fw_vram_usage_reserved_bo,
+					  &adev->mman.fw_vram_usage_va);
 }
 
 /*
@@ -1775,7 +1775,7 @@ static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev)
 	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->c2p_train_data_offset =
-		ALIGN((adev->gmc.mc_vram_size - adev->discovery_tmr_size - SZ_1M), SZ_1M);
+		ALIGN((adev->gmc.mc_vram_size - adev->mman.discovery_tmr_size - SZ_1M), SZ_1M);
 	ctx->p2c_train_data_offset =
 		(adev->gmc.mc_vram_size - GDDR6_MEM_TRAINING_OFFSET);
 	ctx->train_data_size =
@@ -1814,10 +1814,10 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	 * Otherwise, fallback to legacy approach to check and reserve tmr block for ip
 	 * discovery data and G6 memory training data respectively
 	 */
-	adev->discovery_tmr_size =
+	adev->mman.discovery_tmr_size =
 		amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
-	if (!adev->discovery_tmr_size)
-		adev->discovery_tmr_size = DISCOVERY_TMR_OFFSET;
+	if (!adev->mman.discovery_tmr_size)
+		adev->mman.discovery_tmr_size = DISCOVERY_TMR_OFFSET;
 
 	if (mem_train_support) {
 		/* reserve vram for mem train according to TMR location */
@@ -1837,14 +1837,14 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	}
 
 	ret = amdgpu_bo_create_kernel_at(adev,
-				adev->gmc.real_vram_size - adev->discovery_tmr_size,
-				adev->discovery_tmr_size,
+				adev->gmc.real_vram_size - adev->mman.discovery_tmr_size,
+				adev->mman.discovery_tmr_size,
 				AMDGPU_GEM_DOMAIN_VRAM,
-				&adev->discovery_memory,
+				&adev->mman.discovery_memory,
 				NULL);
 	if (ret) {
 		DRM_ERROR("alloc tmr failed(%d)!\n", ret);
-		amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
+		amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
 		return ret;
 	}
 
@@ -1865,15 +1865,14 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	uint64_t gtt_size;
 	int r;
 	u64 vis_vram_limit;
-	void *stolen_vga_buf;
 
 	mutex_init(&adev->mman.gtt_window_lock);
 
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&adev->mman.bdev,
 			       &amdgpu_bo_driver,
-			       adev->ddev->anon_inode->i_mapping,
-			       adev->ddev->vma_offset_manager,
+			       adev_to_drm(adev)->anon_inode->i_mapping,
+			       adev_to_drm(adev)->vma_offset_manager,
 			       dma_addressing_limited(adev->dev));
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
@@ -1918,7 +1917,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	 * If IP discovery enabled, a block of memory should be
 	 * reserved for IP discovey.
 	 */
-	if (adev->discovery_bin) {
+	if (adev->mman.discovery_bin) {
 		r = amdgpu_ttm_reserve_tmr(adev);
 		if (r)
 			return r;
@@ -1928,10 +1927,17 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	 * This is used for VGA emulation and pre-OS scanout buffers to
 	 * avoid display artifacts while transitioning between pre-OS
 	 * and driver.  */
-	r = amdgpu_bo_create_kernel(adev, adev->gmc.stolen_size, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_VRAM,
-				    &adev->stolen_vga_memory,
-				    NULL, &stolen_vga_buf);
+	r = amdgpu_bo_create_kernel_at(adev, 0, adev->mman.stolen_vga_size,
+				       AMDGPU_GEM_DOMAIN_VRAM,
+				       &adev->mman.stolen_vga_memory,
+				       NULL);
+	if (r)
+		return r;
+	r = amdgpu_bo_create_kernel_at(adev, adev->mman.stolen_vga_size,
+				       adev->mman.stolen_extended_size,
+				       AMDGPU_GEM_DOMAIN_VRAM,
+				       &adev->mman.stolen_extended_memory,
+				       NULL);
 	if (r)
 		return r;
 
@@ -1987,9 +1993,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
  */
 void amdgpu_ttm_late_init(struct amdgpu_device *adev)
 {
-	void *stolen_vga_buf;
 	/* return the VGA stolen memory (if any) back to VRAM */
-	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, &stolen_vga_buf);
+	if (!adev->mman.keep_stolen_vga_memory)
+		amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->mman.stolen_extended_memory, NULL, NULL);
 }
 
 /**
@@ -2001,8 +2008,11 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 		return;
 
 	amdgpu_ttm_training_reserve_vram_fini(adev);
+	/* return the stolen vga memory back to VRAM */
+	if (adev->mman.keep_stolen_vga_memory)
+		amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
 	/* return the IP Discovery TMR memory back to VRAM */
-	amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
 
 	if (adev->mman.aper_base_kaddr)
@@ -2034,7 +2044,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 	uint64_t size;
 	int r;
 
-	if (!adev->mman.initialized || adev->in_gpu_reset ||
+	if (!adev->mman.initialized || amdgpu_in_reset(adev) ||
 	    adev->mman.buffer_funcs_enabled == enable)
 		return;
 
@@ -2045,7 +2055,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 		ring = adev->mman.buffer_funcs_ring;
 		sched = &ring->sched;
 		r = drm_sched_entity_init(&adev->mman.entity,
-				          DRM_SCHED_PRIORITY_KERNEL, &sched,
+					  DRM_SCHED_PRIORITY_KERNEL, &sched,
 					  1, NULL);
 		if (r) {
 			DRM_ERROR("Failed setting up TTM BO move entity (%d)\n",
@@ -2070,7 +2080,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *file_priv = filp->private_data;
-	struct amdgpu_device *adev = file_priv->minor->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(file_priv->minor->dev);
 
 	if (adev == NULL)
 		return -EINVAL;
@@ -2251,7 +2261,7 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	unsigned ttm_pl = (uintptr_t)node->info_ent->data;
 	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, ttm_pl);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -2542,7 +2552,7 @@ int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 #if defined(CONFIG_DEBUG_FS)
 	unsigned count;
 
-	struct drm_minor *minor = adev->ddev->primary;
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *ent, *root = minor->debugfs_root;
 
 	for (count = 0; count < ARRAY_SIZE(ttm_debugfs_entries); count++) {

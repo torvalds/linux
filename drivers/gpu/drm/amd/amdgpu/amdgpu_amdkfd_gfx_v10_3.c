@@ -822,7 +822,6 @@ const struct kfd2kgd_calls gfx_v10_3_kfd2kgd = {
 	.address_watch_get_offset = address_watch_get_offset_v10_3,
 	.get_atc_vmid_pasid_mapping_info = NULL,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base_v10_3,
-	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 #if 0
 	.enable_debug_trap = enable_debug_trap_v10_3,
 	.disable_debug_trap = disable_debug_trap_v10_3,

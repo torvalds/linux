@@ -340,6 +340,14 @@ struct amdgpu_display_manager {
 	 * fake encoders used for DP MST.
 	 */
 	struct amdgpu_encoder mst_encoders[AMDGPU_DM_MAX_CRTC];
+        bool force_timing_sync;
+};
+
+struct dsc_preferred_settings {
+	bool dsc_clock_en;
+	uint32_t dsc_slice_width;
+	uint32_t dsc_slice_height;
+	uint32_t dsc_bits_per_pixel;
 };
 
 struct amdgpu_dm_connector {
@@ -389,6 +397,7 @@ struct amdgpu_dm_connector {
 	uint32_t debugfs_dpcd_size;
 #endif
 	bool force_yuv420_output;
+	struct dsc_preferred_settings dsc_settings;
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
@@ -403,6 +412,8 @@ struct dc_plane_state;
 struct dm_plane_state {
 	struct drm_plane_state base;
 	struct dc_plane_state *dc_state;
+	uint64_t tiling_flags;
+	bool tmz_surface;
 };
 
 struct dm_crtc_state {
@@ -484,6 +495,8 @@ void dm_restore_drm_connector_state(struct drm_device *dev,
 
 void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 					struct edid *edid);
+
+void amdgpu_dm_trigger_timing_sync(struct drm_device *dev);
 
 #define MAX_COLOR_LUT_ENTRIES 4096
 /* Legacy gamm LUT users such as X doesn't like large LUT sizes */

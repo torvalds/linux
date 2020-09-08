@@ -340,7 +340,7 @@ static const struct dce110_clk_src_mask cs_mask = {
 
 #define abm_regs(id)\
 [id] = {\
-		ABM_DCN301_REG_LIST(id)\
+		ABM_DCN30_REG_LIST(id)\
 }
 
 static const struct dce_abm_registers abm_regs[] = {
@@ -491,6 +491,7 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 [id] = {\
 	LE_DCN3_REG_LIST(id), \
 	UNIPHY_DCN2_REG_LIST(phyid), \
+	DPCS_DCN2_REG_LIST(id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 }
 
@@ -872,7 +873,7 @@ void dcn30_dpp_destroy(struct dpp **dpp)
 	*dpp = NULL;
 }
 
-struct dpp *dcn30_dpp_create(
+static struct dpp *dcn30_dpp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -890,7 +891,8 @@ struct dpp *dcn30_dpp_create(
 	kfree(dpp);
 	return NULL;
 }
-struct output_pixel_processor *dcn30_opp_create(
+
+static struct output_pixel_processor *dcn30_opp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn20_opp *opp =
@@ -906,7 +908,7 @@ struct output_pixel_processor *dcn30_opp_create(
 	return &opp->base;
 }
 
-struct dce_aux *dcn30_aux_engine_create(
+static struct dce_aux *dcn30_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -925,6 +927,7 @@ struct dce_aux *dcn30_aux_engine_create(
 
 	return &aux_engine->base;
 }
+
 #define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
 
 static const struct dce_i2c_registers i2c_hw_regs[] = {
@@ -944,7 +947,7 @@ static const struct dce_i2c_mask i2c_masks = {
 		I2C_COMMON_MASK_SH_LIST_DCN2(_MASK)
 };
 
-struct dce_i2c_hw *dcn30_i2c_hw_create(
+static struct dce_i2c_hw *dcn30_i2c_hw_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -959,6 +962,7 @@ struct dce_i2c_hw *dcn30_i2c_hw_create(
 
 	return dce_i2c_hw;
 }
+
 static struct mpc *dcn30_mpc_create(
 		struct dc_context *ctx,
 		int num_mpcc,
@@ -1009,7 +1013,7 @@ struct hubbub *dcn30_hubbub_create(struct dc_context *ctx)
 	return &hubbub3->base;
 }
 
-struct timing_generator *dcn30_timing_generator_create(
+static struct timing_generator *dcn30_timing_generator_create(
 		struct dc_context *ctx,
 		uint32_t instance)
 {
@@ -1043,7 +1047,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_TPS4_CAPABLE = true
 };
 
-struct link_encoder *dcn30_link_encoder_create(
+static struct link_encoder *dcn30_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
@@ -1064,7 +1068,7 @@ struct link_encoder *dcn30_link_encoder_create(
 	return &enc20->enc10.base;
 }
 
-struct panel_cntl *dcn30_panel_cntl_create(const struct panel_cntl_init_data *init_data)
+static struct panel_cntl *dcn30_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
 	struct dce_panel_cntl *panel_cntl =
 		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
@@ -1312,7 +1316,7 @@ static void dcn30_resource_destruct(struct dcn30_resource_pool *pool)
 		dcn_dccg_destroy(&pool->base.dccg);
 }
 
-struct hubp *dcn30_hubp_create(
+static struct hubp *dcn30_hubp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -1331,7 +1335,7 @@ struct hubp *dcn30_hubp_create(
 	return NULL;
 }
 
-bool dcn30_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
+static bool dcn30_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 {
 	int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
@@ -1356,7 +1360,7 @@ bool dcn30_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 	return true;
 }
 
-bool dcn30_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
+static bool dcn30_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
 {
 	int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
@@ -2293,7 +2297,7 @@ static void get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
                (dcn3_0_soc.return_bus_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100));
 }
 
-static void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
+void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	unsigned int i, j;
 	unsigned int num_states = 0;
@@ -2413,7 +2417,7 @@ static void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw
 		dml_init_instance(&dc->current_state->bw_ctx.dml, &dcn3_0_soc, &dcn3_0_ip, DML_PROJECT_DCN30);
 }
 
-static struct resource_funcs dcn30_res_pool_funcs = {
+static const struct resource_funcs dcn30_res_pool_funcs = {
 	.destroy = dcn30_destroy_resource_pool,
 	.link_enc_create = dcn30_link_encoder_create,
 	.panel_cntl_create = dcn30_panel_cntl_create,
@@ -2421,6 +2425,7 @@ static struct resource_funcs dcn30_res_pool_funcs = {
 	.populate_dml_pipes = dcn30_populate_dml_pipes_from_context,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
+	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.populate_dml_writeback_from_context = dcn30_populate_dml_writeback_from_context,
 	.set_mcif_arb_params = dcn30_set_mcif_arb_params,
@@ -2684,7 +2689,7 @@ static bool dcn30_resource_construct(
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
 			&res_create_funcs : &res_create_maximus_funcs)))
-			goto create_fail;
+		goto create_fail;
 
 	/* HW Sequencer and Plane caps */
 	dcn30_hw_sequencer_construct(dc);

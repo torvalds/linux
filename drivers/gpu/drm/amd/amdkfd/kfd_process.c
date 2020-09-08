@@ -87,7 +87,7 @@ struct kfd_sdma_activity_handler_workarea {
 };
 
 struct temp_sdma_queue_list {
-	uint64_t rptr;
+	uint64_t __user *rptr;
 	uint64_t sdma_val;
 	unsigned int queue_id;
 	struct list_head list;
@@ -159,7 +159,7 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 		}
 
 		INIT_LIST_HEAD(&sdma_q->list);
-		sdma_q->rptr = (uint64_t)q->properties.read_ptr;
+		sdma_q->rptr = (uint64_t __user *)q->properties.read_ptr;
 		sdma_q->queue_id = q->properties.queue_id;
 		list_add_tail(&sdma_q->list, &sdma_q_list.list);
 	}
@@ -218,7 +218,7 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 			continue;
 
 		list_for_each_entry_safe(sdma_q, next, &sdma_q_list.list, list) {
-			if (((uint64_t)q->properties.read_ptr == sdma_q->rptr) &&
+			if (((uint64_t __user *)q->properties.read_ptr == sdma_q->rptr) &&
 			     (sdma_q->queue_id == q->properties.queue_id)) {
 				list_del(&sdma_q->list);
 				kfree(sdma_q);
@@ -270,6 +270,7 @@ static ssize_t kfd_procfs_show(struct kobject *kobj, struct attribute *attr,
 					kfd_sdma_activity_worker);
 
 		sdma_activity_work_handler.pdd = pdd;
+		sdma_activity_work_handler.sdma_activity_counter = 0;
 
 		schedule_work(&sdma_activity_work_handler.sdma_activity_work);
 

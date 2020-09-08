@@ -460,15 +460,10 @@ static bool jpeg_v3_0_is_idle(void *handle)
 static int jpeg_v3_0_wait_for_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int ret;
 
-	ret = SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_JRBC_STATUS,
+	return SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_JRBC_STATUS,
 		UVD_JRBC_STATUS__RB_JOB_DONE_MASK,
 		UVD_JRBC_STATUS__RB_JOB_DONE_MASK);
-	if (ret)
-		return ret;
-
-	return ret;
 }
 
 static int jpeg_v3_0_set_clockgating_state(void *handle,

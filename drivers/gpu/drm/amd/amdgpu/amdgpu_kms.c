@@ -78,7 +78,7 @@ void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
  */
 void amdgpu_driver_unload_kms(struct drm_device *dev)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	if (adev == NULL)
 		return;
@@ -86,7 +86,7 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 	amdgpu_unregister_gpu_instance(adev);
 
 	if (adev->rmmio == NULL)
-		goto done_free;
+		return;
 
 	if (adev->runpm) {
 		pm_runtime_get_sync(dev->dev);
@@ -94,12 +94,7 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 	}
 
 	amdgpu_acpi_fini(adev);
-
 	amdgpu_device_fini(adev);
-
-done_free:
-	kfree(adev);
-	dev->dev_private = NULL;
 }
 
 void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
@@ -130,22 +125,18 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 /**
  * amdgpu_driver_load_kms - Main load function for KMS.
  *
- * @dev: drm dev pointer
+ * @adev: pointer to struct amdgpu_device
  * @flags: device flags
  *
  * This is the main load function for KMS (all asics).
  * Returns 0 on success, error on failure.
  */
-int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
+int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 {
-	struct amdgpu_device *adev;
+	struct drm_device *dev;
 	int r, acpi_status;
 
-	adev = kzalloc(sizeof(struct amdgpu_device), GFP_KERNEL);
-	if (adev == NULL) {
-		return -ENOMEM;
-	}
-	dev->dev_private = (void *)adev;
+	dev = adev_to_drm(adev);
 
 	if (amdgpu_has_atpx() &&
 	    (amdgpu_is_atpx_hybrid() ||
@@ -160,7 +151,7 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 * properly initialize the GPU MC controller and permit
 	 * VRAM allocation
 	 */
-	r = amdgpu_device_init(adev, dev, dev->pdev, flags);
+	r = amdgpu_device_init(adev, flags);
 	if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during GPU init\n");
 		goto out;
@@ -480,7 +471,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
  */
 static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_amdgpu_info *info = data;
 	struct amdgpu_mode_info *minfo = &adev->mode_info;
 	void __user *out = (void __user *)(uintptr_t)info->return_pointer;
@@ -745,6 +736,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
 		if (amdgpu_mcbp || amdgpu_sriov_vf(adev))
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
+		if (amdgpu_is_tmz(adev))
+			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_TMZ;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		vm_size -= AMDGPU_VA_RESERVED_SIZE;
@@ -998,7 +991,7 @@ void amdgpu_driver_lastclose_kms(struct drm_device *dev)
  */
 int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv;
 	int r, pasid;
 
@@ -1083,7 +1076,7 @@ pm_put:
 void amdgpu_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_bo_list *list;
 	struct amdgpu_bo *pd;
@@ -1148,7 +1141,7 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int vpos, hpos, stat;
 	u32 count;
 
@@ -1216,7 +1209,7 @@ int amdgpu_enable_vblank_kms(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int idx = amdgpu_display_crtc_idx_to_irq_type(adev, pipe);
 
 	return amdgpu_irq_get(adev, &adev->crtc_irq, idx);
@@ -1233,7 +1226,7 @@ void amdgpu_disable_vblank_kms(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int idx = amdgpu_display_crtc_idx_to_irq_type(adev, pipe);
 
 	amdgpu_irq_put(adev, &adev->crtc_irq, idx);
@@ -1269,7 +1262,7 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_amdgpu_info_firmware fw_info;
 	struct drm_amdgpu_query_fw query_fw;
 	struct atom_context *ctx = adev->mode_info.atom_context;

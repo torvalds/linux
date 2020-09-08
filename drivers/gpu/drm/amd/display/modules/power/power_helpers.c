@@ -657,7 +657,7 @@ void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 			params, ram_table, big_endian);
 }
 
-bool dmub_init_abm_config(struct abm *abm,
+bool dmub_init_abm_config(struct resource_pool *res_pool,
 	struct dmcu_iram_parameters params)
 {
 	struct iram_table_v_2_2 ram_table;
@@ -665,8 +665,13 @@ bool dmub_init_abm_config(struct abm *abm,
 	bool result = false;
 	uint32_t i, j = 0;
 
-	if (abm == NULL)
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	if (res_pool->abm == NULL && res_pool->multiple_abms[0] == NULL)
 		return false;
+#else
+	if (res_pool->abm == NULL)
+		return false;
+#endif
 
 	memset(&ram_table, 0, sizeof(ram_table));
 	memset(&config, 0, sizeof(config));
@@ -707,8 +712,14 @@ bool dmub_init_abm_config(struct abm *abm,
 
 	config.min_abm_backlight = ram_table.min_abm_backlight;
 
-	result = abm->funcs->init_abm_config(
-		abm, (char *)(&config), sizeof(struct abm_config_table));
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	if (res_pool->multiple_abms[0]) {
+		result = res_pool->multiple_abms[0]->funcs->init_abm_config(
+			res_pool->multiple_abms[0], (char *)(&config), sizeof(struct abm_config_table));
+	} else
+#endif
+		result = res_pool->abm->funcs->init_abm_config(
+			res_pool->abm, (char *)(&config), sizeof(struct abm_config_table));
 
 	return result;
 }

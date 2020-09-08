@@ -57,10 +57,10 @@ static const struct soc15_reg_entry gfx_v9_4_edc_counter_regs[] = {
 	/* SPI */
 	{ SOC15_REG_ENTRY(GC, 0, mmSPI_EDC_CNT), 0, 4, 1 },
 	/* SQ */
-	{ SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_CNT), 0, 4, 16 },
-	{ SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_DED_CNT), 0, 4, 16 },
-	{ SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_INFO), 0, 4, 16 },
-	{ SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_SEC_CNT), 0, 4, 16 },
+	{ SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_CNT), 0, 8, 16 },
+	{ SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_DED_CNT), 0, 8, 16 },
+	{ SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_INFO), 0, 8, 16 },
+	{ SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_SEC_CNT), 0, 8, 16 },
 	/* SQC */
 	{ SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT), 0, 4, 6 },
 	{ SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT2), 0, 4, 6 },

@@ -72,8 +72,8 @@ int radeon_gart_table_ram_alloc(struct radeon_device *rdev)
 {
 	void *ptr;
 
-	ptr = pci_alloc_consistent(rdev->pdev, rdev->gart.table_size,
-				   &rdev->gart.table_addr);
+	ptr = dma_alloc_coherent(&rdev->pdev->dev, rdev->gart.table_size,
+				 &rdev->gart.table_addr, GFP_KERNEL);
 	if (ptr == NULL) {
 		return -ENOMEM;
 	}
@@ -85,7 +85,6 @@ int radeon_gart_table_ram_alloc(struct radeon_device *rdev)
 	}
 #endif
 	rdev->gart.ptr = ptr;
-	memset((void *)rdev->gart.ptr, 0, rdev->gart.table_size);
 	return 0;
 }
 
@@ -110,9 +109,8 @@ void radeon_gart_table_ram_free(struct radeon_device *rdev)
 			      rdev->gart.table_size >> PAGE_SHIFT);
 	}
 #endif
-	pci_free_consistent(rdev->pdev, rdev->gart.table_size,
-			    (void *)rdev->gart.ptr,
-			    rdev->gart.table_addr);
+	dma_free_coherent(&rdev->pdev->dev, rdev->gart.table_size,
+			  (void *)rdev->gart.ptr, rdev->gart.table_addr);
 	rdev->gart.ptr = NULL;
 	rdev->gart.table_addr = 0;
 }

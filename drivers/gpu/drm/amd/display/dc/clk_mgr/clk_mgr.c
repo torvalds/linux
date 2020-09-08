@@ -34,6 +34,7 @@
 #include "dce110/dce110_clk_mgr.h"
 #include "dce112/dce112_clk_mgr.h"
 #include "dce120/dce120_clk_mgr.h"
+#include "dce60/dce60_clk_mgr.h"
 #include "dcn10/rv1_clk_mgr.h"
 #include "dcn10/rv2_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
@@ -123,6 +124,11 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 
 	switch (asic_id.chip_family) {
+#if defined(CONFIG_DRM_AMD_DC_SI)
+	case FAMILY_SI:
+		dce60_clk_mgr_construct(ctx, clk_mgr);
+		break;
+#endif
 	case FAMILY_CI:
 	case FAMILY_KV:
 		dce_clk_mgr_construct(ctx, clk_mgr);
