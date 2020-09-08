@@ -2636,8 +2636,13 @@ static int mt6359_parse_dt(struct mt6359_priv *priv)
 {
 	int ret;
 	struct device *dev = priv->dev;
+	struct device_node *np;
 
-	ret = of_property_read_u32(dev->of_node, "mediatek,dmic-mode",
+	np = of_get_child_by_name(dev->parent->of_node, "mt6359codec");
+	if (!np)
+		return -EINVAL;
+
+	ret = of_property_read_u32(np, "mediatek,dmic-mode",
 				   &priv->dmic_one_wire_mode);
 	if (ret) {
 		dev_warn(priv->dev, "%s() failed to read dmic-mode\n",
@@ -2645,7 +2650,7 @@ static int mt6359_parse_dt(struct mt6359_priv *priv)
 		priv->dmic_one_wire_mode = 0;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "mediatek,mic-type-0",
+	ret = of_property_read_u32(np, "mediatek,mic-type-0",
 				   &priv->mux_select[MUX_MIC_TYPE_0]);
 	if (ret) {
 		dev_warn(priv->dev, "%s() failed to read mic-type-0\n",
@@ -2653,7 +2658,7 @@ static int mt6359_parse_dt(struct mt6359_priv *priv)
 		priv->mux_select[MUX_MIC_TYPE_0] = MIC_TYPE_MUX_IDLE;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "mediatek,mic-type-1",
+	ret = of_property_read_u32(np, "mediatek,mic-type-1",
 				   &priv->mux_select[MUX_MIC_TYPE_1]);
 	if (ret) {
 		dev_warn(priv->dev, "%s() failed to read mic-type-1\n",
@@ -2661,7 +2666,7 @@ static int mt6359_parse_dt(struct mt6359_priv *priv)
 		priv->mux_select[MUX_MIC_TYPE_1] = MIC_TYPE_MUX_IDLE;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "mediatek,mic-type-2",
+	ret = of_property_read_u32(np, "mediatek,mic-type-2",
 				   &priv->mux_select[MUX_MIC_TYPE_2]);
 	if (ret) {
 		dev_warn(priv->dev, "%s() failed to read mic-type-2\n",
