@@ -380,7 +380,6 @@ struct ring_stats {
 };
 
 struct hns3_enet_ring {
-	u8 __iomem *io_base; /* base io address for the ring */
 	struct hns3_desc *desc; /* dma map address space */
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_enet_ring *next;
