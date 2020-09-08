@@ -396,9 +396,9 @@ void cec_delete_adapter(struct cec_adapter *adap)
 {
 	if (IS_ERR_OR_NULL(adap))
 		return;
-	kthread_stop(adap->kthread);
 	if (adap->kthread_config)
 		kthread_stop(adap->kthread_config);
+	kthread_stop(adap->kthread);
 	if (adap->ops->adap_free)
 		adap->ops->adap_free(adap);
 #ifdef CONFIG_MEDIA_CEC_RC
