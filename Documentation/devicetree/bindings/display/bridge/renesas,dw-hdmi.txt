@@ -43,7 +43,7 @@ Optional properties:
 Example:
 
 	hdmi0: hdmi@fead0000 {
-		compatible = "renesas,r8a7795-dw-hdmi";
+		compatible = "renesas,r8a7795-hdmi", "renesas,rcar-gen3-hdmi";
 		reg = <0 0xfead0000 0 0x10000>;
 		interrupts = <0 389 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_CORE R8A7795_CLK_S0D4>, <&cpg CPG_MOD 729>;
