@@ -537,7 +537,6 @@ struct intel_gmbus {
 
 struct i915_suspend_saved_registers {
 	u32 saveDSPARB;
-	u32 saveFBC_CONTROL;
 	u32 saveCACHE_MODE_0;
 	u32 saveMI_ARB_STATE;
 	u32 saveSWF0[16];

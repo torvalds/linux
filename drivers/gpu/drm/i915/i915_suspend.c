@@ -40,10 +40,6 @@ static void i915_save_display(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) <= 4)
 		dev_priv->regfile.saveDSPARB = I915_READ(DSPARB);
 
-	/* save FBC interval */
-	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv))
-		dev_priv->regfile.saveFBC_CONTROL = I915_READ(FBC_CONTROL);
-
 	if (IS_GEN(dev_priv, 4))
 		pci_read_config_word(pdev, GCDGMBUS,
 				     &dev_priv->regfile.saveGCDGMBUS);
@@ -63,10 +59,6 @@ static void i915_restore_display(struct drm_i915_private *dev_priv)
 
 	/* only restore FBC info on the platform that supports FBC*/
 	intel_fbc_global_disable(dev_priv);
-
-	/* restore FBC interval */
-	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv))
-		I915_WRITE(FBC_CONTROL, dev_priv->regfile.saveFBC_CONTROL);
 
 	intel_vga_redisable(dev_priv);
 
