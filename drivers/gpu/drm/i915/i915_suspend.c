@@ -71,10 +71,6 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 
 	i915_save_display(dev_priv);
 
-	/* Cache mode state */
-	if (INTEL_GEN(dev_priv) < 7)
-		dev_priv->regfile.saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
-
 	/* Scratch space */
 	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
 		for (i = 0; i < 7; i++) {
@@ -103,11 +99,6 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 	int i;
 
 	i915_restore_display(dev_priv);
-
-	/* Cache mode state */
-	if (INTEL_GEN(dev_priv) < 7)
-		I915_WRITE(CACHE_MODE_0, dev_priv->regfile.saveCACHE_MODE_0 |
-			   0xffff0000);
 
 	/* Scratch space */
 	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
