@@ -78,7 +78,7 @@ struct v4l2_fwnode_bus_mipi_csi1 {
  * struct v4l2_fwnode_endpoint - the endpoint data structure
  * @base: fwnode endpoint of the v4l2_fwnode
  * @bus_type: bus type
- * @bus: union with bus configuration data structure
+ * @bus: bus configuration data structure
  * @bus.parallel: embedded &struct v4l2_fwnode_bus_parallel.
  *		  Used if the bus is parallel.
  * @bus.mipi_csi1: embedded &struct v4l2_fwnode_bus_mipi_csi1.
@@ -99,7 +99,7 @@ struct v4l2_fwnode_endpoint {
 	 * v4l2_fwnode_endpoint_parse()
 	 */
 	enum v4l2_mbus_type bus_type;
-	union {
+	struct {
 		struct v4l2_fwnode_bus_parallel parallel;
 		struct v4l2_fwnode_bus_mipi_csi1 mipi_csi1;
 		struct v4l2_fwnode_bus_mipi_csi2 mipi_csi2;
