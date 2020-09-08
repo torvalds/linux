@@ -2570,7 +2570,7 @@ static int btrfs_punch_hole_lock_range(struct inode *inode,
 	return 0;
 }
 
-static int btrfs_insert_clone_extent(struct btrfs_trans_handle *trans,
+static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 				     struct inode *inode,
 				     struct btrfs_path *path,
 				     struct btrfs_replace_extent_info *extent_info,
@@ -2768,7 +2768,7 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 		if (extent_info && drop_end > extent_info->file_offset) {
 			u64 replace_len = drop_end - extent_info->file_offset;
 
-			ret = btrfs_insert_clone_extent(trans, inode, path,
+			ret = btrfs_insert_replace_extent(trans, inode, path,
 							extent_info, replace_len);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
@@ -2864,7 +2864,7 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 
 	}
 	if (extent_info) {
-		ret = btrfs_insert_clone_extent(trans, inode, path, extent_info,
+		ret = btrfs_insert_replace_extent(trans, inode, path, extent_info,
 						extent_info->data_len);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
