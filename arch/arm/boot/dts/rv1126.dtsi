@@ -1658,7 +1658,7 @@
 
 	rkcif: rkcif@ffae0000 {
 		compatible = "rockchip,rv1126-cif";
-		reg = <0xffae0000 0x10000>;
+		reg = <0xffae0000 0x8000>;
 		reg-names = "cif_regs";
 		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif-intr";
