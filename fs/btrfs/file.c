@@ -2596,15 +2596,16 @@ static int btrfs_insert_clone_extent(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = clone_info->file_offset;
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
-				      clone_info->item_size);
+				      sizeof(struct btrfs_file_extent_item));
 	if (ret)
 		return ret;
 	leaf = path->nodes[0];
 	slot = path->slots[0];
 	write_extent_buffer(leaf, clone_info->extent_buf,
 			    btrfs_item_ptr_offset(leaf, slot),
-			    clone_info->item_size);
+			    sizeof(struct btrfs_file_extent_item));
 	extent = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
+	ASSERT(btrfs_file_extent_type(leaf, extent) != BTRFS_FILE_EXTENT_INLINE);
 	btrfs_set_file_extent_offset(leaf, extent, clone_info->data_offset);
 	btrfs_set_file_extent_num_bytes(leaf, extent, clone_len);
 	if (clone_info->is_new_extent)
