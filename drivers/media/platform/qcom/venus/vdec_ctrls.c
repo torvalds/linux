@@ -42,9 +42,8 @@ static int vdec_op_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	struct venus_inst *inst = ctrl_to_inst(ctrl);
 	struct vdec_controls *ctr = &inst->controls.dec;
 	struct hfi_buffer_requirements bufreq;
-	union hfi_get_property hprop;
 	enum hfi_version ver = inst->core->res->hfi_version;
-	u32 ptype = HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT;
+	u32 profile, level;
 	int ret;
 
 	switch (ctrl->id) {
@@ -52,17 +51,17 @@ static int vdec_op_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
 	case V4L2_CID_MPEG_VIDEO_VP8_PROFILE:
 	case V4L2_CID_MPEG_VIDEO_VP9_PROFILE:
-		ret = hfi_session_get_property(inst, ptype, &hprop);
+		ret = venus_helper_get_profile_level(inst, &profile, &level);
 		if (!ret)
-			ctr->profile = hprop.profile_level.profile;
+			ctr->profile = profile;
 		ctrl->val = ctr->profile;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
 	case V4L2_CID_MPEG_VIDEO_VP9_LEVEL:
-		ret = hfi_session_get_property(inst, ptype, &hprop);
+		ret = venus_helper_get_profile_level(inst, &profile, &level);
 		if (!ret)
-			ctr->level = hprop.profile_level.level;
+			ctr->level = level;
 		ctrl->val = ctr->level;
 		break;
 	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:
