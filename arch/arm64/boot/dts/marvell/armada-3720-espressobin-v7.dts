@@ -27,18 +27,10 @@
 	};
 };
 
-&switch0 {
-	ports {
-		switch0port1: port@1 {
-			reg = <1>;
-			label = "lan1";
-			phy-handle = <&switch0phy0>;
-		};
+&switch0port1 {
+	label = "lan1";
+};
 
-		switch0port3: port@3 {
-			reg = <3>;
-			label = "wan";
-			phy-handle = <&switch0phy2>;
-		};
-	};
+&switch0port3 {
+	label = "wan";
 };
