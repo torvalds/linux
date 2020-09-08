@@ -230,6 +230,8 @@ static inline void bch2_fs_lazy_rw(struct bch_fs *c)
 		bch2_fs_read_write_early(c);
 }
 
+void __bch2_fs_stop(struct bch_fs *);
+void bch2_fs_free(struct bch_fs *);
 void bch2_fs_stop(struct bch_fs *);
 
 int bch2_fs_start(struct bch_fs *);
