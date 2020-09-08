@@ -1094,6 +1094,21 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 			sta->tx_stats.last_rate_info = *status->rate;
 	}
 
+	if (skb && (tx_time_est =
+		    ieee80211_info_get_tx_time_est(IEEE80211_SKB_CB(skb))) > 0) {
+		/* Do this here to avoid the expensive lookup of the sta
+		 * in ieee80211_report_used_skb().
+		 */
+		ieee80211_sta_update_pending_airtime(local, sta,
+						     skb_get_queue_mapping(skb),
+						     tx_time_est,
+						     true);
+		ieee80211_info_set_tx_time_est(IEEE80211_SKB_CB(skb), 0);
+	}
+
+	if (!status->info)
+		goto free;
+
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
 
 	sband = hw->wiphy->bands[info->band];
@@ -1137,17 +1152,6 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 			ieee80211s_update_metric(local, sta, status);
 	}
 
-	if (skb && (tx_time_est = ieee80211_info_get_tx_time_est(info)) > 0) {
-		/* Do this here to avoid the expensive lookup of the sta
-		 * in ieee80211_report_used_skb().
-		 */
-		ieee80211_sta_update_pending_airtime(local, sta,
-						     skb_get_queue_mapping(skb),
-						     tx_time_est,
-						     true);
-		ieee80211_info_set_tx_time_est(info, 0);
-	}
-
 	if (skb && !(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP))
 		return __ieee80211_tx_status(hw, status, rates_idx,
 					     retry_count);
@@ -1164,6 +1168,7 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		I802_DEBUG_INC(local->dot11FailedCount);
 	}
 
+free:
 	if (!skb)
 		return;
 
