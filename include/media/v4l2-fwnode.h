@@ -40,7 +40,7 @@ struct v4l2_fwnode_bus_mipi_csi2 {
 	unsigned int flags;
 	unsigned char data_lanes[V4L2_FWNODE_CSI2_MAX_DATA_LANES];
 	unsigned char clock_lane;
-	unsigned short num_data_lanes;
+	unsigned char num_data_lanes;
 	bool lane_polarities[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
 };
 
