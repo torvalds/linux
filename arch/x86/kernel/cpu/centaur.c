@@ -90,18 +90,14 @@ enum {
 
 static void early_init_centaur(struct cpuinfo_x86 *c)
 {
-	switch (c->x86) {
 #ifdef CONFIG_X86_32
-	case 5:
-		/* Emulate MTRRs using Centaur's MCR. */
+	/* Emulate MTRRs using Centaur's MCR. */
+	if (c->x86 == 5)
 		set_cpu_cap(c, X86_FEATURE_CENTAUR_MCR);
-		break;
 #endif
-	case 6:
-		if (c->x86_model >= 0xf)
-			set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
-		break;
-	}
+	if (c->x86 == 6 && c->x86_model >= 0xf)
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_SYSENTER32);
 #endif
@@ -145,9 +141,8 @@ static void init_centaur(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_ARCH_PERFMON);
 	}
 
-	switch (c->x86) {
 #ifdef CONFIG_X86_32
-	case 5:
+	if (c->x86 == 5) {
 		switch (c->x86_model) {
 		case 4:
 			name = "C6";
@@ -207,12 +202,10 @@ static void init_centaur(struct cpuinfo_x86 *c)
 			c->x86_cache_size = (cc>>24)+(dd>>24);
 		}
 		sprintf(c->x86_model_id, "WinChip %s", name);
-		break;
-#endif
-	case 6:
-		init_c3(c);
-		break;
 	}
+#endif
+	if (c->x86 == 6)
+		init_c3(c);
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 #endif
