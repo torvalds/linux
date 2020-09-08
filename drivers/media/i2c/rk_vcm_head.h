@@ -22,6 +22,11 @@
 #define RK_VIDIOC_ZOOM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rk_cam_vcm_tim)
 
+#define RK_VIDIOC_GET_VCM_CFG \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 3, struct rk_cam_vcm_cfg)
+#define RK_VIDIOC_SET_VCM_CFG \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 4, struct rk_cam_vcm_cfg)
+
 #ifdef CONFIG_COMPAT
 #define RK_VIDIOC_COMPAT_VCM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rk_cam_compat_vcm_tim)
@@ -42,6 +47,12 @@ struct rk_cam_compat_vcm_tim {
 	struct compat_timeval vcm_end_t;
 };
 #endif
+
+struct rk_cam_vcm_cfg {
+	int start_ma;
+	int rated_ma;
+	int step_mode;
+};
 
 #endif /* RK_VCM_HEAD_H */
 

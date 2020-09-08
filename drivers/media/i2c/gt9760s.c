@@ -54,6 +54,8 @@ struct gt9760s_device {
 
 	u32 module_index;
 	const char *module_facing;
+
+	struct rk_cam_vcm_cfg vcm_cfg;
 };
 
 static inline struct gt9760s_device *to_vcm_dev(struct v4l2_ctrl *ctrl)
@@ -324,12 +326,34 @@ static const struct v4l2_subdev_internal_ops gt9760s_int_ops = {
 	.close = gt9760s_close,
 };
 
+static void gt9760s_update_vcm_cfg(struct gt9760s_device *dev_vcm)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
+	int cur_dist;
+
+	cur_dist = dev_vcm->vcm_cfg.rated_ma - dev_vcm->vcm_cfg.start_ma;
+	cur_dist = cur_dist * GT9760S_MAX_REG / GT9760S_MAX_CURRENT;
+	dev_vcm->step = (cur_dist + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
+	dev_vcm->start_current = dev_vcm->vcm_cfg.start_ma *
+				 GT9760S_MAX_REG / GT9760S_MAX_CURRENT;
+	dev_vcm->rated_current = dev_vcm->start_current +
+				 VCMDRV_MAX_LOG * dev_vcm->step;
+	dev_vcm->step_mode = dev_vcm->vcm_cfg.step_mode;
+
+	dev_dbg(&client->dev,
+		"vcm_cfg: %d, %d, %d\n",
+		dev_vcm->vcm_cfg.start_ma,
+		dev_vcm->vcm_cfg.rated_ma,
+		dev_vcm->vcm_cfg.step_mode);
+}
+
 static long gt9760s_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	int ret = 0;
-	struct rk_cam_vcm_tim *vcm_tim;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct gt9760s_device *dev_vcm = sd_to_vcm_dev(sd);
+	struct rk_cam_vcm_cfg *vcm_cfg;
+	struct rk_cam_vcm_tim *vcm_tim;
+	int ret = 0;
 
 	if (cmd == RK_VIDIOC_VCM_TIMEINFO) {
 		vcm_tim = (struct rk_cam_vcm_tim *)arg;
@@ -345,6 +369,19 @@ static long gt9760s_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			vcm_tim->vcm_start_t.tv_usec,
 			vcm_tim->vcm_end_t.tv_sec,
 			vcm_tim->vcm_end_t.tv_usec);
+	} else if (cmd == RK_VIDIOC_GET_VCM_CFG) {
+		vcm_cfg = (struct rk_cam_vcm_cfg *)arg;
+
+		vcm_cfg->start_ma = dev_vcm->vcm_cfg.start_ma;
+		vcm_cfg->rated_ma = dev_vcm->vcm_cfg.rated_ma;
+		vcm_cfg->step_mode = dev_vcm->vcm_cfg.step_mode;
+	} else if (cmd == RK_VIDIOC_SET_VCM_CFG) {
+		vcm_cfg = (struct rk_cam_vcm_cfg *)arg;
+
+		dev_vcm->vcm_cfg.start_ma = vcm_cfg->start_ma;
+		dev_vcm->vcm_cfg.rated_ma = vcm_cfg->rated_ma;
+		dev_vcm->vcm_cfg.step_mode = vcm_cfg->step_mode;
+		gt9760s_update_vcm_cfg(dev_vcm);
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
@@ -426,13 +463,10 @@ static int gt9760s_probe(struct i2c_client *client,
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct gt9760s_device *dev_vcm;
-	int ret;
-	int cur_dist;
-	unsigned int start_current;
-	unsigned int rated_current;
-	unsigned int step_mode;
+	unsigned int start_ma, rated_ma, step_mode;
 	struct v4l2_subdev *sd;
 	char facing[2];
+	int ret;
 
 	dev_info(&client->dev, "probing...\n");
 	dev_info(&client->dev, "driver version: %02x.%02x.%02x",
@@ -442,16 +476,16 @@ static int gt9760s_probe(struct i2c_client *client,
 
 	if (of_property_read_u32(np,
 		 OF_CAMERA_VCMDRV_START_CURRENT,
-		(unsigned int *)&start_current)) {
-		start_current = GT9760S_DEFAULT_START_CURRENT;
+		(unsigned int *)&start_ma)) {
+		start_ma = GT9760S_DEFAULT_START_CURRENT;
 		dev_info(&client->dev,
 			"could not get module %s from dts!\n",
 			OF_CAMERA_VCMDRV_START_CURRENT);
 	}
 	if (of_property_read_u32(np,
 		 OF_CAMERA_VCMDRV_RATED_CURRENT,
-		(unsigned int *)&rated_current)) {
-		rated_current = GT9760S_DEFAULT_RATED_CURRENT;
+		(unsigned int *)&rated_ma)) {
+		rated_ma = GT9760S_DEFAULT_RATED_CURRENT;
 		dev_info(&client->dev,
 			"could not get module %s from dts!\n",
 			OF_CAMERA_VCMDRV_RATED_CURRENT);
@@ -508,14 +542,11 @@ static int gt9760s_probe(struct i2c_client *client,
 	if (ret)
 		dev_err(&client->dev, "v4l2 async register subdev failed\n");
 
-	cur_dist = rated_current - start_current;
-	cur_dist = cur_dist * GT9760S_MAX_REG / GT9760S_MAX_CURRENT;
-	dev_vcm->step = (cur_dist + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
-	dev_vcm->start_current = start_current *
-				 GT9760S_MAX_REG / GT9760S_MAX_CURRENT;
-	dev_vcm->rated_current = dev_vcm->start_current +
-				 VCMDRV_MAX_LOG * dev_vcm->step;
-	dev_vcm->step_mode     = step_mode;
+	dev_vcm->vcm_cfg.start_ma = start_ma;
+	dev_vcm->vcm_cfg.rated_ma = rated_ma;
+	dev_vcm->vcm_cfg.step_mode = step_mode;
+	gt9760s_update_vcm_cfg(dev_vcm);
+
 	dev_vcm->move_ms       = 0;
 	dev_vcm->current_related_pos = VCMDRV_MAX_LOG;
 	dev_vcm->start_move_tv = ns_to_timeval(ktime_get_ns());
