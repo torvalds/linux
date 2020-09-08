@@ -2390,6 +2390,25 @@ kset_free:
 	return -ENOMEM;
 }
 
+static pci_ers_result_t qedi_io_error_detected(struct pci_dev *pdev,
+					       pci_channel_state_t state)
+{
+	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
+
+	QEDI_ERR(&qedi->dbg_ctx, "%s: PCI error detected [%d]\n",
+		 __func__, state);
+
+	if (test_and_set_bit(QEDI_IN_RECOVERY, &qedi->flags)) {
+		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+			  "Recovery already in progress.\n");
+		return PCI_ERS_RESULT_NONE;
+	}
+
+	qedi_ops->common->recovery_process(qedi->cdev);
+
+	return PCI_ERS_RESULT_CAN_RECOVER;
+}
+
 static void __qedi_remove(struct pci_dev *pdev, int mode)
 {
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
@@ -2819,12 +2838,17 @@ MODULE_DEVICE_TABLE(pci, qedi_pci_tbl);
 
 static enum cpuhp_state qedi_cpuhp_state;
 
+static struct pci_error_handlers qedi_err_handler = {
+	.error_detected = qedi_io_error_detected,
+};
+
 static struct pci_driver qedi_pci_driver = {
 	.name = QEDI_MODULE_NAME,
 	.id_table = qedi_pci_tbl,
 	.probe = qedi_probe,
 	.remove = qedi_remove,
 	.shutdown = qedi_shutdown,
+	.err_handler = &qedi_err_handler,
 };
 
 static int __init qedi_init(void)
