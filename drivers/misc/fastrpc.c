@@ -73,6 +73,11 @@
 #define FASTRPC_RMID_INIT_CREATE_ATTR	7
 #define FASTRPC_RMID_INIT_CREATE_STATIC	8
 
+/* Protection Domain(PD) ids */
+#define AUDIO_PD	(0) /* also GUEST_OS PD? */
+#define USER_PD		(1)
+#define SENSORS_PD	(2)
+
 #define miscdev_to_cctx(d) container_of(d, struct fastrpc_channel_ctx, miscdev)
 
 static const char *domains[FASTRPC_DEV_MAX] = { "adsp", "mdsp",
@@ -1037,7 +1042,7 @@ static int fastrpc_init_create_process(struct fastrpc_user *fl,
 	inbuf.pageslen = 1;
 	inbuf.attrs = init.attrs;
 	inbuf.siglen = init.siglen;
-	fl->pd = 1;
+	fl->pd = USER_PD;
 
 	if (init.filelen && init.filefd) {
 		err = fastrpc_map_create(fl, init.filefd, init.filelen, &map);
@@ -1287,7 +1292,7 @@ static int fastrpc_init_attach(struct fastrpc_user *fl)
 	args[0].fd = -1;
 	args[0].reserved = 0;
 	sc = FASTRPC_SCALARS(FASTRPC_RMID_INIT_ATTACH, 1, 0);
-	fl->pd = 0;
+	fl->pd = AUDIO_PD;
 
 	return fastrpc_internal_invoke(fl, true, FASTRPC_INIT_HANDLE,
 				       sc, &args[0]);
