@@ -4194,6 +4194,7 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_key *key;
 	struct tid_ampdu_tx *tid_tx;
 	u8 tid;
 
@@ -4241,6 +4242,10 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 
 	info->control.flags |= IEEE80211_TX_CTRL_HW_80211_ENCAP;
 	info->control.vif = &sdata->vif;
+
+	key = rcu_dereference(sta->ptk[sta->ptk_idx]);
+	if (key)
+		info->control.hw_key = &key->conf;
 
 	ieee80211_tx_8023(sdata, skb, skb->len, sta, false);
 
