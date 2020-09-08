@@ -31,6 +31,7 @@ static void rxrpc_free_preparse_s(struct key_preparsed_payload *);
 static void rxrpc_destroy(struct key *);
 static void rxrpc_destroy_s(struct key *);
 static void rxrpc_describe(const struct key *, struct seq_file *);
+static void rxrpc_describe_s(const struct key *, struct seq_file *);
 static long rxrpc_read(const struct key *, char *, size_t);
 
 /*
@@ -61,7 +62,7 @@ struct key_type key_type_rxrpc_s = {
 	.free_preparse	= rxrpc_free_preparse_s,
 	.instantiate	= generic_key_instantiate,
 	.destroy	= rxrpc_destroy_s,
-	.describe	= rxrpc_describe,
+	.describe	= rxrpc_describe_s,
 };
 
 /*
@@ -494,6 +495,32 @@ static void rxrpc_destroy_s(struct key *key)
  * describe the rxrpc key
  */
 static void rxrpc_describe(const struct key *key, struct seq_file *m)
+{
+	const struct rxrpc_key_token *token;
+	const char *sep = ": ";
+
+	seq_puts(m, key->description);
+
+	for (token = key->payload.data[0]; token; token = token->next) {
+		seq_puts(m, sep);
+
+		switch (token->security_index) {
+		case RXRPC_SECURITY_RXKAD:
+			seq_puts(m, "ka");
+			break;
+		default: /* we have a ticket we can't encode */
+			seq_printf(m, "%u", token->security_index);
+			break;
+		}
+
+		sep = " ";
+	}
+}
+
+/*
+ * describe the rxrpc server key
+ */
+static void rxrpc_describe_s(const struct key *key, struct seq_file *m)
 {
 	seq_puts(m, key->description);
 }
