@@ -241,10 +241,12 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	bool send_doorbell;
 
-	wi->num_bytes = num_bytes;
-	wi->num_dma = num_dma;
-	wi->num_wqebbs = num_wqebbs;
-	wi->skb = skb;
+	*wi = (struct mlx5e_tx_wqe_info) {
+		.skb = skb,
+		.num_bytes = num_bytes,
+		.num_dma = num_dma,
+		.num_wqebbs = num_wqebbs,
+	};
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | opcode);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | ds_cnt);
