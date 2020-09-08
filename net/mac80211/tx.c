@@ -4190,11 +4190,10 @@ static bool ieee80211_tx_8023(struct ieee80211_sub_if_data *sdata,
 
 static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 				struct net_device *dev, struct sta_info *sta,
-				struct sk_buff *skb)
+				struct ieee80211_key *key, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_key *key;
 	struct tid_ampdu_tx *tid_tx;
 	u8 tid;
 
@@ -4243,7 +4242,6 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 	info->control.flags |= IEEE80211_TX_CTRL_HW_80211_ENCAP;
 	info->control.vif = &sdata->vif;
 
-	key = rcu_dereference(sta->ptk[sta->ptk_idx]);
 	if (key)
 		info->control.hw_key = &key->conf;
 
@@ -4260,12 +4258,9 @@ netdev_tx_t ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ethhdr *ehdr = (struct ethhdr *)skb->data;
+	struct ieee80211_key *key;
 	struct sta_info *sta;
-
-	if (WARN_ON(!sdata->hw_80211_encap)) {
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
+	bool offload = true;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		kfree_skb(skb);
@@ -4274,15 +4269,26 @@ netdev_tx_t ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
 
 	rcu_read_lock();
 
-	if (ieee80211_lookup_ra_sta(sdata, skb, &sta))
+	if (ieee80211_lookup_ra_sta(sdata, skb, &sta)) {
 		kfree_skb(skb);
-	else if (unlikely(IS_ERR_OR_NULL(sta) || !sta->uploaded ||
-			  !test_sta_flag(sta, WLAN_STA_AUTHORIZED) ||
-			  sdata->control_port_protocol == ehdr->h_proto))
-		ieee80211_subif_start_xmit(skb, dev);
-	else
-		ieee80211_8023_xmit(sdata, dev, sta, skb);
+		goto out;
+	}
 
+	if (unlikely(IS_ERR_OR_NULL(sta) || !sta->uploaded ||
+	    !test_sta_flag(sta, WLAN_STA_AUTHORIZED) ||
+		sdata->control_port_protocol == ehdr->h_proto))
+		offload = false;
+	else if ((key = rcu_dereference(sta->ptk[sta->ptk_idx])) &&
+		 (!(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) ||
+		  key->conf.cipher == WLAN_CIPHER_SUITE_TKIP))
+		offload = false;
+
+	if (offload)
+		ieee80211_8023_xmit(sdata, dev, sta, key, skb);
+	else
+		ieee80211_subif_start_xmit(skb, dev);
+
+out:
 	rcu_read_unlock();
 
 	return NETDEV_TX_OK;

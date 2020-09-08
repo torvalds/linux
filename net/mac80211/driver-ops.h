@@ -1384,4 +1384,19 @@ static inline int drv_reset_tid_config(struct ieee80211_local *local,
 
 	return ret;
 }
+
+static inline void drv_update_vif_offload(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+	check_sdata_in_driver(sdata);
+
+	if (!local->ops->update_vif_offload)
+		return;
+
+	trace_drv_update_vif_offload(local, sdata);
+	local->ops->update_vif_offload(&local->hw, &sdata->vif);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */
