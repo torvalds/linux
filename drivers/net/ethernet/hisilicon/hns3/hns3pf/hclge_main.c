@@ -3944,6 +3944,9 @@ static void hclge_periodic_service_task(struct hclge_dev *hdev)
 {
 	unsigned long delta = round_jiffies_relative(HZ);
 
+	if (test_bit(HCLGE_STATE_RST_FAIL, &hdev->state))
+		return;
+
 	/* Always handle the link updating to make sure link state is
 	 * updated when it is triggered by mbx.
 	 */
