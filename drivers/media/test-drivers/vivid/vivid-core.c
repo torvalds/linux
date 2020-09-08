@@ -1315,7 +1315,7 @@ static int vivid_create_devnodes(struct platform_device *pdev,
 				 unsigned out_type_counter[4])
 {
 	struct video_device *vfd;
-	int ret, i;
+	int ret;
 
 	if (dev->has_vid_cap) {
 		vfd = &dev->vid_cap_dev;
@@ -1365,6 +1365,9 @@ static int vivid_create_devnodes(struct platform_device *pdev,
 	}
 
 	if (dev->has_vid_out) {
+#ifdef CONFIG_VIDEO_VIVID_CEC
+		int i;
+#endif
 		vfd = &dev->vid_out_dev;
 		snprintf(vfd->name, sizeof(vfd->name),
 			 "vivid-%03d-vid-out", inst);
@@ -1659,11 +1662,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	struct vivid_dev *dev;
 	unsigned node_type = node_types[inst];
 	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
+	unsigned int cec_tx_bus_cnt = 0;
 	int ret;
 	int i;
-#ifdef CONFIG_VIDEO_VIVID_CEC
-	unsigned int cec_tx_bus_cnt = 0;
-#endif
 
 	/* allocate main vivid state structure */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
