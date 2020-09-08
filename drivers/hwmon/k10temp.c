@@ -21,7 +21,6 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/init.h>
@@ -422,76 +421,6 @@ static bool has_erratum_319(struct pci_dev *pdev)
 	       (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_stepping <= 2);
 }
 
-#ifdef CONFIG_DEBUG_FS
-
-static void k10temp_smn_regs_show(struct seq_file *s, struct pci_dev *pdev,
-				  u32 addr, int count)
-{
-	u32 reg;
-	int i;
-
-	for (i = 0; i < count; i++) {
-		if (!(i & 3))
-			seq_printf(s, "0x%06x: ", addr + i * 4);
-		amd_smn_read(amd_pci_dev_to_node_id(pdev), addr + i * 4, &reg);
-		seq_printf(s, "%08x ", reg);
-		if ((i & 3) == 3)
-			seq_puts(s, "\n");
-	}
-}
-
-static int svi_show(struct seq_file *s, void *unused)
-{
-	struct k10temp_data *data = s->private;
-
-	k10temp_smn_regs_show(s, data->pdev, ZEN_SVI_BASE, 32);
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(svi);
-
-static int thm_show(struct seq_file *s, void *unused)
-{
-	struct k10temp_data *data = s->private;
-
-	k10temp_smn_regs_show(s, data->pdev,
-			      ZEN_REPORTED_TEMP_CTRL_OFFSET, 256);
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(thm);
-
-static void k10temp_debugfs_cleanup(void *ddir)
-{
-	debugfs_remove_recursive(ddir);
-}
-
-static void k10temp_init_debugfs(struct k10temp_data *data)
-{
-	struct dentry *debugfs;
-	char name[32];
-
-	/* Only show debugfs data for Family 17h/18h CPUs */
-	if (!data->is_zen)
-		return;
-
-	scnprintf(name, sizeof(name), "k10temp-%s", pci_name(data->pdev));
-
-	debugfs = debugfs_create_dir(name, NULL);
-	if (debugfs) {
-		debugfs_create_file("svi", 0444, debugfs, data, &svi_fops);
-		debugfs_create_file("thm", 0444, debugfs, data, &thm_fops);
-		devm_add_action_or_reset(&data->pdev->dev,
-					 k10temp_debugfs_cleanup, debugfs);
-	}
-}
-
-#else
-
-static void k10temp_init_debugfs(struct k10temp_data *data)
-{
-}
-
-#endif
-
 static const struct hwmon_channel_info *k10temp_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MAX |
@@ -616,12 +545,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, "k10temp", data,
 							 &k10temp_chip_info,
 							 NULL);
-	if (IS_ERR(hwmon_dev))
-		return PTR_ERR(hwmon_dev);
-
-	k10temp_init_debugfs(data);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static const struct pci_device_id k10temp_id_table[] = {
