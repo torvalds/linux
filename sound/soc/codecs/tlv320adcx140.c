@@ -842,6 +842,18 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	if (ret)
 		goto out;
 
+	if (adcx140->supply_areg == NULL)
+		sleep_cfg_val |= ADCX140_AREG_INTERNAL;
+
+	ret = regmap_write(adcx140->regmap, ADCX140_SLEEP_CFG, sleep_cfg_val);
+	if (ret) {
+		dev_err(adcx140->dev, "setting sleep config failed %d\n", ret);
+		goto out;
+	}
+
+	/* 8.4.3: Wait >= 1ms after entering active mode. */
+	usleep_range(1000, 100000);
+
 	pdm_count = device_property_count_u32(adcx140->dev,
 					      "ti,pdm-edge-select");
 	if (pdm_count <= ADCX140_NUM_PDM_EDGES && pdm_count > 0) {
@@ -888,18 +900,6 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	ret = adcx140_configure_gpo(adcx140);
 	if (ret)
 		goto out;
-
-	if (adcx140->supply_areg == NULL)
-		sleep_cfg_val |= ADCX140_AREG_INTERNAL;
-
-	ret = regmap_write(adcx140->regmap, ADCX140_SLEEP_CFG, sleep_cfg_val);
-	if (ret) {
-		dev_err(adcx140->dev, "setting sleep config failed %d\n", ret);
-		goto out;
-	}
-
-	/* 8.4.3: Wait >= 1ms after entering active mode. */
-	usleep_range(1000, 100000);
 
 	ret = regmap_update_bits(adcx140->regmap, ADCX140_BIAS_CFG,
 				ADCX140_MIC_BIAS_VAL_MSK |
