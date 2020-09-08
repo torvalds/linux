@@ -1044,7 +1044,10 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	 * with this test...
 	 */
 	if (!local->monitors && (!send_to_cooked || !local->cooked_mntrs)) {
-		dev_kfree_skb(skb);
+		if (status->free_list)
+			list_add_tail(&skb->list, status->free_list);
+		else
+			dev_kfree_skb(skb);
 		return;
 	}
 
@@ -1173,7 +1176,10 @@ free:
 		return;
 
 	ieee80211_report_used_skb(local, skb, false);
-	dev_kfree_skb(skb);
+	if (status->free_list)
+		list_add_tail(&skb->list, status->free_list);
+	else
+		dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee80211_tx_status_ext);
 
