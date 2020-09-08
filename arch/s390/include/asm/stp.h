@@ -13,37 +13,37 @@ extern struct atomic_notifier_head s390_epoch_delta_notifier;
 
 /* STP interruption parameter */
 struct stp_irq_parm {
-	unsigned int _pad0	: 14;
-	unsigned int tsc	: 1;	/* Timing status change */
-	unsigned int lac	: 1;	/* Link availability change */
-	unsigned int tcpc	: 1;	/* Time control parameter change */
-	unsigned int _pad2	: 15;
+	u32		: 14;
+	u32 tsc		:  1;	/* Timing status change */
+	u32 lac		:  1;	/* Link availability change */
+	u32 tcpc	:  1;	/* Time control parameter change */
+	u32		: 15;
 } __packed;
 
 #define STP_OP_SYNC	1
 #define STP_OP_CTRL	3
 
 struct stp_sstpi {
-	unsigned int rsvd0;
-	unsigned int rsvd1 : 8;
-	unsigned int stratum : 8;
-	unsigned int vbits : 16;
-	unsigned int leaps : 16;
-	unsigned int tmd : 4;
-	unsigned int ctn : 4;
-	unsigned int rsvd2 : 3;
-	unsigned int c : 1;
-	unsigned int tst : 4;
-	unsigned int tzo : 16;
-	unsigned int dsto : 16;
-	unsigned int ctrl : 16;
-	unsigned int rsvd3 : 16;
-	unsigned int tto;
-	unsigned int rsvd4;
-	unsigned int ctnid[3];
-	unsigned int rsvd5;
-	unsigned int todoff[4];
-	unsigned int rsvd6[48];
+	u32		: 32;
+	u32		:  8;
+	u32 stratum	:  8;
+	u32 vbits	: 16;
+	u32 leaps	: 16;
+	u32 tmd		:  4;
+	u32 ctn		:  4;
+	u32		:  3;
+	u32 c		:  1;
+	u32 tst		:  4;
+	u32 tzo		: 16;
+	u32 dsto	: 16;
+	u32 ctrl	: 16;
+	u32		: 16;
+	u32 tto;
+	u32		: 32;
+	u32 ctnid[3];
+	u32		: 32;
+	u32 todoff[4];
+	u32 rsvd[48];
 } __packed;
 
 /* Functions needed by the machine check handler */
