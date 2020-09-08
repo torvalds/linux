@@ -271,6 +271,8 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_kvm_asyncpf_interrupt)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	u32 token;
 
+	ack_APIC_irq();
+
 	inc_irq_stat(irq_hv_callback_count);
 
 	if (__this_cpu_read(apf_reason.enabled)) {
