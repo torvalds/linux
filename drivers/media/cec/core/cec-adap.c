@@ -751,6 +751,9 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	struct cec_data *data;
 	bool is_raw = msg_is_raw(msg);
 
+	if (adap->devnode.unregistered)
+		return -ENODEV;
+
 	msg->rx_ts = 0;
 	msg->tx_ts = 0;
 	msg->rx_status = 0;
@@ -1047,6 +1050,9 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	u8 min_len = 0;
 
 	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
+		return;
+
+	if (adap->devnode.unregistered)
 		return;
 
 	/*
