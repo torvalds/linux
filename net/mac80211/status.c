@@ -1218,9 +1218,6 @@ void ieee80211_tx_status_8023(struct ieee80211_hw *hw,
 	sta->status_stats.retry_count += retry_count;
 
 	if (ieee80211_hw_check(hw, REPORTS_TX_ACK_STATUS)) {
-		if (acked && vif->type == NL80211_IFTYPE_STATION)
-			ieee80211_sta_reset_conn_monitor(sdata);
-
 		sta->status_stats.last_ack = jiffies;
 		if (info->flags & IEEE80211_TX_STAT_ACK) {
 			if (sta->status_stats.lost_packets)
