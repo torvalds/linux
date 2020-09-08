@@ -922,7 +922,8 @@ static int ace_open(struct block_device *bdev, fmode_t mode)
 	ace->users++;
 	spin_unlock_irqrestore(&ace->lock, flags);
 
-	check_disk_change(bdev);
+	if (bdev_check_media_change(bdev))
+		ace_revalidate_disk(bdev->bd_disk);
 	mutex_unlock(&xsysace_mutex);
 
 	return 0;
@@ -966,7 +967,6 @@ static const struct block_device_operations ace_fops = {
 	.open = ace_open,
 	.release = ace_release,
 	.check_events = ace_check_events,
-	.revalidate_disk = ace_revalidate_disk,
 	.getgeo = ace_getgeo,
 };
 
