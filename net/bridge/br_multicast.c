@@ -1814,8 +1814,8 @@ br_multicast_find_port(struct net_bridge_mdb_entry *mp,
 		       struct net_bridge_port *p,
 		       const unsigned char *src)
 {
+	struct net_bridge *br __maybe_unused = mp->br;
 	struct net_bridge_port_group *pg;
-	struct net_bridge *br = mp->br;
 
 	for (pg = mlock_dereference(mp->ports, br);
 	     pg;
