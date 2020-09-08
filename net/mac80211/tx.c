@@ -4198,6 +4198,8 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 	bool authorized = false;
 	bool multicast;
 	unsigned char *ra = ehdr->h_dest;
+	struct tid_ampdu_tx *tid_tx;
+	u8 tid;
 
 	if (IS_ERR(sta) || (sta && !sta->uploaded))
 		sta = NULL;
@@ -4234,6 +4236,22 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 		goto out_free;
 
 	memset(info, 0, sizeof(*info));
+
+	if (sta) {
+		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+		tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
+		if (tid_tx) {
+			if (!test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
+				/* fall back to non-offload slow path */
+				__ieee80211_subif_start_xmit(skb, dev, 0, 0, NULL);
+				return;
+			}
+
+			info->flags |= IEEE80211_TX_CTL_AMPDU;
+			if (tid_tx->timeout)
+				tid_tx->last_tx = jiffies;
+		}
+	}
 
 	if (unlikely(!multicast && skb->sk &&
 		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS))
