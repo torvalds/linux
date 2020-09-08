@@ -1276,6 +1276,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 				   struct peer_assoc_params *arg)
 {
 	const struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
+	u8 ampdu_factor;
 	u16 v;
 
 	if (!he_cap->has_he)
@@ -1291,6 +1292,30 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 
 	/* the top most byte is used to indicate BSS color info */
 	arg->peer_he_ops &= 0xffffff;
+
+	/* As per section 26.6.1 11ax Draft5.0, if the Max AMPDU Exponent Extension
+	 * in HE cap is zero, use the arg->peer_max_mpdu as calculated while parsing
+	 * VHT caps(if VHT caps is present) or HT caps (if VHT caps is not present).
+	 *
+	 * For non-zero value of Max AMPDU Extponent Extension in HE MAC caps,
+	 * if a HE STA sends VHT cap and HE cap IE in assoc request then, use
+	 * MAX_AMPDU_LEN_FACTOR as 20 to calculate max_ampdu length.
+	 * If a HE STA that does not send VHT cap, but HE and HT cap in assoc
+	 * request, then use MAX_AMPDU_LEN_FACTOR as 16 to calculate max_ampdu
+	 * length.
+	 */
+	ampdu_factor = (he_cap->he_cap_elem.mac_cap_info[3] &
+			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK) >>
+			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_SHIFT;
+
+	if (ampdu_factor) {
+		if (sta->vht_cap.vht_supported)
+			arg->peer_max_mpdu = (1 << (IEEE80211_HE_VHT_MAX_AMPDU_FACTOR +
+						    ampdu_factor)) - 1;
+		else if (sta->ht_cap.ht_supported)
+			arg->peer_max_mpdu = (1 << (IEEE80211_HE_HT_MAX_AMPDU_FACTOR +
+						    ampdu_factor)) - 1;
+	}
 
 	if (he_cap->he_cap_elem.phy_cap_info[6] &
 	    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
