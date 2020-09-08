@@ -3031,6 +3031,17 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 	if (err)
 		return err;
 
+	/* Ethernet and IB drivers will normally set the port type,
+	 * but if they are not built set the type now to prevent
+	 * devlink_port_type_warn() from firing.
+	 */
+	if (!IS_ENABLED(CONFIG_MLX4_EN) &&
+	    dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
+		devlink_port_type_eth_set(&info->devlink_port, NULL);
+	else if (!IS_ENABLED(CONFIG_MLX4_INFINIBAND) &&
+		 dev->caps.port_type[port] == MLX4_PORT_TYPE_IB)
+		devlink_port_type_ib_set(&info->devlink_port, NULL);
+
 	info->dev = dev;
 	info->port = port;
 	if (!mlx4_is_slave(dev)) {
