@@ -9576,11 +9576,15 @@ out_unlock:
 	return err;
 }
 
-static int insert_prealloc_file_extent(struct btrfs_trans_handle *trans,
+static struct btrfs_trans_handle *insert_prealloc_file_extent(
+				       struct btrfs_trans_handle *trans_in,
 				       struct inode *inode, struct btrfs_key *ins,
 				       u64 file_offset)
 {
 	struct btrfs_file_extent_item stack_fi;
+	struct btrfs_clone_extent_info extent_info;
+	struct btrfs_trans_handle *trans = trans_in;
+	struct btrfs_path *path;
 	u64 start = ins->objectid;
 	u64 len = ins->offset;
 	int ret;
@@ -9597,10 +9601,41 @@ static int insert_prealloc_file_extent(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_qgroup_release_data(BTRFS_I(inode), file_offset, len);
 	if (ret < 0)
-		return ret;
-	return insert_reserved_file_extent(trans, BTRFS_I(inode), file_offset,
-					   &stack_fi, ret);
+		return ERR_PTR(ret);
+
+	if (trans) {
+		ret = insert_reserved_file_extent(trans, BTRFS_I(inode),
+						  file_offset, &stack_fi, ret);
+		if (ret)
+			return ERR_PTR(ret);
+		return trans;
+	}
+
+	extent_info.disk_offset = start;
+	extent_info.disk_len = len;
+	extent_info.data_offset = 0;
+	extent_info.data_len = len;
+	extent_info.file_offset = file_offset;
+	extent_info.extent_buf = (char *)&stack_fi;
+	extent_info.item_size = sizeof(stack_fi);
+	extent_info.is_new_extent = true;
+	extent_info.qgroup_reserved = ret;
+	extent_info.insertions = 0;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return ERR_PTR(-ENOMEM);
+
+	ret = btrfs_punch_hole_range(inode, path, file_offset,
+				     file_offset + len - 1, &extent_info,
+				     &trans);
+	btrfs_free_path(path);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return trans;
 }
+
 static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 				       u64 start, u64 num_bytes, u64 min_size,
 				       loff_t actual_len, u64 *alloc_hint,
@@ -9623,14 +9658,6 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 	if (trans)
 		own_trans = false;
 	while (num_bytes > 0) {
-		if (own_trans) {
-			trans = btrfs_start_transaction(root, 3);
-			if (IS_ERR(trans)) {
-				ret = PTR_ERR(trans);
-				break;
-			}
-		}
-
 		cur_bytes = min_t(u64, num_bytes, SZ_256M);
 		cur_bytes = max(cur_bytes, min_size);
 		/*
@@ -9642,11 +9669,8 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		cur_bytes = min(cur_bytes, last_alloc);
 		ret = btrfs_reserve_extent(root, cur_bytes, cur_bytes,
 				min_size, 0, *alloc_hint, &ins, 1, 0);
-		if (ret) {
-			if (own_trans)
-				btrfs_end_transaction(trans);
+		if (ret)
 			break;
-		}
 
 		/*
 		 * We've reserved this space, and thus converted it from
@@ -9659,13 +9683,11 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 
 		last_alloc = ins.offset;
-		ret = insert_prealloc_file_extent(trans, inode, &ins, cur_offset);
-		if (ret) {
+		trans = insert_prealloc_file_extent(trans, inode, &ins, cur_offset);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
 			btrfs_free_reserved_extent(fs_info, ins.objectid,
 						   ins.offset, 0);
-			btrfs_abort_transaction(trans, ret);
-			if (own_trans)
-				btrfs_end_transaction(trans);
 			break;
 		}
 
@@ -9728,8 +9750,10 @@ next:
 			break;
 		}
 
-		if (own_trans)
+		if (own_trans) {
 			btrfs_end_transaction(trans);
+			trans = NULL;
+		}
 	}
 	if (clear_offset < end)
 		btrfs_free_reserved_data_space(BTRFS_I(inode), NULL, clear_offset,

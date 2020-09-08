@@ -2583,7 +2583,6 @@ static int btrfs_insert_clone_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	int slot;
 	struct btrfs_ref ref = { 0 };
-	u64 ref_offset;
 	int ret;
 
 	if (clone_len == 0)
@@ -2608,6 +2607,8 @@ static int btrfs_insert_clone_extent(struct btrfs_trans_handle *trans,
 	extent = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 	btrfs_set_file_extent_offset(leaf, extent, clone_info->data_offset);
 	btrfs_set_file_extent_num_bytes(leaf, extent, clone_len);
+	if (clone_info->is_new_extent)
+		btrfs_set_file_extent_generation(leaf, extent, trans->transid);
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
 
@@ -2621,13 +2622,29 @@ static int btrfs_insert_clone_extent(struct btrfs_trans_handle *trans,
 		return 0;
 
 	inode_add_bytes(inode, clone_len);
-	btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF,
-			       clone_info->disk_offset,
-			       clone_info->disk_len, 0);
-	ref_offset = clone_info->file_offset - clone_info->data_offset;
-	btrfs_init_data_ref(&ref, root->root_key.objectid,
-			    btrfs_ino(BTRFS_I(inode)), ref_offset);
-	ret = btrfs_inc_extent_ref(trans, &ref);
+
+	if (clone_info->is_new_extent && clone_info->insertions == 0) {
+		key.objectid = clone_info->disk_offset;
+		key.type = BTRFS_EXTENT_ITEM_KEY;
+		key.offset = clone_info->disk_len;
+		ret = btrfs_alloc_reserved_file_extent(trans, root,
+						       btrfs_ino(BTRFS_I(inode)),
+						       clone_info->file_offset,
+						       clone_info->qgroup_reserved,
+						       &key);
+	} else {
+		u64 ref_offset;
+
+		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF,
+				       clone_info->disk_offset,
+				       clone_info->disk_len, 0);
+		ref_offset = clone_info->file_offset - clone_info->data_offset;
+		btrfs_init_data_ref(&ref, root->root_key.objectid,
+				    btrfs_ino(BTRFS_I(inode)), ref_offset);
+		ret = btrfs_inc_extent_ref(trans, &ref);
+	}
+
+	clone_info->insertions++;
 
 	return ret;
 }
@@ -2705,7 +2722,8 @@ int btrfs_punch_hole_range(struct inode *inode, struct btrfs_path *path,
 			 * returned by __btrfs_drop_extents() without having
 			 * changed anything in the file.
 			 */
-			if (clone_info && ret && ret != -EOPNOTSUPP)
+			if (clone_info && !clone_info->is_new_extent &&
+			    ret && ret != -EOPNOTSUPP)
 				btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -2800,7 +2818,7 @@ int btrfs_punch_hole_range(struct inode *inode, struct btrfs_path *path,
 	 * than 16Mb would force the full fsync any way (when
 	 * try_release_extent_mapping() is invoked during page cache truncation.
 	 */
-	if (clone_info)
+	if (clone_info && !clone_info->is_new_extent)
 		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
 			&BTRFS_I(inode)->runtime_flags);
 

@@ -1202,6 +1202,22 @@ struct btrfs_clone_extent_info {
 	u64 file_offset;
 	char *extent_buf;
 	u32 item_size;
+	/*
+	 * Set to true when attempting to replace a file range with a new extent
+	 * described by this structure, set to false when attempting to clone an
+	 * existing extent into a file range.
+	 */
+	bool is_new_extent;
+	/* Meaningful only if is_new_extent is true. */
+	int qgroup_reserved;
+	/*
+	 * Meaningful only if is_new_extent is true.
+	 * Used to track how many extent items we have already inserted in a
+	 * subvolume tree that refer to the extent described by this structure,
+	 * so that we know when to create a new delayed ref or update an existing
+	 * one.
+	 */
+	int insertions;
 };
 
 struct btrfs_file_private {
