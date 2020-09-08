@@ -1381,8 +1381,10 @@ static int sd_open(struct block_device *bdev, fmode_t mode)
 	if (!scsi_block_when_processing_errors(sdev))
 		goto error_out;
 
-	if (sdev->removable || sdkp->write_prot)
-		check_disk_change(bdev);
+	if (sdev->removable || sdkp->write_prot) {
+		if (bdev_check_media_change(bdev))
+			sd_revalidate_disk(bdev->bd_disk);
+	}
 
 	/*
 	 * If the drive is empty, just let the open fail.
@@ -1843,7 +1845,6 @@ static const struct block_device_operations sd_fops = {
 	.compat_ioctl		= sd_compat_ioctl,
 #endif
 	.check_events		= sd_check_events,
-	.revalidate_disk	= sd_revalidate_disk,
 	.unlock_native_capacity	= sd_unlock_native_capacity,
 	.report_zones		= sd_zbc_report_zones,
 	.pr_ops			= &sd_pr_ops,
