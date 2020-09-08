@@ -154,7 +154,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #ifdef CONFIG_HAVE_STATIC_CALL
 #define __DO_TRACE_CALL(name)	static_call(tp_func_##name)
 #else
-#define __DO_TRACE_CALL(name)	__tracepoint_iter_##name
+#define __DO_TRACE_CALL(name)	__traceiter_##name
 #endif /* CONFIG_HAVE_STATIC_CALL */
 
 /*
@@ -232,8 +232,8 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * poking RCU a bit.
  */
 #define __DECLARE_TRACE(name, proto, args, cond, data_proto, data_args) \
-	extern int __tracepoint_iter_##name(data_proto);		\
-	DECLARE_STATIC_CALL(tp_func_##name, __tracepoint_iter_##name); \
+	extern int __traceiter_##name(data_proto);			\
+	DECLARE_STATIC_CALL(tp_func_##name, __traceiter_##name);	\
 	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
@@ -288,19 +288,19 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	static const char __tpstrtab_##_name[]				\
 	__section(__tracepoints_strings) = #_name;			\
 	extern struct static_call_key STATIC_CALL_KEY(tp_func_##_name);	\
-	int __tracepoint_iter_##_name(void *__data, proto);		\
+	int __traceiter_##_name(void *__data, proto);			\
 	struct tracepoint __tracepoint_##_name	__used			\
 	__section(__tracepoints) = {					\
 		.name = __tpstrtab_##_name,				\
 		.key = STATIC_KEY_INIT_FALSE,				\
 		.static_call_key = &STATIC_CALL_KEY(tp_func_##_name),	\
 		.static_call_tramp = STATIC_CALL_TRAMP_ADDR(tp_func_##_name), \
-		.iterator = &__tracepoint_iter_##_name,			\
+		.iterator = &__traceiter_##_name,			\
 		.regfunc = _reg,					\
 		.unregfunc = _unreg,					\
 		.funcs = NULL };					\
 	__TRACEPOINT_ENTRY(_name);					\
-	int __tracepoint_iter_##_name(void *__data, proto)		\
+	int __traceiter_##_name(void *__data, proto)			\
 	{								\
 		struct tracepoint_func *it_func_ptr;			\
 		void *it_func;						\
@@ -314,18 +314,18 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 		} while ((++it_func_ptr)->func);			\
 		return 0;						\
 	}								\
-	DEFINE_STATIC_CALL(tp_func_##_name, __tracepoint_iter_##_name);
+	DEFINE_STATIC_CALL(tp_func_##_name, __traceiter_##_name);
 
 #define DEFINE_TRACE(name, proto, args)		\
 	DEFINE_TRACE_FN(name, NULL, NULL, PARAMS(proto), PARAMS(args));
 
 #define EXPORT_TRACEPOINT_SYMBOL_GPL(name)				\
 	EXPORT_SYMBOL_GPL(__tracepoint_##name);				\
-	EXPORT_SYMBOL_GPL(__tracepoint_iter_##name);			\
+	EXPORT_SYMBOL_GPL(__traceiter_##name);				\
 	EXPORT_STATIC_CALL_GPL(tp_func_##name)
 #define EXPORT_TRACEPOINT_SYMBOL(name)					\
 	EXPORT_SYMBOL(__tracepoint_##name);				\
-	EXPORT_SYMBOL(__tracepoint_iter_##name);			\
+	EXPORT_SYMBOL(__traceiter_##name);				\
 	EXPORT_STATIC_CALL(tp_func_##name)
 
 
