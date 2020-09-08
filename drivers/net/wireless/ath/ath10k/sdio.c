@@ -561,7 +561,7 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 				    ATH10K_HTC_MBOX_MAX_PAYLOAD_LENGTH);
 			ret = -ENOMEM;
 
-			queue_work(ar->workqueue, &ar->restart_work);
+			ath10k_core_start_recovery(ar);
 			ath10k_warn(ar, "exceeds length, start recovery\n");
 
 			goto err;
@@ -960,7 +960,7 @@ static int ath10k_sdio_mbox_read_int_status(struct ath10k *ar,
 	ret = ath10k_sdio_read(ar, MBOX_HOST_INT_STATUS_ADDRESS,
 			       irq_proc_reg, sizeof(*irq_proc_reg));
 	if (ret) {
-		queue_work(ar->workqueue, &ar->restart_work);
+		ath10k_core_start_recovery(ar);
 		ath10k_warn(ar, "read int status fail, start recovery\n");
 		goto out;
 	}
@@ -2501,7 +2501,7 @@ void ath10k_sdio_fw_crashed_dump(struct ath10k *ar)
 
 	ath10k_sdio_enable_intrs(ar);
 
-	queue_work(ar->workqueue, &ar->restart_work);
+	ath10k_core_start_recovery(ar);
 }
 
 static int ath10k_sdio_probe(struct sdio_func *func,
