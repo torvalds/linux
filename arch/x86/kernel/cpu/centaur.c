@@ -65,6 +65,9 @@ static void init_c3(struct cpuinfo_x86 *c)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 	}
+
+	if (c->x86 >= 7)
+		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 }
 
 enum {
@@ -95,7 +98,8 @@ static void early_init_centaur(struct cpuinfo_x86 *c)
 	if (c->x86 == 5)
 		set_cpu_cap(c, X86_FEATURE_CENTAUR_MCR);
 #endif
-	if (c->x86 == 6 && c->x86_model >= 0xf)
+	if ((c->x86 == 6 && c->x86_model >= 0xf) ||
+	    (c->x86 >= 7))
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 
 #ifdef CONFIG_X86_64
@@ -204,7 +208,7 @@ static void init_centaur(struct cpuinfo_x86 *c)
 		sprintf(c->x86_model_id, "WinChip %s", name);
 	}
 #endif
-	if (c->x86 == 6)
+	if (c->x86 == 6 || c->x86 >= 7)
 		init_c3(c);
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
