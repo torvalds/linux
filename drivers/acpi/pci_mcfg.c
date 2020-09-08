@@ -280,5 +280,5 @@ void __init pci_mmcfg_late_init(void)
 {
 	int err = acpi_table_parse(ACPI_SIG_MCFG, pci_mcfg_parse);
 	if (err)
-		pr_err("Failed to parse MCFG (%d)\n", err);
+		pr_debug("Failed to parse MCFG (%d)\n", err);
 }
