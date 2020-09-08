@@ -7848,7 +7848,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	atomic_inc(&mddev->openers);
 	mutex_unlock(&mddev->open_mutex);
 
-	check_disk_change(bdev);
+	bdev_check_media_change(bdev);
  out:
 	if (err)
 		mddev_put(mddev);
