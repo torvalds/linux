@@ -920,7 +920,6 @@ static void mce_reign(void)
 	struct mce *m = NULL;
 	int global_worst = 0;
 	char *msg = NULL;
-	char *nmsg = NULL;
 
 	/*
 	 * This CPU is the Monarch and the other CPUs have run
@@ -928,12 +927,10 @@ static void mce_reign(void)
 	 * Grade the severity of the errors of all the CPUs.
 	 */
 	for_each_possible_cpu(cpu) {
-		int severity = mce_severity(&per_cpu(mces_seen, cpu),
-					    mca_cfg.tolerant,
-					    &nmsg, true);
-		if (severity > global_worst) {
-			msg = nmsg;
-			global_worst = severity;
+		struct mce *mtmp = &per_cpu(mces_seen, cpu);
+
+		if (mtmp->severity > global_worst) {
+			global_worst = mtmp->severity;
 			m = &per_cpu(mces_seen, cpu);
 		}
 	}
@@ -943,8 +940,11 @@ static void mce_reign(void)
 	 * This dumps all the mces in the log buffer and stops the
 	 * other CPUs.
 	 */
-	if (m && global_worst >= MCE_PANIC_SEVERITY && mca_cfg.tolerant < 3)
+	if (m && global_worst >= MCE_PANIC_SEVERITY && mca_cfg.tolerant < 3) {
+		/* call mce_severity() to get "msg" for panic */
+		mce_severity(m, mca_cfg.tolerant, &msg, true);
 		mce_panic("Fatal machine check", m, msg);
+	}
 
 	/*
 	 * For UC somewhere we let the CPU who detects it handle it.
