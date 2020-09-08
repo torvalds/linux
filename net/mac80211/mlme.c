@@ -3548,6 +3548,9 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
+	if (sdata->wdev.use_4addr)
+		drv_sta_set_4addr(local, sdata, &sta->sta, true);
+
 	mutex_unlock(&sdata->local->sta_mtx);
 
 	/*
