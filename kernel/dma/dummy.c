@@ -36,4 +36,3 @@ const struct dma_map_ops dma_dummy_ops = {
 	.map_sg                 = dma_dummy_map_sg,
 	.dma_supported          = dma_dummy_supported,
 };
-EXPORT_SYMBOL(dma_dummy_ops);
