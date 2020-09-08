@@ -261,6 +261,7 @@ void devm_devfreq_unregister_notifier(struct device *dev,
 				struct devfreq *devfreq,
 				struct notifier_block *nb,
 				unsigned int list);
+struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node);
 struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index);
 
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
@@ -412,6 +413,11 @@ static inline void devm_devfreq_unregister_notifier(struct device *dev,
 					struct notifier_block *nb,
 					unsigned int list)
 {
+}
+
+static inline struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node)
+{
+	return ERR_PTR(-ENODEV);
 }
 
 static inline struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
