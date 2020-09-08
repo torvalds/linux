@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include <linux/soundwire/sdw_registers.h>
 #include "max98373.h"
 #include "max98373-sdw.h"
 
@@ -286,6 +287,8 @@ static int max98373_read_prop(struct sdw_slave *slave)
 	u32 bit;
 	unsigned long addr;
 	struct sdw_dpn_prop *dpn;
+
+	prop->scp_int1_mask = SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY;
 
 	/* BITMAP: 00001000  Dataport 3 is active */
 	prop->source_ports = BIT(3);

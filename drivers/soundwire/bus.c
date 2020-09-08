@@ -1184,13 +1184,13 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 		return ret;
 
 	/*
-	 * Set bus clash, parity and SCP implementation
-	 * defined interrupt mask
-	 * TODO: Read implementation defined interrupt mask
-	 * from Slave property
+	 * Set SCP_INT1_MASK register, typically bus clash and
+	 * implementation-defined interrupt mask. The Parity detection
+	 * may not always be correct on startup so its use is
+	 * device-dependent, it might e.g. only be enabled in
+	 * steady-state after a couple of frames.
 	 */
-	val = SDW_SCP_INT1_IMPL_DEF | SDW_SCP_INT1_BUS_CLASH |
-					SDW_SCP_INT1_PARITY;
+	val = slave->prop.scp_int1_mask;
 
 	/* Enable SCP interrupts */
 	ret = sdw_update(slave, SDW_SCP_INTMASK1, val, val);
