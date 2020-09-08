@@ -266,7 +266,7 @@ struct hclge_mac {
 	u32 fec_mode; /* active fec mode */
 	u32 user_fec_mode;
 	u32 fec_ability;
-	int link;	/* store the link status of mac & phy (if phy exit) */
+	int link;	/* store the link status of mac & phy (if phy exists) */
 	struct phy_device *phydev;
 	struct mii_bus *mdio_bus;
 	phy_interface_t phy_if;
