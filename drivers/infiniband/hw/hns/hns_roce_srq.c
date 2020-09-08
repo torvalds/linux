@@ -285,7 +285,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	struct hns_roce_srq *srq = to_hr_srq(ib_srq);
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_ib_create_srq ucmd = {};
-	int ret = 0;
+	int ret;
 	u32 cqn;
 
 	/* Check the actual SRQ wqe and SRQ sge num */

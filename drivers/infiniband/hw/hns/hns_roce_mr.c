@@ -773,7 +773,7 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	size_t direct_size;
 	size_t total_size;
 	unsigned long tmp;
-	int ret = 0;
+	int ret;
 
 	total_size = mtr_bufs_size(buf_attr);
 	if (total_size < 1) {
@@ -967,7 +967,7 @@ static int mtr_init_buf_cfg(struct hns_roce_dev *hr_dev,
 			    unsigned int *buf_page_shift)
 {
 	struct hns_roce_buf_region *r;
-	unsigned int page_shift = 0;
+	unsigned int page_shift;
 	int page_cnt = 0;
 	size_t buf_size;
 	int region_cnt;
