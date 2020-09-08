@@ -75,9 +75,6 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) < 7)
 		dev_priv->regfile.saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
 
-	/* Memory Arbitration state */
-	dev_priv->regfile.saveMI_ARB_STATE = I915_READ(MI_ARB_STATE);
-
 	/* Scratch space */
 	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
 		for (i = 0; i < 7; i++) {
@@ -111,9 +108,6 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) < 7)
 		I915_WRITE(CACHE_MODE_0, dev_priv->regfile.saveCACHE_MODE_0 |
 			   0xffff0000);
-
-	/* Memory arbitration state */
-	I915_WRITE(MI_ARB_STATE, dev_priv->regfile.saveMI_ARB_STATE | 0xffff0000);
 
 	/* Scratch space */
 	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
