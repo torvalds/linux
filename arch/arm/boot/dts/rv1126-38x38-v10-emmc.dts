@@ -266,6 +266,9 @@
 		reg = <0x18>;
 		clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
 		clock-names = "mclk";
+		adc-volume = <0xbf>;  /* 0dB */
+		dac-volume = <0xbf>;  /* 0dB */
+		aec-mode = "dac left, adc right";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0m0_mclk &spk_ctl>;
 		assigned-clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
