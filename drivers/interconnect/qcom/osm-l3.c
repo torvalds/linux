@@ -17,6 +17,7 @@
 #include "sc7180.h"
 #include "sdm845.h"
 #include "sm8150.h"
+#include "sm8250.h"
 
 #define LUT_MAX_ENTRIES			40U
 #define LUT_SRC				GENMASK(31, 30)
@@ -28,6 +29,11 @@
 #define OSM_LUT_ROW_SIZE		32
 #define OSM_REG_FREQ_LUT		0x110
 #define OSM_REG_PERF_STATE		0x920
+
+/* EPSS Register offsets */
+#define EPSS_LUT_ROW_SIZE		4
+#define EPSS_REG_FREQ_LUT		0x100
+#define EPSS_REG_PERF_STATE		0x320
 
 #define OSM_L3_MAX_LINKS		1
 
@@ -121,6 +127,22 @@ static const struct qcom_icc_desc sm8150_icc_osm_l3 = {
 	.lut_row_size = OSM_LUT_ROW_SIZE,
 	.reg_freq_lut = OSM_REG_FREQ_LUT,
 	.reg_perf_state = OSM_REG_PERF_STATE,
+};
+
+DEFINE_QNODE(sm8250_epss_apps_l3, SM8250_MASTER_EPSS_L3_APPS, 32, SM8250_SLAVE_EPSS_L3);
+DEFINE_QNODE(sm8250_epss_l3, SM8250_SLAVE_EPSS_L3, 32);
+
+static struct qcom_icc_node *sm8250_epss_l3_nodes[] = {
+	[MASTER_EPSS_L3_APPS] = &sm8250_epss_apps_l3,
+	[SLAVE_EPSS_L3_SHARED] = &sm8250_epss_l3,
+};
+
+static const struct qcom_icc_desc sm8250_icc_epss_l3 = {
+	.nodes = sm8250_epss_l3_nodes,
+	.num_nodes = ARRAY_SIZE(sm8250_epss_l3_nodes),
+	.lut_row_size = EPSS_LUT_ROW_SIZE,
+	.reg_freq_lut = EPSS_REG_FREQ_LUT,
+	.reg_perf_state = EPSS_REG_PERF_STATE,
 };
 
 static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
@@ -288,6 +310,7 @@ static const struct of_device_id osm_l3_of_match[] = {
 	{ .compatible = "qcom,sc7180-osm-l3", .data = &sc7180_icc_osm_l3 },
 	{ .compatible = "qcom,sdm845-osm-l3", .data = &sdm845_icc_osm_l3 },
 	{ .compatible = "qcom,sm8150-osm-l3", .data = &sm8150_icc_osm_l3 },
+	{ .compatible = "qcom,sm8250-epss-l3", .data = &sm8250_icc_epss_l3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, osm_l3_of_match);
