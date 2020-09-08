@@ -1658,6 +1658,9 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_net *ndev, struct vhost_iotlb *
 	if (err)
 		goto err_mr;
 
+	if (!(ndev->mvdev.status & VIRTIO_CONFIG_S_DRIVER_OK))
+		return 0;
+
 	restore_channels_info(ndev);
 	err = setup_driver(ndev);
 	if (err)
