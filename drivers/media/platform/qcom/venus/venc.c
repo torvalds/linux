@@ -113,80 +113,6 @@ find_format_by_index(struct venus_inst *inst, unsigned int index, u32 type)
 static int venc_v4l2_to_hfi(int id, int value)
 {
 	switch (id) {
-	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
-		switch (value) {
-		case V4L2_MPEG_VIDEO_MPEG4_LEVEL_0:
-		default:
-			return HFI_MPEG4_LEVEL_0;
-		case V4L2_MPEG_VIDEO_MPEG4_LEVEL_0B:
-			return HFI_MPEG4_LEVEL_0b;
-		case V4L2_MPEG_VIDEO_MPEG4_LEVEL_1:
-			return HFI_MPEG4_LEVEL_1;
-		case V4L2_MPEG_VIDEO_MPEG4_LEVEL_2:
-			return HFI_MPEG4_LEVEL_2;
-		case V4L2_MPEG_VIDEO_MPEG4_LEVEL_3:
-			return HFI_MPEG4_LEVEL_3;
-		case V4L2_MPEG_VIDEO_MPEG4_LEVEL_4:
-			return HFI_MPEG4_LEVEL_4;
-		case V4L2_MPEG_VIDEO_MPEG4_LEVEL_5:
-			return HFI_MPEG4_LEVEL_5;
-		}
-	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
-		switch (value) {
-		case V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE:
-		default:
-			return HFI_MPEG4_PROFILE_SIMPLE;
-		case V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_SIMPLE:
-			return HFI_MPEG4_PROFILE_ADVANCEDSIMPLE;
-		}
-	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
-		switch (value) {
-		case V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE:
-			return HFI_H264_PROFILE_BASELINE;
-		case V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE:
-			return HFI_H264_PROFILE_CONSTRAINED_BASE;
-		case V4L2_MPEG_VIDEO_H264_PROFILE_MAIN:
-			return HFI_H264_PROFILE_MAIN;
-		case V4L2_MPEG_VIDEO_H264_PROFILE_HIGH:
-		default:
-			return HFI_H264_PROFILE_HIGH;
-		}
-	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
-		switch (value) {
-		case V4L2_MPEG_VIDEO_H264_LEVEL_1_0:
-			return HFI_H264_LEVEL_1;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_1B:
-			return HFI_H264_LEVEL_1b;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_1_1:
-			return HFI_H264_LEVEL_11;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_1_2:
-			return HFI_H264_LEVEL_12;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_1_3:
-			return HFI_H264_LEVEL_13;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_2_0:
-			return HFI_H264_LEVEL_2;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_2_1:
-			return HFI_H264_LEVEL_21;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_2_2:
-			return HFI_H264_LEVEL_22;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_3_0:
-			return HFI_H264_LEVEL_3;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_3_1:
-			return HFI_H264_LEVEL_31;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_3_2:
-			return HFI_H264_LEVEL_32;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_4_0:
-			return HFI_H264_LEVEL_4;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_4_1:
-			return HFI_H264_LEVEL_41;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_4_2:
-			return HFI_H264_LEVEL_42;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_5_0:
-		default:
-			return HFI_H264_LEVEL_5;
-		case V4L2_MPEG_VIDEO_H264_LEVEL_5_1:
-			return HFI_H264_LEVEL_51;
-		}
 	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:
 		switch (value) {
 		case V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CAVLC:
@@ -194,18 +120,6 @@ static int venc_v4l2_to_hfi(int id, int value)
 			return HFI_H264_ENTROPY_CAVLC;
 		case V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC:
 			return HFI_H264_ENTROPY_CABAC;
-		}
-	case V4L2_CID_MPEG_VIDEO_VP8_PROFILE:
-		switch (value) {
-		case 0:
-		default:
-			return HFI_VPX_PROFILE_VERSION_0;
-		case 1:
-			return HFI_VPX_PROFILE_VERSION_1;
-		case 2:
-			return HFI_VPX_PROFILE_VERSION_2;
-		case 3:
-			return HFI_VPX_PROFILE_VERSION_3;
 		}
 	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE:
 		switch (value) {
@@ -216,46 +130,6 @@ static int venc_v4l2_to_hfi(int id, int value)
 			return HFI_H264_DB_MODE_DISABLE;
 		case V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY:
 			return HFI_H264_DB_MODE_SKIP_SLICE_BOUNDARY;
-		}
-	case V4L2_CID_MPEG_VIDEO_HEVC_PROFILE:
-		switch (value) {
-		case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN:
-		default:
-			return HFI_HEVC_PROFILE_MAIN;
-		case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE:
-			return HFI_HEVC_PROFILE_MAIN_STILL_PIC;
-		case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10:
-			return HFI_HEVC_PROFILE_MAIN10;
-		}
-	case V4L2_CID_MPEG_VIDEO_HEVC_LEVEL:
-		switch (value) {
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_1:
-		default:
-			return HFI_HEVC_LEVEL_1;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_2:
-			return HFI_HEVC_LEVEL_2;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_2_1:
-			return HFI_HEVC_LEVEL_21;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_3:
-			return HFI_HEVC_LEVEL_3;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_3_1:
-			return HFI_HEVC_LEVEL_31;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_4:
-			return HFI_HEVC_LEVEL_4;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_4_1:
-			return HFI_HEVC_LEVEL_41;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_5:
-			return HFI_HEVC_LEVEL_5;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1:
-			return HFI_HEVC_LEVEL_51;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2:
-			return HFI_HEVC_LEVEL_52;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_6:
-			return HFI_HEVC_LEVEL_6;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_6_1:
-			return HFI_HEVC_LEVEL_61;
-		case V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2:
-			return HFI_HEVC_LEVEL_62;
 		}
 	}
 
@@ -657,13 +531,12 @@ static int venc_set_properties(struct venus_inst *inst)
 {
 	struct venc_controls *ctr = &inst->controls.enc;
 	struct hfi_intra_period intra_period;
-	struct hfi_profile_level pl;
 	struct hfi_framerate frate;
 	struct hfi_bitrate brate;
 	struct hfi_idr_period idrp;
 	struct hfi_quantization quant;
 	struct hfi_quantization_range quant_range;
-	u32 ptype, rate_control, bitrate, profile = 0, level = 0;
+	u32 ptype, rate_control, bitrate;
 	int ret;
 
 	ret = venus_helper_set_work_mode(inst, VIDC_WORK_MODE_2);
@@ -811,35 +684,7 @@ static int venc_set_properties(struct venus_inst *inst)
 	if (ret)
 		return ret;
 
-	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
-		profile = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_H264_PROFILE,
-					   ctr->profile.h264);
-		level = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_H264_LEVEL,
-					 ctr->level.h264);
-	} else if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_VP8) {
-		profile = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_VP8_PROFILE,
-					   ctr->profile.vpx);
-		level = 0;
-	} else if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_MPEG4) {
-		profile = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE,
-					   ctr->profile.mpeg4);
-		level = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL,
-					 ctr->level.mpeg4);
-	} else if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H263) {
-		profile = 0;
-		level = 0;
-	} else if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_HEVC) {
-		profile = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_HEVC_PROFILE,
-					   ctr->profile.hevc);
-		level = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_HEVC_LEVEL,
-					 ctr->level.hevc);
-	}
-
-	ptype = HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT;
-	pl.profile = profile;
-	pl.level = level;
-
-	ret = hfi_session_set_property(inst, ptype, &pl);
+	ret = venus_helper_set_profile_level(inst, ctr->profile, ctr->level);
 	if (ret)
 		return ret;
 
