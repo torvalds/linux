@@ -1722,8 +1722,8 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 	index = LSW(pkt->handle);
 	if (index >= req->num_outstanding_cmds) {
 		ql_log(ql_log_warn, vha, 0x5031,
-			   "Invalid command index (%x) type %8ph.\n",
-			   index, iocb);
+			   "%s: Invalid command index (%x) type %8ph.\n",
+			   func, index, iocb);
 		if (IS_P3P_TYPE(ha))
 			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
 		else
@@ -1733,12 +1733,14 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 	sp = req->outstanding_cmds[index];
 	if (!sp) {
 		ql_log(ql_log_warn, vha, 0x5032,
-		    "Invalid completion handle (%x) -- timed-out.\n", index);
+			"%s: Invalid completion handle (%x) -- timed-out.\n",
+			func, index);
 		return NULL;
 	}
 	if (sp->handle != index) {
 		ql_log(ql_log_warn, vha, 0x5033,
-		    "SRB handle (%x) mismatch %x.\n", sp->handle, index);
+			"%s: SRB handle (%x) mismatch %x.\n", func,
+			sp->handle, index);
 		return NULL;
 	}
 
