@@ -7,7 +7,7 @@ config PINCTRL_IMX
 	select REGMAP
 
 config PINCTRL_IMX_SCU
-	bool
+	tristate
 	depends on IMX_SCU
 	select PINCTRL_IMX
 
