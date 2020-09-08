@@ -232,6 +232,29 @@ dma_unmap_wqe_err:
 	return -ENOMEM;
 }
 
+static bool mlx5e_transport_inline_tx_wqe(struct mlx5_wqe_ctrl_seg *cseg)
+{
+	return cseg && !!cseg->tis_tir_num;
+}
+
+static u8
+mlx5e_tx_wqe_inline_mode(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
+			 struct sk_buff *skb)
+{
+	u8 mode;
+
+	if (mlx5e_transport_inline_tx_wqe(cseg))
+		return MLX5_INLINE_MODE_TCP_UDP;
+
+	mode = sq->min_inline_mode;
+
+	if (skb_vlan_tag_present(skb) &&
+	    test_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state))
+		mode = max_t(u8, MLX5_INLINE_MODE_L2, mode);
+
+	return mode;
+}
+
 static inline void
 mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		     u8 opcode, u16 ds_cnt, u8 num_wqebbs, u32 num_bytes, u8 num_dma,

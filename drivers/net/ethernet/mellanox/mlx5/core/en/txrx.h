@@ -223,29 +223,6 @@ mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
 	mlx5_write64((__be32 *)ctrl, uar_map);
 }
 
-static inline bool mlx5e_transport_inline_tx_wqe(struct mlx5_wqe_ctrl_seg *cseg)
-{
-	return cseg && !!cseg->tis_tir_num;
-}
-
-static inline u8
-mlx5e_tx_wqe_inline_mode(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
-			 struct sk_buff *skb)
-{
-	u8 mode;
-
-	if (mlx5e_transport_inline_tx_wqe(cseg))
-		return MLX5_INLINE_MODE_TCP_UDP;
-
-	mode = sq->min_inline_mode;
-
-	if (skb_vlan_tag_present(skb) &&
-	    test_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state))
-		mode = max_t(u8, MLX5_INLINE_MODE_L2, mode);
-
-	return mode;
-}
-
 static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 {
 	struct mlx5_core_cq *mcq;
