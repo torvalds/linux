@@ -33,7 +33,8 @@ void mt76_testmode_tx_pending(struct mt76_dev *dev)
 
 	spin_lock_bh(&q->lock);
 
-	while (td->tx_pending > 0 && q->queued < q->ndesc / 2) {
+	while (td->tx_pending > 0 && td->tx_queued - td->tx_done < 1000 &&
+	       q->queued < q->ndesc / 2) {
 		int ret;
 
 		ret = dev->queue_ops->tx_queue_skb(dev, qid, skb_get(skb), wcid, NULL);
