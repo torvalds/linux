@@ -4193,23 +4193,9 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ethhdr *ehdr = (struct ethhdr *)skb->data;
 	struct ieee80211_local *local = sdata->local;
-	bool authorized = false;
-	bool multicast;
-	unsigned char *ra = ehdr->h_dest;
 	struct tid_ampdu_tx *tid_tx;
 	u8 tid;
-
-	if (IS_ERR(sta) || (sta && !sta->uploaded))
-		sta = NULL;
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    (!sta || !test_sta_flag(sta, WLAN_STA_TDLS_PEER)))
-		ra = sdata->u.mgd.bssid;
-
-	if (is_zero_ether_addr(ra))
-		goto out_free;
 
 	if (local->ops->wake_tx_queue) {
 		u16 queue = __ieee80211_select_queue(sdata, sta, skb);
@@ -4217,64 +4203,37 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 		skb_get_hash(skb);
 	}
 
-	multicast = is_multicast_ether_addr(ra);
-
-	if (sta)
-		authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
-
-	if (!multicast && !authorized &&
-	    (ehdr->h_proto != sdata->control_port_protocol ||
-	     !ether_addr_equal(sdata->vif.addr, ehdr->h_source)))
-		goto out_free;
-
-	if (multicast && sdata->vif.type == NL80211_IFTYPE_AP &&
-	    !atomic_read(&sdata->u.ap.num_mcast_sta))
-		goto out_free;
-
 	if (unlikely(test_bit(SCAN_SW_SCANNING, &local->scanning)) &&
 	    test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state))
 		goto out_free;
 
 	memset(info, 0, sizeof(*info));
 
-	if (sta) {
-		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
-		tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
-		if (tid_tx) {
-			if (!test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
-				/* fall back to non-offload slow path */
-				__ieee80211_subif_start_xmit(skb, dev, 0, 0, NULL);
-				return;
-			}
-
-			info->flags |= IEEE80211_TX_CTL_AMPDU;
-			if (tid_tx->timeout)
-				tid_tx->last_tx = jiffies;
+	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
+	if (tid_tx) {
+		if (!test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
+			/* fall back to non-offload slow path */
+			__ieee80211_subif_start_xmit(skb, dev, 0, 0, NULL);
+			return;
 		}
+
+		info->flags |= IEEE80211_TX_CTL_AMPDU;
+		if (tid_tx->timeout)
+			tid_tx->last_tx = jiffies;
 	}
 
-	if (unlikely(!multicast && skb->sk &&
+	if (unlikely(skb->sk &&
 		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS))
 		info->ack_frame_id = ieee80211_store_ack_skb(local, skb,
 							     &info->flags, NULL);
-
-	if (unlikely(sdata->control_port_protocol == ehdr->h_proto)) {
-		if (sdata->control_port_no_encrypt)
-			info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
-	}
-
-	if (multicast)
-		info->flags |= IEEE80211_TX_CTL_NO_ACK;
 
 	info->hw_queue = sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
 
 	ieee80211_tx_stats(dev, skb->len);
 
-	if (sta) {
-		sta->tx_stats.bytes[skb_get_queue_mapping(skb)] += skb->len;
-		sta->tx_stats.packets[skb_get_queue_mapping(skb)]++;
-	}
+	sta->tx_stats.bytes[skb_get_queue_mapping(skb)] += skb->len;
+	sta->tx_stats.packets[skb_get_queue_mapping(skb)]++;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		sdata = container_of(sdata->bss,
@@ -4295,6 +4254,7 @@ netdev_tx_t ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
 					    struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ethhdr *ehdr = (struct ethhdr *)skb->data;
 	struct sta_info *sta;
 
 	if (WARN_ON(!sdata->hw_80211_encap)) {
@@ -4311,6 +4271,10 @@ netdev_tx_t ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
 
 	if (ieee80211_lookup_ra_sta(sdata, skb, &sta))
 		kfree_skb(skb);
+	else if (unlikely(IS_ERR_OR_NULL(sta) || !sta->uploaded ||
+			  !test_sta_flag(sta, WLAN_STA_AUTHORIZED) ||
+			  sdata->control_port_protocol == ehdr->h_proto))
+		ieee80211_subif_start_xmit(skb, dev);
 	else
 		ieee80211_8023_xmit(sdata, dev, sta, skb);
 
