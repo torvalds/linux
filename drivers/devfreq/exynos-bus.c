@@ -360,7 +360,7 @@ static int exynos_bus_profile_init_passive(struct exynos_bus *bus,
 	profile->exit = exynos_bus_passive_exit;
 
 	/* Get the instance of parent devfreq device */
-	parent_devfreq = devfreq_get_devfreq_by_phandle(dev, 0);
+	parent_devfreq = devfreq_get_devfreq_by_phandle(dev, "devfreq", 0);
 	if (IS_ERR(parent_devfreq))
 		return -EPROBE_DEFER;
 
