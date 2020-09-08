@@ -1368,26 +1368,6 @@ void revalidate_disk_size(struct gendisk *disk, bool verbose)
 }
 EXPORT_SYMBOL(revalidate_disk_size);
 
-/*
- * This routine checks whether a removable media has been changed,
- * and invalidates all buffer-cache-entries in that case. This
- * is a relatively slow routine, so we have to try to minimize using
- * it. Thus it is called only upon a 'mount' or 'open'. This
- * is the best way of combining speed and utility, I think.
- * People changing diskettes in the middle of an operation deserve
- * to lose :-)
- */
-int check_disk_change(struct block_device *bdev)
-{
-	if (!bdev_check_media_change(bdev))
-		return 0;
-	if (bdev->bd_disk->fops->revalidate_disk)
-		bdev->bd_disk->fops->revalidate_disk(bdev->bd_disk);
-	return 1;
-}
-
-EXPORT_SYMBOL(check_disk_change);
-
 void bd_set_nr_sectors(struct block_device *bdev, sector_t sectors)
 {
 	spin_lock(&bdev->bd_size_lock);
