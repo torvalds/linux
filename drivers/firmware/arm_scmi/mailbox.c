@@ -110,7 +110,7 @@ static int mailbox_chan_free(int id, void *p, void *data)
 	struct scmi_chan_info *cinfo = p;
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 
-	if (!IS_ERR(smbox->chan)) {
+	if (smbox && !IS_ERR(smbox->chan)) {
 		mbox_free_channel(smbox->chan);
 		cinfo->transport_info = NULL;
 		smbox->chan = NULL;
