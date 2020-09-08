@@ -341,7 +341,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	if (ret)
 		goto out_unref;
 
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, false);
+	ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, false);
 	if (ret) {
 		NV_ERROR(drm, "failed to pin fb: %d\n", ret);
 		goto out_unref;

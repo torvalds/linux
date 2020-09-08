@@ -64,14 +64,12 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 	struct nouveau_bo *nvbo;
 	struct dma_resv *robj = attach->dmabuf->resv;
 	u64 size = attach->dmabuf->size;
-	u32 flags = 0;
 	int align = 0;
 	int ret;
 
-	flags = TTM_PL_FLAG_TT;
-
 	dma_resv_lock(robj, NULL);
-	nvbo = nouveau_bo_alloc(&drm->client, &size, &align, flags, 0, 0);
+	nvbo = nouveau_bo_alloc(&drm->client, &size, &align,
+				NOUVEAU_GEM_DOMAIN_GART, 0, 0);
 	if (IS_ERR(nvbo)) {
 		obj = ERR_CAST(nvbo);
 		goto unlock;
@@ -88,7 +86,8 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 		goto unlock;
 	}
 
-	ret = nouveau_bo_init(nvbo, size, align, flags, sg, robj);
+	ret = nouveau_bo_init(nvbo, size, align, NOUVEAU_GEM_DOMAIN_GART,
+			      sg, robj);
 	if (ret) {
 		nouveau_bo_ref(NULL, &nvbo);
 		obj = ERR_PTR(ret);
@@ -108,7 +107,7 @@ int nouveau_gem_prime_pin(struct drm_gem_object *obj)
 	int ret;
 
 	/* pin buffer into GTT */
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_TT, false);
+	ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_GART, false);
 	if (ret)
 		return -EINVAL;
 

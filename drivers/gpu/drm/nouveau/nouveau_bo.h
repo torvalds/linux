@@ -77,10 +77,10 @@ extern struct ttm_bo_driver nouveau_bo_driver;
 
 void nouveau_bo_move_init(struct nouveau_drm *);
 struct nouveau_bo *nouveau_bo_alloc(struct nouveau_cli *, u64 *size, int *align,
-				    u32 flags, u32 tile_mode, u32 tile_flags);
-int  nouveau_bo_init(struct nouveau_bo *, u64 size, int align, u32 flags,
+				    u32 domain, u32 tile_mode, u32 tile_flags);
+int  nouveau_bo_init(struct nouveau_bo *, u64 size, int align, u32 domain,
 		     struct sg_table *sg, struct dma_resv *robj);
-int  nouveau_bo_new(struct nouveau_cli *, u64 size, int align, u32 flags,
+int  nouveau_bo_new(struct nouveau_cli *, u64 size, int align, u32 domain,
 		    u32 tile_mode, u32 tile_flags, struct sg_table *sg,
 		    struct dma_resv *robj,
 		    struct nouveau_bo **);
@@ -122,13 +122,13 @@ nouveau_bo_unmap_unpin_unref(struct nouveau_bo **pnvbo)
 }
 
 static inline int
-nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 flags,
+nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 domain,
 		       struct nouveau_bo **pnvbo)
 {
-	int ret = nouveau_bo_new(cli, size, align, flags,
+	int ret = nouveau_bo_new(cli, size, align, domain,
 				 0, 0, NULL, NULL, pnvbo);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(*pnvbo, flags, true);
+		ret = nouveau_bo_pin(*pnvbo, domain, true);
 		if (ret == 0) {
 			ret = nouveau_bo_map(*pnvbo);
 			if (ret == 0)
