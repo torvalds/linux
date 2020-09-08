@@ -3688,6 +3688,7 @@ static const struct snd_soc_tplg_kcontrol_ops sof_io_ops[] = {
 /* vendor specific bytes ext handlers available for binding */
 static const struct snd_soc_tplg_bytes_ext_ops sof_bytes_ext_ops[] = {
 	{SOF_TPLG_KCTL_BYTES_ID, snd_sof_bytes_ext_get, snd_sof_bytes_ext_put},
+	{SOF_TPLG_KCTL_BYTES_VOLATILE_RO, snd_sof_bytes_ext_volatile_get},
 };
 
 static struct snd_soc_tplg_ops sof_tplg_ops = {

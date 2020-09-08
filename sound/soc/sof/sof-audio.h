@@ -142,6 +142,8 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 			  unsigned int __user *binary_data,
 			  unsigned int size);
+int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int __user *binary_data,
+				   unsigned int size);
 
 /*
  * Topology.

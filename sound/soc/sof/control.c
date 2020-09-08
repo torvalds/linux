@@ -353,6 +353,64 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int __user *binary_data,
+				   unsigned int size)
+{
+	struct soc_bytes_ext *be = (struct soc_bytes_ext *)kcontrol->private_value;
+	struct snd_sof_control *scontrol = be->dobj.private;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct snd_ctl_tlv header;
+	struct snd_ctl_tlv __user *tlvd = (struct snd_ctl_tlv __user *)binary_data;
+	size_t data_size;
+	int ret;
+	int err;
+
+	ret = pm_runtime_get_sync(scomp->dev);
+	if (ret < 0) {
+		dev_err_ratelimited(scomp->dev, "error: bytes_ext get failed to resume %d\n", ret);
+		pm_runtime_put_noidle(scomp->dev);
+		return ret;
+	}
+
+	/* set the ABI header values */
+	cdata->data->magic = SOF_ABI_MAGIC;
+	cdata->data->abi = SOF_ABI_VERSION;
+	/* get all the component data from DSP */
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, SOF_IPC_COMP_GET_DATA, SOF_CTRL_TYPE_DATA_GET,
+					    scontrol->cmd, false);
+	if (ret < 0)
+		goto out;
+
+	/* check data size doesn't exceed max coming from topology */
+	if (cdata->data->size > be->max - sizeof(const struct sof_abi_hdr)) {
+		dev_err_ratelimited(scomp->dev, "error: user data size %d exceeds max size %zu.\n",
+				    cdata->data->size,
+				    be->max - sizeof(const struct sof_abi_hdr));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
+
+	header.numid = scontrol->cmd;
+	header.length = data_size;
+	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
+		ret = -EFAULT;
+out:
+	pm_runtime_mark_last_busy(scomp->dev);
+	err = pm_runtime_put_autosuspend(scomp->dev);
+	if (err < 0)
+		dev_err_ratelimited(scomp->dev, "error: bytes_ext get failed to idle %d\n", err);
+
+	return ret;
+}
+
 int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 			  unsigned int __user *binary_data,
 			  unsigned int size)

@@ -24,6 +24,9 @@
 #define SOF_TPLG_KCTL_ENUM_ID	257
 #define SOF_TPLG_KCTL_BYTES_ID	258
 #define SOF_TPLG_KCTL_SWITCH_ID	259
+#define SOF_TPLG_KCTL_BYTES_VOLATILE_RO 260
+#define SOF_TPLG_KCTL_BYTES_VOLATILE_RW 261
+#define SOF_TPLG_KCTL_BYTES_WO_ID 262
 
 /*
  * Tokens - must match values in topology configurations
