@@ -66,8 +66,8 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 
 	info->control.jiffies = jiffies;
 	info->control.vif = &sta->sdata->vif;
-	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING |
-		       IEEE80211_TX_INTFL_RETRANSMISSION;
+	info->control.flags |= IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
+	info->flags |= IEEE80211_TX_INTFL_RETRANSMISSION;
 	info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
 
 	sta->status_stats.filtered++;

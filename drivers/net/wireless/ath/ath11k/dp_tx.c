@@ -18,7 +18,7 @@ ath11k_dp_tx_get_encap_type(struct ath11k_vif *arvif, struct sk_buff *skb)
 	if (test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags))
 		return HAL_TCL_ENCAP_TYPE_RAW;
 
-	if (tx_info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP)
+	if (tx_info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP)
 		return HAL_TCL_ENCAP_TYPE_ETHERNET;
 
 	return HAL_TCL_ENCAP_TYPE_NATIVE_WIFI;
@@ -98,7 +98,7 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	if (test_bit(ATH11K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags))
 		return -ESHUTDOWN;
 
-	if (!(info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP) &&
+	if (!(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
 	    !ieee80211_is_data(hdr->frame_control))
 		return -ENOTSUPP;
 
