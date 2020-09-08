@@ -1379,21 +1379,10 @@ EXPORT_SYMBOL(revalidate_disk_size);
  */
 int check_disk_change(struct block_device *bdev)
 {
-	struct gendisk *disk = bdev->bd_disk;
-	const struct block_device_operations *bdops = disk->fops;
-	unsigned int events;
-
-	events = disk_clear_events(disk, DISK_EVENT_MEDIA_CHANGE |
-				   DISK_EVENT_EJECT_REQUEST);
-	if (!(events & DISK_EVENT_MEDIA_CHANGE))
+	if (!bdev_check_media_change(bdev))
 		return 0;
-
-	if (__invalidate_device(bdev, true))
-		pr_warn("VFS: busy inodes on changed media %s\n",
-			disk->disk_name);
-	set_bit(BDEV_NEED_PART_SCAN, &bdev->bd_flags);
-	if (bdops->revalidate_disk)
-		bdops->revalidate_disk(bdev->bd_disk);
+	if (bdev->bd_disk->fops->revalidate_disk)
+		bdev->bd_disk->fops->revalidate_disk(bdev->bd_disk);
 	return 1;
 }
 

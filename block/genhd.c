@@ -2052,7 +2052,7 @@ void disk_flush_events(struct gendisk *disk, unsigned int mask)
  * CONTEXT:
  * Might sleep.
  */
-unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
+static unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 {
 	struct disk_events *ev = disk->ev;
 	unsigned int pending;
@@ -2089,6 +2089,33 @@ unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 
 	return pending;
 }
+
+/**
+ * bdev_check_media_change - check if a removable media has been changed
+ * @bdev: block device to check
+ *
+ * Check whether a removable media has been changed, and attempt to free all
+ * dentries and inodes and invalidates all block device page cache entries in
+ * that case.
+ *
+ * Returns %true if the block device changed, or %false if not.
+ */
+bool bdev_check_media_change(struct block_device *bdev)
+{
+	unsigned int events;
+
+	events = disk_clear_events(bdev->bd_disk, DISK_EVENT_MEDIA_CHANGE |
+				   DISK_EVENT_EJECT_REQUEST);
+	if (!(events & DISK_EVENT_MEDIA_CHANGE))
+		return false;
+
+	if (__invalidate_device(bdev, true))
+		pr_warn("VFS: busy inodes on changed media %s\n",
+			bdev->bd_disk->disk_name);
+	set_bit(BDEV_NEED_PART_SCAN, &bdev->bd_flags);
+	return true;
+}
+EXPORT_SYMBOL(bdev_check_media_change);
 
 /*
  * Separate this part out so that a different pointer for clearing_ptr can be
