@@ -601,7 +601,6 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 				 u32 rl_value);
 
 void hns3_enable_vlan_filter(struct net_device *netdev, bool enable);
-int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags);
 void hns3_request_update_promisc_mode(struct hnae3_handle *handle);
 
 #ifdef CONFIG_HNS3_DCB

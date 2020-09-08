@@ -623,20 +623,6 @@ void hns3_request_update_promisc_mode(struct hnae3_handle *handle)
 		ops->request_update_promisc_mode(handle);
 }
 
-int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (h->ae_algo->ops->set_promisc_mode) {
-		return h->ae_algo->ops->set_promisc_mode(h,
-						promisc_flags & HNAE3_UPE,
-						promisc_flags & HNAE3_MPE);
-	}
-
-	return 0;
-}
-
 void hns3_enable_vlan_filter(struct net_device *netdev, bool enable)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
