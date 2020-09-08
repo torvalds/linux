@@ -1813,7 +1813,7 @@ static int f2fs_setflags_common(struct inode *inode, u32 iflags, u32 mask)
 
 	if ((iflags ^ masked_flags) & F2FS_COMPR_FL) {
 		if (masked_flags & F2FS_COMPR_FL) {
-			if (f2fs_disable_compressed_file(inode))
+			if (!f2fs_disable_compressed_file(inode))
 				return -EINVAL;
 		}
 		if (iflags & F2FS_NOCOMP_FL)
@@ -3246,7 +3246,7 @@ static int f2fs_ioc_set_pin_file(struct file *filp, unsigned long arg)
 	if (ret)
 		goto out;
 
-	if (f2fs_disable_compressed_file(inode)) {
+	if (!f2fs_disable_compressed_file(inode)) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
