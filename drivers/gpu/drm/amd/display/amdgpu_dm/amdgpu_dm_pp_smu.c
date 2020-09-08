@@ -810,7 +810,7 @@ pp_nv_set_hard_min_uclk_by_freq(struct pp_smu *pp, int mhz)
 }
 
 static enum pp_smu_status pp_nv_set_pstate_handshake_support(
-	struct pp_smu *pp, BOOLEAN pstate_handshake_supported)
+	struct pp_smu *pp, bool pstate_handshake_supported)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
