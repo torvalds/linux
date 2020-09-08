@@ -330,7 +330,6 @@
 #define MVNETA_SKB_HEADROOM	ALIGN(max(NET_SKB_PAD, XDP_PACKET_HEADROOM), 8)
 #define MVNETA_SKB_PAD	(SKB_DATA_ALIGN(sizeof(struct skb_shared_info) + \
 			 MVNETA_SKB_HEADROOM))
-#define MVNETA_SKB_SIZE(len)	(SKB_DATA_ALIGN(len) + MVNETA_SKB_PAD)
 #define MVNETA_MAX_RX_BUF_SIZE	(PAGE_SIZE - MVNETA_SKB_PAD)
 
 #define IS_TSO_HEADER(txq, addr) \
@@ -2236,7 +2235,7 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 	enum dma_data_direction dma_dir;
 	struct skb_shared_info *sinfo;
 
-	if (MVNETA_SKB_SIZE(rx_desc->data_size) > PAGE_SIZE) {
+	if (rx_desc->data_size > MVNETA_MAX_RX_BUF_SIZE) {
 		len = MVNETA_MAX_RX_BUF_SIZE;
 		data_len += len;
 	} else {
