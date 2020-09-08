@@ -190,7 +190,7 @@ static const struct snd_kcontrol_new es8311_dmic_mux_controls =
 	SOC_DAPM_ENUM("DMIC ROUTE", es8311_dmic_mux_enum);
 
 static const char *const es8311_adc_sdp_mux_txt[] = {
-	"FROM ADC",
+	"FROM ADC OUT",
 	"FROM EQUALIZER",
 };
 static const unsigned int es8311_adc_sdp_mux_values[] = {
