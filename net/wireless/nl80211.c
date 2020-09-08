@@ -209,14 +209,23 @@ static int validate_beacon_head(const struct nlattr *attr,
 	unsigned int len = nla_len(attr);
 	const struct element *elem;
 	const struct ieee80211_mgmt *mgmt = (void *)data;
-	unsigned int fixedlen = offsetof(struct ieee80211_mgmt,
-					 u.beacon.variable);
+	bool s1g_bcn = ieee80211_is_s1g_beacon(mgmt->frame_control);
+	unsigned int fixedlen, hdrlen;
+
+	if (s1g_bcn) {
+		fixedlen = offsetof(struct ieee80211_ext,
+				    u.s1g_beacon.variable);
+		hdrlen = offsetof(struct ieee80211_ext, u.s1g_beacon);
+	} else {
+		fixedlen = offsetof(struct ieee80211_mgmt,
+				    u.beacon.variable);
+		hdrlen = offsetof(struct ieee80211_mgmt, u.beacon);
+	}
 
 	if (len < fixedlen)
 		goto err;
 
-	if (ieee80211_hdrlen(mgmt->frame_control) !=
-	    offsetof(struct ieee80211_mgmt, u.beacon))
+	if (ieee80211_hdrlen(mgmt->frame_control) != hdrlen)
 		goto err;
 
 	data += fixedlen;

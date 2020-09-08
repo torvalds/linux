@@ -399,6 +399,11 @@ unsigned int __attribute_const__ ieee80211_hdrlen(__le16 fc)
 {
 	unsigned int hdrlen = 24;
 
+	if (ieee80211_is_ext(fc)) {
+		hdrlen = 4;
+		goto out;
+	}
+
 	if (ieee80211_is_data(fc)) {
 		if (ieee80211_has_a4(fc))
 			hdrlen = 30;
