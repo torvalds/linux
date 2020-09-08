@@ -42,12 +42,6 @@
 	.max_power              = 30, \
 }
 
-/* frame mode values are mapped as per enum ath11k_hw_txrx_mode */
-static unsigned int ath11k_frame_mode = ATH11K_HW_TXRX_NATIVE_WIFI;
-module_param_named(frame_mode, ath11k_frame_mode, uint, 0644);
-MODULE_PARM_DESC(frame_mode,
-		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
-
 static const struct ieee80211_channel ath11k_2ghz_channels[] = {
 	CHAN2G(1, 2412, 0),
 	CHAN2G(2, 2417, 0),
@@ -2405,6 +2399,9 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
 
 	reinit_completion(&ar->install_key_done);
 
+	if (test_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags))
+		return 0;
+
 	if (cmd == DISABLE_KEY) {
 		/* TODO: Check if FW expects  value other than NONE for del */
 		/* arg.key_cipher = WMI_CIPHER_NONE; */
@@ -2436,8 +2433,13 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
 		return -EOPNOTSUPP;
 	}
 
+	if (test_bit(ATH11K_FLAG_RAW_MODE, &ar->ab->dev_flags))
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV |
+			      IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
+
 install:
 	ret = ath11k_wmi_vdev_install_key(arvif->ar, &arg);
+
 	if (ret)
 		return ret;
 
@@ -2507,6 +2509,9 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
 	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256 ||
 	    key->cipher == WLAN_CIPHER_SUITE_BIP_CMAC_256)
+		return 1;
+
+	if (test_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags))
 		return 1;
 
 	if (key->keyidx > WMI_MAX_KEY_INDEX)
@@ -4461,6 +4466,8 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 
 	if (ieee80211_set_hw_80211_encap(vif, hw_encap))
 		param_value = ATH11K_HW_TXRX_ETHERNET;
+	else if (test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags))
+		param_value = ATH11K_HW_TXRX_RAW;
 	else
 		param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
 
@@ -6134,7 +6141,6 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ieee80211_hw_set(ar->hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(ar->hw, AP_LINK_PS);
 	ieee80211_hw_set(ar->hw, SPECTRUM_MGMT);
-	ieee80211_hw_set(ar->hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(ar->hw, CONNECTION_MONITOR);
 	ieee80211_hw_set(ar->hw, SUPPORTS_PER_STA_GTK);
 	ieee80211_hw_set(ar->hw, WANT_MONITOR_VIF);
@@ -6201,8 +6207,11 @@ static int __ath11k_mac_register(struct ath11k *ar)
 
 	ath11k_reg_init(ar);
 
-	/* advertise HW checksum offload capabilities */
-	ar->hw->netdev_features = NETIF_F_HW_CSUM;
+	if (!test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags)) {
+		ar->hw->netdev_features = NETIF_F_HW_CSUM;
+		ieee80211_hw_set(ar->hw, SW_CRYPTO_CONTROL);
+		ieee80211_hw_set(ar->hw, SUPPORT_FAST_XMIT);
+	}
 
 	ret = ieee80211_register_hw(ar->hw);
 	if (ret) {

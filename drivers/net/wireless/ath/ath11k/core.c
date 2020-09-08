@@ -18,6 +18,16 @@ EXPORT_SYMBOL(ath11k_debug_mask);
 module_param_named(debug_mask, ath11k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
+static unsigned int ath11k_crypto_mode;
+module_param_named(crypto_mode, ath11k_crypto_mode, uint, 0644);
+MODULE_PARM_DESC(crypto_mode, "crypto mode: 0-hardware, 1-software");
+
+/* frame mode values are mapped as per enum ath11k_hw_txrx_mode */
+unsigned int ath11k_frame_mode = ATH11K_HW_TXRX_NATIVE_WIFI;
+module_param_named(frame_mode, ath11k_frame_mode, uint, 0644);
+MODULE_PARM_DESC(frame_mode,
+		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
+
 static const struct ath11k_hw_params ath11k_hw_params[] = {
 	{
 		.hw_rev = ATH11K_HW_IPQ8074,
@@ -616,6 +626,23 @@ int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab)
 		ath11k_err(ab, "failed to init DP: %d\n", ret);
 		return ret;
 	}
+
+	switch (ath11k_crypto_mode) {
+	case ATH11K_CRYPT_MODE_SW:
+		set_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
+		set_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+		break;
+	case ATH11K_CRYPT_MODE_HW:
+		clear_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
+		clear_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+		break;
+	default:
+		ath11k_info(ab, "invalid crypto_mode: %d\n", ath11k_crypto_mode);
+		return -EINVAL;
+	}
+
+	if (ath11k_frame_mode == ATH11K_HW_TXRX_RAW)
+		set_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
 
 	mutex_lock(&ab->core_lock);
 	ret = ath11k_core_start(ab, ATH11K_FIRMWARE_MODE_NORMAL);

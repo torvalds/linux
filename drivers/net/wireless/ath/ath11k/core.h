@@ -35,6 +35,8 @@
 
 #define ATH11K_INVALID_HW_MAC_ID	0xFF
 
+extern unsigned int ath11k_frame_mode;
+
 enum ath11k_supported_bw {
 	ATH11K_BW_20	= 0,
 	ATH11K_BW_40	= 1,
@@ -53,6 +55,13 @@ enum wme_ac {
 #define ATH11K_HT_MCS_MAX	7
 #define ATH11K_VHT_MCS_MAX	9
 #define ATH11K_HE_MCS_MAX	11
+
+enum ath11k_crypt_mode {
+	/* Only use hardware crypto engine */
+	ATH11K_CRYPT_MODE_HW,
+	/* Only use software crypto */
+	ATH11K_CRYPT_MODE_SW,
+};
 
 static inline enum wme_ac ath11k_tid_to_ac(u32 tid)
 {
