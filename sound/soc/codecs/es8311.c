@@ -40,6 +40,10 @@ struct	es8311_priv {
 	struct clk *mclk_in;
 	struct gpio_desc *spk_ctl_gpio;
 	struct regmap *regmap;
+	/* Optional properties: */
+	int adc_volume;
+	int dac_volume;
+	int aec_mode;
 };
 
 static const DECLARE_TLV_DB_SCALE(vdac_tlv,
@@ -560,6 +564,17 @@ static int es8311_probe(struct snd_soc_component *component)
 	es8311->component = component;
 	es8311_regs_init(component);
 
+	/* Configure optional properties: */
+	if (es8311->aec_mode)
+		snd_soc_component_update_bits(component, ES8311_GPIO_REG44,
+					      0x70, es8311->aec_mode << 4);
+	if (es8311->adc_volume)
+		snd_soc_component_write(component, ES8311_ADC_REG17,
+					es8311->adc_volume);
+	if (es8311->dac_volume)
+		snd_soc_component_write(component, ES8311_DAC_REG32,
+					es8311->dac_volume);
+
 	return 0;
 }
 
@@ -583,6 +598,50 @@ static struct regmap_config es8311_regmap = {
 	.max_register = ES8311_MAX_REGISTER,
 	.cache_type = REGCACHE_RBTREE,
 };
+
+static int es8311_parse_dt(struct i2c_client *client,
+			   struct es8311_priv *es8311)
+{
+	struct device_node *np;
+	const char *str;
+	u32 v;
+
+	np = client->dev.of_node;
+	if (!np)
+		return -EINVAL;
+
+	es8311->adc_volume = 0; /* ADC Volume is -95dB by default reset. */
+	if (!of_property_read_u32(np, "adc-volume", &v)) {
+		if (v >= 0 && v <= 0xff)
+			es8311->adc_volume = v;
+		else
+			dev_warn(&client->dev,
+				 "adc-volume (0x%02x) is out of range\n", v);
+	}
+
+	es8311->dac_volume = 0; /* DAC Volume is -95dB by default reset. */
+	if (!of_property_read_u32(np, "dac-volume", &v)) {
+		if (v >= 0 && v <= 0xff)
+			es8311->dac_volume = v;
+		else
+			dev_warn(&client->dev,
+				 "dac-volume (0x%02x) is out of range\n", v);
+	}
+
+	es8311->aec_mode = 0; /* ADCDAT: 0 is ADC + ADC (default) */
+	if (!of_property_read_string(np, "aec-mode", &str)) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(aec_type_txt); i++) {
+			if (strcmp(str, aec_type_txt[i]) == 0) {
+				es8311->aec_mode = i;
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
 
 static int es8311_i2c_probe(struct i2c_client *i2c_client,
 			    const struct i2c_device_id *id)
@@ -613,6 +672,12 @@ static int es8311_i2c_probe(struct i2c_client *i2c_client,
 	} else if (IS_ERR(es8311->spk_ctl_gpio)) {
 		ret = PTR_ERR(es8311->spk_ctl_gpio);
 		dev_err(&i2c_client->dev, "Unable to claim gpio spk-ctl\n");
+		return ret;
+	}
+
+	ret = es8311_parse_dt(i2c_client, es8311);
+	if (ret < 0) {
+		dev_err(&i2c_client->dev, "Parse DT failed: %d\n", ret);
 		return ret;
 	}
 
