@@ -92,6 +92,9 @@ enum {
 struct ufs_mtk_host {
 	struct ufs_hba *hba;
 	struct phy *mphy;
+	struct reset_control *hci_reset;
+	struct reset_control *unipro_reset;
+	struct reset_control *crypto_reset;
 	bool mphy_powered_on;
 	bool unipro_lpm;
 	bool ref_clk_enabled;
