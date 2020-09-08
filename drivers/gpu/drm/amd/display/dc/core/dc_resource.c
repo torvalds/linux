@@ -785,13 +785,14 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 	/*
 	 * Only the leftmost ODM pipe should be offset by a nonzero distance
 	 */
-	if (!pipe_ctx->prev_odm_pipe)
+	if (!pipe_ctx->prev_odm_pipe) {
 		data->recout.x = stream->dst.x;
-	else
-		data->recout.x = 0;
-	if (stream->src.x < surf_clip.x)
-		data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
+		if (stream->src.x < surf_clip.x)
+			data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
 						/ stream->src.width;
+
+	} else
+		data->recout.x = 0;
 
 	data->recout.width = surf_clip.width * stream->dst.width / stream->src.width;
 	if (data->recout.width + data->recout.x > stream->dst.x + stream->dst.width)
