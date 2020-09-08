@@ -50,6 +50,10 @@ module_param(qedi_ll2_buf_size, uint, 0644);
 MODULE_PARM_DESC(qedi_ll2_buf_size,
 		 "parameter to set ping packet size, default - 0x400, Jumbo packets - 0x2400.");
 
+static uint qedi_flags_override;
+module_param(qedi_flags_override, uint, 0644);
+MODULE_PARM_DESC(qedi_flags_override, "Disable/Enable MFW error flags bits action.");
+
 const struct qed_iscsi_ops *qedi_ops;
 static struct scsi_transport_template *qedi_scsi_transport;
 static struct pci_driver qedi_pci_driver;
@@ -63,6 +67,8 @@ static void qedi_reset_uio_rings(struct qedi_uio_dev *udev);
 static void qedi_ll2_free_skbs(struct qedi_ctx *qedi);
 static struct nvm_iscsi_block *qedi_get_nvram_block(struct qedi_ctx *qedi);
 static void qedi_recovery_handler(struct work_struct *work);
+static void qedi_schedule_hw_err_handler(void *dev,
+					 enum qed_hw_err_type err_type);
 
 static int qedi_iscsi_event_cb(void *context, u8 fw_event_code, void *fw_handle)
 {
@@ -1112,6 +1118,39 @@ exit_get_data:
 	return;
 }
 
+void qedi_schedule_hw_err_handler(void *dev,
+				  enum qed_hw_err_type err_type)
+{
+	struct qedi_ctx *qedi = (struct qedi_ctx *)dev;
+	unsigned long override_flags = qedi_flags_override;
+
+	if (override_flags && test_bit(QEDI_ERR_OVERRIDE_EN, &override_flags))
+		qedi->qedi_err_flags = qedi_flags_override;
+
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+		  "HW error handler scheduled, err=%d err_flags=0x%x\n",
+		  err_type, qedi->qedi_err_flags);
+
+	switch (err_type) {
+	case QED_HW_ERR_MFW_RESP_FAIL:
+	case QED_HW_ERR_HW_ATTN:
+	case QED_HW_ERR_DMAE_FAIL:
+	case QED_HW_ERR_RAMROD_FAIL:
+	case QED_HW_ERR_FW_ASSERT:
+		/* Prevent HW attentions from being reasserted */
+		if (test_bit(QEDI_ERR_ATTN_CLR_EN, &qedi->qedi_err_flags))
+			qedi_ops->common->attn_clr_enable(qedi->cdev, true);
+
+		if (err_type == QED_HW_ERR_RAMROD_FAIL &&
+		    test_bit(QEDI_ERR_IS_RECOVERABLE, &qedi->qedi_err_flags))
+			qedi_ops->common->recovery_process(qedi->cdev);
+
+		break;
+	default:
+		break;
+	}
+}
+
 static void qedi_schedule_recovery_handler(void *dev)
 {
 	struct qedi_ctx *qedi = dev;
@@ -1154,6 +1193,7 @@ static struct qed_iscsi_cb_ops qedi_cb_ops = {
 	{
 		.link_update =		qedi_link_update,
 		.schedule_recovery_handler = qedi_schedule_recovery_handler,
+		.schedule_hw_err_handler = qedi_schedule_hw_err_handler,
 		.get_protocol_tlv_data = qedi_get_protocol_tlv_data,
 		.get_generic_tlv_data = qedi_get_generic_tlv_data,
 	}
@@ -2354,6 +2394,7 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 {
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
 	int rval;
+	u16 retry = 10;
 
 	if (mode == QEDI_MODE_SHUTDOWN)
 		iscsi_host_for_each_session(qedi->shost,
@@ -2382,7 +2423,13 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	qedi_sync_free_irqs(qedi);
 
 	if (!test_bit(QEDI_IN_OFFLINE, &qedi->flags)) {
-		qedi_ops->stop(qedi->cdev);
+		while (retry--) {
+			rval = qedi_ops->stop(qedi->cdev);
+			if (rval < 0)
+				msleep(1000);
+			else
+				break;
+		}
 		qedi_ops->ll2->stop(qedi->cdev);
 	}
 
@@ -2441,6 +2488,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	struct qed_probe_params qed_params;
 	void *task_start, *task_end;
 	int rc;
+	u16 retry = 10;
 
 	if (mode != QEDI_MODE_RECOVERY) {
 		qedi = qedi_host_alloc(pdev);
@@ -2452,6 +2500,10 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		qedi = pci_get_drvdata(pdev);
 	}
 
+retry_probe:
+	if (mode == QEDI_MODE_RECOVERY)
+		msleep(2000);
+
 	memset(&qed_params, 0, sizeof(qed_params));
 	qed_params.protocol = QED_PROTOCOL_ISCSI;
 	qed_params.dp_module = qedi_qed_debug;
@@ -2459,11 +2511,20 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	qed_params.is_vf = is_vf;
 	qedi->cdev = qedi_ops->common->probe(pdev, &qed_params);
 	if (!qedi->cdev) {
+		if (mode == QEDI_MODE_RECOVERY && retry) {
+			QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+				  "Retry %d initialize hardware\n", retry);
+			retry--;
+			goto retry_probe;
+		}
+
 		rc = -ENODEV;
 		QEDI_ERR(&qedi->dbg_ctx, "Cannot initialize hardware\n");
 		goto free_host;
 	}
 
+	set_bit(QEDI_ERR_ATTN_CLR_EN, &qedi->qedi_err_flags);
+	set_bit(QEDI_ERR_IS_RECOVERABLE, &qedi->qedi_err_flags);
 	atomic_set(&qedi->link_state, QEDI_LINK_DOWN);
 
 	rc = qedi_ops->fill_dev_info(qedi->cdev, &qedi->dev_info);

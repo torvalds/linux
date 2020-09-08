@@ -1072,7 +1072,8 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 
 	qedi_ep->state = EP_STATE_DISCONN_START;
 
-	if (test_bit(QEDI_IN_SHUTDOWN, &qedi->flags))
+	if (test_bit(QEDI_IN_SHUTDOWN, &qedi->flags) ||
+	    test_bit(QEDI_IN_RECOVERY, &qedi->flags))
 		goto ep_release_conn;
 
 	ret = qedi_ops->destroy_conn(qedi->cdev, qedi_ep->handle, abrt_conn);
