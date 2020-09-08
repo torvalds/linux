@@ -472,20 +472,13 @@ static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
 static int bnxt_get_num_ring_stats(struct bnxt *bp)
 {
 	int rx, tx, cmn;
-	bool sh = false;
-
-	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
-		sh = true;
 
 	rx = NUM_RING_RX_HW_STATS + NUM_RING_RX_SW_STATS +
 	     bnxt_get_num_tpa_ring_stats(bp);
 	tx = NUM_RING_TX_HW_STATS;
 	cmn = NUM_RING_CMN_SW_STATS;
-	if (sh)
-		return (rx + tx + cmn) * bp->cp_nr_rings;
-	else
-		return rx * bp->rx_nr_rings + tx * bp->tx_nr_rings +
-		       cmn * bp->cp_nr_rings;
+	return rx * bp->rx_nr_rings + tx * bp->tx_nr_rings +
+	       cmn * bp->cp_nr_rings;
 }
 
 static int bnxt_get_num_stats(struct bnxt *bp)
@@ -806,7 +799,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	int max_tx_sch_inputs;
 
 	/* Get the most up-to-date max_tx_sch_inputs. */
-	if (BNXT_NEW_RM(bp))
+	if (netif_running(dev) && BNXT_NEW_RM(bp))
 		bnxt_hwrm_func_resc_qcaps(bp, false);
 	max_tx_sch_inputs = hw_resc->max_tx_sch_inputs;
 
@@ -1073,7 +1066,7 @@ static int bnxt_grxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4)
 			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
 				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* fall through */
+		fallthrough;
 	case SCTP_V4_FLOW:
 	case AH_ESP_V4_FLOW:
 	case AH_V4_FLOW:
@@ -1092,7 +1085,7 @@ static int bnxt_grxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6)
 			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
 				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* fall through */
+		fallthrough;
 	case SCTP_V6_FLOW:
 	case AH_ESP_V6_FLOW:
 	case AH_V6_FLOW:
@@ -2322,6 +2315,9 @@ static int bnxt_get_nvram_directory(struct net_device *dev, u32 len, u8 *data)
 	rc = nvm_get_dir_info(dev, &dir_entries, &entry_length);
 	if (rc != 0)
 		return rc;
+
+	if (!dir_entries || !entry_length)
+		return -EIO;
 
 	/* Insert 2 bytes of directory info (count and size of entries) */
 	if (len < 2)

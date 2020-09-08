@@ -514,7 +514,7 @@ static void receive_kbd_ms_chars(struct uart_sunsu_port *up, int is_break)
 			switch (ret) {
 			case 2:
 				sunsu_change_mouse_baud(up);
-				/* fallthru */
+				fallthrough;
 			case 1:
 				break;
 

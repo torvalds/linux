@@ -112,7 +112,7 @@ rk3399_vpu_mpeg2_dec_set_buffers(struct hantro_dev *vpu,
 	case V4L2_MPEG2_PICTURE_CODING_TYPE_B:
 		backward_addr = hantro_get_ref(ctx,
 					       slice_params->backward_ref_ts);
-		/* fall-through */
+		fallthrough;
 	case V4L2_MPEG2_PICTURE_CODING_TYPE_P:
 		forward_addr = hantro_get_ref(ctx,
 					      slice_params->forward_ref_ts);

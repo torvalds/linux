@@ -369,7 +369,7 @@ static int serverworks_fixup(struct pci_dev *pdev)
 		break;
 	case PCI_DEVICE_ID_SERVERWORKS_CSB5IDE:
 		ata_pci_bmdma_clear_simplex(pdev);
-		/* fall through */
+		fallthrough;
 	case PCI_DEVICE_ID_SERVERWORKS_CSB6IDE:
 	case PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2:
 		rc = serverworks_fixup_csb(pdev);

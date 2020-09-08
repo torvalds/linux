@@ -1431,7 +1431,7 @@ retry_next:
 						"enclosure services event");
 				scsi_device_set_state(device, SDEV_RUNNING);
 			}
-			/* FALLTHRU */
+			fallthrough;
 		case CHANGE:
 			if ((channel == CONTAINER_CHANNEL)
 			 && (!dev->fsa_dev[container].valid)) {

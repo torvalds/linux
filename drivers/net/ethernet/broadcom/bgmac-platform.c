@@ -131,7 +131,7 @@ static void bgmac_nicpm_speed_set(struct net_device *net_dev)
 	switch (bgmac->net_dev->phydev->speed) {
 	default:
 		netdev_err(net_dev, "Unsupported speed. Defaulting to 1000Mb\n");
-		/* fall through */
+		fallthrough;
 	case SPEED_1000:
 		val |= NICPM_IOMUX_CTRL_SPD_1000M << NICPM_IOMUX_CTRL_SPD_SHIFT;
 		break;

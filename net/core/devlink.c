@@ -6196,8 +6196,8 @@ devlink_trap_action_get_from_info(struct genl_info *info,
 
 	val = nla_get_u8(info->attrs[DEVLINK_ATTR_TRAP_ACTION]);
 	switch (val) {
-	case DEVLINK_TRAP_ACTION_DROP: /* fall-through */
-	case DEVLINK_TRAP_ACTION_TRAP: /* fall-through */
+	case DEVLINK_TRAP_ACTION_DROP:
+	case DEVLINK_TRAP_ACTION_TRAP:
 	case DEVLINK_TRAP_ACTION_MIRROR:
 		*p_trap_action = val;
 		break;
