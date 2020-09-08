@@ -91,6 +91,7 @@ struct ath11k_skb_rxcb {
 enum ath11k_hw_rev {
 	ATH11K_HW_IPQ8074,
 	ATH11K_HW_QCA6390_HW20,
+	ATH11K_HW_IPQ6018_HW10,
 };
 
 enum ath11k_firmware_mode {
@@ -847,6 +848,7 @@ struct ath11k_fw_stats_bcn {
 
 extern const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq8074[];
 extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq8074[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq6018[];
 
 extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[];
 extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qca6390[];
