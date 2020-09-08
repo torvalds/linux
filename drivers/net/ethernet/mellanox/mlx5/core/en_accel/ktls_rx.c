@@ -386,16 +386,17 @@ void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
 	struct mlx5e_ktls_offload_context_rx *priv_rx;
 	struct mlx5e_ktls_rx_resync_ctx *resync;
 	u8 tracker_state, auth_state, *ctx;
+	struct device *dev;
 	u32 hw_seq;
 
 	priv_rx = buf->priv_rx;
 	resync = &priv_rx->resync;
-
+	dev = resync->priv->mdev->device;
 	if (unlikely(test_bit(MLX5E_PRIV_RX_FLAG_DELETING, priv_rx->flags)))
 		goto out;
 
-	dma_sync_single_for_cpu(resync->priv->mdev->device, buf->dma_addr,
-				PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(dev, buf->dma_addr, PROGRESS_PARAMS_PADDED_SIZE,
+				DMA_FROM_DEVICE);
 
 	ctx = buf->progress.ctx;
 	tracker_state = MLX5_GET(tls_progress_params, ctx, record_tracker_state);
@@ -411,6 +412,7 @@ void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
 	priv_rx->stats->tls_resync_req_end++;
 out:
 	refcount_dec(&resync->refcnt);
+	dma_unmap_single(dev, buf->dma_addr, PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
 	kfree(buf);
 }
 
