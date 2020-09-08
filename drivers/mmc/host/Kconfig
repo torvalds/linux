@@ -630,7 +630,7 @@ config MMC_SPI
 
 config MMC_S3C
 	tristate "Samsung S3C SD/MMC Card Interface support"
-	depends on ARCH_S3C24XX || COMPILE_TEST
+	depends on ARCH_S3C24XX
 	depends on S3C24XX_DMAC
 	help
 	  This selects a driver for the MCI interface found in
