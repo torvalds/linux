@@ -1194,7 +1194,11 @@ struct btrfs_root {
 #endif
 };
 
-struct btrfs_clone_extent_info {
+/*
+ * Structure that conveys information about an extent that is going to replace
+ * all the extents in a file range.
+ */
+struct btrfs_replace_extent_info {
 	u64 disk_offset;
 	u64 disk_len;
 	u64 data_offset;
@@ -3086,7 +3090,7 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       u64 end, int drop_cache);
 int btrfs_punch_hole_range(struct inode *inode, struct btrfs_path *path,
 			   const u64 start, const u64 end,
-			   struct btrfs_clone_extent_info *clone_info,
+			   struct btrfs_replace_extent_info *extent_info,
 			   struct btrfs_trans_handle **trans_out);
 int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 			      struct btrfs_inode *inode, u64 start, u64 end);

@@ -439,7 +439,7 @@ process_slot:
 
 		if (type == BTRFS_FILE_EXTENT_REG ||
 		    type == BTRFS_FILE_EXTENT_PREALLOC) {
-			struct btrfs_clone_extent_info clone_info;
+			struct btrfs_replace_extent_info clone_info;
 
 			/*
 			 *    a  | --- range to clone ---|  b

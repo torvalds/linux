@@ -9582,7 +9582,7 @@ static struct btrfs_trans_handle *insert_prealloc_file_extent(
 				       u64 file_offset)
 {
 	struct btrfs_file_extent_item stack_fi;
-	struct btrfs_clone_extent_info extent_info;
+	struct btrfs_replace_extent_info extent_info;
 	struct btrfs_trans_handle *trans = trans_in;
 	struct btrfs_path *path;
 	u64 start = ins->objectid;
