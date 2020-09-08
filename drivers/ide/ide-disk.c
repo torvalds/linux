@@ -739,12 +739,9 @@ static void ide_disk_setup(ide_drive_t *drive)
 	set_wcache(drive, 1);
 
 	if ((drive->dev_flags & IDE_DFLAG_LBA) == 0 &&
-	    (drive->head == 0 || drive->head > 16)) {
+	    (drive->head == 0 || drive->head > 16))
 		printk(KERN_ERR "%s: invalid geometry: %d physical heads?\n",
 			drive->name, drive->head);
-		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
-	} else
-		drive->dev_flags |= IDE_DFLAG_ATTACH;
 }
 
 static void ide_disk_flush(ide_drive_t *drive)
