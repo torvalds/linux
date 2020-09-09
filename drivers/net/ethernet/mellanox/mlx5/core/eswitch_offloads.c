@@ -2110,6 +2110,24 @@ int mlx5_esw_funcs_changed_handler(struct notifier_block *nb, unsigned long type
 	return NOTIFY_OK;
 }
 
+static int mlx5_esw_host_number_init(struct mlx5_eswitch *esw)
+{
+	const u32 *query_host_out;
+
+	if (!mlx5_core_is_ecpf_esw_manager(esw->dev))
+		return 0;
+
+	query_host_out = mlx5_esw_query_functions(esw->dev);
+	if (IS_ERR(query_host_out))
+		return PTR_ERR(query_host_out);
+
+	/* Mark non local controller with non zero controller number. */
+	esw->offloads.host_number = MLX5_GET(query_esw_functions_out, query_host_out,
+					     host_params_context.host_number);
+	kvfree(query_host_out);
+	return 0;
+}
+
 int esw_offloads_enable(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport *vport;
@@ -2123,6 +2141,10 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 
 	mutex_init(&esw->offloads.termtbl_mutex);
 	mlx5_rdma_enable_roce(esw->dev);
+
+	err = mlx5_esw_host_number_init(esw);
+	if (err)
+		goto err_vport_metadata;
 
 	err = esw_set_passing_vport_metadata(esw, true);
 	if (err)

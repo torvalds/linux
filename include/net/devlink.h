@@ -57,13 +57,30 @@ struct devlink_port_phys_attrs {
 	u32 split_subport_number; /* If the port is split, this is the number of subport. */
 };
 
+/**
+ * struct devlink_port_pci_pf_attrs - devlink port's PCI PF attributes
+ * @controller: Associated controller number
+ * @pf: Associated PCI PF number for this port.
+ * @external: when set, indicates if a port is for an external controller
+ */
 struct devlink_port_pci_pf_attrs {
-	u16 pf;	/* Associated PCI PF for this port. */
+	u32 controller;
+	u16 pf;
+	u8 external:1;
 };
 
+/**
+ * struct devlink_port_pci_vf_attrs - devlink port's PCI VF attributes
+ * @controller: Associated controller number
+ * @pf: Associated PCI PF number for this port.
+ * @vf: Associated PCI VF for of the PCI PF for this port.
+ * @external: when set, indicates if a port is for an external controller
+ */
 struct devlink_port_pci_vf_attrs {
-	u16 pf;	/* Associated PCI PF for this port. */
-	u16 vf;	/* Associated PCI VF for of the PCI PF for this port. */
+	u32 controller;
+	u16 pf;
+	u16 vf;
+	u8 external:1;
 };
 
 /**
@@ -73,6 +90,9 @@ struct devlink_port_pci_vf_attrs {
  * @splittable: indicates if the port can be split.
  * @lanes: maximum number of lanes the port supports. 0 value is not passed to netlink.
  * @switch_id: if the port is part of switch, this is buffer with ID, otherwise this is NULL
+ * @phys: physical port attributes
+ * @pci_pf: PCI PF port attributes
+ * @pci_vf: PCI VF port attributes
  */
 struct devlink_port_attrs {
 	u8 split:1,
@@ -1203,9 +1223,10 @@ void devlink_port_type_ib_set(struct devlink_port *devlink_port,
 void devlink_port_type_clear(struct devlink_port *devlink_port);
 void devlink_port_attrs_set(struct devlink_port *devlink_port,
 			    struct devlink_port_attrs *devlink_port_attrs);
-void devlink_port_attrs_pci_pf_set(struct devlink_port *devlink_port, u16 pf);
-void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port,
-				   u16 pf, u16 vf);
+void devlink_port_attrs_pci_pf_set(struct devlink_port *devlink_port, u32 controller,
+				   u16 pf, bool external);
+void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port, u32 controller,
+				   u16 pf, u16 vf, bool external);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
