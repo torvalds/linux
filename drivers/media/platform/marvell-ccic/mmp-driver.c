@@ -335,7 +335,7 @@ static int mmpcam_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int mmpcam_suspend(struct device *dev)
+static int __maybe_unused mmpcam_suspend(struct device *dev)
 {
 	struct mmp_camera *cam = dev_get_drvdata(dev);
 
@@ -344,7 +344,7 @@ static int mmpcam_suspend(struct device *dev)
 	return 0;
 }
 
-static int mmpcam_resume(struct device *dev)
+static int __maybe_unused mmpcam_resume(struct device *dev)
 {
 	struct mmp_camera *cam = dev_get_drvdata(dev);
 
