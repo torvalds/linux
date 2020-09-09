@@ -53,4 +53,7 @@ config CPU_RK3368
 config CPU_RK3399
 	bool "RK3399"
 
+config CPU_RK3568
+	bool "RK3566/8"
+
 endmenu
