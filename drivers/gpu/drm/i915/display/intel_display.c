@@ -17882,7 +17882,7 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	if (i915_inject_probe_failure(i915))
 		return -ENODEV;
 
-	if (HAS_DISPLAY(i915) && INTEL_DISPLAY_ENABLED(i915)) {
+	if (HAS_DISPLAY(i915)) {
 		ret = drm_vblank_init(&i915->drm,
 				      INTEL_NUM_PIPES(i915));
 		if (ret)
@@ -17956,7 +17956,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 		    INTEL_NUM_PIPES(i915),
 		    INTEL_NUM_PIPES(i915) > 1 ? "s" : "");
 
-	if (HAS_DISPLAY(i915) && INTEL_DISPLAY_ENABLED(i915)) {
+	if (HAS_DISPLAY(i915)) {
 		for_each_pipe(i915, pipe) {
 			ret = intel_crtc_init(i915, pipe);
 			if (ret) {
@@ -18045,7 +18045,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 
 	intel_overlay_setup(i915);
 
-	if (!HAS_DISPLAY(i915) || !INTEL_DISPLAY_ENABLED(i915))
+	if (!HAS_DISPLAY(i915))
 		return 0;
 
 	ret = intel_fbdev_init(&i915->drm);
@@ -19018,7 +19018,7 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 
 	BUILD_BUG_ON(ARRAY_SIZE(transcoders) != ARRAY_SIZE(error->transcoder));
 
-	if (!HAS_DISPLAY(dev_priv) || !INTEL_DISPLAY_ENABLED(dev_priv))
+	if (!HAS_DISPLAY(dev_priv))
 		return NULL;
 
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);

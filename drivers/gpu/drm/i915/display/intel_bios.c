@@ -2133,7 +2133,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 
 	INIT_LIST_HEAD(&dev_priv->vbt.display_devices);
 
-	if (!HAS_DISPLAY(dev_priv) || !INTEL_DISPLAY_ENABLED(dev_priv)) {
+	if (!HAS_DISPLAY(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Skipping VBT init due to disabled display.\n");
 		return;
