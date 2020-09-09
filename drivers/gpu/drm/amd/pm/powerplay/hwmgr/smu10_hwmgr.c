@@ -1439,6 +1439,13 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int smu10_gfx_state_change(struct pp_hwmgr *hwmgr, uint32_t state)
+{
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GpuChangeState, state, NULL);
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.backend_init = smu10_hwmgr_backend_init,
 	.backend_fini = smu10_hwmgr_backend_fini,
@@ -1485,6 +1492,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.set_power_profile_mode = smu10_set_power_profile_mode,
 	.asic_reset = smu10_asic_reset,
 	.set_fine_grain_clk_vol = smu10_set_fine_grain_clk_vol,
+	.gfx_state_change = smu10_gfx_state_change,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

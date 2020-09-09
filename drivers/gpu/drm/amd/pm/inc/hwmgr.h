@@ -366,6 +366,7 @@ struct pp_hwmgr_func {
 	int (*disable_power_features_for_compute_performance)(struct pp_hwmgr *hwmgr,
 					bool disable);
 	ssize_t (*get_gpu_metrics)(struct pp_hwmgr *hwmgr, void **table);
+	int (*gfx_state_change)(struct pp_hwmgr *hwmgr, uint32_t state);
 };
 
 struct pp_table_func {
