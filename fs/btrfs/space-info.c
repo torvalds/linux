@@ -301,11 +301,6 @@ struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 	return NULL;
 }
 
-static inline u64 calc_global_rsv_need_space(struct btrfs_block_rsv *global)
-{
-	return (global->size << 1);
-}
-
 static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
 			  struct btrfs_space_info *space_info,
 			  enum btrfs_reserve_flush_enum flush)
