@@ -145,6 +145,18 @@ static inline pte_t set_pte_bit(pte_t pte, pgprot_t prot)
 	return pte;
 }
 
+static inline pmd_t clear_pmd_bit(pmd_t pmd, pgprot_t prot)
+{
+	pmd_val(pmd) &= ~pgprot_val(prot);
+	return pmd;
+}
+
+static inline pmd_t set_pmd_bit(pmd_t pmd, pgprot_t prot)
+{
+	pmd_val(pmd) |= pgprot_val(prot);
+	return pmd;
+}
+
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte = clear_pte_bit(pte, __pgprot(PTE_WRITE));
@@ -363,15 +375,24 @@ static inline int pmd_protnone(pmd_t pmd)
 }
 #endif
 
+#define pmd_present_invalid(pmd)     (!!(pmd_val(pmd) & PMD_PRESENT_INVALID))
+
+static inline int pmd_present(pmd_t pmd)
+{
+	return pte_present(pmd_pte(pmd)) || pmd_present_invalid(pmd);
+}
+
 /*
  * THP definitions.
  */
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-#define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
+static inline int pmd_trans_huge(pmd_t pmd)
+{
+	return pmd_val(pmd) && pmd_present(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-#define pmd_present(pmd)	pte_present(pmd_pte(pmd))
 #define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
 #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
 #define pmd_valid(pmd)		pte_valid(pmd_pte(pmd))
@@ -381,7 +402,14 @@ static inline int pmd_protnone(pmd_t pmd)
 #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
 #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
 #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
-#define pmd_mkinvalid(pmd)	(__pmd(pmd_val(pmd) & ~PMD_SECT_VALID))
+
+static inline pmd_t pmd_mkinvalid(pmd_t pmd)
+{
+	pmd = set_pmd_bit(pmd, __pgprot(PMD_PRESENT_INVALID));
+	pmd = clear_pmd_bit(pmd, __pgprot(PMD_SECT_VALID));
+
+	return pmd;
+}
 
 #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
 
