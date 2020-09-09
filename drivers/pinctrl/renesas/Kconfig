@@ -5,7 +5,7 @@
 
 menu "Renesas pinctrl drivers"
 
-config PINCTRL_SH_PFC
+config PINCTRL_RENESAS
 	bool "Renesas SoC pin control support" if COMPILE_TEST && !(ARCH_RENESAS || SUPERH)
 	default y if ARCH_RENESAS || SUPERH
 	select PINMUX
