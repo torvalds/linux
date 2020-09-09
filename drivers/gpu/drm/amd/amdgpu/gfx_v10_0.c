@@ -3560,7 +3560,7 @@ static void gfx_v10_0_check_fw_write_wait(struct amdgpu_device *adev)
 		break;
 	}
 
-	if (adev->gfx.cp_fw_write_wait == false)
+	if (!adev->gfx.cp_fw_write_wait)
 		DRM_WARN_ONCE("CP firmware version too old, please update!");
 }
 
