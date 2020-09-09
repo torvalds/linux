@@ -50,7 +50,6 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
 				 unsigned long *reserve_size,
-				 unsigned long dram_base,
 				 efi_loaded_image_t *image)
 {
 	efi_status_t status;
