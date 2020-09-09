@@ -876,6 +876,8 @@ static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 
 	if (queue->tid == -1 || pt->have_sched_switch) {
 		ptq->tid = machine__get_current_tid(pt->machine, ptq->cpu);
+		if (ptq->tid == -1)
+			ptq->pid = -1;
 		thread__zput(ptq->thread);
 	}
 
@@ -1915,10 +1917,8 @@ static int intel_pt_context_switch(struct intel_pt *pt, union perf_event *event,
 		tid = sample->tid;
 	}
 
-	if (tid == -1) {
-		pr_err("context_switch event has no tid\n");
-		return -EINVAL;
-	}
+	if (tid == -1)
+		intel_pt_log("context_switch event has no tid\n");
 
 	intel_pt_log("context_switch: cpu %d pid %d tid %d time %"PRIu64" tsc %#"PRIx64"\n",
 		     cpu, pid, tid, sample->time, perf_time_to_tsc(sample->time,
