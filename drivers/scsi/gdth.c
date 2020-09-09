@@ -3007,7 +3007,6 @@ static char *async_cache_tab[] = {
 static int gdth_async_event(gdth_ha_str *ha)
 {
     gdth_cmd_str *cmdp;
-    int cmd_index;
 
     cmdp= ha->pccb;
     TRACE2(("gdth_async_event() ha %d serv %d\n",
@@ -3019,7 +3018,6 @@ static int gdth_async_event(gdth_ha_str *ha)
                 gdth_delay(0);
             cmdp->Service       = SCREENSERVICE;
             cmdp->RequestBuffer = SCREEN_CMND;
-            cmd_index = gdth_get_cmd_index(ha);
             gdth_set_sema0(ha);
             cmdp->OpCode        = GDT_READ;
             cmdp->BoardNode     = LOCALBOARD;
