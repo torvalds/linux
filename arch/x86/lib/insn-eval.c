@@ -179,7 +179,7 @@ static int resolve_default_seg(struct insn *insn, struct pt_regs *regs, int off)
 		if (insn->addr_bytes == 2)
 			return -EINVAL;
 
-		/* fall through */
+		fallthrough;
 
 	case -EDOM:
 	case offsetof(struct pt_regs, bx):
@@ -362,7 +362,6 @@ static short get_segment_selector(struct pt_regs *regs, int seg_reg_idx)
 		case INAT_SEG_REG_GS:
 			return vm86regs->gs;
 		case INAT_SEG_REG_IGNORE:
-			/* fall through */
 		default:
 			return -EINVAL;
 		}
@@ -386,7 +385,6 @@ static short get_segment_selector(struct pt_regs *regs, int seg_reg_idx)
 		 */
 		return get_user_gs(regs);
 	case INAT_SEG_REG_IGNORE:
-		/* fall through */
 	default:
 		return -EINVAL;
 	}
@@ -786,7 +784,7 @@ int insn_get_code_seg_params(struct pt_regs *regs)
 		 */
 		return INSN_CODE_SEG_PARAMS(4, 8);
 	case 3: /* Invalid setting. CS.L=1, CS.D=1 */
-		/* fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}

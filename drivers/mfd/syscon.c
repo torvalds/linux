@@ -95,7 +95,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 			break;
 		default:
 			pr_err("Failed to retrieve valid hwlock: %d\n", ret);
-			/* fall-through */
+			fallthrough;
 		case -EPROBE_DEFER:
 			goto err_regmap;
 		}

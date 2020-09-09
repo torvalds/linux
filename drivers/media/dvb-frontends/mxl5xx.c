@@ -739,7 +739,7 @@ static int get_frontend(struct dvb_frontend *fe,
 		default:
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	case SYS_DVBS:
 		switch ((enum MXL_HYDRA_MODULATION_E)
 			reg_data[DMD_MODULATION_SCHEME_ADDR]) {

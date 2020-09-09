@@ -1599,7 +1599,7 @@ static int gfs2_quota_get_state(struct super_block *sb, struct qc_state *state)
 	case GFS2_QUOTA_ON:
 		state->s_state[USRQUOTA].flags |= QCI_LIMITS_ENFORCED;
 		state->s_state[GRPQUOTA].flags |= QCI_LIMITS_ENFORCED;
-		/*FALLTHRU*/
+		fallthrough;
 	case GFS2_QUOTA_ACCOUNT:
 		state->s_state[USRQUOTA].flags |= QCI_ACCT_ENABLED |
 						  QCI_SYSFILE;

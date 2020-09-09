@@ -1310,7 +1310,7 @@ static void dvb_input_detach(struct ddb_input *input)
 			dvb_unregister_frontend(dvb->fe2);
 		if (dvb->fe)
 			dvb_unregister_frontend(dvb->fe);
-		/* fallthrough */
+		fallthrough;
 	case 0x30:
 		dvb_module_release(dvb->i2c_client[0]);
 		dvb->i2c_client[0] = NULL;
@@ -1321,22 +1321,22 @@ static void dvb_input_detach(struct ddb_input *input)
 			dvb_frontend_detach(dvb->fe);
 		dvb->fe = NULL;
 		dvb->fe2 = NULL;
-		/* fallthrough */
+		fallthrough;
 	case 0x20:
 		dvb_net_release(&dvb->dvbnet);
-		/* fallthrough */
+		fallthrough;
 	case 0x12:
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &dvb->hw_frontend);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &dvb->mem_frontend);
-		/* fallthrough */
+		fallthrough;
 	case 0x11:
 		dvb_dmxdev_release(&dvb->dmxdev);
-		/* fallthrough */
+		fallthrough;
 	case 0x10:
 		dvb_dmx_release(&dvb->demux);
-		/* fallthrough */
+		fallthrough;
 	case 0x01:
 		break;
 	}
@@ -1559,7 +1559,7 @@ static int dvb_input_attach(struct ddb_input *input)
 			osc24 = 0;
 		else
 			osc24 = 1;
-		/* fall-through */
+		fallthrough;
 	case DDB_TUNER_DVBCT2_SONY_P:
 	case DDB_TUNER_DVBC2T2_SONY_P:
 	case DDB_TUNER_ISDBT_SONY_P:
@@ -1575,7 +1575,7 @@ static int dvb_input_attach(struct ddb_input *input)
 		break;
 	case DDB_TUNER_DVBC2T2I_SONY:
 		osc24 = 1;
-		/* fall-through */
+		fallthrough;
 	case DDB_TUNER_DVBCT2_SONY:
 	case DDB_TUNER_DVBC2T2_SONY:
 	case DDB_TUNER_ISDBT_SONY:
@@ -2036,7 +2036,7 @@ static int ddb_port_attach(struct ddb_port *port)
 		ret = ddb_ci_attach(port, ci_bitrate);
 		if (ret < 0)
 			break;
-		/* fall-through */
+		fallthrough;
 	case DDB_PORT_LOOP:
 		ret = dvb_register_device(port->dvb[0].adap,
 					  &port->dvb[0].dev,
@@ -2432,7 +2432,8 @@ void ddb_ports_init(struct ddb *dev)
 					ddb_input_init(port, 4 + i, 1, 4 + i);
 					ddb_output_init(port, i);
 					break;
-				} /* fallthrough */
+				}
+				fallthrough;
 			case DDB_OCTOPUS:
 				ddb_input_init(port, 2 * i, 0, 2 * i);
 				ddb_input_init(port, 2 * i + 1, 1, 2 * i + 1);
@@ -3417,7 +3418,7 @@ int ddb_exit_ddbridge(int stage, int error)
 	default:
 	case 2:
 		destroy_workqueue(ddb_wq);
-		/* fall-through */
+		fallthrough;
 	case 1:
 		ddb_class_destroy();
 		break;

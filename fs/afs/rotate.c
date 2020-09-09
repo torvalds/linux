@@ -281,7 +281,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 	case -ETIME:
 		if (op->error != -EDESTADDRREQ)
 			goto iterate_address;
-		/* Fall through */
+		fallthrough;
 	case -ERFKILL:
 	case -EADDRNOTAVAIL:
 	case -ENETUNREACH:

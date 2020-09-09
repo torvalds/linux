@@ -857,7 +857,7 @@ static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 					    fcport);
 					break;
 				}
-				/* fall through */
+				fallthrough;
 			default:
 				if (fcport_is_smaller(fcport)) {
 					/* local adapter is bigger */

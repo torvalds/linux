@@ -366,10 +366,10 @@ static int adin_set_edpd(struct phy_device *phydev, u16 tx_interval)
 
 	switch (tx_interval) {
 	case 1000: /* 1 second */
-		/* fallthrough */
+		fallthrough;
 	case ETHTOOL_PHY_EDPD_DFLT_TX_MSECS:
 		val |= ADIN1300_NRG_PD_TX_EN;
-		/* fallthrough */
+		fallthrough;
 	case ETHTOOL_PHY_EDPD_NO_TX:
 		break;
 	default:

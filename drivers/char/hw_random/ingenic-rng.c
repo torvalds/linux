@@ -92,8 +92,7 @@ static int ingenic_rng_probe(struct platform_device *pdev)
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
 		pr_err("%s: Failed to map RNG registers\n", __func__);
-		ret = PTR_ERR(priv->base);
-		goto err_free_rng;
+		return PTR_ERR(priv->base);
 	}
 
 	priv->version = (enum ingenic_rng_version)of_device_get_match_data(&pdev->dev);
@@ -106,17 +105,13 @@ static int ingenic_rng_probe(struct platform_device *pdev)
 	ret = hwrng_register(&priv->rng);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register hwrng\n");
-		goto err_free_rng;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, priv);
 
 	dev_info(&pdev->dev, "Ingenic RNG driver registered\n");
 	return 0;
-
-err_free_rng:
-	kfree(priv);
-	return ret;
 }
 
 static int ingenic_rng_remove(struct platform_device *pdev)

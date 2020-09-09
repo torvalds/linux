@@ -765,7 +765,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 			    !(aac->raw_io_64) ||
 			    ((cmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
 				break;
-			/* fall through */
+			fallthrough;
 		case INQUIRY:
 		case READ_CAPACITY:
 			/*

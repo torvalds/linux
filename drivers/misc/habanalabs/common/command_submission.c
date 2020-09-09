@@ -808,6 +808,14 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	/* currently it is guaranteed to have only one chunk */
 	chunk = &cs_chunk_array[0];
+
+	if (chunk->queue_index >= hdev->asic_prop.max_queues) {
+		dev_err(hdev->dev, "Queue index %d is invalid\n",
+			chunk->queue_index);
+		rc = -EINVAL;
+		goto free_cs_chunk_array;
+	}
+
 	q_idx = chunk->queue_index;
 	hw_queue_prop = &hdev->asic_prop.hw_queues_props[q_idx];
 	q_type = hw_queue_prop->type;

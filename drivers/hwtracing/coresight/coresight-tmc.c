@@ -84,9 +84,7 @@ u32 tmc_get_memwidth_mask(struct tmc_drvdata *drvdata)
 	 */
 	switch (drvdata->memwidth) {
 	case TMC_MEM_INTF_WIDTH_32BITS:
-	/* fallthrough */
 	case TMC_MEM_INTF_WIDTH_64BITS:
-	/* fallthrough */
 	case TMC_MEM_INTF_WIDTH_128BITS:
 		mask = GENMASK(31, 4);
 		break;
