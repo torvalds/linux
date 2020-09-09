@@ -56,28 +56,75 @@ static int bounds_check(struct device *dev, uint32_t val,
 	return -EINVAL;
 }
 
+#define PLL_OP 1
+#define PLL_VT 2
+
+static const char *pll_string(unsigned int which)
+{
+	switch (which) {
+	case PLL_OP:
+		return "op";
+	case PLL_VT:
+		return "vt";
+	}
+
+	return NULL;
+}
+
+#define PLL_FL(f) CCS_PLL_FLAG_##f
+
 static void print_pll(struct device *dev, struct ccs_pll *pll)
 {
-	dev_dbg(dev, "pre_pll_clk_div\t%u\n",  pll->vt_fr.pre_pll_clk_div);
-	dev_dbg(dev, "pll_multiplier \t%u\n",  pll->vt_fr.pll_multiplier);
-	if (!(pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS)) {
-		dev_dbg(dev, "op_sys_clk_div \t%u\n", pll->op_bk.sys_clk_div);
-		dev_dbg(dev, "op_pix_clk_div \t%u\n", pll->op_bk.pix_clk_div);
-	}
-	dev_dbg(dev, "vt_sys_clk_div \t%u\n",  pll->vt_bk.sys_clk_div);
-	dev_dbg(dev, "vt_pix_clk_div \t%u\n",  pll->vt_bk.pix_clk_div);
+	const struct {
+		struct ccs_pll_branch_fr *fr;
+		struct ccs_pll_branch_bk *bk;
+		unsigned int which;
+	} branches[] = {
+		{ &pll->vt_fr, &pll->vt_bk, PLL_VT },
+		{ NULL, &pll->op_bk, PLL_OP }
+	}, *br;
+	unsigned int i;
 
-	dev_dbg(dev, "ext_clk_freq_hz \t%u\n", pll->ext_clk_freq_hz);
-	dev_dbg(dev, "pll_ip_clk_freq_hz \t%u\n", pll->vt_fr.pll_ip_clk_freq_hz);
-	dev_dbg(dev, "pll_op_clk_freq_hz \t%u\n", pll->vt_fr.pll_op_clk_freq_hz);
-	if (!(pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS)) {
-		dev_dbg(dev, "op_sys_clk_freq_hz \t%u\n",
-			pll->op_bk.sys_clk_freq_hz);
-		dev_dbg(dev, "op_pix_clk_freq_hz \t%u\n",
-			pll->op_bk.pix_clk_freq_hz);
+	dev_dbg(dev, "ext_clk_freq_hz\t\t%u\n", pll->ext_clk_freq_hz);
+
+	for (i = 0, br = branches; i < ARRAY_SIZE(branches); i++, br++) {
+		const char *s = pll_string(br->which);
+
+		if (br->which == PLL_VT) {
+			dev_dbg(dev, "%s_pre_pll_clk_div\t\t%u\n",  s,
+				br->fr->pre_pll_clk_div);
+			dev_dbg(dev, "%s_pll_multiplier\t\t%u\n",  s,
+				br->fr->pll_multiplier);
+
+			dev_dbg(dev, "%s_pll_ip_clk_freq_hz\t%u\n", s,
+				br->fr->pll_ip_clk_freq_hz);
+			dev_dbg(dev, "%s_pll_op_clk_freq_hz\t%u\n", s,
+				br->fr->pll_op_clk_freq_hz);
+		}
+
+		if (!(pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) ||
+		    br->which == PLL_VT) {
+			dev_dbg(dev, "%s_sys_clk_div\t\t%u\n",  s,
+				br->bk->sys_clk_div);
+			dev_dbg(dev, "%s_pix_clk_div\t\t%u\n", s,
+				br->bk->pix_clk_div);
+
+			dev_dbg(dev, "%s_sys_clk_freq_hz\t%u\n", s,
+				br->bk->sys_clk_freq_hz);
+			dev_dbg(dev, "%s_pix_clk_freq_hz\t%u\n", s,
+				br->bk->pix_clk_freq_hz);
+		}
 	}
-	dev_dbg(dev, "vt_sys_clk_freq_hz \t%u\n", pll->vt_bk.sys_clk_freq_hz);
-	dev_dbg(dev, "vt_pix_clk_freq_hz \t%u\n", pll->vt_bk.pix_clk_freq_hz);
+
+	dev_dbg(dev, "flags%s%s%s%s%s%s\n",
+		pll->flags & PLL_FL(LANE_SPEED_MODEL) ? " lane-speed" : "",
+		pll->flags & PLL_FL(LINK_DECOUPLED) ? " link-decoupled" : "",
+		pll->flags & PLL_FL(EXT_IP_PLL_DIVIDER) ?
+		" ext-ip-pll-divider" : "",
+		pll->flags & PLL_FL(FLEXIBLE_OP_PIX_CLK_DIV) ?
+		" flexible-op-pix-div" : "",
+		pll->flags & PLL_FL(FIFO_DERATING) ? " fifo-derating" : "",
+		pll->flags & PLL_FL(FIFO_OVERRATING) ? " fifo-overrating" : "");
 }
 
 static int check_all_bounds(struct device *dev,
