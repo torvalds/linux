@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/net_tstamp.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <net/flow_offload.h>
@@ -463,8 +464,10 @@
 #define     MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE	BIT(7)
 #define MVPP22_GMAC_INT_SUM_STAT		0xa0
 #define	    MVPP22_GMAC_INT_SUM_STAT_INTERNAL	BIT(1)
+#define	    MVPP22_GMAC_INT_SUM_STAT_PTP	BIT(2)
 #define MVPP22_GMAC_INT_SUM_MASK		0xa4
 #define     MVPP22_GMAC_INT_SUM_MASK_LINK_STAT	BIT(1)
+#define	    MVPP22_GMAC_INT_SUM_MASK_PTP	BIT(2)
 
 /* Per-port XGMAC registers. PPv2.2 only, only for GOP port 0,
  * relative to port->base.
@@ -492,9 +495,11 @@
 #define     MVPP22_XLG_CTRL3_MACMODESELECT_10G	(1 << 13)
 #define MVPP22_XLG_EXT_INT_STAT			0x158
 #define     MVPP22_XLG_EXT_INT_STAT_XLG		BIT(1)
+#define     MVPP22_XLG_EXT_INT_STAT_PTP		BIT(7)
 #define MVPP22_XLG_EXT_INT_MASK			0x15c
 #define     MVPP22_XLG_EXT_INT_MASK_XLG		BIT(1)
 #define     MVPP22_XLG_EXT_INT_MASK_GIG		BIT(2)
+#define     MVPP22_XLG_EXT_INT_MASK_PTP		BIT(7)
 #define MVPP22_XLG_CTRL4_REG			0x184
 #define     MVPP22_XLG_CTRL4_FWD_FC		BIT(5)
 #define     MVPP22_XLG_CTRL4_FWD_PFC		BIT(6)
@@ -598,7 +603,11 @@
 /* PTP registers. PPv2.2 only */
 #define MVPP22_PTP_BASE(port)			(0x7800 + (port * 0x1000))
 #define MVPP22_PTP_INT_CAUSE			0x00
+#define     MVPP22_PTP_INT_CAUSE_QUEUE1		BIT(6)
+#define     MVPP22_PTP_INT_CAUSE_QUEUE0		BIT(5)
 #define MVPP22_PTP_INT_MASK			0x04
+#define     MVPP22_PTP_INT_MASK_QUEUE1		BIT(6)
+#define     MVPP22_PTP_INT_MASK_QUEUE0		BIT(5)
 #define MVPP22_PTP_GCR				0x08
 #define     MVPP22_PTP_GCR_RX_RESET		BIT(13)
 #define     MVPP22_PTP_GCR_TX_RESET		BIT(1)
@@ -795,6 +804,43 @@ enum mvpp2_prs_l3_cast {
 	MVPP2_PRS_L3_MULTI_CAST,
 	MVPP2_PRS_L3_BROAD_CAST
 };
+
+/* PTP descriptor constants. The low bits of the descriptor are stored
+ * separately from the high bits.
+ */
+#define MVPP22_PTP_DESC_MASK_LOW	0xfff
+
+/* PTPAction */
+enum mvpp22_ptp_action {
+	MVPP22_PTP_ACTION_NONE = 0,
+	MVPP22_PTP_ACTION_FORWARD = 1,
+	MVPP22_PTP_ACTION_CAPTURE = 3,
+	/* The following have not been verified */
+	MVPP22_PTP_ACTION_ADDTIME = 4,
+	MVPP22_PTP_ACTION_ADDCORRECTEDTIME = 5,
+	MVPP22_PTP_ACTION_CAPTUREADDTIME = 6,
+	MVPP22_PTP_ACTION_CAPTUREADDCORRECTEDTIME = 7,
+	MVPP22_PTP_ACTION_ADDINGRESSTIME = 8,
+	MVPP22_PTP_ACTION_CAPTUREADDINGRESSTIME = 9,
+	MVPP22_PTP_ACTION_CAPTUREINGRESSTIME = 10,
+};
+
+/* PTPPacketFormat */
+enum mvpp22_ptp_packet_format {
+	MVPP22_PTP_PKT_FMT_PTPV2 = 0,
+	MVPP22_PTP_PKT_FMT_PTPV1 = 1,
+	MVPP22_PTP_PKT_FMT_Y1731 = 2,
+	MVPP22_PTP_PKT_FMT_NTPTS = 3,
+	MVPP22_PTP_PKT_FMT_NTPRX = 4,
+	MVPP22_PTP_PKT_FMT_NTPTX = 5,
+	MVPP22_PTP_PKT_FMT_TWAMP = 6,
+};
+
+#define MVPP22_PTP_ACTION(x)		(((x) & 15) << 0)
+#define MVPP22_PTP_PACKETFORMAT(x)	(((x) & 7) << 4)
+#define MVPP22_PTP_MACTIMESTAMPINGEN	BIT(11)
+#define MVPP22_PTP_TIMESTAMPENTRYID(x)	(((x) & 31) << 12)
+#define MVPP22_PTP_TIMESTAMPQUEUESELECT	BIT(18)
 
 /* BM constants */
 #define MVPP2_BM_JUMBO_BUF_NUM		512
@@ -1014,6 +1060,11 @@ struct mvpp2_ethtool_fs {
 	struct ethtool_rxnfc rxnfc;
 };
 
+struct mvpp2_hwtstamp_queue {
+	struct sk_buff *skb[32];
+	u8 next;
+};
+
 struct mvpp2_port {
 	u8 id;
 
@@ -1100,6 +1151,8 @@ struct mvpp2_port {
 
 	bool hwtstamp;
 	bool rx_hwtstamp;
+	enum hwtstamp_tx_types tx_hwtstamp_type;
+	struct mvpp2_hwtstamp_queue tx_hwtstamp_queue[2];
 };
 
 /* The mvpp2_tx_desc and mvpp2_rx_desc structures describe the
@@ -1168,7 +1221,8 @@ struct mvpp22_tx_desc {
 	u8  packet_offset;
 	u8  phys_txq;
 	__le16 data_size;
-	__le64 reserved1;
+	__le32 ptp_descriptor;
+	__le32 reserved2;
 	__le64 buf_dma_addr_ptp;
 	__le64 buf_cookie_misc;
 };
