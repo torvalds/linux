@@ -17,6 +17,7 @@ Time/Frequency
 -ms		: millisecond
 -us		: microsecond
 -ns		: nanosecond
+-ps		: picosecond
 
 Distance
 ----------------------------------------

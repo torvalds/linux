@@ -18,7 +18,6 @@
 #define RXPKT_BUF_SELECT		0xA5
 #define DISABLE_TRXPKT_BUF_ACCESS	0x0
 
-
 /*	0x0000h ~ 0x00FFh	System Configuration */
 #define REG_SYS_ISO_CTRL		0x0000
 #define REG_SYS_FUNC_EN			0x0002

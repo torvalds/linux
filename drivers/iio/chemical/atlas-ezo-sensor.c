@@ -69,13 +69,13 @@ static int atlas_ezo_read_raw(struct iio_dev *indio_dev,
 {
 	struct atlas_ezo_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
-	int ret = 0;
 
 	if (chan->type != IIO_CONCENTRATION)
 		return -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW: {
+		int ret;
 		long tmp;
 
 		mutex_lock(&data->lock);
@@ -110,7 +110,7 @@ static int atlas_ezo_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_MICRO;
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct iio_info atlas_info = {
@@ -152,7 +152,6 @@ static int atlas_ezo_probe(struct i2c_client *client,
 	indio_dev->channels = chip->channels;
 	indio_dev->num_channels = chip->num_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = &client->dev;
 
 	data = iio_priv(indio_dev);
 	data->client = client;

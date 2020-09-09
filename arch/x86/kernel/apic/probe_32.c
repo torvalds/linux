@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 
+#include <asm/io_apic.h>
 #include <asm/apic.h>
 #include <asm/acpi.h>
 

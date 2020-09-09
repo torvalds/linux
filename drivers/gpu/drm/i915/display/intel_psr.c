@@ -83,7 +83,7 @@ static bool psr_global_enabled(struct drm_i915_private *i915)
 {
 	switch (i915->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
 	case I915_PSR_DEBUG_DEFAULT:
-		return i915_modparams.enable_psr;
+		return i915->params.enable_psr;
 	case I915_PSR_DEBUG_DISABLE:
 		return false;
 	default:
@@ -426,6 +426,12 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 	if (INTEL_GEN(dev_priv) >= 11)
 		val |= EDP_PSR_TP4_TIME_0US;
 
+	if (dev_priv->params.psr_safest_params) {
+		val |= EDP_PSR_TP1_TIME_2500us;
+		val |= EDP_PSR_TP2_TP3_TIME_2500us;
+		goto check_tp3_sel;
+	}
+
 	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
 		val |= EDP_PSR_TP1_TIME_0us;
 	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)
@@ -444,6 +450,7 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 	else
 		val |= EDP_PSR_TP2_TP3_TIME_2500us;
 
+check_tp3_sel:
 	if (intel_dp_source_supports_hbr2(intel_dp) &&
 	    drm_dp_tps3_supported(intel_dp->dpcd))
 		val |= EDP_PSR_TP1_TP3_SEL;
@@ -495,6 +502,27 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	intel_de_write(dev_priv, EDP_PSR_CTL(dev_priv->psr.transcoder), val);
 }
 
+static u32 intel_psr2_get_tp_time(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u32 val = 0;
+
+	if (dev_priv->params.psr_safest_params)
+		return EDP_PSR2_TP2_TIME_2500us;
+
+	if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us >= 0 &&
+	    dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 50)
+		val |= EDP_PSR2_TP2_TIME_50us;
+	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 100)
+		val |= EDP_PSR2_TP2_TIME_100us;
+	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 500)
+		val |= EDP_PSR2_TP2_TIME_500us;
+	else
+		val |= EDP_PSR2_TP2_TIME_2500us;
+
+	return val;
+}
+
 static void hsw_activate_psr2(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -507,16 +535,23 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_Y_COORDINATE_ENABLE;
 
 	val |= EDP_PSR2_FRAME_BEFORE_SU(dev_priv->psr.sink_sync_latency + 1);
+	val |= intel_psr2_get_tp_time(intel_dp);
 
-	if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us >= 0 &&
-	    dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 50)
-		val |= EDP_PSR2_TP2_TIME_50us;
-	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 100)
-		val |= EDP_PSR2_TP2_TIME_100us;
-	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 500)
-		val |= EDP_PSR2_TP2_TIME_500us;
-	else
-		val |= EDP_PSR2_TP2_TIME_2500us;
+	if (INTEL_GEN(dev_priv) >= 12) {
+		/*
+		 * TODO: 7 lines of IO_BUFFER_WAKE and FAST_WAKE are default
+		 * values from BSpec. In order to setting an optimal power
+		 * consumption, lower than 4k resoluition mode needs to decrese
+		 * IO_BUFFER_WAKE and FAST_WAKE. And higher than 4K resolution
+		 * mode needs to increase IO_BUFFER_WAKE and FAST_WAKE.
+		 */
+		val |= TGL_EDP_PSR2_BLOCK_COUNT_NUM_2;
+		val |= TGL_EDP_PSR2_IO_BUFFER_WAKE(7);
+		val |= TGL_EDP_PSR2_FAST_WAKE(7);
+	} else if (INTEL_GEN(dev_priv) >= 9) {
+		val |= EDP_PSR2_IO_BUFFER_WAKE(7);
+		val |= EDP_PSR2_FAST_WAKE(7);
+	}
 
 	/*
 	 * PSR2 HW is incorrectly using EDP_PSR_TP1_TP3_SEL and BSpec is
@@ -657,6 +692,12 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
+	if (crtc_state->crc_enabled) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 not enabled because it would inhibit pipe CRC calculation\n");
+		return false;
+	}
+
 	if (INTEL_GEN(dev_priv) >= 12) {
 		psr_max_h = 5120;
 		psr_max_v = 3200;
@@ -669,14 +710,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		psr_max_h = 3640;
 		psr_max_v = 2304;
 		max_bpp = 24;
-	}
-
-	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
-			    crtc_hdisplay, crtc_vdisplay,
-			    psr_max_h, psr_max_v);
-		return false;
 	}
 
 	if (crtc_state->pipe_bpp > max_bpp) {
@@ -699,9 +732,26 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	if (crtc_state->crc_enabled) {
+	/*
+	 * Some platforms lack PSR2 HW tracking and instead require manual
+	 * tracking by software.  In this case, the driver is required to track
+	 * the areas that need updates and program hardware to send selective
+	 * updates.
+	 *
+	 * So until the software tracking is implemented, PSR2 needs to be
+	 * disabled for platforms without PSR2 HW tracking.
+	 */
+	if (!HAS_PSR_HW_TRACKING(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled because it would inhibit pipe CRC calculation\n");
+			    "No PSR2 HW tracking in the platform\n");
+		return false;
+	}
+
+	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
+			    crtc_hdisplay, crtc_vdisplay,
+			    psr_max_h, psr_max_v);
 		return false;
 	}
 
@@ -855,8 +905,8 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 				    const struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = dev_priv->psr.dp;
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct intel_encoder *encoder = &intel_dig_port->base;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &dig_port->base;
 	u32 val;
 
 	drm_WARN_ON(&dev_priv->drm, dev_priv->psr.enabled);
@@ -1450,9 +1500,9 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 		 */
 		dev_priv->hsw_psr_mmio_adjust = _SRD_CTL_EDP - _HSW_EDP_PSR_BASE;
 
-	if (i915_modparams.enable_psr == -1)
+	if (dev_priv->params.enable_psr == -1)
 		if (INTEL_GEN(dev_priv) < 9 || !dev_priv->vbt.psr.enable)
-			i915_modparams.enable_psr = 0;
+			dev_priv->params.enable_psr = 0;
 
 	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))

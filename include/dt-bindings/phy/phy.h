@@ -18,5 +18,6 @@
 #define PHY_TYPE_UFS		5
 #define PHY_TYPE_DP		6
 #define PHY_TYPE_XPCS		7
+#define PHY_TYPE_SGMII		8
 
 #endif /* _DT_BINDINGS_PHY */

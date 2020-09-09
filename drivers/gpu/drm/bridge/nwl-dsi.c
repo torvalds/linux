@@ -818,6 +818,7 @@ static bool nwl_dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 
 static enum drm_mode_status
 nwl_dsi_bridge_mode_valid(struct drm_bridge *bridge,
+			  const struct drm_display_info *info,
 			  const struct drm_display_mode *mode)
 {
 	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
@@ -916,11 +917,6 @@ static int nwl_dsi_bridge_attach(struct drm_bridge *bridge,
 	struct drm_bridge *panel_bridge;
 	struct drm_panel *panel;
 	int ret;
-
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
-		DRM_ERROR("Fix bridge driver to make connector optional!");
-		return -EINVAL;
-	}
 
 	ret = drm_of_find_panel_or_bridge(dsi->dev->of_node, 1, 0, &panel,
 					  &panel_bridge);

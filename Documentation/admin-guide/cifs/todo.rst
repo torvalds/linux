@@ -98,7 +98,7 @@ x) Finish support for SMB3.1.1 compression
 Known Bugs
 ==========
 
-See http://bugzilla.samba.org - search on product "CifsVFS" for
+See https://bugzilla.samba.org - search on product "CifsVFS" for
 current bug list.  Also check http://bugzilla.kernel.org (Product = File System, Component = CIFS)
 
 1) existing symbolic links (Windows reparse points) are recognized but

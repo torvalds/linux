@@ -53,4 +53,6 @@ enum dc_status {
 	DC_ERROR_UNEXPECTED = -1
 };
 
+char *dc_status_to_str(enum dc_status status);
+
 #endif /* _CORE_STATUS_H_ */

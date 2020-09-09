@@ -21,7 +21,7 @@
 struct {
 	__uint(type, BPF_MAP_TYPE_CPUMAP);
 	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
+	__uint(value_size, sizeof(struct bpf_cpumap_val));
 	__uint(max_entries, MAX_CPUS);
 } cpu_map SEC(".maps");
 
@@ -30,6 +30,9 @@ struct datarec {
 	__u64 processed;
 	__u64 dropped;
 	__u64 issue;
+	__u64 xdp_pass;
+	__u64 xdp_drop;
+	__u64 xdp_redirect;
 };
 
 /* Count RX packets, as XDP bpf_prog doesn't get direct TX-success
@@ -692,13 +695,16 @@ int trace_xdp_cpumap_enqueue(struct cpumap_enqueue_ctx *ctx)
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct cpumap_kthread_ctx {
-	u64 __pad;		// First 8 bytes are not accessible by bpf code
-	int map_id;		//	offset:8;  size:4; signed:1;
-	u32 act;		//	offset:12; size:4; signed:0;
-	int cpu;		//	offset:16; size:4; signed:1;
-	unsigned int drops;	//	offset:20; size:4; signed:0;
-	unsigned int processed;	//	offset:24; size:4; signed:0;
-	int sched;		//	offset:28; size:4; signed:1;
+	u64 __pad;			// First 8 bytes are not accessible
+	int map_id;			//	offset:8;  size:4; signed:1;
+	u32 act;			//	offset:12; size:4; signed:0;
+	int cpu;			//	offset:16; size:4; signed:1;
+	unsigned int drops;		//	offset:20; size:4; signed:0;
+	unsigned int processed;		//	offset:24; size:4; signed:0;
+	int sched;			//	offset:28; size:4; signed:1;
+	unsigned int xdp_pass;		//	offset:32; size:4; signed:0;
+	unsigned int xdp_drop;		//	offset:36; size:4; signed:0;
+	unsigned int xdp_redirect;	//	offset:40; size:4; signed:0;
 };
 
 SEC("tracepoint/xdp/xdp_cpumap_kthread")
@@ -712,6 +718,9 @@ int trace_xdp_cpumap_kthread(struct cpumap_kthread_ctx *ctx)
 		return 0;
 	rec->processed += ctx->processed;
 	rec->dropped   += ctx->drops;
+	rec->xdp_pass  += ctx->xdp_pass;
+	rec->xdp_drop  += ctx->xdp_drop;
+	rec->xdp_redirect  += ctx->xdp_redirect;
 
 	/* Count times kthread yielded CPU via schedule call */
 	if (ctx->sched)

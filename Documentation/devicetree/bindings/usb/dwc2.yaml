@@ -19,24 +19,24 @@ properties:
           - const: snps,dwc2
       - items:
           - enum:
-            - rockchip,px30-usb
-            - rockchip,rk3036-usb
-            - rockchip,rk3188-usb
-            - rockchip,rk3228-usb
-            - rockchip,rk3288-usb
-            - rockchip,rk3328-usb
-            - rockchip,rk3368-usb
-            - rockchip,rv1108-usb
+              - rockchip,px30-usb
+              - rockchip,rk3036-usb
+              - rockchip,rk3188-usb
+              - rockchip,rk3228-usb
+              - rockchip,rk3288-usb
+              - rockchip,rk3328-usb
+              - rockchip,rk3368-usb
+              - rockchip,rv1108-usb
           - const: rockchip,rk3066-usb
           - const: snps,dwc2
       - const: lantiq,arx100-usb
       - const: lantiq,xrx200-usb
       - items:
           - enum:
-            - amlogic,meson8-usb
-            - amlogic,meson8b-usb
-            - amlogic,meson-gxbb-usb
-            - amlogic,meson-g12a-usb
+              - amlogic,meson8-usb
+              - amlogic,meson8b-usb
+              - amlogic,meson-gxbb-usb
+              - amlogic,meson-g12a-usb
           - const: snps,dwc2
       - const: amcc,dwc-otg
       - const: snps,dwc2
@@ -44,7 +44,9 @@ properties:
       - const: st,stm32f4x9-hsotg
       - const: st,stm32f7-hsotg
       - const: st,stm32mp15-fsotg
-      - const: st,stm32mp15-hsotg
+      - items:
+          - const: st,stm32mp15-hsotg
+          - const: snps,dwc2
       - const: samsung,s3c6400-hsotg
 
   reg:
@@ -93,7 +95,7 @@ properties:
   vusb_a-supply:
     description: phandle to voltage regulator of analog section.
 
-  vusb33d-supply:
+  usb33d-supply:
     description: reference to the VBUS and ID sensing comparators supply, in
       order to perform OTG operation, used on STM32MP15 SoCs.
 
@@ -114,12 +116,13 @@ properties:
 
   snps,need-phy-for-wake:
     $ref: /schemas/types.yaml#/definitions/flag
-    description: If present indicates that the phy needs to be left on for remote wakeup during suspend.
+    description: If present indicates that the phy needs to be left on for 
+      remote wakeup during suspend.
 
   snps,reset-phy-on-wake:
     $ref: /schemas/types.yaml#/definitions/flag
-    description: If present indicates that we need to reset the PHY when we detect a wakeup.
-                 This is due to a hardware errata.
+    description: If present indicates that we need to reset the PHY when we 
+      detect a wakeup. This is due to a hardware errata.
 
 required:
   - compatible

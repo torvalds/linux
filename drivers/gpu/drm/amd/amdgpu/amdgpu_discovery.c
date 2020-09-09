@@ -32,7 +32,7 @@
 #define mmMM_DATA		0x1
 #define HW_ID_MAX		300
 
-const char *hw_id_names[HW_ID_MAX] = {
+static const char *hw_id_names[HW_ID_MAX] = {
 	[MP1_HWID]		= "MP1",
 	[MP2_HWID]		= "MP2",
 	[THM_HWID]		= "THM",
@@ -133,7 +133,7 @@ static int hw_id_map[MAX_HWIP] = {
 static int amdgpu_discovery_read_binary(struct amdgpu_device *adev, uint8_t *binary)
 {
 	uint64_t vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
-	uint64_t pos = vram_size - adev->discovery_tmr_size;
+	uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
 
 	amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
 				  adev->discovery_tmr_size, false);

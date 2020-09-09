@@ -44,9 +44,9 @@ select: true
 properties:
   "#cooling-cells":
     description:
-        Must be 2, in order to specify minimum and maximum cooling state used in
-        the cooling-maps reference. The first cell is the minimum cooling state
-        and the second cell is the maximum cooling state requested.
+      Must be 2, in order to specify minimum and maximum cooling state used in
+      the cooling-maps reference. The first cell is the minimum cooling state
+      and the second cell is the maximum cooling state requested.
     const: 2
 
 examples:

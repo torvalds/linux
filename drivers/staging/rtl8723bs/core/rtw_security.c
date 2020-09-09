@@ -10,7 +10,7 @@
 #include <drv_types.h>
 #include <rtw_debug.h>
 
-static const char *_security_type_str[] = {
+static const char * const _security_type_str[] = {
 	"N/A",
 	"WEP40",
 	"TKIP",
@@ -842,7 +842,7 @@ exit:
 /******** SBOX Table *********/
 /*****************************/
 
-	static  u8 sbox_table[256] = {
+	static const u8 sbox_table[256] = {
 			0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
 			0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 			0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0,
@@ -957,7 +957,7 @@ static void next_key(u8 *key, sint round)
 {
 		u8 rcon;
 		u8 sbox_key[4];
-		u8 rcon_table[12] = {
+		static const u8 rcon_table[12] = {
 			0x01, 0x02, 0x04, 0x08,
 			0x10, 0x20, 0x40, 0x80,
 			0x1b, 0x36, 0x36, 0x36
@@ -2251,7 +2251,7 @@ static void gf_mulx(u8 *pad)
 
 static void aes_encrypt_deinit(void *ctx)
 {
-	kzfree(ctx);
+	kfree_sensitive(ctx);
 }
 
 

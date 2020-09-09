@@ -175,7 +175,7 @@ static inline void cpu_replace_ttbr1(pgd_t *pgdp)
  * take CPU migration into account.
  */
 #define destroy_context(mm)		do { } while(0)
-void check_and_switch_context(struct mm_struct *mm, unsigned int cpu);
+void check_and_switch_context(struct mm_struct *mm);
 
 #define init_new_context(tsk,mm)	({ atomic64_set(&(mm)->context.id, 0); 0; })
 
@@ -214,8 +214,6 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 
 static inline void __switch_mm(struct mm_struct *next)
 {
-	unsigned int cpu = smp_processor_id();
-
 	/*
 	 * init_mm.pgd does not contain any user mappings and it is always
 	 * active for kernel addresses in TTBR1. Just set the reserved TTBR0.
@@ -225,7 +223,7 @@ static inline void __switch_mm(struct mm_struct *next)
 		return;
 	}
 
-	check_and_switch_context(next, cpu);
+	check_and_switch_context(next);
 }
 
 static inline void

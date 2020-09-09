@@ -335,7 +335,6 @@ static const struct drm_display_mode kd035g6_display_modes[] = {
 		.vsync_start = 240 + 5,
 		.vsync_end = 240 + 5 + 1,
 		.vtotal = 240 + 5 + 1 + 4,
-		.vrefresh = 60,
 		.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	},
 	{	/* 50 Hz */
@@ -348,7 +347,6 @@ static const struct drm_display_mode kd035g6_display_modes[] = {
 		.vsync_start = 240 + 5,
 		.vsync_end = 240 + 5 + 1,
 		.vtotal = 240 + 5 + 1 + 4,
-		.vrefresh = 50,
 		.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	},
 };
@@ -359,7 +357,7 @@ static const struct nt39016_panel_info kd035g6_info = {
 	.width_mm = 71,
 	.height_mm = 53,
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	.bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
 };
 
 static const struct of_device_id nt39016_of_match[] = {

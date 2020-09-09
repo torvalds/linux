@@ -32,32 +32,32 @@ properties:
   reg:
     maxItems: 1
     description: |
-       I2C addresss of the device can be one of these 0x4c, 0x4d, 0x4e or 0x4f
+      I2C addresss of the device can be one of these 0x4c, 0x4d, 0x4e or 0x4f
 
   reset-gpios:
     description: |
-       GPIO used for hardware reset.
+      GPIO used for hardware reset.
 
   areg-supply:
-      description: |
-       Regulator with AVDD at 3.3V.  If not defined then the internal regulator
-       is enabled.
+    description: |
+      Regulator with AVDD at 3.3V.  If not defined then the internal regulator
+      is enabled.
 
   ti,mic-bias-source:
     description: |
-       Indicates the source for MIC Bias.
-       0 - Mic bias is set to VREF
-       1 - Mic bias is set to VREF × 1.096
-       6 - Mic bias is set to AVDD
+      Indicates the source for MIC Bias.
+      0 - Mic bias is set to VREF
+      1 - Mic bias is set to VREF × 1.096
+      6 - Mic bias is set to AVDD
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 6]
 
   ti,vref-source:
     description: |
-       Indicates the source for MIC Bias.
-       0 - Set VREF to 2.75V
-       1 - Set VREF to 2.5V
-       2 - Set VREF to 1.375V
+      Indicates the source for MIC Bias.
+      0 - Set VREF to 2.75V
+      1 - Set VREF to 2.5V
+      2 - Set VREF to 1.375V
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2]
 
@@ -109,7 +109,7 @@ properties:
     default: [0, 0, 0, 0]
 
 patternProperties:
- '^ti,gpo-config-[1-4]$':
+  '^ti,gpo-config-[1-4]$':
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
        Defines the configuration and output driver for the general purpose

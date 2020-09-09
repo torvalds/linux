@@ -4,6 +4,7 @@
 
 struct nvif_notify {
 	struct nvif_object *object;
+	const char *name;
 	int index;
 
 #define NVIF_NOTIFY_USER 0
@@ -24,10 +25,10 @@ struct nvif_notify {
 	struct work_struct work;
 };
 
-int  nvif_notify_init(struct nvif_object *, int (*func)(struct nvif_notify *),
-		      bool work, u8 type, void *data, u32 size, u32 reply,
-		      struct nvif_notify *);
-int  nvif_notify_fini(struct nvif_notify *);
+int  nvif_notify_ctor(struct nvif_object *, const char *name,
+		      int (*func)(struct nvif_notify *), bool work, u8 type,
+		      void *data, u32 size, u32 reply, struct nvif_notify *);
+int  nvif_notify_dtor(struct nvif_notify *);
 int  nvif_notify_get(struct nvif_notify *);
 int  nvif_notify_put(struct nvif_notify *);
 int  nvif_notify(const void *, u32, const void *, u32);

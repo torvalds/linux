@@ -175,7 +175,7 @@ void iwl_opmode_deregister(const char *name);
 struct iwl_op_mode {
 	const struct iwl_op_mode_ops *ops;
 
-	char op_mode_specific[0] __aligned(sizeof(void *));
+	char op_mode_specific[] __aligned(sizeof(void *));
 };
 
 static inline void iwl_op_mode_stop(struct iwl_op_mode *op_mode)

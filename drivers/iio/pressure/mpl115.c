@@ -160,7 +160,6 @@ int mpl115_probe(struct device *dev, const char *name,
 
 	indio_dev->info = &mpl115_info;
 	indio_dev->name = name;
-	indio_dev->dev.parent = dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mpl115_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mpl115_channels);

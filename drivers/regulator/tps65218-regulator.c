@@ -3,7 +3,7 @@
  *
  * Regulator driver for TPS65218 PMIC
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -128,7 +128,7 @@ static int tps65218_pmic_set_suspend_enable(struct regulator_dev *dev)
 	struct tps65218 *tps = rdev_get_drvdata(dev);
 	unsigned int rid = rdev_get_id(dev);
 
-	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
+	if (rid > TPS65218_LDO_1)
 		return -EINVAL;
 
 	return tps65218_clear_bits(tps, dev->desc->bypass_reg,
@@ -141,7 +141,7 @@ static int tps65218_pmic_set_suspend_disable(struct regulator_dev *dev)
 	struct tps65218 *tps = rdev_get_drvdata(dev);
 	unsigned int rid = rdev_get_id(dev);
 
-	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
+	if (rid > TPS65218_LDO_1)
 		return -EINVAL;
 
 	/*

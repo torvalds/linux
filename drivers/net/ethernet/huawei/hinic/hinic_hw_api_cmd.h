@@ -103,10 +103,14 @@
 	 HINIC_API_CMD_STATUS_HEADER_##member##_MASK)
 
 #define HINIC_API_CMD_STATUS_CONS_IDX_SHIFT                     0
+#define HINIC_API_CMD_STATUS_FSM_SHIFT				24
 #define HINIC_API_CMD_STATUS_CHKSUM_ERR_SHIFT                   28
+#define HINIC_API_CMD_STATUS_CPLD_ERR_SHIFT			30
 
 #define HINIC_API_CMD_STATUS_CONS_IDX_MASK                      0xFFFFFF
+#define HINIC_API_CMD_STATUS_FSM_MASK				0xFU
 #define HINIC_API_CMD_STATUS_CHKSUM_ERR_MASK                    0x3
+#define HINIC_API_CMD_STATUS_CPLD_ERR_MASK			0x1U
 
 #define HINIC_API_CMD_STATUS_GET(val, member)                   \
 	(((val) >> HINIC_API_CMD_STATUS_##member##_SHIFT) &     \

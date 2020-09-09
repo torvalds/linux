@@ -33,12 +33,8 @@ static void hp680bl_send_intensity(struct backlight_device *bd)
 {
 	unsigned long flags;
 	u16 v;
-	int intensity = bd->props.brightness;
+	int intensity = backlight_get_brightness(bd);
 
-	if (bd->props.power != FB_BLANK_UNBLANK)
-		intensity = 0;
-	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
-		intensity = 0;
 	if (hp680bl_suspended)
 		intensity = 0;
 

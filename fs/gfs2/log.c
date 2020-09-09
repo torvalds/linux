@@ -1092,7 +1092,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
  * or the total number of used blocks (pinned blocks plus AIL blocks)
  * is greater than thresh2.
  *
- * At mount time thresh1 is 1/3rd of journal size, thresh2 is 2/3rd of
+ * At mount time thresh1 is 2/5ths of journal size, thresh2 is 4/5ths of
  * journal size.
  *
  * Returns: errno

@@ -82,12 +82,12 @@ properties:
   compatible:
     oneOf:
       - items:
-        - const: arm,coresight-cti
-        - const: arm,primecell
+          - const: arm,coresight-cti
+          - const: arm,primecell
       - items:
-        - const: arm,coresight-cti-v8-arch
-        - const: arm,coresight-cti
-        - const: arm,primecell
+          - const: arm,coresight-cti-v8-arch
+          - const: arm,coresight-cti
+          - const: arm,primecell
 
   reg:
     maxItems: 1
@@ -191,16 +191,16 @@ patternProperties:
 
     anyOf:
       - required:
-        - arm,trig-in-sigs
+          - arm,trig-in-sigs
       - required:
-        - arm,trig-out-sigs
+          - arm,trig-out-sigs
     oneOf:
       - required:
-        - arm,trig-conn-name
+          - arm,trig-conn-name
       - required:
-        - cpu
+          - cpu
       - required:
-        - arm,cs-dev-assoc
+          - arm,cs-dev-assoc
     required:
       - reg
 

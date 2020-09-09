@@ -3,7 +3,7 @@
  * Cryptographic API.
  *
  * SHA-3, as specified in
- * http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
+ * https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
  *
  * SHA-3 code by Jeff Garzik <jeff@garzik.org>
  *               Ard Biesheuvel <ard.biesheuvel@linaro.org>

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/interconnect/qcom,sc7180.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title:  Qualcomm SC7180 Network-On-Chip Interconnect
+title: Qualcomm SC7180 Network-On-Chip Interconnect
 
 maintainers:
   - Odelu Kukatla <okukatla@codeaurora.org>

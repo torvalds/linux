@@ -702,8 +702,5 @@ int i915_gem_client_blt_live_selftests(struct drm_i915_private *i915)
 	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
-	if (!HAS_ENGINE(i915, BCS0))
-		return 0;
-
 	return i915_live_subtests(tests, i915);
 }

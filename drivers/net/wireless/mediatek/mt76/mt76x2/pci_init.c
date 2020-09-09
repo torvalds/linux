@@ -217,6 +217,23 @@ mt76x2_power_on(struct mt76x02_dev *dev)
 	mt76x2_power_on_rf(dev, 1);
 }
 
+int mt76x2_resume_device(struct mt76x02_dev *dev)
+{
+	int err;
+
+	mt76x02_dma_disable(dev);
+	mt76x2_reset_wlan(dev, true);
+	mt76x2_power_on(dev);
+
+	err = mt76x2_mac_reset(dev, true);
+	if (err)
+		return err;
+
+	mt76x02_mac_start(dev);
+
+	return mt76x2_mcu_init(dev);
+}
+
 static int mt76x2_init_hardware(struct mt76x02_dev *dev)
 {
 	int ret;

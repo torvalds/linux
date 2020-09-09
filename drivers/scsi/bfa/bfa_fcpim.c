@@ -2335,9 +2335,7 @@ bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id, wwn_t *pwwn,
 			 wwn_t rpwwn, struct scsi_lun lun)
 {
 	struct bfa_lun_mask_s	*lunm_list;
-	struct bfa_rport_s	*rp = NULL;
 	struct bfa_fcs_lport_s *port = NULL;
-	struct bfa_fcs_rport_s *rp_fcs;
 	int	i;
 
 	/* in min cfg lunm_list could be NULL but  no commands should run. */
@@ -2353,12 +2351,8 @@ bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id, wwn_t *pwwn,
 		port = bfa_fcs_lookup_port(
 				&((struct bfad_s *)bfa->bfad)->bfa_fcs,
 				vf_id, *pwwn);
-		if (port) {
+		if (port)
 			*pwwn = port->port_cfg.pwwn;
-			rp_fcs = bfa_fcs_lport_get_rport_by_pwwn(port, rpwwn);
-			if (rp_fcs)
-				rp = rp_fcs->bfa_rport;
-		}
 	}
 
 	lunm_list = bfa_get_lun_mask_list(bfa);
@@ -3818,7 +3812,7 @@ bfa_iotag_attach(struct bfa_fcp_mod_s *fcp)
 }
 
 
-/**
+/*
  * To send config req, first try to use throttle value from flash
  * If 0, then use driver parameter
  * We need to use min(flash_val, drv_val) because

@@ -135,13 +135,21 @@ static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
  *	@dev: Adapter
  *	@command: Command to execute
  *	@p1: first parameter
+ *	@p2: second parameter
+ *	@p3: third parameter
+ *	@p4: forth parameter
+ *	@p5: fifth parameter
+ *	@p6: sixth parameter
  *	@ret: adapter status
+ *	@r1: first return value
+ *	@r2: second return value
+ *	@r3: third return value
+ *	@r4: forth return value
  *
- *	This routine will send a synchronous command to the adapter and wait 
+ *	This routine will send a synchronous command to the adapter and wait
  *	for its	completion.
  */
-
-static int sa_sync_cmd(struct aac_dev *dev, u32 command, 
+static int sa_sync_cmd(struct aac_dev *dev, u32 command,
 		u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6,
 		u32 *ret, u32 *r1, u32 *r2, u32 *r3, u32 *r4)
 {
@@ -283,6 +291,7 @@ static int aac_sa_check_health(struct aac_dev *dev)
 
 /**
  *	aac_sa_ioremap
+ *	@dev: device to ioremap
  *	@size: mapping resize request
  *
  */
@@ -300,8 +309,8 @@ static int aac_sa_ioremap(struct aac_dev * dev, u32 size)
  *	aac_sa_init	-	initialize an ARM based AAC card
  *	@dev: device to configure
  *
- *	Allocate and set up resources for the ARM based AAC variants. The 
- *	device_interface in the commregion will be allocated and linked 
+ *	Allocate and set up resources for the ARM based AAC variants. The
+ *	device_interface in the commregion will be allocated and linked
  *	to the comm region.
  */
 

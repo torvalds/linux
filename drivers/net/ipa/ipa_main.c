@@ -277,6 +277,7 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
 
 /**
  * ipa_hardware_dcd_config() - Enable dynamic clock division on IPA
+ * @ipa:	IPA pointer
  *
  * Configures when the IPA signals it is idle to the global clock
  * controller, which can respond by scalling down the clock to
@@ -495,6 +496,7 @@ static void ipa_resource_deconfig(struct ipa *ipa)
 /**
  * ipa_config() - Configure IPA hardware
  * @ipa:	IPA pointer
+ * @data:	IPA configuration data
  *
  * Perform initialization requiring IPA clock to be enabled.
  */
@@ -674,6 +676,11 @@ static void ipa_validate_build(void)
 
 	/* This is used as a divisor */
 	BUILD_BUG_ON(!IPA_AGGR_GRANULARITY);
+
+	/* Aggregation granularity value can't be 0, and must fit */
+	BUILD_BUG_ON(!ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY));
+	BUILD_BUG_ON(ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY) >
+			field_max(AGGR_GRANULARITY));
 #endif /* IPA_VALIDATE */
 }
 
@@ -681,7 +688,7 @@ static void ipa_validate_build(void)
  * ipa_probe() - IPA platform driver probe function
  * @pdev:	Platform device pointer
  *
- * @Return:	0 if successful, or a negative error code (possibly
+ * Return:	0 if successful, or a negative error code (possibly
  *		EPROBE_DEFER)
  *
  * This is the main entry point for the IPA driver.  Initialization proceeds
@@ -897,7 +904,7 @@ static int ipa_remove(struct platform_device *pdev)
  * ipa_suspend() - Power management system suspend callback
  * @dev:	IPA device structure
  *
- * @Return:	Zero
+ * Return:	Always returns zero
  *
  * Called by the PM framework when a system suspend operation is invoked.
  */
@@ -915,7 +922,7 @@ static int ipa_suspend(struct device *dev)
  * ipa_resume() - Power management system resume callback
  * @dev:	IPA device structure
  *
- * @Return:	Always returns 0
+ * Return:	Always returns 0
  *
  * Called by the PM framework when a system resume operation is invoked.
  */

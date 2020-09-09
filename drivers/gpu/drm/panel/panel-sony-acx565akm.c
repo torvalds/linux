@@ -514,7 +514,6 @@ static const struct drm_display_mode acx565akm_mode = {
 	.vsync_start = 480 + 3,
 	.vsync_end = 480 + 3 + 3,
 	.vtotal = 480 + 3 + 3 + 4,
-	.vrefresh = 57,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm = 77,

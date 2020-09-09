@@ -66,7 +66,7 @@ position p1,p2;
 
 *   x = strlen(from) + 1;
     ... when != \( x = E1 \| from = E1 \)
-*   to = \(kmalloc@p1\|kzalloc@p2\)(x,flag);
+*   to = \(kmalloc@p1\|kzalloc@p1\)(x,flag);
     ... when != \(x = E2 \| from = E2 \| to = E2 \)
     if (to==NULL || ...) S
     ... when != \(x = E3 \| from = E3 \| to = E3 \)

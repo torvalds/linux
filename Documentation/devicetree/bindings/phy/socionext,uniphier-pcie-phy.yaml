@@ -33,8 +33,8 @@ properties:
   clock-names:
     oneOf:
       - items:            # for Pro5
-        - const: gio
-        - const: link
+          - const: gio
+          - const: link
       - const: link       # for others
 
   resets:
@@ -44,8 +44,8 @@ properties:
   reset-names:
     oneOf:
       - items:            # for Pro5
-        - const: gio
-        - const: link
+          - const: gio
+          - const: link
       - const: link       # for others
 
   socionext,syscon:

@@ -600,7 +600,7 @@ xfs_sb_quota_to_disk(
 	 * disk. If neither are active, we should NULL the inode.
 	 *
 	 * In all cases, the separate pquotino must remain 0 because it
-	 * it beyond the "end" of the valid non-pquotino superblock.
+	 * is beyond the "end" of the valid non-pquotino superblock.
 	 */
 	if (from->sb_qflags & XFS_GQUOTA_ACCT)
 		to->sb_gquotino = cpu_to_be64(from->sb_gquotino);

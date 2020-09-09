@@ -5,6 +5,14 @@ Kernel driver max20730
 
 Supported chips:
 
+  * Maxim MAX20710
+
+    Prefix: 'max20710'
+
+    Addresses scanned: -
+
+    Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX20710.pdf
+
   * Maxim MAX20730
 
     Prefix: 'max20730'
@@ -35,7 +43,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver implements support for Maxim MAX20730, MAX20734, and MAX20743
+This driver implements support for Maxim MAX20710, MAX20730, MAX20734, and MAX20743
 Integrated, Step-Down Switching Regulators with PMBus support.
 
 The driver is a client driver to the core PMBus driver.

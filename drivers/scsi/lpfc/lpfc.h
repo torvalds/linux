@@ -627,6 +627,14 @@ struct lpfc_ras_fwlog {
 	enum ras_state state;    /* RAS logging running state */
 };
 
+#define DBG_LOG_STR_SZ 256
+#define DBG_LOG_SZ 256
+
+struct dbg_log_ent {
+	char log[DBG_LOG_STR_SZ];
+	u64     t_ns;
+};
+
 enum lpfc_irq_chann_mode {
 	/* Assign IRQs to all possible cpus that have hardware queues */
 	NORMAL_MODE,
@@ -708,6 +716,9 @@ struct lpfc_hba {
 
 	struct workqueue_struct *wq;
 	struct delayed_work     eq_delay_work;
+
+#define LPFC_IDLE_STAT_DELAY 1000
+	struct delayed_work	idle_stat_delay_work;
 
 	struct lpfc_sli sli;
 	uint8_t pci_dev_grp;	/* lpfc PCI dev group: 0x0, 0x1, 0x2,... */
@@ -1237,6 +1248,10 @@ struct lpfc_hba {
 	struct scsi_host_template port_template;
 	/* SCSI host template information - for all vports */
 	struct scsi_host_template vport_template;
+	atomic_t dbg_log_idx;
+	atomic_t dbg_log_cnt;
+	atomic_t dbg_log_dmping;
+	struct dbg_log_ent dbg_log[DBG_LOG_SZ];
 };
 
 static inline struct Scsi_Host *

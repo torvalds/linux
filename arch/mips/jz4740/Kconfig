@@ -15,6 +15,10 @@ config JZ4740_QI_LB60
 	bool "Qi Hardware Ben NanoNote"
 	select MACH_JZ4740
 
+config JZ4740_RS90
+	bool "YLM RetroMini (RS-90)"
+	select MACH_JZ4725B
+
 config JZ4770_GCW0
 	bool "Game Consoles Worldwide GCW Zero"
 	select MACH_JZ4770
@@ -27,7 +31,15 @@ config X1000_CU1000_NEO
 	bool "YSH & ATIL CU1000 Module with Neo backplane"
 	select MACH_X1000
 
+config X1830_CU1830_NEO
+	bool "YSH & ATIL CU1830 Module with Neo backplane"
+	select MACH_X1830
+
 endchoice
+
+config MACH_JZ4725B
+	bool
+	select SYS_HAS_CPU_MIPS32_R1
 
 config MACH_JZ4740
 	bool
@@ -46,6 +58,12 @@ config MACH_JZ4780
 	select SYS_SUPPORTS_HIGHMEM
 
 config MACH_X1000
+	bool
+	select MIPS_CPU_SCACHE
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_HIGHMEM
+
+config MACH_X1830
 	bool
 	select MIPS_CPU_SCACHE
 	select SYS_HAS_CPU_MIPS32_R2

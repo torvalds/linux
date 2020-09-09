@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-/**
+/*
  * pci_pf_stub_whitelist - White list of devices to bind pci-pf-stub onto
  *
  * This table provides the list of IDs this driver is supposed to bind

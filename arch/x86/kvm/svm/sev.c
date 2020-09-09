@@ -313,13 +313,15 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 				    int write)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	unsigned long npages, npinned, size;
+	unsigned long npages, size;
+	int npinned;
 	unsigned long locked, lock_limit;
 	struct page **pages;
 	unsigned long first, last;
+	int ret;
 
 	if (ulen == 0 || uaddr + ulen < uaddr)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	/* Calculate number of pages. */
 	first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
@@ -330,8 +332,11 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
 		pr_err("SEV: %lu locked pages exceed the lock limit of %lu.\n", locked, lock_limit);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
+
+	if (WARN_ON_ONCE(npages > INT_MAX))
+		return ERR_PTR(-EINVAL);
 
 	/* Avoid using vmalloc for smaller buffers. */
 	size = npages * sizeof(struct page *);
@@ -341,12 +346,13 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 		pages = kmalloc(size, GFP_KERNEL_ACCOUNT);
 
 	if (!pages)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* Pin the user virtual address. */
-	npinned = get_user_pages_fast(uaddr, npages, write ? FOLL_WRITE : 0, pages);
+	npinned = pin_user_pages_fast(uaddr, npages, write ? FOLL_WRITE : 0, pages);
 	if (npinned != npages) {
 		pr_err("SEV: Failure locking %lu pages.\n", npages);
+		ret = -ENOMEM;
 		goto err;
 	}
 
@@ -357,10 +363,10 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 
 err:
 	if (npinned > 0)
-		release_pages(pages, npinned);
+		unpin_user_pages(pages, npinned);
 
 	kvfree(pages);
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static void sev_unpin_memory(struct kvm *kvm, struct page **pages,
@@ -368,7 +374,7 @@ static void sev_unpin_memory(struct kvm *kvm, struct page **pages,
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 
-	release_pages(pages, npages);
+	unpin_user_pages(pages, npages);
 	kvfree(pages);
 	sev->pages_locked -= npages;
 }
@@ -434,8 +440,8 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	/* Lock the user memory. */
 	inpages = sev_pin_memory(kvm, vaddr, size, &npages, 1);
-	if (!inpages) {
-		ret = -ENOMEM;
+	if (IS_ERR(inpages)) {
+		ret = PTR_ERR(inpages);
 		goto e_free;
 	}
 
@@ -789,13 +795,13 @@ static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
 
 		/* lock userspace source and destination page */
 		src_p = sev_pin_memory(kvm, vaddr & PAGE_MASK, PAGE_SIZE, &n, 0);
-		if (!src_p)
-			return -EFAULT;
+		if (IS_ERR(src_p))
+			return PTR_ERR(src_p);
 
 		dst_p = sev_pin_memory(kvm, dst_vaddr & PAGE_MASK, PAGE_SIZE, &n, 1);
-		if (!dst_p) {
+		if (IS_ERR(dst_p)) {
 			sev_unpin_memory(kvm, src_p, n);
-			return -EFAULT;
+			return PTR_ERR(dst_p);
 		}
 
 		/*
@@ -860,8 +866,8 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return -EFAULT;
 
 	pages = sev_pin_memory(kvm, params.guest_uaddr, params.guest_len, &n, 1);
-	if (!pages)
-		return -ENOMEM;
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
 
 	/*
 	 * The secret must be copied into contiguous memory region, lets verify
@@ -987,8 +993,8 @@ int svm_register_enc_region(struct kvm *kvm,
 		return -ENOMEM;
 
 	region->pages = sev_pin_memory(kvm, range->addr, range->size, &region->npages, 1);
-	if (!region->pages) {
-		ret = -ENOMEM;
+	if (IS_ERR(region->pages)) {
+		ret = PTR_ERR(region->pages);
 		goto e_free;
 	}
 
@@ -1180,11 +1186,10 @@ void pre_sev_run(struct vcpu_svm *svm, int cpu)
 	 * 2) or this VMCB was executed on different host CPU in previous VMRUNs.
 	 */
 	if (sd->sev_vmcbs[asid] == svm->vmcb &&
-	    svm->last_cpu == cpu)
+	    svm->vcpu.arch.last_vmentry_cpu == cpu)
 		return;
 
-	svm->last_cpu = cpu;
 	sd->sev_vmcbs[asid] = svm->vmcb;
 	svm->vmcb->control.tlb_ctl = TLB_CONTROL_FLUSH_ASID;
-	mark_dirty(svm->vmcb, VMCB_ASID);
+	vmcb_mark_dirty(svm->vmcb, VMCB_ASID);
 }

@@ -54,6 +54,23 @@ static int nft_immediate_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		goto err1;
 
+	if (priv->dreg == NFT_REG_VERDICT) {
+		struct nft_chain *chain = priv->data.verdict.chain;
+
+		switch (priv->data.verdict.code) {
+		case NFT_JUMP:
+		case NFT_GOTO:
+			if (nft_chain_is_bound(chain)) {
+				err = -EBUSY;
+				goto err1;
+			}
+			chain->bound = true;
+			break;
+		default:
+			break;
+		}
+	}
+
 	return 0;
 
 err1:
@@ -79,6 +96,39 @@ static void nft_immediate_deactivate(const struct nft_ctx *ctx,
 		return;
 
 	return nft_data_release(&priv->data, nft_dreg_to_type(priv->dreg));
+}
+
+static void nft_immediate_destroy(const struct nft_ctx *ctx,
+				  const struct nft_expr *expr)
+{
+	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
+	const struct nft_data *data = &priv->data;
+	struct nft_rule *rule, *n;
+	struct nft_ctx chain_ctx;
+	struct nft_chain *chain;
+
+	if (priv->dreg != NFT_REG_VERDICT)
+		return;
+
+	switch (data->verdict.code) {
+	case NFT_JUMP:
+	case NFT_GOTO:
+		chain = data->verdict.chain;
+
+		if (!nft_chain_is_bound(chain))
+			break;
+
+		chain_ctx = *ctx;
+		chain_ctx.chain = chain;
+
+		list_for_each_entry_safe(rule, n, &chain->rules, list)
+			nf_tables_rule_release(&chain_ctx, rule);
+
+		nf_tables_chain_destroy(&chain_ctx);
+		break;
+	default:
+		break;
+	}
 }
 
 static int nft_immediate_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -170,6 +220,7 @@ static const struct nft_expr_ops nft_imm_ops = {
 	.init		= nft_immediate_init,
 	.activate	= nft_immediate_activate,
 	.deactivate	= nft_immediate_deactivate,
+	.destroy	= nft_immediate_destroy,
 	.dump		= nft_immediate_dump,
 	.validate	= nft_immediate_validate,
 	.offload	= nft_immediate_offload,

@@ -1118,6 +1118,7 @@ out_err_release:
 
 /**
  *	ip6_dst_lookup - perform route lookup on flow
+ *	@net: Network namespace to perform lookup in
  *	@sk: socket which provides route info
  *	@dst: pointer to dst_entry * for result
  *	@fl6: flow to lookup
@@ -1136,6 +1137,7 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup);
 
 /**
  *	ip6_dst_lookup_flow - perform route lookup on flow with ipsec
+ *	@net: Network namespace to perform lookup in
  *	@sk: socket which provides route info
  *	@fl6: flow to lookup
  *	@final_dst: final destination address for ipsec lookup
@@ -1202,11 +1204,11 @@ EXPORT_SYMBOL_GPL(ip6_sk_dst_lookup_flow);
  *      @skb: Packet for which lookup is done
  *      @dev: Tunnel device
  *      @net: Network namespace of tunnel device
- *      @sk: Socket which provides route info
+ *      @sock: Socket which provides route info
  *      @saddr: Memory to store the src ip address
  *      @info: Tunnel information
  *      @protocol: IP protocol
- *      @use_cahce: Flag to enable cache usage
+ *      @use_cache: Flag to enable cache usage
  *      This function performs a route lookup on a tunnel
  *
  *      It returns a valid dst pointer and stores src address to be used in

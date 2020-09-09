@@ -23,7 +23,7 @@
 
 #include "priv.h"
 
-void
+static void
 gp10b_mc_init(struct nvkm_mc *mc)
 {
 	struct nvkm_device *device = mc->subdev.device;

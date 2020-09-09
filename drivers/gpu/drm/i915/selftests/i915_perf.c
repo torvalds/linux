@@ -162,7 +162,7 @@ static int write_timestamp(struct i915_request *rq, int slot)
 		return PTR_ERR(cs);
 
 	len = 5;
-	if (INTEL_GEN(rq->i915) >= 8)
+	if (INTEL_GEN(rq->engine->i915) >= 8)
 		len++;
 
 	*cs++ = GFX_OP_PIPE_CONTROL(len);
@@ -280,11 +280,144 @@ out:
 	return err;
 }
 
+static int live_noa_gpr(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_perf_stream *stream;
+	struct intel_context *ce;
+	struct i915_request *rq;
+	u32 *cs, *store;
+	void *scratch;
+	u32 gpr0;
+	int err;
+	int i;
+
+	/* Check that the delay does not clobber user context state (GPR) */
+
+	stream = test_stream(&i915->perf);
+	if (!stream)
+		return -ENOMEM;
+
+	gpr0 = i915_mmio_reg_offset(GEN8_RING_CS_GPR(stream->engine->mmio_base, 0));
+
+	ce = intel_context_create(stream->engine);
+	if (IS_ERR(ce)) {
+		err = PTR_ERR(ce);
+		goto out;
+	}
+
+	/* Poison the ce->vm so we detect writes not to the GGTT gt->scratch */
+	scratch = kmap(ce->vm->scratch[0].base.page);
+	memset(scratch, POISON_FREE, PAGE_SIZE);
+
+	rq = intel_context_create_request(ce);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto out_ce;
+	}
+	i915_request_get(rq);
+
+	if (rq->engine->emit_init_breadcrumb) {
+		err = rq->engine->emit_init_breadcrumb(rq);
+		if (err) {
+			i915_request_add(rq);
+			goto out_rq;
+		}
+	}
+
+	/* Fill the 16 qword [32 dword] GPR with a known unlikely value */
+	cs = intel_ring_begin(rq, 2 * 32 + 2);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		i915_request_add(rq);
+		goto out_rq;
+	}
+
+	*cs++ = MI_LOAD_REGISTER_IMM(32);
+	for (i = 0; i < 32; i++) {
+		*cs++ = gpr0 + i * sizeof(u32);
+		*cs++ = STACK_MAGIC;
+	}
+	*cs++ = MI_NOOP;
+	intel_ring_advance(rq, cs);
+
+	/* Execute the GPU delay */
+	err = rq->engine->emit_bb_start(rq,
+					i915_ggtt_offset(stream->noa_wait), 0,
+					I915_DISPATCH_SECURE);
+	if (err) {
+		i915_request_add(rq);
+		goto out_rq;
+	}
+
+	/* Read the GPR back, using the pinned global HWSP for convenience */
+	store = memset32(rq->engine->status_page.addr + 512, 0, 32);
+	for (i = 0; i < 32; i++) {
+		u32 cmd;
+
+		cs = intel_ring_begin(rq, 4);
+		if (IS_ERR(cs)) {
+			err = PTR_ERR(cs);
+			i915_request_add(rq);
+			goto out_rq;
+		}
+
+		cmd = MI_STORE_REGISTER_MEM;
+		if (INTEL_GEN(i915) >= 8)
+			cmd++;
+		cmd |= MI_USE_GGTT;
+
+		*cs++ = cmd;
+		*cs++ = gpr0 + i * sizeof(u32);
+		*cs++ = i915_ggtt_offset(rq->engine->status_page.vma) +
+			offset_in_page(store) +
+			i * sizeof(u32);
+		*cs++ = 0;
+		intel_ring_advance(rq, cs);
+	}
+
+	i915_request_add(rq);
+
+	if (i915_request_wait(rq, I915_WAIT_INTERRUPTIBLE, HZ / 2) < 0) {
+		pr_err("noa_wait timed out\n");
+		intel_gt_set_wedged(stream->engine->gt);
+		err = -EIO;
+		goto out_rq;
+	}
+
+	/* Verify that the GPR contain our expected values */
+	for (i = 0; i < 32; i++) {
+		if (store[i] == STACK_MAGIC)
+			continue;
+
+		pr_err("GPR[%d] lost, found:%08x, expected:%08x!\n",
+		       i, store[i], STACK_MAGIC);
+		err = -EINVAL;
+	}
+
+	/* Verify that the user's scratch page was not used for GPR storage */
+	if (memchr_inv(scratch, POISON_FREE, PAGE_SIZE)) {
+		pr_err("Scratch page overwritten!\n");
+		igt_hexdump(scratch, 4096);
+		err = -EINVAL;
+	}
+
+out_rq:
+	i915_request_put(rq);
+out_ce:
+	kunmap(ce->vm->scratch[0].base.page);
+	intel_context_put(ce);
+out:
+	stream_destroy(stream);
+	return err;
+}
+
 int i915_perf_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_sanitycheck),
 		SUBTEST(live_noa_delay),
+		SUBTEST(live_noa_gpr),
 	};
 	struct i915_perf *perf = &i915->perf;
 	int err;

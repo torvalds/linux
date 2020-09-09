@@ -11,7 +11,7 @@ and HID reports can be sent/received through I/O on the
 /dev/hidgX character devices.
 
 For more details about HID, see the developer page on
-http://www.usb.org/developers/hidpage/
+https://www.usb.org/developers/hidpage/
 
 Configuration
 =============

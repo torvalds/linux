@@ -37,8 +37,8 @@ Optional properties:
     (Documentation/devicetree/bindings/regulator/regulator.txt)
 
 Datasheet
-  - LP8720: http://www.ti.com/lit/ds/symlink/lp8720.pdf
-  - LP8725: http://www.ti.com/lit/ds/symlink/lp8725.pdf
+  - LP8720: https://www.ti.com/lit/ds/symlink/lp8720.pdf
+  - LP8725: https://www.ti.com/lit/ds/symlink/lp8725.pdf
 
 Example 1) LP8720
 

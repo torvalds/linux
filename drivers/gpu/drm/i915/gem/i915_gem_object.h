@@ -258,10 +258,6 @@ struct page *
 i915_gem_object_get_page(struct drm_i915_gem_object *obj,
 			 unsigned int n);
 
-struct page *
-i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj,
-			       unsigned int n);
-
 dma_addr_t
 i915_gem_object_get_dma_address_len(struct drm_i915_gem_object *obj,
 				    unsigned long n,
@@ -393,6 +389,8 @@ static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
 {
 	i915_gem_object_unpin_pages(obj);
 }
+
+void __i915_gem_object_release_map(struct drm_i915_gem_object *obj);
 
 void
 i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,

@@ -286,6 +286,7 @@ extern void ftrace_regs_caller_ret(void);
 extern void ftrace_caller_end(void);
 extern void ftrace_caller_op_ptr(void);
 extern void ftrace_regs_caller_op_ptr(void);
+extern void ftrace_regs_caller_jmp(void);
 
 /* movq function_trace_op(%rip), %rdx */
 /* 0x48 0x8b 0x15 <offset-to-ftrace_trace_op (4 bytes)> */
@@ -316,6 +317,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	unsigned long end_offset;
 	unsigned long op_offset;
 	unsigned long call_offset;
+	unsigned long jmp_offset;
 	unsigned long offset;
 	unsigned long npages;
 	unsigned long size;
@@ -333,11 +335,13 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 		end_offset = (unsigned long)ftrace_regs_caller_end;
 		op_offset = (unsigned long)ftrace_regs_caller_op_ptr;
 		call_offset = (unsigned long)ftrace_regs_call;
+		jmp_offset = (unsigned long)ftrace_regs_caller_jmp;
 	} else {
 		start_offset = (unsigned long)ftrace_caller;
 		end_offset = (unsigned long)ftrace_caller_end;
 		op_offset = (unsigned long)ftrace_caller_op_ptr;
 		call_offset = (unsigned long)ftrace_call;
+		jmp_offset = 0;
 	}
 
 	size = end_offset - start_offset;
@@ -367,10 +371,14 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	if (WARN_ON(ret < 0))
 		goto fail;
 
+	/* No need to test direct calls on created trampolines */
 	if (ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
-		ip = trampoline + (ftrace_regs_caller_ret - ftrace_regs_caller);
-		ret = copy_from_kernel_nofault(ip, (void *)retq, RET_SIZE);
-		if (WARN_ON(ret < 0))
+		/* NOP the jnz 1f; but make sure it's a 2 byte jnz */
+		ip = trampoline + (jmp_offset - start_offset);
+		if (WARN_ON(*(char *)ip != 0x75))
+			goto fail;
+		ret = copy_from_kernel_nofault(ip, ideal_nops[2], 2);
+		if (ret < 0)
 			goto fail;
 	}
 

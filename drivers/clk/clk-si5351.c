@@ -7,9 +7,9 @@
  *
  * References:
  * [1] "Si5351A/B/C Data Sheet"
- *     http://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
+ *     https://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
  * [2] "Manually Generating an Si5351 Register Map"
- *     http://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
+ *     https://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
  */
 
 #include <linux/module.h>

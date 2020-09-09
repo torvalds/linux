@@ -505,7 +505,7 @@ void ipa_table_teardown(struct ipa *ipa)
 
 /**
  * ipa_filter_tuple_zero() - Zero an endpoint's hashed filter tuple
- * @endpoint_id:	Endpoint whose filter hash tuple should be zeroed
+ * @endpoint:	Endpoint whose filter hash tuple should be zeroed
  *
  * Endpoint must be for the AP (not modem) and support filtering. Updates
  * the filter hash values without changing route ones.
@@ -560,6 +560,7 @@ static bool ipa_route_id_modem(u32 route_id)
 
 /**
  * ipa_route_tuple_zero() - Zero a hashed route table entry tuple
+ * @ipa:	IPA pointer
  * @route_id:	Route table entry whose hash tuple should be zeroed
  *
  * Updates the route hash values without changing filter ones.

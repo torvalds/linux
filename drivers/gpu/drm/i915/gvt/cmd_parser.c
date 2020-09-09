@@ -1904,19 +1904,10 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 		goto err_free_bb;
 	}
 
-	ret = i915_gem_object_prepare_write(bb->obj, &bb->clflush);
-	if (ret)
-		goto err_free_obj;
-
 	bb->va = i915_gem_object_pin_map(bb->obj, I915_MAP_WB);
 	if (IS_ERR(bb->va)) {
 		ret = PTR_ERR(bb->va);
-		goto err_finish_shmem_access;
-	}
-
-	if (bb->clflush & CLFLUSH_BEFORE) {
-		drm_clflush_virt_range(bb->va, bb->obj->base.size);
-		bb->clflush &= ~CLFLUSH_BEFORE;
+		goto err_free_obj;
 	}
 
 	ret = copy_gma_to_hva(s->vgpu, mm,
@@ -1935,7 +1926,6 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	INIT_LIST_HEAD(&bb->list);
 	list_add(&bb->list, &s->workload->shadow_bb);
 
-	bb->accessing = true;
 	bb->bb_start_cmd_va = s->ip_va;
 
 	if ((s->buf_type == BATCH_BUFFER_INSTRUCTION) && (!s->is_ctx_wa))
@@ -1956,8 +1946,6 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	return 0;
 err_unmap:
 	i915_gem_object_unpin_map(bb->obj);
-err_finish_shmem_access:
-	i915_gem_object_finish_access(bb->obj);
 err_free_obj:
 	i915_gem_object_put(bb->obj);
 err_free_bb:

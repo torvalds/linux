@@ -13,7 +13,7 @@ static void run_lookup_test(__u16 *g_serv_port, int out_sk)
 	socklen_t addr_len = sizeof(addr);
 	__u32 duration = 0;
 
-	serv_sk = start_server(AF_INET6, SOCK_STREAM);
+	serv_sk = start_server(AF_INET6, SOCK_STREAM, NULL, 0, 0);
 	if (CHECK(serv_sk < 0, "start_server", "failed to start server\n"))
 		return;
 
@@ -24,17 +24,13 @@ static void run_lookup_test(__u16 *g_serv_port, int out_sk)
 	*g_serv_port = addr.sin6_port;
 
 	/* Client outside of test cgroup should fail to connect by timeout. */
-	err = connect_fd_to_fd(out_sk, serv_sk);
+	err = connect_fd_to_fd(out_sk, serv_sk, 1000);
 	if (CHECK(!err || errno != EINPROGRESS, "connect_fd_to_fd",
 		  "unexpected result err %d errno %d\n", err, errno))
 		goto cleanup;
 
-	err = connect_wait(out_sk);
-	if (CHECK(err, "connect_wait", "unexpected result %d\n", err))
-		goto cleanup;
-
 	/* Client inside test cgroup should connect just fine. */
-	in_sk = connect_to_fd(AF_INET6, SOCK_STREAM, serv_sk);
+	in_sk = connect_to_fd(serv_sk, 0);
 	if (CHECK(in_sk < 0, "connect_to_fd", "errno %d\n", errno))
 		goto cleanup;
 
@@ -85,7 +81,7 @@ void test_cgroup_skb_sk_lookup(void)
 	 * differs from that of testing cgroup. Moving selftests process to
 	 * testing cgroup won't change cgroup id of an already created socket.
 	 */
-	out_sk = socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0);
+	out_sk = socket(AF_INET6, SOCK_STREAM, 0);
 	if (CHECK_FAIL(out_sk < 0))
 		return;
 

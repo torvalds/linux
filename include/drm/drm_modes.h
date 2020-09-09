@@ -223,71 +223,21 @@ enum drm_mode_status {
  */
 struct drm_display_mode {
 	/**
-	 * @head:
-	 *
-	 * struct list_head for mode lists.
-	 */
-	struct list_head head;
-
-	/**
-	 * @name:
-	 *
-	 * Human-readable name of the mode, filled out with drm_mode_set_name().
-	 */
-	char name[DRM_DISPLAY_MODE_LEN];
-
-	/**
-	 * @status:
-	 *
-	 * Status of the mode, used to filter out modes not supported by the
-	 * hardware. See enum &drm_mode_status.
-	 */
-	enum drm_mode_status status;
-
-	/**
-	 * @type:
-	 *
-	 * A bitmask of flags, mostly about the source of a mode. Possible flags
-	 * are:
-	 *
-	 *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
-	 *    resolution of an LCD panel. There should only be one preferred
-	 *    mode per connector at any given time.
-	 *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
-	 *    them really. Drivers must set this bit for all modes they create
-	 *    and expose to userspace.
-	 *  - DRM_MODE_TYPE_USERDEF: Mode defined via kernel command line
-	 *
-	 * Plus a big list of flags which shouldn't be used at all, but are
-	 * still around since these flags are also used in the userspace ABI.
-	 * We no longer accept modes with these types though:
-	 *
-	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
-	 *    Use DRM_MODE_TYPE_DRIVER instead.
-	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
-	 *    DRM_MODE_TYPE_PREFERRED instead.
-	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
-	 *    which are stuck around for hysterical raisins only. No one has an
-	 *    idea what they were meant for. Don't use.
-	 */
-	unsigned int type;
-
-	/**
 	 * @clock:
 	 *
 	 * Pixel clock in kHz.
 	 */
 	int clock;		/* in kHz */
-	int hdisplay;
-	int hsync_start;
-	int hsync_end;
-	int htotal;
-	int hskew;
-	int vdisplay;
-	int vsync_start;
-	int vsync_end;
-	int vtotal;
-	int vscan;
+	u16 hdisplay;
+	u16 hsync_start;
+	u16 hsync_end;
+	u16 htotal;
+	u16 hskew;
+	u16 vdisplay;
+	u16 vsync_start;
+	u16 vsync_end;
+	u16 vtotal;
+	u16 vscan;
 	/**
 	 * @flags:
 	 *
@@ -322,23 +272,7 @@ struct drm_display_mode {
 	 *  - DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF: frame split into left and
 	 *    right parts.
 	 */
-	unsigned int flags;
-
-	/**
-	 * @width_mm:
-	 *
-	 * Addressable size of the output in mm, projectors should set this to
-	 * 0.
-	 */
-	int width_mm;
-
-	/**
-	 * @height_mm:
-	 *
-	 * Addressable size of the output in mm, projectors should set this to
-	 * 0.
-	 */
-	int height_mm;
+	u32 flags;
 
 	/**
 	 * @crtc_clock:
@@ -356,19 +290,64 @@ struct drm_display_mode {
 	 * difference is exactly a factor of 10.
 	 */
 	int crtc_clock;
-	int crtc_hdisplay;
-	int crtc_hblank_start;
-	int crtc_hblank_end;
-	int crtc_hsync_start;
-	int crtc_hsync_end;
-	int crtc_htotal;
-	int crtc_hskew;
-	int crtc_vdisplay;
-	int crtc_vblank_start;
-	int crtc_vblank_end;
-	int crtc_vsync_start;
-	int crtc_vsync_end;
-	int crtc_vtotal;
+	u16 crtc_hdisplay;
+	u16 crtc_hblank_start;
+	u16 crtc_hblank_end;
+	u16 crtc_hsync_start;
+	u16 crtc_hsync_end;
+	u16 crtc_htotal;
+	u16 crtc_hskew;
+	u16 crtc_vdisplay;
+	u16 crtc_vblank_start;
+	u16 crtc_vblank_end;
+	u16 crtc_vsync_start;
+	u16 crtc_vsync_end;
+	u16 crtc_vtotal;
+
+	/**
+	 * @width_mm:
+	 *
+	 * Addressable size of the output in mm, projectors should set this to
+	 * 0.
+	 */
+	u16 width_mm;
+
+	/**
+	 * @height_mm:
+	 *
+	 * Addressable size of the output in mm, projectors should set this to
+	 * 0.
+	 */
+	u16 height_mm;
+
+	/**
+	 * @type:
+	 *
+	 * A bitmask of flags, mostly about the source of a mode. Possible flags
+	 * are:
+	 *
+	 *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
+	 *    resolution of an LCD panel. There should only be one preferred
+	 *    mode per connector at any given time.
+	 *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
+	 *    them really. Drivers must set this bit for all modes they create
+	 *    and expose to userspace.
+	 *  - DRM_MODE_TYPE_USERDEF: Mode defined or selected via the kernel
+	 *    command line.
+	 *
+	 * Plus a big list of flags which shouldn't be used at all, but are
+	 * still around since these flags are also used in the userspace ABI.
+	 * We no longer accept modes with these types though:
+	 *
+	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
+	 *    Use DRM_MODE_TYPE_DRIVER instead.
+	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
+	 *    DRM_MODE_TYPE_PREFERRED instead.
+	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
+	 *    which are stuck around for hysterical raisins only. No one has an
+	 *    idea what they were meant for. Don't use.
+	 */
+	u8 type;
 
 	/**
 	 * @private_flags:
@@ -381,21 +360,11 @@ struct drm_display_mode {
 	int private_flags;
 
 	/**
-	 * @vrefresh:
+	 * @head:
 	 *
-	 * Vertical refresh rate, for debug output in human readable form. Not
-	 * used in a functional way.
-	 *
-	 * This value is in Hz.
+	 * struct list_head for mode lists.
 	 */
-	int vrefresh;
-
-	/**
-	 * @picture_aspect_ratio:
-	 *
-	 * Field for setting the HDMI picture aspect ratio of a mode.
-	 */
-	enum hdmi_picture_aspect picture_aspect_ratio;
+	struct list_head head;
 
 	/**
 	 * @export_head:
@@ -409,6 +378,29 @@ struct drm_display_mode {
 	 * avoid overhead of protecting it by mode_config.mutex.
 	 */
 	struct list_head export_head;
+
+	/**
+	 * @name:
+	 *
+	 * Human-readable name of the mode, filled out with drm_mode_set_name().
+	 */
+	char name[DRM_DISPLAY_MODE_LEN];
+
+	/**
+	 * @status:
+	 *
+	 * Status of the mode, used to filter out modes not supported by the
+	 * hardware. See enum &drm_mode_status.
+	 */
+	enum drm_mode_status status;
+
+	/**
+	 * @picture_aspect_ratio:
+	 *
+	 * Field for setting the HDMI picture aspect ratio of a mode.
+	 */
+	enum hdmi_picture_aspect picture_aspect_ratio;
+
 };
 
 /**
@@ -421,7 +413,7 @@ struct drm_display_mode {
  * @m: display mode
  */
 #define DRM_MODE_ARG(m) \
-	(m)->name, (m)->vrefresh, (m)->clock, \
+	(m)->name, drm_mode_vrefresh(m), (m)->clock, \
 	(m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
 	(m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
 	(m)->type, (m)->flags

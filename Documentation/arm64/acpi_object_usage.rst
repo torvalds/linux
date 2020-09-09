@@ -220,7 +220,7 @@ LPIT   Signature Reserved (signature == "LPIT")
        x86 only table as of ACPI 5.1; starting with ACPI 6.0, processor
        descriptions and power states on ARM platforms should use the DSDT
        and define processor container devices (_HID ACPI0010, Section 8.4,
-       and more specifically 8.4.3 and and 8.4.4).
+       and more specifically 8.4.3 and 8.4.4).
 
 MADT   Section 5.2.12 (signature == "APIC")
 

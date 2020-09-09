@@ -442,6 +442,7 @@ static struct platform_driver em_i2c_driver = {
 module_platform_driver(em_i2c_driver);
 
 MODULE_DESCRIPTION("EMEV2 I2C bus driver");
-MODULE_AUTHOR("Ian Molton and Wolfram Sang <wsa@sang-engineering.com>");
+MODULE_AUTHOR("Ian Molton");
+MODULE_AUTHOR("Wolfram Sang <wsa@sang-engineering.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(of, em_i2c_ids);

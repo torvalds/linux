@@ -8,7 +8,6 @@
  */
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
@@ -20,10 +19,6 @@
 #include "hwio.h"
 #include "main.h"
 #include "bh.h"
-
-static int gpio_reset = -2;
-module_param(gpio_reset, int, 0644);
-MODULE_PARM_DESC(gpio_reset, "gpio number for reset. -1 for none.");
 
 #define SET_WRITE 0x7FFF        /* usage: and operation */
 #define SET_READ 0x8000         /* usage: or operation */
@@ -211,10 +206,15 @@ static int wfx_spi_probe(struct spi_device *func)
 		bus->need_swab = true;
 	spi_set_drvdata(func, bus);
 
-	bus->gpio_reset = wfx_get_gpio(&func->dev, gpio_reset, "reset");
+	bus->gpio_reset = devm_gpiod_get_optional(&func->dev, "reset",
+						  GPIOD_OUT_LOW);
+	if (IS_ERR(bus->gpio_reset))
+		return PTR_ERR(bus->gpio_reset);
 	if (!bus->gpio_reset) {
-		dev_warn(&func->dev, "try to load firmware anyway\n");
+		dev_warn(&func->dev,
+			 "gpio reset is not defined, trying to load firmware anyway\n");
 	} else {
+		gpiod_set_consumer_name(bus->gpio_reset, "wfx reset");
 		if (spi_get_device_id(func)->driver_data & WFX_RESET_INVERTED)
 			gpiod_toggle_active_low(bus->gpio_reset);
 		gpiod_set_value_cansleep(bus->gpio_reset, 1);

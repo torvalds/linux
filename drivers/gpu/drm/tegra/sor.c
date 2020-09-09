@@ -2946,7 +2946,7 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 {
 	int err;
 
-	sor->avdd_io_supply = devm_regulator_get(sor->dev, "avdd-io");
+	sor->avdd_io_supply = devm_regulator_get(sor->dev, "avdd-io-hdmi-dp");
 	if (IS_ERR(sor->avdd_io_supply)) {
 		dev_err(sor->dev, "cannot get AVDD I/O supply: %ld\n",
 			PTR_ERR(sor->avdd_io_supply));
@@ -2960,7 +2960,7 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 		return err;
 	}
 
-	sor->vdd_pll_supply = devm_regulator_get(sor->dev, "vdd-pll");
+	sor->vdd_pll_supply = devm_regulator_get(sor->dev, "vdd-hdmi-dp-pll");
 	if (IS_ERR(sor->vdd_pll_supply)) {
 		dev_err(sor->dev, "cannot get VDD PLL supply: %ld\n",
 			PTR_ERR(sor->vdd_pll_supply));

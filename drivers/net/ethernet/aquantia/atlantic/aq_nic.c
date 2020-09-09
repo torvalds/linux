@@ -371,7 +371,7 @@ void aq_nic_ndev_init(struct aq_nic_s *self)
 	self->ndev->features = aq_hw_caps->hw_features;
 	self->ndev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
 				     NETIF_F_RXHASH | NETIF_F_SG |
-				     NETIF_F_LRO | NETIF_F_TSO;
+				     NETIF_F_LRO | NETIF_F_TSO | NETIF_F_TSO6;
 	self->ndev->gso_partial_features = NETIF_F_GSO_UDP_L4;
 	self->ndev->priv_flags = aq_hw_caps->hw_priv_flags;
 	self->ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
@@ -916,13 +916,13 @@ u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 		     aq_vec && self->aq_vecs > i;
 		     ++i, aq_vec = self->aq_vec[i]) {
 			data += count;
-			aq_vec_get_sw_stats(aq_vec, tc, data, &count);
+			count = aq_vec_get_sw_stats(aq_vec, tc, data);
 		}
 	}
 
 	data += count;
 
-err_exit:;
+err_exit:
 	return data;
 }
 
@@ -944,12 +944,17 @@ static void aq_nic_update_ndev_stats(struct aq_nic_s *self)
 void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 			       struct ethtool_link_ksettings *cmd)
 {
+	u32 lp_link_speed_msk;
+
 	if (self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_FIBRE)
 		cmd->base.port = PORT_FIBRE;
 	else
 		cmd->base.port = PORT_TP;
-	/* This driver supports only 10G capable adapters, so DUPLEX_FULL */
-	cmd->base.duplex = DUPLEX_FULL;
+
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+	if (self->link_status.mbps)
+		cmd->base.duplex = self->link_status.full_duplex ?
+				   DUPLEX_FULL : DUPLEX_HALF;
 	cmd->base.autoneg = self->aq_nic_cfg.is_autoneg;
 
 	ethtool_link_ksettings_zero_link_mode(cmd, supported);
@@ -970,13 +975,25 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     1000baseT_Full);
 
+	if (self->aq_nic_cfg.aq_hw_caps->link_speed_msk & AQ_NIC_RATE_1G_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, supported,
+						     1000baseT_Half);
+
 	if (self->aq_nic_cfg.aq_hw_caps->link_speed_msk & AQ_NIC_RATE_100M)
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     100baseT_Full);
 
+	if (self->aq_nic_cfg.aq_hw_caps->link_speed_msk & AQ_NIC_RATE_100M_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, supported,
+						     100baseT_Half);
+
 	if (self->aq_nic_cfg.aq_hw_caps->link_speed_msk & AQ_NIC_RATE_10M)
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     10baseT_Full);
+
+	if (self->aq_nic_cfg.aq_hw_caps->link_speed_msk & AQ_NIC_RATE_10M_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, supported,
+						     10baseT_Half);
 
 	if (self->aq_nic_cfg.aq_hw_caps->flow_control) {
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
@@ -997,29 +1014,41 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 	if (self->aq_nic_cfg.is_autoneg)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, Autoneg);
 
-	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_10G)
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_10G)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     10000baseT_Full);
 
-	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_5G)
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_5G)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     5000baseT_Full);
 
-	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_2G5)
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_2G5)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     2500baseT_Full);
 
-	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_1G)
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_1G)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     1000baseT_Full);
 
-	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_100M)
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_1G_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, advertising,
+						     1000baseT_Half);
+
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_100M)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     100baseT_Full);
 
-	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_10M)
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_100M_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, advertising,
+						     100baseT_Half);
+
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_10M)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     10baseT_Full);
+
+	if (self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_10M_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, advertising,
+						     10baseT_Half);
 
 	if (self->aq_nic_cfg.fc.cur & AQ_NIC_FC_RX)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
@@ -1035,32 +1064,84 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
 	else
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
+
+	ethtool_link_ksettings_zero_link_mode(cmd, lp_advertising);
+	lp_link_speed_msk = self->aq_hw->aq_link_status.lp_link_speed_msk;
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_10G)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     10000baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_5G)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     5000baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_2G5)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     2500baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_1G)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     1000baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_1G_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     1000baseT_Half);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_100M)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     100baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_100M_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     100baseT_Half);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_10M)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     10baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_10M_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     10baseT_Half);
+
+	if (self->aq_hw->aq_link_status.lp_flow_control & AQ_NIC_FC_RX)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     Pause);
+	if (!!(self->aq_hw->aq_link_status.lp_flow_control & AQ_NIC_FC_TX) ^
+	    !!(self->aq_hw->aq_link_status.lp_flow_control & AQ_NIC_FC_RX))
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     Asym_Pause);
 }
 
 int aq_nic_set_link_ksettings(struct aq_nic_s *self,
 			      const struct ethtool_link_ksettings *cmd)
 {
-	u32 speed = 0U;
+	int fduplex = (cmd->base.duplex == DUPLEX_FULL);
+	u32 speed = cmd->base.speed;
 	u32 rate = 0U;
 	int err = 0;
+
+	if (!fduplex && speed > SPEED_1000) {
+		err = -EINVAL;
+		goto err_exit;
+	}
 
 	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		rate = self->aq_nic_cfg.aq_hw_caps->link_speed_msk;
 		self->aq_nic_cfg.is_autoneg = true;
 	} else {
-		speed = cmd->base.speed;
-
 		switch (speed) {
 		case SPEED_10:
-			rate = AQ_NIC_RATE_10M;
+			rate = fduplex ? AQ_NIC_RATE_10M : AQ_NIC_RATE_10M_HALF;
 			break;
 
 		case SPEED_100:
-			rate = AQ_NIC_RATE_100M;
+			rate = fduplex ? AQ_NIC_RATE_100M
+				       : AQ_NIC_RATE_100M_HALF;
 			break;
 
 		case SPEED_1000:
-			rate = AQ_NIC_RATE_1G;
+			rate = fduplex ? AQ_NIC_RATE_1G : AQ_NIC_RATE_1G_HALF;
 			break;
 
 		case SPEED_2500:
@@ -1116,7 +1197,7 @@ int aq_nic_set_loopback(struct aq_nic_s *self)
 
 	if (!self->aq_hw_ops->hw_set_loopback ||
 	    !self->aq_fw_ops->set_phyloopback)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&self->fwreq_mutex);
 	self->aq_hw_ops->hw_set_loopback(self->aq_hw,

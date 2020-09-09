@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/arcregs.h>
 

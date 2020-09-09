@@ -353,21 +353,20 @@ out:
 	return ret;
 }
 
-int rds_get_mr(struct rds_sock *rs, char __user *optval, int optlen)
+int rds_get_mr(struct rds_sock *rs, sockptr_t optval, int optlen)
 {
 	struct rds_get_mr_args args;
 
 	if (optlen != sizeof(struct rds_get_mr_args))
 		return -EINVAL;
 
-	if (copy_from_user(&args, (struct rds_get_mr_args __user *)optval,
-			   sizeof(struct rds_get_mr_args)))
+	if (copy_from_sockptr(&args, optval, sizeof(struct rds_get_mr_args)))
 		return -EFAULT;
 
 	return __rds_rdma_map(rs, &args, NULL, NULL, NULL);
 }
 
-int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
+int rds_get_mr_for_dest(struct rds_sock *rs, sockptr_t optval, int optlen)
 {
 	struct rds_get_mr_for_dest_args args;
 	struct rds_get_mr_args new_args;
@@ -375,7 +374,7 @@ int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
 	if (optlen != sizeof(struct rds_get_mr_for_dest_args))
 		return -EINVAL;
 
-	if (copy_from_user(&args, (struct rds_get_mr_for_dest_args __user *)optval,
+	if (copy_from_sockptr(&args, optval,
 			   sizeof(struct rds_get_mr_for_dest_args)))
 		return -EFAULT;
 
@@ -394,7 +393,7 @@ int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
 /*
  * Free the MR indicated by the given R_Key
  */
-int rds_free_mr(struct rds_sock *rs, char __user *optval, int optlen)
+int rds_free_mr(struct rds_sock *rs, sockptr_t optval, int optlen)
 {
 	struct rds_free_mr_args args;
 	struct rds_mr *mr;
@@ -403,8 +402,7 @@ int rds_free_mr(struct rds_sock *rs, char __user *optval, int optlen)
 	if (optlen != sizeof(struct rds_free_mr_args))
 		return -EINVAL;
 
-	if (copy_from_user(&args, (struct rds_free_mr_args __user *)optval,
-			   sizeof(struct rds_free_mr_args)))
+	if (copy_from_sockptr(&args, optval, sizeof(struct rds_free_mr_args)))
 		return -EFAULT;
 
 	/* Special case - a null cookie means flush all unused MRs */

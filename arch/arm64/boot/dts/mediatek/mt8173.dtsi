@@ -167,7 +167,7 @@
 				 <&apmixedsys CLK_APMIXED_MAINPLL>;
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster0_opp>;
-			capacity-dmips-mhz = <526>;
+			capacity-dmips-mhz = <740>;
 		};
 
 		cpu1: cpu@1 {
@@ -182,7 +182,7 @@
 				 <&apmixedsys CLK_APMIXED_MAINPLL>;
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster0_opp>;
-			capacity-dmips-mhz = <526>;
+			capacity-dmips-mhz = <740>;
 		};
 
 		cpu2: cpu@100 {

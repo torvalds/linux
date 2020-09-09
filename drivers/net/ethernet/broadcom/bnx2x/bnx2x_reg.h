@@ -7639,6 +7639,82 @@ Theotherbitsarereservedandshouldbezero*/
 	(0x80 | ((_type)&0xf << 3) | ((CDU_CRC8(_cid, _region, _type)) & 0x7))
 #define CDU_RSRVD_INVALIDATE_CONTEXT_VALUE(_val) ((_val) & ~0x80)
 
+/* IdleChk registers */
+#define PXP_REG_HST_VF_DISABLED_ERROR_VALID			 0x1030bc
+#define PXP_REG_HST_VF_DISABLED_ERROR_DATA			 0x1030b8
+#define PXP_REG_HST_PER_VIOLATION_VALID				 0x1030e0
+#define PXP_REG_HST_INCORRECT_ACCESS_VALID			 0x1030cc
+#define PXP2_REG_RD_CPL_ERR_DETAILS				 0x120778
+#define PXP2_REG_RD_CPL_ERR_DETAILS2				 0x12077c
+#define PXP2_REG_RQ_GARB					 0x120748
+#define PBF_REG_DISABLE_NEW_TASK_PROC_Q0			 0x15c1bc
+#define PBF_REG_DISABLE_NEW_TASK_PROC_Q1			 0x15c1c0
+#define PBF_REG_DISABLE_NEW_TASK_PROC_Q2			 0x15c1c4
+#define PBF_REG_DISABLE_NEW_TASK_PROC_Q3			 0x15c1c8
+#define PBF_REG_DISABLE_NEW_TASK_PROC_Q4			 0x15c1cc
+#define PBF_REG_DISABLE_NEW_TASK_PROC_Q5			 0x15c1d0
+#define PBF_REG_CREDIT_Q2					 0x140344
+#define PBF_REG_CREDIT_Q3					 0x140348
+#define PBF_REG_CREDIT_Q4					 0x14034c
+#define PBF_REG_CREDIT_Q5					 0x140350
+#define PBF_REG_INIT_CRD_Q2					 0x15c238
+#define PBF_REG_INIT_CRD_Q3					 0x15c23c
+#define PBF_REG_INIT_CRD_Q4					 0x15c240
+#define PBF_REG_INIT_CRD_Q5					 0x15c244
+#define PBF_REG_TASK_CNT_Q0					 0x140374
+#define PBF_REG_TASK_CNT_Q1					 0x140378
+#define PBF_REG_TASK_CNT_Q2					 0x14037c
+#define PBF_REG_TASK_CNT_Q3					 0x140380
+#define PBF_REG_TASK_CNT_Q4					 0x140384
+#define PBF_REG_TASK_CNT_Q5					 0x140388
+#define PBF_REG_TASK_CNT_LB_Q					 0x140370
+#define QM_REG_BYTECRD0						 0x16e6fc
+#define QM_REG_BYTECRD1						 0x16e700
+#define QM_REG_BYTECRD2						 0x16e704
+#define QM_REG_BYTECRD3						 0x16e7ac
+#define QM_REG_BYTECRD4						 0x16e7b0
+#define QM_REG_BYTECRD5						 0x16e7b4
+#define QM_REG_BYTECRD6						 0x16e7b8
+#define QM_REG_BYTECRDCMDQ_0					 0x16e6e8
+#define QM_REG_BYTECRDERRREG					 0x16e708
+#define MISC_REG_GRC_TIMEOUT_ATTN_FULL_FID			 0xa714
+#define QM_REG_VOQCREDIT_2					 0x1682d8
+#define QM_REG_VOQCREDIT_3					 0x1682dc
+#define QM_REG_VOQCREDIT_5					 0x1682e4
+#define QM_REG_VOQCREDIT_6					 0x1682e8
+#define QM_REG_VOQINITCREDIT_3					 0x16806c
+#define QM_REG_VOQINITCREDIT_6					 0x168078
+#define QM_REG_FWVOQ0TOHWVOQ					 0x16e7bc
+#define QM_REG_FWVOQ1TOHWVOQ					 0x16e7c0
+#define QM_REG_FWVOQ2TOHWVOQ					 0x16e7c4
+#define QM_REG_FWVOQ3TOHWVOQ					 0x16e7c8
+#define QM_REG_FWVOQ4TOHWVOQ					 0x16e7cc
+#define QM_REG_FWVOQ5TOHWVOQ					 0x16e7d0
+#define QM_REG_FWVOQ6TOHWVOQ					 0x16e7d4
+#define QM_REG_FWVOQ7TOHWVOQ					 0x16e7d8
+#define NIG_REG_INGRESS_EOP_PORT0_EMPTY				 0x104ec
+#define NIG_REG_INGRESS_EOP_PORT1_EMPTY				 0x104f8
+#define NIG_REG_INGRESS_RMP0_DSCR_EMPTY				 0x10530
+#define NIG_REG_INGRESS_RMP1_DSCR_EMPTY				 0x10538
+#define NIG_REG_INGRESS_LB_PBF_DELAY_EMPTY			 0x10508
+#define NIG_REG_EGRESS_MNG0_FIFO_EMPTY				 0x10460
+#define NIG_REG_EGRESS_MNG1_FIFO_EMPTY				 0x10474
+#define NIG_REG_EGRESS_DEBUG_FIFO_EMPTY				 0x10418
+#define NIG_REG_EGRESS_DELAY0_EMPTY				 0x10420
+#define NIG_REG_EGRESS_DELAY1_EMPTY				 0x10428
+#define NIG_REG_LLH0_FIFO_EMPTY					 0x10548
+#define NIG_REG_LLH1_FIFO_EMPTY					 0x10558
+#define NIG_REG_P0_TX_MNG_HOST_FIFO_EMPTY			 0x182a8
+#define NIG_REG_P0_TLLH_FIFO_EMPTY				 0x18308
+#define NIG_REG_P0_HBUF_DSCR_EMPTY				 0x18318
+#define NIG_REG_P1_HBUF_DSCR_EMPTY				 0x18348
+#define NIG_REG_P0_RX_MACFIFO_EMPTY				 0x18570
+#define NIG_REG_P0_TX_MACFIFO_EMPTY				 0x18578
+#define NIG_REG_EGRESS_DELAY2_EMPTY				 0x1862c
+#define NIG_REG_EGRESS_DELAY3_EMPTY				 0x18630
+#define NIG_REG_EGRESS_DELAY4_EMPTY				 0x18634
+#define NIG_REG_EGRESS_DELAY5_EMPTY				 0x18638
+
 /******************************************************************************
  * Description:
  *	   Calculates crc 8 on a word value: polynomial 0-1-2-8
@@ -7697,6 +7773,4 @@ static inline u8 calc_crc8(u32 data, u8 crc)
 
 	return crc_res;
 }
-
-
 #endif /* BNX2X_REG_H */

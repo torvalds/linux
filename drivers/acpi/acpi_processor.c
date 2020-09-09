@@ -79,7 +79,7 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 		 * PIIX4 models.
 		 */
 		errata.piix4.throttle = 1;
-		/* fall through*/
+		fallthrough;
 
 	case 2:		/* PIIX4E */
 	case 3:		/* PIIX4M */

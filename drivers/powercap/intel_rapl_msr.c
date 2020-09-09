@@ -28,6 +28,7 @@
 
 /* Local defines */
 #define MSR_PLATFORM_POWER_LIMIT	0x0000065C
+#define MSR_VR_CURRENT_CONFIG		0x00000601
 
 /* private data for RAPL MSR Interface */
 static struct rapl_if_priv rapl_msr_priv = {
@@ -123,12 +124,26 @@ static int rapl_msr_write_raw(int cpu, struct reg_action *ra)
 	return ra->err;
 }
 
+/* List of verified CPUs. */
+static const struct x86_cpu_id pl4_support_ids[] = {
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_TIGERLAKE_L, X86_FEATURE_ANY },
+	{}
+};
+
 static int rapl_msr_probe(struct platform_device *pdev)
 {
+	const struct x86_cpu_id *id = x86_match_cpu(pl4_support_ids);
 	int ret;
 
 	rapl_msr_priv.read_raw = rapl_msr_read_raw;
 	rapl_msr_priv.write_raw = rapl_msr_write_raw;
+
+	if (id) {
+		rapl_msr_priv.limits[RAPL_DOMAIN_PACKAGE] = 3;
+		rapl_msr_priv.regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_PL4] =
+			MSR_VR_CURRENT_CONFIG;
+		pr_info("PL4 support detected.\n");
+	}
 
 	rapl_msr_priv.control_type = powercap_register_control_type(NULL, "intel-rapl", NULL);
 	if (IS_ERR(rapl_msr_priv.control_type)) {

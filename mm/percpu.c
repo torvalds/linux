@@ -37,9 +37,14 @@
  * takes care of normal allocations.
  *
  * The allocator organizes chunks into lists according to free size and
- * tries to allocate from the fullest chunk first.  Each chunk is managed
- * by a bitmap with metadata blocks.  The allocation map is updated on
- * every allocation and free to reflect the current state while the boundary
+ * memcg-awareness.  To make a percpu allocation memcg-aware the __GFP_ACCOUNT
+ * flag should be passed.  All memcg-aware allocations are sharing one set
+ * of chunks and all unaccounted allocations and allocations performed
+ * by processes belonging to the root memory cgroup are using the second set.
+ *
+ * The allocator tries to allocate from the fullest chunk first. Each chunk
+ * is managed by a bitmap with metadata blocks.  The allocation map is updated
+ * on every allocation and free to reflect the current state while the boundary
  * map is only updated on allocation.  Each metadata block contains
  * information to help mitigate the need to iterate over large portions
  * of the bitmap.  The reverse mapping from page to chunk is stored in
@@ -81,6 +86,7 @@
 #include <linux/kmemleak.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
+#include <linux/memcontrol.h>
 
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
@@ -160,7 +166,7 @@ struct pcpu_chunk *pcpu_reserved_chunk __ro_after_init;
 DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
 static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext */
 
-struct list_head *pcpu_slot __ro_after_init; /* chunk list slots */
+struct list_head *pcpu_chunk_lists __ro_after_init; /* chunk list slots */
 
 /* chunks which need their map areas extended, protected by pcpu_lock */
 static LIST_HEAD(pcpu_map_extend_chunks);
@@ -500,6 +506,9 @@ static void __pcpu_chunk_move(struct pcpu_chunk *chunk, int slot,
 			      bool move_front)
 {
 	if (chunk != pcpu_reserved_chunk) {
+		struct list_head *pcpu_slot;
+
+		pcpu_slot = pcpu_chunk_list(pcpu_chunk_type(chunk));
 		if (move_front)
 			list_move(&chunk->list, &pcpu_slot[slot]);
 		else
@@ -1211,11 +1220,14 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int alloc_bits,
  *
  * This function determines the size of an allocation to free using
  * the boundary bitmap and clears the allocation map.
+ *
+ * RETURNS:
+ * Number of freed bytes.
  */
-static void pcpu_free_area(struct pcpu_chunk *chunk, int off)
+static int pcpu_free_area(struct pcpu_chunk *chunk, int off)
 {
 	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
-	int bit_off, bits, end, oslot;
+	int bit_off, bits, end, oslot, freed;
 
 	lockdep_assert_held(&pcpu_lock);
 	pcpu_stats_area_dealloc(chunk);
@@ -1230,8 +1242,10 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int off)
 	bits = end - bit_off;
 	bitmap_clear(chunk->alloc_map, bit_off, bits);
 
+	freed = bits * PCPU_MIN_ALLOC_SIZE;
+
 	/* update metadata */
-	chunk->free_bytes += bits * PCPU_MIN_ALLOC_SIZE;
+	chunk->free_bytes += freed;
 
 	/* update first free bit */
 	chunk_md->first_free = min(chunk_md->first_free, bit_off);
@@ -1239,6 +1253,8 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int off)
 	pcpu_block_update_hint_free(chunk, bit_off, bits);
 
 	pcpu_chunk_relocate(chunk, oslot);
+
+	return freed;
 }
 
 static void pcpu_init_md_block(struct pcpu_block_md *block, int nr_bits)
@@ -1334,6 +1350,10 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 		panic("%s: Failed to allocate %zu bytes\n", __func__,
 		      alloc_size);
 
+#ifdef CONFIG_MEMCG_KMEM
+	/* first chunk isn't memcg-aware */
+	chunk->obj_cgroups = NULL;
+#endif
 	pcpu_init_md_blocks(chunk);
 
 	/* manage populated page bitmap */
@@ -1373,7 +1393,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	return chunk;
 }
 
-static struct pcpu_chunk *pcpu_alloc_chunk(gfp_t gfp)
+static struct pcpu_chunk *pcpu_alloc_chunk(enum pcpu_chunk_type type, gfp_t gfp)
 {
 	struct pcpu_chunk *chunk;
 	int region_bits;
@@ -1401,6 +1421,16 @@ static struct pcpu_chunk *pcpu_alloc_chunk(gfp_t gfp)
 	if (!chunk->md_blocks)
 		goto md_blocks_fail;
 
+#ifdef CONFIG_MEMCG_KMEM
+	if (pcpu_is_memcg_chunk(type)) {
+		chunk->obj_cgroups =
+			pcpu_mem_zalloc(pcpu_chunk_map_bits(chunk) *
+					sizeof(struct obj_cgroup *), gfp);
+		if (!chunk->obj_cgroups)
+			goto objcg_fail;
+	}
+#endif
+
 	pcpu_init_md_blocks(chunk);
 
 	/* init metadata */
@@ -1408,6 +1438,10 @@ static struct pcpu_chunk *pcpu_alloc_chunk(gfp_t gfp)
 
 	return chunk;
 
+#ifdef CONFIG_MEMCG_KMEM
+objcg_fail:
+	pcpu_mem_free(chunk->md_blocks);
+#endif
 md_blocks_fail:
 	pcpu_mem_free(chunk->bound_map);
 bound_map_fail:
@@ -1422,6 +1456,9 @@ static void pcpu_free_chunk(struct pcpu_chunk *chunk)
 {
 	if (!chunk)
 		return;
+#ifdef CONFIG_MEMCG_KMEM
+	pcpu_mem_free(chunk->obj_cgroups);
+#endif
 	pcpu_mem_free(chunk->md_blocks);
 	pcpu_mem_free(chunk->bound_map);
 	pcpu_mem_free(chunk->alloc_map);
@@ -1498,7 +1535,8 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
 			       int page_start, int page_end, gfp_t gfp);
 static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 				  int page_start, int page_end);
-static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp);
+static struct pcpu_chunk *pcpu_create_chunk(enum pcpu_chunk_type type,
+					    gfp_t gfp);
 static void pcpu_destroy_chunk(struct pcpu_chunk *chunk);
 static struct page *pcpu_addr_to_page(void *addr);
 static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
@@ -1540,6 +1578,87 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 	return pcpu_get_page_chunk(pcpu_addr_to_page(addr));
 }
 
+#ifdef CONFIG_MEMCG_KMEM
+static enum pcpu_chunk_type pcpu_memcg_pre_alloc_hook(size_t size, gfp_t gfp,
+						     struct obj_cgroup **objcgp)
+{
+	struct obj_cgroup *objcg;
+
+	if (!memcg_kmem_enabled() || !(gfp & __GFP_ACCOUNT) ||
+	    memcg_kmem_bypass())
+		return PCPU_CHUNK_ROOT;
+
+	objcg = get_obj_cgroup_from_current();
+	if (!objcg)
+		return PCPU_CHUNK_ROOT;
+
+	if (obj_cgroup_charge(objcg, gfp, size * num_possible_cpus())) {
+		obj_cgroup_put(objcg);
+		return PCPU_FAIL_ALLOC;
+	}
+
+	*objcgp = objcg;
+	return PCPU_CHUNK_MEMCG;
+}
+
+static void pcpu_memcg_post_alloc_hook(struct obj_cgroup *objcg,
+				       struct pcpu_chunk *chunk, int off,
+				       size_t size)
+{
+	if (!objcg)
+		return;
+
+	if (chunk) {
+		chunk->obj_cgroups[off >> PCPU_MIN_ALLOC_SHIFT] = objcg;
+
+		rcu_read_lock();
+		mod_memcg_state(obj_cgroup_memcg(objcg), MEMCG_PERCPU_B,
+				size * num_possible_cpus());
+		rcu_read_unlock();
+	} else {
+		obj_cgroup_uncharge(objcg, size * num_possible_cpus());
+		obj_cgroup_put(objcg);
+	}
+}
+
+static void pcpu_memcg_free_hook(struct pcpu_chunk *chunk, int off, size_t size)
+{
+	struct obj_cgroup *objcg;
+
+	if (!pcpu_is_memcg_chunk(pcpu_chunk_type(chunk)))
+		return;
+
+	objcg = chunk->obj_cgroups[off >> PCPU_MIN_ALLOC_SHIFT];
+	chunk->obj_cgroups[off >> PCPU_MIN_ALLOC_SHIFT] = NULL;
+
+	obj_cgroup_uncharge(objcg, size * num_possible_cpus());
+
+	rcu_read_lock();
+	mod_memcg_state(obj_cgroup_memcg(objcg), MEMCG_PERCPU_B,
+			-(size * num_possible_cpus()));
+	rcu_read_unlock();
+
+	obj_cgroup_put(objcg);
+}
+
+#else /* CONFIG_MEMCG_KMEM */
+static enum pcpu_chunk_type
+pcpu_memcg_pre_alloc_hook(size_t size, gfp_t gfp, struct obj_cgroup **objcgp)
+{
+	return PCPU_CHUNK_ROOT;
+}
+
+static void pcpu_memcg_post_alloc_hook(struct obj_cgroup *objcg,
+				       struct pcpu_chunk *chunk, int off,
+				       size_t size)
+{
+}
+
+static void pcpu_memcg_free_hook(struct pcpu_chunk *chunk, int off, size_t size)
+{
+}
+#endif /* CONFIG_MEMCG_KMEM */
+
 /**
  * pcpu_alloc - the percpu allocator
  * @size: size of area to allocate in bytes
@@ -1561,6 +1680,9 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 	gfp_t pcpu_gfp;
 	bool is_atomic;
 	bool do_warn;
+	enum pcpu_chunk_type type;
+	struct list_head *pcpu_slot;
+	struct obj_cgroup *objcg = NULL;
 	static int warn_limit = 10;
 	struct pcpu_chunk *chunk, *next;
 	const char *err;
@@ -1595,16 +1717,23 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 		return NULL;
 	}
 
+	type = pcpu_memcg_pre_alloc_hook(size, gfp, &objcg);
+	if (unlikely(type == PCPU_FAIL_ALLOC))
+		return NULL;
+	pcpu_slot = pcpu_chunk_list(type);
+
 	if (!is_atomic) {
 		/*
 		 * pcpu_balance_workfn() allocates memory under this mutex,
 		 * and it may wait for memory reclaim. Allow current task
 		 * to become OOM victim, in case of memory pressure.
 		 */
-		if (gfp & __GFP_NOFAIL)
+		if (gfp & __GFP_NOFAIL) {
 			mutex_lock(&pcpu_alloc_mutex);
-		else if (mutex_lock_killable(&pcpu_alloc_mutex))
+		} else if (mutex_lock_killable(&pcpu_alloc_mutex)) {
+			pcpu_memcg_post_alloc_hook(objcg, NULL, 0, size);
 			return NULL;
+		}
 	}
 
 	spin_lock_irqsave(&pcpu_lock, flags);
@@ -1659,7 +1788,7 @@ restart:
 	}
 
 	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
-		chunk = pcpu_create_chunk(pcpu_gfp);
+		chunk = pcpu_create_chunk(type, pcpu_gfp);
 		if (!chunk) {
 			err = "failed to allocate new chunk";
 			goto fail;
@@ -1716,6 +1845,8 @@ area_found:
 	trace_percpu_alloc_percpu(reserved, is_atomic, size, align,
 			chunk->base_addr, off, ptr);
 
+	pcpu_memcg_post_alloc_hook(objcg, chunk, off, size);
+
 	return ptr;
 
 fail_unlock:
@@ -1737,6 +1868,9 @@ fail:
 	} else {
 		mutex_unlock(&pcpu_alloc_mutex);
 	}
+
+	pcpu_memcg_post_alloc_hook(objcg, NULL, 0, size);
+
 	return NULL;
 }
 
@@ -1796,8 +1930,8 @@ void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
 }
 
 /**
- * pcpu_balance_workfn - manage the amount of free chunks and populated pages
- * @work: unused
+ * __pcpu_balance_workfn - manage the amount of free chunks and populated pages
+ * @type: chunk type
  *
  * Reclaim all fully free chunks except for the first one.  This is also
  * responsible for maintaining the pool of empty populated pages.  However,
@@ -1806,11 +1940,12 @@ void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
  * allocation causes the failure as it is possible that requests can be
  * serviced from already backed regions.
  */
-static void pcpu_balance_workfn(struct work_struct *work)
+static void __pcpu_balance_workfn(enum pcpu_chunk_type type)
 {
 	/* gfp flags passed to underlying allocators */
 	const gfp_t gfp = GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
 	LIST_HEAD(to_free);
+	struct list_head *pcpu_slot = pcpu_chunk_list(type);
 	struct list_head *free_head = &pcpu_slot[pcpu_nr_slots - 1];
 	struct pcpu_chunk *chunk, *next;
 	int slot, nr_to_pop, ret;
@@ -1908,7 +2043,7 @@ retry_pop:
 
 	if (nr_to_pop) {
 		/* ran out of chunks to populate, create a new one and retry */
-		chunk = pcpu_create_chunk(gfp);
+		chunk = pcpu_create_chunk(type, gfp);
 		if (chunk) {
 			spin_lock_irq(&pcpu_lock);
 			pcpu_chunk_relocate(chunk, -1);
@@ -1918,6 +2053,20 @@ retry_pop:
 	}
 
 	mutex_unlock(&pcpu_alloc_mutex);
+}
+
+/**
+ * pcpu_balance_workfn - manage the amount of free chunks and populated pages
+ * @work: unused
+ *
+ * Call __pcpu_balance_workfn() for each chunk type.
+ */
+static void pcpu_balance_workfn(struct work_struct *work)
+{
+	enum pcpu_chunk_type type;
+
+	for (type = 0; type < PCPU_NR_CHUNK_TYPES; type++)
+		__pcpu_balance_workfn(type);
 }
 
 /**
@@ -1934,8 +2083,9 @@ void free_percpu(void __percpu *ptr)
 	void *addr;
 	struct pcpu_chunk *chunk;
 	unsigned long flags;
-	int off;
+	int size, off;
 	bool need_balance = false;
+	struct list_head *pcpu_slot;
 
 	if (!ptr)
 		return;
@@ -1949,7 +2099,11 @@ void free_percpu(void __percpu *ptr)
 	chunk = pcpu_chunk_addr_search(addr);
 	off = addr - chunk->base_addr;
 
-	pcpu_free_area(chunk, off);
+	size = pcpu_free_area(chunk, off);
+
+	pcpu_slot = pcpu_chunk_list(pcpu_chunk_type(chunk));
+
+	pcpu_memcg_free_hook(chunk, off, size);
 
 	/* if there are more than one fully free chunks, wake up grim reaper */
 	if (chunk->free_bytes == pcpu_unit_size) {
@@ -2260,6 +2414,7 @@ void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	int map_size;
 	unsigned long tmp_addr;
 	size_t alloc_size;
+	enum pcpu_chunk_type type;
 
 #define PCPU_SETUP_BUG_ON(cond)	do {					\
 	if (unlikely(cond)) {						\
@@ -2377,13 +2532,18 @@ void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	 * empty chunks.
 	 */
 	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
-	pcpu_slot = memblock_alloc(pcpu_nr_slots * sizeof(pcpu_slot[0]),
-				   SMP_CACHE_BYTES);
-	if (!pcpu_slot)
+	pcpu_chunk_lists = memblock_alloc(pcpu_nr_slots *
+					  sizeof(pcpu_chunk_lists[0]) *
+					  PCPU_NR_CHUNK_TYPES,
+					  SMP_CACHE_BYTES);
+	if (!pcpu_chunk_lists)
 		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      pcpu_nr_slots * sizeof(pcpu_slot[0]));
-	for (i = 0; i < pcpu_nr_slots; i++)
-		INIT_LIST_HEAD(&pcpu_slot[i]);
+		      pcpu_nr_slots * sizeof(pcpu_chunk_lists[0]) *
+		      PCPU_NR_CHUNK_TYPES);
+
+	for (type = 0; type < PCPU_NR_CHUNK_TYPES; type++)
+		for (i = 0; i < pcpu_nr_slots; i++)
+			INIT_LIST_HEAD(&pcpu_chunk_list(type)[i]);
 
 	/*
 	 * The end of the static region needs to be aligned with the
@@ -2513,7 +2673,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	int nr_groups = 1, nr_units = 0;
 	size_t size_sum, min_unit_size, alloc_size;
-	int upa, max_upa, uninitialized_var(best_upa);	/* units_per_alloc */
+	int upa, max_upa, best_upa;	/* units_per_alloc */
 	int last_allocs, group, unit;
 	unsigned int cpu, tcpu;
 	struct pcpu_alloc_info *ai;

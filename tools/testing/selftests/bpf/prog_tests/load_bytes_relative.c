@@ -23,7 +23,7 @@ void test_load_bytes_relative(void)
 	if (CHECK_FAIL(cgroup_fd < 0))
 		return;
 
-	server_fd = start_server(AF_INET, SOCK_STREAM);
+	server_fd = start_server(AF_INET, SOCK_STREAM, NULL, 0, 0);
 	if (CHECK_FAIL(server_fd < 0))
 		goto close_cgroup_fd;
 
@@ -49,7 +49,7 @@ void test_load_bytes_relative(void)
 	if (CHECK_FAIL(err))
 		goto close_bpf_object;
 
-	client_fd = connect_to_fd(AF_INET, SOCK_STREAM, server_fd);
+	client_fd = connect_to_fd(server_fd, 0);
 	if (CHECK_FAIL(client_fd < 0))
 		goto close_bpf_object;
 	close(client_fd);

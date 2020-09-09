@@ -10,7 +10,6 @@
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
-#include <asm/pgalloc.h>
 #include <asm/gmap.h>
 #include <asm/virtio-ccw.h>
 #include "kvm-s390.h"

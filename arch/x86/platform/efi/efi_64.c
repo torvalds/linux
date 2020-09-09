@@ -74,9 +74,6 @@ int __init efi_alloc_page_tables(void)
 	pud_t *pud;
 	gfp_t gfp_mask;
 
-	if (efi_have_uv1_memmap())
-		return 0;
-
 	gfp_mask = GFP_KERNEL | __GFP_ZERO;
 	efi_pgd = (pgd_t *)__get_free_pages(gfp_mask, PGD_ALLOCATION_ORDER);
 	if (!efi_pgd)
@@ -114,9 +111,6 @@ void efi_sync_low_kernel_mappings(void)
 	p4d_t *p4d_k, *p4d_efi;
 	pud_t *pud_k, *pud_efi;
 	pgd_t *efi_pgd = efi_mm.pgd;
-
-	if (efi_have_uv1_memmap())
-		return;
 
 	/*
 	 * We can share all PGD entries apart from the one entry that
@@ -206,9 +200,6 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	unsigned npages;
 	pgd_t *pgd = efi_mm.pgd;
 
-	if (efi_have_uv1_memmap())
-		return 0;
-
 	/*
 	 * It can happen that the physical address of new_memmap lands in memory
 	 * which is not mapped in the EFI page table. Therefore we need to go
@@ -268,6 +259,8 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	npages = (__end_rodata - __start_rodata) >> PAGE_SHIFT;
 	rodata = __pa(__start_rodata);
 	pfn = rodata >> PAGE_SHIFT;
+
+	pf = _PAGE_NX | _PAGE_ENC;
 	if (kernel_map_pages_in_pgd(pgd, pfn, rodata, npages, pf)) {
 		pr_err("Failed to map kernel rodata 1:1\n");
 		return 1;
@@ -314,9 +307,6 @@ void __init efi_map_region(efi_memory_desc_t *md)
 {
 	unsigned long size = md->num_pages << PAGE_SHIFT;
 	u64 pa = md->phys_addr;
-
-	if (efi_have_uv1_memmap())
-		return old_map_region(md);
 
 	/*
 	 * Make sure the 1:1 mappings are present as a catch-all for b0rked
@@ -420,12 +410,6 @@ void __init efi_runtime_update_mappings(void)
 {
 	efi_memory_desc_t *md;
 
-	if (efi_have_uv1_memmap()) {
-		if (__supported_pte_mask & _PAGE_NX)
-			runtime_code_page_mkexec();
-		return;
-	}
-
 	/*
 	 * Use the EFI Memory Attribute Table for mapping permissions if it
 	 * exists, since it is intended to supersede EFI_PROPERTIES_TABLE.
@@ -474,10 +458,7 @@ void __init efi_runtime_update_mappings(void)
 void __init efi_dump_pagetable(void)
 {
 #ifdef CONFIG_EFI_PGT_DUMP
-	if (efi_have_uv1_memmap())
-		ptdump_walk_pgd_level(NULL, &init_mm);
-	else
-		ptdump_walk_pgd_level(NULL, &efi_mm);
+	ptdump_walk_pgd_level(NULL, &efi_mm);
 #endif
 }
 
@@ -849,21 +830,13 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 	const efi_system_table_t *systab = (efi_system_table_t *)systab_phys;
 	efi_status_t status;
 	unsigned long flags;
-	pgd_t *save_pgd = NULL;
 
 	if (efi_is_mixed())
 		return efi_thunk_set_virtual_address_map(memory_map_size,
 							 descriptor_size,
 							 descriptor_version,
 							 virtual_map);
-
-	if (efi_have_uv1_memmap()) {
-		save_pgd = efi_uv1_memmap_phys_prolog();
-		if (!save_pgd)
-			return EFI_ABORTED;
-	} else {
-		efi_switch_mm(&efi_mm);
-	}
+	efi_switch_mm(&efi_mm);
 
 	kernel_fpu_begin();
 
@@ -879,10 +852,7 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 	/* grab the virtually remapped EFI runtime services table pointer */
 	efi.runtime = READ_ONCE(systab->runtime);
 
-	if (save_pgd)
-		efi_uv1_memmap_phys_epilog(save_pgd);
-	else
-		efi_switch_mm(efi_scratch.prev_mm);
+	efi_switch_mm(efi_scratch.prev_mm);
 
 	return status;
 }

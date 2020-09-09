@@ -9,10 +9,12 @@ struct linkstate_req_info {
 };
 
 struct linkstate_reply_data {
-	struct ethnl_reply_data		base;
-	int				link;
-	int				sqi;
-	int				sqi_max;
+	struct ethnl_reply_data			base;
+	int					link;
+	int					sqi;
+	int					sqi_max;
+	bool					link_ext_state_provided;
+	struct ethtool_link_ext_state_info	ethtool_link_ext_state_info;
 };
 
 #define LINKSTATE_REPDATA(__reply_base) \
@@ -25,6 +27,8 @@ linkstate_get_policy[ETHTOOL_A_LINKSTATE_MAX + 1] = {
 	[ETHTOOL_A_LINKSTATE_LINK]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_LINKSTATE_SQI]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_LINKSTATE_SQI_MAX]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_LINKSTATE_EXT_STATE]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_LINKSTATE_EXT_SUBSTATE]	= { .type = NLA_REJECT },
 };
 
 static int linkstate_get_sqi(struct net_device *dev)
@@ -61,6 +65,23 @@ static int linkstate_get_sqi_max(struct net_device *dev)
 	mutex_unlock(&phydev->lock);
 
 	return ret;
+};
+
+static int linkstate_get_link_ext_state(struct net_device *dev,
+					struct linkstate_reply_data *data)
+{
+	int err;
+
+	if (!dev->ethtool_ops->get_link_ext_state)
+		return -EOPNOTSUPP;
+
+	err = dev->ethtool_ops->get_link_ext_state(dev, &data->ethtool_link_ext_state_info);
+	if (err)
+		return err;
+
+	data->link_ext_state_provided = true;
+
+	return 0;
 }
 
 static int linkstate_prepare_data(const struct ethnl_req_info *req_base,
@@ -86,6 +107,12 @@ static int linkstate_prepare_data(const struct ethnl_req_info *req_base,
 		goto out;
 	data->sqi_max = ret;
 
+	if (dev->flags & IFF_UP) {
+		ret = linkstate_get_link_ext_state(dev, data);
+		if (ret < 0 && ret != -EOPNOTSUPP && ret != -ENODATA)
+			goto out;
+	}
+
 	ret = 0;
 out:
 	ethnl_ops_complete(dev);
@@ -107,6 +134,12 @@ static int linkstate_reply_size(const struct ethnl_req_info *req_base,
 	if (data->sqi_max != -EOPNOTSUPP)
 		len += nla_total_size(sizeof(u32));
 
+	if (data->link_ext_state_provided)
+		len += nla_total_size(sizeof(u8)); /* LINKSTATE_EXT_STATE */
+
+	if (data->ethtool_link_ext_state_info.__link_ext_substate)
+		len += nla_total_size(sizeof(u8)); /* LINKSTATE_EXT_SUBSTATE */
+
 	return len;
 }
 
@@ -127,6 +160,17 @@ static int linkstate_fill_reply(struct sk_buff *skb,
 	if (data->sqi_max != -EOPNOTSUPP &&
 	    nla_put_u32(skb, ETHTOOL_A_LINKSTATE_SQI_MAX, data->sqi_max))
 		return -EMSGSIZE;
+
+	if (data->link_ext_state_provided) {
+		if (nla_put_u8(skb, ETHTOOL_A_LINKSTATE_EXT_STATE,
+			       data->ethtool_link_ext_state_info.link_ext_state))
+			return -EMSGSIZE;
+
+		if (data->ethtool_link_ext_state_info.__link_ext_substate &&
+		    nla_put_u8(skb, ETHTOOL_A_LINKSTATE_EXT_SUBSTATE,
+			       data->ethtool_link_ext_state_info.__link_ext_substate))
+			return -EMSGSIZE;
+	}
 
 	return 0;
 }

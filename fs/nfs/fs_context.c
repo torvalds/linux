@@ -982,7 +982,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		/*
 		 * The legacy version 6 binary mount data from userspace has a
 		 * field used only to transport selinux information into the
-		 * the kernel.  To continue to support that functionality we
+		 * kernel.  To continue to support that functionality we
 		 * have a touch of selinux knowledge here in the NFS code. The
 		 * userspace code converted context=blah to just blah so we are
 		 * converting back to the full string selinux understands.

@@ -12,6 +12,8 @@
 #include <linux/device.h>
 #include <linux/thermal.h>
 
+#include "thermal_netlink.h"
+
 /* Default Thermal Governor */
 #if defined(CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE)
 #define DEFAULT_THERMAL_GOVERNOR       "step_wise"
@@ -40,6 +42,17 @@ extern struct thermal_governor *__governor_thermal_table_end[];
 	for (__governor = __governor_thermal_table;	\
 	     __governor < __governor_thermal_table_end;	\
 	     __governor++)
+
+int for_each_thermal_zone(int (*cb)(struct thermal_zone_device *, void *),
+			  void *);
+
+int for_each_thermal_cooling_device(int (*cb)(struct thermal_cooling_device *,
+					      void *), void *);
+
+int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),
+			      void *thermal_governor);
+
+struct thermal_zone_device *thermal_zone_get_by_id(int id);
 
 struct thermal_attr {
 	struct device_attribute attr;
@@ -165,5 +178,7 @@ of_thermal_get_trip_points(struct thermal_zone_device *tz)
 	return NULL;
 }
 #endif
+
+int thermal_zone_device_is_enabled(struct thermal_zone_device *tz);
 
 #endif /* __THERMAL_CORE_H__ */

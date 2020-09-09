@@ -51,7 +51,8 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.read = nv10_fence_read;
 	fctx->base.sync = nv17_fence_sync;
 
-	ret = nvif_object_init(&chan->user, NvSema, NV_DMA_IN_MEMORY,
+	ret = nvif_object_ctor(&chan->user, "fenceCtxDma", NvSema,
+			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,

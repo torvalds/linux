@@ -113,9 +113,9 @@ static u8 virtinput_cfg_select(struct virtio_input *vi,
 {
 	u8 size;
 
-	virtio_cwrite(vi->vdev, struct virtio_input_config, select, &select);
-	virtio_cwrite(vi->vdev, struct virtio_input_config, subsel, &subsel);
-	virtio_cread(vi->vdev, struct virtio_input_config, size, &size);
+	virtio_cwrite_le(vi->vdev, struct virtio_input_config, select, &select);
+	virtio_cwrite_le(vi->vdev, struct virtio_input_config, subsel, &subsel);
+	virtio_cread_le(vi->vdev, struct virtio_input_config, size, &size);
 	return size;
 }
 
@@ -158,11 +158,11 @@ static void virtinput_cfg_abs(struct virtio_input *vi, int abs)
 	u32 mi, ma, re, fu, fl;
 
 	virtinput_cfg_select(vi, VIRTIO_INPUT_CFG_ABS_INFO, abs);
-	virtio_cread(vi->vdev, struct virtio_input_config, u.abs.min, &mi);
-	virtio_cread(vi->vdev, struct virtio_input_config, u.abs.max, &ma);
-	virtio_cread(vi->vdev, struct virtio_input_config, u.abs.res, &re);
-	virtio_cread(vi->vdev, struct virtio_input_config, u.abs.fuzz, &fu);
-	virtio_cread(vi->vdev, struct virtio_input_config, u.abs.flat, &fl);
+	virtio_cread_le(vi->vdev, struct virtio_input_config, u.abs.min, &mi);
+	virtio_cread_le(vi->vdev, struct virtio_input_config, u.abs.max, &ma);
+	virtio_cread_le(vi->vdev, struct virtio_input_config, u.abs.res, &re);
+	virtio_cread_le(vi->vdev, struct virtio_input_config, u.abs.fuzz, &fu);
+	virtio_cread_le(vi->vdev, struct virtio_input_config, u.abs.flat, &fl);
 	input_set_abs_params(vi->idev, abs, mi, ma, fu, fl);
 	input_abs_set_res(vi->idev, abs, re);
 }
@@ -244,14 +244,14 @@ static int virtinput_probe(struct virtio_device *vdev)
 
 	size = virtinput_cfg_select(vi, VIRTIO_INPUT_CFG_ID_DEVIDS, 0);
 	if (size >= sizeof(struct virtio_input_devids)) {
-		virtio_cread(vi->vdev, struct virtio_input_config,
-			     u.ids.bustype, &vi->idev->id.bustype);
-		virtio_cread(vi->vdev, struct virtio_input_config,
-			     u.ids.vendor, &vi->idev->id.vendor);
-		virtio_cread(vi->vdev, struct virtio_input_config,
-			     u.ids.product, &vi->idev->id.product);
-		virtio_cread(vi->vdev, struct virtio_input_config,
-			     u.ids.version, &vi->idev->id.version);
+		virtio_cread_le(vi->vdev, struct virtio_input_config,
+				u.ids.bustype, &vi->idev->id.bustype);
+		virtio_cread_le(vi->vdev, struct virtio_input_config,
+				u.ids.vendor, &vi->idev->id.vendor);
+		virtio_cread_le(vi->vdev, struct virtio_input_config,
+				u.ids.product, &vi->idev->id.product);
+		virtio_cread_le(vi->vdev, struct virtio_input_config,
+				u.ids.version, &vi->idev->id.version);
 	} else {
 		vi->idev->id.bustype = BUS_VIRTUAL;
 	}

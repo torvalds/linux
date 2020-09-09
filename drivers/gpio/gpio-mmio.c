@@ -195,8 +195,7 @@ static int bgpio_get_multiple_be(struct gpio_chip *gc, unsigned long *mask,
 	*bits &= ~*mask;
 
 	/* Create a mirrored mask */
-	bit = -1;
-	while ((bit = find_next_bit(mask, gc->ngpio, bit + 1)) < gc->ngpio)
+	for_each_set_bit(bit, mask, gc->ngpio)
 		readmask |= bgpio_line2mask(gc, bit);
 
 	/* Read the register */
@@ -206,8 +205,7 @@ static int bgpio_get_multiple_be(struct gpio_chip *gc, unsigned long *mask,
 	 * Mirror the result into the "bits" result, this will give line 0
 	 * in bit 0 ... line 31 in bit 31 for a 32bit register.
 	 */
-	bit = -1;
-	while ((bit = find_next_bit(&val, gc->ngpio, bit + 1)) < gc->ngpio)
+	for_each_set_bit(bit, &val, gc->ngpio)
 		*bits |= bgpio_line2mask(gc, bit);
 
 	return 0;
@@ -272,15 +270,11 @@ static void bgpio_multiple_get_masks(struct gpio_chip *gc,
 	*set_mask = 0;
 	*clear_mask = 0;
 
-	for (i = 0; i < gc->bgpio_bits; i++) {
-		if (*mask == 0)
-			break;
-		if (__test_and_clear_bit(i, mask)) {
-			if (test_bit(i, bits))
-				*set_mask |= bgpio_line2mask(gc, i);
-			else
-				*clear_mask |= bgpio_line2mask(gc, i);
-		}
+	for_each_set_bit(i, mask, gc->bgpio_bits) {
+		if (test_bit(i, bits))
+			*set_mask |= bgpio_line2mask(gc, i);
+		else
+			*clear_mask |= bgpio_line2mask(gc, i);
 	}
 }
 

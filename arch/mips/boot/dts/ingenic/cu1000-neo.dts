@@ -7,8 +7,8 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	compatible = "yna,cu1000-neo", "ingenic,x1000";
-	model = "YSH & ATIL General Board CU Neo";
+	compatible = "yna,cu1000-neo", "ingenic,x1000e";
+	model = "YSH & ATIL General Board CU1000-Neo";
 
 	aliases {
 		serial2 = &uart2;
@@ -23,20 +23,19 @@
 		reg = <0x0 0x04000000>;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		led-0 {
+			gpios = <&gpb 21 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc0";
+		};
+	};
+
 	wlan_pwrseq: msc1-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 
-		clocks = <&lpoclk>;
-		clock-names = "ext_clock";
-
 		reset-gpios = <&gpc 17 GPIO_ACTIVE_LOW>;
 		post-power-on-delay-ms = <200>;
-
-		lpoclk: ap6212a {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
 	};
 };
 
@@ -53,6 +52,13 @@
 	ingenic,pwm-channels-mask = <0xfa>;
 };
 
+&uart2 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart2>;
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -61,43 +67,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_i2c0>;
 
-	ads7830@48 {
+	ads7830: adc@48 {
 		compatible = "ti,ads7830";
 		reg = <0x48>;
 	};
 };
 
-&uart2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pins_uart2>;
-
-	status = "okay";
-};
-
-&mac {
-	phy-mode = "rmii";
-	phy-handle = <&lan8720a>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pins_mac>;
-
-	snps,reset-gpio = <&gpc 23 GPIO_ACTIVE_LOW>; /* PC23 */
-	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 30000>;
-
-	status = "okay";
-};
-
-&mdio {
-	status = "okay";
-
-	lan8720a: ethernet-phy@0 {
-		compatible = "ethernet-phy-id0007.c0f0", "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
 &msc0 {
+	status = "okay";
+
 	bus-width = <8>;
 	max-frequency = <50000000>;
 
@@ -105,25 +83,22 @@
 	pinctrl-0 = <&pins_msc0>;
 
 	non-removable;
-
-	status = "okay";
 };
 
 &msc1 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
 	bus-width = <4>;
 	max-frequency = <50000000>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_msc1>;
 
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	non-removable;
 
 	mmc-pwrseq = <&wlan_pwrseq>;
-
-	status = "okay";
 
 	ap6212a: wifi@1 {
 		compatible = "brcm,bcm4329-fmac";
@@ -137,23 +112,40 @@
 	};
 };
 
-&pinctrl {
-	pins_i2c0: i2c0 {
-		function = "i2c0";
-		groups = "i2c0-data";
-		bias-disable;
-	};
+&mac {
+	status = "okay";
 
+	phy-mode = "rmii";
+	phy-handle = <&lan8720a>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_mac>;
+
+	snps,reset-gpio = <&gpc 23 GPIO_ACTIVE_LOW>; /* PC23 */
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 30000>;
+};
+
+&mdio {
+	status = "okay";
+
+	lan8720a: ethernet-phy@0 {
+		compatible = "ethernet-phy-id0007.c0f0", "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&pinctrl {
 	pins_uart2: uart2 {
 		function = "uart2";
 		groups = "uart2-data-d";
-		bias-disable;
+		bias-pull-up;
 	};
 
-	pins_mac: mac {
-		function = "mac";
-		groups = "mac";
-		bias-disable;
+	pins_i2c0: i2c0 {
+		function = "i2c0";
+		groups = "i2c0-data";
+		bias-pull-up;
 	};
 
 	pins_msc0: msc0 {
@@ -165,6 +157,12 @@
 	pins_msc1: msc1 {
 		function = "mmc1";
 		groups = "mmc1-1bit", "mmc1-4bit";
+		bias-disable;
+	};
+
+	pins_mac: mac {
+		function = "mac";
+		groups = "mac";
 		bias-disable;
 	};
 };

@@ -2,6 +2,8 @@
 /* Copyright 2011-2014 Autronica Fire and Security AS
  *
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
+ *
+ * include file for HSR and PRP.
  */
 
 #ifndef __HSR_SLAVE_H
@@ -29,5 +31,7 @@ static inline struct hsr_port *hsr_port_get_rcu(const struct net_device *dev)
 	return hsr_port_exists(dev) ?
 				rcu_dereference(dev->rx_handler_data) : NULL;
 }
+
+bool hsr_invalid_dan_ingress_frame(__be16 protocol);
 
 #endif /* __HSR_SLAVE_H */

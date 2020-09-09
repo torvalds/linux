@@ -713,7 +713,7 @@ int scif_connect(scif_epd_t epd, struct scif_port_id *dst)
 }
 EXPORT_SYMBOL_GPL(scif_connect);
 
-/**
+/*
  * scif_accept() - Accept a connection request from the remote node
  *
  * The function accepts a connection request from the remote node.  Successful
@@ -997,7 +997,6 @@ static int _scif_send(scif_epd_t epd, void *msg, int len, int flags)
 
 static int _scif_recv(scif_epd_t epd, void *msg, int len, int flags)
 {
-	int read_size;
 	struct scif_endpt *ep = (struct scif_endpt *)epd;
 	struct scifmsg notif_msg;
 	int curr_recv_len = 0, remaining_len = len, read_count;
@@ -1017,8 +1016,7 @@ static int _scif_recv(scif_epd_t epd, void *msg, int len, int flags)
 			 * important for the Non Blocking case.
 			 */
 			curr_recv_len = min(remaining_len, read_count);
-			read_size = scif_rb_get_next(&qp->inbound_q,
-						     msg, curr_recv_len);
+			scif_rb_get_next(&qp->inbound_q, msg, curr_recv_len);
 			if (ep->state == SCIFEP_CONNECTED) {
 				/*
 				 * Update the read pointer only if the endpoint

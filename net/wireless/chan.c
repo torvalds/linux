@@ -153,6 +153,11 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	control_freq = chandef->chan->center_freq;
 
 	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_1:
+	case NL80211_CHAN_WIDTH_2:
+	case NL80211_CHAN_WIDTH_4:
+	case NL80211_CHAN_WIDTH_8:
+	case NL80211_CHAN_WIDTH_16:
 	case NL80211_CHAN_WIDTH_5:
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_20:
@@ -263,6 +268,21 @@ static int cfg80211_chandef_get_width(const struct cfg80211_chan_def *c)
 	int width;
 
 	switch (c->width) {
+	case NL80211_CHAN_WIDTH_1:
+		width = 1;
+		break;
+	case NL80211_CHAN_WIDTH_2:
+		width = 2;
+		break;
+	case NL80211_CHAN_WIDTH_4:
+		width = 4;
+		break;
+	case NL80211_CHAN_WIDTH_8:
+		width = 8;
+		break;
+	case NL80211_CHAN_WIDTH_16:
+		width = 16;
+		break;
 	case NL80211_CHAN_WIDTH_5:
 		width = 5;
 		break;
@@ -911,6 +931,21 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 	control_freq = chandef->chan->center_freq;
 
 	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_1:
+		width = 1;
+		break;
+	case NL80211_CHAN_WIDTH_2:
+		width = 2;
+		break;
+	case NL80211_CHAN_WIDTH_4:
+		width = 4;
+		break;
+	case NL80211_CHAN_WIDTH_8:
+		width = 8;
+		break;
+	case NL80211_CHAN_WIDTH_16:
+		width = 16;
+		break;
 	case NL80211_CHAN_WIDTH_5:
 		width = 5;
 		break;

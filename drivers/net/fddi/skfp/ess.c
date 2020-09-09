@@ -148,7 +148,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 
 	DB_ESSN(2, "fc %x	ft %x", sm->smt_class, sm->smt_type);
 	DB_ESSN(2, "ver %x	tran %x", sm->smt_version, sm->smt_tid);
-	DB_ESSN(2, "stn_id %s", addr_to_string(&sm->smt_source));
+	DB_ESSN(2, "stn_id %pM", &sm->smt_source);
 
 	DB_ESSN(2, "infolen %x	res %lx", sm->smt_len, msg_res_type);
 	DB_ESSN(2, "sbacmd %x", cmd->sba_cmd);
@@ -308,8 +308,8 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		p = (void *) sm_to_para(smc,sm,SMT_P3210) ;
 		overhead = ((struct smt_p_3210 *)p)->mib_overhead ;
 
-		DB_ESSN(2, "ESS: Change Request from %s",
-			addr_to_string(&sm->smt_source));
+		DB_ESSN(2, "ESS: Change Request from %pM",
+			&sm->smt_source);
 		DB_ESSN(2, "payload= %lx	overhead= %lx",
 			payload, overhead);
 
@@ -339,8 +339,8 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 			return fs;
 		}
 
-		DB_ESSN(2, "ESS: Report Request from %s",
-			addr_to_string(&sm->smt_source));
+		DB_ESSN(2, "ESS: Report Request from %pM",
+			&sm->smt_source);
 
 		/*
 		 * verify that the resource type is sync bw only

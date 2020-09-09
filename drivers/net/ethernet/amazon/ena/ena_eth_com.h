@@ -157,7 +157,8 @@ static inline bool ena_com_is_doorbell_needed(struct ena_com_io_sq *io_sq,
 	llq_info = &io_sq->llq_info;
 	num_descs = ena_tx_ctx->num_bufs;
 
-	if (unlikely(ena_com_meta_desc_changed(io_sq, ena_tx_ctx)))
+	if (llq_info->disable_meta_caching ||
+	    unlikely(ena_com_meta_desc_changed(io_sq, ena_tx_ctx)))
 		++num_descs;
 
 	if (num_descs > llq_info->descs_num_before_header) {

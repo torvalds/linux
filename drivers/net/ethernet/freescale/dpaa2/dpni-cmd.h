@@ -626,4 +626,17 @@ struct dpni_cmd_set_congestion_notification {
 	__le32 threshold_exit;
 };
 
+#define DPNI_COUPLED_SHIFT	0
+#define DPNI_COUPLED_SIZE	1
+
+struct dpni_cmd_set_tx_shaping {
+	__le16 tx_cr_max_burst_size;
+	__le16 tx_er_max_burst_size;
+	__le32 pad;
+	__le32 tx_cr_rate_limit;
+	__le32 tx_er_rate_limit;
+	/* from LSB: coupled:1 */
+	u8 coupled;
+};
+
 #endif /* _FSL_DPNI_CMD_H */

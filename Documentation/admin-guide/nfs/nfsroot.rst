@@ -264,7 +264,7 @@ They depend on various facilities being available:
      	access to the floppy drive device, /dev/fd0
 
      	For more information on syslinux, including how to create bootdisks
-     	for prebuilt kernels, see http://syslinux.zytor.com/
+     	for prebuilt kernels, see https://syslinux.zytor.com/
 
 	.. note::
 		Previously it was possible to write a kernel directly to
@@ -292,7 +292,7 @@ They depend on various facilities being available:
 	  cdrecord dev=ATAPI:1,0,0 arch/x86/boot/image.iso
 
      	For more information on isolinux, including how to create bootdisks
-     	for prebuilt kernels, see http://syslinux.zytor.com/
+     	for prebuilt kernels, see https://syslinux.zytor.com/
 
 - Using LILO
 
@@ -346,7 +346,7 @@ They depend on various facilities being available:
 	see Documentation/admin-guide/serial-console.rst for more information.
 
 	For more information on isolinux, including how to create bootdisks
-	for prebuilt kernels, see http://syslinux.zytor.com/
+	for prebuilt kernels, see https://syslinux.zytor.com/
 
 
 

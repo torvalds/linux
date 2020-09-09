@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
+#include <linux/log2.h>
 #include <net/net_namespace.h>
 #include <net/flow_dissector.h>
 #include <net/pkt_cls.h>
@@ -22,6 +23,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 {
 	const struct flow_action_entry *act;
 	int mirror_act_count = 0;
+	int police_act_count = 0;
 	int err, i;
 
 	if (!flow_action_has_entries(flow_action))
@@ -176,6 +178,28 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			err = mlxsw_sp_acl_rulei_act_mangle(mlxsw_sp, rulei,
 							    htype, offset,
 							    mask, val, extack);
+			if (err)
+				return err;
+			break;
+			}
+		case FLOW_ACTION_POLICE: {
+			u32 burst;
+
+			if (police_act_count++) {
+				NL_SET_ERR_MSG_MOD(extack, "Multiple police actions per rule are not supported");
+				return -EOPNOTSUPP;
+			}
+
+			/* The kernel might adjust the requested burst size so
+			 * that it is not exactly a power of two. Re-adjust it
+			 * here since the hardware only supports burst sizes
+			 * that are a power of two.
+			 */
+			burst = roundup_pow_of_two(act->police.burst);
+			err = mlxsw_sp_acl_rulei_act_police(mlxsw_sp, rulei,
+							    act->police.index,
+							    act->police.rate_bytes_ps,
+							    burst, extack);
 			if (err)
 				return err;
 			break;
@@ -616,6 +640,7 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 	u64 packets;
 	u64 lastuse;
 	u64 bytes;
+	u64 drops;
 	int err;
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
@@ -629,11 +654,12 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 
 	err = mlxsw_sp_acl_rule_get_stats(mlxsw_sp, rule, &packets, &bytes,
-					  &lastuse, &used_hw_stats);
+					  &drops, &lastuse, &used_hw_stats);
 	if (err)
 		goto err_rule_get_stats;
 
-	flow_stats_update(&f->stats, bytes, packets, lastuse, used_hw_stats);
+	flow_stats_update(&f->stats, bytes, packets, drops, lastuse,
+			  used_hw_stats);
 
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 	return 0;

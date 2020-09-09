@@ -181,20 +181,6 @@
 	};
 };
 
-&amba {
-	mdma0: mdma@12840000 {
-		compatible = "arm,pl330", "arm,primecell";
-		reg = <0x12840000 0x1000>;
-		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clock CLK_MDMA>;
-		clock-names = "apb_pclk";
-		#dma-cells = <1>;
-		#dma-channels = <8>;
-		#dma-requests = <1>;
-		power-domains = <&pd_lcd0>;
-	};
-};
-
 &camera {
 	status = "okay";
 
@@ -614,6 +600,20 @@
 	status = "okay";
 	/delete-property/dmas;
 	/delete-property/dma-names;
+};
+
+&soc {
+	mdma0: mdma@12840000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x12840000 0x1000>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock CLK_MDMA>;
+		clock-names = "apb_pclk";
+		#dma-cells = <1>;
+		#dma-channels = <8>;
+		#dma-requests = <1>;
+		power-domains = <&pd_lcd0>;
+	};
 };
 
 &sysram {

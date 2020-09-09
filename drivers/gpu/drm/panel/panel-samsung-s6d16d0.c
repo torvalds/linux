@@ -37,12 +37,6 @@ static const struct drm_display_mode samsung_s6d16d0_mode = {
 	.vsync_start = 480 + 1,
 	.vsync_end = 480 + 1 + 1,
 	.vtotal = 480 + 1 + 1 + 1,
-	/*
-	 * This depends on the clocking HS vs LP rate, this value
-	 * is calculated as:
-	 * vrefresh = (clock * 1000) / (htotal*vtotal)
-	 */
-	.vrefresh = 816,
 	.width_mm = 84,
 	.height_mm = 48,
 };

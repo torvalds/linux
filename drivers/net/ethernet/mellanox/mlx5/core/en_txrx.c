@@ -31,8 +31,8 @@
  */
 
 #include <linux/irq.h>
-#include <linux/indirect_call_wrapper.h>
 #include "en.h"
+#include "en/txrx.h"
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
 #include "en/xsk/tx.h"
@@ -149,17 +149,17 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	mlx5e_poll_ico_cq(&c->icosq.cq);
+	if (mlx5e_poll_ico_cq(&c->async_icosq.cq))
+		/* Don't clear the flag if nothing was polled to prevent
+		 * queueing more WQEs and overflowing the async ICOSQ.
+		 */
+		clear_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->async_icosq.state);
 
 	busy |= INDIRECT_CALL_2(rq->post_wqes,
 				mlx5e_post_rx_mpwqes,
 				mlx5e_post_rx_wqes,
 				rq);
 	if (xsk_open) {
-		if (mlx5e_poll_ico_cq(&c->xskicosq.cq))
-			/* Don't clear the flag if nothing was polled to prevent
-			 * queueing more WQEs and overflowing XSKICOSQ.
-			 */
-			clear_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->xskicosq.state);
 		busy |= mlx5e_poll_xdpsq_cq(&xsksq->cq);
 		busy_xsk |= mlx5e_napi_xsk_post(xsksq, xskrq);
 	}
@@ -189,11 +189,11 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	mlx5e_cq_arm(&rq->cq);
 	mlx5e_cq_arm(&c->icosq.cq);
+	mlx5e_cq_arm(&c->async_icosq.cq);
 	mlx5e_cq_arm(&c->xdpsq.cq);
 
 	if (xsk_open) {
 		mlx5e_handle_rx_dim(xskrq);
-		mlx5e_cq_arm(&c->xskicosq.cq);
 		mlx5e_cq_arm(&xsksq->cq);
 		mlx5e_cq_arm(&xskrq->cq);
 	}

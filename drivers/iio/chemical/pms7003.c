@@ -280,7 +280,6 @@ static int pms7003_probe(struct serdev_device *serdev)
 	state = iio_priv(indio_dev);
 	serdev_device_set_drvdata(serdev, indio_dev);
 	state->serdev = serdev;
-	indio_dev->dev.parent = &serdev->dev;
 	indio_dev->info = &pms7003_info;
 	indio_dev->name = PMS7003_DRIVER_NAME;
 	indio_dev->channels = pms7003_channels,

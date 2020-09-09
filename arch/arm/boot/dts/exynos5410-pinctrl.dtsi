@@ -3,7 +3,7 @@
  * Exynos5410 SoC pin-mux and pin-config device tree source
  *
  * Copyright (c) 2013 Hardkernel Co., Ltd.
- *              http://www.hardkernel.com
+ *              https://www.hardkernel.com
  */
 
 #include <dt-bindings/pinctrl/samsung.h>

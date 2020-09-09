@@ -2653,7 +2653,7 @@ static int coda_open(struct file *file)
 
 	ret = clk_prepare_enable(dev->clk_per);
 	if (ret)
-		goto err_clk_per;
+		goto err_pm_get;
 
 	ret = clk_prepare_enable(dev->clk_ahb);
 	if (ret)
@@ -2692,9 +2692,8 @@ err_ctx_init:
 	clk_disable_unprepare(dev->clk_ahb);
 err_clk_ahb:
 	clk_disable_unprepare(dev->clk_per);
-err_clk_per:
-	pm_runtime_put_sync(dev->dev);
 err_pm_get:
+	pm_runtime_put_sync(dev->dev);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 err_coda_name_init:

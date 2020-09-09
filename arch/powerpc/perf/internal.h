@@ -9,4 +9,5 @@ extern int init_power6_pmu(void);
 extern int init_power7_pmu(void);
 extern int init_power8_pmu(void);
 extern int init_power9_pmu(void);
+extern int init_power10_pmu(void);
 extern int init_generic_compat_pmu(void);

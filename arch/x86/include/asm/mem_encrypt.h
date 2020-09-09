@@ -43,9 +43,10 @@ void __init sme_enable(struct boot_params *bp);
 int __init early_set_memory_decrypted(unsigned long vaddr, unsigned long size);
 int __init early_set_memory_encrypted(unsigned long vaddr, unsigned long size);
 
+void __init mem_encrypt_free_decrypted_mem(void);
+
 /* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void);
-void __init mem_encrypt_free_decrypted_mem(void);
 
 bool sme_active(void);
 bool sev_active(void);
@@ -76,6 +77,8 @@ static inline int __init
 early_set_memory_decrypted(unsigned long vaddr, unsigned long size) { return 0; }
 static inline int __init
 early_set_memory_encrypted(unsigned long vaddr, unsigned long size) { return 0; }
+
+static inline void mem_encrypt_free_decrypted_mem(void) { }
 
 #define __bss_decrypted
 

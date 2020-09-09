@@ -27,6 +27,7 @@ enum charge_mode {
 	CHARGE_MODE_AC = 3,	/* Mostly AC use, used for Trickle */
 	CHARGE_MODE_AUTO = 4,	/* Used for Adaptive */
 	CHARGE_MODE_CUSTOM = 5,	/* Used for Custom */
+	CHARGE_MODE_LONGLIFE = 6, /* Used for Long Life */
 };
 
 #define CHARGE_LOWER_LIMIT_MIN	50
@@ -48,6 +49,8 @@ static int psp_val_to_charge_mode(int psp_val)
 		return CHARGE_MODE_AUTO;
 	case POWER_SUPPLY_CHARGE_TYPE_CUSTOM:
 		return CHARGE_MODE_CUSTOM;
+	case POWER_SUPPLY_CHARGE_TYPE_LONGLIFE:
+		return CHARGE_MODE_LONGLIFE;
 	default:
 		return -EINVAL;
 	}
@@ -67,6 +70,8 @@ static int charge_mode_to_psp_val(enum charge_mode mode)
 		return POWER_SUPPLY_CHARGE_TYPE_ADAPTIVE;
 	case CHARGE_MODE_CUSTOM:
 		return POWER_SUPPLY_CHARGE_TYPE_CUSTOM;
+	case CHARGE_MODE_LONGLIFE:
+		return POWER_SUPPLY_CHARGE_TYPE_LONGLIFE;
 	default:
 		return -EINVAL;
 	}

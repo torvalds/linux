@@ -1066,7 +1066,7 @@ static int jpu_buf_prepare(struct vb2_buffer *vb)
 		}
 
 		/* decoder capture queue */
-		if (!ctx->encoder && !V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type))
+		if (!ctx->encoder && V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type))
 			vb2_set_plane_payload(vb, i, size);
 	}
 

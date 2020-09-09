@@ -219,7 +219,7 @@ struct hv_do_fcopy {
  * kernel and user-level daemon communicate using a connector channel.
  *
  * The user mode component first registers with the
- * the kernel component. Subsequently, the kernel component requests, data
+ * kernel component. Subsequently, the kernel component requests, data
  * for the specified keys. In response to this message the user mode component
  * fills in the value corresponding to the specified key. We overload the
  * sequence field in the cn_msg header to define our KVP message types.

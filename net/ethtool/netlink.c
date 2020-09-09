@@ -181,6 +181,12 @@ err:
 	return NULL;
 }
 
+void *ethnl_dump_put(struct sk_buff *skb, struct netlink_callback *cb, u8 cmd)
+{
+	return genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			   &ethtool_genl_family, 0, cmd);
+}
+
 void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd)
 {
 	return genlmsg_put(skb, 0, ++ethnl_bcast_seq, &ethtool_genl_family, 0,
@@ -847,6 +853,12 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_CABLE_TEST_TDR_ACT,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_act_cable_test_tdr,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_TUNNEL_INFO_GET,
+		.doit	= ethnl_tunnel_info_doit,
+		.start	= ethnl_tunnel_info_start,
+		.dumpit	= ethnl_tunnel_info_dumpit,
 	},
 };
 

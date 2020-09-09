@@ -111,7 +111,7 @@ reset_fifo_fail:
 	return result;
 }
 
-/**
+/*
  * inv_mpu6050_read_fifo() - Transfer data from hardware FIFO to KFIFO.
  */
 irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)

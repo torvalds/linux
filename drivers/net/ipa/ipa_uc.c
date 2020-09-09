@@ -35,31 +35,34 @@
  */
 /* Supports hardware interface version 0x2000 */
 
-/* Offset relative to the base of the IPA shared address space of the
- * shared region used for communication with the microcontroller.  The
- * region is 128 bytes in size, but only the first 40 bytes are used.
- */
-#define IPA_MEM_UC_OFFSET	0x0000
-
 /* Delay to allow a the microcontroller to save state when crashing */
 #define IPA_SEND_DELAY		100	/* microseconds */
 
 /**
  * struct ipa_uc_mem_area - AP/microcontroller shared memory area
  * @command:		command code (AP->microcontroller)
+ * @reserved0:		reserved bytes; avoid reading or writing
  * @command_param:	low 32 bits of command parameter (AP->microcontroller)
  * @command_param_hi:	high 32 bits of command parameter (AP->microcontroller)
  *
  * @response:		response code (microcontroller->AP)
+ * @reserved1:		reserved bytes; avoid reading or writing
  * @response_param:	response parameter (microcontroller->AP)
  *
  * @event:		event code (microcontroller->AP)
+ * @reserved2:		reserved bytes; avoid reading or writing
  * @event_param:	event parameter (microcontroller->AP)
  *
  * @first_error_address: address of first error-source on SNOC
  * @hw_state:		state of hardware (including error type information)
  * @warning_counter:	counter of non-fatal hardware errors
+ * @reserved3:		reserved bytes; avoid reading or writing
  * @interface_version:	hardware-reported interface version
+ * @reserved4:		reserved bytes; avoid reading or writing
+ *
+ * A shared memory area at the base of IPA resident memory is used for
+ * communication with the microcontroller.  The region is 128 bytes in
+ * size, but only the first 40 bytes (structured this way) are used.
  */
 struct ipa_uc_mem_area {
 	u8 command;		/* enum ipa_uc_command */

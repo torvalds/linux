@@ -9,7 +9,6 @@
  * Copyright (C) 2011 Texas Instruments
  */
 
-#include <linux/amba/clcd-regs.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/version.h>

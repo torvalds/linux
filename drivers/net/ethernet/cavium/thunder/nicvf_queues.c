@@ -1489,9 +1489,10 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 	int seg_subdescs = 0, desc_cnt = 0;
 	int seg_len, total_len, data_left;
 	int hdr_qentry = qentry;
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	int hdr_len;
 
-	tso_start(skb, &tso);
+	hdr_len = tso_start(skb, &tso);
+
 	total_len = skb->len - hdr_len;
 	while (total_len > 0) {
 		char *hdr;

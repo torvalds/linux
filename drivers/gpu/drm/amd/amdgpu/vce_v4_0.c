@@ -991,7 +991,8 @@ static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
 	/* wait for reg writes */
-	vce_v4_0_emit_reg_wait(ring, hub->ctx0_ptb_addr_lo32 + vmid * 2,
+	vce_v4_0_emit_reg_wait(ring, hub->ctx0_ptb_addr_lo32 +
+			       vmid * hub->ctx_addr_distance,
 			       lower_32_bits(pd_addr), 0xffffffff);
 }
 

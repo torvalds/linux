@@ -155,7 +155,6 @@ static int adis16130_probe(struct spi_device *spi)
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->channels = adis16130_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16130_channels);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16130_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

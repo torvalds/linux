@@ -613,6 +613,36 @@
 			};
 		};
 
+		pcie_ep: pcie-ep@66000000 {
+			compatible = "socionext,uniphier-pro5-pcie-ep",
+				     "snps,dw-pcie-ep";
+			status = "disabled";
+			reg-names = "dbi", "dbi2", "link", "addr_space";
+			reg = <0x66000000 0x1000>, <0x66001000 0x1000>,
+			      <0x66010000 0x10000>, <0x67000000 0x400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_pcie>;
+			clock-names = "gio", "link";
+			clocks = <&sys_clk 12>, <&sys_clk 24>;
+			reset-names = "gio", "link";
+			resets = <&sys_rst 12>, <&sys_rst 24>;
+			num-ib-windows = <16>;
+			num-ob-windows = <16>;
+			num-lanes = <4>;
+			phy-names = "pcie-phy";
+			phys = <&pcie_phy>;
+		};
+
+		pcie_phy: phy@66038000 {
+			compatible = "socionext,uniphier-pro5-pcie-phy";
+			reg = <0x66038000 0x4000>;
+			#phy-cells = <0>;
+			clock-names = "gio", "link";
+			clocks = <&sys_clk 12>, <&sys_clk 24>;
+			reset-names = "gio", "link";
+			resets = <&sys_rst 12>, <&sys_rst 24>;
+		};
+
 		nand: nand-controller@68000000 {
 			compatible = "socionext,uniphier-denali-nand-v5b";
 			status = "disabled";

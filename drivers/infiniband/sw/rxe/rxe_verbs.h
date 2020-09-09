@@ -371,7 +371,6 @@ struct rxe_mc_elem {
 
 struct rxe_port {
 	struct ib_port_attr	attr;
-	u16			*pkey_tbl;
 	__be64			port_guid;
 	__be64			subnet_prefix;
 	spinlock_t		port_lock; /* guard port */

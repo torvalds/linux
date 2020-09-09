@@ -328,6 +328,10 @@ static int imx_scu_probe(struct platform_device *pdev)
 
 	imx_sc_ipc_handle = sc_ipc;
 
+	ret = imx_scu_soc_init(dev);
+	if (ret)
+		dev_warn(dev, "failed to initialize SoC info: %d\n", ret);
+
 	ret = imx_scu_enable_general_irq_channel(dev);
 	if (ret)
 		dev_warn(dev,

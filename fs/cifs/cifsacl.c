@@ -49,7 +49,7 @@ static const struct cifs_sid sid_unix_groups = { 1, 1, {0, 0, 0, 0, 0, 22},
 		{cpu_to_le32(2), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
 
 /*
- * See http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx
+ * See https://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx
  */
 
 /* S-1-5-88 MS NFS and Apple style UID/GID/mode */
@@ -825,7 +825,7 @@ unsigned int setup_authusers_ACE(struct cifs_ace *pntace)
 
 /*
  * Fill in the special SID based on the mode. See
- * http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx
+ * https://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx
  */
 unsigned int setup_special_mode_ACE(struct cifs_ace *pntace, __u64 nmode)
 {

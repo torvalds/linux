@@ -21,9 +21,9 @@ properties:
   backlight: true
   reset-gpios: true
   iovcc-supply:
-     description: regulator that supplies the iovcc voltage
+    description: regulator that supplies the iovcc voltage
   vci-supply:
-     description: regulator that supplies the vci voltage
+    description: regulator that supplies the vci voltage
 
 required:
   - compatible

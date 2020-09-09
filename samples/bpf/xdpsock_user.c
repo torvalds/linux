@@ -77,6 +77,7 @@ static u32 opt_batch_size = 64;
 static int opt_pkt_count;
 static u16 opt_pkt_size = MIN_PKT_SIZE;
 static u32 opt_pkt_fill_pattern = 0x12345678;
+static bool opt_extra_stats;
 static int opt_poll;
 static int opt_interval = 1;
 static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
@@ -103,8 +104,20 @@ struct xsk_socket_info {
 	struct xsk_socket *xsk;
 	unsigned long rx_npkts;
 	unsigned long tx_npkts;
+	unsigned long rx_dropped_npkts;
+	unsigned long rx_invalid_npkts;
+	unsigned long tx_invalid_npkts;
+	unsigned long rx_full_npkts;
+	unsigned long rx_fill_empty_npkts;
+	unsigned long tx_empty_npkts;
 	unsigned long prev_rx_npkts;
 	unsigned long prev_tx_npkts;
+	unsigned long prev_rx_dropped_npkts;
+	unsigned long prev_rx_invalid_npkts;
+	unsigned long prev_tx_invalid_npkts;
+	unsigned long prev_rx_full_npkts;
+	unsigned long prev_rx_fill_empty_npkts;
+	unsigned long prev_tx_empty_npkts;
 	u32 outstanding_tx;
 };
 
@@ -147,6 +160,30 @@ static void print_benchmark(bool running)
 	}
 }
 
+static int xsk_get_xdp_stats(int fd, struct xsk_socket_info *xsk)
+{
+	struct xdp_statistics stats;
+	socklen_t optlen;
+	int err;
+
+	optlen = sizeof(stats);
+	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
+	if (err)
+		return err;
+
+	if (optlen == sizeof(struct xdp_statistics)) {
+		xsk->rx_dropped_npkts = stats.rx_dropped;
+		xsk->rx_invalid_npkts = stats.rx_invalid_descs;
+		xsk->tx_invalid_npkts = stats.tx_invalid_descs;
+		xsk->rx_full_npkts = stats.rx_ring_full;
+		xsk->rx_fill_empty_npkts = stats.rx_fill_ring_empty_descs;
+		xsk->tx_empty_npkts = stats.tx_ring_empty_descs;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static void dump_stats(void)
 {
 	unsigned long now = get_nsecs();
@@ -157,7 +194,8 @@ static void dump_stats(void)
 
 	for (i = 0; i < num_socks && xsks[i]; i++) {
 		char *fmt = "%-15s %'-11.0f %'-11lu\n";
-		double rx_pps, tx_pps;
+		double rx_pps, tx_pps, dropped_pps, rx_invalid_pps, full_pps, fill_empty_pps,
+			tx_invalid_pps, tx_empty_pps;
 
 		rx_pps = (xsks[i]->rx_npkts - xsks[i]->prev_rx_npkts) *
 			 1000000000. / dt;
@@ -175,6 +213,46 @@ static void dump_stats(void)
 
 		xsks[i]->prev_rx_npkts = xsks[i]->rx_npkts;
 		xsks[i]->prev_tx_npkts = xsks[i]->tx_npkts;
+
+		if (opt_extra_stats) {
+			if (!xsk_get_xdp_stats(xsk_socket__fd(xsks[i]->xsk), xsks[i])) {
+				dropped_pps = (xsks[i]->rx_dropped_npkts -
+						xsks[i]->prev_rx_dropped_npkts) * 1000000000. / dt;
+				rx_invalid_pps = (xsks[i]->rx_invalid_npkts -
+						xsks[i]->prev_rx_invalid_npkts) * 1000000000. / dt;
+				tx_invalid_pps = (xsks[i]->tx_invalid_npkts -
+						xsks[i]->prev_tx_invalid_npkts) * 1000000000. / dt;
+				full_pps = (xsks[i]->rx_full_npkts -
+						xsks[i]->prev_rx_full_npkts) * 1000000000. / dt;
+				fill_empty_pps = (xsks[i]->rx_fill_empty_npkts -
+						xsks[i]->prev_rx_fill_empty_npkts)
+						* 1000000000. / dt;
+				tx_empty_pps = (xsks[i]->tx_empty_npkts -
+						xsks[i]->prev_tx_empty_npkts) * 1000000000. / dt;
+
+				printf(fmt, "rx dropped", dropped_pps,
+				       xsks[i]->rx_dropped_npkts);
+				printf(fmt, "rx invalid", rx_invalid_pps,
+				       xsks[i]->rx_invalid_npkts);
+				printf(fmt, "tx invalid", tx_invalid_pps,
+				       xsks[i]->tx_invalid_npkts);
+				printf(fmt, "rx queue full", full_pps,
+				       xsks[i]->rx_full_npkts);
+				printf(fmt, "fill ring empty", fill_empty_pps,
+				       xsks[i]->rx_fill_empty_npkts);
+				printf(fmt, "tx ring empty", tx_empty_pps,
+				       xsks[i]->tx_empty_npkts);
+
+				xsks[i]->prev_rx_dropped_npkts = xsks[i]->rx_dropped_npkts;
+				xsks[i]->prev_rx_invalid_npkts = xsks[i]->rx_invalid_npkts;
+				xsks[i]->prev_tx_invalid_npkts = xsks[i]->tx_invalid_npkts;
+				xsks[i]->prev_rx_full_npkts = xsks[i]->rx_full_npkts;
+				xsks[i]->prev_rx_fill_empty_npkts = xsks[i]->rx_fill_empty_npkts;
+				xsks[i]->prev_tx_empty_npkts = xsks[i]->tx_empty_npkts;
+			} else {
+				printf("%-15s\n", "Error retrieving extra stats");
+			}
+		}
 	}
 }
 
@@ -630,6 +708,7 @@ static struct option long_options[] = {
 	{"tx-pkt-count", required_argument, 0, 'C'},
 	{"tx-pkt-size", required_argument, 0, 's'},
 	{"tx-pkt-pattern", required_argument, 0, 'P'},
+	{"extra-stats", no_argument, 0, 'x'},
 	{0, 0, 0, 0}
 };
 
@@ -664,6 +743,7 @@ static void usage(const char *prog)
 		"			(Default: %d bytes)\n"
 		"			Min size: %d, Max size %d.\n"
 		"  -P, --tx-pkt-pattern=nPacket fill pattern. Default: 0x%x\n"
+		"  -x, --extra-stats	Display extra statistics.\n"
 		"\n";
 	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE,
 		opt_batch_size, MIN_PKT_SIZE, MIN_PKT_SIZE,
@@ -679,7 +759,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:",
+		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:x",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -759,6 +839,9 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'P':
 			opt_pkt_fill_pattern = strtol(optarg, NULL, 16);
+			break;
+		case 'x':
+			opt_extra_stats = 1;
 			break;
 		default:
 			usage(basename(argv[0]));

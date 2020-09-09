@@ -157,7 +157,7 @@
  * struct at91_adc_reg_desc - Various informations relative to registers
  * @channel_base:	Base offset for the channel data registers
  * @drdy_mask:		Mask of the DRDY field in the relevant registers
-			(Interruptions registers mostly)
+ *			(Interruptions registers mostly)
  * @status_register:	Offset of the Interrupt Status Register
  * @trigger_register:	Offset of the Trigger setup register
  * @mr_prescal_mask:	Mask of the PRESCAL field in the adc MR register
@@ -287,13 +287,13 @@ static void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 	}
 }
 
-static int at91_ts_sample(struct at91_adc_state *st)
+static int at91_ts_sample(struct iio_dev *idev)
 {
+	struct at91_adc_state *st = iio_priv(idev);
 	unsigned int xscale, yscale, reg, z1, z2;
 	unsigned int x, y, pres, xpos, ypos;
 	unsigned int rxp = 1;
 	unsigned int factor = 1000;
-	struct iio_dev *idev = iio_priv_to_dev(st);
 
 	unsigned int xyz_mask_bits = st->res;
 	unsigned int xyz_mask = (1 << xyz_mask_bits) - 1;
@@ -449,7 +449,7 @@ static irqreturn_t at91_adc_9x5_interrupt(int irq, void *private)
 
 		if (status & AT91_ADC_ISR_PENS) {
 			/* validate data by pen contact */
-			at91_ts_sample(st);
+			at91_ts_sample(idev);
 		} else {
 			/* triggered by event that is no pen contact, just read
 			 * them to clean the interrupt and discard all.
@@ -737,10 +737,10 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 	return -EINVAL;
 }
 
-static int at91_adc_of_get_resolution(struct at91_adc_state *st,
+static int at91_adc_of_get_resolution(struct iio_dev *idev,
 				      struct platform_device *pdev)
 {
-	struct iio_dev *idev = iio_priv_to_dev(st);
+	struct at91_adc_state *st = iio_priv(idev);
 	struct device_node *np = pdev->dev.of_node;
 	int count, i, ret = 0;
 	char *res_name, *s;
@@ -866,10 +866,10 @@ static int at91_adc_probe_dt_ts(struct device_node *node,
 	}
 }
 
-static int at91_adc_probe_dt(struct at91_adc_state *st,
+static int at91_adc_probe_dt(struct iio_dev *idev,
 			     struct platform_device *pdev)
 {
-	struct iio_dev *idev = iio_priv_to_dev(st);
+	struct at91_adc_state *st = iio_priv(idev);
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *trig_node;
 	int i = 0, ret;
@@ -910,7 +910,7 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	}
 	st->vref_mv = prop;
 
-	ret = at91_adc_of_get_resolution(st, pdev);
+	ret = at91_adc_of_get_resolution(idev, pdev);
 	if (ret)
 		goto error_ret;
 
@@ -1010,9 +1010,9 @@ static void atmel_ts_close(struct input_dev *dev)
 		at91_adc_writel(st, AT91_ADC_IDR, AT91RL_ADC_IER_PEN);
 }
 
-static int at91_ts_hw_init(struct at91_adc_state *st, u32 adc_clk_khz)
+static int at91_ts_hw_init(struct iio_dev *idev, u32 adc_clk_khz)
 {
-	struct iio_dev *idev = iio_priv_to_dev(st);
+	struct at91_adc_state *st = iio_priv(idev);
 	u32 reg = 0;
 	u32 tssctim = 0;
 	int i = 0;
@@ -1085,11 +1085,11 @@ static int at91_ts_hw_init(struct at91_adc_state *st, u32 adc_clk_khz)
 	return 0;
 }
 
-static int at91_ts_register(struct at91_adc_state *st,
+static int at91_ts_register(struct iio_dev *idev,
 		struct platform_device *pdev)
 {
+	struct at91_adc_state *st = iio_priv(idev);
 	struct input_dev *input;
-	struct iio_dev *idev = iio_priv_to_dev(st);
 	int ret;
 
 	input = input_allocate_device();
@@ -1161,7 +1161,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	st = iio_priv(idev);
 
 	if (pdev->dev.of_node)
-		ret = at91_adc_probe_dt(st, pdev);
+		ret = at91_adc_probe_dt(idev, pdev);
 	else
 		ret = at91_adc_probe_pdata(st, pdev);
 
@@ -1172,7 +1172,6 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, idev);
 
-	idev->dev.parent = &pdev->dev;
 	idev->name = dev_name(&pdev->dev);
 	idev->modes = INDIO_DIRECT_MODE;
 	idev->info = &at91_adc_info;
@@ -1301,11 +1300,11 @@ static int at91_adc_probe(struct platform_device *pdev)
 			goto error_disable_adc_clk;
 		}
 	} else {
-		ret = at91_ts_register(st, pdev);
+		ret = at91_ts_register(idev, pdev);
 		if (ret)
 			goto error_disable_adc_clk;
 
-		at91_ts_hw_init(st, adc_clk_khz);
+		at91_ts_hw_init(idev, adc_clk_khz);
 	}
 
 	ret = iio_device_register(idev);

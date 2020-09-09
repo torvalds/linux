@@ -74,8 +74,6 @@ int con_set_default_unimap(struct vc_data *vc);
 void con_free_unimap(struct vc_data *vc);
 int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc);
 
-#define vc_translate(vc, c) ((vc)->vc_translate[(c) |			\
-					((vc)->vc_toggle_meta ? 0x80 : 0)])
 #else
 static inline int con_set_trans_old(unsigned char __user *table)
 {
@@ -124,7 +122,6 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
 	return 0;
 }
 
-#define vc_translate(vc, c) (c)
 #endif
 
 /* vt.c */

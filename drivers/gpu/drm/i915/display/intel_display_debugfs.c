@@ -125,7 +125,7 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	seq_printf(m, "Enabled by kernel parameter: %s\n",
-		   yesno(i915_modparams.enable_ips));
+		   yesno(dev_priv->params.enable_ips));
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		seq_puts(m, "Currently: unknown\n");
@@ -1099,10 +1099,10 @@ static void drrs_status_per_crtc(struct seq_file *m,
 		seq_puts(m, "\n\t\t");
 		if (drrs->refresh_rate_type == DRRS_HIGH_RR) {
 			seq_puts(m, "DRRS_State: DRRS_HIGH_RR\n");
-			vrefresh = panel->fixed_mode->vrefresh;
+			vrefresh = drm_mode_vrefresh(panel->fixed_mode);
 		} else if (drrs->refresh_rate_type == DRRS_LOW_RR) {
 			seq_puts(m, "DRRS_State: DRRS_LOW_RR\n");
-			vrefresh = panel->downclock_mode->vrefresh;
+			vrefresh = drm_mode_vrefresh(panel->downclock_mode);
 		} else {
 			seq_printf(m, "DRRS_State: Unknown(%d)\n",
 						drrs->refresh_rate_type);
@@ -1194,7 +1194,7 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *intel_encoder;
-	struct intel_digital_port *intel_dig_port;
+	struct intel_digital_port *dig_port;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
@@ -1207,14 +1207,14 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 		if (!intel_encoder || intel_encoder->type == INTEL_OUTPUT_DP_MST)
 			continue;
 
-		intel_dig_port = enc_to_dig_port(intel_encoder);
-		if (!intel_dig_port->dp.can_mst)
+		dig_port = enc_to_dig_port(intel_encoder);
+		if (!dig_port->dp.can_mst)
 			continue;
 
 		seq_printf(m, "MST Source Port [ENCODER:%d:%s]\n",
-			   intel_dig_port->base.base.base.id,
-			   intel_dig_port->base.base.name);
-		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
+			   dig_port->base.base.base.id,
+			   dig_port->base.base.name);
+		drm_dp_mst_dump_topology(m, &dig_port->dp.mst_mgr);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
@@ -2044,9 +2044,12 @@ DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
 static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
-	struct intel_encoder *encoder =
-			intel_attached_encoder(to_intel_connector(connector));
 	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_encoder *encoder;
+
+	encoder = intel_attached_encoder(to_intel_connector(connector));
+	if (!encoder)
+		return -ENODEV;
 
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
@@ -2218,7 +2221,8 @@ int intel_connector_debugfs_add(struct drm_connector *connector)
 	}
 
 	if (INTEL_GEN(dev_priv) >= 10 &&
-	    (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
+	      !to_intel_connector(connector)->mst_port) ||
 	     connector->connector_type == DRM_MODE_CONNECTOR_eDP))
 		debugfs_create_file("i915_dsc_fec_support", S_IRUGO, root,
 				    connector, &i915_dsc_fec_support_fops);

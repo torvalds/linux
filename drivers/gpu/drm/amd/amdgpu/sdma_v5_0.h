@@ -24,21 +24,6 @@
 #ifndef __SDMA_V5_0_H__
 #define __SDMA_V5_0_H__
 
-enum sdma_v5_0_utcl2_cache_read_policy {
-	CACHE_READ_POLICY_L2__LRU    = 0x00000000,
-	CACHE_READ_POLICY_L2__STREAM = 0x00000001,
-	CACHE_READ_POLICY_L2__NOA    = 0x00000002,
-	CACHE_READ_POLICY_L2__DEFAULT = CACHE_READ_POLICY_L2__NOA,
-};
-
-enum sdma_v5_0_utcl2_cache_write_policy {
-	CACHE_WRITE_POLICY_L2__LRU    = 0x00000000,
-	CACHE_WRITE_POLICY_L2__STREAM = 0x00000001,
-	CACHE_WRITE_POLICY_L2__NOA    = 0x00000002,
-	CACHE_WRITE_POLICY_L2__BYPASS = 0x00000003,
-	CACHE_WRITE_POLICY_L2__DEFAULT = CACHE_WRITE_POLICY_L2__BYPASS,
-};
-
 extern const struct amd_ip_funcs sdma_v5_0_ip_funcs;
 extern const struct amdgpu_ip_block_version sdma_v5_0_ip_block;
 

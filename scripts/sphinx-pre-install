@@ -323,10 +323,6 @@ sub check_sphinx()
 		$rec_sphinx_upgrade = 1;
 		return;
 	}
-	if ($cur_version lt $min_pdf_version) {
-		$rec_sphinx_upgrade = 1;
-		return;
-	}
 
 	# On version check mode, just assume Sphinx has all mandatory deps
 	exit (0) if ($version_check);

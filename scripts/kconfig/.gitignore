@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-*.moc
+/qconf-moc.cc
 *conf-cfg
 
 #

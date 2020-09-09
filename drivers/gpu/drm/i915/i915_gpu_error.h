@@ -15,6 +15,7 @@
 #include <drm/drm_mm.h>
 
 #include "gt/intel_engine.h"
+#include "gt/intel_gt_types.h"
 #include "gt/uc/intel_uc_fw.h"
 
 #include "intel_device_info.h"
@@ -117,6 +118,8 @@ struct intel_gt_coredump {
 	const struct intel_gt *_gt;
 	bool awake;
 	bool simulated;
+
+	struct intel_gt_info info;
 
 	/* Generic register state */
 	u32 eir;

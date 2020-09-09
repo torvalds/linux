@@ -2582,7 +2582,7 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 
 static int setup_callchain(struct evlist *evlist)
 {
-	u64 sample_type = perf_evlist__combined_sample_type(evlist);
+	u64 sample_type = evlist__combined_sample_type(evlist);
 	enum perf_call_graph_mode mode = CALLCHAIN_NONE;
 
 	if ((sample_type & PERF_SAMPLE_REGS_USER) &&

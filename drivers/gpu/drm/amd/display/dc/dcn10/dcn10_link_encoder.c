@@ -619,10 +619,16 @@ bool dcn10_link_encoder_validate_dvi_output(
 static bool dcn10_link_encoder_validate_hdmi_output(
 	const struct dcn10_link_encoder *enc10,
 	const struct dc_crtc_timing *crtc_timing,
+	const struct dc_edid_caps *edid_caps,
 	int adjusted_pix_clk_100hz)
 {
 	enum dc_color_depth max_deep_color =
 			enc10->base.features.max_hdmi_deep_color;
+
+	// check pixel clock against edid specified max TMDS clk
+	if (edid_caps->max_tmds_clk_mhz != 0 &&
+			adjusted_pix_clk_100hz > edid_caps->max_tmds_clk_mhz * 10000)
+		return false;
 
 	if (max_deep_color < crtc_timing->display_color_depth)
 		return false;
@@ -801,6 +807,7 @@ bool dcn10_link_encoder_validate_output_with_stream(
 		is_valid = dcn10_link_encoder_validate_hdmi_output(
 				enc10,
 				&stream->timing,
+				&stream->sink->edid_caps,
 				stream->phy_pix_clk * 10);
 	break;
 	case SIGNAL_TYPE_DISPLAY_PORT:

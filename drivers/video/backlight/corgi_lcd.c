@@ -420,13 +420,7 @@ static int corgi_bl_set_intensity(struct corgi_lcd *lcd, int intensity)
 static int corgi_bl_update_status(struct backlight_device *bd)
 {
 	struct corgi_lcd *lcd = bl_get_data(bd);
-	int intensity = bd->props.brightness;
-
-	if (bd->props.power != FB_BLANK_UNBLANK)
-		intensity = 0;
-
-	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
-		intensity = 0;
+	int intensity = backlight_get_brightness(bd);
 
 	if (corgibl_flags & CORGIBL_SUSPENDED)
 		intensity = 0;

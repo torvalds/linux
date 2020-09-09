@@ -124,9 +124,6 @@ existing-targets := $(wildcard $(sort $(targets)))
 
 -include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
 
-PHONY += FORCE
-FORCE:
-
 endif
 
 .PHONY: $(PHONY)

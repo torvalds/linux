@@ -164,7 +164,7 @@
 					port@9 {
 						reg = <9>;
 						label = "sff2";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff2>;
 					};

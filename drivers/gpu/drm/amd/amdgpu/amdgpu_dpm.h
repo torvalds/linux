@@ -425,6 +425,7 @@ struct amdgpu_pm {
 	u32                     default_sclk;
 	u32                     default_mclk;
 	struct amdgpu_i2c_chan *i2c_bus;
+	bool                    bus_locked;
 	/* internal thermal controller on rv6xx+ */
 	enum amdgpu_int_thermal_type int_thermal_type;
 	struct device	        *int_hwmon_dev;
@@ -528,6 +529,9 @@ int amdgpu_dpm_baco_reset(struct amdgpu_device *adev);
 int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev);
 
 bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev);
+
+bool amdgpu_dpm_is_mode1_reset_supported(struct amdgpu_device *adev);
+int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev);
 
 int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
 			     enum pp_mp1_state mp1_state);

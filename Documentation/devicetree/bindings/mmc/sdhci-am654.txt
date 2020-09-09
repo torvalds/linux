@@ -39,6 +39,7 @@ Optional Properties (Required for ti,am654-sdhci-5.1 and ti,j721e-sdhci-8bit):
 				  Valid values are 33, 40, 50, 66 and 100 ohms.
 Optional Properties:
 	- ti,strobe-sel: strobe select delay for HS400 speed mode. Default value: 0x0.
+	- ti,clkbuf-sel: Clock Delay Buffer Select
 
 Example:
 

@@ -41,6 +41,28 @@
 
 extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 
+#define CHIP_NUM_57508		0x1750
+#define CHIP_NUM_57504		0x1751
+#define CHIP_NUM_57502		0x1752
+
+enum bnxt_qplib_wqe_mode {
+	BNXT_QPLIB_WQE_MODE_STATIC	= 0x00,
+	BNXT_QPLIB_WQE_MODE_VARIABLE	= 0x01,
+	BNXT_QPLIB_WQE_MODE_INVALID	= 0x02
+};
+
+struct bnxt_qplib_drv_modes {
+	u8	wqe_mode;
+	/* Other modes to follow here */
+};
+
+struct bnxt_qplib_chip_ctx {
+	u16	chip_num;
+	u8	chip_rev;
+	u8	chip_metal;
+	struct bnxt_qplib_drv_modes modes;
+};
+
 #define PTR_CNT_PER_PG		(PAGE_SIZE / sizeof(void *))
 #define PTR_MAX_IDX_PER_PG	(PTR_CNT_PER_PG - 1)
 #define PTR_PG(x)		(((x) & ~PTR_MAX_IDX_PER_PG) / PTR_CNT_PER_PG)
@@ -141,6 +163,9 @@ struct bnxt_qplib_hwq {
 	u32				cons;		/* raw */
 	u8				cp_bit;
 	u8				is_user;
+	u64				*pad_pg;
+	u32				pad_stride;
+	u32				pad_pgofft;
 };
 
 struct bnxt_qplib_db_info {
@@ -148,6 +173,7 @@ struct bnxt_qplib_db_info {
 	void __iomem		*priv_db;
 	struct bnxt_qplib_hwq	*hwq;
 	u32			xid;
+	u32			max_slot;
 };
 
 /* Tables */
@@ -230,16 +256,6 @@ struct bnxt_qplib_ctx {
 	u64				hwrm_intf_ver;
 };
 
-struct bnxt_qplib_chip_ctx {
-	u16	chip_num;
-	u8	chip_rev;
-	u8	chip_metal;
-};
-
-#define CHIP_NUM_57508		0x1750
-#define CHIP_NUM_57504		0x1751
-#define CHIP_NUM_57502		0x1752
-
 struct bnxt_qplib_res {
 	struct pci_dev			*pdev;
 	struct bnxt_qplib_chip_ctx	*cctx;
@@ -317,6 +333,14 @@ static inline void *bnxt_qplib_get_qe(struct bnxt_qplib_hwq *hwq,
 	return (void *)(hwq->pbl_ptr[pg_num] + hwq->element_size * pg_idx);
 }
 
+static inline void *bnxt_qplib_get_prod_qe(struct bnxt_qplib_hwq *hwq, u32 idx)
+{
+	idx += hwq->prod;
+	if (idx >= hwq->depth)
+		idx -= hwq->depth;
+	return bnxt_qplib_get_qe(hwq, idx, NULL);
+}
+
 #define to_bnxt_qplib(ptr, type, member)	\
 	container_of(ptr, type, member)
 
@@ -351,6 +375,17 @@ int bnxt_qplib_alloc_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx,
 			 bool virt_fn, bool is_p5);
 
+static inline void bnxt_qplib_hwq_incr_prod(struct bnxt_qplib_hwq *hwq, u32 cnt)
+{
+	hwq->prod = (hwq->prod + cnt) % hwq->depth;
+}
+
+static inline void bnxt_qplib_hwq_incr_cons(struct bnxt_qplib_hwq *hwq,
+					    u32 cnt)
+{
+	hwq->cons = (hwq->cons + cnt) % hwq->depth;
+}
+
 static inline void bnxt_qplib_ring_db32(struct bnxt_qplib_db_info *info,
 					bool arm)
 {
@@ -383,8 +418,7 @@ static inline void bnxt_qplib_ring_prod_db(struct bnxt_qplib_db_info *info,
 
 	key = (info->xid & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE | type;
 	key <<= 32;
-	key |= (info->hwq->prod & (info->hwq->max_elements - 1)) &
-		DBC_DBC_INDEX_MASK;
+	key |= ((info->hwq->prod / info->max_slot)) & DBC_DBC_INDEX_MASK;
 	writeq(key, info->db);
 }
 

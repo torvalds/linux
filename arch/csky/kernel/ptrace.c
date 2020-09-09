@@ -76,17 +76,14 @@ enum csky_regset {
 
 static int gpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	struct pt_regs *regs;
-
-	regs = task_pt_regs(target);
+	struct pt_regs *regs = task_pt_regs(target);
 
 	/* Abiv1 regs->tls is fake and we need sync here. */
 	regs->tls = task_thread_info(target)->tp_value;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
+	return membuf_write(&to, regs, sizeof(regs));
 }
 
 static int gpr_set(struct task_struct *target,
@@ -114,8 +111,7 @@ static int gpr_set(struct task_struct *target,
 
 static int fpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
 	struct user_fp *regs = (struct user_fp *)&target->thread.user_fp;
 
@@ -131,9 +127,9 @@ static int fpr_get(struct task_struct *target,
 	for (i = 0; i < 32; i++)
 		tmp.vr[64 + i] = regs->vr[32 + i];
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &tmp, 0, -1);
+	return membuf_write(&to, &tmp, sizeof(tmp));
 #else
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
+	return membuf_write(&to, regs, sizeof(*regs));
 #endif
 }
 
@@ -173,16 +169,16 @@ static const struct user_regset csky_regsets[] = {
 		.n = sizeof(struct pt_regs) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = &gpr_get,
-		.set = &gpr_set,
+		.regset_get = gpr_get,
+		.set = gpr_set,
 	},
 	[REGSET_FPR] = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_fp) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = &fpr_get,
-		.set = &fpr_set,
+		.regset_get = fpr_get,
+		.set = fpr_set,
 	},
 };
 
@@ -320,16 +316,20 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-asmlinkage void syscall_trace_enter(struct pt_regs *regs)
+asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		if (tracehook_report_syscall_entry(regs))
-			syscall_set_nr(current, regs, -1);
+			return -1;
+
+	if (secure_computing() == -1)
+		return -1;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, syscall_get_nr(current, regs));
 
 	audit_syscall_entry(regs_syscallid(regs), regs->a0, regs->a1, regs->a2, regs->a3);
+	return 0;
 }
 
 asmlinkage void syscall_trace_exit(struct pt_regs *regs)
@@ -343,13 +343,8 @@ asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 		trace_sys_exit(regs, syscall_get_return_value(current, regs));
 }
 
-extern void show_stack(struct task_struct *task, unsigned long *stack, const char *loglvl);
 void show_regs(struct pt_regs *fp)
 {
-	unsigned long   *sp;
-	unsigned char   *tp;
-	int	i;
-
 	pr_info("\nCURRENT PROCESS:\n\n");
 	pr_info("COMM=%s PID=%d\n", current->comm, current->pid);
 
@@ -396,29 +391,9 @@ void show_regs(struct pt_regs *fp)
 		fp->regs[0], fp->regs[1], fp->regs[2], fp->regs[3]);
 	pr_info("r10: 0x%08lx  r11: 0x%08lx  r12: 0x%08lx  r13: 0x%08lx\n",
 		fp->regs[4], fp->regs[5], fp->regs[6], fp->regs[7]);
-	pr_info("r14: 0x%08lx   r1: 0x%08lx  r15: 0x%08lx\n",
-		fp->regs[8], fp->regs[9], fp->lr);
+	pr_info("r14: 0x%08lx   r1: 0x%08lx\n",
+		fp->regs[8], fp->regs[9]);
 #endif
 
-	pr_info("\nCODE:");
-	tp = ((unsigned char *) fp->pc) - 0x20;
-	tp += ((int)tp % 4) ? 2 : 0;
-	for (sp = (unsigned long *) tp, i = 0; (i < 0x40);  i += 4) {
-		if ((i % 0x10) == 0)
-			pr_cont("\n%08x: ", (int) (tp + i));
-		pr_cont("%08x ", (int) *sp++);
-	}
-	pr_cont("\n");
-
-	pr_info("\nKERNEL STACK:");
-	tp = ((unsigned char *) fp) - 0x40;
-	for (sp = (unsigned long *) tp, i = 0; (i < 0xc0); i += 4) {
-		if ((i % 0x10) == 0)
-			pr_cont("\n%08x: ", (int) (tp + i));
-		pr_cont("%08x ", (int) *sp++);
-	}
-	pr_cont("\n");
-
-	show_stack(NULL, (unsigned long *)fp->regs[4], KERN_INFO);
 	return;
 }

@@ -137,21 +137,28 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	       struct task_struct *next_tsk)
 {
+	unsigned int cpu;
+
+	if (unlikely(prev == next))
+		return;
+
+	cpu = smp_processor_id();
+
+	cpumask_clear_cpu(cpu, mm_cpumask(prev));
+	cpumask_set_cpu(cpu, mm_cpumask(next));
+
 	/* remember the pgd for the fault handlers
 	 * this is similar to the pgd register in some other CPU's.
 	 * we need our own copy of it because current and active_mm
 	 * might be invalid at points where we still need to derefer
 	 * the pgd.
 	 */
-	current_pgd[smp_processor_id()] = next->pgd;
+	current_pgd[cpu] = next->pgd;
 
 	/* We don't have context support implemented, so flush all
 	 * entries belonging to previous map
 	 */
-
-	if (prev != next)
-		local_flush_tlb_mm(prev);
-
+	local_flush_tlb_mm(prev);
 }
 
 /*

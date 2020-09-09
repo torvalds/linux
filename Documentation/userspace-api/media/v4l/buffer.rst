@@ -23,8 +23,8 @@ argument to the :ref:`VIDIOC_QUERYBUF`,
 :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. In the multi-planar API,
 some plane-specific members of struct :c:type:`v4l2_buffer`,
-such as pointers and sizes for each plane, are stored in struct
-struct :c:type:`v4l2_plane` instead. In that case, struct
+such as pointers and sizes for each plane, are stored in
+struct :c:type:`v4l2_plane` instead. In that case,
 struct :c:type:`v4l2_buffer` contains an array of plane structures.
 
 Dequeued video buffers come with timestamps. The driver decides at which
@@ -577,7 +577,10 @@ Buffer Flags
 	applications shall use this flag if the data captured in the
 	buffer is not going to be touched by the CPU, instead the buffer
 	will, probably, be passed on to a DMA-capable hardware unit for
-	further processing or output.
+	further processing or output. This flag is ignored unless the
+	queue is used for :ref:`memory mapping <mmap>` streaming I/O and
+	reports :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
     * .. _`V4L2-BUF-FLAG-NO-CACHE-CLEAN`:
 
       - ``V4L2_BUF_FLAG_NO_CACHE_CLEAN``
@@ -585,7 +588,10 @@ Buffer Flags
       - Caches do not have to be cleaned for this buffer. Typically
 	applications shall use this flag for output buffers if the data in
 	this buffer has not been created by the CPU but by some
-	DMA-capable unit, in which case caches have not been used.
+	DMA-capable unit, in which case caches have not been used. This flag
+	is ignored unless the queue is used for :ref:`memory mapping <mmap>`
+	streaming I/O and reports :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
     * .. _`V4L2-BUF-FLAG-M2M-HOLD-CAPTURE-BUF`:
 
       - ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF``
@@ -681,6 +687,36 @@ Buffer Flags
 
     \normalsize
 
+.. _memory-flags:
+
+Memory Consistency Flags
+========================
+
+.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.3cm}|
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+    * .. _`V4L2-FLAG-MEMORY-NON-CONSISTENT`:
+
+      - ``V4L2_FLAG_MEMORY_NON_CONSISTENT``
+      - 0x00000001
+      - A buffer is allocated either in consistent (it will be automatically
+	coherent between the CPU and the bus) or non-consistent memory. The
+	latter can provide performance gains, for instance the CPU cache
+	sync/flush operations can be avoided if the buffer is accessed by the
+	corresponding device only and the CPU does not read/write to/from that
+	buffer. However, this requires extra care from the driver -- it must
+	guarantee memory consistency by issuing a cache flush/sync when
+	consistency is needed. If this flag is set V4L2 will attempt to
+	allocate the buffer in non-consistent memory. The flag takes effect
+	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
+	queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
 
 .. c:type:: v4l2_memory
 

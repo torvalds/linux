@@ -7,6 +7,8 @@ ALL_TESTS="
 	ecn_nodrop_test
 	red_test
 	mc_backlog_test
+	red_mirror_test
+	red_trap_test
 "
 : ${QDISC:=ets}
 source sch_red_core.sh
@@ -79,6 +81,26 @@ mc_backlog_test()
 	# configuration, but are arbitrary.
 	do_mc_backlog_test 10 $BACKLOG1
 	do_mc_backlog_test 11 $BACKLOG2
+
+	uninstall_qdisc
+}
+
+red_mirror_test()
+{
+	install_qdisc qevent early_drop block 10
+
+	do_drop_mirror_test 10 $BACKLOG1 early_drop
+	do_drop_mirror_test 11 $BACKLOG2 early_drop
+
+	uninstall_qdisc
+}
+
+red_trap_test()
+{
+	install_qdisc qevent early_drop block 10
+
+	do_drop_trap_test 10 $BACKLOG1 early_drop
+	do_drop_trap_test 11 $BACKLOG2 early_drop
 
 	uninstall_qdisc
 }

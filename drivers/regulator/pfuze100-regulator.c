@@ -128,7 +128,7 @@ static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	struct pfuze_chip *pfuze100 = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 	bool reg_has_ramp_delay;
-	unsigned int ramp_bits;
+	unsigned int ramp_bits = 0;
 	int ret;
 
 	switch (pfuze100->chip_id) {
@@ -149,8 +149,11 @@ static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	}
 
 	if (reg_has_ramp_delay) {
-		ramp_delay = 12500 / ramp_delay;
-		ramp_bits = (ramp_delay >> 1) - (ramp_delay >> 3);
+		if (ramp_delay > 0) {
+			ramp_delay = 12500 / ramp_delay;
+			ramp_bits = (ramp_delay >> 1) - (ramp_delay >> 3);
+		}
+
 		ret = regmap_update_bits(pfuze100->regmap,
 					 rdev->desc->vsel_reg + 4,
 					 0xc0, ramp_bits << 6);

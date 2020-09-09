@@ -533,7 +533,7 @@ tcindex_change(struct net *net, struct sk_buff *in_skb,
 
 	pr_debug("tcindex_change(tp %p,handle 0x%08x,tca %p,arg %p),opt %p,"
 	    "p %p,r %p,*arg %p\n",
-	    tp, handle, tca, arg, opt, p, r, arg ? *arg : NULL);
+	    tp, handle, tca, arg, opt, p, r, *arg);
 
 	if (!opt)
 		return 0;

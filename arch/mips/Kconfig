@@ -51,7 +51,6 @@ config MIPS
 	select HAVE_CBPF_JIT if !64BIT && !CPU_MICROMIPS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_TIF_NOHZ
-	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
@@ -367,6 +366,7 @@ config MACH_JAZZ
 	select ARC_PROMLIB
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select DMA_OPS
 	select FW_ARC
 	select FW_ARC32
 	select ARCH_MAY_HAVE_PC_FDC
@@ -478,6 +478,7 @@ config MACH_LOONGSON64
 	select COMMON_CLK
 	select USE_OF
 	select BUILTIN_DTB
+	select PCI_HOST_GENERIC
 	help
 	  This enables the support of Loongson-2/3 family of machines.
 
@@ -678,6 +679,7 @@ config SGI_IP27
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
 	select MIPS_L1_CACHE_SHIFT_7
+	select NUMA
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -1013,24 +1015,6 @@ config NLM_XLP_BOARD
 	  This board is based on Netlogic XLP Processor.
 	  Say Y here if you have a XLP based board.
 
-config MIPS_PARAVIRT
-	bool "Para-Virtualized guest system"
-	select CEVT_R4K
-	select CSRC_R4K
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_SMP
-	select NR_CPUS_DEFAULT_4
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_HAS_CPU_MIPS64_R2
-	select SYS_HAS_CPU_CAVIUM_OCTEON
-	select HAVE_PCI
-	select SWAP_IO_SPACE
-	help
-	  This option supports guest running under ????
-
 endchoice
 
 source "arch/mips/alchemy/Kconfig"
@@ -1055,7 +1039,6 @@ source "arch/mips/loongson2ef/Kconfig"
 source "arch/mips/loongson32/Kconfig"
 source "arch/mips/loongson64/Kconfig"
 source "arch/mips/netlogic/Kconfig"
-source "arch/mips/paravirt/Kconfig"
 
 endmenu
 
@@ -1168,9 +1151,6 @@ config MIPS_MSC
 
 config SYNC_R4K
 	bool
-
-config MIPS_MACHINE
-	def_bool n
 
 config NO_IOPORT_MAP
 	def_bool n
@@ -2202,6 +2182,7 @@ endchoice
 
 config KVM_GUEST
 	bool "KVM Guest Kernel"
+	depends on CPU_MIPS32_R2
 	depends on BROKEN_ON_SMP
 	help
 	  Select this option if building a guest kernel for KVM (Trap & Emulate)
@@ -2825,7 +2806,7 @@ config SMP
 	  Y to "Enhanced Real Time Clock Support", below.
 
 	  See also the SMP-HOWTO available at
-	  <http://www.tldp.org/docs.html#howto>.
+	  <https://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 

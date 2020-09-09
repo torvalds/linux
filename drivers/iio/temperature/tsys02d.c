@@ -149,7 +149,6 @@ static int tsys02d_probe(struct i2c_client *client,
 
 	indio_dev->info = &tsys02d_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = tsys02d_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tsys02d_channels);

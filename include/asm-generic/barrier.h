@@ -13,7 +13,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/compiler.h>
+#include <asm/rwonce.h>
 
 #ifndef nop
 #define nop()	asm volatile ("nop")
@@ -46,10 +46,6 @@
 #define dma_wmb()	wmb()
 #endif
 
-#ifndef read_barrier_depends
-#define read_barrier_depends()		do { } while (0)
-#endif
-
 #ifndef __smp_mb
 #define __smp_mb()	mb()
 #endif
@@ -60,10 +56,6 @@
 
 #ifndef __smp_wmb
 #define __smp_wmb()	wmb()
-#endif
-
-#ifndef __smp_read_barrier_depends
-#define __smp_read_barrier_depends()	read_barrier_depends()
 #endif
 
 #ifdef CONFIG_SMP
@@ -80,10 +72,6 @@
 #define smp_wmb()	__smp_wmb()
 #endif
 
-#ifndef smp_read_barrier_depends
-#define smp_read_barrier_depends()	__smp_read_barrier_depends()
-#endif
-
 #else	/* !CONFIG_SMP */
 
 #ifndef smp_mb
@@ -96,10 +84,6 @@
 
 #ifndef smp_wmb
 #define smp_wmb()	barrier()
-#endif
-
-#ifndef smp_read_barrier_depends
-#define smp_read_barrier_depends()	do { } while (0)
 #endif
 
 #endif	/* CONFIG_SMP */
@@ -196,7 +180,6 @@ do {									\
 #define virt_mb() __smp_mb()
 #define virt_rmb() __smp_rmb()
 #define virt_wmb() __smp_wmb()
-#define virt_read_barrier_depends() __smp_read_barrier_depends()
 #define virt_store_mb(var, value) __smp_store_mb(var, value)
 #define virt_mb__before_atomic() __smp_mb__before_atomic()
 #define virt_mb__after_atomic()	__smp_mb__after_atomic()
@@ -255,6 +238,16 @@ do {									\
 	smp_acquire__after_ctrl_dep();				\
 	(typeof(*ptr))_val;					\
 })
+#endif
+
+/*
+ * pmem_wmb() ensures that all stores for which the modification
+ * are written to persistent storage by preceding instructions have
+ * updated persistent storage before any data  access or data transfer
+ * caused by subsequent instructions is initiated.
+ */
+#ifndef pmem_wmb
+#define pmem_wmb()	wmb()
 #endif
 
 #endif /* !__ASSEMBLY__ */

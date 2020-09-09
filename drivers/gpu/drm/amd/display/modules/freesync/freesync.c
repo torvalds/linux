@@ -32,7 +32,7 @@
 
 #define MOD_FREESYNC_MAX_CONCURRENT_STREAMS  32
 
-#define MIN_REFRESH_RANGE_IN_US 10000000
+#define MIN_REFRESH_RANGE 10
 /* Refresh rate ramp at a fixed rate of 65 Hz/second */
 #define STATIC_SCREEN_RAMP_DELTA_REFRESH_RATE_PER_FRAME ((1000 / 60) * 65)
 /* Number of elements in the render times cache array */
@@ -324,22 +324,44 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 
 		/* Choose number of frames to insert based on how close it
 		 * can get to the mid point of the variable range.
+		 *  - Delta for CEIL: delta_from_mid_point_in_us_1
+		 *  - Delta for FLOOR: delta_from_mid_point_in_us_2
 		 */
-		if ((frame_time_in_us / mid_point_frames_ceil) > in_out_vrr->min_duration_in_us &&
-				(delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2 ||
-						mid_point_frames_floor < 2)) {
-			frames_to_insert = mid_point_frames_ceil;
-			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_2 -
-					delta_from_mid_point_in_us_1;
-		} else {
+		if ((last_render_time_in_us / mid_point_frames_ceil) < in_out_vrr->min_duration_in_us) {
+			/* Check for out of range.
+			 * If using CEIL produces a value that is out of range,
+			 * then we are forced to use FLOOR.
+			 */
 			frames_to_insert = mid_point_frames_floor;
-			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_1 -
-					delta_from_mid_point_in_us_2;
+		} else if (mid_point_frames_floor < 2) {
+			/* Check if FLOOR would result in non-LFC. In this case
+			 * choose to use CEIL
+			 */
+			frames_to_insert = mid_point_frames_ceil;
+		} else if (delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2) {
+			/* If choosing CEIL results in a frame duration that is
+			 * closer to the mid point of the range.
+			 * Choose CEIL
+			 */
+			frames_to_insert = mid_point_frames_ceil;
+		} else {
+			/* If choosing FLOOR results in a frame duration that is
+			 * closer to the mid point of the range.
+			 * Choose FLOOR
+			 */
+			frames_to_insert = mid_point_frames_floor;
 		}
 
 		/* Prefer current frame multiplier when BTR is enabled unless it drifts
 		 * too far from the midpoint
 		 */
+		if (delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2) {
+			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_2 -
+					delta_from_mid_point_in_us_1;
+		} else {
+			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_1 -
+					delta_from_mid_point_in_us_2;
+		}
 		if (in_out_vrr->btr.frames_to_insert != 0 &&
 				delta_from_mid_point_delta_in_us < BTR_DRIFT_MARGIN) {
 			if (((last_render_time_in_us / in_out_vrr->btr.frames_to_insert) <
@@ -760,9 +782,35 @@ static void build_vrr_infopacket_v2(enum signal_type signal,
 
 	infopacket->valid = true;
 }
+#ifndef TRIM_FSFT
+static void build_vrr_infopacket_fast_transport_data(
+	bool ftActive,
+	unsigned int ftOutputRate,
+	struct dc_info_packet *infopacket)
+{
+	/* PB9 : bit7 - fast transport Active*/
+	unsigned char activeBit = (ftActive) ? 1 << 7 : 0;
+
+	infopacket->sb[1] &= ~activeBit;  //clear bit
+	infopacket->sb[1] |=  activeBit;  //set bit
+
+	/* PB13 : Target Output Pixel Rate [kHz] - bits 7:0  */
+	infopacket->sb[13] = ftOutputRate & 0xFF;
+
+	/* PB14 : Target Output Pixel Rate [kHz] - bits 15:8  */
+	infopacket->sb[14] = (ftOutputRate >> 8) & 0xFF;
+
+	/* PB15 : Target Output Pixel Rate [kHz] - bits 23:16  */
+	infopacket->sb[15] = (ftOutputRate >> 16) & 0xFF;
+
+}
+#endif
 
 static void build_vrr_infopacket_v3(enum signal_type signal,
 		const struct mod_vrr_params *vrr,
+#ifndef TRIM_FSFT
+		bool ftActive, unsigned int ftOutputRate,
+#endif
 		enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket)
 {
@@ -772,6 +820,13 @@ static void build_vrr_infopacket_v3(enum signal_type signal,
 	build_vrr_infopacket_data_v3(vrr, infopacket);
 
 	build_vrr_infopacket_fs2_data(app_tf, infopacket);
+
+#ifndef TRIM_FSFT
+	build_vrr_infopacket_fast_transport_data(
+			ftActive,
+			ftOutputRate,
+			infopacket);
+#endif
 
 	build_vrr_infopacket_checksum(&payload_size, infopacket);
 
@@ -790,12 +845,23 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	 * Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (!vrr->supported || (!vrr->send_info_frame))
+	if (!vrr->send_info_frame)
 		return;
 
 	switch (packet_type) {
 	case PACKET_TYPE_FS_V3:
+#ifndef TRIM_FSFT
+		// always populate with pixel rate.
+		build_vrr_infopacket_v3(
+				stream->signal, vrr,
+				stream->timing.flags.FAST_TRANSPORT,
+				(stream->timing.flags.FAST_TRANSPORT) ?
+						stream->timing.fast_transport_output_rate_100hz :
+						stream->timing.pix_clk_100hz,
+				app_tf, infopacket);
+#else
 		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket);
+#endif
 		break;
 	case PACKET_TYPE_FS_V2:
 		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket);
@@ -878,8 +944,8 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		else
 			in_out_vrr->fixed_refresh_in_uhz = 0;
 
-		refresh_range = in_out_vrr->max_refresh_in_uhz -
-				in_out_vrr->min_refresh_in_uhz;
+		refresh_range = div_u64(in_out_vrr->max_refresh_in_uhz + 500000, 1000000) -
++				div_u64(in_out_vrr->min_refresh_in_uhz + 500000, 1000000);
 
 		in_out_vrr->supported = true;
 	}
@@ -918,7 +984,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		in_out_vrr->adjust.v_total_min = stream->timing.v_total;
 		in_out_vrr->adjust.v_total_max = stream->timing.v_total;
 	} else if (in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE &&
-			refresh_range >= MIN_REFRESH_RANGE_IN_US) {
+			refresh_range >= MIN_REFRESH_RANGE) {
 
 		in_out_vrr->adjust.v_total_min =
 			calc_v_total_from_refresh(stream,
@@ -1105,16 +1171,10 @@ unsigned long long mod_freesync_calc_nominal_field_rate(
 	return nominal_field_rate_in_uhz;
 }
 
-bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
-		const struct dc_stream_state *stream,
-		uint32_t min_refresh_cap_in_uhz,
+bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 		uint32_t max_refresh_cap_in_uhz,
-		uint32_t min_refresh_request_in_uhz,
-		uint32_t max_refresh_request_in_uhz)
+		uint32_t nominal_field_rate_in_uhz) 
 {
-	/* Calculate nominal field rate for stream */
-	unsigned long long nominal_field_rate_in_uhz =
-			mod_freesync_calc_nominal_field_rate(stream);
 
 	/* Typically nominal refresh calculated can have some fractional part.
 	 * Allow for some rounding error of actual video timing by taking floor
@@ -1153,8 +1213,6 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 			div_u64(nominal_field_rate_in_uhz + 500000, 1000000);
 	min_refresh_cap_in_uhz /= 1000000;
 	max_refresh_cap_in_uhz /= 1000000;
-	min_refresh_request_in_uhz /= 1000000;
-	max_refresh_request_in_uhz /= 1000000;
 
 	// Check nominal is within range
 	if (nominal_field_rate_in_uhz > max_refresh_cap_in_uhz ||
@@ -1165,23 +1223,12 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 	if (nominal_field_rate_in_uhz < max_refresh_cap_in_uhz)
 		max_refresh_cap_in_uhz = nominal_field_rate_in_uhz;
 
-	// Don't allow min > max
-	if (min_refresh_request_in_uhz > max_refresh_request_in_uhz)
-		return false;
-
 	// Check min is within range
-	if (min_refresh_request_in_uhz > max_refresh_cap_in_uhz ||
-		min_refresh_request_in_uhz < min_refresh_cap_in_uhz)
-		return false;
-
-	// Check max is within range
-	if (max_refresh_request_in_uhz > max_refresh_cap_in_uhz ||
-		max_refresh_request_in_uhz < min_refresh_cap_in_uhz)
+	if (min_refresh_cap_in_uhz > max_refresh_cap_in_uhz)
 		return false;
 
 	// For variable range, check for at least 10 Hz range
-	if ((max_refresh_request_in_uhz != min_refresh_request_in_uhz) &&
-		(max_refresh_request_in_uhz - min_refresh_request_in_uhz < 10))
+	if (nominal_field_rate_in_uhz - min_refresh_cap_in_uhz < 10)
 		return false;
 
 	return true;

@@ -25,8 +25,11 @@
 
 /**
  * of_gpio_spi_cs_get_count() - special GPIO counting for SPI
+ * @dev:    Consuming device
+ * @con_id: Function within the GPIO consumer
+ *
  * Some elder GPIO controllers need special quirks. Currently we handle
- * the Freescale GPIO controller with bindings that doesn't use the
+ * the Freescale and PPC GPIO controller with bindings that doesn't use the
  * established "cs-gpios" for chip selects but instead rely on
  * "gpios" for the chip select lines. If we detect this, we redirect
  * the counting of "cs-gpios" to count "gpios" transparent to the
@@ -41,7 +44,8 @@ static int of_gpio_spi_cs_get_count(struct device *dev, const char *con_id)
 	if (!con_id || strcmp(con_id, "cs"))
 		return 0;
 	if (!of_device_is_compatible(np, "fsl,spi") &&
-	    !of_device_is_compatible(np, "aeroflexgaisler,spictrl"))
+	    !of_device_is_compatible(np, "aeroflexgaisler,spictrl") &&
+	    !of_device_is_compatible(np, "ibm,ppc4xx-spi"))
 		return 0;
 	return of_gpio_named_count(np, "gpios");
 }
@@ -405,9 +409,10 @@ static struct gpio_desc *of_find_spi_cs_gpio(struct device *dev,
 	if (!IS_ENABLED(CONFIG_SPI_MASTER))
 		return ERR_PTR(-ENOENT);
 
-	/* Allow this specifically for Freescale devices */
+	/* Allow this specifically for Freescale and PPC devices */
 	if (!of_device_is_compatible(np, "fsl,spi") &&
-	    !of_device_is_compatible(np, "aeroflexgaisler,spictrl"))
+	    !of_device_is_compatible(np, "aeroflexgaisler,spictrl") &&
+	    !of_device_is_compatible(np, "ibm,ppc4xx-spi"))
 		return ERR_PTR(-ENOENT);
 	/* Allow only if asking for "cs-gpios" */
 	if (!con_id || strcmp(con_id, "cs"))

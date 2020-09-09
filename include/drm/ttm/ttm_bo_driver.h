@@ -47,7 +47,6 @@
 
 #define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
 #define TTM_MEMTYPE_FLAG_MAPPABLE      (1 << 1)	/* Memory mappable */
-#define TTM_MEMTYPE_FLAG_CMA           (1 << 3)	/* Can't map aperture */
 
 struct ttm_mem_type_manager;
 
@@ -155,7 +154,6 @@ struct ttm_mem_type_manager_func {
  * @use_io_reserve_lru: Use an lru list to try to unreserve io_mem_regions
  * reserved by the TTM vm system.
  * @io_reserve_lru: Optional lru list for unreserving io mem regions.
- * @io_reserve_fastpath: Only use bdev::driver::io_mem_reserve to obtain
  * @move_lock: lock for move fence
  * static information. bdev::driver::io_mem_free is never used.
  * @lru: The lru list for this memory type.
@@ -177,7 +175,6 @@ struct ttm_mem_type_manager {
 	bool has_type;
 	bool use_type;
 	uint32_t flags;
-	uint64_t gpu_offset; /* GPU address space is independent of CPU word size */
 	uint64_t size;
 	uint32_t available_caching;
 	uint32_t default_caching;
@@ -185,7 +182,6 @@ struct ttm_mem_type_manager {
 	void *priv;
 	struct mutex io_reserve_mutex;
 	bool use_io_reserve_lru;
-	bool io_reserve_fastpath;
 	spinlock_t move_lock;
 
 	/*
@@ -530,17 +526,6 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
  */
 
 /**
- * ttm_mem_reg_is_pci
- *
- * @bdev: Pointer to a struct ttm_bo_device.
- * @mem: A valid struct ttm_mem_reg.
- *
- * Returns true if the memory described by @mem is PCI memory,
- * false otherwise.
- */
-bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
-
-/**
  * ttm_bo_mem_space
  *
  * @bo: Pointer to a struct ttm_buffer_object. the data of which
@@ -565,8 +550,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		     struct ttm_operation_ctx *ctx);
 
 void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
-void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
-			   struct ttm_mem_reg *mem);
 
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 

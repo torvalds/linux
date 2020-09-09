@@ -415,7 +415,8 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(soc15_allowed_read_registers); i++) {
 		en = &soc15_allowed_read_registers[i];
-		if (reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
+		if (adev->reg_offset[en->hwip][en->inst] &&
+			reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
 					+ en->reg_offset))
 			continue;
 
@@ -530,6 +531,15 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 {
 	bool baco_reset = false;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
+	    amdgpu_reset_method == AMD_RESET_METHOD_MODE2 ||
+		amdgpu_reset_method == AMD_RESET_METHOD_BACO)
+		return amdgpu_reset_method;
+
+	if (amdgpu_reset_method != -1)
+		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
+				  amdgpu_reset_method);
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
@@ -668,15 +678,28 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio.funcs->get_rev_id(adev);
 }
 
-int soc15_set_ip_blocks(struct amdgpu_device *adev)
+static void soc15_reg_base_init(struct amdgpu_device *adev)
 {
+	int r;
+
 	/* Set IP register base before any HW register access */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
-	case CHIP_RENOIR:
 		vega10_reg_base_init(adev);
+		break;
+	case CHIP_RENOIR:
+		/* It's safe to do ip discovery here for Renior,
+		 * it doesn't support SRIOV. */
+		if (amdgpu_discovery) {
+			r = amdgpu_discovery_reg_base_init(adev);
+			if (r) {
+				DRM_WARN("failed to init reg base from ip discovery table, "
+					 "fallback to legacy init method\n");
+				vega10_reg_base_init(adev);
+			}
+		}
 		break;
 	case CHIP_VEGA20:
 		vega20_reg_base_init(adev);
@@ -685,8 +708,26 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		arct_reg_base_init(adev);
 		break;
 	default:
-		return -EINVAL;
+		DRM_ERROR("Unsupported asic type: %d!\n", adev->asic_type);
+		break;
 	}
+}
+
+void soc15_set_virt_ops(struct amdgpu_device *adev)
+{
+	adev->virt.ops = &xgpu_ai_virt_ops;
+
+	/* init soc15 reg base early enough so we can
+	 * request request full access for sriov before
+	 * set_ip_blocks. */
+	soc15_reg_base_init(adev);
+}
+
+int soc15_set_ip_blocks(struct amdgpu_device *adev)
+{
+	/* for bare metal case */
+	if (!amdgpu_sriov_vf(adev))
+		soc15_reg_base_init(adev);
 
 	if (adev->asic_type == CHIP_VEGA20 || adev->asic_type == CHIP_ARCTURUS)
 		adev->gmc.xgmi.supported = true;
@@ -709,9 +750,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		adev->df.funcs = &df_v1_7_funcs;
 
 	adev->rev_id = soc15_get_rev_id(adev);
-
-	if (amdgpu_sriov_vf(adev))
-		adev->virt.ops = &xgpu_ai_virt_ops;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:

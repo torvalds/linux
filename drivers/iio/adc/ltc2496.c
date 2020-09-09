@@ -14,7 +14,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 
 #include "ltc2497.h"
 
@@ -96,7 +96,7 @@ MODULE_DEVICE_TABLE(of, ltc2496_of_match);
 static struct spi_driver ltc2496_driver = {
 	.driver = {
 		.name = "ltc2496",
-		.of_match_table = of_match_ptr(ltc2496_of_match),
+		.of_match_table = ltc2496_of_match,
 	},
 	.probe = ltc2496_probe,
 	.remove = ltc2496_remove,

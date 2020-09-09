@@ -491,7 +491,7 @@ static int psb_fbdev_destroy(struct drm_device *dev,
 	drm_framebuffer_cleanup(fb);
 
 	if (fb->obj[0])
-		drm_gem_object_put_unlocked(fb->obj[0]);
+		drm_gem_object_put(fb->obj[0]);
 	kfree(fb);
 
 	return 0;

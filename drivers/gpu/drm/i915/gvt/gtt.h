@@ -279,4 +279,6 @@ int intel_vgpu_emulate_ggtt_mmio_read(struct intel_vgpu *vgpu,
 int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes);
 
+void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu);
+
 #endif /* _GVT_GTT_H_ */

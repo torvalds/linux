@@ -69,10 +69,11 @@ Create the dm-dust device:
         $ sudo dmsetup create dust1 --table '0 33552384 dust /dev/vdb1 0 4096'
 
 Check the status of the read behavior ("bypass" indicates that all I/O
-will be passed through to the underlying device)::
+will be passed through to the underlying device; "verbose" indicates that
+bad block additions, removals, and remaps will be verbosely logged)::
 
         $ sudo dmsetup status dust1
-        0 33552384 dust 252:17 bypass
+        0 33552384 dust 252:17 bypass verbose
 
         $ sudo dd if=/dev/mapper/dust1 of=/dev/null bs=512 count=128 iflag=direct
         128+0 records in
@@ -164,7 +165,7 @@ following message command::
 A message will print with the number of bad blocks currently
 configured on the device::
 
-        kernel: device-mapper: dust: countbadblocks: 895 badblock(s) found
+        countbadblocks: 895 badblock(s) found
 
 Querying for specific bad blocks
 --------------------------------
@@ -176,11 +177,11 @@ following message command::
 
 The following message will print if the block is in the list::
 
-        device-mapper: dust: queryblock: block 72 found in badblocklist
+        dust_query_block: block 72 found in badblocklist
 
 The following message will print if the block is not in the list::
 
-        device-mapper: dust: queryblock: block 72 not found in badblocklist
+        dust_query_block: block 72 not found in badblocklist
 
 The "queryblock" message command will work in both the "enabled"
 and "disabled" modes, allowing the verification of whether a block
@@ -198,12 +199,28 @@ following message command::
 
 After clearing the bad block list, the following message will appear::
 
-        kernel: device-mapper: dust: clearbadblocks: badblocks cleared
+        dust_clear_badblocks: badblocks cleared
 
 If there were no bad blocks to clear, the following message will
 appear::
 
-        kernel: device-mapper: dust: clearbadblocks: no badblocks found
+        dust_clear_badblocks: no badblocks found
+
+Listing the bad block list
+--------------------------
+
+To list all bad blocks in the bad block list (using an example device
+with blocks 1 and 2 in the bad block list), run the following message
+command::
+
+        $ sudo dmsetup message dust1 0 listbadblocks
+        1
+        2
+
+If there are no bad blocks in the bad block list, the command will
+execute with no output::
+
+        $ sudo dmsetup message dust1 0 listbadblocks
 
 Message commands list
 ---------------------
@@ -223,6 +240,7 @@ Single argument message commands::
 
         countbadblocks
         clearbadblocks
+        listbadblocks
         disable
         enable
         quiet

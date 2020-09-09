@@ -75,7 +75,7 @@ static int printbinary(char *buf, unsigned long x, int nbits)
 		lvl, f, (x), (x+3), (r)[(x)+0], (r)[(x)+1],		\
 		(r)[(x)+2], (r)[(x)+3])
 
-static void print_gr(char *level, struct pt_regs *regs)
+static void print_gr(const char *level, struct pt_regs *regs)
 {
 	int i;
 	char buf[64];
@@ -89,7 +89,7 @@ static void print_gr(char *level, struct pt_regs *regs)
 		PRINTREGS(level, regs->gr, "r", RFMT, i);
 }
 
-static void print_fr(char *level, struct pt_regs *regs)
+static void print_fr(const char *level, struct pt_regs *regs)
 {
 	int i;
 	char buf[64];
@@ -119,7 +119,7 @@ static void print_fr(char *level, struct pt_regs *regs)
 void show_regs(struct pt_regs *regs)
 {
 	int i, user;
-	char *level;
+	const char *level;
 	unsigned long cr30, cr31;
 
 	user = user_mode(regs);

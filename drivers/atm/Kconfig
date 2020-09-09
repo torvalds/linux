@@ -306,8 +306,9 @@ config ATM_IA
 	  for more info about the cards. Say Y (or M to compile as a module
 	  named iphase) here if you have one of these cards.
 
-	  See the file <file:Documentation/networking/iphase.rst> for further
-	  details.
+	  See the file
+	  <file:Documentation/networking/device_drivers/atm/iphase.rst>
+	  for further details.
 
 config ATM_IA_DEBUG
 	bool "Enable debugging messages"
@@ -336,7 +337,8 @@ config ATM_FORE200E
 	  on PCI and SBUS hosts. Say Y (or M to compile as a module
 	  named fore_200e) here if you have one of these ATM adapters.
 
-	  See the file <file:Documentation/networking/fore200e.rst> for
+	  See the file
+	  <file:Documentation/networking/device_drivers/atm/fore200e.rst> for
 	  further details.
 
 config ATM_FORE200E_USE_TASKLET

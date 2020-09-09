@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  */
 /dts-v1/;
 
@@ -13,6 +13,26 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0 0x80000000 0 0x7f000000>; /* 2032 MB */
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_memory_region: dsp-memory@95000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x95000000 0 0x800000>;
+			reusable;
+			status = "okay";
+		};
+
+		ipu_memory_region: ipu-memory@95800000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x95800000 0 0x3800000>;
+			reusable;
+			status = "okay";
+		};
 	};
 
 	aliases {
@@ -197,4 +217,18 @@
 
 &wlcore {
 	compatible = "ti,wl1837";
+};
+
+&dsp {
+	status = "okay";
+	memory-region = <&dsp_memory_region>;
+	ti,timers = <&timer5>;
+	ti,watchdog-timers = <&timer6>;
+};
+
+&ipu {
+	status = "okay";
+	memory-region = <&ipu_memory_region>;
+	ti,timers = <&timer3>;
+	ti,watchdog-timers = <&timer9>, <&timer11>;
 };

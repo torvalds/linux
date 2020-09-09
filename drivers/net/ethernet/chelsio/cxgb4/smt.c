@@ -55,7 +55,7 @@ struct smt_data *t4_init_smt(void)
 	for (i = 0; i < s->smt_size; ++i) {
 		s->smtab[i].idx = i;
 		s->smtab[i].state = SMT_STATE_UNUSED;
-		memset(&s->smtab[i].src_mac, 0, ETH_ALEN);
+		eth_zero_addr(s->smtab[i].src_mac);
 		spin_lock_init(&s->smtab[i].lock);
 		s->smtab[i].refcnt = 0;
 	}

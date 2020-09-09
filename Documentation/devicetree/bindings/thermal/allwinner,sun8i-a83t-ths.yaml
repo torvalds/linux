@@ -50,7 +50,7 @@ properties:
   nvmem-cell-names:
     const: calibration
 
-  # See ./thermal.txt for details
+  # See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml for details
   "#thermal-sensor-cells":
     enum:
       - 0

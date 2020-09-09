@@ -220,9 +220,9 @@ static int i810_dma_cleanup(struct drm_device *dev)
 		if (dev_priv->ring.virtual_start)
 			drm_legacy_ioremapfree(&dev_priv->ring.map, dev);
 		if (dev_priv->hw_status_page) {
-			pci_free_consistent(dev->pdev, PAGE_SIZE,
-					    dev_priv->hw_status_page,
-					    dev_priv->dma_status_page);
+			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+					  dev_priv->hw_status_page,
+					  dev_priv->dma_status_page);
 		}
 		kfree(dev->dev_private);
 		dev->dev_private = NULL;
@@ -398,8 +398,8 @@ static int i810_dma_initialize(struct drm_device *dev,
 
 	/* Program Hardware Status Page */
 	dev_priv->hw_status_page =
-		pci_zalloc_consistent(dev->pdev, PAGE_SIZE,
-				      &dev_priv->dma_status_page);
+		dma_alloc_coherent(&dev->pdev->dev, PAGE_SIZE,
+				   &dev_priv->dma_status_page, GFP_KERNEL);
 	if (!dev_priv->hw_status_page) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);

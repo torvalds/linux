@@ -69,7 +69,7 @@ struct isst_if_cpu_maps {
  * @logical_cpu:	Logical CPU number to get target PCI device.
  * @reg:		PUNIT register offset
  * @value:		For write operation value to write and for
- *			for read placeholder read value
+ *			read placeholder read value
  *
  * Structure to specify read/write data to PUNIT registers.
  */

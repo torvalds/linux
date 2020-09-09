@@ -188,7 +188,7 @@ int intel_gt_resume(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int err;
 
-	err = intel_gt_has_init_error(gt);
+	err = intel_gt_has_unrecoverable_error(gt);
 	if (err)
 		return err;
 
@@ -214,8 +214,8 @@ int intel_gt_resume(struct intel_gt *gt)
 	/* Only when the HW is re-initialised, can we replay the requests */
 	err = intel_gt_init_hw(gt);
 	if (err) {
-		drm_err(&gt->i915->drm,
-			"Failed to initialize GPU, declaring it wedged!\n");
+		i915_probe_error(gt->i915,
+				 "Failed to initialize GPU, declaring it wedged!\n");
 		goto err_wedged;
 	}
 

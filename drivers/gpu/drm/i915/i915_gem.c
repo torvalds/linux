@@ -933,6 +933,18 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 	}
 }
 
+static void discard_ggtt_vma(struct i915_vma *vma)
+{
+	struct drm_i915_gem_object *obj = vma->obj;
+
+	spin_lock(&obj->vma.lock);
+	if (!RB_EMPTY_NODE(&vma->obj_node)) {
+		rb_erase(&vma->obj_node, &obj->vma.tree);
+		RB_CLEAR_NODE(&vma->obj_node);
+	}
+	spin_unlock(&obj->vma.lock);
+}
+
 struct i915_vma *
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
@@ -979,6 +991,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			return ERR_PTR(-ENOSPC);
 	}
 
+new_vma:
 	vma = i915_vma_instance(obj, &ggtt->vm, view);
 	if (IS_ERR(vma))
 		return vma;
@@ -991,6 +1004,11 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			if (flags & PIN_MAPPABLE &&
 			    vma->fence_size > ggtt->mappable_end / 2)
 				return ERR_PTR(-ENOSPC);
+		}
+
+		if (i915_vma_is_pinned(vma) || i915_vma_is_active(vma)) {
+			discard_ggtt_vma(vma);
+			goto new_vma;
 		}
 
 		ret = i915_vma_unbind(vma);

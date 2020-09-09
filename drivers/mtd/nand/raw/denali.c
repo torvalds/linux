@@ -761,8 +761,8 @@ static int denali_write_page(struct nand_chip *chip, const u8 *buf,
 	return denali_page_xfer(chip, (void *)buf, mtd->writesize, page, true);
 }
 
-static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
-				       const struct nand_data_interface *conf)
+static int denali_setup_interface(struct nand_chip *chip, int chipnr,
+				  const struct nand_interface_config *conf)
 {
 	static const unsigned int data_setup_on_host = 10000;
 	struct denali_controller *denali = to_denali_controller(chip);
@@ -1173,7 +1173,7 @@ static int denali_exec_op(struct nand_chip *chip,
 static const struct nand_controller_ops denali_controller_ops = {
 	.attach_chip = denali_attach_chip,
 	.exec_op = denali_exec_op,
-	.setup_data_interface = denali_setup_data_interface,
+	.setup_interface = denali_setup_interface,
 };
 
 int denali_chip_init(struct denali_controller *denali,
@@ -1230,7 +1230,7 @@ int denali_chip_init(struct denali_controller *denali,
 		chip->buf_align = 16;
 	}
 
-	/* clk rate info is needed for setup_data_interface */
+	/* clk rate info is needed for setup_interface */
 	if (!denali->clk_rate || !denali->clk_x_rate)
 		chip->options |= NAND_KEEP_TIMINGS;
 

@@ -86,7 +86,7 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 	switch (op) {
 	case PSC_GLOBAL_ENABLE:
 		reg |= SEND_CTRL_SEND_ENABLE_SMASK;
-	/* Fall through */
+		fallthrough;
 	case PSC_DATA_VL_ENABLE:
 		mask = 0;
 		for (i = 0; i < ARRAY_SIZE(dd->vld); i++)

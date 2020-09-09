@@ -37,12 +37,12 @@ xfs_qm_fill_state(
 	tstate->flags |= QCI_SYSFILE;
 	tstate->blocks = ip->i_d.di_nblocks;
 	tstate->nextents = ip->i_df.if_nextents;
-	tstate->spc_timelimit = (u32)defq->btimelimit;
-	tstate->ino_timelimit = (u32)defq->itimelimit;
-	tstate->rt_spc_timelimit = (u32)defq->rtbtimelimit;
-	tstate->spc_warnlimit = defq->bwarnlimit;
-	tstate->ino_warnlimit = defq->iwarnlimit;
-	tstate->rt_spc_warnlimit = defq->rtbwarnlimit;
+	tstate->spc_timelimit = (u32)defq->blk.time;
+	tstate->ino_timelimit = (u32)defq->ino.time;
+	tstate->rt_spc_timelimit = (u32)defq->rtb.time;
+	tstate->spc_warnlimit = defq->blk.warn;
+	tstate->ino_warnlimit = defq->ino.warn;
+	tstate->rt_spc_warnlimit = defq->rtb.warn;
 	if (tempqip)
 		xfs_irele(ip);
 }
@@ -85,16 +85,16 @@ xfs_fs_get_quota_state(
 	return 0;
 }
 
-STATIC int
+STATIC xfs_dqtype_t
 xfs_quota_type(int type)
 {
 	switch (type) {
 	case USRQUOTA:
-		return XFS_DQ_USER;
+		return XFS_DQTYPE_USER;
 	case GRPQUOTA:
-		return XFS_DQ_GROUP;
+		return XFS_DQTYPE_GROUP;
 	default:
-		return XFS_DQ_PROJ;
+		return XFS_DQTYPE_PROJ;
 	}
 }
 
@@ -205,11 +205,11 @@ xfs_fs_rm_xquota(
 		return -EINVAL;
 
 	if (uflags & FS_USER_QUOTA)
-		flags |= XFS_DQ_USER;
+		flags |= XFS_QMOPT_UQUOTA;
 	if (uflags & FS_GROUP_QUOTA)
-		flags |= XFS_DQ_GROUP;
+		flags |= XFS_QMOPT_GQUOTA;
 	if (uflags & FS_PROJ_QUOTA)
-		flags |= XFS_DQ_PROJ;
+		flags |= XFS_QMOPT_PQUOTA;
 
 	return xfs_qm_scall_trunc_qfiles(mp, flags);
 }

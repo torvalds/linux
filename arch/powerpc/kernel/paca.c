@@ -57,8 +57,8 @@ static void *__init alloc_paca_data(unsigned long size, unsigned long align,
 
 #define LPPACA_SIZE 0x400
 
-static void *__init alloc_shared_lppaca(unsigned long size, unsigned long align,
-					unsigned long limit, int cpu)
+static void *__init alloc_shared_lppaca(unsigned long size, unsigned long limit,
+					int cpu)
 {
 	size_t shared_lppaca_total_size = PAGE_ALIGN(nr_cpu_ids * LPPACA_SIZE);
 	static unsigned long shared_lppaca_size;
@@ -68,6 +68,13 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long align,
 	if (!shared_lppaca) {
 		memblock_set_bottom_up(true);
 
+		/*
+		 * See Documentation/powerpc/ultravisor.rst for more details.
+		 *
+		 * UV/HV data sharing is in PAGE_SIZE granularity. In order to
+		 * minimize the number of pages shared, align the allocation to
+		 * PAGE_SIZE.
+		 */
 		shared_lppaca =
 			memblock_alloc_try_nid(shared_lppaca_total_size,
 					       PAGE_SIZE, MEMBLOCK_LOW_LIMIT,
@@ -122,7 +129,7 @@ static struct lppaca * __init new_lppaca(int cpu, unsigned long limit)
 		return NULL;
 
 	if (is_secure_guest())
-		lp = alloc_shared_lppaca(LPPACA_SIZE, 0x400, limit, cpu);
+		lp = alloc_shared_lppaca(LPPACA_SIZE, limit, cpu);
 	else
 		lp = alloc_paca_data(LPPACA_SIZE, 0x400, limit, cpu);
 

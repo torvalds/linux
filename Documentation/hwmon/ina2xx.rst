@@ -11,7 +11,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
   * Texas Instruments INA220
 
@@ -21,7 +21,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
   * Texas Instruments INA226
 
@@ -31,7 +31,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
   * Texas Instruments INA230
 
@@ -41,7 +41,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
   * Texas Instruments INA231
 
@@ -51,7 +51,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
 Author: Lothar Felten <lothar.felten@gmail.com>
 

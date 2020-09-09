@@ -511,7 +511,6 @@ static int hisi_dma_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct device *dev = &pdev->dev;
 	struct hisi_dma_dev *hdma_dev;
 	struct dma_device *dma_dev;
-	size_t dev_size;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -534,9 +533,7 @@ static int hisi_dma_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	dev_size = sizeof(struct hisi_dma_chan) * HISI_DMA_CHAN_NUM +
-		   sizeof(*hdma_dev);
-	hdma_dev = devm_kzalloc(dev, dev_size, GFP_KERNEL);
+	hdma_dev = devm_kzalloc(dev, struct_size(hdma_dev, chan, HISI_DMA_CHAN_NUM), GFP_KERNEL);
 	if (!hdma_dev)
 		return -EINVAL;
 

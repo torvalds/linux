@@ -86,7 +86,7 @@ void amdgpu_ras_set_error_query_ready(struct amdgpu_device *adev, bool ready)
 		amdgpu_ras_get_context(adev)->error_query_ready = ready;
 }
 
-bool amdgpu_ras_get_error_query_ready(struct amdgpu_device *adev)
+static bool amdgpu_ras_get_error_query_ready(struct amdgpu_device *adev)
 {
 	if (adev && amdgpu_ras_get_context(adev))
 		return amdgpu_ras_get_context(adev)->error_query_ready;
@@ -318,6 +318,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	case 2:
 		if ((data.inject.address >= adev->gmc.mc_vram_size) ||
 		    (data.inject.address >= RAS_UMC_INJECT_ADDR_LIMIT)) {
+			dev_warn(adev->dev, "RAS WARN: input address "
+					"0x%llx is invalid.",
+					data.inject.address);
 			ret = -EINVAL;
 			break;
 		}
@@ -502,7 +505,7 @@ struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
 }
 /* obj end */
 
-void amdgpu_ras_parse_status_code(struct amdgpu_device* adev,
+static void amdgpu_ras_parse_status_code(struct amdgpu_device *adev,
 				  const char* 		invoke_type,
 				  const char* 		block_name,
 				  enum ta_ras_status 	ret)
@@ -812,7 +815,7 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 }
 
 /* Trigger XGMI/WAFL error */
-int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,
+static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,
 				 struct ta_ras_trigger_error_input *block_info)
 {
 	int ret;
@@ -1240,7 +1243,6 @@ void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
 	if (!obj || !obj->ent)
 		return;
 
-	debugfs_remove(obj->ent);
 	obj->ent = NULL;
 	put_obj(obj);
 }
@@ -1254,7 +1256,6 @@ static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 		amdgpu_ras_debugfs_remove(adev, &obj->head);
 	}
 
-	debugfs_remove_recursive(con->dir);
 	con->dir = NULL;
 }
 /* debugfs end */
@@ -1615,7 +1616,7 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 	data = con->eh_data;
 	save_count = data->count - control->num_recs;
 	/* only new entries are saved */
-	if (save_count > 0)
+	if (save_count > 0) {
 		if (amdgpu_ras_eeprom_process_recods(control,
 							&data->bps[control->num_recs],
 							true,
@@ -1623,6 +1624,9 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 			dev_err(adev->dev, "Failed to save EEPROM table data!");
 			return -EIO;
 		}
+
+		dev_info(adev->dev, "Saved %d pages to EEPROM table.\n", save_count);
+	}
 
 	return 0;
 }
@@ -1914,9 +1918,8 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	amdgpu_ras_check_supported(adev, &con->hw_supported,
 			&con->supported);
 	if (!con->hw_supported) {
-		amdgpu_ras_set_context(adev, NULL);
-		kfree(con);
-		return 0;
+		r = 0;
+		goto err_out;
 	}
 
 	con->features = 0;
@@ -1927,29 +1930,29 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	if (adev->nbio.funcs->init_ras_controller_interrupt) {
 		r = adev->nbio.funcs->init_ras_controller_interrupt(adev);
 		if (r)
-			return r;
+			goto err_out;
 	}
 
 	if (adev->nbio.funcs->init_ras_err_event_athub_interrupt) {
 		r = adev->nbio.funcs->init_ras_err_event_athub_interrupt(adev);
 		if (r)
-			return r;
+			goto err_out;
 	}
 
-	amdgpu_ras_mask &= AMDGPU_RAS_BLOCK_MASK;
-
-	if (amdgpu_ras_fs_init(adev))
-		goto fs_out;
+	if (amdgpu_ras_fs_init(adev)) {
+		r = -EINVAL;
+		goto err_out;
+	}
 
 	dev_info(adev->dev, "RAS INFO: ras initialized successfully, "
 			"hardware ability[%x] ras_mask[%x]\n",
 			con->hw_supported, con->supported);
 	return 0;
-fs_out:
+err_out:
 	amdgpu_ras_set_context(adev, NULL);
 	kfree(con);
 
-	return -EINVAL;
+	return r;
 }
 
 /* helper function to handle common stuff in ip late init phase */
@@ -2128,4 +2131,15 @@ void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 
 		amdgpu_ras_reset_gpu(adev);
 	}
+}
+
+bool amdgpu_ras_need_emergency_restart(struct amdgpu_device *adev)
+{
+	if (adev->asic_type == CHIP_VEGA20 &&
+	    adev->pm.fw_version <= 0x283400) {
+		return !(amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) &&
+				amdgpu_ras_intr_triggered();
+	}
+
+	return false;
 }

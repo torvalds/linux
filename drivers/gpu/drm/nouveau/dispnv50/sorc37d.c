@@ -21,16 +21,22 @@
  */
 #include "core.h"
 
-static void
+#include <nvif/pushc37b.h>
+
+#include <nvhw/class/clc37d.h>
+
+static int
 sorc37d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	     struct nv50_head_atom *asyh)
 {
-	u32 *push;
-	if ((push = evo_wait(&core->chan, 2))) {
-		evo_mthd(push, 0x0300 + (or * 0x20), 1);
-		evo_data(push, ctrl);
-		evo_kick(push, &core->chan);
-	}
+	struct nvif_push *push = core->chan.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, SOR_SET_CONTROL(or), ctrl);
+	return 0;
 }
 
 static void

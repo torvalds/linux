@@ -44,6 +44,11 @@
 #include <subdev/bios/pll.h>
 #include <subdev/clk.h>
 
+#include <nvif/push006c.h>
+
+#include <nvif/event.h>
+#include <nvif/cl0046.h>
+
 static int
 nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 			struct drm_framebuffer *old_fb);
@@ -756,6 +761,7 @@ static void nv_crtc_destroy(struct drm_crtc *crtc)
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+	nvif_notify_dtor(&nv_crtc->vblank);
 	kfree(nv_crtc);
 }
 
@@ -845,7 +851,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	}
 
 	nvbo = nouveau_gem_object(drm_fb->obj[0]);
-	nv_crtc->fb.offset = nvbo->bo.offset;
+	nv_crtc->fb.offset = nvbo->offset;
 
 	if (nv_crtc->lut.depth != drm_fb->format->depth) {
 		nv_crtc->lut.depth = drm_fb->format->depth;
@@ -1013,11 +1019,11 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		nv04_cursor_upload(dev, cursor, nv_crtc->cursor.nvbo);
 
 	nouveau_bo_unmap(cursor);
-	nv_crtc->cursor.offset = nv_crtc->cursor.nvbo->bo.offset;
+	nv_crtc->cursor.offset = nv_crtc->cursor.nvbo->offset;
 	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.offset);
 	nv_crtc->cursor.show(nv_crtc, true);
 out:
-	drm_gem_object_put_unlocked(gem);
+	drm_gem_object_put(gem);
 	return ret;
 }
 
@@ -1101,6 +1107,7 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_drm *drm = chan->drm;
 	struct drm_device *dev = drm->dev;
+	struct nvif_push *push = chan->chan.push;
 	unsigned long flags;
 	int ret;
 
@@ -1115,13 +1122,12 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 		goto fail;
 
 	/* Emit the pageflip */
-	ret = RING_SPACE(chan, 2);
+	ret = PUSH_WAIT(push, 2);
 	if (ret)
 		goto fail;
 
-	BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
-	OUT_RING  (chan, 0x00000000);
-	FIRE_RING (chan);
+	PUSH_NVSQ(push, NV_SW, NV_SW_PAGE_FLIP, 0x00000000);
+	PUSH_KICK(push);
 
 	ret = nouveau_fence_new(chan, false, pfence);
 	if (ret)
@@ -1151,6 +1157,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_cli *cli;
 	struct nouveau_fence *fence;
 	struct nv04_display *dispnv04 = nv04_display(dev);
+	struct nvif_push *push;
 	int head = nouveau_crtc(crtc)->index;
 	int ret;
 
@@ -1158,6 +1165,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (!chan)
 		return -ENODEV;
 	cli = (void *)chan->user.client;
+	push = chan->chan.push;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -1192,25 +1200,21 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Initialize a page flip struct */
 	*s = (struct nv04_page_flip_state)
 		{ { }, event, crtc, fb->format->cpp[0] * 8, fb->pitches[0],
-		  new_bo->bo.offset };
+		  new_bo->offset };
 
 	/* Keep vblanks on during flip, for the target crtc of this flip */
 	drm_crtc_vblank_get(crtc);
 
 	/* Emit a page flip */
 	if (swap_interval) {
-		ret = RING_SPACE(chan, 8);
+		ret = PUSH_WAIT(push, 8);
 		if (ret)
 			goto fail_unreserve;
 
-		BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
-		OUT_RING  (chan, head);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
-		OUT_RING  (chan, 0);
+		PUSH_NVSQ(push, NV05F, 0x012c, 0);
+		PUSH_NVSQ(push, NV05F, 0x0134, head);
+		PUSH_NVSQ(push, NV05F, 0x0100, 0);
+		PUSH_NVSQ(push, NV05F, 0x0130, 0);
 	}
 
 	nouveau_bo_ref(new_bo, &dispnv04->image[head]);
@@ -1297,9 +1301,19 @@ create_primary_plane(struct drm_device *dev)
         return primary;
 }
 
+static int nv04_crtc_vblank_handler(struct nvif_notify *notify)
+{
+	struct nouveau_crtc *nv_crtc =
+		container_of(notify, struct nouveau_crtc, vblank);
+
+	drm_crtc_handle_vblank(&nv_crtc->base);
+	return NVIF_NOTIFY_KEEP;
+}
+
 int
 nv04_crtc_create(struct drm_device *dev, int crtc_num)
 {
+	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_crtc *nv_crtc;
 	int ret;
 
@@ -1337,5 +1351,14 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 
 	nv04_cursor_init(nv_crtc);
 
-	return 0;
+	ret = nvif_notify_ctor(&disp->disp.object, "kmsVbl", nv04_crtc_vblank_handler,
+			       false, NV04_DISP_NTFY_VBLANK,
+			       &(struct nvif_notify_head_req_v0) {
+				    .head = nv_crtc->index,
+			       },
+			       sizeof(struct nvif_notify_head_req_v0),
+			       sizeof(struct nvif_notify_head_rep_v0),
+			       &nv_crtc->vblank);
+
+	return ret;
 }

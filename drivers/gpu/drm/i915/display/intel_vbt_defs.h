@@ -820,6 +820,7 @@ struct bdb_lfp_power {
 	u16 adb;
 	u16 lace_enabled_status;
 	struct agressiveness_profile_entry aggressivenes[16];
+	u16 hobl; /* 232+ */
 } __packed;
 
 /*

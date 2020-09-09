@@ -122,10 +122,6 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 
 	mt7615_tx_cleanup(dev);
 
-	rcu_read_lock();
-	mt7615_mac_sta_poll(dev);
-	rcu_read_unlock();
-
 	tasklet_schedule(&dev->mt76.tx_tasklet);
 
 	return 0;

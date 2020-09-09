@@ -42,6 +42,7 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_lmem.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 
 #include "i915_drv.h"
@@ -425,7 +426,7 @@ static void err_compression_marker(struct drm_i915_error_state_buf *m)
 static void error_print_instdone(struct drm_i915_error_state_buf *m,
 				 const struct intel_engine_coredump *ee)
 {
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(m->i915)->sseu;
+	const struct sseu_dev_info *sseu = &ee->engine->gt->info.sseu;
 	int slice;
 	int subslice;
 
@@ -619,16 +620,13 @@ static void print_error_vma(struct drm_i915_error_state_buf *m,
 }
 
 static void err_print_capabilities(struct drm_i915_error_state_buf *m,
-				   const struct intel_device_info *info,
-				   const struct intel_runtime_info *runtime,
-				   const struct intel_driver_caps *caps)
+				   struct i915_gpu_coredump *error)
 {
 	struct drm_printer p = i915_error_printer(m);
 
-	intel_device_info_print_static(info, &p);
-	intel_device_info_print_runtime(runtime, &p);
-	intel_device_info_print_topology(&runtime->sseu, &p);
-	intel_driver_caps_print(caps, &p);
+	intel_device_info_print_static(&error->device_info, &p);
+	intel_device_info_print_runtime(&error->runtime_info, &p);
+	intel_driver_caps_print(&error->driver_caps, &p);
 }
 
 static void err_print_params(struct drm_i915_error_state_buf *m,
@@ -676,6 +674,15 @@ static void err_free_sgl(struct scatterlist *sgl)
 		free_page((unsigned long)sgl);
 		sgl = sg;
 	}
+}
+
+static void err_print_gt_info(struct drm_i915_error_state_buf *m,
+			      struct intel_gt_coredump *gt)
+{
+	struct drm_printer p = i915_error_printer(m);
+
+	intel_gt_info_print(&gt->info, &p);
+	intel_sseu_print_topology(&gt->info.sseu, &p);
 }
 
 static void err_print_gt(struct drm_i915_error_state_buf *m,
@@ -734,6 +741,8 @@ static void err_print_gt(struct drm_i915_error_state_buf *m,
 
 	if (gt->uc)
 		err_print_uc(m, gt->uc);
+
+	err_print_gt_info(m, gt);
 }
 
 static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
@@ -798,8 +807,7 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	if (error->display)
 		intel_display_print_error_state(m, error->display);
 
-	err_print_capabilities(m, &error->device_info, &error->runtime_info,
-			       &error->driver_caps);
+	err_print_capabilities(m, error);
 	err_print_params(m, &error->params);
 }
 
@@ -1630,6 +1638,11 @@ static void gt_record_regs(struct intel_gt_coredump *gt)
 	gt->pgtbl_er = intel_uncore_read(uncore, PGTBL_ER);
 }
 
+static void gt_record_info(struct intel_gt_coredump *gt)
+{
+	memcpy(&gt->info, &gt->_gt->info, sizeof(struct intel_gt_info));
+}
+
 /*
  * Generate a semi-unique error code. The code is not meant to have meaning, The
  * code's only purpose is to try to prevent false duplicated bug reports by
@@ -1698,7 +1711,7 @@ static void capture_gen(struct i915_gpu_coredump *error)
 	error->reset_count = i915_reset_count(&i915->gpu_error);
 	error->suspend_count = i915->suspend_count;
 
-	i915_params_copy(&error->params, &i915_modparams);
+	i915_params_copy(&error->params, &i915->params);
 	memcpy(&error->device_info,
 	       INTEL_INFO(i915),
 	       sizeof(error->device_info));
@@ -1713,7 +1726,7 @@ i915_gpu_coredump_alloc(struct drm_i915_private *i915, gfp_t gfp)
 {
 	struct i915_gpu_coredump *error;
 
-	if (!i915_modparams.error_capture)
+	if (!i915->params.error_capture)
 		return NULL;
 
 	error = kzalloc(sizeof(*error), gfp);
@@ -1808,6 +1821,7 @@ struct i915_gpu_coredump *i915_gpu_coredump(struct drm_i915_private *i915)
 			return ERR_PTR(-ENOMEM);
 		}
 
+		gt_record_info(error->gt);
 		gt_record_engines(error->gt, compress);
 
 		if (INTEL_INFO(i915)->has_gt_uc)

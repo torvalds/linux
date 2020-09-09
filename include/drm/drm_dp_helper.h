@@ -1457,6 +1457,14 @@ drm_dp_alternate_scrambler_reset_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 			DP_ALTERNATE_SCRAMBLER_RESET_CAP;
 }
 
+/* Ignore MSA timing for Adaptive Sync support on DP 1.4 */
+static inline bool
+drm_dp_sink_can_do_video_without_timing_msa(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DOWN_STREAM_PORT_COUNT] &
+		DP_MSA_TIMING_PAR_IGNORED;
+}
+
 /*
  * DisplayPort AUX channel
  */
@@ -1701,7 +1709,7 @@ enum drm_dp_quirk {
 
 /**
  * drm_dp_has_quirk() - does the DP device have a specific quirk
- * @desc: Device decriptor filled by drm_dp_read_desc()
+ * @desc: Device descriptor filled by drm_dp_read_desc()
  * @edid_quirks: Optional quirk bitmask filled by drm_dp_get_edid_quirks()
  * @quirk: Quirk to query for
  *

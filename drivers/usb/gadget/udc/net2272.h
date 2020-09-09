@@ -105,11 +105,6 @@
 #define USBTEST				0x32
 #define 	TEST_MODE_SELECT			0
 #define 		NORMAL_OPERATION			0
-#define 		TEST_J					1
-#define 		TEST_K					2
-#define 		TEST_SE0_NAK				3
-#define 		TEST_PACKET				4
-#define 		TEST_FORCE_ENABLE			5
 #define XCVRDIAG			0x33
 #define 	FORCE_FULL_SPEED			2
 #define 	FORCE_HIGH_SPEED			3

@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/kref.h>
 
 struct kunit_resource;
 
@@ -23,12 +24,18 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
 
 /**
  * struct kunit_resource - represents a *test managed resource*
- * @allocation: for the user to store arbitrary data.
+ * @data: for the user to store arbitrary data.
  * @free: a user supplied function to free the resource. Populated by
- * kunit_alloc_resource().
+ * kunit_resource_alloc().
  *
  * Represents a *test managed resource*, a resource which will automatically be
  * cleaned up at the end of a test case.
+ *
+ * Resources are reference counted so if a resource is retrieved via
+ * kunit_alloc_and_get_resource() or kunit_find_resource(), we need
+ * to call kunit_put_resource() to reduce the resource reference count
+ * when finished with it.  Note that kunit_alloc_resource() does not require a
+ * kunit_resource_put() because it does not retrieve the resource itself.
  *
  * Example:
  *
@@ -42,9 +49,9 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  *	static int kunit_kmalloc_init(struct kunit_resource *res, void *context)
  *	{
  *		struct kunit_kmalloc_params *params = context;
- *		res->allocation = kmalloc(params->size, params->gfp);
+ *		res->data = kmalloc(params->size, params->gfp);
  *
- *		if (!res->allocation)
+ *		if (!res->data)
  *			return -ENOMEM;
  *
  *		return 0;
@@ -52,30 +59,32 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  *
  *	static void kunit_kmalloc_free(struct kunit_resource *res)
  *	{
- *		kfree(res->allocation);
+ *		kfree(res->data);
  *	}
  *
  *	void *kunit_kmalloc(struct kunit *test, size_t size, gfp_t gfp)
  *	{
  *		struct kunit_kmalloc_params params;
- *		struct kunit_resource *res;
  *
  *		params.size = size;
  *		params.gfp = gfp;
  *
- *		res = kunit_alloc_resource(test, kunit_kmalloc_init,
+ *		return kunit_alloc_resource(test, kunit_kmalloc_init,
  *			kunit_kmalloc_free, &params);
- *		if (res)
- *			return res->allocation;
- *
- *		return NULL;
  *	}
+ *
+ * Resources can also be named, with lookup/removal done on a name
+ * basis also.  kunit_add_named_resource(), kunit_find_named_resource()
+ * and kunit_destroy_named_resource().  Resource names must be
+ * unique within the test instance.
  */
 struct kunit_resource {
-	void *allocation;
-	kunit_resource_free_t free;
+	void *data;
+	const char *name;		/* optional name */
 
 	/* private: internal use only. */
+	kunit_resource_free_t free;
+	struct kref refcount;
 	struct list_head node;
 };
 
@@ -284,6 +293,79 @@ struct kunit_resource *kunit_alloc_and_get_resource(struct kunit *test,
 						    void *context);
 
 /**
+ * kunit_get_resource() - Hold resource for use.  Should not need to be used
+ *			  by most users as we automatically get resources
+ *			  retrieved by kunit_find_resource*().
+ * @res: resource
+ */
+static inline void kunit_get_resource(struct kunit_resource *res)
+{
+	kref_get(&res->refcount);
+}
+
+/*
+ * Called when refcount reaches zero via kunit_put_resources();
+ * should not be called directly.
+ */
+static inline void kunit_release_resource(struct kref *kref)
+{
+	struct kunit_resource *res = container_of(kref, struct kunit_resource,
+						  refcount);
+
+	/* If free function is defined, resource was dynamically allocated. */
+	if (res->free) {
+		res->free(res);
+		kfree(res);
+	}
+}
+
+/**
+ * kunit_put_resource() - When caller is done with retrieved resource,
+ *			  kunit_put_resource() should be called to drop
+ *			  reference count.  The resource list maintains
+ *			  a reference count on resources, so if no users
+ *			  are utilizing a resource and it is removed from
+ *			  the resource list, it will be freed via the
+ *			  associated free function (if any).  Only
+ *			  needs to be used if we alloc_and_get() or
+ *			  find() resource.
+ * @res: resource
+ */
+static inline void kunit_put_resource(struct kunit_resource *res)
+{
+	kref_put(&res->refcount, kunit_release_resource);
+}
+
+/**
+ * kunit_add_resource() - Add a *test managed resource*.
+ * @test: The test context object.
+ * @init: a user-supplied function to initialize the result (if needed).  If
+ *        none is supplied, the resource data value is simply set to @data.
+ *	  If an init function is supplied, @data is passed to it instead.
+ * @free: a user-supplied function to free the resource (if needed).
+ * @data: value to pass to init function or set in resource data field.
+ */
+int kunit_add_resource(struct kunit *test,
+		       kunit_resource_init_t init,
+		       kunit_resource_free_t free,
+		       struct kunit_resource *res,
+		       void *data);
+
+/**
+ * kunit_add_named_resource() - Add a named *test managed resource*.
+ * @test: The test context object.
+ * @init: a user-supplied function to initialize the resource data, if needed.
+ * @free: a user-supplied function to free the resource data, if needed.
+ * @name_data: name and data to be set for resource.
+ */
+int kunit_add_named_resource(struct kunit *test,
+			     kunit_resource_init_t init,
+			     kunit_resource_free_t free,
+			     struct kunit_resource *res,
+			     const char *name,
+			     void *data);
+
+/**
  * kunit_alloc_resource() - Allocates a *test managed resource*.
  * @test: The test context object.
  * @init: a user supplied function to initialize the resource.
@@ -295,7 +377,7 @@ struct kunit_resource *kunit_alloc_and_get_resource(struct kunit *test,
  * cleaned up at the end of a test case. See &struct kunit_resource for an
  * example.
  *
- * NOTE: KUnit needs to allocate memory for each kunit_resource object. You must
+ * Note: KUnit needs to allocate memory for a kunit_resource object. You must
  * specify an @internal_gfp that is compatible with the use context of your
  * resource.
  */
@@ -307,53 +389,121 @@ static inline void *kunit_alloc_resource(struct kunit *test,
 {
 	struct kunit_resource *res;
 
-	res = kunit_alloc_and_get_resource(test, init, free, internal_gfp,
-					   context);
+	res = kzalloc(sizeof(*res), internal_gfp);
+	if (!res)
+		return NULL;
 
-	if (res)
-		return res->allocation;
+	if (!kunit_add_resource(test, init, free, res, context))
+		return res->data;
 
 	return NULL;
 }
 
 typedef bool (*kunit_resource_match_t)(struct kunit *test,
-				       const void *res,
+				       struct kunit_resource *res,
 				       void *match_data);
 
 /**
  * kunit_resource_instance_match() - Match a resource with the same instance.
  * @test: Test case to which the resource belongs.
- * @res: The data stored in kunit_resource->allocation.
+ * @res: The resource.
  * @match_data: The resource pointer to match against.
  *
  * An instance of kunit_resource_match_t that matches a resource whose
  * allocation matches @match_data.
  */
 static inline bool kunit_resource_instance_match(struct kunit *test,
-						 const void *res,
+						 struct kunit_resource *res,
 						 void *match_data)
 {
-	return res == match_data;
+	return res->data == match_data;
 }
 
 /**
- * kunit_resource_destroy() - Find a kunit_resource and destroy it.
+ * kunit_resource_name_match() - Match a resource with the same name.
+ * @test: Test case to which the resource belongs.
+ * @res: The resource.
+ * @match_name: The name to match against.
+ */
+static inline bool kunit_resource_name_match(struct kunit *test,
+					     struct kunit_resource *res,
+					     void *match_name)
+{
+	return res->name && strcmp(res->name, match_name) == 0;
+}
+
+/**
+ * kunit_find_resource() - Find a resource using match function/data.
+ * @test: Test case to which the resource belongs.
+ * @match: match function to be applied to resources/match data.
+ * @match_data: data to be used in matching.
+ */
+static inline struct kunit_resource *
+kunit_find_resource(struct kunit *test,
+		    kunit_resource_match_t match,
+		    void *match_data)
+{
+	struct kunit_resource *res, *found = NULL;
+
+	spin_lock(&test->lock);
+
+	list_for_each_entry_reverse(res, &test->resources, node) {
+		if (match(test, res, (void *)match_data)) {
+			found = res;
+			kunit_get_resource(found);
+			break;
+		}
+	}
+
+	spin_unlock(&test->lock);
+
+	return found;
+}
+
+/**
+ * kunit_find_named_resource() - Find a resource using match name.
+ * @test: Test case to which the resource belongs.
+ * @name: match name.
+ */
+static inline struct kunit_resource *
+kunit_find_named_resource(struct kunit *test,
+			  const char *name)
+{
+	return kunit_find_resource(test, kunit_resource_name_match,
+				   (void *)name);
+}
+
+/**
+ * kunit_destroy_resource() - Find a kunit_resource and destroy it.
  * @test: Test case to which the resource belongs.
  * @match: Match function. Returns whether a given resource matches @match_data.
- * @free: Must match free on the kunit_resource to free.
  * @match_data: Data passed into @match.
- *
- * Free the latest kunit_resource of @test for which @free matches the
- * kunit_resource_free_t associated with the resource and for which @match
- * returns true.
  *
  * RETURNS:
  * 0 if kunit_resource is found and freed, -ENOENT if not found.
  */
-int kunit_resource_destroy(struct kunit *test,
+int kunit_destroy_resource(struct kunit *test,
 			   kunit_resource_match_t match,
-			   kunit_resource_free_t free,
 			   void *match_data);
+
+static inline int kunit_destroy_named_resource(struct kunit *test,
+					       const char *name)
+{
+	return kunit_destroy_resource(test, kunit_resource_name_match,
+				      (void *)name);
+}
+
+/**
+ * kunit_remove_resource: remove resource from resource list associated with
+ *			  test.
+ * @test: The test context object.
+ * @res: The resource to be removed.
+ *
+ * Note that the resource will not be immediately freed since it is likely
+ * the caller has a reference to it via alloc_and_get() or find();
+ * in this case a final call to kunit_put_resource() is required.
+ */
+void kunit_remove_resource(struct kunit *test, struct kunit_resource *res);
 
 /**
  * kunit_kmalloc() - Like kmalloc() except the allocation is *test managed*.

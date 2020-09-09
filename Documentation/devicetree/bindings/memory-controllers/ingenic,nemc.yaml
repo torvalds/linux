@@ -16,11 +16,11 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - ingenic,jz4740-nemc
-        - ingenic,jz4780-nemc
+          - ingenic,jz4740-nemc
+          - ingenic,jz4780-nemc
       - items:
-        - const: ingenic,jz4725b-nemc
-        - const: ingenic,jz4740-nemc
+          - const: ingenic,jz4725b-nemc
+          - const: ingenic,jz4740-nemc
 
   "#address-cells":
     const: 2

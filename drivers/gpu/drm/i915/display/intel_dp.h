@@ -40,7 +40,7 @@ bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
 			   enum pipe *pipe);
 bool intel_dp_init(struct drm_i915_private *dev_priv, i915_reg_t output_reg,
 		   enum port port);
-bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
+bool intel_dp_init_connector(struct intel_digital_port *dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
 			      int link_rate, u8 lane_count,
@@ -61,7 +61,7 @@ int intel_dp_compute_config(struct intel_encoder *encoder,
 			    struct drm_connector_state *conn_state);
 bool intel_dp_is_edp(struct intel_dp *intel_dp);
 bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
-enum irqreturn intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
+enum irqreturn intel_dp_hpd_pulse(struct intel_digital_port *dig_port,
 				  bool long_hpd);
 void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
 			    const struct drm_connector_state *conn_state);
@@ -92,10 +92,6 @@ intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 void
 intel_dp_set_signal_levels(struct intel_dp *intel_dp);
 void intel_dp_set_idle_link_train(struct intel_dp *intel_dp);
-u8
-intel_dp_voltage_max(struct intel_dp *intel_dp);
-u8
-intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, u8 voltage_swing);
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 			   u8 *link_bw, u8 *rate_select);
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp);

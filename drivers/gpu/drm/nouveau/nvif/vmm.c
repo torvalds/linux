@@ -105,15 +105,15 @@ nvif_vmm_get(struct nvif_vmm *vmm, enum nvif_vmm_get type, bool sparse,
 }
 
 void
-nvif_vmm_fini(struct nvif_vmm *vmm)
+nvif_vmm_dtor(struct nvif_vmm *vmm)
 {
 	kfree(vmm->page);
-	nvif_object_fini(&vmm->object);
+	nvif_object_dtor(&vmm->object);
 }
 
 int
-nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, bool managed, u64 addr,
-	      u64 size, void *argv, u32 argc, struct nvif_vmm *vmm)
+nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass, bool managed,
+	      u64 addr, u64 size, void *argv, u32 argc, struct nvif_vmm *vmm)
 {
 	struct nvif_vmm_v0 *args;
 	u32 argn = sizeof(*args) + argc;
@@ -130,8 +130,8 @@ nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, bool managed, u64 addr,
 	args->size = size;
 	memcpy(args->data, argv, argc);
 
-	ret = nvif_object_init(&mmu->object, 0, oclass, args, argn,
-			       &vmm->object);
+	ret = nvif_object_ctor(&mmu->object, name ? name : "nvifVmm", 0,
+			       oclass, args, argn, &vmm->object);
 	if (ret)
 		goto done;
 
@@ -163,7 +163,7 @@ nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, bool managed, u64 addr,
 
 done:
 	if (ret)
-		nvif_vmm_fini(vmm);
+		nvif_vmm_dtor(vmm);
 	kfree(args);
 	return ret;
 }

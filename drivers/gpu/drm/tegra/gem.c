@@ -24,7 +24,7 @@ static void tegra_bo_put(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
-	drm_gem_object_put_unlocked(&obj->gem);
+	drm_gem_object_put(&obj->gem);
 }
 
 /* XXX move this into lib/scatterlist.c? */
@@ -385,7 +385,7 @@ struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
 		return ERR_PTR(err);
 	}
 
-	drm_gem_object_put_unlocked(&bo->gem);
+	drm_gem_object_put(&bo->gem);
 
 	return bo;
 }

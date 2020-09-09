@@ -425,7 +425,7 @@ static inline struct aead_request *aead_request_alloc(struct crypto_aead *tfm,
  */
 static inline void aead_request_free(struct aead_request *req)
 {
-	kzfree(req);
+	kfree_sensitive(req);
 }
 
 /**

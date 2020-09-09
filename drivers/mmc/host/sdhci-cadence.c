@@ -202,6 +202,79 @@ static u32 sdhci_cdns_get_emmc_mode(struct sdhci_cdns_priv *priv)
 	return FIELD_GET(SDHCI_CDNS_HRS06_MODE, tmp);
 }
 
+static int sdhci_cdns_set_tune_val(struct sdhci_host *host, unsigned int val)
+{
+	struct sdhci_cdns_priv *priv = sdhci_cdns_priv(host);
+	void __iomem *reg = priv->hrs_addr + SDHCI_CDNS_HRS06;
+	u32 tmp;
+	int i, ret;
+
+	if (WARN_ON(!FIELD_FIT(SDHCI_CDNS_HRS06_TUNE, val)))
+		return -EINVAL;
+
+	tmp = readl(reg);
+	tmp &= ~SDHCI_CDNS_HRS06_TUNE;
+	tmp |= FIELD_PREP(SDHCI_CDNS_HRS06_TUNE, val);
+
+	/*
+	 * Workaround for IP errata:
+	 * The IP6116 SD/eMMC PHY design has a timing issue on receive data
+	 * path. Send tune request twice.
+	 */
+	for (i = 0; i < 2; i++) {
+		tmp |= SDHCI_CDNS_HRS06_TUNE_UP;
+		writel(tmp, reg);
+
+		ret = readl_poll_timeout(reg, tmp,
+					 !(tmp & SDHCI_CDNS_HRS06_TUNE_UP),
+					 0, 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * In SD mode, software must not use the hardware tuning and instead perform
+ * an almost identical procedure to eMMC.
+ */
+static int sdhci_cdns_execute_tuning(struct sdhci_host *host, u32 opcode)
+{
+	int cur_streak = 0;
+	int max_streak = 0;
+	int end_of_streak = 0;
+	int i;
+
+	/*
+	 * Do not execute tuning for UHS_SDR50 or UHS_DDR50.
+	 * The delay is set by probe, based on the DT properties.
+	 */
+	if (host->timing != MMC_TIMING_MMC_HS200 &&
+	    host->timing != MMC_TIMING_UHS_SDR104)
+		return 0;
+
+	for (i = 0; i < SDHCI_CDNS_MAX_TUNING_LOOP; i++) {
+		if (sdhci_cdns_set_tune_val(host, i) ||
+		    mmc_send_tuning(host->mmc, opcode, NULL)) { /* bad */
+			cur_streak = 0;
+		} else { /* good */
+			cur_streak++;
+			if (cur_streak > max_streak) {
+				max_streak = cur_streak;
+				end_of_streak = i;
+			}
+		}
+	}
+
+	if (!max_streak) {
+		dev_err(mmc_dev(host->mmc), "no tuning point found\n");
+		return -EIO;
+	}
+
+	return sdhci_cdns_set_tune_val(host, end_of_streak - max_streak / 2);
+}
+
 static void sdhci_cdns_set_uhs_signaling(struct sdhci_host *host,
 					 unsigned int timing)
 {
@@ -241,6 +314,7 @@ static const struct sdhci_ops sdhci_cdns_ops = {
 	.get_timeout_clock = sdhci_cdns_get_timeout_clock,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_reset,
+	.platform_execute_tuning = sdhci_cdns_execute_tuning,
 	.set_uhs_signaling = sdhci_cdns_set_uhs_signaling,
 };
 
@@ -252,78 +326,6 @@ static const struct sdhci_pltfm_data sdhci_cdns_uniphier_pltfm_data = {
 static const struct sdhci_pltfm_data sdhci_cdns_pltfm_data = {
 	.ops = &sdhci_cdns_ops,
 };
-
-static int sdhci_cdns_set_tune_val(struct sdhci_host *host, unsigned int val)
-{
-	struct sdhci_cdns_priv *priv = sdhci_cdns_priv(host);
-	void __iomem *reg = priv->hrs_addr + SDHCI_CDNS_HRS06;
-	u32 tmp;
-	int i, ret;
-
-	if (WARN_ON(!FIELD_FIT(SDHCI_CDNS_HRS06_TUNE, val)))
-		return -EINVAL;
-
-	tmp = readl(reg);
-	tmp &= ~SDHCI_CDNS_HRS06_TUNE;
-	tmp |= FIELD_PREP(SDHCI_CDNS_HRS06_TUNE, val);
-
-	/*
-	 * Workaround for IP errata:
-	 * The IP6116 SD/eMMC PHY design has a timing issue on receive data
-	 * path. Send tune request twice.
-	 */
-	for (i = 0; i < 2; i++) {
-		tmp |= SDHCI_CDNS_HRS06_TUNE_UP;
-		writel(tmp, reg);
-
-		ret = readl_poll_timeout(reg, tmp,
-					 !(tmp & SDHCI_CDNS_HRS06_TUNE_UP),
-					 0, 1);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int sdhci_cdns_execute_tuning(struct mmc_host *mmc, u32 opcode)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	int cur_streak = 0;
-	int max_streak = 0;
-	int end_of_streak = 0;
-	int i;
-
-	/*
-	 * This handler only implements the eMMC tuning that is specific to
-	 * this controller.  Fall back to the standard method for SD timing.
-	 */
-	if (host->timing != MMC_TIMING_MMC_HS200)
-		return sdhci_execute_tuning(mmc, opcode);
-
-	if (WARN_ON(opcode != MMC_SEND_TUNING_BLOCK_HS200))
-		return -EINVAL;
-
-	for (i = 0; i < SDHCI_CDNS_MAX_TUNING_LOOP; i++) {
-		if (sdhci_cdns_set_tune_val(host, i) ||
-		    mmc_send_tuning(host->mmc, opcode, NULL)) { /* bad */
-			cur_streak = 0;
-		} else { /* good */
-			cur_streak++;
-			if (cur_streak > max_streak) {
-				max_streak = cur_streak;
-				end_of_streak = i;
-			}
-		}
-	}
-
-	if (!max_streak) {
-		dev_err(mmc_dev(host->mmc), "no tuning point found\n");
-		return -EIO;
-	}
-
-	return sdhci_cdns_set_tune_val(host, end_of_streak - max_streak / 2);
-}
 
 static void sdhci_cdns_hs400_enhanced_strobe(struct mmc_host *mmc,
 					     struct mmc_ios *ios)
@@ -385,7 +387,6 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	priv->hrs_addr = host->ioaddr;
 	priv->enhanced_strobe = false;
 	host->ioaddr += SDHCI_CDNS_SRS_BASE;
-	host->mmc_host_ops.execute_tuning = sdhci_cdns_execute_tuning;
 	host->mmc_host_ops.hs400_enhanced_strobe =
 				sdhci_cdns_hs400_enhanced_strobe;
 	sdhci_enable_v4_mode(host);

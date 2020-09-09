@@ -287,9 +287,8 @@ xlog_recover_iodone(
 	if (bp->b_log_item)
 		xfs_buf_item_relse(bp);
 	ASSERT(bp->b_log_item == NULL);
-
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp);
+	bp->b_flags &= ~_XBF_LOGRECOVERY;
+	xfs_buf_ioend_finish(bp);
 }
 
 /*
@@ -1101,7 +1100,7 @@ xlog_verify_head(
 		 *
 		 * Note that xlog_find_tail() clears the blocks at the new head
 		 * (i.e., the records with invalid CRC) if the cycle number
-		 * matches the the current cycle.
+		 * matches the current cycle.
 		 */
 		found = xlog_rseek_logrec_hdr(log, first_bad, *tail_blk, 1,
 				buffer, rhead_blk, rhead, wrapped);

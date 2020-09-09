@@ -767,7 +767,7 @@ retry:
 
 	/*
 	 * Check for domain transition preference if "file execute" matched.
-	 * If preference is given, make do_execve() fail if domain transition
+	 * If preference is given, make execve() fail if domain transition
 	 * has failed, for domain transition preference should be used with
 	 * destination domain defined.
 	 */
@@ -810,7 +810,7 @@ force_reset_domain:
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>",
 			 candidate->name);
 		/*
-		 * Make do_execve() fail if domain transition across namespaces
+		 * Make execve() fail if domain transition across namespaces
 		 * has failed.
 		 */
 		reject_on_transition_failure = true;
@@ -914,7 +914,7 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 	 * (represented by bprm).  'current' is the process doing
 	 * the execve().
 	 */
-	if (get_user_pages_remote(current, bprm->mm, pos, 1,
+	if (get_user_pages_remote(bprm->mm, pos, 1,
 				FOLL_FORCE, &page, NULL, NULL) <= 0)
 		return false;
 #else

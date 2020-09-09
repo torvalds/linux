@@ -15,8 +15,8 @@ properties:
   compatible:
     items:
       - enum:
-        - brcm,vulcan-eval
-        - cavium,thunderx2-cn9900
+          - brcm,vulcan-eval
+          - cavium,thunderx2-cn9900
       - const: brcm,vulcan-soc
 
 ...

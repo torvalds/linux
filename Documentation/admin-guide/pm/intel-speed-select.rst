@@ -114,7 +114,7 @@ base performance profile (which is performance level 0).
 Lock/Unlock status
 ~~~~~~~~~~~~~~~~~~
 
-Even if there are multiple performance profiles, it is possible that that they
+Even if there are multiple performance profiles, it is possible that they
 are locked. If they are locked, users cannot issue a command to change the
 performance state. It is possible that there is a BIOS setup to unlock or check
 with your system vendor.
@@ -883,7 +883,7 @@ To enable Intel(R) SST-TF, execute::
         enable:success
 
 In this case, the option "-a" is optional. If set, it enables Intel(R) SST-TF
-feature and also sets the CPUs to high and and low priority using Intel Speed
+feature and also sets the CPUs to high and low priority using Intel Speed
 Select Technology Core Power (Intel(R) SST-CP) features. The CPU numbers passed
 with "-c" arguments are marked as high priority, including its siblings.
 

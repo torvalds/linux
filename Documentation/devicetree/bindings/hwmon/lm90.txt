@@ -34,8 +34,8 @@ Optional properties:
               LM90 "-ALERT" pin output.
               See interrupt-controller/interrupts.txt for the format.
 
-- #thermal-sensor-cells: should be set to 1. See thermal/thermal.txt for
-	      details. See <include/dt-bindings/thermal/lm90.h> for the
+- #thermal-sensor-cells: should be set to 1. See thermal/thermal-sensor.yaml
+	      for details. See <include/dt-bindings/thermal/lm90.h> for the
 	      definition of the local, remote and 2nd remote sensor index
 	      constants.
 

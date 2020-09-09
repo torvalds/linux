@@ -114,4 +114,4 @@ Following resources can be accounted by rdma controller.
 
 (d) Delete resource limit::
 
-	echo echo mlx4_0 hca_handle=max hca_object=max > /sys/fs/cgroup/rdma/1/rdma.max
+	echo mlx4_0 hca_handle=max hca_object=max > /sys/fs/cgroup/rdma/1/rdma.max

@@ -52,6 +52,8 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 		return true;
 	if (IS_COFFEELAKE(dev_priv))
 		return true;
+	if (IS_COMETLAKE(dev_priv))
+		return true;
 
 	return false;
 }
@@ -64,7 +66,7 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
  */
 void intel_gvt_sanitize_options(struct drm_i915_private *dev_priv)
 {
-	if (!i915_modparams.enable_gvt)
+	if (!dev_priv->params.enable_gvt)
 		return;
 
 	if (intel_vgpu_active(dev_priv)) {
@@ -80,7 +82,7 @@ void intel_gvt_sanitize_options(struct drm_i915_private *dev_priv)
 
 	return;
 bail:
-	i915_modparams.enable_gvt = 0;
+	dev_priv->params.enable_gvt = 0;
 }
 
 /**
@@ -100,7 +102,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	if (!i915_modparams.enable_gvt) {
+	if (!dev_priv->params.enable_gvt) {
 		drm_dbg(&dev_priv->drm,
 			"GVT-g is disabled by kernel params\n");
 		return 0;
@@ -121,7 +123,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 	return 0;
 
 bail:
-	i915_modparams.enable_gvt = 0;
+	dev_priv->params.enable_gvt = 0;
 	return 0;
 }
 

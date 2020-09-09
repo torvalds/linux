@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Aquantia Corporation Network Driver
- * Copyright (C) 2014-2019 Aquantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_ptp.h: Declaration of PTP functions.
@@ -9,6 +11,23 @@
 #define AQ_PTP_H
 
 #include <linux/net_tstamp.h>
+
+#include "aq_ring.h"
+
+#define PTP_8TC_RING_IDX             8
+#define PTP_4TC_RING_IDX            16
+#define PTP_HWST_RING_IDX           31
+
+/* Index must to be 8 (8 TCs) or 16 (4 TCs).
+ * It depends from Traffic Class mode.
+ */
+static inline unsigned int aq_ptp_ring_idx(const enum aq_tc_mode tc_mode)
+{
+	if (tc_mode == AQ_TC_MODE_8TCS)
+		return PTP_8TC_RING_IDX;
+
+	return PTP_4TC_RING_IDX;
+}
 
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 
@@ -54,6 +73,10 @@ u16 aq_ptp_extract_ts(struct aq_nic_s *aq_nic, struct sk_buff *skb, u8 *p,
 struct ptp_clock *aq_ptp_get_ptp_clock(struct aq_ptp_s *aq_ptp);
 
 int aq_ptp_link_change(struct aq_nic_s *aq_nic);
+
+/* PTP ring statistics */
+int aq_ptp_get_ring_cnt(struct aq_nic_s *aq_nic, const enum atl_ring_type ring_type);
+u64 *aq_ptp_get_stats(struct aq_nic_s *aq_nic, u64 *data);
 
 #else
 

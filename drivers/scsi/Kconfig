@@ -1154,6 +1154,7 @@ source "drivers/scsi/qedf/Kconfig"
 config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
+	depends on CPU_FREQ
 	depends on SCSI_FC_ATTRS
 	depends on NVME_TARGET_FC || NVME_TARGET_FC=n
 	depends on NVME_FC || NVME_FC=n
@@ -1469,14 +1470,19 @@ config SCSI_SUNESP
 	  module will be called sun_esp.
 
 config ZFCP
-	tristate "FCP host bus adapter driver for IBM eServer zSeries"
+	tristate "FCP host bus adapter driver for IBM mainframes"
 	depends on S390 && QDIO && SCSI
 	depends on SCSI_FC_ATTRS
 	help
-          If you want to access SCSI devices attached to your IBM eServer
-          zSeries by means of Fibre Channel interfaces say Y.
-          For details please refer to the documentation provided by IBM at
-          <http://oss.software.ibm.com/developerworks/opensource/linux390>
+	  If you want to access SCSI devices attached to your IBM mainframe by
+	  means of Fibre Channel Protocol host bus adapters say Y.
+
+	  Supported HBAs include different models of the FICON Express and FCP
+	  Express I/O cards.
+
+	  For a more complete list, and for more details about setup and
+	  operation refer to the IBM publication "Device Drivers, Features, and
+	  Commands", SC33-8411.
 
           This driver is also available as a module. This module will be
           called zfcp. If you want to compile it as a module, say M here

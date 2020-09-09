@@ -16,14 +16,14 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - ingenic,jz4740-mmc
-        - ingenic,jz4725b-mmc
-        - ingenic,jz4760-mmc
-        - ingenic,jz4780-mmc
-        - ingenic,x1000-mmc
+          - ingenic,jz4740-mmc
+          - ingenic,jz4725b-mmc
+          - ingenic,jz4760-mmc
+          - ingenic,jz4780-mmc
+          - ingenic,x1000-mmc
       - items:
-        - const: ingenic,jz4770-mmc
-        - const: ingenic,jz4760-mmc
+          - const: ingenic,jz4770-mmc
+          - const: ingenic,jz4760-mmc
 
   reg:
     maxItems: 1

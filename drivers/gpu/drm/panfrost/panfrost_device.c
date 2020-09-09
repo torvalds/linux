@@ -101,7 +101,9 @@ static int panfrost_regulator_init(struct panfrost_device *pfdev)
 				      pfdev->comp->num_supplies,
 				      pfdev->regulators);
 	if (ret < 0) {
-		dev_err(pfdev->dev, "failed to get regulators: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(pfdev->dev, "failed to get regulators: %d\n",
+				ret);
 		return ret;
 	}
 
@@ -213,10 +215,8 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	}
 
 	err = panfrost_regulator_init(pfdev);
-	if (err) {
-		dev_err(pfdev->dev, "regulator init failed %d\n", err);
+	if (err)
 		goto err_out0;
-	}
 
 	err = panfrost_reset_init(pfdev);
 	if (err) {

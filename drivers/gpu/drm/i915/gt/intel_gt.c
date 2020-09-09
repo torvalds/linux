@@ -44,6 +44,14 @@ void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt)
 	gt->ggtt = ggtt;
 }
 
+int intel_gt_init_mmio(struct intel_gt *gt)
+{
+	intel_uc_init_mmio(&gt->uc);
+	intel_sseu_info_init(gt);
+
+	return intel_engines_init_mmio(gt);
+}
+
 static void init_unused_ring(struct intel_gt *gt, u32 base)
 {
 	struct intel_uncore *uncore = gt->uncore;
@@ -510,7 +518,7 @@ static int __engines_verify_workarounds(struct intel_gt *gt)
 
 static void __intel_gt_disable(struct intel_gt *gt)
 {
-	intel_gt_set_wedged_on_init(gt);
+	intel_gt_set_wedged_on_fini(gt);
 
 	intel_gt_suspend_prepare(gt);
 	intel_gt_suspend_late(gt);
@@ -616,6 +624,11 @@ void intel_gt_driver_unregister(struct intel_gt *gt)
 void intel_gt_driver_release(struct intel_gt *gt)
 {
 	struct i915_address_space *vm;
+	intel_wakeref_t wakeref;
+
+	/* Scrub all HW state upon release */
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		__intel_gt_reset(gt, ALL_ENGINES);
 
 	vm = fetch_and_zero(&gt->vm);
 	if (vm) /* FIXME being called twice on error paths :( */
@@ -636,4 +649,12 @@ void intel_gt_driver_late_release(struct intel_gt *gt)
 	intel_gt_fini_reset(gt);
 	intel_gt_fini_timelines(gt);
 	intel_engines_free(gt);
+}
+
+void intel_gt_info_print(const struct intel_gt_info *info,
+			 struct drm_printer *p)
+{
+	drm_printf(p, "available engines: %x\n", info->engine_mask);
+
+	intel_sseu_dump(&info->sseu, p);
 }

@@ -115,13 +115,14 @@ u16 nvmet_zero_sgl(struct nvmet_req *req, off_t off, size_t len)
 
 static unsigned int nvmet_max_nsid(struct nvmet_subsys *subsys)
 {
-	struct nvmet_ns *ns;
+	unsigned long nsid = 0;
+	struct nvmet_ns *cur;
+	unsigned long idx;
 
-	if (list_empty(&subsys->namespaces))
-		return 0;
+	xa_for_each(&subsys->namespaces, idx, cur)
+		nsid = cur->nsid;
 
-	ns = list_last_entry(&subsys->namespaces, struct nvmet_ns, dev_link);
-	return ns->nsid;
+	return nsid;
 }
 
 static u32 nvmet_async_event_result(struct nvmet_async_event *aen)
@@ -336,7 +337,7 @@ int nvmet_enable_port(struct nvmet_port *port)
 	 * If the user requested PI support and the transport isn't pi capable,
 	 * don't enable the port.
 	 */
-	if (port->pi_enable && !ops->metadata_support) {
+	if (port->pi_enable && !(ops->flags & NVMF_METADATA_SUPPORTED)) {
 		pr_err("T10-PI is not supported by transport type %d\n",
 		       port->disc_addr.trtype);
 		ret = -EINVAL;
@@ -410,28 +411,13 @@ static void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl)
 	cancel_delayed_work_sync(&ctrl->ka_work);
 }
 
-static struct nvmet_ns *__nvmet_find_namespace(struct nvmet_ctrl *ctrl,
-		__le32 nsid)
-{
-	struct nvmet_ns *ns;
-
-	list_for_each_entry_rcu(ns, &ctrl->subsys->namespaces, dev_link) {
-		if (ns->nsid == le32_to_cpu(nsid))
-			return ns;
-	}
-
-	return NULL;
-}
-
 struct nvmet_ns *nvmet_find_namespace(struct nvmet_ctrl *ctrl, __le32 nsid)
 {
 	struct nvmet_ns *ns;
 
-	rcu_read_lock();
-	ns = __nvmet_find_namespace(ctrl, nsid);
+	ns = xa_load(&ctrl->subsys->namespaces, le32_to_cpu(nsid));
 	if (ns)
 		percpu_ref_get(&ns->ref);
-	rcu_read_unlock();
 
 	return ns;
 }
@@ -467,7 +453,7 @@ static int nvmet_p2pmem_ns_enable(struct nvmet_ns *ns)
 		return -EINVAL;
 	}
 
-	if (!blk_queue_pci_p2pdma(ns->bdev->bd_queue)) {
+	if (!blk_queue_pci_p2pdma(ns->bdev->bd_disk->queue)) {
 		pr_err("peer-to-peer DMA is not supported by the driver of %s\n",
 		       ns->device_path);
 		return -EINVAL;
@@ -558,6 +544,12 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 
 	mutex_lock(&subsys->lock);
 	ret = 0;
+
+	if (nvmet_passthru_ctrl(subsys)) {
+		pr_info("cannot enable both passthru and regular namespaces for a single subsystem");
+		goto out_unlock;
+	}
+
 	if (ns->enabled)
 		goto out_unlock;
 
@@ -586,24 +578,10 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	if (ns->nsid > subsys->max_nsid)
 		subsys->max_nsid = ns->nsid;
 
-	/*
-	 * The namespaces list needs to be sorted to simplify the implementation
-	 * of the Identify Namepace List subcommand.
-	 */
-	if (list_empty(&subsys->namespaces)) {
-		list_add_tail_rcu(&ns->dev_link, &subsys->namespaces);
-	} else {
-		struct nvmet_ns *old;
+	ret = xa_insert(&subsys->namespaces, ns->nsid, ns, GFP_KERNEL);
+	if (ret)
+		goto out_restore_subsys_maxnsid;
 
-		list_for_each_entry_rcu(old, &subsys->namespaces, dev_link,
-					lockdep_is_held(&subsys->lock)) {
-			BUG_ON(ns->nsid == old->nsid);
-			if (ns->nsid < old->nsid)
-				break;
-		}
-
-		list_add_tail_rcu(&ns->dev_link, &old->dev_link);
-	}
 	subsys->nr_namespaces++;
 
 	nvmet_ns_changed(subsys, ns->nsid);
@@ -612,6 +590,10 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 out_unlock:
 	mutex_unlock(&subsys->lock);
 	return ret;
+
+out_restore_subsys_maxnsid:
+	subsys->max_nsid = nvmet_max_nsid(subsys);
+	percpu_ref_exit(&ns->ref);
 out_dev_put:
 	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry)
 		pci_dev_put(radix_tree_delete(&ctrl->p2p_ns_map, ns->nsid));
@@ -630,7 +612,7 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 		goto out_unlock;
 
 	ns->enabled = false;
-	list_del_rcu(&ns->dev_link);
+	xa_erase(&ns->subsys->namespaces, ns->nsid);
 	if (ns->nsid == subsys->max_nsid)
 		subsys->max_nsid = nvmet_max_nsid(subsys);
 
@@ -681,7 +663,6 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 	if (!ns)
 		return NULL;
 
-	INIT_LIST_HEAD(&ns->dev_link);
 	init_completion(&ns->disable_done);
 
 	ns->nsid = nsid;
@@ -873,6 +854,9 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	ret = nvmet_check_ctrl_status(req, cmd);
 	if (unlikely(ret))
 		return ret;
+
+	if (nvmet_req_passthru_ctrl(req))
+		return nvmet_parse_passthru_io_cmd(req);
 
 	req->ns = nvmet_find_namespace(req->sq->ctrl, cmd->rw.nsid);
 	if (unlikely(!req->ns)) {
@@ -1263,14 +1247,14 @@ static void nvmet_setup_p2p_ns_map(struct nvmet_ctrl *ctrl,
 		struct nvmet_req *req)
 {
 	struct nvmet_ns *ns;
+	unsigned long idx;
 
 	if (!req->p2p_client)
 		return;
 
 	ctrl->p2p_client = get_device(req->p2p_client);
 
-	list_for_each_entry_rcu(ns, &ctrl->subsys->namespaces, dev_link,
-				lockdep_is_held(&ctrl->subsys->lock))
+	xa_for_each(&ctrl->subsys->namespaces, idx, ns)
 		nvmet_p2pmem_ns_add_p2p(ctrl, ns);
 }
 
@@ -1495,7 +1479,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	if (!subsys)
 		return ERR_PTR(-ENOMEM);
 
-	subsys->ver = NVME_VS(1, 3, 0); /* NVMe 1.3.0 */
+	subsys->ver = NVMET_DEFAULT_VS;
 	/* generate a random serial number as our controllers are ephemeral: */
 	get_random_bytes(&subsys->serial, sizeof(subsys->serial));
 
@@ -1523,7 +1507,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	kref_init(&subsys->ref);
 
 	mutex_init(&subsys->lock);
-	INIT_LIST_HEAD(&subsys->namespaces);
+	xa_init(&subsys->namespaces);
 	INIT_LIST_HEAD(&subsys->ctrls);
 	INIT_LIST_HEAD(&subsys->hosts);
 
@@ -1535,7 +1519,10 @@ static void nvmet_subsys_free(struct kref *ref)
 	struct nvmet_subsys *subsys =
 		container_of(ref, struct nvmet_subsys, ref);
 
-	WARN_ON_ONCE(!list_empty(&subsys->namespaces));
+	WARN_ON_ONCE(!xa_empty(&subsys->namespaces));
+
+	xa_destroy(&subsys->namespaces);
+	nvmet_passthru_subsys_free(subsys);
 
 	kfree(subsys->subsysnqn);
 	kfree_rcu(subsys->model, rcuhead);

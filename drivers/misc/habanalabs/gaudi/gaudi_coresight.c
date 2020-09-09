@@ -6,9 +6,9 @@
  */
 
 #include "gaudiP.h"
-#include "include/gaudi/gaudi_coresight.h"
-#include "include/gaudi/asic_reg/gaudi_regs.h"
-#include "include/gaudi/gaudi_masks.h"
+#include "../include/gaudi/gaudi_coresight.h"
+#include "../include/gaudi/asic_reg/gaudi_regs.h"
+#include "../include/gaudi/gaudi_masks.h"
 
 #include <uapi/misc/habanalabs.h>
 #include <linux/coresight.h>
@@ -392,6 +392,7 @@ static int gaudi_config_stm(struct hl_device *hdev,
 {
 	struct hl_debug_params_stm *input;
 	u64 base_reg;
+	u32 frequency;
 	int rc;
 
 	if (params->reg_idx >= ARRAY_SIZE(debug_stm_regs)) {
@@ -420,7 +421,10 @@ static int gaudi_config_stm(struct hl_device *hdev,
 		WREG32(base_reg + 0xE00, lower_32_bits(input->sp_mask));
 		WREG32(base_reg + 0xEF4, input->id);
 		WREG32(base_reg + 0xDF4, 0x80);
-		WREG32(base_reg + 0xE8C, input->frequency);
+		frequency = hdev->asic_prop.psoc_timestamp_frequency;
+		if (frequency == 0)
+			frequency = input->frequency;
+		WREG32(base_reg + 0xE8C, frequency);
 		WREG32(base_reg + 0xE90, 0x7FF);
 
 		/* SW-2176 - SW WA for HW bug */

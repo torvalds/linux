@@ -220,7 +220,6 @@ static __init void prom_meminit(void)
 			cpumask_clear(&__node_cpumask[node]);
 		}
 	}
-	memblocks_present();
 	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
 	for (cpu = 0; cpu < loongson_sysconf.nr_cpus; cpu++) {

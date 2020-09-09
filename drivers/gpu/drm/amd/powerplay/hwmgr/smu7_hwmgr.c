@@ -1487,7 +1487,7 @@ static int smu7_update_avfs(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
+static int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
 
@@ -1546,12 +1546,6 @@ int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"Failed to force to switch arbf0!", result = tmp_result);
 
 	return result;
-}
-
-int smu7_reset_asic_tasks(struct pp_hwmgr *hwmgr)
-{
-
-	return 0;
 }
 
 static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)

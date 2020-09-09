@@ -89,7 +89,7 @@ static enum drm_mode_status omap_connector_mode_valid(struct drm_connector *conn
 				 struct drm_display_mode *mode)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct drm_display_mode new_mode = { { 0 } };
+	struct drm_display_mode new_mode = {};
 	enum drm_mode_status status;
 
 	status = omap_connector_mode_fixup(omap_connector->output, mode,

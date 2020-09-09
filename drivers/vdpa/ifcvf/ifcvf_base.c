@@ -272,7 +272,7 @@ static int ifcvf_config_features(struct ifcvf_hw *hw)
 	return 0;
 }
 
-u64 ifcvf_get_vq_state(struct ifcvf_hw *hw, u16 qid)
+u16 ifcvf_get_vq_state(struct ifcvf_hw *hw, u16 qid)
 {
 	struct ifcvf_lm_cfg __iomem *ifcvf_lm;
 	void __iomem *avail_idx_addr;
@@ -287,7 +287,7 @@ u64 ifcvf_get_vq_state(struct ifcvf_hw *hw, u16 qid)
 	return last_avail_idx;
 }
 
-int ifcvf_set_vq_state(struct ifcvf_hw *hw, u16 qid, u64 num)
+int ifcvf_set_vq_state(struct ifcvf_hw *hw, u16 qid, u16 num)
 {
 	struct ifcvf_lm_cfg __iomem *ifcvf_lm;
 	void __iomem *avail_idx_addr;

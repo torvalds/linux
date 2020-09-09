@@ -177,9 +177,15 @@ static struct platform_device qt2410_cs89x0 = {
 
 /* LED */
 
+static struct gpiod_lookup_table qt2410_led_gpio_table = {
+	.dev_id = "s3c24xx_led.0",
+	.table = {
+		GPIO_LOOKUP("GPB", 0, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
 static struct s3c24xx_led_platdata qt2410_pdata_led = {
-	.gpio		= S3C2410_GPB(0),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.name		= "led",
 	.def_trigger	= "timer",
 };
@@ -338,6 +344,8 @@ static void __init qt2410_machine_init(void)
 	s3c_i2c0_set_platdata(NULL);
 
 	gpiod_add_lookup_table(&qt2410_spi_gpiod_table);
+	s3c_gpio_setpull(S3C2410_GPB(0), S3C_GPIO_PULL_NONE);
+	gpiod_add_lookup_table(&qt2410_led_gpio_table);
 	platform_add_devices(qt2410_devices, ARRAY_SIZE(qt2410_devices));
 	s3c_pm_init();
 }

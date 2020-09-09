@@ -121,6 +121,30 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 
 	if (later_mask &&
 	    cpumask_and(later_mask, cp->free_cpus, p->cpus_ptr)) {
+		unsigned long cap, max_cap = 0;
+		int cpu, max_cpu = -1;
+
+		if (!static_branch_unlikely(&sched_asym_cpucapacity))
+			return 1;
+
+		/* Ensure the capacity of the CPUs fits the task. */
+		for_each_cpu(cpu, later_mask) {
+			if (!dl_task_fits_capacity(p, cpu)) {
+				cpumask_clear_cpu(cpu, later_mask);
+
+				cap = capacity_orig_of(cpu);
+
+				if (cap > max_cap ||
+				    (cpu == task_cpu(p) && cap == max_cap)) {
+					max_cap = cap;
+					max_cpu = cpu;
+				}
+			}
+		}
+
+		if (cpumask_empty(later_mask))
+			cpumask_set_cpu(max_cpu, later_mask);
+
 		return 1;
 	} else {
 		int best_cpu = cpudl_maximum(cp);
