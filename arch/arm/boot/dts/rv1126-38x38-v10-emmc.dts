@@ -126,7 +126,7 @@
 	flash_ir: flash-ir {
 		status = "okay";
 		compatible = "led,rgb13h";
-		label = "pwm-flash";
+		label = "pwm-flash-ir";
 		led-max-microamp = <20000>;
 		flash-max-microamp = <20000>;
 		flash-max-timeout-us = <1000000>;
