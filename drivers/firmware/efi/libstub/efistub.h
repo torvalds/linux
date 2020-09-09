@@ -740,6 +740,9 @@ efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
 efi_status_t efi_allocate_pages_aligned(unsigned long size, unsigned long *addr,
 					unsigned long max, unsigned long align);
 
+efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
+				 unsigned long *addr, unsigned long min);
+
 efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 				 unsigned long image_size,
 				 unsigned long alloc_size,
