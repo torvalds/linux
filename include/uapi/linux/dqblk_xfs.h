@@ -61,8 +61,9 @@ typedef struct fs_disk_quota {
 	__u64		d_ino_softlimit;/* preferred inode limit */
 	__u64		d_bcount;	/* # disk blocks owned by the user */
 	__u64		d_icount;	/* # inodes owned by the user */
-	__s32		d_itimer;	/* zero if within inode limits */
-					/* if not, we refuse service */
+	__s32		d_itimer;	/* Zero if within inode limits. If
+					 * not, we refuse service at this time
+					 * (in seconds since Unix epoch) */
 	__s32		d_btimer;	/* similar to above; for disk blocks */
 	__u16	  	d_iwarns;       /* # warnings issued wrt num inodes */
 	__u16	  	d_bwarns;       /* # warnings issued wrt disk blocks */
