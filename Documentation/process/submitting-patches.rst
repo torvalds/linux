@@ -10,13 +10,10 @@ can greatly increase the chances of your change being accepted.
 
 This document contains a large number of suggestions in a relatively terse
 format.  For detailed information on how the kernel development process
-works, see :ref:`Documentation/process <development_process_main>`.
-Also, read :ref:`Documentation/process/submit-checklist.rst <submitchecklist>`
-for a list of items to check before
-submitting code.  If you are submitting a driver, also read
-:ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`;
-for device tree binding patches, read
-Documentation/devicetree/bindings/submitting-patches.rst.
+works, see :doc:`development-process`. Also, read :doc:`submit-checklist`
+for a list of items to check before submitting code.  If you are submitting
+a driver, also read :doc:`submitting-drivers`; for device tree binding patches,
+read :doc:`submitting-patches`.
 
 This documentation assumes that you're using ``git`` to prepare your patches.
 If you're unfamiliar with ``git``, you would be well-advised to learn how to
@@ -241,7 +238,7 @@ If you have a patch that fixes an exploitable security bug, send that patch
 to security@kernel.org.  For severe bugs, a short embargo may be considered
 to allow distributors to get the patch out to users; in such cases,
 obviously, the patch should not be sent to any public lists. See also
-:ref:`Documentation/admin-guide/security-bugs.rst <security-bugs>`.
+:doc:`/admin-guide/security-bugs`.
 
 Patches that fix a severe bug in a released kernel should be directed
 toward the stable maintainers by putting a line like this::
@@ -313,9 +310,8 @@ decreasing the likelihood of your MIME-attached change being accepted.
 Exception:  If your mailer is mangling patches then someone may ask
 you to re-send them using MIME.
 
-See :ref:`Documentation/process/email-clients.rst <email_clients>`
-for hints about configuring your e-mail client so that it sends your patches
-untouched.
+See :doc:`/process/email-clients` for hints about configuring your e-mail
+client so that it sends your patches untouched.
 
 Respond to review comments
 --------------------------
@@ -333,7 +329,7 @@ for their time.  Code review is a tiring and time-consuming process, and
 reviewers sometimes get grumpy.  Even in that case, though, respond
 politely and address the problems they have pointed out.
 
-See :ref:`Documentation/process/email-clients.rst` for recommendations on email
+See :doc:`email-clients` for recommendations on email
 clients and mailing list etiquette.
 
 
