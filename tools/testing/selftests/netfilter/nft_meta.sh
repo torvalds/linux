@@ -90,7 +90,7 @@ check_one_counter()
 	if [ $? -ne 0 ];then
 		echo "FAIL: $cname, want \"$want\", got"
 		ret=1
-		ip netns exec "$ns0" nft list counter inet filter $counter
+		ip netns exec "$ns0" nft list counter inet filter $cname
 	fi
 }
 
