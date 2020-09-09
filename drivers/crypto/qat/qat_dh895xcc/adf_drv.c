@@ -22,7 +22,7 @@
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
 
 static const struct pci_device_id adf_pci_tbl[] = {
-	ADF_SYSTEM_DEVICE(ADF_DH895XCC_PCI_DEVICE_ID),
+	ADF_SYSTEM_DEVICE(PCI_DEVICE_ID_INTEL_QAT_DH895XCC),
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
@@ -58,7 +58,7 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 
 	if (accel_dev->hw_device) {
 		switch (accel_pci_dev->pci_dev->device) {
-		case ADF_DH895XCC_PCI_DEVICE_ID:
+		case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 			adf_clean_hw_data_dh895xcc(accel_dev->hw_device);
 			break;
 		default:
@@ -83,7 +83,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int ret;
 
 	switch (ent->device) {
-	case ADF_DH895XCC_PCI_DEVICE_ID:
+	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid device 0x%x.\n", ent->device);
