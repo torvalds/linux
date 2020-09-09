@@ -3449,7 +3449,7 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		unsigned int frag_size;
 		dma_addr_t dma_addr;
 		phys_addr_t phys_addr;
-		u32 rx_status;
+		u32 rx_status, timestamp;
 		int pool, rx_bytes, err, ret;
 		void *data;
 
@@ -3525,6 +3525,15 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		if (!skb) {
 			netdev_warn(port->dev, "skb build failed\n");
 			goto err_drop_frame;
+		}
+
+		/* If we have RX hardware timestamping enabled, grab the
+		 * timestamp from the queue and convert.
+		 */
+		if (mvpp22_rx_hwtstamping(port)) {
+			timestamp = le32_to_cpu(rx_desc->pp22.timestamp);
+			mvpp22_tai_tstamp(port->priv->tai, timestamp,
+					 skb_hwtstamps(skb));
 		}
 
 		err = mvpp2_rx_refill(port, bm_pool, pp, pool);
@@ -4561,9 +4570,99 @@ mvpp2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->tx_dropped	= dev->stats.tx_dropped;
 }
 
+static int mvpp2_set_ts_config(struct mvpp2_port *port, struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	void __iomem *ptp;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	if (config.flags)
+		return -EINVAL;
+
+	if (config.tx_type != HWTSTAMP_TX_OFF)
+		return -ERANGE;
+
+	ptp = port->priv->iface_base + MVPP22_PTP_BASE(port->gop_id);
+	if (config.rx_filter != HWTSTAMP_FILTER_NONE) {
+		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		mvpp22_tai_start(port->priv->tai);
+		mvpp2_modify(ptp + MVPP22_PTP_GCR,
+			     MVPP22_PTP_GCR_RX_RESET |
+			     MVPP22_PTP_GCR_TX_RESET |
+			     MVPP22_PTP_GCR_TSU_ENABLE,
+			     MVPP22_PTP_GCR_RX_RESET |
+			     MVPP22_PTP_GCR_TX_RESET |
+			     MVPP22_PTP_GCR_TSU_ENABLE);
+		port->rx_hwtstamp = true;
+	} else {
+		port->rx_hwtstamp = false;
+		mvpp2_modify(ptp + MVPP22_PTP_GCR,
+			     MVPP22_PTP_GCR_RX_RESET |
+			     MVPP22_PTP_GCR_TX_RESET |
+			     MVPP22_PTP_GCR_TSU_ENABLE, 0);
+		mvpp22_tai_stop(port->priv->tai);
+	}
+
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int mvpp2_get_ts_config(struct mvpp2_port *port, struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+
+	memset(&config, 0, sizeof(config));
+
+	config.tx_type = HWTSTAMP_TX_OFF;
+	config.rx_filter = port->rx_hwtstamp ?
+		HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE;
+
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int mvpp2_ethtool_get_ts_info(struct net_device *dev,
+				     struct ethtool_ts_info *info)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	if (!port->hwtstamp)
+		return -EOPNOTSUPP;
+
+	info->phc_index = mvpp22_tai_ptp_clock_index(port->priv->tai);
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				SOF_TIMESTAMPING_RX_SOFTWARE |
+				SOF_TIMESTAMPING_SOFTWARE |
+				SOF_TIMESTAMPING_RX_HARDWARE |
+				SOF_TIMESTAMPING_RAW_HARDWARE;
+	info->tx_types = BIT(HWTSTAMP_TX_OFF);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+			   BIT(HWTSTAMP_FILTER_ALL);
+
+	return 0;
+}
+
 static int mvpp2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
+
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		if (port->hwtstamp)
+			return mvpp2_set_ts_config(port, ifr);
+		break;
+
+	case SIOCGHWTSTAMP:
+		if (port->hwtstamp)
+			return mvpp2_get_ts_config(port, ifr);
+		break;
+	}
 
 	if (!port->phylink)
 		return -ENOTSUPP;
@@ -5034,6 +5133,7 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.nway_reset		= mvpp2_ethtool_nway_reset,
 	.get_link		= ethtool_op_get_link,
+	.get_ts_info		= mvpp2_ethtool_get_ts_info,
 	.set_coalesce		= mvpp2_ethtool_set_coalesce,
 	.get_coalesce		= mvpp2_ethtool_get_coalesce,
 	.get_drvinfo		= mvpp2_ethtool_get_drvinfo,
@@ -6112,6 +6212,12 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		port->stats_base = port->priv->iface_base +
 				   MVPP22_MIB_COUNTERS_OFFSET +
 				   port->gop_id * MVPP22_MIB_COUNTERS_PORT_SZ;
+
+		/* We may want a property to describe whether we should use
+		 * MAC hardware timestamping.
+		 */
+		if (priv->tai)
+			port->hwtstamp = true;
 	}
 
 	/* Alloc per-cpu and ethtool stats */

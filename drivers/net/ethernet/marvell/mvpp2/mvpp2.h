@@ -600,6 +600,9 @@
 #define MVPP22_PTP_INT_CAUSE			0x00
 #define MVPP22_PTP_INT_MASK			0x04
 #define MVPP22_PTP_GCR				0x08
+#define     MVPP22_PTP_GCR_RX_RESET		BIT(13)
+#define     MVPP22_PTP_GCR_TX_RESET		BIT(1)
+#define     MVPP22_PTP_GCR_TSU_ENABLE		BIT(0)
 #define MVPP22_PTP_TX_Q0_R0			0x0c
 #define MVPP22_PTP_TX_Q0_R1			0x10
 #define MVPP22_PTP_TX_Q0_R2			0x14
@@ -1094,6 +1097,9 @@ struct mvpp2_port {
 	 * them from 0
 	 */
 	int rss_ctx[MVPP22_N_RSS_TABLES];
+
+	bool hwtstamp;
+	bool rx_hwtstamp;
 };
 
 /* The mvpp2_tx_desc and mvpp2_rx_desc structures describe the
@@ -1173,7 +1179,7 @@ struct mvpp22_rx_desc {
 	__le16 reserved1;
 	__le16 data_size;
 	__le32 reserved2;
-	__le32 reserved3;
+	__le32 timestamp;
 	__le64 buf_dma_addr_key_hash;
 	__le64 buf_cookie_misc;
 };
@@ -1355,11 +1361,34 @@ void mvpp2_dbgfs_cleanup(struct mvpp2 *priv);
 
 #ifdef CONFIG_MVPP2_PTP
 int mvpp22_tai_probe(struct device *dev, struct mvpp2 *priv);
+void mvpp22_tai_tstamp(struct mvpp2_tai *tai, u32 tstamp,
+		       struct skb_shared_hwtstamps *hwtstamp);
+void mvpp22_tai_start(struct mvpp2_tai *tai);
+void mvpp22_tai_stop(struct mvpp2_tai *tai);
+int mvpp22_tai_ptp_clock_index(struct mvpp2_tai *tai);
 #else
 static inline int mvpp22_tai_probe(struct device *dev, struct mvpp2 *priv)
 {
 	return 0;
 }
+static inline void mvpp22_tai_tstamp(struct mvpp2_tai *tai, u32 tstamp,
+				     struct skb_shared_hwtstamps *hwtstamp)
+{
+}
+static inline void mvpp22_tai_start(struct mvpp2_tai *tai)
+{
+}
+static inline void mvpp22_tai_stop(struct mvpp2_tai *tai)
+{
+}
+static inline int mvpp22_tai_ptp_clock_index(struct mvpp2_tai *tai)
+{
+	return -1;
+}
 #endif
 
+static inline bool mvpp22_rx_hwtstamping(struct mvpp2_port *port)
+{
+	return IS_ENABLED(CONFIG_MVPP2_PTP) && port->rx_hwtstamp;
+}
 #endif

@@ -59,6 +59,8 @@ struct mvpp2_tai {
 	void __iomem *base;
 	spinlock_t lock;
 	u64 period;		// nanosecond period in 32.32 fixed point
+	/* This timestamp is updated every two seconds */
+	struct timespec64 stamp;
 };
 
 static void mvpp2_tai_modify(void __iomem *reg, u32 mask, u32 set)
@@ -297,6 +299,15 @@ static int mvpp22_tai_settime64(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+static long mvpp22_tai_aux_work(struct ptp_clock_info *ptp)
+{
+	struct mvpp2_tai *tai = ptp_to_tai(ptp);
+
+	mvpp22_tai_gettimex64(ptp, &tai->stamp, NULL);
+
+	return msecs_to_jiffies(2000);
+}
+
 static void mvpp22_tai_set_step(struct mvpp2_tai *tai)
 {
 	void __iomem *base = tai->base;
@@ -324,6 +335,51 @@ static void mvpp22_tai_init(struct mvpp2_tai *tai)
 
 	/* Release the TAI reset */
 	mvpp2_tai_modify(base + MVPP22_TAI_CR0, CR0_SW_NRESET, CR0_SW_NRESET);
+}
+
+int mvpp22_tai_ptp_clock_index(struct mvpp2_tai *tai)
+{
+	return ptp_clock_index(tai->ptp_clock);
+}
+
+void mvpp22_tai_tstamp(struct mvpp2_tai *tai, u32 tstamp,
+		       struct skb_shared_hwtstamps *hwtstamp)
+{
+	struct timespec64 ts;
+	int delta;
+
+	/* The tstamp consists of 2 bits of seconds and 30 bits of nanoseconds.
+	 * We use our stored timestamp (tai->stamp) to form a full timestamp,
+	 * and we must read the seconds exactly once.
+	 */
+	ts.tv_sec = READ_ONCE(tai->stamp.tv_sec);
+	ts.tv_nsec = tstamp & 0x3fffffff;
+
+	/* Calculate the delta in seconds between our stored timestamp and
+	 * the value read from the queue. Allow timestamps one second in the
+	 * past, otherwise consider them to be in the future.
+	 */
+	delta = ((tstamp >> 30) - (ts.tv_sec & 3)) & 3;
+	if (delta == 3)
+		delta -= 4;
+	ts.tv_sec += delta;
+
+	memset(hwtstamp, 0, sizeof(*hwtstamp));
+	hwtstamp->hwtstamp = timespec64_to_ktime(ts);
+}
+
+void mvpp22_tai_start(struct mvpp2_tai *tai)
+{
+	long delay;
+
+	delay = mvpp22_tai_aux_work(&tai->caps);
+
+	ptp_schedule_worker(tai->ptp_clock, delay);
+}
+
+void mvpp22_tai_stop(struct mvpp2_tai *tai)
+{
+	ptp_cancel_worker_sync(tai->ptp_clock);
 }
 
 static void mvpp22_tai_remove(void *priv)
@@ -385,6 +441,7 @@ int mvpp22_tai_probe(struct device *dev, struct mvpp2 *priv)
 	tai->caps.adjtime = mvpp22_tai_adjtime;
 	tai->caps.gettimex64 = mvpp22_tai_gettimex64;
 	tai->caps.settime64 = mvpp22_tai_settime64;
+	tai->caps.do_aux_work = mvpp22_tai_aux_work;
 
 	ret = devm_add_action(dev, mvpp22_tai_remove, tai);
 	if (ret)
