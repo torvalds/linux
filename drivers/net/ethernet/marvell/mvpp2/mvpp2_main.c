@@ -6674,6 +6674,10 @@ static int mvpp2_probe(struct platform_device *pdev)
 		goto err_axi_clk;
 	}
 
+	err = mvpp22_tai_probe(&pdev->dev, priv);
+	if (err < 0)
+		goto err_axi_clk;
+
 	/* Initialize ports */
 	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
 		err = mvpp2_port_probe(pdev, port_fwnode, priv);
