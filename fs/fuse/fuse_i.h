@@ -1044,6 +1044,14 @@ void fuse_send_init(struct fuse_mount *fm);
  */
 int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx);
 
+/*
+ * Fill in superblock for submounts
+ * @sb: partially-initialized superblock to fill in
+ * @parent_fi: The fuse_inode of the parent filesystem where this submount is
+ * 	       mounted
+ */
+int fuse_fill_super_submount(struct super_block *sb,
+			     struct fuse_inode *parent_fi);
 
 /*
  * Remove the mount from the connection

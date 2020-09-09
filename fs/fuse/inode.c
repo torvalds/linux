@@ -126,8 +126,11 @@ static void fuse_evict_inode(struct inode *inode)
 
 		if (FUSE_IS_DAX(inode))
 			fuse_dax_inode_cleanup(inode);
-		fuse_queue_forget(fc, fi->forget, fi->nodeid, fi->nlookup);
-		fi->forget = NULL;
+		if (fi->nlookup) {
+			fuse_queue_forget(fc, fi->forget, fi->nodeid,
+					  fi->nlookup);
+			fi->forget = NULL;
+		}
 	}
 	if (S_ISREG(inode->i_mode) && !is_bad_inode(inode)) {
 		WARN_ON(!list_empty(&fi->write_files));
@@ -1207,6 +1210,87 @@ void fuse_dev_free(struct fuse_dev *fud)
 }
 EXPORT_SYMBOL_GPL(fuse_dev_free);
 
+static void fuse_fill_attr_from_inode(struct fuse_attr *attr,
+				      const struct fuse_inode *fi)
+{
+	*attr = (struct fuse_attr){
+		.ino		= fi->inode.i_ino,
+		.size		= fi->inode.i_size,
+		.blocks		= fi->inode.i_blocks,
+		.atime		= fi->inode.i_atime.tv_sec,
+		.mtime		= fi->inode.i_mtime.tv_sec,
+		.ctime		= fi->inode.i_ctime.tv_sec,
+		.atimensec	= fi->inode.i_atime.tv_nsec,
+		.mtimensec	= fi->inode.i_mtime.tv_nsec,
+		.ctimensec	= fi->inode.i_ctime.tv_nsec,
+		.mode		= fi->inode.i_mode,
+		.nlink		= fi->inode.i_nlink,
+		.uid		= fi->inode.i_uid.val,
+		.gid		= fi->inode.i_gid.val,
+		.rdev		= fi->inode.i_rdev,
+		.blksize	= 1u << fi->inode.i_blkbits,
+	};
+}
+
+static void fuse_sb_defaults(struct super_block *sb)
+{
+	sb->s_magic = FUSE_SUPER_MAGIC;
+	sb->s_op = &fuse_super_operations;
+	sb->s_xattr = fuse_xattr_handlers;
+	sb->s_maxbytes = MAX_LFS_FILESIZE;
+	sb->s_time_gran = 1;
+	sb->s_export_op = &fuse_export_operations;
+	sb->s_iflags |= SB_I_IMA_UNVERIFIABLE_SIGNATURE;
+	if (sb->s_user_ns != &init_user_ns)
+		sb->s_iflags |= SB_I_UNTRUSTED_MOUNTER;
+	sb->s_flags &= ~(SB_NOSEC | SB_I_VERSION);
+
+	/*
+	 * If we are not in the initial user namespace posix
+	 * acls must be translated.
+	 */
+	if (sb->s_user_ns != &init_user_ns)
+		sb->s_xattr = fuse_no_acl_xattr_handlers;
+}
+
+int fuse_fill_super_submount(struct super_block *sb,
+			     struct fuse_inode *parent_fi)
+{
+	struct fuse_mount *fm = get_fuse_mount_super(sb);
+	struct super_block *parent_sb = parent_fi->inode.i_sb;
+	struct fuse_attr root_attr;
+	struct inode *root;
+
+	fuse_sb_defaults(sb);
+	fm->sb = sb;
+
+	WARN_ON(sb->s_bdi != &noop_backing_dev_info);
+	sb->s_bdi = bdi_get(parent_sb->s_bdi);
+
+	sb->s_xattr = parent_sb->s_xattr;
+	sb->s_time_gran = parent_sb->s_time_gran;
+	sb->s_blocksize = parent_sb->s_blocksize;
+	sb->s_blocksize_bits = parent_sb->s_blocksize_bits;
+	sb->s_subtype = kstrdup(parent_sb->s_subtype, GFP_KERNEL);
+	if (parent_sb->s_subtype && !sb->s_subtype)
+		return -ENOMEM;
+
+	fuse_fill_attr_from_inode(&root_attr, parent_fi);
+	root = fuse_iget(sb, parent_fi->nodeid, 0, &root_attr, 0, 0);
+	/*
+	 * This inode is just a duplicate, so it is not looked up and
+	 * its nlookup should not be incremented.  fuse_iget() does
+	 * that, though, so undo it here.
+	 */
+	get_fuse_inode(root)->nlookup--;
+	sb->s_d_op = &fuse_dentry_operations;
+	sb->s_root = d_make_root(root);
+	if (!sb->s_root)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 {
 	struct fuse_dev *fud = NULL;
@@ -1220,7 +1304,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	if (sb->s_flags & SB_MANDLOCK)
 		goto err;
 
-	sb->s_flags &= ~(SB_NOSEC | SB_I_VERSION);
+	fuse_sb_defaults(sb);
 
 	if (ctx->is_bdev) {
 #ifdef CONFIG_BLOCK
@@ -1235,23 +1319,6 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 
 	sb->s_subtype = ctx->subtype;
 	ctx->subtype = NULL;
-	sb->s_magic = FUSE_SUPER_MAGIC;
-	sb->s_op = &fuse_super_operations;
-	sb->s_xattr = fuse_xattr_handlers;
-	sb->s_maxbytes = MAX_LFS_FILESIZE;
-	sb->s_time_gran = 1;
-	sb->s_export_op = &fuse_export_operations;
-	sb->s_iflags |= SB_I_IMA_UNVERIFIABLE_SIGNATURE;
-	if (sb->s_user_ns != &init_user_ns)
-		sb->s_iflags |= SB_I_UNTRUSTED_MOUNTER;
-
-	/*
-	 * If we are not in the initial user namespace posix
-	 * acls must be translated.
-	 */
-	if (sb->s_user_ns != &init_user_ns)
-		sb->s_xattr = fuse_no_acl_xattr_handlers;
-
 	if (IS_ENABLED(CONFIG_FUSE_DAX)) {
 		err = fuse_dax_conn_alloc(fc, ctx->dax_dev);
 		if (err)
@@ -1281,7 +1348,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	fc->user_id = ctx->user_id;
 	fc->group_id = ctx->group_id;
 	fc->legacy_opts_show = ctx->legacy_opts_show;
-	fc->max_read = max_t(unsigned, 4096, ctx->max_read);
+	fc->max_read = max_t(unsigned int, 4096, ctx->max_read);
 	fc->destroy = ctx->destroy;
 	fc->no_control = ctx->no_control;
 	fc->no_force_umount = ctx->no_force_umount;
