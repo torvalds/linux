@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/toshiba,visconti-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Toshiba Visconti TMPV770x pin mux/config controller
+
+maintainers:
+  - Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+
+description:
+  Toshiba's Visconti ARM SoC a pin mux/config controller.
+
+properties:
+  compatible:
+    enum:
+      - toshiba,tmpv7708-pinctrl
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+patternProperties:
+  '-pins$':
+    type: object
+    description: |
+      A pinctrl node should contain at least one subnodes representing the
+      pinctrl groups available on the machine. Each subnode will list the
+      pins it needs, and how they should be configured, with regard to muxer
+      configuration, pullups, drive strength.
+    $ref: "pinmux-node.yaml"
+
+    properties:
+      function:
+        description:
+          Function to mux.
+        $ref: "/schemas/types.yaml#/definitions/string"
+        enum: [i2c0, i2c1, i2c2, i2c3, i2c4, i2c5, i2c6, i2c7, i2c8,
+          spi0, spi1, spi2, spi3, spi4, spi5, spi6,
+          uart0, uart1, uart2, uart3, pwm, pcmif_out, pcmif_in]
+
+      groups:
+        description:
+          Name of the pin group to use for the functions.
+        $ref: "/schemas/types.yaml#/definitions/string"
+        enum: [i2c0_grp, i2c1_grp, i2c2_grp, i2c3_grp, i2c4_grp,
+          i2c5_grp, i2c6_grp, i2c7_grp, i2c8_grp,
+          spi0_grp, spi0_cs0_grp, spi0_cs1_grp, spi0_cs2_grp,
+          spi1_grp, spi2_grp, spi3_grp, spi4_grp, spi5_grp, spi6_grp,
+          uart0_grp, uart1_grp, uart2_grp, uart3_grp,
+          pwm0_gpio4_grp, pwm0_gpio8_grp, pwm0_gpio12_grp,
+          pwm0_gpio16_grp, pwm1_gpio5_grp, pwm1_gpio9_grp,
+          pwm1_gpio13_grp, pwm1_gpio17_grp, pwm2_gpio6_grp,
+          pwm2_gpio10_grp, pwm2_gpio14_grp, pwm2_gpio18_grp,
+          pwm3_gpio7_grp, pwm3_gpio11_grp, pwm3_gpio15_grp,
+          pwm3_gpio19_grp, pcmif_out_grp, pcmif_in_grp]
+
+      drive-strength:
+        enum: [2, 4, 6, 8, 16, 24, 32]
+        default: 2
+        description:
+          Selects the drive strength for the specified pins, in mA.
+
+      bias-pull-up: true
+
+      bias-pull-down: true
+
+      bias-disable: true
+
+additionalProperties: false
+
+examples:
+  # Pinmux controller node
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pmux: pmux@24190000 {
+            compatible = "toshiba,tmpv7708-pinctrl";
+            reg = <0 0x24190000 0 0x10000>;
+
+            spi0_pins: spi0-pins {
+                function = "spi0";
+                groups = "spi0_grp";
+            };
+        };
+    };
