@@ -332,7 +332,7 @@
 		/omit-if-no-ref/
 		power_hold: power-hold {
 			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
 	rtc {
