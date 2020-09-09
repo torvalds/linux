@@ -4539,7 +4539,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * due to the fact that HWTS is using the FCS as the location of the
 	 * timestamp.  The HW FCS checking will still correctly determine if
 	 * there is a valid checksum, and the FCS is being removed by the driver
-	 * anyway.  So no fucntionality is being lost.  Since it is always
+	 * anyway.  So no functionality is being lost.  Since it is always
 	 * enabled, we now simply use the ioctl call to set whether or not the
 	 * driver should be paying attention to the HWTS.
 	 */
