@@ -5,6 +5,7 @@
 #include <linux/debugfs.h>
 #include <linux/mm.h>
 #include <linux/kasan.h>
+#include <asm/ptdump.h>
 #include <asm/kasan.h>
 #include <asm/sections.h>
 
@@ -47,6 +48,8 @@ struct pg_state {
 	struct seq_file *seq;
 	int level;
 	unsigned int current_prot;
+	bool check_wx;
+	unsigned long wx_pages;
 	unsigned long start_address;
 	const struct addr_marker *marker;
 };
@@ -81,6 +84,26 @@ static void print_prot(struct seq_file *m, unsigned int pr, int level)
 	pt_dump_seq_puts(m, (pr & _PAGE_NOEXEC) ? "NX\n" : "X\n");
 }
 
+static void note_prot_wx(struct pg_state *st, unsigned long addr)
+{
+#ifdef CONFIG_DEBUG_WX
+	if (!st->check_wx)
+		return;
+	if (st->current_prot & _PAGE_INVALID)
+		return;
+	if (st->current_prot & _PAGE_PROTECT)
+		return;
+	if (st->current_prot & _PAGE_NOEXEC)
+		return;
+	/* The first lowcore page is currently still W+X. */
+	if (addr == PAGE_SIZE)
+		return;
+	WARN_ONCE(1, "s390/mm: Found insecure W+X mapping at address %pS\n",
+		  (void *)st->start_address);
+	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
+#endif /* CONFIG_DEBUG_WX */
+}
+
 static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level, u64 val)
 {
 	int width = sizeof(unsigned long) * 2;
@@ -109,6 +132,7 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		st->level = level;
 	} else if (prot != st->current_prot || level != st->level ||
 		   addr >= st->marker[1].start_address) {
+		note_prot_wx(st, addr);
 		pt_dump_seq_printf(m, "0x%0*lx-0x%0*lx ",
 				   width, st->start_address,
 				   width, addr);
@@ -129,6 +153,40 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 	}
 }
 
+#ifdef CONFIG_DEBUG_WX
+void ptdump_check_wx(void)
+{
+	struct pg_state st = {
+		.ptdump = {
+			.note_page = note_page,
+			.range = (struct ptdump_range[]) {
+				{.start = 0, .end = max_addr},
+				{.start = 0, .end = 0},
+			}
+		},
+		.seq = NULL,
+		.level = -1,
+		.current_prot = 0,
+		.check_wx = true,
+		.wx_pages = 0,
+		.start_address = 0,
+		.marker = (struct addr_marker[]) {
+			{ .start_address =  0, .name = NULL},
+			{ .start_address = -1, .name = NULL},
+		},
+	};
+
+	if (!MACHINE_HAS_NX)
+		return;
+	ptdump_walk_pgd(&st.ptdump, &init_mm, NULL);
+	if (st.wx_pages)
+		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n", st.wx_pages);
+	else
+		pr_info("Checked W+X mappings: passed, no unexpected W+X pages found\n");
+}
+#endif /* CONFIG_DEBUG_WX */
+
+#ifdef CONFIG_PTDUMP_DEBUGFS
 static int ptdump_show(struct seq_file *m, void *v)
 {
 	struct pg_state st = {
@@ -142,6 +200,8 @@ static int ptdump_show(struct seq_file *m, void *v)
 		.seq = m,
 		.level = -1,
 		.current_prot = 0,
+		.check_wx = false,
+		.wx_pages = 0,
 		.start_address = 0,
 		.marker = address_markers,
 	};
@@ -154,6 +214,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(ptdump);
+#endif /* CONFIG_PTDUMP_DEBUGFS */
 
 static int pt_dump_init(void)
 {
@@ -167,7 +228,8 @@ static int pt_dump_init(void)
 	address_markers[MODULES_NR].start_address = MODULES_VADDR;
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;
-	debugfs_create_file("kernel_page_tables", 0400, NULL, NULL, &ptdump_fops);
+	if (IS_ENABLED(CONFIG_PTDUMP_DEBUGFS))
+		debugfs_create_file("kernel_page_tables", 0400, NULL, NULL, &ptdump_fops);
 	return 0;
 }
 device_initcall(pt_dump_init);

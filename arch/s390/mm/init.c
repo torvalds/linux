@@ -34,6 +34,7 @@
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/pgalloc.h>
+#include <asm/ptdump.h>
 #include <asm/dma.h>
 #include <asm/lowcore.h>
 #include <asm/tlb.h>
@@ -129,6 +130,7 @@ void mark_rodata_ro(void)
 
 	set_memory_ro((unsigned long)__start_ro_after_init, size >> PAGE_SHIFT);
 	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
+	debug_checkwx();
 }
 
 int set_memory_encrypted(unsigned long addr, int numpages)
