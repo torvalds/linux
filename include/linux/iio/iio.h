@@ -641,7 +641,7 @@ static inline struct iio_dev *iio_device_get(struct iio_dev *indio_dev)
  *
  * This utility must be called between IIO device allocation
  * (via devm_iio_device_alloc()) & IIO device registration
- * (via {devm_}iio_device_register()).
+ * (via iio_device_register() and devm_iio_device_register())).
  * By default, the device allocation will also assign a parent device to
  * the IIO device object. In cases where devm_iio_device_alloc() is used,
  * sometimes the parent device must be different than the device used to
