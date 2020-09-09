@@ -915,7 +915,7 @@ struct mvpp2_port {
 	 */
 	int gop_id;
 
-	int link_irq;
+	int port_irq;
 
 	struct mvpp2 *priv;
 

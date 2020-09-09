@@ -3036,7 +3036,7 @@ static void mvpp2_isr_handle_gmac_internal(struct mvpp2_port *port)
 }
 
 /* Per-port interrupt for link status changes */
-static irqreturn_t mvpp2_link_status_isr(int irq, void *dev_id)
+static irqreturn_t mvpp2_port_isr(int irq, void *dev_id)
 {
 	struct mvpp2_port *port = (struct mvpp2_port *)dev_id;
 
@@ -4230,12 +4230,13 @@ static int mvpp2_open(struct net_device *dev)
 		valid = true;
 	}
 
-	if (priv->hw_version == MVPP22 && port->link_irq) {
-		err = request_irq(port->link_irq, mvpp2_link_status_isr, 0,
+	if (priv->hw_version == MVPP22 && port->port_irq) {
+		err = request_irq(port->port_irq, mvpp2_port_isr, 0,
 				  dev->name, port);
 		if (err) {
-			netdev_err(port->dev, "cannot request link IRQ %d\n",
-				   port->link_irq);
+			netdev_err(port->dev,
+				   "cannot request port link/ptp IRQ %d\n",
+				   port->port_irq);
 			goto err_free_irq;
 		}
 
@@ -4246,7 +4247,7 @@ static int mvpp2_open(struct net_device *dev)
 
 		valid = true;
 	} else {
-		port->link_irq = 0;
+		port->port_irq = 0;
 	}
 
 	if (!valid) {
@@ -4290,8 +4291,8 @@ static int mvpp2_stop(struct net_device *dev)
 
 	if (port->phylink)
 		phylink_disconnect_phy(port->phylink);
-	if (port->link_irq)
-		free_irq(port->link_irq, port);
+	if (port->port_irq)
+		free_irq(port->port_irq, port);
 
 	mvpp2_irqs_deinit(port);
 	if (!port->has_tx_irqs) {
@@ -6056,16 +6057,16 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		goto err_free_netdev;
 
 	if (port_node)
-		port->link_irq = of_irq_get_byname(port_node, "link");
+		port->port_irq = of_irq_get_byname(port_node, "link");
 	else
-		port->link_irq = fwnode_irq_get(port_fwnode, port->nqvecs + 1);
-	if (port->link_irq == -EPROBE_DEFER) {
+		port->port_irq = fwnode_irq_get(port_fwnode, port->nqvecs + 1);
+	if (port->port_irq == -EPROBE_DEFER) {
 		err = -EPROBE_DEFER;
 		goto err_deinit_qvecs;
 	}
-	if (port->link_irq <= 0)
+	if (port->port_irq <= 0)
 		/* the link irq is optional */
-		port->link_irq = 0;
+		port->port_irq = 0;
 
 	if (fwnode_property_read_bool(port_fwnode, "marvell,loopback"))
 		port->flags |= MVPP2_F_LOOPBACK;
@@ -6229,8 +6230,8 @@ err_free_txq_pcpu:
 err_free_stats:
 	free_percpu(port->stats);
 err_free_irq:
-	if (port->link_irq)
-		irq_dispose_mapping(port->link_irq);
+	if (port->port_irq)
+		irq_dispose_mapping(port->port_irq);
 err_deinit_qvecs:
 	mvpp2_queue_vectors_deinit(port);
 err_free_netdev:
@@ -6251,8 +6252,8 @@ static void mvpp2_port_remove(struct mvpp2_port *port)
 	for (i = 0; i < port->ntxqs; i++)
 		free_percpu(port->txqs[i]->pcpu);
 	mvpp2_queue_vectors_deinit(port);
-	if (port->link_irq)
-		irq_dispose_mapping(port->link_irq);
+	if (port->port_irq)
+		irq_dispose_mapping(port->port_irq);
 	free_netdev(port->dev);
 }
 
