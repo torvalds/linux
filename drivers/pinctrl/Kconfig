@@ -429,6 +429,7 @@ source "drivers/pinctrl/mediatek/Kconfig"
 source "drivers/pinctrl/zte/Kconfig"
 source "drivers/pinctrl/meson/Kconfig"
 source "drivers/pinctrl/cirrus/Kconfig"
+source "drivers/pinctrl/visconti/Kconfig"
 
 config PINCTRL_XWAY
 	bool
