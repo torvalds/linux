@@ -842,6 +842,7 @@ dtb-$(CONFIG_ARCH_RENESAS) += \
 	sh73a0-kzm9g.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1108-evb.dtb \
+	rv1109-38x38-v10-emmc.dtb \
 	rv1109-38-v10-spi-nand.dtb \
 	rv1109-ai-cam-ddr3-v1.dtb \
 	rv1109-evb-ddr3-v12-facial-gate.dtb \

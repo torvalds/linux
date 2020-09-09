@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1126-38x38-v10-emmc.dts"
+
+/ {
+	model = "Rockchip RV1109 38x38 V10 EMMC DDR3 Board";
+	compatible = "rockchip,rv1109-38x38-v10-emmc", "rockchip,rv1109";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait snd_aloop.index=7";
+	};
+
+};
+
+&csi_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam2: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out2>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/delete-node/ imx415@1a ;
+
+	imx335: imx335@1a {
+		compatible = "sony,imx335";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		avdd-supply = <&vcc3v3_sys>;
+		dovdd-supply = <&vcc_1v8>;
+		dvdd-supply = <&vcc_dvdd>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "MTV4-IR-E-P";
+		rockchip,camera-module-lens-name = "40IRC-4MP-F16";
+		ir-cut = <&cam_ircut0>;
+		flash-leds = <&flash_ir>;
+		port {
+			ucam_out2: endpoint {
+				remote-endpoint = <&mipi_in_ucam2>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
