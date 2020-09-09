@@ -1235,6 +1235,9 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 			if (dev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
 			    dev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
 				data8 |= PORT_RGMII_ID_EG_ENABLE;
+			/* On KSZ9893, disable RGMII in-band status support */
+			if (dev->features & IS_9893)
+				data8 &= ~PORT_MII_MAC_MODE;
 			p->phydev.speed = SPEED_1000;
 			break;
 		}
