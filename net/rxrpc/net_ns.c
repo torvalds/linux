@@ -62,13 +62,10 @@ static __net_init int rxrpc_init_net(struct net *net)
 	timer_setup(&rxnet->service_conn_reap_timer,
 		    rxrpc_service_conn_reap_timeout, 0);
 
-	rxnet->nr_client_conns = 0;
-	rxnet->nr_active_client_conns = 0;
+	atomic_set(&rxnet->nr_client_conns, 0);
 	rxnet->kill_all_client_conns = false;
 	spin_lock_init(&rxnet->client_conn_cache_lock);
 	spin_lock_init(&rxnet->client_conn_discard_lock);
-	INIT_LIST_HEAD(&rxnet->waiting_client_conns);
-	INIT_LIST_HEAD(&rxnet->active_client_conns);
 	INIT_LIST_HEAD(&rxnet->idle_client_conns);
 	INIT_WORK(&rxnet->client_conn_reaper,
 		  rxrpc_discard_expired_client_conns);
