@@ -28,12 +28,13 @@ man: man8 helpers
 man8: $(DOC_MAN8)
 
 RST2MAN_DEP := $(shell command -v rst2man 2>/dev/null)
+RST2MAN_OPTS += --verbose
 
 $(OUTPUT)%.8: %.rst
 ifndef RST2MAN_DEP
 	$(error "rst2man not found, but required to generate man pages")
 endif
-	$(QUIET_GEN)rst2man $< > $@
+	$(QUIET_GEN)rst2man $(RST2MAN_OPTS) $< > $@
 
 clean: helpers-clean
 	$(call QUIET_CLEAN, Documentation)
