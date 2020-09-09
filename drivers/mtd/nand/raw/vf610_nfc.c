@@ -323,11 +323,6 @@ static inline void vf610_nfc_ecc_mode(struct vf610_nfc *nfc, int ecc_mode)
 			    CONFIG_ECC_MODE_SHIFT, ecc_mode);
 }
 
-static inline void vf610_nfc_transfer_size(struct vf610_nfc *nfc, int size)
-{
-	vf610_nfc_write(nfc, NFC_SECTOR_SIZE, size);
-}
-
 static inline void vf610_nfc_run(struct vf610_nfc *nfc, u32 col, u32 row,
 				 u32 cmd1, u32 cmd2, u32 trfr_sz)
 {
