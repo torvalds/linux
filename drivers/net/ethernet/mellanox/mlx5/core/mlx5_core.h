@@ -100,6 +100,11 @@ do {								\
 			     __func__, __LINE__, current->pid,	\
 			     ##__VA_ARGS__)
 
+static inline struct device *mlx5_core_dma_dev(struct mlx5_core_dev *dev)
+{
+	return &dev->pdev->dev;
+}
+
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
 	MLX5_CMD_TIME, /* print command execution time */
