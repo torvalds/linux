@@ -1208,7 +1208,7 @@ xfs_reclaim_inodes(
 	while (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
 		xfs_ail_push_all_sync(mp->m_ail);
 		xfs_reclaim_inodes_ag(mp, &nr_to_scan);
-	};
+	}
 }
 
 /*
