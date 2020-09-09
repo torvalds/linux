@@ -12,6 +12,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mii.h>
@@ -44,6 +45,7 @@ static struct smsc_hw_stat smsc_hw_stats[] = {
 
 struct smsc_phy_priv {
 	bool energy_enable;
+	struct clk *refclk;
 };
 
 static int smsc_phy_config_intr(struct phy_device *phydev)
@@ -253,11 +255,20 @@ static void smsc_get_stats(struct phy_device *phydev,
 		data[i] = smsc_get_stat(phydev, i);
 }
 
+static void smsc_phy_remove(struct phy_device *phydev)
+{
+	struct smsc_phy_priv *priv = phydev->priv;
+
+	clk_disable_unprepare(priv->refclk);
+	clk_put(priv->refclk);
+}
+
 static int smsc_phy_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
 	struct device_node *of_node = dev->of_node;
 	struct smsc_phy_priv *priv;
+	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -269,6 +280,19 @@ static int smsc_phy_probe(struct phy_device *phydev)
 		priv->energy_enable = false;
 
 	phydev->priv = priv;
+
+	/* Make clk optional to keep DTB backward compatibility. */
+	priv->refclk = clk_get_optional(dev, NULL);
+	if (IS_ERR(priv->refclk))
+		dev_err_probe(dev, PTR_ERR(priv->refclk), "Failed to request clock\n");
+
+	ret = clk_prepare_enable(priv->refclk);
+	if (ret)
+		return ret;
+
+	ret = clk_set_rate(priv->refclk, 50 * 1000 * 1000);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -376,6 +400,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.flags		= PHY_RST_AFTER_CLK_EN,
 
 	.probe		= smsc_phy_probe,
+	.remove		= smsc_phy_remove,
 
 	/* basic functions */
 	.read_status	= lan87xx_read_status,
