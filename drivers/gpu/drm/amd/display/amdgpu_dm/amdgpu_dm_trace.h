@@ -37,6 +37,8 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_atomic.h>
 
+#include "dc/inc/core_types.h"
+
 DECLARE_EVENT_CLASS(amdgpu_dc_reg_template,
 		    TP_PROTO(unsigned long *count, uint32_t reg, uint32_t value),
 		    TP_ARGS(count, reg, value),
@@ -374,6 +376,112 @@ TRACE_EVENT(amdgpu_dm_atomic_check_finish,
 	    TP_printk("state=%p res=%d async_update=%d allow_modeset=%d",
 		      __entry->state, __entry->res,
 		      __entry->async_update, __entry->allow_modeset)
+);
+
+TRACE_EVENT(amdgpu_dm_dc_pipe_state,
+	    TP_PROTO(int pipe_idx, const struct dc_plane_state *plane_state,
+		     const struct dc_stream_state *stream,
+		     const struct plane_resource *plane_res,
+		     int update_flags),
+	    TP_ARGS(pipe_idx, plane_state, stream, plane_res, update_flags),
+
+	    TP_STRUCT__entry(
+			     __field(int, pipe_idx)
+			     __field(const void *, stream)
+			     __field(int, stream_w)
+			     __field(int, stream_h)
+			     __field(int, dst_x)
+			     __field(int, dst_y)
+			     __field(int, dst_w)
+			     __field(int, dst_h)
+			     __field(int, src_x)
+			     __field(int, src_y)
+			     __field(int, src_w)
+			     __field(int, src_h)
+			     __field(int, clip_x)
+			     __field(int, clip_y)
+			     __field(int, clip_w)
+			     __field(int, clip_h)
+			     __field(int, recout_x)
+			     __field(int, recout_y)
+			     __field(int, recout_w)
+			     __field(int, recout_h)
+			     __field(int, viewport_x)
+			     __field(int, viewport_y)
+			     __field(int, viewport_w)
+			     __field(int, viewport_h)
+			     __field(int, flip_immediate)
+			     __field(int, surface_pitch)
+			     __field(int, format)
+			     __field(int, swizzle)
+			     __field(unsigned int, update_flags)
+	),
+
+	TP_fast_assign(
+		       __entry->pipe_idx = pipe_idx;
+		       __entry->stream = stream;
+		       __entry->stream_w = stream->timing.h_addressable;
+		       __entry->stream_h = stream->timing.v_addressable;
+		       __entry->dst_x = plane_state->dst_rect.x;
+		       __entry->dst_y = plane_state->dst_rect.y;
+		       __entry->dst_w = plane_state->dst_rect.width;
+		       __entry->dst_h = plane_state->dst_rect.height;
+		       __entry->src_x = plane_state->src_rect.x;
+		       __entry->src_y = plane_state->src_rect.y;
+		       __entry->src_w = plane_state->src_rect.width;
+		       __entry->src_h = plane_state->src_rect.height;
+		       __entry->clip_x = plane_state->clip_rect.x;
+		       __entry->clip_y = plane_state->clip_rect.y;
+		       __entry->clip_w = plane_state->clip_rect.width;
+		       __entry->clip_h = plane_state->clip_rect.height;
+		       __entry->recout_x = plane_res->scl_data.recout.x;
+		       __entry->recout_y = plane_res->scl_data.recout.y;
+		       __entry->recout_w = plane_res->scl_data.recout.width;
+		       __entry->recout_h = plane_res->scl_data.recout.height;
+		       __entry->viewport_x = plane_res->scl_data.viewport.x;
+		       __entry->viewport_y = plane_res->scl_data.viewport.y;
+		       __entry->viewport_w = plane_res->scl_data.viewport.width;
+		       __entry->viewport_h = plane_res->scl_data.viewport.height;
+		       __entry->flip_immediate = plane_state->flip_immediate;
+		       __entry->surface_pitch = plane_state->plane_size.surface_pitch;
+		       __entry->format = plane_state->format;
+		       __entry->swizzle = plane_state->tiling_info.gfx9.swizzle;
+		       __entry->update_flags = update_flags;
+	),
+	TP_printk("pipe_idx=%d stream=%p rct(%d,%d) dst=(%d,%d,%d,%d) "
+		  "src=(%d,%d,%d,%d) clip=(%d,%d,%d,%d) recout=(%d,%d,%d,%d) "
+		  "viewport=(%d,%d,%d,%d) flip_immediate=%d pitch=%d "
+		  "format=%d swizzle=%d update_flags=%x",
+		  __entry->pipe_idx,
+		  __entry->stream,
+		  __entry->stream_w,
+		  __entry->stream_h,
+		  __entry->dst_x,
+		  __entry->dst_y,
+		  __entry->dst_w,
+		  __entry->dst_h,
+		  __entry->src_x,
+		  __entry->src_y,
+		  __entry->src_w,
+		  __entry->src_h,
+		  __entry->clip_x,
+		  __entry->clip_y,
+		  __entry->clip_w,
+		  __entry->clip_h,
+		  __entry->recout_x,
+		  __entry->recout_y,
+		  __entry->recout_w,
+		  __entry->recout_h,
+		  __entry->viewport_x,
+		  __entry->viewport_y,
+		  __entry->viewport_w,
+		  __entry->viewport_h,
+		  __entry->flip_immediate,
+		  __entry->surface_pitch,
+		  __entry->format,
+		  __entry->swizzle,
+		  __entry->update_flags
+	)
 );
 
 #endif /* _AMDGPU_DM_TRACE_H_ */

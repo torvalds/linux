@@ -70,6 +70,8 @@
 
 #include "dce/dmub_hw_lock_mgr.h"
 
+#include "dc_trace.h"
+
 #define CTX \
 	dc->ctx
 
@@ -2708,6 +2710,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			return;
 		}
 	}
+
+	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 
 	commit_planes_for_stream(
 				dc,
