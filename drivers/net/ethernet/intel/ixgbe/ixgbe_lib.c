@@ -1029,10 +1029,10 @@ static void ixgbe_free_q_vector(struct ixgbe_adapter *adapter, int v_idx)
 		WRITE_ONCE(adapter->rx_ring[ring->queue_index], NULL);
 
 	adapter->q_vector[v_idx] = NULL;
-	napi_hash_del(&q_vector->napi);
-	netif_napi_del(&q_vector->napi);
+	__netif_napi_del(&q_vector->napi);
 
 	/*
+	 * after a call to __netif_napi_del() napi may still be used and
 	 * ixgbe_get_stats64() might access the rings on this vector,
 	 * we must wait a grace period before freeing it.
 	 */

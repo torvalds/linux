@@ -2529,13 +2529,15 @@ static void enic_dev_deinit(struct enic *enic)
 {
 	unsigned int i;
 
-	for (i = 0; i < enic->rq_count; i++) {
-		napi_hash_del(&enic->napi[i]);
-		netif_napi_del(&enic->napi[i]);
-	}
+	for (i = 0; i < enic->rq_count; i++)
+		__netif_napi_del(&enic->napi[i]);
+
 	if (vnic_dev_get_intr_mode(enic->vdev) == VNIC_DEV_INTR_MODE_MSIX)
 		for (i = 0; i < enic->wq_count; i++)
-			netif_napi_del(&enic->napi[enic_cq_wq(enic, i)]);
+			__netif_napi_del(&enic->napi[enic_cq_wq(enic, i)]);
+
+	/* observe RCU grace period after __netif_napi_del() calls */
+	synchronize_net();
 
 	enic_free_vnic_resources(enic);
 	enic_clear_intr_mode(enic);
