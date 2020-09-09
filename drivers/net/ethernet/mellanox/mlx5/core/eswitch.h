@@ -217,6 +217,7 @@ struct mlx5_esw_offload {
 	atomic64_t num_flows;
 	enum devlink_eswitch_encap_mode encap;
 	struct ida vport_metadata_ida;
+	unsigned int host_number; /* ECPF supports one external host */
 };
 
 /* E-Switch MC FDB table hash node */
