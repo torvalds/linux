@@ -2226,8 +2226,7 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 		     struct mvneta_rx_desc *rx_desc,
 		     struct mvneta_rx_queue *rxq,
 		     struct xdp_buff *xdp, int *size,
-		     struct page *page,
-		     struct mvneta_stats *stats)
+		     struct page *page)
 {
 	unsigned char *data = page_address(page);
 	int data_len = -MVNETA_MH_SIZE, len;
@@ -2380,7 +2379,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			desc_status = rx_desc->status;
 
 			mvneta_swbm_rx_frame(pp, rx_desc, rxq, &xdp_buf,
-					     &size, page, &ps);
+					     &size, page);
 		} else {
 			if (unlikely(!xdp_buf.data_hard_start))
 				continue;
