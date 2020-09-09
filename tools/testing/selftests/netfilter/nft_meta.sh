@@ -7,8 +7,7 @@ ksft_skip=4
 sfx=$(mktemp -u "XXXXXXXX")
 ns0="ns0-$sfx"
 
-nft --version > /dev/null 2>&1
-if [ $? -ne 0 ];then
+if ! nft --version > /dev/null 2>&1; then
 	echo "SKIP: Could not run test without nft tool"
 	exit $ksft_skip
 fi
@@ -86,8 +85,7 @@ check_one_counter()
 	local want="packets $2"
 	local verbose="$3"
 
-	cnt=$(ip netns exec "$ns0" nft list counter inet filter $cname | grep -q "$want")
-	if [ $? -ne 0 ];then
+	if ! ip netns exec "$ns0" nft list counter inet filter $cname | grep -q "$want"; then
 		echo "FAIL: $cname, want \"$want\", got"
 		ret=1
 		ip netns exec "$ns0" nft list counter inet filter $cname
