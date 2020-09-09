@@ -51,16 +51,7 @@ DESCRIPTION
 
 OPTIONS
 =======
-	-h, --help
-		  Print short generic help message (similar to **bpftool help**).
-
-	-V, --version
-		  Print version number (similar to **bpftool version**).
-
-	-d, --debug
-		  Print all logs available, even debug-level information. This
-		  includes logs from libbpf as well as from the verifier, when
-		  attempting to load programs.
+	.. include:: common_options.rst
 
 EXAMPLES
 ========

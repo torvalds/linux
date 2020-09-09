@@ -19,7 +19,7 @@ man8dir = $(mandir)/man8
 # Load targets for building eBPF helpers man page.
 include ../../Makefile.helpers
 
-MAN8_RST = $(filter-out $(HELPERS_RST),$(wildcard *.rst))
+MAN8_RST = $(wildcard bpftool*.rst)
 
 _DOC_MAN8 = $(patsubst %.rst,%.8,$(MAN8_RST))
 DOC_MAN8 = $(addprefix $(OUTPUT),$(_DOC_MAN8))
