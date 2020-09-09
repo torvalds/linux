@@ -64,7 +64,6 @@ enum vhost_uaddr_type {
 struct vhost_vring_call {
 	struct eventfd_ctx *ctx;
 	struct irq_bypass_producer producer;
-	spinlock_t ctx_lock;
 };
 
 /* The virtqueue structure describes a queue attached to a device. */
