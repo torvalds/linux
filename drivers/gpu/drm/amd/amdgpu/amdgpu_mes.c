@@ -1174,6 +1174,63 @@ error:
 	return r;
 }
 
+int amdgpu_mes_ctx_unmap_meta_data(struct amdgpu_device *adev,
+				   struct amdgpu_mes_ctx_data *ctx_data)
+{
+	struct amdgpu_bo_va *bo_va = ctx_data->meta_data_va;
+	struct amdgpu_bo *bo = ctx_data->meta_data_obj;
+	struct amdgpu_vm *vm = bo_va->base.vm;
+	struct amdgpu_bo_list_entry vm_pd;
+	struct list_head list, duplicates;
+	struct dma_fence *fence = NULL;
+	struct ttm_validate_buffer tv;
+	struct ww_acquire_ctx ticket;
+	long r = 0;
+
+	INIT_LIST_HEAD(&list);
+	INIT_LIST_HEAD(&duplicates);
+
+	tv.bo = &bo->tbo;
+	tv.num_shared = 2;
+	list_add(&tv.head, &list);
+
+	amdgpu_vm_get_pd_bo(vm, &list, &vm_pd);
+
+	r = ttm_eu_reserve_buffers(&ticket, &list, false, &duplicates);
+	if (r) {
+		dev_err(adev->dev, "leaking bo va because "
+			"we fail to reserve bo (%ld)\n", r);
+		return r;
+	}
+
+	amdgpu_vm_bo_del(adev, bo_va);
+	if (!amdgpu_vm_ready(vm))
+		goto out_unlock;
+
+	r = dma_resv_get_singleton(bo->tbo.base.resv, DMA_RESV_USAGE_BOOKKEEP, &fence);
+	if (r)
+		goto out_unlock;
+	if (fence) {
+		amdgpu_bo_fence(bo, fence, true);
+		fence = NULL;
+	}
+
+	r = amdgpu_vm_clear_freed(adev, vm, &fence);
+	if (r || !fence)
+		goto out_unlock;
+
+	dma_fence_wait(fence, false);
+	amdgpu_bo_fence(bo, fence, true);
+	dma_fence_put(fence);
+
+out_unlock:
+	if (unlikely(r < 0))
+		dev_err(adev->dev, "failed to clear page tables (%ld)\n", r);
+	ttm_eu_backoff_reservation(&ticket, &list);
+
+	return r;
+}
+
 static int amdgpu_mes_test_create_gang_and_queues(struct amdgpu_device *adev,
 					  int pasid, int *gang_id,
 					  int queue_type, int num_queue,
@@ -1335,9 +1392,7 @@ error_queues:
 	amdgpu_mes_destroy_process(adev, pasid);
 
 error_vm:
-	BUG_ON(amdgpu_bo_reserve(ctx_data.meta_data_obj, true));
-	amdgpu_vm_bo_del(adev, ctx_data.meta_data_va);
-	amdgpu_bo_unreserve(ctx_data.meta_data_obj);
+	amdgpu_mes_ctx_unmap_meta_data(adev, &ctx_data);
 
 error_fini:
 	amdgpu_vm_fini(adev, vm);
