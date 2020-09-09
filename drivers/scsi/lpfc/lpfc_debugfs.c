@@ -1696,7 +1696,6 @@ static int
 lpfc_debugfs_hdwqstat_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_sli4_hdw_queue *qp;
 	struct lpfc_hdwq_stat *c_stat;
 	int i, j, len;
 	uint32_t tot_xmt;
@@ -1726,8 +1725,6 @@ lpfc_debugfs_hdwqstat_data(struct lpfc_vport *vport, char *buf, int size)
 		goto buffer_done;
 
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
-		qp = &phba->sli4_hba.hdwq[i];
-
 		tot_rcv = 0;
 		tot_xmt = 0;
 		tot_cmpl = 0;
