@@ -149,9 +149,7 @@ static int intel_eth_plat_probe(struct platform_device *pdev)
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret) {
-		if (dwmac->tx_clk)
-			clk_disable_unprepare(dwmac->tx_clk);
-
+		clk_disable_unprepare(dwmac->tx_clk);
 		goto err_remove_config_dt;
 	}
 
@@ -169,9 +167,7 @@ static int intel_eth_plat_remove(struct platform_device *pdev)
 	int ret;
 
 	ret = stmmac_pltfr_remove(pdev);
-
-	if (dwmac->tx_clk)
-		clk_disable_unprepare(dwmac->tx_clk);
+	clk_disable_unprepare(dwmac->tx_clk);
 
 	return ret;
 }
