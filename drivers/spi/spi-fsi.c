@@ -12,6 +12,7 @@
 
 #define FSI_ENGID_SPI			0x23
 #define FSI_MBOX_ROOT_CTRL_8		0x2860
+#define  FSI_MBOX_ROOT_CTRL_8_SPI_MUX	 0xf0000000
 
 #define FSI2SPI_DATA0			0x00
 #define FSI2SPI_DATA1			0x04
@@ -83,6 +84,26 @@ struct fsi_spi_sequence {
 	int bit;
 	u64 data;
 };
+
+static int fsi_spi_check_mux(struct fsi_device *fsi, struct device *dev)
+{
+	int rc;
+	u32 root_ctrl_8;
+	__be32 root_ctrl_8_be;
+
+	rc = fsi_slave_read(fsi->slave, FSI_MBOX_ROOT_CTRL_8, &root_ctrl_8_be,
+			    sizeof(root_ctrl_8_be));
+	if (rc)
+		return rc;
+
+	root_ctrl_8 = be32_to_cpu(root_ctrl_8_be);
+	dev_dbg(dev, "Root control register 8: %08x\n", root_ctrl_8);
+	if ((root_ctrl_8 & FSI_MBOX_ROOT_CTRL_8_SPI_MUX) ==
+	     FSI_MBOX_ROOT_CTRL_8_SPI_MUX)
+		return 0;
+
+	return -ENOLINK;
+}
 
 static int fsi_spi_check_status(struct fsi_spi *ctx)
 {
@@ -449,10 +470,14 @@ static int fsi_spi_transfer_init(struct fsi_spi *ctx)
 static int fsi_spi_transfer_one_message(struct spi_controller *ctlr,
 					struct spi_message *mesg)
 {
-	int rc = 0;
+	int rc;
 	u8 seq_slave = SPI_FSI_SEQUENCE_SEL_SLAVE(mesg->spi->chip_select + 1);
 	struct spi_transfer *transfer;
 	struct fsi_spi *ctx = spi_controller_get_devdata(ctlr);
+
+	rc = fsi_spi_check_mux(ctx->fsi, ctx->dev);
+	if (rc)
+		return rc;
 
 	list_for_each_entry(transfer, &mesg->transfers, transfer_list) {
 		struct fsi_spi_sequence seq;
@@ -537,24 +562,13 @@ static size_t fsi_spi_max_transfer_size(struct spi_device *spi)
 static int fsi_spi_probe(struct device *dev)
 {
 	int rc;
-	u32 root_ctrl_8;
 	struct device_node *np;
 	int num_controllers_registered = 0;
 	struct fsi_device *fsi = to_fsi_dev(dev);
 
-	/*
-	 * Check the SPI mux before attempting to probe. If the mux isn't set
-	 * then the SPI controllers can't access their slave devices.
-	 */
-	rc = fsi_slave_read(fsi->slave, FSI_MBOX_ROOT_CTRL_8, &root_ctrl_8,
-			    sizeof(root_ctrl_8));
+	rc = fsi_spi_check_mux(fsi, dev);
 	if (rc)
-		return rc;
-
-	if (!root_ctrl_8) {
-		dev_dbg(dev, "SPI mux not set, aborting probe.\n");
 		return -ENODEV;
-	}
 
 	for_each_available_child_of_node(dev->of_node, np) {
 		u32 base;
