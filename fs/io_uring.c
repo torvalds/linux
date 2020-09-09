@@ -4231,7 +4231,7 @@ static int io_send(struct io_kiocb *req, bool force_nonblock,
 
 	ret = import_single_range(WRITE, sr->buf, sr->len, &iov, &msg.msg_iter);
 	if (unlikely(ret))
-		return ret;;
+		return ret;
 
 	msg.msg_name = NULL;
 	msg.msg_control = NULL;
