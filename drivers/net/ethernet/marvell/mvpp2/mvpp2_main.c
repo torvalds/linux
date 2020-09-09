@@ -3039,14 +3039,23 @@ static void mvpp2_isr_handle_gmac_internal(struct mvpp2_port *port)
 static irqreturn_t mvpp2_port_isr(int irq, void *dev_id)
 {
 	struct mvpp2_port *port = (struct mvpp2_port *)dev_id;
+	u32 val;
 
 	mvpp22_gop_mask_irq(port);
 
 	if (mvpp2_port_supports_xlg(port) &&
 	    mvpp2_is_xlg(port->phy_interface)) {
-		mvpp2_isr_handle_xlg(port);
+		/* Check the external status register */
+		val = readl(port->base + MVPP22_XLG_EXT_INT_STAT);
+		if (val & MVPP22_XLG_EXT_INT_STAT_XLG)
+			mvpp2_isr_handle_xlg(port);
 	} else {
-		mvpp2_isr_handle_gmac_internal(port);
+		/* If it's not the XLG, we must be using the GMAC.
+		 * Check the summary status.
+		 */
+		val = readl(port->base + MVPP22_GMAC_INT_SUM_STAT);
+		if (val & MVPP22_GMAC_INT_SUM_STAT_INTERNAL)
+			mvpp2_isr_handle_gmac_internal(port);
 	}
 
 	mvpp22_gop_unmask_irq(port);
