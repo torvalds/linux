@@ -214,6 +214,17 @@ static char *get_index_filename(const char *mnt_dir, incfs_uuid_t id)
 	return strdup(path);
 }
 
+static char *get_incomplete_filename(const char *mnt_dir, incfs_uuid_t id)
+{
+	char path[FILENAME_MAX];
+	char str_id[1 + 2 * sizeof(id)];
+
+	bin2hex(str_id, id.bytes, sizeof(id.bytes));
+	snprintf(path, ARRAY_SIZE(path), "%s/.incomplete/%s", mnt_dir, str_id);
+
+	return strdup(path);
+}
+
 int open_file_by_id(const char *mnt_dir, incfs_uuid_t id, bool use_ioctl)
 {
 	char *path = get_index_filename(mnt_dir, id);
@@ -974,6 +985,7 @@ static bool iterate_directory(const char *dir_to_iterate, bool root,
 		{INCFS_PENDING_READS_FILENAME, true, false},
 		{INCFS_BLOCKS_WRITTEN_FILENAME, true, false},
 		{".index", true, false},
+		{".incomplete", true, false},
 		{"..", false, false},
 		{".", false, false},
 	};
@@ -3189,11 +3201,21 @@ static int validate_data_block_count(const char *mount_dir,
 
 	int test_result = TEST_FAILURE;
 	char *filename = NULL;
+	char *incomplete_filename = NULL;
+	struct stat stat_buf_incomplete, stat_buf_file;
 	int fd = -1;
 	struct incfs_get_block_count_args bca = {};
 	int i;
 
 	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TEST(incomplete_filename = get_incomplete_filename(mount_dir, file->id),
+	     incomplete_filename);
+
+	TESTEQUAL(stat(filename, &stat_buf_file), 0);
+	TESTEQUAL(stat(incomplete_filename, &stat_buf_incomplete), 0);
+	TESTEQUAL(stat_buf_file.st_ino, stat_buf_incomplete.st_ino);
+	TESTEQUAL(stat_buf_file.st_nlink, 3);
+
 	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
 	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
 	TESTEQUAL(bca.total_data_blocks_out, total_data_blocks);
@@ -3217,9 +3239,16 @@ static int validate_data_block_count(const char *mount_dir,
 				       0, 0),
 		  0);
 
+	for (i = 1; i < total_data_blocks; i += 2)
+		TESTEQUAL(emit_test_block(mount_dir, file, i), 0);
+
+	TESTEQUAL(stat(incomplete_filename, &stat_buf_incomplete), -1);
+	TESTEQUAL(errno, ENOENT);
+
 	test_result = TEST_SUCCESS;
 out:
 	close(fd);
+	free(incomplete_filename);
 	free(filename);
 	return test_result;
 }

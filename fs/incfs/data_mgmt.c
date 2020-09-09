@@ -110,6 +110,7 @@ void incfs_free_mount_info(struct mount_info *mi)
 	flush_delayed_work(&mi->mi_log.ml_wakeup_work);
 
 	dput(mi->mi_index_dir);
+	dput(mi->mi_incomplete_dir);
 	path_put(&mi->mi_backing_dir_path);
 	mutex_destroy(&mi->mi_dir_struct_mutex);
 	put_cred(mi->mi_owner);

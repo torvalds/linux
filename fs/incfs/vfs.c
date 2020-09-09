@@ -16,6 +16,7 @@
 #include "vfs.h"
 
 #include "data_mgmt.h"
+#include "format.h"
 #include "internal.h"
 #include "pseudo_files.h"
 
@@ -380,9 +381,9 @@ static int incfs_init_dentry(struct dentry *dentry, struct path *path)
 	return 0;
 }
 
-static struct dentry *open_or_create_index_dir(struct dentry *backing_dir)
+static struct dentry *open_or_create_special_dir(struct dentry *backing_dir,
+						 const char *name)
 {
-	static const char name[] = ".index";
 	struct dentry *index_dentry;
 	struct inode *backing_inode = d_inode(backing_dir);
 	int err = 0;
@@ -519,6 +520,38 @@ static int incfs_rmdir(struct dentry *dentry)
 	return error;
 }
 
+static void maybe_delete_incomplete_file(struct data_file *df)
+{
+	char *file_id_str;
+	struct dentry *incomplete_file_dentry;
+
+	if (atomic_read(&df->df_data_blocks_written) < df->df_data_block_count)
+		return;
+
+	/* This is best effort - there is no useful action to take on failure */
+	file_id_str = file_id_to_str(df->df_id);
+	if (!file_id_str)
+		return;
+
+	incomplete_file_dentry = incfs_lookup_dentry(
+					df->df_mount_info->mi_incomplete_dir,
+					file_id_str);
+	if (!incomplete_file_dentry || IS_ERR(incomplete_file_dentry)) {
+		incomplete_file_dentry = NULL;
+		goto out;
+	}
+
+	if (!d_really_is_positive(incomplete_file_dentry))
+		goto out;
+
+	vfs_fsync(df->df_backing_file_context->bc_file, 0);
+	incfs_unlink(incomplete_file_dentry);
+
+out:
+	dput(incomplete_file_dentry);
+	kfree(file_id_str);
+}
+
 static long ioctl_fill_blocks(struct file *f, void __user *arg)
 {
 	struct incfs_fill_blocks __user *usr_fill_blocks = arg;
@@ -579,6 +612,8 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 
 	if (data_buf)
 		free_pages((unsigned long)data_buf, get_order(data_buf_size));
+
+	maybe_delete_incomplete_file(df);
 
 	/*
 	 * Only report the error if no records were processed, otherwise
@@ -814,6 +849,11 @@ static int dir_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out;
 	}
 
+	if (backing_dentry->d_parent == mi->mi_incomplete_dir) {
+		/* Can't create a subdir inside .incomplete */
+		err = -EBUSY;
+		goto out;
+	}
 	inode_lock_nested(dir_node->n_backing_inode, I_MUTEX_PARENT);
 	err = vfs_mkdir(dir_node->n_backing_inode, backing_dentry, mode | 0222);
 	inode_unlock(dir_node->n_backing_inode);
@@ -846,17 +886,26 @@ path_err:
 	return err;
 }
 
-/* Delete file referenced by backing_dentry and also its hardlink from .index */
-static int final_file_delete(struct mount_info *mi,
-			struct dentry *backing_dentry)
+/*
+ * Delete file referenced by backing_dentry and if appropriate its hardlink
+ * from .index and .incomplete
+ */
+static int file_delete(struct mount_info *mi,
+			struct dentry *backing_dentry,
+			int nlink)
 {
 	struct dentry *index_file_dentry = NULL;
+	struct dentry *incomplete_file_dentry = NULL;
 	/* 2 chars per byte of file ID + 1 char for \0 */
 	char file_id_str[2 * sizeof(incfs_uuid_t) + 1] = {0};
 	ssize_t uuid_size = 0;
 	int error = 0;
 
 	WARN_ON(!mutex_is_locked(&mi->mi_dir_struct_mutex));
+
+	if (nlink > 3)
+		goto just_unlink;
+
 	uuid_size = vfs_getxattr(backing_dentry, INCFS_XATTR_ID_NAME,
 			file_id_str, 2 * sizeof(incfs_uuid_t));
 	if (uuid_size < 0) {
@@ -872,17 +921,46 @@ static int final_file_delete(struct mount_info *mi,
 	index_file_dentry = incfs_lookup_dentry(mi->mi_index_dir, file_id_str);
 	if (IS_ERR(index_file_dentry)) {
 		error = PTR_ERR(index_file_dentry);
+		index_file_dentry = NULL;
 		goto out;
 	}
 
-	error = incfs_unlink(backing_dentry);
-	if (error)
+	if (d_really_is_positive(index_file_dentry) && nlink > 0)
+		nlink--;
+
+	if (nlink > 2)
+		goto just_unlink;
+
+	incomplete_file_dentry = incfs_lookup_dentry(mi->mi_incomplete_dir,
+						     file_id_str);
+	if (IS_ERR(incomplete_file_dentry)) {
+		error = PTR_ERR(incomplete_file_dentry);
+		incomplete_file_dentry = NULL;
 		goto out;
+	}
+
+	if (d_really_is_positive(incomplete_file_dentry) && nlink > 0)
+		nlink--;
+
+	if (nlink > 1)
+		goto just_unlink;
 
 	if (d_really_is_positive(index_file_dentry))
 		error = incfs_unlink(index_file_dentry);
+	if (error)
+		goto out;
+
+	if (d_really_is_positive(incomplete_file_dentry))
+		error = incfs_unlink(incomplete_file_dentry);
+	if (error)
+		goto out;
+
+just_unlink:
+	error = incfs_unlink(backing_dentry);
+
 out:
 	dput(index_file_dentry);
+	dput(incomplete_file_dentry);
 	if (error)
 		pr_debug("incfs: delete_file_from_index err:%d\n", error);
 	return error;
@@ -914,21 +992,18 @@ static int dir_unlink(struct inode *dir, struct dentry *dentry)
 		goto out;
 	}
 
+	if (backing_path.dentry->d_parent == mi->mi_incomplete_dir) {
+		/* Direct unlink from .incomplete are not allowed. */
+		err = -EBUSY;
+		goto out;
+	}
+
 	err = vfs_getattr(&backing_path, &stat, STATX_NLINK,
 			  AT_STATX_SYNC_AS_STAT);
 	if (err)
 		goto out;
 
-	if (stat.nlink == 2) {
-		/*
-		 * This is the last named link to this file. The only one left
-		 * is in .index. Remove them both now.
-		 */
-		err = final_file_delete(mi, backing_path.dentry);
-	} else {
-		/* There are other links to this file. Remove just this one. */
-		err = incfs_unlink(backing_path.dentry);
-	}
+	err = file_delete(mi, backing_path.dentry, stat.nlink);
 
 	d_drop(dentry);
 out:
@@ -960,6 +1035,12 @@ static int dir_link(struct dentry *old_dentry, struct inode *dir,
 
 	if (backing_new_path.dentry->d_parent == mi->mi_index_dir) {
 		/* Can't link to .index */
+		error = -EBUSY;
+		goto out;
+	}
+
+	if (backing_new_path.dentry->d_parent == mi->mi_incomplete_dir) {
+		/* Can't link to .incomplete */
 		error = -EBUSY;
 		goto out;
 	}
@@ -1016,6 +1097,12 @@ static int dir_rmdir(struct inode *dir, struct dentry *dentry)
 		goto out;
 	}
 
+	if (backing_path.dentry == mi->mi_incomplete_dir) {
+		/* Can't delete .incomplete */
+		err = -EBUSY;
+		goto out;
+	}
+
 	err = incfs_rmdir(backing_path.dentry);
 	if (!err)
 		d_drop(dentry);
@@ -1047,8 +1134,9 @@ static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	backing_old_dentry = get_incfs_dentry(old_dentry)->backing_path.dentry;
 
-	if (!backing_old_dentry || backing_old_dentry == mi->mi_index_dir) {
-		/* Renaming .index not allowed */
+	if (!backing_old_dentry || backing_old_dentry == mi->mi_index_dir ||
+	    backing_old_dentry == mi->mi_incomplete_dir) {
+		/* Renaming .index or .incomplete not allowed */
 		error = -EBUSY;
 		goto exit;
 	}
@@ -1061,8 +1149,9 @@ static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
 	backing_new_dir_dentry = dget_parent(backing_new_dentry);
 	target_inode = d_inode(new_dentry);
 
-	if (backing_old_dir_dentry == mi->mi_index_dir) {
-		/* Direct moves from .index are not allowed. */
+	if (backing_old_dir_dentry == mi->mi_index_dir ||
+	    backing_old_dir_dentry == mi->mi_incomplete_dir) {
+		/* Direct moves from .index or .incomplete are not allowed. */
 		error = -EBUSY;
 		goto out;
 	}
@@ -1400,10 +1489,13 @@ static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size)
 struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 			      const char *dev_name, void *data)
 {
+	static const char index_name[] = ".index";
+	static const char incomplete_name[] = ".incomplete";
 	struct mount_options options = {};
 	struct mount_info *mi = NULL;
 	struct path backing_dir_path = {};
-	struct dentry *index_dir;
+	struct dentry *index_dir = NULL;
+	struct dentry *incomplete_dir = NULL;
 	struct super_block *src_fs_sb = NULL;
 	struct inode *root_inode = NULL;
 	struct super_block *sb = sget(type, NULL, set_anon_super, flags, NULL);
@@ -1456,14 +1548,27 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 		goto err;
 	}
 
-	index_dir = open_or_create_index_dir(backing_dir_path.dentry);
+	index_dir = open_or_create_special_dir(backing_dir_path.dentry,
+					       index_name);
 	if (IS_ERR_OR_NULL(index_dir)) {
 		error = PTR_ERR(index_dir);
 		pr_err("incfs: Can't find or create .index dir in %s\n",
 			dev_name);
+		/* No need to null index_dir since we don't put it */
 		goto err;
 	}
 	mi->mi_index_dir = index_dir;
+
+	incomplete_dir = open_or_create_special_dir(backing_dir_path.dentry,
+						    incomplete_name);
+	if (IS_ERR_OR_NULL(incomplete_dir)) {
+		error = PTR_ERR(incomplete_dir);
+		pr_err("incfs: Can't find or create .incomplete dir in %s\n",
+			dev_name);
+		/* No need to null incomplete_dir since we don't put it */
+		goto err;
+	}
+	mi->mi_incomplete_dir = incomplete_dir;
 
 	sb->s_fs_info = mi;
 	root_inode = fetch_regular_inode(sb, backing_dir_path.dentry);
