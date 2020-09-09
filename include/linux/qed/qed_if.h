@@ -623,6 +623,7 @@ struct qed_dev_info {
 #define QED_MFW_VERSION_3_OFFSET	24
 
 	u32		flash_size;
+	bool		b_arfs_capable;
 	bool		b_inter_pf_switch;
 	bool		tx_switching;
 	bool		rdma_supported;
