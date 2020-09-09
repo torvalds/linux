@@ -435,11 +435,11 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%08x  %08x %08x %08x %08x %08x %08x %08x "
 			"%08x %08x %08x %08x %08x  %08x %08x %08x %08x\n",
 		   nr_conntracks,
-		   0,
+		   st->clash_resolve, /* was: searched */
 		   st->found,
 		   0,
 		   st->invalid,
-		   st->ignore,
+		   0,
 		   0,
 		   0,
 		   st->insert,
