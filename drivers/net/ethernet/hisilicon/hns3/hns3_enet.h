@@ -42,12 +42,7 @@ enum hns3_nic_state {
 #define HNS3_RING_TX_RING_PKTNUM_RECORD_REG	0x0006C
 #define HNS3_RING_TX_RING_EBD_OFFSET_REG	0x00070
 #define HNS3_RING_TX_RING_BD_ERR_REG		0x00074
-#define HNS3_RING_PREFETCH_EN_REG		0x0007C
-#define HNS3_RING_CFG_VF_NUM_REG		0x00080
-#define HNS3_RING_ASID_REG			0x0008C
 #define HNS3_RING_EN_REG			0x00090
-
-#define HNS3_TX_REG_OFFSET			0x40
 
 #define HNS3_RX_HEAD_SIZE			256
 
@@ -380,7 +375,6 @@ struct ring_stats {
 };
 
 struct hns3_enet_ring {
-	u8 __iomem *io_base; /* base io address for the ring */
 	struct hns3_desc *desc; /* dma map address space */
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_enet_ring *next;
@@ -607,7 +601,6 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 				 u32 rl_value);
 
 void hns3_enable_vlan_filter(struct net_device *netdev, bool enable);
-int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags);
 void hns3_request_update_promisc_mode(struct hnae3_handle *handle);
 
 #ifdef CONFIG_HNS3_DCB

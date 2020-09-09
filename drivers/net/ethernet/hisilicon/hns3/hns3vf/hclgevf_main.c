@@ -1788,10 +1788,10 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_RESET_SYNC_TIME 100
 
-	struct hclge_vf_to_pf_msg send_msg;
-	int ret = 0;
-
 	if (hdev->reset_type == HNAE3_VF_FUNC_RESET) {
+		struct hclge_vf_to_pf_msg send_msg;
+		int ret;
+
 		hclgevf_build_send_msg(&send_msg, HCLGE_MBX_RESET, 0);
 		ret = hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
 		if (ret) {
@@ -1806,10 +1806,10 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	/* inform hardware that preparatory work is done */
 	msleep(HCLGEVF_RESET_SYNC_TIME);
 	hclgevf_reset_handshake(hdev, true);
-	dev_info(&hdev->pdev->dev, "prepare reset(%d) wait done, ret:%d\n",
-		 hdev->reset_type, ret);
+	dev_info(&hdev->pdev->dev, "prepare reset(%d) wait done\n",
+		 hdev->reset_type);
 
-	return ret;
+	return 0;
 }
 
 static void hclgevf_dump_rst_info(struct hclgevf_dev *hdev)
@@ -2185,6 +2185,9 @@ static void hclgevf_periodic_service_task(struct hclgevf_dev *hdev)
 {
 	unsigned long delta = round_jiffies_relative(HZ);
 	struct hnae3_handle *handle = &hdev->nic;
+
+	if (test_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state))
+		return;
 
 	if (time_is_after_jiffies(hdev->last_serv_processed + HZ)) {
 		delta = jiffies - hdev->last_serv_processed;
