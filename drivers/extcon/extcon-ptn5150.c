@@ -97,7 +97,6 @@ static void ptn5150_check_state(struct ptn5150_info *info)
 		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
 		break;
 	default:
-		dev_err(info->dev, "Unknown Port status : %x\n", port_status);
 		break;
 	}
 }
