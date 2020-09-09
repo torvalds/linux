@@ -534,3 +534,7 @@ int s6e63m0_remove(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(s6e63m0_remove);
+
+MODULE_AUTHOR("Paweł Chmiel <pawel.mikolaj.chmiel@gmail.com>");
+MODULE_DESCRIPTION("s6e63m0 LCD Driver");
+MODULE_LICENSE("GPL v2");
