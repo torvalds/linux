@@ -977,6 +977,54 @@ int b53_get_sset_count(struct dsa_switch *ds, int port, int sset)
 }
 EXPORT_SYMBOL(b53_get_sset_count);
 
+enum b53_devlink_resource_id {
+	B53_DEVLINK_PARAM_ID_VLAN_TABLE,
+};
+
+static u64 b53_devlink_vlan_table_get(void *priv)
+{
+	struct b53_device *dev = priv;
+	struct b53_vlan *vl;
+	unsigned int i;
+	u64 count = 0;
+
+	for (i = 0; i < dev->num_vlans; i++) {
+		vl = &dev->vlans[i];
+		if (vl->members)
+			count++;
+	}
+
+	return count;
+}
+
+int b53_setup_devlink_resources(struct dsa_switch *ds)
+{
+	struct devlink_resource_size_params size_params;
+	struct b53_device *dev = ds->priv;
+	int err;
+
+	devlink_resource_size_params_init(&size_params, dev->num_vlans,
+					  dev->num_vlans,
+					  1, DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	err = dsa_devlink_resource_register(ds, "VLAN", dev->num_vlans,
+					    B53_DEVLINK_PARAM_ID_VLAN_TABLE,
+					    DEVLINK_RESOURCE_ID_PARENT_TOP,
+					    &size_params);
+	if (err)
+		goto out;
+
+	dsa_devlink_resource_occ_get_register(ds,
+					      B53_DEVLINK_PARAM_ID_VLAN_TABLE,
+					      b53_devlink_vlan_table_get, dev);
+
+	return 0;
+out:
+	dsa_devlink_resources_unregister(ds);
+	return err;
+}
+EXPORT_SYMBOL(b53_setup_devlink_resources);
+
 static int b53_setup(struct dsa_switch *ds)
 {
 	struct b53_device *dev = ds->priv;
@@ -992,8 +1040,10 @@ static int b53_setup(struct dsa_switch *ds)
 	b53_reset_mib(dev);
 
 	ret = b53_apply_config(dev);
-	if (ret)
+	if (ret) {
 		dev_err(ds->dev, "failed to apply configuration\n");
+		return ret;
+	}
 
 	/* Configure IMP/CPU port, disable all other ports. Enabled
 	 * ports will be configured with .port_enable
@@ -1012,7 +1062,12 @@ static int b53_setup(struct dsa_switch *ds)
 	 */
 	ds->vlan_filtering_is_global = true;
 
-	return ret;
+	return b53_setup_devlink_resources(ds);
+}
+
+static void b53_teardown(struct dsa_switch *ds)
+{
+	dsa_devlink_resources_unregister(ds);
 }
 
 static void b53_force_link(struct b53_device *dev, int port, int link)
@@ -2141,6 +2196,7 @@ static int b53_get_max_mtu(struct dsa_switch *ds, int port)
 static const struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,
+	.teardown		= b53_teardown,
 	.get_strings		= b53_get_strings,
 	.get_ethtool_stats	= b53_get_ethtool_stats,
 	.get_sset_count		= b53_get_sset_count,
