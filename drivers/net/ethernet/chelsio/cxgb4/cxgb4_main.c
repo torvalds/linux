@@ -6396,6 +6396,49 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 }
 #endif /* CONFIG_PCI_IOV */
 
+#if defined(CONFIG_CHELSIO_TLS_DEVICE) || IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
+
+static int chcr_offload_state(struct adapter *adap,
+			      enum cxgb4_netdev_tls_ops op_val)
+{
+	switch (op_val) {
+#if defined(CONFIG_CHELSIO_TLS_DEVICE)
+	case CXGB4_TLSDEV_OPS:
+		if (!adap->uld[CXGB4_ULD_CRYPTO].handle) {
+			dev_dbg(adap->pdev_dev, "chcr driver is not loaded\n");
+			return -EOPNOTSUPP;
+		}
+		if (!adap->uld[CXGB4_ULD_CRYPTO].tlsdev_ops) {
+			dev_dbg(adap->pdev_dev,
+				"chcr driver has no registered tlsdev_ops\n");
+			return -EOPNOTSUPP;
+		}
+		break;
+#endif /* CONFIG_CHELSIO_TLS_DEVICE */
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
+	case CXGB4_XFRMDEV_OPS:
+		if (!adap->uld[CXGB4_ULD_IPSEC].handle) {
+			dev_dbg(adap->pdev_dev, "chipsec driver is not loaded\n");
+			return -EOPNOTSUPP;
+		}
+		if (!adap->uld[CXGB4_ULD_IPSEC].xfrmdev_ops) {
+			dev_dbg(adap->pdev_dev,
+				"chipsec driver has no registered xfrmdev_ops\n");
+			return -EOPNOTSUPP;
+		}
+		break;
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
+	default:
+		dev_dbg(adap->pdev_dev,
+			"driver has no support for offload %d\n", op_val);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+#endif /* CONFIG_CHELSIO_TLS_DEVICE || CONFIG_CHELSIO_IPSEC_INLINE */
+
 #if defined(CONFIG_CHELSIO_TLS_DEVICE)
 
 static int cxgb4_ktls_dev_add(struct net_device *netdev, struct sock *sk,
@@ -6404,21 +6447,12 @@ static int cxgb4_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 			      u32 tcp_sn)
 {
 	struct adapter *adap = netdev2adap(netdev);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&uld_mutex);
-	if (!adap->uld[CXGB4_ULD_CRYPTO].handle) {
-		dev_err(adap->pdev_dev, "chcr driver is not loaded\n");
-		ret = -EOPNOTSUPP;
+	ret = chcr_offload_state(adap, CXGB4_TLSDEV_OPS);
+	if (ret)
 		goto out_unlock;
-	}
-
-	if (!adap->uld[CXGB4_ULD_CRYPTO].tlsdev_ops) {
-		dev_err(adap->pdev_dev,
-			"chcr driver has no registered tlsdev_ops()\n");
-		ret = -EOPNOTSUPP;
-		goto out_unlock;
-	}
 
 	ret = cxgb4_set_ktls_feature(adap, FW_PARAMS_PARAM_DEV_KTLS_HW_ENABLE);
 	if (ret)
@@ -6444,16 +6478,8 @@ static void cxgb4_ktls_dev_del(struct net_device *netdev,
 	struct adapter *adap = netdev2adap(netdev);
 
 	mutex_lock(&uld_mutex);
-	if (!adap->uld[CXGB4_ULD_CRYPTO].handle) {
-		dev_err(adap->pdev_dev, "chcr driver is not loaded\n");
+	if (chcr_offload_state(adap, CXGB4_TLSDEV_OPS))
 		goto out_unlock;
-	}
-
-	if (!adap->uld[CXGB4_ULD_CRYPTO].tlsdev_ops) {
-		dev_err(adap->pdev_dev,
-			"chcr driver has no registered tlsdev_ops\n");
-		goto out_unlock;
-	}
 
 	adap->uld[CXGB4_ULD_CRYPTO].tlsdev_ops->tls_dev_del(netdev, tls_ctx,
 							    direction);
@@ -6462,6 +6488,114 @@ static void cxgb4_ktls_dev_del(struct net_device *netdev,
 out_unlock:
 	mutex_unlock(&uld_mutex);
 }
+
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
+
+static int cxgb4_xfrm_add_state(struct xfrm_state *x)
+{
+	struct adapter *adap = netdev2adap(x->xso.dev);
+	int ret;
+
+	if (!mutex_trylock(&uld_mutex)) {
+		dev_dbg(adap->pdev_dev,
+			"crypto uld critical resource is under use\n");
+		return -EBUSY;
+	}
+	ret = chcr_offload_state(adap, CXGB4_XFRMDEV_OPS);
+	if (ret)
+		goto out_unlock;
+
+	ret = adap->uld[CXGB4_ULD_IPSEC].xfrmdev_ops->xdo_dev_state_add(x);
+
+out_unlock:
+	mutex_unlock(&uld_mutex);
+
+	return ret;
+}
+
+static void cxgb4_xfrm_del_state(struct xfrm_state *x)
+{
+	struct adapter *adap = netdev2adap(x->xso.dev);
+
+	if (!mutex_trylock(&uld_mutex)) {
+		dev_dbg(adap->pdev_dev,
+			"crypto uld critical resource is under use\n");
+		return;
+	}
+	if (chcr_offload_state(adap, CXGB4_XFRMDEV_OPS))
+		goto out_unlock;
+
+	adap->uld[CXGB4_ULD_IPSEC].xfrmdev_ops->xdo_dev_state_delete(x);
+
+out_unlock:
+	mutex_unlock(&uld_mutex);
+}
+
+static void cxgb4_xfrm_free_state(struct xfrm_state *x)
+{
+	struct adapter *adap = netdev2adap(x->xso.dev);
+
+	if (!mutex_trylock(&uld_mutex)) {
+		dev_dbg(adap->pdev_dev,
+			"crypto uld critical resource is under use\n");
+		return;
+	}
+	if (chcr_offload_state(adap, CXGB4_XFRMDEV_OPS))
+		goto out_unlock;
+
+	adap->uld[CXGB4_ULD_IPSEC].xfrmdev_ops->xdo_dev_state_free(x);
+
+out_unlock:
+	mutex_unlock(&uld_mutex);
+}
+
+static bool cxgb4_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
+{
+	struct adapter *adap = netdev2adap(x->xso.dev);
+	bool ret = false;
+
+	if (!mutex_trylock(&uld_mutex)) {
+		dev_dbg(adap->pdev_dev,
+			"crypto uld critical resource is under use\n");
+		return ret;
+	}
+	if (chcr_offload_state(adap, CXGB4_XFRMDEV_OPS))
+		goto out_unlock;
+
+	ret = adap->uld[CXGB4_ULD_IPSEC].xfrmdev_ops->xdo_dev_offload_ok(skb, x);
+
+out_unlock:
+	mutex_unlock(&uld_mutex);
+	return ret;
+}
+
+static void cxgb4_advance_esn_state(struct xfrm_state *x)
+{
+	struct adapter *adap = netdev2adap(x->xso.dev);
+
+	if (!mutex_trylock(&uld_mutex)) {
+		dev_dbg(adap->pdev_dev,
+			"crypto uld critical resource is under use\n");
+		return;
+	}
+	if (chcr_offload_state(adap, CXGB4_XFRMDEV_OPS))
+		goto out_unlock;
+
+	adap->uld[CXGB4_ULD_IPSEC].xfrmdev_ops->xdo_dev_state_advance_esn(x);
+
+out_unlock:
+	mutex_unlock(&uld_mutex);
+}
+
+static const struct xfrmdev_ops cxgb4_xfrmdev_ops = {
+	.xdo_dev_state_add      = cxgb4_xfrm_add_state,
+	.xdo_dev_state_delete   = cxgb4_xfrm_del_state,
+	.xdo_dev_state_free     = cxgb4_xfrm_free_state,
+	.xdo_dev_offload_ok     = cxgb4_ipsec_offload_ok,
+	.xdo_dev_state_advance_esn = cxgb4_advance_esn_state,
+};
+
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 
 static const struct tlsdev_ops cxgb4_ktls_ops = {
 	.tls_dev_add = cxgb4_ktls_dev_add,
@@ -6728,7 +6862,15 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			/* initialize the refcount */
 			refcount_set(&pi->adapter->chcr_ktls.ktls_refcount, 0);
 		}
-#endif
+#endif /* CONFIG_CHELSIO_TLS_DEVICE */
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
+		if (pi->adapter->params.crypto & FW_CAPS_CONFIG_IPSEC_INLINE) {
+			netdev->hw_enc_features |= NETIF_F_HW_ESP;
+			netdev->features |= NETIF_F_HW_ESP;
+			netdev->xfrmdev_ops = &cxgb4_xfrmdev_ops;
+		}
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
+
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		/* MTU range: 81 - 9600 */

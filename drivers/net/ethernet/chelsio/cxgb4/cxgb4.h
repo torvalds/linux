@@ -146,6 +146,11 @@ enum {
 	CXGB4_ETHTOOL_FLASH_BOOTCFG = 4
 };
 
+enum cxgb4_netdev_tls_ops {
+	CXGB4_TLSDEV_OPS  = 1,
+	CXGB4_XFRMDEV_OPS
+};
+
 struct cxgb4_bootcfg_data {
 	__le16 signature;
 	__u8 reserved[2];

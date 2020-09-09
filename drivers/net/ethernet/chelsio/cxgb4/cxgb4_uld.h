@@ -479,6 +479,9 @@ struct cxgb4_uld_info {
 #if IS_ENABLED(CONFIG_TLS_DEVICE)
 	const struct tlsdev_ops *tlsdev_ops;
 #endif
+#if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
+	const struct xfrmdev_ops *xfrmdev_ops;
+#endif
 };
 
 void cxgb4_uld_enable(struct adapter *adap);

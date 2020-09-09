@@ -79,7 +79,6 @@ static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x);
 static void chcr_advance_esn_state(struct xfrm_state *x);
 static int ch_ipsec_uld_state_change(void *handle, enum cxgb4_state new_state);
 static void *ch_ipsec_uld_add(const struct cxgb4_lld_info *infop);
-static void update_netdev_features(void);
 
 static const struct xfrmdev_ops chcr_xfrmdev_ops = {
 	.xdo_dev_state_add      = chcr_xfrm_add_state,
@@ -89,23 +88,6 @@ static const struct xfrmdev_ops chcr_xfrmdev_ops = {
 	.xdo_dev_state_advance_esn = chcr_advance_esn_state,
 };
 
-/* Add offload xfrms to Chelsio Interface */
-void chcr_add_xfrmops(const struct cxgb4_lld_info *lld)
-{
-	struct net_device *netdev = NULL;
-	int i;
-
-	for (i = 0; i < lld->nports; i++) {
-		netdev = lld->ports[i];
-		if (!netdev)
-			continue;
-		netdev->xfrmdev_ops = &chcr_xfrmdev_ops;
-		netdev->hw_enc_features |= NETIF_F_HW_ESP;
-		netdev->features |= NETIF_F_HW_ESP;
-		netdev_change_features(netdev);
-	}
-}
-
 static struct cxgb4_uld_info ch_ipsec_uld_info = {
 	.name = CHIPSEC_DRV_MODULE_NAME,
 	.nrxq = MAX_ULD_QSETS,
@@ -114,6 +96,7 @@ static struct cxgb4_uld_info ch_ipsec_uld_info = {
 	.add = ch_ipsec_uld_add,
 	.state_change = ch_ipsec_uld_state_change,
 	.tx_handler = chcr_ipsec_xmit,
+	.xfrmdev_ops = &chcr_xfrmdev_ops,
 };
 
 static void *ch_ipsec_uld_add(const struct cxgb4_lld_info *infop)
@@ -808,25 +791,9 @@ out_free:       dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
-static void update_netdev_features(void)
-{
-	struct ipsec_uld_ctx *u_ctx, *tmp;
-
-	mutex_lock(&dev_mutex);
-	list_for_each_entry_safe(u_ctx, tmp, &uld_ctx_list, entry) {
-		if (u_ctx->lldi.crypto & ULP_CRYPTO_IPSEC_INLINE)
-			chcr_add_xfrmops(&u_ctx->lldi);
-	}
-	mutex_unlock(&dev_mutex);
-}
-
 static int __init chcr_ipsec_init(void)
 {
 	cxgb4_register_uld(CXGB4_ULD_IPSEC, &ch_ipsec_uld_info);
-
-	rtnl_lock();
-	update_netdev_features();
-	rtnl_unlock();
 
 	return 0;
 }
