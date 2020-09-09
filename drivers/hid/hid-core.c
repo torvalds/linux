@@ -814,6 +814,13 @@ static void hid_scan_collection(struct hid_parser *parser, unsigned type)
 
 	if ((parser->global.usage_page << 16) >= HID_UP_MSVENDOR)
 		parser->scan_flags |= HID_SCAN_FLAG_VENDOR_SPECIFIC;
+
+	if ((parser->global.usage_page << 16) == HID_UP_GOOGLEVENDOR)
+		for (i = 0; i < parser->local.usage_index; i++)
+			if (parser->local.usage[i] ==
+					(HID_UP_GOOGLEVENDOR | 0x0001))
+				parser->device->group =
+					HID_GROUP_VIVALDI;
 }
 
 static int hid_scan_main(struct hid_parser *parser, struct hid_item *item)
