@@ -57,13 +57,22 @@ struct devlink_port_phys_attrs {
 	u32 split_subport_number; /* If the port is split, this is the number of subport. */
 };
 
+/**
+ * struct devlink_port_pci_pf_attrs - devlink port's PCI PF attributes
+ * @pf: Associated PCI PF number for this port.
+ */
 struct devlink_port_pci_pf_attrs {
-	u16 pf;	/* Associated PCI PF for this port. */
+	u16 pf;
 };
 
+/**
+ * struct devlink_port_pci_vf_attrs - devlink port's PCI VF attributes
+ * @pf: Associated PCI PF number for this port.
+ * @vf: Associated PCI VF for of the PCI PF for this port.
+ */
 struct devlink_port_pci_vf_attrs {
-	u16 pf;	/* Associated PCI PF for this port. */
-	u16 vf;	/* Associated PCI VF for of the PCI PF for this port. */
+	u16 pf;
+	u16 vf;
 };
 
 /**
