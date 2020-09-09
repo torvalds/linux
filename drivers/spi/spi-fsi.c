@@ -258,14 +258,14 @@ static int fsi_spi_sequence_transfer(struct fsi_spi *ctx,
 	if (loops > 1) {
 		fsi_spi_sequence_add(seq, SPI_FSI_SEQUENCE_BRANCH(idx));
 
-		if (rem)
-			fsi_spi_sequence_add(seq, rem);
-
 		rc = fsi_spi_write_reg(ctx, SPI_FSI_COUNTER_CFG,
 				       SPI_FSI_COUNTER_CFG_LOOPS(loops - 1));
 		if (rc)
 			return rc;
 	}
+
+	if (rem)
+		fsi_spi_sequence_add(seq, rem);
 
 	return 0;
 }
