@@ -1049,11 +1049,9 @@ static void debugfs_create_files(void *data)
 	};
 	int i;
 
-	dsi->debugfs_vpg = kmalloc(sizeof(debugfs), GFP_KERNEL);
+	dsi->debugfs_vpg = kmemdup(debugfs, sizeof(debugfs), GFP_KERNEL);
 	if (!dsi->debugfs_vpg)
 		return;
-
-	memcpy(dsi->debugfs_vpg, debugfs, sizeof(debugfs));
 
 	for (i = 0; i < ARRAY_SIZE(debugfs); i++)
 		debugfs_create_file(dsi->debugfs_vpg[i].name, 0644,
