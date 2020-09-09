@@ -2619,7 +2619,6 @@ static int netvsc_resume(struct hv_device *dev)
 	struct net_device *net = hv_get_drvdata(dev);
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device_info *device_info;
-	struct net_device *vf_netdev;
 	int ret;
 
 	rtnl_lock();
@@ -2631,15 +2630,6 @@ static int netvsc_resume(struct hv_device *dev)
 
 	netvsc_devinfo_put(device_info);
 	net_device_ctx->saved_netvsc_dev_info = NULL;
-
-	/* A NIC driver (e.g. mlx5) may keep the VF network interface across
-	 * hibernation, but here the data path is implicitly switched to the
-	 * netvsc NIC since the vmbus channel is closed and re-opened, so
-	 * netvsc_vf_changed() must be used to switch the data path to the VF.
-	 */
-	vf_netdev = rtnl_dereference(net_device_ctx->vf_netdev);
-	if (vf_netdev && netvsc_vf_changed(vf_netdev) != NOTIFY_OK)
-		ret = -EINVAL;
 
 	rtnl_unlock();
 
@@ -2701,6 +2691,7 @@ static int netvsc_netdev_event(struct notifier_block *this,
 		return netvsc_unregister_vf(event_dev);
 	case NETDEV_UP:
 	case NETDEV_DOWN:
+	case NETDEV_CHANGE:
 		return netvsc_vf_changed(event_dev);
 	default:
 		return NOTIFY_DONE;
