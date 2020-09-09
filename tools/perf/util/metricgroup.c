@@ -535,10 +535,12 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 		}
 	}
 
-	if (metricgroups && !raw)
-		printf("\nMetric Groups:\n\n");
-	else if (metrics && !raw)
-		printf("\nMetrics:\n\n");
+	if (!filter || !rblist__empty(&groups)) {
+		if (metricgroups && !raw)
+			printf("\nMetric Groups:\n\n");
+		else if (metrics && !raw)
+			printf("\nMetrics:\n\n");
+	}
 
 	for (node = rb_first_cached(&groups.entries); node; node = next) {
 		struct mep *me = container_of(node, struct mep, nd);
