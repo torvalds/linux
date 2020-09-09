@@ -51,18 +51,34 @@ struct pg_state {
 	const struct addr_marker *marker;
 };
 
+#define pt_dump_seq_printf(m, fmt, args...)	\
+({						\
+	struct seq_file *__m = (m);		\
+						\
+	if (__m)				\
+		seq_printf(__m, fmt, ##args);	\
+})
+
+#define pt_dump_seq_puts(m, fmt)		\
+({						\
+	struct seq_file *__m = (m);		\
+						\
+	if (__m)				\
+		seq_printf(__m, fmt);		\
+})
+
 static void print_prot(struct seq_file *m, unsigned int pr, int level)
 {
 	static const char * const level_name[] =
 		{ "ASCE", "PGD", "PUD", "PMD", "PTE" };
 
-	seq_printf(m, "%s ", level_name[level]);
+	pt_dump_seq_printf(m, "%s ", level_name[level]);
 	if (pr & _PAGE_INVALID) {
-		seq_printf(m, "I\n");
+		pt_dump_seq_printf(m, "I\n");
 		return;
 	}
-	seq_puts(m, (pr & _PAGE_PROTECT) ? "RO " : "RW ");
-	seq_puts(m, (pr & _PAGE_NOEXEC) ? "NX\n" : "X\n");
+	pt_dump_seq_puts(m, (pr & _PAGE_PROTECT) ? "RO " : "RW ");
+	pt_dump_seq_puts(m, (pr & _PAGE_NOEXEC) ? "NX\n" : "X\n");
 }
 
 static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level, u64 val)
@@ -87,25 +103,25 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 	if (level == -1)
 		addr = max_addr;
 	if (st->level == -1) {
-		seq_printf(m, "---[ %s ]---\n", st->marker->name);
+		pt_dump_seq_printf(m, "---[ %s ]---\n", st->marker->name);
 		st->start_address = addr;
 		st->current_prot = prot;
 		st->level = level;
 	} else if (prot != st->current_prot || level != st->level ||
 		   addr >= st->marker[1].start_address) {
-		seq_printf(m, "0x%0*lx-0x%0*lx ",
-			   width, st->start_address,
-			   width, addr);
+		pt_dump_seq_printf(m, "0x%0*lx-0x%0*lx ",
+				   width, st->start_address,
+				   width, addr);
 		delta = (addr - st->start_address) >> 10;
 		while (!(delta & 0x3ff) && unit[1]) {
 			delta >>= 10;
 			unit++;
 		}
-		seq_printf(m, "%9lu%c ", delta, *unit);
+		pt_dump_seq_printf(m, "%9lu%c ", delta, *unit);
 		print_prot(m, st->current_prot, st->level);
 		while (addr >= st->marker[1].start_address) {
 			st->marker++;
-			seq_printf(m, "---[ %s ]---\n", st->marker->name);
+			pt_dump_seq_printf(m, "---[ %s ]---\n", st->marker->name);
 		}
 		st->start_address = addr;
 		st->current_prot = prot;
