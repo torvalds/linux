@@ -48,10 +48,17 @@ struct smsc_phy_priv {
 
 static int smsc_phy_config_intr(struct phy_device *phydev)
 {
-	int rc = phy_write (phydev, MII_LAN83C185_IM,
-			((PHY_INTERRUPT_ENABLED == phydev->interrupts)
-			? MII_LAN83C185_ISF_INT_PHYLIB_EVENTS
-			: 0));
+	struct smsc_phy_priv *priv = phydev->priv;
+	u16 intmask = 0;
+	int rc;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		intmask = MII_LAN83C185_ISF_INT4 | MII_LAN83C185_ISF_INT6;
+		if (priv->energy_enable)
+			intmask |= MII_LAN83C185_ISF_INT7;
+	}
+
+	rc = phy_write(phydev, MII_LAN83C185_IM, intmask);
 
 	return rc < 0 ? rc : 0;
 }
