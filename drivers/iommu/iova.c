@@ -530,6 +530,7 @@ retry:
 		flush_rcache = false;
 		for_each_online_cpu(cpu)
 			free_cpu_cached_iovas(cpu, iovad);
+		free_global_cached_iovas(iovad);
 		goto retry;
 	}
 
@@ -1142,6 +1143,28 @@ void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
 		iova_magazine_free_pfns(cpu_rcache->loaded, iovad);
 		iova_magazine_free_pfns(cpu_rcache->prev, iovad);
 		spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+	}
+}
+
+/*
+ * free all the IOVA ranges of global cache
+ */
+void free_global_cached_iovas(struct iova_domain *iovad)
+{
+	struct iova_rcache *rcache;
+	unsigned long flags;
+	int i, j;
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
+		rcache = &iovad->rcaches[i];
+		spin_lock_irqsave(&rcache->lock, flags);
+		for (j = 0; j < rcache->depot_size; ++j) {
+			iova_magazine_free_pfns(rcache->depot[j], iovad);
+			iova_magazine_free(rcache->depot[j]);
+			rcache->depot[j] = NULL;
+		}
+		rcache->depot_size = 0;
+		spin_unlock_irqrestore(&rcache->lock, flags);
 	}
 }
 
