@@ -503,8 +503,8 @@ static inline int kunit_destroy_named_resource(struct kunit *test,
 }
 
 /**
- * kunit_remove_resource: remove resource from resource list associated with
- *			  test.
+ * kunit_remove_resource() - remove resource from resource list associated with
+ *			     test.
  * @test: The test context object.
  * @res: The resource to be removed.
  *
