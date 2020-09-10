@@ -1220,8 +1220,14 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 		else
 			priv_req->trb->control = cpu_to_le32(control);
 
-		if (sg_supported)
+		if (sg_supported) {
+			trb->control |= TRB_ISP;
+			/* Don't set chain bit for last TRB */
+			if (sg_iter < num_trb - 1)
+				trb->control |= TRB_CHAIN;
+
 			s = sg_next(s);
+		}
 
 		control = 0;
 		++sg_iter;
