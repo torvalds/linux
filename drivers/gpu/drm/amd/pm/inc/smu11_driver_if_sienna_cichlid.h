@@ -27,9 +27,9 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x35
+#define SMU11_DRIVER_IF_VERSION 0x37
 
-#define PPTABLE_Sienna_Cichlid_SMU_VERSION 5
+#define PPTABLE_Sienna_Cichlid_SMU_VERSION 6
 
 #define NUM_GFXCLK_DPM_LEVELS  16
 #define NUM_SMNCLK_DPM_LEVELS  2
@@ -169,7 +169,7 @@ typedef enum {
 #define DPM_OVERRIDE_DISABLE_DFLL_PLL_SHUTDOWN       0x00000200
 #define DPM_OVERRIDE_DISABLE_MEMORY_TEMPERATURE_READ 0x00000400
 #define DPM_OVERRIDE_DISABLE_VOLT_LINK_VCN_DCEFCLK   0x00000800
-#define DPM_OVERRIDE_ENABLE_FAST_FCLK_TIMER          0x00001000
+#define DPM_OVERRIDE_DISABLE_FAST_FCLK_TIMER         0x00001000
 #define DPM_OVERRIDE_DISABLE_VCN_PG                  0x00002000
 #define DPM_OVERRIDE_DISABLE_FMAX_VMAX               0x00004000
 
@@ -793,8 +793,18 @@ typedef struct {
 
   // SECTION: Sku Reserved
   uint8_t          CustomerVariant;
-  uint8_t          Spare[3];
-  uint32_t         SkuReserved[14];
+
+  //VC BTC parameters are only applicable to VDD_GFX domain
+  uint8_t          VcBtcEnabled;
+  uint16_t         VcBtcVminT0;                 // T0_VMIN
+  uint16_t         VcBtcFixedVminAgingOffset;   // FIXED_VMIN_AGING_OFFSET 
+  uint16_t         VcBtcVmin2PsmDegrationGb;    // VMIN_TO_PSM_DEGRADATION_GB 
+  uint32_t         VcBtcPsmA;                   // A_PSM
+  uint32_t         VcBtcPsmB;                   // B_PSM
+  uint32_t         VcBtcVminA;                  // A_VMIN
+  uint32_t         VcBtcVminB;                  // B_VMIN  
+  
+  uint32_t         SkuReserved[9];
 
 
   // MAJOR SECTION: BOARD PARAMETERS
