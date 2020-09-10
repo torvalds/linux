@@ -49,6 +49,23 @@ static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b);
 
+static uint32_t get_cr_training_aux_rd_interval(struct dc_link *link,
+		const struct dc_link_settings *link_settings)
+{
+	union training_aux_rd_interval training_rd_interval;
+	uint32_t wait_in_micro_secs = 100;
+
+	memset(&training_rd_interval, 0, sizeof(training_rd_interval));
+	core_link_read_dpcd(
+			link,
+			DP_TRAINING_AUX_RD_INTERVAL,
+			(uint8_t *)&training_rd_interval,
+			sizeof(training_rd_interval));
+	if (training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL)
+		wait_in_micro_secs = training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL * 4000;
+	return wait_in_micro_secs;
+}
+
 static uint32_t get_eq_training_aux_rd_interval(
 	struct dc_link *link,
 	const struct dc_link_settings *link_settings)
@@ -1247,7 +1264,7 @@ static void initialize_training_settings(
 	if (overrides->cr_pattern_time != NULL)
 		lt_settings->cr_pattern_time = *overrides->cr_pattern_time;
 	else
-		lt_settings->cr_pattern_time = 100;
+		lt_settings->cr_pattern_time = get_cr_training_aux_rd_interval(link, link_setting);
 
 	if (overrides->eq_pattern_time != NULL)
 		lt_settings->eq_pattern_time = *overrides->eq_pattern_time;
