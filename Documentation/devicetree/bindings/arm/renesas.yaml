@@ -283,6 +283,14 @@ properties:
 
       - description: R-Car V3U (R8A779A0)
         items:
+          - enum:
+              - renesas,falcon-cpu # Falcon CPU board (RTP0RC779A0CPB0010S)
+          - const: renesas,r8a779a0
+
+      - items:
+          - enum:
+              - renesas,falcon-breakout # Falcon BreakOut board (RTP0RC779A0BOB0010S)
+          - const: renesas,falcon-cpu
           - const: renesas,r8a779a0
 
       - description: RZ/N1D (R9A06G032)
