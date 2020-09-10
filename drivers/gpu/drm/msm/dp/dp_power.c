@@ -9,6 +9,7 @@
 #include <linux/clk-provider.h>
 #include <linux/regulator/consumer.h>
 #include "dp_power.h"
+#include "msm_drv.h"
 
 struct dp_power_private {
 	struct dp_parser *parser;
@@ -101,16 +102,6 @@ static int dp_power_clk_init(struct dp_power_private *power)
 	core = &power->parser->mp[DP_CORE_PM];
 	ctrl = &power->parser->mp[DP_CTRL_PM];
 	stream = &power->parser->mp[DP_STREAM_PM];
-
-	if (power->parser->pll && power->parser->pll->get_provider) {
-		rc = power->parser->pll->get_provider(power->parser->pll,
-			&power->link_provider, &power->pixel_provider);
-		if (rc) {
-			DRM_ERROR("%s:provider failed,don't set parent\n",
-								__func__);
-			return 0;
-		}
-	}
 
 	rc = msm_dss_get_clk(dev, core->clk_config, core->num_clk);
 	if (rc) {
@@ -310,34 +301,6 @@ void dp_power_client_deinit(struct dp_power *dp_power)
 	dp_power_clk_deinit(power);
 	pm_runtime_disable(&power->pdev->dev);
 
-}
-
-int dp_power_set_link_clk_parent(struct dp_power *dp_power)
-{
-	int rc = 0;
-	struct dp_power_private *power;
-	u32 num;
-	struct dss_clk *cfg;
-	char *name = "ctrl_link";
-
-	if (!dp_power) {
-		DRM_ERROR("invalid power data\n");
-		rc = -EINVAL;
-		goto exit;
-	}
-
-	power = container_of(dp_power, struct dp_power_private, dp_power);
-
-	num = power->parser->mp[DP_CTRL_PM].num_clk;
-	cfg = power->parser->mp[DP_CTRL_PM].clk_config;
-
-	while (num && strcmp(cfg->clk_name, name)) {
-		num--;
-		cfg++;
-	}
-
-exit:
-	return rc;
 }
 
 int dp_power_init(struct dp_power *dp_power, bool flip)

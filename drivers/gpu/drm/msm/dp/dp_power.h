@@ -69,15 +69,6 @@ int dp_power_clk_status(struct dp_power *dp_power, enum dp_pm_type pm_type);
 
 int dp_power_clk_enable(struct dp_power *power, enum dp_pm_type pm_type,
 				bool enable);
-/**
- * dp_power_set_link_clk_parent() - configures parent of link clocks
- *
- * @power: instance of power module
- * return: 0 for success, error for failures
- *
- * This API will set the link clock parent source
- */
-int dp_power_set_link_clk_parent(struct dp_power *power);
 
 /**
  * dp_power_client_init() - initialize clock and regulator modules

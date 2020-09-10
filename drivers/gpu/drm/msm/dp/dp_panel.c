@@ -7,6 +7,7 @@
 
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 
 struct dp_panel_private {
 	struct device *dev;

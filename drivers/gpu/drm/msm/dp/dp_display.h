@@ -36,7 +36,4 @@ bool dp_display_check_video_test(struct msm_dp *dp_display);
 int dp_display_get_test_bpp(struct msm_dp *dp_display);
 void dp_display_signal_audio_complete(struct msm_dp *dp_display);
 
-void __init msm_dp_pll_driver_register(void);
-void __exit msm_dp_pll_driver_unregister(void);
-
 #endif /* _DP_DISPLAY_H_ */

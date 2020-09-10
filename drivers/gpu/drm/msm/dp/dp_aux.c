@@ -4,6 +4,7 @@
  */
 
 #include <linux/delay.h>
+#include <drm/drm_print.h>
 
 #include "dp_reg.h"
 #include "dp_aux.h"
@@ -380,8 +381,7 @@ static ssize_t dp_aux_transfer(struct drm_dp_aux *dp_aux,
 		if (aux->native) {
 			aux->retry_cnt++;
 			if (!(aux->retry_cnt % retry_count))
-				dp_catalog_aux_update_cfg(aux->catalog,
-					PHY_AUX_CFG1);
+				dp_catalog_aux_update_cfg(aux->catalog);
 			dp_catalog_aux_reset(aux->catalog);
 		}
 		usleep_range(400, 500); /* at least 400us to next try */
@@ -438,7 +438,7 @@ void dp_aux_reconfig(struct drm_dp_aux *dp_aux)
 
 	aux = container_of(dp_aux, struct dp_aux_private, dp_aux);
 
-	dp_catalog_aux_update_cfg(aux->catalog, PHY_AUX_CFG1);
+	dp_catalog_aux_update_cfg(aux->catalog);
 	dp_catalog_aux_reset(aux->catalog);
 }
 
@@ -453,7 +453,6 @@ void dp_aux_init(struct drm_dp_aux *dp_aux)
 
 	aux = container_of(dp_aux, struct dp_aux_private, dp_aux);
 
-	dp_catalog_aux_setup(aux->catalog);
 	dp_catalog_aux_enable(aux->catalog, true);
 	aux->retry_cnt = 0;
 }

@@ -8,8 +8,11 @@
 #include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/phy/phy.h>
+#include <linux/phy/phy-dp.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_print.h>
 
 #include "dp_reg.h"
 #include "dp_ctrl.h"
@@ -1302,7 +1305,7 @@ static int dp_ctrl_setup_main_link(struct dp_ctrl_private *ctrl,
 }
 
 static void dp_ctrl_set_clock_rate(struct dp_ctrl_private *ctrl,
-			enum dp_pm_type module, char *name, u32 rate)
+			enum dp_pm_type module, char *name, unsigned long rate)
 {
 	u32 num = ctrl->parser->mp[module].num_clk;
 	struct dss_clk *cfg = ctrl->parser->mp[module].clk_config;
@@ -1312,23 +1315,29 @@ static void dp_ctrl_set_clock_rate(struct dp_ctrl_private *ctrl,
 		cfg++;
 	}
 
-	DRM_DEBUG_DP("setting rate=%d on clk=%s\n", rate, name);
+	DRM_DEBUG_DP("setting rate=%lu on clk=%s\n", rate, name);
 
 	if (num)
 		cfg->rate = rate;
 	else
-		DRM_ERROR("%s clock doesn't exit to set rate %d\n",
+		DRM_ERROR("%s clock doesn't exit to set rate %lu\n",
 				name, rate);
 }
 
 static int dp_ctrl_enable_mainlink_clocks(struct dp_ctrl_private *ctrl)
 {
 	int ret = 0;
+	struct dp_io *dp_io = &ctrl->parser->io;
+	struct phy *phy = dp_io->phy;
+	struct phy_configure_opts_dp *opts_dp = &dp_io->phy_opts.dp;
 
-	dp_power_set_link_clk_parent(ctrl->power);
-
+	opts_dp->lanes = ctrl->link->link_params.num_lanes;
+	opts_dp->link_rate = ctrl->link->link_params.rate / 100;
 	dp_ctrl_set_clock_rate(ctrl, DP_CTRL_PM, "ctrl_link",
-					ctrl->link->link_params.rate);
+					ctrl->link->link_params.rate * 1000);
+
+	phy_configure(phy, &dp_io->phy_opts);
+	phy_power_on(phy);
 
 	ret = dp_power_clk_enable(ctrl->power, DP_CTRL_PM, true);
 	if (ret)
@@ -1345,7 +1354,7 @@ static int dp_ctrl_enable_stream_clocks(struct dp_ctrl_private *ctrl)
 	int ret = 0;
 
 	dp_ctrl_set_clock_rate(ctrl, DP_STREAM_PM, "stream_pixel",
-					ctrl->dp_ctrl.pixel_rate);
+					ctrl->dp_ctrl.pixel_rate * 1000);
 
 	ret = dp_power_clk_enable(ctrl->power, DP_STREAM_PM, true);
 	if (ret)
@@ -1360,6 +1369,8 @@ static int dp_ctrl_enable_stream_clocks(struct dp_ctrl_private *ctrl)
 int dp_ctrl_host_init(struct dp_ctrl *dp_ctrl, bool flip)
 {
 	struct dp_ctrl_private *ctrl;
+	struct dp_io *dp_io;
+	struct phy *phy;
 
 	if (!dp_ctrl) {
 		DRM_ERROR("Invalid input data\n");
@@ -1367,11 +1378,13 @@ int dp_ctrl_host_init(struct dp_ctrl *dp_ctrl, bool flip)
 	}
 
 	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
+	dp_io = &ctrl->parser->io;
+	phy = dp_io->phy;
 
 	ctrl->dp_ctrl.orientation = flip;
 
-	dp_catalog_ctrl_usb_reset(ctrl->catalog, flip);
 	dp_catalog_ctrl_phy_reset(ctrl->catalog);
+	phy_init(phy);
 	dp_catalog_ctrl_enable_irq(ctrl->catalog, true);
 
 	return 0;
@@ -1420,10 +1433,13 @@ static bool dp_ctrl_use_fixed_nvid(struct dp_ctrl_private *ctrl)
 static int dp_ctrl_reinitialize_mainlink(struct dp_ctrl_private *ctrl)
 {
 	int ret = 0;
+	struct dp_io *dp_io = &ctrl->parser->io;
+	struct phy *phy = dp_io->phy;
+	struct phy_configure_opts_dp *opts_dp = &dp_io->phy_opts.dp;
 
 	dp_catalog_ctrl_mainlink_ctrl(ctrl->catalog, false);
-	dp_catalog_ctrl_phy_lane_cfg(ctrl->catalog,
-		ctrl->dp_ctrl.orientation, ctrl->link->link_params.num_lanes);
+	opts_dp->lanes = ctrl->link->link_params.num_lanes;
+	phy_configure(phy, &dp_io->phy_opts);
 	/*
 	 * Disable and re-enable the mainlink clock since the
 	 * link clock might have been adjusted as part of the
@@ -1434,6 +1450,7 @@ static int dp_ctrl_reinitialize_mainlink(struct dp_ctrl_private *ctrl)
 		DRM_ERROR("Failed to disable clocks. ret=%d\n", ret);
 		return ret;
 	}
+	phy_power_off(phy);
 	/* hw recommended delay before re-enabling clocks */
 	msleep(20);
 
@@ -1622,10 +1639,6 @@ int dp_ctrl_on_link(struct dp_ctrl *dp_ctrl)
 		ctrl->link->link_params.rate,
 		ctrl->link->link_params.num_lanes, ctrl->dp_ctrl.pixel_rate);
 
-	dp_catalog_ctrl_phy_lane_cfg(ctrl->catalog,
-			ctrl->dp_ctrl.orientation,
-			ctrl->link->link_params.num_lanes);
-
 	rc = dp_ctrl_enable_mainlink_clocks(ctrl);
 	if (rc)
 		return rc;
@@ -1763,12 +1776,16 @@ end:
 int dp_ctrl_off(struct dp_ctrl *dp_ctrl)
 {
 	struct dp_ctrl_private *ctrl;
+	struct dp_io *dp_io;
+	struct phy *phy;
 	int ret = 0;
 
 	if (!dp_ctrl)
 		return -EINVAL;
 
 	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
+	dp_io = &ctrl->parser->io;
+	phy = dp_io->phy;
 
 	dp_catalog_ctrl_mainlink_ctrl(ctrl->catalog, false);
 
@@ -1782,6 +1799,9 @@ int dp_ctrl_off(struct dp_ctrl *dp_ctrl)
 	if (ret) {
 		DRM_ERROR("Failed to disable link clocks. ret=%d\n", ret);
 	}
+
+	phy_power_off(phy);
+	phy_exit(phy);
 
 	DRM_DEBUG_DP("DP off done\n");
 	return ret;

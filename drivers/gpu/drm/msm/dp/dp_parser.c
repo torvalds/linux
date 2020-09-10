@@ -4,6 +4,9 @@
  */
 
 #include <linux/of_gpio.h>
+#include <linux/phy/phy.h>
+
+#include <drm/drm_print.h>
 
 #include "dp_parser.h"
 #include "dp_reg.h"
@@ -53,8 +56,6 @@ static void dp_parser_unmap_io_resources(struct dp_parser *parser)
 	struct dp_io *io = &parser->io;
 
 	msm_dss_iounmap(&io->dp_controller);
-	msm_dss_iounmap(&io->phy_reg);
-	msm_dss_iounmap(&io->usb3_dp_com);
 }
 
 static int dp_parser_ctrl_res(struct dp_parser *parser)
@@ -66,6 +67,12 @@ static int dp_parser_ctrl_res(struct dp_parser *parser)
 	rc = msm_dss_ioremap(pdev, &io->dp_controller);
 	if (rc) {
 		DRM_ERROR("unable to remap dp io resources, rc=%d\n", rc);
+		goto err;
+	}
+
+	io->phy = devm_phy_get(&pdev->dev, "dp");
+	if (IS_ERR(io->phy)) {
+		rc = PTR_ERR(io->phy);
 		goto err;
 	}
 
@@ -90,7 +97,6 @@ static int dp_parser_misc(struct dp_parser *parser)
 	}
 
 	parser->max_dp_lanes = len;
-
 	return 0;
 }
 

@@ -7,10 +7,11 @@
 #define _DP_PARSER_H_
 
 #include <linux/platform_device.h>
+#include <linux/phy/phy.h>
+#include <linux/phy/phy-dp.h>
 
 #include "dpu_io_util.h"
 #include "msm_drv.h"
-#include "dp_pll.h"
 
 #define DP_LABEL "MDSS DP DISPLAY"
 #define DP_MAX_PIXEL_CLK_KHZ	675000
@@ -62,15 +63,11 @@ struct dp_display_data {
  *
  * @dp_controller: Display Port controller mapped memory address
  * @phy_io: phy's mapped memory address
- * @ln_tx0_io: USB-DP lane TX0's mapped memory address
- * @ln_tx1_io: USB-DP lane TX1's mapped memory address
- * @dp_pll_io: DP PLL mapped memory address
- * @usb3_dp_com: USB3 DP PHY combo mapped memory address
  */
 struct dp_io {
 	struct dss_io_data dp_controller;
-	struct dss_io_data phy_reg;
-	struct dss_io_data usb3_dp_com;
+	struct phy *phy;
+	union phy_configure_opts phy_opts;
 };
 
 /**
@@ -117,7 +114,6 @@ struct dp_parser {
 	struct dp_pinctrl pinctrl;
 	struct dp_io io;
 	struct dp_display_data disp_data;
-	struct msm_dp_pll *pll;
 	const struct dp_regulator_cfg *regulator_cfg;
 	u32 max_dp_lanes;
 

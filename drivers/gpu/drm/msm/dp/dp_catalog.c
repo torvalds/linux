@@ -8,8 +8,11 @@
 #include <linux/rational.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
+#include <linux/phy/phy.h>
+#include <linux/phy/phy-dp.h>
 #include <linux/rational.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_print.h>
 
 #include "dp_catalog.h"
 #include "dp_reg.h"
@@ -52,41 +55,6 @@
 #define DP_INTERRUPT_STATUS2_MASK \
 	(DP_INTERRUPT_STATUS2 << DP_INTERRUPT_STATUS_MASK_SHIFT)
 
-static u8 const vm_pre_emphasis_hbr_rbr[4][4] = {
-	{0x00, 0x0C, 0x14, 0x19},
-	{0x00, 0x0B, 0x12, 0xFF},
-	{0x00, 0x0B, 0xFF, 0xFF},
-	{0x04, 0xFF, 0xFF, 0xFF}
-};
-
-static u8 const vm_voltage_swing_hbr_rbr[4][4] = {
-	{0x08, 0x0F, 0x16, 0x1F},
-	{0x11, 0x1E, 0x1F, 0xFF},
-	{0x19, 0x1F, 0xFF, 0xFF},
-	{0x1F, 0xFF, 0xFF, 0xFF}
-};
-
-/* AUX look-up-table configurations
- * Pair of offset and config values for each LUT
- */
-static u8 const aux_lut_offset[] = {
-	0x20, 0x24, 0x28, 0x2C, 0x30, 0x34, 0x38, 0x3C, 0x40, 0x44
-};
-
-static u8 const
-aux_lut_value[PHY_AUX_CFG_MAX][DP_AUX_CFG_MAX_VALUE_CNT] = {
-	{ 0x00, 0x00, 0x00, },
-	{ 0x13, 0x23, 0x1d, },
-	{ 0x24, 0x00, 0x00, },
-	{ 0x00, 0x00, 0x00, },
-	{ 0x0A, 0x00, 0x00, },
-	{ 0x26, 0x00, 0x00, },
-	{ 0x0A, 0x00, 0x00, },
-	{ 0x03, 0x00, 0x00, },
-	{ 0xBB, 0x00, 0x00, },
-	{ 0x03, 0x00, 0x00, }
-};
-
 struct dp_catalog_private {
 	struct device *dev;
 	struct dp_io *io;
@@ -127,83 +95,6 @@ static inline void dp_write_ahb(struct dp_catalog_private *catalog,
 	 * this function uses writel() instread of writel_relaxed()
 	 */
 	writel(data, catalog->io->dp_controller.base + offset);
-}
-
-static inline void dp_write_phy(struct dp_catalog_private *catalog,
-			       u32 offset, u32 data)
-{
-	offset += DP_PHY_REG_OFFSET;
-	/*
-	 * To make sure phy reg writes happens before any other operation,
-	 * this function uses writel() instread of writel_relaxed()
-	 */
-	writel(data, catalog->io->phy_reg.base + offset);
-}
-
-static inline u32 dp_read_phy(struct dp_catalog_private *catalog,
-			       u32 offset)
-{
-	offset += DP_PHY_REG_OFFSET;
-	/*
-	 * To make sure phy reg writes happens before any other operation,
-	 * this function uses writel() instread of writel_relaxed()
-	 */
-	return readl_relaxed(catalog->io->phy_reg.base + offset);
-}
-
-static inline void dp_write_pll(struct dp_catalog_private *catalog,
-			       u32 offset, u32 data)
-{
-	offset += DP_PHY_PLL_OFFSET;
-	writel_relaxed(data, catalog->io->phy_reg.base + offset);
-}
-
-static inline void dp_write_ln_tx0(struct dp_catalog_private *catalog,
-			       u32 offset, u32 data)
-{
-	offset += DP_PHY_LN_TX0_OFFSET;
-	writel_relaxed(data, catalog->io->phy_reg.base + offset);
-}
-
-static inline void dp_write_ln_tx1(struct dp_catalog_private *catalog,
-			       u32 offset, u32 data)
-{
-	offset += DP_PHY_LN_TX1_OFFSET;
-	writel_relaxed(data, catalog->io->phy_reg.base + offset);
-}
-
-static inline u32 dp_read_ln_tx0(struct dp_catalog_private *catalog,
-			       u32 offset)
-{
-	offset += DP_PHY_LN_TX0_OFFSET;
-	return readl_relaxed(catalog->io->phy_reg.base + offset);
-}
-
-static inline u32 dp_read_ln_tx1(struct dp_catalog_private *catalog,
-			       u32 offset)
-{
-	offset += DP_PHY_LN_TX1_OFFSET;
-	return readl_relaxed(catalog->io->phy_reg.base + offset);
-}
-
-static inline void dp_write_usb_cm(struct dp_catalog_private *catalog,
-			       u32 offset, u32 data)
-{
-	/*
-	 * To make sure usb reg writes happens before any other operation,
-	 * this function uses writel() instread of writel_relaxed()
-	 */
-	writel(data, catalog->io->usb3_dp_com.base + offset);
-}
-
-static inline u32 dp_read_usb_cm(struct dp_catalog_private *catalog,
-			       u32 offset)
-{
-	/*
-	 * To make sure usb reg writes happens before any other operation,
-	 * this function uses writel() instread of writel_relaxed()
-	 */
-	return readl_relaxed(catalog->io->usb3_dp_com.base + offset);
 }
 
 static inline void dp_write_p0(struct dp_catalog_private *catalog,
@@ -335,27 +226,14 @@ void dp_catalog_aux_enable(struct dp_catalog *dp_catalog, bool enable)
 	dp_write_aux(catalog, REG_DP_AUX_CTRL, aux_ctrl);
 }
 
-void dp_catalog_aux_update_cfg(struct dp_catalog *dp_catalog,
-		enum dp_phy_aux_config_type type)
+void dp_catalog_aux_update_cfg(struct dp_catalog *dp_catalog)
 {
 	struct dp_catalog_private *catalog = container_of(dp_catalog,
 				struct dp_catalog_private, dp_catalog);
-	u32 new_index = 0, current_index = 0;
+	struct dp_io *dp_io = catalog->io;
+	struct phy *phy = dp_io->phy;
 
-	if (type >= PHY_AUX_CFG_MAX) {
-		DRM_ERROR("invalid input\n");
-		return;
-	}
-
-	current_index = catalog->aux_lut_cfg_index[type];
-	new_index = (current_index + 1) % DP_AUX_CFG_MAX_VALUE_CNT;
-	DRM_DEBUG_DP("Updating PHY_AUX_CFG%d from 0x%08x to 0x%08x\n",
-			type, aux_lut_value[type][current_index],
-			aux_lut_value[type][new_index]);
-
-	dp_write_phy(catalog, aux_lut_offset[type],
-			aux_lut_value[type][new_index]);
-	catalog->aux_lut_cfg_index[type] = new_index;
+	phy_calibrate(phy);
 }
 
 static void dump_regs(void __iomem *base, int len)
@@ -401,64 +279,6 @@ void dp_catalog_dump_regs(struct dp_catalog *dp_catalog)
 	offset = MSM_DP_CONTROLLER_P0_OFFSET;
 	len = MSM_DP_CONTROLLER_P0_SIZE;
 	dump_regs(catalog->io->dp_controller.base + offset, len);
-
-	pr_info("USB3 DP COM regs\n");
-	dump_regs(catalog->io->usb3_dp_com.base, catalog->io->usb3_dp_com.len);
-
-	pr_info("LN TX0 regs\n");
-	dump_regs(catalog->io->phy_reg.base + DP_PHY_LN_TX0_OFFSET,
-						DP_PHY_LN_TX0_SIZE);
-
-	pr_info("LN TX1 regs\n");
-	dump_regs(catalog->io->phy_reg.base + DP_PHY_LN_TX1_OFFSET,
-						DP_PHY_LN_TX1_SIZE);
-
-	pr_info("DP PHY regs\n");
-	dump_regs(catalog->io->phy_reg.base + DP_PHY_REG_OFFSET,
-						DP_PHY_REG_SIZE);
-}
-
-void dp_catalog_aux_setup(struct dp_catalog *dp_catalog)
-{
-	struct dp_catalog_private *catalog = container_of(dp_catalog,
-				struct dp_catalog_private, dp_catalog);
-	int i = 0;
-
-	dp_write_phy(catalog, REG_DP_PHY_PD_CTL, DP_PHY_PD_CTL_PWRDN |
-		DP_PHY_PD_CTL_AUX_PWRDN | DP_PHY_PD_CTL_PLL_PWRDN |
-		DP_PHY_PD_CTL_DP_CLAMP_EN);
-
-	/* Turn on BIAS current for PHY/PLL */
-	dp_write_pll(catalog,
-		QSERDES_COM_BIAS_EN_CLKBUFLR_EN, QSERDES_COM_BIAS_EN |
-		QSERDES_COM_BIAS_EN_MUX | QSERDES_COM_CLKBUF_L_EN |
-		QSERDES_COM_EN_SYSCLK_TX_SEL);
-
-	dp_write_phy(catalog, REG_DP_PHY_PD_CTL, DP_PHY_PD_CTL_PSR_PWRDN);
-
-	dp_write_phy(catalog, REG_DP_PHY_PD_CTL, DP_PHY_PD_CTL_PWRDN |
-		DP_PHY_PD_CTL_AUX_PWRDN | DP_PHY_PD_CTL_LANE_0_1_PWRDN
-		| DP_PHY_PD_CTL_LANE_2_3_PWRDN | DP_PHY_PD_CTL_PLL_PWRDN
-		| DP_PHY_PD_CTL_DP_CLAMP_EN);
-
-	dp_write_pll(catalog,
-		QSERDES_COM_BIAS_EN_CLKBUFLR_EN, QSERDES_COM_BIAS_EN |
-		QSERDES_COM_BIAS_EN_MUX | QSERDES_COM_CLKBUF_R_EN |
-		QSERDES_COM_CLKBUF_L_EN | QSERDES_COM_EN_SYSCLK_TX_SEL |
-		QSERDES_COM_CLKBUF_RX_DRIVE_L);
-
-	/* DP AUX CFG register programming */
-	for (i = 0; i < PHY_AUX_CFG_MAX; i++) {
-		DRM_DEBUG_DP("PHY_AUX_CFG%ds: offset=0x%08x, value=0x%08x\n",
-			i, aux_lut_offset[i], aux_lut_value[i][0]);
-		dp_write_phy(catalog, aux_lut_offset[i],
-				     aux_lut_value[i][0]);
-	}
-
-	dp_write_phy(catalog, REG_DP_PHY_AUX_INTERRUPT_MASK,
-			PHY_AUX_STOP_ERR_MASK |	PHY_AUX_DEC_ERR_MASK |
-			PHY_AUX_SYNC_ERR_MASK |	PHY_AUX_ALIGN_ERR_MASK |
-			PHY_AUX_REQ_ERR_MASK);
 }
 
 int dp_catalog_aux_get_irq(struct dp_catalog *dp_catalog)
@@ -585,7 +405,7 @@ void dp_catalog_ctrl_config_msa(struct dp_catalog *dp_catalog,
 					bool fixed_nvid)
 {
 	u32 pixel_m, pixel_n;
-	u32 mvid, nvid, div, pixel_div = 0, dispcc_input_rate;
+	u32 mvid, nvid, pixel_div = 0, dispcc_input_rate;
 	u32 const nvid_fixed = DP_LINK_CONSTANT_N_VALUE;
 	u32 const link_rate_hbr2 = 540000;
 	u32 const link_rate_hbr3 = 810000;
@@ -594,14 +414,11 @@ void dp_catalog_ctrl_config_msa(struct dp_catalog *dp_catalog,
 	struct dp_catalog_private *catalog = container_of(dp_catalog,
 				struct dp_catalog_private, dp_catalog);
 
-	div = dp_read_phy(catalog, REG_DP_PHY_VCO_DIV);
-	div &= 0x03;
-
-	if (div == 0)
+	if (rate == link_rate_hbr3)
 		pixel_div = 6;
-	else if (div == 1)
+	else if (rate == 1620000 || rate == 270000)
 		pixel_div = 2;
-	else if (div == 2)
+	else if (rate == link_rate_hbr2)
 		pixel_div = 4;
 	else
 		DRM_ERROR("Invalid pixel mux divider\n");
@@ -665,36 +482,6 @@ int dp_catalog_ctrl_set_pattern(struct dp_catalog *dp_catalog,
 		return ret;
 	}
 	return 0;
-}
-
-void dp_catalog_ctrl_usb_reset(struct dp_catalog *dp_catalog, bool flip)
-{
-	struct dp_catalog_private *catalog = container_of(dp_catalog,
-				struct dp_catalog_private, dp_catalog);
-	u32 typec_ctrl;
-
-	dp_write_usb_cm(catalog, REG_USB3_DP_COM_RESET_OVRD_CTRL,
-			USB3_DP_COM_OVRD_CTRL_SW_DPPHY_RESET_MUX |
-			USB3_DP_COM_OVRD_CTRL_SW_USB3PHY_RESET_MUX);
-	dp_write_usb_cm(catalog, REG_USB3_DP_COM_PHY_MODE_CTRL,
-						USB3_DP_COM_PHY_MODE_DP);
-	dp_write_usb_cm(catalog, REG_USB3_DP_COM_SW_RESET,
-						USB3_DP_COM_SW_RESET_SET);
-
-	/* Default configuration i.e CC1 */
-	typec_ctrl = USB3_DP_COM_TYPEC_CTRL_PORTSEL_MUX;
-	if (flip)
-		typec_ctrl |= USB3_DP_COM_TYPEC_CTRL_PORTSEL;
-
-	dp_write_usb_cm(catalog, REG_USB3_DP_COM_TYPEC_CTRL, typec_ctrl);
-
-	dp_write_usb_cm(catalog, REG_USB3_DP_COM_SWI_CTRL, 0x00);
-	dp_write_usb_cm(catalog, REG_USB3_DP_COM_SW_RESET, 0x00);
-
-	dp_write_usb_cm(catalog, REG_USB3_DP_COM_POWER_DOWN_CTRL,
-					USB3_DP_COM_POWER_DOWN_CTRL_SW_PWRDN);
-	dp_write_usb_cm(catalog, REG_USB3_DP_COM_RESET_OVRD_CTRL, 0x00);
-
 }
 
 void dp_catalog_ctrl_reset(struct dp_catalog *dp_catalog)
@@ -820,25 +607,9 @@ void dp_catalog_ctrl_phy_reset(struct dp_catalog *dp_catalog)
 				struct dp_catalog_private, dp_catalog);
 
 	dp_write_ahb(catalog, REG_DP_PHY_CTRL,
-			DP_PHY_CTRL_SW_RESET_PLL | DP_PHY_CTRL_SW_RESET);
+			DP_PHY_CTRL_SW_RESET | DP_PHY_CTRL_SW_RESET_PLL);
 	usleep_range(1000, 1100); /* h/w recommended delay */
 	dp_write_ahb(catalog, REG_DP_PHY_CTRL, 0x0);
-}
-
-void dp_catalog_ctrl_phy_lane_cfg(struct dp_catalog *dp_catalog,
-		bool flipped, u8 ln_cnt)
-{
-	u32 info;
-	struct dp_catalog_private *catalog = container_of(dp_catalog,
-				struct dp_catalog_private, dp_catalog);
-	u8 orientation = BIT(!!flipped);
-
-	info = ln_cnt & DP_PHY_SPARE0_MASK;
-	info |= (orientation & DP_PHY_SPARE0_MASK)
-			<< DP_PHY_SPARE0_ORIENTATION_INFO_SHIFT;
-	DRM_DEBUG_DP("Shared Info = 0x%x\n", info);
-
-	dp_write_phy(catalog, REG_DP_PHY_SPARE0, info);
 }
 
 int dp_catalog_ctrl_update_vx_px(struct dp_catalog *dp_catalog,
@@ -846,32 +617,16 @@ int dp_catalog_ctrl_update_vx_px(struct dp_catalog *dp_catalog,
 {
 	struct dp_catalog_private *catalog = container_of(dp_catalog,
 				struct dp_catalog_private, dp_catalog);
-	u8 voltage_swing_cfg, pre_emphasis_cfg;
+	struct dp_io *dp_io = catalog->io;
+	struct phy *phy = dp_io->phy;
+	struct phy_configure_opts_dp *opts_dp = &dp_io->phy_opts.dp;
 
-	DRM_DEBUG_DP("hw: v=%d p=%d\n", v_level, p_level);
-
-	voltage_swing_cfg = vm_voltage_swing_hbr_rbr[v_level][p_level];
-	pre_emphasis_cfg = vm_pre_emphasis_hbr_rbr[v_level][p_level];
-
-	if (voltage_swing_cfg == 0xFF && pre_emphasis_cfg == 0xFF) {
-		DRM_ERROR("invalid vx (0x%x=0x%x), px (0x%x=0x%x\n",
-			v_level, voltage_swing_cfg, p_level, pre_emphasis_cfg);
-		return -EINVAL;
-	}
-
-	/* Enable MUX to use Cursor values from these registers */
-	voltage_swing_cfg |= DP_PHY_TXn_TX_DRV_LVL_MUX_EN;
-	pre_emphasis_cfg |= DP_PHY_TXn_TX_EMP_POST1_LVL_MUX_EN;
-
-	/* Configure host and panel only if both values are allowed */
-	dp_write_ln_tx0(catalog, REG_DP_PHY_TXn_TX_DRV_LVL, voltage_swing_cfg);
-	dp_write_ln_tx1(catalog, REG_DP_PHY_TXn_TX_DRV_LVL, voltage_swing_cfg);
-	dp_write_ln_tx0(catalog, REG_DP_PHY_TXn_TX_EMP_POST1_LVL,
-					pre_emphasis_cfg);
-	dp_write_ln_tx1(catalog, REG_DP_PHY_TXn_TX_EMP_POST1_LVL,
-					pre_emphasis_cfg);
-	DRM_DEBUG_DP("hw: vx_value=0x%x px_value=0x%x\n",
-			voltage_swing_cfg, pre_emphasis_cfg);
+	/* TODO: Update for all lanes instead of just first one */
+	opts_dp->voltage[0] = v_level;
+	opts_dp->pre[0] = p_level;
+	opts_dp->set_voltages = 1;
+	phy_configure(phy, &dp_io->phy_opts);
+	opts_dp->set_voltages = 0;
 
 	return 0;
 }
