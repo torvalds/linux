@@ -1892,8 +1892,8 @@ int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_link *lnk,
 			    struct smc_clc_msg_accept_confirm *clc)
 {
-	conn->rtoken_idx = smc_rtoken_add(lnk, clc->rmb_dma_addr,
-					  clc->rmb_rkey);
+	conn->rtoken_idx = smc_rtoken_add(lnk, clc->r0.rmb_dma_addr,
+					  clc->r0.rmb_rkey);
 	if (conn->rtoken_idx < 0)
 		return conn->rtoken_idx;
 	return 0;

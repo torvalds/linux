@@ -436,10 +436,10 @@ static int smcr_clnt_conf_first_link(struct smc_sock *smc)
 static void smcr_conn_save_peer_info(struct smc_sock *smc,
 				     struct smc_clc_msg_accept_confirm *clc)
 {
-	int bufsize = smc_uncompress_bufsize(clc->rmbe_size);
+	int bufsize = smc_uncompress_bufsize(clc->r0.rmbe_size);
 
-	smc->conn.peer_rmbe_idx = clc->rmbe_idx;
-	smc->conn.local_tx_ctrl.token = ntohl(clc->rmbe_alert_token);
+	smc->conn.peer_rmbe_idx = clc->r0.rmbe_idx;
+	smc->conn.local_tx_ctrl.token = ntohl(clc->r0.rmbe_alert_token);
 	smc->conn.peer_rmbe_size = bufsize;
 	atomic_set(&smc->conn.peer_rmbe_space, smc->conn.peer_rmbe_size);
 	smc->conn.tx_off = bufsize * (smc->conn.peer_rmbe_idx - 1);
@@ -448,10 +448,10 @@ static void smcr_conn_save_peer_info(struct smc_sock *smc,
 static void smcd_conn_save_peer_info(struct smc_sock *smc,
 				     struct smc_clc_msg_accept_confirm *clc)
 {
-	int bufsize = smc_uncompress_bufsize(clc->dmbe_size);
+	int bufsize = smc_uncompress_bufsize(clc->d0.dmbe_size);
 
-	smc->conn.peer_rmbe_idx = clc->dmbe_idx;
-	smc->conn.peer_token = clc->token;
+	smc->conn.peer_rmbe_idx = clc->d0.dmbe_idx;
+	smc->conn.peer_token = clc->d0.token;
 	/* msg header takes up space in the buffer */
 	smc->conn.peer_rmbe_size = bufsize - sizeof(struct smcd_cdc_msg);
 	atomic_set(&smc->conn.peer_rmbe_space, smc->conn.peer_rmbe_size);
@@ -470,11 +470,11 @@ static void smc_conn_save_peer_info(struct smc_sock *smc,
 static void smc_link_save_peer_info(struct smc_link *link,
 				    struct smc_clc_msg_accept_confirm *clc)
 {
-	link->peer_qpn = ntoh24(clc->qpn);
-	memcpy(link->peer_gid, clc->lcl.gid, SMC_GID_SIZE);
-	memcpy(link->peer_mac, clc->lcl.mac, sizeof(link->peer_mac));
-	link->peer_psn = ntoh24(clc->psn);
-	link->peer_mtu = clc->qp_mtu;
+	link->peer_qpn = ntoh24(clc->r0.qpn);
+	memcpy(link->peer_gid, clc->r0.lcl.gid, SMC_GID_SIZE);
+	memcpy(link->peer_mac, clc->r0.lcl.mac, sizeof(link->peer_mac));
+	link->peer_psn = ntoh24(clc->r0.psn);
+	link->peer_mtu = clc->r0.qp_mtu;
 }
 
 static void smc_switch_to_fallback(struct smc_sock *smc)
@@ -613,8 +613,8 @@ static int smc_connect_rdma(struct smc_sock *smc,
 	struct smc_link *link;
 
 	ini->is_smcd = false;
-	ini->ib_lcl = &aclc->lcl;
-	ini->ib_clcqpn = ntoh24(aclc->qpn);
+	ini->ib_lcl = &aclc->r0.lcl;
+	ini->ib_clcqpn = ntoh24(aclc->r0.qpn);
 	ini->first_contact_peer = aclc->hdr.flag;
 
 	mutex_lock(&smc_client_lgr_pending);
@@ -634,9 +634,11 @@ static int smc_connect_rdma(struct smc_sock *smc,
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 			struct smc_link *l = &smc->conn.lgr->lnk[i];
 
-			if (l->peer_qpn == ntoh24(aclc->qpn) &&
-			    !memcmp(l->peer_gid, &aclc->lcl.gid, SMC_GID_SIZE) &&
-			    !memcmp(l->peer_mac, &aclc->lcl.mac, sizeof(l->peer_mac))) {
+			if (l->peer_qpn == ntoh24(aclc->r0.qpn) &&
+			    !memcmp(l->peer_gid, &aclc->r0.lcl.gid,
+				    SMC_GID_SIZE) &&
+			    !memcmp(l->peer_mac, &aclc->r0.lcl.mac,
+				    sizeof(l->peer_mac))) {
 				link = l;
 				break;
 			}
@@ -707,7 +709,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 	int rc = 0;
 
 	ini->is_smcd = true;
-	ini->ism_peer_gid = aclc->gid;
+	ini->ism_peer_gid = aclc->d0.gid;
 	ini->first_contact_peer = aclc->hdr.flag;
 
 	/* there is only one lgr role for SMC-D; use server lock */

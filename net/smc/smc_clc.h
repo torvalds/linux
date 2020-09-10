@@ -118,46 +118,50 @@ struct smc_clc_msg_proposal_area {
 	struct smc_clc_msg_trail		pclc_trl;
 };
 
+struct smcr_clc_msg_accept_confirm {	/* SMCR accept/confirm */
+	struct smc_clc_msg_local lcl;
+	u8 qpn[3];			/* QP number */
+	__be32 rmb_rkey;		/* RMB rkey */
+	u8 rmbe_idx;			/* Index of RMBE in RMB */
+	__be32 rmbe_alert_token;	/* unique connection id */
+ #if defined(__BIG_ENDIAN_BITFIELD)
+	u8 rmbe_size : 4,		/* buf size (compressed) */
+	   qp_mtu   : 4;		/* QP mtu */
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 qp_mtu   : 4,
+	   rmbe_size : 4;
+#endif
+	u8 reserved;
+	__be64 rmb_dma_addr;	/* RMB virtual address */
+	u8 reserved2;
+	u8 psn[3];		/* packet sequence number */
+	struct smc_clc_msg_trail smcr_trl;
+				/* eye catcher "SMCR" EBCDIC */
+} __packed;
+
+struct smcd_clc_msg_accept_confirm {	/* SMCD accept/confirm */
+	u64 gid;		/* Sender GID */
+	u64 token;		/* DMB token */
+	u8 dmbe_idx;		/* DMBE index */
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8 dmbe_size : 4,	/* buf size (compressed) */
+	   reserved3 : 4;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 reserved3 : 4,
+	   dmbe_size : 4;
+#endif
+	u16 reserved4;
+	u32 linkid;		/* Link identifier */
+	u32 reserved5[3];
+	struct smc_clc_msg_trail smcd_trl;
+				/* eye catcher "SMCD" EBCDIC */
+} __packed;
+
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 	struct smc_clc_msg_hdr hdr;
 	union {
-		struct { /* SMC-R */
-			struct smc_clc_msg_local lcl;
-			u8 qpn[3];		/* QP number */
-			__be32 rmb_rkey;	/* RMB rkey */
-			u8 rmbe_idx;		/* Index of RMBE in RMB */
-			__be32 rmbe_alert_token;/* unique connection id */
-#if defined(__BIG_ENDIAN_BITFIELD)
-			u8 rmbe_size : 4,	/* buf size (compressed) */
-			   qp_mtu   : 4;	/* QP mtu */
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-			u8 qp_mtu   : 4,
-			   rmbe_size : 4;
-#endif
-			u8 reserved;
-			__be64 rmb_dma_addr;	/* RMB virtual address */
-			u8 reserved2;
-			u8 psn[3];		/* packet sequence number */
-			struct smc_clc_msg_trail smcr_trl;
-						/* eye catcher "SMCR" EBCDIC */
-		} __packed;
-		struct { /* SMC-D */
-			u64 gid;		/* Sender GID */
-			u64 token;		/* DMB token */
-			u8 dmbe_idx;		/* DMBE index */
-#if defined(__BIG_ENDIAN_BITFIELD)
-			u8 dmbe_size : 4,	/* buf size (compressed) */
-			   reserved3 : 4;
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-			u8 reserved3 : 4,
-			   dmbe_size : 4;
-#endif
-			u16 reserved4;
-			u32 linkid;		/* Link identifier */
-			u32 reserved5[3];
-			struct smc_clc_msg_trail smcd_trl;
-						/* eye catcher "SMCD" EBCDIC */
-		} __packed;
+		struct smcr_clc_msg_accept_confirm r0; /* SMC-R */
+		struct smcd_clc_msg_accept_confirm d0; /* SMC-D */
 	};
 } __packed;			/* format defined in RFC7609 */
 
