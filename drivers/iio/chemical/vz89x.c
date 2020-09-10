@@ -352,12 +352,13 @@ MODULE_DEVICE_TABLE(of, vz89x_dt_ids);
 static int vz89x_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct vz89x_data *data;
 	const struct of_device_id *of_id;
 	int chip_id;
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 	data = iio_priv(indio_dev);
@@ -370,7 +371,7 @@ static int vz89x_probe(struct i2c_client *client,
 	else
 		return -EOPNOTSUPP;
 
-	of_id = of_match_device(vz89x_dt_ids, &client->dev);
+	of_id = of_match_device(vz89x_dt_ids, dev);
 	if (!of_id)
 		chip_id = id->driver_data;
 	else
@@ -383,13 +384,13 @@ static int vz89x_probe(struct i2c_client *client,
 	mutex_init(&data->lock);
 
 	indio_dev->info = &vz89x_info;
-	indio_dev->name = dev_name(&client->dev);
+	indio_dev->name = dev_name(dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	indio_dev->channels = data->chip->channels;
 	indio_dev->num_channels = data->chip->num_channels;
 
-	return devm_iio_device_register(&client->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct i2c_device_id vz89x_id[] = {
