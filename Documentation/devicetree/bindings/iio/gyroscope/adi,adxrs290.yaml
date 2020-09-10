@@ -28,6 +28,9 @@ properties:
 
   spi-cpha: true
 
+  interrupts:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -39,6 +42,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/irq.h>
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -48,6 +52,8 @@ examples:
                    spi-max-frequency = <5000000>;
                    spi-cpol;
                    spi-cpha;
+                   interrupt-parent = <&gpio>;
+                   interrupts = <25 IRQ_TYPE_EDGE_RISING>;
         };
     };
 ...
