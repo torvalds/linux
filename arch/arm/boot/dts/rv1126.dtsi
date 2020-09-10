@@ -2302,6 +2302,8 @@
 		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
+		pinctrl-names = "default";
+		pinctrl-0 = <&fspi_pins>;
 		assigned-clocks = <&cru SCLK_SFC>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&power RV1126_PD_NVM>;
