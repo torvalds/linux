@@ -14,30 +14,42 @@ properties:
   compatible:
     const: samsung,s3fwrn5-i2c
 
+  en-gpios:
+    maxItems: 1
+    description:
+      Output GPIO pin used for enabling/disabling the chip
+
   interrupts:
     maxItems: 1
 
   reg:
     maxItems: 1
 
-  s3fwrn5,en-gpios:
-    maxItems: 1
-    description:
-      Output GPIO pin used for enabling/disabling the chip
-
-  s3fwrn5,fw-gpios:
+  wake-gpios:
     maxItems: 1
     description:
       Output GPIO pin used to enter firmware mode and sleep/wakeup control
+
+  s3fwrn5,en-gpios:
+    maxItems: 1
+    deprecated: true
+    description:
+      Use en-gpios
+
+  s3fwrn5,fw-gpios:
+    maxItems: 1
+    deprecated: true
+    description:
+      Use wake-gpios
 
 additionalProperties: false
 
 required:
   - compatible
+  - en-gpios
   - interrupts
   - reg
-  - s3fwrn5,en-gpios
-  - s3fwrn5,fw-gpios
+  - wake-gpios
 
 examples:
   - |
@@ -55,7 +67,7 @@ examples:
             interrupt-parent = <&gpa1>;
             interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
 
-            s3fwrn5,en-gpios = <&gpf1 4 GPIO_ACTIVE_HIGH>;
-            s3fwrn5,fw-gpios = <&gpj0 2 GPIO_ACTIVE_HIGH>;
+            en-gpios = <&gpf1 4 GPIO_ACTIVE_HIGH>;
+            wake-gpios = <&gpj0 2 GPIO_ACTIVE_HIGH>;
         };
     };
