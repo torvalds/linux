@@ -1450,6 +1450,19 @@ xfs_fc_fill_super(
 	if (error)
 		goto out_free_sb;
 
+	/* V4 support is undergoing deprecation. */
+	if (!xfs_sb_version_hascrc(&mp->m_sb)) {
+#ifdef CONFIG_XFS_SUPPORT_V4
+		xfs_warn_once(mp,
+	"Deprecated V4 format (crc=0) will not be supported after September 2030.");
+#else
+		xfs_warn(mp,
+	"Deprecated V4 format (crc=0) not supported by kernel.");
+		error = -EINVAL;
+		goto out_free_sb;
+#endif
+	}
+
 	/*
 	 * XFS block mappings use 54 bits to store the logical block offset.
 	 * This should suffice to handle the maximum file size that the VFS
