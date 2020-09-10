@@ -436,6 +436,31 @@ static int adxrs290_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
+static int adxrs290_reg_access_rw(struct spi_device *spi, unsigned int reg,
+				  unsigned int *readval)
+{
+	int ret;
+
+	ret = spi_w8r8(spi, ADXRS290_READ_REG(reg));
+	if (ret < 0)
+		return ret;
+
+	*readval = ret;
+
+	return 0;
+}
+
+static int adxrs290_reg_access(struct iio_dev *indio_dev, unsigned int reg,
+			       unsigned int writeval, unsigned int *readval)
+{
+	struct adxrs290_state *st = iio_priv(indio_dev);
+
+	if (readval)
+		return adxrs290_reg_access_rw(st->spi, reg, readval);
+	else
+		return adxrs290_spi_write_reg(st->spi, reg, writeval);
+}
+
 static int adxrs290_data_rdy_trigger_set_state(struct iio_trigger *trig,
 					       bool state)
 {
@@ -551,6 +576,7 @@ static const struct iio_info adxrs290_info = {
 	.read_raw = &adxrs290_read_raw,
 	.write_raw = &adxrs290_write_raw,
 	.read_avail = &adxrs290_read_avail,
+	.debugfs_reg_access = &adxrs290_reg_access,
 };
 
 static int adxrs290_probe_trigger(struct iio_dev *indio_dev)
