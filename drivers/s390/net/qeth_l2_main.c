@@ -306,6 +306,8 @@ static void qeth_l2_dev2br_fdb_flush(struct qeth_card *card)
 
 static void qeth_l2_stop_card(struct qeth_card *card)
 {
+	struct qeth_priv *priv = netdev_priv(card->dev);
+
 	QETH_CARD_TEXT(card, 2, "stopcard");
 
 	qeth_set_allowed_threads(card, 0, 1);
@@ -324,6 +326,12 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 	qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
 	qeth_flush_local_addrs(card);
 	card->info.promisc_mode = 0;
+
+	if (priv->brport_features & BR_LEARNING_SYNC) {
+		rtnl_lock();
+		qeth_l2_dev2br_fdb_flush(card);
+		rtnl_unlock();
+	}
 }
 
 static int qeth_l2_request_initial_mac(struct qeth_card *card)
@@ -856,6 +864,89 @@ static int qeth_l2_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				       nlflags, filter_mask, NULL);
 }
 
+static const struct nla_policy qeth_brport_policy[IFLA_BRPORT_MAX + 1] = {
+	[IFLA_BRPORT_LEARNING_SYNC]	= { .type = NLA_U8 },
+};
+
+/**
+ *	qeth_l2_bridge_setlink() - set bridgeport attributes
+ *	@dev: netdevice
+ *	@nlh: netlink message header
+ *	@flags: bridge flags (here: BRIDGE_FLAGS_SELF)
+ *	@extack: extended ACK report struct
+ *
+ *	Called under rtnl_lock
+ */
+static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
+				  u16 flags, struct netlink_ext_ack *extack)
+{
+	struct qeth_priv *priv = netdev_priv(dev);
+	struct nlattr *bp_tb[IFLA_BRPORT_MAX + 1];
+	struct qeth_card *card = dev->ml_priv;
+	struct nlattr *attr, *nested_attr;
+	bool enable, has_protinfo = false;
+	int rem1, rem2;
+	int rc;
+
+	if (!netif_device_present(dev))
+		return -ENODEV;
+	if (!(priv->brport_hw_features))
+		return -EOPNOTSUPP;
+
+	nlmsg_for_each_attr(attr, nlh, sizeof(struct ifinfomsg), rem1) {
+		if (nla_type(attr) == IFLA_PROTINFO) {
+			rc = nla_parse_nested(bp_tb, IFLA_BRPORT_MAX, attr,
+					      qeth_brport_policy, extack);
+			if (rc)
+				return rc;
+			has_protinfo = true;
+		} else if (nla_type(attr) == IFLA_AF_SPEC) {
+			nla_for_each_nested(nested_attr, attr, rem2) {
+				if (nla_type(nested_attr) == IFLA_BRIDGE_FLAGS)
+					continue;
+				NL_SET_ERR_MSG_ATTR(extack, nested_attr,
+						    "Unsupported attribute");
+				return -EINVAL;
+			}
+		} else {
+			NL_SET_ERR_MSG_ATTR(extack, attr, "Unsupported attribute");
+			return -EINVAL;
+		}
+	}
+	if (!has_protinfo)
+		return 0;
+	if (!bp_tb[IFLA_BRPORT_LEARNING_SYNC])
+		return -EINVAL;
+	enable = !!nla_get_u8(bp_tb[IFLA_BRPORT_LEARNING_SYNC]);
+
+	if (enable == !!(priv->brport_features & BR_LEARNING_SYNC))
+		return 0;
+
+	mutex_lock(&card->sbp_lock);
+	/* do not change anything if BridgePort is enabled */
+	if (qeth_bridgeport_is_in_use(card)) {
+		NL_SET_ERR_MSG(extack, "n/a (BridgePort)");
+		rc = -EBUSY;
+	} else if (enable) {
+		qeth_l2_set_pnso_mode(card, QETH_PNSO_ADDR_INFO);
+		rc = qeth_l2_dev2br_an_set(card, true);
+		if (rc)
+			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+		else
+			priv->brport_features |= BR_LEARNING_SYNC;
+	} else {
+		rc = qeth_l2_dev2br_an_set(card, false);
+		if (!rc) {
+			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+			priv->brport_features ^= BR_LEARNING_SYNC;
+			qeth_l2_dev2br_fdb_flush(card);
+		}
+	}
+	mutex_unlock(&card->sbp_lock);
+
+	return rc;
+}
+
 static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
@@ -873,6 +964,7 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
 	.ndo_bridge_getlink	= qeth_l2_bridge_getlink,
+	.ndo_bridge_setlink	= qeth_l2_bridge_setlink,
 };
 
 static const struct net_device_ops qeth_osn_netdev_ops = {
@@ -1016,6 +1108,38 @@ static void qeth_l2_detect_dev2br_support(struct qeth_card *card)
 		priv->brport_hw_features &= ~BR_LEARNING_SYNC;
 }
 
+static void qeth_l2_enable_brport_features(struct qeth_card *card)
+{
+	struct qeth_priv *priv = netdev_priv(card->dev);
+	int rc;
+
+	if (priv->brport_features & BR_LEARNING_SYNC) {
+		if (priv->brport_hw_features & BR_LEARNING_SYNC) {
+			qeth_l2_set_pnso_mode(card, QETH_PNSO_ADDR_INFO);
+			rc = qeth_l2_dev2br_an_set(card, true);
+			if (rc == -EAGAIN) {
+				/* Recoverable error, retry once */
+				qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+				qeth_l2_dev2br_fdb_flush(card);
+				qeth_l2_set_pnso_mode(card, QETH_PNSO_ADDR_INFO);
+				rc = qeth_l2_dev2br_an_set(card, true);
+			}
+			if (rc) {
+				netdev_err(card->dev,
+					   "failed to enable bridge learning_sync: %d\n",
+					   rc);
+				qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+				qeth_l2_dev2br_fdb_flush(card);
+				priv->brport_features ^= BR_LEARNING_SYNC;
+			}
+		} else {
+			dev_warn(&card->gdev->dev,
+				"bridge learning_sync not supported\n");
+			priv->brport_features ^= BR_LEARNING_SYNC;
+		}
+	}
+}
+
 static int qeth_l2_set_online(struct qeth_card *card)
 {
 	struct ccwgroup_device *gdev = card->gdev;
@@ -1075,6 +1199,7 @@ static int qeth_l2_set_online(struct qeth_card *card)
 
 		netif_device_attach(dev);
 		qeth_enable_hw_features(dev);
+		qeth_l2_enable_brport_features(card);
 
 		if (card->info.open_when_online) {
 			card->info.open_when_online = 0;
