@@ -41,12 +41,12 @@ struct ena_stats {
 
 #define ENA_STAT_ENA_COM_ENTRY(stat) { \
 	.name = #stat, \
-	.stat_offset = offsetof(struct ena_com_stats_admin, stat) \
+	.stat_offset = offsetof(struct ena_com_stats_admin, stat) / sizeof(u64) \
 }
 
 #define ENA_STAT_ENTRY(stat, stat_type) { \
 	.name = #stat, \
-	.stat_offset = offsetof(struct ena_stats_##stat_type, stat) \
+	.stat_offset = offsetof(struct ena_stats_##stat_type, stat) / sizeof(u64) \
 }
 
 #define ENA_STAT_RX_ENTRY(stat) \
@@ -141,8 +141,7 @@ static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)
 		for (j = 0; j < ENA_STATS_ARRAY_TX; j++) {
 			ena_stats = &ena_stats_tx_strings[j];
 
-			ptr = (u64 *)((uintptr_t)&ring->tx_stats +
-				(uintptr_t)ena_stats->stat_offset);
+			ptr = (u64 *)&ring->tx_stats + ena_stats->stat_offset;
 
 			ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
 		}
@@ -153,8 +152,8 @@ static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)
 		for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
 			ena_stats = &ena_stats_rx_strings[j];
 
-			ptr = (u64 *)((uintptr_t)&ring->rx_stats +
-				(uintptr_t)ena_stats->stat_offset);
+			ptr = (u64 *)&ring->rx_stats +
+				ena_stats->stat_offset;
 
 			ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
 		}
@@ -170,8 +169,8 @@ static void ena_dev_admin_queue_stats(struct ena_adapter *adapter, u64 **data)
 	for (i = 0; i < ENA_STATS_ARRAY_ENA_COM; i++) {
 		ena_stats = &ena_stats_ena_com_strings[i];
 
-		ptr = (u64 *)((uintptr_t)&adapter->ena_dev->admin_queue.stats +
-			(uintptr_t)ena_stats->stat_offset);
+		ptr = (u64 *)&adapter->ena_dev->admin_queue.stats +
+			ena_stats->stat_offset;
 
 		*(*data)++ = *ptr;
 	}
@@ -189,8 +188,7 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 	for (i = 0; i < ENA_STATS_ARRAY_GLOBAL; i++) {
 		ena_stats = &ena_stats_global_strings[i];
 
-		ptr = (u64 *)((uintptr_t)&adapter->dev_stats +
-			(uintptr_t)ena_stats->stat_offset);
+		ptr = (u64 *)&adapter->dev_stats + ena_stats->stat_offset;
 
 		ena_safe_update_stat(ptr, data++, &adapter->syncp);
 	}
