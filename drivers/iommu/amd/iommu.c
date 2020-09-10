@@ -3864,11 +3864,13 @@ int amd_iommu_deactivate_guest_mode(void *data)
 	struct amd_ir_data *ir_data = (struct amd_ir_data *)data;
 	struct irte_ga *entry = (struct irte_ga *) ir_data->entry;
 	struct irq_cfg *cfg = ir_data->cfg;
-	u64 valid = entry->lo.fields_remap.valid;
+	u64 valid;
 
 	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) ||
 	    !entry || !entry->lo.fields_vapic.guest_mode)
 		return 0;
+
+	valid = entry->lo.fields_remap.valid;
 
 	entry->lo.val = 0;
 	entry->hi.val = 0;
