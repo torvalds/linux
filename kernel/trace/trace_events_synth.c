@@ -1754,17 +1754,26 @@ static const struct file_operations synth_events_fops = {
 	.release        = seq_release,
 };
 
+/*
+ * Register dynevent at core_initcall. This allows kernel to setup kprobe
+ * events in postcore_initcall without tracefs.
+ */
+static __init int trace_events_synth_init_early(void)
+{
+	int err = 0;
+
+	err = dyn_event_register(&synth_event_ops);
+	if (err)
+		pr_warn("Could not register synth_event_ops\n");
+
+	return err;
+}
+core_initcall(trace_events_synth_init_early);
+
 static __init int trace_events_synth_init(void)
 {
 	struct dentry *entry = NULL;
 	int err = 0;
-
-	err = dyn_event_register(&synth_event_ops);
-	if (err) {
-		pr_warn("Could not register synth_event_ops\n");
-		return err;
-	}
-
 	err = tracing_init_dentry();
 	if (err)
 		goto err;

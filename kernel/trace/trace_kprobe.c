@@ -1897,8 +1897,8 @@ static __init void setup_boot_kprobe_events(void)
 }
 
 /*
- * Register dynevent at subsys_initcall. This allows kernel to setup kprobe
- * events in fs_initcall without tracefs.
+ * Register dynevent at core_initcall. This allows kernel to setup kprobe
+ * events in postcore_initcall without tracefs.
  */
 static __init int init_kprobe_trace_early(void)
 {
@@ -1913,7 +1913,7 @@ static __init int init_kprobe_trace_early(void)
 
 	return 0;
 }
-subsys_initcall(init_kprobe_trace_early);
+core_initcall(init_kprobe_trace_early);
 
 /* Make a tracefs interface for controlling probe points */
 static __init int init_kprobe_trace(void)
