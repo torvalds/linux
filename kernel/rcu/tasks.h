@@ -28,6 +28,7 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
  * @kthread_ptr: This flavor's grace-period/callback-invocation kthread.
  * @gp_func: This flavor's grace-period-wait function.
  * @gp_state: Grace period's most recent state transition (debugging).
+ * @gp_sleep: Per-grace-period sleep to prevent CPU-bound looping.
  * @init_fract: Initial backoff sleep interval.
  * @gp_jiffies: Time of last @gp_state transition.
  * @gp_start: Most recent grace-period start in jiffies.
@@ -49,6 +50,7 @@ struct rcu_tasks {
 	struct wait_queue_head cbs_wq;
 	raw_spinlock_t cbs_lock;
 	int gp_state;
+	int gp_sleep;
 	int init_fract;
 	unsigned long gp_jiffies;
 	unsigned long gp_start;
@@ -233,7 +235,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 			cond_resched();
 		}
 		/* Paranoid sleep to keep this from entering a tight loop */
-		schedule_timeout_idle(HZ/10);
+		schedule_timeout_idle(rtp->gp_sleep);
 
 		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
 	}
@@ -557,6 +559,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier_tasks);
 
 static int __init rcu_spawn_tasks_kthread(void)
 {
+	rcu_tasks.gp_sleep = HZ / 10;
 	rcu_tasks.init_fract = 10;
 	rcu_tasks.pregp_func = rcu_tasks_pregp_step;
 	rcu_tasks.pertask_func = rcu_tasks_pertask;
@@ -690,6 +693,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier_tasks_rude);
 
 static int __init rcu_spawn_tasks_rude_kthread(void)
 {
+	rcu_tasks_rude.gp_sleep = HZ / 10;
 	rcu_spawn_tasks_kthread_generic(&rcu_tasks_rude);
 	return 0;
 }
@@ -1170,8 +1174,12 @@ EXPORT_SYMBOL_GPL(rcu_barrier_tasks_trace);
 static int __init rcu_spawn_tasks_trace_kthread(void)
 {
 	if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB)) {
+		rcu_tasks_trace.gp_sleep = HZ / 10;
 		rcu_tasks_trace.init_fract = 10;
 	} else {
+		rcu_tasks_trace.gp_sleep = HZ / 200;
+		if (rcu_tasks_trace.gp_sleep <= 0)
+			rcu_tasks_trace.gp_sleep = 1;
 		rcu_tasks_trace.init_fract = HZ / 5;
 		if (rcu_tasks_trace.init_fract <= 0)
 			rcu_tasks_trace.init_fract = 1;
