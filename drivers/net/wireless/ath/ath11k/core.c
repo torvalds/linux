@@ -848,6 +848,9 @@ static int ath11k_core_get_rproc(struct ath11k_base *ab)
 	struct rproc *prproc;
 	phandle rproc_phandle;
 
+	if (!IS_ENABLED(CONFIG_REMOTEPROC))
+		return 0;
+
 	if (ab->bus_params.mhi_support)
 		return 0;
 
