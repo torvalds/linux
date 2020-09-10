@@ -18,8 +18,18 @@
 #define GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START		0x8000	/* 32KB */
 #define GAUDI_DRIVER_SRAM_RESERVED_SIZE_FROM_START	0x80	/* 128 bytes */
 
-#define GAUDI_FIRST_AVAILABLE_W_S_SYNC_OBJECT		32
-#define GAUDI_FIRST_AVAILABLE_W_S_MONITOR		16
+/*
+ * 128 SOBs reserved for collective wait
+ * 16 SOBs reserved for sync stream
+ */
+#define GAUDI_FIRST_AVAILABLE_W_S_SYNC_OBJECT		144
+
+/*
+ * 64 monitors reserved for collective wait
+ * 8 monitors reserved for sync stream
+ */
+#define GAUDI_FIRST_AVAILABLE_W_S_MONITOR		72
+
 /*
  * Goya queue Numbering
  *

@@ -5343,6 +5343,11 @@ int goya_collective_wait_create_jobs(struct hl_device *hdev,
 	return -EINVAL;
 }
 
+static void goya_ctx_fini(struct hl_ctx *ctx)
+{
+
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5404,6 +5409,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.wreg = hl_wreg,
 	.halt_coresight = goya_halt_coresight,
 	.ctx_init = goya_ctx_init,
+	.ctx_fini = goya_ctx_fini,
 	.get_clk_rate = goya_get_clk_rate,
 	.get_queue_id_for_cq = goya_get_queue_id_for_cq,
 	.read_device_fw_version = goya_read_device_fw_version,

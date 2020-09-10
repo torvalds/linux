@@ -23,6 +23,10 @@
 					NUMBER_OF_CPU_HW_QUEUES + \
 					NUMBER_OF_INT_HW_QUEUES)
 
+/* 10 NIC QMANs, DMA5 QMAN, TPC7 QMAN */
+#define NUMBER_OF_COLLECTIVE_QUEUES	12
+#define NUMBER_OF_SOBS_IN_GRP		11
+
 /*
  * Number of MSI interrupts IDS:
  * Each completion queue has 1 ID
@@ -149,9 +153,13 @@
 
 /* Virtual address space */
 #define VA_HOST_SPACE_START	0x1000000000000ull	/* 256TB */
-#define VA_HOST_SPACE_END	0x3FF8000000000ull	/* 1PB - 1TB */
+#define VA_HOST_SPACE_END	0x3FF7FFFE00000ull	/* 1PB - 1TB */
 #define VA_HOST_SPACE_SIZE	(VA_HOST_SPACE_END - \
 					VA_HOST_SPACE_START) /* 767TB */
+
+#define VA_HOST_SPACE_INTERNAL_CB_START	0x3FF7FFFE00000ull /* 1PB - 1TB - 2MB */
+#define VA_HOST_SPACE_INTERNAL_CB_END	0x3FF8000000000ull /* 1PB - 1TB */
+#define HOST_SPACE_INTERNAL_CB_SZ	SZ_2M
 
 #define HW_CAP_PLL		BIT(0)
 #define HW_CAP_HBM		BIT(1)
@@ -240,6 +248,34 @@ enum gaudi_nic_mask {
 	GAUDI_NIC_MASK_ALL = 0x3FF
 };
 
+/*
+ * struct gaudi_hw_sob_group - H/W SOB group info.
+ * @hdev: habanalabs device structure.
+ * @kref: refcount of this SOB group. group will reset once refcount is zero.
+ * @base_sob_id: base sob id of this SOB group.
+ */
+struct gaudi_hw_sob_group {
+	struct hl_device	*hdev;
+	struct kref		kref;
+	u32			base_sob_id;
+};
+
+#define NUM_SOB_GROUPS (HL_RSVD_SOBS * QMAN_STREAMS)
+/**
+ * struct gaudi_collective_properties -
+ *     holds all SOB groups and queues info reserved for the collective
+ * @hw_sob_group: H/W SOB groups.
+ * @next_sob_group_val: the next value to use for the currently used SOB group.
+ * @curr_sob_group_idx: the index of the currently used SOB group.
+ * @mstr_sob_mask: pre-defined masks for collective master monitors
+ */
+struct gaudi_collective_properties {
+	struct gaudi_hw_sob_group hw_sob_group[NUM_SOB_GROUPS];
+	u16			next_sob_group_val[QMAN_STREAMS];
+	u8			curr_sob_group_idx[QMAN_STREAMS];
+	u8			mstr_sob_mask[HL_COLLECTIVE_RSVD_MSTR_MONS];
+};
+
 /**
  * struct gaudi_internal_qman_info - Internal QMAN information.
  * @pq_kernel_addr: Kernel address of the PQ memory area in the host.
@@ -284,6 +320,8 @@ struct gaudi_device {
 	struct mutex			clk_gate_mutex;
 
 	struct gaudi_internal_qman_info	internal_qmans[GAUDI_QUEUE_ID_SIZE];
+
+	struct gaudi_collective_properties collective_props;
 
 	u64				hbm_bar_cur_addr;
 	u64				max_freq_value;

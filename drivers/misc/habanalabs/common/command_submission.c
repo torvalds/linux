@@ -142,7 +142,7 @@ static void hl_fence_init(struct hl_fence *fence)
 	init_completion(&fence->completion);
 }
 
-static void cs_get(struct hl_cs *cs)
+void cs_get(struct hl_cs *cs)
 {
 	kref_get(&cs->refcount);
 }
@@ -917,6 +917,9 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	job->job_cb_size = job->user_cb_size;
 	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
 
+	/* increment refcount as for external queues we get completion */
+	cs_get(cs);
+
 	cs->jobs_in_queue_cnt[job->hw_queue_id]++;
 
 	list_add_tail(&job->cs_node, &cs->job_list);
@@ -1070,11 +1073,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				cs, q_idx, collective_engine_id);
 
 	if (rc)
-		goto put_cs;
-
-
-	/* increment refcount as for external queues we get completion */
-	cs_get(cs);
+		goto free_cs_object;
 
 	rc = hl_hw_queue_schedule_cs(cs);
 	if (rc) {
