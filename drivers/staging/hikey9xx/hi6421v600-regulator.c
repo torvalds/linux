@@ -36,7 +36,6 @@
 #include <linux/spmi.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
-#include <linux/version.h>
 
 #define rdev_dbg(rdev, fmt, arg...)	\
 		 pr_debug("%s: %s: " fmt, (rdev)->desc->name, __func__, ##arg)
