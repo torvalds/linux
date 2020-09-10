@@ -60,6 +60,7 @@
 #define HNS_ROCE_V2_MAX_SQ_SGE_NUM		64
 #define HNS_ROCE_V2_MAX_EXTEND_SGE_NUM		0x200000
 #define HNS_ROCE_V2_MAX_SQ_INLINE		0x20
+#define HNS_ROCE_V2_MAX_RC_INL_INN_SZ		32
 #define HNS_ROCE_V2_UAR_NUM			256
 #define HNS_ROCE_V2_PHY_UAR_NUM			1
 #define HNS_ROCE_V2_MAX_IRQ_NUM			65
@@ -1193,6 +1194,8 @@ struct hns_roce_v2_rc_send_wqe {
 
 #define V2_RC_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_S 0
 #define V2_RC_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_M GENMASK(23, 0)
+
+#define V2_RC_SEND_WQE_BYTE_20_INL_TYPE_S 31
 
 struct hns_roce_wqe_frmr_seg {
 	__le32	pbl_size;

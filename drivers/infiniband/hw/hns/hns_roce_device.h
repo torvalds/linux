@@ -665,6 +665,8 @@ struct hns_roce_qp {
 
 	struct hns_roce_sge	sge;
 	u32			next_sge;
+	enum ib_mtu		path_mtu;
+	u32			max_inline_data;
 
 	/* 0: flush needed, 1: unneeded */
 	unsigned long		flush_flag;

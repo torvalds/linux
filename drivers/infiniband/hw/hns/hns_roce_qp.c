@@ -551,10 +551,9 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	int ret;
 
 	if (!cap->max_send_wr || cap->max_send_wr > hr_dev->caps.max_wqes ||
-	    cap->max_send_sge > hr_dev->caps.max_sq_sg ||
-	    cap->max_inline_data > hr_dev->caps.max_sq_inline) {
+	    cap->max_send_sge > hr_dev->caps.max_sq_sg) {
 		ibdev_err(ibdev,
-			  "failed to check SQ WR, SGE or inline num, ret = %d.\n",
+			  "failed to check SQ WR or SGE num, ret = %d.\n",
 			  -EINVAL);
 		return -EINVAL;
 	}
@@ -576,9 +575,6 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	/* sync the parameters of kernel QP to user's configuration */
 	cap->max_send_wr = cnt;
 	cap->max_send_sge = hr_qp->sq.max_gs;
-
-	/* We don't support inline sends for kernel QPs (yet) */
-	cap->max_inline_data = 0;
 
 	return 0;
 }
@@ -846,6 +842,11 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	int ret;
 
 	hr_qp->ibqp.qp_type = init_attr->qp_type;
+
+	if (init_attr->cap.max_inline_data > hr_dev->caps.max_sq_inline)
+		init_attr->cap.max_inline_data = hr_dev->caps.max_sq_inline;
+
+	hr_qp->max_inline_data = init_attr->cap.max_inline_data;
 
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		hr_qp->sq_signal_bits = IB_SIGNAL_ALL_WR;
