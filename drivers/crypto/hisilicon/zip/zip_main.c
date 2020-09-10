@@ -218,7 +218,7 @@ static const struct kernel_param_ops pf_q_num_ops = {
 
 static u32 pf_q_num = HZIP_PF_DEF_Q_NUM;
 module_param_cb(pf_q_num, &pf_q_num_ops, &pf_q_num, 0444);
-MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 1-4096, v2 1-1024)");
+MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 2-4096, v2 2-1024)");
 
 static const struct kernel_param_ops vfs_num_ops = {
 	.set = vfs_num_set,
