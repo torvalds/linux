@@ -2131,10 +2131,9 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	/* init common data */
 	ale_params.dev = dev;
 	ale_params.ale_ageout = AM65_CPSW_ALE_AGEOUT_DEFAULT;
-	ale_params.ale_entries = 0;
 	ale_params.ale_ports = common->port_num + 1;
 	ale_params.ale_regs = common->cpsw_base + AM65_CPSW_NU_ALE_BASE;
-	ale_params.nu_switch_ale = true;
+	ale_params.dev_id = "am65x-cpsw2g";
 
 	common->ale = cpsw_ale_create(&ale_params);
 	if (IS_ERR(common->ale)) {
