@@ -124,7 +124,7 @@ const struct sof_intel_dsp_desc tgl_chip_info = {
 	/* Tigerlake */
 	.cores_num = 4,
 	.init_core_mask = 1,
-	.cores_mask = HDA_DSP_CORE_MASK(0),
+	.host_managed_cores_mask = HDA_DSP_CORE_MASK(0),
 	.ipc_req = CNL_DSP_REG_HIPCIDR,
 	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
 	.ipc_ack = CNL_DSP_REG_HIPCIDA,

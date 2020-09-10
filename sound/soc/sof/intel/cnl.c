@@ -334,7 +334,7 @@ const struct sof_intel_dsp_desc cnl_chip_info = {
 	/* Cannonlake */
 	.cores_num = 4,
 	.init_core_mask = 1,
-	.cores_mask = HDA_DSP_CORE_MASK(0) |
+	.host_managed_cores_mask = HDA_DSP_CORE_MASK(0) |
 				HDA_DSP_CORE_MASK(1) |
 				HDA_DSP_CORE_MASK(2) |
 				HDA_DSP_CORE_MASK(3),
@@ -353,7 +353,7 @@ const struct sof_intel_dsp_desc icl_chip_info = {
 	/* Icelake */
 	.cores_num = 4,
 	.init_core_mask = 1,
-	.cores_mask = HDA_DSP_CORE_MASK(0) |
+	.host_managed_cores_mask = HDA_DSP_CORE_MASK(0) |
 				HDA_DSP_CORE_MASK(1) |
 				HDA_DSP_CORE_MASK(2) |
 				HDA_DSP_CORE_MASK(3),
@@ -372,7 +372,7 @@ const struct sof_intel_dsp_desc ehl_chip_info = {
 	/* Elkhartlake */
 	.cores_num = 4,
 	.init_core_mask = 1,
-	.cores_mask = HDA_DSP_CORE_MASK(0),
+	.host_managed_cores_mask = HDA_DSP_CORE_MASK(0),
 	.ipc_req = CNL_DSP_REG_HIPCIDR,
 	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
 	.ipc_ack = CNL_DSP_REG_HIPCIDA,
@@ -388,7 +388,7 @@ const struct sof_intel_dsp_desc jsl_chip_info = {
 	/* Jasperlake */
 	.cores_num = 2,
 	.init_core_mask = 1,
-	.cores_mask = HDA_DSP_CORE_MASK(0) |
+	.host_managed_cores_mask = HDA_DSP_CORE_MASK(0) |
 				HDA_DSP_CORE_MASK(1),
 	.ipc_req = CNL_DSP_REG_HIPCIDR,
 	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
