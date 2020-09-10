@@ -11,8 +11,8 @@
 #include <linux/iio/iio.h>
 #include <linux/limits.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 
 /* All chip variants have 32 wiper positions. */
 #define MAX5432_MAX_POS 31
@@ -100,7 +100,7 @@ static int max5432_probe(struct i2c_client *client,
 
 	data = iio_priv(indio_dev);
 	data->client = client;
-	data->ohm = (unsigned long)of_device_get_match_data(dev);
+	data->ohm = (unsigned long)device_get_match_data(dev);
 
 	indio_dev->info = &max5432_info;
 	indio_dev->channels = max5432_channels;
@@ -122,7 +122,7 @@ MODULE_DEVICE_TABLE(of, max5432_dt_ids);
 static struct i2c_driver max5432_driver = {
 	.driver = {
 		.name = "max5432",
-		.of_match_table = of_match_ptr(max5432_dt_ids),
+		.of_match_table = max5432_dt_ids,
 	},
 	.probe = max5432_probe,
 };
