@@ -25,8 +25,7 @@ struct dsa_8021q_crosschip_link {
 
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_8021Q)
 
-int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int index,
-				 bool enabled);
+int dsa_8021q_setup(struct dsa_switch *ds, bool enabled);
 
 int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
 				    struct dsa_switch *other_ds,
@@ -57,8 +56,7 @@ bool vid_is_dsa_8021q(u16 vid);
 
 #else
 
-int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int index,
-				 bool enabled)
+int dsa_8021q_setup(struct dsa_switch *ds, bool enabled)
 {
 	return 0;
 }

@@ -1934,18 +1934,11 @@ static void sja1105_crosschip_bridge_leave(struct dsa_switch *ds,
 static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
 {
 	struct sja1105_private *priv = ds->priv;
-	int rc, i;
+	int rc;
 
-	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
-		priv->expect_dsa_8021q = true;
-		rc = dsa_port_setup_8021q_tagging(ds, i, enabled);
-		priv->expect_dsa_8021q = false;
-		if (rc < 0) {
-			dev_err(ds->dev, "Failed to setup VLAN tagging for port %d: %d\n",
-				i, rc);
-			return rc;
-		}
-	}
+	rc = dsa_8021q_setup(priv->ds, enabled);
+	if (rc)
+		return rc;
 
 	dev_info(ds->dev, "%s switch tagging\n",
 		 enabled ? "Enabled" : "Disabled");

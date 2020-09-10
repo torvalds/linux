@@ -209,7 +209,7 @@ static int dsa_8021q_vid_apply(struct dsa_switch *ds, int port, u16 vid,
  * +-+-----+-+-----+-+-----+-+-----+-+    +-+-----+-+-----+-+-----+-+-----+-+
  *   swp0    swp1    swp2    swp3           swp0    swp1    swp2    swp3
  */
-int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int port, bool enabled)
+static int dsa_8021q_setup_port(struct dsa_switch *ds, int port, bool enabled)
 {
 	int upstream = dsa_upstream_port(ds, port);
 	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
@@ -275,7 +275,24 @@ int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int port, bool enabled)
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(dsa_port_setup_8021q_tagging);
+
+int dsa_8021q_setup(struct dsa_switch *ds, bool enabled)
+{
+	int rc, port;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		rc = dsa_8021q_setup_port(ds, port, enabled);
+		if (rc < 0) {
+			dev_err(ds->dev,
+				"Failed to setup VLAN tagging for port %d: %d\n",
+				port, rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dsa_8021q_setup);
 
 static int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
 					  struct dsa_switch *other_ds,
