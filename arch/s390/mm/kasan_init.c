@@ -99,8 +99,12 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 	pgt_prot_zero = pgprot_val(PAGE_KERNEL_RO);
 	if (!has_nx)
 		pgt_prot_zero &= ~_PAGE_NOEXEC;
-	pgt_prot = pgprot_val(PAGE_KERNEL_EXEC);
-	sgt_prot = pgprot_val(SEGMENT_KERNEL_EXEC);
+	pgt_prot = pgprot_val(PAGE_KERNEL);
+	sgt_prot = pgprot_val(SEGMENT_KERNEL);
+	if (!has_nx || mode == POPULATE_ONE2ONE) {
+		pgt_prot &= ~_PAGE_NOEXEC;
+		sgt_prot &= ~_SEGMENT_ENTRY_NOEXEC;
+	}
 
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
