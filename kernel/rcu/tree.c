@@ -3022,6 +3022,12 @@ struct kfree_rcu_cpu_work {
  * @monitor_todo: Tracks whether a @monitor_work delayed work is pending
  * @initialized: The @rcu_work fields have been initialized
  * @count: Number of objects for which GP not started
+ * @bkvcache:
+ *	A simple cache list that contains objects for reuse purpose.
+ *	In order to save some per-cpu space the list is singular.
+ *	Even though it is lockless an access has to be protected by the
+ *	per-cpu lock.
+ * @nr_bkv_objs: number of allocated objects at @bkvcache.
  *
  * This is a per-CPU structure.  The reason that it is not included in
  * the rcu_data structure is to permit this code to be extracted from
@@ -3037,14 +3043,6 @@ struct kfree_rcu_cpu {
 	bool monitor_todo;
 	bool initialized;
 	int count;
-
-	/*
-	 * A simple cache list that contains objects for
-	 * reuse purpose. In order to save some per-cpu
-	 * space the list is singular. Even though it is
-	 * lockless an access has to be protected by the
-	 * per-cpu lock.
-	 */
 	struct llist_head bkvcache;
 	int nr_bkv_objs;
 };
