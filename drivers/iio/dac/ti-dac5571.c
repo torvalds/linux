@@ -18,8 +18,7 @@
 #include <linux/iio/iio.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regulator/consumer.h>
 
 enum chip_id {
@@ -384,7 +383,6 @@ static int dac5571_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id dac5571_of_id[] = {
 	{.compatible = "ti,dac5571"},
 	{.compatible = "ti,dac6571"},
@@ -398,7 +396,6 @@ static const struct of_device_id dac5571_of_id[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, dac5571_of_id);
-#endif
 
 static const struct i2c_device_id dac5571_id[] = {
 	{"dac5571", single_8bit},
@@ -417,7 +414,7 @@ MODULE_DEVICE_TABLE(i2c, dac5571_id);
 static struct i2c_driver dac5571_driver = {
 	.driver = {
 		   .name = "ti-dac5571",
-		   .of_match_table = of_match_ptr(dac5571_of_id),
+		   .of_match_table = dac5571_of_id,
 	},
 	.probe	  = dac5571_probe,
 	.remove   = dac5571_remove,
