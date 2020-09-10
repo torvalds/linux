@@ -1116,7 +1116,7 @@ int chsc_enable_facility(int operation_code)
 	return ret;
 }
 
-int __init chsc_get_cssid(int idx)
+int __init chsc_get_cssid_iid(int idx, u8 *cssid, u8 *iid)
 {
 	struct {
 		struct chsc_header request;
@@ -1127,7 +1127,8 @@ int __init chsc_get_cssid(int idx)
 		u32 reserved2[3];
 		struct {
 			u8 cssid;
-			u32 : 24;
+			u8 iid;
+			u32 : 16;
 		} list[0];
 	} *sdcal_area;
 	int ret;
@@ -1153,8 +1154,10 @@ int __init chsc_get_cssid(int idx)
 	}
 
 	if ((addr_t) &sdcal_area->list[idx] <
-	    (addr_t) &sdcal_area->response + sdcal_area->response.length)
-		ret = sdcal_area->list[idx].cssid;
+	    (addr_t) &sdcal_area->response + sdcal_area->response.length) {
+		*cssid = sdcal_area->list[idx].cssid;
+		*iid = sdcal_area->list[idx].iid;
+	}
 	else
 		ret = -ENODEV;
 exit:

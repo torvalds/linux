@@ -240,4 +240,8 @@ u8 *ccw_device_get_util_str(struct ccw_device *cdev, int chp_idx);
 int ccw_device_pnso(struct ccw_device *cdev,
 		    struct chsc_pnso_area *pnso_area, u8 oc,
 		    struct chsc_pnso_resume_token resume_token, int cnc);
+int ccw_device_get_cssid(struct ccw_device *cdev, u8 *cssid);
+int ccw_device_get_iid(struct ccw_device *cdev, u8 *iid);
+int ccw_device_get_chpid(struct ccw_device *cdev, int chp_idx, u8 *chpid);
+int ccw_device_get_chid(struct ccw_device *cdev, int chp_idx, u16 *chid);
 #endif /* _S390_CCWDEV_H_ */
