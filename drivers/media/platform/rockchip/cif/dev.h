@@ -163,12 +163,16 @@ extern int rkcif_debug;
  * @mbus: media bus configuration
  * @fi: v4l2 subdev frame interval
  * @lanes: lane num of sensor
+ * @raw_rect: raw output rectangle of sensor, not crop or selection
+ * @selection: selection info of sensor
  */
 struct rkcif_sensor_info {
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_config mbus;
 	struct v4l2_subdev_frame_interval fi;
 	int lanes;
+	struct v4l2_rect raw_rect;
+	struct v4l2_subdev_selection selection;
 };
 
 enum cif_fmt_type {
@@ -256,6 +260,37 @@ struct rkcif_hdr {
 	u8 mode;
 };
 
+/* struct rkcif_fps_stats - take notes on timestamp of buf
+ * @frm0_timestamp: timesstamp of buf in frm0
+ * @frm1_timestamp: timesstamp of buf in frm1
+ */
+struct rkcif_fps_stats {
+	u64 frm0_timestamp;
+	u64 frm1_timestamp;
+};
+
+/* struct rkcif_irq_stats - take notes on irq number
+ * @csi_overflow_cnt: count of csi overflow irq
+ * @csi_bwidth_lack_cnt: count of csi bandwidth lack irq
+ * @dvp_bus_err_cnt: count of dvp bus err irq
+ * @dvp_overflow_cnt: count dvp overflow irq
+ * @dvp_line_err_cnt: count dvp line err irq
+ * @dvp_pix_err_cnt: count dvp pix err irq
+ * @all_frm_end_cnt: raw frame end count
+ * @all_err_cnt: all err count
+ * @
+ */
+struct rkcif_irq_stats {
+	u64 csi_overflow_cnt;
+	u64 csi_bwidth_lack_cnt;
+	u64 dvp_bus_err_cnt;
+	u64 dvp_overflow_cnt;
+	u64 dvp_line_err_cnt;
+	u64 dvp_pix_err_cnt;
+	u64 all_frm_end_cnt;
+	u64 all_err_cnt;
+};
+
 /*
  * struct rkcif_stream - Stream states TODO
  *
@@ -266,6 +301,7 @@ struct rkcif_hdr {
  * rkcif use shadowsock registers, so it need two buffer at a time
  * @curr_buf: the buffer used for current frame
  * @next_buf: the buffer used for next frame
+ * @fps_lock: to protect parameters about calculating fps
  */
 struct rkcif_stream {
 	unsigned id:3;
@@ -286,6 +322,7 @@ struct rkcif_stream {
 	struct rkcif_buffer		*next_buf;
 
 	spinlock_t vbq_lock; /* vfd lock */
+	spinlock_t fps_lock;
 	/* TODO: pad for dvp and mipi separately? */
 	struct media_pad		pad;
 
@@ -293,6 +330,7 @@ struct rkcif_stream {
 	const struct cif_input_fmt	*cif_fmt_in;
 	struct v4l2_pix_format_mplane	pixm;
 	struct v4l2_rect		crop[CROP_SRC_MAX];
+	struct rkcif_fps_stats		fps_stats;
 };
 
 struct rkcif_lvds_subdev {
@@ -376,7 +414,9 @@ struct rkcif_device {
 	irqreturn_t (*isr_hdl)(int irq, struct rkcif_device *cif_dev);
 	int inf_id;
 
-	struct sditf_priv *sditf;
+	struct sditf_priv		*sditf;
+	struct proc_dir_entry		*proc_dir;
+	struct rkcif_irq_stats		irq_stats;
 };
 
 extern struct platform_driver rkcif_plat_drv;

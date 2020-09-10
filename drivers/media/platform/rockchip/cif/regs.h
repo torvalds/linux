@@ -281,10 +281,16 @@ enum cif_reg_index {
 /* CIF INTSTAT */
 #define INTSTAT_CLS			(0x3FF)
 #define FRAME_END			(0x01 << 0)
+#define LINE_ERR			(0x1 << 2)
+#define PIX_ERR				(0x1 << 3)
+#define IFIFO_OVERFLOW			(0x1 << 4)
+#define DFIFO_OVERFLOW			(0x1 << 5)
+#define BUS_ERR				(0x1 << 6)
 #define PST_INF_FRAME_END		(0x01 << 9)
 #define FRAME_END_CLR			(0x01 << 0)
 #define PST_INF_FRAME_END_CLR		(0x01 << 9)
 #define INTSTAT_ERR			(0xFC)
+#define DVP_ALL_OVERFLOW		(IFIFO_OVERFLOW | DFIFO_OVERFLOW)
 
 /* FRAME STATUS */
 #define FRAME_STAT_CLS			0x00

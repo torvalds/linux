@@ -26,15 +26,6 @@
 #include <linux/mfd/syscon.h>
 #include "dev.h"
 
-struct rkcif_hw_match_data {
-	int chip_id;
-	const char * const *clks;
-	const char * const *rsts;
-	int clks_num;
-	int rsts_num;
-	const struct cif_reg *cif_regs;
-};
-
 static const struct cif_reg px30_cif_regs[] = {
 	[CIF_REG_DVP_CTRL] = CIF_REG(CIF_CTRL),
 	[CIF_REG_DVP_INTEN] = CIF_REG(CIF_INTEN),
@@ -711,6 +702,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	}
 
 	cif_hw->irq = irq;
+	cif_hw->match_data = data;
 	cif_hw->chip_id = data->chip_id;
 	if (data->chip_id == CHIP_RK1808_CIF ||
 	    data->chip_id == CHIP_RV1126_CIF ||

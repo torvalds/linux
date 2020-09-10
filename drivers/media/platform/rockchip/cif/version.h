@@ -45,6 +45,8 @@
  *2. add subdev as interface for isp
  *3. support hdr_x3 mode
  *4. support rk1808 mipi interface in kernel-4.19
+ *v0.1.8
+ *1. add proc interface
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION

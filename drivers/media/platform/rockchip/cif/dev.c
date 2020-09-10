@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include "dev.h"
+#include "procfs.h"
 
 #define RKCIF_VERNO_LEN		10
 
@@ -292,8 +293,17 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 		    (!on && atomic_dec_return(&p->stream_cnt) > 0))
 			return 0;
 
-		if (on)
+		if (on) {
 			rockchip_set_system_status(SYS_STATUS_CIF0);
+			cif_dev->irq_stats.csi_overflow_cnt = 0;
+			cif_dev->irq_stats.csi_bwidth_lack_cnt = 0;
+			cif_dev->irq_stats.dvp_bus_err_cnt = 0;
+			cif_dev->irq_stats.dvp_line_err_cnt = 0;
+			cif_dev->irq_stats.dvp_overflow_cnt = 0;
+			cif_dev->irq_stats.dvp_pix_err_cnt = 0;
+			cif_dev->irq_stats.all_err_cnt = 0;
+			cif_dev->irq_stats.all_frm_end_cnt = 0;
+		}
 
 		/* phy -> sensor */
 		for (i = 0; i < p->num_subdevs; i++) {
@@ -325,6 +335,17 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 		}
 
 		if ((on && can_be_set) || !on) {
+			if (on) {
+				cif_dev->irq_stats.csi_overflow_cnt = 0;
+				cif_dev->irq_stats.csi_bwidth_lack_cnt = 0;
+				cif_dev->irq_stats.dvp_bus_err_cnt = 0;
+				cif_dev->irq_stats.dvp_line_err_cnt = 0;
+				cif_dev->irq_stats.dvp_overflow_cnt = 0;
+				cif_dev->irq_stats.dvp_pix_err_cnt = 0;
+				cif_dev->irq_stats.all_err_cnt = 0;
+				cif_dev->irq_stats.all_frm_end_cnt = 0;
+			}
+
 			/* phy -> sensor */
 			for (i = 0; i < p->num_subdevs; i++) {
 				ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
@@ -881,6 +902,9 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (rkcif_proc_init(cif_dev))
+		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));
+
 	rkcif_soft_reset(cif_dev, true);
 	pm_runtime_enable(&pdev->dev);
 
@@ -893,6 +917,8 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 
 	rkcif_plat_uninit(cif_dev);
 	rkcif_detach_hw(cif_dev);
+	rkcif_proc_cleanup(cif_dev);
+
 	return 0;
 }
 

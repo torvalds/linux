@@ -44,6 +44,15 @@ enum rkcif_chip_id {
 	CHIP_RV1126_CIF_LITE,
 };
 
+struct rkcif_hw_match_data {
+	int chip_id;
+	const char * const *clks;
+	const char * const *rsts;
+	int clks_num;
+	int rsts_num;
+	const struct cif_reg *cif_regs;
+};
+
 /*
  * struct rkcif_device - ISP platform device
  * @base_addr: base register address
@@ -68,6 +77,7 @@ struct rkcif_hw {
 	int dev_num;
 
 	atomic_t power_cnt;
+	const struct rkcif_hw_match_data *match_data;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);
