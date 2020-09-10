@@ -4973,6 +4973,7 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 	u32 chain = 0, chain_tag, reg_b, zone_restore_id;
 	struct mlx5e_priv *priv = netdev_priv(skb->dev);
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
+	struct mlx5_mapped_obj mapped_obj;
 	struct tc_skb_ext *tc_skb_ext;
 	int err;
 
@@ -4980,7 +4981,7 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 	chain_tag = reg_b & MLX5E_TC_TABLE_CHAIN_TAG_MASK;
 
-	err = mlx5_get_chain_for_tag(nic_chains(priv), chain_tag, &chain);
+	err = mlx5_get_mapped_object(nic_chains(priv), chain_tag, &mapped_obj);
 	if (err) {
 		netdev_dbg(priv->netdev,
 			   "Couldn't find chain for chain tag: %d, err: %d\n",
@@ -4988,7 +4989,8 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 		return false;
 	}
 
-	if (chain) {
+	if (mapped_obj.type == MLX5_MAPPED_OBJ_CHAIN) {
+		chain = mapped_obj.chain;
 		tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
 		if (WARN_ON(!tc_skb_ext))
 			return false;
@@ -5001,6 +5003,9 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 		if (!mlx5e_tc_ct_restore_flow(tc->ct, skb,
 					      zone_restore_id))
 			return false;
+	} else {
+		netdev_dbg(priv->netdev, "Invalid mapped object type: %d\n", mapped_obj.type);
+		return false;
 	}
 #endif /* CONFIG_NET_TC_SKB_EXT */
 

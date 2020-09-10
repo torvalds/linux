@@ -47,6 +47,17 @@
 #include "sf/sf.h"
 #include "en/tc_ct.h"
 
+enum mlx5_mapped_obj_type {
+	MLX5_MAPPED_OBJ_CHAIN,
+};
+
+struct mlx5_mapped_obj {
+	enum mlx5_mapped_obj_type type;
+	union {
+		u32 chain;
+	};
+};
+
 #ifdef CONFIG_MLX5_ESWITCH
 
 #define ESW_OFFLOADS_DEFAULT_NUM_GROUPS 15
@@ -733,8 +744,6 @@ mlx5_esw_vporttbl_put(struct mlx5_eswitch *esw, struct mlx5_vport_tbl_attr *attr
 
 struct mlx5_flow_handle *
 esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag);
-u32
-esw_get_max_restore_tag(struct mlx5_eswitch *esw);
 
 int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num);
 void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num);

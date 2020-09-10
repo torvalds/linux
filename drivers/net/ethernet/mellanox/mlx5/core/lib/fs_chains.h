@@ -7,6 +7,7 @@
 #include <linux/mlx5/fs.h>
 
 struct mlx5_fs_chains;
+struct mlx5_mapped_obj;
 
 enum mlx5_chains_flags {
 	MLX5_CHAINS_AND_PRIOS_SUPPORTED = BIT(0),
@@ -64,7 +65,7 @@ mlx5_chains_create(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr);
 void mlx5_chains_destroy(struct mlx5_fs_chains *chains);
 
 int
-mlx5_get_chain_for_tag(struct mlx5_fs_chains *chains, u32 tag, u32 *chain);
+mlx5_get_mapped_object(struct mlx5_fs_chains *chains, u32 tag, struct mlx5_mapped_obj *obj);
 
 void
 mlx5_chains_set_end_ft(struct mlx5_fs_chains *chains,

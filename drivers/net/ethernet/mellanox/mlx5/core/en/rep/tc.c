@@ -618,9 +618,10 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 			     struct mlx5e_tc_update_priv *tc_priv)
 {
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
-	u32 chain = 0, reg_c0, reg_c1, tunnel_id, zone_restore_id;
+	u32 reg_c0, reg_c1, tunnel_id, zone_restore_id;
 	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *uplink_rpriv;
+	struct mlx5_mapped_obj mapped_obj;
 	struct tc_skb_ext *tc_skb_ext;
 	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
@@ -640,30 +641,35 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	priv = netdev_priv(skb->dev);
 	esw = priv->mdev->priv.eswitch;
 
-	err = mlx5_get_chain_for_tag(esw_chains(esw), reg_c0, &chain);
+	err = mlx5_get_mapped_object(esw_chains(esw), reg_c0, &mapped_obj);
 	if (err) {
 		netdev_dbg(priv->netdev,
-			   "Couldn't find chain for chain tag: %d, err: %d\n",
+			   "Couldn't find mapped object for reg_c0: %d, err: %d\n",
 			   reg_c0, err);
 		return false;
 	}
 
-	if (chain) {
-		tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
-		if (!tc_skb_ext) {
-			WARN_ON(1);
-			return false;
+	if (mapped_obj.type == MLX5_MAPPED_OBJ_CHAIN) {
+		if (mapped_obj.chain) {
+			tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
+			if (!tc_skb_ext) {
+				WARN_ON(1);
+				return false;
+			}
+
+			tc_skb_ext->chain = mapped_obj.chain;
+
+			zone_restore_id = reg_c1 & ESW_ZONE_ID_MASK;
+
+			uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+			uplink_priv = &uplink_rpriv->uplink_priv;
+			if (!mlx5e_tc_ct_restore_flow(uplink_priv->ct_priv, skb,
+						      zone_restore_id))
+				return false;
 		}
-
-		tc_skb_ext->chain = chain;
-
-		zone_restore_id = reg_c1 & ESW_ZONE_ID_MASK;
-
-		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
-		uplink_priv = &uplink_rpriv->uplink_priv;
-		if (!mlx5e_tc_ct_restore_flow(uplink_priv->ct_priv, skb,
-					      zone_restore_id))
-			return false;
+	} else {
+		netdev_dbg(priv->netdev, "Invalid mapped object type: %d\n", mapped_obj.type);
+		return false;
 	}
 
 	tunnel_id = reg_c1 >> ESW_TUN_OFFSET;

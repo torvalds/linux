@@ -1286,7 +1286,7 @@ esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
 			    misc_parameters_2);
 	MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0,
-		 ESW_CHAIN_TAG_METADATA_MASK);
+		 ESW_REG_C0_USER_DATA_METADATA_MASK);
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 			    misc_parameters_2);
 	MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0, tag);
@@ -1310,12 +1310,6 @@ esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 			 tag, (int)PTR_ERR(flow_rule));
 
 	return flow_rule;
-}
-
-u32
-esw_get_max_restore_tag(struct mlx5_eswitch *esw)
-{
-	return ESW_CHAIN_TAG_METADATA_MASK;
 }
 
 #define MAX_PF_SQ 256
@@ -1434,7 +1428,7 @@ esw_chains_create(struct mlx5_eswitch *esw, struct mlx5_flow_table *miss_fdb)
 	attr.max_ft_sz = fdb_max;
 	attr.max_grp_num = esw->params.large_group_num;
 	attr.default_ft = miss_fdb;
-	attr.max_restore_tag = esw_get_max_restore_tag(esw);
+	attr.max_restore_tag = ESW_REG_C0_USER_DATA_METADATA_MASK;
 
 	chains = mlx5_chains_create(dev, &attr);
 	if (IS_ERR(chains)) {
@@ -1928,7 +1922,7 @@ static int esw_create_restore_table(struct mlx5_eswitch *esw)
 		goto out_free;
 	}
 
-	ft_attr.max_fte = 1 << ESW_CHAIN_TAG_METADATA_BITS;
+	ft_attr.max_fte = 1 << ESW_REG_C0_USER_DATA_METADATA_BITS;
 	ft = mlx5_create_flow_table(ns, &ft_attr);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
@@ -1943,7 +1937,7 @@ static int esw_create_restore_table(struct mlx5_eswitch *esw)
 			    misc_parameters_2);
 
 	MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0,
-		 ESW_CHAIN_TAG_METADATA_MASK);
+		 ESW_REG_C0_USER_DATA_METADATA_MASK);
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index,
 		 ft_attr.max_fte - 1);

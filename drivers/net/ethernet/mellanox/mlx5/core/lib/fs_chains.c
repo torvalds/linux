@@ -832,8 +832,7 @@ mlx5_chains_init(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr)
 	if (err)
 		goto init_prios_ht_err;
 
-	mapping = mapping_create(sizeof(u32), attr->max_restore_tag,
-				 true);
+	mapping = mapping_create(sizeof(struct mlx5_mapped_obj), attr->max_restore_tag, true);
 	if (IS_ERR(mapping)) {
 		err = PTR_ERR(mapping);
 		goto mapping_err;
@@ -884,21 +883,28 @@ int
 mlx5_chains_get_chain_mapping(struct mlx5_fs_chains *chains, u32 chain,
 			      u32 *chain_mapping)
 {
-	return mapping_add(chains_mapping(chains), &chain, chain_mapping);
+	struct mapping_ctx *ctx = chains->chains_mapping;
+	struct mlx5_mapped_obj mapped_obj = {};
+
+	mapped_obj.type = MLX5_MAPPED_OBJ_CHAIN;
+	mapped_obj.chain = chain;
+	return mapping_add(ctx, &mapped_obj, chain_mapping);
 }
 
 int
 mlx5_chains_put_chain_mapping(struct mlx5_fs_chains *chains, u32 chain_mapping)
 {
-	return mapping_remove(chains_mapping(chains), chain_mapping);
+	struct mapping_ctx *ctx = chains->chains_mapping;
+
+	return mapping_remove(ctx, chain_mapping);
 }
 
-int mlx5_get_chain_for_tag(struct mlx5_fs_chains *chains, u32 tag,
-			   u32 *chain)
+int
+mlx5_get_mapped_object(struct mlx5_fs_chains *chains, u32 tag, struct mlx5_mapped_obj *obj)
 {
 	int err;
 
-	err = mapping_find(chains_mapping(chains), tag, chain);
+	err = mapping_find(chains->chains_mapping, tag, obj);
 	if (err) {
 		mlx5_core_warn(chains->dev, "Can't find chain for tag: %d\n", tag);
 		return -ENOENT;
