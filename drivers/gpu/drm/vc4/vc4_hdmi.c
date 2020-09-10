@@ -1545,64 +1545,64 @@ static int vc5_hdmi_init_resources(struct vc4_hdmi *vc4_hdmi)
 
 	vc4_hdmi->hdmicore_regs = devm_ioremap(dev, res->start,
 					       resource_size(res));
-	if (IS_ERR(vc4_hdmi->hdmicore_regs))
-		return PTR_ERR(vc4_hdmi->hdmicore_regs);
+	if (!vc4_hdmi->hdmicore_regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hd");
 	if (!res)
 		return -ENODEV;
 
 	vc4_hdmi->hd_regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(vc4_hdmi->hd_regs))
-		return PTR_ERR(vc4_hdmi->hd_regs);
+	if (!vc4_hdmi->hd_regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cec");
 	if (!res)
 		return -ENODEV;
 
 	vc4_hdmi->cec_regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(vc4_hdmi->cec_regs))
-		return PTR_ERR(vc4_hdmi->cec_regs);
+	if (!vc4_hdmi->cec_regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csc");
 	if (!res)
 		return -ENODEV;
 
 	vc4_hdmi->csc_regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(vc4_hdmi->csc_regs))
-		return PTR_ERR(vc4_hdmi->csc_regs);
+	if (!vc4_hdmi->csc_regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dvp");
 	if (!res)
 		return -ENODEV;
 
 	vc4_hdmi->dvp_regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(vc4_hdmi->dvp_regs))
-		return PTR_ERR(vc4_hdmi->dvp_regs);
+	if (!vc4_hdmi->dvp_regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
 	if (!res)
 		return -ENODEV;
 
 	vc4_hdmi->phy_regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(vc4_hdmi->phy_regs))
-		return PTR_ERR(vc4_hdmi->phy_regs);
+	if (!vc4_hdmi->phy_regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "packet");
 	if (!res)
 		return -ENODEV;
 
 	vc4_hdmi->ram_regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(vc4_hdmi->ram_regs))
-		return PTR_ERR(vc4_hdmi->ram_regs);
+	if (!vc4_hdmi->ram_regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rm");
 	if (!res)
 		return -ENODEV;
 
 	vc4_hdmi->rm_regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(vc4_hdmi->rm_regs))
-		return PTR_ERR(vc4_hdmi->rm_regs);
+	if (!vc4_hdmi->rm_regs)
+		return -ENOMEM;
 
 	vc4_hdmi->hsm_clock = devm_clk_get(dev, "hdmi");
 	if (IS_ERR(vc4_hdmi->hsm_clock)) {
