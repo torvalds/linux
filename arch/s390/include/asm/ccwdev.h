@@ -238,7 +238,6 @@ extern void ccw_device_get_schid(struct ccw_device *, struct subchannel_id *);
 struct channel_path_desc_fmt0 *ccw_device_get_chp_desc(struct ccw_device *, int);
 u8 *ccw_device_get_util_str(struct ccw_device *cdev, int chp_idx);
 int ccw_device_pnso(struct ccw_device *cdev,
-		    struct chsc_pnso_area *pnso_area,
-		    struct chsc_pnso_resume_token resume_token,
-		    int cnc);
+		    struct chsc_pnso_area *pnso_area, u8 oc,
+		    struct chsc_pnso_resume_token resume_token, int cnc);
 #endif /* _S390_CCWDEV_H_ */

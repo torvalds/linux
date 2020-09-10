@@ -205,10 +205,8 @@ struct chsc_scm_info {
 
 int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token);
 
-int chsc_pnso(struct subchannel_id schid,
-	      struct chsc_pnso_area *pnso_area,
-	      struct chsc_pnso_resume_token resume_token,
-	      int cnc);
+int chsc_pnso(struct subchannel_id schid, struct chsc_pnso_area *pnso_area,
+	      u8 oc, struct chsc_pnso_resume_token resume_token, int cnc);
 
 int __init chsc_get_cssid(int idx);
 

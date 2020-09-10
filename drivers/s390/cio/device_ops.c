@@ -714,6 +714,7 @@ EXPORT_SYMBOL_GPL(ccw_device_get_schid);
  * ccw_device_pnso() - Perform Network-Subchannel Operation
  * @cdev:		device on which PNSO is performed
  * @pnso_area:		request and response block for the operation
+ * @oc:			Operation Code
  * @resume_token:	resume token for multiblock response
  * @cnc:		Boolean change-notification control
  *
@@ -722,14 +723,13 @@ EXPORT_SYMBOL_GPL(ccw_device_get_schid);
  * Returns 0 on success.
  */
 int ccw_device_pnso(struct ccw_device *cdev,
-		    struct chsc_pnso_area *pnso_area,
-		    struct chsc_pnso_resume_token resume_token,
-		    int cnc)
+		    struct chsc_pnso_area *pnso_area, u8 oc,
+		    struct chsc_pnso_resume_token resume_token, int cnc)
 {
 	struct subchannel_id schid;
 
 	ccw_device_get_schid(cdev, &schid);
-	return chsc_pnso(schid, pnso_area, resume_token, cnc);
+	return chsc_pnso(schid, pnso_area, oc, resume_token, cnc);
 }
 EXPORT_SYMBOL_GPL(ccw_device_pnso);
 

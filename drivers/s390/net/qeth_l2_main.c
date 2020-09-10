@@ -642,6 +642,7 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 /**
  *	qeth_l2_pnso() - perform network subchannel operation
  *	@card: qeth_card structure pointer
+ *	@oc: Operation Code
  *	@cnc: Boolean Change-Notification Control
  *	@cb: Callback function will be executed for each element
  *		of the address list
@@ -652,7 +653,7 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
  *	control" is set, further changes in the address list will be reported
  *	via the IPA command.
  */
-static int qeth_l2_pnso(struct qeth_card *card, int cnc,
+static int qeth_l2_pnso(struct qeth_card *card, u8 oc, int cnc,
 			void (*cb)(void *priv, struct chsc_pnso_naid_l2 *entry),
 			void *priv)
 {
@@ -663,13 +664,14 @@ static int qeth_l2_pnso(struct qeth_card *card, int cnc,
 	int i, size, elems;
 	int rc;
 
-	QETH_CARD_TEXT(card, 2, "PNSO");
 	rr = (struct chsc_pnso_area *)get_zeroed_page(GFP_KERNEL);
 	if (rr == NULL)
 		return -ENOMEM;
 	do {
+		QETH_CARD_TEXT(card, 2, "PNSO");
 		/* on the first iteration, naihdr.resume_token will be zero */
-		rc = ccw_device_pnso(ddev, rr, rr->naihdr.resume_token, cnc);
+		rc = ccw_device_pnso(ddev, rr, oc, rr->naihdr.resume_token,
+				     cnc);
 		if (rc)
 			continue;
 		if (cb == NULL)
@@ -1578,11 +1580,12 @@ int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 	if (enable) {
 		qeth_bridge_emit_host_event(card, anev_reset, 0, NULL, NULL);
 		qeth_l2_set_pnso_mode(card, QETH_PNSO_BRIDGEPORT);
-		rc = qeth_l2_pnso(card, 1, qeth_bridgeport_an_set_cb, card);
+		rc = qeth_l2_pnso(card, PNSO_OC_NET_BRIDGE_INFO, 1,
+				  qeth_bridgeport_an_set_cb, card);
 		if (rc)
 			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
 	} else {
-		rc = qeth_l2_pnso(card, 0, NULL, NULL);
+		rc = qeth_l2_pnso(card, PNSO_OC_NET_BRIDGE_INFO, 0, NULL, NULL);
 		qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
 	}
 	return rc;
