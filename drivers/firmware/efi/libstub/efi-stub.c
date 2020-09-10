@@ -262,7 +262,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 		efi_info("Generating empty DTB\n");
 
 	if (!efi_noinitrd) {
-		max_addr = efi_get_max_initrd_addr(dram_base, image_addr);
+		max_addr = efi_get_max_initrd_addr(image_addr);
 		status = efi_load_initrd(image, &initrd_addr, &initrd_size,
 					 ULONG_MAX, max_addr);
 		if (status != EFI_SUCCESS)
@@ -306,7 +306,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	install_memreserve_table();
 
 	status = allocate_new_fdt_and_exit_boot(handle, &fdt_addr,
-						efi_get_max_fdt_addr(dram_base),
+						efi_get_max_fdt_addr(image_addr),
 						initrd_addr, initrd_size,
 						cmdline_ptr, fdt_addr, fdt_size);
 	if (status != EFI_SUCCESS)

@@ -252,7 +252,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	efi_status_t status;
 
 	/* use a 16 MiB aligned base for the decompressed kernel */
-	kernel_base = round_up(dram_base, SZ_16M) + TEXT_OFFSET;
+	kernel_base = round_up(dram_base, EFI_PHYS_ALIGN) + TEXT_OFFSET;
 
 	/*
 	 * Note that some platforms (notably, the Raspberry Pi 2) put
