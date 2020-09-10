@@ -673,7 +673,7 @@ static void ingenic_drm_unbind_all(void *d)
 	component_unbind_all(priv->dev, &priv->drm);
 }
 
-static int ingenic_drm_bind(struct device *dev)
+static int ingenic_drm_bind(struct device *dev, bool has_components)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	const struct jz_soc_info *soc_info;
@@ -808,7 +808,7 @@ static int ingenic_drm_bind(struct device *dev)
 			return ret;
 		}
 
-		if (IS_ENABLED(CONFIG_DRM_INGENIC_IPU)) {
+		if (IS_ENABLED(CONFIG_DRM_INGENIC_IPU) && has_components) {
 			ret = component_bind_all(dev, drm);
 			if (ret) {
 				if (ret != -EPROBE_DEFER)
@@ -939,6 +939,11 @@ err_pixclk_disable:
 	return ret;
 }
 
+static int ingenic_drm_bind_with_components(struct device *dev)
+{
+	return ingenic_drm_bind(dev, true);
+}
+
 static int compare_of(struct device *dev, void *data)
 {
 	return dev->of_node == data;
@@ -957,7 +962,7 @@ static void ingenic_drm_unbind(struct device *dev)
 }
 
 static const struct component_master_ops ingenic_master_ops = {
-	.bind = ingenic_drm_bind,
+	.bind = ingenic_drm_bind_with_components,
 	.unbind = ingenic_drm_unbind,
 };
 
@@ -968,16 +973,15 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	struct device_node *np;
 
 	if (!IS_ENABLED(CONFIG_DRM_INGENIC_IPU))
-		return ingenic_drm_bind(dev);
+		return ingenic_drm_bind(dev, false);
 
 	/* IPU is at port address 8 */
 	np = of_graph_get_remote_node(dev->of_node, 8, 0);
-	if (!np) {
-		dev_err(dev, "Unable to get IPU node\n");
-		return -EINVAL;
-	}
+	if (!np)
+		return ingenic_drm_bind(dev, false);
 
 	drm_of_component_match_add(dev, &match, compare_of, np);
+	of_node_put(np);
 
 	return component_master_add_with_match(dev, &ingenic_master_ops, match);
 }
