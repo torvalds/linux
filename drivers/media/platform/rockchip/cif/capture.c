@@ -3497,6 +3497,14 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 			l_ts = dev->rdbk_buf[RDBK_L]->vb.vb2_buf.timestamp;
 			m_ts = dev->rdbk_buf[RDBK_M]->vb.vb2_buf.timestamp;
 			s_ts = dev->rdbk_buf[RDBK_S]->vb.vb2_buf.timestamp;
+
+			if (m_ts < l_ts || s_ts < m_ts) {
+				v4l2_err(&dev->v4l2_dev,
+					 "s/m/l frame err, timestamp s:%lld m:%lld l:%lld\n",
+					 s_ts, m_ts, l_ts);
+				goto RDBK_FRM_UNMATCH;
+			}
+
 			if ((m_ts - l_ts) > time || (s_ts - m_ts) > time) {
 				ret = v4l2_subdev_call(sensor->sd,
 						       video,
@@ -3519,13 +3527,6 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 				}
 			}
 
-			if (m_ts < l_ts || s_ts < m_ts) {
-				v4l2_err(&dev->v4l2_dev,
-					 "s/m/l frame err, timestamp s:%lld m:%lld l:%lld\n",
-					 s_ts, m_ts, l_ts);
-				goto RDBK_FRM_UNMATCH;
-			}
-
 			dev->rdbk_buf[RDBK_M]->vb.sequence = dev->rdbk_buf[RDBK_L]->vb.sequence;
 			dev->rdbk_buf[RDBK_S]->vb.sequence = dev->rdbk_buf[RDBK_L]->vb.sequence;
 			rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_L]->vb);
@@ -3544,6 +3545,13 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 		if (dev->rdbk_buf[RDBK_L] && dev->rdbk_buf[RDBK_M]) {
 			l_ts = dev->rdbk_buf[RDBK_L]->vb.vb2_buf.timestamp;
 			s_ts = dev->rdbk_buf[RDBK_M]->vb.vb2_buf.timestamp;
+
+			if (s_ts < l_ts) {
+				v4l2_err(&dev->v4l2_dev,
+					 "s/l frame err, timestamp s:%lld l:%lld\n",
+					 s_ts, l_ts);
+				goto RDBK_FRM_UNMATCH;
+			}
 
 			if ((s_ts - l_ts) > time) {
 				ret = v4l2_subdev_call(sensor->sd,
@@ -3564,13 +3572,6 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 						 s_ts, l_ts, fps);
 					goto RDBK_FRM_UNMATCH;
 				}
-			}
-
-			if (s_ts < l_ts) {
-				v4l2_err(&dev->v4l2_dev,
-					 "s/l frame err, timestamp s:%lld l:%lld\n",
-					 s_ts, l_ts);
-				goto RDBK_FRM_UNMATCH;
 			}
 
 			dev->rdbk_buf[RDBK_M]->vb.sequence =
