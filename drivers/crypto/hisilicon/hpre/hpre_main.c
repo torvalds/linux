@@ -190,7 +190,7 @@ static const struct kernel_param_ops hpre_pf_q_num_ops = {
 
 static u32 pf_q_num = HPRE_PF_DEF_Q_NUM;
 module_param_cb(pf_q_num, &hpre_pf_q_num_ops, &pf_q_num, 0444);
-MODULE_PARM_DESC(pf_q_num, "Number of queues in PF of CS(1-1024)");
+MODULE_PARM_DESC(pf_q_num, "Number of queues in PF of CS(2-1024)");
 
 static const struct kernel_param_ops vfs_num_ops = {
 	.set = vfs_num_set,
