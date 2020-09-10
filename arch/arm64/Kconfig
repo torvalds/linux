@@ -217,6 +217,12 @@ config ARM64_CONT_PTE_SHIFT
 	default 7 if ARM64_16K_PAGES
 	default 4
 
+config ARM64_CONT_PMD_SHIFT
+	int
+	default 5 if ARM64_64K_PAGES
+	default 5 if ARM64_16K_PAGES
+	default 4
+
 config ARCH_MMAP_RND_BITS_MIN
        default 14 if ARM64_64K_PAGES
        default 16 if ARM64_16K_PAGES
