@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <linux/hashtable.h>
+#include <net/switchdev.h>
 #include <asm/chsc.h>
 #include <asm/css_chars.h>
 #include <asm/setup.h>
@@ -709,6 +710,68 @@ static int qeth_l2_pnso(struct qeth_card *card, u8 oc, int cnc,
 	return rc;
 }
 
+static bool qeth_is_my_net_if_token(struct qeth_card *card,
+				    struct net_if_token *token)
+{
+	return ((card->info.ddev_devno == token->devnum) &&
+		(card->info.cssid == token->cssid) &&
+		(card->info.iid == token->iid) &&
+		(card->info.ssid == token->ssid) &&
+		(card->info.chpid == token->chpid) &&
+		(card->info.chid == token->chid));
+}
+
+/**
+ *	qeth_l2_dev2br_fdb_notify() - update fdb of master bridge
+ *	@card:	qeth_card structure pointer
+ *	@code:	event bitmask: high order bit 0x80 set to
+ *				1 - removal of an object
+ *				0 - addition of an object
+ *			       Object type(s):
+ *				0x01 - VLAN, 0x02 - MAC, 0x03 - VLAN and MAC
+ *	@token: "network token" structure identifying 'physical' location
+ *		of the target
+ *	@addr_lnid: structure with MAC address and VLAN ID of the target
+ */
+static void qeth_l2_dev2br_fdb_notify(struct qeth_card *card, u8 code,
+				      struct net_if_token *token,
+				      struct mac_addr_lnid *addr_lnid)
+{
+	struct switchdev_notifier_fdb_info info;
+	u8 ntfy_mac[ETH_ALEN];
+
+	ether_addr_copy(ntfy_mac, addr_lnid->mac);
+	/* Ignore VLAN only changes */
+	if (!(code & IPA_ADDR_CHANGE_CODE_MACADDR))
+		return;
+	/* Ignore mcast entries */
+	if (is_multicast_ether_addr(ntfy_mac))
+		return;
+	/* Ignore my own addresses */
+	if (qeth_is_my_net_if_token(card, token))
+		return;
+
+	info.addr = ntfy_mac;
+	/* don't report VLAN IDs */
+	info.vid = 0;
+	info.added_by_user = false;
+	info.offloaded = true;
+
+	if (code & IPA_ADDR_CHANGE_CODE_REMOVAL) {
+		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
+					 card->dev, &info.info, NULL);
+		QETH_CARD_TEXT(card, 4, "andelmac");
+		QETH_CARD_TEXT_(card, 4,
+				"mc%012lx", ether_addr_to_u64(ntfy_mac));
+	} else {
+		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
+					 card->dev, &info.info, NULL);
+		QETH_CARD_TEXT(card, 4, "anaddmac");
+		QETH_CARD_TEXT_(card, 4,
+				"mc%012lx", ether_addr_to_u64(ntfy_mac));
+	}
+}
+
 static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
@@ -1216,6 +1279,48 @@ struct qeth_addr_change_data {
 	struct qeth_ipacmd_addr_change ac_event;
 };
 
+static void qeth_l2_dev2br_worker(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct qeth_addr_change_data *data;
+	struct qeth_card *card;
+	unsigned int i;
+
+	data = container_of(dwork, struct qeth_addr_change_data, dwork);
+	card = data->card;
+
+	QETH_CARD_TEXT(card, 4, "dev2brew");
+
+	if (READ_ONCE(card->info.pnso_mode) == QETH_PNSO_NONE)
+		goto free;
+
+	/* Potential re-config in progress, try again later: */
+	if (!rtnl_trylock()) {
+		queue_delayed_work(card->event_wq, dwork,
+				   msecs_to_jiffies(100));
+		return;
+	}
+
+	if (data->ac_event.lost_event_mask) {
+		QETH_DBF_MESSAGE(3,
+				 "Address change notification overflow on device %x\n",
+				 CARD_DEVID(card));
+	} else {
+		for (i = 0; i < data->ac_event.num_entries; i++) {
+			struct qeth_ipacmd_addr_change_entry *entry =
+					&data->ac_event.entry[i];
+			qeth_l2_dev2br_fdb_notify(card,
+						  entry->change_code,
+						  &entry->token,
+						  &entry->addr_lnid);
+		}
+	}
+	rtnl_unlock();
+
+free:
+	kfree(data);
+}
+
 static void qeth_addr_change_event_worker(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -1298,7 +1403,10 @@ static void qeth_addr_change_event(struct qeth_card *card,
 		QETH_CARD_TEXT(card, 2, "ACNalloc");
 		return;
 	}
-	INIT_DELAYED_WORK(&data->dwork, qeth_addr_change_event_worker);
+	if (card->info.pnso_mode == QETH_PNSO_BRIDGEPORT)
+		INIT_DELAYED_WORK(&data->dwork, qeth_addr_change_event_worker);
+	else
+		INIT_DELAYED_WORK(&data->dwork, qeth_l2_dev2br_worker);
 	data->card = card;
 	memcpy(&data->ac_event, hostevs,
 			sizeof(struct qeth_ipacmd_addr_change) + extrasize);

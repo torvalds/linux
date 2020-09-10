@@ -677,6 +677,7 @@ struct qeth_card_blkt {
 enum qeth_pnso_mode {
 	QETH_PNSO_NONE,
 	QETH_PNSO_BRIDGEPORT,
+	QETH_PNSO_ADDR_INFO,
 };
 
 #define QETH_BROADCAST_WITH_ECHO    0x01
