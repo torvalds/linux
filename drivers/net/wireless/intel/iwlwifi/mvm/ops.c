@@ -467,15 +467,6 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 /* Please keep this array *SORTED* by hex value.
  * Access is done through binary search
  */
-static const struct iwl_hcmd_names iwl_mvm_debug_names[] = {
-	HCMD_NAME(DBGC_SUSPEND_RESUME),
-	HCMD_NAME(BUFFER_ALLOCATION),
-	HCMD_NAME(MFU_ASSERT_DUMP_NTF),
-};
-
-/* Please keep this array *SORTED* by hex value.
- * Access is done through binary search
- */
 static const struct iwl_hcmd_names iwl_mvm_location_names[] = {
 	HCMD_NAME(TOF_RANGE_REQ_CMD),
 	HCMD_NAME(TOF_CONFIG_CMD),
