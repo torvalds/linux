@@ -50,7 +50,7 @@ static const struct dmi_system_id sof_tplg_table[] = {
 		.callback = sof_tplg_cb,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google_Volteer"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Terrador"),
+			DMI_MATCH(DMI_OEM_STRING, "AUDIO-MAX98373_ALC5682I_I2S_UP4"),
 		},
 		.driver_data = "sof-tgl-rt5682-ssp0-max98373-ssp2.tplg",
 	},
