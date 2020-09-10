@@ -897,6 +897,14 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 	if (!xsk->outstanding_tx)
 		return;
 
+	/* In copy mode, Tx is driven by a syscall so we need to use e.g. sendto() to
+	 * really send the packets. In zero-copy mode we do not have to do this, since Tx
+	 * is driven by the NAPI loop. So as an optimization, we do not have to call
+	 * sendto() all the time in zero-copy mode for l2fwd.
+	 */
+	if (opt_xdp_bind_flags & XDP_COPY)
+		kick_tx(xsk);
+
 	ndescs = (xsk->outstanding_tx > opt_batch_size) ? opt_batch_size :
 		xsk->outstanding_tx;
 
