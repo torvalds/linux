@@ -240,8 +240,8 @@ print_entry_error(struct bpf_map_info *map_info, void *key, int lookup_errno)
 	 * means there is no entry for that key. Do not print an error message
 	 * in that case.
 	 */
-	if (map_is_map_of_maps(map_info->type) ||
-	    map_is_map_of_progs(map_info->type))
+	if ((map_is_map_of_maps(map_info->type) ||
+	     map_is_map_of_progs(map_info->type)) && lookup_errno == ENOENT)
 		return;
 
 	if (json_output) {
