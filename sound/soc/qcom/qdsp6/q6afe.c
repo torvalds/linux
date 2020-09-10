@@ -42,6 +42,7 @@
 #define AFE_PARAM_ID_I2S_CONFIG	0x0001020D
 #define AFE_PARAM_ID_TDM_CONFIG	0x0001029D
 #define AFE_PARAM_ID_PORT_SLOT_MAPPING_CONFIG	0x00010297
+#define AFE_PARAM_ID_CODEC_DMA_CONFIG	0x000102B8
 
 /* I2S config specific */
 #define AFE_API_VERSION_I2S_CONFIG	0x1
@@ -299,12 +300,58 @@
 #define AFE_PORT_ID_QUINARY_TDM_TX_7 \
 	(AFE_PORT_ID_QUINARY_TDM_TX + 0x0E)
 
+/* AFE WSA Codec DMA Rx port 0 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_RX_0	0xB000
+/* AFE WSA Codec DMA Tx port 0 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_TX_0	0xB001
+/* AFE WSA Codec DMA Rx port 1 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_RX_1	0xB002
+/* AFE WSA Codec DMA Tx port 1 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_TX_1	0xB003
+/* AFE WSA Codec DMA Tx port 2 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_TX_2	0xB005
+/* AFE VA Codec DMA Tx port 0 */
+#define AFE_PORT_ID_VA_CODEC_DMA_TX_0	0xB021
+/* AFE VA Codec DMA Tx port 1 */
+#define AFE_PORT_ID_VA_CODEC_DMA_TX_1	0xB023
+/* AFE VA Codec DMA Tx port 2 */
+#define AFE_PORT_ID_VA_CODEC_DMA_TX_2	0xB025
+/* AFE Rx Codec DMA Rx port 0 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_0	0xB030
+/* AFE Tx Codec DMA Tx port 0 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_0	0xB031
+/* AFE Rx Codec DMA Rx port 1 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_1	0xB032
+/* AFE Tx Codec DMA Tx port 1 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_1	0xB033
+/* AFE Rx Codec DMA Rx port 2 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_2	0xB034
+/* AFE Tx Codec DMA Tx port 2 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_2	0xB035
+/* AFE Rx Codec DMA Rx port 3 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_3	0xB036
+/* AFE Tx Codec DMA Tx port 3 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_3	0xB037
+/* AFE Rx Codec DMA Rx port 4 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_4	0xB038
+/* AFE Tx Codec DMA Tx port 4 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_4	0xB039
+/* AFE Rx Codec DMA Rx port 5 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_5	0xB03A
+/* AFE Tx Codec DMA Tx port 5 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_5	0xB03B
+/* AFE Rx Codec DMA Rx port 6 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_6	0xB03C
+/* AFE Rx Codec DMA Rx port 7 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_7	0xB03E
+
 #define Q6AFE_LPASS_MODE_CLK1_VALID 1
 #define Q6AFE_LPASS_MODE_CLK2_VALID 2
 #define Q6AFE_LPASS_CLK_SRC_INTERNAL 1
 #define Q6AFE_LPASS_CLK_ROOT_DEFAULT 0
 #define AFE_API_VERSION_TDM_CONFIG              1
 #define AFE_API_VERSION_SLOT_MAPPING_CONFIG	1
+#define AFE_API_VERSION_CODEC_DMA_CONFIG	1
 
 #define TIMEOUT_MS 1000
 #define AFE_CMD_RESP_AVAIL	0
@@ -448,11 +495,21 @@ struct afe_param_id_tdm_cfg {
 	u32	slot_mask;
 } __packed;
 
+struct afe_param_id_cdc_dma_cfg {
+	u32	cdc_dma_cfg_minor_version;
+	u32	sample_rate;
+	u16	bit_width;
+	u16	data_format;
+	u16	num_channels;
+	u16	active_channels_mask;
+} __packed;
+
 union afe_port_config {
 	struct afe_param_id_hdmi_multi_chan_audio_cfg hdmi_multi_ch;
 	struct afe_param_id_slimbus_cfg           slim_cfg;
 	struct afe_param_id_i2s_cfg	i2s_cfg;
 	struct afe_param_id_tdm_cfg	tdm_cfg;
+	struct afe_param_id_cdc_dma_cfg	dma_cfg;
 } __packed;
 
 
@@ -707,6 +764,50 @@ static struct afe_port_map port_maps[AFE_PORT_MAX] = {
 				QUINARY_TDM_TX_7, 0, 1},
 	[DISPLAY_PORT_RX] = { AFE_PORT_ID_HDMI_OVER_DP_RX,
 				DISPLAY_PORT_RX, 1, 1},
+	[WSA_CODEC_DMA_RX_0] = { AFE_PORT_ID_WSA_CODEC_DMA_RX_0,
+				WSA_CODEC_DMA_RX_0, 1, 1},
+	[WSA_CODEC_DMA_TX_0] = { AFE_PORT_ID_WSA_CODEC_DMA_TX_0,
+				WSA_CODEC_DMA_TX_0, 0, 1},
+	[WSA_CODEC_DMA_RX_1] = { AFE_PORT_ID_WSA_CODEC_DMA_RX_1,
+				WSA_CODEC_DMA_RX_1, 1, 1},
+	[WSA_CODEC_DMA_TX_1] = { AFE_PORT_ID_WSA_CODEC_DMA_TX_1,
+				WSA_CODEC_DMA_TX_1, 0, 1},
+	[WSA_CODEC_DMA_TX_2] = { AFE_PORT_ID_WSA_CODEC_DMA_TX_2,
+				WSA_CODEC_DMA_TX_2, 0, 1},
+	[VA_CODEC_DMA_TX_0] = { AFE_PORT_ID_VA_CODEC_DMA_TX_0,
+				VA_CODEC_DMA_TX_0, 0, 1},
+	[VA_CODEC_DMA_TX_1] = { AFE_PORT_ID_VA_CODEC_DMA_TX_1,
+				VA_CODEC_DMA_TX_1, 0, 1},
+	[VA_CODEC_DMA_TX_2] = { AFE_PORT_ID_VA_CODEC_DMA_TX_2,
+				VA_CODEC_DMA_TX_2, 0, 1},
+	[RX_CODEC_DMA_RX_0] = { AFE_PORT_ID_RX_CODEC_DMA_RX_0,
+				RX_CODEC_DMA_RX_0, 1, 1},
+	[TX_CODEC_DMA_TX_0] = { AFE_PORT_ID_TX_CODEC_DMA_TX_0,
+				TX_CODEC_DMA_TX_0, 0, 1},
+	[RX_CODEC_DMA_RX_1] = { AFE_PORT_ID_RX_CODEC_DMA_RX_1,
+				RX_CODEC_DMA_RX_1, 1, 1},
+	[TX_CODEC_DMA_TX_1] = { AFE_PORT_ID_TX_CODEC_DMA_TX_1,
+				TX_CODEC_DMA_TX_1, 0, 1},
+	[RX_CODEC_DMA_RX_2] = { AFE_PORT_ID_RX_CODEC_DMA_RX_2,
+				RX_CODEC_DMA_RX_2, 1, 1},
+	[TX_CODEC_DMA_TX_2] = { AFE_PORT_ID_TX_CODEC_DMA_TX_2,
+				TX_CODEC_DMA_TX_2, 0, 1},
+	[RX_CODEC_DMA_RX_3] = { AFE_PORT_ID_RX_CODEC_DMA_RX_3,
+				RX_CODEC_DMA_RX_3, 1, 1},
+	[TX_CODEC_DMA_TX_3] = { AFE_PORT_ID_TX_CODEC_DMA_TX_3,
+				TX_CODEC_DMA_TX_3, 0, 1},
+	[RX_CODEC_DMA_RX_4] = { AFE_PORT_ID_RX_CODEC_DMA_RX_4,
+				RX_CODEC_DMA_RX_4, 1, 1},
+	[TX_CODEC_DMA_TX_4] = { AFE_PORT_ID_TX_CODEC_DMA_TX_4,
+				TX_CODEC_DMA_TX_4, 0, 1},
+	[RX_CODEC_DMA_RX_5] = { AFE_PORT_ID_RX_CODEC_DMA_RX_5,
+				RX_CODEC_DMA_RX_5, 1, 1},
+	[TX_CODEC_DMA_TX_5] = { AFE_PORT_ID_TX_CODEC_DMA_TX_5,
+				TX_CODEC_DMA_TX_5, 0, 1},
+	[RX_CODEC_DMA_RX_6] = { AFE_PORT_ID_RX_CODEC_DMA_RX_6,
+				RX_CODEC_DMA_RX_6, 1, 1},
+	[RX_CODEC_DMA_RX_7] = { AFE_PORT_ID_RX_CODEC_DMA_RX_7,
+				RX_CODEC_DMA_RX_7, 1, 1},
 };
 
 static void q6afe_port_free(struct kref *ref)
@@ -1289,6 +1390,28 @@ int q6afe_i2s_port_prepare(struct q6afe_port *port, struct q6afe_i2s_cfg *cfg)
 EXPORT_SYMBOL_GPL(q6afe_i2s_port_prepare);
 
 /**
+ * q6afe_dam_port_prepare() - Prepare dma afe port.
+ *
+ * @port: Instance of afe port
+ * @cfg: DMA configuration for the afe port
+ *
+ */
+void q6afe_cdc_dma_port_prepare(struct q6afe_port *port,
+				struct q6afe_cdc_dma_cfg *cfg)
+{
+	union afe_port_config *pcfg = &port->port_cfg;
+	struct afe_param_id_cdc_dma_cfg *dma_cfg = &pcfg->dma_cfg;
+
+	dma_cfg->cdc_dma_cfg_minor_version = AFE_API_VERSION_CODEC_DMA_CONFIG;
+	dma_cfg->sample_rate = cfg->sample_rate;
+	dma_cfg->bit_width = cfg->bit_width;
+	dma_cfg->data_format = cfg->data_format;
+	dma_cfg->num_channels = cfg->num_channels;
+	if (!cfg->active_channels_mask)
+		dma_cfg->active_channels_mask = (1 << cfg->num_channels) - 1;
+}
+EXPORT_SYMBOL_GPL(q6afe_cdc_dma_port_prepare);
+/**
  * q6afe_port_start() - Start a afe port
  *
  * @port: Instance of port to start
@@ -1420,7 +1543,9 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	case AFE_PORT_ID_PRIMARY_TDM_RX ... AFE_PORT_ID_QUINARY_TDM_TX_7:
 		cfg_type = AFE_PARAM_ID_TDM_CONFIG;
 		break;
-
+	case AFE_PORT_ID_WSA_CODEC_DMA_RX_0 ... AFE_PORT_ID_RX_CODEC_DMA_RX_7:
+		cfg_type = AFE_PARAM_ID_CODEC_DMA_CONFIG;
+	break;
 	default:
 		dev_err(dev, "Invalid port id 0x%x\n", port_id);
 		return ERR_PTR(-EINVAL);
