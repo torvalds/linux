@@ -898,11 +898,7 @@ static int pmbus_get_boolean(struct i2c_client *client, struct pmbus_boolean *b,
 		pmbus_update_sensor_data(client, s2);
 
 	regval = status & mask;
-	if (!s1 && !s2) {
-		ret = !!regval;
-	} else if (!s1 || !s2) {
-		WARN(1, "Bad boolean descriptor %p: s1=%p, s2=%p\n", b, s1, s2);
-	} else {
+	if (s1 && s2) {
 		s64 v1, v2;
 
 		if (s1->data < 0) {
@@ -917,6 +913,8 @@ static int pmbus_get_boolean(struct i2c_client *client, struct pmbus_boolean *b,
 		v1 = pmbus_reg2data(data, s1);
 		v2 = pmbus_reg2data(data, s2);
 		ret = !!(regval && v1 >= v2);
+	} else {
+		ret = !!regval;
 	}
 unlock:
 	mutex_unlock(&data->update_lock);
@@ -1043,6 +1041,9 @@ static int pmbus_add_boolean(struct pmbus_data *data,
 {
 	struct pmbus_boolean *boolean;
 	struct sensor_device_attribute *a;
+
+	if (WARN((s1 && !s2) || (!s1 && s2), "Bad s1/s2 parameters\n"))
+		return -EINVAL;
 
 	boolean = devm_kzalloc(data->dev, sizeof(*boolean), GFP_KERNEL);
 	if (!boolean)
