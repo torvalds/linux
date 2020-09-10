@@ -7,6 +7,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -356,7 +357,6 @@ static int as3935_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	struct iio_trigger *trig;
 	struct as3935_state *st;
-	struct device_node *np = dev->of_node;
 	int ret;
 
 	/* Be sure lightning event interrupt is specified */
@@ -375,7 +375,7 @@ static int as3935_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 	mutex_init(&st->lock);
 
-	ret = of_property_read_u32(np,
+	ret = device_property_read_u32(dev,
 			"ams,tuning-capacitor-pf", &st->tune_cap);
 	if (ret) {
 		st->tune_cap = 0;
@@ -389,7 +389,7 @@ static int as3935_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(np,
+	ret = device_property_read_u32(dev,
 			"ams,nflwdth", &st->nflwdth_reg);
 	if (!ret && st->nflwdth_reg > AS3935_NFLWDTH_MASK) {
 		dev_err(dev, "invalid nflwdth setting of %d\n",
@@ -471,7 +471,7 @@ MODULE_DEVICE_TABLE(spi, as3935_id);
 static struct spi_driver as3935_driver = {
 	.driver = {
 		.name	= "as3935",
-		.of_match_table = of_match_ptr(as3935_of_match),
+		.of_match_table = as3935_of_match,
 		.pm	= AS3935_PM_OPS,
 	},
 	.probe		= as3935_probe,
