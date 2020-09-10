@@ -83,7 +83,6 @@ struct cpsw_ale_dev_id {
 
 #define ALE_TABLE_SIZE_MULTIPLIER	1024
 #define ALE_STATUS_SIZE_MASK		0x1f
-#define ALE_TABLE_SIZE_DEFAULT		64
 
 static inline int cpsw_ale_get_field(u32 *ale_entry, u32 start, u32 bits)
 {
@@ -1060,11 +1059,12 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	u32 rev, ale_entries;
 
 	ale_dev_id = cpsw_ale_match_id(cpsw_ale_id_match, params->dev_id);
-	if (ale_dev_id) {
-		params->ale_entries = ale_dev_id->tbl_entries;
-		params->major_ver_mask = ale_dev_id->major_ver_mask;
-		params->nu_switch_ale = ale_dev_id->nu_switch_ale;
-	}
+	if (!ale_dev_id)
+		return ERR_PTR(-EINVAL);
+
+	params->ale_entries = ale_dev_id->tbl_entries;
+	params->major_ver_mask = ale_dev_id->major_ver_mask;
+	params->nu_switch_ale = ale_dev_id->nu_switch_ale;
 
 	ale = devm_kzalloc(params->dev, sizeof(*ale), GFP_KERNEL);
 	if (!ale)
@@ -1079,10 +1079,9 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 
 	ale->params = *params;
 	ale->ageout = ale->params.ale_ageout * HZ;
+	ale->features = ale_dev_id->features;
 
 	rev = readl_relaxed(ale->params.ale_regs + ALE_IDVER);
-	if (!ale->params.major_ver_mask)
-		ale->params.major_ver_mask = 0xff;
 	ale->version =
 		(ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask) << 8) |
 		 ALE_VERSION_MINOR(rev);
@@ -1090,7 +1089,8 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 		 ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask),
 		 ALE_VERSION_MINOR(rev));
 
-	if (!ale->params.ale_entries) {
+	if (ale->features & CPSW_ALE_F_STATUS_REG &&
+	    !ale->params.ale_entries) {
 		ale_entries =
 			readl_relaxed(ale->params.ale_regs + ALE_STATUS) &
 			ALE_STATUS_SIZE_MASK;
@@ -1099,16 +1099,12 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 		 * table which shows the size as a multiple of 1024 entries.
 		 * For these, params.ale_entries will be set to zero. So
 		 * read the register and update the value of ale_entries.
-		 * ALE table on NetCP lite, is much smaller and is indicated
-		 * by a value of zero in ALE_STATUS. So use a default value
-		 * of ALE_TABLE_SIZE_DEFAULT for this. Caller is expected
-		 * to set the value of ale_entries for all other versions
-		 * of ALE.
+		 * return error if ale_entries is zero in ALE_STATUS.
 		 */
 		if (!ale_entries)
-			ale_entries = ALE_TABLE_SIZE_DEFAULT;
-		else
-			ale_entries *= ALE_TABLE_SIZE_MULTIPLIER;
+			return ERR_PTR(-EINVAL);
+
+		ale_entries *= ALE_TABLE_SIZE_MULTIPLIER;
 		ale->params.ale_entries = ale_entries;
 	}
 	dev_info(ale->params.dev,
