@@ -46,7 +46,7 @@
 
 /* Initial IO mappings */
 
-static struct map_desc s3c2410_iodesc[] __initdata = {
+static struct map_desc s3c2410_iodesc[] __initdata __maybe_unused = {
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),

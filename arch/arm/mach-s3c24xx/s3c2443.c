@@ -42,7 +42,7 @@
 #include "nand-core.h"
 #include "spi-core.h"
 
-static struct map_desc s3c2443_iodesc[] __initdata = {
+static struct map_desc s3c2443_iodesc[] __initdata __maybe_unused = {
 	IODESC_ENT(WATCHDOG),
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(TIMER),
