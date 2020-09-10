@@ -792,26 +792,123 @@ out:
 	return rc;
 }
 
+static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
+		struct hl_cs_chunk *chunk, u64 *signal_seq)
+{
+	u64 *signal_seq_arr = NULL;
+	u32 size_to_copy, signal_seq_arr_len;
+	int rc = 0;
+
+	signal_seq_arr_len = chunk->num_signal_seq_arr;
+
+	/* currently only one signal seq is supported */
+	if (signal_seq_arr_len != 1) {
+		dev_err(hdev->dev,
+			"Wait for signal CS supports only one signal CS seq\n");
+		return -EINVAL;
+	}
+
+	signal_seq_arr = kmalloc_array(signal_seq_arr_len,
+					sizeof(*signal_seq_arr),
+					GFP_ATOMIC);
+	if (!signal_seq_arr)
+		return -ENOMEM;
+
+	size_to_copy = chunk->num_signal_seq_arr * sizeof(*signal_seq_arr);
+	if (copy_from_user(signal_seq_arr,
+				u64_to_user_ptr(chunk->signal_seq_arr),
+				size_to_copy)) {
+		dev_err(hdev->dev,
+			"Failed to copy signal seq array from user\n");
+		rc = -EFAULT;
+		goto out;
+	}
+
+	/* currently it is guaranteed to have only one signal seq */
+	*signal_seq = signal_seq_arr[0];
+
+out:
+	kfree(signal_seq_arr);
+
+	return rc;
+}
+
+static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
+		struct hl_ctx *ctx, struct hl_cs *cs, enum hl_queue_type q_type,
+		u32 q_idx)
+{
+	struct hl_cs_counters_atomic *cntr;
+	struct hl_cs_job *job;
+	struct hl_cb *cb;
+	u32 cb_size;
+
+	cntr = &hdev->aggregated_cs_counters;
+
+	job = hl_cs_allocate_job(hdev, q_type, true);
+	if (!job) {
+		ctx->cs_counters.out_of_mem_drop_cnt++;
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
+		dev_err(hdev->dev, "Failed to allocate a new job\n");
+		return -ENOMEM;
+	}
+
+	if (cs->type == CS_TYPE_WAIT)
+		cb_size = hdev->asic_funcs->get_wait_cb_size(hdev);
+	else
+		cb_size = hdev->asic_funcs->get_signal_cb_size(hdev);
+
+	cb = hl_cb_kernel_create(hdev, cb_size,
+				q_type == QUEUE_TYPE_HW && hdev->mmu_enable);
+	if (!cb) {
+		ctx->cs_counters.out_of_mem_drop_cnt++;
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
+		kfree(job);
+		return -EFAULT;
+	}
+
+	job->id = 0;
+	job->cs = cs;
+	job->user_cb = cb;
+	job->user_cb->cs_cnt++;
+	job->user_cb_size = cb_size;
+	job->hw_queue_id = q_idx;
+
+	/*
+	 * No need in parsing, user CB is the patched CB.
+	 * We call hl_cb_destroy() out of two reasons - we don't need the CB in
+	 * the CB idr anymore and to decrement its refcount as it was
+	 * incremented inside hl_cb_kernel_create().
+	 */
+	job->patched_cb = job->user_cb;
+	job->job_cb_size = job->user_cb_size;
+	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+
+	cs->jobs_in_queue_cnt[job->hw_queue_id]++;
+
+	list_add_tail(&job->cs_node, &cs->job_list);
+
+	hl_debugfs_add_job(hdev, job);
+
+	return 0;
+}
+
 static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				void __user *chunks, u32 num_chunks,
 				u64 *cs_seq)
 {
-	u32 size_to_copy, q_idx, signal_seq_arr_len, cb_size;
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_ctx *ctx = hpriv->ctx;
 	struct hl_cs_chunk *cs_chunk_array, *chunk;
 	struct hw_queue_properties *hw_queue_prop;
-	u64 *signal_seq_arr = NULL, signal_seq;
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_cs_counters_atomic *cntr;
 	struct hl_fence *sig_fence = NULL;
-	struct hl_ctx *ctx = hpriv->ctx;
-	enum hl_queue_type q_type;
-	struct hl_cs_job *job;
+	struct hl_cs_compl *sig_waitcs_cmpl;
 	struct hl_cs *cs;
-	struct hl_cb *cb;
+	enum hl_queue_type q_type;
+	u32 size_to_copy, q_idx;
+	u64 signal_seq;
 	int rc;
 
 	*cs_seq = ULLONG_MAX;
-	cntr = &hdev->aggregated_cs_counters;
 
 	if (num_chunks > HL_MAX_JOBS_PER_CS) {
 		dev_err(hdev->dev,
@@ -857,52 +954,23 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	}
 
 	if (cs_type == CS_TYPE_WAIT) {
-		struct hl_cs_compl *sig_waitcs_cmpl;
-
-		signal_seq_arr_len = chunk->num_signal_seq_arr;
-
-		/* currently only one signal seq is supported */
-		if (signal_seq_arr_len != 1) {
-			dev_err(hdev->dev,
-				"Wait for signal CS supports only one signal CS seq\n");
-			rc = -EINVAL;
+		rc = cs_ioctl_extract_signal_seq(hdev, chunk, &signal_seq);
+		if (rc)
 			goto free_cs_chunk_array;
-		}
 
-		signal_seq_arr = kmalloc_array(signal_seq_arr_len,
-						sizeof(*signal_seq_arr),
-						GFP_ATOMIC);
-		if (!signal_seq_arr) {
-			rc = -ENOMEM;
-			goto free_cs_chunk_array;
-		}
-
-		size_to_copy = chunk->num_signal_seq_arr *
-				sizeof(*signal_seq_arr);
-		if (copy_from_user(signal_seq_arr,
-					u64_to_user_ptr(chunk->signal_seq_arr),
-					size_to_copy)) {
-			dev_err(hdev->dev,
-				"Failed to copy signal seq array from user\n");
-			rc = -EFAULT;
-			goto free_signal_seq_array;
-		}
-
-		/* currently it is guaranteed to have only one signal seq */
-		signal_seq = signal_seq_arr[0];
 		sig_fence = hl_ctx_get_fence(ctx, signal_seq);
 		if (IS_ERR(sig_fence)) {
 			dev_err(hdev->dev,
 				"Failed to get signal CS with seq 0x%llx\n",
 				signal_seq);
 			rc = PTR_ERR(sig_fence);
-			goto free_signal_seq_array;
+			goto free_cs_chunk_array;
 		}
 
 		if (!sig_fence) {
 			/* signal CS already finished */
 			rc = 0;
-			goto free_signal_seq_array;
+			goto free_cs_chunk_array;
 		}
 
 		sig_waitcs_cmpl =
@@ -914,14 +982,14 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				signal_seq);
 			hl_fence_put(sig_fence);
 			rc = -EINVAL;
-			goto free_signal_seq_array;
+			goto free_cs_chunk_array;
 		}
 
 		if (completion_done(&sig_fence->completion)) {
 			/* signal CS already finished */
 			hl_fence_put(sig_fence);
 			rc = 0;
-			goto free_signal_seq_array;
+			goto free_cs_chunk_array;
 		}
 	}
 
@@ -933,69 +1001,30 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		if (cs_type == CS_TYPE_WAIT)
 			hl_fence_put(sig_fence);
 		hl_ctx_put(ctx);
-		goto free_signal_seq_array;
+		goto free_cs_chunk_array;
 	}
 
 	/*
 	 * Save the signal CS fence for later initialization right before
 	 * hanging the wait CS on the queue.
 	 */
-	if (cs->type == CS_TYPE_WAIT)
+	if (cs_type == CS_TYPE_WAIT)
 		cs->signal_fence = sig_fence;
 
 	hl_debugfs_add_cs(cs);
 
 	*cs_seq = cs->sequence;
 
-	job = hl_cs_allocate_job(hdev, q_type, true);
-	if (!job) {
-		ctx->cs_counters.out_of_mem_drop_cnt++;
-		atomic64_inc(&cntr->out_of_mem_drop_cnt);
-		dev_err(hdev->dev, "Failed to allocate a new job\n");
-		rc = -ENOMEM;
+	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_SIGNAL)
+		rc = cs_ioctl_signal_wait_create_jobs(hdev, ctx, cs, q_type,
+				q_idx);
+
+	if (rc)
 		goto put_cs;
-	}
 
-	if (cs->type == CS_TYPE_WAIT)
-		cb_size = hdev->asic_funcs->get_wait_cb_size(hdev);
-	else
-		cb_size = hdev->asic_funcs->get_signal_cb_size(hdev);
-
-	cb = hl_cb_kernel_create(hdev, cb_size,
-				q_type == QUEUE_TYPE_HW && hdev->mmu_enable);
-	if (!cb) {
-		ctx->cs_counters.out_of_mem_drop_cnt++;
-		atomic64_inc(&cntr->out_of_mem_drop_cnt);
-		kfree(job);
-		rc = -EFAULT;
-		goto put_cs;
-	}
-
-	job->id = 0;
-	job->cs = cs;
-	job->user_cb = cb;
-	job->user_cb->cs_cnt++;
-	job->user_cb_size = cb_size;
-	job->hw_queue_id = q_idx;
-
-	/*
-	 * No need in parsing, user CB is the patched CB.
-	 * We call hl_cb_destroy() out of two reasons - we don't need the CB in
-	 * the CB idr anymore and to decrement its refcount as it was
-	 * incremented inside hl_cb_kernel_create().
-	 */
-	job->patched_cb = job->user_cb;
-	job->job_cb_size = job->user_cb_size;
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
-
-	cs->jobs_in_queue_cnt[job->hw_queue_id]++;
-
-	list_add_tail(&job->cs_node, &cs->job_list);
 
 	/* increment refcount as for external queues we get completion */
 	cs_get(cs);
-
-	hl_debugfs_add_job(hdev, job);
 
 	rc = hl_hw_queue_schedule_cs(cs);
 	if (rc) {
@@ -1016,9 +1045,6 @@ free_cs_object:
 put_cs:
 	/* We finished with the CS in this function, so put the ref */
 	cs_put(cs);
-free_signal_seq_array:
-	if (cs_type == CS_TYPE_WAIT)
-		kfree(signal_seq_arr);
 free_cs_chunk_array:
 	kfree(cs_chunk_array);
 out:
