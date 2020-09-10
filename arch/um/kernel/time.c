@@ -106,6 +106,7 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 		break;
 	}
 
+	resp.seq = msg->seq;
 	os_write_file(time_travel_ext_fd, &resp, sizeof(resp));
 }
 
