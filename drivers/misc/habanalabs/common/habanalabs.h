@@ -68,6 +68,11 @@
 #define HL_RSVD_SOBS			4
 #define HL_RSVD_MONS			2
 
+/*
+ * HL_COLLECTIVE_RSVD_MSTR_MONS 'collective' reserved monitors per QMAN stream
+ */
+#define HL_COLLECTIVE_RSVD_MSTR_MONS	2
+
 #define HL_MAX_SOB_VAL			(1 << 15)
 
 #define IS_POWER_OF_2(n)		(n != 0 && ((n & (n - 1)) == 0))
@@ -177,7 +182,8 @@ enum hl_queue_type {
 enum hl_cs_type {
 	CS_TYPE_DEFAULT,
 	CS_TYPE_SIGNAL,
-	CS_TYPE_WAIT
+	CS_TYPE_WAIT,
+	CS_TYPE_COLLECTIVE_WAIT
 };
 
 /*
@@ -231,6 +237,12 @@ struct hl_hw_sob {
 	u32			q_idx;
 };
 
+enum hl_collective_mode {
+	HL_COLLECTIVE_NOT_SUPPORTED = 0x0,
+	HL_COLLECTIVE_MASTER = 0x1,
+	HL_COLLECTIVE_SLAVE = 0x2
+};
+
 /**
  * struct hw_queue_properties - queue information.
  * @type: queue type.
@@ -238,6 +250,7 @@ struct hl_hw_sob {
  *                        that allocated by the Kernel driver and therefore,
  *                        a CB handle can be provided for jobs on this queue.
  *                        Otherwise, a CB address must be provided.
+ * @collective_mode: collective mode of current queue
  * @driver_only: true if only the driver is allowed to send a job to this queue,
  *               false otherwise.
  * @supports_sync_stream: True if queue supports sync stream
@@ -245,6 +258,7 @@ struct hl_hw_sob {
 struct hw_queue_properties {
 	enum hl_queue_type	type;
 	enum queue_cb_alloc_flags cb_alloc_flags;
+	enum hl_collective_mode	collective_mode;
 	u8			driver_only;
 	u8			supports_sync_stream;
 };
@@ -358,6 +372,8 @@ struct hl_mmu_properties {
  * @cb_pool_cb_size: size of each CB in the CB pool.
  * @max_pending_cs: maximum of concurrent pending command submissions
  * @max_queues: maximum amount of queues in the system
+ * @collective_first_sob: first sync object available for collective use
+ * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
  * @sync_stream_first_mon: first monitor available for sync stream use
  * @first_available_user_sob: first sob available for the user
@@ -410,6 +426,8 @@ struct asic_fixed_properties {
 	u32				cb_pool_cb_size;
 	u32				max_pending_cs;
 	u32				max_queues;
+	u16				collective_first_sob;
+	u16				collective_first_mon;
 	u16				sync_stream_first_sob;
 	u16				sync_stream_first_mon;
 	u16				first_available_user_sob[HL_MAX_DCORES];
@@ -441,6 +459,7 @@ struct hl_fence {
  * @cs_seq: command submission sequence number.
  * @type: type of the CS - signal/wait.
  * @sob_val: the SOB value that is used in this signal/wait CS.
+ * @sob_group: the SOB group that is used in this collective wait CS.
  */
 struct hl_cs_compl {
 	struct hl_fence		base_fence;
@@ -450,6 +469,7 @@ struct hl_cs_compl {
 	u64			cs_seq;
 	enum hl_cs_type		type;
 	u16			sob_val;
+	u16			sob_group;
 };
 
 /*
@@ -512,6 +532,7 @@ struct hl_cb {
  * QUEUES
  */
 
+struct hl_cs;
 struct hl_cs_job;
 
 /* Queue length of external and HW queues */
@@ -540,15 +561,24 @@ struct hl_cs_job;
  * @next_sob_val: the next value to use for the currently used SOB.
  * @base_sob_id: the base SOB id of the SOBs used by this queue.
  * @base_mon_id: the base MON id of the MONs used by this queue.
+ * @collective_mstr_mon_id: the MON ids of the MONs used by this master queue
+ *                          in order to sync with all slave queues.
+ * @collective_slave_mon_id: the MON id used by this slave queue in order to
+ *                           sync with its master queue.
+ * @collective_sob_id: current SOB id used by this collective slave queue
+ *                     to signal its collective master queue upon completion.
  * @curr_sob_offset: the id offset to the currently used SOB from the
  *                   HL_RSVD_SOBS that are being used by this queue.
  */
 struct hl_sync_stream_properties {
-	struct hl_hw_sob	hw_sob[HL_RSVD_SOBS];
-	u16			next_sob_val;
-	u16			base_sob_id;
-	u16			base_mon_id;
-	u8			curr_sob_offset;
+	struct hl_hw_sob hw_sob[HL_RSVD_SOBS];
+	u16		next_sob_val;
+	u16		base_sob_id;
+	u16		base_mon_id;
+	u16		collective_mstr_mon_id[HL_COLLECTIVE_RSVD_MSTR_MONS];
+	u16		collective_slave_mon_id;
+	u16		collective_sob_id;
+	u8		curr_sob_offset;
 };
 
 /**
@@ -556,6 +586,7 @@ struct hl_sync_stream_properties {
  * @shadow_queue: pointer to a shadow queue that holds pointers to jobs.
  * @sync_stream_prop: sync stream queue properties
  * @queue_type: type of queue.
+ * @collective_mode: collective mode of current queue
  * @kernel_address: holds the queue's kernel virtual address.
  * @bus_address: holds the queue's DMA address.
  * @pi: holds the queue's pi value.
@@ -572,6 +603,7 @@ struct hl_hw_queue {
 	struct hl_cs_job			**shadow_queue;
 	struct hl_sync_stream_properties	sync_stream_prop;
 	enum hl_queue_type			queue_type;
+	enum hl_collective_mode			collective_mode;
 	void					*kernel_address;
 	dma_addr_t				bus_address;
 	u32					pi;
@@ -764,9 +796,13 @@ enum div_select_defs {
  * @gen_signal_cb: Generate a signal CB.
  * @gen_wait_cb: Generate a wait CB.
  * @reset_sob: Reset a SOB.
+ * @reset_sob_group: Reset SOB group
  * @set_dma_mask_from_fw: set the DMA mask in the driver according to the
  *                        firmware configuration
  * @get_device_time: Get the device time.
+ * @collective_wait_init_cs: Generate collective master/slave packets
+ *                           and place them in the relevant cs jobs
+ * @collective_wait_create_jobs: allocate collective wait cs jobs
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -868,8 +904,13 @@ struct hl_asic_funcs {
 	u32 (*gen_wait_cb)(struct hl_device *hdev,
 			struct hl_gen_wait_properties *prop);
 	void (*reset_sob)(struct hl_device *hdev, void *data);
+	void (*reset_sob_group)(struct hl_device *hdev, u16 sob_group);
 	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
 	u64 (*get_device_time)(struct hl_device *hdev);
+	void (*collective_wait_init_cs)(struct hl_cs *cs);
+	int (*collective_wait_create_jobs)(struct hl_device *hdev,
+			struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
+			u32 collective_engine_id);
 };
 
 
@@ -1656,6 +1697,7 @@ struct hl_mmu_funcs {
  * @stop_on_err: true if engines should stop on error.
  * @supports_sync_stream: is sync stream supported.
  * @sync_stream_queue_idx: helper index for sync stream queues initialization.
+ * @collective_mon_idx: helper index for collective initialization
  * @supports_coresight: is CoreSight supported.
  * @supports_soft_reset: is soft reset supported.
  * @supports_cb_mapping: is mapping a CB to the device's MMU supported.
@@ -1756,6 +1798,7 @@ struct hl_device {
 	u8				stop_on_err;
 	u8				supports_sync_stream;
 	u8				sync_stream_queue_idx;
+	u8				collective_mon_idx;
 	u8				supports_coresight;
 	u8				supports_soft_reset;
 	u8				supports_cb_mapping;

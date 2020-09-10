@@ -333,7 +333,14 @@ static void int_queue_schedule_job(struct hl_cs_job *job)
 
 	bd.ctl = 0;
 	bd.len = cpu_to_le32(job->job_cb_size);
-	bd.ptr = cpu_to_le64((u64) (uintptr_t) job->user_cb);
+
+	if (job->is_kernel_allocated_cb)
+		/* bus_address is actually a mmu mapped address
+		 * allocated from an internal pool
+		 */
+		bd.ptr = cpu_to_le64(job->user_cb->bus_address);
+	else
+		bd.ptr = cpu_to_le64((u64) (uintptr_t) job->user_cb);
 
 	pi = q->kernel_address + (q->pi & (q->int_queue_len - 1)) * sizeof(bd);
 
@@ -562,6 +569,8 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 
 	if ((cs->type == CS_TYPE_SIGNAL) || (cs->type == CS_TYPE_WAIT))
 		init_signal_wait_cs(cs);
+	else if (cs->type == CS_TYPE_COLLECTIVE_WAIT)
+		hdev->asic_funcs->collective_wait_init_cs(cs);
 
 	spin_lock(&hdev->hw_queues_mirror_lock);
 	list_add_tail(&cs->mirror_node, &hdev->hw_queues_mirror_list);
@@ -741,12 +750,40 @@ static void sync_stream_queue_init(struct hl_device *hdev, u32 q_idx)
 	struct hl_sync_stream_properties *sync_stream_prop;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_hw_sob *hw_sob;
-	int sob, queue_idx;
+	int sob, reserved_mon_idx, queue_idx;
+
+	sync_stream_prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+
+	/* We use 'collective_mon_idx' as a running index in order to reserve
+	 * monitors for collective master/slave queues.
+	 * collective master queue gets 2 reserved monitors
+	 * collective slave queue gets 1 reserved monitor
+	 */
+	if (hdev->kernel_queues[q_idx].collective_mode ==
+			HL_COLLECTIVE_MASTER) {
+		reserved_mon_idx = hdev->collective_mon_idx;
+
+		/* reserve the first monitor for collective master queue */
+		sync_stream_prop->collective_mstr_mon_id[0] =
+			prop->collective_first_mon + reserved_mon_idx;
+
+		/* reserve the second monitor for collective master queue */
+		sync_stream_prop->collective_mstr_mon_id[1] =
+			prop->collective_first_mon + reserved_mon_idx + 1;
+
+		hdev->collective_mon_idx += HL_COLLECTIVE_RSVD_MSTR_MONS;
+	} else if (hdev->kernel_queues[q_idx].collective_mode ==
+			HL_COLLECTIVE_SLAVE) {
+		reserved_mon_idx = hdev->collective_mon_idx++;
+
+		/* reserve a monitor for collective slave queue */
+		sync_stream_prop->collective_slave_mon_id =
+			prop->collective_first_mon + reserved_mon_idx;
+	}
 
 	if (!hdev->kernel_queues[q_idx].supports_sync_stream)
 		return;
 
-	sync_stream_prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
 	queue_idx = hdev->sync_stream_queue_idx++;
 
 	sync_stream_prop->base_sob_id = prop->sync_stream_first_sob +
@@ -897,6 +934,7 @@ int hl_hw_queues_create(struct hl_device *hdev)
 		q->queue_type = asic->hw_queues_props[i].type;
 		q->supports_sync_stream =
 				asic->hw_queues_props[i].supports_sync_stream;
+		q->collective_mode = asic->hw_queues_props[i].collective_mode;
 		rc = queue_init(hdev, q, i);
 		if (rc) {
 			dev_err(hdev->dev,

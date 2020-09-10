@@ -85,7 +85,8 @@ static void hl_fence_release(struct kref *kref)
 		goto free;
 
 	if ((hl_cs_cmpl->type == CS_TYPE_SIGNAL) ||
-			(hl_cs_cmpl->type == CS_TYPE_WAIT)) {
+		(hl_cs_cmpl->type == CS_TYPE_WAIT) ||
+		(hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)) {
 
 		dev_dbg(hdev->dev,
 			"CS 0x%llx type %d finished, sob_id: %d, sob_val: 0x%x\n",
@@ -112,6 +113,10 @@ static void hl_fence_release(struct kref *kref)
 		 * hence the above scenario is avoided.
 		 */
 		kref_put(&hl_cs_cmpl->hw_sob->kref, hl_sob_reset);
+
+		if (hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)
+			hdev->asic_funcs->reset_sob_group(hdev,
+					hl_cs_cmpl->sob_group);
 	}
 
 free:
@@ -247,9 +252,11 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 	/* For H/W queue jobs, if a user CB was allocated by driver and MMU is
 	 * enabled, the user CB isn't released in cs_parser() and thus should be
 	 * released here.
+	 * This is also true for INT queues jobs which were allocated by driver
 	 */
-	if (job->queue_type == QUEUE_TYPE_HW &&
-			job->is_kernel_allocated_cb && hdev->mmu_enable) {
+	if (job->is_kernel_allocated_cb &&
+		((job->queue_type == QUEUE_TYPE_HW && hdev->mmu_enable) ||
+				job->queue_type == QUEUE_TYPE_INT)) {
 		spin_lock(&job->user_cb->lock);
 		job->user_cb->cs_cnt--;
 		spin_unlock(&job->user_cb->lock);
@@ -931,7 +938,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	struct hl_cs_compl *sig_waitcs_cmpl;
 	struct hl_cs *cs;
 	enum hl_queue_type q_type;
-	u32 size_to_copy, q_idx;
+	u32 size_to_copy, q_idx, collective_engine_id;
 	u64 signal_seq;
 	int rc;
 
@@ -981,7 +988,18 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		goto free_cs_chunk_array;
 	}
 
-	if (cs_type == CS_TYPE_WAIT) {
+	if (cs_type == CS_TYPE_COLLECTIVE_WAIT) {
+		if (!(hw_queue_prop->collective_mode == HL_COLLECTIVE_MASTER)) {
+			dev_err(hdev->dev,
+				"Queue index %d is invalid\n", q_idx);
+			rc = -EINVAL;
+			goto free_cs_chunk_array;
+		}
+
+		collective_engine_id = chunk->collective_engine_id;
+	}
+
+	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_COLLECTIVE_WAIT) {
 		rc = cs_ioctl_extract_signal_seq(hdev, chunk, &signal_seq);
 		if (rc)
 			goto free_cs_chunk_array;
@@ -1026,7 +1044,8 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	rc = allocate_cs(hdev, ctx, cs_type, &cs);
 	if (rc) {
-		if (cs_type == CS_TYPE_WAIT)
+		if (cs_type == CS_TYPE_WAIT ||
+			cs_type == CS_TYPE_COLLECTIVE_WAIT)
 			hl_fence_put(sig_fence);
 		hl_ctx_put(ctx);
 		goto free_cs_chunk_array;
@@ -1036,7 +1055,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	 * Save the signal CS fence for later initialization right before
 	 * hanging the wait CS on the queue.
 	 */
-	if (cs_type == CS_TYPE_WAIT)
+	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_COLLECTIVE_WAIT)
 		cs->signal_fence = sig_fence;
 
 	hl_debugfs_add_cs(cs);
@@ -1046,6 +1065,9 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_SIGNAL)
 		rc = cs_ioctl_signal_wait_create_jobs(hdev, ctx, cs, q_type,
 				q_idx);
+	else
+		rc = hdev->asic_funcs->collective_wait_create_jobs(hdev, ctx,
+				cs, q_idx, collective_engine_id);
 
 	if (rc)
 		goto put_cs;
@@ -1120,6 +1142,8 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		cs_type = CS_TYPE_SIGNAL;
 	else if (args->in.cs_flags & HL_CS_FLAGS_WAIT)
 		cs_type = CS_TYPE_WAIT;
+	else if (args->in.cs_flags & HL_CS_FLAGS_COLLECTIVE_WAIT)
+		cs_type = CS_TYPE_COLLECTIVE_WAIT;
 	else
 		cs_type = CS_TYPE_DEFAULT;
 

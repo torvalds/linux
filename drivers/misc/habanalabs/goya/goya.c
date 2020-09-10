@@ -5305,6 +5305,11 @@ static void goya_reset_sob(struct hl_device *hdev, void *data)
 
 }
 
+void goya_reset_sob_group(struct hl_device *hdev, u16 sob_group)
+{
+
+}
+
 static void goya_set_dma_mask_from_fw(struct hl_device *hdev)
 {
 	if (RREG32(mmPSOC_GLOBAL_CONF_NON_RST_FLOPS_0) ==
@@ -5324,6 +5329,18 @@ u64 goya_get_device_time(struct hl_device *hdev)
 	u64 device_time = ((u64) RREG32(mmPSOC_TIMESTAMP_CNTCVU)) << 32;
 
 	return device_time | RREG32(mmPSOC_TIMESTAMP_CNTCVL);
+}
+
+void goya_collective_wait_init_cs(struct hl_cs *cs)
+{
+
+}
+
+int goya_collective_wait_create_jobs(struct hl_device *hdev,
+		struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
+		u32 collective_engine_id)
+{
+	return -EINVAL;
 }
 
 static const struct hl_asic_funcs goya_funcs = {
@@ -5397,8 +5414,11 @@ static const struct hl_asic_funcs goya_funcs = {
 	.gen_signal_cb = goya_gen_signal_cb,
 	.gen_wait_cb = goya_gen_wait_cb,
 	.reset_sob = goya_reset_sob,
+	.reset_sob_group = goya_reset_sob_group,
 	.set_dma_mask_from_fw = goya_set_dma_mask_from_fw,
-	.get_device_time = goya_get_device_time
+	.get_device_time = goya_get_device_time,
+	.collective_wait_init_cs = goya_collective_wait_init_cs,
+	.collective_wait_create_jobs = goya_collective_wait_create_jobs
 };
 
 /*

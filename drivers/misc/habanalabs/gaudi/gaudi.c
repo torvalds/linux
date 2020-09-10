@@ -793,6 +793,23 @@ out:
 	return rc;
 }
 
+static void gaudi_reset_sob_group(struct hl_device *hdev, u16 sob_groupt)
+{
+
+}
+
+static void gaudi_collective_wait_init_cs(struct hl_cs *cs)
+{
+
+}
+
+static int gaudi_collective_wait_create_jobs(struct hl_device *hdev,
+		struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
+		u32 collective_engine_id)
+{
+	return -EINVAL;
+}
+
 static int gaudi_late_init(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -7358,8 +7375,11 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.gen_signal_cb = gaudi_gen_signal_cb,
 	.gen_wait_cb = gaudi_gen_wait_cb,
 	.reset_sob = gaudi_reset_sob,
+	.reset_sob_group = gaudi_reset_sob_group,
 	.set_dma_mask_from_fw = gaudi_set_dma_mask_from_fw,
-	.get_device_time = gaudi_get_device_time
+	.get_device_time = gaudi_get_device_time,
+	.collective_wait_init_cs = gaudi_collective_wait_init_cs,
+	.collective_wait_create_jobs = gaudi_collective_wait_create_jobs
 };
 
 /**

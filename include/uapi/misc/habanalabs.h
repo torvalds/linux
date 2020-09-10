@@ -523,7 +523,8 @@ struct hl_cs_chunk {
 		 */
 		__u64 cb_handle;
 
-		/* Relevant only when HL_CS_FLAGS_WAIT is set.
+		/* Relevant only when HL_CS_FLAGS_WAIT or
+		 * HL_CS_FLAGS_COLLECTIVE_WAIT is set.
 		 * This holds address of array of u64 values that contain
 		 * signal CS sequence numbers. The wait described by this job
 		 * will listen on all those signals (wait event per signal)
@@ -541,7 +542,8 @@ struct hl_cs_chunk {
 		 */
 		__u32 cb_size;
 
-		/* Relevant only when HL_CS_FLAGS_WAIT is set.
+		/* Relevant only when HL_CS_FLAGS_WAIT or
+		 * HL_CS_FLAGS_COLLECTIVE_WAIT is set.
 		 * Number of entries in signal_seq_arr
 		 */
 		__u32 num_signal_seq_arr;
@@ -550,14 +552,21 @@ struct hl_cs_chunk {
 	/* HL_CS_CHUNK_FLAGS_* */
 	__u32 cs_chunk_flags;
 
+	/* Relevant only when HL_CS_FLAGS_COLLECTIVE_WAIT is set.
+	 * This holds the collective engine ID. The wait described by this job
+	 * will sync with this engine and with all NICs before completion.
+	 */
+	__u32 collective_engine_id;
+
 	/* Align structure to 64 bytes */
-	__u32 pad[11];
+	__u32 pad[10];
 };
 
-/* SIGNAL and WAIT flags are mutually exclusive */
+/* SIGNAL and WAIT/COLLECTIVE_WAIT flags are mutually exclusive */
 #define HL_CS_FLAGS_FORCE_RESTORE	0x1
 #define HL_CS_FLAGS_SIGNAL		0x2
 #define HL_CS_FLAGS_WAIT		0x4
+#define HL_CS_FLAGS_COLLECTIVE_WAIT	0x8
 
 #define HL_CS_STATUS_SUCCESS		0
 
