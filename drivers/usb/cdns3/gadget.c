@@ -1098,11 +1098,13 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 	u32 control;
 	int pcs;
 	u16 total_tdl = 0;
+	struct scatterlist *s = NULL;
+	bool sg_supported = !!(request->num_mapped_sgs);
 
 	if (priv_ep->type == USB_ENDPOINT_XFER_ISOC)
 		num_trb = priv_ep->interval;
 	else
-		num_trb = request->num_sgs ? request->num_sgs : 1;
+		num_trb = sg_supported ? request->num_mapped_sgs : 1;
 
 	if (num_trb > priv_ep->free_trbs) {
 		priv_ep->flags |= EP_RING_FULL;
@@ -1162,6 +1164,9 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 	if (priv_dev->dev_ver <= DEV_VER_V2)
 		togle_pcs = cdns3_wa1_update_guard(priv_ep, trb);
 
+	if (sg_supported)
+		s = request->sg;
+
 	/* set incorrect Cycle Bit for first trb*/
 	control = priv_ep->pcs ? 0 : TRB_CYCLE;
 
@@ -1171,13 +1176,13 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 
 		/* fill TRB */
 		control |= TRB_TYPE(TRB_NORMAL);
-		trb->buffer = cpu_to_le32(TRB_BUFFER(request->num_sgs == 0
-				? trb_dma : request->sg[sg_iter].dma_address));
-
-		if (likely(!request->num_sgs))
+		if (sg_supported) {
+			trb->buffer = cpu_to_le32(TRB_BUFFER(sg_dma_address(s)));
+			length = sg_dma_len(s);
+		} else {
+			trb->buffer = cpu_to_le32(TRB_BUFFER(trb_dma));
 			length = request->length;
-		else
-			length = request->sg[sg_iter].length;
+		}
 
 		if (likely(priv_dev->dev_ver >= DEV_VER_V2))
 			td_size = DIV_ROUND_UP(length,
@@ -1214,6 +1219,9 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 			trb->control = cpu_to_le32(control);
 		else
 			priv_req->trb->control = cpu_to_le32(control);
+
+		if (sg_supported)
+			s = sg_next(s);
 
 		control = 0;
 		++sg_iter;
