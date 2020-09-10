@@ -7608,14 +7608,8 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
 }
 
-/**
- *	devlink_port_type_eth_set - Set port type to Ethernet
- *
- *	@devlink_port: devlink port
- *	@netdev: related netdevice
- */
-void devlink_port_type_eth_set(struct devlink_port *devlink_port,
-			       struct net_device *netdev)
+static void devlink_port_type_netdev_checks(struct devlink_port *devlink_port,
+					    struct net_device *netdev)
 {
 	const struct net_device_ops *ops = netdev->netdev_ops;
 
@@ -7649,6 +7643,24 @@ void devlink_port_type_eth_set(struct devlink_port *devlink_port,
 		err = ops->ndo_get_port_parent_id(netdev, &ppid);
 		WARN_ON(err != -EOPNOTSUPP);
 	}
+}
+
+/**
+ *	devlink_port_type_eth_set - Set port type to Ethernet
+ *
+ *	@devlink_port: devlink port
+ *	@netdev: related netdevice
+ */
+void devlink_port_type_eth_set(struct devlink_port *devlink_port,
+			       struct net_device *netdev)
+{
+	if (netdev)
+		devlink_port_type_netdev_checks(devlink_port, netdev);
+	else
+		dev_warn(devlink_port->devlink->dev,
+			 "devlink port type for port %d set to Ethernet without a software interface reference, device type not supported by the kernel?\n",
+			 devlink_port->index);
+
 	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH, netdev);
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_eth_set);
