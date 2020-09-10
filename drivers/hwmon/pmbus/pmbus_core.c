@@ -2351,6 +2351,42 @@ static int pmbus_debugfs_get_status(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops_status, pmbus_debugfs_get_status,
 			 NULL, "0x%04llx\n");
 
+static int pmbus_debugfs_get_pec(void *data, u64 *val)
+{
+	struct i2c_client *client = data;
+
+	*val = !!(client->flags & I2C_CLIENT_PEC);
+
+	return 0;
+}
+
+static int pmbus_debugfs_set_pec(void *data, u64 val)
+{
+	int rc;
+	struct i2c_client *client = data;
+
+	if (!val) {
+		client->flags &= ~I2C_CLIENT_PEC;
+		return 0;
+	}
+
+	if (val != 1)
+		return -EINVAL;
+
+	rc = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
+	if (rc < 0)
+		return rc;
+
+	if (!(rc & PB_CAPABILITY_ERROR_CHECK))
+		return -EOPNOTSUPP;
+
+	client->flags |= I2C_CLIENT_PEC;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops_pec, pmbus_debugfs_get_pec,
+			 pmbus_debugfs_set_pec, "%llu\n");
+
 static int pmbus_init_debugfs(struct i2c_client *client,
 			      struct pmbus_data *data)
 {
@@ -2378,6 +2414,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			       GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
+
+	debugfs_create_file("pec", 0664, data->debugfs, client,
+			    &pmbus_debugfs_ops_pec);
 
 	for (i = 0; i < data->info->pages; ++i) {
 		/* Check accessibility of status register if it's not page 0 */
