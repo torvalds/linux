@@ -213,6 +213,12 @@ enum pq_init_status {
  *       Trigger the reset_history property of a specified current sensor.
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
+ *
+ * CPUCP_PACKET_PLL_REG_GET
+ *       Fetch register of PLL from the required PLL IP.
+ *       The packet's arguments specify the PLL IP and the register to get.
+ *       Each register is 32-bit value which is returned in result field.
+ *
  */
 
 enum cpucp_packet_id {
@@ -245,6 +251,7 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_PCIE_THROUGHPUT_GET,		/* internal */
 	CPUCP_PACKET_PCIE_REPLAY_CNT_GET,		/* internal */
 	CPUCP_PACKET_TOTAL_ENERGY_GET,		/* internal */
+	CPUCP_PACKET_PLL_REG_GET,		/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -277,6 +284,11 @@ struct cpucp_packet {
 			__u8 i2c_addr;
 			__u8 i2c_reg;
 			__u8 pad; /* unused */
+		};
+
+		struct {/* For PLL register fetch */
+			__le16 pll_type;
+			__le16 pll_reg;
 		};
 
 		/* For any general request */
@@ -352,6 +364,19 @@ enum cpucp_pwm_attributes {
 enum cpucp_pcie_throughput_attributes {
 	cpucp_pcie_throughput_tx,
 	cpucp_pcie_throughput_rx
+};
+
+enum cpucp_pll_reg_attributes {
+	cpucp_pll_nr_reg,
+	cpucp_pll_nf_reg,
+	cpucp_pll_od_reg,
+	cpucp_pll_div_factor_reg,
+	cpucp_pll_div_sel_reg
+};
+
+enum cpucp_pll_type_attributes {
+	cpucp_pll_cpu,
+	cpucp_pll_pci,
 };
 
 /* Event Queue Packets */
