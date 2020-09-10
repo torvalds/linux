@@ -150,7 +150,7 @@ static void expr_ids__exit(struct expr_ids *ids)
 }
 
 /**
- * Find a group of events in perf_evlist that correpond to those from a parsed
+ * Find a group of events in perf_evlist that correspond to those from a parsed
  * metric expression. Note, as find_evsel_group is called in the same order as
  * perf_evlist was constructed, metric_no_merge doesn't need to test for
  * underfilling a group.
