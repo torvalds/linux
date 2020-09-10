@@ -78,6 +78,7 @@ static int opt_pkt_count;
 static u16 opt_pkt_size = MIN_PKT_SIZE;
 static u32 opt_pkt_fill_pattern = 0x12345678;
 static bool opt_extra_stats;
+static bool opt_quiet;
 static int opt_poll;
 static int opt_interval = 1;
 static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
@@ -718,6 +719,7 @@ static struct option long_options[] = {
 	{"tx-pkt-size", required_argument, 0, 's'},
 	{"tx-pkt-pattern", required_argument, 0, 'P'},
 	{"extra-stats", no_argument, 0, 'x'},
+	{"quiet", no_argument, 0, 'Q'},
 	{0, 0, 0, 0}
 };
 
@@ -753,6 +755,7 @@ static void usage(const char *prog)
 		"			Min size: %d, Max size %d.\n"
 		"  -P, --tx-pkt-pattern=nPacket fill pattern. Default: 0x%x\n"
 		"  -x, --extra-stats	Display extra statistics.\n"
+		"  -Q, --quiet          Do not display any stats.\n"
 		"\n";
 	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE,
 		opt_batch_size, MIN_PKT_SIZE, MIN_PKT_SIZE,
@@ -768,7 +771,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:x",
+		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:xQ",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -851,6 +854,9 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'x':
 			opt_extra_stats = 1;
+			break;
+		case 'Q':
+			opt_quiet = 1;
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -1286,9 +1292,11 @@ int main(int argc, char **argv)
 
 	setlocale(LC_ALL, "");
 
-	ret = pthread_create(&pt, NULL, poller, NULL);
-	if (ret)
-		exit_with_error(ret);
+	if (!opt_quiet) {
+		ret = pthread_create(&pt, NULL, poller, NULL);
+		if (ret)
+			exit_with_error(ret);
+	}
 
 	prev_time = get_nsecs();
 	start_time = prev_time;
@@ -1302,7 +1310,8 @@ int main(int argc, char **argv)
 
 	benchmark_done = true;
 
-	pthread_join(pt, NULL);
+	if (!opt_quiet)
+		pthread_join(pt, NULL);
 
 	xdpsock_cleanup();
 
