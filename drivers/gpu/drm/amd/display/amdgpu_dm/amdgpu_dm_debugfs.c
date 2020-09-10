@@ -2146,6 +2146,7 @@ static const struct {
 	const struct file_operations *fops;
 } dp_debugfs_entries[] = {
 		{"link_settings", &dp_link_settings_debugfs_fops},
+		{"trigger_hotplug", &dp_trigger_hotplug_debugfs_fops},
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops},
 #ifdef CONFIG_DRM_AMD_DC_HDCP
