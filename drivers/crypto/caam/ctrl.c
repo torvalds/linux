@@ -443,7 +443,9 @@ static int caam_get_era_from_hw(struct caam_ctrl __iomem *ctrl)
  * by u-boot.
  * In case this property is not passed an attempt to retrieve the CAAM
  * era via register reads will be made.
- **/
+ *
+ * @ctrl:	controller region
+ */
 static int caam_get_era(struct caam_ctrl __iomem *ctrl)
 {
 	struct device_node *caam_node;

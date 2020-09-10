@@ -373,6 +373,7 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_encap);
  *         with OP_ALG_AAI_HMAC_PRECOMP.
  * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
+ * @geniv: whether to generate Encrypted Chain IV
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @nonce: pointer to rfc3686 nonce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
