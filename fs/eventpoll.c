@@ -2181,6 +2181,7 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 		goto error_tgt_fput;
 	if (op == EPOLL_CTL_ADD) {
 		if (!list_empty(&f.file->f_ep_links) ||
+				ep->gen == loop_check_gen ||
 						is_file_epoll(tf.file)) {
 			mutex_unlock(&ep->mtx);
 			error = epoll_mutex_lock(&epmutex, 0, nonblock);
