@@ -34,7 +34,6 @@
 #define SMC_LGR_NUM_INCR		256
 #define SMC_LGR_FREE_DELAY_SERV		(600 * HZ)
 #define SMC_LGR_FREE_DELAY_CLNT		(SMC_LGR_FREE_DELAY_SERV + 10 * HZ)
-#define SMC_LGR_FREE_DELAY_FAST		(8 * HZ)
 
 static struct smc_lgr_list smc_lgr_list = {	/* established link groups */
 	.lock = __SPIN_LOCK_UNLOCKED(smc_lgr_list.lock),
@@ -70,20 +69,11 @@ static void smc_lgr_schedule_free_work(struct smc_link_group *lgr)
 	 * creation. For client use a somewhat higher removal delay time,
 	 * otherwise there is a risk of out-of-sync link groups.
 	 */
-	if (!lgr->freeing && !lgr->freefast) {
+	if (!lgr->freeing) {
 		mod_delayed_work(system_wq, &lgr->free_work,
 				 (!lgr->is_smcd && lgr->role == SMC_CLNT) ?
 						SMC_LGR_FREE_DELAY_CLNT :
 						SMC_LGR_FREE_DELAY_SERV);
-	}
-}
-
-void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr)
-{
-	if (!lgr->freeing && !lgr->freefast) {
-		lgr->freefast = 1;
-		mod_delayed_work(system_wq, &lgr->free_work,
-				 SMC_LGR_FREE_DELAY_FAST);
 	}
 }
 
@@ -227,7 +217,7 @@ void smc_lgr_cleanup_early(struct smc_connection *conn)
 	if (!list_empty(lgr_list))
 		list_del_init(lgr_list);
 	spin_unlock_bh(lgr_lock);
-	smc_lgr_schedule_free_work_fast(lgr);
+	__smc_lgr_terminate(lgr, true);
 }
 
 static void smcr_lgr_link_deactivate_all(struct smc_link_group *lgr)
@@ -399,7 +389,6 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	lgr->is_smcd = ini->is_smcd;
 	lgr->sync_err = 0;
 	lgr->terminating = 0;
-	lgr->freefast = 0;
 	lgr->freeing = 0;
 	lgr->vlan_id = ini->vlan_id;
 	mutex_init(&lgr->sndbufs_lock);
@@ -825,10 +814,8 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 
 	smc_lgr_free_bufs(lgr);
 	if (lgr->is_smcd) {
-		if (!lgr->terminating) {
-			smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
-			put_device(&lgr->smcd->dev);
-		}
+		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
+		put_device(&lgr->smcd->dev);
 		if (!atomic_dec_return(&lgr->smcd->lgr_cnt))
 			wake_up(&lgr->smcd->lgrs_deleted);
 	} else {
@@ -889,8 +876,6 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 	if (lgr->is_smcd) {
 		smc_ism_signal_shutdown(lgr);
 		smcd_unregister_all_dmbs(lgr);
-		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
-		put_device(&lgr->smcd->dev);
 	} else {
 		u32 rsn = lgr->llc_termination_rsn;
 
