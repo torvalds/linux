@@ -31,3 +31,9 @@
 						      pipe_ctx->stream, &pipe_ctx->plane_res, \
 						      pipe_ctx->update_flags.raw); \
 	}
+
+#define TRACE_DCE_CLOCK_STATE(dce_clocks) \
+	trace_amdgpu_dm_dce_clocks_state(dce_clocks)
+
+#define TRACE_DCN_CLOCK_STATE(dcn_clocks) \
+	trace_amdgpu_dm_dc_clocks_state(dcn_clocks)

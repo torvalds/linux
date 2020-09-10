@@ -484,6 +484,119 @@ TRACE_EVENT(amdgpu_dm_dc_pipe_state,
 	)
 );
 
+TRACE_EVENT(amdgpu_dm_dc_clocks_state,
+	    TP_PROTO(const struct dc_clocks *clk),
+	    TP_ARGS(clk),
+
+	    TP_STRUCT__entry(
+			     __field(int, dispclk_khz)
+			     __field(int, dppclk_khz)
+			     __field(int, disp_dpp_voltage_level_khz)
+			     __field(int, dcfclk_khz)
+			     __field(int, socclk_khz)
+			     __field(int, dcfclk_deep_sleep_khz)
+			     __field(int, fclk_khz)
+			     __field(int, phyclk_khz)
+			     __field(int, dramclk_khz)
+			     __field(int, p_state_change_support)
+			     __field(int, prev_p_state_change_support)
+			     __field(int, pwr_state)
+			     __field(int, dtm_level)
+			     __field(int, max_supported_dppclk_khz)
+			     __field(int, max_supported_dispclk_khz)
+			     __field(int, bw_dppclk_khz)
+			     __field(int, bw_dispclk_khz)
+	    ),
+	    TP_fast_assign(
+			   __entry->dispclk_khz = clk->dispclk_khz;
+			   __entry->dppclk_khz = clk->dppclk_khz;
+			   __entry->dcfclk_khz = clk->dcfclk_khz;
+			   __entry->socclk_khz = clk->socclk_khz;
+			   __entry->dcfclk_deep_sleep_khz = clk->dcfclk_deep_sleep_khz;
+			   __entry->fclk_khz = clk->fclk_khz;
+			   __entry->phyclk_khz = clk->phyclk_khz;
+			   __entry->dramclk_khz = clk->dramclk_khz;
+			   __entry->p_state_change_support = clk->p_state_change_support;
+			   __entry->prev_p_state_change_support = clk->prev_p_state_change_support;
+			   __entry->pwr_state = clk->pwr_state;
+			   __entry->prev_p_state_change_support = clk->prev_p_state_change_support;
+			   __entry->dtm_level = clk->dtm_level;
+			   __entry->max_supported_dppclk_khz = clk->max_supported_dppclk_khz;
+			   __entry->max_supported_dispclk_khz = clk->max_supported_dispclk_khz;
+			   __entry->bw_dppclk_khz = clk->bw_dppclk_khz;
+			   __entry->bw_dispclk_khz = clk->bw_dispclk_khz;
+	    ),
+	    TP_printk("dispclk_khz=%d dppclk_khz=%d disp_dpp_voltage_level_khz=%d dcfclk_khz=%d socclk_khz=%d "
+		      "dcfclk_deep_sleep_khz=%d fclk_khz=%d phyclk_khz=%d "
+		      "dramclk_khz=%d p_state_change_support=%d "
+		      "prev_p_state_change_support=%d pwr_state=%d prev_p_state_change_support=%d "
+		      "dtm_level=%d max_supported_dppclk_khz=%d max_supported_dispclk_khz=%d "
+		      "bw_dppclk_khz=%d bw_dispclk_khz=%d ",
+		      __entry->dispclk_khz,
+		      __entry->dppclk_khz,
+		      __entry->disp_dpp_voltage_level_khz,
+		      __entry->dcfclk_khz,
+		      __entry->socclk_khz,
+		      __entry->dcfclk_deep_sleep_khz,
+		      __entry->fclk_khz,
+		      __entry->phyclk_khz,
+		      __entry->dramclk_khz,
+		      __entry->p_state_change_support,
+		      __entry->prev_p_state_change_support,
+		      __entry->pwr_state,
+		      __entry->prev_p_state_change_support,
+		      __entry->dtm_level,
+		      __entry->max_supported_dppclk_khz,
+		      __entry->max_supported_dispclk_khz,
+		      __entry->bw_dppclk_khz,
+		      __entry->bw_dispclk_khz
+	    )
+);
+
+TRACE_EVENT(amdgpu_dm_dce_clocks_state,
+	    TP_PROTO(const struct dce_bw_output *clk),
+	    TP_ARGS(clk),
+
+	    TP_STRUCT__entry(
+			     __field(bool, cpuc_state_change_enable)
+			     __field(bool, cpup_state_change_enable)
+			     __field(bool, stutter_mode_enable)
+			     __field(bool, nbp_state_change_enable)
+			     __field(bool, all_displays_in_sync)
+			     __field(int, sclk_khz)
+			     __field(int, sclk_deep_sleep_khz)
+			     __field(int, yclk_khz)
+			     __field(int, dispclk_khz)
+			     __field(int, blackout_recovery_time_us)
+	    ),
+	    TP_fast_assign(
+			   __entry->cpuc_state_change_enable = clk->cpuc_state_change_enable;
+			   __entry->cpup_state_change_enable = clk->cpup_state_change_enable;
+			   __entry->stutter_mode_enable = clk->stutter_mode_enable;
+			   __entry->nbp_state_change_enable = clk->nbp_state_change_enable;
+			   __entry->all_displays_in_sync = clk->all_displays_in_sync;
+			   __entry->sclk_khz = clk->sclk_khz;
+			   __entry->sclk_deep_sleep_khz = clk->sclk_deep_sleep_khz;
+			   __entry->yclk_khz = clk->yclk_khz;
+			   __entry->dispclk_khz = clk->dispclk_khz;
+			   __entry->blackout_recovery_time_us = clk->blackout_recovery_time_us;
+	    ),
+	    TP_printk("cpuc_state_change_enable=%d cpup_state_change_enable=%d stutter_mode_enable=%d "
+		      "nbp_state_change_enable=%d all_displays_in_sync=%d sclk_khz=%d sclk_deep_sleep_khz=%d "
+		      "yclk_khz=%d dispclk_khz=%d blackout_recovery_time_us=%d",
+		      __entry->cpuc_state_change_enable,
+		      __entry->cpup_state_change_enable,
+		      __entry->stutter_mode_enable,
+		      __entry->nbp_state_change_enable,
+		      __entry->all_displays_in_sync,
+		      __entry->sclk_khz,
+		      __entry->sclk_deep_sleep_khz,
+		      __entry->yclk_khz,
+		      __entry->dispclk_khz,
+		      __entry->blackout_recovery_time_us
+	    )
+);
+
 #endif /* _AMDGPU_DM_TRACE_H_ */
 
 #undef TRACE_INCLUDE_PATH

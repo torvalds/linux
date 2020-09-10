@@ -1435,6 +1435,11 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc->hwss.optimize_bandwidth(dc, context);
 	}
 
+	if (dc->ctx->dce_version >= DCE_VERSION_MAX)
+		TRACE_DCN_CLOCK_STATE(&context->bw_ctx.bw.dcn.clk);
+	else
+		TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
+
 	context->stream_mask = get_stream_mask(dc, context);
 
 	if (context->stream_mask != dc->current_state->stream_mask)
@@ -2737,8 +2742,14 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		}
 	}
 	/*let's use current_state to update watermark etc*/
-	if (update_type >= UPDATE_TYPE_FULL)
+	if (update_type >= UPDATE_TYPE_FULL) {
 		dc_post_update_surfaces_to_stream(dc);
+
+		if (dc_ctx->dce_version >= DCE_VERSION_MAX)
+			TRACE_DCN_CLOCK_STATE(&context->bw_ctx.bw.dcn.clk);
+		else
+			TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
+	}
 
 	return;
 
