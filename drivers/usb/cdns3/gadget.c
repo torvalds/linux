@@ -3159,7 +3159,6 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 	priv_dev->gadget.speed = USB_SPEED_UNKNOWN;
 	priv_dev->gadget.ops = &cdns3_gadget_ops;
 	priv_dev->gadget.name = "usb-ss-gadget";
-	priv_dev->gadget.sg_supported = 1;
 	priv_dev->gadget.quirk_avoids_skb_reserve = 1;
 	priv_dev->gadget.irq = cdns->dev_irq;
 
@@ -3198,6 +3197,8 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 		readl(&priv_dev->regs->usb_cap2));
 
 	priv_dev->dev_ver = GET_DEV_BASE_VERSION(priv_dev->dev_ver);
+	if (priv_dev->dev_ver >= DEV_VER_V2)
+		priv_dev->gadget.sg_supported = 1;
 
 	priv_dev->zlp_buf = kzalloc(CDNS3_EP_ZLP_BUF_SIZE, GFP_KERNEL);
 	if (!priv_dev->zlp_buf) {
