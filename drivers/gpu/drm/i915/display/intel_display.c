@@ -16893,7 +16893,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 	intel_pps_init(dev_priv);
 
-	if (!HAS_DISPLAY(dev_priv) || !INTEL_DISPLAY_ENABLED(dev_priv))
+	if (!HAS_DISPLAY(dev_priv))
 		return;
 
 	if (IS_ROCKETLAKE(dev_priv)) {

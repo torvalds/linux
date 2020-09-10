@@ -2095,6 +2095,17 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 	}
 }
 
+enum drm_connector_status
+intel_panel_detect(struct drm_connector *connector, bool force)
+{
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+
+	if (!INTEL_DISPLAY_ENABLED(i915))
+		return connector_status_disconnected;
+
+	return connector_status_connected;
+}
+
 int intel_panel_init(struct intel_panel *panel,
 		     struct drm_display_mode *fixed_mode,
 		     struct drm_display_mode *downclock_mode)
