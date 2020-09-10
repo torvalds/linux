@@ -81,7 +81,6 @@ allOf:
               - samsung,exynos-adc-v2
               - samsung,exynos3250-adc
               - samsung,exynos4212-adc
-              - samsung,s5pv210-adc
     then:
       required:
         - samsung,syscon-phandle
