@@ -183,7 +183,7 @@ static struct amoled_ecm_sdam_config ecm_reset_config[] = {
 	{ ECM_MODE,		0x00 },
 	/* Valid only when ECM uses 2 SDAMs */
 	{ ECM_SEND_IRQ,		0x03 },
-	{ ECM_WRITE_TO_SDAM,	0x33 }
+	{ ECM_WRITE_TO_SDAM,	0x03 }
 };
 
 static int ecm_reset_sdam_config(struct amoled_ecm *ecm)
