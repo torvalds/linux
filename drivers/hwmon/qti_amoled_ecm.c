@@ -186,12 +186,25 @@ static struct amoled_ecm_sdam_config ecm_reset_config[] = {
 	{ ECM_WRITE_TO_SDAM,	0x03 }
 };
 
+static int ecm_nvmem_device_write(struct nvmem_device *nvmem,
+		       unsigned int offset,
+		       size_t bytes, void *buf)
+{
+	size_t i;
+	u8 *ptr = buf;
+
+	for (i = 0; i < bytes; i++)
+		pr_debug("Wrote %#x to %#x\n", *ptr++, offset + i);
+
+	return nvmem_device_write(nvmem, offset, bytes, buf);
+}
+
 static int ecm_reset_sdam_config(struct amoled_ecm *ecm)
 {
 	int rc, i;
 
 	for (i = 0; i < ARRAY_SIZE(ecm_reset_config); i++) {
-		rc = nvmem_device_write(ecm->sdam[0].nvmem,
+		rc = ecm_nvmem_device_write(ecm->sdam[0].nvmem,
 				ecm_reset_config[i].reg,
 				1, &ecm_reset_config[i].reset_val);
 		if (rc < 0) {
@@ -212,7 +225,7 @@ static int amoled_ecm_enable(struct amoled_ecm *ecm)
 	int rc;
 
 	if (data->frames) {
-		rc = nvmem_device_write(ecm->sdam[0].nvmem,
+		rc = ecm_nvmem_device_write(ecm->sdam[0].nvmem,
 				ECM_N_ESWIRE_COUNT_LSB, 2, &data->frames);
 		if (rc < 0) {
 			pr_err("Failed to write swire count to SDAM, rc=%d\n",
@@ -241,7 +254,7 @@ static int amoled_ecm_enable(struct amoled_ecm *ecm)
 		return rc;
 	}
 
-	rc = nvmem_device_write(ecm->sdam[0].nvmem, ECM_MODE, 1,
+	rc = ecm_nvmem_device_write(ecm->sdam[0].nvmem, ECM_MODE, 1,
 				&data->mode);
 	if (rc < 0) {
 		pr_err("Failed to write ECM mode to SDAM, rc=%d\n", rc);
@@ -286,7 +299,7 @@ static int amoled_ecm_disable(struct amoled_ecm *ecm)
 		return rc;
 	}
 
-	rc = nvmem_device_write(ecm->sdam[0].nvmem, ECM_AVERAGE_LSB, 2,
+	rc = ecm_nvmem_device_write(ecm->sdam[0].nvmem, ECM_AVERAGE_LSB, 2,
 				&ecm->data.avg_current);
 	if (rc < 0) {
 		pr_err("Failed to write ECM average to SDAM, rc=%d\n", rc);
@@ -587,7 +600,7 @@ static irqreturn_t sdam_full_irq_handler(int irq, void *_ecm)
 	}
 
 	overwrite &= ~(OVERWRITE_SDAM0_DATA << sdam_num);
-	rc = nvmem_device_write(ecm->sdam[0].nvmem, ECM_WRITE_TO_SDAM,
+	rc = ecm_nvmem_device_write(ecm->sdam[0].nvmem, ECM_WRITE_TO_SDAM,
 		1, &overwrite);
 	if (rc < 0) {
 		pr_err("Failed to write ECM_WRITE_TO_SDAM to SDAM, rc=%d\n",
@@ -622,7 +635,7 @@ static irqreturn_t sdam_full_irq_handler(int irq, void *_ecm)
 	}
 
 	overwrite |= (OVERWRITE_SDAM0_DATA << sdam_num);
-	rc = nvmem_device_write(ecm->sdam[0].nvmem, ECM_WRITE_TO_SDAM,
+	rc = ecm_nvmem_device_write(ecm->sdam[0].nvmem, ECM_WRITE_TO_SDAM,
 		1, &overwrite);
 	if (rc < 0) {
 		pr_err("Failed to write ECM_WRITE_TO_SDAM to SDAM, rc=%d\n",
@@ -641,7 +654,7 @@ static irqreturn_t sdam_full_irq_handler(int irq, void *_ecm)
 	data->num_m_samples++;
 
 	buf[0] = (ECM_SDAM0_FULL << sdam_num);
-	rc = nvmem_device_write(ecm->sdam[0].nvmem, ECM_STATUS_CLR, 1,
+	rc = ecm_nvmem_device_write(ecm->sdam[0].nvmem, ECM_STATUS_CLR, 1,
 			&buf[0]);
 	if (rc < 0) {
 		pr_err("Failed to clear interrupt status in SDAM, rc=%d\n",
