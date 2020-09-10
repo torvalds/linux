@@ -5288,15 +5288,16 @@ static u32 goya_get_wait_cb_size(struct hl_device *hdev)
 	return 0;
 }
 
-static void goya_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id)
+static u32 goya_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id,
+		u32 size)
 {
-
+	return 0;
 }
 
-static void goya_gen_wait_cb(struct hl_device *hdev,
+static u32 goya_gen_wait_cb(struct hl_device *hdev,
 		struct hl_gen_wait_properties *prop)
 {
-
+	return 0;
 }
 
 static void goya_reset_sob(struct hl_device *hdev, void *data)

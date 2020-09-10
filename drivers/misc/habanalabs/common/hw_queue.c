@@ -407,7 +407,7 @@ static void init_signal_cs(struct hl_device *hdev,
 		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val, q_idx);
 
 	hdev->asic_funcs->gen_signal_cb(hdev, job->patched_cb,
-				cs_cmpl->hw_sob->sob_id);
+				cs_cmpl->hw_sob->sob_id, 0);
 
 	kref_get(&hw_sob->kref);
 
@@ -454,10 +454,12 @@ static void init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
 		prop->base_mon_id, q_idx);
 
 	wait_prop.data = (void *) job->patched_cb;
-	wait_prop.sob_id = cs_cmpl->hw_sob->sob_id;
+	wait_prop.sob_base = cs_cmpl->hw_sob->sob_id;
+	wait_prop.sob_mask = 0x1;
 	wait_prop.sob_val = cs_cmpl->sob_val;
 	wait_prop.mon_id = prop->base_mon_id;
 	wait_prop.q_idx = q_idx;
+	wait_prop.size = 0;
 	hdev->asic_funcs->gen_wait_cb(hdev, &wait_prop);
 
 	kref_get(&cs_cmpl->hw_sob->kref);

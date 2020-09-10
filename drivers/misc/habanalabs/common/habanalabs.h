@@ -77,20 +77,26 @@
 
 #define HL_MAX_DCORES			4
 
+#define HL_MAX_SOBS_PER_MONITOR	8
+
 /**
  * struct hl_gen_wait_properties - properties for generating a wait CB
  * @data: command buffer
  * @q_idx: queue id is used to extract fence register address
- * @sob_id: SOB id to use in this wait CB
+ * @size: offset in command buffer
+ * @sob_base: SOB base to use in this wait CB
  * @sob_val: SOB value to wait for
  * @mon_id: monitor to use in this wait CB
+ * @sob_mask: each bit represents a SOB offset from sob_base to be used
  */
 struct hl_gen_wait_properties {
 	void	*data;
 	u32	q_idx;
-	u16	sob_id;
+	u32	size;
+	u16	sob_base;
 	u16	sob_val;
 	u16	mon_id;
+	u8	sob_mask;
 };
 
 /**
@@ -844,8 +850,9 @@ struct hl_asic_funcs {
 	int (*load_boot_fit_to_device)(struct hl_device *hdev);
 	u32 (*get_signal_cb_size)(struct hl_device *hdev);
 	u32 (*get_wait_cb_size)(struct hl_device *hdev);
-	void (*gen_signal_cb)(struct hl_device *hdev, void *data, u16 sob_id);
-	void (*gen_wait_cb)(struct hl_device *hdev,
+	u32 (*gen_signal_cb)(struct hl_device *hdev, void *data, u16 sob_id,
+			u32 size);
+	u32 (*gen_wait_cb)(struct hl_device *hdev,
 			struct hl_gen_wait_properties *prop);
 	void (*reset_sob)(struct hl_device *hdev, void *data);
 	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
@@ -1927,6 +1934,7 @@ void hl_cs_rollback_all(struct hl_device *hdev);
 struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
 		enum hl_queue_type queue_type, bool is_kernel_allocated_cb);
 void hl_sob_reset_error(struct kref *ref);
+int hl_gen_sob_mask(u16 sob_base, u8 sob_mask, u8 *mask);
 void hl_fence_put(struct hl_fence *fence);
 void hl_fence_get(struct hl_fence *fence);
 

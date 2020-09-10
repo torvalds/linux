@@ -38,6 +38,38 @@ void hl_sob_reset_error(struct kref *ref)
 			hw_sob->q_idx, hw_sob->sob_id);
 }
 
+/**
+ * hl_gen_sob_mask() - Generates a sob mask to be used in a monitor arm packet
+ * @sob_base: sob base id
+ * @sob_mask: sob user mask, each bit represents a sob offset from sob base
+ * @mask: generated mask
+ *
+ * Return: 0 if given parameters are valid
+ */
+int hl_gen_sob_mask(u16 sob_base, u8 sob_mask, u8 *mask)
+{
+	int i;
+
+	if (sob_mask == 0)
+		return -EINVAL;
+
+	if (sob_mask == 0x1) {
+		*mask = ~(1 << (sob_base & 0x7));
+	} else {
+		/* find msb in order to verify sob range is valid */
+		for (i = BITS_PER_BYTE - 1 ; i >= 0 ; i--)
+			if (BIT(i) & sob_mask)
+				break;
+
+		if (i > (HL_MAX_SOBS_PER_MONITOR - (sob_base & 0x7) - 1))
+			return -EINVAL;
+
+		*mask = ~sob_mask;
+	}
+
+	return 0;
+}
+
 static void hl_fence_release(struct kref *kref)
 {
 	struct hl_fence *fence =
