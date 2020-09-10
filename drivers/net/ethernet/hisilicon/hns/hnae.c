@@ -438,7 +438,7 @@ EXPORT_SYMBOL(hnae_ae_register);
 
 /**
  * hnae_ae_unregister - unregisters a HNAE AE engine
- * @cdev: the device to unregister
+ * @hdev: the device to unregister
  */
 void hnae_ae_unregister(struct hnae_ae_dev *hdev)
 {

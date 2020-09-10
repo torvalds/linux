@@ -106,7 +106,7 @@ enum eq_arm_state {
  * @aeqs: pointer to Async eqs of the chip
  * @event: aeq event to register callback for it
  * @handle: private data will be used by the callback
- * @hw_handler: callback function
+ * @hwe_handler: callback function
  **/
 void hinic_aeq_register_hw_cb(struct hinic_aeqs *aeqs,
 			      enum hinic_aeq_type event, void *handle,
