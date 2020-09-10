@@ -510,6 +510,7 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 	struct flowi6 *fl6 = &fl->u.ip6;
 	struct sk_buff *skb;
 	int err = -ENOMEM;
+	u8 tclass;
 
 	/* First, grab a route. */
 	if (!dst && (dst = inet6_csk_route_req(sk, fl6, req,
@@ -528,9 +529,12 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 
 		rcu_read_lock();
 		opt = ireq->ipv6_opt;
+		tclass = sock_net(sk)->ipv4.sysctl_tcp_reflect_tos ?
+				tcp_rsk(req)->syn_tos : np->tclass;
 		if (!opt)
 			opt = rcu_dereference(np->opt);
-		err = ip6_xmit(sk, skb, fl6, sk->sk_mark, opt, np->tclass,
+		err = ip6_xmit(sk, skb, fl6, sk->sk_mark, opt,
+			       tclass & ~INET_ECN_MASK,
 			       sk->sk_priority);
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
@@ -1309,6 +1313,10 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	newnp->rcv_flowinfo = ip6_flowinfo(ipv6_hdr(skb));
 	if (np->repflow)
 		newnp->flow_label = ip6_flowlabel(ipv6_hdr(skb));
+
+	/* Set ToS of the new socket based upon the value of incoming SYN. */
+	if (sock_net(sk)->ipv4.sysctl_tcp_reflect_tos)
+		newnp->tclass = tcp_rsk(req)->syn_tos & ~INET_ECN_MASK;
 
 	/* Clone native IPv6 options from listening socket (if any)
 
