@@ -16298,7 +16298,7 @@ M:	Ricardo Ribalda <ribalda@kernel.org>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/devicetree/bindings/media/i2c/sony,imx214.txt
+F:	Documentation/devicetree/bindings/media/i2c/sony,imx214.yaml
 F:	drivers/media/i2c/imx214.c
 
 SONY IMX219 SENSOR DRIVER
