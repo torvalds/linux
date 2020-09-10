@@ -32,6 +32,7 @@
 #define ALE_STATUS		0x04
 #define ALE_CONTROL		0x08
 #define ALE_PRESCALE		0x10
+#define ALE_AGING_TIMER		0x14
 #define ALE_UNKNOWNVLAN		0x18
 #define ALE_TABLE_CONTROL	0x20
 #define ALE_TABLE		0x34
@@ -45,6 +46,9 @@
 #define ALE_VLAN_MASK_MUX(reg)			(0xc0 + (0x4 * (reg)))
 
 #define AM65_CPSW_ALE_THREAD_DEF_REG 0x134
+
+/* ALE_AGING_TIMER */
+#define ALE_AGING_TIMER_MASK	GENMASK(23, 0)
 
 enum {
 	CPSW_ALE_F_STATUS_REG = BIT(0), /* Status register present */
@@ -982,21 +986,66 @@ static void cpsw_ale_timer(struct timer_list *t)
 	}
 }
 
+static void cpsw_ale_hw_aging_timer_start(struct cpsw_ale *ale)
+{
+	u32 aging_timer;
+
+	aging_timer = ale->params.bus_freq / 1000000;
+	aging_timer *= ale->params.ale_ageout;
+
+	if (aging_timer & ~ALE_AGING_TIMER_MASK) {
+		aging_timer = ALE_AGING_TIMER_MASK;
+		dev_warn(ale->params.dev,
+			 "ALE aging timer overflow, set to max\n");
+	}
+
+	writel(aging_timer, ale->params.ale_regs + ALE_AGING_TIMER);
+}
+
+static void cpsw_ale_hw_aging_timer_stop(struct cpsw_ale *ale)
+{
+	writel(0, ale->params.ale_regs + ALE_AGING_TIMER);
+}
+
+static void cpsw_ale_aging_start(struct cpsw_ale *ale)
+{
+	if (!ale->params.ale_ageout)
+		return;
+
+	if (ale->features & CPSW_ALE_F_HW_AUTOAGING) {
+		cpsw_ale_hw_aging_timer_start(ale);
+		return;
+	}
+
+	timer_setup(&ale->timer, cpsw_ale_timer, 0);
+	ale->timer.expires = jiffies + ale->ageout;
+	add_timer(&ale->timer);
+}
+
+static void cpsw_ale_aging_stop(struct cpsw_ale *ale)
+{
+	if (!ale->params.ale_ageout)
+		return;
+
+	if (ale->features & CPSW_ALE_F_HW_AUTOAGING) {
+		cpsw_ale_hw_aging_timer_stop(ale);
+		return;
+	}
+
+	del_timer_sync(&ale->timer);
+}
+
 void cpsw_ale_start(struct cpsw_ale *ale)
 {
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 1);
 	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
 
-	timer_setup(&ale->timer, cpsw_ale_timer, 0);
-	if (ale->ageout) {
-		ale->timer.expires = jiffies + ale->ageout;
-		add_timer(&ale->timer);
-	}
+	cpsw_ale_aging_start(ale);
 }
 
 void cpsw_ale_stop(struct cpsw_ale *ale)
 {
-	del_timer_sync(&ale->timer);
+	cpsw_ale_aging_stop(ale);
 	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 0);
 }

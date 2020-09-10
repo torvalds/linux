@@ -25,6 +25,7 @@ struct cpsw_ale_params {
 	 */
 	u32			major_ver_mask;
 	const char		*dev_id;
+	unsigned long		bus_freq;
 };
 
 struct cpsw_ale {
