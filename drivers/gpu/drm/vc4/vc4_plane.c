@@ -898,8 +898,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		vc4_dlist_write(vc4_state,
 				VC4_SET_FIELD(state->alpha >> 4,
 					      SCALER5_CTL2_ALPHA) |
-				fb->format->has_alpha ?
-					SCALER5_CTL2_ALPHA_PREMULT : 0 |
+				(fb->format->has_alpha ?
+					SCALER5_CTL2_ALPHA_PREMULT : 0) |
 				(mix_plane_alpha ?
 					SCALER5_CTL2_ALPHA_MIX : 0) |
 				VC4_SET_FIELD(fb->format->has_alpha ?
