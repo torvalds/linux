@@ -110,14 +110,13 @@ struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 	__be16 iparea_offset;	/* offset to IP address information area */
 } __aligned(4);
 
-#define SMC_CLC_PROPOSAL_MAX_OFFSET	0x28
-#define SMC_CLC_PROPOSAL_MAX_PREFIX	(SMC_CLC_MAX_V6_PREFIX * \
-					 sizeof(struct smc_clc_ipv6_prefix))
-#define SMC_CLC_MAX_LEN		(sizeof(struct smc_clc_msg_proposal) + \
-				 SMC_CLC_PROPOSAL_MAX_OFFSET + \
-				 sizeof(struct smc_clc_msg_proposal_prefix) + \
-				 SMC_CLC_PROPOSAL_MAX_PREFIX + \
-				 sizeof(struct smc_clc_msg_trail))
+struct smc_clc_msg_proposal_area {
+	struct smc_clc_msg_proposal		pclc_base;
+	struct smc_clc_msg_smcd			pclc_smcd;
+	struct smc_clc_msg_proposal_prefix	pclc_prfx;
+	struct smc_clc_ipv6_prefix	pclc_prfx_ipv6[SMC_CLC_MAX_V6_PREFIX];
+	struct smc_clc_msg_trail		pclc_trl;
+};
 
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 	struct smc_clc_msg_hdr hdr;

@@ -1276,10 +1276,10 @@ static void smc_listen_work(struct work_struct *work)
 						smc_listen_work);
 	struct socket *newclcsock = new_smc->clcsock;
 	struct smc_clc_msg_accept_confirm cclc;
+	struct smc_clc_msg_proposal_area *buf;
 	struct smc_clc_msg_proposal *pclc;
 	struct smc_init_info ini = {0};
 	bool ism_supported = false;
-	u8 buf[SMC_CLC_MAX_LEN];
 	int rc = 0;
 
 	if (new_smc->listen_smc->sk.sk_state != SMC_LISTEN)
@@ -1301,8 +1301,13 @@ static void smc_listen_work(struct work_struct *work)
 	/* do inband token exchange -
 	 * wait for and receive SMC Proposal CLC message
 	 */
-	pclc = (struct smc_clc_msg_proposal *)&buf;
-	rc = smc_clc_wait_msg(new_smc, pclc, SMC_CLC_MAX_LEN,
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf) {
+		rc = SMC_CLC_DECL_MEM;
+		goto out_decl;
+	}
+	pclc = (struct smc_clc_msg_proposal *)buf;
+	rc = smc_clc_wait_msg(new_smc, pclc, sizeof(*buf),
 			      SMC_CLC_PROPOSAL, CLC_WAIT_TIME);
 	if (rc)
 		goto out_decl;
@@ -1382,6 +1387,7 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	/* finish worker */
+	kfree(buf);
 	if (!ism_supported) {
 		rc = smc_listen_rdma_finish(new_smc, &cclc,
 					    ini.first_contact_local);
@@ -1397,6 +1403,7 @@ out_unlock:
 	mutex_unlock(&smc_server_lgr_pending);
 out_decl:
 	smc_listen_decline(new_smc, rc, ini.first_contact_local);
+	kfree(buf);
 }
 
 static void smc_tcp_listen_work(struct work_struct *work)

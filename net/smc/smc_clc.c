@@ -153,7 +153,6 @@ static int smc_clc_prfx_set(struct socket *clcsock,
 	struct sockaddr_in *addr;
 	int rc = -ENOENT;
 
-	memset(prop, 0, sizeof(*prop));
 	if (!dst) {
 		rc = -ENOTCONN;
 		goto out;
@@ -412,76 +411,89 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 			  struct smc_init_info *ini)
 {
-	struct smc_clc_ipv6_prefix ipv6_prfx[SMC_CLC_MAX_V6_PREFIX];
-	struct smc_clc_msg_proposal_prefix pclc_prfx;
-	struct smc_clc_msg_smcd pclc_smcd;
-	struct smc_clc_msg_proposal pclc;
-	struct smc_clc_msg_trail trl;
+	struct smc_clc_msg_proposal_prefix *pclc_prfx;
+	struct smc_clc_msg_proposal *pclc_base;
+	struct smc_clc_msg_proposal_area *pclc;
+	struct smc_clc_ipv6_prefix *ipv6_prfx;
+	struct smc_clc_msg_smcd *pclc_smcd;
+	struct smc_clc_msg_trail *trl;
 	int len, i, plen, rc;
 	int reason_code = 0;
 	struct kvec vec[5];
 	struct msghdr msg;
 
+	pclc = kzalloc(sizeof(*pclc), GFP_KERNEL);
+	if (!pclc)
+		return -ENOMEM;
+
+	pclc_base = &pclc->pclc_base;
+	pclc_smcd = &pclc->pclc_smcd;
+	pclc_prfx = &pclc->pclc_prfx;
+	ipv6_prfx = pclc->pclc_prfx_ipv6;
+	trl = &pclc->pclc_trl;
+
 	/* retrieve ip prefixes for CLC proposal msg */
-	rc = smc_clc_prfx_set(smc->clcsock, &pclc_prfx, ipv6_prfx);
-	if (rc)
+	rc = smc_clc_prfx_set(smc->clcsock, pclc_prfx, ipv6_prfx);
+	if (rc) {
+		kfree(pclc);
 		return SMC_CLC_DECL_CNFERR; /* configuration error */
+	}
 
 	/* send SMC Proposal CLC message */
-	plen = sizeof(pclc) + sizeof(pclc_prfx) +
-	       (pclc_prfx.ipv6_prefixes_cnt * sizeof(ipv6_prfx[0])) +
-	       sizeof(trl);
-	memset(&pclc, 0, sizeof(pclc));
-	memcpy(pclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
-	pclc.hdr.type = SMC_CLC_PROPOSAL;
-	pclc.hdr.version = SMC_V1;		/* SMC version */
-	pclc.hdr.path = smc_type;
+	plen = sizeof(*pclc_base) + sizeof(*pclc_prfx) +
+	       (pclc_prfx->ipv6_prefixes_cnt * sizeof(ipv6_prfx[0])) +
+	       sizeof(*trl);
+	memcpy(pclc_base->hdr.eyecatcher, SMC_EYECATCHER,
+	       sizeof(SMC_EYECATCHER));
+	pclc_base->hdr.type = SMC_CLC_PROPOSAL;
+	pclc_base->hdr.version = SMC_V1;		/* SMC version */
+	pclc_base->hdr.path = smc_type;
 	if (smc_type == SMC_TYPE_R || smc_type == SMC_TYPE_B) {
 		/* add SMC-R specifics */
-		memcpy(pclc.lcl.id_for_peer, local_systemid,
+		memcpy(pclc_base->lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&pclc.lcl.gid, ini->ib_gid, SMC_GID_SIZE);
-		memcpy(&pclc.lcl.mac, &ini->ib_dev->mac[ini->ib_port - 1],
+		memcpy(pclc_base->lcl.gid, ini->ib_gid, SMC_GID_SIZE);
+		memcpy(pclc_base->lcl.mac, &ini->ib_dev->mac[ini->ib_port - 1],
 		       ETH_ALEN);
-		pclc.iparea_offset = htons(0);
+		pclc_base->iparea_offset = htons(0);
 	}
 	if (smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B) {
 		/* add SMC-D specifics */
-		memset(&pclc_smcd, 0, sizeof(pclc_smcd));
-		plen += sizeof(pclc_smcd);
-		pclc.iparea_offset = htons(SMC_CLC_PROPOSAL_MAX_OFFSET);
-		pclc_smcd.gid = ini->ism_dev->local_gid;
+		plen += sizeof(*pclc_smcd);
+		pclc_base->iparea_offset = htons(sizeof(*pclc_smcd));
+		pclc_smcd->gid = ini->ism_dev->local_gid;
 	}
-	pclc.hdr.length = htons(plen);
+	pclc_base->hdr.length = htons(plen);
 
-	memcpy(trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
+	memcpy(trl->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	memset(&msg, 0, sizeof(msg));
 	i = 0;
-	vec[i].iov_base = &pclc;
-	vec[i++].iov_len = sizeof(pclc);
+	vec[i].iov_base = pclc_base;
+	vec[i++].iov_len = sizeof(*pclc_base);
 	if (smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B) {
-		vec[i].iov_base = &pclc_smcd;
-		vec[i++].iov_len = sizeof(pclc_smcd);
+		vec[i].iov_base = pclc_smcd;
+		vec[i++].iov_len = sizeof(*pclc_smcd);
 	}
-	vec[i].iov_base = &pclc_prfx;
-	vec[i++].iov_len = sizeof(pclc_prfx);
-	if (pclc_prfx.ipv6_prefixes_cnt > 0) {
-		vec[i].iov_base = &ipv6_prfx[0];
-		vec[i++].iov_len = pclc_prfx.ipv6_prefixes_cnt *
+	vec[i].iov_base = pclc_prfx;
+	vec[i++].iov_len = sizeof(*pclc_prfx);
+	if (pclc_prfx->ipv6_prefixes_cnt > 0) {
+		vec[i].iov_base = ipv6_prfx;
+		vec[i++].iov_len = pclc_prfx->ipv6_prefixes_cnt *
 				   sizeof(ipv6_prfx[0]);
 	}
-	vec[i].iov_base = &trl;
-	vec[i++].iov_len = sizeof(trl);
+	vec[i].iov_base = trl;
+	vec[i++].iov_len = sizeof(*trl);
 	/* due to the few bytes needed for clc-handshake this cannot block */
 	len = kernel_sendmsg(smc->clcsock, &msg, vec, i, plen);
 	if (len < 0) {
 		smc->sk.sk_err = smc->clcsock->sk->sk_err;
 		reason_code = -smc->sk.sk_err;
-	} else if (len < (int)sizeof(pclc)) {
+	} else if (len < ntohs(pclc_base->hdr.length)) {
 		reason_code = -ENETUNREACH;
 		smc->sk.sk_err = -reason_code;
 	}
 
+	kfree(pclc);
 	return reason_code;
 }
 
