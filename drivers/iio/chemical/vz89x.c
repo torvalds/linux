@@ -10,8 +10,7 @@
 #include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -355,7 +354,6 @@ static int vz89x_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct vz89x_data *data;
-	const struct of_device_id *of_id;
 	int chip_id;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
@@ -371,11 +369,10 @@ static int vz89x_probe(struct i2c_client *client,
 	else
 		return -EOPNOTSUPP;
 
-	of_id = of_match_device(vz89x_dt_ids, dev);
-	if (!of_id)
+	if (!dev_fwnode(dev))
 		chip_id = id->driver_data;
 	else
-		chip_id = (unsigned long)of_id->data;
+		chip_id = (unsigned long)device_get_match_data(dev);
 
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
@@ -403,7 +400,7 @@ MODULE_DEVICE_TABLE(i2c, vz89x_id);
 static struct i2c_driver vz89x_driver = {
 	.driver = {
 		.name	= "vz89x",
-		.of_match_table = of_match_ptr(vz89x_dt_ids),
+		.of_match_table = vz89x_dt_ids,
 	},
 	.probe = vz89x_probe,
 	.id_table = vz89x_id,
