@@ -503,8 +503,8 @@ static const struct kfd_device_info *kfd_supported_devices[][2] = {
 #ifdef KFD_SUPPORT_IOMMU_V2
 	[CHIP_KAVERI] = {&kaveri_device_info, NULL},
 	[CHIP_CARRIZO] = {&carrizo_device_info, NULL},
-	[CHIP_RAVEN] = {&raven_device_info, NULL},
 #endif
+	[CHIP_RAVEN] = {&raven_device_info, NULL},
 	[CHIP_HAWAII] = {&hawaii_device_info, NULL},
 	[CHIP_TONGA] = {&tonga_device_info, NULL},
 	[CHIP_FIJI] = {&fiji_device_info, &fiji_vf_device_info},
