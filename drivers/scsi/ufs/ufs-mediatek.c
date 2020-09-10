@@ -113,7 +113,7 @@ static void ufs_mtk_init_reset_control(struct ufs_hba *hba,
 {
 	*rc = devm_reset_control_get(hba->dev, str);
 	if (IS_ERR(*rc)) {
-		dev_info(hba->dev, "Failed to get reset control %s: %d\n",
+		dev_info(hba->dev, "Failed to get reset control %s: %ld\n",
 			 str, PTR_ERR(*rc));
 		*rc = NULL;
 	}
@@ -727,13 +727,13 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 	ufshcd_fixup_dev_quirks(hba, ufs_mtk_dev_fixups);
 }
 
-/**
+/*
  * struct ufs_hba_mtk_vops - UFS MTK specific variant operations
  *
  * The variant operations configure the necessary controller and PHY
  * handshake during initialization.
  */
-static struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
+static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
 	.name                = "mediatek.ufshci",
 	.init                = ufs_mtk_init,
 	.setup_clocks        = ufs_mtk_setup_clocks,
