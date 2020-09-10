@@ -22,7 +22,6 @@
 #define SMC_CLC_CONFIRM		0x03
 #define SMC_CLC_DECLINE		0x04
 
-#define SMC_CLC_V1		0x1		/* SMC version                */
 #define SMC_TYPE_R		0		/* SMC-R only		      */
 #define SMC_TYPE_D		1		/* SMC-D only		      */
 #define SMC_TYPE_N		2		/* neither SMC-R nor SMC-D    */
@@ -38,7 +37,6 @@
 #define SMC_CLC_DECL_NOSMCDEV	0x03030000  /* no SMC device found (R or D)   */
 #define SMC_CLC_DECL_NOSMCDDEV	0x03030001  /* no SMC-D device found	      */
 #define SMC_CLC_DECL_NOSMCRDEV	0x03030002  /* no SMC-R device found	      */
-#define SMC_CLC_DECL_SMCDNOTALK	0x03030003  /* SMC-D dev can't talk to peer   */
 #define SMC_CLC_DECL_MODEUNSUPP	0x03040000  /* smc modes do not match (R or D)*/
 #define SMC_CLC_DECL_RMBE_EC	0x03050000  /* peer has eyecatcher in RMBE    */
 #define SMC_CLC_DECL_OPTUNSUPP	0x03060000  /* fastopen sockopt not supported */
@@ -111,55 +109,58 @@ struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 	__be16 iparea_offset;	/* offset to IP address information area */
 } __aligned(4);
 
-#define SMC_CLC_PROPOSAL_MAX_OFFSET	0x28
-#define SMC_CLC_PROPOSAL_MAX_PREFIX	(SMC_CLC_MAX_V6_PREFIX * \
-					 sizeof(struct smc_clc_ipv6_prefix))
-#define SMC_CLC_MAX_LEN		(sizeof(struct smc_clc_msg_proposal) + \
-				 SMC_CLC_PROPOSAL_MAX_OFFSET + \
-				 sizeof(struct smc_clc_msg_proposal_prefix) + \
-				 SMC_CLC_PROPOSAL_MAX_PREFIX + \
-				 sizeof(struct smc_clc_msg_trail))
+struct smc_clc_msg_proposal_area {
+	struct smc_clc_msg_proposal		pclc_base;
+	struct smc_clc_msg_smcd			pclc_smcd;
+	struct smc_clc_msg_proposal_prefix	pclc_prfx;
+	struct smc_clc_ipv6_prefix	pclc_prfx_ipv6[SMC_CLC_MAX_V6_PREFIX];
+	struct smc_clc_msg_trail		pclc_trl;
+};
+
+struct smcr_clc_msg_accept_confirm {	/* SMCR accept/confirm */
+	struct smc_clc_msg_local lcl;
+	u8 qpn[3];			/* QP number */
+	__be32 rmb_rkey;		/* RMB rkey */
+	u8 rmbe_idx;			/* Index of RMBE in RMB */
+	__be32 rmbe_alert_token;	/* unique connection id */
+ #if defined(__BIG_ENDIAN_BITFIELD)
+	u8 rmbe_size : 4,		/* buf size (compressed) */
+	   qp_mtu   : 4;		/* QP mtu */
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 qp_mtu   : 4,
+	   rmbe_size : 4;
+#endif
+	u8 reserved;
+	__be64 rmb_dma_addr;	/* RMB virtual address */
+	u8 reserved2;
+	u8 psn[3];		/* packet sequence number */
+	struct smc_clc_msg_trail smcr_trl;
+				/* eye catcher "SMCR" EBCDIC */
+} __packed;
+
+struct smcd_clc_msg_accept_confirm {	/* SMCD accept/confirm */
+	u64 gid;		/* Sender GID */
+	u64 token;		/* DMB token */
+	u8 dmbe_idx;		/* DMBE index */
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8 dmbe_size : 4,	/* buf size (compressed) */
+	   reserved3 : 4;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 reserved3 : 4,
+	   dmbe_size : 4;
+#endif
+	u16 reserved4;
+	u32 linkid;		/* Link identifier */
+	u32 reserved5[3];
+	struct smc_clc_msg_trail smcd_trl;
+				/* eye catcher "SMCD" EBCDIC */
+} __packed;
 
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 	struct smc_clc_msg_hdr hdr;
 	union {
-		struct { /* SMC-R */
-			struct smc_clc_msg_local lcl;
-			u8 qpn[3];		/* QP number */
-			__be32 rmb_rkey;	/* RMB rkey */
-			u8 rmbe_idx;		/* Index of RMBE in RMB */
-			__be32 rmbe_alert_token;/* unique connection id */
-#if defined(__BIG_ENDIAN_BITFIELD)
-			u8 rmbe_size : 4,	/* buf size (compressed) */
-			   qp_mtu   : 4;	/* QP mtu */
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-			u8 qp_mtu   : 4,
-			   rmbe_size : 4;
-#endif
-			u8 reserved;
-			__be64 rmb_dma_addr;	/* RMB virtual address */
-			u8 reserved2;
-			u8 psn[3];		/* packet sequence number */
-			struct smc_clc_msg_trail smcr_trl;
-						/* eye catcher "SMCR" EBCDIC */
-		} __packed;
-		struct { /* SMC-D */
-			u64 gid;		/* Sender GID */
-			u64 token;		/* DMB token */
-			u8 dmbe_idx;		/* DMBE index */
-#if defined(__BIG_ENDIAN_BITFIELD)
-			u8 dmbe_size : 4,	/* buf size (compressed) */
-			   reserved3 : 4;
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-			u8 reserved3 : 4,
-			   dmbe_size : 4;
-#endif
-			u16 reserved4;
-			u32 linkid;		/* Link identifier */
-			u32 reserved5[3];
-			struct smc_clc_msg_trail smcd_trl;
-						/* eye catcher "SMCD" EBCDIC */
-		} __packed;
+		struct smcr_clc_msg_accept_confirm r0; /* SMC-R */
+		struct smcd_clc_msg_accept_confirm d0; /* SMC-D */
 	};
 } __packed;			/* format defined in RFC7609 */
 
@@ -200,6 +201,6 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
 int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 			  struct smc_init_info *ini);
 int smc_clc_send_confirm(struct smc_sock *smc);
-int smc_clc_send_accept(struct smc_sock *smc, int srv_first_contact);
+int smc_clc_send_accept(struct smc_sock *smc, bool srv_first_contact);
 
 #endif

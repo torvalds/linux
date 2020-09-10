@@ -55,6 +55,9 @@ static DEFINE_MUTEX(smc_client_lgr_pending);	/* serialize link group
 						 * creation on client
 						 */
 
+struct workqueue_struct	*smc_hs_wq;	/* wq for handshake work */
+struct workqueue_struct	*smc_close_wq;	/* wq for close work */
+
 static void smc_tcp_listen_work(struct work_struct *);
 static void smc_connect_work(struct work_struct *);
 
@@ -436,10 +439,10 @@ static int smcr_clnt_conf_first_link(struct smc_sock *smc)
 static void smcr_conn_save_peer_info(struct smc_sock *smc,
 				     struct smc_clc_msg_accept_confirm *clc)
 {
-	int bufsize = smc_uncompress_bufsize(clc->rmbe_size);
+	int bufsize = smc_uncompress_bufsize(clc->r0.rmbe_size);
 
-	smc->conn.peer_rmbe_idx = clc->rmbe_idx;
-	smc->conn.local_tx_ctrl.token = ntohl(clc->rmbe_alert_token);
+	smc->conn.peer_rmbe_idx = clc->r0.rmbe_idx;
+	smc->conn.local_tx_ctrl.token = ntohl(clc->r0.rmbe_alert_token);
 	smc->conn.peer_rmbe_size = bufsize;
 	atomic_set(&smc->conn.peer_rmbe_space, smc->conn.peer_rmbe_size);
 	smc->conn.tx_off = bufsize * (smc->conn.peer_rmbe_idx - 1);
@@ -448,10 +451,10 @@ static void smcr_conn_save_peer_info(struct smc_sock *smc,
 static void smcd_conn_save_peer_info(struct smc_sock *smc,
 				     struct smc_clc_msg_accept_confirm *clc)
 {
-	int bufsize = smc_uncompress_bufsize(clc->dmbe_size);
+	int bufsize = smc_uncompress_bufsize(clc->d0.dmbe_size);
 
-	smc->conn.peer_rmbe_idx = clc->dmbe_idx;
-	smc->conn.peer_token = clc->token;
+	smc->conn.peer_rmbe_idx = clc->d0.dmbe_idx;
+	smc->conn.peer_token = clc->d0.token;
 	/* msg header takes up space in the buffer */
 	smc->conn.peer_rmbe_size = bufsize - sizeof(struct smcd_cdc_msg);
 	atomic_set(&smc->conn.peer_rmbe_space, smc->conn.peer_rmbe_size);
@@ -470,11 +473,11 @@ static void smc_conn_save_peer_info(struct smc_sock *smc,
 static void smc_link_save_peer_info(struct smc_link *link,
 				    struct smc_clc_msg_accept_confirm *clc)
 {
-	link->peer_qpn = ntoh24(clc->qpn);
-	memcpy(link->peer_gid, clc->lcl.gid, SMC_GID_SIZE);
-	memcpy(link->peer_mac, clc->lcl.mac, sizeof(link->peer_mac));
-	link->peer_psn = ntoh24(clc->psn);
-	link->peer_mtu = clc->qp_mtu;
+	link->peer_qpn = ntoh24(clc->r0.qpn);
+	memcpy(link->peer_gid, clc->r0.lcl.gid, SMC_GID_SIZE);
+	memcpy(link->peer_mac, clc->r0.lcl.mac, sizeof(link->peer_mac));
+	link->peer_psn = ntoh24(clc->r0.psn);
+	link->peer_mtu = clc->r0.qp_mtu;
 }
 
 static void smc_switch_to_fallback(struct smc_sock *smc)
@@ -523,11 +526,11 @@ static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code)
 
 /* abort connecting */
 static int smc_connect_abort(struct smc_sock *smc, int reason_code,
-			     int local_contact)
+			     int local_first)
 {
 	bool is_smcd = smc->conn.lgr->is_smcd;
 
-	if (local_contact == SMC_FIRST_CONTACT)
+	if (local_first)
 		smc_lgr_cleanup_early(&smc->conn);
 	else
 		smc_conn_free(&smc->conn);
@@ -613,9 +616,9 @@ static int smc_connect_rdma(struct smc_sock *smc,
 	struct smc_link *link;
 
 	ini->is_smcd = false;
-	ini->ib_lcl = &aclc->lcl;
-	ini->ib_clcqpn = ntoh24(aclc->qpn);
-	ini->srv_first_contact = aclc->hdr.flag;
+	ini->ib_lcl = &aclc->r0.lcl;
+	ini->ib_clcqpn = ntoh24(aclc->r0.qpn);
+	ini->first_contact_peer = aclc->hdr.flag;
 
 	mutex_lock(&smc_client_lgr_pending);
 	reason_code = smc_conn_create(smc, ini);
@@ -626,7 +629,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 
 	smc_conn_save_peer_info(smc, aclc);
 
-	if (ini->cln_first_contact == SMC_FIRST_CONTACT) {
+	if (ini->first_contact_local) {
 		link = smc->conn.lnk;
 	} else {
 		/* set link that was assigned by server */
@@ -634,60 +637,62 @@ static int smc_connect_rdma(struct smc_sock *smc,
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 			struct smc_link *l = &smc->conn.lgr->lnk[i];
 
-			if (l->peer_qpn == ntoh24(aclc->qpn) &&
-			    !memcmp(l->peer_gid, &aclc->lcl.gid, SMC_GID_SIZE) &&
-			    !memcmp(l->peer_mac, &aclc->lcl.mac, sizeof(l->peer_mac))) {
+			if (l->peer_qpn == ntoh24(aclc->r0.qpn) &&
+			    !memcmp(l->peer_gid, &aclc->r0.lcl.gid,
+				    SMC_GID_SIZE) &&
+			    !memcmp(l->peer_mac, &aclc->r0.lcl.mac,
+				    sizeof(l->peer_mac))) {
 				link = l;
 				break;
 			}
 		}
 		if (!link)
 			return smc_connect_abort(smc, SMC_CLC_DECL_NOSRVLINK,
-						 ini->cln_first_contact);
+						 ini->first_contact_local);
 		smc->conn.lnk = link;
 	}
 
 	/* create send buffer and rmb */
 	if (smc_buf_create(smc, false))
 		return smc_connect_abort(smc, SMC_CLC_DECL_MEM,
-					 ini->cln_first_contact);
+					 ini->first_contact_local);
 
-	if (ini->cln_first_contact == SMC_FIRST_CONTACT)
+	if (ini->first_contact_local)
 		smc_link_save_peer_info(link, aclc);
 
 	if (smc_rmb_rtoken_handling(&smc->conn, link, aclc))
 		return smc_connect_abort(smc, SMC_CLC_DECL_ERR_RTOK,
-					 ini->cln_first_contact);
+					 ini->first_contact_local);
 
 	smc_close_init(smc);
 	smc_rx_init(smc);
 
-	if (ini->cln_first_contact == SMC_FIRST_CONTACT) {
+	if (ini->first_contact_local) {
 		if (smc_ib_ready_link(link))
 			return smc_connect_abort(smc, SMC_CLC_DECL_ERR_RDYLNK,
-						 ini->cln_first_contact);
+						 ini->first_contact_local);
 	} else {
 		if (smcr_lgr_reg_rmbs(link, smc->conn.rmb_desc))
 			return smc_connect_abort(smc, SMC_CLC_DECL_ERR_REGRMB,
-						 ini->cln_first_contact);
+						 ini->first_contact_local);
 	}
 	smc_rmb_sync_sg_for_device(&smc->conn);
 
 	reason_code = smc_clc_send_confirm(smc);
 	if (reason_code)
 		return smc_connect_abort(smc, reason_code,
-					 ini->cln_first_contact);
+					 ini->first_contact_local);
 
 	smc_tx_init(smc);
 
-	if (ini->cln_first_contact == SMC_FIRST_CONTACT) {
+	if (ini->first_contact_local) {
 		/* QP confirmation over RoCE fabric */
 		smc_llc_flow_initiate(link->lgr, SMC_LLC_FLOW_ADD_LINK);
 		reason_code = smcr_clnt_conf_first_link(smc);
 		smc_llc_flow_stop(link->lgr, &link->lgr->llc_flow_lcl);
 		if (reason_code)
 			return smc_connect_abort(smc, reason_code,
-						 ini->cln_first_contact);
+						 ini->first_contact_local);
 	}
 	mutex_unlock(&smc_client_lgr_pending);
 
@@ -707,8 +712,8 @@ static int smc_connect_ism(struct smc_sock *smc,
 	int rc = 0;
 
 	ini->is_smcd = true;
-	ini->ism_gid = aclc->gid;
-	ini->srv_first_contact = aclc->hdr.flag;
+	ini->ism_peer_gid = aclc->d0.gid;
+	ini->first_contact_peer = aclc->hdr.flag;
 
 	/* there is only one lgr role for SMC-D; use server lock */
 	mutex_lock(&smc_server_lgr_pending);
@@ -724,7 +729,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 		return smc_connect_abort(smc, (rc == -ENOSPC) ?
 					      SMC_CLC_DECL_MAX_DMB :
 					      SMC_CLC_DECL_MEM,
-					 ini->cln_first_contact);
+					 ini->first_contact_local);
 
 	smc_conn_save_peer_info(smc, aclc);
 	smc_close_init(smc);
@@ -733,7 +738,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 
 	rc = smc_clc_send_confirm(smc);
 	if (rc)
-		return smc_connect_abort(smc, rc, ini->cln_first_contact);
+		return smc_connect_abort(smc, rc, ini->first_contact_local);
 	mutex_unlock(&smc_server_lgr_pending);
 
 	smc_copy_sock_settings_to_clc(smc);
@@ -903,7 +908,7 @@ static int smc_connect(struct socket *sock, struct sockaddr *addr,
 	if (smc->use_fallback)
 		goto out;
 	if (flags & O_NONBLOCK) {
-		if (schedule_work(&smc->connect_work))
+		if (queue_work(smc_hs_wq, &smc->connect_work))
 			smc->connect_nonblock = 1;
 		rc = -EINPROGRESS;
 	} else {
@@ -940,10 +945,10 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 
 	mutex_lock(&lsmc->clcsock_release_lock);
 	if (lsmc->clcsock)
-		rc = kernel_accept(lsmc->clcsock, &new_clcsock, 0);
+		rc = kernel_accept(lsmc->clcsock, &new_clcsock, SOCK_NONBLOCK);
 	mutex_unlock(&lsmc->clcsock_release_lock);
 	lock_sock(lsk);
-	if  (rc < 0)
+	if  (rc < 0 && rc != -EAGAIN)
 		lsk->sk_err = -rc;
 	if (rc < 0 || lsk->sk_state == SMC_CLOSED) {
 		new_sk->sk_prot->unhash(new_sk);
@@ -956,6 +961,10 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 		goto out;
 	}
 
+	/* new clcsock has inherited the smc listen-specific sk_data_ready
+	 * function; switch it back to the original sk_data_ready function
+	 */
+	new_clcsock->sk->sk_data_ready = lsmc->clcsk_data_ready;
 	(*new_smc)->clcsock = new_clcsock;
 out:
 	return rc;
@@ -1123,10 +1132,10 @@ static void smc_listen_out_err(struct smc_sock *new_smc)
 
 /* listen worker: decline and fall back if possible */
 static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
-			       int local_contact)
+			       bool local_first)
 {
 	/* RDMA setup failed, switch back to TCP */
-	if (local_contact == SMC_FIRST_CONTACT)
+	if (local_first)
 		smc_lgr_cleanup_early(&new_smc->conn);
 	else
 		smc_conn_free(&new_smc->conn);
@@ -1182,30 +1191,16 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 			       struct smc_clc_msg_proposal *pclc,
 			       struct smc_init_info *ini)
 {
-	struct smc_clc_msg_smcd *pclc_smcd;
 	int rc;
 
-	pclc_smcd = smc_get_clc_msg_smcd(pclc);
-	ini->ism_gid = pclc_smcd->gid;
 	rc = smc_conn_create(new_smc, ini);
 	if (rc)
 		return rc;
 
-	/* Check if peer can be reached via ISM device */
-	if (smc_ism_cantalk(new_smc->conn.lgr->peer_gid,
-			    new_smc->conn.lgr->vlan_id,
-			    new_smc->conn.lgr->smcd)) {
-		if (ini->cln_first_contact == SMC_FIRST_CONTACT)
-			smc_lgr_cleanup_early(&new_smc->conn);
-		else
-			smc_conn_free(&new_smc->conn);
-		return SMC_CLC_DECL_SMCDNOTALK;
-	}
-
 	/* Create send and receive buffers */
 	rc = smc_buf_create(new_smc, true);
 	if (rc) {
-		if (ini->cln_first_contact == SMC_FIRST_CONTACT)
+		if (ini->first_contact_local)
 			smc_lgr_cleanup_early(&new_smc->conn);
 		else
 			smc_conn_free(&new_smc->conn);
@@ -1217,11 +1212,11 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 }
 
 /* listen worker: register buffers */
-static int smc_listen_rdma_reg(struct smc_sock *new_smc, int local_contact)
+static int smc_listen_rdma_reg(struct smc_sock *new_smc, bool local_first)
 {
 	struct smc_connection *conn = &new_smc->conn;
 
-	if (local_contact != SMC_FIRST_CONTACT) {
+	if (!local_first) {
 		if (smcr_lgr_reg_rmbs(conn->lnk, conn->rmb_desc))
 			return SMC_CLC_DECL_ERR_REGRMB;
 	}
@@ -1233,35 +1228,25 @@ static int smc_listen_rdma_reg(struct smc_sock *new_smc, int local_contact)
 /* listen worker: finish RDMA setup */
 static int smc_listen_rdma_finish(struct smc_sock *new_smc,
 				  struct smc_clc_msg_accept_confirm *cclc,
-				  int local_contact)
+				  bool local_first)
 {
 	struct smc_link *link = new_smc->conn.lnk;
 	int reason_code = 0;
 
-	if (local_contact == SMC_FIRST_CONTACT)
+	if (local_first)
 		smc_link_save_peer_info(link, cclc);
 
-	if (smc_rmb_rtoken_handling(&new_smc->conn, link, cclc)) {
-		reason_code = SMC_CLC_DECL_ERR_RTOK;
-		goto decline;
-	}
+	if (smc_rmb_rtoken_handling(&new_smc->conn, link, cclc))
+		return SMC_CLC_DECL_ERR_RTOK;
 
-	if (local_contact == SMC_FIRST_CONTACT) {
-		if (smc_ib_ready_link(link)) {
-			reason_code = SMC_CLC_DECL_ERR_RDYLNK;
-			goto decline;
-		}
+	if (local_first) {
+		if (smc_ib_ready_link(link))
+			return SMC_CLC_DECL_ERR_RDYLNK;
 		/* QP confirmation over RoCE fabric */
 		smc_llc_flow_initiate(link->lgr, SMC_LLC_FLOW_ADD_LINK);
 		reason_code = smcr_serv_conf_first_link(new_smc);
 		smc_llc_flow_stop(link->lgr, &link->lgr->llc_flow_lcl);
-		if (reason_code)
-			goto decline;
 	}
-	return 0;
-
-decline:
-	smc_listen_decline(new_smc, reason_code, local_contact);
 	return reason_code;
 }
 
@@ -1272,10 +1257,10 @@ static void smc_listen_work(struct work_struct *work)
 						smc_listen_work);
 	struct socket *newclcsock = new_smc->clcsock;
 	struct smc_clc_msg_accept_confirm cclc;
+	struct smc_clc_msg_proposal_area *buf;
 	struct smc_clc_msg_proposal *pclc;
 	struct smc_init_info ini = {0};
 	bool ism_supported = false;
-	u8 buf[SMC_CLC_MAX_LEN];
 	int rc = 0;
 
 	if (new_smc->listen_smc->sk.sk_state != SMC_LISTEN)
@@ -1297,8 +1282,13 @@ static void smc_listen_work(struct work_struct *work)
 	/* do inband token exchange -
 	 * wait for and receive SMC Proposal CLC message
 	 */
-	pclc = (struct smc_clc_msg_proposal *)&buf;
-	rc = smc_clc_wait_msg(new_smc, pclc, SMC_CLC_MAX_LEN,
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf) {
+		rc = SMC_CLC_DECL_MEM;
+		goto out_decl;
+	}
+	pclc = (struct smc_clc_msg_proposal *)buf;
+	rc = smc_clc_wait_msg(new_smc, pclc, sizeof(*buf),
 			      SMC_CLC_PROPOSAL, CLC_WAIT_TIME);
 	if (rc)
 		goto out_decl;
@@ -1327,7 +1317,10 @@ static void smc_listen_work(struct work_struct *work)
 
 	/* check if ISM is available */
 	if (pclc->hdr.path == SMC_TYPE_D || pclc->hdr.path == SMC_TYPE_B) {
+		struct smc_clc_msg_smcd *pclc_smcd = smc_get_clc_msg_smcd(pclc);
+
 		ini.is_smcd = true; /* prepare ISM check */
+		ini.ism_peer_gid = pclc_smcd->gid;
 		rc = smc_find_ism_device(new_smc, &ini);
 		if (!rc)
 			rc = smc_listen_ism_init(new_smc, pclc, &ini);
@@ -1354,13 +1347,13 @@ static void smc_listen_work(struct work_struct *work)
 		rc = smc_listen_rdma_init(new_smc, &ini);
 		if (rc)
 			goto out_unlock;
-		rc = smc_listen_rdma_reg(new_smc, ini.cln_first_contact);
+		rc = smc_listen_rdma_reg(new_smc, ini.first_contact_local);
 		if (rc)
 			goto out_unlock;
 	}
 
 	/* send SMC Accept CLC message */
-	rc = smc_clc_send_accept(new_smc, ini.cln_first_contact);
+	rc = smc_clc_send_accept(new_smc, ini.first_contact_local);
 	if (rc)
 		goto out_unlock;
 
@@ -1378,12 +1371,13 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	/* finish worker */
+	kfree(buf);
 	if (!ism_supported) {
 		rc = smc_listen_rdma_finish(new_smc, &cclc,
-					    ini.cln_first_contact);
-		mutex_unlock(&smc_server_lgr_pending);
+					    ini.first_contact_local);
 		if (rc)
-			return;
+			goto out_unlock;
+		mutex_unlock(&smc_server_lgr_pending);
 	}
 	smc_conn_save_peer_info(new_smc, &cclc);
 	smc_listen_out_connected(new_smc);
@@ -1392,7 +1386,8 @@ static void smc_listen_work(struct work_struct *work)
 out_unlock:
 	mutex_unlock(&smc_server_lgr_pending);
 out_decl:
-	smc_listen_decline(new_smc, rc, ini.cln_first_contact);
+	smc_listen_decline(new_smc, rc, ini.first_contact_local);
+	kfree(buf);
 }
 
 static void smc_tcp_listen_work(struct work_struct *work)
@@ -1406,7 +1401,7 @@ static void smc_tcp_listen_work(struct work_struct *work)
 	lock_sock(lsk);
 	while (lsk->sk_state == SMC_LISTEN) {
 		rc = smc_clcsock_accept(lsmc, &new_smc);
-		if (rc)
+		if (rc) /* clcsock accept queue empty or error */
 			goto out;
 		if (!new_smc)
 			continue;
@@ -1420,13 +1415,29 @@ static void smc_tcp_listen_work(struct work_struct *work)
 		new_smc->sk.sk_sndbuf = lsmc->sk.sk_sndbuf;
 		new_smc->sk.sk_rcvbuf = lsmc->sk.sk_rcvbuf;
 		sock_hold(&new_smc->sk); /* sock_put in passive closing */
-		if (!schedule_work(&new_smc->smc_listen_work))
+		if (!queue_work(smc_hs_wq, &new_smc->smc_listen_work))
 			sock_put(&new_smc->sk);
 	}
 
 out:
 	release_sock(lsk);
-	sock_put(&lsmc->sk); /* sock_hold in smc_listen */
+	sock_put(&lsmc->sk); /* sock_hold in smc_clcsock_data_ready() */
+}
+
+static void smc_clcsock_data_ready(struct sock *listen_clcsock)
+{
+	struct smc_sock *lsmc;
+
+	lsmc = (struct smc_sock *)
+	       ((uintptr_t)listen_clcsock->sk_user_data & ~SK_USER_DATA_NOCOPY);
+	if (!lsmc)
+		return;
+	lsmc->clcsk_data_ready(listen_clcsock);
+	if (lsmc->sk.sk_state == SMC_LISTEN) {
+		sock_hold(&lsmc->sk); /* sock_put in smc_tcp_listen_work() */
+		if (!queue_work(smc_hs_wq, &lsmc->tcp_listen_work))
+			sock_put(&lsmc->sk);
+	}
 }
 
 static int smc_listen(struct socket *sock, int backlog)
@@ -1455,15 +1466,19 @@ static int smc_listen(struct socket *sock, int backlog)
 	if (!smc->use_fallback)
 		tcp_sk(smc->clcsock->sk)->syn_smc = 1;
 
+	/* save original sk_data_ready function and establish
+	 * smc-specific sk_data_ready function
+	 */
+	smc->clcsk_data_ready = smc->clcsock->sk->sk_data_ready;
+	smc->clcsock->sk->sk_data_ready = smc_clcsock_data_ready;
+	smc->clcsock->sk->sk_user_data =
+		(void *)((uintptr_t)smc | SK_USER_DATA_NOCOPY);
 	rc = kernel_listen(smc->clcsock, backlog);
 	if (rc)
 		goto out;
 	sk->sk_max_ack_backlog = backlog;
 	sk->sk_ack_backlog = 0;
 	sk->sk_state = SMC_LISTEN;
-	sock_hold(sk); /* sock_hold in tcp_listen_worker */
-	if (!schedule_work(&smc->tcp_listen_work))
-		sock_put(sk);
 
 out:
 	release_sock(sk);
@@ -1788,8 +1803,8 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 		    sk->sk_state != SMC_LISTEN &&
 		    sk->sk_state != SMC_CLOSED) {
 			if (val)
-				mod_delayed_work(system_wq, &smc->conn.tx_work,
-						 0);
+				mod_delayed_work(smc->conn.lgr->tx_wq,
+						 &smc->conn.tx_work, 0);
 		}
 		break;
 	case TCP_CORK:
@@ -1797,8 +1812,8 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 		    sk->sk_state != SMC_LISTEN &&
 		    sk->sk_state != SMC_CLOSED) {
 			if (!val)
-				mod_delayed_work(system_wq, &smc->conn.tx_work,
-						 0);
+				mod_delayed_work(smc->conn.lgr->tx_wq,
+						 &smc->conn.tx_work, 0);
 		}
 		break;
 	case TCP_DEFER_ACCEPT:
@@ -2081,10 +2096,19 @@ static int __init smc_init(void)
 	if (rc)
 		goto out_pernet_subsys;
 
+	rc = -ENOMEM;
+	smc_hs_wq = alloc_workqueue("smc_hs_wq", 0, 0);
+	if (!smc_hs_wq)
+		goto out_pnet;
+
+	smc_close_wq = alloc_workqueue("smc_close_wq", 0, 0);
+	if (!smc_close_wq)
+		goto out_alloc_hs_wq;
+
 	rc = smc_core_init();
 	if (rc) {
 		pr_err("%s: smc_core_init fails with %d\n", __func__, rc);
-		goto out_pnet;
+		goto out_alloc_wqs;
 	}
 
 	rc = smc_llc_init();
@@ -2136,6 +2160,10 @@ out_proto:
 	proto_unregister(&smc_proto);
 out_core:
 	smc_core_exit();
+out_alloc_wqs:
+	destroy_workqueue(smc_close_wq);
+out_alloc_hs_wq:
+	destroy_workqueue(smc_hs_wq);
 out_pnet:
 	smc_pnet_exit();
 out_pernet_subsys:
@@ -2150,6 +2178,8 @@ static void __exit smc_exit(void)
 	sock_unregister(PF_SMC);
 	smc_core_exit();
 	smc_ib_unregister_client();
+	destroy_workqueue(smc_close_wq);
+	destroy_workqueue(smc_hs_wq);
 	proto_unregister(&smc_proto6);
 	proto_unregister(&smc_proto);
 	smc_pnet_exit();

@@ -208,12 +208,11 @@ again:
 		break;
 	case SMC_LISTEN:
 		sk->sk_state = SMC_CLOSED;
+		smc->clcsock->sk->sk_data_ready = smc->clcsk_data_ready;
+		smc->clcsock->sk->sk_user_data = NULL;
 		sk->sk_state_change(sk); /* wake up accept */
-		if (smc->clcsock && smc->clcsock->sk) {
+		if (smc->clcsock && smc->clcsock->sk)
 			rc = kernel_sock_shutdown(smc->clcsock, SHUT_RDWR);
-			/* wake up kernel_accept of smc_tcp_listen_worker */
-			smc->clcsock->sk->sk_data_ready(smc->clcsock->sk);
-		}
 		smc_close_cleanup_listen(sk);
 		release_sock(sk);
 		flush_work(&smc->tcp_listen_work);

@@ -928,7 +928,10 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
 	mutex_lock(&smcd_dev_list.mutex);
 	list_for_each_entry(ismdev, &smcd_dev_list.list, list) {
 		if (smc_pnet_match(ismdev->pnetid, ndev_pnetid) &&
-		    !ismdev->going_away) {
+		    !ismdev->going_away &&
+		    (!ini->ism_peer_gid ||
+		     !smc_ism_cantalk(ini->ism_peer_gid, ini->vlan_id,
+				      ismdev))) {
 			ini->ism_dev = ismdev;
 			break;
 		}

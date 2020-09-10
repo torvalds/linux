@@ -299,7 +299,7 @@ static void smc_cdc_msg_validate(struct smc_sock *smc, struct smc_cdc_msg *cdc,
 		conn->lnk = link;
 		spin_unlock_bh(&conn->send_lock);
 		sock_hold(&smc->sk); /* sock_put in abort_work */
-		if (!schedule_work(&conn->abort_work))
+		if (!queue_work(smc_close_wq, &conn->abort_work))
 			sock_put(&smc->sk);
 	}
 }
@@ -368,7 +368,7 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 			smc->clcsock->sk->sk_shutdown |= RCV_SHUTDOWN;
 		sock_set_flag(&smc->sk, SOCK_DONE);
 		sock_hold(&smc->sk); /* sock_put in close_work */
-		if (!schedule_work(&conn->close_work))
+		if (!queue_work(smc_close_wq, &conn->close_work))
 			sock_put(&smc->sk);
 	}
 }

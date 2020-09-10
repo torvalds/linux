@@ -18,6 +18,8 @@
 
 #include "smc_ib.h"
 
+#define SMC_V1		1		/* SMC version V1 */
+
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
 
@@ -201,6 +203,8 @@ struct smc_connection {
 struct smc_sock {				/* smc sock container */
 	struct sock		sk;
 	struct socket		*clcsock;	/* internal tcp socket */
+	void			(*clcsk_data_ready)(struct sock *sk);
+						/* original data_ready fct. **/
 	struct smc_connection	conn;		/* smc connection */
 	struct smc_sock		*listen_smc;	/* listen parent */
 	struct work_struct	connect_work;	/* handle non-blocking connect*/
@@ -234,6 +238,9 @@ static inline struct smc_sock *smc_sk(const struct sock *sk)
 {
 	return (struct smc_sock *)sk;
 }
+
+extern struct workqueue_struct	*smc_hs_wq;	/* wq for handshake work */
+extern struct workqueue_struct	*smc_close_wq;	/* wq for close work */
 
 #define SMC_SYSTEMID_LEN		8
 

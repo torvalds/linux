@@ -1691,7 +1691,7 @@ static void smc_llc_enqueue(struct smc_link *link, union smc_llc_msg *llc)
 	spin_lock_irqsave(&lgr->llc_event_q_lock, flags);
 	list_add_tail(&qentry->list, &lgr->llc_event_q);
 	spin_unlock_irqrestore(&lgr->llc_event_q_lock, flags);
-	schedule_work(&lgr->llc_event_work);
+	queue_work(system_highpri_wq, &lgr->llc_event_work);
 }
 
 /* copy received msg and add it to the event queue */
