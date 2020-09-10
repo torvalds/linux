@@ -386,6 +386,12 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		rc = SMC_CLC_DECL_MEM;
 		goto ism_put_vlan;
 	}
+	lgr->tx_wq = alloc_workqueue("smc_tx_wq-%*phN", 0, 0,
+				     SMC_LGR_ID_SIZE, &lgr->id);
+	if (!lgr->tx_wq) {
+		rc = -ENOMEM;
+		goto free_lgr;
+	}
 	lgr->is_smcd = ini->is_smcd;
 	lgr->sync_err = 0;
 	lgr->terminating = 0;
@@ -426,7 +432,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		lnk = &lgr->lnk[link_idx];
 		rc = smcr_link_init(lgr, lnk, link_idx, ini);
 		if (rc)
-			goto free_lgr;
+			goto free_wq;
 		lgr_list = &smc_lgr_list.list;
 		lgr_lock = &smc_lgr_list.lock;
 		atomic_inc(&lgr_cnt);
@@ -437,6 +443,8 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	spin_unlock_bh(lgr_lock);
 	return 0;
 
+free_wq:
+	destroy_workqueue(lgr->tx_wq);
 free_lgr:
 	kfree(lgr);
 ism_put_vlan:
@@ -506,7 +514,7 @@ static int smc_switch_cursor(struct smc_sock *smc, struct smc_cdc_tx_pend *pend,
 	    smc->sk.sk_state != SMC_CLOSED) {
 		rc = smcr_cdc_msg_send_validation(conn, pend, wr_buf);
 		if (!rc) {
-			schedule_delayed_work(&conn->tx_work, 0);
+			queue_delayed_work(conn->lgr->tx_wq, &conn->tx_work, 0);
 			smc->sk.sk_data_ready(&smc->sk);
 		}
 	} else {
@@ -813,6 +821,7 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 	}
 
 	smc_lgr_free_bufs(lgr);
+	destroy_workqueue(lgr->tx_wq);
 	if (lgr->is_smcd) {
 		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
 		put_device(&lgr->smcd->dev);
