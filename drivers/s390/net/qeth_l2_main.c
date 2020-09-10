@@ -17,10 +17,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/etherdevice.h>
+#include <linux/if_bridge.h>
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <linux/hashtable.h>
 #include <asm/chsc.h>
+#include <asm/css_chars.h>
 #include <asm/setup.h>
 #include "qeth_core.h"
 #include "qeth_l2.h"
@@ -826,6 +828,46 @@ static void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 	}
 }
 
+/**
+ *	qeth_l2_detect_dev2br_support() -
+ *	Detect whether this card supports 'dev to bridge fdb network address
+ *	change notification' and thus can support the learning_sync bridgeport
+ *	attribute
+ *	@card: qeth_card structure pointer
+ *
+ *	This is a destructive test and must be called before dev2br or
+ *	bridgeport address notification is enabled!
+ */
+static void qeth_l2_detect_dev2br_support(struct qeth_card *card)
+{
+	struct qeth_priv *priv = netdev_priv(card->dev);
+	bool dev2br_supported;
+	int rc;
+
+	QETH_CARD_TEXT(card, 2, "d2brsup");
+	if (!IS_IQD(card))
+		return;
+
+	/* dev2br requires valid cssid,iid,chid */
+	if (!card->info.ids_valid) {
+		dev2br_supported = false;
+	} else if (css_general_characteristics.enarf) {
+		dev2br_supported = true;
+	} else {
+		/* Old machines don't have the feature bit:
+		 * Probe by testing whether a disable succeeds
+		 */
+		rc = qeth_l2_pnso(card, PNSO_OC_NET_ADDR_INFO, 0, NULL, NULL);
+		dev2br_supported = !rc;
+	}
+	QETH_CARD_TEXT_(card, 2, "D2Bsup%02x", dev2br_supported);
+
+	if (dev2br_supported)
+		priv->brport_hw_features |= BR_LEARNING_SYNC;
+	else
+		priv->brport_hw_features &= ~BR_LEARNING_SYNC;
+}
+
 static int qeth_l2_set_online(struct qeth_card *card)
 {
 	struct ccwgroup_device *gdev = card->gdev;
@@ -839,6 +881,9 @@ static int qeth_l2_set_online(struct qeth_card *card)
 		rc = -ENODEV;
 		goto out_remove;
 	}
+
+	/* query before bridgeport_notification may be enabled */
+	qeth_l2_detect_dev2br_support(card);
 
 	mutex_lock(&card->sbp_lock);
 	qeth_bridgeport_query_support(card);

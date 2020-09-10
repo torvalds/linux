@@ -684,9 +684,16 @@ enum qeth_pnso_mode {
 struct qeth_card_info {
 	unsigned short unit_addr2;
 	unsigned short cula;
-	u8 chpid;
 	__u16 func_level;
 	char mcl_level[QETH_MCL_LENGTH + 1];
+	/* doubleword below corresponds to net_if_token */
+	u16 ddev_devno;
+	u8 cssid;
+	u8 iid;
+	u8 ssid;
+	u8 chpid;
+	u16 chid;
+	u8 ids_valid:1; /* cssid,iid,chid */
 	u8 dev_addr_is_registered:1;
 	u8 open_when_online:1;
 	u8 promisc_mode:1;
@@ -780,6 +787,7 @@ struct qeth_switch_info {
 
 struct qeth_priv {
 	unsigned int rx_copybreak;
+	u32 brport_hw_features;
 };
 
 #define QETH_NAPI_WEIGHT NAPI_POLL_WEIGHT
