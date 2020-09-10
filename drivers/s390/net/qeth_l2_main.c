@@ -287,6 +287,22 @@ static void qeth_l2_set_pnso_mode(struct qeth_card *card,
 		drain_workqueue(card->event_wq);
 }
 
+static void qeth_l2_dev2br_fdb_flush(struct qeth_card *card)
+{
+	struct switchdev_notifier_fdb_info info;
+
+	QETH_CARD_TEXT(card, 2, "fdbflush");
+
+	info.addr = NULL;
+	/* flush all VLANs: */
+	info.vid = 0;
+	info.added_by_user = false;
+	info.offloaded = true;
+
+	call_switchdev_notifiers(SWITCHDEV_FDB_FLUSH_TO_BRIDGE,
+				 card->dev, &info.info, NULL);
+}
+
 static void qeth_l2_stop_card(struct qeth_card *card)
 {
 	QETH_CARD_TEXT(card, 2, "stopcard");
@@ -770,6 +786,54 @@ static void qeth_l2_dev2br_fdb_notify(struct qeth_card *card, u8 code,
 		QETH_CARD_TEXT_(card, 4,
 				"mc%012lx", ether_addr_to_u64(ntfy_mac));
 	}
+}
+
+static void qeth_l2_dev2br_an_set_cb(void *priv,
+				     struct chsc_pnso_naid_l2 *entry)
+{
+	u8 code = IPA_ADDR_CHANGE_CODE_MACADDR;
+	struct qeth_card *card = priv;
+
+	if (entry->addr_lnid.lnid < VLAN_N_VID)
+		code |= IPA_ADDR_CHANGE_CODE_VLANID;
+	qeth_l2_dev2br_fdb_notify(card, code,
+				  (struct net_if_token *)&entry->nit,
+				  (struct mac_addr_lnid *)&entry->addr_lnid);
+}
+
+/**
+ *	qeth_l2_dev2br_an_set() -
+ *	Enable or disable 'dev to bridge network address notification'
+ *	@card: qeth_card structure pointer
+ *	@enable: Enable or disable 'dev to bridge network address notification'
+ *
+ *	Returns negative errno-compatible error indication or 0 on success.
+ *
+ *	On enable, emits a series of address notifications for all
+ *	currently registered hosts.
+ *
+ *	Must be called under rtnl_lock
+ */
+static int qeth_l2_dev2br_an_set(struct qeth_card *card, bool enable)
+{
+	int rc;
+
+	if (enable) {
+		QETH_CARD_TEXT(card, 2, "anseton");
+		rc = qeth_l2_pnso(card, PNSO_OC_NET_ADDR_INFO, 1,
+				  qeth_l2_dev2br_an_set_cb, card);
+		if (rc == -EAGAIN)
+			/* address notification enabled, but inconsistent
+			 * addresses reported -> disable address notification
+			 */
+			qeth_l2_pnso(card, PNSO_OC_NET_ADDR_INFO, 0,
+				     NULL, NULL);
+	} else {
+		QETH_CARD_TEXT(card, 2, "ansetoff");
+		rc = qeth_l2_pnso(card, PNSO_OC_NET_ADDR_INFO, 0, NULL, NULL);
+	}
+
+	return rc;
 }
 
 static const struct net_device_ops qeth_l2_netdev_ops = {
@@ -1284,10 +1348,13 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct qeth_addr_change_data *data;
 	struct qeth_card *card;
+	struct qeth_priv *priv;
 	unsigned int i;
+	int rc;
 
 	data = container_of(dwork, struct qeth_addr_change_data, dwork);
 	card = data->card;
+	priv = netdev_priv(card->dev);
 
 	QETH_CARD_TEXT(card, 4, "dev2brew");
 
@@ -1300,11 +1367,39 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 				   msecs_to_jiffies(100));
 		return;
 	}
+	if (!netif_device_present(card->dev))
+		goto out_unlock;
 
 	if (data->ac_event.lost_event_mask) {
 		QETH_DBF_MESSAGE(3,
 				 "Address change notification overflow on device %x\n",
 				 CARD_DEVID(card));
+		/* Card fdb and bridge fdb are out of sync, card has stopped
+		 * notifications (no need to drain_workqueue). Purge all
+		 * 'extern_learn' entries from the parent bridge and restart
+		 * the notifications.
+		 */
+		qeth_l2_dev2br_fdb_flush(card);
+		rc = qeth_l2_dev2br_an_set(card, true);
+		if (rc) {
+			/* TODO: if we want to retry after -EAGAIN, be
+			 * aware there could be stale entries in the
+			 * workqueue now, that need to be drained.
+			 * For now we give up:
+			 */
+			netdev_err(card->dev,
+				   "bridge learning_sync failed to recover: %d\n",
+				   rc);
+			WRITE_ONCE(card->info.pnso_mode,
+				   QETH_PNSO_NONE);
+			/* To remove fdb entries reported by an_set: */
+			qeth_l2_dev2br_fdb_flush(card);
+			priv->brport_features ^= BR_LEARNING_SYNC;
+		} else {
+			QETH_DBF_MESSAGE(3,
+					 "Address Notification resynced on device %x\n",
+					 CARD_DEVID(card));
+		}
 	} else {
 		for (i = 0; i < data->ac_event.num_entries; i++) {
 			struct qeth_ipacmd_addr_change_entry *entry =
@@ -1315,6 +1410,8 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 						  &entry->addr_lnid);
 		}
 	}
+
+out_unlock:
 	rtnl_unlock();
 
 free:
@@ -2035,7 +2132,7 @@ int qeth_l2_vnicc_get_timeout(struct qeth_card *card, u32 *timeout)
 }
 
 /* check if VNICC is currently enabled */
-bool qeth_l2_vnicc_is_in_use(struct qeth_card *card)
+static bool _qeth_l2_vnicc_is_in_use(struct qeth_card *card)
 {
 	if (!card->options.vnicc.sup_chars)
 		return false;
@@ -2048,6 +2145,21 @@ bool qeth_l2_vnicc_is_in_use(struct qeth_card *card)
 			return false;
 	}
 	return true;
+}
+
+/**
+ *	qeth_bridgeport_allowed - are any qeth_bridgeport functions allowed?
+ *	@card: qeth_card structure pointer
+ *
+ *	qeth_bridgeport functionality is mutually exclusive with usage of the
+ *	VNIC Characteristics and dev2br address notifications
+ */
+bool qeth_bridgeport_allowed(struct qeth_card *card)
+{
+	struct qeth_priv *priv = netdev_priv(card->dev);
+
+	return (!_qeth_l2_vnicc_is_in_use(card) &&
+		!(priv->brport_features & BR_LEARNING_SYNC));
 }
 
 /* recover user timeout setting */

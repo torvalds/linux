@@ -789,6 +789,7 @@ struct qeth_switch_info {
 struct qeth_priv {
 	unsigned int rx_copybreak;
 	u32 brport_hw_features;
+	u32 brport_features;
 };
 
 #define QETH_NAPI_WEIGHT NAPI_POLL_WEIGHT
