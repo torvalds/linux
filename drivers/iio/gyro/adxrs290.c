@@ -192,15 +192,70 @@ static int adxrs290_set_filter_freq(struct iio_dev *indio_dev,
 	return adxrs290_spi_write_reg(st->spi, ADXRS290_REG_FILTER, val);
 }
 
+static int adxrs290_set_mode(struct iio_dev *indio_dev, enum adxrs290_mode mode)
+{
+	struct adxrs290_state *st = iio_priv(indio_dev);
+	int val, ret;
+
+	if (st->mode == mode)
+		return 0;
+
+	mutex_lock(&st->lock);
+
+	ret = spi_w8r8(st->spi, ADXRS290_READ_REG(ADXRS290_REG_POWER_CTL));
+	if (ret < 0)
+		goto out_unlock;
+
+	val = ret;
+
+	switch (mode) {
+	case ADXRS290_MODE_STANDBY:
+		val &= ~ADXRS290_MEASUREMENT;
+		break;
+	case ADXRS290_MODE_MEASUREMENT:
+		val |= ADXRS290_MEASUREMENT;
+		break;
+	default:
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	ret = adxrs290_spi_write_reg(st->spi, ADXRS290_REG_POWER_CTL, val);
+	if (ret < 0) {
+		dev_err(&st->spi->dev, "unable to set mode: %d\n", ret);
+		goto out_unlock;
+	}
+
+	/* update cached mode */
+	st->mode = mode;
+
+out_unlock:
+	mutex_unlock(&st->lock);
+	return ret;
+}
+
+static void adxrs290_chip_off_action(void *data)
+{
+	struct iio_dev *indio_dev = data;
+
+	adxrs290_set_mode(indio_dev, ADXRS290_MODE_STANDBY);
+}
+
 static int adxrs290_initial_setup(struct iio_dev *indio_dev)
 {
 	struct adxrs290_state *st = iio_priv(indio_dev);
+	struct spi_device *spi = st->spi;
+	int ret;
+
+	ret = adxrs290_spi_write_reg(spi, ADXRS290_REG_POWER_CTL,
+				     ADXRS290_MEASUREMENT | ADXRS290_TSM);
+	if (ret < 0)
+		return ret;
 
 	st->mode = ADXRS290_MODE_MEASUREMENT;
 
-	return adxrs290_spi_write_reg(st->spi,
-				      ADXRS290_REG_POWER_CTL,
-				      ADXRS290_MEASUREMENT | ADXRS290_TSM);
+	return devm_add_action_or_reset(&spi->dev, adxrs290_chip_off_action,
+					indio_dev);
 }
 
 static int adxrs290_read_raw(struct iio_dev *indio_dev,
