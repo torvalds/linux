@@ -114,7 +114,6 @@ concat_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t size, retsize;
 
 		if (to >= subdev->size) {
-			size = 0;
 			to -= subdev->size;
 			continue;
 		}
