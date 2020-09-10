@@ -571,8 +571,8 @@ __iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, int flags,
 {
 	struct iomap_page *iop = iomap_page_create(inode, page);
 	loff_t block_size = i_blocksize(inode);
-	loff_t block_start = pos & ~(block_size - 1);
-	loff_t block_end = (pos + len + block_size - 1) & ~(block_size - 1);
+	loff_t block_start = round_down(pos, block_size);
+	loff_t block_end = round_up(pos + len, block_size);
 	unsigned from = offset_in_page(pos), to = from + len, poff, plen;
 
 	if (PageUptodate(page))
