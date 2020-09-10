@@ -839,6 +839,8 @@ void page_cache_ra_unbounded(struct readahead_control *,
 void page_cache_sync_ra(struct readahead_control *, unsigned long req_count);
 void page_cache_async_ra(struct readahead_control *, struct page *,
 		unsigned long req_count);
+void readahead_expand(struct readahead_control *ractl,
+		      loff_t new_start, size_t new_len);
 
 /**
  * page_cache_sync_readahead - generic file readahead
