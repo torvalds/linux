@@ -573,7 +573,7 @@ static int buck_set_hw_dvs_levels(struct device_node *np,
 	return rohm_regulator_set_dvs_levels(&data->dvs, np, desc, cfg->regmap);
 }
 
-const struct regulator_ops *bd71847_swcontrol_ops[] = {
+static const struct regulator_ops *bd71847_swcontrol_ops[] = {
 	&bd718xx_dvs_buck_regulator_ops, &bd718xx_dvs_buck_regulator_ops,
 	&bd718xx_pickable_range_buck_ops, &bd718xx_pickable_range_buck_ops,
 	&bd718xx_buck_regulator_nolinear_ops, &bd718xx_buck_regulator_ops,
@@ -582,7 +582,7 @@ const struct regulator_ops *bd71847_swcontrol_ops[] = {
 	&bd718xx_pickable_range_ldo_ops, &bd718xx_ldo_regulator_ops,
 };
 
-const struct regulator_ops *bd71847_hwcontrol_ops[] = {
+static const struct regulator_ops *bd71847_hwcontrol_ops[] = {
 	&BD718XX_HWOPNAME(bd718xx_dvs_buck_regulator_ops),
 	&BD718XX_HWOPNAME(bd718xx_dvs_buck_regulator_ops),
 	&BD718XX_HWOPNAME(bd718xx_pickable_range_buck_ops),
@@ -899,7 +899,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 	},
 };
 
-const struct regulator_ops *bd71837_swcontrol_ops[] = {
+static const struct regulator_ops *bd71837_swcontrol_ops[] = {
 	&bd718xx_dvs_buck_regulator_ops, &bd718xx_dvs_buck_regulator_ops,
 	&bd718xx_dvs_buck_regulator_ops, &bd718xx_dvs_buck_regulator_ops,
 	&bd71837_pickable_range_buck_ops, &bd71837_buck_regulator_ops,
@@ -910,7 +910,7 @@ const struct regulator_ops *bd71837_swcontrol_ops[] = {
 	&bd71837_ldo_regulator_ops,
 };
 
-const struct regulator_ops *bd71837_hwcontrol_ops[] = {
+static const struct regulator_ops *bd71837_hwcontrol_ops[] = {
 	&BD718XX_HWOPNAME(bd718xx_dvs_buck_regulator_ops),
 	&BD718XX_HWOPNAME(bd718xx_dvs_buck_regulator_ops),
 	&bd71837_buck34_ops_hwctrl, &bd71837_buck34_ops_hwctrl,
