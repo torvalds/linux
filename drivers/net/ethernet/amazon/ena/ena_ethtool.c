@@ -152,7 +152,7 @@ static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)
 	u64 *ptr;
 	int i, j;
 
-	for (i = 0; i < adapter->num_io_queues; i++) {
+	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
 		/* Tx stats */
 		ring = &adapter->tx_ring[i];
 
@@ -163,17 +163,19 @@ static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)
 
 			ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
 		}
+		/* XDP TX queues don't have a RX queue counterpart */
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* Rx stats */
+			ring = &adapter->rx_ring[i];
 
-		/* Rx stats */
-		ring = &adapter->rx_ring[i];
+			for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
+				ena_stats = &ena_stats_rx_strings[j];
 
-		for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
-			ena_stats = &ena_stats_rx_strings[j];
+				ptr = (u64 *)&ring->rx_stats +
+					ena_stats->stat_offset;
 
-			ptr = (u64 *)&ring->rx_stats +
-				ena_stats->stat_offset;
-
-			ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
+				ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
+			}
 		}
 	}
 }
@@ -238,6 +240,7 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 static int ena_get_sw_stats_count(struct ena_adapter *adapter)
 {
 	return adapter->num_io_queues * (ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX)
+		+ adapter->xdp_num_queues * ENA_STATS_ARRAY_TX
 		+ ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
 }
 
@@ -259,24 +262,32 @@ int ena_get_sset_count(struct net_device *netdev, int sset)
 static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
 {
 	const struct ena_stats *ena_stats;
+	bool is_xdp;
 	int i, j;
 
-	for (i = 0; i < adapter->num_io_queues; i++) {
+	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
+		is_xdp = ENA_IS_XDP_INDEX(adapter, i);
 		/* Tx stats */
 		for (j = 0; j < ENA_STATS_ARRAY_TX; j++) {
 			ena_stats = &ena_stats_tx_strings[j];
 
 			snprintf(*data, ETH_GSTRING_LEN,
-				 "queue_%u_tx_%s", i, ena_stats->name);
+				 "queue_%u_%s_%s", i,
+				 is_xdp ? "xdp_tx" : "tx", ena_stats->name);
 			(*data) += ETH_GSTRING_LEN;
 		}
-		/* Rx stats */
-		for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
-			ena_stats = &ena_stats_rx_strings[j];
 
-			snprintf(*data, ETH_GSTRING_LEN,
-				 "queue_%u_rx_%s", i, ena_stats->name);
-			(*data) += ETH_GSTRING_LEN;
+		if (!is_xdp) {
+			/* RX stats, in XDP there isn't a RX queue
+			 * counterpart
+			 */
+			for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
+				ena_stats = &ena_stats_rx_strings[j];
+
+				snprintf(*data, ETH_GSTRING_LEN,
+					 "queue_%u_rx_%s", i, ena_stats->name);
+				(*data) += ETH_GSTRING_LEN;
+			}
 		}
 	}
 }
