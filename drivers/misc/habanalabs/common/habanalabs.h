@@ -68,9 +68,6 @@
 #define HL_RSVD_SOBS			4
 #define HL_RSVD_MONS			2
 
-#define HL_RSVD_SOBS_IN_USE		2
-#define HL_RSVD_MONS_IN_USE		1
-
 #define HL_MAX_SOB_VAL			(1 << 15)
 
 #define IS_POWER_OF_2(n)		(n != 0 && ((n & (n - 1)) == 0))
@@ -79,6 +76,22 @@
 #define HL_PCI_NUM_BARS			6
 
 #define HL_MAX_DCORES			4
+
+/**
+ * struct hl_gen_wait_properties - properties for generating a wait CB
+ * @data: command buffer
+ * @q_idx: queue id is used to extract fence register address
+ * @sob_id: SOB id to use in this wait CB
+ * @sob_val: SOB value to wait for
+ * @mon_id: monitor to use in this wait CB
+ */
+struct hl_gen_wait_properties {
+	void	*data;
+	u32	q_idx;
+	u16	sob_id;
+	u16	sob_val;
+	u16	mon_id;
+};
 
 /**
  * struct pgt_info - MMU hop page info.
@@ -502,9 +515,27 @@ struct hl_cs_job;
 #define HL_CPU_ACCESSIBLE_MEM_SIZE	SZ_2M
 
 /**
- * struct hl_hw_queue - describes a H/W transport queue.
+ * struct hl_sync_stream_properties -
+ *     describes a H/W queue sync stream properties
  * @hw_sob: array of the used H/W SOBs by this H/W queue.
+ * @next_sob_val: the next value to use for the currently used SOB.
+ * @base_sob_id: the base SOB id of the SOBs used by this queue.
+ * @base_mon_id: the base MON id of the MONs used by this queue.
+ * @curr_sob_offset: the id offset to the currently used SOB from the
+ *                   HL_RSVD_SOBS that are being used by this queue.
+ */
+struct hl_sync_stream_properties {
+	struct hl_hw_sob	hw_sob[HL_RSVD_SOBS];
+	u16			next_sob_val;
+	u16			base_sob_id;
+	u16			base_mon_id;
+	u8			curr_sob_offset;
+};
+
+/**
+ * struct hl_hw_queue - describes a H/W transport queue.
  * @shadow_queue: pointer to a shadow queue that holds pointers to jobs.
+ * @sync_stream_prop: sync stream queue properties
  * @queue_type: type of queue.
  * @kernel_address: holds the queue's kernel virtual address.
  * @bus_address: holds the queue's DMA address.
@@ -514,33 +545,24 @@ struct hl_cs_job;
  * @cq_id: the id for the corresponding CQ for this H/W queue.
  * @msi_vec: the IRQ number of the H/W queue.
  * @int_queue_len: length of internal queue (number of entries).
- * @next_sob_val: the next value to use for the currently used SOB.
- * @base_sob_id: the base SOB id of the SOBs used by this queue.
- * @base_mon_id: the base MON id of the MONs used by this queue.
  * @valid: is the queue valid (we have array of 32 queues, not all of them
  *         exist).
- * @curr_sob_offset: the id offset to the currently used SOB from the
- *                   HL_RSVD_SOBS that are being used by this queue.
  * @supports_sync_stream: True if queue supports sync stream
  */
 struct hl_hw_queue {
-	struct hl_hw_sob	hw_sob[HL_RSVD_SOBS];
-	struct hl_cs_job	**shadow_queue;
-	enum hl_queue_type	queue_type;
-	void			*kernel_address;
-	dma_addr_t		bus_address;
-	u32			pi;
-	atomic_t		ci;
-	u32			hw_queue_id;
-	u32			cq_id;
-	u32			msi_vec;
-	u16			int_queue_len;
-	u16			next_sob_val;
-	u16			base_sob_id;
-	u16			base_mon_id;
-	u8			valid;
-	u8			curr_sob_offset;
-	u8			supports_sync_stream;
+	struct hl_cs_job			**shadow_queue;
+	struct hl_sync_stream_properties	sync_stream_prop;
+	enum hl_queue_type			queue_type;
+	void					*kernel_address;
+	dma_addr_t				bus_address;
+	u32					pi;
+	atomic_t				ci;
+	u32					hw_queue_id;
+	u32					cq_id;
+	u32					msi_vec;
+	u16					int_queue_len;
+	u8					valid;
+	u8					supports_sync_stream;
 };
 
 /**
@@ -823,8 +845,8 @@ struct hl_asic_funcs {
 	u32 (*get_signal_cb_size)(struct hl_device *hdev);
 	u32 (*get_wait_cb_size)(struct hl_device *hdev);
 	void (*gen_signal_cb)(struct hl_device *hdev, void *data, u16 sob_id);
-	void (*gen_wait_cb)(struct hl_device *hdev, void *data, u16 sob_id,
-				u16 sob_val, u16 mon_id, u32 q_idx);
+	void (*gen_wait_cb)(struct hl_device *hdev,
+			struct hl_gen_wait_properties *prop);
 	void (*reset_sob)(struct hl_device *hdev, void *data);
 	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
 	u64 (*get_device_time)(struct hl_device *hdev);

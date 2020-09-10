@@ -5293,8 +5293,8 @@ static void goya_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id)
 
 }
 
-static void goya_gen_wait_cb(struct hl_device *hdev, void *data, u16 sob_id,
-			u16 sob_val, u16 mon_id, u32 q_idx)
+static void goya_gen_wait_cb(struct hl_device *hdev,
+		struct hl_gen_wait_properties *prop)
 {
 
 }

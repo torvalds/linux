@@ -472,9 +472,11 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	prop->max_pending_cs = GAUDI_MAX_PENDING_CS;
 
 	prop->first_available_user_sob[HL_GAUDI_WS_DCORE] =
-			num_sync_stream_queues * HL_RSVD_SOBS;
+			prop->sync_stream_first_sob +
+			(num_sync_stream_queues * HL_RSVD_SOBS);
 	prop->first_available_user_mon[HL_GAUDI_WS_DCORE] =
-			num_sync_stream_queues * HL_RSVD_MONS;
+			prop->sync_stream_first_mon +
+			(num_sync_stream_queues * HL_RSVD_MONS);
 
 	return 0;
 }
@@ -6466,16 +6468,16 @@ static u32 gaudi_add_fence_pkt(struct packet_fence *pkt)
 	return pkt_size;
 }
 
-static void gaudi_gen_wait_cb(struct hl_device *hdev, void *data, u16 sob_id,
-			u16 sob_val, u16 mon_id, u32 q_idx)
+static void gaudi_gen_wait_cb(struct hl_device *hdev,
+		struct hl_gen_wait_properties *prop)
 {
-	struct hl_cb *cb = (struct hl_cb *) data;
+	struct hl_cb *cb = (struct hl_cb *) prop->data;
 	void *buf = cb->kernel_address;
 	u64 monitor_base, fence_addr = 0;
 	u32 size = 0;
 	u16 msg_addr_offset;
 
-	switch (q_idx) {
+	switch (prop->q_idx) {
 	case GAUDI_QUEUE_ID_DMA_0_0:
 		fence_addr = mmDMA0_QM_CP_FENCE2_RDATA_0;
 		break;
@@ -6515,7 +6517,7 @@ static void gaudi_gen_wait_cb(struct hl_device *hdev, void *data, u16 sob_id,
 	default:
 		/* queue index should be valid here */
 		dev_crit(hdev->dev, "wrong queue id %d for wait packet\n",
-				q_idx);
+				prop->q_idx);
 		return;
 	}
 
@@ -6528,17 +6530,15 @@ static void gaudi_gen_wait_cb(struct hl_device *hdev, void *data, u16 sob_id,
 	monitor_base = mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0;
 
 	/* First monitor config packet: low address of the sync */
-	msg_addr_offset =
-		(mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0 + mon_id * 4) -
-				monitor_base;
+	msg_addr_offset = (mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0 +
+			prop->mon_id * 4) - monitor_base;
 
 	size += gaudi_add_mon_msg_short(buf + size, (u32) fence_addr,
 					msg_addr_offset);
 
 	/* Second monitor config packet: high address of the sync */
-	msg_addr_offset =
-		(mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_PAY_ADDRH_0 + mon_id * 4) -
-				monitor_base;
+	msg_addr_offset = (mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_PAY_ADDRH_0 +
+			prop->mon_id * 4) - monitor_base;
 
 	size += gaudi_add_mon_msg_short(buf + size, (u32) (fence_addr >> 32),
 					msg_addr_offset);
@@ -6547,18 +6547,17 @@ static void gaudi_gen_wait_cb(struct hl_device *hdev, void *data, u16 sob_id,
 	 * Third monitor config packet: the payload, i.e. what to write when the
 	 * sync triggers
 	 */
-	msg_addr_offset =
-		(mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_PAY_DATA_0 + mon_id * 4) -
-				monitor_base;
+	msg_addr_offset = (mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_PAY_DATA_0 +
+			prop->mon_id * 4) - monitor_base;
 
 	size += gaudi_add_mon_msg_short(buf + size, 1, msg_addr_offset);
 
 	/* Fourth monitor config packet: bind the monitor to a sync object */
 	msg_addr_offset =
-		(mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_ARM_0 + mon_id * 4) -
+		(mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_ARM_0 + prop->mon_id * 4) -
 				monitor_base;
-	size += gaudi_add_arm_monitor_pkt(buf + size, sob_id, sob_val,
-						msg_addr_offset);
+	size += gaudi_add_arm_monitor_pkt(buf + size, prop->sob_id,
+			prop->sob_val, msg_addr_offset);
 
 	/* Fence packet */
 	size += gaudi_add_fence_pkt(buf + size);
