@@ -11,8 +11,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 
 /* write wiper reg */
@@ -117,7 +117,6 @@ static const struct iio_info max5481_info = {
 	.write_raw = max5481_write_raw,
 };
 
-#if defined(CONFIG_OF)
 static const struct of_device_id max5481_match[] = {
 	{ .compatible = "maxim,max5481", .data = &max5481_cfg[max5481] },
 	{ .compatible = "maxim,max5482", .data = &max5481_cfg[max5482] },
@@ -126,7 +125,6 @@ static const struct of_device_id max5481_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max5481_match);
-#endif
 
 static int max5481_probe(struct spi_device *spi)
 {
@@ -144,7 +142,7 @@ static int max5481_probe(struct spi_device *spi)
 
 	data->spi = spi;
 
-	data->cfg = of_device_get_match_data(&spi->dev);
+	data->cfg = device_get_match_data(&spi->dev);
 	if (!data->cfg)
 		data->cfg = &max5481_cfg[id->driver_data];
 
@@ -198,7 +196,7 @@ MODULE_DEVICE_TABLE(acpi, max5481_acpi_match);
 static struct spi_driver max5481_driver = {
 	.driver = {
 		.name  = "max5481",
-		.of_match_table = of_match_ptr(max5481_match),
+		.of_match_table = max5481_match,
 		.acpi_match_table = ACPI_PTR(max5481_acpi_match),
 	},
 	.probe = max5481_probe,
