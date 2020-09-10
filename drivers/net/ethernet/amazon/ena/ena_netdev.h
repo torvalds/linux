@@ -405,6 +405,8 @@ struct ena_adapter {
 
 	struct u64_stats_sync syncp;
 	struct ena_stats_dev dev_stats;
+	struct ena_admin_eni_stats eni_stats;
+	bool eni_stats_supported;
 
 	/* last queue index that was checked for uncompleted tx packets */
 	u32 last_monitored_tx_qid;
@@ -421,6 +423,8 @@ void ena_set_ethtool_ops(struct net_device *netdev);
 void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 
 void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
+
+int ena_update_hw_stats(struct ena_adapter *adapter);
 
 int ena_update_queue_sizes(struct ena_adapter *adapter,
 			   u32 new_tx_size,

@@ -49,6 +49,11 @@ struct ena_stats {
 	.stat_offset = offsetof(struct ena_stats_##stat_type, stat) / sizeof(u64) \
 }
 
+#define ENA_STAT_HW_ENTRY(stat, stat_type) { \
+	.name = #stat, \
+	.stat_offset = offsetof(struct ena_admin_##stat_type, stat) / sizeof(u64) \
+}
+
 #define ENA_STAT_RX_ENTRY(stat) \
 	ENA_STAT_ENTRY(stat, rx)
 
@@ -58,6 +63,9 @@ struct ena_stats {
 #define ENA_STAT_GLOBAL_ENTRY(stat) \
 	ENA_STAT_ENTRY(stat, dev)
 
+#define ENA_STAT_ENI_ENTRY(stat) \
+	ENA_STAT_HW_ENTRY(stat, eni_stats)
+
 static const struct ena_stats ena_stats_global_strings[] = {
 	ENA_STAT_GLOBAL_ENTRY(tx_timeout),
 	ENA_STAT_GLOBAL_ENTRY(suspend),
@@ -66,6 +74,14 @@ static const struct ena_stats ena_stats_global_strings[] = {
 	ENA_STAT_GLOBAL_ENTRY(interface_up),
 	ENA_STAT_GLOBAL_ENTRY(interface_down),
 	ENA_STAT_GLOBAL_ENTRY(admin_q_pause),
+};
+
+static const struct ena_stats ena_stats_eni_strings[] = {
+	ENA_STAT_ENI_ENTRY(bw_in_allowance_exceeded),
+	ENA_STAT_ENI_ENTRY(bw_out_allowance_exceeded),
+	ENA_STAT_ENI_ENTRY(pps_allowance_exceeded),
+	ENA_STAT_ENI_ENTRY(conntrack_allowance_exceeded),
+	ENA_STAT_ENI_ENTRY(linklocal_allowance_exceeded),
 };
 
 static const struct ena_stats ena_stats_tx_strings[] = {
@@ -110,10 +126,12 @@ static const struct ena_stats ena_stats_ena_com_strings[] = {
 	ENA_STAT_ENA_COM_ENTRY(no_completion),
 };
 
-#define ENA_STATS_ARRAY_GLOBAL	ARRAY_SIZE(ena_stats_global_strings)
-#define ENA_STATS_ARRAY_TX	ARRAY_SIZE(ena_stats_tx_strings)
-#define ENA_STATS_ARRAY_RX	ARRAY_SIZE(ena_stats_rx_strings)
-#define ENA_STATS_ARRAY_ENA_COM	ARRAY_SIZE(ena_stats_ena_com_strings)
+#define ENA_STATS_ARRAY_GLOBAL		ARRAY_SIZE(ena_stats_global_strings)
+#define ENA_STATS_ARRAY_TX		ARRAY_SIZE(ena_stats_tx_strings)
+#define ENA_STATS_ARRAY_RX		ARRAY_SIZE(ena_stats_rx_strings)
+#define ENA_STATS_ARRAY_ENA_COM		ARRAY_SIZE(ena_stats_ena_com_strings)
+#define ENA_STATS_ARRAY_ENI(adapter)	\
+	(ARRAY_SIZE(ena_stats_eni_strings) * (adapter)->eni_stats_supported)
 
 static void ena_safe_update_stat(u64 *src, u64 *dst,
 				 struct u64_stats_sync *syncp)
@@ -176,11 +194,10 @@ static void ena_dev_admin_queue_stats(struct ena_adapter *adapter, u64 **data)
 	}
 }
 
-static void ena_get_ethtool_stats(struct net_device *netdev,
-				  struct ethtool_stats *stats,
-				  u64 *data)
+static void ena_get_stats(struct ena_adapter *adapter,
+			  u64 *data,
+			  bool eni_stats_needed)
 {
-	struct ena_adapter *adapter = netdev_priv(netdev);
 	const struct ena_stats *ena_stats;
 	u64 *ptr;
 	int i;
@@ -193,8 +210,40 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 		ena_safe_update_stat(ptr, data++, &adapter->syncp);
 	}
 
+	if (eni_stats_needed) {
+		ena_update_hw_stats(adapter);
+		for (i = 0; i < ENA_STATS_ARRAY_ENI(adapter); i++) {
+			ena_stats = &ena_stats_eni_strings[i];
+
+			ptr = (u64 *)&adapter->eni_stats +
+				ena_stats->stat_offset;
+
+			ena_safe_update_stat(ptr, data++, &adapter->syncp);
+		}
+	}
+
 	ena_queue_stats(adapter, &data);
 	ena_dev_admin_queue_stats(adapter, &data);
+}
+
+static void ena_get_ethtool_stats(struct net_device *netdev,
+				  struct ethtool_stats *stats,
+				  u64 *data)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
+	ena_get_stats(adapter, data, adapter->eni_stats_supported);
+}
+
+static int ena_get_sw_stats_count(struct ena_adapter *adapter)
+{
+	return adapter->num_io_queues * (ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX)
+		+ ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
+}
+
+static int ena_get_hw_stats_count(struct ena_adapter *adapter)
+{
+	return ENA_STATS_ARRAY_ENI(adapter);
 }
 
 int ena_get_sset_count(struct net_device *netdev, int sset)
@@ -204,8 +253,7 @@ int ena_get_sset_count(struct net_device *netdev, int sset)
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
 
-	return adapter->num_io_queues * (ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX)
-		+ ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
+	return ena_get_sw_stats_count(adapter) + ena_get_hw_stats_count(adapter);
 }
 
 static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
@@ -247,14 +295,12 @@ static void ena_com_dev_strings(u8 **data)
 	}
 }
 
-static void ena_get_strings(struct net_device *netdev, u32 sset, u8 *data)
+static void ena_get_strings(struct ena_adapter *adapter,
+			    u8 *data,
+			    bool eni_stats_needed)
 {
-	struct ena_adapter *adapter = netdev_priv(netdev);
 	const struct ena_stats *ena_stats;
 	int i;
-
-	if (sset != ETH_SS_STATS)
-		return;
 
 	for (i = 0; i < ENA_STATS_ARRAY_GLOBAL; i++) {
 		ena_stats = &ena_stats_global_strings[i];
@@ -262,8 +308,28 @@ static void ena_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 		data += ETH_GSTRING_LEN;
 	}
 
+	if (eni_stats_needed) {
+		for (i = 0; i < ENA_STATS_ARRAY_ENI(adapter); i++) {
+			ena_stats = &ena_stats_eni_strings[i];
+			memcpy(data, ena_stats->name, ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
+	}
+
 	ena_queue_strings(adapter, &data);
 	ena_com_dev_strings(&data);
+}
+
+static void ena_get_ethtool_strings(struct net_device *netdev,
+				    u32 sset,
+				    u8 *data)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
+	if (sset != ETH_SS_STATS)
+		return;
+
+	ena_get_strings(adapter, data, adapter->eni_stats_supported);
 }
 
 static int ena_get_link_ksettings(struct net_device *netdev,
@@ -845,7 +911,7 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_ringparam		= ena_get_ringparam,
 	.set_ringparam		= ena_set_ringparam,
 	.get_sset_count         = ena_get_sset_count,
-	.get_strings		= ena_get_strings,
+	.get_strings		= ena_get_ethtool_strings,
 	.get_ethtool_stats      = ena_get_ethtool_stats,
 	.get_rxnfc		= ena_get_rxnfc,
 	.set_rxnfc		= ena_set_rxnfc,
@@ -873,7 +939,7 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 	int strings_num;
 	int i, rc;
 
-	strings_num = ena_get_sset_count(netdev, ETH_SS_STATS);
+	strings_num = ena_get_sw_stats_count(adapter);
 	if (strings_num <= 0) {
 		netif_err(adapter, drv, netdev, "Can't get stats num\n");
 		return;
@@ -893,13 +959,13 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 				GFP_ATOMIC);
 	if (!data_buf) {
 		netif_err(adapter, drv, netdev,
-			  "failed to allocate data buf\n");
+			  "Failed to allocate data buf\n");
 		devm_kfree(&adapter->pdev->dev, strings_buf);
 		return;
 	}
 
-	ena_get_strings(netdev, ETH_SS_STATS, strings_buf);
-	ena_get_ethtool_stats(netdev, NULL, data_buf);
+	ena_get_strings(adapter, strings_buf, false);
+	ena_get_stats(adapter, data_buf, false);
 
 	/* If there is a buffer, dump stats, otherwise print them to dmesg */
 	if (buf)
