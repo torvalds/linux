@@ -18,6 +18,8 @@
 
 #include "smc_ib.h"
 
+#define SMC_V1		1		/* SMC version V1 */
+
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
 

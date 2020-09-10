@@ -418,7 +418,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	if (ini->is_smcd) {
 		/* SMC-D specific settings */
 		get_device(&ini->ism_dev->dev);
-		lgr->peer_gid = ini->ism_gid;
+		lgr->peer_gid = ini->ism_peer_gid;
 		lgr->smcd = ini->ism_dev;
 		lgr_list = &ini->ism_dev->lgr_list;
 		lgr_lock = &lgr->smcd->lgr_lock;
@@ -1296,9 +1296,9 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 
 	lgr_list = ini->is_smcd ? &ini->ism_dev->lgr_list : &smc_lgr_list.list;
 	lgr_lock = ini->is_smcd ? &ini->ism_dev->lgr_lock : &smc_lgr_list.lock;
-	ini->cln_first_contact = SMC_FIRST_CONTACT;
+	ini->first_contact_local = 1;
 	role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
-	if (role == SMC_CLNT && ini->srv_first_contact)
+	if (role == SMC_CLNT && ini->first_contact_peer)
 		/* create new link group as well */
 		goto create;
 
@@ -1307,14 +1307,14 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 	list_for_each_entry(lgr, lgr_list, list) {
 		write_lock_bh(&lgr->conns_lock);
 		if ((ini->is_smcd ?
-		     smcd_lgr_match(lgr, ini->ism_dev, ini->ism_gid) :
+		     smcd_lgr_match(lgr, ini->ism_dev, ini->ism_peer_gid) :
 		     smcr_lgr_match(lgr, ini->ib_lcl, role, ini->ib_clcqpn)) &&
 		    !lgr->sync_err &&
 		    lgr->vlan_id == ini->vlan_id &&
 		    (role == SMC_CLNT || ini->is_smcd ||
 		     lgr->conns_num < SMC_RMBS_PER_LGR_MAX)) {
 			/* link group found */
-			ini->cln_first_contact = SMC_REUSE_CONTACT;
+			ini->first_contact_local = 0;
 			conn->lgr = lgr;
 			rc = smc_lgr_register_conn(conn, false);
 			write_unlock_bh(&lgr->conns_lock);
@@ -1328,8 +1328,8 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 	if (rc)
 		return rc;
 
-	if (role == SMC_CLNT && !ini->srv_first_contact &&
-	    ini->cln_first_contact == SMC_FIRST_CONTACT) {
+	if (role == SMC_CLNT && !ini->first_contact_peer &&
+	    ini->first_contact_local) {
 		/* Server reuses a link group, but Client wants to start
 		 * a new one
 		 * send out_of_sync decline, reason synchr. error
@@ -1338,7 +1338,7 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 	}
 
 create:
-	if (ini->cln_first_contact == SMC_FIRST_CONTACT) {
+	if (ini->first_contact_local) {
 		rc = smc_lgr_create(smc, ini);
 		if (rc)
 			goto out;

@@ -22,7 +22,6 @@
 #define SMC_CLC_CONFIRM		0x03
 #define SMC_CLC_DECLINE		0x04
 
-#define SMC_CLC_V1		0x1		/* SMC version                */
 #define SMC_TYPE_R		0		/* SMC-R only		      */
 #define SMC_TYPE_D		1		/* SMC-D only		      */
 #define SMC_TYPE_N		2		/* neither SMC-R nor SMC-D    */
@@ -200,6 +199,6 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
 int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 			  struct smc_init_info *ini);
 int smc_clc_send_confirm(struct smc_sock *smc);
-int smc_clc_send_accept(struct smc_sock *smc, int srv_first_contact);
+int smc_clc_send_accept(struct smc_sock *smc, bool srv_first_contact);
 
 #endif

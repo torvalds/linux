@@ -137,9 +137,6 @@ struct smc_link {
 #define SMC_LINKS_PER_LGR_MAX	3
 #define SMC_SINGLE_LINK		0
 
-#define SMC_FIRST_CONTACT	1		/* first contact to a peer */
-#define SMC_REUSE_CONTACT	0		/* follow-on contact to a peer*/
-
 /* tx/rx buffer list element for sndbufs list and rmbs list of a lgr */
 struct smc_buf_desc {
 	struct list_head	list;
@@ -294,9 +291,9 @@ struct smc_clc_msg_local;
 
 struct smc_init_info {
 	u8			is_smcd;
+	u8			first_contact_peer;
+	u8			first_contact_local;
 	unsigned short		vlan_id;
-	int			srv_first_contact;
-	int			cln_first_contact;
 	/* SMC-R */
 	struct smc_clc_msg_local *ib_lcl;
 	struct smc_ib_device	*ib_dev;
@@ -304,7 +301,7 @@ struct smc_init_info {
 	u8			ib_port;
 	u32			ib_clcqpn;
 	/* SMC-D */
-	u64			ism_gid;
+	u64			ism_peer_gid;
 	struct smcd_dev		*ism_dev;
 };
 

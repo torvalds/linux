@@ -320,7 +320,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 	datlen = ntohs(clcm->length);
 	if ((len < sizeof(struct smc_clc_msg_hdr)) ||
-	    (clcm->version < SMC_CLC_V1) ||
+	    (clcm->version < SMC_V1) ||
 	    ((clcm->type != SMC_CLC_DECLINE) &&
 	     (clcm->type != expected_type))) {
 		smc->sk.sk_err = EPROTO;
@@ -389,7 +389,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 	memcpy(dclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	dclc.hdr.type = SMC_CLC_DECLINE;
 	dclc.hdr.length = htons(sizeof(struct smc_clc_msg_decline));
-	dclc.hdr.version = SMC_CLC_V1;
+	dclc.hdr.version = SMC_V1;
 	dclc.hdr.flag = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ? 1 : 0;
 	if ((!smc->conn.lgr || !smc->conn.lgr->is_smcd) &&
 	    smc_ib_is_valid_local_systemid())
@@ -434,7 +434,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 	memset(&pclc, 0, sizeof(pclc));
 	memcpy(pclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	pclc.hdr.type = SMC_CLC_PROPOSAL;
-	pclc.hdr.version = SMC_CLC_V1;		/* SMC version */
+	pclc.hdr.version = SMC_V1;		/* SMC version */
 	pclc.hdr.path = smc_type;
 	if (smc_type == SMC_TYPE_R || smc_type == SMC_TYPE_B) {
 		/* add SMC-R specifics */
@@ -499,8 +499,8 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 	/* send SMC Confirm CLC msg */
 	memset(&cclc, 0, sizeof(cclc));
 	cclc.hdr.type = SMC_CLC_CONFIRM;
-	cclc.hdr.version = SMC_CLC_V1;		/* SMC version */
-	if (smc->conn.lgr->is_smcd) {
+	cclc.hdr.version = SMC_V1;		/* SMC version */
+	if (conn->lgr->is_smcd) {
 		/* SMC-D specific settings */
 		memcpy(cclc.hdr.eyecatcher, SMCD_EYECATCHER,
 		       sizeof(SMCD_EYECATCHER));
@@ -557,7 +557,7 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 }
 
 /* send CLC ACCEPT message across internal TCP socket */
-int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
+int smc_clc_send_accept(struct smc_sock *new_smc, bool srv_first_contact)
 {
 	struct smc_connection *conn = &new_smc->conn;
 	struct smc_clc_msg_accept_confirm aclc;
@@ -568,11 +568,11 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 
 	memset(&aclc, 0, sizeof(aclc));
 	aclc.hdr.type = SMC_CLC_ACCEPT;
-	aclc.hdr.version = SMC_CLC_V1;		/* SMC version */
+	aclc.hdr.version = SMC_V1;		/* SMC version */
 	if (srv_first_contact)
 		aclc.hdr.flag = 1;
 
-	if (new_smc->conn.lgr->is_smcd) {
+	if (conn->lgr->is_smcd) {
 		/* SMC-D specific settings */
 		aclc.hdr.length = htons(SMCD_CLC_ACCEPT_CONFIRM_LEN);
 		memcpy(aclc.hdr.eyecatcher, SMCD_EYECATCHER,
