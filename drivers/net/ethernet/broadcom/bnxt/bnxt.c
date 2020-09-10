@@ -8634,10 +8634,9 @@ static void bnxt_del_napi(struct bnxt *bp)
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 
-		napi_hash_del(&bnapi->napi);
-		netif_napi_del(&bnapi->napi);
+		__netif_napi_del(&bnapi->napi);
 	}
-	/* We called napi_hash_del() before netif_napi_del(), we need
+	/* We called __netif_napi_del(), we need
 	 * to respect an RCU grace period before freeing napi structures.
 	 */
 	synchronize_net();
