@@ -130,7 +130,7 @@ static void hns_xgmac_lf_rf_control_init(struct mac_driver *mac_drv)
 
 /**
  *hns_xgmac_enable - enable xgmac port
- *@drv: mac driver
+ *@mac_drv: mac driver
  *@mode: mode of mac port
  */
 static void hns_xgmac_enable(void *mac_drv, enum mac_commom_mode mode)
@@ -490,7 +490,6 @@ static void hns_xgmac_get_link_status(void *mac_drv, u32 *link_stat)
 /**
  *hns_xgmac_get_regs - dump xgmac regs
  *@mac_drv: mac driver
- *@cmd:ethtool cmd
  *@data:data for value of regs
  */
 static void hns_xgmac_get_regs(void *mac_drv, void *data)
