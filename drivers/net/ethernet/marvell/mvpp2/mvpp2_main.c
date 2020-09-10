@@ -3070,8 +3070,7 @@ static void mvpp2_isr_handle_xlg(struct mvpp2_port *port)
 	val = readl(port->base + MVPP22_XLG_INT_STAT);
 	if (val & MVPP22_XLG_INT_STAT_LINK) {
 		val = readl(port->base + MVPP22_XLG_STATUS);
-		if (val & MVPP22_XLG_STATUS_LINK_UP)
-			link = true;
+		link = (val & MVPP22_XLG_STATUS_LINK_UP);
 		mvpp2_isr_handle_link(port, link);
 	}
 }
@@ -3087,8 +3086,7 @@ static void mvpp2_isr_handle_gmac_internal(struct mvpp2_port *port)
 		val = readl(port->base + MVPP22_GMAC_INT_STAT);
 		if (val & MVPP22_GMAC_INT_STAT_LINK) {
 			val = readl(port->base + MVPP2_GMAC_STATUS0);
-			if (val & MVPP2_GMAC_STATUS0_LINK_UP)
-				link = true;
+			link = (val & MVPP2_GMAC_STATUS0_LINK_UP);
 			mvpp2_isr_handle_link(port, link);
 		}
 	}
