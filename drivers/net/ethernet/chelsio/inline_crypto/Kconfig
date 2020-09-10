@@ -34,4 +34,17 @@ config CHELSIO_IPSEC_INLINE
         To compile this driver as a module, choose M here: the module
         will be called ch_ipsec.
 
+config CHELSIO_TLS_DEVICE
+        tristate "Chelsio Inline KTLS Offload"
+        depends on CHELSIO_T4
+        depends on TLS
+        depends on TLS_DEVICE
+        help
+          This flag enables support for kernel tls offload over Chelsio T6
+          crypto accelerator. CONFIG_CHELSIO_TLS_DEVICE flag can be enabled
+          only if CONFIG_TLS and CONFIG_TLS_DEVICE flags are enabled.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ch_ktls.
+
 endif # CHELSIO_INLINE_CRYPTO

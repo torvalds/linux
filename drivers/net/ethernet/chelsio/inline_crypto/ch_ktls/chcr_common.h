@@ -18,28 +18,6 @@
 #define CHCR_SCMD_AUTH_MODE_GHASH          4
 #define AES_BLOCK_LEN                      16
 
-enum chcr_state {
-	CHCR_INIT = 0,
-	CHCR_ATTACH,
-	CHCR_DETACH,
-};
-
-struct chcr_dev {
-	spinlock_t lock_chcr_dev; /* chcr dev structure lock */
-	enum chcr_state state;
-	atomic_t inflight;
-	int wqretry;
-	struct delayed_work detach_work;
-	struct completion detach_comp;
-	unsigned char tx_channel_id;
-};
-
-struct uld_ctx {
-	struct list_head entry;
-	struct cxgb4_lld_info lldi;
-	struct chcr_dev dev;
-};
-
 struct ktls_key_ctx {
 	__be32 ctx_hdr;
 	u8 salt[CHCR_MAX_SALT];
@@ -76,8 +54,6 @@ struct ktls_key_ctx {
 		      KEY_CONTEXT_VALID_F | \
 		      KEY_CONTEXT_SALT_PRESENT_F | \
 		      KEY_CONTEXT_CTX_LEN_V((ctx_len)))
-
-struct uld_ctx *assign_chcr_device(void);
 
 static inline void *chcr_copy_to_txd(const void *src, const struct sge_txq *q,
 				     void *pos, int length)

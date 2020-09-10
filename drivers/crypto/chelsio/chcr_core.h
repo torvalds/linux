@@ -139,16 +139,4 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 		     int err);
 int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev);
 void chcr_add_xfrmops(const struct cxgb4_lld_info *lld);
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
-int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input);
-int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input);
-int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev);
-extern int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
-			     enum tls_offload_ctx_dir direction,
-			     struct tls_crypto_info *crypto_info,
-			     u32 start_offload_tcp_sn);
-extern void chcr_ktls_dev_del(struct net_device *netdev,
-			      struct tls_context *tls_ctx,
-			      enum tls_offload_ctx_dir direction);
-#endif
 #endif /* __CHCR_CORE_H__ */

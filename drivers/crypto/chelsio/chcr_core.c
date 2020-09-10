@@ -33,19 +33,8 @@ static int cpl_fw6_pld_handler(struct adapter *adap, unsigned char *input);
 static void *chcr_uld_add(const struct cxgb4_lld_info *lld);
 static int chcr_uld_state_change(void *handle, enum cxgb4_state state);
 
-#if defined(CONFIG_CHELSIO_TLS_DEVICE)
-static const struct tlsdev_ops chcr_ktls_ops = {
-	.tls_dev_add = chcr_ktls_dev_add,
-	.tls_dev_del = chcr_ktls_dev_del,
-};
-#endif
-
 static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
 	[CPL_FW6_PLD] = cpl_fw6_pld_handler,
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
-	[CPL_ACT_OPEN_RPL] = chcr_ktls_cpl_act_open_rpl,
-	[CPL_SET_TCB_RPL] = chcr_ktls_cpl_set_tcb_rpl,
-#endif
 };
 
 static struct cxgb4_uld_info chcr_uld_info = {
@@ -56,10 +45,6 @@ static struct cxgb4_uld_info chcr_uld_info = {
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
 	.rx_handler = chcr_uld_rx_handler,
-#if defined(CONFIG_CHELSIO_TLS_DEVICE)
-	.tx_handler = chcr_uld_tx_handler,
-	.tlsdev_ops = &chcr_ktls_ops,
-#endif
 };
 
 static void detach_work_fn(struct work_struct *work)
@@ -234,15 +219,6 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 		work_handlers[rpl->opcode](adap, pgl->va);
 	return 0;
 }
-
-#if defined(CONFIG_CHELSIO_TLS_DEVICE)
-int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev)
-{
-	if (skb->decrypted)
-		return chcr_ktls_xmit(skb, dev);
-	return 0;
-}
-#endif /* CONFIG_CHELSIO_IPSEC_INLINE || CONFIG_CHELSIO_TLS_DEVICE */
 
 static void chcr_detach_device(struct uld_ctx *u_ctx)
 {

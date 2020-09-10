@@ -40,6 +40,7 @@
 #include <linux/skbuff.h>
 #include <linux/inetdevice.h>
 #include <linux/atomic.h>
+#include <net/tls.h>
 #include "cxgb4.h"
 
 #define MAX_ULD_QSETS 16
@@ -304,6 +305,7 @@ enum cxgb4_uld {
 	CXGB4_ULD_CRYPTO,
 	CXGB4_ULD_IPSEC,
 	CXGB4_ULD_TLS,
+	CXGB4_ULD_KTLS,
 	CXGB4_ULD_MAX
 };
 
@@ -362,17 +364,8 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range ppod_edram;
 };
 
-struct chcr_stats_debug {
-	atomic_t cipher_rqst;
-	atomic_t digest_rqst;
-	atomic_t aead_rqst;
-	atomic_t complete;
-	atomic_t error;
-	atomic_t fallback;
-	atomic_t tls_pdu_tx;
-	atomic_t tls_pdu_rx;
-	atomic_t tls_key;
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
+struct ch_ktls_stats_debug {
 	atomic64_t ktls_tx_connection_open;
 	atomic64_t ktls_tx_connection_fail;
 	atomic64_t ktls_tx_connection_close;
@@ -390,8 +383,19 @@ struct chcr_stats_debug {
 	atomic64_t ktls_tx_skip_no_sync_data;
 	atomic64_t ktls_tx_drop_no_sync_data;
 	atomic64_t ktls_tx_drop_bypass_req;
-
+};
 #endif
+
+struct chcr_stats_debug {
+	atomic_t cipher_rqst;
+	atomic_t digest_rqst;
+	atomic_t aead_rqst;
+	atomic_t complete;
+	atomic_t error;
+	atomic_t fallback;
+	atomic_t tls_pdu_tx;
+	atomic_t tls_pdu_rx;
+	atomic_t tls_key;
 };
 
 #if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
@@ -476,7 +480,7 @@ struct cxgb4_uld_info {
 			      struct napi_struct *napi);
 	void (*lro_flush)(struct t4_lro_mgr *);
 	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
-#if IS_ENABLED(CONFIG_TLS_DEVICE)
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	const struct tlsdev_ops *tlsdev_ops;
 #endif
 #if IS_ENABLED(CONFIG_XFRM_OFFLOAD)

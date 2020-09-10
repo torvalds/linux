@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2020 Chelsio Communications.  All rights reserved. */
 
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/skbuff.h>
+#include <linux/module.h>
 #include <linux/highmem.h>
+#include <linux/ip.h>
+#include <net/ipv6.h>
+#include <linux/netdevice.h>
 #include "chcr_ktls.h"
-#include "clip_tbl.h"
+
+static LIST_HEAD(uld_ctx_list);
+static DEFINE_MUTEX(dev_mutex);
 
 static int chcr_init_tcb_fields(struct chcr_ktls_info *tx_info);
 /*
@@ -155,7 +163,7 @@ static int chcr_ktls_update_connection_state(struct chcr_ktls_info *tx_info,
 		/* Check if l2t state is valid, then move to ready state. */
 		if (cxgb4_check_l2t_valid(tx_info->l2te)) {
 			tx_info->connection_state = KTLS_CONN_TX_READY;
-			atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_ctx);
+			atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_ctx);
 		}
 		break;
 
@@ -381,9 +389,9 @@ static int chcr_ktls_mark_tcb_close(struct chcr_ktls_info *tx_info)
  * @tls_cts - tls context.
  * @direction - TX/RX crypto direction
  */
-void chcr_ktls_dev_del(struct net_device *netdev,
-		       struct tls_context *tls_ctx,
-		       enum tls_offload_ctx_dir direction)
+static void chcr_ktls_dev_del(struct net_device *netdev,
+			      struct tls_context *tls_ctx,
+			      enum tls_offload_ctx_dir direction)
 {
 	struct chcr_ktls_ofld_ctx_tx *tx_ctx =
 				chcr_get_ktls_tx_context(tls_ctx);
@@ -418,7 +426,7 @@ void chcr_ktls_dev_del(struct net_device *netdev,
 				 tx_info->tid, tx_info->ip_family);
 	}
 
-	atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_connection_close);
+	atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_connection_close);
 	kvfree(tx_info);
 	tx_ctx->chcr_info = NULL;
 	/* release module refcount */
@@ -434,10 +442,10 @@ void chcr_ktls_dev_del(struct net_device *netdev,
  * @direction - TX/RX crypto direction
  * return: SUCCESS/FAILURE.
  */
-int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
-		      enum tls_offload_ctx_dir direction,
-		      struct tls_crypto_info *crypto_info,
-		      u32 start_offload_tcp_sn)
+static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
+			     enum tls_offload_ctx_dir direction,
+			     struct tls_crypto_info *crypto_info,
+			     u32 start_offload_tcp_sn)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
@@ -550,12 +558,12 @@ int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 		goto out2;
 	}
 
-	atomic64_inc(&adap->chcr_stats.ktls_tx_connection_open);
+	atomic64_inc(&adap->ch_ktls_stats.ktls_tx_connection_open);
 	return 0;
 out2:
 	kvfree(tx_info);
 out:
-	atomic64_inc(&adap->chcr_stats.ktls_tx_connection_fail);
+	atomic64_inc(&adap->ch_ktls_stats.ktls_tx_connection_fail);
 	return ret;
 }
 
@@ -603,7 +611,8 @@ static int chcr_init_tcb_fields(struct chcr_ktls_info *tx_info)
 /*
  * chcr_ktls_cpl_act_open_rpl: connection reply received from TP.
  */
-int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input)
+static int chcr_ktls_cpl_act_open_rpl(struct adapter *adap,
+				      unsigned char *input)
 {
 	const struct cpl_act_open_rpl *p = (void *)input;
 	struct chcr_ktls_info *tx_info = NULL;
@@ -638,7 +647,7 @@ int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input)
 /*
  * chcr_ktls_cpl_set_tcb_rpl: TCB reply received from TP.
  */
-int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input)
+static int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input)
 {
 	const struct cpl_set_tcb_rpl *p = (void *)input;
 	struct chcr_ktls_info *tx_info = NULL;
@@ -794,7 +803,7 @@ static int chcr_ktls_xmit_tcb_cpls(struct chcr_ktls_info *tx_info,
 						 TCB_SND_UNA_RAW_V
 						 (TCB_SND_UNA_RAW_M),
 						 TCB_SND_UNA_RAW_V(0), 0);
-		atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_ooo);
+		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_ooo);
 		cpl++;
 	}
 	/* update ack */
@@ -1222,7 +1231,7 @@ static int chcr_ktls_xmit_wr_complete(struct sk_buff *skb,
 
 	chcr_txq_advance(&q->q, ndesc);
 	cxgb4_ring_tx_db(adap, &q->q, ndesc);
-	atomic64_inc(&adap->chcr_stats.ktls_tx_send_records);
+	atomic64_inc(&adap->ch_ktls_stats.ktls_tx_send_records);
 
 	return 0;
 }
@@ -1633,7 +1642,7 @@ static int chcr_end_part_handler(struct chcr_ktls_info *tx_info,
 	/* check if it is a complete record */
 	if (tls_end_offset == record->len) {
 		nskb = skb;
-		atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_complete_pkts);
+		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_complete_pkts);
 	} else {
 		dev_kfree_skb_any(skb);
 
@@ -1651,7 +1660,7 @@ static int chcr_end_part_handler(struct chcr_ktls_info *tx_info,
 		 */
 		if (chcr_ktls_update_snd_una(tx_info, q))
 			goto out;
-		atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_end_pkts);
+		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_end_pkts);
 	}
 
 	if (chcr_ktls_xmit_wr_complete(nskb, tx_info, q, tcp_seq,
@@ -1722,7 +1731,7 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 		/* free the last trimmed portion */
 		dev_kfree_skb_any(skb);
 		skb = tmp_skb;
-		atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_trimmed_pkts);
+		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_trimmed_pkts);
 	}
 	data_len = skb->data_len;
 	/* check if the middle record's start point is 16 byte aligned. CTR
@@ -1794,7 +1803,7 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 		 */
 		if (chcr_ktls_update_snd_una(tx_info, q))
 			goto out;
-		atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_middle_pkts);
+		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_middle_pkts);
 	} else {
 		/* Else means, its a partial first part of the record. Check if
 		 * its only the header, don't need to send for encryption then.
@@ -1809,7 +1818,7 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 			}
 			return 0;
 		}
-		atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_start_pkts);
+		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_start_pkts);
 	}
 
 	if (chcr_ktls_xmit_wr_short(skb, tx_info, q, tcp_seq, tcp_push_no_fin,
@@ -1825,13 +1834,13 @@ out:
 }
 
 /* nic tls TX handler */
-int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
+static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
+	struct ch_ktls_stats_debug *stats;
 	struct tcphdr *th = tcp_hdr(skb);
 	int data_len, qidx, ret = 0, mss;
 	struct tls_record_info *record;
-	struct chcr_stats_debug *stats;
 	struct chcr_ktls_info *tx_info;
 	u32 tls_end_offset, tcp_seq;
 	struct tls_context *tls_ctx;
@@ -1877,7 +1886,7 @@ int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 
 	adap = tx_info->adap;
-	stats = &adap->chcr_stats;
+	stats = &adap->ch_ktls_stats;
 
 	qidx = skb->queue_mapping;
 	q = &adap->sge.ethtxq[qidx + tx_info->first_qset];
@@ -2014,4 +2023,117 @@ out:
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
-#endif /* CONFIG_CHELSIO_TLS_DEVICE */
+
+static void *chcr_ktls_uld_add(const struct cxgb4_lld_info *lldi)
+{
+	struct chcr_ktls_uld_ctx *u_ctx;
+
+	pr_info_once("%s - version %s\n", CHCR_KTLS_DRV_DESC,
+		     CHCR_KTLS_DRV_VERSION);
+	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
+	if (!u_ctx) {
+		u_ctx = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+	u_ctx->lldi = *lldi;
+out:
+	return u_ctx;
+}
+
+static const struct tlsdev_ops chcr_ktls_ops = {
+	.tls_dev_add = chcr_ktls_dev_add,
+	.tls_dev_del = chcr_ktls_dev_del,
+};
+
+static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
+	[CPL_ACT_OPEN_RPL] = chcr_ktls_cpl_act_open_rpl,
+	[CPL_SET_TCB_RPL] = chcr_ktls_cpl_set_tcb_rpl,
+};
+
+static int chcr_ktls_uld_rx_handler(void *handle, const __be64 *rsp,
+				    const struct pkt_gl *pgl)
+{
+	const struct cpl_act_open_rpl *rpl = (struct cpl_act_open_rpl *)rsp;
+	struct chcr_ktls_uld_ctx *u_ctx = handle;
+	u8 opcode = rpl->ot.opcode;
+	struct adapter *adap;
+
+	adap = pci_get_drvdata(u_ctx->lldi.pdev);
+
+	if (!work_handlers[opcode]) {
+		pr_err("Unsupported opcode %d received\n", opcode);
+		return 0;
+	}
+
+	work_handlers[opcode](adap, (unsigned char *)&rsp[1]);
+	return 0;
+}
+
+static int chcr_ktls_uld_state_change(void *handle, enum cxgb4_state new_state)
+{
+	struct chcr_ktls_uld_ctx *u_ctx = handle;
+
+	switch (new_state) {
+	case CXGB4_STATE_UP:
+		pr_info("%s: Up\n", pci_name(u_ctx->lldi.pdev));
+		mutex_lock(&dev_mutex);
+		list_add_tail(&u_ctx->entry, &uld_ctx_list);
+		mutex_unlock(&dev_mutex);
+		break;
+	case CXGB4_STATE_START_RECOVERY:
+	case CXGB4_STATE_DOWN:
+	case CXGB4_STATE_DETACH:
+		pr_info("%s: Down\n", pci_name(u_ctx->lldi.pdev));
+		mutex_lock(&dev_mutex);
+		list_del(&u_ctx->entry);
+		mutex_unlock(&dev_mutex);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static struct cxgb4_uld_info chcr_ktls_uld_info = {
+	.name = CHCR_KTLS_DRV_MODULE_NAME,
+	.nrxq = 1,
+	.rxq_size = 1024,
+	.add = chcr_ktls_uld_add,
+	.tx_handler = chcr_ktls_xmit,
+	.rx_handler = chcr_ktls_uld_rx_handler,
+	.state_change = chcr_ktls_uld_state_change,
+	.tlsdev_ops = &chcr_ktls_ops,
+};
+
+static int __init chcr_ktls_init(void)
+{
+	cxgb4_register_uld(CXGB4_ULD_KTLS, &chcr_ktls_uld_info);
+	return 0;
+}
+
+static void __exit chcr_ktls_exit(void)
+{
+	struct chcr_ktls_uld_ctx *u_ctx, *tmp;
+	struct adapter *adap;
+
+	pr_info("driver unloaded\n");
+
+	mutex_lock(&dev_mutex);
+	list_for_each_entry_safe(u_ctx, tmp, &uld_ctx_list, entry) {
+		adap = pci_get_drvdata(u_ctx->lldi.pdev);
+		memset(&adap->ch_ktls_stats, 0, sizeof(adap->ch_ktls_stats));
+		list_del(&u_ctx->entry);
+		kfree(u_ctx);
+	}
+	mutex_unlock(&dev_mutex);
+	cxgb4_unregister_uld(CXGB4_ULD_KTLS);
+}
+
+module_init(chcr_ktls_init);
+module_exit(chcr_ktls_exit);
+
+MODULE_DESCRIPTION("Chelsio NIC TLS ULD driver");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Chelsio Communications");
+MODULE_VERSION(CHCR_KTLS_DRV_VERSION);

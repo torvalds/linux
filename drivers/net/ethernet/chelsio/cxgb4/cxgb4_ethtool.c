@@ -125,7 +125,7 @@ static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
 	"db_empty               ",
 	"write_coal_success     ",
 	"write_coal_fail        ",
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if  IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	"tx_tls_encrypted_packets",
 	"tx_tls_encrypted_bytes  ",
 	"tx_tls_ctx              ",
@@ -265,7 +265,7 @@ struct adapter_stats {
 	u64 db_empty;
 	u64 wc_success;
 	u64 wc_fail;
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	u64 tx_tls_encrypted_packets;
 	u64 tx_tls_encrypted_bytes;
 	u64 tx_tls_ctx;

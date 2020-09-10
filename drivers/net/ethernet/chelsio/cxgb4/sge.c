@@ -1421,9 +1421,9 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		return adap->uld[CXGB4_ULD_IPSEC].tx_handler(skb, dev);
 #endif /* CHELSIO_IPSEC_INLINE */
 
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	if (skb->decrypted)
-		return adap->uld[CXGB4_ULD_CRYPTO].tx_handler(skb, dev);
+		return adap->uld[CXGB4_ULD_KTLS].tx_handler(skb, dev);
 #endif /* CHELSIO_TLS_DEVICE */
 
 	qidx = skb_get_queue_mapping(skb);
