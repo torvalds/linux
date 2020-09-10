@@ -133,6 +133,10 @@
 /* Clock ID for INT MCLK1 */
 #define Q6AFE_LPASS_CLK_ID_INT_MCLK_1                             0x306
 
+#define Q6AFE_LPASS_CORE_AVTIMER_BLOCK			0x2
+#define Q6AFE_LPASS_CORE_HW_MACRO_BLOCK			0x3
+#define Q6AFE_LPASS_CORE_HW_DCODEC_BLOCK		0x4
+
 /* Clock attribute for invalid use (reserved for internal usage) */
 #define Q6AFE_LPASS_CLK_ATTRIBUTE_INVALID		0x0
 /* Clock attribute for no couple case */
@@ -220,4 +224,8 @@ void q6afe_cdc_dma_port_prepare(struct q6afe_port *port,
 int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 			  int clk_src, int clk_root,
 			  unsigned int freq, int dir);
+int q6afe_vote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
+			     char *client_name, uint32_t *client_handle);
+int q6afe_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
+			       uint32_t client_handle);
 #endif /* __Q6AFE_H__ */

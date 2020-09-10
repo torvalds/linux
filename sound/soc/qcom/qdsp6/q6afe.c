@@ -43,6 +43,9 @@
 #define AFE_PARAM_ID_TDM_CONFIG	0x0001029D
 #define AFE_PARAM_ID_PORT_SLOT_MAPPING_CONFIG	0x00010297
 #define AFE_PARAM_ID_CODEC_DMA_CONFIG	0x000102B8
+#define AFE_CMD_REMOTE_LPASS_CORE_HW_VOTE_REQUEST	0x000100f4
+#define AFE_CMD_RSP_REMOTE_LPASS_CORE_HW_VOTE_REQUEST   0x000100f5
+#define AFE_CMD_REMOTE_LPASS_CORE_HW_DEVOTE_REQUEST	0x000100f6
 
 /* I2S config specific */
 #define AFE_API_VERSION_I2S_CONFIG	0x1
@@ -545,6 +548,18 @@ struct q6afe_port {
 	struct list_head node;
 };
 
+struct afe_cmd_remote_lpass_core_hw_vote_request {
+        uint32_t  hw_block_id;
+        char client_name[8];
+} __packed;
+
+struct afe_cmd_remote_lpass_core_hw_devote_request {
+        uint32_t  hw_block_id;
+        uint32_t client_handle;
+} __packed;
+
+
+
 struct afe_port_map {
 	int port_id;
 	int token;
@@ -879,6 +894,11 @@ static int q6afe_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 			break;
 		}
 	}
+		break;
+	case AFE_CMD_RSP_REMOTE_LPASS_CORE_HW_VOTE_REQUEST:
+		afe->result.opcode = hdr->opcode;
+		afe->result.status = res->status;
+		wake_up(&afe->wait);
 		break;
 	default:
 		break;
@@ -1592,6 +1612,85 @@ void q6afe_port_put(struct q6afe_port *port)
 	kref_put(&port->refcount, q6afe_port_free);
 }
 EXPORT_SYMBOL_GPL(q6afe_port_put);
+
+int q6afe_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
+			       uint32_t client_handle)
+{
+	struct q6afe *afe = dev_get_drvdata(dev->parent);
+	struct afe_cmd_remote_lpass_core_hw_devote_request *vote_cfg;
+	struct apr_pkt *pkt;
+	int ret = 0;
+	int pkt_size;
+	void *p;
+
+	pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
+	p = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	pkt = p;
+	vote_cfg = p + APR_HDR_SIZE;
+
+	pkt->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+					   APR_HDR_LEN(APR_HDR_SIZE),
+					   APR_PKT_VER);
+	pkt->hdr.pkt_size = pkt_size;
+	pkt->hdr.src_port = 0;
+	pkt->hdr.dest_port = 0;
+	pkt->hdr.token = hw_block_id;
+	pkt->hdr.opcode = AFE_CMD_REMOTE_LPASS_CORE_HW_DEVOTE_REQUEST;
+	vote_cfg->hw_block_id = hw_block_id;
+	vote_cfg->client_handle = client_handle;
+
+	ret = apr_send_pkt(afe->apr, pkt);
+	if (ret < 0)
+		dev_err(afe->dev, "AFE failed to unvote (%d)\n", hw_block_id);
+
+	kfree(pkt);
+	return ret;
+}
+EXPORT_SYMBOL(q6afe_unvote_lpass_core_hw);
+
+int q6afe_vote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
+			     char *client_name, uint32_t *client_handle)
+{
+	struct q6afe *afe = dev_get_drvdata(dev->parent);
+	struct afe_cmd_remote_lpass_core_hw_vote_request *vote_cfg;
+	struct apr_pkt *pkt;
+	int ret = 0;
+	int pkt_size;
+	void *p;
+
+	pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
+	p = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	pkt = p;
+	vote_cfg = p + APR_HDR_SIZE;
+
+	pkt->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+					   APR_HDR_LEN(APR_HDR_SIZE),
+					   APR_PKT_VER);
+	pkt->hdr.pkt_size = pkt_size;
+	pkt->hdr.src_port = 0;
+	pkt->hdr.dest_port = 0;
+	pkt->hdr.token = hw_block_id;
+	pkt->hdr.opcode = AFE_CMD_REMOTE_LPASS_CORE_HW_VOTE_REQUEST;
+	vote_cfg->hw_block_id = hw_block_id;
+	strlcpy(vote_cfg->client_name, client_name,
+			sizeof(vote_cfg->client_name));
+
+	ret = afe_apr_send_pkt(afe, pkt, NULL,
+			       AFE_CMD_RSP_REMOTE_LPASS_CORE_HW_VOTE_REQUEST);
+	if (ret)
+		dev_err(afe->dev, "AFE failed to vote (%d)\n", hw_block_id);
+
+
+	kfree(pkt);
+	return ret;
+}
+EXPORT_SYMBOL(q6afe_vote_lpass_core_hw);
 
 static int q6afe_probe(struct apr_device *adev)
 {
