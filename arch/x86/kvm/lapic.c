@@ -1582,9 +1582,6 @@ static void __kvm_wait_lapic_expire(struct kvm_vcpu *vcpu)
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	u64 guest_tsc, tsc_deadline;
 
-	if (apic->lapic_timer.expired_tscdeadline == 0)
-		return;
-
 	tsc_deadline = apic->lapic_timer.expired_tscdeadline;
 	apic->lapic_timer.expired_tscdeadline = 0;
 	guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
@@ -1599,7 +1596,10 @@ static void __kvm_wait_lapic_expire(struct kvm_vcpu *vcpu)
 
 void kvm_wait_lapic_expire(struct kvm_vcpu *vcpu)
 {
-	if (lapic_timer_int_injected(vcpu))
+	if (lapic_in_kernel(vcpu) &&
+	    vcpu->arch.apic->lapic_timer.expired_tscdeadline &&
+	    vcpu->arch.apic->lapic_timer.timer_advance_ns &&
+	    lapic_timer_int_injected(vcpu))
 		__kvm_wait_lapic_expire(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_wait_lapic_expire);
@@ -1635,8 +1635,7 @@ static void apic_timer_expired(struct kvm_lapic *apic, bool from_timer_fn)
 	}
 
 	if (kvm_use_posted_timer_interrupt(apic->vcpu)) {
-		if (apic->lapic_timer.timer_advance_ns)
-			__kvm_wait_lapic_expire(vcpu);
+		kvm_wait_lapic_expire(vcpu);
 		kvm_apic_inject_pending_timer_irqs(apic);
 		return;
 	}

@@ -6800,9 +6800,7 @@ reenter_guest:
 	if (enable_preemption_timer)
 		vmx_update_hv_timer(vcpu);
 
-	if (lapic_in_kernel(vcpu) &&
-		vcpu->arch.apic->lapic_timer.timer_advance_ns)
-		kvm_wait_lapic_expire(vcpu);
+	kvm_wait_lapic_expire(vcpu);
 
 	/*
 	 * If this vCPU has touched SPEC_CTRL, restore the guest's value if
