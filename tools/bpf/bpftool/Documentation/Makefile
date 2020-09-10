@@ -30,11 +30,21 @@ man8: $(DOC_MAN8)
 RST2MAN_DEP := $(shell command -v rst2man 2>/dev/null)
 RST2MAN_OPTS += --verbose
 
+list_pages = $(sort $(basename $(filter-out $(1),$(MAN8_RST))))
+see_also = $(subst " ",, \
+	"\n" \
+	"SEE ALSO\n" \
+	"========\n" \
+	"\t**bpf**\ (2),\n" \
+	"\t**bpf-helpers**\\ (7)" \
+	$(foreach page,$(call list_pages,$(1)),",\n\t**$(page)**\\ (8)") \
+	"\n")
+
 $(OUTPUT)%.8: %.rst
 ifndef RST2MAN_DEP
 	$(error "rst2man not found, but required to generate man pages")
 endif
-	$(QUIET_GEN)rst2man $(RST2MAN_OPTS) $< > $@
+	$(QUIET_GEN)( cat $< ; echo -n $(call see_also,$<) ) | rst2man $(RST2MAN_OPTS) > $@
 
 clean: helpers-clean
 	$(call QUIET_CLEAN, Documentation)
