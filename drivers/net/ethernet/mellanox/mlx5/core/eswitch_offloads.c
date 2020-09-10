@@ -2019,31 +2019,31 @@ esw_check_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 
 u32 mlx5_esw_match_metadata_alloc(struct mlx5_eswitch *esw)
 {
-	u32 num_vports = GENMASK(ESW_VPORT_BITS - 1, 0) - 1;
-	u32 vhca_id_mask = GENMASK(ESW_VHCA_ID_BITS - 1, 0);
-	u32 vhca_id = MLX5_CAP_GEN(esw->dev, vhca_id);
-	u32 start;
-	u32 end;
+	u32 vport_end_ida = (1 << ESW_VPORT_BITS) - 1;
+	u32 max_pf_num = (1 << ESW_PFNUM_BITS) - 1;
+	u32 pf_num;
 	int id;
 
-	/* Make sure the vhca_id fits the ESW_VHCA_ID_BITS */
-	WARN_ON_ONCE(vhca_id >= BIT(ESW_VHCA_ID_BITS));
+	/* Only 4 bits of pf_num */
+	pf_num = PCI_FUNC(esw->dev->pdev->devfn);
+	if (pf_num > max_pf_num)
+		return 0;
 
-	/* Trim vhca_id to ESW_VHCA_ID_BITS */
-	vhca_id &= vhca_id_mask;
-
-	start = (vhca_id << ESW_VPORT_BITS);
-	end = start + num_vports;
-	if (!vhca_id)
-		start += 1; /* zero is reserved/invalid metadata */
-	id = ida_alloc_range(&esw->offloads.vport_metadata_ida, start, end, GFP_KERNEL);
-
-	return (id < 0) ? 0 : id;
+	/* Metadata is 4 bits of PFNUM and 12 bits of unique id */
+	/* Use only non-zero vport_id (1-4095) for all PF's */
+	id = ida_alloc_range(&esw->offloads.vport_metadata_ida, 1, vport_end_ida, GFP_KERNEL);
+	if (id < 0)
+		return 0;
+	id = (pf_num << ESW_VPORT_BITS) | id;
+	return id;
 }
 
 void mlx5_esw_match_metadata_free(struct mlx5_eswitch *esw, u32 metadata)
 {
-	ida_free(&esw->offloads.vport_metadata_ida, metadata);
+	u32 vport_bit_mask = (1 << ESW_VPORT_BITS) - 1;
+
+	/* Metadata contains only 12 bits of actual ida id */
+	ida_free(&esw->offloads.vport_metadata_ida, metadata & vport_bit_mask);
 }
 
 static int esw_offloads_vport_metadata_setup(struct mlx5_eswitch *esw,
