@@ -2195,7 +2195,7 @@ static int t3_sge_write_context(struct adapter *adapter, unsigned int id,
 
 /**
  *	clear_sge_ctxt - completely clear an SGE context
- *	@adapter: the adapter
+ *	@adap: the adapter
  *	@id: the context id
  *	@type: the context type
  *
@@ -2966,7 +2966,7 @@ static void ulp_config(struct adapter *adap, const struct tp_params *p)
 
 /**
  *	t3_set_proto_sram - set the contents of the protocol sram
- *	@adapter: the adapter
+ *	@adap: the adapter
  *	@data: the protocol image
  *
  *	Write the contents of the protocol SRAM.
