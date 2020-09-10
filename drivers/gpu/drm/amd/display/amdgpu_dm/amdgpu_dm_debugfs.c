@@ -1093,8 +1093,10 @@ static ssize_t dp_trigger_hotplug(struct file *f, const char __user *buf,
 	if (parse_write_buffer_into_params(wr_buf, size,
 						(long *)param, buf,
 						max_param_num,
-						&param_nums))
+						&param_nums)) {
+		kfree(wr_buf);
 		return -EINVAL;
+	}
 
 	if (param_nums <= 0) {
 		DRM_DEBUG_DRIVER("user data not be read\n");
