@@ -14,8 +14,10 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/usb/role.h>
 
@@ -29,9 +31,13 @@
 #define TYPEC_VBUS_POWER_OFF 0
 
 struct hisi_hikey_usb {
+	struct device *dev;
 	struct gpio_desc *otg_switch;
 	struct gpio_desc *typec_vbus;
 	struct gpio_desc *hub_vbus;
+	struct gpio_desc *reset;
+
+	struct regulator *regulator;
 
 	struct usb_role_switch *hub_role_sw;
 
@@ -46,22 +52,46 @@ struct hisi_hikey_usb {
 
 static void hub_power_ctrl(struct hisi_hikey_usb *hisi_hikey_usb, int value)
 {
-	gpiod_set_value_cansleep(hisi_hikey_usb->hub_vbus, value);
+	int ret, status;
+
+	if (hisi_hikey_usb->hub_vbus)
+		gpiod_set_value_cansleep(hisi_hikey_usb->hub_vbus, value);
+
+	if (!hisi_hikey_usb->regulator)
+		return;
+
+	status = regulator_is_enabled(hisi_hikey_usb->regulator);
+	if (status == !!value)
+		return;
+
+	if (value)
+		ret = regulator_enable(hisi_hikey_usb->regulator);
+	else
+		ret = regulator_disable(hisi_hikey_usb->regulator);
+
+	if (ret)
+		dev_err(hisi_hikey_usb->dev,
+			"Can't switch regulator state to %s\n",
+			value ? "enabled" : "disabled");
 }
 
 static void usb_switch_ctrl(struct hisi_hikey_usb *hisi_hikey_usb,
 			    int switch_to)
 {
+	if (!hisi_hikey_usb->otg_switch)
+		return;
+
 	gpiod_set_value_cansleep(hisi_hikey_usb->otg_switch, switch_to);
 }
 
 static void usb_typec_power_ctrl(struct hisi_hikey_usb *hisi_hikey_usb,
 				 int value)
 {
+	if (!hisi_hikey_usb->typec_vbus)
+		return;
+
 	gpiod_set_value_cansleep(hisi_hikey_usb->typec_vbus, value);
 }
-
-
 
 static void relay_set_role_switch(struct work_struct *work)
 {
@@ -117,38 +147,76 @@ static int hub_usb_role_switch_set(struct usb_role_switch *sw, enum usb_role rol
 	return 0;
 }
 
+static int hisi_hikey_usb_parse_kirin970(struct platform_device *pdev,
+					 struct hisi_hikey_usb *hisi_hikey_usb)
+{
+	struct regulator *regulator;
+	int ret;
+
+	regulator = devm_regulator_get(&pdev->dev, "hub-vdd");
+	if (IS_ERR(regulator)) {
+		if (PTR_ERR(regulator) == -EPROBE_DEFER) {
+			dev_info(&pdev->dev,
+				 "waiting for hub-vdd-supply to be probed\n");
+			return PTR_ERR(regulator);
+		}
+		dev_err(&pdev->dev,
+			"get hub-vdd-supply failed with error %ld\n",
+			PTR_ERR(regulator));
+			return PTR_ERR(regulator);
+	}
+	hisi_hikey_usb->regulator = regulator;
+
+	hisi_hikey_usb->reset = devm_gpiod_get(&pdev->dev, "hub_reset_en_gpio",
+					       GPIOD_OUT_HIGH);
+	if (IS_ERR(hisi_hikey_usb->reset))
+		return PTR_ERR(hisi_hikey_usb->reset);
+
+	return ret;
+}
+
 static int hisi_hikey_usb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hisi_hikey_usb *hisi_hikey_usb;
 	struct usb_role_switch_desc hub_role_switch = {NULL};
+	int ret;
 
 	hisi_hikey_usb = devm_kzalloc(dev, sizeof(*hisi_hikey_usb), GFP_KERNEL);
 	if (!hisi_hikey_usb)
 		return -ENOMEM;
 
-	hisi_hikey_usb->typec_vbus = devm_gpiod_get(dev, "typec-vbus",
-						    GPIOD_OUT_LOW);
-	if (IS_ERR(hisi_hikey_usb->typec_vbus))
-		return PTR_ERR(hisi_hikey_usb->typec_vbus);
+	hisi_hikey_usb->dev = &pdev->dev;
 
 	hisi_hikey_usb->otg_switch = devm_gpiod_get(dev, "otg-switch",
 						    GPIOD_OUT_HIGH);
 	if (IS_ERR(hisi_hikey_usb->otg_switch))
 		return PTR_ERR(hisi_hikey_usb->otg_switch);
 
-	/* hub-vdd33-en is optional */
-	hisi_hikey_usb->hub_vbus = devm_gpiod_get_optional(dev, "hub-vdd33-en",
-							   GPIOD_OUT_HIGH);
-	if (IS_ERR(hisi_hikey_usb->hub_vbus))
-		return PTR_ERR(hisi_hikey_usb->hub_vbus);
+	hisi_hikey_usb->typec_vbus = devm_gpiod_get(dev, "typec-vbus",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(hisi_hikey_usb->typec_vbus))
+		return PTR_ERR(hisi_hikey_usb->typec_vbus);
+
+	/* Parse Kirin 970-specific OF data */
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "hisilicon,kirin970_hikey_usbhub")) {
+		ret = hisi_hikey_usb_parse_kirin970(pdev, hisi_hikey_usb);
+		if (ret)
+			return ret;
+	} else {
+		/* hub-vdd33-en is optional */
+		hisi_hikey_usb->hub_vbus = devm_gpiod_get_optional(dev, "hub-vdd33-en",
+								   GPIOD_OUT_HIGH);
+		if (IS_ERR(hisi_hikey_usb->hub_vbus))
+			return PTR_ERR(hisi_hikey_usb->hub_vbus);
+	}
 
 	hisi_hikey_usb->dev_role_sw = usb_role_switch_get(dev);
 	if (!hisi_hikey_usb->dev_role_sw)
 		return -EPROBE_DEFER;
 	if (IS_ERR(hisi_hikey_usb->dev_role_sw))
 		return PTR_ERR(hisi_hikey_usb->dev_role_sw);
-
 
 	INIT_WORK(&hisi_hikey_usb->work, relay_set_role_switch);
 	mutex_init(&hisi_hikey_usb->lock);
@@ -158,7 +226,7 @@ static int hisi_hikey_usb_probe(struct platform_device *pdev)
 	hub_role_switch.driver_data = hisi_hikey_usb;
 
 	hisi_hikey_usb->hub_role_sw = usb_role_switch_register(dev,
-							&hub_role_switch);
+							       &hub_role_switch);
 
 	if (IS_ERR(hisi_hikey_usb->hub_role_sw)) {
 		usb_role_switch_put(hisi_hikey_usb->dev_role_sw);
@@ -184,7 +252,8 @@ static int  hisi_hikey_usb_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id id_table_hisi_hikey_usb[] = {
-	{.compatible = "hisilicon,gpio_hubv1"},
+	{ .compatible = "hisilicon,gpio_hubv1" },
+	{ .compatible = "hisilicon,kirin970_hikey_usbhub" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, id_table_hisi_hikey_usb);
