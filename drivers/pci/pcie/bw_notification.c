@@ -14,6 +14,8 @@
  * and warns when links become degraded in operation.
  */
 
+#define dev_fmt(fmt) "bw_notification: " fmt
+
 #include "../pci.h"
 #include "portdrv.h"
 
@@ -97,6 +99,7 @@ static int pcie_bandwidth_notification_probe(struct pcie_device *srv)
 		return ret;
 
 	pcie_enable_link_bandwidth_notification(srv->port);
+	pci_info(srv->port, "enabled with IRQ %d\n", srv->irq);
 
 	return 0;
 }
