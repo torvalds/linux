@@ -345,12 +345,18 @@ set_placement_list(struct ttm_place *pl, unsigned *n, uint32_t domain,
 {
 	*n = 0;
 
-	if (domain & NOUVEAU_GEM_DOMAIN_VRAM)
-		pl[(*n)++].flags = TTM_PL_FLAG_VRAM | flags;
-	if (domain & NOUVEAU_GEM_DOMAIN_GART)
-		pl[(*n)++].flags = TTM_PL_FLAG_TT | flags;
-	if (domain & NOUVEAU_GEM_DOMAIN_CPU)
-		pl[(*n)++].flags = TTM_PL_FLAG_SYSTEM | flags;
+	if (domain & NOUVEAU_GEM_DOMAIN_VRAM) {
+		pl[*n].mem_type = TTM_PL_VRAM;
+		pl[(*n)++].flags = flags;
+	}
+	if (domain & NOUVEAU_GEM_DOMAIN_GART) {
+		pl[*n].mem_type = TTM_PL_TT;
+		pl[(*n)++].flags = flags;
+	}
+	if (domain & NOUVEAU_GEM_DOMAIN_CPU) {
+		pl[*n].mem_type = TTM_PL_SYSTEM;
+		pl[(*n)++].flags = flags;
+	}
 }
 
 static void
@@ -882,7 +888,8 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	struct ttm_place placement_memtype = {
 		.fpfn = 0,
 		.lpfn = 0,
-		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
+		.mem_type = TTM_PL_TT,
+		.flags = TTM_PL_MASK_CACHING
 	};
 	struct ttm_placement placement;
 	struct ttm_resource tmp_reg;
@@ -919,7 +926,8 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 	struct ttm_place placement_memtype = {
 		.fpfn = 0,
 		.lpfn = 0,
-		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
+		.mem_type = TTM_PL_TT,
+		.flags = TTM_PL_MASK_CACHING
 	};
 	struct ttm_placement placement;
 	struct ttm_resource tmp_reg;

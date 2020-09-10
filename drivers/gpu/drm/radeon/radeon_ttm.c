@@ -88,7 +88,8 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 	static const struct ttm_place placements = {
 		.fpfn = 0,
 		.lpfn = 0,
-		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
+		.mem_type = TTM_PL_SYSTEM,
+		.flags = TTM_PL_MASK_CACHING
 	};
 
 	struct radeon_bo *rbo;
@@ -119,7 +120,7 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 							 RADEON_GEM_DOMAIN_GTT);
 			rbo->placement.num_busy_placement = 0;
 			for (i = 0; i < rbo->placement.num_placement; i++) {
-				if (rbo->placements[i].flags & TTM_PL_FLAG_VRAM) {
+				if (rbo->placements[i].mem_type == TTM_PL_VRAM) {
 					if (rbo->placements[i].fpfn < fpfn)
 						rbo->placements[i].fpfn = fpfn;
 				} else {
@@ -224,7 +225,8 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	placement.busy_placement = &placements;
 	placements.fpfn = 0;
 	placements.lpfn = 0;
-	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	placements.mem_type = TTM_PL_TT;
+	placements.flags = TTM_PL_MASK_CACHING;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, &ctx);
 	if (unlikely(r)) {
 		return r;
@@ -269,7 +271,8 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 	placement.busy_placement = &placements;
 	placements.fpfn = 0;
 	placements.lpfn = 0;
-	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	placements.mem_type = TTM_PL_TT;
+	placements.flags = TTM_PL_MASK_CACHING;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, &ctx);
 	if (unlikely(r)) {
 		return r;

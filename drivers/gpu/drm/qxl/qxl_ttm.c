@@ -55,7 +55,8 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 	static const struct ttm_place placements = {
 		.fpfn = 0,
 		.lpfn = 0,
-		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
+		.mem_type = TTM_PL_SYSTEM,
+		.flags = TTM_PL_MASK_CACHING
 	};
 
 	if (!qxl_ttm_bo_is_qxl_bo(bo)) {

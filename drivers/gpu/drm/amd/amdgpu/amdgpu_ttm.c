@@ -88,7 +88,8 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 	static const struct ttm_place placements = {
 		.fpfn = 0,
 		.lpfn = 0,
-		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
+		.mem_type = TTM_PL_SYSTEM,
+		.flags = TTM_PL_MASK_CACHING
 	};
 
 	/* Don't handle scatter gather BOs */
@@ -533,7 +534,8 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 	placement.busy_placement = &placements;
 	placements.fpfn = 0;
 	placements.lpfn = 0;
-	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	placements.mem_type = TTM_PL_TT;
+	placements.flags = TTM_PL_MASK_CACHING;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, ctx);
 	if (unlikely(r)) {
 		pr_err("Failed to find GTT space for blit from VRAM\n");
@@ -589,7 +591,8 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo, bool evict,
 	placement.busy_placement = &placements;
 	placements.fpfn = 0;
 	placements.lpfn = 0;
-	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	placements.mem_type = TTM_PL_TT;
+	placements.flags = TTM_PL_MASK_CACHING;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, ctx);
 	if (unlikely(r)) {
 		pr_err("Failed to find GTT space for blit to VRAM\n");
@@ -1171,8 +1174,8 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 		placement.busy_placement = &placements;
 		placements.fpfn = 0;
 		placements.lpfn = adev->gmc.gart_size >> PAGE_SHIFT;
-		placements.flags = (bo->mem.placement & ~TTM_PL_MASK_MEM) |
-			TTM_PL_FLAG_TT;
+		placements.mem_type = TTM_PL_TT;
+		placements.flags = bo->mem.placement;
 
 		r = ttm_bo_mem_space(bo, &placement, &tmp, &ctx);
 		if (unlikely(r))

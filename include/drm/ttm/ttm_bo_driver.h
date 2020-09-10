@@ -393,23 +393,6 @@ struct ttm_lru_bulk_move {
 	struct ttm_lru_bulk_move_pos swap[TTM_MAX_BO_PRIORITY];
 };
 
-/**
- * ttm_flag_masked
- *
- * @old: Pointer to the result and original value.
- * @new: New value of bits.
- * @mask: Mask of bits to change.
- *
- * Convenience function to change a number of bits identified by a mask.
- */
-
-static inline uint32_t
-ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
-{
-	*old ^= (*old ^ new) & mask;
-	return *old;
-}
-
 /*
  * ttm_bo.c
  */

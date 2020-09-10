@@ -64,34 +64,18 @@ static void ttm_bo_default_destroy(struct ttm_buffer_object *bo)
 	kfree(bo);
 }
 
-static inline int ttm_mem_type_from_place(const struct ttm_place *place,
-					  uint32_t *mem_type)
-{
-	int pos;
-
-	pos = ffs(place->flags & TTM_PL_MASK_MEM);
-	if (unlikely(!pos))
-		return -EINVAL;
-
-	*mem_type = pos - 1;
-	return 0;
-}
-
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
 	struct drm_printer p = drm_debug_printer(TTM_PFX);
-	int i, ret, mem_type;
 	struct ttm_resource_manager *man;
+	int i, mem_type;
 
 	drm_printf(&p, "No space for %p (%lu pages, %luK, %luM)\n",
 		   bo, bo->mem.num_pages, bo->mem.size >> 10,
 		   bo->mem.size >> 20);
 	for (i = 0; i < placement->num_placement; i++) {
-		ret = ttm_mem_type_from_place(&placement->placement[i],
-						&mem_type);
-		if (ret)
-			return;
+		mem_type = placement->placement[i].mem_type;
 		drm_printf(&p, "  placement[%d]=0x%08X (%d)\n",
 			   i, placement->placement[i].flags, mem_type);
 		man = ttm_manager_type(bo->bdev, mem_type);
@@ -124,12 +108,6 @@ static struct kobj_type ttm_bo_glob_kobj_type  = {
 	.sysfs_ops = &ttm_bo_global_ops,
 	.default_attrs = ttm_bo_global_attrs
 };
-
-
-static inline uint32_t ttm_bo_type_flags(unsigned type)
-{
-	return 1 << (type);
-}
 
 static void ttm_bo_add_mem_to_lru(struct ttm_buffer_object *bo,
 				  struct ttm_resource *mem)
@@ -910,25 +888,6 @@ static uint32_t ttm_bo_select_caching(struct ttm_resource_manager *man,
 	return result;
 }
 
-static bool ttm_bo_mt_compatible(struct ttm_resource_manager *man,
-				 uint32_t mem_type,
-				 const struct ttm_place *place,
-				 uint32_t *masked_placement)
-{
-	uint32_t cur_flags = ttm_bo_type_flags(mem_type);
-
-	if ((cur_flags & place->flags & TTM_PL_MASK_MEM) == 0)
-		return false;
-
-	if ((place->flags & man->available_caching) == 0)
-		return false;
-
-	cur_flags |= (place->flags & man->available_caching);
-
-	*masked_placement = cur_flags;
-	return true;
-}
-
 /**
  * ttm_bo_mem_placement - check if placement is compatible
  * @bo: BO to find memory for
@@ -946,30 +905,21 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 				struct ttm_operation_ctx *ctx)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	uint32_t mem_type = TTM_PL_SYSTEM;
 	struct ttm_resource_manager *man;
 	uint32_t cur_flags = 0;
-	int ret;
 
-	ret = ttm_mem_type_from_place(place, &mem_type);
-	if (ret)
-		return ret;
-
-	man = ttm_manager_type(bdev, mem_type);
+	man = ttm_manager_type(bdev, place->mem_type);
 	if (!man || !ttm_resource_manager_used(man))
 		return -EBUSY;
 
-	if (!ttm_bo_mt_compatible(man, mem_type, place, &cur_flags))
+	if ((place->flags & man->available_caching) == 0)
 		return -EBUSY;
 
+	cur_flags = place->flags & man->available_caching;
 	cur_flags = ttm_bo_select_caching(man, bo->mem.placement, cur_flags);
-	/*
-	 * Use the access and other non-mapping-related flag bits from
-	 * the memory placement flags to the current flags
-	 */
-	ttm_flag_masked(&cur_flags, place->flags, ~TTM_PL_MASK_MEMTYPE);
+	cur_flags |= place->flags & ~TTM_PL_MASK_CACHING;
 
-	mem->mem_type = mem_type;
+	mem->mem_type = place->mem_type;
 	mem->placement = cur_flags;
 
 	spin_lock(&ttm_bo_glob.lru_lock);
@@ -1006,10 +956,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		struct ttm_resource_manager *man;
 
 		ret = ttm_bo_mem_placement(bo, place, mem, ctx);
-		if (ret == -EBUSY)
-			continue;
 		if (ret)
-			goto error;
+			continue;
 
 		type_found = true;
 		ret = ttm_resource_alloc(bo, place, mem);
@@ -1034,10 +982,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		const struct ttm_place *place = &placement->busy_placement[i];
 
 		ret = ttm_bo_mem_placement(bo, place, mem, ctx);
-		if (ret == -EBUSY)
-			continue;
 		if (ret)
-			goto error;
+			continue;
 
 		type_found = true;
 		ret = ttm_bo_mem_force_space(bo, place, mem, ctx);
@@ -1108,7 +1054,7 @@ static bool ttm_bo_places_compat(const struct ttm_place *places,
 
 		*new_flags = heap->flags;
 		if ((*new_flags & mem->placement & TTM_PL_MASK_CACHING) &&
-		    (*new_flags & mem->placement & TTM_PL_MASK_MEM) &&
+		    (mem->mem_type == heap->mem_type) &&
 		    (!(*new_flags & TTM_PL_FLAG_CONTIGUOUS) ||
 		     (mem->placement & TTM_PL_FLAG_CONTIGUOUS)))
 			return true;
@@ -1163,12 +1109,8 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 	} else {
-		/*
-		 * Use the access and other non-mapping-related flag bits from
-		 * the compatible memory placement flags to the active flags
-		 */
-		ttm_flag_masked(&bo->mem.placement, new_flags,
-				~TTM_PL_MASK_MEMTYPE);
+		bo->mem.placement &= TTM_PL_MASK_CACHING;
+		bo->mem.placement |= new_flags & ~TTM_PL_MASK_CACHING;
 	}
 	/*
 	 * We might need to add a TTM.
@@ -1236,7 +1178,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	bo->mem.bus.offset = 0;
 	bo->mem.bus.addr = NULL;
 	bo->moving = NULL;
-	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
+	bo->mem.placement = TTM_PL_FLAG_CACHED;
 	bo->acc_size = acc_size;
 	bo->sg = sg;
 	if (resv) {
@@ -1627,7 +1569,7 @@ int ttm_bo_swapout(struct ttm_bo_global *glob, struct ttm_operation_ctx *ctx)
 
 		evict_mem = bo->mem;
 		evict_mem.mm_node = NULL;
-		evict_mem.placement = TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED;
+		evict_mem.placement = TTM_PL_FLAG_CACHED;
 		evict_mem.mem_type = TTM_PL_SYSTEM;
 
 		ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, &ctx);

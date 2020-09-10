@@ -64,16 +64,24 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 
 	qbo->placement.placement = qbo->placements;
 	qbo->placement.busy_placement = qbo->placements;
-	if (domain == QXL_GEM_DOMAIN_VRAM)
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
-	if (domain == QXL_GEM_DOMAIN_SURFACE) {
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_PRIV | pflag;
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
+	if (domain == QXL_GEM_DOMAIN_VRAM) {
+		qbo->placements[c].mem_type = TTM_PL_VRAM;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
 	}
-	if (domain == QXL_GEM_DOMAIN_CPU)
-		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM | pflag;
-	if (!c)
-		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+	if (domain == QXL_GEM_DOMAIN_SURFACE) {
+		qbo->placements[c].mem_type = TTM_PL_PRIV;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+		qbo->placements[c].mem_type = TTM_PL_VRAM;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+	}
+	if (domain == QXL_GEM_DOMAIN_CPU) {
+		qbo->placements[c].mem_type = TTM_PL_SYSTEM;
+		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | pflag;
+	}
+	if (!c) {
+		qbo->placements[c].mem_type = TTM_PL_SYSTEM;
+		qbo->placements[c++].flags = TTM_PL_MASK_CACHING;
+	}
 	qbo->placement.num_placement = c;
 	qbo->placement.num_busy_placement = c;
 	for (i = 0; i < c; ++i) {

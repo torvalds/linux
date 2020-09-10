@@ -82,9 +82,7 @@
 			VMWGFX_NUM_GB_SCREEN_TARGET)
 
 #define VMW_PL_GMR (TTM_PL_PRIV + 0)
-#define VMW_PL_FLAG_GMR (TTM_PL_FLAG_PRIV << 0)
 #define VMW_PL_MOB (TTM_PL_PRIV + 1)
-#define VMW_PL_FLAG_MOB (TTM_PL_FLAG_PRIV << 1)
 
 #define VMW_RES_CONTEXT ttm_driver_type0
 #define VMW_RES_SURFACE ttm_driver_type1

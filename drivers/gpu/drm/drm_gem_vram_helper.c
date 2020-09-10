@@ -145,21 +145,18 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
 	gbo->placement.placement = gbo->placements;
 	gbo->placement.busy_placement = gbo->placements;
 
-	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_VRAM)
+	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_VRAM) {
+		gbo->placements[c].mem_type = TTM_PL_VRAM;
 		gbo->placements[c++].flags = TTM_PL_FLAG_WC |
 					     TTM_PL_FLAG_UNCACHED |
-					     TTM_PL_FLAG_VRAM |
 					     invariant_flags;
+	}
 
-	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_SYSTEM)
+	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_SYSTEM || !c) {
+		gbo->placements[c].mem_type = TTM_PL_SYSTEM;
 		gbo->placements[c++].flags = TTM_PL_MASK_CACHING |
-					     TTM_PL_FLAG_SYSTEM |
 					     invariant_flags;
-
-	if (!c)
-		gbo->placements[c++].flags = TTM_PL_MASK_CACHING |
-					     TTM_PL_FLAG_SYSTEM |
-					     invariant_flags;
+	}
 
 	gbo->placement.num_placement = c;
 	gbo->placement.num_busy_placement = c;
