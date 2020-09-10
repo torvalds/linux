@@ -985,7 +985,8 @@ static int tcp_v4_send_synack(const struct sock *sk, struct dst_entry *dst,
 		rcu_read_lock();
 		err = ip_build_and_send_pkt(skb, sk, ireq->ir_loc_addr,
 					    ireq->ir_rmt_addr,
-					    rcu_dereference(ireq->ireq_opt));
+					    rcu_dereference(ireq->ireq_opt),
+					    inet_sk(sk)->tos);
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
 	}
