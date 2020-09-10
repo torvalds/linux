@@ -362,6 +362,8 @@ struct q6afe {
 	struct device *dev;
 	struct q6core_svc_api_info ainfo;
 	struct mutex lock;
+	struct aprv2_ibasic_rsp_result_t result;
+	wait_queue_head_t wait;
 	struct list_head port_list;
 	spinlock_t port_list_lock;
 };
@@ -905,11 +907,20 @@ static int afe_apr_send_pkt(struct q6afe *afe, struct apr_pkt *pkt,
 			    struct q6afe_port *port, uint32_t rsp_opcode)
 {
 	wait_queue_head_t *wait = &port->wait;
+	struct aprv2_ibasic_rsp_result_t *result;
 	int ret;
 
 	mutex_lock(&afe->lock);
-	port->result.opcode = 0;
-	port->result.status = 0;
+	if (port) {
+		wait = &port->wait;
+		result = &port->result;
+	} else {
+		result = &afe->result;
+		wait = &afe->wait;
+	}
+
+	result->opcode = 0;
+	result->status = 0;
 
 	ret = apr_send_pkt(afe->apr, pkt);
 	if (ret < 0) {
@@ -918,13 +929,13 @@ static int afe_apr_send_pkt(struct q6afe *afe, struct apr_pkt *pkt,
 		goto err;
 	}
 
-	ret = wait_event_timeout(*wait, (port->result.opcode == rsp_opcode),
+	ret = wait_event_timeout(*wait, (result->opcode == rsp_opcode),
 				 msecs_to_jiffies(TIMEOUT_MS));
 	if (!ret) {
 		ret = -ETIMEDOUT;
-	} else if (port->result.status > 0) {
+	} else if (result->status > 0) {
 		dev_err(afe->dev, "DSP returned error[%x]\n",
-			port->result.status);
+			result->status);
 		ret = -EINVAL;
 	} else {
 		ret = 0;
@@ -1594,6 +1605,7 @@ static int q6afe_probe(struct apr_device *adev)
 	q6core_get_svc_api_info(adev->svc_id, &afe->ainfo);
 	afe->apr = adev;
 	mutex_init(&afe->lock);
+	init_waitqueue_head(&afe->wait);
 	afe->dev = dev;
 	INIT_LIST_HEAD(&afe->port_list);
 	spin_lock_init(&afe->port_list_lock);
