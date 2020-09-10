@@ -169,7 +169,7 @@ static const struct kernel_param_ops sec_pf_q_num_ops = {
 
 static u32 pf_q_num = SEC_PF_DEF_Q_NUM;
 module_param_cb(pf_q_num, &sec_pf_q_num_ops, &pf_q_num, 0444);
-MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 0-4096, v2 0-1024)");
+MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 2-4096, v2 2-1024)");
 
 static int sec_ctx_q_num_set(const char *val, const struct kernel_param *kp)
 {
