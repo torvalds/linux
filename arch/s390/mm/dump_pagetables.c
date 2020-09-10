@@ -228,6 +228,24 @@ static int ptdump_show(struct seq_file *m, void *v)
 DEFINE_SHOW_ATTRIBUTE(ptdump);
 #endif /* CONFIG_PTDUMP_DEBUGFS */
 
+/*
+ * Heapsort from lib/sort.c is not a stable sorting algorithm, do a simple
+ * insertion sort to preserve the original order of markers with the same
+ * start address.
+ */
+static void sort_address_markers(void)
+{
+	struct addr_marker tmp;
+	int i, j;
+
+	for (i = 1; i < ARRAY_SIZE(address_markers) - 1; i++) {
+		tmp = address_markers[i];
+		for (j = i - 1; j >= 0 && address_markers[j].start_address > tmp.start_address; j--)
+			address_markers[j + 1] = address_markers[j];
+		address_markers[j + 1] = tmp;
+	}
+}
+
 static int pt_dump_init(void)
 {
 	/*
@@ -244,6 +262,7 @@ static int pt_dump_init(void)
 	address_markers[VMEMMAP_END_NR].start_address = (unsigned long)vmemmap + vmemmap_size;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;
 	address_markers[VMALLOC_END_NR].start_address = VMALLOC_END;
+	sort_address_markers();
 #ifdef CONFIG_PTDUMP_DEBUGFS
 	debugfs_create_file("kernel_page_tables", 0400, NULL, NULL, &ptdump_fops);
 #endif /* CONFIG_PTDUMP_DEBUGFS */
