@@ -28,6 +28,8 @@ struct cpsw_ale_params {
 	unsigned long		bus_freq;
 };
 
+struct ale_entry_fld;
+
 struct cpsw_ale {
 	struct cpsw_ale_params	params;
 	struct timer_list	timer;
@@ -39,6 +41,7 @@ struct cpsw_ale {
 	u32			port_num_bits;
 	u32			vlan_field_bits;
 	unsigned long		*p0_untag_vid_mask;
+	const struct ale_entry_fld *vlan_entry_tbl;
 };
 
 enum cpsw_ale_control {
