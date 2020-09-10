@@ -5,6 +5,7 @@
 #ifndef _NET_DSA_8021Q_H
 #define _NET_DSA_8021Q_H
 
+#include <linux/refcount.h>
 #include <linux/types.h>
 
 struct dsa_switch;
