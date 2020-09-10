@@ -213,8 +213,9 @@ static void print_entry_json(struct bpf_map_info *info, unsigned char *key,
 	jsonw_end_object(json_wtr);
 }
 
-static void print_entry_error(struct bpf_map_info *info, unsigned char *key,
-			      const char *error_msg)
+static void
+print_entry_error_msg(struct bpf_map_info *info, unsigned char *key,
+		      const char *error_msg)
 {
 	int msg_size = strlen(error_msg);
 	bool single_line, break_names;
@@ -230,6 +231,40 @@ static void print_entry_error(struct bpf_map_info *info, unsigned char *key,
 	printf("value:%c%s", break_names ? '\n' : ' ', error_msg);
 
 	printf("\n");
+}
+
+static void
+print_entry_error(struct bpf_map_info *map_info, void *key, int lookup_errno)
+{
+	/* For prog_array maps or arrays of maps, failure to lookup the value
+	 * means there is no entry for that key. Do not print an error message
+	 * in that case.
+	 */
+	if (map_is_map_of_maps(map_info->type) ||
+	    map_is_map_of_progs(map_info->type))
+		return;
+
+	if (json_output) {
+		jsonw_start_object(json_wtr);	/* entry */
+		jsonw_name(json_wtr, "key");
+		print_hex_data_json(key, map_info->key_size);
+		jsonw_name(json_wtr, "value");
+		jsonw_start_object(json_wtr);	/* error */
+		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
+		jsonw_end_object(json_wtr);	/* error */
+		jsonw_end_object(json_wtr);	/* entry */
+	} else {
+		const char *msg = NULL;
+
+		if (lookup_errno == ENOENT)
+			msg = "<no entry>";
+		else if (lookup_errno == ENOSPC &&
+			 map_info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
+			msg = "<cannot read>";
+
+		print_entry_error_msg(map_info, key,
+				      msg ? : strerror(lookup_errno));
+	}
 }
 
 static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
@@ -713,56 +748,23 @@ static int dump_map_elem(int fd, void *key, void *value,
 			 struct bpf_map_info *map_info, struct btf *btf,
 			 json_writer_t *btf_wtr)
 {
-	int num_elems = 0;
-	int lookup_errno;
-
-	if (!bpf_map_lookup_elem(fd, key, value)) {
-		if (json_output) {
-			print_entry_json(map_info, key, value, btf);
-		} else {
-			if (btf) {
-				struct btf_dumper d = {
-					.btf = btf,
-					.jw = btf_wtr,
-					.is_plain_text = true,
-				};
-
-				do_dump_btf(&d, map_info, key, value);
-			} else {
-				print_entry_plain(map_info, key, value);
-			}
-			num_elems++;
-		}
-		return num_elems;
+	if (bpf_map_lookup_elem(fd, key, value)) {
+		print_entry_error(map_info, key, errno);
+		return -1;
 	}
 
-	/* lookup error handling */
-	lookup_errno = errno;
-
-	if (map_is_map_of_maps(map_info->type) ||
-	    map_is_map_of_progs(map_info->type))
-		return 0;
-
 	if (json_output) {
-		jsonw_start_object(json_wtr);
-		jsonw_name(json_wtr, "key");
-		print_hex_data_json(key, map_info->key_size);
-		jsonw_name(json_wtr, "value");
-		jsonw_start_object(json_wtr);
-		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
-		jsonw_end_object(json_wtr);
-		jsonw_end_object(json_wtr);
+		print_entry_json(map_info, key, value, btf);
+	} else if (btf) {
+		struct btf_dumper d = {
+			.btf = btf,
+			.jw = btf_wtr,
+			.is_plain_text = true,
+		};
+
+		do_dump_btf(&d, map_info, key, value);
 	} else {
-		const char *msg = NULL;
-
-		if (lookup_errno == ENOENT)
-			msg = "<no entry>";
-		else if (lookup_errno == ENOSPC &&
-			 map_info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
-			msg = "<cannot read>";
-
-		print_entry_error(map_info, key,
-				  msg ? : strerror(lookup_errno));
+		print_entry_plain(map_info, key, value);
 	}
 
 	return 0;
@@ -873,7 +875,8 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 				err = 0;
 			break;
 		}
-		num_elems += dump_map_elem(fd, key, value, info, btf, wtr);
+		if (!dump_map_elem(fd, key, value, info, btf, wtr))
+			num_elems++;
 		prev_key = key;
 	}
 
