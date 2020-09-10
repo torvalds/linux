@@ -1063,6 +1063,7 @@ int __mptcp_subflow_connect(struct sock *sk, int ifindex,
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct mptcp_subflow_context *subflow;
 	struct sockaddr_storage addr;
+	int remote_id = remote->id;
 	int local_id = loc->id;
 	struct socket *sf;
 	struct sock *ssk;
@@ -1107,10 +1108,11 @@ int __mptcp_subflow_connect(struct sock *sk, int ifindex,
 		goto failed;
 
 	mptcp_crypto_key_sha(subflow->remote_key, &remote_token, NULL);
-	pr_debug("msk=%p remote_token=%u local_id=%d", msk, remote_token,
-		 local_id);
+	pr_debug("msk=%p remote_token=%u local_id=%d remote_id=%d", msk,
+		 remote_token, local_id, remote_id);
 	subflow->remote_token = remote_token;
 	subflow->local_id = local_id;
+	subflow->remote_id = remote_id;
 	subflow->request_join = 1;
 	subflow->request_bkup = 1;
 	mptcp_info2sockaddr(remote, &addr);
@@ -1347,6 +1349,7 @@ static void subflow_ulp_clone(const struct request_sock *req,
 		new_ctx->fully_established = 1;
 		new_ctx->backup = subflow_req->backup;
 		new_ctx->local_id = subflow_req->local_id;
+		new_ctx->remote_id = subflow_req->remote_id;
 		new_ctx->token = subflow_req->token;
 		new_ctx->thmac = subflow_req->thmac;
 	}
