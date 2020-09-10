@@ -231,6 +231,7 @@ static ssize_t counters_write(struct file *file, const char __user *user_buf,
 		char *line = buf;
 		u32 val, offset;
 
+		ret = -EINVAL;
 		while (parse_line(&line, &offset, &val, 1, 4)) {
 			ret = tb_port_write(port, &val, TB_CFG_COUNTERS,
 					    offset, 1);
