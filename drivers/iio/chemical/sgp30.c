@@ -20,9 +20,9 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -501,7 +501,6 @@ static int sgp_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct sgp_data *data;
-	const struct of_device_id *of_id;
 	unsigned long product_id;
 	int ret;
 
@@ -509,9 +508,8 @@ static int sgp_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	of_id = of_match_device(sgp_dt_ids, dev);
-	if (of_id)
-		product_id = (unsigned long)of_id->data;
+	if (dev_fwnode(dev))
+		product_id = (unsigned long)device_get_match_data(dev);
 	else
 		product_id = id->driver_data;
 
@@ -576,7 +574,7 @@ MODULE_DEVICE_TABLE(of, sgp_dt_ids);
 static struct i2c_driver sgp_driver = {
 	.driver = {
 		.name = "sgp30",
-		.of_match_table = of_match_ptr(sgp_dt_ids),
+		.of_match_table = sgp_dt_ids,
 	},
 	.probe = sgp_probe,
 	.remove = sgp_remove,
