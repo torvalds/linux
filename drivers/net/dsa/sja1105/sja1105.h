@@ -210,14 +210,13 @@ struct sja1105_private {
 	struct dsa_switch *ds;
 	struct list_head dsa_8021q_vlans;
 	struct list_head bridge_vlans;
-	struct list_head crosschip_links;
 	struct sja1105_flow_block flow_block;
 	struct sja1105_port ports[SJA1105_NUM_PORTS];
 	/* Serializes transmission of management frames so that
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
-	bool expect_dsa_8021q;
+	struct dsa_8021q_context *dsa_8021q_ctx;
 	enum sja1105_vlan_state vlan_state;
 	struct sja1105_cbs_entry *cbs;
 	struct sja1105_tagger_data tagger_data;
