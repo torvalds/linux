@@ -33,6 +33,7 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
 static void qeth_addr_change_event(struct qeth_card *card,
 				   struct qeth_ipa_cmd *cmd);
+static bool qeth_bridgeport_is_in_use(struct qeth_card *card);
 static void qeth_l2_vnicc_set_defaults(struct qeth_card *card);
 static void qeth_l2_vnicc_init(struct qeth_card *card);
 static bool qeth_l2_vnicc_recover_timeout(struct qeth_card *card, u32 vnicc,
@@ -836,6 +837,25 @@ static int qeth_l2_dev2br_an_set(struct qeth_card *card, bool enable)
 	return rc;
 }
 
+static int qeth_l2_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+				  struct net_device *dev, u32 filter_mask,
+				  int nlflags)
+{
+	struct qeth_priv *priv = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
+	u16 mode = BRIDGE_MODE_UNDEF;
+
+	/* Do not even show qeth devs that cannot do bridge_setlink */
+	if (!priv->brport_hw_features || !netif_device_present(dev) ||
+	    qeth_bridgeport_is_in_use(card))
+		return -EOPNOTSUPP;
+
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev,
+				       mode, priv->brport_features,
+				       priv->brport_hw_features,
+				       nlflags, filter_mask, NULL);
+}
+
 static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
@@ -851,7 +871,8 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_vlan_rx_kill_vid   = qeth_l2_vlan_rx_kill_vid,
 	.ndo_tx_timeout	   	= qeth_tx_timeout,
 	.ndo_fix_features	= qeth_fix_features,
-	.ndo_set_features	= qeth_set_features
+	.ndo_set_features	= qeth_set_features,
+	.ndo_bridge_getlink	= qeth_l2_bridge_getlink,
 };
 
 static const struct net_device_ops qeth_osn_netdev_ops = {
