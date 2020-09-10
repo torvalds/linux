@@ -392,7 +392,7 @@ void __iomem *__vc4_hdmi_get_field_base(struct vc4_hdmi *hdmi,
 }
 
 static inline u32 vc4_hdmi_read(struct vc4_hdmi *hdmi,
-				enum vc4_hdmi_regs reg)
+				enum vc4_hdmi_field reg)
 {
 	const struct vc4_hdmi_register *field;
 	const struct vc4_hdmi_variant *variant = hdmi->variant;
@@ -417,7 +417,7 @@ static inline u32 vc4_hdmi_read(struct vc4_hdmi *hdmi,
 #define HDMI_READ(reg)		vc4_hdmi_read(vc4_hdmi, reg)
 
 static inline void vc4_hdmi_write(struct vc4_hdmi *hdmi,
-				  enum vc4_hdmi_regs reg,
+				  enum vc4_hdmi_field reg,
 				  u32 value)
 {
 	const struct vc4_hdmi_register *field;
