@@ -34,6 +34,8 @@
 
 static void i915_save_display(struct drm_i915_private *dev_priv)
 {
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+
 	/* Display arbitration control */
 	if (INTEL_GEN(dev_priv) <= 4)
 		dev_priv->regfile.saveDSPARB = I915_READ(DSPARB);
@@ -41,10 +43,20 @@ static void i915_save_display(struct drm_i915_private *dev_priv)
 	/* save FBC interval */
 	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv))
 		dev_priv->regfile.saveFBC_CONTROL = I915_READ(FBC_CONTROL);
+
+	if (IS_GEN(dev_priv, 4))
+		pci_read_config_word(pdev, GCDGMBUS,
+				     &dev_priv->regfile.saveGCDGMBUS);
 }
 
 static void i915_restore_display(struct drm_i915_private *dev_priv)
 {
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+
+	if (IS_GEN(dev_priv, 4))
+		pci_write_config_word(pdev, GCDGMBUS,
+				      dev_priv->regfile.saveGCDGMBUS);
+
 	/* Display arbitration */
 	if (INTEL_GEN(dev_priv) <= 4)
 		I915_WRITE(DSPARB, dev_priv->regfile.saveDSPARB);
@@ -61,14 +73,9 @@ static void i915_restore_display(struct drm_i915_private *dev_priv)
 
 int i915_save_state(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
 
 	i915_save_display(dev_priv);
-
-	if (IS_GEN(dev_priv, 4))
-		pci_read_config_word(pdev, GCDGMBUS,
-				     &dev_priv->regfile.saveGCDGMBUS);
 
 	/* Cache mode state */
 	if (INTEL_GEN(dev_priv) < 7)
@@ -102,12 +109,8 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 
 int i915_restore_state(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
 
-	if (IS_GEN(dev_priv, 4))
-		pci_write_config_word(pdev, GCDGMBUS,
-				      dev_priv->regfile.saveGCDGMBUS);
 	i915_restore_display(dev_priv);
 
 	/* Cache mode state */
