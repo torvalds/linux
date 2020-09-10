@@ -1233,27 +1233,17 @@ static int smc_listen_rdma_finish(struct smc_sock *new_smc,
 	if (local_first)
 		smc_link_save_peer_info(link, cclc);
 
-	if (smc_rmb_rtoken_handling(&new_smc->conn, link, cclc)) {
-		reason_code = SMC_CLC_DECL_ERR_RTOK;
-		goto decline;
-	}
+	if (smc_rmb_rtoken_handling(&new_smc->conn, link, cclc))
+		return SMC_CLC_DECL_ERR_RTOK;
 
 	if (local_first) {
-		if (smc_ib_ready_link(link)) {
-			reason_code = SMC_CLC_DECL_ERR_RDYLNK;
-			goto decline;
-		}
+		if (smc_ib_ready_link(link))
+			return SMC_CLC_DECL_ERR_RDYLNK;
 		/* QP confirmation over RoCE fabric */
 		smc_llc_flow_initiate(link->lgr, SMC_LLC_FLOW_ADD_LINK);
 		reason_code = smcr_serv_conf_first_link(new_smc);
 		smc_llc_flow_stop(link->lgr, &link->lgr->llc_flow_lcl);
-		if (reason_code)
-			goto decline;
 	}
-	return 0;
-
-decline:
-	smc_listen_decline(new_smc, reason_code, local_first);
 	return reason_code;
 }
 
@@ -1382,9 +1372,9 @@ static void smc_listen_work(struct work_struct *work)
 	if (!ism_supported) {
 		rc = smc_listen_rdma_finish(new_smc, &cclc,
 					    ini.first_contact_local);
-		mutex_unlock(&smc_server_lgr_pending);
 		if (rc)
-			return;
+			goto out_unlock;
+		mutex_unlock(&smc_server_lgr_pending);
 	}
 	smc_conn_save_peer_info(new_smc, &cclc);
 	smc_listen_out_connected(new_smc);
