@@ -462,6 +462,36 @@ static int cdns3_start_all_request(struct cdns3_device *priv_dev,
 		(reg) |= EP_STS_EN_DESCMISEN; \
 	} } while (0)
 
+static void __cdns3_descmiss_copy_data(struct usb_request *request,
+	struct usb_request *descmiss_req)
+{
+	int length = request->actual + descmiss_req->actual;
+	struct scatterlist *s = request->sg;
+
+	if (!s) {
+		if (length <= request->length) {
+			memcpy(&((u8 *)request->buf)[request->actual],
+			       descmiss_req->buf,
+			       descmiss_req->actual);
+			request->actual = length;
+		} else {
+			/* It should never occures */
+			request->status = -ENOMEM;
+		}
+	} else {
+		if (length <= sg_dma_len(s)) {
+			void *p = phys_to_virt(sg_dma_address(s));
+
+			memcpy(&((u8 *)p)[request->actual],
+				descmiss_req->buf,
+				descmiss_req->actual);
+			request->actual = length;
+		} else {
+			request->status = -ENOMEM;
+		}
+	}
+}
+
 /**
  * cdns3_wa2_descmiss_copy_data copy data from internal requests to
  * request queued by class driver.
@@ -488,21 +518,9 @@ static void cdns3_wa2_descmiss_copy_data(struct cdns3_endpoint *priv_ep,
 
 		chunk_end = descmiss_priv_req->flags & REQUEST_INTERNAL_CH;
 		length = request->actual + descmiss_req->actual;
-
 		request->status = descmiss_req->status;
-
-		if (length <= request->length) {
-			memcpy(&((u8 *)request->buf)[request->actual],
-			       descmiss_req->buf,
-			       descmiss_req->actual);
-			request->actual = length;
-		} else {
-			/* It should never occures */
-			request->status = -ENOMEM;
-		}
-
+		__cdns3_descmiss_copy_data(request, descmiss_req);
 		list_del_init(&descmiss_priv_req->list);
-
 		kfree(descmiss_req->buf);
 		cdns3_gadget_ep_free_request(&priv_ep->endpoint, descmiss_req);
 		--priv_ep->wa2_counter;
