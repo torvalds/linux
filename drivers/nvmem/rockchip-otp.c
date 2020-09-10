@@ -70,6 +70,8 @@
 #define RV1126_OTP_NVM_PRSTART		0x44
 #define RV1126_OTP_NVM_PRSTATE		0x48
 
+struct rockchip_data;
+
 struct rockchip_otp {
 	struct device *dev;
 	void __iomem *base;
@@ -77,6 +79,8 @@ struct rockchip_otp {
 	int num_clks;
 	struct reset_control *rst;
 	struct nvmem_config *config;
+	const struct rockchip_data *data;
+	struct mutex mutex;
 };
 
 struct rockchip_data {
@@ -303,10 +307,40 @@ static int rv1126_otp_oem_write(void *context, unsigned int offset, void *val,
 	return rv1126_otp_write(context, offset, val, bytes);
 }
 
+static int rockchip_otp_read(void *context, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	struct rockchip_otp *otp = context;
+	int ret = -EINVAL;
+
+	mutex_lock(&otp->mutex);
+	if (otp->data && otp->data->reg_read)
+		ret = otp->data->reg_read(context, offset, val, bytes);
+	mutex_unlock(&otp->mutex);
+
+	return ret;
+}
+
+static int rockchip_otp_write(void *context, unsigned int offset, void *val,
+			      size_t bytes)
+{
+	struct rockchip_otp *otp = context;
+	int ret = -EINVAL;
+
+	mutex_lock(&otp->mutex);
+	if (otp->data && otp->data->reg_write)
+		ret = otp->data->reg_write(context, offset, val, bytes);
+	mutex_unlock(&otp->mutex);
+
+	return ret;
+}
+
 static struct nvmem_config otp_config = {
 	.name = "rockchip-otp",
 	.owner = THIS_MODULE,
 	.read_only = true,
+	.reg_read = rockchip_otp_read,
+	.reg_write = rockchip_otp_write,
 	.stride = 1,
 	.word_size = 1,
 };
@@ -371,6 +405,8 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 	if (!otp)
 		return -ENOMEM;
 
+	mutex_init(&otp->mutex);
+	otp->data = data;
 	otp->dev = dev;
 	otp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(otp->base))
@@ -395,8 +431,6 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 
 	otp->config = &otp_config;
 	otp->config->size = data->size;
-	otp->config->reg_read = data->reg_read;
-	otp->config->reg_write = data->reg_write;
 	otp->config->priv = otp;
 	otp->config->dev = dev;
 
