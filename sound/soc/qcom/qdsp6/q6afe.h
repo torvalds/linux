@@ -133,6 +133,15 @@
 /* Clock ID for INT MCLK1 */
 #define Q6AFE_LPASS_CLK_ID_INT_MCLK_1                             0x306
 
+#define Q6AFE_LPASS_CLK_ID_WSA_CORE_MCLK			0x309
+#define Q6AFE_LPASS_CLK_ID_WSA_CORE_NPL_MCLK			0x30a
+#define Q6AFE_LPASS_CLK_ID_TX_CORE_MCLK				0x30c
+#define Q6AFE_LPASS_CLK_ID_TX_CORE_NPL_MCLK			0x30d
+#define Q6AFE_LPASS_CLK_ID_RX_CORE_MCLK				0x30e
+#define Q6AFE_LPASS_CLK_ID_RX_CORE_NPL_MCLK			0x30f
+#define Q6AFE_LPASS_CLK_ID_VA_CORE_MCLK				0x30b
+#define Q6AFE_LPASS_CLK_ID_VA_CORE_2X_MCLK			0x310
+
 #define Q6AFE_LPASS_CORE_AVTIMER_BLOCK			0x2
 #define Q6AFE_LPASS_CORE_HW_MACRO_BLOCK			0x3
 #define Q6AFE_LPASS_CORE_HW_DCODEC_BLOCK		0x4
@@ -224,6 +233,8 @@ void q6afe_cdc_dma_port_prepare(struct q6afe_port *port,
 int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 			  int clk_src, int clk_root,
 			  unsigned int freq, int dir);
+int q6afe_set_lpass_clock(struct device *dev, int clk_id, int clk_src,
+			  int clk_root, unsigned int freq);
 int q6afe_vote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
 			     char *client_name, uint32_t *client_handle);
 int q6afe_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
