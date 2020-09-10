@@ -8636,6 +8636,24 @@ struct trace_array *trace_array_find_get(const char *instance)
 	return tr;
 }
 
+static int trace_array_create_dir(struct trace_array *tr)
+{
+	int ret;
+
+	tr->dir = tracefs_create_dir(tr->name, trace_instance_dir);
+	if (!tr->dir)
+		return -EINVAL;
+
+	ret = event_trace_add_tracer(tr->dir, tr);
+	if (ret)
+		tracefs_remove(tr->dir);
+
+	init_tracer_tracefs(tr, tr->dir);
+	__update_tracer_options(tr);
+
+	return ret;
+}
+
 static struct trace_array *trace_array_create(const char *name)
 {
 	struct trace_array *tr;
@@ -8671,30 +8689,27 @@ static struct trace_array *trace_array_create(const char *name)
 	if (allocate_trace_buffers(tr, trace_buf_size) < 0)
 		goto out_free_tr;
 
-	tr->dir = tracefs_create_dir(name, trace_instance_dir);
-	if (!tr->dir)
+	if (ftrace_allocate_ftrace_ops(tr) < 0)
 		goto out_free_tr;
-
-	ret = event_trace_add_tracer(tr->dir, tr);
-	if (ret) {
-		tracefs_remove(tr->dir);
-		goto out_free_tr;
-	}
 
 	ftrace_init_trace_array(tr);
 
-	init_tracer_tracefs(tr, tr->dir);
 	init_trace_flags_index(tr);
-	__update_tracer_options(tr);
+
+	if (trace_instance_dir) {
+		ret = trace_array_create_dir(tr);
+		if (ret)
+			goto out_free_tr;
+	}
 
 	list_add(&tr->list, &ftrace_trace_arrays);
 
 	tr->ref++;
 
-
 	return tr;
 
  out_free_tr:
+	ftrace_free_ftrace_ops(tr);
 	free_trace_buffers(tr);
 	free_cpumask_var(tr->tracing_cpumask);
 	kfree(tr->name);
@@ -8852,11 +8867,27 @@ static int instance_rmdir(const char *name)
 
 static __init void create_trace_instances(struct dentry *d_tracer)
 {
+	struct trace_array *tr;
+
 	trace_instance_dir = tracefs_create_instance_dir("instances", d_tracer,
 							 instance_mkdir,
 							 instance_rmdir);
 	if (MEM_FAIL(!trace_instance_dir, "Failed to create instances directory\n"))
 		return;
+
+	mutex_lock(&event_mutex);
+	mutex_lock(&trace_types_lock);
+
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		if (!tr->name)
+			continue;
+		if (MEM_FAIL(trace_array_create_dir(tr) < 0,
+			     "Failed to create instance directory\n"))
+			break;
+	}
+
+	mutex_unlock(&trace_types_lock);
+	mutex_unlock(&event_mutex);
 }
 
 static void
