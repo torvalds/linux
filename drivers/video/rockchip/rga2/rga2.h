@@ -682,6 +682,7 @@ struct rga2_reg {
 
 	uint32_t *MMU_base;
 	uint32_t MMU_len;
+	bool MMU_map;
 
 	struct sg_table *sg_src0;
 	struct sg_table *sg_src1;

@@ -1417,6 +1417,7 @@ static int rga2_blit_flush_cache(rga2_session *session, struct rga2_req *req)
 #endif
 	if ((req->mmu_info.src0_mmu_flag & 1) || (req->mmu_info.src1_mmu_flag & 1) ||
 	    (req->mmu_info.dst_mmu_flag & 1) || (req->mmu_info.els_mmu_flag & 1)) {
+		reg->MMU_map = true;
 		ret = rga2_set_mmu_info(reg, req);
 		if (ret < 0) {
 			pr_err("%s, [%d] set mmu info error\n", __func__, __LINE__);
