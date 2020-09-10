@@ -420,9 +420,8 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 	u32 int_status;
 	struct qcom_qspi *ctrl = dev_id;
 	irqreturn_t ret = IRQ_NONE;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ctrl->lock, flags);
+	spin_lock(&ctrl->lock);
 
 	int_status = readl(ctrl->base + MSTR_INT_STATUS);
 	writel(int_status, ctrl->base + MSTR_INT_STATUS);
@@ -450,7 +449,7 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 		spi_finalize_current_transfer(dev_get_drvdata(ctrl->dev));
 	}
 
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	spin_unlock(&ctrl->lock);
 	return ret;
 }
 
