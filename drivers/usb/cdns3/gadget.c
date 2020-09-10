@@ -817,6 +817,8 @@ void cdns3_gadget_giveback(struct cdns3_endpoint *priv_ep,
 		       request->length);
 
 	priv_req->flags &= ~(REQUEST_PENDING | REQUEST_UNALIGNED);
+	/* All TRBs have finished, clear the counter */
+	priv_req->finished_trb = 0;
 	trace_cdns3_gadget_giveback(priv_req);
 
 	if (priv_dev->dev_ver < DEV_VER_V2) {
@@ -1239,6 +1241,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 	trb = priv_req->trb;
 
 	priv_req->flags |= REQUEST_PENDING;
+	priv_req->num_of_trb = num_trb;
 
 	if (sg_iter == 1)
 		trb->control |= cpu_to_le32(TRB_IOC | TRB_ISP);
@@ -1360,7 +1363,7 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
 }
 
 /**
- * cdns3_request_handled - check whether request has been handled by DMA
+ * cdns3_trb_handled - check whether trb has been handled by DMA
  *
  * @priv_ep: extended endpoint object.
  * @priv_req: request object for checking
@@ -1377,32 +1380,28 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
  * ET = priv_req->end_trb - index of last TRB in transfer ring
  * CI = current_index - index of processed TRB by DMA.
  *
- * As first step, function checks if cycle bit for priv_req->start_trb is
- * correct.
+ * As first step, we check if the TRB between the ST and ET.
+ * Then, we check if cycle bit for index priv_ep->dequeue
+ * is correct.
  *
  * some rules:
- * 1. priv_ep->dequeue never exceed current_index.
+ * 1. priv_ep->dequeue never equals to current_index.
  * 2  priv_ep->enqueue never exceed priv_ep->dequeue
  * 3. exception: priv_ep->enqueue == priv_ep->dequeue
  *    and priv_ep->free_trbs is zero.
  *    This case indicate that TR is full.
  *
- * Then We can split recognition into two parts:
+ * At below two cases, the request have been handled.
  * Case 1 - priv_ep->dequeue < current_index
  *      SR ... EQ ... DQ ... CI ... ER
  *      SR ... DQ ... CI ... EQ ... ER
  *
- *      Request has been handled by DMA if ST and ET is between DQ and CI.
- *
  * Case 2 - priv_ep->dequeue > current_index
- * This situation take place when CI go through the LINK TRB at the end of
+ * This situation takes place when CI go through the LINK TRB at the end of
  * transfer ring.
  *      SR ... CI ... EQ ... DQ ... ER
- *
- *      Request has been handled by DMA if ET is less then CI or
- *      ET is greater or equal DQ.
  */
-static bool cdns3_request_handled(struct cdns3_endpoint *priv_ep,
+static bool cdns3_trb_handled(struct cdns3_endpoint *priv_ep,
 				  struct cdns3_request *priv_req)
 {
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
@@ -1414,7 +1413,25 @@ static bool cdns3_request_handled(struct cdns3_endpoint *priv_ep,
 	current_index = cdns3_get_dma_pos(priv_dev, priv_ep);
 	doorbell = !!(readl(&priv_dev->regs->ep_cmd) & EP_CMD_DRDY);
 
-	trb = &priv_ep->trb_pool[priv_req->start_trb];
+	/* current trb doesn't belong to this request */
+	if (priv_req->start_trb < priv_req->end_trb) {
+		if (priv_ep->dequeue > priv_req->end_trb)
+			goto finish;
+
+		if (priv_ep->dequeue < priv_req->start_trb)
+			goto finish;
+	}
+
+	if ((priv_req->start_trb > priv_req->end_trb) &&
+		(priv_ep->dequeue > priv_req->end_trb) &&
+		(priv_ep->dequeue < priv_req->start_trb))
+		goto finish;
+
+	if ((priv_req->start_trb == priv_req->end_trb) &&
+		(priv_ep->dequeue != priv_req->end_trb))
+		goto finish;
+
+	trb = &priv_ep->trb_pool[priv_ep->dequeue];
 
 	if ((le32_to_cpu(trb->control) & TRB_CYCLE) != priv_ep->ccs)
 		goto finish;
@@ -1436,12 +1453,8 @@ static bool cdns3_request_handled(struct cdns3_endpoint *priv_ep,
 		    !priv_ep->dequeue)
 			goto finish;
 
-		if (priv_req->end_trb >= priv_ep->dequeue &&
-		    priv_req->end_trb < current_index)
-			handled = 1;
+		handled = 1;
 	} else if (priv_ep->dequeue  > current_index) {
-		if (priv_req->end_trb  < current_index ||
-		    priv_req->end_trb >= priv_ep->dequeue)
 			handled = 1;
 	}
 
@@ -1457,6 +1470,8 @@ static void cdns3_transfer_completed(struct cdns3_device *priv_dev,
 	struct cdns3_request *priv_req;
 	struct usb_request *request;
 	struct cdns3_trb *trb;
+	bool request_handled = false;
+	bool transfer_end = false;
 
 	while (!list_empty(&priv_ep->pending_req_list)) {
 		request = cdns3_next_request(&priv_ep->pending_req_list);
@@ -1476,20 +1491,32 @@ static void cdns3_transfer_completed(struct cdns3_device *priv_dev,
 			 */
 			cdns3_select_ep(priv_dev, priv_ep->endpoint.address);
 
-			if (!cdns3_request_handled(priv_ep, priv_req))
+			while (cdns3_trb_handled(priv_ep, priv_req)) {
+				priv_req->finished_trb++;
+				if (priv_req->finished_trb >= priv_req->num_of_trb)
+					request_handled = true;
+
+				trb = priv_ep->trb_pool + priv_ep->dequeue;
+				trace_cdns3_complete_trb(priv_ep, trb);
+
+				if (!transfer_end)
+					request->actual +=
+						TRB_LEN(le32_to_cpu(trb->length));
+
+				if (priv_req->num_of_trb > 1 &&
+					le32_to_cpu(trb->control) & TRB_SMM)
+					transfer_end = true;
+
+				cdns3_ep_inc_deq(priv_ep);
+			}
+
+			if (request_handled) {
+				cdns3_gadget_giveback(priv_ep, priv_req, 0);
+				request_handled = false;
+				transfer_end = false;
+			} else {
 				goto prepare_next_td;
-
-			trb = priv_ep->trb_pool + priv_ep->dequeue;
-			trace_cdns3_complete_trb(priv_ep, trb);
-
-			if (trb != priv_req->trb)
-				dev_warn(priv_dev->dev,
-					 "request_trb=0x%p, queue_trb=0x%p\n",
-					 priv_req->trb, trb);
-
-			request->actual = TRB_LEN(le32_to_cpu(trb->length));
-			cdns3_move_deq_to_next_trb(priv_req);
-			cdns3_gadget_giveback(priv_ep, priv_req, 0);
+			}
 
 			if (priv_ep->type != USB_ENDPOINT_XFER_ISOC &&
 			    TRBS_PER_SEGMENT == 2)
