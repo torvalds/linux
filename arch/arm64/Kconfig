@@ -211,7 +211,7 @@ config ARM64_PAGE_SHIFT
 	default 14 if ARM64_16K_PAGES
 	default 12
 
-config ARM64_CONT_SHIFT
+config ARM64_CONT_PTE_SHIFT
 	int
 	default 5 if ARM64_64K_PAGES
 	default 7 if ARM64_16K_PAGES

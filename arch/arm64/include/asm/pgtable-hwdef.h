@@ -81,14 +81,12 @@
 /*
  * Contiguous page definitions.
  */
+#define CONT_PTE_SHIFT		(CONFIG_ARM64_CONT_PTE_SHIFT + PAGE_SHIFT)
 #ifdef CONFIG_ARM64_64K_PAGES
-#define CONT_PTE_SHIFT		(5 + PAGE_SHIFT)
 #define CONT_PMD_SHIFT		(5 + PMD_SHIFT)
 #elif defined(CONFIG_ARM64_16K_PAGES)
-#define CONT_PTE_SHIFT		(7 + PAGE_SHIFT)
 #define CONT_PMD_SHIFT		(5 + PMD_SHIFT)
 #else
-#define CONT_PTE_SHIFT		(4 + PAGE_SHIFT)
 #define CONT_PMD_SHIFT		(4 + PMD_SHIFT)
 #endif
 
