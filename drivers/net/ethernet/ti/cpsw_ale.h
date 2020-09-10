@@ -24,6 +24,7 @@ struct cpsw_ale_params {
 	 * pass it from caller.
 	 */
 	u32			major_ver_mask;
+	const char		*dev_id;
 };
 
 struct cpsw_ale {

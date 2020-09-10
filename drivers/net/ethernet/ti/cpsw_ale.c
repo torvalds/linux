@@ -46,6 +46,29 @@
 
 #define AM65_CPSW_ALE_THREAD_DEF_REG 0x134
 
+enum {
+	CPSW_ALE_F_STATUS_REG = BIT(0), /* Status register present */
+	CPSW_ALE_F_HW_AUTOAGING = BIT(1), /* HW auto aging */
+
+	CPSW_ALE_F_COUNT
+};
+
+/**
+ * struct ale_dev_id - The ALE version/SoC specific configuration
+ * @dev_id: ALE version/SoC id
+ * @features: features supported by ALE
+ * @tbl_entries: number of ALE entries
+ * @major_ver_mask: mask of ALE Major Version Value in ALE_IDVER reg.
+ * @nu_switch_ale: NU Switch ALE
+ */
+struct cpsw_ale_dev_id {
+	const char *dev_id;
+	u32 features;
+	u32 tbl_entries;
+	u32 major_ver_mask;
+	bool nu_switch_ale;
+};
+
 #define ALE_TABLE_WRITE		BIT(31)
 
 #define ALE_TYPE_FREE			0
@@ -979,10 +1002,69 @@ void cpsw_ale_stop(struct cpsw_ale *ale)
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 0);
 }
 
+static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
+	{
+		/* am3/4/5, dra7. dm814x, 66ak2hk-gbe */
+		.dev_id = "cpsw",
+		.tbl_entries = 1024,
+		.major_ver_mask = 0xff,
+	},
+	{
+		/* 66ak2h_xgbe */
+		.dev_id = "66ak2h-xgbe",
+		.tbl_entries = 2048,
+		.major_ver_mask = 0xff,
+	},
+	{
+		.dev_id = "66ak2el",
+		.features = CPSW_ALE_F_STATUS_REG,
+		.major_ver_mask = 0x7,
+		.nu_switch_ale = true,
+	},
+	{
+		.dev_id = "66ak2g",
+		.features = CPSW_ALE_F_STATUS_REG,
+		.tbl_entries = 64,
+		.major_ver_mask = 0x7,
+		.nu_switch_ale = true,
+	},
+	{
+		.dev_id = "am65x-cpsw2g",
+		.features = CPSW_ALE_F_STATUS_REG | CPSW_ALE_F_HW_AUTOAGING,
+		.tbl_entries = 64,
+		.major_ver_mask = 0x7,
+		.nu_switch_ale = true,
+	},
+	{ },
+};
+
+static const struct
+cpsw_ale_dev_id *cpsw_ale_match_id(const struct cpsw_ale_dev_id *id,
+				   const char *dev_id)
+{
+	if (!dev_id)
+		return NULL;
+
+	while (id->dev_id) {
+		if (strcmp(dev_id, id->dev_id) == 0)
+			return id;
+		id++;
+	}
+	return NULL;
+}
+
 struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 {
+	const struct cpsw_ale_dev_id *ale_dev_id;
 	struct cpsw_ale *ale;
 	u32 rev, ale_entries;
+
+	ale_dev_id = cpsw_ale_match_id(cpsw_ale_id_match, params->dev_id);
+	if (ale_dev_id) {
+		params->ale_entries = ale_dev_id->tbl_entries;
+		params->major_ver_mask = ale_dev_id->major_ver_mask;
+		params->nu_switch_ale = ale_dev_id->nu_switch_ale;
+	}
 
 	ale = devm_kzalloc(params->dev, sizeof(*ale), GFP_KERNEL);
 	if (!ale)
