@@ -1437,7 +1437,7 @@ static unsigned long vma_phys_addr(struct i915_vma *vma, u32 offset)
 	return addr + offset_in_page(offset);
 }
 
-static bool __reloc_entry_gpu(struct i915_execbuffer *eb,
+static int __reloc_entry_gpu(struct i915_execbuffer *eb,
 			      struct i915_vma *vma,
 			      u64 offset,
 			      u64 target_addr)
@@ -1456,7 +1456,7 @@ static bool __reloc_entry_gpu(struct i915_execbuffer *eb,
 
 	batch = reloc_gpu(eb, vma, len);
 	if (batch == ERR_PTR(-EDEADLK))
-		return (s64)-EDEADLK;
+		return -EDEADLK;
 	else if (IS_ERR(batch))
 		return false;
 
