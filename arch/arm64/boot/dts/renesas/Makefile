@@ -54,3 +54,5 @@ dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk.dtb
 dtb-$(CONFIG_ARCH_R8A77990) += r8a77990-ebisu.dtb
 
 dtb-$(CONFIG_ARCH_R8A77995) += r8a77995-draak.dtb
+
+dtb-$(CONFIG_ARCH_R8A779A0) += r8a779a0-falcon.dtb
