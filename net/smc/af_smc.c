@@ -1188,25 +1188,11 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 			       struct smc_clc_msg_proposal *pclc,
 			       struct smc_init_info *ini)
 {
-	struct smc_clc_msg_smcd *pclc_smcd;
 	int rc;
 
-	pclc_smcd = smc_get_clc_msg_smcd(pclc);
-	ini->ism_peer_gid = pclc_smcd->gid;
 	rc = smc_conn_create(new_smc, ini);
 	if (rc)
 		return rc;
-
-	/* Check if peer can be reached via ISM device */
-	if (smc_ism_cantalk(new_smc->conn.lgr->peer_gid,
-			    new_smc->conn.lgr->vlan_id,
-			    new_smc->conn.lgr->smcd)) {
-		if (ini->first_contact_local)
-			smc_lgr_cleanup_early(&new_smc->conn);
-		else
-			smc_conn_free(&new_smc->conn);
-		return SMC_CLC_DECL_SMCDNOTALK;
-	}
 
 	/* Create send and receive buffers */
 	rc = smc_buf_create(new_smc, true);
@@ -1338,7 +1324,10 @@ static void smc_listen_work(struct work_struct *work)
 
 	/* check if ISM is available */
 	if (pclc->hdr.path == SMC_TYPE_D || pclc->hdr.path == SMC_TYPE_B) {
+		struct smc_clc_msg_smcd *pclc_smcd = smc_get_clc_msg_smcd(pclc);
+
 		ini.is_smcd = true; /* prepare ISM check */
+		ini.ism_peer_gid = pclc_smcd->gid;
 		rc = smc_find_ism_device(new_smc, &ini);
 		if (!rc)
 			rc = smc_listen_ism_init(new_smc, pclc, &ini);
