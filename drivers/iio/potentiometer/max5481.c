@@ -7,7 +7,6 @@
  * https://datasheets.maximintegrated.com/en/ds/MAX5481-MAX5484.pdf
  */
 
-#include <linux/acpi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/module.h>
@@ -182,22 +181,10 @@ static const struct spi_device_id max5481_id_table[] = {
 };
 MODULE_DEVICE_TABLE(spi, max5481_id_table);
 
-#if defined(CONFIG_ACPI)
-static const struct acpi_device_id max5481_acpi_match[] = {
-	{ "max5481", max5481 },
-	{ "max5482", max5482 },
-	{ "max5483", max5483 },
-	{ "max5484", max5484 },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, max5481_acpi_match);
-#endif
-
 static struct spi_driver max5481_driver = {
 	.driver = {
 		.name  = "max5481",
 		.of_match_table = max5481_match,
-		.acpi_match_table = ACPI_PTR(max5481_acpi_match),
 	},
 	.probe = max5481_probe,
 	.remove = max5481_remove,
