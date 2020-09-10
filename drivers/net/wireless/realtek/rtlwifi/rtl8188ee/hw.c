@@ -774,22 +774,22 @@ static bool _rtl88ee_llt_table_init(struct ieee80211_hw *hw)
 
 	for (i = 0; i < (txpktbuf_bndy - 1); i++) {
 		status = _rtl88ee_llt_write(hw, i, i + 1);
-		if (true != status)
+		if (!status)
 			return status;
 	}
 
 	status = _rtl88ee_llt_write(hw, (txpktbuf_bndy - 1), 0xFF);
-	if (true != status)
+	if (!status)
 		return status;
 
 	for (i = txpktbuf_bndy; i < maxpage; i++) {
 		status = _rtl88ee_llt_write(hw, i, (i + 1));
-		if (true != status)
+		if (!status)
 			return status;
 	}
 
 	status = _rtl88ee_llt_write(hw, maxpage, txpktbuf_bndy);
-	if (true != status)
+	if (!status)
 		return status;
 
 	return true;
@@ -868,7 +868,7 @@ static bool _rtl88ee_init_mac(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, MSR, 0x00);
 
 	if (!rtlhal->mac_func_enable) {
-		if (_rtl88ee_llt_table_init(hw) == false) {
+		if (!_rtl88ee_llt_table_init(hw)) {
 			rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 				"LLT table init fail\n");
 			return false;
@@ -1067,7 +1067,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	}
 
 	rtstatus = _rtl88ee_init_mac(hw);
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		pr_info("Init MAC failed\n");
 		err = 1;
 		goto exit;
