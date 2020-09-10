@@ -116,6 +116,11 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(bad_req_id),
 	ENA_STAT_RX_ENTRY(empty_rx_ring),
 	ENA_STAT_RX_ENTRY(csum_unchecked),
+	ENA_STAT_RX_ENTRY(xdp_aborted),
+	ENA_STAT_RX_ENTRY(xdp_drop),
+	ENA_STAT_RX_ENTRY(xdp_pass),
+	ENA_STAT_RX_ENTRY(xdp_tx),
+	ENA_STAT_RX_ENTRY(xdp_invalid),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
