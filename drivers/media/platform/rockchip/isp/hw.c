@@ -478,11 +478,13 @@ void rkisp_soft_reset(struct rkisp_hw_dev *dev)
 		reset_control_assert(dev->reset);
 		udelay(10);
 		reset_control_deassert(dev->reset);
-	} else {
-		writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601, base + CIF_ISP_CTRL);
-		writel(0xffff, base + CIF_IRCL);
 		udelay(10);
 	}
+	/* reset for Dehaze */
+	writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601, base + CIF_ISP_CTRL);
+	writel(0xffff, base + CIF_IRCL);
+	udelay(10);
+
 	if (domain) {
 #ifdef CONFIG_IOMMU_API
 		domain->ops->detach_dev(domain, dev->dev);
