@@ -164,29 +164,63 @@ struct _vcs_dpi_ip_params_st dcn3_01_ip = {
 
 struct _vcs_dpi_soc_bounding_box_st dcn3_01_soc = {
 	.clock_limits = {
-			/*TODO: fill out defaults once wm plociy is settled*/
 			{
 				.state = 0,
-				.dcfclk_mhz = 810.0,
-				.fabricclk_mhz = 1200.0,
-				.dispclk_mhz = 1015.0,
+				.dram_speed_mts = 2400.0,
+				.fabricclk_mhz = 600,
+				.socclk_mhz = 278.0,
+				.dcfclk_mhz = 400.0,
+				.dscclk_mhz = 206.0,
 				.dppclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 1000.0,
-				.dscclk_mhz = 338.0,
-				.dram_speed_mts = 4266.0,
+				.dispclk_mhz = 1015.0,
+				.phyclk_mhz = 600.0,
 			},
 			{
 				.state = 1,
-				.dcfclk_mhz = 810.0,
-				.fabricclk_mhz = 1200.0,
-				.dispclk_mhz = 1015.0,
+				.dram_speed_mts = 2400.0,
+				.fabricclk_mhz = 688,
+				.socclk_mhz = 278.0,
+				.dcfclk_mhz = 400.0,
+				.dscclk_mhz = 206.0,
 				.dppclk_mhz = 1015.0,
+				.dispclk_mhz = 1015.0,
+				.phyclk_mhz = 600.0,
+			},
+			{
+				.state = 2,
+				.dram_speed_mts = 4267.0,
+				.fabricclk_mhz = 1067,
+				.socclk_mhz = 278.0,
+				.dcfclk_mhz = 608.0,
+				.dscclk_mhz = 296.0,
+				.dppclk_mhz = 1015.0,
+				.dispclk_mhz = 1015.0,
 				.phyclk_mhz = 810.0,
-				.socclk_mhz = 1000.0,
+			},
+
+			{
+				.state = 3,
+				.dram_speed_mts = 4267.0,
+				.fabricclk_mhz = 1067,
+				.socclk_mhz = 715.0,
+				.dcfclk_mhz = 676.0,
 				.dscclk_mhz = 338.0,
-				.dram_speed_mts = 4266.0,
-			}
+				.dppclk_mhz = 1015.0,
+				.dispclk_mhz = 1015.0,
+				.phyclk_mhz = 810.0,
+			},
+
+			{
+				.state = 4,
+				.dram_speed_mts = 4267.0,
+				.fabricclk_mhz = 1067,
+				.socclk_mhz = 953.0,
+				.dcfclk_mhz = 810.0,
+				.dscclk_mhz = 338.0,
+				.dppclk_mhz = 1015.0,
+				.dispclk_mhz = 1015.0,
+				.phyclk_mhz = 810.0,
+			},
 		},
 
 	.sr_exit_time_us = 9.0,
@@ -226,7 +260,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_01_soc = {
 	.xfc_bus_transport_time_us = 20,      // ?
 	.xfc_xbuf_latency_tolerance_us = 4,  // ?
 	.use_urgent_burst_bw = 1,            // ?
-	.num_states = 2,
+	.num_states = 5,
 	.do_urgent_latency_adjustment = false,
 	.urgent_latency_adjustment_fabric_clock_component_us = 0,
 	.urgent_latency_adjustment_fabric_clock_reference_mhz = 0,
