@@ -363,8 +363,8 @@ static void destroy_qp(struct hinic_func_to_io *func_to_io,
  * @func_to_io: func to io channel that holds the IO components
  * @base_qpn: base qp number
  * @num_qps: number queue pairs to create
- * @sq_msix_entry: msix entries for sq
- * @rq_msix_entry: msix entries for rq
+ * @sq_msix_entries: msix entries for sq
+ * @rq_msix_entries: msix entries for rq
  *
  * Return 0 - Success, negative - Failure
  **/
