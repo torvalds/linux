@@ -69,6 +69,8 @@ static void i915_restore_display(struct drm_i915_private *dev_priv)
 		I915_WRITE(FBC_CONTROL, dev_priv->regfile.saveFBC_CONTROL);
 
 	intel_vga_redisable(dev_priv);
+
+	intel_gmbus_reset(dev_priv);
 }
 
 int i915_save_state(struct drm_i915_private *dev_priv)
@@ -140,8 +142,6 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 		for (i = 0; i < 3; i++)
 			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
 	}
-
-	intel_gmbus_reset(dev_priv);
 
 	return 0;
 }
