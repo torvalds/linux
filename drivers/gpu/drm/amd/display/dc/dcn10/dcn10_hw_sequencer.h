@@ -194,7 +194,7 @@ void dcn10_get_surface_visual_confirm_color(
 void dcn10_get_hdr_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
-bool dcn10_disconnect_pipes(
+void dcn10_disconnect_pipes(
 		struct dc *dc,
 		struct dc_state *context);
 
