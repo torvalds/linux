@@ -1329,10 +1329,11 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	/*
 	 * for mipi or lvds, when enable compact, the virtual width of raw10/raw12
 	 * needs aligned with :ALIGN(bits_per_pixel * width / 8, 8), if enable 16bit mode
-	 * needs aligned with :ALIGN(bits_per_pixel * width * 2, 8)
+	 * needs aligned with :ALIGN(bits_per_pixel * width * 2, 8), to optimize reading and
+	 * writing of ddr, aliged with 256
 	 */
 	if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact) {
-		channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 8);
+		channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 256);
 	} else {
 		if (fmt->fmt_type == CIF_FMT_TYPE_RAW)
 			channel->virtual_width = ALIGN(channel->width * 2, 8);
@@ -2377,12 +2378,13 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 		}
 
 		/* compact mode need bytesperline 4bytes align,
-		 * align 8 to bring into correspondence with virtual width
+		 * align 8 to bring into correspondence with virtual width.
+		 * to optimize reading and writing of ddr, aliged with 256.
 		 */
 		if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact &&
 		    (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 ||
 		     dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)) {
-			bpl = ALIGN(width * fmt->raw_bpp / 8, 8);
+			bpl = ALIGN(width * fmt->raw_bpp / 8, 256);
 		} else {
 			bpp = rkcif_align_bits_per_pixel(fmt, i);
 			bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
