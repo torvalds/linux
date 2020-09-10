@@ -79,7 +79,7 @@
 #define QM_BASE_CE			QM_ECC_1BIT
 
 #define QM_Q_DEPTH			1024
-
+#define QM_MIN_QNUM                     2
 #define HISI_ACC_SGL_SGE_NR_MAX		255
 
 /* page number for queue file region */
@@ -309,7 +309,7 @@ static inline int q_num_set(const char *val, const struct kernel_param *kp,
 	}
 
 	ret = kstrtou32(val, 10, &n);
-	if (ret || !n || n > q_num)
+	if (ret || n < QM_MIN_QNUM || n > q_num)
 		return -EINVAL;
 
 	return param_set_int(val, kp);
