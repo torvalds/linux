@@ -45,6 +45,8 @@ EXPORT_SYMBOL_GPL(platform_bus);
  * @dev: platform device
  * @type: resource type
  * @num: resource index
+ *
+ * Return: a pointer to the resource or NULL on failure.
  */
 struct resource *platform_get_resource(struct platform_device *dev,
 				       unsigned int type, unsigned int num)
@@ -70,6 +72,9 @@ EXPORT_SYMBOL_GPL(platform_get_resource);
  *        resource management
  * @index: resource index
  * @res: optional output parameter to store a pointer to the obtained resource.
+ *
+ * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
+ * on failure.
  */
 void __iomem *
 devm_platform_get_and_ioremap_resource(struct platform_device *pdev,
@@ -91,6 +96,9 @@ EXPORT_SYMBOL_GPL(devm_platform_get_and_ioremap_resource);
  * @pdev: platform device to use both for memory resource lookup as well as
  *        resource management
  * @index: resource index
+ *
+ * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
+ * on failure.
  */
 void __iomem *devm_platform_ioremap_resource(struct platform_device *pdev,
 					     unsigned int index)
@@ -106,6 +114,9 @@ EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource);
  * @pdev: platform device to use both for memory resource lookup as well as
  *        resource management
  * @index: resource index
+ *
+ * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
+ * on failure.
  */
 void __iomem *devm_platform_ioremap_resource_wc(struct platform_device *pdev,
 						unsigned int index)
@@ -124,6 +135,9 @@ void __iomem *devm_platform_ioremap_resource_wc(struct platform_device *pdev,
  * @pdev: platform device to use both for memory resource lookup as well as
  *	  resource management
  * @name: name of the resource
+ *
+ * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
+ * on failure.
  */
 void __iomem *
 devm_platform_ioremap_resource_byname(struct platform_device *pdev,
