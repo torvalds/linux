@@ -1829,8 +1829,7 @@ static int hns_nic_uc_unsync(struct net_device *netdev,
 
 /**
  * nic_set_multicast_list - set mutl mac address
- * @netdev: net device
- * @p: mac address
+ * @ndev: net device
  *
  * return void
  */
