@@ -549,10 +549,27 @@ static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
 static void scsi_run_queue_async(struct scsi_device *sdev)
 {
 	if (scsi_target(sdev)->single_lun ||
-	    !list_empty(&sdev->host->starved_list))
+	    !list_empty(&sdev->host->starved_list)) {
 		kblockd_schedule_work(&sdev->requeue_work);
-	else
-		blk_mq_run_hw_queues(sdev->request_queue, true);
+	} else {
+		/*
+		 * smp_mb() present in sbitmap_queue_clear() or implied in
+		 * .end_io is for ordering writing .device_busy in
+		 * scsi_device_unbusy() and reading sdev->restarts.
+		 */
+		int old = atomic_read(&sdev->restarts);
+
+		/*
+		 * ->restarts has to be kept as non-zero if new budget
+		 *  contention occurs.
+		 *
+		 *  No need to run queue when either another re-run
+		 *  queue wins in updating ->restarts or a new budget
+		 *  contention occurs.
+		 */
+		if (old && atomic_cmpxchg(&sdev->restarts, old, 0) == old)
+			blk_mq_run_hw_queues(sdev->request_queue, true);
+	}
 }
 
 /* Returns false when no more bytes to process, true if there are more */
@@ -1612,7 +1629,30 @@ static bool scsi_mq_get_budget(struct request_queue *q)
 {
 	struct scsi_device *sdev = q->queuedata;
 
-	return scsi_dev_queue_ready(q, sdev);
+	if (scsi_dev_queue_ready(q, sdev))
+		return true;
+
+	atomic_inc(&sdev->restarts);
+
+	/*
+	 * Orders atomic_inc(&sdev->restarts) and atomic_read(&sdev->device_busy).
+	 * .restarts must be incremented before .device_busy is read because the
+	 * code in scsi_run_queue_async() depends on the order of these operations.
+	 */
+	smp_mb__after_atomic();
+
+	/*
+	 * If all in-flight requests originated from this LUN are completed
+	 * before reading .device_busy, sdev->device_busy will be observed as
+	 * zero, then blk_mq_delay_run_hw_queues() will dispatch this request
+	 * soon. Otherwise, completion of one of these requests will observe
+	 * the .restarts flag, and the request queue will be run for handling
+	 * this request, see scsi_end_request().
+	 */
+	if (unlikely(atomic_read(&sdev->device_busy) == 0 &&
+				!scsi_device_blocked(sdev)))
+		blk_mq_delay_run_hw_queues(sdev->request_queue, SCSI_QUEUE_DELAY);
+	return false;
 }
 
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
