@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+
+export CFLAGS_UBSAN :=
+
 ifdef CONFIG_UBSAN_ALIGNMENT
       CFLAGS_UBSAN += $(call cc-option, -fsanitize=alignment)
 endif
