@@ -1294,6 +1294,11 @@ static const struct of_device_id bcm_qspi_of_match[] = {
 		.data = &bcm_qspi_no_rev_data,
 	},
 	{
+		.compatible = "brcm,spi-bcm7445-qspi",
+		.data = &bcm_qspi_rev_data,
+
+	},
+	{
 		.compatible = "brcm,spi-bcm-qspi",
 		.data = &bcm_qspi_rev_data,
 	},
