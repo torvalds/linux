@@ -528,7 +528,7 @@ end:
 
 /*
  * Argument syntax:
- *  - Add uprobe: p|r[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS]
+ *  - Add uprobe: p|r[:[GRP/]EVENT] PATH:OFFSET[%return][(REF)] [FETCHARGS]
  */
 static int trace_uprobe_create(int argc, const char **argv)
 {
@@ -613,6 +613,19 @@ static int trace_uprobe_create(int argc, const char **argv)
 		ret = kstrtoul(rctr, 0, &ref_ctr_offset);
 		if (ret) {
 			trace_probe_log_err(rctr - filename, BAD_REFCNT);
+			goto fail_address_parse;
+		}
+	}
+
+	/* Check if there is %return suffix */
+	tmp = strchr(arg, '%');
+	if (tmp) {
+		if (!strcmp(tmp, "%return")) {
+			*tmp = '\0';
+			is_return = true;
+		} else {
+			trace_probe_log_err(tmp - filename, BAD_ADDR_SUFFIX);
+			ret = -EINVAL;
 			goto fail_address_parse;
 		}
 	}
