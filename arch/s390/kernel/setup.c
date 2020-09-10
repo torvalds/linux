@@ -586,11 +586,15 @@ static void __init setup_memory_end(void)
 	/* Take care that memory_end is set and <= vmemmap */
 	memory_end = min(memory_end ?: max_physmem_end, (unsigned long)vmemmap);
 #ifdef CONFIG_KASAN
-	/* fit in kasan shadow memory region between 1:1 and vmemmap */
 	memory_end = min(memory_end, KASAN_SHADOW_START);
-	vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
 #endif
 	vmemmap_size = SECTION_ALIGN_UP(memory_end / PAGE_SIZE) * sizeof(struct page);
+#ifdef CONFIG_KASAN
+	/* move vmemmap above kasan shadow only if stands in a way */
+	if (KASAN_SHADOW_END > (unsigned long)vmemmap &&
+	    (unsigned long)vmemmap + vmemmap_size > KASAN_SHADOW_START)
+		vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
+#endif
 	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
 	memblock_remove(memory_end, ULONG_MAX);
 
