@@ -53,6 +53,9 @@
 #define RK3288_LVDS_CON_CLKINV(x)	HIWORD_UPDATE(x,  8,  8)
 #define RK3288_LVDS_CON_TTL_EN(x)	HIWORD_UPDATE(x,  6,  6)
 
+#define RK3568_GRF_VO_CON1		0X0364
+#define RK3568_RGB_DATA_BYPASS(v)	HIWORD_UPDATE(v, 6, 6)
+
 struct rockchip_rgb;
 
 struct rockchip_rgb_funcs {
@@ -433,6 +436,16 @@ static const struct rockchip_rgb_funcs rk3288_rgb_funcs = {
 	.disable = rk3288_rgb_disable,
 };
 
+static void rk3568_rgb_enable(struct rockchip_rgb *rgb)
+{
+	regmap_write(rgb->grf, RK3568_GRF_VO_CON1,
+		     RK3568_RGB_DATA_BYPASS(rgb->data_sync_bypass));
+}
+
+static const struct rockchip_rgb_funcs rk3568_rgb_funcs = {
+	.enable = rk3568_rgb_enable,
+};
+
 static void rv1126_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RV1126_GRF_IOFUNC_CON3,
@@ -451,6 +464,7 @@ static const struct of_device_id rockchip_rgb_dt_ids[] = {
 	{ .compatible = "rockchip,rk3288-rgb", .data = &rk3288_rgb_funcs },
 	{ .compatible = "rockchip,rk3308-rgb", },
 	{ .compatible = "rockchip,rk3368-rgb", },
+	{ .compatible = "rockchip,rk3568-rgb", .data = &rk3568_rgb_funcs },
 	{ .compatible = "rockchip,rv1108-rgb", },
 	{ .compatible = "rockchip,rv1126-rgb", .data = &rv1126_rgb_funcs},
 	{}
