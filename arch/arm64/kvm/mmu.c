@@ -779,16 +779,25 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	else
 		vma_shift = PAGE_SHIFT;
 
-	vma_pagesize = 1ULL << vma_shift;
 	if (logging_active ||
-	    (vma->vm_flags & VM_PFNMAP) ||
-	    !fault_supports_stage2_huge_mapping(memslot, hva, vma_pagesize)) {
+	    (vma->vm_flags & VM_PFNMAP)) {
 		force_pte = true;
-		vma_pagesize = PAGE_SIZE;
+		vma_shift = PAGE_SHIFT;
 	}
 
+	if (vma_shift == PUD_SHIFT &&
+	    !fault_supports_stage2_huge_mapping(memslot, hva, PUD_SIZE))
+	       vma_shift = PMD_SHIFT;
+
+	if (vma_shift == PMD_SHIFT &&
+	    !fault_supports_stage2_huge_mapping(memslot, hva, PMD_SIZE)) {
+		force_pte = true;
+		vma_shift = PAGE_SHIFT;
+	}
+
+	vma_pagesize = 1UL << vma_shift;
 	if (vma_pagesize == PMD_SIZE || vma_pagesize == PUD_SIZE)
-		fault_ipa &= huge_page_mask(hstate_vma(vma));
+		fault_ipa &= ~(vma_pagesize - 1);
 
 	gfn = fault_ipa >> PAGE_SHIFT;
 	mmap_read_unlock(current->mm);
