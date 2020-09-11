@@ -230,6 +230,38 @@ static int gve_user_reset(struct net_device *netdev, u32 *flags)
 	return -EOPNOTSUPP;
 }
 
+static int gve_get_tunable(struct net_device *netdev,
+			   const struct ethtool_tunable *etuna, void *value)
+{
+	struct gve_priv *priv = netdev_priv(netdev);
+
+	switch (etuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)value = priv->rx_copybreak;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int gve_set_tunable(struct net_device *netdev,
+			   const struct ethtool_tunable *etuna, const void *value)
+{
+	struct gve_priv *priv = netdev_priv(netdev);
+	u32 len;
+
+	switch (etuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		len = *(u32 *)value;
+		if (len > PAGE_SIZE / 2)
+			return -EINVAL;
+		priv->rx_copybreak = len;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 const struct ethtool_ops gve_ethtool_ops = {
 	.get_drvinfo = gve_get_drvinfo,
 	.get_strings = gve_get_strings,
@@ -242,4 +274,6 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = gve_get_ringparam,
 	.reset = gve_user_reset,
+	.get_tunable = gve_get_tunable,
+	.set_tunable = gve_set_tunable,
 };
