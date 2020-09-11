@@ -1003,14 +1003,14 @@ static void init_vmcb(struct vcpu_svm *svm)
 
 	svm->vcpu.arch.hflags = 0;
 
-	set_cr_intercept(svm, INTERCEPT_CR0_READ);
-	set_cr_intercept(svm, INTERCEPT_CR3_READ);
-	set_cr_intercept(svm, INTERCEPT_CR4_READ);
-	set_cr_intercept(svm, INTERCEPT_CR0_WRITE);
-	set_cr_intercept(svm, INTERCEPT_CR3_WRITE);
-	set_cr_intercept(svm, INTERCEPT_CR4_WRITE);
+	svm_set_intercept(svm, INTERCEPT_CR0_READ);
+	svm_set_intercept(svm, INTERCEPT_CR3_READ);
+	svm_set_intercept(svm, INTERCEPT_CR4_READ);
+	svm_set_intercept(svm, INTERCEPT_CR0_WRITE);
+	svm_set_intercept(svm, INTERCEPT_CR3_WRITE);
+	svm_set_intercept(svm, INTERCEPT_CR4_WRITE);
 	if (!kvm_vcpu_apicv_active(&svm->vcpu))
-		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
+		svm_set_intercept(svm, INTERCEPT_CR8_WRITE);
 
 	set_dr_intercepts(svm);
 
@@ -1105,8 +1105,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 		control->nested_ctl |= SVM_NESTED_CTL_NP_ENABLE;
 		svm_clr_intercept(svm, INTERCEPT_INVLPG);
 		clr_exception_intercept(svm, PF_VECTOR);
-		clr_cr_intercept(svm, INTERCEPT_CR3_READ);
-		clr_cr_intercept(svm, INTERCEPT_CR3_WRITE);
+		svm_clr_intercept(svm, INTERCEPT_CR3_READ);
+		svm_clr_intercept(svm, INTERCEPT_CR3_WRITE);
 		save->g_pat = svm->vcpu.arch.pat;
 		save->cr3 = 0;
 		save->cr4 = 0;
@@ -1548,11 +1548,11 @@ static void update_cr0_intercept(struct vcpu_svm *svm)
 	vmcb_mark_dirty(svm->vmcb, VMCB_CR);
 
 	if (gcr0 == *hcr0) {
-		clr_cr_intercept(svm, INTERCEPT_CR0_READ);
-		clr_cr_intercept(svm, INTERCEPT_CR0_WRITE);
+		svm_clr_intercept(svm, INTERCEPT_CR0_READ);
+		svm_clr_intercept(svm, INTERCEPT_CR0_WRITE);
 	} else {
-		set_cr_intercept(svm, INTERCEPT_CR0_READ);
-		set_cr_intercept(svm, INTERCEPT_CR0_WRITE);
+		svm_set_intercept(svm, INTERCEPT_CR0_READ);
+		svm_set_intercept(svm, INTERCEPT_CR0_WRITE);
 	}
 }
 
@@ -2931,7 +2931,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 
 	trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);
 
-	if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))
+	if (!svm_is_intercept(svm, INTERCEPT_CR0_WRITE))
 		vcpu->arch.cr0 = svm->vmcb->save.cr0;
 	if (npt_enabled)
 		vcpu->arch.cr3 = svm->vmcb->save.cr3;
@@ -3054,13 +3054,13 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 	if (nested_svm_virtualize_tpr(vcpu))
 		return;
 
-	clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
+	svm_clr_intercept(svm, INTERCEPT_CR8_WRITE);
 
 	if (irr == -1)
 		return;
 
 	if (tpr >= irr)
-		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
+		svm_set_intercept(svm, INTERCEPT_CR8_WRITE);
 }
 
 bool svm_nmi_blocked(struct kvm_vcpu *vcpu)
@@ -3248,7 +3248,7 @@ static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
 	if (nested_svm_virtualize_tpr(vcpu))
 		return;
 
-	if (!is_cr_intercept(svm, INTERCEPT_CR8_WRITE)) {
+	if (!svm_is_intercept(svm, INTERCEPT_CR8_WRITE)) {
 		int cr8 = svm->vmcb->control.int_ctl & V_TPR_MASK;
 		kvm_set_cr8(vcpu, cr8);
 	}
