@@ -1304,6 +1304,7 @@ static void efx_ef10_fini_nic(struct efx_nic *efx)
 static int efx_ef10_init_nic(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	netdev_features_t hw_enc_features = 0;
 	int rc;
 
 	if (nic_data->must_check_datapath_caps) {
@@ -1347,6 +1348,21 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 				  "failed to restore PIO buffers (%d)\n", rc);
 		nic_data->must_restore_piobufs = false;
 	}
+
+	/* add encapsulated checksum offload features */
+	if (efx_has_cap(efx, VXLAN_NVGRE) && !efx_ef10_is_vf(efx))
+		hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	/* add encapsulated TSO features */
+	if (efx_has_cap(efx, TX_TSO_V2_ENCAP)) {
+		netdev_features_t encap_tso_features;
+
+		encap_tso_features = NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
+			NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM;
+
+		hw_enc_features |= encap_tso_features | NETIF_F_TSO;
+		efx->net_dev->features |= encap_tso_features;
+	}
+	efx->net_dev->hw_enc_features = hw_enc_features;
 
 	/* don't fail init if RSS setup doesn't work */
 	rc = efx->type->rx_push_rss_config(efx, false,
