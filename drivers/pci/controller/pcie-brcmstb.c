@@ -83,6 +83,7 @@
 
 #define PCIE_MISC_PCIE_CTRL				0x4064
 #define  PCIE_MISC_PCIE_CTRL_PCIE_L23_REQUEST_MASK	0x1
+#define PCIE_MISC_PCIE_CTRL_PCIE_PERSTB_MASK		0x4
 
 #define PCIE_MISC_PCIE_STATUS				0x4068
 #define  PCIE_MISC_PCIE_STATUS_PCIE_PORT_MASK		0x80
@@ -125,6 +126,11 @@
 #define  PCIE_RGR1_SW_INIT_1_PERST_MASK			0x1
 #define  PCIE_RGR1_SW_INIT_1_PERST_SHIFT		0x0
 
+#define RGR1_SW_INIT_1_INIT_GENERIC_MASK		0x2
+#define RGR1_SW_INIT_1_INIT_GENERIC_SHIFT		0x1
+#define RGR1_SW_INIT_1_INIT_7278_MASK			0x1
+#define RGR1_SW_INIT_1_INIT_7278_SHIFT			0x0
+
 /* PCIe parameters */
 #define BRCM_NUM_PCIE_OUT_WINS		0x4
 #define BRCM_INT_PCI_MSI_NR		32
@@ -157,6 +163,23 @@
 #define DATA_ADDR(pcie)			(pcie->reg_offsets[EXT_CFG_DATA])
 #define PCIE_RGR1_SW_INIT_1(pcie)	(pcie->reg_offsets[RGR1_SW_INIT_1])
 
+/* Rescal registers */
+#define PCIE_DVT_PMU_PCIE_PHY_CTRL				0xc700
+#define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_NFLDS			0x3
+#define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_DIG_RESET_MASK		0x4
+#define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_DIG_RESET_SHIFT	0x2
+#define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_RESET_MASK		0x2
+#define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_RESET_SHIFT		0x1
+#define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_PWRDN_MASK		0x1
+#define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_PWRDN_SHIFT		0x0
+
+/* Forward declarations */
+struct brcm_pcie;
+static inline void brcm_pcie_bridge_sw_init_set_7278(struct brcm_pcie *pcie, u32 val);
+static inline void brcm_pcie_bridge_sw_init_set_generic(struct brcm_pcie *pcie, u32 val);
+static inline void brcm_pcie_perst_set_7278(struct brcm_pcie *pcie, u32 val);
+static inline void brcm_pcie_perst_set_generic(struct brcm_pcie *pcie, u32 val);
+
 enum {
 	RGR1_SW_INIT_1,
 	EXT_CFG_INDEX,
@@ -175,19 +198,10 @@ enum pcie_type {
 };
 
 struct pcie_cfg_data {
-	const int *reg_field_info;
 	const int *offsets;
 	const enum pcie_type type;
-};
-
-static const int pcie_reg_field_info[] = {
-	[RGR1_SW_INIT_1_INIT_MASK] = 0x2,
-	[RGR1_SW_INIT_1_INIT_SHIFT] = 0x1,
-};
-
-static const int pcie_reg_field_info_bcm7278[] = {
-	[RGR1_SW_INIT_1_INIT_MASK] = 0x1,
-	[RGR1_SW_INIT_1_INIT_SHIFT] = 0x0,
+	void (*perst_set)(struct brcm_pcie *pcie, u32 val);
+	void (*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
 };
 
 static const int pcie_offsets[] = {
@@ -197,9 +211,10 @@ static const int pcie_offsets[] = {
 };
 
 static const struct pcie_cfg_data generic_cfg = {
-	.reg_field_info	= pcie_reg_field_info,
 	.offsets	= pcie_offsets,
 	.type		= GENERIC,
+	.perst_set	= brcm_pcie_perst_set_generic,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 };
 
 static const int pcie_offset_bcm7278[] = {
@@ -209,15 +224,17 @@ static const int pcie_offset_bcm7278[] = {
 };
 
 static const struct pcie_cfg_data bcm7278_cfg = {
-	.reg_field_info = pcie_reg_field_info_bcm7278,
 	.offsets	= pcie_offset_bcm7278,
 	.type		= BCM7278,
+	.perst_set	= brcm_pcie_perst_set_7278,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_7278,
 };
 
 static const struct pcie_cfg_data bcm2711_cfg = {
-	.reg_field_info	= pcie_reg_field_info,
 	.offsets	= pcie_offsets,
 	.type		= BCM2711,
+	.perst_set	= brcm_pcie_perst_set_generic,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 };
 
 struct brcm_msi {
@@ -244,8 +261,13 @@ struct brcm_pcie {
 	u64			msi_target_addr;
 	struct brcm_msi		*msi;
 	const int		*reg_offsets;
-	const int		*reg_field_info;
 	enum pcie_type		type;
+	struct reset_control	*rescal;
+	int			num_memc;
+	u64			memc_size[PCIE_BRCM_MAX_MEMC];
+	u32			hw_rev;
+	void			(*perst_set)(struct brcm_pcie *pcie, u32 val);
+	void			(*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
 };
 
 /*
@@ -670,17 +692,37 @@ static struct pci_ops brcm_pcie_ops = {
 	.write = pci_generic_config_write,
 };
 
-static inline void brcm_pcie_bridge_sw_init_set(struct brcm_pcie *pcie, u32 val)
+static inline void brcm_pcie_bridge_sw_init_set_generic(struct brcm_pcie *pcie, u32 val)
 {
-	u32 tmp, mask =  pcie->reg_field_info[RGR1_SW_INIT_1_INIT_MASK];
-	u32 shift = pcie->reg_field_info[RGR1_SW_INIT_1_INIT_SHIFT];
+	u32 tmp, mask =  RGR1_SW_INIT_1_INIT_GENERIC_MASK;
+	u32 shift = RGR1_SW_INIT_1_INIT_GENERIC_SHIFT;
 
 	tmp = readl(pcie->base + PCIE_RGR1_SW_INIT_1(pcie));
 	tmp = (tmp & ~mask) | ((val << shift) & mask);
 	writel(tmp, pcie->base + PCIE_RGR1_SW_INIT_1(pcie));
 }
 
-static inline void brcm_pcie_perst_set(struct brcm_pcie *pcie, u32 val)
+static inline void brcm_pcie_bridge_sw_init_set_7278(struct brcm_pcie *pcie, u32 val)
+{
+	u32 tmp, mask =  RGR1_SW_INIT_1_INIT_7278_MASK;
+	u32 shift = RGR1_SW_INIT_1_INIT_7278_SHIFT;
+
+	tmp = readl(pcie->base + PCIE_RGR1_SW_INIT_1(pcie));
+	tmp = (tmp & ~mask) | ((val << shift) & mask);
+	writel(tmp, pcie->base + PCIE_RGR1_SW_INIT_1(pcie));
+}
+
+static inline void brcm_pcie_perst_set_7278(struct brcm_pcie *pcie, u32 val)
+{
+	u32 tmp;
+
+	/* Perst bit has moved and assert value is 0 */
+	tmp = readl(pcie->base + PCIE_MISC_PCIE_CTRL);
+	u32p_replace_bits(&tmp, !val, PCIE_MISC_PCIE_CTRL_PCIE_PERSTB_MASK);
+	writel(tmp, pcie->base +  PCIE_MISC_PCIE_CTRL);
+}
+
+static inline void brcm_pcie_perst_set_generic(struct brcm_pcie *pcie, u32 val)
 {
 	u32 tmp;
 
@@ -770,13 +812,11 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	u32 tmp, aspm_support;
 
 	/* Reset the bridge */
-	brcm_pcie_bridge_sw_init_set(pcie, 1);
-	brcm_pcie_perst_set(pcie, 1);
-
+	pcie->bridge_sw_init_set(pcie, 1);
 	usleep_range(100, 200);
 
 	/* Take the bridge out of reset */
-	brcm_pcie_bridge_sw_init_set(pcie, 0);
+	pcie->bridge_sw_init_set(pcie, 0);
 
 	tmp = readl(base + PCIE_MISC_HARD_PCIE_HARD_DEBUG);
 	tmp &= ~PCIE_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK;
@@ -842,7 +882,7 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 		brcm_pcie_set_gen(pcie, pcie->gen);
 
 	/* Unassert the fundamental reset */
-	brcm_pcie_perst_set(pcie, 0);
+	pcie->perst_set(pcie, 0);
 
 	/*
 	 * Give the RC/EP time to wake up, before trying to configure RC.
@@ -962,7 +1002,7 @@ static void brcm_pcie_turn_off(struct brcm_pcie *pcie)
 	if (brcm_pcie_link_up(pcie))
 		brcm_pcie_enter_l23(pcie);
 	/* Assert fundamental reset */
-	brcm_pcie_perst_set(pcie, 1);
+	pcie->perst_set(pcie, 1);
 
 	/* Deassert request for L23 in case it was asserted */
 	tmp = readl(base + PCIE_MISC_PCIE_CTRL);
@@ -975,7 +1015,7 @@ static void brcm_pcie_turn_off(struct brcm_pcie *pcie)
 	writel(tmp, base + PCIE_MISC_HARD_PCIE_HARD_DEBUG);
 
 	/* Shutdown PCIe bridge */
-	brcm_pcie_bridge_sw_init_set(pcie, 1);
+	pcie->bridge_sw_init_set(pcie, 1);
 }
 
 static int brcm_pcie_suspend(struct device *dev)
@@ -999,7 +1039,7 @@ static int brcm_pcie_resume(struct device *dev)
 	clk_prepare_enable(pcie->clk);
 
 	/* Take bridge out of reset so we can access the SERDES reg */
-	brcm_pcie_bridge_sw_init_set(pcie, 0);
+	pcie->bridge_sw_init_set(pcie, 0);
 
 	/* SERDES_IDDQ = 0 */
 	tmp = readl(base + PCIE_MISC_HARD_PCIE_HARD_DEBUG);
@@ -1080,8 +1120,9 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 	pcie->dev = &pdev->dev;
 	pcie->np = np;
 	pcie->reg_offsets = data->offsets;
-	pcie->reg_field_info = data->reg_field_info;
 	pcie->type = data->type;
+	pcie->perst_set = data->perst_set;
+	pcie->bridge_sw_init_set = data->bridge_sw_init_set;
 
 	pcie->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pcie->base))
