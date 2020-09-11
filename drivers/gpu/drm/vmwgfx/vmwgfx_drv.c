@@ -627,8 +627,8 @@ static int vmw_vram_manager_init(struct vmw_private *dev_priv)
 	ret = vmw_thp_init(dev_priv);
 #else
 	ret = ttm_range_man_init(&dev_priv->bdev, TTM_PL_VRAM,
-				 TTM_PL_FLAG_CACHED, TTM_PL_FLAG_CACHED,
-				 false, dev_priv->vram_size >> PAGE_SHIFT);
+				 TTM_PL_FLAG_CACHED, false,
+				 dev_priv->vram_size >> PAGE_SHIFT);
 #endif
 	ttm_resource_manager_set_used(ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM), false);
 	return ret;

@@ -876,8 +876,6 @@ static uint32_t ttm_bo_select_caching(struct ttm_resource_manager *man,
 
 	if ((cur_placement & caching) != 0)
 		result |= (cur_placement & caching);
-	else if ((man->default_caching & caching) != 0)
-		result |= man->default_caching;
 	else if ((TTM_PL_FLAG_CACHED & caching) != 0)
 		result |= TTM_PL_FLAG_CACHED;
 	else if ((TTM_PL_FLAG_WC & caching) != 0)
@@ -1435,7 +1433,6 @@ static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
 	 */
 	man->use_tt = true;
 	man->available_caching = TTM_PL_MASK_CACHING;
-	man->default_caching = TTM_PL_FLAG_CACHED;
 
 	ttm_resource_manager_init(man, 0);
 	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, man);

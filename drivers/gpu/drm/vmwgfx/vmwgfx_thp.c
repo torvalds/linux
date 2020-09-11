@@ -132,7 +132,6 @@ int vmw_thp_init(struct vmw_private *dev_priv)
 
 	man = &rman->manager;
 	man->available_caching = TTM_PL_FLAG_CACHED;
-	man->default_caching = TTM_PL_FLAG_CACHED;
 
 	ttm_resource_manager_init(man,
 				  dev_priv->vram_size >> PAGE_SHIFT);

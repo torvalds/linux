@@ -203,7 +203,7 @@ static int qxl_ttm_init_mem_type(struct qxl_device *qdev,
 				 uint64_t size)
 {
 	return ttm_range_man_init(&qdev->mman.bdev, type, TTM_PL_MASK_CACHING,
-				  TTM_PL_FLAG_CACHED, false, size);
+				  false, size);
 }
 
 int qxl_ttm_init(struct qxl_device *qdev)

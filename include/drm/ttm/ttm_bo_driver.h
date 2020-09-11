@@ -690,7 +690,6 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
  * @bdev: ttm device
  * @type: memory manager type
  * @available_caching: TTM_PL_FLAG_* for allowed caching modes
- * @default_caching: default caching mode
  * @use_tt: if the memory manager uses tt
  * @p_size: size of area to be managed in pages.
  *
@@ -700,7 +699,6 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 int ttm_range_man_init(struct ttm_bo_device *bdev,
 		       unsigned type,
 		       uint32_t available_caching,
-		       uint32_t default_caching,
 		       bool use_tt,
 		       unsigned long p_size);
 

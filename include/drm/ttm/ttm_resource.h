@@ -110,8 +110,6 @@ struct ttm_resource_manager_func {
  * @size: Size of the managed region.
  * @available_caching: A mask of available caching types, TTM_PL_FLAG_XX,
  * as defined in ttm_placement_common.h
- * @default_caching: The default caching policy used for a buffer object
- * placed in this memory type if the user doesn't provide one.
  * @func: structure pointer implementing the range manager. See above
  * @move_lock: lock for move fence
  * static information. bdev::driver::io_mem_free is never used.
@@ -128,7 +126,6 @@ struct ttm_resource_manager {
 	bool use_tt;
 	uint64_t size;
 	uint32_t available_caching;
-	uint32_t default_caching;
 	const struct ttm_resource_manager_func *func;
 	spinlock_t move_lock;
 

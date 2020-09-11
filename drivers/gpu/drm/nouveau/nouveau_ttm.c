@@ -203,12 +203,9 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 			return -ENOMEM;
 
 		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
-		man->default_caching = TTM_PL_FLAG_WC;
 
-		if (type & NVIF_MEM_UNCACHED) {
+		if (type & NVIF_MEM_UNCACHED)
 			man->available_caching = TTM_PL_FLAG_UNCACHED;
-			man->default_caching = TTM_PL_FLAG_UNCACHED;
-		}
 
 		man->func = &nouveau_vram_manager;
 
@@ -220,7 +217,7 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 	} else {
 		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_VRAM,
 					  TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC,
-					  TTM_PL_FLAG_WC, false,
+					  false,
 					  drm->gem.vram_available >> PAGE_SHIFT);
 	}
 }
@@ -245,16 +242,14 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 {
 	struct ttm_resource_manager *man;
 	unsigned long size_pages = drm->gem.gart_available >> PAGE_SHIFT;
-	unsigned available_caching, default_caching;
 	const struct ttm_resource_manager_func *func = NULL;
-	if (drm->agp.bridge) {
+	unsigned available_caching;
+
+	if (drm->agp.bridge)
 		available_caching = TTM_PL_FLAG_UNCACHED |
 			TTM_PL_FLAG_WC;
-		default_caching = TTM_PL_FLAG_WC;
-	} else {
+	else
 		available_caching = TTM_PL_MASK_CACHING;
-		default_caching = TTM_PL_FLAG_CACHED;
-	}
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		func = &nouveau_gart_manager;
@@ -262,8 +257,7 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 		func = &nv04_gart_manager;
 	else
 		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_TT,
-					  available_caching, default_caching,
-					  true,
+					  available_caching, true,
 					  size_pages);
 
 	man = kzalloc(sizeof(*man), GFP_KERNEL);
@@ -272,7 +266,6 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 
 	man->func = func;
 	man->available_caching = available_caching;
-	man->default_caching = default_caching;
 	man->use_tt = true;
 	ttm_resource_manager_init(man, size_pages);
 	ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, man);

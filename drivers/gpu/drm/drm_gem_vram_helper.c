@@ -1058,8 +1058,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 
 	ret = ttm_range_man_init(&vmm->bdev, TTM_PL_VRAM,
 				 TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC,
-				 TTM_PL_FLAG_WC, false,
-				 vram_size >> PAGE_SHIFT);
+				 false, vram_size >> PAGE_SHIFT);
 	if (ret)
 		return ret;
 

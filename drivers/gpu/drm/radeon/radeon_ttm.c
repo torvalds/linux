@@ -70,16 +70,14 @@ static int radeon_ttm_init_vram(struct radeon_device *rdev)
 {
 	return ttm_range_man_init(&rdev->mman.bdev, TTM_PL_VRAM,
 				  TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC,
-				  TTM_PL_FLAG_WC, false,
-				  rdev->mc.real_vram_size >> PAGE_SHIFT);
+				  false, rdev->mc.real_vram_size >> PAGE_SHIFT);
 }
 
 static int radeon_ttm_init_gtt(struct radeon_device *rdev)
 {
 	return ttm_range_man_init(&rdev->mman.bdev, TTM_PL_TT,
 				  TTM_PL_MASK_CACHING,
-				  TTM_PL_FLAG_CACHED, true,
-				  rdev->mc.gtt_size >> PAGE_SHIFT);
+				  true, rdev->mc.gtt_size >> PAGE_SHIFT);
 }
 
 static void radeon_evict_flags(struct ttm_buffer_object *bo,

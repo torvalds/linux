@@ -115,7 +115,6 @@ static const struct ttm_resource_manager_func ttm_range_manager_func;
 int ttm_range_man_init(struct ttm_bo_device *bdev,
 		       unsigned type,
 		       uint32_t available_caching,
-		       uint32_t default_caching,
 		       bool use_tt,
 		       unsigned long p_size)
 {
@@ -128,7 +127,6 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 
 	man = &rman->manager;
 	man->available_caching = available_caching;
-	man->default_caching = default_caching;
 	man->use_tt = use_tt;
 
 	man->func = &ttm_range_manager_func;

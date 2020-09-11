@@ -141,7 +141,6 @@ void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 	drm_printf(p, "  use_tt: %d\n", man->use_tt);
 	drm_printf(p, "  size: %llu\n", man->size);
 	drm_printf(p, "  available_caching: 0x%08X\n", man->available_caching);
-	drm_printf(p, "  default_caching: 0x%08X\n", man->default_caching);
 	if (man->func && man->func->debug)
 		(*man->func->debug)(man, p);
 }
