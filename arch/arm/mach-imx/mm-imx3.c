@@ -21,7 +21,6 @@
 #include "crmregs-imx3.h"
 #include "devices/devices-common.h"
 #include "hardware.h"
-#include "iomux-v3.h"
 
 void __iomem *mx3_ccm_base;
 
@@ -140,7 +139,6 @@ static void imx35_idle(void)
 void __init imx35_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX35);
-	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
 	arm_pm_idle = imx35_idle;
 	arch_ioremap_caller = imx3_ioremap_caller;
 	mx3_ccm_base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);

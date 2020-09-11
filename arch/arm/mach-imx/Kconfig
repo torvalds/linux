@@ -47,9 +47,6 @@ config HAVE_IMX_SRC
 	def_bool y if SMP
 	select ARCH_HAS_RESET_CONTROLLER
 
-config ARCH_MXC_IOMUX_V3
-	bool
-
 if ARCH_MULTI_V6
 
 comment "ARM1136 platforms"
@@ -63,7 +60,6 @@ config SOC_IMX31
 
 config SOC_IMX35
 	bool "i.MX35 support"
-	select ARCH_MXC_IOMUX_V3
 	select MXC_AVIC
 	select PINCTRL_IMX35
 	help
@@ -87,7 +83,6 @@ if ARCH_MULTI_V5
 
 config SOC_IMX25
 	bool "i.MX25 support"
-	select ARCH_MXC_IOMUX_V3
 	select CPU_ARM926T
 	select MXC_AVIC
 	select PINCTRL_IMX25
