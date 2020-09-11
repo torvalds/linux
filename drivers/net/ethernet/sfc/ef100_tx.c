@@ -27,7 +27,6 @@ int ef100_tx_probe(struct efx_tx_queue *tx_queue)
 				    (tx_queue->ptr_mask + 2) *
 				    sizeof(efx_oword_t),
 				    GFP_KERNEL);
-	return 0;
 }
 
 void ef100_tx_init(struct efx_tx_queue *tx_queue)
