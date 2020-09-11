@@ -405,7 +405,7 @@ F:	drivers/platform/x86/i2c-multi-instantiate.c
 ACPI PMIC DRIVERS
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Len Brown <lenb@kernel.org>
-R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+R:	Andy Shevchenko <andy@kernel.org>
 R:	Mika Westerberg <mika.westerberg@linux.intel.com>
 L:	linux-acpi@vger.kernel.org
 S:	Supported
@@ -8944,7 +8944,7 @@ F:	drivers/gpio/gpio-*cove.c
 F:	drivers/gpio/gpio-msic.c
 
 INTEL PMIC MULTIFUNCTION DEVICE DRIVERS
-R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+M:	Andy Shevchenko <andy@kernel.org>
 S:	Maintained
 F:	drivers/mfd/intel_msic.c
 F:	drivers/mfd/intel_soc_pmic*
