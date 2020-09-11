@@ -505,8 +505,7 @@ static void efx_filter_rfs_expire(struct work_struct *data)
 #endif
 
 /* Allocate and initialise a channel structure. */
-struct efx_channel *
-efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
+static struct efx_channel *efx_alloc_channel(struct efx_nic *efx, int i)
 {
 	struct efx_rx_queue *rx_queue;
 	struct efx_tx_queue *tx_queue;
@@ -545,7 +544,7 @@ int efx_init_channels(struct efx_nic *efx)
 	unsigned int i;
 
 	for (i = 0; i < EFX_MAX_CHANNELS; i++) {
-		efx->channel[i] = efx_alloc_channel(efx, i, NULL);
+		efx->channel[i] = efx_alloc_channel(efx, i);
 		if (!efx->channel[i])
 			return -ENOMEM;
 		efx->msi_context[i].efx = efx;

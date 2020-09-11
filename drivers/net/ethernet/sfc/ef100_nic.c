@@ -1200,10 +1200,6 @@ static int ef100_probe_main(struct efx_nic *efx)
 	if (rc)
 		goto fail;
 
-	rc = efx_init_channels(efx);
-	if (rc)
-		goto fail;
-
 	down_write(&efx->filter_sem);
 	rc = ef100_filter_table_probe(efx);
 	up_write(&efx->filter_sem);
