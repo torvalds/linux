@@ -247,6 +247,7 @@ config ARCH_R8A77970
 config ARCH_R8A779A0
 	bool "ARM64 Platform support for R-Car V3U"
 	select ARCH_RCAR_GEN3
+	select SYSC_R8A779A0
 	help
 	  This enables support for the Renesas R-Car V3U SoC.
 
@@ -337,6 +338,9 @@ config SYSC_R8A77980
 config SYSC_R8A77970
 	bool "System Controller support for R-Car V3M" if COMPILE_TEST
 	select SYSC_RCAR
+
+config SYSC_R8A779A0
+	bool "System Controller support for R-Car V3U" if COMPILE_TEST
 
 config SYSC_RMOBILE
 	bool "System Controller support for R-Mobile" if COMPILE_TEST
