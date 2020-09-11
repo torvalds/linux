@@ -5,6 +5,7 @@
 
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/mm.h>
@@ -58,7 +59,13 @@ static void __init imx27_init_early(void)
 
 static void __init mx27_init_irq(void)
 {
-	mxc_init_irq(MX27_IO_ADDRESS(MX27_AVIC_BASE_ADDR));
+	void __iomem *avic_base;
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,avic");
+	avic_base = of_iomap(np, 0);
+	BUG_ON(!avic_base);
+	mxc_init_irq(avic_base);
 }
 
 static const char * const imx27_dt_board_compat[] __initconst = {
