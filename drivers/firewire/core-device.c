@@ -957,7 +957,7 @@ static void set_broadcast_channel(struct fw_device *device, int generation)
 				device->bc_implemented = BC_IMPLEMENTED;
 				break;
 			}
-			/* else, fall through - to case address error */
+			fallthrough;	/* to case address error */
 		case RCODE_ADDRESS_ERROR:
 			device->bc_implemented = BC_UNIMPLEMENTED;
 		}

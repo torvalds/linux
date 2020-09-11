@@ -801,7 +801,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 	case 1:		/* Phase 1 - Connected */
 		imm_connect(dev, CONNECT_EPP_MAYBE);
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 2:		/* Phase 2 - We are now talking to the scsi bus */
 		if (!imm_select(dev, scmd_id(cmd))) {
@@ -809,7 +809,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 			return 0;
 		}
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 3:		/* Phase 3 - Ready to accept a command */
 		w_ctr(ppb, 0x0c);
@@ -819,7 +819,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 		if (!imm_send_command(cmd))
 			return 0;
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 4:		/* Phase 4 - Setup scatter/gather buffers */
 		if (scsi_bufflen(cmd)) {
@@ -835,7 +835,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 		cmd->SCp.phase++;
 		if (cmd->SCp.this_residual & 0x01)
 			cmd->SCp.this_residual++;
-		/* fall through */
+		fallthrough;
 
 	case 5:		/* Phase 5 - Pre-Data transfer stage */
 		/* Spin lock for BUSY */
@@ -852,7 +852,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 			if (imm_negotiate(dev))
 				return 0;
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 6:		/* Phase 6 - Data transfer stage */
 		/* Spin lock for BUSY */
@@ -868,7 +868,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 				return 1;
 		}
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 7:		/* Phase 7 - Post data transfer stage */
 		if ((dev->dp) && (dev->rd)) {
@@ -880,7 +880,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 			}
 		}
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 8:		/* Phase 8 - Read status/message */
 		/* Check for data overrun */

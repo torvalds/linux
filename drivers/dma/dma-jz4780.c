@@ -879,24 +879,11 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0)
-		return ret;
-
-	jzdma->irq = ret;
-
-	ret = request_irq(jzdma->irq, jz4780_dma_irq_handler, 0, dev_name(dev),
-			  jzdma);
-	if (ret) {
-		dev_err(dev, "failed to request IRQ %u!\n", jzdma->irq);
-		return ret;
-	}
-
 	jzdma->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(jzdma->clk)) {
 		dev_err(dev, "failed to get clock\n");
 		ret = PTR_ERR(jzdma->clk);
-		goto err_free_irq;
+		return ret;
 	}
 
 	clk_prepare_enable(jzdma->clk);
@@ -949,10 +936,23 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 		jzchan->vchan.desc_free = jz4780_dma_desc_free;
 	}
 
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		goto err_disable_clk;
+
+	jzdma->irq = ret;
+
+	ret = request_irq(jzdma->irq, jz4780_dma_irq_handler, 0, dev_name(dev),
+			  jzdma);
+	if (ret) {
+		dev_err(dev, "failed to request IRQ %u!\n", jzdma->irq);
+		goto err_disable_clk;
+	}
+
 	ret = dmaenginem_async_device_register(dd);
 	if (ret) {
 		dev_err(dev, "failed to register device\n");
-		goto err_disable_clk;
+		goto err_free_irq;
 	}
 
 	/* Register with OF DMA helpers. */
@@ -960,17 +960,17 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 					 jzdma);
 	if (ret) {
 		dev_err(dev, "failed to register OF DMA controller\n");
-		goto err_disable_clk;
+		goto err_free_irq;
 	}
 
 	dev_info(dev, "JZ4780 DMA controller initialised\n");
 	return 0;
 
-err_disable_clk:
-	clk_disable_unprepare(jzdma->clk);
-
 err_free_irq:
 	free_irq(jzdma->irq, jzdma);
+
+err_disable_clk:
+	clk_disable_unprepare(jzdma->clk);
 	return ret;
 }
 

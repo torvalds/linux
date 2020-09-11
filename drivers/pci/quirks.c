@@ -1730,7 +1730,7 @@ static void quirk_jmicron_ata(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_JMICRON_JMB366:
 		/* Redirect IDE second PATA port to the right spot */
 		conf5 |= (1 << 24);
-		/* Fall through */
+		fallthrough;
 	case PCI_DEVICE_ID_JMICRON_JMB361:
 	case PCI_DEVICE_ID_JMICRON_JMB363:
 	case PCI_DEVICE_ID_JMICRON_JMB369:
@@ -2224,7 +2224,7 @@ static void quirk_netmos(struct pci_dev *dev)
 		if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 				dev->subsystem_device == 0x0299)
 			return;
-		/* else, fall through */
+		fallthrough;
 	case PCI_DEVICE_ID_NETMOS_9735:
 	case PCI_DEVICE_ID_NETMOS_9745:
 	case PCI_DEVICE_ID_NETMOS_9845:

@@ -643,7 +643,7 @@ static int abort_status_to_errno(struct cxgbi_sock *csk, int abort_reason,
 				 int *need_rst)
 {
 	switch (abort_reason) {
-	case CPL_ERR_BAD_SYN: /* fall through */
+	case CPL_ERR_BAD_SYN:
 	case CPL_ERR_CONN_RESET:
 		return csk->state > CTP_ESTABLISHED ? -EPIPE : -ECONNRESET;
 	case CPL_ERR_XMIT_TIMEDOUT:

@@ -66,7 +66,6 @@ KBUILD_CFLAGS += -Wnested-externs
 KBUILD_CFLAGS += -Wshadow
 KBUILD_CFLAGS += $(call cc-option, -Wlogical-op)
 KBUILD_CFLAGS += -Wmissing-field-initializers
-KBUILD_CFLAGS += -Wsign-compare
 KBUILD_CFLAGS += -Wtype-limits
 KBUILD_CFLAGS += $(call cc-option, -Wmaybe-uninitialized)
 KBUILD_CFLAGS += $(call cc-option, -Wunused-macros)
@@ -87,6 +86,7 @@ KBUILD_CFLAGS += -Wpacked
 KBUILD_CFLAGS += -Wpadded
 KBUILD_CFLAGS += -Wpointer-arith
 KBUILD_CFLAGS += -Wredundant-decls
+KBUILD_CFLAGS += -Wsign-compare
 KBUILD_CFLAGS += -Wswitch-default
 KBUILD_CFLAGS += $(call cc-option, -Wpacked-bitfield-compat)
 

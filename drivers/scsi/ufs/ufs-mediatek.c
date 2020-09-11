@@ -212,7 +212,7 @@ static int ufs_mtk_wait_link_state(struct ufs_hba *hba, u32 state,
 	ktime_t timeout, time_checked;
 	u32 val;
 
-	timeout = ktime_add_us(ktime_get(), ms_to_ktime(max_wait_ms));
+	timeout = ktime_add_ms(ktime_get(), max_wait_ms);
 	do {
 		time_checked = ktime_get();
 		ufshcd_writel(hba, 0x20, REG_UFS_DEBUG_SEL);

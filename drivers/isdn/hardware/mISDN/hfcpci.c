@@ -1280,7 +1280,7 @@ mode_hfcpci(struct bchannel *bch, int bc, int protocol)
 	case (-1): /* used for init */
 		bch->state = -1;
 		bch->nr = bc;
-		/* fall through */
+		fallthrough;
 	case (ISDN_P_NONE):
 		if (bch->state == ISDN_P_NONE)
 			return 0;

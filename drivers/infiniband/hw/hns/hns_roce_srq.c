@@ -297,7 +297,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	spin_lock_init(&srq->lock);
 
 	srq->wqe_cnt = roundup_pow_of_two(init_attr->attr.max_wr + 1);
-	srq->max_gs = init_attr->attr.max_sge + HNS_ROCE_RESERVED_SGE;
+	srq->max_gs = init_attr->attr.max_sge;
 
 	if (udata) {
 		ret = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));

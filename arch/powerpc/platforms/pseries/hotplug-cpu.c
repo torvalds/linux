@@ -107,22 +107,28 @@ static int pseries_cpu_disable(void)
  */
 static void pseries_cpu_die(unsigned int cpu)
 {
-	int tries;
 	int cpu_status = 1;
 	unsigned int pcpu = get_hard_smp_processor_id(cpu);
+	unsigned long timeout = jiffies + msecs_to_jiffies(120000);
 
-	for (tries = 0; tries < 25; tries++) {
+	while (true) {
 		cpu_status = smp_query_cpu_stopped(pcpu);
 		if (cpu_status == QCSS_STOPPED ||
 		    cpu_status == QCSS_HARDWARE_ERROR)
 			break;
-		cpu_relax();
 
+		if (time_after(jiffies, timeout)) {
+			pr_warn("CPU %i (hwid %i) didn't die after 120 seconds\n",
+				cpu, pcpu);
+			timeout = jiffies + msecs_to_jiffies(120000);
+		}
+
+		cond_resched();
 	}
 
-	if (cpu_status != 0) {
-		printk("Querying DEAD? cpu %i (%i) shows %i\n",
-		       cpu, pcpu, cpu_status);
+	if (cpu_status == QCSS_HARDWARE_ERROR) {
+		pr_warn("CPU %i (hwid %i) reported error while dying\n",
+			cpu, pcpu);
 	}
 
 	/* Isolation and deallocation are definitely done by

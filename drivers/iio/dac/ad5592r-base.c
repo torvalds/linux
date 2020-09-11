@@ -220,7 +220,6 @@ static int ad5592r_set_channel_modes(struct ad5592r_state *st)
 			break;
 
 		case CH_MODE_UNUSED:
-			/* fall-through */
 		default:
 			switch (st->channel_offstate[i]) {
 			case CH_OFFSTATE_OUT_TRISTATE:
@@ -237,7 +236,6 @@ static int ad5592r_set_channel_modes(struct ad5592r_state *st)
 				break;
 
 			case CH_OFFSTATE_PULLDOWN:
-				/* fall-through */
 			default:
 				pulldown |= BIT(i);
 				break;

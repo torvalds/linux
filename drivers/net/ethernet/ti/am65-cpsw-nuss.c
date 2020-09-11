@@ -174,6 +174,8 @@ void am65_cpsw_nuss_adjust_link(struct net_device *ndev)
 		if (phy->speed == 10 && phy_interface_is_rgmii(phy))
 			/* Can be used with in band mode only */
 			mac_control |= CPSW_SL_CTL_EXT_EN;
+		if (phy->speed == 100 && phy->interface == PHY_INTERFACE_MODE_RMII)
+			mac_control |= CPSW_SL_CTL_IFCTL_A;
 		if (phy->duplex)
 			mac_control |= CPSW_SL_CTL_FULLDUPLEX;
 

@@ -5470,7 +5470,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 
 	case MPI2_IOCSTATUS_SCSI_DATA_OVERRUN:
 		scsi_set_resid(scmd, 0);
-		/* fall through */
+		fallthrough;
 	case MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR:
 	case MPI2_IOCSTATUS_SUCCESS:
 		scmd->result = (DID_OK << 16) | scsi_status;
@@ -6480,7 +6480,7 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			if (!test_bit(handle, ioc->pend_os_device_add))
 				break;
 
-			/* fall through */
+			fallthrough;
 
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
 
@@ -7208,7 +7208,7 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			event_data->PortEntry[i].PortStatus &= 0xF0;
 			event_data->PortEntry[i].PortStatus |=
 				MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED;
-			/* fall through */
+			fallthrough;
 		case MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED:
 			if (ioc->shost_recovery)
 				break;
@@ -10653,7 +10653,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case MPI26_MFGPAGE_DEVID_CFG_SEC_3916:
 			dev_info(&pdev->dev,
 			    "HBA is in Configurable Secure mode\n");
-			/* fall through */
+			fallthrough;
 		case MPI26_MFGPAGE_DEVID_HARD_SEC_3816:
 		case MPI26_MFGPAGE_DEVID_HARD_SEC_3916:
 			ioc->is_aero_ioc = ioc->is_gen35_ioc = 1;
