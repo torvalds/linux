@@ -372,7 +372,7 @@ int efx_farch_tx_probe(struct efx_tx_queue *tx_queue)
 	struct efx_nic *efx = tx_queue->efx;
 	unsigned entries;
 
-	tx_queue->type = ((tx_queue->label & 1) ? EFX_TXQ_TYPE_OFFLOAD : 0) |
+	tx_queue->type = ((tx_queue->label & 1) ? EFX_TXQ_TYPE_OUTER_CSUM : 0) |
 			 ((tx_queue->label & 2) ? EFX_TXQ_TYPE_HIGHPRI : 0);
 	entries = tx_queue->ptr_mask + 1;
 	return efx_alloc_special_buffer(efx, &tx_queue->txd,
@@ -381,7 +381,7 @@ int efx_farch_tx_probe(struct efx_tx_queue *tx_queue)
 
 void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 {
-	int csum = tx_queue->type & EFX_TXQ_TYPE_OFFLOAD;
+	int csum = tx_queue->type & EFX_TXQ_TYPE_OUTER_CSUM;
 	struct efx_nic *efx = tx_queue->efx;
 	efx_oword_t reg;
 

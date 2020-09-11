@@ -2146,7 +2146,7 @@ static int efx_ef10_irq_test_generate(struct efx_nic *efx)
 
 static int efx_ef10_tx_probe(struct efx_tx_queue *tx_queue)
 {
-	tx_queue->type = tx_queue->label & EFX_TXQ_TYPE_OFFLOAD;
+	tx_queue->type = tx_queue->label & EFX_TXQ_TYPE_OUTER_CSUM;
 	return efx_nic_alloc_buffer(tx_queue->efx, &tx_queue->txd.buf,
 				    (tx_queue->ptr_mask + 1) *
 				    sizeof(efx_qword_t),
@@ -2255,7 +2255,7 @@ static u32 efx_ef10_tso_versions(struct efx_nic *efx)
 
 static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 {
-	bool csum_offload = tx_queue->type & EFX_TXQ_TYPE_OFFLOAD;
+	bool csum_offload = tx_queue->type & EFX_TXQ_TYPE_OUTER_CSUM;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ef10_nic_data *nic_data;
