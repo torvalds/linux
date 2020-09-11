@@ -1338,7 +1338,7 @@ static void gfs2_evict_inode(struct inode *inode)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	struct address_space *metamapping;
-	int error;
+	int ret;
 
 	if (test_bit(GIF_FREE_VFS_INODE, &ip->i_flags)) {
 		clear_inode(inode);
@@ -1362,8 +1362,8 @@ static void gfs2_evict_inode(struct inode *inode)
 		goto out;
 
 	/* Must not read inode block until block type has been verified */
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
-	if (unlikely(error)) {
+	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
+	if (unlikely(ret)) {
 		glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
@@ -1372,13 +1372,13 @@ static void gfs2_evict_inode(struct inode *inode)
 
 	if (gfs2_inode_already_deleted(ip->i_gl, ip->i_no_formal_ino))
 		goto out_truncate;
-	error = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
-	if (error)
+	ret = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
+	if (ret)
 		goto out_truncate;
 
 	if (test_bit(GIF_INVALID, &ip->i_flags)) {
-		error = gfs2_inode_refresh(ip);
-		if (error)
+		ret = gfs2_inode_refresh(ip);
+		if (ret)
 			goto out_truncate;
 	}
 
@@ -1399,20 +1399,20 @@ out_delete:
 
 	if (S_ISDIR(inode->i_mode) &&
 	    (ip->i_diskflags & GFS2_DIF_EXHASH)) {
-		error = gfs2_dir_exhash_dealloc(ip);
-		if (error)
+		ret = gfs2_dir_exhash_dealloc(ip);
+		if (ret)
 			goto out_unlock;
 	}
 
 	if (ip->i_eattr) {
-		error = gfs2_ea_dealloc(ip);
-		if (error)
+		ret = gfs2_ea_dealloc(ip);
+		if (ret)
 			goto out_unlock;
 	}
 
 	if (!gfs2_is_stuffed(ip)) {
-		error = gfs2_file_dealloc(ip);
-		if (error)
+		ret = gfs2_file_dealloc(ip);
+		if (ret)
 			goto out_unlock;
 	}
 
@@ -1421,7 +1421,7 @@ out_delete:
 	   location and try to set gl_object again. We clear gl_object here so
 	   that subsequent inode creates don't see an old gl_object. */
 	glock_clear_object(ip->i_gl, ip);
-	error = gfs2_dinode_dealloc(ip);
+	ret = gfs2_dinode_dealloc(ip);
 	gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
 	goto out_unlock;
 
@@ -1436,8 +1436,8 @@ out_truncate:
 	write_inode_now(inode, 1);
 	gfs2_ail_flush(ip->i_gl, 0);
 
-	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
-	if (error)
+	ret = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
+	if (ret)
 		goto out_unlock;
 	/* Needs to be done before glock release & also in a transaction */
 	truncate_inode_pages(&inode->i_data, 0);
@@ -1452,8 +1452,8 @@ out_unlock:
 		glock_clear_object(ip->i_gl, ip);
 		gfs2_glock_dq_uninit(&gh);
 	}
-	if (error && error != GLR_TRYFAILED && error != -EROFS)
-		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
+	if (ret && ret != GLR_TRYFAILED && ret != -EROFS)
+		fs_warn(sdp, "gfs2_evict_inode: %d\n", ret);
 out:
 	truncate_inode_pages_final(&inode->i_data);
 	if (ip->i_qadata)
