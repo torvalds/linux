@@ -537,7 +537,7 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 
 	bdevp = bdget_disk(bdev->bd_disk, partno);
 	if (!bdevp)
-		return -ENOMEM;
+		return -ENXIO;
 
 	mutex_lock(&bdevp->bd_mutex);
 	mutex_lock_nested(&bdev->bd_mutex, 1);
