@@ -1422,6 +1422,39 @@ out:
 	return ret;
 }
 
+/*
+ * evict_linked_inode - evict an inode whose dinode has not been unlinked
+ * @inode: The inode to evict
+ */
+static int evict_linked_inode(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct address_space *metamapping;
+	int ret;
+
+	gfs2_log_flush(sdp, ip->i_gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
+		       GFS2_LFC_EVICT_INODE);
+	metamapping = gfs2_glock2aspace(ip->i_gl);
+	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags)) {
+		filemap_fdatawrite(metamapping);
+		filemap_fdatawait(metamapping);
+	}
+	write_inode_now(inode, 1);
+	gfs2_ail_flush(ip->i_gl, 0);
+
+	ret = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
+	if (ret)
+		return ret;
+
+	/* Needs to be done before glock release & also in a transaction */
+	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages(metamapping, 0);
+	gfs2_trans_end(sdp);
+	return 0;
+}
+
 /**
  * gfs2_evict_inode - Remove an inode from cache
  * @inode: The inode to evict
@@ -1449,7 +1482,6 @@ static void gfs2_evict_inode(struct inode *inode)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
-	struct address_space *metamapping;
 	int ret;
 
 	if (test_bit(GIF_FREE_VFS_INODE, &ip->i_flags)) {
@@ -1471,23 +1503,7 @@ static void gfs2_evict_inode(struct inode *inode)
 	goto out_unlock;
 
 out_truncate:
-	gfs2_log_flush(sdp, ip->i_gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
-		       GFS2_LFC_EVICT_INODE);
-	metamapping = gfs2_glock2aspace(ip->i_gl);
-	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags)) {
-		filemap_fdatawrite(metamapping);
-		filemap_fdatawait(metamapping);
-	}
-	write_inode_now(inode, 1);
-	gfs2_ail_flush(ip->i_gl, 0);
-
-	ret = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
-	if (ret)
-		goto out_unlock;
-	/* Needs to be done before glock release & also in a transaction */
-	truncate_inode_pages(&inode->i_data, 0);
-	truncate_inode_pages(metamapping, 0);
-	gfs2_trans_end(sdp);
+	ret = evict_linked_inode(inode);
 
 out_unlock:
 	if (gfs2_rs_active(&ip->i_res))
