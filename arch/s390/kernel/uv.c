@@ -51,6 +51,9 @@ void __init setup_uv(void)
 {
 	unsigned long uv_stor_base;
 
+	/*
+	 * keep these conditions in line with kasan init code has_uv_sec_stor_limit()
+	 */
 	if (!is_prot_virt_host())
 		return;
 

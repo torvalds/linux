@@ -552,22 +552,17 @@ static void __init setup_memory_end(void)
 	unsigned long vmax, tmp;
 
 	/* Choose kernel address space layout: 3 or 4 levels. */
-	if (IS_ENABLED(CONFIG_KASAN)) {
-		vmax = IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)
-			   ? _REGION1_SIZE
-			   : _REGION2_SIZE;
-	} else {
-		tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
-		tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-		if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
-			vmax = _REGION2_SIZE; /* 3-level kernel page table */
-		else
-			vmax = _REGION1_SIZE; /* 4-level kernel page table */
-	}
-
+	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
+	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
+	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
+		vmax = _REGION2_SIZE; /* 3-level kernel page table */
+	else
+		vmax = _REGION1_SIZE; /* 4-level kernel page table */
 	if (is_prot_virt_host())
 		adjust_to_uv_max(&vmax);
-
+#ifdef CONFIG_KASAN
+	vmax = kasan_vmax;
+#endif
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
