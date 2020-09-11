@@ -91,7 +91,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, int iteration)
 	int i;
 
 	/* step 1: power up corex */
-	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
+	ret = hda_dsp_core_power_up(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
 		if (iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
@@ -114,7 +114,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, int iteration)
 			  ((stream_tag - 1) << 9)));
 
 	/* step 3: unset core 0 reset state & unstall/run core 0 */
-	ret = hda_dsp_core_run(sdev, HDA_DSP_CORE_MASK(0));
+	ret = hda_dsp_core_run(sdev, BIT(0));
 	if (ret < 0) {
 		if (iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev,
@@ -146,8 +146,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, int iteration)
 				       chip->ipc_ack_mask);
 
 	/* step 5: power down corex */
-	ret = hda_dsp_core_power_down(sdev,
-				  chip->cores_mask & ~(HDA_DSP_CORE_MASK(0)));
+	ret = hda_dsp_core_power_down(sdev, chip->host_managed_cores_mask & ~(BIT(0)));
 	if (ret < 0) {
 		if (iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev,
@@ -176,7 +175,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, int iteration)
 
 err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
-	hda_dsp_core_reset_power_down(sdev, chip->cores_mask);
+	hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 
 	return ret;
 }
@@ -427,7 +426,7 @@ cleanup:
 	}
 
 	/*
-	 * return master core id if both fw copy
+	 * return primary core id if both fw copy
 	 * and stream clean up are successful
 	 */
 	if (!ret)
