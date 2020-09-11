@@ -328,6 +328,9 @@ struct smu7_hwmgr {
 	uint16_t                              mem_latency_low;
 	uint32_t                              vr_config;
 	struct profile_mode_setting           current_profile_setting;
+
+	uint32_t                              ro_range_minimum;
+	uint32_t                              ro_range_maximum;
 };
 
 /* To convert to Q8.8 format for firmware */

@@ -97,6 +97,9 @@ static struct profile_mode_setting smu7_profiling[7] =
 #define PWR_SVI2_PLANE1_LOAD__PSI1__SHIFT                  0x00000005
 #define PWR_SVI2_PLANE1_LOAD__PSI0_EN__SHIFT               0x00000006
 
+#define STRAP_EVV_REVISION_MSB		2211
+#define STRAP_EVV_REVISION_LSB		2208
+
 /** Values for the CG_THERMAL_CTRL::DPM_EVENT_SRC field. */
 enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_ANALOG = 0,
@@ -1696,6 +1699,61 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			      PHM_PlatformCaps_VCEPowerGating);
 }
 
+static int smu7_calculate_ro_range(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t asicrev1, evv_revision, max, min;
+
+	atomctrl_read_efuse(hwmgr, STRAP_EVV_REVISION_LSB, STRAP_EVV_REVISION_MSB,
+			&evv_revision);
+
+	atomctrl_read_efuse(hwmgr, 568, 579, &asicrev1);
+
+	if (ASICID_IS_P20(adev->pdev->device, adev->pdev->revision) ||
+	    ASICID_IS_P30(adev->pdev->device, adev->pdev->revision)) {
+		min = 1200;
+		max = 2500;
+	} else if (ASICID_IS_P21(adev->pdev->device, adev->pdev->revision) ||
+		   ASICID_IS_P31(adev->pdev->device, adev->pdev->revision)) {
+		min = 900;
+		max= 2100;
+	} else if (hwmgr->chip_id == CHIP_POLARIS10) {
+		if (adev->pdev->subsystem_vendor == 0x106B) {
+			min = 1000;
+			max = 2300;
+		} else {
+			if (evv_revision == 0) {
+				min = 1000;
+				max = 2300;
+			} else if (evv_revision == 1) {
+				if (asicrev1 == 326) {
+					min = 1200;
+					max = 2500;
+					/* TODO: PATCH RO in VBIOS */
+				} else {
+					min = 1200;
+					max = 2000;
+				}
+			} else if (evv_revision == 2) {
+				min = 1200;
+				max = 2500;
+			}
+		}
+	} else if ((hwmgr->chip_id == CHIP_POLARIS11) ||
+		   (hwmgr->chip_id == CHIP_POLARIS12)) {
+		min = 1100;
+		max = 2100;
+	}
+
+	data->ro_range_minimum = min;
+	data->ro_range_maximum = max;
+
+	/* TODO: PATCH RO in VBIOS here */
+
+	return 0;
+}
+
 /**
 * Get Leakage VDDC based on leakage ID.
 *
@@ -1714,6 +1772,10 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 			(struct phm_ppt_v1_information *)hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table = NULL;
 
+	if (hwmgr->chip_id == CHIP_POLARIS10 ||
+	    hwmgr->chip_id == CHIP_POLARIS11 ||
+	    hwmgr->chip_id == CHIP_POLARIS12)
+		smu7_calculate_ro_range(hwmgr);
 
 	for (i = 0; i < SMU7_MAX_LEAKAGE_COUNT; i++) {
 		vv_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
