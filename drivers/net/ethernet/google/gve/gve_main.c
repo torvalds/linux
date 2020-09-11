@@ -514,14 +514,18 @@ static void gve_free_rings(struct gve_priv *priv)
 	}
 }
 
-int gve_alloc_page(struct device *dev, struct page **page, dma_addr_t *dma,
+int gve_alloc_page(struct gve_priv *priv, struct device *dev,
+		   struct page **page, dma_addr_t *dma,
 		   enum dma_data_direction dir)
 {
 	*page = alloc_page(GFP_KERNEL);
-	if (!*page)
+	if (!*page) {
+		priv->page_alloc_fail++;
 		return -ENOMEM;
+	}
 	*dma = dma_map_page(dev, *page, 0, PAGE_SIZE, dir);
 	if (dma_mapping_error(dev, *dma)) {
+		priv->dma_mapping_error++;
 		put_page(*page);
 		return -ENOMEM;
 	}
@@ -556,7 +560,7 @@ static int gve_alloc_queue_page_list(struct gve_priv *priv, u32 id,
 		return -ENOMEM;
 
 	for (i = 0; i < pages; i++) {
-		err = gve_alloc_page(&priv->pdev->dev, &qpl->pages[i],
+		err = gve_alloc_page(priv, &priv->pdev->dev, &qpl->pages[i],
 				     &qpl->page_buses[i],
 				     gve_qpl_dma_dir(priv, id));
 		/* caller handles clean up */
@@ -697,6 +701,7 @@ static int gve_open(struct net_device *dev)
 
 	gve_turnup(priv);
 	netif_carrier_on(dev);
+	priv->interface_up_cnt++;
 	return 0;
 
 free_rings:
@@ -738,6 +743,7 @@ static int gve_close(struct net_device *dev)
 
 	gve_free_rings(priv);
 	gve_free_qpls(priv);
+	priv->interface_down_cnt++;
 	return 0;
 
 err:
@@ -1047,6 +1053,9 @@ int gve_reset(struct gve_priv *priv, bool attempt_teardown)
 	/* Set it all back up */
 	err = gve_reset_recovery(priv, was_up);
 	gve_clear_reset_in_progress(priv);
+	priv->reset_cnt++;
+	priv->interface_up_cnt = 0;
+	priv->interface_down_cnt = 0;
 	return err;
 }
 

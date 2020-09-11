@@ -23,6 +23,18 @@ int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 
 	priv->adminq_mask = (PAGE_SIZE / sizeof(union gve_adminq_command)) - 1;
 	priv->adminq_prod_cnt = 0;
+	priv->adminq_cmd_fail = 0;
+	priv->adminq_timeouts = 0;
+	priv->adminq_describe_device_cnt = 0;
+	priv->adminq_cfg_device_resources_cnt = 0;
+	priv->adminq_register_page_list_cnt = 0;
+	priv->adminq_unregister_page_list_cnt = 0;
+	priv->adminq_create_tx_queue_cnt = 0;
+	priv->adminq_create_rx_queue_cnt = 0;
+	priv->adminq_destroy_tx_queue_cnt = 0;
+	priv->adminq_destroy_rx_queue_cnt = 0;
+	priv->adminq_dcfg_device_resources_cnt = 0;
+	priv->adminq_set_driver_parameter_cnt = 0;
 
 	/* Setup Admin queue with the device */
 	iowrite32be(priv->adminq_bus_addr / PAGE_SIZE,
@@ -81,17 +93,18 @@ static bool gve_adminq_wait_for_cmd(struct gve_priv *priv, u32 prod_cnt)
 	return false;
 }
 
-static int gve_adminq_parse_err(struct device *dev, u32 status)
+static int gve_adminq_parse_err(struct gve_priv *priv, u32 status)
 {
 	if (status != GVE_ADMINQ_COMMAND_PASSED &&
-	    status != GVE_ADMINQ_COMMAND_UNSET)
-		dev_err(dev, "AQ command failed with status %d\n", status);
-
+	    status != GVE_ADMINQ_COMMAND_UNSET) {
+		dev_err(&priv->pdev->dev, "AQ command failed with status %d\n", status);
+		priv->adminq_cmd_fail++;
+	}
 	switch (status) {
 	case GVE_ADMINQ_COMMAND_PASSED:
 		return 0;
 	case GVE_ADMINQ_COMMAND_UNSET:
-		dev_err(dev, "parse_aq_err: err and status both unset, this should not be possible.\n");
+		dev_err(&priv->pdev->dev, "parse_aq_err: err and status both unset, this should not be possible.\n");
 		return -EINVAL;
 	case GVE_ADMINQ_COMMAND_ERROR_ABORTED:
 	case GVE_ADMINQ_COMMAND_ERROR_CANCELLED:
@@ -116,7 +129,7 @@ static int gve_adminq_parse_err(struct device *dev, u32 status)
 	case GVE_ADMINQ_COMMAND_ERROR_UNIMPLEMENTED:
 		return -ENOTSUPP;
 	default:
-		dev_err(dev, "parse_aq_err: unknown status code %d\n", status);
+		dev_err(&priv->pdev->dev, "parse_aq_err: unknown status code %d\n", status);
 		return -EINVAL;
 	}
 }
@@ -130,22 +143,60 @@ int gve_adminq_execute_cmd(struct gve_priv *priv,
 	union gve_adminq_command *cmd;
 	u32 status = 0;
 	u32 prod_cnt;
+	u32 opcode;
 
 	cmd = &priv->adminq[priv->adminq_prod_cnt & priv->adminq_mask];
 	priv->adminq_prod_cnt++;
 	prod_cnt = priv->adminq_prod_cnt;
 
 	memcpy(cmd, cmd_orig, sizeof(*cmd_orig));
+	opcode = be32_to_cpu(READ_ONCE(cmd->opcode));
+
+	switch (opcode) {
+	case GVE_ADMINQ_DESCRIBE_DEVICE:
+		priv->adminq_describe_device_cnt++;
+		break;
+	case GVE_ADMINQ_CONFIGURE_DEVICE_RESOURCES:
+		priv->adminq_cfg_device_resources_cnt++;
+		break;
+	case GVE_ADMINQ_REGISTER_PAGE_LIST:
+		priv->adminq_register_page_list_cnt++;
+		break;
+	case GVE_ADMINQ_UNREGISTER_PAGE_LIST:
+		priv->adminq_unregister_page_list_cnt++;
+		break;
+	case GVE_ADMINQ_CREATE_TX_QUEUE:
+		priv->adminq_create_tx_queue_cnt++;
+		break;
+	case GVE_ADMINQ_CREATE_RX_QUEUE:
+		priv->adminq_create_rx_queue_cnt++;
+		break;
+	case GVE_ADMINQ_DESTROY_TX_QUEUE:
+		priv->adminq_destroy_tx_queue_cnt++;
+		break;
+	case GVE_ADMINQ_DESTROY_RX_QUEUE:
+		priv->adminq_destroy_rx_queue_cnt++;
+		break;
+	case GVE_ADMINQ_DECONFIGURE_DEVICE_RESOURCES:
+		priv->adminq_dcfg_device_resources_cnt++;
+		break;
+	case GVE_ADMINQ_SET_DRIVER_PARAMETER:
+		priv->adminq_set_driver_parameter_cnt++;
+		break;
+	default:
+		dev_err(&priv->pdev->dev, "unknown AQ command opcode %d\n", opcode);
+	}
 
 	gve_adminq_kick_cmd(priv, prod_cnt);
 	if (!gve_adminq_wait_for_cmd(priv, prod_cnt)) {
 		dev_err(&priv->pdev->dev, "AQ command timed out, need to reset AQ\n");
+		priv->adminq_timeouts++;
 		return -ENOTRECOVERABLE;
 	}
 
 	memcpy(cmd_orig, cmd, sizeof(*cmd));
 	status = be32_to_cpu(READ_ONCE(cmd->status));
-	return gve_adminq_parse_err(&priv->pdev->dev, status);
+	return gve_adminq_parse_err(priv, status);
 }
 
 /* The device specifies that the management vector can either be the first irq
