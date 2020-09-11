@@ -2566,7 +2566,7 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool 
 	link->psr_settings.psr_allow_active = allow_active;
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_enable(psr, allow_active);
+		psr->funcs->psr_enable(psr, allow_active, wait);
 	else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 	else
