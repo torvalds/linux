@@ -77,6 +77,9 @@
 /* Minimum MTU, from RFC791 (IP) */
 #define EFX_MIN_MTU 68
 
+/* Maximum total header length for TSOv2 */
+#define EFX_TSO2_MAX_HDRLEN	208
+
 /* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page,
  * and should be a multiple of the cache line size.
  */
@@ -195,6 +198,7 @@ struct efx_tx_buffer {
  *	Is our index within @channel->tx_queue array.
  * @type: configuration type of this TX queue.  A bitmask of %EFX_TXQ_TYPE_* flags.
  * @tso_version: Version of TSO in use for this queue.
+ * @tso_encap: Is encapsulated TSO supported? Supported in TSOv2 on 8000 series.
  * @channel: The associated channel
  * @core_txq: The networking core TX queue structure
  * @buffer: The software buffer ring
@@ -258,6 +262,7 @@ struct efx_tx_queue {
 	unsigned int label;
 	unsigned int type;
 	unsigned int tso_version;
+	bool tso_encap;
 	struct efx_channel *channel;
 	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;

@@ -2179,10 +2179,11 @@ int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 			 bool *data_mapped)
 {
 	struct efx_tx_buffer *buffer;
+	u16 inner_ipv4_id = 0;
+	u16 outer_ipv4_id = 0;
 	struct tcphdr *tcp;
 	struct iphdr *ip;
-
-	u16 ipv4_id;
+	u16 ip_tot_len;
 	u32 seqnum;
 	u32 mss;
 
@@ -2195,21 +2196,43 @@ int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	ip = ip_hdr(skb);
-	if (ip->version == 4) {
-		/* Modify IPv4 header if needed. */
-		ip->tot_len = 0;
-		ip->check = 0;
-		ipv4_id = ntohs(ip->id);
-	} else {
-		/* Modify IPv6 header if needed. */
-		struct ipv6hdr *ipv6 = ipv6_hdr(skb);
+	if (skb->encapsulation) {
+		if (!tx_queue->tso_encap)
+			return -EINVAL;
+		ip = ip_hdr(skb);
+		if (ip->version == 4)
+			outer_ipv4_id = ntohs(ip->id);
 
-		ipv6->payload_len = 0;
-		ipv4_id = 0;
+		ip = inner_ip_hdr(skb);
+		tcp = inner_tcp_hdr(skb);
+	} else {
+		ip = ip_hdr(skb);
+		tcp = tcp_hdr(skb);
 	}
 
-	tcp = tcp_hdr(skb);
+	/* 8000-series EF10 hardware requires that IP Total Length be
+	 * greater than or equal to the value it will have in each segment
+	 * (which is at most mss + 208 + TCP header length), but also less
+	 * than (0x10000 - inner_network_header).  Otherwise the TCP
+	 * checksum calculation will be broken for encapsulated packets.
+	 * We fill in ip->tot_len with 0xff30, which should satisfy the
+	 * first requirement unless the MSS is ridiculously large (which
+	 * should be impossible as the driver max MTU is 9216); it is
+	 * guaranteed to satisfy the second as we only attempt TSO if
+	 * inner_network_header <= 208.
+	 */
+	ip_tot_len = -EFX_TSO2_MAX_HDRLEN;
+	EFX_WARN_ON_ONCE_PARANOID(mss + EFX_TSO2_MAX_HDRLEN +
+				  (tcp->doff << 2u) > ip_tot_len);
+
+	if (ip->version == 4) {
+		ip->tot_len = htons(ip_tot_len);
+		ip->check = 0;
+		inner_ipv4_id = ntohs(ip->id);
+	} else {
+		((struct ipv6hdr *)ip)->payload_len = htons(ip_tot_len);
+	}
+
 	seqnum = ntohl(tcp->seq);
 
 	buffer = efx_tx_queue_get_insert_buffer(tx_queue);
@@ -2222,7 +2245,7 @@ int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 			ESF_DZ_TX_OPTION_TYPE, ESE_DZ_TX_OPTION_DESC_TSO,
 			ESF_DZ_TX_TSO_OPTION_TYPE,
 			ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A,
-			ESF_DZ_TX_TSO_IP_ID, ipv4_id,
+			ESF_DZ_TX_TSO_IP_ID, inner_ipv4_id,
 			ESF_DZ_TX_TSO_TCP_SEQNO, seqnum
 			);
 	++tx_queue->insert_count;
@@ -2232,11 +2255,12 @@ int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 	buffer->flags = EFX_TX_BUF_OPTION;
 	buffer->len = 0;
 	buffer->unmap_len = 0;
-	EFX_POPULATE_QWORD_4(buffer->option,
+	EFX_POPULATE_QWORD_5(buffer->option,
 			ESF_DZ_TX_DESC_IS_OPT, 1,
 			ESF_DZ_TX_OPTION_TYPE, ESE_DZ_TX_OPTION_DESC_TSO,
 			ESF_DZ_TX_TSO_OPTION_TYPE,
 			ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B,
+			ESF_DZ_TX_TSO_OUTER_IPID, outer_ipv4_id,
 			ESF_DZ_TX_TSO_TCP_MSS, mss
 			);
 	++tx_queue->insert_count;
@@ -2321,6 +2345,9 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 			     ESF_DZ_TX_OPTION_INNER_IP_CSUM, inner_csum && tx_queue->tso_version != 2,
 			     ESF_DZ_TX_TIMESTAMP, tx_queue->timestamping);
 	tx_queue->write_count = 1;
+
+	if (tx_queue->tso_version == 2 && efx_has_cap(efx, TX_TSO_V2_ENCAP))
+		tx_queue->tso_encap = true;
 
 	wmb();
 	efx_ef10_push_tx_desc(tx_queue, txd);
