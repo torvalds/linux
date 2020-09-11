@@ -96,6 +96,7 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 
 extern int rkispp_debug;
 extern bool rkispp_clk_dbg;
+extern bool rkispp_monitor;
 extern struct platform_driver rkispp_plat_drv;
 
 void rkispp_write(struct rkispp_device *dev, u32 reg, u32 val);
@@ -110,4 +111,5 @@ void rkispp_free_buffer(struct rkispp_device *dev,
 
 int rkispp_attach_hw(struct rkispp_device *ispp);
 int rkispp_event_handle(struct rkispp_device *ispp, u32 cmd, void *arg);
+void rkispp_soft_reset(struct rkispp_device *ispp);
 #endif

@@ -171,6 +171,35 @@ struct rkispp_stream {
 	bool is_cfg;
 };
 
+enum {
+	MONITOR_OFF = 0,
+	MONITOR_TNR = BIT(0),
+	MONITOR_NR = BIT(1),
+	MONITOR_FEC = BIT(2),
+};
+
+struct module_monitor {
+	struct rkispp_device *dev;
+	struct work_struct work;
+	struct completion cmpl;
+	u16 time;
+	u8 module;
+	bool is_cancel;
+};
+
+struct rkispp_monitor {
+	struct module_monitor tnr;
+	struct module_monitor nr;
+	struct module_monitor fec;
+	struct completion cmpl;
+	spinlock_t lock;
+	u8 monitoring_module;
+	u8 restart_module;
+	u8 retry;
+	bool is_restart;
+	bool is_en;
+};
+
 /* rkispp stream device */
 struct rkispp_stream_vdev {
 	struct rkispp_stream stream[STREAM_MAX];
@@ -180,6 +209,7 @@ struct rkispp_stream_vdev {
 	struct fec_module fec;
 	struct in_fec_buf fec_buf;
 	struct frame_debug_info dbg;
+	struct rkispp_monitor monitor;
 	atomic_t refcnt;
 	u32 module_ens;
 	u32 irq_ends;
