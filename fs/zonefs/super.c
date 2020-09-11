@@ -348,7 +348,7 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
  * eventually correct the file size and zonefs inode write pointer offset
  * (which can be out of sync with the drive due to partial write failures).
  */
-static void zonefs_io_error(struct inode *inode, bool write)
+static void __zonefs_io_error(struct inode *inode, bool write)
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -361,8 +361,6 @@ static void zonefs_io_error(struct inode *inode, bool write)
 		.write = write,
 	};
 	int ret;
-
-	mutex_lock(&zi->i_truncate_mutex);
 
 	/*
 	 * Memory allocations in blkdev_report_zones() can trigger a memory
@@ -379,7 +377,14 @@ static void zonefs_io_error(struct inode *inode, bool write)
 		zonefs_err(sb, "Get inode %lu zone information failed %d\n",
 			   inode->i_ino, ret);
 	memalloc_noio_restore(noio_flag);
+}
 
+static void zonefs_io_error(struct inode *inode, bool write)
+{
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+
+	mutex_lock(&zi->i_truncate_mutex);
+	__zonefs_io_error(inode, write);
 	mutex_unlock(&zi->i_truncate_mutex);
 }
 
