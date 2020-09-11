@@ -97,8 +97,8 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  * hardware's draing engine.
  *
  * To access a buffer object's memory from the DRM driver, call
- * drm_gem_vram_kmap(). It (optionally) maps the buffer into kernel address
- * space and returns the memory address. Use drm_gem_vram_kunmap() to
+ * drm_gem_vram_vmap(). It maps the buffer into kernel address
+ * space and returns the memory address. Use drm_gem_vram_vunmap() to
  * release the mapping.
  */
 
@@ -437,39 +437,6 @@ out:
 	return kmap->virtual;
 }
 
-/**
- * drm_gem_vram_kmap() - Maps a GEM VRAM object into kernel address space
- * @gbo:	the GEM VRAM object
- * @map:	establish a mapping if necessary
- * @is_iomem:	returns true if the mapped memory is I/O memory, or false \
-	otherwise; can be NULL
- *
- * This function maps the buffer object into the kernel's address space
- * or returns the current mapping. If the parameter map is false, the
- * function only queries the current mapping, but does not establish a
- * new one.
- *
- * Returns:
- * The buffers virtual address if mapped, or
- * NULL if not mapped, or
- * an ERR_PTR()-encoded error code otherwise.
- */
-void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
-			bool *is_iomem)
-{
-	int ret;
-	void *virtual;
-
-	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
-	if (ret)
-		return ERR_PTR(ret);
-	virtual = drm_gem_vram_kmap_locked(gbo, map, is_iomem);
-	ttm_bo_unreserve(&gbo->bo);
-
-	return virtual;
-}
-EXPORT_SYMBOL(drm_gem_vram_kmap);
-
 static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo)
 {
 	if (WARN_ON_ONCE(!gbo->kmap_use_count))
@@ -486,22 +453,6 @@ static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo)
 }
 
 /**
- * drm_gem_vram_kunmap() - Unmaps a GEM VRAM object
- * @gbo:	the GEM VRAM object
- */
-void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&gbo->bo, false, false, NULL);
-	if (WARN_ONCE(ret, "ttm_bo_reserve_failed(): ret=%d\n", ret))
-		return;
-	drm_gem_vram_kunmap_locked(gbo);
-	ttm_bo_unreserve(&gbo->bo);
-}
-EXPORT_SYMBOL(drm_gem_vram_kunmap);
-
-/**
  * drm_gem_vram_vmap() - Pins and maps a GEM VRAM object into kernel address
  *                       space
  * @gbo:	The GEM VRAM object to map
@@ -511,9 +462,6 @@ EXPORT_SYMBOL(drm_gem_vram_kunmap);
  * As pinned object cannot be relocated, you should avoid pinning objects
  * permanently. Call drm_gem_vram_vunmap() with the returned address to
  * unmap and unpin the GEM VRAM object.
- *
- * If you have special requirements for the pinning or mapping operations,
- * call drm_gem_vram_pin() and drm_gem_vram_kmap() directly.
  *
  * Returns:
  * The buffer's virtual address on success, or
