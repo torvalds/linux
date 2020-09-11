@@ -394,6 +394,7 @@ typedef uint16_t PPSMC_Result;
 
 #define PPSMC_MSG_SetGpuPllDfsForSclk         ((uint16_t) 0x300)
 #define PPSMC_MSG_Didt_Block_Function		  ((uint16_t) 0x301)
+#define PPSMC_MSG_EnableZeroRpm               ((uint16_t) 0x302)
 
 #define PPSMC_MSG_SetVBITimeout               ((uint16_t) 0x306)
 

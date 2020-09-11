@@ -470,6 +470,21 @@ static int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmg
 	return 0;
 }
 
+static void polaris10_populate_zero_rpm_parameters(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
+	SMU74_Discrete_DpmTable  *table = &(smu_data->smc_state_table);
+	uint16_t fan_stop_temp =
+		((uint16_t)hwmgr->thermal_controller.advanceFanControlParameters.ucFanStopTemperature) << 8;
+	uint16_t fan_start_temp =
+		((uint16_t)hwmgr->thermal_controller.advanceFanControlParameters.ucFanStartTemperature) << 8;
+
+	if (hwmgr->thermal_controller.advanceFanControlParameters.ucEnableZeroRPM) {
+		table->FanStartTemperature = PP_HOST_TO_SMC_US(fan_start_temp);
+		table->FanStopTemperature = PP_HOST_TO_SMC_US(fan_stop_temp);
+	}
+}
+
 static int polaris10_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
@@ -1948,6 +1963,8 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = polaris10_populate_bapm_parameters_in_dpm_table(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to populate BAPM Parameters!", return result);
+
+	polaris10_populate_zero_rpm_parameters(hwmgr);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ClockStretcher)) {

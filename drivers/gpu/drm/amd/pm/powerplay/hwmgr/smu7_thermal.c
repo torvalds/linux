@@ -175,6 +175,17 @@ int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 				hwmgr->thermal_controller.
 				advanceFanControlParameters.ucTargetTemperature,
 				NULL);
+
+	if (!result &&
+	    (hwmgr->chip_id == CHIP_POLARIS10 ||
+	    hwmgr->chip_id == CHIP_POLARIS11 ||
+	    hwmgr->chip_id == CHIP_POLARIS12) &&
+	    hwmgr->thermal_controller.advanceFanControlParameters.ucEnableZeroRPM &&
+	    !PP_CAP(PHM_PlatformCaps_customThermalManagement))
+		result = smum_send_msg_to_smc(hwmgr,
+				PPSMC_MSG_EnableZeroRpm,
+				NULL);
+
 	hwmgr->fan_ctrl_enabled = true;
 
 	return result;
