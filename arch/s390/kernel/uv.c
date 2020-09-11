@@ -90,7 +90,8 @@ fail:
 
 void adjust_to_uv_max(unsigned long *vmax)
 {
-	*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
+	if (uv_info.max_sec_stor_addr)
+		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
 }
 
 /*
