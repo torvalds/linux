@@ -2863,7 +2863,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 	} else {
 		tid_data->state = IWL_EMPTYING_HW_QUEUE_ADDBA;
-		ret = 0;
+		ret = IEEE80211_AMPDU_TX_START_DELAY_ADDBA;
 	}
 
 out:
