@@ -1085,7 +1085,7 @@ int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		DP_NOTICE(p_hwfn,
 			  "Unknown WoL configuration %02x\n",
 			  p_hwfn->cdev->wol_config);
-		/* Fallthrough */
+		fallthrough;
 	case QED_OV_WOL_DEFAULT:
 		wol_param = DRV_MB_PARAM_UNLOAD_WOL_MCP;
 	}
@@ -1365,7 +1365,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		break;
 	case LINK_STATUS_SPEED_AND_DUPLEX_1000THD:
 		p_link->full_duplex = false;
-	/* Fall-through */
+		fallthrough;
 	case LINK_STATUS_SPEED_AND_DUPLEX_1000TFD:
 		p_link->speed = 1000;
 		break;
@@ -2451,7 +2451,7 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ROCE:
 		DP_NOTICE(p_hwfn, "RoCE personality is not a valid value!\n");
-	/* Fallthrough */
+		fallthrough;
 	default:
 		rc = -EINVAL;
 	}
@@ -3546,7 +3546,7 @@ qed_mcp_resc_allocation_msg(struct qed_hwfn *p_hwfn,
 	switch (p_in_params->cmd) {
 	case DRV_MSG_SET_RESOURCE_VALUE_MSG:
 		mfw_resc_info.size = p_in_params->resc_max_val;
-		/* Fallthrough */
+		fallthrough;
 	case DRV_MSG_GET_RESOURCE_ALLOC_MSG:
 		break;
 	default:
@@ -3823,7 +3823,7 @@ qed_mcp_resc_unlock(struct qed_hwfn *p_hwfn,
 		DP_INFO(p_hwfn,
 			"Resource unlock request for an already released resource [%d]\n",
 			p_params->resource);
-		/* Fallthrough */
+		fallthrough;
 	case RESOURCE_OPCODE_RELEASED:
 		p_params->b_released = true;
 		break;

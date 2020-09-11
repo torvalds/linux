@@ -223,7 +223,7 @@ static int xattr_verify(enum ima_hooks func, struct integrity_iint_cache *iint,
 	case IMA_XATTR_DIGEST_NG:
 		/* first byte contains algorithm id */
 		hash_start = 1;
-		/* fall through */
+		fallthrough;
 	case IMA_XATTR_DIGEST:
 		if (iint->flags & IMA_DIGSIG_REQUIRED) {
 			*cause = "IMA-signature-required";
@@ -395,7 +395,7 @@ int ima_appraise_measurement(enum ima_hooks func,
 		/* It's fine not to have xattrs when using a modsig. */
 		if (try_modsig)
 			break;
-		/* fall through */
+		fallthrough;
 	case INTEGRITY_NOLABEL:		/* No security.evm xattr. */
 		cause = "missing-HMAC";
 		goto out;

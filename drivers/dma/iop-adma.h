@@ -496,7 +496,7 @@ iop3xx_desc_init_xor(struct iop3xx_desc_aau *hw_desc, int src_cnt,
 		}
 		hw_desc->src_edc[AAU_EDCR2_IDX].e_desc_ctrl = edcr;
 		src_cnt = 24;
-		/* fall through */
+		fallthrough;
 	case 17 ... 24:
 		if (!u_desc_ctrl.field.blk_ctrl) {
 			hw_desc->src_edc[AAU_EDCR2_IDX].e_desc_ctrl = 0;
@@ -510,7 +510,7 @@ iop3xx_desc_init_xor(struct iop3xx_desc_aau *hw_desc, int src_cnt,
 		}
 		hw_desc->src_edc[AAU_EDCR1_IDX].e_desc_ctrl = edcr;
 		src_cnt = 16;
-		/* fall through */
+		fallthrough;
 	case 9 ... 16:
 		if (!u_desc_ctrl.field.blk_ctrl)
 			u_desc_ctrl.field.blk_ctrl = 0x2; /* use EDCR0 */
@@ -522,7 +522,7 @@ iop3xx_desc_init_xor(struct iop3xx_desc_aau *hw_desc, int src_cnt,
 		}
 		hw_desc->src_edc[AAU_EDCR0_IDX].e_desc_ctrl = edcr;
 		src_cnt = 8;
-		/* fall through */
+		fallthrough;
 	case 2 ... 8:
 		shift = 1;
 		for (i = 0; i < src_cnt; i++) {
@@ -602,19 +602,19 @@ iop_desc_init_null_xor(struct iop_adma_desc_slot *desc, int src_cnt,
 	case 25 ... 32:
 		u_desc_ctrl.field.blk_ctrl = 0x3; /* use EDCR[2:0] */
 		hw_desc->src_edc[AAU_EDCR2_IDX].e_desc_ctrl = 0;
-		/* fall through */
+		fallthrough;
 	case 17 ... 24:
 		if (!u_desc_ctrl.field.blk_ctrl) {
 			hw_desc->src_edc[AAU_EDCR2_IDX].e_desc_ctrl = 0;
 			u_desc_ctrl.field.blk_ctrl = 0x3; /* use EDCR[2:0] */
 		}
 		hw_desc->src_edc[AAU_EDCR1_IDX].e_desc_ctrl = 0;
-		/* fall through */
+		fallthrough;
 	case 9 ... 16:
 		if (!u_desc_ctrl.field.blk_ctrl)
 			u_desc_ctrl.field.blk_ctrl = 0x2; /* use EDCR0 */
 		hw_desc->src_edc[AAU_EDCR0_IDX].e_desc_ctrl = 0;
-		/* fall through */
+		fallthrough;
 	case 1 ... 8:
 		if (!u_desc_ctrl.field.blk_ctrl && src_cnt > 4)
 			u_desc_ctrl.field.blk_ctrl = 0x1; /* use mini-desc */

@@ -1084,7 +1084,7 @@ bna_enet_sm_cfg_wait(struct bna_enet *enet,
 
 	case ENET_E_CHLD_STOPPED:
 		bna_enet_rx_start(enet);
-		/* Fall through */
+		fallthrough;
 	case ENET_E_FWRESP_PAUSE:
 		if (enet->flags & BNA_ENET_F_PAUSE_CHANGED) {
 			enet->flags &= ~BNA_ENET_F_PAUSE_CHANGED;

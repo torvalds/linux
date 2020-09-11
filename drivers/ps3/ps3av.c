@@ -769,7 +769,7 @@ static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf)
 		switch (info->monitor_type) {
 		case PS3AV_MONITOR_TYPE_DVI:
 			dvi = PS3AV_MODE_DVI;
-			/* fall through */
+			fallthrough;
 		case PS3AV_MONITOR_TYPE_HDMI:
 			id = ps3av_hdmi_get_id(info);
 			break;

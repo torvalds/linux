@@ -142,16 +142,15 @@ static int idtcm_strverscmp(const char *ver1, const char *ver2)
 	return result;
 }
 
-static int idtcm_xfer(struct idtcm *idtcm,
-		      u8 regaddr,
-		      u8 *buf,
-		      u16 count,
-		      bool write)
+static int idtcm_xfer_read(struct idtcm *idtcm,
+			   u8 regaddr,
+			   u8 *buf,
+			   u16 count)
 {
 	struct i2c_client *client = idtcm->client;
 	struct i2c_msg msg[2];
 	int cnt;
-	char *fmt = "i2c_transfer failed at %d in %s for %s, at addr: %04X!\n";
+	char *fmt = "i2c_transfer failed at %d in %s, at addr: %04X!\n";
 
 	msg[0].addr = client->addr;
 	msg[0].flags = 0;
@@ -159,7 +158,7 @@ static int idtcm_xfer(struct idtcm *idtcm,
 	msg[0].buf = &regaddr;
 
 	msg[1].addr = client->addr;
-	msg[1].flags = write ? 0 : I2C_M_RD;
+	msg[1].flags = I2C_M_RD;
 	msg[1].len = count;
 	msg[1].buf = buf;
 
@@ -170,13 +169,43 @@ static int idtcm_xfer(struct idtcm *idtcm,
 			fmt,
 			__LINE__,
 			__func__,
-			write ? "write" : "read",
 			regaddr);
 		return cnt;
 	} else if (cnt != 2) {
 		dev_err(&client->dev,
 			"i2c_transfer sent only %d of %d messages\n", cnt, 2);
 		return -EIO;
+	}
+
+	return 0;
+}
+
+static int idtcm_xfer_write(struct idtcm *idtcm,
+			    u8 regaddr,
+			    u8 *buf,
+			    u16 count)
+{
+	struct i2c_client *client = idtcm->client;
+	/* we add 1 byte for device register */
+	u8 msg[IDTCM_MAX_WRITE_COUNT + 1];
+	int cnt;
+	char *fmt = "i2c_master_send failed at %d in %s, at addr: %04X!\n";
+
+	if (count > IDTCM_MAX_WRITE_COUNT)
+		return -EINVAL;
+
+	msg[0] = regaddr;
+	memcpy(&msg[1], buf, count);
+
+	cnt = i2c_master_send(client, msg, count + 1);
+
+	if (cnt < 0) {
+		dev_err(&client->dev,
+			fmt,
+			__LINE__,
+			__func__,
+			regaddr);
+		return cnt;
 	}
 
 	return 0;
@@ -195,7 +224,7 @@ static int idtcm_page_offset(struct idtcm *idtcm, u8 val)
 	buf[2] = 0x10;
 	buf[3] = 0x20;
 
-	err = idtcm_xfer(idtcm, PAGE_ADDR, buf, sizeof(buf), 1);
+	err = idtcm_xfer_write(idtcm, PAGE_ADDR, buf, sizeof(buf));
 
 	if (err) {
 		idtcm->page_offset = 0xff;
@@ -223,11 +252,12 @@ static int _idtcm_rdwr(struct idtcm *idtcm,
 	err = idtcm_page_offset(idtcm, hi);
 
 	if (err)
-		goto out;
+		return err;
 
-	err = idtcm_xfer(idtcm, lo, buf, count, write);
-out:
-	return err;
+	if (write)
+		return idtcm_xfer_write(idtcm, lo, buf, count);
+
+	return idtcm_xfer_read(idtcm, lo, buf, count);
 }
 
 static int idtcm_read(struct idtcm *idtcm,

@@ -10,5 +10,5 @@ subdir-ccflags-y := -I$(incdir)				\
 		    -DDISABLE_BRANCH_PROFILING		\
 		    $(DISABLE_STACKLEAK_PLUGIN)
 
-obj-$(CONFIG_KVM) += vhe/ nvhe/
+obj-$(CONFIG_KVM) += vhe/ nvhe/ pgtable.o
 obj-$(CONFIG_KVM_INDIRECT_VECTORS) += smccc_wa.o

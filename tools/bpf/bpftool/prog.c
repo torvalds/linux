@@ -428,14 +428,14 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 			p_info("no instructions returned");
 			return -1;
 		}
-		buf = (unsigned char *)(info->jited_prog_insns);
+		buf = u64_to_ptr(info->jited_prog_insns);
 		member_len = info->jited_prog_len;
 	} else {	/* DUMP_XLATED */
 		if (info->xlated_prog_len == 0 || !info->xlated_prog_insns) {
 			p_err("error retrieving insn dump: kernel.kptr_restrict set?");
 			return -1;
 		}
-		buf = (unsigned char *)info->xlated_prog_insns;
+		buf = u64_to_ptr(info->xlated_prog_insns);
 		member_len = info->xlated_prog_len;
 	}
 
@@ -444,7 +444,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		return -1;
 	}
 
-	func_info = (void *)info->func_info;
+	func_info = u64_to_ptr(info->func_info);
 
 	if (info->nr_line_info) {
 		prog_linfo = bpf_prog_linfo__new(info);
@@ -462,7 +462,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 
 		n = write(fd, buf, member_len);
 		close(fd);
-		if (n != member_len) {
+		if (n != (ssize_t)member_len) {
 			p_err("error writing output file: %s",
 			      n < 0 ? strerror(errno) : "short write");
 			return -1;
@@ -492,13 +492,13 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 			__u32 i;
 			if (info->nr_jited_ksyms) {
 				kernel_syms_load(&dd);
-				ksyms = (__u64 *) info->jited_ksyms;
+				ksyms = u64_to_ptr(info->jited_ksyms);
 			}
 
 			if (json_output)
 				jsonw_start_array(json_wtr);
 
-			lens = (__u32 *) info->jited_func_lens;
+			lens = u64_to_ptr(info->jited_func_lens);
 			for (i = 0; i < info->nr_jited_func_lens; i++) {
 				if (ksyms) {
 					sym = kernel_syms_search(&dd, ksyms[i]);
@@ -559,7 +559,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 	} else {
 		kernel_syms_load(&dd);
 		dd.nr_jited_ksyms = info->nr_jited_ksyms;
-		dd.jited_ksyms = (__u64 *) info->jited_ksyms;
+		dd.jited_ksyms = u64_to_ptr(info->jited_ksyms);
 		dd.btf = btf;
 		dd.func_info = func_info;
 		dd.finfo_rec_size = info->func_info_rec_size;
@@ -1681,7 +1681,7 @@ static char *profile_target_name(int tgt_fd)
 		goto out;
 	}
 
-	func_info = (struct bpf_func_info *)(info_linear->info.func_info);
+	func_info = u64_to_ptr(info_linear->info.func_info);
 	t = btf__type_by_id(btf, func_info[0].type_id);
 	if (!t) {
 		p_err("btf %d doesn't have type %d",

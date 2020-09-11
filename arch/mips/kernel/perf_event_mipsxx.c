@@ -1898,8 +1898,8 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 				(base_id >= 64 && base_id < 90) ||
 				(base_id >= 128 && base_id < 164) ||
 				(base_id >= 192 && base_id < 200) ||
-				(base_id >= 256 && base_id < 274) ||
-				(base_id >= 320 && base_id < 358) ||
+				(base_id >= 256 && base_id < 275) ||
+				(base_id >= 320 && base_id < 361) ||
 				(base_id >= 384 && base_id < 574))
 				break;
 

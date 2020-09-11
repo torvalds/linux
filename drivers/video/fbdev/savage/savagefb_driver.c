@@ -1860,7 +1860,7 @@ static int savage_init_hw(struct savagefb_par *par)
 		if ((vga_in8(0x3d5, par) & 0xC0) == (0x01 << 6))
 			RamSavage4[1] = 8;
 
-		/*FALLTHROUGH*/
+		fallthrough;
 
 	case S3_SAVAGE2000:
 		videoRam = RamSavage4[(config1 & 0xE0) >> 5] * 1024;
