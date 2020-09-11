@@ -165,6 +165,7 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
 						       EFX_BUF_SIZE));
 	bool csum_offload = tx_queue->type & EFX_TXQ_TYPE_OUTER_CSUM;
+	bool inner_csum = tx_queue->type & EFX_TXQ_TYPE_INNER_CSUM;
 	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
@@ -194,16 +195,23 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2)
 	inlen = MC_CMD_INIT_TXQ_IN_LEN(entries);
 
 	do {
-		MCDI_POPULATE_DWORD_4(inbuf, INIT_TXQ_IN_FLAGS,
+		/* TSOv2 implies IP header checksum offload for TSO frames,
+		 * so we can safely disable IP header checksum offload for
+		 * everything else.  If we don't have TSOv2, then we have to
+		 * enable IP header checksum offload, which is strictly
+		 * incorrect but better than breaking TSO.
+		 */
+		MCDI_POPULATE_DWORD_6(inbuf, INIT_TXQ_IN_FLAGS,
 				/* This flag was removed from mcdi_pcol.h for
 				 * the non-_EXT version of INIT_TXQ.  However,
 				 * firmware still honours it.
 				 */
 				INIT_TXQ_EXT_IN_FLAG_TSOV2_EN, tso_v2,
-				INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !csum_offload,
+				INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !(csum_offload && tso_v2),
 				INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload,
-				INIT_TXQ_EXT_IN_FLAG_TIMESTAMP,
-						tx_queue->timestamping);
+				INIT_TXQ_EXT_IN_FLAG_TIMESTAMP, tx_queue->timestamping,
+				INIT_TXQ_IN_FLAG_INNER_IP_CSUM_EN, inner_csum && !tso_v2,
+				INIT_TXQ_IN_FLAG_INNER_TCP_CSUM_EN, inner_csum);
 
 		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
 					NULL, 0, NULL);
