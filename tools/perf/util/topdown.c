@@ -51,3 +51,8 @@ __weak bool arch_topdown_check_group(bool *warn)
 __weak void arch_topdown_group_warn(void)
 {
 }
+
+__weak bool arch_topdown_sample_read(struct evsel *leader __maybe_unused)
+{
+	return false;
+}
