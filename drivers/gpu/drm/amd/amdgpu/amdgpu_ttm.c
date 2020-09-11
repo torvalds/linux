@@ -68,7 +68,6 @@ static int amdgpu_ttm_init_on_chip(struct amdgpu_device *adev,
 				    uint64_t size)
 {
 	return ttm_range_man_init(&adev->mman.bdev, type,
-				  TTM_PL_FLAG_UNCACHED,
 				  false, size >> PAGE_SHIFT);
 }
 

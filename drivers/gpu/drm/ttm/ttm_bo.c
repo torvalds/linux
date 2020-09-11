@@ -910,11 +910,8 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 	if (!man || !ttm_resource_manager_used(man))
 		return -EBUSY;
 
-	if ((place->flags & man->available_caching) == 0)
-		return -EBUSY;
-
-	cur_flags = place->flags & man->available_caching;
-	cur_flags = ttm_bo_select_caching(man, bo->mem.placement, cur_flags);
+	cur_flags = ttm_bo_select_caching(man, bo->mem.placement,
+					  place->flags);
 	cur_flags |= place->flags & ~TTM_PL_MASK_CACHING;
 
 	mem->mem_type = place->mem_type;
@@ -1432,7 +1429,6 @@ static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
 	 * Other types need to be driver / IOCTL initialized.
 	 */
 	man->use_tt = true;
-	man->available_caching = TTM_PL_MASK_CACHING;
 
 	ttm_resource_manager_init(man, 0);
 	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, man);

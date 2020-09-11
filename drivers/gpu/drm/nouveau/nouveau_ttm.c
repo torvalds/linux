@@ -200,7 +200,6 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 		if (!man)
 			return -ENOMEM;
 
-		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
 		man->func = &nouveau_vram_manager;
 
 		ttm_resource_manager_init(man,
@@ -209,9 +208,7 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 		ttm_resource_manager_set_used(man, true);
 		return 0;
 	} else {
-		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_VRAM,
-					  TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC,
-					  false,
+		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_VRAM, false,
 					  drm->gem.vram_available >> PAGE_SHIFT);
 	}
 }
@@ -243,8 +240,7 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 	else if (!drm->agp.bridge)
 		func = &nv04_gart_manager;
 	else
-		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_TT,
-					  TTM_PL_MASK_CACHING, true,
+		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_TT, true,
 					  size_pages);
 
 	man = kzalloc(sizeof(*man), GFP_KERNEL);
@@ -252,7 +248,6 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 		return -ENOMEM;
 
 	man->func = func;
-	man->available_caching = TTM_PL_MASK_CACHING;
 	man->use_tt = true;
 	ttm_resource_manager_init(man, size_pages);
 	ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, man);
