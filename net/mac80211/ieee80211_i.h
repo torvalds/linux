@@ -271,6 +271,12 @@ struct probe_resp {
 	u8 data[];
 };
 
+struct fils_discovery_data {
+	struct rcu_head rcu_head;
+	int len;
+	u8 data[];
+};
+
 struct ps_data {
 	/* yes, this looks ugly, but guarantees that we can later use
 	 * bitmap_empty :)
@@ -286,6 +292,7 @@ struct ps_data {
 struct ieee80211_if_ap {
 	struct beacon_data __rcu *beacon;
 	struct probe_resp __rcu *probe_resp;
+	struct fils_discovery_data __rcu *fils_discovery;
 
 	/* to be used after channel switch. */
 	struct cfg80211_beacon_data *next_beacon;
