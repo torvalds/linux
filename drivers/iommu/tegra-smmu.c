@@ -23,6 +23,7 @@ struct tegra_smmu_group {
 	struct tegra_smmu *smmu;
 	const struct tegra_smmu_group_soc *soc;
 	struct iommu_group *group;
+	unsigned int swgroup;
 };
 
 struct tegra_smmu {
@@ -909,14 +910,14 @@ static struct iommu_group *tegra_smmu_group_get(struct tegra_smmu *smmu,
 	struct tegra_smmu_group *group;
 	struct iommu_group *grp;
 
+	/* Find group_soc associating with swgroup */
 	soc = tegra_smmu_find_group(smmu, swgroup);
-	if (!soc)
-		return NULL;
 
 	mutex_lock(&smmu->lock);
 
+	/* Find existing iommu_group associating with swgroup or group_soc */
 	list_for_each_entry(group, &smmu->groups, list)
-		if (group->soc == soc) {
+		if ((group->swgroup == swgroup) || (soc && group->soc == soc)) {
 			grp = iommu_group_ref_get(group->group);
 			mutex_unlock(&smmu->lock);
 			return grp;
@@ -929,6 +930,7 @@ static struct iommu_group *tegra_smmu_group_get(struct tegra_smmu *smmu,
 	}
 
 	INIT_LIST_HEAD(&group->list);
+	group->swgroup = swgroup;
 	group->smmu = smmu;
 	group->soc = soc;
 
@@ -940,7 +942,8 @@ static struct iommu_group *tegra_smmu_group_get(struct tegra_smmu *smmu,
 	}
 
 	iommu_group_set_iommudata(group->group, group, tegra_smmu_group_release);
-	iommu_group_set_name(group->group, soc->name);
+	if (soc)
+		iommu_group_set_name(group->group, soc->name);
 	list_add_tail(&group->list, &smmu->groups);
 	mutex_unlock(&smmu->lock);
 
