@@ -28,8 +28,6 @@ void mx21_init_irq(void);
 void mx31_init_irq(void);
 void mx35_init_irq(void);
 void imx21_soc_init(void);
-void imx31_soc_init(void);
-void imx35_soc_init(void);
 int mx21_clocks_init(unsigned long lref, unsigned long fref);
 int mx27_clocks_init(unsigned long fref);
 int mx31_clocks_init(unsigned long fref);
