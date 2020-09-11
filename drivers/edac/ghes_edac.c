@@ -632,6 +632,7 @@ void ghes_edac_unregister(struct ghes *ghes)
 	mutex_lock(&ghes_reg_mutex);
 
 	system_scanned = false;
+	memset(&ghes_hw, 0, sizeof(struct ghes_hw_desc));
 
 	if (!refcount_dec_and_test(&ghes_refcount))
 		goto unlock;
