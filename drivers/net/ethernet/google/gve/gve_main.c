@@ -450,36 +450,37 @@ static int gve_create_rings(struct gve_priv *priv)
 	int err;
 	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
-		err = gve_adminq_create_tx_queue(priv, i);
-		if (err) {
-			netif_err(priv, drv, priv->dev, "failed to create tx queue %d\n",
-				  i);
-			/* This failure will trigger a reset - no need to clean
-			 * up
-			 */
-			return err;
-		}
-		netif_dbg(priv, drv, priv->dev, "created tx queue %d\n", i);
-	}
-	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
-		err = gve_adminq_create_rx_queue(priv, i);
-		if (err) {
-			netif_err(priv, drv, priv->dev, "failed to create rx queue %d\n",
-				  i);
-			/* This failure will trigger a reset - no need to clean
-			 * up
-			 */
-			return err;
-		}
-		/* Rx data ring has been prefilled with packet buffers at
-		 * queue allocation time.
-		 * Write the doorbell to provide descriptor slots and packet
-		 * buffers to the NIC.
+	err = gve_adminq_create_tx_queues(priv, priv->tx_cfg.num_queues);
+	if (err) {
+		netif_err(priv, drv, priv->dev, "failed to create %d tx queues\n",
+			  priv->tx_cfg.num_queues);
+		/* This failure will trigger a reset - no need to clean
+		 * up
 		 */
-		gve_rx_write_doorbell(priv, &priv->rx[i]);
-		netif_dbg(priv, drv, priv->dev, "created rx queue %d\n", i);
+		return err;
 	}
+	netif_dbg(priv, drv, priv->dev, "created %d tx queues\n",
+		  priv->tx_cfg.num_queues);
+
+	err = gve_adminq_create_rx_queues(priv, priv->rx_cfg.num_queues);
+	if (err) {
+		netif_err(priv, drv, priv->dev, "failed to create %d rx queues\n",
+			  priv->rx_cfg.num_queues);
+		/* This failure will trigger a reset - no need to clean
+		 * up
+		 */
+		return err;
+	}
+	netif_dbg(priv, drv, priv->dev, "created %d rx queues\n",
+		  priv->rx_cfg.num_queues);
+
+	/* Rx data ring has been prefilled with packet buffers at queue
+	 * allocation time.
+	 * Write the doorbell to provide descriptor slots and packet buffers
+	 * to the NIC.
+	 */
+	for (i = 0; i < priv->rx_cfg.num_queues; i++)
+		gve_rx_write_doorbell(priv, &priv->rx[i]);
 
 	return 0;
 }
@@ -537,34 +538,23 @@ free_tx:
 static int gve_destroy_rings(struct gve_priv *priv)
 {
 	int err;
-	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
-		err = gve_adminq_destroy_tx_queue(priv, i);
-		if (err) {
-			netif_err(priv, drv, priv->dev,
-				  "failed to destroy tx queue %d\n",
-				  i);
-			/* This failure will trigger a reset - no need to clean
-			 * up
-			 */
-			return err;
-		}
-		netif_dbg(priv, drv, priv->dev, "destroyed tx queue %d\n", i);
+	err = gve_adminq_destroy_tx_queues(priv, priv->tx_cfg.num_queues);
+	if (err) {
+		netif_err(priv, drv, priv->dev,
+			  "failed to destroy tx queues\n");
+		/* This failure will trigger a reset - no need to clean up */
+		return err;
 	}
-	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
-		err = gve_adminq_destroy_rx_queue(priv, i);
-		if (err) {
-			netif_err(priv, drv, priv->dev,
-				  "failed to destroy rx queue %d\n",
-				  i);
-			/* This failure will trigger a reset - no need to clean
-			 * up
-			 */
-			return err;
-		}
-		netif_dbg(priv, drv, priv->dev, "destroyed rx queue %d\n", i);
+	netif_dbg(priv, drv, priv->dev, "destroyed tx queues\n");
+	err = gve_adminq_destroy_rx_queues(priv, priv->rx_cfg.num_queues);
+	if (err) {
+		netif_err(priv, drv, priv->dev,
+			  "failed to destroy rx queues\n");
+		/* This failure will trigger a reset - no need to clean up */
+		return err;
 	}
+	netif_dbg(priv, drv, priv->dev, "destroyed rx queues\n");
 	return 0;
 }
 
