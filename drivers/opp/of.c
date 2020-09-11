@@ -842,7 +842,7 @@ free_opp:
 static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 {
 	struct device_node *np;
-	int ret, count = 0, pstate_count = 0;
+	int ret, count = 0;
 	struct dev_pm_opp *opp;
 
 	/* OPP table is already initialized for the device */
@@ -876,19 +876,13 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 		goto remove_static_opp;
 	}
 
-	list_for_each_entry(opp, &opp_table->opp_list, node)
-		pstate_count += !!opp->pstate;
-
-	/* Either all or none of the nodes shall have performance state set */
-	if (pstate_count && pstate_count != count) {
-		dev_err(dev, "Not all nodes have performance state set (%d: %d)\n",
-			count, pstate_count);
-		ret = -ENOENT;
-		goto remove_static_opp;
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		/* Any non-zero performance state would enable the feature */
+		if (opp->pstate) {
+			opp_table->genpd_performance_state = true;
+			break;
+		}
 	}
-
-	if (pstate_count)
-		opp_table->genpd_performance_state = true;
 
 	return 0;
 

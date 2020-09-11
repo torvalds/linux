@@ -2109,9 +2109,6 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 	int dest_pstate = -EINVAL;
 	int i;
 
-	if (!pstate)
-		return 0;
-
 	/*
 	 * Normally the src_table will have the "required_opps" property set to
 	 * point to one of the OPPs in the dst_table, but in some cases the
