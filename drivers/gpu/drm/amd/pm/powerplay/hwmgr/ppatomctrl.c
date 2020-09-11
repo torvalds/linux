@@ -1295,11 +1295,17 @@ int atomctrl_get_engine_clock_spread_spectrum(
 }
 
 int atomctrl_read_efuse(struct pp_hwmgr *hwmgr, uint16_t start_index,
-		uint16_t end_index, uint32_t mask, uint32_t *efuse)
+		uint16_t end_index, uint32_t *efuse)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t mask;
 	int result;
 	READ_EFUSE_VALUE_PARAMETER efuse_param;
+
+	if ((end_index - start_index)  == 31)
+		mask = 0xFFFFFFFF;
+	else
+		mask = (1 << ((end_index - start_index) + 1)) - 1;
 
 	efuse_param.sEfuse.usEfuseIndex = cpu_to_le16((start_index / 32) * 4);
 	efuse_param.sEfuse.ucBitShift = (uint8_t)
