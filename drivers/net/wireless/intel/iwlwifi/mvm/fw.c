@@ -989,41 +989,90 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
 }
 
-static bool iwl_mvm_eval_dsm_indonesia_5g2(struct iwl_mvm *mvm)
+static u8 iwl_mvm_eval_dsm_indonesia_5g2(struct iwl_mvm *mvm)
 {
 	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
 				      DSM_FUNC_ENABLE_INDONESIA_5G2);
 
-	IWL_DEBUG_RADIO(mvm,
-			"Evaluated DSM function ENABLE_INDONESIA_5G2, ret=%d\n",
-			ret);
+	if (ret < 0)
+		IWL_DEBUG_RADIO(mvm,
+				"Failed to evaluate DSM function ENABLE_INDONESIA_5G2, ret=%d\n",
+				ret);
 
-	return ret == 1;
+	else if (ret >= DSM_VALUE_INDONESIA_MAX)
+		IWL_DEBUG_RADIO(mvm,
+				"DSM function ENABLE_INDONESIA_5G2 return invalid value, ret=%d\n",
+				ret);
+
+	else if (ret == DSM_VALUE_INDONESIA_ENABLE) {
+		IWL_DEBUG_RADIO(mvm,
+				"Evaluated DSM function ENABLE_INDONESIA_5G2: Enabling 5g2\n");
+		return DSM_VALUE_INDONESIA_ENABLE;
+	}
+	/* default behaviour is disabled */
+	return DSM_VALUE_INDONESIA_DISABLE;
+}
+
+static u8 iwl_mvm_eval_dsm_disable_srd(struct iwl_mvm *mvm)
+{
+	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
+				      DSM_FUNC_DISABLE_SRD);
+
+	if (ret < 0)
+		IWL_DEBUG_RADIO(mvm,
+				"Failed to evaluate DSM function DISABLE_SRD, ret=%d\n",
+				ret);
+
+	else if (ret >= DSM_VALUE_SRD_MAX)
+		IWL_DEBUG_RADIO(mvm,
+				"DSM function DISABLE_SRD return invalid value, ret=%d\n",
+				ret);
+
+	else if (ret == DSM_VALUE_SRD_PASSIVE) {
+		IWL_DEBUG_RADIO(mvm,
+				"Evaluated DSM function DISABLE_SRD: setting SRD to passive\n");
+		return DSM_VALUE_SRD_PASSIVE;
+
+	} else if (ret == DSM_VALUE_SRD_DISABLE) {
+		IWL_DEBUG_RADIO(mvm,
+				"Evaluated DSM function DISABLE_SRD: disabling SRD\n");
+		return DSM_VALUE_SRD_DISABLE;
+	}
+	/* default behaviour is active */
+	return DSM_VALUE_SRD_ACTIVE;
 }
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
-	int ret;
+	u8 ret;
+	int cmd_ret;
 	struct iwl_lari_config_change_cmd cmd = {};
 
-	if (iwl_mvm_eval_dsm_indonesia_5g2(mvm))
+	if (iwl_mvm_eval_dsm_indonesia_5g2(mvm) == DSM_VALUE_INDONESIA_ENABLE)
 		cmd.config_bitmap |=
 			cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
+
+	ret = iwl_mvm_eval_dsm_disable_srd(mvm);
+	if (ret == DSM_VALUE_SRD_PASSIVE)
+		cmd.config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
+
+	else if (ret == DSM_VALUE_SRD_DISABLE)
+		cmd.config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
 
 	/* apply more config masks here */
 
 	if (cmd.config_bitmap) {
-		IWL_DEBUG_RADIO(mvm,
-				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x\n",
-				le32_to_cpu(cmd.config_bitmap));
-		ret = iwl_mvm_send_cmd_pdu(mvm,
-					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						   LARI_CONFIG_CHANGE),
-					   0, sizeof(cmd), &cmd);
-		if (ret < 0)
+		IWL_DEBUG_RADIO(mvm, "sending LARI_CONFIG_CHANGE\n");
+		cmd_ret = iwl_mvm_send_cmd_pdu(mvm,
+					       WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						       LARI_CONFIG_CHANGE),
+					       0, sizeof(cmd), &cmd);
+		if (cmd_ret < 0)
 			IWL_DEBUG_RADIO(mvm,
 					"Failed to send LARI_CONFIG_CHANGE (%d)\n",
-					ret);
+					cmd_ret);
 	}
 }
 #else /* CONFIG_ACPI */

@@ -133,6 +133,20 @@ enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_ENABLE_INDONESIA_5G2 = 2,
 };
 
+enum iwl_dsm_values_srd {
+	DSM_VALUE_SRD_ACTIVE,
+	DSM_VALUE_SRD_PASSIVE,
+	DSM_VALUE_SRD_DISABLE,
+	DSM_VALUE_SRD_MAX
+};
+
+enum iwl_dsm_values_indonesia {
+	DSM_VALUE_INDONESIA_DISABLE,
+	DSM_VALUE_INDONESIA_ENABLE,
+	DSM_VALUE_INDONESIA_RESERVED,
+	DSM_VALUE_INDONESIA_MAX
+};
+
 #ifdef CONFIG_ACPI
 
 struct iwl_fw_runtime;
