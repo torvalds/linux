@@ -416,8 +416,6 @@ static int vidtv_demod_i2c_remove(struct i2c_client *client)
 {
 	struct vidtv_demod_state *state = i2c_get_clientdata(client);
 
-	memset(&state->frontend.ops, 0, sizeof(struct dvb_frontend_ops));
-	state->frontend.demodulator_priv = NULL;
 	kfree(state);
 
 	return 0;

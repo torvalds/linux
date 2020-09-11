@@ -402,10 +402,7 @@ static int vidtv_tuner_i2c_probe(struct i2c_client *client,
 static int vidtv_tuner_i2c_remove(struct i2c_client *client)
 {
 	struct vidtv_tuner_dev *tuner_dev = i2c_get_clientdata(client);
-	struct dvb_frontend *fe           = tuner_dev->fe;
 
-	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
-	fe->tuner_priv = NULL;
 	kfree(tuner_dev);
 
 	return 0;

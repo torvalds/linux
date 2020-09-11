@@ -472,29 +472,15 @@ static int vidtv_bridge_remove(struct platform_device *pdev)
 
 	mutex_destroy(&dvb->feed_lock);
 
-	for (i = 0; i < NUM_FE; ++i)
-		dvb->demux.dmx.remove_frontend(&dvb->demux.dmx,
-					       &dvb->dmx_fe[i]);
+	for (i = 0; i < NUM_FE; ++i) {
+		dvb_unregister_frontend(dvb->fe[i]);
+		dvb_module_release(dvb->i2c_client_tuner[i]);
+		dvb_module_release(dvb->i2c_client_demod[i]);
+	}
 
 	dvb_dmxdev_release(&dvb->dmx_dev);
 	dvb_dmx_release(&dvb->demux);
-
-	for (i = 0; i < NUM_FE; ++i) {
-		dvb_unregister_frontend(dvb->fe[i]);
-		dvb_frontend_detach(dvb->fe[i]);
-	}
-
 	dvb_unregister_adapter(&dvb->adapter);
-
-	for (i = 0; i < NUM_FE; i++)
-		dvb_module_release(dvb->i2c_client_tuner[i]);
-
-	for (i = 0; i < NUM_FE ; i++)
-		dvb_module_release(dvb->i2c_client_demod[i]);
-
-	dvb_unregister_adapter(&dvb->adapter);
-
-	i2c_del_adapter(&dvb->i2c_adapter);
 
 	return 0;
 }
