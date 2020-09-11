@@ -168,7 +168,7 @@ enum bq2515x_id {
  * @device_id: value of device_id
  * @mains_online: boolean value indicating power supply online
  *
- * @bq2515x_init_data init_data: charger initialization data structure
+ * @init_data: charger initialization data structure
  */
 struct bq2515x_device {
 	struct power_supply *mains;
