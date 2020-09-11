@@ -4696,7 +4696,7 @@ static int nested_vmx_get_vmptr(struct kvm_vcpu *vcpu, gpa_t *vmpointer,
 
 	r = kvm_read_guest_virt(vcpu, gva, vmpointer, sizeof(*vmpointer), &e);
 	if (r != X86EMUL_CONTINUE) {
-		*ret = vmx_handle_memory_failure(vcpu, r, &e);
+		*ret = kvm_handle_memory_failure(vcpu, r, &e);
 		return -EINVAL;
 	}
 
@@ -5003,7 +5003,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 		/* _system ok, nested_vmx_check_permission has verified cpl=0 */
 		r = kvm_write_guest_virt_system(vcpu, gva, &value, len, &e);
 		if (r != X86EMUL_CONTINUE)
-			return vmx_handle_memory_failure(vcpu, r, &e);
+			return kvm_handle_memory_failure(vcpu, r, &e);
 	}
 
 	return nested_vmx_succeed(vcpu);
@@ -5076,7 +5076,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 			return 1;
 		r = kvm_read_guest_virt(vcpu, gva, &value, len, &e);
 		if (r != X86EMUL_CONTINUE)
-			return vmx_handle_memory_failure(vcpu, r, &e);
+			return kvm_handle_memory_failure(vcpu, r, &e);
 	}
 
 	field = kvm_register_readl(vcpu, (((instr_info) >> 28) & 0xf));
@@ -5238,7 +5238,7 @@ static int handle_vmptrst(struct kvm_vcpu *vcpu)
 	r = kvm_write_guest_virt_system(vcpu, gva, (void *)&current_vmptr,
 					sizeof(gpa_t), &e);
 	if (r != X86EMUL_CONTINUE)
-		return vmx_handle_memory_failure(vcpu, r, &e);
+		return kvm_handle_memory_failure(vcpu, r, &e);
 
 	return nested_vmx_succeed(vcpu);
 }
@@ -5291,7 +5291,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 		return 1;
 	r = kvm_read_guest_virt(vcpu, gva, &operand, sizeof(operand), &e);
 	if (r != X86EMUL_CONTINUE)
-		return vmx_handle_memory_failure(vcpu, r, &e);
+		return kvm_handle_memory_failure(vcpu, r, &e);
 
 	/*
 	 * Nested EPT roots are always held through guest_mmu,
@@ -5373,7 +5373,7 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 		return 1;
 	r = kvm_read_guest_virt(vcpu, gva, &operand, sizeof(operand), &e);
 	if (r != X86EMUL_CONTINUE)
-		return vmx_handle_memory_failure(vcpu, r, &e);
+		return kvm_handle_memory_failure(vcpu, r, &e);
 
 	if (operand.vpid >> 16)
 		return nested_vmx_fail(vcpu,
