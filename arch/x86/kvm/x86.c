@@ -2735,7 +2735,7 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
 		return 1;
 
 	if (!lapic_in_kernel(vcpu))
-		return 1;
+		return data ? 1 : 0;
 
 	vcpu->arch.apf.msr_en_val = data;
 
