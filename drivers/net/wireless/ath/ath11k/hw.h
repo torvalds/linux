@@ -129,7 +129,6 @@ struct ath11k_hw_params {
 	} fw;
 
 	const struct ath11k_hw_ops *hw_ops;
-
 	const struct ath11k_hw_ring_mask *ring_mask;
 
 	bool internal_sleep_clock;
@@ -137,6 +136,10 @@ struct ath11k_hw_params {
 	const struct ath11k_hw_regs *regs;
 	const struct ce_attr *host_ce_config;
 	u32 ce_count;
+	const struct ce_pipe_config *target_ce_config;
+	u32 target_ce_count;
+	const struct service_to_pipe *svc_to_ce_map;
+	u32 svc_to_ce_map_len;
 
 	bool single_pdev_only;
 

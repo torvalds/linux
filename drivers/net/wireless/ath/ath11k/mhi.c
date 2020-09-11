@@ -220,7 +220,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 
 	mhi_ctrl = kzalloc(sizeof(*mhi_ctrl), GFP_KERNEL);
 	if (!mhi_ctrl)
-		return PTR_ERR(mhi_ctrl);
+		return -ENOMEM;
 
 	ath11k_core_create_firmware_path(ab, ATH11K_AMSS_FILE,
 					 ab_pci->amss_path,

@@ -2133,8 +2133,6 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
 	mcast = is_multicast_ether_addr(hdr->addr1);
 	fill_crypto_hdr = mcast;
 
-	is_decrypted = ath11k_dp_rx_h_attn_is_decrypted(rx_desc);
-
 	spin_lock_bh(&ar->ab->base_lock);
 	peer = ath11k_peer_find_by_addr(ar->ab, hdr->addr2);
 	if (peer) {
@@ -2148,6 +2146,8 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
 	spin_unlock_bh(&ar->ab->base_lock);
 
 	err_bitmap = ath11k_dp_rx_h_attn_mpdu_err(rx_desc);
+	if (enctype != HAL_ENCRYPT_TYPE_OPEN && !err_bitmap)
+		is_decrypted = ath11k_dp_rx_h_attn_is_decrypted(rx_desc);
 
 	/* Clear per-MPDU flags while leaving per-PPDU flags intact */
 	rx_status->flag &= ~(RX_FLAG_FAILED_FCS_CRC |
@@ -2349,6 +2349,9 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
 		   !!(status->flag & RX_FLAG_FAILED_FCS_CRC),
 		   !!(status->flag & RX_FLAG_MMIC_ERROR),
 		   !!(status->flag & RX_FLAG_AMSDU_MORE));
+
+	ath11k_dbg_dump(ar->ab, ATH11K_DBG_DP_RX, NULL, "dp rx msdu: ",
+			msdu->data, msdu->len);
 
 	/* TODO: trace rx packet */
 

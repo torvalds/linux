@@ -35,6 +35,8 @@
 
 #define ATH11K_INVALID_HW_MAC_ID	0xFF
 
+extern unsigned int ath11k_frame_mode;
+
 enum ath11k_supported_bw {
 	ATH11K_BW_20	= 0,
 	ATH11K_BW_40	= 1,
@@ -53,6 +55,13 @@ enum wme_ac {
 #define ATH11K_HT_MCS_MAX	7
 #define ATH11K_VHT_MCS_MAX	9
 #define ATH11K_HE_MCS_MAX	11
+
+enum ath11k_crypt_mode {
+	/* Only use hardware crypto engine */
+	ATH11K_CRYPT_MODE_HW,
+	/* Only use software crypto */
+	ATH11K_CRYPT_MODE_SW,
+};
 
 static inline enum wme_ac ath11k_tid_to_ac(u32 tid)
 {
@@ -91,6 +100,7 @@ struct ath11k_skb_rxcb {
 enum ath11k_hw_rev {
 	ATH11K_HW_IPQ8074,
 	ATH11K_HW_QCA6390_HW20,
+	ATH11K_HW_IPQ6018_HW10,
 };
 
 enum ath11k_firmware_mode {
@@ -844,6 +854,13 @@ struct ath11k_fw_stats_bcn {
 	u32 tx_bcn_succ_cnt;
 	u32 tx_bcn_outage_cnt;
 };
+
+extern const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq8074[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq8074[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq6018[];
+
+extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qca6390[];
 
 void ath11k_peer_unmap_event(struct ath11k_base *ab, u16 peer_id);
 void ath11k_peer_map_event(struct ath11k_base *ab, u8 vdev_id, u16 peer_id,

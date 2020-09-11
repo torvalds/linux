@@ -18,6 +18,16 @@ EXPORT_SYMBOL(ath11k_debug_mask);
 module_param_named(debug_mask, ath11k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
+static unsigned int ath11k_crypto_mode;
+module_param_named(crypto_mode, ath11k_crypto_mode, uint, 0644);
+MODULE_PARM_DESC(crypto_mode, "crypto mode: 0-hardware, 1-software");
+
+/* frame mode values are mapped as per enum ath11k_hw_txrx_mode */
+unsigned int ath11k_frame_mode = ATH11K_HW_TXRX_NATIVE_WIFI;
+module_param_named(frame_mode, ath11k_frame_mode, uint, 0644);
+MODULE_PARM_DESC(frame_mode,
+		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
+
 static const struct ath11k_hw_params ath11k_hw_params[] = {
 	{
 		.hw_rev = ATH11K_HW_IPQ8074,
@@ -35,6 +45,39 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.regs = &ipq8074_regs,
 		.host_ce_config = ath11k_host_ce_config_ipq8074,
 		.ce_count = 12,
+		.target_ce_config = ath11k_target_ce_config_wlan_ipq8074,
+		.target_ce_count = 11,
+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq8074,
+		.svc_to_ce_map_len = 21,
+		.single_pdev_only = false,
+		.needs_band_to_mac = true,
+		.rxdma1_enable = true,
+		.num_rxmda_per_pdev = 1,
+		.rx_mac_buf_ring = false,
+		.vdev_start_delay = false,
+		.htt_peer_map_v2 = true,
+		.tcl_0_only = false,
+	},
+	{
+		.hw_rev = ATH11K_HW_IPQ6018_HW10,
+		.name = "ipq6018 hw1.0",
+		.fw = {
+			.dir = "IPQ6018/hw1.0",
+			.board_size = 256 * 1024,
+			.cal_size = 256 * 1024,
+		},
+		.max_radios = 2,
+		.bdf_addr = 0x4ABC0000,
+		.hw_ops = &ipq6018_ops,
+		.ring_mask = &ath11k_hw_ring_mask_ipq8074,
+		.internal_sleep_clock = false,
+		.regs = &ipq8074_regs,
+		.host_ce_config = ath11k_host_ce_config_ipq8074,
+		.ce_count = 12,
+		.target_ce_config = ath11k_target_ce_config_wlan_ipq8074,
+		.target_ce_count = 11,
+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq6018,
+		.svc_to_ce_map_len = 19,
 		.single_pdev_only = false,
 		.needs_band_to_mac = true,
 		.rxdma1_enable = true,
@@ -60,6 +103,10 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.regs = &qca6390_regs,
 		.host_ce_config = ath11k_host_ce_config_qca6390,
 		.ce_count = 9,
+		.target_ce_config = ath11k_target_ce_config_wlan_qca6390,
+		.target_ce_count = 9,
+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_qca6390,
+		.svc_to_ce_map_len = 14,
 		.single_pdev_only = true,
 		.needs_band_to_mac = false,
 		.rxdma1_enable = false,
@@ -580,6 +627,23 @@ int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab)
 		return ret;
 	}
 
+	switch (ath11k_crypto_mode) {
+	case ATH11K_CRYPT_MODE_SW:
+		set_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
+		set_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+		break;
+	case ATH11K_CRYPT_MODE_HW:
+		clear_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
+		clear_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+		break;
+	default:
+		ath11k_info(ab, "invalid crypto_mode: %d\n", ath11k_crypto_mode);
+		return -EINVAL;
+	}
+
+	if (ath11k_frame_mode == ATH11K_HW_TXRX_RAW)
+		set_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+
 	mutex_lock(&ab->core_lock);
 	ret = ath11k_core_start(ab, ATH11K_FIRMWARE_MODE_NORMAL);
 	if (ret) {
@@ -784,6 +848,9 @@ static int ath11k_core_get_rproc(struct ath11k_base *ab)
 	struct rproc *prproc;
 	phandle rproc_phandle;
 
+	if (!IS_ENABLED(CONFIG_REMOTEPROC))
+		return 0;
+
 	if (ab->bus_params.mhi_support)
 		return 0;
 
@@ -809,12 +876,6 @@ int ath11k_core_init(struct ath11k_base *ab)
 	ret = ath11k_core_get_rproc(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to get rproc: %d\n", ret);
-		return ret;
-	}
-
-	ret = ath11k_init_hw_params(ab);
-	if (ret) {
-		ath11k_err(ab, "failed to get hw params %d\n", ret);
 		return ret;
 	}
 

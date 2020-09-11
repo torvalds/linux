@@ -773,6 +773,8 @@ static int ath11k_spectral_process_data(struct ath11k *ar,
 		i += sizeof(*tlv) + tlv_len;
 	}
 
+	ret = 0;
+
 err:
 	kfree(fft_sample);
 unlock:
