@@ -1855,7 +1855,7 @@ static __be32
 nfsd4_decode_copy_notify(struct nfsd4_compoundargs *argp,
 			 struct nfsd4_copy_notify *cn)
 {
-	int status;
+	__be32 status;
 
 	status = nfsd4_decode_stateid(argp, &cn->cpn_src_stateid);
 	if (status)
