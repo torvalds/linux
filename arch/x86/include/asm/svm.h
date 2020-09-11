@@ -4,6 +4,14 @@
 
 #include <uapi/asm/svm.h>
 
+/*
+ * 32-bit intercept words in the VMCB Control Area, starting
+ * at Byte offset 000h.
+ */
+
+enum intercept_words {
+	MAX_INTERCEPT,
+};
 
 enum {
 	INTERCEPT_INTR,
@@ -57,6 +65,7 @@ enum {
 
 
 struct __attribute__ ((__packed__)) vmcb_control_area {
+	u32 intercepts[MAX_INTERCEPT];
 	u32 intercept_cr;
 	u32 intercept_dr;
 	u32 intercept_exceptions;

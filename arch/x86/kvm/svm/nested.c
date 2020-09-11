@@ -98,6 +98,7 @@ static void nested_svm_uninit_mmu_context(struct kvm_vcpu *vcpu)
 void recalc_intercepts(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *c, *h, *g;
+	unsigned int i;
 
 	vmcb_mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
@@ -107,6 +108,9 @@ void recalc_intercepts(struct vcpu_svm *svm)
 	c = &svm->vmcb->control;
 	h = &svm->nested.hsave->control;
 	g = &svm->nested.ctl;
+
+	for (i = 0; i < MAX_INTERCEPT; i++)
+		c->intercepts[i] = h->intercepts[i];
 
 	c->intercept_cr = h->intercept_cr;
 	c->intercept_dr = h->intercept_dr;
@@ -129,6 +133,9 @@ void recalc_intercepts(struct vcpu_svm *svm)
 	/* We don't want to see VMMCALLs from a nested guest */
 	c->intercept &= ~(1ULL << INTERCEPT_VMMCALL);
 
+	for (i = 0; i < MAX_INTERCEPT; i++)
+		c->intercepts[i] |= g->intercepts[i];
+
 	c->intercept_cr |= g->intercept_cr;
 	c->intercept_dr |= g->intercept_dr;
 	c->intercept_exceptions |= g->intercept_exceptions;
@@ -138,6 +145,11 @@ void recalc_intercepts(struct vcpu_svm *svm)
 static void copy_vmcb_control_area(struct vmcb_control_area *dst,
 				   struct vmcb_control_area *from)
 {
+	unsigned int i;
+
+	for (i = 0; i < MAX_INTERCEPT; i++)
+		dst->intercepts[i] = from->intercepts[i];
+
 	dst->intercept_cr         = from->intercept_cr;
 	dst->intercept_dr         = from->intercept_dr;
 	dst->intercept_exceptions = from->intercept_exceptions;
