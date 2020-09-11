@@ -19,6 +19,7 @@
 #define VERSION "0.1"
 
 #define BDADDR_INTEL (&(bdaddr_t) {{0x00, 0x8b, 0x9e, 0x19, 0x03, 0x00}})
+#define RSA_HEADER_LEN	644
 
 int btintel_check_bdaddr(struct hci_dev *hdev)
 {
@@ -626,12 +627,10 @@ int btintel_read_boot_params(struct hci_dev *hdev,
 }
 EXPORT_SYMBOL_GPL(btintel_read_boot_params);
 
-int btintel_download_firmware(struct hci_dev *hdev, const struct firmware *fw,
-			      u32 *boot_param)
+static int btintel_sfi_rsa_header_secure_send(struct hci_dev *hdev,
+					      const struct firmware *fw)
 {
 	int err;
-	const u8 *fw_ptr;
-	u32 frag_len;
 
 	/* Start the firmware download transaction with the Init fragment
 	 * represented by the 128 bytes of CSS header.
@@ -660,8 +659,21 @@ int btintel_download_firmware(struct hci_dev *hdev, const struct firmware *fw,
 		goto done;
 	}
 
-	fw_ptr = fw->data + 644;
+done:
+	return err;
+}
+
+static int btintel_download_firmware_payload(struct hci_dev *hdev,
+					     const struct firmware *fw,
+					     u32 *boot_param, size_t offset)
+{
+	int err;
+	const u8 *fw_ptr;
+	u32 frag_len;
+
+	fw_ptr = fw->data + offset;
 	frag_len = 0;
+	err = -EINVAL;
 
 	while (fw_ptr - fw->data < fw->size) {
 		struct hci_command_hdr *cmd = (void *)(fw_ptr + frag_len);
@@ -706,6 +718,20 @@ int btintel_download_firmware(struct hci_dev *hdev, const struct firmware *fw,
 
 done:
 	return err;
+}
+
+int btintel_download_firmware(struct hci_dev *hdev,
+			      const struct firmware *fw,
+			      u32 *boot_param)
+{
+	int err;
+
+	err = btintel_sfi_rsa_header_secure_send(hdev, fw);
+	if (err)
+		return err;
+
+	return btintel_download_firmware_payload(hdev, fw, boot_param,
+						 RSA_HEADER_LEN);
 }
 EXPORT_SYMBOL_GPL(btintel_download_firmware);
 
