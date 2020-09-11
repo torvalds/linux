@@ -3429,17 +3429,8 @@ static int rockchip_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct rockchip_pin_bank *bank = gpiochip_get_data(chip);
 	u32 data;
-	int ret;
-
-	ret = clk_enable(bank->clk);
-	if (ret < 0) {
-		dev_err(bank->drvdata->dev,
-			"failed to enable clock for bank %s\n", bank->name);
-		return ret;
-	}
 
 	data = rockchip_gpio_readl_bit(bank, offset, bank->gpio_regs->port_ddr);
-	clk_disable(bank->clk);
 
 	return !data;
 }
@@ -3462,7 +3453,6 @@ static int _rockchip_pmx_gpio_set_direction(struct gpio_chip *chip,
 	if (ret < 0)
 		return ret;
 
-	clk_enable(bank->clk);
 	raw_spin_lock_irqsave(&bank->slock, flags);
 
 	/* set bit to 1 for output, 0 for input */
@@ -3470,7 +3460,6 @@ static int _rockchip_pmx_gpio_set_direction(struct gpio_chip *chip,
 				 bank->gpio_regs->port_ddr);
 
 	raw_spin_unlock_irqrestore(&bank->slock, flags);
-	clk_disable(bank->clk);
 
 	return 0;
 }
@@ -3949,13 +3938,9 @@ static void rockchip_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 	struct rockchip_pin_bank *bank = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	clk_enable(bank->clk);
 	raw_spin_lock_irqsave(&bank->slock, flags);
-
 	rockchip_gpio_writel_bit(bank, offset, value, bank->gpio_regs->port_dr);
-
 	raw_spin_unlock_irqrestore(&bank->slock, flags);
-	clk_disable(bank->clk);
 }
 
 /*
@@ -3967,10 +3952,7 @@ static int rockchip_gpio_get(struct gpio_chip *gc, unsigned offset)
 	struct rockchip_pin_bank *bank = gpiochip_get_data(gc);
 	u32 data;
 
-	clk_enable(bank->clk);
 	data = readl(bank->reg_base + bank->gpio_regs->ext_port);
-
-	clk_disable(bank->clk);
 	data >>= offset;
 	data &= 1;
 	return data;
@@ -4008,16 +3990,12 @@ static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
 	unsigned int cur_div_reg;
 	u64 div;
 
-	clk_enable(bank->clk);
-
 	if (!IS_ERR(bank->db_clk)) {
 		div_debounce_support = true;
 		freq = clk_get_rate(bank->db_clk);
 		max_debounce = (GENMASK(23, 0) + 1) * 2 * 1000000 / freq;
-		if (debounce > max_debounce) {
-			clk_disable(bank->clk);
+		if (debounce > max_debounce)
 			return -EINVAL;
-		}
 
 		div = debounce * freq;
 		div_reg = DIV_ROUND_CLOSEST_ULL(div, 2 * USEC_PER_SEC) - 1;
@@ -4056,8 +4034,6 @@ static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
 		else
 			clk_disable(bank->db_clk);
 	}
-
-	clk_disable(bank->clk);
 
 	return 0;
 }
@@ -4104,9 +4080,7 @@ static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 	if (!bank->domain)
 		return -ENXIO;
 
-	clk_enable(bank->clk);
 	virq = irq_create_mapping(bank->domain, offset);
-	clk_disable(bank->clk);
 
 	return (virq) ? : -ENXIO;
 }
@@ -4206,7 +4180,6 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 	if (ret < 0)
 		return ret;
 
-	clk_enable(bank->clk);
 	raw_spin_lock_irqsave(&bank->slock, flags);
 
 	rockchip_gpio_writel_bit(bank, d->hwirq, 0,
@@ -4233,7 +4206,6 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 						 bank->gpio_regs->int_bothedge);
 			irq_gc_unlock(gc);
 			raw_spin_unlock_irqrestore(&bank->slock, flags);
-			clk_disable(bank->clk);
 
 			return 0;
 		} else {
@@ -4275,7 +4247,6 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 	default:
 		irq_gc_unlock(gc);
 		raw_spin_unlock_irqrestore(&bank->slock, flags);
-		clk_disable(bank->clk);
 		return -EINVAL;
 	}
 
@@ -4284,7 +4255,6 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 
 	irq_gc_unlock(gc);
 	raw_spin_unlock_irqrestore(&bank->slock, flags);
-	clk_disable(bank->clk);
 
 	return 0;
 }
@@ -4294,10 +4264,8 @@ static void rockchip_irq_suspend(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct rockchip_pin_bank *bank = gc->private;
 
-	clk_enable(bank->clk);
 	bank->saved_masks = irq_reg_readl(gc, bank->gpio_regs->int_mask);
 	irq_reg_writel(gc, ~gc->wake_active, bank->gpio_regs->int_mask);
-	clk_disable(bank->clk);
 }
 
 static void rockchip_irq_resume(struct irq_data *d)
@@ -4305,57 +4273,7 @@ static void rockchip_irq_resume(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct rockchip_pin_bank *bank = gc->private;
 
-	clk_enable(bank->clk);
 	irq_reg_writel(gc, bank->saved_masks, bank->gpio_regs->int_mask);
-	clk_disable(bank->clk);
-}
-
-static void rockchip_irq_enable(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct rockchip_pin_bank *bank = gc->private;
-
-	clk_enable(bank->clk);
-	irq_gc_mask_clr_bit(d);
-}
-
-static void rockchip_irq_disable(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct rockchip_pin_bank *bank = gc->private;
-
-	irq_gc_mask_set_bit(d);
-	clk_disable(bank->clk);
-}
-
-static void rockchip_irq_ack(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct rockchip_pin_bank *bank = gc->private;
-
-	clk_enable(bank->clk);
-	irq_gc_ack_set_bit(d);
-	clk_disable(bank->clk);
-}
-
-static void rockchip_irq_mask(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct rockchip_pin_bank *bank = gc->private;
-
-	clk_enable(bank->clk);
-	irq_gc_mask_set_bit(d);
-	clk_disable(bank->clk);
-}
-
-static void rockchip_irq_unmask(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct rockchip_pin_bank *bank = gc->private;
-
-	clk_enable(bank->clk);
-	irq_gc_mask_clr_bit(d);
-	clk_disable(bank->clk);
 }
 
 static int rockchip_interrupts_register(struct platform_device *pdev,
@@ -4375,19 +4293,11 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 			continue;
 		}
 
-		ret = clk_enable(bank->clk);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to enable clock for bank %s\n",
-				bank->name);
-			continue;
-		}
-
 		bank->domain = irq_domain_add_linear(bank->of_node, 32,
 						&irq_generic_chip_ops, NULL);
 		if (!bank->domain) {
 			dev_warn(&pdev->dev, "could not initialize irq domain for bank %s\n",
 				 bank->name);
-			clk_disable(bank->clk);
 			continue;
 		}
 
@@ -4398,7 +4308,6 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 			dev_err(&pdev->dev, "could not alloc generic chips for bank %s\n",
 				bank->name);
 			irq_domain_remove(bank->domain);
-			clk_disable(bank->clk);
 			continue;
 		}
 
@@ -4411,11 +4320,11 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		gc->private = bank;
 		gc->chip_types[0].regs.mask = bank->gpio_regs->int_mask;
 		gc->chip_types[0].regs.ack = bank->gpio_regs->port_eoi;
-		gc->chip_types[0].chip.irq_ack = rockchip_irq_ack;
-		gc->chip_types[0].chip.irq_mask = rockchip_irq_mask;
-		gc->chip_types[0].chip.irq_unmask = rockchip_irq_unmask;
-		gc->chip_types[0].chip.irq_enable = rockchip_irq_enable;
-		gc->chip_types[0].chip.irq_disable = rockchip_irq_disable;
+		gc->chip_types[0].chip.irq_ack = irq_gc_ack_set_bit;
+		gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
+		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_clr_bit;
+		gc->chip_types[0].chip.irq_enable = irq_gc_mask_clr_bit;
+		gc->chip_types[0].chip.irq_disable = irq_gc_mask_set_bit;
 		gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
 		gc->chip_types[0].chip.irq_suspend = rockchip_irq_suspend;
 		gc->chip_types[0].chip.irq_resume = rockchip_irq_resume;
@@ -4433,8 +4342,6 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 
 		irq_set_chained_handler_and_data(bank->irq,
 						 rockchip_irq_demux, bank);
-
-		clk_disable(bank->clk);
 	}
 
 	return 0;
@@ -4576,8 +4483,6 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 		bank->gpio_regs = &gpio_regs_v1;
 		bank->gpio_type = GPIO_TYPE_V1;
 	}
-
-	clk_disable(bank->clk);
 
 	return 0;
 }
