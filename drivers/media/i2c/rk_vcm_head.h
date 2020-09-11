@@ -14,6 +14,9 @@
 #define OF_CAMERA_VCMDRV_START_CURRENT	"rockchip,vcm-start-current"
 #define OF_CAMERA_VCMDRV_RATED_CURRENT	"rockchip,vcm-rated-current"
 #define OF_CAMERA_VCMDRV_STEP_MODE	"rockchip,vcm-step-mode"
+#define OF_CAMERA_VCMDRV_DLC_ENABLE	"rockchip,vcm-dlc-enable"
+#define OF_CAMERA_VCMDRV_MCLK		"rockchip,vcm-mclk"
+#define OF_CAMERA_VCMDRV_T_SRC		"rockchip,vcm-t-src"
 
 #define RK_VIDIOC_VCM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rk_cam_vcm_tim)
