@@ -424,8 +424,8 @@ struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *dc_stream);
 
 #ifndef TRIM_FSFT
-bool dc_optimize_timing(
-	struct dc_crtc_timing *timing,
+bool dc_optimize_timing_for_fsft(
+	struct dc_stream_state *pStream,
 	unsigned int max_input_rate_in_khz);
 #endif
 

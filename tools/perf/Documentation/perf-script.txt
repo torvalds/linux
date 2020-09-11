@@ -322,6 +322,10 @@ OPTIONS
 --show-cgroup-events
 	Display cgroup events i.e. events of type PERF_RECORD_CGROUP.
 
+--show-text-poke-events
+	Display text poke events i.e. events of type PERF_RECORD_TEXT_POKE and
+	PERF_RECORD_KSYMBOL.
+
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
 	disable with --no-demangle.

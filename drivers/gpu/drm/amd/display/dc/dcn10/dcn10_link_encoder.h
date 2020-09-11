@@ -31,10 +31,10 @@
 #define TO_DCN10_LINK_ENC(link_encoder)\
 	container_of(link_encoder, struct dcn10_link_encoder, base)
 
-
 #define AUX_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
-	SRI(AUX_DPHY_RX_CONTROL0, DP_AUX, id)
+	SRI(AUX_DPHY_RX_CONTROL0, DP_AUX, id), \
+	SRI(AUX_DPHY_RX_CONTROL1, DP_AUX, id)
 
 #define HPD_REG_LIST(id)\
 	SRI(DC_HPD_CONTROL, HPD, id)
@@ -73,6 +73,7 @@ struct dcn10_link_enc_aux_registers {
 	uint32_t AUX_CONTROL;
 	uint32_t AUX_DPHY_RX_CONTROL0;
 	uint32_t AUX_DPHY_TX_CONTROL;
+	uint32_t AUX_DPHY_RX_CONTROL1;
 };
 
 struct dcn10_link_enc_hpd_registers {
@@ -443,7 +444,10 @@ struct dcn10_link_enc_registers {
 	type AUX_TX_PRECHARGE_LEN; \
 	type AUX_TX_PRECHARGE_SYMBOLS; \
 	type AUX_MODE_DET_CHECK_DELAY;\
-	type DPCS_DBG_CBUS_DIS
+	type DPCS_DBG_CBUS_DIS;\
+	type AUX_RX_PRECHARGE_SKIP;\
+	type AUX_RX_TIMEOUT_LEN;\
+	type AUX_RX_TIMEOUT_LEN_MUL
 
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);

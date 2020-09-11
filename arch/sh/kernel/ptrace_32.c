@@ -165,7 +165,7 @@ static int genregs_set(struct task_struct *target,
 }
 
 #ifdef CONFIG_SH_FPU
-int fpregs_get(struct task_struct *target,
+static int fpregs_get(struct task_struct *target,
 	       const struct user_regset *regset,
 	       struct membuf to)
 {
@@ -457,8 +457,6 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	long ret = 0;
 
-	secure_computing_strict(regs->regs[0]);
-
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
 		/*
@@ -467,6 +465,9 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 * error, but leave the original number in regs->regs[0].
 		 */
 		ret = -1L;
+
+	if (secure_computing() == -1)
+		return -1;
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->regs[0]);

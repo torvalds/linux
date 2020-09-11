@@ -98,15 +98,10 @@ dml_get_pipe_attr_decl(refcyc_per_meta_chunk_vblank_c_in_us);
 dml_get_pipe_attr_decl(refcyc_per_meta_chunk_flip_l_in_us);
 dml_get_pipe_attr_decl(refcyc_per_meta_chunk_flip_c_in_us);
 
+dml_get_pipe_attr_decl(vstartup);
 dml_get_pipe_attr_decl(vupdate_offset);
 dml_get_pipe_attr_decl(vupdate_width);
 dml_get_pipe_attr_decl(vready_offset);
-
-unsigned int get_vstartup_calculated(
-		struct display_mode_lib *mode_lib,
-		const display_e2e_pipe_params_st *pipes,
-		unsigned int num_pipes,
-		unsigned int which_pipe);
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,

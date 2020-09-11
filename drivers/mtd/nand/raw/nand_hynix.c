@@ -337,7 +337,7 @@ static int hynix_mlc_1xnm_rr_init(struct nand_chip *chip,
 	rr->nregs = nregs;
 	rr->regs = hynix_1xnm_mlc_read_retry_regs;
 	hynix->read_retry = rr;
-	chip->setup_read_retry = hynix_nand_setup_read_retry;
+	chip->ops.setup_read_retry = hynix_nand_setup_read_retry;
 	chip->read_retries = nmodes;
 
 out:
@@ -673,6 +673,15 @@ static void hynix_nand_cleanup(struct nand_chip *chip)
 	nand_set_manufacturer_data(chip, NULL);
 }
 
+static int
+h27ucg8t2atrbc_choose_interface_config(struct nand_chip *chip,
+				       struct nand_interface_config *iface)
+{
+	onfi_fill_interface_config(chip, iface, NAND_SDR_IFACE, 4);
+
+	return nand_choose_best_sdr_timings(chip, iface, NULL);
+}
+
 static int hynix_nand_init(struct nand_chip *chip)
 {
 	struct hynix_nand *hynix;
@@ -688,6 +697,11 @@ static int hynix_nand_init(struct nand_chip *chip)
 		return -ENOMEM;
 
 	nand_set_manufacturer_data(chip, hynix);
+
+	if (!strncmp("H27UCG8T2ATR-BC", chip->parameters.model,
+		     sizeof("H27UCG8T2ATR-BC") - 1))
+		chip->ops.choose_interface_config =
+			h27ucg8t2atrbc_choose_interface_config;
 
 	ret = hynix_nand_rr_init(chip);
 	if (ret)

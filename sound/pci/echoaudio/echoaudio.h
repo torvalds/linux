@@ -419,7 +419,7 @@ struct echoaudio {
 	short asic_code;		/* Current ASIC code */
 	u32 comm_page_phys;			/* Physical address of the
 						 * memory seen by DSP */
-	volatile u32 __iomem *dsp_registers;	/* DSP's register base */
+	u32 __iomem *dsp_registers;		/* DSP's register base */
 	u32 active_mask;			/* Chs. active mask or
 						 * punks out */
 #ifdef CONFIG_PM_SLEEP

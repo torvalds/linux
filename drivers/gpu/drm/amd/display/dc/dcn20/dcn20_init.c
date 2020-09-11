@@ -88,6 +88,9 @@ static const struct hw_sequencer_funcs dcn20_funcs = {
 	.set_backlight_level = dce110_set_backlight_level,
 	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
 	.set_pipe = dce110_set_pipe,
+#ifndef TRIM_FSFT
+	.optimize_timing_for_fsft = dcn20_optimize_timing_for_fsft,
+#endif
 };
 
 static const struct hwseq_private_funcs dcn20_private_funcs = {

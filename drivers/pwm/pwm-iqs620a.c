@@ -25,10 +25,10 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-#define IQS620_PWR_SETTINGS			0xD2
+#define IQS620_PWR_SETTINGS			0xd2
 #define IQS620_PWR_SETTINGS_PWM_OUT		BIT(7)
 
-#define IQS620_PWM_DUTY_CYCLE			0xD8
+#define IQS620_PWM_DUTY_CYCLE			0xd8
 
 #define IQS620_PWM_PERIOD_NS			1000000
 
@@ -46,7 +46,8 @@ static int iqs620_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct iqs620_pwm_private *iqs620_pwm;
 	struct iqs62x_core *iqs62x;
-	int duty_scale, ret;
+	u64 duty_scale;
+	int ret;
 
 	if (state->polarity != PWM_POLARITY_NORMAL)
 		return -ENOTSUPP;
@@ -69,7 +70,7 @@ static int iqs620_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * For lower duty cycles (e.g. 0), the PWM output is simply disabled to
 	 * allow an external pull-down resistor to hold the GPIO3/LTX pin low.
 	 */
-	duty_scale = state->duty_cycle * 256 / IQS620_PWM_PERIOD_NS;
+	duty_scale = div_u64(state->duty_cycle * 256, IQS620_PWM_PERIOD_NS);
 
 	mutex_lock(&iqs620_pwm->lock);
 
@@ -81,7 +82,7 @@ static int iqs620_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	if (duty_scale) {
-		u8 duty_val = min(duty_scale - 1, 0xFF);
+		u8 duty_val = min_t(u64, duty_scale - 1, 0xff);
 
 		ret = regmap_write(iqs62x->regmap, IQS620_PWM_DUTY_CYCLE,
 				   duty_val);
@@ -93,7 +94,7 @@ static int iqs620_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (state->enabled && duty_scale) {
 		ret = regmap_update_bits(iqs62x->regmap, IQS620_PWR_SETTINGS,
-					 IQS620_PWR_SETTINGS_PWM_OUT, 0xFF);
+					 IQS620_PWR_SETTINGS_PWM_OUT, 0xff);
 		if (ret)
 			goto err_mutex;
 	}
@@ -159,7 +160,7 @@ static int iqs620_pwm_notifier(struct notifier_block *notifier,
 
 	ret = regmap_update_bits(iqs62x->regmap, IQS620_PWR_SETTINGS,
 				 IQS620_PWR_SETTINGS_PWM_OUT,
-				 iqs620_pwm->out_en ? 0xFF : 0);
+				 iqs620_pwm->out_en ? 0xff : 0);
 
 err_mutex:
 	mutex_unlock(&iqs620_pwm->lock);

@@ -200,8 +200,8 @@ struct atmel_nand_controller_ops {
 	void (*nand_init)(struct atmel_nand_controller *nc,
 			  struct atmel_nand *nand);
 	int (*ecc_init)(struct nand_chip *chip);
-	int (*setup_data_interface)(struct atmel_nand *nand, int csline,
-				    const struct nand_data_interface *conf);
+	int (*setup_interface)(struct atmel_nand *nand, int csline,
+			       const struct nand_interface_config *conf);
 };
 
 struct atmel_nand_controller_caps {
@@ -1168,7 +1168,7 @@ static int atmel_hsmc_nand_ecc_init(struct nand_chip *chip)
 }
 
 static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
-					const struct nand_data_interface *conf,
+					const struct nand_interface_config *conf,
 					struct atmel_smc_cs_conf *smcconf)
 {
 	u32 ncycles, totalcycles, timeps, mckperiodps;
@@ -1397,9 +1397,9 @@ static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
 	return 0;
 }
 
-static int atmel_smc_nand_setup_data_interface(struct atmel_nand *nand,
+static int atmel_smc_nand_setup_interface(struct atmel_nand *nand,
 					int csline,
-					const struct nand_data_interface *conf)
+					const struct nand_interface_config *conf)
 {
 	struct atmel_nand_controller *nc;
 	struct atmel_smc_cs_conf smcconf;
@@ -1422,9 +1422,9 @@ static int atmel_smc_nand_setup_data_interface(struct atmel_nand *nand,
 	return 0;
 }
 
-static int atmel_hsmc_nand_setup_data_interface(struct atmel_nand *nand,
+static int atmel_hsmc_nand_setup_interface(struct atmel_nand *nand,
 					int csline,
-					const struct nand_data_interface *conf)
+					const struct nand_interface_config *conf)
 {
 	struct atmel_hsmc_nand_controller *nc;
 	struct atmel_smc_cs_conf smcconf;
@@ -1452,8 +1452,8 @@ static int atmel_hsmc_nand_setup_data_interface(struct atmel_nand *nand,
 	return 0;
 }
 
-static int atmel_nand_setup_data_interface(struct nand_chip *chip, int csline,
-					const struct nand_data_interface *conf)
+static int atmel_nand_setup_interface(struct nand_chip *chip, int csline,
+				      const struct nand_interface_config *conf)
 {
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_nand_controller *nc;
@@ -1464,7 +1464,7 @@ static int atmel_nand_setup_data_interface(struct nand_chip *chip, int csline,
 	    (csline < 0 && csline != NAND_DATA_IFACE_CHECK_ONLY))
 		return -EINVAL;
 
-	return nc->caps->ops->setup_data_interface(nand, csline, conf);
+	return nc->caps->ops->setup_interface(nand, csline, conf);
 }
 
 static void atmel_nand_init(struct atmel_nand_controller *nc,
@@ -1483,7 +1483,7 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	chip->legacy.write_buf = atmel_nand_write_buf;
 	chip->legacy.select_chip = atmel_nand_select_chip;
 
-	if (!nc->mck || !nc->caps->ops->setup_data_interface)
+	if (!nc->mck || !nc->caps->ops->setup_interface)
 		chip->options |= NAND_KEEP_TIMINGS;
 
 	/* Some NANDs require a longer delay than the default one (20us). */
@@ -1956,7 +1956,7 @@ static int atmel_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops atmel_nand_controller_ops = {
 	.attach_chip = atmel_nand_attach_chip,
-	.setup_data_interface = atmel_nand_setup_data_interface,
+	.setup_interface = atmel_nand_setup_interface,
 };
 
 static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
@@ -2318,7 +2318,7 @@ static const struct atmel_nand_controller_ops atmel_hsmc_nc_ops = {
 	.remove = atmel_hsmc_nand_controller_remove,
 	.ecc_init = atmel_hsmc_nand_ecc_init,
 	.nand_init = atmel_hsmc_nand_init,
-	.setup_data_interface = atmel_hsmc_nand_setup_data_interface,
+	.setup_interface = atmel_hsmc_nand_setup_interface,
 };
 
 static const struct atmel_nand_controller_caps atmel_sama5_nc_caps = {
@@ -2375,10 +2375,10 @@ atmel_smc_nand_controller_remove(struct atmel_nand_controller *nc)
 
 /*
  * The SMC reg layout of at91rm9200 is completely different which prevents us
- * from re-using atmel_smc_nand_setup_data_interface() for the
- * ->setup_data_interface() hook.
+ * from re-using atmel_smc_nand_setup_interface() for the
+ * ->setup_interface() hook.
  * At this point, there's no support for the at91rm9200 SMC IP, so we leave
- * ->setup_data_interface() unassigned.
+ * ->setup_interface() unassigned.
  */
 static const struct atmel_nand_controller_ops at91rm9200_nc_ops = {
 	.probe = atmel_smc_nand_controller_probe,
@@ -2399,7 +2399,7 @@ static const struct atmel_nand_controller_ops atmel_smc_nc_ops = {
 	.remove = atmel_smc_nand_controller_remove,
 	.ecc_init = atmel_nand_ecc_init,
 	.nand_init = atmel_smc_nand_init,
-	.setup_data_interface = atmel_smc_nand_setup_data_interface,
+	.setup_interface = atmel_smc_nand_setup_interface,
 };
 
 static const struct atmel_nand_controller_caps atmel_sam9260_nc_caps = {

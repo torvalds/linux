@@ -13,15 +13,15 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - asahi-kasei,ak8975
-        - asahi-kasei,ak8963
-        - asahi-kasei,ak09911
-        - asahi-kasei,ak09912
+          - asahi-kasei,ak8975
+          - asahi-kasei,ak8963
+          - asahi-kasei,ak09911
+          - asahi-kasei,ak09912
       - enum:
-        - ak8975
-        - ak8963
-        - ak09911
-        - ak09912
+          - ak8975
+          - ak8963
+          - ak09911
+          - ak09912
         deprecated: true
 
   reg:

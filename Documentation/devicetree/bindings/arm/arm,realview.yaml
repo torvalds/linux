@@ -55,20 +55,20 @@ properties:
       compatible:
         oneOf:
           - items:
-            - const: arm,realview-eb-soc
-            - const: simple-bus
+              - const: arm,realview-eb-soc
+              - const: simple-bus
           - items:
-            - const: arm,realview-pb1176-soc
-            - const: simple-bus
+              - const: arm,realview-pb1176-soc
+              - const: simple-bus
           - items:
-            - const: arm,realview-pb11mp-soc
-            - const: simple-bus
+              - const: arm,realview-pb11mp-soc
+              - const: simple-bus
           - items:
-            - const: arm,realview-pba8-soc
-            - const: simple-bus
+              - const: arm,realview-pba8-soc
+              - const: simple-bus
           - items:
-            - const: arm,realview-pbx-soc
-            - const: simple-bus
+              - const: arm,realview-pbx-soc
+              - const: simple-bus
 
     patternProperties:
       "^.*syscon@[0-9a-f]+$":
@@ -79,35 +79,35 @@ properties:
           compatible:
             oneOf:
               - items:
-                - const: arm,realview-eb11mp-revb-syscon
-                - const: arm,realview-eb-syscon
-                - const: syscon
-                - const: simple-mfd
+                  - const: arm,realview-eb11mp-revb-syscon
+                  - const: arm,realview-eb-syscon
+                  - const: syscon
+                  - const: simple-mfd
               - items:
-                - const: arm,realview-eb11mp-revc-syscon
-                - const: arm,realview-eb-syscon
-                - const: syscon
-                - const: simple-mfd
+                  - const: arm,realview-eb11mp-revc-syscon
+                  - const: arm,realview-eb-syscon
+                  - const: syscon
+                  - const: simple-mfd
               - items:
-                - const: arm,realview-eb-syscon
-                - const: syscon
-                - const: simple-mfd
+                  - const: arm,realview-eb-syscon
+                  - const: syscon
+                  - const: simple-mfd
               - items:
-                - const: arm,realview-pb1176-syscon
-                - const: syscon
-                - const: simple-mfd
+                  - const: arm,realview-pb1176-syscon
+                  - const: syscon
+                  - const: simple-mfd
               - items:
-                - const: arm,realview-pb11mp-syscon
-                - const: syscon
-                - const: simple-mfd
+                  - const: arm,realview-pb11mp-syscon
+                  - const: syscon
+                  - const: simple-mfd
               - items:
-                - const: arm,realview-pba8-syscon
-                - const: syscon
-                - const: simple-mfd
+                  - const: arm,realview-pba8-syscon
+                  - const: syscon
+                  - const: simple-mfd
               - items:
-                - const: arm,realview-pbx-syscon
-                - const: syscon
-                - const: simple-mfd
+                  - const: arm,realview-pbx-syscon
+                  - const: syscon
+                  - const: simple-mfd
 
         required:
           - compatible

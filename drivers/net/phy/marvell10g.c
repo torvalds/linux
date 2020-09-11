@@ -208,13 +208,6 @@ static int mv3310_hwmon_config(struct phy_device *phydev, bool enable)
 			      MV_V2_TEMP_CTRL_MASK, val);
 }
 
-static void mv3310_hwmon_disable(void *data)
-{
-	struct phy_device *phydev = data;
-
-	mv3310_hwmon_config(phydev, false);
-}
-
 static int mv3310_hwmon_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
@@ -235,10 +228,6 @@ static int mv3310_hwmon_probe(struct phy_device *phydev)
 	priv->hwmon_name[j] = '\0';
 
 	ret = mv3310_hwmon_config(phydev, true);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, mv3310_hwmon_disable, phydev);
 	if (ret)
 		return ret;
 
@@ -424,6 +413,11 @@ static int mv3310_probe(struct phy_device *phydev)
 		return ret;
 
 	return phy_sfp_probe(phydev, &mv3310_sfp_ops);
+}
+
+static void mv3310_remove(struct phy_device *phydev)
+{
+	mv3310_hwmon_config(phydev, false);
 }
 
 static int mv3310_suspend(struct phy_device *phydev)
@@ -784,6 +778,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.read_status	= mv3310_read_status,
 		.get_tunable	= mv3310_get_tunable,
 		.set_tunable	= mv3310_set_tunable,
+		.remove		= mv3310_remove,
 	},
 	{
 		.phy_id		= MARVELL_PHY_ID_88E2110,
@@ -798,6 +793,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.read_status	= mv3310_read_status,
 		.get_tunable	= mv3310_get_tunable,
 		.set_tunable	= mv3310_set_tunable,
+		.remove		= mv3310_remove,
 	},
 };
 

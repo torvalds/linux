@@ -154,7 +154,7 @@ static long fitpc2_wdt_ioctl(struct file *file, unsigned int cmd,
 
 		margin = time;
 		wdt_enable();
-		/* Fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(margin, (int *)arg);

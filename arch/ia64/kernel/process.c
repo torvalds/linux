@@ -47,6 +47,7 @@
 #include <linux/uaccess.h>
 #include <asm/unwind.h>
 #include <asm/user.h>
+#include <asm/xtp.h>
 
 #include "entry.h"
 
@@ -531,49 +532,15 @@ do_copy_task_regs (struct task_struct *task, struct unw_frame_info *info, void *
 }
 
 void
-do_dump_task_fpu (struct task_struct *task, struct unw_frame_info *info, void *arg)
-{
-	elf_fpreg_t *dst = arg;
-	int i;
-
-	memset(dst, 0, sizeof(elf_fpregset_t));	/* don't leak any "random" bits */
-
-	if (unw_unwind_to_user(info) < 0)
-		return;
-
-	/* f0 is 0.0, f1 is 1.0 */
-
-	for (i = 2; i < 32; ++i)
-		unw_get_fr(info, i, dst + i);
-
-	ia64_flush_fph(task);
-	if ((task->thread.flags & IA64_THREAD_FPH_VALID) != 0)
-		memcpy(dst + 32, task->thread.fph, 96*16);
-}
-
-void
 do_copy_regs (struct unw_frame_info *info, void *arg)
 {
 	do_copy_task_regs(current, info, arg);
 }
 
 void
-do_dump_fpu (struct unw_frame_info *info, void *arg)
-{
-	do_dump_task_fpu(current, info, arg);
-}
-
-void
 ia64_elf_core_copy_regs (struct pt_regs *pt, elf_gregset_t dst)
 {
 	unw_init_running(do_copy_regs, dst);
-}
-
-int
-dump_fpu (struct pt_regs *pt, elf_fpregset_t dst)
-{
-	unw_init_running(do_dump_fpu, dst);
-	return 1;	/* f0-f31 are always valid so we always return 1 */
 }
 
 /*

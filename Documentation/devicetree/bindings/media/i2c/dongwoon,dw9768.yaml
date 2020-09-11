@@ -38,39 +38,36 @@ properties:
   dongwoon,aac-mode:
     description:
       Indication of AAC mode select.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum:
-          - 1    #  AAC2 mode(operation time# 0.48 x Tvib)
-          - 2    #  AAC3 mode(operation time# 0.70 x Tvib)
-          - 3    #  AAC4 mode(operation time# 0.75 x Tvib)
-          - 5    #  AAC8 mode(operation time# 1.13 x Tvib)
-        default: 2
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    enum:
+      - 1    #  AAC2 mode(operation time# 0.48 x Tvib)
+      - 2    #  AAC3 mode(operation time# 0.70 x Tvib)
+      - 3    #  AAC4 mode(operation time# 0.75 x Tvib)
+      - 5    #  AAC8 mode(operation time# 1.13 x Tvib)
+    default: 2
 
   dongwoon,aac-timing:
     description:
       Number of AAC Timing count that controlled by one 6-bit period of
       vibration register AACT[5:0], the unit of which is 100 us.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - default: 0x20
-        minimum: 0x00
-        maximum: 0x3f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    default: 0x20
+    minimum: 0x00
+    maximum: 0x3f
 
   dongwoon,clock-presc:
     description:
       Indication of VCM internal clock dividing rate select, as one multiple
       factor to calculate VCM ring periodic time Tvib.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum:
-          - 0    #  Dividing Rate -  2
-          - 1    #  Dividing Rate -  1
-          - 2    #  Dividing Rate -  1/2
-          - 3    #  Dividing Rate -  1/4
-          - 4    #  Dividing Rate -  8
-          - 5    #  Dividing Rate -  4
-        default: 1
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    enum:
+      - 0    #  Dividing Rate -  2
+      - 1    #  Dividing Rate -  1
+      - 2    #  Dividing Rate -  1/2
+      - 3    #  Dividing Rate -  1/4
+      - 4    #  Dividing Rate -  8
+      - 5    #  Dividing Rate -  4
+    default: 1
 
 required:
   - compatible

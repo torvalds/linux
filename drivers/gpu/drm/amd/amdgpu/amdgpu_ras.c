@@ -1618,7 +1618,7 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 	data = con->eh_data;
 	save_count = data->count - control->num_recs;
 	/* only new entries are saved */
-	if (save_count > 0)
+	if (save_count > 0) {
 		if (amdgpu_ras_eeprom_process_recods(control,
 							&data->bps[control->num_recs],
 							true,
@@ -1626,6 +1626,9 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 			dev_err(adev->dev, "Failed to save EEPROM table data!");
 			return -EIO;
 		}
+
+		dev_info(adev->dev, "Saved %d pages to EEPROM table.\n", save_count);
+	}
 
 	return 0;
 }

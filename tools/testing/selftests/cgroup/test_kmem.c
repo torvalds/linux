@@ -18,6 +18,15 @@
 #include "cgroup_util.h"
 
 
+/*
+ * Memory cgroup charging and vmstat data aggregation is performed using
+ * percpu batches 32 pages big (look at MEMCG_CHARGE_BATCH). So the maximum
+ * discrepancy between charge and vmstat entries is number of cpus multiplied
+ * by 32 pages multiplied by 2.
+ */
+#define MAX_VMSTAT_ERROR (4096 * 32 * 2 * get_nprocs())
+
+
 static int alloc_dcache(const char *cgroup, void *arg)
 {
 	unsigned long i;
@@ -180,7 +189,7 @@ static int test_kmem_memcg_deletion(const char *root)
 		goto cleanup;
 
 	sum = slab + anon + file + kernel_stack;
-	if (abs(sum - current) < 4096 * 32 * 2 * get_nprocs()) {
+	if (abs(sum - current) < MAX_VMSTAT_ERROR) {
 		ret = KSFT_PASS;
 	} else {
 		printf("memory.current = %ld\n", current);
@@ -331,6 +340,64 @@ cleanup:
 	return ret;
 }
 
+/*
+ * This test creates a sub-tree with 1000 memory cgroups.
+ * Then it checks that the memory.current on the parent level
+ * is greater than 0 and approximates matches the percpu value
+ * from memory.stat.
+ */
+static int test_percpu_basic(const char *root)
+{
+	int ret = KSFT_FAIL;
+	char *parent, *child;
+	long current, percpu;
+	int i;
+
+	parent = cg_name(root, "percpu_basic_test");
+	if (!parent)
+		goto cleanup;
+
+	if (cg_create(parent))
+		goto cleanup;
+
+	if (cg_write(parent, "cgroup.subtree_control", "+memory"))
+		goto cleanup;
+
+	for (i = 0; i < 1000; i++) {
+		child = cg_name_indexed(parent, "child", i);
+		if (!child)
+			return -1;
+
+		if (cg_create(child))
+			goto cleanup_children;
+
+		free(child);
+	}
+
+	current = cg_read_long(parent, "memory.current");
+	percpu = cg_read_key_long(parent, "memory.stat", "percpu ");
+
+	if (current > 0 && percpu > 0 && abs(current - percpu) <
+	    MAX_VMSTAT_ERROR)
+		ret = KSFT_PASS;
+	else
+		printf("memory.current %ld\npercpu %ld\n",
+		       current, percpu);
+
+cleanup_children:
+	for (i = 0; i < 1000; i++) {
+		child = cg_name_indexed(parent, "child", i);
+		cg_destroy(child);
+		free(child);
+	}
+
+cleanup:
+	cg_destroy(parent);
+	free(parent);
+
+	return ret;
+}
+
 #define T(x) { x, #x }
 struct kmem_test {
 	int (*fn)(const char *root);
@@ -341,6 +408,7 @@ struct kmem_test {
 	T(test_kmem_proc_kpagecgroup),
 	T(test_kmem_kernel_stacks),
 	T(test_kmem_dead_cgroups),
+	T(test_percpu_basic),
 };
 #undef T
 

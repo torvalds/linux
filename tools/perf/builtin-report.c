@@ -338,7 +338,7 @@ static int process_read_event(struct perf_tool *tool,
 static int report__setup_sample_type(struct report *rep)
 {
 	struct perf_session *session = rep->session;
-	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
+	u64 sample_type = evlist__combined_sample_type(session->evlist);
 	bool is_pipe = perf_data__is_pipe(session->data);
 
 	if (session->itrace_synth_opts->callchain ||
@@ -410,8 +410,7 @@ static int report__setup_sample_type(struct report *rep)
 	}
 
 	/* ??? handle more cases than just ANY? */
-	if (!(perf_evlist__combined_branch_type(session->evlist) &
-				PERF_SAMPLE_BRANCH_ANY))
+	if (!(evlist__combined_branch_type(session->evlist) & PERF_SAMPLE_BRANCH_ANY))
 		rep->nonany_branch_mode = true;
 
 #if !defined(HAVE_LIBUNWIND_SUPPORT) && !defined(HAVE_DWARF_SUPPORT)
@@ -1093,7 +1092,7 @@ static int process_attr(struct perf_tool *tool __maybe_unused,
 	 * Check if we need to enable callchains based
 	 * on events sample_type.
 	 */
-	sample_type = perf_evlist__combined_sample_type(*pevlist);
+	sample_type = evlist__combined_sample_type(*pevlist);
 	callchain_param_setup(sample_type);
 	return 0;
 }
@@ -1389,7 +1388,7 @@ repeat:
 
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
-	if (perf_evlist__combined_sample_type(session->evlist) & PERF_SAMPLE_STACK_USER)
+	if (evlist__combined_sample_type(session->evlist) & PERF_SAMPLE_STACK_USER)
 		has_br_stack = false;
 
 	setup_forced_leader(&report, session->evlist);

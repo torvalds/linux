@@ -73,4 +73,6 @@ void dcn30_link_encoder_construct(
 	const struct dcn10_link_enc_shift *link_shift,
 	const struct dcn10_link_enc_mask *link_mask);
 
+void enc3_hw_init(struct link_encoder *enc);
+
 #endif /* __DC_LINK_ENCODER__DCN30_H__ */

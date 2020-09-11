@@ -24,9 +24,9 @@ properties:
   compatible:
     items:
       - enum:
-        - fsl,imx7d-src
-        - fsl,imx8mq-src
-        - fsl,imx8mp-src
+          - fsl,imx7d-src
+          - fsl,imx8mq-src
+          - fsl,imx8mp-src
       - const: syscon
 
   reg:

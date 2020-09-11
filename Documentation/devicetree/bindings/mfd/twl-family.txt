@@ -26,7 +26,7 @@ Optional node:
 Example:
 /*
  * Integrated Power Management Chip
- * http://www.ti.com/lit/ds/symlink/twl6030.pdf
+ * https://www.ti.com/lit/ds/symlink/twl6030.pdf
  */
 twl@48 {
     compatible = "ti,twl6030";

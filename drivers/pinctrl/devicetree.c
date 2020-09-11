@@ -17,7 +17,8 @@
  * struct pinctrl_dt_map - mapping table chunk parsed from device tree
  * @node: list node for struct pinctrl's @dt_maps field
  * @pctldev: the pin controller that allocated this struct, and will free it
- * @maps: the mapping table entries
+ * @map: the mapping table entries
+ * @num_maps: number of mapping table entries
  */
 struct pinctrl_dt_map {
 	struct list_head node;
@@ -397,7 +398,7 @@ static int pinctrl_copy_args(const struct device_node *np,
  * @np: pointer to device node with the property
  * @list_name: property that contains the list
  * @index: index within the list
- * @out_arts: entries in the list pointed by index
+ * @out_args: entries in the list pointed by index
  *
  * Finds the selected element in a pinctrl array consisting of an index
  * within the controller and a number of u32 entries specified for each

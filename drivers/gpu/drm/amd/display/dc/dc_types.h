@@ -890,6 +890,20 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_max_line_width;
 };
 
+struct dc_golden_table {
+	uint16_t dc_golden_table_ver;
+	uint32_t aux_dphy_rx_control0_val;
+	uint32_t aux_dphy_tx_control_val;
+	uint32_t aux_dphy_rx_control1_val;
+	uint32_t dc_gpio_aux_ctrl_0_val;
+	uint32_t dc_gpio_aux_ctrl_1_val;
+	uint32_t dc_gpio_aux_ctrl_2_val;
+	uint32_t dc_gpio_aux_ctrl_3_val;
+	uint32_t dc_gpio_aux_ctrl_4_val;
+	uint32_t dc_gpio_aux_ctrl_5_val;
+};
+
+
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 enum dc_gpu_mem_alloc_type {
 	DC_MEM_ALLOC_TYPE_GART,

@@ -292,8 +292,10 @@ struct smu_dpm_context {
 struct smu_power_gate {
 	bool uvd_gated;
 	bool vce_gated;
-	bool vcn_gated;
-	bool jpeg_gated;
+	atomic_t vcn_gated;
+	atomic_t jpeg_gated;
+	struct mutex vcn_gate_lock;
+	struct mutex jpeg_gate_lock;
 };
 
 struct smu_power_context {

@@ -1250,6 +1250,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	int i, k, l;
 	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	dc_allow_idle_optimizations(dc, false);
+#endif
 
 	for (i = 0; i < context->stream_count; i++)
 		dc_streams[i] =  context->streams[i];
@@ -1838,6 +1841,11 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	int i;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	if (dc->idle_optimizations_allowed)
+		overall_type = UPDATE_TYPE_FULL;
+
+#endif
 	if (stream_status == NULL || stream_status->plane_count != surface_count)
 		overall_type = UPDATE_TYPE_FULL;
 
@@ -2306,8 +2314,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
-	if (update_type == UPDATE_TYPE_FULL && dc->optimize_seamless_boot_streams == 0) {
-		dc->hwss.prepare_bandwidth(dc, context);
+	if (update_type == UPDATE_TYPE_FULL) {
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		dc_allow_idle_optimizations(dc, false);
+
+#endif
+		if (dc->optimize_seamless_boot_streams == 0)
+			dc->hwss.prepare_bandwidth(dc, context);
+
 		context_clock_trace(dc, context);
 	}
 

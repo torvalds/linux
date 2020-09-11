@@ -27,8 +27,8 @@ properties:
   clocks:
     minItems: 1
     items:
-       - description: Timer ticks reference clock source
-       - description: APB interface clock source
+      - description: Timer ticks reference clock source
+      - description: APB interface clock source
 
   clock-names:
     minItems: 1

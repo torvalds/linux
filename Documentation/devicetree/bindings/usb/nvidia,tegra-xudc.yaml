@@ -57,11 +57,11 @@ properties:
     minItems: 4
     maxItems: 5
     items:
-     - const: dev
-     - const: ss
-     - const: ss_src
-     - const: fs_src
-     - const: hs_src
+      - const: dev
+      - const: ss
+      - const: ss_src
+      - const: fs_src
+      - const: hs_src
 
   power-domains:
     items:

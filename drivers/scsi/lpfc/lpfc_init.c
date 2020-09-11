@@ -4577,6 +4577,13 @@ static void lpfc_host_supported_speeds_set(struct Scsi_Host *shost)
 	struct lpfc_hba   *phba = vport->phba;
 
 	fc_host_supported_speeds(shost) = 0;
+	/*
+	 * Avoid reporting supported link speed for FCoE as it can't be
+	 * controlled via FCoE.
+	 */
+	if (phba->hba_flag & HBA_FCOE_MODE)
+		return;
+
 	if (phba->lmt & LMT_128Gb)
 		fc_host_supported_speeds(shost) |= FC_PORTSPEED_128GBIT;
 	if (phba->lmt & LMT_64Gb)
@@ -4909,6 +4916,9 @@ lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
 			break;
 		case LPFC_ASYNC_LINK_SPEED_40GBPS:
 			port_speed = 40000;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_100GBPS:
+			port_speed = 100000;
 			break;
 		default:
 			port_speed = 0;
@@ -8589,7 +8599,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				"VPI(B:%d M:%d) "
 				"VFI(B:%d M:%d) "
 				"RPI(B:%d M:%d) "
-				"FCFI:%d EQ:%d CQ:%d WQ:%d RQ:%d\n",
+				"FCFI:%d EQ:%d CQ:%d WQ:%d RQ:%d lmt:x%x\n",
 				phba->sli4_hba.extents_in_use,
 				phba->sli4_hba.max_cfg_param.xri_base,
 				phba->sli4_hba.max_cfg_param.max_xri,
@@ -8603,7 +8613,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->sli4_hba.max_cfg_param.max_eq,
 				phba->sli4_hba.max_cfg_param.max_cq,
 				phba->sli4_hba.max_cfg_param.max_wq,
-				phba->sli4_hba.max_cfg_param.max_rq);
+				phba->sli4_hba.max_cfg_param.max_rq,
+				phba->lmt);
 
 		/*
 		 * Calculate queue resources based on how
@@ -8626,7 +8637,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		if ((phba->cfg_irq_chann > qmin) ||
 		    (phba->cfg_hdw_queue > qmin)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-					"2005 Reducing Queues: "
+					"2005 Reducing Queues - "
+					"FW resource limitation: "
 					"WQ %d CQ %d EQ %d: min %d: "
 					"IRQ %d HDWQ %d\n",
 					phba->sli4_hba.max_cfg_param.max_wq,
@@ -14100,17 +14112,18 @@ lpfc_init(void)
 		printk(KERN_ERR "Could not register lpfcmgmt device, "
 			"misc_register returned with status %d", error);
 
+	error = -ENOMEM;
 	lpfc_transport_functions.vport_create = lpfc_vport_create;
 	lpfc_transport_functions.vport_delete = lpfc_vport_delete;
 	lpfc_transport_template =
 				fc_attach_transport(&lpfc_transport_functions);
 	if (lpfc_transport_template == NULL)
-		return -ENOMEM;
+		goto unregister;
 	lpfc_vport_transport_template =
 		fc_attach_transport(&lpfc_vport_transport_functions);
 	if (lpfc_vport_transport_template == NULL) {
 		fc_release_transport(lpfc_transport_template);
-		return -ENOMEM;
+		goto unregister;
 	}
 	lpfc_nvme_cmd_template();
 	lpfc_nvmet_cmd_template();
@@ -14136,6 +14149,8 @@ unwind:
 cpuhp_failure:
 	fc_release_transport(lpfc_transport_template);
 	fc_release_transport(lpfc_vport_transport_template);
+unregister:
+	misc_deregister(&lpfc_mgmt_dev);
 
 	return error;
 }

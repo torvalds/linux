@@ -298,7 +298,7 @@ properties:
           - national,lm80
             # Temperature sensor with integrated fan control
           - national,lm85
-            # ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator with Two-Wire Interface
+            # I2C ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator
           - national,lm92
             # i2c trusted platform module (TPM)
           - nuvoton,npct501

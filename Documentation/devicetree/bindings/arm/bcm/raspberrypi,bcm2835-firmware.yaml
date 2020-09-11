@@ -10,6 +10,15 @@ maintainers:
   - Eric Anholt <eric@anholt.net>
   - Stefan Wahren <wahrenst@gmx.net>
 
+select:
+  properties:
+    compatible:
+      contains:
+        const: raspberrypi,bcm2835-firmware
+
+  required:
+    - compatible
+
 properties:
   compatible:
     items:

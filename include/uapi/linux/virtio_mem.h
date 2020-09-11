@@ -185,27 +185,27 @@ struct virtio_mem_resp {
 
 struct virtio_mem_config {
 	/* Block size and alignment. Cannot change. */
-	__u64 block_size;
+	__le64 block_size;
 	/* Valid with VIRTIO_MEM_F_ACPI_PXM. Cannot change. */
-	__u16 node_id;
+	__le16 node_id;
 	__u8 padding[6];
 	/* Start address of the memory region. Cannot change. */
-	__u64 addr;
+	__le64 addr;
 	/* Region size (maximum). Cannot change. */
-	__u64 region_size;
+	__le64 region_size;
 	/*
 	 * Currently usable region size. Can grow up to region_size. Can
 	 * shrink due to VIRTIO_MEM_REQ_UNPLUG_ALL (in which case no config
 	 * update will be sent).
 	 */
-	__u64 usable_region_size;
+	__le64 usable_region_size;
 	/*
 	 * Currently used size. Changes due to plug/unplug requests, but no
 	 * config updates will be sent.
 	 */
-	__u64 plugged_size;
+	__le64 plugged_size;
 	/* Requested size. New plug requests cannot exceed it. Can change. */
-	__u64 requested_size;
+	__le64 requested_size;
 };
 
 #endif /* _LINUX_VIRTIO_MEM_H */

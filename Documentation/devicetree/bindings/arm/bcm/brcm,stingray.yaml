@@ -16,9 +16,9 @@ properties:
   compatible:
     items:
       - enum:
-        - brcm,bcm958742k
-        - brcm,bcm958742t
-        - brcm,bcm958802a802x
+          - brcm,bcm958742k
+          - brcm,bcm958742t
+          - brcm,bcm958802a802x
       - const: brcm,stingray
 
 ...

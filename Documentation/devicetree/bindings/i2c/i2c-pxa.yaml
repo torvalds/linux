@@ -16,8 +16,8 @@ allOf:
         required:
           - mrvl,i2c-polling
     then:
-        required:
-          - interrupts
+      required:
+        - interrupts
 
 properties:
   compatible:

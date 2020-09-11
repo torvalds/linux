@@ -130,9 +130,9 @@ then:
   required:
     - clock-names
   description:
-     The internal card detection logic that exists in these controllers is
-     sectioned off to be run by a separate second clock source to allow
-     the main core clock to be turned off to save power.
+    The internal card detection logic that exists in these controllers is
+    sectioned off to be run by a separate second clock source to allow
+    the main core clock to be turned off to save power.
 
 unevaluatedProperties: false
 
