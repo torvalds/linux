@@ -3,6 +3,7 @@
 #define __SVM_H
 
 #include <uapi/asm/svm.h>
+#include <uapi/asm/kvm.h>
 
 /*
  * 32-bit intercept words in the VMCB Control Area, starting
@@ -12,6 +13,7 @@
 enum intercept_words {
 	INTERCEPT_CR = 0,
 	INTERCEPT_DR,
+	INTERCEPT_EXCEPTION,
 	MAX_INTERCEPT,
 };
 
@@ -42,6 +44,8 @@ enum {
 	INTERCEPT_DR5_WRITE,
 	INTERCEPT_DR6_WRITE,
 	INTERCEPT_DR7_WRITE,
+	/* Byte offset 008h (word 2) */
+	INTERCEPT_EXCEPTION_OFFSET = 64,
 };
 
 enum {
@@ -97,7 +101,6 @@ enum {
 
 struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 intercepts[MAX_INTERCEPT];
-	u32 intercept_exceptions;
 	u64 intercept;
 	u8 reserved_1[40];
 	u16 pause_filter_thresh;
