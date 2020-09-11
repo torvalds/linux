@@ -1042,3 +1042,7 @@ struct mgmt_ev_controller_resume {
 	__u8	wake_reason;
 	struct mgmt_addr_info addr;
 } __packed;
+
+#define MGMT_WAKE_REASON_NON_BT_WAKE		0x0
+#define MGMT_WAKE_REASON_UNEXPECTED		0x1
+#define MGMT_WAKE_REASON_REMOTE_WAKE		0x2
