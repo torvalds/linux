@@ -60,7 +60,7 @@ int wait_for_pending_reads(int fd, int timeout_ms,
 int wait_for_pending_reads2(int fd, int timeout_ms,
 	struct incfs_pending_read_info2 *prs, int prs_count);
 
-char *concat_file_name(const char *dir, char *file);
+char *concat_file_name(const char *dir, const char *file);
 
 void sha256(const char *data, size_t dsize, char *hash);
 
