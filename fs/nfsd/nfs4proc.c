@@ -3231,7 +3231,7 @@ bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
 	if (!cstate->minorversion)
 		return false;
 
-	if (cstate->spo_must_allowed == true)
+	if (cstate->spo_must_allowed)
 		return true;
 
 	opiter = resp->opcnt;
