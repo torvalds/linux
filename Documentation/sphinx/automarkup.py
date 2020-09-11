@@ -24,6 +24,11 @@ from itertools import chain
 #
 RE_function = re.compile(r'(([\w_][\w\d_]+)\(\))')
 RE_type = re.compile(r'(struct|union|enum|typedef)\s+([\w_][\w\d_]+)')
+#
+# Detects a reference to a documentation page of the form Documentation/... with
+# an optional extension
+#
+RE_doc = re.compile(r'Documentation(/[\w\-_/]+)(\.\w+)*')
 
 #
 # Many places in the docs refer to common system calls.  It is
@@ -44,7 +49,8 @@ def markup_refs(docname, app, node):
     # Associate each regex with the function that will markup its matches
     #
     markup_func = {RE_type: markup_c_ref,
-                   RE_function: markup_c_ref}
+                   RE_function: markup_c_ref,
+                   RE_doc: markup_doc_ref}
     match_iterators = [regex.finditer(t) for regex in markup_func]
     #
     # Sort all references by the starting position in text
@@ -107,6 +113,37 @@ def markup_c_ref(docname, app, match):
         return xref
     else:
         return target_text
+
+#
+# Try to replace a documentation reference of the form Documentation/... with a
+# cross reference to that page
+#
+def markup_doc_ref(docname, app, match):
+    stddom = app.env.domains['std']
+    #
+    # Go through the dance of getting an xref out of the std domain
+    #
+    target = match.group(1)
+    xref = None
+    pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'doc',
+                                  reftarget = target, modname = None,
+                                  classname = None, refexplicit = False)
+    #
+    # XXX The Latex builder will throw NoUri exceptions here,
+    # work around that by ignoring them.
+    #
+    try:
+        xref = stddom.resolve_xref(app.env, docname, app.builder, 'doc',
+                                   target, pxref, None)
+    except NoUri:
+        xref = None
+    #
+    # Return the xref if we got it; otherwise just return the plain text.
+    #
+    if xref:
+        return xref
+    else:
+        return nodes.Text(match.group(0))
 
 def auto_markup(app, doctree, name):
     #
