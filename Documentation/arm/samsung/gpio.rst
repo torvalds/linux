@@ -37,5 +37,4 @@ implementation to configure pins as necessary.
 The s3c_gpio_cfgpin() and s3c_gpio_setpull() provide the means for a
 driver or machine to change gpio configuration.
 
-See arch/arm/plat-samsung/include/plat/gpio-cfg.h for more information
-on these functions.
+See arch/arm/mach-s3c/gpio-cfg.h for more information on these functions.
