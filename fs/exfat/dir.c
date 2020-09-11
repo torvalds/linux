@@ -978,11 +978,8 @@ rewind:
 					if (ei->hint_femp.eidx ==
 							EXFAT_HINT_NONE ||
 						candi_empty.eidx <=
-							 ei->hint_femp.eidx) {
-						memcpy(&ei->hint_femp,
-							&candi_empty,
-							sizeof(candi_empty));
-					}
+							 ei->hint_femp.eidx)
+						ei->hint_femp = candi_empty;
 				}
 
 				brelse(bh);

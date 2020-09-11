@@ -556,7 +556,7 @@ static int exfat_fill_inode(struct inode *inode, struct exfat_dir_entry *info)
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	loff_t size = info->size;
 
-	memcpy(&ei->dir, &info->dir, sizeof(struct exfat_chain));
+	ei->dir = info->dir;
 	ei->entry = info->entry;
 	ei->attr = info->attr;
 	ei->start_clu = info->start_clu;
