@@ -1084,11 +1084,13 @@ static const struct of_device_id bq25890_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, bq25890_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id bq25890_acpi_match[] = {
 	{"BQ258900", 0},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, bq25890_acpi_match);
+#endif
 
 static struct i2c_driver bq25890_driver = {
 	.driver = {
