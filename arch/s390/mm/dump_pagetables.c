@@ -17,29 +17,41 @@ struct addr_marker {
 };
 
 enum address_markers_idx {
-	IDENTITY_NR = 0,
+	IDENTITY_BEFORE_NR = 0,
+	IDENTITY_BEFORE_END_NR,
 	KERNEL_START_NR,
 	KERNEL_END_NR,
+	IDENTITY_AFTER_NR,
+	IDENTITY_AFTER_END_NR,
 #ifdef CONFIG_KASAN
 	KASAN_SHADOW_START_NR,
 	KASAN_SHADOW_END_NR,
 #endif
 	VMEMMAP_NR,
+	VMEMMAP_END_NR,
 	VMALLOC_NR,
+	VMALLOC_END_NR,
 	MODULES_NR,
+	MODULES_END_NR,
 };
 
 static struct addr_marker address_markers[] = {
-	[IDENTITY_NR]		= {0, "Identity Mapping"},
+	[IDENTITY_BEFORE_NR]	= {0, "Identity Mapping Start"},
+	[IDENTITY_BEFORE_END_NR] = {(unsigned long)_stext, "Identity Mapping End"},
 	[KERNEL_START_NR]	= {(unsigned long)_stext, "Kernel Image Start"},
 	[KERNEL_END_NR]		= {(unsigned long)_end, "Kernel Image End"},
+	[IDENTITY_AFTER_NR]	= {(unsigned long)_end, "Identity Mapping Start"},
+	[IDENTITY_AFTER_END_NR]	= {0, "Identity Mapping End"},
 #ifdef CONFIG_KASAN
 	[KASAN_SHADOW_START_NR]	= {KASAN_SHADOW_START, "Kasan Shadow Start"},
 	[KASAN_SHADOW_END_NR]	= {KASAN_SHADOW_END, "Kasan Shadow End"},
 #endif
-	[VMEMMAP_NR]		= {0, "vmemmap Area"},
-	[VMALLOC_NR]		= {0, "vmalloc Area"},
-	[MODULES_NR]		= {0, "Modules Area"},
+	[VMEMMAP_NR]		= {0, "vmemmap Area Start"},
+	[VMEMMAP_END_NR]	= {0, "vmemmap Area End"},
+	[VMALLOC_NR]		= {0, "vmalloc Area Start"},
+	[VMALLOC_END_NR]	= {0, "vmalloc Area End"},
+	[MODULES_NR]		= {0, "Modules Area Start"},
+	[MODULES_END_NR]	= {0, "Modules Area End"},
 	{ -1, NULL }
 };
 
@@ -225,9 +237,13 @@ static int pt_dump_init(void)
 	 */
 	max_addr = (S390_lowcore.kernel_asce & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
+	address_markers[IDENTITY_AFTER_END_NR].start_address = memory_end;
 	address_markers[MODULES_NR].start_address = MODULES_VADDR;
+	address_markers[MODULES_END_NR].start_address = MODULES_END;
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
+	address_markers[VMEMMAP_END_NR].start_address = (unsigned long)vmemmap + vmemmap_size;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;
+	address_markers[VMALLOC_END_NR].start_address = VMALLOC_END;
 	if (IS_ENABLED(CONFIG_PTDUMP_DEBUGFS))
 		debugfs_create_file("kernel_page_tables", 0400, NULL, NULL, &ptdump_fops);
 	return 0;

@@ -89,6 +89,7 @@ extern unsigned long VMALLOC_START;
 extern unsigned long VMALLOC_END;
 #define VMALLOC_DEFAULT_SIZE	((128UL << 30) - MODULES_LEN)
 extern struct page *vmemmap;
+extern unsigned long vmemmap_size;
 
 #define VMEM_MAX_PHYS ((unsigned long) vmemmap)
 

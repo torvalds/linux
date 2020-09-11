@@ -119,6 +119,7 @@ EXPORT_SYMBOL(VMALLOC_END);
 
 struct page *vmemmap;
 EXPORT_SYMBOL(vmemmap);
+unsigned long vmemmap_size;
 
 unsigned long MODULES_VADDR;
 unsigned long MODULES_END;
@@ -589,6 +590,7 @@ static void __init setup_memory_end(void)
 	memory_end = min(memory_end, KASAN_SHADOW_START);
 	vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
 #endif
+	vmemmap_size = SECTION_ALIGN_UP(memory_end / PAGE_SIZE) * sizeof(struct page);
 	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
 	memblock_remove(memory_end, ULONG_MAX);
 
