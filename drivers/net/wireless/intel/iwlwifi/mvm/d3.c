@@ -1592,7 +1592,8 @@ struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm)
 
 	status_size = sizeof(*status);
 
-	if (notif_ver == IWL_FW_CMD_VER_UNKNOWN || notif_ver < 9)
+	/* only ver 9 has a different size */
+	if (notif_ver == IWL_FW_CMD_VER_UNKNOWN || notif_ver != 9)
 		status_size = sizeof(*v7);
 
 	if (len < status_size) {
