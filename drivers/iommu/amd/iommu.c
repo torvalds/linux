@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dma-direct.h>
 #include <linux/dma-iommu.h>
 #include <linux/iommu-helper.h>
@@ -28,7 +28,6 @@
 #include <linux/export.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
-#include <linux/dma-contiguous.h>
 #include <linux/irqdomain.h>
 #include <linux/percpu.h>
 #include <linux/iova.h>

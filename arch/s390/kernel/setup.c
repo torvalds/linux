@@ -37,7 +37,7 @@
 #include <linux/root_dev.h>
 #include <linux/console.h>
 #include <linux/kernel_stat.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pfn.h>

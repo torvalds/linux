@@ -7,7 +7,7 @@
  */
 #include <linux/console.h>
 #include <linux/crash_dump.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/init_ohci1394_dma.h>

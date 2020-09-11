@@ -9,7 +9,7 @@
 
 #include <linux/clocksource.h>
 #include <linux/device.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>

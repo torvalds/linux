@@ -597,7 +597,7 @@
 			placement constraint by the physical address range of
 			memory allocations. A value of 0 disables CMA
 			altogether. For more information, see
-			include/linux/dma-contiguous.h
+			kernel/dma/contiguous.c
 
 	cma_pernuma=nn[MG]
 			[ARM64,KNL]

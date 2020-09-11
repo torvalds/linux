@@ -118,7 +118,7 @@ config DMA_CMA
 	  You can disable CMA by specifying "cma=0" on the kernel's command
 	  line.
 
-	  For more information see <include/linux/dma-contiguous.h>.
+	  For more information see <kernel/dma/contiguous.c>.
 	  If unsure, say "n".
 
 if  DMA_CMA

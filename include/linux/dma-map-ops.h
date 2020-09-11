@@ -8,6 +8,8 @@
 
 #include <linux/dma-mapping.h>
 
+struct cma;
+
 struct dma_map_ops {
 	void *(*alloc)(struct device *dev, size_t size,
 			dma_addr_t *dma_handle, gfp_t gfp,
@@ -93,6 +95,69 @@ static inline void set_dma_ops(struct device *dev,
 {
 }
 #endif /* CONFIG_DMA_OPS */
+
+#ifdef CONFIG_DMA_CMA
+extern struct cma *dma_contiguous_default_area;
+
+static inline struct cma *dev_get_cma_area(struct device *dev)
+{
+	if (dev && dev->cma_area)
+		return dev->cma_area;
+	return dma_contiguous_default_area;
+}
+
+void dma_contiguous_reserve(phys_addr_t addr_limit);
+int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+		phys_addr_t limit, struct cma **res_cma, bool fixed);
+
+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+				       unsigned int order, bool no_warn);
+bool dma_release_from_contiguous(struct device *dev, struct page *pages,
+				 int count);
+struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp);
+void dma_free_contiguous(struct device *dev, struct page *page, size_t size);
+#else /* CONFIG_DMA_CMA */
+static inline struct cma *dev_get_cma_area(struct device *dev)
+{
+	return NULL;
+}
+static inline void dma_contiguous_reserve(phys_addr_t limit)
+{
+}
+static inline int dma_contiguous_reserve_area(phys_addr_t size,
+		phys_addr_t base, phys_addr_t limit, struct cma **res_cma,
+		bool fixed)
+{
+	return -ENOSYS;
+}
+static inline struct page *dma_alloc_from_contiguous(struct device *dev,
+		size_t count, unsigned int order, bool no_warn)
+{
+	return NULL;
+}
+static inline bool dma_release_from_contiguous(struct device *dev,
+		struct page *pages, int count)
+{
+	return false;
+}
+/* Use fallback alloc() and free() when CONFIG_DMA_CMA=n */
+static inline struct page *dma_alloc_contiguous(struct device *dev, size_t size,
+		gfp_t gfp)
+{
+	return NULL;
+}
+static inline void dma_free_contiguous(struct device *dev, struct page *page,
+		size_t size)
+{
+	__free_pages(page, get_order(size));
+}
+#endif /* CONFIG_DMA_CMA*/
+
+#ifdef CONFIG_DMA_PERNUMA_CMA
+void dma_pernuma_cma_reserve(void);
+#else
+static inline void dma_pernuma_cma_reserve(void) { }
+#endif /* CONFIG_DMA_PERNUMA_CMA */
 
 #ifdef CONFIG_DMA_DECLARE_COHERENT
 int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
