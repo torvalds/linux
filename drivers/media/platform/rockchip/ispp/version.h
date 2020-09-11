@@ -32,6 +32,9 @@
  * 1. add proc fs
  * 2. add iq part information to procfs
  * 3. fix config err for stream switch
+ *
+ * v0.1.6:
+ * 1. tnr support dynamic switch
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION
