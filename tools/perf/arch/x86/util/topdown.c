@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include "api/fs/fs.h"
-#include "util/group.h"
+#include "util/topdown.h"
 
 /*
  * Check whether we can use a group for top down.
