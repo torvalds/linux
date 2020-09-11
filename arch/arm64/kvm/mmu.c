@@ -668,47 +668,49 @@ int create_hyp_exec_mappings(phys_addr_t phys_addr, size_t size,
  * @kvm:	The pointer to the KVM structure
  * @mmu:	The pointer to the s2 MMU structure
  *
- * Allocates only the stage-2 HW PGD level table(s) of size defined by
- * stage2_pgd_size(mmu->kvm).
- *
+ * Allocates only the stage-2 HW PGD level table(s).
  * Note we don't need locking here as this is only called when the VM is
  * created, which can only be done once.
  */
 int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
 {
-	phys_addr_t pgd_phys;
-	pgd_t *pgd;
-	int cpu;
+	int cpu, err;
+	struct kvm_pgtable *pgt;
 
-	if (mmu->pgd != NULL) {
+	if (mmu->pgt != NULL) {
 		kvm_err("kvm_arch already initialized?\n");
 		return -EINVAL;
 	}
 
-	/* Allocate the HW PGD, making sure that each page gets its own refcount */
-	pgd = alloc_pages_exact(stage2_pgd_size(kvm), GFP_KERNEL | __GFP_ZERO);
-	if (!pgd)
+	pgt = kzalloc(sizeof(*pgt), GFP_KERNEL);
+	if (!pgt)
 		return -ENOMEM;
 
-	pgd_phys = virt_to_phys(pgd);
-	if (WARN_ON(pgd_phys & ~kvm_vttbr_baddr_mask(kvm)))
-		return -EINVAL;
+	err = kvm_pgtable_stage2_init(pgt, kvm);
+	if (err)
+		goto out_free_pgtable;
 
 	mmu->last_vcpu_ran = alloc_percpu(typeof(*mmu->last_vcpu_ran));
 	if (!mmu->last_vcpu_ran) {
-		free_pages_exact(pgd, stage2_pgd_size(kvm));
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_destroy_pgtable;
 	}
 
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(mmu->last_vcpu_ran, cpu) = -1;
 
 	mmu->kvm = kvm;
-	mmu->pgd = pgd;
-	mmu->pgd_phys = pgd_phys;
+	mmu->pgt = pgt;
+	mmu->pgd_phys = __pa(pgt->pgd);
+	mmu->pgd = (void *)pgt->pgd;
 	mmu->vmid.vmid_gen = 0;
-
 	return 0;
+
+out_destroy_pgtable:
+	kvm_pgtable_stage2_destroy(pgt);
+out_free_pgtable:
+	kfree(pgt);
+	return err;
 }
 
 static void stage2_unmap_memslot(struct kvm *kvm,
@@ -781,20 +783,21 @@ void stage2_unmap_vm(struct kvm *kvm)
 void kvm_free_stage2_pgd(struct kvm_s2_mmu *mmu)
 {
 	struct kvm *kvm = mmu->kvm;
-	void *pgd = NULL;
+	struct kvm_pgtable *pgt = NULL;
 
 	spin_lock(&kvm->mmu_lock);
-	if (mmu->pgd) {
-		unmap_stage2_range(mmu, 0, kvm_phys_size(kvm));
-		pgd = READ_ONCE(mmu->pgd);
+	pgt = mmu->pgt;
+	if (pgt) {
 		mmu->pgd = NULL;
+		mmu->pgd_phys = 0;
+		mmu->pgt = NULL;
+		free_percpu(mmu->last_vcpu_ran);
 	}
 	spin_unlock(&kvm->mmu_lock);
 
-	/* Free the HW pgd, one page at a time */
-	if (pgd) {
-		free_pages_exact(pgd, stage2_pgd_size(kvm));
-		free_percpu(mmu->last_vcpu_ran);
+	if (pgt) {
+		kvm_pgtable_stage2_destroy(pgt);
+		kfree(pgt);
 	}
 }
 

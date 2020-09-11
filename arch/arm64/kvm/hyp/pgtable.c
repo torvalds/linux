@@ -416,3 +416,57 @@ void kvm_pgtable_hyp_destroy(struct kvm_pgtable *pgt)
 	free_page((unsigned long)pgt->pgd);
 	pgt->pgd = NULL;
 }
+
+int kvm_pgtable_stage2_init(struct kvm_pgtable *pgt, struct kvm *kvm)
+{
+	size_t pgd_sz;
+	u64 vtcr = kvm->arch.vtcr;
+	u32 ia_bits = VTCR_EL2_IPA(vtcr);
+	u32 sl0 = FIELD_GET(VTCR_EL2_SL0_MASK, vtcr);
+	u32 start_level = VTCR_EL2_TGRAN_SL0_BASE - sl0;
+
+	pgd_sz = kvm_pgd_pages(ia_bits, start_level) * PAGE_SIZE;
+	pgt->pgd = alloc_pages_exact(pgd_sz, GFP_KERNEL | __GFP_ZERO);
+	if (!pgt->pgd)
+		return -ENOMEM;
+
+	pgt->ia_bits		= ia_bits;
+	pgt->start_level	= start_level;
+	pgt->mmu		= &kvm->arch.mmu;
+
+	/* Ensure zeroed PGD pages are visible to the hardware walker */
+	dsb(ishst);
+	return 0;
+}
+
+static int stage2_free_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+			      enum kvm_pgtable_walk_flags flag,
+			      void * const arg)
+{
+	kvm_pte_t pte = *ptep;
+
+	if (!kvm_pte_valid(pte))
+		return 0;
+
+	put_page(virt_to_page(ptep));
+
+	if (kvm_pte_table(pte, level))
+		free_page((unsigned long)kvm_pte_follow(pte));
+
+	return 0;
+}
+
+void kvm_pgtable_stage2_destroy(struct kvm_pgtable *pgt)
+{
+	size_t pgd_sz;
+	struct kvm_pgtable_walker walker = {
+		.cb	= stage2_free_walker,
+		.flags	= KVM_PGTABLE_WALK_LEAF |
+			  KVM_PGTABLE_WALK_TABLE_POST,
+	};
+
+	WARN_ON(kvm_pgtable_walk(pgt, 0, BIT(pgt->ia_bits), &walker));
+	pgd_sz = kvm_pgd_pages(pgt->ia_bits, pgt->start_level) * PAGE_SIZE;
+	free_pages_exact(pgt->pgd, pgd_sz);
+	pgt->pgd = NULL;
+}
