@@ -173,8 +173,8 @@ struct npc_kpu_profile_action {
 struct npc_kpu_profile {
 	int cam_entries;
 	int action_entries;
-	struct npc_kpu_profile_cam *cam;
-	struct npc_kpu_profile_action *action;
+	const struct npc_kpu_profile_cam *cam;
+	const struct npc_kpu_profile_action *action;
 };
 
 /* NPC KPU register formats */
