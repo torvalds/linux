@@ -98,7 +98,7 @@
 #define IMX415_RHS2_REG_L		0x3064
 #define IMX415_RHS2_DEFAULT		0x004D
 
-#define	IMX415_EXPOSURE_MIN		8
+#define	IMX415_EXPOSURE_MIN		4
 #define	IMX415_EXPOSURE_STEP		1
 #define IMX415_VTS_MAX			0x7fff
 
@@ -1859,12 +1859,14 @@ static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
-		/* Update max exposure while meeting expected vblanking */
-		max = imx415->cur_mode->height + ctrl->val - 4;
-		__v4l2_ctrl_modify_range(imx415->exposure,
+		if (imx415->cur_mode->hdr_mode == NO_HDR) {
+			/* Update max exposure while meeting expected vblanking */
+			max = imx415->cur_mode->height + ctrl->val - 8;
+			__v4l2_ctrl_modify_range(imx415->exposure,
 					 imx415->exposure->minimum, max,
 					 imx415->exposure->step,
 					 imx415->exposure->default_value);
+		}
 		break;
 	}
 
@@ -2009,7 +2011,7 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 				1, vblank_def);
 	imx415->cur_vts = mode->vts_def;
 
-	exposure_max = mode->vts_def - 4;
+	exposure_max = mode->vts_def - 8;
 	imx415->exposure = v4l2_ctrl_new_std(handler, &imx415_ctrl_ops,
 				V4L2_CID_EXPOSURE, IMX415_EXPOSURE_MIN,
 				exposure_max, IMX415_EXPOSURE_STEP,
