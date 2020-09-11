@@ -1803,7 +1803,7 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	struct hfa384x_tx_frame txdesc;
 	struct hostap_skb_tx_data *meta;
 	int hdr_len, data_len, idx, res, ret = -1;
-	u16 tx_control, fc;
+	u16 tx_control;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
@@ -1826,7 +1826,6 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	/* skb->data starts with txdesc->frame_control */
 	hdr_len = 24;
 	skb_copy_from_linear_data(skb, &txdesc.frame_control, hdr_len);
- 	fc = le16_to_cpu(txdesc.frame_control);
 	if (ieee80211_is_data(txdesc.frame_control) &&
 	    ieee80211_has_a4(txdesc.frame_control) &&
 	    skb->len >= 30) {
@@ -2083,9 +2082,9 @@ static void hostap_rx_skb(local_info_t *local, struct sk_buff *skb)
 
 
 /* Called only as a tasklet (software IRQ) */
-static void hostap_rx_tasklet(unsigned long data)
+static void hostap_rx_tasklet(struct tasklet_struct *t)
 {
-	local_info_t *local = (local_info_t *) data;
+	local_info_t *local = from_tasklet(local, t, rx_tasklet);
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&local->rx_list)) != NULL)
@@ -2288,9 +2287,9 @@ static void prism2_tx_ev(local_info_t *local)
 
 
 /* Called only as a tasklet (software IRQ) */
-static void hostap_sta_tx_exc_tasklet(unsigned long data)
+static void hostap_sta_tx_exc_tasklet(struct tasklet_struct *t)
 {
-	local_info_t *local = (local_info_t *) data;
+	local_info_t *local = from_tasklet(local, t, sta_tx_exc_tasklet);
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&local->sta_tx_exc_list)) != NULL) {
@@ -2390,9 +2389,9 @@ static void prism2_txexc(local_info_t *local)
 
 
 /* Called only as a tasklet (software IRQ) */
-static void hostap_info_tasklet(unsigned long data)
+static void hostap_info_tasklet(struct tasklet_struct *t)
 {
-	local_info_t *local = (local_info_t *) data;
+	local_info_t *local = from_tasklet(local, t, info_tasklet);
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&local->info_list)) != NULL) {
@@ -2469,9 +2468,9 @@ static void prism2_info(local_info_t *local)
 
 
 /* Called only as a tasklet (software IRQ) */
-static void hostap_bap_tasklet(unsigned long data)
+static void hostap_bap_tasklet(struct tasklet_struct *t)
 {
-	local_info_t *local = (local_info_t *) data;
+	local_info_t *local = from_tasklet(local, t, bap_tasklet);
 	struct net_device *dev = local->dev;
 	u16 ev;
 	int frames = 30;
@@ -3183,7 +3182,7 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	/* Initialize tasklets for handling hardware IRQ related operations
 	 * outside hw IRQ handler */
 #define HOSTAP_TASKLET_INIT(q, f, d) \
-do { memset((q), 0, sizeof(*(q))); (q)->func = (f); (q)->data = (d); } \
+do { memset((q), 0, sizeof(*(q))); (q)->func = (void(*)(unsigned long))(f); } \
 while (0)
 	HOSTAP_TASKLET_INIT(&local->bap_tasklet, hostap_bap_tasklet,
 			    (unsigned long) local);

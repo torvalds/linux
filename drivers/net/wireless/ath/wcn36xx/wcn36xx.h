@@ -92,6 +92,7 @@ enum wcn36xx_ampdu_state {
 
 #define RF_UNKNOWN	0x0000
 #define RF_IRIS_WCN3620	0x3620
+#define RF_IRIS_WCN3680	0x3680
 
 static inline void buff_to_be(u32 *buf, size_t len)
 {
@@ -122,6 +123,7 @@ struct wcn36xx_vif {
 	enum wcn36xx_hal_bss_type bss_type;
 
 	/* Power management */
+	bool allow_bmps;
 	enum wcn36xx_power_state pw_state;
 
 	u8 bss_index;
@@ -223,10 +225,10 @@ struct wcn36xx {
 	spinlock_t		hal_ind_lock;
 	struct list_head	hal_ind_queue;
 
-	struct work_struct	scan_work;
 	struct cfg80211_scan_request *scan_req;
-	int			scan_freq;
-	int			scan_band;
+	bool			sw_scan;
+	u8			sw_scan_opchannel;
+	struct ieee80211_vif	*sw_scan_vif;
 	struct mutex		scan_lock;
 	bool			scan_aborted;
 
@@ -245,6 +247,7 @@ struct wcn36xx {
 	struct wcn36xx_dxe_mem_pool data_mem_pool;
 
 	struct sk_buff		*tx_ack_skb;
+	struct timer_list	tx_ack_timer;
 
 	/* RF module */
 	unsigned		rf_id;

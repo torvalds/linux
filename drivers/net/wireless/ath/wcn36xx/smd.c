@@ -45,8 +45,8 @@ static struct wcn36xx_cfg_val wcn36xx_cfg_vals[] = {
 	WCN36XX_CFG_VAL(MAX_MEDIUM_TIME, 6000),
 	WCN36XX_CFG_VAL(MAX_MPDUS_IN_AMPDU, 64),
 	WCN36XX_CFG_VAL(RTS_THRESHOLD, 2347),
-	WCN36XX_CFG_VAL(SHORT_RETRY_LIMIT, 6),
-	WCN36XX_CFG_VAL(LONG_RETRY_LIMIT, 6),
+	WCN36XX_CFG_VAL(SHORT_RETRY_LIMIT, 15),
+	WCN36XX_CFG_VAL(LONG_RETRY_LIMIT, 15),
 	WCN36XX_CFG_VAL(FRAGMENTATION_THRESHOLD, 8000),
 	WCN36XX_CFG_VAL(DYNAMIC_THRESHOLD_ZERO, 5),
 	WCN36XX_CFG_VAL(DYNAMIC_THRESHOLD_ONE, 10),
@@ -77,6 +77,7 @@ static struct wcn36xx_cfg_val wcn36xx_cfg_vals[] = {
 	WCN36XX_CFG_VAL(BTC_STATIC_LEN_LE_WLAN, 30000),
 	WCN36XX_CFG_VAL(MAX_ASSOC_LIMIT, 10),
 	WCN36XX_CFG_VAL(ENABLE_MCC_ADAPTIVE_SCHEDULER, 0),
+	WCN36XX_CFG_VAL(ENABLE_DYNAMIC_RA_START_RATE, 133), /* MCS 5 */
 };
 
 static int put_cfg_tlv_u32(struct wcn36xx *wcn, size_t *len, u32 id, u32 value)
@@ -517,8 +518,10 @@ out:
 	return ret;
 }
 
-int wcn36xx_smd_init_scan(struct wcn36xx *wcn, enum wcn36xx_hal_sys_mode mode)
+int wcn36xx_smd_init_scan(struct wcn36xx *wcn, enum wcn36xx_hal_sys_mode mode,
+			  struct ieee80211_vif *vif)
 {
+	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 	struct wcn36xx_hal_init_scan_req_msg msg_body;
 	int ret;
 
@@ -526,6 +529,13 @@ int wcn36xx_smd_init_scan(struct wcn36xx *wcn, enum wcn36xx_hal_sys_mode mode)
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_INIT_SCAN_REQ);
 
 	msg_body.mode = mode;
+	if (vif_priv->bss_index != WCN36XX_HAL_BSS_INVALID_IDX) {
+		/* Notify BSSID with null DATA packet */
+		msg_body.frame_type = 2;
+		msg_body.notify = 1;
+		msg_body.scan_entry.bss_index[0] = vif_priv->bss_index;
+		msg_body.scan_entry.active_bss_count = 1;
+	}
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
@@ -607,8 +617,10 @@ out:
 }
 
 int wcn36xx_smd_finish_scan(struct wcn36xx *wcn,
-			    enum wcn36xx_hal_sys_mode mode)
+			    enum wcn36xx_hal_sys_mode mode,
+			    struct ieee80211_vif *vif)
 {
+	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 	struct wcn36xx_hal_finish_scan_req_msg msg_body;
 	int ret;
 
@@ -616,6 +628,14 @@ int wcn36xx_smd_finish_scan(struct wcn36xx *wcn,
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_FINISH_SCAN_REQ);
 
 	msg_body.mode = mode;
+	msg_body.oper_channel = WCN36XX_HW_CHANNEL(wcn);
+	if (vif_priv->bss_index != WCN36XX_HAL_BSS_INVALID_IDX) {
+		/* Notify BSSID with null data packet */
+		msg_body.notify = 1;
+		msg_body.frame_type = 2;
+		msg_body.scan_entry.bss_index[0] = vif_priv->bss_index;
+		msg_body.scan_entry.active_bss_count = 1;
+	}
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
@@ -1279,87 +1299,71 @@ static int wcn36xx_smd_config_bss_v1(struct wcn36xx *wcn,
 	sta = &bss->sta;
 
 	/* convert orig to v1 */
-	memcpy(&msg_body->bss_params.bssid,
-	       &orig->bss_params.bssid, ETH_ALEN);
-	memcpy(&msg_body->bss_params.self_mac_addr,
-	       &orig->bss_params.self_mac_addr, ETH_ALEN);
+	memcpy(bss->bssid, &orig->bss_params.bssid, ETH_ALEN);
+	memcpy(bss->self_mac_addr, &orig->bss_params.self_mac_addr, ETH_ALEN);
 
-	msg_body->bss_params.bss_type = orig->bss_params.bss_type;
-	msg_body->bss_params.oper_mode = orig->bss_params.oper_mode;
-	msg_body->bss_params.nw_type = orig->bss_params.nw_type;
+	bss->bss_type = orig->bss_params.bss_type;
+	bss->oper_mode = orig->bss_params.oper_mode;
+	bss->nw_type = orig->bss_params.nw_type;
 
-	msg_body->bss_params.short_slot_time_supported =
+	bss->short_slot_time_supported =
 		orig->bss_params.short_slot_time_supported;
-	msg_body->bss_params.lla_coexist = orig->bss_params.lla_coexist;
-	msg_body->bss_params.llb_coexist = orig->bss_params.llb_coexist;
-	msg_body->bss_params.llg_coexist = orig->bss_params.llg_coexist;
-	msg_body->bss_params.ht20_coexist = orig->bss_params.ht20_coexist;
-	msg_body->bss_params.lln_non_gf_coexist =
-		orig->bss_params.lln_non_gf_coexist;
+	bss->lla_coexist = orig->bss_params.lla_coexist;
+	bss->llb_coexist = orig->bss_params.llb_coexist;
+	bss->llg_coexist = orig->bss_params.llg_coexist;
+	bss->ht20_coexist = orig->bss_params.ht20_coexist;
+	bss->lln_non_gf_coexist = orig->bss_params.lln_non_gf_coexist;
 
-	msg_body->bss_params.lsig_tx_op_protection_full_support =
+	bss->lsig_tx_op_protection_full_support =
 		orig->bss_params.lsig_tx_op_protection_full_support;
-	msg_body->bss_params.rifs_mode = orig->bss_params.rifs_mode;
-	msg_body->bss_params.beacon_interval = orig->bss_params.beacon_interval;
-	msg_body->bss_params.dtim_period = orig->bss_params.dtim_period;
-	msg_body->bss_params.tx_channel_width_set =
-		orig->bss_params.tx_channel_width_set;
-	msg_body->bss_params.oper_channel = orig->bss_params.oper_channel;
-	msg_body->bss_params.ext_channel = orig->bss_params.ext_channel;
+	bss->rifs_mode = orig->bss_params.rifs_mode;
+	bss->beacon_interval = orig->bss_params.beacon_interval;
+	bss->dtim_period = orig->bss_params.dtim_period;
+	bss->tx_channel_width_set = orig->bss_params.tx_channel_width_set;
+	bss->oper_channel = orig->bss_params.oper_channel;
+	bss->ext_channel = orig->bss_params.ext_channel;
 
-	msg_body->bss_params.reserved = orig->bss_params.reserved;
+	bss->reserved = orig->bss_params.reserved;
 
-	memcpy(&msg_body->bss_params.ssid,
-	       &orig->bss_params.ssid,
+	memcpy(&bss->ssid, &orig->bss_params.ssid,
 	       sizeof(orig->bss_params.ssid));
 
-	msg_body->bss_params.action = orig->bss_params.action;
-	msg_body->bss_params.rateset = orig->bss_params.rateset;
-	msg_body->bss_params.ht = orig->bss_params.ht;
-	msg_body->bss_params.obss_prot_enabled =
-		orig->bss_params.obss_prot_enabled;
-	msg_body->bss_params.rmf = orig->bss_params.rmf;
-	msg_body->bss_params.ht_oper_mode = orig->bss_params.ht_oper_mode;
-	msg_body->bss_params.dual_cts_protection =
-		orig->bss_params.dual_cts_protection;
+	bss->action = orig->bss_params.action;
+	bss->rateset = orig->bss_params.rateset;
+	bss->ht = orig->bss_params.ht;
+	bss->obss_prot_enabled = orig->bss_params.obss_prot_enabled;
+	bss->rmf = orig->bss_params.rmf;
+	bss->ht_oper_mode = orig->bss_params.ht_oper_mode;
+	bss->dual_cts_protection = orig->bss_params.dual_cts_protection;
 
-	msg_body->bss_params.max_probe_resp_retry_limit =
+	bss->max_probe_resp_retry_limit =
 		orig->bss_params.max_probe_resp_retry_limit;
-	msg_body->bss_params.hidden_ssid = orig->bss_params.hidden_ssid;
-	msg_body->bss_params.proxy_probe_resp =
-		orig->bss_params.proxy_probe_resp;
-	msg_body->bss_params.edca_params_valid =
-		orig->bss_params.edca_params_valid;
+	bss->hidden_ssid = orig->bss_params.hidden_ssid;
+	bss->proxy_probe_resp =	orig->bss_params.proxy_probe_resp;
+	bss->edca_params_valid = orig->bss_params.edca_params_valid;
 
-	memcpy(&msg_body->bss_params.acbe,
-	       &orig->bss_params.acbe,
+	memcpy(&bss->acbe, &orig->bss_params.acbe,
 	       sizeof(orig->bss_params.acbe));
-	memcpy(&msg_body->bss_params.acbk,
-	       &orig->bss_params.acbk,
+	memcpy(&bss->acbk, &orig->bss_params.acbk,
 	       sizeof(orig->bss_params.acbk));
-	memcpy(&msg_body->bss_params.acvi,
-	       &orig->bss_params.acvi,
+	memcpy(&bss->acvi, &orig->bss_params.acvi,
 	       sizeof(orig->bss_params.acvi));
-	memcpy(&msg_body->bss_params.acvo,
-	       &orig->bss_params.acvo,
+	memcpy(&bss->acvo, &orig->bss_params.acvo,
 	       sizeof(orig->bss_params.acvo));
 
-	msg_body->bss_params.ext_set_sta_key_param_valid =
+	bss->ext_set_sta_key_param_valid =
 		orig->bss_params.ext_set_sta_key_param_valid;
 
-	memcpy(&msg_body->bss_params.ext_set_sta_key_param,
+	memcpy(&bss->ext_set_sta_key_param,
 	       &orig->bss_params.ext_set_sta_key_param,
 	       sizeof(orig->bss_params.acvo));
 
-	msg_body->bss_params.wcn36xx_hal_persona =
-		orig->bss_params.wcn36xx_hal_persona;
-	msg_body->bss_params.spectrum_mgt_enable =
-		orig->bss_params.spectrum_mgt_enable;
-	msg_body->bss_params.tx_mgmt_power = orig->bss_params.tx_mgmt_power;
-	msg_body->bss_params.max_tx_power = orig->bss_params.max_tx_power;
+	bss->wcn36xx_hal_persona = orig->bss_params.wcn36xx_hal_persona;
+	bss->spectrum_mgt_enable = orig->bss_params.spectrum_mgt_enable;
+	bss->tx_mgmt_power = orig->bss_params.tx_mgmt_power;
+	bss->max_tx_power = orig->bss_params.max_tx_power;
 
-	wcn36xx_smd_convert_sta_to_v1(wcn, &orig->bss_params.sta,
-				      &msg_body->bss_params.sta);
+	wcn36xx_smd_convert_sta_to_v1(wcn, &orig->bss_params.sta, sta);
 
 	PREPARE_HAL_BUF(wcn->hal_buf, (*msg_body));
 
@@ -2080,6 +2084,8 @@ int wcn36xx_smd_feature_caps_exchange(struct wcn36xx *wcn)
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_FEATURE_CAPS_EXCHANGE_REQ);
 
 	set_feat_caps(msg_body.feat_caps, STA_POWERSAVE);
+	if (wcn->rf_id == RF_IRIS_WCN3680)
+		set_feat_caps(msg_body.feat_caps, DOT11AC);
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
@@ -2102,6 +2108,22 @@ out:
 	return ret;
 }
 
+static int wcn36xx_smd_add_ba_session_rsp(void *buf, int len, u8 *session)
+{
+	struct wcn36xx_hal_add_ba_session_rsp_msg *rsp;
+
+	if (len < sizeof(*rsp))
+		return -EINVAL;
+
+	rsp = (struct wcn36xx_hal_add_ba_session_rsp_msg *)buf;
+	if (rsp->status != WCN36XX_FW_MSG_RESULT_SUCCESS)
+		return rsp->status;
+
+	*session = rsp->ba_session_id;
+
+	return 0;
+}
+
 int wcn36xx_smd_add_ba_session(struct wcn36xx *wcn,
 		struct ieee80211_sta *sta,
 		u16 tid,
@@ -2110,6 +2132,7 @@ int wcn36xx_smd_add_ba_session(struct wcn36xx *wcn,
 		u8 sta_index)
 {
 	struct wcn36xx_hal_add_ba_session_req_msg msg_body;
+	u8 session_id;
 	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
@@ -2135,17 +2158,20 @@ int wcn36xx_smd_add_ba_session(struct wcn36xx *wcn,
 		wcn36xx_err("Sending hal_add_ba_session failed\n");
 		goto out;
 	}
-	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
+	ret = wcn36xx_smd_add_ba_session_rsp(wcn->hal_buf, wcn->hal_rsp_len,
+					     &session_id);
 	if (ret) {
 		wcn36xx_err("hal_add_ba_session response failed err=%d\n", ret);
 		goto out;
 	}
+
+	ret = session_id;
 out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
 }
 
-int wcn36xx_smd_add_ba(struct wcn36xx *wcn)
+int wcn36xx_smd_add_ba(struct wcn36xx *wcn, u8 session_id)
 {
 	struct wcn36xx_hal_add_ba_req_msg msg_body;
 	int ret;
@@ -2153,7 +2179,7 @@ int wcn36xx_smd_add_ba(struct wcn36xx *wcn)
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_ADD_BA_REQ);
 
-	msg_body.session_id = 0;
+	msg_body.session_id = session_id;
 	msg_body.win_size = WCN36XX_AGGR_BUFFER_SIZE;
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
@@ -2212,7 +2238,7 @@ static int wcn36xx_smd_trigger_ba_rsp(void *buf, int len)
 	return rsp->status;
 }
 
-int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
+int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index, u16 tid, u8 session_id)
 {
 	struct wcn36xx_hal_trigger_ba_req_msg msg_body;
 	struct wcn36xx_hal_trigger_ba_req_candidate *candidate;
@@ -2221,7 +2247,7 @@ int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_TRIGGER_BA_REQ);
 
-	msg_body.session_id = 0;
+	msg_body.session_id = session_id;
 	msg_body.candidate_cnt = 1;
 	msg_body.header.len += sizeof(*candidate);
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
@@ -2229,7 +2255,7 @@ int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
 	candidate = (struct wcn36xx_hal_trigger_ba_req_candidate *)
 		(wcn->hal_buf + sizeof(msg_body));
 	candidate->sta_index = sta_index;
-	candidate->tid_bitmap = 1;
+	candidate->tid_bitmap = 1 << tid;
 
 	ret = wcn36xx_smd_send_and_wait(wcn, msg_body.header.len);
 	if (ret) {

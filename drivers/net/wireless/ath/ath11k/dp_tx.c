@@ -13,6 +13,10 @@ static enum hal_tcl_encap_type
 ath11k_dp_tx_get_encap_type(struct ath11k_vif *arvif, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ath11k_base *ab = arvif->ar->ab;
+
+	if (test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags))
+		return HAL_TCL_ENCAP_TYPE_RAW;
 
 	if (tx_info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP)
 		return HAL_TCL_ENCAP_TYPE_ETHERNET;
@@ -79,6 +83,7 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	struct ath11k_dp *dp = &ab->dp;
 	struct hal_tx_info ti = {0};
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB(skb);
 	struct hal_srng *tcl_ring;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
@@ -110,7 +115,12 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 
 tcl_ring_sel:
 	tcl_ring_retry = false;
-	ti.ring_id = ring_selector % DP_TCL_NUM_RING_MAX;
+	/* For some chip, it can only use tcl0 to tx */
+	if (ar->ab->hw_params.tcl_0_only)
+		ti.ring_id = 0;
+	else
+		ti.ring_id = ring_selector % DP_TCL_NUM_RING_MAX;
+
 	ring_map |= BIT(ti.ring_id);
 
 	tx_ring = &dp->tx_ring[ti.ring_id];
@@ -137,11 +147,17 @@ tcl_ring_sel:
 	ti.encap_type = ath11k_dp_tx_get_encap_type(arvif, skb);
 	ti.meta_data_flags = arvif->tcl_metadata;
 
-	if (info->control.hw_key)
-		ti.encrypt_type =
-			ath11k_dp_tx_get_encrypt_type(info->control.hw_key->cipher);
-	else
-		ti.encrypt_type = HAL_ENCRYPT_TYPE_OPEN;
+	if (ti.encap_type == HAL_TCL_ENCAP_TYPE_RAW) {
+		if (key) {
+			ti.encrypt_type =
+				ath11k_dp_tx_get_encrypt_type(key->cipher);
+
+			if (ieee80211_has_protected(hdr->frame_control))
+				skb_put(skb, IEEE80211_CCMP_MIC_LEN);
+		} else {
+			ti.encrypt_type = HAL_ENCRYPT_TYPE_OPEN;
+		}
+	}
 
 	ti.addr_search_flags = arvif->hal_addr_search_flags;
 	ti.search_type = arvif->search_type;
@@ -151,7 +167,8 @@ tcl_ring_sel:
 	ti.bss_ast_hash = arvif->ast_hash;
 	ti.dscp_tid_tbl_idx = 0;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    ti.encap_type != HAL_TCL_ENCAP_TYPE_RAW) {
 		ti.flags0 |= FIELD_PREP(HAL_TCL_DATA_CMD_INFO1_IP4_CKSUM_EN, 1) |
 			     FIELD_PREP(HAL_TCL_DATA_CMD_INFO1_UDP4_CKSUM_EN, 1) |
 			     FIELD_PREP(HAL_TCL_DATA_CMD_INFO1_UDP6_CKSUM_EN, 1) |
@@ -171,10 +188,11 @@ tcl_ring_sel:
 		ath11k_dp_tx_encap_nwifi(skb);
 		break;
 	case HAL_TCL_ENCAP_TYPE_RAW:
-		/*  TODO: for CHECKSUM_PARTIAL case in raw mode, HW checksum offload
-		 *	  is not applicable, hence manual checksum calculation using
-		 *	  skb_checksum_help() is needed
-		 */
+		if (!test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags)) {
+			ret = -EINVAL;
+			goto fail_remove_idr;
+		}
+		break;
 	case HAL_TCL_ENCAP_TYPE_ETHERNET:
 		/* no need to encap */
 		break;
@@ -221,7 +239,8 @@ tcl_ring_sel:
 		 * checking this ring earlier for each pkt tx.
 		 * Restart ring selection if some rings are not checked yet.
 		 */
-		if (ring_map != (BIT(DP_TCL_NUM_RING_MAX) - 1)) {
+		if (ring_map != (BIT(DP_TCL_NUM_RING_MAX) - 1) &&
+		    !ar->ab->hw_params.tcl_0_only) {
 			tcl_ring_retry = true;
 			ring_selector++;
 		}
@@ -235,6 +254,9 @@ tcl_ring_sel:
 	ath11k_hal_srng_access_end(ab, tcl_ring);
 
 	spin_unlock_bh(&tcl_ring->lock);
+
+	ath11k_dbg_dump(ab, ATH11K_DBG_DP_TX, NULL, "dp tx msdu: ",
+			skb->data, skb->len);
 
 	atomic_inc(&ar->dp.num_tx_pending);
 
@@ -346,7 +368,6 @@ ath11k_dp_tx_process_htt_tx_complete(struct ath11k_base *ab,
 
 	wbm_status = FIELD_GET(HTT_TX_WBM_COMP_INFO0_STATUS,
 			       status_desc->info0);
-
 	switch (wbm_status) {
 	case HAL_WBM_REL_HTT_TX_COMP_STATUS_OK:
 	case HAL_WBM_REL_HTT_TX_COMP_STATUS_DROP:
@@ -633,14 +654,28 @@ ath11k_dp_tx_get_ring_id_type(struct ath11k_base *ab,
 	switch (ring_type) {
 	case HAL_RXDMA_BUF:
 		lmac_ring_id_offset = mac_id * HAL_SRNG_RINGS_PER_LMAC;
-		if (!(ring_id == (HAL_SRNG_RING_ID_WMAC1_SW2RXDMA0_BUF +
-				  lmac_ring_id_offset) ||
-		    ring_id == (HAL_SRNG_RING_ID_WMAC1_SW2RXDMA1_BUF +
-				lmac_ring_id_offset))) {
-			ret = -EINVAL;
+
+		/* for QCA6390, host fills rx buffer to fw and fw fills to
+		 * rxbuf ring for each rxdma
+		 */
+		if (!ab->hw_params.rx_mac_buf_ring) {
+			if (!(ring_id == (HAL_SRNG_RING_ID_WMAC1_SW2RXDMA0_BUF +
+					  lmac_ring_id_offset) ||
+				ring_id == (HAL_SRNG_RING_ID_WMAC1_SW2RXDMA1_BUF +
+					lmac_ring_id_offset))) {
+				ret = -EINVAL;
+			}
+			*htt_ring_id = HTT_RXDMA_HOST_BUF_RING;
+			*htt_ring_type = HTT_SW_TO_HW_RING;
+		} else {
+			if (ring_id == HAL_SRNG_RING_ID_WMAC1_SW2RXDMA0_BUF) {
+				*htt_ring_id = HTT_HOST1_TO_FW_RXBUF_RING;
+				*htt_ring_type = HTT_SW_TO_SW_RING;
+			} else {
+				*htt_ring_id = HTT_RXDMA_HOST_BUF_RING;
+				*htt_ring_type = HTT_SW_TO_HW_RING;
+			}
 		}
-		*htt_ring_id = HTT_RXDMA_HOST_BUF_RING;
-		*htt_ring_type = HTT_SW_TO_HW_RING;
 		break;
 	case HAL_RXDMA_DST:
 		*htt_ring_id = HTT_RXDMA_NON_MONITOR_DEST_RING;
@@ -720,7 +755,7 @@ int ath11k_dp_tx_htt_srng_setup(struct ath11k_base *ab, u32 ring_id,
 	cmd->ring_base_addr_hi = (u64)params.ring_base_paddr >>
 				 HAL_ADDR_MSB_REG_SHIFT;
 
-	ret = ath11k_hal_srng_get_entrysize(ring_type);
+	ret = ath11k_hal_srng_get_entrysize(ab, ring_type);
 	if (ret < 0)
 		goto err_free;
 
@@ -968,8 +1003,9 @@ ath11k_dp_tx_htt_h2t_ext_stats_req(struct ath11k *ar, u8 type,
 int ath11k_dp_tx_htt_monitor_mode_ring_config(struct ath11k *ar, bool reset)
 {
 	struct ath11k_pdev_dp *dp = &ar->dp;
+	struct ath11k_base *ab = ar->ab;
 	struct htt_rx_ring_tlv_filter tlv_filter = {0};
-	int ret = 0, ring_id = 0;
+	int ret = 0, ring_id = 0, i;
 
 	ring_id = dp->rxdma_mon_buf_ring.refill_buf_ring.ring_id;
 
@@ -998,16 +1034,20 @@ int ath11k_dp_tx_htt_monitor_mode_ring_config(struct ath11k *ar, bool reset)
 	if (ret)
 		return ret;
 
-	ring_id = dp->rx_mon_status_refill_ring.refill_buf_ring.ring_id;
-	if (!reset)
-		tlv_filter.rx_filter =
-				HTT_RX_MON_FILTER_TLV_FLAGS_MON_STATUS_RING;
-	else
-		tlv_filter = ath11k_mac_mon_status_filter_default;
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		ring_id = dp->rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+		if (!reset)
+			tlv_filter.rx_filter =
+					HTT_RX_MON_FILTER_TLV_FLAGS_MON_STATUS_RING;
+		else
+			tlv_filter = ath11k_mac_mon_status_filter_default;
 
-	ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, dp->mac_id,
-					       HAL_RXDMA_MONITOR_STATUS,
-					       DP_RXDMA_REFILL_RING_SIZE,
-					       &tlv_filter);
+		ret = ath11k_dp_tx_htt_rx_filter_setup(ab, ring_id,
+						       dp->mac_id + i,
+						       HAL_RXDMA_MONITOR_STATUS,
+						       DP_RXDMA_REFILL_RING_SIZE,
+						       &tlv_filter);
+	}
+
 	return ret;
 }

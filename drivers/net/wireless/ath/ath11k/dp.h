@@ -8,6 +8,8 @@
 
 #include "hal_rx.h"
 
+#define MAX_RXDMA_PER_PDEV     2
+
 struct ath11k_base;
 struct ath11k_peer;
 struct ath11k_dp;
@@ -142,12 +144,13 @@ struct ath11k_pdev_dp {
 	atomic_t num_tx_pending;
 	wait_queue_head_t tx_empty_waitq;
 	struct dp_rxdma_ring rx_refill_buf_ring;
-	struct dp_srng rxdma_err_dst_ring;
+	struct dp_srng rx_mac_buf_ring[MAX_RXDMA_PER_PDEV];
+	struct dp_srng rxdma_err_dst_ring[MAX_RXDMA_PER_PDEV];
 	struct dp_srng rxdma_mon_dst_ring;
 	struct dp_srng rxdma_mon_desc_ring;
 
 	struct dp_rxdma_ring rxdma_mon_buf_ring;
-	struct dp_rxdma_ring rx_mon_status_refill_ring;
+	struct dp_rxdma_ring rx_mon_status_refill_ring[MAX_RXDMA_PER_PDEV];
 	struct ieee80211_rx_status rx_status;
 	struct ath11k_mon_data mon_data;
 };
@@ -936,11 +939,13 @@ struct htt_rx_ring_tlv_filter {
 
 enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_VERSION_CONF,
+	HTT_T2H_MSG_TYPE_PEER_MAP	= 0x3,
+	HTT_T2H_MSG_TYPE_PEER_UNMAP	= 0x4,
 	HTT_T2H_MSG_TYPE_RX_ADDBA	= 0x5,
 	HTT_T2H_MSG_TYPE_PKTLOG		= 0x8,
 	HTT_T2H_MSG_TYPE_SEC_IND	= 0xb,
-	HTT_T2H_MSG_TYPE_PEER_MAP	= 0x1e,
-	HTT_T2H_MSG_TYPE_PEER_UNMAP	= 0x1f,
+	HTT_T2H_MSG_TYPE_PEER_MAP2	= 0x1e,
+	HTT_T2H_MSG_TYPE_PEER_UNMAP2	= 0x1f,
 	HTT_T2H_MSG_TYPE_PPDU_STATS_IND = 0x1d,
 	HTT_T2H_MSG_TYPE_EXT_STATS_CONF = 0x1c,
 	HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND = 0x24,

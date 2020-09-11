@@ -354,6 +354,7 @@ enum brcmf_fws_mac_desc_state {
 /**
  * struct brcmf_fws_mac_descriptor - firmware signalling data per node/interface
  *
+ * @name: name of the descriptor.
  * @occupied: slot is in use.
  * @mac_handle: handle for mac entry determined by firmware.
  * @interface_id: interface index.
@@ -362,10 +363,15 @@ enum brcmf_fws_mac_desc_state {
  * @generation: generation bit.
  * @ac_bitmap: ac queue bitmap.
  * @requested_credit: credits requested by firmware.
+ * @requested_packet: packet requested by firmware.
  * @ea: ethernet address.
  * @seq: per-node free-running sequence.
  * @psq: power-save queue.
  * @transit_count: packet in transit to firmware.
+ * @suppr_transit_count: suppressed packet in transit to firmware.
+ * @send_tim_signal: if set tim signal will be sent.
+ * @traffic_pending_bmp: traffic pending bitmap.
+ * @traffic_lastreported_bmp: traffic last reported bitmap.
  */
 struct brcmf_fws_mac_descriptor {
 	char name[16];
@@ -496,20 +502,6 @@ struct brcmf_fws_info {
 	bool creditmap_received;
 	u8 mode;
 	bool avoid_queueing;
-};
-
-/*
- * brcmf_fws_prio2fifo - mapping from 802.1d priority to firmware fifo index.
- */
-static const int brcmf_fws_prio2fifo[] = {
-	BRCMF_FWS_FIFO_AC_BE,
-	BRCMF_FWS_FIFO_AC_BK,
-	BRCMF_FWS_FIFO_AC_BK,
-	BRCMF_FWS_FIFO_AC_BE,
-	BRCMF_FWS_FIFO_AC_VI,
-	BRCMF_FWS_FIFO_AC_VI,
-	BRCMF_FWS_FIFO_AC_VO,
-	BRCMF_FWS_FIFO_AC_VO
 };
 
 #define BRCMF_FWS_TLV_DEF(name, id, len) \

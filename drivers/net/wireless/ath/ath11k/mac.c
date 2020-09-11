@@ -42,12 +42,6 @@
 	.max_power              = 30, \
 }
 
-/* frame mode values are mapped as per enum ath11k_hw_txrx_mode */
-static unsigned int ath11k_frame_mode = ATH11K_HW_TXRX_NATIVE_WIFI;
-module_param_named(frame_mode, ath11k_frame_mode, uint, 0644);
-MODULE_PARM_DESC(frame_mode,
-		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
-
 static const struct ieee80211_channel ath11k_2ghz_channels[] = {
 	CHAN2G(1, 2412, 0),
 	CHAN2G(2, 2417, 0),
@@ -243,6 +237,9 @@ static const u32 ath11k_smps_map[] = {
 	[WLAN_HT_CAP_SM_PS_INVALID] = WMI_PEER_SMPS_PS_NONE,
 	[WLAN_HT_CAP_SM_PS_DISABLED] = WMI_PEER_SMPS_PS_NONE,
 };
+
+static int ath11k_start_vdev_delay(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif);
 
 u8 ath11k_mac_bw_to_mac80211_bw(u8 bw)
 {
@@ -520,6 +517,11 @@ struct ath11k *ath11k_mac_get_ar_by_pdev_id(struct ath11k_base *ab, u32 pdev_id)
 {
 	int i;
 	struct ath11k_pdev *pdev;
+
+	if (ab->hw_params.single_pdev_only) {
+		pdev = rcu_dereference(ab->pdevs_active[0]);
+		return pdev ? pdev->ar : NULL;
+	}
 
 	if (WARN_ON(pdev_id > ab->num_radios))
 		return NULL;
@@ -1138,13 +1140,13 @@ ath11k_peer_assoc_h_vht_limit(u16 tx_mcs_set,
 			idx_limit = -1;
 
 		switch (idx_limit) {
-		case 0: /* fall through */
-		case 1: /* fall through */
-		case 2: /* fall through */
-		case 3: /* fall through */
-		case 4: /* fall through */
-		case 5: /* fall through */
-		case 6: /* fall through */
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 6:
 		case 7:
 			mcs = IEEE80211_VHT_MCS_SUPPORT_0_7;
 			break;
@@ -1156,7 +1158,7 @@ ath11k_peer_assoc_h_vht_limit(u16 tx_mcs_set,
 			break;
 		default:
 			WARN_ON(1);
-			/* fall through */
+			fallthrough;
 		case -1:
 			mcs = IEEE80211_VHT_MCS_NOT_SUPPORTED;
 			break;
@@ -1268,6 +1270,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 				   struct peer_assoc_params *arg)
 {
 	const struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
+	u8 ampdu_factor;
 	u16 v;
 
 	if (!he_cap->has_he)
@@ -1283,6 +1286,30 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 
 	/* the top most byte is used to indicate BSS color info */
 	arg->peer_he_ops &= 0xffffff;
+
+	/* As per section 26.6.1 11ax Draft5.0, if the Max AMPDU Exponent Extension
+	 * in HE cap is zero, use the arg->peer_max_mpdu as calculated while parsing
+	 * VHT caps(if VHT caps is present) or HT caps (if VHT caps is not present).
+	 *
+	 * For non-zero value of Max AMPDU Extponent Extension in HE MAC caps,
+	 * if a HE STA sends VHT cap and HE cap IE in assoc request then, use
+	 * MAX_AMPDU_LEN_FACTOR as 20 to calculate max_ampdu length.
+	 * If a HE STA that does not send VHT cap, but HE and HT cap in assoc
+	 * request, then use MAX_AMPDU_LEN_FACTOR as 16 to calculate max_ampdu
+	 * length.
+	 */
+	ampdu_factor = (he_cap->he_cap_elem.mac_cap_info[3] &
+			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK) >>
+			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_SHIFT;
+
+	if (ampdu_factor) {
+		if (sta->vht_cap.vht_supported)
+			arg->peer_max_mpdu = (1 << (IEEE80211_HE_VHT_MAX_AMPDU_FACTOR +
+						    ampdu_factor)) - 1;
+		else if (sta->ht_cap.ht_supported)
+			arg->peer_max_mpdu = (1 << (IEEE80211_HE_HT_MAX_AMPDU_FACTOR +
+						    ampdu_factor)) - 1;
+	}
 
 	if (he_cap->he_cap_elem.phy_cap_info[6] &
 	    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
@@ -1339,7 +1366,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 		arg->peer_he_tx_mcs_set[WMI_HECAP_TXRX_MCS_NSS_IDX_160] = v;
 
 		arg->peer_he_mcs_count++;
-		/* fall through */
+		fallthrough;
 
 	default:
 		v = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_80);
@@ -2114,7 +2141,7 @@ void __ath11k_mac_scan_finish(struct ath11k *ar)
 		} else if (ar->scan.roc_notify) {
 			ieee80211_remain_on_channel_expired(ar->hw);
 		}
-		/* fall through */
+		fallthrough;
 	case ATH11K_SCAN_STARTING:
 		ar->scan.state = ATH11K_SCAN_IDLE;
 		ar->scan_channel = NULL;
@@ -2372,6 +2399,9 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
 
 	reinit_completion(&ar->install_key_done);
 
+	if (test_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags))
+		return 0;
+
 	if (cmd == DISABLE_KEY) {
 		/* TODO: Check if FW expects  value other than NONE for del */
 		/* arg.key_cipher = WMI_CIPHER_NONE; */
@@ -2403,8 +2433,13 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
 		return -EOPNOTSUPP;
 	}
 
+	if (test_bit(ATH11K_FLAG_RAW_MODE, &ar->ab->dev_flags))
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV |
+			      IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
+
 install:
 	ret = ath11k_wmi_vdev_install_key(arvif->ar, &arg);
+
 	if (ret)
 		return ret;
 
@@ -2474,6 +2509,9 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
 	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256 ||
 	    key->cipher == WLAN_CIPHER_SUITE_BIP_CMAC_256)
+		return 1;
+
+	if (test_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags))
 		return 1;
 
 	if (key->keyidx > WMI_MAX_KEY_INDEX)
@@ -2955,6 +2993,14 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 		goto free_tx_stats;
 	}
 
+	if (ab->hw_params.vdev_start_delay) {
+		ret = ath11k_start_vdev_delay(ar->hw, vif);
+		if (ret) {
+			ath11k_warn(ab, "failed to delay vdev start: %d\n", ret);
+			goto free_tx_stats;
+		}
+	}
+
 	return 0;
 
 free_tx_stats:
@@ -3039,10 +3085,6 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 		if (ret)
 			ath11k_warn(ar->ab, "Failed to associate station: %pM\n",
 				    sta->addr);
-		else
-			ath11k_info(ar->ab,
-				    "Station %pM moved to assoc state\n",
-				    sta->addr);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTH &&
 		   (vif->type == NL80211_IFTYPE_AP ||
@@ -3051,10 +3093,6 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 		ret = ath11k_station_disassoc(ar, vif, sta);
 		if (ret)
 			ath11k_warn(ar->ab, "Failed to disassociate station: %pM\n",
-				    sta->addr);
-		else
-			ath11k_info(ar->ab,
-				    "Station %pM moved to disassociated state\n",
 				    sta->addr);
 	}
 
@@ -4057,6 +4095,8 @@ void ath11k_mac_drain_tx(struct ath11k *ar)
 static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 {
 	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct ath11k_base *ab = ar->ab;
+	int i, ret = 0;
 	u32 ring_id;
 
 	if (enable) {
@@ -4064,11 +4104,16 @@ static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 		tlv_filter.rx_filter = ath11k_debug_rx_filter(ar);
 	}
 
-	ring_id = ar->dp.rx_mon_status_refill_ring.refill_buf_ring.ring_id;
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
+						       ar->dp.mac_id + i,
+						       HAL_RXDMA_MONITOR_STATUS,
+						       DP_RX_BUFFER_SIZE,
+						       &tlv_filter);
+	}
 
-	return ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
-						HAL_RXDMA_MONITOR_STATUS,
-						DP_RX_BUFFER_SIZE, &tlv_filter);
+	return ret;
 }
 
 static int ath11k_mac_op_start(struct ieee80211_hw *hw)
@@ -4368,7 +4413,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		arvif->vdev_subtype = WMI_VDEV_SUBTYPE_MESH_11S;
-		/* fall through */
+		fallthrough;
 	case NL80211_IFTYPE_AP:
 		arvif->vdev_type = WMI_VDEV_TYPE_AP;
 		break;
@@ -4421,6 +4466,8 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 
 	if (ieee80211_set_hw_80211_encap(vif, hw_encap))
 		param_value = ATH11K_HW_TXRX_ETHERNET;
+	else if (test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags))
+		param_value = ATH11K_HW_TXRX_RAW;
 	else
 		param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
 
@@ -5112,6 +5159,39 @@ unlock:
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static int ath11k_start_vdev_delay(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
+{
+	struct ath11k *ar = hw->priv;
+	struct ath11k_base *ab = ar->ab;
+	struct ath11k_vif *arvif = (void *)vif->drv_priv;
+	int ret;
+
+	if (WARN_ON(arvif->is_started))
+		return -EBUSY;
+
+	ret = ath11k_mac_vdev_start(arvif, &arvif->chanctx.def);
+	if (ret) {
+		ath11k_warn(ab, "failed to start vdev %i addr %pM on freq %d: %d\n",
+			    arvif->vdev_id, vif->addr,
+			    arvif->chanctx.def.chan->center_freq, ret);
+		return ret;
+	}
+
+	if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
+		ret = ath11k_monitor_vdev_up(ar, arvif->vdev_id);
+		if (ret) {
+			ath11k_warn(ab, "failed put monitor up: %d\n", ret);
+			return ret;
+		}
+	}
+
+	arvif->is_started = true;
+
+	/* TODO: Setup ps and cts/rts protection */
+	return 0;
+}
+
 static int
 ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
@@ -5127,6 +5207,13 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	ath11k_dbg(ab, ATH11K_DBG_MAC,
 		   "mac chanctx assign ptr %pK vdev_id %i\n",
 		   ctx, arvif->vdev_id);
+
+	/* for QCA6390 bss peer must be created before vdev_start */
+	if (ab->hw_params.vdev_start_delay) {
+		memcpy(&arvif->chanctx, ctx, sizeof(*ctx));
+		mutex_unlock(&ar->conf_mutex);
+		return 0;
+	}
 
 	if (WARN_ON(arvif->is_started)) {
 		mutex_unlock(&ar->conf_mutex);
@@ -5829,12 +5916,29 @@ static void ath11k_mac_update_ch_list(struct ath11k *ar,
 	}
 }
 
+static u32 ath11k_get_phy_id(struct ath11k *ar, u32 band)
+{
+	struct ath11k_pdev *pdev = ar->pdev;
+	struct ath11k_pdev_cap *pdev_cap = &pdev->cap;
+
+	if (band == WMI_HOST_WLAN_2G_CAP)
+		return pdev_cap->band[NL80211_BAND_2GHZ].phy_id;
+
+	if (band == WMI_HOST_WLAN_5G_CAP)
+		return pdev_cap->band[NL80211_BAND_5GHZ].phy_id;
+
+	ath11k_warn(ar->ab, "unsupported phy cap:%d\n", band);
+
+	return 0;
+}
+
 static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 					   u32 supported_bands)
 {
 	struct ieee80211_supported_band *band;
 	struct ath11k_hal_reg_capabilities_ext *reg_cap;
 	void *channels;
+	u32 phy_id;
 
 	BUILD_BUG_ON((ARRAY_SIZE(ath11k_2ghz_channels) +
 		      ARRAY_SIZE(ath11k_5ghz_channels) +
@@ -5857,6 +5961,11 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 		band->n_bitrates = ath11k_g_rates_size;
 		band->bitrates = ath11k_g_rates;
 		ar->hw->wiphy->bands[NL80211_BAND_2GHZ] = band;
+
+		if (ar->ab->hw_params.single_pdev_only) {
+			phy_id = ath11k_get_phy_id(ar, WMI_HOST_WLAN_2G_CAP);
+			reg_cap = &ar->ab->hal_reg_cap[phy_id];
+		}
 		ath11k_mac_update_ch_list(ar, band,
 					  reg_cap->low_2ghz_chan,
 					  reg_cap->high_2ghz_chan);
@@ -5901,6 +6010,12 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 			band->n_bitrates = ath11k_a_rates_size;
 			band->bitrates = ath11k_a_rates;
 			ar->hw->wiphy->bands[NL80211_BAND_5GHZ] = band;
+
+			if (ar->ab->hw_params.single_pdev_only) {
+				phy_id = ath11k_get_phy_id(ar, WMI_HOST_WLAN_5G_CAP);
+				reg_cap = &ar->ab->hal_reg_cap[phy_id];
+			}
+
 			ath11k_mac_update_ch_list(ar, band,
 						  reg_cap->low_5ghz_chan,
 						  reg_cap->high_5ghz_chan);
@@ -6006,7 +6121,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ret = ath11k_mac_setup_channels_rates(ar,
 					      cap->supported_bands);
 	if (ret)
-		goto err_free;
+		goto err;
 
 	ath11k_mac_setup_ht_vht_cap(ar, cap, &ht_cap);
 	ath11k_mac_setup_he_cap(ar, cap);
@@ -6026,7 +6141,6 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ieee80211_hw_set(ar->hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(ar->hw, AP_LINK_PS);
 	ieee80211_hw_set(ar->hw, SPECTRUM_MGMT);
-	ieee80211_hw_set(ar->hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(ar->hw, CONNECTION_MONITOR);
 	ieee80211_hw_set(ar->hw, SUPPORTS_PER_STA_GTK);
 	ieee80211_hw_set(ar->hw, WANT_MONITOR_VIF);
@@ -6093,8 +6207,11 @@ static int __ath11k_mac_register(struct ath11k *ar)
 
 	ath11k_reg_init(ar);
 
-	/* advertise HW checksum offload capabilities */
-	ar->hw->netdev_features = NETIF_F_HW_CSUM;
+	if (!test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags)) {
+		ar->hw->netdev_features = NETIF_F_HW_CSUM;
+		ieee80211_hw_set(ar->hw, SW_CRYPTO_CONTROL);
+		ieee80211_hw_set(ar->hw, SUPPORT_FAST_XMIT);
+	}
 
 	ret = ieee80211_register_hw(ar->hw);
 	if (ret) {
@@ -6120,7 +6237,9 @@ static int __ath11k_mac_register(struct ath11k *ar)
 err_free:
 	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_5GHZ].channels);
+	kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
 
+err:
 	SET_IEEE80211_DEV(ar->hw, NULL);
 	return ret;
 }
@@ -6194,7 +6313,7 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
 		ar->ab = ab;
 		ar->pdev = pdev;
 		ar->pdev_idx = i;
-		ar->lmac_id = ath11k_core_get_hw_mac_id(ab, i);
+		ar->lmac_id = ath11k_hw_get_mac_from_pdev_id(&ab->hw_params, i);
 
 		ar->wmi = &ab->wmi_ab.wmi[i];
 		/* FIXME wmi[0] is already initialized during attach,

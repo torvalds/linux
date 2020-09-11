@@ -141,7 +141,7 @@ void ath11k_hal_tx_init_data_ring(struct ath11k_base *ab, struct hal_srng *srng)
 
 	memset(&params, 0, sizeof(params));
 
-	entry_size = ath11k_hal_srng_get_entrysize(HAL_TCL_DATA);
+	entry_size = ath11k_hal_srng_get_entrysize(ab, HAL_TCL_DATA);
 	ath11k_hal_srng_get_params(ab, srng, &params);
 	desc = (u8 *)params.ring_base_vaddr;
 

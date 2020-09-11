@@ -22,10 +22,10 @@ config ATH9K
 	tristate "Atheros 802.11n wireless cards support"
 	depends on MAC80211 && HAS_DMA
 	select ATH9K_HW
-	select MAC80211_LEDS
-	select LEDS_CLASS
-	select NEW_LEDS
 	select ATH9K_COMMON
+	imply NEW_LEDS
+	imply LEDS_CLASS
+	imply MAC80211_LEDS
 	help
 	  This module adds support for wireless adapters based on
 	  Atheros IEEE 802.11n AR5008, AR9001 and AR9002 family
@@ -177,10 +177,10 @@ config ATH9K_HTC
 	tristate "Atheros HTC based wireless cards support"
 	depends on USB && MAC80211
 	select ATH9K_HW
-	select MAC80211_LEDS
-	select LEDS_CLASS
-	select NEW_LEDS
 	select ATH9K_COMMON
+	imply NEW_LEDS
+	imply LEDS_CLASS
+	imply MAC80211_LEDS
 	help
 	  Support for Atheros HTC based cards.
 	  Chipsets supported: AR9271

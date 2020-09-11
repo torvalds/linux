@@ -1507,19 +1507,6 @@ const struct phytbl_info dot11lcnphytbl_rx_gain_info_rev0[] = {
 	,
 };
 
-static const struct phytbl_info dot11lcnphytbl_rx_gain_info_rev1[] = {
-	{&dot11lcn_gain_tbl_rev1,
-	 ARRAY_SIZE(dot11lcn_gain_tbl_rev1), 18,
-	 0, 32}
-	,
-	{&dot11lcn_aux_gain_idx_tbl_rev0,
-	 ARRAY_SIZE(dot11lcn_aux_gain_idx_tbl_rev0), 14, 0, 16}
-	,
-	{&dot11lcn_gain_idx_tbl_rev0,
-	 ARRAY_SIZE(dot11lcn_gain_idx_tbl_rev0), 13, 0, 32}
-	,
-};
-
 const struct phytbl_info dot11lcnphytbl_rx_gain_info_2G_rev2[] = {
 	{&dot11lcn_gain_tbl_2G,
 	 ARRAY_SIZE(dot11lcn_gain_tbl_2G), 18, 0,

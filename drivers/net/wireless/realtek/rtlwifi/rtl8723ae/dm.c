@@ -82,16 +82,16 @@ static void rtl8723e_dm_false_alarm_counter_statistics(struct ieee80211_hw *hw)
 	rtl_set_bbreg(hw, RCCK0_FALSEALARMREPORT, 0x0000c000, 0);
 	rtl_set_bbreg(hw, RCCK0_FALSEALARMREPORT, 0x0000c000, 2);
 
-	RT_TRACE(rtlpriv, COMP_DIG, DBG_TRACE,
-		 "cnt_parity_fail = %d, cnt_rate_illegal = %d, cnt_crc8_fail = %d, cnt_mcs_fail = %d\n",
-		 falsealm_cnt->cnt_parity_fail,
-		 falsealm_cnt->cnt_rate_illegal,
-		 falsealm_cnt->cnt_crc8_fail, falsealm_cnt->cnt_mcs_fail);
+	rtl_dbg(rtlpriv, COMP_DIG, DBG_TRACE,
+		"cnt_parity_fail = %d, cnt_rate_illegal = %d, cnt_crc8_fail = %d, cnt_mcs_fail = %d\n",
+		falsealm_cnt->cnt_parity_fail,
+		falsealm_cnt->cnt_rate_illegal,
+		falsealm_cnt->cnt_crc8_fail, falsealm_cnt->cnt_mcs_fail);
 
-	RT_TRACE(rtlpriv, COMP_DIG, DBG_TRACE,
-		 "cnt_ofdm_fail = %x, cnt_cck_fail = %x, cnt_all = %x\n",
-		 falsealm_cnt->cnt_ofdm_fail,
-		 falsealm_cnt->cnt_cck_fail, falsealm_cnt->cnt_all);
+	rtl_dbg(rtlpriv, COMP_DIG, DBG_TRACE,
+		"cnt_ofdm_fail = %x, cnt_cck_fail = %x, cnt_all = %x\n",
+		falsealm_cnt->cnt_ofdm_fail,
+		falsealm_cnt->cnt_cck_fail, falsealm_cnt->cnt_all);
 }
 
 static void rtl92c_dm_ctrl_initgain_by_fa(struct ieee80211_hw *hw)
@@ -150,9 +150,9 @@ static void rtl92c_dm_ctrl_initgain_by_rssi(struct ieee80211_hw *hw)
 		dm_digtable->cur_igvalue = dm_digtable->rssi_val_min + 10 -
 		    dm_digtable->back_val;
 
-	RT_TRACE(rtlpriv, COMP_DIG, DBG_TRACE,
-		 "rssi_val_min = %x back_val %x\n",
-		  dm_digtable->rssi_val_min, dm_digtable->back_val);
+	rtl_dbg(rtlpriv, COMP_DIG, DBG_TRACE,
+		"rssi_val_min = %x back_val %x\n",
+		dm_digtable->rssi_val_min, dm_digtable->back_val);
 
 	rtl8723e_dm_write_dig(hw);
 }
@@ -201,10 +201,10 @@ static void rtl8723e_dm_initial_gain_multi_sta(struct ieee80211_hw *hw)
 		rtl8723e_dm_write_dig(hw);
 	}
 
-	RT_TRACE(rtlpriv, COMP_DIG, DBG_TRACE,
-		 "curmultista_cstate = %x dig_ext_port_stage %x\n",
-		 dm_digtable->curmultista_cstate,
-		 dm_digtable->dig_ext_port_stage);
+	rtl_dbg(rtlpriv, COMP_DIG, DBG_TRACE,
+		"curmultista_cstate = %x dig_ext_port_stage %x\n",
+		dm_digtable->curmultista_cstate,
+		dm_digtable->dig_ext_port_stage);
 }
 
 static void rtl8723e_dm_initial_gain_sta(struct ieee80211_hw *hw)
@@ -212,10 +212,10 @@ static void rtl8723e_dm_initial_gain_sta(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
 
-	RT_TRACE(rtlpriv, COMP_DIG, DBG_TRACE,
-		 "presta_cstate = %x, cursta_cstate = %x\n",
-		  dm_digtable->presta_cstate,
-		  dm_digtable->cursta_cstate);
+	rtl_dbg(rtlpriv, COMP_DIG, DBG_TRACE,
+		"presta_cstate = %x, cursta_cstate = %x\n",
+		dm_digtable->presta_cstate,
+		dm_digtable->cursta_cstate);
 
 	if (dm_digtable->presta_cstate == dm_digtable->cursta_cstate ||
 	    dm_digtable->cursta_cstate == DIG_STA_BEFORE_CONNECT ||
@@ -296,8 +296,8 @@ static void rtl8723e_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 		dm_digtable->pre_cck_pd_state = dm_digtable->cur_cck_pd_state;
 	}
 
-	RT_TRACE(rtlpriv, COMP_DIG, DBG_TRACE,
-		 "CCKPDStage=%x\n", dm_digtable->cur_cck_pd_state);
+	rtl_dbg(rtlpriv, COMP_DIG, DBG_TRACE,
+		"CCKPDStage=%x\n", dm_digtable->cur_cck_pd_state);
 
 }
 
@@ -354,8 +354,8 @@ static void rtl8723e_dm_dynamic_txpower(struct ieee80211_hw *hw)
 
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
-		RT_TRACE(rtlpriv, COMP_POWER, DBG_TRACE,
-			 "Not connected to any\n");
+		rtl_dbg(rtlpriv, COMP_POWER, DBG_TRACE,
+			"Not connected to any\n");
 
 		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
 
@@ -367,47 +367,47 @@ static void rtl8723e_dm_dynamic_txpower(struct ieee80211_hw *hw)
 		if (mac->opmode == NL80211_IFTYPE_ADHOC) {
 			undec_sm_pwdb =
 			    rtlpriv->dm.entry_min_undec_sm_pwdb;
-			RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-				 "AP Client PWDB = 0x%lx\n",
-				  undec_sm_pwdb);
+			rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
+				"AP Client PWDB = 0x%lx\n",
+				undec_sm_pwdb);
 		} else {
 			undec_sm_pwdb =
 			    rtlpriv->dm.undec_sm_pwdb;
-			RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-				 "STA Default Port PWDB = 0x%lx\n",
-				  undec_sm_pwdb);
+			rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
+				"STA Default Port PWDB = 0x%lx\n",
+				undec_sm_pwdb);
 		}
 	} else {
 		undec_sm_pwdb =
 		    rtlpriv->dm.entry_min_undec_sm_pwdb;
 
-		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-			 "AP Ext Port PWDB = 0x%lx\n",
-			  undec_sm_pwdb);
+		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
+			"AP Ext Port PWDB = 0x%lx\n",
+			undec_sm_pwdb);
 	}
 
 	if (undec_sm_pwdb >= TX_POWER_NEAR_FIELD_THRESH_LVL2) {
 		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_LEVEL1;
-		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-			 "TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x0)\n");
+		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
+			"TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x0)\n");
 	} else if ((undec_sm_pwdb <
 		    (TX_POWER_NEAR_FIELD_THRESH_LVL2 - 3)) &&
 		   (undec_sm_pwdb >=
 		    TX_POWER_NEAR_FIELD_THRESH_LVL1)) {
 		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_LEVEL1;
-		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-			 "TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x10)\n");
+		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
+			"TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x10)\n");
 	} else if (undec_sm_pwdb <
 		   (TX_POWER_NEAR_FIELD_THRESH_LVL1 - 5)) {
 		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
-		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-			 "TXHIGHPWRLEVEL_NORMAL\n");
+		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
+			"TXHIGHPWRLEVEL_NORMAL\n");
 	}
 
 	if (rtlpriv->dm.dynamic_txhighpower_lvl != rtlpriv->dm.last_dtp_lvl) {
-		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-			 "PHY_SetTxPowerLevel8192S() Channel = %d\n",
-			  rtlphy->current_channel);
+		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
+			"PHY_SetTxPowerLevel8192S() Channel = %d\n",
+			rtlphy->current_channel);
 		rtl8723e_phy_set_txpower_level(hw, rtlphy->current_channel);
 	}
 
@@ -419,10 +419,10 @@ void rtl8723e_dm_write_dig(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
 
-	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-		 "cur_igvalue = 0x%x, pre_igvalue = 0x%x, back_val = %d\n",
-		  dm_digtable->cur_igvalue, dm_digtable->pre_igvalue,
-		  dm_digtable->back_val);
+	rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
+		"cur_igvalue = 0x%x, pre_igvalue = 0x%x, back_val = %d\n",
+		dm_digtable->cur_igvalue, dm_digtable->pre_igvalue,
+		dm_digtable->back_val);
 
 	if (dm_digtable->pre_igvalue != dm_digtable->cur_igvalue) {
 		rtl_set_bbreg(hw, ROFDM0_XAAGCCORE1, 0x7f,
@@ -521,9 +521,9 @@ static void rtl8723e_dm_initialize_txpower_tracking_thermalmeter(
 	rtlpriv->dm.txpower_tracking = true;
 	rtlpriv->dm.txpower_trackinginit = false;
 
-	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-		 "pMgntInfo->txpower_tracking = %d\n",
-		  rtlpriv->dm.txpower_tracking);
+	rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
+		"pMgntInfo->txpower_tracking = %d\n",
+		rtlpriv->dm.txpower_tracking);
 }
 
 static void rtl8723e_dm_initialize_txpower_tracking(struct ieee80211_hw *hw)
@@ -561,14 +561,14 @@ static void rtl8723e_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 	struct ieee80211_sta *sta = NULL;
 
 	if (is_hal_stop(rtlhal)) {
-		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-			 " driver is going to unload\n");
+		rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
+			" driver is going to unload\n");
 		return;
 	}
 
 	if (!rtlpriv->dm.useramask) {
-		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-			 " driver does not control rate adaptive mask\n");
+		rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
+			" driver does not control rate adaptive mask\n");
 		return;
 	}
 
@@ -612,14 +612,14 @@ static void rtl8723e_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 			p_ra->ratr_state = DM_RATR_STA_LOW;
 
 		if (p_ra->pre_ratr_state != p_ra->ratr_state) {
-			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-				 "RSSI = %ld\n",
-				 rtlpriv->dm.undec_sm_pwdb);
-			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-				 "RSSI_LEVEL = %d\n", p_ra->ratr_state);
-			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-				 "PreState = %d, CurState = %d\n",
-				 p_ra->pre_ratr_state, p_ra->ratr_state);
+			rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
+				"RSSI = %ld\n",
+				rtlpriv->dm.undec_sm_pwdb);
+			rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
+				"RSSI_LEVEL = %d\n", p_ra->ratr_state);
+			rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
+				"PreState = %d, CurState = %d\n",
+				p_ra->pre_ratr_state, p_ra->ratr_state);
 
 			rcu_read_lock();
 			sta = rtl_find_sta(hw, mac->bssid);
@@ -716,31 +716,31 @@ static void rtl8723e_dm_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 	if (((mac->link_state == MAC80211_NOLINK)) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		dm_pstable->rssi_val_min = 0;
-		RT_TRACE(rtlpriv, DBG_LOUD, DBG_LOUD,
-			 "Not connected to any\n");
+		rtl_dbg(rtlpriv, DBG_LOUD, DBG_LOUD,
+			"Not connected to any\n");
 	}
 
 	if (mac->link_state == MAC80211_LINKED) {
 		if (mac->opmode == NL80211_IFTYPE_ADHOC) {
 			dm_pstable->rssi_val_min =
 			    rtlpriv->dm.entry_min_undec_sm_pwdb;
-			RT_TRACE(rtlpriv, DBG_LOUD, DBG_LOUD,
-				 "AP Client PWDB = 0x%lx\n",
-				  dm_pstable->rssi_val_min);
+			rtl_dbg(rtlpriv, DBG_LOUD, DBG_LOUD,
+				"AP Client PWDB = 0x%lx\n",
+				dm_pstable->rssi_val_min);
 		} else {
 			dm_pstable->rssi_val_min =
 			    rtlpriv->dm.undec_sm_pwdb;
-			RT_TRACE(rtlpriv, DBG_LOUD, DBG_LOUD,
-				 "STA Default Port PWDB = 0x%lx\n",
-				  dm_pstable->rssi_val_min);
+			rtl_dbg(rtlpriv, DBG_LOUD, DBG_LOUD,
+				"STA Default Port PWDB = 0x%lx\n",
+				dm_pstable->rssi_val_min);
 		}
 	} else {
 		dm_pstable->rssi_val_min =
 		    rtlpriv->dm.entry_min_undec_sm_pwdb;
 
-		RT_TRACE(rtlpriv, DBG_LOUD, DBG_LOUD,
-			 "AP Ext Port PWDB = 0x%lx\n",
-			  dm_pstable->rssi_val_min);
+		rtl_dbg(rtlpriv, DBG_LOUD, DBG_LOUD,
+			"AP Ext Port PWDB = 0x%lx\n",
+			dm_pstable->rssi_val_min);
 	}
 
 	rtl8723e_dm_rf_saving(hw, false);
@@ -820,21 +820,21 @@ void rtl8723e_dm_bt_coexist(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 tmp_byte = 0;
 	if (!rtlpriv->btcoexist.bt_coexistence) {
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[DM]{BT], BT not exist!!\n");
+		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			"[DM]{BT], BT not exist!!\n");
 		return;
 	}
 
 	if (!rtlpriv->btcoexist.init_set) {
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[DM][BT], rtl8723e_dm_bt_coexist()\n");
+		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			"[DM][BT], %s\n", __func__);
 		rtl8723e_dm_init_bt_coexist(hw);
 	}
 
 	tmp_byte = rtl_read_byte(rtlpriv, 0x40);
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		 "[DM][BT], 0x40 is 0x%x\n", tmp_byte);
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-		 "[DM][BT], bt_dm_coexist start\n");
+	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		"[DM][BT], 0x40 is 0x%x\n", tmp_byte);
+	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
+		"[DM][BT], bt_dm_coexist start\n");
 	rtl8723e_dm_bt_coexist_8723(hw);
 }

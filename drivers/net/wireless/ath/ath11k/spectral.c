@@ -773,6 +773,8 @@ static int ath11k_spectral_process_data(struct ath11k *ar,
 		i += sizeof(*tlv) + tlv_len;
 	}
 
+	ret = 0;
+
 err:
 	kfree(fft_sample);
 unlock:
@@ -954,10 +956,8 @@ int ath11k_spectral_init(struct ath11k_base *ab)
 	int i;
 
 	if (!test_bit(WMI_TLV_SERVICE_FREQINFO_IN_METADATA,
-		      ab->wmi_ab.svc_map)) {
-		ath11k_info(ab, "spectral not supported\n");
+		      ab->wmi_ab.svc_map))
 		return 0;
-	}
 
 	for (i = 0; i < ab->num_radios; i++) {
 		ar = ab->pdevs[i].ar;
@@ -966,10 +966,8 @@ int ath11k_spectral_init(struct ath11k_base *ab)
 		ret = ath11k_dbring_get_cap(ar->ab, ar->pdev_idx,
 					    WMI_DIRECT_BUF_SPECTRAL,
 					    &db_cap);
-		if (ret) {
-			ath11k_info(ab, "spectral not enabled for pdev %d\n", i);
+		if (ret)
 			continue;
-		}
 
 		idr_init(&sp->rx_ring.bufs_idr);
 		spin_lock_init(&sp->rx_ring.idr_lock);

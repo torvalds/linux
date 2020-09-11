@@ -474,10 +474,10 @@ static u8 hw_bw_cap_to_bitamp(u8 bw_cap)
 	case EFUSE_HW_CAP_IGNORE:
 	case EFUSE_HW_CAP_SUPP_BW80:
 		bw |= BIT(RTW_CHANNEL_WIDTH_80);
-		/* fall through */
+		fallthrough;
 	case EFUSE_HW_CAP_SUPP_BW40:
 		bw |= BIT(RTW_CHANNEL_WIDTH_40);
-		/* fall through */
+		fallthrough;
 	default:
 		bw |= BIT(RTW_CHANNEL_WIDTH_20);
 		break;
@@ -1422,8 +1422,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 
 	timer_setup(&rtwdev->tx_report.purge_timer,
 		    rtw_tx_report_purge_timer, 0);
-	tasklet_init(&rtwdev->tx_tasklet, rtw_tx_tasklet,
-		     (unsigned long)rtwdev);
+	tasklet_setup(&rtwdev->tx_tasklet, rtw_tx_tasklet);
 
 	INIT_DELAYED_WORK(&rtwdev->watch_dog_work, rtw_watch_dog_work);
 	INIT_DELAYED_WORK(&coex->bt_relink_work, rtw_coex_bt_relink_work);

@@ -3897,19 +3897,19 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	switch (ar->hw.cap) {
 	case WMI_11AN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11A_CAP:
 		band_5gig = true;
 		break;
 	case WMI_11GN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11G_CAP:
 		band_2gig = true;
 		break;
 	case WMI_11AGN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11AG_CAP:
 		band_2gig = true;
 		band_5gig = true;

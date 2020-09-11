@@ -4272,8 +4272,9 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
 					   CY_43012_MESBUSYCTRL, &err);
 			break;
+		case SDIO_DEVICE_ID_BROADCOM_4329:
 		case SDIO_DEVICE_ID_BROADCOM_4339:
-			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes for 4339\n",
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
 				  CY_4339_F2_WATERMARK);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
 					   CY_4339_F2_WATERMARK, &err);
@@ -4286,7 +4287,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					   CY_4339_MESBUSYCTRL, &err);
 			break;
 		case SDIO_DEVICE_ID_BROADCOM_43455:
-			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes for 43455\n",
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
 				  CY_43455_F2_WATERMARK);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
 					   CY_43455_F2_WATERMARK, &err);
@@ -4299,9 +4300,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					   CY_43455_MESBUSYCTRL, &err);
 			break;
 		case SDIO_DEVICE_ID_BROADCOM_4359:
-			/* fallthrough */
 		case SDIO_DEVICE_ID_BROADCOM_4354:
-			/* fallthrough */
 		case SDIO_DEVICE_ID_BROADCOM_4356:
 			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
 				  CY_435X_F2_WATERMARK);
