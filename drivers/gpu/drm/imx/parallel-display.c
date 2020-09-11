@@ -41,11 +41,6 @@ static inline struct imx_parallel_display *con_to_imxpd(struct drm_connector *c)
 	return container_of(c, struct imx_parallel_display, connector);
 }
 
-static inline struct imx_parallel_display *enc_to_imxpd(struct drm_encoder *e)
-{
-	return container_of(e, struct imx_parallel_display, encoder);
-}
-
 static inline struct imx_parallel_display *bridge_to_imxpd(struct drm_bridge *b)
 {
 	return container_of(b, struct imx_parallel_display, bridge);
