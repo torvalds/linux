@@ -11,7 +11,7 @@
 #define MT7530_NUM_FDB_RECORDS		2048
 #define MT7530_ALL_MEMBERS		0xff
 
-enum {
+enum mt753x_id {
 	ID_MT7530 = 0,
 	ID_MT7621 = 1,
 };
@@ -443,6 +443,40 @@ static const char *p5_intf_modes(unsigned int p5_interface)
 	}
 }
 
+/* struct mt753x_info -	This is the main data structure for holding the specific
+ *			part for each supported device
+ * @sw_setup:		Holding the handler to a device initialization
+ * @phy_read:		Holding the way reading PHY port
+ * @phy_write:		Holding the way writing PHY port
+ * @pad_setup:		Holding the way setting up the bus pad for a certain
+ *			MAC port
+ * @phy_mode_supported:	Check if the PHY type is being supported on a certain
+ *			port
+ * @mac_port_validate:	Holding the way to set addition validate type for a
+ *			certan MAC port
+ * @mac_port_get_state: Holding the way getting the MAC/PCS state for a certain
+ *			MAC port
+ * @mac_port_config:	Holding the way setting up the PHY attribute to a
+ *			certain MAC port
+ */
+struct mt753x_info {
+	enum mt753x_id id;
+
+	int (*sw_setup)(struct dsa_switch *ds);
+	int (*phy_read)(struct dsa_switch *ds, int port, int regnum);
+	int (*phy_write)(struct dsa_switch *ds, int port, int regnum, u16 val);
+	int (*pad_setup)(struct dsa_switch *ds, phy_interface_t interface);
+	bool (*phy_mode_supported)(struct dsa_switch *ds, int port,
+				   const struct phylink_link_state *state);
+	void (*mac_port_validate)(struct dsa_switch *ds, int port,
+				  unsigned long *supported);
+	int (*mac_port_get_state)(struct dsa_switch *ds, int port,
+				  struct phylink_link_state *state);
+	int (*mac_port_config)(struct dsa_switch *ds, int port,
+			       unsigned int mode,
+			       phy_interface_t interface);
+};
+
 /* struct mt7530_priv -	This is the main data structure for holding the state
  *			of the driver
  * @dev:		The device pointer
@@ -468,6 +502,7 @@ struct mt7530_priv {
 	struct regulator	*core_pwr;
 	struct regulator	*io_pwr;
 	struct gpio_desc	*reset;
+	const struct mt753x_info *info;
 	unsigned int		id;
 	bool			mcm;
 	phy_interface_t		p6_interface;
