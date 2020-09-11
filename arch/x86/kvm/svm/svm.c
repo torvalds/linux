@@ -2812,8 +2812,8 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	}
 
 	pr_err("VMCB Control Area:\n");
-	pr_err("%-20s%04x\n", "cr_read:", control->intercept_cr & 0xffff);
-	pr_err("%-20s%04x\n", "cr_write:", control->intercept_cr >> 16);
+	pr_err("%-20s%04x\n", "cr_read:", control->intercepts[INTERCEPT_CR] & 0xffff);
+	pr_err("%-20s%04x\n", "cr_write:", control->intercepts[INTERCEPT_CR] >> 16);
 	pr_err("%-20s%04x\n", "dr_read:", control->intercept_dr & 0xffff);
 	pr_err("%-20s%04x\n", "dr_write:", control->intercept_dr >> 16);
 	pr_err("%-20s%08x\n", "exceptions:", control->intercept_exceptions);

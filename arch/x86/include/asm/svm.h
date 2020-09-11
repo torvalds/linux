@@ -10,7 +10,20 @@
  */
 
 enum intercept_words {
+	INTERCEPT_CR = 0,
 	MAX_INTERCEPT,
+};
+
+enum {
+	/* Byte offset 000h (word 0) */
+	INTERCEPT_CR0_READ = 0,
+	INTERCEPT_CR3_READ = 3,
+	INTERCEPT_CR4_READ = 4,
+	INTERCEPT_CR8_READ = 8,
+	INTERCEPT_CR0_WRITE = 16,
+	INTERCEPT_CR3_WRITE = 16 + 3,
+	INTERCEPT_CR4_WRITE = 16 + 4,
+	INTERCEPT_CR8_WRITE = 16 + 8,
 };
 
 enum {
@@ -66,7 +79,6 @@ enum {
 
 struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 intercepts[MAX_INTERCEPT];
-	u32 intercept_cr;
 	u32 intercept_dr;
 	u32 intercept_exceptions;
 	u64 intercept;
@@ -295,15 +307,6 @@ struct vmcb {
 #define SVM_SELECTOR_WRITE_MASK (1 << 1)
 #define SVM_SELECTOR_READ_MASK SVM_SELECTOR_WRITE_MASK
 #define SVM_SELECTOR_CODE_MASK (1 << 3)
-
-#define INTERCEPT_CR0_READ	0
-#define INTERCEPT_CR3_READ	3
-#define INTERCEPT_CR4_READ	4
-#define INTERCEPT_CR8_READ	8
-#define INTERCEPT_CR0_WRITE	(16 + 0)
-#define INTERCEPT_CR3_WRITE	(16 + 3)
-#define INTERCEPT_CR4_WRITE	(16 + 4)
-#define INTERCEPT_CR8_WRITE	(16 + 8)
 
 #define INTERCEPT_DR0_READ	0
 #define INTERCEPT_DR1_READ	1
