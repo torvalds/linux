@@ -1499,18 +1499,19 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 {
 	int ret;
 	bool write_fault, writable, force_pte = false;
-	bool exec_fault, needs_exec;
+	bool exec_fault;
+	bool device = false;
 	unsigned long mmu_seq;
-	gfn_t gfn = fault_ipa >> PAGE_SHIFT;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
 	struct vm_area_struct *vma;
 	short vma_shift;
+	gfn_t gfn;
 	kvm_pfn_t pfn;
-	pgprot_t mem_type = PAGE_S2;
 	bool logging_active = memslot_is_logging(memslot);
-	unsigned long vma_pagesize, flags = 0;
-	struct kvm_s2_mmu *mmu = vcpu->arch.hw_mmu;
+	unsigned long vma_pagesize;
+	enum kvm_pgtable_prot prot = KVM_PGTABLE_PROT_R;
+	struct kvm_pgtable *pgt;
 
 	write_fault = kvm_is_write_fault(vcpu);
 	exec_fault = kvm_vcpu_trap_is_iabt(vcpu);
@@ -1543,22 +1544,24 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		vma_pagesize = PAGE_SIZE;
 	}
 
-	/*
-	 * The stage2 has a minimum of 2 level table (For arm64 see
-	 * kvm_arm_setup_stage2()). Hence, we are guaranteed that we can
-	 * use PMD_SIZE huge mappings (even when the PMD is folded into PGD).
-	 * As for PUD huge maps, we must make sure that we have at least
-	 * 3 levels, i.e, PMD is not folded.
-	 */
-	if (vma_pagesize == PMD_SIZE ||
-	    (vma_pagesize == PUD_SIZE && kvm_stage2_has_pmd(kvm)))
-		gfn = (fault_ipa & huge_page_mask(hstate_vma(vma))) >> PAGE_SHIFT;
+	if (vma_pagesize == PMD_SIZE || vma_pagesize == PUD_SIZE)
+		fault_ipa &= huge_page_mask(hstate_vma(vma));
+
+	gfn = fault_ipa >> PAGE_SHIFT;
 	mmap_read_unlock(current->mm);
 
-	/* We need minimum second+third level pages */
-	ret = kvm_mmu_topup_memory_cache(memcache, kvm_mmu_cache_min_pages(kvm));
-	if (ret)
-		return ret;
+	/*
+	 * Permission faults just need to update the existing leaf entry,
+	 * and so normally don't require allocations from the memcache. The
+	 * only exception to this is when dirty logging is enabled at runtime
+	 * and a write fault needs to collapse a block entry into a table.
+	 */
+	if (fault_status != FSC_PERM || (logging_active && write_fault)) {
+		ret = kvm_mmu_topup_memory_cache(memcache,
+						 kvm_mmu_cache_min_pages(kvm));
+		if (ret)
+			return ret;
+	}
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	/*
@@ -1581,28 +1584,20 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -EFAULT;
 
 	if (kvm_is_device_pfn(pfn)) {
-		mem_type = PAGE_S2_DEVICE;
-		flags |= KVM_S2PTE_FLAG_IS_IOMAP;
-	} else if (logging_active) {
-		/*
-		 * Faults on pages in a memslot with logging enabled
-		 * should not be mapped with huge pages (it introduces churn
-		 * and performance degradation), so force a pte mapping.
-		 */
-		flags |= KVM_S2_FLAG_LOGGING_ACTIVE;
-
+		device = true;
+	} else if (logging_active && !write_fault) {
 		/*
 		 * Only actually map the page as writable if this was a write
 		 * fault.
 		 */
-		if (!write_fault)
-			writable = false;
+		writable = false;
 	}
 
-	if (exec_fault && is_iomap(flags))
+	if (exec_fault && device)
 		return -ENOEXEC;
 
 	spin_lock(&kvm->mmu_lock);
+	pgt = vcpu->arch.hw_mmu->pgt;
 	if (mmu_notifier_retry(kvm, mmu_seq))
 		goto out_unlock;
 
@@ -1613,62 +1608,31 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	if (vma_pagesize == PAGE_SIZE && !force_pte)
 		vma_pagesize = transparent_hugepage_adjust(memslot, hva,
 							   &pfn, &fault_ipa);
-	if (writable)
+	if (writable) {
+		prot |= KVM_PGTABLE_PROT_W;
 		kvm_set_pfn_dirty(pfn);
+		mark_page_dirty(kvm, gfn);
+	}
 
-	if (fault_status != FSC_PERM && !is_iomap(flags))
+	if (fault_status != FSC_PERM && !device)
 		clean_dcache_guest_page(pfn, vma_pagesize);
 
-	if (exec_fault)
+	if (exec_fault) {
+		prot |= KVM_PGTABLE_PROT_X;
 		invalidate_icache_guest_page(pfn, vma_pagesize);
+	}
 
-	/*
-	 * If we took an execution fault we have made the
-	 * icache/dcache coherent above and should now let the s2
-	 * mapping be executable.
-	 *
-	 * Write faults (!exec_fault && FSC_PERM) are orthogonal to
-	 * execute permissions, and we preserve whatever we have.
-	 */
-	needs_exec = exec_fault ||
-		(fault_status == FSC_PERM &&
-		 stage2_is_exec(mmu, fault_ipa, vma_pagesize));
+	if (device)
+		prot |= KVM_PGTABLE_PROT_DEVICE;
+	else if (cpus_have_const_cap(ARM64_HAS_CACHE_DIC))
+		prot |= KVM_PGTABLE_PROT_X;
 
-	if (vma_pagesize == PUD_SIZE) {
-		pud_t new_pud = kvm_pfn_pud(pfn, mem_type);
-
-		new_pud = kvm_pud_mkhuge(new_pud);
-		if (writable)
-			new_pud = kvm_s2pud_mkwrite(new_pud);
-
-		if (needs_exec)
-			new_pud = kvm_s2pud_mkexec(new_pud);
-
-		ret = stage2_set_pud_huge(mmu, memcache, fault_ipa, &new_pud);
-	} else if (vma_pagesize == PMD_SIZE) {
-		pmd_t new_pmd = kvm_pfn_pmd(pfn, mem_type);
-
-		new_pmd = kvm_pmd_mkhuge(new_pmd);
-
-		if (writable)
-			new_pmd = kvm_s2pmd_mkwrite(new_pmd);
-
-		if (needs_exec)
-			new_pmd = kvm_s2pmd_mkexec(new_pmd);
-
-		ret = stage2_set_pmd_huge(mmu, memcache, fault_ipa, &new_pmd);
+	if (fault_status == FSC_PERM && !(logging_active && writable)) {
+		ret = kvm_pgtable_stage2_relax_perms(pgt, fault_ipa, prot);
 	} else {
-		pte_t new_pte = kvm_pfn_pte(pfn, mem_type);
-
-		if (writable) {
-			new_pte = kvm_s2pte_mkwrite(new_pte);
-			mark_page_dirty(kvm, gfn);
-		}
-
-		if (needs_exec)
-			new_pte = kvm_s2pte_mkexec(new_pte);
-
-		ret = stage2_set_pte(mmu, memcache, fault_ipa, &new_pte, flags);
+		ret = kvm_pgtable_stage2_map(pgt, fault_ipa, vma_pagesize,
+					     __pfn_to_phys(pfn), prot,
+					     memcache);
 	}
 
 out_unlock:
