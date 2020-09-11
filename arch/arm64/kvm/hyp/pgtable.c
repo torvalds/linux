@@ -24,7 +24,17 @@
 
 #define KVM_PTE_LEAF_ATTR_LO		GENMASK(11, 2)
 
+#define KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX	GENMASK(4, 2)
+#define KVM_PTE_LEAF_ATTR_LO_S1_AP	GENMASK(7, 6)
+#define KVM_PTE_LEAF_ATTR_LO_S1_AP_RO	3
+#define KVM_PTE_LEAF_ATTR_LO_S1_AP_RW	1
+#define KVM_PTE_LEAF_ATTR_LO_S1_SH	GENMASK(9, 8)
+#define KVM_PTE_LEAF_ATTR_LO_S1_SH_IS	3
+#define KVM_PTE_LEAF_ATTR_LO_S1_AF	BIT(10)
+
 #define KVM_PTE_LEAF_ATTR_HI		GENMASK(63, 51)
+
+#define KVM_PTE_LEAF_ATTR_HI_S1_XN	BIT(54)
 
 struct kvm_pgtable_walk_data {
 	struct kvm_pgtable		*pgt;
@@ -282,4 +292,127 @@ int kvm_pgtable_walk(struct kvm_pgtable *pgt, u64 addr, u64 size,
 	};
 
 	return _kvm_pgtable_walk(&walk_data);
+}
+
+struct hyp_map_data {
+	u64		phys;
+	kvm_pte_t	attr;
+};
+
+static int hyp_map_set_prot_attr(enum kvm_pgtable_prot prot,
+				 struct hyp_map_data *data)
+{
+	bool device = prot & KVM_PGTABLE_PROT_DEVICE;
+	u32 mtype = device ? MT_DEVICE_nGnRE : MT_NORMAL;
+	kvm_pte_t attr = FIELD_PREP(KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX, mtype);
+	u32 sh = KVM_PTE_LEAF_ATTR_LO_S1_SH_IS;
+	u32 ap = (prot & KVM_PGTABLE_PROT_W) ? KVM_PTE_LEAF_ATTR_LO_S1_AP_RW :
+					       KVM_PTE_LEAF_ATTR_LO_S1_AP_RO;
+
+	if (!(prot & KVM_PGTABLE_PROT_R))
+		return -EINVAL;
+
+	if (prot & KVM_PGTABLE_PROT_X) {
+		if (prot & KVM_PGTABLE_PROT_W)
+			return -EINVAL;
+
+		if (device)
+			return -EINVAL;
+	} else {
+		attr |= KVM_PTE_LEAF_ATTR_HI_S1_XN;
+	}
+
+	attr |= FIELD_PREP(KVM_PTE_LEAF_ATTR_LO_S1_AP, ap);
+	attr |= FIELD_PREP(KVM_PTE_LEAF_ATTR_LO_S1_SH, sh);
+	attr |= KVM_PTE_LEAF_ATTR_LO_S1_AF;
+	data->attr = attr;
+	return 0;
+}
+
+static bool hyp_map_walker_try_leaf(u64 addr, u64 end, u32 level,
+				    kvm_pte_t *ptep, struct hyp_map_data *data)
+{
+	u64 granule = kvm_granule_size(level), phys = data->phys;
+
+	if (!kvm_block_mapping_supported(addr, end, phys, level))
+		return false;
+
+	WARN_ON(!kvm_set_valid_leaf_pte(ptep, phys, data->attr, level));
+	data->phys += granule;
+	return true;
+}
+
+static int hyp_map_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+			  enum kvm_pgtable_walk_flags flag, void * const arg)
+{
+	kvm_pte_t *childp;
+
+	if (hyp_map_walker_try_leaf(addr, end, level, ptep, arg))
+		return 0;
+
+	if (WARN_ON(level == KVM_PGTABLE_MAX_LEVELS - 1))
+		return -EINVAL;
+
+	childp = (kvm_pte_t *)get_zeroed_page(GFP_KERNEL);
+	if (!childp)
+		return -ENOMEM;
+
+	kvm_set_table_pte(ptep, childp);
+	return 0;
+}
+
+int kvm_pgtable_hyp_map(struct kvm_pgtable *pgt, u64 addr, u64 size, u64 phys,
+			enum kvm_pgtable_prot prot)
+{
+	int ret;
+	struct hyp_map_data map_data = {
+		.phys	= ALIGN_DOWN(phys, PAGE_SIZE),
+	};
+	struct kvm_pgtable_walker walker = {
+		.cb	= hyp_map_walker,
+		.flags	= KVM_PGTABLE_WALK_LEAF,
+		.arg	= &map_data,
+	};
+
+	ret = hyp_map_set_prot_attr(prot, &map_data);
+	if (ret)
+		return ret;
+
+	ret = kvm_pgtable_walk(pgt, addr, size, &walker);
+	dsb(ishst);
+	isb();
+	return ret;
+}
+
+int kvm_pgtable_hyp_init(struct kvm_pgtable *pgt, u32 va_bits)
+{
+	u64 levels = ARM64_HW_PGTABLE_LEVELS(va_bits);
+
+	pgt->pgd = (kvm_pte_t *)get_zeroed_page(GFP_KERNEL);
+	if (!pgt->pgd)
+		return -ENOMEM;
+
+	pgt->ia_bits		= va_bits;
+	pgt->start_level	= KVM_PGTABLE_MAX_LEVELS - levels;
+	pgt->mmu		= NULL;
+	return 0;
+}
+
+static int hyp_free_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+			   enum kvm_pgtable_walk_flags flag, void * const arg)
+{
+	free_page((unsigned long)kvm_pte_follow(*ptep));
+	return 0;
+}
+
+void kvm_pgtable_hyp_destroy(struct kvm_pgtable *pgt)
+{
+	struct kvm_pgtable_walker walker = {
+		.cb	= hyp_free_walker,
+		.flags	= KVM_PGTABLE_WALK_TABLE_POST,
+	};
+
+	WARN_ON(kvm_pgtable_walk(pgt, 0, BIT(pgt->ia_bits), &walker));
+	free_page((unsigned long)pgt->pgd);
+	pgt->pgd = NULL;
 }

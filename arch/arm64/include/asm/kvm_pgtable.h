@@ -78,6 +78,46 @@ struct kvm_pgtable_walker {
 };
 
 /**
+ * kvm_pgtable_hyp_init() - Initialise a hypervisor stage-1 page-table.
+ * @pgt:	Uninitialised page-table structure to initialise.
+ * @va_bits:	Maximum virtual address bits.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int kvm_pgtable_hyp_init(struct kvm_pgtable *pgt, u32 va_bits);
+
+/**
+ * kvm_pgtable_hyp_destroy() - Destroy an unused hypervisor stage-1 page-table.
+ * @pgt:	Page-table structure initialised by kvm_pgtable_hyp_init().
+ *
+ * The page-table is assumed to be unreachable by any hardware walkers prior
+ * to freeing and therefore no TLB invalidation is performed.
+ */
+void kvm_pgtable_hyp_destroy(struct kvm_pgtable *pgt);
+
+/**
+ * kvm_pgtable_hyp_map() - Install a mapping in a hypervisor stage-1 page-table.
+ * @pgt:	Page-table structure initialised by kvm_pgtable_hyp_init().
+ * @addr:	Virtual address at which to place the mapping.
+ * @size:	Size of the mapping.
+ * @phys:	Physical address of the memory to map.
+ * @prot:	Permissions and attributes for the mapping.
+ *
+ * The offset of @addr within a page is ignored, @size is rounded-up to
+ * the next page boundary and @phys is rounded-down to the previous page
+ * boundary.
+ *
+ * If device attributes are not explicitly requested in @prot, then the
+ * mapping will be normal, cacheable. Attempts to install a new mapping
+ * for a virtual address that is already mapped will be rejected with an
+ * error and a WARN().
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int kvm_pgtable_hyp_map(struct kvm_pgtable *pgt, u64 addr, u64 size, u64 phys,
+			enum kvm_pgtable_prot prot);
+
+/**
  * kvm_pgtable_walk() - Walk a page-table.
  * @pgt:	Page-table structure initialised by kvm_pgtable_*_init().
  * @addr:	Input address for the start of the walk.
