@@ -243,8 +243,6 @@ static void x25_asy_encaps(struct x25_asy *sl, unsigned char *icp, int len)
 	actual = sl->tty->ops->write(sl->tty, sl->xbuff, count);
 	sl->xleft = count - actual;
 	sl->xhead = sl->xbuff + actual;
-	/* VSV */
-	clear_bit(SLF_OUTWAIT, &sl->flags);	/* reset outfill flag */
 }
 
 /*
