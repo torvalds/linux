@@ -1361,6 +1361,8 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				       &vc4_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
 				       modifiers, type, NULL);
+	if (ret)
+		return ERR_PTR(ret);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
