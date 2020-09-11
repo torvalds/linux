@@ -1852,6 +1852,10 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 				 cdns_phy->phys[node].num_lanes,
 				 cdns_phy->max_bit_rate / 1000,
 				 cdns_phy->max_bit_rate % 1000);
+
+			gphy->attrs.bus_width = cdns_phy->phys[node].num_lanes;
+			gphy->attrs.max_link_rate = cdns_phy->max_bit_rate;
+			gphy->attrs.mode = PHY_MODE_DP;
 		} else {
 			dev_err(dev, "Driver supports only PHY_TYPE_DP\n");
 			ret = -ENOTSUPP;
