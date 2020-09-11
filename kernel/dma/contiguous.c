@@ -44,7 +44,6 @@
 #endif
 
 #include <asm/page.h>
-#include <asm/dma-contiguous.h>
 
 #include <linux/memblock.h>
 #include <linux/err.h>
@@ -210,6 +209,11 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 					    &dma_contiguous_default_area,
 					    fixed);
 	}
+}
+
+void __weak
+dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
+{
 }
 
 /**
