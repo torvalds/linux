@@ -47,11 +47,12 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 		goto fail1;
 	}
 
-	/* Allocate hardware ring */
+	/* Allocate hardware ring, determine TXQ type */
 	rc = efx_nic_probe_tx(tx_queue);
 	if (rc)
 		goto fail2;
 
+	tx_queue->channel->tx_queue_by_type[tx_queue->type] = tx_queue;
 	return 0;
 
 fail2:
@@ -141,6 +142,7 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 
 	kfree(tx_queue->buffer);
 	tx_queue->buffer = NULL;
+	tx_queue->channel->tx_queue_by_type[tx_queue->type] = NULL;
 }
 
 void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,

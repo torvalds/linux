@@ -491,13 +491,10 @@ int efx_xdp_tx_buffers(struct efx_nic *efx, int n, struct xdp_frame **xdpfs,
 }
 
 /* Initiate a packet transmission.  We use one channel per CPU
- * (sharing when we have more CPUs than channels).  On Falcon, the TX
- * completion events will be directed back to the CPU that transmitted
- * the packet, which should be cache-efficient.
+ * (sharing when we have more CPUs than channels).
  *
  * Context: non-blocking.
- * Note that returning anything other than NETDEV_TX_OK will cause the
- * OS to free the skb.
+ * Should always return NETDEV_TX_OK and consume the skb.
  */
 netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev)
@@ -527,6 +524,20 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	}
 
 	tx_queue = efx_get_tx_queue(efx, index, type);
+	if (WARN_ON_ONCE(!tx_queue)) {
+		/* We don't have a TXQ of the right type.
+		 * This should never happen, as we don't advertise offload
+		 * features unless we can support them.
+		 */
+		dev_kfree_skb_any(skb);
+		/* If we're not expecting another transmit and we had something to push
+		 * on this queue or a partner queue then we need to push here to get the
+		 * previous packets out.
+		 */
+		if (!netdev_xmit_more())
+			efx_tx_send_pending(tx_queue->channel);
+		return NETDEV_TX_OK;
+	}
 
 	return __efx_enqueue_skb(tx_queue, skb);
 }
@@ -577,7 +588,7 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 	tx_queue->core_txq =
 		netdev_get_tx_queue(efx->net_dev,
 				    tx_queue->channel->channel +
-				    ((tx_queue->label & EFX_TXQ_TYPE_HIGHPRI) ?
+				    ((tx_queue->type & EFX_TXQ_TYPE_HIGHPRI) ?
 				     efx->n_tx_channels : 0));
 }
 

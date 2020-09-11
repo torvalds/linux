@@ -372,6 +372,8 @@ int efx_farch_tx_probe(struct efx_tx_queue *tx_queue)
 	struct efx_nic *efx = tx_queue->efx;
 	unsigned entries;
 
+	tx_queue->type = ((tx_queue->label & 1) ? EFX_TXQ_TYPE_OFFLOAD : 0) |
+			 ((tx_queue->label & 2) ? EFX_TXQ_TYPE_HIGHPRI : 0);
 	entries = tx_queue->ptr_mask + 1;
 	return efx_alloc_special_buffer(efx, &tx_queue->txd,
 					entries * sizeof(efx_qword_t));
@@ -379,7 +381,7 @@ int efx_farch_tx_probe(struct efx_tx_queue *tx_queue)
 
 void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 {
-	int csum = tx_queue->label & EFX_TXQ_TYPE_OFFLOAD;
+	int csum = tx_queue->type & EFX_TXQ_TYPE_OFFLOAD;
 	struct efx_nic *efx = tx_queue->efx;
 	efx_oword_t reg;
 
@@ -409,7 +411,7 @@ void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 
 	EFX_POPULATE_OWORD_1(reg,
 			     FRF_BZ_TX_PACE,
-			     (tx_queue->label & EFX_TXQ_TYPE_HIGHPRI) ?
+			     (tx_queue->type & EFX_TXQ_TYPE_HIGHPRI) ?
 			     FFE_BZ_TX_PACE_OFF :
 			     FFE_BZ_TX_PACE_RESERVED);
 	efx_writeo_table(efx, &reg, FR_BZ_TX_PACE_TBL, tx_queue->queue);
@@ -832,13 +834,13 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_DESC_PTR);
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
 		tx_queue = efx_channel_get_tx_queue(
-			channel, tx_ev_q_label % EFX_TXQ_TYPES);
+			channel, tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
 		tx_queue = efx_channel_get_tx_queue(
-			channel, tx_ev_q_label % EFX_TXQ_TYPES);
+			channel, tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 
 		netif_tx_lock(efx->net_dev);
 		efx_farch_notify_tx_desc(tx_queue);
@@ -1080,9 +1082,9 @@ efx_farch_handle_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 	int qid;
 
 	qid = EFX_QWORD_FIELD(*event, FSF_AZ_DRIVER_EV_SUBDATA);
-	if (qid < EFX_TXQ_TYPES * (efx->n_tx_channels + efx->n_extra_tx_channels)) {
-		tx_queue = efx_get_tx_queue(efx, qid / EFX_TXQ_TYPES,
-					    qid % EFX_TXQ_TYPES);
+	if (qid < EFX_MAX_TXQ_PER_CHANNEL * (efx->n_tx_channels + efx->n_extra_tx_channels)) {
+		tx_queue = efx_get_tx_queue(efx, qid / EFX_MAX_TXQ_PER_CHANNEL,
+					    qid % EFX_MAX_TXQ_PER_CHANNEL);
 		if (atomic_cmpxchg(&tx_queue->flush_outstanding, 1, 0)) {
 			efx_farch_magic_event(tx_queue->channel,
 					      EFX_CHANNEL_MAGIC_TX_DRAIN(tx_queue));
@@ -1675,10 +1677,10 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 	 * and the descriptor caches for those channels.
 	 */
 	buftbl_min = ((efx->n_rx_channels * EFX_MAX_DMAQ_SIZE +
-		       total_tx_channels * EFX_TXQ_TYPES * EFX_MAX_DMAQ_SIZE +
+		       total_tx_channels * EFX_MAX_TXQ_PER_CHANNEL * EFX_MAX_DMAQ_SIZE +
 		       efx->n_channels * EFX_MAX_EVQ_SIZE)
 		      * sizeof(efx_qword_t) / EFX_BUF_SIZE);
-	vi_count = max(efx->n_channels, total_tx_channels * EFX_TXQ_TYPES);
+	vi_count = max(efx->n_channels, total_tx_channels * EFX_MAX_TXQ_PER_CHANNEL);
 
 #ifdef CONFIG_SFC_SRIOV
 	if (efx->type->sriov_wanted) {
