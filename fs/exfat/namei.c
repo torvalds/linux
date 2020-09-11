@@ -530,19 +530,10 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 		info->size = 0;
 		info->num_subdirs = 0;
 	} else {
-		int count;
-		struct exfat_chain cdir;
-
 		info->attr = ATTR_SUBDIR;
 		info->start_clu = start_clu;
 		info->size = clu_size;
-
-		exfat_chain_set(&cdir, info->start_clu,
-			EXFAT_B_TO_CLU(info->size, sbi), info->flags);
-		count = exfat_count_dir_entries(sb, &cdir);
-		if (count < 0)
-			return -EIO;
-		info->num_subdirs = count + EXFAT_MIN_SUBDIR;
+		info->num_subdirs = EXFAT_MIN_SUBDIR;
 	}
 	memset(&info->crtime, 0, sizeof(info->crtime));
 	memset(&info->mtime, 0, sizeof(info->mtime));
