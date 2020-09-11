@@ -337,6 +337,23 @@ Rendered as:
 
         - column 3
 
+Cross-referencing
+-----------------
+
+Cross-referencing from one documentation page to another can be done by passing
+the path to the file starting from the Documentation folder.
+For example, to cross-reference to this page (the .rst extension is optional)::
+
+    See Documentation/doc-guide/sphinx.rst.
+
+If you want to use a relative path, you need to use Sphinx's ``doc`` directive.
+For example, referencing this page from the same directory would be done as::
+
+    See :doc:`sphinx`.
+
+For information on cross-referencing to kernel-doc functions or types, see
+Documentation/doc-guide/kernel-doc.rst.
+
 .. _sphinx_kfigure:
 
 Figures & Images
