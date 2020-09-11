@@ -111,12 +111,12 @@ static const u16 srcr[] = {
  * @rcdev: Optional reset controller entity
  * @dev: CPG/MSSR device
  * @base: CPG/MSSR register block base address
+ * @reg_layout: CPG/MSSR register layout
  * @rmw_lock: protects RMW register accesses
  * @np: Device node in DT for this CPG/MSSR module
  * @num_core_clks: Number of Core Clocks in clks[]
  * @num_mod_clks: Number of Module Clocks in clks[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
- * @stbyctrl: This device has Standby Control Registers
  * @notifiers: Notifier chain to save/restore clock state for system resume
  * @smstpcr_saved[].mask: Mask of SMSTPCR[] bits under our control
  * @smstpcr_saved[].val: Saved values of SMSTPCR[]
@@ -128,13 +128,13 @@ struct cpg_mssr_priv {
 #endif
 	struct device *dev;
 	void __iomem *base;
+	enum clk_reg_layout reg_layout;
 	spinlock_t rmw_lock;
 	struct device_node *np;
 
 	unsigned int num_core_clks;
 	unsigned int num_mod_clks;
 	unsigned int last_dt_core_clk;
-	bool stbyctrl;
 
 	struct raw_notifier_head notifiers;
 	struct {
@@ -177,7 +177,7 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		enable ? "ON" : "OFF");
 	spin_lock_irqsave(&priv->rmw_lock, flags);
 
-	if (priv->stbyctrl) {
+	if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A) {
 		value = readb(priv->base + STBCR(reg));
 		if (enable)
 			value &= ~bitmask;
@@ -199,7 +199,7 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 
-	if (!enable || priv->stbyctrl)
+	if (!enable || priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 		return 0;
 
 	for (i = 1000; i > 0; --i) {
@@ -233,7 +233,7 @@ static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
 	struct cpg_mssr_priv *priv = clock->priv;
 	u32 value;
 
-	if (priv->stbyctrl)
+	if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 		value = readb(priv->base + STBCR(clock->index / 32));
 	else
 		value = readl(priv->base + MSTPSR(clock->index / 32));
@@ -272,7 +272,7 @@ struct clk *cpg_mssr_clk_src_twocell_get(struct of_phandle_args *clkspec,
 
 	case CPG_MOD:
 		type = "module";
-		if (priv->stbyctrl) {
+		if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A) {
 			idx = MOD_CLK_PACK_10(clkidx);
 			range_check = 7 - (clkidx % 10);
 		} else {
@@ -825,7 +825,8 @@ static int cpg_mssr_suspend_noirq(struct device *dev)
 	/* Save module registers with bits under our control */
 	for (reg = 0; reg < ARRAY_SIZE(priv->smstpcr_saved); reg++) {
 		if (priv->smstpcr_saved[reg].mask)
-			priv->smstpcr_saved[reg].val = priv->stbyctrl ?
+			priv->smstpcr_saved[reg].val =
+				priv->reg_layout == CLK_REG_LAYOUT_RZ_A ?
 				readb(priv->base + STBCR(reg)) :
 				readl(priv->base + SMSTPCR(reg));
 	}
@@ -855,7 +856,7 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 		if (!mask)
 			continue;
 
-		if (priv->stbyctrl)
+		if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 			oldval = readb(priv->base + STBCR(reg));
 		else
 			oldval = readl(priv->base + SMSTPCR(reg));
@@ -864,7 +865,7 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 		if (newval == oldval)
 			continue;
 
-		if (priv->stbyctrl) {
+		if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A) {
 			writeb(newval, priv->base + STBCR(reg));
 			/* dummy read to ensure write has completed */
 			readb(priv->base + STBCR(reg));
@@ -887,8 +888,8 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 
 		if (!i)
 			dev_warn(dev, "Failed to enable %s%u[0x%x]\n",
-				 priv->stbyctrl ? "STB" : "SMSTP", reg,
-				 oldval & mask);
+				 priv->reg_layout == CLK_REG_LAYOUT_RZ_A ?
+				 "STB" : "SMSTP", reg, oldval & mask);
 	}
 
 	return 0;
@@ -937,7 +938,7 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
 	RAW_INIT_NOTIFIER_HEAD(&priv->notifiers);
-	priv->stbyctrl = info->stbyctrl;
+	priv->reg_layout = info->reg_layout;
 
 	for (i = 0; i < nclks; i++)
 		priv->clks[i] = ERR_PTR(-ENOENT);
@@ -1015,7 +1016,7 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 		return error;
 
 	/* Reset Controller not supported for Standby Control SoCs */
-	if (info->stbyctrl)
+	if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 		return 0;
 
 	error = cpg_mssr_reset_controller_register(priv);
