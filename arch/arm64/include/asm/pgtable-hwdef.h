@@ -195,12 +195,6 @@
 #define PTE_S2_MEMATTR(t)	(_AT(pteval_t, (t)) << 2)
 
 /*
- * EL2/HYP PTE/PMD definitions
- */
-#define PMD_HYP			PMD_SECT_USER
-#define PTE_HYP			PTE_USER
-
-/*
  * Highest possible physical address supported.
  */
 #define PHYS_MASK_SHIFT		(CONFIG_ARM64_PA_BITS)

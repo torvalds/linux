@@ -43,16 +43,6 @@
  *	HYP_VA_MIN = 1 << (VA_BITS - 1)
  * HYP_VA_MAX = HYP_VA_MIN + (1 << (VA_BITS - 1)) - 1
  *
- * This of course assumes that the trampoline page exists within the
- * VA_BITS range. If it doesn't, then it means we're in the odd case
- * where the kernel idmap (as well as HYP) uses more levels than the
- * kernel runtime page tables (as seen when the kernel is configured
- * for 4k pages, 39bits VA, and yet memory lives just above that
- * limit, forcing the idmap to use 4 levels of page tables while the
- * kernel itself only uses 3). In this particular case, it doesn't
- * matter which side of VA_BITS we use, as we're guaranteed not to
- * conflict with anything.
- *
  * When using VHE, there are no separate hyp mappings and all KVM
  * functionality is already mapped as part of the main kernel
  * mappings, and none of this applies in that case.
@@ -123,9 +113,10 @@ static inline bool kvm_page_empty(void *ptr)
 	return page_count(ptr_page) == 1;
 }
 
+#include <asm/kvm_pgtable.h>
 #include <asm/stage2_pgtable.h>
 
-int create_hyp_mappings(void *from, void *to, pgprot_t prot);
+int create_hyp_mappings(void *from, void *to, enum kvm_pgtable_prot prot);
 int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
 			   void __iomem **kaddr,
 			   void __iomem **haddr);
@@ -144,8 +135,6 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu);
 phys_addr_t kvm_mmu_get_httbr(void);
 phys_addr_t kvm_get_idmap_vector(void);
 int kvm_mmu_init(void);
-void kvm_clear_hyp_idmap(void);
-
 #define kvm_mk_pmd(ptep)					\
 	__pmd(__phys_to_pmd_val(__pa(ptep)) | PMD_TYPE_TABLE)
 #define kvm_mk_pud(pmdp)					\
@@ -263,25 +252,6 @@ static inline bool kvm_s2pud_young(pud_t pud)
 	return pud_young(pud);
 }
 
-#define hyp_pte_table_empty(ptep) kvm_page_empty(ptep)
-
-#ifdef __PAGETABLE_PMD_FOLDED
-#define hyp_pmd_table_empty(pmdp) (0)
-#else
-#define hyp_pmd_table_empty(pmdp) kvm_page_empty(pmdp)
-#endif
-
-#ifdef __PAGETABLE_PUD_FOLDED
-#define hyp_pud_table_empty(pudp) (0)
-#else
-#define hyp_pud_table_empty(pudp) kvm_page_empty(pudp)
-#endif
-
-#ifdef __PAGETABLE_P4D_FOLDED
-#define hyp_p4d_table_empty(p4dp) (0)
-#else
-#define hyp_p4d_table_empty(p4dp) kvm_page_empty(p4dp)
-#endif
 
 struct kvm;
 
@@ -349,50 +319,6 @@ static inline void __kvm_flush_dcache_pud(pud_t pud)
 
 void kvm_set_way_flush(struct kvm_vcpu *vcpu);
 void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
-
-static inline bool __kvm_cpu_uses_extended_idmap(void)
-{
-	return __cpu_uses_extended_idmap_level();
-}
-
-static inline unsigned long __kvm_idmap_ptrs_per_pgd(void)
-{
-	return idmap_ptrs_per_pgd;
-}
-
-/*
- * Can't use pgd_populate here, because the extended idmap adds an extra level
- * above CONFIG_PGTABLE_LEVELS (which is 2 or 3 if we're using the extended
- * idmap), and pgd_populate is only available if CONFIG_PGTABLE_LEVELS = 4.
- */
-static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
-				       pgd_t *hyp_pgd,
-				       pgd_t *merged_hyp_pgd,
-				       unsigned long hyp_idmap_start)
-{
-	int idmap_idx;
-	u64 pgd_addr;
-
-	/*
-	 * Use the first entry to access the HYP mappings. It is
-	 * guaranteed to be free, otherwise we wouldn't use an
-	 * extended idmap.
-	 */
-	VM_BUG_ON(pgd_val(merged_hyp_pgd[0]));
-	pgd_addr = __phys_to_pgd_val(__pa(hyp_pgd));
-	merged_hyp_pgd[0] = __pgd(pgd_addr | PMD_TYPE_TABLE);
-
-	/*
-	 * Create another extended level entry that points to the boot HYP map,
-	 * which contains an ID mapping of the HYP init code. We essentially
-	 * merge the boot and runtime HYP maps by doing so, but they don't
-	 * overlap anyway, so this is fine.
-	 */
-	idmap_idx = hyp_idmap_start >> VA_BITS;
-	VM_BUG_ON(pgd_val(merged_hyp_pgd[idmap_idx]));
-	pgd_addr = __phys_to_pgd_val(__pa(boot_hyp_pgd));
-	merged_hyp_pgd[idmap_idx] = __pgd(pgd_addr | PMD_TYPE_TABLE);
-}
 
 static inline unsigned int kvm_get_vmid_bits(void)
 {
