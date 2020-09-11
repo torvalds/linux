@@ -443,7 +443,7 @@ static void fnic_notify_timer_start(struct fnic *fnic)
 	default:
 		/* Using intr for notification for INTx/MSI-X */
 		break;
-	};
+	}
 }
 
 static int fnic_dev_wait(struct vnic_dev *vdev,
