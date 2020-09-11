@@ -1744,8 +1744,12 @@ acpi_status __init acpi_os_initialize(void)
 {
 	acpi_os_map_generic_address(&acpi_gbl_FADT.xpm1a_event_block);
 	acpi_os_map_generic_address(&acpi_gbl_FADT.xpm1b_event_block);
-	acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe0_block);
-	acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe1_block);
+
+	acpi_gbl_xgpe0_block_logical_address =
+		(unsigned long)acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe0_block);
+	acpi_gbl_xgpe1_block_logical_address =
+		(unsigned long)acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe1_block);
+
 	if (acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER) {
 		/*
 		 * Use acpi_os_map_generic_address to pre-map the reset
@@ -1783,8 +1787,12 @@ acpi_status acpi_os_terminate(void)
 
 	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xgpe1_block);
 	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xgpe0_block);
+	acpi_gbl_xgpe0_block_logical_address = 0UL;
+	acpi_gbl_xgpe1_block_logical_address = 0UL;
+
 	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xpm1b_event_block);
 	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xpm1a_event_block);
+
 	if (acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER)
 		acpi_os_unmap_generic_address(&acpi_gbl_FADT.reset_register);
 
