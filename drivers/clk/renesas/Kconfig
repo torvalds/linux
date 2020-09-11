@@ -167,7 +167,7 @@ config CLK_RCAR_GEN2_CPG
 	select CLK_RENESAS_CPG_MSSR
 
 config CLK_RCAR_GEN3_CPG
-	bool "R-Car Gen3 CPG clock support" if COMPILE_TEST
+	bool "R-Car Gen3 and RZ/G2 CPG clock support" if COMPILE_TEST
 	select CLK_RENESAS_CPG_MSSR
 
 config CLK_RCAR_USB2_CLOCK_SEL
