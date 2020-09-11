@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,7 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,12 @@
 #include <linux/etherdevice.h>
 #include "mvm.h"
 #include "constants.h"
+
+struct iwl_mvm_pasn_sta {
+	struct list_head list;
+	struct iwl_mvm_int_sta int_sta;
+	u8 addr[ETH_ALEN];
+};
 
 static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
 					   u8 *bw, u8 *ctrl_ch_position)
@@ -207,6 +213,62 @@ iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
 	return iwl_mvm_send_cmd(mvm, &hcmd);
 }
 
+int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
+				      u8 *hltk, u32 hltk_len)
+{
+	int ret;
+	struct iwl_mvm_pasn_sta *sta;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	sta = kmalloc(sizeof(*sta), GFP_KERNEL);
+	if (!sta)
+		return -ENOBUFS;
+
+	ret = iwl_mvm_add_pasn_sta(mvm, vif, &sta->int_sta, addr, cipher, tk,
+				   tk_len);
+	if (ret) {
+		kfree(sta);
+		return ret;
+	}
+
+	// TODO: set the HLTK to fw
+
+	memcpy(sta->addr, addr, ETH_ALEN);
+	list_add_tail(&sta->list, &mvm->resp_pasn_list);
+	return 0;
+}
+
+static void iwl_mvm_resp_del_pasn_sta(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct iwl_mvm_pasn_sta *sta)
+{
+	list_del(&sta->list);
+	iwl_mvm_rm_sta_id(mvm, vif, sta->int_sta.sta_id);
+	iwl_mvm_dealloc_int_sta(mvm, &sta->int_sta);
+	kfree(sta);
+}
+
+int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif, u8 *addr)
+{
+	struct iwl_mvm_pasn_sta *sta, *prev;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	list_for_each_entry_safe(sta, prev, &mvm->resp_pasn_list, list) {
+		if (!memcmp(sta->addr, addr, ETH_ALEN)) {
+			iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
+			return 0;
+		}
+	}
+
+	IWL_ERR(mvm, "FTM: PASN station %pM not found\n", addr);
+	return -EINVAL;
+}
+
 int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -255,12 +317,24 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return ret;
 }
 
+void iwl_mvm_ftm_responder_clear(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_pasn_sta *sta, *prev;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	list_for_each_entry_safe(sta, prev, &mvm->resp_pasn_list, list)
+		iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
+}
+
 void iwl_mvm_ftm_restart_responder(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif)
 {
 	if (!vif->bss_conf.ftm_responder)
 		return;
 
+	iwl_mvm_ftm_responder_clear(mvm, vif);
 	iwl_mvm_ftm_start_responder(mvm, vif);
 }
 

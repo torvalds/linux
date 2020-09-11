@@ -2633,6 +2633,8 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 
 	iwl_mvm_update_quotas(mvm, false, NULL);
 
+	iwl_mvm_ftm_responder_clear(mvm, vif);
+
 	/*
 	 * This is not very nice, but the simplest:
 	 * For older FWs removing the mcast sta before the bcast station may
