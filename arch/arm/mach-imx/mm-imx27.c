@@ -7,13 +7,11 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/pinctrl/machine.h>
 #include <asm/mach/map.h>
 
 #include "common.h"
 #include "devices/devices-common.h"
 #include "hardware.h"
-#include "iomux-v1.h"
 
 /* MX27 memory map definition */
 static struct map_desc imx27_io_desc[] __initdata = {
@@ -52,8 +50,6 @@ void __init mx27_map_io(void)
 void __init imx27_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX27);
-	imx_iomuxv1_init(MX27_IO_ADDRESS(MX27_GPIO_BASE_ADDR),
-			MX27_NUM_GPIO_PORT);
 }
 
 void __init mx27_init_irq(void)

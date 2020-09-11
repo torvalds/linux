@@ -47,9 +47,6 @@ config HAVE_IMX_SRC
 	def_bool y if SMP
 	select ARCH_HAS_RESET_CONTROLLER
 
-config IMX_HAVE_IOMUX_V1
-	bool
-
 config ARCH_MXC_IOMUX_V3
 	bool
 
@@ -99,7 +96,6 @@ config SOC_IMX25
 
 config SOC_IMX27
 	bool "i.MX27 support"
-	select IMX_HAVE_IOMUX_V1
 	select CPU_ARM926T
 	select MXC_AVIC
 	select PINCTRL_IMX27
