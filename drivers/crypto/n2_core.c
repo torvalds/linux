@@ -249,7 +249,7 @@ static inline bool n2_should_run_async(struct spu_queue *qp, int this_len)
 struct n2_ahash_alg {
 	struct list_head	entry;
 	const u8		*hash_zero;
-	const u32		*hash_init;
+	const u8		*hash_init;
 	u8			hw_op_hashsz;
 	u8			digest_size;
 	u8			auth_type;
@@ -1225,7 +1225,7 @@ static LIST_HEAD(skcipher_algs);
 struct n2_hash_tmpl {
 	const char	*name;
 	const u8	*hash_zero;
-	const u32	*hash_init;
+	const u8	*hash_init;
 	u8		hw_op_hashsz;
 	u8		digest_size;
 	u8		block_size;
@@ -1233,7 +1233,7 @@ struct n2_hash_tmpl {
 	u8		hmac_type;
 };
 
-static const u32 n2_md5_init[MD5_HASH_WORDS] = {
+static const __le32 n2_md5_init[MD5_HASH_WORDS] = {
 	cpu_to_le32(MD5_H0),
 	cpu_to_le32(MD5_H1),
 	cpu_to_le32(MD5_H2),
@@ -1254,7 +1254,7 @@ static const u32 n2_sha224_init[SHA256_DIGEST_SIZE / 4] = {
 static const struct n2_hash_tmpl hash_tmpls[] = {
 	{ .name		= "md5",
 	  .hash_zero	= md5_zero_message_hash,
-	  .hash_init	= n2_md5_init,
+	  .hash_init	= (u8 *)n2_md5_init,
 	  .auth_type	= AUTH_TYPE_MD5,
 	  .hmac_type	= AUTH_TYPE_HMAC_MD5,
 	  .hw_op_hashsz	= MD5_DIGEST_SIZE,
@@ -1262,7 +1262,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .block_size	= MD5_HMAC_BLOCK_SIZE },
 	{ .name		= "sha1",
 	  .hash_zero	= sha1_zero_message_hash,
-	  .hash_init	= n2_sha1_init,
+	  .hash_init	= (u8 *)n2_sha1_init,
 	  .auth_type	= AUTH_TYPE_SHA1,
 	  .hmac_type	= AUTH_TYPE_HMAC_SHA1,
 	  .hw_op_hashsz	= SHA1_DIGEST_SIZE,
@@ -1270,7 +1270,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .block_size	= SHA1_BLOCK_SIZE },
 	{ .name		= "sha256",
 	  .hash_zero	= sha256_zero_message_hash,
-	  .hash_init	= n2_sha256_init,
+	  .hash_init	= (u8 *)n2_sha256_init,
 	  .auth_type	= AUTH_TYPE_SHA256,
 	  .hmac_type	= AUTH_TYPE_HMAC_SHA256,
 	  .hw_op_hashsz	= SHA256_DIGEST_SIZE,
@@ -1278,7 +1278,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .block_size	= SHA256_BLOCK_SIZE },
 	{ .name		= "sha224",
 	  .hash_zero	= sha224_zero_message_hash,
-	  .hash_init	= n2_sha224_init,
+	  .hash_init	= (u8 *)n2_sha224_init,
 	  .auth_type	= AUTH_TYPE_SHA256,
 	  .hmac_type	= AUTH_TYPE_RESERVED,
 	  .hw_op_hashsz	= SHA256_DIGEST_SIZE,
