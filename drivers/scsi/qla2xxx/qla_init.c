@@ -7119,10 +7119,9 @@ qla24xx_reset_adapter(scsi_qla_host_t *vha)
 	unsigned long flags = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	int rval = QLA_SUCCESS;
 
 	if (IS_P3P_TYPE(ha))
-		return rval;
+		return QLA_SUCCESS;
 
 	vha->flags.online = 0;
 	ha->isp_ops->disable_intrs(ha);
@@ -7137,7 +7136,7 @@ qla24xx_reset_adapter(scsi_qla_host_t *vha)
 	if (IS_NOPOLLING_TYPE(ha))
 		ha->isp_ops->enable_intrs(ha);
 
-	return rval;
+	return QLA_SUCCESS;
 }
 
 /* On sparc systems, obtain port and node WWN from firmware
