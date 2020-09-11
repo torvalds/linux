@@ -35,6 +35,7 @@ int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 	priv->adminq_destroy_rx_queue_cnt = 0;
 	priv->adminq_dcfg_device_resources_cnt = 0;
 	priv->adminq_set_driver_parameter_cnt = 0;
+	priv->adminq_report_stats_cnt = 0;
 
 	/* Setup Admin queue with the device */
 	iowrite32be(priv->adminq_bus_addr / PAGE_SIZE,
@@ -182,6 +183,9 @@ int gve_adminq_execute_cmd(struct gve_priv *priv,
 		break;
 	case GVE_ADMINQ_SET_DRIVER_PARAMETER:
 		priv->adminq_set_driver_parameter_cnt++;
+		break;
+	case GVE_ADMINQ_REPORT_STATS:
+		priv->adminq_report_stats_cnt++;
 		break;
 	default:
 		dev_err(&priv->pdev->dev, "unknown AQ command opcode %d\n", opcode);
@@ -429,6 +433,22 @@ int gve_adminq_set_mtu(struct gve_priv *priv, u64 mtu)
 	cmd.set_driver_param = (struct gve_adminq_set_driver_parameter) {
 		.parameter_type = cpu_to_be32(GVE_SET_PARAM_MTU),
 		.parameter_value = cpu_to_be64(mtu),
+	};
+
+	return gve_adminq_execute_cmd(priv, &cmd);
+}
+
+int gve_adminq_report_stats(struct gve_priv *priv, u64 stats_report_len,
+			    dma_addr_t stats_report_addr, u64 interval)
+{
+	union gve_adminq_command cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_REPORT_STATS);
+	cmd.report_stats = (struct gve_adminq_report_stats) {
+		.stats_report_len = cpu_to_be64(stats_report_len),
+		.stats_report_addr = cpu_to_be64(stats_report_addr),
+		.interval = cpu_to_be64(interval),
 	};
 
 	return gve_adminq_execute_cmd(priv, &cmd);

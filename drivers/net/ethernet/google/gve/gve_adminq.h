@@ -21,6 +21,7 @@ enum gve_adminq_opcodes {
 	GVE_ADMINQ_DESTROY_RX_QUEUE		= 0x8,
 	GVE_ADMINQ_DECONFIGURE_DEVICE_RESOURCES	= 0x9,
 	GVE_ADMINQ_SET_DRIVER_PARAMETER		= 0xB,
+	GVE_ADMINQ_REPORT_STATS			= 0xC,
 };
 
 /* Admin queue status codes */
@@ -172,6 +173,40 @@ struct gve_adminq_set_driver_parameter {
 
 static_assert(sizeof(struct gve_adminq_set_driver_parameter) == 16);
 
+struct gve_adminq_report_stats {
+	__be64 stats_report_len;
+	__be64 stats_report_addr;
+	__be64 interval;
+};
+
+static_assert(sizeof(struct gve_adminq_report_stats) == 24);
+
+struct stats {
+	__be32 stat_name;
+	__be32 queue_id;
+	__be64 value;
+};
+
+static_assert(sizeof(struct stats) == 16);
+
+struct gve_stats_report {
+	__be64 written_count;
+	struct stats stats[0];
+};
+
+static_assert(sizeof(struct gve_stats_report) == 8);
+
+enum gve_stat_names {
+	// stats from gve
+	TX_WAKE_CNT			= 1,
+	TX_STOP_CNT			= 2,
+	TX_FRAMES_SENT			= 3,
+	TX_BYTES_SENT			= 4,
+	TX_LAST_COMPLETION_PROCESSED	= 5,
+	RX_NEXT_EXPECTED_SEQUENCE	= 6,
+	RX_BUFFERS_POSTED		= 7,
+};
+
 union gve_adminq_command {
 	struct {
 		__be32 opcode;
@@ -187,6 +222,7 @@ union gve_adminq_command {
 			struct gve_adminq_register_page_list reg_page_list;
 			struct gve_adminq_unregister_page_list unreg_page_list;
 			struct gve_adminq_set_driver_parameter set_driver_param;
+			struct gve_adminq_report_stats report_stats;
 		};
 	};
 	u8 reserved[64];
@@ -214,4 +250,6 @@ int gve_adminq_register_page_list(struct gve_priv *priv,
 				  struct gve_queue_page_list *qpl);
 int gve_adminq_unregister_page_list(struct gve_priv *priv, u32 page_list_id);
 int gve_adminq_set_mtu(struct gve_priv *priv, u64 mtu);
+int gve_adminq_report_stats(struct gve_priv *priv, u64 stats_report_len,
+			    dma_addr_t stats_report_addr, u64 interval);
 #endif /* _GVE_ADMINQ_H */

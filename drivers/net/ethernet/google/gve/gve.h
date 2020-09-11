@@ -27,6 +27,13 @@
 /* 1 for management, 1 for rx, 1 for tx */
 #define GVE_MIN_MSIX 3
 
+/* Numbers of gve tx/rx stats in stats report. */
+#define GVE_TX_STATS_REPORT_NUM	5
+#define GVE_RX_STATS_REPORT_NUM	2
+
+/* Interval to schedule a stats report update, 20000ms. */
+#define GVE_STATS_REPORT_TIMER_PERIOD	20000
+
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */
@@ -220,6 +227,7 @@ struct gve_priv {
 	u32 adminq_destroy_rx_queue_cnt;
 	u32 adminq_dcfg_device_resources_cnt;
 	u32 adminq_set_driver_parameter_cnt;
+	u32 adminq_report_stats_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */
@@ -227,24 +235,39 @@ struct gve_priv {
 	u32 reset_cnt; /* count of reset */
 	u32 page_alloc_fail; /* count of page alloc fails */
 	u32 dma_mapping_error; /* count of dma mapping errors */
-
+	u32 stats_report_trigger_cnt; /* count of device-requested stats-reports since last reset */
 	struct workqueue_struct *gve_wq;
 	struct work_struct service_task;
+	struct work_struct stats_report_task;
 	unsigned long service_task_flags;
 	unsigned long state_flags;
+
+	struct gve_stats_report *stats_report;
+	u64 stats_report_len;
+	dma_addr_t stats_report_bus; /* dma address for the stats report */
+	unsigned long ethtool_flags;
+
+	unsigned long stats_report_timer_period;
+	struct timer_list stats_report_timer;
+
 };
 
-enum gve_service_task_flags {
-	GVE_PRIV_FLAGS_DO_RESET			= BIT(1),
-	GVE_PRIV_FLAGS_RESET_IN_PROGRESS	= BIT(2),
-	GVE_PRIV_FLAGS_PROBE_IN_PROGRESS	= BIT(3),
+enum gve_service_task_flags_bit {
+	GVE_PRIV_FLAGS_DO_RESET			= 1,
+	GVE_PRIV_FLAGS_RESET_IN_PROGRESS	= 2,
+	GVE_PRIV_FLAGS_PROBE_IN_PROGRESS	= 3,
+	GVE_PRIV_FLAGS_DO_REPORT_STATS = 4,
 };
 
-enum gve_state_flags {
-	GVE_PRIV_FLAGS_ADMIN_QUEUE_OK		= BIT(1),
-	GVE_PRIV_FLAGS_DEVICE_RESOURCES_OK	= BIT(2),
-	GVE_PRIV_FLAGS_DEVICE_RINGS_OK		= BIT(3),
-	GVE_PRIV_FLAGS_NAPI_ENABLED		= BIT(4),
+enum gve_state_flags_bit {
+	GVE_PRIV_FLAGS_ADMIN_QUEUE_OK		= 1,
+	GVE_PRIV_FLAGS_DEVICE_RESOURCES_OK	= 2,
+	GVE_PRIV_FLAGS_DEVICE_RINGS_OK		= 3,
+	GVE_PRIV_FLAGS_NAPI_ENABLED		= 4,
+};
+
+enum gve_ethtool_flags_bit {
+	GVE_PRIV_FLAGS_REPORT_STATS		= 0,
 };
 
 static inline bool gve_get_do_reset(struct gve_priv *priv)
@@ -292,6 +315,22 @@ static inline void gve_set_probe_in_progress(struct gve_priv *priv)
 static inline void gve_clear_probe_in_progress(struct gve_priv *priv)
 {
 	clear_bit(GVE_PRIV_FLAGS_PROBE_IN_PROGRESS, &priv->service_task_flags);
+}
+
+static inline bool gve_get_do_report_stats(struct gve_priv *priv)
+{
+	return test_bit(GVE_PRIV_FLAGS_DO_REPORT_STATS,
+			&priv->service_task_flags);
+}
+
+static inline void gve_set_do_report_stats(struct gve_priv *priv)
+{
+	set_bit(GVE_PRIV_FLAGS_DO_REPORT_STATS, &priv->service_task_flags);
+}
+
+static inline void gve_clear_do_report_stats(struct gve_priv *priv)
+{
+	clear_bit(GVE_PRIV_FLAGS_DO_REPORT_STATS, &priv->service_task_flags);
 }
 
 static inline bool gve_get_admin_queue_ok(struct gve_priv *priv)
@@ -352,6 +391,16 @@ static inline void gve_set_napi_enabled(struct gve_priv *priv)
 static inline void gve_clear_napi_enabled(struct gve_priv *priv)
 {
 	clear_bit(GVE_PRIV_FLAGS_NAPI_ENABLED, &priv->state_flags);
+}
+
+static inline bool gve_get_report_stats(struct gve_priv *priv)
+{
+	return test_bit(GVE_PRIV_FLAGS_REPORT_STATS, &priv->ethtool_flags);
+}
+
+static inline void gve_clear_report_stats(struct gve_priv *priv)
+{
+	clear_bit(GVE_PRIV_FLAGS_REPORT_STATS, &priv->ethtool_flags);
 }
 
 /* Returns the address of the ntfy_blocks irq doorbell
@@ -476,6 +525,8 @@ int gve_reset(struct gve_priv *priv, bool attempt_teardown);
 int gve_adjust_queues(struct gve_priv *priv,
 		      struct gve_queue_config new_rx_config,
 		      struct gve_queue_config new_tx_config);
+/* report stats handling */
+void gve_handle_report_stats(struct gve_priv *priv);
 /* exported by ethtool.c */
 extern const struct ethtool_ops gve_ethtool_ops;
 /* needed by ethtool */
