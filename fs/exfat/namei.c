@@ -1094,11 +1094,6 @@ static int exfat_move_file(struct inode *inode, struct exfat_chain *p_olddir,
 	if (!epmov)
 		return -EIO;
 
-	/* check if the source and target directory is the same */
-	if (exfat_get_entry_type(epmov) == TYPE_DIR &&
-	    le32_to_cpu(epmov->dentry.stream.start_clu) == p_newdir->dir)
-		return -EINVAL;
-
 	num_old_entries = exfat_count_ext_entries(sb, p_olddir, oldentry,
 		epmov);
 	if (num_old_entries < 0)
