@@ -243,7 +243,7 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 
 			err = __mdb_fill_info(skb, mp, p);
 			if (err) {
-				nla_nest_cancel(skb, nest2);
+				nla_nest_end(skb, nest2);
 				goto out;
 			}
 skip_pg:
