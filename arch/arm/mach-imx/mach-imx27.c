@@ -14,7 +14,6 @@
 #include <asm/mach/time.h>
 
 #include "common.h"
-#include "devices/devices-common.h"
 #include "hardware.h"
 #include "mx27.h"
 

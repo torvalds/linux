@@ -19,7 +19,6 @@
 
 #include "common.h"
 #include "crmregs-imx3.h"
-#include "devices/devices-common.h"
 #include "hardware.h"
 
 void __iomem *mx3_ccm_base;

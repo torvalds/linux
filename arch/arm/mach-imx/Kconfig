@@ -270,6 +270,4 @@ endchoice
 
 endif
 
-source "arch/arm/mach-imx/devices/Kconfig"
-
 endif
