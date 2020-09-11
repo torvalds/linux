@@ -1311,6 +1311,45 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 }
 
 /**
+ * evict_unlinked_inode - delete the pieces of an unlinked evicted inode
+ * @inode: The inode to evict
+ */
+static int evict_unlinked_inode(struct inode *inode)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	int ret;
+
+	if (S_ISDIR(inode->i_mode) &&
+	    (ip->i_diskflags & GFS2_DIF_EXHASH)) {
+		ret = gfs2_dir_exhash_dealloc(ip);
+		if (ret)
+			goto out;
+	}
+
+	if (ip->i_eattr) {
+		ret = gfs2_ea_dealloc(ip);
+		if (ret)
+			goto out;
+	}
+
+	if (!gfs2_is_stuffed(ip)) {
+		ret = gfs2_file_dealloc(ip);
+		if (ret)
+			goto out;
+	}
+
+	/* We're about to clear the bitmap for the dinode, but as soon as we
+	   do, gfs2_create_inode can create another inode at the same block
+	   location and try to set gl_object again. We clear gl_object here so
+	   that subsequent inode creates don't see an old gl_object. */
+	glock_clear_object(ip->i_gl, ip);
+	ret = gfs2_dinode_dealloc(ip);
+	gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
+out:
+	return ret;
+}
+
+/**
  * gfs2_evict_inode - Remove an inode from cache
  * @inode: The inode to evict
  *
@@ -1396,33 +1435,7 @@ out_delete:
 			goto out_truncate;
 		}
 	}
-
-	if (S_ISDIR(inode->i_mode) &&
-	    (ip->i_diskflags & GFS2_DIF_EXHASH)) {
-		ret = gfs2_dir_exhash_dealloc(ip);
-		if (ret)
-			goto out_unlock;
-	}
-
-	if (ip->i_eattr) {
-		ret = gfs2_ea_dealloc(ip);
-		if (ret)
-			goto out_unlock;
-	}
-
-	if (!gfs2_is_stuffed(ip)) {
-		ret = gfs2_file_dealloc(ip);
-		if (ret)
-			goto out_unlock;
-	}
-
-	/* We're about to clear the bitmap for the dinode, but as soon as we
-	   do, gfs2_create_inode can create another inode at the same block
-	   location and try to set gl_object again. We clear gl_object here so
-	   that subsequent inode creates don't see an old gl_object. */
-	glock_clear_object(ip->i_gl, ip);
-	ret = gfs2_dinode_dealloc(ip);
-	gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
+	ret = evict_unlinked_inode(inode);
 	goto out_unlock;
 
 out_truncate:
