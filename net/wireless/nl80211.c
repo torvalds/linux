@@ -385,6 +385,13 @@ nl80211_fils_discovery_policy[NL80211_FILS_DISCOVERY_ATTR_MAX + 1] = {
 			 IEEE80211_MAX_DATA_LEN),
 };
 
+static const struct nla_policy
+nl80211_unsol_bcast_probe_resp_policy[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX + 1] = {
+	[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_INT] = NLA_POLICY_MAX(NLA_U32, 20),
+	[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_TMPL] = { .type = NLA_BINARY,
+						       .len = IEEE80211_MAX_DATA_LEN }
+};
+
 static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[0] = { .strict_start_type = NL80211_ATTR_HE_OBSS_PD },
 	[NL80211_ATTR_WIPHY] = { .type = NLA_U32 },
@@ -695,6 +702,8 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		NLA_POLICY_EXACT_LEN(sizeof(struct ieee80211_he_6ghz_capa)),
 	[NL80211_ATTR_FILS_DISCOVERY] =
 		NLA_POLICY_NESTED(nl80211_fils_discovery_policy),
+	[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP] =
+		NLA_POLICY_NESTED(nl80211_unsol_bcast_probe_resp_policy),
 };
 
 /* policy for the key attributes */
@@ -4915,6 +4924,35 @@ static int nl80211_parse_fils_discovery(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
+static int
+nl80211_parse_unsol_bcast_probe_resp(struct cfg80211_registered_device *rdev,
+				     struct nlattr *attrs,
+				     struct cfg80211_ap_settings *params)
+{
+	struct nlattr *tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX + 1];
+	int ret;
+	struct cfg80211_unsol_bcast_probe_resp *presp =
+					&params->unsol_bcast_probe_resp;
+
+	if (!wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP))
+		return -EINVAL;
+
+	ret = nla_parse_nested(tb, NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX,
+			       attrs, NULL, NULL);
+	if (ret)
+		return ret;
+
+	if (!tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_INT] ||
+	    !tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_TMPL])
+		return -EINVAL;
+
+	presp->tmpl = nla_data(tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_TMPL]);
+	presp->tmpl_len = nla_len(tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_TMPL]);
+	presp->interval = nla_get_u32(tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_INT]);
+	return 0;
+}
+
 static void nl80211_check_ap_rate_selectors(struct cfg80211_ap_settings *params,
 					    const u8 *rates)
 {
@@ -5229,6 +5267,14 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 						   &params);
 		if (err)
 			goto out;
+	}
+
+	if (info->attrs[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP]) {
+		err = nl80211_parse_unsol_bcast_probe_resp(
+			rdev, info->attrs[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP],
+			&params);
+		if (err)
+			return err;
 	}
 
 	nl80211_calculate_ap_params(&params);
