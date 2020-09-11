@@ -1225,6 +1225,11 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	/* wait for idle */
 	dpu_encoder_wait_for_event(drm_enc, MSM_ENC_TX_COMPLETE);
 
+	if (drm_enc->encoder_type == DRM_MODE_ENCODER_TMDS && priv->dp) {
+		if (msm_dp_display_pre_disable(priv->dp, drm_enc))
+			DPU_ERROR_ENC(dpu_enc, "dp display push idle failed\n");
+	}
+
 	dpu_encoder_resource_control(drm_enc, DPU_ENC_RC_EVENT_PRE_STOP);
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
@@ -1233,6 +1238,7 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 		if (phys->ops.disable)
 			phys->ops.disable(phys);
 	}
+
 
 	/* after phys waits for frame-done, should be no more frames pending */
 	if (atomic_xchg(&dpu_enc->frame_done_timeout_ms, 0)) {

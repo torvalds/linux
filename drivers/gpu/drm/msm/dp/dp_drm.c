@@ -58,7 +58,6 @@ static int dp_connector_get_modes(struct drm_connector *connector)
 	if (!dp_mode)
 		return 0;
 
-	mutex_lock(&dp->connect_mutex);
 	/* pluggable case assumes EDID is read when HPD */
 	if (dp->is_connected) {
 		/*
@@ -71,7 +70,6 @@ static int dp_connector_get_modes(struct drm_connector *connector)
 		if (rc <= 0) {
 			DRM_ERROR("failed to get DP sink modes, rc=%d\n", rc);
 			kfree(dp_mode);
-			mutex_unlock(&dp->connect_mutex);
 			return rc;
 		}
 		if (dp_mode->drm_mode.clock) { /* valid DP mode */
@@ -83,7 +81,6 @@ static int dp_connector_get_modes(struct drm_connector *connector)
 				       drm_mode.hdisplay,
 				       drm_mode.vdisplay);
 				kfree(dp_mode);
-				mutex_unlock(&dp->connect_mutex);
 				return 0;
 			}
 			drm_mode_probed_add(connector, m);
@@ -91,7 +88,6 @@ static int dp_connector_get_modes(struct drm_connector *connector)
 	} else {
 		DRM_DEBUG_DP("No sink connected\n");
 	}
-	mutex_unlock(&dp->connect_mutex);
 	kfree(dp_mode);
 	return rc;
 }

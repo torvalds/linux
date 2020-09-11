@@ -24,7 +24,7 @@ struct dp_hpd_private {
 	struct dp_usbpd dp_usbpd;
 };
 
-static int dp_hpd_connect(struct dp_usbpd *dp_usbpd, bool hpd)
+int dp_hpd_connect(struct dp_usbpd *dp_usbpd, bool hpd)
 {
 	int rc = 0;
 	struct dp_hpd_private *hpd_priv;

@@ -19,6 +19,7 @@
 struct dp_power {
 	bool core_clks_on;
 	bool link_clks_on;
+	bool stream_clks_on;
 };
 
 /**
@@ -42,6 +43,18 @@ int dp_power_init(struct dp_power *power, bool flip);
  * This API turns off power and regulators.
  */
 int dp_power_deinit(struct dp_power *power);
+
+/**
+ * dp_power_clk_status() - display controller clocks status
+ *
+ * @power: instance of power module
+ * @pm_type: type of pm, core/ctrl/phy
+ * return: status of power clocks
+ *
+ * This API return status of DP clocks
+ */
+
+int dp_power_clk_status(struct dp_power *dp_power, enum dp_pm_type pm_type);
 
 /**
  * dp_power_clk_enable() - enable display controller clocks

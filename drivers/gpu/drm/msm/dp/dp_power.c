@@ -95,11 +95,12 @@ static int dp_power_regulator_init(struct dp_power_private *power)
 static int dp_power_clk_init(struct dp_power_private *power)
 {
 	int rc = 0;
-	struct dss_module_power *core, *ctrl;
+	struct dss_module_power *core, *ctrl, *stream;
 	struct device *dev = &power->pdev->dev;
 
 	core = &power->parser->mp[DP_CORE_PM];
 	ctrl = &power->parser->mp[DP_CTRL_PM];
+	stream = &power->parser->mp[DP_STREAM_PM];
 
 	if (power->parser->pll && power->parser->pll->get_provider) {
 		rc = power->parser->pll->get_provider(power->parser->pll,
@@ -126,21 +127,33 @@ static int dp_power_clk_init(struct dp_power_private *power)
 		return -ENODEV;
 	}
 
+	rc = msm_dss_get_clk(dev, stream->clk_config, stream->num_clk);
+	if (rc) {
+		DRM_ERROR("failed to get %s clk. err=%d\n",
+			dp_parser_pm_name(DP_CTRL_PM), rc);
+		msm_dss_put_clk(core->clk_config, core->num_clk);
+		return -ENODEV;
+	}
+
 	return 0;
 }
 
 static int dp_power_clk_deinit(struct dp_power_private *power)
 {
-	struct dss_module_power *core, *ctrl;
+	struct dss_module_power *core, *ctrl, *stream;
 
 	core = &power->parser->mp[DP_CORE_PM];
 	ctrl = &power->parser->mp[DP_CTRL_PM];
+	stream = &power->parser->mp[DP_STREAM_PM];
 
-	if (!core || !ctrl)
+	if (!core || !ctrl || !stream) {
+		DRM_ERROR("invalid power_data\n");
 		return -EINVAL;
+	}
 
 	msm_dss_put_clk(ctrl->clk_config, ctrl->num_clk);
 	msm_dss_put_clk(core->clk_config, core->num_clk);
+	msm_dss_put_clk(stream->clk_config, stream->num_clk);
 	return 0;
 }
 
@@ -167,6 +180,20 @@ static int dp_power_clk_set_rate(struct dp_power_private *power,
 	return 0;
 }
 
+int dp_power_clk_status(struct dp_power *dp_power, enum dp_pm_type pm_type)
+{
+	if (pm_type == DP_CORE_PM)
+		return dp_power->core_clks_on;
+
+	if (pm_type == DP_CTRL_PM)
+		return dp_power->link_clks_on;
+
+	if (pm_type == DP_STREAM_PM)
+		return dp_power->stream_clks_on;
+
+	return 0;
+}
+
 int dp_power_clk_enable(struct dp_power *dp_power,
 		enum dp_pm_type pm_type, bool enable)
 {
@@ -175,7 +202,8 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
-	if (pm_type != DP_CORE_PM && pm_type != DP_CTRL_PM) {
+	if (pm_type != DP_CORE_PM && pm_type != DP_CTRL_PM &&
+			pm_type != DP_STREAM_PM) {
 		DRM_ERROR("unsupported power module: %s\n",
 				dp_parser_pm_name(pm_type));
 		return -EINVAL;
@@ -189,6 +217,11 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 
 		if (pm_type == DP_CTRL_PM && dp_power->link_clks_on) {
 			DRM_DEBUG_DP("links clks already enabled\n");
+			return 0;
+		}
+
+		if (pm_type == DP_STREAM_PM && dp_power->stream_clks_on) {
+			DRM_DEBUG_DP("pixel clks already enabled\n");
 			return 0;
 		}
 
@@ -215,13 +248,16 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 
 	if (pm_type == DP_CORE_PM)
 		dp_power->core_clks_on = enable;
+	else if (pm_type == DP_STREAM_PM)
+		dp_power->stream_clks_on = enable;
 	else
 		dp_power->link_clks_on = enable;
 
 	DRM_DEBUG_DP("%s clocks for %s\n",
 			enable ? "enable" : "disable",
 			dp_parser_pm_name(pm_type));
-	DRM_DEBUG_DP("link_clks:%s core_clks:%s\n",
+	DRM_DEBUG_DP("strem_clks:%s link_clks:%s core_clks:%s\n",
+		dp_power->stream_clks_on ? "on" : "off",
 		dp_power->link_clks_on ? "on" : "off",
 		dp_power->core_clks_on ? "on" : "off");
 

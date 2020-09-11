@@ -38,7 +38,6 @@ struct dp_link_private {
 	struct dp_link dp_link;
 
 	struct dp_link_request request;
-	struct mutex test_response_mutex;
 	struct mutex psm_mutex;
 	u8 link_status[DP_LINK_STATUS_SIZE];
 };
@@ -580,17 +579,18 @@ static int dp_link_parse_phy_test_params(struct dp_link_private *link)
 		return rlen;
 	}
 
-	link->dp_link.phy_params.phy_test_pattern_sel = data;
+	link->dp_link.phy_params.phy_test_pattern_sel = data & 0x07;
 
 	DRM_DEBUG_DP("phy_test_pattern_sel = 0x%x\n", data);
 
 	switch (data) {
-	case DP_LINK_QUAL_PATTERN_DISABLE:
-	case DP_LINK_QUAL_PATTERN_D10_2:
-	case DP_LINK_QUAL_PATTERN_ERROR_RATE:
-	case DP_LINK_QUAL_PATTERN_PRBS7:
-	case DP_LINK_QUAL_PATTERN_80BIT_CUSTOM:
-	case DP_LINK_QUAL_PATTERN_HBR2_EYE:
+	case DP_PHY_TEST_PATTERN_SEL_MASK:
+	case DP_PHY_TEST_PATTERN_NONE:
+	case DP_PHY_TEST_PATTERN_D10_2:
+	case DP_PHY_TEST_PATTERN_ERROR_COUNT:
+	case DP_PHY_TEST_PATTERN_PRBS7:
+	case DP_PHY_TEST_PATTERN_80BIT_CUSTOM:
+	case DP_PHY_TEST_PATTERN_CP2520:
 		return 0;
 	default:
 		return -EINVAL;
@@ -661,7 +661,6 @@ static int dp_link_parse_request(struct dp_link_private *link)
 
 	DRM_DEBUG_DP("Test:(0x%x) requested\n", data);
 	link->request.test_requested = data;
-
 	if (link->request.test_requested == DP_TEST_LINK_PHY_TEST_PATTERN) {
 		ret = dp_link_parse_phy_test_params(link);
 		if (ret)
@@ -789,10 +788,8 @@ bool dp_link_send_test_response(struct dp_link *dp_link)
 
 	link = container_of(dp_link, struct dp_link_private, dp_link);
 
-	mutex_lock(&link->test_response_mutex);
 	ret = drm_dp_dpcd_writeb(link->aux, DP_TEST_RESPONSE,
 			dp_link->test_response);
-	mutex_unlock(&link->test_response_mutex);
 
 	return ret == 1;
 }
@@ -1028,11 +1025,9 @@ int dp_link_process_request(struct dp_link *dp_link)
 
 	link = container_of(dp_link, struct dp_link_private, dp_link);
 
-	mutex_lock(&link->test_response_mutex);
 	dp_link_reset_data(link);
 
 	dp_link_parse_sink_status_field(link);
-	mutex_unlock(&link->test_response_mutex);
 
 	if (link->request.test_requested == DP_TEST_LINK_EDID_READ) {
 		dp_link->sink_request |= DP_TEST_LINK_EDID_READ;
@@ -1206,7 +1201,6 @@ struct dp_link *dp_link_get(struct device *dev, struct drm_dp_aux *aux)
 	link->dev   = dev;
 	link->aux   = aux;
 
-	mutex_init(&link->test_response_mutex);
 	mutex_init(&link->psm_mutex);
 	dp_link = &link->dp_link;
 

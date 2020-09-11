@@ -103,11 +103,12 @@ static inline bool dp_parser_check_prefix(const char *clk_prefix,
 static int dp_parser_init_clk_data(struct dp_parser *parser)
 {
 	int num_clk, i, rc;
-	int core_clk_count = 0, ctrl_clk_count = 0;
+	int core_clk_count = 0, ctrl_clk_count = 0, stream_clk_count = 0;
 	const char *clk_name;
 	struct device *dev = &parser->pdev->dev;
 	struct dss_module_power *core_power = &parser->mp[DP_CORE_PM];
 	struct dss_module_power *ctrl_power = &parser->mp[DP_CTRL_PM];
+	struct dss_module_power *stream_power = &parser->mp[DP_STREAM_PM];
 
 	num_clk = of_property_count_strings(dev->of_node, "clock-names");
 	if (num_clk <= 0) {
@@ -128,7 +129,7 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 			ctrl_clk_count++;
 
 		if (dp_parser_check_prefix("stream", clk_name))
-			ctrl_clk_count++;
+			stream_clk_count++;
 	}
 
 	/* Initialize the CORE power module */
@@ -159,6 +160,21 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 		return -EINVAL;
 	}
 
+	/* Initialize the STREAM power module */
+	if (stream_clk_count == 0) {
+		DRM_ERROR("no stream (pixel) clocks are defined\n");
+		return -EINVAL;
+	}
+
+	stream_power->num_clk = stream_clk_count;
+	stream_power->clk_config = devm_kzalloc(dev,
+			sizeof(struct dss_clk) * stream_power->num_clk,
+			GFP_KERNEL);
+	if (!stream_power->clk_config) {
+		stream_power->num_clk = 0;
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -166,15 +182,13 @@ static int dp_parser_clock(struct dp_parser *parser)
 {
 	int rc = 0, i = 0;
 	int num_clk = 0;
-	int core_clk_index = 0, ctrl_clk_index = 0;
-	int core_clk_count = 0, ctrl_clk_count = 0;
+	int core_clk_index = 0, ctrl_clk_index = 0, stream_clk_index = 0;
+	int core_clk_count = 0, ctrl_clk_count = 0, stream_clk_count = 0;
 	const char *clk_name;
 	struct device *dev = &parser->pdev->dev;
 	struct dss_module_power *core_power = &parser->mp[DP_CORE_PM];
 	struct dss_module_power *ctrl_power = &parser->mp[DP_CTRL_PM];
-
-	core_power = &parser->mp[DP_CORE_PM];
-	ctrl_power = &parser->mp[DP_CTRL_PM];
+	struct dss_module_power *stream_power = &parser->mp[DP_STREAM_PM];
 
 	rc =  dp_parser_init_clk_data(parser);
 	if (rc) {
@@ -184,8 +198,9 @@ static int dp_parser_clock(struct dp_parser *parser)
 
 	core_clk_count = core_power->num_clk;
 	ctrl_clk_count = ctrl_power->num_clk;
+	stream_clk_count = stream_power->num_clk;
 
-	num_clk = core_clk_count + ctrl_clk_count;
+	num_clk = core_clk_count + ctrl_clk_count + stream_clk_count;
 
 	for (i = 0; i < num_clk; i++) {
 		rc = of_property_read_string_index(dev->of_node, "clock-names",
@@ -201,14 +216,19 @@ static int dp_parser_clock(struct dp_parser *parser)
 			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
 			clk->type = DSS_CLK_AHB;
 			core_clk_index++;
-		} else if ((dp_parser_check_prefix("ctrl", clk_name) ||
-			   dp_parser_check_prefix("stream", clk_name))  &&
+		} else if (dp_parser_check_prefix("stream", clk_name) &&
+				stream_clk_index < stream_clk_count) {
+			struct dss_clk *clk =
+				&stream_power->clk_config[stream_clk_index];
+			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
+			clk->type = DSS_CLK_PCLK;
+			stream_clk_index++;
+		} else if (dp_parser_check_prefix("ctrl", clk_name) &&
 			   ctrl_clk_index < ctrl_clk_count) {
 			struct dss_clk *clk =
 				&ctrl_power->clk_config[ctrl_clk_index];
 			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
 			ctrl_clk_index++;
-
 			if (dp_parser_check_prefix("ctrl_link", clk_name) ||
 			    dp_parser_check_prefix("stream_pixel", clk_name))
 				clk->type = DSS_CLK_PCLK;

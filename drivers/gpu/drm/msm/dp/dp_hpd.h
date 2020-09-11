@@ -75,5 +75,6 @@ struct dp_usbpd *dp_hpd_get(struct device *dev, struct dp_usbpd_cb *cb);
 
 int dp_hpd_register(struct dp_usbpd *dp_usbpd);
 void dp_hpd_unregister(struct dp_usbpd *dp_usbpd);
+int dp_hpd_connect(struct dp_usbpd *dp_usbpd, bool hpd);
 
 #endif /* _DP_HPD_H_ */

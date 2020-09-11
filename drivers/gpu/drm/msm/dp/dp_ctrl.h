@@ -21,7 +21,8 @@ struct dp_ctrl {
 
 int dp_ctrl_host_init(struct dp_ctrl *dp_ctrl, bool flip);
 void dp_ctrl_host_deinit(struct dp_ctrl *dp_ctrl);
-int dp_ctrl_on(struct dp_ctrl *dp_ctrl);
+int dp_ctrl_on_link(struct dp_ctrl *dp_ctrl);
+int dp_ctrl_on_stream(struct dp_ctrl *dp_ctrl);
 int dp_ctrl_off(struct dp_ctrl *dp_ctrl);
 void dp_ctrl_push_idle(struct dp_ctrl *dp_ctrl);
 void dp_ctrl_isr(struct dp_ctrl *dp_ctrl);

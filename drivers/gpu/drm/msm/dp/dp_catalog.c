@@ -536,16 +536,21 @@ void dp_catalog_ctrl_mainlink_ctrl(struct dp_catalog *dp_catalog,
 		 * To make sure link reg writes happens before other operation,
 		 * dp_write_link() function uses writel()
 		 */
-		dp_write_link(catalog, REG_DP_MAINLINK_CTRL,
-				DP_MAINLINK_FB_BOUNDARY_SEL);
-		dp_write_link(catalog, REG_DP_MAINLINK_CTRL,
-					DP_MAINLINK_FB_BOUNDARY_SEL |
-					DP_MAINLINK_CTRL_RESET);
-		dp_write_link(catalog, REG_DP_MAINLINK_CTRL,
+		mainlink_ctrl = dp_read_link(catalog, REG_DP_MAINLINK_CTRL);
+
+		mainlink_ctrl &= ~(DP_MAINLINK_CTRL_RESET |
+						DP_MAINLINK_CTRL_ENABLE);
+		dp_write_link(catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+
+		mainlink_ctrl |= DP_MAINLINK_CTRL_RESET;
+		dp_write_link(catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+
+		mainlink_ctrl &= ~DP_MAINLINK_CTRL_RESET;
+		dp_write_link(catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+
+		mainlink_ctrl |= (DP_MAINLINK_CTRL_ENABLE |
 					DP_MAINLINK_FB_BOUNDARY_SEL);
-		dp_write_link(catalog, REG_DP_MAINLINK_CTRL,
-					DP_MAINLINK_FB_BOUNDARY_SEL |
-					DP_MAINLINK_CTRL_ENABLE);
+		dp_write_link(catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
 	} else {
 		mainlink_ctrl = dp_read_link(catalog, REG_DP_MAINLINK_CTRL);
 		mainlink_ctrl &= ~DP_MAINLINK_CTRL_ENABLE;
@@ -644,7 +649,7 @@ int dp_catalog_ctrl_set_pattern(struct dp_catalog *dp_catalog,
 
 	bit = BIT(pattern - 1);
 	DRM_DEBUG_DP("hw: bit=%d train=%d\n", bit, pattern);
-	dp_write_link(catalog, REG_DP_STATE_CTRL, bit);
+	dp_catalog_ctrl_state_ctrl(dp_catalog, bit);
 
 	bit = BIT(pattern - 1) << DP_MAINLINK_READY_LINK_TRAINING_SHIFT;
 
@@ -769,7 +774,7 @@ void dp_catalog_ctrl_hpd_config(struct dp_catalog *dp_catalog)
 	/* enable HPD interrupts */
 	dp_catalog_hpd_config_intr(dp_catalog,
 		DP_DP_HPD_PLUG_INT_MASK | DP_DP_IRQ_HPD_INT_MASK
-		| DP_DP_HPD_UNPLUG_INT_MASK, true);
+		| DP_DP_HPD_UNPLUG_INT_MASK | DP_DP_HPD_REPLUG_INT_MASK, true);
 
 	/* Configure REFTIMER and enable it */
 	reftimer |= DP_DP_HPD_REFTIMER_ENABLE;
@@ -881,15 +886,27 @@ void dp_catalog_ctrl_send_phy_pattern(struct dp_catalog *dp_catalog,
 	dp_write_link(catalog, REG_DP_STATE_CTRL, 0x0);
 
 	switch (pattern) {
-	case DP_LINK_QUAL_PATTERN_D10_2:
+	case DP_PHY_TEST_PATTERN_D10_2:
 		dp_write_link(catalog, REG_DP_STATE_CTRL,
 				DP_STATE_CTRL_LINK_TRAINING_PATTERN1);
-		return;
-	case DP_LINK_QUAL_PATTERN_PRBS7:
+		break;
+	case DP_PHY_TEST_PATTERN_ERROR_COUNT:
+		value &= ~(1 << 16);
+		dp_write_link(catalog, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
+					value);
+		value |= SCRAMBLER_RESET_COUNT_VALUE;
+		dp_write_link(catalog, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
+					value);
+		dp_write_link(catalog, REG_DP_MAINLINK_LEVELS,
+					DP_MAINLINK_SAFE_TO_EXIT_LEVEL_2);
+		dp_write_link(catalog, REG_DP_STATE_CTRL,
+					DP_STATE_CTRL_LINK_SYMBOL_ERR_MEASURE);
+		break;
+	case DP_PHY_TEST_PATTERN_PRBS7:
 		dp_write_link(catalog, REG_DP_STATE_CTRL,
 				DP_STATE_CTRL_LINK_PRBS7);
-		return;
-	case DP_LINK_QUAL_PATTERN_80BIT_CUSTOM:
+		break;
+	case DP_PHY_TEST_PATTERN_80BIT_CUSTOM:
 		dp_write_link(catalog, REG_DP_STATE_CTRL,
 				DP_STATE_CTRL_LINK_TEST_CUSTOM_PATTERN);
 		/* 00111110000011111000001111100000 */
@@ -901,14 +918,15 @@ void dp_catalog_ctrl_send_phy_pattern(struct dp_catalog *dp_catalog,
 		/* 1111100000111110 */
 		dp_write_link(catalog, REG_DP_TEST_80BIT_CUSTOM_PATTERN_REG2,
 				0x0000F83E);
-		return;
-	case DP_LINK_QUAL_PATTERN_HBR2_EYE:
-	case DP_LINK_QUAL_PATTERN_ERROR_RATE:
-		value &= ~DP_HBR2_ERM_PATTERN;
-		if (pattern == DP_LINK_QUAL_PATTERN_HBR2_EYE)
-			value = DP_HBR2_ERM_PATTERN;
+		break;
+	case DP_PHY_TEST_PATTERN_CP2520:
+		value = dp_read_link(catalog, REG_DP_MAINLINK_CTRL);
+		value &= ~DP_MAINLINK_CTRL_SW_BYPASS_SCRAMBLER;
+		dp_write_link(catalog, REG_DP_MAINLINK_CTRL, value);
+
+		value = DP_HBR2_ERM_PATTERN;
 		dp_write_link(catalog, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
-					value);
+				value);
 		value |= SCRAMBLER_RESET_COUNT_VALUE;
 		dp_write_link(catalog, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
 					value);
@@ -916,10 +934,19 @@ void dp_catalog_ctrl_send_phy_pattern(struct dp_catalog *dp_catalog,
 					DP_MAINLINK_SAFE_TO_EXIT_LEVEL_2);
 		dp_write_link(catalog, REG_DP_STATE_CTRL,
 					DP_STATE_CTRL_LINK_SYMBOL_ERR_MEASURE);
-		return;
+		value = dp_read_link(catalog, REG_DP_MAINLINK_CTRL);
+		value |= DP_MAINLINK_CTRL_ENABLE;
+		dp_write_link(catalog, REG_DP_MAINLINK_CTRL, value);
+		break;
+	case DP_PHY_TEST_PATTERN_SEL_MASK:
+		dp_write_link(catalog, REG_DP_MAINLINK_CTRL,
+				DP_MAINLINK_CTRL_ENABLE);
+		dp_write_link(catalog, REG_DP_STATE_CTRL,
+				DP_STATE_CTRL_LINK_TRAINING_PATTERN4);
+		break;
 	default:
 		DRM_DEBUG_DP("No valid test pattern requested:0x%x\n", pattern);
-		return;
+		break;
 	}
 }
 

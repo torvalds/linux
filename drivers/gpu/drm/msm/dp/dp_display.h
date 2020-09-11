@@ -13,7 +13,6 @@ struct msm_dp {
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	bool is_connected;
-	struct mutex connect_mutex;
 	u32 max_pclk_khz;
 	u32 max_dp_lanes;
 };
