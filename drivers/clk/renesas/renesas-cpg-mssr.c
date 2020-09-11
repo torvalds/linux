@@ -57,6 +57,11 @@ static const u16 mstpsr[] = {
 	0x9A0, 0x9A4, 0x9A8, 0x9AC,
 };
 
+static const u16 mstpsr_for_v3u[] = {
+	0x2E00, 0x2E04, 0x2E08, 0x2E0C, 0x2E10, 0x2E14, 0x2E18, 0x2E1C,
+	0x2E20, 0x2E24, 0x2E28, 0x2E2C, 0x2E30, 0x2E34, 0x2E38,
+};
+
 /*
  * System Module Stop Control Register offsets
  */
@@ -64,6 +69,11 @@ static const u16 mstpsr[] = {
 static const u16 smstpcr[] = {
 	0x130, 0x134, 0x138, 0x13C, 0x140, 0x144, 0x148, 0x14C,
 	0x990, 0x994, 0x998, 0x99C,
+};
+
+static const u16 mstpcr_for_v3u[] = {
+	0x2D00, 0x2D04, 0x2D08, 0x2D0C, 0x2D10, 0x2D14, 0x2D18, 0x2D1C,
+	0x2D20, 0x2D24, 0x2D28, 0x2D2C, 0x2D30, 0x2D34, 0x2D38,
 };
 
 /*
@@ -85,6 +95,11 @@ static const u16 srcr[] = {
 	0x920, 0x924, 0x928, 0x92C,
 };
 
+static const u16 srcr_for_v3u[] = {
+	0x2C00, 0x2C04, 0x2C08, 0x2C0C, 0x2C10, 0x2C14, 0x2C18, 0x2C1C,
+	0x2C20, 0x2C24, 0x2C28, 0x2C2C, 0x2C30, 0x2C34, 0x2C38,
+};
+
 /* Realtime Module Stop Control Register offsets */
 #define RMSTPCR(i)	(smstpcr[i] - 0x20)
 
@@ -96,6 +111,11 @@ static const u16 srcr[] = {
 static const u16 srstclr[] = {
 	0x940, 0x944, 0x948, 0x94C, 0x950, 0x954, 0x958, 0x95C,
 	0x960, 0x964, 0x968, 0x96C,
+};
+
+static const u16 srstclr_for_v3u[] = {
+	0x2C80, 0x2C84, 0x2C88, 0x2C8C, 0x2C90, 0x2C94, 0x2C98, 0x2C9C,
+	0x2CA0, 0x2CA4, 0x2CA8, 0x2CAC, 0x2CB0, 0x2CB4, 0x2CB8,
 };
 
 /**
@@ -141,7 +161,7 @@ struct cpg_mssr_priv {
 	struct {
 		u32 mask;
 		u32 val;
-	} smstpcr_saved[ARRAY_SIZE(smstpcr)];
+	} smstpcr_saved[ARRAY_SIZE(mstpsr_for_v3u)];
 
 	struct clk *clks[];
 };
@@ -805,6 +825,12 @@ static const struct of_device_id cpg_mssr_match[] = {
 		.data = &r8a77995_cpg_mssr_info,
 	},
 #endif
+#ifdef CONFIG_CLK_R8A779A0
+	{
+		.compatible = "renesas,r8a779a0-cpg-mssr",
+		.data = &r8a779a0_cpg_mssr_info,
+	},
+#endif
 	{ /* sentinel */ }
 };
 
@@ -947,6 +973,11 @@ static int __init cpg_mssr_common_init(struct device *dev,
 		priv->reset_clear_regs = srstclr;
 	} else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A) {
 		priv->control_regs = stbcr;
+	} else if (priv->reg_layout == CLK_REG_LAYOUT_RCAR_V3U) {
+		priv->status_regs = mstpsr_for_v3u;
+		priv->control_regs = mstpcr_for_v3u;
+		priv->reset_regs = srcr_for_v3u;
+		priv->reset_clear_regs = srstclr_for_v3u;
 	} else {
 		error = -EINVAL;
 		goto out_err;
