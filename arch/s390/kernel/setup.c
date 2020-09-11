@@ -1137,8 +1137,7 @@ void __init setup_arch(char **cmdline_p)
 	free_mem_detect_info();
 	remove_oldmem();
 
-	if (is_prot_virt_host())
-		setup_uv();
+	setup_uv();
 	setup_memory_end();
 	setup_memory();
 	dma_contiguous_reserve(memory_end);

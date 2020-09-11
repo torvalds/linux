@@ -26,32 +26,9 @@ int __bootdata_preserved(prot_virt_guest);
 struct uv_info __bootdata_preserved(uv_info);
 
 #if IS_ENABLED(CONFIG_KVM)
-int prot_virt_host;
+int __bootdata_preserved(prot_virt_host);
 EXPORT_SYMBOL(prot_virt_host);
 EXPORT_SYMBOL(uv_info);
-
-static int __init prot_virt_setup(char *val)
-{
-	bool enabled;
-	int rc;
-
-	rc = kstrtobool(val, &enabled);
-	if (!rc && enabled)
-		prot_virt_host = 1;
-
-	if (is_prot_virt_guest() && prot_virt_host) {
-		prot_virt_host = 0;
-		pr_warn("Protected virtualization not available in protected guests.");
-	}
-
-	if (prot_virt_host && !test_facility(158)) {
-		prot_virt_host = 0;
-		pr_warn("Protected virtualization not supported by the hardware.");
-	}
-
-	return rc;
-}
-early_param("prot_virt", prot_virt_setup);
 
 static int __init uv_init(unsigned long stor_base, unsigned long stor_len)
 {
@@ -73,6 +50,21 @@ static int __init uv_init(unsigned long stor_base, unsigned long stor_len)
 void __init setup_uv(void)
 {
 	unsigned long uv_stor_base;
+
+	if (!is_prot_virt_host())
+		return;
+
+	if (is_prot_virt_guest()) {
+		prot_virt_host = 0;
+		pr_warn("Protected virtualization not available in protected guests.");
+		return;
+	}
+
+	if (!test_facility(158)) {
+		prot_virt_host = 0;
+		pr_warn("Protected virtualization not supported by the hardware.");
+		return;
+	}
 
 	uv_stor_base = (unsigned long)memblock_alloc_try_nid(
 		uv_info.uv_base_stor_len, SZ_1M, SZ_2G,
