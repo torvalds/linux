@@ -340,18 +340,33 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 }
 
 static void
-set_placement_list(struct ttm_place *pl, unsigned *n, uint32_t domain,
-		   uint32_t flags)
+set_placement_list(struct nouveau_drm *drm, struct ttm_place *pl, unsigned *n,
+		   uint32_t domain, uint32_t flags)
 {
 	*n = 0;
 
 	if (domain & NOUVEAU_GEM_DOMAIN_VRAM) {
+		struct nvif_mmu *mmu = &drm->client.mmu;
+		const u8 type = mmu->type[drm->ttm.type_vram].type;
+
 		pl[*n].mem_type = TTM_PL_VRAM;
-		pl[(*n)++].flags = flags;
+		pl[*n].flags = flags & ~TTM_PL_FLAG_CACHED;
+
+		/* Some BARs do not support being ioremapped WC */
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
+		    type & NVIF_MEM_UNCACHED)
+			pl[*n].flags &= ~TTM_PL_FLAG_WC;
+
+		(*n)++;
 	}
 	if (domain & NOUVEAU_GEM_DOMAIN_GART) {
 		pl[*n].mem_type = TTM_PL_TT;
-		pl[(*n)++].flags = flags;
+		pl[*n].flags = flags;
+
+		if (drm->agp.bridge)
+			pl[*n].flags &= ~TTM_PL_FLAG_CACHED;
+
+		(*n)++;
 	}
 	if (domain & NOUVEAU_GEM_DOMAIN_CPU) {
 		pl[*n].mem_type = TTM_PL_SYSTEM;
@@ -397,17 +412,18 @@ void
 nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t domain,
 			 uint32_t busy)
 {
+	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_placement *pl = &nvbo->placement;
 	uint32_t flags = (nvbo->force_coherent ? TTM_PL_FLAG_UNCACHED :
 						 TTM_PL_MASK_CACHING) |
 			 (nvbo->pin_refcnt ? TTM_PL_FLAG_NO_EVICT : 0);
 
 	pl->placement = nvbo->placements;
-	set_placement_list(nvbo->placements, &pl->num_placement,
+	set_placement_list(drm, nvbo->placements, &pl->num_placement,
 			   domain, flags);
 
 	pl->busy_placement = nvbo->busy_placements;
-	set_placement_list(nvbo->busy_placements, &pl->num_busy_placement,
+	set_placement_list(drm, nvbo->busy_placements, &pl->num_busy_placement,
 			   domain | busy, flags);
 
 	set_placement_range(nvbo, domain);
