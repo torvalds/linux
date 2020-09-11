@@ -485,7 +485,8 @@ int nested_svm_vmrun(struct vcpu_svm *svm)
 				    vmcb12->control.intercepts[INTERCEPT_CR] >> 16,
 				    vmcb12->control.intercepts[INTERCEPT_EXCEPTION],
 				    vmcb12->control.intercepts[INTERCEPT_WORD3],
-				    vmcb12->control.intercepts[INTERCEPT_WORD4]);
+				    vmcb12->control.intercepts[INTERCEPT_WORD4],
+				    vmcb12->control.intercepts[INTERCEPT_WORD5]);
 
 	/* Clear internal status */
 	kvm_clear_exception_queue(&svm->vcpu);
