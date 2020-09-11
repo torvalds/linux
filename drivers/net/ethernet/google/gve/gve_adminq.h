@@ -205,6 +205,11 @@ enum gve_stat_names {
 	TX_LAST_COMPLETION_PROCESSED	= 5,
 	RX_NEXT_EXPECTED_SEQUENCE	= 6,
 	RX_BUFFERS_POSTED		= 7,
+	// stats from NIC
+	RX_QUEUE_DROP_CNT		= 65,
+	RX_NO_BUFFERS_POSTED		= 66,
+	RX_DROPS_PACKET_OVER_MRU	= 67,
+	RX_DROPS_INVALID_CHECKSUM	= 68,
 };
 
 union gve_adminq_command {

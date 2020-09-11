@@ -43,6 +43,8 @@ static const char gve_gstrings_main_stats[][ETH_GSTRING_LEN] = {
 static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
 	"rx_posted_desc[%u]", "rx_completed_desc[%u]", "rx_bytes[%u]",
 	"rx_dropped_pkt[%u]", "rx_copybreak_pkt[%u]", "rx_copied_pkt[%u]",
+	"rx_queue_drop_cnt[%u]", "rx_no_buffers_posted[%u]",
+	"rx_drops_packet_over_mru[%u]", "rx_drops_invalid_checksum[%u]",
 };
 
 static const char gve_gstrings_tx_stats[][ETH_GSTRING_LEN] = {
@@ -138,14 +140,30 @@ gve_get_ethtool_stats(struct net_device *netdev,
 		tmp_rx_desc_err_dropped_pkt, tmp_tx_pkts, tmp_tx_bytes;
 	u64 rx_buf_alloc_fail, rx_desc_err_dropped_pkt, rx_pkts,
 		rx_skb_alloc_fail, rx_bytes, tx_pkts, tx_bytes;
+	int stats_idx, base_stats_idx, max_stats_idx;
+	struct stats *report_stats;
+	int *rx_qid_to_stats_idx;
+	int *tx_qid_to_stats_idx;
 	struct gve_priv *priv;
+	bool skip_nic_stats;
 	unsigned int start;
 	int ring;
-	int i;
+	int i, j;
 
 	ASSERT_RTNL();
 
 	priv = netdev_priv(netdev);
+	report_stats = priv->stats_report->stats;
+	rx_qid_to_stats_idx = kmalloc_array(priv->rx_cfg.num_queues,
+					    sizeof(int), GFP_KERNEL);
+	if (!rx_qid_to_stats_idx)
+		return;
+	tx_qid_to_stats_idx = kmalloc_array(priv->tx_cfg.num_queues,
+					    sizeof(int), GFP_KERNEL);
+	if (!tx_qid_to_stats_idx) {
+		kfree(rx_qid_to_stats_idx);
+		return;
+	}
 	for (rx_pkts = 0, rx_bytes = 0, rx_skb_alloc_fail = 0,
 	     rx_buf_alloc_fail = 0, rx_desc_err_dropped_pkt = 0, ring = 0;
 	     ring < priv->rx_cfg.num_queues; ring++) {
@@ -208,6 +226,25 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = priv->stats_report_trigger_cnt;
 	i = GVE_MAIN_STATS_LEN;
 
+	/* For rx cross-reporting stats, start from nic rx stats in report */
+	base_stats_idx = GVE_TX_STATS_REPORT_NUM * priv->tx_cfg.num_queues +
+		GVE_RX_STATS_REPORT_NUM * priv->rx_cfg.num_queues;
+	max_stats_idx = NIC_RX_STATS_REPORT_NUM * priv->rx_cfg.num_queues +
+		base_stats_idx;
+	/* Preprocess the stats report for rx, map queue id to start index */
+	skip_nic_stats = false;
+	for (stats_idx = base_stats_idx; stats_idx < max_stats_idx;
+		stats_idx += NIC_RX_STATS_REPORT_NUM) {
+		u32 stat_name = be32_to_cpu(report_stats[stats_idx].stat_name);
+		u32 queue_id = be32_to_cpu(report_stats[stats_idx].queue_id);
+
+		if (stat_name == 0) {
+			/* no stats written by NIC yet */
+			skip_nic_stats = true;
+			break;
+		}
+		rx_qid_to_stats_idx[queue_id] = stats_idx;
+	}
 	/* walk RX rings */
 	if (priv->rx) {
 		for (ring = 0; ring < priv->rx_cfg.num_queues; ring++) {
@@ -232,9 +269,40 @@ gve_get_ethtool_stats(struct net_device *netdev,
 				tmp_rx_desc_err_dropped_pkt;
 			data[i++] = rx->rx_copybreak_pkt;
 			data[i++] = rx->rx_copied_pkt;
+			/* stats from NIC */
+			if (skip_nic_stats) {
+				/* skip NIC rx stats */
+				i += NIC_RX_STATS_REPORT_NUM;
+				continue;
+			}
+			for (j = 0; j < NIC_RX_STATS_REPORT_NUM; j++) {
+				u64 value =
+				be64_to_cpu(report_stats[rx_qid_to_stats_idx[ring] + j].value);
+
+				data[i++] = value;
+			}
 		}
 	} else {
 		i += priv->rx_cfg.num_queues * NUM_GVE_RX_CNTS;
+	}
+
+	/* For tx cross-reporting stats, start from nic tx stats in report */
+	base_stats_idx = max_stats_idx;
+	max_stats_idx = NIC_TX_STATS_REPORT_NUM * priv->tx_cfg.num_queues +
+		max_stats_idx;
+	/* Preprocess the stats report for tx, map queue id to start index */
+	skip_nic_stats = false;
+	for (stats_idx = base_stats_idx; stats_idx < max_stats_idx;
+		stats_idx += NIC_TX_STATS_REPORT_NUM) {
+		u32 stat_name = be32_to_cpu(report_stats[stats_idx].stat_name);
+		u32 queue_id = be32_to_cpu(report_stats[stats_idx].queue_id);
+
+		if (stat_name == 0) {
+			/* no stats written by NIC yet */
+			skip_nic_stats = true;
+			break;
+		}
+		tx_qid_to_stats_idx[queue_id] = stats_idx;
 	}
 	/* walk TX rings */
 	if (priv->tx) {
@@ -254,10 +322,24 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			data[i++] = tx->stop_queue;
 			data[i++] = be32_to_cpu(gve_tx_load_event_counter(priv,
 									  tx));
+			/* stats from NIC */
+			if (skip_nic_stats) {
+				/* skip NIC tx stats */
+				i += NIC_TX_STATS_REPORT_NUM;
+				continue;
+			}
+			for (j = 0; j < NIC_TX_STATS_REPORT_NUM; j++) {
+				u64 value =
+				be64_to_cpu(report_stats[tx_qid_to_stats_idx[ring] + j].value);
+				data[i++] = value;
+			}
 		}
 	} else {
 		i += priv->tx_cfg.num_queues * NUM_GVE_TX_CNTS;
 	}
+
+	kfree(rx_qid_to_stats_idx);
+	kfree(tx_qid_to_stats_idx);
 	/* AQ Stats */
 	data[i++] = priv->adminq_prod_cnt;
 	data[i++] = priv->adminq_cmd_fail;

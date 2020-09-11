@@ -34,6 +34,10 @@
 /* Interval to schedule a stats report update, 20000ms. */
 #define GVE_STATS_REPORT_TIMER_PERIOD	20000
 
+/* Numbers of NIC tx/rx stats in stats report. */
+#define NIC_TX_STATS_REPORT_NUM	0
+#define NIC_RX_STATS_REPORT_NUM	4
+
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */

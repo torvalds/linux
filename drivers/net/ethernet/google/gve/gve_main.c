@@ -112,9 +112,9 @@ static int gve_alloc_stats_report(struct gve_priv *priv)
 {
 	int tx_stats_num, rx_stats_num;
 
-	tx_stats_num = (GVE_TX_STATS_REPORT_NUM) *
+	tx_stats_num = (GVE_TX_STATS_REPORT_NUM + NIC_TX_STATS_REPORT_NUM) *
 		       priv->tx_cfg.num_queues;
-	rx_stats_num = (GVE_RX_STATS_REPORT_NUM) *
+	rx_stats_num = (GVE_RX_STATS_REPORT_NUM + NIC_RX_STATS_REPORT_NUM) *
 		       priv->rx_cfg.num_queues;
 	priv->stats_report_len = sizeof(struct gve_stats_report) +
 				 (tx_stats_num + rx_stats_num) *
