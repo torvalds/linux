@@ -930,7 +930,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 		priv->dev->max_mtu = PAGE_SIZE;
 		err = gve_adminq_set_mtu(priv, priv->dev->mtu);
 		if (err) {
-			netif_err(priv, drv, priv->dev, "Could not set mtu");
+			dev_err(&priv->pdev->dev, "Could not set mtu");
 			goto err;
 		}
 	}
@@ -970,10 +970,10 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 						priv->rx_cfg.num_queues);
 	}
 
-	netif_info(priv, drv, priv->dev, "TX queues %d, RX queues %d\n",
-		   priv->tx_cfg.num_queues, priv->rx_cfg.num_queues);
-	netif_info(priv, drv, priv->dev, "Max TX queues %d, Max RX queues %d\n",
-		   priv->tx_cfg.max_queues, priv->rx_cfg.max_queues);
+	dev_info(&priv->pdev->dev, "TX queues %d, RX queues %d\n",
+		 priv->tx_cfg.num_queues, priv->rx_cfg.num_queues);
+	dev_info(&priv->pdev->dev, "Max TX queues %d, Max RX queues %d\n",
+		 priv->tx_cfg.max_queues, priv->rx_cfg.max_queues);
 
 setup_device:
 	err = gve_setup_device_resources(priv);

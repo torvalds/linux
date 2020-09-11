@@ -334,8 +334,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 
 	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
 	if (priv->tx_desc_cnt * sizeof(priv->tx->desc[0]) < PAGE_SIZE) {
-		netif_err(priv, drv, priv->dev, "Tx desc count %d too low\n",
-			  priv->tx_desc_cnt);
+		dev_err(&priv->pdev->dev, "Tx desc count %d too low\n", priv->tx_desc_cnt);
 		err = -EINVAL;
 		goto free_device_descriptor;
 	}
@@ -344,8 +343,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	    < PAGE_SIZE ||
 	    priv->rx_desc_cnt * sizeof(priv->rx->data.data_ring[0])
 	    < PAGE_SIZE) {
-		netif_err(priv, drv, priv->dev, "Rx desc count %d too low\n",
-			  priv->rx_desc_cnt);
+		dev_err(&priv->pdev->dev, "Rx desc count %d too low\n", priv->rx_desc_cnt);
 		err = -EINVAL;
 		goto free_device_descriptor;
 	}
@@ -353,8 +351,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 				be64_to_cpu(descriptor->max_registered_pages);
 	mtu = be16_to_cpu(descriptor->mtu);
 	if (mtu < ETH_MIN_MTU) {
-		netif_err(priv, drv, priv->dev, "MTU %d below minimum MTU\n",
-			  mtu);
+		dev_err(&priv->pdev->dev, "MTU %d below minimum MTU\n", mtu);
 		err = -EINVAL;
 		goto free_device_descriptor;
 	}
@@ -362,12 +359,12 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	priv->num_event_counters = be16_to_cpu(descriptor->counters);
 	ether_addr_copy(priv->dev->dev_addr, descriptor->mac);
 	mac = descriptor->mac;
-	netif_info(priv, drv, priv->dev, "MAC addr: %pM\n", mac);
+	dev_info(&priv->pdev->dev, "MAC addr: %pM\n", mac);
 	priv->tx_pages_per_qpl = be16_to_cpu(descriptor->tx_pages_per_qpl);
 	priv->rx_pages_per_qpl = be16_to_cpu(descriptor->rx_pages_per_qpl);
 	if (priv->rx_pages_per_qpl < priv->rx_desc_cnt) {
-		netif_err(priv, drv, priv->dev, "rx_pages_per_qpl cannot be smaller than rx_desc_cnt, setting rx_desc_cnt down to %d.\n",
-			  priv->rx_pages_per_qpl);
+		dev_err(&priv->pdev->dev, "rx_pages_per_qpl cannot be smaller than rx_desc_cnt, setting rx_desc_cnt down to %d.\n",
+			priv->rx_pages_per_qpl);
 		priv->rx_desc_cnt = priv->rx_pages_per_qpl;
 	}
 	priv->default_num_queues = be16_to_cpu(descriptor->default_num_queues);
