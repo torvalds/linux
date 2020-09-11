@@ -120,6 +120,7 @@ enum ibmvfc_mad_types {
 	IBMVFC_PORT_LOGIN		= 0x0004,
 	IBMVFC_PROCESS_LOGIN	= 0x0008,
 	IBMVFC_QUERY_TARGET	= 0x0010,
+	IBMVFC_MOVE_LOGIN		= 0x0020,
 	IBMVFC_IMPLICIT_LOGOUT	= 0x0040,
 	IBMVFC_PASSTHRU		= 0x0200,
 	IBMVFC_TMF_MAD		= 0x0100,
@@ -197,6 +198,7 @@ struct ibmvfc_service_parms {
 	__be32 ext_len;
 	__be32 reserved[30];
 	__be32 clk_sync_qos[2];
+	__be32 reserved2;
 } __packed __aligned(4);
 
 struct ibmvfc_npiv_login_resp {
@@ -230,15 +232,18 @@ union ibmvfc_npiv_login_data {
 	struct ibmvfc_npiv_login_resp resp;
 } __packed __aligned(8);
 
-struct ibmvfc_discover_targets_buf {
-	__be32 scsi_id[1];
+struct ibmvfc_discover_targets_entry {
+	__be32 scsi_id;
+	__be32 pad;
+	__be64 wwpn;
 #define IBMVFC_DISC_TGT_SCSI_ID_MASK	0x00ffffff
-};
+} __packed __aligned(8);
 
 struct ibmvfc_discover_targets {
 	struct ibmvfc_mad_common common;
 	struct srp_direct_buf buffer;
 	__be32 flags;
+#define IBMVFC_DISC_TGT_PORT_ID_WWPN_LIST	0x02
 	__be16 status;
 	__be16 error;
 	__be32 bufflen;
@@ -289,6 +294,26 @@ struct ibmvfc_port_login {
 	struct ibmvfc_service_parms service_parms;
 	struct ibmvfc_service_parms service_parms_change;
 	__be64 reserved3[2];
+} __packed __aligned(8);
+
+struct ibmvfc_move_login {
+	struct ibmvfc_mad_common common;
+	__be64 old_scsi_id;
+	__be64 new_scsi_id;
+	__be64 wwpn;
+	__be64 node_name;
+	__be32 flags;
+#define IBMVFC_MOVE_LOGIN_IMPLICIT_OLD_FAILED	0x01
+#define IBMVFC_MOVE_LOGIN_IMPLICIT_NEW_FAILED	0x02
+#define IBMVFC_MOVE_LOGIN_PORT_LOGIN_FAILED	0x04
+	__be32 reserved;
+	struct ibmvfc_service_parms service_parms;
+	struct ibmvfc_service_parms service_parms_change;
+	__be32 reserved2;
+	__be16 service_class;
+	__be16 vios_flags;
+#define IBMVFC_MOVE_LOGIN_VF_NOT_SENT_ADAPTER	0x01
+	__be64 reserved3;
 } __packed __aligned(8);
 
 struct ibmvfc_prli_svc_parms {
@@ -646,6 +671,7 @@ union ibmvfc_iu {
 	struct ibmvfc_discover_targets discover_targets;
 	struct ibmvfc_port_login plogi;
 	struct ibmvfc_process_login prli;
+	struct ibmvfc_move_login move_login;
 	struct ibmvfc_query_tgt query_tgt;
 	struct ibmvfc_implicit_logout implicit_logout;
 	struct ibmvfc_tmf tmf;
@@ -664,12 +690,16 @@ enum ibmvfc_target_action {
 	IBMVFC_TGT_ACTION_LOGOUT_RPORT_WAIT,
 	IBMVFC_TGT_ACTION_DEL_RPORT,
 	IBMVFC_TGT_ACTION_DELETED_RPORT,
+	IBMVFC_TGT_ACTION_DEL_AND_LOGOUT_RPORT,
+	IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT,
 };
 
 struct ibmvfc_target {
 	struct list_head queue;
 	struct ibmvfc_host *vhost;
 	u64 scsi_id;
+	u64 wwpn;
+	u64 old_scsi_id;
 	struct fc_rport *rport;
 	int target_id;
 	enum ibmvfc_target_action action;
@@ -765,7 +795,7 @@ struct ibmvfc_host {
 	dma_addr_t login_buf_dma;
 	int disc_buf_sz;
 	int log_level;
-	struct ibmvfc_discover_targets_buf *disc_buf;
+	struct ibmvfc_discover_targets_entry *disc_buf;
 	struct mutex passthru_mutex;
 	int task_set;
 	int init_retries;
