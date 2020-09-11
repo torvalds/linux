@@ -14,6 +14,8 @@ enum intercept_words {
 	INTERCEPT_CR = 0,
 	INTERCEPT_DR,
 	INTERCEPT_EXCEPTION,
+	INTERCEPT_WORD3,
+	INTERCEPT_WORD4,
 	MAX_INTERCEPT,
 };
 
@@ -46,10 +48,8 @@ enum {
 	INTERCEPT_DR7_WRITE,
 	/* Byte offset 008h (word 2) */
 	INTERCEPT_EXCEPTION_OFFSET = 64,
-};
-
-enum {
-	INTERCEPT_INTR,
+	/* Byte offset 00Ch (word 3) */
+	INTERCEPT_INTR = 96,
 	INTERCEPT_NMI,
 	INTERCEPT_SMI,
 	INTERCEPT_INIT,
@@ -81,7 +81,8 @@ enum {
 	INTERCEPT_TASK_SWITCH,
 	INTERCEPT_FERR_FREEZE,
 	INTERCEPT_SHUTDOWN,
-	INTERCEPT_VMRUN,
+	/* Byte offset 010h (word 4) */
+	INTERCEPT_VMRUN = 128,
 	INTERCEPT_VMMCALL,
 	INTERCEPT_VMLOAD,
 	INTERCEPT_VMSAVE,
@@ -101,8 +102,7 @@ enum {
 
 struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 intercepts[MAX_INTERCEPT];
-	u64 intercept;
-	u8 reserved_1[40];
+	u32 reserved_1[15 - MAX_INTERCEPT];
 	u16 pause_filter_thresh;
 	u16 pause_filter_count;
 	u64 iopm_base_pa;
