@@ -775,7 +775,6 @@
 
 		bus_dmc_opp_table: opp_table1 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-50000000 {
 				opp-hz = /bits/ 64 <50000000>;
@@ -865,7 +864,6 @@
 
 		bus_leftbus_opp_table: opp_table2 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-50000000 {
 				opp-hz = /bits/ 64 <50000000>;
@@ -891,7 +889,6 @@
 
 		bus_mcuisp_opp_table: opp_table3 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-50000000 {
 				opp-hz = /bits/ 64 <50000000>;
@@ -912,7 +909,6 @@
 
 		bus_isp_opp_table: opp_table4 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-50000000 {
 				opp-hz = /bits/ 64 <50000000>;
@@ -933,7 +929,6 @@
 
 		bus_peril_opp_table: opp_table5 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-50000000 {
 				opp-hz = /bits/ 64 <50000000>;
