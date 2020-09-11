@@ -427,8 +427,8 @@ config VIDEO_RENESAS_FCP
 	help
 	  This is a driver for the Renesas Frame Compression Processor (FCP).
 	  The FCP is a companion module of video processing modules in the
-	  Renesas R-Car Gen3 SoCs. It handles memory access for the codec,
-	  VSP and FDP modules.
+	  Renesas R-Car Gen3 and RZ/G2 SoCs. It handles memory access for
+	  the codec, VSP and FDP modules.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called rcar-fcp.
