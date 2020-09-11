@@ -10,7 +10,6 @@
 #include <linux/device.h>
 #include <linux/dma-noncoherent.h>
 #include <linux/gfp.h>
-#include <linux/dma-debug.h>
 #include <linux/export.h>
 #include <linux/bug.h>
 #include <asm/cacheflush.h>

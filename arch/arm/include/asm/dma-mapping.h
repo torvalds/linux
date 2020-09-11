@@ -6,7 +6,6 @@
 
 #include <linux/mm_types.h>
 #include <linux/scatterlist.h>
-#include <linux/dma-debug.h>
 
 #include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
