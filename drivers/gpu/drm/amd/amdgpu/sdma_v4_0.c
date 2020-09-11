@@ -1063,6 +1063,15 @@ static void sdma_v4_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
 			WREG32_SDMA(i, mmSDMA0_PHASE2_QUANTUM, phase_quantum);
 		}
 		WREG32_SDMA(i, mmSDMA0_CNTL, f32_cntl);
+
+		/*
+		 * Enable SDMA utilization. Its only supported on
+		 * Arcturus for the moment and firmware version 14
+		 * and above.
+		 */
+		if (adev->asic_type == CHIP_ARCTURUS &&
+		    adev->sdma.instance[i].fw_version >= 14)
+			WREG32_SDMA(i, mmSDMA0_PUB_DUMMY_REG2, enable);
 	}
 
 }
