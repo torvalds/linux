@@ -46,8 +46,13 @@ acpi_status acpi_hw_gpe_read(u64 *value, struct acpi_gpe_address *reg)
 	u32 value32;
 
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
+#ifdef ACPI_GPE_USE_LOGICAL_ADDRESSES
+		*value = (u64)ACPI_GET8(reg->address);
+		return_ACPI_STATUS(AE_OK);
+#else
 		return acpi_os_read_memory((acpi_physical_address)reg->address,
 					    value, ACPI_GPE_REGISTER_WIDTH);
+#endif
 	}
 
 	status = acpi_os_read_port((acpi_io_address)reg->address,
@@ -76,8 +81,13 @@ acpi_status acpi_hw_gpe_read(u64 *value, struct acpi_gpe_address *reg)
 acpi_status acpi_hw_gpe_write(u64 value, struct acpi_gpe_address *reg)
 {
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
+#ifdef ACPI_GPE_USE_LOGICAL_ADDRESSES
+		ACPI_SET8(reg->address, value);
+		return_ACPI_STATUS(AE_OK);
+#else
 		return acpi_os_write_memory((acpi_physical_address)reg->address,
 					    value, ACPI_GPE_REGISTER_WIDTH);
+#endif
 	}
 
 	return acpi_os_write_port((acpi_io_address)reg->address, (u32)value,
