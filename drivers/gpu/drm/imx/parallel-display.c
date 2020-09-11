@@ -28,7 +28,6 @@ struct imx_parallel_display {
 	struct drm_bridge bridge;
 	struct device *dev;
 	void *edid;
-	int edid_len;
 	u32 bus_format;
 	u32 bus_flags;
 	struct drm_display_mode mode;
@@ -305,6 +304,7 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	struct device_node *np = dev->of_node;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
+	int edid_len;
 	int ret;
 	u32 bus_format = 0;
 	const char *fmt;
@@ -318,10 +318,9 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	if (ret && ret != -ENODEV)
 		return ret;
 
-	edidp = of_get_property(np, "edid", &imxpd->edid_len);
+	edidp = of_get_property(np, "edid", &edid_len);
 	if (edidp)
-		imxpd->edid = devm_kmemdup(dev, edidp, imxpd->edid_len,
-					   GFP_KERNEL);
+		imxpd->edid = devm_kmemdup(dev, edidp, edid_len, GFP_KERNEL);
 
 	ret = of_property_read_string(np, "interface-pix-fmt", &fmt);
 	if (!ret) {
