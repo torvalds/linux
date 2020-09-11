@@ -66,11 +66,6 @@ static inline struct cma *dev_get_cma_area(struct device *dev)
 	return dma_contiguous_default_area;
 }
 
-static inline void dma_contiguous_set_default(struct cma *cma)
-{
-	dma_contiguous_default_area = cma;
-}
-
 void dma_contiguous_reserve(phys_addr_t addr_limit);
 
 int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
@@ -90,8 +85,6 @@ static inline struct cma *dev_get_cma_area(struct device *dev)
 {
 	return NULL;
 }
-
-static inline void dma_contiguous_set_default(struct cma *cma) { }
 
 static inline void dma_contiguous_reserve(phys_addr_t limit) { }
 

@@ -407,7 +407,7 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 	dma_contiguous_early_fixup(rmem->base, rmem->size);
 
 	if (default_cma)
-		dma_contiguous_set_default(cma);
+		dma_contiguous_default_area = cma;
 
 	rmem->ops = &rmem_cma_ops;
 	rmem->priv = cma;
