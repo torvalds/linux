@@ -2175,9 +2175,8 @@ static inline void efx_ef10_push_tx_desc(struct efx_tx_queue *tx_queue,
 
 /* Add Firmware-Assisted TSO v2 option descriptors to a queue.
  */
-static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
-				struct sk_buff *skb,
-				bool *data_mapped)
+int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+			 bool *data_mapped)
 {
 	struct efx_tx_buffer *buffer;
 	struct tcphdr *tcp;
@@ -2266,7 +2265,6 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ef10_nic_data *nic_data;
-	bool tso_v2 = false;
 	efx_qword_t *txd;
 	int rc;
 
@@ -2289,15 +2287,18 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	 * TSOv2 cannot be used with Hardware timestamping, and is never needed
 	 * for XDP tx.
 	 */
-	if ((csum_offload || inner_csum) && (nic_data->datapath_caps2 &
-			(1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN)) &&
-	    !tx_queue->timestamping && !tx_queue->xdp_tx) {
-		tso_v2 = true;
-		netif_dbg(efx, hw, efx->net_dev, "Using TSOv2 for channel %u\n",
-				channel->channel);
+	if (efx_has_cap(efx, TX_TSO_V2)) {
+		if ((csum_offload || inner_csum) &&
+		    !tx_queue->timestamping && !tx_queue->xdp_tx) {
+			tx_queue->tso_version = 2;
+			netif_dbg(efx, hw, efx->net_dev, "Using TSOv2 for channel %u\n",
+				  channel->channel);
+		}
+	} else if (efx_has_cap(efx, TX_TSO)) {
+		tx_queue->tso_version = 1;
 	}
 
-	rc = efx_mcdi_tx_init(tx_queue, tso_v2);
+	rc = efx_mcdi_tx_init(tx_queue);
 	if (rc)
 		goto fail;
 
@@ -2315,19 +2316,11 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 			     ESF_DZ_TX_OPTION_TYPE,
 			     ESE_DZ_TX_OPTION_DESC_CRC_CSUM,
 			     ESF_DZ_TX_OPTION_UDP_TCP_CSUM, csum_offload,
-			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload && !tso_v2,
+			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload && tx_queue->tso_version != 2,
 			     ESF_DZ_TX_OPTION_INNER_UDP_TCP_CSUM, inner_csum,
-			     ESF_DZ_TX_OPTION_INNER_IP_CSUM, inner_csum && !tso_v2,
+			     ESF_DZ_TX_OPTION_INNER_IP_CSUM, inner_csum && tx_queue->tso_version != 2,
 			     ESF_DZ_TX_TIMESTAMP, tx_queue->timestamping);
 	tx_queue->write_count = 1;
-
-	if (tso_v2) {
-		tx_queue->handle_tso = efx_ef10_tx_tso_desc;
-		tx_queue->tso_version = 2;
-	} else if (nic_data->datapath_caps &
-			(1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN)) {
-		tx_queue->tso_version = 1;
-	}
 
 	wmb();
 	efx_ef10_push_tx_desc(tx_queue, txd);

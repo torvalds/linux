@@ -415,6 +415,8 @@ void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 			     FFE_BZ_TX_PACE_OFF :
 			     FFE_BZ_TX_PACE_RESERVED);
 	efx_writeo_table(efx, &reg, FR_BZ_TX_PACE_TBL, tx_queue->queue);
+
+	tx_queue->tso_version = 1;
 }
 
 static void efx_farch_flush_tx_queue(struct efx_tx_queue *tx_queue)

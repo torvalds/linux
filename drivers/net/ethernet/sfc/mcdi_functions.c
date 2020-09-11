@@ -160,7 +160,7 @@ fail:
 			       outbuf, outlen, rc);
 }
 
-int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2)
+int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
 						       EFX_BUF_SIZE));
@@ -195,6 +195,8 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2)
 	inlen = MC_CMD_INIT_TXQ_IN_LEN(entries);
 
 	do {
+		bool tso_v2 = tx_queue->tso_version == 2;
+
 		/* TSOv2 implies IP header checksum offload for TSO frames,
 		 * so we can safely disable IP header checksum offload for
 		 * everything else.  If we don't have TSOv2, then we have to
@@ -217,7 +219,7 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2)
 					NULL, 0, NULL);
 		if (rc == -ENOSPC && tso_v2) {
 			/* Retry without TSOv2 if we're short on contexts. */
-			tso_v2 = false;
+			tx_queue->tso_version = 0;
 			netif_warn(efx, probe, efx->net_dev,
 				   "TSOv2 context not available to segment in "
 				   "hardware. TCP performance may be reduced.\n"
