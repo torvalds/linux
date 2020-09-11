@@ -117,6 +117,7 @@
 enum incfs_metadata_type {
 	INCFS_MD_NONE = 0,
 	INCFS_MD_BLOCK_MAP = 1,
+	INCFS_MD_FILE_ATTR = 2,
 	INCFS_MD_SIGNATURE = 3
 };
 
@@ -135,8 +136,17 @@ struct incfs_md_header {
 	 */
 	__le16 h_record_size;
 
+	/*
+	 * Was: CRC32 of the metadata record.
+	 * (e.g. inode, dir entry etc) not just this struct.
+	 */
+	__le32 h_unused1;
+
 	/* Offset of the next metadata entry if any */
 	__le64 h_next_md_offset;
+
+	/* Was: Offset of the previous metadata entry if any */
+	__le64 h_unused2;
 
 } __packed;
 

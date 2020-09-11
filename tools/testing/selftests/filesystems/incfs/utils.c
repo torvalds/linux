@@ -314,7 +314,7 @@ int wait_for_pending_reads2(int fd, int timeout_ms,
 	return read_res / sizeof(*prs);
 }
 
-char *concat_file_name(const char *dir, char *file)
+char *concat_file_name(const char *dir, const char *file)
 {
 	char full_name[FILENAME_MAX] = "";
 
