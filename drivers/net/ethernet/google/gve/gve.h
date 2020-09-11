@@ -232,6 +232,7 @@ struct gve_priv {
 	u32 adminq_dcfg_device_resources_cnt;
 	u32 adminq_set_driver_parameter_cnt;
 	u32 adminq_report_stats_cnt;
+	u32 adminq_report_link_speed_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */
@@ -254,6 +255,8 @@ struct gve_priv {
 	unsigned long stats_report_timer_period;
 	struct timer_list stats_report_timer;
 
+	/* Gvnic device link speed from hypervisor. */
+	u64 link_speed;
 };
 
 enum gve_service_task_flags_bit {

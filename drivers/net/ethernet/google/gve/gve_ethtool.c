@@ -59,7 +59,7 @@ static const char gve_gstrings_adminq_stats[][ETH_GSTRING_LEN] = {
 	"adminq_create_tx_queue_cnt", "adminq_create_rx_queue_cnt",
 	"adminq_destroy_tx_queue_cnt", "adminq_destroy_rx_queue_cnt",
 	"adminq_dcfg_device_resources_cnt", "adminq_set_driver_parameter_cnt",
-	"adminq_report_stats_cnt",
+	"adminq_report_stats_cnt", "adminq_report_link_speed_cnt"
 };
 
 static const char gve_gstrings_priv_flags[][ETH_GSTRING_LEN] = {
@@ -355,6 +355,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = priv->adminq_dcfg_device_resources_cnt;
 	data[i++] = priv->adminq_set_driver_parameter_cnt;
 	data[i++] = priv->adminq_report_stats_cnt;
+	data[i++] = priv->adminq_report_link_speed_cnt;
 }
 
 static void gve_get_channels(struct net_device *netdev,
@@ -505,6 +506,16 @@ static int gve_set_priv_flags(struct net_device *netdev, u32 flags)
 	return 0;
 }
 
+static int gve_get_link_ksettings(struct net_device *netdev,
+				  struct ethtool_link_ksettings *cmd)
+{
+	struct gve_priv *priv = netdev_priv(netdev);
+	int err = gve_adminq_report_link_speed(priv);
+
+	cmd->base.speed = priv->link_speed;
+	return err;
+}
+
 const struct ethtool_ops gve_ethtool_ops = {
 	.get_drvinfo = gve_get_drvinfo,
 	.get_strings = gve_get_strings,
@@ -521,4 +532,5 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.set_tunable = gve_set_tunable,
 	.get_priv_flags = gve_get_priv_flags,
 	.set_priv_flags = gve_set_priv_flags,
+	.get_link_ksettings = gve_get_link_ksettings
 };
