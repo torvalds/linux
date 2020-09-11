@@ -1957,7 +1957,7 @@ static unsigned int virtio_mem_features[] = {
 #endif
 };
 
-static struct virtio_device_id virtio_mem_id_table[] = {
+static const struct virtio_device_id virtio_mem_id_table[] = {
 	{ VIRTIO_ID_MEM, VIRTIO_DEV_ANY_ID },
 	{ 0 },
 };
