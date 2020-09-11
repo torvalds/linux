@@ -1056,6 +1056,8 @@ static void ag71xx_mac_validate(struct phylink_config *config,
 
 	phylink_set(mask, MII);
 
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
 	phylink_set(mask, Autoneg);
 	phylink_set(mask, 10baseT_Half);
 	phylink_set(mask, 10baseT_Full);
@@ -1106,7 +1108,7 @@ static void ag71xx_mac_link_up(struct phylink_config *config,
 			       bool tx_pause, bool rx_pause)
 {
 	struct ag71xx *ag = netdev_priv(to_net_dev(config->dev));
-	u32 cfg2;
+	u32 cfg1, cfg2;
 	u32 ifctl;
 	u32 fifo5;
 
@@ -1139,6 +1141,15 @@ static void ag71xx_mac_link_up(struct phylink_config *config,
 	ag71xx_wr(ag, AG71XX_REG_MAC_CFG2, cfg2);
 	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG5, fifo5);
 	ag71xx_wr(ag, AG71XX_REG_MAC_IFCTL, ifctl);
+
+	cfg1 = ag71xx_rr(ag, AG71XX_REG_MAC_CFG1);
+	cfg1 &= ~(MAC_CFG1_TFC | MAC_CFG1_RFC);
+	if (tx_pause)
+		cfg1 |= MAC_CFG1_TFC;
+
+	if (rx_pause)
+		cfg1 |= MAC_CFG1_RFC;
+	ag71xx_wr(ag, AG71XX_REG_MAC_CFG1, cfg1);
 
 	ag71xx_hw_start(ag);
 }
