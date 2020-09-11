@@ -18,16 +18,13 @@ enum mxc_cpu_pwr_mode;
 struct of_device_id;
 
 void mx21_map_io(void);
-void mx27_map_io(void);
 void mx31_map_io(void);
 void mx35_map_io(void);
 void imx21_init_early(void);
-void imx27_init_early(void);
 void imx31_init_early(void);
 void imx35_init_early(void);
 void mxc_init_irq(void __iomem *);
 void mx21_init_irq(void);
-void mx27_init_irq(void);
 void mx31_init_irq(void);
 void mx35_init_irq(void);
 void imx21_soc_init(void);
