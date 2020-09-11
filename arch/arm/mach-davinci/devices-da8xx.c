@@ -905,7 +905,7 @@ void __init da8xx_rproc_reserve_cma(void)
 			__func__, ret);
 		return;
 	}
-	dev_set_cma_area(&da8xx_dsp.dev, cma);
+	da8xx_dsp.dev.cma_area = cma;
 	rproc_mem_inited = true;
 }
 #else

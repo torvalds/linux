@@ -359,14 +359,14 @@ void dma_free_contiguous(struct device *dev, struct page *page, size_t size)
 
 static int rmem_cma_device_init(struct reserved_mem *rmem, struct device *dev)
 {
-	dev_set_cma_area(dev, rmem->priv);
+	dev->cma_area = rmem->priv;
 	return 0;
 }
 
 static void rmem_cma_device_release(struct reserved_mem *rmem,
 				    struct device *dev)
 {
-	dev_set_cma_area(dev, NULL);
+	dev->cma_area = NULL;
 }
 
 static const struct reserved_mem_ops rmem_cma_ops = {
