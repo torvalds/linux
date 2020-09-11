@@ -258,7 +258,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 				       PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(pdev, buf->dma_addr))) {
 		err = -ENOMEM;
-		goto err_out;
+		goto err_free;
 	}
 
 	buf->priv_rx = priv_rx;
@@ -266,7 +266,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 	BUILD_BUG_ON(MLX5E_KTLS_GET_PROGRESS_WQEBBS != 1);
 	if (unlikely(!mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, 1))) {
 		err = -ENOSPC;
-		goto err_out;
+		goto err_dma_unmap;
 	}
 
 	pi = mlx5e_icosq_get_next_pi(sq, 1);
@@ -297,6 +297,10 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 
 	return cseg;
 
+err_dma_unmap:
+	dma_unmap_single(pdev, buf->dma_addr, PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
+err_free:
+	kfree(buf);
 err_out:
 	priv_rx->stats->tls_resync_req_skip++;
 	return ERR_PTR(err);
