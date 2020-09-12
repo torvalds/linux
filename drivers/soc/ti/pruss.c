@@ -17,6 +17,14 @@
 #include <linux/pm_runtime.h>
 #include <linux/pruss_driver.h>
 
+/**
+ * struct pruss_private_data - PRUSS driver private data
+ * @has_no_sharedram: flag to indicate the absence of PRUSS Shared Data RAM
+ */
+struct pruss_private_data {
+	bool has_no_sharedram;
+};
+
 static int pruss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -25,7 +33,14 @@ static int pruss_probe(struct platform_device *pdev)
 	struct pruss *pruss;
 	struct resource res;
 	int ret, i, index;
+	const struct pruss_private_data *data;
 	const char *mem_names[PRUSS_MEM_MAX] = { "dram0", "dram1", "shrdram2" };
+
+	data = of_device_get_match_data(&pdev->dev);
+	if (IS_ERR(data)) {
+		dev_err(dev, "missing private data\n");
+		return -ENODEV;
+	}
 
 	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret) {
@@ -45,7 +60,14 @@ static int pruss_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(mem_names); i++) {
+	for (i = 0; i < PRUSS_MEM_MAX; i++) {
+		/*
+		 * On AM437x one of two PRUSS units don't contain Shared RAM,
+		 * skip it
+		 */
+		if (data && data->has_no_sharedram && i == PRUSS_MEM_SHRD_RAM2)
+			continue;
+
 		index = of_property_match_string(child, "reg-names",
 						 mem_names[i]);
 		if (index < 0) {
@@ -126,8 +148,19 @@ static int pruss_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* instance-specific driver private data */
+static const struct pruss_private_data am437x_pruss1_data = {
+	.has_no_sharedram = false,
+};
+
+static const struct pruss_private_data am437x_pruss0_data = {
+	.has_no_sharedram = true,
+};
+
 static const struct of_device_id pruss_of_match[] = {
 	{ .compatible = "ti,am3356-pruss" },
+	{ .compatible = "ti,am4376-pruss0", .data = &am437x_pruss0_data, },
+	{ .compatible = "ti,am4376-pruss1", .data = &am437x_pruss1_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, pruss_of_match);
