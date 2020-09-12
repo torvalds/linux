@@ -398,6 +398,8 @@ void msm_dp_display_mode_set(struct msm_dp *dp, struct drm_encoder *encoder,
 				struct drm_display_mode *adjusted_mode);
 void msm_dp_irq_postinstall(struct msm_dp *dp_display);
 
+void msm_dp_debugfs_init(struct msm_dp *dp_display, struct drm_minor *minor);
+
 #else
 static inline int __init msm_dp_register(void)
 {

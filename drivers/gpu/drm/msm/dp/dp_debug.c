@@ -7,6 +7,7 @@
 
 #include <linux/debugfs.h>
 #include <drm/drm_connector.h>
+#include <drm/drm_file.h>
 
 #include "dp_parser.h"
 #include "dp_catalog.h"
@@ -15,7 +16,7 @@
 #include "dp_debug.h"
 #include "dp_display.h"
 
-#define DEBUG_NAME "drm_dp"
+#define DEBUG_NAME "msm_dp"
 
 struct dp_debug_private {
 	struct dentry *root;
@@ -25,6 +26,7 @@ struct dp_debug_private {
 	struct dp_panel *panel;
 	struct drm_connector **connector;
 	struct device *dev;
+	struct drm_device *drm_dev;
 
 	struct dp_debug dp_debug;
 };
@@ -206,41 +208,29 @@ static const struct file_operations dp_debug_fops = {
 	.read = dp_debug_read_info,
 };
 
-static int dp_debug_init(struct dp_debug *dp_debug)
+static int dp_debug_init(struct dp_debug *dp_debug, struct drm_minor *minor)
 {
 	int rc = 0;
 	struct dp_debug_private *debug = container_of(dp_debug,
 			struct dp_debug_private, dp_debug);
-	struct dentry *dir, *file;
+	struct dentry *file;
 
-	dir = debugfs_create_dir(DEBUG_NAME, NULL);
-	if (IS_ERR_OR_NULL(dir)) {
-		rc = PTR_ERR(dir);
-		DRM_ERROR("[%s] debugfs create dir failed, rc = %d\n",
-				  DEBUG_NAME, rc);
-		goto error;
-	}
-
-	file = debugfs_create_file("dp_debug", 0444, dir,
+	file = debugfs_create_file("dp_debug", 0444, minor->debugfs_root,
 			debug, &dp_debug_fops);
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		DRM_ERROR("[%s] debugfs create file failed, rc=%d\n",
 				  DEBUG_NAME, rc);
-		goto error_remove_dir;
 	}
 
-	debug->root = dir;
-	return rc;
- error_remove_dir:
-	debugfs_remove(dir);
- error:
+	debug->root = minor->debugfs_root;
+
 	return rc;
 }
 
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 		struct dp_usbpd *usbpd, struct dp_link *link,
-		struct drm_connector **connector)
+		struct drm_connector **connector, struct drm_minor *minor)
 {
 	int rc = 0;
 	struct dp_debug_private *debug;
@@ -263,6 +253,7 @@ struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 	debug->link = link;
 	debug->panel = panel;
 	debug->dev = dev;
+	debug->drm_dev = minor->dev;
 	debug->connector = connector;
 
 	dp_debug = &debug->dp_debug;
@@ -270,7 +261,7 @@ struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 	dp_debug->hdisplay = 0;
 	dp_debug->vrefresh = 0;
 
-	rc = dp_debug_init(dp_debug);
+	rc = dp_debug_init(dp_debug, minor);
 	if (rc) {
 		devm_kfree(dev, debug);
 		goto error;

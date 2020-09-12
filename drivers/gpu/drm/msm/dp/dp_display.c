@@ -229,10 +229,8 @@ static int dp_display_bind(struct device *dev, struct device *master,
 	}
 
 	rc = dp_register_audio_driver(dev, dp->audio);
-	if (rc) {
+	if (rc)
 		DRM_ERROR("Audio registration Dp failed\n");
-		goto end;
-	}
 
 end:
 	return rc;
@@ -773,19 +771,8 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		goto error_audio;
 	}
 
-	dp->debug = dp_debug_get(dev, dp->panel, dp->usbpd,
-			dp->link, &dp->dp_display.connector);
-	if (IS_ERR(dp->debug)) {
-		rc = PTR_ERR(dp->debug);
-		DRM_ERROR("failed to initialize debug, rc = %d\n", rc);
-		dp->debug = NULL;
-		goto error_debug;
-	}
-
 	return rc;
 
-error_debug:
-	dp_audio_put(dp->audio);
 error_audio:
 	dp_ctrl_put(dp->ctrl);
 error_ctrl:
@@ -1297,6 +1284,25 @@ void msm_dp_irq_postinstall(struct msm_dp *dp_display)
 	dp_hpd_event_setup(dp);
 
 	dp_add_event(dp, EV_HPD_INIT_SETUP, 0, 100);
+}
+
+void msm_dp_debugfs_init(struct msm_dp *dp_display, struct drm_minor *minor)
+{
+	struct dp_display_private *dp;
+	struct device *dev;
+	int rc;
+
+	dp = container_of(dp_display, struct dp_display_private, dp_display);
+	dev = &dp->pdev->dev;
+
+	dp->debug = dp_debug_get(dev, dp->panel, dp->usbpd,
+					dp->link, &dp->dp_display.connector,
+					minor);
+	if (IS_ERR(dp->debug)) {
+		rc = PTR_ERR(dp->debug);
+		DRM_ERROR("failed to initialize debug, rc = %d\n", rc);
+		dp->debug = NULL;
+	}
 }
 
 int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
