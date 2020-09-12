@@ -1756,9 +1756,19 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define SYSCALL_RET(_regs)	(_regs).gprs[2]
 # define SYSCALL_NUM_RET_SHARE_REG
 #elif defined(__mips__)
+# include <asm/unistd_nr_n32.h>
+# include <asm/unistd_nr_n64.h>
+# include <asm/unistd_nr_o32.h>
 # define ARCH_REGS		struct pt_regs
-# define SYSCALL_NUM(_regs)	(_regs).regs[2]
-# define SYSCALL_SYSCALL_NUM	regs[4]
+# define SYSCALL_NUM(_regs)				\
+	({						\
+		typeof((_regs).regs[2]) _nr;		\
+		if ((_regs).regs[2] == __NR_O32_Linux)	\
+			_nr = (_regs).regs[4];		\
+		else					\
+			_nr = (_regs).regs[2];		\
+		_nr;					\
+	})
 # define SYSCALL_NUM_SET(_regs, _nr)			\
 	do {						\
 		if ((_regs).regs[2] == __NR_O32_Linux)	\
@@ -1838,10 +1848,6 @@ int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 	}
 #endif
 
-#if defined(__mips__)
-	if (SYSCALL_NUM(regs) == __NR_O32_Linux)
-		return regs.SYSCALL_SYSCALL_NUM;
-#endif
 	return SYSCALL_NUM(regs);
 }
 
