@@ -202,8 +202,7 @@ static void x25_asy_bump(struct x25_asy *sl)
 		return;
 	}
 	skb_put_data(skb, sl->rbuff, count);
-	skb->protocol = x25_type_trans(skb, sl->dev);
-	err = lapb_data_received(skb->dev, skb);
+	err = lapb_data_received(sl->dev, skb);
 	if (err != LAPB_OK) {
 		kfree_skb(skb);
 		printk(KERN_DEBUG "x25_asy: data received err - %d\n", err);
