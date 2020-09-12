@@ -1765,6 +1765,7 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 			(_regs).ccr &= ~0x10000000;		\
 		}						\
 	} while (0)
+# define SYSCALL_RET_SET_ON_PTRACE_EXIT
 #elif defined(__s390__)
 # define ARCH_REGS		s390_regs
 # define SYSCALL_NUM(_regs)	(_regs).gprs[2]
@@ -1851,6 +1852,18 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 			EXPECT_EQ(val, action);		\
 		}					\
 	} while (0)
+#endif
+
+/*
+ * Some architectures (e.g. powerpc) can only set syscall
+ * return values on syscall exit during ptrace.
+ */
+const bool ptrace_entry_set_syscall_nr = true;
+const bool ptrace_entry_set_syscall_ret =
+#ifndef SYSCALL_RET_SET_ON_PTRACE_EXIT
+	true;
+#else
+	false;
 #endif
 
 /*
@@ -2006,11 +2019,15 @@ void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 	 */
 	if (entry)
 		self->syscall_nr = get_syscall(_metadata, tracee);
-	else
-		return;
 
-	syscall_nr = &syscall_nr_val;
-	syscall_ret = &syscall_ret_val;
+	/*
+	 * Depending on the architecture's syscall setting abilities, we
+	 * pick which things to set during this phase (entry or exit).
+	 */
+	if (entry == ptrace_entry_set_syscall_nr)
+		syscall_nr = &syscall_nr_val;
+	if (entry == ptrace_entry_set_syscall_ret)
+		syscall_ret = &syscall_ret_val;
 
 	/* Now handle the actual rewriting cases. */
 	switch (self->syscall_nr) {
