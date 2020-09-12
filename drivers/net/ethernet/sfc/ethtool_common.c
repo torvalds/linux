@@ -407,7 +407,7 @@ static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
 				snprintf(strings, ETH_GSTRING_LEN,
 					 "tx-%u.tx_packets",
 					 channel->tx_queue[0].queue /
-					 EFX_TXQ_TYPES);
+					 EFX_MAX_TXQ_PER_CHANNEL);
 
 				strings += ETH_GSTRING_LEN;
 			}

@@ -11,6 +11,7 @@
 #include "net_driver.h"
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <net/gre.h>
 #include "efx_common.h"
 #include "efx_channels.h"
 #include "efx.h"
@@ -1286,6 +1287,89 @@ const struct pci_error_handlers efx_err_handlers = {
 	.slot_reset	= efx_io_slot_reset,
 	.resume		= efx_io_resume,
 };
+
+/* Determine whether the NIC will be able to handle TX offloads for a given
+ * encapsulated packet.
+ */
+static bool efx_can_encap_offloads(struct efx_nic *efx, struct sk_buff *skb)
+{
+	struct gre_base_hdr *greh;
+	__be16 dst_port;
+	u8 ipproto;
+
+	/* Does the NIC support encap offloads?
+	 * If not, we should never get here, because we shouldn't have
+	 * advertised encap offload feature flags in the first place.
+	 */
+	if (WARN_ON_ONCE(!efx->type->udp_tnl_has_port))
+		return false;
+
+	/* Determine encapsulation protocol in use */
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		ipproto = ip_hdr(skb)->protocol;
+		break;
+	case htons(ETH_P_IPV6):
+		/* If there are extension headers, this will cause us to
+		 * think we can't offload something that we maybe could have.
+		 */
+		ipproto = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		/* Not IP, so can't offload it */
+		return false;
+	}
+	switch (ipproto) {
+	case IPPROTO_GRE:
+		/* We support NVGRE but not IP over GRE or random gretaps.
+		 * Specifically, the NIC will accept GRE as encapsulated if
+		 * the inner protocol is Ethernet, but only handle it
+		 * correctly if the GRE header is 8 bytes long.  Moreover,
+		 * it will not update the Checksum or Sequence Number fields
+		 * if they are present.  (The Routing Present flag,
+		 * GRE_ROUTING, cannot be set else the header would be more
+		 * than 8 bytes long; so we don't have to worry about it.)
+		 */
+		if (skb->inner_protocol_type != ENCAP_TYPE_ETHER)
+			return false;
+		if (ntohs(skb->inner_protocol) != ETH_P_TEB)
+			return false;
+		if (skb_inner_mac_header(skb) - skb_transport_header(skb) != 8)
+			return false;
+		greh = (struct gre_base_hdr *)skb_transport_header(skb);
+		return !(greh->flags & (GRE_CSUM | GRE_SEQ));
+	case IPPROTO_UDP:
+		/* If the port is registered for a UDP tunnel, we assume the
+		 * packet is for that tunnel, and the NIC will handle it as
+		 * such.  If not, the NIC won't know what to do with it.
+		 */
+		dst_port = udp_hdr(skb)->dest;
+		return efx->type->udp_tnl_has_port(efx, dst_port);
+	default:
+		return false;
+	}
+}
+
+netdev_features_t efx_features_check(struct sk_buff *skb, struct net_device *dev,
+				     netdev_features_t features)
+{
+	struct efx_nic *efx = netdev_priv(dev);
+
+	if (skb->encapsulation) {
+		if (features & NETIF_F_GSO_MASK)
+			/* Hardware can only do TSO with at most 208 bytes
+			 * of headers.
+			 */
+			if (skb_inner_transport_offset(skb) >
+			    EFX_TSO2_MAX_HDRLEN)
+				features &= ~(NETIF_F_GSO_MASK);
+		if (features & (NETIF_F_GSO_MASK | NETIF_F_CSUM_MASK))
+			if (!efx_can_encap_offloads(efx, skb))
+				features &= ~(NETIF_F_GSO_MASK |
+					      NETIF_F_CSUM_MASK);
+	}
+	return features;
+}
 
 int efx_get_phys_port_id(struct net_device *net_dev,
 			 struct netdev_phys_item_id *ppid)
