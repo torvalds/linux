@@ -545,6 +545,13 @@ static int dp_connect_pending_timeout(struct dp_display_private *dp, u32 data)
 	return 0;
 }
 
+static void dp_display_handle_plugged_change(struct msm_dp *dp_display,
+		bool plugged)
+{
+	if (dp_display->plugged_cb && dp_display->codec_dev)
+		dp_display->plugged_cb(dp_display->codec_dev, plugged);
+}
+
 static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 {
 	struct dp_usbpd *hpd = dp->usbpd;
@@ -589,6 +596,9 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 
 	/* start sanity checking */
 	dp_add_event(dp, EV_DISCONNECT_PENDING_TIMEOUT, 0, DP_TIMEOUT_5_SECOND);
+
+	/* signal the disconnect event early to ensure proper teardown */
+	dp_display_handle_plugged_change(g_dp_display, false);
 
 	dp_catalog_hpd_config_intr(dp->catalog, DP_DP_HPD_PLUG_INT_MASK |
 					DP_DP_IRQ_HPD_INT_MASK, true);
@@ -778,13 +788,6 @@ static int dp_display_set_mode(struct msm_dp *dp_display,
 static int dp_display_prepare(struct msm_dp *dp)
 {
 	return 0;
-}
-
-static void dp_display_handle_plugged_change(struct msm_dp *dp_display,
-		bool plugged)
-{
-	if (dp_display->plugged_cb && dp_display->codec_dev)
-		dp_display->plugged_cb(dp_display->codec_dev, plugged);
 }
 
 static int dp_display_enable(struct dp_display_private *dp, u32 data)
@@ -1370,8 +1373,6 @@ int msm_dp_display_pre_disable(struct msm_dp *dp, struct drm_encoder *encoder)
 	dp_display = container_of(dp, struct dp_display_private, dp_display);
 
 	dp_ctrl_push_idle(dp_display->ctrl);
-
-	dp_display_handle_plugged_change(dp, false);
 
 	return 0;
 }
