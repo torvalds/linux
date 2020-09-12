@@ -90,15 +90,9 @@ static u32 vidtv_pes_write_pts_dts(struct pes_header_write_args args)
 	if (!args.send_pts && args.send_dts)
 		return 0;
 
-	#ifdef __BIG_ENDIAN
-	mask1 = GENMASK(30, 32);
-	mask2 = GENMASK(15, 29);
-	mask3 = GENMASK(0, 14);
-	#else
-	mask1 = GENMASK(32, 30);
-	mask2 = GENMASK(29, 15);
-	mask3 = GENMASK(14, 0);
-	#endif
+	mask1 = GENMASK_ULL(32, 30);
+	mask2 = GENMASK_ULL(29, 15);
+	mask3 = GENMASK_ULL(14, 0);
 
 	/* see ISO/IEC 13818-1 : 2000 p. 32 */
 	if (args.send_pts && args.send_dts) {

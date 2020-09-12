@@ -422,7 +422,7 @@ static void vidtv_s302m_write_frames(struct vidtv_encoder *e)
 		au->nbytes = nbytes_per_unit;
 
 		if (au_sz + sizeof(struct vidtv_smpte_s302m_es) != nbytes_per_unit) {
-			pr_warn_ratelimited("write size was %d, expected %lu\n",
+			pr_warn_ratelimited("write size was %u, expected %zu\n",
 					    nbytes_per_unit,
 					    au_sz + sizeof(struct vidtv_smpte_s302m_es));
 		}

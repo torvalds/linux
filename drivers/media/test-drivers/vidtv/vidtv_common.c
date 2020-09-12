@@ -42,7 +42,7 @@ u32 vidtv_memcpy(void *to,
 		 size_t len)
 {
 	if (unlikely(to_offset + len > to_size)) {
-		pr_err_ratelimited("overflow detected, skipping. Try increasing the buffer size. Needed %lu, had %zu\n",
+		pr_err_ratelimited("overflow detected, skipping. Try increasing the buffer size. Needed %zu, had %zu\n",
 				   to_offset + len,
 				   to_size);
 		return 0;
@@ -78,7 +78,7 @@ u32 vidtv_memset(void *to,
 		 size_t len)
 {
 	if (unlikely(to_offset + len > to_size)) {
-		pr_err_ratelimited("overflow detected, skipping. Try increasing the buffer size. Needed %lu, had %zu\n",
+		pr_err_ratelimited("overflow detected, skipping. Try increasing the buffer size. Needed %zu, had %zu\n",
 				   to_offset + len,
 				   to_size);
 		return 0;
