@@ -94,7 +94,7 @@ static int sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf,
 		tmp = buf;
 	}
 	ret = sram_buf_write(wdev, addr, tmp, len);
-	if (!virt_addr_valid(buf))
+	if (tmp != buf)
 		kfree(tmp);
 	return ret;
 }
