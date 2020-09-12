@@ -1753,8 +1753,8 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 #elif defined(__s390__)
 # define ARCH_REGS		s390_regs
 # define SYSCALL_NUM(_regs)	(_regs).gprs[2]
-# define SYSCALL_RET(_regs)	(_regs).gprs[2]
-# define SYSCALL_NUM_RET_SHARE_REG
+# define SYSCALL_RET_SET(_regs, _val)			\
+		TH_LOG("Can't modify syscall return on this architecture")
 #elif defined(__mips__)
 # include <asm/unistd_nr_n32.h>
 # include <asm/unistd_nr_n64.h>
@@ -1776,8 +1776,8 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 		else					\
 			(_regs).regs[2] = _nr;		\
 	} while (0)
-# define SYSCALL_RET(_regs)	(_regs).regs[2]
-# define SYSCALL_NUM_RET_SHARE_REG
+# define SYSCALL_RET_SET(_regs, _val)			\
+		TH_LOG("Can't modify syscall return on this architecture")
 #elif defined(__xtensa__)
 # define ARCH_REGS		struct user_pt_regs
 # define SYSCALL_NUM(_regs)	(_regs).syscall
@@ -1804,9 +1804,26 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 		SYSCALL_NUM(_regs) = (_nr);	\
 	} while (0)
 #endif
+/*
+ * Most architectures can change the syscall return value by just
+ * writing to the SYSCALL_RET register. This is the default if not
+ * defined above. If an architecture cannot set the return value
+ * (for example when the syscall and return value register is
+ * shared), report it with TH_LOG() in an arch-specific definition
+ * of SYSCALL_RET_SET() above, and leave SYSCALL_RET undefined.
+ */
+#if !defined(SYSCALL_RET) && !defined(SYSCALL_RET_SET)
+# error "One of SYSCALL_RET or SYSCALL_RET_SET is needed for this arch"
+#endif
+#ifndef SYSCALL_RET_SET
+# define SYSCALL_RET_SET(_regs, _val)		\
+	do {					\
+		SYSCALL_RET(_regs) = (_val);	\
+	} while (0)
+#endif
 
 /* When the syscall return can't be changed, stub out the tests for it. */
-#ifdef SYSCALL_NUM_RET_SHARE_REG
+#ifndef SYSCALL_RET
 # define EXPECT_SYSCALL_RETURN(val, action)	EXPECT_EQ(-1, action)
 #else
 # define EXPECT_SYSCALL_RETURN(val, action)		\
@@ -1870,11 +1887,7 @@ void change_syscall(struct __test_metadata *_metadata,
 
 	/* If syscall is skipped, change return value. */
 	if (syscall == -1)
-#ifdef SYSCALL_NUM_RET_SHARE_REG
-		TH_LOG("Can't modify syscall return on this architecture");
-#else
-		SYSCALL_RET(regs) = result;
-#endif
+		SYSCALL_RET_SET(regs, result);
 
 	/* Flush any register changes made. */
 	if (memcmp(&orig, &regs, sizeof(orig)) != 0)
