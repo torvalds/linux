@@ -345,10 +345,12 @@ static irqreturn_t xrx200_dma_irq(int irq, void *ptr)
 {
 	struct xrx200_chan *ch = ptr;
 
-	ltq_dma_disable_irq(&ch->dma);
-	ltq_dma_ack_irq(&ch->dma);
+	if (napi_schedule_prep(&ch->napi)) {
+		__napi_schedule(&ch->napi);
+		ltq_dma_disable_irq(&ch->dma);
+	}
 
-	napi_schedule(&ch->napi);
+	ltq_dma_ack_irq(&ch->dma);
 
 	return IRQ_HANDLED;
 }
