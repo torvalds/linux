@@ -331,21 +331,21 @@ static int cdns_regmap_dptx_read(void *context, unsigned int reg,
 	.reg_read = cdns_regmap_read, \
 }
 
-static struct regmap_config cdns_torrent_tx_lane_cdb_config[] = {
+static const struct regmap_config cdns_torrent_tx_lane_cdb_config[] = {
 	TORRENT_TX_LANE_CDB_REGMAP_CONF("0"),
 	TORRENT_TX_LANE_CDB_REGMAP_CONF("1"),
 	TORRENT_TX_LANE_CDB_REGMAP_CONF("2"),
 	TORRENT_TX_LANE_CDB_REGMAP_CONF("3"),
 };
 
-static struct regmap_config cdns_torrent_rx_lane_cdb_config[] = {
+static const struct regmap_config cdns_torrent_rx_lane_cdb_config[] = {
 	TORRENT_RX_LANE_CDB_REGMAP_CONF("0"),
 	TORRENT_RX_LANE_CDB_REGMAP_CONF("1"),
 	TORRENT_RX_LANE_CDB_REGMAP_CONF("2"),
 	TORRENT_RX_LANE_CDB_REGMAP_CONF("3"),
 };
 
-static struct regmap_config cdns_torrent_common_cdb_config = {
+static const struct regmap_config cdns_torrent_common_cdb_config = {
 	.name = "torrent_common_cdb",
 	.reg_stride = 1,
 	.fast_io = true,
@@ -353,7 +353,7 @@ static struct regmap_config cdns_torrent_common_cdb_config = {
 	.reg_read = cdns_regmap_read,
 };
 
-static struct regmap_config cdns_torrent_phy_pcs_cmn_cdb_config = {
+static const struct regmap_config cdns_torrent_phy_pcs_cmn_cdb_config = {
 	.name = "torrent_phy_pcs_cmn_cdb",
 	.reg_stride = 1,
 	.fast_io = true,
@@ -361,7 +361,7 @@ static struct regmap_config cdns_torrent_phy_pcs_cmn_cdb_config = {
 	.reg_read = cdns_regmap_read,
 };
 
-static struct regmap_config cdns_torrent_phy_pma_cmn_cdb_config = {
+static const struct regmap_config cdns_torrent_phy_pma_cmn_cdb_config = {
 	.name = "torrent_phy_pma_cmn_cdb",
 	.reg_stride = 1,
 	.fast_io = true,
@@ -369,7 +369,7 @@ static struct regmap_config cdns_torrent_phy_pma_cmn_cdb_config = {
 	.reg_read = cdns_regmap_read,
 };
 
-static struct regmap_config cdns_torrent_dptx_phy_config = {
+static const struct regmap_config cdns_torrent_dptx_phy_config = {
 	.name = "torrent_dptx_phy",
 	.reg_stride = 1,
 	.fast_io = true,
