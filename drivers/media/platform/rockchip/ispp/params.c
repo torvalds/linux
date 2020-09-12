@@ -192,6 +192,7 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 		      struct rkispp_nr_config *arg)
 {
 	u32 i, val;
+	u8 big_en, nobig_en;
 
 	rkispp_write(params_vdev->dev, RKISPP_NR_UVNR_GAIN_1SIGMA,
 		arg->uvnr_gain_1sigma);
@@ -311,6 +312,20 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 	val = ISPP_PACK_2SHORT(arg->ynr_st_scale[0], arg->ynr_st_scale[1]);
 	rkispp_write(params_vdev->dev, RKISPP_NR_YNR_ST_SCALE_LV1_LV2, val);
 	rkispp_write(params_vdev->dev, RKISPP_NR_YNR_ST_SCALE_LV3, arg->ynr_st_scale[2]);
+
+	big_en = arg->uvnr_big_en & 0x01;
+	nobig_en = arg->uvnr_nobig_en & 0x01;
+	if (get_input_size(params_vdev) > ISPP_NOBIG_OVERFLOW_SIZE) {
+		big_en = 1;
+		nobig_en = 0;
+	}
+
+	val = arg->uvnr_step1_en << 1 | arg->uvnr_step2_en << 2 |
+	      arg->nr_gain_en << 3 | nobig_en << 5 | big_en << 6;
+	rkispp_set_bits(params_vdev->dev, RKISPP_NR_UVNR_CTRL_PARA,
+			SW_UVNR_STEP1_ON | SW_UVNR_STEP2_ON |
+			SW_NR_GAIN_BYPASS | SW_UVNR_NOBIG_EN |
+			SW_UVNR_BIG_EN, val);
 }
 
 static void nr_enable(struct rkispp_params_vdev *params_vdev, bool en,
@@ -464,6 +479,12 @@ static void shp_config(struct rkispp_params_vdev *params_vdev,
 
 	val = ISPP_PACK_4BYTE(arg->m_ratio, arg->h_ratio, 0, 0);
 	rkispp_write(params_vdev->dev, RKISPP_SHARP_GRAD_RATIO, val);
+
+	val = arg->alpha_adp_en << 1 | arg->yin_flt_en << 3 |
+	      arg->edge_avg_en << 4;
+	rkispp_set_bits(params_vdev->dev, RKISPP_SHARP_CORE_CTRL,
+			SW_SHP_ALPHA_ADP_EN | SW_SHP_YIN_FLT_EN |
+			SW_SHP_EDGE_AVG_EN, val);
 }
 
 static void shp_enable(struct rkispp_params_vdev *params_vdev, bool en,
