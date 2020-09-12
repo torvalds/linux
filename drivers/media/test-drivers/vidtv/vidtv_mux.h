@@ -100,6 +100,8 @@ struct vidtv_mux_pid_ctx {
  * @priv: Private data.
  */
 struct vidtv_mux {
+	struct device *dev;
+
 	struct vidtv_mux_timing timing;
 
 	u32 mux_rate_kbytes_sec;
@@ -151,7 +153,8 @@ struct vidtv_mux_init_args {
 	void *priv;
 };
 
-struct vidtv_mux *vidtv_mux_init(struct vidtv_mux_init_args args);
+struct vidtv_mux *vidtv_mux_init(struct device *dev,
+				 struct vidtv_mux_init_args args);
 void vidtv_mux_destroy(struct vidtv_mux *m);
 
 void vidtv_mux_start_thread(struct vidtv_mux *m);

@@ -9,12 +9,10 @@
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
-
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include <linux/printk.h>
+#include <linux/dev_printk.h>
 #include <linux/time.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -146,10 +144,11 @@ vidtv_bridge_on_new_pkts_avail(void *priv, u8 *buf, u32 npkts)
 static int vidtv_start_streaming(struct vidtv_dvb *dvb)
 {
 	struct vidtv_mux_init_args mux_args = {0};
+	struct device *dev = &dvb->pdev->dev;
 	u32 mux_buf_sz;
 
 	if (dvb->streaming) {
-		pr_warn_ratelimited("Already streaming. Skipping.\n");
+		dev_warn_ratelimited(dev, "Already streaming. Skipping.\n");
 		return 0;
 	}
 
@@ -165,21 +164,23 @@ static int vidtv_start_streaming(struct vidtv_dvb *dvb)
 	mux_args.priv                        = dvb;
 
 	dvb->streaming = true;
-	dvb->mux = vidtv_mux_init(mux_args);
+	dvb->mux = vidtv_mux_init(dev, mux_args);
 	vidtv_mux_start_thread(dvb->mux);
 
-	pr_info_ratelimited("Started streaming\n");
+	dev_dbg_ratelimited(dev, "Started streaming\n");
 	return 0;
 }
 
 static int vidtv_stop_streaming(struct vidtv_dvb *dvb)
 {
+	struct device *dev = &dvb->pdev->dev;
+
 	dvb->streaming = false;
 	vidtv_mux_stop_thread(dvb->mux);
 	vidtv_mux_destroy(dvb->mux);
 	dvb->mux = NULL;
 
-	pr_info_ratelimited("Stopped streaming\n");
+	dev_dbg_ratelimited(dev, "Stopped streaming\n");
 	return 0;
 }
 
@@ -438,8 +439,8 @@ fail_i2c:
 
 static int vidtv_bridge_probe(struct platform_device *pdev)
 {
-	int ret;
 	struct vidtv_dvb *dvb;
+	int ret;
 
 	dvb = kzalloc(sizeof(*dvb), GFP_KERNEL);
 	if (!dvb)
@@ -455,7 +456,7 @@ static int vidtv_bridge_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dvb);
 
-	pr_info("Successfully initialized vidtv!\n");
+	dev_info(&pdev->dev, "Successfully initialized vidtv!\n");
 	return ret;
 
 err_dvb:

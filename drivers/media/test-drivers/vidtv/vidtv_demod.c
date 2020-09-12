@@ -76,8 +76,9 @@ static const struct vidtv_demod_cnr_to_qual_s vidtv_demod_t_cnr_2_qual[] = {
 static const struct vidtv_demod_cnr_to_qual_s
 	     *vidtv_match_cnr_s(struct dvb_frontend *fe)
 {
-	struct dtv_frontend_properties *c;
 	const struct vidtv_demod_cnr_to_qual_s *cnr2qual = NULL;
+	struct device *dev = fe->dvb->device;
+	struct dtv_frontend_properties *c;
 	u32 array_size = 0;
 	u32 i;
 
@@ -106,9 +107,10 @@ static const struct vidtv_demod_cnr_to_qual_s
 		break;
 
 	default:
-		pr_warn_ratelimited("%s: unsupported delivery system: %u\n",
-				    __func__,
-				    c->delivery_system);
+		dev_warn_ratelimited(dev,
+				     "%s: unsupported delivery system: %u\n",
+				     __func__,
+				     c->delivery_system);
 		break;
 	}
 

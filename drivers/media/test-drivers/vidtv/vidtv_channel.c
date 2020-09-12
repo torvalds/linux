@@ -18,11 +18,9 @@
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
-
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/printk.h>
+#include <linux/dev_printk.h>
 #include <linux/ratelimit.h>
 
 #include "vidtv_channel.h"
@@ -104,10 +102,10 @@ struct vidtv_channel
 }
 
 static struct vidtv_psi_table_sdt_service
-*vidtv_channel_sdt_serv_cat_into_new(const struct vidtv_channel *channels)
+*vidtv_channel_sdt_serv_cat_into_new(struct vidtv_mux *m)
 {
 	/* Concatenate the services */
-	const struct vidtv_channel *cur_chnl = channels;
+	const struct vidtv_channel *cur_chnl = m->channels;
 
 	struct vidtv_psi_table_sdt_service *curr = NULL;
 	struct vidtv_psi_table_sdt_service *head = NULL;
@@ -123,7 +121,8 @@ static struct vidtv_psi_table_sdt_service
 		curr = cur_chnl->service;
 
 		if (!curr)
-			pr_warn_ratelimited("No services found for channel %s\n", cur_chnl->name);
+			dev_warn_ratelimited(m->dev,
+					     "No services found for channel %s\n", cur_chnl->name);
 
 		while (curr) {
 			service_id = be16_to_cpu(curr->service_id);
@@ -145,10 +144,10 @@ static struct vidtv_psi_table_sdt_service
 }
 
 static struct vidtv_psi_table_pat_program*
-vidtv_channel_pat_prog_cat_into_new(const struct vidtv_channel *channels)
+vidtv_channel_pat_prog_cat_into_new(struct vidtv_mux *m)
 {
 	/* Concatenate the programs */
-	const struct vidtv_channel *cur_chnl = channels;
+	const struct vidtv_channel *cur_chnl = m->channels;
 	struct vidtv_psi_table_pat_program *curr = NULL;
 	struct vidtv_psi_table_pat_program *head = NULL;
 	struct vidtv_psi_table_pat_program *tail = NULL;
@@ -162,7 +161,9 @@ vidtv_channel_pat_prog_cat_into_new(const struct vidtv_channel *channels)
 		curr = cur_chnl->program;
 
 		if (!curr)
-			pr_warn_ratelimited("No programs found for channel %s\n", cur_chnl->name);
+			dev_warn_ratelimited(m->dev,
+					     "No programs found for channel %s\n",
+					     cur_chnl->name);
 
 		while (curr) {
 			serv_id = be16_to_cpu(curr->service_id);
@@ -251,8 +252,8 @@ void vidtv_channel_si_init(struct vidtv_mux *m)
 
 	m->si.sdt = vidtv_psi_sdt_table_init(m->transport_stream_id);
 
-	programs = vidtv_channel_pat_prog_cat_into_new(m->channels);
-	services = vidtv_channel_sdt_serv_cat_into_new(m->channels);
+	programs = vidtv_channel_pat_prog_cat_into_new(m);
+	services = vidtv_channel_sdt_serv_cat_into_new(m);
 
 	/* assemble all programs and assign to PAT */
 	vidtv_psi_pat_program_assign(m->si.pat, programs);

@@ -10,8 +10,6 @@
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
-
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -149,9 +147,10 @@ static s32 vidtv_tuner_check_frequency_shift(struct dvb_frontend *fe)
 		break;
 
 	default:
-		pr_warn("%s: unsupported delivery system: %u\n",
-			__func__,
-			c->delivery_system);
+		dev_warn(fe->dvb->device,
+			 "%s: unsupported delivery system: %u\n",
+			 __func__,
+			 c->delivery_system);
 
 		return -EINVAL;
 	}
@@ -179,6 +178,7 @@ vidtv_tuner_get_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	const struct vidtv_tuner_cnr_to_qual_s *cnr2qual = NULL;
+	struct device *dev = fe->dvb->device;
 	u32 array_size = 0;
 	s32 shift;
 	u32 i;
@@ -208,9 +208,10 @@ vidtv_tuner_get_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		break;
 
 	default:
-		pr_warn_ratelimited("%s: unsupported delivery system: %u\n",
-				    __func__,
-				    c->delivery_system);
+		dev_warn_ratelimited(dev,
+				     "%s: unsupported delivery system: %u\n",
+				     __func__,
+				     c->delivery_system);
 		return -EINVAL;
 	}
 

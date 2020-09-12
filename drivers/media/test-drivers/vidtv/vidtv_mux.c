@@ -12,13 +12,11 @@
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
-
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
-#include <linux/printk.h>
+#include <linux/dev_printk.h>
 #include <linux/ratelimit.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
@@ -147,7 +145,8 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 						m->si.pat);
 
 		if (pmt_pid > TS_LAST_VALID_PID) {
-			pr_warn_ratelimited("PID: %d not found\n", pmt_pid);
+			dev_warn_ratelimited(m->dev,
+					     "PID: %d not found\n", pmt_pid);
 			continue;
 		}
 
@@ -331,7 +330,8 @@ static u32 vidtv_mux_pad_with_nulls(struct vidtv_mux *m, u32 npkts)
 
 	/* sanity check */
 	if (nbytes != npkts * TS_PACKET_LEN)
-		pr_err_ratelimited("%d != %d\n", nbytes, npkts * TS_PACKET_LEN);
+		dev_err_ratelimited(m->dev, "%d != %d\n",
+				    nbytes, npkts * TS_PACKET_LEN);
 
 	return nbytes;
 }
@@ -402,7 +402,7 @@ static void vidtv_mux_tick(struct work_struct *work)
 
 		/* if the buffer is not aligned there is a bug somewhere */
 		if (nbytes % TS_PACKET_LEN)
-			pr_err_ratelimited("Misaligned buffer\n");
+			dev_err_ratelimited(m->dev, "Misaligned buffer\n");
 
 		if (m->on_new_packets_available_cb)
 			m->on_new_packets_available_cb(m->priv,
@@ -418,7 +418,7 @@ static void vidtv_mux_tick(struct work_struct *work)
 void vidtv_mux_start_thread(struct vidtv_mux *m)
 {
 	if (m->streaming) {
-		pr_warn_ratelimited("Already streaming. Skipping.\n");
+		dev_warn_ratelimited(m->dev, "Already streaming. Skipping.\n");
 		return;
 	}
 
@@ -435,10 +435,12 @@ void vidtv_mux_stop_thread(struct vidtv_mux *m)
 	}
 }
 
-struct vidtv_mux *vidtv_mux_init(struct vidtv_mux_init_args args)
+struct vidtv_mux *vidtv_mux_init(struct device *dev,
+				 struct vidtv_mux_init_args args)
 {
 	struct vidtv_mux *m = kzalloc(sizeof(*m), GFP_KERNEL);
 
+	m->dev = dev;
 	m->timing.pcr_period_usecs = args.pcr_period_usecs;
 	m->timing.si_period_usecs  = args.si_period_usecs;
 
