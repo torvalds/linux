@@ -230,8 +230,8 @@ static int xrx200_poll_rx(struct napi_struct *napi, int budget)
 	}
 
 	if (rx < budget) {
-		napi_complete(&ch->napi);
-		ltq_dma_enable_irq(&ch->dma);
+		if (napi_complete_done(&ch->napi, rx))
+			ltq_dma_enable_irq(&ch->dma);
 	}
 
 	return rx;
@@ -272,8 +272,8 @@ static int xrx200_tx_housekeeping(struct napi_struct *napi, int budget)
 		netif_wake_queue(net_dev);
 
 	if (pkts < budget) {
-		napi_complete(&ch->napi);
-		ltq_dma_enable_irq(&ch->dma);
+		if (napi_complete_done(&ch->napi, pkts))
+			ltq_dma_enable_irq(&ch->dma);
 	}
 
 	return pkts;
