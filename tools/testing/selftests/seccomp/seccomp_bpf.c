@@ -1708,6 +1708,11 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 #elif defined(__arm__)
 # define ARCH_REGS		struct pt_regs
 # define SYSCALL_NUM(_regs)	(_regs).ARM_r7
+# ifndef PTRACE_SET_SYSCALL
+#  define PTRACE_SET_SYSCALL   23
+# endif
+# define SYSCALL_NUM_SET(_regs, _nr)	\
+		EXPECT_EQ(0, ptrace(PTRACE_SET_SYSCALL, tracee, NULL, _nr))
 # define SYSCALL_RET(_regs)	(_regs).ARM_r0
 #elif defined(__aarch64__)
 # define ARCH_REGS		struct user_pt_regs
@@ -1847,18 +1852,9 @@ void change_syscall(struct __test_metadata *_metadata,
 #if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
 	defined(__s390__) || defined(__hppa__) || defined(__riscv) || \
 	defined(__xtensa__) || defined(__csky__) || defined(__sh__) || \
-	defined(__mips__)
+	defined(__mips__) || defined(__arm__)
 	{
 		SYSCALL_NUM_SET(regs, syscall);
-	}
-
-#elif defined(__arm__)
-# ifndef PTRACE_SET_SYSCALL
-#  define PTRACE_SET_SYSCALL   23
-# endif
-	{
-		ret = ptrace(PTRACE_SET_SYSCALL, tracee, NULL, syscall);
-		EXPECT_EQ(0, ret);
 	}
 
 #elif defined(__aarch64__)
