@@ -993,15 +993,15 @@ static int sc92031_open(struct net_device *dev)
 	struct sc92031_priv *priv = netdev_priv(dev);
 	struct pci_dev *pdev = priv->pdev;
 
-	priv->rx_ring = pci_alloc_consistent(pdev, RX_BUF_LEN,
-			&priv->rx_ring_dma_addr);
+	priv->rx_ring = dma_alloc_coherent(&pdev->dev, RX_BUF_LEN,
+					   &priv->rx_ring_dma_addr, GFP_KERNEL);
 	if (unlikely(!priv->rx_ring)) {
 		err = -ENOMEM;
 		goto out_alloc_rx_ring;
 	}
 
-	priv->tx_bufs = pci_alloc_consistent(pdev, TX_BUF_TOT_LEN,
-			&priv->tx_bufs_dma_addr);
+	priv->tx_bufs = dma_alloc_coherent(&pdev->dev, TX_BUF_TOT_LEN,
+					   &priv->tx_bufs_dma_addr, GFP_KERNEL);
 	if (unlikely(!priv->tx_bufs)) {
 		err = -ENOMEM;
 		goto out_alloc_tx_bufs;
@@ -1031,11 +1031,11 @@ static int sc92031_open(struct net_device *dev)
 	return 0;
 
 out_request_irq:
-	pci_free_consistent(pdev, TX_BUF_TOT_LEN, priv->tx_bufs,
-			priv->tx_bufs_dma_addr);
+	dma_free_coherent(&pdev->dev, TX_BUF_TOT_LEN, priv->tx_bufs,
+			  priv->tx_bufs_dma_addr);
 out_alloc_tx_bufs:
-	pci_free_consistent(pdev, RX_BUF_LEN, priv->rx_ring,
-			priv->rx_ring_dma_addr);
+	dma_free_coherent(&pdev->dev, RX_BUF_LEN, priv->rx_ring,
+			  priv->rx_ring_dma_addr);
 out_alloc_rx_ring:
 	return err;
 }
@@ -1058,10 +1058,10 @@ static int sc92031_stop(struct net_device *dev)
 	spin_unlock_bh(&priv->lock);
 
 	free_irq(pdev->irq, dev);
-	pci_free_consistent(pdev, TX_BUF_TOT_LEN, priv->tx_bufs,
-			priv->tx_bufs_dma_addr);
-	pci_free_consistent(pdev, RX_BUF_LEN, priv->rx_ring,
-			priv->rx_ring_dma_addr);
+	dma_free_coherent(&pdev->dev, TX_BUF_TOT_LEN, priv->tx_bufs,
+			  priv->tx_bufs_dma_addr);
+	dma_free_coherent(&pdev->dev, RX_BUF_LEN, priv->rx_ring,
+			  priv->rx_ring_dma_addr);
 
 	return 0;
 }
@@ -1407,11 +1407,11 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (unlikely(err < 0))
 		goto out_set_dma_mask;
 
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (unlikely(err < 0))
 		goto out_set_dma_mask;
 
