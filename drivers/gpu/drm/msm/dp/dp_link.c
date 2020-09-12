@@ -1059,8 +1059,8 @@ int dp_link_process_request(struct dp_link *dp_link)
 	}
 
 	if (dp_link_is_video_pattern_requested(link)) {
+		ret = 0;
 		dp_link->sink_request |= DP_TEST_LINK_VIDEO_PATTERN;
-		return -EINVAL;
 	}
 
 	if (dp_link_is_audio_pattern_requested(link)) {

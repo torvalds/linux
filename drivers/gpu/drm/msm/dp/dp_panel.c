@@ -128,46 +128,6 @@ static u32 dp_panel_get_supported_bpp(struct dp_panel *dp_panel,
 	return bpp;
 }
 
-static void dp_panel_set_test_mode(struct dp_panel_private *panel,
-		struct dp_display_mode *mode)
-{
-	struct drm_display_mode *drm_mode = NULL;
-	struct dp_link_test_video *test_info = NULL;
-
-	drm_mode = &mode->drm_mode;
-	test_info = &panel->link->test_video;
-
-	drm_mode->hdisplay = test_info->test_h_width;
-	drm_mode->hsync_start = drm_mode->hdisplay + test_info->test_h_total -
-			(test_info->test_h_start + test_info->test_h_width);
-	drm_mode->hsync_end = drm_mode->hsync_start +
-				test_info->test_hsync_width;
-	drm_mode->htotal = drm_mode->hsync_end + test_info->test_h_start -
-						test_info->test_hsync_width;
-
-	drm_mode->vdisplay = test_info->test_v_height;
-	drm_mode->vsync_start = drm_mode->vdisplay + test_info->test_v_total -
-			(test_info->test_v_start + test_info->test_v_height);
-	drm_mode->vsync_end = drm_mode->vsync_start +
-				test_info->test_vsync_width;
-	drm_mode->vtotal = drm_mode->vsync_end + test_info->test_v_start -
-						test_info->test_vsync_width;
-
-	drm_mode->clock = test_info->test_h_total *
-		test_info->test_v_total * test_info->test_rr_n;
-
-	drm_mode->type = 0x48;
-	drm_mode_set_name(drm_mode);
-
-	if (test_info->test_rr_d == 0)
-		drm_mode->clock /= 1000;
-	else
-		drm_mode->clock /= 1001;
-
-	if (test_info->test_h_width == 640)
-		drm_mode->clock = 25170;
-}
-
 static int dp_panel_update_modes(struct drm_connector *connector,
 	struct edid *edid)
 {
@@ -285,21 +245,13 @@ u32 dp_panel_get_mode_bpp(struct dp_panel *dp_panel,
 int dp_panel_get_modes(struct dp_panel *dp_panel,
 	struct drm_connector *connector, struct dp_display_mode *mode)
 {
-	struct dp_panel_private *panel;
-
 	if (!dp_panel) {
 		DRM_ERROR("invalid input\n");
 		return -EINVAL;
 	}
 
-	panel = container_of(dp_panel, struct dp_panel_private, dp_panel);
-
-	if (dp_panel->video_test) {
-		dp_panel_set_test_mode(panel, mode);
-		return 1;
-	} else if (dp_panel->edid) {
+	if (dp_panel->edid)
 		return dp_panel_update_modes(connector, dp_panel->edid);
-	}
 
 	return 0;
 }
