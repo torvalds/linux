@@ -25,6 +25,7 @@
 #include "dp_display.h"
 #include "dp_drm.h"
 #include "dp_pll.h"
+#include "dp_audio.h"
 
 static struct msm_dp *g_dp_display;
 #define HPD_STRING_SIZE 30
@@ -113,6 +114,8 @@ struct dp_display_private {
 	spinlock_t event_lock;
 
 	struct completion resume_comp;
+
+	struct dp_audio *audio;
 };
 
 static const struct of_device_id dp_dt_match[] = {
@@ -212,6 +215,13 @@ static int dp_display_bind(struct device *dev, struct device *master,
 		DRM_ERROR("Power client create failed\n");
 		goto end;
 	}
+
+	rc = dp_register_audio_driver(dev, dp->audio);
+	if (rc) {
+		DRM_ERROR("Audio registration Dp failed\n");
+		goto end;
+	}
+
 end:
 	return rc;
 }
@@ -384,8 +394,19 @@ static int dp_display_usbpd_disconnect_cb(struct device *dev)
 	int rc = 0;
 	struct dp_display_private *dp;
 
+	if (!dev) {
+		DRM_ERROR("invalid dev\n");
+		rc = -EINVAL;
+		return rc;
+	}
+
 	dp = container_of(g_dp_display,
 			struct dp_display_private, dp_display);
+	if (!dp) {
+		DRM_ERROR("no driver data found\n");
+		rc = -ENODEV;
+		return rc;
+	}
 
 	dp_add_event(dp, EV_USER_NOTIFICATION, false, 0);
 
@@ -620,6 +641,7 @@ static void dp_display_deinit_sub_modules(struct dp_display_private *dp)
 	dp_panel_put(dp->panel);
 	dp_aux_put(dp->aux);
 	dp_pll_put(dp->pll);
+	dp_audio_put(dp->audio);
 }
 
 static int dp_init_sub_modules(struct dp_display_private *dp)
@@ -719,7 +741,18 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		goto error_ctrl;
 	}
 
+	dp->audio = dp_audio_get(dp->pdev, dp->panel, dp->catalog);
+	if (IS_ERR(dp->audio)) {
+		rc = PTR_ERR(dp->audio);
+		pr_err("failed to initialize audio, rc = %d\n", rc);
+		dp->audio = NULL;
+		goto error_audio;
+	}
+
 	return rc;
+
+error_audio:
+	dp_ctrl_put(dp->ctrl);
 error_ctrl:
 	dp_panel_put(dp->panel);
 error_link:
@@ -767,6 +800,18 @@ static int dp_display_enable(struct dp_display_private *dp, u32 data)
 
 static int dp_display_post_enable(struct msm_dp *dp_display)
 {
+	struct dp_display_private *dp;
+	u32 rate;
+
+	dp = container_of(dp_display, struct dp_display_private, dp_display);
+
+	rate = dp->link->link_params.rate;
+
+	if (dp->audio_supported) {
+		dp->audio->bw_code = drm_dp_link_rate_to_bw_code(rate);
+		dp->audio->lane_count = dp->link->link_params.num_lanes;
+	}
+
 	return 0;
 }
 
@@ -1078,6 +1123,9 @@ static int dp_display_probe(struct platform_device *pdev)
 	init_completion(&dp->resume_comp);
 
 	g_dp_display = &dp->dp_display;
+
+	/* Store DP audio handle inside DP display */
+	g_dp_display->dp_audio = dp->audio;
 
 	platform_set_drvdata(pdev, g_dp_display);
 

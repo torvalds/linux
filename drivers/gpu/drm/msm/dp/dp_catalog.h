@@ -42,12 +42,31 @@ enum dp_phy_aux_config_type {
 	PHY_AUX_CFG_MAX,
 };
 
+enum dp_catalog_audio_sdp_type {
+	DP_AUDIO_SDP_STREAM,
+	DP_AUDIO_SDP_TIMESTAMP,
+	DP_AUDIO_SDP_INFOFRAME,
+	DP_AUDIO_SDP_COPYMANAGEMENT,
+	DP_AUDIO_SDP_ISRC,
+	DP_AUDIO_SDP_MAX,
+};
+
+enum dp_catalog_audio_header_type {
+	DP_AUDIO_SDP_HEADER_1,
+	DP_AUDIO_SDP_HEADER_2,
+	DP_AUDIO_SDP_HEADER_3,
+	DP_AUDIO_SDP_HEADER_MAX,
+};
+
 struct dp_catalog {
 	u32 aux_data;
 	u32 total;
 	u32 sync_start;
 	u32 width_blanking;
 	u32 dp_active;
+	enum dp_catalog_audio_sdp_type sdp_type;
+	enum dp_catalog_audio_header_type sdp_header;
+	u32 audio_data;
 };
 
 /* AUX APIs */
@@ -101,5 +120,15 @@ void dp_catalog_panel_tpg_enable(struct dp_catalog *dp_catalog,
 void dp_catalog_panel_tpg_disable(struct dp_catalog *dp_catalog);
 
 struct dp_catalog *dp_catalog_get(struct device *dev, struct dp_io *io);
+
+/* DP Audio APIs */
+void dp_catalog_audio_get_header(struct dp_catalog *catalog);
+void dp_catalog_audio_set_header(struct dp_catalog *catalog);
+void dp_catalog_audio_config_acr(struct dp_catalog *catalog);
+void dp_catalog_audio_enable(struct dp_catalog *catalog);
+void dp_catalog_audio_enable(struct dp_catalog *catalog);
+void dp_catalog_audio_config_sdp(struct dp_catalog *catalog);
+void dp_catalog_audio_init(struct dp_catalog *catalog);
+void dp_catalog_audio_sfe_level(struct dp_catalog *catalog);
 
 #endif /* _DP_CATALOG_H_ */

@@ -14,7 +14,9 @@ struct msm_dp {
 	struct drm_encoder *encoder;
 	bool is_connected;
 	u32 max_pclk_khz;
+
 	u32 max_dp_lanes;
+	struct dp_audio *dp_audio;
 };
 
 int dp_display_validate_mode(struct msm_dp *dp_display, u32 mode_pclk_khz);

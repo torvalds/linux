@@ -90,6 +90,7 @@ aux_lut_value[PHY_AUX_CFG_MAX][DP_AUX_CFG_MAX_VALUE_CNT] = {
 struct dp_catalog_private {
 	struct device *dev;
 	struct dp_io *io;
+	u32 (*audio_map)[DP_AUDIO_SDP_HEADER_MAX];
 	struct dp_catalog dp_catalog;
 	u8 aux_lut_cfg_index[PHY_AUX_CFG_MAX];
 };
@@ -1069,4 +1070,195 @@ struct dp_catalog *dp_catalog_get(struct device *dev, struct dp_io *io)
 	catalog->io = io;
 
 	return &catalog->dp_catalog;
+}
+
+void dp_catalog_audio_get_header(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+	u32 (*sdp_map)[DP_AUDIO_SDP_HEADER_MAX];
+	enum dp_catalog_audio_sdp_type sdp;
+	enum dp_catalog_audio_header_type header;
+
+	if (!dp_catalog)
+		return;
+
+	catalog = container_of(dp_catalog,
+		struct dp_catalog_private, dp_catalog);
+
+	sdp_map = catalog->audio_map;
+	sdp     = dp_catalog->sdp_type;
+	header  = dp_catalog->sdp_header;
+
+	dp_catalog->audio_data = dp_read_link(catalog,
+			sdp_map[sdp][header]);
+}
+
+void dp_catalog_audio_set_header(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+	u32 (*sdp_map)[DP_AUDIO_SDP_HEADER_MAX];
+	enum dp_catalog_audio_sdp_type sdp;
+	enum dp_catalog_audio_header_type header;
+	u32 data;
+
+	if (!dp_catalog)
+		return;
+
+	catalog = container_of(dp_catalog,
+		struct dp_catalog_private, dp_catalog);
+
+	sdp_map = catalog->audio_map;
+	sdp     = dp_catalog->sdp_type;
+	header  = dp_catalog->sdp_header;
+	data    = dp_catalog->audio_data;
+
+	dp_write_link(catalog, sdp_map[sdp][header], data);
+}
+
+void dp_catalog_audio_config_acr(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+	u32 acr_ctrl, select;
+
+	if (!dp_catalog)
+		return;
+
+	catalog = container_of(dp_catalog,
+		struct dp_catalog_private, dp_catalog);
+
+	select = dp_catalog->audio_data;
+	acr_ctrl = select << 4 | BIT(31) | BIT(8) | BIT(14);
+
+	DRM_DEBUG_DP("select = 0x%x, acr_ctrl = 0x%x\n", select, acr_ctrl);
+
+	dp_write_link(catalog, MMSS_DP_AUDIO_ACR_CTRL, acr_ctrl);
+}
+
+void dp_catalog_audio_enable(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+	bool enable;
+	u32 audio_ctrl;
+
+	if (!dp_catalog)
+		return;
+
+	catalog = container_of(dp_catalog,
+		struct dp_catalog_private, dp_catalog);
+
+	enable = !!dp_catalog->audio_data;
+	audio_ctrl = dp_read_link(catalog, MMSS_DP_AUDIO_CFG);
+
+	if (enable)
+		audio_ctrl |= BIT(0);
+	else
+		audio_ctrl &= ~BIT(0);
+
+	DRM_DEBUG_DP("dp_audio_cfg = 0x%x\n", audio_ctrl);
+
+	dp_write_link(catalog, MMSS_DP_AUDIO_CFG, audio_ctrl);
+	/* make sure audio engine is disabled */
+	wmb();
+}
+
+void dp_catalog_audio_config_sdp(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+	u32 sdp_cfg = 0;
+	u32 sdp_cfg2 = 0;
+
+	if (!dp_catalog)
+		return;
+
+	catalog = container_of(dp_catalog,
+		struct dp_catalog_private, dp_catalog);
+
+	sdp_cfg = dp_read_link(catalog, MMSS_DP_SDP_CFG);
+	/* AUDIO_TIMESTAMP_SDP_EN */
+	sdp_cfg |= BIT(1);
+	/* AUDIO_STREAM_SDP_EN */
+	sdp_cfg |= BIT(2);
+	/* AUDIO_COPY_MANAGEMENT_SDP_EN */
+	sdp_cfg |= BIT(5);
+	/* AUDIO_ISRC_SDP_EN  */
+	sdp_cfg |= BIT(6);
+	/* AUDIO_INFOFRAME_SDP_EN  */
+	sdp_cfg |= BIT(20);
+
+	DRM_DEBUG_DP("sdp_cfg = 0x%x\n", sdp_cfg);
+
+	dp_write_link(catalog, MMSS_DP_SDP_CFG, sdp_cfg);
+
+	sdp_cfg2 = dp_read_link(catalog, MMSS_DP_SDP_CFG2);
+	/* IFRM_REGSRC -> Do not use reg values */
+	sdp_cfg2 &= ~BIT(0);
+	/* AUDIO_STREAM_HB3_REGSRC-> Do not use reg values */
+	sdp_cfg2 &= ~BIT(1);
+
+	DRM_DEBUG_DP("sdp_cfg2 = 0x%x\n", sdp_cfg2);
+
+	dp_write_link(catalog, MMSS_DP_SDP_CFG2, sdp_cfg2);
+}
+
+void dp_catalog_audio_init(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+
+	static u32 sdp_map[][DP_AUDIO_SDP_HEADER_MAX] = {
+		{
+			MMSS_DP_AUDIO_STREAM_0,
+			MMSS_DP_AUDIO_STREAM_1,
+			MMSS_DP_AUDIO_STREAM_1,
+		},
+		{
+			MMSS_DP_AUDIO_TIMESTAMP_0,
+			MMSS_DP_AUDIO_TIMESTAMP_1,
+			MMSS_DP_AUDIO_TIMESTAMP_1,
+		},
+		{
+			MMSS_DP_AUDIO_INFOFRAME_0,
+			MMSS_DP_AUDIO_INFOFRAME_1,
+			MMSS_DP_AUDIO_INFOFRAME_1,
+		},
+		{
+			MMSS_DP_AUDIO_COPYMANAGEMENT_0,
+			MMSS_DP_AUDIO_COPYMANAGEMENT_1,
+			MMSS_DP_AUDIO_COPYMANAGEMENT_1,
+		},
+		{
+			MMSS_DP_AUDIO_ISRC_0,
+			MMSS_DP_AUDIO_ISRC_1,
+			MMSS_DP_AUDIO_ISRC_1,
+		},
+	};
+
+	if (!dp_catalog)
+		return;
+
+	catalog = container_of(dp_catalog,
+		struct dp_catalog_private, dp_catalog);
+
+	catalog->audio_map = sdp_map;
+}
+
+void dp_catalog_audio_sfe_level(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+	u32 mainlink_levels, safe_to_exit_level;
+
+	if (!dp_catalog)
+		return;
+
+	catalog = container_of(dp_catalog,
+		struct dp_catalog_private, dp_catalog);
+
+	safe_to_exit_level = dp_catalog->audio_data;
+	mainlink_levels = dp_read_link(catalog, REG_DP_MAINLINK_LEVELS);
+	mainlink_levels &= 0xFE0;
+	mainlink_levels |= safe_to_exit_level;
+
+	DRM_DEBUG_DP("mainlink_level = 0x%x, safe_to_exit_level = 0x%x\n",
+			 mainlink_levels, safe_to_exit_level);
+
+	dp_write_link(catalog, REG_DP_MAINLINK_LEVELS, mainlink_levels);
 }
