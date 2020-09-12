@@ -47,17 +47,25 @@ static unsigned int mock_tune_delay_msec;
 module_param(mock_tune_delay_msec, uint, 0);
 MODULE_PARM_DESC(mock_tune_delay_msec, "Simulate a tune delay");
 
-static unsigned int vidtv_valid_dvb_t_freqs[NUM_VALID_TUNER_FREQS];
+static unsigned int vidtv_valid_dvb_t_freqs[NUM_VALID_TUNER_FREQS] = {
+	474000000
+};
+
 module_param_array(vidtv_valid_dvb_t_freqs, uint, NULL, 0);
 MODULE_PARM_DESC(vidtv_valid_dvb_t_freqs,
 		 "Valid DVB-T frequencies to simulate");
 
-static unsigned int vidtv_valid_dvb_c_freqs[NUM_VALID_TUNER_FREQS];
+static unsigned int vidtv_valid_dvb_c_freqs[NUM_VALID_TUNER_FREQS] = {
+	474000000
+};
+
 module_param_array(vidtv_valid_dvb_c_freqs, uint, NULL, 0);
 MODULE_PARM_DESC(vidtv_valid_dvb_c_freqs,
 		 "Valid DVB-C frequencies to simulate");
 
-static unsigned int vidtv_valid_dvb_s_freqs[NUM_VALID_TUNER_FREQS];
+static unsigned int vidtv_valid_dvb_s_freqs[NUM_VALID_TUNER_FREQS] = {
+	12551500
+};
 module_param_array(vidtv_valid_dvb_s_freqs, uint, NULL, 0);
 MODULE_PARM_DESC(vidtv_valid_dvb_s_freqs,
 		 "Valid DVB-C frequencies to simulate");
