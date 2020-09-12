@@ -1865,20 +1865,9 @@ void change_syscall(struct __test_metadata *_metadata,
 	iov.iov_len = sizeof(regs);
 	ret = ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov);
 #endif
-	EXPECT_EQ(0, ret) {}
+	EXPECT_EQ(0, ret);
 
-#if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
-	defined(__s390__) || defined(__hppa__) || defined(__riscv) || \
-	defined(__xtensa__) || defined(__csky__) || defined(__sh__) || \
-	defined(__mips__) || defined(__arm__) || defined(__aarch64__)
-	{
-		SYSCALL_NUM_SET(regs, syscall);
-	}
-#else
-	ASSERT_EQ(1, 0) {
-		TH_LOG("How is the syscall changed on this architecture?");
-	}
-#endif
+	SYSCALL_NUM_SET(regs, syscall);
 
 	/* If syscall is skipped, change return value. */
 	if (syscall == -1)
@@ -1888,6 +1877,7 @@ void change_syscall(struct __test_metadata *_metadata,
 		SYSCALL_RET(regs) = result;
 #endif
 
+	/* Flush any register changes made. */
 #ifdef HAVE_GETREGS
 	ret = ptrace(PTRACE_SETREGS, tracee, 0, &regs);
 #else
