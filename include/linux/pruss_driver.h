@@ -36,13 +36,19 @@ struct pruss_mem_region {
 /**
  * struct pruss - PRUSS parent structure
  * @dev: pruss device pointer
+ * @cfg_base: base iomap for CFG region
  * @cfg_regmap: regmap for config region
  * @mem_regions: data for each of the PRUSS memory regions
+ * @core_clk_mux: clk handle for PRUSS CORE_CLK_MUX
+ * @iep_clk_mux: clk handle for PRUSS IEP_CLK_MUX
  */
 struct pruss {
 	struct device *dev;
+	void __iomem *cfg_base;
 	struct regmap *cfg_regmap;
 	struct pruss_mem_region mem_regions[PRUSS_MEM_MAX];
+	struct clk *core_clk_mux;
+	struct clk *iep_clk_mux;
 };
 
 #endif	/* _PRUSS_DRIVER_H_ */

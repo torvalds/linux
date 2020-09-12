@@ -8,6 +8,7 @@
  *	Andrew F. Davis <afd@ti.com>
  */
 
+#include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
@@ -16,13 +17,150 @@
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/pruss_driver.h>
+#include <linux/regmap.h>
+#include <linux/slab.h>
 
 /**
  * struct pruss_private_data - PRUSS driver private data
  * @has_no_sharedram: flag to indicate the absence of PRUSS Shared Data RAM
+ * @has_core_mux_clock: flag to indicate the presence of PRUSS core clock
  */
 struct pruss_private_data {
 	bool has_no_sharedram;
+	bool has_core_mux_clock;
+};
+
+static void pruss_of_free_clk_provider(void *data)
+{
+	struct device_node *clk_mux_np = data;
+
+	of_clk_del_provider(clk_mux_np);
+	of_node_put(clk_mux_np);
+}
+
+static int pruss_clk_mux_setup(struct pruss *pruss, struct clk *clk_mux,
+			       char *mux_name, struct device_node *clks_np)
+{
+	struct device_node *clk_mux_np;
+	struct device *dev = pruss->dev;
+	char *clk_mux_name;
+	unsigned int num_parents;
+	const char **parent_names;
+	void __iomem *reg;
+	u32 reg_offset;
+	int ret;
+
+	clk_mux_np = of_get_child_by_name(clks_np, mux_name);
+	if (!clk_mux_np) {
+		dev_err(dev, "%pOF is missing its '%s' node\n", clks_np,
+			mux_name);
+		return -ENODEV;
+	}
+
+	num_parents = of_clk_get_parent_count(clk_mux_np);
+	if (num_parents < 1) {
+		dev_err(dev, "mux-clock %pOF must have parents\n", clk_mux_np);
+		ret = -EINVAL;
+		goto put_clk_mux_np;
+	}
+
+	parent_names = devm_kcalloc(dev, sizeof(*parent_names), num_parents,
+				    GFP_KERNEL);
+	if (!parent_names) {
+		ret = -ENOMEM;
+		goto put_clk_mux_np;
+	}
+
+	of_clk_parent_fill(clk_mux_np, parent_names, num_parents);
+
+	clk_mux_name = devm_kasprintf(dev, GFP_KERNEL, "%s.%pOFn",
+				      dev_name(dev), clk_mux_np);
+	if (!clk_mux_name) {
+		ret = -ENOMEM;
+		goto put_clk_mux_np;
+	}
+
+	ret = of_property_read_u32(clk_mux_np, "reg", &reg_offset);
+	if (ret)
+		goto put_clk_mux_np;
+
+	reg = pruss->cfg_base + reg_offset;
+
+	clk_mux = clk_register_mux(NULL, clk_mux_name, parent_names,
+				   num_parents, 0, reg, 0, 1, 0, NULL);
+	if (IS_ERR(clk_mux)) {
+		ret = PTR_ERR(clk_mux);
+		goto put_clk_mux_np;
+	}
+
+	ret = devm_add_action_or_reset(dev, (void(*)(void *))clk_unregister_mux,
+				       clk_mux);
+	if (ret) {
+		dev_err(dev, "failed to add clkmux unregister action %d", ret);
+		goto put_clk_mux_np;
+	}
+
+	ret = of_clk_add_provider(clk_mux_np, of_clk_src_simple_get, clk_mux);
+	if (ret)
+		goto put_clk_mux_np;
+
+	ret = devm_add_action_or_reset(dev, pruss_of_free_clk_provider,
+				       clk_mux_np);
+	if (ret) {
+		dev_err(dev, "failed to add clkmux free action %d", ret);
+		goto put_clk_mux_np;
+	}
+
+	return 0;
+
+put_clk_mux_np:
+	of_node_put(clk_mux_np);
+	return ret;
+}
+
+static int pruss_clk_init(struct pruss *pruss, struct device_node *cfg_node)
+{
+	const struct pruss_private_data *data;
+	struct device_node *clks_np;
+	struct device *dev = pruss->dev;
+	int ret = 0;
+
+	data = of_device_get_match_data(dev);
+	if (IS_ERR(data))
+		return -ENODEV;
+
+	clks_np = of_get_child_by_name(cfg_node, "clocks");
+	if (!clks_np) {
+		dev_err(dev, "%pOF is missing its 'clocks' node\n", clks_np);
+		return -ENODEV;
+	}
+
+	if (data && data->has_core_mux_clock) {
+		ret = pruss_clk_mux_setup(pruss, pruss->core_clk_mux,
+					  "coreclk-mux", clks_np);
+		if (ret) {
+			dev_err(dev, "failed to setup coreclk-mux\n");
+			goto put_clks_node;
+		}
+	}
+
+	ret = pruss_clk_mux_setup(pruss, pruss->iep_clk_mux, "iepclk-mux",
+				  clks_np);
+	if (ret) {
+		dev_err(dev, "failed to setup iepclk-mux\n");
+		goto put_clks_node;
+	}
+
+put_clks_node:
+	of_node_put(clks_np);
+
+	return ret;
+}
+
+static struct regmap_config regmap_conf = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
 };
 
 static int pruss_probe(struct platform_device *pdev)
@@ -114,21 +252,49 @@ static int pruss_probe(struct platform_device *pdev)
 		goto rpm_put;
 	}
 
-	pruss->cfg_regmap = syscon_node_to_regmap(child);
-	of_node_put(child);
+	if (of_address_to_resource(child, 0, &res)) {
+		ret = -ENOMEM;
+		goto node_put;
+	}
+
+	pruss->cfg_base = devm_ioremap(dev, res.start, resource_size(&res));
+	if (!pruss->cfg_base) {
+		ret = -ENOMEM;
+		goto node_put;
+	}
+
+	regmap_conf.name = kasprintf(GFP_KERNEL, "%pOFn@%llx", child,
+				     (u64)res.start);
+	regmap_conf.max_register = resource_size(&res) - 4;
+
+	pruss->cfg_regmap = devm_regmap_init_mmio(dev, pruss->cfg_base,
+						  &regmap_conf);
+	kfree(regmap_conf.name);
 	if (IS_ERR(pruss->cfg_regmap)) {
-		ret = -ENODEV;
-		goto rpm_put;
+		dev_err(dev, "regmap_init_mmio failed for cfg, ret = %ld\n",
+			PTR_ERR(pruss->cfg_regmap));
+		ret = PTR_ERR(pruss->cfg_regmap);
+		goto node_put;
+	}
+
+	ret = pruss_clk_init(pruss, child);
+	if (ret) {
+		dev_err(dev, "failed to setup coreclk-mux\n");
+		goto node_put;
 	}
 
 	ret = devm_of_platform_populate(dev);
 	if (ret) {
 		dev_err(dev, "failed to register child devices\n");
-		goto rpm_put;
+		goto node_put;
 	}
+
+	of_node_put(child);
 
 	return 0;
 
+node_put:
+	of_node_put(child);
 rpm_put:
 	pm_runtime_put_sync(dev);
 rpm_disable:
@@ -157,14 +323,18 @@ static const struct pruss_private_data am437x_pruss0_data = {
 	.has_no_sharedram = true,
 };
 
+static const struct pruss_private_data am65x_j721e_pruss_data = {
+	.has_core_mux_clock = true,
+};
+
 static const struct of_device_id pruss_of_match[] = {
 	{ .compatible = "ti,am3356-pruss" },
 	{ .compatible = "ti,am4376-pruss0", .data = &am437x_pruss0_data, },
 	{ .compatible = "ti,am4376-pruss1", .data = &am437x_pruss1_data, },
 	{ .compatible = "ti,am5728-pruss" },
 	{ .compatible = "ti,k2g-pruss" },
-	{ .compatible = "ti,am654-icssg" },
-	{ .compatible = "ti,j721e-icssg" },
+	{ .compatible = "ti,am654-icssg", .data = &am65x_j721e_pruss_data, },
+	{ .compatible = "ti,j721e-icssg", .data = &am65x_j721e_pruss_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, pruss_of_match);
