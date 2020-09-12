@@ -77,21 +77,6 @@ struct psb_info {
 	uint64_t avail_mem_map;
 };
 
-enum {
-	NETLOGIC_IO_SPACE = 0x10,
-	PCIX_IO_SPACE,
-	PCIX_CFG_SPACE,
-	PCIX_MEMORY_SPACE,
-	HT_IO_SPACE,
-	HT_CFG_SPACE,
-	HT_MEMORY_SPACE,
-	SRAM_SPACE,
-	FLASH_CONTROLLER_SPACE
-};
-
-#define NLM_MAX_ARGS	64
-#define NLM_MAX_ENVS	32
-
 /* This is what netlboot passes and linux boot_mem_map is subtly different */
 #define NLM_BOOT_MEM_MAP_MAX	32
 struct nlm_boot_mem_map {
