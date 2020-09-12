@@ -433,39 +433,6 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
 }
 
-int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags)
-{
-	struct switchdev_obj_port_vlan vlan = {
-		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
-		.flags = flags,
-		.vid_begin = vid,
-		.vid_end = vid,
-	};
-	struct switchdev_trans trans;
-	int err;
-
-	trans.ph_prepare = true;
-	err = dsa_port_vlan_add(dp, &vlan, &trans);
-	if (err)
-		return err;
-
-	trans.ph_prepare = false;
-	return dsa_port_vlan_add(dp, &vlan, &trans);
-}
-EXPORT_SYMBOL(dsa_port_vid_add);
-
-int dsa_port_vid_del(struct dsa_port *dp, u16 vid)
-{
-	struct switchdev_obj_port_vlan vlan = {
-		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
-		.vid_begin = vid,
-		.vid_end = vid,
-	};
-
-	return dsa_port_vlan_del(dp, &vlan);
-}
-EXPORT_SYMBOL(dsa_port_vid_del);
-
 static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 {
 	struct device_node *phy_dn;
