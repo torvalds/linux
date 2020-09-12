@@ -524,7 +524,7 @@ void analogix_dp_enable_sw_function(struct analogix_dp_device *dp)
 	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_1);
 }
 
-int analogix_dp_start_aux_transaction(struct analogix_dp_device *dp)
+static int analogix_dp_start_aux_transaction(struct analogix_dp_device *dp)
 {
 	int reg;
 	int retval = 0;
