@@ -3817,7 +3817,7 @@ TEST(user_notification_filter_empty)
 	long ret;
 	int status;
 	struct pollfd pollfd;
-	struct clone_args args = {
+	struct __clone_args args = {
 		.flags = CLONE_FILES,
 		.exit_signal = SIGCHLD,
 	};
@@ -3871,7 +3871,7 @@ TEST(user_notification_filter_empty_threaded)
 	long ret;
 	int status;
 	struct pollfd pollfd;
-	struct clone_args args = {
+	struct __clone_args args = {
 		.flags = CLONE_FILES,
 		.exit_signal = SIGCHLD,
 	};
