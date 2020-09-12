@@ -530,3 +530,5 @@ module_exit(vidtv_bridge_exit);
 MODULE_DESCRIPTION("Virtual Digital TV Test Driver");
 MODULE_AUTHOR("Daniel W. S. Almeida");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("vidtv");
+MODULE_ALIAS("dvb_vidtv");

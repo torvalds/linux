@@ -57,7 +57,7 @@ Running vidtv
 -------------
 When compiled as a module, run::
 
-	modprobe dvb_vidtv_bridge
+	modprobe vidtv
 
 That's it! The bridge driver will initialize the tuner and demod drivers as
 part of its own initialization.
