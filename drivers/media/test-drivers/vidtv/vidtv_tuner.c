@@ -120,7 +120,7 @@ vidtv_tuner_get_dev(struct dvb_frontend *fe)
 	return i2c_get_clientdata(fe->tuner_priv);
 }
 
-static s32 vidtv_tuner_check_frequency_shift(struct dvb_frontend *fe)
+static int vidtv_tuner_check_frequency_shift(struct dvb_frontend *fe)
 {
 	struct vidtv_tuner_dev *tuner_dev = vidtv_tuner_get_dev(fe);
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -156,6 +156,8 @@ static s32 vidtv_tuner_check_frequency_shift(struct dvb_frontend *fe)
 	}
 
 	for (i = 0; i < array_sz; i++) {
+		if (!valid_freqs[i])
+			break;
 		shift = abs(c->frequency - valid_freqs[i]);
 
 		if (!shift)
@@ -177,6 +179,7 @@ static int
 vidtv_tuner_get_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct vidtv_tuner_dev *tuner_dev = vidtv_tuner_get_dev(fe);
 	const struct vidtv_tuner_cnr_to_qual_s *cnr2qual = NULL;
 	struct device *dev = fe->dvb->device;
 	u32 array_size = 0;
@@ -184,6 +187,11 @@ vidtv_tuner_get_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	u32 i;
 
 	shift = vidtv_tuner_check_frequency_shift(fe);
+	if (shift < 0) {
+		tuner_dev->hw_state.lock_status = 0;
+		*strength = 0;
+		return 0;
+	}
 
 	switch (c->delivery_system) {
 	case SYS_DVBT:
@@ -222,10 +230,6 @@ vidtv_tuner_get_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 		if (!shift) {
 			*strength = cnr2qual[i].cnr_good;
-			return 0;
-		}
-		if (shift < 0) {	/* Channel not tuned */
-			*strength = 0;
 			return 0;
 		}
 		/*
@@ -288,6 +292,7 @@ static int vidtv_tuner_set_params(struct dvb_frontend *fe)
 	struct vidtv_tuner_dev *tuner_dev = vidtv_tuner_get_dev(fe);
 	struct vidtv_tuner_config config  = tuner_dev->config;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	s32 shift;
 
 	u32 min_freq = fe->ops.tuner_ops.info.frequency_min_hz;
 	u32 max_freq = fe->ops.tuner_ops.info.frequency_max_hz;
@@ -305,6 +310,13 @@ static int vidtv_tuner_set_params(struct dvb_frontend *fe)
 	tuner_dev->hw_state.lock_status = TUNER_STATUS_LOCKED;
 
 	msleep_interruptible(config.mock_tune_delay_msec);
+
+	shift = vidtv_tuner_check_frequency_shift(fe);
+	if (shift < 0) {
+		tuner_dev->hw_state.lock_status = 0;
+		return shift;
+	}
+
 	return 0;
 }
 
@@ -395,6 +407,7 @@ static int vidtv_tuner_i2c_probe(struct i2c_client *client,
 	       &vidtv_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
+	memcpy(&tuner_dev->config, config, sizeof(tuner_dev->config));
 	fe->tuner_priv = client;
 
 	return 0;
