@@ -26,11 +26,11 @@
 
 #include "../dmaengine.h"
 
-int completion_timeout = 200;
+static int completion_timeout = 200;
 module_param(completion_timeout, int, 0644);
 MODULE_PARM_DESC(completion_timeout,
 		"set ioat completion timeout [msec] (default 200 [msec])");
-int idle_timeout = 2000;
+static int idle_timeout = 2000;
 module_param(idle_timeout, int, 0644);
 MODULE_PARM_DESC(idle_timeout,
 		"set ioat idel timeout [msec] (default 2000 [msec])");
