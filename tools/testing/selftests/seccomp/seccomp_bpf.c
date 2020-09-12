@@ -1760,6 +1760,17 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
 
+/*
+ * Most architectures can change the syscall by just updating the
+ * associated register. This is the default if not defined above.
+ */
+#ifndef SYSCALL_NUM_SET
+# define SYSCALL_NUM_SET(_regs, _nr)		\
+	do {					\
+		SYSCALL_NUM(_regs) = (_nr);	\
+	} while (0)
+#endif
+
 /* When the syscall return can't be changed, stub out the tests for it. */
 #ifdef SYSCALL_NUM_RET_SHARE_REG
 # define EXPECT_SYSCALL_RETURN(val, action)	EXPECT_EQ(-1, action)
@@ -1830,14 +1841,14 @@ void change_syscall(struct __test_metadata *_metadata,
 	defined(__s390__) || defined(__hppa__) || defined(__riscv) || \
 	defined(__xtensa__) || defined(__csky__) || defined(__sh__)
 	{
-		SYSCALL_NUM(regs) = syscall;
+		SYSCALL_NUM_SET(regs, syscall);
 	}
 #elif defined(__mips__)
 	{
 		if (SYSCALL_NUM(regs) == __NR_O32_Linux)
 			regs.SYSCALL_SYSCALL_NUM = syscall;
 		else
-			SYSCALL_NUM(regs) = syscall;
+			SYSCALL_NUM_SET(regs, syscall);
 	}
 
 #elif defined(__arm__)
