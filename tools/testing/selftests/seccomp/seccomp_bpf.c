@@ -1821,20 +1821,21 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 	} while (0)
 #endif
 
-/* Use PTRACE_GETREGS and PTRACE_SETREGS when available. This is useful for
+/*
+ * Use PTRACE_GETREGS and PTRACE_SETREGS when available. This is useful for
  * architectures without HAVE_ARCH_TRACEHOOK (e.g. User-mode Linux).
  */
 #if defined(__x86_64__) || defined(__i386__) || defined(__mips__)
-#define HAVE_GETREGS
+# define ARCH_GETREGS(_regs)	ptrace(PTRACE_GETREGS, tracee, 0, &(_regs))
+# define ARCH_SETREGS(_regs)	ptrace(PTRACE_SETREGS, tracee, 0, &(_regs))
 #endif
 
 /* Architecture-specific syscall fetching routine. */
 int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 {
 	ARCH_REGS regs;
-#ifdef HAVE_GETREGS
-	EXPECT_EQ(0, ptrace(PTRACE_GETREGS, tracee, 0, &regs)) {
-		TH_LOG("PTRACE_GETREGS failed");
+#ifdef ARCH_GETREGS
+	EXPECT_EQ(0, ARCH_GETREGS(regs)) {
 		return -1;
 	}
 #else
@@ -1855,17 +1856,19 @@ int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 void change_syscall(struct __test_metadata *_metadata,
 		    pid_t tracee, int syscall, int result)
 {
-	int ret;
 	ARCH_REGS regs;
-#ifdef HAVE_GETREGS
-	ret = ptrace(PTRACE_GETREGS, tracee, 0, &regs);
+#ifdef ARCH_GETREGS
+	EXPECT_EQ(0, ARCH_GETREGS(regs)) {
+		return;
+	}
 #else
+	int ret;
 	struct iovec iov;
 	iov.iov_base = &regs;
 	iov.iov_len = sizeof(regs);
 	ret = ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov);
-#endif
 	EXPECT_EQ(0, ret);
+#endif
 
 	SYSCALL_NUM_SET(regs, syscall);
 
@@ -1878,14 +1881,14 @@ void change_syscall(struct __test_metadata *_metadata,
 #endif
 
 	/* Flush any register changes made. */
-#ifdef HAVE_GETREGS
-	ret = ptrace(PTRACE_SETREGS, tracee, 0, &regs);
+#ifdef ARCH_SETREGS
+	EXPECT_EQ(0, ARCH_SETREGS(regs));
 #else
 	iov.iov_base = &regs;
 	iov.iov_len = sizeof(regs);
 	ret = ptrace(PTRACE_SETREGSET, tracee, NT_PRSTATUS, &iov);
-#endif
 	EXPECT_EQ(0, ret);
+#endif
 }
 
 void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
