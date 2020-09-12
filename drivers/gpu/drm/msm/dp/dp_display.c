@@ -82,7 +82,6 @@ struct dp_display_private {
 
 	/* state variables */
 	bool core_initialized;
-	bool power_on;
 	bool hpd_irq_on;
 	bool audio_supported;
 
@@ -103,6 +102,9 @@ struct dp_display_private {
 	struct dp_usbpd_cb usbpd_cb;
 	struct dp_display_mode dp_mode;
 	struct msm_dp dp_display;
+
+	/* wait for audio signaling */
+	struct completion audio_comp;
 
 	/* event related only access by event thread */
 	struct mutex event_mutex;
@@ -175,6 +177,15 @@ static int dp_del_event(struct dp_display_private *dp_priv, u32 event)
 	spin_unlock_irqrestore(&dp_priv->event_lock, flag);
 
 	return 0;
+}
+
+void dp_display_signal_audio_complete(struct msm_dp *dp_display)
+{
+	struct dp_display_private *dp;
+
+	dp = container_of(dp_display, struct dp_display_private, dp_display);
+
+	complete_all(&dp->audio_comp);
 }
 
 static int dp_display_bind(struct device *dev, struct device *master,
@@ -599,6 +610,7 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 
 	/* signal the disconnect event early to ensure proper teardown */
 	dp_display_handle_plugged_change(g_dp_display, false);
+	reinit_completion(&dp->audio_comp);
 
 	dp_catalog_hpd_config_intr(dp->catalog, DP_DP_HPD_PLUG_INT_MASK |
 					DP_DP_IRQ_HPD_INT_MASK, true);
@@ -793,15 +805,18 @@ static int dp_display_prepare(struct msm_dp *dp)
 static int dp_display_enable(struct dp_display_private *dp, u32 data)
 {
 	int rc = 0;
+	struct msm_dp *dp_display;
 
-	if (dp->power_on) {
+	dp_display = g_dp_display;
+
+	if (dp_display->power_on) {
 		DRM_DEBUG_DP("Link already setup, return\n");
 		return 0;
 	}
 
 	rc = dp_ctrl_on_stream(dp->ctrl);
 	if (!rc)
-		dp->power_on = true;
+		dp_display->power_on = true;
 
 	/* complete resume_comp regardless it is armed or not */
 	complete(&dp->resume_comp);
@@ -829,14 +844,27 @@ static int dp_display_post_enable(struct msm_dp *dp_display)
 
 static int dp_display_disable(struct dp_display_private *dp, u32 data)
 {
-	if (!dp->power_on)
+	struct msm_dp *dp_display;
+
+	dp_display = g_dp_display;
+
+	if (!dp_display->power_on)
 		return -EINVAL;
+
+	/* wait only if audio was enabled */
+	if (dp_display->audio_enabled) {
+		if (!wait_for_completion_timeout(&dp->audio_comp,
+				HZ * 5))
+			DRM_ERROR("audio comp timeout\n");
+	}
+
+	dp_display->audio_enabled = false;
 
 	dp_ctrl_off(dp->ctrl);
 
 	dp->core_initialized = false;
 
-	dp->power_on = false;
+	dp_display->power_on = false;
 
 	return 0;
 }
@@ -1151,6 +1179,8 @@ static int dp_display_probe(struct platform_device *pdev)
 
 	/* Store DP audio handle inside DP display */
 	g_dp_display->dp_audio = dp->audio;
+
+	init_completion(&dp->audio_comp);
 
 	platform_set_drvdata(pdev, g_dp_display);
 
