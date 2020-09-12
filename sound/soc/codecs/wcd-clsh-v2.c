@@ -119,7 +119,7 @@ static inline void wcd_enable_clsh_block(struct wcd_clsh_ctrl *ctrl,
 
 static inline bool wcd_clsh_enable_status(struct snd_soc_component *comp)
 {
-	return snd_soc_component_read32(comp, WCD9XXX_A_CDC_CLSH_CRC) &
+	return snd_soc_component_read(comp, WCD9XXX_A_CDC_CLSH_CRC) &
 					WCD9XXX_A_CDC_CLSH_CRC_CLK_EN_MASK;
 }
 

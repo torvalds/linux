@@ -10,7 +10,6 @@
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/console.h>
-#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/circ_buf.h>
 #include <linux/spinlock.h>
@@ -30,6 +29,7 @@
 struct uart_port;
 struct serial_struct;
 struct device;
+struct gpio_desc;
 
 /*
  * This structure describes all the operations that can be done on the

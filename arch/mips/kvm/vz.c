@@ -29,7 +29,9 @@
 #include <linux/kvm_host.h>
 
 #include "interrupt.h"
+#ifdef CONFIG_CPU_LOONGSON64
 #include "loongson_regs.h"
+#endif
 
 #include "trace.h"
 
@@ -129,7 +131,7 @@ static inline unsigned int kvm_vz_config5_guest_wrmask(struct kvm_vcpu *vcpu)
 
 static inline unsigned int kvm_vz_config6_guest_wrmask(struct kvm_vcpu *vcpu)
 {
-	return MIPS_CONF6_LOONGSON_INTIMER | MIPS_CONF6_LOONGSON_EXTIMER;
+	return LOONGSON_CONF6_INTIMER | LOONGSON_CONF6_EXTIMER;
 }
 
 /*
@@ -189,7 +191,7 @@ static inline unsigned int kvm_vz_config5_user_wrmask(struct kvm_vcpu *vcpu)
 static inline unsigned int kvm_vz_config6_user_wrmask(struct kvm_vcpu *vcpu)
 {
 	return kvm_vz_config6_guest_wrmask(vcpu) |
-		MIPS_CONF6_LOONGSON_SFBEN | MIPS_CONF6_LOONGSON_FTLBDIS;
+		LOONGSON_CONF6_SFBEN | LOONGSON_CONF6_FTLBDIS;
 }
 
 static gpa_t kvm_vz_gva_to_gpa_cb(gva_t gva)
@@ -874,7 +876,6 @@ static void kvm_write_maari(struct kvm_vcpu *vcpu, unsigned long val)
 
 static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 					      u32 *opc, u32 cause,
-					      struct kvm_run *run,
 					      struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
@@ -1074,7 +1075,6 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 
 static enum emulation_result kvm_vz_gpsi_cache(union mips_instruction inst,
 					       u32 *opc, u32 cause,
-					       struct kvm_run *run,
 					       struct kvm_vcpu *vcpu)
 {
 	enum emulation_result er = EMULATE_DONE;
@@ -1144,7 +1144,6 @@ static enum emulation_result kvm_vz_gpsi_cache(union mips_instruction inst,
 #ifdef CONFIG_CPU_LOONGSON64
 static enum emulation_result kvm_vz_gpsi_lwc2(union mips_instruction inst,
 					      u32 *opc, u32 cause,
-					      struct kvm_run *run,
 					      struct kvm_vcpu *vcpu)
 {
 	unsigned int rs, rd;
@@ -1217,7 +1216,6 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 {
 	enum emulation_result er = EMULATE_DONE;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
-	struct kvm_run *run = vcpu->run;
 	union mips_instruction inst;
 	int rd, rt, sel;
 	int err;
@@ -1233,17 +1231,17 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 
 	switch (inst.r_format.opcode) {
 	case cop0_op:
-		er = kvm_vz_gpsi_cop0(inst, opc, cause, run, vcpu);
+		er = kvm_vz_gpsi_cop0(inst, opc, cause, vcpu);
 		break;
 #ifndef CONFIG_CPU_MIPSR6
 	case cache_op:
 		trace_kvm_exit(vcpu, KVM_TRACE_EXIT_CACHE);
-		er = kvm_vz_gpsi_cache(inst, opc, cause, run, vcpu);
+		er = kvm_vz_gpsi_cache(inst, opc, cause, vcpu);
 		break;
 #endif
 #ifdef CONFIG_CPU_LOONGSON64
 	case lwc2_op:
-		er = kvm_vz_gpsi_lwc2(inst, opc, cause, run, vcpu);
+		er = kvm_vz_gpsi_lwc2(inst, opc, cause, vcpu);
 		break;
 #endif
 	case spec3_op:
@@ -1251,7 +1249,7 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 #ifdef CONFIG_CPU_MIPSR6
 		case cache6_op:
 			trace_kvm_exit(vcpu, KVM_TRACE_EXIT_CACHE);
-			er = kvm_vz_gpsi_cache(inst, opc, cause, run, vcpu);
+			er = kvm_vz_gpsi_cache(inst, opc, cause, vcpu);
 			break;
 #endif
 		case rdhwr_op:
@@ -1553,7 +1551,6 @@ static int kvm_trap_vz_handle_guest_exit(struct kvm_vcpu *vcpu)
  */
 static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu->run;
 	u32 cause = vcpu->arch.host_cp0_cause;
 	enum emulation_result er = EMULATE_FAIL;
 	int ret = RESUME_GUEST;
@@ -1581,7 +1578,7 @@ static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
 		break;
 
 	case EMULATE_FAIL:
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
 		break;
 
@@ -1600,8 +1597,6 @@ static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
  */
 static int kvm_trap_vz_handle_msa_disabled(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu->run;
-
 	/*
 	 * If MSA not present or not exposed to guest or FR=0, the MSA operation
 	 * should have been treated as a reserved instruction!
@@ -1612,7 +1607,7 @@ static int kvm_trap_vz_handle_msa_disabled(struct kvm_vcpu *vcpu)
 	    (read_gc0_status() & (ST0_CU1 | ST0_FR)) == ST0_CU1 ||
 	    !(read_gc0_config5() & MIPS_CONF5_MSAEN) ||
 	    vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA) {
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		return RESUME_HOST;
 	}
 
@@ -1648,7 +1643,7 @@ static int kvm_trap_vz_handle_tlb_ld_miss(struct kvm_vcpu *vcpu)
 		}
 
 		/* Treat as MMIO */
-		er = kvm_mips_emulate_load(inst, cause, run, vcpu);
+		er = kvm_mips_emulate_load(inst, cause, vcpu);
 		if (er == EMULATE_FAIL) {
 			kvm_err("Guest Emulate Load from MMIO space failed: PC: %p, BadVaddr: %#lx\n",
 				opc, badvaddr);
@@ -1695,7 +1690,7 @@ static int kvm_trap_vz_handle_tlb_st_miss(struct kvm_vcpu *vcpu)
 		}
 
 		/* Treat as MMIO */
-		er = kvm_mips_emulate_store(inst, cause, run, vcpu);
+		er = kvm_mips_emulate_store(inst, cause, vcpu);
 		if (er == EMULATE_FAIL) {
 			kvm_err("Guest Emulate Store to MMIO space failed: PC: %p, BadVaddr: %#lx\n",
 				opc, badvaddr);
@@ -3242,7 +3237,7 @@ static void kvm_vz_flush_shadow_memslot(struct kvm *kvm,
 	kvm_vz_flush_shadow_all(kvm);
 }
 
-static void kvm_vz_vcpu_reenter(struct kvm_run *run, struct kvm_vcpu *vcpu)
+static void kvm_vz_vcpu_reenter(struct kvm_vcpu *vcpu)
 {
 	int cpu = smp_processor_id();
 	int preserve_guest_tlb;
@@ -3258,7 +3253,7 @@ static void kvm_vz_vcpu_reenter(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		kvm_vz_vcpu_load_wired(vcpu);
 }
 
-static int kvm_vz_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
+static int kvm_vz_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	int cpu = smp_processor_id();
 	int r;
@@ -3271,7 +3266,7 @@ static int kvm_vz_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	kvm_vz_vcpu_load_tlb(vcpu, cpu);
 	kvm_vz_vcpu_load_wired(vcpu);
 
-	r = vcpu->arch.vcpu_run(run, vcpu);
+	r = vcpu->arch.vcpu_run(vcpu->run, vcpu);
 
 	kvm_vz_vcpu_save_wired(vcpu);
 

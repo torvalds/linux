@@ -209,7 +209,7 @@ struct mlx5_wqe_ctrl_seg {
 		__be32		general_id;
 		__be32		imm;
 		__be32		umr_mkey;
-		__be32		tisn;
+		__be32		tis_tir_num;
 	};
 };
 

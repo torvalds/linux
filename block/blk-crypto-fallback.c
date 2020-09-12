@@ -228,7 +228,7 @@ static bool blk_crypto_split_bio_if_needed(struct bio **bio_ptr)
 			return false;
 		}
 		bio_chain(split_bio, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		*bio_ptr = split_bio;
 	}
 

@@ -365,12 +365,12 @@ static void ast_init_dram_reg(struct drm_device *dev)
 
 void ast_post_gpu(struct drm_device *dev)
 {
-	u32 reg;
 	struct ast_private *ast = to_ast_private(dev);
+	u32 reg;
 
-	pci_read_config_dword(ast->dev->pdev, 0x04, &reg);
+	pci_read_config_dword(dev->pdev, 0x04, &reg);
 	reg |= 0x3;
-	pci_write_config_dword(ast->dev->pdev, 0x04, reg);
+	pci_write_config_dword(dev->pdev, 0x04, reg);
 
 	ast_enable_vga(dev);
 	ast_open_key(ast);

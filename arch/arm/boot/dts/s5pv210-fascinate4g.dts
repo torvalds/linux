@@ -37,9 +37,26 @@
 	};
 };
 
+&fg {
+	compatible = "maxim,max77836-battery";
+
+	interrupt-parent = <&gph3>;
+	interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&fg_irq>;
+};
+
 &pinctrl0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep_cfg>;
+
+	fg_irq: fg-irq {
+		samsung,pins = "gph3-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
 
 	/* Based on vendor kernel v2.6.35.7 */
 	sleep_cfg: sleep-cfg {

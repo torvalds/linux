@@ -284,7 +284,7 @@ int qxl_bo_pin(struct qxl_bo *bo)
 {
 	int r;
 
-	r = qxl_bo_reserve(bo, false);
+	r = qxl_bo_reserve(bo);
 	if (r)
 		return r;
 
@@ -302,7 +302,7 @@ int qxl_bo_unpin(struct qxl_bo *bo)
 {
 	int r;
 
-	r = qxl_bo_reserve(bo, false);
+	r = qxl_bo_reserve(bo);
 	if (r)
 		return r;
 

@@ -13,7 +13,7 @@ bool __mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 
 	timeout /= 10;
 	do {
-		cur = dev->bus->rr(dev, offset) & mask;
+		cur = __mt76_rr(dev, offset) & mask;
 		if (cur == val)
 			return true;
 
@@ -31,7 +31,7 @@ bool __mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 
 	timeout /= 10;
 	do {
-		cur = dev->bus->rr(dev, offset) & mask;
+		cur = __mt76_rr(dev, offset) & mask;
 		if (cur == val)
 			return true;
 

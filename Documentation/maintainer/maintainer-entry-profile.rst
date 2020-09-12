@@ -31,7 +31,7 @@ Example questions to consider:
 - What branch should contributors submit against?
 - Links to any other Maintainer Entry Profiles? For example a
   device-driver may point to an entry for its parent subsystem. This makes
-  the contributor aware of obligations a maintainer may have have for
+  the contributor aware of obligations a maintainer may have for
   other maintainers in the submission chain.
 
 
@@ -101,3 +101,4 @@ to do something different in the near future.
 
    ../doc-guide/maintainer-profile
    ../nvdimm/maintainer-entry-profile
+   ../riscv/patch-acceptance

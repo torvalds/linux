@@ -1209,8 +1209,9 @@ static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 	struct sk_buff *skb = re->skb;
 	int i;
 
-	re->data_addr = pci_map_single(pdev, skb->data, size, PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(pdev, re->data_addr))
+	re->data_addr = dma_map_single(&pdev->dev, skb->data, size,
+				       DMA_FROM_DEVICE);
+	if (dma_mapping_error(&pdev->dev, re->data_addr))
 		goto mapping_error;
 
 	dma_unmap_len_set(re, data_size, size);
@@ -1229,13 +1230,13 @@ static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 
 map_page_error:
 	while (--i >= 0) {
-		pci_unmap_page(pdev, re->frag_addr[i],
+		dma_unmap_page(&pdev->dev, re->frag_addr[i],
 			       skb_frag_size(&skb_shinfo(skb)->frags[i]),
-			       PCI_DMA_FROMDEVICE);
+			       DMA_FROM_DEVICE);
 	}
 
-	pci_unmap_single(pdev, re->data_addr, dma_unmap_len(re, data_size),
-			 PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&pdev->dev, re->data_addr,
+			 dma_unmap_len(re, data_size), DMA_FROM_DEVICE);
 
 mapping_error:
 	if (net_ratelimit())
@@ -1249,13 +1250,13 @@ static void sky2_rx_unmap_skb(struct pci_dev *pdev, struct rx_ring_info *re)
 	struct sk_buff *skb = re->skb;
 	int i;
 
-	pci_unmap_single(pdev, re->data_addr, dma_unmap_len(re, data_size),
-			 PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&pdev->dev, re->data_addr,
+			 dma_unmap_len(re, data_size), DMA_FROM_DEVICE);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-		pci_unmap_page(pdev, re->frag_addr[i],
+		dma_unmap_page(&pdev->dev, re->frag_addr[i],
 			       skb_frag_size(&skb_shinfo(skb)->frags[i]),
-			       PCI_DMA_FROMDEVICE);
+			       DMA_FROM_DEVICE);
 }
 
 /* Tell chip where to start receive checksum.
@@ -1375,7 +1376,7 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 		data->phy_id = PHY_ADDR_MARV;
 
-		/* fallthru */
+		fallthrough;
 	case SIOCGMIIREG: {
 		u16 val = 0;
 
@@ -1592,10 +1593,9 @@ static int sky2_alloc_buffers(struct sky2_port *sky2)
 	struct sky2_hw *hw = sky2->hw;
 
 	/* must be power of 2 */
-	sky2->tx_le = pci_alloc_consistent(hw->pdev,
-					   sky2->tx_ring_size *
-					   sizeof(struct sky2_tx_le),
-					   &sky2->tx_le_map);
+	sky2->tx_le = dma_alloc_coherent(&hw->pdev->dev,
+					 sky2->tx_ring_size * sizeof(struct sky2_tx_le),
+					 &sky2->tx_le_map, GFP_KERNEL);
 	if (!sky2->tx_le)
 		goto nomem;
 
@@ -1604,8 +1604,8 @@ static int sky2_alloc_buffers(struct sky2_port *sky2)
 	if (!sky2->tx_ring)
 		goto nomem;
 
-	sky2->rx_le = pci_zalloc_consistent(hw->pdev, RX_LE_BYTES,
-					    &sky2->rx_le_map);
+	sky2->rx_le = dma_alloc_coherent(&hw->pdev->dev, RX_LE_BYTES,
+					 &sky2->rx_le_map, GFP_KERNEL);
 	if (!sky2->rx_le)
 		goto nomem;
 
@@ -1626,14 +1626,14 @@ static void sky2_free_buffers(struct sky2_port *sky2)
 	sky2_rx_clean(sky2);
 
 	if (sky2->rx_le) {
-		pci_free_consistent(hw->pdev, RX_LE_BYTES,
-				    sky2->rx_le, sky2->rx_le_map);
+		dma_free_coherent(&hw->pdev->dev, RX_LE_BYTES, sky2->rx_le,
+				  sky2->rx_le_map);
 		sky2->rx_le = NULL;
 	}
 	if (sky2->tx_le) {
-		pci_free_consistent(hw->pdev,
-				    sky2->tx_ring_size * sizeof(struct sky2_tx_le),
-				    sky2->tx_le, sky2->tx_le_map);
+		dma_free_coherent(&hw->pdev->dev,
+				  sky2->tx_ring_size * sizeof(struct sky2_tx_le),
+				  sky2->tx_le, sky2->tx_le_map);
 		sky2->tx_le = NULL;
 	}
 	kfree(sky2->tx_ring);
@@ -1806,13 +1806,11 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 static void sky2_tx_unmap(struct pci_dev *pdev, struct tx_ring_info *re)
 {
 	if (re->flags & TX_MAP_SINGLE)
-		pci_unmap_single(pdev, dma_unmap_addr(re, mapaddr),
-				 dma_unmap_len(re, maplen),
-				 PCI_DMA_TODEVICE);
+		dma_unmap_single(&pdev->dev, dma_unmap_addr(re, mapaddr),
+				 dma_unmap_len(re, maplen), DMA_TO_DEVICE);
 	else if (re->flags & TX_MAP_PAGE)
-		pci_unmap_page(pdev, dma_unmap_addr(re, mapaddr),
-			       dma_unmap_len(re, maplen),
-			       PCI_DMA_TODEVICE);
+		dma_unmap_page(&pdev->dev, dma_unmap_addr(re, mapaddr),
+			       dma_unmap_len(re, maplen), DMA_TO_DEVICE);
 	re->flags = 0;
 }
 
@@ -1840,9 +1838,10 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
   		return NETDEV_TX_BUSY;
 
 	len = skb_headlen(skb);
-	mapping = pci_map_single(hw->pdev, skb->data, len, PCI_DMA_TODEVICE);
+	mapping = dma_map_single(&hw->pdev->dev, skb->data, len,
+				 DMA_TO_DEVICE);
 
-	if (pci_dma_mapping_error(hw->pdev, mapping))
+	if (dma_mapping_error(&hw->pdev->dev, mapping))
 		goto mapping_error;
 
 	slot = sky2->tx_prod;
@@ -2464,16 +2463,17 @@ static struct sk_buff *receive_copy(struct sky2_port *sky2,
 
 	skb = netdev_alloc_skb_ip_align(sky2->netdev, length);
 	if (likely(skb)) {
-		pci_dma_sync_single_for_cpu(sky2->hw->pdev, re->data_addr,
-					    length, PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_cpu(&sky2->hw->pdev->dev, re->data_addr,
+					length, DMA_FROM_DEVICE);
 		skb_copy_from_linear_data(re->skb, skb->data, length);
 		skb->ip_summed = re->skb->ip_summed;
 		skb->csum = re->skb->csum;
 		skb_copy_hash(skb, re->skb);
 		__vlan_hwaccel_copy_tag(skb, re->skb);
 
-		pci_dma_sync_single_for_device(sky2->hw->pdev, re->data_addr,
-					       length, PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_device(&sky2->hw->pdev->dev,
+					   re->data_addr, length,
+					   DMA_FROM_DEVICE);
 		__vlan_hwaccel_clear_tag(re->skb);
 		skb_clear_hash(re->skb);
 		re->skb->ip_summed = CHECKSUM_NONE;
@@ -2764,7 +2764,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 
 		case OP_RXCHKSVLAN:
 			sky2_rx_tag(sky2, length);
-			/* fall through */
+			fallthrough;
 		case OP_RXCHKS:
 			if (likely(dev->features & NETIF_F_RXCSUM))
 				sky2_rx_checksum(sky2, status);
@@ -4985,16 +4985,16 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	if (sizeof(dma_addr_t) > sizeof(u32) &&
-	    !(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))) {
+	    !(err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
 		using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 		if (err < 0) {
 			dev_err(&pdev->dev, "unable to obtain 64 bit DMA "
 				"for consistent allocations\n");
 			goto err_out_free_regions;
 		}
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "no usable DMA configuration\n");
 			goto err_out_free_regions;
@@ -5038,8 +5038,9 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* ring for status responses */
 	hw->st_size = hw->ports * roundup_pow_of_two(3*RX_MAX_PENDING + TX_MAX_PENDING);
-	hw->st_le = pci_alloc_consistent(pdev, hw->st_size * sizeof(struct sky2_status_le),
-					 &hw->st_dma);
+	hw->st_le = dma_alloc_coherent(&pdev->dev,
+				       hw->st_size * sizeof(struct sky2_status_le),
+				       &hw->st_dma, GFP_KERNEL);
 	if (!hw->st_le) {
 		err = -ENOMEM;
 		goto err_out_reset;
@@ -5119,8 +5120,9 @@ err_out_free_netdev:
 		pci_disable_msi(pdev);
 	free_netdev(dev);
 err_out_free_pci:
-	pci_free_consistent(pdev, hw->st_size * sizeof(struct sky2_status_le),
-			    hw->st_le, hw->st_dma);
+	dma_free_coherent(&pdev->dev,
+			  hw->st_size * sizeof(struct sky2_status_le),
+			  hw->st_le, hw->st_dma);
 err_out_reset:
 	sky2_write8(hw, B0_CTST, CS_RST_SET);
 err_out_iounmap:
@@ -5164,8 +5166,9 @@ static void sky2_remove(struct pci_dev *pdev)
 
 	if (hw->flags & SKY2_HW_USE_MSI)
 		pci_disable_msi(pdev);
-	pci_free_consistent(pdev, hw->st_size * sizeof(struct sky2_status_le),
-			    hw->st_le, hw->st_dma);
+	dma_free_coherent(&pdev->dev,
+			  hw->st_size * sizeof(struct sky2_status_le),
+			  hw->st_le, hw->st_dma);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 

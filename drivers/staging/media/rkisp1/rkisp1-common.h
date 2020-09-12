@@ -22,6 +22,9 @@
 #include "rkisp1-regs.h"
 #include "uapi/rkisp1-config.h"
 
+#define RKISP1_ISP_SD_SRC BIT(0)
+#define RKISP1_ISP_SD_SINK BIT(1)
+
 #define RKISP1_ISP_MAX_WIDTH		4032
 #define RKISP1_ISP_MAX_HEIGHT		3024
 #define RKISP1_ISP_MIN_WIDTH		32
@@ -42,9 +45,14 @@
 
 #define RKISP1_MAX_BUS_CLK	8
 
+#define RKISP1_STATS_MEAS_MASK		(RKISP1_CIF_ISP_AWB_DONE |	\
+					 RKISP1_CIF_ISP_AFM_FIN |	\
+					 RKISP1_CIF_ISP_EXP_END |	\
+					 RKISP1_CIF_ISP_HIST_MEASURE_RDY)
 enum rkisp1_rsz_pad {
 	RKISP1_RSZ_PAD_SINK,
 	RKISP1_RSZ_PAD_SRC,
+	RKISP1_RSZ_PAD_MAX
 };
 
 enum rkisp1_stream_id {
@@ -174,21 +182,17 @@ struct rkisp1_capture {
 /*
  * struct rkisp1_stats - ISP Statistics device
  *
- * @irq_lock: buffer queue lock
+ * @lock: locks the buffer list 'stat' and 'is_streaming'
  * @stat: stats buffer list
- * @readout_wq: workqueue for statistics information read
  */
 struct rkisp1_stats {
 	struct rkisp1_vdev_node vnode;
 	struct rkisp1_device *rkisp1;
 
-	spinlock_t irq_lock;
+	spinlock_t lock; /* locks 'is_streaming', and 'stats' */
 	struct list_head stat;
 	struct v4l2_format vdev_fmt;
 	bool is_streaming;
-
-	struct workqueue_struct *readout_wq;
-	struct mutex wq_lock;
 };
 
 /*
@@ -216,8 +220,8 @@ struct rkisp1_resizer {
 	struct v4l2_subdev sd;
 	enum rkisp1_stream_id id;
 	struct rkisp1_device *rkisp1;
-	struct media_pad pads[RKISP1_ISP_PAD_MAX];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
+	struct media_pad pads[RKISP1_RSZ_PAD_MAX];
+	struct v4l2_subdev_pad_config pad_cfg[RKISP1_RSZ_PAD_MAX];
 	const struct rkisp1_rsz_config *config;
 	enum v4l2_pixel_encoding pixel_enc;
 	struct mutex ops_lock;
@@ -226,7 +230,9 @@ struct rkisp1_resizer {
 struct rkisp1_debug {
 	struct dentry *debugfs_dir;
 	unsigned long data_loss;
-	unsigned long pic_size_error;
+	unsigned long outform_size_error;
+	unsigned long img_stabilization_size_error;
+	unsigned long inform_size_error;
 	unsigned long mipi_error;
 	unsigned long stats_error;
 	unsigned long stop_timeout[2];
@@ -250,7 +256,6 @@ struct rkisp1_device {
 	unsigned int clk_size;
 	struct clk_bulk_data clks[RKISP1_MAX_BUS_CLK];
 	struct v4l2_device v4l2_dev;
-	struct v4l2_ctrl_handler ctrl_handler;
 	struct media_device media_dev;
 	struct v4l2_async_notifier notifier;
 	struct rkisp1_sensor_async *active_sensor;
@@ -260,7 +265,6 @@ struct rkisp1_device {
 	struct rkisp1_stats stats;
 	struct rkisp1_params params;
 	struct media_pipeline pipe;
-	struct vb2_alloc_ctx *alloc_ctx;
 	struct mutex stream_lock;
 	struct rkisp1_debug debug;
 };

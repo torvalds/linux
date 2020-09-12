@@ -900,7 +900,7 @@ static void __init of_unittest_parse_dma_ranges(void)
 	of_unittest_dma_ranges_one("/testcase-data/address-tests/device@70000000",
 		0x0, 0x20000000, 0x40000000);
 	of_unittest_dma_ranges_one("/testcase-data/address-tests/bus@80000000/device@1000",
-		0x10000000, 0x20000000, 0x40000000);
+		0x100000000, 0x20000000, 0x2000000000);
 	of_unittest_dma_ranges_one("/testcase-data/address-tests/pci@90000000",
 		0x80000000, 0x20000000, 0x10000000);
 }

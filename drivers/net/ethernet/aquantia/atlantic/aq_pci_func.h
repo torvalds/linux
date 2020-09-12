@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_pci_func.h: Declaration of PCI functions. */
@@ -19,7 +20,6 @@ struct aq_board_revision_s {
 	const struct aq_hw_caps_s *caps;
 };
 
-int aq_pci_func_init(struct pci_dev *pdev);
 int aq_pci_func_alloc_irq(struct aq_nic_s *self, unsigned int i,
 			  char *name, irq_handler_t irq_handler,
 			  void *irq_arg, cpumask_t *affinity_mask);

@@ -281,7 +281,6 @@ enum igbvf_state_t {
 };
 
 extern char igbvf_driver_name[];
-extern const char igbvf_driver_version[];
 
 void igbvf_check_options(struct igbvf_adapter *);
 void igbvf_set_ethtool_ops(struct net_device *);

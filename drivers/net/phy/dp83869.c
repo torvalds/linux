@@ -64,6 +64,10 @@
 #define DP83869_RGMII_TX_CLK_DELAY_EN		BIT(1)
 #define DP83869_RGMII_RX_CLK_DELAY_EN		BIT(0)
 
+/* RGMIIDCTL */
+#define DP83869_RGMII_CLK_DELAY_SHIFT		4
+#define DP83869_CLK_DELAY_DEF			7
+
 /* STRAP_STS1 bits */
 #define DP83869_STRAP_OP_MODE_MASK		GENMASK(2, 0)
 #define DP83869_STRAP_STS1_RESERVED		BIT(11)
@@ -77,9 +81,6 @@
 #define DP83869_PHY_CTRL_DEFAULT	0x48
 #define DP83869_PHYCR_FIFO_DEPTH_MASK	GENMASK(15, 12)
 #define DP83869_PHYCR_RESERVED_MASK	BIT(11)
-
-/* RGMIIDCTL bits */
-#define DP83869_RGMII_TX_CLK_DELAY_SHIFT	4
 
 /* IO_MUX_CFG bits */
 #define DP83869_IO_MUX_CFG_IO_IMPEDANCE_CTRL	0x1f
@@ -108,6 +109,8 @@ enum {
 struct dp83869_private {
 	int tx_fifo_depth;
 	int rx_fifo_depth;
+	s32 rx_int_delay;
+	s32 tx_int_delay;
 	int io_impedance;
 	int port_mirroring;
 	bool rxctrl_strap_quirk;
@@ -177,11 +180,16 @@ static int dp83869_set_strapped_mode(struct phy_device *phydev)
 }
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
+static const int dp83869_internal_delay[] = {250, 500, 750, 1000, 1250, 1500,
+					     1750, 2000, 2250, 2500, 2750, 3000,
+					     3250, 3500, 3750, 4000};
+
 static int dp83869_of_init(struct phy_device *phydev)
 {
 	struct dp83869_private *dp83869 = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	struct device_node *of_node = dev->of_node;
+	int delay_size = ARRAY_SIZE(dp83869_internal_delay);
 	int ret;
 
 	if (!of_node)
@@ -234,6 +242,20 @@ static int dp83869_of_init(struct phy_device *phydev)
 	if (of_property_read_u32(of_node, "tx-fifo-depth",
 				 &dp83869->tx_fifo_depth))
 		dp83869->tx_fifo_depth = DP83869_PHYCR_FIFO_DEPTH_4_B_NIB;
+
+	dp83869->rx_int_delay = phy_get_internal_delay(phydev, dev,
+						       &dp83869_internal_delay[0],
+						       delay_size, true);
+	if (dp83869->rx_int_delay < 0)
+		dp83869->rx_int_delay =
+				dp83869_internal_delay[DP83869_CLK_DELAY_DEF];
+
+	dp83869->tx_int_delay = phy_get_internal_delay(phydev, dev,
+						       &dp83869_internal_delay[0],
+						       delay_size, false);
+	if (dp83869->tx_int_delay < 0)
+		dp83869->tx_int_delay =
+				dp83869_internal_delay[DP83869_CLK_DELAY_DEF];
 
 	return ret;
 }
@@ -396,6 +418,31 @@ static int dp83869_config_init(struct phy_device *phydev)
 				     DP83869_IO_MUX_CFG_CLK_O_SEL_MASK,
 				     dp83869->clk_output_sel <<
 				     DP83869_IO_MUX_CFG_CLK_O_SEL_SHIFT);
+
+	if (phy_interface_is_rgmii(phydev)) {
+		ret = phy_write_mmd(phydev, DP83869_DEVADDR, DP83869_RGMIIDCTL,
+				    dp83869->rx_int_delay |
+			dp83869->tx_int_delay << DP83869_RGMII_CLK_DELAY_SHIFT);
+		if (ret)
+			return ret;
+
+		val = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_RGMIICTL);
+		val |= (DP83869_RGMII_TX_CLK_DELAY_EN |
+			DP83869_RGMII_RX_CLK_DELAY_EN);
+
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+			val &= ~(DP83869_RGMII_TX_CLK_DELAY_EN |
+				 DP83869_RGMII_RX_CLK_DELAY_EN);
+
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
+			val &= ~DP83869_RGMII_TX_CLK_DELAY_EN;
+
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
+			val &= ~DP83869_RGMII_RX_CLK_DELAY_EN;
+
+		ret = phy_write_mmd(phydev, DP83869_DEVADDR, DP83869_RGMIICTL,
+				    val);
+	}
 
 	return ret;
 }

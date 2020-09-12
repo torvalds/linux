@@ -3324,9 +3324,7 @@ static int sja1105_port_policer_add(struct dsa_switch *ds, int port,
 	 */
 	policing[port].rate = div_u64(512 * policer->rate_bytes_per_sec,
 				      1000000);
-	policing[port].smax = div_u64(policer->rate_bytes_per_sec *
-				      PSCHED_NS2TICKS(policer->burst),
-				      PSCHED_TICKS_PER_SEC);
+	policing[port].smax = policer->burst;
 
 	return sja1105_static_config_reload(priv, SJA1105_BEST_EFFORT_POLICING);
 }
@@ -3393,11 +3391,14 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.devlink_param_set	= sja1105_devlink_param_set,
 };
 
+static const struct of_device_id sja1105_dt_ids[];
+
 static int sja1105_check_device_id(struct sja1105_private *priv)
 {
 	const struct sja1105_regs *regs = priv->info->regs;
 	u8 prod_id[SJA1105_SIZE_DEVICE_ID] = {0};
 	struct device *dev = &priv->spidev->dev;
+	const struct of_device_id *match;
 	u32 device_id;
 	u64 part_no;
 	int rc;
@@ -3407,12 +3408,6 @@ static int sja1105_check_device_id(struct sja1105_private *priv)
 	if (rc < 0)
 		return rc;
 
-	if (device_id != priv->info->device_id) {
-		dev_err(dev, "Expected device ID 0x%llx but read 0x%x\n",
-			priv->info->device_id, device_id);
-		return -ENODEV;
-	}
-
 	rc = sja1105_xfer_buf(priv, SPI_READ, regs->prod_id, prod_id,
 			      SJA1105_SIZE_DEVICE_ID);
 	if (rc < 0)
@@ -3420,13 +3415,29 @@ static int sja1105_check_device_id(struct sja1105_private *priv)
 
 	sja1105_unpack(prod_id, &part_no, 19, 4, SJA1105_SIZE_DEVICE_ID);
 
-	if (part_no != priv->info->part_no) {
-		dev_err(dev, "Expected part number 0x%llx but read 0x%llx\n",
-			priv->info->part_no, part_no);
-		return -ENODEV;
+	for (match = sja1105_dt_ids; match->compatible[0]; match++) {
+		const struct sja1105_info *info = match->data;
+
+		/* Is what's been probed in our match table at all? */
+		if (info->device_id != device_id || info->part_no != part_no)
+			continue;
+
+		/* But is it what's in the device tree? */
+		if (priv->info->device_id != device_id ||
+		    priv->info->part_no != part_no) {
+			dev_warn(dev, "Device tree specifies chip %s but found %s, please fix it!\n",
+				 priv->info->name, info->name);
+			/* It isn't. No problem, pick that up. */
+			priv->info = info;
+		}
+
+		return 0;
 	}
 
-	return 0;
+	dev_err(dev, "Unexpected {device ID, part number}: 0x%x 0x%llx\n",
+		device_id, part_no);
+
+	return -ENODEV;
 }
 
 static int sja1105_probe(struct spi_device *spi)

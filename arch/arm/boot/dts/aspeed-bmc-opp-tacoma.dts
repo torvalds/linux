@@ -29,75 +29,16 @@
 			no-map;
 			reg = <0xb8000000 0x4000000>; /* 64M */
 		};
-	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		checkstop {
-			label = "checkstop";
-			gpios = <&gpio0 ASPEED_GPIO(E, 3) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(E, 3)>;
-		};
-
-		ps0-presence {
-			label = "ps0-presence";
-			gpios = <&gpio0 ASPEED_GPIO(H, 3) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(H, 3)>;
-		};
-
-		ps1-presence {
-			label = "ps1-presence";
-			gpios = <&gpio0 ASPEED_GPIO(E, 5) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(E, 5)>;
-		};
-	};
-
-	gpio-keys-polled {
-		compatible = "gpio-keys-polled";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		poll-interval = <1000>;
-
-		fan0-presence {
-			label = "fan0-presence";
-			gpios = <&pca0 4 GPIO_ACTIVE_LOW>;
-			linux,code = <4>;
-		};
-
-		fan1-presence {
-			label = "fan1-presence";
-			gpios = <&pca0 5 GPIO_ACTIVE_LOW>;
-			linux,code = <5>;
-		};
-
-		fan2-presence {
-			label = "fan2-presence";
-			gpios = <&pca0 6 GPIO_ACTIVE_LOW>;
-			linux,code = <6>;
-		};
-
-		fan3-presence {
-			label = "fan3-presence";
-			gpios = <&pca0 7 GPIO_ACTIVE_LOW>;
-			linux,code = <7>;
+		vga_memory: region@bf000000 {
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;	/* 16M */
 		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-
-		air-water {
-			label = "air-water";
-			gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(Q, 7)>;
-		};
-
-		checkstop {
-			label = "checkstop";
-			gpios = <&gpio0 ASPEED_GPIO(E, 3) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(E, 3)>;
-		};
 
 		ps0-presence {
 			label = "ps0-presence";
@@ -154,6 +95,10 @@
 	};
 };
 
+&ehci1 {
+	status = "okay";
+};
+
 &gpio0 {
 	gpio-line-names =
 	/*A0-A7*/	"","","","","","","","",
@@ -170,7 +115,7 @@
 	/*L0-L7*/	"","","","","","","","",
 	/*M0-M7*/	"","","","","","","","",
 	/*N0-N7*/	"","","","","","","","",
-	/*O0-O7*/	"led-rear-power","led-rear-id","","","","","","",
+	/*O0-O7*/	"led-rear-power","led-rear-id","","usb-power","","","","",
 	/*P0-P7*/	"","","","","","","","",
 	/*Q0-Q7*/	"cfam-reset","","","","","","","fsi-routing",
 	/*R0-R7*/	"","","","","","","","",
@@ -244,6 +189,7 @@
 
 	fsi-routing-gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_HIGH>;
 	fsi-mux-gpios = <&gpio0 ASPEED_GPIO(B, 0) GPIO_ACTIVE_HIGH>;
+	cfam-reset-gpios = <&gpio0 ASPEED_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
 
 	cfam@0,0 {
 		reg = <0 0>;
@@ -911,4 +857,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpc_default>,
 		    <&pinctrl_lsirq_default>;
+};
+
+&xdma {
+	status = "okay";
+	memory-region = <&vga_memory>;
 };

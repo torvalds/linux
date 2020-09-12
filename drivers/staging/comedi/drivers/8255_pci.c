@@ -291,5 +291,5 @@ static struct pci_driver pci_8255_pci_driver = {
 module_comedi_pci_driver(pci_8255_driver, pci_8255_pci_driver);
 
 MODULE_DESCRIPTION("COMEDI - Generic PCI based 8255 Digital I/O boards");
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_LICENSE("GPL");

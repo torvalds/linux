@@ -116,7 +116,8 @@ cec_notifier_conn_register(struct device *hdmi_dev, const char *port_name,
 	else
 		memset(&n->conn_info, 0, sizeof(n->conn_info));
 	if (n->cec_adap) {
-		cec_phys_addr_invalidate(n->cec_adap);
+		if (!n->cec_adap->adap_controls_phys_addr)
+			cec_phys_addr_invalidate(n->cec_adap);
 		cec_s_conn_info(n->cec_adap, conn_info);
 	}
 	mutex_unlock(&n->lock);
@@ -133,7 +134,8 @@ void cec_notifier_conn_unregister(struct cec_notifier *n)
 	memset(&n->conn_info, 0, sizeof(n->conn_info));
 	n->phys_addr = CEC_PHYS_ADDR_INVALID;
 	if (n->cec_adap) {
-		cec_phys_addr_invalidate(n->cec_adap);
+		if (!n->cec_adap->adap_controls_phys_addr)
+			cec_phys_addr_invalidate(n->cec_adap);
 		cec_s_conn_info(n->cec_adap, NULL);
 	}
 	mutex_unlock(&n->lock);
@@ -158,7 +160,8 @@ cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *port_name,
 	n->cec_adap = adap;
 	adap->conn_info = n->conn_info;
 	adap->notifier = n;
-	cec_s_phys_addr(adap, n->phys_addr, false);
+	if (!adap->adap_controls_phys_addr)
+		cec_s_phys_addr(adap, n->phys_addr, false);
 	mutex_unlock(&n->lock);
 	return n;
 }
@@ -185,7 +188,7 @@ void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa)
 
 	mutex_lock(&n->lock);
 	n->phys_addr = pa;
-	if (n->cec_adap)
+	if (n->cec_adap && !n->cec_adap->adap_controls_phys_addr)
 		cec_s_phys_addr(n->cec_adap, n->phys_addr, false);
 	mutex_unlock(&n->lock);
 }

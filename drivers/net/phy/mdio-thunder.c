@@ -84,7 +84,7 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 		nexus->buses[i] = bus;
 		i++;
 
-		bus->register_base = (u64)nexus->bar0 +
+		bus->register_base = nexus->bar0 +
 			r.start - pci_resource_start(pdev, 0);
 
 		smi_en.u64 = 0;

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 CMC NV
  *
- * http://www.ti.com/lit/ds/symlink/dac7311.pdf
+ * https://www.ti.com/lit/ds/symlink/dac7311.pdf
  */
 
 #include <linux/iio/iio.h>
@@ -251,8 +251,6 @@ static int ti_dac_probe(struct spi_device *spi)
 	spi->bits_per_word = 16;
 	spi_setup(spi);
 
-	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->info = &ti_dac_info;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

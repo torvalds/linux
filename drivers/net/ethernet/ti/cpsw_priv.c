@@ -1286,9 +1286,6 @@ int cpsw_ndo_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 	case XDP_SETUP_PROG:
 		return cpsw_xdp_prog_setup(priv, bpf);
 
-	case XDP_QUERY_PROG:
-		return xdp_attachment_query(&priv->xdpi, bpf);
-
 	default:
 		return -EINVAL;
 	}
@@ -1374,10 +1371,10 @@ int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(ndev, prog, act);
-		/* fall through -- handle aborts by dropping packet */
+		fallthrough;	/* handle aborts by dropping packet */
 	case XDP_DROP:
 		goto drop;
 	}

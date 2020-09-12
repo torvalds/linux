@@ -1,3 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/****************************************************************************
+ * Driver for Solarflare network controllers and boards
+ * Copyright 2005-2018 Solarflare Communications Inc.
+ * Copyright 2019-2020 Xilinx Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published
+ * by the Free Software Foundation, incorporated herein by reference.
+ */
+
 #include "mcdi_filters.h"
 #include "mcdi.h"
 #include "nic.h"
@@ -129,7 +140,7 @@ efx_mcdi_filter_push_prep_set_match_fields(struct efx_nic *efx,
 		switch (encap_type & EFX_ENCAP_TYPES_MASK) {
 		case EFX_ENCAP_TYPE_VXLAN:
 			vni_type = MC_CMD_FILTER_OP_EXT_IN_VNI_TYPE_VXLAN;
-			/* fallthrough */
+			fallthrough;
 		case EFX_ENCAP_TYPE_GENEVE:
 			COPY_VALUE(ether_type, ETHER_TYPE);
 			outer_ip_proto = IPPROTO_UDP;
@@ -828,7 +839,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 		efx_filter_set_uc_def(&spec);
 
 	if (encap_type) {
-		if (efx_has_cap(efx, VXLAN_NVGRE, FLAGS1))
+		if (efx_has_cap(efx, VXLAN_NVGRE))
 			efx_filter_set_encap_type(&spec, encap_type);
 		else
 			/*
@@ -1304,7 +1315,7 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 	rc = efx_mcdi_filter_table_probe_matches(efx, table, false);
 	if (rc)
 		goto fail;
-	if (efx_has_cap(efx, VXLAN_NVGRE, FLAGS1))
+	if (efx_has_cap(efx, VXLAN_NVGRE))
 		rc = efx_mcdi_filter_table_probe_matches(efx, table, true);
 	if (rc)
 		goto fail;
@@ -1448,7 +1459,7 @@ not_restored:
 		table->must_restore_filters = false;
 }
 
-void efx_mcdi_filter_table_remove(struct efx_nic *efx)
+void efx_mcdi_filter_table_down(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
@@ -1456,20 +1467,10 @@ void efx_mcdi_filter_table_remove(struct efx_nic *efx)
 	unsigned int filter_idx;
 	int rc;
 
-	efx_mcdi_filter_cleanup_vlans(efx);
-	efx->filter_state = NULL;
-	/*
-	 * If we were called without locking, then it's not safe to free
-	 * the table as others might be using it.  So we just WARN, leak
-	 * the memory, and potentially get an inconsistent filter table
-	 * state.
-	 * This should never actually happen.
-	 */
-	if (!efx_rwsem_assert_write_locked(&efx->filter_sem))
-		return;
-
 	if (!table)
 		return;
+
+	efx_mcdi_filter_cleanup_vlans(efx);
 
 	for (filter_idx = 0; filter_idx < EFX_MCDI_FILTER_TBL_ROWS; filter_idx++) {
 		spec = efx_mcdi_filter_entry_spec(table, filter_idx);
@@ -1490,6 +1491,27 @@ void efx_mcdi_filter_table_remove(struct efx_nic *efx)
 				   __func__, filter_idx);
 		kfree(spec);
 	}
+}
+
+void efx_mcdi_filter_table_remove(struct efx_nic *efx)
+{
+	struct efx_mcdi_filter_table *table = efx->filter_state;
+
+	efx_mcdi_filter_table_down(efx);
+
+	efx->filter_state = NULL;
+	/*
+	 * If we were called without locking, then it's not safe to free
+	 * the table as others might be using it.  So we just WARN, leak
+	 * the memory, and potentially get an inconsistent filter table
+	 * state.
+	 * This should never actually happen.
+	 */
+	if (!efx_rwsem_assert_write_locked(&efx->filter_sem))
+		return;
+
+	if (!table)
+		return;
 
 	vfree(table->entry);
 	kfree(table);
@@ -1927,7 +1949,7 @@ static int efx_mcdi_filter_alloc_rss_context(struct efx_nic *efx, bool exclusive
 		return 0;
 	}
 
-	if (efx_has_cap(efx, RX_RSS_LIMITED, FLAGS1))
+	if (efx_has_cap(efx, RX_RSS_LIMITED))
 		return -EOPNOTSUPP;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
@@ -1948,7 +1970,7 @@ static int efx_mcdi_filter_alloc_rss_context(struct efx_nic *efx, bool exclusive
 	if (context_size)
 		*context_size = rss_spread;
 
-	if (efx_has_cap(efx, ADDITIONAL_RSS_MODES, FLAGS1))
+	if (efx_has_cap(efx, ADDITIONAL_RSS_MODES))
 		efx_mcdi_set_rss_context_flags(efx, ctx);
 
 	return 0;
@@ -2253,4 +2275,25 @@ int efx_mcdi_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
 	if (efx->rss_context.context_id != EFX_MCDI_RSS_CONTEXT_INVALID)
 		return 0;
 	return efx_mcdi_filter_rx_push_shared_rss_config(efx, NULL);
+}
+
+int efx_mcdi_push_default_indir_table(struct efx_nic *efx,
+				      unsigned int rss_spread)
+{
+	int rc = 0;
+
+	if (efx->rss_spread == rss_spread)
+		return 0;
+
+	efx->rss_spread = rss_spread;
+	if (!efx->filter_state)
+		return 0;
+
+	efx_mcdi_rx_free_indir_table(efx);
+	if (rss_spread > 1) {
+		efx_set_default_rx_indir_table(efx, &efx->rss_context);
+		rc = efx->type->rx_push_rss_config(efx, false,
+				   efx->rss_context.rx_indir_table, NULL);
+	}
+	return rc;
 }

@@ -38,7 +38,12 @@ static int UVERBS_HANDLER(UVERBS_METHOD_INVOKE_WRITE)(
 	    attrs->ucore.outlen < method_elm->resp_size)
 		return -ENOSPC;
 
-	return method_elm->handler(attrs);
+	attrs->uobject = NULL;
+	rc = method_elm->handler(attrs);
+	if (attrs->uobject)
+		uverbs_finalize_object(attrs->uobject, UVERBS_ACCESS_NEW, true,
+				       !rc, attrs);
+	return rc;
 }
 
 DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_INVOKE_WRITE,
@@ -229,6 +234,37 @@ static int UVERBS_HANDLER(UVERBS_METHOD_GET_CONTEXT)(
 	return 0;
 }
 
+static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_CONTEXT)(
+	struct uverbs_attr_bundle *attrs)
+{
+	u64 core_support = IB_UVERBS_CORE_SUPPORT_OPTIONAL_MR_ACCESS;
+	struct ib_ucontext *ucontext;
+	struct ib_device *ib_dev;
+	u32 num_comp;
+	int ret;
+
+	ucontext = ib_uverbs_get_ucontext(attrs);
+	if (IS_ERR(ucontext))
+		return PTR_ERR(ucontext);
+	ib_dev = ucontext->device;
+
+	if (!ib_dev->ops.query_ucontext)
+		return -EOPNOTSUPP;
+
+	num_comp = attrs->ufile->device->num_comp_vectors;
+	ret = uverbs_copy_to(attrs, UVERBS_ATTR_QUERY_CONTEXT_NUM_COMP_VECTORS,
+			     &num_comp, sizeof(num_comp));
+	if (IS_UVERBS_COPY_ERR(ret))
+		return ret;
+
+	ret = uverbs_copy_to(attrs, UVERBS_ATTR_QUERY_CONTEXT_CORE_SUPPORT,
+			     &core_support, sizeof(core_support));
+	if (IS_UVERBS_COPY_ERR(ret))
+		return ret;
+
+	return ucontext->device->ops.query_ucontext(ucontext, attrs);
+}
+
 DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_METHOD_GET_CONTEXT,
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_GET_CONTEXT_NUM_COMP_VECTORS,
@@ -236,6 +272,13 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_GET_CONTEXT_CORE_SUPPORT,
 			    UVERBS_ATTR_TYPE(u64), UA_OPTIONAL),
 	UVERBS_ATTR_UHW());
+
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_QUERY_CONTEXT,
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_QUERY_CONTEXT_NUM_COMP_VECTORS,
+			    UVERBS_ATTR_TYPE(u32), UA_OPTIONAL),
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_QUERY_CONTEXT_CORE_SUPPORT,
+			    UVERBS_ATTR_TYPE(u64), UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_METHOD_INFO_HANDLES,
@@ -260,7 +303,8 @@ DECLARE_UVERBS_GLOBAL_METHODS(UVERBS_OBJECT_DEVICE,
 			      &UVERBS_METHOD(UVERBS_METHOD_GET_CONTEXT),
 			      &UVERBS_METHOD(UVERBS_METHOD_INVOKE_WRITE),
 			      &UVERBS_METHOD(UVERBS_METHOD_INFO_HANDLES),
-			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_PORT));
+			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_PORT),
+			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_CONTEXT));
 
 const struct uapi_definition uverbs_def_obj_device[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_DEVICE),

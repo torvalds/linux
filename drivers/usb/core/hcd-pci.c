@@ -194,20 +194,21 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id,
 	 * make sure irq setup is not touched for xhci in generic hcd code
 	 */
 	if ((driver->flags & HCD_MASK) < HCD_USB3) {
-		if (!dev->irq) {
+		retval = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_LEGACY | PCI_IRQ_MSI);
+		if (retval < 0) {
 			dev_err(&dev->dev,
 			"Found HC with no IRQ. Check BIOS/PCI %s setup!\n",
 				pci_name(dev));
 			retval = -ENODEV;
 			goto disable_pci;
 		}
-		hcd_irq = dev->irq;
+		hcd_irq = pci_irq_vector(dev, 0);
 	}
 
 	hcd = usb_create_hcd(driver, &dev->dev, pci_name(dev));
 	if (!hcd) {
 		retval = -ENOMEM;
-		goto disable_pci;
+		goto free_irq_vectors;
 	}
 
 	hcd->amd_resume_bug = (usb_hcd_amd_remote_wakeup_quirk(dev) &&
@@ -286,6 +287,9 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id,
 
 put_hcd:
 	usb_put_hcd(hcd);
+free_irq_vectors:
+	if ((driver->flags & HCD_MASK) < HCD_USB3)
+		pci_free_irq_vectors(dev);
 disable_pci:
 	pci_disable_device(dev);
 	dev_err(&dev->dev, "init %s fail, %d\n", pci_name(dev), retval);
@@ -311,10 +315,13 @@ EXPORT_SYMBOL_GPL(usb_hcd_pci_probe);
 void usb_hcd_pci_remove(struct pci_dev *dev)
 {
 	struct usb_hcd		*hcd;
+	int			hcd_driver_flags;
 
 	hcd = pci_get_drvdata(dev);
 	if (!hcd)
 		return;
+
+	hcd_driver_flags = hcd->driver->flags;
 
 	if (pci_dev_run_wake(dev))
 		pm_runtime_get_noresume(&dev->dev);
@@ -343,6 +350,8 @@ void usb_hcd_pci_remove(struct pci_dev *dev)
 		up_read(&companions_rwsem);
 	}
 	usb_put_hcd(hcd);
+	if ((hcd_driver_flags & HCD_MASK) < HCD_USB3)
+		pci_free_irq_vectors(dev);
 	pci_disable_device(dev);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_pci_remove);
@@ -454,7 +463,7 @@ static int suspend_common(struct device *dev, bool do_wakeup)
 	 * synchronized here.
 	 */
 	if (!hcd->msix_enabled)
-		synchronize_irq(pci_dev->irq);
+		synchronize_irq(pci_irq_vector(pci_dev, 0));
 
 	/* Downstream ports from this root hub should already be quiesced, so
 	 * there will be no DMA activity.  Now we can shut down the upstream

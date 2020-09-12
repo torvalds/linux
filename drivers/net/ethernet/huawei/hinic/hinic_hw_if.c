@@ -21,6 +21,8 @@
 
 #define WAIT_HWIF_READY_TIMEOUT	10000
 
+#define HINIC_SELFTEST_RESULT 0x883C
+
 /**
  * hinic_msix_attr_set - set message attribute for msix entry
  * @hwif: the HW interface of a pci function device
@@ -369,6 +371,26 @@ u16 hinic_pf_id_of_vf_hw(struct hinic_hwif *hwif)
 	return HINIC_FA0_GET(attr0, PF_IDX);
 }
 
+static void __print_selftest_reg(struct hinic_hwif *hwif)
+{
+	u32 addr, attr0, attr1;
+
+	addr   = HINIC_CSR_FUNC_ATTR1_ADDR;
+	attr1  = hinic_hwif_read_reg(hwif, addr);
+
+	if (attr1 == HINIC_PCIE_LINK_DOWN) {
+		dev_err(&hwif->pdev->dev, "PCIE is link down\n");
+		return;
+	}
+
+	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
+	attr0  = hinic_hwif_read_reg(hwif, addr);
+	if (HINIC_FA0_GET(attr0, FUNC_TYPE) != HINIC_VF &&
+	    !HINIC_FA0_GET(attr0, PCI_INTF_IDX))
+		dev_err(&hwif->pdev->dev, "Selftest reg: 0x%08x\n",
+			hinic_hwif_read_reg(hwif, HINIC_SELFTEST_RESULT));
+}
+
 /**
  * hinic_init_hwif - initialize the hw interface
  * @hwif: the HW interface of a pci function device
@@ -398,6 +420,7 @@ int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
 	err = wait_hwif_ready(hwif);
 	if (err) {
 		dev_err(&pdev->dev, "HW interface is not ready\n");
+		__print_selftest_reg(hwif);
 		goto err_hwif_ready;
 	}
 

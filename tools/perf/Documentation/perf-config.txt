@@ -614,8 +614,9 @@ trace.*::
 
 ftrace.*::
 	ftrace.tracer::
-		Can be used to select the default tracer. Possible values are
-		'function' and 'function_graph'.
+		Can be used to select the default tracer when neither -G nor
+		-F option is not specified. Possible values are 'function' and
+		'function_graph'.
 
 llvm.*::
 	llvm.clang-path::

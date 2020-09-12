@@ -278,17 +278,8 @@ static const struct iio_trigger_ops lmp91000_trigger_ops = {
 static int lmp91000_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct lmp91000_data *data = iio_priv(indio_dev);
-	int err;
 
-	err = iio_triggered_buffer_postenable(indio_dev);
-	if (err)
-		return err;
-
-	err = iio_channel_start_all_cb(data->cb_buffer);
-	if (err)
-		iio_triggered_buffer_predisable(indio_dev);
-
-	return err;
+	return iio_channel_start_all_cb(data->cb_buffer);
 }
 
 static int lmp91000_buffer_predisable(struct iio_dev *indio_dev)
@@ -297,7 +288,7 @@ static int lmp91000_buffer_predisable(struct iio_dev *indio_dev)
 
 	iio_channel_stop_all_cb(data->cb_buffer);
 
-	return iio_triggered_buffer_predisable(indio_dev);
+	return 0;
 }
 
 static const struct iio_buffer_setup_ops lmp91000_buffer_setup_ops = {
@@ -321,7 +312,6 @@ static int lmp91000_probe(struct i2c_client *client,
 	indio_dev->channels = lmp91000_channels;
 	indio_dev->num_channels = ARRAY_SIZE(lmp91000_channels);
 	indio_dev->name = LMP91000_DRV_NAME;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	i2c_set_clientdata(client, indio_dev);
 

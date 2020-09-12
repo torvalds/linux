@@ -102,4 +102,4 @@ led-controller@38 {
 };
 
 For more product information please see the links below:
-http://www.ti.com/product/LM3532
+https://www.ti.com/product/LM3532

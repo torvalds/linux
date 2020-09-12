@@ -595,7 +595,7 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 
 /**
  * tipc_l2_rcv_msg - handle incoming TIPC message from an interface
- * @buf: the received packet
+ * @skb: the received message
  * @dev: the net device that the packet was received on
  * @pt: the packet_type structure which was used to register this handler
  * @orig_dev: the original receive net device in case the device is a bond
@@ -652,7 +652,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 			test_and_set_bit_lock(0, &b->up);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case NETDEV_GOING_DOWN:
 		clear_bit_unlock(0, &b->up);
 		tipc_reset_bearer(net, b);

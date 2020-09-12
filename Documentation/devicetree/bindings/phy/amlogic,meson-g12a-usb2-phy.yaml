@@ -37,9 +37,9 @@ properties:
     const: 0
 
   phy-supply:
-     description:
-       Phandle to a regulator that provides power to the PHY. This
-       regulator will be managed during the PHY power on/off sequence.
+    description:
+      Phandle to a regulator that provides power to the PHY. This
+      regulator will be managed during the PHY power on/off sequence.
 
 required:
   - compatible

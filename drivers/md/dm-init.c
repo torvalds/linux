@@ -36,7 +36,7 @@ struct dm_device {
 	struct list_head list;
 };
 
-const char * const dm_allowed_targets[] __initconst = {
+static const char * const dm_allowed_targets[] __initconst = {
 	"crypt",
 	"delay",
 	"linear",

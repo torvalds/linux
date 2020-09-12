@@ -170,55 +170,144 @@ DECLARE_EVENT_CLASS(rpcgss_ctx_class,
 DEFINE_CTX_EVENT(init);
 DEFINE_CTX_EVENT(destroy);
 
+DECLARE_EVENT_CLASS(rpcgss_svc_gssapi_class,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 maj_stat
+	),
+
+	TP_ARGS(rqstp, maj_stat),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, maj_stat)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = __be32_to_cpu(rqstp->rq_xid);
+		__entry->maj_stat = maj_stat;
+		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s xid=0x%08x maj_stat=%s",
+		__get_str(addr), __entry->xid,
+		__entry->maj_stat == 0 ?
+		"GSS_S_COMPLETE" : show_gss_status(__entry->maj_stat))
+);
+
+#define DEFINE_SVC_GSSAPI_EVENT(name)					\
+	DEFINE_EVENT(rpcgss_svc_gssapi_class, rpcgss_svc_##name,	\
+			TP_PROTO(					\
+				const struct svc_rqst *rqstp,		\
+				u32 maj_stat				\
+			),						\
+			TP_ARGS(rqstp, maj_stat))
+
+DEFINE_SVC_GSSAPI_EVENT(unwrap);
+DEFINE_SVC_GSSAPI_EVENT(mic);
+
+TRACE_EVENT(rpcgss_svc_unwrap_failed,
+	TP_PROTO(
+		const struct svc_rqst *rqstp
+	),
+
+	TP_ARGS(rqstp),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
+);
+
+TRACE_EVENT(rpcgss_svc_seqno_bad,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 expected,
+		u32 received
+	),
+
+	TP_ARGS(rqstp, expected, received),
+
+	TP_STRUCT__entry(
+		__field(u32, expected)
+		__field(u32, received)
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->expected = expected;
+		__entry->received = received;
+		__entry->xid = __be32_to_cpu(rqstp->rq_xid);
+		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s xid=0x%08x expected seqno %u, received seqno %u",
+		__get_str(addr), __entry->xid,
+		__entry->expected, __entry->received)
+);
+
 TRACE_EVENT(rpcgss_svc_accept_upcall,
 	TP_PROTO(
-		__be32 xid,
+		const struct svc_rqst *rqstp,
 		u32 major_status,
 		u32 minor_status
 	),
 
-	TP_ARGS(xid, major_status, minor_status),
+	TP_ARGS(rqstp, major_status, minor_status),
 
 	TP_STRUCT__entry(
-		__field(u32, xid)
 		__field(u32, minor_status)
 		__field(unsigned long, major_status)
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(xid);
 		__entry->minor_status = minor_status;
 		__entry->major_status = major_status;
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xid=0x%08x major_status=%s (0x%08lx) minor_status=%u",
-		__entry->xid, __entry->major_status == 0 ? "GSS_S_COMPLETE" :
-				show_gss_status(__entry->major_status),
+	TP_printk("addr=%s xid=0x%08x major_status=%s (0x%08lx) minor_status=%u",
+		__get_str(addr), __entry->xid,
+		(__entry->major_status == 0) ? "GSS_S_COMPLETE" :
+			show_gss_status(__entry->major_status),
 		__entry->major_status, __entry->minor_status
 	)
 );
 
-TRACE_EVENT(rpcgss_svc_accept,
+TRACE_EVENT(rpcgss_svc_authenticate,
 	TP_PROTO(
-		__be32 xid,
-		size_t len
+		const struct svc_rqst *rqstp,
+		const struct rpc_gss_wire_cred *gc
 	),
 
-	TP_ARGS(xid, len),
+	TP_ARGS(rqstp, gc),
 
 	TP_STRUCT__entry(
+		__field(u32, seqno)
 		__field(u32, xid)
-		__field(size_t, len)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(xid);
-		__entry->len = len;
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->seqno = gc->gc_seq;
+		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xid=0x%08x len=%zu",
-		__entry->xid, __entry->len
-	)
+	TP_printk("addr=%s xid=0x%08x seqno=%u", __get_str(addr),
+		__entry->xid, __entry->seqno)
 );
 
 
@@ -371,11 +460,11 @@ TRACE_EVENT(rpcgss_update_slack,
 
 DECLARE_EVENT_CLASS(rpcgss_svc_seqno_class,
 	TP_PROTO(
-		__be32 xid,
+		const struct svc_rqst *rqstp,
 		u32 seqno
 	),
 
-	TP_ARGS(xid, seqno),
+	TP_ARGS(rqstp, seqno),
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
@@ -383,25 +472,52 @@ DECLARE_EVENT_CLASS(rpcgss_svc_seqno_class,
 	),
 
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(xid);
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
 		__entry->seqno = seqno;
 	),
 
-	TP_printk("xid=0x%08x seqno=%u, request discarded",
+	TP_printk("xid=0x%08x seqno=%u",
 		__entry->xid, __entry->seqno)
 );
 
 #define DEFINE_SVC_SEQNO_EVENT(name)					\
-	DEFINE_EVENT(rpcgss_svc_seqno_class, rpcgss_svc_##name,		\
+	DEFINE_EVENT(rpcgss_svc_seqno_class, rpcgss_svc_seqno_##name,	\
 			TP_PROTO(					\
-				__be32 xid,				\
+				const struct svc_rqst *rqstp,		\
 				u32 seqno				\
 			),						\
-			TP_ARGS(xid, seqno))
+			TP_ARGS(rqstp, seqno))
 
-DEFINE_SVC_SEQNO_EVENT(large_seqno);
-DEFINE_SVC_SEQNO_EVENT(old_seqno);
+DEFINE_SVC_SEQNO_EVENT(large);
+DEFINE_SVC_SEQNO_EVENT(seen);
 
+TRACE_EVENT(rpcgss_svc_seqno_low,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 seqno,
+		u32 min,
+		u32 max
+	),
+
+	TP_ARGS(rqstp, seqno, min, max),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, seqno)
+		__field(u32, min)
+		__field(u32, max)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->seqno = seqno;
+		__entry->min = min;
+		__entry->max = max;
+	),
+
+	TP_printk("xid=0x%08x seqno=%u window=[%u..%u]",
+		__entry->xid, __entry->seqno, __entry->min, __entry->max)
+);
 
 /**
  ** gssd upcall related trace events

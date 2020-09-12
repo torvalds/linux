@@ -406,7 +406,7 @@ static int fsi_is_play(struct snd_pcm_substream *substream)
 
 static struct snd_soc_dai *fsi_get_dai(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
 	return  asoc_rtd_to_cpu(rtd, 0);
 }
@@ -1632,12 +1632,12 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct fsi_priv *fsi = fsi_get_priv_frm_dai(dai);
 	int ret;
 
-	/* set master/slave audio interface */
+	/* set clock master audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		fsi->clk_master = 1; /* codec is slave, cpu is master */
+		fsi->clk_master = 1; /* cpu is master */
 		break;
 	default:
 		return -EINVAL;

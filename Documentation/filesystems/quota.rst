@@ -18,7 +18,7 @@ Quota limits (and amount of grace time) are set independently for each
 filesystem.
 
 For more details about quota design, see the documentation in quota-tools package
-(http://sourceforge.net/projects/linuxquota).
+(https://sourceforge.net/projects/linuxquota).
 
 Quota netlink interface
 =======================
@@ -31,11 +31,11 @@ the above events to userspace. There they can be captured by an application
 and processed accordingly.
 
 The interface uses generic netlink framework (see
-http://lwn.net/Articles/208755/ and http://people.suug.ch/~tgr/libnl/ for more
-details about this layer). The name of the quota generic netlink interface
-is "VFS_DQUOT". Definitions of constants below are in <linux/quota.h>.
-Since the quota netlink protocol is not namespace aware, quota netlink messages
-are sent only in initial network namespace.
+https://lwn.net/Articles/208755/ and http://www.infradead.org/~tgr/libnl/ for
+more details about this layer). The name of the quota generic netlink interface
+is "VFS_DQUOT". Definitions of constants below are in <linux/quota.h>.  Since
+the quota netlink protocol is not namespace aware, quota netlink messages are
+sent only in initial network namespace.
 
 Currently, the interface supports only one message type QUOTA_NL_C_WARNING.
 This command is used to send a notification about any of the above mentioned

@@ -27,22 +27,11 @@ padata_instance structure for overall control of how jobs are to be run::
 
     #include <linux/padata.h>
 
-    struct padata_instance *padata_alloc_possible(const char *name);
+    struct padata_instance *padata_alloc(const char *name);
 
 'name' simply identifies the instance.
 
-There are functions for enabling and disabling the instance::
-
-    int padata_start(struct padata_instance *pinst);
-    void padata_stop(struct padata_instance *pinst);
-
-These functions are setting or clearing the "PADATA_INIT" flag; if that flag is
-not set, other functions will refuse to work.  padata_start() returns zero on
-success (flag set) or -EINVAL if the padata cpumask contains no active CPU
-(flag not set).  padata_stop() clears the flag and blocks until the padata
-instance is unused.
-
-Finally, complete padata initialization by allocating a padata_shell::
+Then, complete padata initialization by allocating a padata_shell::
 
    struct padata_shell *padata_alloc_shell(struct padata_instance *pinst);
 
@@ -155,11 +144,10 @@ submitted.
 Destroying
 ----------
 
-Cleaning up a padata instance predictably involves calling the three free
+Cleaning up a padata instance predictably involves calling the two free
 functions that correspond to the allocation in reverse::
 
     void padata_free_shell(struct padata_shell *ps);
-    void padata_stop(struct padata_instance *pinst);
     void padata_free(struct padata_instance *pinst);
 
 It is the user's responsibility to ensure all outstanding jobs are complete

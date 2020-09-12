@@ -21,7 +21,6 @@
 #include <linux/swap.h>
 
 #include <asm/meminit.h>
-#include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/mca.h>
 

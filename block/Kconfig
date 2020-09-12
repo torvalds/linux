@@ -86,9 +86,10 @@ config BLK_DEV_ZONED
 	select MQ_IOSCHED_DEADLINE
 	help
 	Block layer zoned block device support. This option enables
-	support for ZAC/ZBC host-managed and host-aware zoned block devices.
+	support for ZAC/ZBC/ZNS host-managed and host-aware zoned block
+	devices.
 
-	Say yes here if you have a ZAC or ZBC storage device.
+	Say yes here if you have a ZAC, ZBC, or ZNS storage device.
 
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"

@@ -204,6 +204,6 @@ static void __exit comedi_pcmcia_exit(void)
 }
 module_exit(comedi_pcmcia_exit);
 
-MODULE_AUTHOR("http://www.comedi.org");
+MODULE_AUTHOR("https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi PCMCIA interface module");
 MODULE_LICENSE("GPL");

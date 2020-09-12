@@ -488,7 +488,7 @@ static int chtls_getsockopt(struct sock *sk, int level, int optname,
 }
 
 static int do_chtls_setsockopt(struct sock *sk, int optname,
-			       char __user *optval, unsigned int optlen)
+			       sockptr_t optval, unsigned int optlen)
 {
 	struct tls_crypto_info *crypto_info, tmp_crypto_info;
 	struct chtls_sock *csk;
@@ -498,12 +498,12 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 
 	csk = rcu_dereference_sk_user_data(sk);
 
-	if (!optval || optlen < sizeof(*crypto_info)) {
+	if (sockptr_is_null(optval) || optlen < sizeof(*crypto_info)) {
 		rc = -EINVAL;
 		goto out;
 	}
 
-	rc = copy_from_user(&tmp_crypto_info, optval, sizeof(*crypto_info));
+	rc = copy_from_sockptr(&tmp_crypto_info, optval, sizeof(*crypto_info));
 	if (rc) {
 		rc = -EFAULT;
 		goto out;
@@ -525,8 +525,9 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 		/* Obtain version and type from previous copy */
 		crypto_info[0] = tmp_crypto_info;
 		/* Now copy the following data */
-		rc = copy_from_user((char *)crypto_info + sizeof(*crypto_info),
-				optval + sizeof(*crypto_info),
+		rc = copy_from_sockptr_offset((char *)crypto_info +
+				sizeof(*crypto_info),
+				optval, sizeof(*crypto_info),
 				sizeof(struct tls12_crypto_info_aes_gcm_128)
 				- sizeof(*crypto_info));
 
@@ -541,8 +542,9 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 	}
 	case TLS_CIPHER_AES_GCM_256: {
 		crypto_info[0] = tmp_crypto_info;
-		rc = copy_from_user((char *)crypto_info + sizeof(*crypto_info),
-				    optval + sizeof(*crypto_info),
+		rc = copy_from_sockptr_offset((char *)crypto_info +
+				sizeof(*crypto_info),
+				optval, sizeof(*crypto_info),
 				sizeof(struct tls12_crypto_info_aes_gcm_256)
 				- sizeof(*crypto_info));
 
@@ -565,7 +567,7 @@ out:
 }
 
 static int chtls_setsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, unsigned int optlen)
+			    sockptr_t optval, unsigned int optlen)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
 

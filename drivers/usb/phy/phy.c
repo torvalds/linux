@@ -88,7 +88,7 @@ static void usb_phy_set_default_current(struct usb_phy *usb_phy)
 
 /**
  * usb_phy_notify_charger_work - notify the USB charger state
- * @work - the charger work to notify the USB charger state
+ * @work: the charger work to notify the USB charger state
  *
  * This work can be issued when USB charger state has been changed or
  * USB charger current has been changed, then we can notify the current
@@ -160,9 +160,9 @@ static void __usb_phy_get_charger_type(struct usb_phy *usb_phy)
 
 /**
  * usb_phy_get_charger_type - get charger type from extcon subsystem
- * @nb -the notifier block to determine charger type
- * @state - the cable state
- * @data - private data
+ * @nb: the notifier block to determine charger type
+ * @state: the cable state
+ * @data: private data
  *
  * Determin the charger type from extcon subsystem which also means the
  * charger state has been chaned, then we should notify this event.
@@ -178,8 +178,8 @@ static int usb_phy_get_charger_type(struct notifier_block *nb,
 
 /**
  * usb_phy_set_charger_current - set the USB charger current
- * @usb_phy - the USB phy to be used
- * @mA - the current need to be set
+ * @usb_phy: the USB phy to be used
+ * @mA: the current need to be set
  *
  * Usually we only change the charger default current when USB finished the
  * enumeration as one SDP charger. As one SDP charger, usb_phy_set_power()
@@ -231,9 +231,9 @@ EXPORT_SYMBOL_GPL(usb_phy_set_charger_current);
 
 /**
  * usb_phy_get_charger_current - get the USB charger current
- * @usb_phy - the USB phy to be used
- * @min - the minimum current
- * @max - the maximum current
+ * @usb_phy: the USB phy to be used
+ * @min: the minimum current
+ * @max: the maximum current
  *
  * Usually we will notify the maximum current to power user, but for some
  * special case, power user also need the minimum current value. Then the
@@ -269,8 +269,8 @@ EXPORT_SYMBOL_GPL(usb_phy_get_charger_current);
 
 /**
  * usb_phy_set_charger_state - set the USB charger state
- * @usb_phy - the USB phy to be used
- * @state - the new state need to be set for charger
+ * @usb_phy: the USB phy to be used
+ * @state: the new state need to be set for charger
  *
  * The usb phy driver can issue this function when the usb phy driver
  * detected the charger state has been changed, in this case the charger
@@ -414,8 +414,8 @@ static int usb_add_extcon(struct usb_phy *x)
 
 /**
  * devm_usb_get_phy - find the USB PHY
- * @dev - device that requests this phy
- * @type - the type of the phy the controller requires
+ * @dev: device that requests this phy
+ * @type: the type of the phy the controller requires
  *
  * Gets the phy using usb_get_phy(), and associates a device with it using
  * devres. On driver detach, release function is invoked on the devres data,
@@ -444,7 +444,7 @@ EXPORT_SYMBOL_GPL(devm_usb_get_phy);
 
 /**
  * usb_get_phy - find the USB PHY
- * @type - the type of the phy the controller requires
+ * @type: the type of the phy the controller requires
  *
  * Returns the phy driver, after getting a refcount to it; or
  * -ENODEV if there is no such phy.  The caller is responsible for
@@ -480,9 +480,9 @@ EXPORT_SYMBOL_GPL(usb_get_phy);
 
 /**
  * devm_usb_get_phy_by_node - find the USB PHY by device_node
- * @dev - device that requests this phy
- * @node - the device_node for the phy device.
- * @nb - a notifier_block to register with the phy.
+ * @dev: device that requests this phy
+ * @node: the device_node for the phy device.
+ * @nb: a notifier_block to register with the phy.
  *
  * Returns the phy driver associated with the given device_node,
  * after getting a refcount to it, -ENODEV if there is no such phy or
@@ -540,9 +540,9 @@ EXPORT_SYMBOL_GPL(devm_usb_get_phy_by_node);
 
 /**
  * devm_usb_get_phy_by_phandle - find the USB PHY by phandle
- * @dev - device that requests this phy
- * @phandle - name of the property holding the phy phandle value
- * @index - the index of the phy
+ * @dev: device that requests this phy
+ * @phandle: name of the property holding the phy phandle value
+ * @index: the index of the phy
  *
  * Returns the phy driver associated with the given phandle value,
  * after getting a refcount to it, -ENODEV if there is no such phy or
@@ -578,8 +578,8 @@ EXPORT_SYMBOL_GPL(devm_usb_get_phy_by_phandle);
 
 /**
  * devm_usb_put_phy - release the USB PHY
- * @dev - device that wants to release this phy
- * @phy - the phy returned by devm_usb_get_phy()
+ * @dev: device that wants to release this phy
+ * @phy: the phy returned by devm_usb_get_phy()
  *
  * destroys the devres associated with this phy and invokes usb_put_phy
  * to release the phy.
@@ -615,9 +615,9 @@ void usb_put_phy(struct usb_phy *x)
 EXPORT_SYMBOL_GPL(usb_put_phy);
 
 /**
- * usb_add_phy - declare the USB PHY
+ * usb_add_phy: declare the USB PHY
  * @x: the USB phy to be used; or NULL
- * @type - the type of this PHY
+ * @type: the type of this PHY
  *
  * This call is exclusively for use by phy drivers, which
  * coordinate the activities of drivers for host and peripheral
@@ -714,6 +714,7 @@ EXPORT_SYMBOL_GPL(usb_remove_phy);
 /**
  * usb_phy_set_event - set event to phy event
  * @x: the phy returned by usb_get_phy();
+ * @event: event to set
  *
  * This sets event to phy event
  */

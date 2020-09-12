@@ -37,6 +37,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include "en_accel/ipsec_rxtx.h"
+#include "en_accel/tls.h"
 #include "en_accel/tls_rxtx.h"
 #include "en.h"
 #include "en/txrx.h"
@@ -147,4 +148,13 @@ static inline bool mlx5e_accel_tx_finish(struct mlx5e_priv *priv,
 	return true;
 }
 
+static inline int mlx5e_accel_init_rx(struct mlx5e_priv *priv)
+{
+	return mlx5e_ktls_init_rx(priv);
+}
+
+static inline void mlx5e_accel_cleanup_rx(struct mlx5e_priv *priv)
+{
+	mlx5e_ktls_cleanup_rx(priv);
+}
 #endif /* __MLX5E_EN_ACCEL_H__ */

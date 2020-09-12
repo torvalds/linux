@@ -1022,18 +1022,7 @@ static int debug_stats_show(struct seq_file *m, void *v)
 	seq_printf(m, "objs_freed    :%d\n", debug_objects_freed);
 	return 0;
 }
-
-static int debug_stats_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, debug_stats_show, NULL);
-}
-
-static const struct file_operations debug_stats_fops = {
-	.open		= debug_stats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(debug_stats);
 
 static int __init debug_objects_init_debugfs(void)
 {

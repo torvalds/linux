@@ -139,7 +139,6 @@ static int dac7612_probe(struct spi_device *spi)
 		return PTR_ERR(priv->loaddacs);
 	priv->spi = spi;
 	spi_set_drvdata(spi, iio_dev);
-	iio_dev->dev.parent = &spi->dev;
 	iio_dev->info = &dac7612_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->channels = dac7612_channels;

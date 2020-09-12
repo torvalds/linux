@@ -43,47 +43,47 @@ properties:
     maxItems: 1
 
 required:
-   - compatible
-   - reg
-   - spi-max-frequency
-   - mux-controls
+  - compatible
+  - reg
+  - spi-max-frequency
+  - mux-controls
 
 examples:
-   - |
-     #include <dt-bindings/gpio/gpio.h>
-     mux: mux-controller {
-       compatible = "gpio-mux";
-       #mux-control-cells = <0>;
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    mux: mux-controller {
+        compatible = "gpio-mux";
+        #mux-control-cells = <0>;
 
-       mux-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
-     };
+        mux-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+    };
 
-     spi {
-       #address-cells = <1>;
-       #size-cells = <0>;
-       spi@0 {
-         compatible = "spi-mux";
-         reg = <0>;
-         #address-cells = <1>;
-         #size-cells = <0>;
-         spi-max-frequency = <100000000>;
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        spi@0 {
+            compatible = "spi-mux";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            spi-max-frequency = <100000000>;
 
-         mux-controls = <&mux>;
+            mux-controls = <&mux>;
 
-         spi-flash@0 {
-           compatible = "jedec,spi-nor";
-           reg = <0>;
-           #address-cells = <1>;
-           #size-cells = <0>;
-           spi-max-frequency = <40000000>;
-         };
+            spi-flash@0 {
+                compatible = "jedec,spi-nor";
+                reg = <0>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                spi-max-frequency = <40000000>;
+            };
 
-         spi-device@1 {
-           compatible = "lineartechnology,ltc2488";
-           reg = <1>;
-           #address-cells = <1>;
-           #size-cells = <0>;
-           spi-max-frequency = <10000000>;
-         };
-       };
-     };
+            spi-device@1 {
+                compatible = "lineartechnology,ltc2488";
+                reg = <1>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                spi-max-frequency = <10000000>;
+            };
+        };
+    };

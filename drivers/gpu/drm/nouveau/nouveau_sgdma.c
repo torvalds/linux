@@ -26,7 +26,7 @@ nouveau_sgdma_destroy(struct ttm_tt *ttm)
 }
 
 static int
-nv04_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *reg)
+nv04_sgdma_bind(struct ttm_tt *ttm, struct ttm_resource *reg)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	struct nouveau_mem *mem = nouveau_mem(reg);
@@ -60,7 +60,7 @@ static struct ttm_backend_func nv04_sgdma_backend = {
 };
 
 static int
-nv50_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *reg)
+nv50_sgdma_bind(struct ttm_tt *ttm, struct ttm_resource *reg)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	struct nouveau_mem *mem = nouveau_mem(reg);

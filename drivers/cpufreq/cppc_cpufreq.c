@@ -45,8 +45,6 @@ struct cppc_workaround_oem_info {
 	u32 oem_revision;
 };
 
-static bool apply_hisi_workaround;
-
 static struct cppc_workaround_oem_info wa_info[] = {
 	{
 		.oem_id		= "HISI  ",
@@ -58,50 +56,6 @@ static struct cppc_workaround_oem_info wa_info[] = {
 		.oem_revision	= 0,
 	}
 };
-
-static unsigned int cppc_cpufreq_perf_to_khz(struct cppc_cpudata *cpu,
-					unsigned int perf);
-
-/*
- * HISI platform does not support delivered performance counter and
- * reference performance counter. It can calculate the performance using the
- * platform specific mechanism. We reuse the desired performance register to
- * store the real performance calculated by the platform.
- */
-static unsigned int hisi_cppc_cpufreq_get_rate(unsigned int cpunum)
-{
-	struct cppc_cpudata *cpudata = all_cpu_data[cpunum];
-	u64 desired_perf;
-	int ret;
-
-	ret = cppc_get_desired_perf(cpunum, &desired_perf);
-	if (ret < 0)
-		return -EIO;
-
-	return cppc_cpufreq_perf_to_khz(cpudata, desired_perf);
-}
-
-static void cppc_check_hisi_workaround(void)
-{
-	struct acpi_table_header *tbl;
-	acpi_status status = AE_OK;
-	int i;
-
-	status = acpi_get_table(ACPI_SIG_PCCT, 0, &tbl);
-	if (ACPI_FAILURE(status) || !tbl)
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(wa_info); i++) {
-		if (!memcmp(wa_info[i].oem_id, tbl->oem_id, ACPI_OEM_ID_SIZE) &&
-		    !memcmp(wa_info[i].oem_table_id, tbl->oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
-		    wa_info[i].oem_revision == tbl->oem_revision) {
-			apply_hisi_workaround = true;
-			break;
-		}
-	}
-
-	acpi_put_table(tbl);
-}
 
 /* Callback function used to retrieve the max frequency from DMI */
 static void cppc_find_dmi_mhz(const struct dmi_header *dm, void *private)
@@ -161,7 +115,7 @@ static unsigned int cppc_cpufreq_perf_to_khz(struct cppc_cpudata *cpu,
 		if (!max_khz)
 			max_khz = cppc_get_dmi_max_khz();
 		mul = max_khz;
-		div = cpu->perf_caps.highest_perf;
+		div = caps->highest_perf;
 	}
 	return (u64)perf * mul / div;
 }
@@ -184,7 +138,7 @@ static unsigned int cppc_cpufreq_khz_to_perf(struct cppc_cpudata *cpu,
 	} else {
 		if (!max_khz)
 			max_khz = cppc_get_dmi_max_khz();
-		mul = cpu->perf_caps.highest_perf;
+		mul = caps->highest_perf;
 		div = max_khz;
 	}
 
@@ -402,9 +356,6 @@ static unsigned int cppc_cpufreq_get_rate(unsigned int cpunum)
 	struct cppc_cpudata *cpu = all_cpu_data[cpunum];
 	int ret;
 
-	if (apply_hisi_workaround)
-		return hisi_cppc_cpufreq_get_rate(cpunum);
-
 	ret = cppc_get_perf_ctrs(cpunum, &fb_ctrs_t0);
 	if (ret)
 		return ret;
@@ -454,6 +405,48 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 	.set_boost = cppc_cpufreq_set_boost,
 	.name = "cppc_cpufreq",
 };
+
+/*
+ * HISI platform does not support delivered performance counter and
+ * reference performance counter. It can calculate the performance using the
+ * platform specific mechanism. We reuse the desired performance register to
+ * store the real performance calculated by the platform.
+ */
+static unsigned int hisi_cppc_cpufreq_get_rate(unsigned int cpunum)
+{
+	struct cppc_cpudata *cpudata = all_cpu_data[cpunum];
+	u64 desired_perf;
+	int ret;
+
+	ret = cppc_get_desired_perf(cpunum, &desired_perf);
+	if (ret < 0)
+		return -EIO;
+
+	return cppc_cpufreq_perf_to_khz(cpudata, desired_perf);
+}
+
+static void cppc_check_hisi_workaround(void)
+{
+	struct acpi_table_header *tbl;
+	acpi_status status = AE_OK;
+	int i;
+
+	status = acpi_get_table(ACPI_SIG_PCCT, 0, &tbl);
+	if (ACPI_FAILURE(status) || !tbl)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(wa_info); i++) {
+		if (!memcmp(wa_info[i].oem_id, tbl->oem_id, ACPI_OEM_ID_SIZE) &&
+		    !memcmp(wa_info[i].oem_table_id, tbl->oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
+		    wa_info[i].oem_revision == tbl->oem_revision) {
+			/* Overwrite the get() callback */
+			cppc_cpufreq_driver.get = hisi_cppc_cpufreq_get_rate;
+			break;
+		}
+	}
+
+	acpi_put_table(tbl);
+}
 
 static int __init cppc_cpufreq_init(void)
 {

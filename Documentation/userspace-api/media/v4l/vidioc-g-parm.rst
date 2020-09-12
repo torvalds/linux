@@ -42,12 +42,13 @@ Arguments
 Description
 ===========
 
-The current video standard determines a nominal number of frames per
-second. If less than this number of frames is to be captured or output,
-applications can request frame skipping or duplicating on the driver
-side. This is especially useful when using the :ref:`read() <func-read>` or
-:ref:`write() <func-write>`, which are not augmented by timestamps or sequence
-counters, and to avoid unnecessary data copying.
+Applications can request a different frame interval. The capture or
+output device will be reconfigured to support the requested frame
+interval if possible. Optionally drivers may choose to skip or
+repeat frames to achieve the requested frame interval.
+
+For stateful encoders (see :ref:`encoder`) this represents the
+frame interval that is typically embedded in the encoded video stream.
 
 Changing the frame interval shall never change the format. Changing the
 format, on the other hand, may change the frame interval.
@@ -57,7 +58,8 @@ internally by a driver in read/write mode. For implications see the
 section discussing the :ref:`read() <func-read>` function.
 
 To get and set the streaming parameters applications call the
-:ref:`VIDIOC_G_PARM <VIDIOC_G_PARM>` and :ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` ioctl, respectively. They take a
+:ref:`VIDIOC_G_PARM <VIDIOC_G_PARM>` and
+:ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` ioctl, respectively. They take a
 pointer to a struct :c:type:`v4l2_streamparm` which contains a
 union holding separate parameters for input and output devices.
 
@@ -113,14 +115,21 @@ union holding separate parameters for input and output devices.
     * - struct :c:type:`v4l2_fract`
       - ``timeperframe``
       - This is the desired period between successive frames captured by
-	the driver, in seconds. The field is intended to skip frames on
-	the driver side, saving I/O bandwidth.
+	the driver, in seconds.
+    * - :cspan:`2`
+
+	This will configure the speed at which the video source (e.g. a sensor)
+	generates video frames. If the speed is fixed, then the driver may
+	choose to skip or repeat frames in order to achieve the requested
+	frame rate.
+
+	For stateful encoders (see :ref:`encoder`) this represents the
+	frame interval that is typically embedded in the encoded video stream.
 
 	Applications store here the desired frame period, drivers return
-	the actual frame period, which must be greater or equal to the
-	nominal frame period determined by the current video standard
-	(struct :c:type:`v4l2_standard` ``frameperiod``
-	field). Changing the video standard (also implicitly by switching
+	the actual frame period.
+
+	Changing the video standard (also implicitly by switching
 	the video input) may reset this parameter to the nominal frame
 	period. To reset manually applications can just set this field to
 	zero.
@@ -173,11 +182,15 @@ union holding separate parameters for input and output devices.
 	:ref:`write() <func-write>` mode (in streaming mode timestamps
 	can be used to throttle the output), saving I/O bandwidth.
 
+	For stateful encoders (see :ref:`encoder`) this represents the
+	frame interval that is typically embedded in the encoded video stream
+	and it provides a hint to the encoder of the speed at which raw
+	frames are queued up to the encoder.
+
 	Applications store here the desired frame period, drivers return
-	the actual frame period, which must be greater or equal to the
-	nominal frame period determined by the current video standard
-	(struct :c:type:`v4l2_standard` ``frameperiod``
-	field). Changing the video standard (also implicitly by switching
+	the actual frame period.
+
+	Changing the video standard (also implicitly by switching
 	the video output) may reset this parameter to the nominal frame
 	period. To reset manually applications can just set this field to
 	zero.
@@ -216,8 +229,8 @@ union holding separate parameters for input and output devices.
 
     * - ``V4L2_CAP_TIMEPERFRAME``
       - 0x1000
-      - The frame skipping/repeating controlled by the ``timeperframe``
-	field is supported.
+      - The frame period can be modified by setting the ``timeperframe``
+	field.
 
 
 

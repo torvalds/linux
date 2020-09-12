@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
 #include <linux/delay.h>
+#include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
@@ -243,7 +244,6 @@ static struct omap_rng_pdata omap2_rng_pdata = {
 	.cleanup	= omap2_rng_cleanup,
 };
 
-#if defined(CONFIG_OF)
 static inline u32 omap4_rng_data_present(struct omap_rng_dev *priv)
 {
 	return omap_rng_read(priv, RNG_STATUS_REG) & RNG_REG_STATUS_RDY;
@@ -358,7 +358,7 @@ static struct omap_rng_pdata eip76_rng_pdata = {
 	.cleanup	= omap4_rng_cleanup,
 };
 
-static const struct of_device_id omap_rng_of_match[] = {
+static const struct of_device_id omap_rng_of_match[] __maybe_unused = {
 		{
 			.compatible	= "ti,omap2-rng",
 			.data		= &omap2_rng_pdata,
@@ -418,13 +418,6 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 	}
 	return 0;
 }
-#else
-static int of_get_omap_rng_device_details(struct omap_rng_dev *omap_rng,
-					  struct platform_device *pdev)
-{
-	return -EINVAL;
-}
-#endif
 
 static int get_omap_rng_device_details(struct omap_rng_dev *omap_rng)
 {

@@ -3740,7 +3740,7 @@ check_rsp_state:
 	case ISTATE_SEND_LOGOUTRSP:
 		if (!iscsit_logout_post_handler(cmd, conn))
 			return -ECONNRESET;
-		/* fall through */
+		fallthrough;
 	case ISTATE_SEND_STATUS:
 	case ISTATE_SEND_ASYNCMSG:
 	case ISTATE_SEND_NOPIN:

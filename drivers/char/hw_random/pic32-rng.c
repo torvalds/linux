@@ -119,7 +119,7 @@ static int pic32_rng_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id pic32_rng_of_match[] = {
+static const struct of_device_id pic32_rng_of_match[] __maybe_unused = {
 	{ .compatible	= "microchip,pic32mzda-rng", },
 	{ /* sentinel */ }
 };

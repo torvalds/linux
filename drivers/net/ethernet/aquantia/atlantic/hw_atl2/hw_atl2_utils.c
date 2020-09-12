@@ -36,8 +36,7 @@ int hw_atl2_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 
 	self->fw_ver_actual = hw_atl2_utils_get_fw_version(self);
 
-	if (hw_atl_utils_ver_match(HW_ATL2_FW_VER_1X,
-				   self->fw_ver_actual) == 0) {
+	if (hw_atl_utils_ver_match(HW_ATL2_FW_VER_1X, self->fw_ver_actual)) {
 		*fw_ops = &aq_a2_fw_ops;
 	} else {
 		aq_pr_err("Bad FW version detected: %x, but continue\n",

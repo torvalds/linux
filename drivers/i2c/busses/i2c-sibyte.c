@@ -180,6 +180,7 @@ static void __exit i2c_sibyte_exit(void)
 module_init(i2c_sibyte_init);
 module_exit(i2c_sibyte_exit);
 
-MODULE_AUTHOR("Kip Walker (Broadcom Corp.), Steven J. Hill <sjhill@realitydiluted.com>");
+MODULE_AUTHOR("Kip Walker (Broadcom Corp.)");
+MODULE_AUTHOR("Steven J. Hill <sjhill@realitydiluted.com>");
 MODULE_DESCRIPTION("SMBus adapter routines for SiByte boards");
 MODULE_LICENSE("GPL");

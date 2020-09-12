@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include "panfrost_device.h"
 #include "panfrost_features.h"
@@ -368,7 +369,16 @@ void panfrost_gpu_fini(struct panfrost_device *pfdev)
 
 u32 panfrost_gpu_get_latest_flush_id(struct panfrost_device *pfdev)
 {
-	if (panfrost_has_hw_feature(pfdev, HW_FEATURE_FLUSH_REDUCTION))
-		return gpu_read(pfdev, GPU_LATEST_FLUSH_ID);
+	u32 flush_id;
+
+	if (panfrost_has_hw_feature(pfdev, HW_FEATURE_FLUSH_REDUCTION)) {
+		/* Flush reduction only makes sense when the GPU is kept powered on between jobs */
+		if (pm_runtime_get_if_in_use(pfdev->dev)) {
+			flush_id = gpu_read(pfdev, GPU_LATEST_FLUSH_ID);
+			pm_runtime_put(pfdev->dev);
+			return flush_id;
+		}
+	}
+
 	return 0;
 }

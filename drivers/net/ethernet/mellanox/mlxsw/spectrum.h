@@ -62,6 +62,8 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_COUNTERS,
 	MLXSW_SP_RESOURCE_COUNTERS_FLOW,
 	MLXSW_SP_RESOURCE_COUNTERS_RIF,
+	MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
+	MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
 };
 
 struct mlxsw_sp_port;
@@ -120,6 +122,7 @@ struct mlxsw_sp_kvdl;
 struct mlxsw_sp_nve;
 struct mlxsw_sp_kvdl_ops;
 struct mlxsw_sp_mr_tcam_ops;
+struct mlxsw_sp_acl_rulei_ops;
 struct mlxsw_sp_acl_tcam_ops;
 struct mlxsw_sp_nve_ops;
 struct mlxsw_sp_sb_vals;
@@ -150,6 +153,7 @@ struct mlxsw_sp {
 	struct mlxsw_afa *afa;
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
+	struct mlxsw_sp_policer_core *policer_core;
 	struct mlxsw_sp_kvdl *kvdl;
 	struct mlxsw_sp_nve *nve;
 	struct notifier_block netdevice_nb;
@@ -164,6 +168,7 @@ struct mlxsw_sp {
 	const struct mlxsw_afa_ops *afa_ops;
 	const struct mlxsw_afk_ops *afk_ops;
 	const struct mlxsw_sp_mr_tcam_ops *mr_tcam_ops;
+	const struct mlxsw_sp_acl_rulei_ops *acl_rulei_ops;
 	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
@@ -171,9 +176,44 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
 	const struct mlxsw_sp_ptp_ops *ptp_ops;
 	const struct mlxsw_sp_span_ops *span_ops;
+	const struct mlxsw_sp_policer_core_ops *policer_core_ops;
+	const struct mlxsw_sp_trap_ops *trap_ops;
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
+};
+
+struct mlxsw_sp_ptp_ops {
+	struct mlxsw_sp_ptp_clock *
+		(*clock_init)(struct mlxsw_sp *mlxsw_sp, struct device *dev);
+	void (*clock_fini)(struct mlxsw_sp_ptp_clock *clock);
+
+	struct mlxsw_sp_ptp_state *(*init)(struct mlxsw_sp *mlxsw_sp);
+	void (*fini)(struct mlxsw_sp_ptp_state *ptp_state);
+
+	/* Notify a driver that a packet that might be PTP was received. Driver
+	 * is responsible for freeing the passed-in SKB.
+	 */
+	void (*receive)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			u8 local_port);
+
+	/* Notify a driver that a timestamped packet was transmitted. Driver
+	 * is responsible for freeing the passed-in SKB.
+	 */
+	void (*transmitted)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			    u8 local_port);
+
+	int (*hwtstamp_get)(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct hwtstamp_config *config);
+	int (*hwtstamp_set)(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct hwtstamp_config *config);
+	void (*shaper_work)(struct work_struct *work);
+	int (*get_ts_info)(struct mlxsw_sp *mlxsw_sp,
+			   struct ethtool_ts_info *info);
+	int (*get_stats_count)(void);
+	void (*get_stats_strings)(u8 **p);
+	void (*get_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
+			  u64 *data, int data_index);
 };
 
 static inline struct mlxsw_sp_upper *
@@ -391,6 +431,13 @@ enum mlxsw_sp_flood_type {
 	MLXSW_SP_FLOOD_TYPE_MC,
 };
 
+int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			       int mtu, bool pause_en);
+int mlxsw_sp_port_get_stats_raw(struct net_device *dev, int grp,
+				int prio, char *ppcnt_pl);
+int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				   bool is_up);
+
 /* spectrum_buffers.c */
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_buffers_fini(struct mlxsw_sp *mlxsw_sp);
@@ -497,7 +544,6 @@ int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				unsigned int *p_counter_index);
 void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
 				unsigned int counter_index);
-u32 mlxsw_sp_span_buffsize_get(struct mlxsw_sp *mlxsw_sp, int mtu, u32 speed);
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
 struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);
@@ -590,11 +636,11 @@ static inline unsigned int
 mlxsw_sp_kvdl_entry_size(enum mlxsw_sp_kvdl_entry_type type)
 {
 	switch (type) {
-	case MLXSW_SP_KVDL_ENTRY_TYPE_ADJ: /* fall through */
-	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET: /* fall through */
-	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS: /* fall through */
-	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR: /* fall through */
-	case MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT: /* fall through */
+	case MLXSW_SP_KVDL_ENTRY_TYPE_ADJ:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT:
 	default:
 		return 1;
 	}
@@ -644,8 +690,10 @@ struct mlxsw_sp_acl_rule_info {
 	u8 action_created:1,
 	   ingress_bind_blocker:1,
 	   egress_bind_blocker:1,
-	   counter_valid:1;
+	   counter_valid:1,
+	   policer_index_valid:1;
 	unsigned int counter_index;
+	u16 policer_index;
 };
 
 /* spectrum_flow.c */
@@ -669,7 +717,6 @@ struct mlxsw_sp_flow_block {
 
 struct mlxsw_sp_flow_block_binding {
 	struct list_head list;
-	struct net_device *dev;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	bool ingress;
 };
@@ -727,8 +774,9 @@ mlxsw_sp_flow_block_is_mixed_bound(const struct mlxsw_sp_flow_block *block)
 struct mlxsw_sp_flow_block *mlxsw_sp_flow_block_create(struct mlxsw_sp *mlxsw_sp,
 						       struct net *net);
 void mlxsw_sp_flow_block_destroy(struct mlxsw_sp_flow_block *block);
-int mlxsw_sp_setup_tc_block(struct mlxsw_sp_port *mlxsw_sp_port,
-			    struct flow_block_offload *f);
+int mlxsw_sp_setup_tc_block_clsact(struct mlxsw_sp_port *mlxsw_sp_port,
+				   struct flow_block_offload *f,
+				   bool ingress);
 
 /* spectrum_acl.c */
 struct mlxsw_sp_acl_ruleset;
@@ -806,6 +854,10 @@ int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
 				  enum flow_action_mangle_base htype,
 				  u32 offset, u32 mask, u32 val,
 				  struct netlink_ext_ack *extack);
+int mlxsw_sp_acl_rulei_act_police(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  u32 index, u64 rate_bytes_ps,
+				  u32 burst, struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct netlink_ext_ack *extack);
@@ -838,7 +890,8 @@ struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rule_rulei(struct mlxsw_sp_acl_rule *rule);
 int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule *rule,
-				u64 *packets, u64 *bytes, u64 *last_use,
+				u64 *packets, u64 *bytes, u64 *drops,
+				u64 *last_use,
 				enum flow_action_hw_stats *used_hw_stats);
 
 struct mlxsw_sp_fid *mlxsw_sp_acl_dummy_fid(struct mlxsw_sp *mlxsw_sp);
@@ -853,6 +906,17 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
 u32 mlxsw_sp_acl_region_rehash_intrvl_get(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_acl_region_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp, u32 val);
+
+struct mlxsw_sp_acl_mangle_action;
+
+struct mlxsw_sp_acl_rulei_ops {
+	int (*act_mangle_field)(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_acl_rule_info *rulei,
+				struct mlxsw_sp_acl_mangle_action *mact, u32 val,
+				struct netlink_ext_ack *extack);
+};
+
+extern struct mlxsw_sp_acl_rulei_ops mlxsw_sp1_acl_rulei_ops;
+extern struct mlxsw_sp_acl_rulei_ops mlxsw_sp2_acl_rulei_ops;
 
 /* spectrum_acl_tcam.c */
 struct mlxsw_sp_acl_tcam;
@@ -909,6 +973,35 @@ extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
 extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 
 /* spectrum_matchall.c */
+enum mlxsw_sp_mall_action_type {
+	MLXSW_SP_MALL_ACTION_TYPE_MIRROR,
+	MLXSW_SP_MALL_ACTION_TYPE_SAMPLE,
+	MLXSW_SP_MALL_ACTION_TYPE_TRAP,
+};
+
+struct mlxsw_sp_mall_mirror_entry {
+	const struct net_device *to_dev;
+	int span_id;
+};
+
+struct mlxsw_sp_mall_trap_entry {
+	int span_id;
+};
+
+struct mlxsw_sp_mall_entry {
+	struct list_head list;
+	unsigned long cookie;
+	unsigned int priority;
+	enum mlxsw_sp_mall_action_type type;
+	bool ingress;
+	union {
+		struct mlxsw_sp_mall_mirror_entry mirror;
+		struct mlxsw_sp_mall_trap_entry trap;
+		struct mlxsw_sp_port_sample sample;
+	};
+	struct rcu_head rcu;
+};
+
 int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 			  struct mlxsw_sp_flow_block *block,
 			  struct tc_cls_matchall_offload *f);
@@ -955,6 +1048,8 @@ int mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct tc_tbf_qopt_offload *p);
 int mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct tc_fifo_qopt_offload *p);
+int mlxsw_sp_setup_tc_block_qevent_early_drop(struct mlxsw_sp_port *mlxsw_sp_port,
+					      struct flow_block_offload *f);
 
 /* spectrum_fid.c */
 bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index);
@@ -1088,12 +1183,14 @@ void mlxsw_sp_trap_fini(struct mlxsw_core *mlxsw_core,
 			const struct devlink_trap *trap, void *trap_ctx);
 int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap *trap,
-			     enum devlink_trap_action action);
+			     enum devlink_trap_action action,
+			     struct netlink_ext_ack *extack);
 int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap_group *group);
 int mlxsw_sp_trap_group_set(struct mlxsw_core *mlxsw_core,
 			    const struct devlink_trap_group *group,
-			    const struct devlink_trap_policer *policer);
+			    const struct devlink_trap_policer *policer,
+			    struct netlink_ext_ack *extack);
 int
 mlxsw_sp_trap_policer_init(struct mlxsw_core *mlxsw_core,
 			   const struct devlink_trap_policer *policer);
@@ -1107,10 +1204,48 @@ int
 mlxsw_sp_trap_policer_counter_get(struct mlxsw_core *mlxsw_core,
 				  const struct devlink_trap_policer *policer,
 				  u64 *p_drops);
+int mlxsw_sp_trap_group_policer_hw_id_get(struct mlxsw_sp *mlxsw_sp, u16 id,
+					  bool *p_enabled, u16 *p_hw_id);
 
 static inline struct net *mlxsw_sp_net(struct mlxsw_sp *mlxsw_sp)
 {
 	return mlxsw_core_net(mlxsw_sp->core);
 }
+
+/* spectrum_ethtool.c */
+extern const struct ethtool_ops mlxsw_sp_port_ethtool_ops;
+extern const struct mlxsw_sp_port_type_speed_ops mlxsw_sp1_port_type_speed_ops;
+extern const struct mlxsw_sp_port_type_speed_ops mlxsw_sp2_port_type_speed_ops;
+
+/* spectrum_policer.c */
+extern const struct mlxsw_sp_policer_core_ops mlxsw_sp1_policer_core_ops;
+extern const struct mlxsw_sp_policer_core_ops mlxsw_sp2_policer_core_ops;
+
+enum mlxsw_sp_policer_type {
+	MLXSW_SP_POLICER_TYPE_SINGLE_RATE,
+
+	__MLXSW_SP_POLICER_TYPE_MAX,
+	MLXSW_SP_POLICER_TYPE_MAX = __MLXSW_SP_POLICER_TYPE_MAX - 1,
+};
+
+struct mlxsw_sp_policer_params {
+	u64 rate;
+	u64 burst;
+	bool bytes;
+};
+
+int mlxsw_sp_policer_add(struct mlxsw_sp *mlxsw_sp,
+			 enum mlxsw_sp_policer_type type,
+			 const struct mlxsw_sp_policer_params *params,
+			 struct netlink_ext_ack *extack, u16 *p_policer_index);
+void mlxsw_sp_policer_del(struct mlxsw_sp *mlxsw_sp,
+			  enum mlxsw_sp_policer_type type,
+			  u16 policer_index);
+int mlxsw_sp_policer_drops_counter_get(struct mlxsw_sp *mlxsw_sp,
+				       enum mlxsw_sp_policer_type type,
+				       u16 policer_index, u64 *p_drops);
+int mlxsw_sp_policers_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_policers_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_policer_resources_register(struct mlxsw_core *mlxsw_core);
 
 #endif

@@ -26,12 +26,6 @@ static inline void rpl_exit(void) {}
 /* Worst decompression memory usage ipv6 address (16) + pad 7 */
 #define IPV6_RPL_SRH_WORST_SWAP_SIZE (sizeof(struct in6_addr) + 7)
 
-static inline size_t ipv6_rpl_srh_alloc_size(unsigned char n)
-{
-	return sizeof(struct ipv6_rpl_sr_hdr) +
-		((n + 1) * sizeof(struct in6_addr));
-}
-
 size_t ipv6_rpl_srh_size(unsigned char n, unsigned char cmpri,
 			 unsigned char cmpre);
 

@@ -31,4 +31,11 @@ DCN10 = dcn10_init.o dcn10_resource.o dcn10_ipp.o dcn10_hw_sequencer.o \
 
 AMD_DAL_DCN10 = $(addprefix $(AMDDALPATH)/dc/dcn10/,$(DCN10))
 
+# fix:
+# ...: '-mgeneral-regs-only' is incompatible with the use of floating-point types
+# aarch64 does not support soft-float, so use hard-float and handle this in code
+ifdef CONFIG_ARM64
+CFLAGS_REMOVE_$(AMDDALPATH)/dc/dcn10/dcn10_resource.o := -mgeneral-regs-only
+endif
+
 AMD_DISPLAY_FILES += $(AMD_DAL_DCN10)

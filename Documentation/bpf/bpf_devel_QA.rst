@@ -643,5 +643,6 @@ when:
 .. _selftests: ../../tools/testing/selftests/bpf/
 .. _Documentation/dev-tools/kselftest.rst:
    https://www.kernel.org/doc/html/latest/dev-tools/kselftest.html
+.. _Documentation/bpf/btf.rst: btf.rst
 
 Happy BPF hacking!

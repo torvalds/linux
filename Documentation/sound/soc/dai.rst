@@ -17,7 +17,7 @@ frame (FRAME) (usually 48kHz) is always driven by the controller. Each AC97
 frame is 21uS long and is divided into 13 time slots.
 
 The AC97 specification can be found at :
-http://www.intel.com/p/en_US/business/design
+https://www.intel.com/p/en_US/business/design
 
 
 I2S

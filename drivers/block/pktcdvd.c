@@ -36,7 +36,7 @@
  * block device, assembling the pieces to full packets and queuing them to the
  * packet I/O scheduler.
  *
- * At the top layer there is a custom make_request_fn function that forwards
+ * At the top layer there is a custom ->submit_bio function that forwards
  * read requests directly to the iosched queue and puts write requests in the
  * unaligned write queue. A kernel thread performs the necessary read
  * gathering to convert the unaligned writes to aligned writes and then feeds
@@ -913,7 +913,7 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 		}
 
 		atomic_inc(&pd->cdrw.pending_bios);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	}
 }
 
@@ -2428,15 +2428,15 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 	}
 }
 
-static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t pkt_submit_bio(struct bio *bio)
 {
 	struct pktcdvd_device *pd;
 	char b[BDEVNAME_SIZE];
 	struct bio *split;
 
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
-	pd = q->queuedata;
+	pd = bio->bi_disk->queue->queuedata;
 	if (!pd) {
 		pr_err("%s incorrect request queue\n", bio_devname(bio, b));
 		goto end_io;
@@ -2480,7 +2480,7 @@ static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
 			split = bio;
 		}
 
-		pkt_make_request_write(q, split);
+		pkt_make_request_write(bio->bi_disk->queue, split);
 	} while (split != bio);
 
 	return BLK_QC_T_NONE;
@@ -2641,7 +2641,7 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 		 */
 		if (pd->refcnt == 1)
 			pkt_lock_door(pd, 0);
-		/* fall through */
+		fallthrough;
 	/*
 	 * forward selected CDROM ioctls to CD-ROM, for UDF
 	 */
@@ -2685,6 +2685,7 @@ static char *pkt_devnode(struct gendisk *disk, umode_t *mode)
 
 static const struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
+	.submit_bio =		pkt_submit_bio,
 	.open =			pkt_open,
 	.release =		pkt_close,
 	.ioctl =		pkt_ioctl,
@@ -2749,7 +2750,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	disk->flags = GENHD_FL_REMOVABLE;
 	strcpy(disk->disk_name, pd->name);
 	disk->private_data = pd;
-	disk->queue = blk_alloc_queue(pkt_make_request, NUMA_NO_NODE);
+	disk->queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (!disk->queue)
 		goto out_mem2;
 

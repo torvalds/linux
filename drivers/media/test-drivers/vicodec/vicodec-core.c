@@ -1442,7 +1442,7 @@ static void vicodec_buf_queue(struct vb2_buffer *vb)
 		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
 	};
 
-	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type) &&
+	if (V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type) &&
 	    vb2_is_streaming(vb->vb2_queue) &&
 	    v4l2_m2m_dst_buf_is_last(ctx->fh.m2m_ctx)) {
 		unsigned int i;
@@ -1479,7 +1479,7 @@ static void vicodec_buf_queue(struct vb2_buffer *vb)
 	 * in the compressed stream
 	 */
 	if (ctx->is_stateless || ctx->is_enc ||
-	    !V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
+	    V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type)) {
 		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 		return;
 	}
@@ -1574,7 +1574,7 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 	state->gop_cnt = 0;
 
 	if ((V4L2_TYPE_IS_OUTPUT(q->type) && !ctx->is_enc) ||
-	    (!V4L2_TYPE_IS_OUTPUT(q->type) && ctx->is_enc))
+	    (V4L2_TYPE_IS_CAPTURE(q->type) && ctx->is_enc))
 		return 0;
 
 	if (info->id == V4L2_PIX_FMT_FWHT ||
@@ -1994,6 +1994,7 @@ static int vicodec_request_validate(struct media_request *req)
 	}
 	ctrl = v4l2_ctrl_request_hdl_ctrl_find(hdl,
 					       vicodec_ctrl_stateless_state.id);
+	v4l2_ctrl_request_hdl_put(hdl);
 	if (!ctrl) {
 		v4l2_info(&ctx->dev->v4l2_dev,
 			  "Missing required codec control\n");

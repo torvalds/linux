@@ -502,19 +502,27 @@ config SERIAL_IMX
 	  can enable its onboard serial port by enabling this option.
 
 config SERIAL_IMX_CONSOLE
-	bool "Console on IMX serial port"
-	depends on SERIAL_IMX=y
+	tristate "Console on IMX serial port"
+	depends on SERIAL_IMX
 	select SERIAL_CORE_CONSOLE
-	select SERIAL_EARLYCON if OF
 	help
 	  If you have enabled the serial port on the Freescale IMX
-	  CPU you can make it the console by answering Y to this option.
+	  CPU you can make it the console by answering Y/M to this option.
 
-	  Even if you say Y here, the currently visible virtual console
+	  Even if you say Y/M here, the currently visible virtual console
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
 	  "console=ttymxc0". (Try "man bootparam" or see the documentation of
 	  your bootloader about how to pass options to the kernel at boot time.)
+
+config SERIAL_IMX_EARLYCON
+	bool "Earlycon on IMX serial port"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on OF
+	select SERIAL_EARLYCON
+	help
+	  If you have enabled the earlycon on the Freescale IMX
+	  CPU you can make it the earlycon by answering Y to this option.
 
 config SERIAL_UARTLITE
 	tristate "Xilinx uartlite serial port support"

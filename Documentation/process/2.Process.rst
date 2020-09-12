@@ -113,7 +113,7 @@ than one development cycle past their initial release. So, for example, the
 5.2 kernel's history looked like this (all dates in 2019):
 
 	==============  ===============================
-	September 15 	5.2 stable release
+	July 7		5.2 stable release
 	July 14		5.2.1
 	July 21		5.2.2
 	July 26		5.2.3
@@ -295,7 +295,7 @@ mainline get there via -mm.
 The current -mm patch is available in the "mmotm" (-mm of the moment)
 directory at:
 
-	http://www.ozlabs.org/~akpm/mmotm/
+	https://www.ozlabs.org/~akpm/mmotm/
 
 Use of the MMOTM tree is likely to be a frustrating experience, though;
 there is a definite chance that it will not even compile.
@@ -306,7 +306,7 @@ the mainline is expected to look like after the next merge window closes.
 Linux-next trees are announced on the linux-kernel and linux-next mailing
 lists when they are assembled; they can be downloaded from:
 
-	http://www.kernel.org/pub/linux/kernel/next/
+	https://www.kernel.org/pub/linux/kernel/next/
 
 Linux-next has become an integral part of the kernel development process;
 all patches merged during a given merge window should really have found
@@ -365,21 +365,21 @@ to keep up with what other developers (and the mainline) are doing.
 Git is now packaged by almost all Linux distributions.  There is a home
 page at:
 
-	http://git-scm.com/
+	https://git-scm.com/
 
 That page has pointers to documentation and tutorials.
 
 Among the kernel developers who do not use git, the most popular choice is
 almost certainly Mercurial:
 
-	http://www.selenic.com/mercurial/
+	https://www.selenic.com/mercurial/
 
 Mercurial shares many features with git, but it provides an interface which
 many find easier to use.
 
 The other tool worth knowing about is Quilt:
 
-	http://savannah.nongnu.org/projects/quilt/
+	https://savannah.nongnu.org/projects/quilt/
 
 Quilt is a patch management system, rather than a source code management
 system.  It does not track history over time; it is, instead, oriented
@@ -494,7 +494,7 @@ Andrew Morton gives this advice for aspiring kernel developers
 	with others on getting things fixed up (this can require
 	persistence!) but that's fine - it's a part of kernel development.
 
-(http://lwn.net/Articles/283982/).
+(https://lwn.net/Articles/283982/).
 
 In the absence of obvious problems to fix, developers are advised to look
 at the current lists of regressions and open bugs in general.  There is

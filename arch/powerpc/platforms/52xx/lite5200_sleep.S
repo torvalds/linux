@@ -56,7 +56,7 @@ lite5200_low_power:
 	/*
 	 * save stuff BDI overwrites
 	 * 0xf0 (0xe0->0x100 gets overwritten when BDI connected;
-	 *   even when CONFIG_BDI* is disabled and MMU XLAT commented; heisenbug?))
+	 *   even when CONFIG_BDI_SWITCH is disabled and MMU XLAT commented; heisenbug?))
 	 * WARNING: self-refresh doesn't seem to work when BDI2000 is connected,
 	 *   possibly because BDI sets SDRAM registers before wakeup code does
 	 */

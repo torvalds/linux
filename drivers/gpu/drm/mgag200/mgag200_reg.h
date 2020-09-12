@@ -256,6 +256,8 @@
 #define MGAREG_CRTCEXT1_VSYNCOFF	BIT(5)
 #define MGAREG_CRTCEXT1_HSYNCOFF	BIT(4)
 
+#define MGAREG_CRTCEXT3_MGAMODE		BIT(7)
+
 /* Cursor X and Y position */
 #define MGA_CURPOSXL 0x3c0c
 #define MGA_CURPOSXH 0x3c0d
@@ -281,6 +283,8 @@
 #define PCI_MGA_OPTION		0x40
 #define PCI_MGA_OPTION2		0x50
 #define PCI_MGA_OPTION3		0x54
+
+#define PCI_MGA_OPTION_HARDPWMSK	BIT(14)
 
 #define RAMDAC_OFFSET		0x3c00
 

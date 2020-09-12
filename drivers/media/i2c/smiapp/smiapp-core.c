@@ -508,9 +508,7 @@ static int smiapp_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_get_noresume(&client->dev);
-	pm_status = pm_runtime_get_if_in_use(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_status = pm_runtime_get_if_active(&client->dev, true);
 	if (!pm_status)
 		return 0;
 
@@ -3103,6 +3101,7 @@ static int smiapp_probe(struct i2c_client *client)
 	return 0;
 
 out_disable_runtime_pm:
+	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 
 out_media_entity_cleanup:

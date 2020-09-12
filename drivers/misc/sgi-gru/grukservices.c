@@ -16,6 +16,7 @@
 #include <linux/miscdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/interrupt.h>
+#include <linux/sync_core.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -621,7 +622,7 @@ static int send_noop_message(void *cb, struct gru_message_queue_desc *mqd,
 			break;
 		case CBSS_PAGE_OVERFLOW:
 			STAT(mesq_noop_page_overflow);
-			/* fall through */
+			fallthrough;
 		default:
 			BUG();
 		}
@@ -779,7 +780,7 @@ static int send_message_failure(void *cb, struct gru_message_queue_desc *mqd,
 		break;
 	case CBSS_PAGE_OVERFLOW:
 		STAT(mesq_page_overflow);
-		/* fall through */
+		fallthrough;
 	default:
 		BUG();
 	}

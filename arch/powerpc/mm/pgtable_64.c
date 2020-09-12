@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/hugetlb.h>
 
-#include <asm/pgalloc.h>
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/mmu_context.h>

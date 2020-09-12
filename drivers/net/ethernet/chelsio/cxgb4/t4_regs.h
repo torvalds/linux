@@ -563,6 +563,12 @@
 #define AIVEC_V(x) ((x) << AIVEC_S)
 
 #define PCIE_PF_CLI_A	0x44
+
+#define PCIE_PF_EXPROM_OFST_A 0x4c
+#define OFFSET_S    10
+#define OFFSET_M    0x3fffU
+#define OFFSET_G(x) (((x) >> OFFSET_S) & OFFSET_M)
+
 #define PCIE_INT_CAUSE_A	0x3004
 
 #define UNXSPLCPLERR_S    29
@@ -3037,6 +3043,10 @@
 #define HASHTIDSIZE_S    16
 #define HASHTIDSIZE_M    0x3fU
 #define HASHTIDSIZE_G(x) (((x) >> HASHTIDSIZE_S) & HASHTIDSIZE_M)
+
+#define HASHTBLSIZE_S    3
+#define HASHTBLSIZE_M    0x1ffffU
+#define HASHTBLSIZE_G(x) (((x) >> HASHTBLSIZE_S) & HASHTBLSIZE_M)
 
 #define LE_DB_HASH_TID_BASE_A 0x19c30
 #define LE_DB_HASH_TBL_BASE_ADDR_A 0x19c30

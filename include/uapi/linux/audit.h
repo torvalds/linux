@@ -333,14 +333,15 @@ enum {
 };
 
 /* Status symbols */
-				/* Mask values */
-#define AUDIT_STATUS_ENABLED		0x0001
-#define AUDIT_STATUS_FAILURE		0x0002
-#define AUDIT_STATUS_PID		0x0004
+						/* Mask values */
+#define AUDIT_STATUS_ENABLED			0x0001
+#define AUDIT_STATUS_FAILURE			0x0002
+#define AUDIT_STATUS_PID			0x0004
 #define AUDIT_STATUS_RATE_LIMIT		0x0008
-#define AUDIT_STATUS_BACKLOG_LIMIT	0x0010
-#define AUDIT_STATUS_BACKLOG_WAIT_TIME	0x0020
-#define AUDIT_STATUS_LOST		0x0040
+#define AUDIT_STATUS_BACKLOG_LIMIT		0x0010
+#define AUDIT_STATUS_BACKLOG_WAIT_TIME		0x0020
+#define AUDIT_STATUS_LOST			0x0040
+#define AUDIT_STATUS_BACKLOG_WAIT_TIME_ACTUAL	0x0080
 
 #define AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT	0x00000001
 #define AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME	0x00000002
@@ -467,6 +468,9 @@ struct audit_status {
 		__u32	feature_bitmap;	/* bitmap of kernel audit features */
 	};
 	__u32		backlog_wait_time;/* message queue wait timeout */
+	__u32           backlog_wait_time_actual;/* time spent waiting while
+						  * message limit exceeded
+						  */
 };
 
 struct audit_features {

@@ -266,11 +266,7 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 	if (!commit_idx[0])
 		goto out;
 
-	ret = rpmh_invalidate(voter->dev);
-	if (ret) {
-		pr_err("Error invalidating RPMH client (%d)\n", ret);
-		goto out;
-	}
+	rpmh_invalidate(voter->dev);
 
 	ret = rpmh_write_batch(voter->dev, RPMH_ACTIVE_ONLY_STATE,
 			       cmds, commit_idx);

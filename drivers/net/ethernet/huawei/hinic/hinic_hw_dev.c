@@ -16,8 +16,11 @@
 #include <linux/log2.h>
 #include <linux/err.h>
 #include <linux/netdevice.h>
+#include <net/devlink.h>
 
+#include "hinic_devlink.h"
 #include "hinic_sriov.h"
+#include "hinic_dev.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
@@ -82,6 +85,8 @@ static int parse_capability(struct hinic_hwdev *hwdev,
 		nic_cap->max_vf = dev_cap->max_vf;
 		nic_cap->max_vf_qps = dev_cap->max_vf_sqs + 1;
 	}
+
+	hwdev->port_id = dev_cap->port_id;
 
 	return 0;
 }
@@ -253,9 +258,9 @@ static int init_fw_ctxt(struct hinic_hwdev *hwdev)
 				 &fw_ctxt, sizeof(fw_ctxt),
 				 &fw_ctxt, &out_size);
 	if (err || (out_size != sizeof(fw_ctxt)) || fw_ctxt.status) {
-		dev_err(&pdev->dev, "Failed to init FW ctxt, ret = %d\n",
-			fw_ctxt.status);
-		return -EFAULT;
+		dev_err(&pdev->dev, "Failed to init FW ctxt, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, fw_ctxt.status, out_size);
+		return -EIO;
 	}
 
 	return 0;
@@ -420,9 +425,9 @@ static int get_base_qpn(struct hinic_hwdev *hwdev, u16 *base_qpn)
 				 &cmd_base_qpn, sizeof(cmd_base_qpn),
 				 &cmd_base_qpn, &out_size);
 	if (err || (out_size != sizeof(cmd_base_qpn)) || cmd_base_qpn.status) {
-		dev_err(&pdev->dev, "Failed to get base qpn, status = %d\n",
-			cmd_base_qpn.status);
-		return -EFAULT;
+		dev_err(&pdev->dev, "Failed to get base qpn, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, cmd_base_qpn.status, out_size);
+		return -EIO;
 	}
 
 	*base_qpn = cmd_base_qpn.qpn;
@@ -619,6 +624,113 @@ static void nic_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
 	nic_cb->cb_state &= ~HINIC_CB_RUNNING;
 }
 
+static void hinic_comm_recv_mgmt_self_cmd_reg(struct hinic_pfhwdev *pfhwdev,
+					      u8 cmd,
+					      comm_mgmt_self_msg_proc proc)
+{
+	u8 cmd_idx;
+
+	cmd_idx = pfhwdev->proc.cmd_num;
+	if (cmd_idx >= HINIC_COMM_SELF_CMD_MAX) {
+		dev_err(&pfhwdev->hwdev.hwif->pdev->dev,
+			"Register recv mgmt process failed, cmd: 0x%x\n", cmd);
+		return;
+	}
+
+	pfhwdev->proc.info[cmd_idx].cmd = cmd;
+	pfhwdev->proc.info[cmd_idx].proc = proc;
+	pfhwdev->proc.cmd_num++;
+}
+
+static void hinic_comm_recv_mgmt_self_cmd_unreg(struct hinic_pfhwdev *pfhwdev,
+						u8 cmd)
+{
+	u8 cmd_idx;
+
+	cmd_idx = pfhwdev->proc.cmd_num;
+	if (cmd_idx >= HINIC_COMM_SELF_CMD_MAX) {
+		dev_err(&pfhwdev->hwdev.hwif->pdev->dev, "Unregister recv mgmt process failed, cmd: 0x%x\n",
+			cmd);
+		return;
+	}
+
+	for (cmd_idx = 0; cmd_idx < HINIC_COMM_SELF_CMD_MAX; cmd_idx++) {
+		if (cmd == pfhwdev->proc.info[cmd_idx].cmd) {
+			pfhwdev->proc.info[cmd_idx].cmd = 0;
+			pfhwdev->proc.info[cmd_idx].proc = NULL;
+			pfhwdev->proc.cmd_num--;
+		}
+	}
+}
+
+static void comm_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
+				  u16 in_size, void *buf_out, u16 *out_size)
+{
+	struct hinic_pfhwdev *pfhwdev = handle;
+	u8 cmd_idx;
+
+	for (cmd_idx = 0; cmd_idx < pfhwdev->proc.cmd_num; cmd_idx++) {
+		if (cmd == pfhwdev->proc.info[cmd_idx].cmd) {
+			if (!pfhwdev->proc.info[cmd_idx].proc) {
+				dev_warn(&pfhwdev->hwdev.hwif->pdev->dev,
+					 "PF recv mgmt comm msg handle null, cmd: 0x%x\n",
+					 cmd);
+			} else {
+				pfhwdev->proc.info[cmd_idx].proc
+					(&pfhwdev->hwdev, buf_in, in_size,
+					 buf_out, out_size);
+			}
+
+			return;
+		}
+	}
+
+	dev_warn(&pfhwdev->hwdev.hwif->pdev->dev, "Received unknown mgmt cpu event: 0x%x\n",
+		 cmd);
+
+	*out_size = 0;
+}
+
+/* pf fault report event */
+static void pf_fault_event_handler(void *dev, void *buf_in, u16 in_size,
+				   void *buf_out, u16 *out_size)
+{
+	struct hinic_cmd_fault_event *fault_event = buf_in;
+	struct hinic_hwdev *hwdev = dev;
+
+	if (in_size != sizeof(*fault_event)) {
+		dev_err(&hwdev->hwif->pdev->dev, "Invalid fault event report, length: %d, should be %zu\n",
+			in_size, sizeof(*fault_event));
+		return;
+	}
+
+	if (!hwdev->devlink_dev || IS_ERR_OR_NULL(hwdev->devlink_dev->hw_fault_reporter))
+		return;
+
+	devlink_health_report(hwdev->devlink_dev->hw_fault_reporter,
+			      "HW fatal error reported", &fault_event->event);
+}
+
+static void mgmt_watchdog_timeout_event_handler(void *dev,
+						void *buf_in, u16 in_size,
+						void *buf_out, u16 *out_size)
+{
+	struct hinic_mgmt_watchdog_info *watchdog_info = buf_in;
+	struct hinic_hwdev *hwdev = dev;
+
+	if (in_size != sizeof(*watchdog_info)) {
+		dev_err(&hwdev->hwif->pdev->dev, "Invalid mgmt watchdog report, length: %d, should be %zu\n",
+			in_size, sizeof(*watchdog_info));
+		return;
+	}
+
+	if (!hwdev->devlink_dev || IS_ERR_OR_NULL(hwdev->devlink_dev->fw_fault_reporter))
+		return;
+
+	devlink_health_report(hwdev->devlink_dev->fw_fault_reporter,
+			      "FW fatal error reported", watchdog_info);
+}
+
 /**
  * init_pfhwdev - Initialize the extended components of PF
  * @pfhwdev: the HW device for PF
@@ -638,20 +750,37 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 		return err;
 	}
 
-	err = hinic_func_to_func_init(hwdev);
+	err = hinic_devlink_register(hwdev->devlink_dev, &pdev->dev);
 	if (err) {
-		dev_err(&hwif->pdev->dev, "Failed to init mailbox\n");
+		dev_err(&hwif->pdev->dev, "Failed to register devlink\n");
 		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 		return err;
 	}
 
-	if (!HINIC_IS_VF(hwif))
+	err = hinic_func_to_func_init(hwdev);
+	if (err) {
+		dev_err(&hwif->pdev->dev, "Failed to init mailbox\n");
+		hinic_devlink_unregister(hwdev->devlink_dev);
+		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
+		return err;
+	}
+
+	if (!HINIC_IS_VF(hwif)) {
 		hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
 					   HINIC_MOD_L2NIC, pfhwdev,
 					   nic_mgmt_msg_handler);
-	else
+		hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+					   pfhwdev, comm_mgmt_msg_handler);
+		hinic_comm_recv_mgmt_self_cmd_reg(pfhwdev,
+						  HINIC_COMM_CMD_FAULT_REPORT,
+						  pf_fault_event_handler);
+		hinic_comm_recv_mgmt_self_cmd_reg
+			(pfhwdev, HINIC_COMM_CMD_WATCHDOG_INFO,
+			 mgmt_watchdog_timeout_event_handler);
+	} else {
 		hinic_register_vf_mbox_cb(hwdev, HINIC_MOD_L2NIC,
 					  nic_mgmt_msg_handler);
+	}
 
 	hinic_set_pf_action(hwif, HINIC_PF_MGMT_ACTIVE);
 
@@ -668,13 +797,22 @@ static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 
 	hinic_set_pf_action(hwdev->hwif, HINIC_PF_MGMT_INIT);
 
-	if (!HINIC_IS_VF(hwdev->hwif))
+	if (!HINIC_IS_VF(hwdev->hwif)) {
+		hinic_comm_recv_mgmt_self_cmd_unreg(pfhwdev,
+						    HINIC_COMM_CMD_WATCHDOG_INFO);
+		hinic_comm_recv_mgmt_self_cmd_unreg(pfhwdev,
+						    HINIC_COMM_CMD_FAULT_REPORT);
+		hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
+					     HINIC_MOD_COMM);
 		hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
 					     HINIC_MOD_L2NIC);
-	else
+	} else {
 		hinic_unregister_vf_mbox_cb(hwdev, HINIC_MOD_L2NIC);
+	}
 
 	hinic_func_to_func_free(hwdev);
+
+	hinic_devlink_unregister(hwdev->devlink_dev);
 
 	hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 }
@@ -705,6 +843,68 @@ static int hinic_l2nic_reset(struct hinic_hwdev *hwdev)
 	return 0;
 }
 
+int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
+			    struct hinic_msix_config *interrupt_info)
+{
+	u16 out_size = sizeof(*interrupt_info);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	if (!hwdev || !interrupt_info)
+		return -EINVAL;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	interrupt_info->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_MSI_CTRL_REG_RD_BY_UP,
+				interrupt_info, sizeof(*interrupt_info),
+				interrupt_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || interrupt_info->status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to get interrupt config, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, interrupt_info->status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hinic_set_interrupt_cfg(struct hinic_hwdev *hwdev,
+			    struct hinic_msix_config *interrupt_info)
+{
+	u16 out_size = sizeof(*interrupt_info);
+	struct hinic_msix_config temp_info;
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	interrupt_info->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+
+	err = hinic_get_interrupt_cfg(hwdev, &temp_info);
+	if (err)
+		return -EINVAL;
+
+	interrupt_info->lli_credit_cnt = temp_info.lli_timer_cnt;
+	interrupt_info->lli_timer_cnt = temp_info.lli_timer_cnt;
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_MSI_CTRL_REG_WR_BY_UP,
+				interrupt_info, sizeof(*interrupt_info),
+				interrupt_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || interrupt_info->status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to get interrupt config, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, interrupt_info->status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /**
  * hinic_init_hwdev - Initialize the NIC HW
  * @pdev: the NIC pci device
@@ -713,7 +913,7 @@ static int hinic_l2nic_reset(struct hinic_hwdev *hwdev)
  *
  * Initialize the NIC HW device and return a pointer to it
  **/
-struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
+struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev, struct devlink *devlink)
 {
 	struct hinic_pfhwdev *pfhwdev;
 	struct hinic_hwdev *hwdev;
@@ -738,6 +938,8 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 
 	hwdev = &pfhwdev->hwdev;
 	hwdev->hwif = hwif;
+	hwdev->devlink_dev = devlink_priv(devlink);
+	hwdev->devlink_dev->hwdev = hwdev;
 
 	err = init_msix(hwdev);
 	if (err) {
@@ -776,6 +978,8 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 		dev_err(&pdev->dev, "Failed to get device capabilities\n");
 		goto err_dev_cap;
 	}
+
+	mutex_init(&hwdev->func_to_io.nic_cfg.cfg_mutex);
 
 	err = hinic_vf_func_init(hwdev);
 	if (err) {
@@ -830,6 +1034,8 @@ void hinic_free_hwdev(struct hinic_hwdev *hwdev)
 						     hwdev);
 
 	set_resources_state(hwdev, HINIC_RES_CLEAN);
+
+	hinic_vf_func_free(hwdev);
 
 	free_pfhwdev(pfhwdev);
 
@@ -980,4 +1186,30 @@ void hinic_hwdev_set_msix_state(struct hinic_hwdev *hwdev, u16 msix_index,
 				enum hinic_msix_state flag)
 {
 	hinic_set_msix_state(hwdev->hwif, msix_index, flag);
+}
+
+int hinic_get_board_info(struct hinic_hwdev *hwdev,
+			 struct hinic_comm_board_info *board_info)
+{
+	u16 out_size = sizeof(*board_info);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	if (!hwdev || !board_info)
+		return -EINVAL;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_GET_BOARD_INFO,
+				board_info, sizeof(*board_info),
+				board_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || board_info->status || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to get board info, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, board_info->status, out_size);
+		return -EIO;
+	}
+
+	return 0;
 }

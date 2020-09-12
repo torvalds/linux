@@ -8,34 +8,14 @@
 #ifndef __POWERPC_KVM_PARA_H__
 #define __POWERPC_KVM_PARA_H__
 
+#include <asm/firmware.h>
+
 #include <uapi/asm/kvm_para.h>
 
-#ifdef CONFIG_KVM_GUEST
-
-#include <linux/of.h>
-
 static inline int kvm_para_available(void)
 {
-	struct device_node *hyper_node;
-
-	hyper_node = of_find_node_by_path("/hypervisor");
-	if (!hyper_node)
-		return 0;
-
-	if (!of_device_is_compatible(hyper_node, "linux,kvm"))
-		return 0;
-
-	return 1;
+	return IS_ENABLED(CONFIG_KVM_GUEST) && is_kvm_guest();
 }
-
-#else
-
-static inline int kvm_para_available(void)
-{
-	return 0;
-}
-
-#endif
 
 static inline unsigned int kvm_arch_para_features(void)
 {

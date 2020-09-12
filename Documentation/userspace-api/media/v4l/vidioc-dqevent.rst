@@ -260,7 +260,7 @@ call.
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
     * - __s32
       - ``default_value``
-      - The default value value of the control. See struct
+      - The default value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
 
 

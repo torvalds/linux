@@ -677,15 +677,11 @@ static int rcar_lvds_attach(struct drm_bridge *bridge,
 	if (ret < 0)
 		return ret;
 
-	return drm_panel_attach(lvds->panel, connector);
+	return 0;
 }
 
 static void rcar_lvds_detach(struct drm_bridge *bridge)
 {
-	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-
-	if (lvds->panel)
-		drm_panel_detach(lvds->panel);
 }
 
 static const struct drm_bridge_funcs rcar_lvds_bridge_ops = {

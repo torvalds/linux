@@ -15,6 +15,7 @@
 #include <linux/fsl/mc.h>
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
+#include <net/pkt_cls.h>
 #include <net/sock.h>
 
 #include "dpaa2-eth.h"
@@ -375,10 +376,10 @@ static u32 run_xdp(struct dpaa2_eth_priv *priv,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(xdp_act);
-		/* fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
-		/* fall through */
+		fallthrough;
 	case XDP_DROP:
 		xdp_release_buf(priv, ch, addr);
 		ch->stats.xdp_drop++;
@@ -611,6 +612,10 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 
 	sg_init_table(scl, nr_frags + 1);
 	num_sg = skb_to_sgvec(skb, scl, 0, skb->len);
+	if (unlikely(num_sg < 0)) {
+		err = -ENOMEM;
+		goto dma_map_sg_failed;
+	}
 	num_dma_bufs = dma_map_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
 	if (unlikely(!num_dma_bufs)) {
 		err = -ENOMEM;
@@ -681,6 +686,86 @@ dma_map_sg_failed:
 	return err;
 }
 
+/* Create a SG frame descriptor based on a linear skb.
+ *
+ * This function is used on the Tx path when the skb headroom is not large
+ * enough for the HW requirements, thus instead of realloc-ing the skb we
+ * create a SG frame descriptor with only one entry.
+ */
+static int build_sg_fd_single_buf(struct dpaa2_eth_priv *priv,
+				  struct sk_buff *skb,
+				  struct dpaa2_fd *fd)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpaa2_eth_sgt_cache *sgt_cache;
+	struct dpaa2_sg_entry *sgt;
+	struct dpaa2_eth_swa *swa;
+	dma_addr_t addr, sgt_addr;
+	void *sgt_buf = NULL;
+	int sgt_buf_size;
+	int err;
+
+	/* Prepare the HW SGT structure */
+	sgt_cache = this_cpu_ptr(priv->sgt_cache);
+	sgt_buf_size = priv->tx_data_offset + sizeof(struct dpaa2_sg_entry);
+
+	if (sgt_cache->count == 0)
+		sgt_buf = kzalloc(sgt_buf_size + DPAA2_ETH_TX_BUF_ALIGN,
+				  GFP_ATOMIC);
+	else
+		sgt_buf = sgt_cache->buf[--sgt_cache->count];
+	if (unlikely(!sgt_buf))
+		return -ENOMEM;
+
+	sgt_buf = PTR_ALIGN(sgt_buf, DPAA2_ETH_TX_BUF_ALIGN);
+	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
+
+	addr = dma_map_single(dev, skb->data, skb->len, DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(dev, addr))) {
+		err = -ENOMEM;
+		goto data_map_failed;
+	}
+
+	/* Fill in the HW SGT structure */
+	dpaa2_sg_set_addr(sgt, addr);
+	dpaa2_sg_set_len(sgt, skb->len);
+	dpaa2_sg_set_final(sgt, true);
+
+	/* Store the skb backpointer in the SGT buffer */
+	swa = (struct dpaa2_eth_swa *)sgt_buf;
+	swa->type = DPAA2_ETH_SWA_SINGLE;
+	swa->single.skb = skb;
+	swa->sg.sgt_size = sgt_buf_size;
+
+	/* Separately map the SGT buffer */
+	sgt_addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(dev, sgt_addr))) {
+		err = -ENOMEM;
+		goto sgt_map_failed;
+	}
+
+	dpaa2_fd_set_offset(fd, priv->tx_data_offset);
+	dpaa2_fd_set_format(fd, dpaa2_fd_sg);
+	dpaa2_fd_set_addr(fd, sgt_addr);
+	dpaa2_fd_set_len(fd, skb->len);
+	dpaa2_fd_set_ctrl(fd, FD_CTRL_PTA);
+
+	if (priv->tx_tstamp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
+		enable_tx_tstamp(fd, sgt_buf);
+
+	return 0;
+
+sgt_map_failed:
+	dma_unmap_single(dev, addr, skb->len, DMA_BIDIRECTIONAL);
+data_map_failed:
+	if (sgt_cache->count >= DPAA2_ETH_SGT_CACHE_SIZE)
+		kfree(sgt_buf);
+	else
+		sgt_cache->buf[sgt_cache->count++] = sgt_buf;
+
+	return err;
+}
+
 /* Create a frame descriptor based on a linear skb */
 static int build_single_fd(struct dpaa2_eth_priv *priv,
 			   struct sk_buff *skb,
@@ -739,12 +824,15 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 		       const struct dpaa2_fd *fd, bool in_napi)
 {
 	struct device *dev = priv->net_dev->dev.parent;
-	dma_addr_t fd_addr;
+	dma_addr_t fd_addr, sg_addr;
 	struct sk_buff *skb = NULL;
 	unsigned char *buffer_start;
 	struct dpaa2_eth_swa *swa;
 	u8 fd_format = dpaa2_fd_get_format(fd);
 	u32 fd_len = dpaa2_fd_get_len(fd);
+
+	struct dpaa2_eth_sgt_cache *sgt_cache;
+	struct dpaa2_sg_entry *sgt;
 
 	fd_addr = dpaa2_fd_get_addr(fd);
 	buffer_start = dpaa2_iova_to_virt(priv->iommu_domain, fd_addr);
@@ -765,16 +853,29 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 					 DMA_BIDIRECTIONAL);
 		}
 	} else if (fd_format == dpaa2_fd_sg) {
-		skb = swa->sg.skb;
+		if (swa->type == DPAA2_ETH_SWA_SG) {
+			skb = swa->sg.skb;
 
-		/* Unmap the scatterlist */
-		dma_unmap_sg(dev, swa->sg.scl, swa->sg.num_sg,
-			     DMA_BIDIRECTIONAL);
-		kfree(swa->sg.scl);
+			/* Unmap the scatterlist */
+			dma_unmap_sg(dev, swa->sg.scl, swa->sg.num_sg,
+				     DMA_BIDIRECTIONAL);
+			kfree(swa->sg.scl);
 
-		/* Unmap the SGT buffer */
-		dma_unmap_single(dev, fd_addr, swa->sg.sgt_size,
-				 DMA_BIDIRECTIONAL);
+			/* Unmap the SGT buffer */
+			dma_unmap_single(dev, fd_addr, swa->sg.sgt_size,
+					 DMA_BIDIRECTIONAL);
+		} else {
+			skb = swa->single.skb;
+
+			/* Unmap the SGT Buffer */
+			dma_unmap_single(dev, fd_addr, swa->single.sgt_size,
+					 DMA_BIDIRECTIONAL);
+
+			sgt = (struct dpaa2_sg_entry *)(buffer_start +
+							priv->tx_data_offset);
+			sg_addr = dpaa2_sg_get_addr(sgt);
+			dma_unmap_single(dev, sg_addr, skb->len, DMA_BIDIRECTIONAL);
+		}
 	} else {
 		netdev_dbg(priv->net_dev, "Invalid FD format\n");
 		return;
@@ -804,8 +905,17 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	}
 
 	/* Free SGT buffer allocated on tx */
-	if (fd_format != dpaa2_fd_single)
-		skb_free_frag(buffer_start);
+	if (fd_format != dpaa2_fd_single) {
+		sgt_cache = this_cpu_ptr(priv->sgt_cache);
+		if (swa->type == DPAA2_ETH_SWA_SG) {
+			skb_free_frag(buffer_start);
+		} else {
+			if (sgt_cache->count >= DPAA2_ETH_SGT_CACHE_SIZE)
+				kfree(buffer_start);
+			else
+				sgt_cache->buf[sgt_cache->count++] = buffer_start;
+		}
+	}
 
 	/* Move on with skb release */
 	napi_consume_skb(skb, in_napi);
@@ -829,22 +939,6 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 
 	needed_headroom = dpaa2_eth_needed_headroom(priv, skb);
-	if (skb_headroom(skb) < needed_headroom) {
-		struct sk_buff *ns;
-
-		ns = skb_realloc_headroom(skb, needed_headroom);
-		if (unlikely(!ns)) {
-			percpu_stats->tx_dropped++;
-			goto err_alloc_headroom;
-		}
-		percpu_extras->tx_reallocs++;
-
-		if (skb->sk)
-			skb_set_owner_w(ns, skb->sk);
-
-		dev_kfree_skb(skb);
-		skb = ns;
-	}
 
 	/* We'll be holding a back-reference to the skb until Tx Confirmation;
 	 * we don't want that overwritten by a concurrent Tx with a cloned skb.
@@ -863,6 +957,12 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 		err = build_sg_fd(priv, skb, &fd);
 		percpu_extras->tx_sg_frames++;
 		percpu_extras->tx_sg_bytes += skb->len;
+	} else if (skb_headroom(skb) < needed_headroom) {
+		err = build_sg_fd_single_buf(priv, skb, &fd);
+		percpu_extras->tx_sg_frames++;
+		percpu_extras->tx_sg_bytes += skb->len;
+		percpu_extras->tx_converted_sg_frames++;
+		percpu_extras->tx_converted_sg_bytes += skb->len;
 	} else {
 		err = build_single_fd(priv, skb, &fd);
 	}
@@ -920,7 +1020,6 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	return NETDEV_TX_OK;
 
 err_build_fd:
-err_alloc_headroom:
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
@@ -1109,7 +1208,7 @@ static void drain_bufs(struct dpaa2_eth_priv *priv, int count)
 					       buf_array, count);
 		if (ret < 0) {
 			if (ret == -EBUSY &&
-			    retries++ >= DPAA2_ETH_SWP_BUSY_RETRIES)
+			    retries++ < DPAA2_ETH_SWP_BUSY_RETRIES)
 				continue;
 			netdev_err(priv->net_dev, "dpaa2_io_service_acquire() failed\n");
 			return;
@@ -1155,6 +1254,22 @@ static int refill_pool(struct dpaa2_eth_priv *priv,
 		return -ENOMEM;
 
 	return 0;
+}
+
+static void dpaa2_eth_sgt_cache_drain(struct dpaa2_eth_priv *priv)
+{
+	struct dpaa2_eth_sgt_cache *sgt_cache;
+	u16 count;
+	int k, i;
+
+	for_each_possible_cpu(k) {
+		sgt_cache = per_cpu_ptr(priv->sgt_cache, k);
+		count = sgt_cache->count;
+
+		for (i = 0; i < count; i++)
+			kfree(sgt_cache->buf[i]);
+		sgt_cache->count = 0;
+	}
 }
 
 static int pull_channel(struct dpaa2_eth_channel *ch)
@@ -1558,6 +1673,9 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 	/* Empty the buffer pool */
 	drain_pool(priv);
 
+	/* Empty the Scatter-Gather Buffer cache */
+	dpaa2_eth_sgt_cache_drain(priv);
+
 	return 0;
 }
 
@@ -1959,14 +2077,9 @@ out_err:
 
 static int dpaa2_eth_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
-	struct dpaa2_eth_priv *priv = netdev_priv(dev);
-
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return setup_xdp(dev, xdp->prog);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = priv->xdp_prog ? priv->xdp_prog->aux->id : 0;
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -2096,16 +2209,12 @@ static int update_xps(struct dpaa2_eth_priv *priv)
 	return err;
 }
 
-static int dpaa2_eth_setup_tc(struct net_device *net_dev,
-			      enum tc_setup_type type, void *type_data)
+static int dpaa2_eth_setup_mqprio(struct net_device *net_dev,
+				  struct tc_mqprio_qopt *mqprio)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	struct tc_mqprio_qopt *mqprio = type_data;
 	u8 num_tc, num_queues;
 	int i;
-
-	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	num_queues = dpaa2_eth_queue_count(priv);
@@ -2138,6 +2247,60 @@ out:
 	return 0;
 }
 
+#define bps_to_mbits(rate) (div_u64((rate), 1000000) * 8)
+
+static int dpaa2_eth_setup_tbf(struct net_device *net_dev, struct tc_tbf_qopt_offload *p)
+{
+	struct tc_tbf_qopt_offload_replace_params *cfg = &p->replace_params;
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	struct dpni_tx_shaping_cfg tx_cr_shaper = { 0 };
+	struct dpni_tx_shaping_cfg tx_er_shaper = { 0 };
+	int err;
+
+	if (p->command == TC_TBF_STATS)
+		return -EOPNOTSUPP;
+
+	/* Only per port Tx shaping */
+	if (p->parent != TC_H_ROOT)
+		return -EOPNOTSUPP;
+
+	if (p->command == TC_TBF_REPLACE) {
+		if (cfg->max_size > DPAA2_ETH_MAX_BURST_SIZE) {
+			netdev_err(net_dev, "burst size cannot be greater than %d\n",
+				   DPAA2_ETH_MAX_BURST_SIZE);
+			return -EINVAL;
+		}
+
+		tx_cr_shaper.max_burst_size = cfg->max_size;
+		/* The TBF interface is in bytes/s, whereas DPAA2 expects the
+		 * rate in Mbits/s
+		 */
+		tx_cr_shaper.rate_limit = bps_to_mbits(cfg->rate.rate_bytes_ps);
+	}
+
+	err = dpni_set_tx_shaping(priv->mc_io, 0, priv->mc_token, &tx_cr_shaper,
+				  &tx_er_shaper, 0);
+	if (err) {
+		netdev_err(net_dev, "dpni_set_tx_shaping() = %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static int dpaa2_eth_setup_tc(struct net_device *net_dev,
+			      enum tc_setup_type type, void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		return dpaa2_eth_setup_mqprio(net_dev, type_data);
+	case TC_SETUP_QDISC_TBF:
+		return dpaa2_eth_setup_tbf(net_dev, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_open = dpaa2_eth_open,
 	.ndo_start_xmit = dpaa2_eth_tx,
@@ -2162,7 +2325,7 @@ static void cdan_cb(struct dpaa2_io_notification_ctx *ctx)
 	/* Update NAPI statistics */
 	ch->stats.cdan++;
 
-	napi_schedule_irqoff(&ch->napi);
+	napi_schedule(&ch->napi);
 }
 
 /* Allocate and configure a DPCON object */
@@ -2207,7 +2370,7 @@ close:
 free:
 	fsl_mc_object_free(dpcon);
 
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static void free_dpcon(struct dpaa2_eth_priv *priv,
@@ -2231,8 +2394,8 @@ alloc_channel(struct dpaa2_eth_priv *priv)
 		return NULL;
 
 	channel->dpcon = setup_dpcon(priv);
-	if (IS_ERR_OR_NULL(channel->dpcon)) {
-		err = PTR_ERR_OR_ZERO(channel->dpcon);
+	if (IS_ERR(channel->dpcon)) {
+		err = PTR_ERR(channel->dpcon);
 		goto err_setup;
 	}
 
@@ -3602,7 +3765,7 @@ static int netdev_init(struct net_device *net_dev)
 	net_dev->features = NETIF_F_RXCSUM |
 			    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			    NETIF_F_SG | NETIF_F_HIGHDMA |
-			    NETIF_F_LLTX;
+			    NETIF_F_LLTX | NETIF_F_HW_TC;
 	net_dev->hw_features = net_dev->features;
 
 	return 0;
@@ -3842,6 +4005,13 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 		goto err_alloc_percpu_extras;
 	}
 
+	priv->sgt_cache = alloc_percpu(*priv->sgt_cache);
+	if (!priv->sgt_cache) {
+		dev_err(dev, "alloc_percpu(sgt_cache) failed\n");
+		err = -ENOMEM;
+		goto err_alloc_sgt_cache;
+	}
+
 	err = netdev_init(net_dev);
 	if (err)
 		goto err_netdev_init;
@@ -3910,6 +4080,8 @@ err_poll_thread:
 err_alloc_rings:
 err_csum:
 err_netdev_init:
+	free_percpu(priv->sgt_cache);
+err_alloc_sgt_cache:
 	free_percpu(priv->percpu_extras);
 err_alloc_percpu_extras:
 	free_percpu(priv->percpu_stats);
@@ -3955,6 +4127,7 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 		fsl_mc_free_irqs(ls_dev);
 
 	free_rings(priv);
+	free_percpu(priv->sgt_cache);
 	free_percpu(priv->percpu_stats);
 	free_percpu(priv->percpu_extras);
 

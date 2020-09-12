@@ -33,8 +33,15 @@ const char *event_type(int type);
 
 int parse_events_option(const struct option *opt, const char *str, int unset);
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
-int parse_events(struct evlist *evlist, const char *str,
-		 struct parse_events_error *error);
+int __parse_events(struct evlist *evlist, const char *str, struct parse_events_error *error,
+		   struct perf_pmu *fake_pmu);
+
+static inline int parse_events(struct evlist *evlist, const char *str,
+			       struct parse_events_error *err)
+{
+	return __parse_events(evlist, str, err, NULL);
+}
+
 int parse_events_terms(struct list_head *terms, const char *str);
 int parse_filter(const struct option *opt, const char *str, int unset);
 int exclude_perf(const struct option *opt, const char *arg, int unset);
@@ -127,9 +134,10 @@ struct parse_events_state {
 	int			   idx;
 	int			   nr_groups;
 	struct parse_events_error *error;
-	struct evlist	  *evlist;
+	struct evlist		  *evlist;
 	struct list_head	  *terms;
 	int			   stoken;
+	struct perf_pmu		  *fake_pmu;
 };
 
 void parse_events__handle_error(struct parse_events_error *err, int idx,
@@ -252,5 +260,7 @@ static inline bool is_sdt_event(char *str __maybe_unused)
 	return false;
 }
 #endif /* HAVE_LIBELF_SUPPORT */
+
+int perf_pmu__test_parse_init(void);
 
 #endif /* __PERF_PARSE_EVENTS_H */

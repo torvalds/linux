@@ -34,7 +34,7 @@ config ATH9K
 	  APs that come with these cards refer to ath9k wiki
 	  products page:
 
-	  http://wireless.kernel.org/en/users/Drivers/ath9k/products
+	  https://wireless.wiki.kernel.org/en/users/Drivers/ath9k/products
 
 	  If you choose to build a module, it'll be called ath9k.
 
@@ -185,7 +185,8 @@ config ATH9K_HTC
 	  Support for Atheros HTC based cards.
 	  Chipsets supported: AR9271
 
-	  For more information: http://wireless.kernel.org/en/users/Drivers/ath9k_htc
+	  For more information:
+	  https://wireless.wiki.kernel.org/en/users/Drivers/ath9k_htc
 
 	  The built module will be ath9k_htc.
 

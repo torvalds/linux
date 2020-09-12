@@ -113,8 +113,8 @@ properties:
             maxItems: 1
 
           st,mask-reset:
-            description: mask reset for this regulator,
-                         the regulator configuration is maintained during pmic reset.
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
             $ref: /schemas/types.yaml#/definitions/flag
 
           regulator-name: true
@@ -135,8 +135,8 @@ properties:
             maxItems: 1
 
           st,mask-reset:
-            description: mask reset for this regulator,
-                         the regulator configuration is maintained during pmic reset.
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
             $ref: /schemas/types.yaml#/definitions/flag
 
           regulator-name: true
@@ -154,8 +154,8 @@ properties:
             maxItems: 1
 
           st,mask-reset:
-            description: mask reset for this regulator,
-                         the regulator configuration is maintained during pmic reset.
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
             $ref: /schemas/types.yaml#/definitions/flag
 
           regulator-name: true
@@ -172,8 +172,8 @@ properties:
             maxItems: 1
 
           st,mask-reset:
-            description: mask reset for this regulator,
-                         the regulator configuration is maintained during pmic reset.
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
             $ref: /schemas/types.yaml#/definitions/flag
 
           regulator-name: true
@@ -198,8 +198,8 @@ properties:
             maxItems: 1
 
           st,mask-reset:
-            description: mask reset for this regulator,
-                         the regulator configuration is maintained during pmic reset.
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
             $ref: /schemas/types.yaml#/definitions/flag
 
           regulator-name: true
@@ -220,8 +220,8 @@ properties:
             maxItems: 1
 
           st,mask-reset:
-            description: mask reset for this regulator,
-                         the regulator configuration is maintained during pmic reset.
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
             $ref: /schemas/types.yaml#/definitions/flag
 
           regulator-name: true

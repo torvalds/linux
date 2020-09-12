@@ -185,7 +185,6 @@ static int bh1780_probe(struct i2c_client *client,
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_put(&client->dev);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &bh1780_info;
 	indio_dev->name = "bh1780";
 	indio_dev->channels = bh1780_channels;

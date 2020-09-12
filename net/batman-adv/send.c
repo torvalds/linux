@@ -605,8 +605,8 @@ bool batadv_forw_packet_steal(struct batadv_forw_packet *forw_packet,
  * given hard_iface. If hard_iface is NULL forwarding packets on all hard
  * interfaces will be claimed.
  *
- * The packets are being moved from the forw_list to the cleanup_list and
- * by that allows already running threads to notice the claiming.
+ * The packets are being moved from the forw_list to the cleanup_list. This
+ * makes it possible for already running threads to notice the claim.
  */
 static void
 batadv_forw_packet_list_steal(struct hlist_head *forw_list,

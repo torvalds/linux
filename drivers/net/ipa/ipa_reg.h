@@ -32,10 +32,12 @@ struct ipa;
  * parameter is supplied to the offset macro.  The "ee" value is a member of
  * the gsi_ee enumerated type.
  *
- * The offset of a register dependent on endpoint id is computed by a macro
- * that is supplied a parameter "ep".  The "ep" value is assumed to be less
- * than the maximum endpoint value for the current hardware, and that will
- * not exceed IPA_ENDPOINT_MAX.
+ * The offset of a register dependent on endpoint ID is computed by a macro
+ * that is supplied a parameter "ep", "txep", or "rxep".  A register with an
+ * "ep" parameter is valid for any endpoint; a register with a "txep" or
+ * "rxep" parameter is valid only for TX or RX endpoints, respectively.  The
+ * "*ep" value is assumed to be less than the maximum valid endpoint ID
+ * for the current hardware, and that will not exceed IPA_ENDPOINT_MAX.
  *
  * The offset of registers related to filter and route tables is computed
  * by a macro that is supplied a parameter "er".  The "er" represents an
@@ -190,24 +192,23 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 	return 0x00000000;
 }
 
-
 #define IPA_REG_LOCAL_PKT_PROC_CNTXT_BASE_OFFSET	0x000001e8
 
 #define IPA_REG_AGGR_FORCE_CLOSE_OFFSET			0x000001ec
 /* ipa->available defines the valid bits in the AGGR_FORCE_CLOSE register */
 
+/* The internal inactivity timer clock is used for the aggregation timer */
+#define TIMER_FREQUENCY	32000	/* 32 KHz inactivity timer clock */
+
 #define IPA_REG_COUNTER_CFG_OFFSET			0x000001f0
 #define AGGR_GRANULARITY			GENMASK(8, 4)
-/* Compute the value to use in the AGGR_GRANULARITY field representing
- * the given number of microseconds (up to 1 millisecond).
- *	x = (32 * usec) / 1000 - 1
+/* Compute the value to use in the AGGR_GRANULARITY field representing the
+ * given number of microseconds.  The value is one less than the number of
+ * timer ticks in the requested period.  Zero not a valid granularity value.
  */
-static inline u32 ipa_aggr_granularity_val(u32 microseconds)
+static inline u32 ipa_aggr_granularity_val(u32 usec)
 {
-	/* assert(microseconds >= 16); (?) */
-	/* assert(microseconds <= 1015); */
-
-	return DIV_ROUND_CLOSEST(32 * microseconds, 1000) - 1;
+	return DIV_ROUND_CLOSEST(usec * TIMER_FREQUENCY, USEC_PER_SEC) - 1;
 }
 
 #define IPA_REG_TX_CFG_OFFSET				0x000001fc
@@ -293,11 +294,13 @@ static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 #define HDR_TOTAL_LEN_OR_PAD_OFFSET_FMASK	GENMASK(9, 4)
 #define HDR_PAD_TO_ALIGNMENT_FMASK		GENMASK(13, 10)
 
-#define IPA_REG_ENDP_INIT_HDR_METADATA_MASK_N_OFFSET(ep) \
-					(0x00000818 + 0x0070 * (ep))
+/* Valid only for RX (IPA producer) endpoints */
+#define IPA_REG_ENDP_INIT_HDR_METADATA_MASK_N_OFFSET(rxep) \
+					(0x00000818 + 0x0070 * (rxep))
 
-#define IPA_REG_ENDP_INIT_MODE_N_OFFSET(ep) \
-					(0x00000820 + 0x0070 * (ep))
+/* Valid only for TX (IPA consumer) endpoints */
+#define IPA_REG_ENDP_INIT_MODE_N_OFFSET(txep) \
+					(0x00000820 + 0x0070 * (txep))
 #define MODE_FMASK				GENMASK(2, 0)
 #define DEST_PIPE_INDEX_FMASK			GENMASK(8, 4)
 #define BYTE_THRESHOLD_FMASK			GENMASK(27, 12)
@@ -316,19 +319,21 @@ static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 #define AGGR_FORCE_CLOSE_FMASK			GENMASK(22, 22)
 #define AGGR_HARD_BYTE_LIMIT_ENABLE_FMASK	GENMASK(24, 24)
 
-#define IPA_REG_ENDP_INIT_HOL_BLOCK_EN_N_OFFSET(ep) \
-					(0x0000082c +  0x0070 * (ep))
+/* Valid only for RX (IPA producer) endpoints */
+#define IPA_REG_ENDP_INIT_HOL_BLOCK_EN_N_OFFSET(rxep) \
+					(0x0000082c +  0x0070 * (rxep))
 #define HOL_BLOCK_EN_FMASK			GENMASK(0, 0)
 
-/* The next register is valid only for RX (IPA producer) endpoints */
-#define IPA_REG_ENDP_INIT_HOL_BLOCK_TIMER_N_OFFSET(ep) \
-					(0x00000830 +  0x0070 * (ep))
+/* Valid only for RX (IPA producer) endpoints */
+#define IPA_REG_ENDP_INIT_HOL_BLOCK_TIMER_N_OFFSET(rxep) \
+					(0x00000830 +  0x0070 * (rxep))
 /* The next fields are present for IPA v4.2 only */
 #define BASE_VALUE_FMASK			GENMASK(4, 0)
 #define SCALE_FMASK				GENMASK(12, 8)
 
-#define IPA_REG_ENDP_INIT_DEAGGR_N_OFFSET(ep) \
-					(0x00000834 + 0x0070 * (ep))
+/* Valid only for TX (IPA consumer) endpoints */
+#define IPA_REG_ENDP_INIT_DEAGGR_N_OFFSET(txep) \
+					(0x00000834 + 0x0070 * (txep))
 #define DEAGGR_HDR_LEN_FMASK			GENMASK(5, 0)
 #define PACKET_OFFSET_VALID_FMASK		GENMASK(7, 7)
 #define PACKET_OFFSET_LOCATION_FMASK		GENMASK(13, 8)
@@ -338,8 +343,9 @@ static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 					(0x00000838 + 0x0070 * (ep))
 #define RSRC_GRP_FMASK				GENMASK(1, 0)
 
-#define IPA_REG_ENDP_INIT_SEQ_N_OFFSET(ep) \
-					(0x0000083c + 0x0070 * (ep))
+/* Valid only for TX (IPA consumer) endpoints */
+#define IPA_REG_ENDP_INIT_SEQ_N_OFFSET(txep) \
+					(0x0000083c + 0x0070 * (txep))
 #define HPS_SEQ_TYPE_FMASK			GENMASK(3, 0)
 #define DPS_SEQ_TYPE_FMASK			GENMASK(7, 4)
 #define HPS_REP_SEQ_TYPE_FMASK			GENMASK(11, 8)
@@ -353,7 +359,7 @@ static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 /* The next field is present for IPA v4.0 and above */
 #define STATUS_PKT_SUPPRESS_FMASK		GENMASK(9, 9)
 
-/* "er" is either an endpoint id (for filters) or a route id (for routes) */
+/* "er" is either an endpoint ID (for filters) or a route ID (for routes) */
 #define IPA_REG_ENDP_FILTER_ROUTER_HSH_CFG_N_OFFSET(er) \
 					(0x0000085c + 0x0070 * (er))
 #define FILTER_HASH_MSK_SRC_ID_FMASK		GENMASK(0, 0)

@@ -653,7 +653,7 @@ static void drm_gem_vram_bo_driver_evict_flags(struct drm_gem_vram_object *gbo,
 
 static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
 					       bool evict,
-					       struct ttm_mem_reg *new_mem)
+					       struct ttm_resource *new_mem)
 {
 	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
 
@@ -1004,28 +1004,6 @@ err_ttm_tt_init:
 	return NULL;
 }
 
-static int bo_driver_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
-				   struct ttm_mem_type_manager *man)
-{
-	switch (type) {
-	case TTM_PL_SYSTEM:
-		man->flags = 0;
-		man->available_caching = TTM_PL_MASK_CACHING;
-		man->default_caching = TTM_PL_FLAG_CACHED;
-		break;
-	case TTM_PL_VRAM:
-		man->func = &ttm_bo_manager_func;
-		man->flags = TTM_MEMTYPE_FLAG_FIXED;
-		man->available_caching = TTM_PL_FLAG_UNCACHED |
-					 TTM_PL_FLAG_WC;
-		man->default_caching = TTM_PL_FLAG_WC;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 				  struct ttm_placement *placement)
 {
@@ -1042,7 +1020,7 @@ static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 
 static void bo_driver_move_notify(struct ttm_buffer_object *bo,
 				  bool evict,
-				  struct ttm_mem_reg *new_mem)
+				  struct ttm_resource *new_mem)
 {
 	struct drm_gem_vram_object *gbo;
 
@@ -1056,18 +1034,12 @@ static void bo_driver_move_notify(struct ttm_buffer_object *bo,
 }
 
 static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
-				    struct ttm_mem_reg *mem)
+				    struct ttm_resource *mem)
 {
 	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bdev);
 
-	mem->bus.addr = NULL;
-	mem->bus.size = mem->num_pages << PAGE_SHIFT;
-
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:	/* nothing to do */
-		mem->bus.offset = 0;
-		mem->bus.base = 0;
-		mem->bus.is_iomem = false;
 		break;
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
@@ -1083,9 +1055,6 @@ static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
 
 static struct ttm_bo_driver bo_driver = {
 	.ttm_tt_create = bo_driver_ttm_tt_create,
-	.ttm_tt_populate = ttm_pool_populate,
-	.ttm_tt_unpopulate = ttm_pool_unpopulate,
-	.init_mem_type = bo_driver_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = bo_driver_evict_flags,
 	.move_notify = bo_driver_move_notify,
@@ -1100,12 +1069,10 @@ static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_vram_mm *vmm = node->minor->dev->vram_mm;
-	struct drm_mm *mm = vmm->bdev.man[TTM_PL_VRAM].priv;
+	struct ttm_resource_manager *man = ttm_manager_type(&vmm->bdev, TTM_PL_VRAM);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	spin_lock(&ttm_bo_glob.lru_lock);
-	drm_mm_print(mm, &p);
-	spin_unlock(&ttm_bo_glob.lru_lock);
+	ttm_resource_manager_debug(man, &p);
 	return 0;
 }
 
@@ -1142,7 +1109,10 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_init_mm(&vmm->bdev, TTM_PL_VRAM, vram_size >> PAGE_SHIFT);
+	ret = ttm_range_man_init(&vmm->bdev, TTM_PL_VRAM,
+				 TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC,
+				 TTM_PL_FLAG_WC, false,
+				 vram_size >> PAGE_SHIFT);
 	if (ret)
 		return ret;
 
@@ -1151,6 +1121,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 
 static void drm_vram_mm_cleanup(struct drm_vram_mm *vmm)
 {
+	ttm_range_man_fini(&vmm->bdev, TTM_PL_VRAM);
 	ttm_bo_device_release(&vmm->bdev);
 }
 

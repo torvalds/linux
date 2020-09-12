@@ -69,10 +69,10 @@ static const struct snd_soc_dapm_route wm8728_intercon[] = {
 	{"VOUTR", NULL, "DAC"},
 };
 
-static int wm8728_mute(struct snd_soc_dai *dai, int mute)
+static int wm8728_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, WM8728_DACCTL);
+	u16 mute_reg = snd_soc_component_read(component, WM8728_DACCTL);
 
 	if (mute)
 		snd_soc_component_write(component, WM8728_DACCTL, mute_reg | 1);
@@ -87,7 +87,7 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 dac = snd_soc_component_read32(component, WM8728_DACCTL);
+	u16 dac = snd_soc_component_read(component, WM8728_DACCTL);
 
 	dac &= ~0x18;
 
@@ -113,7 +113,7 @@ static int wm8728_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_component *component = codec_dai->component;
-	u16 iface = snd_soc_component_read32(component, WM8728_IFCTL);
+	u16 iface = snd_soc_component_read(component, WM8728_IFCTL);
 
 	/* Currently only I2S is supported by the driver, though the
 	 * hardware is more flexible.
@@ -169,7 +169,7 @@ static int wm8728_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			/* Power everything up... */
-			reg = snd_soc_component_read32(component, WM8728_DACCTL);
+			reg = snd_soc_component_read(component, WM8728_DACCTL);
 			snd_soc_component_write(component, WM8728_DACCTL, reg & ~0x4);
 
 			/* ..then sync in the register cache. */
@@ -178,7 +178,7 @@ static int wm8728_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		reg = snd_soc_component_read32(component, WM8728_DACCTL);
+		reg = snd_soc_component_read(component, WM8728_DACCTL);
 		snd_soc_component_write(component, WM8728_DACCTL, reg | 0x4);
 		break;
 	}
@@ -192,8 +192,9 @@ static int wm8728_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops wm8728_dai_ops = {
 	.hw_params	= wm8728_hw_params,
-	.digital_mute	= wm8728_mute,
+	.mute_stream	= wm8728_mute,
 	.set_fmt	= wm8728_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8728_dai = {

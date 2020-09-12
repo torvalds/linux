@@ -505,7 +505,6 @@ static int am65_cpsw_set_taprio(struct net_device *ndev, void *type_data)
 	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
 	struct tc_taprio_qopt_offload *taprio = type_data;
 	struct am65_cpsw_est *est_new;
-	size_t size;
 	int ret = 0;
 
 	if (taprio->cycle_time_extension) {
@@ -513,10 +512,9 @@ static int am65_cpsw_set_taprio(struct net_device *ndev, void *type_data)
 		return -EOPNOTSUPP;
 	}
 
-	size = sizeof(struct tc_taprio_sched_entry) * taprio->num_entries +
-	       sizeof(struct am65_cpsw_est);
-
-	est_new = devm_kzalloc(&ndev->dev, size, GFP_KERNEL);
+	est_new = devm_kzalloc(&ndev->dev,
+			       struct_size(est_new, taprio.entries, taprio->num_entries),
+			       GFP_KERNEL);
 	if (!est_new)
 		return -ENOMEM;
 

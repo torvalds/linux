@@ -36,3 +36,17 @@ config TEGRA124_EMC
 	  Tegra124 chips. The EMC controls the external DRAM on the board.
 	  This driver is required to change memory timings / clock rate for
 	  external memory.
+
+config TEGRA210_EMC_TABLE
+	bool
+	depends on ARCH_TEGRA_210_SOC
+
+config TEGRA210_EMC
+	tristate "NVIDIA Tegra210 External Memory Controller driver"
+	depends on TEGRA_MC && ARCH_TEGRA_210_SOC
+	select TEGRA210_EMC_TABLE
+	help
+	  This driver is for the External Memory Controller (EMC) found on
+	  Tegra210 chips. The EMC controls the external DRAM on the board.
+	  This driver is required to change memory timings / clock rate for
+	  external memory.

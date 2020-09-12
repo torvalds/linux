@@ -55,6 +55,7 @@ enum intel_pt_pkt_state {
 	INTEL_PT_STATE_TIP_PGD,
 	INTEL_PT_STATE_FUP,
 	INTEL_PT_STATE_FUP_NO_TIP,
+	INTEL_PT_STATE_RESAMPLE,
 };
 
 static inline bool intel_pt_sample_time(enum intel_pt_pkt_state pkt_state)
@@ -65,6 +66,7 @@ static inline bool intel_pt_sample_time(enum intel_pt_pkt_state pkt_state)
 	case INTEL_PT_STATE_ERR_RESYNC:
 	case INTEL_PT_STATE_IN_SYNC:
 	case INTEL_PT_STATE_TNT_CONT:
+	case INTEL_PT_STATE_RESAMPLE:
 		return true;
 	case INTEL_PT_STATE_TNT:
 	case INTEL_PT_STATE_TIP:
@@ -109,6 +111,9 @@ struct intel_pt_decoder {
 	bool fixup_last_mtc;
 	bool have_last_ip;
 	bool in_psb;
+	bool hop;
+	bool hop_psb_fup;
+	bool leap;
 	enum intel_pt_param_flags flags;
 	uint64_t pos;
 	uint64_t last_ip;
@@ -235,6 +240,8 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->data               = params->data;
 	decoder->return_compression = params->return_compression;
 	decoder->branch_enable      = params->branch_enable;
+	decoder->hop                = params->quick >= 1;
+	decoder->leap               = params->quick >= 2;
 
 	decoder->flags              = params->flags;
 
@@ -274,6 +281,9 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	intel_pt_log("timestamp: tsc_ctc_ratio_d %u\n", decoder->tsc_ctc_ratio_d);
 	intel_pt_log("timestamp: tsc_ctc_mult %u\n", decoder->tsc_ctc_mult);
 	intel_pt_log("timestamp: tsc_slip %#x\n", decoder->tsc_slip);
+
+	if (decoder->hop)
+		intel_pt_log("Hop mode: decoding FUP and TIPs, but not TNT\n");
 
 	return decoder;
 }
@@ -1164,6 +1174,7 @@ static int intel_pt_walk_fup(struct intel_pt_decoder *decoder)
 			return 0;
 		if (err == -EAGAIN ||
 		    intel_pt_fup_with_nlip(decoder, &intel_pt_insn, ip, err)) {
+			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 			if (intel_pt_fup_event(decoder))
 				return 0;
 			return -EAGAIN;
@@ -1729,8 +1740,14 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 
 		case INTEL_PT_FUP:
 			decoder->pge = true;
-			if (decoder->packet.count)
+			if (decoder->packet.count) {
 				intel_pt_set_last_ip(decoder);
+				if (decoder->hop) {
+					/* Act on FUP at PSBEND */
+					decoder->ip = decoder->last_ip;
+					decoder->hop_psb_fup = true;
+				}
+			}
 			break;
 
 		case INTEL_PT_MODE_TSX:
@@ -1874,6 +1891,127 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 	}
 }
 
+static int intel_pt_resample(struct intel_pt_decoder *decoder)
+{
+	decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+	decoder->state.type = INTEL_PT_INSTRUCTION;
+	decoder->state.from_ip = decoder->ip;
+	decoder->state.to_ip = 0;
+	return 0;
+}
+
+#define HOP_PROCESS	0
+#define HOP_IGNORE	1
+#define HOP_RETURN	2
+#define HOP_AGAIN	3
+
+static int intel_pt_scan_for_psb(struct intel_pt_decoder *decoder);
+
+/* Hop mode: Ignore TNT, do not walk code, but get ip from FUPs and TIPs */
+static int intel_pt_hop_trace(struct intel_pt_decoder *decoder, bool *no_tip, int *err)
+{
+	/* Leap from PSB to PSB, getting ip from FUP within PSB+ */
+	if (decoder->leap && !decoder->in_psb && decoder->packet.type != INTEL_PT_PSB) {
+		*err = intel_pt_scan_for_psb(decoder);
+		if (*err)
+			return HOP_RETURN;
+	}
+
+	switch (decoder->packet.type) {
+	case INTEL_PT_TNT:
+		return HOP_IGNORE;
+
+	case INTEL_PT_TIP_PGD:
+		if (!decoder->packet.count)
+			return HOP_IGNORE;
+		intel_pt_set_ip(decoder);
+		decoder->state.type |= INTEL_PT_TRACE_END;
+		decoder->state.from_ip = 0;
+		decoder->state.to_ip = decoder->ip;
+		return HOP_RETURN;
+
+	case INTEL_PT_TIP:
+		if (!decoder->packet.count)
+			return HOP_IGNORE;
+		intel_pt_set_ip(decoder);
+		decoder->state.type = INTEL_PT_INSTRUCTION;
+		decoder->state.from_ip = decoder->ip;
+		decoder->state.to_ip = 0;
+		return HOP_RETURN;
+
+	case INTEL_PT_FUP:
+		if (!decoder->packet.count)
+			return HOP_IGNORE;
+		intel_pt_set_ip(decoder);
+		if (intel_pt_fup_event(decoder))
+			return HOP_RETURN;
+		if (!decoder->branch_enable)
+			*no_tip = true;
+		if (*no_tip) {
+			decoder->state.type = INTEL_PT_INSTRUCTION;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			return HOP_RETURN;
+		}
+		*err = intel_pt_walk_fup_tip(decoder);
+		if (!*err)
+			decoder->pkt_state = INTEL_PT_STATE_RESAMPLE;
+		return HOP_RETURN;
+
+	case INTEL_PT_PSB:
+		decoder->last_ip = 0;
+		decoder->have_last_ip = true;
+		decoder->hop_psb_fup = false;
+		*err = intel_pt_walk_psbend(decoder);
+		if (*err == -EAGAIN)
+			return HOP_AGAIN;
+		if (*err)
+			return HOP_RETURN;
+		if (decoder->hop_psb_fup) {
+			decoder->hop_psb_fup = false;
+			decoder->state.type = INTEL_PT_INSTRUCTION;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			return HOP_RETURN;
+		}
+		if (decoder->cbr != decoder->cbr_seen) {
+			decoder->state.type = 0;
+			return HOP_RETURN;
+		}
+		return HOP_IGNORE;
+
+	case INTEL_PT_BAD:
+	case INTEL_PT_PAD:
+	case INTEL_PT_TIP_PGE:
+	case INTEL_PT_TSC:
+	case INTEL_PT_TMA:
+	case INTEL_PT_MODE_EXEC:
+	case INTEL_PT_MODE_TSX:
+	case INTEL_PT_MTC:
+	case INTEL_PT_CYC:
+	case INTEL_PT_VMCS:
+	case INTEL_PT_PSBEND:
+	case INTEL_PT_CBR:
+	case INTEL_PT_TRACESTOP:
+	case INTEL_PT_PIP:
+	case INTEL_PT_OVF:
+	case INTEL_PT_MNT:
+	case INTEL_PT_PTWRITE:
+	case INTEL_PT_PTWRITE_IP:
+	case INTEL_PT_EXSTOP:
+	case INTEL_PT_EXSTOP_IP:
+	case INTEL_PT_MWAIT:
+	case INTEL_PT_PWRE:
+	case INTEL_PT_PWRX:
+	case INTEL_PT_BBP:
+	case INTEL_PT_BIP:
+	case INTEL_PT_BEP:
+	case INTEL_PT_BEP_IP:
+	default:
+		return HOP_PROCESS;
+	}
+}
+
 static int intel_pt_walk_trace(struct intel_pt_decoder *decoder)
 {
 	bool no_tip = false;
@@ -1884,6 +2022,19 @@ static int intel_pt_walk_trace(struct intel_pt_decoder *decoder)
 		if (err)
 			return err;
 next:
+		if (decoder->hop) {
+			switch (intel_pt_hop_trace(decoder, &no_tip, &err)) {
+			case HOP_IGNORE:
+				continue;
+			case HOP_RETURN:
+				return err;
+			case HOP_AGAIN:
+				goto next;
+			default:
+				break;
+			}
+		}
+
 		switch (decoder->packet.type) {
 		case INTEL_PT_TNT:
 			if (!decoder->packet.count)
@@ -1913,6 +2064,12 @@ next:
 			decoder->state.from_ip = 0;
 			decoder->state.to_ip = decoder->ip;
 			decoder->state.type |= INTEL_PT_TRACE_BEGIN;
+			/*
+			 * In hop mode, resample to get the to_ip as an
+			 * "instruction" sample.
+			 */
+			if (decoder->hop)
+				decoder->pkt_state = INTEL_PT_STATE_RESAMPLE;
 			return 0;
 		}
 
@@ -1942,17 +2099,13 @@ next:
 			}
 			if (decoder->set_fup_mwait)
 				no_tip = true;
+			if (no_tip)
+				decoder->pkt_state = INTEL_PT_STATE_FUP_NO_TIP;
+			else
+				decoder->pkt_state = INTEL_PT_STATE_FUP;
 			err = intel_pt_walk_fup(decoder);
-			if (err != -EAGAIN) {
-				if (err)
-					return err;
-				if (no_tip)
-					decoder->pkt_state =
-						INTEL_PT_STATE_FUP_NO_TIP;
-				else
-					decoder->pkt_state = INTEL_PT_STATE_FUP;
-				return 0;
-			}
+			if (err != -EAGAIN)
+				return err;
 			if (no_tip) {
 				no_tip = false;
 				break;
@@ -1980,8 +2133,10 @@ next:
 			 * possibility of another CBR change that gets caught up
 			 * in the PSB+.
 			 */
-			if (decoder->cbr != decoder->cbr_seen)
+			if (decoder->cbr != decoder->cbr_seen) {
+				decoder->state.type = 0;
 				return 0;
+			}
 			break;
 
 		case INTEL_PT_PIP:
@@ -2022,8 +2177,10 @@ next:
 
 		case INTEL_PT_CBR:
 			intel_pt_calc_cbr(decoder);
-			if (decoder->cbr != decoder->cbr_seen)
+			if (decoder->cbr != decoder->cbr_seen) {
+				decoder->state.type = 0;
 				return 0;
+			}
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -2032,7 +2189,7 @@ next:
 
 		case INTEL_PT_MODE_TSX:
 			/* MODE_TSX need not be followed by FUP */
-			if (!decoder->pge) {
+			if (!decoder->pge || decoder->in_psb) {
 				intel_pt_update_in_tx(decoder);
 				break;
 			}
@@ -2423,7 +2580,11 @@ static int intel_pt_sync_ip(struct intel_pt_decoder *decoder)
 	if (err)
 		return err;
 
-	decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+	/* In hop mode, resample to get the to_ip as an "instruction" sample */
+	if (decoder->hop)
+		decoder->pkt_state = INTEL_PT_STATE_RESAMPLE;
+	else
+		decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 	decoder->overflow = false;
 
 	decoder->state.from_ip = 0;
@@ -2531,6 +2692,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 	decoder->ip = 0;
 	intel_pt_clear_stack(&decoder->stack);
 
+leap:
 	err = intel_pt_scan_for_psb(decoder);
 	if (err)
 		return err;
@@ -2544,7 +2706,20 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 
 	if (decoder->ip) {
 		decoder->state.type = 0; /* Do not have a sample */
-		decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+		/*
+		 * In hop mode, resample to get the PSB FUP ip as an
+		 * "instruction" sample.
+		 */
+		if (decoder->hop)
+			decoder->pkt_state = INTEL_PT_STATE_RESAMPLE;
+		else
+			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+	} else if (decoder->leap) {
+		/*
+		 * In leap mode, only PSB+ is decoded, so keeping leaping to the
+		 * next PSB until there is an ip.
+		 */
+		goto leap;
 	} else {
 		return intel_pt_sync_ip(decoder);
 	}
@@ -2599,18 +2774,17 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			err = intel_pt_walk_tip(decoder);
 			break;
 		case INTEL_PT_STATE_FUP:
-			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 			err = intel_pt_walk_fup(decoder);
 			if (err == -EAGAIN)
 				err = intel_pt_walk_fup_tip(decoder);
-			else if (!err)
-				decoder->pkt_state = INTEL_PT_STATE_FUP;
 			break;
 		case INTEL_PT_STATE_FUP_NO_TIP:
-			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 			err = intel_pt_walk_fup(decoder);
 			if (err == -EAGAIN)
 				err = intel_pt_walk_trace(decoder);
+			break;
+		case INTEL_PT_STATE_RESAMPLE:
+			err = intel_pt_resample(decoder);
 			break;
 		default:
 			err = intel_pt_bug(decoder);

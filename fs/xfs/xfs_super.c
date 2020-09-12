@@ -890,9 +890,6 @@ xfs_quiesce_attr(
 	/* force the log to unpin objects from the now complete transactions */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
-	/* reclaim inodes to do any IO before the freeze completes */
-	xfs_reclaim_inodes(mp, 0);
-	xfs_reclaim_inodes(mp, SYNC_WAIT);
 
 	/* Push the superblock and write an unmount record */
 	error = xfs_log_sbcount(mp);
@@ -913,11 +910,21 @@ xfs_fs_freeze(
 	struct super_block	*sb)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
+	unsigned int		flags;
+	int			ret;
 
+	/*
+	 * The filesystem is now frozen far enough that memory reclaim
+	 * cannot safely operate on the filesystem. Hence we need to
+	 * set a GFP_NOFS context here to avoid recursion deadlocks.
+	 */
+	flags = memalloc_nofs_save();
 	xfs_stop_block_reaping(mp);
 	xfs_save_resvblks(mp);
 	xfs_quiesce_attr(mp);
-	return xfs_sync_sb(mp, true);
+	ret = xfs_sync_sb(mp, true);
+	memalloc_nofs_restore(flags);
+	return ret;
 }
 
 STATIC int
@@ -1713,6 +1720,10 @@ xfs_fc_reconfigure(
 	xfs_sb_t		*sbp = &mp->m_sb;
 	int			flags = fc->sb_flags;
 	int			error;
+
+	/* version 5 superblocks always support version counters. */
+	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
+		fc->sb_flags |= SB_I_VERSION;
 
 	error = xfs_fc_validate_params(new_mp);
 	if (error)

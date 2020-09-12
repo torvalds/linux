@@ -8,12 +8,12 @@ below threshold level.
 
 Required properties:
 -------------------
-#thermal-sensor-cells:	Please refer <devicetree/bindings/thermal/thermal.txt>
-			for more details.
+#thermal-sensor-cells:	For more details, please refer to
+			<devicetree/bindings/thermal/thermal-sensor.yaml>
 			The value must be 0.
 
 For more details, please refer generic thermal DT binding document
-<devicetree/bindings/thermal/thermal.txt>.
+<devicetree/bindings/thermal/thermal*.yaml>.
 
 Please refer <devicetree/bindings/mfd/max77620.txt> for mfd DT binding
 document for the MAX77620.

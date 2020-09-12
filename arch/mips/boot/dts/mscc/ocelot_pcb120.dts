@@ -3,6 +3,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/phy/phy-ocelot-serdes.h>
 #include "ocelot.dtsi"
@@ -25,6 +26,11 @@
 		pins = "GPIO_4";
 		function = "gpio";
 	};
+
+	phy_load_save_pins: phy_load_save_pins {
+		pins = "GPIO_10";
+		function = "ptp2";
+	};
 };
 
 &mdio0 {
@@ -34,27 +40,31 @@
 &mdio1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&miim1>, <&phy_int_pins>;
+	pinctrl-0 = <&miim1>, <&phy_int_pins>, <&phy_load_save_pins>;
 
 	phy7: ethernet-phy@0 {
 		reg = <0>;
 		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gpio>;
+		load-save-gpios = <&gpio 10 GPIO_ACTIVE_HIGH>;
 	};
 	phy6: ethernet-phy@1 {
 		reg = <1>;
 		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gpio>;
+		load-save-gpios = <&gpio 10 GPIO_ACTIVE_HIGH>;
 	};
 	phy5: ethernet-phy@2 {
 		reg = <2>;
 		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gpio>;
+		load-save-gpios = <&gpio 10 GPIO_ACTIVE_HIGH>;
 	};
 	phy4: ethernet-phy@3 {
 		reg = <3>;
 		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gpio>;
+		load-save-gpios = <&gpio 10 GPIO_ACTIVE_HIGH>;
 	};
 };
 

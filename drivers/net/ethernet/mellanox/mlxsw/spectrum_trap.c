@@ -21,6 +21,7 @@ struct mlxsw_sp_trap_group_item {
 	struct devlink_trap_group group;
 	u16 hw_group_id;
 	u8 priority;
+	u8 fixed_policer:1; /* Whether policer binding can change */
 };
 
 #define MLXSW_SP_TRAP_LISTENERS_MAX 3
@@ -28,6 +29,7 @@ struct mlxsw_sp_trap_group_item {
 struct mlxsw_sp_trap_item {
 	struct devlink_trap trap;
 	struct mlxsw_listener listeners_arr[MLXSW_SP_TRAP_LISTENERS_MAX];
+	u8 is_source:1;
 };
 
 /* All driver-specific traps must be documented in
@@ -45,6 +47,11 @@ enum {
 	"erif_disabled"
 
 #define MLXSW_SP_TRAP_METADATA DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT
+
+enum {
+	/* Packet was early dropped. */
+	MLXSW_SP_MIRROR_REASON_INGRESS_WRED = 9,
+};
 
 static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 				u8 local_port,
@@ -222,6 +229,11 @@ static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
 			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA | (_metadata))
 
+#define MLXSW_SP_TRAP_BUFFER_DROP(_id)					      \
+	DEVLINK_TRAP_GENERIC(DROP, TRAP, _id,				      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_BUFFER_DROPS,      \
+			     MLXSW_SP_TRAP_METADATA)
+
 #define MLXSW_SP_TRAP_DRIVER_DROP(_id, _group_id)			      \
 	DEVLINK_TRAP_DRIVER(DROP, DROP, DEVLINK_MLXSW_TRAP_ID_##_id,	      \
 			    DEVLINK_MLXSW_TRAP_NAME_##_id,		      \
@@ -247,6 +259,10 @@ static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
 	MLXSW_RXL_DIS(mlxsw_sp_rx_acl_drop_listener, DISCARD_##_id,	      \
 		      TRAP_EXCEPTION_TO_CPU, false, SP_##_en_group_id,	      \
 		      SET_FW_DEFAULT, SP_##_dis_group_id)
+
+#define MLXSW_SP_RXL_BUFFER_DISCARD(_mirror_reason)			      \
+	MLXSW_RXL_MIRROR(mlxsw_sp_rx_drop_listener, 0, SP_BUFFER_DISCARDS,    \
+			 MLXSW_SP_MIRROR_REASON_##_mirror_reason)
 
 #define MLXSW_SP_RXL_EXCEPTION(_id, _group_id, _action)			      \
 	MLXSW_RXL(mlxsw_sp_rx_mark_listener, _id,			      \
@@ -330,6 +346,9 @@ mlxsw_sp_trap_policer_items_arr[] = {
 	},
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(19, 1024, 512),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(20, 10240, 4096),
 	},
 };
 
@@ -1063,10 +1082,10 @@ static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
 
 static int mlxsw_sp_trap_policer_items_arr_init(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t arr_size = ARRAY_SIZE(mlxsw_sp_trap_policer_items_arr);
 	size_t elem_size = sizeof(struct mlxsw_sp_trap_policer_item);
-	u64 arr_size = ARRAY_SIZE(mlxsw_sp_trap_policer_items_arr);
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
-	u64 free_policers = 0;
+	size_t free_policers = 0;
 	u32 last_id;
 	int i;
 
@@ -1159,6 +1178,43 @@ static void mlxsw_sp_trap_policers_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_trap_policer_items_arr_fini(mlxsw_sp);
 }
 
+static int mlxsw_sp_trap_group_items_arr_init(struct mlxsw_sp *mlxsw_sp)
+{
+	size_t common_groups_count = ARRAY_SIZE(mlxsw_sp_trap_group_items_arr);
+	const struct mlxsw_sp_trap_group_item *spec_group_items_arr;
+	size_t elem_size = sizeof(struct mlxsw_sp_trap_group_item);
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	size_t groups_count, spec_groups_count;
+	int err;
+
+	err = mlxsw_sp->trap_ops->groups_init(mlxsw_sp, &spec_group_items_arr,
+					      &spec_groups_count);
+	if (err)
+		return err;
+
+	/* The group items array is created by concatenating the common trap
+	 * group items and the ASIC-specific trap group items.
+	 */
+	groups_count = common_groups_count + spec_groups_count;
+	trap->group_items_arr = kcalloc(groups_count, elem_size, GFP_KERNEL);
+	if (!trap->group_items_arr)
+		return -ENOMEM;
+
+	memcpy(trap->group_items_arr, mlxsw_sp_trap_group_items_arr,
+	       elem_size * common_groups_count);
+	memcpy(trap->group_items_arr + common_groups_count,
+	       spec_group_items_arr, elem_size * spec_groups_count);
+
+	trap->groups_count = groups_count;
+
+	return 0;
+}
+
+static void mlxsw_sp_trap_group_items_arr_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	kfree(mlxsw_sp->trap->group_items_arr);
+}
+
 static int mlxsw_sp_trap_groups_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
@@ -1166,13 +1222,9 @@ static int mlxsw_sp_trap_groups_init(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
 	int err, i;
 
-	trap->group_items_arr = kmemdup(mlxsw_sp_trap_group_items_arr,
-					sizeof(mlxsw_sp_trap_group_items_arr),
-					GFP_KERNEL);
-	if (!trap->group_items_arr)
-		return -ENOMEM;
-
-	trap->groups_count = ARRAY_SIZE(mlxsw_sp_trap_group_items_arr);
+	err = mlxsw_sp_trap_group_items_arr_init(mlxsw_sp);
+	if (err)
+		return err;
 
 	for (i = 0; i < trap->groups_count; i++) {
 		group_item = &trap->group_items_arr[i];
@@ -1189,7 +1241,7 @@ err_trap_group_register:
 		group_item = &trap->group_items_arr[i];
 		devlink_trap_groups_unregister(devlink, &group_item->group, 1);
 	}
-	kfree(trap->group_items_arr);
+	mlxsw_sp_trap_group_items_arr_fini(mlxsw_sp);
 	return err;
 }
 
@@ -1205,13 +1257,50 @@ static void mlxsw_sp_trap_groups_fini(struct mlxsw_sp *mlxsw_sp)
 		group_item = &trap->group_items_arr[i];
 		devlink_trap_groups_unregister(devlink, &group_item->group, 1);
 	}
-	kfree(trap->group_items_arr);
+	mlxsw_sp_trap_group_items_arr_fini(mlxsw_sp);
 }
 
 static bool
 mlxsw_sp_trap_listener_is_valid(const struct mlxsw_listener *listener)
 {
 	return listener->trap_id != 0;
+}
+
+static int mlxsw_sp_trap_items_arr_init(struct mlxsw_sp *mlxsw_sp)
+{
+	size_t common_traps_count = ARRAY_SIZE(mlxsw_sp_trap_items_arr);
+	const struct mlxsw_sp_trap_item *spec_trap_items_arr;
+	size_t elem_size = sizeof(struct mlxsw_sp_trap_item);
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	size_t traps_count, spec_traps_count;
+	int err;
+
+	err = mlxsw_sp->trap_ops->traps_init(mlxsw_sp, &spec_trap_items_arr,
+					     &spec_traps_count);
+	if (err)
+		return err;
+
+	/* The trap items array is created by concatenating the common trap
+	 * items and the ASIC-specific trap items.
+	 */
+	traps_count = common_traps_count + spec_traps_count;
+	trap->trap_items_arr = kcalloc(traps_count, elem_size, GFP_KERNEL);
+	if (!trap->trap_items_arr)
+		return -ENOMEM;
+
+	memcpy(trap->trap_items_arr, mlxsw_sp_trap_items_arr,
+	       elem_size * common_traps_count);
+	memcpy(trap->trap_items_arr + common_traps_count,
+	       spec_trap_items_arr, elem_size * spec_traps_count);
+
+	trap->traps_count = traps_count;
+
+	return 0;
+}
+
+static void mlxsw_sp_trap_items_arr_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	kfree(mlxsw_sp->trap->trap_items_arr);
 }
 
 static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
@@ -1221,13 +1310,9 @@ static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 	const struct mlxsw_sp_trap_item *trap_item;
 	int err, i;
 
-	trap->trap_items_arr = kmemdup(mlxsw_sp_trap_items_arr,
-				       sizeof(mlxsw_sp_trap_items_arr),
-				       GFP_KERNEL);
-	if (!trap->trap_items_arr)
-		return -ENOMEM;
-
-	trap->traps_count = ARRAY_SIZE(mlxsw_sp_trap_items_arr);
+	err = mlxsw_sp_trap_items_arr_init(mlxsw_sp);
+	if (err)
+		return err;
 
 	for (i = 0; i < trap->traps_count; i++) {
 		trap_item = &trap->trap_items_arr[i];
@@ -1244,7 +1329,7 @@ err_trap_register:
 		trap_item = &trap->trap_items_arr[i];
 		devlink_traps_unregister(devlink, &trap_item->trap, 1);
 	}
-	kfree(trap->trap_items_arr);
+	mlxsw_sp_trap_items_arr_fini(mlxsw_sp);
 	return err;
 }
 
@@ -1260,7 +1345,7 @@ static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 		trap_item = &trap->trap_items_arr[i];
 		devlink_traps_unregister(devlink, &trap_item->trap, 1);
 	}
-	kfree(trap->trap_items_arr);
+	mlxsw_sp_trap_items_arr_fini(mlxsw_sp);
 }
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
@@ -1352,7 +1437,8 @@ void mlxsw_sp_trap_fini(struct mlxsw_core *mlxsw_core,
 
 int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap *trap,
-			     enum devlink_trap_action action)
+			     enum devlink_trap_action action,
+			     struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	const struct mlxsw_sp_trap_item *trap_item;
@@ -1361,6 +1447,11 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 	trap_item = mlxsw_sp_trap_item_lookup(mlxsw_sp, trap->id);
 	if (WARN_ON(!trap_item))
 		return -EINVAL;
+
+	if (trap_item->is_source) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing the action of source traps is not supported");
+		return -EOPNOTSUPP;
+	}
 
 	for (i = 0; i < MLXSW_SP_TRAP_LISTENERS_MAX; i++) {
 		const struct mlxsw_listener *listener;
@@ -1392,7 +1483,7 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 static int
 __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 			   const struct devlink_trap_group *group,
-			   u32 policer_id)
+			   u32 policer_id, struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u16 hw_policer_id = MLXSW_REG_HTGT_INVALID_POLICER;
@@ -1402,6 +1493,11 @@ __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 	group_item = mlxsw_sp_trap_group_item_lookup(mlxsw_sp, group->id);
 	if (WARN_ON(!group_item))
 		return -EINVAL;
+
+	if (group_item->fixed_policer && policer_id != group->init_policer_id) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing the policer binding of this group is not supported");
+		return -EOPNOTSUPP;
+	}
 
 	if (policer_id) {
 		struct mlxsw_sp_trap_policer_item *policer_item;
@@ -1422,16 +1518,18 @@ int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap_group *group)
 {
 	return __mlxsw_sp_trap_group_init(mlxsw_core, group,
-					  group->init_policer_id);
+					  group->init_policer_id, NULL);
 }
 
 int mlxsw_sp_trap_group_set(struct mlxsw_core *mlxsw_core,
 			    const struct devlink_trap_group *group,
-			    const struct devlink_trap_policer *policer)
+			    const struct devlink_trap_policer *policer,
+			    struct netlink_ext_ack *extack)
 {
 	u32 policer_id = policer ? policer->id : 0;
 
-	return __mlxsw_sp_trap_group_init(mlxsw_core, group, policer_id);
+	return __mlxsw_sp_trap_group_init(mlxsw_core, group, policer_id,
+					  extack);
 }
 
 static int
@@ -1576,3 +1674,110 @@ mlxsw_sp_trap_policer_counter_get(struct mlxsw_core *mlxsw_core,
 
 	return 0;
 }
+
+int mlxsw_sp_trap_group_policer_hw_id_get(struct mlxsw_sp *mlxsw_sp, u16 id,
+					  bool *p_enabled, u16 *p_hw_id)
+{
+	struct mlxsw_sp_trap_policer_item *pol_item;
+	struct mlxsw_sp_trap_group_item *gr_item;
+	u32 pol_id;
+
+	gr_item = mlxsw_sp_trap_group_item_lookup(mlxsw_sp, id);
+	if (!gr_item)
+		return -ENOENT;
+
+	pol_id = gr_item->group.init_policer_id;
+	if (!pol_id) {
+		*p_enabled = false;
+		return 0;
+	}
+
+	pol_item = mlxsw_sp_trap_policer_item_lookup(mlxsw_sp, pol_id);
+	if (WARN_ON(!pol_item))
+		return -ENOENT;
+
+	*p_enabled = true;
+	*p_hw_id = pol_item->hw_id;
+	return 0;
+}
+
+static const struct mlxsw_sp_trap_group_item
+mlxsw_sp1_trap_group_items_arr[] = {
+};
+
+static const struct mlxsw_sp_trap_item
+mlxsw_sp1_trap_items_arr[] = {
+};
+
+static int
+mlxsw_sp1_trap_groups_init(struct mlxsw_sp *mlxsw_sp,
+			   const struct mlxsw_sp_trap_group_item **arr,
+			   size_t *p_groups_count)
+{
+	*arr = mlxsw_sp1_trap_group_items_arr;
+	*p_groups_count = ARRAY_SIZE(mlxsw_sp1_trap_group_items_arr);
+
+	return 0;
+}
+
+static int mlxsw_sp1_traps_init(struct mlxsw_sp *mlxsw_sp,
+				const struct mlxsw_sp_trap_item **arr,
+				size_t *p_traps_count)
+{
+	*arr = mlxsw_sp1_trap_items_arr;
+	*p_traps_count = ARRAY_SIZE(mlxsw_sp1_trap_items_arr);
+
+	return 0;
+}
+
+const struct mlxsw_sp_trap_ops mlxsw_sp1_trap_ops = {
+	.groups_init = mlxsw_sp1_trap_groups_init,
+	.traps_init = mlxsw_sp1_traps_init,
+};
+
+static const struct mlxsw_sp_trap_group_item
+mlxsw_sp2_trap_group_items_arr[] = {
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(BUFFER_DROPS, 20),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_BUFFER_DISCARDS,
+		.priority = 0,
+		.fixed_policer = true,
+	},
+};
+
+static const struct mlxsw_sp_trap_item
+mlxsw_sp2_trap_items_arr[] = {
+	{
+		.trap = MLXSW_SP_TRAP_BUFFER_DROP(EARLY_DROP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_BUFFER_DISCARD(INGRESS_WRED),
+		},
+		.is_source = true,
+	},
+};
+
+static int
+mlxsw_sp2_trap_groups_init(struct mlxsw_sp *mlxsw_sp,
+			   const struct mlxsw_sp_trap_group_item **arr,
+			   size_t *p_groups_count)
+{
+	*arr = mlxsw_sp2_trap_group_items_arr;
+	*p_groups_count = ARRAY_SIZE(mlxsw_sp2_trap_group_items_arr);
+
+	return 0;
+}
+
+static int mlxsw_sp2_traps_init(struct mlxsw_sp *mlxsw_sp,
+				const struct mlxsw_sp_trap_item **arr,
+				size_t *p_traps_count)
+{
+	*arr = mlxsw_sp2_trap_items_arr;
+	*p_traps_count = ARRAY_SIZE(mlxsw_sp2_trap_items_arr);
+
+	return 0;
+}
+
+const struct mlxsw_sp_trap_ops mlxsw_sp2_trap_ops = {
+	.groups_init = mlxsw_sp2_trap_groups_init,
+	.traps_init = mlxsw_sp2_traps_init,
+};

@@ -19,12 +19,11 @@ properties:
   compatible:
     items:
       - enum:
-        - amlogic,aiu-gxbb
-        - amlogic,aiu-gxl
-        - amlogic,aiu-meson8
-        - amlogic,aiu-meson8b
-      - const:
-          amlogic,aiu
+          - amlogic,aiu-gxbb
+          - amlogic,aiu-gxl
+          - amlogic,aiu-meson8
+          - amlogic,aiu-meson8b
+      - const: amlogic,aiu
 
   clocks:
     items:

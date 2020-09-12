@@ -303,18 +303,34 @@ static struct imx_ssi_platform_data mx27_3ds_ssi_pdata = {
 };
 
 /* SPI */
-static int spi1_chipselect[] = {SPI1_SS0};
-
-static const struct spi_imx_master spi1_pdata __initconst = {
-	.chipselect	= spi1_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi1_chipselect),
+static struct gpiod_lookup_table mx27_spi1_gpiod_table = {
+	.dev_id = "imx27-cspi.0", /* Actual device name for spi1 */
+	.table = {
+		/*
+		 * The i.MX27 has the i.MX21 GPIO controller, the SPI1 CS GPIO
+		 * SPI1_SS0 is numbered IMX_GPIO_NR(4, 28).
+		 *
+		 * This is in "bank 4" which is subtracted by one in the macro
+		 * so this is actually bank 3 on "imx21-gpio.3".
+		 */
+		GPIO_LOOKUP_IDX("imx21-gpio.3", 28, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
-static int spi2_chipselect[] = {SPI2_SS0};
-
-static const struct spi_imx_master spi2_pdata __initconst = {
-	.chipselect	= spi2_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi2_chipselect),
+static struct gpiod_lookup_table mx27_spi2_gpiod_table = {
+	.dev_id = "imx27-cspi.1", /* Actual device name for spi2 */
+	.table = {
+		/*
+		 * The i.MX27 has the i.MX21 GPIO controller, the SPI2 CS GPIO
+		 * SPI2_SS0 is numbered IMX_GPIO_NR(4, 21).
+		 *
+		 * This is in "bank 4" which is subtracted by one in the macro
+		 * so this is actually bank 3 on "imx21-gpio.3".
+		 */
+		GPIO_LOOKUP_IDX("imx21-gpio.3", 21, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct imx_fb_videomode mx27_3ds_modes[] = {
@@ -397,8 +413,8 @@ static void __init mx27pdk_init(void)
 	imx27_add_imx_keypad(&mx27_3ds_keymap_data);
 	imx27_add_imx2_wdt();
 
-	imx27_add_spi_imx1(&spi2_pdata);
-	imx27_add_spi_imx0(&spi1_pdata);
+	imx27_add_spi_imx1(&mx27_spi2_gpiod_table);
+	imx27_add_spi_imx0(&mx27_spi1_gpiod_table);
 
 	imx27_add_imx_i2c(0, &mx27_3ds_i2c0_data);
 	imx27_add_imx_fb(&mx27_3ds_fb_data);

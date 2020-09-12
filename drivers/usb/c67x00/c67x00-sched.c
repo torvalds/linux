@@ -23,7 +23,7 @@
 
 /* -------------------------------------------------------------------------- */
 
-/**
+/*
  * struct c67x00_ep_data: Host endpoint data structure
  */
 struct c67x00_ep_data {
@@ -34,7 +34,7 @@ struct c67x00_ep_data {
 	u16 next_frame;		/* For int/isoc transactions */
 };
 
-/**
+/*
  * struct c67x00_td
  *
  * Hardware parts are little endiannes, SW in CPU endianess.
@@ -130,7 +130,7 @@ struct c67x00_urb_priv {
 
 /* -------------------------------------------------------------------------- */
 
-/**
+/*
  * dbg_td - Dump the contents of the TD
  */
 static void dbg_td(struct c67x00_hcd *c67x00, struct c67x00_td *td, char *msg)
@@ -161,7 +161,7 @@ static inline u16 c67x00_get_current_frame_number(struct c67x00_hcd *c67x00)
 	return c67x00_ll_husb_get_frame(c67x00->sie) & HOST_FRAME_MASK;
 }
 
-/**
+/*
  * frame_add
  * Software wraparound for framenumbers.
  */
@@ -170,7 +170,7 @@ static inline u16 frame_add(u16 a, u16 b)
 	return (a + b) & HOST_FRAME_MASK;
 }
 
-/**
+/*
  * frame_after - is frame a after frame b
  */
 static inline int frame_after(u16 a, u16 b)
@@ -179,7 +179,7 @@ static inline int frame_after(u16 a, u16 b)
 	    (HOST_FRAME_MASK / 2);
 }
 
-/**
+/*
  * frame_after_eq - is frame a after or equal to frame b
  */
 static inline int frame_after_eq(u16 a, u16 b)
@@ -190,7 +190,7 @@ static inline int frame_after_eq(u16 a, u16 b)
 
 /* -------------------------------------------------------------------------- */
 
-/**
+/*
  * c67x00_release_urb - remove link from all tds to this urb
  * Disconnects the urb from it's tds, so that it can be given back.
  * pre: urb->hcpriv != NULL
@@ -557,7 +557,7 @@ static int c67x00_claim_frame_bw(struct c67x00_hcd *c67x00, struct urb *urb,
 
 /* -------------------------------------------------------------------------- */
 
-/**
+/*
  * td_addr and buf_addr must be word aligned
  */
 static int c67x00_create_td(struct c67x00_hcd *c67x00, struct urb *urb,
@@ -685,7 +685,7 @@ static int c67x00_add_data_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 	return 0;
 }
 
-/**
+/*
  * return 0 in case more bandwidth is available, else errorcode
  */
 static int c67x00_add_ctrl_urb(struct c67x00_hcd *c67x00, struct urb *urb)
@@ -710,7 +710,8 @@ static int c67x00_add_ctrl_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 			if (ret)
 				return ret;
 			break;
-		}		/* else fallthrough */
+		}
+		fallthrough;
 	case STATUS_STAGE:
 		pid = !usb_pipeout(urb->pipe) ? USB_PID_OUT : USB_PID_IN;
 		ret = c67x00_create_td(c67x00, urb, NULL, 0, pid, 1,
@@ -822,7 +823,7 @@ static void c67x00_fill_frame(struct c67x00_hcd *c67x00)
 
 /* -------------------------------------------------------------------------- */
 
-/**
+/*
  * Get TD from C67X00
  */
 static inline void
@@ -970,7 +971,7 @@ static void c67x00_handle_isoc(struct c67x00_hcd *c67x00, struct c67x00_td *td)
 
 /* -------------------------------------------------------------------------- */
 
-/**
+/*
  * c67x00_check_td_list - handle tds which have been processed by the c67x00
  * pre: current_td == 0
  */
@@ -1045,7 +1046,7 @@ static inline int c67x00_all_tds_processed(struct c67x00_hcd *c67x00)
 	return !c67x00_ll_husb_get_current_td(c67x00->sie);
 }
 
-/**
+/*
  * Send td to C67X00
  */
 static void c67x00_send_td(struct c67x00_hcd *c67x00, struct c67x00_td *td)
@@ -1081,7 +1082,7 @@ static void c67x00_send_frame(struct c67x00_hcd *c67x00)
 
 /* -------------------------------------------------------------------------- */
 
-/**
+/*
  * c67x00_do_work - Schedulers state machine
  */
 static void c67x00_do_work(struct c67x00_hcd *c67x00)

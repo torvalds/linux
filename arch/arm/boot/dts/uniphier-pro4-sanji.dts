@@ -82,7 +82,7 @@
 };
 
 &mdio {
-	ethphy: ethphy@1 {
+	ethphy: ethernet-phy@1 {
 		reg = <1>;
 	};
 };

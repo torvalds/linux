@@ -82,4 +82,4 @@ lm36274@11 {
 };
 
 For more product information please see the link below:
-http://www.ti.com/lit/ds/symlink/lm36274.pdf
+https://www.ti.com/lit/ds/symlink/lm36274.pdf

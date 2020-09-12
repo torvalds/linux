@@ -14,12 +14,14 @@ static const u32 enetc_si_regs[] = {
 
 static const u32 enetc_txbdr_regs[] = {
 	ENETC_TBMR, ENETC_TBSR, ENETC_TBBAR0, ENETC_TBBAR1,
-	ENETC_TBPIR, ENETC_TBCIR, ENETC_TBLENR, ENETC_TBIER
+	ENETC_TBPIR, ENETC_TBCIR, ENETC_TBLENR, ENETC_TBIER, ENETC_TBICR0,
+	ENETC_TBICR1
 };
 
 static const u32 enetc_rxbdr_regs[] = {
 	ENETC_RBMR, ENETC_RBSR, ENETC_RBBSR, ENETC_RBCIR, ENETC_RBBAR0,
-	ENETC_RBBAR1, ENETC_RBPIR, ENETC_RBLENR, ENETC_RBICIR0, ENETC_RBIER
+	ENETC_RBBAR1, ENETC_RBPIR, ENETC_RBLENR, ENETC_RBIER, ENETC_RBICR0,
+	ENETC_RBICR1
 };
 
 static const u32 enetc_port_regs[] = {
@@ -561,6 +563,74 @@ static void enetc_get_ringparam(struct net_device *ndev,
 	}
 }
 
+static int enetc_get_coalesce(struct net_device *ndev,
+			      struct ethtool_coalesce *ic)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_int_vector *v = priv->int_vector[0];
+
+	ic->tx_coalesce_usecs = enetc_cycles_to_usecs(priv->tx_ictt);
+	ic->rx_coalesce_usecs = enetc_cycles_to_usecs(v->rx_ictt);
+
+	ic->tx_max_coalesced_frames = ENETC_TXIC_PKTTHR;
+	ic->rx_max_coalesced_frames = ENETC_RXIC_PKTTHR;
+
+	ic->use_adaptive_rx_coalesce = priv->ic_mode & ENETC_IC_RX_ADAPTIVE;
+
+	return 0;
+}
+
+static int enetc_set_coalesce(struct net_device *ndev,
+			      struct ethtool_coalesce *ic)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	u32 rx_ictt, tx_ictt;
+	int i, ic_mode;
+	bool changed;
+
+	tx_ictt = enetc_usecs_to_cycles(ic->tx_coalesce_usecs);
+	rx_ictt = enetc_usecs_to_cycles(ic->rx_coalesce_usecs);
+
+	if (ic->rx_max_coalesced_frames != ENETC_RXIC_PKTTHR)
+		return -EOPNOTSUPP;
+
+	if (ic->tx_max_coalesced_frames != ENETC_TXIC_PKTTHR)
+		return -EOPNOTSUPP;
+
+	ic_mode = ENETC_IC_NONE;
+	if (ic->use_adaptive_rx_coalesce) {
+		ic_mode |= ENETC_IC_RX_ADAPTIVE;
+		rx_ictt = 0x1;
+	} else {
+		ic_mode |= rx_ictt ? ENETC_IC_RX_MANUAL : 0;
+	}
+
+	ic_mode |= tx_ictt ? ENETC_IC_TX_MANUAL : 0;
+
+	/* commit the settings */
+	changed = (ic_mode != priv->ic_mode) || (priv->tx_ictt != tx_ictt);
+
+	priv->ic_mode = ic_mode;
+	priv->tx_ictt = tx_ictt;
+
+	for (i = 0; i < priv->bdr_int_num; i++) {
+		struct enetc_int_vector *v = priv->int_vector[i];
+
+		v->rx_ictt = rx_ictt;
+		v->rx_dim_en = !!(ic_mode & ENETC_IC_RX_ADAPTIVE);
+	}
+
+	if (netif_running(ndev) && changed) {
+		/* reconfigure the operation mode of h/w interrupts,
+		 * traffic needs to be paused in the process
+		 */
+		enetc_stop(ndev);
+		enetc_start(ndev);
+	}
+
+	return 0;
+}
+
 static int enetc_get_ts_info(struct net_device *ndev,
 			     struct ethtool_ts_info *info)
 {
@@ -617,6 +687,9 @@ static int enetc_set_wol(struct net_device *dev,
 }
 
 static const struct ethtool_ops enetc_pf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_regs_len = enetc_get_reglen,
 	.get_regs = enetc_get_regs,
 	.get_sset_count = enetc_get_sset_count,
@@ -629,6 +702,8 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_rxfh = enetc_get_rxfh,
 	.set_rxfh = enetc_set_rxfh,
 	.get_ringparam = enetc_get_ringparam,
+	.get_coalesce = enetc_get_coalesce,
+	.set_coalesce = enetc_set_coalesce,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 	.get_link = ethtool_op_get_link,
@@ -638,6 +713,9 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 };
 
 static const struct ethtool_ops enetc_vf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_regs_len = enetc_get_reglen,
 	.get_regs = enetc_get_regs,
 	.get_sset_count = enetc_get_sset_count,
@@ -649,6 +727,8 @@ static const struct ethtool_ops enetc_vf_ethtool_ops = {
 	.get_rxfh = enetc_get_rxfh,
 	.set_rxfh = enetc_set_rxfh,
 	.get_ringparam = enetc_get_ringparam,
+	.get_coalesce = enetc_get_coalesce,
+	.set_coalesce = enetc_set_coalesce,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = enetc_get_ts_info,
 };

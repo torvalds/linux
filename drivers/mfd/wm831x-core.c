@@ -114,6 +114,8 @@ static int wm831x_reg_locked(struct wm831x *wm831x, unsigned short reg)
  * The WM831x has a user key preventing writes to particularly
  * critical registers.  This function locks those registers,
  * allowing writes to them.
+ *
+ * @wm831x: pointer to local driver data structure
  */
 void wm831x_reg_lock(struct wm831x *wm831x)
 {
@@ -140,6 +142,8 @@ EXPORT_SYMBOL_GPL(wm831x_reg_lock);
  * The WM831x has a user key preventing writes to particularly
  * critical registers.  This function locks those registers,
  * preventing spurious writes.
+ *
+ * @wm831x: pointer to local driver data structure
  */
 int wm831x_reg_unlock(struct wm831x *wm831x)
 {

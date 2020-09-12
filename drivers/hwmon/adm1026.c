@@ -7,7 +7,7 @@
  *
  * Chip details at:
  *
- * <http://www.onsemi.com/PowerSolutions/product.do?id=ADM1026>
+ * <https://www.onsemi.com/PowerSolutions/product.do?id=ADM1026>
  */
 
 #include <linux/module.h>

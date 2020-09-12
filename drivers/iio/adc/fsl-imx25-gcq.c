@@ -350,7 +350,6 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 		goto err_clk_unprepare;
 	}
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->channels = mx25_gcq_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mx25_gcq_channels);
 	indio_dev->info = &mx25_gcq_iio_info;

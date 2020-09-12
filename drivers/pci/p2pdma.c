@@ -253,7 +253,7 @@ static int pci_bridge_has_acs_redir(struct pci_dev *pdev)
 	int pos;
 	u16 ctrl;
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ACS);
+	pos = pdev->acs_cap;
 	if (!pos)
 		return 0;
 
@@ -273,6 +273,19 @@ static void seq_buf_print_bus_devfn(struct seq_buf *buf, struct pci_dev *pdev)
 	seq_buf_printf(buf, "%s;", pci_name(pdev));
 }
 
+static bool cpu_supports_p2pdma(void)
+{
+#ifdef CONFIG_X86
+	struct cpuinfo_x86 *c = &cpu_data(0);
+
+	/* Any AMD CPU whose family ID is Zen or newer supports p2pdma */
+	if (c->x86_vendor == X86_VENDOR_AMD && c->x86 >= 0x17)
+		return true;
+#endif
+
+	return false;
+}
+
 static const struct pci_p2pdma_whitelist_entry {
 	unsigned short vendor;
 	unsigned short device;
@@ -280,11 +293,6 @@ static const struct pci_p2pdma_whitelist_entry {
 		REQ_SAME_HOST_BRIDGE	= 1 << 0,
 	} flags;
 } pci_p2pdma_whitelist[] = {
-	/* AMD ZEN */
-	{PCI_VENDOR_ID_AMD,	0x1450,	0},
-	{PCI_VENDOR_ID_AMD,	0x15d0,	0},
-	{PCI_VENDOR_ID_AMD,	0x1630,	0},
-
 	/* Intel Xeon E5/Core i7 */
 	{PCI_VENDOR_ID_INTEL,	0x3c00, REQ_SAME_HOST_BRIDGE},
 	{PCI_VENDOR_ID_INTEL,	0x3c01, REQ_SAME_HOST_BRIDGE},
@@ -473,7 +481,8 @@ upstream_bridge_distance(struct pci_dev *provider, struct pci_dev *client,
 					      acs_redirects, acs_list);
 
 	if (map_type == PCI_P2PDMA_MAP_THRU_HOST_BRIDGE) {
-		if (!host_bridge_whitelist(provider, client))
+		if (!cpu_supports_p2pdma() &&
+		    !host_bridge_whitelist(provider, client))
 			map_type = PCI_P2PDMA_MAP_NOT_SUPPORTED;
 	}
 
@@ -547,13 +556,14 @@ int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 		return -1;
 
 	for (i = 0; i < num_clients; i++) {
-		if (IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
-		    clients[i]->dma_ops == &dma_virt_ops) {
+#ifdef CONFIG_DMA_VIRT_OPS
+		if (clients[i]->dma_ops == &dma_virt_ops) {
 			if (verbose)
 				dev_warn(clients[i],
 					 "cannot be used for peer-to-peer DMA because the driver makes use of dma_virt_ops\n");
 			return -1;
 		}
+#endif
 
 		pci_client = find_parent_pci_dev(clients[i]);
 		if (!pci_client) {
@@ -833,9 +843,10 @@ static int __pci_p2pdma_map_sg(struct pci_p2pdma_pagemap *p2p_pgmap,
 	 * this should never happen because it will be prevented
 	 * by the check in pci_p2pdma_distance_many()
 	 */
-	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
-			 dev->dma_ops == &dma_virt_ops))
+#ifdef CONFIG_DMA_VIRT_OPS
+	if (WARN_ON_ONCE(dev->dma_ops == &dma_virt_ops))
 		return 0;
+#endif
 
 	for_each_sg(sg, s, nents, i) {
 		paddr = sg_phys(s);

@@ -22,7 +22,6 @@ static void qedf_cmd_timeout(struct work_struct *work)
 	    container_of(work, struct qedf_ioreq, timeout_work.work);
 	struct qedf_ctx *qedf;
 	struct qedf_rport *fcport;
-	u8 op = 0;
 
 	if (io_req == NULL) {
 		QEDF_INFO(NULL, QEDF_LOG_IO, "io_req is NULL.\n");
@@ -89,7 +88,6 @@ static void qedf_cmd_timeout(struct work_struct *work)
 		io_req->event = QEDF_IOREQ_EV_ELS_TMO;
 		/* Call callback function to complete command */
 		if (io_req->cb_func && io_req->cb_arg) {
-			op = io_req->cb_arg->op;
 			io_req->cb_func(io_req->cb_arg);
 			io_req->cb_arg = NULL;
 		}
@@ -487,7 +485,7 @@ static int qedf_map_sg(struct qedf_ioreq *io_req)
 	int sg_count = 0;
 	int bd_count = 0;
 	u32 sg_len;
-	u64 addr, end_addr;
+	u64 addr;
 	int i = 0;
 
 	sg_count = dma_map_sg(&qedf->pdev->dev, scsi_sglist(sc),
@@ -502,10 +500,9 @@ static int qedf_map_sg(struct qedf_ioreq *io_req)
 	scsi_for_each_sg(sc, sg, sg_count, i) {
 		sg_len = (u32)sg_dma_len(sg);
 		addr = (u64)sg_dma_address(sg);
-		end_addr = (u64)(addr + sg_len);
 
 		/*
-		 * Intermediate s/g element so check if start and end address
+		 * Intermediate s/g element so check if start address
 		 * is page aligned.  Only required for writes and only if the
 		 * number of scatter/gather elements is 8 or more.
 		 */
@@ -860,7 +857,6 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 	struct qedf_ctx *qedf = lport_priv(lport);
 	struct e4_fcoe_task_context *task_ctx;
 	u16 xid;
-	enum fcoe_task_type req_type = 0;
 	struct fcoe_wqe *sqe;
 	u16 sqe_idx;
 
@@ -873,11 +869,9 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 	io_req->cpu = smp_processor_id();
 
 	if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE) {
-		req_type = FCOE_TASK_TYPE_READ_INITIATOR;
 		io_req->io_req_flags = QEDF_READ;
 		qedf->input_requests++;
 	} else if (sc_cmd->sc_data_direction == DMA_TO_DEVICE) {
-		req_type = FCOE_TASK_TYPE_WRITE_INITIATOR;
 		io_req->io_req_flags = QEDF_WRITE;
 		qedf->output_requests++;
 	} else {
@@ -1130,8 +1124,6 @@ static void qedf_unmap_sg_list(struct qedf_ctx *qedf, struct qedf_ioreq *io_req)
 void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *io_req)
 {
-	u16 xid;
-	struct e4_fcoe_task_context *task_ctx;
 	struct scsi_cmnd *sc_cmd;
 	struct fcoe_cqe_rsp_info *fcp_rsp;
 	struct qedf_rport *fcport;
@@ -1155,8 +1147,6 @@ void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 		return;
 	}
 
-	xid = io_req->xid;
-	task_ctx = qedf_get_task_mem(&qedf->tasks, xid);
 	sc_cmd = io_req->sc_cmd;
 	fcp_rsp = &cqe->cqe_info.rsp_info;
 
@@ -1342,7 +1332,6 @@ out:
 void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	int result)
 {
-	u16 xid;
 	struct scsi_cmnd *sc_cmd;
 	int refcount;
 
@@ -1364,7 +1353,6 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	 */
 	clear_bit(QEDF_CMD_OUTSTANDING, &io_req->flags);
 
-	xid = io_req->xid;
 	sc_cmd = io_req->sc_cmd;
 
 	if (!sc_cmd) {
@@ -1863,7 +1851,6 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 	struct fc_rport_priv *rdata;
 	struct qedf_ctx *qedf;
 	u16 xid;
-	u32 r_a_tov = 0;
 	int rc = 0;
 	unsigned long flags;
 	struct fcoe_wqe *sqe;
@@ -1886,7 +1873,6 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 		goto out;
 	}
 
-	r_a_tov = rdata->r_a_tov;
 	lport = qedf->lport;
 
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
@@ -1964,14 +1950,12 @@ void qedf_process_abts_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *io_req)
 {
 	uint32_t r_ctl;
-	uint16_t xid;
 	int rc;
 	struct qedf_rport *fcport = io_req->fcport;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_SCSI_TM, "Entered with xid = "
 		   "0x%x cmd_type = %d\n", io_req->xid, io_req->cmd_type);
 
-	xid = io_req->xid;
 	r_ctl = cqe->cqe_info.abts_info.r_ctl;
 
 	/* This was added at a point when we were scheduling abts_compl &
@@ -2159,8 +2143,6 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 {
 	struct qedf_rport *fcport;
 	struct qedf_ctx *qedf;
-	uint16_t xid;
-	struct e4_fcoe_task_context *task;
 	int tmo = 0;
 	int rc = SUCCESS;
 	unsigned long flags;
@@ -2220,11 +2202,8 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 		  refcount, fcport, fcport->rdata->ids.port_id);
 
 	/* Cleanup cmds re-use the same TID as the original I/O */
-	xid = io_req->xid;
 	io_req->cmd_type = QEDF_CLEANUP;
 	io_req->return_scsi_cmd_on_abts = return_scsi_cmd_on_abts;
-
-	task = qedf_get_task_mem(&qedf->tasks, xid);
 
 	init_completion(&io_req->cleanup_done);
 
@@ -2531,7 +2510,6 @@ void qedf_process_unsol_compl(struct qedf_ctx *qedf, uint16_t que_idx,
 	struct fcoe_cqe *cqe)
 {
 	unsigned long flags;
-	uint16_t tmp;
 	uint16_t pktlen = cqe->cqe_info.unsolic_info.pkt_len;
 	u32 payload_len, crc;
 	struct fc_frame_header *fh;
@@ -2629,9 +2607,9 @@ increment_prod:
 		qedf->bdq_prod_idx = 0;
 
 	writew(qedf->bdq_prod_idx, qedf->bdq_primary_prod);
-	tmp = readw(qedf->bdq_primary_prod);
+	readw(qedf->bdq_primary_prod);
 	writew(qedf->bdq_prod_idx, qedf->bdq_secondary_prod);
-	tmp = readw(qedf->bdq_secondary_prod);
+	readw(qedf->bdq_secondary_prod);
 
 	spin_unlock_irqrestore(&qedf->hba_lock, flags);
 }

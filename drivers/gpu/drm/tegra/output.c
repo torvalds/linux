@@ -179,13 +179,6 @@ void tegra_output_remove(struct tegra_output *output)
 int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 {
 	int connector_type;
-	int err;
-
-	if (output->panel) {
-		err = drm_panel_attach(output->panel, &output->connector);
-		if (err < 0)
-			return err;
-	}
 
 	/*
 	 * The connector is now registered and ready to receive hotplug events
@@ -220,9 +213,6 @@ void tegra_output_exit(struct tegra_output *output)
 	 */
 	if (output->hpd_gpio)
 		disable_irq(output->hpd_irq);
-
-	if (output->panel)
-		drm_panel_detach(output->panel);
 }
 
 void tegra_output_find_possible_crtcs(struct tegra_output *output,

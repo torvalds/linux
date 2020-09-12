@@ -12,8 +12,6 @@
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
 
-#define ATOMIC_INIT(i)		{ (i) }
-
 /*  Normal writes in our arch don't clear lock reservations  */
 
 static inline void atomic_set(atomic_t *v, int new)

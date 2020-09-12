@@ -117,6 +117,13 @@ svc_rdma_next_recv_ctxt(struct list_head *list)
 					rc_list);
 }
 
+static void svc_rdma_recv_cid_init(struct svcxprt_rdma *rdma,
+				   struct rpc_rdma_cid *cid)
+{
+	cid->ci_queue_id = rdma->sc_rq_cq->res.id;
+	cid->ci_completion_id = atomic_inc_return(&rdma->sc_completion_ids);
+}
+
 static struct svc_rdma_recv_ctxt *
 svc_rdma_recv_ctxt_alloc(struct svcxprt_rdma *rdma)
 {
@@ -134,6 +141,8 @@ svc_rdma_recv_ctxt_alloc(struct svcxprt_rdma *rdma)
 				 rdma->sc_max_req_size, DMA_FROM_DEVICE);
 	if (ib_dma_mapping_error(rdma->sc_pd->device, addr))
 		goto fail2;
+
+	svc_rdma_recv_cid_init(rdma, &ctxt->rc_cid);
 
 	ctxt->rc_recv_wr.next = NULL;
 	ctxt->rc_recv_wr.wr_cqe = &ctxt->rc_cqe;
@@ -248,16 +257,15 @@ static int __svc_rdma_post_recv(struct svcxprt_rdma *rdma,
 {
 	int ret;
 
-	svc_xprt_get(&rdma->sc_xprt);
+	trace_svcrdma_post_recv(ctxt);
 	ret = ib_post_recv(rdma->sc_qp, &ctxt->rc_recv_wr, NULL);
-	trace_svcrdma_post_recv(&ctxt->rc_recv_wr, ret);
 	if (ret)
 		goto err_post;
 	return 0;
 
 err_post:
+	trace_svcrdma_rq_post_err(rdma, ret);
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
-	svc_xprt_put(&rdma->sc_xprt);
 	return ret;
 }
 
@@ -265,6 +273,8 @@ static int svc_rdma_post_recv(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_recv_ctxt *ctxt;
 
+	if (test_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags))
+		return 0;
 	ctxt = svc_rdma_recv_ctxt_get(rdma);
 	if (!ctxt)
 		return -ENOMEM;
@@ -309,11 +319,10 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_recv_ctxt *ctxt;
 
-	trace_svcrdma_wc_receive(wc);
-
 	/* WARNING: Only wc->wr_cqe and wc->status are reliable */
 	ctxt = container_of(cqe, struct svc_rdma_recv_ctxt, rc_cqe);
 
+	trace_svcrdma_wc_receive(wc, &ctxt->rc_cid);
 	if (wc->status != IB_WC_SUCCESS)
 		goto flushed;
 
@@ -333,15 +342,13 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	spin_unlock(&rdma->sc_rq_dto_lock);
 	if (!test_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags))
 		svc_xprt_enqueue(&rdma->sc_xprt);
-	goto out;
+	return;
 
 flushed:
 post_err:
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
 	svc_xprt_enqueue(&rdma->sc_xprt);
-out:
-	svc_xprt_put(&rdma->sc_xprt);
 }
 
 /**
@@ -419,7 +426,7 @@ static bool xdr_check_read_list(struct svc_rdma_recv_ctxt *rctxt)
 
 	len = 0;
 	first = true;
-	while (*p != xdr_zero) {
+	while (xdr_item_is_present(p)) {
 		p = xdr_inline_decode(&rctxt->rc_stream,
 				      rpcrdma_readseg_maxsz * sizeof(*p));
 		if (!p)
@@ -466,9 +473,7 @@ static bool xdr_check_write_chunk(struct svc_rdma_recv_ctxt *rctxt, u32 maxlen)
 		if (!p)
 			return false;
 
-		handle = be32_to_cpup(p++);
-		length = be32_to_cpup(p++);
-		xdr_decode_hyper(p, &offset);
+		xdr_decode_rdma_segment(p, &handle, &length, &offset);
 		trace_svcrdma_decode_wseg(handle, length, offset);
 
 		total += length;
@@ -500,7 +505,7 @@ static bool xdr_check_write_list(struct svc_rdma_recv_ctxt *rctxt)
 	if (!p)
 		return false;
 	rctxt->rc_write_list = p;
-	while (*p != xdr_zero) {
+	while (xdr_item_is_present(p)) {
 		if (!xdr_check_write_chunk(rctxt, MAX_BYTES_WRITE_CHUNK))
 			return false;
 		++chcount;
@@ -532,12 +537,11 @@ static bool xdr_check_reply_chunk(struct svc_rdma_recv_ctxt *rctxt)
 	p = xdr_inline_decode(&rctxt->rc_stream, sizeof(*p));
 	if (!p)
 		return false;
-	rctxt->rc_reply_chunk = p;
-	if (*p != xdr_zero) {
+	rctxt->rc_reply_chunk = NULL;
+	if (xdr_item_is_present(p)) {
 		if (!xdr_check_write_chunk(rctxt, MAX_BYTES_SPECIAL_CHUNK))
 			return false;
-	} else {
-		rctxt->rc_reply_chunk = NULL;
+		rctxt->rc_reply_chunk = p;
 	}
 	return true;
 }
@@ -568,7 +572,7 @@ static void svc_rdma_get_inv_rkey(struct svcxprt_rdma *rdma,
 	p += rpcrdma_fixed_maxsz;
 
 	/* Read list */
-	while (*p++ != xdr_zero) {
+	while (xdr_item_is_present(p++)) {
 		p++;	/* position */
 		if (inv_rkey == xdr_zero)
 			inv_rkey = *p;
@@ -578,7 +582,7 @@ static void svc_rdma_get_inv_rkey(struct svcxprt_rdma *rdma,
 	}
 
 	/* Write list */
-	while (*p++ != xdr_zero) {
+	while (xdr_item_is_present(p++)) {
 		segcount = be32_to_cpup(p++);
 		for (i = 0; i < segcount; i++) {
 			if (inv_rkey == xdr_zero)
@@ -590,7 +594,7 @@ static void svc_rdma_get_inv_rkey(struct svcxprt_rdma *rdma,
 	}
 
 	/* Reply chunk */
-	if (*p++ != xdr_zero) {
+	if (xdr_item_is_present(p++)) {
 		segcount = be32_to_cpup(p++);
 		for (i = 0; i < segcount; i++) {
 			if (inv_rkey == xdr_zero)
@@ -661,27 +665,27 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg,
 	hdr_len = xdr_stream_pos(&rctxt->rc_stream);
 	rq_arg->head[0].iov_len -= hdr_len;
 	rq_arg->len -= hdr_len;
-	trace_svcrdma_decode_rqst(rdma_argp, hdr_len);
+	trace_svcrdma_decode_rqst(rctxt, rdma_argp, hdr_len);
 	return hdr_len;
 
 out_short:
-	trace_svcrdma_decode_short_err(rq_arg->len);
+	trace_svcrdma_decode_short_err(rctxt, rq_arg->len);
 	return -EINVAL;
 
 out_version:
-	trace_svcrdma_decode_badvers_err(rdma_argp);
+	trace_svcrdma_decode_badvers_err(rctxt, rdma_argp);
 	return -EPROTONOSUPPORT;
 
 out_drop:
-	trace_svcrdma_decode_drop_err(rdma_argp);
+	trace_svcrdma_decode_drop_err(rctxt, rdma_argp);
 	return 0;
 
 out_proc:
-	trace_svcrdma_decode_badproc_err(rdma_argp);
+	trace_svcrdma_decode_badproc_err(rctxt, rdma_argp);
 	return -EINVAL;
 
 out_inval:
-	trace_svcrdma_decode_parse_err(rdma_argp);
+	trace_svcrdma_decode_parse_err(rctxt, rdma_argp);
 	return -EINVAL;
 }
 
@@ -714,57 +718,16 @@ static void rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.buflen = head->rc_arg.buflen;
 }
 
-static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
-				__be32 *rdma_argp, int status)
+static void svc_rdma_send_error(struct svcxprt_rdma *rdma,
+				struct svc_rdma_recv_ctxt *rctxt,
+				int status)
 {
-	struct svc_rdma_send_ctxt *ctxt;
-	__be32 *p;
-	int ret;
+	struct svc_rdma_send_ctxt *sctxt;
 
-	ctxt = svc_rdma_send_ctxt_get(xprt);
-	if (!ctxt)
+	sctxt = svc_rdma_send_ctxt_get(rdma);
+	if (!sctxt)
 		return;
-
-	p = xdr_reserve_space(&ctxt->sc_stream,
-			      rpcrdma_fixed_maxsz * sizeof(*p));
-	if (!p)
-		goto put_ctxt;
-
-	*p++ = *rdma_argp;
-	*p++ = *(rdma_argp + 1);
-	*p++ = xprt->sc_fc_credits;
-	*p = rdma_error;
-
-	switch (status) {
-	case -EPROTONOSUPPORT:
-		p = xdr_reserve_space(&ctxt->sc_stream, 3 * sizeof(*p));
-		if (!p)
-			goto put_ctxt;
-
-		*p++ = err_vers;
-		*p++ = rpcrdma_version;
-		*p = rpcrdma_version;
-		trace_svcrdma_err_vers(*rdma_argp);
-		break;
-	default:
-		p = xdr_reserve_space(&ctxt->sc_stream, sizeof(*p));
-		if (!p)
-			goto put_ctxt;
-
-		*p = err_chunk;
-		trace_svcrdma_err_chunk(*rdma_argp);
-	}
-
-	ctxt->sc_send_wr.num_sge = 1;
-	ctxt->sc_send_wr.opcode = IB_WR_SEND;
-	ctxt->sc_sges[0].length = ctxt->sc_hdrbuf.len;
-	ret = svc_rdma_send(xprt, &ctxt->sc_send_wr);
-	if (ret)
-		goto put_ctxt;
-	return;
-
-put_ctxt:
-	svc_rdma_send_ctxt_put(xprt, ctxt);
+	svc_rdma_send_error_msg(rdma, sctxt, rctxt, status);
 }
 
 /* By convention, backchannel calls arrive via rdma_msg type
@@ -900,13 +863,13 @@ out_readchunk:
 	return 0;
 
 out_err:
-	svc_rdma_send_error(rdma_xprt, p, ret);
+	svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return 0;
 
 out_postfail:
 	if (ret == -EINVAL)
-		svc_rdma_send_error(rdma_xprt, p, ret);
+		svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return ret;
 

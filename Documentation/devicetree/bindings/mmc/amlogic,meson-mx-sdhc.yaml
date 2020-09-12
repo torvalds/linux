@@ -21,9 +21,9 @@ properties:
   compatible:
     items:
       - enum:
-        - amlogic,meson8-sdhc
-        - amlogic,meson8b-sdhc
-        - amlogic,meson8m2-sdhc
+          - amlogic,meson8-sdhc
+          - amlogic,meson8b-sdhc
+          - amlogic,meson8m2-sdhc
       - const: amlogic,meson-mx-sdhc
 
   reg:

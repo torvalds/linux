@@ -15,7 +15,6 @@
 #include <linux/libfdt.h>
 #include <linux/crash_core.h>
 #include <asm/cacheflush.h>
-#include <asm/pgalloc.h>
 #include <asm/prom.h>
 #include <asm/kdump.h>
 #include <mm/mmu_decl.h>

@@ -3752,7 +3752,6 @@ int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver)
  *	t4_load_phy_fw - download port PHY firmware
  *	@adap: the adapter
  *	@win: the PCI-E Memory Window index to use for t4_memory_rw()
- *	@win_lock: the lock to use to guard the memory copy
  *	@phy_fw_version: function to check PHY firmware versions
  *	@phy_fw_data: the PHY firmware image to write
  *	@phy_fw_size: image size
@@ -3761,9 +3760,7 @@ int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver)
  *	@phy_fw_version is supplied, then it will be used to determine if
  *	it's necessary to perform the transfer by comparing the version
  *	of any existing adapter PHY firmware with that of the passed in
- *	PHY firmware image.  If @win_lock is non-NULL then it will be used
- *	around the call to t4_memory_rw() which transfers the PHY firmware
- *	to the adapter.
+ *	PHY firmware image.
  *
  *	A negative error number will be returned if an error occurs.  If
  *	version number support is available and there's no need to upgrade
@@ -3775,14 +3772,13 @@ int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver)
  *	contents.  Thus, loading PHY firmware on such adapters must happen
  *	after any FW_RESET_CMDs ...
  */
-int t4_load_phy_fw(struct adapter *adap,
-		   int win, spinlock_t *win_lock,
+int t4_load_phy_fw(struct adapter *adap, int win,
 		   int (*phy_fw_version)(const u8 *, size_t),
 		   const u8 *phy_fw_data, size_t phy_fw_size)
 {
+	int cur_phy_fw_ver = 0, new_phy_fw_vers = 0;
 	unsigned long mtype = 0, maddr = 0;
 	u32 param, val;
-	int cur_phy_fw_ver = 0, new_phy_fw_vers = 0;
 	int ret;
 
 	/* If we have version number support, then check to see if the adapter
@@ -3822,13 +3818,9 @@ int t4_load_phy_fw(struct adapter *adap,
 	/* Copy the supplied PHY Firmware image to the adapter memory location
 	 * allocated by the adapter firmware.
 	 */
-	if (win_lock)
-		spin_lock_bh(win_lock);
 	ret = t4_memory_rw(adap, win, mtype, maddr,
 			   phy_fw_size, (__be32 *)phy_fw_data,
 			   T4_MEMORY_WRITE);
-	if (win_lock)
-		spin_unlock_bh(win_lock);
 	if (ret)
 		return ret;
 
@@ -7664,13 +7656,13 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		switch (nmac) {
 		case 5:
 			memcpy(mac + 24, c.nmac3, sizeof(c.nmac3));
-			/* Fall through */
+			fallthrough;
 		case 4:
 			memcpy(mac + 18, c.nmac2, sizeof(c.nmac2));
-			/* Fall through */
+			fallthrough;
 		case 3:
 			memcpy(mac + 12, c.nmac1, sizeof(c.nmac1));
-			/* Fall through */
+			fallthrough;
 		case 2:
 			memcpy(mac + 6,  c.nmac0, sizeof(c.nmac0));
 		}
@@ -7719,6 +7711,7 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
  *	@viid: the VI id
+ *	@viid_mirror: the mirror VI id
  *	@mtu: the new MTU or -1
  *	@promisc: 1 to enable promiscuous mode, 0 to disable it, -1 no change
  *	@all_multi: 1 to enable all-multi mode, 0 to disable it, -1 no change
@@ -7729,10 +7722,11 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *	Sets Rx properties of a virtual interface.
  */
 int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int mtu, int promisc, int all_multi, int bcast, int vlanex,
-		  bool sleep_ok)
+		  unsigned int viid_mirror, int mtu, int promisc, int all_multi,
+		  int bcast, int vlanex, bool sleep_ok)
 {
-	struct fw_vi_rxmode_cmd c;
+	struct fw_vi_rxmode_cmd c, c_mirror;
+	int ret;
 
 	/* convert to FW values */
 	if (mtu < 0)
@@ -7757,7 +7751,24 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 			    FW_VI_RXMODE_CMD_ALLMULTIEN_V(all_multi) |
 			    FW_VI_RXMODE_CMD_BROADCASTEN_V(bcast) |
 			    FW_VI_RXMODE_CMD_VLANEXEN_V(vlanex));
-	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
+
+	if (viid_mirror) {
+		memcpy(&c_mirror, &c, sizeof(c_mirror));
+		c_mirror.op_to_viid =
+			cpu_to_be32(FW_CMD_OP_V(FW_VI_RXMODE_CMD) |
+				    FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				    FW_VI_RXMODE_CMD_VIID_V(viid_mirror));
+	}
+
+	ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
+	if (ret)
+		return ret;
+
+	if (viid_mirror)
+		ret = t4_wr_mbox_meat(adap, mbox, &c_mirror, sizeof(c_mirror),
+				      NULL, sleep_ok);
+
+	return ret;
 }
 
 /**
@@ -9719,6 +9730,22 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 	return 0;
 }
 
+int t4_init_port_mirror(struct port_info *pi, u8 mbox, u8 port, u8 pf, u8 vf,
+			u16 *mirror_viid)
+{
+	int ret;
+
+	ret = t4_alloc_vi(pi->adapter, mbox, port, pf, vf, 1, NULL, NULL,
+			  NULL, NULL);
+	if (ret < 0)
+		return ret;
+
+	if (mirror_viid)
+		*mirror_viid = ret;
+
+	return 0;
+}
+
 /**
  *	t4_read_cimq_cfg - read CIM queue configuration
  *	@adap: the adapter
@@ -10480,4 +10507,281 @@ int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 	}
 
 	return t4_wr_mbox(adap, adap->mbox, &vlan_cmd, sizeof(vlan_cmd), NULL);
+}
+
+/**
+ *	modify_device_id - Modifies the device ID of the Boot BIOS image
+ *	@device_id: the device ID to write.
+ *	@boot_data: the boot image to modify.
+ *
+ *	Write the supplied device ID to the boot BIOS image.
+ */
+static void modify_device_id(int device_id, u8 *boot_data)
+{
+	struct cxgb4_pcir_data *pcir_header;
+	struct legacy_pci_rom_hdr *header;
+	u8 *cur_header = boot_data;
+	u16 pcir_offset;
+
+	 /* Loop through all chained images and change the device ID's */
+	do {
+		header = (struct legacy_pci_rom_hdr *)cur_header;
+		pcir_offset = le16_to_cpu(header->pcir_offset);
+		pcir_header = (struct cxgb4_pcir_data *)(cur_header +
+			      pcir_offset);
+
+		/**
+		 * Only modify the Device ID if code type is Legacy or HP.
+		 * 0x00: Okay to modify
+		 * 0x01: FCODE. Do not modify
+		 * 0x03: Okay to modify
+		 * 0x04-0xFF: Do not modify
+		 */
+		if (pcir_header->code_type == CXGB4_HDR_CODE1) {
+			u8 csum = 0;
+			int i;
+
+			/**
+			 * Modify Device ID to match current adatper
+			 */
+			pcir_header->device_id = cpu_to_le16(device_id);
+
+			/**
+			 * Set checksum temporarily to 0.
+			 * We will recalculate it later.
+			 */
+			header->cksum = 0x0;
+
+			/**
+			 * Calculate and update checksum
+			 */
+			for (i = 0; i < (header->size512 * 512); i++)
+				csum += cur_header[i];
+
+			/**
+			 * Invert summed value to create the checksum
+			 * Writing new checksum value directly to the boot data
+			 */
+			cur_header[7] = -csum;
+
+		} else if (pcir_header->code_type == CXGB4_HDR_CODE2) {
+			/**
+			 * Modify Device ID to match current adatper
+			 */
+			pcir_header->device_id = cpu_to_le16(device_id);
+		}
+
+		/**
+		 * Move header pointer up to the next image in the ROM.
+		 */
+		cur_header += header->size512 * 512;
+	} while (!(pcir_header->indicator & CXGB4_HDR_INDI));
+}
+
+/**
+ *	t4_load_boot - download boot flash
+ *	@adap: the adapter
+ *	@boot_data: the boot image to write
+ *	@boot_addr: offset in flash to write boot_data
+ *	@size: image size
+ *
+ *	Write the supplied boot image to the card's serial flash.
+ *	The boot image has the following sections: a 28-byte header and the
+ *	boot image.
+ */
+int t4_load_boot(struct adapter *adap, u8 *boot_data,
+		 unsigned int boot_addr, unsigned int size)
+{
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+	unsigned int boot_sector = (boot_addr * 1024);
+	struct cxgb4_pci_exp_rom_header *header;
+	struct cxgb4_pcir_data *pcir_header;
+	int pcir_offset;
+	unsigned int i;
+	u16 device_id;
+	int ret, addr;
+
+	/**
+	 * Make sure the boot image does not encroach on the firmware region
+	 */
+	if ((boot_sector + size) >> 16 > FLASH_FW_START_SEC) {
+		dev_err(adap->pdev_dev, "boot image encroaching on firmware region\n");
+		return -EFBIG;
+	}
+
+	/* Get boot header */
+	header = (struct cxgb4_pci_exp_rom_header *)boot_data;
+	pcir_offset = le16_to_cpu(header->pcir_offset);
+	/* PCIR Data Structure */
+	pcir_header = (struct cxgb4_pcir_data *)&boot_data[pcir_offset];
+
+	/**
+	 * Perform some primitive sanity testing to avoid accidentally
+	 * writing garbage over the boot sectors.  We ought to check for
+	 * more but it's not worth it for now ...
+	 */
+	if (size < BOOT_MIN_SIZE || size > BOOT_MAX_SIZE) {
+		dev_err(adap->pdev_dev, "boot image too small/large\n");
+		return -EFBIG;
+	}
+
+	if (le16_to_cpu(header->signature) != BOOT_SIGNATURE) {
+		dev_err(adap->pdev_dev, "Boot image missing signature\n");
+		return -EINVAL;
+	}
+
+	/* Check PCI header signature */
+	if (le32_to_cpu(pcir_header->signature) != PCIR_SIGNATURE) {
+		dev_err(adap->pdev_dev, "PCI header missing signature\n");
+		return -EINVAL;
+	}
+
+	/* Check Vendor ID matches Chelsio ID*/
+	if (le16_to_cpu(pcir_header->vendor_id) != PCI_VENDOR_ID_CHELSIO) {
+		dev_err(adap->pdev_dev, "Vendor ID missing signature\n");
+		return -EINVAL;
+	}
+
+	/**
+	 * The boot sector is comprised of the Expansion-ROM boot, iSCSI boot,
+	 * and Boot configuration data sections. These 3 boot sections span
+	 * sectors 0 to 7 in flash and live right before the FW image location.
+	 */
+	i = DIV_ROUND_UP(size ? size : FLASH_FW_START,  sf_sec_size);
+	ret = t4_flash_erase_sectors(adap, boot_sector >> 16,
+				     (boot_sector >> 16) + i - 1);
+
+	/**
+	 * If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter option ROM file
+	 */
+	if (ret || size == 0)
+		goto out;
+	/* Retrieve adapter's device ID */
+	pci_read_config_word(adap->pdev, PCI_DEVICE_ID, &device_id);
+       /* Want to deal with PF 0 so I strip off PF 4 indicator */
+	device_id = device_id & 0xf0ff;
+
+	 /* Check PCIE Device ID */
+	if (le16_to_cpu(pcir_header->device_id) != device_id) {
+		/**
+		 * Change the device ID in the Boot BIOS image to match
+		 * the Device ID of the current adapter.
+		 */
+		modify_device_id(device_id, boot_data);
+	}
+
+	/**
+	 * Skip over the first SF_PAGE_SIZE worth of data and write it after
+	 * we finish copying the rest of the boot image. This will ensure
+	 * that the BIOS boot header will only be written if the boot image
+	 * was written in full.
+	 */
+	addr = boot_sector;
+	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
+		addr += SF_PAGE_SIZE;
+		boot_data += SF_PAGE_SIZE;
+		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, boot_data);
+		if (ret)
+			goto out;
+	}
+
+	ret = t4_write_flash(adap, boot_sector, SF_PAGE_SIZE,
+			     (const u8 *)header);
+
+out:
+	if (ret)
+		dev_err(adap->pdev_dev, "boot image load failed, error %d\n",
+			ret);
+	return ret;
+}
+
+/**
+ *	t4_flash_bootcfg_addr - return the address of the flash
+ *	optionrom configuration
+ *	@adapter: the adapter
+ *
+ *	Return the address within the flash where the OptionROM Configuration
+ *	is stored, or an error if the device FLASH is too small to contain
+ *	a OptionROM Configuration.
+ */
+static int t4_flash_bootcfg_addr(struct adapter *adapter)
+{
+	/**
+	 * If the device FLASH isn't large enough to hold a Firmware
+	 * Configuration File, return an error.
+	 */
+	if (adapter->params.sf_size <
+	    FLASH_BOOTCFG_START + FLASH_BOOTCFG_MAX_SIZE)
+		return -ENOSPC;
+
+	return FLASH_BOOTCFG_START;
+}
+
+int t4_load_bootcfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
+{
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+	struct cxgb4_bootcfg_data *header;
+	unsigned int flash_cfg_start_sec;
+	unsigned int addr, npad;
+	int ret, i, n, cfg_addr;
+
+	cfg_addr = t4_flash_bootcfg_addr(adap);
+	if (cfg_addr < 0)
+		return cfg_addr;
+
+	addr = cfg_addr;
+	flash_cfg_start_sec = addr / SF_SEC_SIZE;
+
+	if (size > FLASH_BOOTCFG_MAX_SIZE) {
+		dev_err(adap->pdev_dev, "bootcfg file too large, max is %u bytes\n",
+			FLASH_BOOTCFG_MAX_SIZE);
+		return -EFBIG;
+	}
+
+	header = (struct cxgb4_bootcfg_data *)cfg_data;
+	if (le16_to_cpu(header->signature) != BOOT_CFG_SIG) {
+		dev_err(adap->pdev_dev, "Wrong bootcfg signature\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	i = DIV_ROUND_UP(FLASH_BOOTCFG_MAX_SIZE,
+			 sf_sec_size);
+	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
+				     flash_cfg_start_sec + i - 1);
+
+	/**
+	 * If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter OptionROM Configuration File.
+	 */
+	if (ret || size == 0)
+		goto out;
+
+	/* this will write to the flash up to SF_PAGE_SIZE at a time */
+	for (i = 0; i < size; i += SF_PAGE_SIZE) {
+		n = min_t(u32, size - i, SF_PAGE_SIZE);
+
+		ret = t4_write_flash(adap, addr, n, cfg_data);
+		if (ret)
+			goto out;
+
+		addr += SF_PAGE_SIZE;
+		cfg_data += SF_PAGE_SIZE;
+	}
+
+	npad = ((size + 4 - 1) & ~3) - size;
+	for (i = 0; i < npad; i++) {
+		u8 data = 0;
+
+		ret = t4_write_flash(adap, cfg_addr + size + i, 1, &data);
+		if (ret)
+			goto out;
+	}
+
+out:
+	if (ret)
+		dev_err(adap->pdev_dev, "boot config data %s failed %d\n",
+			(size == 0 ? "clear" : "download"), ret);
+	return ret;
 }

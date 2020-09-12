@@ -12,6 +12,13 @@ Required properties:
 - #address-cells: should be 1.
 - #size-cells: should be 0.
 
+Optional properties:
+
+- reg-names: must be "comphy" as the first name, and "conf".
+- reg: must contain the comphy register location and length as the first
+    pair, followed by an optional configuration register address and
+    length pair.
+
 A sub-node is required for each comphy lane provided by the comphy.
 
 Required properties (child nodes):
@@ -24,7 +31,8 @@ Example:
 
 	comphy: phy@18300 {
 		compatible = "marvell,armada-380-comphy";
-		reg = <0x18300 0x100>;
+		reg-names = "comphy", "conf";
+		reg = <0x18300 0x100>, <0x18460 4>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 

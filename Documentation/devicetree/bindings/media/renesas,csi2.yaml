@@ -19,15 +19,15 @@ properties:
   compatible:
     items:
       - enum:
-        - renesas,r8a774a1-csi2 # RZ/G2M
-        - renesas,r8a774b1-csi2 # RZ/G2N
-        - renesas,r8a774c0-csi2 # RZ/G2E
-        - renesas,r8a7795-csi2  # R-Car H3
-        - renesas,r8a7796-csi2  # R-Car M3-W
-        - renesas,r8a77965-csi2 # R-Car M3-N
-        - renesas,r8a77970-csi2 # R-Car V3M
-        - renesas,r8a77980-csi2 # R-Car V3H
-        - renesas,r8a77990-csi2 # R-Car E3
+          - renesas,r8a774a1-csi2 # RZ/G2M
+          - renesas,r8a774b1-csi2 # RZ/G2N
+          - renesas,r8a774c0-csi2 # RZ/G2E
+          - renesas,r8a7795-csi2  # R-Car H3
+          - renesas,r8a7796-csi2  # R-Car M3-W
+          - renesas,r8a77965-csi2 # R-Car M3-N
+          - renesas,r8a77970-csi2 # R-Car V3M
+          - renesas,r8a77980-csi2 # R-Car V3H
+          - renesas,r8a77990-csi2 # R-Car E3
 
   reg:
     maxItems: 1

@@ -1038,7 +1038,6 @@ static int bma180_probe(struct i2c_client *client,
 		goto err_chip_disable;
 
 	mutex_init(&data->mutex);
-	indio_dev->dev.parent = dev;
 	indio_dev->channels = data->part_info->channels;
 	indio_dev->num_channels = data->part_info->num_channels;
 	indio_dev->name = id->name;

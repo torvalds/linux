@@ -307,6 +307,14 @@ static netdev_tx_t x25_asy_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
+	/* There should be a pseudo header of 1 byte added by upper layers.
+	 * Check to make sure it is there before reading it.
+	 */
+	if (skb->len < 1) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
 	switch (skb->data[0]) {
 	case X25_IFACE_DATA:
 		break;
@@ -322,7 +330,7 @@ static netdev_tx_t x25_asy_xmit(struct sk_buff *skb,
 		if (err != LAPB_OK)
 			netdev_err(dev, "lapb_disconnect_request error: %d\n",
 				   err);
-		/* fall through */
+		fallthrough;
 	default:
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
@@ -751,6 +759,12 @@ static void x25_asy_setup(struct net_device *dev)
 	dev->addr_len		= 0;
 	dev->type		= ARPHRD_X25;
 	dev->tx_queue_len	= 10;
+
+	/* When transmitting data:
+	 * first this driver removes a pseudo header of 1 byte,
+	 * then the lapb module prepends an LAPB header of at most 3 bytes.
+	 */
+	dev->needed_headroom	= 3 - 1;
 
 	/* New-style flags. */
 	dev->flags		= IFF_NOARP;

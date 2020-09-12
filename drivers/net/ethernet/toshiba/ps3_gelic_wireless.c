@@ -877,7 +877,7 @@ static int gelic_wl_set_auth(struct net_device *netdev,
 	case IW_AUTH_KEY_MGMT:
 		if (param->value & IW_AUTH_KEY_MGMT_PSK)
 			break;
-		/* intentionally fall through */
+		fallthrough;
 	default:
 		ret = -EOPNOTSUPP;
 		break;

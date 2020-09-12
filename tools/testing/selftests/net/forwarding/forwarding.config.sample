@@ -14,6 +14,9 @@ NETIFS[p6]=veth5
 NETIFS[p7]=veth6
 NETIFS[p8]=veth7
 
+# Port that does not have a cable connected.
+NETIF_NO_CABLE=eth8
+
 ##############################################################################
 # Defines
 

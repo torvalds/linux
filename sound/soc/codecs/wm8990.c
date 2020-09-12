@@ -61,7 +61,7 @@ static int wm899x_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 		return ret;
 
 	/* now hit the volume update bits (always bit 8) */
-	val = snd_soc_component_read32(component, reg);
+	val = snd_soc_component_read(component, reg);
 	return snd_soc_component_write(component, reg, val | 0x0100);
 }
 
@@ -298,7 +298,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 
 	switch (reg_shift) {
 	case WM8990_SPEAKER_MIXER | (WM8990_LDSPK_BIT << 8) :
-		reg = snd_soc_component_read32(component, WM8990_OUTPUT_MIXER1);
+		reg = snd_soc_component_read(component, WM8990_OUTPUT_MIXER1);
 		if (reg & WM8990_LDLO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 1 LDLO Set\n");
@@ -306,7 +306,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_SPEAKER_MIXER | (WM8990_RDSPK_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8990_OUTPUT_MIXER2);
+		reg = snd_soc_component_read(component, WM8990_OUTPUT_MIXER2);
 		if (reg & WM8990_RDRO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 2 RDRO Set\n");
@@ -314,7 +314,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_OUTPUT_MIXER1 | (WM8990_LDLO_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8990_SPEAKER_MIXER);
+		reg = snd_soc_component_read(component, WM8990_SPEAKER_MIXER);
 		if (reg & WM8990_LDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer LDSPK Set\n");
@@ -322,7 +322,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_OUTPUT_MIXER2 | (WM8990_RDRO_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8990_SPEAKER_MIXER);
+		reg = snd_soc_component_read(component, WM8990_SPEAKER_MIXER);
 		if (reg & WM8990_RDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer RDSPK Set\n");
@@ -892,8 +892,8 @@ static int wm8990_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	u16 audio1, audio3;
 
-	audio1 = snd_soc_component_read32(component, WM8990_AUDIO_INTERFACE_1);
-	audio3 = snd_soc_component_read32(component, WM8990_AUDIO_INTERFACE_3);
+	audio1 = snd_soc_component_read(component, WM8990_AUDIO_INTERFACE_1);
+	audio3 = snd_soc_component_read(component, WM8990_AUDIO_INTERFACE_3);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -976,7 +976,7 @@ static int wm8990_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 audio1 = snd_soc_component_read32(component, WM8990_AUDIO_INTERFACE_1);
+	u16 audio1 = snd_soc_component_read(component, WM8990_AUDIO_INTERFACE_1);
 
 	audio1 &= ~WM8990_AIF_WL_MASK;
 	/* bit size */
@@ -998,12 +998,12 @@ static int wm8990_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8990_mute(struct snd_soc_dai *dai, int mute)
+static int wm8990_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 val;
 
-	val  = snd_soc_component_read32(component, WM8990_DAC_CTRL) & ~WM8990_DAC_MUTE;
+	val  = snd_soc_component_read(component, WM8990_DAC_CTRL) & ~WM8990_DAC_MUTE;
 
 	if (mute)
 		snd_soc_component_write(component, WM8990_DAC_CTRL, val | WM8990_DAC_MUTE);
@@ -1152,11 +1152,12 @@ static int wm8990_set_bias_level(struct snd_soc_component *component,
  */
 static const struct snd_soc_dai_ops wm8990_dai_ops = {
 	.hw_params	= wm8990_hw_params,
-	.digital_mute	= wm8990_mute,
+	.mute_stream	= wm8990_mute,
 	.set_fmt	= wm8990_set_dai_fmt,
 	.set_clkdiv	= wm8990_set_dai_clkdiv,
 	.set_pll	= wm8990_set_dai_pll,
 	.set_sysclk	= wm8990_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8990_dai = {

@@ -355,7 +355,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:
 		mii_data->phy_id = phydev->mdio.addr;
-		/* fall through */
+		fallthrough;
 
 	case SIOCGMIIREG:
 		if (mdio_phy_id_is_c45(mii_data->phy_id)) {
@@ -433,7 +433,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 	case SIOCSHWTSTAMP:
 		if (phydev->mii_ts && phydev->mii_ts->hwtstamp)
 			return phydev->mii_ts->hwtstamp(phydev->mii_ts, ifr);
-		/* fall through */
+		fallthrough;
 
 	default:
 		return -EOPNOTSUPP;
@@ -488,6 +488,54 @@ static void phy_abort_cable_test(struct phy_device *phydev)
 	if (err)
 		phydev_err(phydev, "Error while aborting cable test");
 }
+
+int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_strings(phydev, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_ethtool_get_strings);
+
+int phy_ethtool_get_sset_count(struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->drv)
+		return -EIO;
+
+	if (phydev->drv->get_sset_count &&
+	    phydev->drv->get_strings &&
+	    phydev->drv->get_stats) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->get_sset_count(phydev);
+		mutex_unlock(&phydev->lock);
+
+		return ret;
+	}
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(phy_ethtool_get_sset_count);
+
+int phy_ethtool_get_stats(struct phy_device *phydev,
+			  struct ethtool_stats *stats, u64 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_stats(phydev, stats, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_ethtool_get_stats);
 
 int phy_start_cable_test(struct phy_device *phydev,
 			 struct netlink_ext_ack *extack)

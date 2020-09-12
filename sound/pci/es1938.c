@@ -1619,7 +1619,8 @@ static int snd_es1938_create(struct snd_card *card,
 static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 {
 	struct es1938 *chip = dev_id;
-	unsigned char status, audiostatus;
+	unsigned char status;
+	__always_unused unsigned char audiostatus;
 	int handled = 0;
 
 	status = inb(SLIO_REG(chip, IRQCONTROL));

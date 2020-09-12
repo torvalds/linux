@@ -798,7 +798,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 			if ((server->sec_kerberos || server->sec_mskerberos) &&
 			    (global_secflags & CIFSSEC_MAY_KRB5))
 				return Kerberos;
-			/* Fallthrough */
+			fallthrough;
 		default:
 			return Unspecified;
 		}
@@ -815,7 +815,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		default:
 			break;
 		}
-		/* Fallthrough - to attempt LANMAN authentication next */
+		fallthrough;	/* to attempt LANMAN authentication next */
 	case CIFS_NEGFLAVOR_LANMAN:
 		switch (requested) {
 		case LANMAN:
@@ -823,7 +823,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		case Unspecified:
 			if (global_secflags & CIFSSEC_MAY_LANMAN)
 				return LANMAN;
-			/* Fallthrough */
+			fallthrough;
 		default:
 			return Unspecified;
 		}
@@ -938,8 +938,7 @@ sess_sendreceive(struct sess_data *sess_data)
 	struct kvec rsp_iov = { NULL, 0 };
 
 	count = sess_data->iov[1].iov_len + sess_data->iov[2].iov_len;
-	smb_buf->smb_buf_length =
-		cpu_to_be32(be32_to_cpu(smb_buf->smb_buf_length) + count);
+	be32_add_cpu(&smb_buf->smb_buf_length, count);
 	put_bcc(count, smb_buf);
 
 	rc = SendReceive2(sess_data->xid, sess_data->ses,
@@ -1705,7 +1704,6 @@ static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 #else
 		cifs_dbg(VFS, "Kerberos negotiated but upcall support disabled!\n");
 		return -ENOSYS;
-		break;
 #endif /* CONFIG_CIFS_UPCALL */
 	case RawNTLMSSP:
 		sess_data->func = sess_auth_rawntlmssp_negotiate;

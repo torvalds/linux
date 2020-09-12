@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/mmc-pwrseq-sd8787.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell SD8787 power sequence provider binding
+
+maintainers:
+  - Ulf Hansson <ulf.hansson@linaro.org>
+
+properties:
+  compatible:
+    const: mmc-pwrseq-sd8787
+
+  powerdown-gpios:
+    minItems: 1
+    description:
+      contains a power down GPIO specifier with the default active state
+
+  reset-gpios:
+    minItems: 1
+    description:
+      contains a reset GPIO specifier with the default active state
+
+required:
+  - compatible
+  - powerdown-gpios
+  - reset-gpios
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    wifi_pwrseq: wifi_pwrseq {
+      compatible = "mmc-pwrseq-sd8787";
+      powerdown-gpios = <&twl_gpio 0 GPIO_ACTIVE_LOW>;
+      reset-gpios = <&twl_gpio 1 GPIO_ACTIVE_LOW>;
+    };
+...

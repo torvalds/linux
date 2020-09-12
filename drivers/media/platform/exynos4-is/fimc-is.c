@@ -871,6 +871,7 @@ err_dfs:
 err_sd:
 	fimc_is_unregister_subdevs(is);
 err_pm:
+	pm_runtime_put_noidle(dev);
 	if (!pm_runtime_enabled(dev))
 		fimc_is_runtime_suspend(dev);
 err_irq:

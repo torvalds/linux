@@ -25,13 +25,28 @@
 #include "util.h"
 #include "trace_gfs2.h"
 
+static void gfs2_print_trans(struct gfs2_sbd *sdp, const struct gfs2_trans *tr)
+{
+	fs_warn(sdp, "Transaction created at: %pSR\n", (void *)tr->tr_ip);
+	fs_warn(sdp, "blocks=%u revokes=%u reserved=%u touched=%u\n",
+		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved,
+		test_bit(TR_TOUCHED, &tr->tr_flags));
+	fs_warn(sdp, "Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
+		tr->tr_num_buf_new, tr->tr_num_buf_rm,
+		tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
+		tr->tr_num_revoke, tr->tr_num_revoke_rm);
+}
+
 int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 		     unsigned int revokes)
 {
 	struct gfs2_trans *tr;
 	int error;
 
-	BUG_ON(current->journal_info);
+	if (current->journal_info) {
+		gfs2_print_trans(sdp, current->journal_info);
+		BUG();
+	}
 	BUG_ON(blocks == 0 && revokes == 0);
 
 	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
@@ -52,6 +67,7 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 		tr->tr_reserved += gfs2_struct2blk(sdp, revokes);
 	INIT_LIST_HEAD(&tr->tr_databuf);
 	INIT_LIST_HEAD(&tr->tr_buf);
+	INIT_LIST_HEAD(&tr->tr_list);
 	INIT_LIST_HEAD(&tr->tr_ail1_list);
 	INIT_LIST_HEAD(&tr->tr_ail2_list);
 
@@ -70,18 +86,6 @@ fail:
 	kmem_cache_free(gfs2_trans_cachep, tr);
 
 	return error;
-}
-
-static void gfs2_print_trans(struct gfs2_sbd *sdp, const struct gfs2_trans *tr)
-{
-	fs_warn(sdp, "Transaction created at: %pSR\n", (void *)tr->tr_ip);
-	fs_warn(sdp, "blocks=%u revokes=%u reserved=%u touched=%u\n",
-		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved,
-		test_bit(TR_TOUCHED, &tr->tr_flags));
-	fs_warn(sdp, "Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
-		tr->tr_num_buf_new, tr->tr_num_buf_rm,
-		tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
-		tr->tr_num_revoke, tr->tr_num_revoke_rm);
 }
 
 void gfs2_trans_end(struct gfs2_sbd *sdp)

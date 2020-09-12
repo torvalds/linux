@@ -414,7 +414,7 @@ static int usb_si4713_probe(struct usb_interface *intf,
 	struct si4713_usb_device *radio;
 	struct i2c_adapter *adapter;
 	struct v4l2_subdev *sd;
-	int retval = -ENOMEM;
+	int retval;
 
 	dev_info(&intf->dev, "Si4713 development board discovered: (%04X:%04X)\n",
 			id->idVendor, id->idProduct);

@@ -210,7 +210,7 @@ breaks?  The best answer to this question was expressed by Linus in July,
 	progress at all. Is it two steps forwards, one step back, or one
 	step forward and two steps back?
 
-(http://lwn.net/Articles/243460/).
+(https://lwn.net/Articles/243460/).
 
 An especially unwelcome type of regression is any sort of change to the
 user-space ABI.  Once an interface has been exported to user space, it must
@@ -323,7 +323,7 @@ other architectures.  If you do not happen to have an S/390 system or a
 Blackfin development board handy, you can still perform the compilation
 step.  A large set of cross compilers for x86 systems can be found at
 
-	http://www.kernel.org/pub/tools/crosstool/
+	https://www.kernel.org/pub/tools/crosstool/
 
 Some time spent installing and using these compilers will help avoid
 embarrassment later.

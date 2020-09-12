@@ -9,7 +9,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/if_rmnet.h>
-#include <linux/remoteproc/qcom_q6v5_ipa_notify.h>
+#include <linux/remoteproc/qcom_rproc.h>
 
 #include "ipa.h"
 #include "ipa_data.h"
@@ -311,43 +311,40 @@ static void ipa_modem_crashed(struct ipa *ipa)
 		dev_err(dev, "error %d zeroing modem memory regions\n", ret);
 }
 
-static void ipa_modem_notify(void *data, enum qcom_rproc_event event)
+static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
+			    void *data)
 {
-	struct ipa *ipa = data;
-	struct device *dev;
+	struct ipa *ipa = container_of(nb, struct ipa, nb);
+	struct qcom_ssr_notify_data *notify_data = data;
+	struct device *dev = &ipa->pdev->dev;
 
-	dev = &ipa->pdev->dev;
-	switch (event) {
-	case MODEM_STARTING:
+	switch (action) {
+	case QCOM_SSR_BEFORE_POWERUP:
 		dev_info(dev, "received modem starting event\n");
 		ipa_smp2p_notify_reset(ipa);
 		break;
 
-	case MODEM_RUNNING:
+	case QCOM_SSR_AFTER_POWERUP:
 		dev_info(dev, "received modem running event\n");
 		break;
 
-	case MODEM_STOPPING:
-	case MODEM_CRASHED:
+	case QCOM_SSR_BEFORE_SHUTDOWN:
 		dev_info(dev, "received modem %s event\n",
-			 event == MODEM_STOPPING ? "stopping"
-						 : "crashed");
+			 notify_data->crashed ? "crashed" : "stopping");
 		if (ipa->setup_complete)
 			ipa_modem_crashed(ipa);
 		break;
 
-	case MODEM_OFFLINE:
+	case QCOM_SSR_AFTER_SHUTDOWN:
 		dev_info(dev, "received modem offline event\n");
 		break;
 
-	case MODEM_REMOVING:
-		dev_info(dev, "received modem stopping event\n");
-		break;
-
 	default:
-		dev_err(&ipa->pdev->dev, "unrecognized event %u\n", event);
+		dev_err(dev, "received unrecognized event %lu\n", action);
 		break;
 	}
+
+	return NOTIFY_OK;
 }
 
 int ipa_modem_init(struct ipa *ipa, bool modem_init)
@@ -362,13 +359,30 @@ void ipa_modem_exit(struct ipa *ipa)
 
 int ipa_modem_config(struct ipa *ipa)
 {
-	return qcom_register_ipa_notify(ipa->modem_rproc, ipa_modem_notify,
-					ipa);
+	void *notifier;
+
+	ipa->nb.notifier_call = ipa_modem_notify;
+
+	notifier = qcom_register_ssr_notifier("mpss", &ipa->nb);
+	if (IS_ERR(notifier))
+		return PTR_ERR(notifier);
+
+	ipa->notifier = notifier;
+
+	return 0;
 }
 
 void ipa_modem_deconfig(struct ipa *ipa)
 {
-	qcom_deregister_ipa_notify(ipa->modem_rproc);
+	struct device *dev = &ipa->pdev->dev;
+	int ret;
+
+	ret = qcom_unregister_ssr_notifier(ipa->notifier, &ipa->nb);
+	if (ret)
+		dev_err(dev, "error %d unregistering notifier", ret);
+
+	ipa->notifier = NULL;
+	memset(&ipa->nb, 0, sizeof(ipa->nb));
 }
 
 int ipa_modem_setup(struct ipa *ipa)

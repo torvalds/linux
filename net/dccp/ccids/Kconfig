@@ -26,13 +26,13 @@ config IP_DCCP_CCID3
 	  relatively smooth sending rate is of importance.
 
 	  CCID-3 is further described in RFC 4342,
-	  http://www.ietf.org/rfc/rfc4342.txt
+	  https://www.ietf.org/rfc/rfc4342.txt
 
 	  The TFRC congestion control algorithms were initially described in
 	  RFC 5348.
 
 	  This text was extracted from RFC 4340 (sec. 10.2),
-	  http://www.ietf.org/rfc/rfc4340.txt
+	  https://www.ietf.org/rfc/rfc4340.txt
 
 	  If in doubt, say N.
 

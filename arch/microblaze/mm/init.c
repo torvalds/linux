@@ -46,6 +46,9 @@ unsigned long memory_size;
 EXPORT_SYMBOL(memory_size);
 unsigned long lowmem_size;
 
+EXPORT_SYMBOL(min_low_pfn);
+EXPORT_SYMBOL(max_low_pfn);
+
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
 EXPORT_SYMBOL(kmap_pte);
@@ -171,9 +174,6 @@ void __init setup_memory(void)
 				  (end_pfn - start_pfn) << PAGE_SHIFT,
 				  &memblock.memory, 0);
 	}
-
-	/* XXX need to clip this if using highmem? */
-	sparse_memory_present_with_active_regions(0);
 
 	paging_init();
 }

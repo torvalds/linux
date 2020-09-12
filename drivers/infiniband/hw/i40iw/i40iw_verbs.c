@@ -101,7 +101,6 @@ static int i40iw_query_port(struct ib_device *ibdev,
 	props->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_REINIT_SUP |
 		IB_PORT_VENDOR_CLASS_SUP | IB_PORT_BOOT_MGMT_SUP;
 	props->gid_tbl_len = 1;
-	props->pkey_tbl_len = 1;
 	props->active_width = IB_WIDTH_4X;
 	props->active_speed = 1;
 	props->max_msg_sz = I40IW_MAX_OUTBOUND_MESSAGE_SIZE;
@@ -811,7 +810,7 @@ void i40iw_hw_modify_qp(struct i40iw_device *iwdev, struct i40iw_qp *iwqp,
 	case I40IW_QP_STATE_RTS:
 		if (iwqp->iwarp_state == I40IW_QP_STATE_IDLE)
 			i40iw_send_reset(iwqp->cm_node);
-		/* fall through */
+		fallthrough;
 	case I40IW_QP_STATE_IDLE:
 	case I40IW_QP_STATE_TERMINATE:
 	case I40IW_QP_STATE_CLOSING:
@@ -1543,10 +1542,9 @@ static int i40iw_hw_alloc_stag(struct i40iw_device *iwdev, struct i40iw_mr *iwmr
  * @pd: ibpd pointer
  * @mr_type: memory for stag registrion
  * @max_num_sg: man number of pages
- * @udata: user data or NULL for kernel objects
  */
 static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-				    u32 max_num_sg, struct ib_udata *udata)
+				    u32 max_num_sg)
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);
@@ -2146,7 +2144,6 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 
 		switch (ib_wr->opcode) {
 		case IB_WR_SEND:
-			/* fall-through */
 		case IB_WR_SEND_WITH_INV:
 			if (ib_wr->opcode == IB_WR_SEND) {
 				if (ib_wr->send_flags & IB_SEND_SOLICITED)
@@ -2203,7 +2200,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			break;
 		case IB_WR_RDMA_READ_WITH_INV:
 			inv_stag = true;
-			/* fall-through*/
+			fallthrough;
 		case IB_WR_RDMA_READ:
 			if (ib_wr->num_sge > I40IW_MAX_SGE_RD) {
 				err = -EINVAL;
@@ -2460,7 +2457,6 @@ static int i40iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	if (err)
 		return err;
 
-	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 
 	return 0;
@@ -2616,22 +2612,6 @@ static int i40iw_query_gid(struct ib_device *ibdev,
 	return 0;
 }
 
-/**
- * i40iw_query_pkey - Query partition key
- * @ibdev: device pointer from stack
- * @port: port number
- * @index: index of pkey
- * @pkey: pointer to store the pkey
- */
-static int i40iw_query_pkey(struct ib_device *ibdev,
-			    u8 port,
-			    u16 index,
-			    u16 *pkey)
-{
-	*pkey = 0;
-	return 0;
-}
-
 static const struct ib_device_ops i40iw_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_I40IW,
@@ -2671,7 +2651,6 @@ static const struct ib_device_ops i40iw_dev_ops = {
 	.post_send = i40iw_post_send,
 	.query_device = i40iw_query_device,
 	.query_gid = i40iw_query_gid,
-	.query_pkey = i40iw_query_pkey,
 	.query_port = i40iw_query_port,
 	.query_qp = i40iw_query_qp,
 	.reg_user_mr = i40iw_reg_user_mr,

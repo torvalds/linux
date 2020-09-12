@@ -535,7 +535,7 @@ static void hns_roce_set_sdb_ext(struct hns_roce_dev *hr_dev, u32 ext_sdb_alept,
 	roce_write(hr_dev, ROCEE_EXT_DB_SQ_H_REG, val);
 
 	dev_dbg(dev, "ext SDB depth: 0x%x\n", db->ext_db->esdb_dep);
-	dev_dbg(dev, "ext SDB threshold: epmty: 0x%x, ful: 0x%x\n",
+	dev_dbg(dev, "ext SDB threshold: empty: 0x%x, ful: 0x%x\n",
 		ext_sdb_alept, ext_sdb_alful);
 }
 
@@ -2483,7 +2483,6 @@ static int find_wqe_mtt(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			u64 *sq_ba, u64 *rq_ba, dma_addr_t *bt_ba)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
-	int rq_pa_start;
 	int count;
 
 	count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr, 0, sq_ba, 1, bt_ba);
@@ -2491,9 +2490,9 @@ static int find_wqe_mtt(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		ibdev_err(ibdev, "Failed to find SQ ba\n");
 		return -ENOBUFS;
 	}
-	rq_pa_start = hr_qp->rq.offset >> hr_qp->mtr.hem_cfg.buf_pg_shift;
-	count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr, rq_pa_start, rq_ba, 1,
-				  NULL);
+
+	count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr, hr_qp->rq.offset, rq_ba,
+				  1, NULL);
 	if (!count) {
 		ibdev_err(ibdev, "Failed to find RQ ba\n");
 		return -ENOBUFS;

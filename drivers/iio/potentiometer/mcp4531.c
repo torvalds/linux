@@ -375,7 +375,6 @@ static int mcp4531_probe(struct i2c_client *client)
 	if (!data->cfg)
 		data->cfg = &mcp4531_cfg[i2c_match_id(mcp4531_id, client)->driver_data];
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &mcp4531_info;
 	indio_dev->channels = mcp4531_channels;
 	indio_dev->num_channels = data->cfg->wipers;

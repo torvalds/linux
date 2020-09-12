@@ -14,7 +14,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/inst.h>
 #include <asm/frame.h>
 
 .section	.rodata.cst16.bswap_mask, "aM", @progbits, 16
@@ -51,9 +50,9 @@ SYM_FUNC_START_LOCAL(__clmul_gf128mul_ble)
 	pxor DATA, T2
 	pxor SHASH, T3
 
-	PCLMULQDQ 0x00 SHASH DATA	# DATA = a0 * b0
-	PCLMULQDQ 0x11 SHASH T1		# T1 = a1 * b1
-	PCLMULQDQ 0x00 T3 T2		# T2 = (a1 + a0) * (b1 + b0)
+	pclmulqdq $0x00, SHASH, DATA	# DATA = a0 * b0
+	pclmulqdq $0x11, SHASH, T1	# T1 = a1 * b1
+	pclmulqdq $0x00, T3, T2		# T2 = (a1 + a0) * (b1 + b0)
 	pxor DATA, T2
 	pxor T1, T2			# T2 = a0 * b1 + a1 * b0
 
@@ -95,9 +94,9 @@ SYM_FUNC_START(clmul_ghash_mul)
 	movups (%rdi), DATA
 	movups (%rsi), SHASH
 	movaps .Lbswap_mask, BSWAP
-	PSHUFB_XMM BSWAP DATA
+	pshufb BSWAP, DATA
 	call __clmul_gf128mul_ble
-	PSHUFB_XMM BSWAP DATA
+	pshufb BSWAP, DATA
 	movups DATA, (%rdi)
 	FRAME_END
 	ret
@@ -114,18 +113,18 @@ SYM_FUNC_START(clmul_ghash_update)
 	movaps .Lbswap_mask, BSWAP
 	movups (%rdi), DATA
 	movups (%rcx), SHASH
-	PSHUFB_XMM BSWAP DATA
+	pshufb BSWAP, DATA
 .align 4
 .Lupdate_loop:
 	movups (%rsi), IN1
-	PSHUFB_XMM BSWAP IN1
+	pshufb BSWAP, IN1
 	pxor IN1, DATA
 	call __clmul_gf128mul_ble
 	sub $16, %rdx
 	add $16, %rsi
 	cmp $16, %rdx
 	jge .Lupdate_loop
-	PSHUFB_XMM BSWAP DATA
+	pshufb BSWAP, DATA
 	movups DATA, (%rdi)
 .Lupdate_just_ret:
 	FRAME_END

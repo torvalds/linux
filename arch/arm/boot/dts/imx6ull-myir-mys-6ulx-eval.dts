@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2020 Linumiz
+ * Author: Parthiban Nallathambi <parthiban@linumiz.com>
+ */
+
+/dts-v1/;
+#include "imx6ull.dtsi"
+#include "imx6ull-myir-mys-6ulx.dtsi"
+
+/ {
+	model = "MYiR i.MX6ULL MYS-6ULX Single Board Computer with NAND";
+	compatible = "myir,imx6ull-mys-6ulx-eval", "fsl,imx6ull";
+};
+
+&gpmi {
+	status = "okay";
+};

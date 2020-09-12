@@ -869,7 +869,7 @@ static int srpt_zerolength_write(struct srpt_rdma_ch *ch)
 
 static void srpt_zerolength_write_done(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct srpt_rdma_ch *ch = cq->cq_context;
+	struct srpt_rdma_ch *ch = wc->qp->qp_context;
 
 	pr_debug("%s-%d wc->status %d\n", ch->sess_name, ch->qp->qp_num,
 		 wc->status);
@@ -1322,7 +1322,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
  */
 static void srpt_rdma_read_done(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct srpt_rdma_ch *ch = cq->cq_context;
+	struct srpt_rdma_ch *ch = wc->qp->qp_context;
 	struct srpt_send_ioctx *ioctx =
 		container_of(wc->wr_cqe, struct srpt_send_ioctx, rdma_cqe);
 
@@ -1683,7 +1683,7 @@ push:
 
 static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct srpt_rdma_ch *ch = cq->cq_context;
+	struct srpt_rdma_ch *ch = wc->qp->qp_context;
 	struct srpt_recv_ioctx *ioctx =
 		container_of(wc->wr_cqe, struct srpt_recv_ioctx, ioctx.cqe);
 
@@ -1744,7 +1744,7 @@ static void srpt_process_wait_list(struct srpt_rdma_ch *ch)
  */
 static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct srpt_rdma_ch *ch = cq->cq_context;
+	struct srpt_rdma_ch *ch = wc->qp->qp_context;
 	struct srpt_send_ioctx *ioctx =
 		container_of(wc->wr_cqe, struct srpt_send_ioctx, ioctx.cqe);
 	enum srpt_command_state state;
@@ -1791,7 +1791,7 @@ static int srpt_create_ch_ib(struct srpt_rdma_ch *ch)
 		goto out;
 
 retry:
-	ch->cq = ib_alloc_cq_any(sdev->device, ch, ch->rq_size + sq_size,
+	ch->cq = ib_cq_pool_get(sdev->device, ch->rq_size + sq_size, -1,
 				 IB_POLL_WORKQUEUE);
 	if (IS_ERR(ch->cq)) {
 		ret = PTR_ERR(ch->cq);
@@ -1799,6 +1799,7 @@ retry:
 		       ch->rq_size + sq_size, ret);
 		goto out;
 	}
+	ch->cq_size = ch->rq_size + sq_size;
 
 	qp_init->qp_context = (void *)ch;
 	qp_init->event_handler
@@ -1843,7 +1844,7 @@ retry:
 		if (retry) {
 			pr_debug("failed to create queue pair with sq_size = %d (%d) - retrying\n",
 				 sq_size, ret);
-			ib_free_cq(ch->cq);
+			ib_cq_pool_put(ch->cq, ch->cq_size);
 			sq_size = max(sq_size / 2, MIN_SRPT_SQ_SIZE);
 			goto retry;
 		} else {
@@ -1869,14 +1870,14 @@ out:
 
 err_destroy_cq:
 	ch->qp = NULL;
-	ib_free_cq(ch->cq);
+	ib_cq_pool_put(ch->cq, ch->cq_size);
 	goto out;
 }
 
 static void srpt_destroy_ch_ib(struct srpt_rdma_ch *ch)
 {
 	ib_destroy_qp(ch->qp);
-	ib_free_cq(ch->cq);
+	ib_cq_pool_put(ch->cq, ch->cq_size);
 }
 
 /**
@@ -2155,9 +2156,6 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 	struct srpt_tpg *stpg;
 
 	WARN_ON_ONCE(irqs_disabled());
-
-	if (WARN_ON(!sdev || !req))
-		return -EINVAL;
 
 	it_iu_len = be32_to_cpu(req->req_it_iu_len);
 

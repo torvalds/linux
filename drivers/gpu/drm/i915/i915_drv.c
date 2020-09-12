@@ -972,6 +972,7 @@ static void i915_driver_release(struct drm_device *dev)
 
 	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
+	i915_gem_drain_freed_objects(dev_priv);
 
 	i915_driver_mmio_release(dev_priv);
 
@@ -1016,7 +1017,6 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	i915_gem_context_close(file);
-	i915_gem_release(dev, file);
 
 	kfree_rcu(file_priv, rcu);
 

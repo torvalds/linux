@@ -30,6 +30,34 @@
  * ASIC internal revision ID
  */
 
+/* DCE60 (based on si_id.h in GPUOpen-Tools CodeXL) */
+#define SI_TAHITI_P_A0    0x01
+#define SI_TAHITI_P_B0    0x05
+#define SI_TAHITI_P_B1    0x06
+#define SI_PITCAIRN_PM_A0 0x14
+#define SI_PITCAIRN_PM_A1 0x15
+#define SI_CAPEVERDE_M_A0 0x28
+#define SI_CAPEVERDE_M_A1 0x29
+#define SI_OLAND_M_A0     0x3C
+#define SI_HAINAN_V_A0    0x46
+
+#define SI_UNKNOWN        0xFF
+
+#define ASIC_REV_IS_TAHITI_P(rev) \
+	((rev >= SI_TAHITI_P_A0) && (rev < SI_PITCAIRN_PM_A0))
+
+#define ASIC_REV_IS_PITCAIRN_PM(rev) \
+	((rev >= SI_PITCAIRN_PM_A0) && (rev < SI_CAPEVERDE_M_A0))
+
+#define ASIC_REV_IS_CAPEVERDE_M(rev) \
+	((rev >= SI_CAPEVERDE_M_A0) && (rev < SI_OLAND_M_A0))
+
+#define ASIC_REV_IS_OLAND_M(rev) \
+	((rev >= SI_OLAND_M_A0) && (rev < SI_HAINAN_V_A0))
+
+#define ASIC_REV_IS_HAINAN_V(rev) \
+	((rev >= SI_HAINAN_V_A0) && (rev < SI_UNKNOWN))
+
 /* DCE80 (based on ci_id.h in Perforce) */
 #define	CI_BONAIRE_M_A0 0x14
 #define	CI_BONAIRE_M_A1	0x15
@@ -181,6 +209,17 @@ enum {
 /*
  * ASIC chip ID
  */
+
+/* DCE60 */
+#define DEVICE_ID_SI_TAHITI_P_6780 0x6780
+#define DEVICE_ID_SI_PITCAIRN_PM_6800 0x6800
+#define DEVICE_ID_SI_PITCAIRN_PM_6808 0x6808
+#define DEVICE_ID_SI_CAPEVERDE_M_6820 0x6820
+#define DEVICE_ID_SI_CAPEVERDE_M_6828 0x6828
+#define DEVICE_ID_SI_OLAND_M_6600 0x6600
+#define DEVICE_ID_SI_OLAND_M_6608 0x6608
+#define DEVICE_ID_SI_HAINAN_V_6660 0x6660
+
 /* DCE80 */
 #define DEVICE_ID_KALINDI_9834 0x9834
 #define DEVICE_ID_TEMASH_9839 0x9839
@@ -190,6 +229,7 @@ enum {
 #define DEVICE_ID_RENOIR_1636 0x1636
 
 /* Asic Family IDs for different asic family. */
+#define FAMILY_SI 110 /* Southern Islands: Tahiti (P), Pitcairn (PM), Cape Verde (M), Oland (M), Hainan (V) */
 #define FAMILY_CI 120 /* Sea Islands: Hawaii (P), Bonaire (M) */
 #define FAMILY_KV 125 /* Fusion => Kaveri: Spectre, Spooky; Kabini: Kalindi */
 #define FAMILY_VI 130 /* Volcanic Islands: Iceland (V), Tonga (M) */

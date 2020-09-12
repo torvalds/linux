@@ -28,7 +28,6 @@
     |          sh: | TODO |
     |       sparc: | TODO |
     |          um: |  ..  |
-    |   unicore32: |  ..  |
     |         x86: |  ok  |
     |      xtensa: | TODO |
     -----------------------

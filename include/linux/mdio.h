@@ -18,6 +18,7 @@
 
 struct gpio_desc;
 struct mii_bus;
+struct reset_control;
 
 /* Multiple levels of nesting are possible. However typically this is
  * limited to nested DSA like layer, a MUX layer, and the normal

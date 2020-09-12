@@ -155,7 +155,6 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		spin_lock_bh(&dev->mt76.lock);
 		mt7615_mac_set_rates(phy, msta, &info->control.rates[0],
 				     msta->rates);
-		msta->rate_probe = true;
 		spin_unlock_bh(&dev->mt76.lock);
 	}
 

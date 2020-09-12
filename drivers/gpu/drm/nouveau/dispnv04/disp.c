@@ -35,9 +35,28 @@
 
 #include <nvif/if0004.h>
 
-static void
-nv04_display_fini(struct drm_device *dev, bool suspend)
+struct nouveau_connector *
+nv04_encoder_get_connector(struct nouveau_encoder *encoder)
 {
+	struct drm_device *dev = to_drm_encoder(encoder)->dev;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct nouveau_connector *nv_connector = NULL;
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->encoder == to_drm_encoder(encoder))
+			nv_connector = nouveau_connector(connector);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return nv_connector;
+}
+
+static void
+nv04_display_fini(struct drm_device *dev, bool runtime, bool suspend)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv04_display *disp = nv04_display(dev);
 	struct drm_crtc *crtc;
 
@@ -48,6 +67,9 @@ nv04_display_fini(struct drm_device *dev, bool suspend)
 	NVWriteCRTC(dev, 0, NV_PCRTC_INTR_EN_0, 0);
 	if (nv_two_heads(dev))
 		NVWriteCRTC(dev, 1, NV_PCRTC_INTR_EN_0, 0);
+
+	if (!runtime)
+		cancel_work_sync(&drm->hpd_work);
 
 	if (!suspend)
 		return;

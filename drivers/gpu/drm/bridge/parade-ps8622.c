@@ -42,10 +42,9 @@
 #endif
 
 struct ps8622_bridge {
-	struct drm_connector connector;
 	struct i2c_client *client;
 	struct drm_bridge bridge;
-	struct drm_panel *panel;
+	struct drm_bridge *panel_bridge;
 	struct regulator *v12;
 	struct backlight_device *bl;
 
@@ -62,12 +61,6 @@ static inline struct ps8622_bridge *
 		bridge_to_ps8622(struct drm_bridge *bridge)
 {
 	return container_of(bridge, struct ps8622_bridge, bridge);
-}
-
-static inline struct ps8622_bridge *
-		connector_to_ps8622(struct drm_connector *connector)
-{
-	return container_of(connector, struct ps8622_bridge, connector);
 }
 
 static int ps8622_set(struct i2c_client *client, u8 page, u8 reg, u8 val)
@@ -365,11 +358,6 @@ static void ps8622_pre_enable(struct drm_bridge *bridge)
 			DRM_ERROR("fails to enable ps8622->v12");
 	}
 
-	if (drm_panel_prepare(ps8622->panel)) {
-		DRM_ERROR("failed to prepare panel\n");
-		return;
-	}
-
 	gpiod_set_value(ps8622->gpio_slp, 1);
 
 	/*
@@ -399,24 +387,9 @@ static void ps8622_pre_enable(struct drm_bridge *bridge)
 	ps8622->enabled = true;
 }
 
-static void ps8622_enable(struct drm_bridge *bridge)
-{
-	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);
-
-	if (drm_panel_enable(ps8622->panel)) {
-		DRM_ERROR("failed to enable panel\n");
-		return;
-	}
-}
-
 static void ps8622_disable(struct drm_bridge *bridge)
 {
-	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);
-
-	if (drm_panel_disable(ps8622->panel)) {
-		DRM_ERROR("failed to disable panel\n");
-		return;
-	}
+	/* Delay after panel is disabled */
 	msleep(PS8622_PWMO_END_T12_MS);
 }
 
@@ -436,11 +409,6 @@ static void ps8622_post_disable(struct drm_bridge *bridge)
 	 */
 	gpiod_set_value(ps8622->gpio_slp, 0);
 
-	if (drm_panel_unprepare(ps8622->panel)) {
-		DRM_ERROR("failed to unprepare panel\n");
-		return;
-	}
-
 	if (ps8622->v12)
 		regulator_disable(ps8622->v12);
 
@@ -455,67 +423,17 @@ static void ps8622_post_disable(struct drm_bridge *bridge)
 	msleep(PS8622_POWER_OFF_T17_MS);
 }
 
-static int ps8622_get_modes(struct drm_connector *connector)
-{
-	struct ps8622_bridge *ps8622;
-
-	ps8622 = connector_to_ps8622(connector);
-
-	return drm_panel_get_modes(ps8622->panel, connector);
-}
-
-static const struct drm_connector_helper_funcs ps8622_connector_helper_funcs = {
-	.get_modes = ps8622_get_modes,
-};
-
-static const struct drm_connector_funcs ps8622_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
 static int ps8622_attach(struct drm_bridge *bridge,
 			 enum drm_bridge_attach_flags flags)
 {
 	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);
-	int ret;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
-		DRM_ERROR("Fix bridge driver to make connector optional!");
-		return -EINVAL;
-	}
-
-	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
-	}
-
-	ps8622->connector.polled = DRM_CONNECTOR_POLL_HPD;
-	ret = drm_connector_init(bridge->dev, &ps8622->connector,
-			&ps8622_connector_funcs, DRM_MODE_CONNECTOR_LVDS);
-	if (ret) {
-		DRM_ERROR("Failed to initialize connector with drm\n");
-		return ret;
-	}
-	drm_connector_helper_add(&ps8622->connector,
-					&ps8622_connector_helper_funcs);
-	drm_connector_register(&ps8622->connector);
-	drm_connector_attach_encoder(&ps8622->connector,
-							bridge->encoder);
-
-	if (ps8622->panel)
-		drm_panel_attach(ps8622->panel, &ps8622->connector);
-
-	drm_helper_hpd_irq_event(ps8622->connector.dev);
-
-	return ret;
+	return drm_bridge_attach(ps8622->bridge.encoder, ps8622->panel_bridge,
+				 &ps8622->bridge, flags);
 }
 
 static const struct drm_bridge_funcs ps8622_bridge_funcs = {
 	.pre_enable = ps8622_pre_enable,
-	.enable = ps8622_enable,
 	.disable = ps8622_disable,
 	.post_disable = ps8622_post_disable,
 	.attach = ps8622_attach,
@@ -533,16 +451,23 @@ static int ps8622_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct ps8622_bridge *ps8622;
+	struct drm_bridge *panel_bridge;
+	struct drm_panel *panel;
 	int ret;
 
 	ps8622 = devm_kzalloc(dev, sizeof(*ps8622), GFP_KERNEL);
 	if (!ps8622)
 		return -ENOMEM;
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &ps8622->panel, NULL);
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &panel, NULL);
 	if (ret)
 		return ret;
 
+	panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+	if (IS_ERR(panel_bridge))
+		return PTR_ERR(panel_bridge);
+
+	ps8622->panel_bridge = panel_bridge;
 	ps8622->client = client;
 
 	ps8622->v12 = devm_regulator_get(dev, "vdd12");
@@ -595,6 +520,7 @@ static int ps8622_probe(struct i2c_client *client,
 	}
 
 	ps8622->bridge.funcs = &ps8622_bridge_funcs;
+	ps8622->bridge.type = DRM_MODE_CONNECTOR_LVDS;
 	ps8622->bridge.of_node = dev->of_node;
 	drm_bridge_add(&ps8622->bridge);
 

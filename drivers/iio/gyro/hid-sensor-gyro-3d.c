@@ -319,7 +319,6 @@ static int hid_gyro_3d_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->num_channels = ARRAY_SIZE(gyro_3d_channels);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &gyro_3d_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

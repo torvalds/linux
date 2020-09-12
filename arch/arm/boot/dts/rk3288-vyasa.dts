@@ -99,8 +99,6 @@
 		pinctrl-0 = <&otg_vbus_drv>;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-		regulator-boot-on;
 		vin-supply = <&vsus_5v>;
 	};
 
@@ -416,6 +414,7 @@
 };
 
 &usb_otg {
+	vbus-supply = <&vusb1_5v>;
 	status = "okay";
 };
 

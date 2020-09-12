@@ -222,7 +222,7 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
+#include <asm/cacheflush.h>
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)

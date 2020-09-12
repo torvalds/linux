@@ -112,28 +112,16 @@ Power supplies for Tegra124:
 - Required:
   - avddio-pex-supply: Power supply for analog PCIe logic. Must supply 1.05 V.
   - dvddio-pex-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
-  - avdd-pex-pll-supply: Power supply for dedicated (internal) PCIe PLL. Must
-    supply 1.05 V.
   - hvdd-pex-supply: High-voltage supply for PCIe I/O and PCIe output clocks.
-    Must supply 3.3 V.
-  - hvdd-pex-pll-e-supply: High-voltage supply for PLLE (shared with USB3).
     Must supply 3.3 V.
   - vddio-pex-ctl-supply: Power supply for PCIe control I/O partition. Must
     supply 2.8-3.3 V.
-  - avdd-pll-erefe-supply: Power supply for PLLE (shared with USB3). Must
-    supply 1.05 V.
 
 Power supplies for Tegra210:
 - Required:
-  - avdd-pll-uerefe-supply: Power supply for PLLE (shared with USB3). Must
-    supply 1.05 V.
   - hvddio-pex-supply: High-voltage supply for PCIe I/O and PCIe output
     clocks. Must supply 1.8 V.
   - dvddio-pex-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
-  - dvdd-pex-pll-supply: Power supply for dedicated (internal) PCIe PLL. Must
-    supply 1.05 V.
-  - hvdd-pex-pll-e-supply: High-voltage supply for PLLE (shared with USB3).
-    Must supply 3.3 V.
   - vddio-pex-ctl-supply: Power supply for PCIe control I/O partition. Must
     supply 1.8 V.
 

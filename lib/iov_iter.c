@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <crypto/hash.h>
 #include <linux/export.h>
 #include <linux/bvec.h>
 #include <linux/uio.h>
@@ -1567,7 +1568,7 @@ EXPORT_SYMBOL(csum_and_copy_to_iter);
 size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
 		struct iov_iter *i)
 {
-#ifdef CONFIG_CRYPTO
+#ifdef CONFIG_CRYPTO_HASH
 	struct ahash_request *hash = hashp;
 	struct scatterlist sg;
 	size_t copied;

@@ -41,7 +41,7 @@ struct davinci_vcif_dev {
 
 static void davinci_vcif_start(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct davinci_vcif_dev *davinci_vcif_dev =
 			snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 	struct davinci_vc *davinci_vc = davinci_vcif_dev->davinci_vc;
@@ -60,7 +60,7 @@ static void davinci_vcif_start(struct snd_pcm_substream *substream)
 
 static void davinci_vcif_stop(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct davinci_vcif_dev *davinci_vcif_dev =
 			snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 	struct davinci_vc *davinci_vc = davinci_vcif_dev->davinci_vc;

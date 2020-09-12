@@ -558,20 +558,15 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	u32 id_mode_dis = 0, port_mode;
-	u32 reg, offset;
+	u32 reg;
 
 	if (port == core_readl(priv, CORE_IMP0_PRT_ID))
 		return;
 
-	if (priv->type == BCM7445_DEVICE_ID)
-		offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
-	else
-		offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
-
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
 		id_mode_dis = 1;
-		/* fallthrough */
+		fallthrough;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		port_mode = EXT_GPHY;
 		break;
@@ -582,8 +577,8 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 		port_mode = EXT_REVMII;
 		break;
 	default:
-		/* all other PHYs: internal and MoCA */
-		goto force_link;
+		/* Nothing required for all other PHYs: internal and MoCA */
+		return;
 	}
 
 	/* Clear id_mode_dis bit, and the existing port mode, let
@@ -592,38 +587,12 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 	reg = reg_readl(priv, REG_RGMII_CNTRL_P(port));
 	reg &= ~ID_MODE_DIS;
 	reg &= ~(PORT_MODE_MASK << PORT_MODE_SHIFT);
-	reg &= ~(RX_PAUSE_EN | TX_PAUSE_EN);
 
 	reg |= port_mode;
 	if (id_mode_dis)
 		reg |= ID_MODE_DIS;
 
-	if (state->pause & MLO_PAUSE_TXRX_MASK) {
-		if (state->pause & MLO_PAUSE_TX)
-			reg |= TX_PAUSE_EN;
-		reg |= RX_PAUSE_EN;
-	}
-
 	reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
-
-force_link:
-	/* Force link settings detected from the PHY */
-	reg = SW_OVERRIDE;
-	switch (state->speed) {
-	case SPEED_1000:
-		reg |= SPDSTS_1000 << SPEED_SHIFT;
-		break;
-	case SPEED_100:
-		reg |= SPDSTS_100 << SPEED_SHIFT;
-		break;
-	}
-
-	if (state->link)
-		reg |= LINK_STS;
-	if (state->duplex == DUPLEX_FULL)
-		reg |= DUPLX_MODE;
-
-	core_writel(priv, reg, offset);
 }
 
 static void bcm_sf2_sw_mac_link_set(struct dsa_switch *ds, int port,
@@ -650,6 +619,20 @@ static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
 				     unsigned int mode,
 				     phy_interface_t interface)
 {
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	u32 reg, offset;
+
+	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
+		if (priv->type == BCM7445_DEVICE_ID)
+			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
+		else
+			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+
+		reg = core_readl(priv, offset);
+		reg &= ~LINK_STS;
+		core_writel(priv, reg, offset);
+	}
+
 	bcm_sf2_sw_mac_link_set(ds, port, interface, false);
 }
 
@@ -662,8 +645,46 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->dev->ports[port].eee;
+	u32 reg, offset;
 
 	bcm_sf2_sw_mac_link_set(ds, port, interface, true);
+
+	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
+		if (priv->type == BCM7445_DEVICE_ID)
+			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
+		else
+			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+
+		if (interface == PHY_INTERFACE_MODE_RGMII ||
+		    interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+		    interface == PHY_INTERFACE_MODE_MII ||
+		    interface == PHY_INTERFACE_MODE_REVMII) {
+			reg = reg_readl(priv, REG_RGMII_CNTRL_P(port));
+			reg &= ~(RX_PAUSE_EN | TX_PAUSE_EN);
+
+			if (tx_pause)
+				reg |= TX_PAUSE_EN;
+			if (rx_pause)
+				reg |= RX_PAUSE_EN;
+
+			reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
+		}
+
+		reg = SW_OVERRIDE | LINK_STS;
+		switch (speed) {
+		case SPEED_1000:
+			reg |= SPDSTS_1000 << SPEED_SHIFT;
+			break;
+		case SPEED_100:
+			reg |= SPDSTS_100 << SPEED_SHIFT;
+			break;
+		}
+
+		if (duplex == DUPLEX_FULL)
+			reg |= DUPLX_MODE;
+
+		core_writel(priv, reg, offset);
+	}
 
 	if (mode == MLO_AN_PHY && phydev)
 		p->eee_enabled = b53_eee_init(ds, port, phydev);

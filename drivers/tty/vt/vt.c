@@ -127,14 +127,6 @@ struct con_driver {
 static struct con_driver registered_con_driver[MAX_NR_CON_DRIVER];
 const struct consw *conswitchp;
 
-/* A bitmap for codes <32. A bit of 1 indicates that the code
- * corresponding to that bit number invokes some special action
- * (such as cursor movement) and should not be displayed as a
- * glyph unless the disp_ctrl mode is explicitly enabled.
- */
-#define CTRL_ACTION 0x0d00ff81
-#define CTRL_ALWAYS 0x0800f501	/* Cannot be overridden by disp_ctrl */
-
 /*
  * Here is the default bell parameters: 750HZ, 1/8th of a second
  */
@@ -171,7 +163,7 @@ module_param(default_utf8, int, S_IRUGO | S_IWUSR);
 int global_cursor_default = -1;
 module_param(global_cursor_default, int, S_IRUGO | S_IWUSR);
 
-static int cur_default = CUR_DEFAULT;
+static int cur_default = CUR_UNDERLINE;
 module_param(cur_default, int, S_IRUGO | S_IWUSR);
 
 /*
@@ -381,7 +373,7 @@ static void vc_uniscr_putc(struct vc_data *vc, char32_t uc)
 	struct uni_screen *uniscr = get_vc_uniscr(vc);
 
 	if (uniscr)
-		uniscr->lines[vc->vc_y][vc->vc_x] = uc;
+		uniscr->lines[vc->state.y][vc->state.x] = uc;
 }
 
 static void vc_uniscr_insert(struct vc_data *vc, unsigned int nr)
@@ -389,8 +381,8 @@ static void vc_uniscr_insert(struct vc_data *vc, unsigned int nr)
 	struct uni_screen *uniscr = get_vc_uniscr(vc);
 
 	if (uniscr) {
-		char32_t *ln = uniscr->lines[vc->vc_y];
-		unsigned int x = vc->vc_x, cols = vc->vc_cols;
+		char32_t *ln = uniscr->lines[vc->state.y];
+		unsigned int x = vc->state.x, cols = vc->vc_cols;
 
 		memmove(&ln[x + nr], &ln[x], (cols - x - nr) * sizeof(*ln));
 		memset32(&ln[x], ' ', nr);
@@ -402,8 +394,8 @@ static void vc_uniscr_delete(struct vc_data *vc, unsigned int nr)
 	struct uni_screen *uniscr = get_vc_uniscr(vc);
 
 	if (uniscr) {
-		char32_t *ln = uniscr->lines[vc->vc_y];
-		unsigned int x = vc->vc_x, cols = vc->vc_cols;
+		char32_t *ln = uniscr->lines[vc->state.y];
+		unsigned int x = vc->state.x, cols = vc->vc_cols;
 
 		memcpy(&ln[x], &ln[x + nr], (cols - x - nr) * sizeof(*ln));
 		memset32(&ln[cols - nr], ' ', nr);
@@ -416,7 +408,7 @@ static void vc_uniscr_clear_line(struct vc_data *vc, unsigned int x,
 	struct uni_screen *uniscr = get_vc_uniscr(vc);
 
 	if (uniscr) {
-		char32_t *ln = uniscr->lines[vc->vc_y];
+		char32_t *ln = uniscr->lines[vc->state.y];
 
 		memset32(&ln[x], ' ', nr);
 	}
@@ -705,8 +697,9 @@ void update_region(struct vc_data *vc, unsigned long start, int count)
 
 /* Structure of attributes is hardware-dependent */
 
-static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
-    u8 _underline, u8 _reverse, u8 _italic)
+static u8 build_attr(struct vc_data *vc, u8 _color,
+		enum vc_intensity _intensity, bool _blink, bool _underline,
+		bool _reverse, bool _italic)
 {
 	if (vc->vc_sw->con_build_attr)
 		return vc->vc_sw->con_build_attr(vc, _color, _intensity,
@@ -726,21 +719,21 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 	u8 a = _color;
 	if (!vc->vc_can_do_color)
 		return _intensity |
-		       (_italic ? 2 : 0) |
-		       (_underline ? 4 : 0) |
-		       (_reverse ? 8 : 0) |
-		       (_blink ? 0x80 : 0);
+		       (_italic    << 1) |
+		       (_underline << 2) |
+		       (_reverse   << 3) |
+		       (_blink     << 7);
 	if (_italic)
 		a = (a & 0xF0) | vc->vc_itcolor;
 	else if (_underline)
 		a = (a & 0xf0) | vc->vc_ulcolor;
-	else if (_intensity == 0)
+	else if (_intensity == VCI_HALF_BRIGHT)
 		a = (a & 0xf0) | vc->vc_halfcolor;
 	if (_reverse)
-		a = ((a) & 0x88) | ((((a) >> 4) | ((a) << 4)) & 0x77);
+		a = (a & 0x88) | (((a >> 4) | (a << 4)) & 0x77);
 	if (_blink)
 		a ^= 0x80;
-	if (_intensity == 2)
+	if (_intensity == VCI_BOLD)
 		a ^= 0x08;
 	if (vc->vc_hi_font_mask == 0x100)
 		a <<= 1;
@@ -750,10 +743,12 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 
 static void update_attr(struct vc_data *vc)
 {
-	vc->vc_attr = build_attr(vc, vc->vc_color, vc->vc_intensity,
-	              vc->vc_blink, vc->vc_underline,
-	              vc->vc_reverse ^ vc->vc_decscnm, vc->vc_italic);
-	vc->vc_video_erase_char = (build_attr(vc, vc->vc_color, 1, vc->vc_blink, 0, vc->vc_decscnm, 0) << 8) | ' ';
+	vc->vc_attr = build_attr(vc, vc->state.color, vc->state.intensity,
+	              vc->state.blink, vc->state.underline,
+	              vc->state.reverse ^ vc->vc_decscnm, vc->state.italic);
+	vc->vc_video_erase_char = ' ' | (build_attr(vc, vc->state.color,
+				VCI_NORMAL, vc->state.blink, false,
+				vc->vc_decscnm, false) << 8);
 }
 
 /* Note: inverting the screen twice should revert to the original state */
@@ -782,14 +777,18 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 		} else if (vc->vc_hi_font_mask == 0x100) {
 			while (cnt--) {
 				a = scr_readw(q);
-				a = ((a) & 0x11ff) | (((a) & 0xe000) >> 4) | (((a) & 0x0e00) << 4);
+				a = (a & 0x11ff) |
+				   ((a & 0xe000) >> 4) |
+				   ((a & 0x0e00) << 4);
 				scr_writew(a, q);
 				q++;
 			}
 		} else {
 			while (cnt--) {
 				a = scr_readw(q);
-				a = ((a) & 0x88ff) | (((a) & 0x7000) >> 4) | (((a) & 0x0700) << 4);
+				a = (a & 0x88ff) |
+				   ((a & 0x7000) >> 4) |
+				   ((a & 0x0700) << 4);
 				scr_writew(a, q);
 				q++;
 			}
@@ -842,12 +841,12 @@ static void insert_char(struct vc_data *vc, unsigned int nr)
 	unsigned short *p = (unsigned short *) vc->vc_pos;
 
 	vc_uniscr_insert(vc, nr);
-	scr_memmovew(p + nr, p, (vc->vc_cols - vc->vc_x - nr) * 2);
+	scr_memmovew(p + nr, p, (vc->vc_cols - vc->state.x - nr) * 2);
 	scr_memsetw(p, vc->vc_video_erase_char, nr * 2);
 	vc->vc_need_wrap = 0;
 	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) p,
-			vc->vc_cols - vc->vc_x);
+			vc->vc_cols - vc->state.x);
 }
 
 static void delete_char(struct vc_data *vc, unsigned int nr)
@@ -855,13 +854,13 @@ static void delete_char(struct vc_data *vc, unsigned int nr)
 	unsigned short *p = (unsigned short *) vc->vc_pos;
 
 	vc_uniscr_delete(vc, nr);
-	scr_memcpyw(p, p + nr, (vc->vc_cols - vc->vc_x - nr) * 2);
-	scr_memsetw(p + vc->vc_cols - vc->vc_x - nr, vc->vc_video_erase_char,
+	scr_memcpyw(p, p + nr, (vc->vc_cols - vc->state.x - nr) * 2);
+	scr_memsetw(p + vc->vc_cols - vc->state.x - nr, vc->vc_video_erase_char,
 			nr * 2);
 	vc->vc_need_wrap = 0;
 	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) p,
-			vc->vc_cols - vc->vc_x);
+			vc->vc_cols - vc->state.x);
 }
 
 static int softcursor_original = -1;
@@ -871,16 +870,21 @@ static void add_softcursor(struct vc_data *vc)
 	int i = scr_readw((u16 *) vc->vc_pos);
 	u32 type = vc->vc_cursor_type;
 
-	if (! (type & 0x10)) return;
-	if (softcursor_original != -1) return;
+	if (!(type & CUR_SW))
+		return;
+	if (softcursor_original != -1)
+		return;
 	softcursor_original = i;
-	i |= ((type >> 8) & 0xff00 );
-	i ^= ((type) & 0xff00 );
-	if ((type & 0x20) && ((softcursor_original & 0x7000) == (i & 0x7000))) i ^= 0x7000;
-	if ((type & 0x40) && ((i & 0x700) == ((i & 0x7000) >> 4))) i ^= 0x0700;
-	scr_writew(i, (u16 *) vc->vc_pos);
+	i |= CUR_SET(type);
+	i ^= CUR_CHANGE(type);
+	if ((type & CUR_ALWAYS_BG) &&
+			(softcursor_original & CUR_BG) == (i & CUR_BG))
+		i ^= CUR_BG;
+	if ((type & CUR_INVERT_FG_BG) && (i & CUR_FG) == ((i & CUR_BG) >> 4))
+		i ^= CUR_FG;
+	scr_writew(i, (u16 *)vc->vc_pos);
 	if (con_should_update(vc))
-		vc->vc_sw->con_putc(vc, i, vc->vc_y, vc->vc_x);
+		vc->vc_sw->con_putc(vc, i, vc->state.y, vc->state.x);
 }
 
 static void hide_softcursor(struct vc_data *vc)
@@ -889,7 +893,7 @@ static void hide_softcursor(struct vc_data *vc)
 		scr_writew(softcursor_original, (u16 *)vc->vc_pos);
 		if (con_should_update(vc))
 			vc->vc_sw->con_putc(vc, softcursor_original,
-					vc->vc_y, vc->vc_x);
+					vc->state.y, vc->state.x);
 		softcursor_original = -1;
 	}
 }
@@ -911,7 +915,7 @@ static void set_cursor(struct vc_data *vc)
 		if (vc_is_sel(vc))
 			clear_selection();
 		add_softcursor(vc);
-		if ((vc->vc_cursor_type & 0x0f) != 1)
+		if (CUR_SIZE(vc->vc_cursor_type) != CUR_NONE)
 			vc->vc_sw->con_cursor(vc, CM_DRAW);
 	} else
 		hide_cursor(vc);
@@ -927,7 +931,8 @@ static void set_origin(struct vc_data *vc)
 		vc->vc_origin = (unsigned long)vc->vc_screenbuf;
 	vc->vc_visible_origin = vc->vc_origin;
 	vc->vc_scr_end = vc->vc_origin + vc->vc_screenbuf_size;
-	vc->vc_pos = vc->vc_origin + vc->vc_size_row * vc->vc_y + 2 * vc->vc_x;
+	vc->vc_pos = vc->vc_origin + vc->vc_size_row * vc->state.y +
+		2 * vc->state.x;
 }
 
 static void save_screen(struct vc_data *vc)
@@ -1196,7 +1201,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	unsigned int old_rows, old_row_size, first_copied_row;
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
 	unsigned int user;
-	unsigned short *newscreen;
+	unsigned short *oldscreen, *newscreen;
 	struct uni_screen *new_uniscr = NULL;
 
 	WARN_CONSOLE_UNLOCKED();
@@ -1256,8 +1261,8 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	new_origin = (long) newscreen;
 	new_scr_end = new_origin + new_screen_size;
 
-	if (vc->vc_y > new_rows) {
-		if (old_rows - vc->vc_y < new_rows) {
+	if (vc->state.y > new_rows) {
+		if (old_rows - vc->state.y < new_rows) {
 			/*
 			 * Cursor near the bottom, copy contents from the
 			 * bottom of buffer
@@ -1268,7 +1273,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 			 * Cursor is in no man's land, copy 1/2 screenful
 			 * from the top and bottom of cursor position
 			 */
-			first_copied_row = (vc->vc_y - new_rows/2);
+			first_copied_row = (vc->state.y - new_rows/2);
 		}
 		old_origin += first_copied_row * old_row_size;
 	} else
@@ -1294,15 +1299,16 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (new_scr_end > new_origin)
 		scr_memsetw((void *)new_origin, vc->vc_video_erase_char,
 			    new_scr_end - new_origin);
-	kfree(vc->vc_screenbuf);
+	oldscreen = vc->vc_screenbuf;
 	vc->vc_screenbuf = newscreen;
 	vc->vc_screenbuf_size = new_screen_size;
 	set_origin(vc);
+	kfree(oldscreen);
 
 	/* do part of a reset_terminal() */
 	vc->vc_top = 0;
 	vc->vc_bottom = vc->vc_rows;
-	gotoxy(vc, vc->vc_x, vc->vc_y);
+	gotoxy(vc, vc->state.x, vc->state.y);
 	save_cur(vc);
 
 	if (tty) {
@@ -1399,12 +1405,6 @@ enum { EPecma = 0, EPdec, EPeq, EPgt, EPlt};
 #define kbdapplic	VC_APPLIC
 #define lnm		VC_CRLF
 
-/*
- * this is what the terminal answers to a ESC-Z or csi0c query.
- */
-#define VT100ID "\033[?1;2c"
-#define VT102ID "\033[?6c"
-
 const unsigned char color_table[] = { 0, 4, 2, 6, 1, 5, 3, 7,
 				       8,12,10,14, 9,13,11,15 };
 
@@ -1437,12 +1437,12 @@ static void gotoxy(struct vc_data *vc, int new_x, int new_y)
 	int min_y, max_y;
 
 	if (new_x < 0)
-		vc->vc_x = 0;
+		vc->state.x = 0;
 	else {
 		if (new_x >= vc->vc_cols)
-			vc->vc_x = vc->vc_cols - 1;
+			vc->state.x = vc->vc_cols - 1;
 		else
-			vc->vc_x = new_x;
+			vc->state.x = new_x;
 	}
 
  	if (vc->vc_decom) {
@@ -1453,12 +1453,13 @@ static void gotoxy(struct vc_data *vc, int new_x, int new_y)
 		max_y = vc->vc_rows;
 	}
 	if (new_y < min_y)
-		vc->vc_y = min_y;
+		vc->state.y = min_y;
 	else if (new_y >= max_y)
-		vc->vc_y = max_y - 1;
+		vc->state.y = max_y - 1;
 	else
-		vc->vc_y = new_y;
-	vc->vc_pos = vc->vc_origin + vc->vc_y * vc->vc_size_row + (vc->vc_x<<1);
+		vc->state.y = new_y;
+	vc->vc_pos = vc->vc_origin + vc->state.y * vc->vc_size_row +
+		(vc->state.x << 1);
 	vc->vc_need_wrap = 0;
 }
 
@@ -1485,10 +1486,10 @@ static void lf(struct vc_data *vc)
     	/* don't scroll if above bottom of scrolling region, or
 	 * if below scrolling region
 	 */
-    	if (vc->vc_y + 1 == vc->vc_bottom)
+	if (vc->state.y + 1 == vc->vc_bottom)
 		con_scroll(vc, vc->vc_top, vc->vc_bottom, SM_UP, 1);
-	else if (vc->vc_y < vc->vc_rows - 1) {
-	    	vc->vc_y++;
+	else if (vc->state.y < vc->vc_rows - 1) {
+		vc->state.y++;
 		vc->vc_pos += vc->vc_size_row;
 	}
 	vc->vc_need_wrap = 0;
@@ -1500,10 +1501,10 @@ static void ri(struct vc_data *vc)
     	/* don't scroll if below top of scrolling region, or
 	 * if above scrolling region
 	 */
-	if (vc->vc_y == vc->vc_top)
+	if (vc->state.y == vc->vc_top)
 		con_scroll(vc, vc->vc_top, vc->vc_bottom, SM_DOWN, 1);
-	else if (vc->vc_y > 0) {
-		vc->vc_y--;
+	else if (vc->state.y > 0) {
+		vc->state.y--;
 		vc->vc_pos -= vc->vc_size_row;
 	}
 	vc->vc_need_wrap = 0;
@@ -1511,16 +1512,16 @@ static void ri(struct vc_data *vc)
 
 static inline void cr(struct vc_data *vc)
 {
-	vc->vc_pos -= vc->vc_x << 1;
-	vc->vc_need_wrap = vc->vc_x = 0;
+	vc->vc_pos -= vc->state.x << 1;
+	vc->vc_need_wrap = vc->state.x = 0;
 	notify_write(vc, '\r');
 }
 
 static inline void bs(struct vc_data *vc)
 {
-	if (vc->vc_x) {
+	if (vc->state.x) {
 		vc->vc_pos -= 2;
-		vc->vc_x--;
+		vc->state.x--;
 		vc->vc_need_wrap = 0;
 		notify_write(vc, '\b');
 	}
@@ -1538,22 +1539,22 @@ static void csi_J(struct vc_data *vc, int vpar)
 
 	switch (vpar) {
 		case 0:	/* erase from cursor to end of display */
-			vc_uniscr_clear_line(vc, vc->vc_x,
-					     vc->vc_cols - vc->vc_x);
-			vc_uniscr_clear_lines(vc, vc->vc_y + 1,
-					      vc->vc_rows - vc->vc_y - 1);
+			vc_uniscr_clear_line(vc, vc->state.x,
+					     vc->vc_cols - vc->state.x);
+			vc_uniscr_clear_lines(vc, vc->state.y + 1,
+					      vc->vc_rows - vc->state.y - 1);
 			count = (vc->vc_scr_end - vc->vc_pos) >> 1;
 			start = (unsigned short *)vc->vc_pos;
 			break;
 		case 1:	/* erase from start to cursor */
-			vc_uniscr_clear_line(vc, 0, vc->vc_x + 1);
-			vc_uniscr_clear_lines(vc, 0, vc->vc_y);
+			vc_uniscr_clear_line(vc, 0, vc->state.x + 1);
+			vc_uniscr_clear_lines(vc, 0, vc->state.y);
 			count = ((vc->vc_pos - vc->vc_origin) >> 1) + 1;
 			start = (unsigned short *)vc->vc_origin;
 			break;
 		case 3: /* include scrollback */
 			flush_scrollback(vc);
-			/* fallthrough */
+			fallthrough;
 		case 2: /* erase whole display */
 			vc_uniscr_clear_lines(vc, 0, vc->vc_rows);
 			count = vc->vc_cols * vc->vc_rows;
@@ -1577,49 +1578,51 @@ static void csi_K(struct vc_data *vc, int vpar)
 	switch (vpar) {
 		case 0:	/* erase from cursor to end of line */
 			offset = 0;
-			count = vc->vc_cols - vc->vc_x;
+			count = vc->vc_cols - vc->state.x;
 			break;
 		case 1:	/* erase from start of line to cursor */
-			offset = -vc->vc_x;
-			count = vc->vc_x + 1;
+			offset = -vc->state.x;
+			count = vc->state.x + 1;
 			break;
 		case 2: /* erase whole line */
-			offset = -vc->vc_x;
+			offset = -vc->state.x;
 			count = vc->vc_cols;
 			break;
 		default:
 			return;
 	}
-	vc_uniscr_clear_line(vc, vc->vc_x + offset, count);
+	vc_uniscr_clear_line(vc, vc->state.x + offset, count);
 	scr_memsetw(start + offset, vc->vc_video_erase_char, 2 * count);
 	vc->vc_need_wrap = 0;
 	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long)(start + offset), count);
 }
 
-static void csi_X(struct vc_data *vc, int vpar) /* erase the following vpar positions */
+/* erase the following vpar positions */
+static void csi_X(struct vc_data *vc, unsigned int vpar)
 {					  /* not vt100? */
-	int count;
+	unsigned int count;
 
 	if (!vpar)
 		vpar++;
-	count = (vpar > vc->vc_cols - vc->vc_x) ? (vc->vc_cols - vc->vc_x) : vpar;
 
-	vc_uniscr_clear_line(vc, vc->vc_x, count);
+	count = min(vpar, vc->vc_cols - vc->state.x);
+
+	vc_uniscr_clear_line(vc, vc->state.x, count);
 	scr_memsetw((unsigned short *)vc->vc_pos, vc->vc_video_erase_char, 2 * count);
 	if (con_should_update(vc))
-		vc->vc_sw->con_clear(vc, vc->vc_y, vc->vc_x, 1, count);
+		vc->vc_sw->con_clear(vc, vc->state.y, vc->state.x, 1, count);
 	vc->vc_need_wrap = 0;
 }
 
 static void default_attr(struct vc_data *vc)
 {
-	vc->vc_intensity = 1;
-	vc->vc_italic = 0;
-	vc->vc_underline = 0;
-	vc->vc_reverse = 0;
-	vc->vc_blink = 0;
-	vc->vc_color = vc->vc_def_color;
+	vc->state.intensity = VCI_NORMAL;
+	vc->state.italic = false;
+	vc->state.underline = false;
+	vc->state.reverse = false;
+	vc->state.blink = false;
+	vc->state.color = vc->vc_def_color;
 }
 
 struct rgb { u8 r; u8 g; u8 b; };
@@ -1655,19 +1658,19 @@ static void rgb_foreground(struct vc_data *vc, const struct rgb *c)
 
 	if (hue == 7 && max <= 0x55) {
 		hue = 0;
-		vc->vc_intensity = 2;
+		vc->state.intensity = VCI_BOLD;
 	} else if (max > 0xaa)
-		vc->vc_intensity = 2;
+		vc->state.intensity = VCI_BOLD;
 	else
-		vc->vc_intensity = 1;
+		vc->state.intensity = VCI_NORMAL;
 
-	vc->vc_color = (vc->vc_color & 0xf0) | hue;
+	vc->state.color = (vc->state.color & 0xf0) | hue;
 }
 
 static void rgb_background(struct vc_data *vc, const struct rgb *c)
 {
 	/* For backgrounds, err on the dark side. */
-	vc->vc_color = (vc->vc_color & 0x0f)
+	vc->state.color = (vc->state.color & 0x0f)
 		| (c->r&0x80) >> 1 | (c->g&0x80) >> 2 | (c->b&0x80) >> 3;
 }
 
@@ -1718,13 +1721,13 @@ static void csi_m(struct vc_data *vc)
 			default_attr(vc);
 			break;
 		case 1:
-			vc->vc_intensity = 2;
+			vc->state.intensity = VCI_BOLD;
 			break;
 		case 2:
-			vc->vc_intensity = 0;
+			vc->state.intensity = VCI_HALF_BRIGHT;
 			break;
 		case 3:
-			vc->vc_italic = 1;
+			vc->state.italic = true;
 			break;
 		case 21:
 			/*
@@ -1732,21 +1735,19 @@ static void csi_m(struct vc_data *vc)
 			 * convert it to a single underline.
 			 */
 		case 4:
-			vc->vc_underline = 1;
+			vc->state.underline = true;
 			break;
 		case 5:
-			vc->vc_blink = 1;
+			vc->state.blink = true;
 			break;
 		case 7:
-			vc->vc_reverse = 1;
+			vc->state.reverse = true;
 			break;
 		case 10: /* ANSI X3.64-1979 (SCO-ish?)
 			  * Select primary font, don't display control chars if
 			  * defined, don't set bit 8 on output.
 			  */
-			vc->vc_translate = set_translate(vc->vc_charset == 0
-					? vc->vc_G0_charset
-					: vc->vc_G1_charset, vc);
+			vc->vc_translate = set_translate(vc->state.Gx_charset[vc->state.charset], vc);
 			vc->vc_disp_ctrl = 0;
 			vc->vc_toggle_meta = 0;
 			break;
@@ -1767,19 +1768,19 @@ static void csi_m(struct vc_data *vc)
 			vc->vc_toggle_meta = 1;
 			break;
 		case 22:
-			vc->vc_intensity = 1;
+			vc->state.intensity = VCI_NORMAL;
 			break;
 		case 23:
-			vc->vc_italic = 0;
+			vc->state.italic = false;
 			break;
 		case 24:
-			vc->vc_underline = 0;
+			vc->state.underline = false;
 			break;
 		case 25:
-			vc->vc_blink = 0;
+			vc->state.blink = false;
 			break;
 		case 27:
-			vc->vc_reverse = 0;
+			vc->state.reverse = false;
 			break;
 		case 38:
 			i = vc_t416_color(vc, i, rgb_foreground);
@@ -1788,64 +1789,70 @@ static void csi_m(struct vc_data *vc)
 			i = vc_t416_color(vc, i, rgb_background);
 			break;
 		case 39:
-			vc->vc_color = (vc->vc_def_color & 0x0f) |
-				(vc->vc_color & 0xf0);
+			vc->state.color = (vc->vc_def_color & 0x0f) |
+				(vc->state.color & 0xf0);
 			break;
 		case 49:
-			vc->vc_color = (vc->vc_def_color & 0xf0) |
-				(vc->vc_color & 0x0f);
+			vc->state.color = (vc->vc_def_color & 0xf0) |
+				(vc->state.color & 0x0f);
 			break;
 		default:
 			if (vc->vc_par[i] >= 90 && vc->vc_par[i] <= 107) {
 				if (vc->vc_par[i] < 100)
-					vc->vc_intensity = 2;
+					vc->state.intensity = VCI_BOLD;
 				vc->vc_par[i] -= 60;
 			}
 			if (vc->vc_par[i] >= 30 && vc->vc_par[i] <= 37)
-				vc->vc_color = color_table[vc->vc_par[i] - 30]
-					| (vc->vc_color & 0xf0);
+				vc->state.color = color_table[vc->vc_par[i] - 30]
+					| (vc->state.color & 0xf0);
 			else if (vc->vc_par[i] >= 40 && vc->vc_par[i] <= 47)
-				vc->vc_color = (color_table[vc->vc_par[i] - 40] << 4)
-					| (vc->vc_color & 0x0f);
+				vc->state.color = (color_table[vc->vc_par[i] - 40] << 4)
+					| (vc->state.color & 0x0f);
 			break;
 		}
 	update_attr(vc);
 }
 
-static void respond_string(const char *p, struct tty_port *port)
+static void respond_string(const char *p, size_t len, struct tty_port *port)
 {
-	while (*p) {
-		tty_insert_flip_char(port, *p, 0);
-		p++;
-	}
+	tty_insert_flip_string(port, p, len);
 	tty_schedule_flip(port);
 }
 
 static void cursor_report(struct vc_data *vc, struct tty_struct *tty)
 {
 	char buf[40];
+	int len;
 
-	sprintf(buf, "\033[%d;%dR", vc->vc_y + (vc->vc_decom ? vc->vc_top + 1 : 1), vc->vc_x + 1);
-	respond_string(buf, tty->port);
+	len = sprintf(buf, "\033[%d;%dR", vc->state.y +
+			(vc->vc_decom ? vc->vc_top + 1 : 1),
+			vc->state.x + 1);
+	respond_string(buf, len, tty->port);
 }
 
 static inline void status_report(struct tty_struct *tty)
 {
-	respond_string("\033[0n", tty->port);	/* Terminal ok */
+	static const char teminal_ok[] = "\033[0n";
+
+	respond_string(teminal_ok, strlen(teminal_ok), tty->port);
 }
 
 static inline void respond_ID(struct tty_struct *tty)
 {
-	respond_string(VT102ID, tty->port);
+	/* terminal answer to an ESC-Z or csi0c query. */
+	static const char vt102_id[] = "\033[?6c";
+
+	respond_string(vt102_id, strlen(vt102_id), tty->port);
 }
 
 void mouse_report(struct tty_struct *tty, int butt, int mrx, int mry)
 {
 	char buf[8];
+	int len;
 
-	sprintf(buf, "\033[M%c%c%c", (char)(' ' + butt), (char)('!' + mrx),
-		(char)('!' + mry));
-	respond_string(buf, tty->port);
+	len = sprintf(buf, "\033[M%c%c%c", (char)(' ' + butt),
+			(char)('!' + mrx), (char)('!' + mry));
+	respond_string(buf, len, tty->port);
 }
 
 /* invoked via ioctl(TIOCLINUX) and through set_selection_user */
@@ -1930,14 +1937,14 @@ static void setterm_command(struct vc_data *vc)
 	case 1:	/* set color for underline mode */
 		if (vc->vc_can_do_color && vc->vc_par[1] < 16) {
 			vc->vc_ulcolor = color_table[vc->vc_par[1]];
-			if (vc->vc_underline)
+			if (vc->state.underline)
 				update_attr(vc);
 		}
 		break;
 	case 2:	/* set color for half intensity mode */
 		if (vc->vc_can_do_color && vc->vc_par[1] < 16) {
 			vc->vc_halfcolor = color_table[vc->vc_par[1]];
-			if (vc->vc_intensity == 0)
+			if (vc->state.intensity == VCI_HALF_BRIGHT)
 				update_attr(vc);
 		}
 		break;
@@ -1991,8 +1998,8 @@ static void setterm_command(struct vc_data *vc)
 /* console_lock is held */
 static void csi_at(struct vc_data *vc, unsigned int nr)
 {
-	if (nr > vc->vc_cols - vc->vc_x)
-		nr = vc->vc_cols - vc->vc_x;
+	if (nr > vc->vc_cols - vc->state.x)
+		nr = vc->vc_cols - vc->state.x;
 	else if (!nr)
 		nr = 1;
 	insert_char(vc, nr);
@@ -2001,19 +2008,19 @@ static void csi_at(struct vc_data *vc, unsigned int nr)
 /* console_lock is held */
 static void csi_L(struct vc_data *vc, unsigned int nr)
 {
-	if (nr > vc->vc_rows - vc->vc_y)
-		nr = vc->vc_rows - vc->vc_y;
+	if (nr > vc->vc_rows - vc->state.y)
+		nr = vc->vc_rows - vc->state.y;
 	else if (!nr)
 		nr = 1;
-	con_scroll(vc, vc->vc_y, vc->vc_bottom, SM_DOWN, nr);
+	con_scroll(vc, vc->state.y, vc->vc_bottom, SM_DOWN, nr);
 	vc->vc_need_wrap = 0;
 }
 
 /* console_lock is held */
 static void csi_P(struct vc_data *vc, unsigned int nr)
 {
-	if (nr > vc->vc_cols - vc->vc_x)
-		nr = vc->vc_cols - vc->vc_x;
+	if (nr > vc->vc_cols - vc->state.x)
+		nr = vc->vc_cols - vc->state.x;
 	else if (!nr)
 		nr = 1;
 	delete_char(vc, nr);
@@ -2022,44 +2029,28 @@ static void csi_P(struct vc_data *vc, unsigned int nr)
 /* console_lock is held */
 static void csi_M(struct vc_data *vc, unsigned int nr)
 {
-	if (nr > vc->vc_rows - vc->vc_y)
-		nr = vc->vc_rows - vc->vc_y;
+	if (nr > vc->vc_rows - vc->state.y)
+		nr = vc->vc_rows - vc->state.y;
 	else if (!nr)
 		nr=1;
-	con_scroll(vc, vc->vc_y, vc->vc_bottom, SM_UP, nr);
+	con_scroll(vc, vc->state.y, vc->vc_bottom, SM_UP, nr);
 	vc->vc_need_wrap = 0;
 }
 
 /* console_lock is held (except via vc_init->reset_terminal */
 static void save_cur(struct vc_data *vc)
 {
-	vc->vc_saved_x		= vc->vc_x;
-	vc->vc_saved_y		= vc->vc_y;
-	vc->vc_s_intensity	= vc->vc_intensity;
-	vc->vc_s_italic         = vc->vc_italic;
-	vc->vc_s_underline	= vc->vc_underline;
-	vc->vc_s_blink		= vc->vc_blink;
-	vc->vc_s_reverse	= vc->vc_reverse;
-	vc->vc_s_charset	= vc->vc_charset;
-	vc->vc_s_color		= vc->vc_color;
-	vc->vc_saved_G0		= vc->vc_G0_charset;
-	vc->vc_saved_G1		= vc->vc_G1_charset;
+	memcpy(&vc->saved_state, &vc->state, sizeof(vc->state));
 }
 
 /* console_lock is held */
 static void restore_cur(struct vc_data *vc)
 {
-	gotoxy(vc, vc->vc_saved_x, vc->vc_saved_y);
-	vc->vc_intensity	= vc->vc_s_intensity;
-	vc->vc_italic		= vc->vc_s_italic;
-	vc->vc_underline	= vc->vc_s_underline;
-	vc->vc_blink		= vc->vc_s_blink;
-	vc->vc_reverse		= vc->vc_s_reverse;
-	vc->vc_charset		= vc->vc_s_charset;
-	vc->vc_color		= vc->vc_s_color;
-	vc->vc_G0_charset	= vc->vc_saved_G0;
-	vc->vc_G1_charset	= vc->vc_saved_G1;
-	vc->vc_translate	= set_translate(vc->vc_charset ? vc->vc_G1_charset : vc->vc_G0_charset, vc);
+	memcpy(&vc->state, &vc->saved_state, sizeof(vc->state));
+
+	gotoxy(vc, vc->state.x, vc->state.y);
+	vc->vc_translate = set_translate(vc->state.Gx_charset[vc->state.charset],
+			vc);
 	update_attr(vc);
 	vc->vc_need_wrap = 0;
 }
@@ -2071,14 +2062,16 @@ enum { ESnormal, ESesc, ESsquare, ESgetpars, ESfunckey,
 /* console_lock is held (except via vc_init()) */
 static void reset_terminal(struct vc_data *vc, int do_clear)
 {
+	unsigned int i;
+
 	vc->vc_top		= 0;
 	vc->vc_bottom		= vc->vc_rows;
 	vc->vc_state		= ESnormal;
 	vc->vc_priv		= EPecma;
 	vc->vc_translate	= set_translate(LAT1_MAP, vc);
-	vc->vc_G0_charset	= LAT1_MAP;
-	vc->vc_G1_charset	= GRAF_MAP;
-	vc->vc_charset		= 0;
+	vc->state.Gx_charset[0]	= LAT1_MAP;
+	vc->state.Gx_charset[1]	= GRAF_MAP;
+	vc->state.charset	= 0;
 	vc->vc_need_wrap	= 0;
 	vc->vc_report_mouse	= 0;
 	vc->vc_utf              = default_utf8;
@@ -2101,14 +2094,9 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	default_attr(vc);
 	update_attr(vc);
 
-	vc->vc_tab_stop[0]	=
-	vc->vc_tab_stop[1]	=
-	vc->vc_tab_stop[2]	=
-	vc->vc_tab_stop[3]	=
-	vc->vc_tab_stop[4]	=
-	vc->vc_tab_stop[5]	=
-	vc->vc_tab_stop[6]	=
-	vc->vc_tab_stop[7]	= 0x01010101;
+	bitmap_zero(vc->vc_tab_stop, VC_TABSTOPS_COUNT);
+	for (i = 0; i < VC_TABSTOPS_COUNT; i += 8)
+		set_bit(i, vc->vc_tab_stop);
 
 	vc->vc_bell_pitch = DEFAULT_BELL_PITCH;
 	vc->vc_bell_duration = DEFAULT_BELL_DURATION;
@@ -2118,6 +2106,29 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	save_cur(vc);
 	if (do_clear)
 	    csi_J(vc, 2);
+}
+
+static void vc_setGx(struct vc_data *vc, unsigned int which, int c)
+{
+	unsigned char *charset = &vc->state.Gx_charset[which];
+
+	switch (c) {
+	case '0':
+		*charset = GRAF_MAP;
+		break;
+	case 'B':
+		*charset = LAT1_MAP;
+		break;
+	case 'U':
+		*charset = IBMPC_MAP;
+		break;
+	case 'K':
+		*charset = USER_MAP;
+		break;
+	}
+
+	if (vc->state.charset == which)
+		vc->vc_translate = set_translate(*charset, vc);
 }
 
 /* console_lock is held */
@@ -2142,31 +2153,33 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		bs(vc);
 		return;
 	case 9:
-		vc->vc_pos -= (vc->vc_x << 1);
-		while (vc->vc_x < vc->vc_cols - 1) {
-			vc->vc_x++;
-			if (vc->vc_tab_stop[7 & (vc->vc_x >> 5)] & (1 << (vc->vc_x & 31)))
-				break;
-		}
-		vc->vc_pos += (vc->vc_x << 1);
+		vc->vc_pos -= (vc->state.x << 1);
+
+		vc->state.x = find_next_bit(vc->vc_tab_stop,
+				min(vc->vc_cols - 1, VC_TABSTOPS_COUNT),
+				vc->state.x + 1);
+		if (vc->state.x >= VC_TABSTOPS_COUNT)
+			vc->state.x = vc->vc_cols - 1;
+
+		vc->vc_pos += (vc->state.x << 1);
 		notify_write(vc, '\t');
 		return;
 	case 10: case 11: case 12:
 		lf(vc);
 		if (!is_kbd(vc, lnm))
 			return;
-		/* fall through */
+		fallthrough;
 	case 13:
 		cr(vc);
 		return;
 	case 14:
-		vc->vc_charset = 1;
-		vc->vc_translate = set_translate(vc->vc_G1_charset, vc);
+		vc->state.charset = 1;
+		vc->vc_translate = set_translate(vc->state.Gx_charset[1], vc);
 		vc->vc_disp_ctrl = 1;
 		return;
 	case 15:
-		vc->vc_charset = 0;
-		vc->vc_translate = set_translate(vc->vc_G0_charset, vc);
+		vc->state.charset = 0;
+		vc->vc_translate = set_translate(vc->state.Gx_charset[0], vc);
 		vc->vc_disp_ctrl = 0;
 		return;
 	case 24: case 26:
@@ -2206,7 +2219,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			lf(vc);
 			return;
 		case 'H':
-			vc->vc_tab_stop[7 & (vc->vc_x >> 5)] |= (1 << (vc->vc_x & 31));
+			if (vc->state.x < VC_TABSTOPS_COUNT)
+				set_bit(vc->state.x, vc->vc_tab_stop);
 			return;
 		case 'Z':
 			respond_ID(tty);
@@ -2293,7 +2307,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			return;
 		}
 		vc->vc_priv = EPecma;
-		/* fall through */
+		fallthrough;
 	case ESgetpars:
 		if (c == ';' && vc->vc_npar < NPAR - 1) {
 			vc->vc_npar++;
@@ -2320,7 +2334,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		case 'c':
 			if (vc->vc_priv == EPdec) {
 				if (vc->vc_par[0])
-					vc->vc_cursor_type = vc->vc_par[0] | (vc->vc_par[1] << 8) | (vc->vc_par[2] << 16);
+					vc->vc_cursor_type =
+						CUR_MAKE(vc->vc_par[0],
+							 vc->vc_par[1],
+							 vc->vc_par[2]);
 				else
 					vc->vc_cursor_type = cur_default;
 				return;
@@ -2353,42 +2370,42 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		case 'G': case '`':
 			if (vc->vc_par[0])
 				vc->vc_par[0]--;
-			gotoxy(vc, vc->vc_par[0], vc->vc_y);
+			gotoxy(vc, vc->vc_par[0], vc->state.y);
 			return;
 		case 'A':
 			if (!vc->vc_par[0])
 				vc->vc_par[0]++;
-			gotoxy(vc, vc->vc_x, vc->vc_y - vc->vc_par[0]);
+			gotoxy(vc, vc->state.x, vc->state.y - vc->vc_par[0]);
 			return;
 		case 'B': case 'e':
 			if (!vc->vc_par[0])
 				vc->vc_par[0]++;
-			gotoxy(vc, vc->vc_x, vc->vc_y + vc->vc_par[0]);
+			gotoxy(vc, vc->state.x, vc->state.y + vc->vc_par[0]);
 			return;
 		case 'C': case 'a':
 			if (!vc->vc_par[0])
 				vc->vc_par[0]++;
-			gotoxy(vc, vc->vc_x + vc->vc_par[0], vc->vc_y);
+			gotoxy(vc, vc->state.x + vc->vc_par[0], vc->state.y);
 			return;
 		case 'D':
 			if (!vc->vc_par[0])
 				vc->vc_par[0]++;
-			gotoxy(vc, vc->vc_x - vc->vc_par[0], vc->vc_y);
+			gotoxy(vc, vc->state.x - vc->vc_par[0], vc->state.y);
 			return;
 		case 'E':
 			if (!vc->vc_par[0])
 				vc->vc_par[0]++;
-			gotoxy(vc, 0, vc->vc_y + vc->vc_par[0]);
+			gotoxy(vc, 0, vc->state.y + vc->vc_par[0]);
 			return;
 		case 'F':
 			if (!vc->vc_par[0])
 				vc->vc_par[0]++;
-			gotoxy(vc, 0, vc->vc_y - vc->vc_par[0]);
+			gotoxy(vc, 0, vc->state.y - vc->vc_par[0]);
 			return;
 		case 'd':
 			if (vc->vc_par[0])
 				vc->vc_par[0]--;
-			gotoxay(vc, vc->vc_x ,vc->vc_par[0]);
+			gotoxay(vc, vc->state.x ,vc->vc_par[0]);
 			return;
 		case 'H': case 'f':
 			if (vc->vc_par[0])
@@ -2417,18 +2434,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				respond_ID(tty);
 			return;
 		case 'g':
-			if (!vc->vc_par[0])
-				vc->vc_tab_stop[7 & (vc->vc_x >> 5)] &= ~(1 << (vc->vc_x & 31));
-			else if (vc->vc_par[0] == 3) {
-				vc->vc_tab_stop[0] =
-					vc->vc_tab_stop[1] =
-					vc->vc_tab_stop[2] =
-					vc->vc_tab_stop[3] =
-					vc->vc_tab_stop[4] =
-					vc->vc_tab_stop[5] =
-					vc->vc_tab_stop[6] =
-					vc->vc_tab_stop[7] = 0;
-			}
+			if (!vc->vc_par[0] && vc->state.x < VC_TABSTOPS_COUNT)
+				set_bit(vc->state.x, vc->vc_tab_stop);
+			else if (vc->vc_par[0] == 3)
+				bitmap_zero(vc->vc_tab_stop, VC_TABSTOPS_COUNT);
 			return;
 		case 'm':
 			csi_m(vc);
@@ -2502,29 +2511,11 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		}
 		return;
 	case ESsetG0:
-		if (c == '0')
-			vc->vc_G0_charset = GRAF_MAP;
-		else if (c == 'B')
-			vc->vc_G0_charset = LAT1_MAP;
-		else if (c == 'U')
-			vc->vc_G0_charset = IBMPC_MAP;
-		else if (c == 'K')
-			vc->vc_G0_charset = USER_MAP;
-		if (vc->vc_charset == 0)
-			vc->vc_translate = set_translate(vc->vc_G0_charset, vc);
+		vc_setGx(vc, 0, c);
 		vc->vc_state = ESnormal;
 		return;
 	case ESsetG1:
-		if (c == '0')
-			vc->vc_G1_charset = GRAF_MAP;
-		else if (c == 'B')
-			vc->vc_G1_charset = LAT1_MAP;
-		else if (c == 'U')
-			vc->vc_G1_charset = IBMPC_MAP;
-		else if (c == 'K')
-			vc->vc_G1_charset = USER_MAP;
-		if (vc->vc_charset == 1)
-			vc->vc_translate = set_translate(vc->vc_G1_charset, vc);
+		vc_setGx(vc, 1, c);
 		vc->vc_state = ESnormal;
 		return;
 	case ESosc:
@@ -2536,7 +2527,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 
 /* is_double_width() is based on the wcwidth() implementation by
  * Markus Kuhn -- 2007-05-26 (Unicode 5.0)
- * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
+ * Latest version: https://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
  */
 struct interval {
 	uint32_t first;
@@ -2571,30 +2562,300 @@ static int is_double_width(uint32_t ucs)
 			sizeof(struct interval), ucs_cmp) != NULL;
 }
 
-static void con_flush(struct vc_data *vc, unsigned long draw_from,
-		unsigned long draw_to, int *draw_x)
+struct vc_draw_region {
+	unsigned long from, to;
+	int x;
+};
+
+static void con_flush(struct vc_data *vc, struct vc_draw_region *draw)
 {
-	if (*draw_x < 0)
+	if (draw->x < 0)
 		return;
 
-	vc->vc_sw->con_putcs(vc, (u16 *)draw_from,
-			(u16 *)draw_to - (u16 *)draw_from, vc->vc_y, *draw_x);
-	*draw_x = -1;
+	vc->vc_sw->con_putcs(vc, (u16 *)draw->from,
+			(u16 *)draw->to - (u16 *)draw->from, vc->state.y,
+			draw->x);
+	draw->x = -1;
+}
+
+static inline int vc_translate_ascii(const struct vc_data *vc, int c)
+{
+	if (IS_ENABLED(CONFIG_CONSOLE_TRANSLATIONS)) {
+		if (vc->vc_toggle_meta)
+			c |= 0x80;
+
+		return vc->vc_translate[c];
+	}
+
+	return c;
+}
+
+
+/**
+ * vc_sanitize_unicode -- Replace invalid Unicode code points with U+FFFD
+ * @c: the received character, or U+FFFD for invalid sequences.
+ */
+static inline int vc_sanitize_unicode(const int c)
+{
+	if ((c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff)
+		return 0xfffd;
+
+	return c;
+}
+
+/**
+ * vc_translate_unicode -- Combine UTF-8 into Unicode in @vc_utf_char
+ *
+ * @vc_utf_char is the being-constructed unicode character.
+ * @vc_utf_count is the number of continuation bytes still expected to arrive.
+ * @vc_npar is the number of continuation bytes arrived so far.
+ */
+static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
+{
+	static const u32 utf8_length_changes[] = {
+		0x0000007f, 0x000007ff, 0x0000ffff,
+		0x001fffff, 0x03ffffff, 0x7fffffff
+	};
+
+	/* Continuation byte received */
+	if ((c & 0xc0) == 0x80) {
+		/* Unexpected continuation byte? */
+		if (!vc->vc_utf_count)
+			return 0xfffd;
+
+		vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
+		vc->vc_npar++;
+		if (--vc->vc_utf_count)
+			goto need_more_bytes;
+
+		/* Got a whole character */
+		c = vc->vc_utf_char;
+		/* Reject overlong sequences */
+		if (c <= utf8_length_changes[vc->vc_npar - 1] ||
+				c > utf8_length_changes[vc->vc_npar])
+			return 0xfffd;
+
+		return vc_sanitize_unicode(c);
+	}
+
+	/* Single ASCII byte or first byte of a sequence received */
+	if (vc->vc_utf_count) {
+		/* Continuation byte expected */
+		*rescan = true;
+		vc->vc_utf_count = 0;
+		return 0xfffd;
+	}
+
+	/* Nothing to do if an ASCII byte was received */
+	if (c <= 0x7f)
+		return c;
+
+	/* First byte of a multibyte sequence received */
+	vc->vc_npar = 0;
+	if ((c & 0xe0) == 0xc0) {
+		vc->vc_utf_count = 1;
+		vc->vc_utf_char = (c & 0x1f);
+	} else if ((c & 0xf0) == 0xe0) {
+		vc->vc_utf_count = 2;
+		vc->vc_utf_char = (c & 0x0f);
+	} else if ((c & 0xf8) == 0xf0) {
+		vc->vc_utf_count = 3;
+		vc->vc_utf_char = (c & 0x07);
+	} else if ((c & 0xfc) == 0xf8) {
+		vc->vc_utf_count = 4;
+		vc->vc_utf_char = (c & 0x03);
+	} else if ((c & 0xfe) == 0xfc) {
+		vc->vc_utf_count = 5;
+		vc->vc_utf_char = (c & 0x01);
+	} else {
+		/* 254 and 255 are invalid */
+		return 0xfffd;
+	}
+
+need_more_bytes:
+	return -1;
+}
+
+static int vc_translate(struct vc_data *vc, int *c, bool *rescan)
+{
+	/* Do no translation at all in control states */
+	if (vc->vc_state != ESnormal)
+		return *c;
+
+	if (vc->vc_utf && !vc->vc_disp_ctrl)
+		return *c = vc_translate_unicode(vc, *c, rescan);
+
+	/* no utf or alternate charset mode */
+	return vc_translate_ascii(vc, *c);
+}
+
+static inline unsigned char vc_invert_attr(const struct vc_data *vc)
+{
+	if (!vc->vc_can_do_color)
+		return vc->vc_attr ^ 0x08;
+
+	if (vc->vc_hi_font_mask == 0x100)
+		return   (vc->vc_attr & 0x11) |
+			((vc->vc_attr & 0xe0) >> 4) |
+			((vc->vc_attr & 0x0e) << 4);
+
+	return   (vc->vc_attr & 0x88) |
+		((vc->vc_attr & 0x70) >> 4) |
+		((vc->vc_attr & 0x07) << 4);
+}
+
+static bool vc_is_control(struct vc_data *vc, int tc, int c)
+{
+	/*
+	 * A bitmap for codes <32. A bit of 1 indicates that the code
+	 * corresponding to that bit number invokes some special action (such
+	 * as cursor movement) and should not be displayed as a glyph unless
+	 * the disp_ctrl mode is explicitly enabled.
+	 */
+	static const u32 CTRL_ACTION = 0x0d00ff81;
+	/* Cannot be overridden by disp_ctrl */
+	static const u32 CTRL_ALWAYS = 0x0800f501;
+
+	if (vc->vc_state != ESnormal)
+		return true;
+
+	if (!tc)
+		return true;
+
+	/*
+	 * If the original code was a control character we only allow a glyph
+	 * to be displayed if the code is not normally used (such as for cursor
+	 * movement) or if the disp_ctrl mode has been explicitly enabled.
+	 * Certain characters (as given by the CTRL_ALWAYS bitmap) are always
+	 * displayed as control characters, as the console would be pretty
+	 * useless without them; to display an arbitrary font position use the
+	 * direct-to-font zone in UTF-8 mode.
+	 */
+	if (c < 32) {
+		if (vc->vc_disp_ctrl)
+			return CTRL_ALWAYS & BIT(c);
+		else
+			return vc->vc_utf || (CTRL_ACTION & BIT(c));
+	}
+
+	if (c == 127 && !vc->vc_disp_ctrl)
+		return true;
+
+	if (c == 128 + 27)
+		return true;
+
+	return false;
+}
+
+static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
+		struct vc_draw_region *draw)
+{
+	int next_c;
+	unsigned char vc_attr = vc->vc_attr;
+	u16 himask = vc->vc_hi_font_mask, charmask = himask ? 0x1ff : 0xff;
+	u8 width = 1;
+	bool inverse = false;
+
+	if (vc->vc_utf && !vc->vc_disp_ctrl) {
+		if (is_double_width(c))
+			width = 2;
+	}
+
+	/* Now try to find out how to display it */
+	tc = conv_uni_to_pc(vc, tc);
+	if (tc & ~charmask) {
+		if (tc == -1 || tc == -2)
+			return -1; /* nothing to display */
+
+		/* Glyph not found */
+		if ((!vc->vc_utf || vc->vc_disp_ctrl || c < 128) &&
+				!(c & ~charmask)) {
+			/*
+			 * In legacy mode use the glyph we get by a 1:1
+			 * mapping.
+			 * This would make absolutely no sense with Unicode in
+			 * mind, but do this for ASCII characters since a font
+			 * may lack Unicode mapping info and we don't want to
+			 * end up with having question marks only.
+			 */
+			tc = c;
+		} else {
+			/*
+			 * Display U+FFFD. If it's not found, display an inverse
+			 * question mark.
+			 */
+			tc = conv_uni_to_pc(vc, 0xfffd);
+			if (tc < 0) {
+				inverse = true;
+				tc = conv_uni_to_pc(vc, '?');
+				if (tc < 0)
+					tc = '?';
+
+				vc_attr = vc_invert_attr(vc);
+				con_flush(vc, draw);
+			}
+		}
+	}
+
+	next_c = c;
+	while (1) {
+		if (vc->vc_need_wrap || vc->vc_decim)
+			con_flush(vc, draw);
+		if (vc->vc_need_wrap) {
+			cr(vc);
+			lf(vc);
+		}
+		if (vc->vc_decim)
+			insert_char(vc, 1);
+		vc_uniscr_putc(vc, next_c);
+
+		if (himask)
+			tc = ((tc & 0x100) ? himask : 0) |
+			      (tc &  0xff);
+		tc |= (vc_attr << 8) & ~himask;
+
+		scr_writew(tc, (u16 *)vc->vc_pos);
+
+		if (con_should_update(vc) && draw->x < 0) {
+			draw->x = vc->state.x;
+			draw->from = vc->vc_pos;
+		}
+		if (vc->state.x == vc->vc_cols - 1) {
+			vc->vc_need_wrap = vc->vc_decawm;
+			draw->to = vc->vc_pos + 2;
+		} else {
+			vc->state.x++;
+			draw->to = (vc->vc_pos += 2);
+		}
+
+		if (!--width)
+			break;
+
+		/* A space is printed in the second column */
+		tc = conv_uni_to_pc(vc, ' ');
+		if (tc < 0)
+			tc = ' ';
+		next_c = ' ';
+	}
+	notify_write(vc, c);
+
+	if (inverse)
+		con_flush(vc, draw);
+
+	return 0;
 }
 
 /* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
-	int c, next_c, tc, ok, n = 0, draw_x = -1;
+	struct vc_draw_region draw = {
+		.x = -1,
+	};
+	int c, tc, n = 0;
 	unsigned int currcons;
-	unsigned long draw_from = 0, draw_to = 0;
 	struct vc_data *vc;
-	unsigned char vc_attr;
 	struct vt_notifier_param param;
-	uint8_t rescan;
-	uint8_t inverse;
-	uint8_t width;
-	u16 himask, charmask;
+	bool rescan;
 
 	if (in_interrupt())
 		return count;
@@ -2615,8 +2876,6 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 		return 0;
 	}
 
-	himask = vc->vc_hi_font_mask;
-	charmask = himask ? 0x1ff : 0xff;
 
 	/* undraw cursor first */
 	if (con_is_fg(vc))
@@ -2626,209 +2885,35 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	while (!tty->stopped && count) {
 		int orig = *buf;
-		c = orig;
 		buf++;
 		n++;
 		count--;
-		rescan = 0;
-		inverse = 0;
-		width = 1;
-
-		/* Do no translation at all in control states */
-		if (vc->vc_state != ESnormal) {
-			tc = c;
-		} else if (vc->vc_utf && !vc->vc_disp_ctrl) {
-		    /* Combine UTF-8 into Unicode in vc_utf_char.
-		     * vc_utf_count is the number of continuation bytes still
-		     * expected to arrive.
-		     * vc_npar is the number of continuation bytes arrived so
-		     * far
-		     */
 rescan_last_byte:
-		    if ((c & 0xc0) == 0x80) {
-			/* Continuation byte received */
-			static const uint32_t utf8_length_changes[] = { 0x0000007f, 0x000007ff, 0x0000ffff, 0x001fffff, 0x03ffffff, 0x7fffffff };
-			if (vc->vc_utf_count) {
-			    vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
-			    vc->vc_npar++;
-			    if (--vc->vc_utf_count) {
-				/* Still need some bytes */
-				continue;
-			    }
-			    /* Got a whole character */
-			    c = vc->vc_utf_char;
-			    /* Reject overlong sequences */
-			    if (c <= utf8_length_changes[vc->vc_npar - 1] ||
-					c > utf8_length_changes[vc->vc_npar])
-				c = 0xfffd;
-			} else {
-			    /* Unexpected continuation byte */
-			    vc->vc_utf_count = 0;
-			    c = 0xfffd;
-			}
-		    } else {
-			/* Single ASCII byte or first byte of a sequence received */
-			if (vc->vc_utf_count) {
-			    /* Continuation byte expected */
-			    rescan = 1;
-			    vc->vc_utf_count = 0;
-			    c = 0xfffd;
-			} else if (c > 0x7f) {
-			    /* First byte of a multibyte sequence received */
-			    vc->vc_npar = 0;
-			    if ((c & 0xe0) == 0xc0) {
-				vc->vc_utf_count = 1;
-				vc->vc_utf_char = (c & 0x1f);
-			    } else if ((c & 0xf0) == 0xe0) {
-				vc->vc_utf_count = 2;
-				vc->vc_utf_char = (c & 0x0f);
-			    } else if ((c & 0xf8) == 0xf0) {
-				vc->vc_utf_count = 3;
-				vc->vc_utf_char = (c & 0x07);
-			    } else if ((c & 0xfc) == 0xf8) {
-				vc->vc_utf_count = 4;
-				vc->vc_utf_char = (c & 0x03);
-			    } else if ((c & 0xfe) == 0xfc) {
-				vc->vc_utf_count = 5;
-				vc->vc_utf_char = (c & 0x01);
-			    } else {
-				/* 254 and 255 are invalid */
-				c = 0xfffd;
-			    }
-			    if (vc->vc_utf_count) {
-				/* Still need some bytes */
-				continue;
-			    }
-			}
-			/* Nothing to do if an ASCII byte was received */
-		    }
-		    /* End of UTF-8 decoding. */
-		    /* c is the received character, or U+FFFD for invalid sequences. */
-		    /* Replace invalid Unicode code points with U+FFFD too */
-		    if ((c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff)
-			c = 0xfffd;
-		    tc = c;
-		} else {	/* no utf or alternate charset mode */
-		    tc = vc_translate(vc, c);
-		}
+		c = orig;
+		rescan = false;
+
+		tc = vc_translate(vc, &c, &rescan);
+		if (tc == -1)
+			continue;
 
 		param.c = tc;
 		if (atomic_notifier_call_chain(&vt_notifier_list, VT_PREWRITE,
 					&param) == NOTIFY_STOP)
 			continue;
 
-                /* If the original code was a control character we
-                 * only allow a glyph to be displayed if the code is
-                 * not normally used (such as for cursor movement) or
-                 * if the disp_ctrl mode has been explicitly enabled.
-                 * Certain characters (as given by the CTRL_ALWAYS
-                 * bitmap) are always displayed as control characters,
-                 * as the console would be pretty useless without
-                 * them; to display an arbitrary font position use the
-                 * direct-to-font zone in UTF-8 mode.
-                 */
-                ok = tc && (c >= 32 ||
-			    !(vc->vc_disp_ctrl ? (CTRL_ALWAYS >> c) & 1 :
-				  vc->vc_utf || ((CTRL_ACTION >> c) & 1)))
-			&& (c != 127 || vc->vc_disp_ctrl)
-			&& (c != 128+27);
-
-		if (vc->vc_state == ESnormal && ok) {
-			if (vc->vc_utf && !vc->vc_disp_ctrl) {
-				if (is_double_width(c))
-					width = 2;
-			}
-			/* Now try to find out how to display it */
-			tc = conv_uni_to_pc(vc, tc);
-			if (tc & ~charmask) {
-				if (tc == -1 || tc == -2) {
-				    continue; /* nothing to display */
-				}
-				/* Glyph not found */
-				if ((!(vc->vc_utf && !vc->vc_disp_ctrl) || c < 128) && !(c & ~charmask)) {
-				    /* In legacy mode use the glyph we get by a 1:1 mapping.
-				       This would make absolutely no sense with Unicode in mind,
-				       but do this for ASCII characters since a font may lack
-				       Unicode mapping info and we don't want to end up with
-				       having question marks only. */
-				    tc = c;
-				} else {
-				    /* Display U+FFFD. If it's not found, display an inverse question mark. */
-				    tc = conv_uni_to_pc(vc, 0xfffd);
-				    if (tc < 0) {
-					inverse = 1;
-					tc = conv_uni_to_pc(vc, '?');
-					if (tc < 0) tc = '?';
-				    }
-				}
-			}
-
-			if (!inverse) {
-				vc_attr = vc->vc_attr;
-			} else {
-				/* invert vc_attr */
-				if (!vc->vc_can_do_color) {
-					vc_attr = (vc->vc_attr) ^ 0x08;
-				} else if (vc->vc_hi_font_mask == 0x100) {
-					vc_attr = ((vc->vc_attr) & 0x11) | (((vc->vc_attr) & 0xe0) >> 4) | (((vc->vc_attr) & 0x0e) << 4);
-				} else {
-					vc_attr = ((vc->vc_attr) & 0x88) | (((vc->vc_attr) & 0x70) >> 4) | (((vc->vc_attr) & 0x07) << 4);
-				}
-				con_flush(vc, draw_from, draw_to, &draw_x);
-			}
-
-			next_c = c;
-			while (1) {
-				if (vc->vc_need_wrap || vc->vc_decim)
-					con_flush(vc, draw_from, draw_to,
-							&draw_x);
-				if (vc->vc_need_wrap) {
-					cr(vc);
-					lf(vc);
-				}
-				if (vc->vc_decim)
-					insert_char(vc, 1);
-				vc_uniscr_putc(vc, next_c);
-				scr_writew(himask ?
-					     ((vc_attr << 8) & ~himask) + ((tc & 0x100) ? himask : 0) + (tc & 0xff) :
-					     (vc_attr << 8) + tc,
-					   (u16 *) vc->vc_pos);
-				if (con_should_update(vc) && draw_x < 0) {
-					draw_x = vc->vc_x;
-					draw_from = vc->vc_pos;
-				}
-				if (vc->vc_x == vc->vc_cols - 1) {
-					vc->vc_need_wrap = vc->vc_decawm;
-					draw_to = vc->vc_pos + 2;
-				} else {
-					vc->vc_x++;
-					draw_to = (vc->vc_pos += 2);
-				}
-
-				if (!--width) break;
-
-				tc = conv_uni_to_pc(vc, ' '); /* A space is printed in the second column */
-				if (tc < 0) tc = ' ';
-				next_c = ' ';
-			}
-			notify_write(vc, c);
-
-			if (inverse)
-				con_flush(vc, draw_from, draw_to, &draw_x);
-
-			if (rescan) {
-				rescan = 0;
-				inverse = 0;
-				width = 1;
-				c = orig;
-				goto rescan_last_byte;
-			}
+		if (vc_is_control(vc, tc, c)) {
+			con_flush(vc, &draw);
+			do_con_trol(tty, vc, orig);
 			continue;
 		}
-		con_flush(vc, draw_from, draw_to, &draw_x);
-		do_con_trol(tty, vc, orig);
+
+		if (vc_con_write_normal(vc, tc, c, &draw) < 0)
+			continue;
+
+		if (rescan)
+			goto rescan_last_byte;
 	}
-	con_flush(vc, draw_from, draw_to, &draw_x);
+	con_flush(vc, &draw);
 	vc_uniscr_debug_check(vc);
 	console_conditional_schedule();
 	notify_update(vc);
@@ -2978,25 +3063,25 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		hide_cursor(vc);
 
 	start = (ushort *)vc->vc_pos;
-	start_x = vc->vc_x;
+	start_x = vc->state.x;
 	cnt = 0;
 	while (count--) {
 		c = *b++;
 		if (c == 10 || c == 13 || c == 8 || vc->vc_need_wrap) {
 			if (cnt && con_is_visible(vc))
-				vc->vc_sw->con_putcs(vc, start, cnt, vc->vc_y, start_x);
+				vc->vc_sw->con_putcs(vc, start, cnt, vc->state.y, start_x);
 			cnt = 0;
 			if (c == 8) {		/* backspace */
 				bs(vc);
 				start = (ushort *)vc->vc_pos;
-				start_x = vc->vc_x;
+				start_x = vc->state.x;
 				continue;
 			}
 			if (c != 13)
 				lf(vc);
 			cr(vc);
 			start = (ushort *)vc->vc_pos;
-			start_x = vc->vc_x;
+			start_x = vc->state.x;
 			if (c == 10 || c == 13)
 				continue;
 		}
@@ -3004,15 +3089,15 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		scr_writew((vc->vc_attr << 8) + c, (unsigned short *)vc->vc_pos);
 		notify_write(vc, c);
 		cnt++;
-		if (vc->vc_x == vc->vc_cols - 1) {
+		if (vc->state.x == vc->vc_cols - 1) {
 			vc->vc_need_wrap = 1;
 		} else {
 			vc->vc_pos += 2;
-			vc->vc_x++;
+			vc->state.x++;
 		}
 	}
 	if (cnt && con_is_visible(vc))
-		vc->vc_sw->con_putcs(vc, start, cnt, vc->vc_y, start_x);
+		vc->vc_sw->con_putcs(vc, start, cnt, vc->state.y, start_x);
 	set_cursor(vc);
 	notify_update(vc);
 
@@ -3408,7 +3493,7 @@ static int __init con_init(void)
 	master_display_fg = vc = vc_cons[currcons].d;
 	set_origin(vc);
 	save_screen(vc);
-	gotoxy(vc, vc->vc_x, vc->vc_y);
+	gotoxy(vc, vc->state.x, vc->state.y);
 	csi_J(vc, 0);
 	update_screen(vc);
 	pr_info("Console: %s %s %dx%d\n",
@@ -4687,8 +4772,8 @@ EXPORT_SYMBOL_GPL(screen_pos);
 void getconsxy(struct vc_data *vc, unsigned char *p)
 {
 	/* clamp values if they don't fit */
-	p[0] = min(vc->vc_x, 0xFFu);
-	p[1] = min(vc->vc_y, 0xFFu);
+	p[0] = min(vc->state.x, 0xFFu);
+	p[1] = min(vc->state.y, 0xFFu);
 }
 
 void putconsxy(struct vc_data *vc, unsigned char *p)

@@ -1516,7 +1516,7 @@ static void mpls_ifdown(struct net_device *dev, int event)
 			case NETDEV_DOWN:
 			case NETDEV_UNREGISTER:
 				nh_flags |= RTNH_F_DEAD;
-				/* fall through */
+				fallthrough;
 			case NETDEV_CHANGE:
 				nh_flags |= RTNH_F_LINKDOWN;
 				break;
@@ -1584,21 +1584,10 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 	unsigned int flags;
 
 	if (event == NETDEV_REGISTER) {
+		mdev = mpls_add_dev(dev);
+		if (IS_ERR(mdev))
+			return notifier_from_errno(PTR_ERR(mdev));
 
-		/* For now just support Ethernet, IPGRE, IP6GRE, SIT and
-		 * IPIP devices
-		 */
-		if (dev->type == ARPHRD_ETHER ||
-		    dev->type == ARPHRD_LOOPBACK ||
-		    dev->type == ARPHRD_IPGRE ||
-		    dev->type == ARPHRD_IP6GRE ||
-		    dev->type == ARPHRD_SIT ||
-		    dev->type == ARPHRD_TUNNEL ||
-		    dev->type == ARPHRD_TUNNEL6) {
-			mdev = mpls_add_dev(dev);
-			if (IS_ERR(mdev))
-				return notifier_from_errno(PTR_ERR(mdev));
-		}
 		return NOTIFY_OK;
 	}
 

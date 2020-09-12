@@ -292,7 +292,7 @@ static int intel_spi_wait_hw_busy(struct intel_spi *ispi)
 	u32 val;
 
 	return readl_poll_timeout(ispi->base + HSFSTS_CTL, val,
-				  !(val & HSFSTS_CTL_SCIP), 40,
+				  !(val & HSFSTS_CTL_SCIP), 0,
 				  INTEL_SPI_TIMEOUT * 1000);
 }
 
@@ -301,7 +301,7 @@ static int intel_spi_wait_sw_busy(struct intel_spi *ispi)
 	u32 val;
 
 	return readl_poll_timeout(ispi->sregs + SSFSTS_CTL, val,
-				  !(val & SSFSTS_CTL_SCIP), 40,
+				  !(val & SSFSTS_CTL_SCIP), 0,
 				  INTEL_SPI_TIMEOUT * 1000);
 }
 
@@ -611,6 +611,15 @@ static int intel_spi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
 		ispi->atomic_preopcode = opcode;
 		return 0;
 	}
+
+	/*
+	 * We hope that HW sequencer will do the right thing automatically and
+	 * with the SW sequencer we cannot use preopcode anyway, so just ignore
+	 * the Write Disable operation and pretend it was completed
+	 * successfully.
+	 */
+	if (opcode == SPINOR_OP_WRDI)
+		return 0;
 
 	writel(0, ispi->base + FADDR);
 

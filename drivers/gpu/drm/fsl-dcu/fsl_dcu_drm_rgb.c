@@ -40,10 +40,7 @@ int fsl_dcu_drm_encoder_create(struct fsl_dcu_drm_device *fsl_dev,
 
 static void fsl_dcu_drm_connector_destroy(struct drm_connector *connector)
 {
-	struct fsl_dcu_drm_connector *fsl_con = to_fsl_dcu_connector(connector);
-
 	drm_connector_unregister(connector);
-	drm_panel_detach(fsl_con->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -100,12 +97,6 @@ static int fsl_dcu_attach_panel(struct fsl_dcu_drm_device *fsl_dev,
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		goto err_sysfs;
-
-	ret = drm_panel_attach(panel, connector);
-	if (ret) {
-		dev_err(fsl_dev->dev, "failed to attach panel\n");
-		goto err_sysfs;
-	}
 
 	return 0;
 

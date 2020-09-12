@@ -31,7 +31,7 @@ static void wake_up_event_readers(struct service_processor *sp)
                 wake_up_interruptible(&reader->wait);
 }
 
-/**
+/*
  * receive_event
  * Called by the interrupt handler when a dot command of type sp_event is
  * received.
@@ -68,7 +68,7 @@ static inline int event_available(struct event_buffer *b, struct event_reader *r
 	return (r->next_serial_number < b->next_serial_number);
 }
 
-/**
+/*
  * get_next_event
  * Called by event readers (initiated from user space through the file
  * system).

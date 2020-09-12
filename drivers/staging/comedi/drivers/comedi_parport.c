@@ -300,6 +300,6 @@ static struct comedi_driver parport_driver = {
 };
 module_comedi_driver(parport_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi: Standard parallel port driver");
 MODULE_LICENSE("GPL");

@@ -25,7 +25,6 @@
 #include <soc/mscc/ocelot.h>
 #include "ocelot_rew.h"
 #include "ocelot_qs.h"
-#include "ocelot_tc.h"
 
 #define OCELOT_BUFFER_CELL_SZ 60
 
@@ -47,6 +46,14 @@ struct ocelot_multicast {
 	unsigned char addr[ETH_ALEN];
 	u16 vid;
 	u16 ports;
+	int pgid;
+};
+
+struct ocelot_port_tc {
+	bool block_shared;
+	unsigned long offload_cnt;
+
+	unsigned long police_id;
 };
 
 struct ocelot_port_private {
@@ -60,15 +67,42 @@ struct ocelot_port_private {
 	struct ocelot_port_tc tc;
 };
 
+struct ocelot_dump_ctx {
+	struct net_device *dev;
+	struct sk_buff *skb;
+	struct netlink_callback *cb;
+	int idx;
+};
+
+/* MAC table entry types.
+ * ENTRYTYPE_NORMAL is subject to aging.
+ * ENTRYTYPE_LOCKED is not subject to aging.
+ * ENTRYTYPE_MACv4 is not subject to aging. For IPv4 multicast.
+ * ENTRYTYPE_MACv6 is not subject to aging. For IPv6 multicast.
+ */
+enum macaccess_entry_type {
+	ENTRYTYPE_NORMAL = 0,
+	ENTRYTYPE_LOCKED,
+	ENTRYTYPE_MACv4,
+	ENTRYTYPE_MACv6,
+};
+
+int ocelot_port_fdb_do_dump(const unsigned char *addr, u16 vid,
+			    bool is_static, void *data);
+int ocelot_mact_learn(struct ocelot *ocelot, int port,
+		      const unsigned char mac[ETH_ALEN],
+		      unsigned int vid, enum macaccess_entry_type type);
+int ocelot_mact_forget(struct ocelot *ocelot,
+		       const unsigned char mac[ETH_ALEN], unsigned int vid);
+int ocelot_port_lag_join(struct ocelot *ocelot, int port,
+			 struct net_device *bond);
+void ocelot_port_lag_leave(struct ocelot *ocelot, int port,
+			   struct net_device *bond);
+
 u32 ocelot_port_readl(struct ocelot_port *port, u32 reg);
 void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg);
 
-#define ocelot_field_write(ocelot, reg, val) regmap_field_write((ocelot)->regfields[(reg)], (val))
-#define ocelot_field_read(ocelot, reg, val) regmap_field_read((ocelot)->regfields[(reg)], (val))
-
-int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops);
-int ocelot_probe_port(struct ocelot *ocelot, u8 port,
-		      void __iomem *regs,
+int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 		      struct phy_device *phy);
 
 void ocelot_set_cpu_port(struct ocelot *ocelot, int cpu,
@@ -78,8 +112,5 @@ void ocelot_set_cpu_port(struct ocelot *ocelot, int cpu,
 extern struct notifier_block ocelot_netdevice_nb;
 extern struct notifier_block ocelot_switchdev_nb;
 extern struct notifier_block ocelot_switchdev_blocking_nb;
-
-#define ocelot_field_write(ocelot, reg, val) regmap_field_write((ocelot)->regfields[(reg)], (val))
-#define ocelot_field_read(ocelot, reg, val) regmap_field_read((ocelot)->regfields[(reg)], (val))
 
 #endif

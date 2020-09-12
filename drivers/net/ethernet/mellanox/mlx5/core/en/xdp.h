@@ -32,6 +32,8 @@
 #ifndef __MLX5_EN_XDP_H__
 #define __MLX5_EN_XDP_H__
 
+#include <linux/indirect_call_wrapper.h>
+
 #include "en.h"
 #include "en/txrx.h"
 
@@ -69,6 +71,17 @@ void mlx5e_set_xmit_fp(struct mlx5e_xdpsq *sq, bool is_mpw);
 void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq);
 int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		   u32 flags);
+
+INDIRECT_CALLABLE_DECLARE(bool mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq,
+							  struct mlx5e_xdp_xmit_data *xdptxd,
+							  struct mlx5e_xdp_info *xdpi,
+							  int check_result));
+INDIRECT_CALLABLE_DECLARE(bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq,
+						    struct mlx5e_xdp_xmit_data *xdptxd,
+						    struct mlx5e_xdp_info *xdpi,
+						    int check_result));
+INDIRECT_CALLABLE_DECLARE(int mlx5e_xmit_xdp_frame_check_mpwqe(struct mlx5e_xdpsq *sq));
+INDIRECT_CALLABLE_DECLARE(int mlx5e_xmit_xdp_frame_check(struct mlx5e_xdpsq *sq));
 
 static inline void mlx5e_xdp_tx_enable(struct mlx5e_priv *priv)
 {

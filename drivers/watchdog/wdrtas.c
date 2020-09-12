@@ -332,7 +332,7 @@ static long wdrtas_ioctl(struct file *file, unsigned int cmd,
 			wdrtas_interval = i;
 		else
 			wdrtas_interval = wdrtas_get_interval(i);
-		/* fallthrough */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(wdrtas_interval, argp);

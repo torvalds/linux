@@ -93,6 +93,7 @@ static const char *const hwcap_str[] = {
 	"dgh",
 	"rng",
 	"bti",
+	/* reserved for "mte" */
 	NULL
 };
 
@@ -326,7 +327,6 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 		set_bit(ICACHEF_VPIPT, &__icache_flags);
 		break;
 	default:
-		/* Fallthrough */
 	case ICACHE_POLICY_VIPT:
 		/* Assume aliasing */
 		set_bit(ICACHEF_ALIASING, &__icache_flags);

@@ -152,7 +152,7 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 		dev_warn(adev->dev,
 			 "Invalid sdma engine id (%d), using engine id 0\n",
 			 engine_id);
-		/* fall through */
+		fallthrough;
 	case 0:
 		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA0, 0,
 				mmSDMA0_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL;
@@ -822,7 +822,6 @@ const struct kfd2kgd_calls gfx_v10_3_kfd2kgd = {
 	.address_watch_get_offset = address_watch_get_offset_v10_3,
 	.get_atc_vmid_pasid_mapping_info = NULL,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base_v10_3,
-	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 #if 0
 	.enable_debug_trap = enable_debug_trap_v10_3,
 	.disable_debug_trap = disable_debug_trap_v10_3,

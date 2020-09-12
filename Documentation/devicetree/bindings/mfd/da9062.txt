@@ -1,8 +1,8 @@
 * Dialog DA9062 Power Management Integrated Circuit (PMIC)
 
 Product information for the DA9062 and DA9061 devices can be found here:
-- http://www.dialog-semiconductor.com/products/da9062
-- http://www.dialog-semiconductor.com/products/da9061
+- https://www.dialog-semiconductor.com/products/da9062
+- https://www.dialog-semiconductor.com/products/da9061
 
 The DA9062 PMIC consists of:
 

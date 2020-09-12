@@ -228,8 +228,7 @@ static int altera_msi_probe(struct platform_device *pdev)
 	mutex_init(&msi->lock);
 	msi->pdev = pdev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csr");
-	msi->csr_base = devm_ioremap_resource(&pdev->dev, res);
+	msi->csr_base = devm_platform_ioremap_resource_byname(pdev, "csr");
 	if (IS_ERR(msi->csr_base)) {
 		dev_err(&pdev->dev, "failed to map csr memory\n");
 		return PTR_ERR(msi->csr_base);
@@ -256,7 +255,6 @@ static int altera_msi_probe(struct platform_device *pdev)
 
 	msi->irq = platform_get_irq(pdev, 0);
 	if (msi->irq < 0) {
-		dev_err(&pdev->dev, "failed to map IRQ: %d\n", msi->irq);
 		ret = msi->irq;
 		goto err;
 	}

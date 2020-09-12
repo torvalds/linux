@@ -86,8 +86,7 @@ struct specific_device_id {
 
 };
 
-struct registry_priv
-{
+struct registry_priv {
 	u8 chip_version;
 	u8 rfintfs;
 	u8 lbkmode;
@@ -418,8 +417,7 @@ struct cam_entry_cache {
 	((u8 *)(x))[6], ((u8 *)(x))[7], ((u8 *)(x))[8], ((u8 *)(x))[9], ((u8 *)(x))[10], ((u8 *)(x))[11], \
 	((u8 *)(x))[12], ((u8 *)(x))[13], ((u8 *)(x))[14], ((u8 *)(x))[15]
 
-struct dvobj_priv
-{
+struct dvobj_priv {
 	/*-------- below is common data --------*/
 	struct adapter *if1; /* PRIMARY_ADAPTER */
 	struct adapter *if2; /* SECONDARY_ADAPTER */

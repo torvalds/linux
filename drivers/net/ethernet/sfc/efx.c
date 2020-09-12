@@ -25,6 +25,7 @@
 #include "efx.h"
 #include "efx_common.h"
 #include "efx_channels.h"
+#include "ef100.h"
 #include "rx_common.h"
 #include "tx_common.h"
 #include "nic.h"
@@ -38,31 +39,16 @@
 
 /**************************************************************************
  *
- * Type name strings
- *
- **************************************************************************
- */
-
-/* UDP tunnel type names */
-static const char *const efx_udp_tunnel_type_names[] = {
-	[TUNNEL_ENCAP_UDP_PORT_ENTRY_VXLAN] = "vxlan",
-	[TUNNEL_ENCAP_UDP_PORT_ENTRY_GENEVE] = "geneve",
-};
-
-void efx_get_udp_tunnel_type_name(u16 type, char *buf, size_t buflen)
-{
-	if (type < ARRAY_SIZE(efx_udp_tunnel_type_names) &&
-	    efx_udp_tunnel_type_names[type] != NULL)
-		snprintf(buf, buflen, "%s", efx_udp_tunnel_type_names[type]);
-	else
-		snprintf(buf, buflen, "type %d", type);
-}
-
-/**************************************************************************
- *
  * Configurable values
  *
  *************************************************************************/
+
+module_param_named(interrupt_mode, efx_interrupt_mode, uint, 0444);
+MODULE_PARM_DESC(interrupt_mode,
+		 "Interrupt mode (0=>MSIX 1=>MSI 2=>legacy)");
+
+module_param(rss_cpus, uint, 0444);
+MODULE_PARM_DESC(rss_cpus, "Number of CPUs to use for Receive-Side Scaling");
 
 /*
  * Use separate channels for TX and RX events
@@ -133,30 +119,6 @@ static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
  *
  **************************************************************************/
 
-/* Equivalent to efx_link_set_advertising with all-zeroes, except does not
- * force the Autoneg bit on.
- */
-void efx_link_clear_advertising(struct efx_nic *efx)
-{
-	bitmap_zero(efx->link_advertising, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
-}
-
-void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
-{
-	efx->wanted_fc = wanted_fc;
-	if (efx->link_advertising[0]) {
-		if (wanted_fc & EFX_FC_RX)
-			efx->link_advertising[0] |= (ADVERTISED_Pause |
-						     ADVERTISED_Asym_Pause);
-		else
-			efx->link_advertising[0] &= ~(ADVERTISED_Pause |
-						      ADVERTISED_Asym_Pause);
-		if (wanted_fc & EFX_FC_TX)
-			efx->link_advertising[0] ^= ADVERTISED_Asym_Pause;
-	}
-}
-
 static void efx_fini_port(struct efx_nic *efx);
 
 static int efx_probe_port(struct efx_nic *efx)
@@ -192,10 +154,6 @@ static int efx_init_port(struct efx_nic *efx)
 		goto fail1;
 
 	efx->port_initialized = true;
-
-	/* Reconfigure the MAC before creating dma queues (required for
-	 * Falcon/A1 where RX_INGR_EN/TX_DRAIN_EN isn't supported) */
-	efx_mac_reconfigure(efx);
 
 	/* Ensure the PHY advertises the correct flow control settings */
 	rc = efx->phy_op->reconfigure(efx);
@@ -357,9 +315,6 @@ static int efx_probe_nic(struct efx_nic *efx)
 				    sizeof(efx->rss_context.rx_hash_key));
 	efx_set_default_rx_indir_table(efx, &efx->rss_context);
 
-	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
-	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
-
 	/* Initialise the interrupt moderation settings */
 	efx->irq_mod_step_us = DIV_ROUND_UP(efx->timer_quantum_ns, 1000);
 	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true,
@@ -409,7 +364,6 @@ static int efx_probe_all(struct efx_nic *efx)
 		rc = -EINVAL;
 		goto fail3;
 	}
-	efx->rxq_entries = efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 
 #ifdef CONFIG_SFC_SRIOV
 	rc = efx->type->vswitching_probe(efx);
@@ -617,109 +571,6 @@ int efx_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
-/* Context: netif_tx_lock held, BHs disabled. */
-static void efx_watchdog(struct net_device *net_dev, unsigned int txqueue)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	netif_err(efx, tx_err, efx->net_dev,
-		  "TX stuck with port_enabled=%d: resetting channels\n",
-		  efx->port_enabled);
-
-	efx_schedule_reset(efx, RESET_TYPE_TX_WATCHDOG);
-}
-
-static int efx_set_mac_address(struct net_device *net_dev, void *data)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct sockaddr *addr = data;
-	u8 *new_addr = addr->sa_data;
-	u8 old_addr[6];
-	int rc;
-
-	if (!is_valid_ether_addr(new_addr)) {
-		netif_err(efx, drv, efx->net_dev,
-			  "invalid ethernet MAC address requested: %pM\n",
-			  new_addr);
-		return -EADDRNOTAVAIL;
-	}
-
-	/* save old address */
-	ether_addr_copy(old_addr, net_dev->dev_addr);
-	ether_addr_copy(net_dev->dev_addr, new_addr);
-	if (efx->type->set_mac_address) {
-		rc = efx->type->set_mac_address(efx);
-		if (rc) {
-			ether_addr_copy(net_dev->dev_addr, old_addr);
-			return rc;
-		}
-	}
-
-	/* Reconfigure the MAC */
-	mutex_lock(&efx->mac_lock);
-	efx_mac_reconfigure(efx);
-	mutex_unlock(&efx->mac_lock);
-
-	return 0;
-}
-
-/* Context: netif_addr_lock held, BHs disabled. */
-static void efx_set_rx_mode(struct net_device *net_dev)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	if (efx->port_enabled)
-		queue_work(efx->workqueue, &efx->mac_work);
-	/* Otherwise efx_start_port() will do this */
-}
-
-static int efx_set_features(struct net_device *net_dev, netdev_features_t data)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	int rc;
-
-	/* If disabling RX n-tuple filtering, clear existing filters */
-	if (net_dev->features & ~data & NETIF_F_NTUPLE) {
-		rc = efx->type->filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
-		if (rc)
-			return rc;
-	}
-
-	/* If Rx VLAN filter is changed, update filters via mac_reconfigure.
-	 * If rx-fcs is changed, mac_reconfigure updates that too.
-	 */
-	if ((net_dev->features ^ data) & (NETIF_F_HW_VLAN_CTAG_FILTER |
-					  NETIF_F_RXFCS)) {
-		/* efx_set_rx_mode() will schedule MAC work to update filters
-		 * when a new features are finally set in net_dev.
-		 */
-		efx_set_rx_mode(net_dev);
-	}
-
-	return 0;
-}
-
-static int efx_get_phys_port_id(struct net_device *net_dev,
-				struct netdev_phys_item_id *ppid)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	if (efx->type->get_phys_port_id)
-		return efx->type->get_phys_port_id(efx, ppid);
-	else
-		return -EOPNOTSUPP;
-}
-
-static int efx_get_phys_port_name(struct net_device *net_dev,
-				  char *name, size_t len)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	if (snprintf(name, len, "p%u", efx->port_num) >= len)
-		return -EINVAL;
-	return 0;
-}
-
 static int efx_vlan_rx_add_vid(struct net_device *net_dev, __be16 proto, u16 vid)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
@@ -738,52 +589,6 @@ static int efx_vlan_rx_kill_vid(struct net_device *net_dev, __be16 proto, u16 vi
 		return efx->type->vlan_rx_kill_vid(efx, proto, vid);
 	else
 		return -EOPNOTSUPP;
-}
-
-static int efx_udp_tunnel_type_map(enum udp_parsable_tunnel_type in)
-{
-	switch (in) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		return TUNNEL_ENCAP_UDP_PORT_ENTRY_VXLAN;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		return TUNNEL_ENCAP_UDP_PORT_ENTRY_GENEVE;
-	default:
-		return -1;
-	}
-}
-
-static void efx_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti)
-{
-	struct efx_nic *efx = netdev_priv(dev);
-	struct efx_udp_tunnel tnl;
-	int efx_tunnel_type;
-
-	efx_tunnel_type = efx_udp_tunnel_type_map(ti->type);
-	if (efx_tunnel_type < 0)
-		return;
-
-	tnl.type = (u16)efx_tunnel_type;
-	tnl.port = ti->port;
-
-	if (efx->type->udp_tnl_add_port)
-		(void)efx->type->udp_tnl_add_port(efx, tnl);
-}
-
-static void efx_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti)
-{
-	struct efx_nic *efx = netdev_priv(dev);
-	struct efx_udp_tunnel tnl;
-	int efx_tunnel_type;
-
-	efx_tunnel_type = efx_udp_tunnel_type_map(ti->type);
-	if (efx_tunnel_type < 0)
-		return;
-
-	tnl.type = (u16)efx_tunnel_type;
-	tnl.port = ti->port;
-
-	if (efx->type->udp_tnl_del_port)
-		(void)efx->type->udp_tnl_del_port(efx, tnl);
 }
 
 static const struct net_device_ops efx_netdev_ops = {
@@ -813,8 +618,8 @@ static const struct net_device_ops efx_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
 #endif
-	.ndo_udp_tunnel_add	= efx_udp_tunnel_add,
-	.ndo_udp_tunnel_del	= efx_udp_tunnel_del,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_xdp_xmit		= efx_xdp_xmit,
 	.ndo_bpf		= efx_xdp
 };
@@ -849,15 +654,10 @@ static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog)
 static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
 	struct efx_nic *efx = netdev_priv(dev);
-	struct bpf_prog *xdp_prog;
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return efx_xdp_setup_prog(efx, xdp->prog);
-	case XDP_QUERY_PROG:
-		xdp_prog = rtnl_dereference(efx->xdp_prog);
-		xdp->prog_id = xdp_prog ? xdp_prog->aux->id : 0;
-		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1098,7 +898,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	efx_pci_remove_main(efx);
 
-	efx_fini_io(efx, efx->type->mem_bar(efx));
+	efx_fini_io(efx);
 	netif_dbg(efx, drv, efx->net_dev, "shutdown successful\n");
 
 	efx_fini_struct(efx);
@@ -1366,7 +1166,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
  fail3:
-	efx_fini_io(efx, efx->type->mem_bar(efx));
+	efx_fini_io(efx);
  fail2:
 	efx_fini_struct(efx);
  fail1:
@@ -1514,97 +1314,6 @@ static const struct dev_pm_ops efx_pm_ops = {
 	.restore	= efx_pm_resume,
 };
 
-/* A PCI error affecting this device was detected.
- * At this point MMIO and DMA may be disabled.
- * Stop the software path and request a slot reset.
- */
-static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
-					      enum pci_channel_state state)
-{
-	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	struct efx_nic *efx = pci_get_drvdata(pdev);
-
-	if (state == pci_channel_io_perm_failure)
-		return PCI_ERS_RESULT_DISCONNECT;
-
-	rtnl_lock();
-
-	if (efx->state != STATE_DISABLED) {
-		efx->state = STATE_RECOVERY;
-		efx->reset_pending = 0;
-
-		efx_device_detach_sync(efx);
-
-		efx_stop_all(efx);
-		efx_disable_interrupts(efx);
-
-		status = PCI_ERS_RESULT_NEED_RESET;
-	} else {
-		/* If the interface is disabled we don't want to do anything
-		 * with it.
-		 */
-		status = PCI_ERS_RESULT_RECOVERED;
-	}
-
-	rtnl_unlock();
-
-	pci_disable_device(pdev);
-
-	return status;
-}
-
-/* Fake a successful reset, which will be performed later in efx_io_resume. */
-static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
-{
-	struct efx_nic *efx = pci_get_drvdata(pdev);
-	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-
-	if (pci_enable_device(pdev)) {
-		netif_err(efx, hw, efx->net_dev,
-			  "Cannot re-enable PCI device after reset.\n");
-		status =  PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	return status;
-}
-
-/* Perform the actual reset and resume I/O operations. */
-static void efx_io_resume(struct pci_dev *pdev)
-{
-	struct efx_nic *efx = pci_get_drvdata(pdev);
-	int rc;
-
-	rtnl_lock();
-
-	if (efx->state == STATE_DISABLED)
-		goto out;
-
-	rc = efx_reset(efx, RESET_TYPE_ALL);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev,
-			  "efx_reset failed after PCI error (%d)\n", rc);
-	} else {
-		efx->state = STATE_READY;
-		netif_dbg(efx, hw, efx->net_dev,
-			  "Done resetting and resuming IO after PCI error.\n");
-	}
-
-out:
-	rtnl_unlock();
-}
-
-/* For simplicity and reliability, we always require a slot reset and try to
- * reset the hardware when a pci error affecting the device is detected.
- * We leave both the link_reset and mmio_enabled callback unimplemented:
- * with our request for slot reset the mmio_enabled callback will never be
- * called, and the link_reset callback is not used by AER or EEH mechanisms.
- */
-static const struct pci_error_handlers efx_err_handlers = {
-	.error_detected = efx_io_error_detected,
-	.slot_reset	= efx_io_slot_reset,
-	.resume		= efx_io_resume,
-};
-
 static struct pci_driver efx_pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= efx_pci_table,
@@ -1647,8 +1356,14 @@ static int __init efx_init_module(void)
 	if (rc < 0)
 		goto err_pci;
 
+	rc = pci_register_driver(&ef100_pci_driver);
+	if (rc < 0)
+		goto err_pci_ef100;
+
 	return 0;
 
+ err_pci_ef100:
+	pci_unregister_driver(&efx_pci_driver);
  err_pci:
 	efx_destroy_reset_workqueue();
  err_reset:
@@ -1665,6 +1380,7 @@ static void __exit efx_exit_module(void)
 {
 	printk(KERN_INFO "Solarflare NET driver unloading\n");
 
+	pci_unregister_driver(&ef100_pci_driver);
 	pci_unregister_driver(&efx_pci_driver);
 	efx_destroy_reset_workqueue();
 #ifdef CONFIG_SFC_SRIOV

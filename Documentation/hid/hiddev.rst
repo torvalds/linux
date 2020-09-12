@@ -65,7 +65,7 @@ The HIDDEV API
 ==============
 
 This description should be read in conjunction with the HID
-specification, freely available from http://www.usb.org, and
+specification, freely available from https://www.usb.org, and
 conveniently linked of http://www.linux-usb.org.
 
 The hiddev API uses a read() interface, and a set of ioctl() calls.

@@ -43,7 +43,7 @@ void nft_cmp_eval(const struct nft_expr *expr,
 	case NFT_CMP_LT:
 		if (d == 0)
 			goto mismatch;
-		/* fall through */
+		fallthrough;
 	case NFT_CMP_LTE:
 		if (d > 0)
 			goto mismatch;
@@ -51,7 +51,7 @@ void nft_cmp_eval(const struct nft_expr *expr,
 	case NFT_CMP_GT:
 		if (d == 0)
 			goto mismatch;
-		/* fall through */
+		fallthrough;
 	case NFT_CMP_GTE:
 		if (d < 0)
 			goto mismatch;

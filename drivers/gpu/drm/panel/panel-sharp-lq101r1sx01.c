@@ -325,7 +325,9 @@ static int sharp_panel_add(struct sharp_panel *sharp)
 	if (ret)
 		return ret;
 
-	return drm_panel_add(&sharp->base);
+	drm_panel_add(&sharp->base);
+
+	return 0;
 }
 
 static void sharp_panel_del(struct sharp_panel *sharp)

@@ -48,7 +48,6 @@ struct wfx_dev {
 	struct mutex		conf_mutex;
 
 	struct wfx_hif_cmd	hif_cmd;
-	struct wfx_queue	tx_queue[4];
 	struct sk_buff_head	tx_pending;
 	wait_queue_head_t	tx_dequeue;
 	atomic_t		tx_lock;
@@ -60,6 +59,7 @@ struct wfx_dev {
 	struct mutex		rx_stats_lock;
 	struct hif_tx_power_loop_info tx_power_loop_info;
 	struct mutex		tx_power_loop_info_lock;
+	int			force_ps_timeout;
 };
 
 struct wfx_vif {
@@ -75,6 +75,7 @@ struct wfx_vif {
 
 	struct delayed_work	beacon_loss_work;
 
+	struct wfx_queue	tx_queue[4];
 	struct tx_policy_cache	tx_policy_cache;
 	struct work_struct	tx_policy_upload_work;
 
@@ -92,8 +93,6 @@ struct wfx_vif {
 	bool			scan_abort;
 	struct ieee80211_scan_request *scan_req;
 
-	bool			bss_not_support_ps_poll;
-	struct work_struct	update_pm_work;
 	struct completion	set_pm_mode_complete;
 };
 

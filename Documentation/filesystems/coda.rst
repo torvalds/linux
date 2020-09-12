@@ -524,7 +524,7 @@ kernel support.
 
   Description
     This call is made to determine the ViceFid and filetype of
-    a directory entry.  The directory entry requested carries name name
+    a directory entry.  The directory entry requested carries name 'name'
     and Venus will search the directory identified by cfs_lookup_in.VFid.
     The result may indicate that the name does not exist, or that
     difficulty was encountered in finding it (e.g. due to disconnection).
@@ -886,7 +886,7 @@ kernel support.
 	none
 
   Description
-    Remove the directory with name name from the directory
+    Remove the directory with name 'name' from the directory
     identified by VFid.
 
   .. Note:: The attributes of the parent directory should be returned since

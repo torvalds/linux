@@ -217,7 +217,7 @@ static int acp3x_dma_open(struct snd_soc_component *component,
 	int ret;
 
 	runtime = substream->runtime;
-	prtd = substream->private_data;
+	prtd = asoc_substream_to_rtd(substream);
 	component = snd_soc_rtdcom_lookup(prtd, DRV_NAME);
 	adata = dev_get_drvdata(component->dev);
 	i2s_data = kzalloc(sizeof(*i2s_data), GFP_KERNEL);
@@ -238,7 +238,7 @@ static int acp3x_dma_open(struct snd_soc_component *component,
 	}
 
 	if (!adata->play_stream && !adata->capture_stream &&
-		adata->i2ssp_play_stream && !adata->i2ssp_capture_stream)
+	    !adata->i2ssp_play_stream && !adata->i2ssp_capture_stream)
 		rv_writel(1, adata->acp3x_base + mmACP_EXTERNAL_INTR_ENB);
 
 	i2s_data->acp3x_base = adata->acp3x_base;
@@ -258,7 +258,7 @@ static int acp3x_dma_hw_params(struct snd_soc_component *component,
 	struct i2s_dev_data *adata;
 	u64 size;
 
-	prtd = substream->private_data;
+	prtd = asoc_substream_to_rtd(substream);
 	card = prtd->card;
 	pinfo = snd_soc_card_get_drvdata(card);
 	adata = dev_get_drvdata(component->dev);
@@ -301,15 +301,11 @@ static int acp3x_dma_hw_params(struct snd_soc_component *component,
 static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_soc_component *component,
 					   struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *prtd;
-	struct snd_soc_card *card;
 	struct i2s_stream_instance *rtd;
 	u32 pos;
 	u32 buffersize;
 	u64 bytescount;
 
-	prtd = substream->private_data;
-	card = prtd->card;
 	rtd = substream->runtime->private_data;
 
 	buffersize = frames_to_bytes(substream->runtime,
@@ -344,7 +340,7 @@ static int acp3x_dma_close(struct snd_soc_component *component,
 	struct i2s_dev_data *adata;
 	struct i2s_stream_instance *ins;
 
-	prtd = substream->private_data;
+	prtd = asoc_substream_to_rtd(substream);
 	component = snd_soc_rtdcom_lookup(prtd, DRV_NAME);
 	adata = dev_get_drvdata(component->dev);
 	ins = substream->runtime->private_data;

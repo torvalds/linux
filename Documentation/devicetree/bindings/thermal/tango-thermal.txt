@@ -4,7 +4,7 @@ The SMP8758 SoC includes 3 instances of this temperature sensor
 (in the CPU, video decoder, and PCIe controller).
 
 Required properties:
-- #thermal-sensor-cells: Should be 0 (see thermal.txt)
+- #thermal-sensor-cells: Should be 0 (see Documentation/devicetree/bindings/thermal/thermal-sensor.yaml)
 - compatible: "sigma,smp8758-thermal"
 - reg: Address range of the thermal registers
 

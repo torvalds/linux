@@ -1062,6 +1062,7 @@ EXPORT_SYMBOL_GPL(__of_phy_provider_register);
  * __devm_of_phy_provider_register() - create/register phy provider with the
  * framework
  * @dev: struct device of the phy provider
+ * @children: device node containing children (if different from dev->of_node)
  * @owner: the module owner containing of_xlate
  * @of_xlate: function pointer to obtain phy instance from phy provider
  *
@@ -1117,12 +1118,14 @@ EXPORT_SYMBOL_GPL(of_phy_provider_unregister);
 /**
  * devm_of_phy_provider_unregister() - remove phy provider from the framework
  * @dev: struct device of the phy provider
+ * @phy_provider: phy provider returned by of_phy_provider_register()
  *
  * destroys the devres associated with this phy provider and invokes
  * of_phy_provider_unregister to unregister the phy provider.
  */
 void devm_of_phy_provider_unregister(struct device *dev,
-	struct phy_provider *phy_provider) {
+	struct phy_provider *phy_provider)
+{
 	int r;
 
 	r = devres_destroy(dev, devm_phy_provider_release, devm_phy_match,

@@ -12,7 +12,7 @@
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_ehl_machines[] = {
 	{
-		.id = "INTC1027",
+		.id = "10EC5660",
 		.drv_name = "ehl_rt5660",
 		.sof_fw_filename = "sof-ehl.ri",
 		.sof_tplg_filename = "sof-ehl-rt5660.tplg",

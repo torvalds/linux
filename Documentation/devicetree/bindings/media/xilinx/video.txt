@@ -32,4 +32,4 @@ The following properties are common to all Xilinx video IP cores.
   defaults to "mono".
 
 
-[UG934] http://www.xilinx.com/support/documentation/ip_documentation/axi_videoip/v1_0/ug934_axi_videoIP.pdf
+[UG934] https://www.xilinx.com/support/documentation/ip_documentation/axi_videoip/v1_0/ug934_axi_videoIP.pdf

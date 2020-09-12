@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: none
 
-    Datasheet: http://www.sensirion.com/file/datasheet_shtc1
+    Datasheet: https://www.sensirion.com/file/datasheet_shtc1
 
 
 
@@ -19,7 +19,7 @@ Supported chips:
 
     Addresses scanned: none
 
-    Datasheet: http://www.sensirion.com/file/datasheet_shtw1
+    Datasheet: https://www.sensirion.com/file/datasheet_shtw1
 
 
 
@@ -29,7 +29,7 @@ Supported chips:
 
     Addresses scanned: none
 
-    Datasheet: http://www.sensirion.com/file/datasheet_shtc3
+    Datasheet: https://www.sensirion.com/file/datasheet_shtc3
 
 
 

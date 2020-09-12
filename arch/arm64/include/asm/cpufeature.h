@@ -692,6 +692,12 @@ static inline bool system_supports_bti(void)
 	return IS_ENABLED(CONFIG_ARM64_BTI) && cpus_have_const_cap(ARM64_BTI);
 }
 
+static inline bool system_supports_tlb_range(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_TLB_RANGE) &&
+		cpus_have_const_cap(ARM64_HAS_TLB_RANGE);
+}
+
 #define ARM64_BP_HARDEN_UNKNOWN		-1
 #define ARM64_BP_HARDEN_WA_NEEDED	0
 #define ARM64_BP_HARDEN_NOT_REQUIRED	1
@@ -774,6 +780,7 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 }
 
 u32 get_kvm_ipa_limit(void);
+void dump_cpu_features(void);
 
 #endif /* __ASSEMBLY__ */
 

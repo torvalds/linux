@@ -61,7 +61,7 @@ static void async_pf_execute(struct work_struct *work)
 	 * access remotely.
 	 */
 	mmap_read_lock(mm);
-	get_user_pages_remote(NULL, mm, addr, 1, FOLL_WRITE, NULL, NULL,
+	get_user_pages_remote(mm, addr, 1, FOLL_WRITE, NULL, NULL,
 			&locked);
 	if (locked)
 		mmap_read_unlock(mm);
@@ -156,17 +156,21 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 	}
 }
 
-int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
-		       unsigned long hva, struct kvm_arch_async_pf *arch)
+/*
+ * Try to schedule a job to handle page fault asynchronously. Returns 'true' on
+ * success, 'false' on failure (page fault has to be handled synchronously).
+ */
+bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+			unsigned long hva, struct kvm_arch_async_pf *arch)
 {
 	struct kvm_async_pf *work;
 
 	if (vcpu->async_pf.queued >= ASYNC_PF_PER_VCPU)
-		return 0;
+		return false;
 
 	/* Arch specific code should not do async PF in this case */
 	if (unlikely(kvm_is_error_hva(hva)))
-		return 0;
+		return false;
 
 	/*
 	 * do alloc nowait since if we are going to sleep anyway we
@@ -174,7 +178,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	 */
 	work = kmem_cache_zalloc(async_pf_cache, GFP_NOWAIT | __GFP_NOWARN);
 	if (!work)
-		return 0;
+		return false;
 
 	work->wakeup_all = false;
 	work->vcpu = vcpu;
@@ -193,7 +197,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 
 	schedule_work(&work->work);
 
-	return 1;
+	return true;
 }
 
 int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)

@@ -78,6 +78,7 @@
 #include <linux/namei.h>
 #include <linux/capability.h>
 #include <linux/quotaops.h>
+#include <linux/blkdev.h>
 #include "../internal.h" /* ugh */
 
 #include <linux/uaccess.h>

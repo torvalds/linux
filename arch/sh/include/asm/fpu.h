@@ -37,11 +37,6 @@ struct user_regset;
 extern int do_fpu_inst(unsigned short, struct pt_regs *);
 extern int init_fpu(struct task_struct *);
 
-extern int fpregs_get(struct task_struct *target,
-		      const struct user_regset *regset,
-		      unsigned int pos, unsigned int count,
-		      void *kbuf, void __user *ubuf);
-
 static inline void __unlazy_fpu(struct task_struct *tsk, struct pt_regs *regs)
 {
 	if (task_thread_info(tsk)->status & TS_USEDFPU) {

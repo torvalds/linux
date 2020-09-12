@@ -186,9 +186,9 @@ struct sca3000_state {
  * @option_mode_2_freq:		option mode 2 sampling frequency
  * @option_mode_2_3db_freq:	3db cutoff frequency of the low pass filter for
  * the second option mode.
- * @mod_det_mult_xz:		Bit wise multipliers to calculate the threshold
+ * @mot_det_mult_xz:		Bit wise multipliers to calculate the threshold
  * for motion detection in the x and z axis.
- * @mod_det_mult_y:		Bit wise multipliers to calculate the threshold
+ * @mot_det_mult_y:		Bit wise multipliers to calculate the threshold
  * for motion detection in the y axis.
  *
  * This structure is used to hold information about the functionality of a given
@@ -859,9 +859,9 @@ error_ret:
  */
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(sca3000_read_av_freq);
 
-/**
+/*
  * sca3000_read_event_value() - query of a threshold or period
- **/
+ */
 static int sca3000_read_event_value(struct iio_dev *indio_dev,
 				    const struct iio_chan_spec *chan,
 				    enum iio_event_type type,
@@ -1100,9 +1100,9 @@ done:
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * sca3000_read_event_config() what events are enabled
- **/
+ */
 static int sca3000_read_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
@@ -1467,7 +1467,6 @@ static int sca3000_probe(struct spi_device *spi)
 	st->info = &sca3000_spi_chip_info_tbl[spi_get_device_id(spi)
 					      ->driver_data];
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &sca3000_info;
 	if (st->info->temp_output) {

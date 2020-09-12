@@ -40,7 +40,9 @@ struct devlink {
 	struct xarray snapshot_ids;
 	struct device *dev;
 	possible_net_t _net;
-	struct mutex lock;
+	struct mutex lock; /* Serializes access to devlink instance specific objects such as
+			    * port, sb, dpipe, resource, params, region, traps and more.
+			    */
 	u8 reload_failed:1,
 	   reload_enabled:1,
 	   registered:1;
@@ -52,7 +54,7 @@ struct devlink_port_phys_attrs {
 			  * A physical port which is visible to the user
 			  * for a given port flavour.
 			  */
-	u32 split_subport_number;
+	u32 split_subport_number; /* If the port is split, this is the number of subport. */
 };
 
 struct devlink_port_pci_pf_attrs {
@@ -64,10 +66,18 @@ struct devlink_port_pci_vf_attrs {
 	u16 vf;	/* Associated PCI VF for of the PCI PF for this port. */
 };
 
+/**
+ * struct devlink_port_attrs - devlink port object
+ * @flavour: flavour of the port
+ * @split: indicates if this is split port
+ * @splittable: indicates if the port can be split.
+ * @lanes: maximum number of lanes the port supports. 0 value is not passed to netlink.
+ * @switch_id: if the port is part of switch, this is buffer with ID, otherwise this is NULL
+ */
 struct devlink_port_attrs {
-	u8 set:1,
-	   split:1,
-	   switch_port:1;
+	u8 split:1,
+	   splittable:1;
+	u32 lanes;
 	enum devlink_port_flavour flavour;
 	struct netdev_phys_item_id switch_id;
 	union {
@@ -90,7 +100,11 @@ struct devlink_port {
 	enum devlink_port_type desired_type;
 	void *type_dev;
 	struct devlink_port_attrs attrs;
+	u8 attrs_set:1,
+	   switch_port:1;
 	struct delayed_work type_warn_dw;
+	struct list_head reporter_list;
+	struct mutex reporters_lock; /* Protects reporter_list */
 };
 
 struct devlink_sb_pool_info {
@@ -689,6 +703,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_PTP_GENERAL,
 	DEVLINK_TRAP_GENERIC_ID_FLOW_ACTION_SAMPLE,
 	DEVLINK_TRAP_GENERIC_ID_FLOW_ACTION_TRAP,
+	DEVLINK_TRAP_GENERIC_ID_EARLY_DROP,
 
 	/* Add new generic trap IDs above */
 	__DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -877,6 +892,8 @@ enum devlink_trap_group_generic_id {
 	"flow_action_sample"
 #define DEVLINK_TRAP_GENERIC_NAME_FLOW_ACTION_TRAP \
 	"flow_action_trap"
+#define DEVLINK_TRAP_GENERIC_NAME_EARLY_DROP \
+	"early_drop"
 
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
 	"l2_drops"
@@ -1060,7 +1077,8 @@ struct devlink_ops {
 	 */
 	int (*trap_action_set)(struct devlink *devlink,
 			       const struct devlink_trap *trap,
-			       enum devlink_trap_action action);
+			       enum devlink_trap_action action,
+			       struct netlink_ext_ack *extack);
 	/**
 	 * @trap_group_init: Trap group initialization function.
 	 *
@@ -1077,7 +1095,8 @@ struct devlink_ops {
 	 */
 	int (*trap_group_set)(struct devlink *devlink,
 			      const struct devlink_trap_group *group,
-			      const struct devlink_trap_policer *policer);
+			      const struct devlink_trap_policer *policer,
+			      struct netlink_ext_ack *extack);
 	/**
 	 * @trap_policer_init: Trap policer initialization function.
 	 *
@@ -1110,6 +1129,28 @@ struct devlink_ops {
 	int (*trap_policer_counter_get)(struct devlink *devlink,
 					const struct devlink_trap_policer *policer,
 					u64 *p_drops);
+	/**
+	 * @port_function_hw_addr_get: Port function's hardware address get function.
+	 *
+	 * Should be used by device drivers to report the hardware address of a function managed
+	 * by the devlink port. Driver should return -EOPNOTSUPP if it doesn't support port
+	 * function handling for a particular port.
+	 *
+	 * Note: @extack can be NULL when port notifier queries the port function.
+	 */
+	int (*port_function_hw_addr_get)(struct devlink *devlink, struct devlink_port *port,
+					 u8 *hw_addr, int *hw_addr_len,
+					 struct netlink_ext_ack *extack);
+	/**
+	 * @port_function_hw_addr_set: Port function's hardware address set function.
+	 *
+	 * Should be used by device drivers to set the hardware address of a function managed
+	 * by the devlink port. Driver should return -EOPNOTSUPP if it doesn't support port
+	 * function handling for a particular port.
+	 */
+	int (*port_function_hw_addr_set)(struct devlink *devlink, struct devlink_port *port,
+					 const u8 *hw_addr, int hw_addr_len,
+					 struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
@@ -1161,17 +1202,9 @@ void devlink_port_type_ib_set(struct devlink_port *devlink_port,
 			      struct ib_device *ibdev);
 void devlink_port_type_clear(struct devlink_port *devlink_port);
 void devlink_port_attrs_set(struct devlink_port *devlink_port,
-			    enum devlink_port_flavour flavour,
-			    u32 port_number, bool split,
-			    u32 split_subport_number,
-			    const unsigned char *switch_id,
-			    unsigned char switch_id_len);
-void devlink_port_attrs_pci_pf_set(struct devlink_port *devlink_port,
-				   const unsigned char *switch_id,
-				   unsigned char switch_id_len, u16 pf);
+			    struct devlink_port_attrs *devlink_port_attrs);
+void devlink_port_attrs_pci_pf_set(struct devlink_port *devlink_port, u16 pf);
 void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port,
-				   const unsigned char *switch_id,
-				   unsigned char switch_id_len,
 				   u16 pf, u16 vf);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
@@ -1265,6 +1298,8 @@ int devlink_info_serial_number_put(struct devlink_info_req *req,
 				   const char *sn);
 int devlink_info_driver_name_put(struct devlink_info_req *req,
 				 const char *name);
+int devlink_info_board_serial_number_put(struct devlink_info_req *req,
+					 const char *bsn);
 int devlink_info_version_fixed_put(struct devlink_info_req *req,
 				   const char *version_name,
 				   const char *version_value);
@@ -1313,8 +1348,17 @@ struct devlink_health_reporter *
 devlink_health_reporter_create(struct devlink *devlink,
 			       const struct devlink_health_reporter_ops *ops,
 			       u64 graceful_period, void *priv);
+
+struct devlink_health_reporter *
+devlink_port_health_reporter_create(struct devlink_port *port,
+				    const struct devlink_health_reporter_ops *ops,
+				    u64 graceful_period, void *priv);
+
 void
 devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
+
+void
+devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter);
 
 void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter);

@@ -58,6 +58,9 @@ returns the information to the application. The ioctl never fails.
       - The name of this CEC adapter. The combination ``driver`` and
 	``name`` must be unique.
     * - __u32
+      - ``available_log_addrs``
+      - The maximum number of logical addresses that can be configured.
+    * - __u32
       - ``capabilities``
       - The capabilities of the CEC adapter, see
 	:ref:`cec-capabilities`.

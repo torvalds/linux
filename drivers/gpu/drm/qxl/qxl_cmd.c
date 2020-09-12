@@ -588,7 +588,7 @@ static int qxl_reap_surf(struct qxl_device *qdev, struct qxl_bo *surf, bool stal
 {
 	int ret;
 
-	ret = qxl_bo_reserve(surf, false);
+	ret = qxl_bo_reserve(surf);
 	if (ret)
 		return ret;
 

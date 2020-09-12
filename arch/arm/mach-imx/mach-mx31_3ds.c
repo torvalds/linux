@@ -378,15 +378,6 @@ static struct imx_ssi_platform_data mx31_3ds_ssi_pdata = {
 	.flags = IMX_SSI_DMA | IMX_SSI_NET,
 };
 
-/* SPI */
-static const struct spi_imx_master spi0_pdata __initconst = {
-	.num_chipselect	= 3,
-};
-
-static const struct spi_imx_master spi1_pdata __initconst = {
-	.num_chipselect	= 3,
-};
-
 static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 	{
 		.modalias	= "mc13783",
@@ -561,14 +552,14 @@ static void __init mx31_3ds_init(void)
 	imx31_add_imx_uart0(&uart_pdata);
 	imx31_add_mxc_nand(&mx31_3ds_nand_board_info);
 
-	imx31_add_spi_imx1(&spi1_pdata);
+	imx31_add_spi_imx1(NULL);
 
 	imx31_add_imx_keypad(&mx31_3ds_keymap_data);
 
 	imx31_add_imx2_wdt();
 	imx31_add_imx_i2c0(&mx31_3ds_i2c0_data);
 
-	imx31_add_spi_imx0(&spi0_pdata);
+	imx31_add_spi_imx0(NULL);
 	imx31_add_ipu_core();
 	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 

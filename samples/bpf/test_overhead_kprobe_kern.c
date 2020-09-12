@@ -10,7 +10,12 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-#define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
+#define _(P)                                                                   \
+	({                                                                     \
+		typeof(P) val = 0;                                             \
+		bpf_probe_read_kernel(&val, sizeof(val), &(P));                \
+		val;                                                           \
+	})
 
 SEC("kprobe/__set_task_comm")
 int prog(struct pt_regs *ctx)
@@ -25,8 +30,9 @@ int prog(struct pt_regs *ctx)
 	tsk = (void *)PT_REGS_PARM1(ctx);
 
 	pid = _(tsk->pid);
-	bpf_probe_read(oldcomm, sizeof(oldcomm), &tsk->comm);
-	bpf_probe_read(newcomm, sizeof(newcomm), (void *)PT_REGS_PARM2(ctx));
+	bpf_probe_read_kernel(oldcomm, sizeof(oldcomm), &tsk->comm);
+	bpf_probe_read_kernel(newcomm, sizeof(newcomm),
+			      (void *)PT_REGS_PARM2(ctx));
 	signal = _(tsk->signal);
 	oom_score_adj = _(signal->oom_score_adj);
 	return 0;

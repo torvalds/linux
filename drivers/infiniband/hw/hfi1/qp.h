@@ -113,20 +113,6 @@ static inline void clear_ahg(struct rvt_qp *qp)
 }
 
 /**
- * hfi1_create_qp - create a queue pair for a device
- * @ibpd: the protection domain who's device we create the queue pair for
- * @init_attr: the attributes of the queue pair
- * @udata: user data for libibverbs.so
- *
- * Returns the queue pair on success, otherwise returns an errno.
- *
- * Called by the ib_create_qp() core verbs function.
- */
-struct ib_qp *hfi1_create_qp(struct ib_pd *ibpd,
-			     struct ib_qp_init_attr *init_attr,
-			     struct ib_udata *udata);
-
-/**
  * hfi1_qp_wakeup - wake up on the indicated event
  * @qp: the QP
  * @flag: flag the qp on which the qp is stalled

@@ -736,8 +736,8 @@ static void gpmi_nfc_apply_timings(struct gpmi_nand_data *this)
 	udelay(dll_wait_time_us);
 }
 
-static int gpmi_setup_data_interface(struct nand_chip *chip, int chipnr,
-				     const struct nand_data_interface *conf)
+static int gpmi_setup_interface(struct nand_chip *chip, int chipnr,
+				const struct nand_interface_config *conf)
 {
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	const struct nand_sdr_timings *sdr;
@@ -2400,7 +2400,7 @@ unmap:
 
 static const struct nand_controller_ops gpmi_nand_controller_ops = {
 	.attach_chip = gpmi_nand_attach_chip,
-	.setup_data_interface = gpmi_setup_data_interface,
+	.setup_interface = gpmi_setup_interface,
 	.exec_op = gpmi_nfc_exec_op,
 };
 

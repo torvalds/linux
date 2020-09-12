@@ -438,7 +438,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	struct mv_cesa_dev *cesa;
 	struct mv_cesa_engine *engines;
 	struct resource *res;
-	int irq, ret, i;
+	int irq, ret, i, cpu;
 	u32 sram_size;
 
 	if (cesa_dev) {
@@ -505,6 +505,8 @@ static int mv_cesa_probe(struct platform_device *pdev)
 			goto err_cleanup;
 		}
 
+		engine->irq = irq;
+
 		/*
 		 * Not all platforms can gate the CESA clocks: do not complain
 		 * if the clock does not exist.
@@ -548,6 +550,10 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_cleanup;
 
+		/* Set affinity */
+		cpu = cpumask_local_spread(engine->id, NUMA_NO_NODE);
+		irq_set_affinity_hint(irq, get_cpu_mask(cpu));
+
 		crypto_init_queue(&engine->queue, CESA_CRYPTO_DEFAULT_MAX_QLEN);
 		atomic_set(&engine->load, 0);
 		INIT_LIST_HEAD(&engine->complete_queue);
@@ -570,6 +576,8 @@ err_cleanup:
 		clk_disable_unprepare(cesa->engines[i].zclk);
 		clk_disable_unprepare(cesa->engines[i].clk);
 		mv_cesa_put_sram(pdev, i);
+		if (cesa->engines[i].irq > 0)
+			irq_set_affinity_hint(cesa->engines[i].irq, NULL);
 	}
 
 	return ret;
@@ -586,6 +594,7 @@ static int mv_cesa_remove(struct platform_device *pdev)
 		clk_disable_unprepare(cesa->engines[i].zclk);
 		clk_disable_unprepare(cesa->engines[i].clk);
 		mv_cesa_put_sram(pdev, i);
+		irq_set_affinity_hint(cesa->engines[i].irq, NULL);
 	}
 
 	return 0;

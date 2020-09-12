@@ -45,7 +45,7 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	if (adev->mode_info.num_crtc == 0)
 		adev->mode_info.num_crtc = 1;
 	adev->enable_virtual_display = true;
-	adev->ddev->driver->driver_features &= ~DRIVER_ATOMIC;
+	adev_to_drm(adev)->driver->driver_features &= ~DRIVER_ATOMIC;
 	adev->cg_flags = 0;
 	adev->pg_flags = 0;
 }
@@ -93,7 +93,7 @@ failed_undo:
 	amdgpu_ring_undo(ring);
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq:
-	pr_err("failed to write reg %x wait reg %x\n", reg0, reg1);
+	dev_err(adev->dev, "failed to write reg %x wait reg %x\n", reg0, reg1);
 }
 
 /**
@@ -401,7 +401,7 @@ static void amdgpu_virt_add_bad_page(struct amdgpu_device *adev,
 	if (bp_block_size) {
 		bp_cnt = bp_block_size / sizeof(uint64_t);
 		for (bp_idx = 0; bp_idx < bp_cnt; bp_idx++) {
-			retired_page = *(uint64_t *)(adev->fw_vram_usage.va +
+			retired_page = *(uint64_t *)(adev->mman.fw_vram_usage_va +
 					bp_block_offset + bp_idx * sizeof(uint64_t));
 			bp.retired_page = retired_page;
 
@@ -428,10 +428,10 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 	adev->virt.fw_reserve.p_pf2vf = NULL;
 	adev->virt.fw_reserve.p_vf2pf = NULL;
 
-	if (adev->fw_vram_usage.va != NULL) {
+	if (adev->mman.fw_vram_usage_va != NULL) {
 		adev->virt.fw_reserve.p_pf2vf =
 			(struct amd_sriov_msg_pf2vf_info_header *)(
-			adev->fw_vram_usage.va + AMDGIM_DATAEXCHANGE_OFFSET);
+			adev->mman.fw_vram_usage_va + AMDGIM_DATAEXCHANGE_OFFSET);
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, header.size, &pf2vf_size);
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, checksum, &checksum);
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, feature_flags, &adev->virt.gim_feature);

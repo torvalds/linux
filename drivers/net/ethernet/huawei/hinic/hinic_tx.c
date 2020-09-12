@@ -459,6 +459,67 @@ static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 	return 0;
 }
 
+netdev_tx_t hinic_lb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u16 prod_idx, q_id = skb->queue_mapping;
+	struct netdev_queue *netdev_txq;
+	int nr_sges, err = NETDEV_TX_OK;
+	struct hinic_sq_wqe *sq_wqe;
+	unsigned int wqe_size;
+	struct hinic_txq *txq;
+	struct hinic_qp *qp;
+
+	txq = &nic_dev->txqs[q_id];
+	qp = container_of(txq->sq, struct hinic_qp, sq);
+	nr_sges = skb_shinfo(skb)->nr_frags + 1;
+
+	err = tx_map_skb(nic_dev, skb, txq->sges);
+	if (err)
+		goto skb_error;
+
+	wqe_size = HINIC_SQ_WQE_SIZE(nr_sges);
+
+	sq_wqe = hinic_sq_get_wqe(txq->sq, wqe_size, &prod_idx);
+	if (!sq_wqe) {
+		netif_stop_subqueue(netdev, qp->q_id);
+
+		sq_wqe = hinic_sq_get_wqe(txq->sq, wqe_size, &prod_idx);
+		if (sq_wqe) {
+			netif_wake_subqueue(nic_dev->netdev, qp->q_id);
+			goto process_sq_wqe;
+		}
+
+		tx_unmap_skb(nic_dev, skb, txq->sges);
+
+		u64_stats_update_begin(&txq->txq_stats.syncp);
+		txq->txq_stats.tx_busy++;
+		u64_stats_update_end(&txq->txq_stats.syncp);
+		err = NETDEV_TX_BUSY;
+		wqe_size = 0;
+		goto flush_skbs;
+	}
+
+process_sq_wqe:
+	hinic_sq_prepare_wqe(txq->sq, prod_idx, sq_wqe, txq->sges, nr_sges);
+	hinic_sq_write_wqe(txq->sq, prod_idx, sq_wqe, skb, wqe_size);
+
+flush_skbs:
+	netdev_txq = netdev_get_tx_queue(netdev, q_id);
+	if ((!netdev_xmit_more()) || (netif_xmit_stopped(netdev_txq)))
+		hinic_sq_write_db(txq->sq, prod_idx, wqe_size, 0);
+
+	return err;
+
+skb_error:
+	dev_kfree_skb_any(skb);
+	u64_stats_update_begin(&txq->txq_stats.syncp);
+	txq->txq_stats.tx_dropped++;
+	u64_stats_update_end(&txq->txq_stats.syncp);
+
+	return NETDEV_TX_OK;
+}
+
 netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
@@ -718,11 +779,16 @@ static irqreturn_t tx_irq(int irq, void *data)
 static int tx_request_irq(struct hinic_txq *txq)
 {
 	struct hinic_dev *nic_dev = netdev_priv(txq->netdev);
+	struct hinic_msix_config interrupt_info = {0};
+	struct hinic_intr_coal_info *intr_coal = NULL;
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_sq *sq = txq->sq;
+	struct hinic_qp *qp;
 	int err;
+
+	qp = container_of(sq, struct hinic_qp, sq);
 
 	tx_napi_add(txq, nic_dev->tx_weight);
 
@@ -730,6 +796,20 @@ static int tx_request_irq(struct hinic_txq *txq)
 			     TX_IRQ_NO_PENDING, TX_IRQ_NO_COALESC,
 			     TX_IRQ_NO_LLI_TIMER, TX_IRQ_NO_CREDIT,
 			     TX_IRQ_NO_RESEND_TIMER);
+
+	intr_coal = &nic_dev->tx_intr_coalesce[qp->q_id];
+	interrupt_info.msix_index = sq->msix_entry;
+	interrupt_info.coalesce_timer_cnt = intr_coal->coalesce_timer_cfg;
+	interrupt_info.pending_cnt = intr_coal->pending_limt;
+	interrupt_info.resend_timer_cnt = intr_coal->resend_timer_cfg;
+
+	err = hinic_set_interrupt_cfg(hwdev, &interrupt_info);
+	if (err) {
+		netif_err(nic_dev, drv, txq->netdev,
+			  "Failed to set TX interrupt coalescing attribute\n");
+		tx_napi_del(txq);
+		return err;
+	}
 
 	err = request_irq(sq->irq, tx_irq, 0, txq->irq_name, txq);
 	if (err) {

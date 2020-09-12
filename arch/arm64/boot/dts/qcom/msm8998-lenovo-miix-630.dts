@@ -25,6 +25,11 @@
 	};
 };
 
+&remoteproc_mss {
+	firmware-name = "qcom/LENOVO/81F1/qcdsp1v28998.mbn",
+			"qcom/LENOVO/81F1/qcdsp28998.mbn";
+};
+
 &sdhc2 {
 	cd-gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
 };

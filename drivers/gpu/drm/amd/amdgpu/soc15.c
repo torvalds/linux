@@ -580,10 +580,13 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	switch (soc15_asic_reset_method(adev)) {
 		case AMD_RESET_METHOD_BACO:
+			dev_info(adev->dev, "BACO reset\n");
 			return soc15_asic_baco_reset(adev);
 		case AMD_RESET_METHOD_MODE2:
+			dev_info(adev->dev, "MODE2 reset\n");
 			return amdgpu_dpm_mode2_reset(adev);
 		default:
+			dev_info(adev->dev, "MODE1 reset\n");
 			return soc15_asic_mode1_reset(adev);
 	}
 }
@@ -1026,6 +1029,11 @@ static uint64_t soc15_get_pcie_replay_count(struct amdgpu_device *adev)
 	return (nak_r + nak_g);
 }
 
+static void soc15_pre_asic_init(struct amdgpu_device *adev)
+{
+	gmc_v9_0_restore_registers(adev);
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -1046,6 +1054,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.need_reset_on_init = &soc15_need_reset_on_init,
 	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 	.supports_baco = &soc15_supports_baco,
+	.pre_asic_init = &soc15_pre_asic_init,
 };
 
 static const struct amdgpu_asic_funcs vega20_asic_funcs =
@@ -1069,6 +1078,7 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.need_reset_on_init = &soc15_need_reset_on_init,
 	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 	.supports_baco = &soc15_supports_baco,
+	.pre_asic_init = &soc15_pre_asic_init,
 };
 
 static int soc15_common_early_init(void *handle)
@@ -1449,7 +1459,8 @@ static void soc15_update_hdp_light_sleep(struct amdgpu_device *adev, bool enable
 	uint32_t def, data;
 
 	if (adev->asic_type == CHIP_VEGA20 ||
-		adev->asic_type == CHIP_ARCTURUS) {
+		adev->asic_type == CHIP_ARCTURUS ||
+		adev->asic_type == CHIP_RENOIR) {
 		def = data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_CTRL));
 
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))

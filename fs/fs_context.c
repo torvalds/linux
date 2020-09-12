@@ -521,7 +521,7 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	switch (param->type) {
 	case fs_value_is_string:
 		len = 1 + param->size;
-		/* Fall through */
+		fallthrough;
 	case fs_value_is_flag:
 		len += strlen(param->key);
 		break;

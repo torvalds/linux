@@ -10,7 +10,6 @@
 
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
@@ -157,7 +156,7 @@ static void s6e63m0_dcs_write(struct s6e63m0 *ctx, const u8 *data, size_t len)
 	if (ctx->error < 0 || len == 0)
 		return;
 
-	DRM_DEV_DEBUG(ctx->dev, "writing dcs seq: %*ph\n", (int)len, data);
+	dev_dbg(ctx->dev, "writing dcs seq: %*ph\n", (int)len, data);
 	ret = s6e63m0_spi_write_word(ctx, *data);
 
 	while (!ret && --len) {
@@ -166,8 +165,7 @@ static void s6e63m0_dcs_write(struct s6e63m0 *ctx, const u8 *data, size_t len)
 	}
 
 	if (ret) {
-		DRM_DEV_ERROR(ctx->dev, "error %d writing dcs seq: %*ph\n", ret,
-			      (int)len, data);
+		dev_err(ctx->dev, "error %d writing dcs seq: %*ph\n", ret, (int)len, data);
 		ctx->error = ret;
 	}
 
@@ -368,9 +366,9 @@ static int s6e63m0_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		DRM_ERROR("failed to add mode %ux%ux@%u\n",
-			  default_mode.hdisplay, default_mode.vdisplay,
-			  drm_mode_vrefresh(&default_mode));
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+			default_mode.hdisplay, default_mode.vdisplay,
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
@@ -425,8 +423,7 @@ static int s6e63m0_backlight_register(struct s6e63m0 *ctx)
 						     &props);
 	if (IS_ERR(ctx->bl_dev)) {
 		ret = PTR_ERR(ctx->bl_dev);
-		DRM_DEV_ERROR(dev, "error registering backlight device (%d)\n",
-			      ret);
+		dev_err(dev, "error registering backlight device (%d)\n", ret);
 	}
 
 	return ret;
@@ -453,14 +450,13 @@ static int s6e63m0_probe(struct spi_device *spi)
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ctx->supplies),
 				      ctx->supplies);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "failed to get regulators: %d\n", ret);
+		dev_err(dev, "failed to get regulators: %d\n", ret);
 		return ret;
 	}
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset-gpios %ld\n",
-			      PTR_ERR(ctx->reset_gpio));
+		dev_err(dev, "cannot get reset-gpios %ld\n", PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
@@ -468,7 +464,7 @@ static int s6e63m0_probe(struct spi_device *spi)
 	spi->mode = SPI_MODE_3;
 	ret = spi_setup(spi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "spi setup failed.\n");
+		dev_err(dev, "spi setup failed.\n");
 		return ret;
 	}
 
@@ -479,7 +475,9 @@ static int s6e63m0_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	return drm_panel_add(&ctx->panel);
+	drm_panel_add(&ctx->panel);
+
+	return 0;
 }
 
 static int s6e63m0_remove(struct spi_device *spi)

@@ -161,7 +161,7 @@ static const struct dev_pm_ops npcm_rng_pm_ops = {
 				pm_runtime_force_resume)
 };
 
-static const struct of_device_id rng_dt_id[] = {
+static const struct of_device_id rng_dt_id[] __maybe_unused = {
 	{ .compatible = "nuvoton,npcm750-rng",  },
 	{},
 };

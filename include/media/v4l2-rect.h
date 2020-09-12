@@ -184,4 +184,24 @@ static inline bool v4l2_rect_overlap(const struct v4l2_rect *r1,
 	return true;
 }
 
+/**
+ * v4l2_rect_enclosed() - is r1 enclosed in r2?
+ * @r1: rectangle.
+ * @r2: rectangle.
+ *
+ * Returns true if @r1 is enclosed in @r2.
+ */
+static inline bool v4l2_rect_enclosed(struct v4l2_rect *r1,
+				      struct v4l2_rect *r2)
+{
+	if (r1->left < r2->left || r1->top < r2->top)
+		return false;
+	if (r1->left + r1->width > r2->left + r2->width)
+		return false;
+	if (r1->top + r1->height > r2->top + r2->height)
+		return false;
+
+	return true;
+}
+
 #endif

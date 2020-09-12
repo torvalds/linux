@@ -78,7 +78,7 @@ field of a struct :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_SDR_CAPTURE`` or ``V4L2_BUF_TYPE_SDR_OUTPUT`` and use
 the struct :c:type:`v4l2_sdr_format` ``sdr`` member
 of the ``fmt`` union as needed per the desired operation. Currently
-there is two fields, ``pixelformat`` and ``buffersize``, of struct
+there are two fields, ``pixelformat`` and ``buffersize``, of
 struct :c:type:`v4l2_sdr_format` which are used.
 Content of the ``pixelformat`` is V4L2 FourCC code of the data format.
 The ``buffersize`` field is maximum buffer size in bytes required for

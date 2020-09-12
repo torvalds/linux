@@ -389,6 +389,7 @@ struct enetc_psfp_filter {
 	u32 index;
 	s32 handle;
 	s8 prio;
+	u32 maxsdu;
 	u32 gate_id;
 	s32 meter_id;
 	refcount_t refcount;
@@ -407,10 +408,26 @@ struct enetc_psfp_gate {
 	struct action_gate_entry entries[0];
 };
 
+/* Only enable the green color frame now
+ * Will add eir and ebs color blind, couple flag etc when
+ * policing action add more offloading parameters
+ */
+struct enetc_psfp_meter {
+	u32 index;
+	u32 cir;
+	u32 cbs;
+	refcount_t refcount;
+	struct hlist_node node;
+};
+
+#define ENETC_PSFP_FLAGS_FMI BIT(0)
+
 struct enetc_stream_filter {
 	struct enetc_streamid sid;
 	u32 sfi_index;
 	u32 sgi_index;
+	u32 flags;
+	u32 fmi_index;
 	struct flow_stats stats;
 	struct hlist_node node;
 };
@@ -421,11 +438,18 @@ struct enetc_psfp {
 	struct hlist_head stream_list;
 	struct hlist_head psfp_filter_list;
 	struct hlist_head psfp_gate_list;
+	struct hlist_head psfp_meter_list;
 	spinlock_t psfp_lock; /* spinlock for the struct enetc_psfp r/w */
 };
 
 static struct actions_fwd enetc_act_fwd[] = {
 	{
+		BIT(FLOW_ACTION_GATE),
+		BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS),
+		FILTER_ACTION_TYPE_PSFP
+	},
+	{
+		BIT(FLOW_ACTION_POLICE) |
 		BIT(FLOW_ACTION_GATE),
 		BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS),
 		FILTER_ACTION_TYPE_PSFP
@@ -487,7 +511,7 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	cbd.addr[0] = lower_32_bits(dma);
 	cbd.addr[1] = upper_32_bits(dma);
-	memset(si_data->dmac, 0xff, ETH_ALEN);
+	eth_broadcast_addr(si_data->dmac);
 	si_data->vid_vidm_tg =
 		cpu_to_le16(ENETC_CBDR_SID_VID_MASK
 			    + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
@@ -594,8 +618,12 @@ static int enetc_streamfilter_hw_set(struct enetc_ndev_priv *priv,
 	/* Filter Type. Identifies the contents of the MSDU/FM_INST_INDEX
 	 * field as being either an MSDU value or an index into the Flow
 	 * Meter Instance table.
-	 * TODO: no limit max sdu
 	 */
+	if (sfi->maxsdu) {
+		sfi_config->msdu =
+		cpu_to_le16(sfi->maxsdu);
+		sfi_config->multi |= 0x40;
+	}
 
 	if (sfi->meter_id >= 0) {
 		sfi_config->fm_inst_table_index = cpu_to_le16(sfi->meter_id);
@@ -831,6 +859,47 @@ exit:
 	return err;
 }
 
+static int enetc_flowmeter_hw_set(struct enetc_ndev_priv *priv,
+				  struct enetc_psfp_meter *fmi,
+				  u8 enable)
+{
+	struct enetc_cbd cbd = { .cmd = 0 };
+	struct fmi_conf *fmi_config;
+	u64 temp = 0;
+
+	cbd.index = cpu_to_le16((u16)fmi->index);
+	cbd.cls = BDCR_CMD_FLOW_METER;
+	cbd.status_flags = 0x80;
+
+	if (!enable)
+		return enetc_send_cmd(priv->si, &cbd);
+
+	fmi_config = &cbd.fmi_conf;
+	fmi_config->en = 0x80;
+
+	if (fmi->cir) {
+		temp = (u64)8000 * fmi->cir;
+		temp = div_u64(temp, 3725);
+	}
+
+	fmi_config->cir = cpu_to_le32((u32)temp);
+	fmi_config->cbs = cpu_to_le32(fmi->cbs);
+
+	/* Default for eir ebs disable */
+	fmi_config->eir = 0;
+	fmi_config->ebs = 0;
+
+	/* Default:
+	 * mark red disable
+	 * drop on yellow disable
+	 * color mode disable
+	 * couple flag disable
+	 */
+	fmi_config->conf = 0;
+
+	return enetc_send_cmd(priv->si, &cbd);
+}
+
 static struct enetc_stream_filter *enetc_get_stream_by_index(u32 index)
 {
 	struct enetc_stream_filter *f;
@@ -864,6 +933,17 @@ static struct enetc_psfp_filter *enetc_get_filter_by_index(u32 index)
 	return NULL;
 }
 
+static struct enetc_psfp_meter *enetc_get_meter_by_index(u32 index)
+{
+	struct enetc_psfp_meter *m;
+
+	hlist_for_each_entry(m, &epsfp.psfp_meter_list, node)
+		if (m->index == index)
+			return m;
+
+	return NULL;
+}
+
 static struct enetc_psfp_filter
 	*enetc_psfp_check_sfi(struct enetc_psfp_filter *sfi)
 {
@@ -872,6 +952,7 @@ static struct enetc_psfp_filter
 	hlist_for_each_entry(s, &epsfp.psfp_filter_list, node)
 		if (s->gate_id == sfi->gate_id &&
 		    s->prio == sfi->prio &&
+		    s->maxsdu == sfi->maxsdu &&
 		    s->meter_id == sfi->meter_id)
 			return s;
 
@@ -922,9 +1003,27 @@ static void stream_gate_unref(struct enetc_ndev_priv *priv, u32 index)
 	}
 }
 
+static void flow_meter_unref(struct enetc_ndev_priv *priv, u32 index)
+{
+	struct enetc_psfp_meter *fmi;
+	u8 z;
+
+	fmi = enetc_get_meter_by_index(index);
+	WARN_ON(!fmi);
+	z = refcount_dec_and_test(&fmi->refcount);
+	if (z) {
+		enetc_flowmeter_hw_set(priv, fmi, false);
+		hlist_del(&fmi->node);
+		kfree(fmi);
+	}
+}
+
 static void remove_one_chain(struct enetc_ndev_priv *priv,
 			     struct enetc_stream_filter *filter)
 {
+	if (filter->flags & ENETC_PSFP_FLAGS_FMI)
+		flow_meter_unref(priv, filter->fmi_index);
+
 	stream_gate_unref(priv, filter->sgi_index);
 	stream_filter_unref(priv, filter->sfi_index);
 
@@ -935,7 +1034,8 @@ static void remove_one_chain(struct enetc_ndev_priv *priv,
 static int enetc_psfp_hw_set(struct enetc_ndev_priv *priv,
 			     struct enetc_streamid *sid,
 			     struct enetc_psfp_filter *sfi,
-			     struct enetc_psfp_gate *sgi)
+			     struct enetc_psfp_gate *sgi,
+			     struct enetc_psfp_meter *fmi)
 {
 	int err;
 
@@ -953,8 +1053,16 @@ static int enetc_psfp_hw_set(struct enetc_ndev_priv *priv,
 	if (err)
 		goto revert_sfi;
 
+	if (fmi) {
+		err = enetc_flowmeter_hw_set(priv, fmi, true);
+		if (err)
+			goto revert_sgi;
+	}
+
 	return 0;
 
+revert_sgi:
+	enetc_streamgate_hw_set(priv, sgi, false);
 revert_sfi:
 	if (sfi)
 		enetc_streamfilter_hw_set(priv, sfi, false);
@@ -979,9 +1087,11 @@ static struct actions_fwd *enetc_check_flow_actions(u64 acts,
 static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 				      struct flow_cls_offload *f)
 {
+	struct flow_action_entry *entryg = NULL, *entryp = NULL;
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct netlink_ext_ack *extack = f->common.extack;
 	struct enetc_stream_filter *filter, *old_filter;
+	struct enetc_psfp_meter *fmi = NULL, *old_fmi;
 	struct enetc_psfp_filter *sfi, *old_sfi;
 	struct enetc_psfp_gate *sgi, *old_sgi;
 	struct flow_action_entry *entry;
@@ -997,9 +1107,12 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	flow_action_for_each(i, entry, &rule->action)
 		if (entry->id == FLOW_ACTION_GATE)
-			break;
+			entryg = entry;
+		else if (entry->id == FLOW_ACTION_POLICE)
+			entryp = entry;
 
-	if (entry->id != FLOW_ACTION_GATE)
+	/* Not support without gate action */
+	if (!entryg)
 		return -EINVAL;
 
 	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
@@ -1017,7 +1130,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		    !is_zero_ether_addr(match.mask->src)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Cannot match on both source and destination MAC");
-			err = EINVAL;
+			err = -EINVAL;
 			goto free_filter;
 		}
 
@@ -1025,7 +1138,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			if (!is_broadcast_ether_addr(match.mask->dst)) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Masked matching on destination MAC not supported");
-				err = EINVAL;
+				err = -EINVAL;
 				goto free_filter;
 			}
 			ether_addr_copy(filter->sid.dst_mac, match.key->dst);
@@ -1036,7 +1149,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			if (!is_broadcast_ether_addr(match.mask->src)) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Masked matching on source MAC not supported");
-				err = EINVAL;
+				err = -EINVAL;
 				goto free_filter;
 			}
 			ether_addr_copy(filter->sid.src_mac, match.key->src);
@@ -1044,7 +1157,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		}
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported, must include ETH_ADDRS");
-		err = EINVAL;
+		err = -EINVAL;
 		goto free_filter;
 	}
 
@@ -1079,19 +1192,19 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	/* parsing gate action */
-	if (entry->gate.index >= priv->psfp_cap.max_psfp_gate) {
+	if (entryg->gate.index >= priv->psfp_cap.max_psfp_gate) {
 		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
 		err = -ENOSPC;
 		goto free_filter;
 	}
 
-	if (entry->gate.num_entries >= priv->psfp_cap.max_psfp_gatelist) {
+	if (entryg->gate.num_entries >= priv->psfp_cap.max_psfp_gatelist) {
 		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
 		err = -ENOSPC;
 		goto free_filter;
 	}
 
-	entries_size = struct_size(sgi, entries, entry->gate.num_entries);
+	entries_size = struct_size(sgi, entries, entryg->gate.num_entries);
 	sgi = kzalloc(entries_size, GFP_KERNEL);
 	if (!sgi) {
 		err = -ENOMEM;
@@ -1099,18 +1212,18 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	refcount_set(&sgi->refcount, 1);
-	sgi->index = entry->gate.index;
-	sgi->init_ipv = entry->gate.prio;
-	sgi->basetime = entry->gate.basetime;
-	sgi->cycletime = entry->gate.cycletime;
-	sgi->num_entries = entry->gate.num_entries;
+	sgi->index = entryg->gate.index;
+	sgi->init_ipv = entryg->gate.prio;
+	sgi->basetime = entryg->gate.basetime;
+	sgi->cycletime = entryg->gate.cycletime;
+	sgi->num_entries = entryg->gate.num_entries;
 
 	e = sgi->entries;
-	for (i = 0; i < entry->gate.num_entries; i++) {
-		e[i].gate_state = entry->gate.entries[i].gate_state;
-		e[i].interval = entry->gate.entries[i].interval;
-		e[i].ipv = entry->gate.entries[i].ipv;
-		e[i].maxoctets = entry->gate.entries[i].maxoctets;
+	for (i = 0; i < entryg->gate.num_entries; i++) {
+		e[i].gate_state = entryg->gate.entries[i].gate_state;
+		e[i].interval = entryg->gate.entries[i].interval;
+		e[i].ipv = entryg->gate.entries[i].ipv;
+		e[i].maxoctets = entryg->gate.entries[i].maxoctets;
 	}
 
 	filter->sgi_index = sgi->index;
@@ -1123,9 +1236,28 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	refcount_set(&sfi->refcount, 1);
 	sfi->gate_id = sgi->index;
-
-	/* flow meter not support yet */
 	sfi->meter_id = ENETC_PSFP_WILDCARD;
+
+	/* Flow meter and max frame size */
+	if (entryp) {
+		if (entryp->police.burst) {
+			fmi = kzalloc(sizeof(*fmi), GFP_KERNEL);
+			if (!fmi) {
+				err = -ENOMEM;
+				goto free_sfi;
+			}
+			refcount_set(&fmi->refcount, 1);
+			fmi->cir = entryp->police.rate_bytes_ps;
+			fmi->cbs = entryp->police.burst;
+			fmi->index = entryp->police.index;
+			filter->flags |= ENETC_PSFP_FLAGS_FMI;
+			filter->fmi_index = fmi->index;
+			sfi->meter_id = fmi->index;
+		}
+
+		if (entryp->police.mtu)
+			sfi->maxsdu = entryp->police.mtu;
+	}
 
 	/* prio ref the filter prio */
 	if (f->common.prio && f->common.prio <= BIT(3))
@@ -1141,7 +1273,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		if (sfi->handle < 0) {
 			NL_SET_ERR_MSG_MOD(extack, "No Stream Filter resource!");
 			err = -ENOSPC;
-			goto free_sfi;
+			goto free_fmi;
 		}
 
 		sfi->index = index;
@@ -1157,11 +1289,23 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	err = enetc_psfp_hw_set(priv, &filter->sid,
-				sfi_overwrite ? NULL : sfi, sgi);
+				sfi_overwrite ? NULL : sfi, sgi, fmi);
 	if (err)
-		goto free_sfi;
+		goto free_fmi;
 
 	spin_lock(&epsfp.psfp_lock);
+	if (filter->flags & ENETC_PSFP_FLAGS_FMI) {
+		old_fmi = enetc_get_meter_by_index(filter->fmi_index);
+		if (old_fmi) {
+			fmi->refcount = old_fmi->refcount;
+			refcount_set(&fmi->refcount,
+				     refcount_read(&old_fmi->refcount) + 1);
+			hlist_del(&old_fmi->node);
+			kfree(old_fmi);
+		}
+		hlist_add_head(&fmi->node, &epsfp.psfp_meter_list);
+	}
+
 	/* Remove the old node if exist and update with a new node */
 	old_sgi = enetc_get_gate_by_index(filter->sgi_index);
 	if (old_sgi) {
@@ -1192,6 +1336,8 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	return 0;
 
+free_fmi:
+	kfree(fmi);
 free_sfi:
 	kfree(sfi);
 free_gate:
@@ -1290,13 +1436,20 @@ static int enetc_psfp_get_stats(struct enetc_ndev_priv *priv,
 		return -EINVAL;
 
 	spin_lock(&epsfp.psfp_lock);
-	stats.pkts = counters.matching_frames_count - filter->stats.pkts;
+	stats.pkts = counters.matching_frames_count +
+		     counters.not_passing_sdu_count -
+		     filter->stats.pkts;
+	stats.drops = counters.not_passing_frames_count +
+		      counters.not_passing_sdu_count +
+		      counters.red_frames_count -
+		      filter->stats.drops;
 	stats.lastused = filter->stats.lastused;
 	filter->stats.pkts += stats.pkts;
+	filter->stats.drops += stats.drops;
 	spin_unlock(&epsfp.psfp_lock);
 
-	flow_stats_update(&f->stats, 0x0, stats.pkts, stats.lastused,
-			  FLOW_ACTION_HW_STATS_DELAYED);
+	flow_stats_update(&f->stats, 0x0, stats.pkts, stats.drops,
+			  stats.lastused, FLOW_ACTION_HW_STATS_DELAYED);
 
 	return 0;
 }

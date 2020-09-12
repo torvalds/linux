@@ -94,6 +94,15 @@ int rn_get_active_display_cnt_wa(
 	return display_count;
 }
 
+void rn_set_low_power_state(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_LOW_POWER);
+	/* update power state */
+	clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
+}
+
 void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -516,6 +525,7 @@ static struct clk_mgr_funcs dcn21_funcs = {
 	.init_clocks = rn_init_clocks,
 	.enable_pme_wa = rn_enable_pme_wa,
 	.are_clock_states_equal = rn_are_clock_states_equal,
+	.set_low_power_state = rn_set_low_power_state,
 	.notify_wm_ranges = rn_notify_wm_ranges,
 	.notify_link_rate_change = rn_notify_link_rate_change,
 };

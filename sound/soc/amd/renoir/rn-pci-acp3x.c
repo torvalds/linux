@@ -5,6 +5,7 @@
 //Copyright 2020 Advanced Micro Devices, Inc.
 
 #include <linux/pci.h>
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -17,6 +18,16 @@
 static int acp_power_gating;
 module_param(acp_power_gating, int, 0644);
 MODULE_PARM_DESC(acp_power_gating, "Enable acp power gating");
+
+/**
+ * dmic_acpi_check = -1 - Checks ACPI method to know DMIC hardware status runtime
+ *                 = 0 - Skips the DMIC device creation and returns probe failure
+ *                 = 1 - Assumes that platform has DMIC support and skips ACPI
+ *                       method check
+ */
+static int dmic_acpi_check = ACP_DMIC_AUTO;
+module_param(dmic_acpi_check, bint, 0644);
+MODULE_PARM_DESC(dmic_acpi_check, "checks Dmic hardware runtime");
 
 struct acp_dev_data {
 	void __iomem *acp_base;
@@ -157,6 +168,10 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 {
 	struct acp_dev_data *adata;
 	struct platform_device_info pdevinfo[ACP_DEVS];
+#if defined(CONFIG_ACPI)
+	acpi_handle handle;
+	acpi_integer dmic_status;
+#endif
 	unsigned int irqflags;
 	int ret, index;
 	u32 addr;
@@ -200,6 +215,24 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	ret = rn_acp_init(adata->acp_base);
 	if (ret)
 		goto disable_msi;
+
+	if (!dmic_acpi_check) {
+		ret = -ENODEV;
+		goto de_init;
+	} else if (dmic_acpi_check == ACP_DMIC_AUTO) {
+#if defined(CONFIG_ACPI)
+		handle = ACPI_HANDLE(&pci->dev);
+		ret = acpi_evaluate_integer(handle, "_WOV", NULL, &dmic_status);
+		if (ACPI_FAILURE(ret)) {
+			ret = -EINVAL;
+			goto de_init;
+		}
+		if (!dmic_status) {
+			ret = -ENODEV;
+			goto de_init;
+		}
+#endif
+	}
 
 	adata->res = devm_kzalloc(&pci->dev,
 				  sizeof(struct resource) * 2,

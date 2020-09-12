@@ -313,9 +313,14 @@ void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 
 	lockdep_assert_held(&local->chanctx_mtx);
 
-	/* don't optimize 5MHz, 10MHz, and radar_enabled confs */
+	/* don't optimize non-20MHz based and radar_enabled confs */
 	if (ctx->conf.def.width == NL80211_CHAN_WIDTH_5 ||
 	    ctx->conf.def.width == NL80211_CHAN_WIDTH_10 ||
+	    ctx->conf.def.width == NL80211_CHAN_WIDTH_1 ||
+	    ctx->conf.def.width == NL80211_CHAN_WIDTH_2 ||
+	    ctx->conf.def.width == NL80211_CHAN_WIDTH_4 ||
+	    ctx->conf.def.width == NL80211_CHAN_WIDTH_8 ||
+	    ctx->conf.def.width == NL80211_CHAN_WIDTH_16 ||
 	    ctx->conf.radar_enabled) {
 		ctx->conf.min_def = ctx->conf.def;
 		return;
@@ -743,7 +748,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 		default:
 			WARN_ONCE(1, "Invalid SMPS mode %d\n",
 				  sdata->smps_mode);
-			/* fall through */
+			fallthrough;
 		case IEEE80211_SMPS_OFF:
 			needed_static = sdata->needed_rx_chains;
 			needed_dynamic = sdata->needed_rx_chains;

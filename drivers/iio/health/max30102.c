@@ -273,10 +273,10 @@ static int max30102_read_measurement(struct max30102_data *data,
 	switch (measurements) {
 	case 3:
 		MAX30102_COPY_DATA(2);
-		/* fall through */
+		fallthrough;
 	case 2:
 		MAX30102_COPY_DATA(1);
-		/* fall through */
+		fallthrough;
 	case 1:
 		MAX30102_COPY_DATA(0);
 		break;
@@ -526,7 +526,6 @@ static int max30102_probe(struct i2c_client *client,
 	indio_dev->info = &max30102_info;
 	indio_dev->modes = (INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE);
 	indio_dev->setup_ops = &max30102_buffer_setup_ops;
-	indio_dev->dev.parent = &client->dev;
 
 	data = iio_priv(indio_dev);
 	data->indio_dev = indio_dev;

@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # scripts/dtc makefile
 
-hostprogs			:= dtc
-always-$(CONFIG_DTC)		+= $(hostprogs)
-always-$(CHECK_DT_BINDING)	+= $(hostprogs)
+hostprogs-always-$(CONFIG_DTC)		+= dtc
+hostprogs-always-$(CHECK_DT_BINDING)	+= dtc
 
 dtc-objs	:= dtc.o flattree.o fstree.o data.o livetree.o treesource.o \
 		   srcpos.o checks.o util.o

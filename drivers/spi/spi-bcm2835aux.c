@@ -164,10 +164,10 @@ static inline void bcm2835aux_rd_fifo(struct bcm2835aux_spi *bs)
 		switch (count) {
 		case 3:
 			*bs->rx_buf++ = (data >> 16) & 0xff;
-			/* fallthrough */
+			fallthrough;
 		case 2:
 			*bs->rx_buf++ = (data >> 8) & 0xff;
-			/* fallthrough */
+			fallthrough;
 		case 1:
 			*bs->rx_buf++ = (data >> 0) & 0xff;
 			/* fallthrough - no default */
@@ -345,7 +345,7 @@ static int bcm2835aux_spi_transfer_one(struct spi_master *master,
 				       struct spi_transfer *tfr)
 {
 	struct bcm2835aux_spi *bs = spi_master_get_devdata(master);
-	unsigned long spi_hz, clk_hz, speed, spi_used_hz;
+	unsigned long spi_hz, clk_hz, speed;
 	unsigned long hz_per_byte, byte_limit;
 
 	/* calculate the registers to handle
@@ -374,7 +374,7 @@ static int bcm2835aux_spi_transfer_one(struct spi_master *master,
 	/* set the new speed */
 	bs->cntl[0] |= speed << BCM2835_AUX_SPI_CNTL0_SPEED_SHIFT;
 
-	spi_used_hz = clk_hz / (2 * (speed + 1));
+	tfr->effective_speed_hz = clk_hz / (2 * (speed + 1));
 
 	/* set transmit buffers and length */
 	bs->tx_buf = tfr->tx_buf;
@@ -391,7 +391,7 @@ static int bcm2835aux_spi_transfer_one(struct spi_master *master,
 	 * 30 µs per 300,000 Hz of bus clock.
 	 */
 	hz_per_byte = polling_limit_us ? (9 * 1000000) / polling_limit_us : 0;
-	byte_limit = hz_per_byte ? spi_used_hz / hz_per_byte : 1;
+	byte_limit = hz_per_byte ? tfr->effective_speed_hz / hz_per_byte : 1;
 
 	/* run in polling mode for short transfers */
 	if (tfr->len < byte_limit)

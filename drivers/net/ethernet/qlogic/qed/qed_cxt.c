@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -99,8 +73,8 @@ union type1_task_context {
 };
 
 struct src_ent {
-	u8 opaque[56];
-	u64 next;
+	__u8				opaque[56];
+	__be64				next;
 };
 
 #define CDUT_SEG_ALIGNMET		3 /* in 4k chunks */
@@ -2072,7 +2046,7 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 					       rdma_tasks);
 		/* no need for break since RoCE coexist with Ethernet */
 	}
-	/* fall through */
+		fallthrough;
 	case QED_PCI_ETH:
 	{
 		struct qed_eth_pf_params *p_params =
@@ -2196,12 +2170,14 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 			  enum qed_cxt_elem_type elem_type, u32 iid)
 {
 	u32 reg_offset, shadow_line, elem_size, hw_p_size, elems_per_p, line;
+	struct tdif_task_context *tdif_context;
 	struct qed_ilt_client_cfg *p_cli;
 	struct qed_ilt_cli_blk *p_blk;
 	struct qed_ptt *p_ptt;
 	dma_addr_t p_phys;
 	u64 ilt_hw_entry;
 	void *p_virt;
+	u32 flags1;
 	int rc = 0;
 
 	switch (elem_type) {
@@ -2278,8 +2254,12 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 
 		for (elem_i = 0; elem_i < elems_per_p; elem_i++) {
 			elem = (union type1_task_context *)elem_start;
-			SET_FIELD(elem->roce_ctx.tdif_context.flags1,
-				  TDIF_TASK_CONTEXT_REF_TAG_MASK, 0xf);
+			tdif_context = &elem->roce_ctx.tdif_context;
+
+			flags1 = le32_to_cpu(tdif_context->flags1);
+			SET_FIELD(flags1, TDIF_TASK_CONTEXT_REF_TAG_MASK, 0xf);
+			tdif_context->flags1 = cpu_to_le32(flags1);
+
 			elem_start += TYPE1_TASK_CXT_SIZE(p_hwfn);
 		}
 	}
@@ -2353,6 +2333,11 @@ qed_cxt_free_ilt_range(struct qed_hwfn *p_hwfn,
 	case QED_ELEM_SRQ:
 		p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_TSDM];
 		elem_size = SRQ_CXT_SIZE;
+		p_blk = &p_cli->pf_blks[SRQ_BLK];
+		break;
+	case QED_ELEM_XRC_SRQ:
+		p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_TSDM];
+		elem_size = XRC_SRQ_CXT_SIZE;
 		p_blk = &p_cli->pf_blks[SRQ_BLK];
 		break;
 	case QED_ELEM_TASK:

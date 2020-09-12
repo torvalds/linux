@@ -11,7 +11,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <asm/pgalloc.h>
+#include <linux/mm.h>
 
 /*
  * Generic mapping function (not visible outside):

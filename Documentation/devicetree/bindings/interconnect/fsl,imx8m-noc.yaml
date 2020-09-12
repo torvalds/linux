@@ -25,17 +25,17 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - fsl,imx8mn-nic
-          - fsl,imx8mm-nic
-          - fsl,imx8mq-nic
-        - const: fsl,imx8m-nic
+          - enum:
+              - fsl,imx8mn-nic
+              - fsl,imx8mm-nic
+              - fsl,imx8mq-nic
+          - const: fsl,imx8m-nic
       - items:
-        - enum:
-          - fsl,imx8mn-noc
-          - fsl,imx8mm-noc
-          - fsl,imx8mq-noc
-        - const: fsl,imx8m-noc
+          - enum:
+              - fsl,imx8mn-noc
+              - fsl,imx8mm-noc
+              - fsl,imx8mq-noc
+          - const: fsl,imx8m-noc
       - const: fsl,imx8m-nic
 
   reg:

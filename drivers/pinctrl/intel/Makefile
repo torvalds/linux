@@ -10,6 +10,7 @@ obj-$(CONFIG_PINCTRL_BROXTON)		+= pinctrl-broxton.o
 obj-$(CONFIG_PINCTRL_CANNONLAKE)	+= pinctrl-cannonlake.o
 obj-$(CONFIG_PINCTRL_CEDARFORK)		+= pinctrl-cedarfork.o
 obj-$(CONFIG_PINCTRL_DENVERTON)		+= pinctrl-denverton.o
+obj-$(CONFIG_PINCTRL_EMMITSBURG)	+= pinctrl-emmitsburg.o
 obj-$(CONFIG_PINCTRL_GEMINILAKE)	+= pinctrl-geminilake.o
 obj-$(CONFIG_PINCTRL_ICELAKE)		+= pinctrl-icelake.o
 obj-$(CONFIG_PINCTRL_JASPERLAKE)	+= pinctrl-jasperlake.o

@@ -13,6 +13,8 @@ DEFINE_PER_CPU(struct bpf_cgroup_storage*, bpf_cgroup_storage[MAX_BPF_CGROUP_STO
 
 #ifdef CONFIG_CGROUP_BPF
 
+#include "../cgroup/cgroup-internal.h"
+
 #define LOCAL_STORAGE_CREATE_FLAG_MASK					\
 	(BPF_F_NUMA_NODE | BPF_F_ACCESS_MASK)
 
@@ -20,7 +22,6 @@ struct bpf_cgroup_storage_map {
 	struct bpf_map map;
 
 	spinlock_t lock;
-	struct bpf_prog_aux *aux;
 	struct rb_root root;
 	struct list_head list;
 };
@@ -30,24 +31,41 @@ static struct bpf_cgroup_storage_map *map_to_storage(struct bpf_map *map)
 	return container_of(map, struct bpf_cgroup_storage_map, map);
 }
 
-static int bpf_cgroup_storage_key_cmp(
-	const struct bpf_cgroup_storage_key *key1,
-	const struct bpf_cgroup_storage_key *key2)
+static bool attach_type_isolated(const struct bpf_map *map)
 {
-	if (key1->cgroup_inode_id < key2->cgroup_inode_id)
-		return -1;
-	else if (key1->cgroup_inode_id > key2->cgroup_inode_id)
-		return 1;
-	else if (key1->attach_type < key2->attach_type)
-		return -1;
-	else if (key1->attach_type > key2->attach_type)
-		return 1;
+	return map->key_size == sizeof(struct bpf_cgroup_storage_key);
+}
+
+static int bpf_cgroup_storage_key_cmp(const struct bpf_cgroup_storage_map *map,
+				      const void *_key1, const void *_key2)
+{
+	if (attach_type_isolated(&map->map)) {
+		const struct bpf_cgroup_storage_key *key1 = _key1;
+		const struct bpf_cgroup_storage_key *key2 = _key2;
+
+		if (key1->cgroup_inode_id < key2->cgroup_inode_id)
+			return -1;
+		else if (key1->cgroup_inode_id > key2->cgroup_inode_id)
+			return 1;
+		else if (key1->attach_type < key2->attach_type)
+			return -1;
+		else if (key1->attach_type > key2->attach_type)
+			return 1;
+	} else {
+		const __u64 *cgroup_inode_id1 = _key1;
+		const __u64 *cgroup_inode_id2 = _key2;
+
+		if (*cgroup_inode_id1 < *cgroup_inode_id2)
+			return -1;
+		else if (*cgroup_inode_id1 > *cgroup_inode_id2)
+			return 1;
+	}
 	return 0;
 }
 
-static struct bpf_cgroup_storage *cgroup_storage_lookup(
-	struct bpf_cgroup_storage_map *map, struct bpf_cgroup_storage_key *key,
-	bool locked)
+struct bpf_cgroup_storage *
+cgroup_storage_lookup(struct bpf_cgroup_storage_map *map,
+		      void *key, bool locked)
 {
 	struct rb_root *root = &map->root;
 	struct rb_node *node;
@@ -61,7 +79,7 @@ static struct bpf_cgroup_storage *cgroup_storage_lookup(
 
 		storage = container_of(node, struct bpf_cgroup_storage, node);
 
-		switch (bpf_cgroup_storage_key_cmp(key, &storage->key)) {
+		switch (bpf_cgroup_storage_key_cmp(map, key, &storage->key)) {
 		case -1:
 			node = node->rb_left;
 			break;
@@ -93,7 +111,7 @@ static int cgroup_storage_insert(struct bpf_cgroup_storage_map *map,
 		this = container_of(*new, struct bpf_cgroup_storage, node);
 
 		parent = *new;
-		switch (bpf_cgroup_storage_key_cmp(&storage->key, &this->key)) {
+		switch (bpf_cgroup_storage_key_cmp(map, &storage->key, &this->key)) {
 		case -1:
 			new = &((*new)->rb_left);
 			break;
@@ -111,10 +129,9 @@ static int cgroup_storage_insert(struct bpf_cgroup_storage_map *map,
 	return 0;
 }
 
-static void *cgroup_storage_lookup_elem(struct bpf_map *_map, void *_key)
+static void *cgroup_storage_lookup_elem(struct bpf_map *_map, void *key)
 {
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-	struct bpf_cgroup_storage_key *key = _key;
 	struct bpf_cgroup_storage *storage;
 
 	storage = cgroup_storage_lookup(map, key, false);
@@ -124,17 +141,13 @@ static void *cgroup_storage_lookup_elem(struct bpf_map *_map, void *_key)
 	return &READ_ONCE(storage->buf)->data[0];
 }
 
-static int cgroup_storage_update_elem(struct bpf_map *map, void *_key,
+static int cgroup_storage_update_elem(struct bpf_map *map, void *key,
 				      void *value, u64 flags)
 {
-	struct bpf_cgroup_storage_key *key = _key;
 	struct bpf_cgroup_storage *storage;
 	struct bpf_storage_buffer *new;
 
-	if (unlikely(flags & ~(BPF_F_LOCK | BPF_EXIST | BPF_NOEXIST)))
-		return -EINVAL;
-
-	if (unlikely(flags & BPF_NOEXIST))
+	if (unlikely(flags & ~(BPF_F_LOCK | BPF_EXIST)))
 		return -EINVAL;
 
 	if (unlikely((flags & BPF_F_LOCK) &&
@@ -167,11 +180,10 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *_key,
 	return 0;
 }
 
-int bpf_percpu_cgroup_storage_copy(struct bpf_map *_map, void *_key,
+int bpf_percpu_cgroup_storage_copy(struct bpf_map *_map, void *key,
 				   void *value)
 {
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-	struct bpf_cgroup_storage_key *key = _key;
 	struct bpf_cgroup_storage *storage;
 	int cpu, off = 0;
 	u32 size;
@@ -197,11 +209,10 @@ int bpf_percpu_cgroup_storage_copy(struct bpf_map *_map, void *_key,
 	return 0;
 }
 
-int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *_key,
+int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *key,
 				     void *value, u64 map_flags)
 {
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-	struct bpf_cgroup_storage_key *key = _key;
 	struct bpf_cgroup_storage *storage;
 	int cpu, off = 0;
 	u32 size;
@@ -232,12 +243,10 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *_key,
 	return 0;
 }
 
-static int cgroup_storage_get_next_key(struct bpf_map *_map, void *_key,
+static int cgroup_storage_get_next_key(struct bpf_map *_map, void *key,
 				       void *_next_key)
 {
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-	struct bpf_cgroup_storage_key *key = _key;
-	struct bpf_cgroup_storage_key *next = _next_key;
 	struct bpf_cgroup_storage *storage;
 
 	spin_lock_bh(&map->lock);
@@ -250,17 +259,23 @@ static int cgroup_storage_get_next_key(struct bpf_map *_map, void *_key,
 		if (!storage)
 			goto enoent;
 
-		storage = list_next_entry(storage, list);
+		storage = list_next_entry(storage, list_map);
 		if (!storage)
 			goto enoent;
 	} else {
 		storage = list_first_entry(&map->list,
-					 struct bpf_cgroup_storage, list);
+					 struct bpf_cgroup_storage, list_map);
 	}
 
 	spin_unlock_bh(&map->lock);
-	next->attach_type = storage->key.attach_type;
-	next->cgroup_inode_id = storage->key.cgroup_inode_id;
+
+	if (attach_type_isolated(&map->map)) {
+		struct bpf_cgroup_storage_key *next = _next_key;
+		*next = storage->key;
+	} else {
+		__u64 *next = _next_key;
+		*next = storage->key.cgroup_inode_id;
+	}
 	return 0;
 
 enoent:
@@ -275,7 +290,8 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 	struct bpf_map_memory mem;
 	int ret;
 
-	if (attr->key_size != sizeof(struct bpf_cgroup_storage_key))
+	if (attr->key_size != sizeof(struct bpf_cgroup_storage_key) &&
+	    attr->key_size != sizeof(__u64))
 		return ERR_PTR(-EINVAL);
 
 	if (attr->value_size == 0)
@@ -318,6 +334,17 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 static void cgroup_storage_map_free(struct bpf_map *_map)
 {
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
+	struct list_head *storages = &map->list;
+	struct bpf_cgroup_storage *storage, *stmp;
+
+	mutex_lock(&cgroup_mutex);
+
+	list_for_each_entry_safe(storage, stmp, storages, list_map) {
+		bpf_cgroup_storage_unlink(storage);
+		bpf_cgroup_storage_free(storage);
+	}
+
+	mutex_unlock(&cgroup_mutex);
 
 	WARN_ON(!RB_EMPTY_ROOT(&map->root));
 	WARN_ON(!list_empty(&map->list));
@@ -335,49 +362,63 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 				    const struct btf_type *key_type,
 				    const struct btf_type *value_type)
 {
-	struct btf_member *m;
-	u32 offset, size;
+	if (attach_type_isolated(map)) {
+		struct btf_member *m;
+		u32 offset, size;
 
-	/* Key is expected to be of struct bpf_cgroup_storage_key type,
-	 * which is:
-	 * struct bpf_cgroup_storage_key {
-	 *	__u64	cgroup_inode_id;
-	 *	__u32	attach_type;
-	 * };
-	 */
+		/* Key is expected to be of struct bpf_cgroup_storage_key type,
+		 * which is:
+		 * struct bpf_cgroup_storage_key {
+		 *	__u64	cgroup_inode_id;
+		 *	__u32	attach_type;
+		 * };
+		 */
 
-	/*
-	 * Key_type must be a structure with two fields.
-	 */
-	if (BTF_INFO_KIND(key_type->info) != BTF_KIND_STRUCT ||
-	    BTF_INFO_VLEN(key_type->info) != 2)
-		return -EINVAL;
+		/*
+		 * Key_type must be a structure with two fields.
+		 */
+		if (BTF_INFO_KIND(key_type->info) != BTF_KIND_STRUCT ||
+		    BTF_INFO_VLEN(key_type->info) != 2)
+			return -EINVAL;
 
-	/*
-	 * The first field must be a 64 bit integer at 0 offset.
-	 */
-	m = (struct btf_member *)(key_type + 1);
-	size = sizeof_field(struct bpf_cgroup_storage_key, cgroup_inode_id);
-	if (!btf_member_is_reg_int(btf, key_type, m, 0, size))
-		return -EINVAL;
+		/*
+		 * The first field must be a 64 bit integer at 0 offset.
+		 */
+		m = (struct btf_member *)(key_type + 1);
+		size = sizeof_field(struct bpf_cgroup_storage_key, cgroup_inode_id);
+		if (!btf_member_is_reg_int(btf, key_type, m, 0, size))
+			return -EINVAL;
 
-	/*
-	 * The second field must be a 32 bit integer at 64 bit offset.
-	 */
-	m++;
-	offset = offsetof(struct bpf_cgroup_storage_key, attach_type);
-	size = sizeof_field(struct bpf_cgroup_storage_key, attach_type);
-	if (!btf_member_is_reg_int(btf, key_type, m, offset, size))
-		return -EINVAL;
+		/*
+		 * The second field must be a 32 bit integer at 64 bit offset.
+		 */
+		m++;
+		offset = offsetof(struct bpf_cgroup_storage_key, attach_type);
+		size = sizeof_field(struct bpf_cgroup_storage_key, attach_type);
+		if (!btf_member_is_reg_int(btf, key_type, m, offset, size))
+			return -EINVAL;
+	} else {
+		u32 int_data;
+
+		/*
+		 * Key is expected to be u64, which stores the cgroup_inode_id
+		 */
+
+		if (BTF_INFO_KIND(key_type->info) != BTF_KIND_INT)
+			return -EINVAL;
+
+		int_data = *(u32 *)(key_type + 1);
+		if (BTF_INT_BITS(int_data) != 64 || BTF_INT_OFFSET(int_data))
+			return -EINVAL;
+	}
 
 	return 0;
 }
 
-static void cgroup_storage_seq_show_elem(struct bpf_map *map, void *_key,
+static void cgroup_storage_seq_show_elem(struct bpf_map *map, void *key,
 					 struct seq_file *m)
 {
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(map);
-	struct bpf_cgroup_storage_key *key = _key;
 	struct bpf_cgroup_storage *storage;
 	int cpu;
 
@@ -409,6 +450,7 @@ static void cgroup_storage_seq_show_elem(struct bpf_map *map, void *_key,
 	rcu_read_unlock();
 }
 
+static int cgroup_storage_map_btf_id;
 const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_alloc = cgroup_storage_map_alloc,
 	.map_free = cgroup_storage_map_free,
@@ -418,43 +460,20 @@ const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_delete_elem = cgroup_storage_delete_elem,
 	.map_check_btf = cgroup_storage_check_btf,
 	.map_seq_show_elem = cgroup_storage_seq_show_elem,
+	.map_btf_name = "bpf_cgroup_storage_map",
+	.map_btf_id = &cgroup_storage_map_btf_id,
 };
 
 int bpf_cgroup_storage_assign(struct bpf_prog_aux *aux, struct bpf_map *_map)
 {
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(_map);
-	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-	int ret = -EBUSY;
 
-	spin_lock_bh(&map->lock);
-
-	if (map->aux && map->aux != aux)
-		goto unlock;
 	if (aux->cgroup_storage[stype] &&
 	    aux->cgroup_storage[stype] != _map)
-		goto unlock;
+		return -EBUSY;
 
-	map->aux = aux;
 	aux->cgroup_storage[stype] = _map;
-	ret = 0;
-unlock:
-	spin_unlock_bh(&map->lock);
-
-	return ret;
-}
-
-void bpf_cgroup_storage_release(struct bpf_prog_aux *aux, struct bpf_map *_map)
-{
-	enum bpf_cgroup_storage_type stype = cgroup_storage_type(_map);
-	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-
-	spin_lock_bh(&map->lock);
-	if (map->aux == aux) {
-		WARN_ON(aux->cgroup_storage[stype] != _map);
-		map->aux = NULL;
-		aux->cgroup_storage[stype] = NULL;
-	}
-	spin_unlock_bh(&map->lock);
+	return 0;
 }
 
 static size_t bpf_cgroup_storage_calculate_size(struct bpf_map *map, u32 *pages)
@@ -575,7 +594,8 @@ void bpf_cgroup_storage_link(struct bpf_cgroup_storage *storage,
 
 	spin_lock_bh(&map->lock);
 	WARN_ON(cgroup_storage_insert(map, storage));
-	list_add(&storage->list, &map->list);
+	list_add(&storage->list_map, &map->list);
+	list_add(&storage->list_cg, &cgroup->bpf.storages);
 	spin_unlock_bh(&map->lock);
 }
 
@@ -593,7 +613,8 @@ void bpf_cgroup_storage_unlink(struct bpf_cgroup_storage *storage)
 	root = &map->root;
 	rb_erase(&storage->node, root);
 
-	list_del(&storage->list);
+	list_del(&storage->list_map);
+	list_del(&storage->list_cg);
 	spin_unlock_bh(&map->lock);
 }
 

@@ -167,8 +167,18 @@ static const struct imx_sc_pd_range imx8qxp_scu_pd_ranges[] = {
 	{ "dc0-pll", IMX_SC_R_DC_0_PLL_0, 2, true, 0 },
 
 	/* CM40 SS */
-	{ "cm40_i2c", IMX_SC_R_M4_0_I2C, 1, 0 },
-	{ "cm40_intmux", IMX_SC_R_M4_0_INTMUX, 1, 0 },
+	{ "cm40-i2c", IMX_SC_R_M4_0_I2C, 1, false, 0 },
+	{ "cm40-intmux", IMX_SC_R_M4_0_INTMUX, 1, false, 0 },
+	{ "cm40-pid", IMX_SC_R_M4_0_PID0, 5, true, 0},
+	{ "cm40-mu-a1", IMX_SC_R_M4_0_MU_1A, 1, false, 0},
+	{ "cm40-lpuart", IMX_SC_R_M4_0_UART, 1, false, 0},
+
+	/* CM41 SS */
+	{ "cm41-i2c", IMX_SC_R_M4_1_I2C, 1, false, 0 },
+	{ "cm41-intmux", IMX_SC_R_M4_1_INTMUX, 1, false, 0 },
+	{ "cm41-pid", IMX_SC_R_M4_1_PID0, 5, true, 0},
+	{ "cm41-mu-a1", IMX_SC_R_M4_1_MU_1A, 1, false, 0},
+	{ "cm41-lpuart", IMX_SC_R_M4_1_UART, 1, false, 0},
 };
 
 static const struct imx_sc_pd_soc imx8qxp_scu_pd = {

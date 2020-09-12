@@ -6,8 +6,8 @@
  * Author: Angelo Compagnucci <angelo.compagnucci@gmail.com>
  *
  * Datasheet: http://ww1.microchip.com/downloads/en/devicedoc/22088b.pdf
- *            http://ww1.microchip.com/downloads/en/DeviceDoc/22226a.pdf
- *            http://ww1.microchip.com/downloads/en/DeviceDoc/22072b.pdf
+ *            https://ww1.microchip.com/downloads/en/DeviceDoc/22226a.pdf
+ *            https://ww1.microchip.com/downloads/en/DeviceDoc/22072b.pdf
  *
  * This driver exports the value of analog input voltage to sysfs, the
  * voltage unit is nV.
@@ -16,9 +16,9 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/sysfs.h>
-#include <linux/of.h>
 #include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
@@ -347,8 +347,6 @@ static int mcp3422_probe(struct i2c_client *client,
 
 	mutex_init(&adc->lock);
 
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mcp3422_info;
@@ -404,18 +402,16 @@ static const struct i2c_device_id mcp3422_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcp3422_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id mcp3422_of_match[] = {
 	{ .compatible = "mcp3422" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp3422_of_match);
-#endif
 
 static struct i2c_driver mcp3422_driver = {
 	.driver = {
 		.name = "mcp3422",
-		.of_match_table = of_match_ptr(mcp3422_of_match),
+		.of_match_table = mcp3422_of_match,
 	},
 	.probe = mcp3422_probe,
 	.id_table = mcp3422_id,

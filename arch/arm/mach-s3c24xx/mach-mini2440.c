@@ -6,7 +6,7 @@
 //      Weibing <http://weibing.blogbus.com> and
 //      Michel Pollet <buserror@gmail.com>
 //
-// For product information, visit http://code.google.com/p/mini2440/
+// For product information, visit https://code.google.com/p/mini2440/
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -402,37 +402,68 @@ static struct platform_device mini2440_button_device = {
 
 /* LEDS */
 
+static struct gpiod_lookup_table mini2440_led1_gpio_table = {
+	.dev_id = "s3c24xx_led.1",
+	.table = {
+		GPIO_LOOKUP("GPB", 5, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table mini2440_led2_gpio_table = {
+	.dev_id = "s3c24xx_led.2",
+	.table = {
+		GPIO_LOOKUP("GPB", 6, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table mini2440_led3_gpio_table = {
+	.dev_id = "s3c24xx_led.3",
+	.table = {
+		GPIO_LOOKUP("GPB", 7, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table mini2440_led4_gpio_table = {
+	.dev_id = "s3c24xx_led.4",
+	.table = {
+		GPIO_LOOKUP("GPB", 8, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table mini2440_backlight_gpio_table = {
+	.dev_id = "s3c24xx_led.5",
+	.table = {
+		GPIO_LOOKUP("GPG", 4, NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct s3c24xx_led_platdata mini2440_led1_pdata = {
 	.name		= "led1",
-	.gpio		= S3C2410_GPB(5),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.def_trigger	= "heartbeat",
 };
 
 static struct s3c24xx_led_platdata mini2440_led2_pdata = {
 	.name		= "led2",
-	.gpio		= S3C2410_GPB(6),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.def_trigger	= "nand-disk",
 };
 
 static struct s3c24xx_led_platdata mini2440_led3_pdata = {
 	.name		= "led3",
-	.gpio		= S3C2410_GPB(7),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.def_trigger	= "mmc0",
 };
 
 static struct s3c24xx_led_platdata mini2440_led4_pdata = {
 	.name		= "led4",
-	.gpio		= S3C2410_GPB(8),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.def_trigger	= "",
 };
 
 static struct s3c24xx_led_platdata mini2440_led_backlight_pdata = {
 	.name		= "backlight",
-	.gpio		= S3C2410_GPG(4),
 	.def_trigger	= "backlight",
 };
 
@@ -713,6 +744,20 @@ static void __init mini2440_init(void)
 
 	i2c_register_board_info(0, mini2440_i2c_devs,
 				ARRAY_SIZE(mini2440_i2c_devs));
+
+	/* Disable pull-up on the LED lines */
+	s3c_gpio_setpull(S3C2410_GPB(5), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPB(6), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPB(7), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPB(8), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPG(4), S3C_GPIO_PULL_NONE);
+
+	/* Add lookups for the lines */
+	gpiod_add_lookup_table(&mini2440_led1_gpio_table);
+	gpiod_add_lookup_table(&mini2440_led2_gpio_table);
+	gpiod_add_lookup_table(&mini2440_led3_gpio_table);
+	gpiod_add_lookup_table(&mini2440_led4_gpio_table);
+	gpiod_add_lookup_table(&mini2440_backlight_gpio_table);
 
 	platform_add_devices(mini2440_devices, ARRAY_SIZE(mini2440_devices));
 

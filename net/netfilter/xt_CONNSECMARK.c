@@ -6,7 +6,7 @@
  * with the SECMARK target and state match.
  *
  * Based somewhat on CONNMARK:
- *   Copyright (C) 2002,2004 MARA Systems AB <http://www.marasystems.com>
+ *   Copyright (C) 2002,2004 MARA Systems AB <https://www.marasystems.com>
  *    by Henrik Nordstrom <hno@marasystems.com>
  *
  * (C) 2006,2008 Red Hat, Inc., James Morris <jmorris@redhat.com>

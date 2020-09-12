@@ -41,7 +41,7 @@ void test_skeleton(void)
 	CHECK(bss->in4 != 0, "in4", "got %lld != exp %lld\n", bss->in4, 0LL);
 	CHECK(bss->out4 != 0, "out4", "got %lld != exp %lld\n", bss->out4, 0LL);
 
-	CHECK(rodata->in6 != 0, "in6", "got %d != exp %d\n", rodata->in6, 0);
+	CHECK(rodata->in.in6 != 0, "in6", "got %d != exp %d\n", rodata->in.in6, 0);
 	CHECK(bss->out6 != 0, "out6", "got %d != exp %d\n", bss->out6, 0);
 
 	/* validate we can pre-setup global variables, even in .bss */
@@ -49,7 +49,7 @@ void test_skeleton(void)
 	data->in2 = 11;
 	bss->in3 = 12;
 	bss->in4 = 13;
-	rodata->in6 = 14;
+	rodata->in.in6 = 14;
 
 	err = test_skeleton__load(skel);
 	if (CHECK(err, "skel_load", "failed to load skeleton: %d\n", err))
@@ -60,7 +60,7 @@ void test_skeleton(void)
 	CHECK(data->in2 != 11, "in2", "got %lld != exp %lld\n", data->in2, 11LL);
 	CHECK(bss->in3 != 12, "in3", "got %d != exp %d\n", bss->in3, 12);
 	CHECK(bss->in4 != 13, "in4", "got %lld != exp %lld\n", bss->in4, 13LL);
-	CHECK(rodata->in6 != 14, "in6", "got %d != exp %d\n", rodata->in6, 14);
+	CHECK(rodata->in.in6 != 14, "in6", "got %d != exp %d\n", rodata->in.in6, 14);
 
 	/* now set new values and attach to get them into outX variables */
 	data->in1 = 1;

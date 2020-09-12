@@ -16,7 +16,7 @@ This document describes the Linux kernel Makefiles.
 	   --- 3.5 Library file goals - lib-y
 	   --- 3.6 Descending down in directories
 	   --- 3.7 Compilation flags
-	   --- 3.8 Command line dependency
+	   --- 3.8 <deleted>
 	   --- 3.9 Dependency tracking
 	   --- 3.10 Special Rules
 	   --- 3.11 $(CC) support functions
@@ -39,8 +39,8 @@ This document describes the Linux kernel Makefiles.
 
 	=== 7 Architecture Makefiles
 	   --- 7.1 Set variables to tweak the build to the architecture
-	   --- 7.2 Add prerequisites to archheaders:
-	   --- 7.3 Add prerequisites to archprepare:
+	   --- 7.2 Add prerequisites to archheaders
+	   --- 7.3 Add prerequisites to archprepare
 	   --- 7.4 List directories to visit when descending
 	   --- 7.5 Architecture-specific boot images
 	   --- 7.6 Building non-kbuild targets
@@ -129,7 +129,7 @@ The preferred name for the kbuild files are 'Makefile' but 'Kbuild' can
 be used and if both a 'Makefile' and a 'Kbuild' file exists, then the 'Kbuild'
 file will be used.
 
-Section 3.1 "Goal definitions" is a quick intro, further chapters provide
+Section 3.1 "Goal definitions" is a quick intro; further chapters provide
 more details, with real examples.
 
 3.1 Goal definitions
@@ -368,12 +368,23 @@ more details, with real examples.
 
 		subdir-ccflags-y := -Werror
 
+    ccflags-remove-y, asflags-remove-y
+	These flags are used to remove particular flags for the compiler,
+	assembler invocations.
+
+	Example::
+
+		ccflags-remove-$(CONFIG_MCOUNT) += -pg
+
     CFLAGS_$@, AFLAGS_$@
 	CFLAGS_$@ and AFLAGS_$@ only apply to commands in current
 	kbuild makefile.
 
 	$(CFLAGS_$@) specifies per-file options for $(CC).  The $@
 	part has a literal value which specifies the file that it is for.
+
+	CFLAGS_$@ has the higher priority than ccflags-remove-y; CFLAGS_$@
+	can re-add compiler flags that were removed by ccflags-remove-y.
 
 	Example::
 
@@ -386,6 +397,9 @@ more details, with real examples.
 
 	$(AFLAGS_$@) is a similar feature for source files in assembly
 	languages.
+
+	AFLAGS_$@ has the higher priority than asflags-remove-y; AFLAGS_$@
+	can re-add assembler flags that were removed by asflags-remove-y.
 
 	Example::
 
@@ -735,6 +749,10 @@ Both possibilities are described in the following.
 		hostprogs     := lxdialog
 		always-y      := $(hostprogs)
 
+	Kbuild provides the following shorthand for this:
+
+		hostprogs-always-y := lxdialog
+
 	This will tell kbuild to build lxdialog even if not referenced in
 	any rule.
 
@@ -817,7 +835,32 @@ The syntax is quite similar. The difference is to use "userprogs" instead of
 5.4 When userspace programs are actually built
 ----------------------------------------------
 
-	Same as "When host programs are actually built".
+	Kbuild builds userspace programs only when told to do so.
+	There are two ways to do this.
+
+	(1) Add it as the prerequisite of another file
+
+	Example::
+
+		#net/bpfilter/Makefile
+		userprogs := bpfilter_umh
+		$(obj)/bpfilter_umh_blob.o: $(obj)/bpfilter_umh
+
+	$(obj)/bpfilter_umh is built before $(obj)/bpfilter_umh_blob.o
+
+	(2) Use always-y
+
+	Example::
+
+		userprogs := binderfs_example
+		always-y := $(userprogs)
+
+	Kbuild provides the following shorthand for this:
+
+		userprogs-always-y := binderfs_example
+
+	This will tell Kbuild to build binderfs_example when it visits this
+	Makefile.
 
 6 Kbuild clean infrastructure
 =============================
@@ -922,7 +965,7 @@ When kbuild executes, the following steps are followed (roughly):
 		KBUILD_LDFLAGS         := -m elf_s390
 
 	Note: ldflags-y can be used to further customise
-	the flags used. See chapter 3.7.
+	the flags used. See section 3.7.
 
     LDFLAGS_vmlinux
 	Options for $(LD) when linking vmlinux
@@ -1078,7 +1121,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	In this example, the file target maketools will be processed
 	before descending down in the subdirectories.
-	See also chapter XXX-TODO that describe how kbuild supports
+	See also chapter XXX-TODO that describes how kbuild supports
 	generating offset header files.
 
 
@@ -1218,7 +1261,7 @@ When kbuild executes, the following steps are followed (roughly):
 	always be built.
 	Assignments to $(targets) are without $(obj)/ prefix.
 	if_changed may be used in conjunction with custom commands as
-	defined in 6.8 "Custom kbuild commands".
+	defined in 7.8 "Custom kbuild commands".
 
 	Note: It is a typical mistake to forget the FORCE prerequisite.
 	Another common pitfall is that whitespace is sometimes
@@ -1368,7 +1411,7 @@ When kbuild executes, the following steps are followed (roughly):
 	that may be shared between individual architectures.
 	The recommended approach how to use a generic header file is
 	to list the file in the Kbuild file.
-	See "7.2 generic-y" for further info on syntax etc.
+	See "8.2 generic-y" for further info on syntax etc.
 
 7.11 Post-link pass
 -------------------
@@ -1558,4 +1601,4 @@ is the right choice.
 
 - Describe how kbuild supports shipped files with _shipped.
 - Generating offset header files.
-- Add more variables to section 7?
+- Add more variables to chapters 7 or 9?

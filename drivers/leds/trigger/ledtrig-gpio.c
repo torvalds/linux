@@ -99,7 +99,8 @@ static ssize_t gpio_trig_inverted_store(struct device *dev,
 	gpio_data->inverted = inverted;
 
 	/* After inverting, we need to update the LED. */
-	gpio_trig_irq(0, led);
+	if (gpio_is_valid(gpio_data->gpio))
+		gpio_trig_irq(0, led);
 
 	return n;
 }

@@ -118,7 +118,7 @@ static int sps30_do_cmd(struct sps30_state *state, u16 cmd, u8 *data, int size)
 	case SPS30_READ_AUTO_CLEANING_PERIOD:
 		buf[0] = SPS30_AUTO_CLEANING_PERIOD >> 8;
 		buf[1] = (u8)(SPS30_AUTO_CLEANING_PERIOD & 0xff);
-		/* fall through */
+		fallthrough;
 	case SPS30_READ_DATA_READY_FLAG:
 	case SPS30_READ_DATA:
 	case SPS30_READ_SERIAL:
@@ -487,7 +487,6 @@ static int sps30_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, indio_dev);
 	state->client = client;
 	state->state = RESET;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &sps30_info;
 	indio_dev->name = client->name;
 	indio_dev->channels = sps30_channels;

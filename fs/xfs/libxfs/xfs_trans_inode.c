@@ -8,6 +8,8 @@
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
+#include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
@@ -36,6 +38,7 @@ xfs_trans_ijoin(
 
 	ASSERT(iip->ili_lock_flags == 0);
 	iip->ili_lock_flags = lock_flags;
+	ASSERT(!xfs_iflags_test(ip, XFS_ISTALE));
 
 	/*
 	 * Get a log_item_desc to point at the new item.
@@ -71,24 +74,35 @@ xfs_trans_ichgtime(
 }
 
 /*
- * This is called to mark the fields indicated in fieldmask as needing
- * to be logged when the transaction is committed.  The inode must
- * already be associated with the given transaction.
+ * This is called to mark the fields indicated in fieldmask as needing to be
+ * logged when the transaction is committed.  The inode must already be
+ * associated with the given transaction.
  *
- * The values for fieldmask are defined in xfs_inode_item.h.  We always
- * log all of the core inode if any of it has changed, and we always log
- * all of the inline data/extents/b-tree root if any of them has changed.
+ * The values for fieldmask are defined in xfs_inode_item.h.  We always log all
+ * of the core inode if any of it has changed, and we always log all of the
+ * inline data/extents/b-tree root if any of them has changed.
+ *
+ * Grab and pin the cluster buffer associated with this inode to avoid RMW
+ * cycles at inode writeback time. Avoid the need to add error handling to every
+ * xfs_trans_log_inode() call by shutting down on read error.  This will cause
+ * transactions to fail and everything to error out, just like if we return a
+ * read error in a dirty transaction and cancel it.
  */
 void
 xfs_trans_log_inode(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*ip,
-	uint		flags)
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	uint			flags)
 {
-	struct inode	*inode = VFS_I(ip);
+	struct xfs_inode_log_item *iip = ip->i_itemp;
+	struct inode		*inode = VFS_I(ip);
+	uint			iversion_flags = 0;
 
-	ASSERT(ip->i_itemp != NULL);
+	ASSERT(iip);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	ASSERT(!xfs_iflags_test(ip, XFS_ISTALE));
+
+	tp->t_flags |= XFS_TRANS_DIRTY;
 
 	/*
 	 * Don't bother with i_lock for the I_DIRTY_TIME check here, as races
@@ -96,20 +110,11 @@ xfs_trans_log_inode(
 	 * to log the timestamps, or will clear already cleared fields in the
 	 * worst case.
 	 */
-	if (inode->i_state & (I_DIRTY_TIME | I_DIRTY_TIME_EXPIRED)) {
+	if (inode->i_state & I_DIRTY_TIME) {
 		spin_lock(&inode->i_lock);
-		inode->i_state &= ~(I_DIRTY_TIME | I_DIRTY_TIME_EXPIRED);
+		inode->i_state &= ~I_DIRTY_TIME;
 		spin_unlock(&inode->i_lock);
 	}
-
-	/*
-	 * Record the specific change for fdatasync optimisation. This
-	 * allows fdatasync to skip log forces for inodes that are only
-	 * timestamp dirty. We do this before the change count so that
-	 * the core being logged in this case does not impact on fdatasync
-	 * behaviour.
-	 */
-	ip->i_itemp->ili_fsync_fields |= flags;
 
 	/*
 	 * First time we log the inode in a transaction, bump the inode change
@@ -120,23 +125,64 @@ xfs_trans_log_inode(
 	 * set however, then go ahead and bump the i_version counter
 	 * unconditionally.
 	 */
-	if (!test_and_set_bit(XFS_LI_DIRTY, &ip->i_itemp->ili_item.li_flags) &&
-	    IS_I_VERSION(VFS_I(ip))) {
-		if (inode_maybe_inc_iversion(VFS_I(ip), flags & XFS_ILOG_CORE))
-			flags |= XFS_ILOG_CORE;
+	if (!test_and_set_bit(XFS_LI_DIRTY, &iip->ili_item.li_flags)) {
+		if (IS_I_VERSION(inode) &&
+		    inode_maybe_inc_iversion(inode, flags & XFS_ILOG_CORE))
+			iversion_flags = XFS_ILOG_CORE;
 	}
 
-	tp->t_flags |= XFS_TRANS_DIRTY;
+	/*
+	 * Record the specific change for fdatasync optimisation. This allows
+	 * fdatasync to skip log forces for inodes that are only timestamp
+	 * dirty.
+	 */
+	spin_lock(&iip->ili_lock);
+	iip->ili_fsync_fields |= flags;
+
+	if (!iip->ili_item.li_buf) {
+		struct xfs_buf	*bp;
+		int		error;
+
+		/*
+		 * We hold the ILOCK here, so this inode is not going to be
+		 * flushed while we are here. Further, because there is no
+		 * buffer attached to the item, we know that there is no IO in
+		 * progress, so nothing will clear the ili_fields while we read
+		 * in the buffer. Hence we can safely drop the spin lock and
+		 * read the buffer knowing that the state will not change from
+		 * here.
+		 */
+		spin_unlock(&iip->ili_lock);
+		error = xfs_imap_to_bp(ip->i_mount, tp, &ip->i_imap, NULL,
+					&bp, 0);
+		if (error) {
+			xfs_force_shutdown(ip->i_mount, SHUTDOWN_META_IO_ERROR);
+			return;
+		}
+
+		/*
+		 * We need an explicit buffer reference for the log item but
+		 * don't want the buffer to remain attached to the transaction.
+		 * Hold the buffer but release the transaction reference once
+		 * we've attached the inode log item to the buffer log item
+		 * list.
+		 */
+		xfs_buf_hold(bp);
+		spin_lock(&iip->ili_lock);
+		iip->ili_item.li_buf = bp;
+		bp->b_flags |= _XBF_INODES;
+		list_add_tail(&iip->ili_item.li_bio_list, &bp->b_li_list);
+		xfs_trans_brelse(tp, bp);
+	}
 
 	/*
-	 * Always OR in the bits from the ili_last_fields field.
-	 * This is to coordinate with the xfs_iflush() and xfs_iflush_done()
-	 * routines in the eventual clearing of the ili_fields bits.
-	 * See the big comment in xfs_iflush() for an explanation of
-	 * this coordination mechanism.
+	 * Always OR in the bits from the ili_last_fields field.  This is to
+	 * coordinate with the xfs_iflush() and xfs_iflush_done() routines in
+	 * the eventual clearing of the ili_fields bits.  See the big comment in
+	 * xfs_iflush() for an explanation of this coordination mechanism.
 	 */
-	flags |= ip->i_itemp->ili_last_fields;
-	ip->i_itemp->ili_fields |= flags;
+	iip->ili_fields |= (flags | iip->ili_last_fields | iversion_flags);
+	spin_unlock(&iip->ili_lock);
 }
 
 int

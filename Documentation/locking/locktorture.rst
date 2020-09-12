@@ -166,4 +166,4 @@ checked for such errors.  The "rmmod" command forces a "SUCCESS",
 two are self-explanatory, while the last indicates that while there
 were no locking failures, CPU-hotplug problems were detected.
 
-Also see: Documentation/RCU/torture.txt
+Also see: Documentation/RCU/torture.rst

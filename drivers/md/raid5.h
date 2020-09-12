@@ -472,31 +472,19 @@ struct disk_info {
  */
 
 #define NR_STRIPES		256
+#define DEFAULT_STRIPE_SIZE	4096
+
+#if PAGE_SIZE == DEFAULT_STRIPE_SIZE
 #define STRIPE_SIZE		PAGE_SIZE
 #define STRIPE_SHIFT		(PAGE_SHIFT - 9)
 #define STRIPE_SECTORS		(STRIPE_SIZE>>9)
+#endif
+
 #define	IO_THRESHOLD		1
 #define BYPASS_THRESHOLD	1
 #define NR_HASH			(PAGE_SIZE / sizeof(struct hlist_head))
 #define HASH_MASK		(NR_HASH - 1)
 #define MAX_STRIPE_BATCH	8
-
-/* bio's attached to a stripe+device for I/O are linked together in bi_sector
- * order without overlap.  There may be several bio's per stripe+device, and
- * a bio could span several devices.
- * When walking this list for a particular stripe+device, we must never proceed
- * beyond a bio that extends past this device, as the next bio might no longer
- * be valid.
- * This function is used to determine the 'next' bio in the list, given the
- * sector of the current stripe+device
- */
-static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
-{
-	if (bio_end_sector(bio) < sector + STRIPE_SECTORS)
-		return bio->bi_next;
-	else
-		return NULL;
-}
 
 /* NOTE NR_STRIPE_HASH_LOCKS must remain below 64.
  * This is because we sometimes take all the spinlocks
@@ -574,6 +562,11 @@ struct r5conf {
 	int			raid_disks;
 	int			max_nr_stripes;
 	int			min_nr_stripes;
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+	unsigned long	stripe_size;
+	unsigned int	stripe_shift;
+	unsigned long	stripe_sectors;
+#endif
 
 	/* reshape_progress is the leading edge of a 'reshape'
 	 * It has value MaxSector when no reshape is happening
@@ -589,7 +582,7 @@ struct r5conf {
 	int			prev_chunk_sectors;
 	int			prev_algo;
 	short			generation; /* increments with every reshape */
-	seqcount_t		gen_lock;	/* lock against generation changes */
+	seqcount_spinlock_t	gen_lock;	/* lock against generation changes */
 	unsigned long		reshape_checkpoint; /* Time we last updated
 						     * metadata */
 	long long		min_offset_diff; /* minimum difference between
@@ -690,6 +683,32 @@ struct r5conf {
 	struct r5pending_data	*next_pending_data;
 };
 
+#if PAGE_SIZE == DEFAULT_STRIPE_SIZE
+#define RAID5_STRIPE_SIZE(conf)	STRIPE_SIZE
+#define RAID5_STRIPE_SHIFT(conf)	STRIPE_SHIFT
+#define RAID5_STRIPE_SECTORS(conf)	STRIPE_SECTORS
+#else
+#define RAID5_STRIPE_SIZE(conf)	((conf)->stripe_size)
+#define RAID5_STRIPE_SHIFT(conf)	((conf)->stripe_shift)
+#define RAID5_STRIPE_SECTORS(conf)	((conf)->stripe_sectors)
+#endif
+
+/* bio's attached to a stripe+device for I/O are linked together in bi_sector
+ * order without overlap.  There may be several bio's per stripe+device, and
+ * a bio could span several devices.
+ * When walking this list for a particular stripe+device, we must never proceed
+ * beyond a bio that extends past this device, as the next bio might no longer
+ * be valid.
+ * This function is used to determine the 'next' bio in the list, given the
+ * sector of the current stripe+device
+ */
+static inline struct bio *r5_next_bio(struct r5conf *conf, struct bio *bio, sector_t sector)
+{
+	if (bio_end_sector(bio) < sector + RAID5_STRIPE_SECTORS(conf))
+		return bio->bi_next;
+	else
+		return NULL;
+}
 
 /*
  * Our supported algorithms

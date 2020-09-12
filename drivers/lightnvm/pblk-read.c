@@ -320,7 +320,7 @@ split_retry:
 		split_bio = bio_split(bio, nr_secs * NR_PHY_IN_LOG, GFP_KERNEL,
 					&pblk_bio_set);
 		bio_chain(split_bio, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 
 		/* New bio contains first N sectors of the previous one, so
 		 * we can continue to use existing rqd, but we need to shrink

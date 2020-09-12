@@ -694,7 +694,7 @@ thumb2arm(u16 tinstr)
 			return subset[(L<<1) | ((tinstr & (1<<8)) >> 8)] |
 			    (tinstr & 255);		/* register_list */
 		}
-		/* Else, fall through - for illegal instruction case */
+		fallthrough;	/* for illegal instruction case */
 
 	default:
 		return BAD_INSTR;
@@ -750,7 +750,7 @@ do_alignment_t32_to_handler(u32 *pinstr, struct pt_regs *regs,
 	case 0xe8e0:
 	case 0xe9e0:
 		poffset->un = (tinst2 & 0xff) << 2;
-		/* Fall through */
+		fallthrough;
 
 	case 0xe940:
 	case 0xe9c0:
@@ -799,7 +799,7 @@ static int alignment_get_thumb(struct pt_regs *regs, u16 *ip, u16 *inst)
 static int
 do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
-	union offset_union uninitialized_var(offset);
+	union offset_union offset;
 	unsigned long instrptr;
 	int (*handler)(unsigned long addr, u32 instr, struct pt_regs *regs);
 	unsigned int type;

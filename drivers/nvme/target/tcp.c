@@ -160,6 +160,11 @@ static void nvmet_tcp_finish_cmd(struct nvmet_tcp_cmd *cmd);
 static inline u16 nvmet_tcp_cmd_tag(struct nvmet_tcp_queue *queue,
 		struct nvmet_tcp_cmd *cmd)
 {
+	if (unlikely(!queue->nr_cmds)) {
+		/* We didn't allocate cmds yet, send 0xffff */
+		return USHRT_MAX;
+	}
+
 	return cmd - queue->cmds;
 }
 
@@ -459,17 +464,11 @@ static void nvmet_setup_response_pdu(struct nvmet_tcp_cmd *cmd)
 static void nvmet_tcp_process_resp_list(struct nvmet_tcp_queue *queue)
 {
 	struct llist_node *node;
+	struct nvmet_tcp_cmd *cmd;
 
-	node = llist_del_all(&queue->resp_list);
-	if (!node)
-		return;
-
-	while (node) {
-		struct nvmet_tcp_cmd *cmd = llist_entry(node,
-					struct nvmet_tcp_cmd, lentry);
-
+	for (node = llist_del_all(&queue->resp_list); node; node = node->next) {
+		cmd = llist_entry(node, struct nvmet_tcp_cmd, lentry);
 		list_add(&cmd->entry, &queue->resp_send_list);
-		node = node->next;
 		queue->send_list_len++;
 	}
 }
@@ -872,7 +871,10 @@ static int nvmet_tcp_handle_h2c_data_pdu(struct nvmet_tcp_queue *queue)
 	struct nvme_tcp_data_pdu *data = &queue->pdu.data;
 	struct nvmet_tcp_cmd *cmd;
 
-	cmd = &queue->cmds[data->ttag];
+	if (likely(queue->nr_cmds))
+		cmd = &queue->cmds[data->ttag];
+	else
+		cmd = &queue->connect;
 
 	if (le32_to_cpu(data->data_offset) != cmd->rbytes_done) {
 		pr_err("ttag %u unexpected data offset %u (expected %u)\n",
@@ -1717,7 +1719,6 @@ static const struct nvmet_fabrics_ops nvmet_tcp_ops = {
 	.owner			= THIS_MODULE,
 	.type			= NVMF_TRTYPE_TCP,
 	.msdbd			= 1,
-	.has_keyed_sgls		= 0,
 	.add_port		= nvmet_tcp_add_port,
 	.remove_port		= nvmet_tcp_remove_port,
 	.queue_response		= nvmet_tcp_queue_response,

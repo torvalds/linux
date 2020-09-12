@@ -126,3 +126,39 @@ Description:
 			1	no action
 			0	firmware record the notify code defined
 				in b[15:0].
+
+What:		/sys/devices/platform/stratix10-rsu.0/dcmf0
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) Decision firmware copy 0 version information.
+
+What:		/sys/devices/platform/stratix10-rsu.0/dcmf1
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) Decision firmware copy 1 version information.
+
+What:		/sys/devices/platform/stratix10-rsu.0/dcmf2
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) Decision firmware copy 2 version information.
+
+What:		/sys/devices/platform/stratix10-rsu.0/dcmf3
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) Decision firmware copy 3 version information.
+
+What:		/sys/devices/platform/stratix10-rsu.0/max_retry
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) max retry parameter is stored in the firmware
+		decision IO section, as a byte located at offset 0x18c.

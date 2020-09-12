@@ -222,7 +222,7 @@ static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	u16 hpctl1 = snd_soc_component_read32(component, WM8900_REG_HPCTL1);
+	u16 hpctl1 = snd_soc_component_read(component, WM8900_REG_HPCTL1);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -629,7 +629,7 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	u16 reg;
 
-	reg = snd_soc_component_read32(component, WM8900_REG_AUDIO1) & ~0x60;
+	reg = snd_soc_component_read(component, WM8900_REG_AUDIO1) & ~0x60;
 
 	switch (params_width(params)) {
 	case 16:
@@ -650,7 +650,7 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_component_write(component, WM8900_REG_AUDIO1, reg);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		reg = snd_soc_component_read32(component, WM8900_REG_DACCTRL);
+		reg = snd_soc_component_read(component, WM8900_REG_DACCTRL);
 
 		if (params_rate(params) <= 24000)
 			reg |= WM8900_REG_DACCTRL_DAC_SB_FILT;
@@ -860,10 +860,10 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int clocking1, aif1, aif3, aif4;
 
-	clocking1 = snd_soc_component_read32(component, WM8900_REG_CLOCKING1);
-	aif1 = snd_soc_component_read32(component, WM8900_REG_AUDIO1);
-	aif3 = snd_soc_component_read32(component, WM8900_REG_AUDIO3);
-	aif4 = snd_soc_component_read32(component, WM8900_REG_AUDIO4);
+	clocking1 = snd_soc_component_read(component, WM8900_REG_CLOCKING1);
+	aif1 = snd_soc_component_read(component, WM8900_REG_AUDIO1);
+	aif3 = snd_soc_component_read(component, WM8900_REG_AUDIO3);
+	aif4 = snd_soc_component_read(component, WM8900_REG_AUDIO4);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -967,12 +967,12 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8900_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	u16 reg;
 
-	reg = snd_soc_component_read32(component, WM8900_REG_DACCTRL);
+	reg = snd_soc_component_read(component, WM8900_REG_DACCTRL);
 
 	if (mute)
 		reg |= WM8900_REG_DACCTRL_MUTE;
@@ -997,7 +997,8 @@ static const struct snd_soc_dai_ops wm8900_dai_ops = {
 	.set_clkdiv	= wm8900_set_dai_clkdiv,
 	.set_pll	= wm8900_set_dai_pll,
 	.set_fmt	= wm8900_set_dai_fmt,
-	.digital_mute	= wm8900_digital_mute,
+	.mute_stream	= wm8900_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8900_dai = {
@@ -1068,7 +1069,7 @@ static int wm8900_set_bias_level(struct snd_soc_component *component,
 				     WM8900_REG_POWER1_BIAS_ENA | 0x1);
 		}
 
-		reg = snd_soc_component_read32(component, WM8900_REG_POWER1);
+		reg = snd_soc_component_read(component, WM8900_REG_POWER1);
 		snd_soc_component_write(component, WM8900_REG_POWER1,
 			     (reg & WM8900_REG_POWER1_FLL_ENA) |
 			     WM8900_REG_POWER1_BIAS_ENA | 0x1);
@@ -1079,7 +1080,7 @@ static int wm8900_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_OFF:
 		/* Startup bias enable */
-		reg = snd_soc_component_read32(component, WM8900_REG_POWER1);
+		reg = snd_soc_component_read(component, WM8900_REG_POWER1);
 		snd_soc_component_write(component, WM8900_REG_POWER1,
 			     reg & WM8900_REG_POWER1_STARTUP_BIAS_ENA);
 		snd_soc_component_write(component, WM8900_REG_ADDCTL,
@@ -1170,7 +1171,7 @@ static int wm8900_probe(struct snd_soc_component *component)
 {
 	int reg;
 
-	reg = snd_soc_component_read32(component, WM8900_REG_ID);
+	reg = snd_soc_component_read(component, WM8900_REG_ID);
 	if (reg != 0x8900) {
 		dev_err(component->dev, "Device is not a WM8900 - ID %x\n", reg);
 		return -ENODEV;

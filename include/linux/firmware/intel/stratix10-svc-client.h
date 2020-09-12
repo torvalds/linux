@@ -54,18 +54,17 @@
  * Flag bit for COMMAND_RECONFIG
  *
  * COMMAND_RECONFIG_FLAG_PARTIAL:
- * Set to FPGA configuration type (full or partial), the default
- * is full reconfig.
+ * Set to FPGA configuration type (full or partial).
  */
-#define COMMAND_RECONFIG_FLAG_PARTIAL	0
+#define COMMAND_RECONFIG_FLAG_PARTIAL	1
 
 /**
  * Timeout settings for service clients:
  * timeout value used in Stratix10 FPGA manager driver.
  * timeout value used in RSU driver
  */
-#define SVC_RECONFIG_REQUEST_TIMEOUT_MS         100
-#define SVC_RECONFIG_BUFFER_TIMEOUT_MS          240
+#define SVC_RECONFIG_REQUEST_TIMEOUT_MS         300
+#define SVC_RECONFIG_BUFFER_TIMEOUT_MS          720
 #define SVC_RSU_REQUEST_TIMEOUT_MS              300
 
 struct stratix10_svc_chan;
@@ -99,6 +98,12 @@ struct stratix10_svc_chan;
  *
  * @COMMAND_RSU_RETRY: query firmware for the current image's retry counter,
  * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_RSU_MAX_RETRY: query firmware for the max retry value,
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_RSU_DCMF_VERSION: query firmware for the DCMF version, return status
+ * is SVC_STATUS_OK or SVC_STATUS_ERROR
  */
 enum stratix10_svc_command_code {
 	COMMAND_NOOP = 0,
@@ -110,6 +115,8 @@ enum stratix10_svc_command_code {
 	COMMAND_RSU_UPDATE,
 	COMMAND_RSU_NOTIFY,
 	COMMAND_RSU_RETRY,
+	COMMAND_RSU_MAX_RETRY,
+	COMMAND_RSU_DCMF_VERSION,
 };
 
 /**

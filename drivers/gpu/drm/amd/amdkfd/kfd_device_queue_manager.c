@@ -153,30 +153,6 @@ static void decrement_queue_count(struct device_queue_manager *dqm,
 		dqm->active_cp_queue_count--;
 }
 
-int read_sdma_queue_counter(uint64_t q_rptr, uint64_t *val)
-{
-	int ret;
-	uint64_t tmp = 0;
-
-	if (!val)
-		return -EINVAL;
-	/*
-	 * SDMA activity counter is stored at queue's RPTR + 0x8 location.
-	 */
-	if (!access_ok((const void __user *)(q_rptr +
-					sizeof(uint64_t)), sizeof(uint64_t))) {
-		pr_err("Can't access sdma queue activity counter\n");
-		return -EFAULT;
-	}
-
-	ret = get_user(tmp, (uint64_t *)(q_rptr + sizeof(uint64_t)));
-	if (!ret) {
-		*val = tmp;
-	}
-
-	return ret;
-}
-
 static int allocate_doorbell(struct qcm_process_device *qpd, struct queue *q)
 {
 	struct kfd_dev *dev = qpd->dqm->dev;
@@ -552,7 +528,7 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 	/* Get the SDMA queue stats */
 	if ((q->properties.type == KFD_QUEUE_TYPE_SDMA) ||
 	    (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)) {
-		retval = read_sdma_queue_counter((uint64_t)q->properties.read_ptr,
+		retval = read_sdma_queue_counter((uint64_t __user *)q->properties.read_ptr,
 							&sdma_val);
 		if (retval)
 			pr_err("Failed to read SDMA queue counter for queue: %d\n",
@@ -1473,7 +1449,7 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	/* Get the SDMA queue stats */
 	if ((q->properties.type == KFD_QUEUE_TYPE_SDMA) ||
 	    (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)) {
-		retval = read_sdma_queue_counter((uint64_t)q->properties.read_ptr,
+		retval = read_sdma_queue_counter((uint64_t __user *)q->properties.read_ptr,
 							&sdma_val);
 		if (retval)
 			pr_err("Failed to read SDMA queue counter for queue: %d\n",

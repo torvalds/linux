@@ -361,3 +361,46 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 #define INTEL_SIP_SMC_FUNCID_RSU_RETRY_COUNTER 15
 #define INTEL_SIP_SMC_RSU_RETRY_COUNTER \
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_RETRY_COUNTER)
+
+/**
+ * Request INTEL_SIP_SMC_RSU_DCMF_VERSION
+ *
+ * Sync call used by service driver at EL1 to query DCMF (Decision
+ * Configuration Management Firmware) version from FW
+ *
+ * Call register usage:
+ * a0 INTEL_SIP_SMC_RSU_DCMF_VERSION
+ * a1-7 not used
+ *
+ * Return status
+ * a0 INTEL_SIP_SMC_STATUS_OK
+ * a1 dcmf1 | dcmf0
+ * a2 dcmf3 | dcmf2
+ *
+ * Or
+ *
+ * a0 INTEL_SIP_SMC_RSU_ERROR
+ */
+#define INTEL_SIP_SMC_FUNCID_RSU_DCMF_VERSION 16
+#define INTEL_SIP_SMC_RSU_DCMF_VERSION \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_DCMF_VERSION)
+
+/**
+ * Request INTEL_SIP_SMC_RSU_MAX_RETRY
+ *
+ * Sync call used by service driver at EL1 to query max retry value from FW
+ *
+ * Call register usage:
+ * a0 INTEL_SIP_SMC_RSU_MAX_RETRY
+ * a1-7 not used
+ *
+ * Return status
+ * a0 INTEL_SIP_SMC_STATUS_OK
+ * a1 max retry value
+ *
+ * Or
+ * a0 INTEL_SIP_SMC_RSU_ERROR
+ */
+#define INTEL_SIP_SMC_FUNCID_RSU_MAX_RETRY 18
+#define INTEL_SIP_SMC_RSU_MAX_RETRY \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_MAX_RETRY)

@@ -13,6 +13,11 @@ Required Properties:
 
 Optional Properties:
 - reset-gpios: Sensor reset GPIO
+- clocks: Reference to the input clock.
+- clock-names: Should be "inck".
+- VANA-supply: Sensor 2.8v analog supply.
+- VDIG-supply: Sensor 1.8v digital core supply.
+- VDDL-supply: Sensor digital IO 1.2v supply.
 
 The imx274 device node should contain one 'port' child node with
 an 'endpoint' subnode. For further reading on port node refer to

@@ -297,7 +297,7 @@ void drm_syncobj_add_point(struct drm_syncobj *syncobj,
 	prev = drm_syncobj_fence_get(syncobj);
 	/* You are adding an unorder point to timeline, which could cause payload returned from query_ioctl is 0! */
 	if (prev && prev->seqno >= point)
-		DRM_ERROR("You are adding an unorder point to timeline!\n");
+		DRM_DEBUG("You are adding an unorder point to timeline!\n");
 	dma_fence_chain_init(chain, prev, fence, point);
 	rcu_assign_pointer(syncobj->fence, &chain->base);
 

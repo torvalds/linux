@@ -597,7 +597,7 @@ static void venc_bridge_mode_set(struct drm_bridge *bridge,
 	switch (venc_mode) {
 	default:
 		WARN_ON_ONCE(1);
-		/* Fall-through */
+		fallthrough;
 	case VENC_MODE_PAL:
 		venc->config = &venc_config_pal_trm;
 		break;
@@ -781,7 +781,7 @@ static int venc_probe_of(struct venc_device *venc)
 		venc->type = OMAP_DSS_VENC_TYPE_SVIDEO;
 		break;
 	default:
-		dev_err(&venc->pdev->dev, "bad channel propert '%d'\n",
+		dev_err(&venc->pdev->dev, "bad channel property '%d'\n",
 			channels);
 		r = -EINVAL;
 		goto err;

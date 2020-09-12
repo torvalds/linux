@@ -239,7 +239,6 @@ int qedr_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *attr)
 	attr->ip_gids = true;
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
 		attr->gid_tbl_len = 1;
-		attr->pkey_tbl_len = 1;
 	} else {
 		attr->gid_tbl_len = QEDR_MAX_SGID;
 		attr->pkey_tbl_len = QEDR_ROCE_PKEY_TABLE_LEN;
@@ -275,7 +274,8 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 			DP_ERR(dev, "Problem copying data from user space\n");
 			return -EFAULT;
 		}
-
+		ctx->edpm_mode = !!(ureq.context_flags &
+				    QEDR_ALLOC_UCTX_EDPM_MODE);
 		ctx->db_rec = !!(ureq.context_flags & QEDR_ALLOC_UCTX_DB_REC);
 	}
 
@@ -316,11 +316,15 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 		uresp.dpm_flags = QEDR_DPM_TYPE_IWARP_LEGACY;
 	else
 		uresp.dpm_flags = QEDR_DPM_TYPE_ROCE_ENHANCED |
-				  QEDR_DPM_TYPE_ROCE_LEGACY;
+				  QEDR_DPM_TYPE_ROCE_LEGACY |
+				  QEDR_DPM_TYPE_ROCE_EDPM_MODE;
 
-	uresp.dpm_flags |= QEDR_DPM_SIZES_SET;
-	uresp.ldpm_limit_size = QEDR_LDPM_MAX_SIZE;
-	uresp.edpm_trans_size = QEDR_EDPM_TRANS_SIZE;
+	if (ureq.context_flags & QEDR_SUPPORT_DPM_SIZES) {
+		uresp.dpm_flags |= QEDR_DPM_SIZES_SET;
+		uresp.ldpm_limit_size = QEDR_LDPM_MAX_SIZE;
+		uresp.edpm_trans_size = QEDR_EDPM_TRANS_SIZE;
+		uresp.edpm_limit_size = QEDR_EDPM_MAX_SIZE;
+	}
 
 	uresp.wids_enabled = 1;
 	uresp.wid_count = oparams.wid_count;
@@ -891,6 +895,12 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		udata, struct qedr_ucontext, ibucontext);
 	struct qed_rdma_destroy_cq_out_params destroy_oparams;
 	struct qed_rdma_destroy_cq_in_params destroy_iparams;
+	struct qed_chain_init_params chain_params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U32,
+		.elem_size	= sizeof(union rdma_cqe),
+	};
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
 	struct qed_rdma_create_cq_in_params params;
 	struct qedr_create_cq_ureq ureq = {};
@@ -917,6 +927,7 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	chain_entries = qedr_align_cq_entries(entries);
 	chain_entries = min_t(int, chain_entries, QEDR_MAX_CQES);
+	chain_params.num_elems = chain_entries;
 
 	/* calc db offset. user will add DPI base, kernel will add db addr */
 	db_offset = DB_ADDR_SHIFT(DQ_PWM_OFFSET_UCM_RDMA_CQ_CONS_32BIT);
@@ -951,13 +962,8 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	} else {
 		cq->cq_type = QEDR_CQ_TYPE_KERNEL;
 
-		rc = dev->ops->common->chain_alloc(dev->cdev,
-						   QED_CHAIN_USE_TO_CONSUME,
-						   QED_CHAIN_MODE_PBL,
-						   QED_CHAIN_CNT_TYPE_U32,
-						   chain_entries,
-						   sizeof(union rdma_cqe),
-						   &cq->pbl, NULL);
+		rc = dev->ops->common->chain_alloc(dev->cdev, &cq->pbl,
+						   &chain_params);
 		if (rc)
 			goto err0;
 
@@ -1446,6 +1452,12 @@ static int qedr_alloc_srq_kernel_params(struct qedr_srq *srq,
 					struct ib_srq_init_attr *init_attr)
 {
 	struct qedr_srq_hwq_info *hw_srq = &srq->hw_srq;
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U32,
+		.elem_size	= QEDR_SRQ_WQE_ELEM_SIZE,
+	};
 	dma_addr_t phy_prod_pair_addr;
 	u32 num_elems;
 	void *va;
@@ -1464,13 +1476,9 @@ static int qedr_alloc_srq_kernel_params(struct qedr_srq *srq,
 	hw_srq->virt_prod_pair_addr = va;
 
 	num_elems = init_attr->attr.max_wr * RDMA_MAX_SRQ_WQE_SIZE;
-	rc = dev->ops->common->chain_alloc(dev->cdev,
-					   QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-					   QED_CHAIN_MODE_PBL,
-					   QED_CHAIN_CNT_TYPE_U32,
-					   num_elems,
-					   QEDR_SRQ_WQE_ELEM_SIZE,
-					   &hw_srq->pbl, NULL);
+	params.num_elems = num_elems;
+
+	rc = dev->ops->common->chain_alloc(dev->cdev, &hw_srq->pbl, &params);
 	if (rc)
 		goto err0;
 
@@ -1750,7 +1758,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	struct qed_rdma_create_qp_out_params out_params;
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 	struct qedr_create_qp_uresp uresp;
-	struct qedr_ucontext *ctx = NULL;
+	struct qedr_ucontext *ctx = pd ? pd->uctx : NULL;
 	struct qedr_create_qp_ureq ureq;
 	int alloc_and_init = rdma_protocol_roce(&dev->ibdev, 1);
 	int rc = -EINVAL;
@@ -1787,6 +1795,9 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 		in_params.rq_num_pages = qp->urq.pbl_info.num_pbes;
 		in_params.rq_pbl_ptr = qp->urq.pbl_tbl->pa;
 	}
+
+	if (ctx)
+		SET_FIELD(in_params.flags, QED_ROCE_EDPM_MODE, ctx->edpm_mode);
 
 	qp->qed_qp = dev->ops->rdma_create_qp(dev->rdma_ctx,
 					      &in_params, &out_params);
@@ -1901,29 +1912,28 @@ qedr_roce_create_kernel_qp(struct qedr_dev *dev,
 			   u32 n_sq_elems, u32 n_rq_elems)
 {
 	struct qed_rdma_create_qp_out_params out_params;
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U32,
+	};
 	int rc;
 
-	rc = dev->ops->common->chain_alloc(dev->cdev,
-					   QED_CHAIN_USE_TO_PRODUCE,
-					   QED_CHAIN_MODE_PBL,
-					   QED_CHAIN_CNT_TYPE_U32,
-					   n_sq_elems,
-					   QEDR_SQE_ELEMENT_SIZE,
-					   &qp->sq.pbl, NULL);
+	params.intended_use = QED_CHAIN_USE_TO_PRODUCE;
+	params.num_elems = n_sq_elems;
+	params.elem_size = QEDR_SQE_ELEMENT_SIZE;
 
+	rc = dev->ops->common->chain_alloc(dev->cdev, &qp->sq.pbl, &params);
 	if (rc)
 		return rc;
 
 	in_params->sq_num_pages = qed_chain_get_page_cnt(&qp->sq.pbl);
 	in_params->sq_pbl_ptr = qed_chain_get_pbl_phys(&qp->sq.pbl);
 
-	rc = dev->ops->common->chain_alloc(dev->cdev,
-					   QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-					   QED_CHAIN_MODE_PBL,
-					   QED_CHAIN_CNT_TYPE_U32,
-					   n_rq_elems,
-					   QEDR_RQE_ELEMENT_SIZE,
-					   &qp->rq.pbl, NULL);
+	params.intended_use = QED_CHAIN_USE_TO_CONSUME_PRODUCE;
+	params.num_elems = n_rq_elems;
+	params.elem_size = QEDR_RQE_ELEMENT_SIZE;
+
+	rc = dev->ops->common->chain_alloc(dev->cdev, &qp->rq.pbl, &params);
 	if (rc)
 		return rc;
 
@@ -1949,14 +1959,19 @@ qedr_iwarp_create_kernel_qp(struct qedr_dev *dev,
 			    u32 n_sq_elems, u32 n_rq_elems)
 {
 	struct qed_rdma_create_qp_out_params out_params;
-	struct qed_chain_ext_pbl ext_pbl;
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U32,
+	};
 	int rc;
 
 	in_params->sq_num_pages = QED_CHAIN_PAGE_CNT(n_sq_elems,
 						     QEDR_SQE_ELEMENT_SIZE,
+						     QED_CHAIN_PAGE_SIZE,
 						     QED_CHAIN_MODE_PBL);
 	in_params->rq_num_pages = QED_CHAIN_PAGE_CNT(n_rq_elems,
 						     QEDR_RQE_ELEMENT_SIZE,
+						     QED_CHAIN_PAGE_SIZE,
 						     QED_CHAIN_MODE_PBL);
 
 	qp->qed_qp = dev->ops->rdma_create_qp(dev->rdma_ctx,
@@ -1966,31 +1981,24 @@ qedr_iwarp_create_kernel_qp(struct qedr_dev *dev,
 		return -EINVAL;
 
 	/* Now we allocate the chain */
-	ext_pbl.p_pbl_virt = out_params.sq_pbl_virt;
-	ext_pbl.p_pbl_phys = out_params.sq_pbl_phys;
 
-	rc = dev->ops->common->chain_alloc(dev->cdev,
-					   QED_CHAIN_USE_TO_PRODUCE,
-					   QED_CHAIN_MODE_PBL,
-					   QED_CHAIN_CNT_TYPE_U32,
-					   n_sq_elems,
-					   QEDR_SQE_ELEMENT_SIZE,
-					   &qp->sq.pbl, &ext_pbl);
+	params.intended_use = QED_CHAIN_USE_TO_PRODUCE;
+	params.num_elems = n_sq_elems;
+	params.elem_size = QEDR_SQE_ELEMENT_SIZE;
+	params.ext_pbl_virt = out_params.sq_pbl_virt;
+	params.ext_pbl_phys = out_params.sq_pbl_phys;
 
+	rc = dev->ops->common->chain_alloc(dev->cdev, &qp->sq.pbl, &params);
 	if (rc)
 		goto err;
 
-	ext_pbl.p_pbl_virt = out_params.rq_pbl_virt;
-	ext_pbl.p_pbl_phys = out_params.rq_pbl_phys;
+	params.intended_use = QED_CHAIN_USE_TO_CONSUME_PRODUCE;
+	params.num_elems = n_rq_elems;
+	params.elem_size = QEDR_RQE_ELEMENT_SIZE;
+	params.ext_pbl_virt = out_params.rq_pbl_virt;
+	params.ext_pbl_phys = out_params.rq_pbl_phys;
 
-	rc = dev->ops->common->chain_alloc(dev->cdev,
-					   QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-					   QED_CHAIN_MODE_PBL,
-					   QED_CHAIN_CNT_TYPE_U32,
-					   n_rq_elems,
-					   QEDR_RQE_ELEMENT_SIZE,
-					   &qp->rq.pbl, &ext_pbl);
-
+	rc = dev->ops->common->chain_alloc(dev->cdev, &qp->rq.pbl, &params);
 	if (rc)
 		goto err;
 
@@ -3003,7 +3011,7 @@ err0:
 }
 
 struct ib_mr *qedr_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
-			    u32 max_num_sg, struct ib_udata *udata)
+			    u32 max_num_sg)
 {
 	struct qedr_mr *mr;
 
@@ -3520,7 +3528,7 @@ static int __qedr_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		break;
 	case IB_WR_RDMA_READ_WITH_INV:
 		SET_FIELD2(wqe->flags, RDMA_SQ_RDMA_WQE_1ST_READ_INV_FLG, 1);
-		/* fallthrough -- same is identical to RDMA READ */
+		fallthrough;	/* same is identical to RDMA READ */
 
 	case IB_WR_RDMA_READ:
 		wqe->req_type = RDMA_SQ_REQ_TYPE_RDMA_RD;
@@ -3686,7 +3694,7 @@ static u32 qedr_srq_elem_left(struct qedr_srq_hwq_info *hw_srq)
 	 * count and consumer count and subtract it from max
 	 * work request supported so that we get elements left.
 	 */
-	used = hw_srq->wr_prod_cnt - hw_srq->wr_cons_cnt;
+	used = hw_srq->wr_prod_cnt - (u32)atomic_read(&hw_srq->wr_cons_cnt);
 
 	return hw_srq->max_wr - used;
 }
@@ -3701,7 +3709,6 @@ int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 	unsigned long flags;
 	int status = 0;
 	u32 num_sge;
-	u32 offset;
 
 	spin_lock_irqsave(&srq->lock, flags);
 
@@ -3714,7 +3721,8 @@ int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		if (!qedr_srq_elem_left(hw_srq) ||
 		    wr->num_sge > srq->hw_srq.max_sges) {
 			DP_ERR(dev, "Can't post WR  (%d,%d) || (%d > %d)\n",
-			       hw_srq->wr_prod_cnt, hw_srq->wr_cons_cnt,
+			       hw_srq->wr_prod_cnt,
+			       atomic_read(&hw_srq->wr_cons_cnt),
 			       wr->num_sge, srq->hw_srq.max_sges);
 			status = -ENOMEM;
 			*bad_wr = wr;
@@ -3748,22 +3756,20 @@ int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			hw_srq->sge_prod++;
 		}
 
-		/* Flush WQE and SGE information before
+		/* Update WQE and SGE information before
 		 * updating producer.
 		 */
-		wmb();
+		dma_wmb();
 
 		/* SRQ producer is 8 bytes. Need to update SGE producer index
 		 * in first 4 bytes and need to update WQE producer in
 		 * next 4 bytes.
 		 */
-		*srq->hw_srq.virt_prod_pair_addr = hw_srq->sge_prod;
-		offset = offsetof(struct rdma_srq_producers, wqe_prod);
-		*((u8 *)srq->hw_srq.virt_prod_pair_addr + offset) =
-			hw_srq->wqe_prod;
+		srq->hw_srq.virt_prod_pair_addr->sge_prod = hw_srq->sge_prod;
+		/* Make sure sge producer is updated first */
+		dma_wmb();
+		srq->hw_srq.virt_prod_pair_addr->wqe_prod = hw_srq->wqe_prod;
 
-		/* Flush producer after updating it. */
-		wmb();
 		wr = wr->next;
 	}
 
@@ -4182,7 +4188,7 @@ static int process_resp_one_srq(struct qedr_dev *dev, struct qedr_qp *qp,
 	} else {
 		__process_resp_one(dev, qp, cq, wc, resp, wr_id);
 	}
-	srq->hw_srq.wr_cons_cnt++;
+	atomic_inc(&srq->hw_srq.wr_cons_cnt);
 
 	return 1;
 }

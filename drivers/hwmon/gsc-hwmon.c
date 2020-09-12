@@ -159,7 +159,7 @@ gsc_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		return -EOPNOTSUPP;
 	}
 
-	sz = (ch->mode == mode_voltage) ? 3 : 2;
+	sz = (ch->mode == mode_voltage_24bit) ? 3 : 2;
 	ret = regmap_bulk_read(hwmon->regmap, ch->reg, buf, sz);
 	if (ret)
 		return ret;
@@ -172,6 +172,7 @@ gsc_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case mode_temperature:
 		if (tmp > 0x8000)
 			tmp -= 0xffff;
+		tmp *= 100; /* convert to millidegrees celsius */
 		break;
 	case mode_voltage_raw:
 		tmp = clamp_val(tmp, 0, BIT(GSC_HWMON_RESOLUTION));
@@ -186,7 +187,8 @@ gsc_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		/* adjust by uV offset */
 		tmp += ch->mvoffset;
 		break;
-	case mode_voltage:
+	case mode_voltage_24bit:
+	case mode_voltage_16bit:
 		/* no adjustment needed */
 		break;
 	}
@@ -336,7 +338,8 @@ static int gsc_hwmon_probe(struct platform_device *pdev)
 						     HWMON_T_LABEL;
 			i_temp++;
 			break;
-		case mode_voltage:
+		case mode_voltage_24bit:
+		case mode_voltage_16bit:
 		case mode_voltage_raw:
 			if (i_in == GSC_HWMON_MAX_IN_CH) {
 				dev_err(gsc->dev, "too many input channels\n");

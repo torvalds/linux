@@ -29,6 +29,7 @@
 #include "cwsr_trap_handler.h"
 #include "kfd_iommu.h"
 #include "amdgpu_amdkfd.h"
+#include "kfd_smi_events.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -115,6 +116,7 @@ static const struct kfd_device_info carrizo_device_info = {
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
+#endif
 
 static const struct kfd_device_info raven_device_info = {
 	.asic_family = CHIP_RAVEN,
@@ -133,7 +135,6 @@ static const struct kfd_device_info raven_device_info = {
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
-#endif
 
 static const struct kfd_device_info hawaii_device_info = {
 	.asic_family = CHIP_HAWAII,
@@ -711,11 +712,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_doorbell_error;
 	}
 
-	if (kfd->kfd2kgd->get_hive_id)
-		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
+	kfd->hive_id = amdgpu_amdkfd_get_hive_id(kfd->kgd);
 
-	if (kfd->kfd2kgd->get_unique_id)
-		kfd->unique_id = kfd->kfd2kgd->get_unique_id(kfd->kgd);
+	kfd->unique_id = amdgpu_amdkfd_get_unique_id(kfd->kgd);
 
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
@@ -736,6 +735,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			amdgpu_amdkfd_get_num_gws(kfd->kgd));
 		goto gws_error;
 	}
+
+	/* If CRAT is broken, won't set iommu enabled */
+	kfd_double_confirm_iommu_support(kfd);
 
 	if (kfd_iommu_device_init(kfd)) {
 		dev_err(kfd_device, "Error initializing iommuv2\n");
@@ -810,6 +812,8 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 	if (!kfd->init_complete)
 		return 0;
 
+	kfd_smi_event_update_gpu_reset(kfd, false);
+
 	kfd->dqm->ops.pre_reset(kfd->dqm);
 
 	kgd2kfd_suspend(kfd, false);
@@ -837,6 +841,8 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	atomic_dec(&kfd_locked);
 
 	atomic_set(&kfd->sram_ecc_flag, 0);
+
+	kfd_smi_event_update_gpu_reset(kfd, true);
 
 	return 0;
 }
@@ -1243,6 +1249,12 @@ void kfd_dec_compute_active(struct kfd_dev *kfd)
 	if (count == 0)
 		amdgpu_amdkfd_set_compute_idle(kfd->kgd, true);
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
+}
+
+void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint32_t throttle_bitmask)
+{
+	if (kfd)
+		kfd_smi_event_update_thermal_throttling(kfd, throttle_bitmask);
 }
 
 #if defined(CONFIG_DEBUG_FS)

@@ -61,6 +61,8 @@ int ptrace_vsx(void)
 	pid_t pid;
 	int ret, status, i;
 
+	SKIP_IF(!have_hwcap(PPC_FEATURE_HAS_VSX));
+
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 2, 0777|IPC_CREAT);
 
 	for (i = 0; i < VEC_MAX; i++)

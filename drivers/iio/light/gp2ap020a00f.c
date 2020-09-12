@@ -1390,12 +1390,6 @@ static int gp2ap020a00f_buffer_postenable(struct iio_dev *indio_dev)
 
 	mutex_lock(&data->lock);
 
-	err = iio_triggered_buffer_postenable(indio_dev);
-	if (err < 0) {
-		mutex_unlock(&data->lock);
-		return err;
-	}
-
 	/*
 	 * Enable triggers according to the scan_mask. Enabling either
 	 * LIGHT_CLEAR or LIGHT_IR scan mode results in enabling ALS
@@ -1430,8 +1424,6 @@ static int gp2ap020a00f_buffer_postenable(struct iio_dev *indio_dev)
 		err = -ENOMEM;
 
 error_unlock:
-	if (err < 0)
-		iio_triggered_buffer_predisable(indio_dev);
 	mutex_unlock(&data->lock);
 
 	return err;
@@ -1464,8 +1456,6 @@ static int gp2ap020a00f_buffer_predisable(struct iio_dev *indio_dev)
 
 	if (err == 0)
 		kfree(data->buffer);
-
-	iio_triggered_buffer_predisable(indio_dev);
 
 	mutex_unlock(&data->lock);
 
@@ -1527,7 +1517,6 @@ static int gp2ap020a00f_probe(struct i2c_client *client,
 	init_waitqueue_head(&data->data_ready_queue);
 
 	mutex_init(&data->lock);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = gp2ap020a00f_channels;
 	indio_dev->num_channels = ARRAY_SIZE(gp2ap020a00f_channels);
 	indio_dev->info = &gp2ap020a00f_info;

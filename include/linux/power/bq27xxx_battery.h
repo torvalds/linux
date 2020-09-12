@@ -30,6 +30,8 @@ enum bq27xxx_chip {
 	BQ27426,
 	BQ27441,
 	BQ27621,
+	BQ27Z561,
+	BQ28Z610,
 };
 
 struct bq27xxx_device_info;

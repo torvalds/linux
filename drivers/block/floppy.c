@@ -1680,7 +1680,7 @@ static void recal_interrupt(void)
 			clear_bit(FD_DISK_NEWCHANGE_BIT,
 				  &drive_state[current_drive].flags);
 			drive_state[current_drive].select_date = jiffies;
-			/* fall through */
+			fallthrough;
 		default:
 			debugt(__func__, "default");
 			/* Recalibrate moves the head by at
@@ -3592,7 +3592,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 		if (poll_drive(true, FD_RAW_NEED_DISK) == -EINTR)
 			return -EINTR;
 		process_fd_request();
-		/* fall through */
+		fallthrough;
 	case FDGETDRVSTAT:
 		outparam = &drive_state[drive];
 		break;
@@ -4205,7 +4205,6 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
 	struct bio_vec bio_vec;
 	struct page *page;
 	struct rb0_cbdata cbdata;
-	size_t size;
 
 	page = alloc_page(GFP_NOIO);
 	if (!page) {
@@ -4213,15 +4212,11 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
 		return -ENOMEM;
 	}
 
-	size = bdev->bd_block_size;
-	if (!size)
-		size = 1024;
-
 	cbdata.drive = drive;
 
 	bio_init(&bio, &bio_vec, 1);
 	bio_set_dev(&bio, bdev);
-	bio_add_page(&bio, page, size, 0);
+	bio_add_page(&bio, page, block_size(bdev), 0);
 
 	bio.bi_iter.bi_sector = 0;
 	bio.bi_flags |= (1 << BIO_QUIET);

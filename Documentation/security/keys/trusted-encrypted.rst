@@ -200,7 +200,7 @@ Load an encrypted key "evm" from saved blob::
     24717c64 5972dcb82ab2dde83376d82b2e3c09ffc
 
 Other uses for trusted and encrypted keys, such as for disk and file encryption
-are anticipated.  In particular the new format 'ecryptfs' has been defined in
+are anticipated.  In particular the new format 'ecryptfs' has been defined
 in order to use encrypted keys to mount an eCryptfs filesystem.  More details
 about the usage can be found in the file
 ``Documentation/security/keys/ecryptfs.rst``.

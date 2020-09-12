@@ -221,7 +221,7 @@ static const struct regulator_ops ltc3676_fixed_regulator_ops = {
 #define LTC3676_FIXED_REG(_id, _name, _en_reg, _en_bit)                \
 	LTC3676_REG(_id, _name, fixed, LTC3676_ ## _en_reg, _en_bit, 0, 0)
 
-static struct regulator_desc ltc3676_regulators[LTC3676_NUM_REGULATORS] = {
+static const struct regulator_desc ltc3676_regulators[LTC3676_NUM_REGULATORS] = {
 	LTC3676_LINEAR_REG(SW1, sw1, BUCK1, DVB1A),
 	LTC3676_LINEAR_REG(SW2, sw2, BUCK2, DVB2A),
 	LTC3676_LINEAR_REG(SW3, sw3, BUCK3, DVB3A),

@@ -68,6 +68,29 @@ Optional properties:
   - wlf,csnaddr-pd : If present enable the internal pull-down resistor on
     the CS/ADDR pin.
 
+Pins on the device (for linking into audio routes):
+
+  * IN1LN
+  * IN1LP
+  * IN2LN
+  * IN2LP:VXRN
+  * IN1RN
+  * IN1RP
+  * IN2RN
+  * IN2RP:VXRP
+  * SPKOUTLP
+  * SPKOUTLN
+  * SPKOUTRP
+  * SPKOUTRN
+  * HPOUT1L
+  * HPOUT1R
+  * HPOUT2P
+  * HPOUT2N
+  * LINEOUT1P
+  * LINEOUT1N
+  * LINEOUT2P
+  * LINEOUT2N
+
 Example:
 
 wm8994: codec@1a {

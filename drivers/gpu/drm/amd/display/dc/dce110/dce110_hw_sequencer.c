@@ -720,6 +720,7 @@ void dce110_edp_wait_for_hpd_ready(
 	struct dc_context *ctx = link->ctx;
 	struct graphics_object_id connector = link->link_enc->connector;
 	struct gpio *hpd;
+	struct dc_sink *sink = link->local_sink;
 	bool edp_hpd_high = false;
 	uint32_t time_elapsed = 0;
 	uint32_t timeout = power_up ?
@@ -750,6 +751,14 @@ void dce110_edp_wait_for_hpd_ready(
 	if (!hpd) {
 		BREAK_TO_DEBUGGER();
 		return;
+	}
+
+	if (sink != NULL) {
+		if (sink->edid_caps.panel_patch.extra_t3_ms > 0) {
+			int extra_t3_in_ms = sink->edid_caps.panel_patch.extra_t3_ms;
+
+			msleep(extra_t3_in_ms);
+		}
 	}
 
 	dal_gpio_open(hpd, GPIO_MODE_INTERRUPT);
@@ -842,6 +851,17 @@ void dce110_edp_power_control(
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
 		cntl.hpd_sel = link->link_enc->hpd_source;
+
+		if (ctx->dc->ctx->dmub_srv &&
+				ctx->dc->debug.dmub_command_table) {
+			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
+				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+						LVTMA_CONTROL_POWER_ON);
+			else
+				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+						LVTMA_CONTROL_POWER_OFF);
+		}
+
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
 		if (!power_up)
@@ -919,7 +939,20 @@ void dce110_edp_backlight_control(
 		/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 		edp_receiver_ready_T7(link);
+
+	if (ctx->dc->ctx->dmub_srv &&
+			ctx->dc->debug.dmub_command_table) {
+		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
+			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+					LVTMA_CONTROL_LCD_BLON);
+		else
+			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+					LVTMA_CONTROL_LCD_BLOFF);
+	}
+
 	link_transmitter_control(ctx->dc_bios, &cntl);
+
+
 
 	if (enable && link->dpcd_sink_ext_caps.bits.oled)
 		msleep(OLED_POST_T7_DELAY);

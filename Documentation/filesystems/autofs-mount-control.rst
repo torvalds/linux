@@ -391,7 +391,7 @@ variation uses the path and optionally in.type field of struct args_ismountpoint
 set to an autofs mount type. The call returns 1 if this is a mount point
 and sets out.devid field to the device number of the mount and out.magic
 field to the relevant super block magic number (described below) or 0 if
-it isn't a mountpoint. In both cases the the device number (as returned
+it isn't a mountpoint. In both cases the device number (as returned
 by new_encode_dev()) is returned in out.devid field.
 
 If supplied with a file descriptor we're looking for a specific mount,
@@ -399,12 +399,12 @@ not necessarily at the top of the mounted stack. In this case the path
 the descriptor corresponds to is considered a mountpoint if it is itself
 a mountpoint or contains a mount, such as a multi-mount without a root
 mount. In this case we return 1 if the descriptor corresponds to a mount
-point and and also returns the super magic of the covering mount if there
+point and also returns the super magic of the covering mount if there
 is one or 0 if it isn't a mountpoint.
 
 If a path is supplied (and the ioctlfd field is set to -1) then the path
 is looked up and is checked to see if it is the root of a mount. If a
 type is also given we are looking for a particular autofs mount and if
-a match isn't found a fail is returned. If the the located path is the
+a match isn't found a fail is returned. If the located path is the
 root of a mount 1 is returned along with the super magic of the mount
 or 0 otherwise.

@@ -140,11 +140,11 @@ static inline int setup_sgio_components(struct pci_dev *pdev,
 	case 3:
 		sg_ptr->u.s.len2 = cpu_to_be16(list[i * 4 + 2].size);
 		sg_ptr->ptr2 = cpu_to_be64(list[i * 4 + 2].dma_addr);
-		/* Fall through */
+		fallthrough;
 	case 2:
 		sg_ptr->u.s.len1 = cpu_to_be16(list[i * 4 + 1].size);
 		sg_ptr->ptr1 = cpu_to_be64(list[i * 4 + 1].dma_addr);
-		/* Fall through */
+		fallthrough;
 	case 1:
 		sg_ptr->u.s.len0 = cpu_to_be16(list[i * 4 + 0].size);
 		sg_ptr->ptr0 = cpu_to_be64(list[i * 4 + 0].dma_addr);
@@ -202,11 +202,10 @@ static inline int setup_sgio_list(struct pci_dev *pdev,
 	info->dlen = dlen;
 	info->in_buffer = (u8 *)info + info_len;
 
-	((u16 *)info->in_buffer)[0] = req->outcnt;
-	((u16 *)info->in_buffer)[1] = req->incnt;
+	((__be16 *)info->in_buffer)[0] = cpu_to_be16(req->outcnt);
+	((__be16 *)info->in_buffer)[1] = cpu_to_be16(req->incnt);
 	((u16 *)info->in_buffer)[2] = 0;
 	((u16 *)info->in_buffer)[3] = 0;
-	*(u64 *)info->in_buffer = cpu_to_be64p((u64 *)info->in_buffer);
 
 	/* Setup gather (input) components */
 	if (setup_sgio_components(pdev, req->in, req->incnt,
@@ -367,8 +366,6 @@ static int process_request(struct pci_dev *pdev, struct otx_cpt_req_info *req,
 	iq_cmd.cmd.s.param2 = cpu_to_be16(cpt_req->param2);
 	iq_cmd.cmd.s.dlen   = cpu_to_be16(cpt_req->dlen);
 
-	/* 64-bit swap for microcode data reads, not needed for addresses*/
-	iq_cmd.cmd.u64 = cpu_to_be64(iq_cmd.cmd.u64);
 	iq_cmd.dptr = info->dptr_baddr;
 	iq_cmd.rptr = info->rptr_baddr;
 	iq_cmd.cptr.u64 = 0;
@@ -436,7 +433,7 @@ static int cpt_process_ccode(struct pci_dev *pdev,
 	u8 ccode = cpt_status->s.compcode;
 	union otx_cpt_error_code ecode;
 
-	ecode.u = be64_to_cpu(*((u64 *) cpt_info->out_buffer));
+	ecode.u = be64_to_cpup((__be64 *)cpt_info->out_buffer);
 	switch (ccode) {
 	case CPT_COMP_E_FAULT:
 		dev_err(&pdev->dev,

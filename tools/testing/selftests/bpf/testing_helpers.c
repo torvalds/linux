@@ -64,3 +64,17 @@ int parse_num_list(const char *s, bool **num_set, int *num_set_len)
 
 	return 0;
 }
+
+__u32 link_info_prog_id(const struct bpf_link *link, struct bpf_link_info *info)
+{
+	__u32 info_len = sizeof(*info);
+	int err;
+
+	memset(info, 0, sizeof(*info));
+	err = bpf_obj_get_info_by_fd(bpf_link__fd(link), info, &info_len);
+	if (err) {
+		printf("failed to get link info: %d\n", -errno);
+		return 0;
+	}
+	return info->prog_id;
+}

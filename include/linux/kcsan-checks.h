@@ -337,11 +337,13 @@ static inline void __kcsan_disable_current(void) { }
  *		release_for_reuse(obj);
  *	}
  *
- * Note: ASSERT_EXCLUSIVE_ACCESS_SCOPED(), if applicable, performs more thorough
- * checking if a clear scope where no concurrent accesses are expected exists.
+ * Note:
  *
- * Note: For cases where the object is freed, `KASAN <kasan.html>`_ is a better
- * fit to detect use-after-free bugs.
+ * 1. ASSERT_EXCLUSIVE_ACCESS_SCOPED(), if applicable, performs more thorough
+ *    checking if a clear scope where no concurrent accesses are expected exists.
+ *
+ * 2. For cases where the object is freed, `KASAN <kasan.html>`_ is a better
+ *    fit to detect use-after-free bugs.
  *
  * @var: variable to assert on
  */

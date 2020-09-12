@@ -146,6 +146,7 @@ config I2C_I801
 	    Elkhart Lake (PCH)
 	    Tiger Lake (PCH)
 	    Jasper Lake (SOC)
+	    Emmitsburg (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -865,17 +866,6 @@ config I2C_PNX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-pnx.
-
-config I2C_PUV3
-	tristate "PKUnity v3 I2C bus support"
-	depends on UNICORE32 && ARCH_PUV3
-	select I2C_ALGOBIT
-	help
-	  This driver supports the I2C IP inside the PKUnity-v3 SoC.
-	  This I2C bus controller is under AMBA/AXI bus.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-puv3.
 
 config I2C_PXA
 	tristate "Intel PXA2XX I2C adapter"

@@ -23,6 +23,7 @@
 
 /**
  * hw_read_otgsc returns otgsc register bits value.
+ * @ci: the controller
  * @mask: bitfield mask
  */
 u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
@@ -75,6 +76,7 @@ u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
 
 /**
  * hw_write_otgsc updates target bits of OTGSC register.
+ * @ci: the controller
  * @mask: bitfield mask
  * @data: to be written
  */
@@ -229,7 +231,7 @@ static void ci_otg_work(struct work_struct *work)
 
 /**
  * ci_hdrc_otg_init - initialize otg struct
- * ci: the controller
+ * @ci: the controller
  */
 int ci_hdrc_otg_init(struct ci_hdrc *ci)
 {
@@ -248,7 +250,7 @@ int ci_hdrc_otg_init(struct ci_hdrc *ci)
 
 /**
  * ci_hdrc_otg_destroy - destroy otg struct
- * ci: the controller
+ * @ci: the controller
  */
 void ci_hdrc_otg_destroy(struct ci_hdrc *ci)
 {

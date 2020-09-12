@@ -60,6 +60,9 @@
 		clock-names = "master_bus", "slave_bus", "rx", "tx", "ptp_ref";
 		resets = <&bpmp TEGRA186_RESET_EQOS>;
 		reset-names = "eqos";
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_EQOSR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_EQOSW &emc>;
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_EQOS>;
 		status = "disabled";
 
@@ -139,12 +142,13 @@
 		};
 	};
 
-	memory-controller@2c00000 {
+	mc: memory-controller@2c00000 {
 		compatible = "nvidia,tegra186-mc";
 		reg = <0x0 0x02c00000 0x0 0xb0000>;
 		interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 
+		#interconnect-cells = <1>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 
@@ -162,6 +166,8 @@
 			interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA186_CLK_EMC>;
 			clock-names = "emc";
+
+			#interconnect-cells = <0>;
 
 			nvidia,bpmp = <&bpmp>;
 		};
@@ -327,14 +333,18 @@
 		status = "disabled";
 	};
 
-	sdmmc1: sdhci@3400000 {
+	sdmmc1: mmc@3400000 {
 		compatible = "nvidia,tegra186-sdhci";
 		reg = <0x0 0x03400000 0x0 0x10000>;
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp TEGRA186_CLK_SDMMC1>;
-		clock-names = "sdhci";
+		clocks = <&bpmp TEGRA186_CLK_SDMMC1>,
+			 <&bpmp TEGRA186_CLK_SDMMC_LEGACY_TM>;
+		clock-names = "sdhci", "tmclk";
 		resets = <&bpmp TEGRA186_RESET_SDMMC1>;
 		reset-names = "sdhci";
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_SDMMCRA &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_SDMMCWA &emc>;
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_SDMMC1>;
 		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
 		pinctrl-0 = <&sdmmc1_3v3>;
@@ -353,14 +363,18 @@
 		status = "disabled";
 	};
 
-	sdmmc2: sdhci@3420000 {
+	sdmmc2: mmc@3420000 {
 		compatible = "nvidia,tegra186-sdhci";
 		reg = <0x0 0x03420000 0x0 0x10000>;
 		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp TEGRA186_CLK_SDMMC2>;
-		clock-names = "sdhci";
+		clocks = <&bpmp TEGRA186_CLK_SDMMC2>,
+			 <&bpmp TEGRA186_CLK_SDMMC_LEGACY_TM>;
+		clock-names = "sdhci", "tmclk";
 		resets = <&bpmp TEGRA186_RESET_SDMMC2>;
 		reset-names = "sdhci";
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_SDMMCRAA &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_SDMMCWAA &emc>;
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_SDMMC2>;
 		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
 		pinctrl-0 = <&sdmmc2_3v3>;
@@ -374,14 +388,18 @@
 		status = "disabled";
 	};
 
-	sdmmc3: sdhci@3440000 {
+	sdmmc3: mmc@3440000 {
 		compatible = "nvidia,tegra186-sdhci";
 		reg = <0x0 0x03440000 0x0 0x10000>;
 		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp TEGRA186_CLK_SDMMC3>;
-		clock-names = "sdhci";
+		clocks = <&bpmp TEGRA186_CLK_SDMMC3>,
+			 <&bpmp TEGRA186_CLK_SDMMC_LEGACY_TM>;
+		clock-names = "sdhci", "tmclk";
 		resets = <&bpmp TEGRA186_RESET_SDMMC3>;
 		reset-names = "sdhci";
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_SDMMCR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_SDMMCW &emc>;
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_SDMMC3>;
 		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
 		pinctrl-0 = <&sdmmc3_3v3>;
@@ -397,17 +415,21 @@
 		status = "disabled";
 	};
 
-	sdmmc4: sdhci@3460000 {
+	sdmmc4: mmc@3460000 {
 		compatible = "nvidia,tegra186-sdhci";
 		reg = <0x0 0x03460000 0x0 0x10000>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp TEGRA186_CLK_SDMMC4>;
-		clock-names = "sdhci";
+		clocks = <&bpmp TEGRA186_CLK_SDMMC4>,
+			 <&bpmp TEGRA186_CLK_SDMMC_LEGACY_TM>;
+		clock-names = "sdhci", "tmclk";
 		assigned-clocks = <&bpmp TEGRA186_CLK_SDMMC4>,
 				  <&bpmp TEGRA186_CLK_PLLC4_VCO>;
 		assigned-clock-parents = <&bpmp TEGRA186_CLK_PLLC4_VCO>;
 		resets = <&bpmp TEGRA186_RESET_SDMMC4>;
 		reset-names = "sdhci";
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_SDMMCRAB &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_SDMMCWAB &emc>;
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_SDMMC4>;
 		nvidia,pad-autocal-pull-up-offset-hs400 = <0x05>;
 		nvidia,pad-autocal-pull-down-offset-hs400 = <0x05>;
@@ -436,6 +458,9 @@
 			 <&bpmp TEGRA186_RESET_HDA2CODEC_2X>;
 		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISP>;
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_HDAR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_HDAW &emc>;
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_HDA>;
 		status = "disabled";
 	};
@@ -547,8 +572,7 @@
 		      <0x0 0x03538000 0x0 0x1000>;
 		reg-names = "hcd", "fpci";
 		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+			     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&bpmp TEGRA186_CLK_XUSB_HOST>,
 			 <&bpmp TEGRA186_CLK_XUSB_FALCON>,
 			 <&bpmp TEGRA186_CLK_XUSB_SS>,
@@ -564,6 +588,9 @@
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_XUSBC>,
 				<&bpmp TEGRA186_POWER_DOMAIN_XUSBA>;
 		power-domain-names = "xusb_host", "xusb_ss";
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_XUSB_HOSTR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_XUSB_HOSTW &emc>;
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_XUSB_HOST>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -752,9 +779,9 @@
 		compatible = "nvidia,tegra186-pcie";
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_PCX>;
 		device_type = "pci";
-		reg = <0x0 0x10003000 0x0 0x00000800   /* PADS registers */
-		       0x0 0x10003800 0x0 0x00000800   /* AFI registers */
-		       0x0 0x40000000 0x0 0x10000000>; /* configuration space */
+		reg = <0x0 0x10003000 0x0 0x00000800>, /* PADS registers */
+		      <0x0 0x10003800 0x0 0x00000800>, /* AFI registers */
+		      <0x0 0x40000000 0x0 0x10000000>; /* configuration space */
 		reg-names = "pads", "afi", "cs";
 
 		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
@@ -769,22 +796,26 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		ranges = <0x82000000 0 0x10000000 0x0 0x10000000 0 0x00001000   /* port 0 configuration space */
-			  0x82000000 0 0x10001000 0x0 0x10001000 0 0x00001000   /* port 1 configuration space */
-			  0x82000000 0 0x10004000 0x0 0x10004000 0 0x00001000   /* port 2 configuration space */
-			  0x81000000 0 0x0        0x0 0x50000000 0 0x00010000   /* downstream I/O (64 KiB) */
-			  0x82000000 0 0x50100000 0x0 0x50100000 0 0x07F00000   /* non-prefetchable memory (127 MiB) */
-			  0xc2000000 0 0x58000000 0x0 0x58000000 0 0x28000000>; /* prefetchable memory (640 MiB) */
+		ranges = <0x02000000 0 0x10000000 0x0 0x10000000 0 0x00001000>, /* port 0 configuration space */
+			 <0x02000000 0 0x10001000 0x0 0x10001000 0 0x00001000>,/* port 1 configuration space */
+			 <0x02000000 0 0x10004000 0x0 0x10004000 0 0x00001000>, /* port 2 configuration space */
+			 <0x01000000 0 0x0        0x0 0x50000000 0 0x00010000>, /* downstream I/O (64 KiB) */
+			 <0x02000000 0 0x50100000 0x0 0x50100000 0 0x07f00000>, /* non-prefetchable memory (127 MiB) */
+			 <0x42000000 0 0x58000000 0x0 0x58000000 0 0x28000000>; /* prefetchable memory (640 MiB) */
 
-		clocks = <&bpmp TEGRA186_CLK_AFI>,
-			 <&bpmp TEGRA186_CLK_PCIE>,
+		clocks = <&bpmp TEGRA186_CLK_PCIE>,
+			 <&bpmp TEGRA186_CLK_AFI>,
 			 <&bpmp TEGRA186_CLK_PLLE>;
-		clock-names = "afi", "pex", "pll_e";
+		clock-names = "pex", "afi", "pll_e";
 
-		resets = <&bpmp TEGRA186_RESET_AFI>,
-			 <&bpmp TEGRA186_RESET_PCIE>,
+		resets = <&bpmp TEGRA186_RESET_PCIE>,
+			 <&bpmp TEGRA186_RESET_AFI>,
 			 <&bpmp TEGRA186_RESET_PCIEXCLK>;
-		reset-names = "afi", "pex", "pcie_x";
+		reset-names = "pex", "afi", "pcie_x";
+
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_AFIR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_AFIW &emc>;
+		interconnect-names = "dma-mem", "write";
 
 		iommus = <&smmu TEGRA186_SID_AFI>;
 		iommu-map = <0x0 &smmu TEGRA186_SID_AFI 0x1000>;
@@ -906,12 +937,13 @@
 	};
 
 	host1x@13e00000 {
-		compatible = "nvidia,tegra186-host1x", "simple-bus";
+		compatible = "nvidia,tegra186-host1x";
 		reg = <0x0 0x13e00000 0x0 0x10000>,
 		      <0x0 0x13e10000 0x0 0x10000>;
 		reg-names = "hypervisor", "vm";
 		interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
 		             <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "syncpt", "host1x";
 		clocks = <&bpmp TEGRA186_CLK_HOST1X>;
 		clock-names = "host1x";
 		resets = <&bpmp TEGRA186_RESET_HOST1X>;
@@ -921,6 +953,10 @@
 		#size-cells = <1>;
 
 		ranges = <0x15000000 0x0 0x15000000 0x01000000>;
+
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_HOST1XDMAR &emc>;
+		interconnect-names = "dma-mem";
+
 		iommus = <&smmu TEGRA186_SID_HOST1X>;
 
 		dpaux1: dpaux@15040000 {
@@ -958,7 +994,7 @@
 		};
 
 		display-hub@15200000 {
-			compatible = "nvidia,tegra186-display", "simple-bus";
+			compatible = "nvidia,tegra186-display";
 			reg = <0x15200000 0x00040000>;
 			resets = <&bpmp TEGRA186_RESET_NVDISPLAY0_MISC>,
 				 <&bpmp TEGRA186_RESET_NVDISPLAY0_WGRP0>,
@@ -992,6 +1028,9 @@
 				reset-names = "dc";
 
 				power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISP>;
+				interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVDISPLAYR &emc>,
+						<&mc TEGRA186_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
+				interconnect-names = "dma-mem", "read-1";
 				iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
 
 				nvidia,outputs = <&dsia &dsib &sor0 &sor1>;
@@ -1008,6 +1047,9 @@
 				reset-names = "dc";
 
 				power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISPB>;
+				interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVDISPLAYR &emc>,
+						<&mc TEGRA186_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
+				interconnect-names = "dma-mem", "read-1";
 				iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
 
 				nvidia,outputs = <&dsia &dsib &sor0 &sor1>;
@@ -1024,6 +1066,9 @@
 				reset-names = "dc";
 
 				power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISPC>;
+				interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVDISPLAYR &emc>,
+						<&mc TEGRA186_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
+				interconnect-names = "dma-mem", "read-1";
 				iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
 
 				nvidia,outputs = <&sor0 &sor1>;
@@ -1056,6 +1101,9 @@
 			reset-names = "vic";
 
 			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_VIC>;
+			interconnects = <&mc TEGRA186_MEMORY_CLIENT_VICSRD &emc>,
+					<&mc TEGRA186_MEMORY_CLIENT_VICSWR &emc>;
+			interconnect-names = "dma-mem", "write";
 			iommus = <&smmu TEGRA186_SID_VIC>;
 		};
 
@@ -1199,8 +1247,8 @@
 		compatible = "nvidia,gp10b";
 		reg = <0x0 0x17000000 0x0 0x1000000>,
 		      <0x0 0x18000000 0x0 0x1000000>;
-		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH
-			      GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "stall", "nonstall";
 
 		clocks = <&bpmp TEGRA186_CLK_GPCCLK>,
@@ -1211,25 +1259,28 @@
 		status = "disabled";
 
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_GPU>;
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_GPUSRD &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_GPUSWR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_GPUSRD2 &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_GPUSWR2 &emc>;
+		interconnect-names = "dma-mem", "write-0", "read-1", "write-1";
 	};
 
-	sysram@30000000 {
+	sram@30000000 {
 		compatible = "nvidia,tegra186-sysram", "mmio-sram";
 		reg = <0x0 0x30000000 0x0 0x50000>;
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges = <0 0x0 0x0 0x30000000 0x0 0x50000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x30000000 0x50000>;
 
-		cpu_bpmp_tx: shmem@4e000 {
-			compatible = "nvidia,tegra186-bpmp-shmem";
-			reg = <0x0 0x4e000 0x0 0x1000>;
+		cpu_bpmp_tx: sram@4e000 {
+			reg = <0x4e000 0x1000>;
 			label = "cpu-bpmp-tx";
 			pool;
 		};
 
-		cpu_bpmp_rx: shmem@4f000 {
-			compatible = "nvidia,tegra186-bpmp-shmem";
-			reg = <0x0 0x4f000 0x0 0x1000>;
+		cpu_bpmp_rx: sram@4f000 {
+			reg = <0x4f000 0x1000>;
 			label = "cpu-bpmp-rx";
 			pool;
 		};
@@ -1237,6 +1288,11 @@
 
 	bpmp: bpmp {
 		compatible = "nvidia,tegra186-bpmp";
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_BPMPR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_BPMPW &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_BPMPDMAR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_BPMPDMAW &emc>;
+		interconnect-names = "read", "write", "dma-mem", "dma-write";
 		iommus = <&smmu TEGRA186_SID_BPMP>;
 		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
 				    TEGRA_HSP_DB_MASTER_BPMP>;

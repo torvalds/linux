@@ -65,7 +65,7 @@ use with NFS/RDMA.
   If the version is less than 1.1.2 or the command does not exist,
   you should install the latest version of nfs-utils.
 
-  Download the latest package from: http://www.kernel.org/pub/linux/utils/nfs
+  Download the latest package from: https://www.kernel.org/pub/linux/utils/nfs
 
   Uncompress the package and follow the installation instructions.
 

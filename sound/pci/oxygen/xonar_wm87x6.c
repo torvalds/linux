@@ -116,7 +116,8 @@ static void wm8776_write(struct oxygen *chip,
 	else
 		wm8776_write_i2c(chip, reg, value);
 	if (reg < ARRAY_SIZE(data->wm8776_regs)) {
-		if (reg >= WM8776_HPLVOL && reg <= WM8776_DACMASTER)
+		/* reg >= WM8776_HPLVOL is always true */
+		if (reg <= WM8776_DACMASTER)
 			value &= ~WM8776_UPDATE;
 		data->wm8776_regs[reg] = value;
 	}
@@ -144,7 +145,8 @@ static void wm8766_write(struct oxygen *chip,
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);
 	if (reg < ARRAY_SIZE(data->wm8766_regs)) {
-		if ((reg >= WM8766_LDA1 && reg <= WM8766_RDA1) ||
+		/* reg >= WM8766_LDA1 is always true */
+		if (reg <= WM8766_RDA1 ||
 		    (reg >= WM8766_LDA2 && reg <= WM8766_MASTDA))
 			value &= ~WM8766_UPDATE;
 		data->wm8766_regs[reg] = value;

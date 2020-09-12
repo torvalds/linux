@@ -73,11 +73,6 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-/* SPI */
-static const struct spi_imx_master spi0_pdata __initconst = {
-	.num_chipselect	= 3,
-};
-
 static const struct mxc_nand_platform_data
 mx31lite_nand_board_info __initconst  = {
 	.width = 1,
@@ -109,16 +104,6 @@ static struct platform_device smsc911x_device = {
 	.dev		= {
 		.platform_data = &smsc911x_config,
 	},
-};
-
-/*
- * SPI
- *
- * The MC13783 is the only hard-wired SPI device on the module.
- */
-
-static const struct spi_imx_master spi1_pdata __initconst = {
-	.num_chipselect	= 1,
 };
 
 static struct mc13xxx_platform_data mc13783_pdata __initdata = {
@@ -246,13 +231,13 @@ static void __init mx31lite_init(void)
 				      "mx31lite");
 
 	imx31_add_imx_uart0(&uart_pdata);
-	imx31_add_spi_imx0(&spi0_pdata);
+	imx31_add_spi_imx0(NULL);
 
 	/* NOR and NAND flash */
 	platform_device_register(&physmap_flash_device);
 	imx31_add_mxc_nand(&mx31lite_nand_board_info);
 
-	imx31_add_spi_imx1(&spi1_pdata);
+	imx31_add_spi_imx1(NULL);
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 }

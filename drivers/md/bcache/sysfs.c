@@ -11,6 +11,7 @@
 #include "btree.h"
 #include "request.h"
 #include "writeback.h"
+#include "features.h"
 
 #include <linux/blkdev.h>
 #include <linux/sort.h>
@@ -88,6 +89,9 @@ read_attribute(btree_used_percent);
 read_attribute(average_key_size);
 read_attribute(dirty_data);
 read_attribute(bset_tree_stats);
+read_attribute(feature_compat);
+read_attribute(feature_ro_compat);
+read_attribute(feature_incompat);
 
 read_attribute(state);
 read_attribute(cache_read_races);
@@ -779,6 +783,13 @@ SHOW(__bch_cache_set)
 	if (attr == &sysfs_bset_tree_stats)
 		return bch_bset_print_stats(c, buf);
 
+	if (attr == &sysfs_feature_compat)
+		return bch_print_cache_set_feature_compat(c, buf, PAGE_SIZE);
+	if (attr == &sysfs_feature_ro_compat)
+		return bch_print_cache_set_feature_ro_compat(c, buf, PAGE_SIZE);
+	if (attr == &sysfs_feature_incompat)
+		return bch_print_cache_set_feature_incompat(c, buf, PAGE_SIZE);
+
 	return 0;
 }
 SHOW_LOCKED(bch_cache_set)
@@ -987,6 +998,9 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_io_disable,
 	&sysfs_cutoff_writeback,
 	&sysfs_cutoff_writeback_sync,
+	&sysfs_feature_compat,
+	&sysfs_feature_ro_compat,
+	&sysfs_feature_incompat,
 	NULL
 };
 KTYPE(bch_cache_set_internal);
