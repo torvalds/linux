@@ -132,10 +132,99 @@ patternProperties:
           - const: ti,pruss-cfg
           - const: syscon
 
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 1
+
       reg:
         maxItems: 1
 
-    additionalProperties: false
+      ranges:
+        maxItems: 1
+
+      clocks:
+        type: object
+
+        properties:
+          "#address-cells":
+            const: 1
+
+          "#size-cells":
+            const: 0
+
+        patternProperties:
+          coreclk-mux@[a-f0-9]+$:
+            description: |
+              This is applicable only for ICSSG (K3 SoCs). The ICSSG modules
+              core clock can be set to one of the 2 sources: ICSSG_CORE_CLK or
+              ICSSG_ICLK.  This node models this clock mux and should have the
+              name "coreclk-mux".
+
+            type: object
+
+            properties:
+              '#clock-cells':
+                const: 0
+
+              clocks:
+                items:
+                  - description: ICSSG_CORE Clock
+                  - description: ICSSG_ICLK Clock
+
+              assigned-clocks:
+                maxItems: 1
+
+              assigned-clock-parents:
+                maxItems: 1
+                description: |
+                  Standard assigned-clocks-parents definition used for selecting
+                  mux parent (one of the mux input).
+
+              reg:
+                maxItems: 1
+
+            required:
+              - clocks
+
+            additionalProperties: false
+
+          iepclk-mux@[a-f0-9]+$:
+            description: |
+              The IEP module can get its clock from 2 sources: ICSSG_IEP_CLK or
+              CORE_CLK (OCP_CLK in older SoCs). This node models this clock
+              mux and should have the name "iepclk-mux".
+
+            type: object
+
+            properties:
+              '#clock-cells':
+                const: 0
+
+              clocks:
+                items:
+                  - description: ICSSG_IEP Clock
+                  - description: Core Clock (OCP Clock in older SoCs)
+
+              assigned-clocks:
+                maxItems: 1
+
+              assigned-clock-parents:
+                maxItems: 1
+                description: |
+                  Standard assigned-clocks-parents definition used for selecting
+                  mux parent (one of the mux input).
+
+              reg:
+                maxItems: 1
+
+            required:
+              - clocks
+
+            additionalProperties: false
+
+        additionalProperties: false
 
   iep@[a-f0-9]+$:
     description: |
@@ -259,7 +348,22 @@ examples:
 
         pruss_cfg: cfg@26000 {
             compatible = "ti,pruss-cfg", "syscon";
+            #address-cells = <1>;
+            #size-cells = <1>;
             reg = <0x26000 0x2000>;
+            ranges = <0x00 0x26000 0x2000>;
+
+            clocks {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                pruss_iepclk_mux: iepclk-mux@30 {
+                    reg = <0x30>;
+                    #clock-cells = <0>;
+                    clocks = <&l3_gclk>,        /* icss_iep */
+                             <&pruss_ocp_gclk>; /* icss_ocp */
+                };
+            };
         };
 
         pruss_mii_rt: mii-rt@32000 {
@@ -298,7 +402,22 @@ examples:
 
         pruss1_cfg: cfg@26000 {
             compatible = "ti,pruss-cfg", "syscon";
+            #address-cells = <1>;
+            #size-cells = <1>;
             reg = <0x26000 0x2000>;
+            ranges = <0x00 0x26000 0x2000>;
+
+            clocks {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                pruss1_iepclk_mux: iepclk-mux@30 {
+                    reg = <0x30>;
+                    #clock-cells = <0>;
+                    clocks = <&sysclk_div>,     /* icss_iep */
+                             <&pruss_ocp_gclk>; /* icss_ocp */
+                };
+            };
         };
 
         pruss1_mii_rt: mii-rt@32000 {
