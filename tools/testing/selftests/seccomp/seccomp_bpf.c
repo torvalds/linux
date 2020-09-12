@@ -1828,26 +1828,29 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 #if defined(__x86_64__) || defined(__i386__) || defined(__mips__)
 # define ARCH_GETREGS(_regs)	ptrace(PTRACE_GETREGS, tracee, 0, &(_regs))
 # define ARCH_SETREGS(_regs)	ptrace(PTRACE_SETREGS, tracee, 0, &(_regs))
+#else
+# define ARCH_GETREGS(_regs)	({					\
+		struct iovec __v;					\
+		__v.iov_base = &(_regs);				\
+		__v.iov_len = sizeof(_regs);				\
+		ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &__v);	\
+	})
+# define ARCH_SETREGS(_regs)	({					\
+		struct iovec __v;					\
+		__v.iov_base = &(_regs);				\
+		__v.iov_len = sizeof(_regs);				\
+		ptrace(PTRACE_SETREGSET, tracee, NT_PRSTATUS, &__v);	\
+	})
 #endif
 
 /* Architecture-specific syscall fetching routine. */
 int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 {
 	ARCH_REGS regs;
-#ifdef ARCH_GETREGS
+
 	EXPECT_EQ(0, ARCH_GETREGS(regs)) {
 		return -1;
 	}
-#else
-	struct iovec iov;
-
-	iov.iov_base = &regs;
-	iov.iov_len = sizeof(regs);
-	EXPECT_EQ(0, ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov)) {
-		TH_LOG("PTRACE_GETREGSET failed");
-		return -1;
-	}
-#endif
 
 	return SYSCALL_NUM(regs);
 }
@@ -1857,18 +1860,10 @@ void change_syscall(struct __test_metadata *_metadata,
 		    pid_t tracee, int syscall, int result)
 {
 	ARCH_REGS regs;
-#ifdef ARCH_GETREGS
+
 	EXPECT_EQ(0, ARCH_GETREGS(regs)) {
 		return;
 	}
-#else
-	int ret;
-	struct iovec iov;
-	iov.iov_base = &regs;
-	iov.iov_len = sizeof(regs);
-	ret = ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov);
-	EXPECT_EQ(0, ret);
-#endif
 
 	SYSCALL_NUM_SET(regs, syscall);
 
@@ -1881,14 +1876,7 @@ void change_syscall(struct __test_metadata *_metadata,
 #endif
 
 	/* Flush any register changes made. */
-#ifdef ARCH_SETREGS
 	EXPECT_EQ(0, ARCH_SETREGS(regs));
-#else
-	iov.iov_base = &regs;
-	iov.iov_len = sizeof(regs);
-	ret = ptrace(PTRACE_SETREGSET, tracee, NT_PRSTATUS, &iov);
-	EXPECT_EQ(0, ret);
-#endif
 }
 
 void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
