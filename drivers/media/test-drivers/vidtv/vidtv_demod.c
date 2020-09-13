@@ -190,26 +190,21 @@ static void vidtv_demod_update_stats(struct dvb_frontend *fe)
 
 }
 
-static void vidtv_demod_poll_snr_handler(struct work_struct *work)
+static int vidtv_demod_read_status(struct dvb_frontend *fe,
+				   enum fe_status *status)
 {
-	/*
-	 * periodically check the signal quality and eventually
-	 * lose the TS lock if it dips too low
-	 */
-	struct vidtv_demod_state *state;
+	struct vidtv_demod_state *state = fe->demodulator_priv;
 	const struct vidtv_demod_cnr_to_qual_s *cnr2qual = NULL;
-	struct vidtv_demod_config *config;
+	struct vidtv_demod_config *config = &state->config;
 	u16 snr = 0;
-
-	state = container_of(work, struct vidtv_demod_state, poll_snr.work);
-	config = &state->config;
 
 	/* Simulate random lost of signal due to a bad-tuned channel */
 	cnr2qual = vidtv_match_cnr_s(&state->frontend);
 
 	if (cnr2qual && state->tuner_cnr < cnr2qual->cnr_good &&
 	    state->frontend.ops.tuner_ops.get_rf_strength) {
-		state->frontend.ops.tuner_ops.get_rf_strength(&state->frontend, &snr);
+		state->frontend.ops.tuner_ops.get_rf_strength(&state->frontend,
+							      &snr);
 
 		if (snr < cnr2qual->cnr_ok) {
 			/* eventually lose the TS lock */
@@ -228,15 +223,6 @@ static void vidtv_demod_poll_snr_handler(struct work_struct *work)
 	}
 
 	vidtv_demod_update_stats(&state->frontend);
-
-	schedule_delayed_work(&state->poll_snr,
-			      msecs_to_jiffies(POLL_THRD_TIME));
-}
-
-static int vidtv_demod_read_status(struct dvb_frontend *fe,
-				   enum fe_status *status)
-{
-	struct vidtv_demod_state *state = fe->demodulator_priv;
 
 	*status = state->status;
 
@@ -296,51 +282,8 @@ static int vidtv_demod_set_frontend(struct dvb_frontend *fe)
 
 	vidtv_demod_update_stats(fe);
 
-	if (state->tuner_cnr > 0) {
-		schedule_delayed_work(&state->poll_snr,
-					msecs_to_jiffies(POLL_THRD_TIME));
-
-		state->poll_snr_thread_running = true;
-	}
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	return 0;
-}
-
-static int vidtv_demod_sleep(struct dvb_frontend *fe)
-{
-	struct vidtv_demod_state *state = fe->demodulator_priv;
-
-	if (state->poll_snr_thread_running) {
-		cancel_delayed_work_sync(&state->poll_snr);
-		state->poll_snr_thread_running = false;
-		state->poll_snr_thread_restart = true;
-	}
-	return 0;
-}
-
-static int vidtv_demod_init(struct dvb_frontend *fe)
-{
-	struct vidtv_demod_state *state = fe->demodulator_priv;
-	u32    tuner_status             = 0;
-
-	/*
-	 * At resume, start the snr poll thread only if it was suspended with
-	 * the thread running. Extra care should be taken here, as some tuner
-	 * status change might happen at resume time (for example, due to an
-	 * ioctl syscall to set_frontend, or due to a release syscall).
-	 */
-	fe->ops.tuner_ops.get_status(fe, &tuner_status);
-
-	if (tuner_status == TUNER_STATUS_LOCKED &&
-	    state->poll_snr_thread_restart) {
-		schedule_delayed_work(&state->poll_snr,
-				      msecs_to_jiffies(POLL_THRD_TIME));
-
-		state->poll_snr_thread_restart = false;
-	}
 
 	return 0;
 }
@@ -374,9 +317,6 @@ static int vidtv_demod_set_voltage(struct dvb_frontend *fe,
 static void vidtv_demod_release(struct dvb_frontend *fe)
 {
 	struct vidtv_demod_state *state = fe->demodulator_priv;
-
-	if (state->poll_snr_thread_running)
-		cancel_delayed_work_sync(&state->poll_snr);
 
 	kfree(state);
 }
@@ -423,9 +363,6 @@ static const struct dvb_frontend_ops vidtv_demod_ops = {
 
 	.release = vidtv_demod_release,
 
-	.init  = vidtv_demod_init,
-	.sleep = vidtv_demod_sleep,
-
 	.set_frontend = vidtv_demod_set_frontend,
 	.get_frontend = vidtv_demod_get_frontend,
 
@@ -460,8 +397,6 @@ static int vidtv_demod_i2c_probe(struct i2c_client *client,
 	       sizeof(struct dvb_frontend_ops));
 
 	memcpy(&state->config, config, sizeof(state->config));
-
-	INIT_DELAYED_WORK(&state->poll_snr, &vidtv_demod_poll_snr_handler);
 
 	state->frontend.demodulator_priv = state;
 	i2c_set_clientdata(client, state);

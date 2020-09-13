@@ -63,10 +63,7 @@ struct vidtv_demod_config {
 struct vidtv_demod_state {
 	struct dvb_frontend frontend;
 	struct vidtv_demod_config config;
-	struct delayed_work poll_snr;
 	enum fe_status status;
 	u16 tuner_cnr;
-	bool poll_snr_thread_running;
-	bool poll_snr_thread_restart;
 };
 #endif // VIDTV_DEMOD_H
