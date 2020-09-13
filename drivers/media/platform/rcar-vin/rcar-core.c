@@ -1268,22 +1268,6 @@ static const struct of_device_id rvin_of_id_table[] = {
 		.data = &rcar_info_h1,
 	},
 	{
-		.compatible = "renesas,vin-r8a7790",
-		.data = &rcar_info_gen2,
-	},
-	{
-		.compatible = "renesas,vin-r8a7791",
-		.data = &rcar_info_gen2,
-	},
-	{
-		.compatible = "renesas,vin-r8a7793",
-		.data = &rcar_info_gen2,
-	},
-	{
-		.compatible = "renesas,vin-r8a7794",
-		.data = &rcar_info_gen2,
-	},
-	{
 		.compatible = "renesas,rcar-gen2-vin",
 		.data = &rcar_info_gen2,
 	},
