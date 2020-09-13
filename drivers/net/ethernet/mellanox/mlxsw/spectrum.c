@@ -1849,6 +1849,14 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_speed_by_width_set;
 	}
 
+	err = mlxsw_sp->port_type_speed_ops->ptys_max_speed(mlxsw_sp_port,
+							    &mlxsw_sp_port->max_speed);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to get maximum speed\n",
+			mlxsw_sp_port->local_port);
+		goto err_max_speed_get;
+	}
+
 	err = mlxsw_sp_port_max_mtu_get(mlxsw_sp_port, &mlxsw_sp_port->max_mtu);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to get maximum MTU\n",
@@ -1981,6 +1989,7 @@ err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
 err_port_max_mtu_get:
+err_max_speed_get:
 err_port_speed_by_width_set:
 err_port_system_port_mapping_set:
 err_dev_addr_init:
