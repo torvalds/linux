@@ -316,9 +316,6 @@ struct mlxsw_sp_port {
 		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
 	u8 split_base_local_port;
-	struct {
-		struct delayed_work speed_update_dw;
-	} span;
 	int max_mtu;
 	u32 max_speed;
 };

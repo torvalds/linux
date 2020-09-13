@@ -977,21 +977,14 @@ static u32 mlxsw_sp_span_buffsize_get(struct mlxsw_sp *mlxsw_sp, int mtu,
 }
 
 static int
-mlxsw_sp_span_port_buffer_update(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
+mlxsw_sp_span_port_buffer_enable(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char sbib_pl[MLXSW_REG_SBIB_LEN];
 	u32 buffsize;
-	u32 speed;
-	int err;
 
-	err = mlxsw_sp_port_speed_get(mlxsw_sp_port, &speed);
-	if (err)
-		return err;
-	if (speed == SPEED_UNKNOWN)
-		speed = 0;
-
-	buffsize = mlxsw_sp_span_buffsize_get(mlxsw_sp, speed, mtu);
+	buffsize = mlxsw_sp_span_buffsize_get(mlxsw_sp, mlxsw_sp_port->max_speed,
+					      mlxsw_sp_port->max_mtu);
 	buffsize = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, buffsize);
 	mlxsw_reg_sbib_pack(sbib_pl, mlxsw_sp_port->local_port, buffsize);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
@@ -1019,48 +1012,6 @@ mlxsw_sp_span_analyzed_port_find(struct mlxsw_sp_span *span, u8 local_port,
 	}
 
 	return NULL;
-}
-
-int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu)
-{
-	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
-	int err = 0;
-
-	/* If port is egress mirrored, the shared buffer size should be
-	 * updated according to the mtu value
-	 */
-	mutex_lock(&mlxsw_sp->span->analyzed_ports_lock);
-
-	if (mlxsw_sp_span_analyzed_port_find(mlxsw_sp->span, port->local_port,
-					     false))
-		err = mlxsw_sp_span_port_buffer_update(port, mtu);
-
-	mutex_unlock(&mlxsw_sp->span->analyzed_ports_lock);
-
-	return err;
-}
-
-void mlxsw_sp_span_speed_update_work(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct mlxsw_sp_port *mlxsw_sp_port;
-	struct mlxsw_sp *mlxsw_sp;
-
-	mlxsw_sp_port = container_of(dwork, struct mlxsw_sp_port,
-				     span.speed_update_dw);
-
-	/* If port is egress mirrored, the shared buffer size should be
-	 * updated according to the speed value.
-	 */
-	mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	mutex_lock(&mlxsw_sp->span->analyzed_ports_lock);
-
-	if (mlxsw_sp_span_analyzed_port_find(mlxsw_sp->span,
-					     mlxsw_sp_port->local_port, false))
-		mlxsw_sp_span_port_buffer_update(mlxsw_sp_port,
-						 mlxsw_sp_port->dev->mtu);
-
-	mutex_unlock(&mlxsw_sp->span->analyzed_ports_lock);
 }
 
 static const struct mlxsw_sp_span_entry_ops *
@@ -1180,9 +1131,7 @@ mlxsw_sp_span_analyzed_port_create(struct mlxsw_sp_span *span,
 	 * does the mirroring.
 	 */
 	if (!ingress) {
-		u16 mtu = mlxsw_sp_port->dev->mtu;
-
-		err = mlxsw_sp_span_port_buffer_update(mlxsw_sp_port, mtu);
+		err = mlxsw_sp_span_port_buffer_enable(mlxsw_sp_port);
 		if (err)
 			goto err_buffer_update;
 	}
