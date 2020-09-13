@@ -630,9 +630,10 @@ static int netdev_open(struct net_device *dev)
 		goto out_err;
 
 	if (debug > 1)
-		netdev_dbg(dev, "w89c840_open() irq %d\n", irq);
+		netdev_dbg(dev, "%s() irq %d\n", __func__, irq);
 
-	if((i=alloc_ringdesc(dev)))
+	i = alloc_ringdesc(dev);
+	if (i)
 		goto out_err;
 
 	spin_lock_irq(&np->lock);
@@ -642,7 +643,7 @@ static int netdev_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 	if (debug > 2)
-		netdev_dbg(dev, "Done netdev_open()\n");
+		netdev_dbg(dev, "Done %s()\n", __func__);
 
 	/* Set the timer to check for link beat. */
 	timer_setup(&np->timer, netdev_timer, 0);
