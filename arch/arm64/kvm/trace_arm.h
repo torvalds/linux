@@ -23,7 +23,7 @@ TRACE_EVENT(kvm_entry,
 		__entry->vcpu_pc		= vcpu_pc;
 	),
 
-	TP_printk("PC: 0x%08lx", __entry->vcpu_pc)
+	TP_printk("PC: 0x%016lx", __entry->vcpu_pc)
 );
 
 TRACE_EVENT(kvm_exit,
@@ -42,7 +42,7 @@ TRACE_EVENT(kvm_exit,
 		__entry->vcpu_pc		= vcpu_pc;
 	),
 
-	TP_printk("%s: HSR_EC: 0x%04x (%s), PC: 0x%08lx",
+	TP_printk("%s: HSR_EC: 0x%04x (%s), PC: 0x%016lx",
 		  __print_symbolic(__entry->ret, kvm_arm_exception_type),
 		  __entry->esr_ec,
 		  __print_symbolic(__entry->esr_ec, kvm_arm_exception_class),
@@ -69,7 +69,7 @@ TRACE_EVENT(kvm_guest_fault,
 		__entry->ipa			= ipa;
 	),
 
-	TP_printk("ipa %#llx, hsr %#08lx, hxfar %#08lx, pc %#08lx",
+	TP_printk("ipa %#llx, hsr %#08lx, hxfar %#08lx, pc %#016lx",
 		  __entry->ipa, __entry->hsr,
 		  __entry->hxfar, __entry->vcpu_pc)
 );
@@ -131,7 +131,7 @@ TRACE_EVENT(kvm_mmio_emulate,
 		__entry->cpsr			= cpsr;
 	),
 
-	TP_printk("Emulate MMIO at: 0x%08lx (instr: %08lx, cpsr: %08lx)",
+	TP_printk("Emulate MMIO at: 0x%016lx (instr: %08lx, cpsr: %08lx)",
 		  __entry->vcpu_pc, __entry->instr, __entry->cpsr)
 );
 
@@ -149,7 +149,7 @@ TRACE_EVENT(kvm_unmap_hva_range,
 		__entry->end		= end;
 	),
 
-	TP_printk("mmu notifier unmap range: %#08lx -- %#08lx",
+	TP_printk("mmu notifier unmap range: %#016lx -- %#016lx",
 		  __entry->start, __entry->end)
 );
 
@@ -165,7 +165,7 @@ TRACE_EVENT(kvm_set_spte_hva,
 		__entry->hva		= hva;
 	),
 
-	TP_printk("mmu notifier set pte hva: %#08lx", __entry->hva)
+	TP_printk("mmu notifier set pte hva: %#016lx", __entry->hva)
 );
 
 TRACE_EVENT(kvm_age_hva,
@@ -182,7 +182,7 @@ TRACE_EVENT(kvm_age_hva,
 		__entry->end		= end;
 	),
 
-	TP_printk("mmu notifier age hva: %#08lx -- %#08lx",
+	TP_printk("mmu notifier age hva: %#016lx -- %#016lx",
 		  __entry->start, __entry->end)
 );
 
@@ -198,7 +198,7 @@ TRACE_EVENT(kvm_test_age_hva,
 		__entry->hva		= hva;
 	),
 
-	TP_printk("mmu notifier test age hva: %#08lx", __entry->hva)
+	TP_printk("mmu notifier test age hva: %#016lx", __entry->hva)
 );
 
 TRACE_EVENT(kvm_set_way_flush,
