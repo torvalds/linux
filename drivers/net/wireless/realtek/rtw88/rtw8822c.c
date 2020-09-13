@@ -154,25 +154,16 @@ static void rtw8822c_rf_minmax_cmp(struct rtw_dev *rtwdev, u32 value,
 	}
 }
 
-static void swap_u32(u32 *v1, u32 *v2)
-{
-	u32 tmp;
-
-	tmp = *v1;
-	*v1 = *v2;
-	*v2 = tmp;
-}
-
 static void __rtw8822c_dac_iq_sort(struct rtw_dev *rtwdev, u32 *v1, u32 *v2)
 {
 	if (*v1 >= 0x200 && *v2 >= 0x200) {
 		if (*v1 > *v2)
-			swap_u32(v1, v2);
+			swap(*v1, *v2);
 	} else if (*v1 < 0x200 && *v2 < 0x200) {
 		if (*v1 > *v2)
-			swap_u32(v1, v2);
+			swap(*v1, *v2);
 	} else if (*v1 < 0x200 && *v2 >= 0x200) {
-		swap_u32(v1, v2);
+		swap(*v1, *v2);
 	}
 }
 
