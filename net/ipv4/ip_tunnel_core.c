@@ -554,6 +554,7 @@ static int ip_tun_parse_opts_vxlan(struct nlattr *attr,
 
 		attr = tb[LWTUNNEL_IP_OPT_VXLAN_GBP];
 		md->gbp = nla_get_u32(attr);
+		md->gbp &= VXLAN_GBP_MASK;
 		info->key.tun_flags |= TUNNEL_VXLAN_OPT;
 	}
 
