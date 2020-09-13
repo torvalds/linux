@@ -123,10 +123,10 @@ of_get_fixed_voltage_config(struct device *dev,
 	return config;
 }
 
-static struct regulator_ops fixed_voltage_ops = {
+static const struct regulator_ops fixed_voltage_ops = {
 };
 
-static struct regulator_ops fixed_voltage_clkenabled_ops = {
+static const struct regulator_ops fixed_voltage_clkenabled_ops = {
 	.enable = reg_clock_enable,
 	.disable = reg_clock_disable,
 	.is_enabled = reg_clock_is_enabled,
