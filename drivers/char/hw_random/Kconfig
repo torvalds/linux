@@ -282,6 +282,20 @@ config HW_RANDOM_INGENIC_RNG
 
 	  If unsure, say Y.
 
+config HW_RANDOM_INGENIC_TRNG
+	tristate "Ingenic True Random Number Generator support"
+	depends on HW_RANDOM
+	depends on MACH_X1830
+	default HW_RANDOM
+	help
+	  This driver provides kernel-side support for the True Random Number Generator
+	  hardware found in ingenic X1830 SoC. YSH & ATIL CU1830-Neo uses X1830 SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ingenic-trng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_NOMADIK
 	tristate "ST-Ericsson Nomadik Random Number Generator support"
 	depends on ARCH_NOMADIK
