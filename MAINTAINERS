@@ -2220,8 +2220,8 @@ ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
 L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
 S:	Orphan
 W:	http://wiki.openmoko.org/wiki/Neo_FreeRunner
-F:	arch/arm/mach-s3c24xx/gta02.h
-F:	arch/arm/mach-s3c24xx/mach-gta02.c
+F:	arch/arm/mach-s3c/gta02.h
+F:	arch/arm/mach-s3c/mach-gta02.c
 
 ARM/Orion SoC/Technologic Systems TS-78xx platform support
 M:	Alexander Clouter <alex@digriz.org.uk>
@@ -2410,10 +2410,8 @@ F:	arch/arm/boot/dts/exynos*
 F:	arch/arm/boot/dts/s3c*
 F:	arch/arm/boot/dts/s5p*
 F:	arch/arm/mach-exynos*/
-F:	arch/arm/mach-s3c24*/
-F:	arch/arm/mach-s3c64xx/
+F:	arch/arm/mach-s3c/
 F:	arch/arm/mach-s5p*/
-F:	arch/arm/plat-samsung/
 F:	arch/arm64/boot/dts/exynos/
 F:	drivers/*/*/*s3c24*
 F:	drivers/*/*s3c24*
@@ -2424,6 +2422,9 @@ F:	drivers/soc/samsung/
 F:	drivers/tty/serial/samsung*
 F:	include/linux/soc/samsung/
 N:	exynos
+N:	s3c2410
+N:	s3c64xx
+N:	s5pv210
 
 ARM/SAMSUNG MOBILE MACHINE SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
@@ -15302,6 +15303,8 @@ F:	Documentation/devicetree/bindings/clock/samsung,s3c*
 F:	Documentation/devicetree/bindings/clock/samsung,s5p*
 F:	drivers/clk/samsung/
 F:	include/dt-bindings/clock/exynos*.h
+F:	include/linux/clk/samsung.h
+F:	include/linux/platform_data/clk-s3c2410.h
 
 SAMSUNG SPI DRIVERS
 M:	Kukjin Kim <kgene@kernel.org>
@@ -15313,6 +15316,7 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/spi/spi-samsung.txt
 F:	drivers/spi/spi-s3c*
 F:	include/linux/platform_data/spi-s3c64xx.h
+F:	include/linux/spi/s3c24xx-fiq.h
 
 SAMSUNG SXGBE DRIVERS
 M:	Byungho An <bh74.an@samsung.com>
@@ -15826,19 +15830,17 @@ F:	drivers/video/fbdev/simplefb.c
 F:	include/linux/platform_data/simplefb.h
 
 SIMTEC EB110ATX (Chalice CATS)
-M:	Vincent Sanders <vince@simtec.co.uk>
 M:	Simtec Linux Team <linux@simtec.co.uk>
 S:	Supported
 W:	http://www.simtec.co.uk/products/EB110ATX/
 
 SIMTEC EB2410ITX (BAST)
-M:	Vincent Sanders <vince@simtec.co.uk>
 M:	Simtec Linux Team <linux@simtec.co.uk>
 S:	Supported
 W:	http://www.simtec.co.uk/products/EB2410ITX/
-F:	arch/arm/mach-s3c24xx/bast-ide.c
-F:	arch/arm/mach-s3c24xx/bast-irq.c
-F:	arch/arm/mach-s3c24xx/mach-bast.c
+F:	arch/arm/mach-s3c/bast-ide.c
+F:	arch/arm/mach-s3c/bast-irq.c
+F:	arch/arm/mach-s3c/mach-bast.c
 
 SIOX
 M:	Thorsten Scherer <t.scherer@eckelmann.de>
@@ -18757,7 +18759,7 @@ F:	Documentation/devicetree/bindings/mfd/wm831x.txt
 F:	Documentation/devicetree/bindings/regulator/wlf,arizona.yaml
 F:	Documentation/devicetree/bindings/sound/wlf,arizona.yaml
 F:	Documentation/hwmon/wm83??.rst
-F:	arch/arm/mach-s3c64xx/mach-crag6410*
+F:	arch/arm/mach-s3c/mach-crag6410*
 F:	drivers/clk/clk-wm83*.c
 F:	drivers/extcon/extcon-arizona.c
 F:	drivers/gpio/gpio-*wm*.c
