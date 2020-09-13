@@ -120,6 +120,7 @@ properties:
               - fsl,imx6q-sabrelite
               - fsl,imx6q-sabresd
               - kontron,imx6q-samx6i      # Kontron i.MX6 Dual/Quad SMARC Module
+              - logicpd,imx6q-logicpd
               - prt,prti6q                # Protonic PRTI6Q board
               - prt,prtwd2                # Protonic WD2 board
               - technexion,imx6q-pico-dwarf   # TechNexion i.MX6Q Pico-Dwarf
