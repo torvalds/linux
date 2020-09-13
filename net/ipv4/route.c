@@ -2147,6 +2147,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	fl4.daddr = daddr;
 	fl4.saddr = saddr;
 	fl4.flowi4_uid = sock_net_uid(net, NULL);
+	fl4.flowi4_multipath_hash = 0;
 
 	if (fib4_rules_early_flow_dissect(net, skb, &fl4, &_flkeys)) {
 		flkeys = &_flkeys;

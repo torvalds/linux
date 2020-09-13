@@ -116,6 +116,7 @@ static inline void flowi4_init_output(struct flowi4 *fl4, int oif,
 	fl4->saddr = saddr;
 	fl4->fl4_dport = dport;
 	fl4->fl4_sport = sport;
+	fl4->flowi4_multipath_hash = 0;
 }
 
 /* Reset some input parameters after previous lookup */
