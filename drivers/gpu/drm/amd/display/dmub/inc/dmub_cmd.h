@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xd0772ca1b
+#define DMUB_FW_VERSION_GIT_HASH 0xf547f0b9d
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 33
+#define DMUB_FW_VERSION_REVISION 34
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -170,7 +170,7 @@ union dmub_fw_boot_status {
 		uint32_t dal_fw : 1;
 		uint32_t mailbox_rdy : 1;
 		uint32_t optimized_init_done : 1;
-		uint32_t reserved : 29;
+		uint32_t restore_required : 1;
 	} bits;
 	uint32_t all;
 };
@@ -179,6 +179,7 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_DAL_FIRMWARE = (1 << 0),
 	DMUB_FW_BOOT_STATUS_BIT_MAILBOX_READY = (1 << 1),
 	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2),
+	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3),
 };
 
 /* Register bit definition for SCRATCH15 */
@@ -299,6 +300,10 @@ enum dmub_cmd_type {
 	DMUB_CMD__ABM = 66,
 	DMUB_CMD__HW_LOCK = 69,
 	DMUB_CMD__VBIOS = 128,
+};
+
+enum dmub_out_cmd_type {
+	DMUB_OUT_CMD__NULL = 0,
 };
 
 #pragma pack(push, 1)
