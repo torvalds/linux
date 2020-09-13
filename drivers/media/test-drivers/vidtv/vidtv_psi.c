@@ -99,11 +99,7 @@ static inline u16 vidtv_psi_sdt_serv_get_desc_loop_len(struct vidtv_psi_table_sd
 	u16 mask;
 	u16 ret;
 
-	#if defined(__BIG_ENDIAN)
-	mask = GENMASK(0, 11);
-	#else
 	mask = GENMASK(11, 0);
-	#endif
 
 	ret = be16_to_cpu(s->bitfield) & mask;
 	return ret;
@@ -114,11 +110,7 @@ static inline u16 vidtv_psi_pmt_stream_get_desc_loop_len(struct vidtv_psi_table_
 	u16 mask;
 	u16 ret;
 
-	#if defined(__BIG_ENDIAN)
-	mask = GENMASK(0, 9);
-	#else
 	mask = GENMASK(9, 0);
-	#endif
 
 	ret = be16_to_cpu(s->bitfield2) & mask;
 	return ret;
@@ -129,11 +121,7 @@ static inline u16 vidtv_psi_pmt_get_desc_loop_len(struct vidtv_psi_table_pmt *p)
 	u16 mask;
 	u16 ret;
 
-	#if defined(__BIG_ENDIAN)
-	mask = GENMASK(0, 9);
-	#else
 	mask = GENMASK(9, 0);
-	#endif
 
 	ret = be16_to_cpu(p->bitfield2) & mask;
 	return ret;
@@ -144,11 +132,7 @@ static inline u16 vidtv_psi_get_sec_len(struct vidtv_psi_table_header *h)
 	u16 mask;
 	u16 ret;
 
-	#if defined(__BIG_ENDIAN)
-	mask = GENMASK(0, 11);
-	#else
 	mask = GENMASK(11, 0);
-	#endif
 
 	ret = be16_to_cpu(h->bitfield) & mask;
 	return ret;
@@ -159,11 +143,7 @@ inline u16 vidtv_psi_get_pat_program_pid(struct vidtv_psi_table_pat_program *p)
 	u16 mask;
 	u16 ret;
 
-	#if defined(__BIG_ENDIAN)
-	mask = GENMASK(0, 12);
-	#else
 	mask = GENMASK(12, 0);
-	#endif
 
 	ret = be16_to_cpu(p->bitfield) & mask;
 	return ret;
@@ -174,11 +154,7 @@ inline u16 vidtv_psi_pmt_stream_get_elem_pid(struct vidtv_psi_table_pmt_stream *
 	u16 mask;
 	u16 ret;
 
-	#if defined(__BIG_ENDIAN)
-	mask = GENMASK(0, 12);
-	#else
 	mask = GENMASK(12, 0);
-	#endif
 
 	ret = be16_to_cpu(s->bitfield) & mask;
 	return ret;
@@ -189,11 +165,7 @@ static inline void vidtv_psi_set_desc_loop_len(__be16 *bitfield, u16 new_len, u8
 	u16 mask;
 	__be16 new;
 
-	#if defined(__BIG_ENDIAN)
-	mask = GENMASK(desc_len_nbits, 15);
-	#else
 	mask = GENMASK(15, desc_len_nbits);
-	#endif
 
 	new = cpu_to_be16((be16_to_cpu(*bitfield) & mask) | new_len);
 	*bitfield = new;
@@ -205,11 +177,7 @@ static void vidtv_psi_set_sec_len(struct vidtv_psi_table_header *h, u16 new_len)
 	__be16 new;
 	u16 mask;
 
-	#if defined(__BIG_ENDIAN)
-	mask = GENMASK(13, 15);
-	#else
 	mask = GENMASK(15, 13);
-	#endif
 
 	new = cpu_to_be16((be16_to_cpu(h->bitfield) & mask) | new_len);
 
