@@ -126,8 +126,14 @@ run_cmd_parmap() {
 	if [ $VERBOSE -ne 0 ] ; then
 		echo "Running ($NPROC in parallel): $@"
 	fi
-	echo $@ >>$DEBUG_FILE
-	$@ 2>>$DEBUG_FILE
+	if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
+                echo $@>>$DEBUG_FILE
+                $@ 2>>$DEBUG_FILE
+        else
+                echo $@
+                $@ 2>&1
+	fi
+
 	err=$?
 	if [[ $err -ne 0 ]]; then
 		echo "coccicheck failed"
