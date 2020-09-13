@@ -380,7 +380,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		pr_warn("32-bit PCI DMA not available\n");
 		err = -ENODEV;
 		goto err_out_free;
@@ -422,15 +422,17 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	db = netdev_priv(dev);
 
 	/* Allocate Tx/Rx descriptor memory */
-	db->desc_pool_ptr = pci_alloc_consistent(pdev, sizeof(struct tx_desc) *
-			DESC_ALL_CNT + 0x20, &db->desc_pool_dma_ptr);
+	db->desc_pool_ptr = dma_alloc_coherent(&pdev->dev,
+					       sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
+					       &db->desc_pool_dma_ptr, GFP_KERNEL);
 	if (!db->desc_pool_ptr) {
 		err = -ENOMEM;
 		goto err_out_res;
 	}
 
-	db->buf_pool_ptr = pci_alloc_consistent(pdev, TX_BUF_ALLOC *
-			TX_DESC_CNT + 4, &db->buf_pool_dma_ptr);
+	db->buf_pool_ptr = dma_alloc_coherent(&pdev->dev,
+					      TX_BUF_ALLOC * TX_DESC_CNT + 4,
+					      &db->buf_pool_dma_ptr, GFP_KERNEL);
 	if (!db->buf_pool_ptr) {
 		err = -ENOMEM;
 		goto err_out_free_desc;
@@ -492,11 +494,12 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 err_out_unmap:
 	pci_iounmap(pdev, db->ioaddr);
 err_out_free_buf:
-	pci_free_consistent(pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
-			    db->buf_pool_ptr, db->buf_pool_dma_ptr);
+	dma_free_coherent(&pdev->dev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
+			  db->buf_pool_ptr, db->buf_pool_dma_ptr);
 err_out_free_desc:
-	pci_free_consistent(pdev, sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
-			    db->desc_pool_ptr, db->desc_pool_dma_ptr);
+	dma_free_coherent(&pdev->dev,
+			  sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
+			  db->desc_pool_ptr, db->desc_pool_dma_ptr);
 err_out_res:
 	pci_release_regions(pdev);
 err_out_disable:
@@ -519,11 +522,12 @@ static void dmfe_remove_one(struct pci_dev *pdev)
 
 		unregister_netdev(dev);
 		pci_iounmap(db->pdev, db->ioaddr);
-		pci_free_consistent(db->pdev, sizeof(struct tx_desc) *
-					DESC_ALL_CNT + 0x20, db->desc_pool_ptr,
- 					db->desc_pool_dma_ptr);
-		pci_free_consistent(db->pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
-					db->buf_pool_ptr, db->buf_pool_dma_ptr);
+		dma_free_coherent(&db->pdev->dev,
+				  sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
+				  db->desc_pool_ptr, db->desc_pool_dma_ptr);
+		dma_free_coherent(&db->pdev->dev,
+				  TX_BUF_ALLOC * TX_DESC_CNT + 4,
+				  db->buf_pool_ptr, db->buf_pool_dma_ptr);
 		pci_release_regions(pdev);
 		free_netdev(dev);	/* free board information */
 	}
@@ -955,8 +959,8 @@ static void dmfe_rx_packet(struct net_device *dev, struct dmfe_board_info *db)
 		db->rx_avail_cnt--;
 		db->interval_rx_cnt++;
 
-		pci_unmap_single(db->pdev, le32_to_cpu(rxptr->rdes2),
-				 RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&db->pdev->dev, le32_to_cpu(rxptr->rdes2),
+				 RX_ALLOC_SIZE, DMA_FROM_DEVICE);
 
 		if ( (rdes0 & 0x300) != 0x300) {
 			/* A packet without First/Last flag */
@@ -1329,8 +1333,8 @@ static void dmfe_reuse_skb(struct dmfe_board_info *db, struct sk_buff * skb)
 
 	if (!(rxptr->rdes0 & cpu_to_le32(0x80000000))) {
 		rxptr->rx_skb_ptr = skb;
-		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev,
-			    skb->data, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
+		rxptr->rdes2 = cpu_to_le32(dma_map_single(&db->pdev->dev, skb->data,
+							  RX_ALLOC_SIZE, DMA_FROM_DEVICE));
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		db->rx_avail_cnt++;
@@ -1544,8 +1548,8 @@ static void allocate_rx_buffer(struct net_device *dev)
 		if ( ( skb = netdev_alloc_skb(dev, RX_ALLOC_SIZE) ) == NULL )
 			break;
 		rxptr->rx_skb_ptr = skb; /* FIXME (?) */
-		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->data,
-				    RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
+		rxptr->rdes2 = cpu_to_le32(dma_map_single(&db->pdev->dev, skb->data,
+							  RX_ALLOC_SIZE, DMA_FROM_DEVICE));
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		rxptr = rxptr->next_rx_desc;
