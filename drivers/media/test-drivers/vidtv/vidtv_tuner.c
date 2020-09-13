@@ -246,7 +246,7 @@ vidtv_tuner_get_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	 * do a linear interpolation between 34dB and 10dB if we can't
 	 * match against the table
 	 */
-	*strength = 34 - 24 * shift / 100;
+	*strength = 34000 - 24000 * shift / 100;
 	return 0;
 }
 

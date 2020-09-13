@@ -122,6 +122,74 @@ static const struct vidtv_demod_cnr_to_qual_s
 	return NULL; /* not found */
 }
 
+static void vidtv_clean_stats(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	/* Fill the length of each status counter */
+
+	/* Signal is always available */
+	c->strength.len = 1;
+	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	c->strength.stat[0].svalue = 0;
+
+	/* Usually available only after Viterbi lock */
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].svalue = 0;
+	c->cnr.len = 1;
+
+	/* Those depends on full lock */
+	c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->pre_bit_error.stat[0].uvalue = 0;
+	c->pre_bit_error.len = 1;
+	c->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->pre_bit_count.stat[0].uvalue = 0;
+	c->pre_bit_count.len = 1;
+	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].uvalue = 0;
+	c->post_bit_error.len = 1;
+	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].uvalue = 0;
+	c->post_bit_count.len = 1;
+	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].uvalue = 0;
+	c->block_error.len = 1;
+	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.stat[0].uvalue = 0;
+	c->block_count.len = 1;
+}
+
+static void vidtv_demod_update_stats(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct vidtv_demod_state *state = fe->demodulator_priv;
+	u32 scale;
+
+	if (state->status & FE_HAS_LOCK) {
+		scale = FE_SCALE_COUNTER;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else {
+		scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = scale;
+	}
+
+	c->pre_bit_error.stat[0].scale = scale;
+	c->pre_bit_count.stat[0].scale = scale;
+	c->post_bit_error.stat[0].scale = scale;
+	c->post_bit_count.stat[0].scale = scale;
+	c->block_error.stat[0].scale = scale;
+	c->block_count.stat[0].scale = scale;
+
+	/*
+	 * Add a 0.5% of randomness at the signal streangth and CNR,
+	 * and make them different, as we want to have something closer
+	 * to a real case scenario.
+	 */
+	c->strength.stat[0].svalue = state->tuner_cnr + prandom_u32_max(state->tuner_cnr / 50);
+	c->cnr.stat[0].svalue = state->tuner_cnr - prandom_u32_max(state->tuner_cnr / 50);
+
+}
+
 static void vidtv_demod_poll_snr_handler(struct work_struct *work)
 {
 	/*
@@ -133,32 +201,33 @@ static void vidtv_demod_poll_snr_handler(struct work_struct *work)
 	struct vidtv_demod_config *config;
 	u16 snr = 0;
 
-	state  = container_of(work, struct vidtv_demod_state, poll_snr.work);
+	state = container_of(work, struct vidtv_demod_state, poll_snr.work);
 	config = &state->config;
 
-	if (!state->frontend.ops.tuner_ops.get_rf_strength)
-		return;
-
-	state->frontend.ops.tuner_ops.get_rf_strength(&state->frontend, &snr);
-
+	/* Simulate random lost of signal due to a bad-tuned channel */
 	cnr2qual = vidtv_match_cnr_s(&state->frontend);
-	if (!cnr2qual)
-		return;
 
-	if (snr < cnr2qual->cnr_ok) {
-		/* eventually lose the TS lock */
-		if (prandom_u32_max(100) < config->drop_tslock_prob_on_low_snr)
-			state->status = 0;
-	} else {
-		/* recover if the signal improves */
-		if (prandom_u32_max(100) <
-		    config->recover_tslock_prob_on_good_snr)
-			state->status = FE_HAS_SIGNAL  |
-					FE_HAS_CARRIER |
-					FE_HAS_VITERBI |
-					FE_HAS_SYNC    |
-					FE_HAS_LOCK;
+	if (cnr2qual && state->tuner_cnr < cnr2qual->cnr_good &&
+	    state->frontend.ops.tuner_ops.get_rf_strength) {
+		state->frontend.ops.tuner_ops.get_rf_strength(&state->frontend, &snr);
+
+		if (snr < cnr2qual->cnr_ok) {
+			/* eventually lose the TS lock */
+			if (prandom_u32_max(100) < config->drop_tslock_prob_on_low_snr)
+				state->status = 0;
+		} else {
+			/* recover if the signal improves */
+			if (prandom_u32_max(100) <
+			    config->recover_tslock_prob_on_good_snr)
+				state->status = FE_HAS_SIGNAL  |
+						FE_HAS_CARRIER |
+						FE_HAS_VITERBI |
+						FE_HAS_SYNC    |
+						FE_HAS_LOCK;
+		}
 	}
+
+	vidtv_demod_update_stats(&state->frontend);
 
 	schedule_delayed_work(&state->poll_snr,
 			      msecs_to_jiffies(POLL_THRD_TIME));
@@ -174,28 +243,13 @@ static int vidtv_demod_read_status(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int vidtv_demod_read_ber(struct dvb_frontend *fe, u32 *ber)
-{
-	*ber = 0;
-	return 0;
-}
-
 static int vidtv_demod_read_signal_strength(struct dvb_frontend *fe,
 					    u16 *strength)
 {
-	*strength = 0;
-	return 0;
-}
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-static int vidtv_demod_read_snr(struct dvb_frontend *fe, u16 *snr)
-{
-	*snr = 0;
-	return 0;
-}
+	*strength = c->strength.stat[0].uvalue;
 
-static int vidtv_demod_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
-{
-	*ucblocks = 0;
 	return 0;
 }
 
@@ -216,37 +270,41 @@ static int vidtv_demod_get_frontend(struct dvb_frontend *fe,
 
 static int vidtv_demod_set_frontend(struct dvb_frontend *fe)
 {
-	struct vidtv_demod_state *state            = fe->demodulator_priv;
 	const struct vidtv_demod_cnr_to_qual_s *cnr2qual = NULL;
-	u32 tuner_status                        = 0;
+	struct vidtv_demod_state *state = fe->demodulator_priv;
+	u32 tuner_status = 0;
+	int ret;
 
-	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe);
+	if (!fe->ops.tuner_ops.set_params)
+		return 0;
 
-		/* store the CNR returned by the tuner */
-		fe->ops.tuner_ops.get_rf_strength(fe, &state->tuner_cnr);
+	fe->ops.tuner_ops.set_params(fe);
 
-		fe->ops.tuner_ops.get_status(fe, &tuner_status);
-		state->status = (state->tuner_cnr > 0) ?  FE_HAS_SIGNAL  |
-							  FE_HAS_CARRIER |
-							  FE_HAS_VITERBI |
-							  FE_HAS_SYNC    |
-							  FE_HAS_LOCK	 :
-							  0;
-		cnr2qual = vidtv_match_cnr_s(fe);
+	/* store the CNR returned by the tuner */
+	ret = fe->ops.tuner_ops.get_rf_strength(fe, &state->tuner_cnr);
+	if (ret < 0)
+		return ret;
 
-		/* signal isn't good: might lose the lock eventually */
-		if (tuner_status == TUNER_STATUS_LOCKED &&
-		    state->tuner_cnr < cnr2qual->cnr_good) {
-			schedule_delayed_work(&state->poll_snr,
-					      msecs_to_jiffies(POLL_THRD_TIME));
+	fe->ops.tuner_ops.get_status(fe, &tuner_status);
+	state->status = (state->tuner_cnr > 0) ?  FE_HAS_SIGNAL  |
+						    FE_HAS_CARRIER |
+						    FE_HAS_VITERBI |
+						    FE_HAS_SYNC    |
+						    FE_HAS_LOCK	 :
+						    0;
+	cnr2qual = vidtv_match_cnr_s(fe);
 
-			state->poll_snr_thread_running = true;
-		}
+	vidtv_demod_update_stats(fe);
 
-		if (fe->ops.i2c_gate_ctrl)
-			fe->ops.i2c_gate_ctrl(fe, 0);
+	if (state->tuner_cnr > 0) {
+		schedule_delayed_work(&state->poll_snr,
+					msecs_to_jiffies(POLL_THRD_TIME));
+
+		state->poll_snr_thread_running = true;
 	}
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	return 0;
 }
@@ -372,10 +430,7 @@ static const struct dvb_frontend_ops vidtv_demod_ops = {
 	.get_frontend = vidtv_demod_get_frontend,
 
 	.read_status          = vidtv_demod_read_status,
-	.read_ber             = vidtv_demod_read_ber,
 	.read_signal_strength = vidtv_demod_read_signal_strength,
-	.read_snr             = vidtv_demod_read_snr,
-	.read_ucblocks        = vidtv_demod_read_ucblocks,
 
 	/* For DVB-S/S2 */
 	.set_voltage = vidtv_demod_set_voltage,
@@ -410,6 +465,8 @@ static int vidtv_demod_i2c_probe(struct i2c_client *client,
 
 	state->frontend.demodulator_priv = state;
 	i2c_set_clientdata(client, state);
+
+	vidtv_clean_stats(&state->frontend);
 
 	return 0;
 }
