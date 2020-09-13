@@ -173,6 +173,8 @@ struct adis16400_chip_info {
  * @variant:	chip variant info
  * @filt_int:	integer part of requested filter frequency
  * @adis:	adis device
+ * @avail_scan_mask:	NULL terminated array of bitmaps of channels
+ *			that must be enabled together
  **/
 struct adis16400_state {
 	struct adis16400_chip_info	*variant;
