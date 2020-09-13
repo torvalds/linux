@@ -474,8 +474,11 @@ static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
 			"Device boot error - NIC F/W initialization failed\n");
 }
 
-static void hl_detect_cpu_boot_status(struct hl_device *hdev, u32 status)
+static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 {
+	/* Some of the status codes below are deprecated in newer f/w
+	 * versions but we keep them here for backward compatibility
+	 */
 	switch (status) {
 	case CPU_BOOT_STATUS_NA:
 		dev_err(hdev->dev,
@@ -519,6 +522,48 @@ static void hl_detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 			status);
 		break;
 	}
+}
+
+int hl_fw_read_preboot_ver(struct hl_device *hdev, u32 cpu_boot_status_reg,
+				u32 boot_err0_reg, u32 timeout)
+{
+	u32 status;
+	int rc;
+
+	if (!hdev->cpu_enable)
+		return 0;
+
+	/* Need to check two possible scenarios:
+	 *
+	 * CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT - for newer firmwares where
+	 * the preboot is waiting for the boot fit
+	 *
+	 * All other status values - for older firmwares where the uboot was
+	 * loaded from the FLASH
+	 */
+	rc = hl_poll_timeout(
+		hdev,
+		cpu_boot_status_reg,
+		status,
+		(status == CPU_BOOT_STATUS_IN_UBOOT) ||
+		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
+		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
+		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
+		(status == CPU_BOOT_STATUS_SRAM_AVAIL) ||
+		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
+		10000,
+		timeout);
+
+	if (rc) {
+		dev_err(hdev->dev, "Failed to read preboot version\n");
+		detect_cpu_boot_status(hdev, status);
+		fw_read_errors(hdev, boot_err0_reg);
+		return -EIO;
+	}
+
+	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
+
+	return 0;
 }
 
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
@@ -586,15 +631,11 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		10000,
 		cpu_timeout);
 
-	/* Read U-Boot, preboot versions now in case we will later fail */
+	/* Read U-Boot version now in case we will later fail */
 	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_UBOOT);
-	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
 
-	/* Some of the status codes below are deprecated in newer f/w
-	 * versions but we keep them here for backward compatibility
-	 */
 	if (rc) {
-		hl_detect_cpu_boot_status(hdev, status);
+		detect_cpu_boot_status(hdev, status);
 		rc = -EIO;
 		goto out;
 	}

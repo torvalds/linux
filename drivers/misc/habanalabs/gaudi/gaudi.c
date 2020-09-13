@@ -599,9 +599,14 @@ static int gaudi_early_init(struct hl_device *hdev)
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, HBM_BAR_ID);
 
-	rc = hl_pci_init(hdev);
+	rc = hl_pci_init(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
+			mmCPU_BOOT_ERR0, GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
 	if (rc)
 		goto free_queue_props;
+
+	/* GAUDI Firmware does not yet support security */
+	prop->fw_security_disabled = true;
+	dev_info(hdev->dev, "firmware-level security is disabled\n");
 
 	return 0;
 
@@ -2871,6 +2876,18 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 	/* Perform read from the device to make sure device is up */
 	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 
+	/* Set the access through PCI bars (Linux driver only) as
+	 * secured
+	 */
+	WREG32(mmPCIE_WRAP_LBW_PROT_OVR,
+			(PCIE_WRAP_LBW_PROT_OVR_RD_EN_MASK |
+			PCIE_WRAP_LBW_PROT_OVR_WR_EN_MASK));
+
+	/* Perform read to flush the waiting writes to ensure
+	 * configuration was set in the device
+	 */
+	RREG32(mmPCIE_WRAP_LBW_PROT_OVR);
+
 	/*
 	 * Let's mark in the H/W that we have reached this point. We check
 	 * this value in the reset_before_init function to understand whether
@@ -2878,15 +2895,6 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 	 * cleared by the H/W upon H/W reset
 	 */
 	WREG32(mmHW_STATE, HL_DEVICE_HW_STATE_DIRTY);
-
-	/* Set the access through PCI bars (Linux driver only) as secured */
-	WREG32(mmPCIE_WRAP_LBW_PROT_OVR, (PCIE_WRAP_LBW_PROT_OVR_RD_EN_MASK |
-					PCIE_WRAP_LBW_PROT_OVR_WR_EN_MASK));
-
-	/* Perform read to flush the waiting writes to ensure configuration
-	 * was set in the device
-	 */
-	RREG32(mmPCIE_WRAP_LBW_PROT_OVR);
 
 	/* Configure the reset registers. Must be done as early as possible
 	 * in case we fail during H/W initialization

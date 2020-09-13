@@ -320,6 +320,8 @@ struct hl_mmu_properties {
  * @first_available_user_mon: first monitor available for the user
  * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
+ * @fw_security_disabled: true if security measures are disabled in firmware,
+ *                        false otherwise
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -370,6 +372,7 @@ struct asic_fixed_properties {
 	u16				first_available_user_mon[HL_MAX_DCORES];
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
+	u8				fw_security_disabled;
 };
 
 /**
@@ -1933,6 +1936,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
 			u32 boot_err0_reg, bool skip_bmc,
 			u32 cpu_timeout, u32 boot_fit_timeout);
+int hl_fw_read_preboot_ver(struct hl_device *hdev, u32 cpu_boot_status_reg,
+				u32 boot_err0_reg, u32 timeout);
 
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);
@@ -1941,7 +1946,8 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 		struct hl_inbound_pci_region *pci_region);
 int hl_pci_set_outbound_region(struct hl_device *hdev,
 		struct hl_outbound_pci_region *pci_region);
-int hl_pci_init(struct hl_device *hdev);
+int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
+		u32 boot_err0_reg, u32 preboot_ver_timeout);
 void hl_pci_fini(struct hl_device *hdev);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
