@@ -1,27 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0+
-// Copyright (c) 2018 Facebook Inc.
+// Copyright (c) 2019 Facebook Inc.
 /dts-v1/;
 
+#include <dt-bindings/gpio/aspeed-gpio.h>
 #include "ast2500-facebook-netbmc-common.dtsi"
 
 / {
-	model = "Facebook Minipack 100 BMC";
-	compatible = "facebook,minipack-bmc", "aspeed,ast2500";
+	model = "Facebook Wedge 400 BMC";
+	compatible = "facebook,wedge400-bmc", "aspeed,ast2500";
 
 	aliases {
 		/*
-		 * Override the default serial aliases to avoid breaking
-		 * the legacy applications.
-		 */
-		serial0 = &uart5;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
-
-		/*
-		 * i2c switch 2-0070, pca9548, 8 child channels assigned
-		 * with bus number 16-23.
+		 * PCA9548 (2-0070) provides 8 channels connecting to
+		 * SCM (System Controller Module).
 		 */
 		i2c16 = &imux16;
 		i2c17 = &imux17;
@@ -33,8 +24,8 @@
 		i2c23 = &imux23;
 
 		/*
-		 * i2c switch 8-0070, pca9548, 8 child channels assigned
-		 * with bus number 24-31.
+		 * PCA9548 (8-0070) provides 8 channels connecting to
+		 * SMB (Switch Main Board).
 		 */
 		i2c24 = &imux24;
 		i2c25 = &imux25;
@@ -46,8 +37,8 @@
 		i2c31 = &imux31;
 
 		/*
-		 * i2c switch 9-0070, pca9548, 8 child channels assigned
-		 * with bus number 32-39.
+		 * PCA9548 (11-0076) provides 8 channels connecting to
+		 * FCM (Fan Controller Module).
 		 */
 		i2c32 = &imux32;
 		i2c33 = &imux33;
@@ -58,33 +49,46 @@
 		i2c38 = &imux38;
 		i2c39 = &imux39;
 
-		/*
-		 * i2c switch 11-0070, pca9548, 8 child channels assigned
-		 * with bus number 40-47.
-		 */
-		i2c40 = &imux40;
-		i2c41 = &imux41;
-		i2c42 = &imux42;
-		i2c43 = &imux43;
-		i2c44 = &imux44;
-		i2c45 = &imux45;
-		i2c46 = &imux46;
-		i2c47 = &imux47;
+		spi2 = &spi_gpio;
 	};
 
 	chosen {
 		stdout-path = &uart1;
-		bootargs = "debug console=ttyS1,9600n8 root=/dev/ram rw";
+		bootargs = "console=ttyS0,9600n8 root=/dev/ram rw";
+	};
+
+	ast-adc-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 3>, <&adc 4>;
+	};
+
+	/*
+	 * GPIO-based SPI Master is required to access SPI TPM, because
+	 * full-duplex SPI transactions are not supported by ASPEED SPI
+	 * Controllers.
+	 */
+	spi_gpio: spi-gpio {
+		status = "okay";
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cs-gpios = <&gpio ASPEED_GPIO(R, 2) GPIO_ACTIVE_LOW>;
+		gpio-sck = <&gpio ASPEED_GPIO(R, 3) GPIO_ACTIVE_HIGH>;
+		gpio-mosi = <&gpio ASPEED_GPIO(R, 4) GPIO_ACTIVE_HIGH>;
+		gpio-miso = <&gpio ASPEED_GPIO(R, 5) GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
+
+		tpmdev@0 {
+			compatible = "tcg,tpm_tis-spi";
+			spi-max-frequency = <33000000>;
+			reg = <0>;
+		};
 	};
 };
 
-&wdt2 {
-	status = "okay";
-	aspeed,reset-type = "system";
-};
-
 /*
- * Both firmware flashes are 64MB on Minipack BMC.
+ * Both firmware flashes are 128MB on Wedge400 BMC.
  */
 &fmc_flash0 {
 	partitions {
@@ -109,10 +113,10 @@
 		};
 
 		/*
-		 * FIT image: 59.5 MB.
+		 * FIT image: 123.5 MB.
 		 */
 		fit@80000 {
-			reg = <0x80000 0x3b80000>;
+			reg = <0x80000 0x7b80000>;
 			label = "fit";
 		};
 
@@ -121,7 +125,7 @@
 		 * data store.
 		 */
 		data0@3800000 {
-			reg = <0x3c00000 0x400000>;
+			reg = <0x7c00000 0x800000>;
 			label = "data0";
 		};
 
@@ -130,7 +134,7 @@
 		 * explicitly created to avoid breaking legacy applications.
 		 */
 		flash0@0 {
-			reg = <0x0 0x4000000>;
+			reg = <0x0 0x8000000>;
 			label = "flash0";
 		};
 	};
@@ -143,18 +147,10 @@
 		#size-cells = <1>;
 
 		flash1@0 {
-			reg = <0x0 0x4000000>;
+			reg = <0x0 0x8000000>;
+			label = "flash1";
 		};
 	};
-};
-
-&uart1 {
-	pinctrl-0 = <&pinctrl_txd1_default
-		     &pinctrl_rxd1_default
-		     &pinctrl_ncts1_default
-		     &pinctrl_ndsr1_default
-		     &pinctrl_ndtr1_default
-		     &pinctrl_nrts1_default>;
 };
 
 &uart2 {
@@ -171,10 +167,14 @@
 		     &pinctrl_rxd4_default>;
 };
 
+/*
+ * I2C bus #0 is multi-master environment dedicated for BMC and Bridge IC
+ * communication.
+ */
 &i2c0 {
 	status = "okay";
-	bus-frequency = <400000>;
 	multi-master;
+	bus-frequency = <1000000>;
 };
 
 &i2c1 {
@@ -189,6 +189,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x70>;
+		i2c-mux-idle-disconnect;
 
 		imux16: i2c@0 {
 			#address-cells = <1>;
@@ -246,7 +247,6 @@
 
 &i2c4 {
 	status = "okay";
-	multi-master;
 };
 
 &i2c5 {
@@ -269,6 +269,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x70>;
+		i2c-mux-idle-disconnect;
 
 		imux24: i2c@0 {
 			#address-cells = <1>;
@@ -317,17 +318,27 @@
 			#size-cells = <0>;
 			reg = <7>;
 		};
+
 	};
 };
 
 &i2c9 {
 	status = "okay";
+};
 
-	i2c-switch@70 {
+&i2c10 {
+	status = "okay";
+};
+
+&i2c11 {
+	status = "okay";
+
+	i2c-switch@76 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0x70>;
+		reg = <0x76>;
+		i2c-mux-idle-disconnect;
 
 		imux32: i2c@0 {
 			#address-cells = <1>;
@@ -376,69 +387,7 @@
 			#size-cells = <0>;
 			reg = <7>;
 		};
-	};
-};
 
-&i2c10 {
-	status = "okay";
-};
-
-&i2c11 {
-	status = "okay";
-
-	i2c-switch@70 {
-		compatible = "nxp,pca9548";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x70>;
-
-		imux40: i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0>;
-		};
-
-		imux41: i2c@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <1>;
-		};
-
-		imux42: i2c@2 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <2>;
-		};
-
-		imux43: i2c@3 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <3>;
-		};
-
-		imux44: i2c@4 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <4>;
-		};
-
-		imux45: i2c@5 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <5>;
-		};
-
-		imux46: i2c@6 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <6>;
-		};
-
-		imux47: i2c@7 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <7>;
-		};
 	};
 };
 
@@ -448,4 +397,24 @@
 
 &i2c13 {
 	status = "okay";
+};
+
+&adc {
+	status = "okay";
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+&uhci {
+	status = "okay";
+};
+
+&sdhci1 {
+	/*
+	 * DMA mode needs to be disabled to avoid conflicts with UHCI
+	 * Controller in AST2500 SoC.
+	 */
+	sdhci-caps-mask = <0x0 0x580000>;
 };
