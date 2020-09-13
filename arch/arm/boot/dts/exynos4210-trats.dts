@@ -132,23 +132,14 @@
 			compatible = "samsung,clock-xusbxti";
 			clock-frequency = <24000000>;
 		};
-	};
 
-	thermal-zones {
-		cpu_thermal: cpu-thermal {
-			cooling-maps {
-				map0 {
-				     /* Corresponds to 800MHz at freq_table */
-				     cooling-device = <&cpu0 2 2>, <&cpu1 2 2>;
-				};
-				map1 {
-				     /* Corresponds to 200MHz at freq_table */
-				     cooling-device = <&cpu0 4 4>, <&cpu1 4 4>;
-			       };
-		       };
+		pmic_ap_clk: pmic-ap-clk {
+			/* Workaround for missing clock on max8997 PMIC */
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
 		};
 	};
-
 };
 
 &camera {
@@ -159,6 +150,19 @@
 
 &cpu0 {
 	cpu0-supply = <&varm_breg>;
+};
+
+&cpu_thermal {
+	cooling-maps {
+		map0 {
+			/* Corresponds to 800MHz at freq_table */
+			cooling-device = <&cpu0 2 2>, <&cpu1 2 2>;
+		};
+		map1 {
+			/* Corresponds to 200MHz at freq_table */
+			cooling-device = <&cpu0 4 4>, <&cpu1 4 4>;
+		};
+	};
 };
 
 &dsi_0 {
@@ -314,138 +318,154 @@
 
 		regulators {
 			valive_reg: LDO2 {
-			     regulator-name = "VALIVE_1.1V_C210";
-			     regulator-min-microvolt = <1100000>;
-			     regulator-max-microvolt = <1100000>;
-			     regulator-always-on;
+				regulator-name = "VALIVE_1.1V_C210";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
 			};
 
 			vusb_reg: LDO3 {
-			     regulator-name = "VUSB_1.1V_C210";
-			     regulator-min-microvolt = <1100000>;
-			     regulator-max-microvolt = <1100000>;
+				regulator-name = "VUSB_1.1V_C210";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
 			};
 
 			vmipi_reg: LDO4 {
-			     regulator-name = "VMIPI_1.8V";
-			     regulator-min-microvolt = <1800000>;
-			     regulator-max-microvolt = <1800000>;
+				regulator-name = "VMIPI_1.8V";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			vpda_reg: LDO6 {
-			     regulator-name = "VCC_1.8V_PDA";
-			     regulator-min-microvolt = <1800000>;
-			     regulator-max-microvolt = <1800000>;
-			     regulator-always-on;
+				regulator-name = "VCC_1.8V_PDA";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 			};
 
 			vcam_reg: LDO7 {
-			     regulator-name = "CAM_ISP_1.8V";
-			     regulator-min-microvolt = <1800000>;
-			     regulator-max-microvolt = <1800000>;
+				regulator-name = "CAM_ISP_1.8V";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			vusbdac_reg: LDO8 {
-			     regulator-name = "VUSB+VDAC_3.3V_C210";
-			     regulator-min-microvolt = <3300000>;
-			     regulator-max-microvolt = <3300000>;
+				regulator-name = "VUSB+VDAC_3.3V_C210";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 			};
 
 			vccpda_reg: LDO9 {
-			     regulator-name = "VCC_2.8V_PDA";
-			     regulator-min-microvolt = <2800000>;
-			     regulator-max-microvolt = <2800000>;
-			     regulator-always-on;
+				regulator-name = "VCC_2.8V_PDA";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				regulator-always-on;
 			};
 
 			vpll_reg: LDO10 {
-			     regulator-name = "VPLL_1.1V_C210";
-			     regulator-min-microvolt = <1100000>;
-			     regulator-max-microvolt = <1100000>;
-			     regulator-always-on;
+				regulator-name = "VPLL_1.1V_C210";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
 			};
 
 			vtcam_reg: LDO12 {
-			     regulator-name = "VT_CAM_1.8V";
-			     regulator-min-microvolt = <1800000>;
-			     regulator-max-microvolt = <1800000>;
+				regulator-name = "VT_CAM_1.8V";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			vcclcd_reg: LDO13 {
-			     regulator-name = "VCC_3.3V_LCD";
-			     regulator-min-microvolt = <3300000>;
-			     regulator-max-microvolt = <3300000>;
+				regulator-name = "VCC_3.3V_LCD";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 			};
 
 			vlcd_reg: LDO15 {
-			     regulator-name = "VLCD_2.2V";
-			     regulator-min-microvolt = <2200000>;
-			     regulator-max-microvolt = <2200000>;
+				regulator-name = "VLCD_2.2V";
+				regulator-min-microvolt = <2200000>;
+				regulator-max-microvolt = <2200000>;
 			};
 
 			camsensor_reg: LDO16 {
-			     regulator-name = "CAM_SENSOR_IO_1.8V";
-			     regulator-min-microvolt = <1800000>;
-			     regulator-max-microvolt = <1800000>;
+				regulator-name = "CAM_SENSOR_IO_1.8V";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			tflash_reg: LDO17 {
-			     regulator-name = "VTF_2.8V";
-			     regulator-min-microvolt = <2800000>;
-			     regulator-max-microvolt = <2800000>;
+				regulator-name = "VTF_2.8V";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
 			};
 
 			vddq_reg: LDO21 {
-			     regulator-name = "VDDQ_M1M2_1.2V";
-			     regulator-min-microvolt = <1200000>;
-			     regulator-max-microvolt = <1200000>;
-			     regulator-always-on;
+				regulator-name = "VDDQ_M1M2_1.2V";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
 			};
 
 			varm_breg: BUCK1 {
-			     regulator-name = "VARM_1.2V_C210";
-			     regulator-min-microvolt = <900000>;
-			     regulator-max-microvolt = <1350000>;
-			     regulator-always-on;
+				regulator-name = "VARM_1.2V_C210";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
 			};
 
 			vint_breg: BUCK2 {
-			     regulator-name = "VINT_1.1V_C210";
-			     regulator-min-microvolt = <900000>;
-			     regulator-max-microvolt = <1100000>;
-			     regulator-always-on;
+				regulator-name = "VINT_1.1V_C210";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
 			};
 
 			camisp_breg: BUCK4 {
-			     regulator-name = "CAM_ISP_CORE_1.2V";
-			     regulator-min-microvolt = <1200000>;
-			     regulator-max-microvolt = <1200000>;
+				regulator-name = "CAM_ISP_CORE_1.2V";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
 			};
 
 			vmem_breg: BUCK5 {
-			     regulator-name = "VMEM_1.2V_C210";
-			     regulator-min-microvolt = <1200000>;
-			     regulator-max-microvolt = <1200000>;
-			     regulator-always-on;
+				regulator-name = "VMEM_1.2V_C210";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
 			};
 
 			vccsub_breg: BUCK7 {
-			     regulator-name = "VCC_SUB_2.0V";
-			     regulator-min-microvolt = <2000000>;
-			     regulator-max-microvolt = <2000000>;
-			     regulator-always-on;
+				regulator-name = "VCC_SUB_2.0V";
+				regulator-min-microvolt = <2000000>;
+				regulator-max-microvolt = <2000000>;
+				regulator-always-on;
 			};
 
 			safe1_sreg: ESAFEOUT1 {
-			     regulator-name = "SAFEOUT1";
+				regulator-name = "SAFEOUT1";
 			};
 
 			safe2_sreg: ESAFEOUT2 {
-			     regulator-name = "SAFEOUT2";
-			     regulator-boot-on;
+				regulator-name = "SAFEOUT2";
+				regulator-boot-on;
+			};
+
+			EN32KHZ_AP {
+				regulator-name = "EN32KHZ_AP";
+				regulator-always-on;
+			};
+
+			EN32KHZ_CP {
+				regulator-name = "EN32KHZ_CP";
+				regulator-always-on;
 			};
 		};
 	};
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &sdhci_0 {
