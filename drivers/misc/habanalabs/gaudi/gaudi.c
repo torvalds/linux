@@ -2885,22 +2885,6 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 	 */
 	RREG32(mmPCIE_WRAP_LBW_PROT_OVR);
 
-	if (hdev->axi_drain) {
-		WREG32(mmPCIE_WRAP_LBW_DRAIN_CFG,
-			1 << PCIE_WRAP_LBW_DRAIN_CFG_EN_SHIFT);
-		WREG32(mmPCIE_WRAP_HBW_DRAIN_CFG,
-			1 << PCIE_WRAP_HBW_DRAIN_CFG_EN_SHIFT);
-
-		/* Perform read to flush the DRAIN cfg */
-		RREG32(mmPCIE_WRAP_HBW_DRAIN_CFG);
-	} else {
-		WREG32(mmPCIE_WRAP_LBW_DRAIN_CFG, 0);
-		WREG32(mmPCIE_WRAP_HBW_DRAIN_CFG, 0);
-
-		/* Perform read to flush the DRAIN cfg */
-		RREG32(mmPCIE_WRAP_HBW_DRAIN_CFG);
-	}
-
 	/* Configure the reset registers. Must be done as early as possible
 	 * in case we fail during H/W initialization
 	 */
