@@ -1035,6 +1035,14 @@ static const struct ingenic_chip_info jz4770_chip_info = {
 	.pull_downs = jz4770_pull_downs,
 };
 
+static const u32 jz4780_pull_ups[6] = {
+	0x3fffffff, 0xfff0f3fc, 0x0fffffff, 0xffff4fff, 0xfffffb7c, 0x7fa7f00f,
+};
+
+static const u32 jz4780_pull_downs[6] = {
+	0x00000000, 0x000f0c03, 0x00000000, 0x0000b000, 0x00000483, 0x00580ff0,
+};
+
 static int jz4780_uart2_data_pins[] = { 0x66, 0x67, };
 static int jz4780_uart2_hwflow_pins[] = { 0x65, 0x64, };
 static int jz4780_uart4_data_pins[] = { 0x54, 0x4a, };
@@ -1301,8 +1309,8 @@ static const struct ingenic_chip_info jz4780_chip_info = {
 	.num_groups = ARRAY_SIZE(jz4780_groups),
 	.functions = jz4780_functions,
 	.num_functions = ARRAY_SIZE(jz4780_functions),
-	.pull_ups = jz4770_pull_ups,
-	.pull_downs = jz4770_pull_downs,
+	.pull_ups = jz4780_pull_ups,
+	.pull_downs = jz4780_pull_downs,
 };
 
 static const u32 x1000_pull_ups[4] = {
