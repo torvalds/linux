@@ -691,8 +691,9 @@ static inline void *iio_priv(const struct iio_dev *indio_dev)
 
 void iio_device_free(struct iio_dev *indio_dev);
 struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv);
+__printf(2, 3)
 struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
-						const char *fmt, ...);
+					   const char *fmt, ...);
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled
  * @indio_dev:		IIO device structure for device
