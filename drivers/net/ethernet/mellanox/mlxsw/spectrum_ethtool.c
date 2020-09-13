@@ -842,6 +842,29 @@ mlxsw_sp_port_connector_port(enum mlxsw_reg_ptys_connector_type connector_type)
 	}
 }
 
+static int mlxsw_sp_port_ptys_query(struct mlxsw_sp_port *mlxsw_sp_port,
+				    u32 *p_eth_proto_cap, u32 *p_eth_proto_admin,
+				    u32 *p_eth_proto_oper, u8 *p_connector_type)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	const struct mlxsw_sp_port_type_speed_ops *ops;
+	char ptys_pl[MLXSW_REG_PTYS_LEN];
+	int err;
+
+	ops = mlxsw_sp->port_type_speed_ops;
+
+	ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl, mlxsw_sp_port->local_port, 0, false);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
+	if (err)
+		return err;
+
+	ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, p_eth_proto_cap, p_eth_proto_admin,
+				 p_eth_proto_oper);
+	if (p_connector_type)
+		*p_connector_type = mlxsw_reg_ptys_connector_type_get(ptys_pl);
+	return 0;
+}
+
 static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 					    struct ethtool_link_ksettings *cmd)
 {
@@ -849,21 +872,17 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	const struct mlxsw_sp_port_type_speed_ops *ops;
-	char ptys_pl[MLXSW_REG_PTYS_LEN];
 	u8 connector_type;
 	bool autoneg;
 	int err;
 
-	ops = mlxsw_sp->port_type_speed_ops;
-
-	autoneg = mlxsw_sp_port->link.autoneg;
-	ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl, mlxsw_sp_port->local_port,
-			       0, false);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
+	err = mlxsw_sp_port_ptys_query(mlxsw_sp_port, &eth_proto_cap, &eth_proto_admin,
+				       &eth_proto_oper, &connector_type);
 	if (err)
 		return err;
-	ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, &eth_proto_cap,
-				 &eth_proto_admin, &eth_proto_oper);
+
+	ops = mlxsw_sp->port_type_speed_ops;
+	autoneg = mlxsw_sp_port->link.autoneg;
 
 	mlxsw_sp_port_get_link_supported(mlxsw_sp, eth_proto_cap,
 					 mlxsw_sp_port->mapping.width, cmd);
@@ -872,7 +891,6 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 					 mlxsw_sp_port->mapping.width, cmd);
 
 	cmd->base.autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
-	connector_type = mlxsw_reg_ptys_connector_type_get(ptys_pl);
 	cmd->base.port = mlxsw_sp_port_connector_port(connector_type);
 	ops->from_ptys_speed_duplex(mlxsw_sp, netif_carrier_ok(dev),
 				    eth_proto_oper, cmd);
