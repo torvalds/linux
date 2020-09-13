@@ -352,13 +352,11 @@ static u32 vidtv_s302m_write_frame(struct vidtv_encoder *e,
 	f.data[3] = (sample & 0x0FF0) >>  4;
 	f.data[4] = (sample & 0xF000) >> 12;
 
-	#ifdef __LITTLE_ENDIAN
 	f.data[0] = reverse[f.data[0]];
 	f.data[1] = reverse[f.data[1]];
 	f.data[2] = reverse[f.data[2]];
 	f.data[3] = reverse[f.data[3]];
 	f.data[4] = reverse[f.data[4]];
-	#endif
 
 	nbytes += vidtv_memcpy(e->encoder_buf,
 			       e->encoder_buf_offset,
