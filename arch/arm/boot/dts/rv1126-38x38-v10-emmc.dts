@@ -513,3 +513,7 @@
 &usb_host0_ohci {
 	status = "okay";
 };
+
+&wdt {
+	status = "okay";
+};
