@@ -2241,6 +2241,21 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 		}
 	}
 
+	/* now we can rework the debugfs mappings */
+	if (tx_qcqs) {
+		for (i = 0; i < qparam->nxqs; i++) {
+			ionic_debugfs_del_qcq(lif->txqcqs[i]);
+			ionic_debugfs_add_qcq(lif, lif->txqcqs[i]);
+		}
+	}
+
+	if (rx_qcqs) {
+		for (i = 0; i < qparam->nxqs; i++) {
+			ionic_debugfs_del_qcq(lif->rxqcqs[i]);
+			ionic_debugfs_add_qcq(lif, lif->rxqcqs[i]);
+		}
+	}
+
 	swap(lif->nxqs, qparam->nxqs);
 
 err_out_reinit_unlock:
