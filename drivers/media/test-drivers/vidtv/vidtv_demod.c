@@ -268,10 +268,6 @@ static int vidtv_demod_init(struct dvb_frontend *fe)
 	struct vidtv_demod_state *state = fe->demodulator_priv;
 	u32    tuner_status             = 0;
 
-	if (state->cold_start)
-		INIT_DELAYED_WORK(&state->poll_snr,
-				  &vidtv_demod_poll_snr_handler);
-
 	/*
 	 * At resume, start the snr poll thread only if it was suspended with
 	 * the thread running. Extra care should be taken here, as some tuner
@@ -288,7 +284,6 @@ static int vidtv_demod_init(struct dvb_frontend *fe)
 		state->poll_snr_thread_restart = false;
 	}
 
-	state->cold_start = false;
 	return 0;
 }
 
@@ -396,6 +391,7 @@ MODULE_DEVICE_TABLE(i2c, vidtv_demod_i2c_id_table);
 static int vidtv_demod_i2c_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
+	struct vidtv_tuner_config *config = client->dev.platform_data;
 	struct vidtv_demod_state *state;
 
 	/* allocate memory for the internal state */
@@ -407,6 +403,10 @@ static int vidtv_demod_i2c_probe(struct i2c_client *client,
 	memcpy(&state->frontend.ops,
 	       &vidtv_demod_ops,
 	       sizeof(struct dvb_frontend_ops));
+
+	memcpy(&state->config, config, sizeof(state->config));
+
+	INIT_DELAYED_WORK(&state->poll_snr, &vidtv_demod_poll_snr_handler);
 
 	state->frontend.demodulator_priv = state;
 	i2c_set_clientdata(client, state);

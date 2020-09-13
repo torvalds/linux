@@ -66,7 +66,6 @@ struct vidtv_demod_state {
 	struct delayed_work poll_snr;
 	enum fe_status status;
 	u16 tuner_cnr;
-	bool cold_start;
 	bool poll_snr_thread_running;
 	bool poll_snr_thread_restart;
 };
