@@ -319,6 +319,7 @@ struct mlxsw_sp_port {
 	struct {
 		struct delayed_work speed_update_dw;
 	} span;
+	int max_mtu;
 };
 
 struct mlxsw_sp_port_type_speed_ops {
