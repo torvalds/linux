@@ -3701,6 +3701,8 @@ static bool mvpp2_tx_hw_tstamp(struct mvpp2_port *port,
 	if (!hdr)
 		return false;
 
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
 	ptpdesc = MVPP22_PTP_MACTIMESTAMPINGEN |
 		  MVPP22_PTP_ACTION_CAPTURE;
 	queue = &port->tx_hwtstamp_queue[0];
