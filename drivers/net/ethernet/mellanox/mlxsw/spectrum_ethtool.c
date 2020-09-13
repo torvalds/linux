@@ -1162,6 +1162,27 @@ mlxsw_sp1_from_ptys_speed_duplex(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 		cmd->base.duplex = DUPLEX_FULL;
 }
 
+static int mlxsw_sp1_ptys_max_speed(struct mlxsw_sp_port *mlxsw_sp_port, u32 *p_max_speed)
+{
+	u32 eth_proto_cap;
+	u32 max_speed = 0;
+	int err;
+	int i;
+
+	err = mlxsw_sp_port_ptys_query(mlxsw_sp_port, &eth_proto_cap, NULL, NULL, NULL);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if ((eth_proto_cap & mlxsw_sp1_port_link_mode[i].mask) &&
+		    mlxsw_sp1_port_link_mode[i].speed > max_speed)
+			max_speed = mlxsw_sp1_port_link_mode[i].speed;
+	}
+
+	*p_max_speed = max_speed;
+	return 0;
+}
+
 static u32
 mlxsw_sp1_to_ptys_advert_link(struct mlxsw_sp *mlxsw_sp, u8 width,
 			      const struct ethtool_link_ksettings *cmd)
@@ -1211,6 +1232,7 @@ const struct mlxsw_sp_port_type_speed_ops mlxsw_sp1_port_type_speed_ops = {
 	.from_ptys_link			= mlxsw_sp1_from_ptys_link,
 	.from_ptys_speed		= mlxsw_sp1_from_ptys_speed,
 	.from_ptys_speed_duplex		= mlxsw_sp1_from_ptys_speed_duplex,
+	.ptys_max_speed			= mlxsw_sp1_ptys_max_speed,
 	.to_ptys_advert_link		= mlxsw_sp1_to_ptys_advert_link,
 	.to_ptys_speed			= mlxsw_sp1_to_ptys_speed,
 	.reg_ptys_eth_pack		= mlxsw_sp1_reg_ptys_eth_pack,
@@ -1548,6 +1570,27 @@ mlxsw_sp2_from_ptys_speed_duplex(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 		cmd->base.duplex = DUPLEX_FULL;
 }
 
+static int mlxsw_sp2_ptys_max_speed(struct mlxsw_sp_port *mlxsw_sp_port, u32 *p_max_speed)
+{
+	u32 eth_proto_cap;
+	u32 max_speed = 0;
+	int err;
+	int i;
+
+	err = mlxsw_sp_port_ptys_query(mlxsw_sp_port, &eth_proto_cap, NULL, NULL, NULL);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLXSW_SP2_PORT_LINK_MODE_LEN; i++) {
+		if ((eth_proto_cap & mlxsw_sp2_port_link_mode[i].mask) &&
+		    mlxsw_sp2_port_link_mode[i].speed > max_speed)
+			max_speed = mlxsw_sp2_port_link_mode[i].speed;
+	}
+
+	*p_max_speed = max_speed;
+	return 0;
+}
+
 static bool
 mlxsw_sp2_test_bit_ethtool(const struct mlxsw_sp2_port_link_mode *link_mode,
 			   const unsigned long *mode)
@@ -1617,6 +1660,7 @@ const struct mlxsw_sp_port_type_speed_ops mlxsw_sp2_port_type_speed_ops = {
 	.from_ptys_link			= mlxsw_sp2_from_ptys_link,
 	.from_ptys_speed		= mlxsw_sp2_from_ptys_speed,
 	.from_ptys_speed_duplex		= mlxsw_sp2_from_ptys_speed_duplex,
+	.ptys_max_speed			= mlxsw_sp2_ptys_max_speed,
 	.to_ptys_advert_link		= mlxsw_sp2_to_ptys_advert_link,
 	.to_ptys_speed			= mlxsw_sp2_to_ptys_speed,
 	.reg_ptys_eth_pack		= mlxsw_sp2_reg_ptys_eth_pack,
