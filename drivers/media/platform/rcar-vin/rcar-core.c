@@ -620,12 +620,11 @@ static int rvin_parallel_parse_v4l2(struct device *dev,
 
 	switch (vin->parallel->mbus_type) {
 	case V4L2_MBUS_PARALLEL:
-		vin_dbg(vin, "Found PARALLEL media bus\n");
-		vin->parallel->mbus_flags = vep->bus.parallel.flags;
-		break;
 	case V4L2_MBUS_BT656:
-		vin_dbg(vin, "Found BT656 media bus\n");
-		vin->parallel->mbus_flags = 0;
+		vin_dbg(vin, "Found %s media bus\n",
+			vin->parallel->mbus_type == V4L2_MBUS_PARALLEL ?
+			"PARALLEL" : "BT656");
+		vin->parallel->bus = vep->bus.parallel;
 		break;
 	default:
 		vin_err(vin, "Unknown media bus type\n");

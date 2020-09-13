@@ -125,6 +125,7 @@
 #define VNDMR2_VPS		(1 << 30)
 #define VNDMR2_HPS		(1 << 29)
 #define VNDMR2_CES		(1 << 28)
+#define VNDMR2_YDS		(1 << 22)
 #define VNDMR2_FTEV		(1 << 17)
 #define VNDMR2_VLV(n)		((n & 0xf) << 12)
 
@@ -698,16 +699,26 @@ static int rvin_setup(struct rvin_dev *vin)
 
 	if (!vin->is_csi) {
 		/* Hsync Signal Polarity Select */
-		if (!(vin->parallel->mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
+		if (!(vin->parallel->bus.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
 			dmr2 |= VNDMR2_HPS;
 
 		/* Vsync Signal Polarity Select */
-		if (!(vin->parallel->mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
+		if (!(vin->parallel->bus.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
 			dmr2 |= VNDMR2_VPS;
 
 		/* Data Enable Polarity Select */
-		if (vin->parallel->mbus_flags & V4L2_MBUS_DATA_ENABLE_LOW)
+		if (vin->parallel->bus.flags & V4L2_MBUS_DATA_ENABLE_LOW)
 			dmr2 |= VNDMR2_CES;
+
+		switch (vin->mbus_code) {
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+			if (vin->parallel->bus.bus_width == 8 &&
+			    vin->parallel->bus.data_shift == 8)
+				dmr2 |= VNDMR2_YDS;
+			break;
+		default:
+			break;
+		}
 	}
 
 	/*
