@@ -141,6 +141,7 @@ struct mlx5dr_icm_buddy_mem {
 
 	/* This is the list of used chunks. HW may be accessing this memory */
 	struct list_head	used_list;
+	u64			used_memory;
 
 	/* Hardware may be accessing this memory but at some future,
 	 * undetermined time, it might cease to do so.

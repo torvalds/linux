@@ -175,10 +175,12 @@ get_chunk_icm_type(struct mlx5dr_icm_chunk *chunk)
 	return chunk->buddy_mem->pool->icm_type;
 }
 
-static void dr_icm_chunk_destroy(struct mlx5dr_icm_chunk *chunk)
+static void dr_icm_chunk_destroy(struct mlx5dr_icm_chunk *chunk,
+				 struct mlx5dr_icm_buddy_mem *buddy)
 {
 	enum mlx5dr_icm_type icm_type = get_chunk_icm_type(chunk);
 
+	buddy->used_memory -= chunk->byte_size;
 	list_del(&chunk->chunk_list);
 
 	if (icm_type == DR_ICM_TYPE_STE)
@@ -223,10 +225,10 @@ static void dr_icm_buddy_destroy(struct mlx5dr_icm_buddy_mem *buddy)
 	struct mlx5dr_icm_chunk *chunk, *next;
 
 	list_for_each_entry_safe(chunk, next, &buddy->hot_list, chunk_list)
-		dr_icm_chunk_destroy(chunk);
+		dr_icm_chunk_destroy(chunk, buddy);
 
 	list_for_each_entry_safe(chunk, next, &buddy->used_list, chunk_list)
-		dr_icm_chunk_destroy(chunk);
+		dr_icm_chunk_destroy(chunk, buddy);
 
 	dr_icm_pool_mr_destroy(buddy->icm_mr);
 
@@ -267,6 +269,7 @@ dr_icm_chunk_create(struct mlx5dr_icm_pool *pool,
 		goto out_free_chunk;
 	}
 
+	buddy_mem_pool->used_memory += chunk->byte_size;
 	chunk->buddy_mem = buddy_mem_pool;
 	INIT_LIST_HEAD(&chunk->chunk_list);
 
@@ -306,8 +309,11 @@ static int dr_icm_pool_sync_all_buddy_pools(struct mlx5dr_icm_pool *pool)
 			mlx5dr_buddy_free_mem(buddy, chunk->seg,
 					      ilog2(chunk->num_of_entries));
 			pool->hot_memory_size -= chunk->byte_size;
-			dr_icm_chunk_destroy(chunk);
+			dr_icm_chunk_destroy(chunk, buddy);
 		}
+
+		if (!buddy->used_memory && pool->icm_type == DR_ICM_TYPE_STE)
+			dr_icm_buddy_destroy(buddy);
 	}
 
 	return 0;
