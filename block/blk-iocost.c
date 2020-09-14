@@ -2323,9 +2323,8 @@ static u64 adjust_inuse_and_calc_cost(struct ioc_gq *iocg, u64 vtime,
 {
 	struct ioc *ioc = iocg->ioc;
 	struct ioc_margins *margins = &ioc->margins;
-	u32 adj_step = DIV_ROUND_UP(iocg->active * INUSE_ADJ_STEP_PCT, 100);
 	u32 __maybe_unused old_inuse = iocg->inuse, __maybe_unused old_hwi;
-	u32 hwi;
+	u32 hwi, adj_step;
 	s64 margin;
 	u64 cost, new_inuse;
 
@@ -2354,8 +2353,15 @@ static u64 adjust_inuse_and_calc_cost(struct ioc_gq *iocg, u64 vtime,
 		return cost;
 	}
 
-	/* bump up inuse till @abs_cost fits in the existing budget */
+	/*
+	 * Bump up inuse till @abs_cost fits in the existing budget.
+	 * adj_step must be determined after acquiring ioc->lock - we might
+	 * have raced and lost to another thread for activation and could
+	 * be reading 0 iocg->active before ioc->lock which will lead to
+	 * infinite loop.
+	 */
 	new_inuse = iocg->inuse;
+	adj_step = DIV_ROUND_UP(iocg->active * INUSE_ADJ_STEP_PCT, 100);
 	do {
 		new_inuse = new_inuse + adj_step;
 		propagate_weights(iocg, iocg->active, new_inuse, true, now);
