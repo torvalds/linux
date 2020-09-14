@@ -151,7 +151,6 @@ static int hisi_hikey_usb_parse_kirin970(struct platform_device *pdev,
 					 struct hisi_hikey_usb *hisi_hikey_usb)
 {
 	struct regulator *regulator;
-	int ret;
 
 	regulator = devm_regulator_get(&pdev->dev, "hub-vdd");
 	if (IS_ERR(regulator)) {
@@ -172,7 +171,7 @@ static int hisi_hikey_usb_parse_kirin970(struct platform_device *pdev,
 	if (IS_ERR(hisi_hikey_usb->reset))
 		return PTR_ERR(hisi_hikey_usb->reset);
 
-	return ret;
+	return 0;
 }
 
 static int hisi_hikey_usb_probe(struct platform_device *pdev)
