@@ -1897,7 +1897,7 @@ static int log_write_hva(struct vhost_virtqueue *vq, u64 hva, u64 len)
 
 static int log_used(struct vhost_virtqueue *vq, u64 used_offset, u64 len)
 {
-	struct iovec iov[64];
+	struct iovec *iov = vq->log_iov;
 	int i, ret;
 
 	if (!vq->iotlb)
