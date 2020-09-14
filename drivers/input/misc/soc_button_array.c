@@ -23,6 +23,7 @@ struct soc_button_info {
 	unsigned int event_code;
 	bool autorepeat;
 	bool wakeup;
+	bool active_low;
 };
 
 struct soc_device_data {
@@ -110,7 +111,7 @@ soc_button_device_create(struct platform_device *pdev,
 		gpio_keys[n_buttons].type = info->event_type;
 		gpio_keys[n_buttons].code = info->event_code;
 		gpio_keys[n_buttons].gpio = gpio;
-		gpio_keys[n_buttons].active_low = 1;
+		gpio_keys[n_buttons].active_low = info->active_low;
 		gpio_keys[n_buttons].desc = info->name;
 		gpio_keys[n_buttons].wakeup = info->wakeup;
 		/* These devices often use cheap buttons, use 50 ms debounce */
@@ -173,6 +174,7 @@ static int soc_button_parse_btn_desc(struct device *dev,
 	}
 
 	info->event_type = EV_KEY;
+	info->active_low = true;
 	info->acpi_index =
 		soc_button_get_acpi_object_int(&desc->package.elements[1]);
 	upage = soc_button_get_acpi_object_int(&desc->package.elements[3]);
@@ -383,11 +385,11 @@ static int soc_button_probe(struct platform_device *pdev)
  * Platforms"
  */
 static const struct soc_button_info soc_button_PNP0C40[] = {
-	{ "power", 0, EV_KEY, KEY_POWER, false, true },
-	{ "home", 1, EV_KEY, KEY_LEFTMETA, false, true },
-	{ "volume_up", 2, EV_KEY, KEY_VOLUMEUP, true, false },
-	{ "volume_down", 3, EV_KEY, KEY_VOLUMEDOWN, true, false },
-	{ "rotation_lock", 4, EV_KEY, KEY_ROTATE_LOCK_TOGGLE, false, false },
+	{ "power", 0, EV_KEY, KEY_POWER, false, true, true },
+	{ "home", 1, EV_KEY, KEY_LEFTMETA, false, true, true },
+	{ "volume_up", 2, EV_KEY, KEY_VOLUMEUP, true, false, true },
+	{ "volume_down", 3, EV_KEY, KEY_VOLUMEDOWN, true, false, true },
+	{ "rotation_lock", 4, EV_KEY, KEY_ROTATE_LOCK_TOGGLE, false, false, true },
 	{ }
 };
 
@@ -444,9 +446,9 @@ static int soc_device_check_MSHW0040(struct device *dev)
  * Obtained from DSDT/testing.
  */
 static const struct soc_button_info soc_button_MSHW0040[] = {
-	{ "power", 0, EV_KEY, KEY_POWER, false, true },
-	{ "volume_up", 2, EV_KEY, KEY_VOLUMEUP, true, false },
-	{ "volume_down", 4, EV_KEY, KEY_VOLUMEDOWN, true, false },
+	{ "power", 0, EV_KEY, KEY_POWER, false, true, true },
+	{ "volume_up", 2, EV_KEY, KEY_VOLUMEUP, true, false, true },
+	{ "volume_down", 4, EV_KEY, KEY_VOLUMEDOWN, true, false, true },
 	{ }
 };
 
