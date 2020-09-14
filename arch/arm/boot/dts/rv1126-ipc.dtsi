@@ -67,6 +67,8 @@
 };
 
 &nandc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 	status = "disabled";
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -188,6 +190,12 @@
 
 &rng {
 	status = "okay";
+};
+
+&sfc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	status = "disabled";
 };
 
 &u2phy0 {

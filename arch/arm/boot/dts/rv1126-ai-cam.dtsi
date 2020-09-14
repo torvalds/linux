@@ -144,6 +144,8 @@
 };
 
 &nandc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -308,6 +310,12 @@
 &saradc {
 	status = "okay";
 	vref-supply = <&vcc_1v8>;
+};
+
+&sfc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	status = "disabled";
 };
 
 &u2phy0 {

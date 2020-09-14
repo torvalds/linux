@@ -1009,6 +1009,8 @@
 };
 
 &nandc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -1292,6 +1294,8 @@
 };
 
 &sfc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 	status = "okay";
 };
 
