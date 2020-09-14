@@ -921,8 +921,9 @@ void safexcel_rdr_req_set(struct safexcel_crypto_priv *priv,
 inline struct crypto_async_request *
 safexcel_rdr_req_get(struct safexcel_crypto_priv *priv, int ring);
 void safexcel_inv_complete(struct crypto_async_request *req, int error);
-int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
-			 void *istate, void *ostate);
+int safexcel_hmac_setkey(struct safexcel_context *base, const u8 *key,
+			 unsigned int keylen, const char *alg,
+			 unsigned int state_sz);
 
 /* available algorithms */
 extern struct safexcel_alg_template safexcel_alg_ecb_des;

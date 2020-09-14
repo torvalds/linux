@@ -404,11 +404,11 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_ahash_export_state istate, ostate;
 	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct crypto_authenc_keys keys;
 	struct crypto_aes_ctx aes;
 	int err = -EINVAL, i;
+	const char *alg;
 
 	if (unlikely(crypto_authenc_extractkeys(&keys, key, len)))
 		goto badkey;
@@ -463,52 +463,36 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	/* Auth key */
 	switch (ctx->hash_alg) {
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA1:
-		if (safexcel_hmac_setkey("safexcel-sha1", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha1";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA224:
-		if (safexcel_hmac_setkey("safexcel-sha224", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha224";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA256:
-		if (safexcel_hmac_setkey("safexcel-sha256", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha256";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA384:
-		if (safexcel_hmac_setkey("safexcel-sha384", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha384";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA512:
-		if (safexcel_hmac_setkey("safexcel-sha512", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha512";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SM3:
-		if (safexcel_hmac_setkey("safexcel-sm3", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sm3";
 		break;
 	default:
 		dev_err(priv->dev, "aead: unsupported hash algorithm\n");
 		goto badkey;
 	}
 
-	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma &&
-	    (memcmp(&ctx->base.ipad, istate.state, ctx->state_sz) ||
-	     memcmp(&ctx->base.opad, ostate.state, ctx->state_sz)))
-		ctx->base.needs_inv = true;
+	if (safexcel_hmac_setkey(&ctx->base, keys.authkey, keys.authkeylen,
+				 alg, ctx->state_sz))
+		goto badkey;
 
 	/* Now copy the keys into the context */
 	for (i = 0; i < keys.enckeylen / sizeof(u32); i++)
 		ctx->key[i] = cpu_to_le32(((u32 *)keys.enckey)[i]);
 	ctx->key_len = keys.enckeylen;
-
-	memcpy(&ctx->base.ipad, &istate.state, ctx->state_sz);
-	memcpy(&ctx->base.opad, &ostate.state, ctx->state_sz);
 
 	memzero_explicit(&keys, sizeof(keys));
 	return 0;

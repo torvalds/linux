@@ -1137,8 +1137,9 @@ static int safexcel_hmac_init_iv(struct ahash_request *areq,
 	return crypto_ahash_export(areq, state);
 }
 
-int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
-			 void *istate, void *ostate)
+static int __safexcel_hmac_setkey(const char *alg, const u8 *key,
+				  unsigned int keylen,
+				  void *istate, void *ostate)
 {
 	struct ahash_request *areq;
 	struct crypto_ahash *tfm;
@@ -1187,28 +1188,36 @@ free_ahash:
 	return ret;
 }
 
+int safexcel_hmac_setkey(struct safexcel_context *base, const u8 *key,
+			 unsigned int keylen, const char *alg,
+			 unsigned int state_sz)
+{
+	struct safexcel_crypto_priv *priv = base->priv;
+	struct safexcel_ahash_export_state istate, ostate;
+	int ret;
+
+	ret = __safexcel_hmac_setkey(alg, key, keylen, &istate, &ostate);
+	if (ret)
+		return ret;
+
+	if (priv->flags & EIP197_TRC_CACHE && base->ctxr &&
+	    (memcmp(&base->ipad, istate.state, state_sz) ||
+	     memcmp(&base->opad, ostate.state, state_sz)))
+		base->needs_inv = true;
+
+	memcpy(&base->ipad, &istate.state, state_sz);
+	memcpy(&base->opad, &ostate.state, state_sz);
+
+	return 0;
+}
+
 static int safexcel_hmac_alg_setkey(struct crypto_ahash *tfm, const u8 *key,
 				    unsigned int keylen, const char *alg,
 				    unsigned int state_sz)
 {
-	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
-	struct safexcel_crypto_priv *priv = ctx->base.priv;
-	struct safexcel_ahash_export_state istate, ostate;
-	int ret;
+	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	ret = safexcel_hmac_setkey(alg, key, keylen, &istate, &ostate);
-	if (ret)
-		return ret;
-
-	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr &&
-	    (memcmp(&ctx->base.ipad, istate.state, state_sz) ||
-	     memcmp(&ctx->base.opad, ostate.state, state_sz)))
-		ctx->base.needs_inv = true;
-
-	memcpy(&ctx->base.ipad, &istate.state, state_sz);
-	memcpy(&ctx->base.opad, &ostate.state, state_sz);
-
-	return 0;
+	return safexcel_hmac_setkey(&ctx->base, key, keylen, alg, state_sz);
 }
 
 static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
