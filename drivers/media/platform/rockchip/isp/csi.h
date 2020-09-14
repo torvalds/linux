@@ -81,6 +81,10 @@ struct rkisp_csi_device {
 	struct kfifo rdbk_kfifo;
 	spinlock_t rdbk_lock;
 	int max_pad;
+	int frame_cnt;
+	int frame_cnt_x1;
+	int frame_cnt_x2;
+	int frame_cnt_x3;
 	u32 rd_mode;
 	u8 mipi_di[CSI_PAD_MAX - 1];
 	u8 tx_first[HDR_DMA_MAX];

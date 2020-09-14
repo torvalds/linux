@@ -35,38 +35,64 @@ static int isp_show(struct seq_file *p, void *v)
 		   RKISP_DRIVER_VERSION >> 16,
 		   (RKISP_DRIVER_VERSION & 0xff00) >> 8,
 		   RKISP_DRIVER_VERSION & 0x00ff);
+	for (val = 0; val < dev->hw_dev->num_clks; val++) {
+		seq_printf(p, "%-10s %ld\n",
+			   dev->hw_dev->match_data->clks[val],
+			   clk_get_rate(dev->hw_dev->clks[val]));
+	}
+	if (!(dev->isp_state & ISP_START))
+		return 0;
+
+	seq_printf(p, "%-10s Cnt:%d ErrCnt:%d\n",
+		   "Interrupt",
+		   dev->isp_isr_cnt,
+		   dev->isp_err_cnt);
+
 	if (sensor && sensor->fi.interval.numerator)
 		val = sensor->fi.interval.denominator / sensor->fi.interval.numerator;
-	seq_printf(p, "%-10s %s Format:%s Size:%dx%d@%dfps Offset(%d,%d) | RDBK_X%d(frame:%d rate:%dms)\n",
+	seq_printf(p, "%-10s %s Format:%s Size:%dx%d@%dfps Offset(%d,%d)\n",
 		   "Input",
 		   sensor ? sensor->sd->name : NULL,
 		   sdev->in_fmt.name,
 		   sdev->in_crop.width, sdev->in_crop.height, val,
-		   sdev->in_crop.left, sdev->in_crop.top,
-		   dev->csi_dev.rd_mode - 3,
-		   dev->dmarx_dev.cur_frame.id,
-		   (u32)(dev->dmarx_dev.cur_frame.timestamp - dev->dmarx_dev.pre_frame.timestamp) / 1000 / 1000);
-	seq_printf(p, "%-10s rkispp%d Format:%s%s Size:%dx%d (frame:%d rate:%dms)\n",
+		   sdev->in_crop.left, sdev->in_crop.top);
+	if (IS_HDR_RDBK(dev->hdr.op_mode))
+		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms %s) cnt(total:%d X1:%d X2:%d X3:%d)\n",
+			   "Isp Read",
+			   dev->csi_dev.rd_mode - 3,
+			   dev->dmarx_dev.cur_frame.id,
+			   (u32)(dev->dmarx_dev.cur_frame.timestamp - dev->dmarx_dev.pre_frame.timestamp) / 1000 / 1000,
+			   (dev->isp_state & ISP_FRAME_END) ? "idle" : "working",
+			   dev->csi_dev.frame_cnt,
+			   dev->csi_dev.frame_cnt_x1,
+			   dev->csi_dev.frame_cnt_x2,
+			   dev->csi_dev.frame_cnt_x3);
+	seq_printf(p, "%-10s rkispp%d %s Format:%s%s Size:%dx%d (frame:%d rate:%dms)\n",
 		   "Output",
 		   dev->dev_id,
+		   dev->br_dev.en ? "ON" : "OFF",
 		   (dev->br_dev.work_mode & ISP_ISPP_FBC) ? "FBC" : "YUV",
 		   (dev->br_dev.work_mode & ISP_ISPP_422) ? "422" : "420",
 		   dev->br_dev.crop.width,
 		   dev->br_dev.crop.height,
 		   dev->br_dev.dbg.id,
 		   dev->br_dev.dbg.interval / 1000 / 1000);
-	seq_printf(p, "%-10s Cnt:%d ErrCnt:%d\n",
-		   "Interrupt",
-		   dev->isp_isr_cnt,
-		   dev->isp_err_cnt);
-	for (val = 0; val < dev->hw_dev->num_clks; val++) {
-		seq_printf(p, "%-10s %ld\n",
-			   dev->hw_dev->match_data->clks[val],
-			   clk_get_rate(dev->hw_dev->clks[val]));
-	}
+	for (val = 0; val < RKISP_MAX_STREAM; val++) {
+		struct rkisp_stream *stream = &dev->cap_dev.stream[val];
 
-	if (!(dev->isp_state & ISP_START))
-		return 0;
+		if (!stream->streaming)
+			continue;
+		seq_printf(p, "%-10s %s Format:%c%c%c%c Size:%dx%d frame:%d\n",
+			   "Output",
+			   stream->vnode.vdev.name,
+			   stream->out_fmt.pixelformat,
+			   stream->out_fmt.pixelformat >> 8,
+			   stream->out_fmt.pixelformat >> 16,
+			   stream->out_fmt.pixelformat >> 24,
+			   stream->out_fmt.width,
+			   stream->out_fmt.height,
+			   atomic_read(&stream->sequence) - 1);
+	}
 
 	val = rkisp_read(dev, ISP_DPCC0_MODE, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "DPCC0", (val & 1) ? "ON" : "OFF", val);

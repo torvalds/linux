@@ -133,6 +133,10 @@ static int rkisp_csi_s_stream(struct v4l2_subdev *sd, int on)
 	struct rkisp_device *dev = csi->ispdev;
 
 	memset(csi->tx_first, 0, sizeof(csi->tx_first));
+	csi->frame_cnt = -1;
+	csi->frame_cnt_x1 = -1;
+	csi->frame_cnt_x2 = -1;
+	csi->frame_cnt_x3 = -1;
 
 	if (!IS_HDR_RDBK(dev->hdr.op_mode))
 		return 0;
@@ -474,7 +478,13 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, true);
 	if (dma2frm > 2)
 		dma2frm = 2;
-
+	if (dma2frm == 2)
+		csi->frame_cnt_x3++;
+	else if (dma2frm == 1)
+		csi->frame_cnt_x2++;
+	else
+		csi->frame_cnt_x1++;
+	csi->frame_cnt++;
 	/* configure hdr params in rdbk mode */
 	rkisp_params_cfg(params_vdev, cur_frame_id, dma2frm + 1);
 

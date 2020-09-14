@@ -999,7 +999,7 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 
 	dev->isp_err_cnt = 0;
 	dev->isp_isr_cnt = 0;
-	dev->isp_state = ISP_START;
+	dev->isp_state = ISP_START | ISP_FRAME_END;
 
 	/* XXX: Is the 1000us too long?
 	 * CIF spec says to wait for sufficient time after enabling
