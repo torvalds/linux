@@ -1680,7 +1680,7 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
  * fact that targets that use it do _not_ have a need to split bios.
  */
 static blk_qc_t __process_bio(struct mapped_device *md, struct dm_table *map,
-			      struct bio *bio, struct dm_target *ti)
+			      struct bio *bio)
 {
 	struct clone_info ci;
 	blk_qc_t ret = BLK_QC_T_NONE;
@@ -1705,6 +1705,12 @@ static blk_qc_t __process_bio(struct mapped_device *md, struct dm_table *map,
 		/* dec_pending submits any data associated with flush */
 	} else {
 		struct dm_target_io *tio;
+		struct dm_target *ti = md->immutable_target;
+
+		if (WARN_ON_ONCE(!ti)) {
+			error = -EIO;
+			goto out;
+		}
 
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
@@ -1724,19 +1730,10 @@ static blk_qc_t dm_process_bio(struct mapped_device *md,
 			       struct dm_table *map, struct bio *bio)
 {
 	blk_qc_t ret = BLK_QC_T_NONE;
-	struct dm_target *ti = md->immutable_target;
 
 	if (unlikely(!map)) {
 		bio_io_error(bio);
 		return ret;
-	}
-
-	if (!ti) {
-		ti = dm_table_find_target(map, bio->bi_iter.bi_sector);
-		if (unlikely(!ti)) {
-			bio_io_error(bio);
-			return ret;
-		}
 	}
 
 	/*
@@ -1753,7 +1750,7 @@ static blk_qc_t dm_process_bio(struct mapped_device *md,
 	}
 
 	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
-		return __process_bio(md, map, bio, ti);
+		return __process_bio(md, map, bio);
 	return __split_and_process_bio(md, map, bio);
 }
 
@@ -2120,8 +2117,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		/*
 		 * Leverage the fact that request-based DM targets and
 		 * NVMe bio based targets are immutable singletons
-		 * - used to optimize both dm_request_fn and dm_mq_queue_rq;
-		 *   and __process_bio.
+		 * - used to optimize both __process_bio and dm_mq_queue_rq
 		 */
 		md->immutable_target = dm_table_get_immutable_target(t);
 	}
