@@ -62,6 +62,7 @@ static struct thermal_zone_device_ops cxgb4_thermal_ops = {
 int cxgb4_thermal_init(struct adapter *adap)
 {
 	struct ch_thermal *ch_thermal = &adap->ch_thermal;
+	char ch_tz_name[THERMAL_NAME_LENGTH];
 	int num_trip = CXGB4_NUM_TRIPS;
 	u32 param, val;
 	int ret;
@@ -82,7 +83,8 @@ int cxgb4_thermal_init(struct adapter *adap)
 		ch_thermal->trip_type = THERMAL_TRIP_CRITICAL;
 	}
 
-	ch_thermal->tzdev = thermal_zone_device_register("cxgb4", num_trip,
+	snprintf(ch_tz_name, sizeof(ch_tz_name), "cxgb4_%s", adap->name);
+	ch_thermal->tzdev = thermal_zone_device_register(ch_tz_name, num_trip,
 							 0, adap,
 							 &cxgb4_thermal_ops,
 							 NULL, 0, 0);
@@ -105,7 +107,9 @@ int cxgb4_thermal_init(struct adapter *adap)
 
 int cxgb4_thermal_remove(struct adapter *adap)
 {
-	if (adap->ch_thermal.tzdev)
+	if (adap->ch_thermal.tzdev) {
 		thermal_zone_device_unregister(adap->ch_thermal.tzdev);
+		adap->ch_thermal.tzdev = NULL;
+	}
 	return 0;
 }

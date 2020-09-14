@@ -486,7 +486,7 @@ static void print_sh_insn(u32 memaddr, u16 insn)
 					pr_cont("xd%d", rn & ~1);
 					break;
 				}
-				/* else, fall through */
+				fallthrough;
 			case D_REG_N:
 				pr_cont("dr%d", rn);
 				break;
@@ -495,7 +495,7 @@ static void print_sh_insn(u32 memaddr, u16 insn)
 					pr_cont("xd%d", rm & ~1);
 					break;
 				}
-				/* else, fall through */
+				fallthrough;
 			case D_REG_M:
 				pr_cont("dr%d", rm);
 				break;

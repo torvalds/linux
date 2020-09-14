@@ -1462,6 +1462,8 @@ struct hl_device_idle_busy_ts {
  *                     details.
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
+ * @card_type: Various ASICs have several card types. This indicates the card
+ *             type of the current device.
  * @cs_active_cnt: number of active command submissions on this device (active
  *                 means already in H/W queues)
  * @major: habanalabs kernel driver major.
@@ -1566,6 +1568,7 @@ struct hl_device {
 	u64				clock_gating_mask;
 	atomic_t			in_reset;
 	enum hl_pll_frequency		curr_pll_profile;
+	enum armcp_card_types		card_type;
 	int				cs_active_cnt;
 	u32				major;
 	u32				high_pll;
@@ -1651,7 +1654,7 @@ struct hl_ioctl_desc {
  *
  * Return: true if the area is inside the valid range, false otherwise.
  */
-static inline bool hl_mem_area_inside_range(u64 address, u32 size,
+static inline bool hl_mem_area_inside_range(u64 address, u64 size,
 				u64 range_start_address, u64 range_end_address)
 {
 	u64 end_address = address + size;
@@ -1858,7 +1861,7 @@ int hl_get_pwm_info(struct hl_device *hdev,
 void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 			long value);
 u64 hl_get_max_power(struct hl_device *hdev);
-void hl_set_max_power(struct hl_device *hdev, u64 value);
+void hl_set_max_power(struct hl_device *hdev);
 int hl_set_voltage(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 int hl_set_current(struct hl_device *hdev,

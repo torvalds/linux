@@ -951,7 +951,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev)
 static void update_stats(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
-	u8 rx, tx, up;
+	u8 up;
 
 	pr_debug("%s: updating the statistics.\n", dev->name);
 
@@ -972,8 +972,8 @@ static void update_stats(struct net_device *dev)
 	dev->stats.tx_packets			+= (up&0x30) << 4;
 	/* Rx packets   */			   inb(ioaddr + 7);
 	/* Tx deferrals */			   inb(ioaddr + 8);
-	rx		 			 = inw(ioaddr + 10);
-	tx					 = inw(ioaddr + 12);
+	/* rx */				   inw(ioaddr + 10);
+	/* tx */				   inw(ioaddr + 12);
 
 	EL3WINDOW(4);
 	/* BadSSD */				   inb(ioaddr + 12);
@@ -1046,7 +1046,7 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get the address of the PHY in use. */
 		data->phy_id = phy;
-		/* fall through */
+		fallthrough;
 	case SIOCGMIIREG:		/* Read the specified MII register. */
 		{
 			int saved_window;

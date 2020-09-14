@@ -43,10 +43,12 @@
 #define WM8994_NUM_DRC 3
 #define WM8994_NUM_EQ  3
 
-static struct {
+struct wm8994_reg_mask {
 	unsigned int reg;
 	unsigned int mask;
-} wm8994_vu_bits[] = {
+};
+
+static struct wm8994_reg_mask wm8994_vu_bits[] = {
 	{ WM8994_LEFT_LINE_INPUT_1_2_VOLUME, WM8994_IN1_VU },
 	{ WM8994_RIGHT_LINE_INPUT_1_2_VOLUME, WM8994_IN1_VU },
 	{ WM8994_LEFT_LINE_INPUT_3_4_VOLUME, WM8994_IN2_VU },
@@ -60,20 +62,24 @@ static struct {
 
 	{ WM8994_AIF1_DAC1_LEFT_VOLUME, WM8994_AIF1DAC1_VU },
 	{ WM8994_AIF1_DAC1_RIGHT_VOLUME, WM8994_AIF1DAC1_VU },
-	{ WM8994_AIF1_DAC2_LEFT_VOLUME, WM8994_AIF1DAC2_VU },
-	{ WM8994_AIF1_DAC2_RIGHT_VOLUME, WM8994_AIF1DAC2_VU },
 	{ WM8994_AIF2_DAC_LEFT_VOLUME, WM8994_AIF2DAC_VU },
 	{ WM8994_AIF2_DAC_RIGHT_VOLUME, WM8994_AIF2DAC_VU },
 	{ WM8994_AIF1_ADC1_LEFT_VOLUME, WM8994_AIF1ADC1_VU },
 	{ WM8994_AIF1_ADC1_RIGHT_VOLUME, WM8994_AIF1ADC1_VU },
-	{ WM8994_AIF1_ADC2_LEFT_VOLUME, WM8994_AIF1ADC2_VU },
-	{ WM8994_AIF1_ADC2_RIGHT_VOLUME, WM8994_AIF1ADC2_VU },
 	{ WM8994_AIF2_ADC_LEFT_VOLUME, WM8994_AIF2ADC_VU },
 	{ WM8994_AIF2_ADC_RIGHT_VOLUME, WM8994_AIF1ADC2_VU },
 	{ WM8994_DAC1_LEFT_VOLUME, WM8994_DAC1_VU },
 	{ WM8994_DAC1_RIGHT_VOLUME, WM8994_DAC1_VU },
 	{ WM8994_DAC2_LEFT_VOLUME, WM8994_DAC2_VU },
 	{ WM8994_DAC2_RIGHT_VOLUME, WM8994_DAC2_VU },
+};
+
+/* VU bitfields for ADC2, DAC2 not available on WM1811 */
+static struct wm8994_reg_mask wm8994_adc2_dac2_vu_bits[] = {
+	{ WM8994_AIF1_DAC2_LEFT_VOLUME, WM8994_AIF1DAC2_VU },
+	{ WM8994_AIF1_DAC2_RIGHT_VOLUME, WM8994_AIF1DAC2_VU },
+	{ WM8994_AIF1_ADC2_LEFT_VOLUME, WM8994_AIF1ADC2_VU },
+	{ WM8994_AIF1_ADC2_RIGHT_VOLUME, WM8994_AIF1ADC2_VU },
 };
 
 static int wm8994_drc_base[] = {
@@ -1030,6 +1036,26 @@ static bool wm8994_check_class_w_digital(struct snd_soc_component *component)
 	return true;
 }
 
+static void wm8994_update_vu_bits(struct snd_soc_component *component)
+{
+	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
+	struct wm8994 *control = wm8994->wm8994;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wm8994_vu_bits); i++)
+		snd_soc_component_write(component, wm8994_vu_bits[i].reg,
+					snd_soc_component_read(component,
+						       wm8994_vu_bits[i].reg));
+	if (control->type == WM1811)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(wm8994_adc2_dac2_vu_bits); i++)
+		snd_soc_component_write(component,
+				wm8994_adc2_dac2_vu_bits[i].reg,
+				snd_soc_component_read(component,
+					wm8994_adc2_dac2_vu_bits[i].reg));
+}
+
 static int aif_mclk_set(struct snd_soc_component *component, int aif, bool enable)
 {
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
@@ -1076,7 +1102,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	int mask = WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA;
-	int ret, i;
+	int ret;
 	int dac;
 	int adc;
 	int val;
@@ -1144,10 +1170,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
-		for (i = 0; i < ARRAY_SIZE(wm8994_vu_bits); i++)
-			snd_soc_component_write(component, wm8994_vu_bits[i].reg,
-				      snd_soc_component_read(component,
-						   wm8994_vu_bits[i].reg));
+		wm8994_update_vu_bits(component);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
@@ -1181,7 +1204,7 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	int ret, i;
+	int ret;
 	int dac;
 	int adc;
 	int val;
@@ -1237,10 +1260,7 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
-		for (i = 0; i < ARRAY_SIZE(wm8994_vu_bits); i++)
-			snd_soc_component_write(component, wm8994_vu_bits[i].reg,
-				      snd_soc_component_read(component,
-						   wm8994_vu_bits[i].reg));
+		wm8994_update_vu_bits(component);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
@@ -4345,6 +4365,14 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, wm8994_vu_bits[i].reg,
 				    wm8994_vu_bits[i].mask,
 				    wm8994_vu_bits[i].mask);
+
+	if (control->type != WM1811) {
+		for (i = 0; i < ARRAY_SIZE(wm8994_adc2_dac2_vu_bits); i++)
+			snd_soc_component_update_bits(component,
+					wm8994_adc2_dac2_vu_bits[i].reg,
+					wm8994_adc2_dac2_vu_bits[i].mask,
+					wm8994_adc2_dac2_vu_bits[i].mask);
+	}
 
 	/* Set the low bit of the 3D stereo depth so TLV matches */
 	snd_soc_component_update_bits(component, WM8994_AIF1_DAC1_FILTERS_2,

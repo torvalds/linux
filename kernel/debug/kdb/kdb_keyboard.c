@@ -173,11 +173,11 @@ int kdb_get_kbd_char(void)
 	case KT_LATIN:
 		if (isprint(keychar))
 			break;		/* printable characters */
-		/* fall through */
+		fallthrough;
 	case KT_SPEC:
 		if (keychar == K_ENTER)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return -1;	/* ignore unprintables */
 	}

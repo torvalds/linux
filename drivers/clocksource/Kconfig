@@ -653,15 +653,23 @@ config ATCPIT100_TIMER
 	  This option enables support for the Andestech ATCPIT100 timers.
 
 config RISCV_TIMER
-	bool "Timer for the RISC-V platform"
+	bool "Timer for the RISC-V platform" if COMPILE_TEST
 	depends on GENERIC_SCHED_CLOCK && RISCV
-	default y
 	select TIMER_PROBE
 	select TIMER_OF
 	help
 	  This enables the per-hart timer built into all RISC-V systems, which
 	  is accessed via both the SBI and the rdcycle instruction.  This is
 	  required for all RISC-V systems.
+
+config CLINT_TIMER
+	bool "CLINT Timer for the RISC-V platform" if COMPILE_TEST
+	depends on GENERIC_SCHED_CLOCK && RISCV
+	select TIMER_PROBE
+	select TIMER_OF
+	help
+	  This option enables the CLINT timer for RISC-V systems.  The CLINT
+	  driver is usually used for NoMMU RISC-V systems.
 
 config CSKY_MP_TIMER
 	bool "SMP Timer for the C-SKY platform" if COMPILE_TEST
