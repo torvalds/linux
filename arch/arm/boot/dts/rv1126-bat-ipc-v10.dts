@@ -40,6 +40,13 @@
 		rockchip,camera-module-facing = "front";
 	};
 
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&power_hold>;
+	};
+
 	i2s0_sound: i2s0-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -109,8 +116,6 @@
 		regulator-min-microvolt = <720000>;
 		regulator-max-microvolt = <1000000>;
 		regulator-init-microvolt = <824000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&power_hold>;
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-settling-time-up-us = <250>;
