@@ -368,9 +368,9 @@ static enum desc_state get_desc_state(unsigned long id,
 }
 
 /*
- * Get a copy of a specified descriptor and its queried state. A descriptor
- * that is not in the committed or reusable state must be considered garbage
- * by the reader.
+ * Get a copy of a specified descriptor and return its queried state. If the
+ * descriptor is in an inconsistent state (miss or reserved), the caller can
+ * only expect the descriptor's @state_var field to be valid.
  */
 static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 				 unsigned long id, struct prb_desc *desc_out)
@@ -383,8 +383,14 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	/* Check the descriptor state. */
 	state_val = atomic_long_read(state_var); /* LMM(desc_read:A) */
 	d_state = get_desc_state(id, state_val);
-	if (d_state != desc_committed && d_state != desc_reusable)
-		return d_state;
+	if (d_state == desc_miss || d_state == desc_reserved) {
+		/*
+		 * The descriptor is in an inconsistent state. Set at least
+		 * @state_var so that the caller can see the details of
+		 * the inconsistent state.
+		 */
+		goto out;
+	}
 
 	/*
 	 * Guarantee the state is loaded before copying the descriptor
@@ -449,9 +455,15 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	 */
 	smp_rmb(); /* LMM(desc_read:D) */
 
-	/* Re-check the descriptor state. */
+	/*
+	 * The data has been copied. Return the current descriptor state,
+	 * which may have changed since the load above.
+	 */
 	state_val = atomic_long_read(state_var); /* LMM(desc_read:E) */
-	return get_desc_state(id, state_val);
+	d_state = get_desc_state(id, state_val);
+out:
+	atomic_long_set(&desc_out->state_var, state_val);
+	return d_state;
 }
 
 /*
