@@ -3393,8 +3393,7 @@ static void svm_cancel_injection(struct kvm_vcpu *vcpu)
 
 static fastpath_t svm_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
 {
-	if (!is_guest_mode(vcpu) &&
-	    to_svm(vcpu)->vmcb->control.exit_code == SVM_EXIT_MSR &&
+	if (to_svm(vcpu)->vmcb->control.exit_code == SVM_EXIT_MSR &&
 	    to_svm(vcpu)->vmcb->control.exit_info_1)
 		return handle_fastpath_set_msr_irqoff(vcpu);
 
@@ -3459,7 +3458,6 @@ static noinstr void svm_vcpu_enter_exit(struct kvm_vcpu *vcpu,
 
 static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 {
-	fastpath_t exit_fastpath;
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
@@ -3580,8 +3578,11 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 		svm_handle_mce(svm);
 
 	svm_complete_interrupts(svm);
-	exit_fastpath = svm_exit_handlers_fastpath(vcpu);
-	return exit_fastpath;
+
+	if (is_guest_mode(vcpu))
+		return EXIT_FASTPATH_NONE;
+
+	return svm_exit_handlers_fastpath(vcpu);
 }
 
 static void svm_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long root,
