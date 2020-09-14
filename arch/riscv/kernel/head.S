@@ -3,7 +3,6 @@
  * Copyright (C) 2012 Regents of the University of California
  */
 
-#include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 #include <asm/asm.h>
 #include <linux/init.h>
