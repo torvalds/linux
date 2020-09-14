@@ -172,7 +172,7 @@ static int vidtv_start_streaming(struct vidtv_dvb *dvb)
 	mux_args.priv                        = dvb;
 
 	dvb->streaming = true;
-	dvb->mux = vidtv_mux_init(dev, mux_args);
+	dvb->mux = vidtv_mux_init(dvb->fe[0], dev, mux_args);
 	vidtv_mux_start_thread(dvb->mux);
 
 	dev_dbg_ratelimited(dev, "Started streaming\n");

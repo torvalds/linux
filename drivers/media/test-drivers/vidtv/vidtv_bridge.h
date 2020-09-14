@@ -12,6 +12,9 @@
 #ifndef VIDTV_BRIDGE_H
 #define VIDTV_BRIDGE_H
 
+/*
+ * For now, only one frontend is supported. See vidtv_start_streaming()
+ */
 #define NUM_FE 1
 
 #include <linux/i2c.h>

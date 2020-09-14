@@ -18,6 +18,8 @@
 #include <linux/types.h>
 #include <linux/hashtable.h>
 #include <linux/workqueue.h>
+#include <media/dvb_frontend.h>
+
 #include "vidtv_psi.h"
 
 /**
@@ -100,6 +102,7 @@ struct vidtv_mux_pid_ctx {
  * @priv: Private data.
  */
 struct vidtv_mux {
+	struct dvb_frontend *fe;
 	struct device *dev;
 
 	struct vidtv_mux_timing timing;
@@ -153,7 +156,8 @@ struct vidtv_mux_init_args {
 	void *priv;
 };
 
-struct vidtv_mux *vidtv_mux_init(struct device *dev,
+struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
+				 struct device *dev,
 				 struct vidtv_mux_init_args args);
 void vidtv_mux_destroy(struct vidtv_mux *m);
 

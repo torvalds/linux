@@ -381,6 +381,7 @@ static void vidtv_mux_tick(struct work_struct *work)
 	struct vidtv_mux *m = container_of(work,
 					   struct vidtv_mux,
 					   mpeg_thread);
+	struct dtv_frontend_properties *c = &m->fe->dtv_property_cache;
 	u32 nbytes;
 	u32 npkts;
 
@@ -411,6 +412,17 @@ static void vidtv_mux_tick(struct work_struct *work)
 
 		vidtv_mux_clear(m);
 
+		/*
+		 * Update bytes and packet counts at DVBv5 stats
+		 *
+		 * For now, both pre and post bit counts are identical,
+		 * but post BER count can be lower than pre BER, if the error
+		 * correction logic discards packages.
+		 */
+		c->pre_bit_count.stat[0].uvalue = nbytes;
+		c->post_bit_count.stat[0].uvalue = nbytes;
+		c->block_count.stat[0].uvalue += npkts;
+
 		usleep_range(VIDTV_SLEEP_USECS, VIDTV_MAX_SLEEP_USECS);
 	}
 }
@@ -435,12 +447,14 @@ void vidtv_mux_stop_thread(struct vidtv_mux *m)
 	}
 }
 
-struct vidtv_mux *vidtv_mux_init(struct device *dev,
+struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
+				 struct device *dev,
 				 struct vidtv_mux_init_args args)
 {
 	struct vidtv_mux *m = kzalloc(sizeof(*m), GFP_KERNEL);
 
 	m->dev = dev;
+	m->fe = fe;
 	m->timing.pcr_period_usecs = args.pcr_period_usecs;
 	m->timing.si_period_usecs  = args.si_period_usecs;
 
