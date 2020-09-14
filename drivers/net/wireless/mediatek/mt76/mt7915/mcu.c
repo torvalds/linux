@@ -717,8 +717,8 @@ mt7915_mcu_add_nested_subtlv(struct sk_buff *skb, int sub_tag, int sub_len,
 	ptlv = skb_put(skb, sub_len);
 	memcpy(ptlv, &tlv, sizeof(tlv));
 
-	*sub_ntlv = cpu_to_le16(le16_to_cpu(*sub_ntlv) + 1);
-	*len = cpu_to_le16(le16_to_cpu(*len) + sub_len);
+	le16_add_cpu(sub_ntlv, 1);
+	le16_add_cpu(len, sub_len);
 
 	return ptlv;
 }
