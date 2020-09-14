@@ -6642,12 +6642,94 @@ static int io_sq_wake_function(struct wait_queue_entry *wqe, unsigned mode,
 	return ret;
 }
 
+enum sq_ret {
+	SQT_IDLE	= 1,
+	SQT_SPIN	= 2,
+	SQT_DID_WORK	= 4,
+};
+
+static enum sq_ret __io_sq_thread(struct io_ring_ctx *ctx,
+				  unsigned long start_jiffies)
+{
+	unsigned long timeout = start_jiffies + ctx->sq_thread_idle;
+	unsigned int to_submit;
+	int ret = 0;
+
+again:
+	if (!list_empty(&ctx->iopoll_list)) {
+		unsigned nr_events = 0;
+
+		mutex_lock(&ctx->uring_lock);
+		if (!list_empty(&ctx->iopoll_list) && !need_resched())
+			io_do_iopoll(ctx, &nr_events, 0);
+		mutex_unlock(&ctx->uring_lock);
+	}
+
+	to_submit = io_sqring_entries(ctx);
+
+	/*
+	 * If submit got -EBUSY, flag us as needing the application
+	 * to enter the kernel to reap and flush events.
+	 */
+	if (!to_submit || ret == -EBUSY || need_resched()) {
+		/*
+		 * Drop cur_mm before scheduling, we can't hold it for
+		 * long periods (or over schedule()). Do this before
+		 * adding ourselves to the waitqueue, as the unuse/drop
+		 * may sleep.
+		 */
+		io_sq_thread_drop_mm();
+
+		/*
+		 * We're polling. If we're within the defined idle
+		 * period, then let us spin without work before going
+		 * to sleep. The exception is if we got EBUSY doing
+		 * more IO, we should wait for the application to
+		 * reap events and wake us up.
+		 */
+		if (!list_empty(&ctx->iopoll_list) || need_resched() ||
+		    (!time_after(jiffies, timeout) && ret != -EBUSY &&
+		    !percpu_ref_is_dying(&ctx->refs)))
+			return SQT_SPIN;
+
+		prepare_to_wait(ctx->sqo_wait, &ctx->sqo_wait_entry,
+					TASK_INTERRUPTIBLE);
+
+		/*
+		 * While doing polled IO, before going to sleep, we need
+		 * to check if there are new reqs added to iopoll_list,
+		 * it is because reqs may have been punted to io worker
+		 * and will be added to iopoll_list later, hence check
+		 * the iopoll_list again.
+		 */
+		if ((ctx->flags & IORING_SETUP_IOPOLL) &&
+		    !list_empty_careful(&ctx->iopoll_list)) {
+			finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
+			goto again;
+		}
+
+		io_ring_set_wakeup_flag(ctx);
+
+		to_submit = io_sqring_entries(ctx);
+		if (!to_submit || ret == -EBUSY)
+			return SQT_IDLE;
+	}
+
+	finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
+	io_ring_clear_wakeup_flag(ctx);
+
+	mutex_lock(&ctx->uring_lock);
+	if (likely(!percpu_ref_is_dying(&ctx->refs)))
+		ret = io_submit_sqes(ctx, to_submit);
+	mutex_unlock(&ctx->uring_lock);
+	return SQT_DID_WORK;
+}
+
 static int io_sq_thread(void *data)
 {
 	struct io_ring_ctx *ctx = data;
 	const struct cred *old_cred;
-	unsigned long timeout;
-	int ret = 0;
+	unsigned long start_jiffies;
 
 	init_wait(&ctx->sqo_wait_entry);
 	ctx->sqo_wait_entry.func = io_sq_wake_function;
@@ -6656,96 +6738,23 @@ static int io_sq_thread(void *data)
 
 	old_cred = override_creds(ctx->creds);
 
-	timeout = jiffies + ctx->sq_thread_idle;
+	start_jiffies = jiffies;
 	while (!kthread_should_park()) {
-		unsigned int to_submit;
+		enum sq_ret ret;
 
-		if (!list_empty(&ctx->iopoll_list)) {
-			unsigned nr_events = 0;
-
-			mutex_lock(&ctx->uring_lock);
-			if (!list_empty(&ctx->iopoll_list) && !need_resched())
-				io_do_iopoll(ctx, &nr_events, 0);
-			else
-				timeout = jiffies + ctx->sq_thread_idle;
-			mutex_unlock(&ctx->uring_lock);
+		ret = __io_sq_thread(ctx, start_jiffies);
+		switch (ret) {
+		case SQT_IDLE:
+			schedule();
+			start_jiffies = jiffies;
+			continue;
+		case SQT_SPIN:
+			io_run_task_work();
+			cond_resched();
+			fallthrough;
+		case SQT_DID_WORK:
+			continue;
 		}
-
-		to_submit = io_sqring_entries(ctx);
-
-		/*
-		 * If submit got -EBUSY, flag us as needing the application
-		 * to enter the kernel to reap and flush events.
-		 */
-		if (!to_submit || ret == -EBUSY || need_resched()) {
-			/*
-			 * Drop cur_mm before scheduling, we can't hold it for
-			 * long periods (or over schedule()). Do this before
-			 * adding ourselves to the waitqueue, as the unuse/drop
-			 * may sleep.
-			 */
-			io_sq_thread_drop_mm();
-
-			/*
-			 * We're polling. If we're within the defined idle
-			 * period, then let us spin without work before going
-			 * to sleep. The exception is if we got EBUSY doing
-			 * more IO, we should wait for the application to
-			 * reap events and wake us up.
-			 */
-			if (!list_empty(&ctx->iopoll_list) || need_resched() ||
-			    (!time_after(jiffies, timeout) && ret != -EBUSY &&
-			    !percpu_ref_is_dying(&ctx->refs))) {
-				io_run_task_work();
-				cond_resched();
-				continue;
-			}
-
-			prepare_to_wait(ctx->sqo_wait, &ctx->sqo_wait_entry,
-						TASK_INTERRUPTIBLE);
-
-			/*
-			 * While doing polled IO, before going to sleep, we need
-			 * to check if there are new reqs added to iopoll_list,
-			 * it is because reqs may have been punted to io worker
-			 * and will be added to iopoll_list later, hence check
-			 * the iopoll_list again.
-			 */
-			if ((ctx->flags & IORING_SETUP_IOPOLL) &&
-			    !list_empty_careful(&ctx->iopoll_list)) {
-				finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
-				continue;
-			}
-
-			io_ring_set_wakeup_flag(ctx);
-
-			to_submit = io_sqring_entries(ctx);
-			if (!to_submit || ret == -EBUSY) {
-				if (kthread_should_park()) {
-					finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
-					break;
-				}
-				if (io_run_task_work()) {
-					finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
-					io_ring_clear_wakeup_flag(ctx);
-					continue;
-				}
-				schedule();
-				finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
-
-				ret = 0;
-				continue;
-			}
-			finish_wait(ctx->sqo_wait, &ctx->sqo_wait_entry);
-
-			io_ring_clear_wakeup_flag(ctx);
-		}
-
-		mutex_lock(&ctx->uring_lock);
-		if (likely(!percpu_ref_is_dying(&ctx->refs)))
-			ret = io_submit_sqes(ctx, to_submit);
-		mutex_unlock(&ctx->uring_lock);
-		timeout = jiffies + ctx->sq_thread_idle;
 	}
 
 	io_run_task_work();
