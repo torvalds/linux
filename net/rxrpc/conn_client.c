@@ -433,7 +433,6 @@ static void rxrpc_add_conn_to_bundle(struct rxrpc_bundle *bundle, gfp_t gfp)
 		if (!rxrpc_may_reuse_conn(old)) {
 			if (old)
 				trace_rxrpc_client(old, -1, rxrpc_client_replace);
-			candidate->bundle = rxrpc_get_bundle(bundle);
 			candidate->bundle_shift = shift;
 			bundle->conns[i] = candidate;
 			for (j = 0; j < RXRPC_MAXCALLS; j++)
@@ -724,8 +723,9 @@ granted_channel:
 	/* Paired with the write barrier in rxrpc_activate_one_channel(). */
 	smp_rmb();
 
-out:
+out_put_bundle:
 	rxrpc_put_bundle(bundle);
+out:
 	_leave(" = %d", ret);
 	return ret;
 
@@ -742,7 +742,7 @@ wait_failed:
 	trace_rxrpc_client(call->conn, ret, rxrpc_client_chan_wait_failed);
 	rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR, 0, ret);
 	rxrpc_disconnect_client_call(bundle, call);
-	goto out;
+	goto out_put_bundle;
 }
 
 /*
@@ -1111,6 +1111,7 @@ void rxrpc_clean_up_local_conns(struct rxrpc_local *local)
 		conn = list_entry(graveyard.next,
 				  struct rxrpc_connection, cache_link);
 		list_del_init(&conn->cache_link);
+		rxrpc_unbundle_conn(conn);
 		rxrpc_put_connection(conn);
 	}
 
