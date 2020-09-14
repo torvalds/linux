@@ -121,6 +121,13 @@ static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
 	return 0;
 }
 
+static void __dwc2_disable_regulators(void *data)
+{
+	struct dwc2_hsotg *hsotg = data;
+
+	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
+}
+
 static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
@@ -128,6 +135,11 @@ static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
 				    hsotg->supplies);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev,
+				       __dwc2_disable_regulators, hsotg);
 	if (ret)
 		return ret;
 
@@ -186,10 +198,7 @@ static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 	if (hsotg->clk)
 		clk_disable_unprepare(hsotg->clk);
 
-	ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
-				     hsotg->supplies);
-
-	return ret;
+	return 0;
 }
 
 /**
