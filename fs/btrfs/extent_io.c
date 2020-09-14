@@ -5573,20 +5573,19 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 			}
 
 			ClearPageError(page);
-			err = __extent_read_full_page(page,
-						      btree_get_extent, &bio,
-						      mirror_num, &bio_flags,
-						      REQ_META);
+			err = submit_extent_page(REQ_OP_READ | REQ_META, NULL,
+					 page, page_offset(page), PAGE_SIZE, 0,
+					 &bio, end_bio_extent_readpage,
+					 mirror_num, 0, 0, false);
 			if (err) {
-				ret = err;
 				/*
-				 * We use &bio in above __extent_read_full_page,
-				 * so we ensure that if it returns error, the
-				 * current page fails to add itself to bio and
-				 * it's been unlocked.
-				 *
-				 * We must dec io_pages by ourselves.
+				 * We failed to submit the bio so it's the
+				 * caller's responsibility to perform cleanup
+				 * i.e unlock page/set error bit.
 				 */
+				ret = err;
+				SetPageError(page);
+				unlock_page(page);
 				atomic_dec(&eb->io_pages);
 			}
 		} else {
