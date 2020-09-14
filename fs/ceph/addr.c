@@ -271,8 +271,8 @@ static int ceph_do_readpage(struct file *filp, struct page *page)
 	if (err < 0) {
 		SetPageError(page);
 		ceph_fscache_readpage_cancel(inode, page);
-		if (err == -EBLACKLISTED)
-			fsc->blacklisted = true;
+		if (err == -EBLOCKLISTED)
+			fsc->blocklisted = true;
 		goto out;
 	}
 	if (err < PAGE_SIZE)
@@ -312,8 +312,8 @@ static void finish_read(struct ceph_osd_request *req)
 	int i;
 
 	dout("finish_read %p req %p rc %d bytes %d\n", inode, req, rc, bytes);
-	if (rc == -EBLACKLISTED)
-		ceph_inode_to_client(inode)->blacklisted = true;
+	if (rc == -EBLOCKLISTED)
+		ceph_inode_to_client(inode)->blocklisted = true;
 
 	/* unlock all pages, zeroing any data we didn't read */
 	osd_data = osd_req_op_extent_osd_data(req, 0);
@@ -737,8 +737,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 			end_page_writeback(page);
 			return err;
 		}
-		if (err == -EBLACKLISTED)
-			fsc->blacklisted = true;
+		if (err == -EBLOCKLISTED)
+			fsc->blocklisted = true;
 		dout("writepage setting page/mapping error %d %p\n",
 		     err, page);
 		mapping_set_error(&inode->i_data, err);
@@ -801,8 +801,8 @@ static void writepages_finish(struct ceph_osd_request *req)
 	if (rc < 0) {
 		mapping_set_error(mapping, rc);
 		ceph_set_error_write(ci);
-		if (rc == -EBLACKLISTED)
-			fsc->blacklisted = true;
+		if (rc == -EBLOCKLISTED)
+			fsc->blocklisted = true;
 	} else {
 		ceph_clear_error_write(ci);
 	}
@@ -2038,16 +2038,16 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	if (err >= 0 || err == -ENOENT)
 		have |= POOL_READ;
 	else if (err != -EPERM) {
-		if (err == -EBLACKLISTED)
-			fsc->blacklisted = true;
+		if (err == -EBLOCKLISTED)
+			fsc->blocklisted = true;
 		goto out_unlock;
 	}
 
 	if (err2 == 0 || err2 == -EEXIST)
 		have |= POOL_WRITE;
 	else if (err2 != -EPERM) {
-		if (err2 == -EBLACKLISTED)
-			fsc->blacklisted = true;
+		if (err2 == -EBLOCKLISTED)
+			fsc->blocklisted = true;
 		err = err2;
 		goto out_unlock;
 	}

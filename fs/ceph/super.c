@@ -1241,13 +1241,13 @@ int ceph_force_reconnect(struct super_block *sb)
 	 * see remove_session_caps_cb() */
 	flush_workqueue(fsc->inode_wq);
 
-	/* In case that we were blacklisted. This also reset
+	/* In case that we were blocklisted. This also reset
 	 * all mon/osd connections */
 	ceph_reset_client_addr(fsc->client);
 
 	ceph_osdc_clear_abort_err(&fsc->client->osdc);
 
-	fsc->blacklisted = false;
+	fsc->blocklisted = false;
 	fsc->mount_state = CEPH_MOUNT_MOUNTED;
 
 	if (sb->s_root) {
