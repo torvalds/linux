@@ -278,4 +278,115 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 int copy_to_user_real(void __user *dest, void *src, unsigned long count);
 void *s390_kernel_write(void *dst, const void *src, size_t size);
 
+#define HAVE_GET_KERNEL_NOFAULT
+
+int __noreturn __put_kernel_bad(void);
+
+#define __put_kernel_asm(val, to, insn)					\
+({									\
+	int __rc;							\
+									\
+	asm volatile(							\
+		"0:   " insn "  %2,%1\n"				\
+		"1:	xr	%0,%0\n"				\
+		"2:\n"							\
+		".pushsection .fixup, \"ax\"\n"				\
+		"3:	lhi	%0,%3\n"				\
+		"	jg	2b\n"					\
+		".popsection\n"						\
+		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		: "=d" (__rc), "+Q" (*(to))				\
+		: "d" (val), "K" (-EFAULT)				\
+		: "cc");						\
+	__rc;								\
+})
+
+#define __put_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	u64 __x = (u64)(*((type *)(src)));				\
+	int __pk_err;							\
+									\
+	switch (sizeof(type)) {						\
+	case 1:								\
+		__pk_err = __put_kernel_asm(__x, (type *)(dst), "stc"); \
+		break;							\
+	case 2:								\
+		__pk_err = __put_kernel_asm(__x, (type *)(dst), "sth"); \
+		break;							\
+	case 4:								\
+		__pk_err = __put_kernel_asm(__x, (type *)(dst), "st");	\
+		break;							\
+	case 8:								\
+		__pk_err = __put_kernel_asm(__x, (type *)(dst), "stg"); \
+		break;							\
+	default:							\
+		__pk_err = __put_kernel_bad();				\
+		break;							\
+	}								\
+	if (unlikely(__pk_err))						\
+		goto err_label;						\
+} while (0)
+
+int __noreturn __get_kernel_bad(void);
+
+#define __get_kernel_asm(val, from, insn)				\
+({									\
+	int __rc;							\
+									\
+	asm volatile(							\
+		"0:   " insn "  %1,%2\n"				\
+		"1:	xr	%0,%0\n"				\
+		"2:\n"							\
+		".pushsection .fixup, \"ax\"\n"				\
+		"3:	lhi	%0,%3\n"				\
+		"	jg	2b\n"					\
+		".popsection\n"						\
+		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		: "=d" (__rc), "+d" (val)				\
+		: "Q" (*(from)), "K" (-EFAULT)				\
+		: "cc");						\
+	__rc;								\
+})
+
+#define __get_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	int __gk_err;							\
+									\
+	switch (sizeof(type)) {						\
+	case 1: {							\
+		u8 __x = 0;						\
+									\
+		__gk_err = __get_kernel_asm(__x, (type *)(src), "ic");	\
+		*((type *)(dst)) = (type)__x;				\
+		break;							\
+	};								\
+	case 2: {							\
+		u16 __x = 0;						\
+									\
+		__gk_err = __get_kernel_asm(__x, (type *)(src), "lh");	\
+		*((type *)(dst)) = (type)__x;				\
+		break;							\
+	};								\
+	case 4: {							\
+		u32 __x = 0;						\
+									\
+		__gk_err = __get_kernel_asm(__x, (type *)(src), "l");	\
+		*((type *)(dst)) = (type)__x;				\
+		break;							\
+	};								\
+	case 8: {							\
+		u64 __x = 0;						\
+									\
+		__gk_err = __get_kernel_asm(__x, (type *)(src), "lg");	\
+		*((type *)(dst)) = (type)__x;				\
+		break;							\
+	};								\
+	default:							\
+		__gk_err = __get_kernel_bad();				\
+		break;							\
+	}								\
+	if (unlikely(__gk_err))						\
+		goto err_label;						\
+} while (0)
+
 #endif /* __S390_UACCESS_H */
