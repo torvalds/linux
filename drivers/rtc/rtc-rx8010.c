@@ -418,7 +418,6 @@ static int rx8010_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	const struct rtc_class_ops *rtc_ops;
 	struct device *dev = &client->dev;
 	struct rx8010_data *rx8010;
 	int err = 0;
@@ -440,6 +439,10 @@ static int rx8010_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
+	rx8010->rtc = devm_rtc_allocate_device(dev);
+	if (IS_ERR(rx8010->rtc))
+		return PTR_ERR(rx8010->rtc);
+
 	if (client->irq > 0) {
 		dev_info(dev, "IRQ %d supplied\n", client->irq);
 		err = devm_request_threaded_irq(dev, client->irq, NULL,
@@ -451,21 +454,14 @@ static int rx8010_probe(struct i2c_client *client,
 			return err;
 		}
 
-		rtc_ops = &rx8010_rtc_ops_alarm;
+		rx8010->rtc->ops = &rx8010_rtc_ops_alarm;
 	} else {
-		rtc_ops = &rx8010_rtc_ops_default;
-	}
-
-	rx8010->rtc = devm_rtc_device_register(dev, client->name,
-					       rtc_ops, THIS_MODULE);
-	if (IS_ERR(rx8010->rtc)) {
-		dev_err(dev, "unable to register the class device\n");
-		return PTR_ERR(rx8010->rtc);
+		rx8010->rtc->ops = &rx8010_rtc_ops_default;
 	}
 
 	rx8010->rtc->max_user_freq = 1;
 
-	return 0;
+	return rtc_register_device(rx8010->rtc);
 }
 
 static struct i2c_driver rx8010_driver = {
