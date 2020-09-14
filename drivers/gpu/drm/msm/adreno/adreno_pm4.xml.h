@@ -298,6 +298,7 @@ enum adreno_pm4_type3_packets {
 	CP_SET_BIN_DATA5_OFFSET = 46,
 	CP_SET_CTXSWITCH_IB = 85,
 	CP_REG_WRITE = 109,
+	CP_WHERE_AM_I = 98,
 };
 
 enum adreno_state_block {

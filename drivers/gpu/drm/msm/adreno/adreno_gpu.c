@@ -422,6 +422,11 @@ int adreno_hw_init(struct msm_gpu *gpu)
 static uint32_t get_rptr(struct adreno_gpu *adreno_gpu,
 		struct msm_ringbuffer *ring)
 {
+	struct msm_gpu *gpu = &adreno_gpu->base;
+
+	if (gpu->funcs->get_rptr)
+		return gpu->funcs->get_rptr(gpu, ring);
+
 	return ring->memptrs->rptr = adreno_gpu_read(
 		adreno_gpu, REG_ADRENO_CP_RB_RPTR);
 }

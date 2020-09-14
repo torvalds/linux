@@ -68,6 +68,7 @@ struct msm_gpu_funcs {
 		(struct msm_gpu *gpu, struct platform_device *pdev);
 	struct msm_gem_address_space *(*create_private_address_space)
 		(struct msm_gpu *gpu);
+	uint32_t (*get_rptr)(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 };
 
 struct msm_gpu {
