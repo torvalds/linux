@@ -1474,7 +1474,7 @@ int ext4_search_dir(struct buffer_head *bh, char *search_buf, int buf_size,
 			/* found a match - just to be sure, do
 			 * a full check */
 			if (ext4_check_dir_entry(dir, NULL, de, bh, search_buf,
-						 bh->b_size, lblk, offset))
+						 buf_size, lblk, offset))
 				return -1;
 			*res_dir = de;
 			return 1;
