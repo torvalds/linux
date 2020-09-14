@@ -1233,6 +1233,7 @@ static int limit_check_scl(struct rkispp_stream *stream,
 	u32 max_width = 1280, max_ratio = 8, min_ratio = 2;
 	u32 *w = try_fmt ? &try_fmt->width : &stream->out_fmt.width;
 	u32 *h = try_fmt ? &try_fmt->height : &stream->out_fmt.height;
+	u32 forcc = try_fmt ? try_fmt->pixelformat : stream->out_fmt.pixelformat;
 	int ret = 0;
 
 	/* bypass scale */
@@ -1240,9 +1241,7 @@ static int limit_check_scl(struct rkispp_stream *stream,
 		return ret;
 
 	if (stream->id == STREAM_S0) {
-		u32 fmt = stream->out_cap_fmt.wr_fmt;
-
-		if (*h == sdev->out_fmt.height || (fmt & FMT_YUV422))
+		if (*h == sdev->out_fmt.height || (forcc == V4L2_PIX_FMT_NV16))
 			max_width = 3264;
 		else
 			max_width = 2080;
