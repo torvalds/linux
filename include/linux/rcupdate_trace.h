@@ -50,6 +50,7 @@ static inline void rcu_read_lock_trace(void)
 	struct task_struct *t = current;
 
 	WRITE_ONCE(t->trc_reader_nesting, READ_ONCE(t->trc_reader_nesting) + 1);
+	barrier();
 	if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB) &&
 	    t->trc_reader_special.b.need_mb)
 		smp_mb(); // Pairs with update-side barriers
@@ -72,6 +73,9 @@ static inline void rcu_read_unlock_trace(void)
 
 	rcu_lock_release(&rcu_trace_lock_map);
 	nesting = READ_ONCE(t->trc_reader_nesting) - 1;
+	barrier(); // Critical section before disabling.
+	// Disable IPI-based setting of .need_qs.
+	WRITE_ONCE(t->trc_reader_nesting, INT_MIN);
 	if (likely(!READ_ONCE(t->trc_reader_special.s)) || nesting) {
 		WRITE_ONCE(t->trc_reader_nesting, nesting);
 		return;  // We assume shallow reader nesting.
