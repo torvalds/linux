@@ -948,11 +948,17 @@ static int atmel_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	if (ret)
 		return ret;
 
-	nand_read_data_op(chip, buf, mtd->writesize, false, false);
-	nand_read_data_op(chip, chip->oob_poi, mtd->oobsize, false, false);
+	ret = nand_read_data_op(chip, buf, mtd->writesize, false, false);
+	if (ret)
+		goto out_disable;
+
+	ret = nand_read_data_op(chip, chip->oob_poi, mtd->oobsize, false, false);
+	if (ret)
+		goto out_disable;
 
 	ret = atmel_nand_pmecc_correct_data(chip, buf, raw);
 
+out_disable:
 	atmel_nand_pmecc_disable(chip, raw);
 
 	return ret;
