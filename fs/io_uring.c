@@ -1787,8 +1787,10 @@ static void __io_req_task_cancel(struct io_kiocb *req, int error)
 static void io_req_task_cancel(struct callback_head *cb)
 {
 	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
+	struct io_ring_ctx *ctx = req->ctx;
 
 	__io_req_task_cancel(req, -ECANCELED);
+	percpu_ref_put(&ctx->refs);
 }
 
 static void __io_req_task_submit(struct io_kiocb *req)
