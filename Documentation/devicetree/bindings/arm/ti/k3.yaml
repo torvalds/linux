@@ -28,4 +28,8 @@ properties:
       - description: K3 J721E SoC
         items:
           - const: ti,j721e
+
+      - description: K3 J7200 SoC
+        items:
+          - const: ti,j7200
 ...
