@@ -3611,6 +3611,7 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	 * search and this search we'll not find the key again and can just
 	 * bail.
 	 */
+search:
 	ret = btrfs_search_slot(NULL, root, &min_key, path, 0, 0);
 	if (ret != 0)
 		goto done;
@@ -3630,6 +3631,13 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 
 			if (min_key.objectid != ino || min_key.type != key_type)
 				goto done;
+
+			if (need_resched()) {
+				btrfs_release_path(path);
+				cond_resched();
+				goto search;
+			}
+
 			ret = overwrite_item(trans, log, dst_path, src, i,
 					     &min_key);
 			if (ret) {
