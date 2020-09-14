@@ -348,14 +348,6 @@ static bool data_check_size(struct prb_data_ring *data_ring, unsigned int size)
 	return true;
 }
 
-/* The possible responses of a descriptor state-query. */
-enum desc_state {
-	desc_miss,	/* ID mismatch */
-	desc_reserved,	/* reserved, in use by writer */
-	desc_committed, /* committed, writer is done */
-	desc_reusable,	/* free, not yet used by any writer */
-};
-
 /* Query the state of a descriptor. */
 static enum desc_state get_desc_state(unsigned long id,
 				      unsigned long state_val)
@@ -363,13 +355,7 @@ static enum desc_state get_desc_state(unsigned long id,
 	if (id != DESC_ID(state_val))
 		return desc_miss;
 
-	if (state_val & DESC_REUSE_MASK)
-		return desc_reusable;
-
-	if (state_val & DESC_COMMITTED_MASK)
-		return desc_committed;
-
-	return desc_reserved;
+	return DESC_STATE(state_val);
 }
 
 /*
@@ -484,8 +470,8 @@ out:
 static void desc_make_reusable(struct prb_desc_ring *desc_ring,
 			       unsigned long id)
 {
-	unsigned long val_committed = id | DESC_COMMITTED_MASK;
-	unsigned long val_reusable = val_committed | DESC_REUSE_MASK;
+	unsigned long val_committed = DESC_SV(id, desc_committed);
+	unsigned long val_reusable = DESC_SV(id, desc_reusable);
 	struct prb_desc *desc = to_desc(desc_ring, id);
 	atomic_long_t *state_var = &desc->state_var;
 
@@ -921,7 +907,7 @@ static bool desc_reserve(struct printk_ringbuffer *rb, unsigned long *id_out)
 	 */
 	prev_state_val = atomic_long_read(&desc->state_var); /* LMM(desc_reserve:E) */
 	if (prev_state_val &&
-	    prev_state_val != (id_prev_wrap | DESC_COMMITTED_MASK | DESC_REUSE_MASK)) {
+	    get_desc_state(id_prev_wrap, prev_state_val) != desc_reusable) {
 		WARN_ON_ONCE(1);
 		return false;
 	}
@@ -935,7 +921,7 @@ static bool desc_reserve(struct printk_ringbuffer *rb, unsigned long *id_out)
 	 * This pairs with desc_read:D.
 	 */
 	if (!atomic_long_try_cmpxchg(&desc->state_var, &prev_state_val,
-				     id | 0)) { /* LMM(desc_reserve:F) */
+			DESC_SV(id, desc_reserved))) { /* LMM(desc_reserve:F) */
 		WARN_ON_ONCE(1);
 		return false;
 	}
@@ -1254,7 +1240,7 @@ void prb_commit(struct prb_reserved_entry *e)
 {
 	struct prb_desc_ring *desc_ring = &e->rb->desc_ring;
 	struct prb_desc *d = to_desc(desc_ring, e->id);
-	unsigned long prev_state_val = e->id | 0;
+	unsigned long prev_state_val = DESC_SV(e->id, desc_reserved);
 
 	/* Now the writer has finished all writing: LMM(prb_commit:A) */
 
@@ -1267,7 +1253,7 @@ void prb_commit(struct prb_reserved_entry *e)
 	 * this. This pairs with desc_read:B.
 	 */
 	if (!atomic_long_try_cmpxchg(&d->state_var, &prev_state_val,
-				     e->id | DESC_COMMITTED_MASK)) { /* LMM(prb_commit:B) */
+			DESC_SV(e->id, desc_committed))) { /* LMM(prb_commit:B) */
 		WARN_ON_ONCE(1);
 	}
 

@@ -78,10 +78,10 @@ class LxDmesg(gdb.Command):
         len_off = off + printk_info_type.get_type()['text_len'].bitpos // 8
 
         # definitions from kernel/printk/printk_ringbuffer.h
+        desc_committed = 1
         desc_sv_bits = utils.get_long_type().sizeof * 8
-        desc_committed_mask = 1 << (desc_sv_bits - 1)
-        desc_reuse_mask = 1 << (desc_sv_bits - 2)
-        desc_flags_mask = desc_committed_mask | desc_reuse_mask
+        desc_flags_shift = desc_sv_bits - 2
+        desc_flags_mask = 3 << desc_flags_shift
         desc_id_mask = ~desc_flags_mask
 
         # read in tail and head descriptor ids
@@ -96,8 +96,9 @@ class LxDmesg(gdb.Command):
             desc_off = desc_sz * ind
 
             # skip non-committed record
-            state = utils.read_u64(descs, desc_off + sv_off + counter_off) & desc_flags_mask
-            if state != desc_committed_mask:
+            state = 3 & (utils.read_u64(descs, desc_off + sv_off +
+                                        counter_off) >> desc_flags_shift)
+            if state != desc_committed:
                 if did == head_id:
                     break
                 did = (did + 1) & desc_id_mask

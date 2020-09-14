@@ -295,9 +295,12 @@ document dump_record
 end
 
 define dmesg
-	set var $desc_committed = 1UL << ((sizeof(long) * 8) - 1)
-	set var $flags_mask = 3UL << ((sizeof(long) * 8) - 2)
-	set var $id_mask = ~$flags_mask
+	# definitions from kernel/printk/printk_ringbuffer.h
+	set var $desc_committed = 1
+	set var $desc_sv_bits = sizeof(long) * 8
+	set var $desc_flags_shift = $desc_sv_bits - 2
+	set var $desc_flags_mask = 3 << $desc_flags_shift
+	set var $id_mask = ~$desc_flags_mask
 
 	set var $desc_count = 1U << prb->desc_ring.count_bits
 	set var $prev_flags = 0
@@ -309,7 +312,8 @@ define dmesg
 		set var $desc = &prb->desc_ring.descs[$id % $desc_count]
 
 		# skip non-committed record
-		if (($desc->state_var.counter & $flags_mask) == $desc_committed)
+		set var $state = 3 & ($desc->state_var.counter >> $desc_flags_shift)
+		if ($state == $desc_committed)
 			dump_record $desc $prev_flags
 			set var $prev_flags = $desc->info.flags
 		end
