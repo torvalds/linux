@@ -284,7 +284,6 @@ static void sf_pdma_free_desc(struct virt_dma_desc *vdesc)
 static void sf_pdma_donebh_tasklet(unsigned long arg)
 {
 	struct sf_pdma_chan *chan = (struct sf_pdma_chan *)arg;
-	struct sf_pdma_desc *desc = chan->desc;
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->lock, flags);
