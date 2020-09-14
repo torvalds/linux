@@ -412,9 +412,14 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 
 	/*
 	 * Copy the descriptor data. The data is not valid until the
-	 * state has been re-checked.
+	 * state has been re-checked. A memcpy() for all of @desc
+	 * cannot be used because of the atomic_t @state_var field.
 	 */
-	memcpy(desc_out, desc, sizeof(*desc_out)); /* LMM(desc_read:C) */
+	memcpy(&desc_out->info, &desc->info, sizeof(desc_out->info)); /* LMM(desc_read:C) */
+	memcpy(&desc_out->text_blk_lpos, &desc->text_blk_lpos,
+	       sizeof(desc_out->text_blk_lpos)); /* also part of desc_read:C */
+	memcpy(&desc_out->dict_blk_lpos, &desc->dict_blk_lpos,
+	       sizeof(desc_out->dict_blk_lpos)); /* also part of desc_read:C */
 
 	/*
 	 * 1. Guarantee the descriptor content is loaded before re-checking
