@@ -52,6 +52,7 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 	bool input = false;
 	enum gpiod_flags flags;
 
+#ifndef CONFIG_ARCH_ROCKCHIP
 	/* If a pm_power_off function has already been added, leave it alone */
 	if (pm_power_off != NULL) {
 		dev_err(&pdev->dev,
@@ -59,6 +60,7 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 		       __func__);
 		return -EBUSY;
 	}
+#endif
 
 	input = device_property_read_bool(&pdev->dev, "input");
 	if (input)
