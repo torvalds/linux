@@ -805,50 +805,22 @@ validate_seq:
 	return MAPPING_OK;
 }
 
-static int subflow_read_actor(read_descriptor_t *desc,
-			      struct sk_buff *skb,
-			      unsigned int offset, size_t len)
-{
-	size_t copy_len = min(desc->count, len);
-
-	desc->count -= copy_len;
-
-	pr_debug("flushed %zu bytes, %zu left", copy_len, desc->count);
-	return copy_len;
-}
-
-int mptcp_subflow_discard_data(struct sock *ssk, unsigned int limit)
+static void mptcp_subflow_discard_data(struct sock *ssk, struct sk_buff *skb,
+				       unsigned int limit)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
-	u32 map_remaining;
-	size_t delta;
+	bool fin = TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN;
+	u32 incr;
 
-	map_remaining = subflow->map_data_len -
-			mptcp_subflow_get_map_offset(subflow);
-	delta = min_t(size_t, limit, map_remaining);
+	incr = limit >= skb->len ? skb->len + fin : limit;
 
-	/* discard mapped data */
-	pr_debug("discarding %zu bytes, current map len=%d", delta,
-		 map_remaining);
-	if (delta) {
-		read_descriptor_t desc = {
-			.count = delta,
-		};
-		int ret;
-
-		ret = tcp_read_sock(ssk, &desc, subflow_read_actor);
-		if (ret < 0) {
-			ssk->sk_err = -ret;
-			return ret;
-		}
-		if (ret < delta)
-			return 0;
-		if (delta == map_remaining) {
-			subflow->data_avail = 0;
-			subflow->map_valid = 0;
-		}
-	}
-	return 0;
+	pr_debug("discarding=%d len=%d seq=%d", incr, skb->len,
+		 subflow->map_subflow_seq);
+	tcp_sk(ssk)->copied_seq += incr;
+	if (!before(tcp_sk(ssk)->copied_seq, TCP_SKB_CB(skb)->end_seq))
+		sk_eat_skb(ssk, skb);
+	if (mptcp_subflow_get_map_offset(subflow) >= subflow->map_data_len)
+		subflow->map_valid = 0;
 }
 
 static bool subflow_check_data_avail(struct sock *ssk)
@@ -923,9 +895,7 @@ static bool subflow_check_data_avail(struct sock *ssk)
 		/* only accept in-sequence mapping. Old values are spurious
 		 * retransmission
 		 */
-		if (mptcp_subflow_discard_data(ssk, old_ack - ack_seq))
-			goto fatal;
-		return false;
+		mptcp_subflow_discard_data(ssk, skb, old_ack - ack_seq);
 	}
 	return true;
 
