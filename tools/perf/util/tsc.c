@@ -98,6 +98,10 @@ int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
 	event.time_conv.time_mult  = tc.time_mult;
 	event.time_conv.time_shift = tc.time_shift;
 	event.time_conv.time_zero  = tc.time_zero;
+	event.time_conv.time_cycles = tc.time_cycles;
+	event.time_conv.time_mask = tc.time_mask;
+	event.time_conv.cap_user_time_zero = tc.cap_user_time_zero;
+	event.time_conv.cap_user_time_short = tc.cap_user_time_short;
 
 	return process(tool, &event, NULL, machine);
 }

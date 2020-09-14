@@ -374,11 +374,15 @@ static uint64_t convert_timestamp(struct jit_buf_desc *jd, uint64_t timestamp)
 	if (!jd->use_arch_timestamp)
 		return timestamp;
 
-	tc.time_shift = jd->session->time_conv.time_shift;
-	tc.time_mult  = jd->session->time_conv.time_mult;
-	tc.time_zero  = jd->session->time_conv.time_zero;
+	tc.time_shift	       = jd->session->time_conv.time_shift;
+	tc.time_mult	       = jd->session->time_conv.time_mult;
+	tc.time_zero	       = jd->session->time_conv.time_zero;
+	tc.time_cycles	       = jd->session->time_conv.time_cycles;
+	tc.time_mask	       = jd->session->time_conv.time_mask;
+	tc.cap_user_time_zero  = jd->session->time_conv.cap_user_time_zero;
+	tc.cap_user_time_short = jd->session->time_conv.cap_user_time_short;
 
-	if (!tc.time_mult)
+	if (!tc.cap_user_time_zero)
 		return 0;
 
 	return tsc_to_perf_time(timestamp, &tc);
