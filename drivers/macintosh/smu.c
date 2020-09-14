@@ -1015,7 +1015,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 /* Note: Only allowed to return error code in pointers (using ERR_PTR)
  * when interruptible is 1
  */
-const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
+static const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
 		unsigned int *size, int interruptible)
 {
 	char pname[32];
