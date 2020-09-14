@@ -193,6 +193,8 @@ static void bcm2836_arm_irqchip_ipi_send_mask(struct irq_data *d,
 
 static struct irq_chip bcm2836_arm_irqchip_ipi = {
 	.name		= "IPI",
+	.irq_mask	= bcm2836_arm_irqchip_dummy_op,
+	.irq_unmask	= bcm2836_arm_irqchip_dummy_op,
 	.irq_eoi	= bcm2836_arm_irqchip_ipi_eoi,
 	.ipi_send_mask	= bcm2836_arm_irqchip_ipi_send_mask,
 };
