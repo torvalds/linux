@@ -738,7 +738,7 @@ static int mipidphy_get_sensor_data_rate(struct v4l2_subdev *sd)
 	}
 	priv->data_rate_mbps = qm.value * 2;
 	do_div(priv->data_rate_mbps, 1000 * 1000);
-
+	v4l2_info(sd, "data_rate_mbps %lld\n", priv->data_rate_mbps);
 	return 0;
 }
 
