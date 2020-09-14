@@ -1682,7 +1682,6 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 		skb->truesize	   -= delta_truesize;
 		sk_wmem_queued_add(sk, -delta_truesize);
 		sk_mem_uncharge(sk, delta_truesize);
-		sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
 	}
 
 	/* Any change of skb->len requires recalculation of tso factor. */
