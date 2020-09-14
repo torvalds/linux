@@ -414,8 +414,7 @@ static const struct rtc_class_ops rx8010_rtc_ops_alarm = {
 	.alarm_irq_enable = rx8010_alarm_irq_enable,
 };
 
-static int rx8010_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int rx8010_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
@@ -469,7 +468,7 @@ static struct i2c_driver rx8010_driver = {
 		.name = "rtc-rx8010",
 		.of_match_table = of_match_ptr(rx8010_of_match),
 	},
-	.probe		= rx8010_probe,
+	.probe_new	= rx8010_probe,
 	.id_table	= rx8010_id,
 };
 
