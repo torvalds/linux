@@ -1008,6 +1008,37 @@ static int uncore_pci_get_dev_die_info(struct pci_dev *pdev,
 
 	return 0;
 }
+
+/*
+ * Find the PMU of a PCI device.
+ * @pdev: The PCI device.
+ * @ids: The ID table of the available PCI devices with a PMU.
+ */
+static struct intel_uncore_pmu *
+uncore_pci_find_dev_pmu(struct pci_dev *pdev, const struct pci_device_id *ids)
+{
+	struct intel_uncore_pmu *pmu = NULL;
+	struct intel_uncore_type *type;
+	kernel_ulong_t data;
+	unsigned int devfn;
+
+	while (ids && ids->vendor) {
+		if ((ids->vendor == pdev->vendor) &&
+		    (ids->device == pdev->device)) {
+			data = ids->driver_data;
+			devfn = PCI_DEVFN(UNCORE_PCI_DEV_DEV(data),
+					  UNCORE_PCI_DEV_FUNC(data));
+			if (devfn == pdev->devfn) {
+				type = uncore_pci_uncores[UNCORE_PCI_DEV_TYPE(data)];
+				pmu = &type->pmus[UNCORE_PCI_DEV_IDX(data)];
+				break;
+			}
+		}
+		ids++;
+	}
+	return pmu;
+}
+
 /*
  * add a pci uncore device
  */
@@ -1039,21 +1070,8 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	 */
 	if (id->driver_data & ~0xffff) {
 		struct pci_driver *pci_drv = pdev->driver;
-		const struct pci_device_id *ids = pci_drv->id_table;
-		unsigned int devfn;
 
-		while (ids && ids->vendor) {
-			if ((ids->vendor == pdev->vendor) &&
-			    (ids->device == pdev->device)) {
-				devfn = PCI_DEVFN(UNCORE_PCI_DEV_DEV(ids->driver_data),
-						  UNCORE_PCI_DEV_FUNC(ids->driver_data));
-				if (devfn == pdev->devfn) {
-					pmu = &type->pmus[UNCORE_PCI_DEV_IDX(ids->driver_data)];
-					break;
-				}
-			}
-			ids++;
-		}
+		pmu = uncore_pci_find_dev_pmu(pdev, pci_drv->id_table);
 		if (pmu == NULL)
 			return -ENODEV;
 	} else {
