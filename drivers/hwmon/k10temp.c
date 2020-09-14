@@ -95,6 +95,13 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #define F17H_M31H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
 #define F17H_M31H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
 
+/* F19h thermal registers through SMN */
+#define F19H_M01_SVI_TEL_PLANE0			(ZEN_SVI_BASE + 0x14)
+#define F19H_M01_SVI_TEL_PLANE1			(ZEN_SVI_BASE + 0x10)
+
+#define F19H_M01H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
+#define F19H_M01H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
+
 struct k10temp_data {
 	struct pci_dev *pdev;
 	void (*read_htcreg)(struct pci_dev *pdev, u32 *regval);
@@ -527,6 +534,22 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}
+	} else if (boot_cpu_data.x86 == 0x19) {
+		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
+		data->read_tempreg = read_tempreg_nb_zen;
+		data->show_temp |= BIT(TDIE_BIT);
+		data->is_zen = true;
+
+		switch (boot_cpu_data.x86_model) {
+		case 0x0 ... 0x1:	/* Zen3 */
+			data->show_current = true;
+			data->svi_addr[0] = F19H_M01_SVI_TEL_PLANE0;
+			data->svi_addr[1] = F19H_M01_SVI_TEL_PLANE1;
+			data->cfactor[0] = F19H_M01H_CFACTOR_ICORE;
+			data->cfactor[1] = F19H_M01H_CFACTOR_ISOC;
+			k10temp_get_ccd_support(pdev, data, 8);
+			break;
+		}
 	} else {
 		data->read_htcreg = read_htcreg_pci;
 		data->read_tempreg = read_tempreg_pci;
@@ -564,6 +587,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M30H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M60H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M70H_DF_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_19H_DF_F3) },
 	{ PCI_VDEVICE(HYGON, PCI_DEVICE_ID_AMD_17H_DF_F3) },
 	{}
 };
