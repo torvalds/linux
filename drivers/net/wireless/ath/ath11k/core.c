@@ -842,42 +842,9 @@ int ath11k_core_pre_init(struct ath11k_base *ab)
 }
 EXPORT_SYMBOL(ath11k_core_pre_init);
 
-static int ath11k_core_get_rproc(struct ath11k_base *ab)
-{
-	struct device *dev = ab->dev;
-	struct rproc *prproc;
-	phandle rproc_phandle;
-
-	if (!IS_ENABLED(CONFIG_REMOTEPROC))
-		return 0;
-
-	if (ab->bus_params.mhi_support)
-		return 0;
-
-	if (of_property_read_u32(dev->of_node, "qcom,rproc", &rproc_phandle)) {
-		ath11k_err(ab, "failed to get q6_rproc handle\n");
-		return -ENOENT;
-	}
-
-	prproc = rproc_get_by_phandle(rproc_phandle);
-	if (!prproc) {
-		ath11k_err(ab, "failed to get rproc\n");
-		return -EINVAL;
-	}
-	ab->tgt_rproc = prproc;
-
-	return 0;
-}
-
 int ath11k_core_init(struct ath11k_base *ab)
 {
 	int ret;
-
-	ret = ath11k_core_get_rproc(ab);
-	if (ret) {
-		ath11k_err(ab, "failed to get rproc: %d\n", ret);
-		return ret;
-	}
 
 	ret = ath11k_core_soc_create(ab);
 	if (ret) {
