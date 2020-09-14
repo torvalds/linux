@@ -724,8 +724,9 @@ granted_channel:
 	/* Paired with the write barrier in rxrpc_activate_one_channel(). */
 	smp_rmb();
 
-out:
+out_put_bundle:
 	rxrpc_put_bundle(bundle);
+out:
 	_leave(" = %d", ret);
 	return ret;
 
@@ -742,7 +743,7 @@ wait_failed:
 	trace_rxrpc_client(call->conn, ret, rxrpc_client_chan_wait_failed);
 	rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR, 0, ret);
 	rxrpc_disconnect_client_call(bundle, call);
-	goto out;
+	goto out_put_bundle;
 }
 
 /*
