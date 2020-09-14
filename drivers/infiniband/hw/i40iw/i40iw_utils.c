@@ -751,7 +751,7 @@ enum i40iw_status_code i40iw_allocate_dma_mem(struct i40iw_hw *hw,
 					      u64 size,
 					      u32 alignment)
 {
-	struct pci_dev *pcidev = (struct pci_dev *)hw->dev_context;
+	struct pci_dev *pcidev = hw->pcidev;
 
 	if (!mem)
 		return I40IW_ERR_PARAM;
@@ -770,7 +770,7 @@ enum i40iw_status_code i40iw_allocate_dma_mem(struct i40iw_hw *hw,
  */
 void i40iw_free_dma_mem(struct i40iw_hw *hw, struct i40iw_dma_mem *mem)
 {
-	struct pci_dev *pcidev = (struct pci_dev *)hw->dev_context;
+	struct pci_dev *pcidev = hw->pcidev;
 
 	if (!mem || !mem->va)
 		return;

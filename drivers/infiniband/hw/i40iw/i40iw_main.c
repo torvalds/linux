@@ -1573,7 +1573,7 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 	status = i40iw_save_msix_info(iwdev, ldev);
 	if (status)
 		return status;
-	iwdev->hw.dev_context = (void *)ldev->pcidev;
+	iwdev->hw.pcidev = ldev->pcidev;
 	iwdev->hw.hw_addr = ldev->hw_addr;
 	status = i40iw_allocate_dma_mem(&iwdev->hw,
 					&iwdev->obj_mem, 8192, 4096);
