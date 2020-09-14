@@ -454,7 +454,6 @@ static int rx8010_probe(struct i2c_client *client,
 						rx8010_irq_1_handler,
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 						"rx8010", client);
-
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ\n");
 			return err;
