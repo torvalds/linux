@@ -10,6 +10,7 @@
 #include <linux/bitfield.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -43,6 +44,28 @@ static struct ufs_dev_fix ufs_mtk_dev_fixups[] = {
 		UFS_DEVICE_QUIRK_SUPPORT_EXTENDED_FEATURES),
 	END_FIX
 };
+
+static const struct ufs_mtk_host_cfg ufs_mtk_mt8192_cfg = {
+	.caps = UFS_MTK_CAP_BOOST_CRYPT_ENGINE,
+};
+
+static const struct of_device_id ufs_mtk_of_match[] = {
+	{
+		.compatible = "mediatek,mt8183-ufshci",
+	},
+	{
+		.compatible = "mediatek,mt8192-ufshci",
+		.data = &ufs_mtk_mt8192_cfg
+	},
+	{},
+};
+
+static bool ufs_mtk_is_boost_crypt_enabled(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	return (host->caps & UFS_MTK_CAP_BOOST_CRYPT_ENGINE);
+}
 
 static void ufs_mtk_cfg_unipro_cg(struct ufs_hba *hba, bool enable)
 {
@@ -294,6 +317,144 @@ static void ufs_mtk_mphy_power_on(struct ufs_hba *hba, bool on)
 	host->mphy_powered_on = on;
 }
 
+static int ufs_mtk_get_host_clk(struct device *dev, const char *name,
+				struct clk **clk_out)
+{
+	struct clk *clk;
+	int err = 0;
+
+	clk = devm_clk_get(dev, name);
+	if (IS_ERR(clk))
+		err = PTR_ERR(clk);
+	else
+		*clk_out = clk;
+
+	return err;
+}
+
+static void ufs_mtk_boost_crypt(struct ufs_hba *hba, bool boost)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	struct ufs_mtk_crypt_cfg *cfg;
+	struct regulator *reg;
+	int volt, ret;
+
+	if (!ufs_mtk_is_boost_crypt_enabled(hba))
+		return;
+
+	cfg = host->crypt;
+	volt = cfg->vcore_volt;
+	reg = cfg->reg_vcore;
+
+	ret = clk_prepare_enable(cfg->clk_crypt_mux);
+	if (ret) {
+		dev_info(hba->dev, "clk_prepare_enable(): %d\n",
+			 ret);
+		return;
+	}
+
+	if (boost) {
+		ret = regulator_set_voltage(reg, volt, INT_MAX);
+		if (ret) {
+			dev_info(hba->dev,
+				 "failed to set vcore to %d\n", volt);
+			goto out;
+		}
+
+		ret = clk_set_parent(cfg->clk_crypt_mux,
+				     cfg->clk_crypt_perf);
+		if (ret) {
+			dev_info(hba->dev,
+				 "failed to set clk_crypt_perf\n");
+			regulator_set_voltage(reg, 0, INT_MAX);
+			goto out;
+		}
+	} else {
+		ret = clk_set_parent(cfg->clk_crypt_mux,
+				     cfg->clk_crypt_lp);
+		if (ret) {
+			dev_info(hba->dev,
+				 "failed to set clk_crypt_lp\n");
+			goto out;
+		}
+
+		ret = regulator_set_voltage(reg, 0, INT_MAX);
+		if (ret) {
+			dev_info(hba->dev,
+				 "failed to set vcore to MIN\n");
+		}
+	}
+out:
+	clk_disable_unprepare(cfg->clk_crypt_mux);
+}
+
+static int ufs_mtk_init_host_clk(struct ufs_hba *hba, const char *name,
+				 struct clk **clk)
+{
+	int ret;
+
+	ret = ufs_mtk_get_host_clk(hba->dev, name, clk);
+	if (ret) {
+		dev_info(hba->dev, "%s: failed to get %s: %d", __func__,
+			 name, ret);
+	}
+
+	return ret;
+}
+
+static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	struct ufs_mtk_crypt_cfg *cfg;
+	struct device *dev = hba->dev;
+	struct regulator *reg;
+	u32 volt;
+
+	host->caps = host->cfg->caps;
+
+	if (!ufs_mtk_is_boost_crypt_enabled(hba))
+		return;
+
+	host->crypt = devm_kzalloc(dev, sizeof(*(host->crypt)),
+				   GFP_KERNEL);
+	if (!host->crypt)
+		goto disable_caps;
+
+	reg = devm_regulator_get_optional(dev, "dvfsrc-vcore");
+	if (IS_ERR(reg)) {
+		dev_info(dev, "failed to get dvfsrc-vcore: %ld",
+			 PTR_ERR(reg));
+		goto disable_caps;
+	}
+
+	if (of_property_read_u32(dev->of_node, "boost-crypt-vcore-min",
+				 &volt)) {
+		dev_info(dev, "failed to get boost-crypt-vcore-min");
+		goto disable_caps;
+	}
+
+	cfg = host->crypt;
+	if (ufs_mtk_init_host_clk(hba, "crypt_mux",
+				  &cfg->clk_crypt_mux))
+		goto disable_caps;
+
+	if (ufs_mtk_init_host_clk(hba, "crypt_lp",
+				  &cfg->clk_crypt_lp))
+		goto disable_caps;
+
+	if (ufs_mtk_init_host_clk(hba, "crypt_perf",
+				  &cfg->clk_crypt_perf))
+		goto disable_caps;
+
+	cfg->reg_vcore = reg;
+	cfg->vcore_volt = volt;
+	dev_info(dev, "caps: boost-crypt");
+	return;
+
+disable_caps:
+	host->caps &= ~UFS_MTK_CAP_BOOST_CRYPT_ENGINE;
+}
+
 /**
  * ufs_mtk_setup_clocks - enables/disable clocks
  * @hba: host controller instance
@@ -336,12 +497,14 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 		}
 
 		if (clk_pwr_off) {
+			ufs_mtk_boost_crypt(hba, on);
 			ufs_mtk_setup_ref_clk(hba, on);
 			ufs_mtk_mphy_power_on(hba, on);
 		}
 	} else if (on && status == POST_CHANGE) {
 		ufs_mtk_mphy_power_on(hba, on);
 		ufs_mtk_setup_ref_clk(hba, on);
+		ufs_mtk_boost_crypt(hba, on);
 	}
 
 	return ret;
@@ -359,8 +522,9 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
  */
 static int ufs_mtk_init(struct ufs_hba *hba)
 {
-	struct ufs_mtk_host *host;
+	const struct of_device_id *id;
 	struct device *dev = hba->dev;
+	struct ufs_mtk_host *host;
 	int err = 0;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
@@ -372,6 +536,18 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 
 	host->hba = hba;
 	ufshcd_set_variant(hba, host);
+
+	/* Get host capability and platform data */
+	id = of_match_device(ufs_mtk_of_match, dev);
+	if (!id) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (id->data) {
+		host->cfg = (struct ufs_mtk_host_cfg *)id->data;
+		ufs_mtk_init_host_caps(hba);
+	}
 
 	err = ufs_mtk_bind_mphy(hba);
 	if (err)
@@ -781,11 +957,6 @@ static int ufs_mtk_remove(struct platform_device *pdev)
 	ufshcd_remove(hba);
 	return 0;
 }
-
-static const struct of_device_id ufs_mtk_of_match[] = {
-	{ .compatible = "mediatek,mt8183-ufshci"},
-	{},
-};
 
 static const struct dev_pm_ops ufs_mtk_pm_ops = {
 	.suspend         = ufshcd_pltfrm_suspend,
