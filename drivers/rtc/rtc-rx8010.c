@@ -108,7 +108,7 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 static int rx8010_get_time(struct device *dev, struct rtc_time *dt)
 {
 	struct rx8010_data *rx8010 = dev_get_drvdata(dev);
-	u8 date[7];
+	u8 date[RX8010_YEAR - RX8010_SEC + 1];
 	int flagreg, err;
 
 	flagreg = i2c_smbus_read_byte_data(rx8010->client, RX8010_FLAG);
@@ -121,8 +121,8 @@ static int rx8010_get_time(struct device *dev, struct rtc_time *dt)
 	}
 
 	err = i2c_smbus_read_i2c_block_data(rx8010->client, RX8010_SEC,
-					    7, date);
-	if (err != 7)
+					    sizeof(date), date);
+	if (err != sizeof(date))
 		return err < 0 ? err : -EIO;
 
 	dt->tm_sec = bcd2bin(date[RX8010_SEC - RX8010_SEC] & 0x7f);
@@ -139,7 +139,7 @@ static int rx8010_get_time(struct device *dev, struct rtc_time *dt)
 static int rx8010_set_time(struct device *dev, struct rtc_time *dt)
 {
 	struct rx8010_data *rx8010 = dev_get_drvdata(dev);
-	u8 date[7];
+	u8 date[RX8010_YEAR - RX8010_SEC + 1];
 	int ctrl, flagreg, err;
 
 	if ((dt->tm_year < 100) || (dt->tm_year > 199))
@@ -164,7 +164,8 @@ static int rx8010_set_time(struct device *dev, struct rtc_time *dt)
 	date[RX8010_WDAY - RX8010_SEC] = bin2bcd(1 << dt->tm_wday);
 
 	err = i2c_smbus_write_i2c_block_data(rx8010->client,
-					     RX8010_SEC, 7, date);
+					     RX8010_SEC, sizeof(date),
+					     date);
 	if (err < 0)
 		return err;
 
