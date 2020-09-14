@@ -254,6 +254,7 @@ struct io_uring_params {
 #define IORING_FEAT_CUR_PERSONALITY	(1U << 4)
 #define IORING_FEAT_FAST_POLL		(1U << 5)
 #define IORING_FEAT_POLL_32BITS 	(1U << 6)
+#define IORING_FEAT_SQPOLL_NONFIXED	(1U << 7)
 
 /*
  * io_uring_register(2) opcodes and arguments
