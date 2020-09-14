@@ -2121,14 +2121,13 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	i2c_dev->dma = stm32_i2c_dma_request(i2c_dev->dev, phy_addr,
 					     STM32F7_I2C_TXDR,
 					     STM32F7_I2C_RXDR);
-	if (PTR_ERR(i2c_dev->dma) == -ENODEV)
-		i2c_dev->dma = NULL;
-	else if (IS_ERR(i2c_dev->dma)) {
+	if (IS_ERR(i2c_dev->dma)) {
 		ret = PTR_ERR(i2c_dev->dma);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Failed to request dma error %i\n", ret);
-		goto fmp_clear;
+		/* DMA support is optional, only report other errors */
+		if (ret != -ENODEV)
+			goto fmp_clear;
+		dev_dbg(i2c_dev->dev, "No DMA option: fallback using interrupts\n");
+		i2c_dev->dma = NULL;
 	}
 
 	if (i2c_dev->wakeup_src) {
