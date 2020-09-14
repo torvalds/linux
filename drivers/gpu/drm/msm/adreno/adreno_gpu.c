@@ -424,11 +424,7 @@ static uint32_t get_rptr(struct adreno_gpu *adreno_gpu,
 {
 	struct msm_gpu *gpu = &adreno_gpu->base;
 
-	if (gpu->funcs->get_rptr)
-		return gpu->funcs->get_rptr(gpu, ring);
-
-	return ring->memptrs->rptr = adreno_gpu_read(
-		adreno_gpu, REG_ADRENO_CP_RB_RPTR);
+	return gpu->funcs->get_rptr(gpu, ring);
 }
 
 struct msm_ringbuffer *adreno_active_ring(struct msm_gpu *gpu)
@@ -454,80 +450,8 @@ void adreno_recover(struct msm_gpu *gpu)
 	}
 }
 
-void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
+void adreno_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring, u32 reg)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct msm_drm_private *priv = gpu->dev->dev_private;
-	struct msm_ringbuffer *ring = submit->ring;
-	unsigned i;
-
-	for (i = 0; i < submit->nr_cmds; i++) {
-		switch (submit->cmd[i].type) {
-		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
-			/* ignore IB-targets */
-			break;
-		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
-			/* ignore if there has not been a ctx switch: */
-			if (priv->lastctx == submit->queue->ctx)
-				break;
-			/* fall-thru */
-		case MSM_SUBMIT_CMD_BUF:
-			OUT_PKT3(ring, adreno_is_a4xx(adreno_gpu) ?
-				CP_INDIRECT_BUFFER_PFE : CP_INDIRECT_BUFFER_PFD, 2);
-			OUT_RING(ring, lower_32_bits(submit->cmd[i].iova));
-			OUT_RING(ring, submit->cmd[i].size);
-			OUT_PKT2(ring);
-			break;
-		}
-	}
-
-	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
-	OUT_RING(ring, submit->seqno);
-
-	if (adreno_is_a3xx(adreno_gpu) || adreno_is_a4xx(adreno_gpu)) {
-		/* Flush HLSQ lazy updates to make sure there is nothing
-		 * pending for indirect loads after the timestamp has
-		 * passed:
-		 */
-		OUT_PKT3(ring, CP_EVENT_WRITE, 1);
-		OUT_RING(ring, HLSQ_FLUSH);
-	}
-
-	/* wait for idle before cache flush/interrupt */
-	OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
-	OUT_RING(ring, 0x00000000);
-
-	if (!adreno_is_a2xx(adreno_gpu)) {
-		/* BIT(31) of CACHE_FLUSH_TS triggers CACHE_FLUSH_TS IRQ from GPU */
-		OUT_PKT3(ring, CP_EVENT_WRITE, 3);
-		OUT_RING(ring, CACHE_FLUSH_TS | BIT(31));
-		OUT_RING(ring, rbmemptr(ring, fence));
-		OUT_RING(ring, submit->seqno);
-	} else {
-		/* BIT(31) means something else on a2xx */
-		OUT_PKT3(ring, CP_EVENT_WRITE, 3);
-		OUT_RING(ring, CACHE_FLUSH_TS);
-		OUT_RING(ring, rbmemptr(ring, fence));
-		OUT_RING(ring, submit->seqno);
-		OUT_PKT3(ring, CP_INTERRUPT, 1);
-		OUT_RING(ring, 0x80000000);
-	}
-
-#if 0
-	if (adreno_is_a3xx(adreno_gpu)) {
-		/* Dummy set-constant to trigger context rollover */
-		OUT_PKT3(ring, CP_SET_CONSTANT, 2);
-		OUT_RING(ring, CP_REG(REG_A3XX_HLSQ_CL_KERNEL_GROUP_X_REG));
-		OUT_RING(ring, 0x00000000);
-	}
-#endif
-
-	gpu->funcs->flush(gpu, ring);
-}
-
-void adreno_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
-{
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	uint32_t wptr;
 
 	/* Copy the shadow to the actual register */
@@ -543,7 +467,7 @@ void adreno_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	/* ensure writes to ringbuffer have hit system memory: */
 	mb();
 
-	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_WPTR, wptr);
+	gpu_write(gpu, reg, wptr);
 }
 
 bool adreno_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)

@@ -1121,17 +1121,6 @@ static irqreturn_t a5xx_irq(struct msm_gpu *gpu)
 	return IRQ_HANDLED;
 }
 
-static const u32 a5xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE, REG_A5XX_CP_RB_BASE),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE_HI, REG_A5XX_CP_RB_BASE_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR_ADDR, REG_A5XX_CP_RB_RPTR_ADDR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR_ADDR_HI,
-		REG_A5XX_CP_RB_RPTR_ADDR_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR, REG_A5XX_CP_RB_RPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_WPTR, REG_A5XX_CP_RB_WPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_CNTL, REG_A5XX_CP_RB_CNTL),
-};
-
 static const u32 a5xx_registers[] = {
 	0x0000, 0x0002, 0x0004, 0x0020, 0x0022, 0x0026, 0x0029, 0x002B,
 	0x002E, 0x0035, 0x0038, 0x0042, 0x0044, 0x0044, 0x0047, 0x0095,
@@ -1587,7 +1576,6 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	gpu = &adreno_gpu->base;
 
 	adreno_gpu->registers = a5xx_registers;
-	adreno_gpu->reg_offsets = a5xx_register_offsets;
 
 	a5xx_gpu->lm_leakage = 0x4E001A;
 
