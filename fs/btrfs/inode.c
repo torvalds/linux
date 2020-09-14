@@ -8040,7 +8040,14 @@ static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 int btrfs_readpage(struct file *file, struct page *page)
 {
-	return extent_read_full_page(page);
+	struct bio *bio = NULL;
+	unsigned long bio_flags = 0;
+	int ret;
+
+	ret = extent_read_full_page(page, &bio, 0, &bio_flags, 0);
+	if (bio)
+		ret = submit_one_bio(bio, 0, bio_flags);
+	return ret;
 }
 
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)

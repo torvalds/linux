@@ -160,8 +160,8 @@ static int add_extent_changeset(struct extent_state *state, unsigned bits,
 	return ret;
 }
 
-static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
-				       unsigned long bio_flags)
+int __must_check submit_one_bio(struct bio *bio, int mirror_num,
+				unsigned long bio_flags)
 {
 	blk_status_t ret = 0;
 	struct extent_io_tree *tree = bio->bi_private;
@@ -3365,9 +3365,8 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 	}
 }
 
-static int __extent_read_full_page(struct page *page, struct bio **bio,
-				   int mirror_num, unsigned long *bio_flags,
-				   unsigned int read_flags)
+int extent_read_full_page(struct page *page, struct bio **bio, int mirror_num,
+			  unsigned long *bio_flags, unsigned int read_flags)
 {
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
 	u64 start = page_offset(page);
@@ -3378,18 +3377,6 @@ static int __extent_read_full_page(struct page *page, struct bio **bio,
 
 	ret = __do_readpage(page, NULL, bio, mirror_num, bio_flags, read_flags,
 			    NULL);
-	return ret;
-}
-
-int extent_read_full_page(struct page *page)
-{
-	struct bio *bio = NULL;
-	unsigned long bio_flags = 0;
-	int ret;
-
-	ret = __extent_read_full_page(page, &bio, 0, &bio_flags, 0);
-	if (bio)
-		ret = submit_one_bio(bio, 0, bio_flags);
 	return ret;
 }
 
