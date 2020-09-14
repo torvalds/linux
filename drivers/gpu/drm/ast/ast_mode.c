@@ -562,13 +562,24 @@ ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_vram_object *gbo;
 	s64 gpu_addr;
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *old_fb = old_state->fb;
 
-	gbo = drm_gem_vram_of_gem(state->fb->obj[0]);
+	if (!old_fb || (fb->format != old_fb->format)) {
+		struct drm_crtc_state *crtc_state = state->crtc->state;
+		struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
+		struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
+
+		ast_set_color_reg(ast, fb->format);
+		ast_set_vbios_color_reg(ast, fb->format, vbios_mode_info);
+	}
+
+	gbo = drm_gem_vram_of_gem(fb->obj[0]);
 	gpu_addr = drm_gem_vram_offset(gbo);
 	if (drm_WARN_ON_ONCE(dev, gpu_addr < 0))
 		return; /* Bug: we didn't pin the BO to VRAM in prepare_fb. */
 
-	ast_set_offset_reg(ast, state->fb);
+	ast_set_offset_reg(ast, fb);
 	ast_set_start_address_crt1(ast, (u32)gpu_addr);
 
 	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
@@ -733,6 +744,7 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_crtc_state *state)
 {
+	struct drm_device *dev = crtc->dev;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	bool succ;
@@ -743,8 +755,8 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	ast_state = to_ast_crtc_state(state);
 
 	format = ast_state->format;
-	if (!format)
-		return 0;
+	if (drm_WARN_ON_ONCE(dev, !format))
+		return -EINVAL; /* BUG: We didn't set format in primary check(). */
 
 	succ = ast_get_vbios_mode_info(format, &state->mode,
 				       &state->adjusted_mode,
@@ -768,26 +780,14 @@ static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
-	struct ast_crtc_state *ast_state;
-	const struct drm_format_info *format;
-	struct ast_vbios_mode_info *vbios_mode_info;
-	struct drm_display_mode *adjusted_mode;
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
+	struct ast_vbios_mode_info *vbios_mode_info =
+		&ast_crtc_state->vbios_mode_info;
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 
-	ast_state = to_ast_crtc_state(crtc->state);
-
-	format = ast_state->format;
-	if (!format)
+	if (!drm_atomic_crtc_needs_modeset(crtc_state))
 		return;
-
-	vbios_mode_info = &ast_state->vbios_mode_info;
-
-	ast_set_color_reg(ast, format);
-	ast_set_vbios_color_reg(ast, format, vbios_mode_info);
-
-	if (!crtc->state->mode_changed)
-		return;
-
-	adjusted_mode = &crtc->state->adjusted_mode;
 
 	ast_set_vbios_mode_reg(ast, adjusted_mode, vbios_mode_info);
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
