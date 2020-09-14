@@ -3130,6 +3130,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	struct iov_iter __iter, *iter = &__iter;
 	ssize_t io_size, ret, ret2;
 	size_t iov_count;
+	bool no_async;
 
 	if (req->io)
 		iter = &req->io->rw.iter;
@@ -3147,7 +3148,8 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		kiocb->ki_flags &= ~IOCB_NOWAIT;
 
 	/* If the file doesn't support async, just async punt */
-	if (force_nonblock && !io_file_supports_async(req->file, READ))
+	no_async = force_nonblock && !io_file_supports_async(req->file, READ);
+	if (no_async)
 		goto copy_iov;
 
 	ret = rw_verify_area(READ, req->file, io_kiocb_ppos(kiocb), iov_count);
@@ -3191,6 +3193,8 @@ copy_iov:
 		ret = ret2;
 		goto out_free;
 	}
+	if (no_async)
+		return -EAGAIN;
 	/* it's copied and will be cleaned with ->io */
 	iovec = NULL;
 	/* now use our persistent iterator, if we aren't already */
