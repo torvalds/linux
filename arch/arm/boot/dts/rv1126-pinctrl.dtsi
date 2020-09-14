@@ -312,6 +312,12 @@
 				/* fspi_d3 */
 				<1 RK_PA2 3 &pcfg_pull_up>;
 		};
+		/omit-if-no-ref/
+		fspi_cs1: fspi-cs1 {
+			rockchip,pins =
+				/* fspi_cs1n */
+				<1 RK_PD1 3 &pcfg_pull_up>;
+		};
 	};
 	i2c0 {
 		/omit-if-no-ref/
