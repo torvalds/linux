@@ -29,7 +29,8 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 		    aarch64_insn_is_msr_imm(insn) ||
 		    aarch64_insn_is_msr_reg(insn) ||
 		    aarch64_insn_is_exception(insn) ||
-		    aarch64_insn_is_eret(insn))
+		    aarch64_insn_is_eret(insn) ||
+		    aarch64_insn_is_eret_auth(insn))
 			return false;
 
 		/*

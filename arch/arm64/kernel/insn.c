@@ -176,7 +176,7 @@ bool __kprobes aarch64_insn_uses_literal(u32 insn)
 
 bool __kprobes aarch64_insn_is_branch(u32 insn)
 {
-	/* b, bl, cb*, tb*, b.cond, br, blr */
+	/* b, bl, cb*, tb*, ret*, b.cond, br*, blr* */
 
 	return aarch64_insn_is_b(insn) ||
 		aarch64_insn_is_bl(insn) ||
@@ -185,8 +185,11 @@ bool __kprobes aarch64_insn_is_branch(u32 insn)
 		aarch64_insn_is_tbz(insn) ||
 		aarch64_insn_is_tbnz(insn) ||
 		aarch64_insn_is_ret(insn) ||
+		aarch64_insn_is_ret_auth(insn) ||
 		aarch64_insn_is_br(insn) ||
+		aarch64_insn_is_br_auth(insn) ||
 		aarch64_insn_is_blr(insn) ||
+		aarch64_insn_is_blr_auth(insn) ||
 		aarch64_insn_is_bcond(insn);
 }
 
