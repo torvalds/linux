@@ -3365,7 +3365,7 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 	}
 }
 
-int extent_read_full_page(struct page *page, struct bio **bio, int mirror_num,
+int extent_read_full_page(struct page *page, struct bio **bio,
 			  unsigned long *bio_flags, unsigned int read_flags)
 {
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
@@ -3375,8 +3375,7 @@ int extent_read_full_page(struct page *page, struct bio **bio, int mirror_num,
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-	ret = __do_readpage(page, NULL, bio, mirror_num, bio_flags, read_flags,
-			    NULL);
+	ret = __do_readpage(page, NULL, bio, 0, bio_flags, read_flags, NULL);
 	return ret;
 }
 
