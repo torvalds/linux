@@ -1068,6 +1068,11 @@ static int ast_connector_init(struct drm_device *dev)
  * Mode config
  */
 
+static const struct drm_mode_config_helper_funcs
+ast_mode_config_helper_funcs = {
+	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
+};
+
 static const struct drm_mode_config_funcs ast_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
 	.mode_valid = drm_vram_helper_mode_valid,
@@ -1106,6 +1111,8 @@ int ast_mode_config_init(struct ast_private *ast)
 		dev->mode_config.max_width = 1600;
 		dev->mode_config.max_height = 1200;
 	}
+
+	dev->mode_config.helper_private = &ast_mode_config_helper_funcs;
 
 	memset(&ast->primary_plane, 0, sizeof(ast->primary_plane));
 	ret = drm_universal_plane_init(dev, &ast->primary_plane, 0x01,
