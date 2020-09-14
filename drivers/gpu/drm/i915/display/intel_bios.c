@@ -905,7 +905,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 			drm_dbg_kms(&dev_priv->drm,
 				    "VBT tp1 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
 				    psr_table->tp1_wakeup_time);
-			/* fallthrough */
+			fallthrough;
 		case 2:
 			dev_priv->vbt.psr.tp1_wakeup_time_us = 2500;
 			break;
@@ -925,7 +925,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 			drm_dbg_kms(&dev_priv->drm,
 				    "VBT tp2_tp3 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
 				    psr_table->tp2_tp3_wakeup_time);
-			/* fallthrough */
+			fallthrough;
 		case 2:
 			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 2500;
 		break;
@@ -1775,7 +1775,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 		switch (child->hdmi_max_data_rate) {
 		default:
 			MISSING_CASE(child->hdmi_max_data_rate);
-			/* fall through */
+			fallthrough;
 		case HDMI_MAX_DATA_RATE_PLATFORM:
 			max_tmds_clock = 0;
 			break;

@@ -892,7 +892,7 @@ static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 			refclk = dev_priv->dpll.ref_clks.nssc;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case WRPLL_REF_PCH_SSC:
 		/*
 		 * We could calculate spread here, but our checking
@@ -2977,7 +2977,7 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 		switch (dev_priv->dpll.ref_clks.nssc) {
 		default:
 			MISSING_CASE(dev_priv->dpll.ref_clks.nssc);
-			/* fall-through */
+			fallthrough;
 		case 19200:
 			*pll_params = tgl_tbt_pll_19_2MHz_values;
 			break;
@@ -2992,7 +2992,7 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 		switch (dev_priv->dpll.ref_clks.nssc) {
 		default:
 			MISSING_CASE(dev_priv->dpll.ref_clks.nssc);
-			/* fall-through */
+			fallthrough;
 		case 19200:
 		case 38400:
 			*pll_params = icl_tbt_pll_19_2MHz_values;
@@ -3120,7 +3120,7 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 			switch (div1) {
 			default:
 				MISSING_CASE(div1);
-				/* fall through */
+				fallthrough;
 			case 2:
 				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_2;
 				break;
@@ -3475,6 +3475,14 @@ static void icl_update_active_dpll(struct intel_atomic_state *state,
 	icl_set_active_port_dpll(crtc_state, port_dpll_id);
 }
 
+static u32 intel_get_hti_plls(struct drm_i915_private *i915)
+{
+	if (!(i915->hti_state & HDPORT_ENABLED))
+		return 0;
+
+	return REG_FIELD_GET(HDPORT_DPLL_USED_MASK, i915->hti_state);
+}
+
 static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc,
 				   struct intel_encoder *encoder)
@@ -3504,13 +3512,22 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 
 	icl_calc_dpll_state(dev_priv, &pll_params, &port_dpll->hw_state);
 
-	if (IS_ELKHARTLAKE(dev_priv) && port != PORT_A)
+	if (IS_ROCKETLAKE(dev_priv)) {
 		dpll_mask =
 			BIT(DPLL_ID_EHL_DPLL4) |
 			BIT(DPLL_ID_ICL_DPLL1) |
 			BIT(DPLL_ID_ICL_DPLL0);
-	else
+	} else if (IS_ELKHARTLAKE(dev_priv) && port != PORT_A) {
+		dpll_mask =
+			BIT(DPLL_ID_EHL_DPLL4) |
+			BIT(DPLL_ID_ICL_DPLL1) |
+			BIT(DPLL_ID_ICL_DPLL0);
+	} else {
 		dpll_mask = BIT(DPLL_ID_ICL_DPLL1) | BIT(DPLL_ID_ICL_DPLL0);
+	}
+
+	/* Eliminate DPLLs from consideration if reserved by HTI */
+	dpll_mask &= ~intel_get_hti_plls(dev_priv);
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
@@ -3791,7 +3808,12 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	if (!(val & PLL_ENABLE))
 		goto out;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (IS_ROCKETLAKE(dev_priv)) {
+		hw_state->cfgcr0 = intel_de_read(dev_priv,
+						 RKL_DPLL_CFGCR0(id));
+		hw_state->cfgcr1 = intel_de_read(dev_priv,
+						 RKL_DPLL_CFGCR1(id));
+	} else if (INTEL_GEN(dev_priv) >= 12) {
 		hw_state->cfgcr0 = intel_de_read(dev_priv,
 						 TGL_DPLL_CFGCR0(id));
 		hw_state->cfgcr1 = intel_de_read(dev_priv,
@@ -3844,7 +3866,10 @@ static void icl_dpll_write(struct drm_i915_private *dev_priv,
 	const enum intel_dpll_id id = pll->info->id;
 	i915_reg_t cfgcr0_reg, cfgcr1_reg;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (IS_ROCKETLAKE(dev_priv)) {
+		cfgcr0_reg = RKL_DPLL_CFGCR0(id);
+		cfgcr1_reg = RKL_DPLL_CFGCR1(id);
+	} else if (INTEL_GEN(dev_priv) >= 12) {
 		cfgcr0_reg = TGL_DPLL_CFGCR0(id);
 		cfgcr1_reg = TGL_DPLL_CFGCR1(id);
 	} else {
@@ -4276,6 +4301,21 @@ static const struct intel_dpll_mgr tgl_pll_mgr = {
 	.dump_hw_state = icl_dump_hw_state,
 };
 
+static const struct dpll_info rkl_plls[] = {
+	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0, 0 },
+	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1, 0 },
+	{ "DPLL 4", &combo_pll_funcs, DPLL_ID_EHL_DPLL4, 0 },
+	{ },
+};
+
+static const struct intel_dpll_mgr rkl_pll_mgr = {
+	.dpll_info = rkl_plls,
+	.get_dplls = icl_get_dplls,
+	.put_dplls = icl_put_dplls,
+	.update_ref_clks = icl_update_dpll_ref_clks,
+	.dump_hw_state = icl_dump_hw_state,
+};
+
 /**
  * intel_shared_dpll_init - Initialize shared DPLLs
  * @dev: drm device
@@ -4289,7 +4329,9 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (IS_ROCKETLAKE(dev_priv))
+		dpll_mgr = &rkl_pll_mgr;
+	else if (INTEL_GEN(dev_priv) >= 12)
 		dpll_mgr = &tgl_pll_mgr;
 	else if (IS_ELKHARTLAKE(dev_priv))
 		dpll_mgr = &ehl_pll_mgr;

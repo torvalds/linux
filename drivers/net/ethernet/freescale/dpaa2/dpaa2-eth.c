@@ -376,10 +376,10 @@ static u32 run_xdp(struct dpaa2_eth_priv *priv,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(xdp_act);
-		/* fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
-		/* fall through */
+		fallthrough;
 	case XDP_DROP:
 		xdp_release_buf(priv, ch, addr);
 		ch->stats.xdp_drop++;

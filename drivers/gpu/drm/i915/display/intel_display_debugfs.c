@@ -417,6 +417,9 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 			su_blocks = su_blocks >> PSR2_SU_STATUS_SHIFT(frame);
 			seq_printf(m, "%d\t%d\n", frame, su_blocks);
 		}
+
+		seq_printf(m, "PSR2 selective fetch: %s\n",
+			   enableddisabled(psr->psr2_sel_fetch_enabled));
 	}
 
 unlock:
@@ -2044,9 +2047,12 @@ DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
 static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
-	struct intel_encoder *encoder =
-			intel_attached_encoder(to_intel_connector(connector));
 	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_encoder *encoder;
+
+	encoder = intel_attached_encoder(to_intel_connector(connector));
+	if (!encoder)
+		return -ENODEV;
 
 	if (connector->status != connector_status_connected)
 		return -ENODEV;

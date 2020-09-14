@@ -602,7 +602,7 @@ config MMC_GOLDFISH
 
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
-	depends on SPI_MASTER && HAS_DMA
+	depends on SPI_MASTER
 	select CRC7
 	select CRC_ITU_T
 	help

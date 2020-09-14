@@ -1021,7 +1021,7 @@ static void clone_endio(struct bio *bio)
 		switch (r) {
 		case DM_ENDIO_REQUEUE:
 			error = BLK_STS_DM_REQUEUE;
-			/*FALLTHRU*/
+			fallthrough;
 		case DM_ENDIO_DONE:
 			break;
 		case DM_ENDIO_INCOMPLETE:

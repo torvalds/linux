@@ -439,29 +439,36 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	return __reset_engine(engine);
 }
 
-static struct intel_engine_cs *__active_engine(struct i915_request *rq)
+static bool
+__active_engine(struct i915_request *rq, struct intel_engine_cs **active)
 {
 	struct intel_engine_cs *engine, *locked;
+	bool ret = false;
 
 	/*
 	 * Serialise with __i915_request_submit() so that it sees
 	 * is-banned?, or we know the request is already inflight.
+	 *
+	 * Note that rq->engine is unstable, and so we double
+	 * check that we have acquired the lock on the final engine.
 	 */
 	locked = READ_ONCE(rq->engine);
 	spin_lock_irq(&locked->active.lock);
 	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
 		spin_unlock(&locked->active.lock);
-		spin_lock(&engine->active.lock);
 		locked = engine;
+		spin_lock(&locked->active.lock);
 	}
 
-	engine = NULL;
-	if (i915_request_is_active(rq) && rq->fence.error != -EIO)
-		engine = rq->engine;
+	if (!i915_request_completed(rq)) {
+		if (i915_request_is_active(rq) && rq->fence.error != -EIO)
+			*active = locked;
+		ret = true;
+	}
 
 	spin_unlock_irq(&locked->active.lock);
 
-	return engine;
+	return ret;
 }
 
 static struct intel_engine_cs *active_engine(struct intel_context *ce)
@@ -472,17 +479,16 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	if (!ce->timeline)
 		return NULL;
 
-	mutex_lock(&ce->timeline->mutex);
-	list_for_each_entry_reverse(rq, &ce->timeline->requests, link) {
-		if (i915_request_completed(rq))
-			break;
+	rcu_read_lock();
+	list_for_each_entry_rcu(rq, &ce->timeline->requests, link) {
+		if (i915_request_is_active(rq) && i915_request_completed(rq))
+			continue;
 
 		/* Check with the backend if the request is inflight */
-		engine = __active_engine(rq);
-		if (engine)
+		if (__active_engine(rq, &engine))
 			break;
 	}
-	mutex_unlock(&ce->timeline->mutex);
+	rcu_read_unlock();
 
 	return engine;
 }
@@ -713,6 +719,7 @@ __create_context(struct drm_i915_private *i915)
 	ctx->i915 = i915;
 	ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_NORMAL);
 	mutex_init(&ctx->mutex);
+	INIT_LIST_HEAD(&ctx->link);
 
 	spin_lock_init(&ctx->stale.lock);
 	INIT_LIST_HEAD(&ctx->stale.engines);
@@ -739,10 +746,6 @@ __create_context(struct drm_i915_private *i915)
 
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
-
-	spin_lock(&i915->gem.contexts.lock);
-	list_add_tail(&ctx->link, &i915->gem.contexts.list);
-	spin_unlock(&i915->gem.contexts.lock);
 
 	return ctx;
 
@@ -889,7 +892,7 @@ i915_gem_create_context(struct drm_i915_private *i915, unsigned int flags)
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE) {
 		struct intel_timeline *timeline;
 
-		timeline = intel_timeline_create(&i915->gt, NULL);
+		timeline = intel_timeline_create(&i915->gt);
 		if (IS_ERR(timeline)) {
 			context_close(ctx);
 			return ERR_CAST(timeline);
@@ -931,6 +934,7 @@ static int gem_context_register(struct i915_gem_context *ctx,
 				struct drm_i915_file_private *fpriv,
 				u32 *id)
 {
+	struct drm_i915_private *i915 = ctx->i915;
 	struct i915_address_space *vm;
 	int ret;
 
@@ -949,8 +953,16 @@ static int gem_context_register(struct i915_gem_context *ctx,
 	/* And finally expose ourselves to userspace via the idr */
 	ret = xa_alloc(&fpriv->context_xa, id, ctx, xa_limit_32b, GFP_KERNEL);
 	if (ret)
-		put_pid(fetch_and_zero(&ctx->pid));
+		goto err_pid;
 
+	spin_lock(&i915->gem.contexts.lock);
+	list_add_tail(&ctx->link, &i915->gem.contexts.list);
+	spin_unlock(&i915->gem.contexts.lock);
+
+	return 0;
+
+err_pid:
+	put_pid(fetch_and_zero(&ctx->pid));
 	return ret;
 }
 
@@ -1094,6 +1106,7 @@ I915_SELFTEST_DECLARE(static intel_engine_mask_t context_barrier_inject_fault);
 static int context_barrier_task(struct i915_gem_context *ctx,
 				intel_engine_mask_t engines,
 				bool (*skip)(struct intel_context *ce, void *data),
+				int (*pin)(struct intel_context *ce, struct i915_gem_ww_ctx *ww, void *data),
 				int (*emit)(struct i915_request *rq, void *data),
 				void (*task)(void *data),
 				void *data)
@@ -1101,6 +1114,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 	struct context_barrier_task *cb;
 	struct i915_gem_engines_iter it;
 	struct i915_gem_engines *e;
+	struct i915_gem_ww_ctx ww;
 	struct intel_context *ce;
 	int err = 0;
 
@@ -1138,10 +1152,21 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 		if (skip && skip(ce, data))
 			continue;
 
-		rq = intel_context_create_request(ce);
+		i915_gem_ww_ctx_init(&ww, true);
+retry:
+		err = intel_context_pin_ww(ce, &ww);
+		if (err)
+			goto err;
+
+		if (pin)
+			err = pin(ce, &ww, data);
+		if (err)
+			goto err_unpin;
+
+		rq = i915_request_create(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			break;
+			goto err_unpin;
 		}
 
 		err = 0;
@@ -1151,6 +1176,16 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 			err = i915_active_add_request(&cb->base, rq);
 
 		i915_request_add(rq);
+err_unpin:
+		intel_context_unpin(ce);
+err:
+		if (err == -EDEADLK) {
+			err = i915_gem_ww_ctx_backoff(&ww);
+			if (!err)
+				goto retry;
+		}
+		i915_gem_ww_ctx_fini(&ww);
+
 		if (err)
 			break;
 	}
@@ -1204,6 +1239,17 @@ static void set_ppgtt_barrier(void *data)
 		gen6_ppgtt_unpin_all(i915_vm_to_ppgtt(old));
 
 	i915_vm_close(old);
+}
+
+static int pin_ppgtt_update(struct intel_context *ce, struct i915_gem_ww_ctx *ww, void *data)
+{
+	struct i915_address_space *vm = ce->vm;
+
+	if (!HAS_LOGICAL_RING_CONTEXTS(vm->i915))
+		/* ppGTT is not part of the legacy context image */
+		return gen6_ppgtt_pin(i915_vm_to_ppgtt(vm), ww);
+
+	return 0;
 }
 
 static int emit_ppgtt_update(struct i915_request *rq, void *data)
@@ -1262,20 +1308,10 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 
 static bool skip_ppgtt_update(struct intel_context *ce, void *data)
 {
-	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))
-		return true;
-
 	if (HAS_LOGICAL_RING_CONTEXTS(ce->engine->i915))
-		return false;
-
-	if (!atomic_read(&ce->pin_count))
-		return true;
-
-	/* ppGTT is not part of the legacy context image */
-	if (gen6_ppgtt_pin(i915_vm_to_ppgtt(ce->vm)))
-		return true;
-
-	return false;
+		return !ce->state;
+	else
+		return !atomic_read(&ce->pin_count);
 }
 
 static int set_ppgtt(struct drm_i915_file_private *file_priv,
@@ -1326,6 +1362,7 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 	 */
 	err = context_barrier_task(ctx, ALL_ENGINES,
 				   skip_ppgtt_update,
+				   pin_ppgtt_update,
 				   emit_ppgtt_update,
 				   set_ppgtt_barrier,
 				   old);

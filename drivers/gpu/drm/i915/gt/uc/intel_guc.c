@@ -677,7 +677,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 		goto err;
 
 	flags = PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
-	ret = i915_ggtt_pin(vma, 0, flags);
+	ret = i915_ggtt_pin(vma, NULL, 0, flags);
 	if (ret) {
 		vma = ERR_PTR(ret);
 		goto err;

@@ -1238,6 +1238,14 @@ bool dc_enable_stereo(
 	return ret;
 }
 
+void dc_trigger_sync(struct dc *dc, struct dc_state *context)
+{
+	if (context->stream_count > 1 && !dc->debug.disable_timing_sync) {
+		enable_timing_multisync(dc, context);
+		program_timing_sync(dc, context);
+	}
+}
+
 /*
  * Applies given context to HW and copy it into current context.
  * It's up to the user to release the src context afterwards.
@@ -1297,10 +1305,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (result != DC_OK)
 		return result;
 
-	if (context->stream_count > 1 && !dc->debug.disable_timing_sync) {
-		enable_timing_multisync(dc, context);
-		program_timing_sync(dc, context);
-	}
+	dc_trigger_sync(dc, context);
 
 	/* Program all planes within new context*/
 	if (dc->hwss.program_front_end_for_ctx) {
@@ -2295,6 +2300,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		enum surface_update_type update_type,
 		struct dc_state *context)
 {
+	bool mpcc_disconnected = false;
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
@@ -2323,6 +2329,15 @@ static void commit_planes_for_stream(struct dc *dc,
 			dc->hwss.prepare_bandwidth(dc, context);
 
 		context_clock_trace(dc, context);
+	}
+
+	if (update_type != UPDATE_TYPE_FAST && dc->hwss.interdependent_update_lock &&
+		dc->hwss.disconnect_pipes && dc->hwss.wait_for_pending_cleared){
+		dc->hwss.interdependent_update_lock(dc, context, true);
+		mpcc_disconnected = dc->hwss.disconnect_pipes(dc, context);
+		dc->hwss.interdependent_update_lock(dc, context, false);
+		if (mpcc_disconnected)
+			dc->hwss.wait_for_pending_cleared(dc, context);
 	}
 
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
@@ -2621,7 +2636,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 
 	copy_stream_update_to_stream(dc, context, stream, stream_update);
 
-	if (update_type > UPDATE_TYPE_FAST) {
+	if (update_type >= UPDATE_TYPE_FULL) {
 		if (!dc->res_pool->funcs->validate_bandwidth(dc, context, false)) {
 			DC_ERROR("Mode validation failed for stream update!\n");
 			dc_release_state(context);
@@ -2931,6 +2946,30 @@ void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_
 {
 	if (dc->hwss.get_clock)
 		dc->hwss.get_clock(dc, clock_type, clock_cfg);
+}
+
+/* enable/disable eDP PSR without specify stream for eDP */
+bool dc_set_psr_allow_active(struct dc *dc, bool enable)
+{
+	int i;
+
+	for (i = 0; i < dc->current_state->stream_count ; i++) {
+		struct dc_link *link;
+		struct dc_stream_state *stream = dc->current_state->streams[i];
+
+		link = stream->link;
+		if (!link)
+			continue;
+
+		if (link->psr_settings.psr_feature_enabled) {
+			if (enable && !link->psr_settings.psr_allow_active)
+				return dc_link_set_psr_allow_active(link, true, false);
+			else if (!enable && link->psr_settings.psr_allow_active)
+				return dc_link_set_psr_allow_active(link, false, false);
+		}
+	}
+
+	return true;
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)

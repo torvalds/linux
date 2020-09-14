@@ -219,7 +219,7 @@ static const struct regmap_config tegra186_admaif_regmap_config = {
 	.cache_type		= REGCACHE_FLAT,
 };
 
-static int tegra_admaif_runtime_suspend(struct device *dev)
+static int __maybe_unused tegra_admaif_runtime_suspend(struct device *dev)
 {
 	struct tegra_admaif *admaif = dev_get_drvdata(dev);
 
@@ -229,7 +229,7 @@ static int tegra_admaif_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_admaif_runtime_resume(struct device *dev)
+static int __maybe_unused tegra_admaif_runtime_resume(struct device *dev)
 {
 	struct tegra_admaif *admaif = dev_get_drvdata(dev);
 

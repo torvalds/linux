@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 9
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc5
 NAME = Kleptomaniac Octopus
 
 # *DOCUMENTATION*
@@ -265,8 +265,7 @@ no-dot-config-targets := $(clean-targets) \
 			 $(version_h) headers headers_% archheaders archscripts \
 			 %asm-generic kernelversion %src-pkg dt_binding_check \
 			 outputmakefile
-no-sync-config-targets := $(no-dot-config-targets) install %install \
-			   kernelrelease
+no-sync-config-targets := $(no-dot-config-targets) %install kernelrelease
 single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.s %.symtypes %/
 
 config-build	:=
@@ -292,7 +291,7 @@ ifneq ($(KBUILD_EXTMOD),)
 endif
 
 ifeq ($(KBUILD_EXTMOD),)
-        ifneq ($(filter config %config,$(MAKECMDGOALS)),)
+        ifneq ($(filter %config,$(MAKECMDGOALS)),)
 		config-build := 1
                 ifneq ($(words $(MAKECMDGOALS)),1)
 			mixed-build := 1
@@ -881,10 +880,6 @@ endif
 ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
 KBUILD_CFLAGS_KERNEL += -ffunction-sections -fdata-sections
 LDFLAGS_vmlinux += --gc-sections
-endif
-
-ifdef CONFIG_LIVEPATCH
-KBUILD_CFLAGS += $(call cc-option, -flive-patching=inline-clone)
 endif
 
 ifdef CONFIG_SHADOW_CALL_STACK

@@ -36,7 +36,7 @@
 #define MMHUB_NUM_INSTANCES			2
 #define MMHUB_INSTANCE_REGISTER_OFFSET		0x3000
 
-u64 mmhub_v9_4_get_fb_location(struct amdgpu_device *adev)
+static u64 mmhub_v9_4_get_fb_location(struct amdgpu_device *adev)
 {
 	/* The base should be same b/t 2 mmhubs on Acrturus. Read one here. */
 	u64 base = RREG32_SOC15(MMHUB, 0, mmVMSHAREDVC0_MC_VM_FB_LOCATION_BASE);
@@ -97,7 +97,7 @@ static void mmhub_v9_4_init_gart_aperture_regs(struct amdgpu_device *adev,
 			    (u32)(adev->gmc.gart_end >> 44));
 }
 
-void mmhub_v9_4_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+static void mmhub_v9_4_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
 				uint64_t page_table_base)
 {
 	int i;
@@ -375,7 +375,7 @@ static void mmhub_v9_4_program_invalidation(struct amdgpu_device *adev,
 	}
 }
 
-int mmhub_v9_4_gart_enable(struct amdgpu_device *adev)
+static int mmhub_v9_4_gart_enable(struct amdgpu_device *adev)
 {
 	int i;
 
@@ -397,7 +397,7 @@ int mmhub_v9_4_gart_enable(struct amdgpu_device *adev)
 	return 0;
 }
 
-void mmhub_v9_4_gart_disable(struct amdgpu_device *adev)
+static void mmhub_v9_4_gart_disable(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB_0];
 	u32 tmp;
@@ -442,7 +442,7 @@ void mmhub_v9_4_gart_disable(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  * @value: true redirects VM faults to the default page
  */
-void mmhub_v9_4_set_fault_enable_default(struct amdgpu_device *adev, bool value)
+static void mmhub_v9_4_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 {
 	u32 tmp;
 	int i;
@@ -500,7 +500,7 @@ void mmhub_v9_4_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 	}
 }
 
-void mmhub_v9_4_init(struct amdgpu_device *adev)
+static void mmhub_v9_4_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub[MMHUB_NUM_INSTANCES] =
 		{&adev->vmhub[AMDGPU_MMHUB_0], &adev->vmhub[AMDGPU_MMHUB_1]};
@@ -630,7 +630,7 @@ static void mmhub_v9_4_update_medium_grain_light_sleep(struct amdgpu_device *ade
 	}
 }
 
-int mmhub_v9_4_set_clockgating(struct amdgpu_device *adev,
+static int mmhub_v9_4_set_clockgating(struct amdgpu_device *adev,
 			       enum amd_clockgating_state state)
 {
 	if (amdgpu_sriov_vf(adev))
@@ -650,7 +650,7 @@ int mmhub_v9_4_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-void mmhub_v9_4_get_clockgating(struct amdgpu_device *adev, u32 *flags)
+static void mmhub_v9_4_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 {
 	int data, data1;
 
@@ -1628,4 +1628,12 @@ const struct amdgpu_mmhub_funcs mmhub_v9_4_funcs = {
 	.ras_late_init = amdgpu_mmhub_ras_late_init,
 	.query_ras_error_count = mmhub_v9_4_query_ras_error_count,
 	.reset_ras_error_count = mmhub_v9_4_reset_ras_error_count,
+	.get_fb_location = mmhub_v9_4_get_fb_location,
+	.init = mmhub_v9_4_init,
+	.gart_enable = mmhub_v9_4_gart_enable,
+	.set_fault_enable_default = mmhub_v9_4_set_fault_enable_default,
+	.gart_disable = mmhub_v9_4_gart_disable,
+	.set_clockgating = mmhub_v9_4_set_clockgating,
+	.get_clockgating = mmhub_v9_4_get_clockgating,
+	.setup_vm_pt_regs = mmhub_v9_4_setup_vm_pt_regs,
 };

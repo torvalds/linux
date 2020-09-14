@@ -374,12 +374,14 @@ For 32-bit we have the following conventions - kernel is built with
  * Fetch the per-CPU GSBASE value for this processor and put it in @reg.
  * We normally use %gs for accessing per-CPU data, but we are setting up
  * %gs here and obviously can not use %gs itself to access per-CPU data.
+ *
+ * Do not use RDPID, because KVM loads guest's TSC_AUX on vm-entry and
+ * may not restore the host's value until the CPU returns to userspace.
+ * Thus the kernel would consume a guest's TSC_AUX if an NMI arrives
+ * while running KVM's run loop.
  */
 .macro GET_PERCPU_BASE reg:req
-	ALTERNATIVE \
-		"LOAD_CPU_AND_NODE_SEG_LIMIT \reg", \
-		"RDPID	\reg", \
-		X86_FEATURE_RDPID
+	LOAD_CPU_AND_NODE_SEG_LIMIT \reg
 	andq	$VDSO_CPUNODE_MASK, \reg
 	movq	__per_cpu_offset(, \reg, 8), \reg
 .endm

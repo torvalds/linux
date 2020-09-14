@@ -43,6 +43,10 @@ DC_LIBS += dce110
 DC_LIBS += dce100
 DC_LIBS += dce80
 
+ifdef CONFIG_DRM_AMD_DC_SI
+DC_LIBS += dce60
+endif
+
 ifdef CONFIG_DRM_AMD_DC_HDCP
 DC_LIBS += hdcp
 endif

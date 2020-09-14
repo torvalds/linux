@@ -859,7 +859,7 @@ void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state)
 	switch (state) {
 	case BR_STATE_FORWARDING:
 		ocelot->bridge_fwd_mask |= BIT(port);
-		/* Fallthrough */
+		fallthrough;
 	case BR_STATE_LEARNING:
 		port_cfg |= ANA_PORT_PORT_CFG_LEARN_ENA;
 		break;

@@ -140,7 +140,7 @@ static void bio_post_read_processing(struct bio_post_read_ctx *ctx)
 			return;
 		}
 		ctx->cur_step++;
-		/* fall-through */
+		fallthrough;
 	case STEP_VERITY:
 		if (ctx->enabled_steps & (1 << STEP_VERITY)) {
 			INIT_WORK(&ctx->work, verity_work);
@@ -148,7 +148,7 @@ static void bio_post_read_processing(struct bio_post_read_ctx *ctx)
 			return;
 		}
 		ctx->cur_step++;
-		/* fall-through */
+		fallthrough;
 	default:
 		__read_end_io(ctx->bio);
 	}

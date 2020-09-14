@@ -618,10 +618,10 @@ pgoff_t f2fs_get_next_page_offset(struct dnode_of_data *dn, pgoff_t pgofs)
 	switch (dn->max_level) {
 	case 3:
 		base += 2 * indirect_blks;
-		/* fall through */
+		fallthrough;
 	case 2:
 		base += 2 * direct_blks;
-		/* fall through */
+		fallthrough;
 	case 1:
 		base += direct_index;
 		break;
@@ -2372,6 +2372,9 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 
 	if (unlikely(nid >= nm_i->max_nid))
 		nid = 0;
+
+	if (unlikely(nid % NAT_ENTRY_PER_BLOCK))
+		nid = NAT_BLOCK_OFFSET(nid) * NAT_ENTRY_PER_BLOCK;
 
 	/* Enough entries */
 	if (nm_i->nid_cnt[FREE_NID] >= NAT_ENTRY_PER_BLOCK)

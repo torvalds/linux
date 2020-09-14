@@ -32,24 +32,32 @@
 
 #include "amdgpu_vm.h"
 
-enum drm_sched_priority amdgpu_to_sched_priority(int amdgpu_priority)
+int amdgpu_to_sched_priority(int amdgpu_priority,
+			     enum drm_sched_priority *prio)
 {
 	switch (amdgpu_priority) {
 	case AMDGPU_CTX_PRIORITY_VERY_HIGH:
-		return DRM_SCHED_PRIORITY_HIGH_HW;
+		*prio = DRM_SCHED_PRIORITY_HIGH;
+		break;
 	case AMDGPU_CTX_PRIORITY_HIGH:
-		return DRM_SCHED_PRIORITY_HIGH_SW;
+		*prio = DRM_SCHED_PRIORITY_HIGH;
+		break;
 	case AMDGPU_CTX_PRIORITY_NORMAL:
-		return DRM_SCHED_PRIORITY_NORMAL;
+		*prio = DRM_SCHED_PRIORITY_NORMAL;
+		break;
 	case AMDGPU_CTX_PRIORITY_LOW:
 	case AMDGPU_CTX_PRIORITY_VERY_LOW:
-		return DRM_SCHED_PRIORITY_LOW;
+		*prio = DRM_SCHED_PRIORITY_MIN;
+		break;
 	case AMDGPU_CTX_PRIORITY_UNSET:
-		return DRM_SCHED_PRIORITY_UNSET;
+		*prio = DRM_SCHED_PRIORITY_UNSET;
+		break;
 	default:
 		WARN(1, "Invalid context priority %d\n", amdgpu_priority);
-		return DRM_SCHED_PRIORITY_INVALID;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 static int amdgpu_sched_process_priority_override(struct amdgpu_device *adev,
@@ -115,13 +123,24 @@ int amdgpu_sched_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *filp)
 {
 	union drm_amdgpu_sched *args = data;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	enum drm_sched_priority priority;
 	int r;
 
-	priority = amdgpu_to_sched_priority(args->in.priority);
-	if (priority == DRM_SCHED_PRIORITY_INVALID)
+	/* First check the op, then the op's argument.
+	 */
+	switch (args->in.op) {
+	case AMDGPU_SCHED_OP_PROCESS_PRIORITY_OVERRIDE:
+	case AMDGPU_SCHED_OP_CONTEXT_PRIORITY_OVERRIDE:
+		break;
+	default:
+		DRM_ERROR("Invalid sched op specified: %d\n", args->in.op);
 		return -EINVAL;
+	}
+
+	r = amdgpu_to_sched_priority(args->in.priority, &priority);
+	if (r)
+		return r;
 
 	switch (args->in.op) {
 	case AMDGPU_SCHED_OP_PROCESS_PRIORITY_OVERRIDE:
@@ -136,7 +155,8 @@ int amdgpu_sched_ioctl(struct drm_device *dev, void *data,
 							   priority);
 		break;
 	default:
-		DRM_ERROR("Invalid sched op specified: %d\n", args->in.op);
+		/* Impossible.
+		 */
 		r = -EINVAL;
 		break;
 	}

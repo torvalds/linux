@@ -259,9 +259,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 			     dentry, dentry, d_inode(dentry));
 			ctx->pos = di->offset;
 			if (!dir_emit(ctx, dentry->d_name.name,
-				      dentry->d_name.len,
-				      ceph_translate_ino(dentry->d_sb,
-							 d_inode(dentry)->i_ino),
+				      dentry->d_name.len, ceph_present_inode(d_inode(dentry)),
 				      d_inode(dentry)->i_mode >> 12)) {
 				dput(dentry);
 				err = 0;
@@ -324,18 +322,21 @@ static int ceph_readdir(struct file *file, struct dir_context *ctx)
 	/* always start with . and .. */
 	if (ctx->pos == 0) {
 		dout("readdir off 0 -> '.'\n");
-		if (!dir_emit(ctx, ".", 1, 
-			    ceph_translate_ino(inode->i_sb, inode->i_ino),
+		if (!dir_emit(ctx, ".", 1, ceph_present_inode(inode),
 			    inode->i_mode >> 12))
 			return 0;
 		ctx->pos = 1;
 	}
 	if (ctx->pos == 1) {
-		ino_t ino = parent_ino(file->f_path.dentry);
+		u64 ino;
+		struct dentry *dentry = file->f_path.dentry;
+
+		spin_lock(&dentry->d_lock);
+		ino = ceph_present_inode(dentry->d_parent->d_inode);
+		spin_unlock(&dentry->d_lock);
+
 		dout("readdir off 1 -> '..'\n");
-		if (!dir_emit(ctx, "..", 2,
-			    ceph_translate_ino(inode->i_sb, ino),
-			    inode->i_mode >> 12))
+		if (!dir_emit(ctx, "..", 2, ino, inode->i_mode >> 12))
 			return 0;
 		ctx->pos = 2;
 	}
@@ -507,9 +508,6 @@ more:
 	}
 	for (; i < rinfo->dir_nr; i++) {
 		struct ceph_mds_reply_dir_entry *rde = rinfo->dir_entries + i;
-		struct ceph_vino vino;
-		ino_t ino;
-		u32 ftype;
 
 		BUG_ON(rde->offset < ctx->pos);
 
@@ -519,13 +517,10 @@ more:
 		     rde->name_len, rde->name, &rde->inode.in);
 
 		BUG_ON(!rde->inode.in);
-		ftype = le32_to_cpu(rde->inode.in->mode) >> 12;
-		vino.ino = le64_to_cpu(rde->inode.in->ino);
-		vino.snap = le64_to_cpu(rde->inode.in->snapid);
-		ino = ceph_vino_to_ino(vino);
 
 		if (!dir_emit(ctx, rde->name, rde->name_len,
-			      ceph_translate_ino(inode->i_sb, ino), ftype)) {
+			      ceph_present_ino(inode->i_sb, le64_to_cpu(rde->inode.in->ino)),
+			      le32_to_cpu(rde->inode.in->mode) >> 12)) {
 			dout("filldir stopping us...\n");
 			return 0;
 		}
@@ -1161,7 +1156,7 @@ retry:
 
 	if (try_async && op == CEPH_MDS_OP_UNLINK &&
 	    (req->r_dir_caps = get_caps_for_async_unlink(dir, dentry))) {
-		dout("async unlink on %lu/%.*s caps=%s", dir->i_ino,
+		dout("async unlink on %llu/%.*s caps=%s", ceph_ino(dir),
 		     dentry->d_name.len, dentry->d_name.name,
 		     ceph_cap_string(req->r_dir_caps));
 		set_bit(CEPH_MDS_R_ASYNC, &req->r_req_flags);
@@ -1745,7 +1740,7 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 			case -ENOENT:
 				if (d_really_is_negative(dentry))
 					valid = 1;
-				/* Fallthrough */
+				fallthrough;
 			default:
 				break;
 			}

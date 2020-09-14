@@ -23,8 +23,8 @@ Required properties:
 
 - compatible:
     Must be one of :
-    "brcm,spi-bcm-qspi", "brcm,spi-brcmstb-qspi" : MSPI+BSPI on BRCMSTB SoCs
-    "brcm,spi-bcm-qspi", "brcm,spi-brcmstb-mspi" : Second Instance of MSPI
+    "brcm,spi-brcmstb-qspi", "brcm,spi-bcm-qspi" : MSPI+BSPI on BRCMSTB SoCs
+    "brcm,spi-brcmstb-mspi", "brcm,spi-bcm-qspi" : Second Instance of MSPI
 						   BRCMSTB  SoCs
     "brcm,spi-bcm7425-qspi", "brcm,spi-bcm-qspi", "brcm,spi-brcmstb-mspi" : Second Instance of MSPI
     			     			  			    BRCMSTB  SoCs
@@ -36,8 +36,8 @@ Required properties:
     			     			  			    BRCMSTB  SoCs
     "brcm,spi-bcm7278-qspi", "brcm,spi-bcm-qspi", "brcm,spi-brcmstb-mspi" : Second Instance of MSPI
     			     			  			    BRCMSTB  SoCs
-    "brcm,spi-bcm-qspi", "brcm,spi-nsp-qspi"     : MSPI+BSPI on Cygnus, NSP
-    "brcm,spi-bcm-qspi", "brcm,spi-ns2-qspi"     : NS2 SoCs
+    "brcm,spi-nsp-qspi", "brcm,spi-bcm-qspi"     : MSPI+BSPI on Cygnus, NSP
+    "brcm,spi-ns2-qspi", "brcm,spi-bcm-qspi"     : NS2 SoCs
 
 - reg:
     Define the bases and ranges of the associated I/O address spaces.
@@ -86,7 +86,7 @@ BRCMSTB SoC Example:
     spi@f03e3400 {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
-		compatible = "brcm,spi-brcmstb-qspi", "brcm,spi-brcmstb-qspi";
+		compatible = "brcm,spi-brcmstb-qspi", "brcm,spi-bcm-qspi";
 		reg = <0xf03e0920 0x4 0xf03e3400 0x188 0xf03e3200 0x50>;
 		reg-names = "cs_reg", "mspi", "bspi";
 		interrupts = <0x6 0x5 0x4 0x3 0x2 0x1 0x0>;
@@ -149,7 +149,7 @@ BRCMSTB SoC Example:
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&upg_fixed>;
-		compatible = "brcm,spi-brcmstb-qspi", "brcm,spi-brcmstb-mspi";
+		compatible = "brcm,spi-brcmstb-mspi", "brcm,spi-bcm-qspi";
 		reg = <0xf0416000 0x180>;
 		reg-names = "mspi";
 		interrupts = <0x14>;
@@ -160,7 +160,7 @@ BRCMSTB SoC Example:
 iProc SoC Example:
 
     qspi: spi@18027200 {
-	compatible = "brcm,spi-bcm-qspi", "brcm,spi-nsp-qspi";
+	compatible = "brcm,spi-nsp-qspi", "brcm,spi-bcm-qspi";
 	reg = <0x18027200 0x184>,
 	      <0x18027000 0x124>,
 	      <0x1811c408 0x004>,
@@ -191,7 +191,7 @@ iProc SoC Example:
  NS2 SoC Example:
 
 	       qspi: spi@66470200 {
-		       compatible = "brcm,spi-bcm-qspi", "brcm,spi-ns2-qspi";
+		       compatible = "brcm,spi-ns2-qspi", "brcm,spi-bcm-qspi";
 		       reg = <0x66470200 0x184>,
 			     <0x66470000 0x124>,
 			     <0x67017408 0x004>,

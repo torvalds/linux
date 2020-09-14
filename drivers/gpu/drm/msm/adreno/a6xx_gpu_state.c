@@ -938,7 +938,8 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 		msm_gem_kernel_put(dumper.bo, gpu->aspace, true);
 	}
 
-	a6xx_get_debugbus(gpu, a6xx_state);
+	if (snapshot_debugbus)
+		a6xx_get_debugbus(gpu, a6xx_state);
 
 	return  &a6xx_state->base;
 }

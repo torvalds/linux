@@ -73,6 +73,23 @@ struct amdgpu_mman {
 
 	struct amdgpu_vram_mgr vram_mgr;
 	struct amdgpu_gtt_mgr gtt_mgr;
+
+	uint64_t		stolen_vga_size;
+	struct amdgpu_bo	*stolen_vga_memory;
+	uint64_t		stolen_extended_size;
+	struct amdgpu_bo	*stolen_extended_memory;
+	bool			keep_stolen_vga_memory;
+
+	/* discovery */
+	uint8_t				*discovery_bin;
+	uint32_t			discovery_tmr_size;
+	struct amdgpu_bo		*discovery_memory;
+
+	/* firmware VRAM reservation */
+	u64		fw_vram_usage_start_offset;
+	u64		fw_vram_usage_size;
+	struct amdgpu_bo	*fw_vram_usage_reserved_bo;
+	void		*fw_vram_usage_va;
 };
 
 struct amdgpu_copy_mem {

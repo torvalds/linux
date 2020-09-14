@@ -25,9 +25,9 @@ static struct resword {
 	{ "__int128_t", BUILTIN_INT_KEYW },
 	{ "__uint128_t", BUILTIN_INT_KEYW },
 
-	// According to rth, c99 defines "_Bool", __restrict", __restrict__", "restrict".  KAO
+	// According to rth, c99 defines "_Bool", "__restrict", "__restrict__", "restrict".  KAO
 	{ "_Bool", BOOL_KEYW },
-	{ "_restrict", RESTRICT_KEYW },
+	{ "__restrict", RESTRICT_KEYW },
 	{ "__restrict__", RESTRICT_KEYW },
 	{ "restrict", RESTRICT_KEYW },
 	{ "asm", ASM_KEYW },
