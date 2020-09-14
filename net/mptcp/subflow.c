@@ -816,6 +816,7 @@ static void mptcp_subflow_discard_data(struct sock *ssk, struct sk_buff *skb,
 
 	pr_debug("discarding=%d len=%d seq=%d", incr, skb->len,
 		 subflow->map_subflow_seq);
+	MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_DUPDATA);
 	tcp_sk(ssk)->copied_seq += incr;
 	if (!before(tcp_sk(ssk)->copied_seq, TCP_SKB_CB(skb)->end_seq))
 		sk_eat_skb(ssk, skb);

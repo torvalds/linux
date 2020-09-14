@@ -15,6 +15,11 @@ enum linux_mptcp_mib_field {
 	MPTCP_MIB_JOINACKMAC,		/* HMAC was wrong on ACK + MP_JOIN */
 	MPTCP_MIB_DSSNOMATCH,		/* Received a new mapping that did not match the previous one */
 	MPTCP_MIB_INFINITEMAPRX,	/* Received an infinite mapping */
+	MPTCP_MIB_OFOQUEUETAIL,	/* Segments inserted into OoO queue tail */
+	MPTCP_MIB_OFOQUEUE,		/* Segments inserted into OoO queue */
+	MPTCP_MIB_OFOMERGE,		/* Segments merged in OoO queue */
+	MPTCP_MIB_NODSSWINDOW,		/* Segments not in MPTCP windows */
+	MPTCP_MIB_DUPDATA,		/* Segments discarded due to duplicate DSS */
 	__MPTCP_MIB_MAX
 };
 
