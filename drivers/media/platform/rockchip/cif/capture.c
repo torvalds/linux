@@ -1184,8 +1184,8 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 			rkcif_write_register(dev, frm_addr_y, dummy_buf->dma_addr);
 			if (stream->cif_fmt_out->fmt_type != CIF_FMT_TYPE_RAW)
 				rkcif_write_register(dev, frm_addr_uv, dummy_buf->dma_addr);
-			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
-				 "frame Drop to dummy buf\n");
+			v4l2_info(&dev->v4l2_dev,
+				 "frame drop to dummy buf, stream id %d\n", stream->id);
 		}
 	}
 }

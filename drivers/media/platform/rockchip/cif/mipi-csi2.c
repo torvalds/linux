@@ -117,6 +117,18 @@ struct csi2_dev {
 #define CSIHOST_MSK2		0x2c
 #define CSIHOST_CONTROL		0x40
 
+#define CSIHOST_ERR1_PHYERR_SPTSYNCHS	0x0000000f
+#define CSIHOST_ERR1_ERR_BNDRY_MATCH	0x000000f0
+#define CSIHOST_ERR1_ERR_SEQ		0x00000f00
+#define CSIHOST_ERR1_ERR_FRM_DATA	0x0000f000
+#define CSIHOST_ERR1_ERR_CRC		0x1f000000
+
+#define CSIHOST_ERR2_PHYERR_ESC		0x0000000f
+#define CSIHOST_ERR2_PHYERR_SOTHS	0x000000f0
+#define CSIHOST_ERR2_ECC_CORRECTED	0x00000f00
+#define CSIHOST_ERR2_ERR_ID		0x0000f000
+#define CSIHOST_ERR2_PHYERR_CODEHS	0x01000000
+
 #define SW_CPHY_EN(x)		((x) << 0)
 #define SW_DSI_EN(x)		((x) << 4)
 #define SW_DATATYPE_FS(x)	((x) << 8)
@@ -628,19 +640,27 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct csi2_dev *csi2 = sd_to_dev(dev_get_drvdata(dev));
-	static int csi_err1_cnt;
 	u32 val;
 
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR1);
 	if (val) {
 		write_csihost_reg(csi2->base,
 				  CSIHOST_ERR1, 0x0);
-		if (++csi_err1_cnt > CSIHOST_MAX_ERRINT_COUNT) {
-			v4l2_err(&csi2->sd, "mask csi2 host msk1!\n");
-			write_csihost_reg(csi2->base,
-					  CSIHOST_MSK1, 0xffffffff);
-			csi_err1_cnt = 0;
-		}
+		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS)
+			v4l2_err(&csi2->sd,
+				 "start of transmission error(no synchronization achieved), reg: 0x%x\n",
+				 val);
+		if (val & CSIHOST_ERR1_ERR_BNDRY_MATCH)
+			v4l2_err(&csi2->sd,
+				 "error matching frame start with frame end, reg: 0x%x\n",
+				 val);
+		if (val & CSIHOST_ERR1_ERR_SEQ)
+			v4l2_err(&csi2->sd, "incorrect frame sequence detected, reg: 0x%x\n", val);
+		if (val & CSIHOST_ERR1_ERR_FRM_DATA)
+			v4l2_dbg(1, csi2_debug, &csi2->sd,
+				 "at least one crc error, reg: 0x%x\n", val);
+		if (val & CSIHOST_ERR1_ERR_CRC)
+			v4l2_err(&csi2->sd, "crc errors, reg: 0x%x\n", val);
 	}
 
 	return IRQ_HANDLED;
@@ -650,17 +670,26 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct csi2_dev *csi2 = sd_to_dev(dev_get_drvdata(dev));
-	static int csi_err2_cnt;
 	u32 val;
 
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR2);
 	if (val) {
-		if (++csi_err2_cnt > CSIHOST_MAX_ERRINT_COUNT) {
-			v4l2_err(&csi2->sd, "mask csi2 host msk2!\n");
-			write_csihost_reg(csi2->base,
-					  CSIHOST_MSK2, 0xffffffff);
-			csi_err2_cnt = 0;
-		}
+		if (val & CSIHOST_ERR2_PHYERR_ESC)
+			v4l2_err(&csi2->sd, "escape entry error(ULPM), reg: 0x%x\n", val);
+		if (val & CSIHOST_ERR2_PHYERR_SOTHS)
+			v4l2_err(&csi2->sd,
+				 "start of transmission error(synchronization can still be achieved), reg: 0x%x\n",
+				 val);
+		if (val & CSIHOST_ERR2_ECC_CORRECTED)
+			v4l2_dbg(1, csi2_debug, &csi2->sd,
+				 "header error detected and corrected, reg: 0x%x\n",
+				 val);
+		if (val & CSIHOST_ERR2_ERR_ID)
+			v4l2_err(&csi2->sd,
+				 "unrecognized or unimplemented data type detected, reg: 0x%x\n",
+				 val);
+		if (val & CSIHOST_ERR2_PHYERR_CODEHS)
+			v4l2_err(&csi2->sd, "receiv error code, reg: 0x%x\n", val);
 	}
 
 	return IRQ_HANDLED;
