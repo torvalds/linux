@@ -18,8 +18,11 @@
 
 #define VERSION "0.1"
 
-#define BDADDR_INTEL (&(bdaddr_t) {{0x00, 0x8b, 0x9e, 0x19, 0x03, 0x00}})
-#define RSA_HEADER_LEN	644
+#define BDADDR_INTEL		(&(bdaddr_t){{0x00, 0x8b, 0x9e, 0x19, 0x03, 0x00}})
+#define RSA_HEADER_LEN		644
+#define CSS_HEADER_OFFSET	8
+#define ECDSA_OFFSET		644
+#define ECDSA_HEADER_LEN	320
 
 int btintel_check_bdaddr(struct hci_dev *hdev)
 {
@@ -801,6 +804,41 @@ done:
 	return err;
 }
 
+static int btintel_sfi_ecdsa_header_secure_send(struct hci_dev *hdev,
+						const struct firmware *fw)
+{
+	int err;
+
+	/* Start the firmware download transaction with the Init fragment
+	 * represented by the 128 bytes of CSS header.
+	 */
+	err = btintel_secure_send(hdev, 0x00, 128, fw->data + 644);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware header (%d)", err);
+		return err;
+	}
+
+	/* Send the 96 bytes of public key information from the firmware
+	 * as the PKey fragment.
+	 */
+	err = btintel_secure_send(hdev, 0x03, 96, fw->data + 644 + 128);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware pkey (%d)", err);
+		return err;
+	}
+
+	/* Send the 96 bytes of signature information from the firmware
+	 * as the Sign fragment
+	 */
+	err = btintel_secure_send(hdev, 0x02, 96, fw->data + 644 + 224);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware signature (%d)",
+			   err);
+		return err;
+	}
+	return 0;
+}
+
 static int btintel_download_firmware_payload(struct hci_dev *hdev,
 					     const struct firmware *fw,
 					     u32 *boot_param, size_t offset)
@@ -872,6 +910,83 @@ int btintel_download_firmware(struct hci_dev *hdev,
 						 RSA_HEADER_LEN);
 }
 EXPORT_SYMBOL_GPL(btintel_download_firmware);
+
+int btintel_download_firmware_newgen(struct hci_dev *hdev,
+				     const struct firmware *fw, u32 *boot_param,
+				     u8 hw_variant, u8 sbe_type)
+{
+	int err;
+	u32 css_header_ver;
+
+	/* iBT hardware variants 0x0b, 0x0c, 0x11, 0x12, 0x13, 0x14 support
+	 * only RSA secure boot engine. Hence, the corresponding sfi file will
+	 * have RSA header of 644 bytes followed by Command Buffer.
+	 *
+	 * iBT hardware variants 0x17, 0x18 onwards support both RSA and ECDSA
+	 * secure boot engine. As a result, the corresponding sfi file will
+	 * have RSA header of 644, ECDSA header of 320 bytes followed by
+	 * Command Buffer.
+	 *
+	 * CSS Header byte positions 0x08 to 0x0B represent the CSS Header
+	 * version: RSA(0x00010000) , ECDSA (0x00020000)
+	 */
+	css_header_ver = get_unaligned_le32(fw->data + CSS_HEADER_OFFSET);
+	if (css_header_ver != 0x00010000) {
+		bt_dev_err(hdev, "Invalid CSS Header version");
+		return -EINVAL;
+	}
+
+	if (hw_variant <= 0x14) {
+		if (sbe_type != 0x00) {
+			bt_dev_err(hdev, "Invalid SBE type for hardware variant (%d)",
+				   hw_variant);
+			return -EINVAL;
+		}
+
+		err = btintel_sfi_rsa_header_secure_send(hdev, fw);
+		if (err)
+			return err;
+
+		err = btintel_download_firmware_payload(hdev, fw, boot_param, RSA_HEADER_LEN);
+		if (err)
+			return err;
+	} else if (hw_variant >= 0x17) {
+		/* Check if CSS header for ECDSA follows the RSA header */
+		if (fw->data[ECDSA_OFFSET] != 0x06)
+			return -EINVAL;
+
+		/* Check if the CSS Header version is ECDSA(0x00020000) */
+		css_header_ver = get_unaligned_le32(fw->data + ECDSA_OFFSET + CSS_HEADER_OFFSET);
+		if (css_header_ver != 0x00020000) {
+			bt_dev_err(hdev, "Invalid CSS Header version");
+			return -EINVAL;
+		}
+
+		if (sbe_type == 0x00) {
+			err = btintel_sfi_rsa_header_secure_send(hdev, fw);
+			if (err)
+				return err;
+
+			err = btintel_download_firmware_payload(hdev, fw,
+								boot_param,
+								RSA_HEADER_LEN + ECDSA_HEADER_LEN);
+			if (err)
+				return err;
+		} else if (sbe_type == 0x01) {
+			err = btintel_sfi_ecdsa_header_secure_send(hdev, fw);
+			if (err)
+				return err;
+
+			err = btintel_download_firmware_payload(hdev, fw,
+								boot_param,
+								RSA_HEADER_LEN + ECDSA_HEADER_LEN);
+			if (err)
+				return err;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btintel_download_firmware_newgen);
 
 void btintel_reset_to_bootloader(struct hci_dev *hdev)
 {
