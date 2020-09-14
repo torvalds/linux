@@ -20,7 +20,6 @@
 
 struct safexcel_ahash_ctx {
 	struct safexcel_context base;
-	struct safexcel_crypto_priv *priv;
 
 	u32 alg;
 	u8  key_sz;
@@ -111,7 +110,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 				     struct safexcel_ahash_req *req,
 				     struct safexcel_command_desc *cdesc)
 {
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	u64 count = 0;
 
 	cdesc->control_data.control0 = ctx->alg;
@@ -316,7 +315,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	struct ahash_request *areq = ahash_request_cast(async);
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct safexcel_command_desc *cdesc, *first_cdesc = NULL;
 	struct safexcel_result_desc *rdesc;
 	struct scatterlist *sg;
@@ -591,7 +590,7 @@ static int safexcel_ahash_send_inv(struct crypto_async_request *async,
 	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
 	int ret;
 
-	ret = safexcel_invalidate_cache(async, ctx->priv,
+	ret = safexcel_invalidate_cache(async, ctx->base.priv,
 					ctx->base.ctxr_dma, ring);
 	if (unlikely(ret))
 		return ret;
@@ -620,7 +619,7 @@ static int safexcel_ahash_send(struct crypto_async_request *async,
 static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	EIP197_REQUEST_ON_STACK(req, ahash, EIP197_AHASH_REQ_SIZE);
 	struct safexcel_ahash_req *rctx = ahash_request_ctx(req);
 	struct safexcel_inv_result result = {};
@@ -688,7 +687,7 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret, ring;
 
 	req->needs_inv = false;
@@ -917,7 +916,7 @@ static int safexcel_ahash_cra_init(struct crypto_tfm *tfm)
 		container_of(__crypto_ahash_alg(tfm->__crt_alg),
 			     struct safexcel_alg_template, alg.ahash);
 
-	ctx->priv = tmpl->priv;
+	ctx->base.priv = tmpl->priv;
 	ctx->base.send = safexcel_ahash_send;
 	ctx->base.handle_result = safexcel_handle_result;
 	ctx->fb_do_setkey = false;
@@ -956,7 +955,7 @@ static int safexcel_sha1_digest(struct ahash_request *areq)
 static void safexcel_ahash_cra_exit(struct crypto_tfm *tfm)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret;
 
 	/* context not allocated, skip invalidation */
@@ -1189,7 +1188,7 @@ static int safexcel_hmac_alg_setkey(struct crypto_ahash *tfm, const u8 *key,
 				    unsigned int state_sz)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct safexcel_ahash_export_state istate, ostate;
 	int ret;
 

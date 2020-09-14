@@ -832,6 +832,7 @@ struct safexcel_context {
 			     struct crypto_async_request *req, bool *complete,
 			     int *ret);
 	struct safexcel_context_record *ctxr;
+	struct safexcel_crypto_priv *priv;
 	dma_addr_t ctxr_dma;
 
 	int ring;
