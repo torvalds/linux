@@ -2294,13 +2294,17 @@ static bool io_resubmit_prep(struct io_kiocb *req, int error)
 		goto end_req;
 	}
 
-	ret = io_import_iovec(rw, req, &iovec, &iter, false);
-	if (ret < 0)
-		goto end_req;
-	ret = io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
-	if (!ret)
+	if (!req->io) {
+		ret = io_import_iovec(rw, req, &iovec, &iter, false);
+		if (ret < 0)
+			goto end_req;
+		ret = io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
+		if (!ret)
+			return true;
+		kfree(iovec);
+	} else {
 		return true;
-	kfree(iovec);
+	}
 end_req:
 	req_set_fail_links(req);
 	io_req_complete(req, ret);
