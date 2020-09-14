@@ -2024,6 +2024,22 @@ static int rga2_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static void RGA2_flush_page(void)
+{
+	struct rga2_reg *reg;
+	int i;
+
+	reg = list_entry(rga2_service.running.prev,
+			 struct rga2_reg, status_link);
+
+	if (reg == NULL && reg->MMU_base == NULL)
+		return;
+
+	for (i = 0; i < reg->MMU_count; i++)
+		rga2_dma_flush_page(phys_to_page(reg->MMU_base[i]),
+				    MMU_UNMAP_INVALID);
+}
+
 static irqreturn_t rga2_irq_thread(int irq, void *dev_id)
 {
 #if RGA2_DEBUGFS
@@ -2031,6 +2047,7 @@ static irqreturn_t rga2_irq_thread(int irq, void *dev_id)
 		INFO("irqthread INT[%x],STATS[%x]\n", rga2_read(RGA2_INT),
 		     rga2_read(RGA2_STATUS));
 #endif
+	RGA2_flush_page();
 	mutex_lock(&rga2_service.lock);
 	if (rga2_service.enable) {
 		rga2_del_running_list();

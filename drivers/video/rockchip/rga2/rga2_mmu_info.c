@@ -43,7 +43,7 @@ void rga2_dma_flush_range(void *pstart, void *pend)
 	dma_sync_single_for_device(rga2_drvdata->dev, virt_to_phys(pstart), pend - pstart, DMA_TO_DEVICE);
 }
 
-static void rga2_dma_flush_page(struct page *page, int map)
+void rga2_dma_flush_page(struct page *page, int map)
 {
 	dma_addr_t paddr;
 
@@ -766,6 +766,9 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 						       req->src.format,
 						       2);
 #endif
+			/* Save the physical address of dst to invalid cache */
+			reg->MMU_base = (MMU_Base + Src0MemSize + Src1MemSize);
+			reg->MMU_count = DstPageCount;
 		} else {
 			ret = rga2_MapUserMemory(&pages[0], MMU_Base
 						 + Src0MemSize + Src1MemSize,
@@ -777,6 +780,9 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 					       req->src.vir_h, req->src.format,
 					       2);
 #endif
+			/* Save the physical address of dst to invalid cache */
+			reg->MMU_base = (MMU_Base + Src0MemSize + Src1MemSize);
+			reg->MMU_count = DstPageCount;
 		}
 		if (ret < 0) {
 			pr_err("rga2 map dst memory failed\n");
