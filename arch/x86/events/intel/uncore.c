@@ -1040,13 +1040,61 @@ uncore_pci_find_dev_pmu(struct pci_dev *pdev, const struct pci_device_id *ids)
 }
 
 /*
+ * Register the PMU for a PCI device
+ * @pdev: The PCI device.
+ * @type: The corresponding PMU type of the device.
+ * @pmu: The corresponding PMU of the device.
+ * @phys_id: The physical socket id which the device maps to.
+ * @die: The die id which the device maps to.
+ */
+static int uncore_pci_pmu_register(struct pci_dev *pdev,
+				   struct intel_uncore_type *type,
+				   struct intel_uncore_pmu *pmu,
+				   int phys_id, int die)
+{
+	struct intel_uncore_box *box;
+	int ret;
+
+	if (WARN_ON_ONCE(pmu->boxes[die] != NULL))
+		return -EINVAL;
+
+	box = uncore_alloc_box(type, NUMA_NO_NODE);
+	if (!box)
+		return -ENOMEM;
+
+	if (pmu->func_id < 0)
+		pmu->func_id = pdev->devfn;
+	else
+		WARN_ON_ONCE(pmu->func_id != pdev->devfn);
+
+	atomic_inc(&box->refcnt);
+	box->pci_phys_id = phys_id;
+	box->dieid = die;
+	box->pci_dev = pdev;
+	box->pmu = pmu;
+	uncore_box_init(box);
+
+	pmu->boxes[die] = box;
+	if (atomic_inc_return(&pmu->activeboxes) > 1)
+		return 0;
+
+	/* First active box registers the pmu */
+	ret = uncore_pmu_register(pmu);
+	if (ret) {
+		pmu->boxes[die] = NULL;
+		uncore_box_exit(box);
+		kfree(box);
+	}
+	return ret;
+}
+
+/*
  * add a pci uncore device
  */
 static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu = NULL;
-	struct intel_uncore_box *box;
 	int phys_id, die, ret;
 
 	ret = uncore_pci_get_dev_die_info(pdev, &phys_id, &die);
@@ -1082,38 +1130,10 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 		pmu = &type->pmus[UNCORE_PCI_DEV_IDX(id->driver_data)];
 	}
 
-	if (WARN_ON_ONCE(pmu->boxes[die] != NULL))
-		return -EINVAL;
+	ret = uncore_pci_pmu_register(pdev, type, pmu, phys_id, die);
 
-	box = uncore_alloc_box(type, NUMA_NO_NODE);
-	if (!box)
-		return -ENOMEM;
+	pci_set_drvdata(pdev, pmu->boxes[die]);
 
-	if (pmu->func_id < 0)
-		pmu->func_id = pdev->devfn;
-	else
-		WARN_ON_ONCE(pmu->func_id != pdev->devfn);
-
-	atomic_inc(&box->refcnt);
-	box->pci_phys_id = phys_id;
-	box->dieid = die;
-	box->pci_dev = pdev;
-	box->pmu = pmu;
-	uncore_box_init(box);
-	pci_set_drvdata(pdev, box);
-
-	pmu->boxes[die] = box;
-	if (atomic_inc_return(&pmu->activeboxes) > 1)
-		return 0;
-
-	/* First active box registers the pmu */
-	ret = uncore_pmu_register(pmu);
-	if (ret) {
-		pci_set_drvdata(pdev, NULL);
-		pmu->boxes[die] = NULL;
-		uncore_box_exit(box);
-		kfree(box);
-	}
 	return ret;
 }
 
