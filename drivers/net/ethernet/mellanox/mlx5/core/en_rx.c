@@ -37,6 +37,8 @@
 #include <net/ip6_checksum.h>
 #include <net/page_pool.h>
 #include <net/inet_ecn.h>
+#include <net/udp.h>
+#include <net/tcp.h>
 #include "en.h"
 #include "en/txrx.h"
 #include "en_tc.h"
@@ -1066,6 +1068,142 @@ static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,
 	}
 }
 
+static void *mlx5e_shampo_get_packet_hd(struct mlx5e_rq *rq, u16 header_index)
+{
+	struct mlx5e_dma_info *last_head = &rq->mpwqe.shampo->info[header_index];
+	u16 head_offset = (last_head->addr & (PAGE_SIZE - 1)) + rq->buff.headroom;
+
+	return page_address(last_head->page) + head_offset;
+}
+
+static void mlx5e_shampo_update_ipv4_udp_hdr(struct mlx5e_rq *rq, struct iphdr *ipv4)
+{
+	int udp_off = rq->hw_gro_data->fk.control.thoff;
+	struct sk_buff *skb = rq->hw_gro_data->skb;
+	struct udphdr *uh;
+
+	uh = (struct udphdr *)(skb->data + udp_off);
+	uh->len = htons(skb->len - udp_off);
+
+	if (uh->check)
+		uh->check = ~udp_v4_check(skb->len - udp_off, ipv4->saddr,
+					  ipv4->daddr, 0);
+
+	skb->csum_start = (unsigned char *)uh - skb->head;
+	skb->csum_offset = offsetof(struct udphdr, check);
+
+	skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4;
+}
+
+static void mlx5e_shampo_update_ipv6_udp_hdr(struct mlx5e_rq *rq, struct ipv6hdr *ipv6)
+{
+	int udp_off = rq->hw_gro_data->fk.control.thoff;
+	struct sk_buff *skb = rq->hw_gro_data->skb;
+	struct udphdr *uh;
+
+	uh = (struct udphdr *)(skb->data + udp_off);
+	uh->len = htons(skb->len - udp_off);
+
+	if (uh->check)
+		uh->check = ~udp_v6_check(skb->len - udp_off, &ipv6->saddr,
+					  &ipv6->daddr, 0);
+
+	skb->csum_start = (unsigned char *)uh - skb->head;
+	skb->csum_offset = offsetof(struct udphdr, check);
+
+	skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4;
+}
+
+static void mlx5e_shampo_update_fin_psh_flags(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
+					      struct tcphdr *skb_tcp_hd)
+{
+	u16 header_index = be16_to_cpu(cqe->shampo.header_entry_index);
+	struct tcphdr *last_tcp_hd;
+	void *last_hd_addr;
+
+	last_hd_addr = mlx5e_shampo_get_packet_hd(rq, header_index);
+	last_tcp_hd =  last_hd_addr + ETH_HLEN + rq->hw_gro_data->fk.control.thoff;
+	tcp_flag_word(skb_tcp_hd) |= tcp_flag_word(last_tcp_hd) & (TCP_FLAG_FIN | TCP_FLAG_PSH);
+}
+
+static void mlx5e_shampo_update_ipv4_tcp_hdr(struct mlx5e_rq *rq, struct iphdr *ipv4,
+					     struct mlx5_cqe64 *cqe, bool match)
+{
+	int tcp_off = rq->hw_gro_data->fk.control.thoff;
+	struct sk_buff *skb = rq->hw_gro_data->skb;
+	struct tcphdr *tcp;
+
+	tcp = (struct tcphdr *)(skb->data + tcp_off);
+	if (match)
+		mlx5e_shampo_update_fin_psh_flags(rq, cqe, tcp);
+
+	tcp->check = ~tcp_v4_check(skb->len - tcp_off, ipv4->saddr,
+				   ipv4->daddr, 0);
+	skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
+	if (ntohs(ipv4->id) == rq->hw_gro_data->second_ip_id)
+		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_FIXEDID;
+
+	skb->csum_start = (unsigned char *)tcp - skb->head;
+	skb->csum_offset = offsetof(struct tcphdr, check);
+
+	if (tcp->cwr)
+		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
+}
+
+static void mlx5e_shampo_update_ipv6_tcp_hdr(struct mlx5e_rq *rq, struct ipv6hdr *ipv6,
+					     struct mlx5_cqe64 *cqe, bool match)
+{
+	int tcp_off = rq->hw_gro_data->fk.control.thoff;
+	struct sk_buff *skb = rq->hw_gro_data->skb;
+	struct tcphdr *tcp;
+
+	tcp = (struct tcphdr *)(skb->data + tcp_off);
+	if (match)
+		mlx5e_shampo_update_fin_psh_flags(rq, cqe, tcp);
+
+	tcp->check = ~tcp_v6_check(skb->len - tcp_off, &ipv6->saddr,
+				   &ipv6->daddr, 0);
+	skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV6;
+	skb->csum_start = (unsigned char *)tcp - skb->head;
+	skb->csum_offset = offsetof(struct tcphdr, check);
+
+	if (tcp->cwr)
+		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
+}
+
+static void mlx5e_shampo_update_hdr(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe, bool match)
+{
+	bool is_ipv4 = (rq->hw_gro_data->fk.basic.n_proto == htons(ETH_P_IP));
+	struct sk_buff *skb = rq->hw_gro_data->skb;
+
+	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
+	skb->ip_summed = CHECKSUM_PARTIAL;
+
+	if (is_ipv4) {
+		int nhoff = rq->hw_gro_data->fk.control.thoff - sizeof(struct iphdr);
+		struct iphdr *ipv4 = (struct iphdr *)(skb->data + nhoff);
+		__be16 newlen = htons(skb->len - nhoff);
+
+		csum_replace2(&ipv4->check, ipv4->tot_len, newlen);
+		ipv4->tot_len = newlen;
+
+		if (ipv4->protocol == IPPROTO_TCP)
+			mlx5e_shampo_update_ipv4_tcp_hdr(rq, ipv4, cqe, match);
+		else
+			mlx5e_shampo_update_ipv4_udp_hdr(rq, ipv4);
+	} else {
+		int nhoff = rq->hw_gro_data->fk.control.thoff - sizeof(struct ipv6hdr);
+		struct ipv6hdr *ipv6 = (struct ipv6hdr *)(skb->data + nhoff);
+
+		ipv6->payload_len = htons(skb->len - nhoff - sizeof(*ipv6));
+
+		if (ipv6->nexthdr == IPPROTO_TCP)
+			mlx5e_shampo_update_ipv6_tcp_hdr(rq, ipv6, cqe, match);
+		else
+			mlx5e_shampo_update_ipv6_udp_hdr(rq, ipv6);
+	}
+}
+
 static inline void mlx5e_skb_set_hash(struct mlx5_cqe64 *cqe,
 				      struct sk_buff *skb)
 {
@@ -1313,6 +1451,25 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 
 	if (unlikely(mlx5e_skb_is_multicast(skb)))
 		stats->mcast_packets++;
+}
+
+static void mlx5e_shampo_complete_rx_cqe(struct mlx5e_rq *rq,
+					 struct mlx5_cqe64 *cqe,
+					 u32 cqe_bcnt,
+					 struct sk_buff *skb)
+{
+	struct mlx5e_rq_stats *stats = rq->stats;
+
+	stats->packets++;
+	stats->bytes += cqe_bcnt;
+	if (NAPI_GRO_CB(skb)->count != 1)
+		return;
+	mlx5e_build_rx_skb(cqe, cqe_bcnt, rq, skb);
+	skb_reset_network_header(skb);
+	if (!skb_flow_dissect_flow_keys(skb, &rq->hw_gro_data->fk, 0)) {
+		napi_gro_receive(rq->cq.napi, skb);
+		rq->hw_gro_data->skb = NULL;
+	}
 }
 
 static inline void mlx5e_complete_rx_cqe(struct mlx5e_rq *rq,
@@ -1726,7 +1883,7 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 	return skb;
 }
 
-static struct sk_buff *
+static void
 mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 			  struct mlx5_cqe64 *cqe, u16 header_index)
 {
@@ -1750,7 +1907,7 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 		skb = mlx5e_build_linear_skb(rq, hdr, frag_size, rx_headroom, head_size);
 
 		if (unlikely(!skb))
-			return NULL;
+			return;
 
 		/* queue up for recycling/reuse */
 		page_ref_inc(head->page);
@@ -1761,7 +1918,7 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 				     ALIGN(head_size, sizeof(long)));
 		if (unlikely(!skb)) {
 			rq->stats->buff_alloc_err++;
-			return NULL;
+			return;
 		}
 
 		prefetchw(skb->data);
@@ -1772,7 +1929,41 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 		skb->tail += head_size;
 		skb->len  += head_size;
 	}
-	return skb;
+	rq->hw_gro_data->skb = skb;
+	NAPI_GRO_CB(skb)->count = 1;
+	skb_shinfo(skb)->gso_size = mpwrq_get_cqe_byte_cnt(cqe) - head_size;
+}
+
+static void
+mlx5e_shampo_align_fragment(struct sk_buff *skb, u8 log_stride_sz)
+{
+	skb_frag_t *last_frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
+	unsigned int frag_size = skb_frag_size(last_frag);
+	unsigned int frag_truesize;
+
+	frag_truesize = ALIGN(frag_size, BIT(log_stride_sz));
+	skb->truesize += frag_truesize - frag_size;
+}
+
+static void
+mlx5e_shampo_flush_skb(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe, bool match)
+{
+	struct sk_buff *skb = rq->hw_gro_data->skb;
+
+	if (likely(skb_shinfo(skb)->nr_frags))
+		mlx5e_shampo_align_fragment(skb, rq->mpwqe.log_stride_sz);
+	if (NAPI_GRO_CB(skb)->count > 1)
+		mlx5e_shampo_update_hdr(rq, cqe, match);
+	napi_gro_receive(rq->cq.napi, skb);
+	rq->hw_gro_data->skb = NULL;
+}
+
+static bool
+mlx5e_hw_gro_skb_has_enough_space(struct sk_buff *skb, u16 data_bcnt)
+{
+	int nr_frags = skb_shinfo(skb)->nr_frags;
+
+	return PAGE_SIZE * nr_frags + data_bcnt <= GSO_MAX_SIZE;
 }
 
 static void
@@ -1798,8 +1989,10 @@ static void mlx5e_handle_rx_cqe_mpwrq_shampo(struct mlx5e_rq *rq, struct mlx5_cq
 	u32 cqe_bcnt		= mpwrq_get_cqe_byte_cnt(cqe);
 	u16 wqe_id		= be16_to_cpu(cqe->wqe_id);
 	u32 page_idx		= wqe_offset >> PAGE_SHIFT;
+	struct sk_buff **skb	= &rq->hw_gro_data->skb;
+	bool flush		= cqe->shampo.flush;
+	bool match		= cqe->shampo.match;
 	struct mlx5e_rx_wqe_ll *wqe;
-	struct sk_buff *skb = NULL;
 	struct mlx5e_dma_info *di;
 	struct mlx5e_mpw_info *wi;
 	struct mlx5_wq_ll *wq;
@@ -1821,16 +2014,34 @@ static void mlx5e_handle_rx_cqe_mpwrq_shampo(struct mlx5e_rq *rq, struct mlx5_cq
 		goto mpwrq_cqe_out;
 	}
 
-	skb = mlx5e_skb_from_cqe_shampo(rq, wi, cqe, header_index);
+	if (*skb && (!match || !(mlx5e_hw_gro_skb_has_enough_space(*skb, data_bcnt)))) {
+		match = false;
+		mlx5e_shampo_flush_skb(rq, cqe, match);
+	}
 
-	if (unlikely(!skb))
-		goto free_hd_entry;
+	if (!*skb) {
+		mlx5e_skb_from_cqe_shampo(rq, wi, cqe, header_index);
+		if (unlikely(!*skb))
+			goto free_hd_entry;
+	} else {
+		NAPI_GRO_CB(*skb)->count++;
+		if (NAPI_GRO_CB(*skb)->count == 2 &&
+		    rq->hw_gro_data->fk.basic.n_proto == htons(ETH_P_IP)) {
+			void *hd_addr = mlx5e_shampo_get_packet_hd(rq, header_index);
+			int nhoff = ETH_HLEN + rq->hw_gro_data->fk.control.thoff -
+				    sizeof(struct iphdr);
+			struct iphdr *iph = (struct iphdr *)(hd_addr + nhoff);
+
+			rq->hw_gro_data->second_ip_id = ntohs(iph->id);
+		}
+	}
 
 	di = &wi->umr.dma_info[page_idx];
-	mlx5e_fill_skb_data(skb, rq, di, data_bcnt, data_offset);
+	mlx5e_fill_skb_data(*skb, rq, di, data_bcnt, data_offset);
 
-	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
-	napi_gro_receive(rq->cq.napi, skb);
+	mlx5e_shampo_complete_rx_cqe(rq, cqe, cqe_bcnt, *skb);
+	if (flush)
+		mlx5e_shampo_flush_skb(rq, cqe, match);
 free_hd_entry:
 	mlx5e_free_rx_shampo_hd_entry(rq, header_index);
 mpwrq_cqe_out:
@@ -1941,6 +2152,9 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(cqwq)));
 
 out:
+	if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state) && rq->hw_gro_data->skb)
+		mlx5e_shampo_flush_skb(rq, NULL, false);
+
 	if (rcu_access_pointer(rq->xdp_prog))
 		mlx5e_xdp_rx_poll_complete(rq);
 

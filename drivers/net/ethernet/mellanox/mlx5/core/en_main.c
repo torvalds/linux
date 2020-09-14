@@ -513,6 +513,11 @@ static int mlx5_rq_shampo_alloc(struct mlx5_core_dev *mdev,
 	err = mlx5e_rq_shampo_hd_info_alloc(rq, node);
 	if (err)
 		goto err_shampo_info;
+	rq->hw_gro_data = kvzalloc_node(sizeof(*rq->hw_gro_data), GFP_KERNEL, node);
+	if (!rq->hw_gro_data) {
+		err = -ENOMEM;
+		goto err_hw_gro_data;
+	}
 	rq->mpwqe.shampo->key =
 		cpu_to_be32(rq->mpwqe.shampo->mkey.key);
 	rq->mpwqe.shampo->hd_per_wqe =
@@ -522,6 +527,8 @@ static int mlx5_rq_shampo_alloc(struct mlx5_core_dev *mdev,
 		     MLX5E_SHAMPO_WQ_HEADER_PER_PAGE;
 	return 0;
 
+err_hw_gro_data:
+	mlx5e_rq_shampo_hd_info_free(rq);
 err_shampo_info:
 	mlx5_core_destroy_mkey(mdev, &rq->mpwqe.shampo->mkey);
 err_shampo_hd:
@@ -534,6 +541,8 @@ static void mlx5e_rq_free_shampo(struct mlx5e_rq *rq)
 {
 	if (!test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
 		return;
+
+	kvfree(rq->hw_gro_data);
 	mlx5e_rq_shampo_hd_info_free(rq);
 	mlx5_core_destroy_mkey(rq->mdev, &rq->mpwqe.shampo->mkey);
 	mlx5e_rq_shampo_hd_free(rq);

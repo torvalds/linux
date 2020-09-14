@@ -655,6 +655,12 @@ struct mlx5e_shampo_hd {
 	u64 last_addr;
 };
 
+struct mlx5e_hw_gro_data {
+	struct sk_buff *skb;
+	struct flow_keys fk;
+	int second_ip_id;
+};
+
 struct mlx5e_rq {
 	/* data path */
 	union {
@@ -695,6 +701,8 @@ struct mlx5e_rq {
 	struct mlx5_clock      *clock;
 	struct mlx5e_icosq    *icosq;
 	struct mlx5e_priv     *priv;
+
+	struct mlx5e_hw_gro_data *hw_gro_data;
 
 	mlx5e_fp_handle_rx_cqe handle_rx_cqe;
 	mlx5e_fp_post_rx_wqes  post_wqes;
