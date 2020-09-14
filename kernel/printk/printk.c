@@ -520,8 +520,11 @@ static int log_store(u32 caller_id, int facility, int level,
 	memcpy(&r.text_buf[0], text, text_len);
 	if (trunc_msg_len)
 		memcpy(&r.text_buf[text_len], trunc_msg, trunc_msg_len);
-	if (r.dict_buf)
+	r.info->text_len = text_len + trunc_msg_len;
+	if (r.dict_buf) {
 		memcpy(&r.dict_buf[0], dict, dict_len);
+		r.info->dict_len = dict_len;
+	}
 	r.info->facility = facility;
 	r.info->level = level & 7;
 	r.info->flags = flags & 0x1f;
@@ -1069,10 +1072,11 @@ static unsigned int __init add_to_rb(struct printk_ringbuffer *rb,
 	if (!prb_reserve(&e, rb, &dest_r))
 		return 0;
 
-	memcpy(&dest_r.text_buf[0], &r->text_buf[0], dest_r.text_buf_size);
+	memcpy(&dest_r.text_buf[0], &r->text_buf[0], r->info->text_len);
+	dest_r.info->text_len = r->info->text_len;
 	if (dest_r.dict_buf) {
-		memcpy(&dest_r.dict_buf[0], &r->dict_buf[0],
-		       dest_r.dict_buf_size);
+		memcpy(&dest_r.dict_buf[0], &r->dict_buf[0], r->info->dict_len);
+		dest_r.info->dict_len = r->info->dict_len;
 	}
 	dest_r.info->facility = r->info->facility;
 	dest_r.info->level = r->info->level;

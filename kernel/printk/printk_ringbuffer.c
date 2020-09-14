@@ -146,10 +146,13 @@
  *
  *	if (prb_reserve(&e, &test_rb, &r)) {
  *		snprintf(r.text_buf, r.text_buf_size, "%s", textstr);
+ *		r.info->text_len = strlen(textstr);
  *
  *		// dictionary allocation may have failed
- *		if (r.dict_buf)
+ *		if (r.dict_buf) {
  *			snprintf(r.dict_buf, r.dict_buf_size, "%s", dictstr);
+ *			r.info->dict_len = strlen(dictstr);
+ *		}
  *
  *		r.info->ts_nsec = local_clock();
  *
@@ -1142,9 +1145,9 @@ static const char *get_data(struct prb_data_ring *data_ring,
  * @dict_buf_size is set to 0. Writers must check this before writing to
  * dictionary space.
  *
- * @info->text_len and @info->dict_len will already be set to @text_buf_size
- * and @dict_buf_size, respectively. If dictionary space reservation fails,
- * @info->dict_len is set to 0.
+ * Important: @info->text_len and @info->dict_len need to be set correctly by
+ *            the writer in order for data to be readable and/or extended.
+ *            Their values are initialized to 0.
  */
 bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 		 struct printk_record *r)
@@ -1152,6 +1155,7 @@ bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 	struct prb_desc_ring *desc_ring = &rb->desc_ring;
 	struct prb_desc *d;
 	unsigned long id;
+	u64 seq;
 
 	if (!data_check_size(&rb->text_data_ring, r->text_buf_size))
 		goto fail;
@@ -1177,6 +1181,14 @@ bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 	d = to_desc(desc_ring, id);
 
 	/*
+	 * All @info fields (except @seq) are cleared and must be filled in
+	 * by the writer. Save @seq before clearing because it is used to
+	 * determine the new sequence number.
+	 */
+	seq = d->info.seq;
+	memset(&d->info, 0, sizeof(d->info));
+
+	/*
 	 * Set the @e fields here so that prb_commit() can be used if
 	 * text data allocation fails.
 	 */
@@ -1194,17 +1206,15 @@ bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 	 * See the "Bootstrap" comment block in printk_ringbuffer.h for
 	 * details about how the initializer bootstraps the descriptors.
 	 */
-	if (d->info.seq == 0 && DESC_INDEX(desc_ring, id) != 0)
+	if (seq == 0 && DESC_INDEX(desc_ring, id) != 0)
 		d->info.seq = DESC_INDEX(desc_ring, id);
 	else
-		d->info.seq += DESCS_COUNT(desc_ring);
+		d->info.seq = seq + DESCS_COUNT(desc_ring);
 
 	r->text_buf = data_alloc(rb, &rb->text_data_ring, r->text_buf_size,
 				 &d->text_blk_lpos, id);
 	/* If text data allocation fails, a data-less record is committed. */
 	if (r->text_buf_size && !r->text_buf) {
-		d->info.text_len = 0;
-		d->info.dict_len = 0;
 		prb_commit(e);
 		/* prb_commit() re-enabled interrupts. */
 		goto fail;
@@ -1220,10 +1230,6 @@ bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 		r->dict_buf_size = 0;
 
 	r->info = &d->info;
-
-	/* Set default values for the sizes. */
-	d->info.text_len = r->text_buf_size;
-	d->info.dict_len = r->dict_buf_size;
 
 	/* Record full text space used by record. */
 	e->text_space = space_used(&rb->text_data_ring, &d->text_blk_lpos);
