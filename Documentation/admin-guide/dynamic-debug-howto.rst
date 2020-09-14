@@ -156,7 +156,6 @@ against.  Possible keywords are:::
   ``line-range`` cannot contain space, e.g.
   "1-30" is valid range but "1 - 30" is not.
 
-  ``module=foo`` combined keyword=value form is interchangably accepted
 
 The meanings of each keyword are:
 
