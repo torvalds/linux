@@ -3257,7 +3257,7 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 	kvfree(nm_i->nat_bitmap_mir);
 #endif
 	sbi->nm_info = NULL;
-	kvfree(nm_i);
+	kfree(nm_i);
 }
 
 int __init f2fs_create_node_manager_caches(void)
