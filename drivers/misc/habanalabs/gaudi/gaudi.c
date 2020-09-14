@@ -1918,6 +1918,9 @@ static void gaudi_init_dma_core(struct hl_device *hdev, int dma_id)
 	WREG32(mmDMA0_CORE_RD_MAX_OUTSTAND + dma_offset, 0);
 	WREG32(mmDMA0_CORE_RD_MAX_SIZE + dma_offset, 0);
 
+	/* WA for H/W bug H3-2116 */
+	WREG32(mmDMA0_CORE_LBW_MAX_OUTSTAND + dma_offset, 15);
+
 	/* STOP_ON bit implies no completion to operation in case of RAZWI */
 	if (hdev->stop_on_err)
 		dma_err_cfg |= 1 << DMA0_CORE_ERR_CFG_STOP_ON_ERR_SHIFT;
