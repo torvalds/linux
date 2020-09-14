@@ -80,6 +80,14 @@ enum tcpm_transmit_type {
  * @pd_transmit:Called to transmit PD message
  * @mux:	Pointer to multiplexer data
  * @set_bist_data: Turn on/off bist data mode for compliance testing
+ * @check_contaminant:
+ *		Optional; The callback is called when CC pins report open status
+ *		at the end of the toggling period. Chip level drivers are
+ *		expected to check for contaminant and re-enable toggling if
+ *		needed. When 0 is not returned, check_contaminant is expected to
+ *		restart toggling after checking the connector for contaminant.
+ *		This forces the TCPM state machine to tranistion to TOGGLING state
+ *		without calling start_toggling callback.
  */
 struct tcpc_dev {
 	struct fwnode_handle *fwnode;
@@ -105,6 +113,7 @@ struct tcpc_dev {
 	int (*pd_transmit)(struct tcpc_dev *dev, enum tcpm_transmit_type type,
 			   const struct pd_message *msg);
 	int (*set_bist_data)(struct tcpc_dev *dev, bool on);
+	int (*check_contaminant)(struct tcpc_dev *dev);
 };
 
 struct tcpm_port;
@@ -120,5 +129,6 @@ void tcpm_pd_transmit_complete(struct tcpm_port *port,
 			       enum tcpm_transmit_status status);
 void tcpm_pd_hard_reset(struct tcpm_port *port);
 void tcpm_tcpc_reset(struct tcpm_port *port);
+bool tcpm_is_debouncing(struct tcpm_port *tcpm);
 
 #endif /* __LINUX_USB_TCPM_H */
