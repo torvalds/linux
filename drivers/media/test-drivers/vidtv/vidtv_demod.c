@@ -181,12 +181,18 @@ static void vidtv_demod_update_stats(struct dvb_frontend *fe)
 	c->block_count.stat[0].scale = scale;
 
 	/*
-	 * Add a 0.5% of randomness at the signal streangth and CNR,
+	 * Add a 0.5% of randomness at the signal strength and CNR,
 	 * and make them different, as we want to have something closer
 	 * to a real case scenario.
+	 *
+	 * Also, usually, signal strength is a negative number in dBm.
 	 */
-	c->strength.stat[0].svalue = state->tuner_cnr + prandom_u32_max(state->tuner_cnr / 50);
-	c->cnr.stat[0].svalue = state->tuner_cnr - prandom_u32_max(state->tuner_cnr / 50);
+	c->strength.stat[0].svalue = state->tuner_cnr;
+	c->strength.stat[0].svalue -= prandom_u32_max(state->tuner_cnr / 50);
+	c->strength.stat[0].svalue -= 68000; /* Adjust to a better range */
+
+	c->cnr.stat[0].svalue = state->tuner_cnr;
+	c->cnr.stat[0].svalue -= prandom_u32_max(state->tuner_cnr / 50);
 
 }
 
