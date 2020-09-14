@@ -140,9 +140,6 @@ static int rx8010_set_time(struct device *dev, struct rtc_time *dt)
 	u8 date[RX8010_YEAR - RX8010_SEC + 1];
 	int err;
 
-	if ((dt->tm_year < 100) || (dt->tm_year > 199))
-		return -EINVAL;
-
 	/* set STOP bit before changing clock/calendar */
 	err = regmap_set_bits(rx8010->regs, RX8010_CTRL, RX8010_CTRL_STOP);
 	if (err)
@@ -419,6 +416,8 @@ static int rx8010_probe(struct i2c_client *client)
 	}
 
 	rx8010->rtc->max_user_freq = 1;
+	rx8010->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rx8010->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	return rtc_register_device(rx8010->rtc);
 }
