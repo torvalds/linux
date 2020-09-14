@@ -153,7 +153,7 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 	if (rkisp_clk_dbg)
 		return 0;
 
-	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2)) {
+	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF)) {
 		for (i = 0; i < hw_dev->num_clk_rate_tbl; i++) {
 			if (w <= hw_dev->clk_rate_tbl[i].refer_data)
 				break;
