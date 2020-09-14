@@ -269,7 +269,6 @@ static const char *mmhub_client_ids_arcturus[][2] = {
 	[14][1] = "HDP",
 	[15][1] = "SDMA0",
 	[32+15][1] = "SDMA1",
-	[32+15][1] = "SDMA1",
 	[64+15][1] = "SDMA2",
 	[96+15][1] = "SDMA3",
 	[128+15][1] = "SDMA4",
