@@ -12,6 +12,8 @@ struct intel_uncore_type **uncore_mmio_uncores = empty_uncore;
 
 static bool pcidrv_registered;
 struct pci_driver *uncore_pci_driver;
+/* The PCI driver for the device which the uncore doesn't own. */
+struct pci_driver *uncore_pci_sub_driver;
 /* pci bus to socket mapping */
 DEFINE_RAW_SPINLOCK(pci2phy_map_lock);
 struct list_head pci2phy_map_head = LIST_HEAD_INIT(pci2phy_map_head);
@@ -1186,6 +1188,80 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	uncore_pci_pmu_unregister(pmu, phys_id, die);
 }
 
+static int uncore_bus_notify(struct notifier_block *nb,
+			     unsigned long action, void *data)
+{
+	struct device *dev = data;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct intel_uncore_pmu *pmu;
+	int phys_id, die;
+
+	/* Unregister the PMU when the device is going to be deleted. */
+	if (action != BUS_NOTIFY_DEL_DEVICE)
+		return NOTIFY_DONE;
+
+	pmu = uncore_pci_find_dev_pmu(pdev, uncore_pci_sub_driver->id_table);
+	if (!pmu)
+		return NOTIFY_DONE;
+
+	if (uncore_pci_get_dev_die_info(pdev, &phys_id, &die))
+		return NOTIFY_DONE;
+
+	uncore_pci_pmu_unregister(pmu, phys_id, die);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block uncore_notifier = {
+	.notifier_call = uncore_bus_notify,
+};
+
+static void uncore_pci_sub_driver_init(void)
+{
+	const struct pci_device_id *ids = uncore_pci_sub_driver->id_table;
+	struct intel_uncore_type *type;
+	struct intel_uncore_pmu *pmu;
+	struct pci_dev *pci_sub_dev;
+	bool notify = false;
+	unsigned int devfn;
+	int phys_id, die;
+
+	while (ids && ids->vendor) {
+		pci_sub_dev = NULL;
+		type = uncore_pci_uncores[UNCORE_PCI_DEV_TYPE(ids->driver_data)];
+		/*
+		 * Search the available device, and register the
+		 * corresponding PMU.
+		 */
+		while ((pci_sub_dev = pci_get_device(PCI_VENDOR_ID_INTEL,
+						     ids->device, pci_sub_dev))) {
+			devfn = PCI_DEVFN(UNCORE_PCI_DEV_DEV(ids->driver_data),
+					  UNCORE_PCI_DEV_FUNC(ids->driver_data));
+			if (devfn != pci_sub_dev->devfn)
+				continue;
+
+			pmu = &type->pmus[UNCORE_PCI_DEV_IDX(ids->driver_data)];
+			if (!pmu)
+				continue;
+
+			if (uncore_pci_get_dev_die_info(pci_sub_dev,
+							&phys_id, &die))
+				continue;
+
+			if (!uncore_pci_pmu_register(pci_sub_dev, type, pmu,
+						     phys_id, die))
+				notify = true;
+		}
+		ids++;
+	}
+
+	if (notify && bus_register_notifier(&pci_bus_type, &uncore_notifier))
+		notify = false;
+
+	if (!notify)
+		uncore_pci_sub_driver = NULL;
+}
+
 static int __init uncore_pci_init(void)
 {
 	size_t size;
@@ -1209,6 +1285,9 @@ static int __init uncore_pci_init(void)
 	if (ret)
 		goto errtype;
 
+	if (uncore_pci_sub_driver)
+		uncore_pci_sub_driver_init();
+
 	pcidrv_registered = true;
 	return 0;
 
@@ -1226,6 +1305,8 @@ static void uncore_pci_exit(void)
 {
 	if (pcidrv_registered) {
 		pcidrv_registered = false;
+		if (uncore_pci_sub_driver)
+			bus_unregister_notifier(&pci_bus_type, &uncore_notifier);
 		pci_unregister_driver(uncore_pci_driver);
 		uncore_types_exit(uncore_pci_uncores);
 		kfree(uncore_extra_pci_dev);
