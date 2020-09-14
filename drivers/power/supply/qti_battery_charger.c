@@ -240,6 +240,8 @@ struct battery_chg_dev {
 	u32				last_fcc_ua;
 	u32				usb_icl_ua;
 	bool				restrict_chg_en;
+	/* To track the driver initialization status */
+	bool				initialized;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -725,6 +727,12 @@ static int battery_chg_callback(void *priv, void *data, size_t len)
 	pr_debug("owner: %u type: %u opcode: %#x len: %zu\n", hdr->owner,
 		hdr->type, hdr->opcode, len);
 
+	if (!bcdev->initialized) {
+		pr_debug("Driver initialization failed: Dropping glink callback message: state %d\n",
+			 bcdev->state);
+		return 0;
+	}
+
 	if (hdr->opcode == BC_NOTIFY_IND)
 		handle_notification(bcdev, data, len);
 	else
@@ -816,8 +824,10 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 	int rc;
 
 	rc = read_property_id(bcdev, pst, USB_ADAP_TYPE);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("Failed to read prop USB_ADAP_TYPE, rc=%d\n", rc);
 		return rc;
+	}
 
 	/* Allow this only for SDP or USB_PD and not for other charger types */
 	if (pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_SDP &&
@@ -836,7 +846,9 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 		temp = UINT_MAX;
 
 	rc = write_property_id(bcdev, pst, prop_id, temp);
-	if (!rc) {
+	if (rc < 0) {
+		pr_err("Failed to set ICL (%u uA) rc=%d\n", temp, rc);
+	} else {
 		pr_debug("Set ICL to %u\n", temp);
 		bcdev->usb_icl_ua = temp;
 	}
@@ -1756,8 +1768,11 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	len = rc;
 
 	rc = read_property_id(bcdev, pst, BATT_CHG_CTRL_LIM_MAX);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("Failed to read prop BATT_CHG_CTRL_LIM_MAX, rc=%d\n",
+			rc);
 		return rc;
+	}
 
 	prev = pst->prop[BATT_CHG_CTRL_LIM_MAX];
 
@@ -1888,13 +1903,16 @@ static int battery_chg_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	bcdev->initialized = true;
 	bcdev->reboot_notifier.notifier_call = battery_chg_ship_mode;
 	bcdev->reboot_notifier.priority = 255;
 	register_reboot_notifier(&bcdev->reboot_notifier);
 
 	rc = battery_chg_parse_dt(bcdev);
-	if (rc < 0)
+	if (rc < 0) {
+		dev_err(dev, "Failed to parse dt rc=%d\n", rc);
 		goto error;
+	}
 
 	bcdev->restrict_fcc_ua = DEFAULT_RESTRICT_FCC_UA;
 	platform_set_drvdata(pdev, bcdev);
@@ -1907,7 +1925,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	bcdev->battery_class.class_groups = battery_class_groups;
 	rc = class_register(&bcdev->battery_class);
 	if (rc < 0) {
-		pr_err("Failed to create battery_class rc=%d\n", rc);
+		dev_err(dev, "Failed to create battery_class rc=%d\n", rc);
 		goto error;
 	}
 
@@ -1917,6 +1935,8 @@ static int battery_chg_probe(struct platform_device *pdev)
 
 	return 0;
 error:
+	bcdev->initialized = false;
+	complete(&bcdev->ack);
 	pmic_glink_unregister_client(bcdev->client);
 	unregister_reboot_notifier(&bcdev->reboot_notifier);
 	return rc;
