@@ -3718,7 +3718,7 @@ static int selinux_mmap_file(struct file *file, unsigned long reqprot,
 			return rc;
 	}
 
-	if (selinux_state.checkreqprot)
+	if (checkreqprot_get(&selinux_state))
 		prot = reqprot;
 
 	return file_map_prot_check(file, prot,
@@ -3732,7 +3732,7 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 	const struct cred *cred = current_cred();
 	u32 sid = cred_sid(cred);
 
-	if (selinux_state.checkreqprot)
+	if (checkreqprot_get(&selinux_state))
 		prot = reqprot;
 
 	if (default_noexec &&
@@ -7234,7 +7234,7 @@ static __init int selinux_init(void)
 
 	memset(&selinux_state, 0, sizeof(selinux_state));
 	enforcing_set(&selinux_state, selinux_enforcing_boot);
-	selinux_state.checkreqprot = selinux_checkreqprot_boot;
+	checkreqprot_set(&selinux_state, selinux_checkreqprot_boot);
 	selinux_avc_init(&selinux_state.avc);
 	mutex_init(&selinux_state.status_lock);
 	mutex_init(&selinux_state.policy_mutex);

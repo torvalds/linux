@@ -143,6 +143,16 @@ static inline void enforcing_set(struct selinux_state *state, bool value)
 }
 #endif
 
+static inline bool checkreqprot_get(const struct selinux_state *state)
+{
+	return READ_ONCE(state->checkreqprot);
+}
+
+static inline void checkreqprot_set(struct selinux_state *state, bool value)
+{
+	WRITE_ONCE(state->checkreqprot, value);
+}
+
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 static inline bool selinux_disabled(struct selinux_state *state)
 {

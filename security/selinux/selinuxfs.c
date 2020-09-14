@@ -717,7 +717,8 @@ static ssize_t sel_read_checkreqprot(struct file *filp, char __user *buf,
 	char tmpbuf[TMPBUFLEN];
 	ssize_t length;
 
-	length = scnprintf(tmpbuf, TMPBUFLEN, "%u", fsi->state->checkreqprot);
+	length = scnprintf(tmpbuf, TMPBUFLEN, "%u",
+			   checkreqprot_get(fsi->state));
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
 
@@ -759,7 +760,7 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 			     comm, current->pid);
 	}
 
-	fsi->state->checkreqprot = new_value ? 1 : 0;
+	checkreqprot_set(fsi->state, (new_value ? 1 : 0));
 	length = count;
 out:
 	kfree(page);
