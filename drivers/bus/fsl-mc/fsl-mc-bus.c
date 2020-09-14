@@ -908,9 +908,6 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	u32 mc_portal_size, mc_stream_id;
 	struct resource *plat_res;
 
-	if (!iommu_present(&fsl_mc_bus_type))
-		return -EPROBE_DEFER;
-
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
 	if (!mc)
 		return -ENOMEM;
