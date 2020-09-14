@@ -1137,18 +1137,38 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	return ret;
 }
 
+/*
+ * Unregister the PMU of a PCI device
+ * @pmu: The corresponding PMU is unregistered.
+ * @phys_id: The physical socket id which the device maps to.
+ * @die: The die id which the device maps to.
+ */
+static void uncore_pci_pmu_unregister(struct intel_uncore_pmu *pmu,
+				      int phys_id, int die)
+{
+	struct intel_uncore_box *box = pmu->boxes[die];
+
+	if (WARN_ON_ONCE(phys_id != box->pci_phys_id))
+		return;
+
+	pmu->boxes[die] = NULL;
+	if (atomic_dec_return(&pmu->activeboxes) == 0)
+		uncore_pmu_unregister(pmu);
+	uncore_box_exit(box);
+	kfree(box);
+}
+
 static void uncore_pci_remove(struct pci_dev *pdev)
 {
 	struct intel_uncore_box *box;
 	struct intel_uncore_pmu *pmu;
 	int i, phys_id, die;
 
-	phys_id = uncore_pcibus_to_physid(pdev->bus);
+	if (uncore_pci_get_dev_die_info(pdev, &phys_id, &die))
+		return;
 
 	box = pci_get_drvdata(pdev);
 	if (!box) {
-		die = (topology_max_die_per_package() > 1) ? phys_id :
-					topology_phys_to_logical_pkg(phys_id);
 		for (i = 0; i < UNCORE_EXTRA_PCI_DEV_MAX; i++) {
 			if (uncore_extra_pci_dev[die].dev[i] == pdev) {
 				uncore_extra_pci_dev[die].dev[i] = NULL;
@@ -1160,15 +1180,10 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	}
 
 	pmu = box->pmu;
-	if (WARN_ON_ONCE(phys_id != box->pci_phys_id))
-		return;
 
 	pci_set_drvdata(pdev, NULL);
-	pmu->boxes[box->dieid] = NULL;
-	if (atomic_dec_return(&pmu->activeboxes) == 0)
-		uncore_pmu_unregister(pmu);
-	uncore_box_exit(box);
-	kfree(box);
+
+	uncore_pci_pmu_unregister(pmu, phys_id, die);
 }
 
 static int __init uncore_pci_init(void)
