@@ -51,8 +51,19 @@ bool a6xx_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 
 static void a6xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 	uint32_t wptr;
 	unsigned long flags;
+
+	/* Expanded APRIV doesn't need to issue the WHERE_AM_I opcode */
+	if (a6xx_gpu->has_whereami && !adreno_gpu->base.hw_apriv) {
+		struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+
+		OUT_PKT7(ring, CP_WHERE_AM_I, 2);
+		OUT_RING(ring, lower_32_bits(shadowptr(a6xx_gpu, ring)));
+		OUT_RING(ring, upper_32_bits(shadowptr(a6xx_gpu, ring)));
+	}
 
 	spin_lock_irqsave(&ring->lock, flags);
 
@@ -508,6 +519,30 @@ static int a6xx_cp_init(struct msm_gpu *gpu)
 	return a6xx_idle(gpu, ring) ? 0 : -EINVAL;
 }
 
+static void a6xx_ucode_check_version(struct a6xx_gpu *a6xx_gpu,
+		struct drm_gem_object *obj)
+{
+	u32 *buf = msm_gem_get_vaddr_active(obj);
+
+	if (IS_ERR(buf))
+		return;
+
+	/*
+	 * If the lowest nibble is 0xa that is an indication that this microcode
+	 * has been patched. The actual version is in dword [3] but we only care
+	 * about the patchlevel which is the lowest nibble of dword [3]
+	 *
+	 * Otherwise check that the firmware is greater than or equal to 1.90
+	 * which was the first version that had this fix built in
+	 */
+	if (((buf[0] & 0xf) == 0xa) && (buf[2] & 0xf) >= 1)
+		a6xx_gpu->has_whereami = true;
+	else if ((buf[0] & 0xfff) > 0x190)
+		a6xx_gpu->has_whereami = true;
+
+	msm_gem_put_vaddr(obj);
+}
+
 static int a6xx_ucode_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -528,6 +563,7 @@ static int a6xx_ucode_init(struct msm_gpu *gpu)
 		}
 
 		msm_gem_object_set_name(a6xx_gpu->sqe_bo, "sqefw");
+		a6xx_ucode_check_version(a6xx_gpu, a6xx_gpu->sqe_bo);
 	}
 
 	gpu_write64(gpu, REG_A6XX_CP_SQE_INSTR_BASE_LO,
@@ -743,8 +779,37 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 	gpu_write64(gpu, REG_A6XX_CP_RB_BASE, REG_A6XX_CP_RB_BASE_HI,
 		gpu->rb[0]->iova);
 
-	gpu_write(gpu, REG_A6XX_CP_RB_CNTL,
-		MSM_GPU_RB_CNTL_DEFAULT | AXXX_CP_RB_CNTL_NO_UPDATE);
+	/* Targets that support extended APRIV can use the RPTR shadow from
+	 * hardware but all the other ones need to disable the feature. Targets
+	 * that support the WHERE_AM_I opcode can use that instead
+	 */
+	if (adreno_gpu->base.hw_apriv)
+		gpu_write(gpu, REG_A6XX_CP_RB_CNTL, MSM_GPU_RB_CNTL_DEFAULT);
+	else
+		gpu_write(gpu, REG_A6XX_CP_RB_CNTL,
+			MSM_GPU_RB_CNTL_DEFAULT | AXXX_CP_RB_CNTL_NO_UPDATE);
+
+	/*
+	 * Expanded APRIV and targets that support WHERE_AM_I both need a
+	 * privileged buffer to store the RPTR shadow
+	 */
+
+	if (adreno_gpu->base.hw_apriv || a6xx_gpu->has_whereami) {
+		if (!a6xx_gpu->shadow_bo) {
+			a6xx_gpu->shadow = msm_gem_kernel_new_locked(gpu->dev,
+				sizeof(u32) * gpu->nr_rings,
+				MSM_BO_UNCACHED | MSM_BO_MAP_PRIV,
+				gpu->aspace, &a6xx_gpu->shadow_bo,
+				&a6xx_gpu->shadow_iova);
+
+			if (IS_ERR(a6xx_gpu->shadow))
+				return PTR_ERR(a6xx_gpu->shadow);
+		}
+
+		gpu_write64(gpu, REG_A6XX_CP_RB_RPTR_ADDR_LO,
+			REG_A6XX_CP_RB_RPTR_ADDR_HI,
+			shadowptr(a6xx_gpu, gpu->rb[0]));
+	}
 
 	/* Always come up on rb 0 */
 	a6xx_gpu->cur_ring = gpu->rb[0];
@@ -1033,6 +1098,11 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 		drm_gem_object_put(a6xx_gpu->sqe_bo);
 	}
 
+	if (a6xx_gpu->shadow_bo) {
+		msm_gem_unpin_iova(a6xx_gpu->shadow_bo, gpu->aspace);
+		drm_gem_object_put(a6xx_gpu->shadow_bo);
+	}
+
 	a6xx_gmu_remove(a6xx_gpu);
 
 	adreno_gpu_cleanup(adreno_gpu);
@@ -1081,6 +1151,17 @@ a6xx_create_private_address_space(struct msm_gpu *gpu)
 		"gpu", 0x100000000ULL, 0x1ffffffffULL);
 }
 
+static uint32_t a6xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+
+	if (adreno_gpu->base.hw_apriv || a6xx_gpu->has_whereami)
+		return a6xx_gpu->shadow[ring->id];
+
+	return ring->memptrs->rptr = gpu_read(gpu, REG_A6XX_CP_RB_RPTR);
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
@@ -1089,7 +1170,6 @@ static const struct adreno_gpu_funcs funcs = {
 		.pm_resume = a6xx_pm_resume,
 		.recover = a6xx_recover,
 		.submit = a6xx_submit,
-		.flush = a6xx_flush,
 		.active_ring = a6xx_active_ring,
 		.irq = a6xx_irq,
 		.destroy = a6xx_destroy,
@@ -1105,6 +1185,7 @@ static const struct adreno_gpu_funcs funcs = {
 #endif
 		.create_address_space = adreno_iommu_create_address_space,
 		.create_private_address_space = a6xx_create_private_address_space,
+		.get_rptr = a6xx_get_rptr,
 	},
 	.get_timestamp = a6xx_get_timestamp,
 };
