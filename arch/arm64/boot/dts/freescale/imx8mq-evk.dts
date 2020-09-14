@@ -132,6 +132,10 @@
 	};
 };
 
+&dphy {
+	status = "okay";
+};
+
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
@@ -250,6 +254,40 @@
 			vgen6_reg: vgen6 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&mipi_dsi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	panel@0 {
+		pinctrl-0 = <&pinctrl_mipi_dsi>;
+		pinctrl-names = "default";
+		compatible = "raydium,rm67191";
+		reg = <0>;
+		reset-gpios = <&gpio5 6 GPIO_ACTIVE_LOW>;
+		dsi-lanes = <4>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mipi_dsi_out>;
+			};
+		};
+	};
+
+	ports {
+		port@1 {
+			reg = <1>;
+			mipi_dsi_out: endpoint {
+				remote-endpoint = <&panel_in>;
 			};
 		};
 	};
@@ -385,6 +423,12 @@
 	pinctrl_ir: irgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_GPIO1_IO12_GPIO1_IO12		0x4f
+		>;
+	};
+
+	pinctrl_mipi_dsi: mipidsigrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_ECSPI1_SCLK_GPIO5_IO6		0x16
 		>;
 	};
 
