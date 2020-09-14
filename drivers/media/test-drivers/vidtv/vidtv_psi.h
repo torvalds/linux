@@ -99,17 +99,9 @@ struct vidtv_psi_table_header {
 	__be16 bitfield; /* syntax: 1, zero: 1, one: 2, section_length: 13 */
 
 	__be16 id; /* TS ID */
-#if defined(__LITTLE_ENDIAN_BITFIELD)
 	u8  current_next:1;
 	u8  version:5;
 	u8  one2:2;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	u8  one2:2;
-	u8  version:5;
-	u8  current_next:1;
-#else
-#error  "Unknown bitfield ordering"
-#endif
 	u8  section_id;	/* section_number */
 	u8  last_section; /* last_section_number */
 } __packed;

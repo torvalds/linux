@@ -53,19 +53,10 @@ struct vidtv_mpeg_ts {
 	u8 sync_byte;
 	__be16 bitfield; /* tei: 1, payload_start:1 priority: 1, pid:13 */
 	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
 		u8 continuity_counter:4;
 		u8 payload:1;
 		u8 adaptation_field:1;
 		u8 scrambling:2;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		u8 scrambling:2;
-		u8 adaptation_field:1;
-		u8 payload:1;
-		u8 continuity_counter:4;
-#else
-#error  "Unknown bitfield ordering"
-#endif
 	} __packed;
 	struct vidtv_mpeg_ts_adaption adaption[];
 } __packed;
