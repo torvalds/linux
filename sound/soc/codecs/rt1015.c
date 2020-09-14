@@ -534,6 +534,32 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static void rt1015_flush_work(struct work_struct *work)
+{
+	struct rt1015_priv *rt1015 = container_of(work, struct rt1015_priv,
+						flush_work.work);
+	struct snd_soc_component *component = rt1015->component;
+	unsigned int val, i = 0, count = 20;
+
+	while (i < count) {
+		usleep_range(1000, 1500);
+		dev_dbg(component->dev, "Flush DAC (retry:%u)\n", i);
+		regmap_read(rt1015->regmap, RT1015_CLK_DET, &val);
+		if (val & 0x800)
+			break;
+		i++;
+	}
+
+	regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x0597);
+	regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x05f7);
+	regmap_write(rt1015->regmap, RT1015_MAN_I2C, 0x0028);
+
+	if (val & 0x800)
+		dev_dbg(component->dev, "Flush DAC completed.\n");
+	else
+		dev_warn(component->dev, "Fail to flush DAC data.\n");
+}
+
 static const struct snd_kcontrol_new rt1015_snd_controls[] = {
 	SOC_SINGLE_TLV("DAC Playback Volume", RT1015_DAC1, RT1015_DAC_VOL_SFT,
 		127, 0, dac_vol_tlv),
@@ -587,12 +613,7 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
-		if (rt1015->bypass_boost == RT1015_Bypass_Boost) {
-			regmap_write(rt1015->regmap, RT1015_MAN_I2C, 0x00a8);
-			regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x0597);
-			regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x05f7);
-			regmap_write(rt1015->regmap, RT1015_MAN_I2C, 0x0028);
-		}
+		regmap_write(rt1015->regmap, RT1015_MAN_I2C, 0x00a8);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
@@ -608,8 +629,28 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 				RT1015_SYS_RST1, 0x05f5);
 		}
 		rt1015->dac_is_used = 0;
+
+		cancel_delayed_work_sync(&rt1015->flush_work);
 		break;
 
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int rt1015_amp_drv_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (rt1015->hw_config == RT1015_HW_28)
+			schedule_delayed_work(&rt1015->flush_work, msecs_to_jiffies(10));
+		break;
 	default:
 		break;
 	}
@@ -649,6 +690,8 @@ static const struct snd_soc_dapm_widget rt1015_dapm_widgets[] = {
 		r1015_dac_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
 
+	SND_SOC_DAPM_OUT_DRV_E("Amp Drv", SND_SOC_NOPM, 0, 0, NULL, 0,
+			rt1015_amp_drv_event, SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPO"),
 };
 
@@ -667,7 +710,8 @@ static const struct snd_soc_dapm_route rt1015_dapm_routes[] = {
 	{ "DAC", NULL, "MIXERV" },
 	{ "DAC", NULL, "SUMV" },
 	{ "DAC", NULL, "VREFLV" },
-	{ "SPO", NULL, "DAC" },
+	{ "Amp Drv", NULL, "DAC" },
+	{ "SPO", NULL, "Amp Drv" },
 };
 
 static int rt1015_hw_params(struct snd_pcm_substream *substream,
@@ -910,6 +954,8 @@ static int rt1015_probe(struct snd_soc_component *component)
 	rt1015->cali_done = 0;
 	snd_soc_component_write(component, RT1015_BAT_RPO_STEP1, 0x061c);
 
+	INIT_DELAYED_WORK(&rt1015->flush_work, rt1015_flush_work);
+
 	return 0;
 }
 
@@ -917,6 +963,7 @@ static void rt1015_remove(struct snd_soc_component *component)
 {
 	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
 
+	cancel_delayed_work_sync(&rt1015->flush_work);
 	regmap_write(rt1015->regmap, RT1015_RESET, 0);
 }
 
@@ -1041,6 +1088,8 @@ static int rt1015_i2c_probe(struct i2c_client *i2c,
 			ret);
 		return ret;
 	}
+
+	rt1015->hw_config = (i2c->addr == 0x29) ? RT1015_HW_29 : RT1015_HW_28;
 
 	regmap_read(rt1015->regmap, RT1015_DEVICE_ID, &val);
 	if ((val != RT1015_DEVICE_ID_VAL) && (val != RT1015_DEVICE_ID_VAL2)) {

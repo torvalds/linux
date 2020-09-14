@@ -373,6 +373,11 @@ enum {
 	RT1015_Bypass_Boost,
 };
 
+enum {
+	RT1015_HW_28 = 0,
+	RT1015_HW_29,
+};
+
 struct rt1015_priv {
 	struct snd_soc_component *component;
 	struct regmap *regmap;
@@ -390,6 +395,8 @@ struct rt1015_priv {
 	int amp_ver;
 	int dac_is_used;
 	int cali_done;
+	int hw_config;
+	struct delayed_work flush_work;
 };
 
 #endif /* __RT1015_H__ */
