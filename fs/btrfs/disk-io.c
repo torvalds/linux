@@ -205,53 +205,6 @@ void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb,
 #endif
 
 /*
- * extents on the btree inode are pretty simple, there's one extent
- * that covers the entire device
- */
-struct extent_map *btree_get_extent(struct btrfs_inode *inode,
-				    struct page *page, size_t pg_offset,
-				    u64 start, u64 len)
-{
-	struct extent_map_tree *em_tree = &inode->extent_tree;
-	struct extent_map *em;
-	int ret;
-
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, start, len);
-	if (em) {
-		read_unlock(&em_tree->lock);
-		goto out;
-	}
-	read_unlock(&em_tree->lock);
-
-	em = alloc_extent_map();
-	if (!em) {
-		em = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-	em->start = 0;
-	em->len = (u64)-1;
-	em->block_len = (u64)-1;
-	em->block_start = 0;
-
-	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
-	if (ret == -EEXIST) {
-		free_extent_map(em);
-		em = lookup_extent_mapping(em_tree, start, len);
-		if (!em)
-			em = ERR_PTR(-EIO);
-	} else if (ret) {
-		free_extent_map(em);
-		em = ERR_PTR(ret);
-	}
-	write_unlock(&em_tree->lock);
-
-out:
-	return em;
-}
-
-/*
  * Compute the csum of a btree block and store the result to provided buffer.
  */
 static void csum_tree_block(struct extent_buffer *buf, u8 *result)
