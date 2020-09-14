@@ -3254,7 +3254,7 @@ void sk_common_release(struct sock *sk)
 		sk->sk_prot->destroy(sk);
 
 	/*
-	 * Observation: when sock_common_release is called, processes have
+	 * Observation: when sk_common_release is called, processes have
 	 * no access to socket. But net still has.
 	 * Step one, detach it from networking:
 	 *
