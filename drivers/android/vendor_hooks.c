@@ -17,6 +17,7 @@
 #include <trace/hooks/cpuidle.h>
 #include <trace/hooks/topology.h>
 #include <trace/hooks/mpam.h>
+#include <trace/hooks/gic.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -55,3 +56,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sched_show_task);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_idle);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mpam_set);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_busiest_group);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_gic_resume);
