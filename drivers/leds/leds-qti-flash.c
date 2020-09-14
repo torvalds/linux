@@ -89,6 +89,8 @@
 #define OTST2_CURR_LIM_MA			500
 #define VLED_MAX_DEFAULT_UV			3500000
 
+#define LED_MASK_ALL(led)		GENMASK(led->max_channels - 1, 0)
+
 enum flash_led_type {
 	FLASH_LED_TYPE_UNKNOWN,
 	FLASH_LED_TYPE_FLASH,
@@ -170,6 +172,7 @@ struct flash_switch_data {
  * @chan_en_map:		Bit map of individual channel enable
  * @module_en:			Flag used to enable/disable flash LED module
  * @trigger_lmh:		Flag to enable lmh mitigation
+ * @non_all_mask_switch_present: Used in handling symmetry for all_mask switch
  */
 struct qti_flash_led {
 	struct platform_device		*pdev;
@@ -193,6 +196,7 @@ struct qti_flash_led {
 	u8				chan_en_map;
 	bool				module_en;
 	bool				trigger_lmh;
+	bool				non_all_mask_switch_present;
 };
 
 struct flash_current_headroom {
@@ -545,26 +549,14 @@ static int __qti_flash_led_brightness_set(struct led_classdev *led_cdev,
 	return rc;
 }
 
-static int qti_flash_led_symmetry_config(struct flash_switch_data *snode)
+static int qti_flash_config_group_symmetry(struct qti_flash_led *led,
+					   enum flash_led_type type,
+					   u32 led_mask)
 {
-	struct qti_flash_led *led = snode->led;
-	int i, total_curr_ma = 0, symmetric_leds = 0, per_led_curr_ma;
-	enum flash_led_type type = FLASH_LED_TYPE_UNKNOWN;
-
-	/* Determine which LED type has triggered switch ON */
-	for (i = 0; i < led->num_fnodes; i++) {
-		if ((snode->led_mask & BIT(led->fnode[i].id)) &&
-			(led->fnode[i].configured))
-			type = led->fnode[i].type;
-	}
-
-	if (type == FLASH_LED_TYPE_UNKNOWN) {
-		/* No channels are configured */
-		return 0;
-	}
+	int i, rc = 0, total_curr_ma = 0, symmetric_leds = 0, per_led_curr_ma;
 
 	for (i = 0; i < led->num_fnodes; i++) {
-		if ((snode->led_mask & BIT(led->fnode[i].id)) &&
+		if ((led_mask & BIT(led->fnode[i].id)) &&
 			(led->fnode[i].type == type)) {
 			total_curr_ma += led->fnode[i].user_current_ma;
 			symmetric_leds++;
@@ -584,18 +576,60 @@ static int qti_flash_led_symmetry_config(struct flash_switch_data *snode)
 		return 0;
 	}
 
-	pr_debug("symmetric_leds: %d total: %d per_led_curr_ma: %d\n",
-		symmetric_leds, total_curr_ma, per_led_curr_ma);
+	pr_debug("mask: %#x symmetric_leds: %d total: %d per_led_curr_ma: %d\n",
+		led_mask, symmetric_leds, total_curr_ma, per_led_curr_ma);
 
 	for (i = 0; i < led->num_fnodes; i++) {
-		if (snode->led_mask & BIT(led->fnode[i].id) &&
+		if (led_mask & BIT(led->fnode[i].id) &&
 			led->fnode[i].type == type) {
-			__qti_flash_led_brightness_set(
+			rc = __qti_flash_led_brightness_set(
 				&led->fnode[i].fdev.led_cdev, per_led_curr_ma);
+			if (rc < 0)
+				return rc;
 		}
 	}
 
-	return 0;
+	return rc;
+}
+
+static int qti_flash_led_symmetry_config(struct flash_switch_data *snode)
+{
+	struct qti_flash_led *led = snode->led;
+	enum flash_led_type type = FLASH_LED_TYPE_UNKNOWN;
+	int i, rc;
+
+	/* Determine which LED type has triggered switch ON */
+	for (i = 0; i < led->num_fnodes; i++) {
+		if ((snode->led_mask & BIT(led->fnode[i].id)) &&
+			(led->fnode[i].configured))
+			type = led->fnode[i].type;
+	}
+
+	if (type == FLASH_LED_TYPE_UNKNOWN) {
+		/* No channels are configured */
+		return 0;
+	}
+
+	if (snode->led_mask == LED_MASK_ALL(led) &&
+			led->non_all_mask_switch_present) {
+		/*
+		 * Gather masks from the other switches and configure symmetry
+		 * accordingly.
+		 */
+		for (i = 0; i < led->num_snodes; i++) {
+			if (led->snode[i].led_mask != LED_MASK_ALL(led)) {
+				rc = qti_flash_config_group_symmetry(led, type,
+						led->snode[i].led_mask);
+				if (rc < 0)
+					return rc;
+			}
+		}
+	} else {
+		rc = qti_flash_config_group_symmetry(led, type,
+				snode->led_mask);
+	}
+
+	return rc;
 }
 
 static void qti_flash_led_brightness_set(struct led_classdev *led_cdev,
@@ -1403,10 +1437,12 @@ static int register_switch_device(struct qti_flash_led *led,
 		pr_err("Failed to read led mask rc=%d\n", rc);
 		return rc;
 	}
-	if ((snode->led_mask > ((1 << led->max_channels) - 1))) {
+	if (snode->led_mask > LED_MASK_ALL(led)) {
 		pr_err("Error, Invalid value for led-mask mask=0x%x\n",
 			snode->led_mask);
 		return -EINVAL;
+	} else if (snode->led_mask < LED_MASK_ALL(led)) {
+		led->non_all_mask_switch_present = true;
 	}
 
 	snode->symmetry_en = of_property_read_bool(node, "qcom,symmetry-en");
