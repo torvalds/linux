@@ -61,8 +61,6 @@ struct safexcel_cipher_ctx {
 	/* All the below is AEAD specific */
 	u32 hash_alg;
 	u32 state_sz;
-	__be32 ipad[SHA512_DIGEST_SIZE / sizeof(u32)];
-	__be32 opad[SHA512_DIGEST_SIZE / sizeof(u32)];
 
 	struct crypto_cipher *hkaes;
 	struct crypto_aead *fback;
@@ -500,8 +498,8 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	}
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma &&
-	    (memcmp(ctx->ipad, istate.state, ctx->state_sz) ||
-	     memcmp(ctx->opad, ostate.state, ctx->state_sz)))
+	    (memcmp(&ctx->base.ipad, istate.state, ctx->state_sz) ||
+	     memcmp(&ctx->base.opad, ostate.state, ctx->state_sz)))
 		ctx->base.needs_inv = true;
 
 	/* Now copy the keys into the context */
@@ -509,8 +507,8 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 		ctx->key[i] = cpu_to_le32(((u32 *)keys.enckey)[i]);
 	ctx->key_len = keys.enckeylen;
 
-	memcpy(ctx->ipad, &istate.state, ctx->state_sz);
-	memcpy(ctx->opad, &ostate.state, ctx->state_sz);
+	memcpy(&ctx->base.ipad, &istate.state, ctx->state_sz);
+	memcpy(&ctx->base.opad, &ostate.state, ctx->state_sz);
 
 	memzero_explicit(&keys, sizeof(keys));
 	return 0;
@@ -718,10 +716,10 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 			totlen_dst += digestsize;
 
 		memcpy(ctx->base.ctxr->data + ctx->key_len / sizeof(u32),
-		       ctx->ipad, ctx->state_sz);
+		       &ctx->base.ipad, ctx->state_sz);
 		if (!ctx->xcm)
 			memcpy(ctx->base.ctxr->data + (ctx->key_len +
-			       ctx->state_sz) / sizeof(u32), ctx->opad,
+			       ctx->state_sz) / sizeof(u32), &ctx->base.opad,
 			       ctx->state_sz);
 	} else if ((ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) &&
 		   (sreq->direction == SAFEXCEL_DECRYPT)) {
@@ -2618,7 +2616,7 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++) {
-			if (be32_to_cpu(ctx->ipad[i]) != hashkey[i]) {
+			if (be32_to_cpu(ctx->base.ipad.be[i]) != hashkey[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -2626,7 +2624,7 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 	}
 
 	for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++)
-		ctx->ipad[i] = cpu_to_be32(hashkey[i]);
+		ctx->base.ipad.be[i] = cpu_to_be32(hashkey[i]);
 
 	memzero_explicit(hashkey, AES_BLOCK_SIZE);
 	memzero_explicit(&aes, sizeof(aes));
@@ -2714,7 +2712,7 @@ static int safexcel_aead_ccm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	for (i = 0; i < len / sizeof(u32); i++) {
 		ctx->key[i] = cpu_to_le32(aes.key_enc[i]);
-		ctx->ipad[i + 2 * AES_BLOCK_SIZE / sizeof(u32)] =
+		ctx->base.ipad.be[i + 2 * AES_BLOCK_SIZE / sizeof(u32)] =
 			cpu_to_be32(aes.key_enc[i]);
 	}
 

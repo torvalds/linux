@@ -12,7 +12,9 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
+#include <crypto/sha3.h>
 #include <crypto/skcipher.h>
+#include <linux/types.h>
 
 #define EIP197_HIA_VERSION_BE			0xca35
 #define EIP197_HIA_VERSION_LE			0x35ca
@@ -834,6 +836,13 @@ struct safexcel_context {
 	struct safexcel_context_record *ctxr;
 	struct safexcel_crypto_priv *priv;
 	dma_addr_t ctxr_dma;
+
+	union {
+		__le32 le[SHA3_512_BLOCK_SIZE / 4];
+		__be32 be[SHA3_512_BLOCK_SIZE / 4];
+		u32 word[SHA3_512_BLOCK_SIZE / 4];
+		u8 byte[SHA3_512_BLOCK_SIZE];
+	} ipad, opad;
 
 	int ring;
 	bool needs_inv;
