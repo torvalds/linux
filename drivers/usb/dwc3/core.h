@@ -1042,6 +1042,7 @@ struct dwc3_scratchpad_array {
  * 	3	- Reserved
  * @dis_metastability_quirk: set to disable metastability quirk.
  * @needs_fifo_resize: set if we want to resize TXFIFO.
+ * @fifo_resize_status: true if the TXFIFOs have been resized.
  * @drd_connected: true when usb connected to a host or a device(drd mode),
  *			false otherwise.
  * @en_runtime: true when need runtime PM management. For example, RK3399 need
@@ -1237,6 +1238,7 @@ struct dwc3 {
 
 	unsigned		dis_metastability_quirk:1;
 	unsigned		needs_fifo_resize:1;
+	unsigned		fifo_resize_status:1;
 	unsigned		drd_connected:1;
 	unsigned		en_runtime:1;
 
