@@ -140,6 +140,8 @@ struct mptcp_addr_info {
 	sa_family_t		family;
 	__be16			port;
 	u8			id;
+	u8			flags;
+	int			ifindex;
 	union {
 		struct in_addr addr;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
@@ -194,6 +196,8 @@ struct mptcp_sock {
 	u64		write_seq;
 	u64		ack_seq;
 	u64		rcv_data_fin_seq;
+	struct sock	*last_snd;
+	int		snd_burst;
 	atomic64_t	snd_una;
 	unsigned long	timer_ival;
 	u32		token;
@@ -204,6 +208,8 @@ struct mptcp_sock {
 	bool		snd_data_fin_enable;
 	spinlock_t	join_list_lock;
 	struct work_struct work;
+	struct sk_buff  *ooo_last_skb;
+	struct rb_root  out_of_order_queue;
 	struct list_head conn_list;
 	struct list_head rtx_queue;
 	struct list_head join_list;
@@ -268,6 +274,12 @@ mptcp_subflow_rsk(const struct request_sock *rsk)
 	return (struct mptcp_subflow_request_sock *)rsk;
 }
 
+enum mptcp_data_avail {
+	MPTCP_SUBFLOW_NODATA,
+	MPTCP_SUBFLOW_DATA_AVAIL,
+	MPTCP_SUBFLOW_OOO_DATA
+};
+
 /* MPTCP subflow context */
 struct mptcp_subflow_context {
 	struct	list_head node;/* conn_list of subflows */
@@ -292,10 +304,10 @@ struct mptcp_subflow_context {
 		map_valid : 1,
 		mpc_map : 1,
 		backup : 1,
-		data_avail : 1,
 		rx_eof : 1,
 		use_64bit_ack : 1, /* Set when we received a 64-bit DSN */
 		can_ack : 1;	    /* only after processing the remote a key */
+	enum mptcp_data_avail data_avail;
 	u32	remote_nonce;
 	u64	thmac;
 	u32	local_nonce;
@@ -350,8 +362,7 @@ bool mptcp_subflow_data_available(struct sock *sk);
 void __init mptcp_subflow_init(void);
 
 /* called with sk socket lock held */
-int __mptcp_subflow_connect(struct sock *sk, int ifindex,
-			    const struct mptcp_addr_info *loc,
+int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 			    const struct mptcp_addr_info *remote);
 int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock);
 
@@ -464,12 +475,12 @@ static inline bool before64(__u64 seq1, __u64 seq2)
 
 void mptcp_diag_subflow_init(struct tcp_ulp_ops *ops);
 
-static inline bool __mptcp_check_fallback(struct mptcp_sock *msk)
+static inline bool __mptcp_check_fallback(const struct mptcp_sock *msk)
 {
 	return test_bit(MPTCP_FALLBACK_DONE, &msk->flags);
 }
 
-static inline bool mptcp_check_fallback(struct sock *sk)
+static inline bool mptcp_check_fallback(const struct sock *sk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);

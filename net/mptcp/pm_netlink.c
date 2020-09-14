@@ -23,8 +23,6 @@ static int pm_nl_pernet_id;
 
 struct mptcp_pm_addr_entry {
 	struct list_head	list;
-	unsigned int		flags;
-	int			ifindex;
 	struct mptcp_addr_info	addr;
 	struct rcu_head		rcu;
 };
@@ -119,7 +117,7 @@ select_local_address(const struct pm_nl_pernet *pernet,
 	rcu_read_lock();
 	spin_lock_bh(&msk->join_list_lock);
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
-		if (!(entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW))
+		if (!(entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW))
 			continue;
 
 		/* avoid any address already in use by subflows and
@@ -150,7 +148,7 @@ select_signal_address(struct pm_nl_pernet *pernet, unsigned int pos)
 	 * can lead to additional addresses not being announced.
 	 */
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
-		if (!(entry->flags & MPTCP_PM_ADDR_FLAG_SIGNAL))
+		if (!(entry->addr.flags & MPTCP_PM_ADDR_FLAG_SIGNAL))
 			continue;
 		if (i++ == pos) {
 			ret = entry;
@@ -210,8 +208,7 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 			msk->pm.subflows++;
 			check_work_pending(msk);
 			spin_unlock_bh(&msk->pm.lock);
-			__mptcp_subflow_connect(sk, local->ifindex,
-						&local->addr, &remote);
+			__mptcp_subflow_connect(sk, &local->addr, &remote);
 			spin_lock_bh(&msk->pm.lock);
 			return;
 		}
@@ -257,13 +254,13 @@ void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 	local.family = remote.family;
 
 	spin_unlock_bh(&msk->pm.lock);
-	__mptcp_subflow_connect((struct sock *)msk, 0, &local, &remote);
+	__mptcp_subflow_connect((struct sock *)msk, &local, &remote);
 	spin_lock_bh(&msk->pm.lock);
 }
 
 static bool address_use_port(struct mptcp_pm_addr_entry *entry)
 {
-	return (entry->flags &
+	return (entry->addr.flags &
 		(MPTCP_PM_ADDR_FLAG_SIGNAL | MPTCP_PM_ADDR_FLAG_SUBFLOW)) ==
 		MPTCP_PM_ADDR_FLAG_SIGNAL;
 }
@@ -293,9 +290,9 @@ static int mptcp_pm_nl_append_new_local_addr(struct pm_nl_pernet *pernet,
 			goto out;
 	}
 
-	if (entry->flags & MPTCP_PM_ADDR_FLAG_SIGNAL)
+	if (entry->addr.flags & MPTCP_PM_ADDR_FLAG_SIGNAL)
 		pernet->add_addr_signal_max++;
-	if (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW)
+	if (entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW)
 		pernet->local_addr_max++;
 
 	entry->addr.id = pernet->next_id++;
@@ -345,8 +342,9 @@ int mptcp_pm_nl_get_local_id(struct mptcp_sock *msk, struct sock_common *skc)
 	if (!entry)
 		return -ENOMEM;
 
-	entry->flags = 0;
 	entry->addr = skc_local;
+	entry->addr.ifindex = 0;
+	entry->addr.flags = 0;
 	ret = mptcp_pm_nl_append_new_local_addr(pernet, entry);
 	if (ret < 0)
 		kfree(entry);
@@ -460,14 +458,17 @@ static int mptcp_pm_parse_addr(struct nlattr *attr, struct genl_info *info,
 		entry->addr.addr.s_addr = nla_get_in_addr(tb[addr_addr]);
 
 skip_family:
-	if (tb[MPTCP_PM_ADDR_ATTR_IF_IDX])
-		entry->ifindex = nla_get_s32(tb[MPTCP_PM_ADDR_ATTR_IF_IDX]);
+	if (tb[MPTCP_PM_ADDR_ATTR_IF_IDX]) {
+		u32 val = nla_get_s32(tb[MPTCP_PM_ADDR_ATTR_IF_IDX]);
+
+		entry->addr.ifindex = val;
+	}
 
 	if (tb[MPTCP_PM_ADDR_ATTR_ID])
 		entry->addr.id = nla_get_u8(tb[MPTCP_PM_ADDR_ATTR_ID]);
 
 	if (tb[MPTCP_PM_ADDR_ATTR_FLAGS])
-		entry->flags = nla_get_u32(tb[MPTCP_PM_ADDR_ATTR_FLAGS]);
+		entry->addr.flags = nla_get_u32(tb[MPTCP_PM_ADDR_ATTR_FLAGS]);
 
 	return 0;
 }
@@ -535,9 +536,9 @@ static int mptcp_nl_cmd_del_addr(struct sk_buff *skb, struct genl_info *info)
 		ret = -EINVAL;
 		goto out;
 	}
-	if (entry->flags & MPTCP_PM_ADDR_FLAG_SIGNAL)
+	if (entry->addr.flags & MPTCP_PM_ADDR_FLAG_SIGNAL)
 		pernet->add_addr_signal_max--;
-	if (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW)
+	if (entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW)
 		pernet->local_addr_max--;
 
 	pernet->addrs--;
@@ -593,10 +594,10 @@ static int mptcp_nl_fill_addr(struct sk_buff *skb,
 		goto nla_put_failure;
 	if (nla_put_u8(skb, MPTCP_PM_ADDR_ATTR_ID, addr->id))
 		goto nla_put_failure;
-	if (nla_put_u32(skb, MPTCP_PM_ADDR_ATTR_FLAGS, entry->flags))
+	if (nla_put_u32(skb, MPTCP_PM_ADDR_ATTR_FLAGS, entry->addr.flags))
 		goto nla_put_failure;
-	if (entry->ifindex &&
-	    nla_put_s32(skb, MPTCP_PM_ADDR_ATTR_IF_IDX, entry->ifindex))
+	if (entry->addr.ifindex &&
+	    nla_put_s32(skb, MPTCP_PM_ADDR_ATTR_IF_IDX, entry->addr.ifindex))
 		goto nla_put_failure;
 
 	if (addr->family == AF_INET &&
