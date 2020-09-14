@@ -590,21 +590,28 @@ static int mlxsw_sp_port_dev_addr_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_sp_port_dev_addr_set(mlxsw_sp_port, addr);
 }
 
-static int mlxsw_sp_port_mtu_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
+static int mlxsw_sp_port_max_mtu_get(struct mlxsw_sp_port *mlxsw_sp_port, int *p_max_mtu)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pmtu_pl[MLXSW_REG_PMTU_LEN];
-	int max_mtu;
 	int err;
 
-	mtu += MLXSW_TXHDR_LEN + ETH_HLEN;
 	mlxsw_reg_pmtu_pack(pmtu_pl, mlxsw_sp_port->local_port, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pmtu), pmtu_pl);
 	if (err)
 		return err;
-	max_mtu = mlxsw_reg_pmtu_max_mtu_get(pmtu_pl);
 
-	if (mtu > max_mtu)
+	*p_max_mtu = mlxsw_reg_pmtu_max_mtu_get(pmtu_pl);
+	return 0;
+}
+
+static int mlxsw_sp_port_mtu_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char pmtu_pl[MLXSW_REG_PMTU_LEN];
+
+	mtu += MLXSW_TXHDR_LEN + ETH_HLEN;
+	if (mtu > mlxsw_sp_port->max_mtu)
 		return -EINVAL;
 
 	mlxsw_reg_pmtu_pack(pmtu_pl, mlxsw_sp_port->local_port, mtu);
@@ -996,9 +1003,6 @@ static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, mtu, pause_en);
 	if (err)
 		return err;
-	err = mlxsw_sp_span_port_mtu_update(mlxsw_sp_port, mtu);
-	if (err)
-		goto err_span_port_mtu_update;
 	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, mtu);
 	if (err)
 		goto err_port_mtu_set;
@@ -1006,8 +1010,6 @@ static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 	return 0;
 
 err_port_mtu_set:
-	mlxsw_sp_span_port_mtu_update(mlxsw_sp_port, dev->mtu);
-err_span_port_mtu_update:
 	mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
 	return err;
 }
@@ -1842,6 +1844,21 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_speed_by_width_set;
 	}
 
+	err = mlxsw_sp->port_type_speed_ops->ptys_max_speed(mlxsw_sp_port,
+							    &mlxsw_sp_port->max_speed);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to get maximum speed\n",
+			mlxsw_sp_port->local_port);
+		goto err_max_speed_get;
+	}
+
+	err = mlxsw_sp_port_max_mtu_get(mlxsw_sp_port, &mlxsw_sp_port->max_mtu);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to get maximum MTU\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_max_mtu_get;
+	}
+
 	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, ETH_DATA_LEN);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set MTU\n",
@@ -1930,8 +1947,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 
 	INIT_DELAYED_WORK(&mlxsw_sp_port->ptp.shaper_dw,
 			  mlxsw_sp->ptp_ops->shaper_work);
-	INIT_DELAYED_WORK(&mlxsw_sp_port->span.speed_update_dw,
-			  mlxsw_sp_span_speed_update_work);
 
 	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
 	err = register_netdev(dev);
@@ -1966,6 +1981,8 @@ err_port_ets_init:
 err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
+err_port_max_mtu_get:
+err_max_speed_get:
 err_port_speed_by_width_set:
 err_port_system_port_mapping_set:
 err_dev_addr_init:
@@ -1986,7 +2003,6 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
 
 	cancel_delayed_work_sync(&mlxsw_sp_port->periodic_hw_stats.update_dw);
-	cancel_delayed_work_sync(&mlxsw_sp_port->span.speed_update_dw);
 	cancel_delayed_work_sync(&mlxsw_sp_port->ptp.shaper_dw);
 	mlxsw_sp_port_ptp_clear(mlxsw_sp_port);
 	mlxsw_core_port_clear(mlxsw_sp->core, local_port, mlxsw_sp);
@@ -2390,7 +2406,6 @@ static void mlxsw_sp_pude_event_func(const struct mlxsw_reg_info *reg,
 		netdev_info(mlxsw_sp_port->dev, "link up\n");
 		netif_carrier_on(mlxsw_sp_port->dev);
 		mlxsw_core_schedule_dw(&mlxsw_sp_port->ptp.shaper_dw, 0);
-		mlxsw_core_schedule_dw(&mlxsw_sp_port->span.speed_update_dw, 0);
 	} else {
 		netdev_info(mlxsw_sp_port->dev, "link down\n");
 		netif_carrier_off(mlxsw_sp_port->dev);

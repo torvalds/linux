@@ -316,9 +316,8 @@ struct mlxsw_sp_port {
 		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
 	u8 split_base_local_port;
-	struct {
-		struct delayed_work speed_update_dw;
-	} span;
+	int max_mtu;
+	u32 max_speed;
 };
 
 struct mlxsw_sp_port_type_speed_ops {
@@ -331,6 +330,7 @@ struct mlxsw_sp_port_type_speed_ops {
 	void (*from_ptys_speed_duplex)(struct mlxsw_sp *mlxsw_sp,
 				       bool carrier_ok, u32 ptys_eth_proto,
 				       struct ethtool_link_ksettings *cmd);
+	int (*ptys_max_speed)(struct mlxsw_sp_port *mlxsw_sp_port, u32 *p_max_speed);
 	u32 (*to_ptys_advert_link)(struct mlxsw_sp *mlxsw_sp, u8 width,
 				   const struct ethtool_link_ksettings *cmd);
 	u32 (*to_ptys_speed)(struct mlxsw_sp *mlxsw_sp, u8 width, u32 speed);
