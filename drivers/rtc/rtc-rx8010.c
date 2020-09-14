@@ -419,6 +419,7 @@ static int rx8010_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = client->adapter;
 	const struct rtc_class_ops *rtc_ops;
+	struct device *dev = &client->dev;
 	struct rx8010_data *rx8010;
 	int err = 0;
 
@@ -428,8 +429,7 @@ static int rx8010_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	rx8010 = devm_kzalloc(&client->dev, sizeof(struct rx8010_data),
-			      GFP_KERNEL);
+	rx8010 = devm_kzalloc(dev, sizeof(struct rx8010_data), GFP_KERNEL);
 	if (!rx8010)
 		return -ENOMEM;
 
@@ -441,13 +441,13 @@ static int rx8010_probe(struct i2c_client *client,
 		return err;
 
 	if (client->irq > 0) {
-		dev_info(&client->dev, "IRQ %d supplied\n", client->irq);
-		err = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+		dev_info(dev, "IRQ %d supplied\n", client->irq);
+		err = devm_request_threaded_irq(dev, client->irq, NULL,
 						rx8010_irq_1_handler,
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 						"rx8010", client);
 		if (err) {
-			dev_err(&client->dev, "unable to request IRQ\n");
+			dev_err(dev, "unable to request IRQ\n");
 			return err;
 		}
 
@@ -456,11 +456,10 @@ static int rx8010_probe(struct i2c_client *client,
 		rtc_ops = &rx8010_rtc_ops_default;
 	}
 
-	rx8010->rtc = devm_rtc_device_register(&client->dev, client->name,
+	rx8010->rtc = devm_rtc_device_register(dev, client->name,
 					       rtc_ops, THIS_MODULE);
-
 	if (IS_ERR(rx8010->rtc)) {
-		dev_err(&client->dev, "unable to register the class device\n");
+		dev_err(dev, "unable to register the class device\n");
 		return PTR_ERR(rx8010->rtc);
 	}
 
