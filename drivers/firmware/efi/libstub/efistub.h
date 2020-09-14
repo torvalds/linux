@@ -52,10 +52,33 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 #define efi_info(fmt, ...) \
 	efi_printk(KERN_INFO fmt, ##__VA_ARGS__)
+#define efi_warn(fmt, ...) \
+	efi_printk(KERN_WARNING "WARNING: " fmt, ##__VA_ARGS__)
 #define efi_err(fmt, ...) \
 	efi_printk(KERN_ERR "ERROR: " fmt, ##__VA_ARGS__)
 #define efi_debug(fmt, ...) \
 	efi_printk(KERN_DEBUG "DEBUG: " fmt, ##__VA_ARGS__)
+
+#define efi_printk_once(fmt, ...) 		\
+({						\
+	static bool __print_once;		\
+	bool __ret_print_once = !__print_once;	\
+						\
+	if (!__print_once) {			\
+		__print_once = true;		\
+		efi_printk(fmt, ##__VA_ARGS__);	\
+	}					\
+	__ret_print_once;			\
+})
+
+#define efi_info_once(fmt, ...) \
+	efi_printk_once(KERN_INFO fmt, ##__VA_ARGS__)
+#define efi_warn_once(fmt, ...) \
+	efi_printk_once(KERN_WARNING "WARNING: " fmt, ##__VA_ARGS__)
+#define efi_err_once(fmt, ...) \
+	efi_printk_once(KERN_ERR "ERROR: " fmt, ##__VA_ARGS__)
+#define efi_debug_once(fmt, ...) \
+	efi_printk_once(KERN_DEBUG "DEBUG: " fmt, ##__VA_ARGS__)
 
 /* Helper macros for the usual case of using simple C variables: */
 #ifndef fdt_setprop_inplace_var
