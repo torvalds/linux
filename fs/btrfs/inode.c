@@ -8044,7 +8044,7 @@ int btrfs_readpage(struct file *file, struct page *page)
 	unsigned long bio_flags = 0;
 	int ret;
 
-	ret = extent_read_full_page(page, &bio, &bio_flags, 0);
+	ret = extent_read_full_page(page, &bio, &bio_flags);
 	if (bio)
 		ret = submit_one_bio(bio, 0, bio_flags);
 	return ret;

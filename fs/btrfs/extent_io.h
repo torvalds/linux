@@ -196,7 +196,7 @@ int try_release_extent_buffer(struct page *page);
 int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 				unsigned long bio_flags);
 int extent_read_full_page(struct page *page, struct bio **bio,
-			  unsigned long *bio_flags, unsigned int read_flags);
+			  unsigned long *bio_flags);
 int extent_write_full_page(struct page *page, struct writeback_control *wbc);
 int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 			      int mode);
