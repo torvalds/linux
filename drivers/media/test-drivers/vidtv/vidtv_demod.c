@@ -73,8 +73,7 @@ static const struct vidtv_demod_cnr_to_qual_s vidtv_demod_t_cnr_2_qual[] = {
 	{ QAM_64, FEC_7_8, 22000, 24000},
 };
 
-static const struct vidtv_demod_cnr_to_qual_s
-	     *vidtv_match_cnr_s(struct dvb_frontend *fe)
+static const struct vidtv_demod_cnr_to_qual_s *vidtv_match_cnr_s(struct dvb_frontend *fe)
 {
 	const struct vidtv_demod_cnr_to_qual_s *cnr2qual = NULL;
 	struct device *dev = fe->dvb->device;
@@ -262,7 +261,6 @@ static int vidtv_demod_get_frontend(struct dvb_frontend *fe,
 
 static int vidtv_demod_set_frontend(struct dvb_frontend *fe)
 {
-	const struct vidtv_demod_cnr_to_qual_s *cnr2qual = NULL;
 	struct vidtv_demod_state *state = fe->demodulator_priv;
 	u32 tuner_status = 0;
 	int ret;
@@ -284,7 +282,6 @@ static int vidtv_demod_set_frontend(struct dvb_frontend *fe)
 						    FE_HAS_SYNC    |
 						    FE_HAS_LOCK	 :
 						    0;
-	cnr2qual = vidtv_match_cnr_s(fe);
 
 	vidtv_demod_update_stats(fe);
 
