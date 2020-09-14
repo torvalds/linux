@@ -177,6 +177,8 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 
 #define AST_IO_MM_OFFSET		(0x380)
 
+#define AST_IO_VGAIR1_VREFRESH		BIT(3)
+
 #define __ast_read(x) \
 static inline u##x ast_read##x(struct ast_private *ast, u32 reg) { \
 u##x val = 0;\
