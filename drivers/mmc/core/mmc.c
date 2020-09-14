@@ -1766,14 +1766,14 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		host->doing_init_tune = 1;
 
 		err = mmc_hs200_tuning(card);
-		if (err)
-			goto free_card;
-
-		err = mmc_select_hs400(card);
-		if (err)
-			goto free_card;
+		if (!err)
+			err = mmc_select_hs400(card);
 
 		host->doing_init_tune = 0;
+
+		if (err)
+			goto free_card;
+
 	} else if (!mmc_card_hs400es(card)) {
 		/* Select the desired bus width optionally */
 		err = mmc_select_bus_width(card);
