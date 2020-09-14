@@ -546,14 +546,15 @@ smp_on_up:
 __do_fixup_smp_on_up:
 	cmp	r4, r5
 	reths	lr
-	ldmia	r4!, {r0, r6}
- ARM(	str	r6, [r0, r3]	)
- THUMB(	add	r0, r0, r3	)
+	ldmia	r4, {r0, r6}
+ ARM(	str	r6, [r0, r4]	)
+ THUMB(	add	r0, r0, r4	)
+	add	r4, r4, #8
 #ifdef __ARMEB__
  THUMB(	mov	r6, r6, ror #16	)	@ Convert word order for big-endian.
 #endif
  THUMB(	strh	r6, [r0], #2	)	@ For Thumb-2, store as two halfwords
- THUMB(	mov	r6, r6, lsr #16	)	@ to be robust against misaligned r3.
+ THUMB(	mov	r6, r6, lsr #16	)	@ to be robust against misaligned r0.
  THUMB(	strh	r6, [r0]	)
 	b	__do_fixup_smp_on_up
 ENDPROC(__do_fixup_smp_on_up)
@@ -562,7 +563,6 @@ ENTRY(fixup_smp)
 	stmfd	sp!, {r4 - r6, lr}
 	mov	r4, r0
 	add	r5, r0, r1
-	mov	r3, #0
 	bl	__do_fixup_smp_on_up
 	ldmfd	sp!, {r4 - r6, pc}
 ENDPROC(fixup_smp)
