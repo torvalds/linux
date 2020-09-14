@@ -777,16 +777,9 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
-static void ast_crtc_helper_atomic_begin(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_crtc_state)
-{
-	struct ast_private *ast = to_ast_private(crtc->dev);
-
-	ast_open_key(ast);
-}
-
-static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_crtc_state)
+static void
+ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
@@ -796,9 +789,6 @@ static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 		&ast_crtc_state->vbios_mode_info;
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 
-	if (!drm_atomic_crtc_needs_modeset(crtc_state))
-		return;
-
 	ast_set_vbios_mode_reg(ast, adjusted_mode, vbios_mode_info);
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
 	ast_set_std_reg(ast, adjusted_mode, vbios_mode_info);
@@ -806,12 +796,7 @@ static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	ast_set_dclk_reg(ast, adjusted_mode, vbios_mode_info);
 	ast_set_crtthd_reg(ast);
 	ast_set_sync_reg(ast, adjusted_mode, vbios_mode_info);
-}
 
-static void
-ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
-{
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
@@ -845,8 +830,6 @@ ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.atomic_check = ast_crtc_helper_atomic_check,
-	.atomic_begin = ast_crtc_helper_atomic_begin,
-	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
 	.atomic_disable = ast_crtc_helper_atomic_disable,
 };
