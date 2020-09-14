@@ -3381,15 +3381,15 @@ static int __extent_read_full_page(struct page *page, struct bio **bio,
 	return ret;
 }
 
-int extent_read_full_page(struct page *page, int mirror_num)
+int extent_read_full_page(struct page *page)
 {
 	struct bio *bio = NULL;
 	unsigned long bio_flags = 0;
 	int ret;
 
-	ret = __extent_read_full_page(page, &bio, mirror_num, &bio_flags, 0);
+	ret = __extent_read_full_page(page, &bio, 0, &bio_flags, 0);
 	if (bio)
-		ret = submit_one_bio(bio, mirror_num, bio_flags);
+		ret = submit_one_bio(bio, 0, bio_flags);
 	return ret;
 }
 
