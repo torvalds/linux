@@ -3110,8 +3110,7 @@ void set_page_extent_mapped(struct page *page)
 
 static struct extent_map *
 __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
-		 u64 start, u64 len, get_extent_t *get_extent,
-		 struct extent_map **em_cached)
+		 u64 start, u64 len, struct extent_map **em_cached)
 {
 	struct extent_map *em;
 
@@ -3127,7 +3126,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 		*em_cached = NULL;
 	}
 
-	em = get_extent(BTRFS_I(inode), page, pg_offset, start, len);
+	em = btrfs_get_extent(BTRFS_I(inode), page, pg_offset, start, len);
 	if (em_cached && !IS_ERR_OR_NULL(em)) {
 		BUG_ON(*em_cached);
 		refcount_inc(&em->refs);
@@ -3142,9 +3141,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
  * XXX JDM: This needs looking at to ensure proper page locking
  * return 0 on success, otherwise return error
  */
-static int __do_readpage(struct page *page,
-			 get_extent_t *get_extent,
-			 struct extent_map **em_cached,
+static int __do_readpage(struct page *page, struct extent_map **em_cached,
 			 struct bio **bio, int mirror_num,
 			 unsigned long *bio_flags, unsigned int read_flags,
 			 u64 *prev_em_start)
@@ -3209,7 +3206,7 @@ static int __do_readpage(struct page *page,
 			break;
 		}
 		em = __get_extent_map(inode, page, pg_offset, cur,
-				      end - cur + 1, get_extent, em_cached);
+				      end - cur + 1, em_cached);
 		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
 			unlock_extent(tree, cur, end);
@@ -3362,16 +3359,14 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
 	for (index = 0; index < nr_pages; index++) {
-		__do_readpage(pages[index], btrfs_get_extent, em_cached,
-				bio, 0, bio_flags, REQ_RAHEAD, prev_em_start);
+		__do_readpage(pages[index], em_cached, bio, 0, bio_flags,
+			      REQ_RAHEAD, prev_em_start);
 		put_page(pages[index]);
 	}
 }
 
-static int __extent_read_full_page(struct page *page,
-				   get_extent_t *get_extent,
-				   struct bio **bio, int mirror_num,
-				   unsigned long *bio_flags,
+static int __extent_read_full_page(struct page *page, struct bio **bio,
+				   int mirror_num, unsigned long *bio_flags,
 				   unsigned int read_flags)
 {
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
@@ -3381,20 +3376,18 @@ static int __extent_read_full_page(struct page *page,
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-	ret = __do_readpage(page, get_extent, NULL, bio, mirror_num,
-			    bio_flags, read_flags, NULL);
+	ret = __do_readpage(page, NULL, bio, mirror_num, bio_flags, read_flags,
+			    NULL);
 	return ret;
 }
 
-int extent_read_full_page(struct page *page, get_extent_t *get_extent,
-			  int mirror_num)
+int extent_read_full_page(struct page *page, int mirror_num)
 {
 	struct bio *bio = NULL;
 	unsigned long bio_flags = 0;
 	int ret;
 
-	ret = __extent_read_full_page(page, get_extent, &bio, mirror_num,
-				      &bio_flags, 0);
+	ret = __extent_read_full_page(page, &bio, mirror_num, &bio_flags, 0);
 	if (bio)
 		ret = submit_one_bio(bio, mirror_num, bio_flags);
 	return ret;
