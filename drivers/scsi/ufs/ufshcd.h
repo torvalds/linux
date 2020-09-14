@@ -285,6 +285,7 @@ struct ufs_pwr_mode_info {
  * @fill_prdt: called after initializing the standard PRDT fields so that any
  *	       variant-specific PRDT fields can be initialized too
  * @prepare_command: called when receiving a request in the first place
+ * @update_sysfs: adds vendor-specific sysfs entries
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -324,6 +325,7 @@ struct ufs_hba_variant_ops {
 			     unsigned int segments);
 	void    (*prepare_command)(struct ufs_hba *hba,
 				struct request *rq, struct ufshcd_lrb *lrbp);
+	int     (*update_sysfs)(struct ufs_hba *hba);
 };
 
 /* clock gating state  */
@@ -1222,6 +1224,13 @@ static inline void ufshcd_vops_prepare_command(struct ufs_hba *hba,
 {
 	if (hba->vops && hba->vops->prepare_command)
 		hba->vops->prepare_command(hba, rq, lrbp);
+}
+
+static inline int ufshcd_vops_update_sysfs(struct ufs_hba *hba)
+{
+	if (hba->vops && hba->vops->update_sysfs)
+		return hba->vops->update_sysfs(hba);
+	return 0;
 }
 
 extern struct ufs_pm_lvl_states ufs_pm_lvl_states[];

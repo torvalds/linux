@@ -854,14 +854,22 @@ const struct attribute_group ufs_sysfs_lun_attributes_group = {
 	.attrs = ufs_sysfs_lun_attributes,
 };
 
-void ufs_sysfs_add_nodes(struct device *dev)
+void ufs_sysfs_add_nodes(struct ufs_hba *hba)
 {
 	int ret;
 
-	ret = sysfs_create_groups(&dev->kobj, ufs_sysfs_groups);
-	if (ret)
-		dev_err(dev,
+	ret = sysfs_create_groups(&hba->dev->kobj, ufs_sysfs_groups);
+	if (ret) {
+		dev_err(hba->dev,
 			"%s: sysfs groups creation failed (err = %d)\n",
+			__func__, ret);
+		return;
+	}
+
+	ret = ufshcd_vops_update_sysfs(hba);
+	if (ret)
+		dev_err(hba->dev,
+			"%s: vops sysfs groups update failed (err = %d)\n",
 			__func__, ret);
 }
 
