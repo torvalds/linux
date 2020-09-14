@@ -147,8 +147,6 @@ struct mlx5dr_icm_buddy_mem {
 	 * sync_ste command sets them free.
 	 */
 	struct list_head	hot_list;
-	/* indicates the byte size of hot mem */
-	unsigned int		hot_memory_size;
 };
 
 int mlx5dr_buddy_init(struct mlx5dr_icm_buddy_mem *buddy,
