@@ -71,7 +71,7 @@ config CLK_RK3368
 	  Build the driver for RK3368 Clock Driver.
 
 config CLK_RK3399
-	bool "Rockchip RK3399 clock controller support"
+	tristate "Rockchip RK3399 clock controller support"
 	default y
 	help
 	  Build the driver for RK3399 Clock Driver.
