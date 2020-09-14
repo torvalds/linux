@@ -2316,6 +2316,7 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->vnode.vlock;
 	q->dev = stream->cifdev->dev;
+	q->allow_cache_hints = 1;
 
 	return vb2_queue_init(q);
 }

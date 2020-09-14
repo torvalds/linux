@@ -609,6 +609,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->ispdev->apilock;
 	q->dev = stream->ispdev->hw_dev->dev;
+	q->allow_cache_hints = 1;
 
 	return vb2_queue_init(q);
 }
