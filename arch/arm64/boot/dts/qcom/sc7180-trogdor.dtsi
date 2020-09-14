@@ -544,7 +544,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			connector@0 {
+			usb_c0: connector@0 {
 				compatible = "usb-c-connector";
 				reg = <0>;
 				label = "left";
@@ -553,7 +553,7 @@
 				try-power-role = "source";
 			};
 
-			connector@1 {
+			usb_c1: connector@1 {
 				compatible = "usb-c-connector";
 				reg = <1>;
 				label = "right";
