@@ -1112,6 +1112,7 @@ void rxrpc_clean_up_local_conns(struct rxrpc_local *local)
 		conn = list_entry(graveyard.next,
 				  struct rxrpc_connection, cache_link);
 		list_del_init(&conn->cache_link);
+		rxrpc_unbundle_conn(conn);
 		rxrpc_put_connection(conn);
 	}
 
