@@ -395,7 +395,7 @@ struct rxrpc_bundle {
 	unsigned int		debug_id;
 	bool			try_upgrade;	/* True if the bundle is attempting upgrade */
 	bool			alloc_conn;	/* True if someone's getting a conn */
-	unsigned short		alloc_error;	/* Error from last conn allocation */
+	short			alloc_error;	/* Error from last conn allocation */
 	spinlock_t		channel_lock;
 	struct rb_node		local_node;	/* Node in local->client_conns */
 	struct list_head	waiting_calls;	/* Calls waiting for channels */
