@@ -79,6 +79,7 @@ class LxDmesg(gdb.Command):
 
         # definitions from kernel/printk/printk_ringbuffer.h
         desc_committed = 1
+        desc_finalized = 2
         desc_sv_bits = utils.get_long_type().sizeof * 8
         desc_flags_shift = desc_sv_bits - 2
         desc_flags_mask = 3 << desc_flags_shift
@@ -98,7 +99,7 @@ class LxDmesg(gdb.Command):
             # skip non-committed record
             state = 3 & (utils.read_u64(descs, desc_off + sv_off +
                                         counter_off) >> desc_flags_shift)
-            if state != desc_committed:
+            if state != desc_committed and state != desc_finalized:
                 if did == head_id:
                     break
                 did = (did + 1) & desc_id_mask

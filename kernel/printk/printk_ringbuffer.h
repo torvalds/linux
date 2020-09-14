@@ -116,7 +116,8 @@ struct prb_reserved_entry {
 enum desc_state {
 	desc_miss	=  -1,	/* ID mismatch (pseudo state) */
 	desc_reserved	= 0x0,	/* reserved, in use by writer */
-	desc_committed	= 0x1,	/* committed by writer */
+	desc_committed	= 0x1,	/* committed by writer, could get reopened */
+	desc_finalized	= 0x2,	/* committed, no further modification allowed */
 	desc_reusable	= 0x3,	/* free, not yet used by any writer */
 };
 
@@ -327,7 +328,10 @@ static inline void prb_rec_init_wr(struct printk_record *r,
 
 bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 		 struct printk_record *r);
+bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
+			 struct printk_record *r, u32 caller_id);
 void prb_commit(struct prb_reserved_entry *e);
+void prb_final_commit(struct prb_reserved_entry *e);
 
 void prb_init(struct printk_ringbuffer *rb,
 	      char *text_buf, unsigned int text_buf_size,
