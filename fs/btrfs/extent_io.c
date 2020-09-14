@@ -3141,9 +3141,9 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
  * XXX JDM: This needs looking at to ensure proper page locking
  * return 0 on success, otherwise return error
  */
-static int __do_readpage(struct page *page, struct extent_map **em_cached,
-			 struct bio **bio, unsigned long *bio_flags,
-			 unsigned int read_flags, u64 *prev_em_start)
+int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
+		      struct bio **bio, unsigned long *bio_flags,
+		      unsigned int read_flags, u64 *prev_em_start)
 {
 	struct inode *inode = page->mapping->host;
 	u64 start = page_offset(page);
@@ -3358,24 +3358,10 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
 	for (index = 0; index < nr_pages; index++) {
-		__do_readpage(pages[index], em_cached, bio, bio_flags,
-			      REQ_RAHEAD, prev_em_start);
+		btrfs_do_readpage(pages[index], em_cached, bio, bio_flags,
+				  REQ_RAHEAD, prev_em_start);
 		put_page(pages[index]);
 	}
-}
-
-int extent_read_full_page(struct page *page, struct bio **bio,
-			  unsigned long *bio_flags)
-{
-	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
-	u64 start = page_offset(page);
-	u64 end = start + PAGE_SIZE - 1;
-	int ret;
-
-	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
-
-	ret = __do_readpage(page, NULL, bio, bio_flags, 0, NULL);
-	return ret;
 }
 
 static void update_nr_written(struct writeback_control *wbc,
