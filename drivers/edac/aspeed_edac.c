@@ -388,23 +388,7 @@ static struct platform_driver aspeed_driver = {
 	.probe		= aspeed_probe,
 	.remove		= aspeed_remove
 };
-
-
-static int __init aspeed_init(void)
-{
-	return platform_driver_register(&aspeed_driver);
-}
-
-
-static void __exit aspeed_exit(void)
-{
-	platform_driver_unregister(&aspeed_driver);
-}
-
-
-module_init(aspeed_init);
-module_exit(aspeed_exit);
-
+module_platform_driver(aspeed_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Stefan Schaeckeler <sschaeck@cisco.com>");
