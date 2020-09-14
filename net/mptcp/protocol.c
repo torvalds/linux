@@ -167,7 +167,8 @@ static bool mptcp_subflow_dsn_valid(const struct mptcp_sock *msk,
 		return true;
 
 	subflow->data_avail = 0;
-	return mptcp_subflow_data_available(ssk);
+	mptcp_subflow_data_available(ssk);
+	return subflow->data_avail == MPTCP_SUBFLOW_DATA_AVAIL;
 }
 
 static void mptcp_check_data_fin_ack(struct sock *sk)
@@ -313,10 +314,17 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 	struct tcp_sock *tp;
 	bool done = false;
 
-	if (!mptcp_subflow_dsn_valid(msk, ssk)) {
-		*bytes = 0;
+	pr_debug("msk=%p ssk=%p data avail=%d valid=%d empty=%d",
+		 msk, ssk, subflow->data_avail,
+		 mptcp_subflow_dsn_valid(msk, ssk),
+		 !skb_peek(&ssk->sk_receive_queue));
+	if (subflow->data_avail == MPTCP_SUBFLOW_OOO_DATA) {
+		mptcp_subflow_discard_data(ssk, subflow->map_data_len);
 		return false;
 	}
+
+	if (!mptcp_subflow_dsn_valid(msk, ssk))
+		return false;
 
 	tp = tcp_sk(ssk);
 	do {
@@ -376,7 +384,7 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 		}
 	} while (more_data_avail);
 
-	*bytes = moved;
+	*bytes += moved;
 
 	/* If the moves have caught up with the DATA_FIN sequence number
 	 * it's time to ack the DATA_FIN and change socket state, but
@@ -415,9 +423,17 @@ static bool move_skbs_to_msk(struct mptcp_sock *msk, struct sock *ssk)
 
 void mptcp_data_ready(struct sock *sk, struct sock *ssk)
 {
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 	struct mptcp_sock *msk = mptcp_sk(sk);
+	bool wake;
 
-	set_bit(MPTCP_DATA_READY, &msk->flags);
+	/* move_skbs_to_msk below can legitly clear the data_avail flag,
+	 * but we will need later to properly woke the reader, cache its
+	 * value
+	 */
+	wake = subflow->data_avail == MPTCP_SUBFLOW_DATA_AVAIL;
+	if (wake)
+		set_bit(MPTCP_DATA_READY, &msk->flags);
 
 	if (atomic_read(&sk->sk_rmem_alloc) < READ_ONCE(sk->sk_rcvbuf) &&
 	    move_skbs_to_msk(msk, ssk))
@@ -438,7 +454,8 @@ void mptcp_data_ready(struct sock *sk, struct sock *ssk)
 		move_skbs_to_msk(msk, ssk);
 	}
 wake:
-	sk->sk_data_ready(sk);
+	if (wake)
+		sk->sk_data_ready(sk);
 }
 
 static void __mptcp_flush_join_list(struct mptcp_sock *msk)
@@ -1281,6 +1298,9 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		set_bit(MPTCP_DATA_READY, &msk->flags);
 	}
 out_err:
+	pr_debug("msk=%p data_ready=%d rx queue empty=%d copied=%d",
+		 msk, test_bit(MPTCP_DATA_READY, &msk->flags),
+		 skb_queue_empty(&sk->sk_receive_queue), copied);
 	mptcp_rcv_space_adjust(msk, copied);
 
 	release_sock(sk);
@@ -2308,6 +2328,7 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 	sock_poll_wait(file, sock, wait);
 
 	state = inet_sk_state_load(sk);
+	pr_debug("msk=%p state=%d flags=%lx", msk, state, msk->flags);
 	if (state == TCP_LISTEN)
 		return mptcp_check_readable(msk);
 

@@ -268,6 +268,12 @@ mptcp_subflow_rsk(const struct request_sock *rsk)
 	return (struct mptcp_subflow_request_sock *)rsk;
 }
 
+enum mptcp_data_avail {
+	MPTCP_SUBFLOW_NODATA,
+	MPTCP_SUBFLOW_DATA_AVAIL,
+	MPTCP_SUBFLOW_OOO_DATA
+};
+
 /* MPTCP subflow context */
 struct mptcp_subflow_context {
 	struct	list_head node;/* conn_list of subflows */
@@ -292,10 +298,10 @@ struct mptcp_subflow_context {
 		map_valid : 1,
 		mpc_map : 1,
 		backup : 1,
-		data_avail : 1,
 		rx_eof : 1,
 		use_64bit_ack : 1, /* Set when we received a 64-bit DSN */
 		can_ack : 1;	    /* only after processing the remote a key */
+	enum mptcp_data_avail data_avail;
 	u32	remote_nonce;
 	u64	thmac;
 	u32	local_nonce;
@@ -347,6 +353,7 @@ int mptcp_is_enabled(struct net *net);
 void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
 				     struct mptcp_options_received *mp_opt);
 bool mptcp_subflow_data_available(struct sock *sk);
+int mptcp_subflow_discard_data(struct sock *sk, unsigned int limit);
 void __init mptcp_subflow_init(void);
 
 /* called with sk socket lock held */

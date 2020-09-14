@@ -816,6 +816,40 @@ static int subflow_read_actor(read_descriptor_t *desc,
 	return copy_len;
 }
 
+int mptcp_subflow_discard_data(struct sock *ssk, unsigned int limit)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
+	u32 map_remaining;
+	size_t delta;
+
+	map_remaining = subflow->map_data_len -
+			mptcp_subflow_get_map_offset(subflow);
+	delta = min_t(size_t, limit, map_remaining);
+
+	/* discard mapped data */
+	pr_debug("discarding %zu bytes, current map len=%d", delta,
+		 map_remaining);
+	if (delta) {
+		read_descriptor_t desc = {
+			.count = delta,
+		};
+		int ret;
+
+		ret = tcp_read_sock(ssk, &desc, subflow_read_actor);
+		if (ret < 0) {
+			ssk->sk_err = -ret;
+			return ret;
+		}
+		if (ret < delta)
+			return 0;
+		if (delta == map_remaining) {
+			subflow->data_avail = 0;
+			subflow->map_valid = 0;
+		}
+	}
+	return 0;
+}
+
 static bool subflow_check_data_avail(struct sock *ssk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
@@ -832,8 +866,6 @@ static bool subflow_check_data_avail(struct sock *ssk)
 
 	msk = mptcp_sk(subflow->conn);
 	for (;;) {
-		u32 map_remaining;
-		size_t delta;
 		u64 ack_seq;
 		u64 old_ack;
 
@@ -851,7 +883,7 @@ static bool subflow_check_data_avail(struct sock *ssk)
 			subflow->map_data_len = skb->len;
 			subflow->map_subflow_seq = tcp_sk(ssk)->copied_seq -
 						   subflow->ssn_offset;
-			subflow->data_avail = 1;
+			subflow->data_avail = MPTCP_SUBFLOW_DATA_AVAIL;
 			return true;
 		}
 
@@ -880,43 +912,19 @@ static bool subflow_check_data_avail(struct sock *ssk)
 		pr_debug("msk ack_seq=%llx subflow ack_seq=%llx", old_ack,
 			 ack_seq);
 		if (ack_seq == old_ack) {
-			subflow->data_avail = 1;
+			subflow->data_avail = MPTCP_SUBFLOW_DATA_AVAIL;
+			break;
+		} else if (after64(ack_seq, old_ack)) {
+			subflow->data_avail = MPTCP_SUBFLOW_OOO_DATA;
 			break;
 		}
 
 		/* only accept in-sequence mapping. Old values are spurious
-		 * retransmission; we can hit "future" values on active backup
-		 * subflow switch, we relay on retransmissions to get
-		 * in-sequence data.
-		 * Cuncurrent subflows support will require subflow data
-		 * reordering
+		 * retransmission
 		 */
-		map_remaining = subflow->map_data_len -
-				mptcp_subflow_get_map_offset(subflow);
-		if (before64(ack_seq, old_ack))
-			delta = min_t(size_t, old_ack - ack_seq, map_remaining);
-		else
-			delta = min_t(size_t, ack_seq - old_ack, map_remaining);
-
-		/* discard mapped data */
-		pr_debug("discarding %zu bytes, current map len=%d", delta,
-			 map_remaining);
-		if (delta) {
-			read_descriptor_t desc = {
-				.count = delta,
-			};
-			int ret;
-
-			ret = tcp_read_sock(ssk, &desc, subflow_read_actor);
-			if (ret < 0) {
-				ssk->sk_err = -ret;
-				goto fatal;
-			}
-			if (ret < delta)
-				return false;
-			if (delta == map_remaining)
-				subflow->map_valid = 0;
-		}
+		if (mptcp_subflow_discard_data(ssk, old_ack - ack_seq))
+			goto fatal;
+		return false;
 	}
 	return true;
 
