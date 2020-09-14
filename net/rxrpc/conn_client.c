@@ -433,7 +433,6 @@ static void rxrpc_add_conn_to_bundle(struct rxrpc_bundle *bundle, gfp_t gfp)
 		if (!rxrpc_may_reuse_conn(old)) {
 			if (old)
 				trace_rxrpc_client(old, -1, rxrpc_client_replace);
-			candidate->bundle = rxrpc_get_bundle(bundle);
 			candidate->bundle_shift = shift;
 			bundle->conns[i] = candidate;
 			for (j = 0; j < RXRPC_MAXCALLS; j++)
