@@ -389,6 +389,7 @@ struct rt1015_priv {
 	int bypass_boost;
 	int amp_ver;
 	int dac_is_used;
+	int cali_done;
 };
 
 #endif /* __RT1015_H__ */

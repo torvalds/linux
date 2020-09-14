@@ -484,6 +484,33 @@ static int rt1015_bypass_boost_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static void rt1015_calibrate(struct rt1015_priv *rt1015)
+{
+	struct snd_soc_component *component = rt1015->component;
+	struct regmap *regmap = rt1015->regmap;
+
+	snd_soc_dapm_mutex_lock(&component->dapm);
+	regcache_cache_bypass(regmap, true);
+
+	regmap_write(regmap, RT1015_PWR1, 0xd7df);
+	regmap_write(regmap, RT1015_PWR4, 0x00b2);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2008);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL9, 0x0140);
+	regmap_write(regmap, RT1015_GAT_BOOST, 0x0efe);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000d);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000e);
+	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a00);
+	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a01);
+	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a05);
+	msleep(500);
+	regmap_write(regmap, RT1015_PWR1, 0x0);
+
+	regcache_cache_bypass(regmap, false);
+	regcache_mark_dirty(regmap);
+	regcache_sync(regmap);
+	snd_soc_dapm_mutex_unlock(&component->dapm);
+}
+
 static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -494,20 +521,12 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 
 	if (!rt1015->dac_is_used) {
 		rt1015->bypass_boost = ucontrol->value.integer.value[0];
-		if (rt1015->bypass_boost == RT1015_Bypass_Boost) {
-			snd_soc_component_write(component,
-				RT1015_PWR4, 0x00b2);
-			snd_soc_component_write(component,
-				RT1015_CLSD_INTERNAL8, 0x2008);
-			snd_soc_component_write(component,
-				RT1015_CLSD_INTERNAL9, 0x0140);
-			snd_soc_component_write(component,
-				RT1015_GAT_BOOST, 0x0efe);
-			snd_soc_component_write(component,
-				RT1015_PWR_STATE_CTRL, 0x000d);
-			msleep(500);
-			snd_soc_component_write(component,
-				RT1015_PWR_STATE_CTRL, 0x000e);
+		if (rt1015->bypass_boost == RT1015_Bypass_Boost &&
+			!rt1015->cali_done) {
+			rt1015_calibrate(rt1015);
+			rt1015->cali_done = 1;
+
+			regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
 		}
 	} else
 		dev_err(component->dev, "DAC is being used!\n");
@@ -888,6 +907,7 @@ static int rt1015_probe(struct snd_soc_component *component)
 
 	rt1015->component = component;
 	rt1015->bclk_ratio = 0;
+	rt1015->cali_done = 0;
 	snd_soc_component_write(component, RT1015_BAT_RPO_STEP1, 0x061c);
 
 	return 0;
