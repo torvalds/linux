@@ -3142,9 +3142,8 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
  * return 0 on success, otherwise return error
  */
 static int __do_readpage(struct page *page, struct extent_map **em_cached,
-			 struct bio **bio, int mirror_num,
-			 unsigned long *bio_flags, unsigned int read_flags,
-			 u64 *prev_em_start)
+			 struct bio **bio, unsigned long *bio_flags,
+			 unsigned int read_flags, u64 *prev_em_start)
 {
 	struct inode *inode = page->mapping->host;
 	u64 start = page_offset(page);
@@ -3322,7 +3321,7 @@ static int __do_readpage(struct page *page, struct extent_map **em_cached,
 		ret = submit_extent_page(REQ_OP_READ | read_flags, NULL,
 					 page, offset, disk_io_size,
 					 pg_offset, bio,
-					 end_bio_extent_readpage, mirror_num,
+					 end_bio_extent_readpage, 0,
 					 *bio_flags,
 					 this_bio_flag,
 					 force_bio_submit);
@@ -3359,7 +3358,7 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
 	for (index = 0; index < nr_pages; index++) {
-		__do_readpage(pages[index], em_cached, bio, 0, bio_flags,
+		__do_readpage(pages[index], em_cached, bio, bio_flags,
 			      REQ_RAHEAD, prev_em_start);
 		put_page(pages[index]);
 	}
@@ -3375,7 +3374,7 @@ int extent_read_full_page(struct page *page, struct bio **bio,
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-	ret = __do_readpage(page, NULL, bio, 0, bio_flags, 0, NULL);
+	ret = __do_readpage(page, NULL, bio, bio_flags, 0, NULL);
 	return ret;
 }
 
