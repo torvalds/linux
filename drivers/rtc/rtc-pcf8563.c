@@ -513,7 +513,7 @@ static const struct clk_ops pcf8563_clkout_ops = {
 	.set_rate = pcf8563_clkout_set_rate,
 };
 
-static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
+static __maybe_unused struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 {
 	struct i2c_client *client = pcf8563->client;
 	struct device_node *node = client->dev.of_node;
@@ -614,7 +614,7 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	}
 
-#ifdef CONFIG_COMMON_CLK
+#if defined(CONFIG_COMMON_CLK) && !defined(CONFIG_ROCKCHIP_THUNDER_BOOT)
 	/* register clk in common clk framework */
 	pcf8563_clkout_register_clk(pcf8563);
 #endif
