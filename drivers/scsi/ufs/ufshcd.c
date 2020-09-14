@@ -2806,7 +2806,7 @@ static inline void ufshcd_init_query(struct ufs_hba *hba,
 	(*request)->upiu_req.selector = selector;
 }
 
-static int ufshcd_query_flag_retry(struct ufs_hba *hba,
+int ufshcd_query_flag_retry(struct ufs_hba *hba,
 	enum query_opcode opcode, enum flag_idn idn, u8 index, bool *flag_res)
 {
 	int ret;
@@ -2828,6 +2828,7 @@ static int ufshcd_query_flag_retry(struct ufs_hba *hba,
 			__func__, opcode, idn, ret, retries);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ufshcd_query_flag_retry);
 
 /**
  * ufshcd_query_flag() - API function for sending flag query requests
@@ -2976,7 +2977,7 @@ EXPORT_SYMBOL_GPL(ufshcd_query_attr);
  *
  * Returns 0 for success, non-zero in case of failure
 */
-static int ufshcd_query_attr_retry(struct ufs_hba *hba,
+int ufshcd_query_attr_retry(struct ufs_hba *hba,
 	enum query_opcode opcode, enum attr_idn idn, u8 index, u8 selector,
 	u32 *attr_val)
 {
@@ -2999,6 +3000,7 @@ static int ufshcd_query_attr_retry(struct ufs_hba *hba,
 			__func__, idn, ret, QUERY_REQ_RETRIES);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ufshcd_query_attr_retry);
 
 static int __ufshcd_query_descriptor(struct ufs_hba *hba,
 			enum query_opcode opcode, enum desc_idn idn, u8 index,
@@ -3207,6 +3209,7 @@ out:
 		kfree(desc_buf);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ufshcd_read_desc_param);
 
 /**
  * struct uc_string_id - unicode string
@@ -5177,7 +5180,7 @@ static inline int ufshcd_get_bkops_status(struct ufs_hba *hba, u32 *status)
  * to know whether auto bkops is enabled or disabled after this function
  * returns control to it.
  */
-static int ufshcd_bkops_ctrl(struct ufs_hba *hba,
+int ufshcd_bkops_ctrl(struct ufs_hba *hba,
 			     enum bkops_status status)
 {
 	int err;
@@ -5202,6 +5205,7 @@ static int ufshcd_bkops_ctrl(struct ufs_hba *hba,
 out:
 	return err;
 }
+EXPORT_SYMBOL_GPL(ufshcd_bkops_ctrl);
 
 /**
  * ufshcd_urgent_bkops - handle urgent bkops exception event
