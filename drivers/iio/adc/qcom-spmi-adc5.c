@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -88,7 +88,7 @@
 /* For PMIC7 */
 #define ADC_APP_SID				0x40
 #define ADC_APP_SID_MASK			GENMASK(3, 0)
-#define ADC7_CONV_TIMEOUT			msecs_to_jiffies(10)
+#define ADC7_CONV_TIMEOUT_MS			501
 
 enum adc5_cal_method {
 	ADC5_NO_CAL = 0,
@@ -365,6 +365,8 @@ static int adc7_do_conversion(struct adc5_chip *adc,
 {
 	int ret;
 	u8 status;
+	unsigned long rc;
+	unsigned int time_pending_ms;
 
 	mutex_lock(&adc->lock);
 
@@ -375,14 +377,44 @@ static int adc7_do_conversion(struct adc5_chip *adc,
 	}
 
 	/* No support for polling mode at present */
-	wait_for_completion_timeout(&adc->complete, ADC7_CONV_TIMEOUT);
+	rc = wait_for_completion_timeout(&adc->complete,
+					msecs_to_jiffies(ADC7_CONV_TIMEOUT_MS));
+	if (!rc) {
+		dev_err(adc->dev, "Reading ADC channel %s timed out\n",
+			prop->datasheet_name);
+		ret = -ETIMEDOUT;
+		goto unlock;
+	}
+
+	/*
+	 * As per the hardware documentation, EOC should happen within 15 ms
+	 * in a good case where there could be multiple conversion requests
+	 * going through PMIC HW arbiter for reading ADC channels. However, if
+	 * for some reason, one of the conversion request fails and times out,
+	 * worst possible delay can be 500 ms. Hence print a warning when we
+	 * see EOC completion happened more than 15 ms.
+	 */
+	time_pending_ms = jiffies_to_msecs(rc);
+	if (time_pending_ms < ADC7_CONV_TIMEOUT_MS &&
+	    (ADC7_CONV_TIMEOUT_MS - time_pending_ms) > 15)
+		dev_warn(adc->dev, "ADC channel %s EOC took %u ms\n",
+			prop->datasheet_name,
+			ADC7_CONV_TIMEOUT_MS - time_pending_ms);
 
 	ret = adc5_read(adc, ADC5_USR_STATUS1, &status, 1);
 	if (ret)
 		goto unlock;
 
 	if (status & ADC5_USR_STATUS1_CONV_FAULT) {
-		dev_err(adc->dev, "Unexpected conversion fault\n");
+		dev_err(adc->dev, "ADC channel %s unexpected conversion fault\n",
+			prop->datasheet_name);
+		ret = -EIO;
+		goto unlock;
+	}
+
+	if (!(status & ADC5_USR_STATUS1_EOC)) {
+		dev_err(adc->dev, "ADC channel %s EOC bit not set, status=%#x\n",
+			prop->datasheet_name, status);
 		ret = -EIO;
 		goto unlock;
 	}
