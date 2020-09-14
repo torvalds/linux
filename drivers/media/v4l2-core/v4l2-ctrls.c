@@ -2200,7 +2200,7 @@ static int check_range(enum v4l2_ctrl_type type,
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		if (step != 1 || max > 1 || min < 0)
 			return -ERANGE;
-		/* fall through */
+		fallthrough;
 	case V4L2_CTRL_TYPE_U8:
 	case V4L2_CTRL_TYPE_U16:
 	case V4L2_CTRL_TYPE_U32:

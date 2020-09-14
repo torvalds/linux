@@ -401,7 +401,7 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		priv->tdm_offset += 1;
-		/* fall through */
+		fallthrough;
 		/* DSP_A uses the same basic config as DSP_B
 		 * except we need to shift the TDM output by one BCK cycle
 		 */

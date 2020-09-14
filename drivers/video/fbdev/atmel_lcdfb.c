@@ -508,7 +508,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	case 32:
 		var->transp.offset = 24;
 		var->transp.length = 8;
-		/* fall through */
+		fallthrough;
 	case 24:
 		if (pdata->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
 			/* RGB:888 mode */
@@ -633,7 +633,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 		case 2: value |= ATMEL_LCDC_PIXELSIZE_2; break;
 		case 4: value |= ATMEL_LCDC_PIXELSIZE_4; break;
 		case 8: value |= ATMEL_LCDC_PIXELSIZE_8; break;
-		case 15: /* fall through */
+		case 15:
 		case 16: value |= ATMEL_LCDC_PIXELSIZE_16; break;
 		case 24: value |= ATMEL_LCDC_PIXELSIZE_24; break;
 		case 32: value |= ATMEL_LCDC_PIXELSIZE_32; break;

@@ -122,7 +122,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 			linux_regs->pc = addr;
 			linux_regs->npc = addr + 4;
 		}
-		/* fall through */
+		fallthrough;
 
 	case 'D':
 	case 'k':

@@ -225,7 +225,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			 * interested. The RX CCID need not parse Ack Vectors,
 			 * since it is only interested in clearing old state.
 			 */
-			/* fall through */
+			fallthrough;
 		case DCCPO_MIN_TX_CCID_SPECIFIC ... DCCPO_MAX_TX_CCID_SPECIFIC:
 			if (ccid_hc_tx_parse_options(dp->dccps_hc_tx_ccid, sk,
 						     pkt_type, opt, value, len))

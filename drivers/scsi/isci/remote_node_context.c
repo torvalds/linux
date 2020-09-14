@@ -225,7 +225,7 @@ static void sci_remote_node_context_continue_state_transitions(struct sci_remote
 	case RNC_DEST_READY:
 	case RNC_DEST_SUSPENDED_RESUME:
 		rnc->destination_state = RNC_DEST_READY;
-		/* Fall through... */
+		fallthrough;
 	case RNC_DEST_FINAL:
 		sci_remote_node_context_resume(rnc, rnc->user_callback,
 					       rnc->user_cookie);
@@ -601,9 +601,9 @@ enum sci_status sci_remote_node_context_suspend(
 				 __func__, sci_rnc);
 			return SCI_FAILURE_INVALID_STATE;
 		}
-		/* Fall through - and handle like SCI_RNC_POSTING */
+		fallthrough;	/* and handle like SCI_RNC_POSTING */
 	case SCI_RNC_RESUMING:
-		/* Fall through - and handle like SCI_RNC_POSTING */
+		fallthrough;	/* and handle like SCI_RNC_POSTING */
 	case SCI_RNC_POSTING:
 		/* Set the destination state to AWAIT - this signals the
 		 * entry into the SCI_RNC_READY state that a suspension

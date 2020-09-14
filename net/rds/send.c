@@ -934,7 +934,7 @@ static int rds_rm_size(struct msghdr *msg, int num_sgs,
 
 		case RDS_CMSG_ZCOPY_COOKIE:
 			zcopy_cookie = true;
-			/* fall through */
+			fallthrough;
 
 		case RDS_CMSG_RDMA_DEST:
 		case RDS_CMSG_RDMA_MAP:

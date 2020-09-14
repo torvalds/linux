@@ -140,7 +140,7 @@ efx_mcdi_filter_push_prep_set_match_fields(struct efx_nic *efx,
 		switch (encap_type & EFX_ENCAP_TYPES_MASK) {
 		case EFX_ENCAP_TYPE_VXLAN:
 			vni_type = MC_CMD_FILTER_OP_EXT_IN_VNI_TYPE_VXLAN;
-			/* fallthrough */
+			fallthrough;
 		case EFX_ENCAP_TYPE_GENEVE:
 			COPY_VALUE(ether_type, ETHER_TYPE);
 			outer_ip_proto = IPPROTO_UDP;

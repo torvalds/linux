@@ -540,7 +540,7 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 		switch (wr->opcode) {
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			wr->ex.imm_data = ibwr->ex.imm_data;
-			/* fall through */
+			fallthrough;
 		case IB_WR_RDMA_READ:
 		case IB_WR_RDMA_WRITE:
 			wr->wr.rdma.remote_addr = rdma_wr(ibwr)->remote_addr;
@@ -1056,7 +1056,7 @@ static ssize_t parent_show(struct device *device,
 	struct rxe_dev *rxe =
 		rdma_device_to_drv_device(device, struct rxe_dev, ib_dev);
 
-	return snprintf(buf, 16, "%s\n", rxe_parent_name(rxe, 1));
+	return scnprintf(buf, PAGE_SIZE, "%s\n", rxe_parent_name(rxe, 1));
 }
 
 static DEVICE_ATTR_RO(parent);

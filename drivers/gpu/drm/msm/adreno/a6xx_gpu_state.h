@@ -372,7 +372,7 @@ static const struct a6xx_indexed_registers {
 	u32 data;
 	u32 count;
 } a6xx_indexed_reglist[] = {
-	{ "CP_SEQ_STAT", REG_A6XX_CP_SQE_STAT_ADDR,
+	{ "CP_SQE_STAT", REG_A6XX_CP_SQE_STAT_ADDR,
 		REG_A6XX_CP_SQE_STAT_DATA, 0x33 },
 	{ "CP_DRAW_STATE", REG_A6XX_CP_DRAW_STATE_ADDR,
 		REG_A6XX_CP_DRAW_STATE_DATA, 0x100 },

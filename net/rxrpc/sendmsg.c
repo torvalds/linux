@@ -241,7 +241,7 @@ static int rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 			trace_rxrpc_timer(call, rxrpc_timer_init_for_send_reply, now);
 			if (!last)
 				break;
-			/* Fall through */
+			fallthrough;
 		case RXRPC_CALL_SERVER_SEND_REPLY:
 			call->state = RXRPC_CALL_SERVER_AWAIT_ACK;
 			rxrpc_notify_end_tx(rx, call, notify_end_tx);
@@ -721,13 +721,13 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		if (p.call.timeouts.normal > 0 && j == 0)
 			j = 1;
 		WRITE_ONCE(call->next_rx_timo, j);
-		/* Fall through */
+		fallthrough;
 	case 2:
 		j = msecs_to_jiffies(p.call.timeouts.idle);
 		if (p.call.timeouts.idle > 0 && j == 0)
 			j = 1;
 		WRITE_ONCE(call->next_req_timo, j);
-		/* Fall through */
+		fallthrough;
 	case 1:
 		if (p.call.timeouts.hard > 0) {
 			j = msecs_to_jiffies(p.call.timeouts.hard);

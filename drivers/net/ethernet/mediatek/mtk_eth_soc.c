@@ -228,7 +228,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			if (!MTK_HAS_CAPS(mac->hw->soc->caps,
 					  MTK_GMAC1_TRGMII))
 				goto err_phy;
-			/* fall through */
+			fallthrough;
 		case PHY_INTERFACE_MODE_RGMII_TXID:
 		case PHY_INTERFACE_MODE_RGMII_RXID:
 		case PHY_INTERFACE_MODE_RGMII_ID:
@@ -501,11 +501,11 @@ static void mtk_validate(struct phylink_config *config,
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		phylink_set(mask, 1000baseT_Half);
-		/* fall through */
+		fallthrough;
 	case PHY_INTERFACE_MODE_SGMII:
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
-		/* fall through */
+		fallthrough;
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_RMII:
 	case PHY_INTERFACE_MODE_REVMII:

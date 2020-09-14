@@ -1144,7 +1144,7 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 			hisi_hba->hw->get_events(hisi_hba, phy_no);
 			break;
 		}
-		/* fallthru */
+		fallthrough;
 	case PHY_FUNC_RELEASE_SPINUP_HOLD:
 	default:
 		return -EOPNOTSUPP;

@@ -885,7 +885,7 @@ static int xs_local_send_request(struct rpc_rqst *req)
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
-		/* fall through */
+		fallthrough;
 	case -EPIPE:
 		xs_close(xprt);
 		status = -ENOTCONN;
@@ -1436,7 +1436,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		xprt->connect_cookie++;
 		clear_bit(XPRT_CONNECTED, &xprt->state);
 		xs_run_error_worker(transport, XPRT_SOCK_WAKE_DISCONNECT);
-		/* fall through */
+		fallthrough;
 	case TCP_CLOSING:
 		/*
 		 * If the server closed down the connection, make sure that
@@ -2202,7 +2202,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	switch (ret) {
 	case 0:
 		xs_set_srcport(transport, sock);
-		/* fall through */
+		fallthrough;
 	case -EINPROGRESS:
 		/* SYN_SENT! */
 		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
@@ -2255,7 +2255,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	default:
 		printk("%s: connect returned unhandled error %d\n",
 			__func__, status);
-		/* fall through */
+		fallthrough;
 	case -EADDRNOTAVAIL:
 		/* We're probably in TIME_WAIT. Get rid of existing socket,
 		 * and retry
