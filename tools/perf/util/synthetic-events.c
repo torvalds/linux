@@ -2006,14 +2006,6 @@ int perf_event__synthesize_stat_events(struct perf_stat_config *config, struct p
 	return 0;
 }
 
-int __weak perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused,
-				       struct perf_tool *tool __maybe_unused,
-				       perf_event__handler_t process __maybe_unused,
-				       struct machine *machine __maybe_unused)
-{
-	return 0;
-}
-
 extern const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE];
 
 int perf_event__synthesize_features(struct perf_tool *tool, struct perf_session *session,
