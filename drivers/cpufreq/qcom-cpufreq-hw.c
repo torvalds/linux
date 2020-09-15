@@ -187,10 +187,15 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 			freq = cpu_hw_rate / 1000;
 
 		if (freq != prev_freq && core_count != LUT_TURBO_IND) {
-			table[i].frequency = freq;
-			qcom_cpufreq_update_opp(cpu_dev, freq, volt);
-			dev_dbg(cpu_dev, "index=%d freq=%d, core_count %d\n", i,
+			if (!qcom_cpufreq_update_opp(cpu_dev, freq, volt)) {
+				table[i].frequency = freq;
+				dev_dbg(cpu_dev, "index=%d freq=%d, core_count %d\n", i,
 				freq, core_count);
+			} else {
+				dev_warn(cpu_dev, "failed to update OPP for freq=%d\n", freq);
+				table[i].frequency = CPUFREQ_ENTRY_INVALID;
+			}
+
 		} else if (core_count == LUT_TURBO_IND) {
 			table[i].frequency = CPUFREQ_ENTRY_INVALID;
 		}
@@ -207,9 +212,13 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 			 * as the boost frequency
 			 */
 			if (prev->frequency == CPUFREQ_ENTRY_INVALID) {
-				prev->frequency = prev_freq;
-				prev->flags = CPUFREQ_BOOST_FREQ;
-				qcom_cpufreq_update_opp(cpu_dev, prev_freq, volt);
+				if (!qcom_cpufreq_update_opp(cpu_dev, prev_freq, volt)) {
+					prev->frequency = prev_freq;
+					prev->flags = CPUFREQ_BOOST_FREQ;
+				} else {
+					dev_warn(cpu_dev, "failed to update OPP for freq=%d\n",
+						 freq);
+				}
 			}
 
 			break;
