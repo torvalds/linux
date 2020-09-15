@@ -260,7 +260,11 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 			goto out_err;
 
 		if (mem->mem_type != TTM_PL_SYSTEM) {
-			ret = ttm_tt_bind(bdev, bo->ttm, mem, ctx);
+			ret = ttm_tt_populate(bdev, bo->ttm, ctx);
+			if (ret)
+				goto out_err;
+
+			ret = ttm_tt_bind(bdev, bo->ttm, mem);
 			if (ret)
 				goto out_err;
 		}

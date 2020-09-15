@@ -77,7 +77,12 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		return ret;
 
 	if (new_mem->mem_type != TTM_PL_SYSTEM) {
-		ret = ttm_tt_bind(bo->bdev, ttm, new_mem, ctx);
+
+		ret = ttm_tt_populate(bo->bdev, ttm, ctx);
+		if (unlikely(ret != 0))
+			return ret;
+
+		ret = ttm_tt_bind(bo->bdev, ttm, new_mem);
 		if (unlikely(ret != 0))
 			return ret;
 	}

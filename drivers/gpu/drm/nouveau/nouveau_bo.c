@@ -920,7 +920,11 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	ret = ttm_tt_bind(bo->bdev, bo->ttm, &tmp_reg, &ctx);
+	ret = ttm_tt_populate(bo->bdev, bo->ttm, &ctx);
+	if (ret)
+		goto out;
+
+	ret = ttm_tt_bind(bo->bdev, bo->ttm, &tmp_reg);
 	if (ret)
 		goto out;
 

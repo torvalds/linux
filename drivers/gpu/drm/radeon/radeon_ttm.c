@@ -233,7 +233,12 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 		goto out_cleanup;
 	}
 
-	r = ttm_tt_bind(bo->bdev, bo->ttm, &tmp_mem, &ctx);
+	r = ttm_tt_populate(bo->bdev, bo->ttm, &ctx);
+	if (unlikely(r)) {
+		goto out_cleanup;
+	}
+
+	r = ttm_tt_bind(bo->bdev, bo->ttm, &tmp_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
