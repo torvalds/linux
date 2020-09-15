@@ -61,7 +61,7 @@
   {
     "EventName": "ex_ret_brn_ind_misp",
     "EventCode": "0xca",
-    "BriefDescription": "Retired Indirect Branch Instructions Mispredicted.",
+    "BriefDescription": "Retired Indirect Branch Instructions Mispredicted."
   },
   {
     "EventName": "ex_ret_mmx_fp_instr.sse_instr",
