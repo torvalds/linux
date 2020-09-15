@@ -86,6 +86,7 @@ struct ccs_pll_branch_bk {
  *		     (input)
  * @vt_fr: Video timing front-end configuration (output)
  * @vt_bk: Video timing back-end configuration (output)
+ * @op_fr: Operational timing front-end configuration (output)
  * @op_bk: Operational timing back-end configuration (output)
  * @pixel_rate_csi: Pixel rate on the output data bus (output)
  * @pixel_rate_pixel_array: Nominal pixel rate in the sensor's pixel array
@@ -112,6 +113,7 @@ struct ccs_pll {
 	/* output values */
 	struct ccs_pll_branch_fr vt_fr;
 	struct ccs_pll_branch_bk vt_bk;
+	struct ccs_pll_branch_fr op_fr;
 	struct ccs_pll_branch_bk op_bk;
 
 	uint32_t pixel_rate_csi;
@@ -171,6 +173,7 @@ struct ccs_pll_branch_limits_bk {
  * @max_ext_clk_freq_hz: Maximum external clock frequency
  * @vt_fr: Video timing front-end limits
  * @vt_bk: Video timing back-end limits
+ * @op_fr: Operational timing front-end limits
  * @op_bk: Operational timing back-end limits
  * @min_line_length_pck_bin: Minimum line length in pixels, with binning
  * @min_line_length_pck: Minimum line length in pixels without binning
@@ -182,6 +185,7 @@ struct ccs_pll_limits {
 
 	struct ccs_pll_branch_limits_fr vt_fr;
 	struct ccs_pll_branch_limits_bk vt_bk;
+	struct ccs_pll_branch_limits_fr op_fr;
 	struct ccs_pll_branch_limits_bk op_bk;
 
 	/* Other relevant limits */
