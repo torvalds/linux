@@ -799,8 +799,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 		if (!be) {
 			btrfs_err(fs_info,
 "trying to do action %d to bytenr %llu num_bytes %llu but there is no existing entry!",
-				  action, (unsigned long long)bytenr,
-				  (unsigned long long)num_bytes);
+				  action, bytenr, num_bytes);
 			dump_ref_action(fs_info, ra);
 			kfree(ref);
 			kfree(ra);
