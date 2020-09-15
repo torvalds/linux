@@ -559,7 +559,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	pcf2127->rtc->set_start_time = true; /* Sets actual start to 1970 */
 	pcf2127->rtc->uie_unsupported = 1;
 
-	if (alarm_irq >= 0) {
+	if (alarm_irq > 0) {
 		ret = devm_request_threaded_irq(dev, alarm_irq, NULL,
 						pcf2127_rtc_irq,
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
@@ -570,7 +570,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		}
 	}
 
-	if (alarm_irq >= 0 || device_property_read_bool(dev, "wakeup-source")) {
+	if (alarm_irq > 0 || device_property_read_bool(dev, "wakeup-source")) {
 		device_init_wakeup(dev, true);
 		pcf2127->rtc->ops = &pcf2127_rtc_alrm_ops;
 	}
