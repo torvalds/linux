@@ -214,7 +214,7 @@ static int bt_start_transaction(struct si_sm_data *bt,
 		return IPMI_NODE_BUSY_ERR;
 
 	if (bt->state != BT_STATE_IDLE) {
-		dev_warn(bt->io->dev, "BT is now in the state %d\n", bt->state);
+		dev_warn(bt->io->dev, "BT in invalid state %d\n", bt->state);
 		return IPMI_NOT_IN_MY_STATE_ERR;
 	}
 
