@@ -1166,8 +1166,8 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	root->commit_root = btrfs_root_node(root);
 	set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 
-	root->root_item.flags = 0;
-	root->root_item.byte_limit = 0;
+	btrfs_set_root_flags(&root->root_item, 0);
+	btrfs_set_root_limit(&root->root_item, 0);
 	btrfs_set_root_bytenr(&root->root_item, leaf->start);
 	btrfs_set_root_generation(&root->root_item, trans->transid);
 	btrfs_set_root_level(&root->root_item, 0);
