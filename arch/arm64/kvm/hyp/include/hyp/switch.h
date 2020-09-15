@@ -481,7 +481,7 @@ exit:
 
 static inline bool __needs_ssbd_off(struct kvm_vcpu *vcpu)
 {
-	if (!cpus_have_final_cap(ARM64_SSBD))
+	if (!cpus_have_final_cap(ARM64_SPECTRE_V4))
 		return false;
 
 	return !(vcpu->arch.workaround_flags & VCPU_WORKAROUND_2_FLAG);

@@ -675,7 +675,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #endif
 	{
 		.desc = "Speculative Store Bypass Disable",
-		.capability = ARM64_SSBD,
+		.capability = ARM64_SPECTRE_V4,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = has_ssbd_mitigation,
 		.cpu_enable = cpu_enable_ssbd_mitigation,
