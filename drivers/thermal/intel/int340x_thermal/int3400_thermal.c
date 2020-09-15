@@ -14,6 +14,7 @@
 
 #define INT3400_THERMAL_TABLE_CHANGED 0x83
 #define INT3400_ODVP_CHANGED 0x88
+#define INT3400_KEEP_ALIVE 0xA0
 
 enum int3400_thermal_uuid {
 	INT3400_THERMAL_PASSIVE_1,
@@ -83,8 +84,33 @@ static struct bin_attribute *data_attributes[] = {
 	NULL,
 };
 
+static ssize_t imok_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct int3400_thermal_priv *priv = dev_get_drvdata(dev);
+	acpi_status status;
+	int input, ret;
+
+	ret = kstrtouint(buf, 10, &input);
+	if (ret)
+		return ret;
+	status = acpi_execute_simple_method(priv->adev->handle, "IMOK", input);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(imok);
+
+static struct attribute *imok_attr[] = {
+	&dev_attr_imok.attr,
+	NULL
+};
+
 static const struct attribute_group data_attribute_group = {
 	.bin_attrs = data_attributes,
+	.attrs = imok_attr,
 };
 
 static ssize_t available_uuids_show(struct device *dev,
@@ -357,6 +383,9 @@ static void int3400_notify(acpi_handle handle,
 	switch (event) {
 	case INT3400_THERMAL_TABLE_CHANGED:
 		therm_event = THERMAL_TABLE_CHANGED;
+		break;
+	case INT3400_KEEP_ALIVE:
+		therm_event = THERMAL_EVENT_KEEP_ALIVE;
 		break;
 	case INT3400_ODVP_CHANGED:
 		evaluate_odvp(priv);
