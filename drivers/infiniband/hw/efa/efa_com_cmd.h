@@ -240,8 +240,24 @@ struct efa_com_basic_stats {
 	u64 rx_drops;
 };
 
+struct efa_com_messages_stats {
+	u64 send_bytes;
+	u64 send_wrs;
+	u64 recv_bytes;
+	u64 recv_wrs;
+};
+
+struct efa_com_rdma_read_stats {
+	u64 read_wrs;
+	u64 read_bytes;
+	u64 read_wr_err;
+	u64 read_resp_bytes;
+};
+
 union efa_com_get_stats_result {
 	struct efa_com_basic_stats basic_stats;
+	struct efa_com_messages_stats messages_stats;
+	struct efa_com_rdma_read_stats rdma_read_stats;
 };
 
 void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low);

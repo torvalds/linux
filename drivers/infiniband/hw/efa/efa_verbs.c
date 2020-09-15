@@ -36,6 +36,14 @@ struct efa_user_mmap_entry {
 	op(EFA_RX_BYTES, "rx_bytes") \
 	op(EFA_RX_PKTS, "rx_pkts") \
 	op(EFA_RX_DROPS, "rx_drops") \
+	op(EFA_SEND_BYTES, "send_bytes") \
+	op(EFA_SEND_WRS, "send_wrs") \
+	op(EFA_RECV_BYTES, "recv_bytes") \
+	op(EFA_RECV_WRS, "recv_wrs") \
+	op(EFA_RDMA_READ_WRS, "rdma_read_wrs") \
+	op(EFA_RDMA_READ_BYTES, "rdma_read_bytes") \
+	op(EFA_RDMA_READ_WR_ERR, "rdma_read_wr_err") \
+	op(EFA_RDMA_READ_RESP_BYTES, "rdma_read_resp_bytes") \
 	op(EFA_SUBMITTED_CMDS, "submitted_cmds") \
 	op(EFA_COMPLETED_CMDS, "completed_cmds") \
 	op(EFA_CMDS_ERR, "cmds_err") \
@@ -1903,13 +1911,15 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	struct efa_com_get_stats_params params = {};
 	union efa_com_get_stats_result result;
 	struct efa_dev *dev = to_edev(ibdev);
+	struct efa_com_rdma_read_stats *rrs;
+	struct efa_com_messages_stats *ms;
 	struct efa_com_basic_stats *bs;
 	struct efa_com_stats_admin *as;
 	struct efa_stats *s;
 	int err;
 
-	params.type = EFA_ADMIN_GET_STATS_TYPE_BASIC;
 	params.scope = EFA_ADMIN_GET_STATS_SCOPE_ALL;
+	params.type = EFA_ADMIN_GET_STATS_TYPE_BASIC;
 
 	err = efa_com_get_stats(&dev->edev, &params, &result);
 	if (err)
@@ -1921,6 +1931,28 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	stats->value[EFA_RX_BYTES] = bs->rx_bytes;
 	stats->value[EFA_RX_PKTS] = bs->rx_pkts;
 	stats->value[EFA_RX_DROPS] = bs->rx_drops;
+
+	params.type = EFA_ADMIN_GET_STATS_TYPE_MESSAGES;
+	err = efa_com_get_stats(&dev->edev, &params, &result);
+	if (err)
+		return err;
+
+	ms = &result.messages_stats;
+	stats->value[EFA_SEND_BYTES] = ms->send_bytes;
+	stats->value[EFA_SEND_WRS] = ms->send_wrs;
+	stats->value[EFA_RECV_BYTES] = ms->recv_bytes;
+	stats->value[EFA_RECV_WRS] = ms->recv_wrs;
+
+	params.type = EFA_ADMIN_GET_STATS_TYPE_RDMA_READ;
+	err = efa_com_get_stats(&dev->edev, &params, &result);
+	if (err)
+		return err;
+
+	rrs = &result.rdma_read_stats;
+	stats->value[EFA_RDMA_READ_WRS] = rrs->read_wrs;
+	stats->value[EFA_RDMA_READ_BYTES] = rrs->read_bytes;
+	stats->value[EFA_RDMA_READ_WR_ERR] = rrs->read_wr_err;
+	stats->value[EFA_RDMA_READ_RESP_BYTES] = rrs->read_resp_bytes;
 
 	as = &dev->edev.aq.stats;
 	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);

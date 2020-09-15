@@ -752,11 +752,27 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 		return err;
 	}
 
-	result->basic_stats.tx_bytes = resp.basic_stats.tx_bytes;
-	result->basic_stats.tx_pkts = resp.basic_stats.tx_pkts;
-	result->basic_stats.rx_bytes = resp.basic_stats.rx_bytes;
-	result->basic_stats.rx_pkts = resp.basic_stats.rx_pkts;
-	result->basic_stats.rx_drops = resp.basic_stats.rx_drops;
+	switch (cmd.type) {
+	case EFA_ADMIN_GET_STATS_TYPE_BASIC:
+		result->basic_stats.tx_bytes = resp.u.basic_stats.tx_bytes;
+		result->basic_stats.tx_pkts = resp.u.basic_stats.tx_pkts;
+		result->basic_stats.rx_bytes = resp.u.basic_stats.rx_bytes;
+		result->basic_stats.rx_pkts = resp.u.basic_stats.rx_pkts;
+		result->basic_stats.rx_drops = resp.u.basic_stats.rx_drops;
+		break;
+	case EFA_ADMIN_GET_STATS_TYPE_MESSAGES:
+		result->messages_stats.send_bytes = resp.u.messages_stats.send_bytes;
+		result->messages_stats.send_wrs = resp.u.messages_stats.send_wrs;
+		result->messages_stats.recv_bytes = resp.u.messages_stats.recv_bytes;
+		result->messages_stats.recv_wrs = resp.u.messages_stats.recv_wrs;
+		break;
+	case EFA_ADMIN_GET_STATS_TYPE_RDMA_READ:
+		result->rdma_read_stats.read_wrs = resp.u.rdma_read_stats.read_wrs;
+		result->rdma_read_stats.read_bytes = resp.u.rdma_read_stats.read_bytes;
+		result->rdma_read_stats.read_wr_err = resp.u.rdma_read_stats.read_wr_err;
+		result->rdma_read_stats.read_resp_bytes = resp.u.rdma_read_stats.read_resp_bytes;
+		break;
+	}
 
 	return 0;
 }

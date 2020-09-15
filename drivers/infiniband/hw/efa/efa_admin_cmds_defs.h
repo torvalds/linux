@@ -61,6 +61,8 @@ enum efa_admin_qp_state {
 
 enum efa_admin_get_stats_type {
 	EFA_ADMIN_GET_STATS_TYPE_BASIC              = 0,
+	EFA_ADMIN_GET_STATS_TYPE_MESSAGES           = 1,
+	EFA_ADMIN_GET_STATS_TYPE_RDMA_READ          = 2,
 };
 
 enum efa_admin_get_stats_scope {
@@ -528,10 +530,36 @@ struct efa_admin_basic_stats {
 	u64 rx_drops;
 };
 
+struct efa_admin_messages_stats {
+	u64 send_bytes;
+
+	u64 send_wrs;
+
+	u64 recv_bytes;
+
+	u64 recv_wrs;
+};
+
+struct efa_admin_rdma_read_stats {
+	u64 read_wrs;
+
+	u64 read_bytes;
+
+	u64 read_wr_err;
+
+	u64 read_resp_bytes;
+};
+
 struct efa_admin_acq_get_stats_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 
-	struct efa_admin_basic_stats basic_stats;
+	union {
+		struct efa_admin_basic_stats basic_stats;
+
+		struct efa_admin_messages_stats messages_stats;
+
+		struct efa_admin_rdma_read_stats rdma_read_stats;
+	} u;
 };
 
 struct efa_admin_get_set_feature_common_desc {
