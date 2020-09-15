@@ -1,4 +1,4 @@
-[abi_whitelist]
+[abi_symbol_list]
 # commonly used symbols
   add_wait_queue
   alloc_etherdev_mqs
