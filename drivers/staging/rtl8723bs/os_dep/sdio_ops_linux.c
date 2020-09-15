@@ -264,9 +264,11 @@ u32 sd_read32(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 
 		*err = 0;
 		for (i = 0; i < SD_IO_TRY_CNT; i++) {
-			if (claim_needed) sdio_claim_host(func);
+			if (claim_needed)
+				sdio_claim_host(func);
 			v = sdio_readl(func, addr, err);
-			if (claim_needed) sdio_release_host(func);
+			if (claim_needed)
+				sdio_release_host(func);
 
 			if (*err == 0) {
 				rtw_reset_continual_io_error(psdiodev);
@@ -355,9 +357,11 @@ void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err)
 
 		*err = 0;
 		for (i = 0; i < SD_IO_TRY_CNT; i++) {
-			if (claim_needed) sdio_claim_host(func);
+			if (claim_needed)
+				sdio_claim_host(func);
 			sdio_writel(func, v, addr, err);
-			if (claim_needed) sdio_release_host(func);
+			if (claim_needed)
+				sdio_release_host(func);
 			if (*err == 0) {
 				rtw_reset_continual_io_error(psdiodev);
 				break;
