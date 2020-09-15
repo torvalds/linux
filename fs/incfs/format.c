@@ -317,23 +317,25 @@ err:
 }
 
 static int write_new_status_to_backing_file(struct backing_file_context *bfc,
-				       u32 blocks_written)
+				       u32 data_blocks_written,
+				       u32 hash_blocks_written)
 {
-	struct incfs_status is = {};
 	int result;
 	loff_t rollback_pos;
+	struct incfs_status is = {
+		.is_header = {
+			.h_md_entry_type = INCFS_MD_STATUS,
+			.h_record_size = cpu_to_le16(sizeof(is)),
+		},
+		.is_data_blocks_written = cpu_to_le32(data_blocks_written),
+		.is_hash_blocks_written = cpu_to_le32(hash_blocks_written),
+	};
 
 	if (!bfc)
 		return -EFAULT;
 
 	LOCK_REQUIRED(bfc->bc_mutex);
-
 	rollback_pos = incfs_get_end_offset(bfc->bc_file);
-
-	is.is_header.h_md_entry_type = INCFS_MD_STATUS;
-	is.is_header.h_record_size = cpu_to_le16(sizeof(is));
-	is.is_blocks_written = cpu_to_le32(blocks_written);
-
 	result = append_md_to_backing_file(bfc, &is.is_header);
 	if (result)
 		truncate_backing_file(bfc, rollback_pos);
@@ -343,19 +345,22 @@ static int write_new_status_to_backing_file(struct backing_file_context *bfc,
 
 int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
 				       loff_t status_offset,
-				       u32 blocks_written)
+				       u32 data_blocks_written,
+				       u32 hash_blocks_written)
 {
 	struct incfs_status is;
 	int result;
 
 	if (status_offset == 0)
-		return write_new_status_to_backing_file(bfc, blocks_written);
+		return write_new_status_to_backing_file(bfc,
+				data_blocks_written, hash_blocks_written);
 
 	result = incfs_kread(bfc->bc_file, &is, sizeof(is), status_offset);
 	if (result != sizeof(is))
 		return -EIO;
 
-	is.is_blocks_written = cpu_to_le32(blocks_written);
+	is.is_data_blocks_written = cpu_to_le32(data_blocks_written);
+	is.is_hash_blocks_written = cpu_to_le32(hash_blocks_written);
 	result = incfs_kwrite(bfc->bc_file, &is, sizeof(is), status_offset);
 	if (result != sizeof(is))
 		return -EIO;

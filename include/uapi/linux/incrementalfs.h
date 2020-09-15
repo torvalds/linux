@@ -433,10 +433,16 @@ struct incfs_create_mapped_file_args {
 
 struct incfs_get_block_count_args {
 	/* Total number of data blocks in the file */
-	__u32 total_blocks_out;
+	__u32 total_data_blocks_out;
 
 	/* Number of filled data blocks in the file */
-	__u32 filled_blocks_out;
+	__u32 filled_data_blocks_out;
+
+	/* Total number of hash blocks in the file */
+	__u32 total_hash_blocks_out;
+
+	/* Number of filled hash blocks in the file */
+	__u32 filled_hash_blocks_out;
 };
 
 #endif /* _UAPI_LINUX_INCREMENTALFS_H */
