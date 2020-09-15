@@ -297,10 +297,8 @@ out2:
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
 
-	if (!man->use_tt) {
-		ttm_tt_destroy(bdev, ttm);
-		bo->ttm = NULL;
-	}
+	if (!man->use_tt)
+		ttm_bo_tt_destroy(bo);
 
 out1:
 	ttm_resource_iounmap(bdev, old_mem, new_iomap);
@@ -542,10 +540,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		if (!man->use_tt) {
-			ttm_tt_destroy(bdev, bo->ttm);
-			bo->ttm = NULL;
-		}
+		if (!man->use_tt)
+			ttm_bo_tt_destroy(bo);
 		ttm_bo_free_old_node(bo);
 	} else {
 		/**
@@ -665,10 +661,8 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		if (!to->use_tt) {
-			ttm_tt_destroy(bdev, bo->ttm);
-			bo->ttm = NULL;
-		}
+		if (!to->use_tt)
+			ttm_bo_tt_destroy(bo);
 		ttm_bo_free_old_node(bo);
 	}
 

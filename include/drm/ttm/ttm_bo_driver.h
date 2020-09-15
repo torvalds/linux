@@ -685,6 +685,11 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
 pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 /**
+ * ttm_bo_tt_destroy.
+ */
+void ttm_bo_tt_destroy(struct ttm_buffer_object *bo);
+
+/**
  * ttm_range_man_init
  *
  * @bdev: ttm device
