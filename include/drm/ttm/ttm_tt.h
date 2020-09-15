@@ -82,11 +82,6 @@ static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
 	return tt->_state != tt_unpopulated;
 }
 
-static inline bool ttm_tt_is_bound(struct ttm_tt *tt)
-{
-	return tt->_state == tt_bound;
-}
-
 static inline void ttm_tt_set_unpopulated(struct ttm_tt *tt)
 {
 	tt->_state = tt_unpopulated;
@@ -95,16 +90,6 @@ static inline void ttm_tt_set_unpopulated(struct ttm_tt *tt)
 static inline void ttm_tt_set_populated(struct ttm_tt *tt)
 {
 	tt->_state = tt_unbound;
-}
-
-static inline void ttm_tt_set_unbound(struct ttm_tt *tt)
-{
-	tt->_state = tt_unbound;
-}
-
-static inline void ttm_tt_set_bound(struct ttm_tt *tt)
-{
-	tt->_state = tt_bound;
 }
 
 /**
@@ -165,17 +150,6 @@ void ttm_tt_fini(struct ttm_tt *ttm);
 void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
 
 /**
- * ttm_ttm_bind:
- *
- * @ttm: The struct ttm_tt containing backing pages.
- * @bo_mem: The struct ttm_resource identifying the binding location.
- *
- * Bind the pages of @ttm to an aperture location identified by @bo_mem
- */
-int ttm_tt_bind(struct ttm_bo_device *bdev,
-		struct ttm_tt *ttm, struct ttm_resource *bo_mem);
-
-/**
  * ttm_ttm_destroy:
  *
  * @ttm: The struct ttm_tt.
@@ -183,15 +157,6 @@ int ttm_tt_bind(struct ttm_bo_device *bdev,
  * Unbind, unpopulate and destroy common struct ttm_tt.
  */
 void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
-
-/**
- * ttm_ttm_unbind:
- *
- * @ttm: The struct ttm_tt.
- *
- * Unbind a struct ttm_tt.
- */
-void ttm_tt_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
 
 /**
  * ttm_tt_swapin:

@@ -209,8 +209,6 @@ EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 
 void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
-	ttm_tt_unbind(bdev, ttm);
-
 	ttm_tt_unpopulate(bdev, ttm);
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP) &&
@@ -302,35 +300,6 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma)
 	ttm_dma->dma_address = NULL;
 }
 EXPORT_SYMBOL(ttm_dma_tt_fini);
-
-void ttm_tt_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
-{
-	if (ttm_tt_is_bound(ttm)) {
-		bdev->driver->ttm_tt_unbind(bdev, ttm);
-		ttm_tt_set_unbound(ttm);
-	}
-}
-
-int ttm_tt_bind(struct ttm_bo_device *bdev,
-		struct ttm_tt *ttm, struct ttm_resource *bo_mem)
-{
-	int ret = 0;
-
-	if (!ttm)
-		return -EINVAL;
-
-	if (ttm_tt_is_bound(ttm))
-		return 0;
-
-	ret = bdev->driver->ttm_tt_bind(bdev, ttm, bo_mem);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ttm_tt_set_bound(ttm);
-
-	return 0;
-}
-EXPORT_SYMBOL(ttm_tt_bind);
 
 int ttm_tt_swapin(struct ttm_tt *ttm)
 {

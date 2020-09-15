@@ -685,6 +685,34 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
 pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 /**
+ * ttm_bo_tt_bind
+ *
+ * Bind the object tt to a memory resource.
+ */
+int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem);
+
+/**
+ * ttm_bo_tt_bind
+ *
+ * Unbind the object tt from a memory resource.
+ */
+void ttm_bo_tt_unbind(struct ttm_buffer_object *bo);
+
+static inline bool ttm_bo_tt_is_bound(struct ttm_buffer_object *bo)
+{
+	return bo->ttm->_state == tt_bound;
+}
+
+static inline void ttm_bo_tt_set_unbound(struct ttm_buffer_object *bo)
+{
+	bo->ttm->_state = tt_unbound;
+}
+
+static inline void ttm_bo_tt_set_bound(struct ttm_buffer_object *bo)
+{
+	bo->ttm->_state = tt_bound;
+}
+/**
  * ttm_bo_tt_destroy.
  */
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo);

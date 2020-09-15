@@ -67,7 +67,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 			return ret;
 		}
 
-		ttm_tt_unbind(bo->bdev, ttm);
+		ttm_bo_tt_unbind(bo);
 		ttm_bo_free_old_node(bo);
 		old_mem->mem_type = TTM_PL_SYSTEM;
 	}
@@ -82,7 +82,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		if (unlikely(ret != 0))
 			return ret;
 
-		ret = ttm_tt_bind(bo->bdev, ttm, new_mem);
+		ret = ttm_bo_tt_bind(bo, new_mem);
 		if (unlikely(ret != 0))
 			return ret;
 	}
@@ -701,4 +701,3 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 
 	return 0;
 }
-

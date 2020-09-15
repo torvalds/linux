@@ -264,7 +264,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 			if (ret)
 				goto out_err;
 
-			ret = ttm_tt_bind(bdev, bo->ttm, mem);
+			ret = ttm_bo_tt_bind(bo, mem);
 			if (ret)
 				goto out_err;
 		}
@@ -1619,6 +1619,35 @@ void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 {
 	if (bo->ttm == NULL)
 		return;
+
+	ttm_bo_tt_unbind(bo);
 	ttm_tt_destroy(bo->bdev, bo->ttm);
 	bo->ttm = NULL;
+}
+
+int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem)
+{
+	int ret;
+
+	if (!bo->ttm)
+		return -EINVAL;
+
+	if (ttm_bo_tt_is_bound(bo))
+		return 0;
+
+	ret = bo->bdev->driver->ttm_tt_bind(bo->bdev, bo->ttm, mem);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ttm_bo_tt_set_bound(bo);
+	return 0;
+}
+EXPORT_SYMBOL(ttm_bo_tt_bind);
+
+void ttm_bo_tt_unbind(struct ttm_buffer_object *bo)
+{
+	if (ttm_bo_tt_is_bound(bo)) {
+		bo->bdev->driver->ttm_tt_unbind(bo->bdev, bo->ttm);
+		ttm_bo_tt_set_unbound(bo);
+	}
 }

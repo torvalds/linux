@@ -552,7 +552,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 		goto out_cleanup;
 
 	/* Bind the memory to the GTT space */
-	r = ttm_tt_bind(bo->bdev, bo->ttm, &tmp_mem);
+	r = ttm_bo_tt_bind(bo, &tmp_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
