@@ -93,7 +93,7 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 	write_sysreg(CPTR_EL2_DEFAULT, cptr_el2);
 }
 
-static void __deactivate_vm(struct kvm_vcpu *vcpu)
+static void __load_host_stage2(void)
 {
 	write_sysreg(0, vttbr_el2);
 }
@@ -194,7 +194,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	__sysreg32_restore_state(vcpu);
 	__sysreg_restore_state_nvhe(guest_ctxt);
 
-	__activate_vm(kern_hyp_va(vcpu->arch.hw_mmu));
+	__load_guest_stage2(kern_hyp_va(vcpu->arch.hw_mmu));
 	__activate_traps(vcpu);
 
 	__hyp_vgic_restore_state(vcpu);
@@ -219,7 +219,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	__hyp_vgic_save_state(vcpu);
 
 	__deactivate_traps(vcpu);
-	__deactivate_vm(vcpu);
+	__load_host_stage2();
 
 	__sysreg_restore_state_nvhe(host_ctxt);
 
@@ -253,7 +253,7 @@ void __noreturn hyp_panic(struct kvm_cpu_context *host_ctxt)
 	if (read_sysreg(vttbr_el2)) {
 		__timer_disable_traps(vcpu);
 		__deactivate_traps(vcpu);
-		__deactivate_vm(vcpu);
+		__load_host_stage2();
 		__sysreg_restore_state_nvhe(host_ctxt);
 	}
 
