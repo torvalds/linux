@@ -1255,9 +1255,9 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_bo_init);
 
-size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
-		       unsigned long bo_size,
-		       unsigned struct_size)
+static size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
+			      unsigned long bo_size,
+			      unsigned struct_size)
 {
 	unsigned npages = (PAGE_ALIGN(bo_size)) >> PAGE_SHIFT;
 	size_t size = 0;
@@ -1267,7 +1267,6 @@ size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
 	size += ttm_round_pot(sizeof(struct ttm_tt));
 	return size;
 }
-EXPORT_SYMBOL(ttm_bo_acc_size);
 
 size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 			   unsigned long bo_size,

@@ -353,18 +353,6 @@ void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched);
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
 
-/**
- * ttm_bo_acc_size
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @bo_size: size of the buffer object in byte.
- * @struct_size: size of the structure holding buffer object datas
- *
- * Returns size to account for a buffer object
- */
-size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
-		       unsigned long bo_size,
-		       unsigned struct_size);
 size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 			   unsigned long bo_size,
 			   unsigned struct_size);

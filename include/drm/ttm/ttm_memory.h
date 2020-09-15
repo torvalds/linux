@@ -91,7 +91,6 @@ extern int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 extern void ttm_mem_global_free_page(struct ttm_mem_global *glob,
 				     struct page *page, uint64_t size);
 extern size_t ttm_round_pot(size_t size);
-extern uint64_t ttm_get_kernel_zone_memory_size(struct ttm_mem_global *glob);
 extern bool ttm_check_under_lowerlimit(struct ttm_mem_global *glob,
 			uint64_t num_pages, struct ttm_operation_ctx *ctx);
 #endif
