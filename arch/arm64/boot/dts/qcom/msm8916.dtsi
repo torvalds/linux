@@ -151,8 +151,8 @@
 		};
 
 		L2_0: l2-cache {
-		      compatible = "cache";
-		      cache-level = <2>;
+			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		idle-states {
@@ -225,7 +225,7 @@
 
 	pmu {
 		compatible = "arm,cortex-a53-pmu";
-		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4)| IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
 	thermal-zones {
@@ -393,7 +393,9 @@
 	firmware {
 		scm: scm {
 			compatible = "qcom,scm";
-			clocks = <&gcc GCC_CRYPTO_CLK>, <&gcc GCC_CRYPTO_AXI_CLK>, <&gcc GCC_CRYPTO_AHB_CLK>;
+			clocks = <&gcc GCC_CRYPTO_CLK>,
+				 <&gcc GCC_CRYPTO_AXI_CLK>,
+				 <&gcc GCC_CRYPTO_AHB_CLK>;
 			clock-names = "core", "bus", "iface";
 			#reset-cells = <1>;
 
@@ -741,14 +743,14 @@
 			#size-cells = <0>;
 		};
 
-                lpass_codec: codec{
+		lpass_codec: codec@771c000 {
 			compatible = "qcom,msm8916-wcd-digital-codec";
 			reg = <0x0771c000 0x400>;
 			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
 				 <&gcc GCC_CODEC_DIGCODEC_CLK>;
 			clock-names = "ahbix-clk", "mclk";
 			#sound-dai-cells = <1>;
-                };
+		};
 
 		sdhc_1: sdhci@7824000 {
 			compatible = "qcom,sdhci-msm-v4";
@@ -1159,7 +1161,6 @@
 			};
 		};
 
-
 		mpss: hexagon@4080000 {
 			compatible = "qcom,q6v5-pil";
 			reg = <0x04080000 0x100>,
@@ -1216,7 +1217,7 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					cb@1{
+					cb@1 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <1>;
 					};
@@ -1474,7 +1475,7 @@
 		};
 
 		debug0: debug@850000 {
-			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			compatible = "arm,coresight-cpu-debug", "arm,primecell";
 			reg = <0x850000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
@@ -1483,7 +1484,7 @@
 		};
 
 		debug1: debug@852000 {
-			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			compatible = "arm,coresight-cpu-debug", "arm,primecell";
 			reg = <0x852000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
@@ -1492,7 +1493,7 @@
 		};
 
 		debug2: debug@854000 {
-			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			compatible = "arm,coresight-cpu-debug", "arm,primecell";
 			reg = <0x854000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
@@ -1501,7 +1502,7 @@
 		};
 
 		debug3: debug@856000 {
-			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			compatible = "arm,coresight-cpu-debug", "arm,primecell";
 			reg = <0x856000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
@@ -1678,7 +1679,6 @@
 
 			status = "disabled";
 		};
-
 
 		venus: video-codec@1d00000 {
 			compatible = "qcom,msm8916-venus";
