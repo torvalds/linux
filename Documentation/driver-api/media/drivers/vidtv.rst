@@ -62,6 +62,14 @@ When compiled as a module, run::
 That's it! The bridge driver will initialize the tuner and demod drivers as
 part of its own initialization.
 
+By default, it will accept the following frequencies:
+
+	- 474 MHz for DVB-T/T2/C;
+	- 11,362 GHz for DVB-S/S2.
+
+For satellite systems, the driver simulates an universal extended
+LNBf, with frequencies at Ku-Band, ranging from 10.7 GHz to 12.75 GHz.
+
 You can optionally define some command-line arguments to vidtv.
 
 Command-line arguments to vidtv
@@ -86,13 +94,13 @@ mock_tune_delay_msec
 	Simulate a tune delay.  Default 0.
 
 vidtv_valid_dvb_t_freqs
-	Valid DVB-T frequencies to simulate.
+	Valid DVB-T frequencies to simulate, in Hz.
 
 vidtv_valid_dvb_c_freqs
-	Valid DVB-C frequencies to simulate.
+	Valid DVB-C frequencies to simulate, in Hz.
 
 vidtv_valid_dvb_s_freqs
-	Valid DVB-C frequencies to simulate.
+	Valid DVB-S/S2 frequencies to simulate at Ku-Band, in kHz.
 
 max_frequency_shift_hz,
 	Maximum shift in HZ allowed when tuning in a channel.
