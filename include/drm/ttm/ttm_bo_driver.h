@@ -700,17 +700,17 @@ void ttm_bo_tt_unbind(struct ttm_buffer_object *bo);
 
 static inline bool ttm_bo_tt_is_bound(struct ttm_buffer_object *bo)
 {
-	return bo->ttm->_state == tt_bound;
+	return bo->ttm_bound;
 }
 
 static inline void ttm_bo_tt_set_unbound(struct ttm_buffer_object *bo)
 {
-	bo->ttm->_state = tt_unbound;
+	bo->ttm_bound = false;
 }
 
 static inline void ttm_bo_tt_set_bound(struct ttm_buffer_object *bo)
 {
-	bo->ttm->_state = tt_bound;
+	bo->ttm_bound = true;
 }
 /**
  * ttm_bo_tt_destroy.

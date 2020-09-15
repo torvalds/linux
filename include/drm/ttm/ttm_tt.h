@@ -70,26 +70,22 @@ struct ttm_tt {
 	struct sg_table *sg; /* for SG objects via dma-buf */
 	struct file *swap_storage;
 	enum ttm_caching_state caching_state;
-	enum {
-		tt_bound,
-		tt_unbound,
-		tt_unpopulated,
-	} _state;
+	bool populated;
 };
 
 static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
 {
-	return tt->_state != tt_unpopulated;
+	return tt->populated;
 }
 
 static inline void ttm_tt_set_unpopulated(struct ttm_tt *tt)
 {
-	tt->_state = tt_unpopulated;
+	tt->populated = false;
 }
 
 static inline void ttm_tt_set_populated(struct ttm_tt *tt)
 {
-	tt->_state = tt_unbound;
+	tt->populated = true;
 }
 
 /**

@@ -572,10 +572,13 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 * bo to be unbound and destroyed.
 		 */
 
-		if (man->use_tt)
+		if (man->use_tt) {
 			ghost_obj->ttm = NULL;
-		else
+			ttm_bo_tt_set_unbound(ghost_obj);
+		} else {
 			bo->ttm = NULL;
+			ttm_bo_tt_set_unbound(bo);
+		}
 
 		dma_resv_unlock(&ghost_obj->base._resv);
 		ttm_bo_put(ghost_obj);
@@ -628,10 +631,13 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		 * bo to be unbound and destroyed.
 		 */
 
-		if (to->use_tt)
+		if (to->use_tt) {
 			ghost_obj->ttm = NULL;
-		else
+			ttm_bo_tt_set_unbound(ghost_obj);
+		} else {
 			bo->ttm = NULL;
+			ttm_bo_tt_set_unbound(bo);
+		}
 
 		dma_resv_unlock(&ghost_obj->base._resv);
 		ttm_bo_put(ghost_obj);
@@ -695,6 +701,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	memset(&bo->mem, 0, sizeof(bo->mem));
 	bo->mem.mem_type = TTM_PL_SYSTEM;
 	bo->ttm = NULL;
+	ttm_bo_tt_set_unbound(bo);
 
 	dma_resv_unlock(&ghost->base._resv);
 	ttm_bo_put(ghost);
