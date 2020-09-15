@@ -6323,6 +6323,8 @@ static void vmx_apicv_post_state_restore(struct kvm_vcpu *vcpu)
 	memset(vmx->pi_desc.pir, 0, sizeof(vmx->pi_desc.pir));
 }
 
+void vmx_do_interrupt_nmi_irqoff(unsigned long entry);
+
 static void handle_exception_nmi_irqoff(struct vcpu_vmx *vmx)
 {
 	u32 intr_info = vmx_get_intr_info(&vmx->vcpu);
@@ -6344,10 +6346,6 @@ static void handle_exception_nmi_irqoff(struct vcpu_vmx *vmx)
 static void handle_external_interrupt_irqoff(struct kvm_vcpu *vcpu)
 {
 	unsigned int vector;
-	unsigned long entry;
-#ifdef CONFIG_X86_64
-	unsigned long tmp;
-#endif
 	gate_desc *desc;
 	u32 intr_info = vmx_get_intr_info(vcpu);
 
@@ -6357,36 +6355,11 @@ static void handle_external_interrupt_irqoff(struct kvm_vcpu *vcpu)
 
 	vector = intr_info & INTR_INFO_VECTOR_MASK;
 	desc = (gate_desc *)host_idt_base + vector;
-	entry = gate_offset(desc);
 
 	kvm_before_interrupt(vcpu);
-
-	asm volatile(
-#ifdef CONFIG_X86_64
-		"mov %%rsp, %[sp]\n\t"
-		"and $-16, %%rsp\n\t"
-		"push %[ss]\n\t"
-		"push %[sp]\n\t"
-#endif
-		"pushf\n\t"
-		"push %[cs]\n\t"
-		CALL_NOSPEC
-		:
-#ifdef CONFIG_X86_64
-		[sp]"=&r"(tmp),
-#endif
-		ASM_CALL_CONSTRAINT
-		:
-		[thunk_target]"r"(entry),
-#ifdef CONFIG_X86_64
-		[ss]"i"(__KERNEL_DS),
-#endif
-		[cs]"i"(__KERNEL_CS)
-	);
-
+	vmx_do_interrupt_nmi_irqoff(gate_offset(desc));
 	kvm_after_interrupt(vcpu);
 }
-STACK_FRAME_NON_STANDARD(handle_external_interrupt_irqoff);
 
 static void vmx_handle_exit_irqoff(struct kvm_vcpu *vcpu)
 {
