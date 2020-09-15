@@ -876,6 +876,7 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	u32 gpi_input_val = 0;
 	int i;
 	int ret;
+	bool tx_high_z;
 
 	ret = device_property_read_u32(adcx140->dev, "ti,mic-bias-source",
 				      &bias_source);
@@ -966,6 +967,16 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 				ADCX140_MIC_BIAS_VREF_MSK, bias_cfg);
 	if (ret)
 		dev_err(adcx140->dev, "setting MIC bias failed %d\n", ret);
+
+	tx_high_z = device_property_read_bool(adcx140->dev, "ti,asi-tx-drive");
+	if (tx_high_z) {
+		ret = regmap_update_bits(adcx140->regmap, ADCX140_ASI_CFG0,
+				 ADCX140_TX_FILL, ADCX140_TX_FILL);
+		if (ret) {
+			dev_err(adcx140->dev, "Setting Tx drive failed %d\n", ret);
+			goto out;
+		}
+	}
 
 	adcx140_pwr_ctrl(adcx140, true);
 out:

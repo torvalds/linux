@@ -146,5 +146,6 @@
 #define ADCX140_GPO_CFG_MAX		4
 #define ADCX140_GPO_DRV_MAX		5
 
+#define ADCX140_TX_FILL    BIT(0)
 
 #endif /* _TLV320ADCX140_ */
