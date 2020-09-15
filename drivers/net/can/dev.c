@@ -434,8 +434,8 @@ static void can_flush_echo_skb(struct net_device *dev)
  * of the device driver. The driver must protect access to
  * priv->echo_skb, if necessary.
  */
-void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
-		      unsigned int idx)
+int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
+		     unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
@@ -446,13 +446,13 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 	    (skb->protocol != htons(ETH_P_CAN) &&
 	     skb->protocol != htons(ETH_P_CANFD))) {
 		kfree_skb(skb);
-		return;
+		return 0;
 	}
 
 	if (!priv->echo_skb[idx]) {
 		skb = can_create_echo_skb(skb);
 		if (!skb)
-			return;
+			return -ENOMEM;
 
 		/* make settings for echo to reduce code in irq context */
 		skb->pkt_type = PACKET_BROADCAST;
@@ -465,7 +465,10 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		/* locking problem with netif_stop_queue() ?? */
 		netdev_err(dev, "%s: BUG! echo_skb %d is occupied!\n", __func__, idx);
 		kfree_skb(skb);
+		return -EBUSY;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(can_put_echo_skb);
 

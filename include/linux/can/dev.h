@@ -201,8 +201,8 @@ void can_bus_off(struct net_device *dev);
 void can_change_state(struct net_device *dev, struct can_frame *cf,
 		      enum can_state tx_state, enum can_state rx_state);
 
-void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
-		      unsigned int idx);
+int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
+		     unsigned int idx);
 struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx,
 				   u8 *len_ptr);
 unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx);
