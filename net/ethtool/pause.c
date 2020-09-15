@@ -10,6 +10,7 @@ struct pause_req_info {
 struct pause_reply_data {
 	struct ethnl_reply_data		base;
 	struct ethtool_pauseparam	pauseparam;
+	struct ethtool_pause_stats	pausestat;
 };
 
 #define PAUSE_REPDATA(__reply_base) \
@@ -22,7 +23,14 @@ pause_get_policy[ETHTOOL_A_PAUSE_MAX + 1] = {
 	[ETHTOOL_A_PAUSE_AUTONEG]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_PAUSE_RX]			= { .type = NLA_REJECT },
 	[ETHTOOL_A_PAUSE_TX]			= { .type = NLA_REJECT },
+	[ETHTOOL_A_PAUSE_STATS]			= { .type = NLA_REJECT },
 };
+
+static void ethtool_stats_init(u64 *stats, unsigned int n)
+{
+	while (n--)
+		stats[n] = ETHTOOL_STAT_NOT_SET;
+}
 
 static int pause_prepare_data(const struct ethnl_req_info *req_base,
 			      struct ethnl_reply_data *reply_base,
@@ -34,10 +42,17 @@ static int pause_prepare_data(const struct ethnl_req_info *req_base,
 
 	if (!dev->ethtool_ops->get_pauseparam)
 		return -EOPNOTSUPP;
+
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
 	dev->ethtool_ops->get_pauseparam(dev, &data->pauseparam);
+	if (req_base->flags & ETHTOOL_FLAG_STATS &&
+	    dev->ethtool_ops->get_pause_stats) {
+		ethtool_stats_init((u64 *)&data->pausestat,
+				   sizeof(data->pausestat) / 8);
+		dev->ethtool_ops->get_pause_stats(dev, &data->pausestat);
+	}
 	ethnl_ops_complete(dev);
 
 	return 0;
@@ -46,9 +61,50 @@ static int pause_prepare_data(const struct ethnl_req_info *req_base,
 static int pause_reply_size(const struct ethnl_req_info *req_base,
 			    const struct ethnl_reply_data *reply_base)
 {
-	return nla_total_size(sizeof(u8)) +	/* _PAUSE_AUTONEG */
+	int n = nla_total_size(sizeof(u8)) +	/* _PAUSE_AUTONEG */
 		nla_total_size(sizeof(u8)) +	/* _PAUSE_RX */
 		nla_total_size(sizeof(u8));	/* _PAUSE_TX */
+
+	if (req_base->flags & ETHTOOL_FLAG_STATS)
+		n += nla_total_size(0) +	/* _PAUSE_STATS */
+			nla_total_size_64bit(sizeof(u64)) *
+				(ETHTOOL_A_PAUSE_STAT_MAX - 2);
+	return n;
+}
+
+static int ethtool_put_stat(struct sk_buff *skb, u64 val, u16 attrtype,
+			    u16 padtype)
+{
+	if (val == ETHTOOL_STAT_NOT_SET)
+		return 0;
+	if (nla_put_u64_64bit(skb, attrtype, val, padtype))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int pause_put_stats(struct sk_buff *skb,
+			   const struct ethtool_pause_stats *pause_stats)
+{
+	const u16 pad = ETHTOOL_A_PAUSE_STAT_PAD;
+	struct nlattr *nest;
+
+	nest = nla_nest_start(skb, ETHTOOL_A_PAUSE_STATS);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (ethtool_put_stat(skb, pause_stats->tx_pause_frames,
+			     ETHTOOL_A_PAUSE_STAT_TX_FRAMES, pad) ||
+	    ethtool_put_stat(skb, pause_stats->rx_pause_frames,
+			     ETHTOOL_A_PAUSE_STAT_RX_FRAMES, pad))
+		goto err_cancel;
+
+	nla_nest_end(skb, nest);
+	return 0;
+
+err_cancel:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
 }
 
 static int pause_fill_reply(struct sk_buff *skb,
@@ -61,6 +117,10 @@ static int pause_fill_reply(struct sk_buff *skb,
 	if (nla_put_u8(skb, ETHTOOL_A_PAUSE_AUTONEG, !!pauseparam->autoneg) ||
 	    nla_put_u8(skb, ETHTOOL_A_PAUSE_RX, !!pauseparam->rx_pause) ||
 	    nla_put_u8(skb, ETHTOOL_A_PAUSE_TX, !!pauseparam->tx_pause))
+		return -EMSGSIZE;
+
+	if (req_base->flags & ETHTOOL_FLAG_STATS &&
+	    pause_put_stats(skb, &data->pausestat))
 		return -EMSGSIZE;
 
 	return 0;
@@ -89,6 +149,7 @@ pause_set_policy[ETHTOOL_A_PAUSE_MAX + 1] = {
 	[ETHTOOL_A_PAUSE_AUTONEG]		= { .type = NLA_U8 },
 	[ETHTOOL_A_PAUSE_RX]			= { .type = NLA_U8 },
 	[ETHTOOL_A_PAUSE_TX]			= { .type = NLA_U8 },
+	[ETHTOOL_A_PAUSE_STATS]			= { .type = NLA_REJECT },
 };
 
 int ethnl_set_pause(struct sk_buff *skb, struct genl_info *info)

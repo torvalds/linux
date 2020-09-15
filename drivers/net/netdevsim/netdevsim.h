@@ -50,6 +50,13 @@ struct nsim_ipsec {
 	u32 ok;
 };
 
+struct nsim_ethtool {
+	bool rx;
+	bool tx;
+	bool report_stats_rx;
+	bool report_stats_tx;
+};
+
 struct netdevsim {
 	struct net_device *netdev;
 	struct nsim_dev *nsim_dev;
@@ -80,11 +87,15 @@ struct netdevsim {
 		u32 ports[2][NSIM_UDP_TUNNEL_N_PORTS];
 		struct debugfs_u32_array dfs_ports[2];
 	} udp_ports;
+
+	struct nsim_ethtool ethtool;
 };
 
 struct netdevsim *
 nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port);
 void nsim_destroy(struct netdevsim *ns);
+
+void nsim_ethtool_init(struct netdevsim *ns);
 
 void nsim_udp_tunnels_debugfs_create(struct nsim_dev *nsim_dev);
 int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,
