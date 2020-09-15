@@ -152,7 +152,12 @@
 
 #define STM32F7_I2C_MAX_LEN			0xff
 #define STM32F7_I2C_DMA_LEN_MIN			0x16
-#define STM32F7_I2C_MAX_SLAVE			0x3
+enum {
+	STM32F7_SLAVE_HOSTNOTIFY,
+	STM32F7_SLAVE_7_10_BITS_ADDR,
+	STM32F7_SLAVE_7_BITS_ADDR,
+	STM32F7_I2C_MAX_SLAVE
+};
 
 #define STM32F7_I2C_DNF_DEFAULT			0
 #define STM32F7_I2C_DNF_MAX			16
@@ -1327,19 +1332,20 @@ static int stm32f7_i2c_get_free_slave_id(struct stm32f7_i2c_dev *i2c_dev,
 	int i;
 
 	/*
-	 * slave[0] support only SMBus Host address (0x8)
-	 * slave[1] supports 7-bit and 10-bit slave address
-	 * slave[2] supports 7-bit slave address only
+	 * slave[STM32F7_SLAVE_HOSTNOTIFY] support only SMBus Host address (0x8)
+	 * slave[STM32F7_SLAVE_7_10_BITS_ADDR] supports 7-bit and 10-bit slave address
+	 * slave[STM32F7_SLAVE_7_BITS_ADDR] supports 7-bit slave address only
 	 */
 	if (i2c_dev->smbus_mode && (slave->addr == 0x08)) {
-		if (i2c_dev->slave[0])
+		if (i2c_dev->slave[STM32F7_SLAVE_HOSTNOTIFY])
 			goto fail;
-		*id = 0;
+		*id = STM32F7_SLAVE_HOSTNOTIFY;
 		return 0;
 	}
 
-	for (i = STM32F7_I2C_MAX_SLAVE - 1; i > 0; i--) {
-		if (i == 2 && (slave->flags & I2C_CLIENT_TEN))
+	for (i = STM32F7_I2C_MAX_SLAVE - 1; i > STM32F7_SLAVE_HOSTNOTIFY; i--) {
+		if ((i == STM32F7_SLAVE_7_BITS_ADDR) &&
+		    (slave->flags & I2C_CLIENT_TEN))
 			continue;
 		if (!i2c_dev->slave[i]) {
 			*id = i;
