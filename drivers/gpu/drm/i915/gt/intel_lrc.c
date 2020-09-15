@@ -2528,19 +2528,42 @@ static inline bool gen8_csb_parse(const u64 csb)
 	return csb & (GEN8_CTX_STATUS_IDLE_ACTIVE | GEN8_CTX_STATUS_PREEMPTED);
 }
 
-static noinline u64 wa_csb_read(u64 * const csb)
+static noinline u64
+wa_csb_read(const struct intel_engine_cs *engine, u64 * const csb)
 {
 	u64 entry;
 
+	/*
+	 * Reading from the HWSP has one particular advantage: we can detect
+	 * a stale entry. Since the write into HWSP is broken, we have no reason
+	 * to trust the HW at all, the mmio entry may equally be unordered, so
+	 * we prefer the path that is self-checking and as a last resort,
+	 * return the mmio value.
+	 *
+	 * tgl,dg1:HSDES#22011327657
+	 */
 	preempt_disable();
-	if (wait_for_atomic_us((entry = READ_ONCE(*csb)) != -1, 50))
-		GEM_WARN_ON("50us CSB timeout");
+	if (wait_for_atomic_us((entry = READ_ONCE(*csb)) != -1, 10)) {
+		int idx = csb - engine->execlists.csb_status;
+		int status;
+
+		status = GEN8_EXECLISTS_STATUS_BUF;
+		if (idx >= 6) {
+			status = GEN11_EXECLISTS_STATUS_BUF2;
+			idx -= 6;
+		}
+		status += sizeof(u64) * idx;
+
+		entry = intel_uncore_read64(engine->uncore,
+					    _MMIO(engine->mmio_base + status));
+	}
 	preempt_enable();
 
 	return entry;
 }
 
-static inline u64 csb_read(u64 * const csb)
+static inline u64
+csb_read(const struct intel_engine_cs *engine, u64 * const csb)
 {
 	u64 entry = READ_ONCE(*csb);
 
@@ -2556,7 +2579,7 @@ static inline u64 csb_read(u64 * const csb)
 	 * tgl:HSDES#22011248461
 	 */
 	if (unlikely(entry == -1))
-		entry = wa_csb_read(csb);
+		entry = wa_csb_read(engine, csb);
 
 	/* Consume this entry so that we can spot its future reuse. */
 	WRITE_ONCE(*csb, -1);
@@ -2649,7 +2672,7 @@ static void process_csb(struct intel_engine_cs *engine)
 		 * status notifier.
 		 */
 
-		csb = csb_read(buf + head);
+		csb = csb_read(engine, buf + head);
 		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
 			     head, upper_32_bits(csb), lower_32_bits(csb));
 
