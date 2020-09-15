@@ -671,8 +671,11 @@ static long ioctl_get_block_count(struct file *f, void __user *arg)
 	if (!df)
 		return -EINVAL;
 
-	args.total_blocks_out = df->df_data_block_count;
-	args.filled_blocks_out = atomic_read(&df->df_data_blocks_written);
+	args.total_data_blocks_out = df->df_data_block_count;
+	args.filled_data_blocks_out = atomic_read(&df->df_data_blocks_written);
+	args.total_hash_blocks_out = df->df_total_block_count -
+		df->df_data_block_count;
+	args.filled_hash_blocks_out = atomic_read(&df->df_hash_blocks_written);
 
 	if (copy_to_user(args_usr_ptr, &args, sizeof(args)))
 		return -EFAULT;

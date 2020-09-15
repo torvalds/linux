@@ -2575,9 +2575,6 @@ static int emit_partial_test_file_hash(const char *mount_dir,
 	if (file->size <= 4096 / 32 * 4096)
 		return 0;
 
-	if (fill_blocks.count == 0)
-		return 0;
-
 	if (!fill_block_array)
 		return -ENOMEM;
 	fill_blocks.fill_blocks = ptr_to_u64(fill_block_array);
@@ -3011,15 +3008,23 @@ static const char v1_file[] = {
 	0x01, 0x00, 0x00, 0x00,
 };
 
-#define TEST(statement, condition)					\
+#define TESTCOND(condition)						\
 	do {								\
-		statement;						\
 		if (!(condition)) {					\
 			ksft_print_msg("%s failed %d\n",		\
 				       __func__, __LINE__);		\
 			goto out;					\
 		}							\
-	} while(false)
+	} while (false)
+
+#define TEST(statement, condition)					\
+	do {								\
+		statement;						\
+		TESTCOND(condition);					\
+	} while (false)
+
+#define TESTEQUAL(statement, res)					\
+	TESTCOND((statement) == (res))
 
 static int compatibility_test(const char *mount_dir)
 {
@@ -3028,16 +3033,15 @@ static int compatibility_test(const char *mount_dir)
 	int result = TEST_FAILURE;
 	char *filename = NULL;
 	int fd = -1;
-	int err;
 	uint64_t size = 0x0c;
 
 	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
 	TEST(filename = concat_file_name(backing_dir, name), filename);
 	TEST(fd = open(filename, O_CREAT | O_WRONLY | O_CLOEXEC), fd != -1);
-	TEST(err = write(fd, v1_file, sizeof(v1_file)), err == sizeof(v1_file));
-	TEST(err = fsetxattr(fd, INCFS_XATTR_SIZE_NAME, &size, sizeof(size), 0),
-	     err == 0);
-	TEST(err = mount_fs(mount_dir, backing_dir, 50), err == 0);
+	TESTEQUAL(write(fd, v1_file, sizeof(v1_file)), sizeof(v1_file));
+	TESTEQUAL(fsetxattr(fd, INCFS_XATTR_SIZE_NAME, &size, sizeof(size), 0),
+		  0);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 50), 0);
 	free(filename);
 	TEST(filename = concat_file_name(mount_dir, name), filename);
 	close(fd);
@@ -3059,45 +3063,32 @@ static int validate_block_count(const char *mount_dir, struct test_file *file)
 	int fd;
 	struct incfs_get_block_count_args bca = {};
 	int test_result = TEST_FAILURE;
-	int result;
 	int i;
 
-	fd = open(filename, O_RDONLY | O_CLOEXEC);
-	if (fd <= 0)
-		goto out;
-
-	result = ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca);
-	if (result != 0)
-		goto out;
-
-	if (bca.total_blocks_out != block_cnt ||
-	    bca.filled_blocks_out != 0)
-		goto out;
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
+	TESTEQUAL(bca.total_data_blocks_out, block_cnt);
+	TESTEQUAL(bca.filled_data_blocks_out, 0);
+	TESTEQUAL(bca.total_hash_blocks_out, 0);
+	TESTEQUAL(bca.filled_hash_blocks_out, 0);
 
 	for (i = 0; i < block_cnt; i += 2)
-		if (emit_test_block(mount_dir, file, i))
-			goto out;
+		TESTEQUAL(emit_test_block(mount_dir, file, i), 0);
 
-	result = ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca);
-	if (result != 0)
-		goto out;
-
-	if (bca.total_blocks_out != block_cnt ||
-	    bca.filled_blocks_out != (block_cnt + 1) / 2)
-		goto out;
+	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
+	TESTEQUAL(bca.total_data_blocks_out, block_cnt);
+	TESTEQUAL(bca.filled_data_blocks_out, (block_cnt + 1) / 2);
+	TESTEQUAL(bca.total_hash_blocks_out, 0);
+	TESTEQUAL(bca.filled_hash_blocks_out, 0);
 
 	close(fd);
-	fd = open(filename, O_RDONLY | O_CLOEXEC);
-	if (fd <= 0)
-		goto out;
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
 
-	result = ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca);
-	if (result != 0)
-		goto out;
-
-	if (bca.total_blocks_out != block_cnt ||
-	    bca.filled_blocks_out != (block_cnt + 1) / 2)
-		goto out;
+	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
+	TESTEQUAL(bca.total_data_blocks_out, block_cnt);
+	TESTEQUAL(bca.filled_data_blocks_out, (block_cnt + 1) / 2);
+	TESTEQUAL(bca.total_hash_blocks_out, 0);
+	TESTEQUAL(bca.filled_hash_blocks_out, 0);
 
 	test_result = TEST_SUCCESS;
 out:
@@ -3113,32 +3104,96 @@ static int block_count_test(const char *mount_dir)
 	int cmd_fd = -1;
 	int i;
 	struct test_files_set test = get_test_files_set();
-	const int file_num = test.files_count;
 
-	backing_dir = create_backing_dir(mount_dir);
-	if (!backing_dir)
-		goto failure;
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "readahead=0", false),
+		  0);
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
-		goto failure;
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
 
-	cmd_fd = open_commands_file(mount_dir);
-	if (cmd_fd < 0)
-		goto failure;
-
-	for (i = 0; i < file_num; ++i) {
+	for (i = 0; i < test.files_count; ++i) {
 		struct test_file *file = &test.files[i];
 
-		if (emit_file(cmd_fd, NULL, file->name, &file->id, file->size,
-					NULL) < 0)
-			goto failure;
+		TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id,
+				    file->size,	NULL), 0);
 
-		result = validate_block_count(mount_dir, file);
-		if (result)
-			goto failure;
+		TESTEQUAL(validate_block_count(mount_dir, file), 0);
 	}
 
-failure:
+	result = TEST_SUCCESS;
+out:
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
+static int validate_hash_block_count(const char *mount_dir,
+				     struct test_file *file)
+{
+	const int digest_size = SHA256_DIGEST_SIZE;
+	const int hash_per_block = INCFS_DATA_FILE_BLOCK_SIZE / digest_size;
+
+	int result = TEST_FAILURE;
+	int block_count = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
+	int hash_block_count = block_count;
+	int total_hash_block_count = 0;
+	char *filename = NULL;
+	int fd = -1;
+	struct incfs_get_block_count_args bca = {};
+
+	while (hash_block_count > 1) {
+		hash_block_count = (hash_block_count + hash_per_block - 1)
+			/ hash_per_block;
+		total_hash_block_count += hash_block_count;
+	}
+
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
+	TESTEQUAL(bca.total_data_blocks_out, block_count);
+	TESTEQUAL(bca.filled_data_blocks_out, 0);
+	TESTEQUAL(bca.total_hash_blocks_out, total_hash_block_count);
+	TESTEQUAL(bca.filled_hash_blocks_out,
+		  total_hash_block_count > 1 ? 1 : 0);
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	free(filename);
+	return result;
+}
+
+static int hash_block_count_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir;
+	int cmd_fd = -1;
+	int i;
+	struct test_files_set test = get_test_files_set();
+	int fd = -1;
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "readahead=0", false),
+		  0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+
+	for (i = 0; i < test.files_count; i++) {
+		struct test_file *file = &test.files[i];
+
+		TESTEQUAL(crypto_emit_file(cmd_fd, NULL, file->name, &file->id,
+				     file->size, file->root_hash,
+				     file->sig.add_data),
+			  0);
+
+		TESTEQUAL(emit_partial_test_file_hash(mount_dir, file), 0);
+		TESTEQUAL(validate_hash_block_count(mount_dir, &test.files[i]),
+			  0);
+	}
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
 	close(cmd_fd);
 	umount(mount_dir);
 	free(backing_dir);
@@ -3257,6 +3312,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(mapped_file_test),
 		MAKE_TEST(compatibility_test),
 		MAKE_TEST(block_count_test),
+		MAKE_TEST(hash_block_count_test),
 	};
 #undef MAKE_TEST
 

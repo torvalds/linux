@@ -255,6 +255,12 @@ struct data_file {
 	/* Number of data blocks in the status block */
 	u32 df_initial_data_blocks_written;
 
+	/* Number of hash blocks written to file */
+	atomic_t df_hash_blocks_written;
+
+	/* Number of hash blocks in the status block */
+	u32 df_initial_hash_blocks_written;
+
 	/* Offset to status metadata header */
 	loff_t df_status_offset;
 
