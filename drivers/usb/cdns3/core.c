@@ -488,6 +488,8 @@ static int cdns3_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	cdns->phyrst_a_enable = device_property_read_bool(dev, "cdns,phyrst-a-enable");
+
 	cdns->otg_res = *res;
 
 	cdns->wakeup_irq = platform_get_irq_byname_optional(pdev, "wakeup");

@@ -42,6 +42,18 @@ int cdns3_set_mode(struct cdns3 *cdns, enum usb_dr_mode mode)
 			reg = readl(&cdns->otg_v1_regs->override);
 			reg |= OVERRIDE_IDPULLUP;
 			writel(reg, &cdns->otg_v1_regs->override);
+
+			/*
+			 * Enable work around feature built into the
+			 * controller to address issue with RX Sensitivity
+			 * est (EL_17) for USB2 PHY. The issue only occures
+			 * for 0x0002450D controller version.
+			 */
+			if (cdns->phyrst_a_enable) {
+				reg = readl(&cdns->otg_v1_regs->phyrst_cfg);
+				reg |= PHYRST_CFG_PHYRST_A_ENABLE;
+				writel(reg, &cdns->otg_v1_regs->phyrst_cfg);
+			}
 		} else {
 			reg = readl(&cdns->otg_v0_regs->ctrl1);
 			reg |= OVERRIDE_IDPULLUP_V0;

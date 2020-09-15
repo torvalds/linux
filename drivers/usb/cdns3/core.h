@@ -87,6 +87,7 @@ struct cdns3 {
 #define CDNS3_CONTROLLER_V0	0
 #define CDNS3_CONTROLLER_V1	1
 	u32				version;
+	bool				phyrst_a_enable;
 
 	int				otg_irq;
 	int				dev_irq;
