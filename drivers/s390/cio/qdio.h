@@ -252,6 +252,7 @@ struct qdio_irq {
 	struct ccw_device *cdev;
 	struct list_head entry;		/* list of thinint devices */
 	struct dentry *debugfs_dev;
+	u64 last_data_irq_time;
 
 	unsigned long int_parm;
 	struct subchannel_id schid;

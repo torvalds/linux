@@ -97,10 +97,11 @@ static inline u32 clear_shared_ind(void)
  */
 static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 {
+	u64 irq_time = S390_lowcore.int_clock;
 	u32 si_used = clear_shared_ind();
 	struct qdio_irq *irq;
 
-	last_ai_time = S390_lowcore.int_clock;
+	last_ai_time = irq_time;
 	inc_irq_stat(IRQIO_QAI);
 
 	/* protect tiq_list entries, only changed in activate or shutdown */
@@ -119,6 +120,7 @@ static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 		}
 
 		qdio_deliver_irq(irq);
+		irq->last_data_irq_time = irq_time;
 
 		QDIO_PERF_STAT_INC(irq, adapter_int);
 	}

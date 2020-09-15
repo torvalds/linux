@@ -804,6 +804,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 		return;
 
 	qdio_deliver_irq(irq_ptr);
+	irq_ptr->last_data_irq_time = S390_lowcore.int_clock;
 
 	if (!pci_out_supported(irq_ptr) || !irq_ptr->scan_threshold)
 		return;
