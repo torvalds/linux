@@ -13,6 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 
+#include "pci_iov.h"
+
 static struct resource iov_res = {
 	.name	= "PCI IOV res",
 	.start	= 0,
