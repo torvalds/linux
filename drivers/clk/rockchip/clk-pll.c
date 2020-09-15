@@ -1600,6 +1600,7 @@ void rockchip_boost_add_core_div(struct clk_hw *hw, unsigned long prate)
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 
+#ifndef MODULE
 static int boost_summary_show(struct seq_file *s, void *data)
 {
 	struct rockchip_clk_pll *pll = (struct rockchip_clk_pll *)s->private;
@@ -1717,4 +1718,5 @@ static int __init boost_debug_init(void)
 	return 0;
 }
 late_initcall(boost_debug_init);
-#endif
+#endif /* MODULE */
+#endif /* CONFIG_DEBUG_FS */
