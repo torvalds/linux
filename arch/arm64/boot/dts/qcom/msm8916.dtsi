@@ -737,7 +737,7 @@
 					"mi2s-bit-clk3";
 			#sound-dai-cells = <1>;
 
-			interrupts = <0 160 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "lpass-irq-lpaif";
 			reg = <0x07708000 0x10000>;
 			reg-names = "lpass-lpaif";
@@ -760,7 +760,8 @@
 			reg = <0x07824900 0x11c>, <0x07824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 
-			interrupts = <0 123 IRQ_TYPE_LEVEL_HIGH>, <0 138 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&gcc GCC_SDCC1_AHB_CLK>,
@@ -777,7 +778,8 @@
 			reg = <0x07864900 0x11c>, <0x07864000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 
-			interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH>, <0 221 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC2_APPS_CLK>,
 				 <&gcc GCC_SDCC2_AHB_CLK>,
@@ -1053,7 +1055,7 @@
 				      "bus",
 				      "vsync";
 
-			interrupts = <0 72 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -1170,11 +1172,11 @@
 
 			reg-names = "qdsp6", "rmb";
 
-			interrupts-extended = <&intc 0 24 1>,
-					      <&hexagon_smp2p_in 0 0>,
-					      <&hexagon_smp2p_in 1 0>,
-					      <&hexagon_smp2p_in 2 0>,
-					      <&hexagon_smp2p_in 3 0>;
+			interrupts-extended = <&intc GIC_SPI 24 IRQ_TYPE_EDGE_RISING>,
+					      <&hexagon_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&hexagon_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&hexagon_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&hexagon_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "wdog", "fatal", "ready",
 					  "handover", "stop-ack";
 
@@ -1203,7 +1205,7 @@
 			};
 
 			smd-edge {
-				interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
 
 				qcom,smd-edge = <0>;
 				qcom,ipc = <&apcs 8 12>;
@@ -1234,7 +1236,7 @@
 
 			memory-region = <&wcnss_mem>;
 
-			interrupts-extended = <&intc 0 149 IRQ_TYPE_EDGE_RISING>,
+			interrupts-extended = <&intc GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
 					      <&wcnss_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
 					      <&wcnss_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
 					      <&wcnss_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
@@ -1257,7 +1259,7 @@
 			};
 
 			smd-edge {
-				interrupts = <0 142 1>;
+				interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
 
 				qcom,ipc = <&apcs 8 17>;
 				qcom,smd-edge = <6>;
@@ -1278,8 +1280,8 @@
 					wifi {
 						compatible = "qcom,wcnss-wlan";
 
-						interrupts = <0 145 IRQ_TYPE_LEVEL_HIGH>,
-							     <0 146 IRQ_TYPE_LEVEL_HIGH>;
+						interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+							     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 						interrupt-names = "tx", "rx";
 
 						qcom,smem-states = <&apps_smsm 10>, <&apps_smsm 9>;
@@ -1836,7 +1838,7 @@
 		compatible = "qcom,smp2p";
 		qcom,smem = <435>, <428>;
 
-		interrupts = <0 27 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_EDGE_RISING>;
 
 		qcom,ipc = <&apcs 8 14>;
 
@@ -1861,7 +1863,7 @@
 		compatible = "qcom,smp2p";
 		qcom,smem = <451>, <431>;
 
-		interrupts = <0 143 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
 
 		qcom,ipc = <&apcs 8 18>;
 
@@ -1899,7 +1901,7 @@
 
 		hexagon_smsm: hexagon@1 {
 			reg = <1>;
-			interrupts = <0 26 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -1907,7 +1909,7 @@
 
 		wcnss_smsm: wcnss@6 {
 			reg = <6>;
-			interrupts = <0 144 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 144 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
