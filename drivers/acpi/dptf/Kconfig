@@ -14,3 +14,17 @@ config DPTF_POWER
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called dptf_power.
+
+config DPTF_PCH_FIVR
+	tristate "DPTF PCH FIVR Participant"
+	depends on X86
+	help
+	  This driver adds support for Dynamic Platform and Thermal Framework
+	  (DPTF) PCH FIVR Participant device support. This driver allows to
+	  switch PCH FIVR (Fully Integrated Voltage Regulator) frequency.
+	  This participant is responsible for exposing:
+		freq_mhz_low_clock
+		freq_mhz_high_clock
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called dptf_pch_fivr.
