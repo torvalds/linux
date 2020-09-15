@@ -249,24 +249,6 @@ static inline void prep_xcrb(struct ica_xcRB *pxcrb,
 }
 
 /*
- * Helper function which calls zcrypt_send_cprb with
- * memory management segment adjusted to kernel space
- * so that the copy_from_user called within this
- * function do in fact copy from kernel space.
- */
-static inline int _zcrypt_send_cprb(struct ica_xcRB *xcrb)
-{
-	int rc;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	rc = zcrypt_send_cprb(xcrb);
-	set_fs(old_fs);
-
-	return rc;
-}
-
-/*
  * Generate (random) CCA AES DATA secure key.
  */
 int cca_genseckey(u16 cardnr, u16 domain,
@@ -359,7 +341,7 @@ int cca_genseckey(u16 cardnr, u16 domain,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
 		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, errno %d\n",
 			  __func__, (int) cardnr, (int) domain, rc);
@@ -497,7 +479,7 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
 		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
 			  __func__, (int) cardnr, (int) domain, rc);
@@ -624,7 +606,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
 		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
 			  __func__, (int) cardnr, (int) domain, rc);
@@ -850,7 +832,7 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
 		DEBUG_ERR(
 			"%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
@@ -1018,7 +1000,7 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
 		DEBUG_ERR(
 			"%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
@@ -1235,7 +1217,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
 		DEBUG_ERR(
 			"%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
@@ -1366,7 +1348,7 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
 		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
 			  __func__, (int) cardnr, (int) domain, rc);

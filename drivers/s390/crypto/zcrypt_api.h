@@ -59,9 +59,9 @@ struct zcrypt_ops {
 	long (*rsa_modexpo)(struct zcrypt_queue *, struct ica_rsa_modexpo *);
 	long (*rsa_modexpo_crt)(struct zcrypt_queue *,
 				struct ica_rsa_modexpo_crt *);
-	long (*send_cprb)(struct zcrypt_queue *, struct ica_xcRB *,
+	long (*send_cprb)(bool userspace, struct zcrypt_queue *, struct ica_xcRB *,
 			  struct ap_message *);
-	long (*send_ep11_cprb)(struct zcrypt_queue *, struct ep11_urb *,
+	long (*send_ep11_cprb)(bool userspace, struct zcrypt_queue *, struct ep11_urb *,
 			       struct ap_message *);
 	long (*rng)(struct zcrypt_queue *, char *, struct ap_message *);
 	struct list_head list;		/* zcrypt ops list. */
@@ -144,5 +144,27 @@ long zcrypt_send_ep11_cprb(struct ep11_urb *urb);
 void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus);
 int zcrypt_device_status_ext(int card, int queue,
 			     struct zcrypt_device_status_ext *devstatus);
+
+static inline unsigned long z_copy_from_user(bool userspace,
+					     void *to,
+					     const void __user *from,
+					     unsigned long n)
+{
+	if (likely(userspace))
+		return copy_from_user(to, from, n);
+	memcpy(to, (void __force *) from, n);
+	return 0;
+}
+
+static inline unsigned long z_copy_to_user(bool userspace,
+					   void __user *to,
+					   const void *from,
+					   unsigned long n)
+{
+	if (likely(userspace))
+		return copy_to_user(to, from, n);
+	memcpy((void __force *) to, from, n);
+	return 0;
+}
 
 #endif /* _ZCRYPT_API_H_ */

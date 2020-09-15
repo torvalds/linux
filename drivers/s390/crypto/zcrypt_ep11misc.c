@@ -170,24 +170,6 @@ int ep11_check_aeskeyblob(debug_info_t *dbg, int dbflvl,
 EXPORT_SYMBOL(ep11_check_aeskeyblob);
 
 /*
- * Helper function which calls zcrypt_send_ep11_cprb with
- * memory management segment adjusted to kernel space
- * so that the copy_from_user called within this
- * function do in fact copy from kernel space.
- */
-static inline int _zcrypt_send_ep11_cprb(struct ep11_urb *urb)
-{
-	int rc;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	rc = zcrypt_send_ep11_cprb(urb);
-	set_fs(old_fs);
-
-	return rc;
-}
-
-/*
  * Allocate and prepare ep11 cprb plus additional payload.
  */
 static inline struct ep11_cprb *alloc_cprb(size_t payload_len)
@@ -399,7 +381,7 @@ static int ep11_query_info(u16 cardnr, u16 domain, u32 query_type,
 		 req, sizeof(*req) + sizeof(*req_pl),
 		 rep, sizeof(*rep) + sizeof(*rep_pl) + buflen);
 
-	rc = _zcrypt_send_ep11_cprb(urb);
+	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
 		DEBUG_ERR(
 			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
@@ -637,7 +619,7 @@ int ep11_genaeskey(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 		 req, sizeof(*req) + sizeof(*req_pl),
 		 rep, sizeof(*rep) + sizeof(*rep_pl));
 
-	rc = _zcrypt_send_ep11_cprb(urb);
+	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
 		DEBUG_ERR(
 			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
@@ -757,7 +739,7 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 		 req, sizeof(*req) + req_pl_size,
 		 rep, sizeof(*rep) + rep_pl_size);
 
-	rc = _zcrypt_send_ep11_cprb(urb);
+	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
 		DEBUG_ERR(
 			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
@@ -905,7 +887,7 @@ static int ep11_unwrapkey(u16 card, u16 domain,
 		 req, sizeof(*req) + req_pl_size,
 		 rep, sizeof(*rep) + sizeof(*rep_pl));
 
-	rc = _zcrypt_send_ep11_cprb(urb);
+	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
 		DEBUG_ERR(
 			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
@@ -1033,7 +1015,7 @@ static int ep11_wrapkey(u16 card, u16 domain,
 		 req, sizeof(*req) + req_pl_size,
 		 rep, sizeof(*rep) + sizeof(*rep_pl));
 
-	rc = _zcrypt_send_ep11_cprb(urb);
+	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
 		DEBUG_ERR(
 			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
