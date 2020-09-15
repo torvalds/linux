@@ -234,6 +234,8 @@ struct battery_chg_dev {
 	struct notifier_block		reboot_notifier;
 	u32				thermal_fcc_ua;
 	u32				restrict_fcc_ua;
+	u32				last_fcc_ua;
+	u32				usb_icl_ua;
 	bool				restrict_chg_en;
 };
 
@@ -419,14 +421,6 @@ static void battery_chg_notify_enable(struct battery_chg_dev *bcdev)
 	rc = battery_chg_write(bcdev, &req_msg, sizeof(req_msg));
 	if (rc < 0)
 		pr_err("Failed to enable notification rc=%d\n", rc);
-}
-
-static void battery_chg_subsys_up_work(struct work_struct *work)
-{
-	struct battery_chg_dev *bcdev = container_of(work,
-					struct battery_chg_dev, subsys_up_work);
-
-	battery_chg_notify_enable(bcdev);
 }
 
 static void battery_chg_state_cb(void *priv, enum pmic_glink_state state)
@@ -636,6 +630,11 @@ static void battery_chg_update_usb_type_work(struct work_struct *work)
 		return;
 	}
 
+	/* Reset usb_icl_ua whenever USB adapter type changes */
+	if (pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_SDP &&
+	    pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_PD)
+		bcdev->usb_icl_ua = 0;
+
 	pr_debug("usb_adap_type: %u\n", pst->prop[USB_ADAP_TYPE]);
 
 	switch (pst->prop[USB_ADAP_TYPE]) {
@@ -831,8 +830,10 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 		temp = UINT_MAX;
 
 	rc = write_property_id(bcdev, pst, prop_id, temp);
-	if (!rc)
+	if (!rc) {
 		pr_debug("Set ICL to %u\n", temp);
+		bcdev->usb_icl_ua = temp;
+	}
 
 	return rc;
 }
@@ -946,10 +947,12 @@ static int __battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 
 	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_BATTERY],
 				BATT_CHG_CTRL_LIM, fcc_ua);
-	if (rc < 0)
+	if (rc < 0) {
 		pr_err("Failed to set FCC %u, rc=%d\n", fcc_ua, rc);
-	else
+	} else {
 		pr_debug("Set FCC to %u uA\n", fcc_ua);
+		bcdev->last_fcc_ua = fcc_ua;
+	}
 
 	return rc;
 }
@@ -1126,6 +1129,38 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 	}
 
 	return 0;
+}
+
+static void battery_chg_subsys_up_work(struct work_struct *work)
+{
+	struct battery_chg_dev *bcdev = container_of(work,
+					struct battery_chg_dev, subsys_up_work);
+	int rc;
+
+	battery_chg_notify_enable(bcdev);
+
+	/*
+	 * Give some time after enabling notification so that USB adapter type
+	 * information can be obtained properly which is essential for setting
+	 * USB ICL.
+	 */
+	msleep(200);
+
+	if (bcdev->last_fcc_ua) {
+		rc = __battery_psy_set_charge_current(bcdev,
+				bcdev->last_fcc_ua);
+		if (rc < 0)
+			pr_err("Failed to set FCC (%u uA), rc=%d\n",
+				bcdev->last_fcc_ua, rc);
+	}
+
+	if (bcdev->usb_icl_ua) {
+		rc = usb_psy_set_icl(bcdev, USB_INPUT_CURR_LIMIT,
+				bcdev->usb_icl_ua);
+		if (rc < 0)
+			pr_err("Failed to set ICL(%u uA), rc=%d\n",
+				bcdev->usb_icl_ua, rc);
+	}
 }
 
 static int wireless_fw_send_firmware(struct battery_chg_dev *bcdev,
