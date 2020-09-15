@@ -134,6 +134,7 @@ static void pool_retire(struct i915_active *ref)
 	/* Return this object to the shrinker pool */
 	i915_gem_object_make_purgeable(node->obj);
 
+	GEM_BUG_ON(node->age);
 	spin_lock_irqsave(&pool->lock, flags);
 	list_add_rcu(&node->link, list);
 	WRITE_ONCE(node->age, jiffies ?: 1); /* 0 reserved for active nodes */
@@ -155,6 +156,7 @@ node_create(struct intel_gt_buffer_pool *pool, size_t sz)
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 
+	node->age = 0;
 	node->pool = pool;
 	i915_active_init(&node->active, pool_active, pool_retire);
 
