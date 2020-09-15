@@ -229,14 +229,14 @@
 	};
 
 	thermal-zones {
-		cpu0_1-thermal {
+		cpu0-1-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 5>;
 
 			trips {
-				cpu0_1_alert0: trip-point@0 {
+				cpu0_1_alert0: trip-point0 {
 					temperature = <75000>;
 					hysteresis = <2000>;
 					type = "passive";
@@ -259,7 +259,7 @@
 			};
 		};
 
-		cpu2_3-thermal {
+		cpu2-3-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
