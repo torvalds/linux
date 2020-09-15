@@ -25,7 +25,6 @@ SYM_FUNC_END(__hyp_do_panic)
 .macro host_el1_sync_vect
 	.align 7
 .L__vect_start\@:
-	esb
 	stp	x0, x1, [sp, #-16]!
 	mrs	x0, esr_el2
 	lsr	x0, x0, #ESR_ELx_EC_SHIFT
@@ -80,6 +79,11 @@ SYM_FUNC_END(__hyp_do_panic)
 .endm
 
 /*
+ * The host vector does not use an ESB instruction in order to avoid consuming
+ * SErrors that should only be consumed by the host. Guest entry is deferred by
+ * __guest_enter if there are any pending asynchronous exceptions so hyp will
+ * always return to the host without having consumerd host SErrors.
+ *
  * CONFIG_KVM_INDIRECT_VECTORS is not applied to the host vectors because the
  * host knows about the EL2 vectors already, and there is no point in hiding
  * them.
