@@ -338,13 +338,10 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 	if (fract > HZ)
 		fract = HZ;
 
-	for (;;) {
+	while (!list_empty(&holdouts)) {
 		bool firstreport;
 		bool needreport;
 		int rtst;
-
-		if (list_empty(&holdouts))
-			break;
 
 		/* Slowly back off waiting for holdouts */
 		set_tasks_gp_state(rtp, RTGS_WAIT_SCAN_HOLDOUTS);
