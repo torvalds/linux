@@ -67,7 +67,6 @@
  */
 #define IMX274_MIN_EXPOSURE_TIME		(4 * 260 / 72)
 
-#define IMX274_DEFAULT_BINNING			IMX274_BINNING_OFF
 #define IMX274_MAX_WIDTH			(3840)
 #define IMX274_MAX_HEIGHT			(2160)
 #define IMX274_MAX_FRAME_RATE			(120)
@@ -154,12 +153,6 @@ static const struct regmap_config imx274_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,
-};
-
-enum imx274_binning {
-	IMX274_BINNING_OFF,
-	IMX274_BINNING_2_1,
-	IMX274_BINNING_3_1,
 };
 
 /*
@@ -1913,7 +1906,7 @@ static int imx274_probe(struct i2c_client *client)
 	}
 
 	/* initialize format */
-	imx274->mode = &imx274_modes[IMX274_DEFAULT_BINNING];
+	imx274->mode = &imx274_modes[0];
 	imx274->crop.width = IMX274_MAX_WIDTH;
 	imx274->crop.height = IMX274_MAX_HEIGHT;
 	imx274->format.width = imx274->crop.width / imx274->mode->bin_ratio;
