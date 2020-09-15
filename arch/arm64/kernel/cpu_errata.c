@@ -877,7 +877,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #endif
 	{
 		.desc = "Branch predictor hardening",
-		.capability = ARM64_HARDEN_BRANCH_PREDICTOR,
+		.capability = ARM64_SPECTRE_V2,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = check_branch_predictor,
 		.cpu_enable = cpu_enable_branch_predictor_hardening,
