@@ -45,6 +45,9 @@
 #define LLCC_TRP_ATTR0_CFGn(n)        (0x21000 + SZ_8 * n)
 #define LLCC_TRP_ATTR1_CFGn(n)        (0x21004 + SZ_8 * n)
 
+#define LLCC_TRP_SCID_DIS_CAP_ALLOC   0x21f00
+#define LLCC_TRP_PCB_ACT              0x21f04
+
 #define BANK_OFFSET_STRIDE	      0x80000
 
 /**
@@ -89,6 +92,7 @@ struct llcc_slice_config {
 struct qcom_llcc_config {
 	const struct llcc_slice_config *sct_data;
 	int size;
+	bool need_llcc_cfg;
 };
 
 static const struct llcc_slice_config sc7180_data[] =  {
@@ -122,11 +126,13 @@ static const struct llcc_slice_config sdm845_data[] =  {
 static const struct qcom_llcc_config sc7180_cfg = {
 	.sct_data	= sc7180_data,
 	.size		= ARRAY_SIZE(sc7180_data),
+	.need_llcc_cfg	= true,
 };
 
 static const struct qcom_llcc_config sdm845_cfg = {
 	.sct_data	= sdm845_data,
 	.size		= ARRAY_SIZE(sdm845_data),
+	.need_llcc_cfg	= false,
 };
 
 static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
@@ -318,7 +324,8 @@ size_t llcc_get_slice_size(struct llcc_slice_desc *desc)
 }
 EXPORT_SYMBOL_GPL(llcc_get_slice_size);
 
-static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config)
+static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
+				  const struct qcom_llcc_config *cfg)
 {
 	int ret;
 	u32 attr1_cfg;
@@ -361,6 +368,22 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config)
 	if (ret)
 		return ret;
 
+	if (cfg->need_llcc_cfg) {
+		u32 disable_cap_alloc, retain_pc;
+
+		disable_cap_alloc = config->dis_cap_alloc << config->slice_id;
+		ret = regmap_write(drv_data->bcast_regmap,
+				LLCC_TRP_SCID_DIS_CAP_ALLOC, disable_cap_alloc);
+		if (ret)
+			return ret;
+
+		retain_pc = config->retain_on_pc << config->slice_id;
+		ret = regmap_write(drv_data->bcast_regmap,
+				LLCC_TRP_PCB_ACT, retain_pc);
+		if (ret)
+			return ret;
+	}
+
 	if (config->activate_on_init) {
 		desc.slice_id = config->slice_id;
 		ret = llcc_slice_activate(&desc);
@@ -369,7 +392,8 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config)
 	return ret;
 }
 
-static int qcom_llcc_cfg_program(struct platform_device *pdev)
+static int qcom_llcc_cfg_program(struct platform_device *pdev,
+				 const struct qcom_llcc_config *cfg)
 {
 	int i;
 	u32 sz;
@@ -380,7 +404,7 @@ static int qcom_llcc_cfg_program(struct platform_device *pdev)
 	llcc_table = drv_data->cfg;
 
 	for (i = 0; i < sz; i++) {
-		ret = _qcom_llcc_cfg_program(&llcc_table[i]);
+		ret = _qcom_llcc_cfg_program(&llcc_table[i], cfg);
 		if (ret)
 			return ret;
 	}
@@ -483,7 +507,7 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	mutex_init(&drv_data->lock);
 	platform_set_drvdata(pdev, drv_data);
 
-	ret = qcom_llcc_cfg_program(pdev);
+	ret = qcom_llcc_cfg_program(pdev, cfg);
 	if (ret)
 		goto err;
 
