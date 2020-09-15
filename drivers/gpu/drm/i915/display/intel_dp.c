@@ -162,8 +162,7 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 	int i, max_rate;
 	int max_lttpr_rate;
 
-	if (drm_dp_has_quirk(&intel_dp->desc, 0,
-			     DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS)) {
+	if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS)) {
 		/* Needed, e.g., for Apple MBP 2017, 15 inch eDP Retina panel */
 		static const int quirk_rates[] = { 162000, 270000, 324000 };
 
@@ -2435,8 +2434,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
-	bool constant_n = drm_dp_has_quirk(&intel_dp->desc, 0,
-					   DP_DPCD_QUIRK_CONSTANT_N);
+	bool constant_n = drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_CONSTANT_N);
 	int ret = 0, output_bpp;
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
@@ -6048,7 +6046,6 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	}
 
 	drm_dp_cec_set_edid(&intel_dp->aux, edid);
-	intel_dp->edid_quirks = drm_dp_get_edid_quirks(edid);
 }
 
 static void
@@ -6062,7 +6059,6 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 
 	intel_dp->has_hdmi_sink = false;
 	intel_dp->has_audio = false;
-	intel_dp->edid_quirks = 0;
 
 	intel_dp->dfp.max_bpc = 0;
 	intel_dp->dfp.max_dotclock = 0;
@@ -7116,7 +7112,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
 			drm_connector_update_edid_property(connector, edid);
-			intel_dp->edid_quirks = drm_dp_get_edid_quirks(edid);
 		} else {
 			kfree(edid);
 			edid = ERR_PTR(-EINVAL);
