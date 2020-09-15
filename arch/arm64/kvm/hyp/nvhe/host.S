@@ -12,6 +12,55 @@
 
 	.text
 
+SYM_FUNC_START(__host_exit)
+	stp	x0, x1, [sp, #-16]!
+
+	get_host_ctxt	x0, x1
+
+	ALTERNATIVE(nop, SET_PSTATE_PAN(1), ARM64_HAS_PAN, CONFIG_ARM64_PAN)
+
+	/* Store the host regs x2 and x3 */
+	stp	x2, x3,   [x0, #CPU_XREG_OFFSET(2)]
+
+	/* Retrieve the host regs x0-x1 from the stack */
+	ldp	x2, x3, [sp], #16	// x0, x1
+
+	/* Store the host regs x0-x1 and x4-x17 */
+	stp	x2, x3,   [x0, #CPU_XREG_OFFSET(0)]
+	stp	x4, x5,   [x0, #CPU_XREG_OFFSET(4)]
+	stp	x6, x7,   [x0, #CPU_XREG_OFFSET(6)]
+	stp	x8, x9,   [x0, #CPU_XREG_OFFSET(8)]
+	stp	x10, x11, [x0, #CPU_XREG_OFFSET(10)]
+	stp	x12, x13, [x0, #CPU_XREG_OFFSET(12)]
+	stp	x14, x15, [x0, #CPU_XREG_OFFSET(14)]
+	stp	x16, x17, [x0, #CPU_XREG_OFFSET(16)]
+
+	/* Store the host regs x18-x29, lr */
+	save_callee_saved_regs x0
+
+	/* Save the host context pointer in x29 across the function call */
+	mov	x29, x0
+	bl	handle_trap
+
+	/* Restore host regs x0-x17 */
+	ldp	x0, x1,   [x29, #CPU_XREG_OFFSET(0)]
+	ldp	x2, x3,   [x29, #CPU_XREG_OFFSET(2)]
+	ldp	x4, x5,   [x29, #CPU_XREG_OFFSET(4)]
+	ldp	x6, x7,   [x29, #CPU_XREG_OFFSET(6)]
+	ldp	x8, x9,   [x29, #CPU_XREG_OFFSET(8)]
+	ldp	x10, x11, [x29, #CPU_XREG_OFFSET(10)]
+	ldp	x12, x13, [x29, #CPU_XREG_OFFSET(12)]
+	ldp	x14, x15, [x29, #CPU_XREG_OFFSET(14)]
+	ldp	x16, x17, [x29, #CPU_XREG_OFFSET(16)]
+
+	/* Restore host regs x18-x29, lr */
+	restore_callee_saved_regs x29
+
+	/* Do not touch any register after this! */
+	eret
+	sb
+SYM_FUNC_END(__host_exit)
+
 SYM_FUNC_START(__hyp_do_panic)
 	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
 		      PSR_MODE_EL1h)
@@ -34,7 +83,7 @@ SYM_FUNC_END(__hyp_do_panic)
 
 	/* Check for a stub HVC call */
 	cmp	x0, #HVC_STUB_HCALL_NR
-	b.hs	1f
+	b.hs	__host_exit
 
 	/*
 	 * Compute the idmap address of __kvm_handle_stub_hvc and
@@ -50,23 +99,6 @@ SYM_FUNC_END(__hyp_do_panic)
 	/* x5 = __pa(x5) */
 	sub	x5, x5, x6
 	br	x5
-
-1:
-	/*
-	 * Shuffle the parameters before calling the function
-	 * pointed to in x0. Assumes parameters in x[1,2,3].
-	 */
-	kern_hyp_va	x0
-	str	lr, [sp, #-16]!
-	mov	lr, x0
-	mov	x0, x1
-	mov	x1, x2
-	mov	x2, x3
-	blr	lr
-	ldr	lr, [sp], #16
-
-	eret
-	sb
 .L__vect_end\@:
 .if ((.L__vect_end\@ - .L__vect_start\@) > 0x80)
 	.error "host_el1_sync_vect larger than vector entry"

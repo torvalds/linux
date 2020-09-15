@@ -372,6 +372,8 @@ static inline bool esr_is_ptrauth_trap(u32 esr)
 	ctxt_sys_reg(ctxt, key ## KEYHI_EL1) = __val;                   \
 } while(0)
 
+DECLARE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
+
 static inline bool __hyp_handle_ptrauth(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *ctxt;
