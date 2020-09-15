@@ -411,8 +411,15 @@ ipv6_fdb_grp_fcnal()
 	run_cmd "$IP -6 ro add 2001:db8:101::1/128 nhid 103"
 	log_test $? 2 "Route add with fdb nexthop group"
 
+	run_cmd "$IP nexthop del id 61"
+	run_cmd "$BRIDGE fdb get to 02:02:00:00:00:13 dev vx10 self"
+	log_test $? 0 "Fdb entry after deleting a single nexthop"
+
 	run_cmd "$IP nexthop del id 102"
 	log_test $? 0 "Fdb nexthop delete"
+
+	run_cmd "$BRIDGE fdb get to 02:02:00:00:00:13 dev vx10 self"
+	log_test $? 254 "Fdb entry after deleting a nexthop group"
 
 	$IP link del dev vx10
 }
@@ -484,8 +491,15 @@ ipv4_fdb_grp_fcnal()
 	run_cmd "$IP ro add 172.16.0.0/22 nhid 103"
 	log_test $? 2 "Route add with fdb nexthop group"
 
+	run_cmd "$IP nexthop del id 12"
+	run_cmd "$BRIDGE fdb get to 02:02:00:00:00:13 dev vx10 self"
+	log_test $? 0 "Fdb entry after deleting a single nexthop"
+
 	run_cmd "$IP nexthop del id 102"
 	log_test $? 0 "Fdb nexthop delete"
+
+	run_cmd "$BRIDGE fdb get to 02:02:00:00:00:13 dev vx10 self"
+	log_test $? 254 "Fdb entry after deleting a nexthop group"
 
 	$IP link del dev vx10
 }
