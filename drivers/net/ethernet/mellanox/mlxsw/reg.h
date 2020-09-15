@@ -9821,6 +9821,26 @@ static inline void mlxsw_reg_mtptptp_pack(char *payload,
 	mlxsw_reg_mtptpt_message_type_set(payload, message_type);
 }
 
+/* MFGD - Monitoring FW General Debug Register
+ * -------------------------------------------
+ */
+#define MLXSW_REG_MFGD_ID 0x90F0
+#define MLXSW_REG_MFGD_LEN 0x0C
+
+MLXSW_REG_DEFINE(mfgd, MLXSW_REG_MFGD_ID, MLXSW_REG_MFGD_LEN);
+
+/* reg_mfgd_fw_fatal_event_mode
+ * 0 - don't check FW fatal (default)
+ * 1 - check FW fatal - enable MFDE trap
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mfgd, fatal_event_mode, 0x00, 9, 2);
+
+/* reg_mfgd_trigger_test
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mfgd, trigger_test, 0x00, 11, 1);
+
 /* MGPIR - Management General Peripheral Information Register
  * ----------------------------------------------------------
  * MGPIR register allows software to query the hardware and
@@ -11071,6 +11091,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mtpppc),
 	MLXSW_REG(mtpptr),
 	MLXSW_REG(mtptpt),
+	MLXSW_REG(mfgd),
 	MLXSW_REG(mgpir),
 	MLXSW_REG(mfde),
 	MLXSW_REG(tngcr),
