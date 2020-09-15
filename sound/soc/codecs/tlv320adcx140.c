@@ -673,7 +673,7 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	u8 iface_reg1 = 0;
 	u8 iface_reg2 = 0;
 	int offset = 0;
-	int width = adcx140->slot_width;
+	bool inverted_bclk = false;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -689,24 +689,6 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	/* signal polarity */
-	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_IF:
-		iface_reg1 |= ADCX140_FSYNCINV_BIT;
-		break;
-	case SND_SOC_DAIFMT_IB_IF:
-		iface_reg1 |= ADCX140_BCLKINV_BIT | ADCX140_FSYNCINV_BIT;
-		break;
-	case SND_SOC_DAIFMT_IB_NF:
-		iface_reg1 |= ADCX140_BCLKINV_BIT;
-		break;
-	case SND_SOC_DAIFMT_NB_NF:
-		break;
-	default:
-		dev_err(component->dev, "Invalid DAI clock signal polarity\n");
-		return -EINVAL;
-	}
-
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
@@ -716,15 +698,35 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		iface_reg1 |= ADCX140_LEFT_JUST_BIT;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		offset += (adcx140->tdm_delay * width + 1);
+		offset = 1;
+		inverted_bclk = true;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		offset += adcx140->tdm_delay * width;
+		inverted_bclk = true;
 		break;
 	default:
 		dev_err(component->dev, "Invalid DAI interface format\n");
 		return -EINVAL;
 	}
+
+	/* signal polarity */
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_IB_NF:
+	case SND_SOC_DAIFMT_IB_IF:
+		inverted_bclk = !inverted_bclk;
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+		iface_reg1 |= ADCX140_FSYNCINV_BIT;
+		break;
+	case SND_SOC_DAIFMT_NB_NF:
+		break;
+	default:
+		dev_err(component->dev, "Invalid DAI clock signal polarity\n");
+		return -EINVAL;
+	}
+
+	if (inverted_bclk)
+		iface_reg1 |= ADCX140_BCLKINV_BIT;
 
 	adcx140->dai_fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
