@@ -359,14 +359,12 @@ static int rgb13h_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_FLASH_TIMEOUT:
 		return rgb13h_led_flash_timeout_set(&led->fled_cdev, ctrl->val);
 	case V4L2_CID_FLASH_INTENSITY:
-		if (led->led_mode != V4L2_FLASH_LED_MODE_FLASH)
-			return -EBUSY;
 		led->intensity = ctrl->val;
 		break;
 	case V4L2_CID_FLASH_TORCH_INTENSITY:
+		led->intensity_torch = ctrl->val;
 		if (led->led_mode != V4L2_FLASH_LED_MODE_TORCH)
 			break;
-		led->intensity_torch = ctrl->val;
 		return rgb13h_set_output(led, LED_ON);
 	default:
 		dev_err(&led->pdev->dev,
