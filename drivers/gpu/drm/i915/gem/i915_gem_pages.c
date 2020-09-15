@@ -254,6 +254,10 @@ static void *i915_gem_object_map(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj) && type != I915_MAP_WC)
 		return NULL;
 
+	if (GEM_WARN_ON(type == I915_MAP_WC &&
+			!static_cpu_has(X86_FEATURE_PAT)))
+		return NULL;
+
 	/* A single page can always be kmapped */
 	if (n_pte == 1 && type == I915_MAP_WB) {
 		struct page *page = sg_page(sgt->sgl);
