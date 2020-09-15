@@ -678,11 +678,6 @@ static bool newport_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 	return true;
 }
 
-static int newport_set_origin(struct vc_data *vc)
-{
-	return 0;
-}
-
 static void newport_save_screen(struct vc_data *vc) { }
 
 const struct consw newport_con = {
@@ -699,7 +694,6 @@ const struct consw newport_con = {
 	.con_blank	  = newport_blank,
 	.con_font_set	  = newport_font_set,
 	.con_font_default = newport_font_default,
-	.con_set_origin	  = newport_set_origin,
 	.con_save_screen  = newport_save_screen
 };
 
