@@ -214,7 +214,7 @@ void replay_soft_interrupts(void)
 	struct pt_regs regs;
 
 	ppc_save_regs(&regs);
-	regs.softe = IRQS_ALL_DISABLED;
+	regs.softe = IRQS_ENABLED;
 
 again:
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
