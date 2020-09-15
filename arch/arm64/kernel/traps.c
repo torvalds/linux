@@ -34,6 +34,7 @@
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
+#include <asm/extable.h>
 #include <asm/insn.h>
 #include <asm/kprobes.h>
 #include <asm/traps.h>
@@ -994,6 +995,21 @@ static struct break_hook bug_break_hook = {
 	.imm = BUG_BRK_IMM,
 };
 
+static int reserved_fault_handler(struct pt_regs *regs, unsigned int esr)
+{
+	pr_err("%s generated an invalid instruction at %pS!\n",
+		in_bpf_jit(regs) ? "BPF JIT" : "Kernel text patching",
+		(void *)instruction_pointer(regs));
+
+	/* We cannot handle this */
+	return DBG_HOOK_ERROR;
+}
+
+static struct break_hook fault_break_hook = {
+	.fn = reserved_fault_handler,
+	.imm = FAULT_BRK_IMM,
+};
+
 #ifdef CONFIG_KASAN_SW_TAGS
 
 #define KASAN_ESR_RECOVER	0x20
@@ -1059,6 +1075,7 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
 void __init trap_init(void)
 {
 	register_kernel_break_hook(&bug_break_hook);
+	register_kernel_break_hook(&fault_break_hook);
 #ifdef CONFIG_KASAN_SW_TAGS
 	register_kernel_break_hook(&kasan_break_hook);
 #endif

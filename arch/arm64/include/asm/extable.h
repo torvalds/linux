@@ -22,6 +22,15 @@ struct exception_table_entry
 
 #define ARCH_HAS_RELATIVE_EXTABLE
 
+static inline bool in_bpf_jit(struct pt_regs *regs)
+{
+	if (!IS_ENABLED(CONFIG_BPF_JIT))
+		return false;
+
+	return regs->pc >= BPF_JIT_REGION_START &&
+	       regs->pc < BPF_JIT_REGION_END;
+}
+
 #ifdef CONFIG_BPF_JIT
 int arm64_bpf_fixup_exception(const struct exception_table_entry *ex,
 			      struct pt_regs *regs);
