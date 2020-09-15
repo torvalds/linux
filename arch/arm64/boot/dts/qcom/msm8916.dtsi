@@ -714,7 +714,7 @@
 			reg-names = "mic-iomux", "spkr-iomux";
 		};
 
-		lpass: lpass@7708000 {
+		lpass: audio-controller@7708000 {
 			status = "disabled";
 			compatible = "qcom,lpass-cpu-apq8016";
 			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
@@ -743,7 +743,7 @@
 			#size-cells = <0>;
 		};
 
-		lpass_codec: codec@771c000 {
+		lpass_codec: audio-codec@771c000 {
 			compatible = "qcom,msm8916-wcd-digital-codec";
 			reg = <0x0771c000 0x400>;
 			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
@@ -1161,7 +1161,7 @@
 			};
 		};
 
-		mpss: hexagon@4080000 {
+		mpss: remoteproc@4080000 {
 			compatible = "qcom,msm8916-mss-pil", "qcom,q6v5-pil";
 			reg = <0x04080000 0x100>,
 			      <0x04020000 0x040>;
@@ -1225,7 +1225,7 @@
 			};
 		};
 
-		pronto: wcnss@a21b000 {
+		pronto: remoteproc@a21b000 {
 			compatible = "qcom,pronto-v2-pil", "qcom,pronto";
 			reg = <0x0a204000 0x2000>, <0x0a202000 0x1000>, <0x0a21b000 0x3000>;
 			reg-names = "ccu", "dxe", "pmu";
@@ -1821,7 +1821,7 @@
 				compatible = "qcom,rpm-msm8916";
 				qcom,smd-channels = "rpm_requests";
 
-				rpmcc: qcom,rpmcc {
+				rpmcc: clock-controller {
 					compatible = "qcom,rpmcc-msm8916";
 					#clock-cells = <1>;
 				};

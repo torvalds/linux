@@ -81,7 +81,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		muic: sm5502@25 {
+		muic: extcon@25 {
 			compatible = "siliconmitus,sm5502-muic";
 
 			reg = <0x25>;
