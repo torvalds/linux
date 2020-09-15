@@ -1420,6 +1420,16 @@ static inline void btrfs_init_map_token(struct btrfs_map_token *token,
 #define cpu_to_le8(v) (v)
 #define __le8 u8
 
+static inline u8 get_unaligned_le8(const void *p)
+{
+       return *(u8 *)p;
+}
+
+static inline void put_unaligned_le8(u8 val, void *p)
+{
+       *(u8 *)p = val;
+}
+
 #define read_eb_member(eb, ptr, type, member, result) (\
 	read_extent_buffer(eb, (char *)(result),			\
 			   ((unsigned long)(ptr)) +			\
@@ -1478,26 +1488,24 @@ static inline void btrfs_set_token_##name(struct btrfs_map_token *token,\
 static inline u##bits btrfs_##name(const struct extent_buffer *eb)	\
 {									\
 	const type *p = page_address(eb->pages[0]);			\
-	u##bits res = le##bits##_to_cpu(p->member);			\
-	return res;							\
+	return get_unaligned_le##bits(&p->member);			\
 }									\
 static inline void btrfs_set_##name(const struct extent_buffer *eb,	\
 				    u##bits val)			\
 {									\
 	type *p = page_address(eb->pages[0]);				\
-	p->member = cpu_to_le##bits(val);				\
+	put_unaligned_le##bits(val, &p->member);			\
 }
 
 #define BTRFS_SETGET_STACK_FUNCS(name, type, member, bits)		\
 static inline u##bits btrfs_##name(const type *s)			\
 {									\
-	return le##bits##_to_cpu(s->member);				\
+	return get_unaligned_le##bits(&s->member);			\
 }									\
 static inline void btrfs_set_##name(type *s, u##bits val)		\
 {									\
-	s->member = cpu_to_le##bits(val);				\
+	put_unaligned_le##bits(val, &s->member);			\
 }
-
 
 static inline u64 btrfs_device_total_bytes(const struct extent_buffer *eb,
 					   struct btrfs_dev_item *s)
