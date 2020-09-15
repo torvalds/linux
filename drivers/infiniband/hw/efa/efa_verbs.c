@@ -380,7 +380,7 @@ int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 err_dealloc_pd:
 	efa_pd_dealloc(dev, result.pdn);
 err_out:
-	atomic64_inc(&dev->stats.sw_stats.alloc_pd_err);
+	atomic64_inc(&dev->stats.alloc_pd_err);
 	return err;
 }
 
@@ -742,7 +742,7 @@ err_free_mapped:
 err_free_qp:
 	kfree(qp);
 err_out:
-	atomic64_inc(&dev->stats.sw_stats.create_qp_err);
+	atomic64_inc(&dev->stats.create_qp_err);
 	return ERR_PTR(err);
 }
 
@@ -1128,7 +1128,7 @@ err_free_mapped:
 			DMA_FROM_DEVICE);
 
 err_out:
-	atomic64_inc(&dev->stats.sw_stats.create_cq_err);
+	atomic64_inc(&dev->stats.create_cq_err);
 	return err;
 }
 
@@ -1581,7 +1581,7 @@ err_unmap:
 err_free:
 	kfree(mr);
 err_out:
-	atomic64_inc(&dev->stats.sw_stats.reg_mr_err);
+	atomic64_inc(&dev->stats.reg_mr_err);
 	return ERR_PTR(err);
 }
 
@@ -1709,7 +1709,7 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 err_dealloc_uar:
 	efa_dealloc_uar(dev, result.uarn);
 err_out:
-	atomic64_inc(&dev->stats.sw_stats.alloc_ucontext_err);
+	atomic64_inc(&dev->stats.alloc_ucontext_err);
 	return err;
 }
 
@@ -1742,7 +1742,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		ibdev_dbg(&dev->ibdev,
 			  "pgoff[%#lx] does not have valid entry\n",
 			  vma->vm_pgoff);
-		atomic64_inc(&dev->stats.sw_stats.mmap_err);
+		atomic64_inc(&dev->stats.mmap_err);
 		return -EINVAL;
 	}
 	entry = to_emmap(rdma_entry);
@@ -1784,7 +1784,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 			"Couldn't mmap address[%#llx] length[%#zx] mmap_flag[%d] err[%d]\n",
 			entry->address, rdma_entry->npages * PAGE_SIZE,
 			entry->mmap_flag, err);
-		atomic64_inc(&dev->stats.sw_stats.mmap_err);
+		atomic64_inc(&dev->stats.mmap_err);
 	}
 
 	rdma_user_mmap_entry_put(rdma_entry);
@@ -1869,7 +1869,7 @@ int efa_create_ah(struct ib_ah *ibah,
 err_destroy_ah:
 	efa_ah_destroy(dev, ah);
 err_out:
-	atomic64_inc(&dev->stats.sw_stats.create_ah_err);
+	atomic64_inc(&dev->stats.create_ah_err);
 	return err;
 }
 
@@ -1930,13 +1930,14 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 
 	s = &dev->stats;
 	stats->value[EFA_KEEP_ALIVE_RCVD] = atomic64_read(&s->keep_alive_rcvd);
-	stats->value[EFA_ALLOC_PD_ERR] = atomic64_read(&s->sw_stats.alloc_pd_err);
-	stats->value[EFA_CREATE_QP_ERR] = atomic64_read(&s->sw_stats.create_qp_err);
-	stats->value[EFA_CREATE_CQ_ERR] = atomic64_read(&s->sw_stats.create_cq_err);
-	stats->value[EFA_REG_MR_ERR] = atomic64_read(&s->sw_stats.reg_mr_err);
-	stats->value[EFA_ALLOC_UCONTEXT_ERR] = atomic64_read(&s->sw_stats.alloc_ucontext_err);
-	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->sw_stats.create_ah_err);
-	stats->value[EFA_MMAP_ERR] = atomic64_read(&s->sw_stats.mmap_err);
+	stats->value[EFA_ALLOC_PD_ERR] = atomic64_read(&s->alloc_pd_err);
+	stats->value[EFA_CREATE_QP_ERR] = atomic64_read(&s->create_qp_err);
+	stats->value[EFA_CREATE_CQ_ERR] = atomic64_read(&s->create_cq_err);
+	stats->value[EFA_REG_MR_ERR] = atomic64_read(&s->reg_mr_err);
+	stats->value[EFA_ALLOC_UCONTEXT_ERR] =
+		atomic64_read(&s->alloc_ucontext_err);
+	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->create_ah_err);
+	stats->value[EFA_MMAP_ERR] = atomic64_read(&s->mmap_err);
 
 	return ARRAY_SIZE(efa_stats_names);
 }

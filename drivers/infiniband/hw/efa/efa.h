@@ -33,7 +33,8 @@ struct efa_irq {
 	char name[EFA_IRQNAME_SIZE];
 };
 
-struct efa_sw_stats {
+/* Don't use anything other than atomic64 */
+struct efa_stats {
 	atomic64_t alloc_pd_err;
 	atomic64_t create_qp_err;
 	atomic64_t create_cq_err;
@@ -41,11 +42,6 @@ struct efa_sw_stats {
 	atomic64_t alloc_ucontext_err;
 	atomic64_t create_ah_err;
 	atomic64_t mmap_err;
-};
-
-/* Don't use anything other than atomic64 */
-struct efa_stats {
-	struct efa_sw_stats sw_stats;
 	atomic64_t keep_alive_rcvd;
 };
 
