@@ -2980,7 +2980,73 @@ static int mst_topo_show(struct seq_file *m, void *unused)
 }
 
 /*
- * Sets the force_timing_sync debug optino from the given string.
+ * Sets trigger hpd for MST topologies.
+ * All connected connectors will be rediscovered and re started as needed if val of 1 is sent.
+ * All topologies will be disconnected if val of 0 is set .
+ * Usage to enable topologies: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_trigger_hpd_mst
+ * Usage to disable topologies: echo 0 > /sys/kernel/debug/dri/0/amdgpu_dm_trigger_hpd_mst
+ */
+static int trigger_hpd_mst_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+	struct drm_device *dev = adev_to_drm(adev);
+	struct drm_connector_list_iter iter;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector *connector;
+	struct dc_link *link = NULL;
+
+	if (val == 1) {
+		drm_connector_list_iter_begin(dev, &iter);
+		drm_for_each_connector_iter(connector, &iter) {
+			aconnector = to_amdgpu_dm_connector(connector);
+			if (aconnector->dc_link->type == dc_connection_mst_branch &&
+			    aconnector->mst_mgr.aux) {
+				dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+				drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true);
+			}
+		}
+	} else if (val == 0) {
+		drm_connector_list_iter_begin(dev, &iter);
+		drm_for_each_connector_iter(connector, &iter) {
+			aconnector = to_amdgpu_dm_connector(connector);
+			if (!aconnector->dc_link)
+				continue;
+
+			if (!(aconnector->port && &aconnector->mst_port->mst_mgr))
+				continue;
+
+			link = aconnector->dc_link;
+			dp_receiver_power_ctrl(link, false);
+			drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_port->mst_mgr, false);
+			link->mst_stream_alloc_table.stream_count = 0;
+			memset(link->mst_stream_alloc_table.stream_allocations, 0,
+					sizeof(link->mst_stream_alloc_table.stream_allocations));
+		}
+	} else {
+		return 0;
+	}
+	drm_kms_helper_hotplug_event(dev);
+
+	return 0;
+}
+
+/*
+ * The interface doesn't need get function, so it will return the
+ * value of zero
+ * Usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_trigger_hpd_mst
+ */
+static int trigger_hpd_mst_get(void *data, u64 *val)
+{
+	*val = 0;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(trigger_hpd_mst_ops, trigger_hpd_mst_get,
+			 trigger_hpd_mst_set, "%llu\n");
+
+
+/*
+ * Sets the force_timing_sync debug option from the given string.
  * All connected displays will be force synchronized immediately.
  * Usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_force_timing_sync
  */
@@ -3141,6 +3207,9 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_dmcub_trace_event_en", 0644, root,
 				   adev, &dmcub_trace_event_state_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_trigger_hpd_mst", 0644, root,
+				   adev, &trigger_hpd_mst_ops);
 
 	debugfs_create_file_unsafe("amdgpu_dm_dcc_en", 0644, root, adev,
 				   &dcc_en_bits_fops);
