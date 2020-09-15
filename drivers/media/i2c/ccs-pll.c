@@ -347,13 +347,15 @@ ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
 	 * into a value which is not smaller than div, the desired
 	 * divisor.
 	 */
-	for (vt_div = min_vt_div; vt_div <= max_vt_div;
-	     vt_div += 2 - (vt_div & 1)) {
-		for (sys_div = min_sys_div;
-		     sys_div <= max_sys_div;
+	for (vt_div = min_vt_div; vt_div <= max_vt_div; vt_div++) {
+		uint16_t __max_sys_div = vt_div & 1 ? 1 : max_sys_div;
+
+		for (sys_div = min_sys_div; sys_div <= __max_sys_div;
 		     sys_div += 2 - (sys_div & 1)) {
-			uint16_t pix_div = DIV_ROUND_UP(vt_div, sys_div);
+			uint16_t pix_div;
 			uint16_t rounded_div;
+
+			pix_div = DIV_ROUND_UP(vt_div, sys_div);
 
 			if (pix_div < lim->vt_bk.min_pix_clk_div
 			    || pix_div > lim->vt_bk.max_pix_clk_div) {
