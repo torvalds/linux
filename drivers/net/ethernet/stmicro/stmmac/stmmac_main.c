@@ -4739,6 +4739,69 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	return 0;
 }
 
+static void stmmac_napi_add(struct net_device *dev)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 queue, maxq;
+
+	maxq = max(priv->plat->rx_queues_to_use, priv->plat->tx_queues_to_use);
+
+	for (queue = 0; queue < maxq; queue++) {
+		struct stmmac_channel *ch = &priv->channel[queue];
+
+		ch->priv_data = priv;
+		ch->index = queue;
+
+		if (queue < priv->plat->rx_queues_to_use) {
+			netif_napi_add(dev, &ch->rx_napi, stmmac_napi_poll_rx,
+				       NAPI_POLL_WEIGHT);
+		}
+		if (queue < priv->plat->tx_queues_to_use) {
+			netif_tx_napi_add(dev, &ch->tx_napi,
+					  stmmac_napi_poll_tx,
+					  NAPI_POLL_WEIGHT);
+		}
+	}
+}
+
+static void stmmac_napi_del(struct net_device *dev)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 queue, maxq;
+
+	maxq = max(priv->plat->rx_queues_to_use, priv->plat->tx_queues_to_use);
+
+	for (queue = 0; queue < maxq; queue++) {
+		struct stmmac_channel *ch = &priv->channel[queue];
+
+		if (queue < priv->plat->rx_queues_to_use)
+			netif_napi_del(&ch->rx_napi);
+		if (queue < priv->plat->tx_queues_to_use)
+			netif_napi_del(&ch->tx_napi);
+	}
+}
+
+int stmmac_reinit_queues(struct net_device *dev, u32 rx_cnt, u32 tx_cnt)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int ret = 0;
+
+	if (netif_running(dev))
+		stmmac_release(dev);
+
+	stmmac_napi_del(dev);
+
+	priv->plat->rx_queues_to_use = rx_cnt;
+	priv->plat->tx_queues_to_use = tx_cnt;
+
+	stmmac_napi_add(dev);
+
+	if (netif_running(dev))
+		ret = stmmac_open(dev);
+
+	return ret;
+}
+
 /**
  * stmmac_dvr_probe
  * @device: device pointer
@@ -4755,7 +4818,7 @@ int stmmac_dvr_probe(struct device *device,
 {
 	struct net_device *ndev = NULL;
 	struct stmmac_priv *priv;
-	u32 queue, rxq, maxq;
+	u32 rxq;
 	int i, ret = 0;
 
 	ndev = devm_alloc_etherdev_mqs(device, sizeof(struct stmmac_priv),
@@ -4920,25 +4983,7 @@ int stmmac_dvr_probe(struct device *device,
 		priv->flow_ctrl = FLOW_AUTO;	/* RX/TX pause on */
 
 	/* Setup channels NAPI */
-	maxq = max(priv->plat->rx_queues_to_use, priv->plat->tx_queues_to_use);
-
-	for (queue = 0; queue < maxq; queue++) {
-		struct stmmac_channel *ch = &priv->channel[queue];
-
-		spin_lock_init(&ch->lock);
-		ch->priv_data = priv;
-		ch->index = queue;
-
-		if (queue < priv->plat->rx_queues_to_use) {
-			netif_napi_add(ndev, &ch->rx_napi, stmmac_napi_poll_rx,
-				       NAPI_POLL_WEIGHT);
-		}
-		if (queue < priv->plat->tx_queues_to_use) {
-			netif_tx_napi_add(ndev, &ch->tx_napi,
-					  stmmac_napi_poll_tx,
-					  NAPI_POLL_WEIGHT);
-		}
-	}
+	stmmac_napi_add(ndev);
 
 	mutex_init(&priv->lock);
 
@@ -5003,14 +5048,7 @@ error_phy_setup:
 	    priv->hw->pcs != STMMAC_PCS_RTBI)
 		stmmac_mdio_unregister(ndev);
 error_mdio_register:
-	for (queue = 0; queue < maxq; queue++) {
-		struct stmmac_channel *ch = &priv->channel[queue];
-
-		if (queue < priv->plat->rx_queues_to_use)
-			netif_napi_del(&ch->rx_napi);
-		if (queue < priv->plat->tx_queues_to_use)
-			netif_napi_del(&ch->tx_napi);
-	}
+	stmmac_napi_del(ndev);
 error_hw_init:
 	destroy_workqueue(priv->wq);
 
