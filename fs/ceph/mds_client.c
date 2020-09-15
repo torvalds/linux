@@ -3317,6 +3317,10 @@ static int __decode_session_metadata(void **p, void *end,
 		*p += len;
 		ceph_decode_32_safe(p, end, len, bad);
 		ceph_decode_need(p, end, len, bad);
+		/*
+		 * Match "blocklisted (blacklisted)" from newer MDSes,
+		 * or "blacklisted" from older MDSes.
+		 */
 		if (err_str && strnstr(*p, "blacklisted", len))
 			*blocklisted = true;
 		*p += len;
