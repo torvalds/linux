@@ -1164,6 +1164,12 @@ static void adis16400_setup_chan_mask(struct adis16400_state *st)
 			st->avail_scan_mask[0] |= BIT(ch->scan_index);
 	}
 }
+
+static void adis16400_stop(void *data)
+{
+	adis16400_stop_device(data);
+}
+
 static int adis16400_probe(struct spi_device *spi)
 {
 	struct adis16400_state *st;
@@ -1201,37 +1207,24 @@ static int adis16400_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = adis_setup_buffer_and_trigger(&st->adis, indio_dev,
-			adis16400_trigger_handler);
+	ret = devm_adis_setup_buffer_and_trigger(&st->adis, indio_dev, adis16400_trigger_handler);
 	if (ret)
 		return ret;
 
 	/* Get the device into a sane initial state */
 	ret = adis16400_initial_setup(indio_dev);
 	if (ret)
-		goto error_cleanup_buffer;
-	ret = iio_device_register(indio_dev);
+		return ret;
+
+	ret = devm_add_action_or_reset(&spi->dev, adis16400_stop, indio_dev);
 	if (ret)
-		goto error_cleanup_buffer;
+		return ret;
+
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
+	if (ret)
+		return ret;
 
 	adis16400_debugfs_init(indio_dev);
-	return 0;
-
-error_cleanup_buffer:
-	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
-	return ret;
-}
-
-static int adis16400_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct adis16400_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	adis16400_stop_device(indio_dev);
-
-	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
-
 	return 0;
 }
 
@@ -1261,7 +1254,6 @@ static struct spi_driver adis16400_driver = {
 	},
 	.id_table = adis16400_id,
 	.probe = adis16400_probe,
-	.remove = adis16400_remove,
 };
 module_spi_driver(adis16400_driver);
 
