@@ -275,9 +275,8 @@ u32 sd_read32(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 				break;
 			} else {
 				DBG_871X(KERN_ERR "%s: (%d) addr = 0x%05x, val = 0x%x, try_cnt =%d\n", __func__, *err, addr, v, i);
-				if ((-ESHUTDOWN == *err) || (-ENODEV == *err)) {
+				if ((-ESHUTDOWN == *err) || (-ENODEV == *err))
 					padapter->bSurpriseRemoved = true;
-				}
 
 				if (rtw_inc_and_chk_continual_io_error(psdiodev) == true) {
 					padapter->bSurpriseRemoved = true;
@@ -367,9 +366,8 @@ void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err)
 				break;
 			} else {
 				DBG_871X(KERN_ERR "%s: (%d) addr = 0x%05x, val = 0x%x, try_cnt =%d\n", __func__, *err, addr, v, i);
-				if ((-ESHUTDOWN == *err) || (-ENODEV == *err)) {
+				if ((-ESHUTDOWN == *err) || (-ENODEV == *err))
 					padapter->bSurpriseRemoved = true;
-				}
 
 				if (rtw_inc_and_chk_continual_io_error(psdiodev) == true) {
 					padapter->bSurpriseRemoved = true;
@@ -436,9 +434,9 @@ s32 _sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 	}
 
 	err = sdio_memcpy_fromio(func, pdata, addr, cnt);
-	if (err) {
+	if (err)
 		DBG_871X(KERN_ERR "%s: FAIL(%d)! ADDR =%#x Size =%d\n", __func__, err, addr, cnt);
-	}
+
 	return err;
 }
 
@@ -538,9 +536,9 @@ s32 _sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 
 	size = cnt;
 	err = sdio_memcpy_toio(func, addr, pdata, size);
-	if (err) {
+	if (err)
 		DBG_871X(KERN_ERR "%s: FAIL(%d)! ADDR =%#x Size =%d(%d)\n", __func__, err, addr, cnt, size);
-	}
+
 	return err;
 }
 
