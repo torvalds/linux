@@ -840,6 +840,30 @@ static int stmmac_set_rxfh(struct net_device *dev, const u32 *indir,
 				    priv->plat->rx_queues_to_use);
 }
 
+static void stmmac_get_channels(struct net_device *dev,
+				struct ethtool_channels *chan)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	chan->rx_count = priv->plat->rx_queues_to_use;
+	chan->tx_count = priv->plat->tx_queues_to_use;
+	chan->max_rx = priv->dma_cap.number_rx_queues;
+	chan->max_tx = priv->dma_cap.number_tx_queues;
+}
+
+static int stmmac_set_channels(struct net_device *dev,
+			       struct ethtool_channels *chan)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	if (chan->rx_count > priv->dma_cap.number_rx_queues ||
+	    chan->tx_count > priv->dma_cap.number_tx_queues ||
+	    !chan->rx_count || !chan->tx_count)
+		return -EINVAL;
+
+	return stmmac_reinit_queues(dev, chan->rx_count, chan->tx_count);
+}
+
 static int stmmac_get_ts_info(struct net_device *dev,
 			      struct ethtool_ts_info *info)
 {
@@ -941,6 +965,8 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 	.get_ts_info = stmmac_get_ts_info,
 	.get_coalesce = stmmac_get_coalesce,
 	.set_coalesce = stmmac_set_coalesce,
+	.get_channels = stmmac_get_channels,
+	.set_channels = stmmac_set_channels,
 	.get_tunable = stmmac_get_tunable,
 	.set_tunable = stmmac_set_tunable,
 	.get_link_ksettings = stmmac_ethtool_get_link_ksettings,
