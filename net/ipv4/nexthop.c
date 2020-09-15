@@ -870,8 +870,6 @@ static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
 	bool do_flush = false;
 	struct fib_info *fi;
 
-	call_nexthop_notifiers(net, NEXTHOP_EVENT_DEL, nh);
-
 	list_for_each_entry(fi, &nh->fi_list, nh_list) {
 		fi->fib_flags |= RTNH_F_DEAD;
 		do_flush = true;
@@ -909,6 +907,8 @@ static void __remove_nexthop(struct net *net, struct nexthop *nh,
 static void remove_nexthop(struct net *net, struct nexthop *nh,
 			   struct nl_info *nlinfo)
 {
+	call_nexthop_notifiers(net, NEXTHOP_EVENT_DEL, nh);
+
 	/* remove from the tree */
 	rb_erase(&nh->rb_node, &net->nexthop.rb_root);
 
