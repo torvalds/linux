@@ -288,6 +288,14 @@ static u32 mlx5e_rep_get_rxfh_indir_size(struct net_device *netdev)
 	return mlx5e_ethtool_get_rxfh_indir_size(priv);
 }
 
+static void mlx5e_uplink_rep_get_pause_stats(struct net_device *netdev,
+					     struct ethtool_pause_stats *stats)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	mlx5e_stats_pause_get(priv, stats);
+}
+
 static void mlx5e_uplink_rep_get_pauseparam(struct net_device *netdev,
 					    struct ethtool_pauseparam *pauseparam)
 {
@@ -362,6 +370,7 @@ static const struct ethtool_ops mlx5e_uplink_rep_ethtool_ops = {
 	.set_rxfh          = mlx5e_set_rxfh,
 	.get_rxnfc         = mlx5e_get_rxnfc,
 	.set_rxnfc         = mlx5e_set_rxnfc,
+	.get_pause_stats   = mlx5e_uplink_rep_get_pause_stats,
 	.get_pauseparam    = mlx5e_uplink_rep_get_pauseparam,
 	.set_pauseparam    = mlx5e_uplink_rep_set_pauseparam,
 };
