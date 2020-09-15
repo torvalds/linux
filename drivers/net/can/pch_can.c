@@ -461,7 +461,7 @@ static void pch_can_int_clr(struct pch_can_priv *priv, u32 mask)
 			       PCH_ID2_DIR | (0x7ff << 2));
 		iowrite32(0x0, &priv->regs->ifregs[1].id1);
 
-		/* Claring NewDat, TxRqst & IntPnd */
+		/* Clearing NewDat, TxRqst & IntPnd */
 		pch_can_bit_clear(&priv->regs->ifregs[1].mcont,
 				  PCH_IF_MCONT_NEWDAT | PCH_IF_MCONT_INTPND |
 				  PCH_IF_MCONT_TXRQXT);
@@ -834,7 +834,7 @@ static int pch_can_open(struct net_device *ndev)
 	struct pch_can_priv *priv = netdev_priv(ndev);
 	int retval;
 
-	/* Regstering the interrupt. */
+	/* Registering the interrupt. */
 	retval = request_irq(priv->dev->irq, pch_can_interrupt, IRQF_SHARED,
 			     ndev->name, ndev);
 	if (retval) {

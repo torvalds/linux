@@ -1243,7 +1243,7 @@ static int grcan_poll(struct napi_struct *napi, int budget)
 	int rx_budget = budget / 2;
 	int tx_budget = budget - rx_budget;
 
-	/* Half of the budget for receiveing messages */
+	/* Half of the budget for receiving messages */
 	rx_work_done = grcan_receive(dev, rx_budget);
 
 	/* Half of the budget for transmitting messages as that can trigger echo

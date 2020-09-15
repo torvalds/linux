@@ -973,7 +973,7 @@ int pcan_usb_pro_probe(struct usb_interface *intf)
 		struct usb_endpoint_descriptor *ep = &if_desc->endpoint[i].desc;
 
 		/*
-		 * below is the list of valid ep addreses. Any other ep address
+		 * below is the list of valid ep addresses. Any other ep address
 		 * is considered as not-CAN interface address => no dev created
 		 */
 		switch (ep->bEndpointAddress) {

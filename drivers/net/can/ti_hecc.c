@@ -454,7 +454,7 @@ static int ti_hecc_get_berr_counter(const struct net_device *ndev,
 /* ti_hecc_xmit: HECC Transmit
  *
  * The transmit mailboxes start from 0 to HECC_MAX_TX_MBOX. In HECC the
- * priority of the mailbox for tranmission is dependent upon priority setting
+ * priority of the mailbox for transmission is dependent upon priority setting
  * field in mailbox registers. The mailbox with highest value in priority field
  * is transmitted first. Only when two mailboxes have the same value in
  * priority field the highest numbered mailbox is transmitted first.

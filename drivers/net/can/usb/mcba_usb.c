@@ -28,7 +28,7 @@
 #define MCBA_CTX_FREE MCBA_MAX_TX_URBS
 
 /* RX buffer must be bigger than msg size since at the
- * beggining USB messages are stacked.
+ * beginning USB messages are stacked.
  */
 #define MCBA_USB_RX_BUFF_SIZE 64
 #define MCBA_USB_TX_BUFF_SIZE (sizeof(struct mcba_usb_msg))

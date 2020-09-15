@@ -538,7 +538,7 @@ static int cc770_err(struct net_device *dev, u8 status)
 			priv->can.can_stats.error_warning++;
 		}
 	} else {
-		/* Back to error avtive */
+		/* Back to error active */
 		cf->can_id |= CAN_ERR_PROT;
 		cf->data[2] = CAN_ERR_PROT_ACTIVE;
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;

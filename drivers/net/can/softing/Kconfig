@@ -5,14 +5,14 @@ config CAN_SOFTING
 	help
 	  Support for CAN cards from Softing Gmbh & some cards
 	  from Vector Gmbh.
-	  Softing Gmbh CAN cards come with 1 or 2 physical busses.
+	  Softing Gmbh CAN cards come with 1 or 2 physical buses.
 	  Those cards typically use Dual Port RAM to communicate
 	  with the host CPU. The interface is then identical for PCI
 	  and PCMCIA cards. This driver operates on a platform device,
 	  which has been created by softing_cs or softing_pci driver.
 	  Warning:
 	  The API of the card does not allow fine control per bus, but
-	  controls the 2 busses on the card together.
+	  controls the 2 buses on the card together.
 	  As such, some actions (start/stop/busoff recovery) on 1 bus
 	  must bring down the other bus too temporarily.
 
