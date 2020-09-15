@@ -349,30 +349,30 @@ static void int3400_notify(acpi_handle handle,
 {
 	struct int3400_thermal_priv *priv = data;
 	char *thermal_prop[5];
+	int therm_event;
 
 	if (!priv)
 		return;
 
 	switch (event) {
 	case INT3400_THERMAL_TABLE_CHANGED:
-		thermal_prop[0] = kasprintf(GFP_KERNEL, "NAME=%s",
-				priv->thermal->type);
-		thermal_prop[1] = kasprintf(GFP_KERNEL, "TEMP=%d",
-				priv->thermal->temperature);
-		thermal_prop[2] = kasprintf(GFP_KERNEL, "TRIP=");
-		thermal_prop[3] = kasprintf(GFP_KERNEL, "EVENT=%d",
-				THERMAL_TABLE_CHANGED);
-		thermal_prop[4] = NULL;
-		kobject_uevent_env(&priv->thermal->device.kobj, KOBJ_CHANGE,
-				thermal_prop);
+		therm_event = THERMAL_TABLE_CHANGED;
 		break;
 	case INT3400_ODVP_CHANGED:
 		evaluate_odvp(priv);
+		therm_event = THERMAL_DEVICE_POWER_CAPABILITY_CHANGED;
 		break;
 	default:
 		/* Ignore unknown notification codes sent to INT3400 device */
-		break;
+		return;
 	}
+
+	thermal_prop[0] = kasprintf(GFP_KERNEL, "NAME=%s", priv->thermal->type);
+	thermal_prop[1] = kasprintf(GFP_KERNEL, "TEMP=%d", priv->thermal->temperature);
+	thermal_prop[2] = kasprintf(GFP_KERNEL, "TRIP=");
+	thermal_prop[3] = kasprintf(GFP_KERNEL, "EVENT=%d", therm_event);
+	thermal_prop[4] = NULL;
+	kobject_uevent_env(&priv->thermal->device.kobj, KOBJ_CHANGE, thermal_prop);
 }
 
 static int int3400_thermal_get_temp(struct thermal_zone_device *thermal,
