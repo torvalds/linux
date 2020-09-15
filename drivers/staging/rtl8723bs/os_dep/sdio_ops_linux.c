@@ -84,9 +84,9 @@ s32 _sd_cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 	func = psdio->func;
 
 	for (i = 0; i < cnt; i++) {
-		pdata[i] = sdio_readb(func, addr+i, &err);
+		pdata[i] = sdio_readb(func, addr + i, &err);
 		if (err) {
-			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr = 0x%05x\n", __func__, err, addr+i);
+			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr = 0x%05x\n", __func__, err, addr + i);
 			break;
 		}
 	}
@@ -154,9 +154,10 @@ s32 _sd_cmd52_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 	func = psdio->func;
 
 	for (i = 0; i < cnt; i++) {
-		sdio_writeb(func, pdata[i], addr+i, &err);
+		sdio_writeb(func, pdata[i], addr + i, &err);
 		if (err) {
-			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr = 0x%05x val = 0x%02x\n", __func__, err, addr+i, pdata[i]);
+			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr = 0x%05x val = 0x%02x\n", __func__,
+				 err, addr + i, pdata[i]);
 			break;
 		}
 	}
@@ -423,7 +424,7 @@ s32 _sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 		u8 *pbuf = pdata;
 
 		for (i = 0; i < cnt; i++) {
-			*(pbuf+i) = sdio_readb(func, addr+i, &err);
+			*(pbuf + i) = sdio_readb(func, addr + i, &err);
 
 			if (err) {
 				DBG_871X(KERN_ERR "%s: FAIL!(%d) addr = 0x%05x\n", __func__, err, addr);
@@ -524,9 +525,10 @@ s32 _sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 		u8 *pbuf = pdata;
 
 		for (i = 0; i < cnt; i++) {
-			sdio_writeb(func, *(pbuf+i), addr+i, &err);
+			sdio_writeb(func, *(pbuf + i), addr + i, &err);
 			if (err) {
-				DBG_871X(KERN_ERR "%s: FAIL!(%d) addr = 0x%05x val = 0x%02x\n", __func__, err, addr, *(pbuf+i));
+				DBG_871X(KERN_ERR "%s: FAIL!(%d) addr = 0x%05x val = 0x%02x\n",
+					 __func__, err, addr, *(pbuf + i));
 				break;
 			}
 		}
