@@ -105,7 +105,6 @@ struct nexthop {
 };
 
 enum nexthop_event_type {
-	NEXTHOP_EVENT_ADD,
 	NEXTHOP_EVENT_DEL
 };
 
