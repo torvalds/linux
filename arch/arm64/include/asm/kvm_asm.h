@@ -38,6 +38,30 @@
 
 #define __SMCCC_WORKAROUND_1_SMC_SZ 36
 
+#define KVM_HOST_SMCCC_ID(id)						\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
+			   ARM_SMCCC_SMC_64,				\
+			   ARM_SMCCC_OWNER_VENDOR_HYP,			\
+			   (id))
+
+#define KVM_HOST_SMCCC_FUNC(name) KVM_HOST_SMCCC_ID(__KVM_HOST_SMCCC_FUNC_##name)
+
+#define __KVM_HOST_SMCCC_FUNC___kvm_hyp_init			0
+#define __KVM_HOST_SMCCC_FUNC___kvm_vcpu_run			1
+#define __KVM_HOST_SMCCC_FUNC___kvm_flush_vm_context		2
+#define __KVM_HOST_SMCCC_FUNC___kvm_tlb_flush_vmid_ipa		3
+#define __KVM_HOST_SMCCC_FUNC___kvm_tlb_flush_vmid		4
+#define __KVM_HOST_SMCCC_FUNC___kvm_tlb_flush_local_vmid	5
+#define __KVM_HOST_SMCCC_FUNC___kvm_timer_set_cntvoff		6
+#define __KVM_HOST_SMCCC_FUNC___kvm_enable_ssbs			7
+#define __KVM_HOST_SMCCC_FUNC___vgic_v3_get_ich_vtr_el2		8
+#define __KVM_HOST_SMCCC_FUNC___vgic_v3_read_vmcr		9
+#define __KVM_HOST_SMCCC_FUNC___vgic_v3_write_vmcr		10
+#define __KVM_HOST_SMCCC_FUNC___vgic_v3_init_lrs		11
+#define __KVM_HOST_SMCCC_FUNC___kvm_get_mdcr_el2		12
+#define __KVM_HOST_SMCCC_FUNC___vgic_v3_save_aprs		13
+#define __KVM_HOST_SMCCC_FUNC___vgic_v3_restore_aprs		14
+
 #ifndef __ASSEMBLY__
 
 #include <linux/mm.h>

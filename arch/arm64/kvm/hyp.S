@@ -11,24 +11,12 @@
 #include <asm/cpufeature.h>
 
 /*
- * u64 __kvm_call_hyp(void *hypfn, ...);
- *
- * This is not really a variadic function in the classic C-way and care must
- * be taken when calling this to ensure parameters are passed in registers
- * only, since the stack will change between the caller and the callee.
- *
- * Call the function with the first argument containing a pointer to the
- * function you wish to call in Hyp mode, and subsequent arguments will be
- * passed as x0, x1, and x2 (a maximum of 3 arguments in addition to the
- * function pointer can be passed).  The function being called must be mapped
- * in Hyp mode (see init_hyp_mode in arch/arm/kvm/arm.c).  Return values are
- * passed in x0.
- *
- * A function pointer with a value less than 0xfff has a special meaning,
- * and is used to implement hyp stubs in the same way as in
- * arch/arm64/kernel/hyp_stub.S.
+ * u64 __kvm_call_hyp_init(phys_addr_t pgd_ptr,
+ * 			   unsigned long hyp_stack_ptr,
+ * 			   unsigned long vector_ptr,
+ * 			   unsigned long tpidr_el2);
  */
-SYM_FUNC_START(__kvm_call_hyp)
+SYM_FUNC_START(__kvm_call_hyp_init)
 	hvc	#0
 	ret
-SYM_FUNC_END(__kvm_call_hyp)
+SYM_FUNC_END(__kvm_call_hyp_init)
