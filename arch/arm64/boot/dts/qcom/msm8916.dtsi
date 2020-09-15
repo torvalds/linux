@@ -458,20 +458,15 @@
 			reg = <0x1800000 0x80000>;
 		};
 
-		tcsr_mutex_regs: syscon@1905000 {
-			compatible = "syscon";
+		tcsr_mutex: hwlock@1905000 {
+			compatible = "qcom,tcsr-mutex";
 			reg = <0x1905000 0x20000>;
+			#hwlock-cells = <1>;
 		};
 
 		tcsr: syscon@1937000 {
 			compatible = "qcom,tcsr-msm8916", "syscon";
 			reg = <0x1937000 0x30000>;
-		};
-
-		tcsr_mutex: hwlock {
-			compatible = "qcom,tcsr-mutex";
-			syscon = <&tcsr_mutex_regs 0 0x1000>;
-			#hwlock-cells = <1>;
 		};
 
 		rpm_msg_ram: memory@60000 {
