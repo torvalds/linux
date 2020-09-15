@@ -669,7 +669,7 @@ static const char *phy_event_name(u32 event_code)
 		phy_state_name(state), phy_event_name(code), code)
 
 
-void scu_link_layer_set_txcomsas_timeout(struct isci_phy *iphy, u32 timeout)
+static void scu_link_layer_set_txcomsas_timeout(struct isci_phy *iphy, u32 timeout)
 {
 	u32 val;
 
