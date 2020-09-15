@@ -108,7 +108,7 @@ static inline bool can_skb_headroom_valid(struct net_device *dev,
 
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-		/* preform proper loopback on capable devices */
+		/* perform proper loopback on capable devices */
 		if (dev->flags & IFF_ECHO)
 			skb->pkt_type = PACKET_LOOPBACK;
 		else
