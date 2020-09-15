@@ -293,7 +293,7 @@ void dw_edma_v0_debugfs_on(struct dw_edma_chip *chip)
 	if (!regs)
 		return;
 
-	base_dir = debugfs_create_dir(dw->name, 0);
+	base_dir = debugfs_create_dir(dw->name, NULL);
 	if (!base_dir)
 		return;
 
