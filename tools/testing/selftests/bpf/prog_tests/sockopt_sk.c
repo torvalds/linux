@@ -45,9 +45,9 @@ static int getsetsockopt(void)
 		goto err;
 	}
 
-	if (*(int *)big_buf != 0x08) {
+	if (*big_buf != 0x08) {
 		log_err("Unexpected getsockopt(IP_TOS) optval 0x%x != 0x08",
-			*(int *)big_buf);
+			(int)*big_buf);
 		goto err;
 	}
 
