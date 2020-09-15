@@ -66,16 +66,16 @@ SYM_FUNC_START(__guest_enter)
 
 	hyp_adr_this_cpu x1, kvm_hyp_ctxt, x2
 
-	// Store the host regs
+	// Store the hyp regs
 	save_callee_saved_regs x1
 
-	// Save the host's sp_el0
+	// Save hyp's sp_el0
 	save_sp_el0	x1, x2
 
-	// Now the host state is stored if we have a pending RAS SError it must
-	// affect the host. If any asynchronous exception is pending we defer
-	// the guest entry. The DSB isn't necessary before v8.2 as any SError
-	// would be fatal.
+	// Now the hyp state is stored if we have a pending RAS SError it must
+	// affect the host or hyp. If any asynchronous exception is pending we
+	// defer the guest entry. The DSB isn't necessary before v8.2 as any
+	// SError would be fatal.
 alternative_if ARM64_HAS_RAS_EXTN
 	dsb	nshst
 	isb
@@ -150,17 +150,17 @@ SYM_INNER_LABEL(__guest_exit, SYM_L_GLOBAL)
 
 	hyp_adr_this_cpu x2, kvm_hyp_ctxt, x3
 
-	// Macro ptrauth_switch_to_guest format:
-	// 	ptrauth_switch_to_host(guest cxt, host cxt, tmp1, tmp2, tmp3)
+	// Macro ptrauth_switch_to_hyp format:
+	// 	ptrauth_switch_to_hyp(guest cxt, host cxt, tmp1, tmp2, tmp3)
 	// The below macro to save/restore keys is not implemented in C code
 	// as it may cause Pointer Authentication key signing mismatch errors
 	// when this feature is enabled for kernel code.
-	ptrauth_switch_to_host x1, x2, x3, x4, x5
+	ptrauth_switch_to_hyp x1, x2, x3, x4, x5
 
-	// Restore the hosts's sp_el0
+	// Restore hyp's sp_el0
 	restore_sp_el0 x2, x3
 
-	// Now restore the host regs
+	// Now restore the hyp regs
 	restore_callee_saved_regs x2
 
 alternative_if ARM64_HAS_RAS_EXTN
