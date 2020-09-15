@@ -853,14 +853,16 @@ static void generic_metric(struct perf_stat_config *config,
 double test_generic_metric(struct metric_expr *mexp, int cpu, struct runtime_stat *st)
 {
 	struct expr_parse_ctx pctx;
-	double ratio;
+	double ratio = 0.0;
 
 	if (prepare_metric(mexp->metric_events, mexp->metric_refs, &pctx, cpu, st) < 0)
-		return 0.;
+		goto out;
 
 	if (expr__parse(&ratio, &pctx, mexp->metric_expr, 1))
-		return 0.;
+		ratio = 0.0;
 
+out:
+	expr__ctx_clear(&pctx);
 	return ratio;
 }
 
