@@ -57,14 +57,14 @@
 .endm
 
 /*
- * u64 __guest_enter(struct kvm_vcpu *vcpu,
- *		     struct kvm_cpu_context *host_ctxt);
+ * u64 __guest_enter(struct kvm_vcpu *vcpu);
  */
 SYM_FUNC_START(__guest_enter)
 	// x0: vcpu
-	// x1: host context
-	// x2-x17: clobbered by macros
+	// x1-x17: clobbered by macros
 	// x29: guest context
+
+	hyp_adr_this_cpu x1, kvm_hyp_ctxt, x2
 
 	// Store the host regs
 	save_callee_saved_regs x1
@@ -148,7 +148,7 @@ SYM_INNER_LABEL(__guest_exit, SYM_L_GLOBAL)
 	// Store the guest's sp_el0
 	save_sp_el0	x1, x2
 
-	get_host_ctxt	x2, x3
+	hyp_adr_this_cpu x2, kvm_hyp_ctxt, x3
 
 	// Macro ptrauth_switch_to_guest format:
 	// 	ptrauth_switch_to_host(guest cxt, host cxt, tmp1, tmp2, tmp3)
