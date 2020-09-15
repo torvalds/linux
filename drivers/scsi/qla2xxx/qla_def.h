@@ -1626,7 +1626,7 @@ typedef struct {
 	 */
 	uint8_t	 firmware_options[2];
 
-	uint16_t frame_payload_size;
+	__le16	frame_payload_size;
 	__le16	max_iocb_allocation;
 	__le16	execution_throttle;
 	uint8_t	 retry_count;
@@ -3880,6 +3880,7 @@ struct qla_hw_data {
 		uint32_t	scm_supported_f:1;
 				/* Enabled in Driver */
 		uint32_t	scm_enabled:1;
+		uint32_t	max_req_queue_warned:1;
 	} flags;
 
 	uint16_t max_exchg;
