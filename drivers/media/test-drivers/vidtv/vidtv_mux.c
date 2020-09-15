@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
 #include <linux/math64.h>
+
 #include "vidtv_mux.h"
 #include "vidtv_ts.h"
 #include "vidtv_pes.h"
@@ -376,6 +377,7 @@ static void vidtv_mux_clear(struct vidtv_mux *m)
 	m->mux_buf_offset = 0;
 }
 
+#define ERR_RATE 10000000
 static void vidtv_mux_tick(struct work_struct *work)
 {
 	struct vidtv_mux *m = container_of(work,
@@ -384,6 +386,7 @@ static void vidtv_mux_tick(struct work_struct *work)
 	struct dtv_frontend_properties *c = &m->fe->dtv_property_cache;
 	u32 nbytes;
 	u32 npkts;
+	u32 tot_bits = 0;
 
 	while (m->streaming) {
 		nbytes = 0;
@@ -419,9 +422,25 @@ static void vidtv_mux_tick(struct work_struct *work)
 		 * but post BER count can be lower than pre BER, if the error
 		 * correction logic discards packages.
 		 */
-		c->pre_bit_count.stat[0].uvalue = nbytes;
-		c->post_bit_count.stat[0].uvalue = nbytes;
+		c->pre_bit_count.stat[0].uvalue = nbytes * 8;
+		c->post_bit_count.stat[0].uvalue = nbytes * 8;
 		c->block_count.stat[0].uvalue += npkts;
+
+		/*
+		 * Even without any visible errors for the user, the pre-BER
+		 * stats usually have an error range up to 1E-6. So,
+		 * add some random error increment count to it.
+		 *
+		 * Please notice that this is a poor guy's implementation,
+		 * as it will produce one corrected bit error every time
+		 * ceil(total bytes / ERR_RATE) is incremented, without
+		 * any sort of (pseudo-)randomness.
+		 */
+		tot_bits += nbytes * 8;
+		if (tot_bits > ERR_RATE) {
+			c->pre_bit_error.stat[0].uvalue++;
+			tot_bits -= ERR_RATE;
+		}
 
 		usleep_range(VIDTV_SLEEP_USECS, VIDTV_MAX_SLEEP_USECS);
 	}
