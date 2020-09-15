@@ -3187,52 +3187,6 @@ static int mlxsw_sp_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 }
 
 static int
-mlxsw_sp_devlink_param_fw_load_policy_validate(struct devlink *devlink, u32 id,
-					       union devlink_param_value val,
-					       struct netlink_ext_ack *extack)
-{
-	if ((val.vu8 != DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER) &&
-	    (val.vu8 != DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH)) {
-		NL_SET_ERR_MSG_MOD(extack, "'fw_load_policy' must be 'driver' or 'flash'");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static const struct devlink_param mlxsw_sp_devlink_params[] = {
-	DEVLINK_PARAM_GENERIC(FW_LOAD_POLICY,
-			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
-			      NULL, NULL,
-			      mlxsw_sp_devlink_param_fw_load_policy_validate),
-};
-
-static int mlxsw_sp_params_register(struct mlxsw_core *mlxsw_core)
-{
-	struct devlink *devlink = priv_to_devlink(mlxsw_core);
-	union devlink_param_value value;
-	int err;
-
-	err = devlink_params_register(devlink, mlxsw_sp_devlink_params,
-				      ARRAY_SIZE(mlxsw_sp_devlink_params));
-	if (err)
-		return err;
-
-	value.vu8 = DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER;
-	devlink_param_driverinit_value_set(devlink,
-					   DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
-					   value);
-	return 0;
-}
-
-static void mlxsw_sp_params_unregister(struct mlxsw_core *mlxsw_core)
-{
-	devlink_params_unregister(priv_to_devlink(mlxsw_core),
-				  mlxsw_sp_devlink_params,
-				  ARRAY_SIZE(mlxsw_sp_devlink_params));
-}
-
-static int
 mlxsw_sp_params_acl_region_rehash_intrvl_get(struct devlink *devlink, u32 id,
 					     struct devlink_param_gset_ctx *ctx)
 {
@@ -3269,24 +3223,16 @@ static int mlxsw_sp2_params_register(struct mlxsw_core *mlxsw_core)
 	union devlink_param_value value;
 	int err;
 
-	err = mlxsw_sp_params_register(mlxsw_core);
-	if (err)
-		return err;
-
 	err = devlink_params_register(devlink, mlxsw_sp2_devlink_params,
 				      ARRAY_SIZE(mlxsw_sp2_devlink_params));
 	if (err)
-		goto err_devlink_params_register;
+		return err;
 
 	value.vu32 = 0;
 	devlink_param_driverinit_value_set(devlink,
 					   MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
 					   value);
 	return 0;
-
-err_devlink_params_register:
-	mlxsw_sp_params_unregister(mlxsw_core);
-	return err;
 }
 
 static void mlxsw_sp2_params_unregister(struct mlxsw_core *mlxsw_core)
@@ -3294,7 +3240,6 @@ static void mlxsw_sp2_params_unregister(struct mlxsw_core *mlxsw_core)
 	devlink_params_unregister(priv_to_devlink(mlxsw_core),
 				  mlxsw_sp2_devlink_params,
 				  ARRAY_SIZE(mlxsw_sp2_devlink_params));
-	mlxsw_sp_params_unregister(mlxsw_core);
 }
 
 static void mlxsw_sp_ptp_transmitted(struct mlxsw_core *mlxsw_core,
@@ -3338,8 +3283,6 @@ static struct mlxsw_driver mlxsw_sp1_driver = {
 	.txhdr_construct		= mlxsw_sp_txhdr_construct,
 	.resources_register		= mlxsw_sp1_resources_register,
 	.kvd_sizes_get			= mlxsw_sp_kvd_sizes_get,
-	.params_register		= mlxsw_sp_params_register,
-	.params_unregister		= mlxsw_sp_params_unregister,
 	.ptp_transmitted		= mlxsw_sp_ptp_transmitted,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp1_config_profile,
