@@ -228,6 +228,41 @@ static int check_ext_bounds(struct device *dev, struct ccs_pll *pll)
 	return 0;
 }
 
+static void
+ccs_pll_find_vt_sys_div(struct device *dev, const struct ccs_pll_limits *lim,
+			struct ccs_pll *pll, struct ccs_pll_branch_fr *pll_fr,
+			uint16_t min_vt_div, uint16_t max_vt_div,
+			uint16_t *min_sys_div, uint16_t *max_sys_div)
+{
+	/*
+	 * Find limits for sys_clk_div. Not all values are possible with all
+	 * values of pix_clk_div.
+	 */
+	*min_sys_div = lim->vt_bk.min_sys_clk_div;
+	dev_dbg(dev, "min_sys_div: %u\n", *min_sys_div);
+	*min_sys_div = max_t(uint16_t, *min_sys_div,
+			     DIV_ROUND_UP(min_vt_div,
+					  lim->vt_bk.max_pix_clk_div));
+	dev_dbg(dev, "min_sys_div: max_vt_pix_clk_div: %u\n", *min_sys_div);
+	*min_sys_div = max_t(uint16_t, *min_sys_div,
+			     pll_fr->pll_op_clk_freq_hz
+			     / lim->vt_bk.max_sys_clk_freq_hz);
+	dev_dbg(dev, "min_sys_div: max_pll_op_clk_freq_hz: %u\n", *min_sys_div);
+	*min_sys_div = clk_div_even_up(*min_sys_div);
+	dev_dbg(dev, "min_sys_div: one or even: %u\n", *min_sys_div);
+
+	*max_sys_div = lim->vt_bk.max_sys_clk_div;
+	dev_dbg(dev, "max_sys_div: %u\n", *max_sys_div);
+	*max_sys_div = min_t(uint16_t, *max_sys_div,
+			     DIV_ROUND_UP(max_vt_div,
+					  lim->vt_bk.min_pix_clk_div));
+	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_div: %u\n", *max_sys_div);
+	*max_sys_div = min_t(uint16_t, *max_sys_div,
+			     DIV_ROUND_UP(pll_fr->pll_op_clk_freq_hz,
+					  lim->vt_bk.min_pix_clk_freq_hz));
+	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_freq_hz: %u\n", *max_sys_div);
+}
+
 #define CPHY_CONST		7
 #define DPHY_CONST		16
 #define PHY_CONST_DIV		16
@@ -314,33 +349,8 @@ ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
 	dev_dbg(dev, "max_vt_div: min_vt_pix_clk_freq_hz: %u\n",
 		max_vt_div);
 
-	/*
-	 * Find limitsits for sys_clk_div. Not all values are possible
-	 * with all values of pix_clk_div.
-	 */
-	min_sys_div = lim->vt_bk.min_sys_clk_div;
-	dev_dbg(dev, "min_sys_div: %u\n", min_sys_div);
-	min_sys_div = max_t(uint16_t, min_sys_div,
-			    DIV_ROUND_UP(min_vt_div,
-					 lim->vt_bk.max_pix_clk_div));
-	dev_dbg(dev, "min_sys_div: max_vt_pix_clk_div: %u\n", min_sys_div);
-	min_sys_div = max_t(uint16_t, min_sys_div,
-			    pll_fr->pll_op_clk_freq_hz
-			    / lim->vt_bk.max_sys_clk_freq_hz);
-	dev_dbg(dev, "min_sys_div: max_pll_op_clk_freq_hz: %u\n", min_sys_div);
-	min_sys_div = clk_div_even_up(min_sys_div);
-	dev_dbg(dev, "min_sys_div: one or even: %u\n", min_sys_div);
-
-	max_sys_div = lim->vt_bk.max_sys_clk_div;
-	dev_dbg(dev, "max_sys_div: %u\n", max_sys_div);
-	max_sys_div = min_t(uint16_t, max_sys_div,
-			    DIV_ROUND_UP(max_vt_div,
-					 lim->vt_bk.min_pix_clk_div));
-	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_div: %u\n", max_sys_div);
-	max_sys_div = min_t(uint16_t, max_sys_div,
-			    DIV_ROUND_UP(pll_fr->pll_op_clk_freq_hz,
-					 lim->vt_bk.min_pix_clk_freq_hz));
-	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_freq_hz: %u\n", max_sys_div);
+	ccs_pll_find_vt_sys_div(dev, lim, pll, pll_fr, min_vt_div,
+				max_vt_div, &min_sys_div, &max_sys_div);
 
 	/*
 	 * Find pix_div such that a legal pix_div * sys_div results
