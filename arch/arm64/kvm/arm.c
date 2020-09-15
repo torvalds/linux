@@ -47,6 +47,7 @@ __asm__(".arch_extension	virt");
 #endif
 
 DEFINE_PER_CPU(struct kvm_host_data, kvm_host_data);
+DEFINE_PER_CPU(unsigned long, kvm_hyp_vector);
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
 
 /* The VMID used in the VTTBR */
@@ -1276,7 +1277,7 @@ static void cpu_init_hyp_mode(void)
 
 	pgd_ptr = kvm_mmu_get_httbr();
 	hyp_stack_ptr = __this_cpu_read(kvm_arm_hyp_stack_page) + PAGE_SIZE;
-	vector_ptr = (unsigned long)kvm_get_hyp_vector();
+	vector_ptr = __this_cpu_read(kvm_hyp_vector);
 
 	/*
 	 * Call initialization code, and switch to the full blown HYP code.
@@ -1308,6 +1309,8 @@ static void cpu_hyp_reinit(void)
 	kvm_init_host_cpu_context(&this_cpu_ptr(&kvm_host_data)->host_ctxt);
 
 	cpu_hyp_reset();
+
+	__this_cpu_write(kvm_hyp_vector, (unsigned long)kvm_get_hyp_vector());
 
 	if (is_kernel_in_hyp_mode())
 		kvm_timer_init_vhe();
