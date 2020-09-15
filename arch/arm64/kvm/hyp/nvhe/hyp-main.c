@@ -24,7 +24,7 @@ static void handle_host_hcall(unsigned long func_id,
 		unsigned long r1 = host_ctxt->regs.regs[1];
 		struct kvm_vcpu *vcpu = (struct kvm_vcpu *)r1;
 
-		ret = __kvm_vcpu_run(vcpu);
+		ret = __kvm_vcpu_run(kern_hyp_va(vcpu));
 		break;
 	}
 	case KVM_HOST_SMCCC_FUNC(__kvm_flush_vm_context):
@@ -36,21 +36,21 @@ static void handle_host_hcall(unsigned long func_id,
 		phys_addr_t ipa = host_ctxt->regs.regs[2];
 		int level = host_ctxt->regs.regs[3];
 
-		__kvm_tlb_flush_vmid_ipa(mmu, ipa, level);
+		__kvm_tlb_flush_vmid_ipa(kern_hyp_va(mmu), ipa, level);
 		break;
 	}
 	case KVM_HOST_SMCCC_FUNC(__kvm_tlb_flush_vmid): {
 		unsigned long r1 = host_ctxt->regs.regs[1];
 		struct kvm_s2_mmu *mmu = (struct kvm_s2_mmu *)r1;
 
-		__kvm_tlb_flush_vmid(mmu);
+		__kvm_tlb_flush_vmid(kern_hyp_va(mmu));
 		break;
 	}
 	case KVM_HOST_SMCCC_FUNC(__kvm_tlb_flush_local_vmid): {
 		unsigned long r1 = host_ctxt->regs.regs[1];
 		struct kvm_s2_mmu *mmu = (struct kvm_s2_mmu *)r1;
 
-		__kvm_tlb_flush_local_vmid(mmu);
+		__kvm_tlb_flush_local_vmid(kern_hyp_va(mmu));
 		break;
 	}
 	case KVM_HOST_SMCCC_FUNC(__kvm_timer_set_cntvoff): {
@@ -84,14 +84,14 @@ static void handle_host_hcall(unsigned long func_id,
 		unsigned long r1 = host_ctxt->regs.regs[1];
 		struct vgic_v3_cpu_if *cpu_if = (struct vgic_v3_cpu_if *)r1;
 
-		__vgic_v3_save_aprs(cpu_if);
+		__vgic_v3_save_aprs(kern_hyp_va(cpu_if));
 		break;
 	}
 	case KVM_HOST_SMCCC_FUNC(__vgic_v3_restore_aprs): {
 		unsigned long r1 = host_ctxt->regs.regs[1];
 		struct vgic_v3_cpu_if *cpu_if = (struct vgic_v3_cpu_if *)r1;
 
-		__vgic_v3_restore_aprs(cpu_if);
+		__vgic_v3_restore_aprs(kern_hyp_va(cpu_if));
 		break;
 	}
 	default:
