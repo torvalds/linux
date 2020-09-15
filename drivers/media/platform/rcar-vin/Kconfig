@@ -9,7 +9,7 @@ config VIDEO_RCAR_CSI2
 	select V4L2_FWNODE
 	help
 	  Support for Renesas R-Car MIPI CSI-2 receiver.
-	  Supports R-Car Gen3 SoCs.
+	  Supports R-Car Gen3 and RZ/G2 SoCs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rcar-csi2.
