@@ -197,7 +197,7 @@ a self-pacing notifications of new data being availability.
 being available after commit only if consumer has already caught up right up to
 the record being committed. If not, consumer still has to catch up and thus
 will see new data anyways without needing an extra poll notification.
-Benchmarks (see tools/testing/selftests/bpf/benchs/bench_ringbufs.c_) show that
+Benchmarks (see tools/testing/selftests/bpf/benchs/bench_ringbufs.c) show that
 this allows to achieve a very high throughput without having to resort to
 tricks like "notify only every Nth sample", which are necessary with perf
 buffer. For extreme cases, when BPF program wants more manual control of
