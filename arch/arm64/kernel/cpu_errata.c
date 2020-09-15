@@ -126,18 +126,19 @@ static void __copy_hyp_vect_bpi(int slot, const char *hyp_vecs_start,
 	__flush_icache_range((uintptr_t)dst, (uintptr_t)dst + SZ_2K);
 }
 
-static void install_bp_hardening_cb(bp_hardening_cb_t fn,
-				    const char *hyp_vecs_start,
-				    const char *hyp_vecs_end)
+static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 {
 	static DEFINE_RAW_SPINLOCK(bp_lock);
 	int cpu, slot = -1;
+	const char *hyp_vecs_start = __smccc_workaround_1_smc;
+	const char *hyp_vecs_end = __smccc_workaround_1_smc +
+				   __SMCCC_WORKAROUND_1_SMC_SZ;
 
 	/*
 	 * detect_harden_bp_fw() passes NULL for the hyp_vecs start/end if
 	 * we're a guest. Skip the hyp-vectors work.
 	 */
-	if (!hyp_vecs_start) {
+	if (!is_hyp_mode_available()) {
 		__this_cpu_write(bp_hardening_data.fn, fn);
 		return;
 	}
@@ -161,9 +162,7 @@ static void install_bp_hardening_cb(bp_hardening_cb_t fn,
 	raw_spin_unlock(&bp_lock);
 }
 #else
-static void install_bp_hardening_cb(bp_hardening_cb_t fn,
-				      const char *hyp_vecs_start,
-				      const char *hyp_vecs_end)
+static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 {
 	__this_cpu_write(bp_hardening_data.fn, fn);
 }
@@ -209,7 +208,6 @@ early_param("nospectre_v2", parse_nospectre_v2);
 static int detect_harden_bp_fw(void)
 {
 	bp_hardening_cb_t cb;
-	void *smccc_start, *smccc_end;
 	struct arm_smccc_res res;
 	u32 midr = read_cpuid_id();
 
@@ -229,21 +227,10 @@ static int detect_harden_bp_fw(void)
 	switch (arm_smccc_1_1_get_conduit()) {
 	case SMCCC_CONDUIT_HVC:
 		cb = call_hvc_arch_workaround_1;
-		/* This is a guest, no need to patch KVM vectors */
-		smccc_start = NULL;
-		smccc_end = NULL;
 		break;
 
 	case SMCCC_CONDUIT_SMC:
 		cb = call_smc_arch_workaround_1;
-#if IS_ENABLED(CONFIG_KVM)
-		smccc_start = __smccc_workaround_1_smc;
-		smccc_end = __smccc_workaround_1_smc +
-			__SMCCC_WORKAROUND_1_SMC_SZ;
-#else
-		smccc_start = NULL;
-		smccc_end = NULL;
-#endif
 		break;
 
 	default:
@@ -254,7 +241,7 @@ static int detect_harden_bp_fw(void)
 	    ((midr & MIDR_CPU_MODEL_MASK) == MIDR_QCOM_FALKOR_V1))
 		cb = qcom_link_stack_sanitization;
 
-	install_bp_hardening_cb(cb, smccc_start, smccc_end);
+	install_bp_hardening_cb(cb);
 	return 1;
 }
 
