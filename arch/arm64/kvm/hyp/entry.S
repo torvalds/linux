@@ -86,6 +86,8 @@ alternative_else_nop_endif
 	ret
 
 1:
+	set_loaded_vcpu x0, x1, x2
+
 	add	x29, x0, #VCPU_CONTEXT
 
 	// Macro ptrauth_switch_to_guest format:
@@ -115,6 +117,26 @@ alternative_else_nop_endif
 	// Do not touch any register after this!
 	eret
 	sb
+
+SYM_INNER_LABEL(__guest_exit_panic, SYM_L_GLOBAL)
+	// x2-x29,lr: vcpu regs
+	// vcpu x0-x1 on the stack
+
+	// If the hyp context is loaded, go straight to hyp_panic
+	get_loaded_vcpu x0, x1
+	cbz	x0, hyp_panic
+
+	// The hyp context is saved so make sure it is restored to allow
+	// hyp_panic to run at hyp and, subsequently, panic to run in the host.
+	// This makes use of __guest_exit to avoid duplication but sets the
+	// return address to tail call into hyp_panic. As a side effect, the
+	// current state is saved to the guest context but it will only be
+	// accurate if the guest had been completely restored.
+	hyp_adr_this_cpu x0, kvm_hyp_ctxt, x1
+	adr	x1, hyp_panic
+	str	x1, [x0, #CPU_XREG_OFFSET(30)]
+
+	get_vcpu_ptr	x1, x0
 
 SYM_INNER_LABEL(__guest_exit, SYM_L_GLOBAL)
 	// x0: return code
@@ -162,6 +184,8 @@ SYM_INNER_LABEL(__guest_exit, SYM_L_GLOBAL)
 
 	// Now restore the hyp regs
 	restore_callee_saved_regs x2
+
+	set_loaded_vcpu xzr, x1, x2
 
 alternative_if ARM64_HAS_RAS_EXTN
 	// If we have the RAS extensions we can consume a pending error

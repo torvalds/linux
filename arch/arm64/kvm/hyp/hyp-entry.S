@@ -145,7 +145,7 @@ el2_error:
 	eret
 	sb
 
-.macro invalid_vector	label, target = hyp_panic
+.macro invalid_vector	label, target = __guest_exit_panic
 	.align	2
 SYM_CODE_START(\label)
 	b \target
@@ -186,10 +186,9 @@ check_preamble_length 661b, 662b
 .macro invalid_vect target
 	.align 7
 661:
-	b	\target
 	nop
+	stp	x0, x1, [sp, #-16]!
 662:
-	ldp	x0, x1, [sp], #16
 	b	\target
 
 check_preamble_length 661b, 662b

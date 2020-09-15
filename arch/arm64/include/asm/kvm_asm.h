@@ -236,6 +236,16 @@ extern char __smccc_workaround_1_smc[__SMCCC_WORKAROUND_1_SMC_SZ];
 	ldr	\vcpu, [\ctxt, #HOST_CONTEXT_VCPU]
 .endm
 
+.macro get_loaded_vcpu vcpu, ctxt
+	hyp_adr_this_cpu \ctxt, kvm_hyp_ctxt, \vcpu
+	ldr	\vcpu, [\ctxt, #HOST_CONTEXT_VCPU]
+.endm
+
+.macro set_loaded_vcpu vcpu, ctxt, tmp
+	hyp_adr_this_cpu \ctxt, kvm_hyp_ctxt, \tmp
+	str	\vcpu, [\ctxt, #HOST_CONTEXT_VCPU]
+.endm
+
 /*
  * KVM extable for unexpected exceptions.
  * In the same format _asm_extable, but output to a different section so that
