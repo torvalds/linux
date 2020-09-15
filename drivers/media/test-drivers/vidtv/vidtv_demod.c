@@ -317,6 +317,32 @@ static int vidtv_demod_set_voltage(struct dvb_frontend *fe,
 	return 0;
 }
 
+/*
+ * NOTE:
+ * This is implemented here just to be used as an example for real
+ * demod drivers.
+ *
+ * Should only be implemented if the demod has support for DVB-S or DVB-S2
+ */
+static int vidtv_send_diseqc_msg(struct dvb_frontend *fe,
+				 struct dvb_diseqc_master_cmd *cmd)
+{
+	return 0;
+}
+
+/*
+ * NOTE:
+ * This is implemented here just to be used as an example for real
+ * demod drivers.
+ *
+ * Should only be implemented if the demod has support for DVB-S or DVB-S2
+ */
+static int vidtv_diseqc_send_burst(struct dvb_frontend *fe,
+				   enum fe_sec_mini_cmd burst)
+{
+	return 0;
+}
+
 static void vidtv_demod_release(struct dvb_frontend *fe)
 {
 	struct vidtv_demod_state *state = fe->demodulator_priv;
@@ -373,8 +399,11 @@ static const struct dvb_frontend_ops vidtv_demod_ops = {
 	.read_signal_strength = vidtv_demod_read_signal_strength,
 
 	/* For DVB-S/S2 */
-	.set_voltage = vidtv_demod_set_voltage,
-	.set_tone    = vidtv_demod_set_tone,
+	.set_voltage		= vidtv_demod_set_voltage,
+	.set_tone		= vidtv_demod_set_tone,
+	.diseqc_send_master_cmd	= vidtv_send_diseqc_msg,
+	.diseqc_send_burst	= vidtv_diseqc_send_burst,
+
 };
 
 static const struct i2c_device_id vidtv_demod_i2c_id_table[] = {
