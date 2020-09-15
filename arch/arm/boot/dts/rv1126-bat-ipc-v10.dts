@@ -208,8 +208,6 @@
 				   0xCB 0x2F 0x00 0x64 0xA5 0xB5 0x00 0xF8 0x31>;
 		monitor_sec = <5>;
 		virtual_power = <0>;
-		divider_res1 = <200>;
-		divider_res2 = <200>;
 	};
 
 	pcf8563: pcf8563@51 {
