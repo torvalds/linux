@@ -815,6 +815,17 @@ static void remove_insn_ops(struct instruction *insn)
 	}
 }
 
+static struct symbol *find_call_destination(struct section *sec, unsigned long offset)
+{
+	struct symbol *call_dest;
+
+	call_dest = find_func_by_offset(sec, offset);
+	if (!call_dest)
+		call_dest = find_symbol_by_offset(sec, offset);
+
+	return call_dest;
+}
+
 /*
  * Find the destination instructions for all calls.
  */
@@ -832,9 +843,7 @@ static int add_call_destinations(struct objtool_file *file)
 					       insn->offset, insn->len);
 		if (!reloc) {
 			dest_off = arch_jump_destination(insn);
-			insn->call_dest = find_func_by_offset(insn->sec, dest_off);
-			if (!insn->call_dest)
-				insn->call_dest = find_symbol_by_offset(insn->sec, dest_off);
+			insn->call_dest = find_call_destination(insn->sec, dest_off);
 
 			if (insn->ignore)
 				continue;
@@ -852,8 +861,8 @@ static int add_call_destinations(struct objtool_file *file)
 
 		} else if (reloc->sym->type == STT_SECTION) {
 			dest_off = arch_dest_reloc_offset(reloc->addend);
-			insn->call_dest = find_func_by_offset(reloc->sym->sec,
-							      dest_off);
+			insn->call_dest = find_call_destination(reloc->sym->sec,
+								dest_off);
 			if (!insn->call_dest) {
 				WARN_FUNC("can't find call dest symbol at %s+0x%lx",
 					  insn->sec, insn->offset,
