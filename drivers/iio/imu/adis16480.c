@@ -1212,6 +1212,16 @@ static int adis16480_get_ext_clocks(struct adis16480 *st)
 	return 0;
 }
 
+static void adis16480_stop(void *data)
+{
+	adis16480_stop_device(data);
+}
+
+static void adis16480_clk_disable(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int adis16480_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -1245,18 +1255,26 @@ static int adis16480_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(&spi->dev, adis16480_stop, indio_dev);
+	if (ret)
+		return ret;
+
 	ret = adis16480_config_irq_pin(spi->dev.of_node, st);
 	if (ret)
-		goto error_stop_device;
+		return ret;
 
 	ret = adis16480_get_ext_clocks(st);
 	if (ret)
-		goto error_stop_device;
+		return ret;
 
 	if (!IS_ERR_OR_NULL(st->ext_clk)) {
 		ret = adis16480_ext_clk_config(st, spi->dev.of_node, true);
 		if (ret)
-			goto error_stop_device;
+			return ret;
+
+		ret = devm_add_action_or_reset(&spi->dev, adis16480_clk_disable, st->ext_clk);
+		if (ret)
+			return ret;
 
 		st->clk_freq = clk_get_rate(st->ext_clk);
 		st->clk_freq *= 1000; /* micro */
@@ -1264,37 +1282,15 @@ static int adis16480_probe(struct spi_device *spi)
 		st->clk_freq = st->chip_info->int_clk;
 	}
 
-	ret = adis_setup_buffer_and_trigger(&st->adis, indio_dev, NULL);
+	ret = devm_adis_setup_buffer_and_trigger(&st->adis, indio_dev, NULL);
 	if (ret)
-		goto error_clk_disable_unprepare;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
-		goto error_cleanup_buffer;
+		return ret;
 
 	adis16480_debugfs_init(indio_dev);
-
-	return 0;
-
-error_cleanup_buffer:
-	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
-error_clk_disable_unprepare:
-	clk_disable_unprepare(st->ext_clk);
-error_stop_device:
-	adis16480_stop_device(indio_dev);
-	return ret;
-}
-
-static int adis16480_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct adis16480 *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	adis16480_stop_device(indio_dev);
-
-	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
-	clk_disable_unprepare(st->ext_clk);
 
 	return 0;
 }
@@ -1338,7 +1334,6 @@ static struct spi_driver adis16480_driver = {
 	},
 	.id_table = adis16480_ids,
 	.probe = adis16480_probe,
-	.remove = adis16480_remove,
 };
 module_spi_driver(adis16480_driver);
 
