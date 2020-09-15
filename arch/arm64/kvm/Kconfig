@@ -58,7 +58,7 @@ config KVM_ARM_PMU
 	  virtual machines.
 
 config KVM_INDIRECT_VECTORS
-	def_bool HARDEN_BRANCH_PREDICTOR || RANDOMIZE_BASE
+	def_bool RANDOMIZE_BASE
 
 endif # KVM
 

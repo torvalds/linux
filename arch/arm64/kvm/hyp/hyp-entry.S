@@ -116,7 +116,6 @@ el1_hvc_guest:
 			  ARM_SMCCC_ARCH_WORKAROUND_2)
 	cbnz	w1, el1_trap
 
-#ifdef CONFIG_ARM64_SSBD
 alternative_cb	arm64_enable_wa2_handling
 	b	wa2_end
 alternative_cb_end
@@ -143,7 +142,6 @@ alternative_cb_end
 wa2_end:
 	mov	x2, xzr
 	mov	x1, xzr
-#endif
 
 wa_epilogue:
 	mov	x0, xzr

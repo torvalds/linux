@@ -1583,7 +1583,6 @@ static void cpu_has_fwb(const struct arm64_cpu_capabilities *__unused)
 	WARN_ON(val & (7 << 27 | 7 << 21));
 }
 
-#ifdef CONFIG_ARM64_SSBD
 static int ssbs_emulation_handler(struct pt_regs *regs, u32 instr)
 {
 	if (user_mode(regs))
@@ -1623,7 +1622,6 @@ static void cpu_enable_ssbs(const struct arm64_cpu_capabilities *__unused)
 		arm64_set_ssbd_mitigation(true);
 	}
 }
-#endif /* CONFIG_ARM64_SSBD */
 
 #ifdef CONFIG_ARM64_PAN
 static void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused)
@@ -1976,7 +1974,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.field_pos = ID_AA64ISAR0_CRC32_SHIFT,
 		.min_field_value = 1,
 	},
-#ifdef CONFIG_ARM64_SSBD
 	{
 		.desc = "Speculative Store Bypassing Safe (SSBS)",
 		.capability = ARM64_SSBS,
@@ -1988,7 +1985,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.min_field_value = ID_AA64PFR1_SSBS_PSTATE_ONLY,
 		.cpu_enable = cpu_enable_ssbs,
 	},
-#endif
 #ifdef CONFIG_ARM64_CNP
 	{
 		.desc = "Common not Private translations",

@@ -254,9 +254,7 @@ static int detect_harden_bp_fw(void)
 	    ((midr & MIDR_CPU_MODEL_MASK) == MIDR_QCOM_FALKOR_V1))
 		cb = qcom_link_stack_sanitization;
 
-	if (IS_ENABLED(CONFIG_HARDEN_BRANCH_PREDICTOR))
-		install_bp_hardening_cb(cb, smccc_start, smccc_end);
-
+	install_bp_hardening_cb(cb, smccc_start, smccc_end);
 	return 1;
 }
 
@@ -334,11 +332,6 @@ void __init arm64_enable_wa2_handling(struct alt_instr *alt,
 void arm64_set_ssbd_mitigation(bool state)
 {
 	int conduit;
-
-	if (!IS_ENABLED(CONFIG_ARM64_SSBD)) {
-		pr_info_once("SSBD disabled by kernel configuration\n");
-		return;
-	}
 
 	if (this_cpu_has_cap(ARM64_SSBS)) {
 		if (state)
@@ -583,12 +576,6 @@ check_branch_predictor(const struct arm64_cpu_capabilities *entry, int scope)
 		return false;
 
 	__spectrev2_safe = false;
-
-	if (!IS_ENABLED(CONFIG_HARDEN_BRANCH_PREDICTOR)) {
-		pr_warn_once("spectrev2 mitigation disabled by kernel configuration\n");
-		__hardenbp_enab = false;
-		return false;
-	}
 
 	/* forced off */
 	if (__nospectre_v2 || cpu_mitigations_off()) {
@@ -1004,9 +991,7 @@ ssize_t cpu_show_spec_store_bypass(struct device *dev,
 	switch (ssbd_state) {
 	case ARM64_SSBD_KERNEL:
 	case ARM64_SSBD_FORCE_ENABLE:
-		if (IS_ENABLED(CONFIG_ARM64_SSBD))
-			return sprintf(buf,
-			    "Mitigation: Speculative Store Bypass disabled via prctl\n");
+		return sprintf(buf, "Mitigation: Speculative Store Bypass disabled via prctl\n");
 	}
 
 	return sprintf(buf, "Vulnerable\n");

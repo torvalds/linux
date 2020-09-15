@@ -527,7 +527,6 @@ static inline int kvm_map_vectors(void)
 }
 #endif
 
-#ifdef CONFIG_ARM64_SSBD
 DECLARE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
 
 static inline int hyp_map_aux_data(void)
@@ -544,12 +543,6 @@ static inline int hyp_map_aux_data(void)
 	}
 	return 0;
 }
-#else
-static inline int hyp_map_aux_data(void)
-{
-	return 0;
-}
-#endif
 
 #define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
 

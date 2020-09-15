@@ -489,7 +489,6 @@ static inline bool __needs_ssbd_off(struct kvm_vcpu *vcpu)
 
 static inline void __set_guest_arch_workaround_state(struct kvm_vcpu *vcpu)
 {
-#ifdef CONFIG_ARM64_SSBD
 	/*
 	 * The host runs with the workaround always present. If the
 	 * guest wants it disabled, so be it...
@@ -497,19 +496,16 @@ static inline void __set_guest_arch_workaround_state(struct kvm_vcpu *vcpu)
 	if (__needs_ssbd_off(vcpu) &&
 	    __hyp_this_cpu_read(arm64_ssbd_callback_required))
 		arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_2, 0, NULL);
-#endif
 }
 
 static inline void __set_host_arch_workaround_state(struct kvm_vcpu *vcpu)
 {
-#ifdef CONFIG_ARM64_SSBD
 	/*
 	 * If the guest has disabled the workaround, bring it back on.
 	 */
 	if (__needs_ssbd_off(vcpu) &&
 	    __hyp_this_cpu_read(arm64_ssbd_callback_required))
 		arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_2, 1, NULL);
-#endif
 }
 
 static inline void __kvm_unexpected_el2_exception(void)
