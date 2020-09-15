@@ -1092,11 +1092,11 @@ static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 			if (READ_ONCE(t->trc_reader_special.b.need_qs))
 				trc_add_holdout(t, &holdouts);
 		firstreport = true;
-		list_for_each_entry_safe(t, g, &holdouts, trc_holdout_list)
-			if (READ_ONCE(t->trc_reader_special.b.need_qs)) {
+		list_for_each_entry_safe(t, g, &holdouts, trc_holdout_list) {
+			if (READ_ONCE(t->trc_reader_special.b.need_qs))
 				show_stalled_task_trace(t, &firstreport);
-				trc_del_holdout(t);
-			}
+			trc_del_holdout(t); // Release task_struct reference.
+		}
 		if (firstreport)
 			pr_err("INFO: rcu_tasks_trace detected stalls? (Counter/taskslist mismatch?)\n");
 		show_stalled_ipi_trace();
