@@ -41,7 +41,6 @@ u32 sfc_get_max_iosize(void)
 int sfc_init(void __iomem *reg_addr)
 {
 	g_sfc_reg = reg_addr;
-	sfc_reset();
 	writel(0, g_sfc_reg + SFC_CTRL);
 	if (sfc_get_version() >= SFC_VER_4)
 		writel(1, g_sfc_reg + SFC_LEN_CTRL);
