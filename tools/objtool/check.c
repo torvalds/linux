@@ -2030,7 +2030,7 @@ static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
 				/* drap: push %rbp */
 				cfi->stack_size = 0;
 
-			} else if (regs[op->src.reg].base == CFI_UNDEFINED) {
+			} else {
 
 				/* drap: push %reg */
 				save_reg(cfi, op->src.reg, CFI_BP, -cfi->stack_size);
@@ -2059,9 +2059,7 @@ static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
 
 				/* save drap offset so we know when to restore it */
 				cfi->drap_offset = op->dest.offset;
-			}
-
-			else if (regs[op->src.reg].base == CFI_UNDEFINED) {
+			} else {
 
 				/* drap: mov reg, disp(%rbp) */
 				save_reg(cfi, op->src.reg, CFI_BP, op->dest.offset);
