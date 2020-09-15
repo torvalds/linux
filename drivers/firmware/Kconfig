@@ -7,7 +7,7 @@
 menu "Firmware Drivers"
 
 config ARM_SCMI_PROTOCOL
-	bool "ARM System Control and Management Interface (SCMI) Message Protocol"
+	tristate "ARM System Control and Management Interface (SCMI) Message Protocol"
 	depends on ARM || ARM64 || COMPILE_TEST
 	depends on MAILBOX
 	help
