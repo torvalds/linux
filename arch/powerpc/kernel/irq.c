@@ -113,7 +113,7 @@ static inline notrace int decrementer_check_overflow(void)
 #ifdef CONFIG_PPC_BOOK3E
 
 /* This is called whenever we are re-enabling interrupts
- * and returns either 0 (nothing to do) or 500/900/280/a00/e80 if
+ * and returns either 0 (nothing to do) or 500/900/280 if
  * there's an EE, DEC or DBELL to generate.
  *
  * This is called in two contexts: From arch_local_irq_restore()

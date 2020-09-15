@@ -1302,16 +1302,6 @@ fast_exception_return:
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	bl	do_IRQ
 	b	ret_from_except
-1:	cmpwi	cr0,r3,0xf00
-	bne	1f
-	addi	r3,r1,STACK_FRAME_OVERHEAD;
-	bl	performance_monitor_exception
-	b	ret_from_except
-1:	cmpwi	cr0,r3,0xe60
-	bne	1f
-	addi	r3,r1,STACK_FRAME_OVERHEAD;
-	bl	handle_hmi_exception
-	b	ret_from_except
 1:	cmpwi	cr0,r3,0x900
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
