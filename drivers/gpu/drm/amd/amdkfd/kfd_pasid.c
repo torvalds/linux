@@ -51,7 +51,7 @@ unsigned int kfd_get_pasid_limit(void)
 	return 1U << pasid_bits;
 }
 
-unsigned int kfd_pasid_alloc(void)
+u32 kfd_pasid_alloc(void)
 {
 	int r = amdgpu_pasid_alloc(pasid_bits);
 
@@ -63,7 +63,7 @@ unsigned int kfd_pasid_alloc(void)
 	return 0;
 }
 
-void kfd_pasid_free(unsigned int pasid)
+void kfd_pasid_free(u32 pasid)
 {
 	amdgpu_pasid_free(pasid);
 }
