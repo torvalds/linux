@@ -1277,7 +1277,7 @@ static void cpu_init_hyp_mode(void)
 
 	pgd_ptr = kvm_mmu_get_httbr();
 	hyp_stack_ptr = __this_cpu_read(kvm_arm_hyp_stack_page) + PAGE_SIZE;
-	vector_ptr = __this_cpu_read(kvm_hyp_vector);
+	vector_ptr = (unsigned long)kern_hyp_va(kvm_ksym_ref(__kvm_hyp_host_vector));
 
 	/*
 	 * Call initialization code, and switch to the full blown HYP code.
@@ -1542,12 +1542,21 @@ static int init_hyp_mode(void)
 
 	for_each_possible_cpu(cpu) {
 		struct kvm_host_data *cpu_data;
+		unsigned long *vector;
 
 		cpu_data = per_cpu_ptr(&kvm_host_data, cpu);
 		err = create_hyp_mappings(cpu_data, cpu_data + 1, PAGE_HYP);
 
 		if (err) {
 			kvm_err("Cannot map host CPU state: %d\n", err);
+			goto out_err;
+		}
+
+		vector = per_cpu_ptr(&kvm_hyp_vector, cpu);
+		err = create_hyp_mappings(vector, vector + 1, PAGE_HYP);
+
+		if (err) {
+			kvm_err("Cannot map hyp guest vector address\n");
 			goto out_err;
 		}
 	}
