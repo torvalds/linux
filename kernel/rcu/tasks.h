@@ -1088,9 +1088,11 @@ static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 		if (ret)
 			break;  // Count reached zero.
 		// Stall warning time, so make a list of the offenders.
+		rcu_read_lock();
 		for_each_process_thread(g, t)
 			if (READ_ONCE(t->trc_reader_special.b.need_qs))
 				trc_add_holdout(t, &holdouts);
+		rcu_read_unlock();
 		firstreport = true;
 		list_for_each_entry_safe(t, g, &holdouts, trc_holdout_list) {
 			if (READ_ONCE(t->trc_reader_special.b.need_qs))
