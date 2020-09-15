@@ -65,7 +65,7 @@ struct qcom_icc_node {
 };
 
 struct qcom_icc_desc {
-	struct qcom_icc_node **nodes;
+	const struct qcom_icc_node **nodes;
 	size_t num_nodes;
 	unsigned int lut_row_size;
 	unsigned int reg_freq_lut;
@@ -73,7 +73,7 @@ struct qcom_icc_desc {
 };
 
 #define DEFINE_QNODE(_name, _id, _buswidth, ...)			\
-		static struct qcom_icc_node _name = {			\
+	static const struct qcom_icc_node _name = {			\
 		.name = #_name,						\
 		.id = _id,						\
 		.buswidth = _buswidth,					\
@@ -84,7 +84,7 @@ struct qcom_icc_desc {
 DEFINE_QNODE(sdm845_osm_apps_l3, SDM845_MASTER_OSM_L3_APPS, 16, SDM845_SLAVE_OSM_L3);
 DEFINE_QNODE(sdm845_osm_l3, SDM845_SLAVE_OSM_L3, 16);
 
-static struct qcom_icc_node *sdm845_osm_l3_nodes[] = {
+static const struct qcom_icc_node *sdm845_osm_l3_nodes[] = {
 	[MASTER_OSM_L3_APPS] = &sdm845_osm_apps_l3,
 	[SLAVE_OSM_L3] = &sdm845_osm_l3,
 };
@@ -100,7 +100,7 @@ static const struct qcom_icc_desc sdm845_icc_osm_l3 = {
 DEFINE_QNODE(sc7180_osm_apps_l3, SC7180_MASTER_OSM_L3_APPS, 16, SC7180_SLAVE_OSM_L3);
 DEFINE_QNODE(sc7180_osm_l3, SC7180_SLAVE_OSM_L3, 16);
 
-static struct qcom_icc_node *sc7180_osm_l3_nodes[] = {
+static const struct qcom_icc_node *sc7180_osm_l3_nodes[] = {
 	[MASTER_OSM_L3_APPS] = &sc7180_osm_apps_l3,
 	[SLAVE_OSM_L3] = &sc7180_osm_l3,
 };
@@ -116,7 +116,7 @@ static const struct qcom_icc_desc sc7180_icc_osm_l3 = {
 DEFINE_QNODE(sm8150_osm_apps_l3, SM8150_MASTER_OSM_L3_APPS, 32, SM8150_SLAVE_OSM_L3);
 DEFINE_QNODE(sm8150_osm_l3, SM8150_SLAVE_OSM_L3, 32);
 
-static struct qcom_icc_node *sm8150_osm_l3_nodes[] = {
+static const struct qcom_icc_node *sm8150_osm_l3_nodes[] = {
 	[MASTER_OSM_L3_APPS] = &sm8150_osm_apps_l3,
 	[SLAVE_OSM_L3] = &sm8150_osm_l3,
 };
@@ -132,7 +132,7 @@ static const struct qcom_icc_desc sm8150_icc_osm_l3 = {
 DEFINE_QNODE(sm8250_epss_apps_l3, SM8250_MASTER_EPSS_L3_APPS, 32, SM8250_SLAVE_EPSS_L3);
 DEFINE_QNODE(sm8250_epss_l3, SM8250_SLAVE_EPSS_L3, 32);
 
-static struct qcom_icc_node *sm8250_epss_l3_nodes[] = {
+static const struct qcom_icc_node *sm8250_epss_l3_nodes[] = {
 	[MASTER_EPSS_L3_APPS] = &sm8250_epss_apps_l3,
 	[SLAVE_EPSS_L3_SHARED] = &sm8250_epss_l3,
 };
@@ -149,7 +149,7 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 {
 	struct qcom_osm_l3_icc_provider *qp;
 	struct icc_provider *provider;
-	struct qcom_icc_node *qn;
+	const struct qcom_icc_node *qn;
 	struct icc_node *n;
 	unsigned int index;
 	u32 agg_peak = 0;
@@ -194,7 +194,7 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 	const struct qcom_icc_desc *desc;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	struct qcom_icc_node **qnodes;
+	const struct qcom_icc_node **qnodes;
 	struct icc_node *node;
 	size_t num_nodes;
 	struct clk *clk;
@@ -286,7 +286,8 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 		}
 
 		node->name = qnodes[i]->name;
-		node->data = qnodes[i];
+		/* Cast away const and add it back in qcom_icc_set() */
+		node->data = (void *)qnodes[i];
 		icc_node_add(node, provider);
 
 		for (j = 0; j < qnodes[i]->num_links; j++)
