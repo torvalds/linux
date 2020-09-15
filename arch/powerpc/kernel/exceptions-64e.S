@@ -988,7 +988,6 @@ kernel_dbg_exc:
 .endm
 
 masked_interrupt_book3e_0x500:
-	// XXX When adding support for EPR, use PACA_IRQ_EE_EDGE
 	masked_interrupt_book3e PACA_IRQ_EE 1
 
 masked_interrupt_book3e_0x900:
