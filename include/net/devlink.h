@@ -566,6 +566,7 @@ enum devlink_health_reporter_state {
  * @dump: callback to dump an object
  *        if priv_ctx is NULL, run a full dump
  * @diagnose: callback to diagnose the current status
+ * @test: callback to trigger a test event
  */
 
 struct devlink_health_reporter_ops {
@@ -578,6 +579,8 @@ struct devlink_health_reporter_ops {
 	int (*diagnose)(struct devlink_health_reporter *reporter,
 			struct devlink_fmsg *fmsg,
 			struct netlink_ext_ack *extack);
+	int (*test)(struct devlink_health_reporter *reporter,
+		    struct netlink_ext_ack *extack);
 };
 
 /**

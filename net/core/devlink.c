@@ -6096,6 +6096,28 @@ devlink_nl_cmd_health_reporter_dump_clear_doit(struct sk_buff *skb,
 	return 0;
 }
 
+static int devlink_nl_cmd_health_reporter_test_doit(struct sk_buff *skb,
+						    struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+	int err;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	if (!reporter->ops->test) {
+		devlink_health_reporter_put(reporter);
+		return -EOPNOTSUPP;
+	}
+
+	err = reporter->ops->test(reporter, info->extack);
+
+	devlink_health_reporter_put(reporter);
+	return err;
+}
+
 struct devlink_stats {
 	u64 rx_bytes;
 	u64 rx_packets;
@@ -7312,6 +7334,14 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.cmd = DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = devlink_nl_cmd_health_reporter_dump_clear_doit,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT |
+				  DEVLINK_NL_FLAG_NO_LOCK,
+	},
+	{
+		.cmd = DEVLINK_CMD_HEALTH_REPORTER_TEST,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.doit = devlink_nl_cmd_health_reporter_test_doit,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT |
 				  DEVLINK_NL_FLAG_NO_LOCK,
