@@ -109,9 +109,6 @@ enum nexthop_event_type {
 	NEXTHOP_EVENT_DEL
 };
 
-int call_nexthop_notifier(struct notifier_block *nb, struct net *net,
-			  enum nexthop_event_type event_type,
-			  struct nexthop *nh);
 int register_nexthop_notifier(struct net *net, struct notifier_block *nb);
 int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb);
 
