@@ -127,18 +127,16 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (desc->setup) {
 			ret = desc->setup(dws);
 			if (ret)
-				return ret;
+				goto err_free_irq_vectors;
 		}
 	} else {
-		pci_free_irq_vectors(pdev);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_free_irq_vectors;
 	}
 
 	ret = dw_spi_add_host(&pdev->dev, dws);
-	if (ret) {
-		pci_free_irq_vectors(pdev);
-		return ret;
-	}
+	if (ret)
+		goto err_free_irq_vectors;
 
 	/* PCI hook and SPI hook use the same drv data */
 	pci_set_drvdata(pdev, dws);
@@ -152,6 +150,10 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
+
+err_free_irq_vectors:
+	pci_free_irq_vectors(pdev);
+	return ret;
 }
 
 static void spi_pci_remove(struct pci_dev *pdev)
