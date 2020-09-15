@@ -3813,6 +3813,10 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
+			interconnects = <&mmss_noc MASTER_MDP0 0 &mem_noc SLAVE_EBI1 0>,
+					<&mmss_noc MASTER_MDP1 0 &mem_noc SLAVE_EBI1 0>;
+			interconnect-names = "mdp0-mem", "mdp1-mem";
+
 			iommus = <&apps_smmu 0x880 0x8>,
 			         <&apps_smmu 0xc80 0x8>;
 
