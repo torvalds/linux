@@ -156,7 +156,7 @@ static int ttm_tt_set_caching(struct ttm_tt *ttm,
 	if (ttm->caching_state == c_state)
 		return 0;
 
-	if (ttm->state == tt_unpopulated) {
+	if (!ttm_tt_is_populated(ttm)) {
 		/* Change caching but don't populate */
 		ttm->caching_state = c_state;
 		return 0;
@@ -214,8 +214,7 @@ void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 
 	ttm_tt_unbind(bdev, ttm);
 
-	if (ttm->state == tt_unbound)
-		ttm_tt_unpopulate(bdev, ttm);
+	ttm_tt_unpopulate(bdev, ttm);
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP) &&
 	    ttm->swap_storage)
@@ -232,7 +231,7 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 	ttm->num_pages = bo->num_pages;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
-	ttm->state = tt_unpopulated;
+	ttm_tt_set_unpopulated(ttm);
 	ttm->swap_storage = NULL;
 	ttm->sg = bo->sg;
 }
@@ -309,9 +308,9 @@ EXPORT_SYMBOL(ttm_dma_tt_fini);
 
 void ttm_tt_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
-	if (ttm->state == tt_bound) {
+	if (ttm_tt_is_bound(ttm)) {
 		bdev->driver->ttm_tt_unbind(bdev, ttm);
-		ttm->state = tt_unbound;
+		ttm_tt_set_unbound(ttm);
 	}
 }
 
@@ -324,7 +323,7 @@ int ttm_tt_bind(struct ttm_bo_device *bdev,
 	if (!ttm)
 		return -EINVAL;
 
-	if (ttm->state == tt_bound)
+	if (ttm_tt_is_bound(ttm))
 		return 0;
 
 	ret = ttm_tt_populate(bdev, ttm, ctx);
@@ -335,7 +334,7 @@ int ttm_tt_bind(struct ttm_bo_device *bdev,
 	if (unlikely(ret != 0))
 		return ret;
 
-	ttm->state = tt_bound;
+	ttm_tt_set_bound(ttm);
 
 	return 0;
 }
@@ -393,7 +392,6 @@ int ttm_tt_swapout(struct ttm_bo_device *bdev,
 	int i;
 	int ret = -ENOMEM;
 
-	BUG_ON(ttm->state != tt_unbound && ttm->state != tt_unpopulated);
 	BUG_ON(ttm->caching_state != tt_cached);
 
 	if (!persistent_swap_storage) {
@@ -460,7 +458,7 @@ int ttm_tt_populate(struct ttm_bo_device *bdev,
 {
 	int ret;
 
-	if (ttm->state != tt_unpopulated)
+	if (ttm_tt_is_populated(ttm))
 		return 0;
 
 	if (bdev->driver->ttm_tt_populate)
@@ -489,7 +487,7 @@ static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
 void ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 		       struct ttm_tt *ttm)
 {
-	if (ttm->state == tt_unpopulated)
+	if (!ttm_tt_is_populated(ttm))
 		return;
 
 	ttm_tt_clear_mapping(ttm);

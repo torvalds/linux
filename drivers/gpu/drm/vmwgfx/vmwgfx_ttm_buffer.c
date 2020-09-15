@@ -644,7 +644,7 @@ static int vmw_ttm_populate(struct ttm_bo_device *bdev,
 	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
 	int ret;
 
-	if (ttm->state != tt_unpopulated)
+	if (ttm_tt_is_populated(ttm))
 		return 0;
 
 	if (dev_priv->map_mode == vmw_dma_alloc_coherent) {

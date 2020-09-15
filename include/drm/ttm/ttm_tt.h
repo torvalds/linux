@@ -74,8 +74,38 @@ struct ttm_tt {
 		tt_bound,
 		tt_unbound,
 		tt_unpopulated,
-	} state;
+	} _state;
 };
+
+static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
+{
+	return tt->_state != tt_unpopulated;
+}
+
+static inline bool ttm_tt_is_bound(struct ttm_tt *tt)
+{
+	return tt->_state == tt_bound;
+}
+
+static inline void ttm_tt_set_unpopulated(struct ttm_tt *tt)
+{
+	tt->_state = tt_unpopulated;
+}
+
+static inline void ttm_tt_set_populated(struct ttm_tt *tt)
+{
+	tt->_state = tt_unbound;
+}
+
+static inline void ttm_tt_set_unbound(struct ttm_tt *tt)
+{
+	tt->_state = tt_unbound;
+}
+
+static inline void ttm_tt_set_bound(struct ttm_tt *tt)
+{
+	tt->_state = tt_bound;
+}
 
 /**
  * struct ttm_dma_tt

@@ -1298,14 +1298,14 @@ nouveau_ttm_tt_populate(struct ttm_bo_device *bdev,
 	struct device *dev;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
-	if (ttm->state != tt_unpopulated)
+	if (ttm_tt_is_populated(ttm))
 		return 0;
 
 	if (slave && ttm->sg) {
 		/* make userspace faulting work */
 		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
 						 ttm_dma->dma_address, ttm->num_pages);
-		ttm->state = tt_unbound;
+		ttm_tt_set_populated(ttm);
 		return 0;
 	}
 
