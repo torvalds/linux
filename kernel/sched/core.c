@@ -2649,6 +2649,7 @@ void wake_up_if_idle(int cpu)
 out:
 	rcu_read_unlock();
 }
+EXPORT_SYMBOL_GPL(wake_up_if_idle);
 
 bool cpus_share_cache(int this_cpu, int that_cpu)
 {
