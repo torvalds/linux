@@ -3984,19 +3984,10 @@ static void enable_smi_window(struct kvm_vcpu *vcpu)
 	}
 }
 
-static bool svm_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
+static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, void *insn, int insn_len)
 {
-	unsigned long cr4 = kvm_read_cr4(vcpu);
-	bool smep = cr4 & X86_CR4_SMEP;
-	bool smap = cr4 & X86_CR4_SMAP;
-	bool is_user = svm_get_cpl(vcpu) == 3;
-
-	/*
-	 * If RIP is invalid, go ahead with emulation which will cause an
-	 * internal error exit.
-	 */
-	if (!kvm_vcpu_gfn_to_memslot(vcpu, kvm_rip_read(vcpu) >> PAGE_SHIFT))
-		return true;
+	bool smep, smap, is_user;
+	unsigned long cr4;
 
 	/*
 	 * Detect and workaround Errata 1096 Fam_17h_00_0Fh.
@@ -4038,6 +4029,20 @@ static bool svm_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
 	 * instruction pointer so we will not able to workaround it. Lets
 	 * print the error and request to kill the guest.
 	 */
+	if (likely(!insn || insn_len))
+		return true;
+
+	/*
+	 * If RIP is invalid, go ahead with emulation which will cause an
+	 * internal error exit.
+	 */
+	if (!kvm_vcpu_gfn_to_memslot(vcpu, kvm_rip_read(vcpu) >> PAGE_SHIFT))
+		return true;
+
+	cr4 = kvm_read_cr4(vcpu);
+	smep = cr4 & X86_CR4_SMEP;
+	smap = cr4 & X86_CR4_SMAP;
+	is_user = svm_get_cpl(vcpu) == 3;
 	if (smap && (!smep || is_user)) {
 		if (!sev_guest(vcpu->kvm))
 			return true;
@@ -4199,7 +4204,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.mem_enc_reg_region = svm_register_enc_region,
 	.mem_enc_unreg_region = svm_unregister_enc_region,
 
-	.need_emulation_on_page_fault = svm_need_emulation_on_page_fault,
+	.can_emulate_instruction = svm_can_emulate_instruction,
 
 	.apic_init_signal_blocked = svm_apic_init_signal_blocked,
 };

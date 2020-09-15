@@ -5485,18 +5485,6 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 	if (!mmio_info_in_cache(vcpu, cr2_or_gpa, direct) && !is_guest_mode(vcpu))
 		emulation_type |= EMULTYPE_ALLOW_RETRY_PF;
 emulate:
-	/*
-	 * On AMD platforms, under certain conditions insn_len may be zero on #NPF.
-	 * This can happen if a guest gets a page-fault on data access but the HW
-	 * table walker is not able to read the instruction page (e.g instruction
-	 * page is not present in memory). In those cases we simply restart the
-	 * guest, with the exception of AMD Erratum 1096 which is unrecoverable.
-	 */
-	if (unlikely(insn && !insn_len)) {
-		if (!kvm_x86_ops.need_emulation_on_page_fault(vcpu))
-			return 1;
-	}
-
 	return x86_emulate_instruction(vcpu, cr2_or_gpa, emulation_type, insn,
 				       insn_len);
 }
