@@ -11,8 +11,6 @@
 #include "debug.h"
 #include "expr.h"
 #include "stat.h"
-#include <perf/cpumap.h>
-#include <perf/evlist.h>
 
 static struct pmu_event pme_test[] = {
 {
