@@ -560,7 +560,9 @@ static int ieee80211_fill_rx_status(struct ieee80211_rx_status *stat,
 	if (rate->idx < 0 || !rate->count)
 		return -1;
 
-	if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+	if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
+		stat->bw = RATE_INFO_BW_160;
+	else if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
 		stat->bw = RATE_INFO_BW_80;
 	else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		stat->bw = RATE_INFO_BW_40;
