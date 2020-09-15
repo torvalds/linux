@@ -371,6 +371,28 @@ static int can_rx_state_to_frame(struct net_device *dev, enum can_state state)
 	}
 }
 
+static const char *can_get_state_str(const enum can_state state)
+{
+	switch (state) {
+	case CAN_STATE_ERROR_ACTIVE:
+		return "Error Active";
+	case CAN_STATE_ERROR_WARNING:
+		return "Error Warning";
+	case CAN_STATE_ERROR_PASSIVE:
+		return "Error Passive";
+	case CAN_STATE_BUS_OFF:
+		return "Bus Off";
+	case CAN_STATE_STOPPED:
+		return "Stopped";
+	case CAN_STATE_SLEEPING:
+		return "Sleeping";
+	default:
+		return "<unknown>";
+	}
+
+	return "<unknown>";
+}
+
 void can_change_state(struct net_device *dev, struct can_frame *cf,
 		      enum can_state tx_state, enum can_state rx_state)
 {
@@ -382,7 +404,9 @@ void can_change_state(struct net_device *dev, struct can_frame *cf,
 		return;
 	}
 
-	netdev_dbg(dev, "New error state: %d\n", new_state);
+	netdev_dbg(dev, "Controller changed from %s State (%d) into %s State (%d).\n",
+		   can_get_state_str(priv->state), priv->state,
+		   can_get_state_str(new_state), new_state);
 
 	can_update_state_error_stats(dev, new_state);
 	priv->state = new_state;
