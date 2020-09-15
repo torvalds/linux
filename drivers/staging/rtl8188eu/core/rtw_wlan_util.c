@@ -869,42 +869,42 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	/* parsing HT_INFO_IE */
 	p = rtw_get_ie(bssid->ies + _FIXED_IE_LENGTH_, _HT_ADD_INFO_IE_, &len, bssid->ie_length - _FIXED_IE_LENGTH_);
 	if (p && len > 0) {
-			pht_info = (struct HT_info_element *)(p + 2);
-			ht_info_infos_0 = pht_info->infos[0];
+		pht_info = (struct HT_info_element *)(p + 2);
+		ht_info_infos_0 = pht_info->infos[0];
 	} else {
-			ht_info_infos_0 = 0;
+		ht_info_infos_0 = 0;
 	}
 	if (ht_cap_info != cur_network->BcnInfo.ht_cap_info ||
 	    ((ht_info_infos_0 & 0x03) != (cur_network->BcnInfo.ht_info_infos_0 & 0x03))) {
-			DBG_88E("%s bcn now: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
-				ht_cap_info, ht_info_infos_0);
-			DBG_88E("%s bcn link: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
-				cur_network->BcnInfo.ht_cap_info, cur_network->BcnInfo.ht_info_infos_0);
-			DBG_88E("%s bw mode change, disconnect\n", __func__);
-			/* bcn_info_update */
-			cur_network->BcnInfo.ht_cap_info = ht_cap_info;
-			cur_network->BcnInfo.ht_info_infos_0 = ht_info_infos_0;
-			/* to do : need to check that whether modify related register of BB or not */
-			/* goto _mismatch; */
+		DBG_88E("%s bcn now: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
+			ht_cap_info, ht_info_infos_0);
+		DBG_88E("%s bcn link: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
+			cur_network->BcnInfo.ht_cap_info, cur_network->BcnInfo.ht_info_infos_0);
+		DBG_88E("%s bw mode change, disconnect\n", __func__);
+		/* bcn_info_update */
+		cur_network->BcnInfo.ht_cap_info = ht_cap_info;
+		cur_network->BcnInfo.ht_info_infos_0 = ht_info_infos_0;
+		/* to do : need to check that whether modify related register of BB or not */
+		/* goto _mismatch; */
 	}
 
 	/* Checking for channel */
 	p = rtw_get_ie(bssid->ies + _FIXED_IE_LENGTH_, _DSSET_IE_, &len, bssid->ie_length - _FIXED_IE_LENGTH_);
 	if (p) {
-			bcn_channel = *(p + 2);
+		bcn_channel = *(p + 2);
 	} else {/* In 5G, some ap do not have DSSET IE checking HT info for channel */
-			p = rtw_get_ie(bssid->ies + _FIXED_IE_LENGTH_, _HT_ADD_INFO_IE_, &len, bssid->ie_length - _FIXED_IE_LENGTH_);
-			if (pht_info) {
-					bcn_channel = pht_info->primary_channel;
-			} else { /* we don't find channel IE, so don't check it */
-					DBG_88E("Oops: %s we don't find channel IE, so don't check it\n", __func__);
-					bcn_channel = Adapter->mlmeextpriv.cur_channel;
-			}
+		p = rtw_get_ie(bssid->ies + _FIXED_IE_LENGTH_, _HT_ADD_INFO_IE_, &len, bssid->ie_length - _FIXED_IE_LENGTH_);
+		if (pht_info) {
+			bcn_channel = pht_info->primary_channel;
+		} else { /* we don't find channel IE, so don't check it */
+			DBG_88E("Oops: %s we don't find channel IE, so don't check it\n", __func__);
+			bcn_channel = Adapter->mlmeextpriv.cur_channel;
+		}
 	}
 	if (bcn_channel != Adapter->mlmeextpriv.cur_channel) {
-			DBG_88E("%s beacon channel:%d cur channel:%d disconnect\n", __func__,
-				bcn_channel, Adapter->mlmeextpriv.cur_channel);
-			goto _mismatch;
+		DBG_88E("%s beacon channel:%d cur channel:%d disconnect\n", __func__,
+			bcn_channel, Adapter->mlmeextpriv.cur_channel);
+		goto _mismatch;
 	}
 
 	/* checking SSID */

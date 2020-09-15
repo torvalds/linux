@@ -403,11 +403,11 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 
 		for (i = 0; i < CCK_TABLE_SIZE; i++) {
 			if ((dm_odm->RFCalibrateInfo.bCCKinCH14 &&
-				memcmp(&temp_cck, &CCKSwingTable_Ch14[i][2], 4)) ||
-				memcmp(&temp_cck, &CCKSwingTable_Ch1_Ch13[i][2], 4)) {
-					cck_index_old = (u8)i;
-					dm_odm->BbSwingIdxCckBase = (u8)i;
-					break;
+			     memcmp(&temp_cck, &CCKSwingTable_Ch14[i][2], 4)) ||
+			    memcmp(&temp_cck, &CCKSwingTable_Ch1_Ch13[i][2], 4)) {
+				cck_index_old = (u8)i;
+				dm_odm->BbSwingIdxCckBase = (u8)i;
+				break;
 			}
 		}
 
@@ -1039,10 +1039,10 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 	for (i = 0; i < retry_count; i++) {
 		path_a_ok = phy_path_a_iqk(adapt, is2t);
 		if (path_a_ok == 0x01) {
-				result[t][0] = (phy_query_bb_reg(adapt, rTx_Power_Before_IQK_A,
-								 bMaskDWord) & 0x3FF0000) >> 16;
-				result[t][1] = (phy_query_bb_reg(adapt, rTx_Power_After_IQK_A,
-								 bMaskDWord) & 0x3FF0000) >> 16;
+			result[t][0] = (phy_query_bb_reg(adapt, rTx_Power_Before_IQK_A,
+							 bMaskDWord) & 0x3FF0000) >> 16;
+			result[t][1] = (phy_query_bb_reg(adapt, rTx_Power_After_IQK_A,
+							 bMaskDWord) & 0x3FF0000) >> 16;
 			break;
 		}
 	}
@@ -1050,10 +1050,10 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 	for (i = 0; i < retry_count; i++) {
 		path_a_ok = phy_path_a_rx_iqk(adapt, is2t);
 		if (path_a_ok == 0x03) {
-				result[t][2] = (phy_query_bb_reg(adapt, rRx_Power_Before_IQK_A_2,
-								 bMaskDWord) & 0x3FF0000) >> 16;
-				result[t][3] = (phy_query_bb_reg(adapt, rRx_Power_After_IQK_A_2,
-								 bMaskDWord) & 0x3FF0000) >> 16;
+			result[t][2] = (phy_query_bb_reg(adapt, rRx_Power_Before_IQK_A_2,
+							 bMaskDWord) & 0x3FF0000) >> 16;
+			result[t][3] = (phy_query_bb_reg(adapt, rRx_Power_After_IQK_A_2,
+							 bMaskDWord) & 0x3FF0000) >> 16;
 			break;
 		}
 		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
