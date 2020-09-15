@@ -9880,6 +9880,84 @@ mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 		*num_of_modules = mlxsw_reg_mgpir_num_of_modules_get(payload);
 }
 
+/* MFDE - Monitoring FW Debug Register
+ * -----------------------------------
+ */
+#define MLXSW_REG_MFDE_ID 0x9200
+#define MLXSW_REG_MFDE_LEN 0x18
+
+MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
+
+/* reg_mfde_irisc_id
+ * Which irisc triggered the event
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 8, 4);
+
+enum mlxsw_reg_mfde_event_id {
+	MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO = 1,
+	/* KVD insertion machine stopped */
+	MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP,
+};
+
+/* reg_mfde_event_id
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, event_id, 0x00, 0, 8);
+
+enum mlxsw_reg_mfde_method {
+	MLXSW_REG_MFDE_METHOD_QUERY,
+	MLXSW_REG_MFDE_METHOD_WRITE,
+};
+
+/* reg_mfde_method
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, method, 0x04, 29, 1);
+
+/* reg_mfde_long_process
+ * Indicates if the command is in long_process mode.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, long_process, 0x04, 28, 1);
+
+enum mlxsw_reg_mfde_command_type {
+	MLXSW_REG_MFDE_COMMAND_TYPE_MAD,
+	MLXSW_REG_MFDE_COMMAND_TYPE_EMAD,
+	MLXSW_REG_MFDE_COMMAND_TYPE_CMDIF,
+};
+
+/* reg_mfde_command_type
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, command_type, 0x04, 24, 2);
+
+/* reg_mfde_reg_attr_id
+ * EMAD - register id, MAD - attibute id
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, reg_attr_id, 0x04, 0, 16);
+
+/* reg_mfde_log_address
+ * crspace address accessed, which resulted in timeout.
+ * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, log_address, 0x10, 0, 32);
+
+/* reg_mfde_log_id
+ * Which irisc triggered the timeout.
+ * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, log_id, 0x14, 0, 4);
+
+/* reg_mfde_pipes_mask
+ * Bit per kvh pipe.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, pipes_mask, 0x10, 0, 16);
+
 /* TNGCR - Tunneling NVE General Configuration Register
  * ----------------------------------------------------
  * The TNGCR register is used for setting up the NVE Tunneling configuration.
@@ -10994,6 +11072,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mtpptr),
 	MLXSW_REG(mtptpt),
 	MLXSW_REG(mgpir),
+	MLXSW_REG(mfde),
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
 	MLXSW_REG(tnqcr),
