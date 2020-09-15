@@ -29,6 +29,12 @@
 #define TUNER_DEFAULT_ADDR 0x68
 #define DEMOD_DEFAULT_ADDR 0x60
 
+/* LNBf fake parameters: ranges used by an Universal (extended) European LNBf */
+#define LNB_CUT_FREQUENCY	11700000
+#define LNB_LOW_FREQ		9750000
+#define LNB_HIGH_FREQ		10600000
+
+
 static unsigned int drop_tslock_prob_on_low_snr;
 module_param(drop_tslock_prob_on_low_snr, uint, 0);
 MODULE_PARM_DESC(drop_tslock_prob_on_low_snr,
@@ -53,7 +59,7 @@ static unsigned int vidtv_valid_dvb_t_freqs[NUM_VALID_TUNER_FREQS] = {
 
 module_param_array(vidtv_valid_dvb_t_freqs, uint, NULL, 0);
 MODULE_PARM_DESC(vidtv_valid_dvb_t_freqs,
-		 "Valid DVB-T frequencies to simulate");
+		 "Valid DVB-T frequencies to simulate, in Hz");
 
 static unsigned int vidtv_valid_dvb_c_freqs[NUM_VALID_TUNER_FREQS] = {
 	474000000
@@ -61,14 +67,14 @@ static unsigned int vidtv_valid_dvb_c_freqs[NUM_VALID_TUNER_FREQS] = {
 
 module_param_array(vidtv_valid_dvb_c_freqs, uint, NULL, 0);
 MODULE_PARM_DESC(vidtv_valid_dvb_c_freqs,
-		 "Valid DVB-C frequencies to simulate");
+		 "Valid DVB-C frequencies to simulate, in Hz");
 
 static unsigned int vidtv_valid_dvb_s_freqs[NUM_VALID_TUNER_FREQS] = {
-	12551500
+	11362000
 };
 module_param_array(vidtv_valid_dvb_s_freqs, uint, NULL, 0);
 MODULE_PARM_DESC(vidtv_valid_dvb_s_freqs,
-		 "Valid DVB-C frequencies to simulate");
+		 "Valid DVB-S/S2 frequencies to simulate at Ku-Band, in kHz");
 
 static unsigned int max_frequency_shift_hz;
 module_param(max_frequency_shift_hz, uint, 0);
@@ -336,10 +342,14 @@ static int vidtv_bridge_probe_demod(struct vidtv_dvb *dvb, u32 n)
 static int vidtv_bridge_probe_tuner(struct vidtv_dvb *dvb, u32 n)
 {
 	struct vidtv_tuner_config cfg = {};
+	u32 freq;
+	int i;
 
 	cfg.fe                       = dvb->fe[n];
 	cfg.mock_power_up_delay_msec = mock_power_up_delay_msec;
 	cfg.mock_tune_delay_msec     = mock_tune_delay_msec;
+
+	/* TODO: check if the frequencies are at a valid range */
 
 	memcpy(cfg.vidtv_valid_dvb_t_freqs,
 	       vidtv_valid_dvb_t_freqs,
@@ -349,9 +359,20 @@ static int vidtv_bridge_probe_tuner(struct vidtv_dvb *dvb, u32 n)
 	       vidtv_valid_dvb_c_freqs,
 	       sizeof(vidtv_valid_dvb_c_freqs));
 
-	memcpy(cfg.vidtv_valid_dvb_s_freqs,
-	       vidtv_valid_dvb_s_freqs,
-	       sizeof(vidtv_valid_dvb_s_freqs));
+	/*
+	 * Convert Satellite frequencies from Ku-band in kHZ into S-band
+	 * frequencies in Hz.
+	 */
+	for (i = 0; i < ARRAY_SIZE(vidtv_valid_dvb_s_freqs); i++) {
+		freq = vidtv_valid_dvb_s_freqs[i];
+		if (freq) {
+			if (freq < LNB_CUT_FREQUENCY)
+				freq = abs(freq - LNB_LOW_FREQ);
+			else
+				freq = abs(freq - LNB_HIGH_FREQ);
+		}
+		cfg.vidtv_valid_dvb_s_freqs[i] = freq;
+	}
 
 	cfg.max_frequency_shift_hz = max_frequency_shift_hz;
 
