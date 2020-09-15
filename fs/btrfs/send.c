@@ -577,8 +577,8 @@ static int tlv_put(struct send_ctx *sctx, u16 attr, const void *data, int len)
 		return -EOVERFLOW;
 
 	hdr = (struct btrfs_tlv_header *) (sctx->send_buf + sctx->send_size);
-	hdr->tlv_type = cpu_to_le16(attr);
-	hdr->tlv_len = cpu_to_le16(len);
+	put_unaligned_le16(attr, &hdr->tlv_type);
+	put_unaligned_le16(len, &hdr->tlv_len);
 	memcpy(hdr + 1, data, len);
 	sctx->send_size += total_len;
 
@@ -688,7 +688,7 @@ static int begin_cmd(struct send_ctx *sctx, int cmd)
 
 	sctx->send_size += sizeof(*hdr);
 	hdr = (struct btrfs_cmd_header *)sctx->send_buf;
-	hdr->cmd = cpu_to_le16(cmd);
+	put_unaligned_le16(cmd, &hdr->cmd);
 
 	return 0;
 }
@@ -700,17 +700,17 @@ static int send_cmd(struct send_ctx *sctx)
 	u32 crc;
 
 	hdr = (struct btrfs_cmd_header *)sctx->send_buf;
-	hdr->len = cpu_to_le32(sctx->send_size - sizeof(*hdr));
-	hdr->crc = 0;
+	put_unaligned_le32(sctx->send_size - sizeof(*hdr), &hdr->len);
+	put_unaligned_le32(0, &hdr->crc);
 
 	crc = btrfs_crc32c(0, (unsigned char *)sctx->send_buf, sctx->send_size);
-	hdr->crc = cpu_to_le32(crc);
+	put_unaligned_le32(crc, &hdr->crc);
 
 	ret = write_buf(sctx->send_filp, sctx->send_buf, sctx->send_size,
 					&sctx->send_off);
 
 	sctx->total_send_size += sctx->send_size;
-	sctx->cmd_send_size[le16_to_cpu(hdr->cmd)] += sctx->send_size;
+	sctx->cmd_send_size[get_unaligned_le16(&hdr->cmd)] += sctx->send_size;
 	sctx->send_size = 0;
 
 	return ret;
