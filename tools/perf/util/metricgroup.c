@@ -672,7 +672,6 @@ static int __add_metric(struct list_head *metric_list,
 		m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
 		INIT_LIST_HEAD(&m->metric_refs);
 		m->metric_refs_cnt = 0;
-		*mp = m;
 
 		parent = expr_ids__alloc(ids);
 		if (!parent) {
@@ -685,6 +684,7 @@ static int __add_metric(struct list_head *metric_list,
 			free(m);
 			return -ENOMEM;
 		}
+		*mp = m;
 	} else {
 		/*
 		 * We got here for the referenced metric, via the
@@ -719,8 +719,11 @@ static int __add_metric(struct list_head *metric_list,
 	 * all the metric's IDs and add it to the parent context.
 	 */
 	if (expr__find_other(pe->metric_expr, NULL, &m->pctx, runtime) < 0) {
-		expr__ctx_clear(&m->pctx);
-		free(m);
+		if (m->metric_refs_cnt == 0) {
+			expr__ctx_clear(&m->pctx);
+			free(m);
+			*mp = NULL;
+		}
 		return -EINVAL;
 	}
 
