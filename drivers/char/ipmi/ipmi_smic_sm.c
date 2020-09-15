@@ -126,8 +126,10 @@ static int start_smic_transaction(struct si_sm_data *smic,
 	if (size > MAX_SMIC_WRITE_SIZE)
 		return IPMI_REQ_LEN_EXCEEDED_ERR;
 
-	if ((smic->state != SMIC_IDLE) && (smic->state != SMIC_HOSED))
+	if ((smic->state != SMIC_IDLE) && (smic->state != SMIC_HOSED)) {
+		pr_warn("SMIC is now in the state %d\n", smic->state);
 		return IPMI_NOT_IN_MY_STATE_ERR;
+	}
 
 	if (smic_debug & SMIC_DEBUG_MSG) {
 		printk(KERN_DEBUG "start_smic_transaction -");
