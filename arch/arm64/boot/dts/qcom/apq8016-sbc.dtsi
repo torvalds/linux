@@ -292,15 +292,9 @@
 	};
 };
 
-&dsi0 {
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&adv7533_in>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
+&dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&adv7533_in>;
 };
 
 &lpass {
