@@ -265,7 +265,7 @@ void test_sk_assign(void)
 		TEST("ipv6 udp port redir", AF_INET6, SOCK_DGRAM, false),
 		TEST("ipv6 udp addr redir", AF_INET6, SOCK_DGRAM, true),
 	};
-	int server = -1;
+	__s64 server = -1;
 	int server_map;
 	int self_net;
 	int i;
