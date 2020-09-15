@@ -210,12 +210,7 @@ SYM_FUNC_START(__hyp_do_panic)
 SYM_FUNC_END(__hyp_do_panic)
 #endif
 
-SYM_CODE_START(__hyp_panic)
-	get_host_ctxt x0, x1
-	b	hyp_panic
-SYM_CODE_END(__hyp_panic)
-
-.macro invalid_vector	label, target = __hyp_panic
+.macro invalid_vector	label, target = hyp_panic
 	.align	2
 SYM_CODE_START(\label)
 	b \target

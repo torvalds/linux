@@ -242,13 +242,17 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	return exit_code;
 }
 
-void __noreturn hyp_panic(struct kvm_cpu_context *host_ctxt)
+void __noreturn hyp_panic(void)
 {
 	u64 spsr = read_sysreg_el2(SYS_SPSR);
 	u64 elr = read_sysreg_el2(SYS_ELR);
 	u64 par = read_sysreg(par_el1);
-	struct kvm_vcpu *vcpu = host_ctxt->__hyp_running_vcpu;
+	struct kvm_cpu_context *host_ctxt;
+	struct kvm_vcpu *vcpu;
 	unsigned long str_va;
+
+	host_ctxt = &__hyp_this_cpu_ptr(kvm_host_data)->host_ctxt;
+	vcpu = host_ctxt->__hyp_running_vcpu;
 
 	if (read_sysreg(vttbr_el2)) {
 		__timer_disable_traps(vcpu);

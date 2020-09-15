@@ -510,13 +510,11 @@ static inline void __set_host_arch_workaround_state(struct kvm_vcpu *vcpu)
 static inline void __kvm_unexpected_el2_exception(void)
 {
 	unsigned long addr, fixup;
-	struct kvm_cpu_context *host_ctxt;
 	struct exception_table_entry *entry, *end;
 	unsigned long elr_el2 = read_sysreg(elr_el2);
 
 	entry = hyp_symbol_addr(__start___kvm_ex_table);
 	end = hyp_symbol_addr(__stop___kvm_ex_table);
-	host_ctxt = &__hyp_this_cpu_ptr(kvm_host_data)->host_ctxt;
 
 	while (entry < end) {
 		addr = (unsigned long)&entry->insn + entry->insn;
@@ -531,7 +529,7 @@ static inline void __kvm_unexpected_el2_exception(void)
 		return;
 	}
 
-	hyp_panic(host_ctxt);
+	hyp_panic();
 }
 
 #endif /* __ARM64_KVM_HYP_SWITCH_H__ */
