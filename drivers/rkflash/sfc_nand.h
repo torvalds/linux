@@ -99,20 +99,11 @@ struct nand_info {
 	u16 plane_per_die;
 	u16 blk_per_plane;
 
-	u8 page_read_cmd;
-	u8 page_prog_cmd;
-	u8 read_cache_cmd_1;
-	u8 prog_cache_cmd_1;
-
-	u8 read_cache_cmd_4;
-	u8 prog_cache_cmd_4;
-	u8 block_erase_cmd;
 	u8 feature;
 
 	u8 density;  /* (1 << density) sectors*/
 	u8 max_ecc_bits;
-	u8 QE_address;
-	u8 QE_bits;
+	u8 has_qe_bits;
 
 	struct nand_mega_area meta;
 	u32 (*ecc_status)(void);
@@ -124,11 +115,6 @@ extern struct nand_ops		g_nand_ops;
 u32 sfc_nand_init(void);
 void sfc_nand_deinit(void);
 int sfc_nand_read_id(u8 *buf);
-u32 sfc_nand_ecc_status_sp1(void);
-u32 sfc_nand_ecc_status_sp2(void);
-u32 sfc_nand_ecc_status_sp3(void);
-u32 sfc_nand_ecc_status_sp4(void);
-u32 sfc_nand_ecc_status_sp5(void);
 u32 sfc_nand_erase_block(u8 cs, u32 addr);
 u32 sfc_nand_prog_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare);
 u32 sfc_nand_read_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare);
