@@ -24,13 +24,13 @@ int kvm_hvc_call_handler(struct kvm_vcpu *vcpu)
 		feature = smccc_get_arg1(vcpu);
 		switch (feature) {
 		case ARM_SMCCC_ARCH_WORKAROUND_1:
-			switch (kvm_arm_harden_branch_predictor()) {
-			case KVM_BP_HARDEN_UNKNOWN:
+			switch (arm64_get_spectre_v2_state()) {
+			case SPECTRE_VULNERABLE:
 				break;
-			case KVM_BP_HARDEN_WA_NEEDED:
+			case SPECTRE_MITIGATED:
 				val = SMCCC_RET_SUCCESS;
 				break;
-			case KVM_BP_HARDEN_NOT_REQUIRED:
+			case SPECTRE_UNAFFECTED:
 				val = SMCCC_RET_NOT_REQUIRED;
 				break;
 			}

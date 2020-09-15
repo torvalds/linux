@@ -106,145 +106,6 @@ cpu_enable_trap_ctr_access(const struct arm64_cpu_capabilities *cap)
 		sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
 }
 
-atomic_t arm64_el2_vector_last_slot = ATOMIC_INIT(-1);
-
-#include <asm/mmu_context.h>
-#include <asm/cacheflush.h>
-
-DEFINE_PER_CPU_READ_MOSTLY(struct bp_hardening_data, bp_hardening_data);
-
-#ifdef CONFIG_RANDOMIZE_BASE
-static void __copy_hyp_vect_bpi(int slot, const char *hyp_vecs_start,
-				const char *hyp_vecs_end)
-{
-	void *dst = lm_alias(__bp_harden_hyp_vecs + slot * SZ_2K);
-	int i;
-
-	for (i = 0; i < SZ_2K; i += 0x80)
-		memcpy(dst + i, hyp_vecs_start, hyp_vecs_end - hyp_vecs_start);
-
-	__flush_icache_range((uintptr_t)dst, (uintptr_t)dst + SZ_2K);
-}
-
-static void install_bp_hardening_cb(bp_hardening_cb_t fn)
-{
-	static DEFINE_RAW_SPINLOCK(bp_lock);
-	int cpu, slot = -1;
-	const char *hyp_vecs_start = __smccc_workaround_1_smc;
-	const char *hyp_vecs_end = __smccc_workaround_1_smc +
-				   __SMCCC_WORKAROUND_1_SMC_SZ;
-
-	/*
-	 * detect_harden_bp_fw() passes NULL for the hyp_vecs start/end if
-	 * we're a guest. Skip the hyp-vectors work.
-	 */
-	if (!is_hyp_mode_available()) {
-		__this_cpu_write(bp_hardening_data.fn, fn);
-		return;
-	}
-
-	raw_spin_lock(&bp_lock);
-	for_each_possible_cpu(cpu) {
-		if (per_cpu(bp_hardening_data.fn, cpu) == fn) {
-			slot = per_cpu(bp_hardening_data.hyp_vectors_slot, cpu);
-			break;
-		}
-	}
-
-	if (slot == -1) {
-		slot = atomic_inc_return(&arm64_el2_vector_last_slot);
-		BUG_ON(slot >= BP_HARDEN_EL2_SLOTS);
-		__copy_hyp_vect_bpi(slot, hyp_vecs_start, hyp_vecs_end);
-	}
-
-	__this_cpu_write(bp_hardening_data.hyp_vectors_slot, slot);
-	__this_cpu_write(bp_hardening_data.fn, fn);
-	raw_spin_unlock(&bp_lock);
-}
-#else
-static void install_bp_hardening_cb(bp_hardening_cb_t fn)
-{
-	__this_cpu_write(bp_hardening_data.fn, fn);
-}
-#endif	/* CONFIG_RANDOMIZE_BASE */
-
-#include <linux/arm-smccc.h>
-
-static void __maybe_unused call_smc_arch_workaround_1(void)
-{
-	arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_1, NULL);
-}
-
-static void call_hvc_arch_workaround_1(void)
-{
-	arm_smccc_1_1_hvc(ARM_SMCCC_ARCH_WORKAROUND_1, NULL);
-}
-
-static void qcom_link_stack_sanitization(void)
-{
-	u64 tmp;
-
-	asm volatile("mov	%0, x30		\n"
-		     ".rept	16		\n"
-		     "bl	. + 4		\n"
-		     ".endr			\n"
-		     "mov	x30, %0		\n"
-		     : "=&r" (tmp));
-}
-
-static bool __nospectre_v2;
-static int __init parse_nospectre_v2(char *str)
-{
-	__nospectre_v2 = true;
-	return 0;
-}
-early_param("nospectre_v2", parse_nospectre_v2);
-
-/*
- * -1: No workaround
- *  0: No workaround required
- *  1: Workaround installed
- */
-static int detect_harden_bp_fw(void)
-{
-	bp_hardening_cb_t cb;
-	struct arm_smccc_res res;
-	u32 midr = read_cpuid_id();
-
-	arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,
-			     ARM_SMCCC_ARCH_WORKAROUND_1, &res);
-
-	switch ((int)res.a0) {
-	case 1:
-		/* Firmware says we're just fine */
-		return 0;
-	case 0:
-		break;
-	default:
-		return -1;
-	}
-
-	switch (arm_smccc_1_1_get_conduit()) {
-	case SMCCC_CONDUIT_HVC:
-		cb = call_hvc_arch_workaround_1;
-		break;
-
-	case SMCCC_CONDUIT_SMC:
-		cb = call_smc_arch_workaround_1;
-		break;
-
-	default:
-		return -1;
-	}
-
-	if (((midr & MIDR_CPU_MODEL_MASK) == MIDR_QCOM_FALKOR) ||
-	    ((midr & MIDR_CPU_MODEL_MASK) == MIDR_QCOM_FALKOR_V1))
-		cb = qcom_link_stack_sanitization;
-
-	install_bp_hardening_cb(cb);
-	return 1;
-}
-
 DEFINE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
 
 int ssbd_state __read_mostly = ARM64_SSBD_KERNEL;
@@ -507,83 +368,6 @@ cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused)
 #define ERRATA_MIDR_RANGE_LIST(midr_list)			\
 	.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,			\
 	CAP_MIDR_RANGE_LIST(midr_list)
-
-/* Track overall mitigation state. We are only mitigated if all cores are ok */
-static bool __hardenbp_enab = true;
-static bool __spectrev2_safe = true;
-
-int get_spectre_v2_workaround_state(void)
-{
-	if (__spectrev2_safe)
-		return ARM64_BP_HARDEN_NOT_REQUIRED;
-
-	if (!__hardenbp_enab)
-		return ARM64_BP_HARDEN_UNKNOWN;
-
-	return ARM64_BP_HARDEN_WA_NEEDED;
-}
-
-/*
- * List of CPUs that do not need any Spectre-v2 mitigation at all.
- */
-static const struct midr_range spectre_v2_safe_list[] = {
-	MIDR_ALL_VERSIONS(MIDR_CORTEX_A35),
-	MIDR_ALL_VERSIONS(MIDR_CORTEX_A53),
-	MIDR_ALL_VERSIONS(MIDR_CORTEX_A55),
-	MIDR_ALL_VERSIONS(MIDR_BRAHMA_B53),
-	MIDR_ALL_VERSIONS(MIDR_HISI_TSV110),
-	MIDR_ALL_VERSIONS(MIDR_QCOM_KRYO_3XX_SILVER),
-	MIDR_ALL_VERSIONS(MIDR_QCOM_KRYO_4XX_SILVER),
-	{ /* sentinel */ }
-};
-
-/*
- * Track overall bp hardening for all heterogeneous cores in the machine.
- * We are only considered "safe" if all booted cores are known safe.
- */
-static bool __maybe_unused
-check_branch_predictor(const struct arm64_cpu_capabilities *entry, int scope)
-{
-	int need_wa;
-
-	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-
-	/* If the CPU has CSV2 set, we're safe */
-	if (cpuid_feature_extract_unsigned_field(read_cpuid(ID_AA64PFR0_EL1),
-						 ID_AA64PFR0_CSV2_SHIFT))
-		return false;
-
-	/* Alternatively, we have a list of unaffected CPUs */
-	if (is_midr_in_range_list(read_cpuid_id(), spectre_v2_safe_list))
-		return false;
-
-	/* Fallback to firmware detection */
-	need_wa = detect_harden_bp_fw();
-	if (!need_wa)
-		return false;
-
-	__spectrev2_safe = false;
-
-	/* forced off */
-	if (__nospectre_v2 || cpu_mitigations_off()) {
-		pr_info_once("spectrev2 mitigation disabled by command line option\n");
-		__hardenbp_enab = false;
-		return false;
-	}
-
-	if (need_wa < 0) {
-		pr_warn_once("ARM_SMCCC_ARCH_WORKAROUND_1 missing from firmware\n");
-		__hardenbp_enab = false;
-	}
-
-	return (need_wa > 0);
-}
-
-static void
-cpu_enable_branch_predictor_hardening(const struct arm64_cpu_capabilities *cap)
-{
-	cap->matches(cap, SCOPE_LOCAL_CPU);
-}
 
 static const __maybe_unused struct midr_range tx2_family_cpus[] = {
 	MIDR_ALL_VERSIONS(MIDR_BRCM_VULCAN),
@@ -876,11 +660,11 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	},
 #endif
 	{
-		.desc = "Branch predictor hardening",
+		.desc = "Spectre-v2",
 		.capability = ARM64_SPECTRE_V2,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
-		.matches = check_branch_predictor,
-		.cpu_enable = cpu_enable_branch_predictor_hardening,
+		.matches = has_spectre_v2,
+		.cpu_enable = spectre_v2_enable_mitigation,
 	},
 #ifdef CONFIG_RANDOMIZE_BASE
 	{
@@ -948,20 +732,6 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	{
 	}
 };
-
-ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	switch (get_spectre_v2_workaround_state()) {
-	case ARM64_BP_HARDEN_NOT_REQUIRED:
-		return sprintf(buf, "Not affected\n");
-        case ARM64_BP_HARDEN_WA_NEEDED:
-		return sprintf(buf, "Mitigation: Branch predictor hardening\n");
-        case ARM64_BP_HARDEN_UNKNOWN:
-	default:
-		return sprintf(buf, "Vulnerable\n");
-	}
-}
 
 ssize_t cpu_show_spec_store_bypass(struct device *dev,
 		struct device_attribute *attr, char *buf)

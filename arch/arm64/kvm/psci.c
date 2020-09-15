@@ -425,12 +425,12 @@ static int get_kernel_wa_level(u64 regid)
 {
 	switch (regid) {
 	case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1:
-		switch (kvm_arm_harden_branch_predictor()) {
-		case KVM_BP_HARDEN_UNKNOWN:
+		switch (arm64_get_spectre_v2_state()) {
+		case SPECTRE_VULNERABLE:
 			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_AVAIL;
-		case KVM_BP_HARDEN_WA_NEEDED:
+		case SPECTRE_MITIGATED:
 			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_AVAIL;
-		case KVM_BP_HARDEN_NOT_REQUIRED:
+		case SPECTRE_UNAFFECTED:
 			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_REQUIRED;
 		}
 		return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_AVAIL;
