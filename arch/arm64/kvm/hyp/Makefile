@@ -11,4 +11,4 @@ subdir-ccflags-y := -I$(incdir)				\
 		    $(DISABLE_STACKLEAK_PLUGIN)
 
 obj-$(CONFIG_KVM) += vhe/ nvhe/
-obj-$(CONFIG_KVM_INDIRECT_VECTORS) += smccc_wa.o
+obj-$(CONFIG_RANDOMIZE_BASE) += smccc_wa.o

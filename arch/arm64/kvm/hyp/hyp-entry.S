@@ -286,7 +286,7 @@ SYM_CODE_START(__kvm_hyp_vector)
 	valid_vect	el1_error		// Error 32-bit EL1
 SYM_CODE_END(__kvm_hyp_vector)
 
-#ifdef CONFIG_KVM_INDIRECT_VECTORS
+#ifdef CONFIG_RANDOMIZE_BASE
 .macro hyp_ventry
 	.align 7
 1:	esb

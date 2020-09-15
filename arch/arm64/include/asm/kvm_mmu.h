@@ -430,7 +430,7 @@ static inline int kvm_write_guest_lock(struct kvm *kvm, gpa_t gpa,
 	return ret;
 }
 
-#ifdef CONFIG_KVM_INDIRECT_VECTORS
+#ifdef CONFIG_RANDOMIZE_BASE
 /*
  * EL2 vectors can be mapped and rerouted in a number of ways,
  * depending on the kernel configuration and CPU present:

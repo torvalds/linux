@@ -113,7 +113,7 @@ atomic_t arm64_el2_vector_last_slot = ATOMIC_INIT(-1);
 
 DEFINE_PER_CPU_READ_MOSTLY(struct bp_hardening_data, bp_hardening_data);
 
-#ifdef CONFIG_KVM_INDIRECT_VECTORS
+#ifdef CONFIG_RANDOMIZE_BASE
 static void __copy_hyp_vect_bpi(int slot, const char *hyp_vecs_start,
 				const char *hyp_vecs_end)
 {
@@ -167,7 +167,7 @@ static void install_bp_hardening_cb(bp_hardening_cb_t fn,
 {
 	__this_cpu_write(bp_hardening_data.fn, fn);
 }
-#endif	/* CONFIG_KVM_INDIRECT_VECTORS */
+#endif	/* CONFIG_RANDOMIZE_BASE */
 
 #include <linux/arm-smccc.h>
 
