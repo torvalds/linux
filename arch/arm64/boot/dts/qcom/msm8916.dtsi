@@ -1829,7 +1829,7 @@
 		};
 	};
 
-	hexagon-smp2p {
+	smp2p-hexagon {
 		compatible = "qcom,smp2p";
 		qcom,smem = <435>, <428>;
 
@@ -1854,7 +1854,7 @@
 		};
 	};
 
-	wcnss-smp2p {
+	smp2p-wcnss {
 		compatible = "qcom,smp2p";
 		qcom,smem = <451>, <431>;
 
