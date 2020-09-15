@@ -1710,7 +1710,7 @@ static bool br_multicast_toex(struct net_bridge_port_group *pg,
 		changed = true;
 		break;
 	case MCAST_EXCLUDE:
-		__grp_src_toex_excl(pg, srcs, nsrcs, src_size);
+		changed = __grp_src_toex_excl(pg, srcs, nsrcs, src_size);
 		break;
 	}
 
