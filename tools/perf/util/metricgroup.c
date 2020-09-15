@@ -85,6 +85,7 @@ static void metric_event_delete(struct rblist *rblist __maybe_unused,
 
 	list_for_each_entry_safe(expr, tmp, &me->head, nd) {
 		free(expr->metric_refs);
+		free(expr->metric_events);
 		free(expr);
 	}
 
@@ -316,6 +317,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 			if (!metric_refs) {
 				ret = -ENOMEM;
 				free(metric_events);
+				free(expr);
 				break;
 			}
 
