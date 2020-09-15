@@ -939,7 +939,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
 		if (ret)
-			return ret;
+			goto out;
 
 		/*
 		 * Process any possible referenced metrics
@@ -948,12 +948,14 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		ret = resolve_metric(metric_no_group,
 				     &list, map, &ids);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	/* End of pmu events. */
-	if (!has_match)
-		return -EINVAL;
+	if (!has_match) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	list_for_each_entry(m, &list, nd) {
 		if (events->len > 0)
@@ -968,9 +970,14 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		}
 	}
 
+out:
+	/*
+	 * add to metric_list so that they can be released
+	 * even if it's failed
+	 */
 	list_splice(&list, metric_list);
 	expr_ids__exit(&ids);
-	return 0;
+	return ret;
 }
 
 static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
