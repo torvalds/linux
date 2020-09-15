@@ -70,6 +70,15 @@ Interrupt Handling
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_irq.c
    :internal:
 
+IP Blocks
+------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/include/amd_shared.h
+   :doc: IP Blocks
+
+.. kernel-doc:: drivers/gpu/drm/amd/include/amd_shared.h
+   :identifiers: amd_ip_block_type amd_ip_funcs
+
 AMDGPU XGMI Support
 ===================
 
