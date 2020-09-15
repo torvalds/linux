@@ -209,6 +209,7 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * since buffer with lower id have higher priority (hell..)
 		 */
 		netif_stop_queue(dev);
+		fallthrough;
 	case 2:
 		if (buf_id < priv->prev_buf_id) {
 			priv->cur_pri++;
