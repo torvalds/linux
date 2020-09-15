@@ -480,11 +480,6 @@ int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 void kvm_arm_halt_guest(struct kvm *kvm);
 void kvm_arm_resume_guest(struct kvm *kvm);
 
-u64 __kvm_call_hyp_init(phys_addr_t pgd_ptr,
-			unsigned long hyp_stack_ptr,
-			unsigned long vector_ptr,
-			unsigned long tpidr_el2);
-
 #define kvm_call_hyp_nvhe(f, ...)						\
 	({								\
 		struct arm_smccc_res res;				\
