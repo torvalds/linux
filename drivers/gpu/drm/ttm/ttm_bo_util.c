@@ -696,3 +696,4 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 
 	return 0;
 }
+

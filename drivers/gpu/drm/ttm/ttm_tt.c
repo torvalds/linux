@@ -209,9 +209,6 @@ EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 
 void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
-	if (ttm == NULL)
-		return;
-
 	ttm_tt_unbind(bdev, ttm);
 
 	ttm_tt_unpopulate(bdev, ttm);

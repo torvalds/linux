@@ -1613,6 +1613,8 @@ EXPORT_SYMBOL(ttm_bo_swapout_all);
 
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 {
+	if (bo->ttm == NULL)
+		return;
 	ttm_tt_destroy(bo->bdev, bo->ttm);
 	bo->ttm = NULL;
 }
