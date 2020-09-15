@@ -949,12 +949,6 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	}
 };
 
-ssize_t cpu_show_spectre_v1(struct device *dev, struct device_attribute *attr,
-			    char *buf)
-{
-	return sprintf(buf, "Mitigation: __user pointer sanitization\n");
-}
-
 ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
