@@ -30,7 +30,7 @@ struct adcx140_priv {
 	struct regmap *regmap;
 	struct device *dev;
 
-	int micbias_vg;
+	bool micbias_vg;
 
 	unsigned int dai_fmt;
 	unsigned int tdm_delay;
@@ -614,11 +614,26 @@ static int adcx140_reset(struct adcx140_priv *adcx140)
 	return ret;
 }
 
+static void adcx140_pwr_ctrl(struct adcx140_priv *adcx140, bool power_state)
+{
+	int pwr_ctrl = 0;
+
+	if (power_state)
+		pwr_ctrl = ADCX140_PWR_CFG_ADC_PDZ | ADCX140_PWR_CFG_PLL_PDZ;
+
+	if (adcx140->micbias_vg && power_state)
+		pwr_ctrl |= ADCX140_PWR_CFG_BIAS_PDZ;
+
+	regmap_update_bits(adcx140->regmap, ADCX140_PWR_CFG,
+			   ADCX140_PWR_CTRL_MSK, pwr_ctrl);
+}
+
 static int adcx140_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
+	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(component);
 	u8 data = 0;
 
 	switch (params_width(params)) {
@@ -640,8 +655,12 @@ static int adcx140_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	adcx140_pwr_ctrl(adcx140, false);
+
 	snd_soc_component_update_bits(component, ADCX140_ASI_CFG0,
 			    ADCX140_WORD_LEN_MSK, data);
+
+	adcx140_pwr_ctrl(adcx140, true);
 
 	return 0;
 }
@@ -709,6 +728,8 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	adcx140->dai_fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
+	adcx140_pwr_ctrl(adcx140, false);
+
 	snd_soc_component_update_bits(component, ADCX140_ASI_CFG0,
 				      ADCX140_FSYNCINV_BIT |
 				      ADCX140_BCLKINV_BIT |
@@ -721,6 +742,7 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	snd_soc_component_update_bits(component, ADCX140_ASI_CFG1,
 				      ADCX140_TX_OFFSET_MASK, offset);
 
+	adcx140_pwr_ctrl(adcx140, true);
 
 	return 0;
 }
@@ -818,12 +840,11 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 
 	ret = device_property_read_u32(adcx140->dev, "ti,mic-bias-source",
 				      &bias_source);
-	if (ret)
+	if (ret || bias_source > ADCX140_MIC_BIAS_VAL_AVDD) {
 		bias_source = ADCX140_MIC_BIAS_VAL_VREF;
-
-	if (bias_source > ADCX140_MIC_BIAS_VAL_AVDD) {
-		dev_err(adcx140->dev, "Mic Bias source value is invalid\n");
-		return -EINVAL;
+		adcx140->micbias_vg = false;
+	} else {
+		adcx140->micbias_vg = true;
 	}
 
 	ret = device_property_read_u32(adcx140->dev, "ti,vref-source",
@@ -906,6 +927,8 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 				ADCX140_MIC_BIAS_VREF_MSK, bias_cfg);
 	if (ret)
 		dev_err(adcx140->dev, "setting MIC bias failed %d\n", ret);
+
+	adcx140_pwr_ctrl(adcx140, true);
 out:
 	return ret;
 }
@@ -914,21 +937,19 @@ static int adcx140_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
 	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(component);
-	int pwr_cfg = 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 	case SND_SOC_BIAS_STANDBY:
-		pwr_cfg = ADCX140_PWR_CFG_BIAS_PDZ | ADCX140_PWR_CFG_PLL_PDZ |
-			  ADCX140_PWR_CFG_ADC_PDZ;
+		adcx140_pwr_ctrl(adcx140, true);
 		break;
 	case SND_SOC_BIAS_OFF:
-		pwr_cfg = 0x0;
+		adcx140_pwr_ctrl(adcx140, false);
 		break;
 	}
 
-	return regmap_write(adcx140->regmap, ADCX140_PWR_CFG, pwr_cfg);
+	return 0;
 }
 
 static const struct snd_soc_component_driver soc_codec_driver_adcx140 = {
