@@ -1545,6 +1545,24 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 	.trap_policer_counter_get	= mlxsw_devlink_trap_policer_counter_get,
 };
 
+static int mlxsw_core_params_register(struct mlxsw_core *mlxsw_core)
+{
+	int err;
+
+	if (mlxsw_core->driver->params_register) {
+		err = mlxsw_core->driver->params_register(mlxsw_core);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static void mlxsw_core_params_unregister(struct mlxsw_core *mlxsw_core)
+{
+	if (mlxsw_core->driver->params_register)
+		mlxsw_core->driver->params_unregister(mlxsw_core);
+}
+
 static int
 __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 				 const struct mlxsw_bus *mlxsw_bus,
@@ -1617,8 +1635,8 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 			goto err_devlink_register;
 	}
 
-	if (mlxsw_driver->params_register && !reload) {
-		err = mlxsw_driver->params_register(mlxsw_core);
+	if (!reload) {
+		err = mlxsw_core_params_register(mlxsw_core);
 		if (err)
 			goto err_register_params;
 	}
@@ -1643,8 +1661,7 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_thermal_init;
 
-	if (mlxsw_driver->params_register)
-		devlink_params_publish(devlink);
+	devlink_params_publish(devlink);
 
 	if (!reload)
 		devlink_reload_enable(devlink);
@@ -1658,8 +1675,8 @@ err_hwmon_init:
 		mlxsw_core->driver->fini(mlxsw_core);
 err_driver_init:
 err_fw_rev_validate:
-	if (mlxsw_driver->params_unregister && !reload)
-		mlxsw_driver->params_unregister(mlxsw_core);
+	if (!reload)
+		mlxsw_core_params_unregister(mlxsw_core);
 err_register_params:
 	if (!reload)
 		devlink_unregister(devlink);
@@ -1724,14 +1741,13 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 			return;
 	}
 
-	if (mlxsw_core->driver->params_unregister)
-		devlink_params_unpublish(devlink);
+	devlink_params_unpublish(devlink);
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
-	if (mlxsw_core->driver->params_unregister && !reload)
-		mlxsw_core->driver->params_unregister(mlxsw_core);
+	if (!reload)
+		mlxsw_core_params_unregister(mlxsw_core);
 	if (!reload)
 		devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);
@@ -1744,8 +1760,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	return;
 
 reload_fail_deinit:
-	if (mlxsw_core->driver->params_unregister)
-		mlxsw_core->driver->params_unregister(mlxsw_core);
+	mlxsw_core_params_unregister(mlxsw_core);
 	devlink_unregister(devlink);
 	devlink_resources_unregister(devlink, NULL);
 	devlink_free(devlink);
