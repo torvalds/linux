@@ -42,8 +42,8 @@ static int call_nexthop_notifiers(struct net *net,
 {
 	int err;
 
-	err = atomic_notifier_call_chain(&net->nexthop.notifier_chain,
-					 event_type, nh);
+	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
+					   event_type, nh);
 	return notifier_to_errno(err);
 }
 
@@ -1959,14 +1959,15 @@ static struct notifier_block nh_netdev_notifier = {
 
 int register_nexthop_notifier(struct net *net, struct notifier_block *nb)
 {
-	return atomic_notifier_chain_register(&net->nexthop.notifier_chain, nb);
+	return blocking_notifier_chain_register(&net->nexthop.notifier_chain,
+						nb);
 }
 EXPORT_SYMBOL(register_nexthop_notifier);
 
 int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&net->nexthop.notifier_chain,
-						nb);
+	return blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
+						  nb);
 }
 EXPORT_SYMBOL(unregister_nexthop_notifier);
 
@@ -1986,7 +1987,7 @@ static int __net_init nexthop_net_init(struct net *net)
 	net->nexthop.devhash = kzalloc(sz, GFP_KERNEL);
 	if (!net->nexthop.devhash)
 		return -ENOMEM;
-	ATOMIC_INIT_NOTIFIER_HEAD(&net->nexthop.notifier_chain);
+	BLOCKING_INIT_NOTIFIER_HEAD(&net->nexthop.notifier_chain);
 
 	return 0;
 }
