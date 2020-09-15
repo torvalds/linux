@@ -84,6 +84,9 @@ struct mlxsw_core {
 	struct mlxsw_core_port *ports;
 	unsigned int max_ports;
 	bool fw_flash_in_progress;
+	struct {
+		struct devlink_health_reporter *fw_fatal;
+	} health;
 	unsigned long driver_priv[];
 	/* driver_priv has to be always the last item */
 };
@@ -1612,6 +1615,236 @@ static void mlxsw_core_params_unregister(struct mlxsw_core *mlxsw_core)
 		mlxsw_core->driver->params_unregister(mlxsw_core);
 }
 
+struct mlxsw_core_health_event {
+	struct mlxsw_core *mlxsw_core;
+	char mfde_pl[MLXSW_REG_MFDE_LEN];
+	struct work_struct work;
+};
+
+static void mlxsw_core_health_event_work(struct work_struct *work)
+{
+	struct mlxsw_core_health_event *event;
+	struct mlxsw_core *mlxsw_core;
+
+	event = container_of(work, struct mlxsw_core_health_event, work);
+	mlxsw_core = event->mlxsw_core;
+	devlink_health_report(mlxsw_core->health.fw_fatal, "FW fatal event occurred",
+			      event->mfde_pl);
+	kfree(event);
+}
+
+static void mlxsw_core_health_listener_func(const struct mlxsw_reg_info *reg,
+					    char *mfde_pl, void *priv)
+{
+	struct mlxsw_core_health_event *event;
+	struct mlxsw_core *mlxsw_core = priv;
+
+	event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	if (!event)
+		return;
+	event->mlxsw_core = mlxsw_core;
+	memcpy(event->mfde_pl, mfde_pl, sizeof(event->mfde_pl));
+	INIT_WORK(&event->work, mlxsw_core_health_event_work);
+	mlxsw_core_schedule_work(&event->work);
+}
+
+static const struct mlxsw_listener mlxsw_core_health_listener =
+	MLXSW_EVENTL(mlxsw_core_health_listener_func, MFDE, MFDE);
+
+static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *reporter,
+					   struct devlink_fmsg *fmsg, void *priv_ctx,
+					   struct netlink_ext_ack *extack)
+{
+	char *mfde_pl = priv_ctx;
+	char *val_str;
+	u8 event_id;
+	u32 val;
+	int err;
+
+	if (!priv_ctx)
+		/* User-triggered dumps are not possible */
+		return -EOPNOTSUPP;
+
+	val = mlxsw_reg_mfde_irisc_id_get(mfde_pl);
+	err = devlink_fmsg_u8_pair_put(fmsg, "irisc_id", val);
+	if (err)
+		return err;
+	err = devlink_fmsg_arr_pair_nest_start(fmsg, "event");
+	if (err)
+		return err;
+
+	event_id = mlxsw_reg_mfde_event_id_get(mfde_pl);
+	err = devlink_fmsg_u8_pair_put(fmsg, "id", event_id);
+	if (err)
+		return err;
+	switch (event_id) {
+	case MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO:
+		val_str = "CR space timeout";
+		break;
+	case MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP:
+		val_str = "KVD insertion machine stopped";
+		break;
+	default:
+		val_str = NULL;
+	}
+	if (val_str) {
+		err = devlink_fmsg_string_pair_put(fmsg, "desc", val_str);
+		if (err)
+			return err;
+	}
+	err = devlink_fmsg_arr_pair_nest_end(fmsg);
+	if (err)
+		return err;
+
+	val = mlxsw_reg_mfde_method_get(mfde_pl);
+	switch (val) {
+	case MLXSW_REG_MFDE_METHOD_QUERY:
+		val_str = "query";
+		break;
+	case MLXSW_REG_MFDE_METHOD_WRITE:
+		val_str = "write";
+		break;
+	default:
+		val_str = NULL;
+	}
+	if (val_str) {
+		err = devlink_fmsg_string_pair_put(fmsg, "method", val_str);
+		if (err)
+			return err;
+	}
+
+	val = mlxsw_reg_mfde_long_process_get(mfde_pl);
+	err = devlink_fmsg_bool_pair_put(fmsg, "long_process", val);
+	if (err)
+		return err;
+
+	val = mlxsw_reg_mfde_command_type_get(mfde_pl);
+	switch (val) {
+	case MLXSW_REG_MFDE_COMMAND_TYPE_MAD:
+		val_str = "mad";
+		break;
+	case MLXSW_REG_MFDE_COMMAND_TYPE_EMAD:
+		val_str = "emad";
+		break;
+	case MLXSW_REG_MFDE_COMMAND_TYPE_CMDIF:
+		val_str = "cmdif";
+		break;
+	default:
+		val_str = NULL;
+	}
+	if (val_str) {
+		err = devlink_fmsg_string_pair_put(fmsg, "command_type", val_str);
+		if (err)
+			return err;
+	}
+
+	val = mlxsw_reg_mfde_reg_attr_id_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "reg_attr_id", val);
+	if (err)
+		return err;
+
+	if (event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO) {
+		val = mlxsw_reg_mfde_log_address_get(mfde_pl);
+		err = devlink_fmsg_u32_pair_put(fmsg, "log_address", val);
+		if (err)
+			return err;
+		val = mlxsw_reg_mfde_log_id_get(mfde_pl);
+		err = devlink_fmsg_u8_pair_put(fmsg, "log_irisc_id", val);
+		if (err)
+			return err;
+	} else if (event_id == MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP) {
+		val = mlxsw_reg_mfde_pipes_mask_get(mfde_pl);
+		err = devlink_fmsg_u32_pair_put(fmsg, "pipes_mask", val);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int
+mlxsw_core_health_fw_fatal_test(struct devlink_health_reporter *reporter,
+				struct netlink_ext_ack *extack)
+{
+	struct mlxsw_core *mlxsw_core = devlink_health_reporter_priv(reporter);
+	char mfgd_pl[MLXSW_REG_MFGD_LEN];
+	int err;
+
+	/* Read the register first to make sure no other bits are changed. */
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mfgd), mfgd_pl);
+	if (err)
+		return err;
+	mlxsw_reg_mfgd_trigger_test_set(mfgd_pl, true);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mfgd), mfgd_pl);
+}
+
+static const struct devlink_health_reporter_ops
+mlxsw_core_health_fw_fatal_ops = {
+	.name = "fw_fatal",
+	.dump = mlxsw_core_health_fw_fatal_dump,
+	.test = mlxsw_core_health_fw_fatal_test,
+};
+
+static int mlxsw_core_health_fw_fatal_config(struct mlxsw_core *mlxsw_core,
+					     bool enable)
+{
+	char mfgd_pl[MLXSW_REG_MFGD_LEN];
+	int err;
+
+	/* Read the register first to make sure no other bits are changed. */
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mfgd), mfgd_pl);
+	if (err)
+		return err;
+	mlxsw_reg_mfgd_fatal_event_mode_set(mfgd_pl, enable);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mfgd), mfgd_pl);
+}
+
+static int mlxsw_core_health_init(struct mlxsw_core *mlxsw_core)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
+	struct devlink_health_reporter *fw_fatal;
+	int err;
+
+	if (!mlxsw_core->driver->fw_fatal_enabled)
+		return 0;
+
+	fw_fatal = devlink_health_reporter_create(devlink, &mlxsw_core_health_fw_fatal_ops,
+						  0, mlxsw_core);
+	if (IS_ERR(fw_fatal)) {
+		dev_err(mlxsw_core->bus_info->dev, "Failed to create fw fatal reporter");
+		return PTR_ERR(fw_fatal);
+	}
+	mlxsw_core->health.fw_fatal = fw_fatal;
+
+	err = mlxsw_core_trap_register(mlxsw_core, &mlxsw_core_health_listener, mlxsw_core);
+	if (err)
+		goto err_trap_register;
+
+	err = mlxsw_core_health_fw_fatal_config(mlxsw_core, true);
+	if (err)
+		goto err_fw_fatal_config;
+
+	return 0;
+
+err_fw_fatal_config:
+	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_core_health_listener, mlxsw_core);
+err_trap_register:
+	devlink_health_reporter_destroy(mlxsw_core->health.fw_fatal);
+	return err;
+}
+
+static void mlxsw_core_health_fini(struct mlxsw_core *mlxsw_core)
+{
+	if (!mlxsw_core->driver->fw_fatal_enabled)
+		return;
+
+	mlxsw_core_health_fw_fatal_config(mlxsw_core, false);
+	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_core_health_listener, mlxsw_core);
+	/* Make sure there is no more event work scheduled */
+	mlxsw_core_flush_owq();
+	devlink_health_reporter_destroy(mlxsw_core->health.fw_fatal);
+}
+
 static int
 __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 				 const struct mlxsw_bus *mlxsw_bus,
@@ -1695,6 +1928,10 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_fw_rev_validate;
 
+	err = mlxsw_core_health_init(mlxsw_core);
+	if (err)
+		goto err_health_init;
+
 	if (mlxsw_driver->init) {
 		err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info, extack);
 		if (err)
@@ -1723,6 +1960,8 @@ err_hwmon_init:
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
 err_driver_init:
+	mlxsw_core_health_fini(mlxsw_core);
+err_health_init:
 err_fw_rev_validate:
 	if (!reload)
 		mlxsw_core_params_unregister(mlxsw_core);
@@ -1795,6 +2034,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
+	mlxsw_core_health_fini(mlxsw_core);
 	if (!reload)
 		mlxsw_core_params_unregister(mlxsw_core);
 	if (!reload)
