@@ -237,6 +237,7 @@ struct ionic_intr_info {
 	u64 rearm_count;
 	unsigned int cpu;
 	cpumask_t affinity_mask;
+	u32 dim_coal_hw;
 };
 
 struct ionic_cq {

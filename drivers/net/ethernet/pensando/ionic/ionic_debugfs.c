@@ -189,6 +189,8 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 				   &intr->index);
 		debugfs_create_u32("vector", 0400, intr_dentry,
 				   &intr->vector);
+		debugfs_create_u32("dim_coal_hw", 0400, intr_dentry,
+				   &intr->dim_coal_hw);
 
 		intr_ctrl_regset = devm_kzalloc(dev, sizeof(*intr_ctrl_regset),
 						GFP_KERNEL);

@@ -432,6 +432,30 @@ void ionic_rx_empty(struct ionic_queue *q)
 	}
 }
 
+static void ionic_dim_update(struct ionic_qcq *qcq)
+{
+	struct dim_sample dim_sample;
+	struct ionic_lif *lif;
+	unsigned int qi;
+
+	if (!qcq->intr.dim_coal_hw)
+		return;
+
+	lif = qcq->q.lif;
+	qi = qcq->cq.bound_q->index;
+
+	ionic_intr_coal_init(lif->ionic->idev.intr_ctrl,
+			     lif->rxqcqs[qi]->intr.index,
+			     qcq->intr.dim_coal_hw);
+
+	dim_update_sample(qcq->cq.bound_intr->rearm_count,
+			  lif->txqstats[qi].pkts,
+			  lif->txqstats[qi].bytes,
+			  &dim_sample);
+
+	net_dim(&qcq->dim, dim_sample);
+}
+
 int ionic_tx_napi(struct napi_struct *napi, int budget)
 {
 	struct ionic_qcq *qcq = napi_to_qcq(napi);
@@ -448,8 +472,9 @@ int ionic_tx_napi(struct napi_struct *napi, int budget)
 				     ionic_tx_service, NULL, NULL);
 
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
+		ionic_dim_update(qcq);
 		flags |= IONIC_INTR_CRED_UNMASK;
-		DEBUG_STATS_INTR_REARM(cq->bound_intr);
+		cq->bound_intr->rearm_count++;
 	}
 
 	if (work_done || flags) {
@@ -483,8 +508,9 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 		ionic_rx_fill(cq->bound_q);
 
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
+		ionic_dim_update(qcq);
 		flags |= IONIC_INTR_CRED_UNMASK;
-		DEBUG_STATS_INTR_REARM(cq->bound_intr);
+		cq->bound_intr->rearm_count++;
 	}
 
 	if (work_done || flags) {
@@ -524,8 +550,9 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 		ionic_rx_fill_cb(rxcq->bound_q);
 
 	if (rx_work_done < budget && napi_complete_done(napi, rx_work_done)) {
+		ionic_dim_update(qcq);
 		flags |= IONIC_INTR_CRED_UNMASK;
-		DEBUG_STATS_INTR_REARM(rxcq->bound_intr);
+		rxcq->bound_intr->rearm_count++;
 	}
 
 	if (rx_work_done || flags) {
