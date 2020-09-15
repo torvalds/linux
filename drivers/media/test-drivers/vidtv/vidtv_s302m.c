@@ -40,6 +40,9 @@
 #define S302M_BLOCK_SZ 192
 #define S302M_SIN_LUT_NUM_ELEM 1024
 
+/* Used by the tone generator: number of samples for PI */
+#define PI		180
+
 static const u8 reverse[256] = {
 	/* from ffmpeg */
 	0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0,
@@ -66,10 +69,74 @@ static const u8 reverse[256] = {
 	0x3F, 0xBF, 0x7F, 0xFF,
 };
 
-/* Used by the tone generator */
-#define SAMPLE_RATE	48000
-#define PI		180
-#define NOTE_A4		440
+struct tone_duration {
+	enum musical_notes note;
+	int duration;
+};
+
+#define COMPASS 120		/* beats per minute (Allegro) */
+static const struct tone_duration beethoven_5th_symphony[] = {
+	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
+	{ NOTE_GS_5, 128}, { NOTE_B_5, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_5, 128},
+	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
+	{ NOTE_C_6, 128},  { NOTE_B_5, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_SILENT, 128},
+
+	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
+	{ NOTE_GS_5, 128}, { NOTE_B_5, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_5, 128},
+	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
+	{ NOTE_C_6, 128},  { NOTE_B_5, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_B_4, 128},
+	{ NOTE_C_5, 128},  { NOTE_D_5, 128},  { NOTE_C_4, 128},
+	{ NOTE_G_4, 128},  { NOTE_C_5, 128},  { NOTE_G_4, 128},
+	{ NOTE_F_5, 128},  { NOTE_E_5, 128},  { NOTE_G_3, 128},
+	{ NOTE_G_4, 128},  { NOTE_B_3, 128},  { NOTE_F_4, 128},
+	{ NOTE_E_5, 128},  { NOTE_D_5, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_4, 128},
+	{ NOTE_D_5, 128},  { NOTE_C_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_E_5, 255},  { NOTE_E_6, 128},
+	{ NOTE_E_5, 128},  { NOTE_E_6, 128},  { NOTE_E_5, 255},
+	{ NOTE_DS_5, 128}, { NOTE_E_5, 128},  { NOTE_DS_6, 128},
+	{ NOTE_E_6, 128},  { NOTE_DS_5, 128}, { NOTE_E_5, 128},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_DS_6, 128},
+	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
+	{ NOTE_B_5, 128},  { NOTE_D_6, 128},  { NOTE_C_6, 128},
+	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
+	{ NOTE_C_5, 128},  { NOTE_E_5, 128},  { NOTE_A_5, 128},
+	{ NOTE_E_3, 128},  { NOTE_E_4, 128},  { NOTE_GS_4, 128},
+	{ NOTE_E_5, 128},  { NOTE_GS_5, 128}, { NOTE_B_5, 128},
+	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
+	{ NOTE_E_5, 128},  { NOTE_E_6, 128},  { NOTE_DS_6, 128},
+	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
+	{ NOTE_B_5, 128},  { NOTE_D_6, 128},  { NOTE_C_6, 128},
+	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
+	{ NOTE_C_5, 128},  { NOTE_E_5, 128},  { NOTE_A_5, 128},
+	{ NOTE_E_3, 128},  { NOTE_E_4, 128},  { NOTE_GS_4, 128},
+	{ NOTE_E_5, 128},  { NOTE_C_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_C_5, 255},  { NOTE_C_5, 255},  { NOTE_SILENT, 512},
+};
 
 static struct vidtv_access_unit *vidtv_s302m_access_unit_init(struct vidtv_access_unit *head)
 {
@@ -187,15 +254,33 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 
 	if (!e->src_buf) {
 		/*
-		 * Simple tone generator. For now, just generates a 440 Hz
-		 * sinusoidal wave.
+		 * Simple tone generator: play the tones at the
+		 * beethoven_5th_symphony array.
 		 */
-		pos = (2 * PI * e->src_buf_offset * NOTE_A4 / SAMPLE_RATE);
+		if (e->last_duration <= 0) {
+			if (e->src_buf_offset >= ARRAY_SIZE(beethoven_5th_symphony))
+				e->src_buf_offset = 0;
+
+			e->last_tone = beethoven_5th_symphony[e->src_buf_offset].note;
+			e->last_duration = beethoven_5th_symphony[e->src_buf_offset].duration * S302M_SAMPLING_RATE_HZ / COMPASS / 5;
+			e->src_buf_offset++;
+			e->note_offset = 0;
+		} else {
+			e->last_duration--;
+		}
+
+		/* Handle silent */
+		if (!e->last_tone) {
+			e->src_buf_offset = 0;
+			return 0x8000;
+		}
+
+		pos = (2 * PI * e->note_offset * e->last_tone / S302M_SAMPLING_RATE_HZ);
 
 		if (pos == 360)
-			e->src_buf_offset = 0;
+			e->note_offset = 0;
 		else
-			e->src_buf_offset++;
+			e->note_offset++;
 
 		return (fixp_sin32(pos % (2 * PI)) >> 16) + 0x8000;
 	}
@@ -388,6 +473,7 @@ struct vidtv_encoder
 	e->encoder_buf_offset = 0;
 
 	e->sample_count = 0;
+	e->last_duration = 0;
 
 	e->src_buf = (args.src_buf) ? args.src_buf : NULL;
 	e->src_buf_sz = (args.src_buf) ? args.src_buf_sz : 0;
