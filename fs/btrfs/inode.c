@@ -4105,7 +4105,7 @@ int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
 
 	memset(&dest->root_item.drop_progress, 0,
 		sizeof(dest->root_item.drop_progress));
-	dest->root_item.drop_level = 0;
+	btrfs_set_root_drop_level(&dest->root_item, 0);
 	btrfs_set_root_refs(&dest->root_item, 0);
 
 	if (!test_and_set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &dest->state)) {

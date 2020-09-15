@@ -1118,10 +1118,10 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 			    btrfs_root_level(&ri), BTRFS_MAX_LEVEL - 1);
 		return -EUCLEAN;
 	}
-	if (ri.drop_level >= BTRFS_MAX_LEVEL) {
+	if (btrfs_root_drop_level(&ri) >= BTRFS_MAX_LEVEL) {
 		generic_err(leaf, slot,
 			    "invalid root level, have %u expect [0, %u]",
-			    ri.drop_level, BTRFS_MAX_LEVEL - 1);
+			    btrfs_root_drop_level(&ri), BTRFS_MAX_LEVEL - 1);
 		return -EUCLEAN;
 	}
 

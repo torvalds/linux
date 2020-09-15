@@ -5496,7 +5496,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 		memcpy(&wc->update_progress, &key,
 		       sizeof(wc->update_progress));
 
-		level = root_item->drop_level;
+		level = btrfs_root_drop_level(root_item);
 		BUG_ON(level == 0);
 		path->lowest_level = level;
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -5529,7 +5529,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 			}
 			BUG_ON(wc->refs[level] == 0);
 
-			if (level == root_item->drop_level)
+			if (level == btrfs_root_drop_level(root_item))
 				break;
 
 			btrfs_tree_unlock(path->nodes[level]);
@@ -5574,7 +5574,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 		}
 		btrfs_cpu_key_to_disk(&root_item->drop_progress,
 				      &wc->drop_progress);
-		root_item->drop_level = wc->drop_level;
+		btrfs_set_root_drop_level(root_item, wc->drop_level);
 
 		BUG_ON(wc->level == 0);
 		if (btrfs_should_end_transaction(trans) ||

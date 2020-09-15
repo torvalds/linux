@@ -1179,7 +1179,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 		generate_random_guid(root->root_item.uuid);
 	else
 		export_guid(root->root_item.uuid, &guid_null);
-	root->root_item.drop_level = 0;
+	btrfs_set_root_drop_level(&root->root_item, 0);
 
 	key.objectid = objectid;
 	key.type = BTRFS_ROOT_ITEM_KEY;
