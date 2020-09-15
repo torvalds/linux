@@ -381,6 +381,20 @@ static int rkvenc_read_req_l2(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int rkvenc_write_req_backward(struct mpp_dev *mpp, u32 *regs,
+				     s32 start_idx, s32 end_idx, s32 en_idx)
+{
+	int i;
+
+	for (i = end_idx - 1; i >= start_idx; i--) {
+		if (i == en_idx)
+			continue;
+		mpp_write_relaxed(mpp, i * sizeof(u32), regs[i]);
+	}
+
+	return 0;
+}
+
 static int rkvenc_run(struct mpp_dev *mpp,
 		      struct mpp_task *mpp_task)
 {
@@ -418,7 +432,8 @@ static int rkvenc_run(struct mpp_dev *mpp,
 				/* set register L1 */
 				s = req->offset / sizeof(u32);
 				e = s + req->size / sizeof(u32);
-				mpp_write_req(mpp, task->reg, s, e, reg_en);
+				/* NOTE: for rkvenc, register should set backward */
+				rkvenc_write_req_backward(mpp, task->reg, s, e, reg_en);
 			}
 		}
 		/* init current task */
@@ -474,14 +489,10 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
 
 	if (task->irq_status & RKVENC_INT_ERROR_BITS) {
-		/*
-		 * according to war running, if the dummy encoding
-		 * running with timeout, we enable a safe clear process,
-		 * we reset the ip, and complete the war procedure.
-		 */
 		atomic_inc(&mpp->reset_request);
-		/* time out error */
-		mpp_write(mpp, RKVENC_INT_ERROR_BITS, RKVENC_INT_MSK_BASE);
+		/* dump register */
+		if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG))
+			mpp_task_dump_reg(mpp, mpp_task);
 	}
 
 	mpp_task_finish(mpp_task->session, mpp_task);
@@ -932,9 +943,14 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 #endif
 	mpp_clk_set_rate(&enc->aclk_info, CLK_MODE_REDUCE);
 	mpp_clk_set_rate(&enc->core_clk_info, CLK_MODE_REDUCE);
-
-	mpp_write(mpp, RKVENC_INT_EN_BASE, RKVENC_SAFE_CLR_BIT);
+	/* safe reset */
+	mpp_write(mpp, RKVENC_INT_MSK_BASE, 0x1FF);
 	mpp_write(mpp, RKVENC_CLR_BASE, RKVENC_SAFE_CLR_BIT);
+	udelay(5);
+	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", mpp_read(mpp, RKVENC_INT_STATUS_BASE));
+	mpp_write(mpp, RKVENC_INT_CLR_BASE, 0xffffffff);
+	mpp_write(mpp, RKVENC_INT_STATUS_BASE, 0);
+	/* cru reset */
 	if (enc->rst_a && enc->rst_h && enc->rst_core) {
 		rockchip_pmu_idle_request(mpp->dev, true);
 		mpp_safe_reset(enc->rst_a);
@@ -1160,6 +1176,8 @@ static void rkvenc_shutdown(struct platform_device *pdev)
 				 val, val == 0, 1000, 200000);
 	if (ret == -ETIMEDOUT)
 		dev_err(dev, "wait total running time out\n");
+
+	dev_info(dev, "shutdown success\n");
 }
 
 struct platform_driver rockchip_rkvenc_driver = {

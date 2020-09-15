@@ -1675,6 +1675,8 @@ irqreturn_t mpp_dev_irq(int irq, void *param)
 		set_bit(TASK_STATE_IRQ, &task->state);
 		if (mpp->dev_ops->irq)
 			ret = mpp->dev_ops->irq(mpp);
+	} else {
+		mpp_err("error, task is null\n");
 	}
 
 	return ret;
