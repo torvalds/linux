@@ -564,8 +564,6 @@ static DEFINE_RAW_SPINLOCK(c3_lock);
 static void acpi_idle_enter_bm(struct acpi_processor *pr,
 			       struct acpi_processor_cx *cx)
 {
-	acpi_unlazy_tlb(smp_processor_id());
-
 	/*
 	 * disable bus master
 	 * bm_check implies we need ARB_DIS
@@ -665,6 +663,7 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 		max_cstate = 1;
 
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
+		state = &acpi_idle_driver.states[count];
 		cx = &pr->power.states[i];
 
 		if (!cx->valid)
@@ -672,10 +671,11 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 
 		per_cpu(acpi_cstate[count], dev->cpu) = cx;
 
-		if (lapic_timer_needs_broadcast(pr, cx)) {
-			state = &acpi_idle_driver.states[count];
+		if (lapic_timer_needs_broadcast(pr, cx))
 			state->flags |= CPUIDLE_FLAG_TIMER_STOP;
-		}
+
+		if (cx->type == ACPI_STATE_C3)
+			state->flags |= CPUIDLE_FLAG_TLB_FLUSHED;
 
 		count++;
 		if (count == CPUIDLE_STATE_MAX)
