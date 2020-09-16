@@ -956,8 +956,7 @@ ENDPROC(__xts_prepare8)
 	push		{r4-r8, lr}
 	mov		r5, sp			// preserve sp
 	ldrd		r6, r7, [sp, #24]	// get blocks and iv args
-	ldr		r8, [sp, #32]		// reorder final tweak?
-	rsb		r8, r8, #1
+	rsb		r8, ip, #1
 	sub		ip, sp, #128		// make room for 8x tweak
 	bic		ip, ip, #0xf		// align sp to 16 bytes
 	mov		sp, ip
@@ -1013,9 +1012,11 @@ ENDPROC(__xts_prepare8)
 	.endm
 
 ENTRY(aesbs_xts_encrypt)
+	mov		ip, #0			// never reorder final tweak
 	__xts_crypt	aesbs_encrypt8, q0, q1, q4, q6, q3, q7, q2, q5
 ENDPROC(aesbs_xts_encrypt)
 
 ENTRY(aesbs_xts_decrypt)
+	ldr		ip, [sp, #8]		// reorder final tweak?
 	__xts_crypt	aesbs_decrypt8, q0, q1, q6, q4, q2, q7, q3, q5
 ENDPROC(aesbs_xts_decrypt)
