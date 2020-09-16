@@ -647,11 +647,7 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	u32 serial;
 	int ret;
 
-	_enter("{%d,%x}", conn->debug_id, key_serial(conn->server_key));
-
-	ret = key_validate(conn->server_key);
-	if (ret < 0)
-		return ret;
+	_enter("{%d}", conn->debug_id);
 
 	get_random_bytes(&conn->security_nonce, sizeof(conn->security_nonce));
 
@@ -891,6 +887,7 @@ other_error:
  * decrypt the kerberos IV ticket in the response
  */
 static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
+				struct key *server_key,
 				struct sk_buff *skb,
 				void *ticket, size_t ticket_len,
 				struct rxrpc_crypt *_session_key,
@@ -910,30 +907,17 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	u32 abort_code;
 	u8 *p, *q, *name, *end;
 
-	_enter("{%d},{%x}", conn->debug_id, key_serial(conn->server_key));
+	_enter("{%d},{%x}", conn->debug_id, key_serial(server_key));
 
 	*_expiry = 0;
 
-	ret = key_validate(conn->server_key);
-	if (ret < 0) {
-		switch (ret) {
-		case -EKEYEXPIRED:
-			abort_code = RXKADEXPIRED;
-			goto other_error;
-		default:
-			abort_code = RXKADNOAUTH;
-			goto other_error;
-		}
-	}
-
-	ASSERT(conn->server_key->payload.data[0] != NULL);
+	ASSERT(server_key->payload.data[0] != NULL);
 	ASSERTCMP((unsigned long) ticket & 7UL, ==, 0);
 
-	memcpy(&iv, &conn->server_key->payload.data[2], sizeof(iv));
+	memcpy(&iv, &server_key->payload.data[2], sizeof(iv));
 
 	ret = -ENOMEM;
-	req = skcipher_request_alloc(conn->server_key->payload.data[0],
-				     GFP_NOFS);
+	req = skcipher_request_alloc(server_key->payload.data[0], GFP_NOFS);
 	if (!req)
 		goto temporary_error;
 
@@ -1089,6 +1073,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	struct rxkad_response *response;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_crypt session_key;
+	struct key *server_key;
 	const char *eproto;
 	time64_t expiry;
 	void *ticket;
@@ -1096,7 +1081,27 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	__be32 csum;
 	int ret, i;
 
-	_enter("{%d,%x}", conn->debug_id, key_serial(conn->server_key));
+	_enter("{%d}", conn->debug_id);
+
+	server_key = rxrpc_look_up_server_security(conn, skb, 0, 0);
+	if (IS_ERR(server_key)) {
+		switch (PTR_ERR(server_key)) {
+		case -ENOKEY:
+			abort_code = RXKADUNKNOWNKEY;
+			break;
+		case -EKEYEXPIRED:
+			abort_code = RXKADEXPIRED;
+			break;
+		default:
+			abort_code = RXKADNOAUTH;
+			break;
+		}
+		trace_rxrpc_abort(0, "SVK",
+				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
+				  abort_code, PTR_ERR(server_key));
+		*_abort_code = abort_code;
+		return -EPROTO;
+	}
 
 	ret = -ENOMEM;
 	response = kzalloc(sizeof(struct rxkad_response), GFP_NOFS);
@@ -1144,8 +1149,8 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 			  ticket, ticket_len) < 0)
 		goto protocol_error_free;
 
-	ret = rxkad_decrypt_ticket(conn, skb, ticket, ticket_len, &session_key,
-				   &expiry, _abort_code);
+	ret = rxkad_decrypt_ticket(conn, server_key, skb, ticket, ticket_len,
+				   &session_key, &expiry, _abort_code);
 	if (ret < 0)
 		goto temporary_error_free_ticket;
 
@@ -1224,6 +1229,7 @@ protocol_error_free:
 protocol_error:
 	kfree(response);
 	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial, eproto);
+	key_put(server_key);
 	*_abort_code = abort_code;
 	return -EPROTO;
 
@@ -1236,6 +1242,7 @@ temporary_error:
 	 * ENOMEM.  We just want to send the challenge again.  Note that we
 	 * also come out this way if the ticket decryption fails.
 	 */
+	key_put(server_key);
 	return ret;
 }
 
