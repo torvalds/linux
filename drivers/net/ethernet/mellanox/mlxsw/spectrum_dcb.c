@@ -116,13 +116,19 @@ static int mlxsw_sp_port_headroom_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	bool pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
 	struct ieee_ets *my_ets = mlxsw_sp_port->dcb.ets;
 	struct net_device *dev = mlxsw_sp_port->dev;
+	struct mlxsw_sp_hdroom hdroom;
+	int prio;
 	int err;
+
+	hdroom = *mlxsw_sp_port->hdroom;
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		hdroom.prios.prio[prio].ets_buf_idx = ets->prio_tc[prio];
+	mlxsw_sp_hdroom_prios_reset_buf_idx(&hdroom);
 
 	/* Create the required PGs, but don't destroy existing ones, as
 	 * traffic is still directed to them.
 	 */
-	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, mlxsw_sp_port->hdroom,
-					   ets->prio_tc, pause_en,
+	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, pause_en,
 					   mlxsw_sp_port->dcb.pfc);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom\n");
@@ -622,8 +628,7 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 	else
 		hdroom.delay_bytes = 0;
 
-	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, mlxsw_sp_port->dcb.ets->prio_tc,
-					   pause_en, pfc);
+	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, pause_en, pfc);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom for PFC\n");
 		return err;
@@ -641,8 +646,7 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 	return 0;
 
 err_port_pfc_set:
-	__mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom, mlxsw_sp_port->dcb.ets->prio_tc,
-				     pause_en, mlxsw_sp_port->dcb.pfc);
+	__mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom, pause_en, mlxsw_sp_port->dcb.pfc);
 	return err;
 }
 

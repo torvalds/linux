@@ -332,6 +332,14 @@ static int mlxsw_sp_port_pb_prio_init(struct mlxsw_sp_port *mlxsw_sp_port)
 			       pptb_pl);
 }
 
+void mlxsw_sp_hdroom_prios_reset_buf_idx(struct mlxsw_sp_hdroom *hdroom)
+{
+	int prio;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		hdroom->prios.prio[prio].buf_idx = hdroom->prios.prio[prio].ets_buf_idx;
+}
+
 static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;

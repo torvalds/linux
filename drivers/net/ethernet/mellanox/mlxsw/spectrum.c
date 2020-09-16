@@ -646,7 +646,7 @@ static u16 mlxsw_sp_hdroom_buf_delay_get(const struct mlxsw_sp *mlxsw_sp,
 
 int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				 struct mlxsw_sp_hdroom *hdroom,
-				 u8 *prio_tc, bool pause_en, struct ieee_pfc *my_pfc)
+				 bool pause_en, struct ieee_pfc *my_pfc)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 pfc_en = !!my_pfc ? my_pfc->pfc_en : 0;
@@ -671,7 +671,7 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		bool lossy;
 
 		for (j = 0; j < IEEE_8021QAZ_MAX_TCS; j++) {
-			if (prio_tc[j] == i) {
+			if (hdroom->prios.prio[j].buf_idx == i) {
 				pfc = pfc_en & BIT(j);
 				configure = true;
 				break;
@@ -708,15 +708,12 @@ int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			       struct mlxsw_sp_hdroom *hdroom,
 			       bool pause_en)
 {
-	u8 def_prio_tc[IEEE_8021QAZ_MAX_TCS] = {0};
 	bool dcb_en = !!mlxsw_sp_port->dcb.ets;
 	struct ieee_pfc *my_pfc;
-	u8 *prio_tc;
 
-	prio_tc = dcb_en ? mlxsw_sp_port->dcb.ets->prio_tc : def_prio_tc;
 	my_pfc = dcb_en ? mlxsw_sp_port->dcb.pfc : NULL;
 
-	return __mlxsw_sp_port_headroom_set(mlxsw_sp_port, hdroom, prio_tc, pause_en, my_pfc);
+	return __mlxsw_sp_port_headroom_set(mlxsw_sp_port, hdroom, pause_en, my_pfc);
 }
 
 static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)

@@ -439,7 +439,19 @@ int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				   bool is_up);
 
 /* spectrum_buffers.c */
+struct mlxsw_sp_hdroom_prio {
+	/* Number of port buffer associated with this priority. This is the
+	 * actually configured value.
+	 */
+	u8 buf_idx;
+	/* Value of buf_idx deduced from the DCB ETS configuration. */
+	u8 ets_buf_idx;
+};
+
 struct mlxsw_sp_hdroom {
+	struct {
+		struct mlxsw_sp_hdroom_prio prio[IEEE_8021Q_MAX_PRIORITIES];
+	} prios;
 	int delay_bytes;
 	int mtu;
 };
@@ -484,6 +496,7 @@ int mlxsw_sp_sb_occ_tc_port_bind_get(struct mlxsw_core_port *mlxsw_core_port,
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells);
 u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes);
 u32 mlxsw_sp_sb_max_headroom_cells(const struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_hdroom_prios_reset_buf_idx(struct mlxsw_sp_hdroom *hdroom);
 
 extern const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals;
 extern const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals;
@@ -527,7 +540,7 @@ int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			      u8 switch_prio, u8 tclass);
 int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				 struct mlxsw_sp_hdroom *hdroom,
-				 u8 *prio_tc, bool pause_en, struct ieee_pfc *my_pfc);
+				 bool pause_en, struct ieee_pfc *my_pfc);
 int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				  enum mlxsw_reg_qeec_hr hr, u8 index,
 				  u8 next_index, u32 maxrate, u8 burst_size);
