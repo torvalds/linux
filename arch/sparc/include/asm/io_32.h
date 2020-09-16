@@ -121,8 +121,6 @@ static inline void sbus_memcpy_toio(volatile void __iomem *dst,
 	}
 }
 
-#ifdef __KERNEL__
-
 /*
  * Bus number may be embedded in the higher bits of the physical address.
  * This is why we have no bus number argument to ioremap().
@@ -147,8 +145,6 @@ static inline int sbus_can_burst64(void)
 }
 struct device;
 void sbus_set_sbus64(struct device *, int);
-
-#endif
 
 #define __ARCH_HAS_NO_PAGE_ZERO_MAPPED		1
 
