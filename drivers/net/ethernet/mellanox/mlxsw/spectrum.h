@@ -431,6 +431,7 @@ enum mlxsw_sp_flood_type {
 };
 
 int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			       struct mlxsw_sp_hdroom *hdroom,
 			       int mtu, bool pause_en);
 int mlxsw_sp_port_get_stats_raw(struct net_device *dev, int grp,
 				int prio, char *ppcnt_pl);
@@ -439,6 +440,7 @@ int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 /* spectrum_buffers.c */
 struct mlxsw_sp_hdroom {
+	int delay_bytes;
 };
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp);
@@ -522,9 +524,9 @@ int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			  bool dwrr, u8 dwrr_weight);
 int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			      u8 switch_prio, u8 tclass);
-int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
-				 u8 *prio_tc, bool pause_en,
-				 struct ieee_pfc *my_pfc);
+int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct mlxsw_sp_hdroom *hdroom,
+				 int mtu, u8 *prio_tc, bool pause_en, struct ieee_pfc *my_pfc);
 int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				  enum mlxsw_reg_qeec_hr hr, u8 index,
 				  u8 next_index, u32 maxrate, u8 burst_size);

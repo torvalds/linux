@@ -121,7 +121,7 @@ static int mlxsw_sp_port_headroom_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	/* Create the required PGs, but don't destroy existing ones, as
 	 * traffic is still directed to them.
 	 */
-	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu,
+	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, mlxsw_sp_port->hdroom, dev->mtu,
 					   ets->prio_tc, pause_en,
 					   mlxsw_sp_port->dcb.pfc);
 	if (err) {
@@ -605,6 +605,8 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	bool pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
+	struct mlxsw_sp_hdroom orig_hdroom;
+	struct mlxsw_sp_hdroom hdroom;
 	int err;
 
 	if (pause_en && pfc->pfc_en) {
@@ -612,7 +614,15 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu,
+	orig_hdroom = *mlxsw_sp_port->hdroom;
+
+	hdroom = orig_hdroom;
+	if (pfc->pfc_en)
+		hdroom.delay_bytes = DIV_ROUND_UP(pfc->delay, BITS_PER_BYTE);
+	else
+		hdroom.delay_bytes = 0;
+
+	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, dev->mtu,
 					   mlxsw_sp_port->dcb.ets->prio_tc,
 					   pause_en, pfc);
 	if (err) {
@@ -632,7 +642,7 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 	return 0;
 
 err_port_pfc_set:
-	__mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu,
+	__mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom, dev->mtu,
 				     mlxsw_sp_port->dcb.ets->prio_tc, pause_en,
 				     mlxsw_sp_port->dcb.pfc);
 	return err;

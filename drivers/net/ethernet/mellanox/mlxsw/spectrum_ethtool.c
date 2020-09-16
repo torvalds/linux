@@ -192,11 +192,18 @@ static int mlxsw_sp_port_pause_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			       pfcc_pl);
 }
 
+/* Maximum delay buffer needed in case of PAUSE frames. Similar to PFC delay, but is
+ * measured in bytes. Assumes 100m cable and does not take into account MTU.
+ */
+#define MLXSW_SP_PAUSE_DELAY_BYTES 19476
+
 static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 					struct ethtool_pauseparam *pause)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	bool pause_en = pause->tx_pause || pause->rx_pause;
+	struct mlxsw_sp_hdroom orig_hdroom;
+	struct mlxsw_sp_hdroom hdroom;
 	int err;
 
 	if (mlxsw_sp_port->dcb.pfc && mlxsw_sp_port->dcb.pfc->pfc_en) {
@@ -209,7 +216,15 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
+	orig_hdroom = *mlxsw_sp_port->hdroom;
+
+	hdroom = orig_hdroom;
+	if (pause_en)
+		hdroom.delay_bytes = MLXSW_SP_PAUSE_DELAY_BYTES;
+	else
+		hdroom.delay_bytes = 0;
+
+	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, dev->mtu, pause_en);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom\n");
 		return err;
@@ -228,7 +243,7 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 
 err_port_pause_configure:
 	pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
-	mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
+	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom, dev->mtu, pause_en);
 	return err;
 }
 
