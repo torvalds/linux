@@ -2051,6 +2051,9 @@ int vfio_group_pin_pages(struct vfio_group *group,
 	if (!group || !user_iova_pfn || !phys_pfn || !npage)
 		return -EINVAL;
 
+	if (group->dev_counter > 1)
+		return -EINVAL;
+
 	if (npage > VFIO_PIN_PAGES_MAX_ENTRIES)
 		return -E2BIG;
 
