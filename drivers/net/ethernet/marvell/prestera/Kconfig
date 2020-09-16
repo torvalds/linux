@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Marvell Prestera drivers configuration
+#
+
+config PRESTERA
+	tristate "Marvell Prestera Switch ASICs support"
+	depends on NET_SWITCHDEV && VLAN_8021Q
+	help
+	  This driver supports Marvell Prestera Switch ASICs family.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called prestera.
