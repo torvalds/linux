@@ -142,6 +142,26 @@ static const struct rpmpd_desc msm8939_desc = {
 	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
+/* msm8916 RPM Power Domains */
+DEFINE_RPMPD_PAIR(msm8916, vddcx, vddcx_ao, SMPA, CORNER, 1);
+DEFINE_RPMPD_PAIR(msm8916, vddmx, vddmx_ao, LDOA, CORNER, 3);
+
+DEFINE_RPMPD_VFC(msm8916, vddcx_vfc, SMPA, 1);
+
+static struct rpmpd *msm8916_rpmpds[] = {
+	[MSM8916_VDDCX] =	&msm8916_vddcx,
+	[MSM8916_VDDCX_AO] =	&msm8916_vddcx_ao,
+	[MSM8916_VDDCX_VFC] =	&msm8916_vddcx_vfc,
+	[MSM8916_VDDMX] =	&msm8916_vddmx,
+	[MSM8916_VDDMX_AO] =	&msm8916_vddmx_ao,
+};
+
+static const struct rpmpd_desc msm8916_desc = {
+	.rpmpds = msm8916_rpmpds,
+	.num_pds = ARRAY_SIZE(msm8916_rpmpds),
+	.max_state = MAX_CORNER_RPMPD_STATE,
+};
+
 /* msm8976 RPM Power Domains */
 DEFINE_RPMPD_PAIR(msm8976, vddcx, vddcx_ao, SMPA, LEVEL, 2);
 DEFINE_RPMPD_PAIR(msm8976, vddmx, vddmx_ao, SMPA, LEVEL, 6);
@@ -279,6 +299,7 @@ static const struct rpmpd_desc sdm660_desc = {
 };
 
 static const struct of_device_id rpmpd_match_table[] = {
+	{ .compatible = "qcom,msm8916-rpmpd", .data = &msm8916_desc },
 	{ .compatible = "qcom,msm8939-rpmpd", .data = &msm8939_desc },
 	{ .compatible = "qcom,msm8976-rpmpd", .data = &msm8976_desc },
 	{ .compatible = "qcom,msm8996-rpmpd", .data = &msm8996_desc },
