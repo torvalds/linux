@@ -447,6 +447,8 @@ struct mlxsw_sp_hdroom_prio {
 };
 
 struct mlxsw_sp_hdroom_buf {
+	u32 thres_cells;
+	u32 size_cells;
 	bool lossy;
 };
 

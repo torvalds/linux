@@ -671,19 +671,28 @@ int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		return err;
 
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+	for (i = 0; i < DCBX_MAX_BUFFERS; i++) {
 		struct mlxsw_sp_hdroom_buf *buf = &hdroom->bufs.buf[i];
 		u16 thres_cells;
 		u16 delay_cells;
 		u16 total_cells;
 
-		if (!mlxsw_sp_hdroom_buf_is_used(hdroom, i))
-			continue;
+		if (!mlxsw_sp_hdroom_buf_is_used(hdroom, i)) {
+			thres_cells = 0;
+			delay_cells = 0;
+		} else if (buf->lossy) {
+			thres_cells = mlxsw_sp_pg_buf_threshold_get(mlxsw_sp, hdroom->mtu);
+			delay_cells = 0;
+		} else {
+			thres_cells = mlxsw_sp_pg_buf_threshold_get(mlxsw_sp, hdroom->mtu);
+			delay_cells = mlxsw_sp_hdroom_buf_delay_get(mlxsw_sp, hdroom);
+		}
 
-		thres_cells = mlxsw_sp_pg_buf_threshold_get(mlxsw_sp, hdroom->mtu);
 		thres_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, thres_cells);
-		delay_cells = mlxsw_sp_hdroom_buf_delay_get(mlxsw_sp, hdroom);
 		delay_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, delay_cells);
+
+		buf->thres_cells = thres_cells;
+		buf->size_cells = thres_cells + delay_cells;
 		total_cells = thres_cells + delay_cells;
 
 		taken_headroom_cells += total_cells;
