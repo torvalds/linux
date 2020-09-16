@@ -1019,7 +1019,7 @@
 			what data is available or for reverse-engineering.
 
 	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
-	module.dyndbg[="val"]
+	<module>.dyndbg[="val"]
 			Enable debug messages at boot time.  See
 			Documentation/admin-guide/dynamic-debug-howto.rst
 			for details.
@@ -1027,7 +1027,7 @@
 	nopku		[X86] Disable Memory Protection Keys CPU feature found
 			in some Intel CPUs.
 
-	module.async_probe [KNL]
+	<module>.async_probe [KNL]
 			Enable asynchronous probe on this module.
 
 	early_ioremap_debug [KNL]
