@@ -40,6 +40,11 @@
 #define S302M_BLOCK_SZ 192
 #define S302M_SIN_LUT_NUM_ELEM 1024
 
+/* these are retrieved empirically from ffmpeg/libavcodec */
+#define FF_S302M_DEFAULT_NUM_FRAMES 1115
+#define FF_S302M_DEFAULT_PTS_INCREMENT 2090
+#define FF_S302M_DEFAULT_PTS_OFFSET 100000
+
 /* Used by the tone generator: number of samples for PI */
 #define PI		180
 
@@ -189,7 +194,7 @@ static void vidtv_s302m_alloc_au(struct vidtv_encoder *e)
 }
 
 static void
-vidtv_s302m_compute_sample_count_v(struct vidtv_encoder *e)
+vidtv_s302m_compute_sample_count_from_video(struct vidtv_encoder *e)
 {
 	struct vidtv_access_unit *au = e->access_units;
 	struct vidtv_access_unit *sync_au = e->sync->access_units;
@@ -208,33 +213,7 @@ vidtv_s302m_compute_sample_count_v(struct vidtv_encoder *e)
 	}
 }
 
-static void
-vidtv_s302m_compute_sample_count(struct vidtv_encoder *e,
-				 u64 elapsed_time_usecs)
-{
-	/* compute sample count for 'elapsed_time_usecs' */
-	u32 sample_duration_usecs = USEC_PER_SEC / e->sampling_rate_hz;
-	struct vidtv_access_unit *au = e->access_units;
-
-	au->num_samples = (u32)div64_u64(elapsed_time_usecs, sample_duration_usecs);
-}
-
-static void vidtv_s302m_compute_pts(struct vidtv_encoder *e)
-{
-	u64 count = e->sample_count;
-	struct vidtv_access_unit *au = e->access_units;
-
-	while (au) {
-		count += au->num_samples;
-
-		au->pts = count *
-			  CLOCK_UNIT_90KHZ / e->sampling_rate_hz;
-
-		au = au->next;
-	}
-}
-
-static void vidtv_s302m_compute_pts_v(struct vidtv_encoder *e)
+static void vidtv_s302m_compute_pts_from_video(struct vidtv_encoder *e)
 {
 	struct vidtv_access_unit *au = e->access_units;
 	struct vidtv_access_unit *sync_au = e->sync->access_units;
@@ -366,6 +345,7 @@ static u32 vidtv_s302m_write_h(struct vidtv_encoder *e, u32 p_sz)
 static void vidtv_s302m_write_frames(struct vidtv_encoder *e)
 {
 	struct vidtv_access_unit *au = e->access_units;
+	struct vidtv_s302m_ctx *ctx = e->ctx;
 	u32 nbytes_per_unit = 0;
 	u32 nbytes = 0;
 	u32 au_sz = 0;
@@ -400,12 +380,13 @@ static void vidtv_s302m_write_frames(struct vidtv_encoder *e)
 		au->offset = nbytes - nbytes_per_unit;
 
 		nbytes_per_unit = 0;
+		ctx->au_count++;
 
 		au = au->next;
 	}
 }
 
-static void *vidtv_s302m_encode(struct vidtv_encoder *e, u64 elapsed_time)
+static void *vidtv_s302m_encode(struct vidtv_encoder *e)
 {
 	/*
 	 * According to SMPTE 302M, an audio access unit is specified as those
@@ -416,27 +397,26 @@ static void *vidtv_s302m_encode(struct vidtv_encoder *e, u64 elapsed_time)
 	 *
 	 * Assuming that it is also possible to send audio without any
 	 * associated video, as in a radio-like service, a single audio access unit
-	 * is created with enough audio data for 'elapsed_time'
-	 * The value of PTS is computed manually.
+	 * is created with values for 'num_samples' and 'pts' taken empirically from
+	 * ffmpeg
 	 */
 
-	if (!elapsed_time)
-		goto out;
+	struct vidtv_s302m_ctx *ctx = e->ctx;
 
 	vidtv_s302m_access_unit_destroy(e);
 	vidtv_s302m_alloc_au(e);
 
 	if (e->sync && e->sync->is_video_encoder) {
-		vidtv_s302m_compute_sample_count_v(e);
-		vidtv_s302m_compute_pts_v(e);
+		vidtv_s302m_compute_sample_count_from_video(e);
+		vidtv_s302m_compute_pts_from_video(e);
 	} else {
-		vidtv_s302m_compute_sample_count(e, elapsed_time);
-		vidtv_s302m_compute_pts(e);
+		e->access_units->num_samples = FF_S302M_DEFAULT_NUM_FRAMES;
+		e->access_units->pts = (ctx->au_count * FF_S302M_DEFAULT_PTS_INCREMENT) +
+				       FF_S302M_DEFAULT_PTS_OFFSET;
 	}
 
 	vidtv_s302m_write_frames(e);
 
-out:
 	return e->encoder_buf;
 }
 

@@ -33,10 +33,12 @@
  * struct vidtv_s302m_ctx - s302m encoder context.
  * @enc: A pointer to the containing encoder structure.
  * @frame_index: The current frame in a block
+ * @au_count: The total number of access units encoded up to now
  */
 struct vidtv_s302m_ctx {
 	struct vidtv_encoder *enc;
 	u32 frame_index;
+	u32 au_count;
 };
 
 /**

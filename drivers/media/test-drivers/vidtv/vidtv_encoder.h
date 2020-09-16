@@ -148,7 +148,7 @@ struct vidtv_encoder {
 
 	__be16 es_pid;
 
-	void *(*encode)(struct vidtv_encoder *e, u64 elapsed_time_usecs);
+	void *(*encode)(struct vidtv_encoder *e);
 
 	u32 (*clear)(struct vidtv_encoder *e);
 

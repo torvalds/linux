@@ -281,17 +281,11 @@ static u32 vidtv_mux_poll_encoders(struct vidtv_mux *m)
 	struct vidtv_channel *cur_chnl = m->channels;
 	struct vidtv_encoder *e = NULL;
 
-	u64 elapsed_time_usecs = jiffies_to_usecs(m->timing.current_jiffies -
-						  m->timing.past_jiffies);
-
-	elapsed_time_usecs = min_t(u64, elapsed_time_usecs, (u64)VIDTV_MAX_SLEEP_USECS);
-
 	while (cur_chnl) {
 		e = cur_chnl->encoders;
 
 		while (e) {
-			/* encode for 'elapsed_time_usecs' */
-			e->encode(e, elapsed_time_usecs);
+			e->encode(e);
 			/* get the TS packets into the mux buffer */
 			au_nbytes = vidtv_mux_packetize_access_units(m, e);
 			nbytes += au_nbytes;
@@ -337,38 +331,6 @@ static u32 vidtv_mux_pad_with_nulls(struct vidtv_mux *m, u32 npkts)
 	return nbytes;
 }
 
-static u32 vidtv_mux_check_mux_rate(struct vidtv_mux *m)
-{
-	/*
-	 * attempt to maintain a constant mux rate, padding with null packets
-	 * if needed
-	 */
-
-	u32 nbytes = 0;  /* the number of bytes written by this function */
-
-	u64 nbytes_expected; /* the number of bytes we should have written */
-	u64 nbytes_streamed; /* the number of bytes we actually wrote */
-	u32 num_null_pkts; /* number of null packets to bridge the gap */
-
-	u64 elapsed_time_msecs = jiffies_to_usecs(m->timing.current_jiffies -
-						  m->timing.past_jiffies);
-
-	elapsed_time_msecs = min(elapsed_time_msecs, (u64)VIDTV_MAX_SLEEP_USECS / 1000);
-	nbytes_expected = div64_u64(m->mux_rate_kbytes_sec * 1000, MSEC_PER_SEC);
-	nbytes_expected *= elapsed_time_msecs;
-
-	nbytes_streamed = m->mux_buf_offset;
-
-	if (nbytes_streamed < nbytes_expected) {
-		/* can't write half a packet: roundup to a 188 multiple */
-		nbytes_expected  = roundup(nbytes_expected - nbytes_streamed, TS_PACKET_LEN);
-		num_null_pkts    = nbytes_expected / TS_PACKET_LEN;
-		nbytes          += vidtv_mux_pad_with_nulls(m, num_null_pkts);
-	}
-
-	return nbytes;
-}
-
 static void vidtv_mux_clear(struct vidtv_mux *m)
 {
 	/* clear the packets currently in the mux */
@@ -400,7 +362,7 @@ static void vidtv_mux_tick(struct work_struct *work)
 			nbytes += vidtv_mux_push_si(m);
 
 		nbytes += vidtv_mux_poll_encoders(m);
-		nbytes += vidtv_mux_check_mux_rate(m);
+		nbytes += vidtv_mux_pad_with_nulls(m, 256);
 
 		npkts = nbytes / TS_PACKET_LEN;
 
