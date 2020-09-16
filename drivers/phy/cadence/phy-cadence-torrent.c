@@ -183,8 +183,6 @@ static const struct reg_field phy_pma_pll_raw_ctrl =
 static const struct reg_field phy_reset_ctrl =
 				REG_FIELD(PHY_RESET, 8, 8);
 
-static const struct of_device_id cdns_torrent_phy_of_match[];
-
 struct cdns_torrent_inst {
 	struct phy *phy;
 	u32 mlane;
@@ -203,6 +201,7 @@ struct cdns_torrent_phy {
 	unsigned long ref_clk_rate;
 	struct cdns_torrent_inst phys[MAX_NUM_LANES];
 	int nsubnodes;
+	const struct cdns_torrent_data *init_data;
 	struct regmap *regmap;
 	struct regmap *regmap_common_cdb;
 	struct regmap *regmap_phy_pcs_common_cdb;
@@ -1710,17 +1709,14 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	struct cdns_torrent_phy *cdns_phy;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
-	const struct of_device_id *match;
-	struct cdns_torrent_data *data;
+	const struct cdns_torrent_data *data;
 	struct device_node *child;
 	int ret, subnodes, node = 0, i;
 
 	/* Get init data for this PHY */
-	match = of_match_device(cdns_torrent_phy_of_match, dev);
-	if (!match)
+	data = of_device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
-
-	data = (struct cdns_torrent_data *)match->data;
 
 	cdns_phy = devm_kzalloc(dev, sizeof(*cdns_phy), GFP_KERNEL);
 	if (!cdns_phy)
@@ -1728,6 +1724,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, cdns_phy);
 	cdns_phy->dev = dev;
+	cdns_phy->init_data = data;
 
 	cdns_phy->phy_rst = devm_reset_control_get_exclusive_by_index(dev, 0);
 	if (IS_ERR(cdns_phy->phy_rst)) {
