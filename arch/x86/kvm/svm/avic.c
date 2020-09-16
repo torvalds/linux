@@ -153,20 +153,18 @@ int avic_vm_init(struct kvm *kvm)
 		return 0;
 
 	/* Allocating physical APIC ID table (4KB) */
-	p_page = alloc_page(GFP_KERNEL_ACCOUNT);
+	p_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!p_page)
 		goto free_avic;
 
 	kvm_svm->avic_physical_id_table_page = p_page;
-	clear_page(page_address(p_page));
 
 	/* Allocating logical APIC ID table (4KB) */
-	l_page = alloc_page(GFP_KERNEL_ACCOUNT);
+	l_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!l_page)
 		goto free_avic;
 
 	kvm_svm->avic_logical_id_table_page = l_page;
-	clear_page(page_address(l_page));
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
  again:
