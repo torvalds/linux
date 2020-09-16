@@ -610,130 +610,25 @@ static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static u16 mlxsw_sp_pg_buf_threshold_get(const struct mlxsw_sp *mlxsw_sp,
-					 int mtu)
-{
-	return 2 * mlxsw_sp_bytes_cells(mlxsw_sp, mtu);
-}
-
-#define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
-
-static u16 mlxsw_sp_pfc_delay_get(const struct mlxsw_sp *mlxsw_sp, int mtu,
-				  u16 delay)
-{
-	delay = mlxsw_sp_bytes_cells(mlxsw_sp, DIV_ROUND_UP(delay,
-							    BITS_PER_BYTE));
-	return MLXSW_SP_CELL_FACTOR * delay + mlxsw_sp_bytes_cells(mlxsw_sp,
-								   mtu);
-}
-
-/* Maximum delay buffer needed in case of PAUSE frames, in bytes.
- * Assumes 100m cable and maximum MTU.
- */
-#define MLXSW_SP_PAUSE_DELAY 58752
-
-static u16 mlxsw_sp_pg_buf_delay_get(const struct mlxsw_sp *mlxsw_sp, int mtu,
-				     u16 delay, bool pfc, bool pause)
-{
-	if (pfc)
-		return mlxsw_sp_pfc_delay_get(mlxsw_sp, mtu, delay);
-	else if (pause)
-		return mlxsw_sp_bytes_cells(mlxsw_sp, MLXSW_SP_PAUSE_DELAY);
-	else
-		return 0;
-}
-
-static void mlxsw_sp_pg_buf_pack(char *pbmc_pl, int index, u16 size, u16 thres,
-				 bool lossy)
-{
-	if (lossy)
-		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, index, size);
-	else
-		mlxsw_reg_pbmc_lossless_buffer_pack(pbmc_pl, index, size,
-						    thres);
-}
-
-int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
-				 u8 *prio_tc, bool pause_en,
-				 struct ieee_pfc *my_pfc)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 pfc_en = !!my_pfc ? my_pfc->pfc_en : 0;
-	u16 delay = !!my_pfc ? my_pfc->delay : 0;
-	char pbmc_pl[MLXSW_REG_PBMC_LEN];
-	u32 taken_headroom_cells = 0;
-	u32 max_headroom_cells;
-	int i, j, err;
-
-	max_headroom_cells = mlxsw_sp_sb_max_headroom_cells(mlxsw_sp);
-
-	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port, 0, 0);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
-	if (err)
-		return err;
-
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		bool configure = false;
-		bool pfc = false;
-		u16 thres_cells;
-		u16 delay_cells;
-		u16 total_cells;
-		bool lossy;
-
-		for (j = 0; j < IEEE_8021QAZ_MAX_TCS; j++) {
-			if (prio_tc[j] == i) {
-				pfc = pfc_en & BIT(j);
-				configure = true;
-				break;
-			}
-		}
-
-		if (!configure)
-			continue;
-
-		lossy = !(pfc || pause_en);
-		thres_cells = mlxsw_sp_pg_buf_threshold_get(mlxsw_sp, mtu);
-		thres_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, thres_cells);
-		delay_cells = mlxsw_sp_pg_buf_delay_get(mlxsw_sp, mtu, delay,
-							pfc, pause_en);
-		delay_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, delay_cells);
-		total_cells = thres_cells + delay_cells;
-
-		taken_headroom_cells += total_cells;
-		if (taken_headroom_cells > max_headroom_cells)
-			return -ENOBUFS;
-
-		mlxsw_sp_pg_buf_pack(pbmc_pl, i, total_cells,
-				     thres_cells, lossy);
-	}
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
-}
-
-int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
-			       int mtu, bool pause_en)
-{
-	u8 def_prio_tc[IEEE_8021QAZ_MAX_TCS] = {0};
-	bool dcb_en = !!mlxsw_sp_port->dcb.ets;
-	struct ieee_pfc *my_pfc;
-	u8 *prio_tc;
-
-	prio_tc = dcb_en ? mlxsw_sp_port->dcb.ets->prio_tc : def_prio_tc;
-	my_pfc = dcb_en ? mlxsw_sp_port->dcb.pfc : NULL;
-
-	return __mlxsw_sp_port_headroom_set(mlxsw_sp_port, mtu, prio_tc,
-					    pause_en, my_pfc);
-}
-
 static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	bool pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
+	struct mlxsw_sp_hdroom orig_hdroom;
+	struct mlxsw_sp_hdroom hdroom;
 	int err;
 
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, mtu, pause_en);
-	if (err)
+	orig_hdroom = *mlxsw_sp_port->hdroom;
+
+	hdroom = orig_hdroom;
+	hdroom.mtu = mtu;
+	mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
+
+	err = mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom);
+	if (err) {
+		netdev_err(dev, "Failed to configure port's headroom\n");
 		return err;
+	}
+
 	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, mtu);
 	if (err)
 		goto err_port_mtu_set;
@@ -741,7 +636,7 @@ static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 	return 0;
 
 err_port_mtu_set:
-	mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
+	mlxsw_sp_hdroom_configure(mlxsw_sp_port, &orig_hdroom);
 	return err;
 }
 
@@ -1709,6 +1604,7 @@ err_port_dcb_init:
 	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
 err_port_tc_mc_mode:
 err_port_ets_init:
+	mlxsw_sp_port_buffers_fini(mlxsw_sp_port);
 err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
@@ -1745,6 +1641,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
+	mlxsw_sp_port_buffers_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
@@ -2800,6 +2697,7 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->mac_mask = mlxsw_sp1_mac_mask;
 	mlxsw_sp->rif_ops_arr = mlxsw_sp1_rif_ops_arr;
 	mlxsw_sp->sb_vals = &mlxsw_sp1_sb_vals;
+	mlxsw_sp->sb_ops = &mlxsw_sp1_sb_ops;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp1_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp1_ptp_ops;
 	mlxsw_sp->span_ops = &mlxsw_sp1_span_ops;
@@ -2828,6 +2726,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->mac_mask = mlxsw_sp2_mac_mask;
 	mlxsw_sp->rif_ops_arr = mlxsw_sp2_rif_ops_arr;
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
+	mlxsw_sp->sb_ops = &mlxsw_sp2_sb_ops;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
 	mlxsw_sp->span_ops = &mlxsw_sp2_span_ops;
@@ -2854,6 +2753,7 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->mac_mask = mlxsw_sp2_mac_mask;
 	mlxsw_sp->rif_ops_arr = mlxsw_sp2_rif_ops_arr;
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
+	mlxsw_sp->sb_ops = &mlxsw_sp3_sb_ops;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
 	mlxsw_sp->span_ops = &mlxsw_sp3_span_ops;
