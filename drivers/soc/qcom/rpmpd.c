@@ -35,7 +35,7 @@
 #define KEY_FLOOR_LEVEL		0x6c6676   /* vfl */
 #define KEY_LEVEL		0x6c766c76 /* vlvl */
 
-#define MAX_8996_RPMPD_STATE	6
+#define MAX_CORNER_RPMPD_STATE	6
 
 #define DEFINE_RPMPD_PAIR(_platform, _name, _active, r_type, r_key,	\
 			  r_id)						\
@@ -159,7 +159,7 @@ static struct rpmpd *msm8996_rpmpds[] = {
 static const struct rpmpd_desc msm8996_desc = {
 	.rpmpds = msm8996_rpmpds,
 	.num_pds = ARRAY_SIZE(msm8996_rpmpds),
-	.max_state = MAX_8996_RPMPD_STATE,
+	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
 /* msm8998 RPM Power domains */
