@@ -707,6 +707,7 @@ struct bpf_jit_poke_descriptor {
 	bool ip_stable;
 	u8 adj_off;
 	u16 reason;
+	u32 insn_idx;
 };
 
 /* reg_type info for ctx arguments */
