@@ -1663,7 +1663,7 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 		ISP2X_PACK_2SHORT(arg->gamma_y[16], 0),
 		ISP_RAWAF_GAMMA_Y8);
 
-	value &= ~ISP2X_RAWAF_ENA;
+	value &= ISP2X_RAWAF_ENA;
 	if (arg->gamma_en)
 		value |= ISP2X_RAWAF_GAMMA_ENA;
 	else
