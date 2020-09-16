@@ -739,7 +739,7 @@ u32 sfc_nand_check_bad_block(u8 cs, u32 addr)
 				    (gp_page_buf[data_size / 4] & 0xFF));
 
 	/* Original bad block */
-	if ((gp_page_buf[data_size / 4] & 0xFF) != 0xFF)
+	if ((gp_page_buf[data_size / 4] & 0xFFFF) != 0xFFFF)
 		return true;
 
 	return false;
@@ -787,17 +787,11 @@ int sfc_nand_read_id(u8 *data)
  */
 static int sfc_nand_get_bad_block_list(u16 *table, u32 die)
 {
-	u32 sec_per_page = p_nand_info->sec_per_page;
-	u16 blk;
 	u32 bad_cnt, page;
 	u32 blk_per_die;
-	u32 *pread;
+	u16 blk;
 
 	rkflash_print_info("%s\n", __func__);
-	pread = ftl_malloc(SFC_NAND_PAGE_MAX_SIZE);
-
-	if (!pread)
-		return -1;
 
 	bad_cnt = 0;
 	blk_per_die = p_nand_info->plane_per_die *
@@ -806,16 +800,12 @@ static int sfc_nand_get_bad_block_list(u16 *table, u32 die)
 	for (blk = 0; blk < blk_per_die; blk++) {
 		page = (blk + blk_per_die * die) *
 		       p_nand_info->page_per_blk;
-		sfc_nand_read_page_raw(0, page, (u32 *)pread);
 
-		if (pread[0] != 0xff ||
-		    pread[SFC_NAND_SECTOR_SIZE * sec_per_page] != 0xFF) {
+		if (sfc_nand_check_bad_block(die, page)) {
 			table[bad_cnt++] = blk;
 			rkflash_print_error("die[%d], bad_blk[%d]\n", die, blk);
 		}
 	}
-
-	ftl_free(pread);
 
 	return (int)bad_cnt;
 }
