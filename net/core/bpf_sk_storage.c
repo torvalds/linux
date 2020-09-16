@@ -674,6 +674,7 @@ struct bpf_iter_seq_sk_storage_map_info {
 static struct bpf_local_storage_elem *
 bpf_sk_storage_map_seq_find_next(struct bpf_iter_seq_sk_storage_map_info *info,
 				 struct bpf_local_storage_elem *prev_selem)
+	__acquires(RCU) __releases(RCU)
 {
 	struct bpf_local_storage *sk_storage;
 	struct bpf_local_storage_elem *selem;
@@ -692,16 +693,16 @@ bpf_sk_storage_map_seq_find_next(struct bpf_iter_seq_sk_storage_map_info *info,
 	selem = prev_selem;
 	count = 0;
 	while (selem) {
-		selem = hlist_entry_safe(selem->map_node.next,
+		selem = hlist_entry_safe(rcu_dereference(hlist_next_rcu(&selem->map_node)),
 					 struct bpf_local_storage_elem, map_node);
 		if (!selem) {
 			/* not found, unlock and go to the next bucket */
 			b = &smap->buckets[bucket_id++];
-			raw_spin_unlock_bh(&b->lock);
+			rcu_read_unlock();
 			skip_elems = 0;
 			break;
 		}
-		sk_storage = rcu_dereference_raw(selem->local_storage);
+		sk_storage = rcu_dereference(selem->local_storage);
 		if (sk_storage) {
 			info->skip_elems = skip_elems + count;
 			return selem;
@@ -711,10 +712,10 @@ bpf_sk_storage_map_seq_find_next(struct bpf_iter_seq_sk_storage_map_info *info,
 
 	for (i = bucket_id; i < (1U << smap->bucket_log); i++) {
 		b = &smap->buckets[i];
-		raw_spin_lock_bh(&b->lock);
+		rcu_read_lock();
 		count = 0;
-		hlist_for_each_entry(selem, &b->list, map_node) {
-			sk_storage = rcu_dereference_raw(selem->local_storage);
+		hlist_for_each_entry_rcu(selem, &b->list, map_node) {
+			sk_storage = rcu_dereference(selem->local_storage);
 			if (sk_storage && count >= skip_elems) {
 				info->bucket_id = i;
 				info->skip_elems = count;
@@ -722,7 +723,7 @@ bpf_sk_storage_map_seq_find_next(struct bpf_iter_seq_sk_storage_map_info *info,
 			}
 			count++;
 		}
-		raw_spin_unlock_bh(&b->lock);
+		rcu_read_unlock();
 		skip_elems = 0;
 	}
 
@@ -781,7 +782,7 @@ static int __bpf_sk_storage_map_seq_show(struct seq_file *seq,
 		ctx.meta = &meta;
 		ctx.map = info->map;
 		if (selem) {
-			sk_storage = rcu_dereference_raw(selem->local_storage);
+			sk_storage = rcu_dereference(selem->local_storage);
 			ctx.sk = sk_storage->owner;
 			ctx.value = SDATA(selem)->data;
 		}
@@ -797,18 +798,12 @@ static int bpf_sk_storage_map_seq_show(struct seq_file *seq, void *v)
 }
 
 static void bpf_sk_storage_map_seq_stop(struct seq_file *seq, void *v)
+	__releases(RCU)
 {
-	struct bpf_iter_seq_sk_storage_map_info *info = seq->private;
-	struct bpf_local_storage_map *smap;
-	struct bpf_local_storage_map_bucket *b;
-
-	if (!v) {
+	if (!v)
 		(void)__bpf_sk_storage_map_seq_show(seq, v);
-	} else {
-		smap = (struct bpf_local_storage_map *)info->map;
-		b = &smap->buckets[info->bucket_id];
-		raw_spin_unlock_bh(&b->lock);
-	}
+	else
+		rcu_read_unlock();
 }
 
 static int bpf_iter_init_sk_storage_map(void *priv_data,
