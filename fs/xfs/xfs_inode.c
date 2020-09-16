@@ -1534,15 +1534,8 @@ xfs_itruncate_extents_flags(
 		if (error)
 			goto out;
 
-		/*
-		 * Duplicate the transaction that has the permanent
-		 * reservation and commit the old transaction.
-		 */
+		/* free the just unmapped extents */
 		error = xfs_defer_finish(&tp);
-		if (error)
-			goto out;
-
-		error = xfs_trans_roll_inode(&tp, ip);
 		if (error)
 			goto out;
 	}
