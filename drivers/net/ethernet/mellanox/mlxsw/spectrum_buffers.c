@@ -998,6 +998,7 @@ int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port->hdroom = kzalloc(sizeof(*mlxsw_sp_port->hdroom), GFP_KERNEL);
 	if (!mlxsw_sp_port->hdroom)
 		return -ENOMEM;
+	mlxsw_sp_port->hdroom->mtu = mlxsw_sp_port->dev->mtu;
 
 	err = mlxsw_sp_port_headroom_init(mlxsw_sp_port);
 	if (err)

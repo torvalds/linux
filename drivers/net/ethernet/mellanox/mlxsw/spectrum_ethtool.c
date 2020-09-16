@@ -224,7 +224,7 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 	else
 		hdroom.delay_bytes = 0;
 
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, dev->mtu, pause_en);
+	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, pause_en);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom\n");
 		return err;
@@ -243,7 +243,7 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 
 err_port_pause_configure:
 	pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
-	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom, dev->mtu, pause_en);
+	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom, pause_en);
 	return err;
 }
 
