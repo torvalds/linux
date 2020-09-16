@@ -93,7 +93,7 @@ static int exynos_asv_update_opps(struct exynos_asv *asv)
 			continue;
 
 		opp_table = dev_pm_opp_get_opp_table(cpu);
-		if (IS_ERR_OR_NULL(opp_table))
+		if (IS_ERR(opp_table))
 			continue;
 
 		if (!last_opp_table || opp_table != last_opp_table) {

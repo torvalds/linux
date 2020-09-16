@@ -2044,8 +2044,9 @@ int of_genpd_add_provider_simple(struct device_node *np,
 	if (genpd->set_performance_state) {
 		ret = dev_pm_opp_of_add_table(&genpd->dev);
 		if (ret) {
-			dev_err(&genpd->dev, "Failed to add OPP table: %d\n",
-				ret);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&genpd->dev, "Failed to add OPP table: %d\n",
+					ret);
 			goto unlock;
 		}
 
@@ -2054,7 +2055,7 @@ int of_genpd_add_provider_simple(struct device_node *np,
 		 * state.
 		 */
 		genpd->opp_table = dev_pm_opp_get_opp_table(&genpd->dev);
-		WARN_ON(!genpd->opp_table);
+		WARN_ON(IS_ERR(genpd->opp_table));
 	}
 
 	ret = genpd_add_provider(np, genpd_xlate_simple, genpd);
@@ -2111,8 +2112,9 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 		if (genpd->set_performance_state) {
 			ret = dev_pm_opp_of_add_table_indexed(&genpd->dev, i);
 			if (ret) {
-				dev_err(&genpd->dev, "Failed to add OPP table for index %d: %d\n",
-					i, ret);
+				if (ret != -EPROBE_DEFER)
+					dev_err(&genpd->dev, "Failed to add OPP table for index %d: %d\n",
+						i, ret);
 				goto error;
 			}
 
@@ -2121,7 +2123,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 			 * performance state.
 			 */
 			genpd->opp_table = dev_pm_opp_get_opp_table_indexed(&genpd->dev, i);
-			WARN_ON(!genpd->opp_table);
+			WARN_ON(IS_ERR(genpd->opp_table));
 		}
 
 		genpd->provider = &np->fwnode;
