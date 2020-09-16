@@ -331,7 +331,10 @@ __ccs_pll_calculate_vt_tree(struct device *dev,
 			continue;
 		}
 
-		if (pix_div * sys_div <= best_div) {
+		dev_dbg(dev, "sys/pix/best_pix: %u,%u,%u\n", sys_div, pix_div,
+			best_pix_div);
+
+		if (pix_div * sys_div <= best_pix_div) {
 			best_pix_div = pix_div;
 			best_div = pix_div * sys_div;
 		}
@@ -804,7 +807,9 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		if (rval)
 			continue;
 
-		rval = check_fr_bounds(dev, lim, pll, PLL_VT);
+		rval = check_fr_bounds(dev, lim, pll,
+				       pll->flags & CCS_PLL_FLAG_DUAL_PLL ?
+				       PLL_OP : PLL_VT);
 		if (rval)
 			continue;
 

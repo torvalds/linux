@@ -395,7 +395,23 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 	if (rval < 0)
 		return rval;
 
-	return ccs_write(sensor, OP_SYS_CLK_DIV, pll->op_bk.sys_clk_div);
+	rval = ccs_write(sensor, OP_SYS_CLK_DIV, pll->op_bk.sys_clk_div);
+	if (rval < 0)
+		return rval;
+
+	if (!(pll->flags & CCS_PLL_FLAG_DUAL_PLL))
+		return 0;
+
+	rval = ccs_write(sensor, PLL_MODE, CCS_PLL_MODE_DUAL);
+	if (rval < 0)
+		return rval;
+
+	rval = ccs_write(sensor, OP_PRE_PLL_CLK_DIV,
+			 pll->op_fr.pre_pll_clk_div);
+	if (rval < 0)
+		return rval;
+
+	return ccs_write(sensor, OP_PLL_MULTIPLIER, pll->op_fr.pll_multiplier);
 }
 
 static int ccs_pll_try(struct ccs_sensor *sensor, struct ccs_pll *pll)
@@ -411,6 +427,16 @@ static int ccs_pll_try(struct ccs_sensor *sensor, struct ccs_pll *pll)
 			.max_pll_multiplier = CCS_LIM(sensor, MAX_PLL_MULTIPLIER),
 			.min_pll_op_clk_freq_hz = CCS_LIM(sensor, MIN_PLL_OP_CLK_FREQ_MHZ),
 			.max_pll_op_clk_freq_hz = CCS_LIM(sensor, MAX_PLL_OP_CLK_FREQ_MHZ),
+		},
+		.op_fr = {
+			.min_pre_pll_clk_div = CCS_LIM(sensor, MIN_OP_PRE_PLL_CLK_DIV),
+			.max_pre_pll_clk_div = CCS_LIM(sensor, MAX_OP_PRE_PLL_CLK_DIV),
+			.min_pll_ip_clk_freq_hz = CCS_LIM(sensor, MIN_OP_PLL_IP_CLK_FREQ_MHZ),
+			.max_pll_ip_clk_freq_hz = CCS_LIM(sensor, MAX_OP_PLL_IP_CLK_FREQ_MHZ),
+			.min_pll_multiplier = CCS_LIM(sensor, MIN_OP_PLL_MULTIPLIER),
+			.max_pll_multiplier = CCS_LIM(sensor, MAX_OP_PLL_MULTIPLIER),
+			.min_pll_op_clk_freq_hz = CCS_LIM(sensor, MIN_OP_PLL_OP_CLK_FREQ_MHZ),
+			.max_pll_op_clk_freq_hz = CCS_LIM(sensor, MAX_OP_PLL_OP_CLK_FREQ_MHZ),
 		},
 		.op_bk = {
 			 .min_sys_clk_div = CCS_LIM(sensor, MIN_OP_SYS_CLK_DIV),
@@ -3231,6 +3257,23 @@ static int ccs_probe(struct i2c_client *client)
 	    CCS_FIFO_SUPPORT_CAPABILITY_DERATING_OVERRATING)
 		sensor->pll.flags |= CCS_PLL_FLAG_FIFO_DERATING |
 				     CCS_PLL_FLAG_FIFO_OVERRATING;
+	if (CCS_LIM(sensor, CLOCK_TREE_PLL_CAPABILITY) &
+	    CCS_CLOCK_TREE_PLL_CAPABILITY_DUAL_PLL) {
+		if (CCS_LIM(sensor, CLOCK_TREE_PLL_CAPABILITY) &
+		    CCS_CLOCK_TREE_PLL_CAPABILITY_SINGLE_PLL) {
+			u32 v;
+
+			/* Use sensor default in PLL mode selection */
+			rval = ccs_read(sensor, PLL_MODE, &v);
+			if (rval)
+				goto out_cleanup;
+
+			if (v == CCS_PLL_MODE_DUAL)
+				sensor->pll.flags |= CCS_PLL_FLAG_DUAL_PLL;
+		} else {
+			sensor->pll.flags |= CCS_PLL_FLAG_DUAL_PLL;
+		}
+	}
 	sensor->pll.op_bits_per_lane = CCS_LIM(sensor, OP_BITS_PER_LANE);
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
