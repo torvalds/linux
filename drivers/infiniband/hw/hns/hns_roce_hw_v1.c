@@ -1470,7 +1470,7 @@ static int hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 	caps->max_qp_dest_rdma	= HNS_ROCE_V1_MAX_QP_DEST_RDMA;
 	caps->max_sq_desc_sz	= HNS_ROCE_V1_MAX_SQ_DESC_SZ;
 	caps->max_rq_desc_sz	= HNS_ROCE_V1_MAX_RQ_DESC_SZ;
-	caps->qpc_entry_sz	= HNS_ROCE_V1_QPC_ENTRY_SIZE;
+	caps->qpc_sz		= HNS_ROCE_V1_QPC_SIZE;
 	caps->irrl_entry_sz	= HNS_ROCE_V1_IRRL_ENTRY_SIZE;
 	caps->cqc_entry_sz	= HNS_ROCE_V1_CQC_ENTRY_SIZE;
 	caps->mtpt_entry_sz	= HNS_ROCE_V1_MTPT_ENTRY_SIZE;

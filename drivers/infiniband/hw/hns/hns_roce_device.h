@@ -84,6 +84,9 @@
 #define HNS_ROCE_V2_CQE_SIZE 32
 #define HNS_ROCE_V3_CQE_SIZE 64
 
+#define HNS_ROCE_V2_QPC_SZ 256
+#define HNS_ROCE_V3_QPC_SZ 512
+
 #define HNS_ROCE_SL_SHIFT			28
 #define HNS_ROCE_TCLASS_SHIFT			20
 #define HNS_ROCE_FLOW_LABEL_MASK		0xfffff
@@ -804,7 +807,7 @@ struct hns_roce_caps {
 	u32		page_size_cap;
 	u32		reserved_lkey;
 	int		mtpt_entry_sz;
-	int		qpc_entry_sz;
+	int		qpc_sz;
 	int		irrl_entry_sz;
 	int		trrl_entry_sz;
 	int		cqc_entry_sz;

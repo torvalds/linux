@@ -591,7 +591,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 	}
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->qp_table.qp_table,
-				      HEM_TYPE_QPC, hr_dev->caps.qpc_entry_sz,
+				      HEM_TYPE_QPC, hr_dev->caps.qpc_sz,
 				      hr_dev->caps.num_qps, 1);
 	if (ret) {
 		dev_err(dev, "Failed to init QP context memory, aborting.\n");

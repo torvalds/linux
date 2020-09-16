@@ -1682,7 +1682,7 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->max_sq_desc_sz	= HNS_ROCE_V2_MAX_SQ_DESC_SZ;
 	caps->max_rq_desc_sz	= HNS_ROCE_V2_MAX_RQ_DESC_SZ;
 	caps->max_srq_desc_sz	= HNS_ROCE_V2_MAX_SRQ_DESC_SZ;
-	caps->qpc_entry_sz	= HNS_ROCE_V2_QPC_ENTRY_SZ;
+	caps->qpc_sz		= HNS_ROCE_V2_QPC_SZ;
 	caps->irrl_entry_sz	= HNS_ROCE_V2_IRRL_ENTRY_SZ;
 	caps->trrl_entry_sz	= HNS_ROCE_V2_EXT_ATOMIC_TRRL_ENTRY_SZ;
 	caps->cqc_entry_sz	= HNS_ROCE_V2_CQC_ENTRY_SZ;
@@ -1771,6 +1771,7 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 		caps->aeqe_size = HNS_ROCE_V3_EQE_SIZE;
 		caps->ceqe_size = HNS_ROCE_V3_EQE_SIZE;
 		caps->cqe_sz = HNS_ROCE_V3_CQE_SIZE;
+		caps->qpc_sz = HNS_ROCE_V3_QPC_SZ;
 	}
 }
 
@@ -1873,7 +1874,7 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->idx_entry_sz	     = resp_b->idx_entry_sz;
 	caps->sccc_entry_sz	     = resp_b->scc_ctx_entry_sz;
 	caps->max_mtu		     = resp_b->max_mtu;
-	caps->qpc_entry_sz	     = le16_to_cpu(resp_b->qpc_entry_sz);
+	caps->qpc_sz		     = HNS_ROCE_V2_QPC_SZ;
 	caps->min_cqes		     = resp_b->min_cqes;
 	caps->min_wqes		     = resp_b->min_wqes;
 	caps->page_size_cap	     = le32_to_cpu(resp_b->page_size_cap);
@@ -1995,9 +1996,10 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 		caps->ceqe_size = HNS_ROCE_V3_EQE_SIZE;
 		caps->aeqe_size = HNS_ROCE_V3_EQE_SIZE;
 		caps->cqe_sz = HNS_ROCE_V3_CQE_SIZE;
+		caps->qpc_sz = HNS_ROCE_V3_QPC_SZ;
 	}
 
-	calc_pg_sz(caps->num_qps, caps->qpc_entry_sz, caps->qpc_hop_num,
+	calc_pg_sz(caps->num_qps, caps->qpc_sz, caps->qpc_hop_num,
 		   caps->qpc_bt_num, &caps->qpc_buf_pg_sz, &caps->qpc_ba_pg_sz,
 		   HEM_TYPE_QPC);
 	calc_pg_sz(caps->num_mtpts, caps->mtpt_entry_sz, caps->mpt_hop_num,
@@ -2032,6 +2034,35 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 		   1, &caps->idx_buf_pg_sz, &caps->idx_ba_pg_sz, HEM_TYPE_IDX);
 
 	return 0;
+}
+
+static int hns_roce_config_qpc_size(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cfg_entry_size *cfg_size =
+				  (struct hns_roce_cfg_entry_size *)desc.data;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_ENTRY_SIZE,
+				      false);
+
+	cfg_size->type = cpu_to_le32(HNS_ROCE_CFG_QPC_SIZE);
+	cfg_size->size = cpu_to_le32(hr_dev->caps.qpc_sz);
+
+	return hns_roce_cmq_send(hr_dev, &desc, 1);
+}
+
+static int hns_roce_config_entry_size(struct hns_roce_dev *hr_dev)
+{
+	int ret;
+
+	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09)
+		return 0;
+
+	ret = hns_roce_config_qpc_size(hr_dev);
+	if (ret)
+		dev_err(hr_dev->dev, "failed to cfg qpc sz, ret = %d.\n", ret);
+
+	return ret;
 }
 
 static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
@@ -2106,9 +2137,14 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	}
 
 	ret = hns_roce_v2_set_bt(hr_dev);
-	if (ret)
-		dev_err(hr_dev->dev, "Configure bt attribute fail, ret = %d.\n",
-			ret);
+	if (ret) {
+		dev_err(hr_dev->dev,
+			"Configure bt attribute fail, ret = %d.\n", ret);
+		return ret;
+	}
+
+	/* Configure the size of QPC, SCCC, etc. */
+	ret = hns_roce_config_entry_size(hr_dev);
 
 	return ret;
 }
@@ -3534,16 +3570,21 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_v2_qp_modify(struct hns_roce_dev *hr_dev,
 				 struct hns_roce_v2_qp_context *context,
+				 struct hns_roce_v2_qp_context *qpc_mask,
 				 struct hns_roce_qp *hr_qp)
 {
 	struct hns_roce_cmd_mailbox *mailbox;
+	int qpc_size;
 	int ret;
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
-	memcpy(mailbox->buf, context, sizeof(*context) * 2);
+	/* The qpc size of HIP08 is only 256B, which is half of HIP09 */
+	qpc_size = hr_dev->caps.qpc_sz;
+	memcpy(mailbox->buf, context, qpc_size);
+	memcpy(mailbox->buf + qpc_size, qpc_mask, qpc_size);
 
 	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_qp->qpn, 0,
 				HNS_ROCE_CMD_MODIFY_QPC,
@@ -4338,7 +4379,7 @@ static int hns_roce_v2_set_abs_fields(struct ib_qp *ibqp,
 	}
 
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
-		memset(qpc_mask, 0, sizeof(*qpc_mask));
+		memset(qpc_mask, 0, hr_dev->caps.qpc_sz);
 		modify_qp_reset_to_init(ibqp, attr, attr_mask, context,
 					qpc_mask);
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_INIT) {
@@ -4561,8 +4602,9 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	 * we should set all bits of the relevant fields in context mask to
 	 * 0 at the same time, else set them to 0x1.
 	 */
-	memset(context, 0, sizeof(*context));
-	memset(qpc_mask, 0xff, sizeof(*qpc_mask));
+	memset(context, 0, hr_dev->caps.qpc_sz);
+	memset(qpc_mask, 0xff, hr_dev->caps.qpc_sz);
+
 	ret = hns_roce_v2_set_abs_fields(ibqp, attr, attr_mask, cur_state,
 					 new_state, context, qpc_mask);
 	if (ret)
@@ -4612,7 +4654,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_60_QP_ST_S, 0);
 
 	/* SW pass context to HW */
-	ret = hns_roce_v2_qp_modify(hr_dev, ctx, hr_qp);
+	ret = hns_roce_v2_qp_modify(hr_dev, context, qpc_mask, hr_qp);
 	if (ret) {
 		ibdev_err(ibdev, "failed to modify QP, ret = %d\n", ret);
 		goto out;
@@ -4675,7 +4717,7 @@ static int hns_roce_v2_query_qpc(struct hns_roce_dev *hr_dev,
 	if (ret)
 		goto out;
 
-	memcpy(hr_context, mailbox->buf, sizeof(*hr_context));
+	memcpy(hr_context, mailbox->buf, hr_dev->caps.qpc_sz);
 
 out:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);

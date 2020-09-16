@@ -77,7 +77,6 @@
 #define HNS_ROCE_V2_MAX_SQ_DESC_SZ		64
 #define HNS_ROCE_V2_MAX_RQ_DESC_SZ		16
 #define HNS_ROCE_V2_MAX_SRQ_DESC_SZ		64
-#define HNS_ROCE_V2_QPC_ENTRY_SZ		256
 #define HNS_ROCE_V2_IRRL_ENTRY_SZ		64
 #define HNS_ROCE_V2_TRRL_ENTRY_SZ		48
 #define HNS_ROCE_V2_EXT_ATOMIC_TRRL_ENTRY_SZ	100
@@ -228,6 +227,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_CFG_TMOUT_LLM			= 0x8404,
 	HNS_ROCE_OPC_QUERY_PF_TIMER_RES			= 0x8406,
 	HNS_ROCE_OPC_QUERY_PF_CAPS_NUM                  = 0x8408,
+	HNS_ROCE_OPC_CFG_ENTRY_SIZE			= 0x8409,
 	HNS_ROCE_OPC_CFG_SGID_TB			= 0x8500,
 	HNS_ROCE_OPC_CFG_SMAC_TB			= 0x8501,
 	HNS_ROCE_OPC_POST_MB				= 0x8504,
@@ -514,6 +514,7 @@ struct hns_roce_v2_qp_context {
 	__le32	byte_248_ack_psn;
 	__le32	byte_252_err_txcqn;
 	__le32	byte_256_sqflush_rqcqe;
+	__le32	ext[64];
 };
 
 #define	V2_QPC_BYTE_4_TST_S 0
@@ -1540,6 +1541,17 @@ struct hns_roce_cfg_sgid_tb {
 	__le32	vf_sgid_h;
 	__le32	vf_sgid_type_rsv;
 };
+
+enum {
+	HNS_ROCE_CFG_QPC_SIZE = BIT(0),
+};
+
+struct hns_roce_cfg_entry_size {
+	__le32	type;
+	__le32	rsv[4];
+	__le32	size;
+};
+
 #define CFG_SGID_TB_TABLE_IDX_S 0
 #define CFG_SGID_TB_TABLE_IDX_M GENMASK(7, 0)
 
@@ -1586,7 +1598,7 @@ struct hns_roce_query_pf_caps_b {
 	u8 idx_entry_sz;
 	u8 scc_ctx_entry_sz;
 	u8 max_mtu;
-	__le16 qpc_entry_sz;
+	__le16 qpc_sz;
 	__le16 qpc_timer_entry_sz;
 	__le16 cqc_timer_entry_sz;
 	u8 min_cqes;
