@@ -1402,6 +1402,7 @@ static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
 
 	hnae3_queue_xmit(ring->tqp, ring->pending_buf);
 	ring->pending_buf = 0;
+	WRITE_ONCE(ring->last_to_use, ring->next_to_use);
 }
 
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
@@ -1863,10 +1864,9 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 		    tx_ring->next_to_clean, napi->state);
 
 	netdev_info(ndev,
-		    "tx_pkts: %llu, tx_bytes: %llu, io_err_cnt: %llu, sw_err_cnt: %llu, tx_pending: %d\n",
+		    "tx_pkts: %llu, tx_bytes: %llu, sw_err_cnt: %llu, tx_pending: %d\n",
 		    tx_ring->stats.tx_pkts, tx_ring->stats.tx_bytes,
-		    tx_ring->stats.io_err_cnt, tx_ring->stats.sw_err_cnt,
-		    tx_ring->pending_buf);
+		    tx_ring->stats.sw_err_cnt, tx_ring->pending_buf);
 
 	netdev_info(ndev,
 		    "seg_pkt_cnt: %llu, tx_more: %llu, restart_queue: %llu, tx_busy: %llu\n",
@@ -2491,13 +2491,26 @@ static void hns3_reuse_buffer(struct hns3_enet_ring *ring, int i)
 			DMA_FROM_DEVICE);
 }
 
-static void hns3_nic_reclaim_desc(struct hns3_enet_ring *ring, int head,
+static bool hns3_nic_reclaim_desc(struct hns3_enet_ring *ring,
 				  int *bytes, int *pkts)
 {
+	/* pair with ring->last_to_use update in hns3_tx_doorbell(),
+	 * smp_store_release() is not used in hns3_tx_doorbell() because
+	 * the doorbell operation already have the needed barrier operation.
+	 */
+	int ltu = smp_load_acquire(&ring->last_to_use);
 	int ntc = ring->next_to_clean;
 	struct hns3_desc_cb *desc_cb;
+	bool reclaimed = false;
+	struct hns3_desc *desc;
 
-	while (head != ntc) {
+	while (ltu != ntc) {
+		desc = &ring->desc[ntc];
+
+		if (le16_to_cpu(desc->tx.bdtp_fe_sc_vld_ra_ri) &
+				BIT(HNS3_TXD_VLD_B))
+			break;
+
 		desc_cb = &ring->desc_cb[ntc];
 		(*pkts) += (desc_cb->type == DESC_TYPE_SKB);
 		(*bytes) += desc_cb->length;
@@ -2509,23 +2522,17 @@ static void hns3_nic_reclaim_desc(struct hns3_enet_ring *ring, int head,
 
 		/* Issue prefetch for next Tx descriptor */
 		prefetch(&ring->desc_cb[ntc]);
+		reclaimed = true;
 	}
+
+	if (unlikely(!reclaimed))
+		return false;
 
 	/* This smp_store_release() pairs with smp_load_acquire() in
 	 * ring_space called by hns3_nic_net_xmit.
 	 */
 	smp_store_release(&ring->next_to_clean, ntc);
-}
-
-static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
-{
-	int u = ring->next_to_use;
-	int c = ring->next_to_clean;
-
-	if (unlikely(h > ring->desc_num))
-		return 0;
-
-	return u > c ? (h > c && h <= u) : (h > c || h <= u);
+	return true;
 }
 
 void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
@@ -2534,28 +2541,12 @@ void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct netdev_queue *dev_queue;
 	int bytes, pkts;
-	int head;
-
-	head = readl_relaxed(ring->tqp->io_base + HNS3_RING_TX_RING_HEAD_REG);
-
-	if (is_ring_empty(ring) || head == ring->next_to_clean)
-		return; /* no data to poll */
-
-	rmb(); /* Make sure head is ready before touch any data */
-
-	if (unlikely(!is_valid_clean_head(ring, head))) {
-		hns3_rl_err(netdev, "wrong head (%d, %d-%d)\n", head,
-			    ring->next_to_use, ring->next_to_clean);
-
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.io_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
-		return;
-	}
 
 	bytes = 0;
 	pkts = 0;
-	hns3_nic_reclaim_desc(ring, head, &bytes, &pkts);
+
+	if (unlikely(!hns3_nic_reclaim_desc(ring, &bytes, &pkts)))
+		return;
 
 	ring->tqp_vector->tx_group.total_bytes += bytes;
 	ring->tqp_vector->tx_group.total_packets += pkts;
@@ -3714,6 +3705,7 @@ static void hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 	ring->desc_num = desc_num;
 	ring->next_to_use = 0;
 	ring->next_to_clean = 0;
+	ring->last_to_use = 0;
 }
 
 static void hns3_queue_to_ring(struct hnae3_queue *tqp,
@@ -3793,6 +3785,7 @@ void hns3_fini_ring(struct hns3_enet_ring *ring)
 	ring->desc_cb = NULL;
 	ring->next_to_clean = 0;
 	ring->next_to_use = 0;
+	ring->last_to_use = 0;
 	ring->pending_buf = 0;
 	if (ring->skb) {
 		dev_kfree_skb_any(ring->skb);
@@ -4310,6 +4303,7 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 		hns3_clear_tx_ring(&priv->ring[i]);
 		priv->ring[i].next_to_clean = 0;
 		priv->ring[i].next_to_use = 0;
+		priv->ring[i].last_to_use = 0;
 
 		rx_ring = &priv->ring[i + h->kinfo.num_tqps];
 		hns3_init_ring_hw(rx_ring);

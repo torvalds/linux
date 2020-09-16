@@ -344,7 +344,6 @@ enum hns3_pkt_ol4type {
 };
 
 struct ring_stats {
-	u64 io_err_cnt;
 	u64 sw_err_cnt;
 	u64 seg_pkt_cnt;
 	union {
@@ -397,8 +396,10 @@ struct hns3_enet_ring {
 	 * next_to_use
 	 */
 	int next_to_clean;
-
-	u32 pull_len; /* head length for current packet */
+	union {
+		int last_to_use;	/* last idx used by xmit */
+		u32 pull_len;		/* memcpy len for current rx packet */
+	};
 	u32 frag_num;
 	void *va; /* first buffer address for current packet */
 
@@ -511,11 +512,6 @@ static inline int ring_space(struct hns3_enet_ring *ring)
 
 	return ((end >= begin) ? (ring->desc_num - end + begin) :
 			(begin - end)) - 1;
-}
-
-static inline int is_ring_empty(struct hns3_enet_ring *ring)
-{
-	return ring->next_to_use == ring->next_to_clean;
 }
 
 static inline u32 hns3_read_reg(void __iomem *base, u32 reg)

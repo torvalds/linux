@@ -27,7 +27,6 @@ struct hns3_sfp_type {
 
 static const struct hns3_stats hns3_txq_stats[] = {
 	/* Tx per-queue statistics */
-	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
 	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", tx_pkts),
@@ -46,7 +45,6 @@ static const struct hns3_stats hns3_txq_stats[] = {
 
 static const struct hns3_stats hns3_rxq_stats[] = {
 	/* Rx per-queue statistics */
-	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
 	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", rx_pkts),
