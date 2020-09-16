@@ -229,8 +229,9 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 		hdroom.prios.prio[prio].lossy = !pause_en;
 
 	mlxsw_sp_hdroom_bufs_reset_lossiness(&hdroom);
+	mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
 
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom);
+	err = mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom\n");
 		return err;
@@ -248,7 +249,7 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 	return 0;
 
 err_port_pause_configure:
-	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom);
+	mlxsw_sp_hdroom_configure(mlxsw_sp_port, &orig_hdroom);
 	return err;
 }
 

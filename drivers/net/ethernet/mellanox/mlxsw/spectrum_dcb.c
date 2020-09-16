@@ -115,20 +115,33 @@ static int mlxsw_sp_port_headroom_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct ieee_ets *my_ets = mlxsw_sp_port->dcb.ets;
 	struct net_device *dev = mlxsw_sp_port->dev;
+	struct mlxsw_sp_hdroom orig_hdroom;
+	struct mlxsw_sp_hdroom tmp_hdroom;
 	struct mlxsw_sp_hdroom hdroom;
 	int prio;
 	int err;
+	int i;
 
-	hdroom = *mlxsw_sp_port->hdroom;
+	orig_hdroom = *mlxsw_sp_port->hdroom;
+
+	hdroom = orig_hdroom;
 	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
 		hdroom.prios.prio[prio].ets_buf_idx = ets->prio_tc[prio];
 	mlxsw_sp_hdroom_prios_reset_buf_idx(&hdroom);
 	mlxsw_sp_hdroom_bufs_reset_lossiness(&hdroom);
+	mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
 
 	/* Create the required PGs, but don't destroy existing ones, as
 	 * traffic is still directed to them.
 	 */
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom);
+	tmp_hdroom = hdroom;
+	for (i = 0; i < DCBX_MAX_BUFFERS; i++) {
+		if (!tmp_hdroom.bufs.buf[i].size_cells)
+			tmp_hdroom.bufs.buf[i].size_cells =
+				mlxsw_sp_port->hdroom->bufs.buf[i].size_cells;
+	}
+
+	err = mlxsw_sp_hdroom_configure(mlxsw_sp_port, &tmp_hdroom);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom\n");
 		return err;
@@ -145,10 +158,11 @@ static int mlxsw_sp_port_headroom_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		netdev_warn(dev, "Failed to remove unused PGs\n");
 
+	*mlxsw_sp_port->hdroom = hdroom;
 	return 0;
 
 err_port_prio_pg_map:
-	mlxsw_sp_port_pg_destroy(mlxsw_sp_port, ets->prio_tc, my_ets->prio_tc);
+	mlxsw_sp_hdroom_configure(mlxsw_sp_port, &orig_hdroom);
 	return err;
 }
 
@@ -632,8 +646,9 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 		hdroom.prios.prio[prio].lossy = !(pfc->pfc_en & BIT(prio));
 
 	mlxsw_sp_hdroom_bufs_reset_lossiness(&hdroom);
+	mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
 
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom);
+	err = mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom for PFC\n");
 		return err;
@@ -651,7 +666,7 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 	return 0;
 
 err_port_pfc_set:
-	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom);
+	mlxsw_sp_hdroom_configure(mlxsw_sp_port, &orig_hdroom);
 	return err;
 }
 
