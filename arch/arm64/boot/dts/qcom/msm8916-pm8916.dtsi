@@ -50,13 +50,13 @@
 	smd_rpm_regulators: pm8916-regulators {
 		compatible = "qcom,rpm-pm8916-regulators";
 
-		pm8916_s1: s1 {};
+		/* pm8916_s1 is managed by rpmpd (MSM8916_VDDCX) */
 		pm8916_s3: s3 {};
 		pm8916_s4: s4 {};
 
 		pm8916_l1: l1 {};
 		pm8916_l2: l2 {};
-		pm8916_l3: l3 {};
+		/* pm8916_l3 is managed by rpmpd (MSM8916_VDDMX) */
 		pm8916_l4: l4 {};
 		pm8916_l5: l5 {};
 		pm8916_l6: l6 {};
