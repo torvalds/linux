@@ -713,6 +713,7 @@ static int at24_probe(struct i2c_client *client)
 			return err;
 	}
 
+	nvmem_config.type = NVMEM_TYPE_EEPROM;
 	nvmem_config.name = dev_name(dev);
 	nvmem_config.dev = dev;
 	nvmem_config.read_only = !writable;
