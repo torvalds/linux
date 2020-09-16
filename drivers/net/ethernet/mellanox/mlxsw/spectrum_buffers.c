@@ -131,11 +131,6 @@ u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes)
 	return DIV_ROUND_UP(bytes, mlxsw_sp->sb->cell_size);
 }
 
-u32 mlxsw_sp_sb_max_headroom_cells(const struct mlxsw_sp *mlxsw_sp)
-{
-	return mlxsw_sp->sb->max_headroom_cells;
-}
-
 static struct mlxsw_sp_sb_pr *mlxsw_sp_sb_pr_get(struct mlxsw_sp *mlxsw_sp,
 						 u16 pool_index)
 {
@@ -488,14 +483,12 @@ static bool mlxsw_sp_hdroom_bufs_fit(struct mlxsw_sp *mlxsw_sp,
 				     const struct mlxsw_sp_hdroom *hdroom)
 {
 	u32 taken_headroom_cells = 0;
-	u32 max_headroom_cells;
 	int i;
 
 	for (i = 0; i < MLXSW_SP_PB_COUNT; i++)
 		taken_headroom_cells += hdroom->bufs.buf[i].size_cells;
 
-	max_headroom_cells = mlxsw_sp_sb_max_headroom_cells(mlxsw_sp);
-	return taken_headroom_cells <= max_headroom_cells;
+	return taken_headroom_cells <= mlxsw_sp->sb->max_headroom_cells;
 }
 
 static int __mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
