@@ -32,7 +32,7 @@ static const struct hns3_stats hns3_txq_stats[] = {
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", tx_pkts),
 	HNS3_TQP_STAT("bytes", tx_bytes),
-	HNS3_TQP_STAT("errors", tx_err_cnt),
+	HNS3_TQP_STAT("more", tx_more),
 	HNS3_TQP_STAT("wake", restart_queue),
 	HNS3_TQP_STAT("busy", tx_busy),
 	HNS3_TQP_STAT("copy", tx_copy),

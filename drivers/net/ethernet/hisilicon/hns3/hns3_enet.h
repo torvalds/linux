@@ -351,7 +351,7 @@ struct ring_stats {
 		struct {
 			u64 tx_pkts;
 			u64 tx_bytes;
-			u64 tx_err_cnt;
+			u64 tx_more;
 			u64 restart_queue;
 			u64 tx_busy;
 			u64 tx_copy;

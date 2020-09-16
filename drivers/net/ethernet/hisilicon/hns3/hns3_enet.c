@@ -1383,6 +1383,27 @@ static int hns3_fill_skb_to_desc(struct hns3_enet_ring *ring,
 	return bd_num;
 }
 
+static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
+			     bool doorbell)
+{
+	ring->pending_buf += num;
+
+	if (!doorbell) {
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.tx_more++;
+		u64_stats_update_end(&ring->syncp);
+		return;
+	}
+
+	if (!ring->pending_buf)
+		return;
+
+	wmb(); /* Commit all data before submit */
+
+	hnae3_queue_xmit(ring->tqp, ring->pending_buf);
+	ring->pending_buf = 0;
+}
+
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -1391,11 +1412,14 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	int pre_ntu, next_to_use_head;
 	struct sk_buff *frag_skb;
 	int bd_num = 0;
+	bool doorbell;
 	int ret;
 
 	/* Hardware can only handle short frames above 32 bytes */
-	if (skb_put_padto(skb, HNS3_MIN_TX_LEN))
+	if (skb_put_padto(skb, HNS3_MIN_TX_LEN)) {
+		hns3_tx_doorbell(ring, 0, !netdev_xmit_more());
 		return NETDEV_TX_OK;
+	}
 
 	/* Prefetch the data used later */
 	prefetch(skb->data);
@@ -1406,6 +1430,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 			u64_stats_update_begin(&ring->syncp);
 			ring->stats.tx_busy++;
 			u64_stats_update_end(&ring->syncp);
+			hns3_tx_doorbell(ring, 0, true);
 			return NETDEV_TX_BUSY;
 		} else if (ret == -ENOMEM) {
 			u64_stats_update_begin(&ring->syncp);
@@ -1446,11 +1471,9 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	/* Complete translate all packets */
 	dev_queue = netdev_get_tx_queue(netdev, ring->queue_index);
-	netdev_tx_sent_queue(dev_queue, skb->len);
-
-	wmb(); /* Commit all data before submit */
-
-	hnae3_queue_xmit(ring->tqp, bd_num);
+	doorbell = __netdev_tx_sent_queue(dev_queue, skb->len,
+					  netdev_xmit_more());
+	hns3_tx_doorbell(ring, bd_num, doorbell);
 
 	return NETDEV_TX_OK;
 
@@ -1459,6 +1482,7 @@ fill_err:
 
 out_err_tx_ok:
 	dev_kfree_skb_any(skb);
+	hns3_tx_doorbell(ring, 0, !netdev_xmit_more());
 	return NETDEV_TX_OK;
 }
 
@@ -1839,13 +1863,14 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 		    tx_ring->next_to_clean, napi->state);
 
 	netdev_info(ndev,
-		    "tx_pkts: %llu, tx_bytes: %llu, io_err_cnt: %llu, sw_err_cnt: %llu\n",
+		    "tx_pkts: %llu, tx_bytes: %llu, io_err_cnt: %llu, sw_err_cnt: %llu, tx_pending: %d\n",
 		    tx_ring->stats.tx_pkts, tx_ring->stats.tx_bytes,
-		    tx_ring->stats.io_err_cnt, tx_ring->stats.sw_err_cnt);
+		    tx_ring->stats.io_err_cnt, tx_ring->stats.sw_err_cnt,
+		    tx_ring->pending_buf);
 
 	netdev_info(ndev,
-		    "seg_pkt_cnt: %llu, tx_err_cnt: %llu, restart_queue: %llu, tx_busy: %llu\n",
-		    tx_ring->stats.seg_pkt_cnt, tx_ring->stats.tx_err_cnt,
+		    "seg_pkt_cnt: %llu, tx_more: %llu, restart_queue: %llu, tx_busy: %llu\n",
+		    tx_ring->stats.seg_pkt_cnt, tx_ring->stats.tx_more,
 		    tx_ring->stats.restart_queue, tx_ring->stats.tx_busy);
 
 	/* When mac received many pause frames continuous, it's unable to send
@@ -4181,6 +4206,8 @@ static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 		hns3_free_buffer_detach(ring, ring->next_to_clean);
 		ring_ptr_move_fw(ring, next_to_clean);
 	}
+
+	ring->pending_buf = 0;
 }
 
 static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
