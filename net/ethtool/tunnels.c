@@ -200,7 +200,7 @@ int ethnl_tunnel_info_doit(struct sk_buff *skb, struct genl_info *info)
 	reply_len = ret + ethnl_reply_header_size();
 
 	rskb = ethnl_reply_init(reply_len, req_info.dev,
-				ETHTOOL_MSG_TUNNEL_INFO_GET,
+				ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY,
 				ETHTOOL_A_TUNNEL_INFO_HEADER,
 				info, &reply_payload);
 	if (!rskb) {
@@ -273,7 +273,7 @@ int ethnl_tunnel_info_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 				goto cont;
 
 			ehdr = ethnl_dump_put(skb, cb,
-					      ETHTOOL_MSG_TUNNEL_INFO_GET);
+					      ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY);
 			if (!ehdr) {
 				ret = -EMSGSIZE;
 				goto out;
