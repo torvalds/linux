@@ -473,7 +473,7 @@ static ssize_t node_read_meminfo(struct device *dev,
 				    HPAGE_PMD_NR)
 #endif
 			    );
-	len += hugetlb_report_node_meminfo(nid, buf + len);
+	len += hugetlb_report_node_meminfo(buf, len, nid);
 	return len;
 }
 
