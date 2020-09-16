@@ -7066,8 +7066,6 @@ static int bpf_gen_ld_abs(const struct bpf_insn *orig,
 	bool indirect = BPF_MODE(orig->code) == BPF_IND;
 	struct bpf_insn *insn = insn_buf;
 
-	/* We're guaranteed here that CTX is in R6. */
-	*insn++ = BPF_MOV64_REG(BPF_REG_1, BPF_REG_CTX);
 	if (!indirect) {
 		*insn++ = BPF_MOV64_IMM(BPF_REG_2, orig->imm);
 	} else {
@@ -7075,6 +7073,8 @@ static int bpf_gen_ld_abs(const struct bpf_insn *orig,
 		if (orig->imm)
 			*insn++ = BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, orig->imm);
 	}
+	/* We're guaranteed here that CTX is in R6. */
+	*insn++ = BPF_MOV64_REG(BPF_REG_1, BPF_REG_CTX);
 
 	switch (BPF_SIZE(orig->code)) {
 	case BPF_B:
@@ -9523,7 +9523,7 @@ BPF_CALL_1(bpf_skc_to_tcp6_sock, struct sock *, sk)
 	 * trigger an explicit type generation here.
 	 */
 	BTF_TYPE_EMIT(struct tcp6_sock);
-	if (sk_fullsock(sk) && sk->sk_protocol == IPPROTO_TCP &&
+	if (sk && sk_fullsock(sk) && sk->sk_protocol == IPPROTO_TCP &&
 	    sk->sk_family == AF_INET6)
 		return (unsigned long)sk;
 
@@ -9541,7 +9541,7 @@ const struct bpf_func_proto bpf_skc_to_tcp6_sock_proto = {
 
 BPF_CALL_1(bpf_skc_to_tcp_sock, struct sock *, sk)
 {
-	if (sk_fullsock(sk) && sk->sk_protocol == IPPROTO_TCP)
+	if (sk && sk_fullsock(sk) && sk->sk_protocol == IPPROTO_TCP)
 		return (unsigned long)sk;
 
 	return (unsigned long)NULL;
@@ -9559,12 +9559,12 @@ const struct bpf_func_proto bpf_skc_to_tcp_sock_proto = {
 BPF_CALL_1(bpf_skc_to_tcp_timewait_sock, struct sock *, sk)
 {
 #ifdef CONFIG_INET
-	if (sk->sk_prot == &tcp_prot && sk->sk_state == TCP_TIME_WAIT)
+	if (sk && sk->sk_prot == &tcp_prot && sk->sk_state == TCP_TIME_WAIT)
 		return (unsigned long)sk;
 #endif
 
 #if IS_BUILTIN(CONFIG_IPV6)
-	if (sk->sk_prot == &tcpv6_prot && sk->sk_state == TCP_TIME_WAIT)
+	if (sk && sk->sk_prot == &tcpv6_prot && sk->sk_state == TCP_TIME_WAIT)
 		return (unsigned long)sk;
 #endif
 
@@ -9583,12 +9583,12 @@ const struct bpf_func_proto bpf_skc_to_tcp_timewait_sock_proto = {
 BPF_CALL_1(bpf_skc_to_tcp_request_sock, struct sock *, sk)
 {
 #ifdef CONFIG_INET
-	if (sk->sk_prot == &tcp_prot  && sk->sk_state == TCP_NEW_SYN_RECV)
+	if (sk && sk->sk_prot == &tcp_prot && sk->sk_state == TCP_NEW_SYN_RECV)
 		return (unsigned long)sk;
 #endif
 
 #if IS_BUILTIN(CONFIG_IPV6)
-	if (sk->sk_prot == &tcpv6_prot && sk->sk_state == TCP_NEW_SYN_RECV)
+	if (sk && sk->sk_prot == &tcpv6_prot && sk->sk_state == TCP_NEW_SYN_RECV)
 		return (unsigned long)sk;
 #endif
 
@@ -9610,7 +9610,7 @@ BPF_CALL_1(bpf_skc_to_udp6_sock, struct sock *, sk)
 	 * trigger an explicit type generation here.
 	 */
 	BTF_TYPE_EMIT(struct udp6_sock);
-	if (sk_fullsock(sk) && sk->sk_protocol == IPPROTO_UDP &&
+	if (sk && sk_fullsock(sk) && sk->sk_protocol == IPPROTO_UDP &&
 	    sk->sk_type == SOCK_DGRAM && sk->sk_family == AF_INET6)
 		return (unsigned long)sk;
 
