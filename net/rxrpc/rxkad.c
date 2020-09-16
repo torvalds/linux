@@ -15,6 +15,7 @@
 #include <linux/scatterlist.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
+#include <linux/key-type.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <keys/rxrpc-type.h>
@@ -45,6 +46,49 @@ struct rxkad_level2_hdr {
 static struct crypto_sync_skcipher *rxkad_ci;
 static struct skcipher_request *rxkad_ci_req;
 static DEFINE_MUTEX(rxkad_ci_mutex);
+
+/*
+ * Parse the information from a server key
+ *
+ * The data should be the 8-byte secret key.
+ */
+static int rxkad_preparse_server_key(struct key_preparsed_payload *prep)
+{
+	struct crypto_skcipher *ci;
+
+	if (prep->datalen != 8)
+		return -EINVAL;
+
+	memcpy(&prep->payload.data[2], prep->data, 8);
+
+	ci = crypto_alloc_skcipher("pcbc(des)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(ci)) {
+		_leave(" = %ld", PTR_ERR(ci));
+		return PTR_ERR(ci);
+	}
+
+	if (crypto_skcipher_setkey(ci, prep->data, 8) < 0)
+		BUG();
+
+	prep->payload.data[0] = ci;
+	_leave(" = 0");
+	return 0;
+}
+
+static void rxkad_free_preparse_server_key(struct key_preparsed_payload *prep)
+{
+	
+	if (prep->payload.data[0])
+		crypto_free_skcipher(prep->payload.data[0]);
+}
+
+static void rxkad_destroy_server_key(struct key *key)
+{
+	if (key->payload.data[0]) {
+		crypto_free_skcipher(key->payload.data[0]);
+		key->payload.data[0] = NULL;
+	}
+}
 
 /*
  * initialise connection security
@@ -1302,6 +1346,9 @@ const struct rxrpc_security rxkad = {
 	.no_key_abort			= RXKADUNKNOWNKEY,
 	.init				= rxkad_init,
 	.exit				= rxkad_exit,
+	.preparse_server_key		= rxkad_preparse_server_key,
+	.free_preparse_server_key	= rxkad_free_preparse_server_key,
+	.destroy_server_key		= rxkad_destroy_server_key,
 	.init_connection_security	= rxkad_init_connection_security,
 	.prime_packet_security		= rxkad_prime_packet_security,
 	.secure_packet			= rxkad_secure_packet,

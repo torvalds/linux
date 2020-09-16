@@ -35,6 +35,7 @@ struct rxrpc_crypt {
 #define rxrpc_queue_delayed_work(WS,D)	\
 	queue_delayed_work(rxrpc_workqueue, (WS), (D))
 
+struct key_preparsed_payload;
 struct rxrpc_connection;
 
 /*
@@ -216,6 +217,15 @@ struct rxrpc_security {
 
 	/* Clean up a security service */
 	void (*exit)(void);
+
+	/* Parse the information from a server key */
+	int (*preparse_server_key)(struct key_preparsed_payload *);
+
+	/* Clean up the preparse buffer after parsing a server key */
+	void (*free_preparse_server_key)(struct key_preparsed_payload *);
+
+	/* Destroy the payload of a server key */
+	void (*destroy_server_key)(struct key *);
 
 	/* initialise a connection's security */
 	int (*init_connection_security)(struct rxrpc_connection *,
@@ -1050,6 +1060,7 @@ extern const struct rxrpc_security rxkad;
  * security.c
  */
 int __init rxrpc_init_security(void);
+const struct rxrpc_security *rxrpc_security_lookup(u8);
 void rxrpc_exit_security(void);
 int rxrpc_init_client_conn_security(struct rxrpc_connection *);
 const struct rxrpc_security *rxrpc_get_incoming_security(struct rxrpc_sock *,

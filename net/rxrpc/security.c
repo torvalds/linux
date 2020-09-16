@@ -55,7 +55,7 @@ void rxrpc_exit_security(void)
 /*
  * look up an rxrpc security module
  */
-static const struct rxrpc_security *rxrpc_security_lookup(u8 security_index)
+const struct rxrpc_security *rxrpc_security_lookup(u8 security_index)
 {
 	if (security_index >= ARRAY_SIZE(rxrpc_security_types))
 		return NULL;

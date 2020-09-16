@@ -30,8 +30,8 @@ static void rxrpc_destroy_s(struct key *);
 static void rxrpc_describe_s(const struct key *, struct seq_file *);
 
 /*
- * rxrpc server defined keys take "<serviceId>:<securityIndex>" as the
- * description and an 8-byte decryption key as the payload
+ * rxrpc server keys take "<serviceId>:<securityIndex>[:<sec-specific>]" as the
+ * description and the key material as the payload.
  */
 struct key_type key_type_rxrpc_s = {
 	.name		= "rxrpc_s",
@@ -45,64 +45,62 @@ struct key_type key_type_rxrpc_s = {
 };
 
 /*
- * Vet the description for an RxRPC server key
+ * Vet the description for an RxRPC server key.
  */
 static int rxrpc_vet_description_s(const char *desc)
 {
-	unsigned long num;
+	unsigned long service, sec_class;
 	char *p;
 
-	num = simple_strtoul(desc, &p, 10);
-	if (*p != ':' || num > 65535)
+	service = simple_strtoul(desc, &p, 10);
+	if (*p != ':' || service > 65535)
 		return -EINVAL;
-	num = simple_strtoul(p + 1, &p, 10);
-	if (*p || num < 1 || num > 255)
+	sec_class = simple_strtoul(p + 1, &p, 10);
+	if ((*p && *p != ':') || sec_class < 1 || sec_class > 255)
 		return -EINVAL;
 	return 0;
 }
 
 /*
  * Preparse a server secret key.
- *
- * The data should be the 8-byte secret key.
  */
 static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 {
-	struct crypto_skcipher *ci;
+	const struct rxrpc_security *sec;
+	unsigned int service, sec_class;
+	int n;
 
 	_enter("%zu", prep->datalen);
 
-	if (prep->datalen != 8)
+	if (!prep->orig_description)
 		return -EINVAL;
 
-	memcpy(&prep->payload.data[2], prep->data, 8);
+	if (sscanf(prep->orig_description, "%u:%u%n", &service, &sec_class, &n) != 2)
+		return -EINVAL;
 
-	ci = crypto_alloc_skcipher("pcbc(des)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(ci)) {
-		_leave(" = %ld", PTR_ERR(ci));
-		return PTR_ERR(ci);
-	}
+	sec = rxrpc_security_lookup(sec_class);
+	if (!sec)
+		return -ENOPKG;
 
-	if (crypto_skcipher_setkey(ci, prep->data, 8) < 0)
-		BUG();
+	prep->payload.data[1] = (struct rxrpc_security *)sec;
 
-	prep->payload.data[0] = ci;
-	_leave(" = 0");
-	return 0;
+	return sec->preparse_server_key(prep);
 }
 
 static void rxrpc_free_preparse_s(struct key_preparsed_payload *prep)
 {
-	if (prep->payload.data[0])
-		crypto_free_skcipher(prep->payload.data[0]);
+	const struct rxrpc_security *sec = prep->payload.data[1];
+
+	if (sec)
+		sec->free_preparse_server_key(prep);
 }
 
 static void rxrpc_destroy_s(struct key *key)
 {
-	if (key->payload.data[0]) {
-		crypto_free_skcipher(key->payload.data[0]);
-		key->payload.data[0] = NULL;
-	}
+	const struct rxrpc_security *sec = key->payload.data[1];
+
+	if (sec)
+		sec->destroy_server_key(key);
 }
 
 static void rxrpc_describe_s(const struct key *key, struct seq_file *m)
