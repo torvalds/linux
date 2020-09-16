@@ -37,8 +37,8 @@
 
 #define DRV_NAME "hns_roce"
 
-/* hip08 is a pci device */
 #define PCI_REVISION_ID_HIP08			0x21
+#define PCI_REVISION_ID_HIP09			0x30
 
 #define HNS_ROCE_HW_VER1	('h' << 24 | 'i' << 16 | '0' << 8 | '6')
 
@@ -76,8 +76,10 @@
 #define HNS_ROCE_CEQ				0
 #define HNS_ROCE_AEQ				1
 
-#define HNS_ROCE_CEQ_ENTRY_SIZE			0x4
-#define HNS_ROCE_AEQ_ENTRY_SIZE			0x10
+#define HNS_ROCE_CEQE_SIZE 0x4
+#define HNS_ROCE_AEQE_SIZE 0x10
+
+#define HNS_ROCE_V3_EQE_SIZE 0x40
 
 #define HNS_ROCE_SL_SHIFT			28
 #define HNS_ROCE_TCLASS_SHIFT			20
@@ -679,7 +681,8 @@ enum {
 };
 
 struct hns_roce_ceqe {
-	__le32			comp;
+	__le32	comp;
+	__le32	rsv[15];
 };
 
 struct hns_roce_aeqe {
@@ -716,6 +719,7 @@ struct hns_roce_aeqe {
 			u8	rsv0;
 		} __packed cmd;
 	 } event;
+	__le32 rsv[12];
 };
 
 struct hns_roce_eq {
@@ -810,6 +814,8 @@ struct hns_roce_caps {
 	u32		pbl_hop_num;
 	int		aeqe_depth;
 	int		ceqe_depth;
+	u32		aeqe_size;
+	u32		ceqe_size;
 	enum ib_mtu	max_mtu;
 	u32		qpc_bt_num;
 	u32		qpc_timer_bt_num;

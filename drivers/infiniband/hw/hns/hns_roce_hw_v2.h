@@ -1777,8 +1777,8 @@ struct hns_roce_eq_context {
 	__le32	byte_28;
 	__le32	byte_32;
 	__le32	byte_36;
-	__le32	nxt_eqe_ba0;
-	__le32	nxt_eqe_ba1;
+	__le32	byte_40;
+	__le32	byte_44;
 	__le32	rsv[5];
 };
 
@@ -1919,6 +1919,9 @@ struct hns_roce_eq_context {
 /* WORD10 */
 #define HNS_ROCE_EQC_NXT_EQE_BA_H_S 0
 #define HNS_ROCE_EQC_NXT_EQE_BA_H_M GENMASK(19, 0)
+
+#define HNS_ROCE_EQC_EQE_SIZE_S 20
+#define HNS_ROCE_EQC_EQE_SIZE_M GENMASK(21, 20)
 
 #define HNS_ROCE_V2_CEQE_COMP_CQN_S 0
 #define HNS_ROCE_V2_CEQE_COMP_CQN_M GENMASK(23, 0)

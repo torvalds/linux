@@ -3775,8 +3775,7 @@ static void hns_roce_v1_db_overflow_handle(struct hns_roce_dev *hr_dev,
 
 static struct hns_roce_aeqe *get_aeqe_v1(struct hns_roce_eq *eq, u32 entry)
 {
-	unsigned long off = (entry & (eq->entries - 1)) *
-			     HNS_ROCE_AEQ_ENTRY_SIZE;
+	unsigned long off = (entry & (eq->entries - 1)) * HNS_ROCE_AEQE_SIZE;
 
 	return (struct hns_roce_aeqe *)((u8 *)
 		(eq->buf_list[off / HNS_ROCE_BA_SIZE].buf) +
@@ -3881,8 +3880,7 @@ static int hns_roce_v1_aeq_int(struct hns_roce_dev *hr_dev,
 
 static struct hns_roce_ceqe *get_ceqe_v1(struct hns_roce_eq *eq, u32 entry)
 {
-	unsigned long off = (entry & (eq->entries - 1)) *
-			     HNS_ROCE_CEQ_ENTRY_SIZE;
+	unsigned long off = (entry & (eq->entries - 1)) * HNS_ROCE_CEQE_SIZE;
 
 	return (struct hns_roce_ceqe *)((u8 *)
 			(eq->buf_list[off / HNS_ROCE_BA_SIZE].buf) +
@@ -4253,7 +4251,7 @@ static int hns_roce_v1_init_eq_table(struct hns_roce_dev *hr_dev)
 				       CEQ_REG_OFFSET * i;
 			eq->entries = hr_dev->caps.ceqe_depth;
 			eq->log_entries = ilog2(eq->entries);
-			eq->eqe_size = HNS_ROCE_CEQ_ENTRY_SIZE;
+			eq->eqe_size = HNS_ROCE_CEQE_SIZE;
 		} else {
 			/* AEQ */
 			eq_table->eqc_base[i] = hr_dev->reg_base +
@@ -4263,7 +4261,7 @@ static int hns_roce_v1_init_eq_table(struct hns_roce_dev *hr_dev)
 				       ROCEE_CAEP_AEQE_CONS_IDX_REG;
 			eq->entries = hr_dev->caps.aeqe_depth;
 			eq->log_entries = ilog2(eq->entries);
-			eq->eqe_size = HNS_ROCE_AEQ_ENTRY_SIZE;
+			eq->eqe_size = HNS_ROCE_AEQE_SIZE;
 		}
 	}
 

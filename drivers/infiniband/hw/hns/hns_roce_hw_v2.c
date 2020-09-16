@@ -1739,6 +1739,8 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->gid_table_len[0]	= HNS_ROCE_V2_GID_INDEX_NUM;
 	caps->ceqe_depth	= HNS_ROCE_V2_COMP_EQE_NUM;
 	caps->aeqe_depth	= HNS_ROCE_V2_ASYNC_EQE_NUM;
+	caps->aeqe_size		= HNS_ROCE_AEQE_SIZE;
+	caps->ceqe_size		= HNS_ROCE_CEQE_SIZE;
 	caps->local_ca_ack_delay = 0;
 	caps->max_mtu = IB_MTU_4096;
 
@@ -1764,6 +1766,11 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->sccc_ba_pg_sz	  = 0;
 	caps->sccc_buf_pg_sz	  = 0;
 	caps->sccc_hop_num	  = HNS_ROCE_SCCC_HOP_NUM;
+
+	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
+		caps->aeqe_size = HNS_ROCE_V3_EQE_SIZE;
+		caps->ceqe_size = HNS_ROCE_V3_EQE_SIZE;
+	}
 }
 
 static void calc_pg_sz(int obj_num, int obj_size, int hop_num, int ctx_bt_num,
@@ -1958,6 +1965,8 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->cqc_timer_entry_sz = HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ;
 	caps->mtt_entry_sz = HNS_ROCE_V2_MTT_ENTRY_SZ;
 	caps->num_mtt_segs = HNS_ROCE_V2_MAX_MTT_SEGS;
+	caps->ceqe_size = HNS_ROCE_CEQE_SIZE;
+	caps->aeqe_size = HNS_ROCE_AEQE_SIZE;
 	caps->mtt_ba_pg_sz = 0;
 	caps->num_cqe_segs = HNS_ROCE_V2_MAX_CQE_SEGS;
 	caps->num_srqwqe_segs = HNS_ROCE_V2_MAX_SRQWQE_SEGS;
@@ -1980,6 +1989,11 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->wqe_rq_hop_num = roce_get_field(resp_d->wq_hop_num_max_srqs,
 					  V2_QUERY_PF_CAPS_D_RQWQE_HOP_NUM_M,
 					  V2_QUERY_PF_CAPS_D_RQWQE_HOP_NUM_S);
+
+	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
+		caps->ceqe_size = HNS_ROCE_V3_EQE_SIZE;
+		caps->aeqe_size = HNS_ROCE_V3_EQE_SIZE;
+	}
 
 	calc_pg_sz(caps->num_qps, caps->qpc_entry_sz, caps->qpc_hop_num,
 		   caps->qpc_bt_num, &caps->qpc_buf_pg_sz, &caps->qpc_ba_pg_sz,
@@ -5242,7 +5256,7 @@ static struct hns_roce_aeqe *next_aeqe_sw_v2(struct hns_roce_eq *eq)
 
 	aeqe = hns_roce_buf_offset(eq->mtr.kmem,
 				   (eq->cons_index & (eq->entries - 1)) *
-				   HNS_ROCE_AEQ_ENTRY_SIZE);
+				   eq->eqe_size);
 
 	return (roce_get_bit(aeqe->asyn, HNS_ROCE_V2_AEQ_AEQE_OWNER_S) ^
 		!!(eq->cons_index & eq->entries)) ? aeqe : NULL;
@@ -5342,7 +5356,8 @@ static struct hns_roce_ceqe *next_ceqe_sw_v2(struct hns_roce_eq *eq)
 
 	ceqe = hns_roce_buf_offset(eq->mtr.kmem,
 				   (eq->cons_index & (eq->entries - 1)) *
-				   HNS_ROCE_CEQ_ENTRY_SIZE);
+				   eq->eqe_size);
+
 	return (!!(roce_get_bit(ceqe->comp, HNS_ROCE_V2_CEQ_CEQE_OWNER_S))) ^
 		(!!(eq->cons_index & eq->entries)) ? ceqe : NULL;
 }
@@ -5618,13 +5633,15 @@ static int config_eqc(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq,
 	roce_set_field(eqc->byte_36, HNS_ROCE_EQC_CONS_INDX_M,
 		       HNS_ROCE_EQC_CONS_INDX_S, HNS_ROCE_EQ_INIT_CONS_IDX);
 
-	/* set nex_eqe_ba[43:12] */
-	roce_set_field(eqc->nxt_eqe_ba0, HNS_ROCE_EQC_NXT_EQE_BA_L_M,
+	roce_set_field(eqc->byte_40, HNS_ROCE_EQC_NXT_EQE_BA_L_M,
 		       HNS_ROCE_EQC_NXT_EQE_BA_L_S, eqe_ba[1] >> 12);
 
-	/* set nex_eqe_ba[63:44] */
-	roce_set_field(eqc->nxt_eqe_ba1, HNS_ROCE_EQC_NXT_EQE_BA_H_M,
+	roce_set_field(eqc->byte_44, HNS_ROCE_EQC_NXT_EQE_BA_H_M,
 		       HNS_ROCE_EQC_NXT_EQE_BA_H_S, eqe_ba[1] >> 44);
+
+	roce_set_field(eqc->byte_44, HNS_ROCE_EQC_EQE_SIZE_M,
+		       HNS_ROCE_EQC_EQE_SIZE_S,
+		       eq->eqe_size == HNS_ROCE_V3_EQE_SIZE ? 1 : 0);
 
 	return 0;
 }
@@ -5816,7 +5833,7 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 			eq_cmd = HNS_ROCE_CMD_CREATE_CEQC;
 			eq->type_flag = HNS_ROCE_CEQ;
 			eq->entries = hr_dev->caps.ceqe_depth;
-			eq->eqe_size = HNS_ROCE_CEQ_ENTRY_SIZE;
+			eq->eqe_size = hr_dev->caps.ceqe_size;
 			eq->irq = hr_dev->irq[i + other_num + aeq_num];
 			eq->eq_max_cnt = HNS_ROCE_CEQ_DEFAULT_BURST_NUM;
 			eq->eq_period = HNS_ROCE_CEQ_DEFAULT_INTERVAL;
@@ -5825,7 +5842,7 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 			eq_cmd = HNS_ROCE_CMD_CREATE_AEQC;
 			eq->type_flag = HNS_ROCE_AEQ;
 			eq->entries = hr_dev->caps.aeqe_depth;
-			eq->eqe_size = HNS_ROCE_AEQ_ENTRY_SIZE;
+			eq->eqe_size = hr_dev->caps.aeqe_size;
 			eq->irq = hr_dev->irq[i - comp_num + other_num];
 			eq->eq_max_cnt = HNS_ROCE_AEQ_DEFAULT_BURST_NUM;
 			eq->eq_period = HNS_ROCE_AEQ_DEFAULT_INTERVAL;
