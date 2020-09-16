@@ -62,8 +62,6 @@ enum ipmi_panic_event_op {
 #define IPMI_PANIC_DEFAULT IPMI_SEND_PANIC_EVENT_NONE
 #endif
 
-#define GET_DEVICE_ID_MAX_RETRY	5
-
 static enum ipmi_panic_event_op ipmi_send_panic_event = IPMI_PANIC_DEFAULT;
 
 static int panic_op_write_handler(const char *val,
