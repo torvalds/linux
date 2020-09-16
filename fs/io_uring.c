@@ -80,6 +80,7 @@
 #include <linux/task_work.h>
 #include <linux/pagemap.h>
 #include <linux/io_uring.h>
+#include <linux/blk-cgroup.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -299,6 +300,10 @@ struct io_ring_ctx {
 
 	/* Only used for accounting purposes */
 	struct mm_struct	*mm_account;
+
+#ifdef CONFIG_BLK_CGROUP
+	struct cgroup_subsys_state	*sqo_blkcg_css;
+#endif
 
 	struct io_sq_data	*sq_data;	/* if using sq thread polling */
 
@@ -748,6 +753,8 @@ struct io_op_def {
 	unsigned		needs_fsize : 1;
 	/* must always have async data allocated */
 	unsigned		needs_async_data : 1;
+	/* needs blkcg context, issues async io potentially */
+	unsigned		needs_blkcg : 1;
 	/* size of async data needed, if any */
 	unsigned short		async_size;
 };
@@ -761,6 +768,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
+		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITEV] = {
@@ -771,15 +779,18 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.pollout		= 1,
 		.needs_fsize		= 1,
 		.needs_async_data	= 1,
+		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_READ_FIXED] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
+		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITE_FIXED] = {
@@ -788,6 +799,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
+		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_POLL_ADD] = {
@@ -797,6 +809,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 	[IORING_OP_POLL_REMOVE] = {},
 	[IORING_OP_SYNC_FILE_RANGE] = {
 		.needs_file		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_SENDMSG] = {
 		.needs_mm		= 1,
@@ -805,6 +818,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.needs_fs		= 1,
 		.pollout		= 1,
 		.needs_async_data	= 1,
+		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
 	},
 	[IORING_OP_RECVMSG] = {
@@ -815,6 +829,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
+		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
 	},
 	[IORING_OP_TIMEOUT] = {
@@ -847,15 +862,18 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
 		.needs_fsize		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_OPENAT] = {
 		.file_table		= 1,
 		.needs_fs		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_CLOSE] = {
 		.needs_file		= 1,
 		.needs_file_no_error	= 1,
 		.file_table		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_FILES_UPDATE] = {
 		.needs_mm		= 1,
@@ -865,6 +883,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.needs_mm		= 1,
 		.needs_fs		= 1,
 		.file_table		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_READ] = {
 		.needs_mm		= 1,
@@ -872,6 +891,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
+		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITE] = {
@@ -880,19 +900,23 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
+		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_MADVISE] = {
 		.needs_mm		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_SEND] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_RECV] = {
 		.needs_mm		= 1,
@@ -900,10 +924,12 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_OPENAT2] = {
 		.file_table		= 1,
 		.needs_fs		= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_EPOLL_CTL] = {
 		.unbound_nonreg_file	= 1,
@@ -913,6 +939,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
+		.needs_blkcg		= 1,
 	},
 	[IORING_OP_PROVIDE_BUFFERS] = {},
 	[IORING_OP_REMOVE_BUFFERS] = {},
@@ -1009,6 +1036,26 @@ static int io_sq_thread_acquire_mm(struct io_ring_ctx *ctx,
 	if (!io_op_defs[req->opcode].needs_mm)
 		return 0;
 	return __io_sq_thread_acquire_mm(ctx);
+}
+
+static void io_sq_thread_associate_blkcg(struct io_ring_ctx *ctx,
+					 struct cgroup_subsys_state **cur_css)
+
+{
+#ifdef CONFIG_BLK_CGROUP
+	/* puts the old one when swapping */
+	if (*cur_css != ctx->sqo_blkcg_css) {
+		kthread_associate_blkcg(ctx->sqo_blkcg_css);
+		*cur_css = ctx->sqo_blkcg_css;
+	}
+#endif
+}
+
+static void io_sq_thread_unassociate_blkcg(void)
+{
+#ifdef CONFIG_BLK_CGROUP
+	kthread_associate_blkcg(NULL);
+#endif
 }
 
 static inline void req_set_fail_links(struct io_kiocb *req)
@@ -1148,6 +1195,10 @@ static bool io_req_clean_work(struct io_kiocb *req)
 		mmdrop(req->work.mm);
 		req->work.mm = NULL;
 	}
+#ifdef CONFIG_BLK_CGROUP
+	if (req->work.blkcg_css)
+		css_put(req->work.blkcg_css);
+#endif
 	if (req->work.creds) {
 		put_cred(req->work.creds);
 		req->work.creds = NULL;
@@ -1187,6 +1238,19 @@ static void io_prep_async_work(struct io_kiocb *req)
 		mmgrab(current->mm);
 		req->work.mm = current->mm;
 	}
+#ifdef CONFIG_BLK_CGROUP
+	if (!req->work.blkcg_css && def->needs_blkcg) {
+		rcu_read_lock();
+		req->work.blkcg_css = blkcg_css();
+		/*
+		 * This should be rare, either the cgroup is dying or the task
+		 * is moving cgroups. Just punt to root for the handful of ios.
+		 */
+		if (!css_tryget_online(req->work.blkcg_css))
+			req->work.blkcg_css = NULL;
+		rcu_read_unlock();
+	}
+#endif
 	if (!req->work.creds)
 		req->work.creds = get_current_cred();
 	if (!req->work.fs && def->needs_fs) {
@@ -6789,6 +6853,7 @@ static void io_sqd_init_new(struct io_sq_data *sqd)
 
 static int io_sq_thread(void *data)
 {
+	struct cgroup_subsys_state *cur_css = NULL;
 	const struct cred *old_cred = NULL;
 	struct io_sq_data *sqd = data;
 	struct io_ring_ctx *ctx;
@@ -6818,6 +6883,7 @@ static int io_sq_thread(void *data)
 					revert_creds(old_cred);
 				old_cred = override_creds(ctx->creds);
 			}
+			io_sq_thread_associate_blkcg(ctx, &cur_css);
 
 			ret |= __io_sq_thread(ctx, start_jiffies, cap_entries);
 
@@ -6841,6 +6907,8 @@ static int io_sq_thread(void *data)
 
 	io_run_task_work();
 
+	if (cur_css)
+		io_sq_thread_unassociate_blkcg();
 	if (old_cred)
 		revert_creds(old_cred);
 
@@ -8304,6 +8372,11 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		ctx->mm_account = NULL;
 	}
 
+#ifdef CONFIG_BLK_CGROUP
+	if (ctx->sqo_blkcg_css)
+		css_put(ctx->sqo_blkcg_css);
+#endif
+
 	io_sqe_files_unregister(ctx);
 	io_eventfd_unregister(ctx);
 	io_destroy_buffers(ctx);
@@ -9287,6 +9360,25 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	 */
 	mmgrab(current->mm);
 	ctx->mm_account = current->mm;
+
+#ifdef CONFIG_BLK_CGROUP
+	/*
+	 * The sq thread will belong to the original cgroup it was inited in.
+	 * If the cgroup goes offline (e.g. disabling the io controller), then
+	 * issued bios will be associated with the closest cgroup later in the
+	 * block layer.
+	 */
+	rcu_read_lock();
+	ctx->sqo_blkcg_css = blkcg_css();
+	ret = css_tryget_online(ctx->sqo_blkcg_css);
+	rcu_read_unlock();
+	if (!ret) {
+		/* don't init against a dying cgroup, have the user try again */
+		ctx->sqo_blkcg_css = NULL;
+		ret = -ENODEV;
+		goto err;
+	}
+#endif
 
 	/*
 	 * Account memory _before_ installing the file descriptor. Once
