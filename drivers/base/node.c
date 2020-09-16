@@ -165,12 +165,12 @@ static ssize_t name##_show(struct device *dev,				\
 	return sysfs_emit(buf, "%u\n",					\
 			  to_access_nodes(dev)->hmem_attrs.name);	\
 }									\
-static DEVICE_ATTR_RO(name);
+static DEVICE_ATTR_RO(name)
 
-ACCESS_ATTR(read_bandwidth)
-ACCESS_ATTR(read_latency)
-ACCESS_ATTR(write_bandwidth)
-ACCESS_ATTR(write_latency)
+ACCESS_ATTR(read_bandwidth);
+ACCESS_ATTR(read_latency);
+ACCESS_ATTR(write_bandwidth);
+ACCESS_ATTR(write_latency);
 
 static struct attribute *access_attrs[] = {
 	&dev_attr_read_bandwidth.attr,
