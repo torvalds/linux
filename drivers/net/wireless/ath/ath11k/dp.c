@@ -832,7 +832,7 @@ void ath11k_dp_pdev_free(struct ath11k_base *ab)
 	for (i = 0; i < ab->num_radios; i++) {
 		ar = ab->pdevs[i].ar;
 		ath11k_dp_rx_pdev_free(ab, i);
-		ath11k_debug_unregister(ar);
+		ath11k_debugfs_unregister(ar);
 		ath11k_dp_rx_pdev_mon_detach(ar);
 	}
 }

@@ -80,7 +80,7 @@ static void ath11k_fw_stats_bcn_free(struct list_head *head)
 	}
 }
 
-static void ath11k_debug_fw_stats_reset(struct ath11k *ar)
+static void ath11k_debugfs_fw_stats_reset(struct ath11k *ar)
 {
 	spin_lock_bh(&ar->data_lock);
 	ar->debug.fw_stats_done = false;
@@ -89,7 +89,7 @@ static void ath11k_debug_fw_stats_reset(struct ath11k *ar)
 	spin_unlock_bh(&ar->data_lock);
 }
 
-void ath11k_debug_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb)
+void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct ath11k_fw_stats stats = {};
 	struct ath11k *ar;
@@ -181,8 +181,8 @@ free:
 	ath11k_fw_stats_bcn_free(&stats.bcn);
 }
 
-static int ath11k_debug_fw_stats_request(struct ath11k *ar,
-					 struct stats_request_params *req_param)
+static int ath11k_debugfs_fw_stats_request(struct ath11k *ar,
+					   struct stats_request_params *req_param)
 {
 	struct ath11k_base *ab = ar->ab;
 	unsigned long timeout, time_left;
@@ -197,7 +197,7 @@ static int ath11k_debug_fw_stats_request(struct ath11k *ar,
 	 */
 	timeout = jiffies + msecs_to_jiffies(3 * HZ);
 
-	ath11k_debug_fw_stats_reset(ar);
+	ath11k_debugfs_fw_stats_reset(ar);
 
 	reinit_completion(&ar->debug.fw_stats_complete);
 
@@ -254,7 +254,7 @@ static int ath11k_open_pdev_stats(struct inode *inode, struct file *file)
 	req_param.vdev_id = 0;
 	req_param.stats_id = WMI_REQUEST_PDEV_STAT;
 
-	ret = ath11k_debug_fw_stats_request(ar, &req_param);
+	ret = ath11k_debugfs_fw_stats_request(ar, &req_param);
 	if (ret) {
 		ath11k_warn(ab, "failed to request fw pdev stats: %d\n", ret);
 		goto err_free;
@@ -326,7 +326,7 @@ static int ath11k_open_vdev_stats(struct inode *inode, struct file *file)
 	req_param.vdev_id = 0;
 	req_param.stats_id = WMI_REQUEST_VDEV_STAT;
 
-	ret = ath11k_debug_fw_stats_request(ar, &req_param);
+	ret = ath11k_debugfs_fw_stats_request(ar, &req_param);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to request fw vdev stats: %d\n", ret);
 		goto err_free;
@@ -403,7 +403,7 @@ static int ath11k_open_bcn_stats(struct inode *inode, struct file *file)
 			continue;
 
 		req_param.vdev_id = arvif->vdev_id;
-		ret = ath11k_debug_fw_stats_request(ar, &req_param);
+		ret = ath11k_debugfs_fw_stats_request(ar, &req_param);
 		if (ret) {
 			ath11k_warn(ar->ab, "failed to request fw bcn stats: %d\n", ret);
 			goto err_free;
@@ -705,8 +705,8 @@ static int ath11k_fill_bp_stats(struct ath11k_base *ab,
 	return len;
 }
 
-static ssize_t ath11k_debug_dump_soc_ring_bp_stats(struct ath11k_base *ab,
-						   char *buf, int size)
+static ssize_t ath11k_debugfs_dump_soc_ring_bp_stats(struct ath11k_base *ab,
+						     char *buf, int size)
 {
 	struct ath11k_bp_stats *bp_stats;
 	bool stats_rxd = false;
@@ -754,9 +754,9 @@ static ssize_t ath11k_debug_dump_soc_ring_bp_stats(struct ath11k_base *ab,
 	return len;
 }
 
-static ssize_t ath11k_debug_dump_soc_dp_stats(struct file *file,
-					      char __user *user_buf,
-					      size_t count, loff_t *ppos)
+static ssize_t ath11k_debugfs_dump_soc_dp_stats(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos)
 {
 	struct ath11k_base *ab = file->private_data;
 	struct ath11k_soc_dp_stats *soc_stats = &ab->soc_stats;
@@ -814,7 +814,7 @@ static ssize_t ath11k_debug_dump_soc_dp_stats(struct file *file,
 			 "\nMisc Transmit Failures: %d\n",
 			 atomic_read(&soc_stats->tx_err.misc_fail));
 
-	len += ath11k_debug_dump_soc_ring_bp_stats(ab, buf + len, size - len);
+	len += ath11k_debugfs_dump_soc_ring_bp_stats(ab, buf + len, size - len);
 
 	if (len > size)
 		len = size;
@@ -825,13 +825,13 @@ static ssize_t ath11k_debug_dump_soc_dp_stats(struct file *file,
 }
 
 static const struct file_operations fops_soc_dp_stats = {
-	.read = ath11k_debug_dump_soc_dp_stats,
+	.read = ath11k_debugfs_dump_soc_dp_stats,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
 
-int ath11k_debug_pdev_create(struct ath11k_base *ab)
+int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
 {
 	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
 		return 0;
@@ -853,13 +853,13 @@ int ath11k_debug_pdev_create(struct ath11k_base *ab)
 	return 0;
 }
 
-void ath11k_debug_pdev_destroy(struct ath11k_base *ab)
+void ath11k_debugfs_pdev_destroy(struct ath11k_base *ab)
 {
 	debugfs_remove_recursive(ab->debugfs_ath11k);
 	ab->debugfs_ath11k = NULL;
 }
 
-int ath11k_debug_soc_create(struct ath11k_base *ab)
+int ath11k_debugfs_soc_create(struct ath11k_base *ab)
 {
 	ab->debugfs_ath11k = debugfs_create_dir("ath11k", NULL);
 
@@ -872,13 +872,13 @@ int ath11k_debug_soc_create(struct ath11k_base *ab)
 	return 0;
 }
 
-void ath11k_debug_soc_destroy(struct ath11k_base *ab)
+void ath11k_debugfs_soc_destroy(struct ath11k_base *ab)
 {
 	debugfs_remove_recursive(ab->debugfs_soc);
 	ab->debugfs_soc = NULL;
 }
 
-void ath11k_debug_fw_stats_init(struct ath11k *ar)
+void ath11k_debugfs_fw_stats_init(struct ath11k *ar)
 {
 	struct dentry *fwstats_dir = debugfs_create_dir("fw_stats",
 							ar->debug.debugfs_pdev);
@@ -1060,7 +1060,7 @@ static const struct file_operations fops_simulate_radar = {
 	.open = simple_open
 };
 
-int ath11k_debug_register(struct ath11k *ar)
+int ath11k_debugfs_register(struct ath11k *ar)
 {
 	struct ath11k_base *ab = ar->ab;
 	char pdev_name[5];
@@ -1083,7 +1083,7 @@ int ath11k_debug_register(struct ath11k *ar)
 
 	ath11k_debug_htt_stats_init(ar);
 
-	ath11k_debug_fw_stats_init(ar);
+	ath11k_debugfs_fw_stats_init(ar);
 
 	debugfs_create_file("ext_tx_stats", 0644,
 			    ar->debug.debugfs_pdev, ar,
@@ -1107,6 +1107,6 @@ int ath11k_debug_register(struct ath11k *ar)
 	return 0;
 }
 
-void ath11k_debug_unregister(struct ath11k *ar)
+void ath11k_debugfs_unregister(struct ath11k *ar)
 {
 }

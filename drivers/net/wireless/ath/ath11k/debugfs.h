@@ -104,46 +104,46 @@ enum ath11k_dbg_aggr_mode {
 };
 
 #ifdef CONFIG_ATH11K_DEBUGFS
-int ath11k_debug_soc_create(struct ath11k_base *ab);
-void ath11k_debug_soc_destroy(struct ath11k_base *ab);
-int ath11k_debug_pdev_create(struct ath11k_base *ab);
-void ath11k_debug_pdev_destroy(struct ath11k_base *ab);
-int ath11k_debug_register(struct ath11k *ar);
-void ath11k_debug_unregister(struct ath11k *ar);
+int ath11k_debugfs_soc_create(struct ath11k_base *ab);
+void ath11k_debugfs_soc_destroy(struct ath11k_base *ab);
+int ath11k_debugfs_pdev_create(struct ath11k_base *ab);
+void ath11k_debugfs_pdev_destroy(struct ath11k_base *ab);
+int ath11k_debugfs_register(struct ath11k *ar);
+void ath11k_debugfs_unregister(struct ath11k *ar);
 void ath11k_dbg_htt_ext_stats_handler(struct ath11k_base *ab,
 				      struct sk_buff *skb);
-void ath11k_debug_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb);
+void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb);
 
-void ath11k_debug_fw_stats_init(struct ath11k *ar);
+void ath11k_debugfs_fw_stats_init(struct ath11k *ar);
 int ath11k_dbg_htt_stats_req(struct ath11k *ar);
 
-static inline bool ath11k_debug_is_pktlog_lite_mode_enabled(struct ath11k *ar)
+static inline bool ath11k_debugfs_is_pktlog_lite_mode_enabled(struct ath11k *ar)
 {
 	return (ar->debug.pktlog_mode == ATH11K_PKTLOG_MODE_LITE);
 }
 
-static inline bool ath11k_debug_is_pktlog_rx_stats_enabled(struct ath11k *ar)
+static inline bool ath11k_debugfs_is_pktlog_rx_stats_enabled(struct ath11k *ar)
 {
 	return (!ar->debug.pktlog_peer_valid && ar->debug.pktlog_mode);
 }
 
-static inline bool ath11k_debug_is_pktlog_peer_valid(struct ath11k *ar, u8 *addr)
+static inline bool ath11k_debugfs_is_pktlog_peer_valid(struct ath11k *ar, u8 *addr)
 {
 	return (ar->debug.pktlog_peer_valid && ar->debug.pktlog_mode &&
 		ether_addr_equal(addr, ar->debug.pktlog_peer_addr));
 }
 
-static inline int ath11k_debug_is_extd_tx_stats_enabled(struct ath11k *ar)
+static inline int ath11k_debugfs_is_extd_tx_stats_enabled(struct ath11k *ar)
 {
 	return ar->debug.extd_tx_stats;
 }
 
-static inline int ath11k_debug_is_extd_rx_stats_enabled(struct ath11k *ar)
+static inline int ath11k_debugfs_is_extd_rx_stats_enabled(struct ath11k *ar)
 {
 	return ar->debug.extd_rx_stats;
 }
 
-static inline int ath11k_debug_rx_filter(struct ath11k *ar)
+static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
 {
 	return ar->debug.rx_filter;
 }
@@ -158,30 +158,30 @@ void ath11k_update_per_peer_stats_from_txcompl(struct ath11k *ar,
 					       struct sk_buff *msdu,
 					       struct hal_tx_status *ts);
 #else
-static inline int ath11k_debug_soc_create(struct ath11k_base *ab)
+static inline int ath11k_debugfs_soc_create(struct ath11k_base *ab)
 {
 	return 0;
 }
 
-static inline void ath11k_debug_soc_destroy(struct ath11k_base *ab)
+static inline void ath11k_debugfs_soc_destroy(struct ath11k_base *ab)
 {
 }
 
-static inline int ath11k_debug_pdev_create(struct ath11k_base *ab)
-{
-	return 0;
-}
-
-static inline void ath11k_debug_pdev_destroy(struct ath11k_base *ab)
-{
-}
-
-static inline int ath11k_debug_register(struct ath11k *ar)
+static inline int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
 {
 	return 0;
 }
 
-static inline void ath11k_debug_unregister(struct ath11k *ar)
+static inline void ath11k_debugfs_pdev_destroy(struct ath11k_base *ab)
+{
+}
+
+static inline int ath11k_debugfs_register(struct ath11k *ar)
+{
+	return 0;
+}
+
+static inline void ath11k_debugfs_unregister(struct ath11k *ar)
 {
 }
 
@@ -190,21 +190,21 @@ static inline void ath11k_dbg_htt_ext_stats_handler(struct ath11k_base *ab,
 {
 }
 
-static inline void ath11k_debug_fw_stats_process(struct ath11k_base *ab,
-						 struct sk_buff *skb)
+static inline void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab,
+						   struct sk_buff *skb)
 {
 }
 
-static inline void ath11k_debug_fw_stats_init(struct ath11k *ar)
+static inline void ath11k_debugfs_fw_stats_init(struct ath11k *ar)
 {
 }
 
-static inline int ath11k_debug_is_extd_tx_stats_enabled(struct ath11k *ar)
+static inline int ath11k_debugfs_is_extd_tx_stats_enabled(struct ath11k *ar)
 {
 	return 0;
 }
 
-static inline int ath11k_debug_is_extd_rx_stats_enabled(struct ath11k *ar)
+static inline int ath11k_debugfs_is_extd_rx_stats_enabled(struct ath11k *ar)
 {
 	return 0;
 }
@@ -214,22 +214,22 @@ static inline int ath11k_dbg_htt_stats_req(struct ath11k *ar)
 	return 0;
 }
 
-static inline bool ath11k_debug_is_pktlog_lite_mode_enabled(struct ath11k *ar)
+static inline bool ath11k_debugfs_is_pktlog_lite_mode_enabled(struct ath11k *ar)
 {
 	return false;
 }
 
-static inline bool ath11k_debug_is_pktlog_rx_stats_enabled(struct ath11k *ar)
+static inline bool ath11k_debugfs_is_pktlog_rx_stats_enabled(struct ath11k *ar)
 {
 	return false;
 }
 
-static inline bool ath11k_debug_is_pktlog_peer_valid(struct ath11k *ar, u8 *addr)
+static inline bool ath11k_debugfs_is_pktlog_peer_valid(struct ath11k *ar, u8 *addr)
 {
 	return false;
 }
 
-static inline int ath11k_debug_rx_filter(struct ath11k *ar)
+static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
 {
 	return 0;
 }

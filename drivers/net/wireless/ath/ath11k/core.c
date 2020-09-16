@@ -412,7 +412,7 @@ static int ath11k_core_soc_create(struct ath11k_base *ab)
 		return ret;
 	}
 
-	ret = ath11k_debug_soc_create(ab);
+	ret = ath11k_debugfs_soc_create(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to create ath11k debugfs\n");
 		goto err_qmi_deinit;
@@ -427,7 +427,7 @@ static int ath11k_core_soc_create(struct ath11k_base *ab)
 	return 0;
 
 err_debugfs_reg:
-	ath11k_debug_soc_destroy(ab);
+	ath11k_debugfs_soc_destroy(ab);
 err_qmi_deinit:
 	ath11k_qmi_deinit_service(ab);
 	return ret;
@@ -435,7 +435,7 @@ err_qmi_deinit:
 
 static void ath11k_core_soc_destroy(struct ath11k_base *ab)
 {
-	ath11k_debug_soc_destroy(ab);
+	ath11k_debugfs_soc_destroy(ab);
 	ath11k_dp_free(ab);
 	ath11k_reg_free(ab);
 	ath11k_qmi_deinit_service(ab);
@@ -445,7 +445,7 @@ static int ath11k_core_pdev_create(struct ath11k_base *ab)
 {
 	int ret;
 
-	ret = ath11k_debug_pdev_create(ab);
+	ret = ath11k_debugfs_pdev_create(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to create core pdev debugfs: %d\n", ret);
 		return ret;
@@ -485,7 +485,7 @@ err_dp_pdev_free:
 err_mac_unregister:
 	ath11k_mac_unregister(ab);
 err_pdev_debug:
-	ath11k_debug_pdev_destroy(ab);
+	ath11k_debugfs_pdev_destroy(ab);
 
 	return ret;
 }
@@ -497,7 +497,7 @@ static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
 	ath11k_mac_unregister(ab);
 	ath11k_hif_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
-	ath11k_debug_pdev_destroy(ab);
+	ath11k_debugfs_pdev_destroy(ab);
 }
 
 static int ath11k_core_start(struct ath11k_base *ab,

@@ -1433,7 +1433,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 			HTT_USR_CMPLTN_LONG_RETRY(usr_stats->cmpltn_cmn.flags) +
 			HTT_USR_CMPLTN_SHORT_RETRY(usr_stats->cmpltn_cmn.flags);
 
-		if (ath11k_debug_is_extd_tx_stats_enabled(ar))
+		if (ath11k_debugfs_is_extd_tx_stats_enabled(ar))
 			ath11k_accumulate_per_peer_tx_stats(arsta,
 							    peer_stats, rate_idx);
 	}
@@ -1511,7 +1511,7 @@ static int ath11k_htt_pull_ppdu_stats(struct ath11k_base *ab,
 		goto exit;
 	}
 
-	if (ath11k_debug_is_pktlog_lite_mode_enabled(ar))
+	if (ath11k_debugfs_is_pktlog_lite_mode_enabled(ar))
 		trace_ath11k_htt_ppdu_stats(ar, skb->data, len);
 
 	ppdu_info = ath11k_dp_htt_get_ppdu_desc(ar, ppdu_id);
@@ -2909,7 +2909,7 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 		memset(&ppdu_info, 0, sizeof(ppdu_info));
 		ppdu_info.peer_id = HAL_INVALID_PEERID;
 
-		if (ath11k_debug_is_pktlog_rx_stats_enabled(ar))
+		if (ath11k_debugfs_is_pktlog_rx_stats_enabled(ar))
 			trace_ath11k_htt_rxdesc(ar, skb->data, DP_RX_BUFFER_SIZE);
 
 		hal_status = ath11k_hal_rx_parse_mon_status(ab, &ppdu_info, skb);
@@ -2937,7 +2937,7 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 		arsta = (struct ath11k_sta *)peer->sta->drv_priv;
 		ath11k_dp_rx_update_peer_stats(arsta, &ppdu_info);
 
-		if (ath11k_debug_is_pktlog_peer_valid(ar, peer->addr))
+		if (ath11k_debugfs_is_pktlog_peer_valid(ar, peer->addr))
 			trace_ath11k_htt_rxdesc(ar, skb->data, DP_RX_BUFFER_SIZE);
 
 		spin_unlock_bh(&ab->base_lock);
