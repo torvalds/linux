@@ -4892,8 +4892,13 @@ static int mlx5e_setup_tc_cls_flower(struct mlx5e_priv *priv,
 int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 			    void *cb_priv)
 {
-	unsigned long flags = MLX5_TC_FLAG(INGRESS) | MLX5_TC_FLAG(NIC_OFFLOAD);
+	unsigned long flags = MLX5_TC_FLAG(INGRESS);
 	struct mlx5e_priv *priv = cb_priv;
+
+	if (mlx5e_is_uplink_rep(priv))
+		flags |= MLX5_TC_FLAG(ESW_OFFLOAD);
+	else
+		flags |= MLX5_TC_FLAG(NIC_OFFLOAD);
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
