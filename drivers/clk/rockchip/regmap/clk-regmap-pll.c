@@ -92,7 +92,7 @@ clk_regmap_pll_recalc_rate(struct clk_hw *hw, unsigned long prate)
 	do_div(foutvco, refdiv);
 
 	if (!dsmpd) {
-		u64 frac_rate = prate * frac;
+		u64 frac_rate = (u64)prate * frac;
 
 		do_div(frac_rate, refdiv);
 		foutvco += frac_rate >> 24;
