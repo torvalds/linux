@@ -110,12 +110,9 @@ int ath11k_debugfs_pdev_create(struct ath11k_base *ab);
 void ath11k_debugfs_pdev_destroy(struct ath11k_base *ab);
 int ath11k_debugfs_register(struct ath11k *ar);
 void ath11k_debugfs_unregister(struct ath11k *ar);
-void ath11k_dbg_htt_ext_stats_handler(struct ath11k_base *ab,
-				      struct sk_buff *skb);
 void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb);
 
 void ath11k_debugfs_fw_stats_init(struct ath11k *ar);
-int ath11k_dbg_htt_stats_req(struct ath11k *ar);
 
 static inline bool ath11k_debugfs_is_pktlog_lite_mode_enabled(struct ath11k *ar)
 {
@@ -148,15 +145,6 @@ static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
 	return ar->debug.rx_filter;
 }
 
-void ath11k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta, struct dentry *dir);
-void
-ath11k_accumulate_per_peer_tx_stats(struct ath11k_sta *arsta,
-				    struct ath11k_per_peer_tx_stats *peer_stats,
-				    u8 legacy_rate_idx);
-void ath11k_update_per_peer_stats_from_txcompl(struct ath11k *ar,
-					       struct sk_buff *msdu,
-					       struct hal_tx_status *ts);
 #else
 static inline int ath11k_debugfs_soc_create(struct ath11k_base *ab)
 {
@@ -209,7 +197,7 @@ static inline int ath11k_debugfs_is_extd_rx_stats_enabled(struct ath11k *ar)
 	return 0;
 }
 
-static inline int ath11k_dbg_htt_stats_req(struct ath11k *ar)
+static inline int ath11k_debugfs_htt_stats_req(struct ath11k *ar)
 {
 	return 0;
 }
@@ -232,20 +220,6 @@ static inline bool ath11k_debugfs_is_pktlog_peer_valid(struct ath11k *ar, u8 *ad
 static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
 {
 	return 0;
-}
-
-static inline void
-ath11k_accumulate_per_peer_tx_stats(struct ath11k_sta *arsta,
-				    struct ath11k_per_peer_tx_stats *peer_stats,
-				    u8 legacy_rate_idx)
-{
-}
-
-static inline void
-ath11k_update_per_peer_stats_from_txcompl(struct ath11k *ar,
-					  struct sk_buff *msdu,
-					  struct hal_tx_status *ts)
-{
 }
 
 #endif /* CONFIG_MAC80211_DEBUGFS*/

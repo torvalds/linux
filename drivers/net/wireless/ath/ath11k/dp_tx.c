@@ -6,6 +6,7 @@
 #include "core.h"
 #include "dp_tx.h"
 #include "debug.h"
+#include "debugfs_sta.h"
 #include "hw.h"
 #include "peer.h"
 
@@ -465,12 +466,12 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 				   ar->cached_ppdu_id == ar->last_ppdu_id) {
 				ar->cached_ppdu_id = ar->last_ppdu_id;
 				ar->cached_stats.is_ampdu = true;
-				ath11k_update_per_peer_stats_from_txcompl(ar, msdu, ts);
+				ath11k_debugfs_sta_update_txcompl(ar, msdu, ts);
 				memset(&ar->cached_stats, 0,
 				       sizeof(struct ath11k_per_peer_tx_stats));
 			} else {
 				ar->cached_stats.is_ampdu = false;
-				ath11k_update_per_peer_stats_from_txcompl(ar, msdu, ts);
+				ath11k_debugfs_sta_update_txcompl(ar, msdu, ts);
 				memset(&ar->cached_stats, 0,
 				       sizeof(struct ath11k_per_peer_tx_stats));
 			}

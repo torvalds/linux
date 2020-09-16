@@ -14,6 +14,7 @@
 #include "dp_rx.h"
 #include "testmode.h"
 #include "peer.h"
+#include "debugfs_sta.h"
 
 #define CHAN2G(_channel, _freq, _flags) { \
 	.band                   = NL80211_BAND_2GHZ, \
@@ -5867,7 +5868,7 @@ static const struct ieee80211_ops ath11k_ops = {
 	.sta_statistics			= ath11k_mac_op_sta_statistics,
 	CFG80211_TESTMODE_CMD(ath11k_tm_cmd)
 #ifdef CONFIG_ATH11K_DEBUGFS
-	.sta_add_debugfs		= ath11k_sta_add_debugfs,
+	.sta_add_debugfs		= ath11k_debugfs_sta_op_add,
 #endif
 };
 

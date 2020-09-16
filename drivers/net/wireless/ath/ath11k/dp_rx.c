@@ -9,6 +9,8 @@
 #include <crypto/hash.h>
 #include "core.h"
 #include "debug.h"
+#include "debugfs_htt_stats.h"
+#include "debugfs_sta.h"
 #include "hal_desc.h"
 #include "hw.h"
 #include "dp_rx.h"
@@ -1434,8 +1436,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 			HTT_USR_CMPLTN_SHORT_RETRY(usr_stats->cmpltn_cmn.flags);
 
 		if (ath11k_debugfs_is_extd_tx_stats_enabled(ar))
-			ath11k_accumulate_per_peer_tx_stats(arsta,
-							    peer_stats, rate_idx);
+			ath11k_debugfs_sta_add_tx_stats(arsta, peer_stats, rate_idx);
 	}
 
 	spin_unlock_bh(&ab->base_lock);
@@ -1658,7 +1659,7 @@ void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 		ath11k_htt_pull_ppdu_stats(ab, skb);
 		break;
 	case HTT_T2H_MSG_TYPE_EXT_STATS_CONF:
-		ath11k_dbg_htt_ext_stats_handler(ab, skb);
+		ath11k_debugfs_htt_ext_stats_handler(ab, skb);
 		break;
 	case HTT_T2H_MSG_TYPE_PKTLOG:
 		ath11k_htt_pktlog(ab, skb);
