@@ -742,8 +742,14 @@ static void etm4_init_arch_data(void *info)
 	 * The number of resource pairs conveyed by the HW starts at 0, i.e a
 	 * value of 0x0 indicate 1 resource pair, 0x1 indicate two and so on.
 	 * As such add 1 to the value of NUMRSPAIR for a better representation.
+	 *
+	 * For ETM v4.3 and later, 0x0 means 0, and no pairs are available -
+	 * the default TRUE and FALSE resource selectors are omitted.
+	 * Otherwise for values 0x1 and above the number is N + 1 as per v4.2.
 	 */
-	drvdata->nr_resource = BMVAL(etmidr4, 16, 19) + 1;
+	drvdata->nr_resource = BMVAL(etmidr4, 16, 19);
+	if ((drvdata->arch < ETM4X_ARCH_4V3) || (drvdata->nr_resource > 0))
+		drvdata->nr_resource += 1;
 	/*
 	 * NUMSSCC, bits[23:20] the number of single-shot
 	 * comparator control for tracing. Read any status regs as these
