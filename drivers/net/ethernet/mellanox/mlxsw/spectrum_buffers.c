@@ -286,47 +286,6 @@ static int mlxsw_sp_sb_pm_occ_query(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				     (unsigned long) pm);
 }
 
-/* 1/4 of a headroom necessary for 100Gbps port and 100m cable. */
-#define MLXSW_SP_PB_HEADROOM 25632
-#define MLXSW_SP_PB_UNUSED 8
-
-static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	const u32 pbs[] = {
-		[0] = MLXSW_SP_PB_HEADROOM * mlxsw_sp_port->mapping.width,
-		[9] = MLXSW_PORT_MAX_MTU,
-	};
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char pbmc_pl[MLXSW_REG_PBMC_LEN];
-	int i;
-
-	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port,
-			    0xffff, 0xffff / 2);
-	for (i = 0; i < ARRAY_SIZE(pbs); i++) {
-		u16 size = mlxsw_sp_bytes_cells(mlxsw_sp, pbs[i]);
-
-		if (i == MLXSW_SP_PB_UNUSED)
-			continue;
-		size = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, size);
-		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, i, size);
-	}
-	mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl,
-					 MLXSW_REG_PBMC_PORT_SHARED_BUF_IDX, 0);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
-}
-
-static int mlxsw_sp_port_pb_prio_init(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	char pptb_pl[MLXSW_REG_PPTB_LEN];
-	int i;
-
-	mlxsw_reg_pptb_pack(pptb_pl, mlxsw_sp_port->local_port);
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		mlxsw_reg_pptb_prio_to_buff_pack(pptb_pl, i, 0);
-	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pptb),
-			       pptb_pl);
-}
-
 void mlxsw_sp_hdroom_prios_reset_buf_idx(struct mlxsw_sp_hdroom *hdroom)
 {
 	int prio;
@@ -422,6 +381,8 @@ void mlxsw_sp_hdroom_bufs_reset_sizes(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
+#define MLXSW_SP_PB_UNUSED 8
+
 static int mlxsw_sp_hdroom_configure_buffers(struct mlxsw_sp_port *mlxsw_sp_port,
 					     const struct mlxsw_sp_hdroom *hdroom, bool force)
 {
@@ -435,13 +396,12 @@ static int mlxsw_sp_hdroom_configure_buffers(struct mlxsw_sp_port *mlxsw_sp_port
 	if (!dirty && !force)
 		return 0;
 
-	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port, 0, 0);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
-	if (err)
-		return err;
-
-	for (i = 0; i < DCBX_MAX_BUFFERS; i++) {
+	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port, 0xffff, 0xffff / 2);
+	for (i = 0; i < MLXSW_SP_PB_COUNT; i++) {
 		const struct mlxsw_sp_hdroom_buf *buf = &hdroom->bufs.buf[i];
+
+		if (i == MLXSW_SP_PB_UNUSED)
+			continue;
 
 		mlxsw_sp_hdroom_buf_pack(pbmc_pl, i, buf->size_cells, buf->thres_cells, buf->lossy);
 	}
@@ -548,12 +508,23 @@ int mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	int err;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_hdroom hdroom = {};
+	u32 size9;
+	int prio;
 
-	err = mlxsw_sp_port_pb_init(mlxsw_sp_port);
-	if (err)
-		return err;
-	return mlxsw_sp_port_pb_prio_init(mlxsw_sp_port);
+	hdroom.mtu = mlxsw_sp_port->dev->mtu;
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		hdroom.prios.prio[prio].lossy = true;
+
+	mlxsw_sp_hdroom_bufs_reset_lossiness(&hdroom);
+	mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
+
+	/* Buffer 9 is used for control traffic. */
+	size9 = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, mlxsw_sp_port->max_mtu);
+	hdroom.bufs.buf[9].size_cells = mlxsw_sp_bytes_cells(mlxsw_sp, size9);
+
+	return __mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom, true);
 }
 
 static int mlxsw_sp_sb_port_init(struct mlxsw_sp *mlxsw_sp,
