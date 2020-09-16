@@ -292,6 +292,7 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 				uint64_t flags);
 uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo);
 uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo);
+void amdgpu_gmc_sysvm_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc);
 void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 			      u64 base);
 void amdgpu_gmc_gart_location(struct amdgpu_device *adev,

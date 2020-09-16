@@ -158,6 +158,39 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 			mc->vram_end, mc->real_vram_size >> 20);
 }
 
+/** amdgpu_gmc_sysvm_location - place vram and gart in sysvm aperture
+ *
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
+ *
+ * This function is only used if use GART for FB translation. In such
+ * case, we use sysvm aperture (vmid0 page tables) for both vram
+ * and gart (aka system memory) access.
+ *
+ * GPUVM (and our organization of vmid0 page tables) require sysvm
+ * aperture to be placed at a location aligned with 8 times of native
+ * page size. For example, if vm_context0_cntl.page_table_block_size
+ * is 12, then native page size is 8G (2M*2^12), sysvm should start
+ * with a 64G aligned address. For simplicity, we just put sysvm at
+ * address 0. So vram start at address 0 and gart is right after vram.
+ */
+void amdgpu_gmc_sysvm_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
+{
+	u64 hive_vram_start = 0;
+	u64 hive_vram_end = mc->xgmi.node_segment_size * mc->xgmi.num_physical_nodes - 1;
+	mc->vram_start = mc->xgmi.node_segment_size * mc->xgmi.physical_node_id;
+	mc->vram_end = mc->vram_start + mc->xgmi.node_segment_size - 1;
+	mc->gart_start = hive_vram_end + 1;
+	mc->gart_end = mc->gart_start + mc->gart_size - 1;
+	mc->fb_start = hive_vram_start;
+	mc->fb_end = hive_vram_end;
+	dev_info(adev->dev, "VRAM: %lluM 0x%016llX - 0x%016llX (%lluM used)\n",
+			mc->mc_vram_size >> 20, mc->vram_start,
+			mc->vram_end, mc->real_vram_size >> 20);
+	dev_info(adev->dev, "GART: %lluM 0x%016llX - 0x%016llX\n",
+			mc->gart_size >> 20, mc->gart_start, mc->gart_end);
+}
+
 /**
  * amdgpu_gmc_gart_location - try to find GART location
  *
@@ -165,7 +198,6 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
  * @mc: memory controller structure holding memory information
  *
  * Function will place try to place GART before or after VRAM.
- *
  * If GART size is bigger than space left then we ajust GART size.
  * Thus function will never fails.
  */
