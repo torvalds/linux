@@ -101,14 +101,6 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
 
 #define GENL_SET_ERR_MSG(info, msg) NL_SET_ERR_MSG((info)->extack, msg)
 
-static inline int genl_err_attr(struct genl_info *info, int err,
-				const struct nlattr *attr)
-{
-	info->extack->bad_attr = attr;
-
-	return err;
-}
-
 enum genl_validate_flags {
 	GENL_DONT_VALIDATE_STRICT		= BIT(0),
 	GENL_DONT_VALIDATE_DUMP			= BIT(1),
