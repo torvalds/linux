@@ -260,7 +260,7 @@ static ssize_t status_show(struct device *dev,
 	default:
 		status = "unknown"; break;
 	}
-	return sprintf(buf, "%s\n", status);
+	return sysfs_emit(buf, "%s\n", status);
 }
 static DEVICE_ATTR_RO(status);
 
@@ -277,7 +277,7 @@ static ssize_t auto_remove_on_show(struct device *dev,
 	else
 		str = "never";
 
-	return sprintf(buf, "%s\n", str);
+	return sysfs_emit(buf, "%s\n", str);
 }
 static DEVICE_ATTR_RO(auto_remove_on);
 
@@ -286,7 +286,7 @@ static ssize_t runtime_pm_show(struct device *dev,
 {
 	struct device_link *link = to_devlink(dev);
 
-	return sprintf(buf, "%d\n", !!(link->flags & DL_FLAG_PM_RUNTIME));
+	return sysfs_emit(buf, "%d\n", !!(link->flags & DL_FLAG_PM_RUNTIME));
 }
 static DEVICE_ATTR_RO(runtime_pm);
 
@@ -295,7 +295,8 @@ static ssize_t sync_state_only_show(struct device *dev,
 {
 	struct device_link *link = to_devlink(dev);
 
-	return sprintf(buf, "%d\n", !!(link->flags & DL_FLAG_SYNC_STATE_ONLY));
+	return sysfs_emit(buf, "%d\n",
+			  !!(link->flags & DL_FLAG_SYNC_STATE_ONLY));
 }
 static DEVICE_ATTR_RO(sync_state_only);
 
@@ -1060,7 +1061,7 @@ static ssize_t waiting_for_supplier_show(struct device *dev,
 	      && dev->links.need_for_probe;
 	mutex_unlock(&wfs_lock);
 	device_unlock(dev);
-	return sprintf(buf, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 static DEVICE_ATTR_RO(waiting_for_supplier);
 
@@ -1710,7 +1711,7 @@ ssize_t device_show_ulong(struct device *dev,
 			  char *buf)
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
-	return snprintf(buf, PAGE_SIZE, "%lx\n", *(unsigned long *)(ea->var));
+	return sysfs_emit(buf, "%lx\n", *(unsigned long *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_ulong);
 
@@ -1740,7 +1741,7 @@ ssize_t device_show_int(struct device *dev,
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", *(int *)(ea->var));
+	return sysfs_emit(buf, "%d\n", *(int *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_int);
 
@@ -1761,7 +1762,7 @@ ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", *(bool *)(ea->var));
+	return sysfs_emit(buf, "%d\n", *(bool *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_bool);
 
@@ -1993,7 +1994,7 @@ static ssize_t online_show(struct device *dev, struct device_attribute *attr,
 	device_lock(dev);
 	val = !dev->offline;
 	device_unlock(dev);
-	return sprintf(buf, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t online_store(struct device *dev, struct device_attribute *attr,

@@ -486,7 +486,7 @@ static ssize_t state_synced_show(struct device *dev,
 	device_lock(dev);
 	val = dev->state_synced;
 	device_unlock(dev);
-	return sprintf(buf, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 static DEVICE_ATTR_RO(state_synced);
 
