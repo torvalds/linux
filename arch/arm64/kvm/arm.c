@@ -46,7 +46,9 @@
 __asm__(".arch_extension	virt");
 #endif
 
-DEFINE_PER_CPU(kvm_host_data_t, kvm_host_data);
+DEFINE_PER_CPU(struct kvm_host_data, kvm_host_data);
+DEFINE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
+DEFINE_PER_CPU(unsigned long, kvm_hyp_vector);
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
 
 /* The VMID used in the VTTBR */
@@ -1265,6 +1267,7 @@ static void cpu_init_hyp_mode(void)
 	unsigned long hyp_stack_ptr;
 	unsigned long vector_ptr;
 	unsigned long tpidr_el2;
+	struct arm_smccc_res res;
 
 	/* Switch from the HYP stub to our own HYP init vector */
 	__hyp_set_vectors(kvm_get_idmap_vector());
@@ -1279,7 +1282,8 @@ static void cpu_init_hyp_mode(void)
 
 	pgd_ptr = kvm_mmu_get_httbr();
 	hyp_stack_ptr = __this_cpu_read(kvm_arm_hyp_stack_page) + PAGE_SIZE;
-	vector_ptr = (unsigned long)kvm_get_hyp_vector();
+	hyp_stack_ptr = kern_hyp_va(hyp_stack_ptr);
+	vector_ptr = (unsigned long)kern_hyp_va(kvm_ksym_ref(__kvm_hyp_host_vector));
 
 	/*
 	 * Call initialization code, and switch to the full blown HYP code.
@@ -1288,7 +1292,9 @@ static void cpu_init_hyp_mode(void)
 	 * cpus_have_const_cap() wrapper.
 	 */
 	BUG_ON(!system_capabilities_finalized());
-	__kvm_call_hyp((void *)pgd_ptr, hyp_stack_ptr, vector_ptr, tpidr_el2);
+	arm_smccc_1_1_hvc(KVM_HOST_SMCCC_FUNC(__kvm_hyp_init),
+			  pgd_ptr, tpidr_el2, hyp_stack_ptr, vector_ptr, &res);
+	WARN_ON(res.a0 != SMCCC_RET_SUCCESS);
 
 	/*
 	 * Disabling SSBD on a non-VHE system requires us to enable SSBS
@@ -1311,6 +1317,8 @@ static void cpu_hyp_reinit(void)
 	kvm_init_host_cpu_context(&this_cpu_ptr(&kvm_host_data)->host_ctxt);
 
 	cpu_hyp_reset();
+
+	__this_cpu_write(kvm_hyp_vector, (unsigned long)kvm_get_hyp_vector());
 
 	if (is_kernel_in_hyp_mode())
 		kvm_timer_init_vhe();
@@ -1541,13 +1549,31 @@ static int init_hyp_mode(void)
 	}
 
 	for_each_possible_cpu(cpu) {
-		kvm_host_data_t *cpu_data;
+		struct kvm_host_data *cpu_data;
+		struct kvm_cpu_context *hyp_ctxt;
+		unsigned long *vector;
 
 		cpu_data = per_cpu_ptr(&kvm_host_data, cpu);
 		err = create_hyp_mappings(cpu_data, cpu_data + 1, PAGE_HYP);
 
 		if (err) {
 			kvm_err("Cannot map host CPU state: %d\n", err);
+			goto out_err;
+		}
+
+		hyp_ctxt = per_cpu_ptr(&kvm_hyp_ctxt, cpu);
+		err = create_hyp_mappings(hyp_ctxt, hyp_ctxt + 1, PAGE_HYP);
+
+		if (err) {
+			kvm_err("Cannot map hyp context: %d\n", err);
+			goto out_err;
+		}
+
+		vector = per_cpu_ptr(&kvm_hyp_vector, cpu);
+		err = create_hyp_mappings(vector, vector + 1, PAGE_HYP);
+
+		if (err) {
+			kvm_err("Cannot map hyp guest vector address\n");
 			goto out_err;
 		}
 	}
