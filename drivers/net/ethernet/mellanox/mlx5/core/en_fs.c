@@ -36,6 +36,7 @@
 #include <linux/tcp.h>
 #include <linux/mlx5/fs.h>
 #include "en.h"
+#include "en_rep.h"
 #include "lib/mpfs.h"
 
 static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
@@ -435,6 +436,9 @@ int mlx5e_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
+	if (mlx5e_is_uplink_rep(priv))
+		return 0; /* no vlan table for uplink rep */
+
 	if (be16_to_cpu(proto) == ETH_P_8021Q)
 		return mlx5e_vlan_rx_add_cvid(priv, vid);
 	else if (be16_to_cpu(proto) == ETH_P_8021AD)
@@ -446,6 +450,9 @@ int mlx5e_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	if (mlx5e_is_uplink_rep(priv))
+		return 0; /* no vlan table for uplink rep */
 
 	if (be16_to_cpu(proto) == ETH_P_8021Q) {
 		clear_bit(vid, priv->fs.vlan.active_cvlans);

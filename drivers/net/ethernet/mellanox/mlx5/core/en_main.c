@@ -3857,11 +3857,19 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->tx_errors = stats->tx_aborted_errors + stats->tx_carrier_errors;
 }
 
+static void mlx5e_nic_set_rx_mode(struct mlx5e_priv *priv)
+{
+	if (mlx5e_is_uplink_rep(priv))
+		return; /* no rx mode for uplink rep */
+
+	queue_work(priv->wq, &priv->set_rx_mode_work);
+}
+
 static void mlx5e_set_rx_mode(struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	queue_work(priv->wq, &priv->set_rx_mode_work);
+	mlx5e_nic_set_rx_mode(priv);
 }
 
 static int mlx5e_set_mac(struct net_device *netdev, void *addr)
@@ -3876,7 +3884,7 @@ static int mlx5e_set_mac(struct net_device *netdev, void *addr)
 	ether_addr_copy(netdev->dev_addr, saddr->sa_data);
 	netif_addr_unlock_bh(netdev);
 
-	queue_work(priv->wq, &priv->set_rx_mode_work);
+	mlx5e_nic_set_rx_mode(priv);
 
 	return 0;
 }
@@ -4413,6 +4421,9 @@ static int mlx5e_set_vf_link_state(struct net_device *dev, int vf,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (mlx5e_is_uplink_rep(priv))
+		return -EOPNOTSUPP;
 
 	return mlx5_eswitch_set_vport_state(mdev->priv.eswitch, vf + 1,
 					    mlx5_ifla_link2vport(link_state));
@@ -5405,7 +5416,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 		return;
 	mlx5e_dcbnl_init_app(priv);
 
-	queue_work(priv->wq, &priv->set_rx_mode_work);
+	mlx5e_nic_set_rx_mode(priv);
 
 	rtnl_lock();
 	if (netif_running(netdev))
@@ -5428,7 +5439,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 	netif_device_detach(priv->netdev);
 	rtnl_unlock();
 
-	queue_work(priv->wq, &priv->set_rx_mode_work);
+	mlx5e_nic_set_rx_mode(priv);
 
 	mlx5e_hv_vhca_stats_destroy(priv);
 	if (mlx5e_monitor_counter_supported(priv))
