@@ -124,6 +124,7 @@ static char *translate_scan(struct adapter *padapter,
 
 	if (p && ht_ielen > 0) {
 		struct ieee80211_ht_cap *pht_capie;
+
 		ht_cap = true;
 
 		pht_capie = (struct ieee80211_ht_cap *)(p + 2);

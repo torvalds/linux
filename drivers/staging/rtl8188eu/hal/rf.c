@@ -138,6 +138,7 @@ static void getpowerbase88e(struct adapter *adapt, u8 *pwr_level_ofdm,
 		     (powerbase1 << 8) | powerbase1;
 	*mcs_base = powerbase1;
 }
+
 static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 				    u8 index, u32 *powerbase0, u32 *powerbase1,
 				    u32 *out_val)

@@ -94,6 +94,7 @@ enum TXDESC_SC {
 	SC_LOWER = 0x02,
 	SC_DUPLICATE = 0x03
 };
+
 /* OFFSET 20 */
 #define SGI			BIT(6)
 #define USB_TXAGG_NUM_SHT	24

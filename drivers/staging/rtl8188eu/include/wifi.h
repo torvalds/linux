@@ -331,6 +331,7 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 	else
 		return false;
 }
+
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
 ------------------------------------------------------------------------------*/
