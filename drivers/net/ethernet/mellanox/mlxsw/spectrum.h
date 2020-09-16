@@ -430,9 +430,6 @@ enum mlxsw_sp_flood_type {
 	MLXSW_SP_FLOOD_TYPE_MC,
 };
 
-int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
-			       struct mlxsw_sp_hdroom *hdroom,
-			       bool pause_en);
 int mlxsw_sp_port_get_stats_raw(struct net_device *dev, int grp,
 				int prio, char *ppcnt_pl);
 int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -446,12 +443,22 @@ struct mlxsw_sp_hdroom_prio {
 	u8 buf_idx;
 	/* Value of buf_idx deduced from the DCB ETS configuration. */
 	u8 ets_buf_idx;
+	bool lossy;
 };
+
+struct mlxsw_sp_hdroom_buf {
+	bool lossy;
+};
+
+#define MLXSW_SP_PB_COUNT 10
 
 struct mlxsw_sp_hdroom {
 	struct {
 		struct mlxsw_sp_hdroom_prio prio[IEEE_8021Q_MAX_PRIORITIES];
 	} prios;
+	struct {
+		struct mlxsw_sp_hdroom_buf buf[MLXSW_SP_PB_COUNT];
+	} bufs;
 	int delay_bytes;
 	int mtu;
 };
@@ -497,6 +504,7 @@ u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells);
 u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes);
 u32 mlxsw_sp_sb_max_headroom_cells(const struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_hdroom_prios_reset_buf_idx(struct mlxsw_sp_hdroom *hdroom);
+void mlxsw_sp_hdroom_bufs_reset_lossiness(struct mlxsw_sp_hdroom *hdroom);
 
 extern const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals;
 extern const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals;
@@ -538,9 +546,8 @@ int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			  bool dwrr, u8 dwrr_weight);
 int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			      u8 switch_prio, u8 tclass);
-int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				 struct mlxsw_sp_hdroom *hdroom,
-				 bool pause_en, struct ieee_pfc *my_pfc);
+int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			       struct mlxsw_sp_hdroom *hdroom);
 int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				  enum mlxsw_reg_qeec_hr hr, u8 index,
 				  u8 next_index, u32 maxrate, u8 burst_size);

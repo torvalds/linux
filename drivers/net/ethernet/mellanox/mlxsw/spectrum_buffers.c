@@ -340,6 +340,20 @@ void mlxsw_sp_hdroom_prios_reset_buf_idx(struct mlxsw_sp_hdroom *hdroom)
 		hdroom->prios.prio[prio].buf_idx = hdroom->prios.prio[prio].ets_buf_idx;
 }
 
+void mlxsw_sp_hdroom_bufs_reset_lossiness(struct mlxsw_sp_hdroom *hdroom)
+{
+	int prio;
+	int i;
+
+	for (i = 0; i < DCBX_MAX_BUFFERS; i++)
+		hdroom->bufs.buf[i].lossy = true;
+
+	for (prio = 0; prio < IEEE_8021Q_MAX_PRIORITIES; prio++) {
+		if (!hdroom->prios.prio[prio].lossy)
+			hdroom->bufs.buf[hdroom->prios.prio[prio].buf_idx].lossy = false;
+	}
+}
+
 static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;

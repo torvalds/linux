@@ -204,6 +204,7 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 	bool pause_en = pause->tx_pause || pause->rx_pause;
 	struct mlxsw_sp_hdroom orig_hdroom;
 	struct mlxsw_sp_hdroom hdroom;
+	int prio;
 	int err;
 
 	if (mlxsw_sp_port->dcb.pfc && mlxsw_sp_port->dcb.pfc->pfc_en) {
@@ -224,7 +225,12 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 	else
 		hdroom.delay_bytes = 0;
 
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, pause_en);
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		hdroom.prios.prio[prio].lossy = !pause_en;
+
+	mlxsw_sp_hdroom_bufs_reset_lossiness(&hdroom);
+
+	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom\n");
 		return err;
@@ -242,8 +248,7 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 	return 0;
 
 err_port_pause_configure:
-	pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
-	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom, pause_en);
+	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom);
 	return err;
 }
 

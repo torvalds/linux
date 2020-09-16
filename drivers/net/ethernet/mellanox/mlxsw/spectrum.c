@@ -644,16 +644,25 @@ static u16 mlxsw_sp_hdroom_buf_delay_get(const struct mlxsw_sp *mlxsw_sp,
 	return 2 * delay_cells + mlxsw_sp_bytes_cells(mlxsw_sp, hdroom->mtu);
 }
 
-int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				 struct mlxsw_sp_hdroom *hdroom,
-				 bool pause_en, struct ieee_pfc *my_pfc)
+static bool mlxsw_sp_hdroom_buf_is_used(const struct mlxsw_sp_hdroom *hdroom, int buf)
+{
+	int prio;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+		if (hdroom->prios.prio[prio].buf_idx == buf)
+			return true;
+	}
+	return false;
+}
+
+int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			       struct mlxsw_sp_hdroom *hdroom)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 pfc_en = !!my_pfc ? my_pfc->pfc_en : 0;
 	char pbmc_pl[MLXSW_REG_PBMC_LEN];
 	u32 taken_headroom_cells = 0;
 	u32 max_headroom_cells;
-	int i, j, err;
+	int i, err;
 
 	max_headroom_cells = mlxsw_sp_sb_max_headroom_cells(mlxsw_sp);
 
@@ -663,25 +672,14 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		return err;
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		bool configure = false;
-		bool pfc = false;
+		struct mlxsw_sp_hdroom_buf *buf = &hdroom->bufs.buf[i];
 		u16 thres_cells;
 		u16 delay_cells;
 		u16 total_cells;
-		bool lossy;
 
-		for (j = 0; j < IEEE_8021QAZ_MAX_TCS; j++) {
-			if (hdroom->prios.prio[j].buf_idx == i) {
-				pfc = pfc_en & BIT(j);
-				configure = true;
-				break;
-			}
-		}
-
-		if (!configure)
+		if (!mlxsw_sp_hdroom_buf_is_used(hdroom, i))
 			continue;
 
-		lossy = !(pfc || pause_en);
 		thres_cells = mlxsw_sp_pg_buf_threshold_get(mlxsw_sp, hdroom->mtu);
 		thres_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, thres_cells);
 		delay_cells = mlxsw_sp_hdroom_buf_delay_get(mlxsw_sp, hdroom);
@@ -692,8 +690,7 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		if (taken_headroom_cells > max_headroom_cells)
 			return -ENOBUFS;
 
-		mlxsw_sp_pg_buf_pack(pbmc_pl, i, total_cells,
-				     thres_cells, lossy);
+		mlxsw_sp_pg_buf_pack(pbmc_pl, i, total_cells, thres_cells, buf->lossy);
 	}
 
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
@@ -704,22 +701,9 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
-int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
-			       struct mlxsw_sp_hdroom *hdroom,
-			       bool pause_en)
-{
-	bool dcb_en = !!mlxsw_sp_port->dcb.ets;
-	struct ieee_pfc *my_pfc;
-
-	my_pfc = dcb_en ? mlxsw_sp_port->dcb.pfc : NULL;
-
-	return __mlxsw_sp_port_headroom_set(mlxsw_sp_port, hdroom, pause_en, my_pfc);
-}
-
 static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	bool pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
 	struct mlxsw_sp_hdroom orig_hdroom;
 	struct mlxsw_sp_hdroom hdroom;
 	int err;
@@ -728,7 +712,7 @@ static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 
 	hdroom = orig_hdroom;
 	hdroom.mtu = mtu;
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom, pause_en);
+	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, &hdroom);
 	if (err)
 		return err;
 
@@ -739,7 +723,7 @@ static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 	return 0;
 
 err_port_mtu_set:
-	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom, pause_en);
+	mlxsw_sp_port_headroom_set(mlxsw_sp_port, &orig_hdroom);
 	return err;
 }
 
