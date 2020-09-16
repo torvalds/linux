@@ -9,11 +9,6 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- * Added to include __machine_check_early_realmode_* functions
- */
-#include <asm/mce.h>
-
 /* This structure can grow, it's real size is used by head.S code
  * via the mkdefs mechanism.
  */

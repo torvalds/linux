@@ -16,6 +16,7 @@
 #include <asm/oprofile_impl.h>
 #include <asm/cputable.h>
 #include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
+#include <asm/mce.h>
 #include <asm/mmu.h>
 #include <asm/setup.h>
 
