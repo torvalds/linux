@@ -272,6 +272,7 @@ struct mlx5_eswitch {
 	 * user commands, i.e. sriov state change, devlink commands.
 	 */
 	struct rw_semaphore mode_lock;
+	atomic64_t user_count;
 
 	struct {
 		bool            enabled;
@@ -761,6 +762,14 @@ struct mlx5_esw_event_info {
 
 int mlx5_esw_event_notifier_register(struct mlx5_eswitch *esw, struct notifier_block *n);
 void mlx5_esw_event_notifier_unregister(struct mlx5_eswitch *esw, struct notifier_block *n);
+
+bool mlx5_esw_hold(struct mlx5_core_dev *dev);
+void mlx5_esw_release(struct mlx5_core_dev *dev);
+void mlx5_esw_get(struct mlx5_core_dev *dev);
+void mlx5_esw_put(struct mlx5_core_dev *dev);
+int mlx5_esw_try_lock(struct mlx5_eswitch *esw);
+void mlx5_esw_unlock(struct mlx5_eswitch *esw);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }

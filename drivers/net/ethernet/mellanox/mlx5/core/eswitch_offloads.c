@@ -1854,6 +1854,7 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 	/* Holds true only as long as DMFS is the default */
 	mlx5_flow_namespace_set_mode(esw->fdb_table.offloads.ns,
 				     MLX5_FLOW_STEERING_MODE_DMFS);
+	atomic64_set(&esw->user_count, 0);
 }
 
 static int esw_create_offloads_table(struct mlx5_eswitch *esw)
@@ -2584,6 +2585,7 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 	memset(&esw->fdb_table.offloads, 0, sizeof(struct offloads_fdb));
 	mutex_init(&esw->fdb_table.offloads.vports.lock);
 	hash_init(esw->fdb_table.offloads.vports.table);
+	atomic64_set(&esw->user_count, 0);
 
 	indir = mlx5_esw_indir_table_init();
 	if (IS_ERR(indir)) {
@@ -2925,8 +2927,14 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	if (esw_mode_from_devlink(mode, &mlx5_mode))
 		return -EINVAL;
 
-	down_write(&esw->mode_lock);
-	cur_mlx5_mode = esw->mode;
+	err = mlx5_esw_try_lock(esw);
+	if (err < 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Can't change mode, E-Switch is busy");
+		return err;
+	}
+	cur_mlx5_mode = err;
+	err = 0;
+
 	if (cur_mlx5_mode == mlx5_mode)
 		goto unlock;
 
@@ -2938,7 +2946,7 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		err = -EINVAL;
 
 unlock:
-	up_write(&esw->mode_lock);
+	mlx5_esw_unlock(esw);
 	return err;
 }
 
