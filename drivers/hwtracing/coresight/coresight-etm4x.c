@@ -52,6 +52,7 @@ static struct etmv4_drvdata *etmdrvdata[NR_CPUS];
 static void etm4_set_default_config(struct etmv4_config *config);
 static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 				  struct perf_event *event);
+static u64 etm4_get_access_type(struct etmv4_config *config);
 
 static enum cpuhp_state hp_online;
 
@@ -783,6 +784,22 @@ static void etm4_init_arch_data(void *info)
 	CS_LOCK(drvdata->base);
 }
 
+/* Set ELx trace filter access in the TRCVICTLR register */
+static void etm4_set_victlr_access(struct etmv4_config *config)
+{
+	u64 access_type;
+
+	config->vinst_ctrl &= ~(ETM_EXLEVEL_S_VICTLR_MASK | ETM_EXLEVEL_NS_VICTLR_MASK);
+
+	/*
+	 * TRCVICTLR::EXLEVEL_NS:EXLEVELS: Set kernel / user filtering
+	 * bits in vinst_ctrl, same bit pattern as TRCACATRn values returned by
+	 * etm4_get_access_type() but with a relative shift in this register.
+	 */
+	access_type = etm4_get_access_type(config) << ETM_EXLEVEL_LSHIFT_TRCVICTLR;
+	config->vinst_ctrl |= (u32)access_type;
+}
+
 static void etm4_set_default_config(struct etmv4_config *config)
 {
 	/* disable all events tracing */
@@ -800,6 +817,9 @@ static void etm4_set_default_config(struct etmv4_config *config)
 
 	/* TRCVICTLR::EVENT = 0x01, select the always on logic */
 	config->vinst_ctrl = BIT(0);
+
+	/* TRCVICTLR::EXLEVEL_NS:EXLEVELS: Set kernel / user filtering */
+	etm4_set_victlr_access(config);
 }
 
 static u64 etm4_get_ns_access_type(struct etmv4_config *config)
@@ -1064,7 +1084,7 @@ out:
 
 void etm4_config_trace_mode(struct etmv4_config *config)
 {
-	u32 addr_acc, mode;
+	u32 mode;
 
 	mode = config->mode;
 	mode &= (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER);
@@ -1076,15 +1096,7 @@ void etm4_config_trace_mode(struct etmv4_config *config)
 	if (!(mode & ETM_MODE_EXCL_KERN) && !(mode & ETM_MODE_EXCL_USER))
 		return;
 
-	addr_acc = config->addr_acc[ETM_DEFAULT_ADDR_COMP];
-	/* clear default config */
-	addr_acc &= ~(ETM_EXLEVEL_NS_APP | ETM_EXLEVEL_NS_OS |
-		      ETM_EXLEVEL_NS_HYP);
-
-	addr_acc |= etm4_get_ns_access_type(config);
-
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP] = addr_acc;
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP + 1] = addr_acc;
+	etm4_set_victlr_access(config);
 }
 
 static int etm4_online_cpu(unsigned int cpu)
