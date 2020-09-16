@@ -2032,7 +2032,9 @@ static void RGA2_flush_page(void)
 	reg = list_entry(rga2_service.running.prev,
 			 struct rga2_reg, status_link);
 
-	if (reg == NULL && reg->MMU_base == NULL)
+	if (reg == NULL)
+		return;
+	if (reg->MMU_base == NULL)
 		return;
 
 	for (i = 0; i < reg->MMU_count; i++)

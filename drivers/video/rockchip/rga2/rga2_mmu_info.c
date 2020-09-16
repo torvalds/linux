@@ -556,8 +556,10 @@ static int rga2_mmu_flush_cache(struct rga2_reg *reg, struct rga2_req *req)
 	DstPageCount = 0;
 	DstStart = 0;
 
-	if (reg->MMU_map != true)
+	if (reg->MMU_map != true) {
+		status = -EINVAL;
 		goto out;
+	}
 
 	/* cal dst buf mmu info */
 	if (req->mmu_info.dst_mmu_flag & 1) {
@@ -589,6 +591,7 @@ static int rga2_mmu_flush_cache(struct rga2_reg *reg, struct rga2_req *req)
 	mutex_unlock(&rga2_service.lock);
 	if (DstMemSize) {
 		if (req->sg_dst) {
+			status = -EINVAL;
 			goto out;
 		} else {
 			ret = rga2_MapUserMemory(&pages[0],
@@ -1128,6 +1131,8 @@ static int rga2_mmu_info_update_patten_buff_mode(struct rga2_reg *reg, struct rg
         pages = rga2_mmu_buf.pages;
 
         MMU_Base = kzalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+	if (MMU_Base == NULL)
+		return -EINVAL;
 
         for(i=0; i<CMDMemSize; i++) {
             MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));
