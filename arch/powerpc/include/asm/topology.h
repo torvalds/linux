@@ -88,10 +88,20 @@ static inline int cpu_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
 extern int find_and_online_cpu_nid(int cpu);
+extern int cpu_to_coregroup_id(int cpu);
 #else
 static inline int find_and_online_cpu_nid(int cpu)
 {
 	return 0;
+}
+
+static inline int cpu_to_coregroup_id(int cpu)
+{
+#ifdef CONFIG_SMP
+	return cpu_to_core_id(cpu);
+#else
+	return 0;
+#endif
 }
 
 #endif /* CONFIG_NUMA && CONFIG_PPC_SPLPAR */
