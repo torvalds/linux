@@ -49,15 +49,14 @@ static DEFINE_MUTEX(rxkad_ci_mutex);
 /*
  * initialise connection security
  */
-static int rxkad_init_connection_security(struct rxrpc_connection *conn)
+static int rxkad_init_connection_security(struct rxrpc_connection *conn,
+					  struct rxrpc_key_token *token)
 {
 	struct crypto_sync_skcipher *ci;
-	struct rxrpc_key_token *token;
 	int ret;
 
 	_enter("{%d},{%x}", conn->debug_id, key_serial(conn->params.key));
 
-	token = conn->params.key->payload.data[0];
 	conn->security_ix = token->security_index;
 
 	ci = crypto_alloc_sync_skcipher("pcbc(fcrypt)", 0, 0);

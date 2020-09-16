@@ -81,16 +81,17 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 	if (ret < 0)
 		return ret;
 
-	token = key->payload.data[0];
-	if (!token)
-		return -EKEYREJECTED;
+	for (token = key->payload.data[0]; token; token = token->next) {
+		sec = rxrpc_security_lookup(token->security_index);
+		if (sec)
+			goto found;
+	}
+	return -EKEYREJECTED;
 
-	sec = rxrpc_security_lookup(token->security_index);
-	if (!sec)
-		return -EKEYREJECTED;
+found:
 	conn->security = sec;
 
-	ret = conn->security->init_connection_security(conn);
+	ret = conn->security->init_connection_security(conn, token);
 	if (ret < 0) {
 		conn->security = &rxrpc_no_security;
 		return ret;

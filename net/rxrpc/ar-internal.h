@@ -12,6 +12,7 @@
 #include <net/netns/generic.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
+#include <keys/rxrpc-type.h>
 #include "protocol.h"
 
 #if 0
@@ -217,7 +218,8 @@ struct rxrpc_security {
 	void (*exit)(void);
 
 	/* initialise a connection's security */
-	int (*init_connection_security)(struct rxrpc_connection *);
+	int (*init_connection_security)(struct rxrpc_connection *,
+					struct rxrpc_key_token *);
 
 	/* prime a connection's packet security */
 	int (*prime_packet_security)(struct rxrpc_connection *);

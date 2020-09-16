@@ -333,7 +333,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		if (ret < 0)
 			return ret;
 
-		ret = conn->security->init_connection_security(conn);
+		ret = conn->security->init_connection_security(
+			conn, conn->params.key->payload.data[0]);
 		if (ret < 0)
 			return ret;
 

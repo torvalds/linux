@@ -8,7 +8,8 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-static int none_init_connection_security(struct rxrpc_connection *conn)
+static int none_init_connection_security(struct rxrpc_connection *conn,
+					 struct rxrpc_key_token *token)
 {
 	return 0;
 }
