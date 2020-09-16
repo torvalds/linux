@@ -2564,36 +2564,14 @@ static int tegra_pcie_ports_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static const struct seq_operations tegra_pcie_ports_seq_ops = {
+static const struct seq_operations tegra_pcie_ports_sops = {
 	.start = tegra_pcie_ports_seq_start,
 	.next = tegra_pcie_ports_seq_next,
 	.stop = tegra_pcie_ports_seq_stop,
 	.show = tegra_pcie_ports_seq_show,
 };
 
-static int tegra_pcie_ports_open(struct inode *inode, struct file *file)
-{
-	struct tegra_pcie *pcie = inode->i_private;
-	struct seq_file *s;
-	int err;
-
-	err = seq_open(file, &tegra_pcie_ports_seq_ops);
-	if (err)
-		return err;
-
-	s = file->private_data;
-	s->private = pcie;
-
-	return 0;
-}
-
-static const struct file_operations tegra_pcie_ports_ops = {
-	.owner = THIS_MODULE,
-	.open = tegra_pcie_ports_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(tegra_pcie_ports);
 
 static void tegra_pcie_debugfs_exit(struct tegra_pcie *pcie)
 {
@@ -2606,7 +2584,7 @@ static void tegra_pcie_debugfs_init(struct tegra_pcie *pcie)
 	pcie->debugfs = debugfs_create_dir("pcie", NULL);
 
 	debugfs_create_file("ports", S_IFREG | S_IRUGO, pcie->debugfs, pcie,
-			    &tegra_pcie_ports_ops);
+			    &tegra_pcie_ports_fops);
 }
 
 static int tegra_pcie_probe(struct platform_device *pdev)
