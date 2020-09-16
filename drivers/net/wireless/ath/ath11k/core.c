@@ -57,6 +57,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
 		.tcl_0_only = false,
+		.spectral_fft_sz = 2,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -86,6 +87,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
 		.tcl_0_only = false,
+		.spectral_fft_sz = 4,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -115,6 +117,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
 		.tcl_0_only = true,
+		.spectral_fft_sz = 0,
 	},
 };
 
