@@ -5483,9 +5483,6 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	if (!priv->wq)
 		goto err_free_cpumask;
 
-	/* netdev init */
-	netif_carrier_off(netdev);
-
 	return 0;
 
 err_free_cpumask:
@@ -5523,6 +5520,8 @@ mlx5e_create_netdev(struct mlx5_core_dev *mdev, unsigned int txqs, unsigned int 
 		mlx5_core_err(mdev, "mlx5e_priv_init failed, err=%d\n", err);
 		goto err_free_netdev;
 	}
+
+	netif_carrier_off(netdev);
 	dev_net_set(netdev, mlx5_core_net(mdev));
 
 	return netdev;
@@ -5630,6 +5629,7 @@ mlx5e_netdev_attach_profile(struct mlx5e_priv *priv,
 		mlx5_core_err(mdev, "mlx5e_priv_init failed, err=%d\n", err);
 		return err;
 	}
+	netif_carrier_off(netdev);
 	priv->profile = new_profile;
 	priv->ppriv = new_ppriv;
 	err = new_profile->init(priv->mdev, priv->netdev);

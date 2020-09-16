@@ -76,6 +76,7 @@ int mlx5i_init(struct mlx5_core_dev *mdev, struct net_device *netdev)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
 
+	netif_carrier_off(netdev);
 	mlx5e_set_netdev_mtu_boundaries(priv);
 	netdev->mtu = netdev->max_mtu;
 
