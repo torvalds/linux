@@ -10,7 +10,7 @@
 #include "wmi.h"
 #include "hal_rx.h"
 #include "dp_tx.h"
-#include "debug_htt_stats.h"
+#include "debugfs_htt_stats.h"
 #include "peer.h"
 
 static const char *htt_bp_umac_ring[HTT_SW_UMAC_RING_IDX_MAX] = {
@@ -1081,7 +1081,7 @@ int ath11k_debugfs_register(struct ath11k *ar)
 	snprintf(buf, 100, "../../ath11k/%pd2", ar->debug.debugfs_pdev);
 	debugfs_create_symlink("ath11k", ar->hw->wiphy->debugfsdir, buf);
 
-	ath11k_debug_htt_stats_init(ar);
+	ath11k_debugfs_htt_stats_init(ar);
 
 	ath11k_debugfs_fw_stats_init(ar);
 

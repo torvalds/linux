@@ -8,7 +8,7 @@
 #include "dp_tx.h"
 #include "dp_rx.h"
 #include "debug.h"
-#include "debug_htt_stats.h"
+#include "debugfs_htt_stats.h"
 
 #define HTT_DBG_OUT(buf, len, fmt, ...) \
 			scnprintf(buf, len, fmt "\n", ##__VA_ARGS__)
@@ -4586,7 +4586,7 @@ static const struct file_operations fops_htt_stats_reset = {
 	.llseek = default_llseek,
 };
 
-void ath11k_debug_htt_stats_init(struct ath11k *ar)
+void ath11k_debugfs_htt_stats_init(struct ath11k *ar)
 {
 	spin_lock_init(&ar->debug.htt_stats.lock);
 	debugfs_create_file("htt_stats_type", 0600, ar->debug.debugfs_pdev,

@@ -9,7 +9,7 @@
 #include "peer.h"
 #include "debug.h"
 #include "dp_tx.h"
-#include "debug_htt_stats.h"
+#include "debugfs_htt_stats.h"
 
 void
 ath11k_accumulate_per_peer_tx_stats(struct ath11k_sta *arsta,
