@@ -421,8 +421,7 @@ static int __init smu_sensors_init(void)
 		return -ENODEV;
 
 	/* Look for sensors subdir */
-	for (sensors = NULL;
-	     (sensors = of_get_next_child(smu, sensors)) != NULL;)
+	for_each_child_of_node(smu, sensors)
 		if (of_node_name_eq(sensors, "sensors"))
 			break;
 
