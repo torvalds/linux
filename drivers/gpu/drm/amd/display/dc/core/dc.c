@@ -1286,7 +1286,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 			dc->optimize_seamless_boot_streams++;
 	}
 
-	if (context->stream_count > dc->optimize_seamless_boot_streams)
+	if (context->stream_count > dc->optimize_seamless_boot_streams ||
+		context->stream_count == 0)
 		dc->hwss.prepare_bandwidth(dc, context);
 
 	disable_dangling_plane(dc, context);
@@ -1368,7 +1369,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	if (context->stream_count > dc->optimize_seamless_boot_streams) {
+	if (context->stream_count > dc->optimize_seamless_boot_streams ||
+		context->stream_count == 0) {
 		/* Must wait for no flips to be pending before doing optimize bw */
 		wait_for_no_pipes_pending(dc, context);
 		/* pplib is notified if disp_num changed */
