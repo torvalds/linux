@@ -742,7 +742,8 @@ static int cti_dying_cpu(unsigned int cpu)
 
 	spin_lock(&drvdata->spinlock);
 	drvdata->config.hw_powered = false;
-	coresight_disclaim_device(drvdata->base);
+	if (drvdata->config.hw_enabled)
+		coresight_disclaim_device(drvdata->base);
 	spin_unlock(&drvdata->spinlock);
 	return 0;
 }
