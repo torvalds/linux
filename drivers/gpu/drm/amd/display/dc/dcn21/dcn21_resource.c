@@ -1205,6 +1205,26 @@ static bool dcn21_fast_validate_bw(
 
 	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, NULL);
 
+	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *mpo_pipe = pipe->bottom_pipe;
+		struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+
+		if (!pipe->stream)
+			continue;
+
+		/* We only support full screen mpo with ODM */
+		if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
+				&& pipe->plane_state && mpo_pipe
+				&& memcmp(&mpo_pipe->plane_res.scl_data.recout,
+						&pipe->plane_res.scl_data.recout,
+						sizeof(struct rect)) != 0) {
+			ASSERT(mpo_pipe->plane_state != pipe->plane_state);
+			goto validate_fail;
+		}
+		pipe_idx++;
+	}
+
 	/*initialize pipe_just_split_from to invalid idx*/
 	for (i = 0; i < MAX_PIPES; i++)
 		pipe_split_from[i] = -1;
@@ -1234,11 +1254,6 @@ static bool dcn21_fast_validate_bw(
 		/* Skip 2nd half of already split pipe */
 		if (pipe->top_pipe && pipe->plane_state == pipe->top_pipe->plane_state)
 			continue;
-
-		/* We do not support mpo + odm at the moment */
-		if (hsplit_pipe && hsplit_pipe->plane_state != pipe->plane_state
-				&& context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx])
-			goto validate_fail;
 
 		if (split[i] == 2) {
 			if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state) {

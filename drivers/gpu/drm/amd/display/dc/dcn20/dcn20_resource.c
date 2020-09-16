@@ -1882,9 +1882,16 @@ bool dcn20_split_stream_for_odm(
 		next_odm_pipe->next_odm_pipe = prev_odm_pipe->next_odm_pipe;
 		next_odm_pipe->next_odm_pipe->prev_odm_pipe = next_odm_pipe;
 	}
+	if (prev_odm_pipe->top_pipe && prev_odm_pipe->top_pipe->next_odm_pipe) {
+		prev_odm_pipe->top_pipe->next_odm_pipe->bottom_pipe = next_odm_pipe;
+		next_odm_pipe->top_pipe = prev_odm_pipe->top_pipe->next_odm_pipe;
+	}
+	if (prev_odm_pipe->bottom_pipe && prev_odm_pipe->bottom_pipe->next_odm_pipe) {
+		prev_odm_pipe->bottom_pipe->next_odm_pipe->top_pipe = next_odm_pipe;
+		next_odm_pipe->bottom_pipe = prev_odm_pipe->bottom_pipe->next_odm_pipe;
+	}
 	prev_odm_pipe->next_odm_pipe = next_odm_pipe;
 	next_odm_pipe->prev_odm_pipe = prev_odm_pipe;
-	ASSERT(next_odm_pipe->top_pipe == NULL);
 
 	if (prev_odm_pipe->plane_state) {
 		struct scaler_data *sd = &prev_odm_pipe->plane_res.scl_data;
@@ -1922,7 +1929,10 @@ bool dcn20_split_stream_for_odm(
 				sd->ratios.horz_c, sd->h_active - sd->recout.x));
 		sd->recout.x = 0;
 	}
-	next_odm_pipe->stream_res.opp = pool->opps[next_odm_pipe->pipe_idx];
+	if (!next_odm_pipe->top_pipe)
+		next_odm_pipe->stream_res.opp = pool->opps[next_odm_pipe->pipe_idx];
+	else
+		next_odm_pipe->stream_res.opp = next_odm_pipe->top_pipe->stream_res.opp;
 	if (next_odm_pipe->stream->timing.flags.DSC == 1) {
 		dcn20_acquire_dsc(dc, res_ctx, &next_odm_pipe->stream_res.dsc, next_odm_pipe->pipe_idx);
 		ASSERT(next_odm_pipe->stream_res.dsc);
