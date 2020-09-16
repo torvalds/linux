@@ -86,6 +86,9 @@ static inline int cpu_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 
 #endif /* CONFIG_NUMA */
 
+struct drmem_lmb;
+int of_drconf_to_nid_single(struct drmem_lmb *lmb);
+
 #if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
 extern int find_and_online_cpu_nid(int cpu);
 extern int cpu_to_coregroup_id(int cpu);
