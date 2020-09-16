@@ -1327,30 +1327,19 @@ static int pwm_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static const struct seq_operations pwm_seq_ops = {
+static const struct seq_operations pwm_debugfs_sops = {
 	.start = pwm_seq_start,
 	.next = pwm_seq_next,
 	.stop = pwm_seq_stop,
 	.show = pwm_seq_show,
 };
 
-static int pwm_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &pwm_seq_ops);
-}
-
-static const struct file_operations pwm_debugfs_ops = {
-	.owner = THIS_MODULE,
-	.open = pwm_seq_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(pwm_debugfs);
 
 static int __init pwm_debugfs_init(void)
 {
 	debugfs_create_file("pwm", S_IFREG | S_IRUGO, NULL, NULL,
-			    &pwm_debugfs_ops);
+			    &pwm_debugfs_fops);
 
 	return 0;
 }
