@@ -591,6 +591,9 @@ struct vb2_queue {
  */
 static inline bool vb2_queue_allows_cache_hints(struct vb2_queue *q)
 {
+#ifdef CONFIG_ARCH_ROCKCHIP
+	return q->allow_cache_hints;
+#endif
 	return q->allow_cache_hints && q->memory == VB2_MEMORY_MMAP;
 }
 
