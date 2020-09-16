@@ -81,7 +81,15 @@ subsys_initcall(bio_crypt_ctx_init);
 void bio_crypt_set_ctx(struct bio *bio, const struct blk_crypto_key *key,
 		       const u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE], gfp_t gfp_mask)
 {
-	struct bio_crypt_ctx *bc = mempool_alloc(bio_crypt_ctx_pool, gfp_mask);
+	struct bio_crypt_ctx *bc;
+
+	/*
+	 * The caller must use a gfp_mask that contains __GFP_DIRECT_RECLAIM so
+	 * that the mempool_alloc() can't fail.
+	 */
+	WARN_ON_ONCE(!(gfp_mask & __GFP_DIRECT_RECLAIM));
+
+	bc = mempool_alloc(bio_crypt_ctx_pool, gfp_mask);
 
 	bc->bc_key = key;
 	memcpy(bc->bc_dun, dun, sizeof(bc->bc_dun));
