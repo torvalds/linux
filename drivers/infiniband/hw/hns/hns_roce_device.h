@@ -811,7 +811,7 @@ struct hns_roce_caps {
 	int		irrl_entry_sz;
 	int		trrl_entry_sz;
 	int		cqc_entry_sz;
-	int		sccc_entry_sz;
+	int		sccc_sz;
 	int		qpc_timer_entry_sz;
 	int		cqc_timer_entry_sz;
 	int		srqc_entry_sz;

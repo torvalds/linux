@@ -642,11 +642,11 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		}
 	}
 
-	if (hr_dev->caps.sccc_entry_sz) {
+	if (hr_dev->caps.sccc_sz) {
 		ret = hns_roce_init_hem_table(hr_dev,
 					      &hr_dev->qp_table.sccc_table,
 					      HEM_TYPE_SCCC,
-					      hr_dev->caps.sccc_entry_sz,
+					      hr_dev->caps.sccc_sz,
 					      hr_dev->caps.num_qps, 1);
 		if (ret) {
 			dev_err(dev,
@@ -686,7 +686,7 @@ err_unmap_qpc_timer:
 		hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qpc_timer_table);
 
 err_unmap_ctx:
-	if (hr_dev->caps.sccc_entry_sz)
+	if (hr_dev->caps.sccc_sz)
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->qp_table.sccc_table);
 err_unmap_srq:

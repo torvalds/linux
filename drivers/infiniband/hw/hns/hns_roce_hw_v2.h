@@ -85,7 +85,10 @@
 #define HNS_ROCE_V2_MTPT_ENTRY_SZ		64
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
 #define HNS_ROCE_V2_IDX_ENTRY_SZ		4
-#define HNS_ROCE_V2_SCCC_ENTRY_SZ		32
+
+#define HNS_ROCE_V2_SCCC_SZ			32
+#define HNS_ROCE_V3_SCCC_SZ			64
+
 #define HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
@@ -1544,6 +1547,7 @@ struct hns_roce_cfg_sgid_tb {
 
 enum {
 	HNS_ROCE_CFG_QPC_SIZE = BIT(0),
+	HNS_ROCE_CFG_SCCC_SIZE = BIT(1),
 };
 
 struct hns_roce_cfg_entry_size {
@@ -1596,7 +1600,7 @@ struct hns_roce_query_pf_caps_b {
 	u8 cqc_entry_sz;
 	u8 srqc_entry_sz;
 	u8 idx_entry_sz;
-	u8 scc_ctx_entry_sz;
+	u8 sccc_sz;
 	u8 max_mtu;
 	__le16 qpc_sz;
 	__le16 qpc_timer_entry_sz;

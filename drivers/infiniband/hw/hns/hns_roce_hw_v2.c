@@ -1762,7 +1762,7 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->cqc_timer_buf_pg_sz = 0;
 	caps->cqc_timer_hop_num   = HNS_ROCE_HOP_NUM_0;
 
-	caps->sccc_entry_sz	  = HNS_ROCE_V2_SCCC_ENTRY_SZ;
+	caps->sccc_sz = HNS_ROCE_V2_SCCC_SZ;
 	caps->sccc_ba_pg_sz	  = 0;
 	caps->sccc_buf_pg_sz	  = 0;
 	caps->sccc_hop_num	  = HNS_ROCE_SCCC_HOP_NUM;
@@ -1872,7 +1872,7 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->cqc_entry_sz	     = resp_b->cqc_entry_sz;
 	caps->srqc_entry_sz	     = resp_b->srqc_entry_sz;
 	caps->idx_entry_sz	     = resp_b->idx_entry_sz;
-	caps->sccc_entry_sz	     = resp_b->scc_ctx_entry_sz;
+	caps->sccc_sz		     = resp_b->sccc_sz;
 	caps->max_mtu		     = resp_b->max_mtu;
 	caps->qpc_sz		     = HNS_ROCE_V2_QPC_SZ;
 	caps->min_cqes		     = resp_b->min_cqes;
@@ -1997,6 +1997,7 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 		caps->aeqe_size = HNS_ROCE_V3_EQE_SIZE;
 		caps->cqe_sz = HNS_ROCE_V3_CQE_SIZE;
 		caps->qpc_sz = HNS_ROCE_V3_QPC_SZ;
+		caps->sccc_sz = HNS_ROCE_V3_SCCC_SZ;
 	}
 
 	calc_pg_sz(caps->num_qps, caps->qpc_sz, caps->qpc_hop_num,
@@ -2016,7 +2017,7 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->qpc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
 	caps->cqc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
 
-	calc_pg_sz(caps->num_qps, caps->sccc_entry_sz,
+	calc_pg_sz(caps->num_qps, caps->sccc_sz,
 		   caps->sccc_hop_num, caps->sccc_bt_num,
 		   &caps->sccc_buf_pg_sz, &caps->sccc_ba_pg_sz,
 		   HEM_TYPE_SCCC);
@@ -2051,6 +2052,21 @@ static int hns_roce_config_qpc_size(struct hns_roce_dev *hr_dev)
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }
 
+static int hns_roce_config_sccc_size(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cfg_entry_size *cfg_size =
+				  (struct hns_roce_cfg_entry_size *)desc.data;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_ENTRY_SIZE,
+				      false);
+
+	cfg_size->type = cpu_to_le32(HNS_ROCE_CFG_SCCC_SIZE);
+	cfg_size->size = cpu_to_le32(hr_dev->caps.sccc_sz);
+
+	return hns_roce_cmq_send(hr_dev, &desc, 1);
+}
+
 static int hns_roce_config_entry_size(struct hns_roce_dev *hr_dev)
 {
 	int ret;
@@ -2059,8 +2075,14 @@ static int hns_roce_config_entry_size(struct hns_roce_dev *hr_dev)
 		return 0;
 
 	ret = hns_roce_config_qpc_size(hr_dev);
-	if (ret)
+	if (ret) {
 		dev_err(hr_dev->dev, "failed to cfg qpc sz, ret = %d.\n", ret);
+		return ret;
+	}
+
+	ret = hns_roce_config_sccc_size(hr_dev);
+	if (ret)
+		dev_err(hr_dev->dev, "failed to cfg sccc sz, ret = %d.\n", ret);
 
 	return ret;
 }
