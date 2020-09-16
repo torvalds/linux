@@ -4189,7 +4189,6 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 	INIT_LIST_HEAD(&list);
 repeat:
 	ext4_lock_group(sb, group);
-	this_cpu_inc(discard_pa_seq);
 	list_for_each_entry_safe(pa, tmp,
 				&grp->bb_prealloc_list, pa_group_list) {
 		spin_lock(&pa->pa_lock);
@@ -4205,6 +4204,9 @@ repeat:
 
 		/* seems this one can be freed ... */
 		ext4_mb_mark_pa_deleted(sb, pa);
+
+		if (!free)
+			this_cpu_inc(discard_pa_seq);
 
 		/* we can trust pa_free ... */
 		free += pa->pa_free;
