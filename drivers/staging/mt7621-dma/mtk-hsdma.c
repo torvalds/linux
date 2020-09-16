@@ -533,9 +533,9 @@ static void mtk_hsdma_rx(struct mtk_hsdam_engine *hsdma)
 	mtk_hsdma_chan_done(hsdma, chan);
 }
 
-static void mtk_hsdma_tasklet(unsigned long arg)
+static void mtk_hsdma_tasklet(struct tasklet_struct *t)
 {
-	struct mtk_hsdam_engine *hsdma = (struct mtk_hsdam_engine *)arg;
+	struct mtk_hsdam_engine *hsdma = from_tasklet(hsdma, t, task);
 
 	mtk_hsdma_rx(hsdma);
 	mtk_hsdma_tx(hsdma);
@@ -670,7 +670,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 	hsdma->base = base + HSDMA_BASE_OFFSET;
-	tasklet_init(&hsdma->task, mtk_hsdma_tasklet, (unsigned long)hsdma);
+	tasklet_setup(&hsdma->task, mtk_hsdma_tasklet);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
