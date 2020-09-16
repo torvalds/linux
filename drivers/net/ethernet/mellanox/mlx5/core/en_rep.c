@@ -1051,7 +1051,17 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 
 static void mlx5e_rep_enable(struct mlx5e_priv *priv)
 {
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+
 	mlx5e_set_netdev_mtu_boundaries(priv);
+	mlx5e_rep_neigh_init(rpriv);
+}
+
+static void mlx5e_rep_disable(struct mlx5e_priv *priv)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+
+	mlx5e_rep_neigh_cleanup(rpriv);
 }
 
 static int mlx5e_update_rep_rx(struct mlx5e_priv *priv)
@@ -1086,6 +1096,7 @@ static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event
 
 static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 {
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u16 max_mtu;
@@ -1104,12 +1115,15 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 	mlx5_notifier_register(mdev, &priv->events_nb);
 	mlx5e_dcbnl_initialize(priv);
 	mlx5e_dcbnl_init_app(priv);
+	mlx5e_rep_neigh_init(rpriv);
 }
 
 static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)
 {
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
+	mlx5e_rep_neigh_cleanup(rpriv);
 	mlx5e_dcbnl_delete_app(priv);
 	mlx5_notifier_unregister(mdev, &priv->events_nb);
 	mlx5e_rep_tc_disable(priv);
@@ -1161,6 +1175,7 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 	.init_tx		= mlx5e_init_rep_tx,
 	.cleanup_tx		= mlx5e_cleanup_rep_tx,
 	.enable		        = mlx5e_rep_enable,
+	.disable	        = mlx5e_rep_disable,
 	.update_rx		= mlx5e_update_rep_rx,
 	.update_stats           = mlx5e_stats_update_ndo_stats,
 	.rx_handlers            = &mlx5e_rx_handlers_rep,
@@ -1252,29 +1267,18 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		goto err_cleanup_profile;
 	}
 
-	err = mlx5e_rep_neigh_init(rpriv);
-	if (err) {
-		netdev_warn(netdev,
-			    "Failed to initialized neighbours handling for vport %d\n",
-			    rep->vport);
-		goto err_detach_netdev;
-	}
-
 	err = register_netdev(netdev);
 	if (err) {
 		netdev_warn(netdev,
 			    "Failed to register representor netdev for vport %d\n",
 			    rep->vport);
-		goto err_neigh_cleanup;
+		goto err_detach_netdev;
 	}
 
 	dl_port = mlx5_esw_offloads_devlink_port(dev->priv.eswitch, rpriv->rep->vport);
 	if (dl_port)
 		devlink_port_type_eth_set(dl_port, netdev);
 	return 0;
-
-err_neigh_cleanup:
-	mlx5e_rep_neigh_cleanup(rpriv);
 
 err_detach_netdev:
 	mlx5e_detach_netdev(netdev_priv(netdev));
@@ -1306,7 +1310,6 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	if (dl_port)
 		devlink_port_type_clear(dl_port);
 	unregister_netdev(netdev);
-	mlx5e_rep_neigh_cleanup(rpriv);
 	mlx5e_detach_netdev(priv);
 	priv->profile->cleanup(priv);
 	if (rep->vport == MLX5_VPORT_UPLINK)

@@ -279,7 +279,7 @@ int mlx5e_rep_neigh_init(struct mlx5e_rep_priv *rpriv)
 
 	err = rhashtable_init(&neigh_update->neigh_ht, &mlx5e_neigh_ht_params);
 	if (err)
-		return err;
+		goto out_err;
 
 	INIT_LIST_HEAD(&neigh_update->neigh_list);
 	mutex_init(&neigh_update->encap_lock);
@@ -287,14 +287,19 @@ int mlx5e_rep_neigh_init(struct mlx5e_rep_priv *rpriv)
 			  mlx5e_rep_neigh_stats_work);
 	mlx5e_rep_neigh_update_init_interval(rpriv);
 
-	rpriv->neigh_update.netevent_nb.notifier_call = mlx5e_rep_netevent_event;
-	err = register_netevent_notifier(&rpriv->neigh_update.netevent_nb);
+	neigh_update->netevent_nb.notifier_call = mlx5e_rep_netevent_event;
+	err = register_netevent_notifier(&neigh_update->netevent_nb);
 	if (err)
-		goto out_err;
+		goto out_notifier;
 	return 0;
 
-out_err:
+out_notifier:
+	neigh_update->netevent_nb.notifier_call = NULL;
 	rhashtable_destroy(&neigh_update->neigh_ht);
+out_err:
+	netdev_warn(rpriv->netdev,
+		    "Failed to initialize neighbours handling for vport %d\n",
+		    rpriv->rep->vport);
 	return err;
 }
 
@@ -302,6 +307,9 @@ void mlx5e_rep_neigh_cleanup(struct mlx5e_rep_priv *rpriv)
 {
 	struct mlx5e_neigh_update_table *neigh_update = &rpriv->neigh_update;
 	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
+
+	if (!rpriv->neigh_update.netevent_nb.notifier_call)
+		return;
 
 	unregister_netevent_notifier(&neigh_update->netevent_nb);
 
