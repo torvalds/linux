@@ -78,38 +78,6 @@ static int mlxsw_sp_port_pg_prio_map(struct mlxsw_sp_port *mlxsw_sp_port,
 			       pptb_pl);
 }
 
-static bool mlxsw_sp_ets_has_pg(u8 *prio_tc, u8 pg)
-{
-	int i;
-
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		if (prio_tc[i] == pg)
-			return true;
-	return false;
-}
-
-static int mlxsw_sp_port_pg_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
-				    u8 *old_prio_tc, u8 *new_prio_tc)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char pbmc_pl[MLXSW_REG_PBMC_LEN];
-	int err, i;
-
-	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port, 0, 0);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
-	if (err)
-		return err;
-
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		u8 pg = old_prio_tc[i];
-
-		if (!mlxsw_sp_ets_has_pg(new_prio_tc, pg))
-			mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, pg, 0);
-	}
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
-}
-
 static int mlxsw_sp_port_headroom_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 					  struct ieee_ets *ets)
 {
@@ -153,14 +121,16 @@ static int mlxsw_sp_port_headroom_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		goto err_port_prio_pg_map;
 	}
 
-	err = mlxsw_sp_port_pg_destroy(mlxsw_sp_port, my_ets->prio_tc,
-				       ets->prio_tc);
-	if (err)
+	err = mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom);
+	if (err) {
 		netdev_warn(dev, "Failed to remove unused PGs\n");
+		goto err_configure_buffers;
+	}
 
-	*mlxsw_sp_port->hdroom = hdroom;
 	return 0;
 
+err_configure_buffers:
+	mlxsw_sp_port_pg_prio_map(mlxsw_sp_port, my_ets->prio_tc);
 err_port_prio_pg_map:
 	mlxsw_sp_hdroom_configure(mlxsw_sp_port, &orig_hdroom);
 	return err;
