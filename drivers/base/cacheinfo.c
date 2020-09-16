@@ -380,24 +380,22 @@ static ssize_t size_show(struct device *dev,
 	return sysfs_emit(buf, "%uK\n", this_leaf->size >> 10);
 }
 
-static ssize_t shared_cpumap_show_func(struct device *dev, bool list, char *buf)
+static ssize_t shared_cpu_map_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct cacheinfo *this_leaf = dev_get_drvdata(dev);
 	const struct cpumask *mask = &this_leaf->shared_cpu_map;
 
-	return cpumap_print_to_pagebuf(list, buf, mask);
-}
-
-static ssize_t shared_cpu_map_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	return shared_cpumap_show_func(dev, false, buf);
+	return sysfs_emit(buf, "%*pb\n", nr_cpu_ids, mask);
 }
 
 static ssize_t shared_cpu_list_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	return shared_cpumap_show_func(dev, true, buf);
+	struct cacheinfo *this_leaf = dev_get_drvdata(dev);
+	const struct cpumask *mask = &this_leaf->shared_cpu_map;
+
+	return sysfs_emit(buf, "%*pbl\n", nr_cpu_ids, mask);
 }
 
 static ssize_t type_show(struct device *dev,
