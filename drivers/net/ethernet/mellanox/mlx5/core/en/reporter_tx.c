@@ -593,4 +593,5 @@ void mlx5e_reporter_tx_destroy(struct mlx5e_priv *priv)
 		return;
 
 	devlink_port_health_reporter_destroy(priv->tx_reporter);
+	priv->tx_reporter = NULL;
 }

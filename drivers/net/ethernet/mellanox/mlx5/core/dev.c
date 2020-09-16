@@ -58,9 +58,6 @@ static bool is_eth_supported(struct mlx5_core_dev *dev)
 	if (!IS_ENABLED(CONFIG_MLX5_CORE_EN))
 		return false;
 
-	if (is_eth_rep_supported(dev))
-		return false;
-
 	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
 		return false;
 

@@ -651,6 +651,7 @@ struct mlx5e_resources {
 		struct mlx5_sq_bfreg       bfreg;
 	} hw_objs;
 	struct devlink_port dl_port;
+	struct net_device *uplink_netdev;
 };
 
 enum mlx5_sw_icm_type {
