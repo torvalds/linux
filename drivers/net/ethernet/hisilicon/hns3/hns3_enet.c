@@ -1398,9 +1398,8 @@ static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
 	if (!ring->pending_buf)
 		return;
 
-	wmb(); /* Commit all data before submit */
-
-	hnae3_queue_xmit(ring->tqp, ring->pending_buf);
+	writel(ring->pending_buf,
+	       ring->tqp->io_base + HNS3_RING_TX_RING_TAIL_REG);
 	ring->pending_buf = 0;
 	WRITE_ONCE(ring->last_to_use, ring->next_to_use);
 }
@@ -2618,8 +2617,7 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 		ring_ptr_move_fw(ring, next_to_use);
 	}
 
-	wmb(); /* Make all data has been write before submit */
-	writel_relaxed(i, ring->tqp->io_base + HNS3_RING_RX_RING_HEAD_REG);
+	writel(i, ring->tqp->io_base + HNS3_RING_RX_RING_HEAD_REG);
 }
 
 static bool hns3_page_is_reusable(struct page *page)

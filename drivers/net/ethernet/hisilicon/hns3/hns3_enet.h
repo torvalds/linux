@@ -539,9 +539,6 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 #define hns3_write_dev(a, reg, value) \
 	hns3_write_reg((a)->io_base, (reg), (value))
 
-#define hnae3_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
-		(tqp)->io_base + HNS3_RING_TX_RING_TAIL_REG)
-
 #define ring_to_dev(ring) ((ring)->dev)
 
 #define ring_to_netdev(ring)	((ring)->tqp_vector->napi.dev)
