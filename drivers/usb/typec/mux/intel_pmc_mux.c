@@ -148,8 +148,13 @@ struct pmc_usb {
 
 static void update_port_status(struct pmc_usb_port *port)
 {
+	u8 port_num;
+
+	/* SoC expects the USB Type-C port numbers to start with 0 */
+	port_num = port->usb3_port - 1;
+
 	port->iom_status = readl(port->pmc->iom_base + IOM_PORT_STATUS_OFFSET +
-				 port->usb3_port * sizeof(u32));
+				 port_num * sizeof(u32));
 }
 
 static int sbu_orientation(struct pmc_usb_port *port)
