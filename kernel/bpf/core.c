@@ -776,7 +776,7 @@ int bpf_jit_add_poke_descriptor(struct bpf_prog *prog,
 	if (size > poke_tab_max)
 		return -ENOSPC;
 	if (poke->tailcall_target || poke->tailcall_target_stable ||
-	    poke->adj_off)
+	    poke->tailcall_bypass || poke->adj_off || poke->bypass_addr)
 		return -EINVAL;
 
 	switch (poke->reason) {
