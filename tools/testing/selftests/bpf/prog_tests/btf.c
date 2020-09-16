@@ -24,40 +24,17 @@
 
 #include "bpf_rlimit.h"
 #include "bpf_util.h"
-#include "test_btf.h"
+#include "../test_btf.h"
+#include "test_progs.h"
 
 #define MAX_INSNS	512
 #define MAX_SUBPROGS	16
 
-static uint32_t pass_cnt;
-static uint32_t error_cnt;
-static uint32_t skip_cnt;
+static int duration = 0;
+static bool always_log;
 
-#define CHECK(condition, format...) ({					\
-	int __ret = !!(condition);					\
-	if (__ret) {							\
-		fprintf(stderr, "%s:%d:FAIL ", __func__, __LINE__);	\
-		fprintf(stderr, format);				\
-	}								\
-	__ret;								\
-})
-
-static int count_result(int err)
-{
-	if (err)
-		error_cnt++;
-	else
-		pass_cnt++;
-
-	fprintf(stderr, "\n");
-	return err;
-}
-
-static int __base_pr(enum libbpf_print_level level __attribute__((unused)),
-		     const char *format, va_list args)
-{
-	return vfprintf(stderr, format, args);
-}
+#undef CHECK
+#define CHECK(condition, format...) _CHECK(condition, "check", duration, format)
 
 #define BTF_END_RAW 0xdeadbeef
 #define NAME_TBD 0xdeadb33f
@@ -68,21 +45,6 @@ static int __base_pr(enum libbpf_print_level level __attribute__((unused)),
 
 #define MAX_NR_RAW_U32 1024
 #define BTF_LOG_BUF_SIZE 65535
-
-static struct args {
-	unsigned int raw_test_num;
-	unsigned int file_test_num;
-	unsigned int get_info_test_num;
-	unsigned int info_raw_test_num;
-	unsigned int dedup_test_num;
-	bool raw_test;
-	bool file_test;
-	bool get_info_test;
-	bool pprint_test;
-	bool always_log;
-	bool info_raw_test;
-	bool dedup_test;
-} args;
 
 static char btf_log_buf[BTF_LOG_BUF_SIZE];
 
@@ -3664,7 +3626,7 @@ done:
 	return raw_btf;
 }
 
-static int do_test_raw(unsigned int test_num)
+static void do_test_raw(unsigned int test_num)
 {
 	struct btf_raw_test *test = &raw_tests[test_num - 1];
 	struct bpf_create_map_attr create_attr = {};
@@ -3674,15 +3636,16 @@ static int do_test_raw(unsigned int test_num)
 	void *raw_btf;
 	int err;
 
-	fprintf(stderr, "BTF raw test[%u] (%s): ", test_num, test->descr);
+	if (!test__start_subtest(test->descr))
+		return;
+
 	raw_btf = btf_raw_create(&hdr_tmpl,
 				 test->raw_types,
 				 test->str_sec,
 				 test->str_sec_size,
 				 &raw_btf_size, NULL);
-
 	if (!raw_btf)
-		return -1;
+		return;
 
 	hdr = raw_btf;
 
@@ -3694,7 +3657,7 @@ static int do_test_raw(unsigned int test_num)
 	*btf_log_buf = '\0';
 	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
 			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      args.always_log);
+			      always_log);
 	free(raw_btf);
 
 	err = ((btf_fd == -1) != test->btf_load_err);
@@ -3725,32 +3688,12 @@ static int do_test_raw(unsigned int test_num)
 	      map_fd, test->map_create_err);
 
 done:
-	if (!err)
-		fprintf(stderr, "OK");
-
-	if (*btf_log_buf && (err || args.always_log))
+	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
-
 	if (btf_fd != -1)
 		close(btf_fd);
 	if (map_fd != -1)
 		close(map_fd);
-
-	return err;
-}
-
-static int test_raw(void)
-{
-	unsigned int i;
-	int err = 0;
-
-	if (args.raw_test_num)
-		return count_result(do_test_raw(args.raw_test_num));
-
-	for (i = 1; i <= ARRAY_SIZE(raw_tests); i++)
-		err |= count_result(do_test_raw(i));
-
-	return err;
 }
 
 struct btf_get_info_test {
@@ -3814,11 +3757,6 @@ const struct btf_get_info_test get_info_tests[] = {
 },
 };
 
-static inline __u64 ptr_to_u64(const void *ptr)
-{
-	return (__u64)(unsigned long)ptr;
-}
-
 static int test_big_btf_info(unsigned int test_num)
 {
 	const struct btf_get_info_test *test = &get_info_tests[test_num - 1];
@@ -3851,7 +3789,7 @@ static int test_big_btf_info(unsigned int test_num)
 
 	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
 			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      args.always_log);
+			      always_log);
 	if (CHECK(btf_fd == -1, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -3892,7 +3830,7 @@ static int test_big_btf_info(unsigned int test_num)
 	fprintf(stderr, "OK");
 
 done:
-	if (*btf_log_buf && (err || args.always_log))
+	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
 
 	free(raw_btf);
@@ -3939,7 +3877,7 @@ static int test_btf_id(unsigned int test_num)
 
 	btf_fd[0] = bpf_load_btf(raw_btf, raw_btf_size,
 				 btf_log_buf, BTF_LOG_BUF_SIZE,
-				 args.always_log);
+				 always_log);
 	if (CHECK(btf_fd[0] == -1, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -4024,7 +3962,7 @@ static int test_btf_id(unsigned int test_num)
 	fprintf(stderr, "OK");
 
 done:
-	if (*btf_log_buf && (err || args.always_log))
+	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
 
 	free(raw_btf);
@@ -4039,7 +3977,7 @@ done:
 	return err;
 }
 
-static int do_test_get_info(unsigned int test_num)
+static void do_test_get_info(unsigned int test_num)
 {
 	const struct btf_get_info_test *test = &get_info_tests[test_num - 1];
 	unsigned int raw_btf_size, user_btf_size, expected_nbytes;
@@ -4048,11 +3986,14 @@ static int do_test_get_info(unsigned int test_num)
 	int btf_fd = -1, err, ret;
 	uint32_t info_len;
 
-	fprintf(stderr, "BTF GET_INFO test[%u] (%s): ",
-		test_num, test->descr);
+	if (!test__start_subtest(test->descr))
+		return;
 
-	if (test->special_test)
-		return test->special_test(test_num);
+	if (test->special_test) {
+		err = test->special_test(test_num);
+		if (CHECK(err, "failed: %d\n", err))
+			return;
+	}
 
 	raw_btf = btf_raw_create(&hdr_tmpl,
 				 test->raw_types,
@@ -4061,7 +4002,7 @@ static int do_test_get_info(unsigned int test_num)
 				 &raw_btf_size, NULL);
 
 	if (!raw_btf)
-		return -1;
+		return;
 
 	*btf_log_buf = '\0';
 
@@ -4073,7 +4014,7 @@ static int do_test_get_info(unsigned int test_num)
 
 	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
 			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      args.always_log);
+			      always_log);
 	if (CHECK(btf_fd == -1, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -4114,7 +4055,7 @@ static int do_test_get_info(unsigned int test_num)
 	fprintf(stderr, "OK");
 
 done:
-	if (*btf_log_buf && (err || args.always_log))
+	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
 
 	free(raw_btf);
@@ -4122,22 +4063,6 @@ done:
 
 	if (btf_fd != -1)
 		close(btf_fd);
-
-	return err;
-}
-
-static int test_get_info(void)
-{
-	unsigned int i;
-	int err = 0;
-
-	if (args.get_info_test_num)
-		return count_result(do_test_get_info(args.get_info_test_num));
-
-	for (i = 1; i <= ARRAY_SIZE(get_info_tests); i++)
-		err |= count_result(do_test_get_info(i));
-
-	return err;
 }
 
 struct btf_file_test {
@@ -4151,7 +4076,7 @@ static struct btf_file_test file_tests[] = {
 	{ .file = "test_btf_nokv.o", .btf_kv_notfound = true, },
 };
 
-static int do_test_file(unsigned int test_num)
+static void do_test_file(unsigned int test_num)
 {
 	const struct btf_file_test *test = &file_tests[test_num - 1];
 	const char *expected_fnames[] = {"_dummy_tracepoint",
@@ -4169,17 +4094,17 @@ static int do_test_file(unsigned int test_num)
 	struct bpf_map *map;
 	int i, err, prog_fd;
 
-	fprintf(stderr, "BTF libbpf test[%u] (%s): ", test_num,
-		test->file);
+	if (!test__start_subtest(test->file))
+		return;
 
 	btf = btf__parse_elf(test->file, &btf_ext);
 	if (IS_ERR(btf)) {
 		if (PTR_ERR(btf) == -ENOENT) {
-			fprintf(stderr, "SKIP. No ELF %s found", BTF_ELF_SEC);
-			skip_cnt++;
-			return 0;
+			printf("%s:SKIP: No ELF %s found", __func__, BTF_ELF_SEC);
+			test__skip();
+			return;
 		}
-		return PTR_ERR(btf);
+		return;
 	}
 	btf__free(btf);
 
@@ -4188,7 +4113,7 @@ static int do_test_file(unsigned int test_num)
 
 	obj = bpf_object__open(test->file);
 	if (CHECK(IS_ERR(obj), "obj: %ld", PTR_ERR(obj)))
-		return PTR_ERR(obj);
+		return;
 
 	prog = bpf_program__next(NULL, obj);
 	if (CHECK(!prog, "Cannot find bpf_prog")) {
@@ -4310,21 +4235,6 @@ skip:
 done:
 	free(func_info);
 	bpf_object__close(obj);
-	return err;
-}
-
-static int test_file(void)
-{
-	unsigned int i;
-	int err = 0;
-
-	if (args.file_test_num)
-		return count_result(do_test_file(args.file_test_num));
-
-	for (i = 1; i <= ARRAY_SIZE(file_tests); i++)
-		err |= count_result(do_test_file(i));
-
-	return err;
 }
 
 const char *pprint_enum_str[] = {
@@ -4428,7 +4338,7 @@ static struct btf_raw_test pprint_test_template[] = {
 	.value_size = sizeof(struct pprint_mapv),
 	.key_type_id = 3,	/* unsigned int */
 	.value_type_id = 16,	/* struct pprint_mapv */
-	.max_entries = 128 * 1024,
+	.max_entries = 128,
 },
 
 {
@@ -4493,7 +4403,7 @@ static struct btf_raw_test pprint_test_template[] = {
 	.value_size = sizeof(struct pprint_mapv),
 	.key_type_id = 3,	/* unsigned int */
 	.value_type_id = 16,	/* struct pprint_mapv */
-	.max_entries = 128 * 1024,
+	.max_entries = 128,
 },
 
 {
@@ -4564,7 +4474,7 @@ static struct btf_raw_test pprint_test_template[] = {
 	.value_size = sizeof(struct pprint_mapv),
 	.key_type_id = 3,	/* unsigned int */
 	.value_type_id = 16,	/* struct pprint_mapv */
-	.max_entries = 128 * 1024,
+	.max_entries = 128,
 },
 
 #ifdef __SIZEOF_INT128__
@@ -4591,7 +4501,7 @@ static struct btf_raw_test pprint_test_template[] = {
 	.value_size = sizeof(struct pprint_mapv_int128),
 	.key_type_id = 1,
 	.value_type_id = 4,
-	.max_entries = 128 * 1024,
+	.max_entries = 128,
 	.mapv_kind = PPRINT_MAPV_KIND_INT128,
 },
 #endif
@@ -4790,7 +4700,7 @@ static int check_line(const char *expected_line, int nexpected_line,
 }
 
 
-static int do_test_pprint(int test_num)
+static void do_test_pprint(int test_num)
 {
 	const struct btf_raw_test *test = &pprint_test_template[test_num];
 	enum pprint_mapv_kind_t mapv_kind = test->mapv_kind;
@@ -4809,18 +4719,20 @@ static int do_test_pprint(int test_num)
 	uint8_t *raw_btf;
 	ssize_t nread;
 
-	fprintf(stderr, "%s(#%d)......", test->descr, test_num);
+	if (!test__start_subtest(test->descr))
+		return;
+
 	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
 				 test->str_sec, test->str_sec_size,
 				 &raw_btf_size, NULL);
 
 	if (!raw_btf)
-		return -1;
+		return;
 
 	*btf_log_buf = '\0';
 	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
 			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      args.always_log);
+			      always_log);
 	free(raw_btf);
 
 	if (CHECK(btf_fd == -1, "errno:%d", errno)) {
@@ -4971,7 +4883,7 @@ done:
 		free(mapv);
 	if (!err)
 		fprintf(stderr, "OK");
-	if (*btf_log_buf && (err || args.always_log))
+	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
 	if (btf_fd != -1)
 		close(btf_fd);
@@ -4981,14 +4893,11 @@ done:
 		fclose(pin_file);
 	unlink(pin_path);
 	free(line);
-
-	return err;
 }
 
-static int test_pprint(void)
+static void test_pprint(void)
 {
 	unsigned int i;
-	int err = 0;
 
 	/* test various maps with the first test template */
 	for (i = 0; i < ARRAY_SIZE(pprint_tests_meta); i++) {
@@ -4999,7 +4908,7 @@ static int test_pprint(void)
 		pprint_test_template[0].lossless_map = pprint_tests_meta[i].lossless_map;
 		pprint_test_template[0].percpu_map = pprint_tests_meta[i].percpu_map;
 
-		err |= count_result(do_test_pprint(0));
+		do_test_pprint(0);
 	}
 
 	/* test rest test templates with the first map */
@@ -5010,10 +4919,8 @@ static int test_pprint(void)
 		pprint_test_template[i].ordered_map = pprint_tests_meta[0].ordered_map;
 		pprint_test_template[i].lossless_map = pprint_tests_meta[0].lossless_map;
 		pprint_test_template[i].percpu_map = pprint_tests_meta[0].percpu_map;
-		err |= count_result(do_test_pprint(i));
+		do_test_pprint(i);
 	}
-
-	return err;
 }
 
 #define BPF_LINE_INFO_ENC(insn_off, file_off, line_off, line_num, line_col) \
@@ -6178,7 +6085,7 @@ done:
 	return err;
 }
 
-static int do_test_info_raw(unsigned int test_num)
+static void do_test_info_raw(unsigned int test_num)
 {
 	const struct prog_info_raw_test *test = &info_raw_tests[test_num - 1];
 	unsigned int raw_btf_size, linfo_str_off, linfo_size;
@@ -6187,18 +6094,19 @@ static int do_test_info_raw(unsigned int test_num)
 	const char *ret_next_str;
 	union bpf_attr attr = {};
 
-	fprintf(stderr, "BTF prog info raw test[%u] (%s): ", test_num, test->descr);
+	if (!test__start_subtest(test->descr))
+		return;
+
 	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
 				 test->str_sec, test->str_sec_size,
 				 &raw_btf_size, &ret_next_str);
-
 	if (!raw_btf)
-		return -1;
+		return;
 
 	*btf_log_buf = '\0';
 	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
 			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      args.always_log);
+			      always_log);
 	free(raw_btf);
 
 	if (CHECK(btf_fd == -1, "invalid btf_fd errno:%d", errno)) {
@@ -6206,7 +6114,7 @@ static int do_test_info_raw(unsigned int test_num)
 		goto done;
 	}
 
-	if (*btf_log_buf && args.always_log)
+	if (*btf_log_buf && always_log)
 		fprintf(stderr, "\n%s", btf_log_buf);
 	*btf_log_buf = '\0';
 
@@ -6261,10 +6169,7 @@ static int do_test_info_raw(unsigned int test_num)
 		goto done;
 
 done:
-	if (!err)
-		fprintf(stderr, "OK");
-
-	if (*btf_log_buf && (err || args.always_log))
+	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
 
 	if (btf_fd != -1)
@@ -6274,22 +6179,6 @@ done:
 
 	if (!IS_ERR(patched_linfo))
 		free(patched_linfo);
-
-	return err;
-}
-
-static int test_info_raw(void)
-{
-	unsigned int i;
-	int err = 0;
-
-	if (args.info_raw_test_num)
-		return count_result(do_test_info_raw(args.info_raw_test_num));
-
-	for (i = 1; i <= ARRAY_SIZE(info_raw_tests); i++)
-		err |= count_result(do_test_info_raw(i));
-
-	return err;
 }
 
 struct btf_raw_data {
@@ -6754,7 +6643,7 @@ static void dump_btf_strings(const char *strs, __u32 len)
 	}
 }
 
-static int do_test_dedup(unsigned int test_num)
+static void do_test_dedup(unsigned int test_num)
 {
 	const struct btf_dedup_test *test = &dedup_tests[test_num - 1];
 	__u32 test_nr_types, expect_nr_types, test_btf_size, expect_btf_size;
@@ -6769,13 +6658,15 @@ static int do_test_dedup(unsigned int test_num)
 	void *raw_btf;
 	int err = 0, i;
 
-	fprintf(stderr, "BTF dedup test[%u] (%s):", test_num, test->descr);
+	if (!test__start_subtest(test->descr))
+		return;
 
 	raw_btf = btf_raw_create(&hdr_tmpl, test->input.raw_types,
 				 test->input.str_sec, test->input.str_sec_size,
 				 &raw_btf_size, &ret_test_next_str);
 	if (!raw_btf)
-		return -1;
+		return;
+
 	test_btf = btf__new((__u8 *)raw_btf, raw_btf_size);
 	free(raw_btf);
 	if (CHECK(IS_ERR(test_btf), "invalid test_btf errno:%ld",
@@ -6789,7 +6680,7 @@ static int do_test_dedup(unsigned int test_num)
 				 test->expect.str_sec_size,
 				 &raw_btf_size, &ret_expect_next_str);
 	if (!raw_btf)
-		return -1;
+		return;
 	expect_btf = btf__new((__u8 *)raw_btf, raw_btf_size);
 	free(raw_btf);
 	if (CHECK(IS_ERR(expect_btf), "invalid expect_btf errno:%ld",
@@ -6894,174 +6785,27 @@ static int do_test_dedup(unsigned int test_num)
 	}
 
 done:
-	if (!err)
-		fprintf(stderr, "OK");
 	if (!IS_ERR(test_btf))
 		btf__free(test_btf);
 	if (!IS_ERR(expect_btf))
 		btf__free(expect_btf);
-
-	return err;
 }
 
-static int test_dedup(void)
+void test_btf(void)
 {
-	unsigned int i;
-	int err = 0;
+	int i;
 
-	if (args.dedup_test_num)
-		return count_result(do_test_dedup(args.dedup_test_num));
+	always_log = env.verbosity > VERBOSE_NONE;
 
+	for (i = 1; i <= ARRAY_SIZE(raw_tests); i++)
+		do_test_raw(i);
+	for (i = 1; i <= ARRAY_SIZE(get_info_tests); i++)
+		do_test_get_info(i);
+	for (i = 1; i <= ARRAY_SIZE(file_tests); i++)
+		do_test_file(i);
+	for (i = 1; i <= ARRAY_SIZE(info_raw_tests); i++)
+		do_test_info_raw(i);
 	for (i = 1; i <= ARRAY_SIZE(dedup_tests); i++)
-		err |= count_result(do_test_dedup(i));
-
-	return err;
-}
-
-static void usage(const char *cmd)
-{
-	fprintf(stderr, "Usage: %s [-l] [[-r btf_raw_test_num (1 - %zu)] |\n"
-			"\t[-g btf_get_info_test_num (1 - %zu)] |\n"
-			"\t[-f btf_file_test_num (1 - %zu)] |\n"
-			"\t[-k btf_prog_info_raw_test_num (1 - %zu)] |\n"
-			"\t[-p (pretty print test)] |\n"
-			"\t[-d btf_dedup_test_num (1 - %zu)]]\n",
-		cmd, ARRAY_SIZE(raw_tests), ARRAY_SIZE(get_info_tests),
-		ARRAY_SIZE(file_tests), ARRAY_SIZE(info_raw_tests),
-		ARRAY_SIZE(dedup_tests));
-}
-
-static int parse_args(int argc, char **argv)
-{
-	const char *optstr = "hlpk:f:r:g:d:";
-	int opt;
-
-	while ((opt = getopt(argc, argv, optstr)) != -1) {
-		switch (opt) {
-		case 'l':
-			args.always_log = true;
-			break;
-		case 'f':
-			args.file_test_num = atoi(optarg);
-			args.file_test = true;
-			break;
-		case 'r':
-			args.raw_test_num = atoi(optarg);
-			args.raw_test = true;
-			break;
-		case 'g':
-			args.get_info_test_num = atoi(optarg);
-			args.get_info_test = true;
-			break;
-		case 'p':
-			args.pprint_test = true;
-			break;
-		case 'k':
-			args.info_raw_test_num = atoi(optarg);
-			args.info_raw_test = true;
-			break;
-		case 'd':
-			args.dedup_test_num = atoi(optarg);
-			args.dedup_test = true;
-			break;
-		case 'h':
-			usage(argv[0]);
-			exit(0);
-		default:
-			usage(argv[0]);
-			return -1;
-		}
-	}
-
-	if (args.raw_test_num &&
-	    (args.raw_test_num < 1 ||
-	     args.raw_test_num > ARRAY_SIZE(raw_tests))) {
-		fprintf(stderr, "BTF raw test number must be [1 - %zu]\n",
-			ARRAY_SIZE(raw_tests));
-		return -1;
-	}
-
-	if (args.file_test_num &&
-	    (args.file_test_num < 1 ||
-	     args.file_test_num > ARRAY_SIZE(file_tests))) {
-		fprintf(stderr, "BTF file test number must be [1 - %zu]\n",
-			ARRAY_SIZE(file_tests));
-		return -1;
-	}
-
-	if (args.get_info_test_num &&
-	    (args.get_info_test_num < 1 ||
-	     args.get_info_test_num > ARRAY_SIZE(get_info_tests))) {
-		fprintf(stderr, "BTF get info test number must be [1 - %zu]\n",
-			ARRAY_SIZE(get_info_tests));
-		return -1;
-	}
-
-	if (args.info_raw_test_num &&
-	    (args.info_raw_test_num < 1 ||
-	     args.info_raw_test_num > ARRAY_SIZE(info_raw_tests))) {
-		fprintf(stderr, "BTF prog info raw test number must be [1 - %zu]\n",
-			ARRAY_SIZE(info_raw_tests));
-		return -1;
-	}
-
-	if (args.dedup_test_num &&
-	    (args.dedup_test_num < 1 ||
-	     args.dedup_test_num > ARRAY_SIZE(dedup_tests))) {
-		fprintf(stderr, "BTF dedup test number must be [1 - %zu]\n",
-			ARRAY_SIZE(dedup_tests));
-		return -1;
-	}
-
-	return 0;
-}
-
-static void print_summary(void)
-{
-	fprintf(stderr, "PASS:%u SKIP:%u FAIL:%u\n",
-		pass_cnt - skip_cnt, skip_cnt, error_cnt);
-}
-
-int main(int argc, char **argv)
-{
-	int err = 0;
-
-	err = parse_args(argc, argv);
-	if (err)
-		return err;
-
-	if (args.always_log)
-		libbpf_set_print(__base_pr);
-
-	if (args.raw_test)
-		err |= test_raw();
-
-	if (args.get_info_test)
-		err |= test_get_info();
-
-	if (args.file_test)
-		err |= test_file();
-
-	if (args.pprint_test)
-		err |= test_pprint();
-
-	if (args.info_raw_test)
-		err |= test_info_raw();
-
-	if (args.dedup_test)
-		err |= test_dedup();
-
-	if (args.raw_test || args.get_info_test || args.file_test ||
-	    args.pprint_test || args.info_raw_test || args.dedup_test)
-		goto done;
-
-	err |= test_raw();
-	err |= test_get_info();
-	err |= test_file();
-	err |= test_info_raw();
-	err |= test_dedup();
-
-done:
-	print_summary();
-	return err;
+		do_test_dedup(i);
+	test_pprint();
 }
