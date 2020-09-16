@@ -324,7 +324,7 @@ static int ad9467_setup(struct ad9467_state *st, unsigned int chip_id)
 				  AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
 		return 0;
 	default:
-		return -EINVAL;
+		return -ENODEV;
 	}
 }
 
