@@ -10,6 +10,7 @@ obj-$(CONFIG_PHY_ROCKCHIP_INNO_VIDEO_COMBO_PHY)	+= phy-rockchip-inno-video-combo
 obj-$(CONFIG_PHY_ROCKCHIP_INNO_VIDEO_PHY)	+= phy-rockchip-inno-video-phy.o
 obj-$(CONFIG_PHY_ROCKCHIP_MIPI_RX)	+= phy-rockchip-mipi-rx.o
 obj-$(CONFIG_PHY_ROCKCHIP_NANENG_COMBO_PHY)	+= phy-rockchip-naneng-combphy.o
+obj-$(CONFIG_PHY_ROCKCHIP_NANENG_EDP)	+= phy-rockchip-naneng-edp.o
 obj-$(CONFIG_PHY_ROCKCHIP_NANENG_USB2)	+= phy-rockchip-naneng-usb2.o
 obj-$(CONFIG_PHY_ROCKCHIP_PCIE)		+= phy-rockchip-pcie.o
 obj-$(CONFIG_PHY_ROCKCHIP_SNPS_PCIE3)	+= phy-rockchip-snps-pcie3.o
