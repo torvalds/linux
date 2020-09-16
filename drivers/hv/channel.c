@@ -22,19 +22,6 @@
 
 #include "hyperv_vmbus.h"
 
-static unsigned long virt_to_hvpfn(void *addr)
-{
-	phys_addr_t paddr;
-
-	if (is_vmalloc_addr(addr))
-		paddr = page_to_phys(vmalloc_to_page(addr)) +
-					 offset_in_page(addr);
-	else
-		paddr = __pa(addr);
-
-	return  paddr >> HV_HYP_PAGE_SHIFT;
-}
-
 /*
  * hv_gpadl_size - Return the real size of a gpadl, the size that Hyper-V uses
  *
