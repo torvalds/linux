@@ -3769,7 +3769,15 @@ static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			  void *type_data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	bool tc_unbind = false;
 	int err;
+
+	if (type == TC_SETUP_BLOCK &&
+	    ((struct flow_block_offload *)type_data)->command == FLOW_BLOCK_UNBIND)
+		tc_unbind = true;
+
+	if (!netif_device_present(dev) && !tc_unbind)
+		return -ENODEV;
 
 	switch (type) {
 	case TC_SETUP_BLOCK: {
@@ -3822,6 +3830,9 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
+
+	if (!netif_device_present(dev))
+		return;
 
 	/* In switchdev mode, monitor counters doesn't monitor
 	 * rx/tx stats of 802_3. The update stats mechanism
@@ -4436,6 +4447,9 @@ int mlx5e_get_vf_config(struct net_device *dev,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
+	if (!netif_device_present(dev))
+		return -EOPNOTSUPP;
+
 	err = mlx5_eswitch_get_vport_config(mdev->priv.eswitch, vf + 1, ivi);
 	if (err)
 		return err;
@@ -4457,6 +4471,9 @@ static bool
 mlx5e_has_offload_stats(const struct net_device *dev, int attr_id)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	if (!netif_device_present(dev))
+		return false;
 
 	if (!mlx5e_is_uplink_rep(priv))
 		return false;

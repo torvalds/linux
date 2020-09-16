@@ -4895,6 +4895,9 @@ int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	unsigned long flags = MLX5_TC_FLAG(INGRESS);
 	struct mlx5e_priv *priv = cb_priv;
 
+	if (!priv->netdev || !netif_device_present(priv->netdev))
+		return -EOPNOTSUPP;
+
 	if (mlx5e_is_uplink_rep(priv))
 		flags |= MLX5_TC_FLAG(ESW_OFFLOAD);
 	else
