@@ -209,7 +209,6 @@ static void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, in
 	int mpcc_hactive = (timing->h_addressable + timing->h_border_left + timing->h_border_right)
 			/ opp_cnt;
 	uint32_t memory_mask = 0;
-	uint32_t data_fmt = 0;
 
 	/* TODO: In pseudocode but does not affect maximus, delete comment if we dont need on asic
 	 * REG_SET(OTG_GLOBAL_CONTROL2, 0, GLOBAL_UPDATE_LOCK_EN, 1);
@@ -239,13 +238,6 @@ static void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, in
 	if (REG(OPTC_MEMORY_CONFIG))
 		REG_SET(OPTC_MEMORY_CONFIG, 0,
 			OPTC_MEM_SEL, memory_mask);
-
-	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
-		data_fmt = 1;
-	else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		data_fmt = 2;
-
-	REG_UPDATE(OPTC_DATA_FORMAT_CONTROL, OPTC_DATA_FORMAT, data_fmt);
 
 	if (opp_cnt == 2) {
 		REG_SET_3(OPTC_DATA_SOURCE_SELECT, 0,
