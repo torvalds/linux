@@ -214,7 +214,7 @@ static const u8 gamma_tbl[S6E3HA2_NUM_GAMMA_STEPS][S6E3HA2_GAMMA_CMD_CNT] = {
 	  0x00, 0x00 }
 };
 
-unsigned char vint_table[S6E3HA2_VINT_STATUS_MAX] = {
+static const unsigned char vint_table[S6E3HA2_VINT_STATUS_MAX] = {
 	0x18, 0x19, 0x1a, 0x1b, 0x1c,
 	0x1d, 0x1e, 0x1f, 0x20, 0x21
 };
