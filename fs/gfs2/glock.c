@@ -2415,7 +2415,7 @@ static const struct seq_operations gfs2_glstats_seq_ops = {
 	.show  = gfs2_glstats_seq_show,
 };
 
-static const struct seq_operations gfs2_sbstats_seq_ops = {
+static const struct seq_operations gfs2_sbstats_sops = {
 	.start = gfs2_sbstats_seq_start,
 	.next  = gfs2_sbstats_seq_next,
 	.stop  = gfs2_sbstats_seq_stop,
@@ -2468,16 +2468,6 @@ static int gfs2_glstats_open(struct inode *inode, struct file *file)
 	return __gfs2_glocks_open(inode, file, &gfs2_glstats_seq_ops);
 }
 
-static int gfs2_sbstats_open(struct inode *inode, struct file *file)
-{
-	int ret = seq_open(file, &gfs2_sbstats_seq_ops);
-	if (ret == 0) {
-		struct seq_file *seq = file->private_data;
-		seq->private = inode->i_private;  /* sdp */
-	}
-	return ret;
-}
-
 static const struct file_operations gfs2_glocks_fops = {
 	.owner   = THIS_MODULE,
 	.open    = gfs2_glocks_open,
@@ -2494,13 +2484,7 @@ static const struct file_operations gfs2_glstats_fops = {
 	.release = gfs2_glocks_release,
 };
 
-static const struct file_operations gfs2_sbstats_fops = {
-	.owner   = THIS_MODULE,
-	.open	 = gfs2_sbstats_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(gfs2_sbstats);
 
 void gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
 {
