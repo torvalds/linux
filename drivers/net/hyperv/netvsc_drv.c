@@ -748,6 +748,13 @@ void netvsc_linkstatus_callback(struct net_device *net,
 	struct netvsc_reconfig *event;
 	unsigned long flags;
 
+	/* Ensure the packet is big enough to access its fields */
+	if (resp->msg_len - RNDIS_HEADER_SIZE < sizeof(struct rndis_indicate_status)) {
+		netdev_err(net, "invalid rndis_indicate_status packet, len: %u\n",
+			   resp->msg_len);
+		return;
+	}
+
 	/* Update the physical link speed when changing to another vSwitch */
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
 		u32 speed;
