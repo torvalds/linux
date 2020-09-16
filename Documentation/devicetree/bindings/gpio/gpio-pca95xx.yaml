@@ -9,6 +9,10 @@ title: NXP PCA95xx I2C GPIO multiplexer
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
 
+description: |+
+  Bindings for the family of I2C GPIO multiplexers/expanders: NXP PCA95xx,
+  Maxim MAX73xx
+
 properties:
   compatible:
     enum:
@@ -17,6 +21,15 @@ properties:
       - maxim,max7312
       - maxim,max7313
       - maxim,max7315
+      - maxim,max7319
+      - maxim,max7320
+      - maxim,max7321
+      - maxim,max7322
+      - maxim,max7323
+      - maxim,max7324
+      - maxim,max7325
+      - maxim,max7326
+      - maxim,max7327
       - nxp,pca6416
       - nxp,pca9505
       - nxp,pca9534
@@ -69,11 +82,11 @@ properties:
   reset-gpios:
     description:
       GPIO specification for the RESET input. This is an active low signal to
-      the PCA953x.
+      the PCA953x.  Not valid for Maxim MAX732x devices.
 
   vcc-supply:
     description:
-      Optional power supply
+      Optional power supply.  Not valid for Maxim MAX732x devices.
 
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -102,6 +115,25 @@ required:
   - "#gpio-cells"
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - maxim,max7320
+              - maxim,max7321
+              - maxim,max7322
+              - maxim,max7323
+              - maxim,max7324
+              - maxim,max7325
+              - maxim,max7326
+              - maxim,max7327
+    then:
+      properties:
+        reset-gpios: false
+        vcc-supply: false
 
 examples:
   - |
@@ -162,5 +194,39 @@ examples:
             interrupt-parent = <&gpio99>;
             interrupts = <14 IRQ_TYPE_EDGE_RISING>;
             ti,micbias = <0>; /* 2.1V */
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c2 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /* MAX7325 with interrupt support enabled */
+        gpio@6d {
+            compatible = "maxim,max7325";
+            reg = <0x6d>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            interrupt-parent = <&gpio4>;
+            interrupts = <29 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };
+
+  - |
+    i2c3 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /* MAX7325 with interrupt support disabled */
+        gpio@6e {
+            compatible = "maxim,max7325";
+            reg = <0x6e>;
+            gpio-controller;
+            #gpio-cells = <2>;
         };
     };
