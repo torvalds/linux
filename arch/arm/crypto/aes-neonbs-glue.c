@@ -314,9 +314,9 @@ static int aesbs_xts_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 	return aesbs_setkey(tfm, in_key, key_len);
 }
 
-static int xts_init(struct crypto_tfm *tfm)
+static int xts_init(struct crypto_skcipher *tfm)
 {
-	struct aesbs_xts_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct aesbs_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	ctx->cts_tfm = crypto_alloc_cipher("aes", 0, 0);
 	if (IS_ERR(ctx->cts_tfm))
@@ -329,9 +329,9 @@ static int xts_init(struct crypto_tfm *tfm)
 	return PTR_ERR_OR_ZERO(ctx->tweak_tfm);
 }
 
-static void xts_exit(struct crypto_tfm *tfm)
+static void xts_exit(struct crypto_skcipher *tfm)
 {
-	struct aesbs_xts_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct aesbs_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	crypto_free_cipher(ctx->tweak_tfm);
 	crypto_free_cipher(ctx->cts_tfm);
@@ -493,8 +493,6 @@ static struct skcipher_alg aes_algs[] = { {
 	.base.cra_ctxsize	= sizeof(struct aesbs_xts_ctx),
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_flags		= CRYPTO_ALG_INTERNAL,
-	.base.cra_init		= xts_init,
-	.base.cra_exit		= xts_exit,
 
 	.min_keysize		= 2 * AES_MIN_KEY_SIZE,
 	.max_keysize		= 2 * AES_MAX_KEY_SIZE,
@@ -503,6 +501,8 @@ static struct skcipher_alg aes_algs[] = { {
 	.setkey			= aesbs_xts_setkey,
 	.encrypt		= xts_encrypt,
 	.decrypt		= xts_decrypt,
+	.init			= xts_init,
+	.exit			= xts_exit,
 } };
 
 static struct simd_skcipher_alg *aes_simd_algs[ARRAY_SIZE(aes_algs)];
