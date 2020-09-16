@@ -316,6 +316,7 @@ struct mlxsw_sp_port {
 	u8 split_base_local_port;
 	int max_mtu;
 	u32 max_speed;
+	struct mlxsw_sp_hdroom *hdroom;
 };
 
 struct mlxsw_sp_port_type_speed_ops {
@@ -437,9 +438,13 @@ int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				   bool is_up);
 
 /* spectrum_buffers.c */
+struct mlxsw_sp_hdroom {
+};
+
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_buffers_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port);
+void mlxsw_sp_port_buffers_fini(struct mlxsw_sp_port *mlxsw_sp_port);
 int mlxsw_sp_sb_pool_get(struct mlxsw_core *mlxsw_core,
 			 unsigned int sb_index, u16 pool_index,
 			 struct devlink_sb_pool_info *pool_info);

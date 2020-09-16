@@ -1709,6 +1709,7 @@ err_port_dcb_init:
 	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
 err_port_tc_mc_mode:
 err_port_ets_init:
+	mlxsw_sp_port_buffers_fini(mlxsw_sp_port);
 err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
@@ -1745,6 +1746,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
+	mlxsw_sp_port_buffers_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 	free_percpu(mlxsw_sp_port->pcpu_stats);

@@ -995,15 +995,31 @@ int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;
 
+	mlxsw_sp_port->hdroom = kzalloc(sizeof(*mlxsw_sp_port->hdroom), GFP_KERNEL);
+	if (!mlxsw_sp_port->hdroom)
+		return -ENOMEM;
+
 	err = mlxsw_sp_port_headroom_init(mlxsw_sp_port);
 	if (err)
-		return err;
+		goto err_headroom_init;
 	err = mlxsw_sp_port_sb_cms_init(mlxsw_sp_port);
 	if (err)
-		return err;
+		goto err_port_sb_cms_init;
 	err = mlxsw_sp_port_sb_pms_init(mlxsw_sp_port);
+	if (err)
+		goto err_port_sb_pms_init;
+	return 0;
 
+err_port_sb_pms_init:
+err_port_sb_cms_init:
+err_headroom_init:
+	kfree(mlxsw_sp_port->hdroom);
 	return err;
+}
+
+void mlxsw_sp_port_buffers_fini(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	kfree(mlxsw_sp_port->hdroom);
 }
 
 int mlxsw_sp_sb_pool_get(struct mlxsw_core *mlxsw_core,
