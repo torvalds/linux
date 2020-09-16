@@ -73,10 +73,31 @@ void zpci_event_error(void *data)
 		__zpci_event_error(data);
 }
 
+static void zpci_event_hard_deconfigured(struct zpci_dev *zdev, u32 fh)
+{
+	enum zpci_state state;
+	int rc;
+
+	zdev->fh = fh;
+	/* Give the driver a hint that the function is
+	 * already unusable.
+	 */
+	zpci_remove_device(zdev, true);
+	if (zdev_enabled(zdev)) {
+		rc = zpci_disable_device(zdev);
+		if (rc)
+			return;
+	}
+	zdev->state = ZPCI_FN_STATE_STANDBY;
+	if (!clp_get_state(zdev->fid, &state) &&
+	    state == ZPCI_FN_STATE_RESERVED) {
+		zpci_zdev_put(zdev);
+	}
+}
+
 static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
-	enum zpci_state state;
 	struct pci_dev *pdev;
 	int ret;
 
@@ -134,20 +155,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 
 		break;
 	case 0x0304: /* Configured -> Standby|Reserved */
-		if (!zdev)
-			break;
-		/* Give the driver a hint that the function is
-		 * already unusable.
-		 */
-		zpci_remove_device(zdev, true);
-
-		zdev->fh = ccdf->fh;
-		zpci_disable_device(zdev);
-		zdev->state = ZPCI_FN_STATE_STANDBY;
-		if (!clp_get_state(ccdf->fid, &state) &&
-		    state == ZPCI_FN_STATE_RESERVED) {
-			zpci_zdev_put(zdev);
-		}
+		if (zdev)
+			zpci_event_hard_deconfigured(zdev, ccdf->fh);
 		break;
 	case 0x0306: /* 0x308 or 0x302 for multiple devices */
 		zpci_remove_reserved_devices();
