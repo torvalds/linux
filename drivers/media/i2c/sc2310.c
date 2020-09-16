@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Fuzhou Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version,adjust sc2310.
+ * V0.0X01.0X01 add set flip ctrl.
  */
 
 //#define DEBUG
@@ -27,7 +28,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -91,6 +92,9 @@
 #define SC2310_TEST_PATTERN_DISABLE	0x0
 
 #define SC2310_REG_VTS			0x320e
+#define SC2310_FLIP_REG			0x3221
+#define SC2310_FLIP_MASK		0x60
+#define SC2310_MIRROR_MASK		0x06
 #define REG_NULL			0xFFFF
 
 #define SC2310_REG_VALUE_08BIT		1
@@ -1499,6 +1503,7 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	u32 again, again_fine, dgain, dgain_fine;
 	int ret = 0;
+	u32 val;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1577,6 +1582,30 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc2310_enable_test_pattern(sc2310, ctrl->val);
 		break;
+	case V4L2_CID_HFLIP:
+		ret = sc2310_read_reg(sc2310->client, SC2310_FLIP_REG,
+				      SC2310_REG_VALUE_08BIT, &val);
+		if (ret)
+			break;
+		if (ctrl->val)
+			val |= SC2310_MIRROR_MASK;
+		else
+			val &= ~SC2310_MIRROR_MASK;
+		ret |= sc2310_write_reg(sc2310->client, SC2310_FLIP_REG,
+					SC2310_REG_VALUE_08BIT, val);
+		break;
+	case V4L2_CID_VFLIP:
+		ret = sc2310_read_reg(sc2310->client, SC2310_FLIP_REG,
+				      SC2310_REG_VALUE_08BIT, &val);
+		if (ret)
+			break;
+		if (ctrl->val)
+			val |= SC2310_FLIP_MASK;
+		else
+			val &= ~SC2310_FLIP_MASK;
+		ret |= sc2310_write_reg(sc2310->client, SC2310_FLIP_REG,
+					SC2310_REG_VALUE_08BIT, val);
+		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
 			 __func__, ctrl->id, ctrl->val);
@@ -1603,7 +1632,7 @@ static int sc2310_initialize_controls(struct sc2310 *sc2310)
 
 	handler = &sc2310->ctrl_handler;
 	mode = sc2310->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
 	handler->lock = &sc2310->mutex;
@@ -1647,6 +1676,9 @@ static int sc2310_initialize_controls(struct sc2310 *sc2310)
 				&sc2310_ctrl_ops, V4L2_CID_TEST_PATTERN,
 				ARRAY_SIZE(sc2310_test_pattern_menu) - 1,
 				0, 0, sc2310_test_pattern_menu);
+
+	v4l2_ctrl_new_std(handler, &sc2310_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(handler, &sc2310_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	if (handler->error) {
 		ret = handler->error;
