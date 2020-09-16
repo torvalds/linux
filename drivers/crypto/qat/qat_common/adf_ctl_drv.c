@@ -416,8 +416,6 @@ static long adf_ctl_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 static int __init adf_register_ctl_device_driver(void)
 {
-	mutex_init(&adf_ctl_lock);
-
 	if (adf_chr_drv_create())
 		goto err_chr_dev;
 
