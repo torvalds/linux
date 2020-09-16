@@ -17,13 +17,10 @@
 };
 
 &mpss {
-	cx-supply = <&pm8916_s1>;
-	mx-supply = <&pm8916_l3>;
 	pll-supply = <&pm8916_l7>;
 };
 
 &pronto {
-	vddmx-supply = <&pm8916_l3>;
 	vddpx-supply = <&pm8916_l7>;
 
 	iris {
