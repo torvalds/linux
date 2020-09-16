@@ -2044,9 +2044,9 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 
 }
 
-static inline void rtllib_sta_ps(unsigned long data)
+static inline void rtllib_sta_ps(struct tasklet_struct *t)
 {
-	struct rtllib_device *ieee = (struct rtllib_device *)data;
+	struct rtllib_device *ieee = from_tasklet(ieee, t, ps_task);
 	u64 time;
 	short sleep;
 	unsigned long flags, flags2;
@@ -3028,7 +3028,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);
 
-	tasklet_init(&ieee->ps_task, rtllib_sta_ps, (unsigned long)ieee);
+	tasklet_setup(&ieee->ps_task, rtllib_sta_ps);
 
 }
 
