@@ -354,6 +354,205 @@ void mlxsw_sp_hdroom_bufs_reset_lossiness(struct mlxsw_sp_hdroom *hdroom)
 	}
 }
 
+static u16 mlxsw_sp_hdroom_buf_threshold_get(const struct mlxsw_sp *mlxsw_sp, int mtu)
+{
+	return 2 * mlxsw_sp_bytes_cells(mlxsw_sp, mtu);
+}
+
+static void mlxsw_sp_hdroom_buf_pack(char *pbmc_pl, int index, u16 size, u16 thres, bool lossy)
+{
+	if (lossy)
+		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, index, size);
+	else
+		mlxsw_reg_pbmc_lossless_buffer_pack(pbmc_pl, index, size,
+						    thres);
+}
+
+static u16 mlxsw_sp_hdroom_buf_delay_get(const struct mlxsw_sp *mlxsw_sp,
+					 const struct mlxsw_sp_hdroom *hdroom)
+{
+	u16 delay_cells;
+
+	delay_cells = mlxsw_sp_bytes_cells(mlxsw_sp, hdroom->delay_bytes);
+
+	/* In the worst case scenario the delay will be made up of packets that
+	 * are all of size CELL_SIZE + 1, which means each packet will require
+	 * almost twice its true size when buffered in the switch. We therefore
+	 * multiply this value by the "cell factor", which is close to 2.
+	 *
+	 * Another MTU is added in case the transmitting host already started
+	 * transmitting a maximum length frame when the PFC packet was received.
+	 */
+	return 2 * delay_cells + mlxsw_sp_bytes_cells(mlxsw_sp, hdroom->mtu);
+}
+
+static bool mlxsw_sp_hdroom_buf_is_used(const struct mlxsw_sp_hdroom *hdroom, int buf)
+{
+	int prio;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+		if (hdroom->prios.prio[prio].buf_idx == buf)
+			return true;
+	}
+	return false;
+}
+
+void mlxsw_sp_hdroom_bufs_reset_sizes(struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct mlxsw_sp_hdroom *hdroom)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	int i;
+
+	for (i = 0; i < DCBX_MAX_BUFFERS; i++) {
+		struct mlxsw_sp_hdroom_buf *buf = &hdroom->bufs.buf[i];
+		u16 thres_cells;
+		u16 delay_cells;
+
+		if (!mlxsw_sp_hdroom_buf_is_used(hdroom, i)) {
+			thres_cells = 0;
+			delay_cells = 0;
+		} else if (buf->lossy) {
+			thres_cells = mlxsw_sp_hdroom_buf_threshold_get(mlxsw_sp, hdroom->mtu);
+			delay_cells = 0;
+		} else {
+			thres_cells = mlxsw_sp_hdroom_buf_threshold_get(mlxsw_sp, hdroom->mtu);
+			delay_cells = mlxsw_sp_hdroom_buf_delay_get(mlxsw_sp, hdroom);
+		}
+
+		thres_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, thres_cells);
+		delay_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, delay_cells);
+
+		buf->thres_cells = thres_cells;
+		buf->size_cells = thres_cells + delay_cells;
+	}
+}
+
+static int mlxsw_sp_hdroom_configure_buffers(struct mlxsw_sp_port *mlxsw_sp_port,
+					     const struct mlxsw_sp_hdroom *hdroom, bool force)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char pbmc_pl[MLXSW_REG_PBMC_LEN];
+	bool dirty;
+	int err;
+	int i;
+
+	dirty = memcmp(&mlxsw_sp_port->hdroom->bufs, &hdroom->bufs, sizeof(hdroom->bufs));
+	if (!dirty && !force)
+		return 0;
+
+	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port, 0, 0);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
+	if (err)
+		return err;
+
+	for (i = 0; i < DCBX_MAX_BUFFERS; i++) {
+		const struct mlxsw_sp_hdroom_buf *buf = &hdroom->bufs.buf[i];
+
+		mlxsw_sp_hdroom_buf_pack(pbmc_pl, i, buf->size_cells, buf->thres_cells, buf->lossy);
+	}
+
+	mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, MLXSW_REG_PBMC_PORT_SHARED_BUF_IDX, 0);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
+	if (err)
+		return err;
+
+	mlxsw_sp_port->hdroom->bufs = hdroom->bufs;
+	return 0;
+}
+
+static int mlxsw_sp_hdroom_configure_priomap(struct mlxsw_sp_port *mlxsw_sp_port,
+					     const struct mlxsw_sp_hdroom *hdroom, bool force)
+{
+	char pptb_pl[MLXSW_REG_PPTB_LEN];
+	bool dirty;
+	int prio;
+	int err;
+
+	dirty = memcmp(&mlxsw_sp_port->hdroom->prios, &hdroom->prios, sizeof(hdroom->prios));
+	if (!dirty && !force)
+		return 0;
+
+	mlxsw_reg_pptb_pack(pptb_pl, mlxsw_sp_port->local_port);
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		mlxsw_reg_pptb_prio_to_buff_pack(pptb_pl, prio, hdroom->prios.prio[prio].buf_idx);
+
+	err = mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pptb), pptb_pl);
+	if (err)
+		return err;
+
+	mlxsw_sp_port->hdroom->prios = hdroom->prios;
+	return 0;
+}
+
+static bool mlxsw_sp_hdroom_bufs_fit(struct mlxsw_sp *mlxsw_sp,
+				     const struct mlxsw_sp_hdroom *hdroom)
+{
+	u32 taken_headroom_cells = 0;
+	u32 max_headroom_cells;
+	int i;
+
+	for (i = 0; i < MLXSW_SP_PB_COUNT; i++)
+		taken_headroom_cells += hdroom->bufs.buf[i].size_cells;
+
+	max_headroom_cells = mlxsw_sp_sb_max_headroom_cells(mlxsw_sp);
+	return taken_headroom_cells <= max_headroom_cells;
+}
+
+static int __mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
+				       const struct mlxsw_sp_hdroom *hdroom, bool force)
+{
+	struct mlxsw_sp_hdroom orig_hdroom;
+	struct mlxsw_sp_hdroom tmp_hdroom;
+	int err;
+	int i;
+
+	/* Port buffers need to be configured in three steps. First, all buffers
+	 * with non-zero size are configured. Then, prio-to-buffer map is
+	 * updated, allowing traffic to flow to the now non-zero buffers.
+	 * Finally, zero-sized buffers are configured, because now no traffic
+	 * should be directed to them anymore. This way, in a non-congested
+	 * system, no packet drops are introduced by the reconfiguration.
+	 */
+
+	orig_hdroom = *mlxsw_sp_port->hdroom;
+	tmp_hdroom = orig_hdroom;
+	for (i = 0; i < MLXSW_SP_PB_COUNT; i++) {
+		if (hdroom->bufs.buf[i].size_cells)
+			tmp_hdroom.bufs.buf[i] = hdroom->bufs.buf[i];
+	}
+
+	if (!mlxsw_sp_hdroom_bufs_fit(mlxsw_sp_port->mlxsw_sp, &tmp_hdroom) ||
+	    !mlxsw_sp_hdroom_bufs_fit(mlxsw_sp_port->mlxsw_sp, hdroom))
+		return -ENOBUFS;
+
+	err = mlxsw_sp_hdroom_configure_buffers(mlxsw_sp_port, &tmp_hdroom, force);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_hdroom_configure_priomap(mlxsw_sp_port, hdroom, force);
+	if (err)
+		goto err_configure_priomap;
+
+	err = mlxsw_sp_hdroom_configure_buffers(mlxsw_sp_port, hdroom, false);
+	if (err)
+		goto err_configure_buffers;
+
+	*mlxsw_sp_port->hdroom = *hdroom;
+	return 0;
+
+err_configure_buffers:
+	mlxsw_sp_hdroom_configure_priomap(mlxsw_sp_port, &tmp_hdroom, false);
+err_configure_priomap:
+	mlxsw_sp_hdroom_configure_buffers(mlxsw_sp_port, &orig_hdroom, false);
+	return err;
+}
+
+int mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
+			      const struct mlxsw_sp_hdroom *hdroom)
+{
+	return __mlxsw_sp_hdroom_configure(mlxsw_sp_port, hdroom, false);
+}
+
 static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;
