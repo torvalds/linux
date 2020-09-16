@@ -108,36 +108,37 @@
 On receive:
 -----------
 
-Incoming, dev->hard_header!=NULL
+Incoming, dev->header_ops != NULL
    mac_header -> ll header
    data       -> data
 
-Outgoing, dev->hard_header!=NULL
+Outgoing, dev->header_ops != NULL
    mac_header -> ll header
    data       -> ll header
 
-Incoming, dev->hard_header==NULL
-   mac_header -> UNKNOWN position. It is very likely, that it points to ll
-		 header.  PPP makes it, that is wrong, because introduce
-		 assymetry between rx and tx paths.
+Incoming, dev->header_ops == NULL
+   mac_header -> data
+     However drivers often make it point to the ll header.
+     This is incorrect because the ll header should be invisible to us.
    data       -> data
 
-Outgoing, dev->hard_header==NULL
-   mac_header -> data. ll header is still not built!
+Outgoing, dev->header_ops == NULL
+   mac_header -> data. ll header is invisible to us.
    data       -> data
 
 Resume
-  If dev->hard_header==NULL we are unlikely to restore sensible ll header.
+  If dev->header_ops == NULL we are unable to restore the ll header,
+    because it is invisible to us.
 
 
 On transmit:
 ------------
 
-dev->hard_header != NULL
+dev->header_ops != NULL
    mac_header -> ll header
    data       -> ll header
 
-dev->hard_header == NULL (ll header is added by device, we cannot control it)
+dev->header_ops == NULL (ll header is invisible to us)
    mac_header -> data
    data       -> data
 
