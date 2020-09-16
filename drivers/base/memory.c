@@ -139,7 +139,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct memory_block *mem = to_memory_block(dev);
-	ssize_t len = 0;
+	const char *output;
 
 	/*
 	 * We can probably put these states in a nice little array
@@ -147,22 +147,20 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	 */
 	switch (mem->state) {
 	case MEM_ONLINE:
-		len = sysfs_emit(buf, "online\n");
+		output = "online";
 		break;
 	case MEM_OFFLINE:
-		len = sysfs_emit(buf, "offline\n");
+		output = "offline";
 		break;
 	case MEM_GOING_OFFLINE:
-		len = sysfs_emit(buf, "going-offline\n");
+		output = "going-offline";
 		break;
 	default:
-		len = sysfs_emit(buf, "ERROR-UNKNOWN-%ld\n",
-				 mem->state);
 		WARN_ON(1);
-		break;
+		return sysfs_emit(buf, "ERROR-UNKNOWN-%ld\n", mem->state);
 	}
 
-	return len;
+	return sysfs_emit(buf, "%s\n", output);
 }
 
 int memory_notify(unsigned long val, void *v)
@@ -307,17 +305,16 @@ static ssize_t phys_device_show(struct device *dev,
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-static void print_allowed_zone(char *buf, int nid, unsigned long start_pfn,
-		unsigned long nr_pages, int online_type,
-		struct zone *default_zone)
+static int print_allowed_zone(char *buf, int len, int nid,
+			      unsigned long start_pfn, unsigned long nr_pages,
+			      int online_type, struct zone *default_zone)
 {
 	struct zone *zone;
 
 	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
-	if (zone != default_zone) {
-		strcat(buf, " ");
-		strcat(buf, zone->name);
-	}
+	if (zone == default_zone)
+		return 0;
+	return sysfs_emit_at(buf, len, " %s", zone->name);
 }
 
 static ssize_t valid_zones_show(struct device *dev,
@@ -327,6 +324,7 @@ static ssize_t valid_zones_show(struct device *dev,
 	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
 	struct zone *default_zone;
+	int len = 0;
 	int nid;
 
 	/*
@@ -341,24 +339,23 @@ static ssize_t valid_zones_show(struct device *dev,
 		default_zone = test_pages_in_a_zone(start_pfn,
 						    start_pfn + nr_pages);
 		if (!default_zone)
-			return sysfs_emit(buf, "none\n");
-		strcat(buf, default_zone->name);
+			return sysfs_emit(buf, "%s\n", "none");
+		len += sysfs_emit_at(buf, len, "%s", default_zone->name);
 		goto out;
 	}
 
 	nid = mem->nid;
 	default_zone = zone_for_pfn_range(MMOP_ONLINE, nid, start_pfn,
 					  nr_pages);
-	strcat(buf, default_zone->name);
 
-	print_allowed_zone(buf, nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL,
-			default_zone);
-	print_allowed_zone(buf, nid, start_pfn, nr_pages, MMOP_ONLINE_MOVABLE,
-			default_zone);
+	len += sysfs_emit_at(buf, len, "%s", default_zone->name);
+	len += print_allowed_zone(buf, len, nid, start_pfn, nr_pages,
+				  MMOP_ONLINE_KERNEL, default_zone);
+	len += print_allowed_zone(buf, len, nid, start_pfn, nr_pages,
+				  MMOP_ONLINE_MOVABLE, default_zone);
 out:
-	strcat(buf, "\n");
-
-	return strlen(buf);
+	len += sysfs_emit_at(buf, len, "%s", "\n");
+	return len;
 }
 static DEVICE_ATTR_RO(valid_zones);
 #endif

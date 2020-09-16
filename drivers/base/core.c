@@ -268,16 +268,16 @@ static ssize_t auto_remove_on_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct device_link *link = to_devlink(dev);
-	char *str;
+	const char *output;
 
 	if (link->flags & DL_FLAG_AUTOREMOVE_SUPPLIER)
-		str = "supplier unbind";
+		output = "supplier unbind";
 	else if (link->flags & DL_FLAG_AUTOREMOVE_CONSUMER)
-		str = "consumer unbind";
+		output = "consumer unbind";
 	else
-		str = "never";
+		output = "never";
 
-	return sysfs_emit(buf, "%s\n", str);
+	return sysfs_emit(buf, "%s\n", output);
 }
 static DEVICE_ATTR_RO(auto_remove_on);
 

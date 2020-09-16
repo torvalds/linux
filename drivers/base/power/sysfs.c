@@ -255,9 +255,9 @@ static ssize_t pm_qos_latency_tolerance_us_show(struct device *dev,
 	s32 value = dev_pm_qos_get_user_latency_tolerance(dev);
 
 	if (value < 0)
-		return sysfs_emit(buf, "auto\n");
+		return sysfs_emit(buf, "%s\n", "auto");
 	if (value == PM_QOS_LATENCY_ANY)
-		return sysfs_emit(buf, "any\n");
+		return sysfs_emit(buf, "%s\n", "any");
 
 	return sysfs_emit(buf, "%d\n", value);
 }
@@ -538,13 +538,18 @@ static DEVICE_ATTR_RO(runtime_active_kids);
 static ssize_t runtime_enabled_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	if (dev->power.disable_depth && (dev->power.runtime_auto == false))
-		return sysfs_emit(buf, "disabled & forbidden\n");
-	if (dev->power.disable_depth)
-		return sysfs_emit(buf, "disabled\n");
-	if (dev->power.runtime_auto == false)
-		return sysfs_emit(buf, "forbidden\n");
-	return sysfs_emit(buf, "enabled\n");
+	const char *output;
+
+	if (dev->power.disable_depth && !dev->power.runtime_auto)
+		output = "disabled & forbidden";
+	else if (dev->power.disable_depth)
+		output = "disabled";
+	else if (!dev->power.runtime_auto)
+		output = "forbidden";
+	else
+		output = "enabled";
+
+	return sysfs_emit(buf, "%s\n", output);
 }
 static DEVICE_ATTR_RO(runtime_enabled);
 
