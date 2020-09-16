@@ -2333,10 +2333,10 @@ static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
 }
 
 static void hns3_free_buffer(struct hns3_enet_ring *ring,
-			     struct hns3_desc_cb *cb)
+			     struct hns3_desc_cb *cb, int budget)
 {
 	if (cb->type == DESC_TYPE_SKB)
-		dev_kfree_skb_any((struct sk_buff *)cb->priv);
+		napi_consume_skb(cb->priv, budget);
 	else if (!HNAE3_IS_TX_RING(ring) && cb->pagecnt_bias)
 		__page_frag_cache_drain(cb->priv, cb->pagecnt_bias);
 	memset(cb, 0, sizeof(*cb));
@@ -2370,7 +2370,8 @@ static void hns3_buffer_detach(struct hns3_enet_ring *ring, int i)
 	ring->desc[i].addr = 0;
 }
 
-static void hns3_free_buffer_detach(struct hns3_enet_ring *ring, int i)
+static void hns3_free_buffer_detach(struct hns3_enet_ring *ring, int i,
+				    int budget)
 {
 	struct hns3_desc_cb *cb = &ring->desc_cb[i];
 
@@ -2378,7 +2379,7 @@ static void hns3_free_buffer_detach(struct hns3_enet_ring *ring, int i)
 		return;
 
 	hns3_buffer_detach(ring, i);
-	hns3_free_buffer(ring, cb);
+	hns3_free_buffer(ring, cb, budget);
 }
 
 static void hns3_free_buffers(struct hns3_enet_ring *ring)
@@ -2386,7 +2387,7 @@ static void hns3_free_buffers(struct hns3_enet_ring *ring)
 	int i;
 
 	for (i = 0; i < ring->desc_num; i++)
-		hns3_free_buffer_detach(ring, i);
+		hns3_free_buffer_detach(ring, i, 0);
 }
 
 /* free desc along with its attached buffer */
@@ -2431,7 +2432,7 @@ static int hns3_alloc_and_map_buffer(struct hns3_enet_ring *ring,
 	return 0;
 
 out_with_buf:
-	hns3_free_buffer(ring, cb);
+	hns3_free_buffer(ring, cb, 0);
 out:
 	return ret;
 }
@@ -2463,7 +2464,7 @@ static int hns3_alloc_ring_buffers(struct hns3_enet_ring *ring)
 
 out_buffer_fail:
 	for (j = i - 1; j >= 0; j--)
-		hns3_free_buffer_detach(ring, j);
+		hns3_free_buffer_detach(ring, j, 0);
 	return ret;
 }
 
@@ -2491,7 +2492,7 @@ static void hns3_reuse_buffer(struct hns3_enet_ring *ring, int i)
 }
 
 static bool hns3_nic_reclaim_desc(struct hns3_enet_ring *ring,
-				  int *bytes, int *pkts)
+				  int *bytes, int *pkts, int budget)
 {
 	/* pair with ring->last_to_use update in hns3_tx_doorbell(),
 	 * smp_store_release() is not used in hns3_tx_doorbell() because
@@ -2514,7 +2515,7 @@ static bool hns3_nic_reclaim_desc(struct hns3_enet_ring *ring,
 		(*pkts) += (desc_cb->type == DESC_TYPE_SKB);
 		(*bytes) += desc_cb->length;
 		/* desc_cb will be cleaned, after hnae3_free_buffer_detach */
-		hns3_free_buffer_detach(ring, ntc);
+		hns3_free_buffer_detach(ring, ntc, budget);
 
 		if (++ntc == ring->desc_num)
 			ntc = 0;
@@ -2534,7 +2535,7 @@ static bool hns3_nic_reclaim_desc(struct hns3_enet_ring *ring,
 	return true;
 }
 
-void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
+void hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 {
 	struct net_device *netdev = ring_to_netdev(ring);
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -2544,7 +2545,7 @@ void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 	bytes = 0;
 	pkts = 0;
 
-	if (unlikely(!hns3_nic_reclaim_desc(ring, &bytes, &pkts)))
+	if (unlikely(!hns3_nic_reclaim_desc(ring, &bytes, &pkts, budget)))
 		return;
 
 	ring->tqp_vector->tx_group.total_bytes += bytes;
@@ -3351,7 +3352,7 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	hns3_for_each_ring(ring, tqp_vector->tx_group)
-		hns3_clean_tx_ring(ring);
+		hns3_clean_tx_ring(ring, budget);
 
 	/* make sure rx ring budget not smaller than 1 */
 	if (tqp_vector->num_tqps > 1)
@@ -4195,7 +4196,7 @@ static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 {
 	while (ring->next_to_clean != ring->next_to_use) {
 		ring->desc[ring->next_to_clean].tx.bdtp_fe_sc_vld_ra_ri = 0;
-		hns3_free_buffer_detach(ring, ring->next_to_clean);
+		hns3_free_buffer_detach(ring, ring->next_to_clean, 0);
 		ring_ptr_move_fw(ring, next_to_clean);
 	}
 

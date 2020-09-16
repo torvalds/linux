@@ -230,7 +230,7 @@ static void hns3_lb_clear_tx_ring(struct hns3_nic_priv *priv, u32 start_ringid,
 	for (i = start_ringid; i <= end_ringid; i++) {
 		struct hns3_enet_ring *ring = &priv->ring[i];
 
-		hns3_clean_tx_ring(ring);
+		hns3_clean_tx_ring(ring, 0);
 	}
 }
 
