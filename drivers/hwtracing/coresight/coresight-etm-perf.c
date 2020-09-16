@@ -222,8 +222,6 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 	if (event->attr.config2) {
 		id = (u32)event->attr.config2;
 		sink = coresight_get_sink_by_id(id);
-	} else {
-		sink = coresight_get_enabled_sink(true);
 	}
 
 	mask = &event_data->mask;
