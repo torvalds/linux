@@ -80,6 +80,13 @@ config PHY_ROCKCHIP_NANENG_COMBO_PHY
 	  Enable this to support the Rockchip PCIe/USB3.0/SATA/QSGMII
 	  combo PHY with NaNeng IP block.
 
+config PHY_ROCKCHIP_NANENG_EDP
+	tristate "Rockchip Naneng eDP Transmitter PHY driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Support for Rockchip eDP Transmitter PHY with Naneng IP block.
+
 config PHY_ROCKCHIP_NANENG_USB2
 	tristate "Rockchip NANENG USB2PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
