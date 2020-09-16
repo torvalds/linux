@@ -4268,6 +4268,11 @@ static bool may_update_sockmap(struct bpf_verifier_env *env, int func_id)
 	return false;
 }
 
+static bool allow_tail_call_in_subprogs(struct bpf_verifier_env *env)
+{
+	return env->prog->jit_requested && IS_ENABLED(CONFIG_X86_64);
+}
+
 static int check_map_func_compatibility(struct bpf_verifier_env *env,
 					struct bpf_map *map, int func_id)
 {
@@ -4383,8 +4388,8 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_FUNC_tail_call:
 		if (map->map_type != BPF_MAP_TYPE_PROG_ARRAY)
 			goto error;
-		if (env->subprog_cnt > 1) {
-			verbose(env, "tail_calls are not allowed in programs with bpf-to-bpf calls\n");
+		if (env->subprog_cnt > 1 && !allow_tail_call_in_subprogs(env)) {
+			verbose(env, "tail_calls are not allowed in non-JITed programs with bpf-to-bpf calls\n");
 			return -EINVAL;
 		}
 		break;
@@ -10469,6 +10474,13 @@ static int fixup_call_args(struct bpf_verifier_env *env)
 			return err;
 	}
 #ifndef CONFIG_BPF_JIT_ALWAYS_ON
+	if (env->subprog_cnt > 1 && env->prog->aux->tail_call_reachable) {
+		/* When JIT fails the progs with bpf2bpf calls and tail_calls
+		 * have to be rejected, since interpreter doesn't support them yet.
+		 */
+		verbose(env, "tail_calls are not allowed in non-JITed programs with bpf-to-bpf calls\n");
+		return -EINVAL;
+	}
 	for (i = 0; i < prog->len; i++, insn++) {
 		if (insn->code != (BPF_JMP | BPF_CALL) ||
 		    insn->src_reg != BPF_PSEUDO_CALL)
@@ -10632,8 +10644,9 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			 * the program array.
 			 */
 			prog->cb_access = 1;
-			env->prog->aux->stack_depth = MAX_BPF_STACK;
-			env->prog->aux->max_pkt_offset = MAX_PACKET_OFF;
+			if (!allow_tail_call_in_subprogs(env))
+				prog->aux->stack_depth = MAX_BPF_STACK;
+			prog->aux->max_pkt_offset = MAX_PACKET_OFF;
 
 			/* mark bpf_tail_call as different opcode to avoid
 			 * conditional branch in the interpeter for every normal
