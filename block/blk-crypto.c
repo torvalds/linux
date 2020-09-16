@@ -283,20 +283,16 @@ fail:
 	return false;
 }
 
-/**
- * __blk_crypto_rq_bio_prep - Prepare a request's crypt_ctx when its first bio
- *			      is inserted
- *
- * @rq: The request to prepare
- * @bio: The first bio being inserted into the request
- * @gfp_mask: gfp mask
- */
-void __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
-			      gfp_t gfp_mask)
+int __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
+			     gfp_t gfp_mask)
 {
-	if (!rq->crypt_ctx)
+	if (!rq->crypt_ctx) {
 		rq->crypt_ctx = mempool_alloc(bio_crypt_ctx_pool, gfp_mask);
+		if (!rq->crypt_ctx)
+			return -ENOMEM;
+	}
 	*rq->crypt_ctx = *bio->bi_crypt_context;
+	return 0;
 }
 
 /**
