@@ -103,7 +103,7 @@ int mlx5i_init(struct mlx5_core_dev *mdev, struct net_device *netdev)
 /* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */
 void mlx5i_cleanup(struct mlx5e_priv *priv)
 {
-	mlx5e_netdev_cleanup(priv->netdev, priv);
+	mlx5e_priv_cleanup(priv);
 }
 
 static void mlx5i_grp_sw_update_stats(struct mlx5e_priv *priv)
@@ -744,7 +744,7 @@ static int mlx5_rdma_setup_rn(struct ib_device *ibdev, u8 port_num,
 			goto destroy_ht;
 	}
 
-	err = mlx5e_netdev_init(netdev, epriv, mdev);
+	err = mlx5e_priv_init(epriv, netdev, mdev);
 	if (err)
 		goto destroy_mdev_resources;
 
