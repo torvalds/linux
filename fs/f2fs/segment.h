@@ -524,7 +524,7 @@ static inline unsigned int free_segments(struct f2fs_sb_info *sbi)
 	return FREE_I(sbi)->free_segments;
 }
 
-static inline int reserved_segments(struct f2fs_sb_info *sbi)
+static inline unsigned int reserved_segments(struct f2fs_sb_info *sbi)
 {
 	return SM_I(sbi)->reserved_segments;
 }
@@ -556,7 +556,7 @@ static inline int overprovision_segments(struct f2fs_sb_info *sbi)
 
 static inline int reserved_sections(struct f2fs_sb_info *sbi)
 {
-	return GET_SEC_FROM_SEG(sbi, (unsigned int)reserved_segments(sbi));
+	return GET_SEC_FROM_SEG(sbi, reserved_segments(sbi));
 }
 
 static inline bool has_curseg_enough_space(struct f2fs_sb_info *sbi)
