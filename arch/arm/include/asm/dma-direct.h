@@ -9,7 +9,6 @@
  * functions used internally by the DMA-mapping API to provide DMA
  * addresses. They must not be used by drivers.
  */
-#ifndef __arch_pfn_to_dma
 static inline dma_addr_t pfn_to_dma(struct device *dev, unsigned long pfn)
 {
 	if (dev && dev->dma_range_map)
@@ -33,23 +32,6 @@ static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
 
 	return (dma_addr_t)__virt_to_bus((unsigned long)(addr));
 }
-
-#else
-static inline dma_addr_t pfn_to_dma(struct device *dev, unsigned long pfn)
-{
-	return __arch_pfn_to_dma(dev, pfn);
-}
-
-static inline unsigned long dma_to_pfn(struct device *dev, dma_addr_t addr)
-{
-	return __arch_dma_to_pfn(dev, addr);
-}
-
-static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
-{
-	return __arch_virt_to_dma(dev, addr);
-}
-#endif
 
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
