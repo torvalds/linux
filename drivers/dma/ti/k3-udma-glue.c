@@ -378,17 +378,11 @@ EXPORT_SYMBOL_GPL(k3_udma_glue_pop_tx_chn);
 
 int k3_udma_glue_enable_tx_chn(struct k3_udma_glue_tx_channel *tx_chn)
 {
-	u32 txrt_ctl;
-
-	txrt_ctl = UDMA_PEER_RT_EN_ENABLE;
 	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_CHAN_RT_PEER_RT_EN_REG,
-			    txrt_ctl);
+			    UDMA_PEER_RT_EN_ENABLE);
 
-	txrt_ctl = xudma_tchanrt_read(tx_chn->udma_tchanx,
-				      UDMA_CHAN_RT_CTL_REG);
-	txrt_ctl |= UDMA_CHAN_RT_CTL_EN;
 	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_CHAN_RT_CTL_REG,
-			    txrt_ctl);
+			    UDMA_CHAN_RT_CTL_EN);
 
 	k3_udma_glue_dump_tx_rt_chn(tx_chn, "txchn en");
 	return 0;
@@ -1058,19 +1052,14 @@ EXPORT_SYMBOL_GPL(k3_udma_glue_rx_flow_disable);
 
 int k3_udma_glue_enable_rx_chn(struct k3_udma_glue_rx_channel *rx_chn)
 {
-	u32 rxrt_ctl;
-
 	if (rx_chn->remote)
 		return -EINVAL;
 
 	if (rx_chn->flows_ready < rx_chn->flow_num)
 		return -EINVAL;
 
-	rxrt_ctl = xudma_rchanrt_read(rx_chn->udma_rchanx,
-				      UDMA_CHAN_RT_CTL_REG);
-	rxrt_ctl |= UDMA_CHAN_RT_CTL_EN;
 	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_CHAN_RT_CTL_REG,
-			    rxrt_ctl);
+			    UDMA_CHAN_RT_CTL_EN);
 
 	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_CHAN_RT_PEER_RT_EN_REG,
 			    UDMA_PEER_RT_EN_ENABLE);
