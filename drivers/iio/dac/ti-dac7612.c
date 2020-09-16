@@ -23,6 +23,14 @@ struct dac7612 {
 	uint16_t cache[2];
 
 	/*
+	 * Lock to protect the state of the device from potential concurrent
+	 * write accesses from userspace. The write operation requires an
+	 * SPI write, then toggling of a GPIO, so the lock aims to protect
+	 * the sanity of the entire sequence of operation.
+	 */
+	struct mutex lock;
+
+	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
@@ -101,9 +109,9 @@ static int dac7612_write_raw(struct iio_dev *iio_dev,
 	if (val == priv->cache[chan->channel])
 		return 0;
 
-	mutex_lock(&iio_dev->mlock);
+	mutex_lock(&priv->lock);
 	ret = dac7612_cmd_single(priv, chan->channel, val);
-	mutex_unlock(&iio_dev->mlock);
+	mutex_unlock(&priv->lock);
 
 	return ret;
 }
@@ -144,6 +152,8 @@ static int dac7612_probe(struct spi_device *spi)
 	iio_dev->channels = dac7612_channels;
 	iio_dev->num_channels = ARRAY_SIZE(priv->cache);
 	iio_dev->name = spi_get_device_id(spi)->name;
+
+	mutex_init(&priv->lock);
 
 	for (i = 0; i < ARRAY_SIZE(priv->cache); i++) {
 		ret = dac7612_cmd_single(priv, i, 0);
