@@ -240,27 +240,35 @@ void device_pm_move_to_tail(struct device *dev)
 #define to_devlink(dev)	container_of((dev), struct device_link, link_dev)
 
 static ssize_t status_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+			   struct device_attribute *attr, char *buf)
 {
-	char *status;
+	const char *output;
 
 	switch (to_devlink(dev)->status) {
 	case DL_STATE_NONE:
-		status = "not tracked"; break;
+		output = "not tracked";
+		break;
 	case DL_STATE_DORMANT:
-		status = "dormant"; break;
+		output = "dormant";
+		break;
 	case DL_STATE_AVAILABLE:
-		status = "available"; break;
+		output = "available";
+		break;
 	case DL_STATE_CONSUMER_PROBE:
-		status = "consumer probing"; break;
+		output = "consumer probing";
+		break;
 	case DL_STATE_ACTIVE:
-		status = "active"; break;
+		output = "active";
+		break;
 	case DL_STATE_SUPPLIER_UNBIND:
-		status = "supplier unbinding"; break;
+		output = "supplier unbinding";
+		break;
 	default:
-		status = "unknown"; break;
+		output = "unknown";
+		break;
 	}
-	return sysfs_emit(buf, "%s\n", status);
+
+	return sysfs_emit(buf, "%s\n", output);
 }
 static DEVICE_ATTR_RO(status);
 
@@ -1934,7 +1942,7 @@ static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 	struct kset *kset;
 	struct kobj_uevent_env *env = NULL;
 	int i;
-	size_t count = 0;
+	int len = 0;
 	int retval;
 
 	/* search the kset, the device belongs to */
@@ -1964,10 +1972,10 @@ static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 
 	/* copy keys to file */
 	for (i = 0; i < env->envp_idx; i++)
-		count += sprintf(&buf[count], "%s\n", env->envp[i]);
+		len += sysfs_emit_at(buf, len, "%s\n", env->envp[i]);
 out:
 	kfree(env);
-	return count;
+	return len;
 }
 
 static ssize_t uevent_store(struct device *dev, struct device_attribute *attr,

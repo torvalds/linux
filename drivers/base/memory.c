@@ -119,6 +119,7 @@ static ssize_t phys_index_show(struct device *dev,
 	unsigned long phys_index;
 
 	phys_index = mem->start_section_nr / sections_per_block;
+
 	return sysfs_emit(buf, "%08lx\n", phys_index);
 }
 
@@ -301,6 +302,7 @@ static ssize_t phys_device_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct memory_block *mem = to_memory_block(dev);
+
 	return sysfs_emit(buf, "%d\n", mem->phys_device);
 }
 
@@ -314,6 +316,7 @@ static int print_allowed_zone(char *buf, int len, int nid,
 	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
 	if (zone == default_zone)
 		return 0;
+
 	return sysfs_emit_at(buf, len, " %s", zone->name);
 }
 
@@ -354,7 +357,7 @@ static ssize_t valid_zones_show(struct device *dev,
 	len += print_allowed_zone(buf, len, nid, start_pfn, nr_pages,
 				  MMOP_ONLINE_MOVABLE, default_zone);
 out:
-	len += sysfs_emit_at(buf, len, "%s", "\n");
+	len += sysfs_emit_at(buf, len, "\n");
 	return len;
 }
 static DEVICE_ATTR_RO(valid_zones);

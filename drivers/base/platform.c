@@ -1023,10 +1023,10 @@ EXPORT_SYMBOL_GPL(platform_unregister_drivers);
  * (b) sysfs attribute lets new-style coldplug recover from hotplug events
  *     mishandled before system is fully running:  "modprobe $(cat modalias)"
  */
-static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
-			     char *buf)
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
+	struct platform_device *pdev = to_platform_device(dev);
 	int len;
 
 	len = of_device_modalias(dev, buf, PAGE_SIZE);
@@ -1037,9 +1037,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 	if (len != -ENODEV)
 		return len;
 
-	len = snprintf(buf, PAGE_SIZE, "platform:%s\n", pdev->name);
-
-	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+	return sysfs_emit(buf, "platform:%s\n", pdev->name);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -1086,12 +1084,13 @@ static ssize_t driver_override_show(struct device *dev,
 	device_lock(dev);
 	len = sysfs_emit(buf, "%s\n", pdev->driver_override);
 	device_unlock(dev);
+
 	return len;
 }
 static DEVICE_ATTR_RW(driver_override);
 
 static ssize_t numa_node_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+			      struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%d\n", dev_to_node(dev));
 }
