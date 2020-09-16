@@ -96,8 +96,8 @@
 		regulator-name = "vdd_logic_npu_vepu-fixed";
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <850000>;
-		regulator-max-microvolt = <850000>;
+		regulator-min-microvolt = <825000>;
+		regulator-max-microvolt = <825000>;
 	};
 
 	adc-keys {
@@ -346,6 +346,7 @@
 
 &npu_opp_table {
 	/delete-node/ opp-800000000;
+	/delete-node/ opp-934000000;
 };
 
 &pinctrl {
