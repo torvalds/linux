@@ -141,9 +141,7 @@ cti_err_not_enabled:
 static void cti_cpuhp_enable_hw(struct cti_drvdata *drvdata)
 {
 	struct cti_config *config = &drvdata->config;
-	struct device *dev = &drvdata->csdev->dev;
 
-	pm_runtime_get_sync(dev->parent);
 	spin_lock(&drvdata->spinlock);
 	config->hw_powered = true;
 
@@ -163,7 +161,6 @@ static void cti_cpuhp_enable_hw(struct cti_drvdata *drvdata)
 	/* did not re-enable due to no claim / no request */
 cti_hp_not_enabled:
 	spin_unlock(&drvdata->spinlock);
-	pm_runtime_put(dev->parent);
 }
 
 /* disable hardware */
