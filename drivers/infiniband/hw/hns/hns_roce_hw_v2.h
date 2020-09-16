@@ -86,7 +86,6 @@
 #define HNS_ROCE_V2_MTPT_ENTRY_SZ		64
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
 #define HNS_ROCE_V2_IDX_ENTRY_SZ		4
-#define HNS_ROCE_V2_CQE_ENTRY_SIZE		32
 #define HNS_ROCE_V2_SCCC_ENTRY_SZ		32
 #define HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		PAGE_SIZE
@@ -308,6 +307,9 @@ struct hns_roce_v2_cq_context {
 
 #define	V2_CQC_BYTE_8_CQN_S 0
 #define V2_CQC_BYTE_8_CQN_M GENMASK(23, 0)
+
+#define V2_CQC_BYTE_8_CQE_SIZE_S 27
+#define V2_CQC_BYTE_8_CQE_SIZE_M GENMASK(28, 27)
 
 #define	V2_CQC_BYTE_16_CQE_CUR_BLK_ADDR_S 0
 #define V2_CQC_BYTE_16_CQE_CUR_BLK_ADDR_M GENMASK(19, 0)
@@ -896,6 +898,7 @@ struct hns_roce_v2_cqe {
 	u8	smac[4];
 	__le32	byte_28;
 	__le32	byte_32;
+	__le32	rsv[8];
 };
 
 #define	V2_CQE_BYTE_4_OPCODE_S 0
@@ -1571,7 +1574,7 @@ struct hns_roce_query_pf_caps_a {
 	u8 max_sq_desc_sz;
 	u8 max_rq_desc_sz;
 	u8 max_srq_desc_sz;
-	u8 cq_entry_sz;
+	u8 cqe_sz;
 };
 
 struct hns_roce_query_pf_caps_b {

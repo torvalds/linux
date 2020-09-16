@@ -1690,7 +1690,7 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->mtpt_entry_sz	= HNS_ROCE_V2_MTPT_ENTRY_SZ;
 	caps->mtt_entry_sz	= HNS_ROCE_V2_MTT_ENTRY_SZ;
 	caps->idx_entry_sz	= HNS_ROCE_V2_IDX_ENTRY_SZ;
-	caps->cq_entry_sz	= HNS_ROCE_V2_CQE_ENTRY_SIZE;
+	caps->cqe_sz		= HNS_ROCE_V2_CQE_SIZE;
 	caps->page_size_cap	= HNS_ROCE_V2_PAGE_SIZE_SUPPORTED;
 	caps->reserved_lkey	= 0;
 	caps->reserved_pds	= 0;
@@ -1770,6 +1770,7 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
 		caps->aeqe_size = HNS_ROCE_V3_EQE_SIZE;
 		caps->ceqe_size = HNS_ROCE_V3_EQE_SIZE;
+		caps->cqe_sz = HNS_ROCE_V3_CQE_SIZE;
 	}
 }
 
@@ -1862,7 +1863,7 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->max_sq_desc_sz	     = resp_a->max_sq_desc_sz;
 	caps->max_rq_desc_sz	     = resp_a->max_rq_desc_sz;
 	caps->max_srq_desc_sz	     = resp_a->max_srq_desc_sz;
-	caps->cq_entry_sz	     = resp_a->cq_entry_sz;
+	caps->cqe_sz		     = HNS_ROCE_V2_CQE_SIZE;
 
 	caps->mtpt_entry_sz	     = resp_b->mtpt_entry_sz;
 	caps->irrl_entry_sz	     = resp_b->irrl_entry_sz;
@@ -1993,6 +1994,7 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
 		caps->ceqe_size = HNS_ROCE_V3_EQE_SIZE;
 		caps->aeqe_size = HNS_ROCE_V3_EQE_SIZE;
+		caps->cqe_sz = HNS_ROCE_V3_CQE_SIZE;
 	}
 
 	calc_pg_sz(caps->num_qps, caps->qpc_entry_sz, caps->qpc_hop_num,
@@ -2771,8 +2773,7 @@ static int hns_roce_v2_mw_write_mtpt(void *mb_buf, struct hns_roce_mw *mw)
 
 static void *get_cqe_v2(struct hns_roce_cq *hr_cq, int n)
 {
-	return hns_roce_buf_offset(hr_cq->mtr.kmem,
-				   n * HNS_ROCE_V2_CQE_ENTRY_SIZE);
+	return hns_roce_buf_offset(hr_cq->mtr.kmem, n * hr_cq->cqe_size);
 }
 
 static void *get_sw_cqe_v2(struct hns_roce_cq *hr_cq, int n)
@@ -2871,6 +2872,10 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 
 	roce_set_field(cq_context->byte_8_cqn, V2_CQC_BYTE_8_CQN_M,
 		       V2_CQC_BYTE_8_CQN_S, hr_cq->cqn);
+
+	roce_set_field(cq_context->byte_8_cqn, V2_CQC_BYTE_8_CQE_SIZE_M,
+		       V2_CQC_BYTE_8_CQE_SIZE_S, hr_cq->cqe_size ==
+		       HNS_ROCE_V3_CQE_SIZE ? 1 : 0);
 
 	cq_context->cqe_cur_blk_addr = cpu_to_le32(to_hr_hw_page_addr(mtts[0]));
 
@@ -3039,7 +3044,8 @@ out:
 }
 
 static void get_cqe_status(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
-			   struct hns_roce_v2_cqe *cqe, struct ib_wc *wc)
+			   struct hns_roce_cq *cq, struct hns_roce_v2_cqe *cqe,
+			   struct ib_wc *wc)
 {
 	static const struct {
 		u32 cqe_status;
@@ -3080,7 +3086,7 @@ static void get_cqe_status(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 
 	ibdev_err(&hr_dev->ib_dev, "error cqe status 0x%x:\n", cqe_status);
 	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_NONE, 16, 4, cqe,
-		       sizeof(*cqe), false);
+		       cq->cqe_size, false);
 
 	/*
 	 * For hns ROCEE, GENERAL_ERR is an error type that is not defined in
@@ -3177,7 +3183,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		++wq->tail;
 	}
 
-	get_cqe_status(hr_dev, *cur_qp, cqe, wc);
+	get_cqe_status(hr_dev, *cur_qp, hr_cq, cqe, wc);
 	if (unlikely(wc->status != IB_WC_SUCCESS))
 		return 0;
 

@@ -1475,7 +1475,7 @@ static int hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 	caps->cqc_entry_sz	= HNS_ROCE_V1_CQC_ENTRY_SIZE;
 	caps->mtpt_entry_sz	= HNS_ROCE_V1_MTPT_ENTRY_SIZE;
 	caps->mtt_entry_sz	= HNS_ROCE_V1_MTT_ENTRY_SIZE;
-	caps->cq_entry_sz	= HNS_ROCE_V1_CQE_ENTRY_SIZE;
+	caps->cqe_sz		= HNS_ROCE_V1_CQE_SIZE;
 	caps->page_size_cap	= HNS_ROCE_V1_PAGE_SIZE_SUPPORT;
 	caps->reserved_lkey	= 0;
 	caps->reserved_pds	= 0;
@@ -1896,8 +1896,7 @@ static int hns_roce_v1_write_mtpt(struct hns_roce_dev *hr_dev, void *mb_buf,
 
 static void *get_cqe(struct hns_roce_cq *hr_cq, int n)
 {
-	return hns_roce_buf_offset(hr_cq->mtr.kmem,
-				   n * HNS_ROCE_V1_CQE_ENTRY_SIZE);
+	return hns_roce_buf_offset(hr_cq->mtr.kmem, n * HNS_ROCE_V1_CQE_SIZE);
 }
 
 static void *get_sw_cqe(struct hns_roce_cq *hr_cq, int n)

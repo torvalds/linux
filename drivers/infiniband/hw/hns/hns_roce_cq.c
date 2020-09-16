@@ -150,7 +150,7 @@ static int alloc_cq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 	int err;
 
 	buf_attr.page_shift = hr_dev->caps.cqe_buf_pg_sz + HNS_HW_PAGE_SHIFT;
-	buf_attr.region[0].size = hr_cq->cq_depth * hr_dev->caps.cq_entry_sz;
+	buf_attr.region[0].size = hr_cq->cq_depth * hr_cq->cqe_size;
 	buf_attr.region[0].hopnum = hr_dev->caps.cqe_hop_num;
 	buf_attr.region_count = 1;
 	buf_attr.fixed_page = true;
@@ -224,6 +224,21 @@ static void free_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 	}
 }
 
+static void set_cqe_size(struct hns_roce_cq *hr_cq, struct ib_udata *udata,
+			 struct hns_roce_ib_create_cq *ucmd)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(hr_cq->ib_cq.device);
+
+	if (udata) {
+		if (udata->inlen >= offsetofend(typeof(*ucmd), cqe_size))
+			hr_cq->cqe_size = ucmd->cqe_size;
+		else
+			hr_cq->cqe_size = HNS_ROCE_V2_CQE_SIZE;
+	} else {
+		hr_cq->cqe_size = hr_dev->caps.cqe_sz;
+	}
+}
+
 int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 		       struct ib_udata *udata)
 {
@@ -258,13 +273,16 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 	INIT_LIST_HEAD(&hr_cq->rq_list);
 
 	if (udata) {
-		ret = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
+		ret = ib_copy_from_udata(&ucmd, udata,
+					 min(sizeof(ucmd), udata->inlen));
 		if (ret) {
 			ibdev_err(ibdev, "Failed to copy CQ udata, err %d\n",
 				  ret);
 			return ret;
 		}
 	}
+
+	set_cqe_size(hr_cq, udata, &ucmd);
 
 	ret = alloc_cq_buf(hr_dev, hr_cq, udata, ucmd.buf_addr);
 	if (ret) {

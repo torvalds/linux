@@ -81,6 +81,9 @@
 
 #define HNS_ROCE_V3_EQE_SIZE 0x40
 
+#define HNS_ROCE_V2_CQE_SIZE 32
+#define HNS_ROCE_V3_CQE_SIZE 64
+
 #define HNS_ROCE_SL_SHIFT			28
 #define HNS_ROCE_TCLASS_SHIFT			20
 #define HNS_ROCE_FLOW_LABEL_MASK		0xfffff
@@ -469,6 +472,7 @@ struct hns_roce_cq {
 	void __iomem			*cq_db_l;
 	u16				*tptr_addr;
 	int				arm_sn;
+	int				cqe_size;
 	unsigned long			cqn;
 	u32				vector;
 	atomic_t			refcount;
@@ -796,7 +800,7 @@ struct hns_roce_caps {
 	int		num_pds;
 	int		reserved_pds;
 	u32		mtt_entry_sz;
-	u32		cq_entry_sz;
+	u32		cqe_sz;
 	u32		page_size_cap;
 	u32		reserved_lkey;
 	int		mtpt_entry_sz;
