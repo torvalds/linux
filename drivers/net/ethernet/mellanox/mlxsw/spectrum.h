@@ -415,17 +415,6 @@ mlxsw_sp_port_vlan_find_by_vid(const struct mlxsw_sp_port *mlxsw_sp_port,
 	return NULL;
 }
 
-static inline u32
-mlxsw_sp_port_headroom_8x_adjust(const struct mlxsw_sp_port *mlxsw_sp_port,
-				 u32 size_cells)
-{
-	/* Ports with eight lanes use two headroom buffers between which the
-	 * configured headroom size is split. Therefore, multiply the calculated
-	 * headroom size by two.
-	 */
-	return mlxsw_sp_port->mapping.width == 8 ? 2 * size_cells : size_cells;
-}
-
 enum mlxsw_sp_flood_type {
 	MLXSW_SP_FLOOD_TYPE_UC,
 	MLXSW_SP_FLOOD_TYPE_BC,
@@ -463,6 +452,17 @@ struct mlxsw_sp_hdroom {
 	struct {
 		struct mlxsw_sp_hdroom_buf buf[MLXSW_SP_PB_COUNT];
 	} bufs;
+	struct {
+		/* Size actually configured for the internal buffer. Equal to
+		 * reserve when internal buffer is enabled.
+		 */
+		u32 size_cells;
+		/* Space reserved in the headroom for the internal buffer. Port
+		 * buffers are not allowed to grow into this space.
+		 */
+		u32 reserve_cells;
+		bool enable;
+	} int_buf;
 	int delay_bytes;
 	int mtu;
 };

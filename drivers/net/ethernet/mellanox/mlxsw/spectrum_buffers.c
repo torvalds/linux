@@ -122,6 +122,7 @@ struct mlxsw_sp_sb_vals {
 };
 
 struct mlxsw_sp_sb_ops {
+	u32 (*int_buf_size_get)(int mtu, u32 speed);
 };
 
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
@@ -132,6 +133,16 @@ u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
 u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes)
 {
 	return DIV_ROUND_UP(bytes, mlxsw_sp->sb->cell_size);
+}
+
+static u32 mlxsw_sp_port_headroom_8x_adjust(const struct mlxsw_sp_port *mlxsw_sp_port,
+					    u32 size_cells)
+{
+	/* Ports with eight lanes use two headroom buffers between which the
+	 * configured headroom size is split. Therefore, multiply the calculated
+	 * headroom size by two.
+	 */
+	return mlxsw_sp_port->mapping.width == 8 ? 2 * size_cells : size_cells;
 }
 
 static struct mlxsw_sp_sb_pr *mlxsw_sp_sb_pr_get(struct mlxsw_sp *mlxsw_sp,
@@ -343,6 +354,13 @@ static u16 mlxsw_sp_hdroom_buf_delay_get(const struct mlxsw_sp *mlxsw_sp,
 	return 2 * delay_cells + mlxsw_sp_bytes_cells(mlxsw_sp, hdroom->mtu);
 }
 
+static u32 mlxsw_sp_hdroom_int_buf_size_get(struct mlxsw_sp *mlxsw_sp, int mtu, u32 speed)
+{
+	u32 buffsize = mlxsw_sp->sb_ops->int_buf_size_get(speed, mtu);
+
+	return mlxsw_sp_bytes_cells(mlxsw_sp, buffsize) + 1;
+}
+
 static bool mlxsw_sp_hdroom_buf_is_used(const struct mlxsw_sp_hdroom *hdroom, int buf)
 {
 	int prio;
@@ -358,8 +376,21 @@ void mlxsw_sp_hdroom_bufs_reset_sizes(struct mlxsw_sp_port *mlxsw_sp_port,
 				      struct mlxsw_sp_hdroom *hdroom)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u16 reserve_cells;
 	int i;
 
+	/* Internal buffer. */
+	reserve_cells = mlxsw_sp_hdroom_int_buf_size_get(mlxsw_sp, mlxsw_sp_port->max_speed,
+							 mlxsw_sp_port->max_mtu);
+	reserve_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, reserve_cells);
+	hdroom->int_buf.reserve_cells = reserve_cells;
+
+	if (hdroom->int_buf.enable)
+		hdroom->int_buf.size_cells = reserve_cells;
+	else
+		hdroom->int_buf.size_cells = 0;
+
+	/* PG buffers. */
 	for (i = 0; i < DCBX_MAX_BUFFERS; i++) {
 		struct mlxsw_sp_hdroom_buf *buf = &hdroom->bufs.buf[i];
 		u16 thres_cells;
@@ -442,6 +473,26 @@ static int mlxsw_sp_hdroom_configure_priomap(struct mlxsw_sp_port *mlxsw_sp_port
 	return 0;
 }
 
+static int mlxsw_sp_hdroom_configure_int_buf(struct mlxsw_sp_port *mlxsw_sp_port,
+					     const struct mlxsw_sp_hdroom *hdroom, bool force)
+{
+	char sbib_pl[MLXSW_REG_SBIB_LEN];
+	bool dirty;
+	int err;
+
+	dirty = memcmp(&mlxsw_sp_port->hdroom->int_buf, &hdroom->int_buf, sizeof(hdroom->int_buf));
+	if (!dirty && !force)
+		return 0;
+
+	mlxsw_reg_sbib_pack(sbib_pl, mlxsw_sp_port->local_port, hdroom->int_buf.size_cells);
+	err = mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
+	if (err)
+		return err;
+
+	mlxsw_sp_port->hdroom->int_buf = hdroom->int_buf;
+	return 0;
+}
+
 static bool mlxsw_sp_hdroom_bufs_fit(struct mlxsw_sp *mlxsw_sp,
 				     const struct mlxsw_sp_hdroom *hdroom)
 {
@@ -451,6 +502,7 @@ static bool mlxsw_sp_hdroom_bufs_fit(struct mlxsw_sp *mlxsw_sp,
 	for (i = 0; i < MLXSW_SP_PB_COUNT; i++)
 		taken_headroom_cells += hdroom->bufs.buf[i].size_cells;
 
+	taken_headroom_cells += hdroom->int_buf.reserve_cells;
 	return taken_headroom_cells <= mlxsw_sp->sb->max_headroom_cells;
 }
 
@@ -493,9 +545,15 @@ static int __mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		goto err_configure_buffers;
 
+	err = mlxsw_sp_hdroom_configure_int_buf(mlxsw_sp_port, hdroom, false);
+	if (err)
+		goto err_configure_int_buf;
+
 	*mlxsw_sp_port->hdroom = *hdroom;
 	return 0;
 
+err_configure_int_buf:
+	mlxsw_sp_hdroom_configure_buffers(mlxsw_sp_port, &tmp_hdroom, false);
 err_configure_buffers:
 	mlxsw_sp_hdroom_configure_priomap(mlxsw_sp_port, &tmp_hdroom, false);
 err_configure_priomap:
@@ -1104,13 +1162,44 @@ const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
 	.cms_cpu_count = ARRAY_SIZE(mlxsw_sp_cpu_port_sb_cms),
 };
 
+static u32 mlxsw_sp1_pb_int_buf_size_get(int mtu, u32 speed)
+{
+	return mtu * 5 / 2;
+}
+
+static u32 __mlxsw_sp_pb_int_buf_size_get(int mtu, u32 speed, u32 buffer_factor)
+{
+	return 3 * mtu + buffer_factor * speed / 1000;
+}
+
+#define MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR 38
+
+static u32 mlxsw_sp2_pb_int_buf_size_get(int mtu, u32 speed)
+{
+	int factor = MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR;
+
+	return __mlxsw_sp_pb_int_buf_size_get(mtu, speed, factor);
+}
+
+#define MLXSW_SP3_SPAN_EG_MIRROR_BUFFER_FACTOR 50
+
+static u32 mlxsw_sp3_pb_int_buf_size_get(int mtu, u32 speed)
+{
+	int factor = MLXSW_SP3_SPAN_EG_MIRROR_BUFFER_FACTOR;
+
+	return __mlxsw_sp_pb_int_buf_size_get(mtu, speed, factor);
+}
+
 const struct mlxsw_sp_sb_ops mlxsw_sp1_sb_ops = {
+	.int_buf_size_get = mlxsw_sp1_pb_int_buf_size_get,
 };
 
 const struct mlxsw_sp_sb_ops mlxsw_sp2_sb_ops = {
+	.int_buf_size_get = mlxsw_sp2_pb_int_buf_size_get,
 };
 
 const struct mlxsw_sp_sb_ops mlxsw_sp3_sb_ops = {
+	.int_buf_size_get = mlxsw_sp3_pb_int_buf_size_get,
 };
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
