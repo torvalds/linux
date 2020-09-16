@@ -121,6 +121,9 @@ struct mlxsw_sp_sb_vals {
 	unsigned int cms_cpu_count;
 };
 
+struct mlxsw_sp_sb_ops {
+};
+
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
 {
 	return mlxsw_sp->sb->cell_size * cells;
@@ -1099,6 +1102,15 @@ const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
 	.cms_ingress_count = ARRAY_SIZE(mlxsw_sp2_sb_cms_ingress),
 	.cms_egress_count = ARRAY_SIZE(mlxsw_sp2_sb_cms_egress),
 	.cms_cpu_count = ARRAY_SIZE(mlxsw_sp_cpu_port_sb_cms),
+};
+
+const struct mlxsw_sp_sb_ops mlxsw_sp1_sb_ops = {
+};
+
+const struct mlxsw_sp_sb_ops mlxsw_sp2_sb_ops = {
+};
+
+const struct mlxsw_sp_sb_ops mlxsw_sp3_sb_ops = {
 };
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)

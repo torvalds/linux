@@ -125,6 +125,7 @@ struct mlxsw_sp_mr_tcam_ops;
 struct mlxsw_sp_acl_rulei_ops;
 struct mlxsw_sp_acl_tcam_ops;
 struct mlxsw_sp_nve_ops;
+struct mlxsw_sp_sb_ops;
 struct mlxsw_sp_sb_vals;
 struct mlxsw_sp_port_type_speed_ops;
 struct mlxsw_sp_ptp_state;
@@ -171,6 +172,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_sb_vals *sb_vals;
+	const struct mlxsw_sp_sb_ops *sb_ops;
 	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
 	const struct mlxsw_sp_ptp_ops *ptp_ops;
 	const struct mlxsw_sp_span_ops *span_ops;
@@ -513,6 +515,10 @@ int mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
 
 extern const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals;
 extern const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals;
+
+extern const struct mlxsw_sp_sb_ops mlxsw_sp1_sb_ops;
+extern const struct mlxsw_sp_sb_ops mlxsw_sp2_sb_ops;
+extern const struct mlxsw_sp_sb_ops mlxsw_sp3_sb_ops;
 
 /* spectrum_switchdev.c */
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp);
