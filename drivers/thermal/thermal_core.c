@@ -1652,7 +1652,6 @@ static int __init thermal_init(void)
 	if (result)
 		goto error;
 
-	mutex_init(&poweroff_lock);
 	result = thermal_register_governors();
 	if (result)
 		goto error;
