@@ -234,6 +234,11 @@ struct rxrpc_security {
 	int (*init_connection_security)(struct rxrpc_connection *,
 					struct rxrpc_key_token *);
 
+	/* Work out how much data we can store in a packet, given an estimate
+	 * of the amount of data remaining.
+	 */
+	int (*how_much_data)(struct rxrpc_call *, size_t,
+			     size_t *, size_t *, size_t *);
 
 	/* impose security on a packet */
 	int (*secure_packet)(struct rxrpc_call *, struct sk_buff *, size_t);
@@ -467,8 +472,6 @@ struct rxrpc_connection {
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
 	u32			service_id;	/* Service ID, possibly upgraded */
-	u8			size_align;	/* data size alignment (for security) */
-	u8			security_size;	/* security header size */
 	u8			security_ix;	/* security type */
 	u8			out_clientflag;	/* RXRPC_CLIENT_INITIATED if we are client */
 	u8			bundle_shift;	/* Index into bundle->avail_chans */

@@ -14,6 +14,17 @@ static int none_init_connection_security(struct rxrpc_connection *conn,
 	return 0;
 }
 
+/*
+ * Work out how much data we can put in an unsecured packet.
+ */
+static int none_how_much_data(struct rxrpc_call *call, size_t remain,
+			       size_t *_buf_size, size_t *_data_size, size_t *_offset)
+{
+	*_buf_size = *_data_size = min_t(size_t, remain, RXRPC_JUMBO_DATALEN);
+	*_offset = 0;
+	return 0;
+}
+
 static int none_secure_packet(struct rxrpc_call *call, struct sk_buff *skb,
 			      size_t data_size)
 {
@@ -81,6 +92,7 @@ const struct rxrpc_security rxrpc_no_security = {
 	.exit				= none_exit,
 	.init_connection_security	= none_init_connection_security,
 	.free_call_crypto		= none_free_call_crypto,
+	.how_much_data			= none_how_much_data,
 	.secure_packet			= none_secure_packet,
 	.verify_packet			= none_verify_packet,
 	.locate_data			= none_locate_data,

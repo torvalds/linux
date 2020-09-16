@@ -28,6 +28,7 @@
 #define INST_SZ				40	/* size of principal's instance */
 #define REALM_SZ			40	/* size of principal's auth domain */
 #define SNAME_SZ			40	/* size of service name */
+#define RXKAD_ALIGN			8
 
 struct rxkad_level1_hdr {
 	__be32	data_size;	/* true data size (excluding padding) */
@@ -80,7 +81,7 @@ static int rxkad_preparse_server_key(struct key_preparsed_payload *prep)
 
 static void rxkad_free_preparse_server_key(struct key_preparsed_payload *prep)
 {
-	
+
 	if (prep->payload.data[0])
 		crypto_free_skcipher(prep->payload.data[0]);
 }
@@ -119,14 +120,8 @@ static int rxkad_init_connection_security(struct rxrpc_connection *conn,
 
 	switch (conn->params.security_level) {
 	case RXRPC_SECURITY_PLAIN:
-		break;
 	case RXRPC_SECURITY_AUTH:
-		conn->size_align = 8;
-		conn->security_size = sizeof(struct rxkad_level1_hdr);
-		break;
 	case RXRPC_SECURITY_ENCRYPT:
-		conn->size_align = 8;
-		conn->security_size = sizeof(struct rxkad_level2_hdr);
 		break;
 	default:
 		ret = -EKEYREJECTED;
@@ -145,6 +140,40 @@ error_ci:
 error:
 	_leave(" = %d", ret);
 	return ret;
+}
+
+/*
+ * Work out how much data we can put in a packet.
+ */
+static int rxkad_how_much_data(struct rxrpc_call *call, size_t remain,
+			       size_t *_buf_size, size_t *_data_size, size_t *_offset)
+{
+	size_t shdr, buf_size, chunk;
+
+	switch (call->conn->params.security_level) {
+	default:
+		buf_size = chunk = min_t(size_t, remain, RXRPC_JUMBO_DATALEN);
+		shdr = 0;
+		goto out;
+	case RXRPC_SECURITY_AUTH:
+		shdr = sizeof(struct rxkad_level1_hdr);
+		break;
+	case RXRPC_SECURITY_ENCRYPT:
+		shdr = sizeof(struct rxkad_level2_hdr);
+		break;
+	}
+
+	buf_size = round_down(RXRPC_JUMBO_DATALEN, RXKAD_ALIGN);
+
+	chunk = buf_size - shdr;
+	if (remain < chunk)
+		buf_size = round_up(shdr + remain, RXKAD_ALIGN);
+
+out:
+	*_buf_size = buf_size;
+	*_data_size = chunk;
+	*_offset = shdr;
+	return 0;
 }
 
 /*
@@ -237,6 +266,7 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 	struct rxkad_level1_hdr hdr;
 	struct rxrpc_crypt iv;
 	struct scatterlist sg;
+	size_t pad;
 	u16 check;
 
 	_enter("");
@@ -246,6 +276,12 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 
 	hdr.data_size = htonl(data_size);
 	memcpy(skb->head, &hdr, sizeof(hdr));
+
+	pad = sizeof(struct rxkad_level1_hdr) + data_size;
+	pad = RXKAD_ALIGN - pad;
+	pad &= RXKAD_ALIGN - 1;
+	if (pad)
+		skb_put_zero(skb, pad);
 
 	/* start the encryption afresh */
 	memset(&iv, 0, sizeof(iv));
@@ -275,6 +311,7 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	struct rxrpc_crypt iv;
 	struct scatterlist sg[16];
 	unsigned int len;
+	size_t pad;
 	u16 check;
 	int err;
 
@@ -287,6 +324,12 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	rxkhdr.data_size = htonl(data_size | (u32)check << 16);
 	rxkhdr.checksum = 0;
 	memcpy(skb->head, &rxkhdr, sizeof(rxkhdr));
+
+	pad = sizeof(struct rxkad_level2_hdr) + data_size;
+	pad = RXKAD_ALIGN - pad;
+	pad &= RXKAD_ALIGN - 1;
+	if (pad)
+		skb_put_zero(skb, pad);
 
 	/* encrypt from the session key */
 	token = call->conn->params.key->payload.data[0];
@@ -303,8 +346,7 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	if (skb_shinfo(skb)->nr_frags > 16)
 		goto out;
 
-	len = data_size + call->conn->size_align - 1;
-	len &= ~(call->conn->size_align - 1);
+	len = round_up(data_size, RXKAD_ALIGN);
 
 	sg_init_table(sg, ARRAY_SIZE(sg));
 	err = skb_to_sgvec(skb, sg, 8, len);
@@ -1353,6 +1395,7 @@ const struct rxrpc_security rxkad = {
 	.free_preparse_server_key	= rxkad_free_preparse_server_key,
 	.destroy_server_key		= rxkad_destroy_server_key,
 	.init_connection_security	= rxkad_init_connection_security,
+	.how_much_data			= rxkad_how_much_data,
 	.secure_packet			= rxkad_secure_packet,
 	.verify_packet			= rxkad_verify_packet,
 	.free_call_crypto		= rxkad_free_call_crypto,
