@@ -407,7 +407,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		p09 {
+		p09-hog {
 			/* P11 - MCASP/TRACE_MUX_S0 */
 			gpio-hog;
 			gpios = <9 GPIO_ACTIVE_HIGH>;
@@ -415,7 +415,7 @@
 			line-name = "MCASP/TRACE_MUX_S0";
 		};
 
-		p10 {
+		p10-hog {
 			/* P12 - MCASP/TRACE_MUX_S1 */
 			gpio-hog;
 			gpios = <10 GPIO_ACTIVE_HIGH>;
