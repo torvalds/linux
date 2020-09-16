@@ -2933,7 +2933,8 @@ static int vfio_iommu_type1_dma_rw_chunk(struct vfio_iommu *iommu,
 			 * size
 			 */
 			bitmap_set(dma->bitmap, offset >> pgshift,
-				   *copied >> pgshift);
+				   ((offset + *copied - 1) >> pgshift) -
+				   (offset >> pgshift) + 1);
 		}
 	} else
 		*copied = copy_from_user(data, (void __user *)vaddr,
