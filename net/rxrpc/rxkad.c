@@ -38,6 +38,9 @@ struct rxkad_level2_hdr {
 	__be32	checksum;	/* decrypted data checksum */
 };
 
+static int rxkad_prime_packet_security(struct rxrpc_connection *conn,
+				       struct crypto_sync_skcipher *ci);
+
 /*
  * this holds a pinned cipher so that keventd doesn't get called by the cipher
  * alloc routine, but since we have it to hand, we use it to decrypt RESPONSE
@@ -130,8 +133,15 @@ static int rxkad_init_connection_security(struct rxrpc_connection *conn,
 		goto error;
 	}
 
+	ret = rxkad_prime_packet_security(conn, ci);
+	if (ret < 0)
+		goto error_ci;
+
 	conn->cipher = ci;
-	ret = 0;
+	return 0;
+
+error_ci:
+	crypto_free_sync_skcipher(ci);
 error:
 	_leave(" = %d", ret);
 	return ret;
@@ -141,7 +151,8 @@ error:
  * prime the encryption state with the invariant parts of a connection's
  * description
  */
-static int rxkad_prime_packet_security(struct rxrpc_connection *conn)
+static int rxkad_prime_packet_security(struct rxrpc_connection *conn,
+				       struct crypto_sync_skcipher *ci)
 {
 	struct skcipher_request *req;
 	struct rxrpc_key_token *token;
@@ -159,7 +170,7 @@ static int rxkad_prime_packet_security(struct rxrpc_connection *conn)
 	if (!tmpbuf)
 		return -ENOMEM;
 
-	req = skcipher_request_alloc(&conn->cipher->base, GFP_NOFS);
+	req = skcipher_request_alloc(&ci->base, GFP_NOFS);
 	if (!req) {
 		kfree(tmpbuf);
 		return -ENOMEM;
@@ -174,7 +185,7 @@ static int rxkad_prime_packet_security(struct rxrpc_connection *conn)
 	tmpbuf[3] = htonl(conn->security_ix);
 
 	sg_init_one(&sg, tmpbuf, tmpsize);
-	skcipher_request_set_sync_tfm(req, conn->cipher);
+	skcipher_request_set_sync_tfm(req, ci);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, &sg, &sg, tmpsize, iv.x);
 	crypto_skcipher_encrypt(req);
@@ -1350,7 +1361,6 @@ const struct rxrpc_security rxkad = {
 	.free_preparse_server_key	= rxkad_free_preparse_server_key,
 	.destroy_server_key		= rxkad_destroy_server_key,
 	.init_connection_security	= rxkad_init_connection_security,
-	.prime_packet_security		= rxkad_prime_packet_security,
 	.secure_packet			= rxkad_secure_packet,
 	.verify_packet			= rxkad_verify_packet,
 	.free_call_crypto		= rxkad_free_call_crypto,

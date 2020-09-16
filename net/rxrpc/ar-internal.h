@@ -234,8 +234,6 @@ struct rxrpc_security {
 	int (*init_connection_security)(struct rxrpc_connection *,
 					struct rxrpc_key_token *);
 
-	/* prime a connection's packet security */
-	int (*prime_packet_security)(struct rxrpc_connection *);
 
 	/* impose security on a packet */
 	int (*secure_packet)(struct rxrpc_call *,

@@ -338,10 +338,6 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		if (ret < 0)
 			return ret;
 
-		ret = conn->security->prime_packet_security(conn);
-		if (ret < 0)
-			return ret;
-
 		spin_lock(&conn->bundle->channel_lock);
 		spin_lock_bh(&conn->state_lock);
 

@@ -14,11 +14,6 @@ static int none_init_connection_security(struct rxrpc_connection *conn,
 	return 0;
 }
 
-static int none_prime_packet_security(struct rxrpc_connection *conn)
-{
-	return 0;
-}
-
 static int none_secure_packet(struct rxrpc_call *call,
 			      struct sk_buff *skb,
 			      size_t data_size,
@@ -87,7 +82,6 @@ const struct rxrpc_security rxrpc_no_security = {
 	.init				= none_init,
 	.exit				= none_exit,
 	.init_connection_security	= none_init_connection_security,
-	.prime_packet_security		= none_prime_packet_security,
 	.free_call_crypto		= none_free_call_crypto,
 	.secure_packet			= none_secure_packet,
 	.verify_packet			= none_verify_packet,
