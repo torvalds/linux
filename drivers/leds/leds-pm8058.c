@@ -147,12 +147,10 @@ static int pm8058_led_probe(struct platform_device *pdev)
 	init_data.fwnode = of_fwnode_handle(np);
 
 	ret = devm_led_classdev_register_ext(dev, &led->cdev, &init_data);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Failed to register LED for %pOF\n", np);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static const struct of_device_id pm8058_leds_id_table[] = {
