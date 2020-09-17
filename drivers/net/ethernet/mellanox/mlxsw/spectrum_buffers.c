@@ -304,8 +304,16 @@ void mlxsw_sp_hdroom_prios_reset_buf_idx(struct mlxsw_sp_hdroom *hdroom)
 {
 	int prio;
 
-	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
-		hdroom->prios.prio[prio].buf_idx = hdroom->prios.prio[prio].ets_buf_idx;
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+		switch (hdroom->mode) {
+		case MLXSW_SP_HDROOM_MODE_DCB:
+			hdroom->prios.prio[prio].buf_idx = hdroom->prios.prio[prio].ets_buf_idx;
+			break;
+		case MLXSW_SP_HDROOM_MODE_TC:
+			hdroom->prios.prio[prio].buf_idx = hdroom->prios.prio[prio].set_buf_idx;
+			break;
+		}
+	}
 }
 
 void mlxsw_sp_hdroom_bufs_reset_lossiness(struct mlxsw_sp_hdroom *hdroom)
@@ -411,7 +419,14 @@ void mlxsw_sp_hdroom_bufs_reset_sizes(struct mlxsw_sp_port *mlxsw_sp_port,
 		delay_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, delay_cells);
 
 		buf->thres_cells = thres_cells;
-		buf->size_cells = thres_cells + delay_cells;
+		if (hdroom->mode == MLXSW_SP_HDROOM_MODE_DCB) {
+			buf->size_cells = thres_cells + delay_cells;
+		} else {
+			/* Do not allow going below the minimum size, even if
+			 * the user requested it.
+			 */
+			buf->size_cells = max(buf->set_size_cells, buf->thres_cells);
+		}
 	}
 }
 
@@ -575,6 +590,7 @@ static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	int prio;
 
 	hdroom.mtu = mlxsw_sp_port->dev->mtu;
+	hdroom.mode = MLXSW_SP_HDROOM_MODE_DCB;
 	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
 		hdroom.prios.prio[prio].lossy = true;
 

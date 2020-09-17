@@ -434,18 +434,29 @@ struct mlxsw_sp_hdroom_prio {
 	u8 buf_idx;
 	/* Value of buf_idx deduced from the DCB ETS configuration. */
 	u8 ets_buf_idx;
+	/* Value of buf_idx taken from the dcbnl_setbuffer configuration. */
+	u8 set_buf_idx;
 	bool lossy;
 };
 
 struct mlxsw_sp_hdroom_buf {
 	u32 thres_cells;
 	u32 size_cells;
+	/* Size requirement form dcbnl_setbuffer. */
+	u32 set_size_cells;
 	bool lossy;
+};
+
+enum mlxsw_sp_hdroom_mode {
+	MLXSW_SP_HDROOM_MODE_DCB,
+	MLXSW_SP_HDROOM_MODE_TC,
 };
 
 #define MLXSW_SP_PB_COUNT 10
 
 struct mlxsw_sp_hdroom {
+	enum mlxsw_sp_hdroom_mode mode;
+
 	struct {
 		struct mlxsw_sp_hdroom_prio prio[IEEE_8021Q_MAX_PRIORITIES];
 	} prios;
