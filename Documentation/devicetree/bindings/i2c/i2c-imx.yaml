@@ -22,6 +22,9 @@ properties:
           - const: fsl,imx35-i2c
           - const: fsl,imx1-i2c
       - items:
+          - const: fsl,imx7d-i2c
+          - const: fsl,imx21-i2c
+      - items:
           - enum:
               - fsl,imx25-i2c
               - fsl,imx27-i2c
