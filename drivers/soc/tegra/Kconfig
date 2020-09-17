@@ -119,6 +119,16 @@ config ARCH_TEGRA_194_SOC
 	help
 	  Enable support for the NVIDIA Tegra194 SoC.
 
+config ARCH_TEGRA_234_SOC
+	bool "NVIDIA Tegra234 SoC"
+	select MAILBOX
+	select TEGRA_BPMP
+	select TEGRA_HSP_MBOX
+	select TEGRA_IVC
+	select SOC_TEGRA_PMC
+	help
+	  Enable support for the NVIDIA Tegra234 SoC.
+
 endif
 endif
 
