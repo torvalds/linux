@@ -907,10 +907,14 @@ static int ipa_remove(struct platform_device *pdev)
  * Return:	Always returns zero
  *
  * Called by the PM framework when a system suspend operation is invoked.
+ * Suspends endpoints and releases the clock reference held to keep
+ * the IPA clock running until this point.
  */
 static int ipa_suspend(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
+
+	ipa_endpoint_suspend(ipa);
 
 	ipa_clock_put(ipa);
 	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
@@ -925,6 +929,8 @@ static int ipa_suspend(struct device *dev)
  * Return:	Always returns 0
  *
  * Called by the PM framework when a system resume operation is invoked.
+ * Takes an IPA clock reference to keep the clock running until suspend,
+ * and resumes endpoints.
  */
 static int ipa_resume(struct device *dev)
 {
@@ -935,6 +941,8 @@ static int ipa_resume(struct device *dev)
 	 */
 	__set_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 	ipa_clock_get(ipa);
+
+	ipa_endpoint_resume(ipa);
 
 	return 0;
 }

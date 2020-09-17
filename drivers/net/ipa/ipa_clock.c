@@ -200,9 +200,8 @@ bool ipa_clock_get_additional(struct ipa *ipa)
 
 /* Get an IPA clock reference.  If the reference count is non-zero, it is
  * incremented and return is immediate.  Otherwise it is checked again
- * under protection of the mutex, and if appropriate the clock (and
- * interconnects) are enabled suspended endpoints (if any) are resumed
- * before returning.
+ * under protection of the mutex, and if appropriate the IPA clock
+ * is enabled.
  *
  * Incrementing the reference count is intentionally deferred until
  * after the clock is running and endpoints are resumed.
@@ -229,17 +228,14 @@ void ipa_clock_get(struct ipa *ipa)
 		goto out_mutex_unlock;
 	}
 
-	ipa_endpoint_resume(ipa);
-
 	refcount_set(&clock->count, 1);
 
 out_mutex_unlock:
 	mutex_unlock(&clock->mutex);
 }
 
-/* Attempt to remove an IPA clock reference.  If this represents the last
- * reference, suspend endpoints and disable the clock (and interconnects)
- * under protection of a mutex.
+/* Attempt to remove an IPA clock reference.  If this represents the
+ * last reference, disable the IPA clock under protection of the mutex.
  */
 void ipa_clock_put(struct ipa *ipa)
 {
@@ -248,8 +244,6 @@ void ipa_clock_put(struct ipa *ipa)
 	/* If this is not the last reference there's nothing more to do */
 	if (!refcount_dec_and_mutex_lock(&clock->count, &clock->mutex))
 		return;
-
-	ipa_endpoint_suspend(ipa);
 
 	ipa_clock_disable(ipa);
 
