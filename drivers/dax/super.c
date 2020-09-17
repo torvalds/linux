@@ -85,6 +85,12 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 		return false;
 	}
 
+	if (!dax_dev) {
+		pr_debug("%s: error: dax unsupported by block device\n",
+				bdevname(bdev, buf));
+		return false;
+	}
+
 	err = bdev_dax_pgoff(bdev, start, PAGE_SIZE, &pgoff);
 	if (err) {
 		pr_info("%s: error: unaligned partition for dax\n",
@@ -96,12 +102,6 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	err = bdev_dax_pgoff(bdev, last_page, PAGE_SIZE, &pgoff_end);
 	if (err) {
 		pr_info("%s: error: unaligned partition for dax\n",
-				bdevname(bdev, buf));
-		return false;
-	}
-
-	if (!dax_dev || !bdev_dax_supported(bdev, blocksize)) {
-		pr_debug("%s: error: dax unsupported by block device\n",
 				bdevname(bdev, buf));
 		return false;
 	}
