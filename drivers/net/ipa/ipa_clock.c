@@ -4,7 +4,7 @@
  * Copyright (C) 2018-2020 Linaro Ltd.
  */
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -51,7 +51,7 @@
  * @config_path:	Configuration space interconnect
  */
 struct ipa_clock {
-	atomic_t count;
+	refcount_t count;
 	struct mutex mutex; /* protects clock enable/disable */
 	struct clk *core;
 	struct icc_path *memory_path;
@@ -195,7 +195,7 @@ static void ipa_clock_disable(struct ipa *ipa)
  */
 bool ipa_clock_get_additional(struct ipa *ipa)
 {
-	return !!atomic_inc_not_zero(&ipa->clock->count);
+	return refcount_inc_not_zero(&ipa->clock->count);
 }
 
 /* Get an IPA clock reference.  If the reference count is non-zero, it is
@@ -231,7 +231,7 @@ void ipa_clock_get(struct ipa *ipa)
 
 	ipa_endpoint_resume(ipa);
 
-	atomic_inc(&clock->count);
+	refcount_set(&clock->count, 1);
 
 out_mutex_unlock:
 	mutex_unlock(&clock->mutex);
@@ -246,7 +246,7 @@ void ipa_clock_put(struct ipa *ipa)
 	struct ipa_clock *clock = ipa->clock;
 
 	/* If this is not the last reference there's nothing more to do */
-	if (!atomic_dec_and_mutex_lock(&clock->count, &clock->mutex))
+	if (!refcount_dec_and_mutex_lock(&clock->count, &clock->mutex))
 		return;
 
 	ipa_endpoint_suspend(ipa);
@@ -294,7 +294,7 @@ struct ipa_clock *ipa_clock_init(struct device *dev)
 		goto err_kfree;
 
 	mutex_init(&clock->mutex);
-	atomic_set(&clock->count, 0);
+	refcount_set(&clock->count, 0);
 
 	return clock;
 
@@ -311,7 +311,7 @@ void ipa_clock_exit(struct ipa_clock *clock)
 {
 	struct clk *clk = clock->core;
 
-	WARN_ON(atomic_read(&clock->count) != 0);
+	WARN_ON(refcount_read(&clock->count) != 0);
 	mutex_destroy(&clock->mutex);
 	ipa_interconnect_exit(clock);
 	kfree(clock);
