@@ -342,7 +342,6 @@ static int mt6323_led_set_dt_default(struct led_classdev *cdev,
 	const char *state;
 	int ret = 0;
 
-	led->cdev.name = of_get_property(np, "label", NULL) ? : np->name;
 	led->cdev.default_trigger = of_get_property(np,
 						    "linux,default-trigger",
 						    NULL);
@@ -402,6 +401,8 @@ static int mt6323_led_probe(struct platform_device *pdev)
 	}
 
 	for_each_available_child_of_node(np, child) {
+		struct led_init_data init_data = {};
+
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(dev, "Failed to read led 'reg' property\n");
@@ -437,13 +438,15 @@ static int mt6323_led_probe(struct platform_device *pdev)
 			goto put_child_node;
 		}
 
-		ret = devm_led_classdev_register(dev, &leds->led[reg]->cdev);
+		init_data.fwnode = of_fwnode_handle(child);
+
+		ret = devm_led_classdev_register_ext(dev, &leds->led[reg]->cdev,
+						     &init_data);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to register LED: %d\n",
 				ret);
 			goto put_child_node;
 		}
-		leds->led[reg]->cdev.dev->of_node = child;
 	}
 
 	return 0;
