@@ -457,7 +457,6 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	bool put_mdev = true;
 	u16 qkey_viol_cntr;
 	u32 eth_prot_oper;
-	u16 active_speed;
 	u8 mdev_port_num;
 	bool ext;
 	int err;
@@ -491,11 +490,8 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	props->active_width     = IB_WIDTH_4X;
 	props->active_speed     = IB_SPEED_QDR;
 
-	translate_eth_proto_oper(eth_prot_oper, &active_speed,
+	translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
 				 &props->active_width, ext);
-
-	WARN_ON_ONCE(active_speed & ~0xFF);
-	props->active_speed = (u8)active_speed;
 
 	props->port_cap_flags |= IB_PORT_CM_SUP;
 	props->ip_gids = true;
@@ -1307,7 +1303,7 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u8 port,
 		props->port_cap_flags2 = rep->cap_mask2;
 
 	err = mlx5_query_ib_port_oper(mdev, &ib_link_width_oper,
-				      (u16 *)&props->active_speed, port);
+				      &props->active_speed, port);
 	if (err)
 		goto out;
 

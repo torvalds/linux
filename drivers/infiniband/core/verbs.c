@@ -1781,7 +1781,7 @@ int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
 }
 EXPORT_SYMBOL(ib_modify_qp_with_udata);
 
-int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width)
+int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u16 *speed, u8 *width)
 {
 	int rc;
 	u32 netdev_speed;

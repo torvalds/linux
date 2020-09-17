@@ -163,7 +163,7 @@ int qedr_query_device(struct ib_device *ibdev,
 	return 0;
 }
 
-static inline void get_link_speed_and_width(int speed, u8 *ib_speed,
+static inline void get_link_speed_and_width(int speed, u16 *ib_speed,
 					    u8 *ib_width)
 {
 	switch (speed) {

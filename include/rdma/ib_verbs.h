@@ -535,7 +535,8 @@ enum ib_port_speed {
 	IB_SPEED_FDR10	= 8,
 	IB_SPEED_FDR	= 16,
 	IB_SPEED_EDR	= 32,
-	IB_SPEED_HDR	= 64
+	IB_SPEED_HDR	= 64,
+	IB_SPEED_NDR	= 128,
 };
 
 /**
@@ -669,7 +670,7 @@ struct ib_port_attr {
 	u8			subnet_timeout;
 	u8			init_type_reply;
 	u8			active_width;
-	u8			active_speed;
+	u16			active_speed;
 	u8                      phys_state;
 	u16			port_cap_flags2;
 };
@@ -4410,7 +4411,7 @@ void ib_drain_rq(struct ib_qp *qp);
 void ib_drain_sq(struct ib_qp *qp);
 void ib_drain_qp(struct ib_qp *qp);
 
-int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width);
+int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u16 *speed, u8 *width);
 
 static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
 {

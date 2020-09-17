@@ -1424,7 +1424,7 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 	props->gid_tbl_len = HFI1_GUIDS_PER_PORT;
 	props->active_width = (u8)opa_width_to_ib(ppd->link_width_active);
 	/* see rate_show() in ib core/sysfs.c */
-	props->active_speed = (u8)opa_speed_to_ib(ppd->link_speed_active);
+	props->active_speed = opa_speed_to_ib(ppd->link_speed_active);
 	props->max_vl_num = ppd->vls_supported;
 
 	/* Once we are a "first class" citizen and have added the OPA MTUs to
