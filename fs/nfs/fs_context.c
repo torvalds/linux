@@ -1047,88 +1047,79 @@ static int nfs4_parse_monolithic(struct fs_context *fc,
 	struct sockaddr *sap = (struct sockaddr *)&ctx->nfs_server.address;
 	char *c;
 
-	if (data == NULL)
-		goto out_no_data;
+	if (!data) {
+		if (is_remount_fc(fc))
+			goto done;
+		return nfs_invalf(fc,
+			"NFS4: mount program didn't pass any mount data");
+	}
 
 	ctx->version = 4;
 
-	switch (data->version) {
-	case 1:
-		if (data->host_addrlen > sizeof(ctx->nfs_server.address))
-			goto out_no_address;
-		if (data->host_addrlen == 0)
-			goto out_no_address;
-		ctx->nfs_server.addrlen = data->host_addrlen;
-		if (copy_from_user(sap, data->host_addr, data->host_addrlen))
+	if (data->version != 1)
+		return generic_parse_monolithic(fc, data);
+
+	if (data->host_addrlen > sizeof(ctx->nfs_server.address))
+		goto out_no_address;
+	if (data->host_addrlen == 0)
+		goto out_no_address;
+	ctx->nfs_server.addrlen = data->host_addrlen;
+	if (copy_from_user(sap, data->host_addr, data->host_addrlen))
+		return -EFAULT;
+	if (!nfs_verify_server_address(sap))
+		goto out_no_address;
+	ctx->nfs_server.port = ntohs(((struct sockaddr_in *)sap)->sin_port);
+
+	if (data->auth_flavourlen) {
+		rpc_authflavor_t pseudoflavor;
+
+		if (data->auth_flavourlen > 1)
+			goto out_inval_auth;
+		if (copy_from_user(&pseudoflavor, data->auth_flavours,
+				   sizeof(pseudoflavor)))
 			return -EFAULT;
-		if (!nfs_verify_server_address(sap))
-			goto out_no_address;
-		ctx->nfs_server.port = ntohs(((struct sockaddr_in *)sap)->sin_port);
-
-		if (data->auth_flavourlen) {
-			rpc_authflavor_t pseudoflavor;
-			if (data->auth_flavourlen > 1)
-				goto out_inval_auth;
-			if (copy_from_user(&pseudoflavor,
-					   data->auth_flavours,
-					   sizeof(pseudoflavor)))
-				return -EFAULT;
-			ctx->selected_flavor = pseudoflavor;
-		} else
-			ctx->selected_flavor = RPC_AUTH_UNIX;
-
-		c = strndup_user(data->hostname.data, NFS4_MAXNAMLEN);
-		if (IS_ERR(c))
-			return PTR_ERR(c);
-		ctx->nfs_server.hostname = c;
-
-		c = strndup_user(data->mnt_path.data, NFS4_MAXPATHLEN);
-		if (IS_ERR(c))
-			return PTR_ERR(c);
-		ctx->nfs_server.export_path = c;
-		dfprintk(MOUNT, "NFS: MNTPATH: '%s'\n", c);
-
-		c = strndup_user(data->client_addr.data, 16);
-		if (IS_ERR(c))
-			return PTR_ERR(c);
-		ctx->client_address = c;
-
-		/*
-		 * Translate to nfs_fs_context, which nfs_fill_super
-		 * can deal with.
-		 */
-
-		ctx->flags	= data->flags & NFS4_MOUNT_FLAGMASK;
-		ctx->rsize	= data->rsize;
-		ctx->wsize	= data->wsize;
-		ctx->timeo	= data->timeo;
-		ctx->retrans	= data->retrans;
-		ctx->acregmin	= data->acregmin;
-		ctx->acregmax	= data->acregmax;
-		ctx->acdirmin	= data->acdirmin;
-		ctx->acdirmax	= data->acdirmax;
-		ctx->nfs_server.protocol = data->proto;
-		nfs_validate_transport_protocol(ctx);
-		if (ctx->nfs_server.protocol == XPRT_TRANSPORT_UDP)
-			goto out_invalid_transport_udp;
-
-		break;
-	default:
-		goto generic;
+		ctx->selected_flavor = pseudoflavor;
+	} else {
+		ctx->selected_flavor = RPC_AUTH_UNIX;
 	}
 
+	c = strndup_user(data->hostname.data, NFS4_MAXNAMLEN);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	ctx->nfs_server.hostname = c;
+
+	c = strndup_user(data->mnt_path.data, NFS4_MAXPATHLEN);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	ctx->nfs_server.export_path = c;
+	dfprintk(MOUNT, "NFS: MNTPATH: '%s'\n", c);
+
+	c = strndup_user(data->client_addr.data, 16);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	ctx->client_address = c;
+
+	/*
+	 * Translate to nfs_fs_context, which nfs_fill_super
+	 * can deal with.
+	 */
+
+	ctx->flags	= data->flags & NFS4_MOUNT_FLAGMASK;
+	ctx->rsize	= data->rsize;
+	ctx->wsize	= data->wsize;
+	ctx->timeo	= data->timeo;
+	ctx->retrans	= data->retrans;
+	ctx->acregmin	= data->acregmin;
+	ctx->acregmax	= data->acregmax;
+	ctx->acdirmin	= data->acdirmin;
+	ctx->acdirmax	= data->acdirmax;
+	ctx->nfs_server.protocol = data->proto;
+	nfs_validate_transport_protocol(ctx);
+	if (ctx->nfs_server.protocol == XPRT_TRANSPORT_UDP)
+		goto out_invalid_transport_udp;
+done:
 	ctx->skip_reconfig_option_check = true;
 	return 0;
-
-generic:
-	return generic_parse_monolithic(fc, data);
-
-out_no_data:
-	if (is_remount_fc(fc)) {
-		ctx->skip_reconfig_option_check = true;
-		return 0;
-	}
-	return nfs_invalf(fc, "NFS4: mount program didn't pass any mount data");
 
 out_inval_auth:
 	return nfs_invalf(fc, "NFS4: Invalid number of RPC auth flavours %d",
