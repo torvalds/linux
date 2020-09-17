@@ -106,26 +106,28 @@ static unsigned int mux_buf_sz_pkts;
 module_param(mux_buf_sz_pkts, uint, 0);
 MODULE_PARM_DESC(mux_buf_sz_pkts, "Size for the internal mux buffer in multiples of 188 bytes");
 
+#define MUX_BUF_MIN_SZ 90164
+#define MUX_BUF_MAX_SZ (MUX_BUF_MIN_SZ * 10)
+
 static u32 vidtv_bridge_mux_buf_sz_for_mux_rate(void)
 {
-	u64 max_elapsed_time_msecs =  VIDTV_MAX_SLEEP_USECS / 1000;
+	u32 max_elapsed_time_msecs =  VIDTV_MAX_SLEEP_USECS / USEC_PER_MSEC;
 	u32 nbytes_expected;
 	u32 mux_buf_sz = mux_buf_sz_pkts * TS_PACKET_LEN;
-	u32 slack;
 
-	nbytes_expected = div64_u64(mux_rate_kbytes_sec * 1000, MSEC_PER_SEC);
+	nbytes_expected = mux_rate_kbytes_sec;
 	nbytes_expected *= max_elapsed_time_msecs;
 
 	mux_buf_sz = roundup(nbytes_expected, TS_PACKET_LEN);
-	slack = mux_buf_sz / 10;
+	mux_buf_sz += mux_buf_sz / 10;
 
-	//if (mux_buf_sz < MUX_BUF_MIN_SZ)
-	//	mux_buf_sz = MUX_BUF_MIN_SZ;
+	if (mux_buf_sz < MUX_BUF_MIN_SZ)
+		mux_buf_sz = MUX_BUF_MIN_SZ;
 
-	//if (mux_buf_sz > MUX_BUF_MAX_SZ)
-	//	mux_buf_sz = MUX_BUF_MAX_SZ;
+	if (mux_buf_sz > MUX_BUF_MAX_SZ)
+		mux_buf_sz = MUX_BUF_MAX_SZ;
 
-	return mux_buf_sz + slack;
+	return mux_buf_sz;
 }
 
 static bool vidtv_bridge_check_demod_lock(struct vidtv_dvb *dvb, u32 n)
