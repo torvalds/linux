@@ -36,6 +36,8 @@
  */
 uint64_t amdgpu_amdkfd_total_mem_size;
 
+bool kfd_initialized;
+
 int amdgpu_amdkfd_init(void)
 {
 	struct sysinfo si;
@@ -51,18 +53,25 @@ int amdgpu_amdkfd_init(void)
 #else
 	ret = -ENOENT;
 #endif
+	kfd_initialized = !ret;
 
 	return ret;
 }
 
 void amdgpu_amdkfd_fini(void)
 {
-	kgd2kfd_exit();
+	if (kfd_initialized) {
+		kgd2kfd_exit();
+		kfd_initialized = false;
+	}
 }
 
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 {
 	bool vf = amdgpu_sriov_vf(adev);
+
+	if (!kfd_initialized)
+		return;
 
 	adev->kfd.dev = kgd2kfd_probe((struct kgd_dev *)adev,
 				      adev->pdev, adev->asic_type, vf);

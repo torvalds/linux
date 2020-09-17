@@ -97,6 +97,7 @@ void kfd_chardev_exit(void)
 	device_destroy(kfd_class, MKDEV(kfd_char_dev_major, 0));
 	class_destroy(kfd_class);
 	unregister_chrdev(kfd_char_dev_major, kfd_dev_name);
+	kfd_device = NULL;
 }
 
 struct device *kfd_chardev(void)
