@@ -2111,14 +2111,14 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 	}
 }
 
-static int intel_dp_output_bpp(const struct intel_crtc_state *crtc_state, int bpp)
+static int intel_dp_output_bpp(enum intel_output_format output_format, int bpp)
 {
 	/*
 	 * bpp value was assumed to RGB format. And YCbCr 4:2:0 output
 	 * format of the number of bytes per pixel will be half the number
 	 * of bytes of RGB pixel.
 	 */
-	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+	if (output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
 		bpp /= 2;
 
 	return bpp;
@@ -2135,7 +2135,7 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 	int mode_rate, link_clock, link_avail;
 
 	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
-		int output_bpp = intel_dp_output_bpp(pipe_config, bpp);
+		int output_bpp = intel_dp_output_bpp(pipe_config->output_format, bpp);
 
 		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
 						   output_bpp);
@@ -2346,9 +2346,9 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	return 0;
 }
 
-int intel_dp_min_bpp(const struct intel_crtc_state *crtc_state)
+int intel_dp_min_bpp(enum intel_output_format output_format)
 {
-	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_RGB)
+	if (output_format == INTEL_OUTPUT_FORMAT_RGB)
 		return 6 * 3;
 	else
 		return 8 * 3;
@@ -2379,7 +2379,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.min_lane_count = 1;
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = intel_dp_min_bpp(pipe_config);
+	limits.min_bpp = intel_dp_min_bpp(pipe_config->output_format);
 	limits.max_bpp = intel_dp_max_bpp(intel_dp, pipe_config);
 
 	if (intel_dp_is_edp(intel_dp)) {
@@ -2765,7 +2765,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (pipe_config->dsc.compression_enable)
 		output_bpp = pipe_config->dsc.compressed_bpp;
 	else
-		output_bpp = intel_dp_output_bpp(pipe_config, pipe_config->pipe_bpp);
+		output_bpp = intel_dp_output_bpp(pipe_config->output_format,
+						 pipe_config->pipe_bpp);
 
 	intel_link_compute_m_n(output_bpp,
 			       pipe_config->lane_count,
