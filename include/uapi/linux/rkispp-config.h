@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
-#define ISPP_API_VERSION		KERNEL_VERSION(0, 1, 0x6)
+#define ISPP_API_VERSION		KERNEL_VERSION(0, 1, 0x7)
 
 #define ISPP_MODULE_TNR			BIT(0)//2TO1
 #define ISPP_MODULE_NR			BIT(1)

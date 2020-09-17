@@ -35,6 +35,11 @@
  *
  * v0.1.6:
  * 1. tnr support dynamic switch
+ *
+ * v0.1.7:
+ * 1. fix cannot change some shadow bits by only config function
+ * 2. fix scl0 format check error
+ * 3. vb2 support cache hints
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION

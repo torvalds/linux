@@ -38,6 +38,11 @@
  * v0.1.6:
  * 1. raw length 256 align
  * 2. soft reset for Dehaze
+ *
+ * v0.1.7:
+ * 1. fix rawaf is disabled in config function
+ * 2. clear csi rdbk fifo when first open
+ * 3. vb2 support cache hints
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
