@@ -1934,7 +1934,7 @@ int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 
 int get_fpexc_mode(struct task_struct *tsk, unsigned long adr)
 {
-	unsigned int val;
+	unsigned int val = 0;
 
 	if (tsk->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE) {
 		if (cpu_has_feature(CPU_FTR_SPE)) {
