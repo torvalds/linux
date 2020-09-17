@@ -129,7 +129,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_captouch>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <4 GPIO_ACTIVE_HIGH>;
+		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 
 		touchscreen-size-x = <800>;
 		touchscreen-size-y = <480>;
