@@ -28,6 +28,9 @@
 #define MAX_NUM_LANES		4
 #define DEFAULT_MAX_BIT_RATE	8100 /* in Mbps */
 
+#define NUM_SSC_MODE		3
+#define NUM_PHY_TYPE		2
+
 #define POLL_TIMEOUT_US		5000
 
 #define TORRENT_COMMON_CDB_OFFSET	0x0
@@ -98,6 +101,14 @@
 #define CMN_PLL0_LOCK_REFCNT_START      0x009CU
 #define CMN_PLL0_LOCK_PLLCNT_START	0x009EU
 #define CMN_PLL0_LOCK_PLLCNT_THR        0x009FU
+#define CMN_PLL0_INTDIV_M1		0x00A0U
+#define CMN_PLL0_FRACDIVH_M1		0x00A2U
+#define CMN_PLL0_HIGH_THR_M1		0x00A3U
+#define CMN_PLL0_DSM_DIAG_M1		0x00A4U
+#define CMN_PLL0_SS_CTRL1_M1		0x00A8U
+#define CMN_PLL0_SS_CTRL2_M1		0x00A9U
+#define CMN_PLL0_SS_CTRL3_M1		0x00AAU
+#define CMN_PLL0_SS_CTRL4_M1		0x00ABU
 #define CMN_PLL1_VCOCAL_TCTRL		0x00C2U
 #define CMN_PLL1_VCOCAL_INIT_TMR	0x00C4U
 #define CMN_PLL1_VCOCAL_ITER_TMR	0x00C5U
@@ -130,8 +141,10 @@
 #define CMN_PDIAG_PLL0_CP_PADJ_M0	0x01A4U
 #define CMN_PDIAG_PLL0_CP_IADJ_M0	0x01A5U
 #define CMN_PDIAG_PLL0_FILT_PADJ_M0	0x01A6U
+#define CMN_PDIAG_PLL0_CTRL_M1		0x01B0U
 #define CMN_PDIAG_PLL0_CP_PADJ_M1	0x01B4U
 #define CMN_PDIAG_PLL0_CP_IADJ_M1	0x01B5U
+#define CMN_PDIAG_PLL0_FILT_PADJ_M1	0x01B6U
 #define CMN_PDIAG_PLL1_CTRL_M0		0x01C0U
 #define CMN_PDIAG_PLL1_CLK_SEL_M0	0x01C1U
 #define CMN_PDIAG_PLL1_CP_PADJ_M0	0x01C4U
@@ -162,6 +175,9 @@
 #define RX_REE_GCSM1_CTRL		0x0108U
 #define RX_REE_GCSM2_CTRL		0x0110U
 #define RX_REE_PERGCSM_CTRL		0x0118U
+#define RX_REE_TAP1_CLIP		0x0171U
+#define RX_REE_TAP2TON_CLIP		0x0172U
+#define RX_DIAG_ACYA			0x01FFU
 
 /* PHY PCS common registers */
 #define PHY_PLL_CFG			0x000EU
@@ -182,12 +198,24 @@ static const struct reg_field phy_pma_pll_raw_ctrl =
 static const struct reg_field phy_reset_ctrl =
 				REG_FIELD(PHY_RESET, 8, 8);
 
+enum cdns_torrent_phy_type {
+	TYPE_DP,
+	TYPE_PCIE
+};
+
+enum cdns_torrent_ssc_mode {
+	NO_SSC,
+	EXTERNAL_SSC,
+	INTERNAL_SSC
+};
+
 struct cdns_torrent_inst {
 	struct phy *phy;
 	u32 mlane;
-	u32 phy_type;
+	enum cdns_torrent_phy_type phy_type;
 	u32 num_lanes;
 	struct reset_control *lnk_rst;
+	enum cdns_torrent_ssc_mode ssc_mode;
 };
 
 struct cdns_torrent_phy {
@@ -221,8 +249,9 @@ enum phy_powerstate {
 	POWERSTATE_A3 = 3,
 };
 
+static int cdns_torrent_phy_init(struct phy *phy);
+static int cdns_torrent_phy_exit(struct phy *phy);
 static int cdns_torrent_dp_init(struct phy *phy);
-static int cdns_torrent_dp_exit(struct phy *phy);
 static int cdns_torrent_dp_run(struct cdns_torrent_phy *cdns_phy,
 			       u32 num_lanes);
 static
@@ -252,17 +281,30 @@ static int cdns_torrent_phy_on(struct phy *phy);
 static int cdns_torrent_phy_off(struct phy *phy);
 
 static const struct phy_ops cdns_torrent_phy_ops = {
-	.init		= cdns_torrent_dp_init,
-	.exit		= cdns_torrent_dp_exit,
+	.init		= cdns_torrent_phy_init,
+	.exit		= cdns_torrent_phy_exit,
 	.configure	= cdns_torrent_dp_configure,
 	.power_on	= cdns_torrent_phy_on,
 	.power_off	= cdns_torrent_phy_off,
 	.owner		= THIS_MODULE,
 };
 
+struct cdns_reg_pairs {
+	u32 val;
+	u32 off;
+};
+
+struct cdns_torrent_vals {
+	struct cdns_reg_pairs *reg_pairs;
+	u32 num_regs;
+};
+
 struct cdns_torrent_data {
-		u8 block_offset_shift;
-		u8 reg_offset_shift;
+	u8 block_offset_shift;
+	u8 reg_offset_shift;
+	struct cdns_torrent_vals *cmn_vals[NUM_PHY_TYPE][NUM_SSC_MODE];
+	struct cdns_torrent_vals *tx_ln_vals[NUM_PHY_TYPE][NUM_SSC_MODE];
+	struct cdns_torrent_vals *rx_ln_vals[NUM_PHY_TYPE][NUM_SSC_MODE];
 };
 
 struct cdns_regmap_cdb_context {
@@ -846,19 +888,6 @@ static int cdns_torrent_dp_init(struct phy *phy)
 	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
 	struct regmap *regmap = cdns_phy->regmap_dptx_phy_reg;
 
-	ret = clk_prepare_enable(cdns_phy->clk);
-	if (ret) {
-		dev_err(cdns_phy->dev, "Failed to prepare ref clock\n");
-		return ret;
-	}
-
-	cdns_phy->ref_clk_rate = clk_get_rate(cdns_phy->clk);
-	if (!(cdns_phy->ref_clk_rate)) {
-		dev_err(cdns_phy->dev, "Failed to get ref clock rate\n");
-		clk_disable_unprepare(cdns_phy->clk);
-		return -EINVAL;
-	}
-
 	switch (cdns_phy->ref_clk_rate) {
 	case REF_CLK_19_2MHz:
 	case REF_CLK_25MHz:
@@ -918,7 +947,7 @@ static int cdns_torrent_dp_init(struct phy *phy)
 	return ret;
 }
 
-static int cdns_torrent_dp_exit(struct phy *phy)
+static int cdns_torrent_phy_exit(struct phy *phy)
 {
 	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
 
@@ -1725,6 +1754,74 @@ static int cdns_torrent_regmap_init(struct cdns_torrent_phy *cdns_phy)
 	return 0;
 }
 
+static int cdns_torrent_phy_init(struct phy *phy)
+{
+	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
+	struct cdns_torrent_vals *cmn_vals, *tx_ln_vals, *rx_ln_vals;
+	struct cdns_torrent_inst *inst = phy_get_drvdata(phy);
+	enum cdns_torrent_phy_type phy_type = inst->phy_type;
+	enum cdns_torrent_ssc_mode ssc = inst->ssc_mode;
+	struct cdns_reg_pairs *reg_pairs;
+	struct regmap *regmap;
+	u32 num_regs;
+	int ret, i, j;
+
+	ret = clk_prepare_enable(cdns_phy->clk);
+	if (ret) {
+		dev_err(cdns_phy->dev, "Failed to prepare ref clock\n");
+		return ret;
+	}
+
+	cdns_phy->ref_clk_rate = clk_get_rate(cdns_phy->clk);
+	if (!(cdns_phy->ref_clk_rate)) {
+		dev_err(cdns_phy->dev, "Failed to get ref clock rate\n");
+		clk_disable_unprepare(cdns_phy->clk);
+		return -EINVAL;
+	}
+
+	if (phy_type == TYPE_DP)
+		return cdns_torrent_dp_init(phy);
+
+	/* PMA common registers configurations */
+	cmn_vals = cdns_phy->init_data->cmn_vals[phy_type][ssc];
+	if (cmn_vals) {
+		reg_pairs = cmn_vals->reg_pairs;
+		num_regs = cmn_vals->num_regs;
+		regmap = cdns_phy->regmap_common_cdb;
+		for (i = 0; i < num_regs; i++)
+			regmap_write(regmap, reg_pairs[i].off,
+				     reg_pairs[i].val);
+	}
+
+	/* PMA TX lane registers configurations */
+	tx_ln_vals = cdns_phy->init_data->tx_ln_vals[phy_type][ssc];
+	if (tx_ln_vals) {
+		reg_pairs = tx_ln_vals->reg_pairs;
+		num_regs = tx_ln_vals->num_regs;
+		for (i = 0; i < inst->num_lanes; i++) {
+			regmap = cdns_phy->regmap_tx_lane_cdb[i + inst->mlane];
+			for (j = 0; j < num_regs; j++)
+				regmap_write(regmap, reg_pairs[j].off,
+					     reg_pairs[j].val);
+		}
+	}
+
+	/* PMA RX lane registers configurations */
+	rx_ln_vals = cdns_phy->init_data->rx_ln_vals[phy_type][ssc];
+	if (rx_ln_vals) {
+		reg_pairs = rx_ln_vals->reg_pairs;
+		num_regs = rx_ln_vals->num_regs;
+		for (i = 0; i < inst->num_lanes; i++) {
+			regmap = cdns_phy->regmap_rx_lane_cdb[i + inst->mlane];
+			for (j = 0; j < num_regs; j++)
+				regmap_write(regmap, reg_pairs[j].off,
+					     reg_pairs[j].val);
+		}
+	}
+
+	return 0;
+}
+
 static int cdns_torrent_phy_probe(struct platform_device *pdev)
 {
 	struct cdns_torrent_phy *cdns_phy;
@@ -1735,6 +1832,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	int ret, subnodes, node = 0, i;
 	u32 total_num_lanes = 0;
 	u8 init_dp_regmap = 0;
+	u32 phy_type;
 
 	/* Get init data for this PHY */
 	data = of_device_get_match_data(dev);
@@ -1800,10 +1898,22 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 			goto put_child;
 		}
 
-		if (of_property_read_u32(child, "cdns,phy-type",
-					 &cdns_phy->phys[node].phy_type)) {
+		if (of_property_read_u32(child, "cdns,phy-type", &phy_type)) {
 			dev_err(dev, "%s: No \"cdns,phy-type\"-property.\n",
 				child->full_name);
+			ret = -EINVAL;
+			goto put_child;
+		}
+
+		switch (phy_type) {
+		case PHY_TYPE_PCIE:
+			cdns_phy->phys[node].phy_type = TYPE_PCIE;
+			break;
+		case PHY_TYPE_DP:
+			cdns_phy->phys[node].phy_type = TYPE_DP;
+			break;
+		default:
+			dev_err(dev, "Unsupported protocol\n");
 			ret = -EINVAL;
 			goto put_child;
 		}
@@ -1818,7 +1928,18 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 
 		total_num_lanes += cdns_phy->phys[node].num_lanes;
 
-		if (cdns_phy->phys[node].phy_type == PHY_TYPE_DP) {
+		/* Get SSC mode */
+		cdns_phy->phys[node].ssc_mode = NO_SSC;
+		of_property_read_u32(child, "cdns,ssc-mode",
+				     &cdns_phy->phys[node].ssc_mode);
+
+		gphy = devm_phy_create(dev, child, &cdns_torrent_phy_ops);
+		if (IS_ERR(gphy)) {
+			ret = PTR_ERR(gphy);
+			goto put_child;
+		}
+
+		if (cdns_phy->phys[node].phy_type == TYPE_DP) {
 			switch (cdns_phy->phys[node].num_lanes) {
 			case 1:
 			case 2:
@@ -1861,13 +1982,6 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 				goto put_child;
 			}
 
-			gphy = devm_phy_create(dev, child,
-					       &cdns_torrent_phy_ops);
-			if (IS_ERR(gphy)) {
-				ret = PTR_ERR(gphy);
-				goto put_child;
-			}
-
 			if (!init_dp_regmap) {
 				ret = cdns_torrent_dp_regmap_init(cdns_phy);
 				if (ret)
@@ -1889,6 +2003,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 			gphy->attrs.max_link_rate = cdns_phy->max_bit_rate;
 			gphy->attrs.mode = PHY_MODE_DP;
 		}
+
 		cdns_phy->phys[node].phy = gphy;
 		phy_set_drvdata(gphy, &cdns_phy->phys[node]);
 
@@ -1932,14 +2047,135 @@ static int cdns_torrent_phy_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* Single link PCIe, 100 MHz Ref clk, internal SSC */
+static struct cdns_reg_pairs sl_pcie_100_int_ssc_cmn_regs[] = {
+	{0x0004, CMN_PLL0_DSM_DIAG_M0},
+	{0x0004, CMN_PLL0_DSM_DIAG_M1},
+	{0x0004, CMN_PLL1_DSM_DIAG_M0},
+	{0x0509, CMN_PDIAG_PLL0_CP_PADJ_M0},
+	{0x0509, CMN_PDIAG_PLL0_CP_PADJ_M1},
+	{0x0509, CMN_PDIAG_PLL1_CP_PADJ_M0},
+	{0x0F00, CMN_PDIAG_PLL0_CP_IADJ_M0},
+	{0x0F00, CMN_PDIAG_PLL0_CP_IADJ_M1},
+	{0x0F00, CMN_PDIAG_PLL1_CP_IADJ_M0},
+	{0x0F08, CMN_PDIAG_PLL0_FILT_PADJ_M0},
+	{0x0F08, CMN_PDIAG_PLL0_FILT_PADJ_M1},
+	{0x0F08, CMN_PDIAG_PLL1_FILT_PADJ_M0},
+	{0x0064, CMN_PLL0_INTDIV_M0},
+	{0x0050, CMN_PLL0_INTDIV_M1},
+	{0x0050, CMN_PLL1_INTDIV_M0},
+	{0x0002, CMN_PLL0_FRACDIVH_M0},
+	{0x0002, CMN_PLL0_FRACDIVH_M1},
+	{0x0002, CMN_PLL1_FRACDIVH_M0},
+	{0x0044, CMN_PLL0_HIGH_THR_M0},
+	{0x0036, CMN_PLL0_HIGH_THR_M1},
+	{0x0036, CMN_PLL1_HIGH_THR_M0},
+	{0x0002, CMN_PDIAG_PLL0_CTRL_M0},
+	{0x0002, CMN_PDIAG_PLL0_CTRL_M1},
+	{0x0002, CMN_PDIAG_PLL1_CTRL_M0},
+	{0x0001, CMN_PLL0_SS_CTRL1_M0},
+	{0x0001, CMN_PLL0_SS_CTRL1_M1},
+	{0x0001, CMN_PLL1_SS_CTRL1_M0},
+	{0x011B, CMN_PLL0_SS_CTRL2_M0},
+	{0x011B, CMN_PLL0_SS_CTRL2_M1},
+	{0x011B, CMN_PLL1_SS_CTRL2_M0},
+	{0x006E, CMN_PLL0_SS_CTRL3_M0},
+	{0x0058, CMN_PLL0_SS_CTRL3_M1},
+	{0x0058, CMN_PLL1_SS_CTRL3_M0},
+	{0x000E, CMN_PLL0_SS_CTRL4_M0},
+	{0x0012, CMN_PLL0_SS_CTRL4_M1},
+	{0x0012, CMN_PLL1_SS_CTRL4_M0},
+	{0x0C5E, CMN_PLL0_VCOCAL_REFTIM_START},
+	{0x0C5E, CMN_PLL1_VCOCAL_REFTIM_START},
+	{0x0C56, CMN_PLL0_VCOCAL_PLLCNT_START},
+	{0x0C56, CMN_PLL1_VCOCAL_PLLCNT_START},
+	{0x0003, CMN_PLL0_VCOCAL_TCTRL},
+	{0x0003, CMN_PLL1_VCOCAL_TCTRL},
+	{0x00C7, CMN_PLL0_LOCK_REFCNT_START},
+	{0x00C7, CMN_PLL1_LOCK_REFCNT_START},
+	{0x00C7, CMN_PLL0_LOCK_PLLCNT_START},
+	{0x00C7, CMN_PLL1_LOCK_PLLCNT_START},
+	{0x0005, CMN_PLL0_LOCK_PLLCNT_THR},
+	{0x0005, CMN_PLL1_LOCK_PLLCNT_THR}
+};
+
+static struct cdns_torrent_vals sl_pcie_100_int_ssc_cmn_vals = {
+	.reg_pairs = sl_pcie_100_int_ssc_cmn_regs,
+	.num_regs = ARRAY_SIZE(sl_pcie_100_int_ssc_cmn_regs),
+};
+
+/* PCIe, 100 MHz Ref clk, no SSC & external SSC */
+static struct cdns_reg_pairs pcie_100_ext_no_ssc_cmn_regs[] = {
+	{0x0003, CMN_PLL0_VCOCAL_TCTRL},
+	{0x0003, CMN_PLL1_VCOCAL_TCTRL}
+};
+
+static struct cdns_reg_pairs pcie_100_ext_no_ssc_rx_ln_regs[] = {
+	{0x0019, RX_REE_TAP1_CLIP},
+	{0x0019, RX_REE_TAP2TON_CLIP},
+	{0x0001, RX_DIAG_ACYA}
+};
+
+static struct cdns_torrent_vals pcie_100_no_ssc_cmn_vals = {
+	.reg_pairs = pcie_100_ext_no_ssc_cmn_regs,
+	.num_regs = ARRAY_SIZE(pcie_100_ext_no_ssc_cmn_regs),
+};
+
+static struct cdns_torrent_vals pcie_100_no_ssc_rx_ln_vals = {
+	.reg_pairs = pcie_100_ext_no_ssc_rx_ln_regs,
+	.num_regs = ARRAY_SIZE(pcie_100_ext_no_ssc_rx_ln_regs),
+};
+
 static const struct cdns_torrent_data cdns_map_torrent = {
 	.block_offset_shift = 0x2,
 	.reg_offset_shift = 0x2,
+	.cmn_vals = {
+		[TYPE_PCIE] = {
+			[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
+			[EXTERNAL_SSC] = &pcie_100_no_ssc_cmn_vals,
+			[INTERNAL_SSC] = &sl_pcie_100_int_ssc_cmn_vals,
+		},
+	},
+	.tx_ln_vals = {
+		[TYPE_PCIE] = {
+			[NO_SSC] = NULL,
+			[EXTERNAL_SSC] = NULL,
+			[INTERNAL_SSC] = NULL,
+		},
+	},
+	.rx_ln_vals = {
+		[TYPE_PCIE] = {
+			[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
+			[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
+			[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
+		},
+	},
 };
 
 static const struct cdns_torrent_data ti_j721e_map_torrent = {
 	.block_offset_shift = 0x0,
 	.reg_offset_shift = 0x1,
+	.cmn_vals = {
+		[TYPE_PCIE] = {
+			[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
+			[EXTERNAL_SSC] = &pcie_100_no_ssc_cmn_vals,
+			[INTERNAL_SSC] = &sl_pcie_100_int_ssc_cmn_vals,
+		},
+	},
+	.tx_ln_vals = {
+		[TYPE_PCIE] = {
+			[NO_SSC] = NULL,
+			[EXTERNAL_SSC] = NULL,
+			[INTERNAL_SSC] = NULL,
+		},
+	},
+	.rx_ln_vals = {
+		[TYPE_PCIE] = {
+			[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
+			[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
+			[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
+		},
+	},
 };
 
 static const struct of_device_id cdns_torrent_phy_of_match[] = {
