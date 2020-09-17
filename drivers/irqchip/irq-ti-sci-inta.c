@@ -600,13 +600,9 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 
 	inta->pdev = pdev;
 	inta->sci = devm_ti_sci_get_by_phandle(dev, "ti,sci");
-	if (IS_ERR(inta->sci)) {
-		ret = PTR_ERR(inta->sci);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "ti,sci read fail %d\n", ret);
-		inta->sci = NULL;
-		return ret;
-	}
+	if (IS_ERR(inta->sci))
+		return dev_err_probe(dev, PTR_ERR(inta->sci),
+				     "ti,sci read fail\n");
 
 	ret = of_property_read_u32(dev->of_node, "ti,sci-dev-id", &inta->ti_sci_id);
 	if (ret) {
