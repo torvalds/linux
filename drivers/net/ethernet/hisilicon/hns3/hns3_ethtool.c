@@ -27,12 +27,11 @@ struct hns3_sfp_type {
 
 static const struct hns3_stats hns3_txq_stats[] = {
 	/* Tx per-queue statistics */
-	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
 	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", tx_pkts),
 	HNS3_TQP_STAT("bytes", tx_bytes),
-	HNS3_TQP_STAT("errors", tx_err_cnt),
+	HNS3_TQP_STAT("more", tx_more),
 	HNS3_TQP_STAT("wake", restart_queue),
 	HNS3_TQP_STAT("busy", tx_busy),
 	HNS3_TQP_STAT("copy", tx_copy),
@@ -46,7 +45,6 @@ static const struct hns3_stats hns3_txq_stats[] = {
 
 static const struct hns3_stats hns3_rxq_stats[] = {
 	/* Rx per-queue statistics */
-	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
 	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", rx_pkts),
@@ -232,7 +230,7 @@ static void hns3_lb_clear_tx_ring(struct hns3_nic_priv *priv, u32 start_ringid,
 	for (i = start_ringid; i <= end_ringid; i++) {
 		struct hns3_enet_ring *ring = &priv->ring[i];
 
-		hns3_clean_tx_ring(ring);
+		hns3_clean_tx_ring(ring, 0);
 	}
 }
 

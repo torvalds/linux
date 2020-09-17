@@ -287,6 +287,7 @@ struct hns3_desc_cb {
 
 	/* desc type, used by the ring user to mark the type of the priv data */
 	u16 type;
+	u16 pagecnt_bias;
 };
 
 enum hns3_pkt_l3type {
@@ -343,14 +344,13 @@ enum hns3_pkt_ol4type {
 };
 
 struct ring_stats {
-	u64 io_err_cnt;
 	u64 sw_err_cnt;
 	u64 seg_pkt_cnt;
 	union {
 		struct {
 			u64 tx_pkts;
 			u64 tx_bytes;
-			u64 tx_err_cnt;
+			u64 tx_more;
 			u64 restart_queue;
 			u64 tx_busy;
 			u64 tx_copy;
@@ -396,8 +396,10 @@ struct hns3_enet_ring {
 	 * next_to_use
 	 */
 	int next_to_clean;
-
-	u32 pull_len; /* head length for current packet */
+	union {
+		int last_to_use;	/* last idx used by xmit */
+		u32 pull_len;		/* memcpy len for current rx packet */
+	};
 	u32 frag_num;
 	void *va; /* first buffer address for current packet */
 
@@ -512,11 +514,6 @@ static inline int ring_space(struct hns3_enet_ring *ring)
 			(begin - end)) - 1;
 }
 
-static inline int is_ring_empty(struct hns3_enet_ring *ring)
-{
-	return ring->next_to_use == ring->next_to_clean;
-}
-
 static inline u32 hns3_read_reg(void __iomem *base, u32 reg)
 {
 	return readl(base + reg);
@@ -541,9 +538,6 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 
 #define hns3_write_dev(a, reg, value) \
 	hns3_write_reg((a)->io_base, (reg), (value))
-
-#define hnae3_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
-		(tqp)->io_base + HNS3_RING_TX_RING_TAIL_REG)
 
 #define ring_to_dev(ring) ((ring)->dev)
 
@@ -582,7 +576,7 @@ void hns3_ethtool_set_ops(struct net_device *netdev);
 int hns3_set_channels(struct net_device *netdev,
 		      struct ethtool_channels *ch);
 
-void hns3_clean_tx_ring(struct hns3_enet_ring *ring);
+void hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);
 int hns3_init_all_ring(struct hns3_nic_priv *priv);
 int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
 int hns3_nic_reset_all_ring(struct hnae3_handle *h);
