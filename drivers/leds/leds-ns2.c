@@ -39,7 +39,7 @@ struct ns2_led {
 	struct ns2_led_modval *modval;
 };
 
-struct ns2_led_platform_data {
+struct ns2_led_of {
 	int		num_leds;
 	struct ns2_led	*leds;
 };
@@ -230,12 +230,11 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	return devm_led_classdev_register(&pdev->dev, &led_dat->cdev);
 }
 
-#ifdef CONFIG_OF_GPIO
 /*
  * Translate OpenFirmware node properties into platform_data.
  */
 static int
-ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
+ns2_leds_parse_of(struct device *dev, struct ns2_led_of *ofdata)
 {
 	struct device_node *np = dev_of_node(dev);
 	struct device_node *child;
@@ -317,8 +316,8 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 		led++;
 	}
 
-	pdata->leds = leds;
-	pdata->num_leds = num_leds;
+	ofdata->leds = leds;
+	ofdata->num_leds = num_leds;
 
 	return 0;
 
@@ -332,40 +331,31 @@ static const struct of_device_id of_ns2_leds_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_ns2_leds_match);
-#endif /* CONFIG_OF_GPIO */
 
 static int ns2_led_probe(struct platform_device *pdev)
 {
-	struct ns2_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct ns2_led_of *ofdata;
 	struct ns2_led_data *leds;
 	int i;
 	int ret;
 
-#ifdef CONFIG_OF_GPIO
-	if (!pdata) {
-		pdata = devm_kzalloc(&pdev->dev,
-				     sizeof(struct ns2_led_platform_data),
-				     GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
+	ofdata = devm_kzalloc(&pdev->dev, sizeof(struct ns2_led_of),
+			      GFP_KERNEL);
+	if (!ofdata)
+		return -ENOMEM;
 
-		ret = ns2_leds_get_of_pdata(&pdev->dev, pdata);
-		if (ret)
-			return ret;
-	}
-#else
-	if (!pdata)
-		return -EINVAL;
-#endif /* CONFIG_OF_GPIO */
+	ret = ns2_leds_parse_of(&pdev->dev, ofdata);
+	if (ret)
+		return ret;
 
 	leds = devm_kzalloc(&pdev->dev, array_size(sizeof(*leds),
-						   pdata->num_leds),
+						   ofdata->num_leds),
 			    GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
 
-	for (i = 0; i < pdata->num_leds; i++) {
-		ret = create_ns2_led(pdev, &leds[i], &pdata->leds[i]);
+	for (i = 0; i < ofdata->num_leds; i++) {
+		ret = create_ns2_led(pdev, &leds[i], &ofdata->leds[i]);
 		if (ret < 0)
 			return ret;
 	}
