@@ -84,7 +84,7 @@ static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	 * endpoints will be resumed as a result.  This reference will
 	 * be dropped when we get a power management suspend request.
 	 */
-	if (!atomic_xchg(&ipa->suspend_ref, 1))
+	if (!test_and_set_bit(IPA_FLAG_CLOCK_HELD, ipa->flags))
 		ipa_clock_get(ipa);
 
 	/* Acknowledge/clear the suspend interrupt on all endpoints */
@@ -508,7 +508,7 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 	 * is held after initialization completes, and won't get dropped
 	 * unless/until a system suspend request arrives.
 	 */
-	atomic_set(&ipa->suspend_ref, 1);
+	__set_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 	ipa_clock_get(ipa);
 
 	ipa_hardware_config(ipa);
@@ -544,7 +544,7 @@ err_endpoint_deconfig:
 err_hardware_deconfig:
 	ipa_hardware_deconfig(ipa);
 	ipa_clock_put(ipa);
-	atomic_set(&ipa->suspend_ref, 0);
+	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 
 	return ret;
 }
@@ -562,7 +562,7 @@ static void ipa_deconfig(struct ipa *ipa)
 	ipa_endpoint_deconfig(ipa);
 	ipa_hardware_deconfig(ipa);
 	ipa_clock_put(ipa);
-	atomic_set(&ipa->suspend_ref, 0);
+	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 }
 
 static int ipa_firmware_load(struct device *dev)
@@ -777,7 +777,7 @@ static int ipa_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, ipa);
 	ipa->modem_rproc = rproc;
 	ipa->clock = clock;
-	atomic_set(&ipa->suspend_ref, 0);
+	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 	ipa->wakeup_source = wakeup_source;
 	ipa->version = data->version;
 
@@ -913,7 +913,7 @@ static int ipa_suspend(struct device *dev)
 	struct ipa *ipa = dev_get_drvdata(dev);
 
 	ipa_clock_put(ipa);
-	atomic_set(&ipa->suspend_ref, 0);
+	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 
 	return 0;
 }
@@ -933,7 +933,7 @@ static int ipa_resume(struct device *dev)
 	/* This clock reference will keep the IPA out of suspend
 	 * until we get a power management suspend request.
 	 */
-	atomic_set(&ipa->suspend_ref, 1);
+	__set_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 	ipa_clock_get(ipa);
 
 	return 0;
