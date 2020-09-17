@@ -82,9 +82,6 @@ int may_linkat(struct path *link);
 /*
  * namespace.c
  */
-extern void *copy_mount_options(const void __user *);
-extern char *copy_mount_string(const void __user *);
-
 extern struct vfsmount *lookup_mnt(const struct path *);
 extern int finish_automount(struct vfsmount *, struct path *);
 

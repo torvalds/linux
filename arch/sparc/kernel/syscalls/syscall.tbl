@@ -201,7 +201,7 @@
 164	64	utrap_install		sys_utrap_install
 165	common	quotactl		sys_quotactl
 166	common	set_tid_address		sys_set_tid_address
-167	common	mount			sys_mount			compat_sys_mount
+167	common	mount			sys_mount
 168	common	ustat			sys_ustat			compat_sys_ustat
 169	common	setxattr		sys_setxattr
 170	common	lsetxattr		sys_lsetxattr

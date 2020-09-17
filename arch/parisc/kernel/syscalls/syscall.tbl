@@ -29,7 +29,7 @@
 18	common	stat			sys_newstat			compat_sys_newstat
 19	common	lseek			sys_lseek			compat_sys_lseek
 20	common	getpid			sys_getpid
-21	common	mount			sys_mount			compat_sys_mount
+21	common	mount			sys_mount
 22	common	bind			sys_bind
 23	common	setuid			sys_setuid
 24	common	getuid			sys_getuid

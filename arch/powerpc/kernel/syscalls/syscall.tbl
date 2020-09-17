@@ -34,7 +34,7 @@
 18	spu	oldstat				sys_ni_syscall
 19	common	lseek				sys_lseek			compat_sys_lseek
 20	common	getpid				sys_getpid
-21	nospu	mount				sys_mount			compat_sys_mount
+21	nospu	mount				sys_mount
 22	32	umount				sys_oldumount
 22	64	umount				sys_ni_syscall
 22	spu	umount				sys_ni_syscall
