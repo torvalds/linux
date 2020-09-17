@@ -831,6 +831,7 @@
 			porta: gpio-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
+				#gpio-cells = <2>;
 				snps,nr-gpios = <32>;
 				reg = <0>;
 			};
