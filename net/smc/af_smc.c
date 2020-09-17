@@ -1371,7 +1371,6 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	/* finish worker */
-	kfree(buf);
 	if (!ism_supported) {
 		rc = smc_listen_rdma_finish(new_smc, &cclc,
 					    ini.first_contact_local);
@@ -1381,12 +1380,13 @@ static void smc_listen_work(struct work_struct *work)
 	}
 	smc_conn_save_peer_info(new_smc, &cclc);
 	smc_listen_out_connected(new_smc);
-	return;
+	goto out_free;
 
 out_unlock:
 	mutex_unlock(&smc_server_lgr_pending);
 out_decl:
 	smc_listen_decline(new_smc, rc, ini.first_contact_local);
+out_free:
 	kfree(buf);
 }
 
