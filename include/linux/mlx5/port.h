@@ -125,6 +125,14 @@ enum mlx5e_connector_type {
 	MLX5E_CONNECTOR_TYPE_NUMBER,
 };
 
+enum mlx5_ptys_width {
+	MLX5_PTYS_WIDTH_1X	= 1 << 0,
+	MLX5_PTYS_WIDTH_2X	= 1 << 1,
+	MLX5_PTYS_WIDTH_4X	= 1 << 2,
+	MLX5_PTYS_WIDTH_8X	= 1 << 3,
+	MLX5_PTYS_WIDTH_12X	= 1 << 4,
+};
+
 #define MLX5E_PROT_MASK(link_mode) (1 << link_mode)
 #define MLX5_GET_ETH_PROTO(reg, out, ext, field)	\
 	(ext ? MLX5_GET(reg, out, ext_##field) :	\
