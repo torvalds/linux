@@ -332,9 +332,6 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	int ret = 0;
 	u32 reg;
 
-	if (of_property_read_string(child, "label", &cdev->name))
-		cdev->name = child->name;
-
 	ret = of_property_read_u32(child, "reg", &reg);
 	if (ret || reg < 1 || reg > led_data->priv->cdef->channels) {
 		dev_err(dev,
@@ -373,6 +370,7 @@ static int is31fl32xx_parse_dt(struct device *dev,
 	int ret = 0;
 
 	for_each_available_child_of_node(dev_of_node(dev), child) {
+		struct led_init_data init_data = {};
 		struct is31fl32xx_led_data *led_data =
 			&priv->leds[priv->num_leds];
 		const struct is31fl32xx_led_data *other_led_data;
@@ -388,17 +386,18 @@ static int is31fl32xx_parse_dt(struct device *dev,
 							  led_data->channel);
 		if (other_led_data) {
 			dev_err(dev,
-				"%s and %s both attempting to use channel %d\n",
-				led_data->cdev.name,
-				other_led_data->cdev.name,
-				led_data->channel);
+				"Node %pOF 'reg' conflicts with another LED\n",
+				child);
 			goto err;
 		}
 
-		ret = devm_led_classdev_register(dev, &led_data->cdev);
+		init_data.fwnode = of_fwnode_handle(child);
+
+		ret = devm_led_classdev_register_ext(dev, &led_data->cdev,
+						     &init_data);
 		if (ret) {
-			dev_err(dev, "failed to register PWM led for %s: %d\n",
-				led_data->cdev.name, ret);
+			dev_err(dev, "Failed to register LED for %pOF: %d\n",
+				child, ret);
 			goto err;
 		}
 
