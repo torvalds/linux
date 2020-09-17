@@ -365,14 +365,15 @@ int mt7663_usb_sdio_register_device(struct mt7615_dev *dev)
 	if (err)
 		return err;
 
-	/* check hw sg support in order to enable AMSDU */
-	if (dev->mt76.usb.sg_en || mt76_is_sdio(&dev->mt76))
-		hw->max_tx_fragments = MT_HW_TXP_MAX_BUF_NUM;
-	else
-		hw->max_tx_fragments = 1;
 	hw->extra_tx_headroom += MT_USB_TXD_SIZE;
-	if (mt76_is_usb(&dev->mt76))
+	if (mt76_is_usb(&dev->mt76)) {
 		hw->extra_tx_headroom += MT_USB_HDR_SIZE;
+		/* check hw sg support in order to enable AMSDU */
+		if (dev->mt76.usb.sg_en)
+			hw->max_tx_fragments = MT_HW_TXP_MAX_BUF_NUM;
+		else
+			hw->max_tx_fragments = 1;
+	}
 
 	err = mt76_register_device(&dev->mt76, true, mt7615_rates,
 				   ARRAY_SIZE(mt7615_rates));
