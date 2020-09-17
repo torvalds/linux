@@ -230,6 +230,57 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	return devm_led_classdev_register(&pdev->dev, &led_dat->cdev);
 }
 
+static int ns2_leds_parse_one(struct device *dev, struct device_node *np,
+			      struct ns2_led *led)
+{
+	struct ns2_led_modval *modval;
+	int nmodes, ret, i;
+
+	ret = of_property_read_string(np, "label", &led->name);
+	if (ret)
+		led->name = np->name;
+
+	led->cmd = gpiod_get_from_of_node(np, "cmd-gpio", 0, GPIOD_ASIS,
+					  led->name);
+	if (IS_ERR(led->cmd))
+		return PTR_ERR(led->cmd);
+
+	led->slow = gpiod_get_from_of_node(np, "slow-gpio", 0, GPIOD_ASIS,
+					   led->name);
+	if (IS_ERR(led->slow))
+		return PTR_ERR(led->slow);
+
+	of_property_read_string(np, "linux,default-trigger",
+				&led->default_trigger);
+
+	ret = of_property_count_u32_elems(np, "modes-map");
+	if (ret < 0 || ret % 3) {
+		dev_err(dev, "Missing or malformed modes-map for %pOF\n", np);
+		return -EINVAL;
+	}
+
+	nmodes = ret / 3;
+	modval = devm_kcalloc(dev, nmodes, sizeof(*modval), GFP_KERNEL);
+	if (!modval)
+		return -ENOMEM;
+
+	for (i = 0; i < nmodes; i++) {
+		u32 val;
+
+		of_property_read_u32_index(np, "modes-map", 3 * i, &val);
+		modval[i].mode = val;
+		of_property_read_u32_index(np, "modes-map", 3 * i + 1, &val);
+		modval[i].cmd_level = val;
+		of_property_read_u32_index(np, "modes-map", 3 * i + 2, &val);
+		modval[i].slow_level = val;
+	}
+
+	led->num_modes = nmodes;
+	led->modval = modval;
+
+	return 0;
+}
+
 /*
  * Translate OpenFirmware node properties into platform_data.
  */
@@ -252,78 +303,17 @@ ns2_leds_parse_of(struct device *dev, struct ns2_led_of *ofdata)
 
 	led = leds;
 	for_each_available_child_of_node(np, child) {
-		const char *string;
-		int i, num_modes;
-		struct ns2_led_modval *modval;
-		struct gpio_desc *gd;
-
-		ret = of_property_read_string(child, "label", &string);
-		led->name = (ret == 0) ? string : child->name;
-
-		gd = gpiod_get_from_of_node(child, "cmd-gpio", 0,
-					    GPIOD_ASIS, led->name);
-		if (IS_ERR(gd)) {
-			ret = PTR_ERR(gd);
-			goto err_node_put;
+		ret = ns2_leds_parse_one(dev, child, led++);
+		if (ret < 0) {
+			of_node_put(child);
+			return ret;
 		}
-		led->cmd = gd;
-		gd = gpiod_get_from_of_node(child, "slow-gpio", 0,
-					    GPIOD_ASIS, led->name);
-		if (IS_ERR(gd)) {
-			ret = PTR_ERR(gd);
-			goto err_node_put;
-		}
-		led->slow = gd;
-
-		ret = of_property_read_string(child, "linux,default-trigger",
-					      &string);
-		if (ret == 0)
-			led->default_trigger = string;
-
-		ret = of_property_count_u32_elems(child, "modes-map");
-		if (ret < 0 || ret % 3) {
-			dev_err(dev,
-				"Missing or malformed modes-map property\n");
-			ret = -EINVAL;
-			goto err_node_put;
-		}
-
-		num_modes = ret / 3;
-		modval = devm_kcalloc(dev,
-				      num_modes,
-				      sizeof(struct ns2_led_modval),
-				      GFP_KERNEL);
-		if (!modval) {
-			ret = -ENOMEM;
-			goto err_node_put;
-		}
-
-		for (i = 0; i < num_modes; i++) {
-			of_property_read_u32_index(child,
-						"modes-map", 3 * i,
-						(u32 *) &modval[i].mode);
-			of_property_read_u32_index(child,
-						"modes-map", 3 * i + 1,
-						(u32 *) &modval[i].cmd_level);
-			of_property_read_u32_index(child,
-						"modes-map", 3 * i + 2,
-						(u32 *) &modval[i].slow_level);
-		}
-
-		led->num_modes = num_modes;
-		led->modval = modval;
-
-		led++;
 	}
 
 	ofdata->leds = leds;
 	ofdata->num_leds = num_leds;
 
 	return 0;
-
-err_node_put:
-	of_node_put(child);
-	return ret;
 }
 
 static const struct of_device_id of_ns2_leds_match[] = {
