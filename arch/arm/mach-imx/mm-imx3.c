@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 #include <linux/pinctrl/machine.h>
 
 #include <asm/system_misc.h>
@@ -99,10 +100,14 @@ static void imx31_idle(void)
 
 void __init imx31_init_early(void)
 {
+	struct device_node *np;
+
 	mxc_set_cpu_type(MXC_CPU_MX31);
 	arch_ioremap_caller = imx3_ioremap_caller;
 	arm_pm_idle = imx31_idle;
-	mx3_ccm_base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-ccm");
+	mx3_ccm_base = of_iomap(np, 0);
+	BUG_ON(!mx3_ccm_base);
 }
 
 void __init mx31_init_irq(void)
@@ -137,10 +142,14 @@ static void imx35_idle(void)
 
 void __init imx35_init_early(void)
 {
+	struct device_node *np;
+
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	arm_pm_idle = imx35_idle;
 	arch_ioremap_caller = imx3_ioremap_caller;
-	mx3_ccm_base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx35-ccm");
+	mx3_ccm_base = of_iomap(np, 0);
+	BUG_ON(!mx3_ccm_base);
 }
 
 void __init mx35_init_irq(void)
