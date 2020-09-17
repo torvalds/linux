@@ -103,7 +103,8 @@ pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 	 * Wait until the Link is inactive, then clear DPC Trigger Status
 	 * to allow the Port to leave DPC.
 	 */
-	pcie_wait_for_link(pdev, false);
+	if (!pcie_wait_for_link(pdev, false))
+		pci_info(pdev, "Data Link Layer Link Active not cleared in 1000 msec\n");
 
 	if (pdev->dpc_rp_extensions && dpc_wait_rp_inactive(pdev))
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -111,8 +112,10 @@ pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
 			      PCI_EXP_DPC_STATUS_TRIGGER);
 
-	if (!pcie_wait_for_link(pdev, true))
+	if (!pcie_wait_for_link(pdev, true)) {
+		pci_info(pdev, "Data Link Layer Link Active not set in 1000 msec\n");
 		return PCI_ERS_RESULT_DISCONNECT;
+	}
 
 	return PCI_ERS_RESULT_RECOVERED;
 }
