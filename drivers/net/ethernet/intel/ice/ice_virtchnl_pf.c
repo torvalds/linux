@@ -2312,12 +2312,12 @@ bool ice_is_any_vf_in_promisc(struct ice_pf *pf)
 static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
+	bool rm_promisc, alluni = false, allmulti = false;
 	struct virtchnl_promisc_info *info =
 	    (struct virtchnl_promisc_info *)msg;
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
 	struct device *dev;
-	bool rm_promisc;
 	int ret = 0;
 
 	if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states)) {
@@ -2344,8 +2344,13 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
-	rm_promisc = !(info->flags & FLAG_VF_UNICAST_PROMISC) &&
-		!(info->flags & FLAG_VF_MULTICAST_PROMISC);
+	if (info->flags & FLAG_VF_UNICAST_PROMISC)
+		alluni = true;
+
+	if (info->flags & FLAG_VF_MULTICAST_PROMISC)
+		allmulti = true;
+
+	rm_promisc = !allmulti && !alluni;
 
 	if (vsi->num_vlan || vf->port_vlan_info) {
 		struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
@@ -2399,12 +2404,12 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 		enum ice_status status;
 		u8 promisc_m;
 
-		if (info->flags & FLAG_VF_UNICAST_PROMISC) {
+		if (alluni) {
 			if (vf->port_vlan_info || vsi->num_vlan)
 				promisc_m = ICE_UCAST_VLAN_PROMISC_BITS;
 			else
 				promisc_m = ICE_UCAST_PROMISC_BITS;
-		} else if (info->flags & FLAG_VF_MULTICAST_PROMISC) {
+		} else if (allmulti) {
 			if (vf->port_vlan_info || vsi->num_vlan)
 				promisc_m = ICE_MCAST_VLAN_PROMISC_BITS;
 			else
@@ -2432,15 +2437,16 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 		}
 	}
 
-	if (info->flags & FLAG_VF_MULTICAST_PROMISC)
-		set_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states);
-	else
-		clear_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states);
+	if (allmulti &&
+	    !test_and_set_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states))
+		dev_info(dev, "VF %u successfully set multicast promiscuous mode\n", vf->vf_id);
+	else if (!allmulti && test_and_clear_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states))
+		dev_info(dev, "VF %u successfully unset multicast promiscuous mode\n", vf->vf_id);
 
-	if (info->flags & FLAG_VF_UNICAST_PROMISC)
-		set_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states);
-	else
-		clear_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states);
+	if (alluni && !test_and_set_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states))
+		dev_info(dev, "VF %u successfully set unicast promiscuous mode\n", vf->vf_id);
+	else if (!alluni && test_and_clear_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states))
+		dev_info(dev, "VF %u successfully unset unicast promiscuous mode\n", vf->vf_id);
 
 error_param:
 	return ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE,
