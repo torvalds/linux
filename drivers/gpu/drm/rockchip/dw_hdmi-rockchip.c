@@ -1686,9 +1686,11 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		clk_disable_unprepare(hdmi->hclk_vop);
 	}
 
-	hdmi->sub_dev.connector = plat_data->connector;
-	hdmi->sub_dev.of_node = dev->of_node;
-	rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+	if (plat_data->connector) {
+		hdmi->sub_dev.connector = plat_data->connector;
+		hdmi->sub_dev.of_node = dev->of_node;
+		rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+	}
 
 	return ret;
 }
@@ -1698,7 +1700,8 @@ static void dw_hdmi_rockchip_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
 
-	rockchip_drm_unregister_sub_dev(&hdmi->sub_dev);
+	if (hdmi->sub_dev.connector)
+		rockchip_drm_unregister_sub_dev(&hdmi->sub_dev);
 	dw_hdmi_unbind(hdmi->hdmi);
 	clk_disable_unprepare(hdmi->phyref_clk);
 	clk_disable_unprepare(hdmi->hclk_vop);
