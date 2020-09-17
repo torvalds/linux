@@ -244,6 +244,9 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	case CHIP_NAVY_FLOUNDER:
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Navy_Flounder;
 		break;
+	case CHIP_VANGOGH:
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_VANGOGH;
+		break;
 	default:
 		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_INV;
