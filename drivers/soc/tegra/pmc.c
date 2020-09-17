@@ -336,45 +336,6 @@ struct tegra_pmc_soc {
 	bool has_blink_output;
 };
 
-static const char * const tegra186_reset_sources[] = {
-	"SYS_RESET",
-	"AOWDT",
-	"MCCPLEXWDT",
-	"BPMPWDT",
-	"SCEWDT",
-	"SPEWDT",
-	"APEWDT",
-	"BCCPLEXWDT",
-	"SENSOR",
-	"AOTAG",
-	"VFSENSOR",
-	"SWREST",
-	"SC7",
-	"HSM",
-	"CORESIGHT"
-};
-
-static const char * const tegra186_reset_levels[] = {
-	"L0", "L1", "L2", "WARM"
-};
-
-static const char * const tegra30_reset_sources[] = {
-	"POWER_ON_RESET",
-	"WATCHDOG",
-	"SENSOR",
-	"SW_MAIN",
-	"LP0"
-};
-
-static const char * const tegra210_reset_sources[] = {
-	"POWER_ON_RESET",
-	"WATCHDOG",
-	"SENSOR",
-	"SW_MAIN",
-	"LP0",
-	"AOTAG"
-};
-
 /**
  * struct tegra_pmc - NVIDIA Tegra PMC
  * @dev: pointer to PMC device structure
@@ -2784,6 +2745,14 @@ static const u8 tegra30_cpu_powergates[] = {
 	TEGRA_POWERGATE_CPU3,
 };
 
+static const char * const tegra30_reset_sources[] = {
+	"POWER_ON_RESET",
+	"WATCHDOG",
+	"SENSOR",
+	"SW_MAIN",
+	"LP0"
+};
+
 static const struct tegra_pmc_soc tegra30_pmc_soc = {
 	.num_powergates = ARRAY_SIZE(tegra30_powergates),
 	.powergates = tegra30_powergates,
@@ -3061,6 +3030,15 @@ static const struct pinctrl_pin_desc tegra210_pin_descs[] = {
 	TEGRA210_IO_PAD_TABLE(TEGRA_IO_PIN_DESC)
 };
 
+static const char * const tegra210_reset_sources[] = {
+	"POWER_ON_RESET",
+	"WATCHDOG",
+	"SENSOR",
+	"SW_MAIN",
+	"LP0",
+	"AOTAG"
+};
+
 static const struct tegra_wake_event tegra210_wake_events[] = {
 	TEGRA_WAKE_IRQ("rtc", 16, 2),
 	TEGRA_WAKE_IRQ("pmu", 51, 86),
@@ -3192,6 +3170,28 @@ static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
 
 	iounmap(wake);
 }
+
+static const char * const tegra186_reset_sources[] = {
+	"SYS_RESET",
+	"AOWDT",
+	"MCCPLEXWDT",
+	"BPMPWDT",
+	"SCEWDT",
+	"SPEWDT",
+	"APEWDT",
+	"BCCPLEXWDT",
+	"SENSOR",
+	"AOTAG",
+	"VFSENSOR",
+	"SWREST",
+	"SC7",
+	"HSM",
+	"CORESIGHT"
+};
+
+static const char * const tegra186_reset_levels[] = {
+	"L0", "L1", "L2", "WARM"
+};
 
 static const struct tegra_wake_event tegra186_wake_events[] = {
 	TEGRA_WAKE_IRQ("pmu", 24, 209),
