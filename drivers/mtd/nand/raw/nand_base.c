@@ -5139,6 +5139,65 @@ static void nand_scan_ident_cleanup(struct nand_chip *chip)
 	kfree(chip->parameters.onfi);
 }
 
+static int nand_set_ecc_on_host_ops(struct nand_chip *chip)
+{
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+
+	switch (ecc->placement) {
+	case NAND_ECC_PLACEMENT_UNKNOWN:
+	case NAND_ECC_PLACEMENT_OOB:
+		/* Use standard hwecc read page function? */
+		if (!ecc->read_page)
+			ecc->read_page = nand_read_page_hwecc;
+		if (!ecc->write_page)
+			ecc->write_page = nand_write_page_hwecc;
+		if (!ecc->read_page_raw)
+			ecc->read_page_raw = nand_read_page_raw;
+		if (!ecc->write_page_raw)
+			ecc->write_page_raw = nand_write_page_raw;
+		if (!ecc->read_oob)
+			ecc->read_oob = nand_read_oob_std;
+		if (!ecc->write_oob)
+			ecc->write_oob = nand_write_oob_std;
+		if (!ecc->read_subpage)
+			ecc->read_subpage = nand_read_subpage;
+		if (!ecc->write_subpage && ecc->hwctl && ecc->calculate)
+			ecc->write_subpage = nand_write_subpage_hwecc;
+		fallthrough;
+
+	case NAND_ECC_PLACEMENT_INTERLEAVED:
+		if ((!ecc->calculate || !ecc->correct || !ecc->hwctl) &&
+		    (!ecc->read_page ||
+		     ecc->read_page == nand_read_page_hwecc ||
+		     !ecc->write_page ||
+		     ecc->write_page == nand_write_page_hwecc)) {
+			WARN(1, "No ECC functions supplied; hardware ECC not possible\n");
+			return -EINVAL;
+		}
+		/* Use standard syndrome read/write page function? */
+		if (!ecc->read_page)
+			ecc->read_page = nand_read_page_syndrome;
+		if (!ecc->write_page)
+			ecc->write_page = nand_write_page_syndrome;
+		if (!ecc->read_page_raw)
+			ecc->read_page_raw = nand_read_page_raw_syndrome;
+		if (!ecc->write_page_raw)
+			ecc->write_page_raw = nand_write_page_raw_syndrome;
+		if (!ecc->read_oob)
+			ecc->read_oob = nand_read_oob_syndrome;
+		if (!ecc->write_oob)
+			ecc->write_oob = nand_write_oob_syndrome;
+		break;
+
+	default:
+		pr_warn("Invalid NAND_ECC_PLACEMENT %d\n",
+			ecc->placement);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nand_set_ecc_soft_ops(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
@@ -5619,60 +5678,9 @@ static int nand_scan_tail(struct nand_chip *chip)
 
 	switch (ecc->engine_type) {
 	case NAND_ECC_ENGINE_TYPE_ON_HOST:
-
-		switch (ecc->placement) {
-		case NAND_ECC_PLACEMENT_UNKNOWN:
-		case NAND_ECC_PLACEMENT_OOB:
-			/* Use standard hwecc read page function? */
-			if (!ecc->read_page)
-				ecc->read_page = nand_read_page_hwecc;
-			if (!ecc->write_page)
-				ecc->write_page = nand_write_page_hwecc;
-			if (!ecc->read_page_raw)
-				ecc->read_page_raw = nand_read_page_raw;
-			if (!ecc->write_page_raw)
-				ecc->write_page_raw = nand_write_page_raw;
-			if (!ecc->read_oob)
-				ecc->read_oob = nand_read_oob_std;
-			if (!ecc->write_oob)
-				ecc->write_oob = nand_write_oob_std;
-			if (!ecc->read_subpage)
-				ecc->read_subpage = nand_read_subpage;
-			if (!ecc->write_subpage && ecc->hwctl && ecc->calculate)
-				ecc->write_subpage = nand_write_subpage_hwecc;
-			fallthrough;
-
-		case NAND_ECC_PLACEMENT_INTERLEAVED:
-			if ((!ecc->calculate || !ecc->correct || !ecc->hwctl) &&
-			    (!ecc->read_page ||
-			     ecc->read_page == nand_read_page_hwecc ||
-			     !ecc->write_page ||
-			     ecc->write_page == nand_write_page_hwecc)) {
-				WARN(1, "No ECC functions supplied; hardware ECC not possible\n");
-				ret = -EINVAL;
-				goto err_nand_manuf_cleanup;
-			}
-			/* Use standard syndrome read/write page function? */
-			if (!ecc->read_page)
-				ecc->read_page = nand_read_page_syndrome;
-			if (!ecc->write_page)
-				ecc->write_page = nand_write_page_syndrome;
-			if (!ecc->read_page_raw)
-				ecc->read_page_raw = nand_read_page_raw_syndrome;
-			if (!ecc->write_page_raw)
-				ecc->write_page_raw = nand_write_page_raw_syndrome;
-			if (!ecc->read_oob)
-				ecc->read_oob = nand_read_oob_syndrome;
-			if (!ecc->write_oob)
-				ecc->write_oob = nand_write_oob_syndrome;
-			break;
-
-		default:
-			pr_warn("Invalid NAND_ECC_PLACEMENT %d\n",
-				ecc->placement);
-			ret = -EINVAL;
+		ret = nand_set_ecc_on_host_ops(chip);
+		if (ret)
 			goto err_nand_manuf_cleanup;
-		}
 
 		if (mtd->writesize >= ecc->size) {
 			if (!ecc->strength) {
