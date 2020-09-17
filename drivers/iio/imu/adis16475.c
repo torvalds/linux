@@ -565,6 +565,9 @@ static int adis16475_enable_irq(struct adis *adis, bool enable)
 		BIT(ADIS16475_DIAG_STAT_CLK),				\
 	.enable_irq = adis16475_enable_irq,				\
 	.timeouts = (_timeouts),					\
+	.burst_reg_cmd = ADIS16475_REG_GLOB_CMD,			\
+	.burst_len = ADIS16475_BURST_MAX_DATA,				\
+	.burst_max_len = ADIS16475_BURST32_MAX_DATA			\
 }
 
 static const struct adis16475_sync adis16475_sync_mode[] = {
@@ -908,20 +911,6 @@ static const struct iio_info adis16475_info = {
 	.write_raw = &adis16475_write_raw,
 	.update_scan_mode = adis_update_scan_mode,
 	.debugfs_reg_access = adis_debugfs_reg_access,
-};
-
-static struct adis_burst adis16475_burst = {
-	.en = true,
-	.reg_cmd = ADIS16475_REG_GLOB_CMD,
-	/*
-	 * adis_update_scan_mode_burst() sets the burst length in respect with
-	 * the number of channels and allocates 16 bits for each. However,
-	 * adis1647x devices also need space for DIAG_STAT, DATA_CNTR or
-	 * TIME_STAMP (depending on the clock mode but for us these bytes are
-	 * don't care...) and CRC.
-	 */
-	.extra_len = 3 * sizeof(u16),
-	.burst_max_len = ADIS16475_BURST32_MAX_DATA,
 };
 
 static bool adis16475_validate_crc(const u8 *buffer, u16 crc,
@@ -1279,7 +1268,6 @@ static int adis16475_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
-	st->adis.burst = &adis16475_burst;
 
 	st->info = device_get_match_data(&spi->dev);
 	if (!st->info)
