@@ -46,6 +46,7 @@
 #define BC_WAIT_TIME_MS			1000
 #define WLS_FW_PREPARE_TIME_MS		300
 #define WLS_FW_WAIT_TIME_MS		500
+#define WLS_FW_UPDATE_TIME_MS		1000
 #define WLS_FW_BUF_SIZE			128
 #define DEFAULT_RESTRICT_FCC_UA		1000000
 
@@ -161,6 +162,7 @@ struct wireless_fw_check_req {
 	struct pmic_glink_hdr	hdr;
 	u32			fw_version;
 	u32			fw_size;
+	u32			fw_crc;
 };
 
 struct wireless_fw_check_resp {
@@ -231,6 +233,7 @@ struct battery_chg_dev {
 	bool				debug_battery_detected;
 	bool				wls_fw_update_reqd;
 	u32				wls_fw_version;
+	u16				wls_fw_crc;
 	struct notifier_block		reboot_notifier;
 	u32				thermal_fcc_ua;
 	u32				restrict_fcc_ua;
@@ -591,6 +594,9 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 			fw_update_msg = data;
 			if (fw_update_msg->fw_update_done == 1)
 				complete(&bcdev->fw_update_ack);
+			else
+				pr_err("Wireless FW update not done %d\n",
+					(int)fw_update_msg->fw_update_done);
 		} else {
 			pr_err("Incorrect response length %zu for wls_fw_update_status_resp\n",
 				len);
@@ -1220,6 +1226,7 @@ static int wireless_fw_check_for_update(struct battery_chg_dev *bcdev,
 	req_msg.hdr.opcode = BC_WLS_FW_CHECK_UPDATE;
 	req_msg.fw_version = version;
 	req_msg.fw_size = size;
+	req_msg.fw_crc = bcdev->wls_fw_crc;
 
 	return battery_chg_write(bcdev, &req_msg, sizeof(req_msg));
 }
@@ -1307,7 +1314,7 @@ static int wireless_fw_update(struct battery_chg_dev *bcdev, bool force)
 	}
 
 	rc = wait_for_completion_timeout(&bcdev->fw_update_ack,
-				msecs_to_jiffies(WLS_FW_WAIT_TIME_MS));
+				msecs_to_jiffies(WLS_FW_UPDATE_TIME_MS));
 	if (!rc) {
 		pr_err("Error, timed out updating firmware\n");
 		rc = -ETIMEDOUT;
@@ -1319,12 +1326,30 @@ static int wireless_fw_update(struct battery_chg_dev *bcdev, bool force)
 	pr_info("Wireless FW update done\n");
 
 release_fw:
+	bcdev->wls_fw_crc = 0;
 	release_firmware(fw);
 out:
 	pm_relax(bcdev->dev);
 
 	return rc;
 }
+
+static ssize_t wireless_fw_crc_store(struct class *c,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	u16 val;
+
+	if (kstrtou16(buf, 0, &val) || !val)
+		return -EINVAL;
+
+	bcdev->wls_fw_crc = val;
+
+	return count;
+}
+static CLASS_ATTR_WO(wireless_fw_crc);
 
 static ssize_t wireless_fw_version_show(struct class *c,
 					struct class_attribute *attr,
@@ -1671,6 +1696,7 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_wireless_fw_update.attr,
 	&class_attr_wireless_fw_force_update.attr,
 	&class_attr_wireless_fw_version.attr,
+	&class_attr_wireless_fw_crc.attr,
 	&class_attr_ship_mode_en.attr,
 	&class_attr_restrict_chg.attr,
 	&class_attr_restrict_cur.attr,
