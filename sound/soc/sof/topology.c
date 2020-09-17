@@ -1150,19 +1150,25 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	struct snd_soc_tplg_bytes_control *control =
 		container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
 	struct soc_bytes_ext *sbe = (struct soc_bytes_ext *)kc->private_value;
-	int max_size = sbe->max;
+	size_t max_size = sbe->max;
+	size_t priv_size = le32_to_cpu(control->priv.size);
 	int ret;
 
-	/* init the get/put bytes data */
-	scontrol->size = sizeof(struct sof_ipc_ctrl_data) +
-		le32_to_cpu(control->priv.size);
-
-	if (scontrol->size > max_size) {
-		dev_err(scomp->dev, "err: bytes data size %d exceeds max %d.\n",
-			scontrol->size, max_size);
+	if (max_size < sizeof(struct sof_ipc_ctrl_data) ||
+	    max_size < sizeof(struct sof_abi_hdr)) {
 		ret = -EINVAL;
 		goto out;
 	}
+
+	/* init the get/put bytes data */
+	if (priv_size > max_size - sizeof(struct sof_ipc_ctrl_data)) {
+		dev_err(scomp->dev, "err: bytes data size %zu exceeds max %zu.\n",
+			priv_size, max_size - sizeof(struct sof_ipc_ctrl_data));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	scontrol->size = sizeof(struct sof_ipc_ctrl_data) + priv_size;
 
 	scontrol->control_data = kzalloc(max_size, GFP_KERNEL);
 	cdata = scontrol->control_data;
