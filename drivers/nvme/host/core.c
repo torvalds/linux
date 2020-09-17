@@ -4668,28 +4668,13 @@ void nvme_sync_queues(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_sync_queues);
 
-struct nvme_ctrl *nvme_ctrl_get_by_path(const char *path)
+struct nvme_ctrl *nvme_ctrl_from_file(struct file *file)
 {
-	struct nvme_ctrl *ctrl;
-	struct file *f;
-
-	f = filp_open(path, O_RDWR, 0);
-	if (IS_ERR(f))
-		return ERR_CAST(f);
-
-	if (f->f_op != &nvme_dev_fops) {
-		ctrl = ERR_PTR(-EINVAL);
-		goto out_close;
-	}
-
-	ctrl = f->private_data;
-	nvme_get_ctrl(ctrl);
-
-out_close:
-	filp_close(f, NULL);
-	return ctrl;
+	if (file->f_op != &nvme_dev_fops)
+		return NULL;
+	return file->private_data;
 }
-EXPORT_SYMBOL_NS_GPL(nvme_ctrl_get_by_path, NVME_TARGET_PASSTHRU);
+EXPORT_SYMBOL_NS_GPL(nvme_ctrl_from_file, NVME_TARGET_PASSTHRU);
 
 /*
  * Check we didn't inadvertently grow the command structure sizes:
