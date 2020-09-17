@@ -485,13 +485,13 @@ EXPORT_SYMBOL(sof_machine_check);
 
 int sof_machine_register(struct snd_sof_dev *sdev, void *pdata)
 {
-	struct snd_sof_pdata *plat_data = (struct snd_sof_pdata *)pdata;
+	struct snd_sof_pdata *plat_data = pdata;
 	const char *drv_name;
 	const void *mach;
 	int size;
 
 	drv_name = plat_data->machine->drv_name;
-	mach = (const void *)plat_data->machine;
+	mach = plat_data->machine;
 	size = sizeof(*plat_data->machine);
 
 	/* register machine driver, pass machine info as pdata */
@@ -510,7 +510,7 @@ EXPORT_SYMBOL(sof_machine_register);
 
 void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata)
 {
-	struct snd_sof_pdata *plat_data = (struct snd_sof_pdata *)pdata;
+	struct snd_sof_pdata *plat_data = pdata;
 
 	if (!IS_ERR_OR_NULL(plat_data->pdev_mach))
 		platform_device_unregister(plat_data->pdev_mach);

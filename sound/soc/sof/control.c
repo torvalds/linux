@@ -221,7 +221,6 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size;
-	int ret = 0;
 
 	if (be->max > sizeof(ucontrol->value.bytes.data)) {
 		dev_err_ratelimited(scomp->dev,
@@ -230,20 +229,20 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	size = data->size + sizeof(*data);
-	if (size > be->max) {
+	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
+	if (data->size > be->max - sizeof(*data)) {
 		dev_err_ratelimited(scomp->dev,
-				    "error: DSP sent %zu bytes max is %d\n",
-				    size, be->max);
-		ret = -EINVAL;
-		goto out;
+				    "error: %u bytes of control data is invalid, max is %zu\n",
+				    data->size, be->max - sizeof(*data));
+		return -EINVAL;
 	}
+
+	size = data->size + sizeof(*data);
 
 	/* copy back to kcontrol */
 	memcpy(ucontrol->value.bytes.data, data, size);
 
-out:
-	return ret;
+	return 0;
 }
 
 int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
@@ -255,7 +254,7 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *scomp = scontrol->scomp;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
-	size_t size = data->size + sizeof(*data);
+	size_t size;
 
 	if (be->max > sizeof(ucontrol->value.bytes.data)) {
 		dev_err_ratelimited(scomp->dev,
@@ -264,12 +263,15 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	if (size > be->max) {
+	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
+	if (data->size > be->max - sizeof(*data)) {
 		dev_err_ratelimited(scomp->dev,
-				    "error: size too big %zu bytes max is %d\n",
-				    size, be->max);
+				    "error: data size too big %u bytes max is %zu\n",
+				    data->size, be->max - sizeof(*data));
 		return -EINVAL;
 	}
+
+	size = data->size + sizeof(*data);
 
 	/* copy from kcontrol */
 	memcpy(data, ucontrol->value.bytes.data, size);
@@ -337,7 +339,8 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	if (cdata->data->size + sizeof(const struct sof_abi_hdr) > be->max) {
+	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
+	if (cdata->data->size > be->max - sizeof(const struct sof_abi_hdr)) {
 		dev_err_ratelimited(scomp->dev, "error: Mismatch in ABI data size (truncated?).\n");
 		return -EINVAL;
 	}
@@ -367,7 +370,7 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	int err;
 
 	ret = pm_runtime_get_sync(scomp->dev);
-	if (ret < 0) {
+	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(scomp->dev, "error: bytes_ext get failed to resume %d\n", ret);
 		pm_runtime_put_noidle(scomp->dev);
 		return ret;
@@ -423,8 +426,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_tlv header;
 	struct snd_ctl_tlv __user *tlvd =
 		(struct snd_ctl_tlv __user *)binary_data;
-	int data_size;
-	int ret = 0;
+	size_t data_size;
 
 	/*
 	 * Decrement the limit by ext bytes header size to
@@ -436,27 +438,23 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	cdata->data->magic = SOF_ABI_MAGIC;
 	cdata->data->abi = SOF_ABI_VERSION;
 
-	/* Prevent read of other kernel data or possibly corrupt response */
-	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
-
 	/* check data size doesn't exceed max coming from topology */
-	if (data_size > be->max) {
-		dev_err_ratelimited(scomp->dev, "error: user data size %d exceeds max size %d.\n",
-				    data_size, be->max);
-		ret = -EINVAL;
-		goto out;
+	if (cdata->data->size > be->max - sizeof(const struct sof_abi_hdr)) {
+		dev_err_ratelimited(scomp->dev, "error: user data size %d exceeds max size %zu.\n",
+				    cdata->data->size,
+				    be->max - sizeof(const struct sof_abi_hdr));
+		return -EINVAL;
 	}
+
+	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
 
 	header.numid = scontrol->cmd;
 	header.length = data_size;
-	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv))) {
-		ret = -EFAULT;
-		goto out;
-	}
+	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv)))
+		return -EFAULT;
 
 	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
-		ret = -EFAULT;
+		return -EFAULT;
 
-out:
-	return ret;
+	return 0;
 }
