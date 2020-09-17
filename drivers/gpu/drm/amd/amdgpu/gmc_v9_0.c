@@ -1164,6 +1164,19 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	}
 }
 
+static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_ARCTURUS:
+	case CHIP_VEGA20:
+		adev->gfxhub.funcs = &gfxhub_v1_1_funcs;
+		break;
+	default:
+		adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
+		break;
+	}
+}
+
 static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1172,6 +1185,7 @@ static int gmc_v9_0_early_init(void *handle)
 	gmc_v9_0_set_irq_funcs(adev);
 	gmc_v9_0_set_umc_funcs(adev);
 	gmc_v9_0_set_mmhub_funcs(adev);
+	gmc_v9_0_set_gfxhub_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
@@ -1234,7 +1248,7 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 	amdgpu_gmc_gart_location(adev, mc);
 	amdgpu_gmc_agp_location(adev, mc);
 	/* base offset of vram pages */
-	adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
+	adev->vm_manager.vram_base_offset = adev->gfxhub.funcs->get_mc_fb_offset(adev);
 
 	/* XXX: add the xgmi offset of the physical node? */
 	adev->vm_manager.vram_base_offset +=
@@ -1269,7 +1283,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 
 #ifdef CONFIG_X86_64
 	if (adev->flags & AMD_IS_APU) {
-		adev->gmc.aper_base = gfxhub_v1_0_get_mc_fb_offset(adev);
+		adev->gmc.aper_base = adev->gfxhub.funcs->get_mc_fb_offset(adev);
 		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
 #endif
@@ -1339,7 +1353,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gfxhub_v1_0_init(adev);
+	adev->gfxhub.funcs->init(adev);
 
 	adev->mmhub.funcs->init(adev);
 
@@ -1453,7 +1467,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	adev->need_swiotlb = drm_need_swiotlb(44);
 
 	if (adev->gmc.xgmi.supported) {
-		r = gfxhub_v1_1_get_xgmi_info(adev);
+		r = adev->gfxhub.funcs->get_xgmi_info(adev);
 		if (r)
 			return r;
 	}
@@ -1569,7 +1583,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	r = gfxhub_v1_0_gart_enable(adev);
+	r = adev->gfxhub.funcs->gart_enable(adev);
 	if (r)
 		return r;
 
@@ -1636,7 +1650,7 @@ static int gmc_v9_0_hw_init(void *handle)
 		value = true;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		gfxhub_v1_0_set_fault_enable_default(adev, value);
+		adev->gfxhub.funcs->set_fault_enable_default(adev, value);
 		adev->mmhub.funcs->set_fault_enable_default(adev, value);
 	}
 	for (i = 0; i < adev->num_vmhubs; ++i)
@@ -1659,7 +1673,7 @@ static int gmc_v9_0_hw_init(void *handle)
  */
 static void gmc_v9_0_gart_disable(struct amdgpu_device *adev)
 {
-	gfxhub_v1_0_gart_disable(adev);
+	adev->gfxhub.funcs->gart_disable(adev);
 	adev->mmhub.funcs->gart_disable(adev);
 	amdgpu_gart_table_vram_unpin(adev);
 }

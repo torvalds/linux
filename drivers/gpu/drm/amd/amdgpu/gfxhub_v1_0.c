@@ -403,3 +403,13 @@ void gfxhub_v1_0_init(struct amdgpu_device *adev)
 	hub->eng_addr_distance = mmVM_INVALIDATE_ENG1_ADDR_RANGE_LO32 -
 		mmVM_INVALIDATE_ENG0_ADDR_RANGE_LO32;
 }
+
+
+const struct amdgpu_gfxhub_funcs gfxhub_v1_0_funcs = {
+	.get_mc_fb_offset = gfxhub_v1_0_get_mc_fb_offset,
+	.setup_vm_pt_regs = gfxhub_v1_0_setup_vm_pt_regs,
+	.gart_enable = gfxhub_v1_0_gart_enable,
+	.gart_disable = gfxhub_v1_0_gart_disable,
+	.set_fault_enable_default = gfxhub_v1_0_set_fault_enable_default,
+	.init = gfxhub_v1_0_init,
+};

@@ -104,6 +104,7 @@
 #include "amdgpu_mes.h"
 #include "amdgpu_umc.h"
 #include "amdgpu_mmhub.h"
+#include "amdgpu_gfxhub.h"
 #include "amdgpu_df.h"
 
 #define MAX_GPU_INSTANCE		16
@@ -880,6 +881,9 @@ struct amdgpu_device {
 
 	/* mmhub */
 	struct amdgpu_mmhub		mmhub;
+
+	/* gfxhub */
+	struct amdgpu_gfxhub		gfxhub;
 
 	/* gfx */
 	struct amdgpu_gfx		gfx;

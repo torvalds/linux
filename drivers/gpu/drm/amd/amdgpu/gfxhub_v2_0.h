@@ -24,14 +24,6 @@
 #ifndef __GFXHUB_V2_0_H__
 #define __GFXHUB_V2_0_H__
 
-u64 gfxhub_v2_0_get_fb_location(struct amdgpu_device *adev);
-int gfxhub_v2_0_gart_enable(struct amdgpu_device *adev);
-void gfxhub_v2_0_gart_disable(struct amdgpu_device *adev);
-void gfxhub_v2_0_set_fault_enable_default(struct amdgpu_device *adev,
-					  bool value);
-void gfxhub_v2_0_init(struct amdgpu_device *adev);
-u64 gfxhub_v2_0_get_mc_fb_offset(struct amdgpu_device *adev);
-void gfxhub_v2_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
-				uint64_t page_table_base);
+extern const struct amdgpu_gfxhub_funcs gfxhub_v2_0_funcs;
 
 #endif

@@ -36,9 +36,6 @@
 #include "v9_structs.h"
 #include "soc15.h"
 #include "soc15d.h"
-#include "mmhub_v1_0.h"
-#include "gfxhub_v1_0.h"
-
 
 enum hqd_dequeue_request_type {
 	NO_ACTION = 0,
@@ -703,7 +700,7 @@ void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd,
 
 	adev->mmhub.funcs->setup_vm_pt_regs(adev, vmid, page_table_base);
 
-	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
+	adev->gfxhub.funcs->setup_vm_pt_regs(adev, vmid, page_table_base);
 }
 
 const struct kfd2kgd_calls gfx_v9_kfd2kgd = {

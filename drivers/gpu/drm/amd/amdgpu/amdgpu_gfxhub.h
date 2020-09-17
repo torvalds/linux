@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,24 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef __AMDGPU_GFXHUB_H__
+#define __AMDGPU_GFXHUB_H__
 
-#ifndef __GFXHUB_V1_0_H__
-#define __GFXHUB_V1_0_H__
+struct amdgpu_gfxhub_funcs {
+	u64 (*get_fb_location)(struct amdgpu_device *adev);
+	u64 (*get_mc_fb_offset)(struct amdgpu_device *adev);
+	void (*setup_vm_pt_regs)(struct amdgpu_device *adev, uint32_t vmid,
+			uint64_t page_table_base);
+	int (*gart_enable)(struct amdgpu_device *adev);
 
-int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev);
-void gfxhub_v1_0_gart_disable(struct amdgpu_device *adev);
-void gfxhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev,
-					  bool value);
-void gfxhub_v1_0_init(struct amdgpu_device *adev);
-u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev);
-void gfxhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
-				uint64_t page_table_base);
+	void (*gart_disable)(struct amdgpu_device *adev);
+	void (*set_fault_enable_default)(struct amdgpu_device *adev, bool value);
+	void (*init)(struct amdgpu_device *adev);
+	int (*get_xgmi_info)(struct amdgpu_device *adev);
+};
 
-extern const struct amdgpu_gfxhub_funcs gfxhub_v1_0_funcs;
+struct amdgpu_gfxhub {
+	const struct amdgpu_gfxhub_funcs *funcs;
+};
+
 #endif
