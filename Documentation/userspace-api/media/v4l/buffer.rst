@@ -678,20 +678,6 @@ Buffer Flags
 
 .. _memory-flags:
 
-Memory Consistency Flags
-========================
-
-.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.3cm}|
-
-.. cssclass:: longtable
-
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-    :widths:       3 1 4
-
-.. c:type:: v4l2_memory
-
 enum v4l2_memory
 ================
 
