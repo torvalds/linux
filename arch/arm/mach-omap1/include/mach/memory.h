@@ -41,6 +41,10 @@
 	   __phys_to_pfn(__dma);				\
 	})
 
+#define __arch_dma_to_virt(dev, addr)	({ (void *) (is_lbus_device(dev) ? \
+						lbus_to_virt(addr) : \
+						__phys_to_virt(addr)); })
+
 #define __arch_virt_to_dma(dev, addr)	({ unsigned long __addr = (unsigned long)(addr); \
 					   (dma_addr_t) (is_lbus_device(dev) ? \
 						virt_to_lbus(__addr) : \

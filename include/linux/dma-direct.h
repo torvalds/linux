@@ -14,6 +14,41 @@
 
 extern unsigned int zone_dma_bits;
 
+/*
+ * Record the mapping of CPU physical to DMA addresses for a given region.
+ */
+struct bus_dma_region {
+	phys_addr_t	cpu_start;
+	dma_addr_t	dma_start;
+	u64		size;
+	u64		offset;
+};
+
+static inline dma_addr_t translate_phys_to_dma(struct device *dev,
+		phys_addr_t paddr)
+{
+	const struct bus_dma_region *m;
+
+	for (m = dev->dma_range_map; m->size; m++)
+		if (paddr >= m->cpu_start && paddr - m->cpu_start < m->size)
+			return (dma_addr_t)paddr - m->offset;
+
+	/* make sure dma_capable fails when no translation is available */
+	return DMA_MAPPING_ERROR;
+}
+
+static inline phys_addr_t translate_dma_to_phys(struct device *dev,
+		dma_addr_t dma_addr)
+{
+	const struct bus_dma_region *m;
+
+	for (m = dev->dma_range_map; m->size; m++)
+		if (dma_addr >= m->dma_start && dma_addr - m->dma_start < m->size)
+			return (phys_addr_t)dma_addr + m->offset;
+
+	return (phys_addr_t)-1;
+}
+
 #ifdef CONFIG_ARCH_HAS_PHYS_TO_DMA
 #include <asm/dma-direct.h>
 #ifndef phys_to_dma_unencrypted
@@ -23,9 +58,9 @@ extern unsigned int zone_dma_bits;
 static inline dma_addr_t phys_to_dma_unencrypted(struct device *dev,
 		phys_addr_t paddr)
 {
-	dma_addr_t dev_addr = (dma_addr_t)paddr;
-
-	return dev_addr - ((dma_addr_t)dev->dma_pfn_offset << PAGE_SHIFT);
+	if (dev->dma_range_map)
+		return translate_phys_to_dma(dev, paddr);
+	return paddr;
 }
 
 /*
@@ -39,10 +74,14 @@ static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 	return __sme_set(phys_to_dma_unencrypted(dev, paddr));
 }
 
-static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dev_addr)
+static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dma_addr)
 {
-	phys_addr_t paddr = (phys_addr_t)dev_addr +
-		((phys_addr_t)dev->dma_pfn_offset << PAGE_SHIFT);
+	phys_addr_t paddr;
+
+	if (dev->dma_range_map)
+		paddr = translate_dma_to_phys(dev, dma_addr);
+	else
+		paddr = dma_addr;
 
 	return __sme_clr(paddr);
 }
@@ -62,6 +101,8 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size,
 {
 	dma_addr_t end = addr + size - 1;
 
+	if (addr == DMA_MAPPING_ERROR)
+		return false;
 	if (is_ram && !IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT) &&
 	    min(addr, end) < phys_to_dma(dev, PFN_PHYS(min_low_pfn)))
 		return false;
