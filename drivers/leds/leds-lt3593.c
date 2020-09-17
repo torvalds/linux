@@ -107,7 +107,6 @@ static int lt3593_led_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	led_data->cdev.dev->of_node = dev->of_node;
 	platform_set_drvdata(pdev, led_data);
 
 	return 0;
