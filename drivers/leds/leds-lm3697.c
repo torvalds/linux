@@ -194,7 +194,6 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 {
 	struct fwnode_handle *child = NULL;
 	struct lm3697_led *led;
-	const char *name;
 	int control_bank;
 	size_t i = 0;
 	int ret = -EINVAL;
@@ -214,6 +213,8 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		priv->regulator = NULL;
 
 	device_for_each_child_node(priv->dev, child) {
+		struct led_init_data init_data = {};
+
 		ret = fwnode_property_read_u32(child, "reg", &control_bank);
 		if (ret) {
 			dev_err(&priv->client->dev, "reg property missing\n");
@@ -271,20 +272,17 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led->led_dev.default_trigger);
 
-		ret = fwnode_property_read_string(child, "label", &name);
-		if (ret)
-			snprintf(led->label, sizeof(led->label),
-				"%s::", priv->client->name);
-		else
-			snprintf(led->label, sizeof(led->label),
-				 "%s:%s", priv->client->name, name);
+		init_data.fwnode = child;
+		init_data.devicename = priv->client->name;
+		/* for backwards compatibility if `label` is not present */
+		init_data.default_label = ":";
 
 		led->priv = priv;
-		led->led_dev.name = led->label;
 		led->led_dev.max_brightness = led->lmu_data.max_brightness;
 		led->led_dev.brightness_set_blocking = lm3697_brightness_set;
 
-		ret = devm_led_classdev_register(priv->dev, &led->led_dev);
+		ret = devm_led_classdev_register_ext(priv->dev, &led->led_dev,
+						     &init_data);
 		if (ret) {
 			dev_err(&priv->client->dev, "led register err: %d\n",
 				ret);
