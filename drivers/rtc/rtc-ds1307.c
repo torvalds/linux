@@ -512,6 +512,8 @@ static u8 do_trickle_setup_ds1339(struct ds1307 *ds1307, u32 ohms, bool diode)
 	u8 setup = (diode) ? DS1307_TRICKLE_CHARGER_DIODE :
 		DS1307_TRICKLE_CHARGER_NO_DIODE;
 
+	setup |= DS13XX_TRICKLE_CHARGER_MAGIC;
+
 	switch (ohms) {
 	case 250:
 		setup |= DS1307_TRICKLE_CHARGER_250_OHM;
@@ -1763,7 +1765,6 @@ static int ds1307_probe(struct i2c_client *client,
 		trickle_charger_setup = pdata->trickle_charger_setup;
 
 	if (trickle_charger_setup && chip->trickle_charger_reg) {
-		trickle_charger_setup |= DS13XX_TRICKLE_CHARGER_MAGIC;
 		dev_dbg(ds1307->dev,
 			"writing trickle charger info 0x%x to 0x%x\n",
 			trickle_charger_setup, chip->trickle_charger_reg);
