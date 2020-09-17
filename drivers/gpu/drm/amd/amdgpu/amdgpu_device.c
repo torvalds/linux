@@ -593,6 +593,135 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
 }
 
 /**
+ * amdgpu_device_indirect_rreg - read an indirect register
+ *
+ * @adev: amdgpu_device pointer
+ * @pcie_index: mmio register offset
+ * @pcie_data: mmio register offset
+ *
+ * Returns the value of indirect register @reg_addr
+ */
+u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
+				u32 pcie_index, u32 pcie_data,
+				u32 reg_addr)
+{
+	unsigned long flags;
+	u32 r;
+	void __iomem *pcie_index_offset;
+	void __iomem *pcie_data_offset;
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	pcie_index_offset = (void __iomem *)adev->rmmio + pcie_index * 4;
+	pcie_data_offset = (void __iomem *)adev->rmmio + pcie_data * 4;
+
+	writel(reg_addr, pcie_index_offset);
+	readl(pcie_index_offset);
+	r = readl(pcie_data_offset);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+
+	return r;
+}
+
+/**
+ * amdgpu_device_indirect_rreg64 - read a 64bits indirect register
+ *
+ * @adev: amdgpu_device pointer
+ * @pcie_index: mmio register offset
+ * @pcie_data: mmio register offset
+ *
+ * Returns the value of indirect register @reg_addr
+ */
+u64 amdgpu_device_indirect_rreg64(struct amdgpu_device *adev,
+				  u32 pcie_index, u32 pcie_data,
+				  u32 reg_addr)
+{
+	unsigned long flags;
+	u64 r;
+	void __iomem *pcie_index_offset;
+	void __iomem *pcie_data_offset;
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	pcie_index_offset = (void __iomem *)adev->rmmio + pcie_index * 4;
+	pcie_data_offset = (void __iomem *)adev->rmmio + pcie_data * 4;
+
+	/* read low 32 bits */
+	writel(reg_addr, pcie_index_offset);
+	readl(pcie_index_offset);
+	r = readl(pcie_data_offset);
+	/* read high 32 bits */
+	writel(reg_addr + 4, pcie_index_offset);
+	readl(pcie_index_offset);
+	r |= ((u64)readl(pcie_data_offset) << 32);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+
+	return r;
+}
+
+/**
+ * amdgpu_device_indirect_wreg - write an indirect register address
+ *
+ * @adev: amdgpu_device pointer
+ * @pcie_index: mmio register offset
+ * @pcie_data: mmio register offset
+ * @reg_addr: indirect register offset
+ * @reg_data: indirect register data
+ *
+ */
+void amdgpu_device_indirect_wreg(struct amdgpu_device *adev,
+				 u32 pcie_index, u32 pcie_data,
+				 u32 reg_addr, u32 reg_data)
+{
+	unsigned long flags;
+	void __iomem *pcie_index_offset;
+	void __iomem *pcie_data_offset;
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	pcie_index_offset = (void __iomem *)adev->rmmio + pcie_index * 4;
+	pcie_data_offset = (void __iomem *)adev->rmmio + pcie_data * 4;
+
+	writel(reg_addr, pcie_index_offset);
+	readl(pcie_index_offset);
+	writel(reg_data, pcie_data_offset);
+	readl(pcie_data_offset);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
+/**
+ * amdgpu_device_indirect_wreg64 - write a 64bits indirect register address
+ *
+ * @adev: amdgpu_device pointer
+ * @pcie_index: mmio register offset
+ * @pcie_data: mmio register offset
+ * @reg_addr: indirect register offset
+ * @reg_data: indirect register data
+ *
+ */
+void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev,
+				   u32 pcie_index, u32 pcie_data,
+				   u32 reg_addr, u64 reg_data)
+{
+	unsigned long flags;
+	void __iomem *pcie_index_offset;
+	void __iomem *pcie_data_offset;
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	pcie_index_offset = (void __iomem *)adev->rmmio + pcie_index * 4;
+	pcie_data_offset = (void __iomem *)adev->rmmio + pcie_data * 4;
+
+	/* write low 32 bits */
+	writel(reg_addr, pcie_index_offset);
+	readl(pcie_index_offset);
+	writel((u32)(reg_data & 0xffffffffULL), pcie_data_offset);
+	readl(pcie_data_offset);
+	/* write high 32 bits */
+	writel(reg_addr + 4, pcie_index_offset);
+	readl(pcie_index_offset);
+	writel((u32)(reg_data >> 32), pcie_data_offset);
+	readl(pcie_data_offset);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
+/**
  * amdgpu_invalid_rreg - dummy reg read function
  *
  * @adev: amdgpu device pointer

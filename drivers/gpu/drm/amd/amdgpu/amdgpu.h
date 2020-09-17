@@ -1032,6 +1032,19 @@ uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
 u32 amdgpu_io_rreg(struct amdgpu_device *adev, u32 reg);
 void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
 
+u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
+				u32 pcie_index, u32 pcie_data,
+				u32 reg_addr);
+u64 amdgpu_device_indirect_rreg64(struct amdgpu_device *adev,
+				  u32 pcie_index, u32 pcie_data,
+				  u32 reg_addr);
+void amdgpu_device_indirect_wreg(struct amdgpu_device *adev,
+				 u32 pcie_index, u32 pcie_data,
+				 u32 reg_addr, u32 reg_data);
+void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev,
+				   u32 pcie_index, u32 pcie_data,
+				   u32 reg_addr, u64 reg_data);
+
 bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type);
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev);
 
