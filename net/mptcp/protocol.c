@@ -157,11 +157,12 @@ static void mptcp_data_queue_ofo(struct mptcp_sock *msk, struct sk_buff *skb)
 	struct rb_node **p, *parent;
 	u64 seq, end_seq, max_seq;
 	struct sk_buff *skb1;
+	int space;
 
 	seq = MPTCP_SKB_CB(skb)->map_seq;
 	end_seq = MPTCP_SKB_CB(skb)->end_seq;
-	max_seq = tcp_space(sk);
-	max_seq = max_seq > 0 ? max_seq + msk->ack_seq : msk->ack_seq;
+	space = tcp_space(sk);
+	max_seq = space > 0 ? space + msk->ack_seq : msk->ack_seq;
 
 	pr_debug("msk=%p seq=%llx limit=%llx empty=%d", msk, seq, max_seq,
 		 RB_EMPTY_ROOT(&msk->out_of_order_queue));
