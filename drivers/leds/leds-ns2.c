@@ -170,13 +170,10 @@ ATTRIBUTE_GROUPS(ns2_led);
 static int ns2_led_register(struct device *dev, struct device_node *np,
 			    struct ns2_led *led)
 {
+	struct led_init_data init_data = {};
 	struct ns2_led_modval *modval;
 	enum ns2_led_modes mode;
 	int nmodes, ret, i;
-
-	ret = of_property_read_string(np, "label", &led->cdev.name);
-	if (ret)
-		led->cdev.name = np->name;
 
 	led->cmd = devm_gpiod_get_from_of_node(dev, np, "cmd-gpio", 0,
 					       GPIOD_ASIS, np->name);
@@ -234,7 +231,9 @@ static int ns2_led_register(struct device *dev, struct device_node *np,
 	led->sata = (mode == NS_V2_LED_SATA) ? 1 : 0;
 	led->cdev.brightness = (mode == NS_V2_LED_OFF) ? LED_OFF : LED_FULL;
 
-	ret = devm_led_classdev_register(dev, &led->cdev);
+	init_data.fwnode = of_fwnode_handle(np);
+
+	ret = devm_led_classdev_register_ext(dev, &led->cdev, &init_data);
 	if (ret)
 		dev_err(dev, "Failed to register LED for node %pOF\n", np);
 
