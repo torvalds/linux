@@ -86,7 +86,7 @@ static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	 * More than one endpoint could signal this; if so, ignore
 	 * all but the first.
 	 */
-	if (!test_and_set_bit(IPA_FLAG_CLOCK_HELD, ipa->flags))
+	if (!test_and_set_bit(IPA_FLAG_RESUMED, ipa->flags))
 		pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
 
 	/* Acknowledge/clear the suspend interrupt on all endpoints */
@@ -518,7 +518,6 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 	 * is held after initialization completes, and won't get dropped
 	 * unless/until a system suspend request arrives.
 	 */
-	__set_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 	ipa_clock_get(ipa);
 
 	ipa_hardware_config(ipa);
@@ -554,7 +553,6 @@ err_endpoint_deconfig:
 err_hardware_deconfig:
 	ipa_hardware_deconfig(ipa);
 	ipa_clock_put(ipa);
-	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 
 	return ret;
 }
@@ -572,7 +570,6 @@ static void ipa_deconfig(struct ipa *ipa)
 	ipa_endpoint_deconfig(ipa);
 	ipa_hardware_deconfig(ipa);
 	ipa_clock_put(ipa);
-	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 }
 
 static int ipa_firmware_load(struct device *dev)
@@ -778,7 +775,6 @@ static int ipa_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, ipa);
 	ipa->modem_rproc = rproc;
 	ipa->clock = clock;
-	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 	ipa->version = data->version;
 
 	ret = ipa_reg_init(ipa);
@@ -908,10 +904,15 @@ static int ipa_suspend(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
 
+	/* When a suspended RX endpoint has a packet ready to receive, we
+	 * get an IPA SUSPEND interrupt.  We trigger a system resume in
+	 * that case, but only on the first such interrupt since suspend.
+	 */
+	__clear_bit(IPA_FLAG_RESUMED, ipa->flags);
+
 	ipa_endpoint_suspend(ipa);
 
 	ipa_clock_put(ipa);
-	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 
 	return 0;
 }
@@ -933,7 +934,6 @@ static int ipa_resume(struct device *dev)
 	/* This clock reference will keep the IPA out of suspend
 	 * until we get a power management suspend request.
 	 */
-	__set_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
 	ipa_clock_get(ipa);
 
 	ipa_endpoint_resume(ipa);

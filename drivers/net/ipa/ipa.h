@@ -29,11 +29,11 @@ struct ipa_interrupt;
 
 /**
  * enum ipa_flag - IPA state flags
- * @IPA_FLAG_CLOCK_HELD:	Whether IPA clock is held to prevent suspend
- * @IPA_FLAG_COUNT:		Number of defined IPA flags
+ * @IPA_FLAG_RESUMED:	Whether resume from suspend has been signaled
+ * @IPA_FLAG_COUNT:	Number of defined IPA flags
  */
 enum ipa_flag {
-	IPA_FLAG_CLOCK_HELD,
+	IPA_FLAG_RESUMED,
 	IPA_FLAG_COUNT,		/* Last; not a flag */
 };
 
