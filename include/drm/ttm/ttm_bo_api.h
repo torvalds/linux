@@ -90,9 +90,6 @@ struct ttm_tt;
  * @kref: Reference count of this buffer object. When this refcount reaches
  * zero, the object is destroyed or put on the delayed delete list.
  * @mem: structure describing current placement.
- * @persistent_swap_storage: Usually the swap storage is deleted for buffers
- * pinned in physical memory. If this behaviour is not desired, this member
- * holds a pointer to a persistent shmem object.
  * @ttm: TTM structure holding system pages.
  * @evicted: Whether the object was evicted without user-space knowing.
  * @deleted: True if the object is only a zombie and already deleted.
@@ -139,7 +136,6 @@ struct ttm_buffer_object {
 	 */
 
 	struct ttm_resource mem;
-	struct file *persistent_swap_storage;
 	struct ttm_tt *ttm;
 	bool deleted;
 

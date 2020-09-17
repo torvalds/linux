@@ -36,7 +36,6 @@ struct ttm_operation_ctx;
 
 #define TTM_PAGE_FLAG_WRITE           (1 << 3)
 #define TTM_PAGE_FLAG_SWAPPED         (1 << 4)
-#define TTM_PAGE_FLAG_PERSISTENT_SWAP (1 << 5)
 #define TTM_PAGE_FLAG_ZERO_ALLOC      (1 << 6)
 #define TTM_PAGE_FLAG_DMA32           (1 << 7)
 #define TTM_PAGE_FLAG_SG              (1 << 8)
@@ -185,7 +184,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm);
  * and cache flushes and potential page splitting / combining.
  */
 int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement);
-int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct file *persistent_swap_storage);
+int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
 
 /**
  * ttm_tt_populate - allocate pages for a ttm

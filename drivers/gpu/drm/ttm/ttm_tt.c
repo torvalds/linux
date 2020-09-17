@@ -148,8 +148,7 @@ void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	ttm_tt_unpopulate(bdev, ttm);
 
-	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP) &&
-	    ttm->swap_storage)
+	if (ttm->swap_storage)
 		fput(ttm->swap_storage);
 
 	ttm->swap_storage = NULL;
@@ -249,71 +248,67 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 	struct file *swap_storage;
 	struct page *from_page;
 	struct page *to_page;
-	int i;
-	int ret = -ENOMEM;
+	gfp_t gfp_mask;
+	int i, ret;
 
 	swap_storage = ttm->swap_storage;
 	BUG_ON(swap_storage == NULL);
 
 	swap_space = swap_storage->f_mapping;
+	gfp_mask = mapping_gfp_mask(swap_space);
+	if (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY)
+		gfp_mask |= __GFP_RETRY_MAYFAIL;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
-		gfp_t gfp_mask = mapping_gfp_mask(swap_space);
-
-		gfp_mask |= (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY ? __GFP_RETRY_MAYFAIL : 0);
-		from_page = shmem_read_mapping_page_gfp(swap_space, i, gfp_mask);
-
+		from_page = shmem_read_mapping_page_gfp(swap_space, i,
+							gfp_mask);
 		if (IS_ERR(from_page)) {
 			ret = PTR_ERR(from_page);
 			goto out_err;
 		}
 		to_page = ttm->pages[i];
-		if (unlikely(to_page == NULL))
+		if (unlikely(to_page == NULL)) {
+			ret = -ENOMEM;
 			goto out_err;
+		}
 
 		copy_highpage(to_page, from_page);
 		put_page(from_page);
 	}
 
-	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP))
-		fput(swap_storage);
+	fput(swap_storage);
 	ttm->swap_storage = NULL;
 	ttm->page_flags &= ~TTM_PAGE_FLAG_SWAPPED;
 
 	return 0;
+
 out_err:
 	return ret;
 }
 
-int ttm_tt_swapout(struct ttm_bo_device *bdev,
-		   struct ttm_tt *ttm, struct file *persistent_swap_storage)
+int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	struct address_space *swap_space;
 	struct file *swap_storage;
 	struct page *from_page;
 	struct page *to_page;
-	int i;
-	int ret = -ENOMEM;
+	gfp_t gfp_mask;
+	int i, ret;
 
-	if (!persistent_swap_storage) {
-		swap_storage = shmem_file_setup("ttm swap",
-						ttm->num_pages << PAGE_SHIFT,
-						0);
-		if (IS_ERR(swap_storage)) {
-			pr_err("Failed allocating swap storage\n");
-			return PTR_ERR(swap_storage);
-		}
-	} else {
-		swap_storage = persistent_swap_storage;
+	swap_storage = shmem_file_setup("ttm swap",
+					ttm->num_pages << PAGE_SHIFT,
+					0);
+	if (IS_ERR(swap_storage)) {
+		pr_err("Failed allocating swap storage\n");
+		return PTR_ERR(swap_storage);
 	}
 
 	swap_space = swap_storage->f_mapping;
+	gfp_mask = mapping_gfp_mask(swap_space);
+	if (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY)
+		gfp_mask |= __GFP_RETRY_MAYFAIL;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
-		gfp_t gfp_mask = mapping_gfp_mask(swap_space);
-
-		gfp_mask |= (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY ? __GFP_RETRY_MAYFAIL : 0);
-
 		from_page = ttm->pages[i];
 		if (unlikely(from_page == NULL))
 			continue;
@@ -332,13 +327,11 @@ int ttm_tt_swapout(struct ttm_bo_device *bdev,
 	ttm_tt_unpopulate(bdev, ttm);
 	ttm->swap_storage = swap_storage;
 	ttm->page_flags |= TTM_PAGE_FLAG_SWAPPED;
-	if (persistent_swap_storage)
-		ttm->page_flags |= TTM_PAGE_FLAG_PERSISTENT_SWAP;
 
 	return 0;
+
 out_err:
-	if (!persistent_swap_storage)
-		fput(swap_storage);
+	fput(swap_storage);
 
 	return ret;
 }
