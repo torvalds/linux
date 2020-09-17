@@ -74,7 +74,6 @@ static void ath11k_init_wmi_config_qca6390(struct ath11k_base *ab,
 	config->beacon_tx_offload_max_vdev = 0x2;
 	config->num_multicast_filter_entries = 0x20;
 	config->num_wow_filters = 0x16;
-	config->num_keep_alive_pattern = 0x1;
 	config->num_keep_alive_pattern = 0;
 }
 
