@@ -210,7 +210,7 @@ static int omnia_leds_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node, *child;
+	struct device_node *np = dev_of_node(dev), *child;
 	struct omnia_leds *leds;
 	struct omnia_led *led;
 	int ret, count;

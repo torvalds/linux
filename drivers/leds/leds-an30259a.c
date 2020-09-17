@@ -202,7 +202,7 @@ error:
 static int an30259a_dt_init(struct i2c_client *client,
 			    struct an30259a *chip)
 {
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_node *np = dev_of_node(&client->dev), *child;
 	int count, ret;
 	int i = 0;
 	const char *str;

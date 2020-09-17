@@ -261,7 +261,7 @@ out:
 
 static int aw2013_probe_dt(struct aw2013 *chip)
 {
-	struct device_node *np = chip->client->dev.of_node, *child;
+	struct device_node *np = dev_of_node(&chip->client->dev), *child;
 	int count, ret = 0, i = 0;
 	struct aw2013_led *led;
 

@@ -246,7 +246,7 @@ static void delete_ns2_led(struct ns2_led_data *led_dat)
 static int
 ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 {
-	struct device_node *np = dev->of_node;
+	struct device_node *np = dev_of_node(dev);
 	struct device_node *child;
 	struct ns2_led *led, *leds;
 	int ret, num_leds = 0;

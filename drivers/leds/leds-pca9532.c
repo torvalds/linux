@@ -507,7 +507,7 @@ static int pca9532_probe(struct i2c_client *client,
 	struct pca9532_data *data = i2c_get_clientdata(client);
 	struct pca9532_platform_data *pca9532_pdata =
 			dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_node *np = dev_of_node(&client->dev);
 
 	if (!pca9532_pdata) {
 		if (np) {

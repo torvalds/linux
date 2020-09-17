@@ -395,7 +395,7 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 static int bcm6328_leds_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev_of_node(&pdev->dev);
 	struct device_node *child;
 	void __iomem *mem;
 	spinlock_t *lock; /* memory lock */

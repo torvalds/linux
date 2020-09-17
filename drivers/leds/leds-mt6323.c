@@ -369,7 +369,7 @@ static int mt6323_led_set_dt_default(struct led_classdev *cdev,
 static int mt6323_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev_of_node(&pdev->dev);
 	struct device_node *child;
 	struct mt6397_chip *hw = dev_get_drvdata(pdev->dev.parent);
 	struct mt6323_leds *leds;

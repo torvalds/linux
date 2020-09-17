@@ -276,7 +276,7 @@ static int sc27xx_led_register(struct device *dev, struct sc27xx_led_priv *priv)
 static int sc27xx_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node, *child;
+	struct device_node *np = dev_of_node(dev), *child;
 	struct sc27xx_led_priv *priv;
 	u32 base, count, reg;
 	int err;

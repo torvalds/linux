@@ -372,7 +372,7 @@ static int is31fl32xx_parse_dt(struct device *dev,
 	struct device_node *child;
 	int ret = 0;
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_child_of_node(dev_of_node(dev), child) {
 		struct is31fl32xx_led_data *led_data =
 			&priv->leds[priv->num_leds];
 		const struct is31fl32xx_led_data *other_led_data;
@@ -435,7 +435,7 @@ static int is31fl32xx_probe(struct i2c_client *client,
 
 	cdef = device_get_match_data(dev);
 
-	count = of_get_child_count(dev->of_node);
+	count = of_get_child_count(dev_of_node(dev));
 	if (!count)
 		return -EINVAL;
 

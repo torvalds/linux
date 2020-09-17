@@ -118,9 +118,9 @@ static int pm860x_led_dt_init(struct platform_device *pdev,
 	struct device_node *nproot, *np;
 	int iset = 0;
 
-	if (!pdev->dev.parent->of_node)
+	if (!dev_of_node(pdev->dev.parent))
 		return -ENODEV;
-	nproot = of_get_child_by_name(pdev->dev.parent->of_node, "leds");
+	nproot = of_get_child_by_name(dev_of_node(pdev->dev.parent), "leds");
 	if (!nproot) {
 		dev_err(&pdev->dev, "failed to find leds node\n");
 		return -ENODEV;

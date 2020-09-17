@@ -88,7 +88,7 @@ static enum led_brightness pm8058_led_get(struct led_classdev *cled)
 static int pm8058_led_probe(struct platform_device *pdev)
 {
 	struct pm8058_led *led;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev_of_node(&pdev->dev);
 	int ret;
 	struct regmap *map;
 	const char *state;

@@ -202,7 +202,7 @@ static int is31fl319x_parse_child_dt(const struct device *dev,
 static int is31fl319x_parse_dt(struct device *dev,
 			       struct is31fl319x_chip *is31)
 {
-	struct device_node *np = dev->of_node, *child;
+	struct device_node *np = dev_of_node(dev), *child;
 	int count;
 	int ret;
 
