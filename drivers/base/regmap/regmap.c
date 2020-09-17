@@ -209,6 +209,18 @@ static bool regmap_volatile_range(struct regmap *map, unsigned int reg,
 	return true;
 }
 
+static void regmap_format_12_20_write(struct regmap *map,
+				     unsigned int reg, unsigned int val)
+{
+	u8 *out = map->work_buf;
+
+	out[0] = reg >> 4;
+	out[1] = (reg << 4) | (val >> 16);
+	out[2] = val >> 8;
+	out[3] = val;
+}
+
+
 static void regmap_format_2_6_write(struct regmap *map,
 				     unsigned int reg, unsigned int val)
 {
@@ -864,6 +876,16 @@ struct regmap *__regmap_init(struct device *dev,
 		switch (config->val_bits) {
 		case 14:
 			map->format.format_write = regmap_format_10_14_write;
+			break;
+		default:
+			goto err_hwlock;
+		}
+		break;
+
+	case 12:
+		switch (config->val_bits) {
+		case 20:
+			map->format.format_write = regmap_format_12_20_write;
 			break;
 		default:
 			goto err_hwlock;
