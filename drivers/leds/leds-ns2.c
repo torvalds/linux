@@ -65,7 +65,6 @@ struct ns2_led {
 static int ns2_led_get_mode(struct ns2_led *led, enum ns2_led_modes *mode)
 {
 	int i;
-	int ret = -EINVAL;
 	int cmd_level;
 	int slow_level;
 
@@ -76,12 +75,11 @@ static int ns2_led_get_mode(struct ns2_led *led, enum ns2_led_modes *mode)
 		if (cmd_level == led->modval[i].cmd_level &&
 		    slow_level == led->modval[i].slow_level) {
 			*mode = led->modval[i].mode;
-			ret = 0;
-			break;
+			return 0;
 		}
 	}
 
-	return ret;
+	return -EINVAL;
 }
 
 static void ns2_led_set_mode(struct ns2_led *led, enum ns2_led_modes mode)
