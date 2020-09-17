@@ -203,7 +203,6 @@ static int is31fl319x_parse_dt(struct device *dev,
 			       struct is31fl319x_chip *is31)
 {
 	struct device_node *np = dev->of_node, *child;
-	const struct of_device_id *of_dev_id;
 	int count;
 	int ret;
 
@@ -219,18 +218,11 @@ static int is31fl319x_parse_dt(struct device *dev,
 		return ret;
 	}
 
-	of_dev_id = of_match_device(of_is31fl319x_match, dev);
-	if (!of_dev_id) {
-		dev_err(dev, "Failed to match device with supported chips\n");
-		return -EINVAL;
-	}
-
-	is31->cdef = of_dev_id->data;
+	is31->cdef = device_get_match_data(dev);
 
 	count = of_get_child_count(np);
 
-	dev_dbg(dev, "probe %s with %d leds defined in DT\n",
-		of_dev_id->compatible, count);
+	dev_dbg(dev, "probing with %d leds defined in DT\n", count);
 
 	if (!count || count > is31->cdef->num_leds) {
 		dev_err(dev, "Number of leds defined must be between 1 and %u\n",

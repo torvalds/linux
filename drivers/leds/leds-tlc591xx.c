@@ -150,16 +150,11 @@ tlc591xx_probe(struct i2c_client *client,
 {
 	struct device_node *np = client->dev.of_node, *child;
 	struct device *dev = &client->dev;
-	const struct of_device_id *match;
 	const struct tlc591xx *tlc591xx;
 	struct tlc591xx_priv *priv;
 	int err, count, reg;
 
-	match = of_match_device(of_tlc591xx_leds_match, dev);
-	if (!match)
-		return -ENODEV;
-
-	tlc591xx = match->data;
+	tlc591xx = device_get_match_data(dev);
 	if (!np)
 		return -ENODEV;
 

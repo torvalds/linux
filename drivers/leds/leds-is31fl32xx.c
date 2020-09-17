@@ -428,17 +428,12 @@ static int is31fl32xx_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	const struct is31fl32xx_chipdef *cdef;
-	const struct of_device_id *of_dev_id;
 	struct device *dev = &client->dev;
 	struct is31fl32xx_priv *priv;
 	int count;
 	int ret = 0;
 
-	of_dev_id = of_match_device(of_is31fl32xx_match, dev);
-	if (!of_dev_id)
-		return -EINVAL;
-
-	cdef = of_dev_id->data;
+	cdef = device_get_match_data(dev);
 
 	count = of_get_child_count(dev->of_node);
 	if (!count)
