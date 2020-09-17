@@ -32,6 +32,7 @@
 #define NUM_PHY_TYPE		2
 
 #define POLL_TIMEOUT_US		5000
+#define PLL_LOCK_TIMEOUT	100000
 
 #define TORRENT_COMMON_CDB_OFFSET	0x0
 
@@ -183,11 +184,15 @@
 #define PHY_PLL_CFG			0x000EU
 
 /* PHY PMA common registers */
+#define PHY_PMA_CMN_CTRL1		0x0000U
 #define PHY_PMA_CMN_CTRL2		0x0001U
 #define PHY_PMA_PLL_RAW_CTRL		0x0003U
 
 static const struct reg_field phy_pll_cfg =
 				REG_FIELD(PHY_PLL_CFG, 0, 1);
+
+static const struct reg_field phy_pma_cmn_ctrl_1 =
+				REG_FIELD(PHY_PMA_CMN_CTRL1, 0, 0);
 
 static const struct reg_field phy_pma_cmn_ctrl_2 =
 				REG_FIELD(PHY_PMA_CMN_CTRL2, 0, 7);
@@ -237,6 +242,7 @@ struct cdns_torrent_phy {
 	struct regmap *regmap_rx_lane_cdb[MAX_NUM_LANES];
 	struct regmap *regmap_dptx_phy_reg;
 	struct regmap_field *phy_pll_cfg;
+	struct regmap_field *phy_pma_cmn_ctrl_1;
 	struct regmap_field *phy_pma_cmn_ctrl_2;
 	struct regmap_field *phy_pma_pll_raw_ctrl;
 	struct regmap_field *phy_reset_ctrl;
@@ -1570,6 +1576,7 @@ static int cdns_torrent_phy_on(struct phy *phy)
 {
 	struct cdns_torrent_inst *inst = phy_get_drvdata(phy);
 	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
+	u32 read_val;
 	int ret;
 
 	/* Take the PHY out of reset */
@@ -1578,7 +1585,21 @@ static int cdns_torrent_phy_on(struct phy *phy)
 		return ret;
 
 	/* Take the PHY lane group out of reset */
-	return reset_control_deassert(inst->lnk_rst);
+	reset_control_deassert(inst->lnk_rst);
+
+	/*
+	 * Wait for cmn_ready assertion
+	 * PHY_PMA_CMN_CTRL1[0] == 1
+	 */
+	ret = regmap_field_read_poll_timeout(cdns_phy->phy_pma_cmn_ctrl_1,
+					     read_val, read_val, 1000,
+					     PLL_LOCK_TIMEOUT);
+	if (ret) {
+		dev_err(cdns_phy->dev, "Timeout waiting for CMN ready\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int cdns_torrent_phy_off(struct phy *phy)
@@ -1642,6 +1663,14 @@ static int cdns_torrent_regfield_init(struct cdns_torrent_phy *cdns_phy)
 		return PTR_ERR(field);
 	}
 	cdns_phy->phy_pll_cfg = field;
+
+	regmap = cdns_phy->regmap_phy_pma_common_cdb;
+	field = devm_regmap_field_alloc(dev, regmap, phy_pma_cmn_ctrl_1);
+	if (IS_ERR(field)) {
+		dev_err(dev, "PHY_PMA_CMN_CTRL1 reg field init failed\n");
+		return PTR_ERR(field);
+	}
+	cdns_phy->phy_pma_cmn_ctrl_1 = field;
 
 	regmap = cdns_phy->regmap_phy_pma_common_cdb;
 	field = devm_regmap_field_alloc(dev, regmap, phy_pma_cmn_ctrl_2);
