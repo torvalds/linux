@@ -1,0 +1,25 @@
+Hisilicon Kirin970 usb PHY
+-----------------------
+
+Required properties:
+- compatible: should be "hisilicon,kirin970-usb-phy"
+- #phy-cells: must be 0
+- hisilicon,pericrg-syscon: phandle of syscon used to control phy.
+- hisilicon,pctrl-syscon: phandle of syscon used to control phy.
+- hisilicon,sctrl-syscon: phandle of syscon used to control phy.
+- hisilicon,usb31-misc-syscon: phandle of syscon used to control phy.
+- eye-diagram-param: parameter set for phy
+- usb3-phy-tx-vboost-lvl: parameter set for phy
+Refer to phy/phy-bindings.txt for the generic PHY binding properties
+
+Example:
+	usb_phy: usbphy {
+		compatible = "hisilicon,kirin970-usb-phy";
+		#phy-cells = <0>;
+		hisilicon,pericrg-syscon = <&crg_ctrl>;
+		hisilicon,pctrl-syscon = <&pctrl>;
+		hisilicon,sctrl-syscon = <&sctrl>;
+		hisilicon,usb31-misc-syscon = <&usb31_misc>;
+		eye-diagram-param = <0xFDFEE4>;
+		usb3-phy-tx-vboost-lvl = <0x5>;
+	};
