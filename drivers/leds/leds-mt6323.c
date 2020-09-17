@@ -368,9 +368,9 @@ static int mt6323_led_set_dt_default(struct led_classdev *cdev,
 static int mt6323_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(&pdev->dev);
+	struct device_node *np = dev_of_node(dev);
 	struct device_node *child;
-	struct mt6397_chip *hw = dev_get_drvdata(pdev->dev.parent);
+	struct mt6397_chip *hw = dev_get_drvdata(dev->parent);
 	struct mt6323_leds *leds;
 	struct mt6323_led *led;
 	int ret;
@@ -443,8 +443,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 		ret = devm_led_classdev_register_ext(dev, &leds->led[reg]->cdev,
 						     &init_data);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed to register LED: %d\n",
-				ret);
+			dev_err(dev, "Failed to register LED: %d\n", ret);
 			goto put_child_node;
 		}
 	}
