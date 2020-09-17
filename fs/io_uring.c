@@ -190,6 +190,7 @@ struct io_mapped_ubuf {
 	size_t		len;
 	struct		bio_vec *bvec;
 	unsigned int	nr_bvecs;
+	unsigned long	acct_pages;
 };
 
 struct fixed_file_table {
@@ -8002,7 +8003,8 @@ static int io_sqe_buffer_unregister(struct io_ring_ctx *ctx)
 		for (j = 0; j < imu->nr_bvecs; j++)
 			unpin_user_page(imu->bvec[j].bv_page);
 
-		io_unaccount_mem(ctx, imu->nr_bvecs, ACCT_PINNED);
+		if (imu->acct_pages)
+			io_unaccount_mem(ctx, imu->acct_pages, ACCT_PINNED);
 		kvfree(imu->bvec);
 		imu->nr_bvecs = 0;
 	}
@@ -8038,11 +8040,80 @@ static int io_copy_iov(struct io_ring_ctx *ctx, struct iovec *dst,
 	return 0;
 }
 
+/*
+ * Not super efficient, but this is just a registration time. And we do cache
+ * the last compound head, so generally we'll only do a full search if we don't
+ * match that one.
+ *
+ * We check if the given compound head page has already been accounted, to
+ * avoid double accounting it. This allows us to account the full size of the
+ * page, not just the constituent pages of a huge page.
+ */
+static bool headpage_already_acct(struct io_ring_ctx *ctx, struct page **pages,
+				  int nr_pages, struct page *hpage)
+{
+	int i, j;
+
+	/* check current page array */
+	for (i = 0; i < nr_pages; i++) {
+		if (!PageCompound(pages[i]))
+			continue;
+		if (compound_head(pages[i]) == hpage)
+			return true;
+	}
+
+	/* check previously registered pages */
+	for (i = 0; i < ctx->nr_user_bufs; i++) {
+		struct io_mapped_ubuf *imu = &ctx->user_bufs[i];
+
+		for (j = 0; j < imu->nr_bvecs; j++) {
+			if (!PageCompound(imu->bvec[j].bv_page))
+				continue;
+			if (compound_head(imu->bvec[j].bv_page) == hpage)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+static int io_buffer_account_pin(struct io_ring_ctx *ctx, struct page **pages,
+				 int nr_pages, struct io_mapped_ubuf *imu,
+				 struct page **last_hpage)
+{
+	int i, ret;
+
+	for (i = 0; i < nr_pages; i++) {
+		if (!PageCompound(pages[i])) {
+			imu->acct_pages++;
+		} else {
+			struct page *hpage;
+
+			hpage = compound_head(pages[i]);
+			if (hpage == *last_hpage)
+				continue;
+			*last_hpage = hpage;
+			if (headpage_already_acct(ctx, pages, i, hpage))
+				continue;
+			imu->acct_pages += page_size(hpage) >> PAGE_SHIFT;
+		}
+	}
+
+	if (!imu->acct_pages)
+		return 0;
+
+	ret = io_account_mem(ctx, imu->acct_pages, ACCT_PINNED);
+	if (ret)
+		imu->acct_pages = 0;
+	return ret;
+}
+
 static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
 				  unsigned nr_args)
 {
 	struct vm_area_struct **vmas = NULL;
 	struct page **pages = NULL;
+	struct page *last_hpage = NULL;
 	int i, j, got_pages = 0;
 	int ret = -EINVAL;
 
@@ -8085,10 +8156,6 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
 		start = ubuf >> PAGE_SHIFT;
 		nr_pages = end - start;
 
-		ret = io_account_mem(ctx, nr_pages, ACCT_PINNED);
-		if (ret)
-			goto err;
-
 		ret = 0;
 		if (!pages || nr_pages > got_pages) {
 			kvfree(vmas);
@@ -8100,7 +8167,6 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
 					GFP_KERNEL);
 			if (!pages || !vmas) {
 				ret = -ENOMEM;
-				io_unaccount_mem(ctx, nr_pages, ACCT_PINNED);
 				goto err;
 			}
 			got_pages = nr_pages;
@@ -8109,10 +8175,8 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
 		imu->bvec = kvmalloc_array(nr_pages, sizeof(struct bio_vec),
 						GFP_KERNEL);
 		ret = -ENOMEM;
-		if (!imu->bvec) {
-			io_unaccount_mem(ctx, nr_pages, ACCT_PINNED);
+		if (!imu->bvec)
 			goto err;
-		}
 
 		ret = 0;
 		mmap_read_lock(current->mm);
@@ -8141,7 +8205,13 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
 			 */
 			if (pret > 0)
 				unpin_user_pages(pages, pret);
-			io_unaccount_mem(ctx, nr_pages, ACCT_PINNED);
+			kvfree(imu->bvec);
+			goto err;
+		}
+
+		ret = io_buffer_account_pin(ctx, pages, pret, imu, &last_hpage);
+		if (ret) {
+			unpin_user_pages(pages, pret);
 			kvfree(imu->bvec);
 			goto err;
 		}
