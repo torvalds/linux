@@ -1809,6 +1809,7 @@ static int cdns_torrent_phy_init(struct phy *phy)
 	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
 	const struct cdns_torrent_data *init_data = cdns_phy->init_data;
 	struct cdns_torrent_vals *cmn_vals, *tx_ln_vals, *rx_ln_vals;
+	struct cdns_torrent_vals *link_cmn_vals, *xcvr_diag_vals;
 	struct cdns_torrent_inst *inst = phy_get_drvdata(phy);
 	enum cdns_torrent_phy_type phy_type = inst->phy_type;
 	enum cdns_torrent_ssc_mode ssc = inst->ssc_mode;
@@ -1822,6 +1823,29 @@ static int cdns_torrent_phy_init(struct phy *phy)
 
 	if (phy_type == TYPE_DP)
 		return cdns_torrent_dp_init(phy);
+
+	/* PHY configuration specific registers for single link */
+	link_cmn_vals = init_data->link_cmn_vals[phy_type][TYPE_NONE][ssc];
+	if (link_cmn_vals) {
+		reg_pairs = link_cmn_vals->reg_pairs;
+		num_regs = link_cmn_vals->num_regs;
+		regmap = cdns_phy->regmap_common_cdb;
+		for (i = 0; i < num_regs; i++)
+			regmap_write(regmap, reg_pairs[i].off,
+				     reg_pairs[i].val);
+	}
+
+	xcvr_diag_vals = init_data->xcvr_diag_vals[phy_type][TYPE_NONE][ssc];
+	if (xcvr_diag_vals) {
+		reg_pairs = xcvr_diag_vals->reg_pairs;
+		num_regs = xcvr_diag_vals->num_regs;
+		for (i = 0; i < inst->num_lanes; i++) {
+			regmap = cdns_phy->regmap_tx_lane_cdb[i + inst->mlane];
+			for (j = 0; j < num_regs; j++)
+				regmap_write(regmap, reg_pairs[j].off,
+					     reg_pairs[j].val);
+		}
+	}
 
 	/* PMA common registers configurations */
 	cmn_vals = init_data->cmn_vals[phy_type][TYPE_NONE][ssc];
@@ -2643,6 +2667,11 @@ static const struct cdns_torrent_data cdns_map_torrent = {
 	.reg_offset_shift = 0x2,
 	.link_cmn_vals = {
 		[TYPE_PCIE] = {
+			[TYPE_NONE] = {
+				[NO_SSC] = NULL,
+				[EXTERNAL_SSC] = NULL,
+				[INTERNAL_SSC] = NULL,
+			},
 			[TYPE_SGMII] = {
 				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
@@ -2671,6 +2700,11 @@ static const struct cdns_torrent_data cdns_map_torrent = {
 	},
 	.xcvr_diag_vals = {
 		[TYPE_PCIE] = {
+			[TYPE_NONE] = {
+				[NO_SSC] = NULL,
+				[EXTERNAL_SSC] = NULL,
+				[INTERNAL_SSC] = NULL,
+			},
 			[TYPE_SGMII] = {
 				[NO_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
 				[EXTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
@@ -2803,6 +2837,11 @@ static const struct cdns_torrent_data ti_j721e_map_torrent = {
 	.reg_offset_shift = 0x1,
 	.link_cmn_vals = {
 		[TYPE_PCIE] = {
+			[TYPE_NONE] = {
+				[NO_SSC] = NULL,
+				[EXTERNAL_SSC] = NULL,
+				[INTERNAL_SSC] = NULL,
+			},
 			[TYPE_SGMII] = {
 				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
@@ -2831,6 +2870,11 @@ static const struct cdns_torrent_data ti_j721e_map_torrent = {
 	},
 	.xcvr_diag_vals = {
 		[TYPE_PCIE] = {
+			[TYPE_NONE] = {
+				[NO_SSC] = NULL,
+				[EXTERNAL_SSC] = NULL,
+				[INTERNAL_SSC] = NULL,
+			},
 			[TYPE_SGMII] = {
 				[NO_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
 				[EXTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
