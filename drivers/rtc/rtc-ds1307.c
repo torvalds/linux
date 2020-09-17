@@ -122,6 +122,9 @@ enum ds_type {
 #define RX8130_REG_FLAG_AF		BIT(3)
 #define RX8130_REG_CONTROL0		0x1e
 #define RX8130_REG_CONTROL0_AIE		BIT(3)
+#define RX8130_REG_CONTROL1		0x1f
+#define RX8130_REG_CONTROL1_INIEN	BIT(4)
+#define RX8130_REG_CONTROL1_CHGEN	BIT(5)
 
 #define MCP794XX_REG_CONTROL		0x07
 #	define MCP794XX_BIT_ALM0_EN	0x10
@@ -538,6 +541,16 @@ static u8 do_trickle_setup_ds1339(struct ds1307 *ds1307, u32 ohms, bool diode)
 			 "Unsupported ohm value %u in dt\n", ohms);
 		return 0;
 	}
+	return setup;
+}
+
+static u8 do_trickle_setup_rx8130(struct ds1307 *ds1307, u32 ohms, bool diode)
+{
+	/* make sure that the backup battery is enabled */
+	u8 setup = RX8130_REG_CONTROL1_INIEN;
+	if (diode)
+		setup |= RX8130_REG_CONTROL1_CHGEN;
+
 	return setup;
 }
 
@@ -1029,6 +1042,8 @@ static const struct chip_desc chips[last_ds_type] = {
 		.offset		= 0x10,
 		.irq_handler = rx8130_irq,
 		.rtc_ops = &rx8130_rtc_ops,
+		.trickle_charger_reg = RX8130_REG_CONTROL1,
+		.do_trickle_setup = &do_trickle_setup_rx8130,
 	},
 	[m41t0] = {
 		.rtc_ops	= &m41txx_rtc_ops,
