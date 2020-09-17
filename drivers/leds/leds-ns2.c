@@ -227,16 +227,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	led_dat->cdev.brightness =
 		(mode == NS_V2_LED_OFF) ? LED_OFF : LED_FULL;
 
-	ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static void delete_ns2_led(struct ns2_led_data *led_dat)
-{
-	led_classdev_unregister(&led_dat->cdev);
+	return devm_led_classdev_register(&pdev->dev, &led_dat->cdev);
 }
 
 #ifdef CONFIG_OF_GPIO
@@ -380,11 +371,8 @@ static int ns2_led_probe(struct platform_device *pdev)
 	for (i = 0; i < priv->num_leds; i++) {
 		ret = create_ns2_led(pdev, &priv->leds_data[i],
 				     &pdata->leds[i]);
-		if (ret < 0) {
-			for (i = i - 1; i >= 0; i--)
-				delete_ns2_led(&priv->leds_data[i]);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	platform_set_drvdata(pdev, priv);
@@ -392,22 +380,8 @@ static int ns2_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ns2_led_remove(struct platform_device *pdev)
-{
-	int i;
-	struct ns2_led_priv *priv;
-
-	priv = platform_get_drvdata(pdev);
-
-	for (i = 0; i < priv->num_leds; i++)
-		delete_ns2_led(&priv->leds_data[i]);
-
-	return 0;
-}
-
 static struct platform_driver ns2_led_driver = {
 	.probe		= ns2_led_probe,
-	.remove		= ns2_led_remove,
 	.driver		= {
 		.name		= "leds-ns2",
 		.of_match_table	= of_match_ptr(of_ns2_leds_match),
