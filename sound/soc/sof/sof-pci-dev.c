@@ -223,6 +223,22 @@ static const struct sof_dev_desc tgl_desc = {
 	.nocodec_tplg_filename = "sof-tgl-nocodec.tplg",
 	.ops = &sof_tgl_ops,
 };
+
+static const struct sof_dev_desc tglh_desc = {
+	.machines               = snd_soc_acpi_intel_tgl_machines,
+	.alt_machines		= snd_soc_acpi_intel_tgl_sdw_machines,
+	.resindex_lpe_base      = 0,
+	.resindex_pcicfg_base   = -1,
+	.resindex_imr_base      = -1,
+	.irqindex_host_ipc      = -1,
+	.resindex_dma_base      = -1,
+	.chip_info = &tglh_chip_info,
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.default_fw_filename = "sof-tgl-h.ri",
+	.nocodec_tplg_filename = "sof-tgl-nocodec.tplg",
+	.ops = &sof_tgl_ops,
+};
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_ELKHARTLAKE)
@@ -457,7 +473,7 @@ static const struct pci_device_id sof_pci_ids[] = {
 	{ PCI_DEVICE(0x8086, 0xa0c8), /* TGL-LP */
 		.driver_data = (unsigned long)&tgl_desc},
 	{ PCI_DEVICE(0x8086, 0x43c8), /* TGL-H */
-		.driver_data = (unsigned long)&tgl_desc},
+		.driver_data = (unsigned long)&tglh_desc},
 
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_ELKHARTLAKE)
