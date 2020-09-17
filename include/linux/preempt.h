@@ -322,6 +322,69 @@ static inline void preempt_notifier_init(struct preempt_notifier *notifier,
 
 #endif
 
+#if defined(CONFIG_SMP) && defined(CONFIG_PREEMPT_RT)
+
+/*
+ * Migrate-Disable and why it is (strongly) undesired.
+ *
+ * The premise of the Real-Time schedulers we have on Linux
+ * (SCHED_FIFO/SCHED_DEADLINE) is that M CPUs can/will run M tasks
+ * concurrently, provided there are sufficient runnable tasks, also known as
+ * work-conserving. For instance SCHED_DEADLINE tries to schedule the M
+ * earliest deadline threads, and SCHED_FIFO the M highest priority threads.
+ *
+ * The correctness of various scheduling models depends on this, but is it
+ * broken by migrate_disable() that doesn't imply preempt_disable(). Where
+ * preempt_disable() implies an immediate priority ceiling, preemptible
+ * migrate_disable() allows nesting.
+ *
+ * The worst case is that all tasks preempt one another in a migrate_disable()
+ * region and stack on a single CPU. This then reduces the available bandwidth
+ * to a single CPU. And since Real-Time schedulability theory considers the
+ * Worst-Case only, all Real-Time analysis shall revert to single-CPU
+ * (instantly solving the SMP analysis problem).
+ *
+ *
+ * The reason we have it anyway.
+ *
+ * PREEMPT_RT breaks a number of assumptions traditionally held. By forcing a
+ * number of primitives into becoming preemptible, they would also allow
+ * migration. This turns out to break a bunch of per-cpu usage. To this end,
+ * all these primitives employ migirate_disable() to restore this implicit
+ * assumption.
+ *
+ * This is a 'temporary' work-around at best. The correct solution is getting
+ * rid of the above assumptions and reworking the code to employ explicit
+ * per-cpu locking or short preempt-disable regions.
+ *
+ * The end goal must be to get rid of migrate_disable(), alternatively we need
+ * a schedulability theory that does not depend on abritrary migration.
+ *
+ *
+ * Notes on the implementation.
+ *
+ * The implementation is particularly tricky since existing code patterns
+ * dictate neither migrate_disable() nor migrate_enable() is allowed to block.
+ * This means that it cannot use cpus_read_lock() to serialize against hotplug,
+ * nor can it easily migrate itself into a pending affinity mask change on
+ * migrate_enable().
+ *
+ *
+ * Note: even non-work-conserving schedulers like semi-partitioned depends on
+ *       migration, so migrate_disable() is not only a problem for
+ *       work-conserving schedulers.
+ *
+ */
+extern void migrate_disable(void);
+extern void migrate_enable(void);
+
+#elif defined(CONFIG_PREEMPT_RT)
+
+static inline void migrate_disable(void) { }
+static inline void migrate_enable(void) { }
+
+#else /* !CONFIG_PREEMPT_RT */
+
 /**
  * migrate_disable - Prevent migration of the current task
  *
@@ -351,5 +414,7 @@ static __always_inline void migrate_enable(void)
 {
 	preempt_enable();
 }
+
+#endif /* CONFIG_SMP && CONFIG_PREEMPT_RT */
 
 #endif /* __LINUX_PREEMPT_H */
