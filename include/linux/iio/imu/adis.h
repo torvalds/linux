@@ -20,7 +20,6 @@
 #define ADIS_REG_PAGE_ID 0x00
 
 struct adis;
-struct adis_burst;
 
 /**
  * struct adis_timeouts - ADIS chip variant timeouts
@@ -108,7 +107,6 @@ struct adis {
 	struct iio_trigger	*trig;
 
 	const struct adis_data	*data;
-	struct adis_burst	*burst;
 	unsigned int		burst_extra_len;
 	/**
 	 * The state_lock is meant to be used during operations that require
@@ -507,21 +505,6 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 	ADIS_MOD_CHAN(IIO_ROT, mod, addr, si, info_sep, info_all, bits)
 
 #ifdef CONFIG_IIO_ADIS_LIB_BUFFER
-
-/**
- * struct adis_burst - ADIS data for burst transfers
- * @en			burst mode enabled
- * @reg_cmd		register command that triggers burst
- * @extra_len		extra length to account in the SPI RX buffer
- * @burst_max_len	holds the maximum burst size when the device supports
- *			more than one burst mode with different sizes
- */
-struct adis_burst {
-	bool		en;
-	unsigned int	reg_cmd;
-	const u32	extra_len;
-	const u32	burst_max_len;
-};
 
 int
 devm_adis_setup_buffer_and_trigger(struct adis *adis, struct iio_dev *indio_dev,
