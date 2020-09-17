@@ -796,6 +796,8 @@ static struct reg_default fsl_sai_reg_defaults_ofs8[] = {
 	{FSL_SAI_RCR4(8), 0},
 	{FSL_SAI_RCR5(8), 0},
 	{FSL_SAI_RMR, 0},
+	{FSL_SAI_MCTL, 0},
+	{FSL_SAI_MDIV, 0},
 };
 
 static bool fsl_sai_readable_reg(struct device *dev, unsigned int reg)
@@ -836,6 +838,18 @@ static bool fsl_sai_readable_reg(struct device *dev, unsigned int reg)
 	case FSL_SAI_RFR6:
 	case FSL_SAI_RFR7:
 	case FSL_SAI_RMR:
+	case FSL_SAI_MCTL:
+	case FSL_SAI_MDIV:
+	case FSL_SAI_VERID:
+	case FSL_SAI_PARAM:
+	case FSL_SAI_TTCTN:
+	case FSL_SAI_RTCTN:
+	case FSL_SAI_TTCTL:
+	case FSL_SAI_TBCTN:
+	case FSL_SAI_TTCAP:
+	case FSL_SAI_RTCTL:
+	case FSL_SAI_RBCTN:
+	case FSL_SAI_RTCAP:
 		return true;
 	default:
 		return false;
@@ -848,6 +862,10 @@ static bool fsl_sai_volatile_reg(struct device *dev, unsigned int reg)
 	unsigned int ofs = sai->soc_data->reg_offset;
 
 	if (reg == FSL_SAI_TCSR(ofs) || reg == FSL_SAI_RCSR(ofs))
+		return true;
+
+	/* Set VERID and PARAM be volatile for reading value in probe */
+	if (ofs == 8 && (reg == FSL_SAI_VERID || reg == FSL_SAI_PARAM))
 		return true;
 
 	switch (reg) {
@@ -903,6 +921,10 @@ static bool fsl_sai_writeable_reg(struct device *dev, unsigned int reg)
 	case FSL_SAI_TDR7:
 	case FSL_SAI_TMR:
 	case FSL_SAI_RMR:
+	case FSL_SAI_MCTL:
+	case FSL_SAI_MDIV:
+	case FSL_SAI_TTCTL:
+	case FSL_SAI_RTCTL:
 		return true;
 	default:
 		return false;
@@ -923,6 +945,48 @@ static struct regmap_config fsl_sai_regmap_config = {
 	.writeable_reg = fsl_sai_writeable_reg,
 	.cache_type = REGCACHE_FLAT,
 };
+
+static int fsl_sai_check_version(struct device *dev)
+{
+	struct fsl_sai *sai = dev_get_drvdata(dev);
+	unsigned char ofs = sai->soc_data->reg_offset;
+	unsigned int val;
+	int ret;
+
+	if (FSL_SAI_TCSR(ofs) == FSL_SAI_VERID)
+		return 0;
+
+	ret = regmap_read(sai->regmap, FSL_SAI_VERID, &val);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(dev, "VERID: 0x%016X\n", val);
+
+	sai->verid.major = (val & FSL_SAI_VERID_MAJOR_MASK) >>
+			   FSL_SAI_VERID_MAJOR_SHIFT;
+	sai->verid.minor = (val & FSL_SAI_VERID_MINOR_MASK) >>
+			   FSL_SAI_VERID_MINOR_SHIFT;
+	sai->verid.feature = val & FSL_SAI_VERID_FEATURE_MASK;
+
+	ret = regmap_read(sai->regmap, FSL_SAI_PARAM, &val);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(dev, "PARAM: 0x%016X\n", val);
+
+	/* Max slots per frame, power of 2 */
+	sai->param.slot_num = 1 <<
+		((val & FSL_SAI_PARAM_SPF_MASK) >> FSL_SAI_PARAM_SPF_SHIFT);
+
+	/* Words per fifo, power of 2 */
+	sai->param.fifo_depth = 1 <<
+		((val & FSL_SAI_PARAM_WPF_MASK) >> FSL_SAI_PARAM_WPF_SHIFT);
+
+	/* Number of datalines implemented */
+	sai->param.dataline = val & FSL_SAI_PARAM_DLN_MASK;
+
+	return 0;
+}
 
 static int fsl_sai_probe(struct platform_device *pdev)
 {
@@ -951,6 +1015,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	if (sai->soc_data->reg_offset == 8) {
 		fsl_sai_regmap_config.reg_defaults = fsl_sai_reg_defaults_ofs8;
+		fsl_sai_regmap_config.max_register = FSL_SAI_MDIV;
 		fsl_sai_regmap_config.num_reg_defaults =
 			ARRAY_SIZE(fsl_sai_reg_defaults_ofs8);
 	}
@@ -1046,6 +1111,18 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	sai->dma_params_tx.maxburst = FSL_SAI_MAXBURST_TX;
 
 	platform_set_drvdata(pdev, sai);
+
+	/* Get sai version */
+	ret = fsl_sai_check_version(&pdev->dev);
+	if (ret < 0)
+		dev_warn(&pdev->dev, "Error reading SAI version: %d\n", ret);
+
+	/* Select MCLK direction */
+	if (of_find_property(np, "fsl,sai-mclk-direction-output", NULL) &&
+	    sai->verid.major >= 3 && sai->verid.minor >= 1) {
+		regmap_update_bits(sai->regmap, FSL_SAI_MCTL,
+				   FSL_SAI_MCTL_MCLK_EN, FSL_SAI_MCTL_MCLK_EN);
+	}
 
 	pm_runtime_enable(&pdev->dev);
 	regcache_cache_only(sai->regmap, true);
