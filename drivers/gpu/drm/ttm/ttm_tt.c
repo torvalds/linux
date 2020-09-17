@@ -207,7 +207,7 @@ int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement)
 }
 EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 
-void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	ttm_tt_unpopulate(bdev, ttm);
 
@@ -216,6 +216,11 @@ void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 		fput(ttm->swap_storage);
 
 	ttm->swap_storage = NULL;
+}
+EXPORT_SYMBOL(ttm_tt_destroy_common);
+
+void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+{
 	bdev->driver->ttm_tt_destroy(bdev, ttm);
 }
 

@@ -20,6 +20,7 @@ nouveau_sgdma_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 
 	if (ttm) {
+		ttm_tt_destroy_common(bdev, ttm);
 		ttm_dma_tt_fini(&nvbe->ttm);
 		kfree(nvbe);
 	}

@@ -130,6 +130,7 @@ static void qxl_ttm_backend_destroy(struct ttm_bo_device *bdev,
 {
 	struct qxl_ttm_tt *gtt = (void *)ttm;
 
+	ttm_tt_destroy_common(bdev, ttm);
 	ttm_tt_fini(&gtt->ttm);
 	kfree(gtt);
 }

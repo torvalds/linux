@@ -922,6 +922,7 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs = {
 
 static void bo_driver_ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *tt)
 {
+	ttm_tt_destroy_common(bdev, tt);
 	ttm_tt_fini(tt);
 	kfree(tt);
 }
