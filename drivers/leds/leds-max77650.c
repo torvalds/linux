@@ -66,7 +66,6 @@ static int max77650_led_probe(struct platform_device *pdev)
 	struct max77650_led *leds, *led;
 	struct device *dev;
 	struct regmap *map;
-	const char *label;
 	int rv, num_leds;
 	u32 reg;
 
@@ -86,6 +85,8 @@ static int max77650_led_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	device_for_each_child_node(dev, child) {
+		struct led_init_data init_data = {};
+
 		rv = fwnode_property_read_u32(child, "reg", &reg);
 		if (rv || reg >= MAX77650_LED_NUM_LEDS) {
 			rv = -EINVAL;
@@ -99,22 +100,16 @@ static int max77650_led_probe(struct platform_device *pdev)
 		led->cdev.brightness_set_blocking = max77650_led_brightness_set;
 		led->cdev.max_brightness = MAX77650_LED_MAX_BRIGHTNESS;
 
-		rv = fwnode_property_read_string(child, "label", &label);
-		if (rv) {
-			led->cdev.name = "max77650::";
-		} else {
-			led->cdev.name = devm_kasprintf(dev, GFP_KERNEL,
-							"max77650:%s", label);
-			if (!led->cdev.name) {
-				rv = -ENOMEM;
-				goto err_node_put;
-			}
-		}
-
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led->cdev.default_trigger);
 
-		rv = devm_led_classdev_register(dev, &led->cdev);
+		init_data.fwnode = child;
+		init_data.devicename = "max77650";
+		/* for backwards compatibility if `label` is not present */
+		init_data.default_label = ":";
+
+		rv = devm_led_classdev_register_ext(dev, &led->cdev,
+						    &init_data);
 		if (rv)
 			goto err_node_put;
 
