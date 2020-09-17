@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0+
+
 ================================
 Documentation for /proc/sys/abi/
 ================================
