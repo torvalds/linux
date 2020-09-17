@@ -169,7 +169,7 @@ static int rx8010_set_time(struct device *dev, struct rtc_time *dt)
 	return 0;
 }
 
-static int rx8010_init_client(struct device *dev)
+static int rx8010_init(struct device *dev)
 {
 	struct rx8010_data *rx8010 = dev_get_drvdata(dev);
 	u8 ctrl[2];
@@ -391,7 +391,7 @@ static int rx8010_probe(struct i2c_client *client)
 	if (IS_ERR(rx8010->regs))
 		return PTR_ERR(rx8010->regs);
 
-	err = rx8010_init_client(dev);
+	err = rx8010_init(dev);
 	if (err)
 		return err;
 
