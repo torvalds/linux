@@ -31,7 +31,6 @@ clk-imx-scu-$(CONFIG_CLK_IMX8QXP) += clk-scu.o clk-imx8qxp.o
 clk-imx-lpcg-scu-$(CONFIG_CLK_IMX8QXP) += clk-lpcg-scu.o clk-imx8qxp-lpcg.o
 
 obj-$(CONFIG_CLK_IMX1)   += clk-imx1.o
-obj-$(CONFIG_CLK_IMX21)  += clk-imx21.o
 obj-$(CONFIG_CLK_IMX25)  += clk-imx25.o
 obj-$(CONFIG_CLK_IMX27)  += clk-imx27.o
 obj-$(CONFIG_CLK_IMX31)  += clk-imx31.o
