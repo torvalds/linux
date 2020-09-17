@@ -87,9 +87,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 			return ret;
 	}
 
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
-
+	ttm_bo_assign_mem(bo, new_mem);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_move_ttm);
@@ -299,8 +297,8 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	mb();
 out2:
 	old_copy = *old_mem;
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+
+	ttm_bo_assign_mem(bo, new_mem);
 
 	if (!man->use_tt)
 		ttm_bo_tt_destroy(bo);
@@ -535,7 +533,6 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
-	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
 
@@ -582,8 +579,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		ttm_bo_put(ghost_obj);
 	}
 
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	ttm_bo_assign_mem(bo, new_mem);
 
 	return 0;
 }
@@ -594,9 +590,8 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 			 struct ttm_resource *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_resource *old_mem = &bo->mem;
 
-	struct ttm_resource_manager *from = ttm_manager_type(bdev, old_mem->mem_type);
+	struct ttm_resource_manager *from = ttm_manager_type(bdev, bo->mem.mem_type);
 	struct ttm_resource_manager *to = ttm_manager_type(bdev, new_mem->mem_type);
 
 	int ret;
@@ -673,8 +668,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		ttm_bo_free_old_node(bo);
 	}
 
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	ttm_bo_assign_mem(bo, new_mem);
 
 	return 0;
 }

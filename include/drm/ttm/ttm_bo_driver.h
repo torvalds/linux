@@ -539,6 +539,13 @@ static inline void ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo
 	spin_unlock(&ttm_bo_glob.lru_lock);
 }
 
+static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,
+				     struct ttm_resource *new_mem)
+{
+	bo->mem = *new_mem;
+	new_mem->mm_node = NULL;
+}
+
 /**
  * ttm_bo_move_null = assign memory for a buffer object.
  * @bo: The bo to assign the memory to
@@ -552,8 +559,7 @@ static inline void ttm_bo_move_null(struct ttm_buffer_object *bo,
 	struct ttm_resource *old_mem = &bo->mem;
 
 	WARN_ON(old_mem->mm_node != NULL);
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	ttm_bo_assign_mem(bo, new_mem);
 }
 
 /**
