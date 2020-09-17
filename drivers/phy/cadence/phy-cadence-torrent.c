@@ -1830,7 +1830,14 @@ static int cdns_torrent_phy_init(struct phy *phy)
 		reg_pairs = link_cmn_vals->reg_pairs;
 		num_regs = link_cmn_vals->num_regs;
 		regmap = cdns_phy->regmap_common_cdb;
-		for (i = 0; i < num_regs; i++)
+
+		/**
+		 * First array value in link_cmn_vals must be of
+		 * PHY_PLL_CFG register
+		 */
+		regmap_field_write(cdns_phy->phy_pll_cfg, reg_pairs[0].val);
+
+		for (i = 1; i < num_regs; i++)
 			regmap_write(regmap, reg_pairs[i].off,
 				     reg_pairs[i].val);
 	}
@@ -1907,8 +1914,6 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 	phy_t1 = cdns_phy->phys[0].phy_type;
 	phy_t2 = cdns_phy->phys[1].phy_type;
 
-	regmap_field_write(cdns_phy->phy_pll_cfg, 0x0003);
-
 	/**
 	 * First configure the PHY for first link with phy_t1. Get the array
 	 * values as [phy_t1][phy_t2][ssc].
@@ -1944,7 +1949,15 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 			reg_pairs = link_cmn_vals->reg_pairs;
 			num_regs = link_cmn_vals->num_regs;
 			regmap = cdns_phy->regmap_common_cdb;
-			for (i = 0; i < num_regs; i++)
+
+			/**
+			 * First array value in link_cmn_vals must be of
+			 * PHY_PLL_CFG register
+			 */
+			regmap_field_write(cdns_phy->phy_pll_cfg,
+					   reg_pairs[0].val);
+
+			for (i = 1; i < num_regs; i++)
 				regmap_write(regmap, reg_pairs[i].off,
 					     reg_pairs[i].val);
 		}
@@ -2280,6 +2293,7 @@ static int cdns_torrent_phy_remove(struct platform_device *pdev)
 
 /* PCIe and SGMII/QSGMII Unique SSC link configuration */
 static struct cdns_reg_pairs pcie_sgmii_link_cmn_regs[] = {
+	{0x0003, PHY_PLL_CFG},
 	{0x0601, CMN_PDIAG_PLL0_CLK_SEL_M0},
 	{0x0400, CMN_PDIAG_PLL0_CLK_SEL_M1},
 	{0x0601, CMN_PDIAG_PLL1_CLK_SEL_M0}
