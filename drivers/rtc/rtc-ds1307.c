@@ -195,6 +195,11 @@ struct chip_desc {
 	 * the resistor between Vcc and Vbackup?
 	 */
 	bool			requires_trickle_resistor;
+	/* Some RTC's batteries and supercaps were charged by default, others
+	 * allow charging but were not configured previously to do so.
+	 * Remember this behavior to stay backwards compatible.
+	 */
+	bool			charge_default;
 };
 
 static const struct chip_desc chips[last_ds_type];
@@ -991,6 +996,7 @@ static const struct chip_desc chips[last_ds_type] = {
 		.trickle_charger_reg = 0x10,
 		.do_trickle_setup = &do_trickle_setup_ds1339,
 		.requires_trickle_resistor = true,
+		.charge_default = true,
 	},
 	[ds_1340] = {
 		.century_reg	= DS1307_REG_HOUR,
@@ -999,6 +1005,7 @@ static const struct chip_desc chips[last_ds_type] = {
 		.do_trickle_setup = &do_trickle_setup_ds1339,
 		.trickle_charger_reg = 0x08,
 		.requires_trickle_resistor = true,
+		.charge_default = true,
 	},
 	[ds_1341] = {
 		.century_reg	= DS1307_REG_MONTH,
@@ -1307,7 +1314,7 @@ static u8 ds1307_trickle_init(struct ds1307 *ds1307,
 			      const struct chip_desc *chip)
 {
 	u32 ohms;
-	bool diode = true;
+	bool diode = chip->charge_default;
 
 	if (!chip->do_trickle_setup)
 		return 0;
