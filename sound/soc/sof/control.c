@@ -367,7 +367,7 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	int err;
 
 	ret = pm_runtime_get_sync(scomp->dev);
-	if (ret < 0) {
+	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(scomp->dev, "error: bytes_ext get failed to resume %d\n", ret);
 		pm_runtime_put_noidle(scomp->dev);
 		return ret;
