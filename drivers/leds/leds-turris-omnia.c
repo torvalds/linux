@@ -236,8 +236,10 @@ static int omnia_leds_probe(struct i2c_client *client,
 	led = &leds->leds[0];
 	for_each_available_child_of_node(np, child) {
 		ret = omnia_led_register(client, led, child);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(child);
 			return ret;
+		}
 
 		led += ret;
 	}

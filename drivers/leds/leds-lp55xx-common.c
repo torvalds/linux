@@ -614,8 +614,10 @@ static int lp55xx_parse_multi_led(struct device_node *np,
 	for_each_available_child_of_node(np, child) {
 		ret = lp55xx_parse_multi_led_child(child, cfg, child_number,
 						   num_colors);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 		num_colors++;
 	}
 
@@ -681,8 +683,10 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 
 	for_each_available_child_of_node(np, child) {
 		ret = lp55xx_parse_logical_led(child, cfg, i);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ERR_PTR(-EINVAL);
+		}
 		i++;
 	}
 
