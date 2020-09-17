@@ -240,13 +240,13 @@ static int ns2_leds_parse_one(struct device *dev, struct device_node *np,
 	if (ret)
 		led->name = np->name;
 
-	led->cmd = gpiod_get_from_of_node(np, "cmd-gpio", 0, GPIOD_ASIS,
-					  led->name);
+	led->cmd = devm_gpiod_get_from_of_node(dev, np, "cmd-gpio", 0,
+					       GPIOD_ASIS, led->name);
 	if (IS_ERR(led->cmd))
 		return PTR_ERR(led->cmd);
 
-	led->slow = gpiod_get_from_of_node(np, "slow-gpio", 0, GPIOD_ASIS,
-					   led->name);
+	led->slow = devm_gpiod_get_from_of_node(dev, np, "slow-gpio", 0,
+						GPIOD_ASIS, led->name);
 	if (IS_ERR(led->slow))
 		return PTR_ERR(led->slow);
 
