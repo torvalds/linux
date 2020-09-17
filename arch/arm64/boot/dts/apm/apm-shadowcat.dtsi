@@ -709,7 +709,6 @@
 		dwgpio: gpio@1c024000 {
 			compatible = "snps,dw-apb-gpio";
 			reg = <0x0 0x1c024000 0x0 0x1000>;
-			reg-io-width = <4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
