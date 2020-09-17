@@ -31,6 +31,30 @@
 
 #include "soc15_common.h"
 
+static const char *mmhub_client_ids_vangogh[][2] = {
+	[0][0] = "MP0",
+	[1][0] = "MP1",
+	[2][0] = "DCEDMC",
+	[3][0] = "DCEVGA",
+	[13][0] = "UTCL2",
+	[26][0] = "OSS",
+	[27][0] = "HDP",
+	[28][0] = "VCN",
+	[29][0] = "VCNU",
+	[30][0] = "JPEG",
+	[0][1] = "MP0",
+	[1][1] = "MP1",
+	[2][1] = "DCEDMC",
+	[3][1] = "DCEVGA",
+	[4][1] = "DCEDWB",
+	[5][1] = "XDP",
+	[26][1] = "OSS",
+	[27][1] = "HDP",
+	[28][1] = "VCN",
+	[29][1] = "VCNU",
+	[30][1] = "JPEG",
+};
+
 static uint32_t mmhub_v2_3_get_invalidate_req(unsigned int vmid,
 					      uint32_t flush_type)
 {
@@ -55,12 +79,27 @@ static void
 mmhub_v2_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 					     uint32_t status)
 {
+	uint32_t cid, rw;
+	const char *mmhub_cid = NULL;
+
+	cid = REG_GET_FIELD(status,
+			    MMVM_L2_PROTECTION_FAULT_STATUS, CID);
+	rw = REG_GET_FIELD(status,
+			   MMVM_L2_PROTECTION_FAULT_STATUS, RW);
+
 	dev_err(adev->dev,
 		"MMVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 		status);
-	dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%lx\n",
-		REG_GET_FIELD(status,
-		MMVM_L2_PROTECTION_FAULT_STATUS, CID));
+	switch (adev->asic_type) {
+	case CHIP_VANGOGH:
+		mmhub_cid = mmhub_client_ids_vangogh[cid][rw];
+		break;
+	default:
+		mmhub_cid = NULL;
+		break;
+	}
+	dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+		mmhub_cid ? mmhub_cid : "unknown", cid);
 	dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
 		REG_GET_FIELD(status,
 		MMVM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
@@ -73,9 +112,7 @@ mmhub_v2_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 	dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
 		REG_GET_FIELD(status,
 		MMVM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
-	dev_err(adev->dev, "\t RW: 0x%lx\n",
-		REG_GET_FIELD(status,
-		MMVM_L2_PROTECTION_FAULT_STATUS, RW));
+	dev_err(adev->dev, "\t RW: 0x%x\n", rw);
 }
 
 static void mmhub_v2_3_setup_vm_pt_regs(struct amdgpu_device *adev,
