@@ -228,6 +228,7 @@ struct cdns_torrent_phy {
 	void __iomem *sd_base; /* SD0801 registers base */
 	u32 max_bit_rate; /* Maximum link bit rate to use (in Mbps) */
 	struct reset_control *phy_rst;
+	struct reset_control *apb_rst;
 	struct device *dev;
 	struct clk *clk;
 	unsigned long ref_clk_rate;
@@ -1883,6 +1884,13 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(cdns_phy->phy_rst);
 	}
 
+	cdns_phy->apb_rst = devm_reset_control_get_optional(dev, "torrent_apb");
+	if (IS_ERR(cdns_phy->apb_rst)) {
+		dev_err(dev, "%s: failed to get apb reset\n",
+			dev->of_node->full_name);
+		return PTR_ERR(cdns_phy->apb_rst);
+	}
+
 	cdns_phy->clk = devm_clk_get(dev, "refclk");
 	if (IS_ERR(cdns_phy->clk)) {
 		dev_err(dev, "phy ref clock not found\n");
@@ -1906,6 +1914,9 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	ret = cdns_torrent_regfield_init(cdns_phy);
 	if (ret)
 		return ret;
+
+	/* Enable APB */
+	reset_control_deassert(cdns_phy->apb_rst);
 
 	for_each_available_child_of_node(dev->of_node, child) {
 		struct phy *gphy;
@@ -2059,6 +2070,7 @@ put_lnk_rst:
 	for (i = 0; i < node; i++)
 		reset_control_put(cdns_phy->phys[i].lnk_rst);
 	of_node_put(child);
+	reset_control_assert(cdns_phy->apb_rst);
 	return ret;
 }
 
@@ -2068,6 +2080,7 @@ static int cdns_torrent_phy_remove(struct platform_device *pdev)
 	int i;
 
 	reset_control_assert(cdns_phy->phy_rst);
+	reset_control_assert(cdns_phy->apb_rst);
 	for (i = 0; i < cdns_phy->nsubnodes; i++) {
 		reset_control_assert(cdns_phy->phys[i].lnk_rst);
 		reset_control_put(cdns_phy->phys[i].lnk_rst);
