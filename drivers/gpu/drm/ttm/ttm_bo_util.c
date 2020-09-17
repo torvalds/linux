@@ -526,6 +526,20 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 }
 EXPORT_SYMBOL(ttm_bo_kunmap);
 
+static int ttm_bo_wait_free_node(struct ttm_buffer_object *bo,
+				 bool dst_use_tt)
+{
+	int ret;
+	ret = ttm_bo_wait(bo, false, false);
+	if (ret)
+		return ret;
+
+	if (!dst_use_tt)
+		ttm_bo_tt_destroy(bo);
+	ttm_bo_free_old_node(bo);
+	return 0;
+}
+
 static int ttm_bo_move_to_ghost(struct ttm_buffer_object *bo,
 				struct dma_fence *fence,
 				bool dst_use_tt)
@@ -576,19 +590,12 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	int ret;
 
 	dma_resv_add_excl_fence(bo->base.resv, fence);
-	if (evict) {
-		ret = ttm_bo_wait(bo, false, false);
-		if (ret)
-			return ret;
-
-		if (!man->use_tt)
-			ttm_bo_tt_destroy(bo);
-		ttm_bo_free_old_node(bo);
-	} else {
+	if (evict)
+		ret = ttm_bo_wait_free_node(bo, man->use_tt);
+	else
 		ret = ttm_bo_move_to_ghost(bo, fence, man->use_tt);
-		if (ret)
-			return ret;
-	}
+	if (ret)
+		return ret;
 
 	ttm_bo_assign_mem(bo, new_mem);
 
@@ -638,14 +645,9 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		 *
 		 * Should never happen in pratice.
 		 */
-
-		ret = ttm_bo_wait(bo, false, false);
+		ret = ttm_bo_wait_free_node(bo, to->use_tt);
 		if (ret)
 			return ret;
-
-		if (!to->use_tt)
-			ttm_bo_tt_destroy(bo);
-		ttm_bo_free_old_node(bo);
 	}
 
 	ttm_bo_assign_mem(bo, new_mem);
