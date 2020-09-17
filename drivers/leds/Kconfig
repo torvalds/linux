@@ -905,7 +905,7 @@ config LEDS_TPS6105X
 config LEDS_IP30
 	tristate "LED support for SGI Octane machines"
 	depends on LEDS_CLASS
-	depends on SGI_MFD_IOC3
+	depends on SGI_MFD_IOC3 || COMPILE_TEST
 	help
 	  This option enables support for the Red and White LEDs of
 	  SGI Octane machines.
