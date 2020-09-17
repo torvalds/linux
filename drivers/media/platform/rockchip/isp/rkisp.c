@@ -1614,11 +1614,13 @@ static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 	v4l2_dbg(1, rkisp_debug, &isp_dev->v4l2_dev,
 		 "%s on:%d\n", __func__, on);
 
-	if (on)
+	if (on) {
+		if (isp_dev->isp_ver == ISP_V20)
+			kfifo_reset(&isp_dev->csi_dev.rdbk_kfifo);
 		ret = pm_runtime_get_sync(isp_dev->dev);
-	else
+	} else {
 		ret = pm_runtime_put(isp_dev->dev);
-
+	}
 	return ret;
 }
 
