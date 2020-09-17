@@ -5698,10 +5698,8 @@ static int nand_scan_tail(struct nand_chip *chip)
 
 	case NAND_ECC_ENGINE_TYPE_SOFT:
 		ret = nand_set_ecc_soft_ops(chip);
-		if (ret) {
-			ret = -EINVAL;
+		if (ret)
 			goto err_nand_manuf_cleanup;
-		}
 		break;
 
 	case NAND_ECC_ENGINE_TYPE_ON_DIE:
