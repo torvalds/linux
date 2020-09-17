@@ -95,23 +95,25 @@ ARM_BE8(rev16	ip, ip)
 ARM_BE8(rev16	ip, ip)
 	strh	ip, [r7]
 #else
+#ifdef CONFIG_CPU_ENDIAN_BE8
+@ in BE8, we load data in BE, but instructions still in LE
+#define PV_BIT22	0x00004000
+#define PV_IMM8_MASK	0xff000000
+#define PV_ROT_MASK	0x000f0000
+#else
+#define PV_BIT22	0x00400000
+#define PV_IMM8_MASK	0x000000ff
+#define PV_ROT_MASK	0xf00
+#endif
+
 	moveq	r0, #0x400000		@ set bit 22, mov to mvn instruction
 	b	.Lnext
 .Lloop:	ldr	ip, [r7, r3]
-#ifdef CONFIG_CPU_ENDIAN_BE8
-	@ in BE8, we load data in BE, but instructions still in LE
-	bic	ip, ip, #0xff000000
-	tst	ip, #0x000f0000		@ check the rotation field
-	orrne	ip, ip, r6, lsl #24	@ mask in offset bits 31-24
-	biceq	ip, ip, #0x00004000	@ clear bit 22
-	orreq	ip, ip, r0, ror #8	@ mask in offset bits 7-0
-#else
-	bic	ip, ip, #0x000000ff
-	tst	ip, #0xf00		@ check the rotation field
-	orrne	ip, ip, r6		@ mask in offset bits 31-24
-	biceq	ip, ip, #0x400000	@ clear bit 22
-	orreq	ip, ip, r0		@ mask in offset bits 7-0
-#endif
+	bic	ip, ip, #PV_IMM8_MASK
+	tst	ip, #PV_ROT_MASK		@ check the rotation field
+	orrne	ip, ip, r6 ARM_BE8(, lsl #24)	@ mask in offset bits 31-24
+	biceq	ip, ip, #PV_BIT22		@ clear bit 22
+	orreq	ip, ip, r0 ARM_BE8(, ror #8)	@ mask in offset bits 7-0 (or bit 22)
 	str	ip, [r7, r3]
 #endif
 
