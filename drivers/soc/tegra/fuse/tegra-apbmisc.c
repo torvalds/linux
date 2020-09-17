@@ -47,6 +47,11 @@ u8 tegra_get_minor_rev(void)
 	return (tegra_read_chipid() >> 16) & 0xf;
 }
 
+u8 tegra_get_platform(void)
+{
+	return (tegra_read_chipid() >> 20) & 0xf;
+}
+
 u32 tegra_read_straps(void)
 {
 	WARN(!chipid, "Tegra ABP MISC not yet available\n");
