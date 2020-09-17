@@ -225,7 +225,7 @@
 
 	pinctrl_pmic: pmicirqgrp {
 		fsl,pins = <
-			MX8MN_IOMUXC_GPIO1_IO03_GPIO1_IO3	0x41
+			MX8MN_IOMUXC_GPIO1_IO03_GPIO1_IO3	0x141
 		>;
 	};
 
