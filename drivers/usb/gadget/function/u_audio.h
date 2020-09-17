@@ -53,6 +53,8 @@ struct uac_params {
 
 	/* rates are dynamic, in uac_rtd_params */
 
+	int ppm;	/* difference between audio clk and usb clk */
+
 	int req_number; /* number of preallocated requests */
 	int fb_max;	/* upper frequency drift feedback limit per-mil */
 };
@@ -66,6 +68,7 @@ enum usb_state_index {
 	SET_VOLUME_IN,
 	SET_MUTE_OUT,
 	SET_MUTE_IN,
+	SET_AUDIO_CLK,
 	SET_USB_STATE_MAX,
 };
 
@@ -74,11 +77,23 @@ enum stream_state_index {
 	STATE_IN,
 };
 
+struct frame_number_data {
+	uint32_t fn_begin;	/* frame number when starting statistics */
+	uint32_t fn_last;	/* frame number in the latest statistics */
+	uint32_t fn_overflow;	/* the time of frame number overflow */
+	uint32_t second;	/* total seconds counted */
+	ktime_t time_begin;	/* system time when starting statistics */
+	ktime_t time_last;	/* system time in the latest statistics */
+};
+
 struct g_audio {
 	struct device *device;
 	bool usb_state[SET_USB_STATE_MAX];
 	bool stream_state[2];
 	struct work_struct work;
+
+	struct frame_number_data *fn;
+	struct delayed_work ppm_work;
 
 	struct usb_function func;
 	struct usb_gadget *gadget;
