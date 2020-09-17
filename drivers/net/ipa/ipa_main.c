@@ -75,17 +75,19 @@
  * @ipa:	IPA pointer
  * @irq_id:	IPA interrupt type (unused)
  *
- * When in suspended state, the IPA can trigger a resume by sending a SUSPEND
- * IPA interrupt.
+ * If an RX endpoint is in suspend state, and the IPA has a packet
+ * destined for that endpoint, the IPA generates a SUSPEND interrupt
+ * to inform the AP that it should resume the endpoint.  If we get
+ * one of these interrupts we just resume everything.
  */
 static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 {
-	/* Take a a single clock reference to prevent suspend.  All
-	 * endpoints will be resumed as a result.  This reference will
-	 * be dropped when we get a power management suspend request.
+	/* Just report the event, and let system resume handle the rest.
+	 * More than one endpoint could signal this; if so, ignore
+	 * all but the first.
 	 */
 	if (!test_and_set_bit(IPA_FLAG_CLOCK_HELD, ipa->flags))
-		ipa_clock_get(ipa);
+		pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
 
 	/* Acknowledge/clear the suspend interrupt on all endpoints */
 	ipa_interrupt_suspend_clear_all(ipa->interrupt);
@@ -106,6 +108,7 @@ int ipa_setup(struct ipa *ipa)
 {
 	struct ipa_endpoint *exception_endpoint;
 	struct ipa_endpoint *command_endpoint;
+	struct device *dev = &ipa->pdev->dev;
 	int ret;
 
 	/* Setup for IPA v3.5.1 has some slight differences */
@@ -122,6 +125,10 @@ int ipa_setup(struct ipa *ipa)
 			  ipa_suspend_handler);
 
 	ipa_uc_setup(ipa);
+
+	ret = device_init_wakeup(dev, true);
+	if (ret)
+		goto err_uc_teardown;
 
 	ipa_endpoint_setup(ipa);
 
@@ -158,7 +165,7 @@ int ipa_setup(struct ipa *ipa)
 
 	ipa->setup_complete = true;
 
-	dev_info(&ipa->pdev->dev, "IPA driver setup completed successfully\n");
+	dev_info(dev, "IPA driver setup completed successfully\n");
 
 	return 0;
 
@@ -173,6 +180,8 @@ err_command_disable:
 	ipa_endpoint_disable_one(command_endpoint);
 err_endpoint_teardown:
 	ipa_endpoint_teardown(ipa);
+	(void)device_init_wakeup(dev, false);
+err_uc_teardown:
 	ipa_uc_teardown(ipa);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 	ipa_interrupt_teardown(ipa->interrupt);
@@ -200,6 +209,7 @@ static void ipa_teardown(struct ipa *ipa)
 	command_endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
 	ipa_endpoint_disable_one(command_endpoint);
 	ipa_endpoint_teardown(ipa);
+	(void)device_init_wakeup(&ipa->pdev->dev, false);
 	ipa_uc_teardown(ipa);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 	ipa_interrupt_teardown(ipa->interrupt);
@@ -709,7 +719,6 @@ static void ipa_validate_build(void)
  */
 static int ipa_probe(struct platform_device *pdev)
 {
-	struct wakeup_source *wakeup_source;
 	struct device *dev = &pdev->dev;
 	const struct ipa_data *data;
 	struct ipa_clock *clock;
@@ -758,19 +767,11 @@ static int ipa_probe(struct platform_device *pdev)
 		goto err_clock_exit;
 	}
 
-	/* Create a wakeup source. */
-	wakeup_source = wakeup_source_register(dev, "ipa");
-	if (!wakeup_source) {
-		/* The most likely reason for failure is memory exhaustion */
-		ret = -ENOMEM;
-		goto err_clock_exit;
-	}
-
 	/* Allocate and initialize the IPA structure */
 	ipa = kzalloc(sizeof(*ipa), GFP_KERNEL);
 	if (!ipa) {
 		ret = -ENOMEM;
-		goto err_wakeup_source_unregister;
+		goto err_clock_exit;
 	}
 
 	ipa->pdev = pdev;
@@ -778,7 +779,6 @@ static int ipa_probe(struct platform_device *pdev)
 	ipa->modem_rproc = rproc;
 	ipa->clock = clock;
 	__clear_bit(IPA_FLAG_CLOCK_HELD, ipa->flags);
-	ipa->wakeup_source = wakeup_source;
 	ipa->version = data->version;
 
 	ret = ipa_reg_init(ipa);
@@ -857,8 +857,6 @@ err_reg_exit:
 	ipa_reg_exit(ipa);
 err_kfree_ipa:
 	kfree(ipa);
-err_wakeup_source_unregister:
-	wakeup_source_unregister(wakeup_source);
 err_clock_exit:
 	ipa_clock_exit(clock);
 err_rproc_put:
@@ -872,10 +870,7 @@ static int ipa_remove(struct platform_device *pdev)
 	struct ipa *ipa = dev_get_drvdata(&pdev->dev);
 	struct rproc *rproc = ipa->modem_rproc;
 	struct ipa_clock *clock = ipa->clock;
-	struct wakeup_source *wakeup_source;
 	int ret;
-
-	wakeup_source = ipa->wakeup_source;
 
 	if (ipa->setup_complete) {
 		ret = ipa_modem_stop(ipa);
@@ -893,7 +888,6 @@ static int ipa_remove(struct platform_device *pdev)
 	ipa_mem_exit(ipa);
 	ipa_reg_exit(ipa);
 	kfree(ipa);
-	wakeup_source_unregister(wakeup_source);
 	ipa_clock_exit(clock);
 	rproc_put(rproc);
 

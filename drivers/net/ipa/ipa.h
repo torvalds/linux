@@ -114,8 +114,6 @@ struct ipa {
 	void *zero_virt;
 	size_t zero_size;
 
-	struct wakeup_source *wakeup_source;
-
 	/* Bit masks indicating endpoint state */
 	u32 available;		/* supported by hardware */
 	u32 filter_map;
