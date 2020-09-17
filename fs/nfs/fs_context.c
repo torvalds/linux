@@ -1037,6 +1037,65 @@ out_invalid_fh:
 }
 
 #if IS_ENABLED(CONFIG_NFS_V4)
+struct compat_nfs_string {
+	compat_uint_t len;
+	compat_uptr_t data;
+};
+
+static inline void compat_nfs_string(struct nfs_string *dst,
+				     struct compat_nfs_string *src)
+{
+	dst->data = compat_ptr(src->data);
+	dst->len = src->len;
+}
+
+struct compat_nfs4_mount_data_v1 {
+	compat_int_t version;
+	compat_int_t flags;
+	compat_int_t rsize;
+	compat_int_t wsize;
+	compat_int_t timeo;
+	compat_int_t retrans;
+	compat_int_t acregmin;
+	compat_int_t acregmax;
+	compat_int_t acdirmin;
+	compat_int_t acdirmax;
+	struct compat_nfs_string client_addr;
+	struct compat_nfs_string mnt_path;
+	struct compat_nfs_string hostname;
+	compat_uint_t host_addrlen;
+	compat_uptr_t host_addr;
+	compat_int_t proto;
+	compat_int_t auth_flavourlen;
+	compat_uptr_t auth_flavours;
+};
+
+static void nfs4_compat_mount_data_conv(struct nfs4_mount_data *data)
+{
+	struct compat_nfs4_mount_data_v1 *compat =
+			(struct compat_nfs4_mount_data_v1 *)data;
+
+	/* copy the fields backwards */
+	data->auth_flavours = compat_ptr(compat->auth_flavours);
+	data->auth_flavourlen = compat->auth_flavourlen;
+	data->proto = compat->proto;
+	data->host_addr = compat_ptr(compat->host_addr);
+	data->host_addrlen = compat->host_addrlen;
+	compat_nfs_string(&data->hostname, &compat->hostname);
+	compat_nfs_string(&data->mnt_path, &compat->mnt_path);
+	compat_nfs_string(&data->client_addr, &compat->client_addr);
+	data->acdirmax = compat->acdirmax;
+	data->acdirmin = compat->acdirmin;
+	data->acregmax = compat->acregmax;
+	data->acregmin = compat->acregmin;
+	data->retrans = compat->retrans;
+	data->timeo = compat->timeo;
+	data->wsize = compat->wsize;
+	data->rsize = compat->rsize;
+	data->flags = compat->flags;
+	data->version = compat->version;
+}
+
 /*
  * Validate NFSv4 mount options
  */
@@ -1058,6 +1117,9 @@ static int nfs4_parse_monolithic(struct fs_context *fc,
 
 	if (data->version != 1)
 		return generic_parse_monolithic(fc, data);
+
+	if (in_compat_syscall())
+		nfs4_compat_mount_data_conv(data);
 
 	if (data->host_addrlen > sizeof(ctx->nfs_server.address))
 		goto out_no_address;
