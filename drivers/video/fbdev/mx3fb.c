@@ -1428,7 +1428,6 @@ static int init_fb_chan(struct mx3fb_data *mx3fb, struct idmac_channel *ichan)
 	struct device *dev = mx3fb->dev;
 	struct mx3fb_platform_data *mx3fb_pdata = dev_get_platdata(dev);
 	const char *name = mx3fb_pdata->name;
-	unsigned int irq;
 	struct fb_info *fbi;
 	struct mx3fb_info *mx3fbi;
 	const struct fb_videomode *mode;
@@ -1441,7 +1440,6 @@ static int init_fb_chan(struct mx3fb_data *mx3fb, struct idmac_channel *ichan)
 	}
 
 	ichan->client = mx3fb;
-	irq = ichan->eof_irq;
 
 	if (ichan->dma_chan.chan_id != IDMAC_SDC_0)
 		return -EINVAL;
