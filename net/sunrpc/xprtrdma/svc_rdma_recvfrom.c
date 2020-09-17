@@ -824,7 +824,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	struct svcxprt_rdma *rdma_xprt =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	struct svc_rdma_recv_ctxt *ctxt;
-	__be32 *p;
 	int ret;
 
 	rqstp->rq_xprt_ctxt = NULL;
@@ -857,7 +856,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_respages = rqstp->rq_pages;
 	rqstp->rq_next_page = rqstp->rq_respages;
 
-	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	ret = svc_rdma_xdr_decode_req(&rqstp->rq_arg, ctxt);
 	if (ret < 0)
 		goto out_err;
@@ -870,9 +868,9 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 
 	svc_rdma_get_inv_rkey(rdma_xprt, ctxt);
 
-	p += rpcrdma_fixed_maxsz;
-	if (*p != xdr_zero)
-		goto out_readchunk;
+	if (!pcl_is_empty(&ctxt->rc_read_pcl) ||
+	    !pcl_is_empty(&ctxt->rc_call_pcl))
+		goto out_readlist;
 
 complete:
 	rqstp->rq_xprt_ctxt = ctxt;
@@ -880,10 +878,10 @@ complete:
 	svc_xprt_copy_addrs(rqstp, xprt);
 	return rqstp->rq_arg.len;
 
-out_readchunk:
-	ret = svc_rdma_recv_read_chunk(rdma_xprt, rqstp, ctxt, p);
+out_readlist:
+	ret = svc_rdma_process_read_list(rdma_xprt, rqstp, ctxt);
 	if (ret < 0)
-		goto out_postfail;
+		goto out_readfail;
 	return 0;
 
 out_err:
@@ -891,7 +889,7 @@ out_err:
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return 0;
 
-out_postfail:
+out_readfail:
 	if (ret == -EINVAL)
 		svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
