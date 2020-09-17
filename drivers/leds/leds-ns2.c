@@ -185,7 +185,7 @@ static struct attribute *ns2_led_attrs[] = {
 ATTRIBUTE_GROUPS(ns2_led);
 
 static int
-create_ns2_led(struct platform_device *pdev, struct ns2_led *led,
+create_ns2_led(struct device *dev, struct ns2_led *led,
 	       const struct ns2_led_of_one *template)
 {
 	int ret;
@@ -216,7 +216,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led *led,
 	led->sata = (mode == NS_V2_LED_SATA) ? 1 : 0;
 	led->cdev.brightness = (mode == NS_V2_LED_OFF) ? LED_OFF : LED_FULL;
 
-	return devm_led_classdev_register(&pdev->dev, &led->cdev);
+	return devm_led_classdev_register(dev, &led->cdev);
 }
 
 static int ns2_leds_parse_one(struct device *dev, struct device_node *np,
@@ -313,28 +313,27 @@ MODULE_DEVICE_TABLE(of, of_ns2_leds_match);
 
 static int ns2_led_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct ns2_led_of *ofdata;
 	struct ns2_led *leds;
 	int i;
 	int ret;
 
-	ofdata = devm_kzalloc(&pdev->dev, sizeof(struct ns2_led_of),
-			      GFP_KERNEL);
+	ofdata = devm_kzalloc(dev, sizeof(struct ns2_led_of), GFP_KERNEL);
 	if (!ofdata)
 		return -ENOMEM;
 
-	ret = ns2_leds_parse_of(&pdev->dev, ofdata);
+	ret = ns2_leds_parse_of(dev, ofdata);
 	if (ret)
 		return ret;
 
-	leds = devm_kzalloc(&pdev->dev, array_size(sizeof(*leds),
-						   ofdata->num_leds),
+	leds = devm_kzalloc(dev, array_size(sizeof(*leds), ofdata->num_leds),
 			    GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
 
 	for (i = 0; i < ofdata->num_leds; i++) {
-		ret = create_ns2_led(pdev, &leds[i], &ofdata->leds[i]);
+		ret = create_ns2_led(dev, &leds[i], &ofdata->leds[i]);
 		if (ret < 0)
 			return ret;
 	}
