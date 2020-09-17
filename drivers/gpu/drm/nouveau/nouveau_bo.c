@@ -824,7 +824,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 			if (ret == 0) {
 				ret = ttm_bo_move_accel_cleanup(bo,
 								&fence->base,
-								evict,
+								evict, false,
 								new_reg);
 				nouveau_fence_unref(&fence);
 			}

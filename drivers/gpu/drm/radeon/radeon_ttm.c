@@ -200,7 +200,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	if (IS_ERR(fence))
 		return PTR_ERR(fence);
 
-	r = ttm_bo_move_accel_cleanup(bo, &fence->base, evict, new_mem);
+	r = ttm_bo_move_accel_cleanup(bo, &fence->base, evict, false, new_mem);
 	radeon_fence_unref(&fence);
 	return r;
 }

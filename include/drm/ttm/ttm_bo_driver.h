@@ -642,6 +642,7 @@ void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  * @bo: A pointer to a struct ttm_buffer_object.
  * @fence: A fence object that signals when moving is complete.
  * @evict: This is an evict move. Don't return until the buffer is idle.
+ * @pipeline: evictions are to be pipelined.
  * @new_mem: struct ttm_resource indicating where to move.
  *
  * Accelerated move function to be called when an accelerated move
@@ -653,22 +654,8 @@ void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  */
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct dma_fence *fence, bool evict,
+			      bool pipeline,
 			      struct ttm_resource *new_mem);
-
-/**
- * ttm_bo_pipeline_move.
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- * @fence: A fence object that signals when moving is complete.
- * @evict: This is an evict move. Don't return until the buffer is idle.
- * @new_mem: struct ttm_resource indicating where to move.
- *
- * Function for pipelining accelerated moves. Either free the memory
- * immediately or hang it on a temporary buffer object.
- */
-int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
-			 struct dma_fence *fence, bool evict,
-			 struct ttm_resource *new_mem);
 
 /**
  * ttm_bo_pipeline_gutting.

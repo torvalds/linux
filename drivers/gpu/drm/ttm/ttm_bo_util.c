@@ -580,20 +580,48 @@ static int ttm_bo_move_to_ghost(struct ttm_buffer_object *bo,
 	return 0;
 }
 
+static void ttm_bo_move_pipeline_evict(struct ttm_buffer_object *bo,
+				       struct dma_fence *fence)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_resource_manager *from = ttm_manager_type(bdev, bo->mem.mem_type);
+
+	/**
+	 * BO doesn't have a TTM we need to bind/unbind. Just remember
+	 * this eviction and free up the allocation
+	 */
+	spin_lock(&from->move_lock);
+	if (!from->move || dma_fence_is_later(fence, from->move)) {
+		dma_fence_put(from->move);
+		from->move = dma_fence_get(fence);
+	}
+	spin_unlock(&from->move_lock);
+
+	ttm_bo_free_old_node(bo);
+
+	dma_fence_put(bo->moving);
+	bo->moving = dma_fence_get(fence);
+}
+
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct dma_fence *fence,
 			      bool evict,
+			      bool pipeline,
 			      struct ttm_resource *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_resource_manager *from = ttm_manager_type(bdev, bo->mem.mem_type);
 	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
-	int ret;
+	int ret = 0;
 
 	dma_resv_add_excl_fence(bo->base.resv, fence);
-	if (evict)
-		ret = ttm_bo_wait_free_node(bo, man->use_tt);
-	else
+	if (!evict)
 		ret = ttm_bo_move_to_ghost(bo, fence, man->use_tt);
+	else if (!from->use_tt && pipeline)
+		ttm_bo_move_pipeline_evict(bo, fence);
+	else
+		ret = ttm_bo_wait_free_node(bo, man->use_tt);
+
 	if (ret)
 		return ret;
 
@@ -602,59 +630,6 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
-
-int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
-			 struct dma_fence *fence, bool evict,
-			 struct ttm_resource *new_mem)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-
-	struct ttm_resource_manager *from = ttm_manager_type(bdev, bo->mem.mem_type);
-	struct ttm_resource_manager *to = ttm_manager_type(bdev, new_mem->mem_type);
-
-	int ret;
-
-	dma_resv_add_excl_fence(bo->base.resv, fence);
-
-	if (!evict) {
-		ret = ttm_bo_move_to_ghost(bo, fence, to->use_tt);
-		if (ret)
-			return ret;
-	} else if (!from->use_tt) {
-
-		/**
-		 * BO doesn't have a TTM we need to bind/unbind. Just remember
-		 * this eviction and free up the allocation
-		 */
-
-		spin_lock(&from->move_lock);
-		if (!from->move || dma_fence_is_later(fence, from->move)) {
-			dma_fence_put(from->move);
-			from->move = dma_fence_get(fence);
-		}
-		spin_unlock(&from->move_lock);
-
-		ttm_bo_free_old_node(bo);
-
-		dma_fence_put(bo->moving);
-		bo->moving = dma_fence_get(fence);
-
-	} else {
-		/**
-		 * Last resort, wait for the move to be completed.
-		 *
-		 * Should never happen in pratice.
-		 */
-		ret = ttm_bo_wait_free_node(bo, to->use_tt);
-		if (ret)
-			return ret;
-	}
-
-	ttm_bo_assign_mem(bo, new_mem);
-
-	return 0;
-}
-EXPORT_SYMBOL(ttm_bo_pipeline_move);
 
 int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 {
