@@ -319,11 +319,6 @@ enum adis16400_chip_variant {
 	ADIS16448,
 };
 
-static struct adis_burst adis16400_burst = {
-	.en = true,
-	.reg_cmd = ADIS16400_GLOB_CMD,
-};
-
 static int adis16334_get_freq(struct adis16400_state *st)
 {
 	int ret;
@@ -949,7 +944,7 @@ static const char * const adis16400_status_error_msgs[] = {
 	[ADIS16400_DIAG_STAT_POWER_LOW] = "Power supply below 4.75V",
 };
 
-#define ADIS16400_DATA(_timeouts)					\
+#define ADIS16400_DATA(_timeouts, _burst_len)				\
 {									\
 	.msc_ctrl_reg = ADIS16400_MSC_CTRL,				\
 	.glob_cmd_reg = ADIS16400_GLOB_CMD,				\
@@ -975,6 +970,8 @@ static const char * const adis16400_status_error_msgs[] = {
 		BIT(ADIS16400_DIAG_STAT_POWER_HIGH) |			\
 		BIT(ADIS16400_DIAG_STAT_POWER_LOW),			\
 	.timeouts = (_timeouts),					\
+	.burst_reg_cmd = ADIS16400_GLOB_CMD,				\
+	.burst_len = (_burst_len)					\
 }
 
 static const struct adis_timeout adis16300_timeouts = {
@@ -1025,7 +1022,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16300_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16300_timeouts, 18),
 	},
 	[ADIS16334] = {
 		.channels = adis16334_channels,
@@ -1038,7 +1035,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 25000000 / 67850, /* 25 C = 0x00 */
 		.set_freq = adis16334_set_freq,
 		.get_freq = adis16334_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16334_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16334_timeouts, 0),
 	},
 	[ADIS16350] = {
 		.channels = adis16350_channels,
@@ -1050,7 +1047,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.flags = ADIS16400_NO_BURST | ADIS16400_HAS_SLOW_MODE,
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16300_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16300_timeouts, 0),
 	},
 	[ADIS16360] = {
 		.channels = adis16350_channels,
@@ -1063,7 +1060,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16300_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16300_timeouts, 28),
 	},
 	[ADIS16362] = {
 		.channels = adis16350_channels,
@@ -1076,7 +1073,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16362_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16362_timeouts, 28),
 	},
 	[ADIS16364] = {
 		.channels = adis16350_channels,
@@ -1089,7 +1086,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16362_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16362_timeouts, 28),
 	},
 	[ADIS16367] = {
 		.channels = adis16350_channels,
@@ -1102,7 +1099,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16300_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16300_timeouts, 28),
 	},
 	[ADIS16400] = {
 		.channels = adis16400_channels,
@@ -1114,7 +1111,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16400_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16400_timeouts, 24),
 	},
 	[ADIS16445] = {
 		.channels = adis16445_channels,
@@ -1128,7 +1125,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
 		.set_freq = adis16334_set_freq,
 		.get_freq = adis16334_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16445_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16445_timeouts, 16),
 	},
 	[ADIS16448] = {
 		.channels = adis16448_channels,
@@ -1142,7 +1139,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
 		.set_freq = adis16334_set_freq,
 		.get_freq = adis16334_get_freq,
-		.adis_data = ADIS16400_DATA(&adis16448_timeouts),
+		.adis_data = ADIS16400_DATA(&adis16448_timeouts, 24),
 	}
 };
 
@@ -1198,9 +1195,6 @@ static int adis16400_probe(struct spi_device *spi)
 	if (!(st->variant->flags & ADIS16400_NO_BURST)) {
 		adis16400_setup_chan_mask(st);
 		indio_dev->available_scan_masks = st->avail_scan_mask;
-		st->adis.burst = &adis16400_burst;
-		if (st->variant->flags & ADIS16400_BURST_DIAG_STAT)
-			st->adis.burst_extra_len = sizeof(u16);
 	}
 
 	adis16400_data = &st->variant->adis_data;
