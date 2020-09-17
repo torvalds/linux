@@ -608,6 +608,37 @@ intel_dp_output_format(struct drm_connector *connector,
 		return INTEL_OUTPUT_FORMAT_YCBCR420;
 }
 
+int intel_dp_min_bpp(enum intel_output_format output_format)
+{
+	if (output_format == INTEL_OUTPUT_FORMAT_RGB)
+		return 6 * 3;
+	else
+		return 8 * 3;
+}
+
+static int intel_dp_output_bpp(enum intel_output_format output_format, int bpp)
+{
+	/*
+	 * bpp value was assumed to RGB format. And YCbCr 4:2:0 output
+	 * format of the number of bytes per pixel will be half the number
+	 * of bytes of RGB pixel.
+	 */
+	if (output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		bpp /= 2;
+
+	return bpp;
+}
+
+static int
+intel_dp_mode_min_output_bpp(struct drm_connector *connector,
+			     const struct drm_display_mode *mode)
+{
+	enum intel_output_format output_format =
+		intel_dp_output_format(connector, mode);
+
+	return intel_dp_output_bpp(output_format, intel_dp_min_bpp(output_format));
+}
+
 static bool intel_dp_hdisplay_bad(struct drm_i915_private *dev_priv,
 				  int hdisplay)
 {
@@ -687,7 +718,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	max_lanes = intel_dp_max_lane_count(intel_dp);
 
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
-	mode_rate = intel_dp_link_required(target_clock, 18);
+	mode_rate = intel_dp_link_required(target_clock,
+					   intel_dp_mode_min_output_bpp(connector, mode));
 
 	if (intel_dp_hdisplay_bad(dev_priv, mode->hdisplay))
 		return MODE_H_ILLEGAL;
@@ -2111,19 +2143,6 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 	}
 }
 
-static int intel_dp_output_bpp(enum intel_output_format output_format, int bpp)
-{
-	/*
-	 * bpp value was assumed to RGB format. And YCbCr 4:2:0 output
-	 * format of the number of bytes per pixel will be half the number
-	 * of bytes of RGB pixel.
-	 */
-	if (output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
-		bpp /= 2;
-
-	return bpp;
-}
-
 /* Optimize link config in order: max bpp, min clock, min lanes */
 static int
 intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
@@ -2344,14 +2363,6 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		    pipe_config->dsc.slice_count);
 
 	return 0;
-}
-
-int intel_dp_min_bpp(enum intel_output_format output_format)
-{
-	if (output_format == INTEL_OUTPUT_FORMAT_RGB)
-		return 6 * 3;
-	else
-		return 8 * 3;
 }
 
 static int
