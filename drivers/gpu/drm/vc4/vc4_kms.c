@@ -620,6 +620,23 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	int i, ret;
 
+	/*
+	 * Since the HVS FIFOs are shared across all the pixelvalves and
+	 * the TXP (and thus all the CRTCs), we need to pull the current
+	 * state of all the enabled CRTCs so that an update to a single
+	 * CRTC still keeps the previous FIFOs enabled and assigned to
+	 * the same CRTCs, instead of evaluating only the CRTC being
+	 * modified.
+	 */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (!crtc->state->enable)
+			continue;
+
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	}
+
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		struct vc4_crtc_state *vc4_crtc_state =
 			to_vc4_crtc_state(crtc_state);
