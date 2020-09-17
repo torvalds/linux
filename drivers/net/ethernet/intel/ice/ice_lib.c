@@ -2145,11 +2145,18 @@ void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create)
 	dev = ice_pf_to_dev(pf);
 	eth_fltr = create ? ice_fltr_add_eth : ice_fltr_remove_eth;
 
-	if (tx)
+	if (tx) {
 		status = eth_fltr(vsi, ETH_P_LLDP, ICE_FLTR_TX,
 				  ICE_DROP_PACKET);
-	else
-		status = eth_fltr(vsi, ETH_P_LLDP, ICE_FLTR_RX, ICE_FWD_TO_VSI);
+	} else {
+		if (ice_fw_supports_lldp_fltr_ctrl(&pf->hw)) {
+			status = ice_lldp_fltr_add_remove(&pf->hw, vsi->vsi_num,
+							  create);
+		} else {
+			status = eth_fltr(vsi, ETH_P_LLDP, ICE_FLTR_RX,
+					  ICE_FWD_TO_VSI);
+		}
+	}
 
 	if (status)
 		dev_err(dev, "Fail %s %s LLDP rule on VSI %i error: %s\n",

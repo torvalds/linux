@@ -902,4 +902,9 @@ struct ice_hw_port_stats {
 /* Hash redirection LUT for VSI - maximum array size */
 #define ICE_VSIQF_HLUT_ARRAY_SIZE	((VSIQF_HLUT_MAX_INDEX + 1) * 4)
 
+/* AQ API version for LLDP_FILTER_CONTROL */
+#define ICE_FW_API_LLDP_FLTR_MAJ	1
+#define ICE_FW_API_LLDP_FLTR_MIN	7
+#define ICE_FW_API_LLDP_FLTR_PATCH	1
+
 #endif /* _ICE_TYPE_H_ */
