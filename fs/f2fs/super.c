@@ -2741,7 +2741,7 @@ static inline bool sanity_check_area_boundary(struct f2fs_sb_info *sbi,
 static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 				struct buffer_head *bh)
 {
-	block_t segment_count, segs_per_sec, secs_per_zone;
+	block_t segment_count, segs_per_sec, secs_per_zone, segment_count_main;
 	block_t total_sections, blocks_per_seg;
 	struct f2fs_super_block *raw_super = (struct f2fs_super_block *)
 					(bh->b_data + F2FS_SUPER_OFFSET);
@@ -2812,6 +2812,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 	}
 
 	segment_count = le32_to_cpu(raw_super->segment_count);
+	segment_count_main = le32_to_cpu(raw_super->segment_count_main);
 	segs_per_sec = le32_to_cpu(raw_super->segs_per_sec);
 	secs_per_zone = le32_to_cpu(raw_super->secs_per_zone);
 	total_sections = le32_to_cpu(raw_super->section_count);
@@ -2825,8 +2826,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 		return -EFSCORRUPTED;
 	}
 
-	if (total_sections > segment_count ||
-			total_sections < F2FS_MIN_SEGMENTS ||
+	if (total_sections > segment_count_main || total_sections < 1 ||
 			segs_per_sec > segment_count || !segs_per_sec) {
 		f2fs_info(sbi, "Invalid segment/section count (%u, %u x %u)",
 			  segment_count, total_sections, segs_per_sec);
@@ -2939,7 +2939,7 @@ int f2fs_sanity_check_ckpt(struct f2fs_sb_info *sbi)
 	ovp_segments = le32_to_cpu(ckpt->overprov_segment_count);
 	reserved_segments = le32_to_cpu(ckpt->rsvd_segment_count);
 
-	if (unlikely(fsmeta < F2FS_MIN_SEGMENTS ||
+	if (unlikely(fsmeta < F2FS_MIN_META_SEGMENTS ||
 			ovp_segments == 0 || reserved_segments == 0)) {
 		f2fs_err(sbi, "Wrong layout: check mkfs.f2fs version");
 		return 1;
