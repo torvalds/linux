@@ -14,10 +14,8 @@ static int none_init_connection_security(struct rxrpc_connection *conn,
 	return 0;
 }
 
-static int none_secure_packet(struct rxrpc_call *call,
-			      struct sk_buff *skb,
-			      size_t data_size,
-			      void *sechdr)
+static int none_secure_packet(struct rxrpc_call *call, struct sk_buff *skb,
+			      size_t data_size)
 {
 	return 0;
 }

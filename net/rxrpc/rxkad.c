@@ -230,9 +230,7 @@ static void rxkad_free_call_crypto(struct rxrpc_call *call)
  * partially encrypt a packet (level 1 security)
  */
 static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
-				    struct sk_buff *skb,
-				    u32 data_size,
-				    void *sechdr,
+				    struct sk_buff *skb, u32 data_size,
 				    struct skcipher_request *req)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -247,12 +245,12 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 	data_size |= (u32)check << 16;
 
 	hdr.data_size = htonl(data_size);
-	memcpy(sechdr, &hdr, sizeof(hdr));
+	memcpy(skb->head, &hdr, sizeof(hdr));
 
 	/* start the encryption afresh */
 	memset(&iv, 0, sizeof(iv));
 
-	sg_init_one(&sg, sechdr, 8);
+	sg_init_one(&sg, skb->head, 8);
 	skcipher_request_set_sync_tfm(req, call->conn->cipher);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, &sg, &sg, 8, iv.x);
@@ -269,7 +267,6 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 				       struct sk_buff *skb,
 				       u32 data_size,
-				       void *sechdr,
 				       struct skcipher_request *req)
 {
 	const struct rxrpc_key_token *token;
@@ -289,13 +286,13 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 
 	rxkhdr.data_size = htonl(data_size | (u32)check << 16);
 	rxkhdr.checksum = 0;
-	memcpy(sechdr, &rxkhdr, sizeof(rxkhdr));
+	memcpy(skb->head, &rxkhdr, sizeof(rxkhdr));
 
 	/* encrypt from the session key */
 	token = call->conn->params.key->payload.data[0];
 	memcpy(&iv, token->kad->session_key, sizeof(iv));
 
-	sg_init_one(&sg[0], sechdr, sizeof(rxkhdr));
+	sg_init_one(&sg[0], skb->head, sizeof(rxkhdr));
 	skcipher_request_set_sync_tfm(req, call->conn->cipher);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, &sg[0], &sg[0], sizeof(rxkhdr), iv.x);
@@ -310,7 +307,7 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	len &= ~(call->conn->size_align - 1);
 
 	sg_init_table(sg, ARRAY_SIZE(sg));
-	err = skb_to_sgvec(skb, sg, 0, len);
+	err = skb_to_sgvec(skb, sg, 8, len);
 	if (unlikely(err < 0))
 		goto out;
 	skcipher_request_set_crypt(req, sg, sg, len, iv.x);
@@ -329,8 +326,7 @@ out:
  */
 static int rxkad_secure_packet(struct rxrpc_call *call,
 			       struct sk_buff *skb,
-			       size_t data_size,
-			       void *sechdr)
+			       size_t data_size)
 {
 	struct rxrpc_skb_priv *sp;
 	struct skcipher_request	*req;
@@ -383,12 +379,10 @@ static int rxkad_secure_packet(struct rxrpc_call *call,
 		ret = 0;
 		break;
 	case RXRPC_SECURITY_AUTH:
-		ret = rxkad_secure_packet_auth(call, skb, data_size, sechdr,
-					       req);
+		ret = rxkad_secure_packet_auth(call, skb, data_size, req);
 		break;
 	case RXRPC_SECURITY_ENCRYPT:
-		ret = rxkad_secure_packet_encrypt(call, skb, data_size,
-						  sechdr, req);
+		ret = rxkad_secure_packet_encrypt(call, skb, data_size, req);
 		break;
 	default:
 		ret = -EPERM;

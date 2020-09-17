@@ -236,10 +236,7 @@ struct rxrpc_security {
 
 
 	/* impose security on a packet */
-	int (*secure_packet)(struct rxrpc_call *,
-			     struct sk_buff *,
-			     size_t,
-			     void *);
+	int (*secure_packet)(struct rxrpc_call *, struct sk_buff *, size_t);
 
 	/* verify the security on a received packet */
 	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *,

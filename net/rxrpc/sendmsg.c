@@ -372,8 +372,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			ASSERTCMP(skb->mark, ==, 0);
 
 			_debug("HS: %u", call->conn->security_size);
-			skb_reserve(skb, call->conn->security_size);
-			skb->len += call->conn->security_size;
+			__skb_put(skb, call->conn->security_size);
 
 			sp->remain = chunk;
 			if (sp->remain > skb_tailroom(skb))
@@ -446,8 +445,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				 call->tx_winsize)
 				sp->hdr.flags |= RXRPC_MORE_PACKETS;
 
-			ret = call->security->secure_packet(
-				call, skb, skb->mark, skb->head);
+			ret = call->security->secure_packet(call, skb, skb->mark);
 			if (ret < 0)
 				goto out;
 
