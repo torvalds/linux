@@ -1627,7 +1627,6 @@ int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem)
 {
 	return bo->bdev->driver->ttm_tt_bind(bo->bdev, bo->ttm, mem);
 }
-EXPORT_SYMBOL(ttm_bo_tt_bind);
 
 void ttm_bo_tt_unbind(struct ttm_buffer_object *bo)
 {

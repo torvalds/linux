@@ -44,6 +44,9 @@
 #include <nvif/if500b.h>
 #include <nvif/if900b.h>
 
+static int nouveau_ttm_tt_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm,
+			       struct ttm_resource *reg);
+
 /*
  * NV10-NV40 tiling helpers
  */
@@ -927,7 +930,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_tt_bind(bo, &tmp_reg);
+	ret = nouveau_ttm_tt_bind(bo->bdev, bo->ttm, &tmp_reg);
 	if (ret)
 		goto out;
 
