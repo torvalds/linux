@@ -3236,8 +3236,11 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	if (ret < 0)
 		return ret;
 
-	if (!ctrl->identified)
-		nvme_hwmon_init(ctrl);
+	if (!ctrl->identified) {
+		ret = nvme_hwmon_init(ctrl);
+		if (ret < 0)
+			return ret;
+	}
 
 	ctrl->identified = true;
 
