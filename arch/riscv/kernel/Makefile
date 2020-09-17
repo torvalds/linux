@@ -55,4 +55,6 @@ obj-$(CONFIG_KGDB)		+= kgdb.o
 
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
+obj-$(CONFIG_EFI)		+= efi.o
+
 clean:
