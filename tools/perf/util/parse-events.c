@@ -360,8 +360,10 @@ __add_event(struct list_head *list, int *idx,
 		event_attr_init(attr);
 
 	evsel = evsel__new_idx(attr, *idx);
-	if (!evsel)
+	if (!evsel) {
+		perf_cpu_map__put(cpus);
 		return NULL;
+	}
 
 	(*idx)++;
 	evsel->core.cpus = cpus;
