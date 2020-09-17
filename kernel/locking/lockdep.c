@@ -1606,6 +1606,15 @@ static inline void bfs_init_rootb(struct lock_list *lock,
 	lock->only_xr = (hlock->read != 0);
 }
 
+static inline struct lock_list *__bfs_next(struct lock_list *lock, int offset)
+{
+	if (!lock || !lock->parent)
+		return NULL;
+
+	return list_next_or_null_rcu(get_dep_list(lock->parent, offset),
+				     &lock->entry, struct lock_list, entry);
+}
+
 /*
  * Breadth-First Search to find a strong path in the dependency graph.
  *
@@ -1639,36 +1648,25 @@ static enum bfs_result __bfs(struct lock_list *source_entry,
 			     struct lock_list **target_entry,
 			     int offset)
 {
-	struct lock_list *entry;
-	struct lock_list *lock;
-	struct list_head *head;
 	struct circular_queue *cq = &lock_cq;
-	enum bfs_result ret = BFS_RNOMATCH;
+	struct lock_list *lock = NULL;
+	struct lock_list *entry;
+	struct list_head *head;
+	unsigned int cq_depth;
+	bool first;
 
 	lockdep_assert_locked();
-
-	if (match(source_entry, data)) {
-		*target_entry = source_entry;
-		ret = BFS_RMATCH;
-		goto exit;
-	}
-
-	head = get_dep_list(source_entry, offset);
-	if (list_empty(head))
-		goto exit;
 
 	__cq_init(cq);
 	__cq_enqueue(cq, source_entry);
 
-	while ((lock = __cq_dequeue(cq))) {
-		bool prev_only_xr;
-
-		if (!lock->class) {
-			ret = BFS_EINVALIDNODE;
-			goto exit;
-		}
+	while ((lock = __bfs_next(lock, offset)) || (lock = __cq_dequeue(cq))) {
+		if (!lock->class)
+			return BFS_EINVALIDNODE;
 
 		/*
+		 * Step 1: check whether we already finish on this one.
+		 *
 		 * If we have visited all the dependencies from this @lock to
 		 * others (iow, if we have visited all lock_list entries in
 		 * @lock->class->locks_{after,before}) we skip, otherwise go
@@ -1680,13 +1678,13 @@ static enum bfs_result __bfs(struct lock_list *source_entry,
 		else
 			mark_lock_accessed(lock);
 
-		head = get_dep_list(lock, offset);
-
-		prev_only_xr = lock->only_xr;
-
-		list_for_each_entry_rcu(entry, head, entry) {
-			unsigned int cq_depth;
-			u8 dep = entry->dep;
+		/*
+		 * Step 2: check whether prev dependency and this form a strong
+		 *         dependency path.
+		 */
+		if (lock->parent) { /* Parent exists, check prev dependency */
+			u8 dep = lock->dep;
+			bool prev_only_xr = lock->parent->only_xr;
 
 			/*
 			 * Mask out all -(S*)-> if we only have *R in previous
@@ -1701,26 +1699,49 @@ static enum bfs_result __bfs(struct lock_list *source_entry,
 				continue;
 
 			/* If there are only -(*R)-> left, set that for the next step */
-			entry->only_xr = !(dep & (DEP_SN_MASK | DEP_EN_MASK));
+			lock->only_xr = !(dep & (DEP_SN_MASK | DEP_EN_MASK));
+		}
 
+		/*
+		 * Step 3: we haven't visited this and there is a strong
+		 *         dependency path to this, so check with @match.
+		 */
+		if (match(lock, data)) {
+			*target_entry = lock;
+			return BFS_RMATCH;
+		}
+
+		/*
+		 * Step 4: if not match, expand the path by adding the
+		 *         forward or backwards dependencis in the search
+		 *
+		 */
+		first = true;
+		head = get_dep_list(lock, offset);
+		list_for_each_entry_rcu(entry, head, entry) {
 			visit_lock_entry(entry, lock);
-			if (match(entry, data)) {
-				*target_entry = entry;
-				ret = BFS_RMATCH;
-				goto exit;
-			}
 
-			if (__cq_enqueue(cq, entry)) {
-				ret = BFS_EQUEUEFULL;
-				goto exit;
-			}
+			/*
+			 * Note we only enqueue the first of the list into the
+			 * queue, because we can always find a sibling
+			 * dependency from one (see __bfs_next()), as a result
+			 * the space of queue is saved.
+			 */
+			if (!first)
+				continue;
+
+			first = false;
+
+			if (__cq_enqueue(cq, entry))
+				return BFS_EQUEUEFULL;
+
 			cq_depth = __cq_get_elem_count(cq);
 			if (max_bfs_queue_depth < cq_depth)
 				max_bfs_queue_depth = cq_depth;
 		}
 	}
-exit:
-	return ret;
+
+	return BFS_RNOMATCH;
 }
 
 static inline enum bfs_result
