@@ -2264,7 +2264,7 @@ config FORCE_MAX_ZONEORDER
 	default "13" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
 	range 12 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
 	default "12" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
-	range 11 64
+	range 0 64
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
