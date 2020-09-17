@@ -51,6 +51,11 @@ struct adis_timeout {
  * @timeouts: Chip specific delays
  * @enable_irq: Hook for ADIS devices that have a special IRQ enable/disable
  * @has_paging: True if ADIS device has paged registers
+ * @burst_reg_cmd:	Register command that triggers burst
+ * @burst_len:		Burst size in the SPI RX buffer. If @burst_max_len is defined,
+ *			this should be the minimum size supported by the device.
+ * @burst_max_len:	Holds the maximum burst size when the device supports
+ *			more than one burst mode with different sizes
  */
 struct adis_data {
 	unsigned int read_delay;
@@ -75,6 +80,10 @@ struct adis_data {
 	int (*enable_irq)(struct adis *adis, bool enable);
 
 	bool has_paging;
+
+	unsigned int burst_reg_cmd;
+	unsigned int burst_len;
+	unsigned int burst_max_len;
 };
 
 /**

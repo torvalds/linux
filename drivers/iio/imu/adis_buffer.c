@@ -26,12 +26,10 @@ static int adis_update_scan_mode_burst(struct iio_dev *indio_dev,
 	unsigned int burst_length, burst_max_length;
 	u8 *tx;
 
-	/* All but the timestamp channel */
-	burst_length = (indio_dev->num_channels - 1) * sizeof(u16);
-	burst_length += adis->burst->extra_len + adis->burst_extra_len;
+	burst_length = adis->data->burst_len + adis->burst_extra_len;
 
-	if (adis->burst->burst_max_len)
-		burst_max_length = adis->burst->burst_max_len;
+	if (adis->data->burst_max_len)
+		burst_max_length = adis->data->burst_max_len;
 	else
 		burst_max_length = burst_length;
 
@@ -47,7 +45,7 @@ static int adis_update_scan_mode_burst(struct iio_dev *indio_dev,
 	}
 
 	tx = adis->buffer + burst_max_length;
-	tx[0] = ADIS_READ_REG(adis->burst->reg_cmd);
+	tx[0] = ADIS_READ_REG(adis->data->burst_reg_cmd);
 	tx[1] = 0;
 
 	adis->xfer[0].tx_buf = tx;
@@ -76,7 +74,7 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 	kfree(adis->xfer);
 	kfree(adis->buffer);
 
-	if (adis->burst && adis->burst->en)
+	if (adis->data->burst_len)
 		return adis_update_scan_mode_burst(indio_dev, scan_mask);
 
 	scan_count = indio_dev->scan_bytes / 2;
