@@ -89,9 +89,7 @@ static inline u32 dvb_crc32(u32 crc, u8 *data, u32 len)
 
 static void vidtv_psi_update_version_num(struct vidtv_psi_table_header *h)
 {
-	++h->version;
-	if (h->version > MAX_VERSION_NUM)
-		h->version = 0;
+	h->version++;
 }
 
 static inline u16 vidtv_psi_sdt_serv_get_desc_loop_len(struct vidtv_psi_table_sdt_service *s)
