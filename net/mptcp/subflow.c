@@ -807,7 +807,7 @@ validate_seq:
 }
 
 static void mptcp_subflow_discard_data(struct sock *ssk, struct sk_buff *skb,
-				       unsigned int limit)
+				       u64 limit)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 	bool fin = TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN;
