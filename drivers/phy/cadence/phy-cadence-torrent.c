@@ -1603,13 +1603,15 @@ static int cdns_torrent_phy_on(struct phy *phy)
 	u32 read_val;
 	int ret;
 
-	/* Take the PHY out of reset */
-	ret = reset_control_deassert(cdns_phy->phy_rst);
-	if (ret)
-		return ret;
+	if (cdns_phy->nsubnodes == 1) {
+		/* Take the PHY lane group out of reset */
+		reset_control_deassert(inst->lnk_rst);
 
-	/* Take the PHY lane group out of reset */
-	reset_control_deassert(inst->lnk_rst);
+		/* Take the PHY out of reset */
+		ret = reset_control_deassert(cdns_phy->phy_rst);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Wait for cmn_ready assertion
@@ -1623,6 +1625,8 @@ static int cdns_torrent_phy_on(struct phy *phy)
 		return ret;
 	}
 
+	mdelay(10);
+
 	return 0;
 }
 
@@ -1631,6 +1635,9 @@ static int cdns_torrent_phy_off(struct phy *phy)
 	struct cdns_torrent_inst *inst = phy_get_drvdata(phy);
 	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
 	int ret;
+
+	if (cdns_phy->nsubnodes != 1)
+		return 0;
 
 	ret = reset_control_assert(cdns_phy->phy_rst);
 	if (ret)
@@ -1886,7 +1893,7 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 	struct cdns_torrent_vals *cmn_vals, *tx_ln_vals, *rx_ln_vals;
 	struct cdns_torrent_vals *link_cmn_vals, *xcvr_diag_vals;
 	enum cdns_torrent_phy_type phy_t1, phy_t2, tmp_phy_type;
-	int i, j, node, mlane, num_lanes;
+	int i, j, node, mlane, num_lanes, ret;
 	struct cdns_reg_pairs *reg_pairs;
 	enum cdns_torrent_ssc_mode ssc;
 	struct regmap *regmap;
@@ -1989,7 +1996,14 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 						     reg_pairs[j].val);
 			}
 		}
+
+		reset_control_deassert(cdns_phy->phys[node].lnk_rst);
 	}
+
+	/* Take the PHY out of reset */
+	ret = reset_control_deassert(cdns_phy->phy_rst);
+	if (ret)
+		return ret;
 
 	return 0;
 }
