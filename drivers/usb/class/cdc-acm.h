@@ -64,12 +64,12 @@
 #define ACM_NR  16
 
 struct acm_wb {
-	unsigned char *buf;
+	u8 *buf;
 	dma_addr_t dmah;
-	int len;
-	int use;
+	unsigned int len;
 	struct urb		*urb;
 	struct acm		*instance;
+	bool use;
 };
 
 struct acm_rb {

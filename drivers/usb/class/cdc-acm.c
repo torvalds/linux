@@ -173,7 +173,7 @@ static int acm_wb_alloc(struct acm *acm)
 	for (;;) {
 		wb = &acm->wb[wbn];
 		if (!wb->use) {
-			wb->use = 1;
+			wb->use = true;
 			wb->len = 0;
 			return wbn;
 		}
@@ -191,7 +191,8 @@ static int acm_wb_is_avail(struct acm *acm)
 	n = ACM_NW;
 	spin_lock_irqsave(&acm->write_lock, flags);
 	for (i = 0; i < ACM_NW; i++)
-		n -= acm->wb[i].use;
+		if(acm->wb[i].use)
+			n--;
 	spin_unlock_irqrestore(&acm->write_lock, flags);
 	return n;
 }
@@ -201,7 +202,7 @@ static int acm_wb_is_avail(struct acm *acm)
  */
 static void acm_write_done(struct acm *acm, struct acm_wb *wb)
 {
-	wb->use = 0;
+	wb->use = false;
 	acm->transmitting--;
 	usb_autopm_put_interface_async(acm->control);
 }
@@ -741,7 +742,7 @@ static void acm_port_shutdown(struct tty_port *port)
 		if (!urb)
 			break;
 		wb = urb->context;
-		wb->use = 0;
+		wb->use = false;
 		usb_autopm_put_interface_async(acm->control);
 	}
 
@@ -792,7 +793,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	wb = &acm->wb[wbn];
 
 	if (!acm->dev) {
-		wb->use = 0;
+		wb->use = false;
 		spin_unlock_irqrestore(&acm->write_lock, flags);
 		return -ENODEV;
 	}
@@ -804,7 +805,7 @@ static int acm_tty_write(struct tty_struct *tty,
 
 	stat = usb_autopm_get_interface_async(acm->control);
 	if (stat) {
-		wb->use = 0;
+		wb->use = false;
 		spin_unlock_irqrestore(&acm->write_lock, flags);
 		return stat;
 	}
