@@ -718,7 +718,10 @@ nouveau_ttm_tt_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm,
 {
 #if IS_ENABLED(CONFIG_AGP)
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
-
+#endif
+	if (!reg)
+		return -EINVAL;
+#if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge)
 		return ttm_agp_bind(ttm, reg);
 #endif

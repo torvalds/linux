@@ -420,6 +420,7 @@ struct radeon_ttm_tt {
 	uint64_t			userptr;
 	struct mm_struct		*usermm;
 	uint32_t			userflags;
+	bool bound;
 };
 
 /* prepare the sg table with the user pages */
@@ -513,6 +514,13 @@ static void radeon_ttm_tt_unpin_userptr(struct ttm_bo_device *bdev, struct ttm_t
 	sg_free_table(ttm->sg);
 }
 
+static bool radeon_ttm_backend_is_bound(struct ttm_tt *ttm)
+{
+	struct radeon_ttm_tt *gtt = (void*)ttm;
+
+	return (gtt->bound);
+}
+
 static int radeon_ttm_backend_bind(struct ttm_bo_device *bdev,
 				   struct ttm_tt *ttm,
 				   struct ttm_resource *bo_mem)
@@ -522,6 +530,9 @@ static int radeon_ttm_backend_bind(struct ttm_bo_device *bdev,
 	uint32_t flags = RADEON_GART_PAGE_VALID | RADEON_GART_PAGE_READ |
 		RADEON_GART_PAGE_WRITE;
 	int r;
+
+	if (gtt->bound)
+		return 0;
 
 	if (gtt->userptr) {
 		radeon_ttm_tt_pin_userptr(bdev, ttm);
@@ -542,6 +553,7 @@ static int radeon_ttm_backend_bind(struct ttm_bo_device *bdev,
 			  ttm->num_pages, (unsigned)gtt->offset);
 		return r;
 	}
+	gtt->bound = true;
 	return 0;
 }
 
@@ -550,10 +562,14 @@ static void radeon_ttm_backend_unbind(struct ttm_bo_device *bdev, struct ttm_tt 
 	struct radeon_ttm_tt *gtt = (void *)ttm;
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
 
+	if (!gtt->bound)
+		return;
+
 	radeon_gart_unbind(rdev, gtt->offset, ttm->num_pages);
 
 	if (gtt->userptr)
 		radeon_ttm_tt_unpin_userptr(bdev, ttm);
+	gtt->bound = false;
 }
 
 static void radeon_ttm_backend_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
@@ -689,12 +705,27 @@ int radeon_ttm_tt_set_userptr(struct radeon_device *rdev,
 	return 0;
 }
 
+bool radeon_ttm_tt_is_bound(struct ttm_bo_device *bdev,
+			    struct ttm_tt *ttm)
+{
+#if IS_ENABLED(CONFIG_AGP)
+	struct radeon_device *rdev = radeon_get_rdev(bdev);
+	if (rdev->flags & RADEON_IS_AGP)
+		return ttm_agp_is_bound(ttm);
+#endif
+	return radeon_ttm_backend_is_bound(ttm);
+}
+
 static int radeon_ttm_tt_bind(struct ttm_bo_device *bdev,
 			      struct ttm_tt *ttm,
 			      struct ttm_resource *bo_mem)
 {
+#if IS_ENABLED(CONFIG_AGP)
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
+#endif
 
+	if (!bo_mem)
+		return -EINVAL;
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP)
 		return ttm_agp_bind(ttm, bo_mem);

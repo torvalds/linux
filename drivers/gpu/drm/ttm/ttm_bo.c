@@ -1626,27 +1626,11 @@ void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 
 int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem)
 {
-	int ret;
-
-	if (!bo->ttm)
-		return -EINVAL;
-
-	if (ttm_bo_tt_is_bound(bo))
-		return 0;
-
-	ret = bo->bdev->driver->ttm_tt_bind(bo->bdev, bo->ttm, mem);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ttm_bo_tt_set_bound(bo);
-	return 0;
+	return bo->bdev->driver->ttm_tt_bind(bo->bdev, bo->ttm, mem);
 }
 EXPORT_SYMBOL(ttm_bo_tt_bind);
 
 void ttm_bo_tt_unbind(struct ttm_buffer_object *bo)
 {
-	if (ttm_bo_tt_is_bound(bo)) {
-		bo->bdev->driver->ttm_tt_unbind(bo->bdev, bo->ttm);
-		ttm_bo_tt_set_unbound(bo);
-	}
+	bo->bdev->driver->ttm_tt_unbind(bo->bdev, bo->ttm);
 }

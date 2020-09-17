@@ -57,6 +57,9 @@ int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 	int ret, cached = (bo_mem->placement & TTM_PL_FLAG_CACHED);
 	unsigned i;
 
+	if (agp_be->mem)
+		return 0;
+
 	mem = agp_allocate_memory(agp_be->bridge, ttm->num_pages, AGP_USER_MEMORY);
 	if (unlikely(mem == NULL))
 		return -ENOMEM;
@@ -97,6 +100,17 @@ void ttm_agp_unbind(struct ttm_tt *ttm)
 	}
 }
 EXPORT_SYMBOL(ttm_agp_unbind);
+
+bool ttm_agp_is_bound(struct ttm_tt *ttm)
+{
+	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
+
+	if (!ttm)
+		return false;
+
+	return (agp_be->mem != NULL);
+}
+EXPORT_SYMBOL(ttm_agp_is_bound);
 
 void ttm_agp_destroy(struct ttm_tt *ttm)
 {

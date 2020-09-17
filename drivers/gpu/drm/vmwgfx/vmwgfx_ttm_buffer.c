@@ -267,6 +267,7 @@ struct vmw_ttm_tt {
 	struct vmw_sg_table vsgt;
 	uint64_t sg_alloc_size;
 	bool mapped;
+	bool bound;
 };
 
 const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
@@ -565,7 +566,13 @@ static int vmw_ttm_bind(struct ttm_bo_device *bdev,
 {
 	struct vmw_ttm_tt *vmw_be =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
-	int ret;
+	int ret = 0;
+
+	if (!bo_mem)
+		return -EINVAL;
+
+	if (vmw_be->bound)
+		return 0;
 
 	ret = vmw_ttm_map_dma(vmw_be);
 	if (unlikely(ret != 0))
@@ -576,8 +583,9 @@ static int vmw_ttm_bind(struct ttm_bo_device *bdev,
 
 	switch (bo_mem->mem_type) {
 	case VMW_PL_GMR:
-		return vmw_gmr_bind(vmw_be->dev_priv, &vmw_be->vsgt,
+		ret = vmw_gmr_bind(vmw_be->dev_priv, &vmw_be->vsgt,
 				    ttm->num_pages, vmw_be->gmr_id);
+		break;
 	case VMW_PL_MOB:
 		if (unlikely(vmw_be->mob == NULL)) {
 			vmw_be->mob =
@@ -586,13 +594,15 @@ static int vmw_ttm_bind(struct ttm_bo_device *bdev,
 				return -ENOMEM;
 		}
 
-		return vmw_mob_bind(vmw_be->dev_priv, vmw_be->mob,
+		ret = vmw_mob_bind(vmw_be->dev_priv, vmw_be->mob,
 				    &vmw_be->vsgt, ttm->num_pages,
 				    vmw_be->gmr_id);
+		break;
 	default:
 		BUG();
 	}
-	return 0;
+	vmw_be->bound = true;
+	return ret;
 }
 
 static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
@@ -600,6 +610,9 @@ static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
 {
 	struct vmw_ttm_tt *vmw_be =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+
+	if (!vmw_be->bound)
+		return;
 
 	switch (vmw_be->mem_type) {
 	case VMW_PL_GMR:
@@ -614,6 +627,7 @@ static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
 
 	if (vmw_be->dev_priv->map_mode == vmw_dma_map_bind)
 		vmw_ttm_unmap_dma(vmw_be);
+	vmw_be->bound = false;
 }
 
 

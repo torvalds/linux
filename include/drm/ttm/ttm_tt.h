@@ -219,6 +219,7 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_buffer_object *bo,
 int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem);
 void ttm_agp_unbind(struct ttm_tt *ttm);
 void ttm_agp_destroy(struct ttm_tt *ttm);
+bool ttm_agp_is_bound(struct ttm_tt *ttm);
 #endif
 
 #endif

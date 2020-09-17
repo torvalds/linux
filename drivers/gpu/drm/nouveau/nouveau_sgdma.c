@@ -33,6 +33,9 @@ nouveau_sgdma_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_re
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	int ret;
 
+	if (nvbe->mem)
+		return 0;
+
 	ret = nouveau_mem_host(reg, &nvbe->ttm);
 	if (ret)
 		return ret;
@@ -53,7 +56,10 @@ void
 nouveau_sgdma_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
-	nouveau_mem_fini(nvbe->mem);
+	if (nvbe->mem) {
+		nouveau_mem_fini(nvbe->mem);
+		nvbe->mem = NULL;
+	}
 }
 
 struct ttm_tt *

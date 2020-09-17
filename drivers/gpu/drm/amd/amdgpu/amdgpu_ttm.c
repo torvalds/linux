@@ -813,6 +813,7 @@ struct amdgpu_ttm_tt {
 	uint64_t		userptr;
 	struct task_struct	*usertask;
 	uint32_t		userflags;
+	bool			bound;
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
 	struct hmm_range	*range;
 #endif
@@ -1110,6 +1111,12 @@ static int amdgpu_ttm_backend_bind(struct ttm_bo_device *bdev,
 	uint64_t flags;
 	int r = 0;
 
+	if (!bo_mem)
+		return -EINVAL;
+
+	if (gtt->bound)
+		return 0;
+
 	if (gtt->userptr) {
 		r = amdgpu_ttm_tt_pin_userptr(bdev, ttm);
 		if (r) {
@@ -1143,6 +1150,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_bo_device *bdev,
 	if (r)
 		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
 			  ttm->num_pages, gtt->offset);
+	gtt->bound = true;
 	return r;
 }
 
@@ -1236,6 +1244,9 @@ static void amdgpu_ttm_backend_unbind(struct ttm_bo_device *bdev,
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	int r;
 
+	if (!gtt->bound)
+		return;
+
 	/* if the pages have userptr pinning then clear that first */
 	if (gtt->userptr)
 		amdgpu_ttm_tt_unpin_userptr(bdev, ttm);
@@ -1248,6 +1259,7 @@ static void amdgpu_ttm_backend_unbind(struct ttm_bo_device *bdev,
 	if (r)
 		DRM_ERROR("failed to unbind %lu pages at 0x%08llX\n",
 			  gtt->ttm.ttm.num_pages, gtt->offset);
+	gtt->bound = false;
 }
 
 static void amdgpu_ttm_backend_destroy(struct ttm_bo_device *bdev,
