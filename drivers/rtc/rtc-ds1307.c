@@ -1313,7 +1313,7 @@ static int ds1307_nvram_write(void *priv, unsigned int offset, void *val,
 static u8 ds1307_trickle_init(struct ds1307 *ds1307,
 			      const struct chip_desc *chip)
 {
-	u32 ohms;
+	u32 ohms, chargeable;
 	bool diode = chip->charge_default;
 
 	if (!chip->do_trickle_setup)
@@ -1323,8 +1323,27 @@ static u8 ds1307_trickle_init(struct ds1307 *ds1307,
 				     &ohms) && chip->requires_trickle_resistor)
 		return 0;
 
-	if (device_property_read_bool(ds1307->dev, "trickle-diode-disable"))
+	/* aux-voltage-chargeable takes precedence over the deprecated
+	 * trickle-diode-disable
+	 */
+	if (!device_property_read_u32(ds1307->dev, "aux-voltage-chargeable",
+				     &chargeable)) {
+		switch (chargeable) {
+		case 0:
+			diode = false;
+			break;
+		case 1:
+			diode = true;
+			break;
+		default:
+			dev_warn(ds1307->dev,
+				 "unsupported aux-voltage-chargeable value\n");
+			break;
+		}
+	} else if (device_property_read_bool(ds1307->dev,
+					     "trickle-diode-disable")) {
 		diode = false;
+	}
 
 	return chip->do_trickle_setup(ds1307, ohms, diode);
 }
