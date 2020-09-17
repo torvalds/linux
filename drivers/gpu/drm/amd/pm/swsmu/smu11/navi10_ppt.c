@@ -2633,6 +2633,9 @@ static int navi10_post_smu_init(struct smu_context *smu)
 	uint64_t feature_mask = 0;
 	int ret = 0;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	/* For Naiv1x, enable these features only after DAL initialization */
 	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
 		feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
