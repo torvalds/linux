@@ -94,6 +94,7 @@ static void bcm6358_led_set(struct led_classdev *led_cdev,
 static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 		       void __iomem *mem, spinlock_t *lock)
 {
+	struct led_init_data init_data = {};
 	struct bcm6358_led *led;
 	const char *state;
 	int rc;
@@ -109,7 +110,6 @@ static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 	if (of_property_read_bool(nc, "active-low"))
 		led->active_low = true;
 
-	led->cdev.name = of_get_property(nc, "label", NULL) ? : nc->name;
 	led->cdev.default_trigger = of_get_property(nc,
 						    "linux,default-trigger",
 						    NULL);
@@ -136,8 +136,9 @@ static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 	bcm6358_led_set(&led->cdev, led->cdev.brightness);
 
 	led->cdev.brightness_set = bcm6358_led_set;
+	init_data.fwnode = of_fwnode_handle(nc);
 
-	rc = devm_led_classdev_register(dev, &led->cdev);
+	rc = devm_led_classdev_register_ext(dev, &led->cdev, &init_data);
 	if (rc < 0)
 		return rc;
 
