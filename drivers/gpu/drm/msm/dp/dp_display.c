@@ -970,9 +970,8 @@ static int hpd_event_thread(void *data)
 				(dp_priv->event_pndx == dp_priv->event_gndx),
 						EVENT_TIMEOUT);
 		} else {
-			wait_event_timeout(dp_priv->event_q,
-				(dp_priv->event_pndx != dp_priv->event_gndx),
-						EVENT_TIMEOUT);
+			wait_event_interruptible(dp_priv->event_q,
+				(dp_priv->event_pndx != dp_priv->event_gndx));
 		}
 		spin_lock_irqsave(&dp_priv->event_lock, flag);
 		todo = &dp_priv->event_list[dp_priv->event_gndx];
