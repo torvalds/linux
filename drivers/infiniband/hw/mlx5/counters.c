@@ -457,12 +457,12 @@ static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 		cnts->num_ext_ppcnt_counters = ARRAY_SIZE(ext_ppcnt_cnts);
 		num_counters += ARRAY_SIZE(ext_ppcnt_cnts);
 	}
-	cnts->names = kcalloc(num_counters, sizeof(cnts->names), GFP_KERNEL);
+	cnts->names = kcalloc(num_counters, sizeof(*cnts->names), GFP_KERNEL);
 	if (!cnts->names)
 		return -ENOMEM;
 
 	cnts->offsets = kcalloc(num_counters,
-				sizeof(cnts->offsets), GFP_KERNEL);
+				sizeof(*cnts->offsets), GFP_KERNEL);
 	if (!cnts->offsets)
 		goto err_names;
 
