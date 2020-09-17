@@ -30,7 +30,7 @@ struct ns2_led_modval {
 	int			slow_level;
 };
 
-struct ns2_led {
+struct ns2_led_of_one {
 	const char	*name;
 	const char	*default_trigger;
 	struct gpio_desc *cmd;
@@ -40,8 +40,8 @@ struct ns2_led {
 };
 
 struct ns2_led_of {
-	int		num_leds;
-	struct ns2_led	*leds;
+	int			num_leds;
+	struct ns2_led_of_one	*leds;
 };
 
 /*
@@ -51,7 +51,7 @@ struct ns2_led_of {
  * for the command/slow GPIOs corresponds to a LED mode.
  */
 
-struct ns2_led_data {
+struct ns2_led {
 	struct led_classdev	cdev;
 	struct gpio_desc	*cmd;
 	struct gpio_desc	*slow;
@@ -62,7 +62,7 @@ struct ns2_led_data {
 	struct ns2_led_modval	*modval;
 };
 
-static int ns2_led_get_mode(struct ns2_led_data *led_dat,
+static int ns2_led_get_mode(struct ns2_led *led_dat,
 			    enum ns2_led_modes *mode)
 {
 	int i;
@@ -85,7 +85,7 @@ static int ns2_led_get_mode(struct ns2_led_data *led_dat,
 	return ret;
 }
 
-static void ns2_led_set_mode(struct ns2_led_data *led_dat,
+static void ns2_led_set_mode(struct ns2_led *led_dat,
 			     enum ns2_led_modes mode)
 {
 	int i;
@@ -121,8 +121,8 @@ exit_unlock:
 static void ns2_led_set(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
-	struct ns2_led_data *led_dat =
-		container_of(led_cdev, struct ns2_led_data, cdev);
+	struct ns2_led *led_dat =
+		container_of(led_cdev, struct ns2_led, cdev);
 	enum ns2_led_modes mode;
 
 	if (value == LED_OFF)
@@ -147,8 +147,8 @@ static ssize_t ns2_led_sata_store(struct device *dev,
 				  const char *buff, size_t count)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct ns2_led_data *led_dat =
-		container_of(led_cdev, struct ns2_led_data, cdev);
+	struct ns2_led *led_dat =
+		container_of(led_cdev, struct ns2_led, cdev);
 	int ret;
 	unsigned long enable;
 
@@ -179,8 +179,8 @@ static ssize_t ns2_led_sata_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct ns2_led_data *led_dat =
-		container_of(led_cdev, struct ns2_led_data, cdev);
+	struct ns2_led *led_dat =
+		container_of(led_cdev, struct ns2_led, cdev);
 
 	return sprintf(buf, "%d\n", led_dat->sata);
 }
@@ -194,8 +194,8 @@ static struct attribute *ns2_led_attrs[] = {
 ATTRIBUTE_GROUPS(ns2_led);
 
 static int
-create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
-	       const struct ns2_led *template)
+create_ns2_led(struct platform_device *pdev, struct ns2_led *led_dat,
+	       const struct ns2_led_of_one *template)
 {
 	int ret;
 	enum ns2_led_modes mode;
@@ -231,7 +231,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 }
 
 static int ns2_leds_parse_one(struct device *dev, struct device_node *np,
-			      struct ns2_led *led)
+			      struct ns2_led_of_one *led)
 {
 	struct ns2_led_modval *modval;
 	int nmodes, ret, i;
@@ -289,7 +289,7 @@ ns2_leds_parse_of(struct device *dev, struct ns2_led_of *ofdata)
 {
 	struct device_node *np = dev_of_node(dev);
 	struct device_node *child;
-	struct ns2_led *led, *leds;
+	struct ns2_led_of_one *led, *leds;
 	int ret, num_leds = 0;
 
 	num_leds = of_get_available_child_count(np);
@@ -325,7 +325,7 @@ MODULE_DEVICE_TABLE(of, of_ns2_leds_match);
 static int ns2_led_probe(struct platform_device *pdev)
 {
 	struct ns2_led_of *ofdata;
-	struct ns2_led_data *leds;
+	struct ns2_led *leds;
 	int i;
 	int ret;
 
