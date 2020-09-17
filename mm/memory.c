@@ -4856,6 +4856,8 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
 	flags &= ~(FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_KILLABLE);
 	flags |= FAULT_FLAG_SPECULATIVE;
 
+	check_sync_rss_stat(current);
+
 	*vma = get_vma(mm, address);
 	if (!*vma)
 		return VM_FAULT_RETRY;
