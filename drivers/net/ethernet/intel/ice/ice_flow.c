@@ -745,8 +745,7 @@ ice_flow_add_prof_sync(struct ice_hw *hw, enum ice_block blk,
 
 	status = ice_flow_proc_segs(hw, params);
 	if (status) {
-		ice_debug(hw, ICE_DBG_FLOW,
-			  "Error processing a flow's packet segments\n");
+		ice_debug(hw, ICE_DBG_FLOW, "Error processing a flow's packet segments\n");
 		goto out;
 	}
 
@@ -835,8 +834,7 @@ ice_flow_assoc_prof(struct ice_hw *hw, enum ice_block blk,
 		if (!status)
 			set_bit(vsi_handle, prof->vsis);
 		else
-			ice_debug(hw, ICE_DBG_FLOW,
-				  "HW profile add failed, %d\n",
+			ice_debug(hw, ICE_DBG_FLOW, "HW profile add failed, %d\n",
 				  status);
 	}
 
@@ -867,8 +865,7 @@ ice_flow_disassoc_prof(struct ice_hw *hw, enum ice_block blk,
 		if (!status)
 			clear_bit(vsi_handle, prof->vsis);
 		else
-			ice_debug(hw, ICE_DBG_FLOW,
-				  "HW profile remove failed, %d\n",
+			ice_debug(hw, ICE_DBG_FLOW, "HW profile remove failed, %d\n",
 				  status);
 	}
 

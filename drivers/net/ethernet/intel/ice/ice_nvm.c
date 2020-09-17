@@ -73,8 +73,7 @@ ice_read_flat_nvm(struct ice_hw *hw, u32 offset, u32 *length, u8 *data,
 
 	/* Verify the length of the read if this is for the Shadow RAM */
 	if (read_shadow_ram && ((offset + inlen) > (hw->nvm.sr_words * 2u))) {
-		ice_debug(hw, ICE_DBG_NVM,
-			  "NVM error: requested offset is beyond Shadow RAM limit\n");
+		ice_debug(hw, ICE_DBG_NVM, "NVM error: requested offset is beyond Shadow RAM limit\n");
 		return ICE_ERR_PARAM;
 	}
 
@@ -397,8 +396,7 @@ static enum ice_status ice_get_orom_ver_info(struct ice_hw *hw)
 	status = ice_get_pfa_module_tlv(hw, &boot_cfg_tlv, &boot_cfg_tlv_len,
 					ICE_SR_BOOT_CFG_PTR);
 	if (status) {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Failed to read Boot Configuration Block TLV.\n");
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read Boot Configuration Block TLV.\n");
 		return status;
 	}
 
@@ -406,8 +404,7 @@ static enum ice_status ice_get_orom_ver_info(struct ice_hw *hw)
 	 * (Combo Image Version High and Combo Image Version Low)
 	 */
 	if (boot_cfg_tlv_len < 2) {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Invalid Boot Configuration Block TLV size.\n");
+		ice_debug(hw, ICE_DBG_INIT, "Invalid Boot Configuration Block TLV size.\n");
 		return ICE_ERR_INVAL_SIZE;
 	}
 
@@ -542,14 +539,12 @@ static enum ice_status ice_discover_flash_size(struct ice_hw *hw)
 		status = ice_read_flat_nvm(hw, offset, &len, &data, false);
 		if (status == ICE_ERR_AQ_ERROR &&
 		    hw->adminq.sq_last_status == ICE_AQ_RC_EINVAL) {
-			ice_debug(hw, ICE_DBG_NVM,
-				  "%s: New upper bound of %u bytes\n",
+			ice_debug(hw, ICE_DBG_NVM, "%s: New upper bound of %u bytes\n",
 				  __func__, offset);
 			status = 0;
 			max_size = offset;
 		} else if (!status) {
-			ice_debug(hw, ICE_DBG_NVM,
-				  "%s: New lower bound of %u bytes\n",
+			ice_debug(hw, ICE_DBG_NVM, "%s: New lower bound of %u bytes\n",
 				  __func__, offset);
 			min_size = offset;
 		} else {
@@ -558,8 +553,7 @@ static enum ice_status ice_discover_flash_size(struct ice_hw *hw)
 		}
 	}
 
-	ice_debug(hw, ICE_DBG_NVM,
-		  "Predicted flash size is %u bytes\n", max_size);
+	ice_debug(hw, ICE_DBG_NVM, "Predicted flash size is %u bytes\n", max_size);
 
 	hw->nvm.flash_size = max_size;
 
@@ -600,15 +594,13 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 	} else {
 		/* Blank programming mode */
 		nvm->blank_nvm_mode = true;
-		ice_debug(hw, ICE_DBG_NVM,
-			  "NVM init error: unsupported blank mode.\n");
+		ice_debug(hw, ICE_DBG_NVM, "NVM init error: unsupported blank mode.\n");
 		return ICE_ERR_NVM_BLANK_MODE;
 	}
 
 	status = ice_read_sr_word(hw, ICE_SR_NVM_DEV_STARTER_VER, &ver);
 	if (status) {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Failed to read DEV starter version.\n");
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read DEV starter version.\n");
 		return status;
 	}
 	nvm->major_ver = (ver & ICE_NVM_VER_HI_MASK) >> ICE_NVM_VER_HI_SHIFT;
@@ -629,8 +621,7 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 
 	status = ice_discover_flash_size(hw);
 	if (status) {
-		ice_debug(hw, ICE_DBG_NVM,
-			  "NVM init error: failed to discover flash size.\n");
+		ice_debug(hw, ICE_DBG_NVM, "NVM init error: failed to discover flash size.\n");
 		return status;
 	}
 
