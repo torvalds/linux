@@ -849,6 +849,7 @@ xfs_growfs_rt_alloc(
 				goto out_trans_cancel;
 
 			xfs_trans_buf_set_type(tp, bp, buf_type);
+			bp->b_ops = &xfs_rtbuf_ops;
 			memset(bp->b_addr, 0, mp->m_sb.sb_blocksize);
 			xfs_trans_log_buf(tp, bp, 0, mp->m_sb.sb_blocksize - 1);
 			/*
