@@ -141,7 +141,6 @@ struct ttm_buffer_object {
 	struct ttm_resource mem;
 	struct file *persistent_swap_storage;
 	struct ttm_tt *ttm;
-	bool evicted;
 	bool deleted;
 
 	/**

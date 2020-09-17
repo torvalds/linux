@@ -298,8 +298,6 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	}
 
 moved:
-	bo->evicted = false;
-
 	ctx->bytes_moved += bo->num_pages << PAGE_SHIFT;
 	return 0;
 
@@ -638,9 +636,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 		if (ret != -ERESTARTSYS)
 			pr_err("Buffer eviction failed\n");
 		ttm_resource_free(bo, &evict_mem);
-		goto out;
 	}
-	bo->evicted = true;
 out:
 	return ret;
 }
