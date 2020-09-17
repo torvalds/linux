@@ -273,7 +273,6 @@ enum phy_powerstate {
 };
 
 static int cdns_torrent_phy_init(struct phy *phy);
-static int cdns_torrent_phy_exit(struct phy *phy);
 static int cdns_torrent_dp_init(struct phy *phy);
 static int cdns_torrent_dp_run(struct cdns_torrent_phy *cdns_phy,
 			       u32 num_lanes);
@@ -305,7 +304,6 @@ static int cdns_torrent_phy_off(struct phy *phy);
 
 static const struct phy_ops cdns_torrent_phy_ops = {
 	.init		= cdns_torrent_phy_init,
-	.exit		= cdns_torrent_phy_exit,
 	.configure	= cdns_torrent_dp_configure,
 	.power_on	= cdns_torrent_phy_on,
 	.power_off	= cdns_torrent_phy_off,
@@ -975,14 +973,6 @@ static int cdns_torrent_dp_init(struct phy *phy)
 	ret = cdns_torrent_dp_run(cdns_phy, inst->num_lanes);
 
 	return ret;
-}
-
-static int cdns_torrent_phy_exit(struct phy *phy)
-{
-	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
-
-	clk_disable_unprepare(cdns_phy->clk);
-	return 0;
 }
 
 static
@@ -1825,20 +1815,7 @@ static int cdns_torrent_phy_init(struct phy *phy)
 	struct cdns_reg_pairs *reg_pairs;
 	struct regmap *regmap;
 	u32 num_regs;
-	int ret, i, j;
-
-	ret = clk_prepare_enable(cdns_phy->clk);
-	if (ret) {
-		dev_err(cdns_phy->dev, "Failed to prepare ref clock\n");
-		return ret;
-	}
-
-	cdns_phy->ref_clk_rate = clk_get_rate(cdns_phy->clk);
-	if (!(cdns_phy->ref_clk_rate)) {
-		dev_err(cdns_phy->dev, "Failed to get ref clock rate\n");
-		clk_disable_unprepare(cdns_phy->clk);
-		return -EINVAL;
-	}
+	int i, j;
 
 	if (cdns_phy->nsubnodes > 1)
 		return 0;
@@ -2071,6 +2048,19 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = clk_prepare_enable(cdns_phy->clk);
+	if (ret) {
+		dev_err(cdns_phy->dev, "Failed to prepare ref clock\n");
+		return ret;
+	}
+
+	cdns_phy->ref_clk_rate = clk_get_rate(cdns_phy->clk);
+	if (!(cdns_phy->ref_clk_rate)) {
+		dev_err(cdns_phy->dev, "Failed to get ref clock rate\n");
+		clk_disable_unprepare(cdns_phy->clk);
+		return -EINVAL;
+	}
+
 	/* Enable APB */
 	reset_control_deassert(cdns_phy->apb_rst);
 
@@ -2243,6 +2233,7 @@ put_lnk_rst:
 		reset_control_put(cdns_phy->phys[i].lnk_rst);
 	of_node_put(child);
 	reset_control_assert(cdns_phy->apb_rst);
+	clk_disable_unprepare(cdns_phy->clk);
 	return ret;
 }
 
@@ -2257,6 +2248,8 @@ static int cdns_torrent_phy_remove(struct platform_device *pdev)
 		reset_control_assert(cdns_phy->phys[i].lnk_rst);
 		reset_control_put(cdns_phy->phys[i].lnk_rst);
 	}
+
+	clk_disable_unprepare(cdns_phy->clk);
 
 	return 0;
 }
