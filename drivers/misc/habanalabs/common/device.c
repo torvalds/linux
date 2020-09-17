@@ -288,7 +288,7 @@ static int device_early_init(struct hl_device *hdev)
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++) {
 		snprintf(workq_name, 32, "hl-free-jobs-%u", i);
 		hdev->cq_wq[i] = create_singlethread_workqueue(workq_name);
-		if (hdev->cq_wq == NULL) {
+		if (hdev->cq_wq[i] == NULL) {
 			dev_err(hdev->dev, "Failed to allocate CQ workqueue\n");
 			rc = -ENOMEM;
 			goto free_cq_wq;
@@ -1069,7 +1069,7 @@ again:
 			goto out_err;
 		}
 
-		hl_set_max_power(hdev, hdev->max_power);
+		hl_set_max_power(hdev);
 	} else {
 		rc = hdev->asic_funcs->soft_reset_late_init(hdev);
 		if (rc) {
@@ -1317,6 +1317,11 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		rc = 0;
 		goto out_disabled;
 	}
+
+	/* Need to call this again because the max power might change,
+	 * depending on card type for certain ASICs
+	 */
+	hl_set_max_power(hdev);
 
 	/*
 	 * hl_hwmon_init() must be called after device_late_init(), because only

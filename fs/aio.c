@@ -1511,7 +1511,7 @@ static inline void aio_rw_done(struct kiocb *req, ssize_t ret)
 		 * may be already running. Just fail this IO with EINTR.
 		 */
 		ret = -EINTR;
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		req->ki_complete(req, ret, 0);
 	}

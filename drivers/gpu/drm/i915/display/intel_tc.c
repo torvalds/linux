@@ -159,7 +159,7 @@ int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 	switch (lane_mask) {
 	default:
 		MISSING_CASE(lane_mask);
-		/* fall-through */
+		fallthrough;
 	case 0x1:
 	case 0x2:
 	case 0x4:

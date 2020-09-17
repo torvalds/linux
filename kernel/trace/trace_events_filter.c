@@ -499,7 +499,7 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 					ptr++;
 					break;
 				}
-				/* fall through */
+				fallthrough;
 			default:
 				parse_error(pe, FILT_ERR_TOO_MANY_PREDS,
 					    next - str);
@@ -1273,7 +1273,7 @@ static int parse_pred(const char *str, void *data,
 		switch (op) {
 		case OP_NE:
 			pred->not = 1;
-			/* Fall through */
+			fallthrough;
 		case OP_GLOB:
 		case OP_EQ:
 			break;

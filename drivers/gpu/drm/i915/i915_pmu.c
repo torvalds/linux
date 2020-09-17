@@ -474,7 +474,7 @@ config_status(struct drm_i915_private *i915, u64 config)
 		if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 			/* Requires a mutex for sampling! */
 			return -ENODEV;
-		/* Fall-through. */
+		fallthrough;
 	case I915_PMU_REQUESTED_FREQUENCY:
 		if (INTEL_GEN(i915) < 6)
 			return -ENODEV;

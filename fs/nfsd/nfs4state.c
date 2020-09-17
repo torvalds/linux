@@ -3117,7 +3117,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		break;
 	default:				/* checked by xdr code */
 		WARN_ON_ONCE(1);
-		/* fall through */
+		fallthrough;
 	case SP4_SSV:
 		status = nfserr_encr_alg_unsupp;
 		goto out_nolock;
@@ -4532,7 +4532,7 @@ static int nfsd4_cb_recall_done(struct nfsd4_callback *cb,
 			rpc_delay(task, 2 * HZ);
 			return 0;
 		}
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		return 1;
 	}
@@ -4597,6 +4597,8 @@ static bool nfsd_breaker_owns_lease(struct file_lock *fl)
 	if (!i_am_nfsd())
 		return NULL;
 	rqst = kthread_data(current);
+	if (!rqst->rq_lease_breaker)
+		return NULL;
 	clp = *(rqst->rq_lease_breaker);
 	return dl->dl_stid.sc_client == clp;
 }
@@ -5652,7 +5654,7 @@ static __be32 nfsd4_validate_stateid(struct nfs4_client *cl, stateid_t *stateid)
 		break;
 	default:
 		printk("unknown stateid type %x\n", s->sc_type);
-		/* Fallthrough */
+		fallthrough;
 	case NFS4_CLOSED_STID:
 	case NFS4_CLOSED_DELEG_STID:
 		status = nfserr_bad_stateid;
@@ -6742,7 +6744,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		case NFS4_READW_LT:
 			if (nfsd4_has_session(cstate))
 				fl_flags |= FL_SLEEP;
-			/* Fallthrough */
+			fallthrough;
 		case NFS4_READ_LT:
 			spin_lock(&fp->fi_lock);
 			nf = find_readable_file_locked(fp);
@@ -6754,7 +6756,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		case NFS4_WRITEW_LT:
 			if (nfsd4_has_session(cstate))
 				fl_flags |= FL_SLEEP;
-			/* Fallthrough */
+			fallthrough;
 		case NFS4_WRITE_LT:
 			spin_lock(&fp->fi_lock);
 			nf = find_writeable_file_locked(fp);
@@ -6816,7 +6818,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		break;
 	case FILE_LOCK_DEFERRED:
 		nbl = NULL;
-		/* Fallthrough */
+		fallthrough;
 	case -EAGAIN:		/* conflock holds conflicting lock */
 		status = nfserr_denied;
 		dprintk("NFSD: nfsd4_lock: conflicting lock found!\n");

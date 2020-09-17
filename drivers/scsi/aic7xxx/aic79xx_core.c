@@ -2274,7 +2274,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			switch (scb->hscb->task_management) {
 			case SIU_TASKMGMT_ABORT_TASK:
 				tag = SCB_GET_TAG(scb);
-				/* fall through */
+				fallthrough;
 			case SIU_TASKMGMT_ABORT_TASK_SET:
 			case SIU_TASKMGMT_CLEAR_TASK_SET:
 				lun = scb->hscb->lun;
@@ -2285,7 +2285,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 				break;
 			case SIU_TASKMGMT_LUN_RESET:
 				lun = scb->hscb->lun;
-				/* fall through */
+				fallthrough;
 			case SIU_TASKMGMT_TARGET_RESET:
 			{
 				struct ahd_devinfo devinfo;
@@ -3791,7 +3791,7 @@ ahd_validate_width(struct ahd_softc *ahd, struct ahd_initiator_tinfo *tinfo,
 			*bus_width = MSG_EXT_WDTR_BUS_16_BIT;
 			break;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case MSG_EXT_WDTR_BUS_8_BIT:
 		*bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 		break;
@@ -5104,7 +5104,7 @@ ahd_parse_msg(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 		break;
 	case MSG_MESSAGE_REJECT:
 		response = ahd_handle_msg_reject(ahd, devinfo);
-		/* FALLTHROUGH */
+		fallthrough;
 	case MSG_NOOP:
 		done = MSGLOOP_MSGCOMPLETE;
 		break;
@@ -5454,7 +5454,7 @@ ahd_parse_msg(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 			       ahd_name(ahd), ahd_inb(ahd, SCSISIGI));
 #endif
 		ahd->msg_flags |= MSG_FLAG_EXPECT_QASREJ_BUSFREE;
-		/* FALLTHROUGH */
+		fallthrough;
 	case MSG_TERM_IO_PROC:
 	default:
 		reject = TRUE;
@@ -6117,17 +6117,17 @@ ahd_free(struct ahd_softc *ahd)
 	default:
 	case 5:
 		ahd_shutdown(ahd);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 4:
 		ahd_dmamap_unload(ahd, ahd->shared_data_dmat,
 				  ahd->shared_data_map.dmamap);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 3:
 		ahd_dmamem_free(ahd, ahd->shared_data_dmat, ahd->qoutfifo,
 				ahd->shared_data_map.dmamap);
 		ahd_dmamap_destroy(ahd, ahd->shared_data_dmat,
 				   ahd->shared_data_map.dmamap);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 2:
 		ahd_dma_tag_destroy(ahd, ahd->shared_data_dmat);
 	case 1:
@@ -6513,7 +6513,7 @@ ahd_fini_scbdata(struct ahd_softc *ahd)
 		}
 		ahd_dma_tag_destroy(ahd, scb_data->sense_dmat);
 	}
-		/* fall through */
+		fallthrough;
 	case 6:
 	{
 		struct map_node *sg_map;
@@ -6528,7 +6528,7 @@ ahd_fini_scbdata(struct ahd_softc *ahd)
 		}
 		ahd_dma_tag_destroy(ahd, scb_data->sg_dmat);
 	}
-		/* fall through */
+		fallthrough;
 	case 5:
 	{
 		struct map_node *hscb_map;
@@ -7171,7 +7171,7 @@ ahd_init(struct ahd_softc *ahd)
 		case FLX_CSTAT_OVER:
 		case FLX_CSTAT_UNDER:
 			warn_user++;
-			/* fall through */
+			fallthrough;
 		case FLX_CSTAT_INVALID:
 		case FLX_CSTAT_OKAY:
 			if (warn_user == 0 && bootverbose == 0)
@@ -8175,12 +8175,12 @@ ahd_search_qinfifo(struct ahd_softc *ahd, int target, char channel,
 				if ((scb->flags & SCB_ACTIVE) == 0)
 					printk("Inactive SCB in qinfifo\n");
 				ahd_done_with_status(ahd, scb, status);
-				/* FALLTHROUGH */
+				fallthrough;
 			case SEARCH_REMOVE:
 				break;
 			case SEARCH_PRINT:
 				printk(" 0x%x", ahd->qinfifo[qinpos]);
-				/* FALLTHROUGH */
+				fallthrough;
 			case SEARCH_COUNT:
 				ahd_qinfifo_requeue(ahd, prev_scb, scb);
 				prev_scb = scb;
@@ -8271,7 +8271,7 @@ ahd_search_qinfifo(struct ahd_softc *ahd, int target, char channel,
 				if ((mk_msg_scb->flags & SCB_ACTIVE) == 0)
 					printk("Inactive SCB pending MK_MSG\n");
 				ahd_done_with_status(ahd, mk_msg_scb, status);
-				/* FALLTHROUGH */
+				fallthrough;
 			case SEARCH_REMOVE:
 			{
 				u_int tail_offset;
@@ -8295,7 +8295,7 @@ ahd_search_qinfifo(struct ahd_softc *ahd, int target, char channel,
 			}
 			case SEARCH_PRINT:
 				printk(" 0x%x", SCB_GET_TAG(scb));
-				/* FALLTHROUGH */
+				fallthrough;
 			case SEARCH_COUNT:
 				break;
 			}
@@ -8376,7 +8376,7 @@ ahd_search_scb_list(struct ahd_softc *ahd, int target, char channel,
 			if ((scb->flags & SCB_ACTIVE) == 0)
 				printk("Inactive SCB in Waiting List\n");
 			ahd_done_with_status(ahd, scb, status);
-			/* fall through */
+			fallthrough;
 		case SEARCH_REMOVE:
 			ahd_rem_wscb(ahd, scbid, prev, next, tid);
 			*list_tail = prev;
@@ -8385,7 +8385,7 @@ ahd_search_scb_list(struct ahd_softc *ahd, int target, char channel,
 			break;
 		case SEARCH_PRINT:
 			printk("0x%x ", scbid);
-			/* fall through */
+			fallthrough;
 		case SEARCH_COUNT:
 			prev = scbid;
 			break;
@@ -9023,7 +9023,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 	case SCSI_STATUS_OK:
 		printk("%s: Interrupted for status of 0???\n",
 		       ahd_name(ahd));
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		ahd_done(ahd, scb);
 		break;
@@ -9512,7 +9512,7 @@ ahd_download_instr(struct ahd_softc *ahd, u_int instrptr, uint8_t *dconsts)
 		fmt3_ins = &instr.format3;
 		fmt3_ins->address = ahd_resolve_seqaddr(ahd, fmt3_ins->address);
 	}
-		/* fall through */
+		fallthrough;
 	case AIC_OP_OR:
 	case AIC_OP_AND:
 	case AIC_OP_XOR:
@@ -9523,7 +9523,7 @@ ahd_download_instr(struct ahd_softc *ahd, u_int instrptr, uint8_t *dconsts)
 			fmt1_ins->immediate = dconsts[fmt1_ins->immediate];
 		}
 		fmt1_ins->parity = 0;
-		/* fall through */
+		fallthrough;
 	case AIC_OP_ROL:
 	{
 		int i, count;
