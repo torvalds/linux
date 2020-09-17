@@ -334,15 +334,10 @@ static const struct of_device_id of_ns2_leds_match[] = {
 MODULE_DEVICE_TABLE(of, of_ns2_leds_match);
 #endif /* CONFIG_OF_GPIO */
 
-struct ns2_led_priv {
-	int num_leds;
-	struct ns2_led_data leds_data[];
-};
-
 static int ns2_led_probe(struct platform_device *pdev)
 {
 	struct ns2_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct ns2_led_priv *priv;
+	struct ns2_led_data *leds;
 	int i;
 	int ret;
 
@@ -363,19 +358,17 @@ static int ns2_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 #endif /* CONFIG_OF_GPIO */
 
-	priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds_data, pdata->num_leds), GFP_KERNEL);
-	if (!priv)
+	leds = devm_kzalloc(&pdev->dev, array_size(sizeof(*leds),
+						   pdata->num_leds),
+			    GFP_KERNEL);
+	if (!leds)
 		return -ENOMEM;
-	priv->num_leds = pdata->num_leds;
 
-	for (i = 0; i < priv->num_leds; i++) {
-		ret = create_ns2_led(pdev, &priv->leds_data[i],
-				     &pdata->leds[i]);
+	for (i = 0; i < pdata->num_leds; i++) {
+		ret = create_ns2_led(pdev, &leds[i], &pdata->leds[i]);
 		if (ret < 0)
 			return ret;
 	}
-
-	platform_set_drvdata(pdev, priv);
 
 	return 0;
 }
