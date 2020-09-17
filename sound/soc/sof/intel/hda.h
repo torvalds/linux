@@ -274,6 +274,7 @@
 #define BXT_D0I3_DELAY 5000
 
 #define FW_CL_STREAM_NUMBER		0x1
+#define HDA_FW_BOOT_ATTEMPTS	3
 
 /* ADSPCS - Audio DSP Control & Status */
 
@@ -416,6 +417,7 @@ enum sof_hda_D0_substate {
 
 /* represents DSP HDA controller frontend - i.e. host facing control */
 struct sof_intel_hda_dev {
+	int boot_iteration;
 
 	struct hda_bus hbus;
 

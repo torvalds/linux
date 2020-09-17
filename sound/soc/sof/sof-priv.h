@@ -578,4 +578,12 @@ int intel_pcm_close(struct snd_sof_dev *sdev,
 
 int sof_machine_check(struct snd_sof_dev *sdev);
 
+#define sof_dev_dbg_or_err(dev, is_err, fmt, ...)			\
+	do {								\
+		if (is_err)						\
+			dev_err(dev, "error: " fmt, __VA_ARGS__);	\
+		else							\
+			dev_dbg(dev, fmt, __VA_ARGS__);			\
+	} while (0)
+
 #endif
