@@ -581,14 +581,34 @@ static void regmap_range_exit(struct regmap *map)
 	kfree(map->selector_work_buf);
 }
 
+static int regmap_set_name(struct regmap *map, const struct regmap_config *config)
+{
+	if (config->name) {
+		const char *name = kstrdup_const(config->name, GFP_KERNEL);
+
+		if (!name)
+			return -ENOMEM;
+
+		kfree_const(map->name);
+		map->name = name;
+	}
+
+	return 0;
+}
+
 int regmap_attach_dev(struct device *dev, struct regmap *map,
 		      const struct regmap_config *config)
 {
 	struct regmap **m;
+	int ret;
 
 	map->dev = dev;
 
-	regmap_debugfs_init(map, config->name);
+	ret = regmap_set_name(map, config);
+	if (ret)
+		return ret;
+
+	regmap_debugfs_init(map);
 
 	/* Add a devres resource for dev_get_regmap() */
 	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
@@ -674,9 +694,9 @@ struct regmap *__regmap_init(struct device *dev,
 			     const char *lock_name)
 {
 	struct regmap *map;
-	int ret = -EINVAL;
 	enum regmap_endian reg_endian, val_endian;
 	int i, j;
+	int ret;
 
 	if (!config)
 		goto err;
@@ -687,13 +707,9 @@ struct regmap *__regmap_init(struct device *dev,
 		goto err;
 	}
 
-	if (config->name) {
-		map->name = kstrdup_const(config->name, GFP_KERNEL);
-		if (!map->name) {
-			ret = -ENOMEM;
-			goto err_map;
-		}
-	}
+	ret = regmap_set_name(map, config);
+	if (ret)
+		goto err_map;
 
 	if (config->disable_locking) {
 		map->lock = map->unlock = regmap_lock_unlock_none;
@@ -1137,7 +1153,7 @@ skip_format_initialization:
 		if (ret != 0)
 			goto err_regcache;
 	} else {
-		regmap_debugfs_init(map, config->name);
+		regmap_debugfs_init(map);
 	}
 
 	return map;
@@ -1297,6 +1313,8 @@ EXPORT_SYMBOL_GPL(regmap_field_free);
  */
 int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 {
+	int ret;
+
 	regcache_exit(map);
 	regmap_debugfs_exit(map);
 
@@ -1309,7 +1327,11 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	map->readable_noinc_reg = config->readable_noinc_reg;
 	map->cache_type = config->cache_type;
 
-	regmap_debugfs_init(map, config->name);
+	ret = regmap_set_name(map, config);
+	if (ret)
+		return ret;
+
+	regmap_debugfs_init(map);
 
 	map->cache_bypass = false;
 	map->cache_only = false;
