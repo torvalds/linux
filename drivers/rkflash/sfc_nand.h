@@ -125,5 +125,6 @@ u32 sfc_nand_mark_bad_block(u8 cs, u32 addr);
 void sfc_nand_ftl_ops_init(void);
 struct SFNAND_DEV *sfc_nand_get_private_dev(void);
 struct nand_info *sfc_nand_get_nand_info(void);
+u32 sfc_nand_read(u32 row, u32 *p_page_buf, u32 column, u32 len);
 
 #endif

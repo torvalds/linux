@@ -649,13 +649,12 @@ u32 sfc_nand_prog_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare)
 	return ret;
 }
 
-u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
+u32 sfc_nand_read(u32 row, u32 *p_page_buf, u32 column, u32 len)
 {
 	int ret;
 	u32 plane;
 	struct rk_sfc_op op;
 	u32 ecc_result;
-	u32 page_size = SFC_NAND_SECTOR_FULL_SIZE * p_nand_info->sec_per_page;
 	u8 status;
 
 	op.sfcmd.d32 = 0;
@@ -665,7 +664,7 @@ u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 
 	op.sfctrl.d32 = 0;
 
-	sfc_request(&op, addr, p_page_buf, 0);
+	sfc_request(&op, row, p_page_buf, 0);
 
 	if (sfc_nand_dev.read_lines == DATA_LINES_X4 &&
 	    p_nand_info->feature & FEA_SOFT_QOP_BIT &&
@@ -677,19 +676,28 @@ u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 
 	op.sfcmd.d32 = 0;
 	op.sfcmd.b.cmd = sfc_nand_dev.page_read_cmd;
-	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
+	op.sfcmd.b.addrbits = SFC_ADDR_XBITS;
+	op.sfcmd.b.dummybits = 8;
 
 	op.sfctrl.d32 = 0;
 	op.sfctrl.b.datalines = sfc_nand_dev.read_lines;
+	op.sfctrl.b.addrbits = 16;
 
-	plane = p_nand_info->plane_per_die == 2 ? ((addr >> 6) & 0x1) << 12 : 0;
-	ret = sfc_request(&op, plane << 8, p_page_buf, page_size);
-	rkflash_print_dio("%s %x %x\n", __func__, addr, p_page_buf[0]);
+	plane = p_nand_info->plane_per_die == 2 ? ((row >> 6) & 0x1) << 12 : 0;
+	ret = sfc_request(&op, plane | column, p_page_buf, len);
+	rkflash_print_dio("%s %x %x\n", __func__, row, p_page_buf[0]);
 
 	if (ret != SFC_OK)
 		return SFC_NAND_HW_ERROR;
 
 	return ecc_result;
+}
+
+u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
+{
+	u32 page_size = SFC_NAND_SECTOR_FULL_SIZE * p_nand_info->sec_per_page;
+
+	return sfc_nand_read(addr, gp_page_buf, 0, page_size);
 }
 
 u32 sfc_nand_read_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare)
@@ -729,17 +737,17 @@ u32 sfc_nand_check_bad_block(u8 cs, u32 addr)
 {
 	u32 ret;
 	u32 data_size = p_nand_info->sec_per_page * SFC_NAND_SECTOR_SIZE;
+	u32 marker = 0;
 
-	ret = sfc_nand_read_page_raw(cs, addr, gp_page_buf);
+	ret = sfc_nand_read(addr, &marker, data_size, 2);
 
 	/* unify with mtd framework */
 	if (ret == SFC_NAND_ECC_ERROR)
-		rkflash_print_error("%s page= %x ret= %x data0= %x, spare0= %x\n",
-				    __func__, addr, ret, gp_page_buf[0],
-				    (gp_page_buf[data_size / 4] & 0xFF));
+		rkflash_print_error("%s page= %x ret= %x spare= %x\n",
+				    __func__, addr, ret, marker);
 
 	/* Original bad block */
-	if ((gp_page_buf[data_size / 4] & 0xFFFF) != 0xFFFF)
+	if ((u16)marker != 0xffff)
 		return true;
 
 	return false;

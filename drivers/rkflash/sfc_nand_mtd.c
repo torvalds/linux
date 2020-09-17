@@ -39,27 +39,21 @@ static int sfc_nand_write_mtd(struct mtd_info *mtd, loff_t to,
 {
 	struct snand_mtd_dev *p_dev = mtd_to_priv(mtd);
 	u8 *data = (u8 *)ops->datbuf;
-	u8 *oob_buf = (u8 *)ops->oobbuf;
 	size_t remaining = ops->len;
-	size_t oob_left = ops->ooblen, oob_real;
 	u32 ret = 0;
 
 	rkflash_print_dio("%s addr= %llx len= %x\n", __func__, to, (u32)remaining);
 	if ((to + remaining) > mtd->size || to & mtd->writesize_mask ||
-	    remaining & mtd->writesize_mask) {
+	    remaining & mtd->writesize_mask || ops->ooblen) {
 		rkflash_print_error("%s input error, %llx %x\n", __func__, to, (u32)remaining);
 
 		return -EINVAL;
 	}
 
 	ops->retlen = 0;
-	ops->oobretlen = 0;
 	while (remaining) {
 		memcpy(p_dev->dma_buf, data, mtd->writesize);
 		memset(p_dev->dma_buf + mtd->writesize, 0xff, mtd->oobsize);
-		oob_real = min((u32)oob_left, mtd->oobsize - ops->ooboffs);
-		if (oob_real)
-			memcpy(p_dev->dma_buf + mtd->writesize + ops->ooboffs, oob_buf, oob_real);
 		ret = sfc_nand_prog_page_raw(0, to >> mtd->writesize_shift,
 					     (u32 *)p_dev->dma_buf);
 		if (ret != SFC_OK) {
@@ -73,10 +67,6 @@ static int sfc_nand_write_mtd(struct mtd_info *mtd, loff_t to,
 		ops->retlen += mtd->writesize;
 		remaining -= mtd->writesize;
 		to += mtd->writesize;
-		if (oob_real) {
-			ops->oobretlen += oob_real;
-			oob_buf += oob_real;
-		}
 	}
 
 	return ret;
@@ -85,28 +75,28 @@ static int sfc_nand_write_mtd(struct mtd_info *mtd, loff_t to,
 static int sfc_nand_read_mtd(struct mtd_info *mtd, loff_t from,
 			     struct mtd_oob_ops *ops)
 {
-	struct snand_mtd_dev *p_dev = mtd_to_priv(mtd);
 	u8 *data = (u8 *)ops->datbuf;
-	u8 *oob_buf = (u8 *)ops->oobbuf;
 	size_t remaining = ops->len;
-	size_t oob_left = ops->ooblen, oob_real;
 	u32 ret = 0;
 	bool ecc_failed = false;
-	size_t off, real_size;
+	size_t page, off, real_size;
 	int max_bitflips = 0;
 
 	rkflash_print_dio("%s addr= %llx len= %x\n", __func__, from, (u32)remaining);
-	if ((from + remaining) > mtd->size) {
-		rkflash_print_error("%s input error, %llx %x\n", __func__, from, (u32)remaining);
+	if ((from + remaining) > mtd->size || ops->ooblen) {
+		rkflash_print_error("%s input error, from= %llx len= %x oob= %x\n",
+				    __func__, from, (u32)remaining, (u32)ops->ooblen);
 
 		return -EINVAL;
 	}
 
 	ops->retlen = 0;
-	ops->oobretlen = 0;
 	while (remaining) {
-		ret = sfc_nand_read_page_raw(0, from >> mtd->writesize_shift,
-					     (u32 *)p_dev->dma_buf);
+		page = from >> mtd->writesize_shift;
+		off = from & mtd->writesize_mask;
+		real_size = min_t(u32, remaining, mtd->writesize - off);
+
+		ret = sfc_nand_read(page, (u32 *)data, off, real_size);
 		if (ret == SFC_NAND_HW_ERROR) {
 			rkflash_print_error("%s addr %llx ret= %d\n",
 					    __func__, from, ret);
@@ -124,27 +114,11 @@ static int sfc_nand_read_mtd(struct mtd_info *mtd, loff_t from,
 			max_bitflips = 1;
 		}
 
-		off = from & mtd->writesize_mask;
-		real_size = min_t(u32, remaining, mtd->writesize);
-		if ((from >> mtd->writesize_shift) !=
-		    (loff_t)((from + real_size - 1) >> mtd->writesize_shift))
-			real_size = mtd->writesize - off;
-
-		memcpy(data, p_dev->dma_buf + off, real_size);
-		oob_real = min((u32)oob_left, mtd->oobsize - ops->ooboffs);
-		if (oob_real)
-			memcpy(oob_buf, p_dev->dma_buf + mtd->writesize + ops->ooboffs,
-			       oob_real);
-
 		ret = 0;
 		data += real_size;
 		ops->retlen += real_size;
 		remaining -= real_size;
 		from += real_size;
-		if (oob_real) {
-			ops->oobretlen += oob_real;
-			oob_buf += oob_real;
-		}
 	}
 
 	if (ecc_failed && !ret)
