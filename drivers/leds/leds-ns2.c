@@ -71,16 +71,13 @@ static int ns2_led_get_mode(struct ns2_led *led, enum ns2_led_modes *mode)
 static void ns2_led_set_mode(struct ns2_led *led, enum ns2_led_modes mode)
 {
 	int i;
-	bool found = false;
 	unsigned long flags;
 
 	for (i = 0; i < led->num_modes; i++)
-		if (mode == led->modval[i].mode) {
-			found = true;
+		if (mode == led->modval[i].mode)
 			break;
-		}
 
-	if (!found)
+	if (i == led->num_modes)
 		return;
 
 	write_lock_irqsave(&led->rw_lock, flags);
