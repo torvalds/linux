@@ -290,7 +290,8 @@ config MFD_CS47L92
 
 config MFD_ASIC3
 	bool "Compaq ASIC3"
-	depends on GPIOLIB && ARM
+	depends on GPIOLIB
+	depends on ARM || COMPILE_TEST
 	select MFD_CORE
 	help
 	  This driver supports the ASIC3 multifunction chip found on many
