@@ -80,7 +80,7 @@ static const struct state_dependent_clocks dce60_max_clks_by_state[] = {
 /* ClocksStatePerformance */
 { .display_clk_khz = 600000, .pixel_clk_khz = 400000 } };
 
-int dce60_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base)
+static int dce60_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	int dprefclk_wdivider;
