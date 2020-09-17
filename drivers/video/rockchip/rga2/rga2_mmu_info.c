@@ -749,7 +749,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 		/* change the buf address in req struct */
 		req->mmu_info.src1_base_addr = ((unsigned long)(MMU_Base_phys
 						+ Src0MemSize));
-		req->src1.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK));
+		req->src1.yrgb_addr = (req->src1.yrgb_addr & (~PAGE_MASK));
 	}
         if (DstMemSize) {
 		if (req->sg_dst) {

@@ -142,6 +142,8 @@
 #define m_RGA2_DST_INFO_SW_DITHER_MODE               (  0x3<<14)
 #define m_RGA2_DST_INFO_SW_DST_CSC_MODE              (  0x3<<16)    //add
 #define m_RGA2_DST_INFO_SW_CSC_CLIP_MODE             (  0x1<<18)
+#define m_RGA2_DST_INFO_SW_SRC1_CSC_MODE             (  0x3<<20)    //add
+#define m_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE        (  0x1<<22)
 
 #define s_RGA2_DST_INFO_SW_DST_FMT(x)                   (  (x&0xf)<<0 )
 #define s_RGA2_DST_INFO_SW_DST_RB_SWAP(x)               (  (x&0x1)<<4 )
@@ -155,6 +157,8 @@
 #define s_RGA2_DST_INFO_SW_DITHER_MODE(x)               (  (x&0x3)<<14)
 #define s_RGA2_DST_INFO_SW_DST_CSC_MODE(x)              (  (x&0x3)<<16)    //add
 #define s_RGA2_DST_INFO_SW_CSC_CLIP_MODE(x)             (  (x&0x1)<<18)
+#define s_RGA2_DST_INFO_SW_SRC1_CSC_MODE(x)             (  (x&0x3)<<20)    //add
+#define s_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE(x)        (  (x&0x1)<<22)
 
 
 /* RGA_ALPHA_CTRL0 */

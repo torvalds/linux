@@ -266,13 +266,7 @@ static void RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP)) | (s_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP(src0_rb_swp)));
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_ALPHA_SWAP)) | (s_RGA2_SRC_INFO_SW_SW_SRC_ALPHA_SWAP(msg->alpha_swp)));
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP)) | (s_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP(src0_cbcr_swp)));
-    if(msg->src.format <= RGA2_FORMAT_BGRA_4444)
-    	reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE)) | (s_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE(0)));
-    else
-        if(msg->dst.format >= RGA2_FORMAT_YCbCr_422_SP)
-            reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE)) | (s_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE(0)));
-        else
-    	    reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE)) | (s_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE(msg->yuv2rgb_mode)));
+    reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE)) | (s_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE(msg->yuv2rgb_mode)));
 
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_ROT_MODE)) | (s_RGA2_SRC_INFO_SW_SW_SRC_ROT_MODE(msg->rotate_mode & 0x3)));
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_MIR_MODE)) | (s_RGA2_SRC_INFO_SW_SW_SRC_MIR_MODE((msg->rotate_mode >> 4) & 0x3)));
@@ -412,8 +406,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
     reg = ((reg & (~m_RGA2_DST_INFO_SW_DITHER_UP_E)) | (s_RGA2_DST_INFO_SW_DITHER_UP_E(msg->alpha_rop_flag >> 5)));
     reg = ((reg & (~m_RGA2_DST_INFO_SW_DITHER_DOWN_E)) | (s_RGA2_DST_INFO_SW_DITHER_DOWN_E(msg->alpha_rop_flag >> 6)));
     reg = ((reg & (~m_RGA2_DST_INFO_SW_DITHER_MODE)) | (s_RGA2_DST_INFO_SW_DITHER_MODE(msg->dither_mode)));
-    reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_CSC_MODE)) | (s_RGA2_DST_INFO_SW_DST_CSC_MODE(msg->yuv2rgb_mode >> 4)));
-    reg = ((reg & (~m_RGA2_DST_INFO_SW_CSC_CLIP_MODE)) | (s_RGA2_DST_INFO_SW_CSC_CLIP_MODE(msg->yuv2rgb_mode >> 6)));
+    reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_CSC_MODE)) | (s_RGA2_DST_INFO_SW_DST_CSC_MODE(msg->yuv2rgb_mode >> 2)));
+    reg = ((reg & (~m_RGA2_DST_INFO_SW_CSC_CLIP_MODE)) | (s_RGA2_DST_INFO_SW_CSC_CLIP_MODE(msg->yuv2rgb_mode >> 4)));
+    /* Some older chips do not support src1 csc mode, they do not have these two registers. */
+    reg = ((reg & (~m_RGA2_DST_INFO_SW_SRC1_CSC_MODE)) | (s_RGA2_DST_INFO_SW_SRC1_CSC_MODE(msg->yuv2rgb_mode >> 5)));
+    reg = ((reg & (~m_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE)) | (s_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE(msg->yuv2rgb_mode >> 7)));
 
 
     *bRGA_DST_INFO = reg;
@@ -1048,6 +1045,7 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
 
     format_name_convert(&req->src.format, req_rga->src.format);
     format_name_convert(&req->dst.format, req_rga->dst.format);
+    format_name_convert(&req->src1.format, req_rga->pat.format);
 
     if(req_rga->rotate_mode == 1) {
         if(req_rga->sina == 0 && req_rga->cosa == 65536) {
@@ -1111,7 +1109,10 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
     memcpy(&req->gr_color, &req_rga->gr_color, sizeof(req_rga->gr_color));
 
     req->palette_mode = req_rga->palette_mode;
-    req->yuv2rgb_mode = req_rga->yuv2rgb_mode + 1;
+    if ((req_rga->yuv2rgb_mode & 0x3) != 0)
+        req->yuv2rgb_mode = req_rga->yuv2rgb_mode + 1;
+    else
+        req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
     req->endian_mode = req_rga->endian_mode;
     req->rgb2yuv_mode = 0;
 
@@ -1224,6 +1225,11 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
                req->mmu_info.dst_mmu_flag = 0;
                req->dst.yrgb_addr = req_rga->dst.yrgb_addr - 0x60000000;
             }
+
+	    if (req_rga->pat.yrgb_addr >= 0xa0000000) {
+               req->mmu_info.src1_mmu_flag = 0;
+               req->src1.yrgb_addr = req_rga->pat.yrgb_addr - 0x60000000;
+            }
         }
     }
 }
@@ -1318,7 +1324,10 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
     req->bg_color = req_rga->bg_color;
     memcpy(&req->gr_color, &req_rga->gr_color, sizeof(req_rga->gr_color));
     req->palette_mode = req_rga->palette_mode;
-    req->yuv2rgb_mode = req_rga->yuv2rgb_mode + 1;
+    if ((req_rga->yuv2rgb_mode & 0x3) != 0)
+        req->yuv2rgb_mode = req_rga->yuv2rgb_mode + 1;
+    else
+        req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
     req->endian_mode = req_rga->endian_mode;
     req->rgb2yuv_mode = 0;
     req->fading_alpha_value = 0;

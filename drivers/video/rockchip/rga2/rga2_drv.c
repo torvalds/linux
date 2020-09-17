@@ -318,6 +318,15 @@ static void print_debug_info(struct rga2_req *req)
 	     req->src.act_w, req->src.act_h, req->src.vir_w, req->src.vir_h,
 	     req->src.x_offset, req->src.y_offset,
 	     rga2_get_format_name(req->src.format));
+	if (req->src1.yrgb_addr != 0 ||
+	    req->src1.uv_addr != 0 ||
+	    req->src1.v_addr != 0) {
+		INFO("src1 : y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d xoff=%d yoff=%d format=%s\n",
+		     req->src1.yrgb_addr, req->src1.uv_addr, req->src1.v_addr,
+		     req->src1.act_w, req->src1.act_h, req->src1.vir_w, req->src1.vir_h,
+		     req->src1.x_offset, req->src1.y_offset,
+		     rga2_get_format_name(req->src1.format));
+	}
 	INFO("dst : y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d xoff=%d yoff=%d format=%s\n",
 	     req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
 	     req->dst.act_w, req->dst.act_h, req->dst.vir_w, req->dst.vir_h,
