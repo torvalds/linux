@@ -165,7 +165,8 @@ void copy_port_attr_to_resp(struct ib_port_attr *attr,
 	resp->subnet_timeout = attr->subnet_timeout;
 	resp->init_type_reply = attr->init_type_reply;
 	resp->active_width = attr->active_width;
-	resp->active_speed = attr->active_speed;
+	/* This ABI needs to be extended to provide any speed more than IB_SPEED_NDR */
+	resp->active_speed = min_t(u16, attr->active_speed, IB_SPEED_NDR);
 	resp->phys_state = attr->phys_state;
 	resp->link_layer = rdma_port_get_link_layer(ib_dev, port_num);
 }
