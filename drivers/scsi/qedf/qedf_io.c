@@ -2163,7 +2163,6 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 	/* Sanity check qedf_rport before dereferencing any pointers */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(NULL, "tgt not offloaded\n");
-		rc = 1;
 		return SUCCESS;
 	}
 
