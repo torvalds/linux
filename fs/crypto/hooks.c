@@ -193,30 +193,24 @@ int fscrypt_prepare_symlink(struct inode *dir, const char *target,
 			    unsigned int len, unsigned int max_len,
 			    struct fscrypt_str *disk_link)
 {
-	int err;
+	const union fscrypt_policy *policy;
 
-	if (!IS_ENCRYPTED(dir) && !fscrypt_get_dummy_context(dir->i_sb)) {
+	/*
+	 * To calculate the size of the encrypted symlink target we need to know
+	 * the amount of NUL padding, which is determined by the flags set in
+	 * the encryption policy which will be inherited from the directory.
+	 */
+	policy = fscrypt_policy_to_inherit(dir);
+	if (policy == NULL) {
+		/* Not encrypted */
 		disk_link->name = (unsigned char *)target;
 		disk_link->len = len + 1;
 		if (disk_link->len > max_len)
 			return -ENAMETOOLONG;
 		return 0;
 	}
-
-	/*
-	 * To calculate the size of the encrypted symlink target we need to know
-	 * the amount of NUL padding, which is determined by the flags set in
-	 * the encryption policy which will be inherited from the directory.
-	 * The easiest way to get access to this is to just load the directory's
-	 * fscrypt_info, since we'll need it to create the dir_entry anyway.
-	 *
-	 * Note: in test_dummy_encryption mode, @dir may be unencrypted.
-	 */
-	err = fscrypt_get_encryption_info(dir);
-	if (err)
-		return err;
-	if (!fscrypt_has_encryption_key(dir))
-		return -ENOKEY;
+	if (IS_ERR(policy))
+		return PTR_ERR(policy);
 
 	/*
 	 * Calculate the size of the encrypted symlink and verify it won't
@@ -229,7 +223,7 @@ int fscrypt_prepare_symlink(struct inode *dir, const char *target,
 	 * counting it (even though it is meaningless for ciphertext) is simpler
 	 * for now since filesystems will assume it is there and subtract it.
 	 */
-	if (!fscrypt_fname_encrypted_size(dir, len,
+	if (!fscrypt_fname_encrypted_size(policy, len,
 					  max_len - sizeof(struct fscrypt_symlink_data),
 					  &disk_link->len))
 		return -ENAMETOOLONG;

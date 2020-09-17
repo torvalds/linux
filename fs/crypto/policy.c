@@ -32,6 +32,14 @@ bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
 	return !memcmp(policy1, policy2, fscrypt_policy_size(policy1));
 }
 
+static const union fscrypt_policy *
+fscrypt_get_dummy_policy(struct super_block *sb)
+{
+	if (!sb->s_cop->get_dummy_policy)
+		return NULL;
+	return sb->s_cop->get_dummy_policy(sb);
+}
+
 static bool fscrypt_valid_enc_modes(u32 contents_mode, u32 filenames_mode)
 {
 	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
@@ -628,6 +636,25 @@ int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
 }
 EXPORT_SYMBOL(fscrypt_has_permitted_context);
 
+/*
+ * Return the encryption policy that new files in the directory will inherit, or
+ * NULL if none, or an ERR_PTR() on error.  If the directory is encrypted, also
+ * ensure that its key is set up, so that the new filename can be encrypted.
+ */
+const union fscrypt_policy *fscrypt_policy_to_inherit(struct inode *dir)
+{
+	int err;
+
+	if (IS_ENCRYPTED(dir)) {
+		err = fscrypt_require_key(dir);
+		if (err)
+			return ERR_PTR(err);
+		return &dir->i_crypt_info->ci_policy;
+	}
+
+	return fscrypt_get_dummy_policy(dir->i_sb);
+}
+
 /**
  * fscrypt_set_context() - Set the fscrypt context of a new inode
  * @inode: a new inode
@@ -672,31 +699,28 @@ EXPORT_SYMBOL_GPL(fscrypt_set_context);
  * @sb: the filesystem on which test_dummy_encryption is being specified
  * @arg: the argument to the test_dummy_encryption option.
  *	 If no argument was specified, then @arg->from == NULL.
- * @dummy_ctx: the filesystem's current dummy context (input/output, see below)
+ * @dummy_policy: the filesystem's current dummy policy (input/output, see
+ *		  below)
  *
  * Handle the test_dummy_encryption mount option by creating a dummy encryption
- * context, saving it in @dummy_ctx, and adding the corresponding dummy
- * encryption key to the filesystem.  If the @dummy_ctx is already set, then
+ * policy, saving it in @dummy_policy, and adding the corresponding dummy
+ * encryption key to the filesystem.  If the @dummy_policy is already set, then
  * instead validate that it matches @arg.  Don't support changing it via
  * remount, as that is difficult to do safely.
  *
- * The reason we use an fscrypt_context rather than an fscrypt_policy is because
- * we mustn't generate a new nonce each time we access a dummy-encrypted
- * directory, as that would change the way filenames are encrypted.
- *
- * Return: 0 on success (dummy context set, or the same context is already set);
- *         -EEXIST if a different dummy context is already set;
+ * Return: 0 on success (dummy policy set, or the same policy is already set);
+ *         -EEXIST if a different dummy policy is already set;
  *         or another -errno value.
  */
 int fscrypt_set_test_dummy_encryption(struct super_block *sb,
 				      const substring_t *arg,
-				      struct fscrypt_dummy_context *dummy_ctx)
+				      struct fscrypt_dummy_policy *dummy_policy)
 {
 	const char *argstr = "v2";
 	const char *argstr_to_free = NULL;
 	struct fscrypt_key_specifier key_spec = { 0 };
 	int version;
-	union fscrypt_context *ctx = NULL;
+	union fscrypt_policy *policy = NULL;
 	int err;
 
 	if (arg->from) {
@@ -706,12 +730,12 @@ int fscrypt_set_test_dummy_encryption(struct super_block *sb,
 	}
 
 	if (!strcmp(argstr, "v1")) {
-		version = FSCRYPT_CONTEXT_V1;
+		version = FSCRYPT_POLICY_V1;
 		key_spec.type = FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR;
 		memset(key_spec.u.descriptor, 0x42,
 		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
 	} else if (!strcmp(argstr, "v2")) {
-		version = FSCRYPT_CONTEXT_V2;
+		version = FSCRYPT_POLICY_V2;
 		key_spec.type = FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER;
 		/* key_spec.u.identifier gets filled in when adding the key */
 	} else {
@@ -719,21 +743,8 @@ int fscrypt_set_test_dummy_encryption(struct super_block *sb,
 		goto out;
 	}
 
-	if (dummy_ctx->ctx) {
-		/*
-		 * Note: if we ever make test_dummy_encryption support
-		 * specifying other encryption settings, such as the encryption
-		 * modes, we'll need to compare those settings here.
-		 */
-		if (dummy_ctx->ctx->version == version)
-			err = 0;
-		else
-			err = -EEXIST;
-		goto out;
-	}
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
+	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
+	if (!policy) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -742,18 +753,18 @@ int fscrypt_set_test_dummy_encryption(struct super_block *sb,
 	if (err)
 		goto out;
 
-	ctx->version = version;
-	switch (ctx->version) {
-	case FSCRYPT_CONTEXT_V1:
-		ctx->v1.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
-		ctx->v1.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
-		memcpy(ctx->v1.master_key_descriptor, key_spec.u.descriptor,
+	policy->version = version;
+	switch (policy->version) {
+	case FSCRYPT_POLICY_V1:
+		policy->v1.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
+		policy->v1.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
+		memcpy(policy->v1.master_key_descriptor, key_spec.u.descriptor,
 		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
 		break;
-	case FSCRYPT_CONTEXT_V2:
-		ctx->v2.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
-		ctx->v2.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
-		memcpy(ctx->v2.master_key_identifier, key_spec.u.identifier,
+	case FSCRYPT_POLICY_V2:
+		policy->v2.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
+		policy->v2.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
+		memcpy(policy->v2.master_key_identifier, key_spec.u.identifier,
 		       FSCRYPT_KEY_IDENTIFIER_SIZE);
 		break;
 	default:
@@ -761,11 +772,19 @@ int fscrypt_set_test_dummy_encryption(struct super_block *sb,
 		err = -EINVAL;
 		goto out;
 	}
-	dummy_ctx->ctx = ctx;
-	ctx = NULL;
+
+	if (dummy_policy->policy) {
+		if (fscrypt_policies_equal(policy, dummy_policy->policy))
+			err = 0;
+		else
+			err = -EEXIST;
+		goto out;
+	}
+	dummy_policy->policy = policy;
+	policy = NULL;
 	err = 0;
 out:
-	kfree(ctx);
+	kfree(policy);
 	kfree(argstr_to_free);
 	return err;
 }
@@ -783,10 +802,16 @@ EXPORT_SYMBOL_GPL(fscrypt_set_test_dummy_encryption);
 void fscrypt_show_test_dummy_encryption(struct seq_file *seq, char sep,
 					struct super_block *sb)
 {
-	const union fscrypt_context *ctx = fscrypt_get_dummy_context(sb);
+	const union fscrypt_policy *policy = fscrypt_get_dummy_policy(sb);
+	int vers;
 
-	if (!ctx)
+	if (!policy)
 		return;
-	seq_printf(seq, "%ctest_dummy_encryption=v%d", sep, ctx->version);
+
+	vers = policy->version;
+	if (vers == FSCRYPT_POLICY_V1) /* Handle numbering quirk */
+		vers = 1;
+
+	seq_printf(seq, "%ctest_dummy_encryption=v%d", sep, vers);
 }
 EXPORT_SYMBOL_GPL(fscrypt_show_test_dummy_encryption);
