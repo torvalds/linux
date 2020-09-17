@@ -697,8 +697,7 @@ EXPORT_SYMBOL_GPL(fscrypt_set_context);
 /**
  * fscrypt_set_test_dummy_encryption() - handle '-o test_dummy_encryption'
  * @sb: the filesystem on which test_dummy_encryption is being specified
- * @arg: the argument to the test_dummy_encryption option.
- *	 If no argument was specified, then @arg->from == NULL.
+ * @arg: the argument to the test_dummy_encryption option.  May be NULL.
  * @dummy_policy: the filesystem's current dummy policy (input/output, see
  *		  below)
  *
@@ -712,29 +711,23 @@ EXPORT_SYMBOL_GPL(fscrypt_set_context);
  *         -EEXIST if a different dummy policy is already set;
  *         or another -errno value.
  */
-int fscrypt_set_test_dummy_encryption(struct super_block *sb,
-				      const substring_t *arg,
+int fscrypt_set_test_dummy_encryption(struct super_block *sb, const char *arg,
 				      struct fscrypt_dummy_policy *dummy_policy)
 {
-	const char *argstr = "v2";
-	const char *argstr_to_free = NULL;
 	struct fscrypt_key_specifier key_spec = { 0 };
 	int version;
 	union fscrypt_policy *policy = NULL;
 	int err;
 
-	if (arg->from) {
-		argstr = argstr_to_free = match_strdup(arg);
-		if (!argstr)
-			return -ENOMEM;
-	}
+	if (!arg)
+		arg = "v2";
 
-	if (!strcmp(argstr, "v1")) {
+	if (!strcmp(arg, "v1")) {
 		version = FSCRYPT_POLICY_V1;
 		key_spec.type = FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR;
 		memset(key_spec.u.descriptor, 0x42,
 		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
-	} else if (!strcmp(argstr, "v2")) {
+	} else if (!strcmp(arg, "v2")) {
 		version = FSCRYPT_POLICY_V2;
 		key_spec.type = FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER;
 		/* key_spec.u.identifier gets filled in when adding the key */
@@ -785,7 +778,6 @@ int fscrypt_set_test_dummy_encryption(struct super_block *sb,
 	err = 0;
 out:
 	kfree(policy);
-	kfree(argstr_to_free);
 	return err;
 }
 EXPORT_SYMBOL_GPL(fscrypt_set_test_dummy_encryption);

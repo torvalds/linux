@@ -15,7 +15,6 @@
 
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/parser.h>
 #include <linux/slab.h>
 #include <uapi/linux/fscrypt.h>
 
@@ -153,9 +152,7 @@ struct fscrypt_dummy_policy {
 	const union fscrypt_policy *policy;
 };
 
-int fscrypt_set_test_dummy_encryption(
-				struct super_block *sb,
-				const substring_t *arg,
+int fscrypt_set_test_dummy_encryption(struct super_block *sb, const char *arg,
 				struct fscrypt_dummy_policy *dummy_policy);
 void fscrypt_show_test_dummy_encryption(struct seq_file *seq, char sep,
 					struct super_block *sb);

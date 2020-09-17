@@ -1892,7 +1892,7 @@ static int ext4_set_test_dummy_encryption(struct super_block *sb,
 			 "Can't set test_dummy_encryption on remount");
 		return -1;
 	}
-	err = fscrypt_set_test_dummy_encryption(sb, arg,
+	err = fscrypt_set_test_dummy_encryption(sb, arg->from,
 						&sbi->s_dummy_enc_policy);
 	if (err) {
 		if (err == -EEXIST)
