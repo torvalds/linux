@@ -797,7 +797,7 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 			continue;
 		}
 
-		strlcpy(f->description, format->description,
+		strscpy(f->description, format->description,
 			sizeof(f->description));
 		f->pixelformat = format->pixelformat;
 		return 0;
