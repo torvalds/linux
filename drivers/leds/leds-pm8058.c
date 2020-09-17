@@ -87,6 +87,7 @@ static enum led_brightness pm8058_led_get(struct led_classdev *cled)
 
 static int pm8058_led_probe(struct platform_device *pdev)
 {
+	struct led_init_data init_data = {};
 	struct pm8058_led *led;
 	struct device_node *np = dev_of_node(&pdev->dev);
 	int ret;
@@ -113,8 +114,6 @@ static int pm8058_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* Use label else node name */
-	led->cdev.name = of_get_property(np, "label", NULL) ? : np->name;
 	led->cdev.default_trigger =
 		of_get_property(np, "linux,default-trigger", NULL);
 	led->cdev.brightness_set = pm8058_led_set;
@@ -142,10 +141,12 @@ static int pm8058_led_probe(struct platform_device *pdev)
 	    led->ledtype == PM8058_LED_TYPE_FLASH)
 		led->cdev.flags	= LED_CORE_SUSPENDRESUME;
 
-	ret = devm_led_classdev_register(&pdev->dev, &led->cdev);
+	init_data.fwnode = of_fwnode_handle(np);
+
+	ret = devm_led_classdev_register_ext(&pdev->dev, &led->cdev,
+					     &init_data);
 	if (ret) {
-		dev_err(&pdev->dev, "unable to register led \"%s\"\n",
-			led->cdev.name);
+		dev_err(&pdev->dev, "Failed to register LED for %pOF\n", np);
 		return ret;
 	}
 
