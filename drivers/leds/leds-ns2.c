@@ -30,20 +30,6 @@ struct ns2_led_modval {
 	int			slow_level;
 };
 
-struct ns2_led_of_one {
-	const char	*name;
-	const char	*default_trigger;
-	struct gpio_desc *cmd;
-	struct gpio_desc *slow;
-	int		num_modes;
-	struct ns2_led_modval *modval;
-};
-
-struct ns2_led_of {
-	int			num_leds;
-	struct ns2_led_of_one	*leds;
-};
-
 /*
  * The Network Space v2 dual-GPIO LED is wired to a CPLD. Three different LED
  * modes are available: off, on and SATA activity blinking. The LED modes are
@@ -184,63 +170,29 @@ static struct attribute *ns2_led_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ns2_led);
 
-static int
-create_ns2_led(struct device *dev, struct ns2_led *led,
-	       const struct ns2_led_of_one *template)
-{
-	int ret;
-	enum ns2_led_modes mode;
-
-	rwlock_init(&led->rw_lock);
-
-	led->cdev.name = template->name;
-	led->cdev.default_trigger = template->default_trigger;
-	led->cdev.blink_set = NULL;
-	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
-	led->cdev.groups = ns2_led_groups;
-	led->cmd = template->cmd;
-	led->slow = template->slow;
-	led->can_sleep = gpiod_cansleep(led->cmd) | gpiod_cansleep(led->slow);
-	if (led->can_sleep)
-		led->cdev.brightness_set_blocking = ns2_led_set_blocking;
-	else
-		led->cdev.brightness_set = ns2_led_set;
-	led->modval = template->modval;
-	led->num_modes = template->num_modes;
-
-	ret = ns2_led_get_mode(led, &mode);
-	if (ret < 0)
-		return ret;
-
-	/* Set LED initial state. */
-	led->sata = (mode == NS_V2_LED_SATA) ? 1 : 0;
-	led->cdev.brightness = (mode == NS_V2_LED_OFF) ? LED_OFF : LED_FULL;
-
-	return devm_led_classdev_register(dev, &led->cdev);
-}
-
-static int ns2_leds_parse_one(struct device *dev, struct device_node *np,
-			      struct ns2_led_of_one *led)
+static int ns2_led_register(struct device *dev, struct device_node *np,
+			    struct ns2_led *led)
 {
 	struct ns2_led_modval *modval;
+	enum ns2_led_modes mode;
 	int nmodes, ret, i;
 
-	ret = of_property_read_string(np, "label", &led->name);
+	ret = of_property_read_string(np, "label", &led->cdev.name);
 	if (ret)
-		led->name = np->name;
+		led->cdev.name = np->name;
 
 	led->cmd = devm_gpiod_get_from_of_node(dev, np, "cmd-gpio", 0,
-					       GPIOD_ASIS, led->name);
+					       GPIOD_ASIS, np->name);
 	if (IS_ERR(led->cmd))
 		return PTR_ERR(led->cmd);
 
 	led->slow = devm_gpiod_get_from_of_node(dev, np, "slow-gpio", 0,
-						GPIOD_ASIS, led->name);
+						GPIOD_ASIS, np->name);
 	if (IS_ERR(led->slow))
 		return PTR_ERR(led->slow);
 
 	of_property_read_string(np, "linux,default-trigger",
-				&led->default_trigger);
+				&led->cdev.default_trigger);
 
 	ret = of_property_count_u32_elems(np, "modes-map");
 	if (ret < 0 || ret % 3) {
@@ -264,45 +216,32 @@ static int ns2_leds_parse_one(struct device *dev, struct device_node *np,
 		modval[i].slow_level = val;
 	}
 
+	rwlock_init(&led->rw_lock);
+
+	led->cdev.blink_set = NULL;
+	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
+	led->cdev.groups = ns2_led_groups;
+	led->can_sleep = gpiod_cansleep(led->cmd) || gpiod_cansleep(led->slow);
+	if (led->can_sleep)
+		led->cdev.brightness_set_blocking = ns2_led_set_blocking;
+	else
+		led->cdev.brightness_set = ns2_led_set;
 	led->num_modes = nmodes;
 	led->modval = modval;
 
-	return 0;
-}
+	ret = ns2_led_get_mode(led, &mode);
+	if (ret < 0)
+		return ret;
 
-/*
- * Translate OpenFirmware node properties into platform_data.
- */
-static int
-ns2_leds_parse_of(struct device *dev, struct ns2_led_of *ofdata)
-{
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *child;
-	struct ns2_led_of_one *led, *leds;
-	int ret, num_leds = 0;
+	/* Set LED initial state. */
+	led->sata = (mode == NS_V2_LED_SATA) ? 1 : 0;
+	led->cdev.brightness = (mode == NS_V2_LED_OFF) ? LED_OFF : LED_FULL;
 
-	num_leds = of_get_available_child_count(np);
-	if (!num_leds)
-		return -ENODEV;
+	ret = devm_led_classdev_register(dev, &led->cdev);
+	if (ret)
+		dev_err(dev, "Failed to register LED for node %pOF\n", np);
 
-	leds = devm_kcalloc(dev, num_leds, sizeof(struct ns2_led),
-			    GFP_KERNEL);
-	if (!leds)
-		return -ENOMEM;
-
-	led = leds;
-	for_each_available_child_of_node(np, child) {
-		ret = ns2_leds_parse_one(dev, child, led++);
-		if (ret < 0) {
-			of_node_put(child);
-			return ret;
-		}
-	}
-
-	ofdata->leds = leds;
-	ofdata->num_leds = num_leds;
-
-	return 0;
+	return ret;
 }
 
 static const struct of_device_id of_ns2_leds_match[] = {
@@ -314,28 +253,26 @@ MODULE_DEVICE_TABLE(of, of_ns2_leds_match);
 static int ns2_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct ns2_led_of *ofdata;
+	struct device_node *np, *child;
 	struct ns2_led *leds;
-	int i;
+	int count;
 	int ret;
 
-	ofdata = devm_kzalloc(dev, sizeof(struct ns2_led_of), GFP_KERNEL);
-	if (!ofdata)
-		return -ENOMEM;
+	np = dev_of_node(dev);
+	count = of_get_available_child_count(np);
+	if (!count)
+		return -ENODEV;
 
-	ret = ns2_leds_parse_of(dev, ofdata);
-	if (ret)
-		return ret;
-
-	leds = devm_kzalloc(dev, array_size(sizeof(*leds), ofdata->num_leds),
-			    GFP_KERNEL);
+	leds = devm_kzalloc(dev, array_size(sizeof(*leds), count), GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
 
-	for (i = 0; i < ofdata->num_leds; i++) {
-		ret = create_ns2_led(dev, &leds[i], &ofdata->leds[i]);
-		if (ret < 0)
+	for_each_available_child_of_node(np, child) {
+		ret = ns2_led_register(dev, child, leds++);
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 	}
 
 	return 0;
