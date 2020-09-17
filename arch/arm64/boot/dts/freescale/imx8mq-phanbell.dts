@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "imx8mq.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Google i.MX8MQ Phanbell";
@@ -125,7 +126,7 @@
 		clocks = <&pmic_osc>;
 		clock-output-names = "pmic_clk";
 		interrupt-parent = <&gpio1>;
-		interrupts = <3 GPIO_ACTIVE_LOW>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
 		regulators {
 			buck1: BUCK1 {
