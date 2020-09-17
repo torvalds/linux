@@ -60,17 +60,7 @@ hsr_node_table_show(struct seq_file *sfp, void *data)
 	return 0;
 }
 
-/* hsr_node_table_open - Open the node_table file
- *
- * Description:
- * This routine opens a debugfs file node_table of specific hsr
- * or prp device
- */
-static int
-hsr_node_table_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hsr_node_table_show, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(hsr_node_table);
 
 void hsr_debugfs_rename(struct net_device *dev)
 {
@@ -84,13 +74,6 @@ void hsr_debugfs_rename(struct net_device *dev)
 	else
 		priv->node_tbl_root = d;
 }
-
-static const struct file_operations hsr_fops = {
-	.open	= hsr_node_table_open,
-	.read	= seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 
 /* hsr_debugfs_init - create hsr node_table file for dumping
  * the node table
@@ -113,7 +96,7 @@ void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 
 	de = debugfs_create_file("node_table", S_IFREG | 0444,
 				 priv->node_tbl_root, priv,
-				 &hsr_fops);
+				 &hsr_node_table_fops);
 	if (IS_ERR(de)) {
 		pr_err("Cannot create hsr node_table file\n");
 		debugfs_remove(priv->node_tbl_root);
