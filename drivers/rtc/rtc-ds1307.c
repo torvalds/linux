@@ -191,6 +191,10 @@ struct chip_desc {
 	u16			trickle_charger_reg;
 	u8			(*do_trickle_setup)(struct ds1307 *, u32,
 						    bool);
+	/* Does the RTC require trickle-resistor-ohms to select the value of
+	 * the resistor between Vcc and Vbackup?
+	 */
+	bool			requires_trickle_resistor;
 };
 
 static const struct chip_desc chips[last_ds_type];
@@ -986,6 +990,7 @@ static const struct chip_desc chips[last_ds_type] = {
 		.bbsqi_bit	= DS1339_BIT_BBSQI,
 		.trickle_charger_reg = 0x10,
 		.do_trickle_setup = &do_trickle_setup_ds1339,
+		.requires_trickle_resistor = true,
 	},
 	[ds_1340] = {
 		.century_reg	= DS1307_REG_HOUR,
@@ -993,6 +998,7 @@ static const struct chip_desc chips[last_ds_type] = {
 		.century_bit	= DS1340_BIT_CENTURY,
 		.do_trickle_setup = &do_trickle_setup_ds1339,
 		.trickle_charger_reg = 0x08,
+		.requires_trickle_resistor = true,
 	},
 	[ds_1341] = {
 		.century_reg	= DS1307_REG_MONTH,
@@ -1307,7 +1313,7 @@ static u8 ds1307_trickle_init(struct ds1307 *ds1307,
 		return 0;
 
 	if (device_property_read_u32(ds1307->dev, "trickle-resistor-ohms",
-				     &ohms))
+				     &ohms) && chip->requires_trickle_resistor)
 		return 0;
 
 	if (device_property_read_bool(ds1307->dev, "trickle-diode-disable"))
