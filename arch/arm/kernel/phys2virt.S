@@ -68,7 +68,7 @@ __fixup_a_pv_table:
 #ifdef CONFIG_THUMB2_KERNEL
 	moveq	r0, #0x200000		@ set bit 21, mov to mvn instruction
 	lsls	r6, #24
-	beq	2f
+	beq	.Lnext
 	clz	r7, r6
 	lsr	r6, #24
 	lsl	r6, r7
@@ -77,8 +77,8 @@ __fixup_a_pv_table:
 	orrcs	r6, #0x0080
 	orr	r6, r6, r7, lsl #12
 	orr	r6, #0x4000
-	b	2f
-1:	add	r7, r3
+	b	.Lnext
+.Lloop:	add	r7, r3
 	ldrh	ip, [r7, #2]
 ARM_BE8(rev16	ip, ip)
 	tst	ip, #0x4000
@@ -87,21 +87,17 @@ ARM_BE8(rev16	ip, ip)
 	orreq	ip, r0			@ mask in offset bits 7-0
 ARM_BE8(rev16	ip, ip)
 	strh	ip, [r7, #2]
-	bne	2f
+	bne	.Lnext
 	ldrh	ip, [r7]
 ARM_BE8(rev16	ip, ip)
 	bic	ip, #0x20
 	orr	ip, ip, r0, lsr #16
 ARM_BE8(rev16	ip, ip)
 	strh	ip, [r7]
-2:	cmp	r4, r5
-	ldrcc	r7, [r4], #4		@ use branch for delay slot
-	bcc	1b
-	bx	lr
 #else
 	moveq	r0, #0x400000		@ set bit 22, mov to mvn instruction
-	b	2f
-1:	ldr	ip, [r7, r3]
+	b	.Lnext
+.Lloop:	ldr	ip, [r7, r3]
 #ifdef CONFIG_CPU_ENDIAN_BE8
 	@ in BE8, we load data in BE, but instructions still in LE
 	bic	ip, ip, #0xff000000
@@ -117,11 +113,13 @@ ARM_BE8(rev16	ip, ip)
 	orreq	ip, ip, r0		@ mask in offset bits 7-0
 #endif
 	str	ip, [r7, r3]
-2:	cmp	r4, r5
-	ldrcc	r7, [r4], #4		@ use branch for delay slot
-	bcc	1b
-	ret	lr
 #endif
+
+.Lnext:
+	cmp	r4, r5
+	ldrcc	r7, [r4], #4		@ use branch for delay slot
+	bcc	.Lloop
+	ret	lr
 ENDPROC(__fixup_a_pv_table)
 
 	.align
