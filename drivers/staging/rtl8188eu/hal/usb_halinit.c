@@ -876,7 +876,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 {
 	u8 val8;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("CardDisableRTL8188EU\n"));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("%s\n", __func__));
 
 	/* Stop Tx Report Timer. 0x4EC[Bit1]=b'0 */
 	val8 = usb_read8(Adapter, REG_TX_RPT_CTRL);
@@ -1038,8 +1038,7 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 		memcpy(eeprom->mac_addr, &hwinfo[EEPROM_MAC_ADDR_88EU], ETH_ALEN);
 	}
 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("Hal_EfuseParseMACAddr_8188EU: Permanent Address = %pM\n",
-		 eeprom->mac_addr));
+		 ("%s: Permanent Address = %pM\n", __func__, eeprom->mac_addr));
 }
 
 static void readAdapterInfo_8188EU(struct adapter *adapt)

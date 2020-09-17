@@ -95,7 +95,7 @@ void _8051Reset88E(struct adapter *padapter)
 	u1bTmp = usb_read8(padapter, REG_SYS_FUNC_EN + 1);
 	usb_write8(padapter, REG_SYS_FUNC_EN + 1, u1bTmp & (~BIT(2)));
 	usb_write8(padapter, REG_SYS_FUNC_EN + 1, u1bTmp | (BIT(2)));
-	DBG_88E("=====> _8051Reset88E(): 8051 reset success .\n");
+	DBG_88E("=====> %s(): 8051 reset success .\n", __func__);
 }
 
 void rtl8188e_InitializeFirmwareVars(struct adapter *padapter)
