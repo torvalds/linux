@@ -221,7 +221,6 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size;
-	int ret = 0;
 
 	if (be->max > sizeof(ucontrol->value.bytes.data)) {
 		dev_err_ratelimited(scomp->dev,
@@ -235,15 +234,13 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 		dev_err_ratelimited(scomp->dev,
 				    "error: DSP sent %zu bytes max is %d\n",
 				    size, be->max);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/* copy back to kcontrol */
 	memcpy(ucontrol->value.bytes.data, data, size);
 
-out:
-	return ret;
+	return 0;
 }
 
 int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
@@ -424,7 +421,6 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_tlv __user *tlvd =
 		(struct snd_ctl_tlv __user *)binary_data;
 	int data_size;
-	int ret = 0;
 
 	/*
 	 * Decrement the limit by ext bytes header size to
@@ -443,20 +439,16 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	if (data_size > be->max) {
 		dev_err_ratelimited(scomp->dev, "error: user data size %d exceeds max size %d.\n",
 				    data_size, be->max);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	header.numid = scontrol->cmd;
 	header.length = data_size;
-	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv))) {
-		ret = -EFAULT;
-		goto out;
-	}
+	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv)))
+		return -EFAULT;
 
 	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
-		ret = -EFAULT;
+		return -EFAULT;
 
-out:
-	return ret;
+	return 0;
 }

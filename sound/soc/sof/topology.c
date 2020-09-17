@@ -63,7 +63,7 @@ static int ipc_pcm_params(struct snd_sof_widget *swidget, int dir)
 	struct sof_ipc_pcm_params pcm;
 	struct snd_pcm_hw_params *params;
 	struct snd_sof_pcm *spcm;
-	int ret = 0;
+	int ret;
 
 	memset(&pcm, 0, sizeof(pcm));
 
@@ -121,7 +121,7 @@ static int ipc_trigger(struct snd_sof_widget *swidget, int cmd)
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
-	int ret = 0;
+	int ret;
 
 	/* set IPC stream params */
 	stream.hdr.size = sizeof(stream);
@@ -1033,7 +1033,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	struct sof_ipc_ctrl_data *cdata;
 	int tlv[TLV_ITEMS];
 	unsigned int i;
-	int ret = 0;
+	int ret;
 
 	/* validate topology data */
 	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN) {
@@ -1098,7 +1098,7 @@ skip:
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
 		scontrol->comp_id, scontrol->num_channels);
 
-	return ret;
+	return 0;
 
 out_free_table:
 	if (le32_to_cpu(mc->max) > 1)
@@ -1151,7 +1151,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 		container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
 	struct soc_bytes_ext *sbe = (struct soc_bytes_ext *)kc->private_value;
 	int max_size = sbe->max;
-	int ret = 0;
+	int ret;
 
 	/* init the get/put bytes data */
 	scontrol->size = sizeof(struct sof_ipc_ctrl_data) +
@@ -1204,7 +1204,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 		}
 	}
 
-	return ret;
+	return 0;
 
 out_free:
 	kfree(scontrol->control_data);
@@ -1223,7 +1223,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_dobj *dobj;
 	struct snd_sof_control *scontrol;
-	int ret = -EINVAL;
+	int ret;
 
 	dev_dbg(scomp->dev, "tplg: load control type %d name : %s\n",
 		hdr->type, hdr->name);
@@ -1276,7 +1276,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 
 	dobj->private = scontrol;
 	list_add(&scontrol->list, &sdev->kcontrol_list);
-	return ret;
+	return 0;
 }
 
 static int sof_control_unload(struct snd_soc_component *scomp,
@@ -2659,7 +2659,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	struct snd_soc_tplg_private *private = &pcm->priv;
 	struct snd_sof_pcm *spcm;
 	int stream;
-	int ret = 0;
+	int ret;
 
 	/* nothing to do for BEs atm */
 	if (!pcm)
@@ -3350,7 +3350,6 @@ static int sof_link_hda_unload(struct snd_sof_dev *sdev,
 			       struct snd_soc_dai_link *link)
 {
 	struct snd_soc_dai *dai;
-	int ret = 0;
 
 	dai = snd_soc_find_dai(link->cpus);
 	if (!dai) {
@@ -3359,7 +3358,7 @@ static int sof_link_hda_unload(struct snd_sof_dev *sdev,
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int sof_link_unload(struct snd_soc_component *scomp,
@@ -3492,7 +3491,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	    sink_swidget->id != snd_soc_dapm_buffer) {
 		dev_dbg(scomp->dev, "warning: neither Linked source component %s nor sink component %s is of buffer type, ignoring link\n",
 			route->source, route->sink);
-		ret = 0;
 		goto err;
 	} else {
 		ret = sof_ipc_tx_message(sdev->ipc,
@@ -3526,7 +3524,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		/* add route to route list */
 		list_add(&sroute->list, &sdev->route_list);
 
-		return ret;
+		return 0;
 	}
 
 err:
