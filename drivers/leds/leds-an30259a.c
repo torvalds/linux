@@ -208,7 +208,7 @@ static int an30259a_dt_init(struct i2c_client *client,
 	const char *str;
 	struct an30259a_led *led;
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count || count > AN30259A_MAX_LEDS)
 		return -EINVAL;
 

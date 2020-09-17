@@ -611,7 +611,7 @@ static int lp55xx_parse_multi_led(struct device_node *np,
 	struct device_node *child;
 	int num_colors = 0, ret;
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		ret = lp55xx_parse_multi_led_child(child, cfg, child_number,
 						   num_colors);
 		if (ret)
@@ -665,7 +665,7 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	num_channels = of_get_child_count(np);
+	num_channels = of_get_available_child_count(np);
 	if (num_channels == 0) {
 		dev_err(dev, "no LED channels\n");
 		return ERR_PTR(-EINVAL);
@@ -679,7 +679,7 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 	pdata->num_channels = num_channels;
 	cfg->max_channel = chip->cfg->max_channel;
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		ret = lp55xx_parse_logical_led(child, cfg, i);
 		if (ret)
 			return ERR_PTR(-EINVAL);

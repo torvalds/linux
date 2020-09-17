@@ -694,7 +694,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 	struct led_info *tca_leds;
 	int count;
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count || count > NUM_LEDS)
 		return ERR_PTR(-ENODEV);
 
@@ -703,7 +703,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 	if (!tca_leds)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		struct led_info led;
 		u32 reg;
 		int ret;

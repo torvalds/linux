@@ -131,7 +131,7 @@ static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
 	if (ret)
 		goto out_node_put;
 
-	pdata->num_leds = of_get_child_count(parent);
+	pdata->num_leds = of_get_available_child_count(parent);
 
 	pdata->led = devm_kcalloc(dev, pdata->num_leds, sizeof(*pdata->led),
 				  GFP_KERNEL);
@@ -140,7 +140,7 @@ static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
 		goto out_node_put;
 	}
 
-	for_each_child_of_node(parent, child) {
+	for_each_available_child_of_node(parent, child) {
 		const char *str;
 		u32 tmp;
 

@@ -220,7 +220,7 @@ static int is31fl319x_parse_dt(struct device *dev,
 
 	is31->cdef = device_get_match_data(dev);
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 
 	dev_dbg(dev, "probing with %d leds defined in DT\n", count);
 
@@ -230,7 +230,7 @@ static int is31fl319x_parse_dt(struct device *dev,
 		return -ENODEV;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		struct is31fl319x_led *led;
 		u32 reg;
 

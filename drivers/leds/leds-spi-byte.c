@@ -87,11 +87,11 @@ static int spi_byte_probe(struct spi_device *spi)
 	const char *state;
 	int ret;
 
-	if (of_get_child_count(dev_of_node(dev)) != 1) {
+	if (of_get_available_child_count(dev_of_node(dev)) != 1) {
 		dev_err(dev, "Device must have exactly one LED sub-node.");
 		return -EINVAL;
 	}
-	child = of_get_next_child(dev_of_node(dev), NULL);
+	child = of_get_next_available_child(dev_of_node(dev), NULL);
 
 	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (!led)

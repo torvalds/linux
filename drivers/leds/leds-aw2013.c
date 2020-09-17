@@ -265,7 +265,7 @@ static int aw2013_probe_dt(struct aw2013 *chip)
 	int count, ret = 0, i = 0;
 	struct aw2013_led *led;
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count || count > AW2013_MAX_LEDS)
 		return -EINVAL;
 

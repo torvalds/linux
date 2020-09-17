@@ -158,7 +158,7 @@ tlc591xx_probe(struct i2c_client *client,
 	if (!np)
 		return -ENODEV;
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count || count > tlc591xx->max_leds)
 		return -EINVAL;
 
@@ -180,7 +180,7 @@ tlc591xx_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		struct tlc591xx_led *led;
 		struct led_init_data init_data = {};
 

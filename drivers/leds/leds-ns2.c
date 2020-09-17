@@ -251,7 +251,7 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 	struct ns2_led *led, *leds;
 	int ret, num_leds = 0;
 
-	num_leds = of_get_child_count(np);
+	num_leds = of_get_available_child_count(np);
 	if (!num_leds)
 		return -ENODEV;
 
@@ -261,7 +261,7 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 		return -ENOMEM;
 
 	led = leds;
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		const char *string;
 		int i, num_modes;
 		struct ns2_led_modval *modval;

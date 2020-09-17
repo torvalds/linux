@@ -281,7 +281,7 @@ static int sc27xx_led_probe(struct platform_device *pdev)
 	u32 base, count, reg;
 	int err;
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count || count > SC27XX_LEDS_MAX)
 		return -EINVAL;
 
@@ -305,7 +305,7 @@ static int sc27xx_led_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err) {
 			of_node_put(child);
