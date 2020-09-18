@@ -520,6 +520,8 @@ static int __qti_flash_led_brightness_set(struct led_classdev *led_cdev,
 		if (rc < 0)
 			pr_err("Failed to disable LED\n");
 
+		led_cdev->brightness = 0;
+
 		return rc;
 	}
 
@@ -563,18 +565,12 @@ static int qti_flash_config_group_symmetry(struct qti_flash_led *led,
 		}
 	}
 
-	if (!symmetric_leds || !total_curr_ma) {
-		pr_debug("Incorrect configuration, symmetric_leds: %d total_curr_ma: %d\n",
-			symmetric_leds, total_curr_ma);
-		return 0;
+	if (!symmetric_leds) {
+		pr_err("led-mask %#x has zero symmetric leds\n", led_mask);
+		return -EINVAL;
 	}
 
 	per_led_curr_ma = total_curr_ma / symmetric_leds;
-
-	if (per_led_curr_ma == 0) {
-		pr_warn("per_led_curr_ma cannot be 0\n");
-		return 0;
-	}
 
 	pr_debug("mask: %#x symmetric_leds: %d total: %d per_led_curr_ma: %d\n",
 		led_mask, symmetric_leds, total_curr_ma, per_led_curr_ma);
@@ -1437,9 +1433,8 @@ static int register_switch_device(struct qti_flash_led *led,
 		pr_err("Failed to read led mask rc=%d\n", rc);
 		return rc;
 	}
-	if (snode->led_mask > LED_MASK_ALL(led)) {
-		pr_err("Error, Invalid value for led-mask mask=0x%x\n",
-			snode->led_mask);
+	if (!snode->led_mask || snode->led_mask > LED_MASK_ALL(led)) {
+		pr_err("led-mask %#x invalid\n", snode->led_mask);
 		return -EINVAL;
 	} else if (snode->led_mask < LED_MASK_ALL(led)) {
 		led->non_all_mask_switch_present = true;
