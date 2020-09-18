@@ -13,6 +13,9 @@
 #include <linux/atomic.h>
 #include <linux/debugfs.h>
 #include <linux/crypto.h>
+#include <crypto/internal/hash.h>
+#include <crypto/md5.h>
+#include <crypto/sha.h>
 
 #define SS_START	1
 
@@ -22,7 +25,11 @@
 #define SS_ALG_AES		0
 #define SS_ALG_DES		(1 << 2)
 #define SS_ALG_3DES		(2 << 2)
+#define SS_ALG_MD5		(3 << 2)
 #define SS_ALG_PRNG		(4 << 2)
+#define SS_ALG_SHA1		(6 << 2)
+#define SS_ALG_SHA224		(7 << 2)
+#define SS_ALG_SHA256		(8 << 2)
 
 #define SS_CTL_REG		0x00
 #define SS_INT_CTL_REG		0x04
@@ -50,6 +57,12 @@
 
 #define SS_OP_ECB	0
 #define SS_OP_CBC	(1 << 13)
+
+#define SS_ID_HASH_MD5	0
+#define SS_ID_HASH_SHA1	1
+#define SS_ID_HASH_SHA224	2
+#define SS_ID_HASH_SHA256	3
+#define SS_ID_HASH_MAX	4
 
 #define SS_FLOW0	BIT(30)
 #define SS_FLOW1	BIT(31)
@@ -84,11 +97,14 @@ struct ss_clock {
  * struct ss_variant - Describe SS capability for each variant hardware
  * @alg_cipher:	list of supported ciphers. for each SS_ID_ this will give the
  *              coresponding SS_ALG_XXX value
+ * @alg_hash:	list of supported hashes. for each SS_ID_ this will give the
+ *              corresponding SS_ALG_XXX value
  * @op_mode:	list of supported block modes
  * @ss_clks!	list of clock needed by this variant
  */
 struct ss_variant {
 	char alg_cipher[SS_ID_CIPHER_MAX];
+	char alg_hash[SS_ID_HASH_MAX];
 	u32 op_mode[SS_ID_OP_MAX];
 	struct ss_clock ss_clks[SS_MAX_CLOCKS];
 };
@@ -199,6 +215,36 @@ struct sun8i_ss_rng_tfm_ctx {
 };
 
 /*
+ * struct sun8i_ss_hash_tfm_ctx - context for an ahash TFM
+ * @enginectx:		crypto_engine used by this TFM
+ * @fallback_tfm:	pointer to the fallback TFM
+ * @ss:			pointer to the private data of driver handling this TFM
+ *
+ * enginectx must be the first element
+ */
+struct sun8i_ss_hash_tfm_ctx {
+	struct crypto_engine_ctx enginectx;
+	struct crypto_ahash *fallback_tfm;
+	struct sun8i_ss_dev *ss;
+};
+
+/*
+ * struct sun8i_ss_hash_reqctx - context for an ahash request
+ * @t_src:	list of DMA address and size for source SGs
+ * @t_dst:	list of DMA address and size for destination SGs
+ * @fallback_req:	pre-allocated fallback request
+ * @method:	the register value for the algorithm used by this request
+ * @flow:	the flow to use for this request
+ */
+struct sun8i_ss_hash_reqctx {
+	struct sginfo t_src[MAX_SG];
+	struct sginfo t_dst[MAX_SG];
+	struct ahash_request fallback_req;
+	u32 method;
+	int flow;
+};
+
+/*
  * struct sun8i_ss_alg_template - crypto_alg template
  * @type:		the CRYPTO_ALG_TYPE for this template
  * @ss_algo_id:		the SS_ID for this template
@@ -218,6 +264,7 @@ struct sun8i_ss_alg_template {
 	union {
 		struct skcipher_alg skcipher;
 		struct rng_alg rng;
+		struct ahash_alg hash;
 	} alg;
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
 	unsigned long stat_req;
@@ -245,3 +292,14 @@ int sun8i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 int sun8i_ss_prng_seed(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);
 int sun8i_ss_prng_init(struct crypto_tfm *tfm);
 void sun8i_ss_prng_exit(struct crypto_tfm *tfm);
+
+int sun8i_ss_hash_crainit(struct crypto_tfm *tfm);
+void sun8i_ss_hash_craexit(struct crypto_tfm *tfm);
+int sun8i_ss_hash_init(struct ahash_request *areq);
+int sun8i_ss_hash_export(struct ahash_request *areq, void *out);
+int sun8i_ss_hash_import(struct ahash_request *areq, const void *in);
+int sun8i_ss_hash_final(struct ahash_request *areq);
+int sun8i_ss_hash_update(struct ahash_request *areq);
+int sun8i_ss_hash_finup(struct ahash_request *areq);
+int sun8i_ss_hash_digest(struct ahash_request *areq);
+int sun8i_ss_hash_run(struct crypto_engine *engine, void *breq);

@@ -93,3 +93,12 @@ config CRYPTO_DEV_SUN8I_SS_PRNG
 	help
 	  Select this option if you want to provide kernel-side support for
 	  the Pseudo-Random Number Generator found in the Security System.
+
+config CRYPTO_DEV_SUN8I_SS_HASH
+	bool "Enable support for hash on sun8i-ss"
+	depends on CRYPTO_DEV_SUN8I_SS
+	select MD5
+	select SHA1
+	select SHA256
+	help
+	  Say y to enable support for hash algorithms.
