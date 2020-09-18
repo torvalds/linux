@@ -896,6 +896,26 @@ static struct ptp_clock_info ocelot_ptp_clock_info = {
 	.enable		= ocelot_ptp_enable,
 };
 
+static void mscc_ocelot_release_ports(struct ocelot *ocelot)
+{
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct ocelot_port_private *priv;
+		struct ocelot_port *ocelot_port;
+
+		ocelot_port = ocelot->ports[port];
+		if (!ocelot_port)
+			continue;
+
+		priv = container_of(ocelot_port, struct ocelot_port_private,
+				    port);
+
+		unregister_netdev(priv->dev);
+		free_netdev(priv->dev);
+	}
+}
+
 static int mscc_ocelot_init_ports(struct platform_device *pdev,
 				  struct device_node *ports)
 {
@@ -1132,6 +1152,7 @@ static int mscc_ocelot_remove(struct platform_device *pdev)
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
 
 	ocelot_deinit_timestamp(ocelot);
+	mscc_ocelot_release_ports(ocelot);
 	ocelot_deinit(ocelot);
 	unregister_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
 	unregister_switchdev_notifier(&ocelot_switchdev_nb);
