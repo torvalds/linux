@@ -668,7 +668,6 @@ static long ioctl_get_block_count(struct file *f, void __user *arg)
 	struct incfs_get_block_count_args __user *args_usr_ptr = arg;
 	struct incfs_get_block_count_args args = {};
 	struct data_file *df = get_incfs_data_file(f);
-	int error;
 
 	if (!df)
 		return -EINVAL;
@@ -682,7 +681,7 @@ static long ioctl_get_block_count(struct file *f, void __user *arg)
 	if (copy_to_user(args_usr_ptr, &args, sizeof(args)))
 		return -EFAULT;
 
-	return error;
+	return 0;
 }
 
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
