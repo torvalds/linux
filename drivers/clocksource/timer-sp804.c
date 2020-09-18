@@ -20,6 +20,18 @@
 
 #include "timer-sp.h"
 
+/* Hisilicon 64-bit timer(a variant of ARM SP804) */
+#define HISI_TIMER_1_BASE	0x00
+#define HISI_TIMER_2_BASE	0x40
+#define HISI_TIMER_LOAD		0x00
+#define HISI_TIMER_VALUE	0x08
+#define HISI_TIMER_CTRL		0x10
+#define HISI_TIMER_INTCLR	0x14
+#define HISI_TIMER_RIS		0x18
+#define HISI_TIMER_MIS		0x1c
+#define HISI_TIMER_BGLOAD	0x20
+
+
 struct sp804_timer __initdata arm_sp804_timer = {
 	.load		= TIMER_LOAD,
 	.value		= TIMER_VALUE,
@@ -27,6 +39,15 @@ struct sp804_timer __initdata arm_sp804_timer = {
 	.intclr		= TIMER_INTCLR,
 	.timer_base	= {TIMER_1_BASE, TIMER_2_BASE},
 	.width		= 32,
+};
+
+struct sp804_timer __initdata hisi_sp804_timer = {
+	.load		= HISI_TIMER_LOAD,
+	.value		= HISI_TIMER_VALUE,
+	.ctrl		= HISI_TIMER_CTRL,
+	.intclr		= HISI_TIMER_INTCLR,
+	.timer_base	= {HISI_TIMER_1_BASE, HISI_TIMER_2_BASE},
+	.width		= 64,
 };
 
 static struct sp804_clkevt sp804_clkevt[NR_TIMERS];
@@ -314,6 +335,12 @@ static int __init arm_sp804_of_init(struct device_node *np)
 	return sp804_of_init(np, &arm_sp804_timer);
 }
 TIMER_OF_DECLARE(sp804, "arm,sp804", arm_sp804_of_init);
+
+static int __init hisi_sp804_of_init(struct device_node *np)
+{
+	return sp804_of_init(np, &hisi_sp804_timer);
+}
+TIMER_OF_DECLARE(hisi_sp804, "hisilicon,sp804", hisi_sp804_of_init);
 
 static int __init integrator_cp_of_init(struct device_node *np)
 {
