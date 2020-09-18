@@ -67,7 +67,7 @@ struct hw_sequencer_funcs {
 			int num_planes, struct dc_state *context);
 	void (*program_front_end_for_ctx)(struct dc *dc,
 			struct dc_state *context);
-	bool (*disconnect_pipes)(struct dc *dc,
+	void (*disconnect_pipes)(struct dc *dc,
 			struct dc_state *context);
 	void (*wait_for_pending_cleared)(struct dc *dc,
 			struct dc_state *context);
