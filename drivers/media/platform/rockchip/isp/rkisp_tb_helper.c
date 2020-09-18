@@ -18,60 +18,22 @@
 
 #include "rkisp_tb_helper.h"
 
-static const char *const loader_protect_clocks[] = {
-	"aclk_isp",
-	"hclk_isp",
-	"clk_isp",
-	"pclk_csiphy0",
-	"pclk_csiphy1",
-	"clk_mipicsi_out2io",
-	"clk_scr1",
-	"clk_scr1_core",
-	"clk_scr1_rtc",
-	"clk_scr1_jtag"
-};
-
-static bool rkisp_tb_firstboot;
-static struct clk **loader_clocks;
+static struct platform_device *rkisp_tb_pdev;
 static int __maybe_unused rkisp_tb_clocks_loader_protect(void)
 {
-	int nclocks = ARRAY_SIZE(loader_protect_clocks);
-	struct clk *clk;
-	int i;
-
-	loader_clocks = kcalloc(nclocks, sizeof(void *), GFP_KERNEL);
-	if (!loader_clocks)
-		return -ENOMEM;
-
-	for (i = 0; i < nclocks; i++) {
-		clk = __clk_lookup(loader_protect_clocks[i]);
-
-		if (clk) {
-			loader_clocks[i] = clk;
-			clk_prepare_enable(clk);
-		}
+	if (rkisp_tb_pdev) {
+		pm_runtime_enable(&rkisp_tb_pdev->dev);
+		pm_runtime_get_sync(&rkisp_tb_pdev->dev);
 	}
-
 	return 0;
 }
 
 static int __maybe_unused rkisp_tb_clocks_loader_unprotect(void)
 {
-	int i;
-
-	if (!loader_clocks)
-		return -ENODEV;
-
-	for (i = 0; i < ARRAY_SIZE(loader_protect_clocks); i++) {
-		struct clk *clk = loader_clocks[i];
-
-		if (clk)
-			clk_disable_unprepare(clk);
+	if (rkisp_tb_pdev) {
+		pm_runtime_put_sync(&rkisp_tb_pdev->dev);
+		pm_runtime_disable(&rkisp_tb_pdev->dev);
 	}
-
-	kfree(loader_clocks);
-	loader_clocks = NULL;
-
 	return 0;
 }
 
@@ -82,10 +44,6 @@ static int __maybe_unused rkisp_tb_runtime_suspend(struct device *dev)
 
 static int __maybe_unused rkisp_tb_runtime_resume(struct device *dev)
 {
-	if (rkisp_tb_firstboot) {
-		rkisp_tb_firstboot = false;
-		rkisp_tb_clocks_loader_protect();
-	}
 	return 0;
 }
 
@@ -105,17 +63,13 @@ static const struct of_device_id rkisp_tb_plat_of_match[] = {
 
 static int rkisp_tb_plat_probe(struct platform_device *pdev)
 {
-	rkisp_tb_firstboot = true;
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
-
+	rkisp_tb_pdev = pdev;
+	rkisp_tb_clocks_loader_protect();
 	return 0;
 }
 
 static int rkisp_tb_plat_remove(struct platform_device *pdev)
 {
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
 
