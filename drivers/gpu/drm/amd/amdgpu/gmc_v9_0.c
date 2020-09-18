@@ -1379,7 +1379,16 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 	adev->gart.table_size = adev->gart.num_gpu_pages * 8;
 	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE_VG10(MTYPE_UC) |
 				 AMDGPU_PTE_EXECUTABLE;
-	return amdgpu_gart_table_vram_alloc(adev);
+
+	r = amdgpu_gart_table_vram_alloc(adev);
+	if (r)
+		return r;
+
+	if (adev->gmc.xgmi.connected_to_cpu) {
+		r = amdgpu_gmc_pdb0_alloc(adev);
+	}
+
+	return r;
 }
 
 /**
@@ -1566,6 +1575,8 @@ static int gmc_v9_0_sw_fini(void *handle)
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
 	amdgpu_gart_fini(adev);
+	if (adev->gmc.pdb0_bo)
+		amdgpu_bo_unref(&adev->gmc.pdb0_bo);
 
 	return 0;
 }
@@ -1624,10 +1635,14 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 {
 	int r;
 
+	if (adev->gmc.xgmi.connected_to_cpu)
+		amdgpu_gmc_init_pdb0(adev);
+
 	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
+
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
@@ -1640,9 +1655,14 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
-		 (unsigned)(adev->gmc.gart_size >> 20),
-		 (unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
+	DRM_INFO("PCIE GART of %uM enabled.\n",
+		 (unsigned)(adev->gmc.gart_size >> 20));
+	if (adev->gmc.pdb0_bo)
+		DRM_INFO("PDB0 located at 0x%016llX\n",
+				(unsigned long long)amdgpu_bo_gpu_offset(adev->gmc.pdb0_bo));
+	DRM_INFO("PTB located at 0x%016llX\n",
+			(unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
+
 	adev->gart.ready = true;
 	return 0;
 }
