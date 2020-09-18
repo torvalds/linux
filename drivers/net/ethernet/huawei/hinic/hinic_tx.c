@@ -894,14 +894,14 @@ int hinic_init_txq(struct hinic_txq *txq, struct hinic_sq *sq,
 		goto err_alloc_free_sges;
 	}
 
-	irqname_len = snprintf(NULL, 0, "hinic_txq%d", qp->q_id) + 1;
+	irqname_len = snprintf(NULL, 0, "%s_txq%d", netdev->name, qp->q_id) + 1;
 	txq->irq_name = devm_kzalloc(&netdev->dev, irqname_len, GFP_KERNEL);
 	if (!txq->irq_name) {
 		err = -ENOMEM;
 		goto err_alloc_irqname;
 	}
 
-	sprintf(txq->irq_name, "hinic_txq%d", qp->q_id);
+	sprintf(txq->irq_name, "%s_txq%d", netdev->name, qp->q_id);
 
 	err = hinic_hwdev_hw_ci_addr_set(hwdev, sq, CI_UPDATE_NO_PENDING,
 					 CI_UPDATE_NO_COALESC);

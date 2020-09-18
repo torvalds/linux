@@ -793,12 +793,15 @@ static int init_eq(struct hinic_eq *eq, struct hinic_hwif *hwif,
 			    HINIC_EQ_MSIX_LLI_CREDIT_LIMIT_DEFAULT,
 			    HINIC_EQ_MSIX_RESEND_TIMER_DEFAULT);
 
-	if (type == HINIC_AEQ)
-		err = request_irq(entry.vector, aeq_interrupt, 0,
-				  "hinic_aeq", eq);
-	else if (type == HINIC_CEQ)
-		err = request_irq(entry.vector, ceq_interrupt, 0,
-				  "hinic_ceq", eq);
+	if (type == HINIC_AEQ) {
+		snprintf(eq->irq_name, sizeof(eq->irq_name), "hinic_aeq%d@pci:%s", eq->q_id,
+			 pci_name(pdev));
+		err = request_irq(entry.vector, aeq_interrupt, 0, eq->irq_name, eq);
+	} else if (type == HINIC_CEQ) {
+		snprintf(eq->irq_name, sizeof(eq->irq_name), "hinic_ceq%d@pci:%s", eq->q_id,
+			 pci_name(pdev));
+		err = request_irq(entry.vector, ceq_interrupt, 0, eq->irq_name, eq);
+	}
 
 	if (err) {
 		dev_err(&pdev->dev, "Failed to request irq for the EQ\n");
