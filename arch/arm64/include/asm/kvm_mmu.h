@@ -526,23 +526,6 @@ static inline int kvm_map_vectors(void)
 }
 #endif
 
-DECLARE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
-
-static inline int hyp_map_aux_data(void)
-{
-	int cpu, err;
-
-	for_each_possible_cpu(cpu) {
-		u64 *ptr;
-
-		ptr = per_cpu_ptr(&arm64_ssbd_callback_required, cpu);
-		err = create_hyp_mappings(ptr, ptr + 1, PAGE_HYP);
-		if (err)
-			return err;
-	}
-	return 0;
-}
-
 #define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
 
 /*

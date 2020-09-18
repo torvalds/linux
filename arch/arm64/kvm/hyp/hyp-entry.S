@@ -116,33 +116,6 @@ el1_hvc_guest:
 			  ARM_SMCCC_ARCH_WORKAROUND_2)
 	cbnz	w1, el1_trap
 
-alternative_cb	arm64_enable_wa2_handling
-	b	wa2_end
-alternative_cb_end
-	get_vcpu_ptr	x2, x0
-	ldr	x0, [x2, #VCPU_WORKAROUND_FLAGS]
-
-	// Sanitize the argument and update the guest flags
-	ldr	x1, [sp, #8]			// Guest's x1
-	clz	w1, w1				// Murphy's device:
-	lsr	w1, w1, #5			// w1 = !!w1 without using
-	eor	w1, w1, #1			// the flags...
-	bfi	x0, x1, #VCPU_WORKAROUND_2_FLAG_SHIFT, #1
-	str	x0, [x2, #VCPU_WORKAROUND_FLAGS]
-
-	/* Check that we actually need to perform the call */
-	hyp_ldr_this_cpu x0, arm64_ssbd_callback_required, x2
-	cbz	x0, wa2_end
-
-	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_2
-	smc	#0
-
-	/* Don't leak data from the SMC call */
-	mov	x3, xzr
-wa2_end:
-	mov	x2, xzr
-	mov	x1, xzr
-
 wa_epilogue:
 	mov	x0, xzr
 	add	sp, sp, #16
