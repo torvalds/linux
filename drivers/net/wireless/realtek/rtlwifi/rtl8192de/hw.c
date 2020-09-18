@@ -563,13 +563,13 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 	/* 18.  LLT_table_init(Adapter);  */
 	for (i = 0; i < (txpktbuf_bndy - 1); i++) {
 		status = _rtl92de_llt_write(hw, i, i + 1);
-		if (true != status)
+		if (!status)
 			return status;
 	}
 
 	/* end of list */
 	status = _rtl92de_llt_write(hw, (txpktbuf_bndy - 1), 0xFF);
-	if (true != status)
+	if (!status)
 		return status;
 
 	/* Make the other pages as ring buffer */
@@ -578,13 +578,13 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 	/* Otherwise used as local loopback buffer.  */
 	for (i = txpktbuf_bndy; i < maxpage; i++) {
 		status = _rtl92de_llt_write(hw, i, (i + 1));
-		if (true != status)
+		if (!status)
 			return status;
 	}
 
 	/* Let last entry point to the start entry of ring buffer */
 	status = _rtl92de_llt_write(hw, maxpage, txpktbuf_bndy);
-	if (true != status)
+	if (!status)
 		return status;
 
 	return true;
