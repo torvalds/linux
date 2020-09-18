@@ -66,6 +66,7 @@
 #include "en/mod_hdr.h"
 #include "en/tc_priv.h"
 #include "en/tc_tun_encap.h"
+#include "esw/sample.h"
 #include "lib/devcom.h"
 #include "lib/geneve.h"
 #include "lib/fs_chains.h"
@@ -4876,6 +4877,10 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 					       &esw->offloads.mod_hdr,
 					       MLX5_FLOW_NAMESPACE_FDB);
 
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+	uplink_priv->esw_psample = mlx5_esw_sample_init(netdev_priv(priv->netdev));
+#endif
+
 	mapping = mapping_create(sizeof(struct tunnel_match_key),
 				 TUNNEL_INFO_BITS_MASK, true);
 	if (IS_ERR(mapping)) {
@@ -4913,6 +4918,9 @@ err_ht_init:
 err_enc_opts_mapping:
 	mapping_destroy(uplink_priv->tunnel_mapping);
 err_tun_mapping:
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+	mlx5_esw_sample_cleanup(uplink_priv->esw_psample);
+#endif
 	mlx5_tc_ct_clean(uplink_priv->ct_priv);
 	netdev_warn(priv->netdev,
 		    "Failed to initialize tc (eswitch), err: %d", err);
@@ -4931,6 +4939,9 @@ void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht)
 	mapping_destroy(uplink_priv->tunnel_enc_opts_mapping);
 	mapping_destroy(uplink_priv->tunnel_mapping);
 
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+	mlx5_esw_sample_cleanup(uplink_priv->esw_psample);
+#endif
 	mlx5_tc_ct_clean(uplink_priv->ct_priv);
 }
 
