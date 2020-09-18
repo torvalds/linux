@@ -1110,7 +1110,7 @@ static const struct of_device_id seville_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, seville_of_match);
 
-struct platform_driver seville_vsc9953_driver = {
+static struct platform_driver seville_vsc9953_driver = {
 	.probe		= seville_probe,
 	.remove		= seville_remove,
 	.driver = {
@@ -1118,3 +1118,7 @@ struct platform_driver seville_vsc9953_driver = {
 		.of_match_table	= of_match_ptr(seville_of_match),
 	},
 };
+module_platform_driver(seville_vsc9953_driver);
+
+MODULE_DESCRIPTION("Seville Switch driver");
+MODULE_LICENSE("GPL v2");

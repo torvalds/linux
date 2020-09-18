@@ -1328,9 +1328,13 @@ static struct pci_device_id felix_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, felix_ids);
 
-struct pci_driver felix_vsc9959_pci_driver = {
+static struct pci_driver felix_vsc9959_pci_driver = {
 	.name		= "mscc_felix",
 	.id_table	= felix_ids,
 	.probe		= felix_pci_probe,
 	.remove		= felix_pci_remove,
 };
+module_pci_driver(felix_vsc9959_pci_driver);
+
+MODULE_DESCRIPTION("Felix Switch driver");
+MODULE_LICENSE("GPL v2");

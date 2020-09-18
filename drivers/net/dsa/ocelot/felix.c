@@ -782,29 +782,3 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.cls_flower_stats	= felix_cls_flower_stats,
 	.port_setup_tc		= felix_port_setup_tc,
 };
-
-static int __init felix_init(void)
-{
-	int err;
-
-	err = pci_register_driver(&felix_vsc9959_pci_driver);
-	if (err)
-		return err;
-
-	err = platform_driver_register(&seville_vsc9953_driver);
-	if (err)
-		return err;
-
-	return 0;
-}
-module_init(felix_init);
-
-static void __exit felix_exit(void)
-{
-	pci_unregister_driver(&felix_vsc9959_pci_driver);
-	platform_driver_unregister(&seville_vsc9953_driver);
-}
-module_exit(felix_exit);
-
-MODULE_DESCRIPTION("Felix Switch driver");
-MODULE_LICENSE("GPL v2");
