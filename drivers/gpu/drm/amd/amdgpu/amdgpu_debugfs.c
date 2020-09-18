@@ -267,7 +267,7 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		} else {
 			r = get_user(value, (uint32_t *)buf);
 			if (!r)
-				amdgpu_mm_wreg_mmio_rlc(adev, *pos >> 2, value, 0);
+				amdgpu_mm_wreg_mmio_rlc(adev, *pos >> 2, value);
 		}
 		if (r) {
 			result = r;
