@@ -2383,8 +2383,12 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			mvneta_swbm_rx_frame(pp, rx_desc, rxq, &xdp_buf,
 					     &size, page, &ps);
 		} else {
-			if (unlikely(!xdp_buf.data_hard_start))
+			if (unlikely(!xdp_buf.data_hard_start)) {
+				rx_desc->buf_phys_addr = 0;
+				page_pool_put_full_page(rxq->page_pool, page,
+							true);
 				continue;
+			}
 
 			mvneta_swbm_add_rx_fragment(pp, rx_desc, rxq, &xdp_buf,
 						    &size, page);
