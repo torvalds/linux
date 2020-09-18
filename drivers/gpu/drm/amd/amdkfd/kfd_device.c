@@ -583,6 +583,8 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 
 	atomic_set(&kfd->sram_ecc_flag, 0);
 
+	ida_init(&kfd->doorbell_ida);
+
 	return kfd;
 }
 
@@ -798,6 +800,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_interrupt_exit(kfd);
 		kfd_topology_remove_device(kfd);
 		kfd_doorbell_fini(kfd);
+		ida_destroy(&kfd->doorbell_ida);
 		kfd_gtt_sa_fini(kfd);
 		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 		if (kfd->gws)

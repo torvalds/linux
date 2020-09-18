@@ -314,6 +314,9 @@ struct kfd_dev {
 	spinlock_t smi_lock;
 
 	uint32_t reset_seq_num;
+
+	struct ida doorbell_ida;
+	unsigned int max_doorbell_slices;
 };
 
 enum kfd_mempool {
@@ -699,6 +702,7 @@ struct kfd_process_device {
 	struct attribute attr_evict;
 
 	struct kobject *kobj_stats;
+	unsigned int doorbell_index;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -736,7 +740,6 @@ struct kfd_process {
 	struct mmu_notifier mmu_notifier;
 
 	uint16_t pasid;
-	unsigned int doorbell_index;
 
 	/*
 	 * List of kfd_process_device structures,
@@ -869,13 +872,13 @@ u32 read_kernel_doorbell(u32 __iomem *db);
 void write_kernel_doorbell(void __iomem *db, u32 value);
 void write_kernel_doorbell64(void __iomem *db, u64 value);
 unsigned int kfd_get_doorbell_dw_offset_in_bar(struct kfd_dev *kfd,
-					struct kfd_process *process,
+					struct kfd_process_device *pdd,
 					unsigned int doorbell_id);
-phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
-					struct kfd_process *process);
-int kfd_alloc_process_doorbells(struct kfd_process *process);
-void kfd_free_process_doorbells(struct kfd_process *process);
-
+phys_addr_t kfd_get_process_doorbells(struct kfd_process_device *pdd);
+int kfd_alloc_process_doorbells(struct kfd_dev *kfd,
+				unsigned int *doorbell_index);
+void kfd_free_process_doorbells(struct kfd_dev *kfd,
+				unsigned int doorbell_index);
 /* GTT Sub-Allocator */
 
 int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,

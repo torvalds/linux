@@ -191,9 +191,8 @@ static int allocate_doorbell(struct qcm_process_device *qpd, struct queue *q)
 	}
 
 	q->properties.doorbell_off =
-		kfd_get_doorbell_dw_offset_in_bar(dev, q->process,
+		kfd_get_doorbell_dw_offset_in_bar(dev, qpd_to_pdd(qpd),
 					  q->doorbell_id);
-
 	return 0;
 }
 

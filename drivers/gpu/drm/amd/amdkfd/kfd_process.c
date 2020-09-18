@@ -876,6 +876,8 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		kfree(pdd->qpd.doorbell_bitmap);
 		idr_destroy(&pdd->alloc_idr);
 
+		kfd_free_process_doorbells(pdd->dev, pdd->doorbell_index);
+
 		/*
 		 * before destroying pdd, make sure to report availability
 		 * for auto suspend
@@ -932,8 +934,6 @@ static void kfd_process_wq_release(struct work_struct *work)
 	kfd_event_free_process(p);
 
 	kfd_pasid_free(p->pasid);
-	kfd_free_process_doorbells(p);
-
 	mutex_destroy(&p->mutex);
 
 	put_task_struct(p->lead_thread);
@@ -1111,9 +1111,6 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (process->pasid == 0)
 		goto err_alloc_pasid;
 
-	if (kfd_alloc_process_doorbells(process) < 0)
-		goto err_alloc_doorbells;
-
 	err = pqm_init(&process->pqm, process);
 	if (err != 0)
 		goto err_process_pqm_init;
@@ -1141,8 +1138,6 @@ err_register_notifier:
 err_init_apertures:
 	pqm_uninit(&process->pqm);
 err_process_pqm_init:
-	kfd_free_process_doorbells(process);
-err_alloc_doorbells:
 	kfd_pasid_free(process->pasid);
 err_alloc_pasid:
 	mutex_destroy(&process->mutex);
@@ -1205,10 +1200,14 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	if (!pdd)
 		return NULL;
 
+	if (kfd_alloc_process_doorbells(dev, &pdd->doorbell_index) < 0) {
+		pr_err("Failed to alloc doorbell for pdd\n");
+		goto err_free_pdd;
+	}
+
 	if (init_doorbell_bitmap(&pdd->qpd, dev)) {
 		pr_err("Failed to init doorbell for process\n");
-		kfree(pdd);
-		return NULL;
+		goto err_free_pdd;
 	}
 
 	pdd->dev = dev;
@@ -1231,6 +1230,10 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	idr_init(&pdd->alloc_idr);
 
 	return pdd;
+
+err_free_pdd:
+	kfree(pdd);
+	return NULL;
 }
 
 /**
