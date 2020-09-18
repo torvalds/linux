@@ -140,23 +140,18 @@ static int tas2770_dac_event(struct snd_soc_dapm_widget *w,
 			TAS2770_PWR_CTRL,
 			TAS2770_PWR_CTRL_MASK,
 			TAS2770_PWR_CTRL_MUTE);
-		if (ret)
-			goto end;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_PWR_CTRL,
 			TAS2770_PWR_CTRL_MASK,
 			TAS2770_PWR_CTRL_SHUTDOWN);
-		if (ret)
-			goto end;
 		break;
 	default:
 		dev_err(tas2770->dev, "Not supported evevt\n");
 		return -EINVAL;
 	}
 
-end:
 	if (ret < 0)
 		return ret;
 
@@ -248,6 +243,9 @@ static int tas2770_set_bitwidth(struct tas2770_priv *tas2770, int bitwidth)
 		return -EINVAL;
 	}
 
+	if (ret < 0)
+		return ret;
+
 	tas2770->channel_size = bitwidth;
 
 	ret = snd_soc_component_update_bits(component,
@@ -256,16 +254,15 @@ static int tas2770_set_bitwidth(struct tas2770_priv *tas2770, int bitwidth)
 		TAS2770_TDM_CFG_REG5_50_MASK,
 		TAS2770_TDM_CFG_REG5_VSNS_ENABLE |
 		tas2770->v_sense_slot);
-	if (ret)
-		goto end;
+	if (ret < 0)
+		return ret;
+
 	ret = snd_soc_component_update_bits(component,
 		TAS2770_TDM_CFG_REG6,
 		TAS2770_TDM_CFG_REG6_ISNS_MASK |
 		TAS2770_TDM_CFG_REG6_50_MASK,
 		TAS2770_TDM_CFG_REG6_ISNS_ENABLE |
 		tas2770->i_sense_slot);
-
-end:
 	if (ret < 0)
 		return ret;
 
@@ -283,36 +280,35 @@ static int tas2770_set_samplerate(struct tas2770_priv *tas2770, int samplerate)
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_SMP_MASK,
 			TAS2770_TDM_CFG_REG0_SMP_48KHZ);
-		if (ret)
-			goto end;
+		if (ret < 0)
+			return ret;
+
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_31_MASK,
 			TAS2770_TDM_CFG_REG0_31_44_1_48KHZ);
-		if (ret)
-			goto end;
 		break;
 	case 44100:
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_SMP_MASK,
 			TAS2770_TDM_CFG_REG0_SMP_44_1KHZ);
-		if (ret)
-			goto end;
+		if (ret < 0)
+			return ret;
+
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_31_MASK,
 			TAS2770_TDM_CFG_REG0_31_44_1_48KHZ);
-		if (ret)
-			goto end;
 		break;
 	case 96000:
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_SMP_MASK,
 			TAS2770_TDM_CFG_REG0_SMP_48KHZ);
-		if (ret)
-			goto end;
+		if (ret < 0)
+			return ret;
+
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_31_MASK,
@@ -323,8 +319,9 @@ static int tas2770_set_samplerate(struct tas2770_priv *tas2770, int samplerate)
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_SMP_MASK,
 			TAS2770_TDM_CFG_REG0_SMP_44_1KHZ);
-		if (ret)
-			goto end;
+		if (ret < 0)
+			return ret;
+
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_31_MASK,
@@ -335,22 +332,22 @@ static int tas2770_set_samplerate(struct tas2770_priv *tas2770, int samplerate)
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_SMP_MASK,
 			TAS2770_TDM_CFG_REG0_SMP_48KHZ);
-		if (ret)
-			goto end;
+		if (ret < 0)
+			return ret;
+
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_31_MASK,
 			TAS2770_TDM_CFG_REG0_31_176_4_192KHZ);
-		if (ret)
-			goto end;
 		break;
 	case 17640:
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_SMP_MASK,
 			TAS2770_TDM_CFG_REG0_SMP_44_1KHZ);
-		if (ret)
-			goto end;
+		if (ret < 0)
+			return ret;
+
 		ret = snd_soc_component_update_bits(component,
 			TAS2770_TDM_CFG_REG0,
 			TAS2770_TDM_CFG_REG0_31_MASK,
@@ -360,7 +357,6 @@ static int tas2770_set_samplerate(struct tas2770_priv *tas2770, int samplerate)
 		ret = -EINVAL;
 	}
 
-end:
 	if (ret < 0)
 		return ret;
 
