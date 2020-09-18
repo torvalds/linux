@@ -33,8 +33,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
 
-static int pseries_eeh_get_pe_addr(struct pci_dn *pdn);
-
 /* RTAS tokens */
 static int ibm_set_eeh_option;
 static int ibm_set_slot_reset;
@@ -86,7 +84,8 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 
 
 /**
- * pseries_eeh_get_config_addr - Retrieve config address
+ * pseries_eeh_get_pe_config_addr - Find the pe_config_addr for a device
+ * @pdn: pci_dn of the input device
  *
  * Retrieve the assocated config address. Actually, there're 2 RTAS
  * function calls dedicated for the purpose. We need implement
@@ -97,16 +96,17 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
  * It's notable that zero'ed return value means invalid PE config
  * address.
  */
-static int pseries_eeh_get_config_addr(struct pci_controller *phb, int config_addr)
+static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 {
+	int config_addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	struct pci_controller *phb = pdn->phb;
 	int ret = 0;
 	int rets[3];
 
 	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
 		/*
-		 * First of all, we need to make sure there has one PE
-		 * associated with the device. Otherwise, PE address is
-		 * meaningless.
+		 * First of all, use function 1 to determine if this device is
+		 * part of a PE or not. ret[0] being zero indicates it's not.
 		 */
 		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
 				config_addr, BUID_HI(phb->buid),
@@ -429,7 +429,7 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 		struct eeh_pe *parent;
 
 		/* Retrieve PE address */
-		edev->pe_config_addr = pseries_eeh_get_pe_addr(pdn);
+		edev->pe_config_addr = pseries_eeh_get_pe_config_addr(pdn);
 		pe.addr = edev->pe_config_addr;
 
 		/* Some older systems (Power4) allow the ibm,set-eeh-option
@@ -544,64 +544,6 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 	ret = rtas_call(ibm_set_eeh_option, 4, 1, NULL,
 			config_addr, BUID_HI(pe->phb->buid),
 			BUID_LO(pe->phb->buid), option);
-
-	return ret;
-}
-
-/**
- * pseries_eeh_get_pe_addr - Retrieve PE address
- * @pe: EEH PE
- *
- * Retrieve the assocated PE address. Actually, there're 2 RTAS
- * function calls dedicated for the purpose. We need implement
- * it through the new function and then the old one. Besides,
- * you should make sure the config address is figured out from
- * FDT node before calling the function.
- *
- * It's notable that zero'ed return value means invalid PE config
- * address.
- */
-static int pseries_eeh_get_pe_addr(struct pci_dn *pdn)
-{
-	int config_addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
-	unsigned long buid = pdn->phb->buid;
-	int ret = 0;
-	int rets[3];
-
-	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
-		/*
-		 * First of all, we need to make sure there has one PE
-		 * associated with the device. Otherwise, PE address is
-		 * meaningless.
-		 */
-		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
-				config_addr, BUID_HI(buid), BUID_LO(buid), 1);
-		if (ret || (rets[0] == 0))
-			return 0;
-
-		/* Retrieve the associated PE config address */
-		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
-				config_addr, BUID_HI(buid), BUID_LO(buid), 0);
-		if (ret) {
-			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
-				__func__, pdn->phb->global_number, config_addr);
-			return 0;
-		}
-
-		return rets[0];
-	}
-
-	if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
-		ret = rtas_call(ibm_get_config_addr_info, 4, 2, rets,
-				config_addr, BUID_HI(buid), BUID_LO(buid), 0);
-		if (ret) {
-			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
-				__func__, pdn->phb->global_number, config_addr);
-			return 0;
-		}
-
-		return rets[0];
-	}
 
 	return ret;
 }
@@ -907,7 +849,7 @@ static int __init eeh_pseries_init(void)
 {
 	struct pci_controller *phb;
 	struct pci_dn *pdn;
-	int ret, addr, config_addr;
+	int ret, config_addr;
 
 	/* figure out EEH RTAS function call tokens */
 	ibm_set_eeh_option		= rtas_token("ibm,set-eeh-option");
@@ -965,8 +907,8 @@ static int __init eeh_pseries_init(void)
 		pr_info("Issue PHB reset ...\n");
 		list_for_each_entry(phb, &hose_list, list_node) {
 			pdn = list_first_entry(&PCI_DN(phb->dn)->child_list, struct pci_dn, list);
-			addr = (pdn->busno << 16) | (pdn->devfn << 8);
-			config_addr = pseries_eeh_get_config_addr(phb, addr);
+			config_addr = pseries_eeh_get_pe_config_addr(pdn);
+
 			/* invalid PE config addr */
 			if (config_addr == 0)
 				continue;
