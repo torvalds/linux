@@ -959,11 +959,11 @@ void log_buf_vmcoreinfo_setup(void)
 	VMCOREINFO_STRUCT_SIZE(prb_desc_ring);
 	VMCOREINFO_OFFSET(prb_desc_ring, count_bits);
 	VMCOREINFO_OFFSET(prb_desc_ring, descs);
+	VMCOREINFO_OFFSET(prb_desc_ring, infos);
 	VMCOREINFO_OFFSET(prb_desc_ring, head_id);
 	VMCOREINFO_OFFSET(prb_desc_ring, tail_id);
 
 	VMCOREINFO_STRUCT_SIZE(prb_desc);
-	VMCOREINFO_OFFSET(prb_desc, info);
 	VMCOREINFO_OFFSET(prb_desc, state_var);
 	VMCOREINFO_OFFSET(prb_desc, text_blk_lpos);
 	VMCOREINFO_OFFSET(prb_desc, dict_blk_lpos);
@@ -1097,11 +1097,13 @@ static char setup_dict_buf[CONSOLE_EXT_LOG_MAX] __initdata;
 
 void __init setup_log_buf(int early)
 {
+	struct printk_info *new_infos;
 	unsigned int new_descs_count;
 	struct prb_desc *new_descs;
 	struct printk_info info;
 	struct printk_record r;
 	size_t new_descs_size;
+	size_t new_infos_size;
 	unsigned long flags;
 	char *new_dict_buf;
 	char *new_log_buf;
@@ -1142,8 +1144,7 @@ void __init setup_log_buf(int early)
 	if (unlikely(!new_dict_buf)) {
 		pr_err("log_buf_len: %lu dict bytes not available\n",
 		       new_log_buf_len);
-		memblock_free(__pa(new_log_buf), new_log_buf_len);
-		return;
+		goto err_free_log_buf;
 	}
 
 	new_descs_size = new_descs_count * sizeof(struct prb_desc);
@@ -1151,9 +1152,15 @@ void __init setup_log_buf(int early)
 	if (unlikely(!new_descs)) {
 		pr_err("log_buf_len: %zu desc bytes not available\n",
 		       new_descs_size);
-		memblock_free(__pa(new_dict_buf), new_log_buf_len);
-		memblock_free(__pa(new_log_buf), new_log_buf_len);
-		return;
+		goto err_free_dict_buf;
+	}
+
+	new_infos_size = new_descs_count * sizeof(struct printk_info);
+	new_infos = memblock_alloc(new_infos_size, LOG_ALIGN);
+	if (unlikely(!new_infos)) {
+		pr_err("log_buf_len: %zu info bytes not available\n",
+		       new_infos_size);
+		goto err_free_descs;
 	}
 
 	prb_rec_init_rd(&r, &info,
@@ -1163,7 +1170,8 @@ void __init setup_log_buf(int early)
 	prb_init(&printk_rb_dynamic,
 		 new_log_buf, ilog2(new_log_buf_len),
 		 new_dict_buf, ilog2(new_log_buf_len),
-		 new_descs, ilog2(new_descs_count));
+		 new_descs, ilog2(new_descs_count),
+		 new_infos);
 
 	logbuf_lock_irqsave(flags);
 
@@ -1192,6 +1200,14 @@ void __init setup_log_buf(int early)
 	pr_info("log_buf_len: %u bytes\n", log_buf_len);
 	pr_info("early log buf free: %u(%u%%)\n",
 		free, (free * 100) / __LOG_BUF_LEN);
+	return;
+
+err_free_descs:
+	memblock_free(__pa(new_descs), new_descs_size);
+err_free_dict_buf:
+	memblock_free(__pa(new_dict_buf), new_log_buf_len);
+err_free_log_buf:
+	memblock_free(__pa(new_log_buf), new_log_buf_len);
 }
 
 static bool __read_mostly ignore_loglevel;

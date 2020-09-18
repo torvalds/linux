@@ -58,7 +58,6 @@ struct prb_data_blk_lpos {
  * @state_var: A bitwise combination of descriptor ID and descriptor state.
  */
 struct prb_desc {
-	struct printk_info		info;
 	atomic_long_t			state_var;
 	struct prb_data_blk_lpos	text_blk_lpos;
 	struct prb_data_blk_lpos	dict_blk_lpos;
@@ -76,6 +75,7 @@ struct prb_data_ring {
 struct prb_desc_ring {
 	unsigned int		count_bits;
 	struct prb_desc		*descs;
+	struct printk_info	*infos;
 	atomic_long_t		head_id;
 	atomic_long_t		tail_id;
 };
@@ -237,19 +237,8 @@ enum desc_state {
 static char _##name##_dict[1U << ((avgdictbits) + (descbits))]					\
 			__aligned(__alignof__(unsigned long));					\
 static struct prb_desc _##name##_descs[_DESCS_COUNT(descbits)] = {				\
-	/* this will be the first record reserved by a writer */				\
-	[0] = {											\
-		.info = {									\
-			/* will be incremented to 0 on the first reservation */			\
-			.seq = -(u64)_DESCS_COUNT(descbits),					\
-		},										\
-	},											\
 	/* the initial head and tail */								\
 	[_DESCS_COUNT(descbits) - 1] = {							\
-		.info = {									\
-			/* reports the first seq value during the bootstrap phase */		\
-			.seq = 0,								\
-		},										\
 		/* reusable */									\
 		.state_var	= ATOMIC_INIT(DESC0_SV(descbits)),				\
 		/* no associated data block */							\
@@ -257,10 +246,23 @@ static struct prb_desc _##name##_descs[_DESCS_COUNT(descbits)] = {				\
 		.dict_blk_lpos	= FAILED_BLK_LPOS,						\
 	},											\
 };												\
+static struct printk_info _##name##_infos[_DESCS_COUNT(descbits)] = {				\
+	/* this will be the first record reserved by a writer */				\
+	[0] = {											\
+		/* will be incremented to 0 on the first reservation */				\
+		.seq = -(u64)_DESCS_COUNT(descbits),						\
+	},											\
+	/* the initial head and tail */								\
+	[_DESCS_COUNT(descbits) - 1] = {							\
+		/* reports the first seq value during the bootstrap phase */			\
+		.seq = 0,									\
+	},											\
+};												\
 static struct printk_ringbuffer name = {							\
 	.desc_ring = {										\
 		.count_bits	= descbits,							\
 		.descs		= &_##name##_descs[0],						\
+		.infos		= &_##name##_infos[0],						\
 		.head_id	= ATOMIC_INIT(DESC0_ID(descbits)),				\
 		.tail_id	= ATOMIC_INIT(DESC0_ID(descbits)),				\
 	},											\
@@ -336,7 +338,8 @@ void prb_final_commit(struct prb_reserved_entry *e);
 void prb_init(struct printk_ringbuffer *rb,
 	      char *text_buf, unsigned int text_buf_size,
 	      char *dict_buf, unsigned int dict_buf_size,
-	      struct prb_desc *descs, unsigned int descs_count_bits);
+	      struct prb_desc *descs, unsigned int descs_count_bits,
+	      struct printk_info *infos);
 unsigned int prb_record_text_space(struct prb_reserved_entry *e);
 
 /* Reader Interface */
