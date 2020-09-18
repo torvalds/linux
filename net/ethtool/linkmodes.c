@@ -272,6 +272,8 @@ static const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(400000, LR4_ER4_FR4, Full),
 	__DEFINE_LINK_MODE_PARAMS(400000, DR4, Full),
 	__DEFINE_LINK_MODE_PARAMS(400000, CR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(100, FX, Half),
+	__DEFINE_LINK_MODE_PARAMS(100, FX, Full),
 };
 
 static const struct nla_policy
