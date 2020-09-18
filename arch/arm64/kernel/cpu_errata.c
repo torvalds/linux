@@ -106,8 +106,6 @@ cpu_enable_trap_ctr_access(const struct arm64_cpu_capabilities *cap)
 		sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
 }
 
-int ssbd_state __read_mostly = ARM64_SSBD_UNKNOWN;
-
 #ifdef CONFIG_ARM64_ERRATUM_1463225
 DEFINE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
 
