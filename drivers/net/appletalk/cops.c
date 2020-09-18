@@ -70,6 +70,8 @@ static const char *version =
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
+#include <net/Space.h>
+
 #include <asm/io.h>
 #include <asm/dma.h>
 
