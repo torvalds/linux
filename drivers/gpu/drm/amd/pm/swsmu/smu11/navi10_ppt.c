@@ -2303,10 +2303,12 @@ static int navi10_run_umc_cdr_workaround(struct smu_context *smu)
 		if (umc_fw_greater_than_v136)
 			return 0;
 
-		if (umc_fw_disable_cdr && adev->asic_type == CHIP_NAVI10)
-			return navi10_umc_hybrid_cdr_workaround(smu);
-		else
+		if (umc_fw_disable_cdr) {
+			if (adev->asic_type == CHIP_NAVI10)
+				return navi10_umc_hybrid_cdr_workaround(smu);
+		} else {
 			return navi10_set_dummy_pstates_table_location(smu);
+		}
 	} else {
 		if (adev->asic_type == CHIP_NAVI10)
 			return navi10_umc_hybrid_cdr_workaround(smu);
