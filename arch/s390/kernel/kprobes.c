@@ -22,6 +22,7 @@
 #include <asm/set_memory.h>
 #include <asm/sections.h>
 #include <asm/dis.h>
+#include "entry.h"
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -31,7 +32,6 @@ struct kretprobe_blackpoint kretprobe_blacklist[] = { };
 DEFINE_INSN_CACHE_OPS(s390_insn);
 
 static int insn_page_in_use;
-static char insn_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 
 void *alloc_insn_page(void)
 {
@@ -53,13 +53,11 @@ static void *alloc_s390_insn_page(void)
 {
 	if (xchg(&insn_page_in_use, 1) == 1)
 		return NULL;
-	__set_memory((unsigned long) &insn_page, 1, SET_MEMORY_RO | SET_MEMORY_X);
-	return &insn_page;
+	return &kprobes_insn_page;
 }
 
 static void free_s390_insn_page(void *page)
 {
-	__set_memory((unsigned long) page, 1, SET_MEMORY_RW | SET_MEMORY_NX);
 	xchg(&insn_page_in_use, 0);
 }
 

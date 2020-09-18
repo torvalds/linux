@@ -87,4 +87,6 @@ void set_fs_fixup(void);
 unsigned long stack_alloc(void);
 void stack_free(unsigned long stack);
 
+extern char kprobes_insn_page[];
+
 #endif /* _ENTRY_H */
