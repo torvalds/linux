@@ -2549,7 +2549,6 @@ static void btrfs_release_delalloc_bytes(struct btrfs_fs_info *fs_info,
 }
 
 static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
-					     struct inode *inode,
 					     struct btrfs_ordered_extent *oe)
 {
 	struct btrfs_file_extent_item stack_fi;
@@ -2569,8 +2568,9 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_file_extent_compression(&stack_fi, oe->compress_type);
 	/* Encryption and other encoding is reserved and all 0 */
 
-	return insert_reserved_file_extent(trans, BTRFS_I(inode), oe->file_offset,
-					   &stack_fi, oe->qgroup_rsv);
+	return insert_reserved_file_extent(trans, BTRFS_I(oe->inode),
+					   oe->file_offset, &stack_fi,
+					   oe->qgroup_rsv);
 }
 
 /*
@@ -2667,8 +2667,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 						logical_len);
 	} else {
 		BUG_ON(root == fs_info->tree_root);
-		ret = insert_ordered_extent_file_extent(trans, inode,
-							ordered_extent);
+		ret = insert_ordered_extent_file_extent(trans, ordered_extent);
 		if (!ret) {
 			clear_reserved_extent = false;
 			btrfs_release_delalloc_bytes(fs_info,
