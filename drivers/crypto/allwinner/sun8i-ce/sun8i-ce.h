@@ -182,6 +182,10 @@ struct sun8i_ce_dev {
  * @backup_iv:		buffer which contain the next IV to store
  * @bounce_iv:		buffer which contain the IV
  * @ivlen:		size of bounce_iv
+ * @nr_sgs:		The number of source SG (as given by dma_map_sg())
+ * @nr_sgd:		The number of destination SG (as given by dma_map_sg())
+ * @addr_iv:		The IV addr returned by dma_map_single, need to unmap later
+ * @addr_key:		The key addr returned by dma_map_single, need to unmap later
  * @fallback_req:	request struct for invoking the fallback skcipher TFM
  */
 struct sun8i_cipher_req_ctx {
@@ -190,6 +194,10 @@ struct sun8i_cipher_req_ctx {
 	void *backup_iv;
 	void *bounce_iv;
 	unsigned int ivlen;
+	int nr_sgs;
+	int nr_sgd;
+	dma_addr_t addr_iv;
+	dma_addr_t addr_key;
 	struct skcipher_request fallback_req;   // keep at the end
 };
 
