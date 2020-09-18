@@ -267,7 +267,7 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 };
 
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
-static int sun8i_ss_dbgfs_read(struct seq_file *seq, void *v)
+static int sun8i_ss_debugfs_show(struct seq_file *seq, void *v)
 {
 	struct sun8i_ss_dev *ss = seq->private;
 	int i;
@@ -290,18 +290,7 @@ static int sun8i_ss_dbgfs_read(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int sun8i_ss_dbgfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sun8i_ss_dbgfs_read, inode->i_private);
-}
-
-static const struct file_operations sun8i_ss_debugfs_fops = {
-	.owner = THIS_MODULE,
-	.open = sun8i_ss_dbgfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(sun8i_ss_debugfs);
 #endif
 
 static void sun8i_ss_free_flows(struct sun8i_ss_dev *ss, int i)

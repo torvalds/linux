@@ -283,7 +283,7 @@ static struct sun8i_ce_alg_template ce_algs[] = {
 };
 
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
-static int sun8i_ce_dbgfs_read(struct seq_file *seq, void *v)
+static int sun8i_ce_debugfs_show(struct seq_file *seq, void *v)
 {
 	struct sun8i_ce_dev *ce = seq->private;
 	int i;
@@ -306,18 +306,7 @@ static int sun8i_ce_dbgfs_read(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int sun8i_ce_dbgfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sun8i_ce_dbgfs_read, inode->i_private);
-}
-
-static const struct file_operations sun8i_ce_debugfs_fops = {
-	.owner = THIS_MODULE,
-	.open = sun8i_ce_dbgfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(sun8i_ce_debugfs);
 #endif
 
 static void sun8i_ce_free_chanlist(struct sun8i_ce_dev *ce, int i)
