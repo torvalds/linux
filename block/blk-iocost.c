@@ -1984,7 +1984,8 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
  * up blocked paying its debt while the IO device is idle.
  *
  * The following protects against such cases. If the device has been
- * sufficiently idle for a while, the debts are halved.
+ * sufficiently idle for a while, the debts are halved and delays are
+ * recalculated.
  */
 static void ioc_forgive_debts(struct ioc *ioc, u64 usage_us_sum, int nr_debtors,
 			      struct ioc_now *now)
@@ -2002,6 +2003,7 @@ static void ioc_forgive_debts(struct ioc *ioc, u64 usage_us_sum, int nr_debtors,
 			if (iocg->abs_vdebt) {
 				spin_lock(&iocg->waitq.lock);
 				iocg->abs_vdebt /= 2;
+				iocg->delay = 0; /* kick_waitq will recalc */
 				iocg_kick_waitq(iocg, true, now);
 				spin_unlock(&iocg->waitq.lock);
 			}
