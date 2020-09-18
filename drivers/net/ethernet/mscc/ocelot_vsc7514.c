@@ -896,11 +896,137 @@ static struct ptp_clock_info ocelot_ptp_clock_info = {
 	.enable		= ocelot_ptp_enable,
 };
 
+static void mscc_ocelot_release_ports(struct ocelot *ocelot)
+{
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct ocelot_port_private *priv;
+		struct ocelot_port *ocelot_port;
+
+		ocelot_port = ocelot->ports[port];
+		if (!ocelot_port)
+			continue;
+
+		ocelot_deinit_port(ocelot, port);
+
+		priv = container_of(ocelot_port, struct ocelot_port_private,
+				    port);
+
+		unregister_netdev(priv->dev);
+		free_netdev(priv->dev);
+	}
+}
+
+static int mscc_ocelot_init_ports(struct platform_device *pdev,
+				  struct device_node *ports)
+{
+	struct ocelot *ocelot = platform_get_drvdata(pdev);
+	struct device_node *portnp;
+	int err;
+
+	ocelot->ports = devm_kcalloc(ocelot->dev, ocelot->num_phys_ports,
+				     sizeof(struct ocelot_port *), GFP_KERNEL);
+	if (!ocelot->ports)
+		return -ENOMEM;
+
+	/* No NPI port */
+	ocelot_configure_cpu(ocelot, -1, OCELOT_TAG_PREFIX_NONE,
+			     OCELOT_TAG_PREFIX_NONE);
+
+	for_each_available_child_of_node(ports, portnp) {
+		struct ocelot_port_private *priv;
+		struct ocelot_port *ocelot_port;
+		struct device_node *phy_node;
+		phy_interface_t phy_mode;
+		struct phy_device *phy;
+		struct regmap *target;
+		struct resource *res;
+		struct phy *serdes;
+		char res_name[8];
+		u32 port;
+
+		if (of_property_read_u32(portnp, "reg", &port))
+			continue;
+
+		snprintf(res_name, sizeof(res_name), "port%d", port);
+
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   res_name);
+		target = ocelot_regmap_init(ocelot, res);
+		if (IS_ERR(target))
+			continue;
+
+		phy_node = of_parse_phandle(portnp, "phy-handle", 0);
+		if (!phy_node)
+			continue;
+
+		phy = of_phy_find_device(phy_node);
+		of_node_put(phy_node);
+		if (!phy)
+			continue;
+
+		err = ocelot_probe_port(ocelot, port, target, phy);
+		if (err) {
+			of_node_put(portnp);
+			return err;
+		}
+
+		ocelot_port = ocelot->ports[port];
+		priv = container_of(ocelot_port, struct ocelot_port_private,
+				    port);
+
+		of_get_phy_mode(portnp, &phy_mode);
+
+		ocelot_port->phy_mode = phy_mode;
+
+		switch (ocelot_port->phy_mode) {
+		case PHY_INTERFACE_MODE_NA:
+			continue;
+		case PHY_INTERFACE_MODE_SGMII:
+			break;
+		case PHY_INTERFACE_MODE_QSGMII:
+			/* Ensure clock signals and speed is set on all
+			 * QSGMII links
+			 */
+			ocelot_port_writel(ocelot_port,
+					   DEV_CLOCK_CFG_LINK_SPEED
+					   (OCELOT_SPEED_1000),
+					   DEV_CLOCK_CFG);
+			break;
+		default:
+			dev_err(ocelot->dev,
+				"invalid phy mode for port%d, (Q)SGMII only\n",
+				port);
+			of_node_put(portnp);
+			return -EINVAL;
+		}
+
+		serdes = devm_of_phy_get(ocelot->dev, portnp, NULL);
+		if (IS_ERR(serdes)) {
+			err = PTR_ERR(serdes);
+			if (err == -EPROBE_DEFER)
+				dev_dbg(ocelot->dev, "deferring probe\n");
+			else
+				dev_err(ocelot->dev,
+					"missing SerDes phys for port%d\n",
+					port);
+
+			of_node_put(portnp);
+			return err;
+		}
+
+		priv->serdes = serdes;
+	}
+
+	return 0;
+}
+
 static int mscc_ocelot_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ports, *portnp;
 	int err, irq_xtr, irq_ptp_rdy;
+	struct device_node *ports;
 	struct ocelot *ocelot;
 	struct regmap *hsio;
 	unsigned int i;
@@ -985,20 +1111,24 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	ports = of_get_child_by_name(np, "ethernet-ports");
 	if (!ports) {
-		dev_err(&pdev->dev, "no ethernet-ports child node found\n");
+		dev_err(ocelot->dev, "no ethernet-ports child node found\n");
 		return -ENODEV;
 	}
 
 	ocelot->num_phys_ports = of_get_child_count(ports);
 
-	ocelot->ports = devm_kcalloc(&pdev->dev, ocelot->num_phys_ports,
-				     sizeof(struct ocelot_port *), GFP_KERNEL);
-
 	ocelot->vcap_is2_keys = vsc7514_vcap_is2_keys;
 	ocelot->vcap_is2_actions = vsc7514_vcap_is2_actions;
 	ocelot->vcap = vsc7514_vcap_props;
 
-	ocelot_init(ocelot);
+	err = ocelot_init(ocelot);
+	if (err)
+		goto out_put_ports;
+
+	err = mscc_ocelot_init_ports(pdev, ports);
+	if (err)
+		goto out_put_ports;
+
 	if (ocelot->ptp) {
 		err = ocelot_init_timestamp(ocelot, &ocelot_ptp_clock_info);
 		if (err) {
@@ -1006,96 +1136,6 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 				"Timestamp initialization failed\n");
 			ocelot->ptp = 0;
 		}
-	}
-
-	/* No NPI port */
-	ocelot_configure_cpu(ocelot, -1, OCELOT_TAG_PREFIX_NONE,
-			     OCELOT_TAG_PREFIX_NONE);
-
-	for_each_available_child_of_node(ports, portnp) {
-		struct ocelot_port_private *priv;
-		struct ocelot_port *ocelot_port;
-		struct device_node *phy_node;
-		phy_interface_t phy_mode;
-		struct phy_device *phy;
-		struct regmap *target;
-		struct resource *res;
-		struct phy *serdes;
-		char res_name[8];
-		u32 port;
-
-		if (of_property_read_u32(portnp, "reg", &port))
-			continue;
-
-		snprintf(res_name, sizeof(res_name), "port%d", port);
-
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   res_name);
-		target = ocelot_regmap_init(ocelot, res);
-		if (IS_ERR(target))
-			continue;
-
-		phy_node = of_parse_phandle(portnp, "phy-handle", 0);
-		if (!phy_node)
-			continue;
-
-		phy = of_phy_find_device(phy_node);
-		of_node_put(phy_node);
-		if (!phy)
-			continue;
-
-		err = ocelot_probe_port(ocelot, port, target, phy);
-		if (err) {
-			of_node_put(portnp);
-			goto out_put_ports;
-		}
-
-		ocelot_port = ocelot->ports[port];
-		priv = container_of(ocelot_port, struct ocelot_port_private,
-				    port);
-
-		of_get_phy_mode(portnp, &phy_mode);
-
-		ocelot_port->phy_mode = phy_mode;
-
-		switch (ocelot_port->phy_mode) {
-		case PHY_INTERFACE_MODE_NA:
-			continue;
-		case PHY_INTERFACE_MODE_SGMII:
-			break;
-		case PHY_INTERFACE_MODE_QSGMII:
-			/* Ensure clock signals and speed is set on all
-			 * QSGMII links
-			 */
-			ocelot_port_writel(ocelot_port,
-					   DEV_CLOCK_CFG_LINK_SPEED
-					   (OCELOT_SPEED_1000),
-					   DEV_CLOCK_CFG);
-			break;
-		default:
-			dev_err(ocelot->dev,
-				"invalid phy mode for port%d, (Q)SGMII only\n",
-				port);
-			of_node_put(portnp);
-			err = -EINVAL;
-			goto out_put_ports;
-		}
-
-		serdes = devm_of_phy_get(ocelot->dev, portnp, NULL);
-		if (IS_ERR(serdes)) {
-			err = PTR_ERR(serdes);
-			if (err == -EPROBE_DEFER)
-				dev_dbg(ocelot->dev, "deferring probe\n");
-			else
-				dev_err(ocelot->dev,
-					"missing SerDes phys for port%d\n",
-					port);
-
-			of_node_put(portnp);
-			goto out_put_ports;
-		}
-
-		priv->serdes = serdes;
 	}
 
 	register_netdevice_notifier(&ocelot_netdevice_nb);
@@ -1114,6 +1154,7 @@ static int mscc_ocelot_remove(struct platform_device *pdev)
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
 
 	ocelot_deinit_timestamp(ocelot);
+	mscc_ocelot_release_ports(ocelot);
 	ocelot_deinit(ocelot);
 	unregister_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
 	unregister_switchdev_notifier(&ocelot_switchdev_nb);
