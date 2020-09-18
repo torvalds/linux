@@ -323,8 +323,6 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *basechain,
 	return nft_block_setup(basechain, &bo, cmd);
 }
 
-#define FLOW_SETUP_BLOCK TC_SETUP_BLOCK
-
 static int nft_chain_offload_cmd(struct nft_base_chain *basechain,
 				 struct net_device *dev,
 				 enum flow_block_command cmd)
