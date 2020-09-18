@@ -1403,6 +1403,10 @@ void devlink_flash_update_status_notify(struct devlink *devlink,
 					const char *component,
 					unsigned long done,
 					unsigned long total);
+void devlink_flash_update_timeout_notify(struct devlink *devlink,
+					 const char *status_msg,
+					 const char *component,
+					 unsigned long timeout);
 
 int devlink_traps_register(struct devlink *devlink,
 			   const struct devlink_trap *traps,
