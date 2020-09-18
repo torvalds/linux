@@ -216,7 +216,6 @@ enum {
 
 struct eeh_ops {
 	char *name;
-	int (*init)(void);
 	struct eeh_dev *(*probe)(struct pci_dev *pdev);
 	int (*set_option)(struct eeh_pe *pe, int option);
 	int (*get_state)(struct eeh_pe *pe, int *delay);

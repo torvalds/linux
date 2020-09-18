@@ -965,14 +965,6 @@ int eeh_init(struct eeh_ops *ops)
 		return ret;
 	}
 
-	if (eeh_ops->init)
-		ret = eeh_ops->init();
-	if (ret) {
-		pr_warn("%s: platform EEH init failed (%d)\n",
-			__func__, ret);
-		return ret;
-	}
-
 	/* Initialize PHB PEs */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
 		eeh_phb_pe_create(hose);
