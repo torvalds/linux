@@ -168,8 +168,12 @@ int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 
 	bio->bi_private = NULL;
 
-	ret = tree->ops->submit_bio_hook(tree->private_data, bio, mirror_num,
-					 bio_flags);
+	if (is_data_inode(tree->private_data))
+		ret = btrfs_submit_data_bio(tree->private_data, bio, mirror_num,
+					    bio_flags);
+	else
+		ret = tree->ops->submit_bio_hook(tree->private_data, bio,
+						 mirror_num, bio_flags);
 
 	return blk_status_to_errno(ret);
 }
@@ -2879,7 +2883,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 			if (!btrfs_submit_read_repair(inode, bio, offset, page,
 						start - page_offset(page),
 						start, end, mirror,
-						tree->ops->submit_bio_hook)) {
+						btrfs_submit_data_bio)) {
 				uptodate = !bio->bi_status;
 				offset += len;
 				continue;

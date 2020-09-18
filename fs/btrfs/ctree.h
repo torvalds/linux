@@ -2969,6 +2969,8 @@ void btrfs_inode_safe_disk_i_size_write(struct inode *inode, u64 new_i_size);
 u64 btrfs_file_extent_end(const struct btrfs_path *path);
 
 /* inode.c */
+blk_status_t btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
+				   int mirror_num, unsigned long bio_flags);
 int btrfs_verify_data_csum(struct btrfs_io_bio *io_bio, u64 phy_offset,
 			   struct page *page, u64 start, u64 end, int mirror);
 struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
