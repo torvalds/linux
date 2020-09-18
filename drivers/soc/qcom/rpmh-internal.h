@@ -17,6 +17,9 @@
 #define MAX_TCS_NR			(MAX_TCS_PER_TYPE * TCS_TYPE_NR)
 #define MAX_TCS_SLOTS			(MAX_CMDS_PER_TCS * MAX_TCS_PER_TYPE)
 
+/* CTRLR specific flags */
+#define SOLVER_PRESENT			1
+
 struct rsc_drv;
 
 /**
@@ -78,6 +81,7 @@ struct rpmh_request {
  * @cache_lock: synchronize access to the cache data
  * @dirty: was the cache updated since flush
  * @in_solver_mode: Controller is busy in solver mode
+ * @flags: Controller specific flags
  * @batch_cache: Cache sleep and wake requests sent as batch
  */
 struct rpmh_ctrlr {
@@ -85,6 +89,7 @@ struct rpmh_ctrlr {
 	spinlock_t cache_lock;
 	bool dirty;
 	bool in_solver_mode;
+	u32 flags;
 	struct list_head batch_cache;
 };
 

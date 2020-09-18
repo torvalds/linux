@@ -83,6 +83,9 @@ static int check_ctrlr_state(struct rpmh_ctrlr *ctrlr, enum rpmh_state state)
 	if (state != RPMH_ACTIVE_ONLY_STATE)
 		return ret;
 
+	if (!(ctrlr->flags & SOLVER_PRESENT))
+		return ret;
+
 	/* Do not allow sending active votes when in solver mode */
 	spin_lock(&ctrlr->cache_lock);
 	if (ctrlr->in_solver_mode)
@@ -484,12 +487,24 @@ int rpmh_flush(struct rpmh_ctrlr *ctrlr)
 	if (rpmh_standalone)
 		return 0;
 
-	lockdep_assert_irqs_disabled();
+	/*
+	 * For RSC that don't have solver mode,
+	 * rpmh_flush() is only called when we think we're running
+	 * on the last CPU with irqs_disabled.
+	 *
+	 * For RSC that have solver mode,
+	 * rpmh_flush() can be invoked with irqs enabled by any CPU.
+	 *
+	 * Conditionally check for irqs_disabled only when solver mode
+	 * is not available.
+	 */
+
+	if (!(ctrlr->flags & SOLVER_PRESENT))
+		lockdep_assert_irqs_disabled();
 
 	/*
-	 * Currently rpmh_flush() is only called when we think we're running
-	 * on the last processor.  If the lock is busy it means another
-	 * processor is up and it's better to abort than spin.
+	 * If the lock is busy it means another transaction is on going,
+	 * in such case it's better to abort than spin.
 	 */
 	if (!spin_trylock(&ctrlr->cache_lock))
 		return -EBUSY;
@@ -587,6 +602,9 @@ int rpmh_mode_solver_set(const struct device *dev, bool enable)
 
 	if (rpmh_standalone)
 		return 0;
+
+	if (!(ctrlr->flags & SOLVER_PRESENT))
+		return -EINVAL;
 
 	spin_lock(&ctrlr->cache_lock);
 	ret = rpmh_rsc_mode_solver_set(ctrlr_to_drv(ctrlr), enable);

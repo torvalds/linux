@@ -1128,6 +1128,9 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	if (!solver_config) {
 		drv->rsc_pm.notifier_call = rpmh_rsc_cpu_pm_callback;
 		cpu_pm_register_notifier(&drv->rsc_pm);
+		drv->client.flags &= ~SOLVER_PRESENT;
+	} else {
+		drv->client.flags |= SOLVER_PRESENT;
 	}
 
 	/* Enable the active TCS to send requests immediately */
