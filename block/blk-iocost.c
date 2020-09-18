@@ -287,10 +287,7 @@ enum {
 	MIN_DELAY		= 250,
 	MAX_DELAY		= 250 * USEC_PER_MSEC,
 
-	/*
-	 * Halve debts if total usage keeps staying under 25% w/o any shortages
-	 * for over 100ms.
-	 */
+	/* halve debts if total usage keeps staying under 25% for over 100ms */
 	DEBT_BUSY_USAGE_PCT	= 25,
 	DEBT_REDUCTION_IDLE_DUR	= 100 * USEC_PER_MSEC,
 
@@ -1990,9 +1987,9 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
  * sufficiently idle for a while, the debts are halved.
  */
 static void ioc_forgive_debts(struct ioc *ioc, u64 usage_us_sum, int nr_debtors,
-			      int nr_shortages, struct ioc_now *now)
+			      struct ioc_now *now)
 {
-	if (nr_shortages ||
+	if (ioc->busy_level < 0 ||
 	    div64_u64(100 * usage_us_sum, now->now - ioc->period_at) >=
 	    DEBT_BUSY_USAGE_PCT)
 		ioc->debt_busy_at = now->now;
@@ -2205,8 +2202,6 @@ static void ioc_timer_fn(struct timer_list *timer)
 	list_for_each_entry_safe(iocg, tiocg, &surpluses, surplus_list)
 		list_del_init(&iocg->surplus_list);
 
-	ioc_forgive_debts(ioc, usage_us_sum, nr_debtors, nr_shortages, &now);
-
 	/*
 	 * If q is getting clogged or we're missing too much, we're issuing
 	 * too much IO and should lower vtime rate.  If we're not missing
@@ -2300,6 +2295,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 	}
 
 	ioc_refresh_params(ioc, false);
+
+	ioc_forgive_debts(ioc, usage_us_sum, nr_debtors, &now);
 
 	/*
 	 * This period is done.  Move onto the next one.  If nothing's
