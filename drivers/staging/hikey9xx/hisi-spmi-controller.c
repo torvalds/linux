@@ -281,7 +281,8 @@ static int spmi_controller_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	spmi_controller->base = ioremap(iores->start, resource_size(iores));
+	spmi_controller->base = devm_ioremap(&pdev->dev, iores->start,
+					     resource_size(iores));
 	if (!spmi_controller->base) {
 		dev_err(&pdev->dev, "can not remap base addr!\n");
 		return -EADDRNOTAVAIL;
