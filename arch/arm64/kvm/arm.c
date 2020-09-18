@@ -1292,7 +1292,7 @@ static void cpu_init_hyp_mode(void)
 	 * at EL2.
 	 */
 	if (this_cpu_has_cap(ARM64_SSBS) &&
-	    arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE) {
+	    arm64_get_spectre_v4_state() == SPECTRE_VULNERABLE) {
 		kvm_call_hyp_nvhe(__kvm_enable_ssbs);
 	}
 }

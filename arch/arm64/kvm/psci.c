@@ -435,14 +435,19 @@ static int get_kernel_wa_level(u64 regid)
 		}
 		return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_AVAIL;
 	case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2:
-		switch (arm64_get_ssbd_state()) {
-		case ARM64_SSBD_FORCE_ENABLE:
-		case ARM64_SSBD_MITIGATED:
-		case ARM64_SSBD_KERNEL:
+		switch (arm64_get_spectre_v4_state()) {
+		case SPECTRE_MITIGATED:
+			/*
+			 * As for the hypercall discovery, we pretend we
+			 * don't have any FW mitigation if SSBS is there at
+			 * all times.
+			 */
+			if (cpus_have_final_cap(ARM64_SSBS))
+				return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL;
+			fallthrough;
+		case SPECTRE_UNAFFECTED:
 			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_REQUIRED;
-		case ARM64_SSBD_UNKNOWN:
-		case ARM64_SSBD_FORCE_DISABLE:
-		default:
+		case SPECTRE_VULNERABLE:
 			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL;
 		}
 	}
