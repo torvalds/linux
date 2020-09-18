@@ -643,7 +643,7 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 		struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 		unsigned int matching_channels;
 
-		if (!crtc_state->active)
+		if (!crtc_state->enable)
 			continue;
 
 		/*
