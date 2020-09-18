@@ -707,6 +707,8 @@ struct regmap *__regmap_init(struct device *dev,
 		}
 	}
 
+	ret = -EINVAL; /* Later error paths rely on this */
+
 	if (config->disable_locking) {
 		map->lock = map->unlock = regmap_lock_unlock_none;
 		map->can_sleep = config->can_sleep;
