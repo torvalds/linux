@@ -768,6 +768,8 @@ static int nsim_dev_flash_update(struct devlink *devlink, const char *file_name,
 						   component,
 						   NSIM_DEV_FLASH_SIZE,
 						   NSIM_DEV_FLASH_SIZE);
+		devlink_flash_update_timeout_notify(devlink, "Flash select",
+						    component, 81);
 		devlink_flash_update_status_notify(devlink, "Flashing done",
 						   component, 0, 0);
 		devlink_flash_update_end_notify(devlink);

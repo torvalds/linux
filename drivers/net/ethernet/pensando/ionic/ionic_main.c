@@ -170,6 +170,10 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 		return "IONIC_CMD_FW_DOWNLOAD";
 	case IONIC_CMD_FW_CONTROL:
 		return "IONIC_CMD_FW_CONTROL";
+	case IONIC_CMD_FW_DOWNLOAD_V1:
+		return "IONIC_CMD_FW_DOWNLOAD_V1";
+	case IONIC_CMD_FW_CONTROL_V1:
+		return "IONIC_CMD_FW_CONTROL_V1";
 	case IONIC_CMD_VF_GETATTR:
 		return "IONIC_CMD_VF_GETATTR";
 	case IONIC_CMD_VF_SETATTR:
@@ -331,17 +335,22 @@ int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
 	 */
 	max_wait = jiffies + (max_seconds * HZ);
 try_again:
+	opcode = idev->dev_cmd_regs->cmd.cmd.opcode;
 	start_time = jiffies;
 	do {
 		done = ionic_dev_cmd_done(idev);
 		if (done)
 			break;
-		msleep(5);
-		hb = ionic_heartbeat_check(ionic);
+		usleep_range(100, 200);
+
+		/* Don't check the heartbeat on FW_CONTROL commands as they are
+		 * notorious for interrupting the firmware's heartbeat update.
+		 */
+		if (opcode != IONIC_CMD_FW_CONTROL)
+			hb = ionic_heartbeat_check(ionic);
 	} while (!done && !hb && time_before(jiffies, max_wait));
 	duration = jiffies - start_time;
 
-	opcode = idev->dev_cmd_regs->cmd.cmd.opcode;
 	dev_dbg(ionic->dev, "DEVCMD %s (%d) done=%d took %ld secs (%ld jiffies)\n",
 		ionic_opcode_to_str(opcode), opcode,
 		done, duration / HZ, duration);
@@ -365,8 +374,9 @@ try_again:
 
 	err = ionic_dev_cmd_status(&ionic->idev);
 	if (err) {
-		if (err == IONIC_RC_EAGAIN && !time_after(jiffies, max_wait)) {
-			dev_err(ionic->dev, "DEV_CMD %s (%d) error, %s (%d) retrying...\n",
+		if (err == IONIC_RC_EAGAIN &&
+		    time_before(jiffies, (max_wait - HZ))) {
+			dev_dbg(ionic->dev, "DEV_CMD %s (%d), %s (%d) retrying...\n",
 				ionic_opcode_to_str(opcode), opcode,
 				ionic_error_to_str(err), err);
 
@@ -376,9 +386,10 @@ try_again:
 			goto try_again;
 		}
 
-		dev_err(ionic->dev, "DEV_CMD %s (%d) error, %s (%d) failed\n",
-			ionic_opcode_to_str(opcode), opcode,
-			ionic_error_to_str(err), err);
+		if (!(opcode == IONIC_CMD_FW_CONTROL && err == IONIC_RC_EAGAIN))
+			dev_err(ionic->dev, "DEV_CMD %s (%d) error, %s (%d) failed\n",
+				ionic_opcode_to_str(opcode), opcode,
+				ionic_error_to_str(err), err);
 
 		return ionic_error_to_errno(err);
 	}
