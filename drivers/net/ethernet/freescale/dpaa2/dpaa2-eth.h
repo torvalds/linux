@@ -491,6 +491,7 @@ struct dpaa2_eth_priv {
 
 extern const struct ethtool_ops dpaa2_ethtool_ops;
 extern int dpaa2_phc_index;
+extern struct ptp_qoriq *dpaa2_ptp;
 
 static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
 					 u16 ver_major, u16 ver_minor)
