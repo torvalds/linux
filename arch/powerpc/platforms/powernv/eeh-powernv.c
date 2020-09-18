@@ -1721,4 +1721,4 @@ static int __init eeh_powernv_init(void)
 
 	return ret;
 }
-machine_core_initcall_sync(powernv, eeh_powernv_init);
+machine_arch_initcall(powernv, eeh_powernv_init);

@@ -985,4 +985,4 @@ static int __init eeh_pseries_init(void)
 			ret);
 	return ret;
 }
-machine_core_initcall_sync(pseries, eeh_pseries_init);
+machine_arch_initcall(pseries, eeh_pseries_init);

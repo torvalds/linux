@@ -940,41 +940,6 @@ static struct notifier_block eeh_reboot_nb = {
 	.notifier_call = eeh_reboot_notifier,
 };
 
-/**
- * eeh_init - System wide EEH initialization
- *
- * It's the platform's job to call this from an arch_initcall().
- */
-int eeh_init(struct eeh_ops *ops)
-{
-	struct pci_controller *hose, *tmp;
-	int ret = 0;
-
-	/* the platform should only initialise EEH once */
-	if (WARN_ON(eeh_ops))
-		return -EEXIST;
-	if (WARN_ON(!ops))
-		return -ENOENT;
-	eeh_ops = ops;
-
-	/* Register reboot notifier */
-	ret = register_reboot_notifier(&eeh_reboot_nb);
-	if (ret) {
-		pr_warn("%s: Failed to register notifier (%d)\n",
-			__func__, ret);
-		return ret;
-	}
-
-	/* Initialize PHB PEs */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-		eeh_phb_pe_create(hose);
-
-	eeh_addr_cache_init();
-
-	/* Initialize EEH event */
-	return eeh_event_init();
-}
-
 static int eeh_device_notifier(struct notifier_block *nb,
 			       unsigned long action, void *data)
 {
@@ -999,12 +964,47 @@ static struct notifier_block eeh_device_nb = {
 	.notifier_call = eeh_device_notifier,
 };
 
-static __init int eeh_set_bus_notifier(void)
+/**
+ * eeh_init - System wide EEH initialization
+ *
+ * It's the platform's job to call this from an arch_initcall().
+ */
+int eeh_init(struct eeh_ops *ops)
 {
-	bus_register_notifier(&pci_bus_type, &eeh_device_nb);
-	return 0;
+	struct pci_controller *hose, *tmp;
+	int ret = 0;
+
+	/* the platform should only initialise EEH once */
+	if (WARN_ON(eeh_ops))
+		return -EEXIST;
+	if (WARN_ON(!ops))
+		return -ENOENT;
+	eeh_ops = ops;
+
+	/* Register reboot notifier */
+	ret = register_reboot_notifier(&eeh_reboot_nb);
+	if (ret) {
+		pr_warn("%s: Failed to register reboot notifier (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+
+	ret = bus_register_notifier(&pci_bus_type, &eeh_device_nb);
+	if (ret) {
+		pr_warn("%s: Failed to register bus notifier (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+
+	/* Initialize PHB PEs */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+		eeh_phb_pe_create(hose);
+
+	eeh_addr_cache_init();
+
+	/* Initialize EEH event */
+	return eeh_event_init();
 }
-arch_initcall(eeh_set_bus_notifier);
 
 /**
  * eeh_probe_device() - Perform EEH initialization for the indicated pci device
