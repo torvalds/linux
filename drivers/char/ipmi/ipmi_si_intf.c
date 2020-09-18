@@ -1344,7 +1344,7 @@ retry:
 			resp + 2, resp_len - 2, &smi_info->device_id);
 	if (rv) {
 		/* record completion code */
-		char cc = *(resp + 2);
+		unsigned char cc = *(resp + 2);
 
 		if ((cc == IPMI_DEVICE_IN_FW_UPDATE_ERR
 		    || cc == IPMI_DEVICE_IN_INIT_ERR
