@@ -57,6 +57,13 @@ properties:
       - description: Torrent PHY reset.
       - description: Torrent APB reset. This is optional.
 
+  reset-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      - const: torrent_reset
+      - const: torrent_apb
+
 patternProperties:
   '^phy@[0-3]$':
     type: object
@@ -127,6 +134,7 @@ required:
   - reg
   - reg-names
   - resets
+  - reset-names
 
 additionalProperties: false
 
@@ -144,6 +152,7 @@ examples:
                   <0xf0 0xfb030a00 0x0 0x00000040>;
             reg-names = "torrent_phy", "dptx_phy";
             resets = <&phyrst 0>;
+            reset-names = "torrent_reset";
             clocks = <&ref_clk>;
             clock-names = "refclk";
             #address-cells = <1>;
@@ -172,6 +181,7 @@ examples:
             reg = <0xf0 0xfb500000 0x0 0x00100000>;
             reg-names = "torrent_phy";
             resets = <&phyrst 0>, <&phyrst 1>;
+            reset-names = "torrent_reset", "torrent_apb";
             clocks = <&ref_clk>;
             clock-names = "refclk";
             #address-cells = <1>;
