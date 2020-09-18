@@ -765,11 +765,12 @@ int incfs_get_filled_blocks(struct data_file *df,
 
 		convert_data_file_block(bme + i, &dfb);
 
-		if (is_data_block_present(&dfb))
+		if (is_data_block_present(&dfb)) {
 			if (arg->index_out >= df->df_data_block_count)
 				++hash_blocks_filled;
 			else
 				++data_blocks_filled;
+		}
 
 		if (is_data_block_present(&dfb) == in_range)
 			continue;
