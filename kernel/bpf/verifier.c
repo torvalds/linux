@@ -1494,6 +1494,9 @@ static int check_subprogs(struct bpf_verifier_env *env)
 		    insn[i].imm == BPF_FUNC_tail_call &&
 		    insn[i].src_reg != BPF_PSEUDO_CALL)
 			subprog[cur_subprog].has_tail_call = true;
+		if (BPF_CLASS(code) == BPF_LD &&
+		    (BPF_MODE(code) == BPF_ABS || BPF_MODE(code) == BPF_IND))
+			subprog[cur_subprog].has_ld_abs = true;
 		if (BPF_CLASS(code) != BPF_JMP && BPF_CLASS(code) != BPF_JMP32)
 			goto next;
 		if (BPF_OP(code) == BPF_EXIT || BPF_OP(code) == BPF_CALL)
@@ -7514,18 +7517,6 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		return -EINVAL;
 	}
 
-	if (env->subprog_cnt > 1) {
-		/* when program has LD_ABS insn JITs and interpreter assume
-		 * that r1 == ctx == skb which is not the case for callees
-		 * that can have arbitrary arguments. It's problematic
-		 * for main prog as well since JITs would need to analyze
-		 * all functions in order to make proper register save/restore
-		 * decisions in the main prog. Hence disallow LD_ABS with calls
-		 */
-		verbose(env, "BPF_LD_[ABS|IND] instructions cannot be mixed with bpf-to-bpf calls\n");
-		return -EINVAL;
-	}
-
 	if (insn->dst_reg != BPF_REG_0 || insn->off != 0 ||
 	    BPF_SIZE(insn->code) == BPF_DW ||
 	    (mode == BPF_ABS && insn->src_reg != BPF_REG_0)) {
@@ -7936,6 +7927,23 @@ err_free:
 	return ret;
 }
 
+static int check_abnormal_return(struct bpf_verifier_env *env)
+{
+	int i;
+
+	for (i = 1; i < env->subprog_cnt; i++) {
+		if (env->subprog_info[i].has_ld_abs) {
+			verbose(env, "LD_ABS is not allowed in subprogs without BTF\n");
+			return -EINVAL;
+		}
+		if (env->subprog_info[i].has_tail_call) {
+			verbose(env, "tail_call is not allowed in subprogs without BTF\n");
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 /* The minimum supported BTF func info size */
 #define MIN_BPF_FUNCINFO_SIZE	8
 #define MAX_FUNCINFO_REC_SIZE	252
@@ -7944,20 +7952,24 @@ static int check_btf_func(struct bpf_verifier_env *env,
 			  const union bpf_attr *attr,
 			  union bpf_attr __user *uattr)
 {
+	const struct btf_type *type, *func_proto, *ret_type;
 	u32 i, nfuncs, urec_size, min_size;
 	u32 krec_size = sizeof(struct bpf_func_info);
 	struct bpf_func_info *krecord;
 	struct bpf_func_info_aux *info_aux = NULL;
-	const struct btf_type *type;
 	struct bpf_prog *prog;
 	const struct btf *btf;
 	void __user *urecord;
 	u32 prev_offset = 0;
+	bool scalar_return;
 	int ret = -ENOMEM;
 
 	nfuncs = attr->func_info_cnt;
-	if (!nfuncs)
+	if (!nfuncs) {
+		if (check_abnormal_return(env))
+			return -EINVAL;
 		return 0;
+	}
 
 	if (nfuncs != env->subprog_cnt) {
 		verbose(env, "number of funcs in func_info doesn't match number of subprogs\n");
@@ -8005,25 +8017,23 @@ static int check_btf_func(struct bpf_verifier_env *env,
 		}
 
 		/* check insn_off */
+		ret = -EINVAL;
 		if (i == 0) {
 			if (krecord[i].insn_off) {
 				verbose(env,
 					"nonzero insn_off %u for the first func info record",
 					krecord[i].insn_off);
-				ret = -EINVAL;
 				goto err_free;
 			}
 		} else if (krecord[i].insn_off <= prev_offset) {
 			verbose(env,
 				"same or smaller insn offset (%u) than previous func info record (%u)",
 				krecord[i].insn_off, prev_offset);
-			ret = -EINVAL;
 			goto err_free;
 		}
 
 		if (env->subprog_info[i].start != krecord[i].insn_off) {
 			verbose(env, "func_info BTF section doesn't match subprog layout in BPF program\n");
-			ret = -EINVAL;
 			goto err_free;
 		}
 
@@ -8032,10 +8042,26 @@ static int check_btf_func(struct bpf_verifier_env *env,
 		if (!type || !btf_type_is_func(type)) {
 			verbose(env, "invalid type id %d in func info",
 				krecord[i].type_id);
-			ret = -EINVAL;
 			goto err_free;
 		}
 		info_aux[i].linkage = BTF_INFO_VLEN(type->info);
+
+		func_proto = btf_type_by_id(btf, type->type);
+		if (unlikely(!func_proto || !btf_type_is_func_proto(func_proto)))
+			/* btf_func_check() already verified it during BTF load */
+			goto err_free;
+		ret_type = btf_type_skip_modifiers(btf, func_proto->type, NULL);
+		scalar_return =
+			btf_type_is_small_int(ret_type) || btf_type_is_enum(ret_type);
+		if (i && !scalar_return && env->subprog_info[i].has_ld_abs) {
+			verbose(env, "LD_ABS is only allowed in functions that return 'int'.\n");
+			goto err_free;
+		}
+		if (i && !scalar_return && env->subprog_info[i].has_tail_call) {
+			verbose(env, "tail_call is only allowed in functions that return 'int'.\n");
+			goto err_free;
+		}
+
 		prev_offset = krecord[i].insn_off;
 		urecord += urec_size;
 	}
@@ -8196,8 +8222,11 @@ static int check_btf_info(struct bpf_verifier_env *env,
 	struct btf *btf;
 	int err;
 
-	if (!attr->func_info_cnt && !attr->line_info_cnt)
+	if (!attr->func_info_cnt && !attr->line_info_cnt) {
+		if (check_abnormal_return(env))
+			return -EINVAL;
 		return 0;
+	}
 
 	btf = btf_get_by_fd(attr->prog_btf_fd);
 	if (IS_ERR(btf))
