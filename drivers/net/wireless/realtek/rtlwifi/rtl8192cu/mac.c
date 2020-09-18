@@ -158,14 +158,14 @@ bool rtl92c_init_llt_table(struct ieee80211_hw *hw, u32 boundary)
 
 	for (i = 0; i < (boundary - 1); i++) {
 		rst = rtl92c_llt_write(hw, i , i + 1);
-		if (true != rst) {
+		if (!rst) {
 			pr_err("===> %s #1 fail\n", __func__);
 			return rst;
 		}
 	}
 	/* end of list */
 	rst = rtl92c_llt_write(hw, (boundary - 1), 0xFF);
-	if (true != rst) {
+	if (!rst) {
 		pr_err("===> %s #2 fail\n", __func__);
 		return rst;
 	}
@@ -176,14 +176,14 @@ bool rtl92c_init_llt_table(struct ieee80211_hw *hw, u32 boundary)
 	 */
 	for (i = boundary; i < LLT_LAST_ENTRY_OF_TX_PKT_BUFFER; i++) {
 		rst = rtl92c_llt_write(hw, i, (i + 1));
-		if (true != rst) {
+		if (!rst) {
 			pr_err("===> %s #3 fail\n", __func__);
 			return rst;
 		}
 	}
 	/* Let last entry point to the start entry of ring buffer */
 	rst = rtl92c_llt_write(hw, LLT_LAST_ENTRY_OF_TX_PKT_BUFFER, boundary);
-	if (true != rst) {
+	if (!rst) {
 		pr_err("===> %s #4 fail\n", __func__);
 		return rst;
 	}
