@@ -162,6 +162,34 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_ATHUB			(1 << 16)
 #define AMD_PG_SUPPORT_JPEG			(1 << 17)
 
+/**
+ * enum PP_FEATURE_MASK - Used to mask power play features.
+ *
+ * @PP_SCLK_DPM_MASK: Dynamic adjustment of the system (graphics) clock.
+ * @PP_MCLK_DPM_MASK: Dynamic adjustment of the memory clock.
+ * @PP_PCIE_DPM_MASK: Dynamic adjustment of PCIE clocks and lanes.
+ * @PP_SCLK_DEEP_SLEEP_MASK: System (graphics) clock deep sleep.
+ * @PP_POWER_CONTAINMENT_MASK: Power containment.
+ * @PP_UVD_HANDSHAKE_MASK: Unified video decoder handshake.
+ * @PP_SMC_VOLTAGE_CONTROL_MASK: Dynamic voltage control.
+ * @PP_VBI_TIME_SUPPORT_MASK: Vertical blank interval support.
+ * @PP_ULV_MASK: Ultra low voltage.
+ * @PP_ENABLE_GFX_CG_THRU_SMU: SMU control of GFX engine clockgating.
+ * @PP_CLOCK_STRETCH_MASK: Clock stretching.
+ * @PP_OD_FUZZY_FAN_CONTROL_MASK: Overdrive fuzzy fan control.
+ * @PP_SOCCLK_DPM_MASK: Dynamic adjustment of the SoC clock.
+ * @PP_DCEFCLK_DPM_MASK: Dynamic adjustment of the Display Controller Engine Fabric clock.
+ * @PP_OVERDRIVE_MASK: Over- and under-clocking support.
+ * @PP_GFXOFF_MASK: Dynamic graphics engine power control.
+ * @PP_ACG_MASK: Adaptive clock generator.
+ * @PP_STUTTER_MODE: Stutter mode.
+ * @PP_AVFS_MASK: Adaptive voltage and frequency scaling.
+ *
+ * To override these settings on boot, append amdgpu.ppfeaturemask=<mask> to
+ * the kernel's command line parameters. This is usually done through a system's
+ * boot loader (E.g. GRUB). If manually loading the driver, pass
+ * ppfeaturemask=<mask> as a modprobe parameter.
+ */
 enum PP_FEATURE_MASK {
 	PP_SCLK_DPM_MASK = 0x1,
 	PP_MCLK_DPM_MASK = 0x2,
