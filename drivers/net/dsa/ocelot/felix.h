@@ -55,6 +55,4 @@ struct felix {
 	resource_size_t			imdio_base;
 };
 
-void vsc9959_mdio_bus_free(struct ocelot *ocelot);
-
 #endif

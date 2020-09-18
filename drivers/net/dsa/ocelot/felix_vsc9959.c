@@ -936,7 +936,7 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 	return 0;
 }
 
-void vsc9959_mdio_bus_free(struct ocelot *ocelot)
+static void vsc9959_mdio_bus_free(struct ocelot *ocelot)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	int port;

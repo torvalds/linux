@@ -981,6 +981,23 @@ static int vsc9953_mdio_bus_alloc(struct ocelot *ocelot)
 	return 0;
 }
 
+static void vsc9953_mdio_bus_free(struct ocelot *ocelot)
+{
+	struct felix *felix = ocelot_to_felix(ocelot);
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct lynx_pcs *pcs = felix->pcs[port];
+
+		if (!pcs)
+			continue;
+
+		mdio_device_free(pcs->mdio);
+		lynx_pcs_destroy(pcs);
+	}
+	mdiobus_unregister(felix->imdio);
+}
+
 static void vsc9953_xmit_template_populate(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
@@ -1014,7 +1031,7 @@ static const struct felix_info seville_info_vsc9953 = {
 	.num_mact_rows		= 2048,
 	.num_ports		= 10,
 	.mdio_bus_alloc		= vsc9953_mdio_bus_alloc,
-	.mdio_bus_free		= vsc9959_mdio_bus_free,
+	.mdio_bus_free		= vsc9953_mdio_bus_free,
 	.phylink_validate	= vsc9953_phylink_validate,
 	.prevalidate_phy_mode	= vsc9953_prevalidate_phy_mode,
 	.xmit_template_populate	= vsc9953_xmit_template_populate,
