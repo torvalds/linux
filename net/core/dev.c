@@ -10028,10 +10028,12 @@ EXPORT_SYMBOL(netdev_refcnt_read);
  * We can get stuck here if buggy protocols don't correctly
  * call dev_put.
  */
+#define WAIT_REFS_MIN_MSECS 1
+#define WAIT_REFS_MAX_MSECS 250
 static void netdev_wait_allrefs(struct net_device *dev)
 {
 	unsigned long rebroadcast_time, warning_time;
-	int refcnt;
+	int wait = 0, refcnt;
 
 	linkwatch_forget_dev(dev);
 
@@ -10065,7 +10067,13 @@ static void netdev_wait_allrefs(struct net_device *dev)
 			rebroadcast_time = jiffies;
 		}
 
-		msleep(250);
+		if (!wait) {
+			rcu_barrier();
+			wait = WAIT_REFS_MIN_MSECS;
+		} else {
+			msleep(wait);
+			wait = min(wait << 1, WAIT_REFS_MAX_MSECS);
+		}
 
 		refcnt = netdev_refcnt_read(dev);
 
