@@ -223,6 +223,8 @@ struct hw_sequencer_funcs {
 	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
 #endif
 
+	bool (*is_abm_supported)(struct dc *dc,
+			struct dc_state *context, struct dc_stream_state *stream);
 };
 
 void color_space_to_black_color(

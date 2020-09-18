@@ -45,6 +45,7 @@ struct dc_stream_status {
 	int audio_inst;
 	struct timing_sync_info timing_sync_info;
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
+	bool is_abm_supported;
 };
 
 // TODO: References to this needs to be removed..
