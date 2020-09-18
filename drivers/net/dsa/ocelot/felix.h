@@ -20,7 +20,7 @@ struct felix_info {
 	const struct ocelot_stat_layout	*stats_layout;
 	unsigned int			num_stats;
 	int				num_ports;
-	int                             num_tx_queues;
+	int				num_tx_queues;
 	struct vcap_field		*vcap_is2_keys;
 	struct vcap_field		*vcap_is2_actions;
 	const struct vcap_props		*vcap;

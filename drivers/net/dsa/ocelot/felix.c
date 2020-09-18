@@ -797,7 +797,7 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.cls_flower_add		= felix_cls_flower_add,
 	.cls_flower_del		= felix_cls_flower_del,
 	.cls_flower_stats	= felix_cls_flower_stats,
-	.port_setup_tc          = felix_port_setup_tc,
+	.port_setup_tc		= felix_port_setup_tc,
 };
 
 static int __init felix_init(void)

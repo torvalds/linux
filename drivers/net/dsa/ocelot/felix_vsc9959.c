@@ -296,15 +296,15 @@ static const u32 vsc9959_sys_regmap[] = {
 };
 
 static const u32 vsc9959_ptp_regmap[] = {
-	REG(PTP_PIN_CFG,                   0x000000),
-	REG(PTP_PIN_TOD_SEC_MSB,           0x000004),
-	REG(PTP_PIN_TOD_SEC_LSB,           0x000008),
-	REG(PTP_PIN_TOD_NSEC,              0x00000c),
-	REG(PTP_PIN_WF_HIGH_PERIOD,        0x000014),
-	REG(PTP_PIN_WF_LOW_PERIOD,         0x000018),
-	REG(PTP_CFG_MISC,                  0x0000a0),
-	REG(PTP_CLK_CFG_ADJ_CFG,           0x0000a4),
-	REG(PTP_CLK_CFG_ADJ_FREQ,          0x0000a8),
+	REG(PTP_PIN_CFG,			0x000000),
+	REG(PTP_PIN_TOD_SEC_MSB,		0x000004),
+	REG(PTP_PIN_TOD_SEC_LSB,		0x000008),
+	REG(PTP_PIN_TOD_NSEC,			0x00000c),
+	REG(PTP_PIN_WF_HIGH_PERIOD,		0x000014),
+	REG(PTP_PIN_WF_LOW_PERIOD,		0x000018),
+	REG(PTP_CFG_MISC,			0x0000a0),
+	REG(PTP_CLK_CFG_ADJ_CFG,		0x0000a4),
+	REG(PTP_CLK_CFG_ADJ_FREQ,		0x0000a8),
 };
 
 static const u32 vsc9959_gcb_regmap[] = {
@@ -1173,8 +1173,8 @@ static const struct felix_info felix_info_vsc9959 = {
 	.mdio_bus_free		= vsc9959_mdio_bus_free,
 	.phylink_validate	= vsc9959_phylink_validate,
 	.prevalidate_phy_mode	= vsc9959_prevalidate_phy_mode,
-	.port_setup_tc          = vsc9959_port_setup_tc,
-	.port_sched_speed_set   = vsc9959_sched_speed_set,
+	.port_setup_tc		= vsc9959_port_setup_tc,
+	.port_sched_speed_set	= vsc9959_sched_speed_set,
 	.xmit_template_populate	= vsc9959_xmit_template_populate,
 };
 
