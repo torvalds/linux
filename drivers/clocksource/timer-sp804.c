@@ -24,12 +24,15 @@
 #define HISI_TIMER_1_BASE	0x00
 #define HISI_TIMER_2_BASE	0x40
 #define HISI_TIMER_LOAD		0x00
+#define HISI_TIMER_LOAD_H	0x04
 #define HISI_TIMER_VALUE	0x08
+#define HISI_TIMER_VALUE_H	0x0c
 #define HISI_TIMER_CTRL		0x10
 #define HISI_TIMER_INTCLR	0x14
 #define HISI_TIMER_RIS		0x18
 #define HISI_TIMER_MIS		0x1c
 #define HISI_TIMER_BGLOAD	0x20
+#define HISI_TIMER_BGLOAD_H	0x24
 
 
 struct sp804_timer __initdata arm_sp804_timer = {
@@ -43,7 +46,9 @@ struct sp804_timer __initdata arm_sp804_timer = {
 
 struct sp804_timer __initdata hisi_sp804_timer = {
 	.load		= HISI_TIMER_LOAD,
+	.load_h		= HISI_TIMER_LOAD_H,
 	.value		= HISI_TIMER_VALUE,
+	.value_h	= HISI_TIMER_VALUE_H,
 	.ctrl		= HISI_TIMER_CTRL,
 	.intclr		= HISI_TIMER_INTCLR,
 	.timer_base	= {HISI_TIMER_1_BASE, HISI_TIMER_2_BASE},
@@ -129,6 +134,10 @@ int __init sp804_clocksource_and_sched_clock_init(void __iomem *base,
 	writel(0, clkevt->ctrl);
 	writel(0xffffffff, clkevt->load);
 	writel(0xffffffff, clkevt->value);
+	if (clkevt->width == 64) {
+		writel(0xffffffff, clkevt->load_h);
+		writel(0xffffffff, clkevt->value_h);
+	}
 	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
 		clkevt->ctrl);
 
@@ -245,7 +254,9 @@ static void __init sp804_clkevt_init(struct sp804_timer *timer, void __iomem *ba
 		clkevt = &sp804_clkevt[i];
 		clkevt->base	= timer_base;
 		clkevt->load	= timer_base + timer->load;
+		clkevt->load_h	= timer_base + timer->load_h;
 		clkevt->value	= timer_base + timer->value;
+		clkevt->value_h	= timer_base + timer->value_h;
 		clkevt->ctrl	= timer_base + timer->ctrl;
 		clkevt->intclr	= timer_base + timer->intclr;
 		clkevt->width	= timer->width;

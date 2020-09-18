@@ -33,12 +33,15 @@
 
 struct sp804_timer {
 	int load;
+	int load_h;
 	int value;
+	int value_h;
 	int ctrl;
 	int intclr;
 	int ris;
 	int mis;
 	int bgload;
+	int bgload_h;
 	int timer_base[NR_TIMERS];
 	int width;
 };
@@ -46,12 +49,15 @@ struct sp804_timer {
 struct sp804_clkevt {
 	void __iomem *base;
 	void __iomem *load;
+	void __iomem *load_h;
 	void __iomem *value;
+	void __iomem *value_h;
 	void __iomem *ctrl;
 	void __iomem *intclr;
 	void __iomem *ris;
 	void __iomem *mis;
 	void __iomem *bgload;
+	void __iomem *bgload_h;
 	unsigned long reload;
 	int width;
 };
