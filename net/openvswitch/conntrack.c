@@ -1901,8 +1901,8 @@ static void ovs_ct_limit_exit(struct net *net, struct ovs_net *ovs_net)
 					 lockdep_ovsl_is_held())
 			kfree_rcu(ct_limit, rcu);
 	}
-	kfree(ovs_net->ct_limit_info->limits);
-	kfree(ovs_net->ct_limit_info);
+	kfree(info->limits);
+	kfree(info);
 }
 
 static struct sk_buff *
