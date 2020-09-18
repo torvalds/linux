@@ -847,7 +847,6 @@ static int vsc9953_reset(struct ocelot *ocelot)
 	}
 
 	/* enable switch core */
-	ocelot_field_write(ocelot, SYS_RESET_CFG_MEM_ENA, 1);
 	ocelot_field_write(ocelot, SYS_RESET_CFG_CORE_ENA, 1);
 
 	return 0;
