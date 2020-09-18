@@ -538,23 +538,6 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	return 0;
 }
 
-static struct ptp_clock_info ocelot_ptp_clock_info = {
-	.owner		= THIS_MODULE,
-	.name		= "felix ptp",
-	.max_adj	= 0x7fffffff,
-	.n_alarm	= 0,
-	.n_ext_ts	= 0,
-	.n_per_out	= OCELOT_PTP_PINS_NUM,
-	.n_pins		= OCELOT_PTP_PINS_NUM,
-	.pps		= 0,
-	.gettime64	= ocelot_ptp_gettime64,
-	.settime64	= ocelot_ptp_settime64,
-	.adjtime	= ocelot_ptp_adjtime,
-	.adjfine	= ocelot_ptp_adjfine,
-	.verify		= ocelot_ptp_verify,
-	.enable		= ocelot_ptp_enable,
-};
-
 /* Hardware initialization done here so that we can allocate structures with
  * devm without fear of dsa_register_switch returning -EPROBE_DEFER and causing
  * us to allocate structures twice (leak memory) and map PCI memory twice
@@ -573,7 +556,7 @@ static int felix_setup(struct dsa_switch *ds)
 
 	ocelot_init(ocelot);
 	if (ocelot->ptp) {
-		err = ocelot_init_timestamp(ocelot, &ocelot_ptp_clock_info);
+		err = ocelot_init_timestamp(ocelot, felix->info->ptp_caps);
 		if (err) {
 			dev_err(ocelot->dev,
 				"Timestamp initialization failed\n");

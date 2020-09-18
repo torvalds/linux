@@ -719,6 +719,23 @@ static const struct vcap_props vsc9959_vcap_props[] = {
 	},
 };
 
+static const struct ptp_clock_info vsc9959_ptp_caps = {
+	.owner		= THIS_MODULE,
+	.name		= "felix ptp",
+	.max_adj	= 0x7fffffff,
+	.n_alarm	= 0,
+	.n_ext_ts	= 0,
+	.n_per_out	= OCELOT_PTP_PINS_NUM,
+	.n_pins		= OCELOT_PTP_PINS_NUM,
+	.pps		= 0,
+	.gettime64	= ocelot_ptp_gettime64,
+	.settime64	= ocelot_ptp_settime64,
+	.adjtime	= ocelot_ptp_adjtime,
+	.adjfine	= ocelot_ptp_adjfine,
+	.verify		= ocelot_ptp_verify,
+	.enable		= ocelot_ptp_enable,
+};
+
 #define VSC9959_INIT_TIMEOUT			50000
 #define VSC9959_GCB_RST_SLEEP			100
 #define VSC9959_SYS_RAMINIT_SLEEP		80
@@ -1169,6 +1186,7 @@ static const struct felix_info felix_info_vsc9959 = {
 	.num_tx_queues		= FELIX_NUM_TC,
 	.switch_pci_bar		= 4,
 	.imdio_pci_bar		= 0,
+	.ptp_caps		= &vsc9959_ptp_caps,
 	.mdio_bus_alloc		= vsc9959_mdio_bus_alloc,
 	.mdio_bus_free		= vsc9959_mdio_bus_free,
 	.phylink_validate	= vsc9959_phylink_validate,

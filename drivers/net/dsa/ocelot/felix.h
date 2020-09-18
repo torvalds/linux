@@ -26,6 +26,7 @@ struct felix_info {
 	const struct vcap_props		*vcap;
 	int				switch_pci_bar;
 	int				imdio_pci_bar;
+	const struct ptp_clock_info	*ptp_caps;
 	int	(*mdio_bus_alloc)(struct ocelot *ocelot);
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
 	void	(*phylink_validate)(struct ocelot *ocelot, int port,
