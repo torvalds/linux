@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version
+ * V0.0X01.0X01 support 10bit DOL3
  */
 
 #define DEBUG
@@ -27,7 +28,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -55,6 +56,9 @@
 #define IMX335_SF1_GAIN_REG_H		0x30EB
 #define IMX335_SF1_GAIN_REG_L		0x30EA
 
+#define IMX335_SF2_GAIN_REG_H		0x30ED
+#define IMX335_SF2_GAIN_REG_L		0x30EC
+
 #define IMX335_LF_EXPO_REG_H		0x305A
 #define IMX335_LF_EXPO_REG_M		0x3059
 #define IMX335_LF_EXPO_REG_L		0x3058
@@ -67,6 +71,16 @@
 #define IMX335_RHS1_REG_M		0x3069
 #define IMX335_RHS1_REG_L		0x3068
 #define IMX335_RHS1_DEFAULT		0x0122
+#define IMX335_RHS1_X3_DEFAULT		0x012E
+
+#define IMX335_SF2_EXPO_REG_H		0x3062
+#define IMX335_SF2_EXPO_REG_M		0x3061
+#define IMX335_SF2_EXPO_REG_L		0x3060
+
+#define IMX335_RHS2_REG_H		0x306E
+#define IMX335_RHS2_REG_M		0x306D
+#define IMX335_RHS2_REG_L		0x306C
+#define IMX335_RHS2_X3_DEFAULT		0x016C
 
 /*
  * The linear shr0 shall be:
@@ -120,8 +134,11 @@
 /* Basic Readout Lines. Number of necessary readout lines in sensor */
 #define BRL				(1984u * 2)
 #define RHS1_MAX			(BRL * 2 - 1)
-
 #define SHR1_MIN			18u
+
+/* Readout timing setting of SEF1(DOL3): RHS1 < 3 * BRL and should be 12n + 2 */
+#define RHS1_MAX_X3			((BRL * 3 - 1) / 12 * 12 + 2)
+#define SHR1_MIN_X3			26u
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
@@ -206,11 +223,29 @@ static const struct regval imx335_linear_10bit_2592x1944_regs[] = {
 	{0x3002, 0x00},
 	{0x300C, 0x5B},
 	{0x300D, 0x40},
+	{0x3034, 0x26},
+	{0x3035, 0x02},
+	{0x3048, 0x00},
+	{0x3049, 0x00},
+	{0x304A, 0x03},
+	{0x304B, 0x01},
+	{0x304C, 0x14},
 	{0x3050, 0x00},
+	{0x3058, 0x09},
+	{0x3059, 0x00},
+	{0x305C, 0x12},
+	{0x3060, 0xE8},
+	{0x3061, 0x00},
+	{0x3068, 0xce},
+	{0x3069, 0x00},
+	{0x306C, 0x88},
+	{0x306D, 0x06},
+	{0x30E8, 0x00},
 	{0x315A, 0x02},
 	{0x316A, 0x7E},
 	{0x319D, 0x00},
 	{0x31A1, 0x00},
+	{0x31D7, 0x00},
 	{0x3200, 0x01}, /* Each frame gain adjustment disabed in linear mode */
 	{0x3288, 0x21},
 	{0x328A, 0x02},
@@ -283,7 +318,7 @@ static const struct regval imx335_linear_10bit_2592x1944_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval imx335_hdr_10bit_2592x1944_regs[] = {
+static const struct regval imx335_hdr2_10bit_2592x1944_regs[] = {
 	{0x3002, 0x00},
 	{0x300C, 0x5B},
 	{0x300D, 0x40},
@@ -297,13 +332,118 @@ static const struct regval imx335_hdr_10bit_2592x1944_regs[] = {
 	{0x3050, 0x00},
 	{0x3058, 0x48},
 	{0x3059, 0x12},
+	{0x305C, 0x12},
+	{0x3060, 0xE8},
+	{0x3061, 0x00},
 	{0x3068, 0x22},
 	{0x3069, 0x01},
+	{0x306C, 0x68},
+	{0x306D, 0x06},
+	{0x30E8, 0x00},
 	{0x315A, 0x02},
 	{0x316A, 0x7E},
 	{0x319D, 0x00},
 	{0x31A1, 0x00},
 	{0x31D7, 0x01},
+	{0x3200, 0x00}, /* Each frame gain adjustment EN */
+	{0x3288, 0x21},
+	{0x328A, 0x02},
+	{0x3414, 0x05},
+	{0x3416, 0x18},
+	{0x341C, 0xFF},
+	{0x341D, 0x01},
+	{0x3648, 0x01},
+	{0x364A, 0x04},
+	{0x364C, 0x04},
+	{0x3678, 0x01},
+	{0x367C, 0x31},
+	{0x367E, 0x31},
+	{0x3706, 0x10},
+	{0x3708, 0x03},
+	{0x3714, 0x02},
+	{0x3715, 0x02},
+	{0x3716, 0x01},
+	{0x3717, 0x03},
+	{0x371C, 0x3D},
+	{0x371D, 0x3F},
+	{0x372C, 0x00},
+	{0x372D, 0x00},
+	{0x372E, 0x46},
+	{0x372F, 0x00},
+	{0x3730, 0x89},
+	{0x3731, 0x00},
+	{0x3732, 0x08},
+	{0x3733, 0x01},
+	{0x3734, 0xFE},
+	{0x3735, 0x05},
+	{0x3740, 0x02},
+	{0x375D, 0x00},
+	{0x375E, 0x00},
+	{0x375F, 0x11},
+	{0x3760, 0x01},
+	{0x3768, 0x1B},
+	{0x3769, 0x1B},
+	{0x376A, 0x1B},
+	{0x376B, 0x1B},
+	{0x376C, 0x1A},
+	{0x376D, 0x17},
+	{0x376E, 0x0F},
+	{0x3776, 0x00},
+	{0x3777, 0x00},
+	{0x3778, 0x46},
+	{0x3779, 0x00},
+	{0x377A, 0x89},
+	{0x377B, 0x00},
+	{0x377C, 0x08},
+	{0x377D, 0x01},
+	{0x377E, 0x23},
+	{0x377F, 0x02},
+	{0x3780, 0xD9},
+	{0x3781, 0x03},
+	{0x3782, 0xF5},
+	{0x3783, 0x06},
+	{0x3784, 0xA5},
+	{0x3788, 0x0F},
+	{0x378A, 0xD9},
+	{0x378B, 0x03},
+	{0x378C, 0xEB},
+	{0x378D, 0x05},
+	{0x378E, 0x87},
+	{0x378F, 0x06},
+	{0x3790, 0xF5},
+	{0x3792, 0x43},
+	{0x3794, 0x7A},
+	{0x3796, 0xA1},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval imx335_hdr3_10bit_2592x1944_regs[] = {
+	{0x3002, 0x00},
+	{0x300C, 0x5B},
+	{0x300D, 0x40},
+	{0x3034, 0x13},
+	{0x3035, 0x01},
+	{0x3048, 0x01},
+	{0x3049, 0x02},
+	{0x304A, 0x05},
+	{0x304B, 0x03},
+	{0x304C, 0x13},
+	{0x3050, 0x00},
+	{0x3058, 0xC4},
+	{0x3059, 0x3B},
+	{0x305C, 0x1A},
+	{0x3060, 0x4E},
+	{0x3061, 0x01},
+	{0x3068, 0x2E},
+	{0x3069, 0x01},
+	{0x306C, 0x6C},
+	{0x306D, 0x01},
+	{0x30E8, 0x14},
+	{0x315A, 0x02},
+	{0x316A, 0x7E},
+	{0x319D, 0x00},
+	{0x31A1, 0x00},
+	{0x31D7, 0x03},
 	{0x3200, 0x00}, /* Each frame gain adjustment EN */
 	{0x3288, 0x21},
 	{0x328A, 0x02},
@@ -422,13 +562,37 @@ static const struct imx335_mode supported_modes[] = {
 		 * make vts double(that is FSC) to workaround.
 		 */
 		.vts_def = 0x1194 * 2,
-		.reg_list = imx335_hdr_10bit_2592x1944_regs,
+		.reg_list = imx335_hdr2_10bit_2592x1944_regs,
 		.hdr_mode = HDR_X2,
 		.bpp = 10,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	},
+	{
+		/* 1H period = 3.70us */
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.width = 2616,
+		.height = 1964,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 150000,
+		},
+		.exp_def = 0x1194 * 2 - 0x1248,
+		.hts_def = 0x0113 * IMX335_4LANES * 2 * 2,
+		/*
+		 * IMX335 HDR mode T-line is a half of Linear mode,
+		 * make vts double(that is FSC) to workaround.
+		 */
+		.vts_def = 0x1194 * 4,
+		.reg_list = imx335_hdr3_10bit_2592x1944_regs,
+		.hdr_mode = HDR_X3,
+		.bpp = 10,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_2,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_2,//S->csi wr2
 	},
 };
 
@@ -658,11 +822,16 @@ static int imx335_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
+	struct imx335 *imx335 = to_imx335(sd);
+	const struct imx335_mode *mode = imx335->cur_mode;
 
 	val = 1 << (IMX335_4LANES - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-
+	if (mode->hdr_mode != NO_HDR)
+		val |= V4L2_MBUS_CSI2_CHANNEL_1;
+	if (mode->hdr_mode == HDR_X3)
+		val |= V4L2_MBUS_CSI2_CHANNEL_2;
 	config->type = V4L2_MBUS_CSI2;
 	config->flags = val;
 
@@ -704,8 +873,7 @@ static int imx335_set_hdrae(struct imx335 *imx335,
 	s_a_gain = ae->short_gain_reg;
 	dev_dbg(&client->dev,
 		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
-		l_exp_time, m_exp_time, s_exp_time,
-		l_a_gain, m_a_gain, s_a_gain);
+		l_exp_time, l_a_gain, m_exp_time, m_a_gain, s_exp_time, s_a_gain);
 
 	if (imx335->cur_mode->hdr_mode == HDR_X2) {
 		l_a_gain = m_a_gain;
@@ -826,6 +994,240 @@ static int imx335_set_hdrae(struct imx335 *imx335,
 	return ret;
 }
 
+static int imx335_set_hdrae_3frame(struct imx335 *imx335,
+				   struct preisp_hdrae_exp_s *ae)
+{
+	struct i2c_client *client = imx335->client;
+	u32 l_exp_time, m_exp_time, s_exp_time;
+	u32 l_a_gain, m_a_gain, s_a_gain;
+	int shr2, shr1, shr0, rhs2, rhs1 = 0;
+	int rhs1_change_limit, rhs2_change_limit = 0;
+	static int rhs1_old = IMX335_RHS1_X3_DEFAULT;
+	static int rhs2_old = IMX335_RHS2_X3_DEFAULT;
+	int ret = 0;
+	u32 fsc;
+	int rhs1_max = 0;
+	int shr2_min = 0;
+
+	if (!imx335->has_init_exp && !imx335->streaming) {
+		imx335->init_hdrae_exp = *ae;
+		imx335->has_init_exp = true;
+		dev_dbg(&imx335->client->dev, "imx335 is not streaming, save hdr ae!\n");
+		return ret;
+	}
+	l_exp_time = ae->long_exp_reg;
+	m_exp_time = ae->middle_exp_reg;
+	s_exp_time = ae->short_exp_reg;
+	l_a_gain = ae->long_gain_reg;
+	m_a_gain = ae->middle_gain_reg;
+	s_a_gain = ae->short_gain_reg;
+	dev_dbg(&client->dev,
+		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
+		l_exp_time, l_a_gain, m_exp_time, m_a_gain, s_exp_time, s_a_gain);
+
+	ret = imx335_write_reg(client, IMX335_GROUP_HOLD_REG,
+		IMX335_REG_VALUE_08BIT, IMX335_GROUP_HOLD_START);
+	/* gain effect n+1 */
+	ret |= imx335_write_reg(client, IMX335_LF_GAIN_REG_H,
+		IMX335_REG_VALUE_08BIT, IMX335_FETCH_GAIN_H(l_a_gain));
+	ret |= imx335_write_reg(client, IMX335_LF_GAIN_REG_L,
+		IMX335_REG_VALUE_08BIT, IMX335_FETCH_GAIN_L(l_a_gain));
+	ret |= imx335_write_reg(client, IMX335_SF1_GAIN_REG_H,
+		IMX335_REG_VALUE_08BIT, IMX335_FETCH_GAIN_H(m_a_gain));
+	ret |= imx335_write_reg(client, IMX335_SF1_GAIN_REG_L,
+		IMX335_REG_VALUE_08BIT, IMX335_FETCH_GAIN_L(m_a_gain));
+	ret |= imx335_write_reg(client, IMX335_SF2_GAIN_REG_H,
+		IMX335_REG_VALUE_08BIT, IMX335_FETCH_GAIN_H(s_a_gain));
+	ret |= imx335_write_reg(client, IMX335_SF2_GAIN_REG_L,
+		IMX335_REG_VALUE_08BIT, IMX335_FETCH_GAIN_L(s_a_gain));
+
+	/* Restrictions
+	 *   FSC = 4 * VMAX and FSC should be 6n;
+	 *   exp_l = FSC - SHR0 + Toffset;
+	 *
+	 *   SHR0 = FSC - exp_l + Toffset;
+	 *   SHR0 <= (FSC -6);
+	 *   SHR0 >= RHS2 + 26;
+	 *   SHR0 should be 6n;
+	 *
+	 *   exp_m = RHS1 - SHR1 + Toffset;
+	 *
+	 *   RHS1 < BRL * 3;
+	 *   RHS1 <= SHR2 - 26;
+	 *   RHS1 >= SHR1 + 6;
+	 *   SHR1 >= 26;
+	 *   SHR1 <= RHS1 - 6;
+	 *   RHS1(n+1) >= RHS1(n) + BRL * 3 -FSC + 3;
+	 *
+	 *   SHR1 should be 6n+2 and RHS1 should be 12n+2;
+	 *
+	 *   exp_s = RHS2 - SHR2 + Toffset;
+	 *
+	 *   RHS2 < BRL * 3 + RHS1;
+	 *   RHS2 <= SHR0 - 26;
+	 *   RHS2 >= SHR2 + 6;
+	 *   SHR2 >= RHS1 + 26;
+	 *   SHR2 <= RHS2 - 6;
+	 *   RHS1(n+1) >= RHS1(n) + BRL * 3 -FSC + 3;
+	 *
+	 *   SHR2 should be 6n+4 and RHS2 should be 12n+4;
+	 */
+
+	/* The HDR mode vts is double by default to workaround T-line */
+	fsc = imx335->cur_vts;
+	fsc = fsc / 6 * 6;
+	shr0 = fsc - l_exp_time;
+	dev_dbg(&client->dev,
+		"line(%d) shr0 %d, l_exp_time %d, fsc %d\n",
+		__LINE__, shr0, l_exp_time, fsc);
+
+	rhs1 = (SHR1_MIN_X3 + m_exp_time + 11) / 12 * 12 + 2;
+	rhs1_max = RHS1_MAX_X3;
+	if (rhs1 < 32)
+		rhs1 = 32;
+	else if (rhs1 > rhs1_max)
+		rhs1 = rhs1_max;
+	dev_dbg(&client->dev,
+		"line(%d) rhs1 %d, m_exp_time %d rhs1_old %d\n",
+		__LINE__, rhs1, m_exp_time, rhs1_old);
+
+	//Dynamic adjustment rhs2 must meet the following conditions
+	rhs1_change_limit = rhs1_old + 3 * BRL - fsc + 3;
+	rhs1_change_limit = (rhs1_change_limit < 32) ? 32 : rhs1_change_limit;
+	rhs1_change_limit = (rhs1_change_limit + 11) / 12 * 12 + 2;
+	if (rhs1 < rhs1_change_limit)
+		rhs1 = rhs1_change_limit;
+
+	dev_dbg(&client->dev,
+		"line(%d) m_exp_time %d rhs1_old %d, rhs1_new %d\n",
+		__LINE__, m_exp_time, rhs1_old, rhs1);
+
+	rhs1_old = rhs1;
+
+	/* shr1 = rhs1 - s_exp_time */
+	if (rhs1 - m_exp_time <= SHR1_MIN_X3) {
+		shr1 = SHR1_MIN_X3;
+		m_exp_time = rhs1 - shr1;
+	} else {
+		shr1 = rhs1 - m_exp_time;
+	}
+
+	shr2_min = rhs1 + 26;
+	rhs2 = (shr2_min + s_exp_time + 11) / 12 * 12 + 4;
+	if (rhs2 > (shr0 - 26))
+		rhs2 = shr0 - 26;
+	else if (rhs2 < 64)
+		rhs2 = 64;
+	dev_dbg(&client->dev,
+		"line(%d) rhs2 %d, s_exp_time %d, rhs2_old %d\n",
+		__LINE__, rhs2, s_exp_time, rhs2_old);
+
+	//Dynamic adjustment rhs2 must meet the following conditions
+	rhs2_change_limit = rhs2_old + 3 * BRL - fsc + 3;
+	rhs2_change_limit = (rhs2_change_limit < 64) ?  64 : rhs2_change_limit;
+	rhs2_change_limit = (rhs2_change_limit + 11) / 12 * 12 + 4;
+	if (rhs2 < rhs2_change_limit)
+		rhs2 = rhs2_change_limit;
+
+	rhs2_old = rhs2;
+
+	/* shr2 = rhs2 - s_exp_time */
+	if (rhs2 - s_exp_time <= shr2_min) {
+		shr2 = shr2_min;
+		s_exp_time = rhs2 - shr2;
+	} else {
+		shr2 = rhs2 - s_exp_time;
+	}
+	dev_dbg(&client->dev,
+		"line(%d) rhs2_new %d, s_exp_time %d shr2 %d, rhs2_change_limit %d\n",
+		__LINE__, rhs2, s_exp_time, shr2, rhs2_change_limit);
+
+	if (shr0 < rhs2 + 26)
+		shr0 = rhs2 + 26;
+	else if (shr0 > fsc - 6)
+		shr0 = fsc - 6;
+
+	dev_dbg(&client->dev,
+		"long exposure: l_exp_time=%d, fsc=%d, shr0=%d, l_a_gain=%d\n",
+		l_exp_time, fsc, shr0, l_a_gain);
+	dev_dbg(&client->dev,
+		"middle exposure(SEF1): m_exp_time=%d, rhs1=%d, shr1=%d, m_a_gain=%d\n",
+		m_exp_time, rhs1, shr1, m_a_gain);
+	dev_dbg(&client->dev,
+		"short exposure(SEF2): s_exp_time=%d, rhs2=%d, shr2=%d, s_a_gain=%d\n",
+		s_exp_time, rhs2, shr2, s_a_gain);
+	/* time effect n+1 */
+	/* write SEF2 exposure RHS2 regs*/
+	ret |= imx335_write_reg(client,
+		IMX335_RHS2_REG_L,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_RHS1_L(rhs2));
+	ret |= imx335_write_reg(client,
+		IMX335_RHS2_REG_M,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_RHS1_M(rhs2));
+	ret |= imx335_write_reg(client,
+		IMX335_RHS2_REG_H,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_RHS1_H(rhs2));
+	/* write SEF2 exposure SHR2 regs*/
+	ret |= imx335_write_reg(client,
+		IMX335_SF2_EXPO_REG_L,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_L(shr2));
+	ret |= imx335_write_reg(client,
+		IMX335_SF2_EXPO_REG_M,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_M(shr2));
+	ret |= imx335_write_reg(client,
+		IMX335_SF2_EXPO_REG_H,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_H(shr2));
+	/* write SEF1 exposure RHS1 regs*/
+	ret |= imx335_write_reg(client,
+		IMX335_RHS1_REG_L,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_RHS1_L(rhs1));
+	ret |= imx335_write_reg(client,
+		IMX335_RHS1_REG_M,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_RHS1_M(rhs1));
+	ret |= imx335_write_reg(client,
+		IMX335_RHS1_REG_H,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_RHS1_H(rhs1));
+	/* write SEF1 exposure SHR1 regs*/
+	ret |= imx335_write_reg(client,
+		IMX335_SF1_EXPO_REG_L,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_L(shr1));
+	ret |= imx335_write_reg(client,
+		IMX335_SF1_EXPO_REG_M,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_M(shr1));
+	ret |= imx335_write_reg(client,
+		IMX335_SF1_EXPO_REG_H,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_H(shr1));
+	/* write LF exposure SHR0 regs*/
+	ret |= imx335_write_reg(client,
+		IMX335_LF_EXPO_REG_L,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_L(shr0));
+	ret |= imx335_write_reg(client,
+		IMX335_LF_EXPO_REG_M,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_M(shr0));
+	ret |= imx335_write_reg(client,
+		IMX335_LF_EXPO_REG_H,
+		IMX335_REG_VALUE_08BIT,
+		IMX335_FETCH_EXP_H(shr0));
+
+	ret |= imx335_write_reg(client, IMX335_GROUP_HOLD_REG,
+		IMX335_REG_VALUE_08BIT, IMX335_GROUP_HOLD_END);
+	return ret;
+}
+
 static long imx335_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct imx335 *imx335 = to_imx335(sd);
@@ -835,7 +1237,10 @@ static long imx335_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
-		ret = imx335_set_hdrae(imx335, arg);
+		if (imx335->cur_mode->hdr_mode == HDR_X2)
+			ret = imx335_set_hdrae(imx335, arg);
+		else if (imx335->cur_mode->hdr_mode == HDR_X3)
+			ret = imx335_set_hdrae_3frame(imx335, arg);
 		break;
 	case RKMODULE_GET_MODULE_INFO:
 		imx335_get_module_inf(imx335, (struct rkmodule_inf *)arg);
@@ -969,9 +1374,7 @@ static int __imx335_start_stream(struct imx335 *imx335)
 		return ret;
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&imx335->mutex);
-	ret = v4l2_ctrl_handler_setup(&imx335->ctrl_handler);
-	mutex_lock(&imx335->mutex);
+	ret = __v4l2_ctrl_handler_setup(&imx335->ctrl_handler);
 	if (ret)
 		return ret;
 
@@ -1275,12 +1678,14 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
-		/* Update max exposure while meeting expected vblanking */
-		max = imx335->cur_mode->height + ctrl->val - SHR0_MIN;
-		__v4l2_ctrl_modify_range(imx335->exposure,
+		if (imx335->cur_mode->hdr_mode == NO_HDR) {
+			/* Update max exposure while meeting expected vblanking */
+			max = imx335->cur_mode->height + ctrl->val - SHR0_MIN;
+			__v4l2_ctrl_modify_range(imx335->exposure,
 					 imx335->exposure->minimum, max,
 					 imx335->exposure->step,
 					 imx335->exposure->default_value);
+		}
 		break;
 	}
 
@@ -1289,6 +1694,8 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
+		if (imx335->cur_mode->hdr_mode != NO_HDR)
+			return ret;
 		shr0 = imx335->cur_vts - ctrl->val;
 		ret = imx335_write_reg(imx335->client, IMX335_LF_EXPO_REG_L,
 				       IMX335_REG_VALUE_08BIT,
@@ -1303,6 +1710,8 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 			shr0, imx335->cur_vts, ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
+		if (imx335->cur_mode->hdr_mode != NO_HDR)
+			return ret;
 		ret = imx335_write_reg(imx335->client, IMX335_LF_GAIN_REG_H,
 				       IMX335_REG_VALUE_08BIT,
 				       IMX335_FETCH_GAIN_H(ctrl->val));
@@ -1313,13 +1722,21 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VBLANK:
 		vts = ctrl->val + imx335->cur_mode->height;
-		imx335->cur_vts = vts;
 		/*
 		 * vts of hdr mode is double to correct T-line calculation.
 		 * Restore before write to reg.
 		 */
-		if (imx335->cur_mode->hdr_mode == HDR_X2)
+		if (imx335->cur_mode->hdr_mode == HDR_X2) {
+			vts = (vts + 3) / 4 * 4;
+			imx335->cur_vts = vts;
 			vts /= 2;
+		} else if (imx335->cur_mode->hdr_mode == HDR_X3) {
+			vts = (vts + 11) / 12 * 12;
+			imx335->cur_vts = vts;
+			vts /= 4;
+		} else {
+			imx335->cur_vts = vts;
+		}
 		ret = imx335_write_reg(imx335->client, IMX335_VTS_REG_L,
 				       IMX335_REG_VALUE_08BIT,
 				       IMX335_FETCH_VTS_L(vts));
@@ -1378,7 +1795,7 @@ static int imx335_initialize_controls(struct imx335 *imx335)
 	/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 	pixel_rate = (u32)link_freq_items[0] / mode->bpp * 2 * IMX335_4LANES;
 	imx335->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
-		V4L2_CID_PIXEL_RATE, 0, MIPI_FREQ_594M, 1, pixel_rate);
+		V4L2_CID_PIXEL_RATE, 0, pixel_rate, 1, pixel_rate);
 
 	h_blank = mode->hts_def - mode->width;
 	imx335->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
