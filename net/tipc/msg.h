@@ -82,6 +82,7 @@ struct plist;
 #define  NAME_DISTRIBUTOR     11
 #define  MSG_FRAGMENTER       12
 #define  LINK_CONFIG          13
+#define  MSG_CRYPTO           14
 #define  SOCK_WAKEUP          14       /* pseudo user */
 #define  TOP_SRV              15       /* pseudo user */
 
@@ -748,6 +749,9 @@ static inline void msg_set_nameupper(struct tipc_msg *m, u32 n)
 #define GRP_ACK_MSG          3
 #define GRP_RECLAIM_MSG      4
 #define GRP_REMIT_MSG        5
+
+/* Crypto message types */
+#define KEY_DISTR_MSG		0
 
 /*
  * Word 1

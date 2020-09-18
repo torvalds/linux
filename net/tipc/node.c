@@ -278,6 +278,14 @@ struct tipc_crypto *tipc_node_crypto_rx_by_list(struct list_head *pos)
 {
 	return container_of(pos, struct tipc_node, list)->crypto_rx;
 }
+
+struct tipc_crypto *tipc_node_crypto_rx_by_addr(struct net *net, u32 addr)
+{
+	struct tipc_node *n;
+
+	n = tipc_node_find(net, addr);
+	return (n) ? n->crypto_rx : NULL;
+}
 #endif
 
 static void tipc_node_free(struct rcu_head *rp)
@@ -303,7 +311,7 @@ void tipc_node_put(struct tipc_node *node)
 	kref_put(&node->kref, tipc_node_kref_release);
 }
 
-static void tipc_node_get(struct tipc_node *node)
+void tipc_node_get(struct tipc_node *node)
 {
 	kref_get(&node->kref);
 }
@@ -584,6 +592,9 @@ static void tipc_node_calculate_timer(struct tipc_node *n, struct tipc_link *l)
 
 static void tipc_node_delete_from_list(struct tipc_node *node)
 {
+#ifdef CONFIG_TIPC_CRYPTO
+	tipc_crypto_key_flush(node->crypto_rx);
+#endif
 	list_del_rcu(&node->list);
 	hlist_del_rcu(&node->hash);
 	tipc_node_put(node);
@@ -2930,6 +2941,10 @@ static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 	if (unlikely(rc < 0)) {
 		GENL_SET_ERR_MSG(info, "unable to initiate or attach new key");
 		return rc;
+	} else if (c == tx) {
+		/* Distribute TX key but not master one */
+		if (!master_key && tipc_crypto_key_distr(tx, rc, NULL))
+			GENL_SET_ERR_MSG(info, "failed to replicate new key");
 	}
 
 	return 0;
