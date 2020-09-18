@@ -2875,6 +2875,7 @@ static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_crypto *tx = tipc_net(net)->crypto_tx, *c = tx;
 	struct tipc_node *n = NULL;
 	struct tipc_aead_key *ukey;
+	bool master_key = false;
 	u8 *id, *own_id, mode;
 	int rc = 0;
 
@@ -2905,6 +2906,7 @@ static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 	switch (rc) {
 	case -ENODATA:
 		mode = CLUSTER_KEY;
+		master_key = !!(attrs[TIPC_NLA_NODE_KEY_MASTER]);
 		break;
 	case 0:
 		mode = PER_NODE_KEY;
@@ -2921,11 +2923,11 @@ static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* Initiate the TX/RX key */
-	rc = tipc_crypto_key_init(c, ukey, mode);
+	rc = tipc_crypto_key_init(c, ukey, mode, master_key);
 	if (n)
 		tipc_node_put(n);
 
-	if (rc < 0) {
+	if (unlikely(rc < 0)) {
 		GENL_SET_ERR_MSG(info, "unable to initiate or attach new key");
 		return rc;
 	}

@@ -165,6 +165,7 @@ enum {
 	TIPC_NLA_NODE_UP,		/* flag */
 	TIPC_NLA_NODE_ID,		/* data */
 	TIPC_NLA_NODE_KEY,		/* data */
+	TIPC_NLA_NODE_KEY_MASTER,	/* flag */
 
 	__TIPC_NLA_NODE_MAX,
 	TIPC_NLA_NODE_MAX = __TIPC_NLA_NODE_MAX - 1

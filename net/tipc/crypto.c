@@ -38,6 +38,7 @@
 #include <crypto/aes.h>
 #include "crypto.h"
 
+#define TIPC_TX_GRACE_PERIOD	msecs_to_jiffies(5000) /* 5s */
 #define TIPC_TX_LASTING_TIME	msecs_to_jiffies(10000) /* 10s */
 #define TIPC_RX_ACTIVE_LIM	msecs_to_jiffies(3000) /* 3s */
 #define TIPC_RX_PASSIVE_LIM	msecs_to_jiffies(15000) /* 15s */
@@ -49,9 +50,9 @@
  * TIPC Key ids
  */
 enum {
-	KEY_UNUSED = 0,
-	KEY_MIN,
-	KEY_1 = KEY_MIN,
+	KEY_MASTER = 0,
+	KEY_MIN = KEY_MASTER,
+	KEY_1 = 1,
 	KEY_2,
 	KEY_3,
 	KEY_MAX = KEY_3,
@@ -166,27 +167,36 @@ struct tipc_crypto_stats {
  * @aead: array of pointers to AEAD keys for encryption/decryption
  * @peer_rx_active: replicated peer RX active key index
  * @key: the key states
- * @working: the crypto is working or not
  * @stats: the crypto statistics
  * @name: the crypto name
  * @sndnxt: the per-peer sndnxt (TX)
  * @timer1: general timer 1 (jiffies)
  * @timer2: general timer 2 (jiffies)
+ * @working: the crypto is working or not
+ * @key_master: flag indicates if master key exists
+ * @legacy_user: flag indicates if a peer joins w/o master key (for bwd comp.)
  * @lock: tipc_key lock
  */
 struct tipc_crypto {
 	struct net *net;
 	struct tipc_node *node;
-	struct tipc_aead __rcu *aead[KEY_MAX + 1]; /* key[0] is UNUSED */
+	struct tipc_aead __rcu *aead[KEY_MAX + 1];
 	atomic_t peer_rx_active;
 	struct tipc_key key;
-	u8 working:1;
 	struct tipc_crypto_stats __percpu *stats;
 	char name[48];
 
 	atomic64_t sndnxt ____cacheline_aligned;
 	unsigned long timer1;
 	unsigned long timer2;
+	union {
+		struct {
+			u8 working:1;
+			u8 key_master:1;
+			u8 legacy_user:1;
+		};
+		u8 flags;
+	};
 	spinlock_t lock; /* crypto lock */
 
 } ____cacheline_aligned;
@@ -236,13 +246,19 @@ static inline void tipc_crypto_key_set_state(struct tipc_crypto *c,
 					     u8 new_active,
 					     u8 new_pending);
 static int tipc_crypto_key_attach(struct tipc_crypto *c,
-				  struct tipc_aead *aead, u8 pos);
+				  struct tipc_aead *aead, u8 pos,
+				  bool master_key);
 static bool tipc_crypto_key_try_align(struct tipc_crypto *rx, u8 new_pending);
 static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
 						 struct tipc_crypto *rx,
-						 struct sk_buff *skb);
+						 struct sk_buff *skb,
+						 u8 tx_key);
 static void tipc_crypto_key_synch(struct tipc_crypto *rx, struct sk_buff *skb);
 static int tipc_crypto_key_revoke(struct net *net, u8 tx_key);
+static inline void tipc_crypto_clone_msg(struct net *net, struct sk_buff *_skb,
+					 struct tipc_bearer *b,
+					 struct tipc_media_addr *dst,
+					 struct tipc_node *__dnode, u8 type);
 static void tipc_crypto_rcv_complete(struct net *net, struct tipc_aead *aead,
 				     struct tipc_bearer *b,
 				     struct sk_buff **skb, int err);
@@ -943,8 +959,6 @@ bool tipc_ehdr_validate(struct sk_buff *skb)
 		return false;
 	if (unlikely(skb->len <= ehsz + TIPC_AES_GCM_TAG_SIZE))
 		return false;
-	if (unlikely(!ehdr->tx_key))
-		return false;
 
 	return true;
 }
@@ -997,6 +1011,8 @@ static int tipc_ehdr_build(struct net *net, struct tipc_aead *aead,
 	ehdr->tx_key = tx_key;
 	ehdr->destined = (__rx) ? 1 : 0;
 	ehdr->rx_key_active = (__rx) ? __rx->key.active : 0;
+	ehdr->rx_nokey = (__rx) ? !__rx->key.keys : 0;
+	ehdr->master_key = aead->crypto->key_master;
 	ehdr->reserved_1 = 0;
 	ehdr->reserved_2 = 0;
 
@@ -1039,6 +1055,7 @@ static inline void tipc_crypto_key_set_state(struct tipc_crypto *c,
  * @c: TIPC crypto to which new key is attached
  * @ukey: the user key
  * @mode: the key mode (CLUSTER_KEY or PER_NODE_KEY)
+ * @master_key: specify this is a cluster master key
  *
  * A new TIPC AEAD key will be allocated and initiated with the specified user
  * key, then attached to the TIPC crypto.
@@ -1046,7 +1063,7 @@ static inline void tipc_crypto_key_set_state(struct tipc_crypto *c,
  * Return: new key id in case of success, otherwise: < 0
  */
 int tipc_crypto_key_init(struct tipc_crypto *c, struct tipc_aead_key *ukey,
-			 u8 mode)
+			 u8 mode, bool master_key)
 {
 	struct tipc_aead *aead = NULL;
 	int rc = 0;
@@ -1056,7 +1073,7 @@ int tipc_crypto_key_init(struct tipc_crypto *c, struct tipc_aead_key *ukey,
 
 	/* Attach it to the crypto */
 	if (likely(!rc)) {
-		rc = tipc_crypto_key_attach(c, aead, 0);
+		rc = tipc_crypto_key_attach(c, aead, 0, master_key);
 		if (rc < 0)
 			tipc_aead_free(&aead->rcu);
 	}
@@ -1069,11 +1086,13 @@ int tipc_crypto_key_init(struct tipc_crypto *c, struct tipc_aead_key *ukey,
  * @c: TIPC crypto to which the new AEAD key is attached
  * @aead: the new AEAD key pointer
  * @pos: desired slot in the crypto key array, = 0 if any!
+ * @master_key: specify this is a cluster master key
  *
  * Return: new key id in case of success, otherwise: -EBUSY
  */
 static int tipc_crypto_key_attach(struct tipc_crypto *c,
-				  struct tipc_aead *aead, u8 pos)
+				  struct tipc_aead *aead, u8 pos,
+				  bool master_key)
 {
 	struct tipc_key key;
 	int rc = -EBUSY;
@@ -1081,6 +1100,10 @@ static int tipc_crypto_key_attach(struct tipc_crypto *c,
 
 	spin_lock_bh(&c->lock);
 	key = c->key;
+	if (master_key) {
+		new_key = KEY_MASTER;
+		goto attach;
+	}
 	if (key.active && key.passive)
 		goto exit;
 	if (key.pending) {
@@ -1112,8 +1135,7 @@ attach:
 		tipc_crypto_key_set_state(c, key.passive, key.active,
 					  key.pending);
 	c->working = 1;
-	c->timer1 = jiffies;
-	c->timer2 = jiffies;
+	c->key_master |= master_key;
 	rc = new_key;
 
 exit:
@@ -1126,7 +1148,7 @@ void tipc_crypto_key_flush(struct tipc_crypto *c)
 	int k;
 
 	spin_lock_bh(&c->lock);
-	c->working = 0;
+	c->flags = 0;
 	tipc_crypto_key_set_state(c, 0, 0, 0);
 	for (k = KEY_MIN; k <= KEY_MAX; k++)
 		tipc_crypto_key_detach(c->aead[k], &c->lock);
@@ -1202,6 +1224,7 @@ exit:
  * @tx: TX crypto handle
  * @rx: RX crypto handle (can be NULL)
  * @skb: the message skb which will be decrypted later
+ * @tx_key: peer TX key id
  *
  * This function looks up the existing TX keys and pick one which is suitable
  * for the message decryption, that must be a cluster key and not used before
@@ -1211,7 +1234,8 @@ exit:
  */
 static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
 						 struct tipc_crypto *rx,
-						 struct sk_buff *skb)
+						 struct sk_buff *skb,
+						 u8 tx_key)
 {
 	struct tipc_skb_cb *skb_cb = TIPC_SKB_CB(skb);
 	struct tipc_aead *aead = NULL;
@@ -1230,6 +1254,10 @@ static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
 
 	/* Pick one TX key */
 	spin_lock(&tx->lock);
+	if (tx_key == KEY_MASTER) {
+		aead = tipc_aead_rcu_ptr(tx->aead[KEY_MASTER], &tx->lock);
+		goto done;
+	}
 	do {
 		k = (i == 0) ? key.pending :
 			((i == 1) ? key.active : key.passive);
@@ -1249,9 +1277,12 @@ static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
 		skb->next = skb_clone(skb, GFP_ATOMIC);
 		if (unlikely(!skb->next))
 			pr_warn("Failed to clone skb for next round if any\n");
-		WARN_ON(!refcount_inc_not_zero(&aead->refcnt));
 		break;
 	} while (++i < 3);
+
+done:
+	if (likely(aead))
+		WARN_ON(!refcount_inc_not_zero(&aead->refcnt));
 	spin_unlock(&tx->lock);
 
 	return aead;
@@ -1266,6 +1297,9 @@ static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
  * has changed, so the number of TX keys' users on this node are increased and
  * decreased correspondingly.
  *
+ * It also considers if peer has no key, then we need to make own master key
+ * (if any) taking over i.e. starting grace period.
+ *
  * The "per-peer" sndnxt is also reset when the peer key has switched.
  */
 static void tipc_crypto_key_synch(struct tipc_crypto *rx, struct sk_buff *skb)
@@ -1276,11 +1310,23 @@ static void tipc_crypto_key_synch(struct tipc_crypto *rx, struct sk_buff *skb)
 	u32 self = tipc_own_addr(rx->net);
 	u8 cur, new;
 
-	/* Ensure this message is destined to us first */
+	/* Update RX 'key_master' flag according to peer, also mark "legacy" if
+	 * a peer has no master key.
+	 */
+	rx->key_master = ehdr->master_key;
+	if (!rx->key_master)
+		tx->legacy_user = 1;
+
+	/* For later cases, apply only if message is destined to this node */
 	if (!ehdr->destined || msg_short(hdr) || msg_destnode(hdr) != self)
 		return;
 
-	/* Peer RX active key has changed, let's update own TX users */
+	/* Case 1: Peer has no keys, let's make master key take over */
+	if (ehdr->rx_nokey)
+		/* Set or extend grace period */
+		tx->timer2 = jiffies;
+
+	/* Case 2: Peer RX active key has changed, let's update own TX users */
 	cur = atomic_read(&rx->peer_rx_active);
 	new = ehdr->rx_key_active;
 	if (tx->key.keys &&
@@ -1338,7 +1384,7 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 		return -ENOMEM;
 	}
 
-	c->working = 0;
+	c->flags = 0;
 	c->net = net;
 	c->node = node;
 	tipc_crypto_key_set_state(c, 0, 0, 0);
@@ -1473,6 +1519,12 @@ s4:
 s5:
 	spin_unlock(&rx->lock);
 
+	/* Relax it here, the flag will be set again if it really is, but only
+	 * when we are not in grace period for safety!
+	 */
+	if (time_after(jiffies, tx->timer2 + TIPC_TX_GRACE_PERIOD))
+		tx->legacy_user = 0;
+
 	/* Limit max_tfms & do debug commands if needed */
 	if (likely(sysctl_tipc_max_tfms <= TIPC_MAX_TFMS_LIM))
 		return;
@@ -1480,6 +1532,22 @@ s5:
 	cmd = sysctl_tipc_max_tfms;
 	sysctl_tipc_max_tfms = TIPC_MAX_TFMS_DEF;
 	tipc_crypto_do_cmd(rx->net, cmd);
+}
+
+static inline void tipc_crypto_clone_msg(struct net *net, struct sk_buff *_skb,
+					 struct tipc_bearer *b,
+					 struct tipc_media_addr *dst,
+					 struct tipc_node *__dnode, u8 type)
+{
+	struct sk_buff *skb;
+
+	skb = skb_clone(_skb, GFP_ATOMIC);
+	if (skb) {
+		TIPC_SKB_CB(skb)->xmit_type = type;
+		tipc_crypto_xmit(net, &skb, b, dst, __dnode);
+		if (skb)
+			b->media->send_msg(net, skb, b, dst);
+	}
 }
 
 /**
@@ -1491,7 +1559,8 @@ s5:
  * @__dnode: destination node for reference if any
  *
  * First, build an encryption message header on the top of the message, then
- * encrypt the original TIPC message by using the active or pending TX key.
+ * encrypt the original TIPC message by using the pending, master or active
+ * key with this preference order.
  * If the encryption is successful, the encrypted skb is returned directly or
  * via the callback.
  * Otherwise, the skb is freed!
@@ -1514,46 +1583,63 @@ int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 	struct tipc_msg *hdr = buf_msg(*skb);
 	struct tipc_key key = tx->key;
 	struct tipc_aead *aead = NULL;
-	struct sk_buff *_skb;
-	int rc = -ENOKEY;
 	u32 user = msg_user(hdr);
-	u8 tx_key;
+	u32 type = msg_type(hdr);
+	int rc = -ENOKEY;
+	u8 tx_key = 0;
 
 	/* No encryption? */
 	if (!tx->working)
 		return 0;
 
-	/* Try with the pending key if available and:
-	 * 1) This is the only choice (i.e. no active key) or;
-	 * 2) Peer has switched to this key (unicast only) or;
-	 * 3) It is time to do a pending key probe;
-	 */
+	/* Pending key if peer has active on it or probing time */
 	if (unlikely(key.pending)) {
 		tx_key = key.pending;
-		if (!key.active)
+		if (!tx->key_master && !key.active)
 			goto encrypt;
 		if (__rx && atomic_read(&__rx->peer_rx_active) == tx_key)
 			goto encrypt;
-		if (TIPC_SKB_CB(*skb)->probe) {
+		if (TIPC_SKB_CB(*skb)->xmit_type == SKB_PROBING) {
 			pr_debug("%s: probing for key[%d]\n", tx->name,
 				 key.pending);
 			goto encrypt;
 		}
-		if (user == LINK_CONFIG || user == LINK_PROTOCOL) {
-			_skb = skb_clone(*skb, GFP_ATOMIC);
-			if (_skb) {
-				TIPC_SKB_CB(_skb)->probe = 1;
-				tipc_crypto_xmit(net, &_skb, b, dst, __dnode);
-				if (_skb)
-					b->media->send_msg(net, _skb, b, dst);
+		if (user == LINK_CONFIG || user == LINK_PROTOCOL)
+			tipc_crypto_clone_msg(net, *skb, b, dst, __dnode,
+					      SKB_PROBING);
+	}
+
+	/* Master key if this is a *vital* message or in grace period */
+	if (tx->key_master) {
+		tx_key = KEY_MASTER;
+		if (!key.active)
+			goto encrypt;
+		if (TIPC_SKB_CB(*skb)->xmit_type == SKB_GRACING) {
+			pr_debug("%s: gracing for msg (%d %d)\n", tx->name,
+				 user, type);
+			goto encrypt;
+		}
+		if (user == LINK_CONFIG ||
+		    (user == LINK_PROTOCOL && type == RESET_MSG) ||
+		    time_before(jiffies, tx->timer2 + TIPC_TX_GRACE_PERIOD)) {
+			if (__rx && __rx->key_master &&
+			    !atomic_read(&__rx->peer_rx_active))
+				goto encrypt;
+			if (!__rx) {
+				if (likely(!tx->legacy_user))
+					goto encrypt;
+				tipc_crypto_clone_msg(net, *skb, b, dst,
+						      __dnode, SKB_GRACING);
 			}
 		}
 	}
+
 	/* Else, use the active key if any */
 	if (likely(key.active)) {
 		tx_key = key.active;
 		goto encrypt;
 	}
+
 	goto exit;
 
 encrypt:
@@ -1619,15 +1705,16 @@ int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 	struct tipc_aead *aead = NULL;
 	struct tipc_key key;
 	int rc = -ENOKEY;
-	u8 tx_key = 0;
+	u8 tx_key;
+
+	tx_key = ((struct tipc_ehdr *)(*skb)->data)->tx_key;
 
 	/* New peer?
 	 * Let's try with TX key (i.e. cluster mode) & verify the skb first!
 	 */
-	if (unlikely(!rx))
+	if (unlikely(!rx || tx_key == KEY_MASTER))
 		goto pick_tx;
 
-	tx_key = ((struct tipc_ehdr *)(*skb)->data)->tx_key;
 	/* Pick RX key according to TX key if any */
 	key = rx->key;
 	if (tx_key == key.active || tx_key == key.pending ||
@@ -1640,7 +1727,7 @@ int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 
 pick_tx:
 	/* No key suitable? Try to pick one from TX... */
-	aead = tipc_crypto_key_pick_tx(tx, rx, *skb);
+	aead = tipc_crypto_key_pick_tx(tx, rx, *skb, tx_key);
 	if (aead)
 		goto decrypt;
 	goto exit;
@@ -1722,9 +1809,12 @@ static void tipc_crypto_rcv_complete(struct net *net, struct tipc_aead *aead,
 				goto free_skb;
 		}
 
+		/* Ignore cloning if it was TX master key */
+		if (ehdr->tx_key == KEY_MASTER)
+			goto rcv;
 		if (tipc_aead_clone(&tmp, aead) < 0)
 			goto rcv;
-		if (tipc_crypto_key_attach(rx, tmp, ehdr->tx_key) < 0) {
+		if (tipc_crypto_key_attach(rx, tmp, ehdr->tx_key, false) < 0) {
 			tipc_aead_free(&tmp->rcu);
 			goto rcv;
 		}
@@ -1740,10 +1830,10 @@ static void tipc_crypto_rcv_complete(struct net *net, struct tipc_aead *aead,
 	/* Set the RX key's user */
 	tipc_aead_users_set(aead, 1);
 
-rcv:
 	/* Mark this point, RX works */
 	rx->timer1 = jiffies;
 
+rcv:
 	/* Remove ehdr & auth. tag prior to tipc_rcv() */
 	ehdr = (struct tipc_ehdr *)(*skb)->data;
 
@@ -1865,14 +1955,24 @@ static char *tipc_crypto_key_dump(struct tipc_crypto *c, char *buf)
 	char *s;
 
 	for (k = KEY_MIN; k <= KEY_MAX; k++) {
-		if (k == key.passive)
-			s = "PAS";
-		else if (k == key.active)
-			s = "ACT";
-		else if (k == key.pending)
-			s = "PEN";
-		else
-			s = "-";
+		if (k == KEY_MASTER) {
+			if (is_rx(c))
+				continue;
+			if (time_before(jiffies,
+					c->timer2 + TIPC_TX_GRACE_PERIOD))
+				s = "ACT";
+			else
+				s = "PAS";
+		} else {
+			if (k == key.passive)
+				s = "PAS";
+			else if (k == key.active)
+				s = "ACT";
+			else if (k == key.pending)
+				s = "PEN";
+			else
+				s = "-";
+		}
 		i += scnprintf(buf + i, 200 - i, "\tKey%d: %s", k, s);
 
 		rcu_read_lock();
@@ -1905,7 +2005,7 @@ static char *tipc_key_change_dump(struct tipc_key old, struct tipc_key new,
 	/* Output format: "[%s %s %s] -> [%s %s %s]", max len = 32 */
 again:
 	i += scnprintf(buf + i, 32 - i, "[");
-	for (k = KEY_MIN; k <= KEY_MAX; k++) {
+	for (k = KEY_1; k <= KEY_3; k++) {
 		if (k == key->passive)
 			s = "pas";
 		else if (k == key->active)
@@ -1915,7 +2015,7 @@ again:
 		else
 			s = "-";
 		i += scnprintf(buf + i, 32 - i,
-			       (k != KEY_MAX) ? "%s " : "%s", s);
+			       (k != KEY_3) ? "%s " : "%s", s);
 	}
 	if (key != &new) {
 		i += scnprintf(buf + i, 32 - i, "] -> ");

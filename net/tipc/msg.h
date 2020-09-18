@@ -127,7 +127,9 @@ struct tipc_skb_cb {
 #ifdef CONFIG_TIPC_CRYPTO
 			u8 encrypted:1;
 			u8 decrypted:1;
-			u8 probe:1;
+#define SKB_PROBING	1
+#define SKB_GRACING	2
+			u8 xmit_type:2;
 			u8 tx_clone_deferred:1;
 #endif
 		};
