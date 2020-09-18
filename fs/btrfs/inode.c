@@ -8657,21 +8657,21 @@ void btrfs_free_inode(struct inode *inode)
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
-void btrfs_destroy_inode(struct inode *inode)
+void btrfs_destroy_inode(struct inode *vfs_inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ordered_extent *ordered;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_inode *inode = BTRFS_I(vfs_inode);
+	struct btrfs_root *root = inode->root;
 
-	WARN_ON(!hlist_empty(&inode->i_dentry));
-	WARN_ON(inode->i_data.nrpages);
-	WARN_ON(BTRFS_I(inode)->block_rsv.reserved);
-	WARN_ON(BTRFS_I(inode)->block_rsv.size);
-	WARN_ON(BTRFS_I(inode)->outstanding_extents);
-	WARN_ON(BTRFS_I(inode)->delalloc_bytes);
-	WARN_ON(BTRFS_I(inode)->new_delalloc_bytes);
-	WARN_ON(BTRFS_I(inode)->csum_bytes);
-	WARN_ON(BTRFS_I(inode)->defrag_bytes);
+	WARN_ON(!hlist_empty(&vfs_inode->i_dentry));
+	WARN_ON(vfs_inode->i_data.nrpages);
+	WARN_ON(inode->block_rsv.reserved);
+	WARN_ON(inode->block_rsv.size);
+	WARN_ON(inode->outstanding_extents);
+	WARN_ON(inode->delalloc_bytes);
+	WARN_ON(inode->new_delalloc_bytes);
+	WARN_ON(inode->csum_bytes);
+	WARN_ON(inode->defrag_bytes);
 
 	/*
 	 * This can happen where we create an inode, but somebody else also
@@ -8682,24 +8682,23 @@ void btrfs_destroy_inode(struct inode *inode)
 		return;
 
 	while (1) {
-		ordered = btrfs_lookup_first_ordered_extent(BTRFS_I(inode),
-							    (u64)-1);
+		ordered = btrfs_lookup_first_ordered_extent(inode, (u64)-1);
 		if (!ordered)
 			break;
 		else {
-			btrfs_err(fs_info,
+			btrfs_err(root->fs_info,
 				  "found ordered extent %llu %llu on inode cleanup",
 				  ordered->file_offset, ordered->num_bytes);
-			btrfs_remove_ordered_extent(inode, ordered);
+			btrfs_remove_ordered_extent(vfs_inode, ordered);
 			btrfs_put_ordered_extent(ordered);
 			btrfs_put_ordered_extent(ordered);
 		}
 	}
-	btrfs_qgroup_check_reserved_leak(BTRFS_I(inode));
-	inode_tree_del(BTRFS_I(inode));
-	btrfs_drop_extent_cache(BTRFS_I(inode), 0, (u64)-1, 0);
-	btrfs_inode_clear_file_extent_range(BTRFS_I(inode), 0, (u64)-1);
-	btrfs_put_root(BTRFS_I(inode)->root);
+	btrfs_qgroup_check_reserved_leak(inode);
+	inode_tree_del(inode);
+	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
+	btrfs_inode_clear_file_extent_range(inode, 0, (u64)-1);
+	btrfs_put_root(inode->root);
 }
 
 int btrfs_drop_inode(struct inode *inode)
