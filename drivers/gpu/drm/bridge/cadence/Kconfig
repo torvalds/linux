@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_CDNS_MHDP8546
+	tristate "Cadence DPI/DP bridge"
+	select DRM_KMS_HELPER
+	select DRM_PANEL_BRIDGE
+	depends on OF
+	help
+	  Support Cadence DPI to DP bridge. This is an internal
+	  bridge and is meant to be directly embedded in a SoC.
+	  It takes a DPI stream as input and outputs it encoded
+	  in DP format.
