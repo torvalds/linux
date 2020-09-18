@@ -1854,6 +1854,45 @@
 				};
 			};
 
+			sec_mi2s_active: sec-mi2s-active {
+				pinmux {
+					pins = "gpio49", "gpio50", "gpio51";
+					function = "mi2s_1";
+				};
+
+				pinconf {
+					pins = "gpio49", "gpio50", "gpio51";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
+
+			pri_mi2s_active: pri-mi2s-active {
+				pinmux {
+					pins = "gpio53", "gpio54", "gpio55", "gpio56";
+					function = "mi2s_0";
+				};
+
+				pinconf {
+					pins = "gpio53", "gpio54", "gpio55", "gpio56";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
+
+			pri_mi2s_mclk_active: pri-mi2s-mclk-active {
+				pinmux {
+					pins = "gpio57";
+					function = "lpass_ext";
+				};
+
+				pinconf {
+					pins = "gpio57";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
+
 			sdc1_on: sdc1-on {
 				pinconf-clk {
 					pins = "sdc1_clk";
@@ -3513,6 +3552,36 @@
 			power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
 			#clock-cells = <1>;
 			#power-domain-cells = <1>;
+		};
+
+		lpass_cpu: lpass@62f00000 {
+			compatible = "qcom,sc7180-lpass-cpu";
+
+			reg = <0 0x62f00000 0 0x29000>;
+			reg-names = "lpass-lpaif";
+
+			iommus = <&apps_smmu 0x1020 0>;
+
+			power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
+
+			clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_CORE_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_EXT_MCLK0_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_SYSNOC_MPORT_CORE_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_LPAIF_PRI_IBIT_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_LPAIF_SEC_IBIT_CLK>;
+
+			clock-names = "pcnoc-sway-clk", "audio-core",
+					"mclk0", "pcnoc-mport-clk",
+					"mi2s-bit-clk0", "mi2s-bit-clk1";
+
+
+			#sound-dai-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "lpass-irq-lpaif";
 		};
 
 		lpass_hm: clock-controller@63000000 {
