@@ -168,11 +168,8 @@ int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 
 	bio->bi_private = NULL;
 
-	if (tree->ops)
-		ret = tree->ops->submit_bio_hook(tree->private_data, bio,
-						 mirror_num, bio_flags);
-	else
-		btrfsic_submit_bio(bio);
+	ret = tree->ops->submit_bio_hook(tree->private_data, bio, mirror_num,
+					 bio_flags);
 
 	return blk_status_to_errno(ret);
 }
