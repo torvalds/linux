@@ -14,6 +14,12 @@
 #include <dt-bindings/net/ti-dp83867.h>
 
 / {
+	aliases {
+		mmc0 = &usdhc3;
+		mmc1 = &usdhc1;
+		/delete-property/ mmc2;
+	};
+
 	beeper {
 		compatible = "gpio-beeper";
 		gpios = <&pca9555 0 GPIO_ACTIVE_HIGH>;
