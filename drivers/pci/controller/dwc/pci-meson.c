@@ -17,6 +17,7 @@
 #include <linux/resource.h>
 #include <linux/types.h>
 #include <linux/phy/phy.h>
+#include <linux/module.h>
 
 #include "pcie-designware.h"
 
@@ -589,6 +590,7 @@ static const struct of_device_id meson_pcie_of_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, meson_pcie_of_match);
 
 static struct platform_driver meson_pcie_driver = {
 	.probe = meson_pcie_probe,
@@ -598,4 +600,8 @@ static struct platform_driver meson_pcie_driver = {
 	},
 };
 
-builtin_platform_driver(meson_pcie_driver);
+module_platform_driver(meson_pcie_driver);
+
+MODULE_AUTHOR("Yue Wang <yue.wang@amlogic.com>");
+MODULE_DESCRIPTION("Amlogic PCIe Controller driver");
+MODULE_LICENSE("GPL v2");
