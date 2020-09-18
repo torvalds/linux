@@ -509,7 +509,6 @@ EXPORT_SYMBOL_GPL(pseries_eeh_init_edev_recursive);
 static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 {
 	int ret = 0;
-	int config_addr;
 
 	/*
 	 * When we're enabling or disabling EEH functioality on
@@ -522,9 +521,6 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 	case EEH_OPT_ENABLE:
 	case EEH_OPT_THAW_MMIO:
 	case EEH_OPT_THAW_DMA:
-		config_addr = pe->config_addr;
-		if (pe->addr)
-			config_addr = pe->addr;
 		break;
 	case EEH_OPT_FREEZE_PE:
 		/* Not support */
@@ -535,7 +531,7 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 	}
 
 	ret = rtas_call(ibm_set_eeh_option, 4, 1, NULL,
-			config_addr, BUID_HI(pe->phb->buid),
+			pe->addr, BUID_HI(pe->phb->buid),
 			BUID_LO(pe->phb->buid), option);
 
 	return ret;
@@ -556,25 +552,19 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
  */
 static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
 {
-	int config_addr;
 	int ret;
 	int rets[4];
 	int result;
 
-	/* Figure out PE config address if possible */
-	config_addr = pe->config_addr;
-	if (pe->addr)
-		config_addr = pe->addr;
-
 	if (ibm_read_slot_reset_state2 != RTAS_UNKNOWN_SERVICE) {
 		ret = rtas_call(ibm_read_slot_reset_state2, 3, 4, rets,
-				config_addr, BUID_HI(pe->phb->buid),
+				pe->addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid));
 	} else if (ibm_read_slot_reset_state != RTAS_UNKNOWN_SERVICE) {
 		/* Fake PE unavailable info */
 		rets[2] = 0;
 		ret = rtas_call(ibm_read_slot_reset_state, 3, 3, rets,
-				config_addr, BUID_HI(pe->phb->buid),
+				pe->addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid));
 	} else {
 		return EEH_STATE_NOT_SUPPORT;
@@ -628,14 +618,7 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
  */
 static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 {
-	int config_addr;
-
-	/* Figure out PE address */
-	config_addr = pe->config_addr;
-	if (pe->addr)
-		config_addr = pe->addr;
-
-	return pseries_eeh_phb_reset(pe->phb, config_addr, option);
+	return pseries_eeh_phb_reset(pe->phb, pe->addr, option);
 }
 
 /**
@@ -651,19 +634,13 @@ static int pseries_eeh_reset(struct eeh_pe *pe, int option)
  */
 static int pseries_eeh_get_log(struct eeh_pe *pe, int severity, char *drv_log, unsigned long len)
 {
-	int config_addr;
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&slot_errbuf_lock, flags);
 	memset(slot_errbuf, 0, eeh_error_buf_size);
 
-	/* Figure out the PE address */
-	config_addr = pe->config_addr;
-	if (pe->addr)
-		config_addr = pe->addr;
-
-	ret = rtas_call(ibm_slot_error_detail, 8, 1, NULL, config_addr,
+	ret = rtas_call(ibm_slot_error_detail, 8, 1, NULL, pe->addr,
 			BUID_HI(pe->phb->buid), BUID_LO(pe->phb->buid),
 			virt_to_phys(drv_log), len,
 			virt_to_phys(slot_errbuf), eeh_error_buf_size,
@@ -682,14 +659,7 @@ static int pseries_eeh_get_log(struct eeh_pe *pe, int severity, char *drv_log, u
  */
 static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 {
-	int config_addr;
-
-	/* Figure out the PE address */
-	config_addr = pe->config_addr;
-	if (pe->addr)
-		config_addr = pe->addr;
-
-	return pseries_eeh_phb_configure_bridge(pe->phb, config_addr);
+	return pseries_eeh_phb_configure_bridge(pe->phb, pe->addr);
 }
 
 /**
