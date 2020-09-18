@@ -71,48 +71,6 @@ static inline int ttm_set_pages_uc(struct page *page, int numpages)
 
 #else /* for CONFIG_X86 */
 
-#if IS_ENABLED(CONFIG_AGP)
-
-#include <asm/agp.h>
-
-static inline int ttm_set_pages_array_wb(struct page **pages, int addrinarray)
-{
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		unmap_page_from_agp(pages[i]);
-	return 0;
-}
-
-static inline int ttm_set_pages_array_wc(struct page **pages, int addrinarray)
-{
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		map_page_into_agp(pages[i]);
-	return 0;
-}
-
-static inline int ttm_set_pages_array_uc(struct page **pages, int addrinarray)
-{
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		map_page_into_agp(pages[i]);
-	return 0;
-}
-
-static inline int ttm_set_pages_wb(struct page *page, int numpages)
-{
-	int i;
-
-	for (i = 0; i < numpages; i++)
-		unmap_page_from_agp(page++);
-	return 0;
-}
-
-#else /* for CONFIG_AGP */
-
 static inline int ttm_set_pages_array_wb(struct page **pages, int addrinarray)
 {
 	return 0;
@@ -132,8 +90,6 @@ static inline int ttm_set_pages_wb(struct page *page, int numpages)
 {
 	return 0;
 }
-
-#endif /* for CONFIG_AGP */
 
 static inline int ttm_set_pages_wc(struct page *page, int numpages)
 {
