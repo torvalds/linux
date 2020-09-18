@@ -940,7 +940,7 @@
 			Arch Perfmon v4 (Skylake and newer).
 
 	disable_ddw	[PPC/PSERIES]
-			Disable Dynamic DMA Window support. Use this if
+			Disable Dynamic DMA Window support. Use this
 			to workaround buggy firmware.
 
 	disable_ipv6=	[IPV6]
