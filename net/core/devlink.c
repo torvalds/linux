@@ -4347,7 +4347,7 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	err = region->ops->snapshot(devlink, info->extack, &data);
+	err = region->ops->snapshot(devlink, region->ops, info->extack, &data);
 	if (err)
 		goto err_snapshot_capture;
 

@@ -566,7 +566,9 @@ struct devlink_info_req;
 struct devlink_region_ops {
 	const char *name;
 	void (*destructor)(const void *data);
-	int (*snapshot)(struct devlink *devlink, struct netlink_ext_ack *extack,
+	int (*snapshot)(struct devlink *devlink,
+			const struct devlink_region_ops *ops,
+			struct netlink_ext_ack *extack,
 			u8 **data);
 	void *priv;
 };
