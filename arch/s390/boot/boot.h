@@ -14,6 +14,7 @@ void print_pgm_check_info(void);
 unsigned long get_random_base(unsigned long safe_addr);
 
 extern int kaslr_enabled;
+extern int vmalloc_size_set;
 extern const char kernel_version[];
 
 unsigned long read_ipl_report(unsigned long safe_offset);

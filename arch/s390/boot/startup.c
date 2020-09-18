@@ -126,6 +126,21 @@ static void clear_bss_section(void)
 	memset((void *)vmlinux.default_lma + vmlinux.image_size, 0, vmlinux.bss_size);
 }
 
+/*
+ * Set vmalloc area size to an 8th of (potential) physical memory
+ * size, unless size has been set by kernel command line parameter.
+ */
+static void setup_vmalloc_size(void)
+{
+	unsigned long size;
+
+	if (vmalloc_size_set)
+		return;
+	size = (memory_end ?: max_physmem_end) >> 3;
+	size = round_up(size, _SEGMENT_SIZE);
+	vmalloc_size = max(size, vmalloc_size);
+}
+
 void startup_kernel(void)
 {
 	unsigned long random_lma;
@@ -142,6 +157,7 @@ void startup_kernel(void)
 	parse_boot_command_line();
 	setup_memory_end();
 	detect_memory();
+	setup_vmalloc_size();
 
 	random_lma = __kaslr_offset = 0;
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {

@@ -21,6 +21,7 @@ unsigned long __bootdata(memory_end);
 int __bootdata(memory_end_set);
 int __bootdata(noexec_disabled);
 
+int vmalloc_size_set;
 int kaslr_enabled;
 
 static inline int __diag308(unsigned long subcode, void *addr)
@@ -242,8 +243,10 @@ void parse_boot_command_line(void)
 			memory_end_set = 1;
 		}
 
-		if (!strcmp(param, "vmalloc") && val)
+		if (!strcmp(param, "vmalloc") && val) {
 			vmalloc_size = round_up(memparse(val, NULL), PAGE_SIZE);
+			vmalloc_size_set = 1;
+		}
 
 		if (!strcmp(param, "dfltcc") && val) {
 			if (!strcmp(val, "off"))
