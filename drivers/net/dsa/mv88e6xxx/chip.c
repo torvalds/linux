@@ -1466,21 +1466,21 @@ static int mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 	return chip->info->ops->vtu_loadpurge(chip, entry);
 }
 
-static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
+int mv88e6xxx_fid_map(struct mv88e6xxx_chip *chip, unsigned long *fid_bitmap)
 {
-	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
+	u16 fid;
 
 	bitmap_zero(fid_bitmap, MV88E6XXX_N_FID);
 
 	/* Set every FID bit used by the (un)bridged ports */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-		err = mv88e6xxx_port_get_fid(chip, i, fid);
+		err = mv88e6xxx_port_get_fid(chip, i, &fid);
 		if (err)
 			return err;
 
-		set_bit(*fid, fid_bitmap);
+		set_bit(fid, fid_bitmap);
 	}
 
 	/* Set every FID bit used by the VLAN entries */
@@ -1497,6 +1497,18 @@ static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 
 		set_bit(vlan.fid, fid_bitmap);
 	} while (vlan.vid < chip->info->max_vid);
+
+	return 0;
+}
+
+static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
+{
+	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
+	int err;
+
+	err = mv88e6xxx_fid_map(chip, fid_bitmap);
+	if (err)
+		return err;
 
 	/* The reset value 0x000 is used to indicate that multiple address
 	 * databases are not needed. Return the next positive available.

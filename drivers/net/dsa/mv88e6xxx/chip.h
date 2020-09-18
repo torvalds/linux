@@ -689,4 +689,6 @@ static inline void mv88e6xxx_reg_unlock(struct mv88e6xxx_chip *chip)
 	mutex_unlock(&chip->reg_lock);
 }
 
+int mv88e6xxx_fid_map(struct mv88e6xxx_chip *chip, unsigned long *bitmap);
+
 #endif /* _MV88E6XXX_CHIP_H */
