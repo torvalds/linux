@@ -585,7 +585,7 @@ void dpp3_cm_set_gamut_remap(
 		const struct dpp_grph_csc_adjustment *adjust);
 
 void dpp3_set_pre_degam(struct dpp *dpp_base,
-		uint32_t degamma_lut_selection);
+		enum dc_transfer_func_predefined tr);
 
 void dpp3_set_cursor_attributes(
 		struct dpp *dpp_base,
