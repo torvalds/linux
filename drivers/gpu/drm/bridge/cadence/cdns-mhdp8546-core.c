@@ -50,6 +50,8 @@
 
 #include "cdns-mhdp8546-core.h"
 
+#include "cdns-mhdp8546-j721e.h"
+
 static int cdns_mhdp_mailbox_read(struct cdns_mhdp_device *mhdp)
 {
 	int ret, empty;
@@ -2496,6 +2498,14 @@ static int cdns_mhdp_remove(struct platform_device *pdev)
 
 static const struct of_device_id mhdp_ids[] = {
 	{ .compatible = "cdns,mhdp8546", },
+#ifdef CONFIG_DRM_CDNS_MHDP8546_J721E
+	{ .compatible = "ti,j721e-mhdp8546",
+	  .data = &(const struct cdns_mhdp_platform_info) {
+		  .timings = &mhdp_ti_j721e_bridge_timings,
+		  .ops = &mhdp_ti_j721e_ops,
+	  },
+	},
+#endif
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mhdp_ids);

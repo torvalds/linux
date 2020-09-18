@@ -341,6 +341,7 @@ struct cdns_mhdp_platform_info {
 
 struct cdns_mhdp_device {
 	void __iomem *regs;
+	void __iomem *j721e_regs;
 
 	struct device *dev;
 	struct clk *clk;
