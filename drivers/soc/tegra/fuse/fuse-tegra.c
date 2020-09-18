@@ -336,7 +336,7 @@ static ssize_t platform_show(struct device *dev, struct device_attribute *attr,
 	 * platform type is silicon and all other non-zero values indicate
 	 * the type of simulation platform is being used.
 	 */
-	return sprintf(buf, "%d\n", (tegra_read_chipid() >> 20) & 0xf);
+	return sprintf(buf, "%d\n", tegra_get_platform());
 }
 
 static DEVICE_ATTR_RO(platform);
