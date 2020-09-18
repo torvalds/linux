@@ -3436,14 +3436,26 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	map.m_len = min_t(loff_t, (offset + length - 1) >> blkbits,
 			  EXT4_MAX_LOGICAL_BLOCK) - map.m_lblk + 1;
 
-	if (flags & IOMAP_WRITE)
+	if (flags & IOMAP_WRITE) {
+		/*
+		 * We check here if the blocks are already allocated, then we
+		 * don't need to start a journal txn and we can directly return
+		 * the mapping information. This could boost performance
+		 * especially in multi-threaded overwrite requests.
+		 */
+		if (offset + length <= i_size_read(inode)) {
+			ret = ext4_map_blocks(NULL, inode, &map, 0);
+			if (ret > 0 && (map.m_flags & EXT4_MAP_MAPPED))
+				goto out;
+		}
 		ret = ext4_iomap_alloc(inode, &map, flags);
-	else
+	} else {
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
+	}
 
 	if (ret < 0)
 		return ret;
-
+out:
 	ext4_set_iomap(inode, iomap, &map, offset, length);
 
 	return 0;
