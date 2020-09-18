@@ -19,12 +19,14 @@ description: |
   Specifications about the audio amplifier can be found at:
     https://www.ti.com/lit/gpn/tas2562
     https://www.ti.com/lit/gpn/tas2563
+    https://www.ti.com/lit/gpn/tas2564
 
 properties:
   compatible:
     enum:
       - ti,tas2562
       - ti,tas2563
+      - ti,tas2564
 
   reg:
     maxItems: 1
