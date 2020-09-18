@@ -1006,7 +1006,7 @@ static int l2tp_xmit_queue(struct l2tp_tunnel *tunnel, struct sk_buff *skb, stru
 	return err >= 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
 }
 
-static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb)
+static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, unsigned int *len)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	unsigned int data_len = skb->len;
@@ -1054,6 +1054,11 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb)
 		goto out_unlock;
 	}
 
+	/* Report transmitted length before we add encap header, which keeps
+	 * statistics consistent for both UDP and IP encap tx/rx paths.
+	 */
+	*len = skb->len;
+
 	inet = inet_sk(sk);
 	switch (tunnel->encap) {
 	case L2TP_ENCAPTYPE_UDP:
@@ -1095,10 +1100,10 @@ out_unlock:
  */
 int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb)
 {
-	unsigned int len = skb->len;
+	unsigned int len = 0;
 	int ret;
 
-	ret = l2tp_xmit_core(session, skb);
+	ret = l2tp_xmit_core(session, skb, &len);
 	if (ret == NET_XMIT_SUCCESS) {
 		atomic_long_inc(&session->tunnel->stats.tx_packets);
 		atomic_long_add(len, &session->tunnel->stats.tx_bytes);
