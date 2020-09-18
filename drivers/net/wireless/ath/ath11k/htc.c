@@ -50,15 +50,6 @@ static struct sk_buff *ath11k_htc_build_tx_ctrl_skb(void *ab)
 	return skb;
 }
 
-static inline void ath11k_htc_restore_tx_skb(struct ath11k_htc *htc,
-					     struct sk_buff *skb)
-{
-	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB(skb);
-
-	dma_unmap_single(htc->ab->dev, skb_cb->paddr, skb->len, DMA_TO_DEVICE);
-	skb_pull(skb, sizeof(struct ath11k_htc_hdr));
-}
-
 static void ath11k_htc_prepare_tx_skb(struct ath11k_htc_ep *ep,
 				      struct sk_buff *skb)
 {
