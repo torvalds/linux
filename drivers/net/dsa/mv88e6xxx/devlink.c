@@ -5,6 +5,7 @@
 #include "devlink.h"
 #include "global1.h"
 #include "global2.h"
+#include "port.h"
 
 static int mv88e6xxx_atu_get_hash(struct mv88e6xxx_chip *chip, u8 *hash)
 {
@@ -258,4 +259,258 @@ int mv88e6xxx_setup_devlink_resources(struct dsa_switch *ds)
 out:
 	dsa_devlink_resources_unregister(ds);
 	return err;
+}
+
+static int mv88e6xxx_region_global_snapshot(struct devlink *dl,
+					    const struct devlink_region_ops *ops,
+					    struct netlink_ext_ack *extack,
+					    u8 **data)
+{
+	struct mv88e6xxx_region_priv *region_priv = ops->priv;
+	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
+	struct mv88e6xxx_chip *chip = ds->priv;
+	u16 *registers;
+	int i, err;
+
+	registers = kmalloc_array(32, sizeof(u16), GFP_KERNEL);
+	if (!registers)
+		return -ENOMEM;
+
+	mv88e6xxx_reg_lock(chip);
+	for (i = 0; i < 32; i++) {
+		switch (region_priv->id) {
+		case MV88E6XXX_REGION_GLOBAL1:
+			err = mv88e6xxx_g1_read(chip, i, &registers[i]);
+			break;
+		case MV88E6XXX_REGION_GLOBAL2:
+			err = mv88e6xxx_g2_read(chip, i, &registers[i]);
+			break;
+		default:
+			err = -EOPNOTSUPP;
+		}
+
+		if (err) {
+			kfree(registers);
+			goto out;
+		}
+	}
+	*data = (u8 *)registers;
+out:
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+/* The ATU entry varies between mv88e6xxx chipset generations. Define
+ * a generic format which covers all the current and hopefully future
+ * mv88e6xxx generations
+ */
+
+struct mv88e6xxx_devlink_atu_entry {
+	/* The FID is scattered over multiple registers. */
+	u16 fid;
+	u16 atu_op;
+	u16 atu_data;
+	u16 atu_01;
+	u16 atu_23;
+	u16 atu_45;
+};
+
+static int mv88e6xxx_region_atu_snapshot_fid(struct mv88e6xxx_chip *chip,
+					     int fid,
+					     struct mv88e6xxx_devlink_atu_entry *table,
+					     int *count)
+{
+	u16 atu_op, atu_data, atu_01, atu_23, atu_45;
+	struct mv88e6xxx_atu_entry addr;
+	int err;
+
+	addr.state = 0;
+	eth_broadcast_addr(addr.mac);
+
+	do {
+		err = mv88e6xxx_g1_atu_getnext(chip, fid, &addr);
+		if (err)
+			return err;
+
+		if (!addr.state)
+			break;
+
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_OP, &atu_op);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_DATA, &atu_data);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_MAC01, &atu_01);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_MAC23, &atu_23);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_MAC45, &atu_45);
+		if (err)
+			return err;
+
+		table[*count].fid = fid;
+		table[*count].atu_op = atu_op;
+		table[*count].atu_data = atu_data;
+		table[*count].atu_01 = atu_01;
+		table[*count].atu_23 = atu_23;
+		table[*count].atu_45 = atu_45;
+		(*count)++;
+	} while (!is_broadcast_ether_addr(addr.mac));
+
+	return 0;
+}
+
+static int mv88e6xxx_region_atu_snapshot(struct devlink *dl,
+					 const struct devlink_region_ops *ops,
+					 struct netlink_ext_ack *extack,
+					 u8 **data)
+{
+	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
+	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
+	struct mv88e6xxx_devlink_atu_entry *table;
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int fid = -1, count, err;
+
+	table = kmalloc_array(mv88e6xxx_num_databases(chip),
+			      sizeof(struct mv88e6xxx_devlink_atu_entry),
+			      GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
+
+	memset(table, 0, mv88e6xxx_num_databases(chip) *
+	       sizeof(struct mv88e6xxx_devlink_atu_entry));
+
+	count = 0;
+
+	mv88e6xxx_reg_lock(chip);
+
+	err = mv88e6xxx_fid_map(chip, fid_bitmap);
+	if (err)
+		goto out;
+
+	while (1) {
+		fid = find_next_bit(fid_bitmap, MV88E6XXX_N_FID, fid + 1);
+		if (fid == MV88E6XXX_N_FID)
+			break;
+
+		err =  mv88e6xxx_region_atu_snapshot_fid(chip, fid, table,
+							 &count);
+		if (err) {
+			kfree(table);
+			goto out;
+		}
+	}
+	*data = (u8 *)table;
+out:
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static struct mv88e6xxx_region_priv mv88e6xxx_region_global1_priv = {
+	.id = MV88E6XXX_REGION_GLOBAL1,
+};
+
+static struct devlink_region_ops mv88e6xxx_region_global1_ops = {
+	.name = "global1",
+	.snapshot = mv88e6xxx_region_global_snapshot,
+	.destructor = kfree,
+	.priv = &mv88e6xxx_region_global1_priv,
+};
+
+static struct mv88e6xxx_region_priv mv88e6xxx_region_global2_priv = {
+	.id = MV88E6XXX_REGION_GLOBAL2,
+};
+
+static struct devlink_region_ops mv88e6xxx_region_global2_ops = {
+	.name = "global2",
+	.snapshot = mv88e6xxx_region_global_snapshot,
+	.destructor = kfree,
+	.priv = &mv88e6xxx_region_global2_priv,
+};
+
+static struct devlink_region_ops mv88e6xxx_region_atu_ops = {
+	.name = "atu",
+	.snapshot = mv88e6xxx_region_atu_snapshot,
+	.destructor = kfree,
+};
+
+struct mv88e6xxx_region {
+	struct devlink_region_ops *ops;
+	u64 size;
+};
+
+static struct mv88e6xxx_region mv88e6xxx_regions[] = {
+	[MV88E6XXX_REGION_GLOBAL1] = {
+		.ops = &mv88e6xxx_region_global1_ops,
+		.size = 32 * sizeof(u16)
+	},
+	[MV88E6XXX_REGION_GLOBAL2] = {
+		.ops = &mv88e6xxx_region_global2_ops,
+		.size = 32 * sizeof(u16) },
+	[MV88E6XXX_REGION_ATU] = {
+		.ops = &mv88e6xxx_region_atu_ops
+	  /* calculated at runtime */
+	},
+};
+
+static void
+mv88e6xxx_teardown_devlink_regions_global(struct mv88e6xxx_chip *chip)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mv88e6xxx_regions); i++)
+		dsa_devlink_region_destroy(chip->regions[i]);
+}
+
+void mv88e6xxx_teardown_devlink_regions(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+
+	mv88e6xxx_teardown_devlink_regions_global(chip);
+}
+
+static int mv88e6xxx_setup_devlink_regions_global(struct dsa_switch *ds,
+						  struct mv88e6xxx_chip *chip)
+{
+	struct devlink_region_ops *ops;
+	struct devlink_region *region;
+	u64 size;
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(mv88e6xxx_regions); i++) {
+		ops = mv88e6xxx_regions[i].ops;
+		size = mv88e6xxx_regions[i].size;
+
+		if (i == MV88E6XXX_REGION_ATU)
+			size = mv88e6xxx_num_databases(chip) *
+				sizeof(struct mv88e6xxx_devlink_atu_entry);
+
+		region = dsa_devlink_region_create(ds, ops, 1, size);
+		if (IS_ERR(region))
+			goto out;
+		chip->regions[i] = region;
+	}
+	return 0;
+
+out:
+	for (j = 0; j < i; j++)
+		dsa_devlink_region_destroy(chip->regions[j]);
+
+	return PTR_ERR(region);
+}
+
+int mv88e6xxx_setup_devlink_regions(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+
+	return mv88e6xxx_setup_devlink_regions_global(ds, chip);
 }

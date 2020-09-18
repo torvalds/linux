@@ -2838,6 +2838,7 @@ static void mv88e6xxx_teardown(struct dsa_switch *ds)
 {
 	mv88e6xxx_teardown_devlink_params(ds);
 	dsa_devlink_resources_unregister(ds);
+	mv88e6xxx_teardown_devlink_regions(ds);
 }
 
 static int mv88e6xxx_setup(struct dsa_switch *ds)
@@ -2970,7 +2971,18 @@ unlock:
 
 	err = mv88e6xxx_setup_devlink_params(ds);
 	if (err)
-		dsa_devlink_resources_unregister(ds);
+		goto out_resources;
+
+	err = mv88e6xxx_setup_devlink_regions(ds);
+	if (err)
+		goto out_params;
+
+	return 0;
+
+out_params:
+	mv88e6xxx_teardown_devlink_params(ds);
+out_resources:
+	dsa_devlink_resources_unregister(ds);
 
 	return err;
 }
