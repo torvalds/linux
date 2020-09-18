@@ -717,8 +717,8 @@ static int free_tx_poll(struct napi_struct *napi, int budget)
 		netdev_txq = netdev_get_tx_queue(txq->netdev, qp->q_id);
 
 		__netif_tx_lock(netdev_txq, smp_processor_id());
-
-		netif_wake_subqueue(nic_dev->netdev, qp->q_id);
+		if (!netif_testing(nic_dev->netdev))
+			netif_wake_subqueue(nic_dev->netdev, qp->q_id);
 
 		__netif_tx_unlock(netdev_txq);
 
