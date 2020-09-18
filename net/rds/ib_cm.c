@@ -711,7 +711,7 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 	 * original size. The only way to tell the difference is by looking at
 	 * the contents, which are initialized to zero.
 	 * If the protocol version fields aren't set, this is a connection attempt
-	 * from an older version. This could could be 3.0 or 2.0 - we can't tell.
+	 * from an older version. This could be 3.0 or 2.0 - we can't tell.
 	 * We really should have changed this for OFED 1.3 :-(
 	 */
 
