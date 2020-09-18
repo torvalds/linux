@@ -1319,7 +1319,7 @@ again:
 				break;
 
 			unlock_page(page);
-			btrfs_start_ordered_extent(inode, ordered, 1);
+			btrfs_start_ordered_extent(ordered, 1);
 			btrfs_put_ordered_extent(ordered);
 			lock_page(page);
 			/*

@@ -2357,7 +2357,7 @@ again:
 		unlock_extent_cached(&inode->io_tree, page_start, page_end,
 				     &cached_state);
 		unlock_page(page);
-		btrfs_start_ordered_extent(&inode->vfs_inode, ordered, 1);
+		btrfs_start_ordered_extent(ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
@@ -4581,7 +4581,7 @@ again:
 				     &cached_state);
 		unlock_page(page);
 		put_page(page);
-		btrfs_start_ordered_extent(inode, ordered, 1);
+		btrfs_start_ordered_extent(ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
@@ -7149,7 +7149,7 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 			 */
 			if (writing ||
 			    test_bit(BTRFS_ORDERED_DIRECT, &ordered->flags))
-				btrfs_start_ordered_extent(inode, ordered, 1);
+				btrfs_start_ordered_extent(ordered, 1);
 			else
 				ret = -ENOTBLK;
 			btrfs_put_ordered_extent(ordered);
@@ -8324,7 +8324,7 @@ again:
 		unlock_extent_cached(io_tree, page_start, page_end,
 				     &cached_state);
 		unlock_page(page);
-		btrfs_start_ordered_extent(inode, ordered, 1);
+		btrfs_start_ordered_extent(ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}

@@ -543,7 +543,7 @@ static void btrfs_run_ordered_extent_work(struct btrfs_work *work)
 	struct btrfs_ordered_extent *ordered;
 
 	ordered = container_of(work, struct btrfs_ordered_extent, flush_work);
-	btrfs_start_ordered_extent(ordered->inode, ordered, 1);
+	btrfs_start_ordered_extent(ordered, 1);
 	complete(&ordered->completion);
 }
 
@@ -649,14 +649,13 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
  * in the extent, and it waits on the io completion code to insert
  * metadata into the btree corresponding to the extent
  */
-void btrfs_start_ordered_extent(struct inode *inode,
-				       struct btrfs_ordered_extent *entry,
-				       int wait)
+void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry, int wait)
 {
 	u64 start = entry->file_offset;
 	u64 end = start + entry->num_bytes - 1;
+	struct btrfs_inode *inode = BTRFS_I(entry->inode);
 
-	trace_btrfs_ordered_extent_start(BTRFS_I(inode), entry);
+	trace_btrfs_ordered_extent_start(inode, entry);
 
 	/*
 	 * pages in the range can be dirty, clean or writeback.  We
@@ -664,7 +663,7 @@ void btrfs_start_ordered_extent(struct inode *inode,
 	 * for the flusher thread to find them
 	 */
 	if (!test_bit(BTRFS_ORDERED_DIRECT, &entry->flags))
-		filemap_fdatawrite_range(inode->i_mapping, start, end);
+		filemap_fdatawrite_range(inode->vfs_inode.i_mapping, start, end);
 	if (wait) {
 		wait_event(entry->wait, test_bit(BTRFS_ORDERED_COMPLETE,
 						 &entry->flags));
@@ -719,7 +718,7 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 			btrfs_put_ordered_extent(ordered);
 			break;
 		}
-		btrfs_start_ordered_extent(inode, ordered, 1);
+		btrfs_start_ordered_extent(ordered, 1);
 		end = ordered->file_offset;
 		/*
 		 * If the ordered extent had an error save the error but don't
@@ -939,7 +938,7 @@ void btrfs_lock_and_flush_ordered_range(struct btrfs_inode *inode, u64 start,
 			break;
 		}
 		unlock_extent_cached(&inode->io_tree, start, end, cachedp);
-		btrfs_start_ordered_extent(&inode->vfs_inode, ordered, 1);
+		btrfs_start_ordered_extent(ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 	}
 }
