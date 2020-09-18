@@ -510,6 +510,8 @@ struct smb_version_operations {
 		      struct fiemap_extent_info *, u64, u64);
 	/* version specific llseek implementation */
 	loff_t (*llseek)(struct file *, struct cifs_tcon *, loff_t, int);
+	/* Check for STATUS_IO_TIMEOUT */
+	bool (*is_status_io_timeout)(char *buf);
 };
 
 struct smb_version_values {
