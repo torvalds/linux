@@ -161,10 +161,12 @@ static int psp_sw_init(void *handle)
 	struct psp_context *psp = &adev->psp;
 	int ret;
 
-	ret = psp_init_microcode(psp);
-	if (ret) {
-		DRM_ERROR("Failed to load psp firmware!\n");
-		return ret;
+	if (!amdgpu_sriov_vf(adev)) {
+		ret = psp_init_microcode(psp);
+		if (ret) {
+			DRM_ERROR("Failed to load psp firmware!\n");
+			return ret;
+		}
 	}
 
 	ret = psp_memory_training_init(psp);

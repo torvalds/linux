@@ -832,10 +832,13 @@ static int smu_sw_init(void *handle)
 
 	smu->smu_dpm.dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	smu->smu_dpm.requested_dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
-	ret = smu_init_microcode(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to load smu firmware!\n");
-		return ret;
+
+	if (!amdgpu_sriov_vf(adev)) {
+		ret = smu_init_microcode(smu);
+		if (ret) {
+			dev_err(adev->dev, "Failed to load smu firmware!\n");
+			return ret;
+		}
 	}
 
 	ret = smu_smc_table_sw_init(smu);
