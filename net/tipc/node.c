@@ -2879,6 +2879,17 @@ static int tipc_nl_retrieve_nodeid(struct nlattr **attrs, u8 **node_id)
 	return 0;
 }
 
+static int tipc_nl_retrieve_rekeying(struct nlattr **attrs, u32 *intv)
+{
+	struct nlattr *attr = attrs[TIPC_NLA_NODE_REKEYING];
+
+	if (!attr)
+		return -ENODATA;
+
+	*intv = nla_get_u32(attr);
+	return 0;
+}
+
 static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[TIPC_NLA_NODE_MAX + 1];
@@ -2886,8 +2897,9 @@ static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_crypto *tx = tipc_net(net)->crypto_tx, *c = tx;
 	struct tipc_node *n = NULL;
 	struct tipc_aead_key *ukey;
-	bool master_key = false;
+	bool rekeying = true, master_key = false;
 	u8 *id, *own_id, mode;
+	u32 intv = 0;
 	int rc = 0;
 
 	if (!info->attrs[TIPC_NLA_NODE])
@@ -2905,8 +2917,14 @@ static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 		return -EPERM;
 	}
 
+	rc = tipc_nl_retrieve_rekeying(attrs, &intv);
+	if (rc == -ENODATA)
+		rekeying = false;
+
 	rc = tipc_nl_retrieve_key(attrs, &ukey);
-	if (rc)
+	if (rc == -ENODATA && rekeying)
+		goto rekeying;
+	else if (rc)
 		return rc;
 
 	rc = tipc_aead_key_validate(ukey, info);
@@ -2945,6 +2963,9 @@ static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 		/* Distribute TX key but not master one */
 		if (!master_key && tipc_crypto_key_distr(tx, rc, NULL))
 			GENL_SET_ERR_MSG(info, "failed to replicate new key");
+rekeying:
+		/* Schedule TX rekeying if needed */
+		tipc_crypto_rekeying_sched(tx, rekeying, intv);
 	}
 
 	return 0;

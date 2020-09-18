@@ -171,6 +171,8 @@ void tipc_crypto_key_flush(struct tipc_crypto *c);
 int tipc_crypto_key_distr(struct tipc_crypto *tx, u8 key,
 			  struct tipc_node *dest);
 void tipc_crypto_msg_rcv(struct net *net, struct sk_buff *skb);
+void tipc_crypto_rekeying_sched(struct tipc_crypto *tx, bool changed,
+				u32 new_intv);
 int tipc_aead_key_validate(struct tipc_aead_key *ukey, struct genl_info *info);
 bool tipc_ehdr_validate(struct sk_buff *skb);
 

@@ -36,6 +36,7 @@
 
 #include <crypto/aead.h>
 #include <crypto/aes.h>
+#include <crypto/rng.h>
 #include "crypto.h"
 #include "msg.h"
 #include "bcast.h"
@@ -47,6 +48,8 @@
 
 #define TIPC_MAX_TFMS_DEF	10
 #define TIPC_MAX_TFMS_LIM	1000
+
+#define TIPC_REKEYING_INTV_DEF	(60 * 24) /* default: 1 day */
 
 /**
  * TIPC Key ids
@@ -181,6 +184,7 @@ struct tipc_crypto_stats {
  * @wq: common workqueue on TX crypto
  * @work: delayed work sched for TX/RX
  * @key_distr: key distributing state
+ * @rekeying_intv: rekeying interval (in minutes)
  * @stats: the crypto statistics
  * @name: the crypto name
  * @sndnxt: the per-peer sndnxt (TX)
@@ -206,6 +210,7 @@ struct tipc_crypto {
 #define KEY_DISTR_SCHED		1
 #define KEY_DISTR_COMPL		2
 	atomic_t key_distr;
+	u32 rekeying_intv;
 
 	struct tipc_crypto_stats __percpu *stats;
 	char name[48];
@@ -294,7 +299,9 @@ static char *tipc_key_change_dump(struct tipc_key old, struct tipc_key new,
 static int tipc_crypto_key_xmit(struct net *net, struct tipc_aead_key *skey,
 				u16 gen, u8 mode, u32 dnode);
 static bool tipc_crypto_key_rcv(struct tipc_crypto *rx, struct tipc_msg *hdr);
+static void tipc_crypto_work_tx(struct work_struct *work);
 static void tipc_crypto_work_rx(struct work_struct *work);
+static int tipc_aead_key_generate(struct tipc_aead_key *skey);
 
 #define is_tx(crypto) (!(crypto)->node)
 #define is_rx(crypto) (!is_tx(crypto))
@@ -344,6 +351,27 @@ int tipc_aead_key_validate(struct tipc_aead_key *ukey, struct genl_info *info)
 	}
 
 	return 0;
+}
+
+/**
+ * tipc_aead_key_generate - Generate new session key
+ * @skey: input/output key with new content
+ *
+ * Return: 0 in case of success, otherwise < 0
+ */
+static int tipc_aead_key_generate(struct tipc_aead_key *skey)
+{
+	int rc = 0;
+
+	/* Fill the key's content with a random value via RNG cipher */
+	rc = crypto_get_default_rng();
+	if (likely(!rc)) {
+		rc = crypto_rng_get_bytes(crypto_default_rng, skey->key,
+					  skey->keylen);
+		crypto_put_default_rng();
+	}
+
+	return rc;
 }
 
 static struct tipc_aead *tipc_aead_get(struct tipc_aead __rcu *aead)
@@ -1471,6 +1499,7 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 	atomic64_set(&c->sndnxt, 0);
 	c->timer1 = jiffies;
 	c->timer2 = jiffies;
+	c->rekeying_intv = TIPC_REKEYING_INTV_DEF;
 	spin_lock_init(&c->lock);
 	scnprintf(c->name, 48, "%s(%s)", (is_rx(c)) ? "RX" : "TX",
 		  (is_rx(c)) ? tipc_node_get_id_str(c->node) :
@@ -1478,6 +1507,8 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 
 	if (is_rx(c))
 		INIT_DELAYED_WORK(&c->work, tipc_crypto_work_rx);
+	else
+		INIT_DELAYED_WORK(&c->work, tipc_crypto_work_tx);
 
 	*crypto = c;
 	return 0;
@@ -1492,8 +1523,11 @@ void tipc_crypto_stop(struct tipc_crypto **crypto)
 		return;
 
 	/* Flush any queued works & destroy wq */
-	if (is_tx(c))
+	if (is_tx(c)) {
+		c->rekeying_intv = 0;
+		cancel_delayed_work_sync(&c->work);
 		destroy_workqueue(c->wq);
+	}
 
 	/* Release AEAD keys */
 	rcu_read_lock();
@@ -2350,4 +2384,81 @@ static void tipc_crypto_work_rx(struct work_struct *work)
 		return;
 
 	tipc_node_put(rx->node);
+}
+
+/**
+ * tipc_crypto_rekeying_sched - (Re)schedule rekeying w/o new interval
+ * @tx: TX crypto
+ * @changed: if the rekeying needs to be rescheduled with new interval
+ * @new_intv: new rekeying interval (when "changed" = true)
+ */
+void tipc_crypto_rekeying_sched(struct tipc_crypto *tx, bool changed,
+				u32 new_intv)
+{
+	unsigned long delay;
+	bool now = false;
+
+	if (changed) {
+		if (new_intv == TIPC_REKEYING_NOW)
+			now = true;
+		else
+			tx->rekeying_intv = new_intv;
+		cancel_delayed_work_sync(&tx->work);
+	}
+
+	if (tx->rekeying_intv || now) {
+		delay = (now) ? 0 : tx->rekeying_intv * 60 * 1000;
+		queue_delayed_work(tx->wq, &tx->work, msecs_to_jiffies(delay));
+	}
+}
+
+/**
+ * tipc_crypto_work_tx - Scheduled TX works handler
+ * @work: the struct TX work
+ *
+ * The function processes the previous scheduled work, i.e. key rekeying, by
+ * generating a new session key based on current one, then attaching it to the
+ * TX crypto and finally distributing it to peers. It also re-schedules the
+ * rekeying if needed.
+ */
+static void tipc_crypto_work_tx(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct tipc_crypto *tx = container_of(dwork, struct tipc_crypto, work);
+	struct tipc_aead_key *skey = NULL;
+	struct tipc_key key = tx->key;
+	struct tipc_aead *aead;
+	int rc = -ENOMEM;
+
+	if (unlikely(key.pending))
+		goto resched;
+
+	/* Take current key as a template */
+	rcu_read_lock();
+	aead = rcu_dereference(tx->aead[key.active ?: KEY_MASTER]);
+	if (unlikely(!aead)) {
+		rcu_read_unlock();
+		/* At least one key should exist for securing */
+		return;
+	}
+
+	/* Lets duplicate it first */
+	skey = kmemdup(aead->key, tipc_aead_key_size(aead->key), GFP_ATOMIC);
+	rcu_read_unlock();
+
+	/* Now, generate new key, initiate & distribute it */
+	if (likely(skey)) {
+		rc = tipc_aead_key_generate(skey) ?:
+		     tipc_crypto_key_init(tx, skey, PER_NODE_KEY, false);
+		if (likely(rc > 0))
+			rc = tipc_crypto_key_distr(tx, rc, NULL);
+		kzfree(skey);
+	}
+
+	if (unlikely(rc))
+		pr_warn_ratelimited("%s: rekeying returns %d\n", tx->name, rc);
+
+resched:
+	/* Re-schedule rekeying if any */
+	tipc_crypto_rekeying_sched(tx, false, 0);
 }
