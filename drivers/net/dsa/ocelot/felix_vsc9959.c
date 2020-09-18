@@ -727,7 +727,7 @@ static int vsc9959_gcb_soft_rst_status(struct ocelot *ocelot)
 {
 	int val;
 
-	regmap_field_read(ocelot->regfields[GCB_SOFT_RST_SWC_RST], &val);
+	ocelot_field_read(ocelot, GCB_SOFT_RST_SWC_RST, &val);
 
 	return val;
 }
@@ -742,7 +742,7 @@ static int vsc9959_reset(struct ocelot *ocelot)
 	int val, err;
 
 	/* soft-reset the switch core */
-	regmap_field_write(ocelot->regfields[GCB_SOFT_RST_SWC_RST], 1);
+	ocelot_field_write(ocelot, GCB_SOFT_RST_SWC_RST, 1);
 
 	err = readx_poll_timeout(vsc9959_gcb_soft_rst_status, ocelot, val, !val,
 				 VSC9959_GCB_RST_SLEEP, VSC9959_INIT_TIMEOUT);
@@ -762,7 +762,7 @@ static int vsc9959_reset(struct ocelot *ocelot)
 	}
 
 	/* enable switch core */
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
+	ocelot_field_write(ocelot, SYS_RESET_CFG_CORE_ENA, 1);
 
 	return 0;
 }
