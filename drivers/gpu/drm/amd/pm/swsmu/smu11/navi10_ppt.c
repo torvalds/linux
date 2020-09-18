@@ -2279,13 +2279,14 @@ static int navi10_run_umc_cdr_workaround(struct smu_context *smu)
 	}
 
 	/*
-	 * The messages below are only supported by 42.53.0 and later
-	 * PMFWs.
+	 * The messages below are only supported by Navi10 42.53.0 and later
+	 * PMFWs and Navi14 53.29.0 and later PMFWs.
 	 * - PPSMC_MSG_SetDriverDummyTableDramAddrHigh
 	 * - PPSMC_MSG_SetDriverDummyTableDramAddrLow
 	 * - PPSMC_MSG_GetUMCFWWA
 	 */
-	if (pmfw_version >= 0x2a3500) {
+	if (((adev->asic_type == CHIP_NAVI10) && (pmfw_version >= 0x2a3500)) ||
+	    ((adev->asic_type == CHIP_NAVI14) && (pmfw_version >= 0x351D00))) {
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						      SMU_MSG_GET_UMC_FW_WA,
 						      0,
