@@ -9,6 +9,7 @@
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 fix gc2145 exposure issues.
  * V0.0X01.0X04 add enum_frame_interval function.
+ * V0.0X01.0X05 reduce rkisp1: CIF_ISP_PIC_SIZE_ERROR 0x00000001.
  */
 
 #include <linux/clk.h>
@@ -40,7 +41,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x4)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x5)
 #define DRIVER_NAME "gc2145"
 #define GC2145_PIXEL_RATE		(120 * 1000 * 1000)
 
@@ -2364,6 +2365,11 @@ static int gc2145_s_stream(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct gc2145 *gc2145 = to_gc2145(sd);
 	int ret = 0;
+	unsigned int fps;
+	unsigned int delay_us;
+
+	fps = DIV_ROUND_CLOSEST(gc2145->frame_size->max_fps.denominator,
+					gc2145->frame_size->max_fps.numerator);
 
 	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
 				gc2145->frame_size->width,
@@ -2382,6 +2388,11 @@ static int gc2145_s_stream(struct v4l2_subdev *sd, int on)
 		/* Stop Streaming Sequence */
 		gc2145_set_streaming(gc2145, on);
 		gc2145->streaming = on;
+		/* delay to enable oneframe complete */
+		delay_us = 1000 * 1000 / fps;
+		usleep_range(delay_us, delay_us+10);
+		dev_info(&client->dev, "%s: on: %d, sleep(%dus)\n",
+				__func__, on, delay_us);
 		goto unlock;
 	}
 	if (ret)
