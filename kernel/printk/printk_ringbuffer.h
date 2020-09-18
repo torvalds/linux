@@ -9,15 +9,13 @@
 /*
  * Meta information about each stored message.
  *
- * All fields are set and used by the printk code except for
- * @seq, @text_len, @dict_len, which are set and/or modified
- * by the ringbuffer code.
+ * All fields are set by the printk code except for @seq, which is
+ * set by the ringbuffer code.
  */
 struct printk_info {
 	u64	seq;		/* sequence number */
 	u64	ts_nsec;	/* timestamp in nanoseconds */
 	u16	text_len;	/* length of text message */
-	u16	dict_len;	/* length of dictionary message */
 	u8	facility;	/* syslog facility */
 	u8	flags:5;	/* internal record flags */
 	u8	level:3;	/* syslog level */
@@ -30,23 +28,20 @@ struct printk_info {
  * A structure providing the buffers, used by writers and readers.
  *
  * Writers:
- * Using prb_rec_init_wr(), a writer sets @text_buf_size and @dict_buf_size
- * before calling prb_reserve(). On success, prb_reserve() sets @info,
- * @text_buf, @dict_buf to buffers reserved for that writer.
+ * Using prb_rec_init_wr(), a writer sets @text_buf_size before calling
+ * prb_reserve(). On success, prb_reserve() sets @info and @text_buf to
+ * buffers reserved for that writer.
  *
  * Readers:
  * Using prb_rec_init_rd(), a reader sets all fields before calling
- * prb_read_valid(). Note that the reader provides the @info, @text_buf,
- * @dict_buf buffers. On success, the struct pointed to by @info will be
- * filled and the char arrays pointed to by @text_buf and @dict_buf will
- * be filled with text and dict data.
+ * prb_read_valid(). Note that the reader provides the @info and @text_buf,
+ * buffers. On success, the struct pointed to by @info will be filled and
+ * the char array pointed to by @text_buf will be filled with text data.
  */
 struct printk_record {
 	struct printk_info	*info;
 	char			*text_buf;
-	char			*dict_buf;
 	unsigned int		text_buf_size;
-	unsigned int		dict_buf_size;
 };
 
 /* Specifies the logical position and span of a data block. */
@@ -63,7 +58,6 @@ struct prb_data_blk_lpos {
 struct prb_desc {
 	atomic_long_t			state_var;
 	struct prb_data_blk_lpos	text_blk_lpos;
-	struct prb_data_blk_lpos	dict_blk_lpos;
 };
 
 /* A ringbuffer of "ID + data" elements. */
@@ -92,7 +86,6 @@ struct prb_desc_ring {
 struct printk_ringbuffer {
 	struct prb_desc_ring	desc_ring;
 	struct prb_data_ring	text_data_ring;
-	struct prb_data_ring	dict_data_ring;
 	atomic_long_t		fail;
 };
 
@@ -236,9 +229,7 @@ enum desc_state {
  * Note: The specified external buffer must be of the size:
  *       2 ^ (descbits + avgtextbits)
  */
-#define _DEFINE_PRINTKRB(name, descbits, avgtextbits, avgdictbits, text_buf)			\
-static char _##name##_dict[1U << ((avgdictbits) + (descbits))]					\
-			__aligned(__alignof__(unsigned long));					\
+#define _DEFINE_PRINTKRB(name, descbits, avgtextbits, text_buf)			\
 static struct prb_desc _##name##_descs[_DESCS_COUNT(descbits)] = {				\
 	/* the initial head and tail */								\
 	[_DESCS_COUNT(descbits) - 1] = {							\
@@ -246,7 +237,6 @@ static struct prb_desc _##name##_descs[_DESCS_COUNT(descbits)] = {				\
 		.state_var	= ATOMIC_INIT(DESC0_SV(descbits)),				\
 		/* no associated data block */							\
 		.text_blk_lpos	= FAILED_BLK_LPOS,						\
-		.dict_blk_lpos	= FAILED_BLK_LPOS,						\
 	},											\
 };												\
 static struct printk_info _##name##_infos[_DESCS_COUNT(descbits)] = {				\
@@ -275,12 +265,6 @@ static struct printk_ringbuffer name = {							\
 		.head_lpos	= ATOMIC_LONG_INIT(BLK0_LPOS((avgtextbits) + (descbits))),	\
 		.tail_lpos	= ATOMIC_LONG_INIT(BLK0_LPOS((avgtextbits) + (descbits))),	\
 	},											\
-	.dict_data_ring = {									\
-		.size_bits	= (avgtextbits) + (descbits),					\
-		.data		= &_##name##_dict[0],						\
-		.head_lpos	= ATOMIC_LONG_INIT(BLK0_LPOS((avgtextbits) + (descbits))),	\
-		.tail_lpos	= ATOMIC_LONG_INIT(BLK0_LPOS((avgtextbits) + (descbits))),	\
-	},											\
 	.fail			= ATOMIC_LONG_INIT(0),						\
 }
 
@@ -290,17 +274,15 @@ static struct printk_ringbuffer name = {							\
  * @name:        The name of the ringbuffer variable.
  * @descbits:    The number of descriptors as a power-of-2 value.
  * @avgtextbits: The average text data size per record as a power-of-2 value.
- * @avgdictbits: The average dictionary data size per record as a
- *               power-of-2 value.
  *
  * This is a macro for defining a ringbuffer and all internal structures
  * such that it is ready for immediate use. See _DEFINE_PRINTKRB() for a
  * variant where the text data buffer can be specified externally.
  */
-#define DEFINE_PRINTKRB(name, descbits, avgtextbits, avgdictbits)		\
+#define DEFINE_PRINTKRB(name, descbits, avgtextbits)				\
 static char _##name##_text[1U << ((avgtextbits) + (descbits))]			\
 			__aligned(__alignof__(unsigned long));			\
-_DEFINE_PRINTKRB(name, descbits, avgtextbits, avgdictbits, &_##name##_text[0])
+_DEFINE_PRINTKRB(name, descbits, avgtextbits, &_##name##_text[0])
 
 /* Writer Interface */
 
@@ -309,26 +291,13 @@ _DEFINE_PRINTKRB(name, descbits, avgtextbits, avgdictbits, &_##name##_text[0])
  *
  * @r:             The record to initialize.
  * @text_buf_size: The needed text buffer size.
- * @dict_buf_size: The needed dictionary buffer size.
- *
- * Initialize all the fields that a writer is interested in. If
- * @dict_buf_size is 0, a dictionary buffer will not be reserved.
- * @text_buf_size must be greater than 0.
- *
- * Note that although @dict_buf_size may be initialized to non-zero,
- * its value must be rechecked after a successful call to prb_reserve()
- * to verify a dictionary buffer was actually reserved. Dictionary buffer
- * reservation is allowed to fail.
  */
 static inline void prb_rec_init_wr(struct printk_record *r,
-				   unsigned int text_buf_size,
-				   unsigned int dict_buf_size)
+				   unsigned int text_buf_size)
 {
 	r->info = NULL;
 	r->text_buf = NULL;
-	r->dict_buf = NULL;
 	r->text_buf_size = text_buf_size;
-	r->dict_buf_size = dict_buf_size;
 }
 
 bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
@@ -340,7 +309,6 @@ void prb_final_commit(struct prb_reserved_entry *e);
 
 void prb_init(struct printk_ringbuffer *rb,
 	      char *text_buf, unsigned int text_buf_size,
-	      char *dict_buf, unsigned int dict_buf_size,
 	      struct prb_desc *descs, unsigned int descs_count_bits,
 	      struct printk_info *infos);
 unsigned int prb_record_text_space(struct prb_reserved_entry *e);
@@ -354,8 +322,6 @@ unsigned int prb_record_text_space(struct prb_reserved_entry *e);
  * @info:          A buffer to store record meta-data.
  * @text_buf:      A buffer to store text data.
  * @text_buf_size: The size of @text_buf.
- * @dict_buf:      A buffer to store dictionary data.
- * @dict_buf_size: The size of @dict_buf.
  *
  * Initialize all the fields that a reader is interested in. All arguments
  * (except @r) are optional. Only record data for arguments that are
@@ -363,14 +329,11 @@ unsigned int prb_record_text_space(struct prb_reserved_entry *e);
  */
 static inline void prb_rec_init_rd(struct printk_record *r,
 				   struct printk_info *info,
-				   char *text_buf, unsigned int text_buf_size,
-				   char *dict_buf, unsigned int dict_buf_size)
+				   char *text_buf, unsigned int text_buf_size)
 {
 	r->info = info;
 	r->text_buf = text_buf;
-	r->dict_buf = dict_buf;
 	r->text_buf_size = text_buf_size;
-	r->dict_buf_size = dict_buf_size;
 }
 
 /**

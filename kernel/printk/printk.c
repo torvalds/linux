@@ -427,7 +427,6 @@ static u32 log_buf_len = __LOG_BUF_LEN;
  * Define the average message size. This only affects the number of
  * descriptors that will be available. Underestimating is better than
  * overestimating (too many available descriptors is better than not enough).
- * The dictionary buffer will be the same size as the text buffer.
  */
 #define PRB_AVGBITS 5	/* 32 character average length */
 
@@ -435,7 +434,7 @@ static u32 log_buf_len = __LOG_BUF_LEN;
 #error CONFIG_LOG_BUF_SHIFT value too small.
 #endif
 _DEFINE_PRINTKRB(printk_rb_static, CONFIG_LOG_BUF_SHIFT - PRB_AVGBITS,
-		 PRB_AVGBITS, PRB_AVGBITS, &__log_buf[0]);
+		 PRB_AVGBITS, &__log_buf[0]);
 
 static struct printk_ringbuffer printk_rb_dynamic;
 
@@ -502,12 +501,12 @@ static int log_store(u32 caller_id, int facility, int level,
 	struct printk_record r;
 	u16 trunc_msg_len = 0;
 
-	prb_rec_init_wr(&r, text_len, 0);
+	prb_rec_init_wr(&r, text_len);
 
 	if (!prb_reserve(&e, prb, &r)) {
 		/* truncate the message if it is too long for empty buffer */
 		truncate_msg(&text_len, &trunc_msg_len);
-		prb_rec_init_wr(&r, text_len + trunc_msg_len, 0);
+		prb_rec_init_wr(&r, text_len + trunc_msg_len);
 		/* survive when the log buffer is too small for trunc_msg */
 		if (!prb_reserve(&e, prb, &r))
 			return 0;
@@ -898,8 +897,7 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 	mutex_init(&user->lock);
 
 	prb_rec_init_rd(&user->record, &user->info,
-			&user->text_buf[0], sizeof(user->text_buf),
-			NULL, 0);
+			&user->text_buf[0], sizeof(user->text_buf));
 
 	logbuf_lock_irq();
 	user->seq = prb_first_valid_seq(prb);
@@ -957,7 +955,6 @@ void log_buf_vmcoreinfo_setup(void)
 	VMCOREINFO_STRUCT_SIZE(printk_ringbuffer);
 	VMCOREINFO_OFFSET(printk_ringbuffer, desc_ring);
 	VMCOREINFO_OFFSET(printk_ringbuffer, text_data_ring);
-	VMCOREINFO_OFFSET(printk_ringbuffer, dict_data_ring);
 	VMCOREINFO_OFFSET(printk_ringbuffer, fail);
 
 	VMCOREINFO_STRUCT_SIZE(prb_desc_ring);
@@ -970,7 +967,6 @@ void log_buf_vmcoreinfo_setup(void)
 	VMCOREINFO_STRUCT_SIZE(prb_desc);
 	VMCOREINFO_OFFSET(prb_desc, state_var);
 	VMCOREINFO_OFFSET(prb_desc, text_blk_lpos);
-	VMCOREINFO_OFFSET(prb_desc, dict_blk_lpos);
 
 	VMCOREINFO_STRUCT_SIZE(prb_data_blk_lpos);
 	VMCOREINFO_OFFSET(prb_data_blk_lpos, begin);
@@ -980,7 +976,6 @@ void log_buf_vmcoreinfo_setup(void)
 	VMCOREINFO_OFFSET(printk_info, seq);
 	VMCOREINFO_OFFSET(printk_info, ts_nsec);
 	VMCOREINFO_OFFSET(printk_info, text_len);
-	VMCOREINFO_OFFSET(printk_info, dict_len);
 	VMCOREINFO_OFFSET(printk_info, caller_id);
 	VMCOREINFO_OFFSET(printk_info, dev_info);
 
@@ -1081,7 +1076,7 @@ static unsigned int __init add_to_rb(struct printk_ringbuffer *rb,
 	struct prb_reserved_entry e;
 	struct printk_record dest_r;
 
-	prb_rec_init_wr(&dest_r, r->info->text_len, 0);
+	prb_rec_init_wr(&dest_r, r->info->text_len);
 
 	if (!prb_reserve(&e, rb, &dest_r))
 		return 0;
@@ -1112,7 +1107,6 @@ void __init setup_log_buf(int early)
 	size_t new_descs_size;
 	size_t new_infos_size;
 	unsigned long flags;
-	char *new_dict_buf;
 	char *new_log_buf;
 	unsigned int free;
 	u64 seq;
@@ -1147,19 +1141,12 @@ void __init setup_log_buf(int early)
 		return;
 	}
 
-	new_dict_buf = memblock_alloc(new_log_buf_len, LOG_ALIGN);
-	if (unlikely(!new_dict_buf)) {
-		pr_err("log_buf_len: %lu dict bytes not available\n",
-		       new_log_buf_len);
-		goto err_free_log_buf;
-	}
-
 	new_descs_size = new_descs_count * sizeof(struct prb_desc);
 	new_descs = memblock_alloc(new_descs_size, LOG_ALIGN);
 	if (unlikely(!new_descs)) {
 		pr_err("log_buf_len: %zu desc bytes not available\n",
 		       new_descs_size);
-		goto err_free_dict_buf;
+		goto err_free_log_buf;
 	}
 
 	new_infos_size = new_descs_count * sizeof(struct printk_info);
@@ -1170,13 +1157,10 @@ void __init setup_log_buf(int early)
 		goto err_free_descs;
 	}
 
-	prb_rec_init_rd(&r, &info,
-			&setup_text_buf[0], sizeof(setup_text_buf),
-			NULL, 0);
+	prb_rec_init_rd(&r, &info, &setup_text_buf[0], sizeof(setup_text_buf));
 
 	prb_init(&printk_rb_dynamic,
 		 new_log_buf, ilog2(new_log_buf_len),
-		 new_dict_buf, ilog2(new_log_buf_len),
 		 new_descs, ilog2(new_descs_count),
 		 new_infos);
 
@@ -1211,8 +1195,6 @@ void __init setup_log_buf(int early)
 
 err_free_descs:
 	memblock_free(__pa(new_descs), new_descs_size);
-err_free_dict_buf:
-	memblock_free(__pa(new_dict_buf), new_log_buf_len);
 err_free_log_buf:
 	memblock_free(__pa(new_log_buf), new_log_buf_len);
 }
@@ -1463,7 +1445,7 @@ static int syslog_print(char __user *buf, int size)
 	if (!text)
 		return -ENOMEM;
 
-	prb_rec_init_rd(&r, &info, text, LOG_LINE_MAX + PREFIX_MAX, NULL, 0);
+	prb_rec_init_rd(&r, &info, text, LOG_LINE_MAX + PREFIX_MAX);
 
 	while (size > 0) {
 		size_t n;
@@ -1550,7 +1532,7 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		len -= get_record_print_text_size(&info, line_count, true, time);
 	}
 
-	prb_rec_init_rd(&r, &info, text, LOG_LINE_MAX + PREFIX_MAX, NULL, 0);
+	prb_rec_init_rd(&r, &info, text, LOG_LINE_MAX + PREFIX_MAX);
 
 	len = 0;
 	prb_for_each_record(seq, prb, seq, &r) {
@@ -1920,7 +1902,7 @@ static size_t log_output(int facility, int level, enum log_flags lflags,
 		struct prb_reserved_entry e;
 		struct printk_record r;
 
-		prb_rec_init_wr(&r, text_len, 0);
+		prb_rec_init_wr(&r, text_len);
 		if (prb_reserve_in_last(&e, prb, &r, caller_id)) {
 			memcpy(&r.text_buf[r.info->text_len], text, text_len);
 			r.info->text_len += text_len;
@@ -2408,7 +2390,7 @@ void console_unlock(void)
 		return;
 	}
 
-	prb_rec_init_rd(&r, &info, text, sizeof(text), NULL, 0);
+	prb_rec_init_rd(&r, &info, text, sizeof(text));
 
 	/*
 	 * Console drivers are called with interrupts disabled, so
@@ -3266,7 +3248,7 @@ bool kmsg_dump_get_line_nolock(struct kmsg_dumper *dumper, bool syslog,
 	size_t l = 0;
 	bool ret = false;
 
-	prb_rec_init_rd(&r, &info, line, size, NULL, 0);
+	prb_rec_init_rd(&r, &info, line, size);
 
 	if (!dumper->active)
 		goto out;
@@ -3357,7 +3339,7 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 	bool ret = false;
 	bool time = printk_time;
 
-	prb_rec_init_rd(&r, &info, buf, size, NULL, 0);
+	prb_rec_init_rd(&r, &info, buf, size);
 
 	if (!dumper->active || !buf || !size)
 		goto out;
@@ -3405,7 +3387,7 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 		l += record_print_text(&r, syslog, time);
 
 		/* adjust record to store to remaining buffer space */
-		prb_rec_init_rd(&r, &info, buf + l, size - l, NULL, 0);
+		prb_rec_init_rd(&r, &info, buf + l, size - l);
 
 		seq = r.info->seq + 1;
 	}
