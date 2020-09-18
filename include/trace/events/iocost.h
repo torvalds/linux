@@ -164,6 +164,47 @@ TRACE_EVENT(iocost_ioc_vrate_adj,
 	)
 );
 
+TRACE_EVENT(iocost_iocg_forgive_debt,
+
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+		u32 usage_pct, u64 old_debt, u64 new_debt,
+		u64 old_delay, u64 new_delay),
+
+	TP_ARGS(iocg, path, now, usage_pct,
+		old_debt, new_debt, old_delay, new_delay),
+
+	TP_STRUCT__entry (
+		__string(devname, ioc_name(iocg->ioc))
+		__string(cgroup, path)
+		__field(u64, now)
+		__field(u64, vnow)
+		__field(u32, usage_pct)
+		__field(u64, old_debt)
+		__field(u64, new_debt)
+		__field(u64, old_delay)
+		__field(u64, new_delay)
+	),
+
+	TP_fast_assign(
+		__assign_str(devname, ioc_name(iocg->ioc));
+		__assign_str(cgroup, path);
+		__entry->now = now->now;
+		__entry->vnow = now->vnow;
+		__entry->usage_pct = usage_pct;
+		__entry->old_debt = old_debt;
+		__entry->new_debt = new_debt;
+		__entry->old_delay = old_delay;
+		__entry->new_delay = new_delay;
+	),
+
+	TP_printk("[%s:%s] now=%llu:%llu usage=%u debt=%llu->%llu delay=%llu->%llu",
+		__get_str(devname), __get_str(cgroup),
+		__entry->now, __entry->vnow, __entry->usage_pct,
+		__entry->old_debt, __entry->new_debt,
+		__entry->old_delay, __entry->new_delay
+	)
+);
+
 #endif /* _TRACE_BLK_IOCOST_H */
 
 /* This part must be outside protection */

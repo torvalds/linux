@@ -2046,12 +2046,24 @@ static void ioc_forgive_debts(struct ioc *ioc, u64 usage_us_sum, int nr_debtors,
 	ioc->dfgv_period_rem = do_div(nr_cycles, DFGV_PERIOD);
 
 	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
+		u64 __maybe_unused old_debt, __maybe_unused old_delay;
+
 		if (!iocg->abs_vdebt)
 			continue;
+
 		spin_lock(&iocg->waitq.lock);
+
+		old_debt = iocg->abs_vdebt;
+		old_delay = iocg->delay;
+
 		iocg->abs_vdebt >>= nr_cycles;
 		iocg->delay = 0; /* kick_waitq will recalc */
 		iocg_kick_waitq(iocg, true, now);
+
+		TRACE_IOCG_PATH(iocg_forgive_debt, iocg, now, usage_pct,
+				old_debt, iocg->abs_vdebt,
+				old_delay, iocg->delay);
+
 		spin_unlock(&iocg->waitq.lock);
 	}
 }
