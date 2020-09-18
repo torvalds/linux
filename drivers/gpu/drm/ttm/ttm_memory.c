@@ -259,7 +259,7 @@ static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
 	return false;
 }
 
-/**
+/*
  * At this point we only support a single shrink callback.
  * Extend this if needed, perhaps using a linked list of callbacks.
  * Note that this function is reentrant:
