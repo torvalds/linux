@@ -794,7 +794,7 @@ static bool _rtl92ee_init_mac(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, REG_CR, 0x2ff);
 
 	if (!rtlhal->mac_func_enable) {
-		if (_rtl92ee_llt_table_init(hw) == false) {
+		if (!_rtl92ee_llt_table_init(hw)) {
 			rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 				"LLT table init fail\n");
 			return false;
