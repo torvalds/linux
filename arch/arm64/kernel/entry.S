@@ -132,8 +132,8 @@ alternative_else_nop_endif
 	 * them if required.
 	 */
 	.macro	apply_ssbd, state, tmp1, tmp2
-alternative_cb	arm64_enable_wa2_handling
-	b	.L__asm_ssbd_skip\@
+alternative_cb	spectre_v4_patch_fw_mitigation_enable
+	b	.L__asm_ssbd_skip\@		// Patched to NOP
 alternative_cb_end
 	ldr_this_cpu	\tmp2, arm64_ssbd_callback_required, \tmp1
 	cbz	\tmp2,	.L__asm_ssbd_skip\@
@@ -141,7 +141,7 @@ alternative_cb_end
 	tbnz	\tmp2, #TIF_SSBD, .L__asm_ssbd_skip\@
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_2
 	mov	w1, #\state
-alternative_cb	arm64_update_smccc_conduit
+alternative_cb	spectre_v4_patch_fw_mitigation_conduit
 	nop					// Patched to SMC/HVC #0
 alternative_cb_end
 .L__asm_ssbd_skip\@:

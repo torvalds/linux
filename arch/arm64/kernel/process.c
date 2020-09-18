@@ -421,8 +421,7 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		    cpus_have_const_cap(ARM64_HAS_UAO))
 			childregs->pstate |= PSR_UAO_BIT;
 
-		if (arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE)
-			set_ssbs_bit(childregs);
+		spectre_v4_enable_task_mitigation(p);
 
 		if (system_uses_irq_prio_masking())
 			childregs->pmr_save = GIC_PRIO_IRQON;
@@ -472,8 +471,6 @@ void uao_thread_switch(struct task_struct *next)
  */
 static void ssbs_thread_switch(struct task_struct *next)
 {
-	struct pt_regs *regs = task_pt_regs(next);
-
 	/*
 	 * Nothing to do for kernel threads, but 'regs' may be junk
 	 * (e.g. idle task) so check the flags and bail early.
@@ -485,18 +482,10 @@ static void ssbs_thread_switch(struct task_struct *next)
 	 * If all CPUs implement the SSBS extension, then we just need to
 	 * context-switch the PSTATE field.
 	 */
-	if (cpu_have_feature(cpu_feature(SSBS)))
+	if (cpus_have_const_cap(ARM64_SSBS))
 		return;
 
-	/* If the mitigation is enabled, then we leave SSBS clear. */
-	if ((arm64_get_ssbd_state() == ARM64_SSBD_FORCE_ENABLE) ||
-	    test_tsk_thread_flag(next, TIF_SSBD))
-		return;
-
-	if (compat_user_mode(regs))
-		set_compat_ssbs_bit(regs);
-	else if (user_mode(regs))
-		set_ssbs_bit(regs);
+	spectre_v4_enable_task_mitigation(next);
 }
 
 /*

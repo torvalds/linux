@@ -106,62 +106,7 @@ cpu_enable_trap_ctr_access(const struct arm64_cpu_capabilities *cap)
 		sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
 }
 
-DEFINE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
-
-int ssbd_state __read_mostly = ARM64_SSBD_KERNEL;
-static bool __ssb_safe = true;
-
-static const struct ssbd_options {
-	const char	*str;
-	int		state;
-} ssbd_options[] = {
-	{ "force-on",	ARM64_SSBD_FORCE_ENABLE, },
-	{ "force-off",	ARM64_SSBD_FORCE_DISABLE, },
-	{ "kernel",	ARM64_SSBD_KERNEL, },
-};
-
-static int __init ssbd_cfg(char *buf)
-{
-	int i;
-
-	if (!buf || !buf[0])
-		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(ssbd_options); i++) {
-		int len = strlen(ssbd_options[i].str);
-
-		if (strncmp(buf, ssbd_options[i].str, len))
-			continue;
-
-		ssbd_state = ssbd_options[i].state;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-early_param("ssbd", ssbd_cfg);
-
-void __init arm64_update_smccc_conduit(struct alt_instr *alt,
-				       __le32 *origptr, __le32 *updptr,
-				       int nr_inst)
-{
-	u32 insn;
-
-	BUG_ON(nr_inst != 1);
-
-	switch (arm_smccc_1_1_get_conduit()) {
-	case SMCCC_CONDUIT_HVC:
-		insn = aarch64_insn_get_hvc_value();
-		break;
-	case SMCCC_CONDUIT_SMC:
-		insn = aarch64_insn_get_smc_value();
-		break;
-	default:
-		return;
-	}
-
-	*updptr = cpu_to_le32(insn);
-}
+int ssbd_state __read_mostly = ARM64_SSBD_UNKNOWN;
 
 void __init arm64_enable_wa2_handling(struct alt_instr *alt,
 				      __le32 *origptr, __le32 *updptr,
@@ -176,144 +121,6 @@ void __init arm64_enable_wa2_handling(struct alt_instr *alt,
 	if (arm64_get_ssbd_state() == ARM64_SSBD_KERNEL)
 		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
 }
-
-void arm64_set_ssbd_mitigation(bool state)
-{
-	int conduit;
-
-	if (this_cpu_has_cap(ARM64_SSBS)) {
-		if (state)
-			asm volatile(SET_PSTATE_SSBS(0));
-		else
-			asm volatile(SET_PSTATE_SSBS(1));
-		return;
-	}
-
-	conduit = arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_WORKAROUND_2, state,
-				       NULL);
-
-	WARN_ON_ONCE(conduit == SMCCC_CONDUIT_NONE);
-}
-
-static bool has_ssbd_mitigation(const struct arm64_cpu_capabilities *entry,
-				    int scope)
-{
-	struct arm_smccc_res res;
-	bool required = true;
-	s32 val;
-	bool this_cpu_safe = false;
-	int conduit;
-
-	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-
-	if (cpu_mitigations_off())
-		ssbd_state = ARM64_SSBD_FORCE_DISABLE;
-
-	/* delay setting __ssb_safe until we get a firmware response */
-	if (is_midr_in_range_list(read_cpuid_id(), entry->midr_range_list))
-		this_cpu_safe = true;
-
-	if (this_cpu_has_cap(ARM64_SSBS)) {
-		if (!this_cpu_safe)
-			__ssb_safe = false;
-		required = false;
-		goto out_printmsg;
-	}
-
-	conduit = arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,
-				       ARM_SMCCC_ARCH_WORKAROUND_2, &res);
-
-	if (conduit == SMCCC_CONDUIT_NONE) {
-		ssbd_state = ARM64_SSBD_UNKNOWN;
-		if (!this_cpu_safe)
-			__ssb_safe = false;
-		return false;
-	}
-
-	val = (s32)res.a0;
-
-	switch (val) {
-	case SMCCC_RET_NOT_SUPPORTED:
-		ssbd_state = ARM64_SSBD_UNKNOWN;
-		if (!this_cpu_safe)
-			__ssb_safe = false;
-		return false;
-
-	/* machines with mixed mitigation requirements must not return this */
-	case SMCCC_RET_NOT_REQUIRED:
-		pr_info_once("%s mitigation not required\n", entry->desc);
-		ssbd_state = ARM64_SSBD_MITIGATED;
-		return false;
-
-	case SMCCC_RET_SUCCESS:
-		__ssb_safe = false;
-		required = true;
-		break;
-
-	case 1:	/* Mitigation not required on this CPU */
-		required = false;
-		break;
-
-	default:
-		WARN_ON(1);
-		if (!this_cpu_safe)
-			__ssb_safe = false;
-		return false;
-	}
-
-	switch (ssbd_state) {
-	case ARM64_SSBD_FORCE_DISABLE:
-		arm64_set_ssbd_mitigation(false);
-		required = false;
-		break;
-
-	case ARM64_SSBD_KERNEL:
-		if (required) {
-			__this_cpu_write(arm64_ssbd_callback_required, 1);
-			arm64_set_ssbd_mitigation(true);
-		}
-		break;
-
-	case ARM64_SSBD_FORCE_ENABLE:
-		arm64_set_ssbd_mitigation(true);
-		required = true;
-		break;
-
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-out_printmsg:
-	switch (ssbd_state) {
-	case ARM64_SSBD_FORCE_DISABLE:
-		pr_info_once("%s disabled from command-line\n", entry->desc);
-		break;
-
-	case ARM64_SSBD_FORCE_ENABLE:
-		pr_info_once("%s forced from command-line\n", entry->desc);
-		break;
-	}
-
-	return required;
-}
-
-static void cpu_enable_ssbd_mitigation(const struct arm64_cpu_capabilities *cap)
-{
-	if (ssbd_state != ARM64_SSBD_FORCE_DISABLE)
-		cap->matches(cap, SCOPE_LOCAL_CPU);
-}
-
-/* known invulnerable cores */
-static const struct midr_range arm64_ssb_cpus[] = {
-	MIDR_ALL_VERSIONS(MIDR_CORTEX_A35),
-	MIDR_ALL_VERSIONS(MIDR_CORTEX_A53),
-	MIDR_ALL_VERSIONS(MIDR_CORTEX_A55),
-	MIDR_ALL_VERSIONS(MIDR_BRAHMA_B53),
-	MIDR_ALL_VERSIONS(MIDR_QCOM_KRYO_3XX_SILVER),
-	MIDR_ALL_VERSIONS(MIDR_QCOM_KRYO_4XX_SILVER),
-	{},
-};
 
 #ifdef CONFIG_ARM64_ERRATUM_1463225
 DEFINE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
@@ -674,12 +481,11 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	},
 #endif
 	{
-		.desc = "Speculative Store Bypass Disable",
+		.desc = "Spectre-v4",
 		.capability = ARM64_SPECTRE_V4,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
-		.matches = has_ssbd_mitigation,
-		.cpu_enable = cpu_enable_ssbd_mitigation,
-		.midr_range_list = arm64_ssb_cpus,
+		.matches = has_spectre_v4,
+		.cpu_enable = spectre_v4_enable_mitigation,
 	},
 #ifdef CONFIG_ARM64_ERRATUM_1418040
 	{
@@ -732,18 +538,3 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	{
 	}
 };
-
-ssize_t cpu_show_spec_store_bypass(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	if (__ssb_safe)
-		return sprintf(buf, "Not affected\n");
-
-	switch (ssbd_state) {
-	case ARM64_SSBD_KERNEL:
-	case ARM64_SSBD_FORCE_ENABLE:
-		return sprintf(buf, "Mitigation: Speculative Store Bypass disabled via prctl\n");
-	}
-
-	return sprintf(buf, "Vulnerable\n");
-}

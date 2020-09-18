@@ -24,4 +24,9 @@ enum mitigation_state arm64_get_spectre_v2_state(void);
 bool has_spectre_v2(const struct arm64_cpu_capabilities *cap, int scope);
 void spectre_v2_enable_mitigation(const struct arm64_cpu_capabilities *__unused);
 
+enum mitigation_state arm64_get_spectre_v4_state(void);
+bool has_spectre_v4(const struct arm64_cpu_capabilities *cap, int scope);
+void spectre_v4_enable_mitigation(const struct arm64_cpu_capabilities *__unused);
+void spectre_v4_enable_task_mitigation(struct task_struct *tsk);
+
 #endif	/* __ASM_SPECTRE_H */
