@@ -2710,10 +2710,8 @@ static inline bool sanity_check_area_boundary(struct f2fs_sb_info *sbi,
 	}
 
 	if (main_end_blkaddr > seg_end_blkaddr) {
-		f2fs_info(sbi, "Wrong MAIN_AREA boundary, start(%u) end(%u) block(%u)",
-			  main_blkaddr,
-			  segment0_blkaddr +
-			  (segment_count << log_blocks_per_seg),
+		f2fs_info(sbi, "Wrong MAIN_AREA boundary, start(%u) end(%llu) block(%u)",
+			  main_blkaddr, seg_end_blkaddr,
 			  segment_count_main << log_blocks_per_seg);
 		return true;
 	} else if (main_end_blkaddr < seg_end_blkaddr) {
@@ -2731,10 +2729,8 @@ static inline bool sanity_check_area_boundary(struct f2fs_sb_info *sbi,
 			err = __f2fs_commit_super(bh, NULL);
 			res = err ? "failed" : "done";
 		}
-		f2fs_info(sbi, "Fix alignment : %s, start(%u) end(%u) block(%u)",
-			  res, main_blkaddr,
-			  segment0_blkaddr +
-			  (segment_count << log_blocks_per_seg),
+		f2fs_info(sbi, "Fix alignment : %s, start(%u) end(%llu) block(%u)",
+			  res, main_blkaddr, seg_end_blkaddr,
 			  segment_count_main << log_blocks_per_seg);
 		if (err)
 			return true;
