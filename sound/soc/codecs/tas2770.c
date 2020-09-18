@@ -16,7 +16,6 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
-#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/firmware.h>
 #include <linux/regmap.h>
@@ -781,13 +780,6 @@ end:
 	return result;
 }
 
-static int tas2770_i2c_remove(struct i2c_client *client)
-{
-	pm_runtime_disable(&client->dev);
-	return 0;
-}
-
-
 static const struct i2c_device_id tas2770_i2c_id[] = {
 	{ "tas2770", 0},
 	{ }
@@ -808,7 +800,6 @@ static struct i2c_driver tas2770_i2c_driver = {
 		.of_match_table = of_match_ptr(tas2770_of_match),
 	},
 	.probe      = tas2770_i2c_probe,
-	.remove     = tas2770_i2c_remove,
 	.id_table   = tas2770_i2c_id,
 };
 
