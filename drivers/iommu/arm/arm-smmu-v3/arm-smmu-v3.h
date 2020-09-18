@@ -540,6 +540,9 @@ struct arm_smmu_ctx_desc {
 	u64				ttbr;
 	u64				tcr;
 	u64				mair;
+
+	refcount_t			refs;
+	struct mm_struct		*mm;
 };
 
 struct arm_smmu_l1_ctx_desc {
@@ -672,5 +675,10 @@ struct arm_smmu_domain {
 	struct list_head		devices;
 	spinlock_t			devices_lock;
 };
+
+extern struct xarray arm_smmu_asid_xa;
+extern struct mutex arm_smmu_asid_lock;
+
+bool arm_smmu_free_asid(struct arm_smmu_ctx_desc *cd);
 
 #endif /* _ARM_SMMU_V3_H */
