@@ -2851,9 +2851,12 @@ static void end_bio_extent_readpage(struct bio *bio)
 
 		mirror = io_bio->mirror_num;
 		if (likely(uptodate)) {
-			ret = tree->ops->readpage_end_io_hook(io_bio, offset,
-							      page, start, end,
-							      mirror);
+			if (data_inode)
+				ret = btrfs_verify_data_csum(io_bio, offset, page,
+							     start, end, mirror);
+			else
+				ret = btrfs_validate_metadata_buffer(io_bio,
+					offset, page, start, end, mirror);
 			if (ret)
 				uptodate = 0;
 			else

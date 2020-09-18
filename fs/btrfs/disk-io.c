@@ -524,9 +524,9 @@ static int check_tree_block_fsid(struct extent_buffer *eb)
 	return 1;
 }
 
-static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
-				      u64 phy_offset, struct page *page,
-				      u64 start, u64 end, int mirror)
+int btrfs_validate_metadata_buffer(struct btrfs_io_bio *io_bio, u64 phy_offset,
+				   struct page *page, u64 start, u64 end,
+				   int mirror)
 {
 	u64 found_start;
 	int found_level;
@@ -4638,5 +4638,5 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 static const struct extent_io_ops btree_extent_io_ops = {
 	/* mandatory callbacks */
 	.submit_bio_hook = btree_submit_bio_hook,
-	.readpage_end_io_hook = btree_readpage_end_io_hook,
+	.readpage_end_io_hook = NULL
 };
