@@ -90,13 +90,94 @@ static int get_random(unsigned long limit, unsigned long *value)
 	return 0;
 }
 
+/*
+ * To randomize kernel base address we have to consider several facts:
+ * 1. physical online memory might not be continuous and have holes. mem_detect
+ *    info contains list of online memory ranges we should consider.
+ * 2. we have several memory regions which are occupied and we should not
+ *    overlap and destroy them. Currently safe_addr tells us the border below
+ *    which all those occupied regions are. We are safe to use anything above
+ *    safe_addr.
+ * 3. the upper limit might apply as well, even if memory above that limit is
+ *    online. Currently those limitations are:
+ *    3.1. Limit set by "mem=" kernel command line option
+ *    3.2. memory reserved at the end for kasan initialization.
+ * 4. kernel base address must be aligned to THREAD_SIZE (kernel stack size).
+ *    Which is required for CONFIG_CHECK_STACK. Currently THREAD_SIZE is 4 pages
+ *    (16 pages when the kernel is built with kasan enabled)
+ * Assumptions:
+ * 1. kernel size (including .bss size) and upper memory limit are page aligned.
+ * 2. mem_detect memory region start is THREAD_SIZE aligned / end is PAGE_SIZE
+ *    aligned (in practice memory configurations granularity on z/VM and LPAR
+ *    is 1mb).
+ *
+ * To guarantee uniform distribution of kernel base address among all suitable
+ * addresses we generate random value just once. For that we need to build a
+ * continuous range in which every value would be suitable. We can build this
+ * range by simply counting all suitable addresses (let's call them positions)
+ * which would be valid as kernel base address. To count positions we iterate
+ * over online memory ranges. For each range which is big enough for the
+ * kernel image we count all suitable addresses we can put the kernel image at
+ * that is
+ * (end - start - kernel_size) / THREAD_SIZE + 1
+ * Two functions count_valid_kernel_positions and position_to_address help
+ * to count positions in memory range given and then convert position back
+ * to address.
+ */
+static unsigned long count_valid_kernel_positions(unsigned long kernel_size,
+						  unsigned long _min,
+						  unsigned long _max)
+{
+	unsigned long start, end, pos = 0;
+	int i;
+
+	for_each_mem_detect_block(i, &start, &end) {
+		if (_min >= end)
+			continue;
+		if (start >= _max)
+			break;
+		start = max(_min, start);
+		end = min(_max, end);
+		if (end - start < kernel_size)
+			continue;
+		pos += (end - start - kernel_size) / THREAD_SIZE + 1;
+	}
+
+	return pos;
+}
+
+static unsigned long position_to_address(unsigned long pos, unsigned long kernel_size,
+				 unsigned long _min, unsigned long _max)
+{
+	unsigned long start, end;
+	int i;
+
+	for_each_mem_detect_block(i, &start, &end) {
+		if (_min >= end)
+			continue;
+		if (start >= _max)
+			break;
+		start = max(_min, start);
+		end = min(_max, end);
+		if (end - start < kernel_size)
+			continue;
+		if ((end - start - kernel_size) / THREAD_SIZE + 1 >= pos)
+			return start + (pos - 1) * THREAD_SIZE;
+		pos -= (end - start - kernel_size) / THREAD_SIZE + 1;
+	}
+
+	return 0;
+}
+
 unsigned long get_random_base(unsigned long safe_addr)
 {
-	unsigned long memory_limit = memory_end_set ? memory_end : 0;
-	unsigned long base, start, end, kernel_size;
-	unsigned long block_sum, offset;
+	unsigned long memory_limit = get_mem_detect_end();
+	unsigned long base_pos, max_pos, kernel_size;
 	unsigned long kasan_needs;
 	int i;
+
+	if (memory_end_set)
+		memory_limit = min(memory_limit, memory_end);
 
 	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && INITRD_START && INITRD_SIZE) {
 		if (safe_addr < INITRD_START + INITRD_SIZE)
@@ -127,44 +208,17 @@ unsigned long get_random_base(unsigned long safe_addr)
 	}
 
 	kernel_size = vmlinux.image_size + vmlinux.bss_size;
-	block_sum = 0;
-	for_each_mem_detect_block(i, &start, &end) {
-		if (memory_limit) {
-			if (start >= memory_limit)
-				break;
-			if (end > memory_limit)
-				end = memory_limit;
-		}
-		if (end - start < kernel_size)
-			continue;
-		block_sum += end - start - kernel_size;
-	}
-	if (!block_sum) {
+	if (safe_addr + kernel_size > memory_limit)
+		return 0;
+
+	max_pos = count_valid_kernel_positions(kernel_size, safe_addr, memory_limit);
+	if (!max_pos) {
 		sclp_early_printk("KASLR disabled: not enough memory\n");
 		return 0;
 	}
 
-	if (get_random(block_sum, &base))
+	/* we need a value in the range [1, base_pos] inclusive */
+	if (get_random(max_pos, &base_pos))
 		return 0;
-	if (base < safe_addr)
-		base = safe_addr;
-	block_sum = offset = 0;
-	for_each_mem_detect_block(i, &start, &end) {
-		if (memory_limit) {
-			if (start >= memory_limit)
-				break;
-			if (end > memory_limit)
-				end = memory_limit;
-		}
-		if (end - start < kernel_size)
-			continue;
-		block_sum += end - start - kernel_size;
-		if (base <= block_sum) {
-			base = start + base - offset;
-			base = ALIGN_DOWN(base, THREAD_SIZE);
-			break;
-		}
-		offset = block_sum;
-	}
-	return base;
+	return position_to_address(base_pos + 1, kernel_size, safe_addr, memory_limit);
 }
