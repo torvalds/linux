@@ -392,6 +392,25 @@ struct devlink_param_gset_ctx {
 };
 
 /**
+ * struct devlink_flash_notify - devlink dev flash notify data
+ * @status_msg: current status string
+ * @component: firmware component being updated
+ * @done: amount of work completed of total amount
+ * @total: amount of work expected to be done
+ * @timeout: expected max timeout in seconds
+ *
+ * These are values to be given to userland to be displayed in order
+ * to show current activity in a firmware update process.
+ */
+struct devlink_flash_notify {
+	const char *status_msg;
+	const char *component;
+	unsigned long done;
+	unsigned long total;
+	unsigned long timeout;
+};
+
+/**
  * struct devlink_param - devlink configuration parameter data
  * @name: name of the parameter
  * @generic: indicates if the parameter is generic or driver specific
