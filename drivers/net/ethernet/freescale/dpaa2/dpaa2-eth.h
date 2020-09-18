@@ -195,6 +195,24 @@ struct dpaa2_faead {
 #define DPAA2_FAEAD_EBDDV		0x00002000
 #define DPAA2_FAEAD_UPD			0x00000010
 
+struct ptp_tstamp {
+	u16 sec_msb;
+	u32 sec_lsb;
+	u32 nsec;
+};
+
+static inline void ns_to_ptp_tstamp(struct ptp_tstamp *tstamp, u64 ns)
+{
+	u64 sec, nsec;
+
+	sec = ns;
+	nsec = do_div(sec, 1000000000);
+
+	tstamp->sec_lsb = sec & 0xFFFFFFFF;
+	tstamp->sec_msb = (sec >> 32) & 0xFFFF;
+	tstamp->nsec = nsec;
+}
+
 /* Accessors for the hardware annotation fields that we use */
 static inline void *dpaa2_get_hwa(void *buf_addr, bool swa)
 {
@@ -474,9 +492,21 @@ struct dpaa2_eth_priv {
 #endif
 
 	struct dpaa2_mac *mac;
+	struct workqueue_struct	*dpaa2_ptp_wq;
+	struct work_struct	tx_onestep_tstamp;
+	struct sk_buff_head	tx_skbs;
+	/* The one-step timestamping configuration on hardware
+	 * registers could only be done when no one-step
+	 * timestamping frames are in flight. So we use a mutex
+	 * lock here to make sure the lock is released by last
+	 * one-step timestamping packet through TX confirmation
+	 * queue before transmit current packet.
+	 */
+	struct mutex		onestep_tstamp_lock;
 };
 
 #define TX_TSTAMP		0x1
+#define TX_TSTAMP_ONESTEP_SYNC	0x2
 
 #define DPAA2_RXH_SUPPORTED	(RXH_L2DA | RXH_VLAN | RXH_L3_PROTO \
 				| RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 \
@@ -581,7 +611,7 @@ static inline unsigned int dpaa2_eth_needed_headroom(struct sk_buff *skb)
 		return 0;
 
 	/* If we have Tx timestamping, need 128B hardware annotation */
-	if (skb->cb[0] == TX_TSTAMP)
+	if (skb->cb[0])
 		headroom += DPAA2_ETH_TX_HWA_SIZE;
 
 	return headroom;

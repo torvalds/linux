@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2014-2016 Freescale Semiconductor Inc.
  * Copyright 2016 NXP
+ * Copyright 2020 NXP
  */
 
 #include <linux/net_tstamp.h>
@@ -763,6 +764,9 @@ EXPORT_SYMBOL(dpaa2_phc_index);
 static int dpaa2_eth_get_ts_info(struct net_device *dev,
 				 struct ethtool_ts_info *info)
 {
+	if (!dpaa2_ptp)
+		return ethtool_op_get_ts_info(dev, info);
+
 	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
@@ -770,7 +774,8 @@ static int dpaa2_eth_get_ts_info(struct net_device *dev,
 	info->phc_index = dpaa2_phc_index;
 
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
-			 (1 << HWTSTAMP_TX_ON);
+			 (1 << HWTSTAMP_TX_ON) |
+			 (1 << HWTSTAMP_TX_ONESTEP_SYNC);
 
 	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
 			   (1 << HWTSTAMP_FILTER_ALL);

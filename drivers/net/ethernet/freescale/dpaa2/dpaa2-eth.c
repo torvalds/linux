@@ -15,6 +15,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <linux/fsl/ptp_qoriq.h>
+#include <linux/ptp_classify.h>
 #include <net/pkt_cls.h>
 #include <net/sock.h>
 
@@ -563,11 +564,57 @@ static int dpaa2_eth_consume_frames(struct dpaa2_eth_channel *ch,
 	return cleaned;
 }
 
-/* Configure the egress frame annotation for timestamp update */
-static void dpaa2_eth_enable_tx_tstamp(struct dpaa2_fd *fd, void *buf_start)
+static int dpaa2_eth_ptp_parse(struct sk_buff *skb,
+			       u8 *msgtype, u8 *twostep, u8 *udp,
+			       u16 *correction_offset,
+			       u16 *origintimestamp_offset)
 {
+	unsigned int ptp_class;
+	struct ptp_header *hdr;
+	unsigned int type;
+	u8 *base;
+
+	ptp_class = ptp_classify_raw(skb);
+	if (ptp_class == PTP_CLASS_NONE)
+		return -EINVAL;
+
+	hdr = ptp_parse_header(skb, ptp_class);
+	if (!hdr)
+		return -EINVAL;
+
+	*msgtype = ptp_get_msgtype(hdr, ptp_class);
+	*twostep = hdr->flag_field[0] & 0x2;
+
+	type = ptp_class & PTP_CLASS_PMASK;
+	if (type == PTP_CLASS_IPV4 ||
+	    type == PTP_CLASS_IPV6)
+		*udp = 1;
+	else
+		*udp = 0;
+
+	base = skb_mac_header(skb);
+	*correction_offset = (u8 *)&hdr->correction - base;
+	*origintimestamp_offset = (u8 *)hdr + sizeof(struct ptp_header) - base;
+
+	return 0;
+}
+
+/* Configure the egress frame annotation for timestamp update */
+static void dpaa2_eth_enable_tx_tstamp(struct dpaa2_eth_priv *priv,
+				       struct dpaa2_fd *fd,
+				       void *buf_start,
+				       struct sk_buff *skb)
+{
+	struct ptp_tstamp origin_timestamp;
+	struct dpni_single_step_cfg cfg;
+	u8 msgtype, twostep, udp;
 	struct dpaa2_faead *faead;
+	struct dpaa2_fas *fas;
+	struct timespec64 ts;
+	u16 offset1, offset2;
 	u32 ctrl, frc;
+	__le64 *ns;
+	u8 *data;
 
 	/* Mark the egress frame annotation area as valid */
 	frc = dpaa2_fd_get_frc(fd);
@@ -583,6 +630,45 @@ static void dpaa2_eth_enable_tx_tstamp(struct dpaa2_fd *fd, void *buf_start)
 	ctrl = DPAA2_FAEAD_A2V | DPAA2_FAEAD_UPDV | DPAA2_FAEAD_UPD;
 	faead = dpaa2_get_faead(buf_start, true);
 	faead->ctrl = cpu_to_le32(ctrl);
+
+	if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
+		if (dpaa2_eth_ptp_parse(skb, &msgtype, &twostep, &udp,
+					&offset1, &offset2) ||
+		    msgtype != 0 || twostep) {
+			WARN_ONCE(1, "Bad packet for one-step timestamping\n");
+			return;
+		}
+
+		/* Mark the frame annotation status as valid */
+		frc = dpaa2_fd_get_frc(fd);
+		dpaa2_fd_set_frc(fd, frc | DPAA2_FD_FRC_FASV);
+
+		/* Mark the PTP flag for one step timestamping */
+		fas = dpaa2_get_fas(buf_start, true);
+		fas->status = cpu_to_le32(DPAA2_FAS_PTP);
+
+		dpaa2_ptp->caps.gettime64(&dpaa2_ptp->caps, &ts);
+		ns = dpaa2_get_ts(buf_start, true);
+		*ns = cpu_to_le64(timespec64_to_ns(&ts) /
+				  DPAA2_PTP_CLK_PERIOD_NS);
+
+		/* Update current time to PTP message originTimestamp field */
+		ns_to_ptp_tstamp(&origin_timestamp, le64_to_cpup(ns));
+		data = skb_mac_header(skb);
+		*(__be16 *)(data + offset2) = htons(origin_timestamp.sec_msb);
+		*(__be32 *)(data + offset2 + 2) =
+			htonl(origin_timestamp.sec_lsb);
+		*(__be32 *)(data + offset2 + 6) = htonl(origin_timestamp.nsec);
+
+		cfg.en = 1;
+		cfg.ch_update = udp;
+		cfg.offset = offset1;
+		cfg.peer_delay = 0;
+
+		if (dpni_set_single_step_cfg(priv->mc_io, 0, priv->mc_token,
+					     &cfg))
+			WARN_ONCE(1, "Failed to set single step register");
+	}
 }
 
 /* Create a frame descriptor based on a fragmented skb */
@@ -820,7 +906,7 @@ static int dpaa2_eth_build_single_fd(struct dpaa2_eth_priv *priv,
  * This can be called either from dpaa2_eth_tx_conf() or on the error path of
  * dpaa2_eth_tx().
  */
-static void dpaa2_eth_free_tx_fd(const struct dpaa2_eth_priv *priv,
+static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 				 struct dpaa2_eth_fq *fq,
 				 const struct dpaa2_fd *fd, bool in_napi)
 {
@@ -903,6 +989,8 @@ static void dpaa2_eth_free_tx_fd(const struct dpaa2_eth_priv *priv,
 		ns = DPAA2_PTP_CLK_PERIOD_NS * le64_to_cpup(ts);
 		shhwtstamps.hwtstamp = ns_to_ktime(ns);
 		skb_tstamp_tx(skb, &shhwtstamps);
+	} else if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
+		mutex_unlock(&priv->onestep_tstamp_lock);
 	}
 
 	/* Free SGT buffer allocated on tx */
@@ -922,7 +1010,8 @@ static void dpaa2_eth_free_tx_fd(const struct dpaa2_eth_priv *priv,
 	napi_consume_skb(skb, in_napi);
 }
 
-static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
+static netdev_tx_t __dpaa2_eth_tx(struct sk_buff *skb,
+				  struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpaa2_fd fd;
@@ -936,13 +1025,6 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	u8 prio = 0;
 	int err, i;
 	void *swa;
-
-	/* Utilize skb->cb[0] for timestamping request per skb */
-	skb->cb[0] = 0;
-
-	if (priv->tx_tstamp_type == HWTSTAMP_TX_ON &&
-	    skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
-		skb->cb[0] = TX_TSTAMP;
 
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
@@ -981,8 +1063,8 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 		goto err_build_fd;
 	}
 
-	if (skb->cb[0] == TX_TSTAMP)
-		dpaa2_eth_enable_tx_tstamp(&fd, swa);
+	if (skb->cb[0])
+		dpaa2_eth_enable_tx_tstamp(priv, &fd, swa, skb);
 
 	/* Tracing point */
 	trace_dpaa2_tx_fd(net_dev, &fd);
@@ -1035,6 +1117,63 @@ err_build_fd:
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
+}
+
+static void dpaa2_eth_tx_onestep_tstamp(struct work_struct *work)
+{
+	struct dpaa2_eth_priv *priv = container_of(work, struct dpaa2_eth_priv,
+						   tx_onestep_tstamp);
+	struct sk_buff *skb;
+
+	while (true) {
+		skb = skb_dequeue(&priv->tx_skbs);
+		if (!skb)
+			return;
+
+		/* Lock just before TX one-step timestamping packet,
+		 * and release the lock in dpaa2_eth_free_tx_fd when
+		 * confirm the packet has been sent on hardware, or
+		 * when clean up during transmit failure.
+		 */
+		mutex_lock(&priv->onestep_tstamp_lock);
+		__dpaa2_eth_tx(skb, priv->net_dev);
+	}
+}
+
+static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	u8 msgtype, twostep, udp;
+	u16 offset1, offset2;
+
+	/* Utilize skb->cb[0] for timestamping request per skb */
+	skb->cb[0] = 0;
+
+	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) && dpaa2_ptp) {
+		if (priv->tx_tstamp_type == HWTSTAMP_TX_ON)
+			skb->cb[0] = TX_TSTAMP;
+		else if (priv->tx_tstamp_type == HWTSTAMP_TX_ONESTEP_SYNC)
+			skb->cb[0] = TX_TSTAMP_ONESTEP_SYNC;
+	}
+
+	/* TX for one-step timestamping PTP Sync packet */
+	if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
+		if (!dpaa2_eth_ptp_parse(skb, &msgtype, &twostep, &udp,
+					 &offset1, &offset2))
+			if (msgtype == 0 && twostep == 0) {
+				skb_queue_tail(&priv->tx_skbs, skb);
+				queue_work(priv->dpaa2_ptp_wq,
+					   &priv->tx_onestep_tstamp);
+				return NETDEV_TX_OK;
+			}
+		/* Use two-step timestamping if not one-step timestamping
+		 * PTP Sync packet
+		 */
+		skb->cb[0] = TX_TSTAMP;
+	}
+
+	/* TX for other packets */
+	return __dpaa2_eth_tx(skb, net_dev);
 }
 
 /* Tx confirmation frame processing routine */
@@ -1900,12 +2039,16 @@ static int dpaa2_eth_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	struct dpaa2_eth_priv *priv = netdev_priv(dev);
 	struct hwtstamp_config config;
 
+	if (!dpaa2_ptp)
+		return -EINVAL;
+
 	if (copy_from_user(&config, rq->ifr_data, sizeof(config)))
 		return -EFAULT;
 
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
 	case HWTSTAMP_TX_ON:
+	case HWTSTAMP_TX_ONESTEP_SYNC:
 		priv->tx_tstamp_type = config.tx_type;
 		break;
 	default:
@@ -2731,8 +2874,10 @@ static int dpaa2_eth_set_buffer_layout(struct dpaa2_eth_priv *priv)
 	/* tx buffer */
 	buf_layout.private_data_size = DPAA2_ETH_SWA_SIZE;
 	buf_layout.pass_timestamp = true;
+	buf_layout.pass_frame_status = true;
 	buf_layout.options = DPNI_BUF_LAYOUT_OPT_PRIVATE_DATA_SIZE |
-			     DPNI_BUF_LAYOUT_OPT_TIMESTAMP;
+			     DPNI_BUF_LAYOUT_OPT_TIMESTAMP |
+			     DPNI_BUF_LAYOUT_OPT_FRAME_STATUS;
 	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
 				     DPNI_QUEUE_TX, &buf_layout);
 	if (err) {
@@ -2741,7 +2886,8 @@ static int dpaa2_eth_set_buffer_layout(struct dpaa2_eth_priv *priv)
 	}
 
 	/* tx-confirm buffer */
-	buf_layout.options = DPNI_BUF_LAYOUT_OPT_TIMESTAMP;
+	buf_layout.options = DPNI_BUF_LAYOUT_OPT_TIMESTAMP |
+			     DPNI_BUF_LAYOUT_OPT_FRAME_STATUS;
 	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
 				     DPNI_QUEUE_TX_CONFIRM, &buf_layout);
 	if (err) {
@@ -3969,6 +4115,16 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	priv->tx_tstamp_type = HWTSTAMP_TX_OFF;
 	priv->rx_tstamp = false;
 
+	priv->dpaa2_ptp_wq = alloc_workqueue("dpaa2_ptp_wq", 0, 0);
+	if (!priv->dpaa2_ptp_wq) {
+		err = -ENOMEM;
+		goto err_wq_alloc;
+	}
+
+	INIT_WORK(&priv->tx_onestep_tstamp, dpaa2_eth_tx_onestep_tstamp);
+
+	skb_queue_head_init(&priv->tx_skbs);
+
 	/* Obtain a MC portal */
 	err = fsl_mc_portal_allocate(dpni_dev, FSL_MC_IO_ATOMIC_CONTEXT_PORTAL,
 				     &priv->mc_io);
@@ -4107,6 +4263,8 @@ err_dpio_setup:
 err_dpni_setup:
 	fsl_mc_portal_free(priv->mc_io);
 err_portal_alloc:
+	destroy_workqueue(priv->dpaa2_ptp_wq);
+err_wq_alloc:
 	dev_set_drvdata(dev, NULL);
 	free_netdev(net_dev);
 
