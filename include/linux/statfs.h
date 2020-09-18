@@ -45,4 +45,9 @@ struct kstatfs {
 struct dentry;
 extern int vfs_get_fsid(struct dentry *dentry, __kernel_fsid_t *fsid);
 
+static inline __kernel_fsid_t u64_to_fsid(u64 v)
+{
+	return (__kernel_fsid_t){.val = {(u32)v, (u32)(v>>32)}};
+}
+
 #endif

@@ -258,8 +258,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 			buf->f_bavail = rs.bavail;
 			buf->f_files = rs.files;
 			buf->f_ffree = rs.ffree;
-			buf->f_fsid.val[0] = rs.fsid & 0xFFFFFFFFUL;
-			buf->f_fsid.val[1] = (rs.fsid >> 32) & 0xFFFFFFFFUL;
+			buf->f_fsid = u64_to_fsid(rs.fsid);
 			buf->f_namelen = rs.namelen;
 		}
 		if (res != -ENOSYS)

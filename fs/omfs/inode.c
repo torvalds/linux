@@ -282,8 +282,7 @@ static int omfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = sbi->s_num_blocks;
 	buf->f_files = sbi->s_num_blocks;
 	buf->f_namelen = OMFS_NAMELEN;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 
 	buf->f_bfree = buf->f_bavail = buf->f_ffree =
 		omfs_count_free(s);
