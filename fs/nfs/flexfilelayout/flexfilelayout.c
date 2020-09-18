@@ -838,6 +838,7 @@ ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 	struct nfs4_ff_layout_mirror *mirror;
 	struct nfs4_pnfs_ds *ds;
 	int ds_idx;
+	u32 i;
 
 retry:
 	ff_layout_pg_check_layout(pgio, req);
@@ -863,13 +864,13 @@ retry:
 		goto retry;
 	}
 
-	mirror = FF_LAYOUT_COMP(pgio->pg_lseg, ds_idx);
+	for (i = 0; i < pgio->pg_mirror_count; i++) {
+		mirror = FF_LAYOUT_COMP(pgio->pg_lseg, i);
+		pgm = &pgio->pg_mirrors[i];
+		pgm->pg_bsize = mirror->mirror_ds->ds_versions[0].rsize;
+	}
 
 	pgio->pg_mirror_idx = ds_idx;
-
-	/* read always uses only one mirror - idx 0 for pgio layer */
-	pgm = &pgio->pg_mirrors[0];
-	pgm->pg_bsize = mirror->mirror_ds->ds_versions[0].rsize;
 
 	if (NFS_SERVER(pgio->pg_inode)->flags &
 			(NFS_MOUNT_SOFT|NFS_MOUNT_SOFTERR))
