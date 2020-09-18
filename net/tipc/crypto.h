@@ -160,7 +160,7 @@ int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 int tipc_crypto_key_init(struct tipc_crypto *c, struct tipc_aead_key *ukey,
 			 u8 mode);
 void tipc_crypto_key_flush(struct tipc_crypto *c);
-int tipc_aead_key_validate(struct tipc_aead_key *ukey);
+int tipc_aead_key_validate(struct tipc_aead_key *ukey, struct genl_info *info);
 bool tipc_ehdr_validate(struct sk_buff *skb);
 
 #endif /* _TIPC_CRYPTO_H */
