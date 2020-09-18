@@ -1764,16 +1764,12 @@ static int at91_adc_probe(struct platform_device *pdev)
 	mutex_init(&st->lock);
 	INIT_WORK(&st->touch_st.workq, at91_adc_workq_handler);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
+	st->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(st->base))
+		return PTR_ERR(st->base);
 
 	/* if we plan to use DMA, we need the physical address of the regs */
 	st->dma_st.phys_addr = res->start;
-
-	st->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(st->base))
-		return PTR_ERR(st->base);
 
 	st->irq = platform_get_irq(pdev, 0);
 	if (st->irq <= 0) {
