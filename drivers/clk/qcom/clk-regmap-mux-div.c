@@ -229,7 +229,23 @@ static unsigned long mux_div_recalc_rate(struct clk_hw *hw, unsigned long prate)
 	return 0;
 }
 
+static int mux_div_enable(struct clk_hw *hw)
+{
+	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
+
+	return mux_div_set_src_div(md, md->src, md->div);
+}
+
+static void mux_div_disable(struct clk_hw *hw)
+{
+	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
+
+	mux_div_set_src_div(md, md->safe_src, md->safe_div);
+}
+
 const struct clk_ops clk_regmap_mux_div_ops = {
+	.enable = mux_div_enable,
+	.disable = mux_div_disable,
 	.get_parent = mux_div_get_parent,
 	.set_parent = mux_div_set_parent,
 	.set_rate = mux_div_set_rate,
