@@ -140,10 +140,22 @@ static int
 mlxsw_sp_qdisc_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 		       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
 {
+	struct mlxsw_sp_qdisc *root_qdisc = &mlxsw_sp_port->qdisc->root_qdisc;
+	int err_hdroom = 0;
 	int err = 0;
 
 	if (!mlxsw_sp_qdisc)
 		return 0;
+
+	if (root_qdisc == mlxsw_sp_qdisc) {
+		struct mlxsw_sp_hdroom hdroom = *mlxsw_sp_port->hdroom;
+
+		hdroom.mode = MLXSW_SP_HDROOM_MODE_DCB;
+		mlxsw_sp_hdroom_prios_reset_buf_idx(&hdroom);
+		mlxsw_sp_hdroom_bufs_reset_lossiness(&hdroom);
+		mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
+		err_hdroom = mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom);
+	}
 
 	if (mlxsw_sp_qdisc->ops && mlxsw_sp_qdisc->ops->destroy)
 		err = mlxsw_sp_qdisc->ops->destroy(mlxsw_sp_port,
@@ -151,7 +163,8 @@ mlxsw_sp_qdisc_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_qdisc->handle = TC_H_UNSPEC;
 	mlxsw_sp_qdisc->ops = NULL;
-	return err;
+
+	return err_hdroom ?: err;
 }
 
 static int
@@ -159,6 +172,8 @@ mlxsw_sp_qdisc_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 		       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 		       struct mlxsw_sp_qdisc_ops *ops, void *params)
 {
+	struct mlxsw_sp_qdisc *root_qdisc = &mlxsw_sp_port->qdisc->root_qdisc;
+	struct mlxsw_sp_hdroom orig_hdroom;
 	int err;
 
 	if (mlxsw_sp_qdisc->ops && mlxsw_sp_qdisc->ops->type != ops->type)
@@ -168,6 +183,21 @@ mlxsw_sp_qdisc_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 		 * new one.
 		 */
 		mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
+
+	orig_hdroom = *mlxsw_sp_port->hdroom;
+	if (root_qdisc == mlxsw_sp_qdisc) {
+		struct mlxsw_sp_hdroom hdroom = orig_hdroom;
+
+		hdroom.mode = MLXSW_SP_HDROOM_MODE_TC;
+		mlxsw_sp_hdroom_prios_reset_buf_idx(&hdroom);
+		mlxsw_sp_hdroom_bufs_reset_lossiness(&hdroom);
+		mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
+
+		err = mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom);
+		if (err)
+			goto err_hdroom_configure;
+	}
+
 	err = ops->check_params(mlxsw_sp_port, mlxsw_sp_qdisc, params);
 	if (err)
 		goto err_bad_param;
@@ -191,6 +221,8 @@ mlxsw_sp_qdisc_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 
 err_bad_param:
 err_config:
+	mlxsw_sp_hdroom_configure(mlxsw_sp_port, &orig_hdroom);
+err_hdroom_configure:
 	if (mlxsw_sp_qdisc->handle == handle && ops->unoffload)
 		ops->unoffload(mlxsw_sp_port, mlxsw_sp_qdisc, params);
 
