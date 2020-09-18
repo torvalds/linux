@@ -835,8 +835,8 @@ static int vsc9953_reset(struct ocelot *ocelot)
 	}
 
 	/* initialize switch mem ~40us */
-	ocelot_field_write(ocelot, SYS_RESET_CFG_MEM_INIT, 1);
 	ocelot_field_write(ocelot, SYS_RESET_CFG_MEM_ENA, 1);
+	ocelot_field_write(ocelot, SYS_RESET_CFG_MEM_INIT, 1);
 
 	err = readx_poll_timeout(vsc9953_sys_ram_init_status, ocelot, val, !val,
 				 VSC9953_SYS_RAMINIT_SLEEP,
