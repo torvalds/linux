@@ -21,7 +21,7 @@
 /*
  * __fixup_pv_table - patch the stub instructions with the delta between
  *                    PHYS_OFFSET and PAGE_OFFSET, which is assumed to be
- *                    16MiB aligned.
+ *                    2 MiB aligned.
  *
  * Called from head.S, which expects the following registers to be preserved:
  *   r1 = machine no, r2 = atags or dtb,
@@ -38,8 +38,8 @@ ENTRY(__fixup_pv_table)
 	strcc	ip, [r0, #HIGH_OFFSET]	@ save to __pv_offset high bits
 	str	r3, [r0, #LOW_OFFSET]	@ save to __pv_offset low bits
 
-	mov	r0, r3, lsr #24		@ constant for add/sub instructions
-	teq	r3, r0, lsl #24 	@ must be 16MiB aligned
+	mov	r0, r3, lsr #21		@ constant for add/sub instructions
+	teq	r3, r0, lsl #21 	@ must be 2 MiB aligned
 	bne	0f
 
 	adr_l	r4, __pv_table_begin
@@ -55,22 +55,21 @@ __fixup_a_pv_table:
 	adr_l	r6, __pv_offset
 	ldr	r0, [r6, #HIGH_OFFSET]	@ pv_offset high word
 	ldr	r6, [r6, #LOW_OFFSET]	@ pv_offset low word
-	mov	r6, r6, lsr #24
 	cmn	r0, #1
 #ifdef CONFIG_THUMB2_KERNEL
 	@
 	@ The Thumb-2 versions of the patchable sequences are
 	@
-	@ phys-to-virt:			movw	<reg>, #offset<31:24>
-	@				lsl	<reg>, #24
+	@ phys-to-virt:			movw	<reg>, #offset<31:21>
+	@				lsl	<reg>, #21
 	@				sub	<VA>, <PA>, <reg>
 	@
-	@ virt-to-phys (non-LPAE):	movw	<reg>, #offset<31:24>
-	@				lsl	<reg>, #24
+	@ virt-to-phys (non-LPAE):	movw	<reg>, #offset<31:21>
+	@				lsl	<reg>, #21
 	@				add	<PA>, <VA>, <reg>
 	@
-	@ virt-to-phys (LPAE):		movw	<reg>, #offset<31:24>
-	@				lsl	<reg>, #24
+	@ virt-to-phys (LPAE):		movw	<reg>, #offset<31:21>
+	@				lsl	<reg>, #21
 	@				adds	<PAlo>, <VA>, <reg>
 	@				mov	<PAhi>, #offset<39:32>
 	@				adc	<PAhi>, <PAhi>, #0
@@ -102,6 +101,9 @@ __fixup_a_pv_table:
 	@     +-----------+---+---------------------++---+------+----+------+
 	@
 	moveq	r0, #0x200000		@ set bit 21, mov to mvn instruction
+	lsrs	r3, r6, #29		@ isolate top 3 bits of displacement
+	ubfx	r6, r6, #21, #8		@ put bits 28:21 into the MOVW imm8 field
+	bfi	r6, r3, #12, #3		@ put bits 31:29 into the MOVW imm3 field
 	b	.Lnext
 .Lloop:	add	r7, r4
 	adds	r4, #4			@ clears Z flag
@@ -129,20 +131,24 @@ ARM_BE8(rev16	ip, ip)
 @ in BE8, we load data in BE, but instructions still in LE
 #define PV_BIT24	0x00000001
 #define PV_IMM8_MASK	0xff000000
+#define PV_IMMR_MSB	0x00080000
 #else
 #define PV_BIT24	0x01000000
 #define PV_IMM8_MASK	0x000000ff
+#define PV_IMMR_MSB	0x00000800
 #endif
 
 	@
 	@ The ARM versions of the patchable sequences are
 	@
 	@ phys-to-virt:			sub	<VA>, <PA>, #offset<31:24>, lsl #24
+	@				sub	<VA>, <PA>, #offset<23:16>, lsl #16
 	@
 	@ virt-to-phys (non-LPAE):	add	<PA>, <VA>, #offset<31:24>, lsl #24
+	@				add	<PA>, <VA>, #offset<23:16>, lsl #16
 	@
-	@ virt-to-phys (LPAE):		movw	<reg>, #offset<31:24>
-	@				adds	<PAlo>, <VA>, <reg>, lsl #24
+	@ virt-to-phys (LPAE):		movw	<reg>, #offset<31:20>
+	@				adds	<PAlo>, <VA>, <reg>, lsl #20
 	@				mov	<PAhi>, #offset<39:32>
 	@				adc	<PAhi>, <PAhi>, #0
 	@
@@ -174,6 +180,9 @@ ARM_BE8(rev16	ip, ip)
 	@      +------+-----------------+------+------+-------+
 	@
 	moveq	r0, #0x400000		@ set bit 22, mov to mvn instruction
+	mov	r3, r6, lsr #16		@ put offset bits 31-16 into r3
+	mov	r6, r6, lsr #24		@ put offset bits 31-24 into r6
+	and	r3, r3, #0xf0		@ only keep offset bits 23-20 in r3
 	b	.Lnext
 .Lloop:	ldr	ip, [r7, r4]
 #ifdef CONFIG_ARM_LPAE
@@ -183,14 +192,17 @@ ARM_BE8(rev	ip, ip)
 	tst	ip, #0xc00000		@ MOVW has bits 23:22 clear
 	bic	ip, ip, #0x400000	@ clear bit 22
 	bfc	ip, #0, #12		@ clear imm12 field of MOV[W] instruction
-	orreq	ip, ip, r6		@ MOVW -> mask in offset bits 31-24
+	orreq	ip, ip, r6, lsl #4	@ MOVW -> mask in offset bits 31-24
+	orreq	ip, ip, r3, lsr #4	@ MOVW -> mask in offset bits 23-20
 	orrne	ip, ip, r0		@ MOV  -> mask in offset bits 7-0 (or bit 22)
 ARM_BE8(rev	ip, ip)
 	b	2f
 1:
 #endif
+	tst	ip, #PV_IMMR_MSB		@ rotation value >= 16 ?
 	bic	ip, ip, #PV_IMM8_MASK
-	orr	ip, ip, r6 ARM_BE8(, lsl #24)	@ mask in offset bits 31-24
+	orreq	ip, ip, r6 ARM_BE8(, lsl #24)	@ mask in offset bits 31-24
+	orrne	ip, ip, r3 ARM_BE8(, lsl #24)	@ mask in offset bits 23-20
 2:
 	str	ip, [r7, r4]
 	add	r4, r4, #4

@@ -173,6 +173,7 @@ extern unsigned long vectors_base;
  * so that all we need to do is modify the 8-bit constant field.
  */
 #define __PV_BITS_31_24	0x81000000
+#define __PV_BITS_23_16	0x810000
 #define __PV_BITS_7_0	0x81
 
 extern unsigned long __pv_phys_pfn_offset;
@@ -187,16 +188,18 @@ extern const void *__pv_table_begin, *__pv_table_end;
 #define __pv_stub(from,to,instr)			\
 	__asm__("@ __pv_stub\n"				\
 	"1:	" instr "	%0, %1, %2\n"		\
+	"2:	" instr "	%0, %0, %3\n"		\
 	"	.pushsection .pv_table,\"a\"\n"		\
-	"	.long	1b - .\n"			\
+	"	.long	1b - ., 2b - .\n"		\
 	"	.popsection\n"				\
 	: "=r" (to)					\
-	: "r" (from), "I" (__PV_BITS_31_24))
+	: "r" (from), "I" (__PV_BITS_31_24),		\
+	  "I"(__PV_BITS_23_16))
 
 #define __pv_add_carry_stub(x, y)			\
 	__asm__("@ __pv_add_carry_stub\n"		\
 	"0:	movw	%R0, #0\n"			\
-	"	adds	%Q0, %1, %R0, lsl #24\n"	\
+	"	adds	%Q0, %1, %R0, lsl #20\n"	\
 	"1:	mov	%R0, %2\n"			\
 	"	adc	%R0, %R0, #0\n"			\
 	"	.pushsection .pv_table,\"a\"\n"		\
@@ -210,7 +213,7 @@ extern const void *__pv_table_begin, *__pv_table_end;
 #define __pv_stub(from,to,instr)			\
 	__asm__("@ __pv_stub\n"				\
 	"0:	movw	%0, #0\n"			\
-	"	lsl	%0, #24\n"			\
+	"	lsl	%0, #21\n"			\
 	"	" instr " %0, %1, %0\n"			\
 	"	.pushsection .pv_table,\"a\"\n"		\
 	"	.long	0b - .\n"			\
@@ -221,7 +224,7 @@ extern const void *__pv_table_begin, *__pv_table_end;
 #define __pv_add_carry_stub(x, y)			\
 	__asm__("@ __pv_add_carry_stub\n"		\
 	"0:	movw	%R0, #0\n"			\
-	"	lsls	%R0, #24\n"			\
+	"	lsls	%R0, #21\n"			\
 	"	adds	%Q0, %1, %R0\n"			\
 	"1:	mvn	%R0, #0\n"			\
 	"	adc	%R0, %R0, #0\n"			\
