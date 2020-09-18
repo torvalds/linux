@@ -114,8 +114,7 @@ int sclp_early_get_core_info(struct sclp_core_info *info);
 void sclp_early_get_ipl_info(struct sclp_ipl_info *info);
 void sclp_early_detect(void);
 void sclp_early_printk(const char *s);
-void sclp_early_printk_force(const char *s);
-void __sclp_early_printk(const char *s, unsigned int len, unsigned int force);
+void __sclp_early_printk(const char *s, unsigned int len);
 
 int sclp_early_get_memsize(unsigned long *mem);
 int sclp_early_get_hsa_size(unsigned long *hsa_size);
