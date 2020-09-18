@@ -1002,7 +1002,10 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	ocelot->vcap_is2_actions = vsc7514_vcap_is2_actions;
 	ocelot->vcap = vsc7514_vcap_props;
 
-	ocelot_init(ocelot);
+	err = ocelot_init(ocelot);
+	if (err)
+		goto out_put_ports;
+
 	if (ocelot->ptp) {
 		err = ocelot_init_timestamp(ocelot, &ocelot_ptp_clock_info);
 		if (err) {

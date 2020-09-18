@@ -585,7 +585,10 @@ static int felix_setup(struct dsa_switch *ds)
 	if (err)
 		return err;
 
-	ocelot_init(ocelot);
+	err = ocelot_init(ocelot);
+	if (err)
+		return err;
+
 	if (ocelot->ptp) {
 		err = ocelot_init_timestamp(ocelot, &ocelot_ptp_clock_info);
 		if (err) {
