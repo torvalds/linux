@@ -151,7 +151,7 @@ static int __mux_div_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
 
 			if (is_better_rate(rate, best_rate, actual_rate)) {
 				best_rate = actual_rate;
-				best_src = md->parent_map[i];
+				best_src = md->parent_map[i].cfg;
 				best_div = div - 1;
 			}
 
@@ -178,7 +178,7 @@ static u8 mux_div_get_parent(struct clk_hw *hw)
 	mux_div_get_src_div(md, &src, &div);
 
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++)
-		if (src == md->parent_map[i])
+		if (src == md->parent_map[i].cfg)
 			return i;
 
 	pr_err("%s: Can't find parent with src %d\n", name, src);
@@ -189,7 +189,7 @@ static int mux_div_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
 
-	return mux_div_set_src_div(md, md->parent_map[index], md->div);
+	return mux_div_set_src_div(md, md->parent_map[index].cfg, md->div);
 }
 
 static int mux_div_set_rate(struct clk_hw *hw,
@@ -206,7 +206,7 @@ static int mux_div_set_rate_and_parent(struct clk_hw *hw,  unsigned long rate,
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
 
 	return __mux_div_set_rate_and_parent(hw, rate, prate,
-					     md->parent_map[index]);
+					     md->parent_map[index].cfg);
 }
 
 static unsigned long mux_div_recalc_rate(struct clk_hw *hw, unsigned long prate)
@@ -218,7 +218,7 @@ static unsigned long mux_div_recalc_rate(struct clk_hw *hw, unsigned long prate)
 
 	mux_div_get_src_div(md, &src, &div);
 	for (i = 0; i < num_parents; i++)
-		if (src == md->parent_map[i]) {
+		if (src == md->parent_map[i].cfg) {
 			struct clk_hw *p = clk_hw_get_parent_by_index(hw, i);
 			unsigned long parent_rate = clk_hw_get_rate(p);
 
