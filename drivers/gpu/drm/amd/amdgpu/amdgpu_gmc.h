@@ -247,6 +247,9 @@ struct amdgpu_gmc {
 
 	uint32_t	vmid0_page_table_block_size;
 	uint32_t	vmid0_page_table_depth;
+	struct amdgpu_bo		*pdb0_bo;
+	/* CPU kmapped address of pdb0*/
+	void				*ptr_pdb0;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))
@@ -288,6 +291,7 @@ static inline uint64_t amdgpu_gmc_sign_extend(uint64_t addr)
 	return addr;
 }
 
+int amdgpu_gmc_pdb0_alloc(struct amdgpu_device *adev);
 void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 			       uint64_t *addr, uint64_t *flags);
 int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
@@ -317,4 +321,5 @@ amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
 
 void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev);
 
+void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev);
 #endif
