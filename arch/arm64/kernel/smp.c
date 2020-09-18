@@ -82,9 +82,9 @@ static int nr_ipi __read_mostly = NR_IPI;
 static struct irq_desc *ipi_desc[NR_IPI] __read_mostly;
 
 static void ipi_setup(int cpu);
-static void ipi_teardown(int cpu);
 
 #ifdef CONFIG_HOTPLUG_CPU
+static void ipi_teardown(int cpu);
 static int op_cpu_kill(unsigned int cpu);
 #else
 static inline int op_cpu_kill(unsigned int cpu)
@@ -964,6 +964,7 @@ static void ipi_setup(int cpu)
 		enable_percpu_irq(ipi_irq_base + i, 0);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static void ipi_teardown(int cpu)
 {
 	int i;
@@ -974,6 +975,7 @@ static void ipi_teardown(int cpu)
 	for (i = 0; i < nr_ipi; i++)
 		disable_percpu_irq(ipi_irq_base + i);
 }
+#endif
 
 void __init set_smp_ipi_range(int ipi_base, int n)
 {
