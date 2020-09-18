@@ -87,21 +87,20 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
  * pseries_eeh_get_pe_config_addr - Find the pe_config_addr for a device
  * @pdn: pci_dn of the input device
  *
- * Retrieve the assocated config address. Actually, there're 2 RTAS
- * function calls dedicated for the purpose. We need implement
- * it through the new function and then the old one. Besides,
- * you should make sure the config address is figured out from
- * FDT node before calling the function.
+ * The EEH RTAS calls use a tuple consisting of: (buid_hi, buid_lo,
+ * pe_config_addr) as a handle to a given PE. This function finds the
+ * pe_config_addr based on the device's config addr.
  *
- * It's notable that zero'ed return value means invalid PE config
- * address.
+ * Keep in mind that the pe_config_addr *might* be numerically identical to the
+ * device's config addr, but the two are conceptually distinct.
+ *
+ * Returns the pe_config_addr, or a negative error code.
  */
 static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 {
 	int config_addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
 	struct pci_controller *phb = pdn->phb;
-	int ret = 0;
-	int rets[3];
+	int ret, rets[3];
 
 	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
 		/*
@@ -112,16 +111,16 @@ static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 				config_addr, BUID_HI(phb->buid),
 				BUID_LO(phb->buid), 1);
 		if (ret || (rets[0] == 0))
-			return 0;
+			return -ENOENT;
 
-		/* Retrieve the associated PE config address */
+		/* Retrieve the associated PE config address with function 0 */
 		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
 				config_addr, BUID_HI(phb->buid),
 				BUID_LO(phb->buid), 0);
 		if (ret) {
 			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
 				__func__, phb->global_number, config_addr);
-			return 0;
+			return -ENXIO;
 		}
 
 		return rets[0];
@@ -134,13 +133,20 @@ static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 		if (ret) {
 			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
 				__func__, phb->global_number, config_addr);
-			return 0;
+			return -ENXIO;
 		}
 
 		return rets[0];
 	}
 
-	return ret;
+	/*
+	 * PAPR does describe a process for finding the pe_config_addr that was
+	 * used before the ibm,get-config-addr-info calls were added. However,
+	 * I haven't found *any* systems that don't have that RTAS call
+	 * implemented. If you happen to find one that needs the old DT based
+	 * process, patches are welcome!
+	 */
+	return -ENOENT;
 }
 
 /**
@@ -417,7 +423,7 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 
 	/* first up, find the pe_config_addr for the PE containing the device */
 	addr = pseries_eeh_get_pe_config_addr(pdn);
-	if (addr == 0) {
+	if (addr < 0) {
 		eeh_edev_dbg(edev, "Unable to find pe_config_addr\n");
 		goto err;
 	}
@@ -897,7 +903,7 @@ static int __init eeh_pseries_init(void)
 			config_addr = pseries_eeh_get_pe_config_addr(pdn);
 
 			/* invalid PE config addr */
-			if (config_addr == 0)
+			if (config_addr < 0)
 				continue;
 
 			pseries_eeh_phb_reset(phb, config_addr, EEH_RESET_FUNDAMENTAL);
