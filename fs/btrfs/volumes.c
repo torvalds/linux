@@ -7223,8 +7223,8 @@ static void btrfs_set_dev_stats_value(struct extent_buffer *eb,
 			    sizeof(val));
 }
 
-static void btrfs_device_init_dev_stats(struct btrfs_device *device,
-					struct btrfs_path *path)
+static int btrfs_device_init_dev_stats(struct btrfs_device *device,
+				       struct btrfs_path *path)
 {
 	struct btrfs_dev_stats_item *ptr;
 	struct extent_buffer *eb;
@@ -7241,7 +7241,7 @@ static void btrfs_device_init_dev_stats(struct btrfs_device *device,
 			btrfs_dev_stat_set(device, i, 0);
 		device->dev_stats_valid = 1;
 		btrfs_release_path(path);
-		return;
+		return ret < 0 ? ret : 0;
 	}
 	slot = path->slots[0];
 	eb = path->nodes[0];
@@ -7260,6 +7260,8 @@ static void btrfs_device_init_dev_stats(struct btrfs_device *device,
 	device->dev_stats_valid = 1;
 	btrfs_dev_stat_print_on_load(device);
 	btrfs_release_path(path);
+
+	return 0;
 }
 
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
@@ -7267,22 +7269,30 @@ int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices, *seed_devs;
 	struct btrfs_device *device;
 	struct btrfs_path *path = NULL;
+	int ret = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
 	mutex_lock(&fs_devices->device_list_mutex);
-	list_for_each_entry(device, &fs_devices->devices, dev_list)
-		btrfs_device_init_dev_stats(device, path);
-	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list) {
-		list_for_each_entry(device, &seed_devs->devices, dev_list)
-			btrfs_device_init_dev_stats(device, path);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		ret = btrfs_device_init_dev_stats(device, path);
+		if (ret)
+			goto out;
 	}
+	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list) {
+		list_for_each_entry(device, &seed_devs->devices, dev_list) {
+			ret = btrfs_device_init_dev_stats(device, path);
+			if (ret)
+				goto out;
+		}
+	}
+out:
 	mutex_unlock(&fs_devices->device_list_mutex);
 
 	btrfs_free_path(path);
-	return 0;
+	return ret;
 }
 
 static int update_dev_stat_item(struct btrfs_trans_handle *trans,
