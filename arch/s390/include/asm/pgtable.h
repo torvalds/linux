@@ -79,15 +79,15 @@ extern unsigned long zero_page_mask;
 
 /*
  * The vmalloc and module area will always be on the topmost area of the
- * kernel mapping. We reserve 128GB (64bit) for vmalloc and modules.
- * On 64 bit kernels we have a 2GB area at the top of the vmalloc area where
- * modules will reside. That makes sure that inter module branches always
- * happen without trampolines and in addition the placement within a 2GB frame
- * is branch prediction unit friendly.
+ * kernel mapping. 512GB are reserved for vmalloc by default.
+ * At the top of the vmalloc area a 2GB area is reserved where modules
+ * will reside. That makes sure that inter module branches always
+ * happen without trampolines and in addition the placement within a
+ * 2GB frame is branch prediction unit friendly.
  */
 extern unsigned long VMALLOC_START;
 extern unsigned long VMALLOC_END;
-#define VMALLOC_DEFAULT_SIZE	((128UL << 30) - MODULES_LEN)
+#define VMALLOC_DEFAULT_SIZE	((512UL << 30) - MODULES_LEN)
 extern struct page *vmemmap;
 extern unsigned long vmemmap_size;
 
