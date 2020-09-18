@@ -507,8 +507,12 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 
 	kirin_pcie->gpio_id_reset = of_get_named_gpio(dev->of_node,
 						      "reset-gpios", 0);
-	if (kirin_pcie->gpio_id_reset < 0)
+	if (kirin_pcie->gpio_id_reset == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (!gpio_is_valid(kirin_pcie->gpio_id_reset)) {
+		dev_err(dev, "unable to get a valid gpio pin\n");
 		return -ENODEV;
+	}
 
 	ret = kirin_pcie_power_on(kirin_pcie);
 	if (ret)
