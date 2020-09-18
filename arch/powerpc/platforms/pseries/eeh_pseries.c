@@ -355,10 +355,10 @@ static struct eeh_pe *pseries_eeh_pe_get_parent(struct eeh_dev *edev)
  */
 void pseries_eeh_init_edev(struct pci_dn *pdn)
 {
+	struct eeh_pe pe, *parent;
 	struct eeh_dev *edev;
-	struct eeh_pe pe;
+	int addr;
 	u32 pcie_flags;
-	int enable = 0;
 	int ret;
 
 	if (WARN_ON_ONCE(!eeh_has_flag(EEH_PROBE_MODE_DEVTREE)))
@@ -415,51 +415,38 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 		}
 	}
 
-	/* Initialize the fake PE */
+	/* first up, find the pe_config_addr for the PE containing the device */
+	addr = pseries_eeh_get_pe_config_addr(pdn);
+	if (addr == 0) {
+		eeh_edev_dbg(edev, "Unable to find pe_config_addr\n");
+		goto err;
+	}
+
+	/* Try enable EEH on the fake PE */
 	memset(&pe, 0, sizeof(struct eeh_pe));
 	pe.phb = pdn->phb;
-	pe.config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
+	pe.addr = addr;
 
-	/* Enable EEH on the device */
 	eeh_edev_dbg(edev, "Enabling EEH on device\n");
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
 	if (ret) {
 		eeh_edev_dbg(edev, "EEH failed to enable on device (code %d)\n", ret);
-	} else {
-		struct eeh_pe *parent;
-
-		/* Retrieve PE address */
-		edev->pe_config_addr = pseries_eeh_get_pe_config_addr(pdn);
-		pe.addr = edev->pe_config_addr;
-
-		/* Some older systems (Power4) allow the ibm,set-eeh-option
-		 * call to succeed even on nodes where EEH is not supported.
-		 * Verify support explicitly.
-		 */
-		ret = eeh_ops->get_state(&pe, NULL);
-		if (ret > 0 && ret != EEH_STATE_NOT_SUPPORT)
-			enable = 1;
-
-		/*
-		 * This device doesn't support EEH, but it may have an
-		 * EEH parent. In this case any error on the device will
-		 * freeze the PE of it's upstream bridge, so added it to
-		 * the upstream PE.
-		 */
-		parent = pseries_eeh_pe_get_parent(edev);
-		if (parent && !enable)
-			edev->pe_config_addr = parent->addr;
-
-		if (enable || parent) {
-			eeh_add_flag(EEH_ENABLED);
-			eeh_pe_tree_insert(edev, parent);
-		}
-		eeh_edev_dbg(edev, "EEH is %s on device (code %d)\n",
-			     (enable ? "enabled" : "unsupported"), ret);
+		goto err;
 	}
 
-	/* Save memory bars */
+	edev->pe_config_addr = addr;
+
+	eeh_add_flag(EEH_ENABLED);
+
+	parent = pseries_eeh_pe_get_parent(edev);
+	eeh_pe_tree_insert(edev, parent);
 	eeh_save_bars(edev);
+	eeh_edev_dbg(edev, "EEH enabled for device");
+
+	return;
+
+err:
+	eeh_edev_dbg(edev, "EEH is unsupported on device (code = %d)\n", ret);
 }
 
 static struct eeh_dev *pseries_eeh_probe(struct pci_dev *pdev)
