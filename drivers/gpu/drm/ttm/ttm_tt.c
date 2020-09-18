@@ -38,7 +38,6 @@
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#include <drm/ttm/ttm_set_memory.h>
 
 /**
  * Allocates a ttm structure for the given BO.
@@ -115,81 +114,19 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 	return 0;
 }
 
-static int ttm_tt_set_page_caching(struct page *p,
-				   enum ttm_caching_state c_old,
-				   enum ttm_caching_state c_new)
-{
-	int ret = 0;
-
-	if (PageHighMem(p))
-		return 0;
-
-	if (c_old != tt_cached) {
-		/* p isn't in the default caching state, set it to
-		 * writeback first to free its current memtype. */
-
-		ret = ttm_set_pages_wb(p, 1);
-		if (ret)
-			return ret;
-	}
-
-	if (c_new == tt_wc)
-		ret = ttm_set_pages_wc(p, 1);
-	else if (c_new == tt_uncached)
-		ret = ttm_set_pages_uc(p, 1);
-
-	return ret;
-}
-
-/*
- * Change caching policy for the linear kernel map
- * for range of pages in a ttm.
- */
-
 static int ttm_tt_set_caching(struct ttm_tt *ttm,
 			      enum ttm_caching_state c_state)
 {
-	int i, j;
-	struct page *cur_page;
-	int ret;
-
 	if (ttm->caching_state == c_state)
 		return 0;
 
-	if (!ttm_tt_is_populated(ttm)) {
-		/* Change caching but don't populate */
-		ttm->caching_state = c_state;
-		return 0;
-	}
-
-	if (ttm->caching_state == tt_cached)
-		drm_clflush_pages(ttm->pages, ttm->num_pages);
-
-	for (i = 0; i < ttm->num_pages; ++i) {
-		cur_page = ttm->pages[i];
-		if (likely(cur_page != NULL)) {
-			ret = ttm_tt_set_page_caching(cur_page,
-						      ttm->caching_state,
-						      c_state);
-			if (unlikely(ret != 0))
-				goto out_err;
-		}
-	}
+	/* Can't change the caching state after TT is populated */
+	if (WARN_ON_ONCE(ttm_tt_is_populated(ttm)))
+		return -EINVAL;
 
 	ttm->caching_state = c_state;
 
 	return 0;
-
-out_err:
-	for (j = 0; j < i; ++j) {
-		cur_page = ttm->pages[j];
-		if (likely(cur_page != NULL)) {
-			(void)ttm_tt_set_page_caching(cur_page, c_state,
-						      ttm->caching_state);
-		}
-	}
-
-	return ret;
 }
 
 int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement)
@@ -357,8 +294,6 @@ int ttm_tt_swapout(struct ttm_bo_device *bdev,
 	struct page *to_page;
 	int i;
 	int ret = -ENOMEM;
-
-	BUG_ON(ttm->caching_state != tt_cached);
 
 	if (!persistent_swap_storage) {
 		swap_storage = shmem_file_setup("ttm swap",

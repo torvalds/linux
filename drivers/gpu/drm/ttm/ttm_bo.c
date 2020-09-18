@@ -1551,14 +1551,13 @@ int ttm_bo_swapout(struct ttm_bo_global *glob, struct ttm_operation_ctx *ctx)
 	 * Move to system cached
 	 */
 
-	if (bo->mem.mem_type != TTM_PL_SYSTEM ||
-	    bo->ttm->caching_state != tt_cached) {
+	if (bo->mem.mem_type != TTM_PL_SYSTEM) {
 		struct ttm_operation_ctx ctx = { false, false };
 		struct ttm_resource evict_mem;
 
 		evict_mem = bo->mem;
 		evict_mem.mm_node = NULL;
-		evict_mem.placement = TTM_PL_FLAG_CACHED;
+		evict_mem.placement = TTM_PL_MASK_CACHING;
 		evict_mem.mem_type = TTM_PL_SYSTEM;
 
 		ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, &ctx);
