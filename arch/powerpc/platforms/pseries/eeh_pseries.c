@@ -990,13 +990,12 @@ static int __init eeh_pseries_init(void)
 {
 	int ret;
 
-	ret = eeh_ops_register(&pseries_eeh_ops);
+	ret = eeh_init(&pseries_eeh_ops);
 	if (!ret)
 		pr_info("EEH: pSeries platform initialized\n");
 	else
 		pr_info("EEH: pSeries platform initialization failure (%d)\n",
 			ret);
-
 	return ret;
 }
-machine_early_initcall(pseries, eeh_pseries_init);
+machine_core_initcall_sync(pseries, eeh_pseries_init);
