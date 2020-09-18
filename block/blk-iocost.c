@@ -287,9 +287,9 @@ enum {
 	MIN_DELAY		= 250,
 	MAX_DELAY		= 250 * USEC_PER_MSEC,
 
-	/* halve debts if total usage keeps staying under 25% for over 100ms */
-	DEBT_BUSY_USAGE_PCT	= 25,
-	DEBT_REDUCTION_IDLE_DUR	= 100 * USEC_PER_MSEC,
+	/* halve debts if avg usage over 100ms is under 50% */
+	DFGV_USAGE_PCT		= 50,
+	DFGV_PERIOD		= 100 * USEC_PER_MSEC,
 
 	/* don't let cmds which take a very long time pin lagging for too long */
 	MAX_LAGGING_PERIODS	= 10,
@@ -433,8 +433,10 @@ struct ioc {
 	bool				weights_updated;
 	atomic_t			hweight_gen;	/* for lazy hweights */
 
-	/* the last time debt cancel condition wasn't met */
-	u64				debt_busy_at;
+	/* debt forgivness */
+	u64				dfgv_period_at;
+	u64				dfgv_period_rem;
+	u64				dfgv_usage_us_sum;
 
 	u64				autop_too_fast_at;
 	u64				autop_too_slow_at;
@@ -1251,7 +1253,8 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 
 	if (ioc->running == IOC_IDLE) {
 		ioc->running = IOC_RUNNING;
-		ioc->debt_busy_at = now->now;
+		ioc->dfgv_period_at = now->now;
+		ioc->dfgv_period_rem = 0;
 		ioc_start_period(ioc, now);
 	}
 
@@ -1990,25 +1993,66 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
 static void ioc_forgive_debts(struct ioc *ioc, u64 usage_us_sum, int nr_debtors,
 			      struct ioc_now *now)
 {
-	if (ioc->busy_level < 0 ||
-	    div64_u64(100 * usage_us_sum, now->now - ioc->period_at) >=
-	    DEBT_BUSY_USAGE_PCT)
-		ioc->debt_busy_at = now->now;
+	struct ioc_gq *iocg;
+	u64 dur, usage_pct, nr_cycles;
 
-	if (nr_debtors &&
-	    now->now - ioc->debt_busy_at >= DEBT_REDUCTION_IDLE_DUR) {
-		struct ioc_gq *iocg;
+	/* if no debtor, reset the cycle */
+	if (!nr_debtors) {
+		ioc->dfgv_period_at = now->now;
+		ioc->dfgv_period_rem = 0;
+		ioc->dfgv_usage_us_sum = 0;
+		return;
+	}
 
-		list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
-			if (iocg->abs_vdebt) {
-				spin_lock(&iocg->waitq.lock);
-				iocg->abs_vdebt /= 2;
-				iocg->delay = 0; /* kick_waitq will recalc */
-				iocg_kick_waitq(iocg, true, now);
-				spin_unlock(&iocg->waitq.lock);
-			}
-		}
-		ioc->debt_busy_at = now->now;
+	/*
+	 * Debtors can pass through a lot of writes choking the device and we
+	 * don't want to be forgiving debts while the device is struggling from
+	 * write bursts. If we're missing latency targets, consider the device
+	 * fully utilized.
+	 */
+	if (ioc->busy_level > 0)
+		usage_us_sum = max_t(u64, usage_us_sum, ioc->period_us);
+
+	ioc->dfgv_usage_us_sum += usage_us_sum;
+	if (time_before64(now->now, ioc->dfgv_period_at + DFGV_PERIOD))
+		return;
+
+	/*
+	 * At least DFGV_PERIOD has passed since the last period. Calculate the
+	 * average usage and reset the period counters.
+	 */
+	dur = now->now - ioc->dfgv_period_at;
+	usage_pct = div64_u64(100 * ioc->dfgv_usage_us_sum, dur);
+
+	ioc->dfgv_period_at = now->now;
+	ioc->dfgv_usage_us_sum = 0;
+
+	/* if was too busy, reset everything */
+	if (usage_pct > DFGV_USAGE_PCT) {
+		ioc->dfgv_period_rem = 0;
+		return;
+	}
+
+	/*
+	 * Usage is lower than threshold. Let's forgive some debts. Debt
+	 * forgiveness runs off of the usual ioc timer but its period usually
+	 * doesn't match ioc's. Compensate the difference by performing the
+	 * reduction as many times as would fit in the duration since the last
+	 * run and carrying over the left-over duration in @ioc->dfgv_period_rem
+	 * - if ioc period is 75% of DFGV_PERIOD, one out of three consecutive
+	 * reductions is doubled.
+	 */
+	nr_cycles = dur + ioc->dfgv_period_rem;
+	ioc->dfgv_period_rem = do_div(nr_cycles, DFGV_PERIOD);
+
+	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
+		if (!iocg->abs_vdebt)
+			continue;
+		spin_lock(&iocg->waitq.lock);
+		iocg->abs_vdebt >>= nr_cycles;
+		iocg->delay = 0; /* kick_waitq will recalc */
+		iocg_kick_waitq(iocg, true, now);
+		spin_unlock(&iocg->waitq.lock);
 	}
 }
 
