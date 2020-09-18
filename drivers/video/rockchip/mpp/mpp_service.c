@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/mfd/syscon.h>
 
@@ -33,6 +34,8 @@
 unsigned int mpp_dev_debug;
 module_param(mpp_dev_debug, uint, 0644);
 MODULE_PARM_DESC(mpp_dev_debug, "bit switch for mpp debug information");
+
+static const char mpp_version[] = MPP_VERSION;
 
 static int mpp_init_grf(struct device_node *np,
 			struct mpp_grf_info *grf_info,
@@ -151,6 +154,13 @@ static int mpp_procfs_remove(struct mpp_service *srv)
 	return 0;
 }
 
+static int mpp_show_version(struct seq_file *seq, void *offset)
+{
+	seq_printf(seq, "%s\n", mpp_version);
+
+	return 0;
+}
+
 static int mpp_procfs_init(struct mpp_service *srv)
 {
 	srv->procfs = proc_mkdir(MPP_SERVICE_NAME, NULL);
@@ -158,6 +168,10 @@ static int mpp_procfs_init(struct mpp_service *srv)
 		mpp_err("failed on mkdir /proc/%s\n", MPP_SERVICE_NAME);
 		srv->procfs = NULL;
 	}
+	/* show version */
+	if (srv->procfs)
+		proc_create_single_data("version", 0644, srv->procfs,
+					mpp_show_version, NULL);
 
 	return 0;
 }
@@ -180,6 +194,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 
+	dev_info(dev, "%s\n", mpp_version);
 	dev_info(dev, "probe start\n");
 	srv = devm_kzalloc(dev, sizeof(*srv), GFP_KERNEL);
 	if (!srv)
@@ -302,6 +317,6 @@ static struct platform_driver mpp_service_driver = {
 module_platform_driver(mpp_service_driver);
 
 MODULE_LICENSE("Dual MIT/GPL");
-MODULE_VERSION("1.0.build.201911131848");
+MODULE_VERSION(MPP_VERSION);
 MODULE_AUTHOR("Ding Wei leo.ding@rock-chips.com");
 MODULE_DESCRIPTION("Rockchip mpp service driver");
