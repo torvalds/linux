@@ -1732,15 +1732,26 @@ void migrate_enable(void)
 {
 	struct task_struct *p = current;
 
-	if (--p->migration_disabled)
+	if (p->migration_disabled > 1) {
+		p->migration_disabled--;
 		return;
+	}
 
+	/*
+	 * Ensure stop_task runs either before or after this, and that
+	 * __set_cpus_allowed_ptr(SCA_MIGRATE_ENABLE) doesn't schedule().
+	 */
+	preempt_disable();
+	if (p->cpus_ptr != &p->cpus_mask)
+		__set_cpus_allowed_ptr(p, &p->cpus_mask, SCA_MIGRATE_ENABLE);
+	/*
+	 * Mustn't clear migration_disabled() until cpus_ptr points back at the
+	 * regular cpus_mask, otherwise things that race (eg.
+	 * select_fallback_rq) get confused.
+	 */
 	barrier();
-
-	if (p->cpus_ptr == &p->cpus_mask)
-		return;
-
-	__set_cpus_allowed_ptr(p, &p->cpus_mask, SCA_MIGRATE_ENABLE);
+	p->migration_disabled = 0;
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(migrate_enable);
 
@@ -1805,8 +1816,16 @@ static struct rq *move_queued_task(struct rq *rq, struct rq_flags *rf,
 }
 
 struct migration_arg {
-	struct task_struct *task;
-	int dest_cpu;
+	struct task_struct		*task;
+	int				dest_cpu;
+	struct set_affinity_pending	*pending;
+};
+
+struct set_affinity_pending {
+	refcount_t		refs;
+	struct completion	done;
+	struct cpu_stop_work	stop_work;
+	struct migration_arg	arg;
 };
 
 /*
@@ -1838,16 +1857,19 @@ static struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
  */
 static int migration_cpu_stop(void *data)
 {
+	struct set_affinity_pending *pending;
 	struct migration_arg *arg = data;
 	struct task_struct *p = arg->task;
+	int dest_cpu = arg->dest_cpu;
 	struct rq *rq = this_rq();
+	bool complete = false;
 	struct rq_flags rf;
 
 	/*
 	 * The original target CPU might have gone down and we might
 	 * be on another CPU but it doesn't matter.
 	 */
-	local_irq_disable();
+	local_irq_save(rf.flags);
 	/*
 	 * We need to explicitly wake pending tasks before running
 	 * __migrate_task() such that we will not miss enforcing cpus_ptr
@@ -1857,21 +1879,83 @@ static int migration_cpu_stop(void *data)
 
 	raw_spin_lock(&p->pi_lock);
 	rq_lock(rq, &rf);
+
+	pending = p->migration_pending;
 	/*
 	 * If task_rq(p) != rq, it cannot be migrated here, because we're
 	 * holding rq->lock, if p->on_rq == 0 it cannot get enqueued because
 	 * we're holding p->pi_lock.
 	 */
 	if (task_rq(p) == rq) {
-		if (task_on_rq_queued(p))
-			rq = __migrate_task(rq, &rf, p, arg->dest_cpu);
-		else
-			p->wake_cpu = arg->dest_cpu;
-	}
-	rq_unlock(rq, &rf);
-	raw_spin_unlock(&p->pi_lock);
+		if (is_migration_disabled(p))
+			goto out;
 
-	local_irq_enable();
+		if (pending) {
+			p->migration_pending = NULL;
+			complete = true;
+		}
+
+		/* migrate_enable() --  we must not race against SCA */
+		if (dest_cpu < 0) {
+			/*
+			 * When this was migrate_enable() but we no longer
+			 * have a @pending, a concurrent SCA 'fixed' things
+			 * and we should be valid again. Nothing to do.
+			 */
+			if (!pending) {
+				WARN_ON_ONCE(!is_cpu_allowed(p, cpu_of(rq)));
+				goto out;
+			}
+
+			dest_cpu = cpumask_any_distribute(&p->cpus_mask);
+		}
+
+		if (task_on_rq_queued(p))
+			rq = __migrate_task(rq, &rf, p, dest_cpu);
+		else
+			p->wake_cpu = dest_cpu;
+
+	} else if (dest_cpu < 0) {
+		/*
+		 * This happens when we get migrated between migrate_enable()'s
+		 * preempt_enable() and scheduling the stopper task. At that
+		 * point we're a regular task again and not current anymore.
+		 *
+		 * A !PREEMPT kernel has a giant hole here, which makes it far
+		 * more likely.
+		 */
+
+		/*
+		 * When this was migrate_enable() but we no longer have an
+		 * @pending, a concurrent SCA 'fixed' things and we should be
+		 * valid again. Nothing to do.
+		 */
+		if (!pending) {
+			WARN_ON_ONCE(!is_cpu_allowed(p, cpu_of(rq)));
+			goto out;
+		}
+
+		/*
+		 * When migrate_enable() hits a rq mis-match we can't reliably
+		 * determine is_migration_disabled() and so have to chase after
+		 * it.
+		 */
+		task_rq_unlock(rq, p, &rf);
+		stop_one_cpu_nowait(task_cpu(p), migration_cpu_stop,
+				    &pending->arg, &pending->stop_work);
+		return 0;
+	}
+out:
+	task_rq_unlock(rq, p, &rf);
+
+	if (complete)
+		complete_all(&pending->done);
+
+	/* For pending->{arg,stop_work} */
+	pending = arg->pending;
+	if (pending && refcount_dec_and_test(&pending->refs))
+		wake_up_var(&pending->refs);
+
 	return 0;
 }
 
@@ -1938,6 +2022,112 @@ __do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask, u32
 void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 {
 	__do_set_cpus_allowed(p, new_mask, 0);
+}
+
+/*
+ * This function is wildly self concurrent, consider at least 3 times.
+ */
+static int affine_move_task(struct rq *rq, struct task_struct *p, struct rq_flags *rf,
+			    int dest_cpu, unsigned int flags)
+{
+	struct set_affinity_pending my_pending = { }, *pending = NULL;
+	struct migration_arg arg = {
+		.task = p,
+		.dest_cpu = dest_cpu,
+	};
+	bool complete = false;
+
+	/* Can the task run on the task's current CPU? If so, we're done */
+	if (cpumask_test_cpu(task_cpu(p), &p->cpus_mask)) {
+		pending = p->migration_pending;
+		if (pending) {
+			refcount_inc(&pending->refs);
+			p->migration_pending = NULL;
+			complete = true;
+		}
+		task_rq_unlock(rq, p, rf);
+
+		if (complete)
+			goto do_complete;
+
+		return 0;
+	}
+
+	if (!(flags & SCA_MIGRATE_ENABLE)) {
+		/* serialized by p->pi_lock */
+		if (!p->migration_pending) {
+			refcount_set(&my_pending.refs, 1);
+			init_completion(&my_pending.done);
+			p->migration_pending = &my_pending;
+		} else {
+			pending = p->migration_pending;
+			refcount_inc(&pending->refs);
+		}
+	}
+	pending = p->migration_pending;
+	/*
+	 * - !MIGRATE_ENABLE:
+	 *   we'll have installed a pending if there wasn't one already.
+	 *
+	 * - MIGRATE_ENABLE:
+	 *   we're here because the current CPU isn't matching anymore,
+	 *   the only way that can happen is because of a concurrent
+	 *   set_cpus_allowed_ptr() call, which should then still be
+	 *   pending completion.
+	 *
+	 * Either way, we really should have a @pending here.
+	 */
+	if (WARN_ON_ONCE(!pending)) {
+		task_rq_unlock(rq, p, rf);
+		return -EINVAL;
+	}
+
+	if (flags & SCA_MIGRATE_ENABLE) {
+
+		refcount_inc(&pending->refs); /* pending->{arg,stop_work} */
+		task_rq_unlock(rq, p, rf);
+
+		pending->arg = (struct migration_arg) {
+			.task = p,
+			.dest_cpu = -1,
+			.pending = pending,
+		};
+
+		stop_one_cpu_nowait(cpu_of(rq), migration_cpu_stop,
+				    &pending->arg, &pending->stop_work);
+
+		return 0;
+	}
+
+	if (task_running(rq, p) || p->state == TASK_WAKING) {
+
+		task_rq_unlock(rq, p, rf);
+		stop_one_cpu(cpu_of(rq), migration_cpu_stop, &arg);
+
+	} else {
+
+		if (!is_migration_disabled(p)) {
+			if (task_on_rq_queued(p))
+				rq = move_queued_task(rq, rf, p, dest_cpu);
+
+			p->migration_pending = NULL;
+			complete = true;
+		}
+		task_rq_unlock(rq, p, rf);
+
+do_complete:
+		if (complete)
+			complete_all(&pending->done);
+	}
+
+	wait_for_completion(&pending->done);
+
+	if (refcount_dec_and_test(&pending->refs))
+		wake_up_var(&pending->refs);
+
+	wait_var_event(&my_pending.refs, !refcount_read(&my_pending.refs));
+
+	return 0;
 }
 
 /*
@@ -2009,23 +2199,8 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 			p->nr_cpus_allowed != 1);
 	}
 
-	/* Can the task run on the task's current CPU? If so, we're done */
-	if (cpumask_test_cpu(task_cpu(p), new_mask))
-		goto out;
+	return affine_move_task(rq, p, &rf, dest_cpu, flags);
 
-	if (task_running(rq, p) || p->state == TASK_WAKING) {
-		struct migration_arg arg = { p, dest_cpu };
-		/* Need help from migration thread: drop lock and wait. */
-		task_rq_unlock(rq, p, &rf);
-		stop_one_cpu(cpu_of(rq), migration_cpu_stop, &arg);
-		return 0;
-	} else if (task_on_rq_queued(p)) {
-		/*
-		 * OK, since we're going to drop the lock immediately
-		 * afterwards anyway.
-		 */
-		rq = move_queued_task(rq, &rf, p, dest_cpu);
-	}
 out:
 	task_rq_unlock(rq, p, &rf);
 
@@ -3205,6 +3380,7 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 	init_numa_balancing(clone_flags, p);
 #ifdef CONFIG_SMP
 	p->wake_entry.u_flags = CSD_TYPE_TTWU;
+	p->migration_pending = NULL;
 #endif
 }
 
