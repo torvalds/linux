@@ -27,6 +27,10 @@ static DEFINE_PER_CPU(atomic64_t, active_asids);
 static DEFINE_PER_CPU(u64, reserved_asids);
 static cpumask_t tlb_flush_pending;
 
+static unsigned long max_pinned_asids;
+static unsigned long nr_pinned_asids;
+static unsigned long *pinned_asid_map;
+
 #define ASID_MASK		(~GENMASK(asid_bits - 1, 0))
 #define ASID_FIRST_VERSION	(1UL << asid_bits)
 
@@ -72,7 +76,7 @@ void verify_cpu_asid_bits(void)
 	}
 }
 
-static void set_kpti_asid_bits(void)
+static void set_kpti_asid_bits(unsigned long *map)
 {
 	unsigned int len = BITS_TO_LONGS(NUM_USER_ASIDS) * sizeof(unsigned long);
 	/*
@@ -81,13 +85,15 @@ static void set_kpti_asid_bits(void)
 	 * is set, then the ASID will map only userspace. Thus
 	 * mark even as reserved for kernel.
 	 */
-	memset(asid_map, 0xaa, len);
+	memset(map, 0xaa, len);
 }
 
 static void set_reserved_asid_bits(void)
 {
-	if (arm64_kernel_unmapped_at_el0())
-		set_kpti_asid_bits();
+	if (pinned_asid_map)
+		bitmap_copy(asid_map, pinned_asid_map, NUM_USER_ASIDS);
+	else if (arm64_kernel_unmapped_at_el0())
+		set_kpti_asid_bits(asid_map);
 	else
 		bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
 }
@@ -163,6 +169,14 @@ static u64 new_context(struct mm_struct *mm)
 		 * can continue to use it and this was just a false alarm.
 		 */
 		if (check_update_reserved_asid(asid, newasid))
+			return newasid;
+
+		/*
+		 * If it is pinned, we can keep using it. Note that reserved
+		 * takes priority, because even if it is also pinned, we need to
+		 * update the generation into the reserved_asids.
+		 */
+		if (refcount_read(&mm->context.pinned))
 			return newasid;
 
 		/*
@@ -256,6 +270,71 @@ switch_mm_fastpath:
 		cpu_switch_mm(mm->pgd, mm);
 }
 
+unsigned long arm64_mm_context_get(struct mm_struct *mm)
+{
+	unsigned long flags;
+	u64 asid;
+
+	if (!pinned_asid_map)
+		return 0;
+
+	raw_spin_lock_irqsave(&cpu_asid_lock, flags);
+
+	asid = atomic64_read(&mm->context.id);
+
+	if (refcount_inc_not_zero(&mm->context.pinned))
+		goto out_unlock;
+
+	if (nr_pinned_asids >= max_pinned_asids) {
+		asid = 0;
+		goto out_unlock;
+	}
+
+	if (!asid_gen_match(asid)) {
+		/*
+		 * We went through one or more rollover since that ASID was
+		 * used. Ensure that it is still valid, or generate a new one.
+		 */
+		asid = new_context(mm);
+		atomic64_set(&mm->context.id, asid);
+	}
+
+	nr_pinned_asids++;
+	__set_bit(asid2idx(asid), pinned_asid_map);
+	refcount_set(&mm->context.pinned, 1);
+
+out_unlock:
+	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
+
+	asid &= ~ASID_MASK;
+
+	/* Set the equivalent of USER_ASID_BIT */
+	if (asid && arm64_kernel_unmapped_at_el0())
+		asid |= 1;
+
+	return asid;
+}
+EXPORT_SYMBOL_GPL(arm64_mm_context_get);
+
+void arm64_mm_context_put(struct mm_struct *mm)
+{
+	unsigned long flags;
+	u64 asid = atomic64_read(&mm->context.id);
+
+	if (!pinned_asid_map)
+		return;
+
+	raw_spin_lock_irqsave(&cpu_asid_lock, flags);
+
+	if (refcount_dec_and_test(&mm->context.pinned)) {
+		__clear_bit(asid2idx(asid), pinned_asid_map);
+		nr_pinned_asids--;
+	}
+
+	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
+}
+EXPORT_SYMBOL_GPL(arm64_mm_context_put);
+
 /* Errata workaround post TTBRx_EL1 update. */
 asmlinkage void post_ttbr_update_workaround(void)
 {
@@ -296,8 +375,11 @@ static int asids_update_limit(void)
 {
 	unsigned long num_available_asids = NUM_USER_ASIDS;
 
-	if (arm64_kernel_unmapped_at_el0())
+	if (arm64_kernel_unmapped_at_el0()) {
 		num_available_asids /= 2;
+		if (pinned_asid_map)
+			set_kpti_asid_bits(pinned_asid_map);
+	}
 	/*
 	 * Expect allocation after rollover to fail if we don't have at least
 	 * one more ASID than CPUs. ASID #0 is reserved for init_mm.
@@ -305,6 +387,13 @@ static int asids_update_limit(void)
 	WARN_ON(num_available_asids - 1 <= num_possible_cpus());
 	pr_info("ASID allocator initialised with %lu entries\n",
 		num_available_asids);
+
+	/*
+	 * There must always be an ASID available after rollover. Ensure that,
+	 * even if all CPUs have a reserved ASID and the maximum number of ASIDs
+	 * are pinned, there still is at least one empty slot in the ASID map.
+	 */
+	max_pinned_asids = num_available_asids - num_possible_cpus() - 2;
 	return 0;
 }
 arch_initcall(asids_update_limit);
@@ -319,13 +408,17 @@ static int asids_init(void)
 		panic("Failed to allocate bitmap for %lu ASIDs\n",
 		      NUM_USER_ASIDS);
 
+	pinned_asid_map = kcalloc(BITS_TO_LONGS(NUM_USER_ASIDS),
+				  sizeof(*pinned_asid_map), GFP_KERNEL);
+	nr_pinned_asids = 0;
+
 	/*
 	 * We cannot call set_reserved_asid_bits() here because CPU
 	 * caps are not finalized yet, so it is safer to assume KPTI
 	 * and reserve kernel ASID's from beginning.
 	 */
 	if (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0))
-		set_kpti_asid_bits();
+		set_kpti_asid_bits(asid_map);
 	return 0;
 }
 early_initcall(asids_init);
