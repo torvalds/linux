@@ -5378,6 +5378,7 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.get_ts_info		= mv88e6xxx_get_ts_info,
 	.devlink_param_get	= mv88e6xxx_devlink_param_get,
 	.devlink_param_set	= mv88e6xxx_devlink_param_set,
+	.devlink_info_get	= mv88e6xxx_devlink_info_get,
 };
 
 static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
