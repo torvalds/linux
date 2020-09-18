@@ -6,6 +6,16 @@
 
 #include <stdlib.h>
 
+#define NKEYS 5
+
+struct signatures {
+	size_t keyia;
+	size_t keyib;
+	size_t keyda;
+	size_t keydb;
+	size_t keyg;
+};
+
 void pac_corruptor(void);
 
 /* PAuth sign a value with key ia and modifier value 0 */
