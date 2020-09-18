@@ -436,6 +436,9 @@ void rtl8366_vlan_add(struct dsa_switch *ds, int port,
 				"failed to set up VLAN %04x",
 				vid);
 
+		if (!pvid)
+			continue;
+
 		ret = rtl8366_set_pvid(smi, port, vid);
 		if (ret)
 			dev_err(smi->dev,
