@@ -820,6 +820,10 @@ out:
 	return err;
 }
 
+/* CORE_ENA is in SYS:SYSTEM:RESET_CFG
+ * MEM_INIT is in SYS:SYSTEM:RESET_CFG
+ * MEM_ENA is in SYS:SYSTEM:RESET_CFG
+ */
 static int vsc9953_reset(struct ocelot *ocelot)
 {
 	int val, err;

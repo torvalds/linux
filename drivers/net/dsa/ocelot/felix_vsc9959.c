@@ -737,6 +737,9 @@ static int vsc9959_sys_ram_init_status(struct ocelot *ocelot)
 	return ocelot_read(ocelot, SYS_RAM_INIT);
 }
 
+/* CORE_ENA is in SYS:SYSTEM:RESET_CFG
+ * RAM_INIT is in SYS:RAM_CTRL:RAM_INIT
+ */
 static int vsc9959_reset(struct ocelot *ocelot)
 {
 	int val, err;
