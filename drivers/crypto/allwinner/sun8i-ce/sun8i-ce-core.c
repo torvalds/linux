@@ -35,6 +35,9 @@
 static const struct ce_variant ce_h3_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
 	},
+	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
+		CE_ALG_SHA384, CE_ALG_SHA512
+	},
 	.op_mode = { CE_OP_ECB, CE_OP_CBC
 	},
 	.ce_clks = {
@@ -46,6 +49,9 @@ static const struct ce_variant ce_h3_variant = {
 
 static const struct ce_variant ce_h5_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
+	},
+	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
+		CE_ID_NOTSUPP, CE_ID_NOTSUPP
 	},
 	.op_mode = { CE_OP_ECB, CE_OP_CBC
 	},
@@ -59,9 +65,13 @@ static const struct ce_variant ce_h5_variant = {
 static const struct ce_variant ce_h6_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
 	},
+	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
+		CE_ALG_SHA384, CE_ALG_SHA512
+	},
 	.op_mode = { CE_OP_ECB, CE_OP_CBC
 	},
 	.cipher_t_dlen_in_bytes = true,
+	.hash_t_dlen_in_bits = true,
 	.ce_clks = {
 		{ "bus", 0, 200000000 },
 		{ "mod", 300000000, 0 },
@@ -72,6 +82,9 @@ static const struct ce_variant ce_h6_variant = {
 
 static const struct ce_variant ce_a64_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
+	},
+	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
+		CE_ID_NOTSUPP, CE_ID_NOTSUPP
 	},
 	.op_mode = { CE_OP_ECB, CE_OP_CBC
 	},
@@ -84,6 +97,9 @@ static const struct ce_variant ce_a64_variant = {
 
 static const struct ce_variant ce_r40_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
+	},
+	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
+		CE_ID_NOTSUPP, CE_ID_NOTSUPP
 	},
 	.op_mode = { CE_OP_ECB, CE_OP_CBC
 	},
@@ -329,6 +345,188 @@ static struct sun8i_ce_alg_template ce_algs[] = {
 		.decrypt	= sun8i_ce_skdecrypt,
 	}
 },
+#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_HASH
+{	.type = CRYPTO_ALG_TYPE_AHASH,
+	.ce_algo_id = CE_ID_HASH_MD5,
+	.alg.hash = {
+		.init = sun8i_ce_hash_init,
+		.update = sun8i_ce_hash_update,
+		.final = sun8i_ce_hash_final,
+		.finup = sun8i_ce_hash_finup,
+		.digest = sun8i_ce_hash_digest,
+		.export = sun8i_ce_hash_export,
+		.import = sun8i_ce_hash_import,
+		.halg = {
+			.digestsize = MD5_DIGEST_SIZE,
+			.statesize = sizeof(struct md5_state),
+			.base = {
+				.cra_name = "md5",
+				.cra_driver_name = "md5-sun8i-ce",
+				.cra_priority = 300,
+				.cra_alignmask = 3,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct sun8i_ce_hash_tfm_ctx),
+				.cra_module = THIS_MODULE,
+				.cra_init = sun8i_ce_hash_crainit,
+				.cra_exit = sun8i_ce_hash_craexit,
+			}
+		}
+	}
+},
+{	.type = CRYPTO_ALG_TYPE_AHASH,
+	.ce_algo_id = CE_ID_HASH_SHA1,
+	.alg.hash = {
+		.init = sun8i_ce_hash_init,
+		.update = sun8i_ce_hash_update,
+		.final = sun8i_ce_hash_final,
+		.finup = sun8i_ce_hash_finup,
+		.digest = sun8i_ce_hash_digest,
+		.export = sun8i_ce_hash_export,
+		.import = sun8i_ce_hash_import,
+		.halg = {
+			.digestsize = SHA1_DIGEST_SIZE,
+			.statesize = sizeof(struct sha1_state),
+			.base = {
+				.cra_name = "sha1",
+				.cra_driver_name = "sha1-sun8i-ce",
+				.cra_priority = 300,
+				.cra_alignmask = 3,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize = SHA1_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct sun8i_ce_hash_tfm_ctx),
+				.cra_module = THIS_MODULE,
+				.cra_init = sun8i_ce_hash_crainit,
+				.cra_exit = sun8i_ce_hash_craexit,
+			}
+		}
+	}
+},
+{	.type = CRYPTO_ALG_TYPE_AHASH,
+	.ce_algo_id = CE_ID_HASH_SHA224,
+	.alg.hash = {
+		.init = sun8i_ce_hash_init,
+		.update = sun8i_ce_hash_update,
+		.final = sun8i_ce_hash_final,
+		.finup = sun8i_ce_hash_finup,
+		.digest = sun8i_ce_hash_digest,
+		.export = sun8i_ce_hash_export,
+		.import = sun8i_ce_hash_import,
+		.halg = {
+			.digestsize = SHA224_DIGEST_SIZE,
+			.statesize = sizeof(struct sha256_state),
+			.base = {
+				.cra_name = "sha224",
+				.cra_driver_name = "sha224-sun8i-ce",
+				.cra_priority = 300,
+				.cra_alignmask = 3,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize = SHA224_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct sun8i_ce_hash_tfm_ctx),
+				.cra_module = THIS_MODULE,
+				.cra_init = sun8i_ce_hash_crainit,
+				.cra_exit = sun8i_ce_hash_craexit,
+			}
+		}
+	}
+},
+{	.type = CRYPTO_ALG_TYPE_AHASH,
+	.ce_algo_id = CE_ID_HASH_SHA256,
+	.alg.hash = {
+		.init = sun8i_ce_hash_init,
+		.update = sun8i_ce_hash_update,
+		.final = sun8i_ce_hash_final,
+		.finup = sun8i_ce_hash_finup,
+		.digest = sun8i_ce_hash_digest,
+		.export = sun8i_ce_hash_export,
+		.import = sun8i_ce_hash_import,
+		.halg = {
+			.digestsize = SHA256_DIGEST_SIZE,
+			.statesize = sizeof(struct sha256_state),
+			.base = {
+				.cra_name = "sha256",
+				.cra_driver_name = "sha256-sun8i-ce",
+				.cra_priority = 300,
+				.cra_alignmask = 3,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize = SHA256_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct sun8i_ce_hash_tfm_ctx),
+				.cra_module = THIS_MODULE,
+				.cra_init = sun8i_ce_hash_crainit,
+				.cra_exit = sun8i_ce_hash_craexit,
+			}
+		}
+	}
+},
+{	.type = CRYPTO_ALG_TYPE_AHASH,
+	.ce_algo_id = CE_ID_HASH_SHA384,
+	.alg.hash = {
+		.init = sun8i_ce_hash_init,
+		.update = sun8i_ce_hash_update,
+		.final = sun8i_ce_hash_final,
+		.finup = sun8i_ce_hash_finup,
+		.digest = sun8i_ce_hash_digest,
+		.export = sun8i_ce_hash_export,
+		.import = sun8i_ce_hash_import,
+		.halg = {
+			.digestsize = SHA384_DIGEST_SIZE,
+			.statesize = sizeof(struct sha512_state),
+			.base = {
+				.cra_name = "sha384",
+				.cra_driver_name = "sha384-sun8i-ce",
+				.cra_priority = 300,
+				.cra_alignmask = 3,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize = SHA384_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct sun8i_ce_hash_tfm_ctx),
+				.cra_module = THIS_MODULE,
+				.cra_init = sun8i_ce_hash_crainit,
+				.cra_exit = sun8i_ce_hash_craexit,
+			}
+		}
+	}
+},
+{	.type = CRYPTO_ALG_TYPE_AHASH,
+	.ce_algo_id = CE_ID_HASH_SHA512,
+	.alg.hash = {
+		.init = sun8i_ce_hash_init,
+		.update = sun8i_ce_hash_update,
+		.final = sun8i_ce_hash_final,
+		.finup = sun8i_ce_hash_finup,
+		.digest = sun8i_ce_hash_digest,
+		.export = sun8i_ce_hash_export,
+		.import = sun8i_ce_hash_import,
+		.halg = {
+			.digestsize = SHA512_DIGEST_SIZE,
+			.statesize = sizeof(struct sha512_state),
+			.base = {
+				.cra_name = "sha512",
+				.cra_driver_name = "sha512-sun8i-ce",
+				.cra_priority = 300,
+				.cra_alignmask = 3,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize = SHA512_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct sun8i_ce_hash_tfm_ctx),
+				.cra_module = THIS_MODULE,
+				.cra_init = sun8i_ce_hash_crainit,
+				.cra_exit = sun8i_ce_hash_craexit,
+			}
+		}
+	}
+},
+#endif
 };
 
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
@@ -348,6 +546,12 @@ static int sun8i_ce_debugfs_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "%s %s %lu %lu\n",
 				   ce_algs[i].alg.skcipher.base.cra_driver_name,
 				   ce_algs[i].alg.skcipher.base.cra_name,
+				   ce_algs[i].stat_req, ce_algs[i].stat_fb);
+			break;
+		case CRYPTO_ALG_TYPE_AHASH:
+			seq_printf(seq, "%s %s %lu %lu\n",
+				   ce_algs[i].alg.hash.halg.base.cra_driver_name,
+				   ce_algs[i].alg.hash.halg.base.cra_name,
 				   ce_algs[i].stat_req, ce_algs[i].stat_fb);
 			break;
 		}
@@ -553,6 +757,26 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 				return err;
 			}
 			break;
+		case CRYPTO_ALG_TYPE_AHASH:
+			id = ce_algs[i].ce_algo_id;
+			ce_method = ce->variant->alg_hash[id];
+			if (ce_method == CE_ID_NOTSUPP) {
+				dev_info(ce->dev,
+					 "DEBUG: Algo of %s not supported\n",
+					 ce_algs[i].alg.hash.halg.base.cra_name);
+				ce_algs[i].ce = NULL;
+				break;
+			}
+			dev_info(ce->dev, "Register %s\n",
+				 ce_algs[i].alg.hash.halg.base.cra_name);
+			err = crypto_register_ahash(&ce_algs[i].alg.hash);
+			if (err) {
+				dev_err(ce->dev, "ERROR: Fail to register %s\n",
+					ce_algs[i].alg.hash.halg.base.cra_name);
+				ce_algs[i].ce = NULL;
+				return err;
+			}
+			break;
 		default:
 			ce_algs[i].ce = NULL;
 			dev_err(ce->dev, "ERROR: tried to register an unknown algo\n");
@@ -573,6 +797,11 @@ static void sun8i_ce_unregister_algs(struct sun8i_ce_dev *ce)
 			dev_info(ce->dev, "Unregister %d %s\n", i,
 				 ce_algs[i].alg.skcipher.base.cra_name);
 			crypto_unregister_skcipher(&ce_algs[i].alg.skcipher);
+			break;
+		case CRYPTO_ALG_TYPE_AHASH:
+			dev_info(ce->dev, "Unregister %d %s\n", i,
+				 ce_algs[i].alg.hash.halg.base.cra_name);
+			crypto_unregister_ahash(&ce_algs[i].alg.hash);
 			break;
 		}
 	}

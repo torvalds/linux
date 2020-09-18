@@ -12,6 +12,9 @@
 #include <linux/atomic.h>
 #include <linux/debugfs.h>
 #include <linux/crypto.h>
+#include <crypto/internal/hash.h>
+#include <crypto/md5.h>
+#include <crypto/sha.h>
 
 /* CE Registers */
 #define CE_TDQ	0x00
@@ -45,6 +48,12 @@
 #define CE_ALG_AES		0
 #define CE_ALG_DES		1
 #define CE_ALG_3DES		2
+#define CE_ALG_MD5              16
+#define CE_ALG_SHA1             17
+#define CE_ALG_SHA224           18
+#define CE_ALG_SHA256           19
+#define CE_ALG_SHA384           20
+#define CE_ALG_SHA512           21
 
 /* Used in ce_variant */
 #define CE_ID_NOTSUPP		0xFF
@@ -53,6 +62,14 @@
 #define CE_ID_CIPHER_DES	1
 #define CE_ID_CIPHER_DES3	2
 #define CE_ID_CIPHER_MAX	3
+
+#define CE_ID_HASH_MD5		0
+#define CE_ID_HASH_SHA1		1
+#define CE_ID_HASH_SHA224	2
+#define CE_ID_HASH_SHA256	3
+#define CE_ID_HASH_SHA384	4
+#define CE_ID_HASH_SHA512	5
+#define CE_ID_HASH_MAX		6
 
 #define CE_ID_OP_ECB	0
 #define CE_ID_OP_CBC	1
@@ -96,16 +113,22 @@ struct ce_clock {
  * struct ce_variant - Describe CE capability for each variant hardware
  * @alg_cipher:	list of supported ciphers. for each CE_ID_ this will give the
  *              coresponding CE_ALG_XXX value
+ * @alg_hash:	list of supported hashes. for each CE_ID_ this will give the
+ *              corresponding CE_ALG_XXX value
  * @op_mode:	list of supported block modes
  * @cipher_t_dlen_in_bytes:	Does the request size for cipher is in
  *				bytes or words
+ * @hash_t_dlen_in_bytes:	Does the request size for hash is in
+ *				bits or words
  * @ce_clks:	list of clocks needed by this variant
  * @esr:	The type of error register
  */
 struct ce_variant {
 	char alg_cipher[CE_ID_CIPHER_MAX];
+	char alg_hash[CE_ID_HASH_MAX];
 	u32 op_mode[CE_ID_OP_MAX];
 	bool cipher_t_dlen_in_bytes;
+	bool hash_t_dlen_in_bits;
 	struct ce_clock ce_clks[CE_MAX_CLOCKS];
 	int esr;
 };
@@ -226,6 +249,28 @@ struct sun8i_cipher_tfm_ctx {
 };
 
 /*
+ * struct sun8i_ce_hash_tfm_ctx - context for an ahash TFM
+ * @enginectx:		crypto_engine used by this TFM
+ * @ce:			pointer to the private data of driver handling this TFM
+ * @fallback_tfm:	pointer to the fallback TFM
+ */
+struct sun8i_ce_hash_tfm_ctx {
+	struct crypto_engine_ctx enginectx;
+	struct sun8i_ce_dev *ce;
+	struct crypto_ahash *fallback_tfm;
+};
+
+/*
+ * struct sun8i_ce_hash_reqctx - context for an ahash request
+ * @fallback_req:	pre-allocated fallback request
+ * @flow:	the flow to use for this request
+ */
+struct sun8i_ce_hash_reqctx {
+	struct ahash_request fallback_req;
+	int flow;
+};
+
+/*
  * struct sun8i_ce_alg_template - crypto_alg template
  * @type:		the CRYPTO_ALG_TYPE for this template
  * @ce_algo_id:		the CE_ID for this template
@@ -243,6 +288,7 @@ struct sun8i_ce_alg_template {
 	struct sun8i_ce_dev *ce;
 	union {
 		struct skcipher_alg skcipher;
+		struct ahash_alg hash;
 	} alg;
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
 	unsigned long stat_req;
@@ -264,3 +310,15 @@ int sun8i_ce_skencrypt(struct skcipher_request *areq);
 int sun8i_ce_get_engine_number(struct sun8i_ce_dev *ce);
 
 int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name);
+
+int sun8i_ce_hash_crainit(struct crypto_tfm *tfm);
+void sun8i_ce_hash_craexit(struct crypto_tfm *tfm);
+int sun8i_ce_hash_init(struct ahash_request *areq);
+int sun8i_ce_hash_export(struct ahash_request *areq, void *out);
+int sun8i_ce_hash_import(struct ahash_request *areq, const void *in);
+int sun8i_ce_hash(struct ahash_request *areq);
+int sun8i_ce_hash_final(struct ahash_request *areq);
+int sun8i_ce_hash_update(struct ahash_request *areq);
+int sun8i_ce_hash_finup(struct ahash_request *areq);
+int sun8i_ce_hash_digest(struct ahash_request *areq);
+int sun8i_ce_hash_run(struct crypto_engine *engine, void *breq);
