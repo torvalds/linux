@@ -8236,7 +8236,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	request->scan_start = jiffies;
 
 	rdev->scan_req = request;
-	err = rdev_scan(rdev, request);
+	err = cfg80211_scan(rdev);
 
 	if (err)
 		goto out_free;
@@ -15518,6 +15518,7 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	struct cfg80211_scan_request *req = rdev->scan_req;
 	struct nlattr *nest;
 	int i;
+	struct cfg80211_scan_info *info;
 
 	if (WARN_ON(!req))
 		return 0;
@@ -15561,11 +15562,13 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	    nla_put_u32(msg, NL80211_ATTR_SCAN_FLAGS, req->flags))
 		goto nla_put_failure;
 
-	if (req->info.scan_start_tsf &&
+	info = rdev->int_scan_req ? &rdev->int_scan_req->info :
+		&rdev->scan_req->info;
+	if (info->scan_start_tsf &&
 	    (nla_put_u64_64bit(msg, NL80211_ATTR_SCAN_START_TIME_TSF,
-			       req->info.scan_start_tsf, NL80211_BSS_PAD) ||
+			       info->scan_start_tsf, NL80211_BSS_PAD) ||
 	     nla_put(msg, NL80211_ATTR_SCAN_START_TIME_TSF_BSSID, ETH_ALEN,
-		     req->info.tsf_bssid)))
+		     info->tsf_bssid)))
 		goto nla_put_failure;
 
 	return 0;

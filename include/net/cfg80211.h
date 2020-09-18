@@ -2096,6 +2096,27 @@ struct cfg80211_scan_info {
 };
 
 /**
+ * struct cfg80211_scan_6ghz_params - relevant for 6 GHz only
+ *
+ * @short_bssid: short ssid to scan for
+ * @bssid: bssid to scan for
+ * @channel_idx: idx of the channel in the channel array in the scan request
+ *	 which the above info relvant to
+ * @unsolicited_probe: the AP transmits unsolicited probe response every 20 TU
+ * @short_ssid_valid: short_ssid is valid and can be used
+ * @psc_no_listen: when set, and the channel is a PSC channel, no need to wait
+ *       20 TUs before starting to send probe requests.
+ */
+struct cfg80211_scan_6ghz_params {
+	u32 short_ssid;
+	u32 channel_idx;
+	u8 bssid[ETH_ALEN];
+	bool unsolicited_probe;
+	bool short_ssid_valid;
+	bool psc_no_listen;
+};
+
+/**
  * struct cfg80211_scan_request - scan request description
  *
  * @ssids: SSIDs to scan for (active scan only)
@@ -2122,6 +2143,10 @@ struct cfg80211_scan_info {
  * @mac_addr_mask: MAC address mask used with randomisation, bits that
  *	are 0 in the mask should be randomised, bits that are 1 should
  *	be taken from the @mac_addr
+ * @scan_6ghz: relevant for split scan request only,
+ *	true if this is the second scan request
+ * @n_6ghz_params: number of 6 GHz params
+ * @scan_6ghz_params: 6 GHz params
  * @bssid: BSSID to scan for (most commonly, the wildcard BSSID)
  */
 struct cfg80211_scan_request {
@@ -2149,6 +2174,9 @@ struct cfg80211_scan_request {
 	struct cfg80211_scan_info info;
 	bool notified;
 	bool no_cck;
+	bool scan_6ghz;
+	u32 n_6ghz_params;
+	struct cfg80211_scan_6ghz_params *scan_6ghz_params;
 
 	/* keep last */
 	struct ieee80211_channel *channels[];
@@ -4217,6 +4245,8 @@ struct cfg80211_ops {
 /**
  * enum wiphy_flags - wiphy capability flags
  *
+ * @WIPHY_FLAG_SPLIT_SCAN_6GHZ: if set to true, the scan request will be split
+ *	 into two, first for legacy bands and second for UHB.
  * @WIPHY_FLAG_NETNS_OK: if not set, do not allow changing the netns of this
  *	wiphy at all
  * @WIPHY_FLAG_PS_ON_BY_DEFAULT: if set to true, powersave will be enabled
@@ -4260,7 +4290,7 @@ struct cfg80211_ops {
 enum wiphy_flags {
 	WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK		= BIT(0),
 	/* use hole at 1 */
-	/* use hole at 2 */
+	WIPHY_FLAG_SPLIT_SCAN_6GHZ		= BIT(2),
 	WIPHY_FLAG_NETNS_OK			= BIT(3),
 	WIPHY_FLAG_PS_ON_BY_DEFAULT		= BIT(4),
 	WIPHY_FLAG_4ADDR_AP			= BIT(5),

@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright 2016-2017  Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 #include <linux/if_arp.h>
@@ -712,6 +712,10 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 			req->duration_mandatory;
 
 		local->hw_scan_band = 0;
+		local->hw_scan_req->req.n_6ghz_params = req->n_6ghz_params;
+		local->hw_scan_req->req.scan_6ghz_params =
+			req->scan_6ghz_params;
+		local->hw_scan_req->req.scan_6ghz = req->scan_6ghz;
 
 		/*
 		 * After allocating local->hw_scan_req, we must
@@ -1124,7 +1128,8 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 		int max_n;
 
 		for (band = 0; band < NUM_NL80211_BANDS; band++) {
-			if (!local->hw.wiphy->bands[band])
+			if (!local->hw.wiphy->bands[band] ||
+			    band == NL80211_BAND_6GHZ)
 				continue;
 
 			max_n = local->hw.wiphy->bands[band]->n_channels;
