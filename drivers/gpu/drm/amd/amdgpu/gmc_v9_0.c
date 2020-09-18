@@ -1363,6 +1363,15 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 		WARN(1, "VEGA10 PCIE GART already initialized\n");
 		return 0;
 	}
+
+	if (adev->gmc.xgmi.connected_to_cpu) {
+		adev->gmc.vmid0_page_table_depth = 1;
+		adev->gmc.vmid0_page_table_block_size = 12;
+	} else {
+		adev->gmc.vmid0_page_table_depth = 0;
+		adev->gmc.vmid0_page_table_block_size = 0;
+	}
+
 	/* Initialize common gart structure */
 	r = amdgpu_gart_init(adev);
 	if (r)
