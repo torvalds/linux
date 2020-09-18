@@ -694,9 +694,9 @@ struct regmap *__regmap_init(struct device *dev,
 			     const char *lock_name)
 {
 	struct regmap *map;
+	int ret = -EINVAL;
 	enum regmap_endian reg_endian, val_endian;
 	int i, j;
-	int ret;
 
 	if (!config)
 		goto err;
