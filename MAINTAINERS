@@ -5380,7 +5380,6 @@ F:	include/linux/kobj*
 F:	lib/kobj*
 
 DRIVERS FOR ADAPTIVE VOLTAGE SCALING (AVS)
-M:	Kevin Hilman <khilman@kernel.org>
 M:	Nishanth Menon <nm@ti.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
