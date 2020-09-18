@@ -581,7 +581,7 @@ bundle:
  *  @pos: position in outer message of msg to be extracted.
  *        Returns position of next msg
  *  Consumes outer buffer when last packet extracted
- *  Returns true when when there is an extracted buffer, otherwise false
+ *  Returns true when there is an extracted buffer, otherwise false
  */
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 {
