@@ -708,29 +708,28 @@ static int tas2770_parse_dt(struct device *dev, struct tas2770_priv *tas2770)
 	rc = fwnode_property_read_u32(dev->fwnode, "ti,asi-format",
 					&tas2770->asi_format);
 	if (rc) {
-		dev_err(tas2770->dev, "Looking up %s property failed %d\n",
-			"ti,asi-format", rc);
-		goto end;
+		dev_info(tas2770->dev, "Property %s is missing setting default slot\n",
+			"ti,asi-format");
+		tas2770->asi_format = 0;
 	}
 
 	rc = fwnode_property_read_u32(dev->fwnode, "ti,imon-slot-no",
 			&tas2770->i_sense_slot);
 	if (rc) {
-		dev_err(tas2770->dev, "Looking up %s property failed %d\n",
-			"ti,imon-slot-no", rc);
-		goto end;
+		dev_info(tas2770->dev, "Property %s is missing setting default slot\n",
+			"ti,imon-slot-no");
+		tas2770->i_sense_slot = 0;
 	}
 
 	rc = fwnode_property_read_u32(dev->fwnode, "ti,vmon-slot-no",
 				&tas2770->v_sense_slot);
 	if (rc) {
-		dev_err(tas2770->dev, "Looking up %s property failed %d\n",
-			"ti,vmon-slot-no", rc);
-		goto end;
+		dev_info(tas2770->dev, "Property %s is missing setting default slot\n",
+			"ti,vmon-slot-no");
+		tas2770->v_sense_slot = 2;
 	}
 
-end:
-	return rc;
+	return 0;
 }
 
 static int tas2770_i2c_probe(struct i2c_client *client,
