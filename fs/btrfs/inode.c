@@ -71,7 +71,6 @@ static const struct inode_operations btrfs_special_inode_operations;
 static const struct inode_operations btrfs_file_inode_operations;
 static const struct address_space_operations btrfs_aops;
 static const struct file_operations btrfs_dir_file_operations;
-static const struct extent_io_ops btrfs_extent_io_ops;
 
 static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
@@ -140,13 +139,6 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 }
 
 static int btrfs_dirty_inode(struct inode *inode);
-
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-void btrfs_test_inode_set_ops(struct inode *inode)
-{
-	BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
-}
-#endif
 
 static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
 				     struct inode *inode,  struct inode *dir,
@@ -3391,7 +3383,6 @@ cache_acl:
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_mapping->a_ops = &btrfs_aops;
-		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 		inode->i_fop = &btrfs_file_operations;
 		inode->i_op = &btrfs_file_inode_operations;
 		break;
@@ -6307,7 +6298,6 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	if (err)
 		goto out_unlock;
 
-	BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 	d_instantiate_new(dentry, inode);
 
 out_unlock:
@@ -9518,7 +9508,6 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	inode->i_fop = &btrfs_file_operations;
 	inode->i_op = &btrfs_file_inode_operations;
 	inode->i_mapping->a_ops = &btrfs_aops;
-	BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 
 	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err)
@@ -9838,7 +9827,6 @@ static int btrfs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 	inode->i_op = &btrfs_file_inode_operations;
 
 	inode->i_mapping->a_ops = &btrfs_aops;
-	BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 
 	ret = btrfs_init_inode_security(trans, inode, dir, NULL);
 	if (ret)
@@ -10254,10 +10242,6 @@ static const struct file_operations btrfs_dir_file_operations = {
 #endif
 	.release        = btrfs_release_file,
 	.fsync		= btrfs_sync_file,
-};
-
-static const struct extent_io_ops btrfs_extent_io_ops = {
-	.submit_bio_hook = NULL
 };
 
 /*

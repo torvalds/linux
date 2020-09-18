@@ -949,7 +949,6 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	}
 
 	BTRFS_I(inode)->root = root;
-	btrfs_test_inode_set_ops(inode);
 
 	/* [BTRFS_MAX_EXTENT_SIZE] */
 	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), 0,

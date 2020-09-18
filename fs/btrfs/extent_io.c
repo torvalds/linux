@@ -281,7 +281,6 @@ void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 {
 	tree->fs_info = fs_info;
 	tree->state = RB_ROOT;
-	tree->ops = NULL;
 	tree->dirty_bytes = 0;
 	spin_lock_init(&tree->lock);
 	tree->private_data = private_data;
@@ -3055,7 +3054,6 @@ static int submit_extent_page(unsigned int opf,
 		else
 			contig = bio_end_sector(bio) == sector;
 
-		ASSERT(tree->ops);
 		if (btrfs_bio_fits_in_stripe(page, page_size, bio, bio_flags))
 			can_merge = false;
 

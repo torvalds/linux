@@ -63,7 +63,6 @@ struct extent_io_tree {
 	u8 owner;
 
 	spinlock_t lock;
-	const struct extent_io_ops *ops;
 };
 
 struct extent_state {
