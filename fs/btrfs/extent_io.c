@@ -172,8 +172,8 @@ int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 		ret = btrfs_submit_data_bio(tree->private_data, bio, mirror_num,
 					    bio_flags);
 	else
-		ret = tree->ops->submit_bio_hook(tree->private_data, bio,
-						 mirror_num, bio_flags);
+		ret = btrfs_submit_metadata_bio(tree->private_data, bio,
+						mirror_num, bio_flags);
 
 	return blk_status_to_errno(ret);
 }
