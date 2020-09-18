@@ -908,6 +908,8 @@ static void mscc_ocelot_release_ports(struct ocelot *ocelot)
 		if (!ocelot_port)
 			continue;
 
+		ocelot_deinit_port(ocelot, port);
+
 		priv = container_of(ocelot_port, struct ocelot_port_private,
 				    port);
 
