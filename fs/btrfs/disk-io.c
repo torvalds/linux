@@ -4638,5 +4638,4 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 static const struct extent_io_ops btree_extent_io_ops = {
 	/* mandatory callbacks */
 	.submit_bio_hook = btree_submit_bio_hook,
-	.readpage_end_io_hook = NULL
 };

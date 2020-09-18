@@ -76,13 +76,10 @@ typedef blk_status_t (extent_submit_bio_start_t)(void *private_data,
 
 struct extent_io_ops {
 	/*
-	 * The following callbacks must be always defined, the function
+	 * The following callback must be always defined, the function
 	 * pointer will be called unconditionally.
 	 */
 	submit_bio_hook_t *submit_bio_hook;
-	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
-				    struct page *page, u64 start, u64 end,
-				    int mirror);
 };
 
 

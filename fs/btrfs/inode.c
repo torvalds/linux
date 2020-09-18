@@ -10260,7 +10260,6 @@ static const struct file_operations btrfs_dir_file_operations = {
 static const struct extent_io_ops btrfs_extent_io_ops = {
 	/* mandatory callbacks */
 	.submit_bio_hook = btrfs_submit_bio_hook,
-	.readpage_end_io_hook = NULL
 };
 
 /*
