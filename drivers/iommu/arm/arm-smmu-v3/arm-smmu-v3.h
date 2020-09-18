@@ -647,6 +647,8 @@ struct arm_smmu_master {
 	u32				*sids;
 	unsigned int			num_sids;
 	bool				ats_enabled;
+	bool				sva_enabled;
+	struct list_head		bonds;
 	unsigned int			ssid_bits;
 };
 
@@ -688,10 +690,34 @@ bool arm_smmu_free_asid(struct arm_smmu_ctx_desc *cd);
 
 #ifdef CONFIG_ARM_SMMU_V3_SVA
 bool arm_smmu_sva_supported(struct arm_smmu_device *smmu);
+bool arm_smmu_master_sva_supported(struct arm_smmu_master *master);
+bool arm_smmu_master_sva_enabled(struct arm_smmu_master *master);
+int arm_smmu_master_enable_sva(struct arm_smmu_master *master);
+int arm_smmu_master_disable_sva(struct arm_smmu_master *master);
 #else /* CONFIG_ARM_SMMU_V3_SVA */
 static inline bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 {
 	return false;
+}
+
+static inline bool arm_smmu_master_sva_supported(struct arm_smmu_master *master)
+{
+	return false;
+}
+
+static inline bool arm_smmu_master_sva_enabled(struct arm_smmu_master *master)
+{
+	return false;
+}
+
+static inline int arm_smmu_master_enable_sva(struct arm_smmu_master *master)
+{
+	return -ENODEV;
+}
+
+static inline int arm_smmu_master_disable_sva(struct arm_smmu_master *master)
+{
+	return -ENODEV;
 }
 #endif /* CONFIG_ARM_SMMU_V3_SVA */
 #endif /* _ARM_SMMU_V3_H */
