@@ -43,6 +43,10 @@
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 
+#ifdef HAVE_DEBUGINFOD_SUPPORT
+#include <elfutils/debuginfod.h>
+#endif
+
 #define PERFPROBE_GROUP "probe"
 
 bool probe_event_dry_run;	/* Dry run flag */
@@ -338,6 +342,8 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 
 	map = machine__kernel_map(host_machine);
 	dso = map->dso;
+	if (!dso->has_build_id)
+		dso__read_running_kernel_build_id(dso, host_machine);
 
 	vmlinux_name = symbol_conf.vmlinux_name;
 	dso->load_errno = 0;
@@ -453,6 +459,49 @@ static int get_alternative_line_range(struct debuginfo *dinfo,
 	return ret;
 }
 
+#ifdef HAVE_DEBUGINFOD_SUPPORT
+static struct debuginfo *open_from_debuginfod(struct dso *dso, struct nsinfo *nsi,
+					      bool silent)
+{
+	debuginfod_client *c = debuginfod_begin();
+	char sbuild_id[SBUILD_ID_SIZE + 1];
+	struct debuginfo *ret = NULL;
+	struct nscookie nsc;
+	char *path;
+	int fd;
+
+	if (!c)
+		return NULL;
+
+	build_id__sprintf(dso->build_id, BUILD_ID_SIZE, sbuild_id);
+	fd = debuginfod_find_debuginfo(c, (const unsigned char *)sbuild_id,
+					0, &path);
+	if (fd >= 0)
+		close(fd);
+	debuginfod_end(c);
+	if (fd < 0) {
+		if (!silent)
+			pr_debug("Failed to find debuginfo in debuginfod.\n");
+		return NULL;
+	}
+	if (!silent)
+		pr_debug("Load debuginfo from debuginfod (%s)\n", path);
+
+	nsinfo__mountns_enter(nsi, &nsc);
+	ret = debuginfo__new((const char *)path);
+	nsinfo__mountns_exit(&nsc);
+	return ret;
+}
+#else
+static inline
+struct debuginfo *open_from_debuginfod(struct dso *dso __maybe_unused,
+				       struct nsinfo *nsi __maybe_unused,
+				       bool silent __maybe_unused)
+{
+	return NULL;
+}
+#endif
+
 /* Open new debuginfo of given module */
 static struct debuginfo *open_debuginfo(const char *module, struct nsinfo *nsi,
 					bool silent)
@@ -472,6 +521,10 @@ static struct debuginfo *open_debuginfo(const char *module, struct nsinfo *nsi,
 					strcpy(reason, "(unknown)");
 			} else
 				dso__strerror_load(dso, reason, STRERR_BUFSIZE);
+			if (dso)
+				ret = open_from_debuginfod(dso, nsi, silent);
+			if (ret)
+				return ret;
 			if (!silent) {
 				if (module)
 					pr_err("Module %s is not loaded, please specify its full path name.\n", module);
@@ -959,6 +1012,7 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	int ret;
 	char *tmp;
 	char sbuf[STRERR_BUFSIZE];
+	char sbuild_id[SBUILD_ID_SIZE] = "";
 
 	/* Search a line range */
 	dinfo = open_debuginfo(module, NULL, false);
@@ -971,6 +1025,8 @@ static int __show_line_range(struct line_range *lr, const char *module,
 		if (!ret)
 			ret = debuginfo__find_line_range(dinfo, lr);
 	}
+	if (dinfo->build_id)
+		build_id__sprintf(dinfo->build_id, BUILD_ID_SIZE, sbuild_id);
 	debuginfo__delete(dinfo);
 	if (ret == 0 || ret == -ENOENT) {
 		pr_warning("Specified source line is not found.\n");
@@ -982,7 +1038,7 @@ static int __show_line_range(struct line_range *lr, const char *module,
 
 	/* Convert source file path */
 	tmp = lr->path;
-	ret = get_real_path(tmp, lr->comp_dir, &lr->path);
+	ret = find_source_path(tmp, sbuild_id, lr->comp_dir, &lr->path);
 
 	/* Free old path when new path is assigned */
 	if (tmp != lr->path)

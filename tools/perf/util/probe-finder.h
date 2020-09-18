@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include "intlist.h"
+#include "build-id.h"
 #include "probe-event.h"
 #include <linux/ctype.h>
 
@@ -32,6 +33,7 @@ struct debuginfo {
 	Dwfl_Module	*mod;
 	Dwfl		*dwfl;
 	Dwarf_Addr	bias;
+	const unsigned char	*build_id;
 };
 
 /* This also tries to open distro debuginfo */
@@ -59,11 +61,12 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 				      struct variable_list **vls);
 
 /* Find a src file from a DWARF tag path */
-int get_real_path(const char *raw_path, const char *comp_dir,
-			 char **new_path);
+int find_source_path(const char *raw_path, const char *sbuild_id,
+		     const char *comp_dir, char **new_path);
 
 struct probe_finder {
 	struct perf_probe_event	*pev;		/* Target probe event */
+	struct debuginfo	*dbg;
 
 	/* Callback when a probe point is found */
 	int (*callback)(Dwarf_Die *sc_die, struct probe_finder *pf);
