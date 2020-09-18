@@ -162,7 +162,7 @@ static int hisi_hikey_usb_parse_kirin970(struct platform_device *pdev,
 		dev_err(&pdev->dev,
 			"get hub-vdd-supply failed with error %ld\n",
 			PTR_ERR(regulator));
-			return PTR_ERR(regulator);
+		return PTR_ERR(regulator);
 	}
 	hisi_hikey_usb->regulator = regulator;
 
