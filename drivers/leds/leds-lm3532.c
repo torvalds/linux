@@ -129,7 +129,6 @@ struct lm3532_als_data {
  * @full_scale_current - The full-scale current setting for the current sink.
  * @led_strings - The LED strings supported in this array
  * @enabled - Enabled status
- * @label - LED label
  */
 struct lm3532_led {
 	struct led_classdev led_dev;
@@ -142,7 +141,6 @@ struct lm3532_led {
 	int full_scale_current;
 	unsigned int enabled:1;
 	u32 led_strings[LM3532_MAX_CONTROL_BANKS];
-	char label[LED_MAX_NAME_SIZE];
 };
 
 /**
@@ -548,7 +546,6 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 {
 	struct fwnode_handle *child = NULL;
 	struct lm3532_led *led;
-	const char *name;
 	int control_bank;
 	u32 ramp_time;
 	size_t i = 0;
@@ -646,16 +643,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led->led_dev.default_trigger);
 
-		ret = fwnode_property_read_string(child, "label", &name);
-		if (ret)
-			snprintf(led->label, sizeof(led->label),
-				"%s::", priv->client->name);
-		else
-			snprintf(led->label, sizeof(led->label),
-				 "%s:%s", priv->client->name, name);
-
 		led->priv = priv;
-		led->led_dev.name = led->label;
 		led->led_dev.brightness_set_blocking = lm3532_brightness_set;
 
 		ret = devm_led_classdev_register_ext(priv->dev, &led->led_dev, &idata);
