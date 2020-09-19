@@ -129,7 +129,6 @@ static s32 e1000_set_phy_type(struct e1000_hw *hw)
  */
 static void e1000_phy_init_script(struct e1000_hw *hw)
 {
-	u32 ret_val;
 	u16 phy_saved_data;
 
 	if (hw->phy_init_script) {
@@ -138,7 +137,7 @@ static void e1000_phy_init_script(struct e1000_hw *hw)
 		/* Save off the current value of register 0x2F5B to be restored
 		 * at the end of this routine.
 		 */
-		ret_val = e1000_read_phy_reg(hw, 0x2F5B, &phy_saved_data);
+		e1000_read_phy_reg(hw, 0x2F5B, &phy_saved_data);
 
 		/* Disabled the PHY transmitter */
 		e1000_write_phy_reg(hw, 0x2F5B, 0x0003);
