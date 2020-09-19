@@ -1888,25 +1888,45 @@ int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 }
 
 /* Architecture-specific syscall changing routine. */
-void change_syscall(struct __test_metadata *_metadata,
-		    pid_t tracee, int syscall, int result)
+void __change_syscall(struct __test_metadata *_metadata,
+		    pid_t tracee, long *syscall, long *ret)
 {
 	ARCH_REGS orig, regs;
+
+	/* Do not get/set registers if we have nothing to do. */
+	if (!syscall && !ret)
+		return;
 
 	EXPECT_EQ(0, ARCH_GETREGS(regs)) {
 		return;
 	}
 	orig = regs;
 
-	SYSCALL_NUM_SET(regs, syscall);
+	if (syscall)
+		SYSCALL_NUM_SET(regs, *syscall);
 
-	/* If syscall is skipped, change return value. */
-	if (syscall == -1)
-		SYSCALL_RET_SET(regs, result);
+	if (ret)
+		SYSCALL_RET_SET(regs, *ret);
 
 	/* Flush any register changes made. */
 	if (memcmp(&orig, &regs, sizeof(orig)) != 0)
 		EXPECT_EQ(0, ARCH_SETREGS(regs));
+}
+
+/* Change only syscall number. */
+void change_syscall_nr(struct __test_metadata *_metadata,
+		       pid_t tracee, long syscall)
+{
+	__change_syscall(_metadata, tracee, &syscall, NULL);
+}
+
+/* Change syscall return value (and set syscall number to -1). */
+void change_syscall_ret(struct __test_metadata *_metadata,
+			pid_t tracee, long ret)
+{
+	long syscall = -1;
+
+	__change_syscall(_metadata, tracee, &syscall, &ret);
 }
 
 void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
@@ -1924,17 +1944,17 @@ void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
 	case 0x1002:
 		/* change getpid to getppid. */
 		EXPECT_EQ(__NR_getpid, get_syscall(_metadata, tracee));
-		change_syscall(_metadata, tracee, __NR_getppid, 0);
+		change_syscall_nr(_metadata, tracee, __NR_getppid);
 		break;
 	case 0x1003:
 		/* skip gettid with valid return code. */
 		EXPECT_EQ(__NR_gettid, get_syscall(_metadata, tracee));
-		change_syscall(_metadata, tracee, -1, 45000);
+		change_syscall_ret(_metadata, tracee, 45000);
 		break;
 	case 0x1004:
 		/* skip openat with error. */
 		EXPECT_EQ(__NR_openat, get_syscall(_metadata, tracee));
-		change_syscall(_metadata, tracee, -1, -ESRCH);
+		change_syscall_ret(_metadata, tracee, -ESRCH);
 		break;
 	case 0x1005:
 		/* do nothing (allow getppid) */
@@ -1961,6 +1981,8 @@ void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 	int ret;
 	unsigned long msg;
 	static bool entry;
+	long syscall_nr_val, syscall_ret_val;
+	long *syscall_nr = NULL, *syscall_ret = NULL;
 	FIXTURE_DATA(TRACE_syscall) *self = args;
 
 	/*
@@ -1987,17 +2009,30 @@ void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 	else
 		return;
 
+	syscall_nr = &syscall_nr_val;
+	syscall_ret = &syscall_ret_val;
+
+	/* Now handle the actual rewriting cases. */
 	switch (self->syscall_nr) {
 	case __NR_getpid:
-		change_syscall(_metadata, tracee, __NR_getppid, 0);
+		syscall_nr_val = __NR_getppid;
+		/* Never change syscall return for this case. */
+		syscall_ret = NULL;
 		break;
 	case __NR_gettid:
-		change_syscall(_metadata, tracee, -1, 45000);
+		syscall_nr_val = -1;
+		syscall_ret_val = 45000;
 		break;
 	case __NR_openat:
-		change_syscall(_metadata, tracee, -1, -ESRCH);
+		syscall_nr_val = -1;
+		syscall_ret_val = -ESRCH;
 		break;
+	default:
+		/* Unhandled, do nothing. */
+		return;
 	}
+
+	__change_syscall(_metadata, tracee, syscall_nr, syscall_ret);
 }
 
 FIXTURE_VARIANT(TRACE_syscall) {
