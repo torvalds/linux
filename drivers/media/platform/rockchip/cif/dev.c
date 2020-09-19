@@ -344,6 +344,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->irq_stats.dvp_pix_err_cnt = 0;
 				cif_dev->irq_stats.all_err_cnt = 0;
 				cif_dev->irq_stats.all_frm_end_cnt = 0;
+				cif_dev->is_start_hdr = true;
 			}
 
 			/* phy -> sensor */
@@ -749,9 +750,11 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->inf_id = inf_id;
 
 	mutex_init(&cif_dev->stream_lock);
+	spin_lock_init(&cif_dev->hdr_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
 	atomic_set(&cif_dev->fh_cnt, 0);
+	cif_dev->is_start_hdr = false;
 	cif_dev->pipe.open = rkcif_pipeline_open;
 	cif_dev->pipe.close = rkcif_pipeline_close;
 	cif_dev->pipe.set_stream = rkcif_pipeline_set_stream;

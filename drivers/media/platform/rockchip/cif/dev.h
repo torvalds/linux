@@ -417,6 +417,8 @@ struct rkcif_device {
 	struct sditf_priv		*sditf;
 	struct proc_dir_entry		*proc_dir;
 	struct rkcif_irq_stats		irq_stats;
+	spinlock_t			hdr_lock; /* lock for hdr buf sync */
+	bool				is_start_hdr;
 };
 
 extern struct platform_driver rkcif_plat_drv;
