@@ -4372,11 +4372,19 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_28_FL_S, 0);
 	memcpy(context->dgid, grh->dgid.raw, sizeof(grh->dgid.raw));
 	memset(qpc_mask->dgid, 0, sizeof(grh->dgid.raw));
+
+	hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
+	if (unlikely(hr_qp->sl > MAX_SERVICE_LEVEL)) {
+		ibdev_err(ibdev,
+			  "failed to fill QPC, sl (%d) shouldn't be larger than %d.\n",
+			  hr_qp->sl, MAX_SERVICE_LEVEL);
+		return -EINVAL;
+	}
+
 	roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_SL_M,
-		       V2_QPC_BYTE_28_SL_S, rdma_ah_get_sl(&attr->ah_attr));
+		       V2_QPC_BYTE_28_SL_S, hr_qp->sl);
 	roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_SL_M,
 		       V2_QPC_BYTE_28_SL_S, 0);
-	hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
 
 	return 0;
 }
