@@ -51,8 +51,7 @@ void phy_set_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask, u32 data)
 	usb_write32(adapt, regaddr, data);
 }
 
-static u32 rf_serial_read(struct adapter *adapt,
-			enum rf_radio_path rfpath, u32 offset)
+static u32 rf_serial_read(struct adapter *adapt, enum rf_radio_path rfpath, u32 offset)
 {
 	u32 ret = 0;
 	struct bb_reg_def *phyreg = &adapt->HalData->PHYRegDef[rfpath];
@@ -107,7 +106,7 @@ static void rf_serial_write(struct adapter *adapt,
 }
 
 u32 rtw_hal_read_rfreg(struct adapter *adapt, enum rf_radio_path rf_path,
-		     u32 reg_addr, u32 bit_mask)
+		       u32 reg_addr, u32 bit_mask)
 {
 	u32 original_value, bit_shift;
 
@@ -117,7 +116,7 @@ u32 rtw_hal_read_rfreg(struct adapter *adapt, enum rf_radio_path rf_path,
 }
 
 void phy_set_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
-		     u32 reg_addr, u32 bit_mask, u32 data)
+		    u32 reg_addr, u32 bit_mask, u32 data)
 {
 	u32 original_value, bit_shift;
 
@@ -190,7 +189,7 @@ void phy_set_tx_power_level(struct adapter *adapt, u8 channel)
 
 	rtl88eu_phy_rf6052_set_cck_txpower(adapt, &cck_pwr[0]);
 	rtl88eu_phy_rf6052_set_ofdm_txpower(adapt, &ofdm_pwr[0], &bw20_pwr[0],
-					  &bw40_pwr[0], channel);
+					    &bw40_pwr[0], channel);
 }
 
 static void phy_set_bw_mode_callback(struct adapter *adapt)
@@ -236,11 +235,11 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 		 * These settings are required only for 40MHz
 		 */
 		phy_set_bb_reg(adapt, rCCK0_System, bCCKSideBand,
-		    (hal_data->nCur40MhzPrimeSC >> 1));
+			       (hal_data->nCur40MhzPrimeSC >> 1));
 		phy_set_bb_reg(adapt, rOFDM1_LSTF, 0xC00,
 			       hal_data->nCur40MhzPrimeSC);
 		phy_set_bb_reg(adapt, 0x818, (BIT(26) | BIT(27)),
-		   (hal_data->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
+			       (hal_data->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
 		break;
@@ -251,7 +250,7 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 }
 
 void rtw_hal_set_bwmode(struct adapter *adapt, enum ht_channel_width bandwidth,
-		     unsigned char offset)
+			unsigned char offset)
 {
 	struct hal_data_8188e *hal_data = adapt->HalData;
 	enum ht_channel_width tmp_bw = hal_data->CurrentChannelBW;
@@ -437,7 +436,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 			thermal_val = (u8)(thermal_avg / thermal_avg_count);
 
 		if (dm_odm->RFCalibrateInfo.bDoneTxpower &&
-			!dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
+		    !dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
 			delta = abs(thermal_val - dm_odm->RFCalibrateInfo.ThermalValue);
 		} else {
 			delta = abs(thermal_val - hal_data->EEPROMThermalMeter);
@@ -1149,12 +1148,12 @@ static void phy_lc_calibrate(struct adapter *adapt, bool is2t)
 		/* 1. Read original RF mode */
 		/* Path-A */
 		rf_a_mode = rtw_hal_read_rfreg(adapt, RF_PATH_A, RF_AC,
-					     bMask12Bits);
+					       bMask12Bits);
 
 		/* Path-B */
 		if (is2t)
 			rf_b_mode = rtw_hal_read_rfreg(adapt, RF_PATH_B, RF_AC,
-						     bMask12Bits);
+						       bMask12Bits);
 
 		/* 2. Set RF mode = standby mode */
 		/* Path-A */

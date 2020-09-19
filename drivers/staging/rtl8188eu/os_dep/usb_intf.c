@@ -118,7 +118,7 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 	if (dvobj) {
 		/* Modify condition for 92DU DMDP 2010.11.18, by Thomas */
 		if ((dvobj->NumInterfaces != 2 &&
-		    dvobj->NumInterfaces != 3) ||
+		     dvobj->NumInterfaces != 3) ||
 		    (dvobj->InterfaceNumber == 1)) {
 			if (interface_to_usbdev(usb_intf)->state !=
 			    USB_STATE_NOTATTACHED) {
@@ -209,8 +209,8 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	if ((!padapter->bup) || (padapter->bDriverStopped) ||
 	    (padapter->bSurpriseRemoved)) {
 		pr_debug("padapter->bup=%d bDriverStopped=%d bSurpriseRemoved = %d\n",
-			padapter->bup, padapter->bDriverStopped,
-			padapter->bSurpriseRemoved);
+			 padapter->bup, padapter->bDriverStopped,
+			 padapter->bSurpriseRemoved);
 		goto exit;
 	}
 
@@ -231,11 +231,11 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) &&
 	    check_fwstate(pmlmepriv, _FW_LINKED)) {
 		pr_debug("%s:%d %s(%pM), length:%d assoc_ssid.length:%d\n",
-			__func__, __LINE__,
-			pmlmepriv->cur_network.network.ssid.ssid,
-			pmlmepriv->cur_network.network.MacAddress,
-			pmlmepriv->cur_network.network.ssid.ssid_length,
-			pmlmepriv->assoc_ssid.ssid_length);
+			 __func__, __LINE__,
+			 pmlmepriv->cur_network.network.ssid.ssid,
+			 pmlmepriv->cur_network.network.MacAddress,
+			 pmlmepriv->cur_network.network.ssid.ssid_length,
+			 pmlmepriv->assoc_ssid.ssid_length);
 
 		pmlmepriv->to_roaming = 1;
 	}
@@ -300,7 +300,7 @@ exit:
 	if (pwrpriv)
 		pwrpriv->bInSuspend = false;
 	pr_debug("<===  %s return %d.............. in %dms\n", __func__,
-		ret, jiffies_to_msecs(jiffies - start_time));
+		 ret, jiffies_to_msecs(jiffies - start_time));
 
 	return ret;
 }
@@ -322,7 +322,8 @@ static int rtw_resume(struct usb_interface *pusb_intf)
  */
 
 static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
-	struct usb_interface *pusb_intf, const struct usb_device_id *pdid)
+					struct usb_interface *pusb_intf,
+					const struct usb_device_id *pdid)
 {
 	struct adapter *padapter = NULL;
 	struct net_device *pnetdev = NULL;
@@ -380,7 +381,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 		device_init_wakeup(&pusb_intf->dev, 1);
 		pr_debug("\n  padapter->pwrctrlpriv.bSupportRemoteWakeup~~~~~~\n");
 		pr_debug("\n  padapter->pwrctrlpriv.bSupportRemoteWakeup~~~[%d]~~~\n",
-			device_may_wakeup(&pusb_intf->dev));
+			 device_may_wakeup(&pusb_intf->dev));
 	}
 #endif
 
@@ -393,7 +394,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
 	memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
 	pr_debug("MAC Address from pnetdev->dev_addr =  %pM\n",
-		pnetdev->dev_addr);
+		 pnetdev->dev_addr);
 
 	/* step 6. Tell the network stack we exist */
 	if (register_netdev(pnetdev) != 0) {
@@ -445,7 +446,7 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 
 	rtw_dev_unload(if1);
 	pr_debug("+r871xu_dev_remove, hw_init_completed=%d\n",
-		if1->hw_init_completed);
+		 if1->hw_init_completed);
 	rtw_free_drv_sw(if1);
 	rtw_free_netdev(pnetdev);
 }

@@ -171,8 +171,7 @@ static void rtl_rfreg_delay(struct adapter *adapt, enum rf_radio_path rfpath, u3
 	}
 }
 
-static void rtl8188e_config_rf_reg(struct adapter *adapt,
-	u32 addr, u32 data)
+static void rtl8188e_config_rf_reg(struct adapter *adapt, u32 addr, u32 data)
 {
 	u32 content = 0x1000; /*RF Content: radio_a_txt*/
 	u32 maskforphyset = content & 0xE000;

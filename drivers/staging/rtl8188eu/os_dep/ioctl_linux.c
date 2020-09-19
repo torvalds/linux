@@ -614,8 +614,8 @@ exit:
 typedef unsigned char   NDIS_802_11_RATES_EX[NDIS_802_11_LENGTH_RATES_EX];
 
 static int rtw_wx_get_name(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	u32 ht_ielen = 0;
@@ -658,16 +658,16 @@ static int rtw_wx_get_name(struct net_device *dev,
 }
 
 static int rtw_wx_set_freq(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+%s\n", __func__));
 	return 0;
 }
 
 static int rtw_wx_get_freq(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
@@ -688,7 +688,7 @@ static int rtw_wx_get_freq(struct net_device *dev,
 }
 
 static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+			   union iwreq_data *wrqu, char *b)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	enum ndis_802_11_network_infra networkType;
@@ -736,7 +736,7 @@ exit:
 }
 
 static int rtw_wx_get_mode(struct net_device *dev, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+			   union iwreq_data *wrqu, char *b)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
@@ -823,8 +823,8 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 }
 
 static int rtw_wx_get_sens(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	wrqu->sens.value = 0;
 	wrqu->sens.fixed = 0;	/* no auto select */
@@ -833,8 +833,8 @@ static int rtw_wx_get_sens(struct net_device *dev,
 }
 
 static int rtw_wx_get_range(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
 {
 	struct iw_range *range = (struct iw_range *)extra;
 	struct adapter *padapter = rtw_netdev_priv(dev);
@@ -932,9 +932,8 @@ static int rtw_wx_get_range(struct net_device *dev,
 /* s3. set_802_11_encryption_mode() */
 /* s4. rtw_set_802_11_bssid() */
 static int rtw_wx_set_wap(struct net_device *dev,
-			 struct iw_request_info *info,
-			 union iwreq_data *awrq,
-			 char *extra)
+			  struct iw_request_info *info,
+			  union iwreq_data *awrq, char *extra)
 {
 	uint ret = 0;
 	struct adapter *padapter = rtw_netdev_priv(dev);
@@ -999,8 +998,8 @@ exit:
 }
 
 static int rtw_wx_get_wap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
@@ -1022,8 +1021,8 @@ static int rtw_wx_get_wap(struct net_device *dev,
 }
 
 static int rtw_wx_set_mlme(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 	u16 reason;
@@ -1055,7 +1054,7 @@ static int rtw_wx_set_mlme(struct net_device *dev,
 }
 
 static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *extra)
+			   union iwreq_data *wrqu, char *extra)
 {
 	u8 _status = false;
 	int ret = 0;
@@ -1185,7 +1184,7 @@ exit:
 }
 
 static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *extra)
+			   union iwreq_data *wrqu, char *extra)
 {
 	struct list_head *plist, *phead;
 	struct adapter *padapter = rtw_netdev_priv(dev);
@@ -1253,8 +1252,8 @@ exit:
 /* s3. set_802_11_encryption_mode() */
 /* s4. rtw_set_802_11_ssid() */
 static int rtw_wx_set_essid(struct net_device *dev,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *a,
+			    union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1354,8 +1353,8 @@ exit:
 }
 
 static int rtw_wx_get_essid(struct net_device *dev,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *a,
+			    union iwreq_data *wrqu, char *extra)
 {
 	u32 len;
 	struct adapter *padapter = rtw_netdev_priv(dev);
@@ -1379,8 +1378,8 @@ static int rtw_wx_get_essid(struct net_device *dev,
 }
 
 static int rtw_wx_set_rate(struct net_device *dev,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *a,
+			   union iwreq_data *wrqu, char *extra)
 {
 	int i;
 	u8 datarates[NumRates];
@@ -1458,8 +1457,8 @@ set_rate:
 }
 
 static int rtw_wx_get_rate(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	u16 max_rate = 0;
 
@@ -1475,8 +1474,8 @@ static int rtw_wx_get_rate(struct net_device *dev,
 }
 
 static int rtw_wx_set_rts(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 
@@ -1496,8 +1495,8 @@ static int rtw_wx_set_rts(struct net_device *dev,
 }
 
 static int rtw_wx_get_rts(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 
@@ -1511,8 +1510,8 @@ static int rtw_wx_get_rts(struct net_device *dev,
 }
 
 static int rtw_wx_set_frag(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 
@@ -1532,8 +1531,8 @@ static int rtw_wx_set_frag(struct net_device *dev,
 }
 
 static int rtw_wx_get_frag(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 
@@ -1546,8 +1545,8 @@ static int rtw_wx_get_frag(struct net_device *dev,
 }
 
 static int rtw_wx_get_retry(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
 {
 	wrqu->retry.value = 7;
 	wrqu->retry.fixed = 0;	/* no auto select */
@@ -1557,8 +1556,8 @@ static int rtw_wx_get_retry(struct net_device *dev,
 }
 
 static int rtw_wx_set_enc(struct net_device *dev,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *keybuf)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *keybuf)
 {
 	u32 key, ret = 0;
 	u32 keyindex_provided;
@@ -1671,8 +1670,8 @@ exit:
 }
 
 static int rtw_wx_get_enc(struct net_device *dev,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *keybuf)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *keybuf)
 {
 	uint key;
 	struct adapter *padapter = rtw_netdev_priv(dev);
@@ -1736,8 +1735,8 @@ static int rtw_wx_get_enc(struct net_device *dev,
 }
 
 static int rtw_wx_get_power(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
 {
 	wrqu->power.value = 0;
 	wrqu->power.fixed = 0;	/* no auto select */
@@ -1756,8 +1755,8 @@ static int rtw_wx_set_gen_ie(struct net_device *dev,
 }
 
 static int rtw_wx_set_auth(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	struct iw_param *param = (struct iw_param *)&wrqu->param;
@@ -1837,8 +1836,8 @@ static int rtw_wx_set_auth(struct net_device *dev,
 }
 
 static int rtw_wx_set_enc_ext(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	char *alg_name;
 	u32 param_len;
@@ -2266,7 +2265,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				DBG_88E("%s, set group_key, WEP\n", __func__);
 
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-					    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
+				       param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 
 				psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
 				if (param->u.crypt.key_len == 13)
@@ -2275,7 +2274,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				DBG_88E("%s, set group_key, TKIP\n", __func__);
 				psecuritypriv->dot118021XGrpPrivacy = _TKIP_;
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-					    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
+				       param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 				/* set mic key */
 				memcpy(psecuritypriv->dot118021XGrptxmickey[param->u.crypt.idx].skey, &param->u.crypt.key[16], 8);
 				memcpy(psecuritypriv->dot118021XGrprxmickey[param->u.crypt.idx].skey, &param->u.crypt.key[24], 8);
@@ -2285,7 +2284,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				DBG_88E("%s, set group_key, CCMP\n", __func__);
 				psecuritypriv->dot118021XGrpPrivacy = _AES_;
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-					    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
+				       param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 			} else {
 				DBG_88E("%s, set group_key, none\n", __func__);
 				psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
@@ -2340,7 +2339,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			} else { /* group key??? */
 				if (strcmp(param->u.crypt.alg, "WEP") == 0) {
 					memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-						    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
+					       param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 					psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
 					if (param->u.crypt.key_len == 13)
 						psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
@@ -2348,7 +2347,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					psecuritypriv->dot118021XGrpPrivacy = _TKIP_;
 
 					memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-						    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
+					       param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 
 					/* set mic key */
 					memcpy(psecuritypriv->dot118021XGrptxmickey[param->u.crypt.idx].skey, &param->u.crypt.key[16], 8);
@@ -2359,7 +2358,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					psecuritypriv->dot118021XGrpPrivacy = _AES_;
 
 					memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-						    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
+					       param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 				} else {
 					psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
 				}
@@ -2845,9 +2844,8 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 
 #include <rtw_android.h>
 static int rtw_wx_set_priv(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *awrq,
-				char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *awrq, char *extra)
 {
 	int ret = 0;
 	int len = 0;

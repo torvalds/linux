@@ -68,7 +68,7 @@ int rtw_android_cmdstr_to_num(char *cmdstr)
 
 	for (cmd_num = 0; cmd_num < ANDROID_WIFI_CMD_MAX; cmd_num++)
 		if (!strncasecmp(cmdstr, android_wifi_cmd_str[cmd_num],
-				  strlen(android_wifi_cmd_str[cmd_num])))
+				 strlen(android_wifi_cmd_str[cmd_num])))
 			break;
 	return cmd_num;
 }
@@ -120,7 +120,7 @@ static int android_set_cntry(struct net_device *net, char *command,
 }
 
 static int android_get_p2p_addr(struct net_device *net, char *command,
-					int total_len)
+				int total_len)
 {
 	/* We use the same address as our HW MAC address */
 	memcpy(command, net->dev_addr, ETH_ALEN);
