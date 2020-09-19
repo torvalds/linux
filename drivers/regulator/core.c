@@ -190,11 +190,10 @@ static inline int regulator_lock_nested(struct regulator_dev *rdev,
  * than the one, which initially locked the mutex, it will
  * wait on mutex.
  */
-void regulator_lock(struct regulator_dev *rdev)
+static void regulator_lock(struct regulator_dev *rdev)
 {
 	regulator_lock_nested(rdev, NULL);
 }
-EXPORT_SYMBOL_GPL(regulator_lock);
 
 /**
  * regulator_unlock - unlock a single regulator
@@ -203,7 +202,7 @@ EXPORT_SYMBOL_GPL(regulator_lock);
  * This function unlocks the mutex when the
  * reference counter reaches 0.
  */
-void regulator_unlock(struct regulator_dev *rdev)
+static void regulator_unlock(struct regulator_dev *rdev)
 {
 	mutex_lock(&regulator_nesting_mutex);
 
@@ -216,7 +215,6 @@ void regulator_unlock(struct regulator_dev *rdev)
 
 	mutex_unlock(&regulator_nesting_mutex);
 }
-EXPORT_SYMBOL_GPL(regulator_unlock);
 
 static bool regulator_supply_is_couple(struct regulator_dev *rdev)
 {
