@@ -336,7 +336,6 @@ static void cmpk_count_tx_status(struct net_device *dev,
 	priv->stats.txretrycount	+= pstx_status->txretry;
 	priv->stats.txfeedbackretry	+= pstx_status->txretry;
 
-
 	priv->stats.txmulticast		+= pstx_status->txmcok;
 	priv->stats.txbroadcast		+= pstx_status->txbcok;
 	priv->stats.txunicast		+= pstx_status->txucok;
