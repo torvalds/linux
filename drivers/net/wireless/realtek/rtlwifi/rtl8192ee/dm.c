@@ -718,11 +718,11 @@ static void rtl92ee_dm_dynamic_atc_switch(struct ieee80211_hw *hw)
 			       (rtldm->cfo_ave_pre - cfo_ave) :
 			       (cfo_ave - rtldm->cfo_ave_pre);
 
-		if (cfo_ave_diff > 20 && rtldm->large_cfo_hit == 0) {
-			rtldm->large_cfo_hit = 1;
+		if (cfo_ave_diff > 20 && !rtldm->large_cfo_hit) {
+			rtldm->large_cfo_hit = true;
 			return;
 		}
-		rtldm->large_cfo_hit = 0;
+		rtldm->large_cfo_hit = false;
 
 		rtldm->cfo_ave_pre = cfo_ave;
 
