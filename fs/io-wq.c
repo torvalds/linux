@@ -60,6 +60,7 @@ struct io_worker {
 	const struct cred *cur_creds;
 	const struct cred *saved_creds;
 	struct files_struct *restore_files;
+	struct nsproxy *restore_nsproxy;
 	struct fs_struct *restore_fs;
 };
 
@@ -153,6 +154,7 @@ static bool __io_worker_unuse(struct io_wqe *wqe, struct io_worker *worker)
 
 		task_lock(current);
 		current->files = worker->restore_files;
+		current->nsproxy = worker->restore_nsproxy;
 		task_unlock(current);
 	}
 
@@ -318,6 +320,7 @@ static void io_worker_start(struct io_wqe *wqe, struct io_worker *worker)
 
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
 	worker->restore_files = current->files;
+	worker->restore_nsproxy = current->nsproxy;
 	worker->restore_fs = current->fs;
 	io_wqe_inc_running(wqe, worker);
 }
@@ -454,6 +457,7 @@ static void io_impersonate_work(struct io_worker *worker,
 	if (work->files && current->files != work->files) {
 		task_lock(current);
 		current->files = work->files;
+		current->nsproxy = work->nsproxy;
 		task_unlock(current);
 	}
 	if (work->fs && current->fs != work->fs)

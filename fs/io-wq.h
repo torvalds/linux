@@ -88,6 +88,7 @@ struct io_wq_work {
 	struct files_struct *files;
 	struct mm_struct *mm;
 	const struct cred *creds;
+	struct nsproxy *nsproxy;
 	struct fs_struct *fs;
 	unsigned long fsize;
 	unsigned flags;
