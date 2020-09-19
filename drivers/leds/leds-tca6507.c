@@ -635,7 +635,7 @@ static int tca6507_gpio_direction_output(struct gpio_chip *gc,
 	return 0;
 }
 
-static int tca6507_probe_gpios(struct i2c_client *client,
+static int tca6507_probe_gpios(struct device *dev,
 			       struct tca6507_chip *tca,
 			       struct tca6507_platform_data *pdata)
 {
@@ -659,9 +659,9 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 	tca->gpio.owner = THIS_MODULE;
 	tca->gpio.direction_output = tca6507_gpio_direction_output;
 	tca->gpio.set = tca6507_gpio_set_value;
-	tca->gpio.parent = &client->dev;
+	tca->gpio.parent = dev;
 #ifdef CONFIG_OF_GPIO
-	tca->gpio.of_node = of_node_get(dev_of_node(&client->dev));
+	tca->gpio.of_node = of_node_get(dev_of_node(dev));
 #endif
 	err = gpiochip_add_data(&tca->gpio, tca);
 	if (err) {
@@ -677,7 +677,7 @@ static void tca6507_remove_gpio(struct tca6507_chip *tca)
 		gpiochip_remove(&tca->gpio);
 }
 #else /* CONFIG_GPIOLIB */
-static int tca6507_probe_gpios(struct i2c_client *client,
+static int tca6507_probe_gpios(struct device *dev,
 			       struct tca6507_chip *tca,
 			       struct tca6507_platform_data *pdata)
 {
@@ -689,23 +689,23 @@ static void tca6507_remove_gpio(struct tca6507_chip *tca)
 #endif /* CONFIG_GPIOLIB */
 
 static struct tca6507_platform_data *
-tca6507_led_dt_init(struct i2c_client *client)
+tca6507_led_dt_init(struct device *dev)
 {
 	struct tca6507_platform_data *pdata;
 	struct fwnode_handle *child;
 	struct led_info *tca_leds;
 	int count;
 
-	count = device_get_child_node_count(&client->dev);
+	count = device_get_child_node_count(dev);
 	if (!count || count > NUM_LEDS)
 		return ERR_PTR(-ENODEV);
 
-	tca_leds = devm_kcalloc(&client->dev, NUM_LEDS, sizeof(struct led_info),
+	tca_leds = devm_kcalloc(dev, NUM_LEDS, sizeof(struct led_info),
 				GFP_KERNEL);
 	if (!tca_leds)
 		return ERR_PTR(-ENOMEM);
 
-	device_for_each_child_node(&client->dev, child) {
+	device_for_each_child_node(dev, child) {
 		struct led_info led;
 		u32 reg;
 		int ret;
@@ -730,7 +730,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 		tca_leds[reg] = led;
 	}
 
-	pdata = devm_kzalloc(&client->dev, sizeof(struct tca6507_platform_data),
+	pdata = devm_kzalloc(dev, sizeof(struct tca6507_platform_data),
 			     GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
@@ -753,8 +753,9 @@ MODULE_DEVICE_TABLE(of, of_tca6507_leds_match);
 static int tca6507_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	struct tca6507_chip *tca;
+	struct device *dev = &client->dev;
 	struct i2c_adapter *adapter;
+	struct tca6507_chip *tca;
 	struct tca6507_platform_data *pdata;
 	int err;
 	int i = 0;
@@ -764,13 +765,12 @@ static int tca6507_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -EIO;
 
-	pdata = tca6507_led_dt_init(client);
+	pdata = tca6507_led_dt_init(dev);
 	if (IS_ERR(pdata)) {
-		dev_err(&client->dev, "Need %d entries in platform-data list\n",
-			NUM_LEDS);
+		dev_err(dev, "Need %d entries in platform-data list\n", NUM_LEDS);
 		return PTR_ERR(pdata);
 	}
-	tca = devm_kzalloc(&client->dev, sizeof(*tca), GFP_KERNEL);
+	tca = devm_kzalloc(dev, sizeof(*tca), GFP_KERNEL);
 	if (!tca)
 		return -ENOMEM;
 
@@ -791,13 +791,12 @@ static int tca6507_probe(struct i2c_client *client,
 			l->led_cdev.brightness_set = tca6507_brightness_set;
 			l->led_cdev.blink_set = tca6507_blink_set;
 			l->bank = -1;
-			err = led_classdev_register(&client->dev,
-						    &l->led_cdev);
+			err = led_classdev_register(dev, &l->led_cdev);
 			if (err < 0)
 				goto exit;
 		}
 	}
-	err = tca6507_probe_gpios(client, tca, pdata);
+	err = tca6507_probe_gpios(dev, tca, pdata);
 	if (err)
 		goto exit;
 	/* set all registers to known state - zero */
