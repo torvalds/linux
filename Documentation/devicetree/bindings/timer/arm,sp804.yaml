@@ -15,19 +15,26 @@ description: |+
   free-running mode. The input clock is shared, but can be gated and prescaled
   independently for each timer.
 
+  There is a viriant of Arm SP804: Hisilicon 64-bit SP804 timer. Some Hisilicon
+  SoCs, such as Hi1212, should use the dedicated compatible: "hisilicon,sp804".
+
 # Need a custom select here or 'arm,primecell' will match on lots of nodes
 select:
   properties:
     compatible:
       contains:
-        const: arm,sp804
+        oneOf:
+          - const: arm,sp804
+          - const: hisilicon,sp804
   required:
     - compatible
 
 properties:
   compatible:
     items:
-      - const: arm,sp804
+      - enum:
+        - arm,sp804
+        - hisilicon,sp804
       - const: arm,primecell
 
   interrupts:
