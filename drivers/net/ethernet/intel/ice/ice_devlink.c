@@ -401,6 +401,7 @@ void ice_devlink_destroy_port(struct ice_pf *pf)
 /**
  * ice_devlink_nvm_snapshot - Capture a snapshot of the Shadow RAM contents
  * @devlink: the devlink instance
+ * @ops: the devlink region being snapshotted
  * @extack: extended ACK response structure
  * @data: on exit points to snapshot data buffer
  *
@@ -413,6 +414,7 @@ void ice_devlink_destroy_port(struct ice_pf *pf)
  * error code on failure.
  */
 static int ice_devlink_nvm_snapshot(struct devlink *devlink,
+				    const struct devlink_region_ops *ops,
 				    struct netlink_ext_ack *extack, u8 **data)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
@@ -456,6 +458,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 /**
  * ice_devlink_devcaps_snapshot - Capture snapshot of device capabilities
  * @devlink: the devlink instance
+ * @ops: the devlink region being snapshotted
  * @extack: extended ACK response structure
  * @data: on exit points to snapshot data buffer
  *
@@ -468,6 +471,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
  */
 static int
 ice_devlink_devcaps_snapshot(struct devlink *devlink,
+			     const struct devlink_region_ops *ops,
 			     struct netlink_ext_ack *extack, u8 **data)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
