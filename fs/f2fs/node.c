@@ -3105,9 +3105,6 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	nm_i->next_scan_nid = le32_to_cpu(sbi->ckpt->next_free_nid);
 	nm_i->bitmap_size = __bitmap_size(sbi, NAT_BITMAP);
 	version_bitmap = __bitmap_ptr(sbi, NAT_BITMAP);
-	if (!version_bitmap)
-		return -EFAULT;
-
 	nm_i->nat_bitmap = kmemdup(version_bitmap, nm_i->bitmap_size,
 					GFP_KERNEL);
 	if (!nm_i->nat_bitmap)
