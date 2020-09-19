@@ -477,6 +477,11 @@ early_param("elfcorehdr", early_parse_elfcorehdr);
 #endif
 
 #ifdef CONFIG_KEXEC
+
+/* 64M alignment for crash kernel regions */
+#define CRASH_ALIGN	SZ_64M
+#define CRASH_ADDR_MAX	SZ_512M
+
 static void __init mips_parse_crashkernel(void)
 {
 	unsigned long long total_mem;
@@ -489,9 +494,22 @@ static void __init mips_parse_crashkernel(void)
 	if (ret != 0 || crash_size <= 0)
 		return;
 
-	if (!memblock_find_in_range(crash_base, crash_base + crash_size, crash_size, 1)) {
-		pr_warn("Invalid memory region reserved for crash kernel\n");
-		return;
+	if (crash_base <= 0) {
+		crash_base = memblock_find_in_range(CRASH_ALIGN, CRASH_ADDR_MAX,
+							crash_size, CRASH_ALIGN);
+		if (!crash_base) {
+			pr_warn("crashkernel reservation failed - No suitable area found.\n");
+			return;
+		}
+	} else {
+		unsigned long long start;
+
+		start = memblock_find_in_range(crash_base, crash_base + crash_size,
+						crash_size, 1);
+		if (start != crash_base) {
+			pr_warn("Invalid memory region reserved for crash kernel\n");
+			return;
+		}
 	}
 
 	crashk_res.start = crash_base;
