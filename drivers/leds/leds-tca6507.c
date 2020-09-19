@@ -197,7 +197,6 @@ struct tca6507_chip {
 	} leds[NUM_LEDS];
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip		gpio;
-	const char			*gpio_name[NUM_LEDS];
 	int				gpio_map[NUM_LEDS];
 #endif
 };
@@ -647,7 +646,6 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 	for (i = 0; i < NUM_LEDS; i++)
 		if (pdata->leds.leds[i].name && pdata->leds.leds[i].flags) {
 			/* Configure as a gpio */
-			tca->gpio_name[gpios] = pdata->leds.leds[i].name;
 			tca->gpio_map[gpios] = i;
 			gpios++;
 		}
@@ -656,7 +654,6 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 		return 0;
 
 	tca->gpio.label = "gpio-tca6507";
-	tca->gpio.names = tca->gpio_name;
 	tca->gpio.ngpio = gpios;
 	tca->gpio.base = pdata->gpio_base;
 	tca->gpio.owner = THIS_MODULE;
