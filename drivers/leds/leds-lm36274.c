@@ -69,7 +69,7 @@ static int lm36274_init(struct lm36274 *chip)
 static int lm36274_parse_dt(struct lm36274 *chip,
 			    struct led_init_data *init_data)
 {
-	struct device *dev = &chip->pdev->dev;
+	struct device *dev = chip->dev;
 	struct fwnode_handle *child;
 	int ret;
 
@@ -118,7 +118,7 @@ static int lm36274_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	chip->pdev = pdev;
-	chip->dev = lmu->dev;
+	chip->dev = &pdev->dev;
 	chip->regmap = lmu->regmap;
 	platform_set_drvdata(pdev, chip);
 
