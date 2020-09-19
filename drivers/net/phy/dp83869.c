@@ -52,6 +52,10 @@
 					 BMCR_FULLDPLX | \
 					 BMCR_SPEED1000)
 
+#define MII_DP83869_FIBER_ADVERTISE    (ADVERTISED_FIBRE | \
+					ADVERTISED_Pause | \
+					ADVERTISED_Asym_Pause)
+
 /* This is the same bit mask as the BMCR so re-use the BMCR default */
 #define DP83869_FX_CTRL_DEFAULT	MII_DP83869_BMCR_DEFAULT
 
@@ -117,6 +121,28 @@ struct dp83869_private {
 	int clk_output_sel;
 	int mode;
 };
+
+static int dp83869_read_status(struct phy_device *phydev)
+{
+	struct dp83869_private *dp83869 = phydev->priv;
+	int ret;
+
+	ret = genphy_read_status(phydev);
+	if (ret)
+		return ret;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, phydev->supported)) {
+		if (phydev->link) {
+			if (dp83869->mode == DP83869_RGMII_100_BASE)
+				phydev->speed = SPEED_100;
+		} else {
+			phydev->speed = SPEED_UNKNOWN;
+			phydev->duplex = DUPLEX_UNKNOWN;
+		}
+	}
+
+	return 0;
+}
 
 static int dp83869_ack_interrupt(struct phy_device *phydev)
 {
@@ -295,6 +321,51 @@ static int dp83869_configure_rgmii(struct phy_device *phydev,
 	return ret;
 }
 
+static int dp83869_configure_fiber(struct phy_device *phydev,
+				   struct dp83869_private *dp83869)
+{
+	int bmcr;
+	int ret;
+
+	/* Only allow advertising what this PHY supports */
+	linkmode_and(phydev->advertising, phydev->advertising,
+		     phydev->supported);
+
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, phydev->supported);
+	linkmode_set_bit(ADVERTISED_FIBRE, phydev->advertising);
+
+	if (dp83869->mode == DP83869_RGMII_1000_BASE) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+				 phydev->supported);
+	} else {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Full_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
+				 phydev->supported);
+
+		/* Auto neg is not supported in 100base FX mode */
+		bmcr = phy_read(phydev, MII_BMCR);
+		if (bmcr < 0)
+			return bmcr;
+
+		phydev->autoneg = AUTONEG_DISABLE;
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->supported);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->advertising);
+
+		if (bmcr & BMCR_ANENABLE) {
+			ret =  phy_modify(phydev, MII_BMCR, BMCR_ANENABLE, 0);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	/* Update advertising from supported */
+	linkmode_or(phydev->advertising, phydev->advertising,
+		    phydev->supported);
+
+	return 0;
+}
+
 static int dp83869_configure_mode(struct phy_device *phydev,
 				  struct dp83869_private *dp83869)
 {
@@ -384,6 +455,7 @@ static int dp83869_configure_mode(struct phy_device *phydev,
 		break;
 	case DP83869_RGMII_1000_BASE:
 	case DP83869_RGMII_100_BASE:
+		ret = dp83869_configure_fiber(phydev, dp83869);
 		break;
 	default:
 		return -EINVAL;
@@ -494,6 +566,7 @@ static struct phy_driver dp83869_driver[] = {
 		/* IRQ related */
 		.ack_interrupt	= dp83869_ack_interrupt,
 		.config_intr	= dp83869_config_intr,
+		.read_status	= dp83869_read_status,
 
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,

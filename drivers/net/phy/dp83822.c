@@ -110,9 +110,8 @@
 #define DP83822_RX_ER_SHIFT	8
 
 #define MII_DP83822_FIBER_ADVERTISE    (ADVERTISED_TP | ADVERTISED_MII | \
-					ADVERTISED_FIBRE | ADVERTISED_BNC |  \
-					ADVERTISED_Pause | ADVERTISED_Asym_Pause | \
-					ADVERTISED_100baseT_Full)
+					ADVERTISED_FIBRE | \
+					ADVERTISED_Pause | ADVERTISED_Asym_Pause)
 
 struct dp83822_private {
 	bool fx_signal_det_low;
@@ -405,6 +404,14 @@ static int dp83822_config_init(struct phy_device *phydev)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
 				 phydev->supported);
 		linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+				 phydev->advertising);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Full_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Full_BIT,
+				 phydev->advertising);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
 				 phydev->advertising);
 
 		/* Auto neg is not supported in fiber mode */
