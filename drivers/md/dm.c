@@ -422,21 +422,6 @@ static void do_deferred_remove(struct work_struct *w)
 	dm_deferred_remove();
 }
 
-sector_t dm_get_size(struct mapped_device *md)
-{
-	return get_capacity(md->disk);
-}
-
-struct request_queue *dm_get_md_queue(struct mapped_device *md)
-{
-	return md->queue;
-}
-
-struct dm_stats *dm_get_stats(struct mapped_device *md)
-{
-	return &md->stats;
-}
-
 static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
@@ -1057,7 +1042,7 @@ static sector_t max_io_len(struct dm_target *ti, sector_t sector)
 	 *   blk_max_size_offset() provides required splitting.
 	 * - blk_max_size_offset() also respects q->limits.max_sectors
 	 */
-	max_len = blk_max_size_offset(dm_table_get_md(ti->table)->queue,
+	max_len = blk_max_size_offset(ti->table->md->queue,
 				      target_offset);
 	if (len > max_len)
 		len = max_len;
@@ -2931,19 +2916,19 @@ int dm_test_deferred_remove_flag(struct mapped_device *md)
 
 int dm_suspended(struct dm_target *ti)
 {
-	return dm_suspended_md(dm_table_get_md(ti->table));
+	return dm_suspended_md(ti->table->md);
 }
 EXPORT_SYMBOL_GPL(dm_suspended);
 
 int dm_post_suspending(struct dm_target *ti)
 {
-	return dm_post_suspending_md(dm_table_get_md(ti->table));
+	return dm_post_suspending_md(ti->table->md);
 }
 EXPORT_SYMBOL_GPL(dm_post_suspending);
 
 int dm_noflush_suspending(struct dm_target *ti)
 {
-	return __noflush_suspending(dm_table_get_md(ti->table));
+	return __noflush_suspending(ti->table->md);
 }
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
