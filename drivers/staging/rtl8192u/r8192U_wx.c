@@ -561,9 +561,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				zero_addr[key_idx],
 				0,                      /* DefaultKey */
 				hwkey);                 /* KeyContent */
-		}
-
-		else if (wrqu->encoding.length == 0xd) {
+		} else if (wrqu->encoding.length == 0xd) {
 			ieee->pairwise_key_type = KEY_TYPE_WEP104;
 			EnableHWSecurityConfig8192(dev);
 
