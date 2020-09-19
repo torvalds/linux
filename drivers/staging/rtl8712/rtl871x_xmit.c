@@ -352,7 +352,7 @@ static int xmitframe_addmic(struct _adapter *padapter,
 	struct	pkt_attrib  *pattrib = &pxmitframe->attrib;
 	struct	security_priv *psecpriv = &padapter->securitypriv;
 	struct	xmit_priv *pxmitpriv = &padapter->xmitpriv;
-	u8 priority[4] = {0x0, 0x0, 0x0, 0x0};
+	u8 priority[4] = {};
 	bool bmcst = is_multicast_ether_addr(pattrib->ra);
 
 	if (pattrib->psta)
@@ -363,9 +363,8 @@ static int xmitframe_addmic(struct _adapter *padapter,
 	if (pattrib->encrypt == _TKIP_) {
 		/*encode mic code*/
 		if (stainfo) {
-			u8 null_key[16] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-					   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-					   0x0, 0x0};
+			u8 null_key[16] = {};
+
 			pframe = pxmitframe->buf_addr + TXDESC_OFFSET;
 			if (bmcst) {
 				if (!memcmp(psecpriv->XGrptxmickey
