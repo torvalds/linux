@@ -100,14 +100,6 @@ static int lm36274_parse_dt(struct lm36274 *chip,
 	fwnode_property_read_string(child, "linux,default-trigger",
 				    &chip->led_dev.default_trigger);
 
-	chip->lmu_data.regmap = chip->regmap;
-	chip->lmu_data.max_brightness = MAX_BRIGHTNESS_11BIT;
-	chip->lmu_data.msb_brightness_reg = LM36274_REG_BRT_MSB;
-	chip->lmu_data.lsb_brightness_reg = LM36274_REG_BRT_LSB;
-
-	chip->led_dev.max_brightness = MAX_BRIGHTNESS_11BIT;
-	chip->led_dev.brightness_set_blocking = lm36274_brightness_set;
-
 	return 0;
 err:
 	fwnode_handle_put(child);
@@ -141,6 +133,14 @@ static int lm36274_probe(struct platform_device *pdev)
 		dev_err(chip->dev, "Failed to init the device\n");
 		return ret;
 	}
+
+	chip->lmu_data.regmap = chip->regmap;
+	chip->lmu_data.max_brightness = MAX_BRIGHTNESS_11BIT;
+	chip->lmu_data.msb_brightness_reg = LM36274_REG_BRT_MSB;
+	chip->lmu_data.lsb_brightness_reg = LM36274_REG_BRT_LSB;
+
+	chip->led_dev.max_brightness = MAX_BRIGHTNESS_11BIT;
+	chip->led_dev.brightness_set_blocking = lm36274_brightness_set;
 
 	ret = led_classdev_register_ext(chip->dev, &chip->led_dev, &init_data);
 	if (ret)
