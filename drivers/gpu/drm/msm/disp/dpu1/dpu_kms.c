@@ -212,7 +212,8 @@ static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 	dpu_debugfs_vbif_init(dpu_kms, entry);
 	dpu_debugfs_core_irq_init(dpu_kms, entry);
 
-	msm_dp_debugfs_init(priv->dp, minor);
+	if (priv->dp)
+		msm_dp_debugfs_init(priv->dp, minor);
 
 	return dpu_core_perf_debugfs_init(dpu_kms, entry);
 }
