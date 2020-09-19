@@ -895,9 +895,6 @@ void __kfree_skb_defer(struct sk_buff *skb)
 
 void napi_consume_skb(struct sk_buff *skb, int budget)
 {
-	if (unlikely(!skb))
-		return;
-
 	/* Zero budget indicate non-NAPI context called us, like netpoll */
 	if (unlikely(!budget)) {
 		dev_consume_skb_any(skb);
