@@ -474,7 +474,7 @@ static int hpre_msg_request_set(struct hpre_ctx *ctx, void *req, bool is_rsa)
 		h_req->areq.dh = kreq;
 		msg = &h_req->req;
 		memset(msg, 0, sizeof(*msg));
-		msg->key = cpu_to_le64((u64)ctx->dh.dma_xa_p);
+		msg->key = cpu_to_le64(ctx->dh.dma_xa_p);
 	}
 
 	msg->dw0 |= cpu_to_le32(0x1 << HPRE_SQE_DONE_SHIFT);
@@ -740,7 +740,7 @@ static int hpre_rsa_enc(struct akcipher_request *req)
 		return ret;
 
 	msg->dw0 |= cpu_to_le32(HPRE_ALG_NC_NCRT);
-	msg->key = cpu_to_le64((u64)ctx->rsa.dma_pubkey);
+	msg->key = cpu_to_le64(ctx->rsa.dma_pubkey);
 
 	ret = hpre_hw_data_init(hpre_req, req->src, req->src_len, 1, 0);
 	if (unlikely(ret))
@@ -788,11 +788,11 @@ static int hpre_rsa_dec(struct akcipher_request *req)
 		return ret;
 
 	if (ctx->crt_g2_mode) {
-		msg->key = cpu_to_le64((u64)ctx->rsa.dma_crt_prikey);
+		msg->key = cpu_to_le64(ctx->rsa.dma_crt_prikey);
 		msg->dw0 = cpu_to_le32(le32_to_cpu(msg->dw0) |
 				       HPRE_ALG_NC_CRT);
 	} else {
-		msg->key = cpu_to_le64((u64)ctx->rsa.dma_prikey);
+		msg->key = cpu_to_le64(ctx->rsa.dma_prikey);
 		msg->dw0 = cpu_to_le32(le32_to_cpu(msg->dw0) |
 				       HPRE_ALG_NC_NCRT);
 	}
