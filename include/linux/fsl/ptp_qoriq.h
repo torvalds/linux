@@ -136,6 +136,7 @@ struct ptp_qoriq_registers {
 #define DEFAULT_TMR_PRSC	2
 #define DEFAULT_FIPER1_PERIOD	1000000000
 #define DEFAULT_FIPER2_PERIOD	1000000000
+#define DEFAULT_FIPER3_PERIOD	1000000000
 
 struct ptp_qoriq {
 	void __iomem *base;
@@ -147,6 +148,7 @@ struct ptp_qoriq {
 	struct dentry *debugfs_root;
 	struct device *dev;
 	bool extts_fifo_support;
+	bool fiper3_support;
 	int irq;
 	int phc_index;
 	u32 tclk_period;  /* nanoseconds */
@@ -155,6 +157,7 @@ struct ptp_qoriq {
 	u32 cksel;
 	u32 tmr_fiper1;
 	u32 tmr_fiper2;
+	u32 tmr_fiper3;
 	u32 (*read)(unsigned __iomem *addr);
 	void (*write)(unsigned __iomem *addr, u32 val);
 };
