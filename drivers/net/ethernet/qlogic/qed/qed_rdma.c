@@ -1462,14 +1462,14 @@ static int qed_rdma_modify_qp(void *rdma_cxt,
 
 	switch (qp->qp_type) {
 	case QED_RDMA_QP_TYPE_XRC_INI:
-		qp->has_req = 1;
+		qp->has_req = true;
 		break;
 	case QED_RDMA_QP_TYPE_XRC_TGT:
-		qp->has_resp = 1;
+		qp->has_resp = true;
 		break;
 	default:
-		qp->has_req = 1;
-		qp->has_resp = 1;
+		qp->has_req  = true;
+		qp->has_resp = true;
 	}
 
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
