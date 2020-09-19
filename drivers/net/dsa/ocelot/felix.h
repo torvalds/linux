@@ -20,12 +20,13 @@ struct felix_info {
 	const struct ocelot_stat_layout	*stats_layout;
 	unsigned int			num_stats;
 	int				num_ports;
-	int                             num_tx_queues;
+	int				num_tx_queues;
 	struct vcap_field		*vcap_is2_keys;
 	struct vcap_field		*vcap_is2_actions;
 	const struct vcap_props		*vcap;
 	int				switch_pci_bar;
 	int				imdio_pci_bar;
+	const struct ptp_clock_info	*ptp_caps;
 	int	(*mdio_bus_alloc)(struct ocelot *ocelot);
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
 	void	(*phylink_validate)(struct ocelot *ocelot, int port,
@@ -41,8 +42,6 @@ struct felix_info {
 };
 
 extern const struct dsa_switch_ops felix_switch_ops;
-extern struct pci_driver felix_vsc9959_pci_driver;
-extern struct platform_driver seville_vsc9953_driver;
 
 /* DSA glue / front-end for struct ocelot */
 struct felix {
@@ -54,7 +53,5 @@ struct felix {
 	resource_size_t			switch_base;
 	resource_size_t			imdio_base;
 };
-
-void vsc9959_mdio_bus_free(struct ocelot *ocelot);
 
 #endif
