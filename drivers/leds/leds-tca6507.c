@@ -95,7 +95,6 @@
 #include <linux/i2c.h>
 #include <linux/gpio/driver.h>
 #include <linux/workqueue.h>
-#include <linux/leds-tca6507.h>
 #include <linux/of.h>
 
 /* LED select registers determine the source that drives LED outputs */
@@ -107,6 +106,16 @@
 #define TCA6507_LS_LED_MIR	0x5	/* Output LOW with Master Intensity */
 #define TCA6507_LS_BLINK0	0x6	/* Blink at Bank0 rate */
 #define TCA6507_LS_BLINK1	0x7	/* Blink at Bank1 rate */
+
+struct tca6507_platform_data {
+	struct led_platform_data leds;
+#ifdef CONFIG_GPIOLIB
+	int gpio_base;
+	void (*setup)(unsigned gpio_base, unsigned ngpio);
+#endif
+};
+
+#define	TCA6507_MAKE_GPIO 1
 
 enum {
 	BANK0,
