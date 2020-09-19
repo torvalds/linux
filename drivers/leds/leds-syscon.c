@@ -55,6 +55,7 @@ static void syscon_led_set(struct led_classdev *led_cdev,
 
 static int syscon_led_probe(struct platform_device *pdev)
 {
+	struct led_init_data init_data = {};
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev_of_node(dev);
 	struct device *parent;
@@ -84,8 +85,6 @@ static int syscon_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	if (of_property_read_u32(np, "mask", &sled->mask))
 		return -EINVAL;
-	sled->cdev.name =
-		of_get_property(np, "label", NULL) ? : np->name;
 	sled->cdev.default_trigger =
 		of_get_property(np, "linux,default-trigger", NULL);
 
@@ -115,7 +114,9 @@ static int syscon_led_probe(struct platform_device *pdev)
 	}
 	sled->cdev.brightness_set = syscon_led_set;
 
-	ret = devm_led_classdev_register(dev, &sled->cdev);
+	init_data.fwnode = of_fwnode_handle(np);
+
+	ret = devm_led_classdev_register_ext(dev, &sled->cdev, &init_data);
 	if (ret < 0)
 		return ret;
 
