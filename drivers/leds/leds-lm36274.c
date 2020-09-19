@@ -72,39 +72,35 @@ static int lm36274_parse_dt(struct lm36274 *chip)
 	char label[LED_MAX_NAME_SIZE];
 	struct device *dev = &chip->pdev->dev;
 	const char *name;
-	int child_cnt;
-	int ret = -EINVAL;
+	int ret;
 
 	/* There should only be 1 node */
-	child_cnt = device_get_child_node_count(dev);
-	if (child_cnt != 1)
+	if (device_get_child_node_count(dev) != 1)
 		return -EINVAL;
 
-	device_for_each_child_node(dev, child) {
-		ret = fwnode_property_read_string(child, "label", &name);
-		if (ret)
-			snprintf(label, sizeof(label), "%s::",
-				 chip->pdev->name);
-		else
-			snprintf(label, sizeof(label), "%s:%s",
-				 chip->pdev->name, name);
+	child = device_get_next_child_node(dev, NULL);
 
-		chip->num_leds = fwnode_property_count_u32(child, "led-sources");
-		if (chip->num_leds <= 0)
-			return -ENODEV;
+	ret = fwnode_property_read_string(child, "label", &name);
+	if (ret)
+		snprintf(label, sizeof(label), "%s::", chip->pdev->name);
+	else
+		snprintf(label, sizeof(label), "%s:%s", chip->pdev->name, name);
 
-		ret = fwnode_property_read_u32_array(child, "led-sources",
-						     chip->led_sources,
-						     chip->num_leds);
-		if (ret) {
-			dev_err(dev, "led-sources property missing\n");
-			return ret;
-		}
+	chip->num_leds = fwnode_property_count_u32(child, "led-sources");
+	if (chip->num_leds <= 0)
+		return -ENODEV;
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &chip->led_dev.default_trigger);
-
+	ret = fwnode_property_read_u32_array(child, "led-sources",
+					     chip->led_sources, chip->num_leds);
+	if (ret) {
+		dev_err(dev, "led-sources property missing\n");
+		return ret;
 	}
+
+	fwnode_property_read_string(child, "linux,default-trigger",
+				    &chip->led_dev.default_trigger);
+
+	fwnode_handle_put(child);
 
 	chip->lmu_data.regmap = chip->regmap;
 	chip->lmu_data.max_brightness = MAX_BRIGHTNESS_11BIT;
