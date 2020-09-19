@@ -250,7 +250,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	/* range->old_num_channels; */
 	/* range->old_num_frequency; */
 	/* range->old_freq[6]; */ /* Filler to keep "version" at the same offset */
-	if (priv->rf_set_sens != NULL)
+	if (priv->rf_set_sens)
 		range->sensitivity = priv->max_sens;	/* signal level threshold range */
 
 	range->max_qual.qual = 100;
@@ -666,7 +666,7 @@ static int r8192_wx_get_sens(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (priv->rf_set_sens == NULL)
+	if (!priv->rf_set_sens)
 		return -1; /* we have not this support for this radio */
 	wrqu->sens.value = priv->sens;
 	return 0;
@@ -680,7 +680,7 @@ static int r8192_wx_set_sens(struct net_device *dev,
 	short err = 0;
 
 	mutex_lock(&priv->wx_mutex);
-	if (priv->rf_set_sens == NULL) {
+	if (!priv->rf_set_sens) {
 		err = -1; /* we have not this support for this radio */
 		goto exit;
 	}

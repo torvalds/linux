@@ -1150,7 +1150,7 @@ static u8 rtl8192_phy_SetSwChnlCmdArray(struct sw_chnl_cmd *CmdTable, u32 CmdTab
 {
 	struct sw_chnl_cmd *pCmd;
 
-	if (CmdTable == NULL) {
+	if (!CmdTable) {
 		RT_TRACE(COMP_ERR, "%s(): CmdTable cannot be NULL\n", __func__);
 		return false;
 	}

@@ -430,7 +430,7 @@ static void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
 
 	ptxrate = (cmpk_tx_rahis_t *)pmsg;
 
-	if (ptxrate == NULL)
+	if (!ptxrate)
 		return;
 
 	for (i = 0; i < 16; i++) {
@@ -479,7 +479,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 	/* 0. Check inpt arguments. It is a command queue message or
 	 * pointer is null.
 	 */
-	if (pstats == NULL)
+	if (!pstats)
 		return 0;	/* This is not a command packet. */
 
 	/* 1. Read received command packet message length from RFD. */
