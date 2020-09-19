@@ -69,23 +69,6 @@
  * defaulted.  Similarly the banks know if each time was explicit or a
  * default.  Defaults are permitted to be changed freely - they are
  * not recognised when matching.
- *
- *
- * An led-tca6507 device must be provided with platform data or
- * configured via devicetree.
- *
- * The platform-data lists for each output: the name, default trigger,
- * and whether the signal is being used as a GPIO rather than an LED.
- * 'struct led_plaform_data' is used for this.  If 'name' is NULL, the
- * output isn't used.  If 'flags' is TCA6507_MAKE_GPIO, the output is
- * a GPO.  The "struct led_platform_data" can be embedded in a "struct
- * tca6507_platform_data" which adds a 'gpio_base' for the GPIOs, and
- * a 'setup' callback which is called once the GPIOs are available.
- *
- * When configured via devicetree there is one child for each output.
- * The "reg" determines the output number and "compatible" determines
- * whether it is an LED or a GPIO.  "linux,default-trigger" can set a
- * default trigger.
  */
 
 #include <linux/module.h>
