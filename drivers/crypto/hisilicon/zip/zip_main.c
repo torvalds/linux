@@ -844,8 +844,7 @@ err_qm_uninit:
 
 static void hisi_zip_remove(struct pci_dev *pdev)
 {
-	struct hisi_zip *hisi_zip = pci_get_drvdata(pdev);
-	struct hisi_qm *qm = &hisi_zip->qm;
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
 
 	hisi_qm_wait_task_finish(qm, &zip_devices);
 	hisi_qm_alg_unregister(qm, &zip_devices);

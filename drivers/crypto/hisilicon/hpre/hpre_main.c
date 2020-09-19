@@ -900,8 +900,7 @@ err_with_qm_init:
 
 static void hpre_remove(struct pci_dev *pdev)
 {
-	struct hpre *hpre = pci_get_drvdata(pdev);
-	struct hisi_qm *qm = &hpre->qm;
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
 	int ret;
 
 	hisi_qm_wait_task_finish(qm, &hpre_devices);
