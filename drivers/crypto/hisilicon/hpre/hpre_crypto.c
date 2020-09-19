@@ -528,6 +528,8 @@ static int hpre_dh_compute_value(struct kpp_request *req)
 		ret = hpre_hw_data_init(hpre_req, req->src, req->src_len, 1, 1);
 		if (unlikely(ret))
 			goto clear_all;
+	} else {
+		msg->in = cpu_to_le64(ctx->dh.dma_g);
 	}
 
 	ret = hpre_hw_data_init(hpre_req, req->dst, req->dst_len, 0, 1);
