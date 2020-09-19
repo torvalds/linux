@@ -126,7 +126,8 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 				 * remove/insert module, driver fails
 				 * on sitesurvey for the first time when
 				 * device is up . Reset usb port for sitesurvey
-				 * fail issue. */
+				 * fail issue.
+				 */
 				pr_debug("usb attached..., try to reset usb device\n");
 				usb_reset_device(interface_to_usbdev(usb_intf));
 			}
@@ -383,8 +384,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	}
 #endif
 
-	/* 2012-07-11 Move here to prevent the 8723AS-VAU BT auto
-	 * suspend influence */
+	/* 2012-07-11 Move here to prevent the 8723AS-VAU BT auto suspend influence */
 	if (usb_autopm_get_interface(pusb_intf) < 0)
 		pr_debug("can't get autopm:\n");
 
@@ -479,8 +479,9 @@ exit:
 
 /*
  * dev_remove() - our device is being removed
-*/
-/* rmmod module & unplug(SurpriseRemoved) will call r871xu_dev_remove() => how to recognize both */
+ *
+ * rmmod module & unplug(SurpriseRemoved) will call r871xu_dev_remove() => how to recognize both
+ */
 static void rtw_dev_remove(struct usb_interface *pusb_intf)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
