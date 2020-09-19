@@ -238,9 +238,6 @@ static int an30259a_dt_init(struct i2c_client *client,
 				led->default_state = STATE_OFF;
 		}
 
-		of_property_read_string(child, "linux,default-trigger",
-					&led->cdev.default_trigger);
-
 		i++;
 	}
 

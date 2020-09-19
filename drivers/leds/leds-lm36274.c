@@ -97,9 +97,6 @@ static int lm36274_parse_dt(struct lm36274 *chip,
 		goto err;
 	}
 
-	fwnode_property_read_string(child, "linux,default-trigger",
-				    &chip->led_dev.default_trigger);
-
 	return 0;
 err:
 	fwnode_handle_put(child);

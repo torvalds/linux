@@ -20,7 +20,6 @@
 
 struct led_pwm {
 	const char	*name;
-	const char	*default_trigger;
 	u8		active_low;
 	unsigned int	max_brightness;
 };
@@ -70,7 +69,6 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 
 	led_data->active_low = led->active_low;
 	led_data->cdev.name = led->name;
-	led_data->cdev.default_trigger = led->default_trigger;
 	led_data->cdev.brightness = LED_OFF;
 	led_data->cdev.max_brightness = led->max_brightness;
 	led_data->cdev.flags = LED_CORE_SUSPENDRESUME;
@@ -123,9 +121,6 @@ static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)
 			fwnode_handle_put(fwnode);
 			return -EINVAL;
 		}
-
-		fwnode_property_read_string(fwnode, "linux,default-trigger",
-					    &led.default_trigger);
 
 		led.active_low = fwnode_property_read_bool(fwnode,
 							   "active-low");

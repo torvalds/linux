@@ -117,8 +117,6 @@ static int pm8058_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	led->cdev.default_trigger =
-		of_get_property(np, "linux,default-trigger", NULL);
 	led->cdev.brightness_set = pm8058_led_set;
 	led->cdev.brightness_get = pm8058_led_get;
 	if (led->ledtype == PM8058_LED_TYPE_COMMON)

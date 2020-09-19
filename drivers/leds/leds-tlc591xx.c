@@ -199,9 +199,6 @@ tlc591xx_probe(struct i2c_client *client,
 		led = &priv->leds[reg];
 
 		led->active = true;
-		led->ldev.default_trigger =
-			of_get_property(child, "linux,default-trigger", NULL);
-
 		led->priv = priv;
 		led->led_no = reg;
 		led->ldev.brightness_set_blocking = tlc591xx_brightness_set;

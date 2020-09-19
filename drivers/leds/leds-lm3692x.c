@@ -433,9 +433,6 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 		return -ENODEV;
 	}
 
-	fwnode_property_read_string(child, "linux,default-trigger",
-				    &led->led_dev.default_trigger);
-
 	ret = fwnode_property_read_u32(child, "reg", &led->led_enable);
 	if (ret) {
 		dev_err(&led->client->dev, "reg DT property missing\n");

@@ -85,8 +85,6 @@ static int syscon_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	if (of_property_read_u32(np, "mask", &sled->mask))
 		return -EINVAL;
-	sled->cdev.default_trigger =
-		of_get_property(np, "linux,default-trigger", NULL);
 
 	state = of_get_property(np, "default-state", NULL);
 	if (state) {

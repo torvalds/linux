@@ -392,10 +392,6 @@ static int lp8860_probe(struct i2c_client *client,
 	if (!child_node)
 		return -EINVAL;
 
-	led->led_dev.default_trigger = of_get_property(child_node,
-					    "linux,default-trigger",
-					    NULL);
-
 	led->enable_gpio = devm_gpiod_get_optional(&client->dev,
 						   "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(led->enable_gpio)) {

@@ -640,9 +640,6 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 			goto child_out;
 		}
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led->led_dev.default_trigger);
-
 		led->priv = priv;
 		led->led_dev.brightness_set_blocking = lm3532_brightness_set;
 

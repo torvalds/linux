@@ -268,9 +268,6 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		if (ret)
 			dev_warn(dev, "runtime-ramp properties missing\n");
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led->led_dev.default_trigger);
-
 		init_data.fwnode = child;
 		init_data.devicename = priv->client->name;
 		/* for backwards compatibility if `label` is not present */

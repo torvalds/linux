@@ -185,9 +185,6 @@ static int ns2_led_register(struct device *dev, struct device_node *np,
 	if (IS_ERR(led->slow))
 		return PTR_ERR(led->slow);
 
-	of_property_read_string(np, "linux,default-trigger",
-				&led->cdev.default_trigger);
-
 	ret = of_property_count_u32_elems(np, "modes-map");
 	if (ret < 0 || ret % 3) {
 		dev_err(dev, "Missing or malformed modes-map for %pOF\n", np);

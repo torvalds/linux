@@ -341,9 +341,6 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	}
 	led_data->channel = reg;
 
-	of_property_read_string(child, "linux,default-trigger",
-				&cdev->default_trigger);
-
 	cdev->brightness_set_blocking = is31fl32xx_brightness_set;
 
 	return 0;

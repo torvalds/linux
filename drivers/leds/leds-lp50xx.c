@@ -508,9 +508,6 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 		led_cdev = &led->mc_cdev.led_cdev;
 		led_cdev->brightness_set_blocking = lp50xx_brightness_set;
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led_cdev->default_trigger);
-
 		ret = devm_led_classdev_multicolor_register_ext(&priv->client->dev,
 						       &led->mc_cdev,
 						       &init_data);

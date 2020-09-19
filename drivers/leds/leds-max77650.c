@@ -100,9 +100,6 @@ static int max77650_led_probe(struct platform_device *pdev)
 		led->cdev.brightness_set_blocking = max77650_led_brightness_set;
 		led->cdev.max_brightness = MAX77650_LED_MAX_BRIGHTNESS;
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led->cdev.default_trigger);
-
 		init_data.fwnode = child;
 		init_data.devicename = "max77650";
 		/* for backwards compatibility if `label` is not present */
