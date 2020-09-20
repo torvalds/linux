@@ -204,7 +204,7 @@ static irqreturn_t interrupt_transfer(struct dw_spi *dws)
 
 	dw_reader(dws);
 	if (dws->rx_end == dws->rx) {
-		spi_mask_intr(dws, SPI_INT_TXEI);
+		spi_mask_intr(dws, 0xff);
 		spi_finalize_current_transfer(dws->master);
 		return IRQ_HANDLED;
 	}
@@ -228,7 +228,7 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (!master->cur_msg) {
-		spi_mask_intr(dws, SPI_INT_TXEI);
+		spi_mask_intr(dws, 0xff);
 		return IRQ_HANDLED;
 	}
 
@@ -468,6 +468,9 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 
 	spi_controller_set_devdata(master, dws);
 
+	/* Basic HW init */
+	spi_hw_init(dev, dws);
+
 	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED, dev_name(dev),
 			  master);
 	if (ret < 0) {
@@ -497,9 +500,6 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	/* Get default rx sample delay */
 	device_property_read_u32(dev, "rx-sample-delay-ns",
 				 &dws->def_rx_sample_dly_ns);
-
-	/* Basic HW init */
-	spi_hw_init(dev, dws);
 
 	if (dws->dma_ops && dws->dma_ops->dma_init) {
 		ret = dws->dma_ops->dma_init(dev, dws);
