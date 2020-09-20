@@ -756,7 +756,6 @@ vidtv_psi_pat_program_assign(struct vidtv_psi_table_pat *pat,
 struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id)
 {
 	struct vidtv_psi_table_pat *pat = kzalloc(sizeof(*pat), GFP_KERNEL);
-	static u8 pat_version;
 	const u16 SYNTAX = 0x1;
 	const u16 ZERO = 0x0;
 	const u16 ONES = 0x03;
@@ -767,7 +766,7 @@ struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id)
 	pat->header.id           = cpu_to_be16(transport_stream_id);
 	pat->header.current_next = 0x1;
 
-	pat->header.version = pat_version;
+	pat->header.version = 0x1f;
 
 	pat->header.one2         = 0x03;
 	pat->header.section_id   = 0x0;
@@ -935,7 +934,6 @@ struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
 						     u16 pcr_pid)
 {
 	struct vidtv_psi_table_pmt *pmt = kzalloc(sizeof(*pmt), GFP_KERNEL);
-	static u8 pmt_version;
 	const u16 SYNTAX = 0x1;
 	const u16 ZERO = 0x0;
 	const u16 ONES = 0x03;
@@ -953,7 +951,7 @@ struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
 	pmt->header.id = cpu_to_be16(program_number);
 	pmt->header.current_next = 0x1;
 
-	pmt->header.version = pmt_version;
+	pmt->header.version = 0x1f;
 
 	pmt->header.one2 = ONES;
 	pmt->header.section_id   = 0;
@@ -1083,7 +1081,6 @@ void vidtv_psi_pmt_table_destroy(struct vidtv_psi_table_pmt *pmt)
 struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id)
 {
 	struct vidtv_psi_table_sdt *sdt = kzalloc(sizeof(*sdt), GFP_KERNEL);
-	static u8 sdt_version;
 	const u16 SYNTAX = 0x1;
 	const u16 ONE = 0x1;
 	const u16 ONES = 0x03;
@@ -1101,7 +1098,7 @@ struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id)
 	sdt->header.id = cpu_to_be16(transport_stream_id);
 	sdt->header.current_next = ONE;
 
-	sdt->header.version = sdt_version;
+	sdt->header.version = 0x1f;
 
 	sdt->header.one2  = ONES;
 	sdt->header.section_id   = 0;
