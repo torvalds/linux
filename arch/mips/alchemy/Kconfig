@@ -3,10 +3,6 @@
 config ALCHEMY_GPIOINT_AU1000
 	bool
 
-# au1300-style GPIO/INT controller
-config ALCHEMY_GPIOINT_AU1300
-	bool
-
 choice
 	prompt "Machine type"
 	depends on MIPS_ALCHEMY
