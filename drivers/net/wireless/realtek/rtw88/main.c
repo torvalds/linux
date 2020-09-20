@@ -1486,6 +1486,8 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
 	struct rtw_rsvd_page *rsvd_pkt, *tmp;
 	unsigned long flags;
 
+	rtw_wait_firmware_completion(rtwdev);
+
 	if (fw->firmware)
 		release_firmware(fw->firmware);
 
