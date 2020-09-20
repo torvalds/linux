@@ -175,6 +175,7 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 #define CDNS_DPN_HCTRL_LCTRL			GENMASK(10, 8)
 
 #define CDNS_PORTCTRL				0x130
+#define CDNS_PORTCTRL_TEST_FAILED		BIT(1)
 #define CDNS_PORTCTRL_DIRN			BIT(7)
 #define CDNS_PORTCTRL_BANK_INVERT		BIT(8)
 
@@ -870,6 +871,19 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 		dev_err_ratelimited(cdns->dev, "Bus clash for data word\n");
 	}
 
+	if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_NORMAL &&
+	    int_status & CDNS_MCP_INT_DPINT) {
+		u32 port_intstat;
+
+		/* just log which ports report an error */
+		port_intstat = cdns_readl(cdns, CDNS_MCP_PORT_INTSTAT);
+		dev_err_ratelimited(cdns->dev, "DP interrupt: PortIntStat %8x\n",
+				    port_intstat);
+
+		/* clear status w/ write1 */
+		cdns_writel(cdns, CDNS_MCP_PORT_INTSTAT, port_intstat);
+	}
+
 	if (int_status & CDNS_MCP_INT_SLAVE_MASK) {
 		/* Mask the Slave interrupt and wake thread */
 		cdns_updatel(cdns, CDNS_MCP_INTMASK,
@@ -994,7 +1008,9 @@ int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns, bool state)
 	mask |= CDNS_MCP_INT_CTRL_CLASH | CDNS_MCP_INT_DATA_CLASH |
 		CDNS_MCP_INT_PARITY;
 
-	/* no detection of port interrupts for now */
+	/* port interrupt limited to test modes for now */
+	if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_NORMAL)
+		mask |= CDNS_MCP_INT_DPINT;
 
 	/* enable detection of RX fifo level */
 	mask |= CDNS_MCP_INT_RX_WL;
@@ -1624,11 +1640,16 @@ void sdw_cdns_config_stream(struct sdw_cdns *cdns,
 {
 	u32 offset, val = 0;
 
-	if (dir == SDW_DATA_DIR_RX)
+	if (dir == SDW_DATA_DIR_RX) {
 		val = CDNS_PORTCTRL_DIRN;
 
+		if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_NORMAL)
+			val |= CDNS_PORTCTRL_TEST_FAILED;
+	}
 	offset = CDNS_PORTCTRL + pdi->num * CDNS_PORT_OFFSET;
-	cdns_updatel(cdns, offset, CDNS_PORTCTRL_DIRN, val);
+	cdns_updatel(cdns, offset,
+		     CDNS_PORTCTRL_DIRN | CDNS_PORTCTRL_TEST_FAILED,
+		     val);
 
 	val = pdi->num;
 	val |= CDNS_PDI_CONFIG_SOFT_RESET;
