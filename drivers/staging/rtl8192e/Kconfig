@@ -36,7 +36,6 @@ config RTLLIB_CRYPTO_TKIP
 
 config RTLLIB_CRYPTO_WEP
 	tristate "Support for rtllib WEP crypto"
-	select CRYPTO
 	select CRYPTO_ARC4
 	depends on RTLLIB
 	default y
