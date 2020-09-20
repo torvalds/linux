@@ -275,6 +275,8 @@ static struct dma_async_tx_descriptor *
 dw_spi_dma_submit_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *txdesc;
+	dma_cookie_t cookie;
+	int ret;
 
 	txdesc = dmaengine_prep_slave_sg(dws->txchan,
 				xfer->tx_sg.sgl,
@@ -287,7 +289,13 @@ dw_spi_dma_submit_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 	txdesc->callback = dw_spi_dma_tx_done;
 	txdesc->callback_param = dws;
 
-	dmaengine_submit(txdesc);
+	cookie = dmaengine_submit(txdesc);
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dmaengine_terminate_sync(dws->txchan);
+		return NULL;
+	}
+
 	set_bit(TX_BUSY, &dws->dma_chan_busy);
 
 	return txdesc;
@@ -371,6 +379,8 @@ static struct dma_async_tx_descriptor *dw_spi_dma_submit_rx(struct dw_spi *dws,
 		struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *rxdesc;
+	dma_cookie_t cookie;
+	int ret;
 
 	rxdesc = dmaengine_prep_slave_sg(dws->rxchan,
 				xfer->rx_sg.sgl,
@@ -383,7 +393,13 @@ static struct dma_async_tx_descriptor *dw_spi_dma_submit_rx(struct dw_spi *dws,
 	rxdesc->callback = dw_spi_dma_rx_done;
 	rxdesc->callback_param = dws;
 
-	dmaengine_submit(rxdesc);
+	cookie = dmaengine_submit(rxdesc);
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dmaengine_terminate_sync(dws->rxchan);
+		return NULL;
+	}
+
 	set_bit(RX_BUSY, &dws->dma_chan_busy);
 
 	return rxdesc;
