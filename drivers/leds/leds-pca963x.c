@@ -32,7 +32,6 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/platform_data/leds-pca963x.h>
 
 /* LED select registers determine the source that drives LED outputs */
 #define PCA963X_LED_OFF		0x0	/* LED driver off */
@@ -102,7 +101,6 @@ struct pca963x_led {
 	struct pca963x *chip;
 	struct led_classdev led_cdev;
 	int led_num; /* 0 .. 15 potentially */
-	char name[32];
 	u8 gdc;
 	u8 gfrq;
 };
@@ -284,72 +282,85 @@ static int pca963x_blink_set(struct led_classdev *led_cdev,
 	return 0;
 }
 
-static struct pca963x_platform_data *
-pca963x_get_pdata(struct device *dev, struct pca963x_chipdef *chipdef)
+static int pca963x_register_leds(struct i2c_client *client,
+				 struct pca963x *chip)
 {
-	struct pca963x_platform_data *pdata;
-	struct led_info *pca963x_leds;
+	struct pca963x_chipdef *chipdef = chip->chipdef;
+	struct pca963x_led *led = chip->leds;
+	struct device *dev = &client->dev;
 	struct fwnode_handle *child;
-	int count;
-
-	count = device_get_child_node_count(dev);
-	if (!count || count > chipdef->n_leds)
-		return ERR_PTR(-ENODEV);
-
-	pca963x_leds = devm_kcalloc(dev, chipdef->n_leds,
-				    sizeof(struct led_info), GFP_KERNEL);
-	if (!pca963x_leds)
-		return ERR_PTR(-ENOMEM);
-
-	device_for_each_child_node(dev, child) {
-		struct led_info led = {};
-		u32 reg;
-		int res;
-
-		res = fwnode_property_read_u32(child, "reg", &reg);
-		if ((res != 0) || (reg >= chipdef->n_leds))
-			continue;
-
-		res = fwnode_property_read_string(child, "label", &led.name);
-		if ((res != 0) && is_of_node(child))
-			led.name = to_of_node(child)->name;
-
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led.default_trigger);
-
-		pca963x_leds[reg] = led;
-	}
-	pdata = devm_kzalloc(dev, sizeof(struct pca963x_platform_data),
-			     GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	pdata->leds.leds = pca963x_leds;
-	pdata->leds.num_leds = chipdef->n_leds;
-
-	/* default to open-drain unless totem pole (push-pull) is specified */
-	if (device_property_read_bool(dev, "nxp,totem-pole"))
-		pdata->outdrv = PCA963X_TOTEM_POLE;
-	else
-		pdata->outdrv = PCA963X_OPEN_DRAIN;
-
-	/* default to software blinking unless hardware blinking is specified */
-	if (device_property_read_bool(dev, "nxp,hw-blink"))
-		pdata->blink_type = PCA963X_HW_BLINK;
-	else
-		pdata->blink_type = PCA963X_SW_BLINK;
+	const char *name;
+	char label[64];
+	bool hw_blink;
+	s32 mode2;
+	u32 reg;
+	int ret;
 
 	if (device_property_read_u32(dev, "nxp,period-scale",
 				     &chipdef->scaling))
 		chipdef->scaling = 1000;
 
+	hw_blink = device_property_read_bool(dev, "nxp,hw-blink");
+
+	mode2 = i2c_smbus_read_byte_data(client, PCA963X_MODE2);
+	if (mode2 < 0)
+		return mode2;
+
+	/* default to open-drain unless totem pole (push-pull) is specified */
+	if (device_property_read_bool(dev, "nxp,totem-pole"))
+		mode2 |= PCA963X_MODE2_OUTDRV;
+	else
+		mode2 &= ~PCA963X_MODE2_OUTDRV;
+
 	/* default to non-inverted output, unless inverted is specified */
 	if (device_property_read_bool(dev, "nxp,inverted-out"))
-		pdata->dir = PCA963X_INVERTED;
+		mode2 |= PCA963X_MODE2_INVRT;
 	else
-		pdata->dir = PCA963X_NORMAL;
+		mode2 &= ~PCA963X_MODE2_INVRT;
 
-	return pdata;
+	ret = i2c_smbus_write_byte_data(client, PCA963X_MODE2, mode2);
+	if (ret < 0)
+		return ret;
+
+	device_for_each_child_node(dev, child) {
+		ret = fwnode_property_read_u32(child, "reg", &reg);
+		if (ret || reg >= chipdef->n_leds) {
+			dev_err(dev, "Invalid 'reg' property for node %pfw\n",
+				child);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = fwnode_property_read_string(child, "label", &name);
+		if (!fwnode_property_read_string(child, "label", &name))
+			snprintf(label, sizeof(label), "pca963x:%s", name);
+		else
+			snprintf(label, sizeof(label), "pca963x::");
+
+		fwnode_property_read_string(child, "linux,default-trigger",
+					    &led->led_cdev.default_trigger);
+
+		led->led_num = reg;
+		led->chip = chip;
+		led->led_cdev.name = label;
+		led->led_cdev.brightness_set_blocking = pca963x_led_set;
+		if (hw_blink)
+			led->led_cdev.blink_set = pca963x_blink_set;
+
+		ret = devm_led_classdev_register(dev, &led->led_cdev);
+		if (ret) {
+			dev_err(dev, "Failed to register LED for node %pfw\n",
+				child);
+			goto err;
+		}
+
+		++led;
+	}
+
+	return 0;
+err:
+	fwnode_handle_put(child);
+	return ret;
 }
 
 static const struct of_device_id of_pca963x_match[] = {
@@ -366,30 +377,19 @@ static int pca963x_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct pca963x_chipdef *chipdef;
-	struct pca963x_platform_data *pdata;
 	struct pca963x *chip;
-	int i, err;
+	int i, count;
 
 	chipdef = &pca963x_chipdefs[id->driver_data];
-	pdata = dev_get_platdata(dev);
 
-	if (!pdata) {
-		pdata = pca963x_get_pdata(dev, chipdef);
-		if (IS_ERR(pdata)) {
-			dev_warn(dev, "could not parse configuration\n");
-			pdata = NULL;
-		}
-	}
-
-	if (pdata && (pdata->leds.num_leds < 1 ||
-		      pdata->leds.num_leds > chipdef->n_leds)) {
-		dev_err(dev, "board info must claim 1-%d LEDs",
-			chipdef->n_leds);
+	count = device_get_child_node_count(dev);
+	if (!count || count > chipdef->n_leds) {
+		dev_err(dev, "Node %pfw must define between 1 and %d LEDs\n",
+			dev_fwnode(dev), chipdef->n_leds);
 		return -EINVAL;
 	}
 
-	chip = devm_kzalloc(dev, struct_size(chip, leds, chipdef->n_leds),
-			    GFP_KERNEL);
+	chip = devm_kzalloc(dev, struct_size(chip, leds, count), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -403,56 +403,10 @@ static int pca963x_probe(struct i2c_client *client,
 	for (i = 0; i < chipdef->n_leds / 4; i++)
 		i2c_smbus_write_byte_data(client, chipdef->ledout_base + i, 0x00);
 
-	for (i = 0; i < chipdef->n_leds; i++) {
-		struct pca963x_led *led = &chip->leds[i];
-
-		led->led_num = i;
-		led->chip = chip;
-
-		/* Platform data can specify LED names and default triggers */
-		if (pdata && i < pdata->leds.num_leds) {
-			if (pdata->leds.leds[i].name)
-				snprintf(led->name,
-					 sizeof(led->name), "pca963x:%s",
-					 pdata->leds.leds[i].name);
-			if (pdata->leds.leds[i].default_trigger)
-				led->led_cdev.default_trigger =
-					pdata->leds.leds[i].default_trigger;
-		}
-		if (!pdata || i >= pdata->leds.num_leds ||
-						!pdata->leds.leds[i].name)
-			snprintf(led->name, sizeof(led->name),
-				 "pca963x:%d:%.2x:%d", client->adapter->nr,
-				 client->addr, i);
-
-		led->led_cdev.name = led->name;
-		led->led_cdev.brightness_set_blocking = pca963x_led_set;
-
-		if (pdata && pdata->blink_type == PCA963X_HW_BLINK)
-			led->led_cdev.blink_set = pca963x_blink_set;
-
-		err = devm_led_classdev_register(dev, &led->led_cdev);
-		if (err < 0)
-			return err;
-	}
-
 	/* Disable LED all-call address, and power down initially */
 	i2c_smbus_write_byte_data(client, PCA963X_MODE1, BIT(4));
 
-	if (pdata) {
-		u8 mode2 = i2c_smbus_read_byte_data(client, PCA963X_MODE2);
-		/* Configure output: open-drain or totem pole (push-pull) */
-		if (pdata->outdrv == PCA963X_OPEN_DRAIN)
-			mode2 &= ~PCA963X_MODE2_OUTDRV;
-		else
-			mode2 |= PCA963X_MODE2_OUTDRV;
-		/* Configure direction: normal or inverted */
-		if (pdata->dir == PCA963X_INVERTED)
-			mode2 |= PCA963X_MODE2_INVRT;
-		i2c_smbus_write_byte_data(client, PCA963X_MODE2, mode2);
-	}
-
-	return 0;
+	return pca963x_register_leds(client, chip);
 }
 
 static struct i2c_driver pca963x_driver = {
