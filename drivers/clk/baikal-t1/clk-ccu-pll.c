@@ -51,11 +51,13 @@ struct ccu_pll_info {
 };
 
 /*
- * Mark as critical all PLLs except Ethernet one. CPU and DDR PLLs are sources
- * of CPU cores and DDR controller reference clocks, due to which they
- * obviously shouldn't be ever gated. SATA and PCIe PLLs are the parents of
- * APB-bus and DDR controller AXI-bus clocks. If they are gated the system will
- * be unusable.
+ * Alas we have to mark all PLLs as critical. CPU and DDR PLLs are sources of
+ * CPU cores and DDR controller reference clocks, due to which they obviously
+ * shouldn't be ever gated. SATA and PCIe PLLs are the parents of APB-bus and
+ * DDR controller AXI-bus clocks. If they are gated the system will be
+ * unusable. Moreover disabling SATA and Ethernet PLLs causes automatic reset
+ * of the corresponding subsystems. So until we aren't ready to re-initialize
+ * all the devices consuming those PLLs, they will be marked as critical too.
  */
 static const struct ccu_pll_info pll_info[] = {
 	CCU_PLL_INFO(CCU_CPU_PLL, "cpu_pll", "ref_clk", CCU_CPU_PLL_BASE,
@@ -67,7 +69,7 @@ static const struct ccu_pll_info pll_info[] = {
 	CCU_PLL_INFO(CCU_PCIE_PLL, "pcie_pll", "ref_clk", CCU_PCIE_PLL_BASE,
 		     CLK_IS_CRITICAL),
 	CCU_PLL_INFO(CCU_ETH_PLL, "eth_pll", "ref_clk", CCU_ETH_PLL_BASE,
-		     CLK_SET_RATE_GATE)
+		     CLK_IS_CRITICAL | CLK_SET_RATE_GATE)
 };
 
 struct ccu_pll_data {
