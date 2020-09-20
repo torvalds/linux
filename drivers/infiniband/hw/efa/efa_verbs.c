@@ -1165,7 +1165,7 @@ static struct scatterlist *efa_vmalloc_buf_to_sg(u64 *buf, int page_cnt)
 	struct page *pg;
 	int i;
 
-	sglist = kcalloc(page_cnt, sizeof(*sglist), GFP_KERNEL);
+	sglist = kmalloc_array(page_cnt, sizeof(*sglist), GFP_KERNEL);
 	if (!sglist)
 		return NULL;
 	sg_init_table(sglist, page_cnt);
