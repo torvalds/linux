@@ -96,15 +96,7 @@ static const struct i2c_device_id pca963x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pca963x_id);
 
-struct pca963x_led;
-
-struct pca963x {
-	struct pca963x_chipdef *chipdef;
-	struct mutex mutex;
-	struct i2c_client *client;
-	struct pca963x_led *leds;
-	unsigned long leds_on;
-};
+struct pca963x;
 
 struct pca963x_led {
 	struct pca963x *chip;
@@ -113,6 +105,14 @@ struct pca963x_led {
 	char name[32];
 	u8 gdc;
 	u8 gfrq;
+};
+
+struct pca963x {
+	struct pca963x_chipdef *chipdef;
+	struct mutex mutex;
+	struct i2c_client *client;
+	unsigned long leds_on;
+	struct pca963x_led leds[];
 };
 
 static int pca963x_brightness(struct pca963x_led *led,
@@ -367,7 +367,6 @@ static int pca963x_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct pca963x_chipdef *chipdef;
 	struct pca963x_platform_data *pdata;
-	struct pca963x_led *leds;
 	struct pca963x *chip;
 	int i, err;
 
@@ -389,11 +388,9 @@ static int pca963x_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(dev, struct_size(chip, leds, chipdef->n_leds),
+			    GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
-	leds = devm_kcalloc(dev, chipdef->n_leds, sizeof(*leds), GFP_KERNEL);
-	if (!leds)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, chip);
@@ -401,14 +398,13 @@ static int pca963x_probe(struct i2c_client *client,
 	mutex_init(&chip->mutex);
 	chip->chipdef = chipdef;
 	chip->client = client;
-	chip->leds = leds;
 
 	/* Turn off LEDs by default*/
 	for (i = 0; i < chipdef->n_leds / 4; i++)
 		i2c_smbus_write_byte_data(client, chipdef->ledout_base + i, 0x00);
 
 	for (i = 0; i < chipdef->n_leds; i++) {
-		struct pca963x_led *led = &leds[i];
+		struct pca963x_led *led = &chip->leds[i];
 
 		led->led_num = i;
 		led->chip = chip;
