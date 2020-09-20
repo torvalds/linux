@@ -218,11 +218,15 @@ cat <<EOF > debian/rules
 
 srctree ?= .
 
-build:
+build-indep:
+build-arch:
 	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
 	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile
 
-binary-arch:
+build: build-arch
+
+binary-indep:
+binary-arch: build-arch
 	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
 	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile intdeb-pkg
 
