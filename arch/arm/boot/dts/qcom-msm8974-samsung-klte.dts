@@ -284,6 +284,16 @@
 			};
 		};
 
+		i2c2_pins: i2c2 {
+			mux {
+				pins = "gpio6", "gpio7";
+				function = "blsp_i2c2";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
 		i2c6_pins: i2c6 {
 			mux {
 				pins = "gpio29", "gpio30";
@@ -338,6 +348,42 @@
 
 				/*extcon = <&smbb>;*/
 				qcom,init-seq = /bits/ 8 <0x1 0x64>;
+			};
+		};
+	};
+
+	i2c@f9924000 {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_pins>;
+
+		touchscreen@20 {
+			compatible = "syna,rmi4-i2c";
+			reg = <0x20>;
+
+			interrupt-parent = <&pma8084_gpios>;
+			interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
+
+			vdd-supply = <&max77826_ldo13>;
+			vio-supply = <&pma8084_lvs2>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&touch_pin>;
+
+			syna,startup-delay-ms = <100>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rmi4-f01@1 {
+				reg = <0x1>;
+				syna,nosleep-mode = <1>;
+			};
+
+			rmi4-f12@12 {
+				reg = <0x12>;
+				syna,sensor-type = <1>;
 			};
 		};
 	};
@@ -455,6 +501,14 @@
 
 			touchkey_pin: touchkey-int-pin {
 				pins = "gpio6";
+				function = "normal";
+				bias-disable;
+				input-enable;
+				power-source = <PMA8084_GPIO_S4>;
+			};
+
+			touch_pin: touchscreen-int-pin {
+				pins = "gpio8";
 				function = "normal";
 				bias-disable;
 				input-enable;
