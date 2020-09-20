@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/ti,hd3ss3220.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI HD3SS3220 TypeC DRP Port Controller
+
+maintainers:
+  - Biju Das <biju.das.jz@bp.renesas.com>
+
+description: |-
+  HD3SS3220 is a USB SuperSpeed (SS) 2:1 mux with DRP port controller. The device provides Channel
+  Configuration (CC) logic and 5V VCONN sourcing for ecosystems implementing USB Type-C. The
+  HD3SS3220 can be configured as a Downstream Facing Port (DFP), Upstream Facing Port (UFP) or a
+  Dual Role Port (DRP) making it ideal for any application.
+
+properties:
+  compatible:
+   const: ti,hd3ss3220
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  ports:
+    description: OF graph bindings (specified in bindings/graph.txt) that model
+      SS data bus to the SS capable connector.
+    type: object
+    properties:
+      port@0:
+        type: object
+        description: Super Speed (SS) MUX inputs connected to SS capable connector.
+        $ref: /connector/usb-connector.yaml#/properties/ports/properties/port@1
+
+      port@1:
+        type: object
+        description: Output of 2:1 MUX connected to Super Speed (SS) data bus.
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hd3ss3220@47 {
+                compatible = "ti,hd3ss3220";
+                reg = <0x47>;
+                interrupt-parent = <&gpio6>;
+                interrupts = <3>;
+
+                ports {
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+                        port@0 {
+                                reg = <0>;
+                                hd3ss3220_in_ep: endpoint {
+                                        remote-endpoint = <&ss_ep>;
+                                };
+                        };
+                        port@1 {
+                                reg = <1>;
+                                hd3ss3220_out_ep: endpoint {
+                                        remote-endpoint = <&usb3_role_switch>;
+                                };
+                        };
+                };
+        };
+    };
