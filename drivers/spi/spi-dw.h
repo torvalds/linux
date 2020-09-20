@@ -230,14 +230,15 @@ static inline void spi_umask_intr(struct dw_spi *dws, u32 mask)
 }
 
 /*
- * This does disable the SPI controller, interrupts, and re-enable the
- * controller back. Transmit and receive FIFO buffers are cleared when the
- * device is disabled.
+ * This disables the SPI controller, interrupts, clears the interrupts status,
+ * and re-enable the controller back. Transmit and receive FIFO buffers are
+ * cleared when the device is disabled.
  */
 static inline void spi_reset_chip(struct dw_spi *dws)
 {
 	spi_enable_chip(dws, 0);
 	spi_mask_intr(dws, 0xff);
+	dw_readl(dws, DW_SPI_ICR);
 	spi_enable_chip(dws, 1);
 }
 
