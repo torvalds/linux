@@ -289,8 +289,6 @@ static int pca963x_register_leds(struct i2c_client *client,
 	struct pca963x_led *led = chip->leds;
 	struct device *dev = &client->dev;
 	struct fwnode_handle *child;
-	const char *name;
-	char label[64];
 	bool hw_blink;
 	s32 mode2;
 	u32 reg;
@@ -323,6 +321,9 @@ static int pca963x_register_leds(struct i2c_client *client,
 		return ret;
 
 	device_for_each_child_node(dev, child) {
+		struct led_init_data init_data = {};
+		char default_label[32];
+
 		ret = fwnode_property_read_u32(child, "reg", &reg);
 		if (ret || reg >= chipdef->n_leds) {
 			dev_err(dev, "Invalid 'reg' property for node %pfw\n",
@@ -331,23 +332,21 @@ static int pca963x_register_leds(struct i2c_client *client,
 			goto err;
 		}
 
-		ret = fwnode_property_read_string(child, "label", &name);
-		if (!fwnode_property_read_string(child, "label", &name))
-			snprintf(label, sizeof(label), "pca963x:%s", name);
-		else
-			snprintf(label, sizeof(label), "pca963x::");
-
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led->led_cdev.default_trigger);
-
 		led->led_num = reg;
 		led->chip = chip;
-		led->led_cdev.name = label;
 		led->led_cdev.brightness_set_blocking = pca963x_led_set;
 		if (hw_blink)
 			led->led_cdev.blink_set = pca963x_blink_set;
 
-		ret = devm_led_classdev_register(dev, &led->led_cdev);
+		init_data.fwnode = child;
+		/* for backwards compatibility */
+		init_data.devicename = "pca963x";
+		snprintf(default_label, sizeof(default_label), "%d:%.2x:%u",
+			 client->adapter->nr, client->addr, reg);
+		init_data.default_label = default_label;
+
+		ret = devm_led_classdev_register_ext(dev, &led->led_cdev,
+						     &init_data);
 		if (ret) {
 			dev_err(dev, "Failed to register LED for node %pfw\n",
 				child);
