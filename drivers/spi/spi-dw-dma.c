@@ -272,7 +272,7 @@ static int dw_spi_dma_config_tx(struct dw_spi *dws)
 }
 
 static struct dma_async_tx_descriptor *
-dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
+dw_spi_dma_submit_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *txdesc;
 
@@ -286,6 +286,9 @@ dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 
 	txdesc->callback = dw_spi_dma_tx_done;
 	txdesc->callback_param = dws;
+
+	dmaengine_submit(txdesc);
+	set_bit(TX_BUSY, &dws->dma_chan_busy);
 
 	return txdesc;
 }
@@ -364,7 +367,7 @@ static int dw_spi_dma_config_rx(struct dw_spi *dws)
 	return dmaengine_slave_config(dws->rxchan, &rxconf);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
+static struct dma_async_tx_descriptor *dw_spi_dma_submit_rx(struct dw_spi *dws,
 		struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *rxdesc;
@@ -379,6 +382,9 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 
 	rxdesc->callback = dw_spi_dma_rx_done;
 	rxdesc->callback_param = dws;
+
+	dmaengine_submit(rxdesc);
+	set_bit(RX_BUSY, &dws->dma_chan_busy);
 
 	return rxdesc;
 }
@@ -426,25 +432,21 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 	struct dma_async_tx_descriptor *txdesc, *rxdesc;
 	int ret;
 
-	/* Prepare the TX dma transfer */
-	txdesc = dw_spi_dma_prepare_tx(dws, xfer);
+	/* Submit the DMA Tx transfer */
+	txdesc = dw_spi_dma_submit_tx(dws, xfer);
 	if (!txdesc)
 		return -EINVAL;
 
-	/* Prepare the RX dma transfer */
+	/* Submit the DMA Rx transfer if required */
 	if (xfer->rx_buf) {
-		rxdesc = dw_spi_dma_prepare_rx(dws, xfer);
+		rxdesc = dw_spi_dma_submit_rx(dws, xfer);
 		if (!rxdesc)
 			return -EINVAL;
 
 		/* rx must be started before tx due to spi instinct */
-		set_bit(RX_BUSY, &dws->dma_chan_busy);
-		dmaengine_submit(rxdesc);
 		dma_async_issue_pending(dws->rxchan);
 	}
 
-	set_bit(TX_BUSY, &dws->dma_chan_busy);
-	dmaengine_submit(txdesc);
 	dma_async_issue_pending(dws->txchan);
 
 	ret = dw_spi_dma_wait(dws, xfer);
