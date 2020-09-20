@@ -1107,7 +1107,14 @@ struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id)
 	sdt->header.section_id   = 0;
 	sdt->header.last_section = 0;
 
-	sdt->network_id = cpu_to_be16(transport_stream_id);
+	/*
+	 * FIXME: The network_id range from 0xFF01 to 0xFFFF is used to
+	 * indicate temporary private use. For now, let's use the first
+	 * value.
+	 * This can be changed to something more useful, when support for
+	 * NIT gets added
+	 */
+	sdt->network_id = cpu_to_be16(0xff01);
 	sdt->reserved = RESERVED;
 
 	vidtv_psi_sdt_table_update_sec_len(sdt);
