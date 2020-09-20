@@ -369,9 +369,6 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 {
 	struct dma_async_tx_descriptor *rxdesc;
 
-	if (!xfer->rx_buf)
-		return NULL;
-
 	rxdesc = dmaengine_prep_slave_sg(dws->rxchan,
 				xfer->rx_sg.sgl,
 				xfer->rx_sg.nents,
@@ -435,10 +432,12 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 		return -EINVAL;
 
 	/* Prepare the RX dma transfer */
-	rxdesc = dw_spi_dma_prepare_rx(dws, xfer);
+	if (xfer->rx_buf) {
+		rxdesc = dw_spi_dma_prepare_rx(dws, xfer);
+		if (!rxdesc)
+			return -EINVAL;
 
-	/* rx must be started before tx due to spi instinct */
-	if (rxdesc) {
+		/* rx must be started before tx due to spi instinct */
 		set_bit(RX_BUSY, &dws->dma_chan_busy);
 		dmaengine_submit(rxdesc);
 		dma_async_issue_pending(dws->rxchan);
@@ -458,7 +457,7 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 			return ret;
 	}
 
-	if (rxdesc && dws->master->cur_msg->status == -EINPROGRESS)
+	if (xfer->rx_buf && dws->master->cur_msg->status == -EINPROGRESS)
 		ret = dw_spi_dma_wait_rx_done(dws);
 
 	return ret;
