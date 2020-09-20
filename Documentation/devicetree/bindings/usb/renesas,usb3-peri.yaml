@@ -53,11 +53,24 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle of a companion.
 
-  port:
+  ports:
     description: |
       any connector to the data bus of this controller should be modelled
       using the OF graph bindings specified, if the "usb-role-switch"
       property is used.
+    type: object
+    properties:
+      port@0:
+        type: object
+        description: High Speed (HS) data bus.
+
+      port@1:
+        type: object
+        description: Super Speed (SS) data bus.
+
+    required:
+      - port@0
+      - port@1
 
 required:
   - compatible
@@ -80,9 +93,20 @@ examples:
         companion = <&xhci0>;
         usb-role-switch;
 
-        port {
-            usb3_role_switch: endpoint {
-                remote-endpoint = <&hd3ss3220_ep>;
-            };
+        ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                port@0 {
+                        reg = <0>;
+                        usb3_hs_ep: endpoint {
+                                remote-endpoint = <&hs_ep>;
+                        };
+                };
+                port@1 {
+                        reg = <1>;
+                        usb3_role_switch: endpoint {
+                                remote-endpoint = <&hd3ss3220_out_ep>;
+                        };
+                };
         };
     };
