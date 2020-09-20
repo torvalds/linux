@@ -299,6 +299,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 
 	dws->dma_mapped = 0;
 	spin_lock_irqsave(&dws->buf_lock, flags);
+	dws->n_bytes = DIV_ROUND_UP(transfer->bits_per_word, BITS_PER_BYTE);
 	dws->tx = (void *)transfer->tx_buf;
 	dws->tx_end = dws->tx + transfer->len;
 	dws->rx = transfer->rx_buf;
@@ -323,7 +324,6 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 	}
 
 	transfer->effective_speed_hz = dws->max_freq / chip->clk_div;
-	dws->n_bytes = DIV_ROUND_UP(transfer->bits_per_word, BITS_PER_BYTE);
 
 	cr0 = dws->update_cr0(master, spi, transfer);
 	dw_writel(dws, DW_SPI_CTRLR0, cr0);
