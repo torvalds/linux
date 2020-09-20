@@ -41,6 +41,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/gpio/consumer.h>
 
+#include "physmap-bt1-rom.h"
 #include "physmap-gemini.h"
 #include "physmap-ixp4xx.h"
 #include "physmap-versatile.h"
@@ -370,6 +371,10 @@ static int physmap_flash_of_init(struct platform_device *dev)
 		info->maps[i].swap = swap;
 		info->maps[i].bankwidth = bankwidth;
 		info->maps[i].device_node = dp;
+
+		err = of_flash_probe_bt1_rom(dev, dp, &info->maps[i]);
+		if (err)
+			return err;
 
 		err = of_flash_probe_gemini(dev, dp, &info->maps[i]);
 		if (err)
