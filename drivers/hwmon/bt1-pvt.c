@@ -13,6 +13,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
@@ -982,6 +983,41 @@ static int pvt_request_clks(struct pvt_hwmon *pvt)
 	return 0;
 }
 
+static int pvt_check_pwr(struct pvt_hwmon *pvt)
+{
+	unsigned long tout;
+	int ret = 0;
+	u32 data;
+
+	/*
+	 * Test out the sensor conversion functionality. If it is not done on
+	 * time then the domain must have been unpowered and we won't be able
+	 * to use the device later in this driver.
+	 * Note If the power source is lost during the normal driver work the
+	 * data read procedure will either return -ETIMEDOUT (for the
+	 * alarm-less driver configuration) or just stop the repeated
+	 * conversion. In the later case alas we won't be able to detect the
+	 * problem.
+	 */
+	pvt_update(pvt->regs + PVT_INTR_MASK, PVT_INTR_ALL, PVT_INTR_ALL);
+	pvt_update(pvt->regs + PVT_CTRL, PVT_CTRL_EN, PVT_CTRL_EN);
+	pvt_set_tout(pvt, 0);
+	readl(pvt->regs + PVT_DATA);
+
+	tout = PVT_TOUT_MIN / NSEC_PER_USEC;
+	usleep_range(tout, 2 * tout);
+
+	data = readl(pvt->regs + PVT_DATA);
+	if (!(data & PVT_DATA_VALID)) {
+		ret = -ENODEV;
+		dev_err(pvt->dev, "Sensor is powered down\n");
+	}
+
+	pvt_update(pvt->regs + PVT_CTRL, PVT_CTRL_EN, 0);
+
+	return ret;
+}
+
 static void pvt_init_iface(struct pvt_hwmon *pvt)
 {
 	u32 trim, temp;
@@ -1106,6 +1142,10 @@ static int pvt_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = pvt_request_clks(pvt);
+	if (ret)
+		return ret;
+
+	ret = pvt_check_pwr(pvt);
 	if (ret)
 		return ret;
 
