@@ -250,7 +250,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pmic_5v>;
 
-	pmic-5v {
+	pmic-5v-hog {
 		gpio-hog;
 		gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 		input;
