@@ -26,6 +26,7 @@ if_enabled_echo() {
 
 create_package() {
 	local pname="$1" pdir="$2"
+	local dpkg_deb_opts
 
 	mkdir -m 755 -p "$pdir/DEBIAN"
 	mkdir -p "$pdir/usr/share/doc/$pname"
@@ -36,14 +37,18 @@ create_package() {
 		| xargs -r0 md5sum > DEBIAN/md5sums"
 
 	# Fix ownership and permissions
-	chown -R root:root "$pdir"
+	if [ "$DEB_RULES_REQUIRES_ROOT" = "no" ]; then
+		dpkg_deb_opts="--root-owner-group"
+	else
+		chown -R root:root "$pdir"
+	fi
 	chmod -R go-w "$pdir"
 	# in case we are in a restrictive umask environment like 0077
 	chmod -R a+rX "$pdir"
 
 	# Create the package
 	dpkg-gencontrol -p$pname -P"$pdir"
-	dpkg-deb ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS} --build "$pdir" ..
+	dpkg-deb $dpkg_deb_opts ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS} --build "$pdir" ..
 }
 
 deploy_kernel_headers () {
