@@ -162,29 +162,19 @@ static inline u32 dw_readl(struct dw_spi *dws, u32 offset)
 	return __raw_readl(dws->regs + offset);
 }
 
-static inline u16 dw_readw(struct dw_spi *dws, u32 offset)
-{
-	return __raw_readw(dws->regs + offset);
-}
-
 static inline void dw_writel(struct dw_spi *dws, u32 offset, u32 val)
 {
 	__raw_writel(val, dws->regs + offset);
-}
-
-static inline void dw_writew(struct dw_spi *dws, u32 offset, u16 val)
-{
-	__raw_writew(val, dws->regs + offset);
 }
 
 static inline u32 dw_read_io_reg(struct dw_spi *dws, u32 offset)
 {
 	switch (dws->reg_io_width) {
 	case 2:
-		return dw_readw(dws, offset);
+		return readw_relaxed(dws->regs + offset);
 	case 4:
 	default:
-		return dw_readl(dws, offset);
+		return readl_relaxed(dws->regs + offset);
 	}
 }
 
@@ -192,11 +182,11 @@ static inline void dw_write_io_reg(struct dw_spi *dws, u32 offset, u32 val)
 {
 	switch (dws->reg_io_width) {
 	case 2:
-		dw_writew(dws, offset, val);
+		writew_relaxed(val, dws->regs + offset);
 		break;
 	case 4:
 	default:
-		dw_writel(dws, offset, val);
+		writel_relaxed(val, dws->regs + offset);
 		break;
 	}
 }
