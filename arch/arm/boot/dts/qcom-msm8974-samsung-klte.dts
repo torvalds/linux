@@ -282,6 +282,17 @@
 		};
 	};
 
+	vreg_wlan: wlan-regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wl-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio_expander 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	/delete-node/ vreg-boost;
 };
 
@@ -338,6 +349,20 @@
 			};
 		};
 
+		sdhc3_pin_a: sdhc3-pin-active {
+			clk {
+				pins = "sdc2_clk";
+				drive-strength = <6>;
+				bias-disable;
+			};
+
+			cmd-data {
+				pins = "sdc2_cmd", "sdc2_data";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
 		i2c2_pins: i2c2 {
 			mux {
 				pins = "gpio6", "gpio7";
@@ -385,6 +410,16 @@
 				drive-strength = <2>;
 			};
 		};
+
+		wifi_pin: wifi {
+			int {
+				pins = "gpio92";
+				function = "gpio";
+
+				input-enable;
+				bias-pull-down;
+			};
+		};
 	};
 
 	sdhci@f9824900 {
@@ -398,6 +433,36 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc1_pin_a>;
+	};
+
+	sdhci@f98a4900 {
+		status = "okay";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		max-frequency = <100000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc3_pin_a>;
+
+		vmmc-supply = <&vreg_wlan>;
+		vqmmc-supply = <&pma8084_s4>;
+
+		bus-width = <4>;
+		non-removable;
+
+		wifi@1 {
+			reg = <1>;
+			compatible = "brcm,bcm4329-fmac";
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <92 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "host-wake";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&wlan_sleep_clk_pin &wifi_pin>;
+		};
 	};
 
 	usb@f9a55000 {
@@ -586,6 +651,15 @@
 				bias-disable;
 				input-enable;
 				power-source = <PMA8084_GPIO_S4>;
+			};
+
+			wlan_sleep_clk_pin: wlan-sleep-clk-pin {
+				pins = "gpio16";
+				function = "func2";
+
+				output-high;
+				power-source = <PMA8084_GPIO_S4>;
+				qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
 			};
 		};
 	};
