@@ -58,9 +58,7 @@ ENDPROC(__fixup_pv_table)
 
 	.text
 __fixup_a_pv_table:
-	adr	r0, 3f
-	ldr	r6, [r0]
-	add	r6, r6, r3
+	adr_l	r6, __pv_offset
 	ldr	r0, [r6, #HIGH_OFFSET]	@ pv_offset high word
 	ldr	r6, [r6, #LOW_OFFSET]	@ pv_offset low word
 	mov	r6, r6, lsr #24
@@ -78,7 +76,8 @@ __fixup_a_pv_table:
 	orr	r6, r6, r7, lsl #12
 	orr	r6, #0x4000
 	b	.Lnext
-.Lloop:	add	r7, r3
+.Lloop:	add	r7, r4
+	adds	r4, #4
 	ldrh	ip, [r7, #2]
 ARM_BE8(rev16	ip, ip)
 	tst	ip, #0x4000
@@ -108,28 +107,25 @@ ARM_BE8(rev16	ip, ip)
 
 	moveq	r0, #0x400000		@ set bit 22, mov to mvn instruction
 	b	.Lnext
-.Lloop:	ldr	ip, [r7, r3]
+.Lloop:	ldr	ip, [r7, r4]
 	bic	ip, ip, #PV_IMM8_MASK
 	tst	ip, #PV_ROT_MASK		@ check the rotation field
 	orrne	ip, ip, r6 ARM_BE8(, lsl #24)	@ mask in offset bits 31-24
 	biceq	ip, ip, #PV_BIT22		@ clear bit 22
 	orreq	ip, ip, r0 ARM_BE8(, ror #8)	@ mask in offset bits 7-0 (or bit 22)
-	str	ip, [r7, r3]
+	str	ip, [r7, r4]
+	add	r4, r4, #4
 #endif
 
 .Lnext:
 	cmp	r4, r5
-	ldrcc	r7, [r4], #4		@ use branch for delay slot
+	ldrcc	r7, [r4]		@ use branch for delay slot
 	bcc	.Lloop
 	ret	lr
 ENDPROC(__fixup_a_pv_table)
 
-	.align
-3:	.long __pv_offset
-
 ENTRY(fixup_pv_table)
 	stmfd	sp!, {r4 - r7, lr}
-	mov	r3, #0			@ no offset
 	mov	r4, r0			@ r0 = table start
 	add	r5, r0, r1		@ r1 = table size
 	bl	__fixup_a_pv_table
