@@ -12,6 +12,8 @@
 
 	aliases {
 		serial0 = &blsp1_uart1;
+		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
+		sdhc2 = &sdhc_2; /* SDC2 SD card slot */
 	};
 
 	chosen {
@@ -161,6 +163,9 @@
 					pma8084_l21: l21 {
 						regulator-min-microvolt = <2950000>;
 						regulator-max-microvolt = <2950000>;
+
+						regulator-allow-set-load;
+						regulator-system-load = <200000>;
 					};
 
 					pma8084_l22: l22 {
@@ -349,6 +354,24 @@
 			};
 		};
 
+		sdhc2_pin_a: sdhc2-pin-active {
+			clk-cmd-data {
+				pins = "gpio35", "gpio36", "gpio37", "gpio38",
+					"gpio39", "gpio40";
+				function = "sdc3";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		sdhc2_cd_pin: sdhc2-cd {
+			pins = "gpio62";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
+		};
+
 		sdhc3_pin_a: sdhc3-pin-active {
 			clk {
 				pins = "sdc2_clk";
@@ -422,7 +445,7 @@
 		};
 	};
 
-	sdhci@f9824900 {
+	sdhc_1: sdhci@f9824900 {
 		status = "ok";
 
 		vmmc-supply = <&pma8084_l20>;
@@ -433,6 +456,25 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc1_pin_a>;
+	};
+
+	sdhc_2: sdhci@f9864900 {
+		status = "ok";
+
+		max-frequency = <100000000>;
+
+		vmmc-supply = <&pma8084_l21>;
+		vqmmc-supply = <&pma8084_l13>;
+
+		bus-width = <4>;
+
+		/* cd-gpio is intentionally disabled. If enabled, an SD card
+		 * present during boot is not initialized correctly. Without
+		 * cd-gpios the driver resorts to polling, so hotplug works.
+		 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc2_pin_a /* &sdhc2_cd_pin */>;
+		// cd-gpios = <&msmgpio 62 GPIO_ACTIVE_LOW>;
 	};
 
 	sdhci@f98a4900 {
