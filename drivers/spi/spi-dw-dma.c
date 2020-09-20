@@ -271,8 +271,7 @@ static int dw_spi_dma_config_tx(struct dw_spi *dws)
 	return dmaengine_slave_config(dws->txchan, &txconf);
 }
 
-static struct dma_async_tx_descriptor *
-dw_spi_dma_submit_tx(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_submit_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *txdesc;
 	dma_cookie_t cookie;
@@ -284,7 +283,7 @@ dw_spi_dma_submit_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 				DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
-		return NULL;
+		return -ENOMEM;
 
 	txdesc->callback = dw_spi_dma_tx_done;
 	txdesc->callback_param = dws;
@@ -293,12 +292,12 @@ dw_spi_dma_submit_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 	ret = dma_submit_error(cookie);
 	if (ret) {
 		dmaengine_terminate_sync(dws->txchan);
-		return NULL;
+		return ret;
 	}
 
 	set_bit(TX_BUSY, &dws->dma_chan_busy);
 
-	return txdesc;
+	return 0;
 }
 
 static inline bool dw_spi_dma_rx_busy(struct dw_spi *dws)
@@ -375,8 +374,7 @@ static int dw_spi_dma_config_rx(struct dw_spi *dws)
 	return dmaengine_slave_config(dws->rxchan, &rxconf);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_submit_rx(struct dw_spi *dws,
-		struct spi_transfer *xfer)
+static int dw_spi_dma_submit_rx(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *rxdesc;
 	dma_cookie_t cookie;
@@ -388,7 +386,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_submit_rx(struct dw_spi *dws,
 				DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
-		return NULL;
+		return -ENOMEM;
 
 	rxdesc->callback = dw_spi_dma_rx_done;
 	rxdesc->callback_param = dws;
@@ -397,12 +395,12 @@ static struct dma_async_tx_descriptor *dw_spi_dma_submit_rx(struct dw_spi *dws,
 	ret = dma_submit_error(cookie);
 	if (ret) {
 		dmaengine_terminate_sync(dws->rxchan);
-		return NULL;
+		return ret;
 	}
 
 	set_bit(RX_BUSY, &dws->dma_chan_busy);
 
-	return rxdesc;
+	return 0;
 }
 
 static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
@@ -445,19 +443,18 @@ static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 
 static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 {
-	struct dma_async_tx_descriptor *txdesc, *rxdesc;
 	int ret;
 
 	/* Submit the DMA Tx transfer */
-	txdesc = dw_spi_dma_submit_tx(dws, xfer);
-	if (!txdesc)
-		return -EINVAL;
+	ret = dw_spi_dma_submit_tx(dws, xfer);
+	if (ret)
+		return ret;
 
 	/* Submit the DMA Rx transfer if required */
 	if (xfer->rx_buf) {
-		rxdesc = dw_spi_dma_submit_rx(dws, xfer);
-		if (!rxdesc)
-			return -EINVAL;
+		ret = dw_spi_dma_submit_rx(dws, xfer);
+		if (ret)
+			return ret;
 
 		/* rx must be started before tx due to spi instinct */
 		dma_async_issue_pending(dws->rxchan);
