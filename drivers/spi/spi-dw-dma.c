@@ -188,12 +188,12 @@ static enum dma_slave_buswidth dw_spi_dma_convert_width(u8 n_bytes)
 	return DMA_SLAVE_BUSWIDTH_UNDEFINED;
 }
 
-static int dw_spi_dma_wait(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_wait(struct dw_spi *dws, unsigned int len, u32 speed)
 {
 	unsigned long long ms;
 
-	ms = xfer->len * MSEC_PER_SEC * BITS_PER_BYTE;
-	do_div(ms, xfer->effective_speed_hz);
+	ms = len * MSEC_PER_SEC * BITS_PER_BYTE;
+	do_div(ms, speed);
 	ms += ms + 200;
 
 	if (ms > UINT_MAX)
@@ -268,17 +268,16 @@ static int dw_spi_dma_config_tx(struct dw_spi *dws)
 	return dmaengine_slave_config(dws->txchan, &txconf);
 }
 
-static int dw_spi_dma_submit_tx(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_submit_tx(struct dw_spi *dws, struct scatterlist *sgl,
+				unsigned int nents)
 {
 	struct dma_async_tx_descriptor *txdesc;
 	dma_cookie_t cookie;
 	int ret;
 
-	txdesc = dmaengine_prep_slave_sg(dws->txchan,
-				xfer->tx_sg.sgl,
-				xfer->tx_sg.nents,
-				DMA_MEM_TO_DEV,
-				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	txdesc = dmaengine_prep_slave_sg(dws->txchan, sgl, nents,
+					 DMA_MEM_TO_DEV,
+					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
 		return -ENOMEM;
 
@@ -370,17 +369,16 @@ static int dw_spi_dma_config_rx(struct dw_spi *dws)
 	return dmaengine_slave_config(dws->rxchan, &rxconf);
 }
 
-static int dw_spi_dma_submit_rx(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_submit_rx(struct dw_spi *dws, struct scatterlist *sgl,
+				unsigned int nents)
 {
 	struct dma_async_tx_descriptor *rxdesc;
 	dma_cookie_t cookie;
 	int ret;
 
-	rxdesc = dmaengine_prep_slave_sg(dws->rxchan,
-				xfer->rx_sg.sgl,
-				xfer->rx_sg.nents,
-				DMA_DEV_TO_MEM,
-				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	rxdesc = dmaengine_prep_slave_sg(dws->rxchan, sgl, nents,
+					 DMA_DEV_TO_MEM,
+					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
 		return -ENOMEM;
 
@@ -443,13 +441,14 @@ static int dw_spi_dma_transfer_all(struct dw_spi *dws,
 	int ret;
 
 	/* Submit the DMA Tx transfer */
-	ret = dw_spi_dma_submit_tx(dws, xfer);
+	ret = dw_spi_dma_submit_tx(dws, xfer->tx_sg.sgl, xfer->tx_sg.nents);
 	if (ret)
 		goto err_clear_dmac;
 
 	/* Submit the DMA Rx transfer if required */
 	if (xfer->rx_buf) {
-		ret = dw_spi_dma_submit_rx(dws, xfer);
+		ret = dw_spi_dma_submit_rx(dws, xfer->rx_sg.sgl,
+					   xfer->rx_sg.nents);
 		if (ret)
 			goto err_clear_dmac;
 
@@ -459,7 +458,7 @@ static int dw_spi_dma_transfer_all(struct dw_spi *dws,
 
 	dma_async_issue_pending(dws->txchan);
 
-	ret = dw_spi_dma_wait(dws, xfer);
+	ret = dw_spi_dma_wait(dws, xfer->len, xfer->effective_speed_hz);
 
 err_clear_dmac:
 	dw_writel(dws, DW_SPI_DMACR, 0);
