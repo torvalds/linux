@@ -157,6 +157,111 @@ void mpi_fdiv_q(MPI quot, MPI dividend, MPI divisor);
 /*-- mpi-inv.c --*/
 int mpi_invm(MPI x, MPI a, MPI n);
 
+/*-- ec.c --*/
+
+/* Object to represent a point in projective coordinates */
+struct gcry_mpi_point {
+	MPI x;
+	MPI y;
+	MPI z;
+};
+
+typedef struct gcry_mpi_point *MPI_POINT;
+
+/* Models describing an elliptic curve */
+enum gcry_mpi_ec_models {
+	/* The Short Weierstrass equation is
+	 *      y^2 = x^3 + ax + b
+	 */
+	MPI_EC_WEIERSTRASS = 0,
+	/* The Montgomery equation is
+	 *      by^2 = x^3 + ax^2 + x
+	 */
+	MPI_EC_MONTGOMERY,
+	/* The Twisted Edwards equation is
+	 *      ax^2 + y^2 = 1 + bx^2y^2
+	 * Note that we use 'b' instead of the commonly used 'd'.
+	 */
+	MPI_EC_EDWARDS
+};
+
+/* Dialects used with elliptic curves */
+enum ecc_dialects {
+	ECC_DIALECT_STANDARD = 0,
+	ECC_DIALECT_ED25519,
+	ECC_DIALECT_SAFECURVE
+};
+
+/* This context is used with all our EC functions. */
+struct mpi_ec_ctx {
+	enum gcry_mpi_ec_models model; /* The model describing this curve. */
+	enum ecc_dialects dialect;     /* The ECC dialect used with the curve. */
+	int flags;                     /* Public key flags (not always used). */
+	unsigned int nbits;            /* Number of bits.  */
+
+	/* Domain parameters.  Note that they may not all be set and if set
+	 * the MPIs may be flaged as constant.
+	 */
+	MPI p;         /* Prime specifying the field GF(p).  */
+	MPI a;         /* First coefficient of the Weierstrass equation.  */
+	MPI b;         /* Second coefficient of the Weierstrass equation.  */
+	MPI_POINT G;   /* Base point (generator).  */
+	MPI n;         /* Order of G.  */
+	unsigned int h;       /* Cofactor.  */
+
+	/* The actual key.  May not be set.  */
+	MPI_POINT Q;   /* Public key.   */
+	MPI d;         /* Private key.  */
+
+	const char *name;      /* Name of the curve.  */
+
+	/* This structure is private to mpi/ec.c! */
+	struct {
+		struct {
+			unsigned int a_is_pminus3:1;
+			unsigned int two_inv_p:1;
+		} valid; /* Flags to help setting the helper vars below.  */
+
+		int a_is_pminus3;  /* True if A = P - 3. */
+
+		MPI two_inv_p;
+
+		mpi_barrett_t p_barrett;
+
+		/* Scratch variables.  */
+		MPI scratch[11];
+
+		/* Helper for fast reduction.  */
+		/*   int nist_nbits; /\* If this is a NIST curve, the # of bits. *\/ */
+		/*   MPI s[10]; */
+		/*   MPI c; */
+	} t;
+
+	/* Curve specific computation routines for the field.  */
+	void (*addm)(MPI w, MPI u, MPI v, struct mpi_ec_ctx *ctx);
+	void (*subm)(MPI w, MPI u, MPI v, struct mpi_ec_ctx *ec);
+	void (*mulm)(MPI w, MPI u, MPI v, struct mpi_ec_ctx *ctx);
+	void (*pow2)(MPI w, const MPI b, struct mpi_ec_ctx *ctx);
+	void (*mul2)(MPI w, MPI u, struct mpi_ec_ctx *ctx);
+};
+
+void mpi_ec_init(struct mpi_ec_ctx *ctx, enum gcry_mpi_ec_models model,
+			enum ecc_dialects dialect,
+			int flags, MPI p, MPI a, MPI b);
+void mpi_ec_deinit(struct mpi_ec_ctx *ctx);
+MPI_POINT mpi_point_new(unsigned int nbits);
+void mpi_point_release(MPI_POINT p);
+void mpi_point_init(MPI_POINT p);
+void mpi_point_free_parts(MPI_POINT p);
+int mpi_ec_get_affine(MPI x, MPI y, MPI_POINT point, struct mpi_ec_ctx *ctx);
+void mpi_ec_add_points(MPI_POINT result,
+			MPI_POINT p1, MPI_POINT p2,
+			struct mpi_ec_ctx *ctx);
+void mpi_ec_mul_point(MPI_POINT result,
+			MPI scalar, MPI_POINT point,
+			struct mpi_ec_ctx *ctx);
+int mpi_ec_curve_point(MPI_POINT point, struct mpi_ec_ctx *ctx);
+
 /* inline functions */
 
 /**
