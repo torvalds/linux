@@ -111,7 +111,6 @@ struct dw_spi_dma_ops {
 
 struct dw_spi {
 	struct spi_controller	*master;
-	enum dw_ssi_type	type;
 
 	void __iomem		*regs;
 	unsigned long		paddr;

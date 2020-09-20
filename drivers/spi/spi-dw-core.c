@@ -23,7 +23,6 @@
 /* Slave spi_dev related */
 struct chip_data {
 	u8 tmode;		/* TR/TO/RO/EEPROM */
-	u8 type;		/* SPI/SSP/MicroWire */
 
 	u16 clk_div;		/* baud rate divider */
 	u32 speed_hz;		/* baud rate */
@@ -244,7 +243,7 @@ u32 dw_spi_update_cr0(struct spi_controller *master, struct spi_device *spi,
 
 	/* Default SPI mode is SCPOL = 0, SCPH = 0 */
 	cr0 = (transfer->bits_per_word - 1)
-		| (chip->type << SPI_FRF_OFFSET)
+		| (SSI_MOTO_SPI << SPI_FRF_OFFSET)
 		| ((((spi->mode & SPI_CPOL) ? 1 : 0) << SPI_SCOL_OFFSET) |
 		   (((spi->mode & SPI_CPHA) ? 1 : 0) << SPI_SCPH_OFFSET) |
 		   (((spi->mode & SPI_LOOP) ? 1 : 0) << SPI_SRL_OFFSET))
@@ -266,7 +265,7 @@ u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
 	cr0 = (transfer->bits_per_word - 1);
 
 	/* CTRLR0[ 7: 6] Frame Format */
-	cr0 |= chip->type << DWC_SSI_CTRLR0_FRF_OFFSET;
+	cr0 |= SSI_MOTO_SPI << DWC_SSI_CTRLR0_FRF_OFFSET;
 
 	/*
 	 * SPI mode (SCPOL|SCPH)
@@ -462,7 +461,6 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		return -ENOMEM;
 
 	dws->master = master;
-	dws->type = SSI_MOTO_SPI;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + DW_SPI_DR);
 	spin_lock_init(&dws->buf_lock);
 
