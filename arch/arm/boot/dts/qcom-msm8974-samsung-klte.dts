@@ -236,9 +236,24 @@
 		scl-gpios = <&msmgpio 121 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		sda-gpios = <&msmgpio 120 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2c_led_pins>;
+		pinctrl-0 = <&i2c_led_gpioex_pins>;
 
 		i2c-gpio,delay-us = <2>;
+
+		gpio_expander: gpio@20 {
+			compatible = "nxp,pcal6416";
+			reg = <0x20>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			vcc-supply = <&pma8084_s4>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpioex_pin>;
+
+			reset-gpios = <&msmgpio 145 GPIO_ACTIVE_LOW>;
+		};
 
 		led-controller@30 {
 			compatible = "panasonic,an30259a";
@@ -352,12 +367,22 @@
 			};
 		};
 
-		i2c_led_pins: i2c-led {
+		i2c_led_gpioex_pins: i2c-led-gpioex {
 			mux {
 				pins = "gpio120", "gpio121";
 				function = "gpio";
 				input-enable;
 				bias-pull-down;
+			};
+		};
+
+		gpioex_pin: gpioex {
+			res {
+				pins = "gpio145";
+				function = "gpio";
+
+				bias-pull-up;
+				drive-strength = <2>;
 			};
 		};
 	};
