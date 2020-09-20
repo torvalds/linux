@@ -258,6 +258,16 @@
 				bias-pull-up;
 			};
 		};
+
+		i2c6_pins: i2c6 {
+			mux {
+				pins = "gpio29", "gpio30";
+				function = "blsp_i2c6";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
 	};
 
 	sdhci@f9824900 {
@@ -294,18 +304,6 @@
 
 				/*extcon = <&smbb>;*/
 				qcom,init-seq = /bits/ 8 <0x1 0x64>;
-			};
-		};
-	};
-
-	pinctrl@fd510000 {
-		i2c6_pins: i2c6 {
-			mux {
-				pins = "gpio29", "gpio30";
-				function = "blsp_i2c6";
-
-				drive-strength = <2>;
-				bias-disable;
 			};
 		};
 	};
