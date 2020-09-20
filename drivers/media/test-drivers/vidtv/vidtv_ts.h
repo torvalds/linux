@@ -24,7 +24,6 @@
 struct vidtv_mpeg_ts_adaption {
 	u8 length;
 	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
 		u8 extension:1;
 		u8 private_data:1;
 		u8 splicing_point:1;
@@ -33,18 +32,6 @@ struct vidtv_mpeg_ts_adaption {
 		u8 priority:1;
 		u8 random_access:1;
 		u8 discontinued:1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		u8 discontinued:1;
-		u8 random_access:1;
-		u8 priority:1;
-		u8 PCR:1;
-		u8 OPCR:1;
-		u8 splicing_point:1;
-		u8 private_data:1;
-		u8 extension:1;
-#else
-#error  "Unknown bitfield ordering"
-#endif
 	} __packed;
 	u8 data[];
 } __packed;

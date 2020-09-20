@@ -132,17 +132,9 @@ struct vidtv_psi_table_pat {
  */
 struct vidtv_psi_table_sdt_service {
 	__be16 service_id;
-#if defined(__LITTLE_ENDIAN_BITFIELD)
 	u8 EIT_present_following:1;
 	u8 EIT_schedule:1;
 	u8 reserved:6;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	u8 reserved:6;
-	u8 EIT_schedule:1;
-	u8 EIT_present_following:1;
-#else
-#error  "Unknown bitfield ordering"
-#endif
 	__be16 bitfield; /* running_status: 3, free_ca:1, desc_loop_len:12 */
 	struct vidtv_psi_desc *descriptor;
 	struct vidtv_psi_table_sdt_service *next;
