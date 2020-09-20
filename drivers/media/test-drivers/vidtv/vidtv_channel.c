@@ -43,6 +43,8 @@ static void vidtv_channel_encoder_destroy(struct vidtv_encoder *e)
 	}
 }
 
+#define ENCODING_ISO8859_15 "\x0b"
+
 struct vidtv_channel
 *vidtv_channel_s302m_init(struct vidtv_channel *head, u16 transport_stream_id)
 {
@@ -55,7 +57,8 @@ struct vidtv_channel
 	const u16 s302m_es_pid              = 0x111; /* packet id for the ES */
 	const __be32 s302m_fid              = cpu_to_be32(VIDTV_S302M_FORMAT_IDENTIFIER);
 
-	char *name = "S302m: Sine Wave PCM Audio";
+	char *name = ENCODING_ISO8859_15 "Beethoven";
+	char *provider = ENCODING_ISO8859_15 "LinuxTV.org";
 
 	struct vidtv_channel *s302m = kzalloc(sizeof(*s302m), GFP_KERNEL);
 	struct vidtv_s302m_encoder_init_args encoder_args = {};
@@ -68,7 +71,7 @@ struct vidtv_channel
 				     vidtv_psi_service_desc_init(NULL,
 								 DIGITAL_TELEVISION_SERVICE,
 								 name,
-								 NULL);
+								 provider);
 
 	s302m->transport_stream_id = transport_stream_id;
 
