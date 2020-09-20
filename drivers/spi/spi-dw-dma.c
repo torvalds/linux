@@ -262,9 +262,6 @@ dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 	struct dma_slave_config txconf;
 	struct dma_async_tx_descriptor *txdesc;
 
-	if (!xfer->tx_buf)
-		return NULL;
-
 	memset(&txconf, 0, sizeof(txconf));
 	txconf.direction = DMA_MEM_TO_DEV;
 	txconf.dst_addr = dws->dma_addr;
@@ -383,17 +380,19 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 
 static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
-	u16 imr = 0, dma_ctrl = 0;
+	u16 imr, dma_ctrl;
 
-	if (xfer->tx_buf)
-		dma_ctrl |= SPI_DMA_TDMAE;
+	if (!xfer->tx_buf)
+		return -EINVAL;
+
+	/* Set the DMA handshaking interface */
+	dma_ctrl = SPI_DMA_TDMAE;
 	if (xfer->rx_buf)
 		dma_ctrl |= SPI_DMA_RDMAE;
 	dw_writel(dws, DW_SPI_DMACR, dma_ctrl);
 
 	/* Set the interrupt mask */
-	if (xfer->tx_buf)
-		imr |= SPI_INT_TXOI;
+	imr = SPI_INT_TXOI;
 	if (xfer->rx_buf)
 		imr |= SPI_INT_RXUI | SPI_INT_RXOI;
 	spi_umask_intr(dws, imr);
@@ -412,6 +411,8 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 
 	/* Prepare the TX dma transfer */
 	txdesc = dw_spi_dma_prepare_tx(dws, xfer);
+	if (!txdesc)
+		return -EINVAL;
 
 	/* Prepare the RX dma transfer */
 	rxdesc = dw_spi_dma_prepare_rx(dws, xfer);
@@ -423,17 +424,15 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 		dma_async_issue_pending(dws->rxchan);
 	}
 
-	if (txdesc) {
-		set_bit(TX_BUSY, &dws->dma_chan_busy);
-		dmaengine_submit(txdesc);
-		dma_async_issue_pending(dws->txchan);
-	}
+	set_bit(TX_BUSY, &dws->dma_chan_busy);
+	dmaengine_submit(txdesc);
+	dma_async_issue_pending(dws->txchan);
 
 	ret = dw_spi_dma_wait(dws, xfer);
 	if (ret)
 		return ret;
 
-	if (txdesc && dws->master->cur_msg->status == -EINPROGRESS) {
+	if (dws->master->cur_msg->status == -EINPROGRESS) {
 		ret = dw_spi_dma_wait_tx_done(dws, xfer);
 		if (ret)
 			return ret;
