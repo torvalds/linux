@@ -44,7 +44,7 @@ struct vidtv_pes_optional_pts_dts {
 struct vidtv_pes_optional {
 	/*
 	 * These flags show which components are actually
-	 * present in the "optinal fields" in the optinal PES
+	 * present in the "optional fields" in the optional PES
 	 * header and which are not
 	 *
 	 * u16 two:2;  //0x2
