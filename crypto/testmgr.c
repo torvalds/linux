@@ -4026,7 +4026,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 		pr_err("alg: akcipher: %s test failed. err %d\n", op, err);
 		goto free_all;
 	}
-	if (!vecs->siggen_sigver_test) {
+	if (!vecs->siggen_sigver_test && c) {
 		if (req->dst_len != c_size) {
 			pr_err("alg: akcipher: %s test failed. Invalid output len\n",
 			       op);
@@ -4055,6 +4055,11 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	if (!outbuf_dec) {
 		err = -ENOMEM;
 		goto free_all;
+	}
+
+	if (!vecs->siggen_sigver_test && !c) {
+		c = outbuf_enc;
+		c_size = req->dst_len;
 	}
 
 	op = vecs->siggen_sigver_test ? "sign" : "decrypt";
