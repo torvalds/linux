@@ -256,11 +256,9 @@ static void dw_spi_dma_tx_done(void *arg)
 	complete(&dws->dma_completion);
 }
 
-static struct dma_async_tx_descriptor *
-dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_config_tx(struct dw_spi *dws)
 {
 	struct dma_slave_config txconf;
-	struct dma_async_tx_descriptor *txdesc;
 
 	memset(&txconf, 0, sizeof(txconf));
 	txconf.direction = DMA_MEM_TO_DEV;
@@ -270,7 +268,13 @@ dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 	txconf.dst_addr_width = dw_spi_dma_convert_width(dws->n_bytes);
 	txconf.device_fc = false;
 
-	dmaengine_slave_config(dws->txchan, &txconf);
+	return dmaengine_slave_config(dws->txchan, &txconf);
+}
+
+static struct dma_async_tx_descriptor *
+dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
+{
+	struct dma_async_tx_descriptor *txdesc;
 
 	txdesc = dmaengine_prep_slave_sg(dws->txchan,
 				xfer->tx_sg.sgl,
@@ -345,14 +349,9 @@ static void dw_spi_dma_rx_done(void *arg)
 	complete(&dws->dma_completion);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
-		struct spi_transfer *xfer)
+static int dw_spi_dma_config_rx(struct dw_spi *dws)
 {
 	struct dma_slave_config rxconf;
-	struct dma_async_tx_descriptor *rxdesc;
-
-	if (!xfer->rx_buf)
-		return NULL;
 
 	memset(&rxconf, 0, sizeof(rxconf));
 	rxconf.direction = DMA_DEV_TO_MEM;
@@ -362,7 +361,16 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 	rxconf.src_addr_width = dw_spi_dma_convert_width(dws->n_bytes);
 	rxconf.device_fc = false;
 
-	dmaengine_slave_config(dws->rxchan, &rxconf);
+	return dmaengine_slave_config(dws->rxchan, &rxconf);
+}
+
+static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
+		struct spi_transfer *xfer)
+{
+	struct dma_async_tx_descriptor *rxdesc;
+
+	if (!xfer->rx_buf)
+		return NULL;
 
 	rxdesc = dmaengine_prep_slave_sg(dws->rxchan,
 				xfer->rx_sg.sgl,
@@ -381,9 +389,21 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	u16 imr, dma_ctrl;
+	int ret;
 
 	if (!xfer->tx_buf)
 		return -EINVAL;
+
+	/* Setup DMA channels */
+	ret = dw_spi_dma_config_tx(dws);
+	if (ret)
+		return ret;
+
+	if (xfer->rx_buf) {
+		ret = dw_spi_dma_config_rx(dws);
+		if (ret)
+			return ret;
+	}
 
 	/* Set the DMA handshaking interface */
 	dma_ctrl = SPI_DMA_TDMAE;
