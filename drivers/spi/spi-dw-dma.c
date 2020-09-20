@@ -49,6 +49,7 @@ static void dw_spi_dma_maxburst_init(struct dw_spi *dws)
 		max_burst = RX_BURST_LEVEL;
 
 	dws->rxburst = min(max_burst, def_burst);
+	dw_writel(dws, DW_SPI_DMARDLR, dws->rxburst - 1);
 
 	ret = dma_get_slave_caps(dws->txchan, &caps);
 	if (!ret && caps.max_burst)
@@ -56,7 +57,19 @@ static void dw_spi_dma_maxburst_init(struct dw_spi *dws)
 	else
 		max_burst = TX_BURST_LEVEL;
 
+	/*
+	 * Having a Rx DMA channel serviced with higher priority than a Tx DMA
+	 * channel might not be enough to provide a well balanced DMA-based
+	 * SPI transfer interface. There might still be moments when the Tx DMA
+	 * channel is occasionally handled faster than the Rx DMA channel.
+	 * That in its turn will eventually cause the SPI Rx FIFO overflow if
+	 * SPI bus speed is high enough to fill the SPI Rx FIFO in before it's
+	 * cleared by the Rx DMA channel. In order to fix the problem the Tx
+	 * DMA activity is intentionally slowed down by limiting the SPI Tx
+	 * FIFO depth with a value twice bigger than the Tx burst length.
+	 */
 	dws->txburst = min(max_burst, def_burst);
+	dw_writel(dws, DW_SPI_DMATDLR, dws->txburst);
 }
 
 static int dw_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
@@ -371,21 +384,6 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	u16 imr = 0, dma_ctrl = 0;
-
-	/*
-	 * Having a Rx DMA channel serviced with higher priority than a Tx DMA
-	 * channel might not be enough to provide a well balanced DMA-based
-	 * SPI transfer interface. There might still be moments when the Tx DMA
-	 * channel is occasionally handled faster than the Rx DMA channel.
-	 * That in its turn will eventually cause the SPI Rx FIFO overflow if
-	 * SPI bus speed is high enough to fill the SPI Rx FIFO in before it's
-	 * cleared by the Rx DMA channel. In order to fix the problem the Tx
-	 * DMA activity is intentionally slowed down by limiting the SPI Tx
-	 * FIFO depth with a value twice bigger than the Tx burst length
-	 * calculated earlier by the dw_spi_dma_maxburst_init() method.
-	 */
-	dw_writel(dws, DW_SPI_DMARDLR, dws->rxburst - 1);
-	dw_writel(dws, DW_SPI_DMATDLR, dws->txburst);
 
 	if (xfer->tx_buf)
 		dma_ctrl |= SPI_DMA_TDMAE;
