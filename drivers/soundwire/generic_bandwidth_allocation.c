@@ -43,6 +43,7 @@ static void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 	int port_bo, sample_int;
 	unsigned int rate, bps, ch = 0;
 	unsigned int slave_total_ch;
+	struct sdw_bus_params *b_params = &m_rt->bus->params;
 
 	port_bo = t_data->block_offset;
 
@@ -66,7 +67,7 @@ static void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 			sdw_fill_port_params(&p_rt->port_params,
 					     p_rt->num, bps,
 					     SDW_PORT_FLOW_MODE_ISOCH,
-					     SDW_PORT_DATA_MODE_NORMAL);
+					     b_params->s_data_mode);
 
 			port_bo += bps * ch;
 			slave_total_ch += ch;
@@ -92,6 +93,7 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 	struct sdw_transport_data t_data = {0};
 	struct sdw_port_runtime *p_rt;
 	struct sdw_bus *bus = m_rt->bus;
+	struct sdw_bus_params *b_params = &bus->params;
 	int sample_int, hstart = 0;
 	unsigned int rate, bps, ch, no_ch;
 
@@ -118,7 +120,7 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 		sdw_fill_port_params(&p_rt->port_params,
 				     p_rt->num, bps,
 				     SDW_PORT_FLOW_MODE_ISOCH,
-				     SDW_PORT_DATA_MODE_NORMAL);
+				     b_params->m_data_mode);
 
 		/* Check for first entry */
 		if (!(p_rt == list_first_entry(&m_rt->port_list,

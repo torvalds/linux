@@ -1099,6 +1099,12 @@ int sdw_configure_dpn_intr(struct sdw_slave *slave,
 	int ret;
 	u8 val = 0;
 
+	if (slave->bus->params.s_data_mode != SDW_PORT_DATA_MODE_NORMAL) {
+		dev_dbg(&slave->dev, "TEST FAIL interrupt %s\n",
+			enable ? "on" : "off");
+		mask |= SDW_DPN_INT_TEST_FAIL;
+	}
+
 	addr = SDW_DPN_INTMASK(port);
 
 	/* Set/Clear port ready interrupt mask */
