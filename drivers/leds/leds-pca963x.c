@@ -285,7 +285,7 @@ static int pca963x_blink_set(struct led_classdev *led_cdev,
 }
 
 static struct pca963x_platform_data *
-pca963x_get_pdata(struct device *dev, struct pca963x_chipdef *chip)
+pca963x_get_pdata(struct device *dev, struct pca963x_chipdef *chipdef)
 {
 	struct pca963x_platform_data *pdata;
 	struct led_info *pca963x_leds;
@@ -293,11 +293,11 @@ pca963x_get_pdata(struct device *dev, struct pca963x_chipdef *chip)
 	int count;
 
 	count = device_get_child_node_count(dev);
-	if (!count || count > chip->n_leds)
+	if (!count || count > chipdef->n_leds)
 		return ERR_PTR(-ENODEV);
 
-	pca963x_leds = devm_kcalloc(dev, chip->n_leds, sizeof(struct led_info),
-				    GFP_KERNEL);
+	pca963x_leds = devm_kcalloc(dev, chipdef->n_leds,
+				    sizeof(struct led_info), GFP_KERNEL);
 	if (!pca963x_leds)
 		return ERR_PTR(-ENOMEM);
 
@@ -307,7 +307,7 @@ pca963x_get_pdata(struct device *dev, struct pca963x_chipdef *chip)
 		int res;
 
 		res = fwnode_property_read_u32(child, "reg", &reg);
-		if ((res != 0) || (reg >= chip->n_leds))
+		if ((res != 0) || (reg >= chipdef->n_leds))
 			continue;
 
 		res = fwnode_property_read_string(child, "label", &led.name);
@@ -325,7 +325,7 @@ pca963x_get_pdata(struct device *dev, struct pca963x_chipdef *chip)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->leds.leds = pca963x_leds;
-	pdata->leds.num_leds = chip->n_leds;
+	pdata->leds.num_leds = chipdef->n_leds;
 
 	/* default to open-drain unless totem pole (push-pull) is specified */
 	if (device_property_read_bool(dev, "nxp,totem-pole"))
@@ -340,8 +340,8 @@ pca963x_get_pdata(struct device *dev, struct pca963x_chipdef *chip)
 		pdata->blink_type = PCA963X_SW_BLINK;
 
 	if (device_property_read_u32(dev, "nxp,period-scale",
-				     &chip->scaling))
-		chip->scaling = 1000;
+				     &chipdef->scaling))
+		chipdef->scaling = 1000;
 
 	/* default to non-inverted output, unless inverted is specified */
 	if (device_property_read_bool(dev, "nxp,inverted-out"))
@@ -365,17 +365,17 @@ static int pca963x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct pca963x *pca963x_chip;
-	struct pca963x_led *pca963x;
+	struct pca963x_chipdef *chipdef;
 	struct pca963x_platform_data *pdata;
-	struct pca963x_chipdef *chip;
+	struct pca963x_led *pca963x;
+	struct pca963x *chip;
 	int i, err;
 
-	chip = &pca963x_chipdefs[id->driver_data];
+	chipdef = &pca963x_chipdefs[id->driver_data];
 	pdata = dev_get_platdata(dev);
 
 	if (!pdata) {
-		pdata = pca963x_get_pdata(dev, chip);
+		pdata = pca963x_get_pdata(dev, chipdef);
 		if (IS_ERR(pdata)) {
 			dev_warn(dev, "could not parse configuration\n");
 			pdata = NULL;
@@ -383,32 +383,33 @@ static int pca963x_probe(struct i2c_client *client,
 	}
 
 	if (pdata && (pdata->leds.num_leds < 1 ||
-		      pdata->leds.num_leds > chip->n_leds)) {
-		dev_err(dev, "board info must claim 1-%d LEDs", chip->n_leds);
+		      pdata->leds.num_leds > chipdef->n_leds)) {
+		dev_err(dev, "board info must claim 1-%d LEDs",
+			chipdef->n_leds);
 		return -EINVAL;
 	}
 
-	pca963x_chip = devm_kzalloc(dev, sizeof(*pca963x_chip), GFP_KERNEL);
-	if (!pca963x_chip)
+	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
 		return -ENOMEM;
-	pca963x = devm_kcalloc(dev, chip->n_leds, sizeof(*pca963x), GFP_KERNEL);
+	pca963x = devm_kcalloc(dev, chipdef->n_leds, sizeof(*pca963x), GFP_KERNEL);
 	if (!pca963x)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, pca963x_chip);
+	i2c_set_clientdata(client, chip);
 
-	mutex_init(&pca963x_chip->mutex);
-	pca963x_chip->chipdef = chip;
-	pca963x_chip->client = client;
-	pca963x_chip->leds = pca963x;
+	mutex_init(&chip->mutex);
+	chip->chipdef = chipdef;
+	chip->client = client;
+	chip->leds = pca963x;
 
 	/* Turn off LEDs by default*/
-	for (i = 0; i < chip->n_leds / 4; i++)
-		i2c_smbus_write_byte_data(client, chip->ledout_base + i, 0x00);
+	for (i = 0; i < chipdef->n_leds / 4; i++)
+		i2c_smbus_write_byte_data(client, chipdef->ledout_base + i, 0x00);
 
-	for (i = 0; i < chip->n_leds; i++) {
+	for (i = 0; i < chipdef->n_leds; i++) {
 		pca963x[i].led_num = i;
-		pca963x[i].chip = pca963x_chip;
+		pca963x[i].chip = chip;
 
 		/* Platform data can specify LED names and default triggers */
 		if (pdata && i < pdata->leds.num_leds) {
