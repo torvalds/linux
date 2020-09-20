@@ -441,7 +441,8 @@ static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 	return 0;
 }
 
-static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_transfer_all(struct dw_spi *dws,
+				   struct spi_transfer *xfer)
 {
 	int ret;
 
@@ -462,7 +463,14 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 
 	dma_async_issue_pending(dws->txchan);
 
-	ret = dw_spi_dma_wait(dws, xfer);
+	return dw_spi_dma_wait(dws, xfer);
+}
+
+static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
+{
+	int ret;
+
+	ret = dw_spi_dma_transfer_all(dws, xfer);
 	if (ret)
 		return ret;
 
