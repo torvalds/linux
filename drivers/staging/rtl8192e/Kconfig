@@ -26,7 +26,6 @@ config RTLLIB_CRYPTO_CCMP
 config RTLLIB_CRYPTO_TKIP
 	tristate "Support for rtllib TKIP crypto"
 	depends on RTLLIB
-	select CRYPTO
 	select CRYPTO_ARC4
 	select CRYPTO_MICHAEL_MIC
 	default y
