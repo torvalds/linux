@@ -432,9 +432,9 @@ static int pca963x_probe(struct i2c_client *client,
 		if (pdata && pdata->blink_type == PCA963X_HW_BLINK)
 			pca963x[i].led_cdev.blink_set = pca963x_blink_set;
 
-		err = led_classdev_register(dev, &pca963x[i].led_cdev);
+		err = devm_led_classdev_register(dev, &pca963x[i].led_cdev);
 		if (err < 0)
-			goto exit;
+			return err;
 	}
 
 	/* Disable LED all-call address, and power down initially */
@@ -454,23 +454,6 @@ static int pca963x_probe(struct i2c_client *client,
 	}
 
 	return 0;
-
-exit:
-	while (i--)
-		led_classdev_unregister(&pca963x[i].led_cdev);
-
-	return err;
-}
-
-static int pca963x_remove(struct i2c_client *client)
-{
-	struct pca963x *pca963x = i2c_get_clientdata(client);
-	int i;
-
-	for (i = 0; i < pca963x->chipdef->n_leds; i++)
-		led_classdev_unregister(&pca963x->leds[i].led_cdev);
-
-	return 0;
 }
 
 static struct i2c_driver pca963x_driver = {
@@ -479,7 +462,6 @@ static struct i2c_driver pca963x_driver = {
 		.of_match_table = of_pca963x_match,
 	},
 	.probe	= pca963x_probe,
-	.remove	= pca963x_remove,
 	.id_table = pca963x_id,
 };
 
