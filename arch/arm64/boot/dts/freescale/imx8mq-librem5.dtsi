@@ -252,7 +252,7 @@
 
 	pmic-5v {
 		gpio-hog;
-		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 		input;
 	};
 };
