@@ -62,7 +62,7 @@ properties:
     const: 2
 
   gpio-controller: true
-
+  gpio-line-names: true
   gpio-ranges: true
 
   power-domains:
