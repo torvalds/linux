@@ -203,8 +203,8 @@ EXPORT_SYMBOL(iio_trigger_poll_chained);
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
 	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
-	    trig->ops->try_reenable)
-		trig->ops->try_reenable(trig);
+	    trig->ops->reenable)
+		trig->ops->reenable(trig);
 }
 EXPORT_SYMBOL(iio_trigger_notify_done);
 

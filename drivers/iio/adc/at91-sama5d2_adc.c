@@ -742,26 +742,24 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 	return 0;
 }
 
-static int at91_adc_reenable_trigger(struct iio_trigger *trig)
+static void at91_adc_reenable_trigger(struct iio_trigger *trig)
 {
 	struct iio_dev *indio = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(indio);
 
 	/* if we are using DMA, we must not reenable irq after each trigger */
 	if (st->dma_st.dma_chan)
-		return 0;
+		return;
 
 	enable_irq(st->irq);
 
 	/* Needed to ACK the DRDY interruption */
 	at91_adc_readl(st, AT91_SAMA5D2_LCDR);
-
-	return 0;
 }
 
 static const struct iio_trigger_ops at91_adc_trigger_ops = {
 	.set_trigger_state = &at91_adc_configure_trigger,
-	.try_reenable = &at91_adc_reenable_trigger,
+	.reenable = &at91_adc_reenable_trigger,
 	.validate_device = iio_trigger_validate_own_device,
 };
 

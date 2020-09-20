@@ -1151,7 +1151,7 @@ err_read:
 	return IRQ_HANDLED;
 }
 
-static int bmc150_accel_trig_try_reen(struct iio_trigger *trig)
+static void bmc150_accel_trig_reen(struct iio_trigger *trig)
 {
 	struct bmc150_accel_trigger *t = iio_trigger_get_drvdata(trig);
 	struct bmc150_accel_data *data = t->data;
@@ -1160,7 +1160,7 @@ static int bmc150_accel_trig_try_reen(struct iio_trigger *trig)
 
 	/* new data interrupts don't need ack */
 	if (t == &t->data->triggers[BMC150_ACCEL_TRIGGER_DATA_READY])
-		return 0;
+		return;
 
 	mutex_lock(&data->mutex);
 	/* clear any latched interrupt */
@@ -1168,12 +1168,8 @@ static int bmc150_accel_trig_try_reen(struct iio_trigger *trig)
 			   BMC150_ACCEL_INT_MODE_LATCH_INT |
 			   BMC150_ACCEL_INT_MODE_LATCH_RESET);
 	mutex_unlock(&data->mutex);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dev, "Error writing reg_int_rst_latch\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 static int bmc150_accel_trigger_set_state(struct iio_trigger *trig,
@@ -1213,7 +1209,7 @@ static int bmc150_accel_trigger_set_state(struct iio_trigger *trig,
 
 static const struct iio_trigger_ops bmc150_accel_trigger_ops = {
 	.set_trigger_state = bmc150_accel_trigger_set_state,
-	.try_reenable = bmc150_accel_trig_try_reen,
+	.reenable = bmc150_accel_trig_reen,
 };
 
 static int bmc150_accel_handle_roc_event(struct iio_dev *indio_dev)
