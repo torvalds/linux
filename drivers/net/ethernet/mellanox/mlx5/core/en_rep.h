@@ -110,7 +110,6 @@ struct mlx5e_rep_priv *mlx5e_rep_to_rep_priv(struct mlx5_eswitch_rep *rep)
 }
 
 struct mlx5e_neigh {
-	struct net_device *dev;
 	union {
 		__be32	v4;
 		struct in6_addr v6;
@@ -122,6 +121,7 @@ struct mlx5e_neigh_hash_entry {
 	struct rhash_head rhash_node;
 	struct mlx5e_neigh m_neigh;
 	struct mlx5e_priv *priv;
+	struct net_device *neigh_dev;
 
 	/* Save the neigh hash entry in a list on the representor in
 	 * addition to the hash table. In order to iterate easily over the
@@ -175,7 +175,6 @@ struct mlx5e_encap_entry {
 	struct mlx5e_neigh_hash_entry *nhe;
 	/* neigh hash entry list of encaps sharing the same neigh */
 	struct list_head encap_list;
-	struct mlx5e_neigh m_neigh;
 	/* a node of the eswitch encap hash table which keeping all the encap
 	 * entries
 	 */

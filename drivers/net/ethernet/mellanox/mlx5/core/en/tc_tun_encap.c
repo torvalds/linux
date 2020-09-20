@@ -310,7 +310,7 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		/* find the relevant neigh according to the cached device and
 		 * dst ip pair
 		 */
-		n = neigh_lookup(tbl, &m_neigh->dst_ip, m_neigh->dev);
+		n = neigh_lookup(tbl, &m_neigh->dst_ip, READ_ONCE(nhe->neigh_dev));
 		if (!n)
 			return;
 

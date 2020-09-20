@@ -212,6 +212,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5e_neigh m_neigh = {};
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	int ipv4_encap_size;
 	char *encap_header;
@@ -247,12 +248,8 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 		goto release_neigh;
 	}
 
-	/* used by mlx5e_detach_encap to lookup a neigh hash table
-	 * entry in the neigh hash table when a user deletes a rule
-	 */
-	e->m_neigh.dev = attr.n->dev;
-	e->m_neigh.family = attr.n->ops->family;
-	memcpy(&e->m_neigh.dst_ip, attr.n->primary_key, attr.n->tbl->key_len);
+	m_neigh.family = attr.n->ops->family;
+	memcpy(&m_neigh.dst_ip, attr.n->primary_key, attr.n->tbl->key_len);
 	e->out_dev = attr.out_dev;
 	e->route_dev_ifindex = attr.route_dev->ifindex;
 
@@ -261,7 +258,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	 * neigh changes it's validity state, we would find the relevant neigh
 	 * in the hash.
 	 */
-	err = mlx5e_rep_encap_entry_attach(netdev_priv(attr.out_dev), e);
+	err = mlx5e_rep_encap_entry_attach(netdev_priv(attr.out_dev), e, &m_neigh, attr.n->dev);
 	if (err)
 		goto free_encap;
 
@@ -375,6 +372,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5e_neigh m_neigh = {};
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	struct ipv6hdr *ip6h;
 	int ipv6_encap_size;
@@ -409,12 +407,8 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 		goto release_neigh;
 	}
 
-	/* used by mlx5e_detach_encap to lookup a neigh hash table
-	 * entry in the neigh hash table when a user deletes a rule
-	 */
-	e->m_neigh.dev = attr.n->dev;
-	e->m_neigh.family = attr.n->ops->family;
-	memcpy(&e->m_neigh.dst_ip, attr.n->primary_key, attr.n->tbl->key_len);
+	m_neigh.family = attr.n->ops->family;
+	memcpy(&m_neigh.dst_ip, attr.n->primary_key, attr.n->tbl->key_len);
 	e->out_dev = attr.out_dev;
 	e->route_dev_ifindex = attr.route_dev->ifindex;
 
@@ -423,7 +417,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	 * neigh changes it's validity state, we would find the relevant neigh
 	 * in the hash.
 	 */
-	err = mlx5e_rep_encap_entry_attach(netdev_priv(attr.out_dev), e);
+	err = mlx5e_rep_encap_entry_attach(netdev_priv(attr.out_dev), e, &m_neigh, attr.n->dev);
 	if (err)
 		goto free_encap;
 
