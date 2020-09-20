@@ -11,7 +11,8 @@ maintainers:
 
 description:
   A USB connector node represents a physical USB connector. It should be a child
-  of a USB interface controller.
+  of a USB interface controller or a separate node when it is attached to both
+  MUX and USB interface controller.
 
 properties:
   compatible:
@@ -235,6 +236,33 @@ examples:
                      PDO_VAR(5000, 12000, 2000)>;
         op-sink-microwatt = <10000000>;
       };
+    };
+
+  # USB-C connector attached to SoC and USB3 typec port controller(hd3ss3220)
+  # with SS 2:1 MUX. HS lines routed to SoC, SS lines routed to the MUX and
+  # the output of MUX is connected to the SoC.
+  - |
+    connector {
+        compatible = "usb-c-connector";
+        label = "USB-C";
+        data-role = "dual";
+
+        ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                port@0 {
+                        reg = <0>;
+                        hs_ep: endpoint {
+                                remote-endpoint = <&usb3_hs_ep>;
+                        };
+                };
+                port@1 {
+                        reg = <1>;
+                        ss_ep: endpoint {
+                                remote-endpoint = <&hd3ss3220_in_ep>;
+                        };
+                };
+        };
     };
 
   # USB connector with GPIO control lines
