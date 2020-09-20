@@ -258,6 +258,7 @@ u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
 			     struct spi_device *spi,
 			     struct spi_transfer *transfer)
 {
+	struct dw_spi *dws = spi_controller_get_devdata(master);
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0;
 
@@ -280,6 +281,9 @@ u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
 
 	/* CTRLR0[13] Shift Register Loop */
 	cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << DWC_SSI_CTRLR0_SRL_OFFSET;
+
+	if (dws->caps & DW_SPI_CAP_KEEMBAY_MST)
+		cr0 |= DWC_SSI_CTRLR0_KEEMBAY_MST;
 
 	return cr0;
 }
