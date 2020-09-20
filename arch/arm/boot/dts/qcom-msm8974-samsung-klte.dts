@@ -145,7 +145,7 @@
 					};
 
 					pma8084_l19: l19 {
-						regulator-min-microvolt = <2900000>;
+						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 					};
 
@@ -200,6 +200,31 @@
 					pma8084_5vs1: 5vs1 {};
 				};
 			};
+		};
+	};
+
+	i2c-gpio-touchkey {
+		compatible = "i2c-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		sda-gpios = <&msmgpio 95 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 96 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_touchkey_pins>;
+
+		touchkey@20 {
+			compatible = "cypress,tm2-touchkey";
+			reg = <0x20>;
+
+			interrupt-parent = <&pma8084_gpios>;
+			interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&touchkey_pin>;
+
+			vcc-supply = <&max77826_ldo15>;
+			vdd-supply = <&pma8084_l19>;
+
+			linux,keycodes = <KEY_APPSELECT KEY_BACK>;
 		};
 	};
 
@@ -266,6 +291,15 @@
 
 				drive-strength = <2>;
 				bias-disable;
+			};
+		};
+
+		i2c_touchkey_pins: i2c-touchkey {
+			mux {
+				pins = "gpio95", "gpio96";
+				function = "gpio";
+				input-enable;
+				bias-pull-up;
 			};
 		};
 	};
@@ -416,6 +450,14 @@
 				function = "normal";
 
 				bias-pull-up;
+				power-source = <PMA8084_GPIO_S4>;
+			};
+
+			touchkey_pin: touchkey-int-pin {
+				pins = "gpio6";
+				function = "normal";
+				bias-disable;
+				input-enable;
 				power-source = <PMA8084_GPIO_S4>;
 			};
 		};
