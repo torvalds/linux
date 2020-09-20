@@ -2,6 +2,7 @@
 #ifndef DW_SPI_HEADER_H
 #define DW_SPI_HEADER_H
 
+#include <linux/bits.h>
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/irqreturn.h>
@@ -98,6 +99,9 @@ enum dw_ssi_type {
 	SSI_NS_MICROWIRE,
 };
 
+/* DW SPI capabilities */
+#define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
+
 struct dw_spi;
 struct dw_spi_dma_ops {
 	int (*dma_init)(struct device *dev, struct dw_spi *dws);
@@ -118,7 +122,8 @@ struct dw_spi {
 	u32			fifo_len;	/* depth of the FIFO buffer */
 	u32			max_freq;	/* max bus freq supported */
 
-	int			cs_override;
+	u32			caps;		/* DW SPI capabilities */
+
 	u32			reg_io_width;	/* DR I/O width in bytes */
 	u16			bus_num;
 	u16			num_cs;		/* supported slave numbers */

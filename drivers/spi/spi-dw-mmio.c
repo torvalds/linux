@@ -204,7 +204,7 @@ static int dw_spi_mscc_sparx5_init(struct platform_device *pdev,
 static int dw_spi_alpine_init(struct platform_device *pdev,
 			      struct dw_spi_mmio *dwsmmio)
 {
-	dwsmmio->dws.cs_override = 1;
+	dwsmmio->dws.caps = DW_SPI_CAP_CS_OVERRIDE;
 
 	/* Register hook to configure CTRLR0 */
 	dwsmmio->dws.update_cr0 = dw_spi_update_cr0;

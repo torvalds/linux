@@ -104,7 +104,7 @@ void dw_spi_set_cs(struct spi_device *spi, bool enable)
 	 */
 	if (cs_high == enable)
 		dw_writel(dws, DW_SPI_SER, BIT(spi->chip_select));
-	else if (dws->cs_override)
+	else if (dws->caps & DW_SPI_CAP_CS_OVERRIDE)
 		dw_writel(dws, DW_SPI_SER, 0);
 }
 EXPORT_SYMBOL_GPL(dw_spi_set_cs);
@@ -444,7 +444,7 @@ static void spi_hw_init(struct device *dev, struct dw_spi *dws)
 	}
 
 	/* enable HW fixup for explicit CS deselect for Amazon's alpine chip */
-	if (dws->cs_override)
+	if (dws->caps & DW_SPI_CAP_CS_OVERRIDE)
 		dw_writel(dws, DW_SPI_CS_OVERRIDE, 0xF);
 }
 
