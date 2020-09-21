@@ -1417,8 +1417,7 @@ static void __ov8856_power_off(struct ov8856 *ov8856)
 
 static int __maybe_unused ov8856_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov8856 *ov8856 = to_ov8856(sd);
 
 	mutex_lock(&ov8856->mutex);
@@ -1433,8 +1432,7 @@ static int __maybe_unused ov8856_suspend(struct device *dev)
 
 static int __maybe_unused ov8856_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov8856 *ov8856 = to_ov8856(sd);
 	int ret;
 
