@@ -89,7 +89,6 @@ struct amdgpu_bo {
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
 	u64				flags;
-	unsigned			pin_count;
 	u64				tiling_flags;
 	u64				metadata_flags;
 	void				*metadata;
@@ -267,7 +266,7 @@ void amdgpu_bo_unref(struct amdgpu_bo **bo);
 int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain);
 int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 			     u64 min_offset, u64 max_offset);
-int amdgpu_bo_unpin(struct amdgpu_bo *bo);
+void amdgpu_bo_unpin(struct amdgpu_bo *bo);
 int amdgpu_bo_evict_vram(struct amdgpu_device *adev);
 int amdgpu_bo_init(struct amdgpu_device *adev);
 int amdgpu_bo_late_init(struct amdgpu_device *adev);

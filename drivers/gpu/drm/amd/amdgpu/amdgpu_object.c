@@ -78,7 +78,7 @@ static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
 	struct amdgpu_bo *bo = ttm_to_amdgpu_bo(tbo);
 
-	if (bo->pin_count > 0)
+	if (bo->tbo.pin_count > 0)
 		amdgpu_bo_subtract_pin_size(bo);
 
 	amdgpu_bo_kunmap(bo);
@@ -721,7 +721,7 @@ int amdgpu_bo_validate(struct amdgpu_bo *bo)
 	uint32_t domain;
 	int r;
 
-	if (bo->pin_count)
+	if (bo->tbo.pin_count)
 		return 0;
 
 	domain = bo->preferred_domains;
@@ -918,13 +918,13 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	 */
 	domain = amdgpu_bo_get_preferred_pin_domain(adev, domain);
 
-	if (bo->pin_count) {
+	if (bo->tbo.pin_count) {
 		uint32_t mem_type = bo->tbo.mem.mem_type;
 
 		if (!(domain & amdgpu_mem_type_to_domain(mem_type)))
 			return -EINVAL;
 
-		bo->pin_count++;
+		ttm_bo_pin(&bo->tbo);
 
 		if (max_offset != 0) {
 			u64 domain_start = amdgpu_ttm_domain_start(adev,
@@ -955,7 +955,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		if (!bo->placements[i].lpfn ||
 		    (lpfn && lpfn < bo->placements[i].lpfn))
 			bo->placements[i].lpfn = lpfn;
-		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
@@ -964,7 +963,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		goto error;
 	}
 
-	bo->pin_count = 1;
+	ttm_bo_pin(&bo->tbo);
 
 	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
@@ -1006,34 +1005,16 @@ int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain)
  * Returns:
  * 0 for success or a negative error code on failure.
  */
-int amdgpu_bo_unpin(struct amdgpu_bo *bo)
+void amdgpu_bo_unpin(struct amdgpu_bo *bo)
 {
-	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	struct ttm_operation_ctx ctx = { false, false };
-	int r, i;
-
-	if (WARN_ON_ONCE(!bo->pin_count)) {
-		dev_warn(adev->dev, "%p unpin not necessary\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
+	ttm_bo_unpin(&bo->tbo);
+	if (bo->tbo.pin_count)
+		return;
 
 	amdgpu_bo_subtract_pin_size(bo);
 
 	if (bo->tbo.base.import_attach)
 		dma_buf_unpin(bo->tbo.base.import_attach);
-
-	for (i = 0; i < bo->placement.num_placement; i++) {
-		bo->placements[i].lpfn = 0;
-		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	}
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (unlikely(r))
-		dev_err(adev->dev, "%p validate failed for unpin\n", bo);
-
-	return r;
 }
 
 /**
@@ -1385,7 +1366,7 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 		return 0;
 
 	/* Can't move a pinned BO to visible VRAM */
-	if (abo->pin_count > 0)
+	if (abo->tbo.pin_count > 0)
 		return -EINVAL;
 
 	/* hurrah the memory is not visible ! */
@@ -1489,7 +1470,7 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 {
 	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_SYSTEM);
 	WARN_ON_ONCE(!dma_resv_is_locked(bo->tbo.base.resv) &&
-		     !bo->pin_count && bo->tbo.type != ttm_bo_type_kernel);
+		     !bo->tbo.pin_count && bo->tbo.type != ttm_bo_type_kernel);
 	WARN_ON_ONCE(bo->tbo.mem.start == AMDGPU_BO_INVALID_OFFSET);
 	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_VRAM &&
 		     !(bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS));

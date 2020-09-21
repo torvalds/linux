@@ -609,7 +609,7 @@ void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo)
 	if (!amdgpu_bo_is_amdgpu_bo(bo))
 		return;
 
-	if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT)
+	if (bo->pin_count)
 		return;
 
 	abo = ttm_to_amdgpu_bo(bo);
