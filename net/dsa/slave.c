@@ -1240,25 +1240,8 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
 	};
-	struct bridge_vlan_info info;
 	struct switchdev_trans trans;
 	int ret;
-
-	/* Check for a possible bridge VLAN entry now since there is no
-	 * need to emulate the switchdev prepare + commit phase.
-	 */
-	if (dp->bridge_dev) {
-		if (dsa_port_skip_vlan_configuration(dp))
-			return 0;
-
-		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
-		 * device, respectively the VID is not found, returning
-		 * 0 means success, which is a failure for us here.
-		 */
-		ret = br_vlan_get_info(dp->bridge_dev, vid, &info);
-		if (ret == 0)
-			return -EBUSY;
-	}
 
 	/* User port... */
 	trans.ph_prepare = true;
@@ -1295,24 +1278,6 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
 	};
-	struct bridge_vlan_info info;
-	int ret;
-
-	/* Check for a possible bridge VLAN entry now since there is no
-	 * need to emulate the switchdev prepare + commit phase.
-	 */
-	if (dp->bridge_dev) {
-		if (dsa_port_skip_vlan_configuration(dp))
-			return 0;
-
-		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
-		 * device, respectively the VID is not found, returning
-		 * 0 means success, which is a failure for us here.
-		 */
-		ret = br_vlan_get_info(dp->bridge_dev, vid, &info);
-		if (ret == 0)
-			return -EBUSY;
-	}
 
 	/* Do not deprogram the CPU port as it may be shared with other user
 	 * ports which can be members of this VLAN as well.
@@ -1927,16 +1892,53 @@ dsa_prevent_bridging_8021q_upper(struct net_device *dev,
 	return NOTIFY_DONE;
 }
 
+static int
+dsa_slave_check_8021q_upper(struct net_device *dev,
+			    struct netdev_notifier_changeupper_info *info)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct net_device *br = dp->bridge_dev;
+	struct bridge_vlan_info br_info;
+	struct netlink_ext_ack *extack;
+	int err = NOTIFY_DONE;
+	u16 vid;
+
+	if (!br)
+		return NOTIFY_DONE;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+	vid = vlan_dev_vlan_id(info->upper_dev);
+
+	/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
+	 * device, respectively the VID is not found, returning
+	 * 0 means success, which is a failure for us here.
+	 */
+	err = br_vlan_get_info(br, vid, &br_info);
+	if (err == 0) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "This VLAN is already configured by the bridge");
+		return notifier_from_errno(-EBUSY);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int dsa_slave_netdevice_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	switch (event) {
-	case NETDEV_PRECHANGEUPPER:
+	case NETDEV_PRECHANGEUPPER: {
+		struct netdev_notifier_changeupper_info *info = ptr;
+
 		if (!dsa_slave_dev_check(dev))
 			return dsa_prevent_bridging_8021q_upper(dev, ptr);
+
+		if (is_vlan_dev(info->upper_dev))
+			return dsa_slave_check_8021q_upper(dev, ptr);
 		break;
+	}
 	case NETDEV_CHANGEUPPER:
 		if (!dsa_slave_dev_check(dev))
 			return NOTIFY_DONE;
