@@ -1008,7 +1008,6 @@ extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_ne_placement;
 extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_vram_gmr_placement;
-extern struct ttm_placement vmw_vram_gmr_ne_placement;
 extern struct ttm_placement vmw_sys_placement;
 extern struct ttm_placement vmw_sys_ne_placement;
 extern struct ttm_placement vmw_evictable_placement;

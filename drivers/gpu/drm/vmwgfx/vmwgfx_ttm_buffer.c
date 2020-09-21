@@ -65,13 +65,6 @@ static const struct ttm_place gmr_placement_flags = {
 	.flags = TTM_PL_FLAG_CACHED
 };
 
-static const struct ttm_place gmr_ne_placement_flags = {
-	.fpfn = 0,
-	.lpfn = 0,
-	.mem_type = VMW_PL_GMR,
-	.flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
-};
-
 static const struct ttm_place mob_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -126,29 +119,6 @@ struct ttm_placement vmw_vram_gmr_placement = {
 	.placement = vram_gmr_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &gmr_placement_flags
-};
-
-static const struct ttm_place vram_gmr_ne_placement_flags[] = {
-	{
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = TTM_PL_VRAM,
-		.flags = TTM_PL_FLAG_CACHED |
-			 TTM_PL_FLAG_NO_EVICT
-	}, {
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = VMW_PL_GMR,
-		.flags = TTM_PL_FLAG_CACHED |
-			 TTM_PL_FLAG_NO_EVICT
-	}
-};
-
-struct ttm_placement vmw_vram_gmr_ne_placement = {
-	.num_placement = 2,
-	.placement = vram_gmr_ne_placement_flags,
-	.num_busy_placement = 1,
-	.busy_placement = &gmr_ne_placement_flags
 };
 
 struct ttm_placement vmw_vram_sys_placement = {
