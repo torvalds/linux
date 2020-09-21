@@ -58,6 +58,12 @@ static const struct ccs_module_ident ccs_module_idents[] = {
 	CCS_IDENT_LQ(0x10, 0x4241, -1, "imx125es", &smiapp_imx125es_quirk),
 };
 
+#define CCS_DEVICE_FLAG_IS_SMIA		BIT(0)
+
+struct ccs_device {
+	unsigned char flags;
+};
+
 /*
  *
  * Dynamic Capability Identification
@@ -3235,11 +3241,17 @@ static int ccs_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct ccs_device smia_device = {
+	.flags = CCS_DEVICE_FLAG_IS_SMIA,
+};
+
+static const struct ccs_device ccs_device = {};
+
 static const struct of_device_id ccs_of_table[] = {
-	{ .compatible = "mipi-ccs-1.1" },
-	{ .compatible = "mipi-ccs-1.0" },
-	{ .compatible = "mipi-ccs" },
-	{ .compatible = "nokia,smia" },
+	{ .compatible = "mipi-ccs-1.1", .data = &ccs_device },
+	{ .compatible = "mipi-ccs-1.0", .data = &ccs_device },
+	{ .compatible = "mipi-ccs", .data = &ccs_device },
+	{ .compatible = "nokia,smia", .data = &smia_device },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ccs_of_table);
