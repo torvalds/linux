@@ -608,14 +608,8 @@ xfs_efi_item_recover(
 		if (startblock_fsb == 0 ||
 		    extp->ext_len == 0 ||
 		    startblock_fsb >= mp->m_sb.sb_dblocks ||
-		    extp->ext_len >= mp->m_sb.sb_agblocks) {
-			/*
-			 * This will pull the EFI from the AIL and
-			 * free the memory associated with it.
-			 */
-			xfs_efi_release(efip);
+		    extp->ext_len >= mp->m_sb.sb_agblocks)
 			return -EFSCORRUPTED;
-		}
 	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);

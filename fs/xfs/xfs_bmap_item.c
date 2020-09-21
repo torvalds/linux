@@ -444,10 +444,8 @@ xfs_bui_item_recover(
 	int				error = 0;
 
 	/* Only one mapping operation per BUI... */
-	if (buip->bui_format.bui_nextents != XFS_BUI_MAX_FAST_EXTENTS) {
-		xfs_bui_release(buip);
+	if (buip->bui_format.bui_nextents != XFS_BUI_MAX_FAST_EXTENTS)
 		return -EFSCORRUPTED;
-	}
 
 	/*
 	 * First check the validity of the extent described by the
@@ -473,14 +471,8 @@ xfs_bui_item_recover(
 	    startblock_fsb >= mp->m_sb.sb_dblocks ||
 	    bmap->me_len >= mp->m_sb.sb_agblocks ||
 	    inode_fsb >= mp->m_sb.sb_dblocks ||
-	    (bmap->me_flags & ~XFS_BMAP_EXTENT_FLAGS)) {
-		/*
-		 * This will pull the BUI from the AIL and
-		 * free the memory associated with it.
-		 */
-		xfs_bui_release(buip);
+	    (bmap->me_flags & ~XFS_BMAP_EXTENT_FLAGS))
 		return -EFSCORRUPTED;
-	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
 			XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK), 0, 0, &tp);

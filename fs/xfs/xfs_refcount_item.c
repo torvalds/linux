@@ -467,14 +467,8 @@ xfs_cui_item_recover(
 		    refc->pe_len == 0 ||
 		    startblock_fsb >= mp->m_sb.sb_dblocks ||
 		    refc->pe_len >= mp->m_sb.sb_agblocks ||
-		    (refc->pe_flags & ~XFS_REFCOUNT_EXTENT_FLAGS)) {
-			/*
-			 * This will pull the CUI from the AIL and
-			 * free the memory associated with it.
-			 */
-			xfs_cui_release(cuip);
+		    (refc->pe_flags & ~XFS_REFCOUNT_EXTENT_FLAGS))
 			return -EFSCORRUPTED;
-		}
 	}
 
 	/*

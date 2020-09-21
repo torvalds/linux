@@ -511,14 +511,8 @@ xfs_rui_item_recover(
 		    rmap->me_len == 0 ||
 		    startblock_fsb >= mp->m_sb.sb_dblocks ||
 		    rmap->me_len >= mp->m_sb.sb_agblocks ||
-		    (rmap->me_flags & ~XFS_RMAP_EXTENT_FLAGS)) {
-			/*
-			 * This will pull the RUI from the AIL and
-			 * free the memory associated with it.
-			 */
-			xfs_rui_release(ruip);
+		    (rmap->me_flags & ~XFS_RMAP_EXTENT_FLAGS))
 			return -EFSCORRUPTED;
-		}
 	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
