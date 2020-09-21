@@ -584,6 +584,7 @@ static int validate_extent_buffer(struct extent_buffer *eb)
 	const u32 csum_size = fs_info->csum_size;
 	u8 found_level;
 	u8 result[BTRFS_CSUM_SIZE];
+	const u8 *header_csum;
 	int ret = 0;
 
 	found_start = btrfs_header_bytenr(eb);
@@ -608,15 +609,14 @@ static int validate_extent_buffer(struct extent_buffer *eb)
 	}
 
 	csum_tree_block(eb, result);
+	header_csum = page_address(eb->pages[0]) +
+		get_eb_offset_in_page(eb, offsetof(struct btrfs_header, csum));
 
-	if (memcmp_extent_buffer(eb, result, 0, csum_size)) {
-		u8 val[BTRFS_CSUM_SIZE] = { 0 };
-
-		read_extent_buffer(eb, &val, 0, csum_size);
+	if (memcmp(result, header_csum, csum_size) != 0) {
 		btrfs_warn_rl(fs_info,
 	"checksum verify failed on %llu wanted " CSUM_FMT " found " CSUM_FMT " level %d",
 			      eb->start,
-			      CSUM_FMT_VALUE(csum_size, val),
+			      CSUM_FMT_VALUE(csum_size, header_csum),
 			      CSUM_FMT_VALUE(csum_size, result),
 			      btrfs_header_level(eb));
 		ret = -EUCLEAN;
