@@ -466,13 +466,19 @@ static void init_hal_msg(struct wcn36xx_hal_msg_header *hdr,
 	hdr->len = msg_size + sizeof(*hdr);
 }
 
-#define INIT_HAL_MSG(msg_body, type) \
+#define __INIT_HAL_MSG(msg_body, type, version) \
 	do {								\
 		memset(&msg_body, 0, sizeof(msg_body));			\
 		msg_body.header.msg_type = type;			\
-		msg_body.header.msg_version = WCN36XX_HAL_MSG_VERSION0; \
+		msg_body.header.msg_version = version;			\
 		msg_body.header.len = sizeof(msg_body);			\
 	} while (0)							\
+
+#define INIT_HAL_MSG(msg_body, type)	\
+	__INIT_HAL_MSG(msg_body, type, WCN36XX_HAL_MSG_VERSION0)
+
+#define INIT_HAL_MSG_V1(msg_body, type) \
+	__INIT_HAL_MSG(msg_body, type, WCN36XX_HAL_MSG_VERSION1)
 
 #define INIT_HAL_PTT_MSG(p_msg_body, ppt_msg_len) \
 	do { \
