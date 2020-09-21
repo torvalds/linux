@@ -249,9 +249,7 @@ const struct bpf_map_ops inode_storage_map_ops = {
 	.map_owner_storage_ptr = inode_storage_ptr,
 };
 
-BTF_ID_LIST(bpf_inode_storage_btf_ids)
-BTF_ID_UNUSED
-BTF_ID(struct, inode)
+BTF_ID_LIST_SINGLE(bpf_inode_storage_btf_ids, struct, inode)
 
 const struct bpf_func_proto bpf_inode_storage_get_proto = {
 	.func		= bpf_inode_storage_get,
@@ -259,9 +257,9 @@ const struct bpf_func_proto bpf_inode_storage_get_proto = {
 	.ret_type	= RET_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_BTF_ID,
+	.arg2_btf_id	= &bpf_inode_storage_btf_ids[0],
 	.arg3_type	= ARG_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg4_type	= ARG_ANYTHING,
-	.btf_id		= bpf_inode_storage_btf_ids,
 };
 
 const struct bpf_func_proto bpf_inode_storage_delete_proto = {
@@ -270,5 +268,5 @@ const struct bpf_func_proto bpf_inode_storage_delete_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_BTF_ID,
-	.btf_id		= bpf_inode_storage_btf_ids,
+	.arg2_btf_id	= &bpf_inode_storage_btf_ids[0],
 };

@@ -378,19 +378,15 @@ const struct bpf_func_proto bpf_sk_storage_delete_proto = {
 	.arg2_type	= ARG_PTR_TO_SOCKET,
 };
 
-BTF_ID_LIST(sk_storage_btf_ids)
-BTF_ID_UNUSED
-BTF_ID(struct, sock)
-
 const struct bpf_func_proto sk_storage_get_btf_proto = {
 	.func		= bpf_sk_storage_get,
 	.gpl_only	= false,
 	.ret_type	= RET_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_BTF_ID,
+	.arg2_btf_id	= &btf_sock_ids[BTF_SOCK_TYPE_SOCK],
 	.arg3_type	= ARG_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg4_type	= ARG_ANYTHING,
-	.btf_id		= sk_storage_btf_ids,
 };
 
 const struct bpf_func_proto sk_storage_delete_btf_proto = {
@@ -399,7 +395,7 @@ const struct bpf_func_proto sk_storage_delete_btf_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_BTF_ID,
-	.btf_id		= sk_storage_btf_ids,
+	.arg2_btf_id	= &btf_sock_ids[BTF_SOCK_TYPE_SOCK],
 };
 
 struct bpf_sk_storage_diag {
