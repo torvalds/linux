@@ -845,6 +845,10 @@ extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
 				 SVGAGuestPtr *ptr);
 extern void vmw_bo_pin_reserved(struct vmw_buffer_object *bo, bool pin);
 extern void vmw_bo_bo_free(struct ttm_buffer_object *bo);
+extern int vmw_bo_create_kernel(struct vmw_private *dev_priv,
+				unsigned long size,
+				struct ttm_placement *placement,
+				struct ttm_buffer_object **p_bo);
 extern int vmw_bo_init(struct vmw_private *dev_priv,
 		       struct vmw_buffer_object *vmw_bo,
 		       size_t size, struct ttm_placement *placement,

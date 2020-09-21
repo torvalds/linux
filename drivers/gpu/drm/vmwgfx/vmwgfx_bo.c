@@ -487,6 +487,49 @@ static void vmw_user_bo_destroy(struct ttm_buffer_object *bo)
 	ttm_prime_object_kfree(vmw_user_bo, prime);
 }
 
+/**
+ * vmw_bo_create_kernel - Create a pinned BO for internal kernel use.
+ *
+ * @dev_priv: Pointer to the device private struct
+ * @size: size of the BO we need
+ * @placement: where to put it
+ * @p_bo: resulting BO
+ *
+ * Creates and pin a simple BO for in kernel use.
+ */
+int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
+			 struct ttm_placement *placement,
+			 struct ttm_buffer_object **p_bo)
+{
+	unsigned npages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	struct ttm_operation_ctx ctx = { false, false };
+	struct ttm_buffer_object *bo;
+	size_t acc_size;
+	int ret;
+
+	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	if (unlikely(!bo))
+		return -ENOMEM;
+
+	acc_size = ttm_round_pot(sizeof(*bo));
+	acc_size += ttm_round_pot(npages * sizeof(void *));
+	acc_size += ttm_round_pot(sizeof(struct ttm_tt));
+	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, size,
+				   ttm_bo_type_device, placement, 0,
+				   &ctx, acc_size, NULL, NULL, NULL);
+	if (unlikely(ret))
+		goto error_free;
+
+	ttm_bo_pin(bo);
+	ttm_bo_unreserve(bo);
+	*p_bo = bo;
+
+	return 0;
+
+error_free:
+	kfree(bo);
+	return ret;
+}
 
 /**
  * vmw_bo_init - Initialize a vmw buffer object
