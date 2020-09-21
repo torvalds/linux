@@ -608,14 +608,9 @@ static int ice_finalize_update(struct pldmfw *context)
 	struct ice_fwu_priv *priv = container_of(context, struct ice_fwu_priv, context);
 	struct netlink_ext_ack *extack = priv->extack;
 	struct ice_pf *pf = priv->pf;
-	int err;
 
 	/* Finally, notify firmware to activate the written NVM banks */
-	err = ice_switch_flash_banks(pf, priv->activate_flags, extack);
-	if (err)
-		return err;
-
-	return 0;
+	return ice_switch_flash_banks(pf, priv->activate_flags, extack);
 }
 
 static const struct pldmfw_ops ice_fwu_ops = {
