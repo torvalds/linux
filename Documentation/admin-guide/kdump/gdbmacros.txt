@@ -172,13 +172,13 @@ end
 
 define dump_record
 	set var $desc = $arg0
-	if ($argc > 1)
-		set var $prev_flags = $arg1
+	set var $info = $arg1
+	if ($argc > 2)
+		set var $prev_flags = $arg2
 	else
 		set var $prev_flags = 0
 	end
 
-	set var $info = &$desc->info
 	set var $prefix = 1
 	set var $newline = 1
 
@@ -237,44 +237,36 @@ define dump_record
 
 	# handle dictionary data
 
-	set var $begin = $desc->dict_blk_lpos.begin % (1U << prb->dict_data_ring.size_bits)
-	set var $next = $desc->dict_blk_lpos.next % (1U << prb->dict_data_ring.size_bits)
-
-	# handle data-less record
-	if ($begin & 1)
-		set var $dict_len = 0
-		set var $dict = ""
-	else
-		# handle wrapping data block
-		if ($begin > $next)
-			set var $begin = 0
-		end
-
-		# skip over descriptor id
-		set var $begin = $begin + sizeof(long)
-
-		# handle truncated message
-		if ($next - $begin < $info->dict_len)
-			set var $dict_len = $next - $begin
-		else
-			set var $dict_len = $info->dict_len
-		end
-
-		set var $dict = &prb->dict_data_ring.data[$begin]
-	end
-
-	if ($dict_len > 0)
+	set var $dict = &$info->dev_info.subsystem[0]
+	set var $dict_len = sizeof($info->dev_info.subsystem)
+	if ($dict[0] != '\0')
+		printf " SUBSYSTEM="
 		set var $idx = 0
-		set var $line = 1
 		while ($idx < $dict_len)
-			if ($line)
-				printf " "
-				set var $line = 0
-			end
 			set var $c = $dict[$idx]
 			if ($c == '\0')
-				printf "\n"
-				set var $line = 1
+				loop_break
+			else
+				if ($c < ' ' || $c >= 127 || $c == '\\')
+					printf "\\x%02x", $c
+				else
+					printf "%c", $c
+				end
+			end
+			set var $idx = $idx + 1
+		end
+		printf "\n"
+	end
+
+	set var $dict = &$info->dev_info.device[0]
+	set var $dict_len = sizeof($info->dev_info.device)
+	if ($dict[0] != '\0')
+		printf " DEVICE="
+		set var $idx = 0
+		while ($idx < $dict_len)
+			set var $c = $dict[$idx]
+			if ($c == '\0')
+				loop_break
 			else
 				if ($c < ' ' || $c >= 127 || $c == '\\')
 					printf "\\x%02x", $c
@@ -288,10 +280,10 @@ define dump_record
 	end
 end
 document dump_record
-	Dump a single record. The first parameter is the descriptor
-	sequence number, the second is optional and specifies the
-	previous record's flags, used for properly formatting
-	continued lines.
+	Dump a single record. The first parameter is the descriptor,
+	the second parameter is the info, the third parameter is
+	optional and specifies the previous record's flags, used for
+	properly formatting continued lines.
 end
 
 define dmesg
@@ -311,12 +303,13 @@ define dmesg
 
 	while (1)
 		set var $desc = &prb->desc_ring.descs[$id % $desc_count]
+		set var $info = &prb->desc_ring.infos[$id % $desc_count]
 
 		# skip non-committed record
 		set var $state = 3 & ($desc->state_var.counter >> $desc_flags_shift)
 		if ($state == $desc_committed || $state == $desc_finalized)
-			dump_record $desc $prev_flags
-			set var $prev_flags = $desc->info.flags
+			dump_record $desc $info $prev_flags
+			set var $prev_flags = $info->flags
 		end
 
 		set var $id = ($id + 1) & $id_mask

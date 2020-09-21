@@ -52,6 +52,12 @@ class LxDmesg(gdb.Command):
         addr = utils.read_ulong(desc_ring, off)
         descs = utils.read_memoryview(inf, addr, desc_sz * desc_ring_count).tobytes()
 
+        # read in info array
+        info_sz = printk_info_type.get_type().sizeof
+        off = prb_desc_ring_type.get_type()['infos'].bitpos // 8
+        addr = utils.read_ulong(desc_ring, off)
+        infos = utils.read_memoryview(inf, addr, info_sz * desc_ring_count).tobytes()
+
         # read in text data ring structure
         off = printk_ringbuffer_type.get_type()['text_data_ring'].bitpos // 8
         addr = prb_addr + off
@@ -73,9 +79,8 @@ class LxDmesg(gdb.Command):
         begin_off = off + (prb_data_blk_lpos_type.get_type()['begin'].bitpos // 8)
         next_off = off + (prb_data_blk_lpos_type.get_type()['next'].bitpos // 8)
 
-        off = prb_desc_type.get_type()['info'].bitpos // 8
-        ts_off = off + printk_info_type.get_type()['ts_nsec'].bitpos // 8
-        len_off = off + printk_info_type.get_type()['text_len'].bitpos // 8
+        ts_off = printk_info_type.get_type()['ts_nsec'].bitpos // 8
+        len_off = printk_info_type.get_type()['text_len'].bitpos // 8
 
         # definitions from kernel/printk/printk_ringbuffer.h
         desc_committed = 1
@@ -95,6 +100,7 @@ class LxDmesg(gdb.Command):
         while True:
             ind = did % desc_ring_count
             desc_off = desc_sz * ind
+            info_off = info_sz * ind
 
             # skip non-committed record
             state = 3 & (utils.read_u64(descs, desc_off + sv_off +
@@ -119,7 +125,7 @@ class LxDmesg(gdb.Command):
                 # skip over descriptor id
                 text_start = begin + utils.get_long_type().sizeof
 
-                text_len = utils.read_u16(descs, desc_off + len_off)
+                text_len = utils.read_u16(infos, info_off + len_off)
 
                 # handle truncated message
                 if end - text_start < text_len:
@@ -128,7 +134,7 @@ class LxDmesg(gdb.Command):
                 text = text_data[text_start:text_start + text_len].decode(
                     encoding='utf8', errors='replace')
 
-            time_stamp = utils.read_u64(descs, desc_off + ts_off)
+            time_stamp = utils.read_u64(infos, info_off + ts_off)
 
             for line in text.splitlines():
                 msg = u"[{time:12.6f}] {line}\n".format(

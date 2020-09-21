@@ -4,6 +4,7 @@
 #define _KERNEL_PRINTK_RINGBUFFER_H
 
 #include <linux/atomic.h>
+#include <linux/dev_printk.h>
 
 /*
  * Meta information about each stored message.
@@ -21,6 +22,8 @@ struct printk_info {
 	u8	flags:5;	/* internal record flags */
 	u8	level:3;	/* syslog level */
 	u32	caller_id;	/* thread id or processor id */
+
+	struct dev_printk_info	dev_info;
 };
 
 /*
