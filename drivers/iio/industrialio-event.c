@@ -561,4 +561,5 @@ void iio_device_unregister_eventset(struct iio_dev *indio_dev)
 	iio_free_chan_devattr_list(&ev_int->dev_attr_list);
 	kfree(ev_int->group.attrs);
 	kfree(ev_int);
+	iio_dev_opaque->event_interface = NULL;
 }
