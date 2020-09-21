@@ -2064,6 +2064,17 @@ config SENSORS_XGENE
 	  If you say yes here you get support for the temperature
 	  and power sensors for APM X-Gene SoC.
 
+config SENSORS_INTEL_M10_BMC_HWMON
+	tristate "Intel MAX10 BMC Hardware Monitoring"
+	depends on MFD_INTEL_M10_BMC
+	help
+	  This driver provides support for the hardware monitoring functionality
+	  on Intel MAX10 BMC chip.
+
+	  This BMC Chip is used on Intel FPGA PCIe Acceleration Cards (PAC). Its
+	  sensors monitor various telemetry data of different components on the
+	  card, e.g. board temperature, FPGA core temperature/voltage/current.
+
 if ACPI
 
 comment "ACPI drivers"
