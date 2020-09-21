@@ -71,7 +71,14 @@ static __init bool is_kaslr_disabled_cmdline(void *fdt)
 		prop = fdt_getprop(fdt, node, "bootargs", NULL);
 		if (!prop)
 			goto out;
-		return cmdline_contains_nokaslr(prop);
+
+		if (cmdline_contains_nokaslr(prop))
+			return true;
+
+		if (IS_ENABLED(CONFIG_CMDLINE_EXTEND))
+			goto out;
+
+		return false;
 	}
 out:
 	return cmdline_contains_nokaslr(CONFIG_CMDLINE);
