@@ -432,7 +432,9 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	 * Decrement the limit by ext bytes header size to
 	 * ensure the user space buffer is not exceeded.
 	 */
-	size -= sizeof(const struct snd_ctl_tlv);
+	if (size < sizeof(struct snd_ctl_tlv))
+		return -ENOSPC;
+	size -= sizeof(struct snd_ctl_tlv);
 
 	/* set the ABI header values */
 	cdata->data->magic = SOF_ABI_MAGIC;
@@ -447,6 +449,10 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	}
 
 	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
+
+	/* make sure we don't exceed size provided by user space for data */
+	if (data_size > size)
+		return -ENOSPC;
 
 	header.numid = scontrol->cmd;
 	header.length = data_size;
