@@ -723,6 +723,286 @@ static int ne_add_vcpu_ioctl(struct ne_enclave *ne_enclave, u32 vcpu_id)
 }
 
 /**
+ * ne_sanity_check_user_mem_region() - Sanity check the user space memory
+ *				       region received during the set user
+ *				       memory region ioctl call.
+ * @ne_enclave :	Private data associated with the current enclave.
+ * @mem_region :	User space memory region to be sanity checked.
+ *
+ * Context: Process context. This function is called with the ne_enclave mutex held.
+ * Return:
+ * * 0 on success.
+ * * Negative return value on failure.
+ */
+static int ne_sanity_check_user_mem_region(struct ne_enclave *ne_enclave,
+	struct ne_user_memory_region mem_region)
+{
+	struct ne_mem_region *ne_mem_region = NULL;
+
+	if (ne_enclave->mm != current->mm)
+		return -EIO;
+
+	if (mem_region.memory_size & (NE_MIN_MEM_REGION_SIZE - 1)) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "User space memory size is not multiple of 2 MiB\n");
+
+		return -NE_ERR_INVALID_MEM_REGION_SIZE;
+	}
+
+	if (!IS_ALIGNED(mem_region.userspace_addr, NE_MIN_MEM_REGION_SIZE)) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "User space address is not 2 MiB aligned\n");
+
+		return -NE_ERR_UNALIGNED_MEM_REGION_ADDR;
+	}
+
+	if ((mem_region.userspace_addr & (NE_MIN_MEM_REGION_SIZE - 1)) ||
+	    !access_ok((void __user *)(unsigned long)mem_region.userspace_addr,
+		       mem_region.memory_size)) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "Invalid user space address range\n");
+
+		return -NE_ERR_INVALID_MEM_REGION_ADDR;
+	}
+
+	list_for_each_entry(ne_mem_region, &ne_enclave->mem_regions_list,
+			    mem_region_list_entry) {
+		u64 memory_size = ne_mem_region->memory_size;
+		u64 userspace_addr = ne_mem_region->userspace_addr;
+
+		if ((userspace_addr <= mem_region.userspace_addr &&
+		    mem_region.userspace_addr < (userspace_addr + memory_size)) ||
+		    (mem_region.userspace_addr <= userspace_addr &&
+		    (mem_region.userspace_addr + mem_region.memory_size) > userspace_addr)) {
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "User space memory region already used\n");
+
+			return -NE_ERR_MEM_REGION_ALREADY_USED;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * ne_sanity_check_user_mem_region_page() - Sanity check a page from the user space
+ *					    memory region received during the set
+ *					    user memory region ioctl call.
+ * @ne_enclave :	Private data associated with the current enclave.
+ * @mem_region_page:	Page from the user space memory region to be sanity checked.
+ *
+ * Context: Process context. This function is called with the ne_enclave mutex held.
+ * Return:
+ * * 0 on success.
+ * * Negative return value on failure.
+ */
+static int ne_sanity_check_user_mem_region_page(struct ne_enclave *ne_enclave,
+						struct page *mem_region_page)
+{
+	if (!PageHuge(mem_region_page)) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "Not a hugetlbfs page\n");
+
+		return -NE_ERR_MEM_NOT_HUGE_PAGE;
+	}
+
+	if (page_size(mem_region_page) & (NE_MIN_MEM_REGION_SIZE - 1)) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "Page size not multiple of 2 MiB\n");
+
+		return -NE_ERR_INVALID_PAGE_SIZE;
+	}
+
+	if (ne_enclave->numa_node != page_to_nid(mem_region_page)) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "Page is not from NUMA node %d\n",
+				    ne_enclave->numa_node);
+
+		return -NE_ERR_MEM_DIFFERENT_NUMA_NODE;
+	}
+
+	return 0;
+}
+
+/**
+ * ne_set_user_memory_region_ioctl() - Add user space memory region to the slot
+ *				       associated with the current enclave.
+ * @ne_enclave :	Private data associated with the current enclave.
+ * @mem_region :	User space memory region to be associated with the given slot.
+ *
+ * Context: Process context. This function is called with the ne_enclave mutex held.
+ * Return:
+ * * 0 on success.
+ * * Negative return value on failure.
+ */
+static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
+	struct ne_user_memory_region mem_region)
+{
+	long gup_rc = 0;
+	unsigned long i = 0;
+	unsigned long max_nr_pages = 0;
+	unsigned long memory_size = 0;
+	struct ne_mem_region *ne_mem_region = NULL;
+	unsigned long nr_phys_contig_mem_regions = 0;
+	struct pci_dev *pdev = ne_devs.ne_pci_dev->pdev;
+	struct page **phys_contig_mem_regions = NULL;
+	int rc = -EINVAL;
+
+	rc = ne_sanity_check_user_mem_region(ne_enclave, mem_region);
+	if (rc < 0)
+		return rc;
+
+	ne_mem_region = kzalloc(sizeof(*ne_mem_region), GFP_KERNEL);
+	if (!ne_mem_region)
+		return -ENOMEM;
+
+	max_nr_pages = mem_region.memory_size / NE_MIN_MEM_REGION_SIZE;
+
+	ne_mem_region->pages = kcalloc(max_nr_pages, sizeof(*ne_mem_region->pages),
+				       GFP_KERNEL);
+	if (!ne_mem_region->pages) {
+		rc = -ENOMEM;
+
+		goto free_mem_region;
+	}
+
+	phys_contig_mem_regions = kcalloc(max_nr_pages, sizeof(*phys_contig_mem_regions),
+					  GFP_KERNEL);
+	if (!phys_contig_mem_regions) {
+		rc = -ENOMEM;
+
+		goto free_mem_region;
+	}
+
+	do {
+		i = ne_mem_region->nr_pages;
+
+		if (i == max_nr_pages) {
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "Reached max nr of pages in the pages data struct\n");
+
+			rc = -ENOMEM;
+
+			goto put_pages;
+		}
+
+		gup_rc = get_user_pages(mem_region.userspace_addr + memory_size, 1, FOLL_GET,
+					ne_mem_region->pages + i, NULL);
+		if (gup_rc < 0) {
+			rc = gup_rc;
+
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "Error in get user pages [rc=%d]\n", rc);
+
+			goto put_pages;
+		}
+
+		rc = ne_sanity_check_user_mem_region_page(ne_enclave, ne_mem_region->pages[i]);
+		if (rc < 0)
+			goto put_pages;
+
+		/*
+		 * TODO: Update once handled non-contiguous memory regions
+		 * received from user space or contiguous physical memory regions
+		 * larger than 2 MiB e.g. 8 MiB.
+		 */
+		phys_contig_mem_regions[i] = ne_mem_region->pages[i];
+
+		memory_size += page_size(ne_mem_region->pages[i]);
+
+		ne_mem_region->nr_pages++;
+	} while (memory_size < mem_region.memory_size);
+
+	/*
+	 * TODO: Update once handled non-contiguous memory regions received
+	 * from user space or contiguous physical memory regions larger than
+	 * 2 MiB e.g. 8 MiB.
+	 */
+	nr_phys_contig_mem_regions = ne_mem_region->nr_pages;
+
+	if ((ne_enclave->nr_mem_regions + nr_phys_contig_mem_regions) >
+	    ne_enclave->max_mem_regions) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "Reached max memory regions %lld\n",
+				    ne_enclave->max_mem_regions);
+
+		rc = -NE_ERR_MEM_MAX_REGIONS;
+
+		goto put_pages;
+	}
+
+	for (i = 0; i < nr_phys_contig_mem_regions; i++) {
+		u64 phys_region_addr = page_to_phys(phys_contig_mem_regions[i]);
+		u64 phys_region_size = page_size(phys_contig_mem_regions[i]);
+
+		if (phys_region_size & (NE_MIN_MEM_REGION_SIZE - 1)) {
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "Physical mem region size is not multiple of 2 MiB\n");
+
+			rc = -EINVAL;
+
+			goto put_pages;
+		}
+
+		if (!IS_ALIGNED(phys_region_addr, NE_MIN_MEM_REGION_SIZE)) {
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "Physical mem region address is not 2 MiB aligned\n");
+
+			rc = -EINVAL;
+
+			goto put_pages;
+		}
+	}
+
+	ne_mem_region->memory_size = mem_region.memory_size;
+	ne_mem_region->userspace_addr = mem_region.userspace_addr;
+
+	list_add(&ne_mem_region->mem_region_list_entry, &ne_enclave->mem_regions_list);
+
+	for (i = 0; i < nr_phys_contig_mem_regions; i++) {
+		struct ne_pci_dev_cmd_reply cmd_reply = {};
+		struct slot_add_mem_req slot_add_mem_req = {};
+
+		slot_add_mem_req.slot_uid = ne_enclave->slot_uid;
+		slot_add_mem_req.paddr = page_to_phys(phys_contig_mem_regions[i]);
+		slot_add_mem_req.size = page_size(phys_contig_mem_regions[i]);
+
+		rc = ne_do_request(pdev, SLOT_ADD_MEM,
+				   &slot_add_mem_req, sizeof(slot_add_mem_req),
+				   &cmd_reply, sizeof(cmd_reply));
+		if (rc < 0) {
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "Error in slot add mem [rc=%d]\n", rc);
+
+			kfree(phys_contig_mem_regions);
+
+			/*
+			 * Exit here without put pages as memory regions may
+			 * already been added.
+			 */
+			return rc;
+		}
+
+		ne_enclave->mem_size += slot_add_mem_req.size;
+		ne_enclave->nr_mem_regions++;
+	}
+
+	kfree(phys_contig_mem_regions);
+
+	return 0;
+
+put_pages:
+	for (i = 0; i < ne_mem_region->nr_pages; i++)
+		put_page(ne_mem_region->pages[i]);
+free_mem_region:
+	kfree(phys_contig_mem_regions);
+	kfree(ne_mem_region->pages);
+	kfree(ne_mem_region);
+
+	return rc;
+}
+
+/**
  * ne_enclave_ioctl() - Ioctl function provided by the enclave file.
  * @file:	File associated with this ioctl function.
  * @cmd:	The command that is set for the ioctl call.
@@ -839,6 +1119,43 @@ static long ne_enclave_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		if (copy_to_user((void __user *)arg, &image_load_info, sizeof(image_load_info)))
 			return -EFAULT;
+
+		return 0;
+	}
+
+	case NE_SET_USER_MEMORY_REGION: {
+		struct ne_user_memory_region mem_region = {};
+		int rc = -EINVAL;
+
+		if (copy_from_user(&mem_region, (void __user *)arg, sizeof(mem_region)))
+			return -EFAULT;
+
+		if (mem_region.flags >= NE_MEMORY_REGION_MAX_FLAG_VAL) {
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "Incorrect flag for user memory region\n");
+
+			return -NE_ERR_INVALID_FLAG_VALUE;
+		}
+
+		mutex_lock(&ne_enclave->enclave_info_mutex);
+
+		if (ne_enclave->state != NE_STATE_INIT) {
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "Enclave is not in init state\n");
+
+			mutex_unlock(&ne_enclave->enclave_info_mutex);
+
+			return -NE_ERR_NOT_IN_INIT_STATE;
+		}
+
+		rc = ne_set_user_memory_region_ioctl(ne_enclave, mem_region);
+		if (rc < 0) {
+			mutex_unlock(&ne_enclave->enclave_info_mutex);
+
+			return rc;
+		}
+
+		mutex_unlock(&ne_enclave->enclave_info_mutex);
 
 		return 0;
 	}
