@@ -352,7 +352,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 		return -ENOMEM;
 
 	fbo->base = *bo;
-	fbo->base.mem.placement |= TTM_PL_FLAG_NO_EVICT;
 
 	ttm_bo_get(bo);
 	fbo->bo = bo;
@@ -372,6 +371,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
 	fbo->base.acc_size = 0;
+	fbo->base.pin_count = 1;
 	if (bo->type != ttm_bo_type_sg)
 		fbo->base.base.resv = &fbo->base.base._resv;
 
