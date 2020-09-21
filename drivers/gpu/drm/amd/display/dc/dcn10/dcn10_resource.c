@@ -1416,6 +1416,7 @@ static bool dcn10_resource_construct(
 	dc->caps.max_video_width = 3840;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
 	dc->caps.max_cursor_size = 256;
 	dc->caps.max_slave_planes = 1;
 	dc->caps.is_apu = true;

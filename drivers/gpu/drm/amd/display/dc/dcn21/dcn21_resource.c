@@ -1808,6 +1808,7 @@ static bool dcn21_resource_construct(
 
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 5; /*1.4 w/a applied by default*/
 	dc->caps.max_cursor_size = 256;
 	dc->caps.dmdata_alloc_size = 2048;
 

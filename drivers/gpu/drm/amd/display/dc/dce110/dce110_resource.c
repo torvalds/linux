@@ -1372,7 +1372,8 @@ static bool dce110_resource_construct(
 	pool->base.underlay_pipe_index = pool->base.pipe_count;
 	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 150;
-	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz = 40;
+	dc->caps.i2c_speed_in_khz_hdcp = 40;
 	dc->caps.max_cursor_size = 128;
 	dc->caps.is_apu = true;
 	dc->caps.extended_aux_timeout_support = false;
