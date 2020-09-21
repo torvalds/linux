@@ -29,7 +29,8 @@ config XFRM_USER
 
 config XFRM_USER_COMPAT
 	tristate "Compatible ABI support"
-	depends on XFRM_USER && COMPAT_FOR_U64_ALIGNMENT
+	depends on XFRM_USER && COMPAT_FOR_U64_ALIGNMENT && \
+		HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select WANT_COMPAT_NETLINK_MESSAGES
 	help
 	  Transformation(XFRM) user configuration interface like IPsec
