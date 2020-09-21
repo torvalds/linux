@@ -1505,8 +1505,7 @@ err_unlock:
 
 static int __maybe_unused ov13858_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov13858 *ov13858 = to_ov13858(sd);
 
 	if (ov13858->streaming)
@@ -1517,8 +1516,7 @@ static int __maybe_unused ov13858_suspend(struct device *dev)
 
 static int __maybe_unused ov13858_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov13858 *ov13858 = to_ov13858(sd);
 	int ret;
 
