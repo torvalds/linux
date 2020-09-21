@@ -1322,6 +1322,9 @@ static int bnxt_get_regs_len(struct net_device *dev)
 	struct bnxt *bp = netdev_priv(dev);
 	int reg_len;
 
+	if (!BNXT_PF(bp))
+		return -EOPNOTSUPP;
+
 	reg_len = BNXT_PXP_REG_LEN;
 
 	if (bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED)
