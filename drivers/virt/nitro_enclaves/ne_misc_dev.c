@@ -1325,6 +1325,171 @@ static long ne_enclave_ioctl(struct file *file, unsigned int cmd, unsigned long 
 }
 
 /**
+ * ne_enclave_remove_all_mem_region_entries() - Remove all memory region entries
+ *						from the enclave data structure.
+ * @ne_enclave :	Private data associated with the current enclave.
+ *
+ * Context: Process context. This function is called with the ne_enclave mutex held.
+ */
+static void ne_enclave_remove_all_mem_region_entries(struct ne_enclave *ne_enclave)
+{
+	unsigned long i = 0;
+	struct ne_mem_region *ne_mem_region = NULL;
+	struct ne_mem_region *ne_mem_region_tmp = NULL;
+
+	list_for_each_entry_safe(ne_mem_region, ne_mem_region_tmp,
+				 &ne_enclave->mem_regions_list,
+				 mem_region_list_entry) {
+		list_del(&ne_mem_region->mem_region_list_entry);
+
+		for (i = 0; i < ne_mem_region->nr_pages; i++)
+			put_page(ne_mem_region->pages[i]);
+
+		kfree(ne_mem_region->pages);
+
+		kfree(ne_mem_region);
+	}
+}
+
+/**
+ * ne_enclave_remove_all_vcpu_id_entries() - Remove all vCPU id entries from
+ *					     the enclave data structure.
+ * @ne_enclave :	Private data associated with the current enclave.
+ *
+ * Context: Process context. This function is called with the ne_enclave mutex held.
+ */
+static void ne_enclave_remove_all_vcpu_id_entries(struct ne_enclave *ne_enclave)
+{
+	unsigned int cpu = 0;
+	unsigned int i = 0;
+
+	mutex_lock(&ne_cpu_pool.mutex);
+
+	for (i = 0; i < ne_enclave->nr_parent_vm_cores; i++) {
+		for_each_cpu(cpu, ne_enclave->threads_per_core[i])
+			/* Update the available NE CPU pool. */
+			cpumask_set_cpu(cpu, ne_cpu_pool.avail_threads_per_core[i]);
+
+		free_cpumask_var(ne_enclave->threads_per_core[i]);
+	}
+
+	mutex_unlock(&ne_cpu_pool.mutex);
+
+	kfree(ne_enclave->threads_per_core);
+
+	free_cpumask_var(ne_enclave->vcpu_ids);
+}
+
+/**
+ * ne_pci_dev_remove_enclave_entry() - Remove the enclave entry from the data
+ *				       structure that is part of the NE PCI
+ *				       device private data.
+ * @ne_enclave :	Private data associated with the current enclave.
+ * @ne_pci_dev :	Private data associated with the PCI device.
+ *
+ * Context: Process context. This function is called with the ne_pci_dev enclave
+ *	    mutex held.
+ */
+static void ne_pci_dev_remove_enclave_entry(struct ne_enclave *ne_enclave,
+					    struct ne_pci_dev *ne_pci_dev)
+{
+	struct ne_enclave *ne_enclave_entry = NULL;
+	struct ne_enclave *ne_enclave_entry_tmp = NULL;
+
+	list_for_each_entry_safe(ne_enclave_entry, ne_enclave_entry_tmp,
+				 &ne_pci_dev->enclaves_list, enclave_list_entry) {
+		if (ne_enclave_entry->slot_uid == ne_enclave->slot_uid) {
+			list_del(&ne_enclave_entry->enclave_list_entry);
+
+			break;
+		}
+	}
+}
+
+/**
+ * ne_enclave_release() - Release function provided by the enclave file.
+ * @inode:	Inode associated with this file release function.
+ * @file:	File associated with this release function.
+ *
+ * Context: Process context.
+ * Return:
+ * * 0 on success.
+ * * Negative return value on failure.
+ */
+static int ne_enclave_release(struct inode *inode, struct file *file)
+{
+	struct ne_pci_dev_cmd_reply cmd_reply = {};
+	struct enclave_stop_req enclave_stop_request = {};
+	struct ne_enclave *ne_enclave = file->private_data;
+	struct ne_pci_dev *ne_pci_dev = ne_devs.ne_pci_dev;
+	struct pci_dev *pdev = ne_pci_dev->pdev;
+	int rc = -EINVAL;
+	struct slot_free_req slot_free_req = {};
+
+	if (!ne_enclave)
+		return 0;
+
+	/*
+	 * Early exit in case there is an error in the enclave creation logic
+	 * and fput() is called on the cleanup path.
+	 */
+	if (!ne_enclave->slot_uid)
+		return 0;
+
+	/*
+	 * Acquire the enclave list mutex before the enclave mutex
+	 * in order to avoid deadlocks with @ref ne_event_work_handler.
+	 */
+	mutex_lock(&ne_pci_dev->enclaves_list_mutex);
+	mutex_lock(&ne_enclave->enclave_info_mutex);
+
+	if (ne_enclave->state != NE_STATE_INIT && ne_enclave->state != NE_STATE_STOPPED) {
+		enclave_stop_request.slot_uid = ne_enclave->slot_uid;
+
+		rc = ne_do_request(pdev, ENCLAVE_STOP,
+				   &enclave_stop_request, sizeof(enclave_stop_request),
+				   &cmd_reply, sizeof(cmd_reply));
+		if (rc < 0) {
+			dev_err_ratelimited(ne_misc_dev.this_device,
+					    "Error in enclave stop [rc=%d]\n", rc);
+
+			goto unlock_mutex;
+		}
+
+		memset(&cmd_reply, 0, sizeof(cmd_reply));
+	}
+
+	slot_free_req.slot_uid = ne_enclave->slot_uid;
+
+	rc = ne_do_request(pdev, SLOT_FREE,
+			   &slot_free_req, sizeof(slot_free_req),
+			   &cmd_reply, sizeof(cmd_reply));
+	if (rc < 0) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "Error in slot free [rc=%d]\n", rc);
+
+		goto unlock_mutex;
+	}
+
+	ne_pci_dev_remove_enclave_entry(ne_enclave, ne_pci_dev);
+	ne_enclave_remove_all_mem_region_entries(ne_enclave);
+	ne_enclave_remove_all_vcpu_id_entries(ne_enclave);
+
+	mutex_unlock(&ne_enclave->enclave_info_mutex);
+	mutex_unlock(&ne_pci_dev->enclaves_list_mutex);
+
+	kfree(ne_enclave);
+
+	return 0;
+
+unlock_mutex:
+	mutex_unlock(&ne_enclave->enclave_info_mutex);
+	mutex_unlock(&ne_pci_dev->enclaves_list_mutex);
+
+	return rc;
+}
+
+/**
  * ne_enclave_poll() - Poll functionality used for enclave out-of-band events.
  * @file:	File associated with this poll function.
  * @wait:	Poll table data structure.
@@ -1353,6 +1518,7 @@ static const struct file_operations ne_enclave_fops = {
 	.llseek		= noop_llseek,
 	.poll		= ne_enclave_poll,
 	.unlocked_ioctl	= ne_enclave_ioctl,
+	.release	= ne_enclave_release,
 };
 
 /**
