@@ -3936,7 +3936,7 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 		return -ENOSPC;
 
 	info = IEEE80211_SKB_CB(skb);
-	if (!(info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP)) {
+	if (!(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP)) {
 		if ((ieee80211_is_action(hdr->frame_control) ||
 		     ieee80211_is_deauth(hdr->frame_control) ||
 		     ieee80211_is_disassoc(hdr->frame_control)) &&
@@ -4063,7 +4063,7 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
 	bool is_prb_rsp;
 	int ret;
 
-	if (info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP) {
+	if (info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) {
 		skb_cb->flags |= ATH11K_SKB_HW_80211_ENCAP;
 	} else if (ieee80211_is_mgmt(hdr->frame_control)) {
 		is_prb_rsp = ieee80211_is_probe_resp(hdr->frame_control);
@@ -4349,6 +4349,37 @@ static int ath11k_set_he_mu_sounding_mode(struct ath11k *ar,
 	return ret;
 }
 
+static void ath11k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
+					    struct ieee80211_vif *vif)
+{
+	struct ath11k *ar = hw->priv;
+	struct ath11k_base *ab = ar->ab;
+	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
+	u32 param_id, param_value;
+	int ret;
+
+	param_id = WMI_VDEV_PARAM_TX_ENCAP_TYPE;
+	if (ath11k_frame_mode != ATH11K_HW_TXRX_ETHERNET ||
+	    (vif->type != NL80211_IFTYPE_STATION &&
+	     vif->type != NL80211_IFTYPE_AP))
+		vif->offload_flags &= ~IEEE80211_OFFLOAD_ENCAP_ENABLED;
+
+	if (vif->offload_flags & IEEE80211_OFFLOAD_ENCAP_ENABLED)
+		param_value = ATH11K_HW_TXRX_ETHERNET;
+	else if (test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags))
+		param_value = ATH11K_HW_TXRX_RAW;
+	else
+		param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
+
+	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
+					    param_id, param_value);
+	if (ret) {
+		ath11k_warn(ab, "failed to set vdev %d tx encap mode: %d\n",
+			    arvif->vdev_id, ret);
+		vif->offload_flags &= ~IEEE80211_OFFLOAD_ENCAP_ENABLED;
+	}
+}
+
 static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif)
 {
@@ -4358,7 +4389,6 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	struct vdev_create_params vdev_param = {0};
 	struct peer_create_params peer_param;
 	u32 param_id, param_value;
-	int hw_encap = 0;
 	u16 nss;
 	int i;
 	int ret;
@@ -4452,32 +4482,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	list_add(&arvif->list, &ar->arvifs);
 	spin_unlock_bh(&ar->data_lock);
 
-	param_id = WMI_VDEV_PARAM_TX_ENCAP_TYPE;
-	if (ath11k_frame_mode == ATH11K_HW_TXRX_ETHERNET)
-		switch (vif->type) {
-		case NL80211_IFTYPE_STATION:
-		case NL80211_IFTYPE_AP_VLAN:
-		case NL80211_IFTYPE_AP:
-			hw_encap = 1;
-			break;
-		default:
-			break;
-		}
-
-	if (ieee80211_set_hw_80211_encap(vif, hw_encap))
-		param_value = ATH11K_HW_TXRX_ETHERNET;
-	else if (test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags))
-		param_value = ATH11K_HW_TXRX_RAW;
-	else
-		param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
-
-	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
-					    param_id, param_value);
-	if (ret) {
-		ath11k_warn(ab, "failed to set vdev %d tx encap mode: %d\n",
-			    arvif->vdev_id, ret);
-		goto err_vdev_del;
-	}
+	ath11k_mac_op_update_vif_offload(hw, vif);
 
 	nss = get_num_chains(ar->cfg_tx_chainmask) ? : 1;
 	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
@@ -5840,6 +5845,7 @@ static const struct ieee80211_ops ath11k_ops = {
 	.reconfig_complete              = ath11k_mac_op_reconfig_complete,
 	.add_interface                  = ath11k_mac_op_add_interface,
 	.remove_interface		= ath11k_mac_op_remove_interface,
+	.update_vif_offload		= ath11k_mac_op_update_vif_offload,
 	.config                         = ath11k_mac_op_config,
 	.bss_info_changed               = ath11k_mac_op_bss_info_changed,
 	.configure_filter		= ath11k_mac_op_configure_filter,
@@ -6148,6 +6154,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ieee80211_hw_set(ar->hw, QUEUE_CONTROL);
 	ieee80211_hw_set(ar->hw, SUPPORTS_TX_FRAG);
 	ieee80211_hw_set(ar->hw, REPORTS_LOW_ACK);
+	ieee80211_hw_set(ar->hw, SUPPORTS_TX_ENCAP_OFFLOAD);
 	if (ht_cap & WMI_HT_CAP_ENABLED) {
 		ieee80211_hw_set(ar->hw, AMPDU_AGGREGATION);
 		ieee80211_hw_set(ar->hw, TX_AMPDU_SETUP_IN_HW);

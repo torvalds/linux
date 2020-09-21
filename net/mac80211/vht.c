@@ -315,10 +315,6 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 
 	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
 
-	/* If HT IE reported 3839 bytes only, stay with that size. */
-	if (sta->sta.max_amsdu_len == IEEE80211_MAX_MPDU_LEN_HT_3839)
-		return;
-
 	switch (vht_cap->cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
 	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
 		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_11454;
