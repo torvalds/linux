@@ -73,11 +73,51 @@ void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_set_bclk);
 
+/**
+ * Returns true if the devices can be connected for audio.
+ */
+static bool connectivity_check(struct pci_dev *i915, struct pci_dev *hdac)
+{
+	struct pci_bus *bus_a = i915->bus, *bus_b = hdac->bus;
+
+	/* directly connected on the same bus */
+	if (bus_a == bus_b)
+		return true;
+
+	/*
+	 * on i915 discrete GPUs with embedded HDA audio, the two
+	 * devices are connected via 2nd level PCI bridge
+	 */
+	bus_a = bus_a->parent;
+	bus_b = bus_b->parent;
+	if (!bus_a || !bus_b)
+		return false;
+	bus_a = bus_a->parent;
+	bus_b = bus_b->parent;
+	if (bus_a && bus_a == bus_b)
+		return true;
+
+	return false;
+}
+
 static int i915_component_master_match(struct device *dev, int subcomponent,
 				       void *data)
 {
-	return !strcmp(dev->driver->name, "i915") &&
-	       subcomponent == I915_COMPONENT_AUDIO;
+	struct pci_dev *hdac_pci, *i915_pci;
+	struct hdac_bus *bus = data;
+
+	if (!dev_is_pci(dev))
+		return 0;
+
+	hdac_pci = to_pci_dev(bus->dev);
+	i915_pci = to_pci_dev(dev);
+
+	if (!strcmp(dev->driver->name, "i915") &&
+	    subcomponent == I915_COMPONENT_AUDIO &&
+	    connectivity_check(i915_pci, hdac_pci))
+		return 1;
+
+	return 0;
 }
 
 /* check whether intel graphics is present */
