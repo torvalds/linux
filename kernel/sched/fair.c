@@ -1550,7 +1550,7 @@ struct task_numa_env {
 static unsigned long cpu_load(struct rq *rq);
 static unsigned long cpu_runnable(struct rq *rq);
 static unsigned long cpu_util(int cpu);
-static inline long adjust_numa_imbalance(int imbalance, int src_nr_running);
+static inline long adjust_numa_imbalance(int imbalance, int nr_running);
 
 static inline enum
 numa_type numa_classify(unsigned int imbalance_pct,
@@ -1930,7 +1930,7 @@ static void task_numa_find_cpu(struct task_numa_env *env,
 		src_running = env->src_stats.nr_running - 1;
 		dst_running = env->dst_stats.nr_running + 1;
 		imbalance = max(0, dst_running - src_running);
-		imbalance = adjust_numa_imbalance(imbalance, src_running);
+		imbalance = adjust_numa_imbalance(imbalance, dst_running);
 
 		/* Use idle CPU if there is no imbalance */
 		if (!imbalance) {
@@ -8967,7 +8967,7 @@ next_group:
 	}
 }
 
-static inline long adjust_numa_imbalance(int imbalance, int src_nr_running)
+static inline long adjust_numa_imbalance(int imbalance, int nr_running)
 {
 	unsigned int imbalance_min;
 
@@ -8976,7 +8976,7 @@ static inline long adjust_numa_imbalance(int imbalance, int src_nr_running)
 	 * tasks that remain local when the source domain is almost idle.
 	 */
 	imbalance_min = 2;
-	if (src_nr_running <= imbalance_min)
+	if (nr_running <= imbalance_min)
 		return 0;
 
 	return imbalance;
