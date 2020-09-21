@@ -148,7 +148,7 @@ static struct rockchip_pll_rate_table rk3568_pll_rates[] = {
 
 #define RK3568_CPUCLK_RATE(_prate, _apllcore, _sclk, _acore, _atcore, _gicclk, _pclk, _periph) \
 {								\
-	.prate = _prate,					\
+	.prate = _prate##U,					\
 	.divs = {						\
 		RK3568_CLKSEL0(_apllcore),			\
 		RK3568_CLKSEL1(_sclk),				\
