@@ -858,6 +858,7 @@ static int atmel_spi_set_xfer_speed(struct atmel_spi *as,
 	csr = spi_readl(as, CSR0 + 4 * chip_select);
 	csr = SPI_BFINS(SCBR, scbr, csr);
 	spi_writel(as, CSR0 + 4 * chip_select, csr);
+	xfer->effective_speed_hz = bus_hz / scbr;
 
 	return 0;
 }
