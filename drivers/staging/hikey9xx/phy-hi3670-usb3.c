@@ -640,7 +640,7 @@ static int hi3670_phy_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(dev->of_node, "hisilicon,tx-vboost-lvl",
 				 &priv->tx_vboost_lvl))
-		priv->eye_diagram_param = KIRIN970_USB_DEFAULT_PHY_VBOOST;
+		priv->tx_vboost_lvl = KIRIN970_USB_DEFAULT_PHY_VBOOST;
 
 	phy = devm_phy_create(dev, NULL, &hi3670_phy_ops);
 	if (IS_ERR(phy))
