@@ -104,11 +104,7 @@ static int hdmi_pll_enable(struct dss_pll *dsspll)
 
 	dss_ctrl_pll_enable(DSS_PLL_HDMI, true);
 
-	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
-	if (r)
-		return r;
-
-	return 0;
+	return hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
 }
 
 static void hdmi_pll_disable(struct dss_pll *dsspll)
