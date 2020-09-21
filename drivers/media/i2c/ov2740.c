@@ -674,8 +674,7 @@ static int ov2740_set_stream(struct v4l2_subdev *sd, int enable)
 
 static int __maybe_unused ov2740_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2740 *ov2740 = to_ov2740(sd);
 
 	mutex_lock(&ov2740->mutex);
@@ -689,8 +688,7 @@ static int __maybe_unused ov2740_suspend(struct device *dev)
 
 static int __maybe_unused ov2740_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2740 *ov2740 = to_ov2740(sd);
 	int ret = 0;
 
