@@ -1348,7 +1348,7 @@ sd_init(struct sched_domain_topology_level *tl,
 	*sd = (struct sched_domain){
 		.min_interval		= sd_weight,
 		.max_interval		= 2*sd_weight,
-		.busy_factor		= 32,
+		.busy_factor		= 16,
 		.imbalance_pct		= 117,
 
 		.cache_nice_tries	= 0,
