@@ -39,16 +39,6 @@ debug logs.
 Some of the ENA devices support a working mode called Low-latency
 Queue (LLQ), which saves several more microseconds.
 
-Supported PCI vendor ID/device IDs
-==================================
-
-=========   =======================
-1d0f:0ec2   ENA PF
-1d0f:1ec2   ENA PF with LLQ support
-1d0f:ec20   ENA VF
-1d0f:ec21   ENA VF with LLQ support
-=========   =======================
-
 ENA Source Code Directory Structure
 ===================================
 
@@ -212,20 +202,11 @@ In adaptive interrupt moderation mode the interrupt delay value is
 updated by the driver dynamically and adjusted every NAPI cycle
 according to the traffic nature.
 
-By default ENA driver applies adaptive coalescing on Rx traffic and
-conventional coalescing on Tx traffic.
-
 Adaptive coalescing can be switched on/off through ethtool(8)
 adaptive_rx on|off parameter.
 
-The driver chooses interrupt delay value according to the number of
-bytes and packets received between interrupt unmasking and interrupt
-posting. The driver uses interrupt delay table that subdivides the
-range of received bytes/packets into 5 levels and assigns interrupt
-delay value to each level.
-
-The user can enable/disable adaptive moderation, modify the interrupt
-delay table and restore its default values through sysfs.
+More information about Adaptive Interrupt Moderation (DIM) can be found in
+Documentation/networking/net_dim.rst
 
 RX copybreak
 ============
