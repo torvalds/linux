@@ -549,19 +549,22 @@ exit:
 EXPORT_SYMBOL(cros_ec_query_all);
 
 /**
- * cros_ec_cmd_xfer() - Send a command to the ChromeOS EC.
+ * cros_ec_cmd_xfer_status() - Send a command to the ChromeOS EC.
  * @ec_dev: EC device.
  * @msg: Message to write.
  *
- * Call this to send a command to the ChromeOS EC.  This should be used
- * instead of calling the EC's cmd_xfer() callback directly.
+ * Call this to send a command to the ChromeOS EC. This should be used instead of calling the EC's
+ * cmd_xfer() callback directly. It returns success status only if both the command was transmitted
+ * successfully and the EC replied with success status.
  *
- * Return: 0 on success or negative error code.
+ * Return:
+ * >=0 - The number of bytes transferred
+ * <0 - Linux error code
  */
-static int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
+int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg)
 {
-	int ret;
+	int ret, mapped;
 
 	mutex_lock(&ec_dev->lock);
 	if (ec_dev->proto_version == EC_PROTO_VERSION_UNKNOWN) {
@@ -598,42 +601,17 @@ static int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 			return -EMSGSIZE;
 		}
 	}
+
 	ret = send_command(ec_dev, msg);
 	mutex_unlock(&ec_dev->lock);
 
-	return ret;
-}
-
-/**
- * cros_ec_cmd_xfer_status() - Send a command to the ChromeOS EC.
- * @ec_dev: EC device.
- * @msg: Message to write.
- *
- * This function is identical to cros_ec_cmd_xfer, except it returns success
- * status only if both the command was transmitted successfully and the EC
- * replied with success status. It's not necessary to check msg->result when
- * using this function.
- *
- * Return:
- * >=0 - The number of bytes transferred
- * <0 - Linux error code
- */
-int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
-			    struct cros_ec_command *msg)
-{
-	int ret, mapped;
-
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
-	if (ret < 0) {
-		dev_err(ec_dev->dev, "Command xfer error (err:%d)\n", ret);
-		return ret;
-	}
 	mapped = cros_ec_map_error(msg->result);
 	if (mapped) {
 		dev_dbg(ec_dev->dev, "Command result (err: %d [%d])\n",
 			msg->result, mapped);
 		ret = mapped;
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL(cros_ec_cmd_xfer_status);
