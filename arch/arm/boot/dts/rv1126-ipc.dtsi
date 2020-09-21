@@ -160,6 +160,7 @@
 };
 
 &rkispp {
+	rockchip,restart-monitor-en;
 	status = "okay";
 };
 
