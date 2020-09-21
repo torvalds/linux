@@ -7061,7 +7061,7 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	u32 i;
 	u64 *clone_sources_tmp = NULL;
 	int clone_sources_to_rollback = 0;
-	unsigned alloc_size;
+	size_t alloc_size;
 	int sort_clone_roots = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -7147,15 +7147,16 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	sctx->waiting_dir_moves = RB_ROOT;
 	sctx->orphan_dirs = RB_ROOT;
 
-	alloc_size = sizeof(struct clone_root) * (arg->clone_sources_count + 1);
-
-	sctx->clone_roots = kvzalloc(alloc_size, GFP_KERNEL);
+	sctx->clone_roots = kvcalloc(sizeof(*sctx->clone_roots),
+				     arg->clone_sources_count + 1,
+				     GFP_KERNEL);
 	if (!sctx->clone_roots) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	alloc_size = arg->clone_sources_count * sizeof(*arg->clone_sources);
+	alloc_size = array_size(sizeof(*arg->clone_sources),
+				arg->clone_sources_count);
 
 	if (arg->clone_sources_count) {
 		clone_sources_tmp = kvmalloc(alloc_size, GFP_KERNEL);
