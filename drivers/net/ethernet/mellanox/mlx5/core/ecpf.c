@@ -43,19 +43,13 @@ static void mlx5_peer_pf_cleanup(struct mlx5_core_dev *dev)
 
 int mlx5_ec_init(struct mlx5_core_dev *dev)
 {
-	int err = 0;
-
 	if (!mlx5_core_is_ecpf(dev))
 		return 0;
 
 	/* ECPF shall enable HCA for peer PF in the same way a PF
 	 * does this for its VFs.
 	 */
-	err = mlx5_peer_pf_init(dev);
-	if (err)
-		return err;
-
-	return 0;
+	return mlx5_peer_pf_init(dev);
 }
 
 void mlx5_ec_cleanup(struct mlx5_core_dev *dev)
