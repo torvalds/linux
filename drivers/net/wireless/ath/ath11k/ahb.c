@@ -718,12 +718,16 @@ err_core_free:
 static int ath11k_ahb_remove(struct platform_device *pdev)
 {
 	struct ath11k_base *ab = platform_get_drvdata(pdev);
+	unsigned long left;
 
 	reinit_completion(&ab->driver_recovery);
 
-	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags))
-		wait_for_completion_timeout(&ab->driver_recovery,
-					    ATH11K_AHB_RECOVERY_TIMEOUT);
+	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags)) {
+		left = wait_for_completion_timeout(&ab->driver_recovery,
+						   ATH11K_AHB_RECOVERY_TIMEOUT);
+		if (!left)
+			ath11k_warn(ab, "failed to receive recovery response completion\n");
+	}
 
 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
 	cancel_work_sync(&ab->restart_work);
