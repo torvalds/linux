@@ -40,9 +40,6 @@ struct nouveau_bo {
 
 	struct nouveau_drm_tile *tile;
 
-	/* protect by the ttm reservation lock */
-	int pin_refcnt;
-
 	struct ttm_bo_kmap_obj dma_buf_vmap;
 };
 
