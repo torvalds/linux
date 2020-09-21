@@ -67,7 +67,7 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 		return;
 	}
 	qbo = to_qxl_bo(bo);
-	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU, false);
+	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU);
 	*placement = qbo->placement;
 }
 

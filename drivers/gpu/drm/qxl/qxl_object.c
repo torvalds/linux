@@ -51,14 +51,12 @@ bool qxl_ttm_bo_is_qxl_bo(struct ttm_buffer_object *bo)
 	return false;
 }
 
-void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
+void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain)
 {
 	u32 c = 0;
 	u32 pflag = 0;
 	unsigned int i;
 
-	if (pinned)
-		pflag |= TTM_PL_FLAG_NO_EVICT;
 	if (qbo->tbo.base.size <= PAGE_SIZE)
 		pflag |= TTM_PL_FLAG_TOPDOWN;
 
@@ -128,14 +126,13 @@ int qxl_bo_create(struct qxl_device *qdev,
 	}
 	bo->tbo.base.funcs = &qxl_object_funcs;
 	bo->type = domain;
-	bo->pin_count = pinned ? 1 : 0;
 	bo->surface_id = 0;
 	INIT_LIST_HEAD(&bo->list);
 
 	if (surf)
 		bo->surf = *surf;
 
-	qxl_ttm_placement_from_domain(bo, domain, pinned);
+	qxl_ttm_placement_from_domain(bo, domain);
 
 	r = ttm_bo_init(&qdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, 0, !kernel, size,
@@ -147,6 +144,8 @@ int qxl_bo_create(struct qxl_device *qdev,
 				size, domain);
 		return r;
 	}
+	if (pinned)
+		ttm_bo_pin(&bo->tbo);
 	*bo_ptr = bo;
 	return 0;
 }
@@ -248,39 +247,22 @@ static int __qxl_bo_pin(struct qxl_bo *bo)
 	struct drm_device *ddev = bo->tbo.base.dev;
 	int r;
 
-	if (bo->pin_count) {
-		bo->pin_count++;
+	if (bo->tbo.pin_count) {
+		ttm_bo_pin(&bo->tbo);
 		return 0;
 	}
-	qxl_ttm_placement_from_domain(bo, bo->type, true);
+	qxl_ttm_placement_from_domain(bo, bo->type);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (likely(r == 0)) {
-		bo->pin_count = 1;
-	}
+	if (likely(r == 0))
+		ttm_bo_pin(&bo->tbo);
 	if (unlikely(r != 0))
 		dev_err(ddev->dev, "%p pin failed\n", bo);
 	return r;
 }
 
-static int __qxl_bo_unpin(struct qxl_bo *bo)
+static void __qxl_bo_unpin(struct qxl_bo *bo)
 {
-	struct ttm_operation_ctx ctx = { false, false };
-	struct drm_device *ddev = bo->tbo.base.dev;
-	int r, i;
-
-	if (!bo->pin_count) {
-		dev_warn(ddev->dev, "%p unpin not necessary\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-	for (i = 0; i < bo->placement.num_placement; i++)
-		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (unlikely(r != 0))
-		dev_err(ddev->dev, "%p validate failed for unpin\n", bo);
-	return r;
+	ttm_bo_unpin(&bo->tbo);
 }
 
 /*
@@ -314,9 +296,9 @@ int qxl_bo_unpin(struct qxl_bo *bo)
 	if (r)
 		return r;
 
-	r = __qxl_bo_unpin(bo);
+	__qxl_bo_unpin(bo);
 	qxl_bo_unreserve(bo);
-	return r;
+	return 0;
 }
 
 void qxl_bo_force_delete(struct qxl_device *qdev)
