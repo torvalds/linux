@@ -768,7 +768,6 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_gem_object *obj;
 	struct qxl_bo *user_bo;
 	struct qxl_surface surf;
-	int ret;
 
 	if (!new_state->fb)
 		return 0;
@@ -804,11 +803,7 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 		}
 	}
 
-	ret = qxl_bo_pin(user_bo);
-	if (ret)
-		return ret;
-
-	return 0;
+	return qxl_bo_pin(user_bo);
 }
 
 static void qxl_plane_cleanup_fb(struct drm_plane *plane,
