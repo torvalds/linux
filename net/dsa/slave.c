@@ -1895,9 +1895,9 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	return err;
 }
 
-static int dsa_slave_upper_vlan_check(struct net_device *dev,
-				      struct netdev_notifier_changeupper_info *
-				      info)
+static int
+dsa_prevent_bridging_8021q_upper(struct net_device *dev,
+				 struct netdev_notifier_changeupper_info *info)
 {
 	struct netlink_ext_ack *ext_ack;
 	struct net_device *slave;
@@ -1935,7 +1935,7 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		if (!dsa_slave_dev_check(dev))
-			return dsa_slave_upper_vlan_check(dev, ptr);
+			return dsa_prevent_bridging_8021q_upper(dev, ptr);
 		break;
 	case NETDEV_CHANGEUPPER:
 		if (!dsa_slave_dev_check(dev))
