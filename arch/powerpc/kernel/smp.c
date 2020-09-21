@@ -1339,19 +1339,33 @@ static inline void add_cpu_to_smallcore_masks(int cpu)
 
 static void update_coregroup_mask(int cpu)
 {
-	int first_thread = cpu_first_thread_sibling(cpu);
+	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
+	cpumask_var_t mask;
 	int coregroup_id = cpu_to_coregroup_id(cpu);
 	int i;
 
-	cpumask_set_cpu(cpu, cpu_coregroup_mask(cpu));
-	for_each_cpu_and(i, cpu_online_mask, cpu_cpu_mask(cpu)) {
-		int fcpu = cpu_first_thread_sibling(i);
+	alloc_cpumask_var_node(&mask, GFP_KERNEL, cpu_to_node(cpu));
+	cpumask_and(mask, cpu_online_mask, cpu_cpu_mask(cpu));
 
-		if (fcpu == first_thread)
-			set_cpus_related(cpu, i, cpu_coregroup_mask);
-		else if (coregroup_id == cpu_to_coregroup_id(i))
-			set_cpus_related(cpu, i, cpu_coregroup_mask);
+	if (shared_caches)
+		submask_fn = cpu_l2_cache_mask;
+
+	/* Update coregroup mask with all the CPUs that are part of submask */
+	or_cpumasks_related(cpu, cpu, submask_fn, cpu_coregroup_mask);
+
+	/* Skip all CPUs already part of coregroup mask */
+	cpumask_andnot(mask, mask, cpu_coregroup_mask(cpu));
+
+	for_each_cpu(i, mask) {
+		/* Skip all CPUs not part of this coregroup */
+		if (coregroup_id == cpu_to_coregroup_id(i)) {
+			or_cpumasks_related(cpu, i, submask_fn, cpu_coregroup_mask);
+			cpumask_andnot(mask, mask, submask_fn(i));
+		} else {
+			cpumask_andnot(mask, mask, cpu_coregroup_mask(i));
+		}
 	}
+	free_cpumask_var(mask);
 }
 
 static void add_cpu_to_masks(int cpu)
