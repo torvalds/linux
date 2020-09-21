@@ -232,15 +232,15 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	struct dsa_switch *ds = dp->ds;
 	int err;
 
-	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (!ds->ops->port_vlan_filtering)
+			return -EOPNOTSUPP;
 
-	if (!ds->ops->port_vlan_filtering)
-		return 0;
+		if (!dsa_port_can_apply_vlan_filtering(dp, vlan_filtering))
+			return -EINVAL;
 
-	if (!dsa_port_can_apply_vlan_filtering(dp, vlan_filtering))
-		return -EINVAL;
+		return 0;
+	}
 
 	if (dsa_port_is_vlan_filtering(dp) == vlan_filtering)
 		return 0;
