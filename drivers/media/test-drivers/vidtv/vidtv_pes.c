@@ -137,7 +137,7 @@ static u32 vidtv_pes_write_h(struct pes_header_write_args args)
 	struct vidtv_pes_optional pes_optional    = {};
 	struct pes_header_write_args pts_dts_args = args;
 	u32 stream_id = (args.encoder_id == S302M) ? PRIVATE_STREAM_1_ID : args.stream_id;
-	u16 pes_opt_bitfield = 0x2 << 13;
+	u16 pes_opt_bitfield = 0x01 << 15;
 
 	pes_header.bitfield = cpu_to_be32((PES_START_CODE_PREFIX << 8) | stream_id);
 
