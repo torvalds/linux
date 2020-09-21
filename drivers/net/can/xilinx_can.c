@@ -1308,7 +1308,7 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 /**
  * xcan_interrupt - CAN Isr
  * @irq:	irq number
- * @dev_id:	device id poniter
+ * @dev_id:	device id pointer
  *
  * This is the xilinx CAN Isr. It checks for the type of interrupt
  * and invokes the corresponding ISR.
