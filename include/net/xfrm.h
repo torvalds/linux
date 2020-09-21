@@ -2012,6 +2012,9 @@ struct xfrm_translator {
 			int maxtype, const struct nla_policy *policy,
 			struct netlink_ext_ack *extack);
 
+	/* Translate 32-bit user_policy from sockptr */
+	int (*xlate_user_policy_sockptr)(u8 **pdata32, int optlen);
+
 	struct module *owner;
 };
 
