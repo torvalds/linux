@@ -35,12 +35,12 @@ static struct snapshot_data {
 	bool ready;
 	bool platform_support;
 	bool free_bitmaps;
-	struct inode *bd_inode;
+	dev_t dev;
 } snapshot_state;
 
-int is_hibernate_resume_dev(const struct inode *bd_inode)
+int is_hibernate_resume_dev(dev_t dev)
 {
-	return hibernation_available() && snapshot_state.bd_inode == bd_inode;
+	return hibernation_available() && snapshot_state.dev == dev;
 }
 
 static int snapshot_open(struct inode *inode, struct file *filp)
@@ -101,7 +101,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	data->frozen = false;
 	data->ready = false;
 	data->platform_support = false;
-	data->bd_inode = NULL;
+	data->dev = 0;
 
  Unlock:
 	unlock_system_sleep();
@@ -117,7 +117,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 
 	swsusp_free();
 	data = filp->private_data;
-	data->bd_inode = NULL;
+	data->dev = 0;
 	free_all_swap_pages(data->swap);
 	if (data->frozen) {
 		pm_restore_gfp_mask();
@@ -245,7 +245,7 @@ static int snapshot_set_swap_area(struct snapshot_data *data,
 	if (data->swap < 0)
 		return -ENODEV;
 
-	data->bd_inode = bdev->bd_inode;
+	data->dev = bdev->bd_dev;
 	bdput(bdev);
 	return 0;
 }
