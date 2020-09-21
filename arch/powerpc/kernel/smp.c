@@ -1218,7 +1218,7 @@ static struct device_node *cpu_to_l2cache(int cpu)
 	return cache;
 }
 
-static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
+static bool update_mask_by_l2(int cpu)
 {
 	struct device_node *l2_cache, *np;
 	int i;
@@ -1240,7 +1240,7 @@ static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
 		return false;
 	}
 
-	cpumask_set_cpu(cpu, mask_fn(cpu));
+	cpumask_set_cpu(cpu, cpu_l2_cache_mask(cpu));
 	for_each_cpu_and(i, cpu_online_mask, cpu_cpu_mask(cpu)) {
 		/*
 		 * when updating the marks the current CPU has not been marked
@@ -1251,7 +1251,7 @@ static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
 			continue;
 
 		if (np == l2_cache)
-			set_cpus_related(cpu, i, mask_fn);
+			set_cpus_related(cpu, i, cpu_l2_cache_mask);
 
 		of_node_put(np);
 	}
@@ -1315,7 +1315,7 @@ static void add_cpu_to_masks(int cpu)
 			set_cpus_related(i, cpu, cpu_sibling_mask);
 
 	add_cpu_to_smallcore_masks(cpu);
-	update_mask_by_l2(cpu, cpu_l2_cache_mask);
+	update_mask_by_l2(cpu);
 
 	if (has_coregroup_support()) {
 		int coregroup_id = cpu_to_coregroup_id(cpu);
