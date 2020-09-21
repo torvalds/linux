@@ -2001,10 +2001,16 @@ static inline int xfrm_tunnel_check(struct sk_buff *skb, struct xfrm_state *x,
 }
 
 extern const int xfrm_msg_min[XFRM_NR_MSGTYPES];
+extern const struct nla_policy xfrma_policy[XFRMA_MAX+1];
 
 struct xfrm_translator {
 	/* Allocate frag_list and put compat translation there */
 	int (*alloc_compat)(struct sk_buff *skb, const struct nlmsghdr *src);
+
+	/* Allocate nlmsg with 64-bit translaton of received 32-bit message */
+	struct nlmsghdr *(*rcv_msg_compat)(const struct nlmsghdr *nlh,
+			int maxtype, const struct nla_policy *policy,
+			struct netlink_ext_ack *extack);
 
 	struct module *owner;
 };
