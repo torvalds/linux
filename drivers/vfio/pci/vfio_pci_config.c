@@ -467,6 +467,9 @@ static void vfio_bar_fixup(struct vfio_pci_device *vdev)
 	__le32 *vbar;
 	u64 mask;
 
+	if (!vdev->bardirty)
+		return;
+
 	vbar = (__le32 *)&vdev->vconfig[PCI_BASE_ADDRESS_0];
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++, vbar++) {
