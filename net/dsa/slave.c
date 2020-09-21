@@ -329,9 +329,10 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 			      const struct switchdev_obj *obj,
 			      struct switchdev_trans *trans)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan vlan;
-	int err;
+	int vid, err;
 
 	if (obj->orig_dev != dev)
 		return -EOPNOTSUPP;
@@ -365,6 +366,12 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	err = dsa_port_vlan_add(dp->cpu_dp, &vlan, trans);
 	if (err)
 		return err;
+
+	for (vid = vlan.vid_begin; vid <= vlan.vid_end; vid++) {
+		err = vlan_vid_add(master, htons(ETH_P_8021Q), vid);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -409,7 +416,10 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 static int dsa_slave_vlan_del(struct net_device *dev,
 			      const struct switchdev_obj *obj)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct switchdev_obj_port_vlan *vlan;
+	int vid, err;
 
 	if (obj->orig_dev != dev)
 		return -EOPNOTSUPP;
@@ -417,10 +427,19 @@ static int dsa_slave_vlan_del(struct net_device *dev,
 	if (dsa_port_skip_vlan_configuration(dp))
 		return 0;
 
+	vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
+
 	/* Do not deprogram the CPU port as it may be shared with other user
 	 * ports which can be members of this VLAN as well.
 	 */
-	return dsa_port_vlan_del(dp, SWITCHDEV_OBJ_PORT_VLAN(obj));
+	err = dsa_port_vlan_del(dp, vlan);
+	if (err)
+		return err;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++)
+		vlan_vid_del(master, htons(ETH_P_8021Q), vid);
+
+	return 0;
 }
 
 static int dsa_slave_port_obj_del(struct net_device *dev,
@@ -1265,6 +1284,7 @@ static int dsa_slave_get_ts_info(struct net_device *dev,
 static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 				     u16 vid)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan vlan = {
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
@@ -1298,12 +1318,13 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	if (ret)
 		return ret;
 
-	return 0;
+	return vlan_vid_add(master, proto, vid);
 }
 
 static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 				      u16 vid)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan vlan = {
 		.vid_begin = vid,
@@ -1311,11 +1332,18 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
 	};
+	int err;
 
 	/* Do not deprogram the CPU port as it may be shared with other user
 	 * ports which can be members of this VLAN as well.
 	 */
-	return dsa_port_vlan_del(dp, &vlan);
+	err = dsa_port_vlan_del(dp, &vlan);
+	if (err)
+		return err;
+
+	vlan_vid_del(master, proto, vid);
+
+	return 0;
 }
 
 struct dsa_hw_port {
