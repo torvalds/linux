@@ -717,6 +717,7 @@ iomap_write_end_inline(struct inode *inode, struct page *page,
 	WARN_ON_ONCE(!PageUptodate(page));
 	BUG_ON(pos + copied > PAGE_SIZE - offset_in_page(iomap->inline_data));
 
+	flush_dcache_page(page);
 	addr = kmap_atomic(page);
 	memcpy(iomap->inline_data + pos, addr + pos, copied);
 	kunmap_atomic(addr);
@@ -809,8 +810,6 @@ again:
 			flush_dcache_page(page);
 
 		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-
-		flush_dcache_page(page);
 
 		status = iomap_write_end(inode, pos, bytes, copied, page, iomap,
 				srcmap);
