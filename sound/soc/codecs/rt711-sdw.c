@@ -491,6 +491,10 @@ static int __maybe_unused rt711_dev_suspend(struct device *dev)
 	if (!rt711->hw_init)
 		return 0;
 
+	cancel_delayed_work_sync(&rt711->jack_detect_work);
+	cancel_delayed_work_sync(&rt711->jack_btn_check_work);
+	cancel_work_sync(&rt711->calibration_work);
+
 	regcache_cache_only(rt711->regmap, true);
 
 	return 0;
