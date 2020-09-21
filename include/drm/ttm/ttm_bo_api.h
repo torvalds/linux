@@ -153,6 +153,7 @@ struct ttm_buffer_object {
 
 	struct dma_fence *moving;
 	unsigned priority;
+	unsigned pin_count;
 
 	/**
 	 * Special members that are protected by the reserve lock
@@ -605,6 +606,31 @@ void ttm_bo_swapout_all(void);
 static inline bool ttm_bo_uses_embedded_gem_object(struct ttm_buffer_object *bo)
 {
 	return bo->base.dev != NULL;
+}
+
+/**
+ * ttm_bo_pin - Pin the buffer object.
+ * @bo: The buffer object to pin
+ *
+ * Make sure the buffer is not evicted any more during memory pressure.
+ */
+static inline void ttm_bo_pin(struct ttm_buffer_object *bo)
+{
+	dma_resv_assert_held(bo->base.resv);
+	++bo->pin_count;
+}
+
+/**
+ * ttm_bo_unpin - Unpin the buffer object.
+ * @bo: The buffer object to unpin
+ *
+ * Allows the buffer object to be evicted again during memory pressure.
+ */
+static inline void ttm_bo_unpin(struct ttm_buffer_object *bo)
+{
+	dma_resv_assert_held(bo->base.resv);
+	WARN_ON_ONCE(!bo->pin_count);
+	--bo->pin_count;
 }
 
 int ttm_mem_evict_first(struct ttm_bo_device *bdev,
