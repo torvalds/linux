@@ -2261,6 +2261,14 @@
 			[KVM,ARM] Allow use of GICv4 for direct injection of
 			LPIs.
 
+	kvm_cma_resv_ratio=n [PPC]
+			Reserves given percentage from system memory area for
+			contiguous memory allocation for KVM hash pagetable
+			allocation.
+			By default it reserves 5% of total system memory.
+			Format: <integer>
+			Default: 5
+
 	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
 			(virtualized MMU) support on capable Intel chips.
 			Default is 1 (enabled)
