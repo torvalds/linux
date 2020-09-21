@@ -502,7 +502,6 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 	struct vb2_buffer *vb = &vbuf->vb2_buf;
 	unsigned int type = vb->type;
 	struct hfi_frame_data fdata;
-	int ret;
 
 	memset(&fdata, 0, sizeof(fdata));
 	fdata.alloc_len = buf->size;
@@ -533,11 +532,7 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 		fdata.offset = 0;
 	}
 
-	ret = hfi_session_process_buf(inst, &fdata);
-	if (ret)
-		return ret;
-
-	return 0;
+	return hfi_session_process_buf(inst, &fdata);
 }
 
 static bool is_dynamic_bufmode(struct venus_inst *inst)
