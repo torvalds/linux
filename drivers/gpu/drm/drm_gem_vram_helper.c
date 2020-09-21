@@ -301,7 +301,7 @@ static u64 drm_gem_vram_pg_offset(struct drm_gem_vram_object *gbo)
  */
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo)
 {
-	if (WARN_ON_ONCE(!gbo->pin_count))
+	if (WARN_ON_ONCE(!gbo->bo.pin_count))
 		return (s64)-ENODEV;
 	return drm_gem_vram_pg_offset(gbo) << PAGE_SHIFT;
 }
@@ -310,24 +310,21 @@ EXPORT_SYMBOL(drm_gem_vram_offset);
 static int drm_gem_vram_pin_locked(struct drm_gem_vram_object *gbo,
 				   unsigned long pl_flag)
 {
-	int i, ret;
 	struct ttm_operation_ctx ctx = { false, false };
+	int ret;
 
-	if (gbo->pin_count)
+	if (gbo->bo.pin_count)
 		goto out;
 
 	if (pl_flag)
 		drm_gem_vram_placement(gbo, pl_flag);
-
-	for (i = 0; i < gbo->placement.num_placement; ++i)
-		gbo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
 	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
 	if (ret < 0)
 		return ret;
 
 out:
-	++gbo->pin_count;
+	ttm_bo_pin(&gbo->bo);
 
 	return 0;
 }
@@ -369,26 +366,9 @@ int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag)
 }
 EXPORT_SYMBOL(drm_gem_vram_pin);
 
-static int drm_gem_vram_unpin_locked(struct drm_gem_vram_object *gbo)
+static void drm_gem_vram_unpin_locked(struct drm_gem_vram_object *gbo)
 {
-	int i, ret;
-	struct ttm_operation_ctx ctx = { false, false };
-
-	if (WARN_ON_ONCE(!gbo->pin_count))
-		return 0;
-
-	--gbo->pin_count;
-	if (gbo->pin_count)
-		return 0;
-
-	for (i = 0; i < gbo->placement.num_placement ; ++i)
-		gbo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	ttm_bo_unpin(&gbo->bo);
 }
 
 /**
@@ -406,10 +386,11 @@ int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo)
 	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
 	if (ret)
 		return ret;
-	ret = drm_gem_vram_unpin_locked(gbo);
+
+	drm_gem_vram_unpin_locked(gbo);
 	ttm_bo_unreserve(&gbo->bo);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(drm_gem_vram_unpin);
 
