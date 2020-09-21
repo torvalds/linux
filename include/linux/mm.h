@@ -41,6 +41,8 @@ struct writeback_control;
 struct bdi_writeback;
 struct pt_regs;
 
+extern int sysctl_page_lock_unfairness;
+
 void init_mm_internals(void);
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES	/* Don't use mapnrs, do it properly */

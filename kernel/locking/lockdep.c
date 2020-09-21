@@ -3969,12 +3969,17 @@ static int separate_irq_context(struct task_struct *curr,
 static int mark_lock(struct task_struct *curr, struct held_lock *this,
 			     enum lock_usage_bit new_bit)
 {
-	unsigned int new_mask = 1 << new_bit, ret = 1;
+	unsigned int old_mask, new_mask, ret = 1;
 
 	if (new_bit >= LOCK_USAGE_STATES) {
 		DEBUG_LOCKS_WARN_ON(1);
 		return 0;
 	}
+
+	if (new_bit == LOCK_USED && this->read)
+		new_bit = LOCK_USED_READ;
+
+	new_mask = 1 << new_bit;
 
 	/*
 	 * If already set then do not dirty the cacheline,
@@ -3988,12 +3993,21 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	/*
 	 * Make sure we didn't race:
 	 */
-	if (unlikely(hlock_class(this)->usage_mask & new_mask)) {
-		graph_unlock();
-		return 1;
-	}
+	if (unlikely(hlock_class(this)->usage_mask & new_mask))
+		goto unlock;
 
+	old_mask = hlock_class(this)->usage_mask;
 	hlock_class(this)->usage_mask |= new_mask;
+
+	/*
+	 * Save one usage_traces[] entry and map both LOCK_USED and
+	 * LOCK_USED_READ onto the same entry.
+	 */
+	if (new_bit == LOCK_USED || new_bit == LOCK_USED_READ) {
+		if (old_mask & (LOCKF_USED | LOCKF_USED_READ))
+			goto unlock;
+		new_bit = LOCK_USED;
+	}
 
 	if (!(hlock_class(this)->usage_traces[new_bit] = save_trace()))
 		return 0;
@@ -4008,6 +4022,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 			return 0;
 	}
 
+unlock:
 	graph_unlock();
 
 	/*
@@ -4942,12 +4957,20 @@ static void verify_lock_unused(struct lockdep_map *lock, struct held_lock *hlock
 {
 #ifdef CONFIG_PROVE_LOCKING
 	struct lock_class *class = look_up_lock_class(lock, subclass);
+	unsigned long mask = LOCKF_USED;
 
 	/* if it doesn't have a class (yet), it certainly hasn't been used yet */
 	if (!class)
 		return;
 
-	if (!(class->usage_mask & LOCK_USED))
+	/*
+	 * READ locks only conflict with USED, such that if we only ever use
+	 * READ locks, there is no deadlock possible -- RCU.
+	 */
+	if (!hlock->read)
+		mask |= LOCKF_USED_READ;
+
+	if (!(class->usage_mask & mask))
 		return;
 
 	hlock->class_idx = class - lock_classes;
