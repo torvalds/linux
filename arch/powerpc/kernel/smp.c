@@ -1241,7 +1241,7 @@ static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
 	}
 
 	cpumask_set_cpu(cpu, mask_fn(cpu));
-	for_each_cpu(i, cpu_online_mask) {
+	for_each_cpu_and(i, cpu_online_mask, cpu_cpu_mask(cpu)) {
 		/*
 		 * when updating the marks the current CPU has not been marked
 		 * online, but we need to update the cache masks
