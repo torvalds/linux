@@ -3477,11 +3477,12 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 		rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS,
 				     cif_frmst & FRM0_STAT_CLS);
 
-		stream->frame_idx++;
 		if (vb_done) {
 			vb_done->sequence = stream->frame_idx;
 			rkcif_vb_done_oneframe(stream, vb_done);
 		}
+		stream->frame_idx++;
+		cif_dev->irq_stats.all_frm_end_cnt++;
 	}
 }
 
@@ -3676,8 +3677,6 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 	struct vb2_v4l2_buffer *vb_done = NULL;
 	unsigned long lock_flags = 0;
 
-	stream->frame_idx++;
-
 	if (stream->frame_phase & CIF_CSI_FRAME1_READY) {
 		if (stream->next_buf)
 			active_buf = stream->next_buf;
@@ -3687,6 +3686,7 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 	}
 
 	rkcif_assign_new_buffer_pingpong(stream, 0, mipi_id);
+
 	if (cif_dev->chip_id == CHIP_RV1126_CIF ||
 	    cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		rkcif_luma_isr(&cif_dev->luma_vdev, mipi_id);
@@ -3766,6 +3766,8 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 				  cif_dev->stream[3].state != RKCIF_STATE_STREAMING ? "stopped" : "running");
 		}
 	}
+
+	stream->frame_idx++;
 }
 
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
@@ -3833,8 +3835,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		if (mipi_id < 0)
 			return;
 
-		cif_dev->irq_stats.all_frm_end_cnt++;
-
 		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
 			mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev,
 						      intstat);
@@ -3874,6 +3874,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 			rkcif_update_stream(cif_dev, stream, mipi_id);
 		}
+		cif_dev->irq_stats.all_frm_end_cnt++;
 	} else {
 		u32 lastline, lastpix, ctl, cif_frmst, frmid;
 		struct rkcif_stream *stream;
@@ -3936,8 +3937,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
 					     FRAME_END_CLR);
 
-			cif_dev->irq_stats.all_frm_end_cnt++;
-
 			if (stream->stopping) {
 				rkcif_stream_stop(stream);
 				stream->stopping = false;
@@ -3975,7 +3974,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			rkcif_assign_new_buffer_oneframe(stream,
 							 RKCIF_YUV_ADDR_STATE_UPDATE);
 
-			stream->frame_idx++;
 			if (vb_done) {
 				vb_done->sequence = stream->frame_idx;
 
@@ -3988,6 +3986,9 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 					stream->fps_stats.frm1_timestamp = vb_done->vb2_buf.timestamp;
 				spin_unlock(&stream->fps_lock);
 			}
+
+			stream->frame_idx++;
+			cif_dev->irq_stats.all_frm_end_cnt++;
 		}
 	}
 }
@@ -4080,6 +4081,7 @@ void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev)
 
 			rkcif_update_stream(cif_dev, stream, mipi_id);
 		}
+		cif_dev->irq_stats.all_frm_end_cnt++;
 	}
 }
 
