@@ -650,7 +650,7 @@ static int get_next_event_xfer(struct cros_ec_device *ec_dev,
 	msg->insize = size;
 	msg->outsize = 0;
 
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	ret = cros_ec_cmd_xfer_status(ec_dev, msg);
 	if (ret > 0) {
 		ec_dev->event_size = ret - 1;
 		ec_dev->event_data = *event;
@@ -694,7 +694,7 @@ static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
 	msg->insize = sizeof(ec_dev->event_data.data);
 	msg->outsize = 0;
 
-	ec_dev->event_size = cros_ec_cmd_xfer(ec_dev, msg);
+	ec_dev->event_size = cros_ec_cmd_xfer_status(ec_dev, msg);
 	ec_dev->event_data.event_type = EC_MKBP_EVENT_KEY_MATRIX;
 	memcpy(&ec_dev->event_data.data, msg->data,
 	       sizeof(ec_dev->event_data.data));
@@ -883,11 +883,9 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 	params = (struct ec_params_motion_sense *)msg->data;
 	params->cmd = MOTIONSENSE_CMD_DUMP;
 
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 	if (ret < 0) {
 		sensor_count = ret;
-	} else if (msg->result != EC_RES_SUCCESS) {
-		sensor_count = -EPROTO;
 	} else {
 		resp = (struct ec_response_motion_sense *)msg->data;
 		sensor_count = resp->dump.sensor_count;
@@ -898,9 +896,7 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 	 * Check legacy mode: Let's find out if sensors are accessible
 	 * via LPC interface.
 	 */
-	if (sensor_count == -EPROTO &&
-	    ec->cmd_offset == 0 &&
-	    ec_dev->cmd_readmem) {
+	if (sensor_count < 0 && ec->cmd_offset == 0 && ec_dev->cmd_readmem) {
 		ret = ec_dev->cmd_readmem(ec_dev, EC_MEMMAP_ACC_STATUS,
 				1, &status);
 		if (ret >= 0 &&
@@ -915,9 +911,6 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 			 */
 			sensor_count = 0;
 		}
-	} else if (sensor_count == -EPROTO) {
-		/* EC responded, but does not understand DUMP command. */
-		sensor_count = 0;
 	}
 	return sensor_count;
 }
