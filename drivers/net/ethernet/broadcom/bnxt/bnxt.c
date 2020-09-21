@@ -3782,6 +3782,7 @@ static int bnxt_hwrm_func_qstat_ext(struct bnxt *bp,
 		return -EOPNOTSUPP;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QSTATS_EXT, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
 	req.flags = FUNC_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK;
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
