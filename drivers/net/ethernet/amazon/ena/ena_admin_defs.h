@@ -28,6 +28,7 @@ enum ena_admin_aq_completion_status {
 	ENA_ADMIN_RESOURCE_BUSY                     = 7,
 };
 
+/* subcommands for the set/get feature admin commands */
 enum ena_admin_aq_feature_id {
 	ENA_ADMIN_DEVICE_ATTRIBUTES                 = 1,
 	ENA_ADMIN_MAX_QUEUES_NUM                    = 2,
@@ -168,7 +169,7 @@ struct ena_admin_acq_common_desc {
 	u16 extended_status;
 
 	/* indicates to the driver which AQ entry has been consumed by the
-	 *    device and could be reused
+	 * device and could be reused
 	 */
 	u16 sq_head_indx;
 };
@@ -213,8 +214,8 @@ struct ena_admin_aq_create_sq_cmd {
 	 */
 	u8 sq_caps_3;
 
-	/* associated completion queue id. This CQ must be created prior to
-	 *    SQ creation
+	/* associated completion queue id. This CQ must be created prior to SQ
+	 * creation
 	 */
 	u16 cq_idx;
 
@@ -353,7 +354,7 @@ struct ena_admin_aq_get_stats_cmd {
 	u16 queue_idx;
 
 	/* device id, value 0xFFFF means mine. only privileged device can get
-	 *    stats of other device
+	 * stats of other device
 	 */
 	u16 device_id;
 };
@@ -448,7 +449,9 @@ struct ena_admin_device_attr_feature_desc {
 
 	u32 device_version;
 
-	/* bitmap of ena_admin_aq_feature_id */
+	/* bitmap of ena_admin_aq_feature_id, which represents supported
+	 * subcommands for the set/get feature admin commands.
+	 */
 	u32 supported_features;
 
 	u32 reserved3;
@@ -534,32 +537,30 @@ struct ena_admin_feature_llq_desc {
 
 	u32 max_llq_depth;
 
-	/*  specify the header locations the device supports. bitfield of
-	 *    enum ena_admin_llq_header_location.
+	/* specify the header locations the device supports. bitfield of enum
+	 * ena_admin_llq_header_location.
 	 */
 	u16 header_location_ctrl_supported;
 
 	/* the header location the driver selected to use. */
 	u16 header_location_ctrl_enabled;
 
-	/* if inline header is specified - this is the size of descriptor
-	 *    list entry. If header in a separate ring is specified - this is
-	 *    the size of header ring entry. bitfield of enum
-	 *    ena_admin_llq_ring_entry_size. specify the entry sizes the device
-	 *    supports
+	/* if inline header is specified - this is the size of descriptor list
+	 * entry. If header in a separate ring is specified - this is the size
+	 * of header ring entry. bitfield of enum ena_admin_llq_ring_entry_size.
+	 * specify the entry sizes the device supports
 	 */
 	u16 entry_size_ctrl_supported;
 
 	/* the entry size the driver selected to use. */
 	u16 entry_size_ctrl_enabled;
 
-	/* valid only if inline header is specified. First entry associated
-	 *    with the packet includes descriptors and header. Rest of the
-	 *    entries occupied by descriptors. This parameter defines the max
-	 *    number of descriptors precedding the header in the first entry.
-	 *    The field is bitfield of enum
-	 *    ena_admin_llq_num_descs_before_header and specify the values the
-	 *    device supports
+	/* valid only if inline header is specified. First entry associated with
+	 * the packet includes descriptors and header. Rest of the entries
+	 * occupied by descriptors. This parameter defines the max number of
+	 * descriptors precedding the header in the first entry. The field is
+	 * bitfield of enum ena_admin_llq_num_descs_before_header and specify
+	 * the values the device supports
 	 */
 	u16 desc_num_before_header_supported;
 
@@ -567,7 +568,7 @@ struct ena_admin_feature_llq_desc {
 	u16 desc_num_before_header_enabled;
 
 	/* valid only if inline was chosen. bitfield of enum
-	 *    ena_admin_llq_stride_ctrl
+	 * ena_admin_llq_stride_ctrl
 	 */
 	u16 descriptors_stride_ctrl_supported;
 
@@ -602,8 +603,8 @@ struct ena_admin_queue_ext_feature_fields {
 
 	u32 max_tx_header_size;
 
-	/* Maximum Descriptors number, including meta descriptor, allowed for
-	 * a single Tx packet
+	/* Maximum Descriptors number, including meta descriptor, allowed for a
+	 * single Tx packet
 	 */
 	u16 max_per_packet_tx_descs;
 
@@ -626,8 +627,8 @@ struct ena_admin_queue_feature_desc {
 
 	u32 max_header_size;
 
-	/* Maximum Descriptors number, including meta descriptor, allowed for
-	 *    a single Tx packet
+	/* Maximum Descriptors number, including meta descriptor, allowed for a
+	 * single Tx packet
 	 */
 	u16 max_packet_tx_descs;
 
@@ -1015,7 +1016,7 @@ struct ena_admin_set_feat_resp {
 struct ena_admin_aenq_common_desc {
 	u16 group;
 
-	u16 syndrom;
+	u16 syndrome;
 
 	/* 0 : phase
 	 * 7:1 : reserved - MBZ
@@ -1039,7 +1040,7 @@ enum ena_admin_aenq_group {
 	ENA_ADMIN_AENQ_GROUPS_NUM                   = 5,
 };
 
-enum ena_admin_aenq_notification_syndrom {
+enum ena_admin_aenq_notification_syndrome {
 	ENA_ADMIN_SUSPEND                           = 0,
 	ENA_ADMIN_RESUME                            = 1,
 	ENA_ADMIN_UPDATE_HINTS                      = 2,

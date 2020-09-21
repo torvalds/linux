@@ -18,8 +18,9 @@ static struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	cdesc = (struct ena_eth_io_rx_cdesc_base *)(io_cq->cdesc_addr.virt_addr
 			+ (head_masked * io_cq->cdesc_entry_size_in_bytes));
 
-	desc_phase = (READ_ONCE(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK) >>
-			ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT;
+	desc_phase = (READ_ONCE(cdesc->status) &
+		      ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK) >>
+		     ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT;
 
 	if (desc_phase != expected_phase)
 		return NULL;
@@ -62,7 +63,7 @@ static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
 		}
 
 		io_sq->entries_in_tx_burst_left--;
-		pr_debug("decreasing entries_in_tx_burst_left of queue %d to %d\n",
+		pr_debug("Decreasing entries_in_tx_burst_left of queue %d to %d\n",
 			 io_sq->qid, io_sq->entries_in_tx_burst_left);
 	}
 
@@ -101,12 +102,12 @@ static int ena_com_write_header_to_bounce(struct ena_com_io_sq *io_sq,
 
 	if (unlikely((header_offset + header_len) >
 		     llq_info->desc_list_entry_size)) {
-		pr_err("trying to write header larger than llq entry can accommodate\n");
+		pr_err("Trying to write header larger than llq entry can accommodate\n");
 		return -EFAULT;
 	}
 
 	if (unlikely(!bounce_buffer)) {
-		pr_err("bounce buffer is NULL\n");
+		pr_err("Bounce buffer is NULL\n");
 		return -EFAULT;
 	}
 
@@ -124,7 +125,7 @@ static void *get_sq_desc_llq(struct ena_com_io_sq *io_sq)
 	bounce_buffer = pkt_ctrl->curr_bounce_buf;
 
 	if (unlikely(!bounce_buffer)) {
-		pr_err("bounce buffer is NULL\n");
+		pr_err("Bounce buffer is NULL\n");
 		return NULL;
 	}
 
@@ -235,8 +236,9 @@ static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 
 		ena_com_cq_inc_head(io_cq);
 		count++;
-		last = (READ_ONCE(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
-			ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;
+		last = (READ_ONCE(cdesc->status) &
+			ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
+		       ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;
 	} while (!last);
 
 	if (last) {
@@ -248,7 +250,7 @@ static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 		io_cq->cur_rx_pkt_cdesc_count = 0;
 		io_cq->cur_rx_pkt_cdesc_start_idx = head_masked;
 
-		pr_debug("ena q_id: %d packets were completed. first desc idx %u descs# %d\n",
+		pr_debug("ENA q_id: %d packets were completed. first desc idx %u descs# %d\n",
 			 io_cq->qid, *first_cdesc_idx, count);
 	} else {
 		io_cq->cur_rx_pkt_cdesc_count += count;
@@ -331,7 +333,7 @@ static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
 }
 
 static void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
-					struct ena_eth_io_rx_cdesc_base *cdesc)
+				 struct ena_eth_io_rx_cdesc_base *cdesc)
 {
 	ena_rx_ctx->l3_proto = cdesc->status &
 		ENA_ETH_IO_RX_CDESC_BASE_L3_PROTO_IDX_MASK;
@@ -352,7 +354,7 @@ static void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT;
 
-	pr_debug("ena_rx_ctx->l3_proto %d ena_rx_ctx->l4_proto %d\nena_rx_ctx->l3_csum_err %d ena_rx_ctx->l4_csum_err %d\nhash frag %d frag: %d cdesc_status: %x\n",
+	pr_debug("l3_proto %d l4_proto %d l3_csum_err %d l4_csum_err %d hash %d frag %d cdesc_status %x\n",
 		 ena_rx_ctx->l3_proto, ena_rx_ctx->l4_proto,
 		 ena_rx_ctx->l3_csum_err, ena_rx_ctx->l4_csum_err,
 		 ena_rx_ctx->hash, ena_rx_ctx->frag, cdesc->status);
@@ -385,7 +387,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	}
 
 	if (unlikely(header_len > io_sq->tx_max_header_size)) {
-		pr_err("header size is too large %d max header: %d\n",
+		pr_err("Header size is too large %d max header: %d\n",
 		       header_len, io_sq->tx_max_header_size);
 		return -EINVAL;
 	}
@@ -400,7 +402,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 
 	rc = ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx, &have_meta);
 	if (unlikely(rc)) {
-		pr_err("failed to create and store tx meta desc\n");
+		pr_err("Failed to create and store tx meta desc\n");
 		return rc;
 	}
 
@@ -523,7 +525,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 		return 0;
 	}
 
-	pr_debug("fetch rx packet: queue %d completed desc: %d\n", io_cq->qid,
+	pr_debug("Fetch rx packet: queue %d completed desc: %d\n", io_cq->qid,
 		 nb_hw_desc);
 
 	if (unlikely(nb_hw_desc > ena_rx_ctx->max_bufs)) {
@@ -579,9 +581,9 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 	desc->length = ena_buf->len;
 
 	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK |
-		ENA_ETH_IO_RX_DESC_LAST_MASK |
-		(io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK) |
-		ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
+		     ENA_ETH_IO_RX_DESC_LAST_MASK |
+		     (io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK) |
+		     ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
 
 	desc->req_id = req_id;
 

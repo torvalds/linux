@@ -140,7 +140,7 @@ static inline bool ena_com_is_doorbell_needed(struct ena_com_io_sq *io_sq,
 						   llq_info->descs_per_entry);
 	}
 
-	pr_debug("queue: %d num_descs: %d num_entries_needed: %d\n", io_sq->qid,
+	pr_debug("Queue: %d num_descs: %d num_entries_needed: %d\n", io_sq->qid,
 		 num_descs, num_entries_needed);
 
 	return num_entries_needed > io_sq->entries_in_tx_burst_left;
@@ -151,13 +151,13 @@ static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 	u16 max_entries_in_tx_burst = io_sq->llq_info.max_entries_in_tx_burst;
 	u16 tail = io_sq->tail;
 
-	pr_debug("write submission queue doorbell for queue: %d tail: %d\n",
+	pr_debug("Write submission queue doorbell for queue: %d tail: %d\n",
 		 io_sq->qid, tail);
 
 	writel(tail, io_sq->db_addr);
 
 	if (is_llq_max_tx_burst_exists(io_sq)) {
-		pr_debug("reset available entries in tx burst for queue %d to %d\n",
+		pr_debug("Reset available entries in tx burst for queue %d to %d\n",
 			 io_sq->qid, max_entries_in_tx_burst);
 		io_sq->entries_in_tx_burst_left = max_entries_in_tx_burst;
 	}

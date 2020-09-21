@@ -939,7 +939,7 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 				   GFP_ATOMIC);
 	if (!strings_buf) {
 		netif_err(adapter, drv, netdev,
-			  "failed to alloc strings_buf\n");
+			  "Failed to allocate strings_buf\n");
 		return;
 	}
 
