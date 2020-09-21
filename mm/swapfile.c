@@ -1801,13 +1801,12 @@ int free_swap_and_cache(swp_entry_t entry)
  *
  * This is needed for the suspend to disk (aka swsusp).
  */
-int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
+int swap_type_of(dev_t device, sector_t offset)
 {
-	struct block_device *bdev = NULL;
 	int type;
 
-	if (device)
-		bdev = bdget(device);
+	if (!device)
+		return -1;
 
 	spin_lock(&swap_lock);
 	for (type = 0; type < nr_swapfiles; type++) {
@@ -1816,30 +1815,34 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
 		if (!(sis->flags & SWP_WRITEOK))
 			continue;
 
-		if (!bdev) {
-			if (bdev_p)
-				*bdev_p = bdgrab(sis->bdev);
-
-			spin_unlock(&swap_lock);
-			return type;
-		}
-		if (bdev == sis->bdev) {
+		if (device == sis->bdev->bd_dev) {
 			struct swap_extent *se = first_se(sis);
 
 			if (se->start_block == offset) {
-				if (bdev_p)
-					*bdev_p = bdgrab(sis->bdev);
-
 				spin_unlock(&swap_lock);
-				bdput(bdev);
 				return type;
 			}
 		}
 	}
 	spin_unlock(&swap_lock);
-	if (bdev)
-		bdput(bdev);
+	return -ENODEV;
+}
 
+int find_first_swap(dev_t *device)
+{
+	int type;
+
+	spin_lock(&swap_lock);
+	for (type = 0; type < nr_swapfiles; type++) {
+		struct swap_info_struct *sis = swap_info[type];
+
+		if (!(sis->flags & SWP_WRITEOK))
+			continue;
+		*device = sis->bdev->bd_dev;
+		spin_unlock(&swap_lock);
+		return type;
+	}
+	spin_unlock(&swap_lock);
 	return -ENODEV;
 }
 

@@ -335,12 +335,17 @@ static int swsusp_swap_check(void)
 {
 	int res;
 
-	res = swap_type_of(swsusp_resume_device, swsusp_resume_block,
-			&hib_resume_bdev);
+	if (swsusp_resume_device)
+		res = swap_type_of(swsusp_resume_device, swsusp_resume_block);
+	else
+		res = find_first_swap(&swsusp_resume_device);
 	if (res < 0)
 		return res;
-
 	root_swap = res;
+
+	hib_resume_bdev = bdget(swsusp_resume_device);
+	if (!hib_resume_bdev)
+		return -ENOMEM;
 	res = blkdev_get(hib_resume_bdev, FMODE_WRITE, NULL);
 	if (res)
 		return res;
@@ -349,12 +354,6 @@ static int swsusp_swap_check(void)
 	if (res < 0)
 		blkdev_put(hib_resume_bdev, FMODE_WRITE);
 
-	/*
-	 * Update the resume device to the one actually used,
-	 * so the test_resume mode can use it in case it is
-	 * invoked from hibernate() to test the snapshot.
-	 */
-	swsusp_resume_device = hib_resume_bdev->bd_dev;
 	return res;
 }
 
