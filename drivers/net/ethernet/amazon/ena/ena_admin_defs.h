@@ -5,6 +5,7 @@
 #ifndef _ENA_ADMIN_H_
 #define _ENA_ADMIN_H_
 
+#define ENA_ADMIN_RSS_KEY_PARTS              10
 
 enum ena_admin_aq_opcode {
 	ENA_ADMIN_CREATE_SQ                         = 1,
@@ -37,7 +38,7 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_MAX_QUEUES_EXT                    = 7,
 	ENA_ADMIN_RSS_HASH_FUNCTION                 = 10,
 	ENA_ADMIN_STATELESS_OFFLOAD_CONFIG          = 11,
-	ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG      = 12,
+	ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG      = 12,
 	ENA_ADMIN_MTU                               = 14,
 	ENA_ADMIN_RSS_HASH_INPUT                    = 18,
 	ENA_ADMIN_INTERRUPT_MODERATION              = 20,
@@ -716,11 +717,11 @@ enum ena_admin_hash_functions {
 };
 
 struct ena_admin_feature_rss_flow_hash_control {
-	u32 keys_num;
+	u32 key_parts;
 
 	u32 reserved;
 
-	u32 key[10];
+	u32 key[ENA_ADMIN_RSS_KEY_PARTS];
 };
 
 struct ena_admin_feature_rss_flow_hash_function {

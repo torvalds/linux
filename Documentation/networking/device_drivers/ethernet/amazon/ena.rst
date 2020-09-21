@@ -274,7 +274,7 @@ RSS
   inputs for hash functions.
 - The driver configures RSS settings using the AQ SetFeature command
   (ENA_ADMIN_RSS_HASH_FUNCTION, ENA_ADMIN_RSS_HASH_INPUT and
-  ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG properties).
+  ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG properties).
 - If the NETIF_F_RXHASH flag is set, the 32-bit result of the hash
   function delivered in the Rx CQ descriptor is set in the received
   SKB.
