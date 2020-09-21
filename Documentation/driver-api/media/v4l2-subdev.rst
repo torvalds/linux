@@ -138,6 +138,9 @@ ensures that width, height and the media bus pixel code are equal on both source
 and sink of the link. Subdev drivers are also free to use this function to
 perform the checks mentioned above in addition to their own checks.
 
+Subdev registration
+~~~~~~~~~~~~~~~~~~~
+
 There are currently two ways to register subdevices with the V4L2 core. The
 first (traditional) possibility is to have subdevices registered by bridge
 drivers. This can be done when the bridge driver has the complete information
@@ -157,7 +160,7 @@ below.
 Using one or the other registration method only affects the probing process, the
 run-time bridge-subdevice interaction is in both cases the same.
 
-In the synchronous case a device (bridge) driver needs to register the
+In the **synchronous** case a device (bridge) driver needs to register the
 :c:type:`v4l2_subdev` with the v4l2_device:
 
 	:c:func:`v4l2_device_register_subdev <v4l2_device_register_subdev>`
@@ -238,9 +241,9 @@ contain several subdevs that use an I2C bus, but also a subdev that is
 controlled through GPIO pins. This distinction is only relevant when setting
 up the device, but once the subdev is registered it is completely transparent.
 
-In the asynchronous case subdevice probing can be invoked independently of the
-bridge driver availability. The subdevice driver then has to verify whether all
-the requirements for a successful probing are satisfied. This can include a
+In the **asynchronous** case subdevice probing can be invoked independently of
+the bridge driver availability. The subdevice driver then has to verify whether
+all the requirements for a successful probing are satisfied. This can include a
 check for a master clock availability. If any of the conditions aren't satisfied
 the driver might decide to return ``-EPROBE_DEFER`` to request further reprobing
 attempts. Once all conditions are met the subdevice shall be registered using
