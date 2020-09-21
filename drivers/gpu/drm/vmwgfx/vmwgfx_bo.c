@@ -106,7 +106,7 @@ int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		goto err;
 
-	if (buf->pin_count > 0)
+	if (buf->base.pin_count > 0)
 		ret = ttm_bo_mem_compat(placement, &bo->mem,
 					&new_flags) == true ? 0 : -EINVAL;
 	else
@@ -155,7 +155,7 @@ int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		goto err;
 
-	if (buf->pin_count > 0) {
+	if (buf->base.pin_count > 0) {
 		ret = ttm_bo_mem_compat(&vmw_vram_gmr_placement, &bo->mem,
 					&new_flags) == true ? 0 : -EINVAL;
 		goto out_unreserve;
@@ -246,12 +246,12 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	if (bo->mem.mem_type == TTM_PL_VRAM &&
 	    bo->mem.start < bo->num_pages &&
 	    bo->mem.start > 0 &&
-	    buf->pin_count == 0) {
+	    buf->base.pin_count == 0) {
 		ctx.interruptible = false;
 		(void) ttm_bo_validate(bo, &vmw_sys_placement, &ctx);
 	}
 
-	if (buf->pin_count > 0)
+	if (buf->base.pin_count > 0)
 		ret = ttm_bo_mem_compat(&placement, &bo->mem,
 					&new_flags) == true ? 0 : -EINVAL;
 	else
@@ -343,23 +343,13 @@ void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 
 	dma_resv_assert_held(bo->base.resv);
 
-	if (pin) {
-		if (vbo->pin_count++ > 0)
-			return;
-	} else {
-		WARN_ON(vbo->pin_count <= 0);
-		if (--vbo->pin_count > 0)
-			return;
-	}
+	if (pin == !!bo->pin_count)
+		return;
 
 	pl.fpfn = 0;
 	pl.lpfn = 0;
 	pl.mem_type = bo->mem.mem_type;
 	pl.flags = bo->mem.placement;
-	if (pin)
-		pl.flags |= TTM_PL_FLAG_NO_EVICT;
-	else
-		pl.flags &= ~TTM_PL_FLAG_NO_EVICT;
 
 	memset(&placement, 0, sizeof(placement));
 	placement.num_placement = 1;
@@ -368,8 +358,12 @@ void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 	ret = ttm_bo_validate(bo, &placement, &ctx);
 
 	BUG_ON(ret != 0 || bo->mem.mem_type != old_mem_type);
-}
 
+	if (pin)
+		ttm_bo_pin(bo);
+	else
+		ttm_bo_unpin(bo);
+}
 
 /**
  * vmw_bo_map_and_cache - Map a buffer object and cache the map
@@ -539,6 +533,7 @@ error_free:
  * @size: Buffer object size in bytes.
  * @placement: Initial placement.
  * @interruptible: Whether waits should be performed interruptible.
+ * @pin: If the BO should be created pinned at a fixed location.
  * @bo_free: The buffer object destructor.
  * Returns: Zero on success, negative error code on error.
  *
@@ -547,9 +542,10 @@ error_free:
 int vmw_bo_init(struct vmw_private *dev_priv,
 		struct vmw_buffer_object *vmw_bo,
 		size_t size, struct ttm_placement *placement,
-		bool interruptible,
+		bool interruptible, bool pin,
 		void (*bo_free)(struct ttm_buffer_object *bo))
 {
+	struct ttm_operation_ctx ctx = { interruptible, false };
 	struct ttm_bo_device *bdev = &dev_priv->bdev;
 	size_t acc_size;
 	int ret;
@@ -563,11 +559,16 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 	vmw_bo->base.priority = 3;
 	vmw_bo->res_tree = RB_ROOT;
 
-	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
-			  ttm_bo_type_device, placement,
-			  0, interruptible, acc_size,
-			  NULL, NULL, bo_free);
-	return ret;
+	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, size,
+				   ttm_bo_type_device, placement,
+				   0, &ctx, acc_size, NULL, NULL, bo_free);
+	if (unlikely(ret))
+		return ret;
+
+	if (pin)
+		ttm_bo_pin(&vmw_bo->base);
+	ttm_bo_unreserve(&vmw_bo->base);
+	return 0;
 }
 
 
@@ -656,7 +657,7 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 	ret = vmw_bo_init(dev_priv, &user_bo->vbo, size,
 			  (dev_priv->has_mob) ?
 			  &vmw_sys_placement :
-			  &vmw_vram_sys_placement, true,
+			  &vmw_vram_sys_placement, true, false,
 			  &vmw_user_bo_destroy);
 	if (unlikely(ret != 0))
 		return ret;

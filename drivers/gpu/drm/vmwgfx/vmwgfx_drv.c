@@ -372,7 +372,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 		return -ENOMEM;
 
 	ret = vmw_bo_init(dev_priv, vbo, PAGE_SIZE,
-			  &vmw_sys_ne_placement, false,
+			  &vmw_sys_placement, false, true,
 			  &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		return ret;
