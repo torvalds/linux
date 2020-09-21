@@ -595,9 +595,10 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_nb;
 
-		pr_info("%s NB counters detected\n",
-			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?
-				"HYGON" : "AMD");
+		pr_info("%d %s %s counters detected\n", num_counters_nb,
+			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?  "HYGON" : "",
+			amd_nb_pmu.name);
+
 		ret = 0;
 	}
 
@@ -626,9 +627,9 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_llc;
 
-		pr_info("%s LLC counters detected\n",
-			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?
-				"HYGON" : "AMD");
+		pr_info("%d %s %s counters detected\n", num_counters_llc,
+			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?  "HYGON" : "",
+			amd_llc_pmu.name);
 		ret = 0;
 	}
 
