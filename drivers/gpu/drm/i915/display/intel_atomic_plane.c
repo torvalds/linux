@@ -408,7 +408,11 @@ void intel_update_plane(struct intel_plane *plane,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	trace_intel_update_plane(&plane->base, crtc);
-	plane->update_plane(plane, crtc_state, plane_state);
+
+	if (crtc_state->uapi.async_flip && plane->async_flip)
+		plane->async_flip(plane, crtc_state, plane_state);
+	else
+		plane->update_plane(plane, crtc_state, plane_state);
 }
 
 void intel_disable_plane(struct intel_plane *plane,
