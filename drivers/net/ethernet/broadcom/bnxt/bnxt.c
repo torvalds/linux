@@ -12090,7 +12090,7 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 static void bnxt_vpd_read_info(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
-	int i, len, pos, ro_size;
+	int i, len, pos, ro_size, size;
 	ssize_t vpd_size;
 	u8 *vpd_data;
 
@@ -12125,7 +12125,8 @@ static void bnxt_vpd_read_info(struct bnxt *bp)
 	if (len + pos > vpd_size)
 		goto read_sn;
 
-	strlcpy(bp->board_partno, &vpd_data[pos], min(len, BNXT_VPD_FLD_LEN));
+	size = min(len, BNXT_VPD_FLD_LEN - 1);
+	memcpy(bp->board_partno, &vpd_data[pos], size);
 
 read_sn:
 	pos = pci_vpd_find_info_keyword(vpd_data, i, ro_size,
@@ -12138,7 +12139,8 @@ read_sn:
 	if (len + pos > vpd_size)
 		goto exit;
 
-	strlcpy(bp->board_serialno, &vpd_data[pos], min(len, BNXT_VPD_FLD_LEN));
+	size = min(len, BNXT_VPD_FLD_LEN - 1);
+	memcpy(bp->board_serialno, &vpd_data[pos], size);
 exit:
 	kfree(vpd_data);
 }
