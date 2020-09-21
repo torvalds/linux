@@ -47,44 +47,18 @@ static struct vidtv_mux_pid_ctx
 	struct vidtv_mux_pid_ctx *ctx;
 
 	ctx = vidtv_mux_get_pid_ctx(m, pid);
-
 	if (ctx)
-		goto end;
+		return ctx;
 
-	ctx      = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
 	ctx->pid = pid;
 	ctx->cc  = 0;
 	hash_add(m->pid_ctx, &ctx->h, pid);
 
-end:
 	return ctx;
-}
-
-static void vidtv_mux_pid_ctx_init(struct vidtv_mux *m)
-{
-	struct vidtv_psi_table_pat_program *p = m->si.pat->program;
-	u16 pid;
-
-	hash_init(m->pid_ctx);
-	/* push the pcr pid ctx */
-	vidtv_mux_create_pid_ctx_once(m, m->pcr_pid);
-	/* push the null packet pid ctx */
-	vidtv_mux_create_pid_ctx_once(m, TS_NULL_PACKET_PID);
-	/* push the PAT pid ctx */
-	vidtv_mux_create_pid_ctx_once(m, VIDTV_PAT_PID);
-	/* push the SDT pid ctx */
-	vidtv_mux_create_pid_ctx_once(m, VIDTV_SDT_PID);
-	/* push the NIT pid ctx */
-	vidtv_mux_create_pid_ctx_once(m, VIDTV_NIT_PID);
-	/* push the EIT pid ctx */
-	vidtv_mux_create_pid_ctx_once(m, VIDTV_EIT_PID);
-
-	/* add a ctx for all PMT sections */
-	while (p) {
-		pid = vidtv_psi_get_pat_program_pid(p);
-		vidtv_mux_create_pid_ctx_once(m, pid);
-		p = p->next;
-	}
 }
 
 static void vidtv_mux_pid_ctx_destroy(struct vidtv_mux *m)
@@ -97,6 +71,45 @@ static void vidtv_mux_pid_ctx_destroy(struct vidtv_mux *m)
 		hash_del(&ctx->h);
 		kfree(ctx);
 	}
+}
+
+static int vidtv_mux_pid_ctx_init(struct vidtv_mux *m)
+{
+	struct vidtv_psi_table_pat_program *p = m->si.pat->program;
+	u16 pid;
+
+	hash_init(m->pid_ctx);
+	/* push the pcr pid ctx */
+	if (!vidtv_mux_create_pid_ctx_once(m, m->pcr_pid))
+		return -ENOMEM;
+	/* push the NULL packet pid ctx */
+	if (!vidtv_mux_create_pid_ctx_once(m, TS_NULL_PACKET_PID))
+		goto free;
+	/* push the PAT pid ctx */
+	if (!vidtv_mux_create_pid_ctx_once(m, VIDTV_PAT_PID))
+		goto free;
+	/* push the SDT pid ctx */
+	if (!vidtv_mux_create_pid_ctx_once(m, VIDTV_SDT_PID))
+		goto free;
+	/* push the NIT pid ctx */
+	if (!vidtv_mux_create_pid_ctx_once(m, VIDTV_NIT_PID))
+		goto free;
+	/* push the EIT pid ctx */
+	if (!vidtv_mux_create_pid_ctx_once(m, VIDTV_EIT_PID))
+		goto free;
+
+	/* add a ctx for all PMT sections */
+	while (p) {
+		pid = vidtv_psi_get_pat_program_pid(p);
+		vidtv_mux_create_pid_ctx_once(m, pid);
+		p = p->next;
+	}
+
+	return 0;
+
+free:
+	vidtv_mux_pid_ctx_destroy(m);
+	return -ENOMEM;
 }
 
 static void vidtv_mux_update_clk(struct vidtv_mux *m)
@@ -455,7 +468,11 @@ struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 				 struct device *dev,
 				 struct vidtv_mux_init_args args)
 {
-	struct vidtv_mux *m = kzalloc(sizeof(*m), GFP_KERNEL);
+	struct vidtv_mux *m;
+
+	m = kzalloc(sizeof(*m), GFP_KERNEL);
+	if (!m)
+		return NULL;
 
 	m->dev = dev;
 	m->fe = fe;
@@ -467,6 +484,9 @@ struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 	m->on_new_packets_available_cb = args.on_new_packets_available_cb;
 
 	m->mux_buf = vzalloc(args.mux_buf_sz);
+	if (!m->mux_buf)
+		goto free_mux;
+
 	m->mux_buf_sz = args.mux_buf_sz;
 
 	m->pcr_pid = args.pcr_pid;
@@ -479,16 +499,29 @@ struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 	if (args.channels)
 		m->channels = args.channels;
 	else
-		vidtv_channels_init(m);
+		if (vidtv_channels_init(m) < 0)
+			goto free_mux_buf;
 
 	/* will alloc data for pmt_sections after initializing pat */
-	vidtv_channel_si_init(m);
+	if (vidtv_channel_si_init(m) < 0)
+		goto free_channels;
 
 	INIT_WORK(&m->mpeg_thread, vidtv_mux_tick);
 
-	vidtv_mux_pid_ctx_init(m);
+	if (vidtv_mux_pid_ctx_init(m) < 0)
+		goto free_channel_si;
 
 	return m;
+
+free_channel_si:
+	vidtv_channel_si_destroy(m);
+free_channels:
+	vidtv_channels_destroy(m);
+free_mux_buf:
+	vfree(m->mux_buf);
+free_mux:
+	kfree(m);
+	return NULL;
 }
 
 void vidtv_mux_destroy(struct vidtv_mux *m)

@@ -144,7 +144,11 @@ static const struct tone_duration beethoven_5th_symphony[] = {
 
 static struct vidtv_access_unit *vidtv_s302m_access_unit_init(struct vidtv_access_unit *head)
 {
-	struct vidtv_access_unit *au = kzalloc(sizeof(*au), GFP_KERNEL);
+	struct vidtv_access_unit *au;
+
+	au = kzalloc(sizeof(*au), GFP_KERNEL);
+	if (!au)
+		return NULL;
 
 	if (head) {
 		while (head->next)
@@ -441,9 +445,13 @@ static u32 vidtv_s302m_clear(struct vidtv_encoder *e)
 struct vidtv_encoder
 *vidtv_s302m_encoder_init(struct vidtv_s302m_encoder_init_args args)
 {
-	struct vidtv_encoder *e = kzalloc(sizeof(*e), GFP_KERNEL);
+	struct vidtv_encoder *e;
 	u32 priv_sz = sizeof(struct vidtv_s302m_ctx);
-	struct vidtv_s302m_ctx *ctx = kzalloc(priv_sz, GFP_KERNEL);
+	struct vidtv_s302m_ctx *ctx;
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (!e)
+		return NULL;
 
 	e->id = S302M;
 
@@ -461,6 +469,11 @@ struct vidtv_encoder
 	e->src_buf_offset = 0;
 
 	e->is_video_encoder = false;
+
+	ctx = kzalloc(priv_sz, GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
 	e->ctx = ctx;
 	ctx->last_duration = 0;
 

@@ -57,54 +57,75 @@ struct vidtv_channel
 	const u16 s302m_program_pid         = 0x101; /* packet id for PMT*/
 	const u16 s302m_es_pid              = 0x111; /* packet id for the ES */
 	const __be32 s302m_fid              = cpu_to_be32(VIDTV_S302M_FORMAT_IDENTIFIER);
-
 	char *name = ENCODING_ISO8859_15 "Beethoven";
 	char *provider = ENCODING_ISO8859_15 "LinuxTV.org";
 	char *iso_language_code = ENCODING_ISO8859_15 "eng";
 	char *event_name = ENCODING_ISO8859_15 "Beethoven Music";
 	char *event_text = ENCODING_ISO8859_15 "Beethoven's 5th Symphony";
 	const u16 s302m_beethoven_event_id  = 1;
-
-	struct vidtv_channel *s302m = kzalloc(sizeof(*s302m), GFP_KERNEL);
+	struct vidtv_channel *s302m;
 	struct vidtv_s302m_encoder_init_args encoder_args = {};
 
+	s302m = kzalloc(sizeof(*s302m), GFP_KERNEL);
+	if (!s302m)
+		return NULL;
+
 	s302m->name = kstrdup(name, GFP_KERNEL);
+	if (!s302m->name)
+		goto free_s302m;
 
 	s302m->service = vidtv_psi_sdt_service_init(NULL, s302m_service_id, false, true);
+	if (!s302m->service)
+		goto free_name;
 
 	s302m->service->descriptor = (struct vidtv_psi_desc *)
 				     vidtv_psi_service_desc_init(NULL,
 								 DIGITAL_TELEVISION_SERVICE,
 								 name,
 								 provider);
+	if (!s302m->service->descriptor)
+		goto free_service;
 
 	s302m->transport_stream_id = transport_stream_id;
 
 	s302m->program = vidtv_psi_pat_program_init(NULL,
 						    s302m_service_id,
 						    s302m_program_pid);
+	if (!s302m->program)
+		goto free_service;
 
 	s302m->program_num = s302m_program_num;
 
 	s302m->streams = vidtv_psi_pmt_stream_init(NULL,
 						   STREAM_PRIVATE_DATA,
 						   s302m_es_pid);
+	if (!s302m->streams)
+		goto free_program;
 
 	s302m->streams->descriptor = (struct vidtv_psi_desc *)
 				     vidtv_psi_registration_desc_init(NULL,
 								      s302m_fid,
 								      NULL,
 								      0);
+	if (!s302m->streams->descriptor)
+		goto free_streams;
+
 	encoder_args.es_pid = s302m_es_pid;
 
 	s302m->encoders = vidtv_s302m_encoder_init(encoder_args);
+	if (!s302m->encoders)
+		goto free_streams;
 
 	s302m->events = vidtv_psi_eit_event_init(NULL, s302m_beethoven_event_id);
+	if (!s302m->events)
+		goto free_encoders;
 	s302m->events->descriptor = (struct vidtv_psi_desc *)
 				    vidtv_psi_short_event_desc_init(NULL,
 								    iso_language_code,
 								    event_name,
 								    event_text);
+	if (!s302m->events->descriptor)
+		goto free_events;
 
 	if (head) {
 		while (head->next)
@@ -114,6 +135,23 @@ struct vidtv_channel
 	}
 
 	return s302m;
+
+free_events:
+	vidtv_psi_eit_event_destroy(s302m->events);
+free_encoders:
+	vidtv_s302m_encoder_destroy(s302m->encoders);
+free_streams:
+	vidtv_psi_pmt_stream_destroy(s302m->streams);
+free_program:
+	vidtv_psi_pat_program_destroy(s302m->program);
+free_service:
+	vidtv_psi_sdt_service_destroy(s302m->service);
+free_name:
+	kfree(s302m->name);
+free_s302m:
+	kfree(s302m);
+
+	return NULL;
 }
 
 static struct vidtv_psi_table_eit_event
@@ -142,6 +180,10 @@ static struct vidtv_psi_table_eit_event
 		while (curr) {
 			event_id = be16_to_cpu(curr->event_id);
 			tail = vidtv_psi_eit_event_init(tail, event_id);
+			if (!tail) {
+				vidtv_psi_eit_event_destroy(head);
+				return NULL;
+			}
 
 			desc = vidtv_psi_desc_clone(curr->descriptor);
 			vidtv_psi_desc_assign(&tail->descriptor, desc);
@@ -187,8 +229,12 @@ static struct vidtv_psi_table_sdt_service
 							  service_id,
 							  curr->EIT_schedule,
 							  curr->EIT_present_following);
+			if (!tail)
+				goto free;
 
 			desc = vidtv_psi_desc_clone(curr->descriptor);
+			if (!desc)
+				goto free_tail;
 			vidtv_psi_desc_assign(&tail->descriptor, desc);
 
 			if (!head)
@@ -201,6 +247,12 @@ static struct vidtv_psi_table_sdt_service
 	}
 
 	return head;
+
+free_tail:
+	vidtv_psi_sdt_service_destroy(tail);
+free:
+	vidtv_psi_sdt_service_destroy(head);
+	return NULL;
 }
 
 static struct vidtv_psi_table_pat_program*
@@ -231,6 +283,10 @@ vidtv_channel_pat_prog_cat_into_new(struct vidtv_mux *m)
 			tail = vidtv_psi_pat_program_init(tail,
 							  serv_id,
 							  pid);
+			if (!tail) {
+				vidtv_psi_pat_program_destroy(head);
+				return NULL;
+			}
 
 			if (!head)
 				head = tail;
@@ -303,6 +359,17 @@ vidtv_channel_pmt_match_sections(struct vidtv_channel *channels,
 	}
 }
 
+static void vidtv_channel_destroy_service_list(struct vidtv_psi_desc_service_list_entry *e)
+{
+	struct vidtv_psi_desc_service_list_entry *tmp;
+
+	while (e) {
+		tmp = e;
+		e = e->next;
+		kfree(tmp);
+	}
+}
+
 static struct vidtv_psi_desc_service_list_entry
 *vidtv_channel_build_service_list(struct vidtv_psi_table_sdt_service *s)
 {
@@ -320,6 +387,11 @@ static struct vidtv_psi_desc_service_list_entry
 			s_desc = (struct vidtv_psi_desc_service *)desc;
 
 			curr_e = kzalloc(sizeof(*curr_e), GFP_KERNEL);
+			if (!curr_e) {
+				vidtv_channel_destroy_service_list(head_e);
+				return NULL;
+			}
+
 			curr_e->service_id = s->service_id;
 			curr_e->service_type = s_desc->service_type;
 
@@ -338,18 +410,7 @@ next_desc:
 	return head_e;
 }
 
-static void vidtv_channel_destroy_service_list(struct vidtv_psi_desc_service_list_entry *e)
-{
-	struct vidtv_psi_desc_service_list_entry *tmp;
-
-	while (e) {
-		tmp = e;
-		e = e->next;
-		kfree(tmp);
-	}
-}
-
-void vidtv_channel_si_init(struct vidtv_mux *m)
+int vidtv_channel_si_init(struct vidtv_mux *m)
 {
 	struct vidtv_psi_table_pat_program *programs = NULL;
 	struct vidtv_psi_table_sdt_service *services = NULL;
@@ -357,24 +418,41 @@ void vidtv_channel_si_init(struct vidtv_mux *m)
 	struct vidtv_psi_table_eit_event *events = NULL;
 
 	m->si.pat = vidtv_psi_pat_table_init(m->transport_stream_id);
+	if (!m->si.pat)
+		return -ENOMEM;
 
 	m->si.sdt = vidtv_psi_sdt_table_init(m->transport_stream_id);
+	if (!m->si.sdt)
+		goto free_pat;
 
 	programs = vidtv_channel_pat_prog_cat_into_new(m);
+	if (!programs)
+		goto free_sdt;
 	services = vidtv_channel_sdt_serv_cat_into_new(m);
+	if (!services)
+		goto free_programs;
 
 	events = vidtv_channel_eit_event_cat_into_new(m);
+	if (!events)
+		goto free_services;
 
 	/* look for a service descriptor for every service */
 	service_list = vidtv_channel_build_service_list(services);
+	if (!service_list)
+		goto free_events;
 
 	/* use these descriptors to build the NIT */
 	m->si.nit = vidtv_psi_nit_table_init(m->network_id,
 					     m->transport_stream_id,
 					     m->network_name,
 					     service_list);
+	if (!m->si.nit)
+		goto free_service_list;
 
 	m->si.eit = vidtv_psi_eit_table_init(m->network_id, m->transport_stream_id);
+	if (!m->si.eit)
+		goto free_nit;
+
 
 	/* assemble all programs and assign to PAT */
 	vidtv_psi_pat_program_assign(m->si.pat, programs);
@@ -386,12 +464,34 @@ void vidtv_channel_si_init(struct vidtv_mux *m)
 	vidtv_psi_eit_event_assign(m->si.eit, events);
 
 	m->si.pmt_secs = vidtv_psi_pmt_create_sec_for_each_pat_entry(m->si.pat, m->pcr_pid);
+	if (!m->si.pmt_secs)
+		goto free_eit;
 
 	vidtv_channel_pmt_match_sections(m->channels,
 					 m->si.pmt_secs,
 					 m->si.pat->programs);
 
 	vidtv_channel_destroy_service_list(service_list);
+
+	return 0;
+
+free_eit:
+	vidtv_psi_eit_table_destroy(m->si.eit);
+free_nit:
+	vidtv_psi_nit_table_destroy(m->si.nit);
+free_service_list:
+	vidtv_channel_destroy_service_list(service_list);
+free_events:
+	vidtv_psi_eit_event_destroy(events);
+free_services:
+	vidtv_psi_sdt_service_destroy(services);
+free_programs:
+	vidtv_psi_pat_program_destroy(programs);
+free_sdt:
+	vidtv_psi_sdt_table_destroy(m->si.sdt);
+free_pat:
+	vidtv_psi_pat_table_destroy(m->si.pat);
+	return 0;
 }
 
 void vidtv_channel_si_destroy(struct vidtv_mux *m)
@@ -410,10 +510,15 @@ void vidtv_channel_si_destroy(struct vidtv_mux *m)
 	vidtv_psi_eit_table_destroy(m->si.eit);
 }
 
-void vidtv_channels_init(struct vidtv_mux *m)
+int vidtv_channels_init(struct vidtv_mux *m)
 {
 	/* this is the place to add new 'channels' for vidtv */
 	m->channels = vidtv_channel_s302m_init(NULL, m->transport_stream_id);
+
+	if (!m->channels)
+		return -ENOMEM;
+
+	return 0;
 }
 
 void vidtv_channels_destroy(struct vidtv_mux *m)

@@ -65,14 +65,14 @@ struct vidtv_channel {
  * vidtv_channel_si_init - Init the PSI tables from the channels in the mux
  * @m: The mux containing the channels.
  */
-void vidtv_channel_si_init(struct vidtv_mux *m);
+int vidtv_channel_si_init(struct vidtv_mux *m);
 void vidtv_channel_si_destroy(struct vidtv_mux *m);
 
 /**
  * vidtv_channels_init - Init hardcoded, fake 'channels'.
  * @m: The mux to store the channels into.
  */
-void vidtv_channels_init(struct vidtv_mux *m);
+int vidtv_channels_init(struct vidtv_mux *m);
 struct vidtv_channel
 *vidtv_channel_s302m_init(struct vidtv_channel *head, u16 transport_stream_id);
 void vidtv_channels_destroy(struct vidtv_mux *m);

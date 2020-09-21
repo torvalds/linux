@@ -333,6 +333,8 @@ struct vidtv_psi_desc_service *vidtv_psi_service_desc_init(struct vidtv_psi_desc
 	u32 provider_name_len = provider_name ? strlen(provider_name) : 0;
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return NULL;
 
 	desc->type = SERVICE_DESCRIPTOR;
 
@@ -367,6 +369,8 @@ struct vidtv_psi_desc_registration
 	struct vidtv_psi_desc_registration *desc;
 
 	desc = kzalloc(sizeof(*desc) + sizeof(format_id) + additional_info_len, GFP_KERNEL);
+	if (!desc)
+		return NULL;
 
 	desc->type = REGISTRATION_DESCRIPTOR;
 
@@ -391,6 +395,8 @@ struct vidtv_psi_desc_network_name
 	u32 network_name_len = network_name ? strlen(network_name) : 0;
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return NULL;
 
 	desc->type = NETWORK_NAME_DESCRIPTOR;
 
@@ -414,11 +420,23 @@ struct vidtv_psi_desc_service_list
 	u16 length = 0;
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return NULL;
 
 	desc->type = SERVICE_LIST_DESCRIPTOR;
 
 	while (entry) {
 		curr_e = kzalloc(sizeof(*curr_e), GFP_KERNEL);
+		if (!curr_e) {
+			while (head_e) {
+				curr_e = head_e;
+				head_e = head_e->next;
+				kfree(curr_e);
+			}
+			kfree(desc);
+			return NULL;
+		}
+
 		curr_e->service_id = entry->service_id;
 		curr_e->service_type = entry->service_type;
 
@@ -453,6 +471,8 @@ struct vidtv_psi_desc_short_event
 	u32 iso_len =  iso_language_code ? strlen(iso_language_code) : 0;
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return NULL;
 
 	desc->type = SHORT_EVENT_DESCRIPTOR;
 
@@ -496,10 +516,10 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 		case SERVICE_DESCRIPTOR:
 			service = (struct vidtv_psi_desc_service *)desc;
 			curr = (struct vidtv_psi_desc *)
-				vidtv_psi_service_desc_init(head,
-							    service->service_type,
-							    service->service_name,
-							    service->provider_name);
+			       vidtv_psi_service_desc_init(head,
+							   service->service_type,
+							   service->service_name,
+							   service->provider_name);
 		break;
 
 		case NETWORK_NAME_DESCRIPTOR:
@@ -512,8 +532,8 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 		case SERVICE_LIST_DESCRIPTOR:
 			desc_service_list = (struct vidtv_psi_desc_service_list *)desc;
 			curr = (struct vidtv_psi_desc *)
-				vidtv_psi_service_list_desc_init(head,
-								 desc_service_list->service_list);
+			       vidtv_psi_service_list_desc_init(head,
+								desc_service_list->service_list);
 		break;
 
 		case SHORT_EVENT_DESCRIPTOR:
@@ -528,12 +548,15 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 		case REGISTRATION_DESCRIPTOR:
 		default:
 			curr = kzalloc(sizeof(*desc) + desc->length, GFP_KERNEL);
+			if (!curr)
+				return NULL;
 			memcpy(curr, desc, sizeof(*desc) + desc->length);
-		break;
-	}
+		}
 
-		if (curr)
-			curr->next = NULL;
+		if (!curr)
+			return NULL;
+
+		curr->next = NULL;
 		if (!head)
 			head = curr;
 		if (prev)
@@ -890,6 +913,8 @@ vidtv_psi_pat_program_init(struct vidtv_psi_table_pat_program *head,
 	const u16 RESERVED = 0x07;
 
 	program = kzalloc(sizeof(*program), GFP_KERNEL);
+	if (!program)
+		return NULL;
 
 	program->service_id = cpu_to_be16(service_id);
 
@@ -951,10 +976,14 @@ vidtv_psi_pat_program_assign(struct vidtv_psi_table_pat *pat,
 
 struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id)
 {
-	struct vidtv_psi_table_pat *pat = kzalloc(sizeof(*pat), GFP_KERNEL);
+	struct vidtv_psi_table_pat *pat;
 	const u16 SYNTAX = 0x1;
 	const u16 ZERO = 0x0;
 	const u16 ONES = 0x03;
+
+	pat = kzalloc(sizeof(*pat), GFP_KERNEL);
+	if (!pat)
+		return NULL;
 
 	pat->header.table_id = 0x0;
 
@@ -1055,6 +1084,8 @@ vidtv_psi_pmt_stream_init(struct vidtv_psi_table_pmt_stream *head,
 	u16 desc_loop_len;
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	if (!stream)
+		return NULL;
 
 	stream->type = stream_type;
 
@@ -1129,13 +1160,17 @@ u16 vidtv_psi_pmt_get_pid(struct vidtv_psi_table_pmt *section,
 struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
 						     u16 pcr_pid)
 {
-	struct vidtv_psi_table_pmt *pmt = kzalloc(sizeof(*pmt), GFP_KERNEL);
+	struct vidtv_psi_table_pmt *pmt;
 	const u16 SYNTAX = 0x1;
 	const u16 ZERO = 0x0;
 	const u16 ONES = 0x03;
 	const u16 RESERVED1 = 0x07;
 	const u16 RESERVED2 = 0x0f;
 	u16 desc_loop_len;
+
+	pmt = kzalloc(sizeof(*pmt), GFP_KERNEL);
+	if (!pmt)
+		return NULL;
 
 	if (!pcr_pid)
 		pcr_pid = 0x1fff;
@@ -1276,14 +1311,17 @@ void vidtv_psi_pmt_table_destroy(struct vidtv_psi_table_pmt *pmt)
 
 struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id)
 {
-	struct vidtv_psi_table_sdt *sdt = kzalloc(sizeof(*sdt), GFP_KERNEL);
+	struct vidtv_psi_table_sdt *sdt;
 	const u16 SYNTAX = 0x1;
 	const u16 ONE = 0x1;
 	const u16 ONES = 0x03;
 	const u16 RESERVED = 0xff;
 
-	sdt->header.table_id = 0x42;
+	sdt  = kzalloc(sizeof(*sdt), GFP_KERNEL);
+	if (!sdt)
+		return NULL;
 
+	sdt->header.table_id = 0x42;
 	sdt->header.bitfield = cpu_to_be16((SYNTAX << 15) | (ONE << 14) | (ONES << 12));
 
 	/*
@@ -1418,6 +1456,8 @@ struct vidtv_psi_table_sdt_service
 	struct vidtv_psi_table_sdt_service *service;
 
 	service = kzalloc(sizeof(*service), GFP_KERNEL);
+	if (!service)
+		return NULL;
 
 	/*
 	 * ETSI 300 468: this is a 16bit field which serves as a label to
@@ -1491,6 +1531,8 @@ vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat, u16
 	pmt_secs = kcalloc(pat->programs,
 			   sizeof(struct vidtv_psi_table_pmt *),
 			   GFP_KERNEL);
+	if (!pmt_secs)
+		return NULL;
 
 	while (program) {
 		pmt_secs[i] = vidtv_psi_pmt_table_init(be16_to_cpu(program->service_id), pcr_pid);
@@ -1568,12 +1610,19 @@ struct vidtv_psi_table_nit
 			  char *network_name,
 			  struct vidtv_psi_desc_service_list_entry *service_list)
 {
-	struct vidtv_psi_table_nit *nit = kzalloc(sizeof(*nit), GFP_KERNEL);
-	struct vidtv_psi_table_transport *transport = kzalloc(sizeof(*transport), GFP_KERNEL);
-
+	struct vidtv_psi_table_nit *nit;
+	struct vidtv_psi_table_transport *transport;
 	const u16 SYNTAX = 0x1;
 	const u16 ONE = 0x1;
 	const u16 ONES = 0x03;
+
+	nit = kzalloc(sizeof(*nit), GFP_KERNEL);
+	if (!nit)
+		return NULL;
+
+	transport = kzalloc(sizeof(*transport), GFP_KERNEL);
+	if (!transport)
+		goto free_nit;
 
 	nit->header.table_id = 0x40; // ACTUAL_NETWORK
 
@@ -1593,18 +1642,31 @@ struct vidtv_psi_table_nit
 
 	nit->descriptor = (struct vidtv_psi_desc *)
 			  vidtv_psi_network_name_desc_init(NULL, network_name);
+	if (!nit->descriptor)
+		goto free_transport;
 
 	transport->transport_id = cpu_to_be16(transport_stream_id);
 	transport->network_id = cpu_to_be16(network_id);
 	transport->bitfield = cpu_to_be16(0xf);
 	transport->descriptor = (struct vidtv_psi_desc *)
 				vidtv_psi_service_list_desc_init(NULL, service_list);
+	if (!transport->descriptor)
+		goto free_nit_desc;
 
 	nit->transport = transport;
 
 	vidtv_psi_nit_table_update_sec_len(nit);
 
 	return nit;
+
+free_nit_desc:
+	vidtv_psi_desc_destroy((struct vidtv_psi_desc *)nit->descriptor);
+
+free_transport:
+	kfree(transport);
+free_nit:
+	kfree(nit);
+	return NULL;
 }
 
 u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
@@ -1786,11 +1848,14 @@ struct vidtv_psi_table_eit
 *vidtv_psi_eit_table_init(u16 network_id,
 			  u16 transport_stream_id)
 {
-	struct vidtv_psi_table_eit *eit = kzalloc(sizeof(*eit), GFP_KERNEL);
-
+	struct vidtv_psi_table_eit *eit;
 	const u16 SYNTAX = 0x1;
 	const u16 ONE = 0x1;
 	const u16 ONES = 0x03;
+
+	eit = kzalloc(sizeof(*eit), GFP_KERNEL);
+	if (!eit)
+		return NULL;
 
 	eit->header.table_id = 0x4e; //actual_transport_stream: present/following
 
@@ -1906,8 +1971,12 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
 struct vidtv_psi_table_eit_event
 *vidtv_psi_eit_event_init(struct vidtv_psi_table_eit_event *head, u16 event_id)
 {
-	struct vidtv_psi_table_eit_event *e = kzalloc(sizeof(*e), GFP_KERNEL);
+	struct vidtv_psi_table_eit_event *e;
 	const u8 DURATION_ONE_HOUR[] = {1, 0, 0};
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (!e)
+		return NULL;
 
 	e->event_id = cpu_to_be16(event_id);
 	memset(e->start_time, 0xff, sizeof(e->start_time)); //todo: 0xff means 'unspecified'
