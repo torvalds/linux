@@ -265,7 +265,7 @@ error_report_dma_error:
 	u64_stats_update_begin(&xdp_ring->syncp);
 	xdp_ring->tx_stats.dma_mapping_err++;
 	u64_stats_update_end(&xdp_ring->syncp);
-	netdev_warn(adapter->netdev, "failed to map xdp buff\n");
+	netif_warn(adapter, tx_queued, adapter->netdev, "failed to map xdp buff\n");
 
 	xdp_return_frame_rx_napi(tx_info->xdpf);
 	tx_info->xdpf = NULL;
@@ -1027,9 +1027,9 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 		u64_stats_update_begin(&rx_ring->syncp);
 		rx_ring->rx_stats.refil_partial++;
 		u64_stats_update_end(&rx_ring->syncp);
-		netdev_warn(rx_ring->netdev,
-			    "refilled rx qid %d with only %d buffers (from %d)\n",
-			    rx_ring->qid, i, num);
+		netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
+			   "refilled rx qid %d with only %d buffers (from %d)\n",
+			   rx_ring->qid, i, num);
 	}
 
 	/* ena_com_write_sq_doorbell issues a wmb() */
@@ -1128,14 +1128,14 @@ static void ena_free_tx_bufs(struct ena_ring *tx_ring)
 			continue;
 
 		if (print_once) {
-			netdev_notice(tx_ring->netdev,
-				      "free uncompleted tx skb qid %d idx 0x%x\n",
-				      tx_ring->qid, i);
+			netif_notice(tx_ring->adapter, ifdown, tx_ring->netdev,
+				     "free uncompleted tx skb qid %d idx 0x%x\n",
+				     tx_ring->qid, i);
 			print_once = false;
 		} else {
-			netdev_dbg(tx_ring->netdev,
-				   "free uncompleted tx skb qid %d idx 0x%x\n",
-				   tx_ring->qid, i);
+			netif_dbg(tx_ring->adapter, ifdown, tx_ring->netdev,
+				  "free uncompleted tx skb qid %d idx 0x%x\n",
+				  tx_ring->qid, i);
 		}
 
 		ena_unmap_tx_buff(tx_ring, tx_info);
@@ -2536,7 +2536,7 @@ static int ena_up(struct ena_adapter *adapter)
 {
 	int io_queue_count, rc, i;
 
-	netdev_dbg(adapter->netdev, "%s\n", __func__);
+	netif_dbg(adapter, ifup, adapter->netdev, "%s\n", __func__);
 
 	io_queue_count = adapter->num_io_queues + adapter->xdp_num_queues;
 	ena_setup_io_intr(adapter);
@@ -2620,7 +2620,8 @@ static void ena_down(struct ena_adapter *adapter)
 
 		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
 		if (rc)
-			dev_err(&adapter->pdev->dev, "Device reset failed\n");
+			netif_err(adapter, ifdown, adapter->netdev,
+				  "Device reset failed\n");
 		/* stop submitting admin commands on a device that was reset */
 		ena_com_set_admin_running_state(adapter->ena_dev, false);
 	}
@@ -2942,7 +2943,7 @@ error_report_dma_error:
 	u64_stats_update_begin(&tx_ring->syncp);
 	tx_ring->tx_stats.dma_mapping_err++;
 	u64_stats_update_end(&tx_ring->syncp);
-	netdev_warn(adapter->netdev, "failed to map skb\n");
+	netif_warn(adapter, tx_queued, adapter->netdev, "failed to map skb\n");
 
 	tx_info->skb = NULL;
 
@@ -3080,13 +3081,14 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct ena_admin_host_info *host_info;
 	int rc;
 
 	/* Allocate only the host info */
 	rc = ena_com_allocate_host_info(ena_dev);
 	if (rc) {
-		pr_err("Cannot allocate host info\n");
+		dev_err(dev, "Cannot allocate host info\n");
 		return;
 	}
 
@@ -3116,9 +3118,9 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (rc) {
 		if (rc == -EOPNOTSUPP)
-			pr_warn("Cannot set host attributes\n");
+			dev_warn(dev, "Cannot set host attributes\n");
 		else
-			pr_err("Cannot set host attributes\n");
+			dev_err(dev, "Cannot set host attributes\n");
 
 		goto err;
 	}
@@ -3146,7 +3148,8 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
 
 	rc = ena_com_allocate_debug_area(adapter->ena_dev, debug_area_size);
 	if (rc) {
-		pr_err("Cannot allocate debug area\n");
+		netif_err(adapter, drv, adapter->netdev,
+			  "Cannot allocate debug area\n");
 		return;
 	}
 
@@ -3573,8 +3576,9 @@ static int ena_restore_device(struct ena_adapter *adapter)
 		netif_carrier_on(adapter->netdev);
 
 	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
-	dev_err(&pdev->dev, "Device reset completed successfully\n");
 	adapter->last_keep_alive_jiffies = jiffies;
+
+	dev_err(&pdev->dev, "Device reset completed successfully\n");
 
 	return rc;
 err_disable_msix:
@@ -4537,7 +4541,7 @@ static void ena_update_on_link_change(void *adapter_data,
 		ENA_ADMIN_AENQ_LINK_CHANGE_DESC_LINK_STATUS_MASK;
 
 	if (status) {
-		netdev_dbg(adapter->netdev, "%s\n", __func__);
+		netif_dbg(adapter, ifup, adapter->netdev, "%s\n", __func__);
 		set_bit(ENA_FLAG_LINK_UP, &adapter->flags);
 		if (!test_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags))
 			netif_carrier_on(adapter->netdev);
