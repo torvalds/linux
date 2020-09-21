@@ -4,6 +4,7 @@
 //
 // Common helpers for the audio DSP on i.MX8
 
+#include <linux/module.h>
 #include <sound/sof/xtensa.h>
 #include "../ops.h"
 
@@ -70,3 +71,5 @@ void imx8_dump(struct snd_sof_dev *sdev, u32 flags)
 			   IMX8_STACK_DUMP_SIZE);
 }
 EXPORT_SYMBOL(imx8_dump);
+
+MODULE_LICENSE("Dual BSD/GPL");
