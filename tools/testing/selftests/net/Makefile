@@ -29,6 +29,7 @@ TEST_GEN_FILES += tcp_fastopen_backup_key
 TEST_GEN_FILES += fin_ack_lat
 TEST_GEN_FILES += reuseaddr_ports_exhausted
 TEST_GEN_FILES += hwtstamp_config rxtimestamp timestamping txtimestamp
+TEST_GEN_FILES += ipsec
 TEST_GEN_PROGS = reuseport_bpf reuseport_bpf_cpu reuseport_bpf_numa
 TEST_GEN_PROGS += reuseport_dualstack reuseaddr_conflict tls
 
