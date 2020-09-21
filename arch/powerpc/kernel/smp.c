@@ -671,6 +671,28 @@ static void set_cpus_unrelated(int i, int j,
 #endif
 
 /*
+ * Extends set_cpus_related. Instead of setting one CPU at a time in
+ * dstmask, set srcmask at oneshot. dstmask should be super set of srcmask.
+ */
+static void or_cpumasks_related(int i, int j, struct cpumask *(*srcmask)(int),
+				struct cpumask *(*dstmask)(int))
+{
+	struct cpumask *mask;
+	int k;
+
+	mask = srcmask(j);
+	for_each_cpu(k, srcmask(i))
+		cpumask_or(dstmask(k), dstmask(k), mask);
+
+	if (i == j)
+		return;
+
+	mask = srcmask(i);
+	for_each_cpu(k, srcmask(j))
+		cpumask_or(dstmask(k), dstmask(k), mask);
+}
+
+/*
  * parse_thread_groups: Parses the "ibm,thread-groups" device tree
  *                      property for the CPU device node @dn and stores
  *                      the parsed output in the thread_groups
@@ -1220,7 +1242,9 @@ static struct device_node *cpu_to_l2cache(int cpu)
 
 static bool update_mask_by_l2(int cpu)
 {
+	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
 	struct device_node *l2_cache, *np;
+	cpumask_var_t mask;
 	int i;
 
 	l2_cache = cpu_to_l2cache(cpu);
@@ -1240,22 +1264,37 @@ static bool update_mask_by_l2(int cpu)
 		return false;
 	}
 
-	cpumask_set_cpu(cpu, cpu_l2_cache_mask(cpu));
-	for_each_cpu_and(i, cpu_online_mask, cpu_cpu_mask(cpu)) {
+	alloc_cpumask_var_node(&mask, GFP_KERNEL, cpu_to_node(cpu));
+	cpumask_and(mask, cpu_online_mask, cpu_cpu_mask(cpu));
+
+	if (has_big_cores)
+		submask_fn = cpu_smallcore_mask;
+
+	/* Update l2-cache mask with all the CPUs that are part of submask */
+	or_cpumasks_related(cpu, cpu, submask_fn, cpu_l2_cache_mask);
+
+	/* Skip all CPUs already part of current CPU l2-cache mask */
+	cpumask_andnot(mask, mask, cpu_l2_cache_mask(cpu));
+
+	for_each_cpu(i, mask) {
 		/*
 		 * when updating the marks the current CPU has not been marked
 		 * online, but we need to update the cache masks
 		 */
 		np = cpu_to_l2cache(i);
-		if (!np)
-			continue;
 
-		if (np == l2_cache)
-			set_cpus_related(cpu, i, cpu_l2_cache_mask);
+		/* Skip all CPUs already part of current CPU l2-cache */
+		if (np == l2_cache) {
+			or_cpumasks_related(cpu, i, submask_fn, cpu_l2_cache_mask);
+			cpumask_andnot(mask, mask, submask_fn(i));
+		} else {
+			cpumask_andnot(mask, mask, cpu_l2_cache_mask(i));
+		}
 
 		of_node_put(np);
 	}
 	of_node_put(l2_cache);
+	free_cpumask_var(mask);
 
 	return true;
 }
