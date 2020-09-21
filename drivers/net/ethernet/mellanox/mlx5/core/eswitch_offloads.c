@@ -86,6 +86,26 @@ mlx5_eswitch_set_rule_flow_source(struct mlx5_eswitch *esw,
 				MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
 }
 
+/* Actually only the upper 16 bits of reg c0 need to be cleared, but the lower 16 bits
+ * are not needed as well in the following process. So clear them all for simplicity.
+ */
+void
+mlx5_eswitch_clear_rule_source_port(struct mlx5_eswitch *esw, struct mlx5_flow_spec *spec)
+{
+	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
+		void *misc2;
+
+		misc2 = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters_2);
+		MLX5_SET(fte_match_set_misc2, misc2, metadata_reg_c_0, 0);
+
+		misc2 = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters_2);
+		MLX5_SET(fte_match_set_misc2, misc2, metadata_reg_c_0, 0);
+
+		if (!memchr_inv(misc2, 0, MLX5_ST_SZ_BYTES(fte_match_set_misc2)))
+			spec->match_criteria_enable &= ~MLX5_MATCH_MISC_PARAMETERS_2;
+	}
+}
+
 static void
 mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 				  struct mlx5_flow_spec *spec,
@@ -154,6 +174,19 @@ esw_cleanup_decap_indir(struct mlx5_eswitch *esw,
 		mlx5_esw_indir_table_put(esw, attr,
 					 mlx5_esw_indir_table_decap_vport(attr),
 					 true);
+}
+
+static int
+esw_setup_sampler_dest(struct mlx5_flow_destination *dest,
+		       struct mlx5_flow_act *flow_act,
+		       struct mlx5_esw_flow_attr *esw_attr,
+		       int i)
+{
+	flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER;
+	dest[i].sampler_id = esw_attr->sample->sampler_id;
+
+	return 0;
 }
 
 static int
@@ -385,7 +418,10 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 	    MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ignore_flow_level))
 		attr->flags |= MLX5_ESW_ATTR_FLAG_SRC_REWRITE;
 
-	if (attr->dest_ft) {
+	if (attr->flags & MLX5_ESW_ATTR_FLAG_SAMPLE) {
+		esw_setup_sampler_dest(dest, flow_act, esw_attr, *i);
+		(*i)++;
+	} else if (attr->dest_ft) {
 		esw_setup_ft_dest(dest, flow_act, esw, attr, spec, *i);
 		(*i)++;
 	} else if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) {
@@ -488,7 +524,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		flow_act.modify_hdr = attr->modify_hdr;
 
-	if (split) {
+	/* esw_attr->sample is allocated only when there is a sample action */
+	if (esw_attr->sample && esw_attr->sample->sample_default_tbl) {
+		fdb = esw_attr->sample->sample_default_tbl;
+	} else if (split) {
 		fwd_attr.chain = attr->chain;
 		fwd_attr.prio = attr->prio;
 		fwd_attr.vport = esw_attr->in_rep->vport;

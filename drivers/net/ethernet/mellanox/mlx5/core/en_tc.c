@@ -223,6 +223,25 @@ get_ct_priv(struct mlx5e_priv *priv)
 	return priv->fs.tc.ct;
 }
 
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+static struct mlx5_esw_psample *
+get_sample_priv(struct mlx5e_priv *priv)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct mlx5e_rep_priv *uplink_rpriv;
+
+	if (is_mdev_switchdev_mode(priv->mdev)) {
+		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+		uplink_priv = &uplink_rpriv->uplink_priv;
+
+		return uplink_priv->esw_psample;
+	}
+
+	return NULL;
+}
+#endif
+
 struct mlx5_flow_handle *
 mlx5_tc_rule_insert(struct mlx5e_priv *priv,
 		    struct mlx5_flow_spec *spec,
@@ -1092,6 +1111,10 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 		rule = mlx5_tc_ct_flow_offload(get_ct_priv(flow->priv),
 					       flow, spec, attr,
 					       mod_hdr_acts);
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+	} else if (flow_flag_test(flow, SAMPLE)) {
+		rule = mlx5_esw_sample_offload(get_sample_priv(flow->priv), spec, attr);
+#endif
 	} else {
 		rule = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 	}
@@ -1126,6 +1149,13 @@ void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
 		return;
 	}
+
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+	if (flow_flag_test(flow, SAMPLE)) {
+		mlx5_esw_sample_unoffload(get_sample_priv(flow->priv), flow->rule[0], attr);
+		return;
+	}
+#endif
 
 	if (attr->esw_attr->split_count)
 		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
