@@ -1595,11 +1595,37 @@
 				};
 			};
 
+			qup_spi0_cs_gpio: qup-spi0-cs-gpio {
+				pinmux {
+					pins = "gpio34", "gpio35",
+					       "gpio36";
+					function = "qup00";
+				};
+
+				pinmux-cs {
+					pins = "gpio37";
+					function = "gpio";
+				};
+			};
+
 			qup_spi1_default: qup-spi1-default {
 				pinmux {
 					pins = "gpio0", "gpio1",
 					       "gpio2", "gpio3";
 					function = "qup01";
+				};
+			};
+
+			qup_spi1_cs_gpio: qup-spi1-cs-gpio {
+				pinmux {
+					pins = "gpio0", "gpio1",
+					       "gpio2";
+					function = "qup01";
+				};
+
+				pinmux-cs {
+					pins = "gpio3";
+					function = "gpio";
 				};
 			};
 
@@ -1611,11 +1637,37 @@
 				};
 			};
 
+			qup_spi3_cs_gpio: qup-spi3-cs-gpio {
+				pinmux {
+					pins = "gpio38", "gpio39",
+					       "gpio40";
+					function = "qup03";
+				};
+
+				pinmux-cs {
+					pins = "gpio41";
+					function = "gpio";
+				};
+			};
+
 			qup_spi5_default: qup-spi5-default {
 				pinmux {
 					pins = "gpio25", "gpio26",
 					       "gpio27", "gpio28";
 					function = "qup05";
+				};
+			};
+
+			qup_spi5_cs_gpio: qup-spi5-cs-gpio {
+				pinmux {
+					pins = "gpio25", "gpio26",
+					       "gpio27";
+					function = "qup05";
+				};
+
+				pinmux-cs {
+					pins = "gpio28";
+					function = "gpio";
 				};
 			};
 
@@ -1627,11 +1679,37 @@
 				};
 			};
 
+			qup_spi6_cs_gpio: qup-spi6-cs-gpio {
+				pinmux {
+					pins = "gpio59", "gpio60",
+					       "gpio61";
+					function = "qup10";
+				};
+
+				pinmux-cs {
+					pins = "gpio62";
+					function = "gpio";
+				};
+			};
+
 			qup_spi8_default: qup-spi8-default {
 				pinmux {
 					pins = "gpio42", "gpio43",
 					       "gpio44", "gpio45";
 					function = "qup12";
+				};
+			};
+
+			qup_spi8_cs_gpio: qup-spi8-cs-gpio {
+				pinmux {
+					pins = "gpio42", "gpio43",
+					       "gpio44";
+					function = "qup12";
+				};
+
+				pinmux-cs {
+					pins = "gpio45";
+					function = "gpio";
 				};
 			};
 
@@ -1643,11 +1721,37 @@
 				};
 			};
 
+			qup_spi10_cs_gpio: qup-spi10-cs-gpio {
+				pinmux {
+					pins = "gpio86", "gpio87",
+					       "gpio88";
+					function = "qup14";
+				};
+
+				pinmux-cs {
+					pins = "gpio89";
+					function = "gpio";
+				};
+			};
+
 			qup_spi11_default: qup-spi11-default {
 				pinmux {
 					pins = "gpio53", "gpio54",
 					       "gpio55", "gpio56";
 					function = "qup15";
+				};
+			};
+
+			qup_spi11_cs_gpio: qup-spi11-cs-gpio {
+				pinmux {
+					pins = "gpio53", "gpio54",
+					       "gpio55";
+					function = "qup15";
+				};
+
+				pinmux-cs {
+					pins = "gpio56";
+					function = "gpio";
 				};
 			};
 
