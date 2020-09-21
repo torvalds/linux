@@ -201,7 +201,7 @@ static long clk_pll_round_rate(unsigned long fin, unsigned long fout,
 	do_div(foutvco, _refdiv);
 
 	if (!_dsmpd) {
-		u64 frac_rate = fin * _frac;
+		u64 frac_rate = (u64)fin * _frac;
 
 		do_div(frac_rate, _refdiv);
 		foutvco += frac_rate >> 24;
