@@ -553,6 +553,13 @@ static inline bool vmx_need_pf_intercept(struct kvm_vcpu *vcpu)
 	return !enable_ept || cpuid_maxphyaddr(vcpu) < boot_cpu_data.x86_phys_bits;
 }
 
+static inline bool is_unrestricted_guest(struct kvm_vcpu *vcpu)
+{
+	return enable_unrestricted_guest && (!is_guest_mode(vcpu) ||
+	    (secondary_exec_controls_get(to_vmx(vcpu)) &
+	    SECONDARY_EXEC_UNRESTRICTED_GUEST));
+}
+
 void dump_vmcs(void);
 
 #endif /* __KVM_X86_VMX_H */

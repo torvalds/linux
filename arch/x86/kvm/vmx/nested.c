@@ -2314,6 +2314,9 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 			vmcs_write16(GUEST_INTR_STATUS,
 				vmcs12->guest_intr_status);
 
+		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_UNRESTRICTED_GUEST))
+		    exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
+
 		secondary_exec_controls_set(vmx, exec_control);
 	}
 
