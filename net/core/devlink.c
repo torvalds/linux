@@ -811,8 +811,6 @@ static int devlink_port_type_set(struct devlink *devlink,
 	int err;
 
 	if (devlink->ops->port_type_set) {
-		if (port_type == DEVLINK_PORT_TYPE_NOTSET)
-			return -EINVAL;
 		if (port_type == devlink_port->type)
 			return 0;
 		err = devlink->ops->port_type_set(devlink_port, port_type);
@@ -7055,7 +7053,8 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_PORT_INDEX] = { .type = NLA_U32 },
-	[DEVLINK_ATTR_PORT_TYPE] = { .type = NLA_U16 },
+	[DEVLINK_ATTR_PORT_TYPE] = NLA_POLICY_RANGE(NLA_U16, DEVLINK_PORT_TYPE_AUTO,
+						    DEVLINK_PORT_TYPE_IB),
 	[DEVLINK_ATTR_PORT_SPLIT_COUNT] = { .type = NLA_U32 },
 	[DEVLINK_ATTR_SB_INDEX] = { .type = NLA_U32 },
 	[DEVLINK_ATTR_SB_POOL_INDEX] = { .type = NLA_U16 },
