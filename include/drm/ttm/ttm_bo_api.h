@@ -449,30 +449,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
 		void (*destroy) (struct ttm_buffer_object *));
 
 /**
- * ttm_bo_create
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @size: Requested size of buffer object.
- * @type: Requested type of buffer object.
- * @placement: Initial placement.
- * @page_alignment: Data alignment in pages.
- * @interruptible: If needing to sleep while waiting for GPU resources,
- * sleep interruptible.
- * @p_bo: On successful completion *p_bo points to the created object.
- *
- * This function allocates a ttm_buffer_object, and then calls ttm_bo_init
- * on that object. The destroy function is set to kfree().
- * Returns
- * -ENOMEM: Out of memory.
- * -EINVAL: Invalid placement flags.
- * -ERESTARTSYS: Interrupted by signal while waiting for resources.
- */
-int ttm_bo_create(struct ttm_bo_device *bdev, unsigned long size,
-		  enum ttm_bo_type type, struct ttm_placement *placement,
-		  uint32_t page_alignment, bool interruptible,
-		  struct ttm_buffer_object **p_bo);
-
-/**
  * ttm_bo_evict_mm
  *
  * @bdev: Pointer to a ttm_bo_device struct.
