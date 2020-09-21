@@ -125,6 +125,7 @@ struct pes_ts_header_write_args {
 	u8 *continuity_counter;
 	bool wrote_pes_header;
 	u32 n_stuffing_bytes;
+	u64 pcr;
 };
 
 /**
@@ -168,6 +169,7 @@ struct pes_write_args {
 	u64 dts;
 
 	u32 n_pes_h_s_bytes;
+	u64 pcr;
 };
 
 /**

@@ -254,6 +254,7 @@ static u32 vidtv_mux_packetize_access_units(struct vidtv_mux *m,
 		args.access_unit_len = au->nbytes;
 		args.dest_offset     = m->mux_buf_offset;
 		args.pts             = au->pts;
+		args.pcr	     = m->timing.clk;
 
 		m->mux_buf_offset += vidtv_pes_write_into(args);
 
