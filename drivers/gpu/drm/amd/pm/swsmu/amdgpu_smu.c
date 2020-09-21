@@ -1825,11 +1825,6 @@ int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 
 	ret = smu_set_watermarks_table(smu, clock_ranges);
 
-	if (!(smu->watermarks_bitmap & WATERMARKS_EXIST)) {
-		smu->watermarks_bitmap |= WATERMARKS_EXIST;
-		smu->watermarks_bitmap &= ~WATERMARKS_LOADED;
-	}
-
 	mutex_unlock(&smu->mutex);
 
 	return ret;
