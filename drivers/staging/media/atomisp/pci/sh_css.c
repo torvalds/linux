@@ -3681,7 +3681,7 @@ static int create_host_video_pipeline(struct ia_css_pipe *pipe)
 		struct ia_css_frame *tmp_out_frame = NULL;
 
 		for (i = 0; i < num_yuv_scaler; i++) {
-			if (is_output_stage[i] == true) {
+			if (is_output_stage[i]) {
 				tmp_out_frame = out_frame;
 			} else {
 				tmp_out_frame = NULL;
@@ -4421,7 +4421,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 			case IA_CSS_BUFFER_TYPE_INPUT_FRAME:
 			case IA_CSS_BUFFER_TYPE_OUTPUT_FRAME:
 			case IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME:
-				if ((pipe) && (pipe->stop_requested == true)) {
+				if (pipe && pipe->stop_requested) {
 #if !defined(ISP2401)
 					/* free mipi frames only for old input system
 					 * for 2401 it is done in ia_css_stream_destroy call
@@ -4782,7 +4782,7 @@ sh_css_pipe_start(struct ia_css_stream *stream) {
 
 	pipe_id = pipe->mode;
 
-	if (stream->started == true)
+	if (stream->started)
 	{
 		IA_CSS_WARNING("Cannot start stream that is already started");
 		IA_CSS_LEAVE_ERR(err);
@@ -5919,7 +5919,7 @@ static bool need_capture_pp(
 
 	if (IS_ISP2401) {
 		/* ldc and capture_pp are not supported in the same pipeline */
-		if (need_capt_ldc(pipe) == true)
+		if (need_capt_ldc(pipe))
 			return false;
 	}
 
@@ -6135,8 +6135,8 @@ static int load_primary_binaries(
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
 		}
-		need_pp = 0;
-		need_ldc = 0;
+		need_pp = false;
+		need_ldc = false;
 	}
 
 	/* we build up the pipeline starting at the end */
@@ -9496,10 +9496,10 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 					IA_CSS_PIPE_MODE_VIDEO, false);
 		acc_pipe = find_pipe(pipes, num_pipes,
 					IA_CSS_PIPE_MODE_ACC, false);
-		if (acc_pipe && num_pipes == 2 && curr_stream->cont_capt == true)
+		if (acc_pipe && num_pipes == 2 && curr_stream->cont_capt)
 			curr_stream->cont_capt =
 			    false; /* preview + QoS case will not need cont_capt switch */
-		if (curr_stream->cont_capt == true) {
+		if (curr_stream->cont_capt) {
 			capture_pipe = find_pipe(pipes, num_pipes,
 						    IA_CSS_PIPE_MODE_CAPTURE, false);
 			if (!capture_pipe) {
@@ -9521,7 +9521,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 			preview_pipe->pipe_settings.preview.copy_pipe = copy_pipe;
 			copy_pipe->stream = curr_stream;
 		}
-		if (preview_pipe && (curr_stream->cont_capt == true)) {
+		if (preview_pipe && curr_stream->cont_capt) {
 			preview_pipe->pipe_settings.preview.capture_pipe = capture_pipe;
 		}
 		if (video_pipe && !video_pipe->pipe_settings.video.copy_pipe) {
@@ -9532,7 +9532,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 			video_pipe->pipe_settings.video.copy_pipe = copy_pipe;
 			copy_pipe->stream = curr_stream;
 		}
-		if (video_pipe && (curr_stream->cont_capt == true)) {
+		if (video_pipe && curr_stream->cont_capt) {
 			video_pipe->pipe_settings.video.capture_pipe = capture_pipe;
 		}
 		if (preview_pipe && acc_pipe) {

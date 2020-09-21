@@ -654,8 +654,7 @@ bool atomisp_buffers_queued(struct atomisp_sub_device *asd)
 	return asd->video_out_capture.buffers_in_css ||
 	       asd->video_out_vf.buffers_in_css ||
 	       asd->video_out_preview.buffers_in_css ||
-	       asd->video_out_video_capture.buffers_in_css ?
-	       true : false;
+	       asd->video_out_video_capture.buffers_in_css;
 }
 
 /* ISP2401 */
@@ -6549,7 +6548,7 @@ int atomisp_enable_dz_capt_pipe(struct atomisp_sub_device *asd,
 	if (!enable)
 		return -EINVAL;
 
-	value = *enable > 0 ? true : false;
+	value = *enable > 0;
 
 	atomisp_en_dz_capt_pipe(asd, value);
 
