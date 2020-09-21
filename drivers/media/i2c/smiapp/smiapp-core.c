@@ -1185,8 +1185,7 @@ out:
 
 static int smiapp_power_on(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
+	struct v4l2_subdev *subdev = dev_get_drvdata(dev);
 	struct smiapp_subdev *ssd = to_smiapp_subdev(subdev);
 	/*
 	 * The sub-device related to the I2C device is always the
@@ -1199,14 +1198,14 @@ static int smiapp_power_on(struct device *dev)
 
 	rval = regulator_enable(sensor->vana);
 	if (rval) {
-		dev_err(&client->dev, "failed to enable vana regulator\n");
+		dev_err(dev, "failed to enable vana regulator\n");
 		return rval;
 	}
 	usleep_range(1000, 1000);
 
 	rval = clk_prepare_enable(sensor->ext_clk);
 	if (rval < 0) {
-		dev_dbg(&client->dev, "failed to enable xclk\n");
+		dev_dbg(dev, "failed to enable xclk\n");
 		goto out_xclk_fail;
 	}
 	usleep_range(1000, 1000);
@@ -1230,7 +1229,7 @@ static int smiapp_power_on(struct device *dev)
 	if (sensor->hwcfg->i2c_addr_alt) {
 		rval = smiapp_change_cci_addr(sensor);
 		if (rval) {
-			dev_err(&client->dev, "cci address change error\n");
+			dev_err(dev, "cci address change error\n");
 			goto out_cci_addr_fail;
 		}
 	}
@@ -1238,14 +1237,14 @@ static int smiapp_power_on(struct device *dev)
 	rval = smiapp_write(sensor, SMIAPP_REG_U8_SOFTWARE_RESET,
 			    SMIAPP_SOFTWARE_RESET);
 	if (rval < 0) {
-		dev_err(&client->dev, "software reset failed\n");
+		dev_err(dev, "software reset failed\n");
 		goto out_cci_addr_fail;
 	}
 
 	if (sensor->hwcfg->i2c_addr_alt) {
 		rval = smiapp_change_cci_addr(sensor);
 		if (rval) {
-			dev_err(&client->dev, "cci address change error\n");
+			dev_err(dev, "cci address change error\n");
 			goto out_cci_addr_fail;
 		}
 	}
@@ -1253,7 +1252,7 @@ static int smiapp_power_on(struct device *dev)
 	rval = smiapp_write(sensor, SMIAPP_REG_U16_COMPRESSION_MODE,
 			    SMIAPP_COMPRESSION_MODE_SIMPLE_PREDICTOR);
 	if (rval) {
-		dev_err(&client->dev, "compression mode set failed\n");
+		dev_err(dev, "compression mode set failed\n");
 		goto out_cci_addr_fail;
 	}
 
@@ -1261,28 +1260,28 @@ static int smiapp_power_on(struct device *dev)
 		sensor, SMIAPP_REG_U16_EXTCLK_FREQUENCY_MHZ,
 		sensor->hwcfg->ext_clk / (1000000 / (1 << 8)));
 	if (rval) {
-		dev_err(&client->dev, "extclk frequency set failed\n");
+		dev_err(dev, "extclk frequency set failed\n");
 		goto out_cci_addr_fail;
 	}
 
 	rval = smiapp_write(sensor, SMIAPP_REG_U8_CSI_LANE_MODE,
 			    sensor->hwcfg->lanes - 1);
 	if (rval) {
-		dev_err(&client->dev, "csi lane mode set failed\n");
+		dev_err(dev, "csi lane mode set failed\n");
 		goto out_cci_addr_fail;
 	}
 
 	rval = smiapp_write(sensor, SMIAPP_REG_U8_FAST_STANDBY_CTRL,
 			    SMIAPP_FAST_STANDBY_CTRL_IMMEDIATE);
 	if (rval) {
-		dev_err(&client->dev, "fast standby set failed\n");
+		dev_err(dev, "fast standby set failed\n");
 		goto out_cci_addr_fail;
 	}
 
 	rval = smiapp_write(sensor, SMIAPP_REG_U8_CSI_SIGNALLING_MODE,
 			    sensor->hwcfg->csi_signalling_mode);
 	if (rval) {
-		dev_err(&client->dev, "csi signalling mode set failed\n");
+		dev_err(dev, "csi signalling mode set failed\n");
 		goto out_cci_addr_fail;
 	}
 
@@ -1294,7 +1293,7 @@ static int smiapp_power_on(struct device *dev)
 
 	rval = smiapp_call_quirk(sensor, post_poweron);
 	if (rval) {
-		dev_err(&client->dev, "post_poweron quirks failed\n");
+		dev_err(dev, "post_poweron quirks failed\n");
 		goto out_cci_addr_fail;
 	}
 
@@ -1312,8 +1311,7 @@ out_xclk_fail:
 
 static int smiapp_power_off(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
+	struct v4l2_subdev *subdev = dev_get_drvdata(dev);
 	struct smiapp_subdev *ssd = to_smiapp_subdev(subdev);
 	struct smiapp_sensor *sensor =
 		container_of(ssd, struct smiapp_sensor, ssds[0]);
