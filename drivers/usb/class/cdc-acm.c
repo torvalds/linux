@@ -1288,10 +1288,8 @@ look_for_collapsed_interface:
 skip_normal_probe:
 
 	/*workaround for switched interfaces */
-	if (data_interface->cur_altsetting->desc.bInterfaceClass
-						!= CDC_DATA_INTERFACE_TYPE) {
-		if (control_interface->cur_altsetting->desc.bInterfaceClass
-						== CDC_DATA_INTERFACE_TYPE) {
+	if (data_interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA) {
+		if (control_interface->cur_altsetting->desc.bInterfaceClass == USB_CLASS_CDC_DATA) {
 			dev_dbg(&intf->dev,
 				"Your device has switched interfaces.\n");
 			swap(control_interface, data_interface);

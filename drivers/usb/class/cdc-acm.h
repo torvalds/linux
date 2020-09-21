@@ -131,8 +131,6 @@ struct acm {
 	unsigned long quirks;
 };
 
-#define CDC_DATA_INTERFACE_TYPE	0x0a
-
 /* constants describing various quirks and errors */
 #define NO_UNION_NORMAL			BIT(0)
 #define SINGLE_RX_URB			BIT(1)
