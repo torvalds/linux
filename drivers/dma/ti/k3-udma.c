@@ -3157,13 +3157,10 @@ static const struct soc_device_attribute k3_soc_devices[] = {
 
 static int udma_get_mmrs(struct platform_device *pdev, struct udma_dev *ud)
 {
-	struct resource *res;
 	int i;
 
 	for (i = 0; i < MMR_LAST; i++) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   mmr_names[i]);
-		ud->mmrs[i] = devm_ioremap_resource(&pdev->dev, res);
+		ud->mmrs[i] = devm_platform_ioremap_resource_byname(pdev, mmr_names[i]);
 		if (IS_ERR(ud->mmrs[i]))
 			return PTR_ERR(ud->mmrs[i]);
 	}
