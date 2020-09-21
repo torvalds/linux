@@ -579,7 +579,6 @@ static void sd_normal_rw(struct rtsx_usb_sdmmc *host,
 static int sd_change_phase(struct rtsx_usb_sdmmc *host, u8 sample_point, int tx)
 {
 	struct rtsx_ucr *ucr = host->ucr;
-	int err;
 
 	dev_dbg(sdmmc_dev(host), "%s: %s sample_point = %d\n",
 			__func__, tx ? "TX" : "RX", sample_point);
@@ -601,11 +600,7 @@ static int sd_change_phase(struct rtsx_usb_sdmmc *host, u8 sample_point, int tx)
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CLK_DIV, CLK_CHANGE, 0);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_CFG1, SD_ASYNC_FIFO_RST, 0);
 
-	err = rtsx_usb_send_cmd(ucr, MODE_C, 100);
-	if (err)
-		return err;
-
-	return 0;
+	return rtsx_usb_send_cmd(ucr, MODE_C, 100);
 }
 
 static inline u32 get_phase_point(u32 phase_map, unsigned int idx)
