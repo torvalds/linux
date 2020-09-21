@@ -2554,13 +2554,7 @@ static int hclgevf_set_alive(struct hnae3_handle *handle, bool alive)
 
 static int hclgevf_client_start(struct hnae3_handle *handle)
 {
-	int ret;
-
-	ret = hclgevf_set_alive(handle, true);
-	if (ret)
-		return ret;
-
-	return 0;
+	return hclgevf_set_alive(handle, true);
 }
 
 static void hclgevf_client_stop(struct hnae3_handle *handle)
