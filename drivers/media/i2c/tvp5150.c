@@ -1413,8 +1413,7 @@ static const struct media_entity_operations tvp5150_sd_media_ops = {
  ****************************************************************************/
 static int __maybe_unused tvp5150_runtime_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	if (decoder->irq)
@@ -1427,8 +1426,7 @@ static int __maybe_unused tvp5150_runtime_suspend(struct device *dev)
 
 static int __maybe_unused tvp5150_runtime_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	if (decoder->irq)
