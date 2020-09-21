@@ -267,15 +267,10 @@ EXPORT_SYMBOL_GPL(imx_icc_register);
 int imx_icc_unregister(struct platform_device *pdev)
 {
 	struct icc_provider *provider = platform_get_drvdata(pdev);
-	int ret;
 
 	imx_icc_unregister_nodes(provider);
 
-	ret = icc_provider_del(provider);
-	if (ret)
-		return ret;
-
-	return 0;
+	return icc_provider_del(provider);
 }
 EXPORT_SYMBOL_GPL(imx_icc_unregister);
 
