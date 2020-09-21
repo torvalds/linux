@@ -2179,8 +2179,7 @@ err_unlock:
 
 static int __maybe_unused imx319_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx319 *imx319 = to_imx319(sd);
 
 	if (imx319->streaming)
@@ -2191,8 +2190,7 @@ static int __maybe_unused imx319_suspend(struct device *dev)
 
 static int __maybe_unused imx319_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx319 *imx319 = to_imx319(sd);
 	int ret;
 
