@@ -17,8 +17,8 @@
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinmux.h>
 
-#include "core.h"
-#include "pinmux.h"
+#include "../core.h"
+#include "../pinmux.h"
 
 #define DRIVER_NAME		"pinctrl-rza2"
 

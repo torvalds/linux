@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
  *
- * This file is based on the drivers/pinctrl/sh-pfc/pfc-r8a7796.c
+ * This file is based on the drivers/pinctrl/renesas/pfc-r8a7796.c
  *
  * R-Car Gen3 processor support - PFC hardware block.
  *
