@@ -614,8 +614,8 @@ static int validate_extent_buffer(struct extent_buffer *eb)
 
 		read_extent_buffer(eb, &val, 0, csum_size);
 		btrfs_warn_rl(fs_info,
-	"%s checksum verify failed on %llu wanted " CSUM_FMT " found " CSUM_FMT " level %d",
-			      fs_info->sb->s_id, eb->start,
+	"checksum verify failed on %llu wanted " CSUM_FMT " found " CSUM_FMT " level %d",
+			      eb->start,
 			      CSUM_FMT_VALUE(csum_size, val),
 			      CSUM_FMT_VALUE(csum_size, result),
 			      btrfs_header_level(eb));
