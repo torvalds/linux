@@ -1285,16 +1285,15 @@ static void remove_cpu_from_masks(int cpu)
 
 static inline void add_cpu_to_smallcore_masks(int cpu)
 {
-	struct cpumask *this_l1_cache_map = per_cpu(cpu_l1_cache_map, cpu);
-	int i, first_thread = cpu_first_thread_sibling(cpu);
+	int i;
 
 	if (!has_big_cores)
 		return;
 
 	cpumask_set_cpu(cpu, cpu_smallcore_mask(cpu));
 
-	for (i = first_thread; i < first_thread + threads_per_core; i++) {
-		if (cpu_online(i) && cpumask_test_cpu(i, this_l1_cache_map))
+	for_each_cpu(i, per_cpu(cpu_l1_cache_map, cpu)) {
+		if (cpu_online(i))
 			set_cpus_related(i, cpu, cpu_smallcore_mask);
 	}
 }
