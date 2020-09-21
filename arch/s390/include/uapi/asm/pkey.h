@@ -35,12 +35,16 @@
 #define PKEY_KEYTYPE_AES_128		      1
 #define PKEY_KEYTYPE_AES_192		      2
 #define PKEY_KEYTYPE_AES_256		      3
+#define PKEY_KEYTYPE_ECC		      4
 
 /* the newer ioctls use a pkey_key_type enum for type information */
 enum pkey_key_type {
 	PKEY_TYPE_CCA_DATA   = (__u32) 1,
 	PKEY_TYPE_CCA_CIPHER = (__u32) 2,
 	PKEY_TYPE_EP11	     = (__u32) 3,
+	PKEY_TYPE_CCA_ECC    = (__u32) 0x1f,
+	PKEY_TYPE_EP11_AES   = (__u32) 6,
+	PKEY_TYPE_EP11_ECC   = (__u32) 7,
 };
 
 /* the newer ioctls use a pkey_key_size enum for key size information */
@@ -87,6 +91,20 @@ struct pkey_protkey {
 struct pkey_clrkey {
 	__u8  clrkey[MAXCLRKEYSIZE]; /* 16, 24, or 32 byte clear key value */
 };
+
+/*
+ * EP11 key blobs of type PKEY_TYPE_EP11_AES and PKEY_TYPE_EP11_ECC
+ * are ep11 blobs prepended by this header:
+ */
+struct ep11kblob_header {
+	__u8  type;	/* always 0x00 */
+	__u8  hver;	/* header version,  currently needs to be 0x00 */
+	__u16 len;	/* total length in bytes (including this header) */
+	__u8  version;	/* PKEY_TYPE_EP11_AES or PKEY_TYPE_EP11_ECC */
+	__u8  res0;	/* unused */
+	__u16 bitlen;	/* clear key bit len, 0 for unknown */
+	__u8  res1[8];	/* unused */
+} __packed;
 
 /*
  * Generate CCA AES secure key.
@@ -304,7 +322,7 @@ struct pkey_verifykey2 {
 #define PKEY_VERIFYKEY2 _IOWR(PKEY_IOCTL_MAGIC, 0x17, struct pkey_verifykey2)
 
 /*
- * Transform a key blob (of any type) into a protected key, version 2.
+ * Transform a key blob into a protected key, version 2.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
  * is not supported. The implementation walks through the list of apqns and
@@ -313,6 +331,8 @@ struct pkey_verifykey2 {
  * list is tried until success (return 0) or the end of the list is reached
  * (return -1 with errno ENODEV). You may use the PKEY_APQNS4K ioctl to
  * generate a list of apqns based on the key.
+ * Deriving ECC protected keys from ECC secure keys is not supported with
+ * this ioctl, use PKEY_KBLOB2PROTK3 for this purpose.
  */
 struct pkey_kblob2pkey2 {
 	__u8 __user *key;	     /* in: pointer to key blob		   */
@@ -326,17 +346,17 @@ struct pkey_kblob2pkey2 {
 /*
  * Build a list of APQNs based on a key blob given.
  * Is able to find out which type of secure key is given (CCA AES secure
- * key, CCA AES cipher key or EP11 AES key) and tries to find all matching
- * crypto cards based on the MKVP and maybe other criterias (like CCA AES
- * cipher keys need a CEX5C or higher, EP11 keys with BLOB_PKEY_EXTRACTABLE
- * need a CEX7 and EP11 api version 4). The list of APQNs is further filtered
- * by the key's mkvp which needs to match to either the current mkvp (CCA and
- * EP11) or the alternate mkvp (old mkvp, CCA adapters only) of the apqns. The
- * flags argument may be used to limit the matching apqns. If the
- * PKEY_FLAGS_MATCH_CUR_MKVP is given, only the current mkvp of each apqn is
- * compared. Likewise with the PKEY_FLAGS_MATCH_ALT_MKVP. If both are given, it
- * is assumed to return apqns where either the current or the alternate mkvp
- * matches. At least one of the matching flags needs to be given.
+ * key, CCA AES cipher key, CCA ECC private key, EP11 AES key, EP11 ECC private
+ * key) and tries to find all matching crypto cards based on the MKVP and maybe
+ * other criterias (like CCA AES cipher keys need a CEX5C or higher, EP11 keys
+ * with BLOB_PKEY_EXTRACTABLE need a CEX7 and EP11 api version 4). The list of
+ * APQNs is further filtered by the key's mkvp which needs to match to either
+ * the current mkvp (CCA and EP11) or the alternate mkvp (old mkvp, CCA adapters
+ * only) of the apqns. The flags argument may be used to limit the matching
+ * apqns. If the PKEY_FLAGS_MATCH_CUR_MKVP is given, only the current mkvp of
+ * each apqn is compared. Likewise with the PKEY_FLAGS_MATCH_ALT_MKVP. If both
+ * are given, it is assumed to return apqns where either the current or the
+ * alternate mkvp matches. At least one of the matching flags needs to be given.
  * The flags argument for EP11 keys has no further action and is currently
  * ignored (but needs to be given as PKEY_FLAGS_MATCH_CUR_MKVP) as there is only
  * the wkvp from the key to match against the apqn's wkvp.
@@ -365,9 +385,10 @@ struct pkey_apqns4key {
  * restrict the list by given master key verification patterns.
  * For different key types there may be different ways to match the
  * master key verification patterns. For CCA keys (CCA data key and CCA
- * cipher key) the first 8 bytes of cur_mkvp refer to the current mkvp value
- * of the apqn and the first 8 bytes of the alt_mkvp refer to the old mkvp.
- * The flags argument controls if the apqns current and/or alternate mkvp
+ * cipher key) the first 8 bytes of cur_mkvp refer to the current AES mkvp value
+ * of the apqn and the first 8 bytes of the alt_mkvp refer to the old AES mkvp.
+ * For CCA ECC keys it is similar but the match is against the APKA current/old
+ * mkvp. The flags argument controls if the apqns current and/or alternate mkvp
  * should match. If the PKEY_FLAGS_MATCH_CUR_MKVP is given, only the current
  * mkvp of each apqn is compared. Likewise with the PKEY_FLAGS_MATCH_ALT_MKVP.
  * If both are given, it is assumed to return apqns where either the
@@ -396,5 +417,31 @@ struct pkey_apqns4keytype {
 				   /* out: # apqns stored into the list	      */
 };
 #define PKEY_APQNS4KT _IOWR(PKEY_IOCTL_MAGIC, 0x1C, struct pkey_apqns4keytype)
+
+/*
+ * Transform a key blob into a protected key, version 3.
+ * The difference to version 2 of this ioctl is that the protected key
+ * buffer is now explicitly and not within a struct pkey_protkey any more.
+ * So this ioctl is also able to handle EP11 and CCA ECC secure keys and
+ * provide ECC protected keys.
+ * There needs to be a list of apqns given with at least one entry in there.
+ * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
+ * is not supported. The implementation walks through the list of apqns and
+ * tries to send the request to each apqn without any further checking (like
+ * card type or online state). If the apqn fails, simple the next one in the
+ * list is tried until success (return 0) or the end of the list is reached
+ * (return -1 with errno ENODEV). You may use the PKEY_APQNS4K ioctl to
+ * generate a list of apqns based on the key.
+ */
+struct pkey_kblob2pkey3 {
+	__u8 __user *key;	     /* in: pointer to key blob		   */
+	__u32 keylen;		     /* in: key blob size		   */
+	struct pkey_apqn __user *apqns; /* in: ptr to list of apqn targets */
+	__u32 apqn_entries;	     /* in: # of apqn target list entries  */
+	__u32 pkeytype;		/* out: prot key type (enum pkey_key_type) */
+	__u32 pkeylen;	 /* in/out: size of pkey buffer/actual len of pkey */
+	__u8 __user *pkey;		 /* in: pkey blob buffer space ptr */
+};
+#define PKEY_KBLOB2PROTK3 _IOWR(PKEY_IOCTL_MAGIC, 0x1D, struct pkey_kblob2pkey3)
 
 #endif /* _UAPI_PKEY_H */

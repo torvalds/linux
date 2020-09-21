@@ -173,6 +173,49 @@ int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 EXPORT_SYMBOL(cca_check_secaescipherkey);
 
 /*
+ * Simple check if the token is a valid CCA secure ECC private
+ * key token. Returns 0 on success or errno value on failure.
+ */
+int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
+			     const u8 *token, size_t keysize,
+			     int checkcpacfexport)
+{
+	struct eccprivkeytoken *t = (struct eccprivkeytoken *) token;
+
+#define DBF(...) debug_sprintf_event(dbg, dbflvl, ##__VA_ARGS__)
+
+	if (t->type != TOKTYPE_CCA_INTERNAL_PKA) {
+		if (dbg)
+			DBF("%s token check failed, type 0x%02x != 0x%02x\n",
+			    __func__, (int) t->type, TOKTYPE_CCA_INTERNAL_PKA);
+		return -EINVAL;
+	}
+	if (t->len > keysize) {
+		if (dbg)
+			DBF("%s token check failed, len %d > keysize %zu\n",
+			    __func__, (int) t->len, keysize);
+		return -EINVAL;
+	}
+	if (t->secid != 0x20) {
+		if (dbg)
+			DBF("%s token check failed, secid 0x%02x != 0x20\n",
+			    __func__, (int) t->secid);
+		return -EINVAL;
+	}
+	if (checkcpacfexport && !(t->kutc & 0x01)) {
+		if (dbg)
+			DBF("%s token check failed, XPRTCPAC bit is 0\n",
+			    __func__);
+		return -EINVAL;
+	}
+
+#undef DBF
+
+	return 0;
+}
+EXPORT_SYMBOL(cca_check_sececckeytoken);
+
+/*
  * Allocate consecutive memory for request CPRB, request param
  * block, reply CPRB and reply param block and fill in values
  * for the common fields. Returns 0 on success or errno value
@@ -1296,6 +1339,156 @@ out:
 	return rc;
 }
 EXPORT_SYMBOL(cca_cipher2protkey);
+
+/*
+ * Derive protected key from CCA ECC secure private key.
+ */
+int cca_ecc2protkey(u16 cardnr, u16 domain, const u8 *key,
+		    u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+{
+	int rc;
+	u8 *mem, *ptr;
+	struct CPRBX *preqcblk, *prepcblk;
+	struct ica_xcRB xcrb;
+	struct aureqparm {
+		u8  subfunc_code[2];
+		u16 rule_array_len;
+		u8  rule_array[8];
+		struct {
+			u16 len;
+			u16 tk_blob_len;
+			u16 tk_blob_tag;
+			u8  tk_blob[66];
+		} vud;
+		struct {
+			u16 len;
+			u16 cca_key_token_len;
+			u16 cca_key_token_flags;
+			u8  cca_key_token[0];
+		} kb;
+	} __packed * preqparm;
+	struct aurepparm {
+		u8  subfunc_code[2];
+		u16 rule_array_len;
+		struct {
+			u16 len;
+			u16 sublen;
+			u16 tag;
+			struct cpacfkeyblock {
+				u8  version;  /* version of this struct */
+				u8  flags[2];
+				u8  algo;
+				u8  form;
+				u8  pad1[3];
+				u16 keylen;
+				u8  key[0];  /* the key (keylen bytes) */
+				u16 keyattrlen;
+				u8  keyattr[32];
+				u8  pad2[1];
+				u8  vptype;
+				u8  vp[32];  /* verification pattern */
+			} ckb;
+		} vud;
+		struct {
+			u16 len;
+		} kb;
+	} __packed * prepparm;
+	int keylen = ((struct eccprivkeytoken *)key)->len;
+
+	/* get already prepared memory for 2 cprbs with param block each */
+	rc = alloc_and_prep_cprbmem(PARMBSIZE, &mem, &preqcblk, &prepcblk);
+	if (rc)
+		return rc;
+
+	/* fill request cprb struct */
+	preqcblk->domain = domain;
+
+	/* fill request cprb param block with AU request */
+	preqparm = (struct aureqparm __force *) preqcblk->req_parmb;
+	memcpy(preqparm->subfunc_code, "AU", 2);
+	preqparm->rule_array_len =
+		sizeof(preqparm->rule_array_len)
+		+ sizeof(preqparm->rule_array);
+	memcpy(preqparm->rule_array, "EXPT-SK ", 8);
+	/* vud, tk blob */
+	preqparm->vud.len = sizeof(preqparm->vud);
+	preqparm->vud.tk_blob_len = sizeof(preqparm->vud.tk_blob)
+		+ 2 * sizeof(uint16_t);
+	preqparm->vud.tk_blob_tag = 0x00C2;
+	/* kb, cca token */
+	preqparm->kb.len = keylen + 3 * sizeof(uint16_t);
+	preqparm->kb.cca_key_token_len = keylen + 2 * sizeof(uint16_t);
+	memcpy(preqparm->kb.cca_key_token, key, keylen);
+	/* now fill length of param block into cprb */
+	preqcblk->req_parml = sizeof(struct aureqparm) + keylen;
+
+	/* fill xcrb struct */
+	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
+
+	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
+	rc = zcrypt_send_cprb(&xcrb);
+	if (rc) {
+		DEBUG_ERR(
+			"%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
+			__func__, (int) cardnr, (int) domain, rc);
+		goto out;
+	}
+
+	/* check response returncode and reasoncode */
+	if (prepcblk->ccp_rtcode != 0) {
+		DEBUG_ERR(
+			"%s unwrap secure key failure, card response %d/%d\n",
+			__func__,
+			(int) prepcblk->ccp_rtcode,
+			(int) prepcblk->ccp_rscode);
+		rc = -EIO;
+		goto out;
+	}
+	if (prepcblk->ccp_rscode != 0) {
+		DEBUG_WARN(
+			"%s unwrap secure key warning, card response %d/%d\n",
+			__func__,
+			(int) prepcblk->ccp_rtcode,
+			(int) prepcblk->ccp_rscode);
+	}
+
+	/* process response cprb param block */
+	ptr = ((u8 *) prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *) ptr;
+	prepparm = (struct aurepparm *) ptr;
+
+	/* check the returned keyblock */
+	if (prepparm->vud.ckb.version != 0x02) {
+		DEBUG_ERR("%s reply param keyblock version mismatch 0x%02x != 0x02\n",
+			  __func__, (int) prepparm->vud.ckb.version);
+		rc = -EIO;
+		goto out;
+	}
+	if (prepparm->vud.ckb.algo != 0x81) {
+		DEBUG_ERR(
+			"%s reply param keyblock algo mismatch 0x%02x != 0x81\n",
+			__func__, (int) prepparm->vud.ckb.algo);
+		rc = -EIO;
+		goto out;
+	}
+
+	/* copy the translated protected key */
+	if (prepparm->vud.ckb.keylen > *protkeylen) {
+		DEBUG_ERR("%s prot keylen mismatch %d > buffersize %u\n",
+			  __func__, prepparm->vud.ckb.keylen, *protkeylen);
+		rc = -EIO;
+		goto out;
+	}
+	memcpy(protkey, prepparm->vud.ckb.key, prepparm->vud.ckb.keylen);
+	*protkeylen = prepparm->vud.ckb.keylen;
+	if (protkeytype)
+		*protkeytype = PKEY_KEYTYPE_ECC;
+
+out:
+	free_cprbmem(mem, PARMBSIZE, 0);
+	return rc;
+}
+EXPORT_SYMBOL(cca_ecc2protkey);
 
 /*
  * query cryptographic facility from CCA adapter

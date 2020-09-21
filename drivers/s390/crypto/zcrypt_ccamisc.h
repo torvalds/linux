@@ -14,8 +14,9 @@
 #include <asm/pkey.h>
 
 /* Key token types */
-#define TOKTYPE_NON_CCA		0x00 /* Non-CCA key token */
-#define TOKTYPE_CCA_INTERNAL	0x01 /* CCA internal key token */
+#define TOKTYPE_NON_CCA		 0x00 /* Non-CCA key token */
+#define TOKTYPE_CCA_INTERNAL	 0x01 /* CCA internal sym key token */
+#define TOKTYPE_CCA_INTERNAL_PKA 0x1f /* CCA internal asym key token */
 
 /* For TOKTYPE_NON_CCA: */
 #define TOKVER_PROTECTED_KEY	0x01 /* Protected key token */
@@ -93,6 +94,31 @@ struct cipherkeytoken {
 	u8  vdata[]; /* variable part data follows */
 } __packed;
 
+/* inside view of an CCA secure ECC private key */
+struct eccprivkeytoken {
+	u8  type;     /* 0x1f for internal asym key token */
+	u8  version;  /* should be 0x00 */
+	u16 len;      /* total key token length in bytes */
+	u8  res1[4];
+	u8  secid;    /* 0x20 for ECC priv key section marker */
+	u8  secver;   /* section version */
+	u16 seclen;   /* section length */
+	u8  wtype;    /* wrapping method, 0x00 clear, 0x01 AES */
+	u8  htype;    /* hash method, 0x02 for SHA-256 */
+	u8  res2[2];
+	u8  kutc;     /* key usage and translation control */
+	u8  ctype;    /* curve type */
+	u8  kfs;      /* key format and security */
+	u8  ksrc;     /* key source */
+	u16 pbitlen;  /* length of prime p in bits */
+	u16 ibmadlen; /* IBM associated data length in bytes */
+	u64 mkvp;     /* master key verification pattern */
+	u8  opk[48];  /* encrypted object protection key data */
+	u16 adatalen; /* associated data length in bytes */
+	u16 fseclen;  /* formated section length in bytes */
+	u8  more_data[]; /* more data follows */
+} __packed;
+
 /* Some defines for the CCA AES cipherkeytoken kmf1 field */
 #define KMF1_XPRT_SYM  0x8000
 #define KMF1_XPRT_UASY 0x4000
@@ -121,6 +147,14 @@ int cca_check_secaeskeytoken(debug_info_t *dbg, int dbflvl,
 int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 			      const u8 *token, int keybitsize,
 			      int checkcpacfexport);
+
+/*
+ * Simple check if the token is a valid CCA secure ECC private
+ * key token. Returns 0 on success or errno value on failure.
+ */
+int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
+			     const u8 *token, size_t keysize,
+			     int checkcpacfexport);
 
 /*
  * Generate (random) CCA AES DATA secure key.
@@ -157,6 +191,12 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
  */
 int cca_clr2cipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 		      const u8 *clrkey, u8 *keybuf, size_t *keybufsize);
+
+/*
+ * Derive proteced key from CCA ECC secure private key.
+ */
+int cca_ecc2protkey(u16 cardnr, u16 domain, const u8 *key,
+		    u8 *protkey, u32 *protkeylen, u32 *protkeytype);
 
 /*
  * Query cryptographic facility from CCA adapter
