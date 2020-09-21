@@ -717,22 +717,19 @@ static int snd_ctl_card_info(struct snd_card *card, struct snd_ctl_file * ctl,
 }
 
 static int snd_ctl_elem_list(struct snd_card *card,
-			     struct snd_ctl_elem_list __user *_list)
+			     struct snd_ctl_elem_list *list)
 {
-	struct snd_ctl_elem_list list;
 	struct snd_kcontrol *kctl;
 	struct snd_ctl_elem_id id;
 	unsigned int offset, space, jidx;
 	int err = 0;
 
-	if (copy_from_user(&list, _list, sizeof(list)))
-		return -EFAULT;
-	offset = list.offset;
-	space = list.space;
+	offset = list->offset;
+	space = list->space;
 
 	down_read(&card->controls_rwsem);
-	list.count = card->controls_count;
-	list.used = 0;
+	list->count = card->controls_count;
+	list->used = 0;
 	if (space > 0) {
 		list_for_each_entry(kctl, &card->controls, list) {
 			if (offset >= kctl->count) {
@@ -741,12 +738,12 @@ static int snd_ctl_elem_list(struct snd_card *card,
 			}
 			for (jidx = offset; jidx < kctl->count; jidx++) {
 				snd_ctl_build_ioff(&id, kctl, jidx);
-				if (copy_to_user(list.pids + list.used, &id,
+				if (copy_to_user(list->pids + list->used, &id,
 						 sizeof(id))) {
 					err = -EFAULT;
 					goto out;
 				}
-				list.used++;
+				list->used++;
 				if (!--space)
 					goto out;
 			}
@@ -755,9 +752,24 @@ static int snd_ctl_elem_list(struct snd_card *card,
 	}
  out:
 	up_read(&card->controls_rwsem);
-	if (!err && copy_to_user(_list, &list, sizeof(list)))
-		err = -EFAULT;
 	return err;
+}
+
+static int snd_ctl_elem_list_user(struct snd_card *card,
+				  struct snd_ctl_elem_list __user *_list)
+{
+	struct snd_ctl_elem_list list;
+	int err;
+
+	if (copy_from_user(&list, _list, sizeof(list)))
+		return -EFAULT;
+	err = snd_ctl_elem_list(card, &list);
+	if (err)
+		return err;
+	if (copy_to_user(_list, &list, sizeof(list)))
+		return -EFAULT;
+
+	return 0;
 }
 
 /* Check whether the given kctl info is valid */
@@ -1703,7 +1715,7 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case SNDRV_CTL_IOCTL_CARD_INFO:
 		return snd_ctl_card_info(card, ctl, cmd, argp);
 	case SNDRV_CTL_IOCTL_ELEM_LIST:
-		return snd_ctl_elem_list(card, argp);
+		return snd_ctl_elem_list_user(card, argp);
 	case SNDRV_CTL_IOCTL_ELEM_INFO:
 		return snd_ctl_elem_info_user(ctl, argp);
 	case SNDRV_CTL_IOCTL_ELEM_READ:
