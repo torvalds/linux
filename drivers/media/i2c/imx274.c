@@ -1970,9 +1970,6 @@ static int imx274_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct stimx274 *imx274 = to_imx274(sd);
 
-	/* stop stream */
-	imx274_write_table(imx274, imx274_stop);
-
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&imx274->ctrls.handler);
 	media_entity_cleanup(&sd->entity);
