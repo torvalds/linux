@@ -3038,7 +3038,11 @@ static int sja1105_setup(struct dsa_switch *ds)
 	 * default, and that means vlan_filtering is 0 since they're not under
 	 * a bridge, so it's safe to set up switch tagging at this time.
 	 */
-	return sja1105_setup_8021q_tagging(ds, true);
+	rtnl_lock();
+	rc = sja1105_setup_8021q_tagging(ds, true);
+	rtnl_unlock();
+
+	return rc;
 }
 
 static void sja1105_teardown(struct dsa_switch *ds)
@@ -3532,6 +3536,7 @@ static int sja1105_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	priv->dsa_8021q_ctx->ops = &sja1105_dsa_8021q_ops;
+	priv->dsa_8021q_ctx->proto = htons(ETH_P_8021Q);
 	priv->dsa_8021q_ctx->ds = ds;
 
 	INIT_LIST_HEAD(&priv->dsa_8021q_ctx->crosschip_links);
