@@ -191,7 +191,7 @@ but it is better and easier to use this macro:
 
 	err = v4l2_subdev_call(sd, core, g_std, &norm);
 
-The macro will to the right ``NULL`` pointer checks and returns ``-ENODEV``
+The macro will do the right ``NULL`` pointer checks and returns ``-ENODEV``
 if :c:type:`sd <v4l2_subdev>` is ``NULL``, ``-ENOIOCTLCMD`` if either
 :c:type:`sd <v4l2_subdev>`->core or :c:type:`sd <v4l2_subdev>`->core->g_std is ``NULL``, or the actual result of the
 :c:type:`sd <v4l2_subdev>`->ops->core->g_std ops.
