@@ -181,13 +181,14 @@ static void amd_uncore_del(struct perf_event *event, int flags)
 }
 
 /*
- * Return a full thread and slice mask until per-CPU is
- * properly supported.
+ * Return a full thread and slice mask unless user
+ * has provided them
  */
-static u64 l3_thread_slice_mask(void)
+static u64 l3_thread_slice_mask(u64 config)
 {
 	if (boot_cpu_data.x86 <= 0x18)
-		return AMD64_L3_SLICE_MASK | AMD64_L3_THREAD_MASK;
+		return ((config & AMD64_L3_SLICE_MASK) ? : AMD64_L3_SLICE_MASK) |
+		       ((config & AMD64_L3_THREAD_MASK) ? : AMD64_L3_THREAD_MASK);
 
 	return AMD64_L3_EN_ALL_SLICES | AMD64_L3_EN_ALL_CORES |
 	       AMD64_L3_F19H_THREAD_MASK;
@@ -220,7 +221,7 @@ static int amd_uncore_event_init(struct perf_event *event)
 	 * For other events, the two fields do not affect the count.
 	 */
 	if (l3_mask && is_llc_event(event))
-		hwc->config |= l3_thread_slice_mask();
+		hwc->config |= l3_thread_slice_mask(event->attr.config);
 
 	uncore = event_to_amd_uncore(event);
 	if (!uncore)
@@ -277,6 +278,8 @@ DEFINE_UNCORE_FORMAT_ATTR(event12,	event,		"config:0-7,32-35");
 DEFINE_UNCORE_FORMAT_ATTR(event14,	event,		"config:0-7,32-35,59-60"); /* F17h+ DF */
 DEFINE_UNCORE_FORMAT_ATTR(event8,	event,		"config:0-7");		   /* F17h+ L3 */
 DEFINE_UNCORE_FORMAT_ATTR(umask,	umask,		"config:8-15");
+DEFINE_UNCORE_FORMAT_ATTR(slicemask,	slicemask,	"config:48-51");	   /* F17h L3 */
+DEFINE_UNCORE_FORMAT_ATTR(threadmask8,	threadmask,	"config:56-63");	   /* F17h L3 */
 
 static struct attribute *amd_uncore_df_format_attr[] = {
 	&format_attr_event12.attr, /* event14 if F17h+ */
@@ -287,6 +290,8 @@ static struct attribute *amd_uncore_df_format_attr[] = {
 static struct attribute *amd_uncore_l3_format_attr[] = {
 	&format_attr_event12.attr, /* event8 if F17h+ */
 	&format_attr_umask.attr,
+	NULL, /* slicemask if F17h */
+	NULL, /* threadmask8 if F17h */
 	NULL,
 };
 
@@ -578,8 +583,12 @@ static int __init amd_uncore_init(void)
 	}
 
 	if (boot_cpu_has(X86_FEATURE_PERFCTR_LLC)) {
-		if (boot_cpu_data.x86 >= 0x17)
-			*l3_attr = &format_attr_event8.attr;
+		if (boot_cpu_data.x86 >= 0x17) {
+			*l3_attr++ = &format_attr_event8.attr;
+			*l3_attr++ = &format_attr_umask.attr;
+			*l3_attr++ = &format_attr_slicemask.attr;
+			*l3_attr++ = &format_attr_threadmask8.attr;
+		}
 
 		amd_uncore_llc = alloc_percpu(struct amd_uncore *);
 		if (!amd_uncore_llc) {
