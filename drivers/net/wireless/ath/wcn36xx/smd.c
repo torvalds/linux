@@ -80,7 +80,7 @@ static struct wcn36xx_cfg_val wcn36xx_cfg_vals[] = {
 	WCN36XX_CFG_VAL(ENABLE_DYNAMIC_RA_START_RATE, 133), /* MCS 5 */
 };
 
-struct wcn36xx_cfg_val wcn3680_cfg_vals[] = {
+static struct wcn36xx_cfg_val wcn3680_cfg_vals[] = {
 	WCN36XX_CFG_VAL(CURRENT_TX_ANTENNA, 1),
 	WCN36XX_CFG_VAL(CURRENT_RX_ANTENNA, 1),
 	WCN36XX_CFG_VAL(LOW_GAIN_OVERRIDE, 0),
@@ -242,11 +242,7 @@ static void wcn36xx_smd_set_bss_ht_params(struct ieee80211_vif *vif,
 	}
 }
 
-void
-wcn36xx_smd_set_bss_vht_params(struct ieee80211_vif *vif,
-			       struct ieee80211_sta *sta,
-			       struct wcn36xx_hal_config_bss_params_v1 *bss);
-void
+static void
 wcn36xx_smd_set_bss_vht_params(struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
 			       struct wcn36xx_hal_config_bss_params_v1 *bss)
@@ -283,10 +279,7 @@ static void wcn36xx_smd_set_sta_ht_params(struct ieee80211_sta *sta,
 	}
 }
 
-void wcn36xx_smd_set_sta_vht_params(struct wcn36xx *wcn,
-		struct ieee80211_sta *sta,
-		struct wcn36xx_hal_config_sta_params_v1 *sta_params);
-void wcn36xx_smd_set_sta_vht_params(struct wcn36xx *wcn,
+static void wcn36xx_smd_set_sta_vht_params(struct wcn36xx *wcn,
 		struct ieee80211_sta *sta,
 		struct wcn36xx_hal_config_sta_params_v1 *sta_params)
 {
@@ -308,9 +301,7 @@ void wcn36xx_smd_set_sta_vht_params(struct wcn36xx *wcn,
 	}
 }
 
-void wcn36xx_smd_set_sta_ht_ldpc_params(struct ieee80211_sta *sta,
-		struct wcn36xx_hal_config_sta_params_v1 *sta_params);
-void wcn36xx_smd_set_sta_ht_ldpc_params(struct ieee80211_sta *sta,
+static void wcn36xx_smd_set_sta_ht_ldpc_params(struct ieee80211_sta *sta,
 		struct wcn36xx_hal_config_sta_params_v1 *sta_params)
 {
 	if (sta->ht_cap.ht_supported) {
@@ -335,9 +326,7 @@ static void wcn36xx_smd_set_sta_default_ht_params(
 	sta_params->dsss_cck_mode_40mhz = 1;
 }
 
-void wcn36xx_smd_set_sta_default_vht_params(struct wcn36xx *wcn,
-		struct wcn36xx_hal_config_sta_params_v1 *sta_params);
-void wcn36xx_smd_set_sta_default_vht_params(struct wcn36xx *wcn,
+static void wcn36xx_smd_set_sta_default_vht_params(struct wcn36xx *wcn,
 		struct wcn36xx_hal_config_sta_params_v1 *sta_params)
 {
 	if (wcn->rf_id == RF_IRIS_WCN3680) {
@@ -353,9 +342,7 @@ void wcn36xx_smd_set_sta_default_vht_params(struct wcn36xx *wcn,
 	sta_params->vht_tx_bf_enabled = 0;
 }
 
-void wcn36xx_smd_set_sta_default_ht_ldpc_params(struct wcn36xx *wcn,
-		struct wcn36xx_hal_config_sta_params_v1 *sta_params);
-void wcn36xx_smd_set_sta_default_ht_ldpc_params(struct wcn36xx *wcn,
+static void wcn36xx_smd_set_sta_default_ht_ldpc_params(struct wcn36xx *wcn,
 		struct wcn36xx_hal_config_sta_params_v1 *sta_params)
 {
 	if (wcn->rf_id == RF_IRIS_WCN3680)
@@ -1376,12 +1363,7 @@ static void wcn36xx_smd_convert_sta_to_v1(struct wcn36xx *wcn,
 	v1->p2p = orig->p2p;
 }
 
-void
-wcn36xx_smd_set_sta_params_v1(struct wcn36xx *wcn,
-			      struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta,
-			      struct wcn36xx_hal_config_sta_params_v1 *sta_par);
-void
+static void
 wcn36xx_smd_set_sta_params_v1(struct wcn36xx *wcn,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta,
@@ -1520,18 +1502,12 @@ out:
 	return ret;
 }
 
-void wcn36xx_smd_set_bss_params(struct wcn36xx *wcn,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta,
-				const u8 *bssid,
-				bool update,
-				struct wcn36xx_hal_config_bss_params *bss);
-void wcn36xx_smd_set_bss_params(struct wcn36xx *wcn,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta,
-				const u8 *bssid,
-				bool update,
-				struct wcn36xx_hal_config_bss_params *bss)
+static void wcn36xx_smd_set_bss_params(struct wcn36xx *wcn,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_sta *sta,
+				       const u8 *bssid,
+				       bool update,
+				       struct wcn36xx_hal_config_bss_params *bss)
 {
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 
@@ -1736,12 +1712,11 @@ static int wcn36xx_smd_config_bss_v1(struct wcn36xx *wcn,
 	return ret;
 }
 
-int wcn36xx_smd_config_bss_v0(struct wcn36xx *wcn, struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta, const u8 *bssid,
-			      bool update);
-int wcn36xx_smd_config_bss_v0(struct wcn36xx *wcn, struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta, const u8 *bssid,
-			      bool update)
+static int wcn36xx_smd_config_bss_v0(struct wcn36xx *wcn,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_sta *sta,
+				     const u8 *bssid,
+				     bool update)
 {
 	struct wcn36xx_hal_config_bss_req_msg *msg;
 	struct wcn36xx_hal_config_bss_params *bss;
