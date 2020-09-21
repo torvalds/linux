@@ -1204,7 +1204,7 @@ static int ns83820_get_link_ksettings(struct net_device *ndev,
 				      struct ethtool_link_ksettings *cmd)
 {
 	struct ns83820 *dev = PRIV(ndev);
-	u32 cfg, tanar, tbicr;
+	u32 cfg, tbicr;
 	int fullduplex   = 0;
 	u32 supported;
 
@@ -1223,7 +1223,7 @@ static int ns83820_get_link_ksettings(struct net_device *ndev,
 
 	/* read current configuration */
 	cfg   = readl(dev->base + CFG) ^ SPDSTS_POLARITY;
-	tanar = readl(dev->base + TANAR);
+	readl(dev->base + TANAR);
 	tbicr = readl(dev->base + TBICR);
 
 	fullduplex = (cfg & CFG_DUPSTS) ? 1 : 0;
