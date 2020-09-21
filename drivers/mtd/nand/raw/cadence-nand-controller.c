@@ -2980,18 +2980,14 @@ static int cadence_nand_dt_probe(struct platform_device *ofdev)
 	dev_info(cdns_ctrl->dev, "IRQ: nr %d\n", cdns_ctrl->irq);
 
 	cdns_ctrl->reg = devm_platform_ioremap_resource(ofdev, 0);
-	if (IS_ERR(cdns_ctrl->reg)) {
-		dev_err(&ofdev->dev, "devm_ioremap_resource res 0 failed\n");
+	if (IS_ERR(cdns_ctrl->reg))
 		return PTR_ERR(cdns_ctrl->reg);
-	}
 
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 1);
 	cdns_ctrl->io.dma = res->start;
 	cdns_ctrl->io.virt = devm_ioremap_resource(&ofdev->dev, res);
-	if (IS_ERR(cdns_ctrl->io.virt)) {
-		dev_err(cdns_ctrl->dev, "devm_ioremap_resource res 1 failed\n");
+	if (IS_ERR(cdns_ctrl->io.virt))
 		return PTR_ERR(cdns_ctrl->io.virt);
-	}
 
 	dt->clk = devm_clk_get(cdns_ctrl->dev, "nf_clk");
 	if (IS_ERR(dt->clk))
