@@ -990,7 +990,7 @@ static void hinic_refresh_nic_cfg(struct hinic_dev *nic_dev)
  * @handle: nic device for the handler
  * @buf_in: input buffer
  * @in_size: input size
- * @buf_in: output buffer
+ * @buf_out: output buffer
  * @out_size: returned output size
  *
  * Return 0 - Success, negative - Failure

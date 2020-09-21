@@ -188,6 +188,7 @@ static u8 eq_cons_idx_checksum_set(u32 val)
 /**
  * eq_update_ci - update the HW cons idx of event queue
  * @eq: the event queue to update the cons idx for
+ * @arm_state: the arm bit value of eq's interrupt
  **/
 static void eq_update_ci(struct hinic_eq *eq, u32 arm_state)
 {
@@ -368,7 +369,7 @@ static void eq_irq_work(struct work_struct *work)
 
 /**
  * ceq_tasklet - the tasklet of the EQ that received the event
- * @ceq_data: the eq
+ * @t: the tasklet struct pointer
  **/
 static void ceq_tasklet(struct tasklet_struct *t)
 {
