@@ -334,8 +334,8 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 	if (radeon_ttm_tt_has_userptr(bo->rdev, bo->tbo.ttm))
 		return -EPERM;
 
-	if (bo->pin_count) {
-		bo->pin_count++;
+	if (bo->tbo.pin_count) {
+		ttm_bo_pin(&bo->tbo);
 		if (gpu_addr)
 			*gpu_addr = radeon_bo_gpu_offset(bo);
 
@@ -367,13 +367,11 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 				bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
 		else
 			bo->placements[i].lpfn = max_offset >> PAGE_SHIFT;
-
-		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (likely(r == 0)) {
-		bo->pin_count = 1;
+		ttm_bo_pin(&bo->tbo);
 		if (gpu_addr != NULL)
 			*gpu_addr = radeon_bo_gpu_offset(bo);
 		if (domain == RADEON_GEM_DOMAIN_VRAM)
@@ -391,32 +389,15 @@ int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr)
 	return radeon_bo_pin_restricted(bo, domain, 0, gpu_addr);
 }
 
-int radeon_bo_unpin(struct radeon_bo *bo)
+void radeon_bo_unpin(struct radeon_bo *bo)
 {
-	struct ttm_operation_ctx ctx = { false, false };
-	int r, i;
-
-	if (!bo->pin_count) {
-		dev_warn(bo->rdev->dev, "%p unpin not necessary\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-	for (i = 0; i < bo->placement.num_placement; i++) {
-		bo->placements[i].lpfn = 0;
-		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	}
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (likely(r == 0)) {
+	ttm_bo_unpin(&bo->tbo);
+	if (!bo->tbo.pin_count) {
 		if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
 			bo->rdev->vram_pin_size -= radeon_bo_size(bo);
 		else
 			bo->rdev->gart_pin_size -= radeon_bo_size(bo);
-	} else {
-		dev_err(bo->rdev->dev, "%p validate failed for unpin\n", bo);
 	}
-	return r;
 }
 
 int radeon_bo_evict_vram(struct radeon_device *rdev)
@@ -549,7 +530,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 
 	list_for_each_entry(lobj, head, tv.head) {
 		struct radeon_bo *bo = lobj->robj;
-		if (!bo->pin_count) {
+		if (!bo->tbo.pin_count) {
 			u32 domain = lobj->preferred_domains;
 			u32 allowed = lobj->allowed_domains;
 			u32 current_domain =
@@ -629,7 +610,7 @@ int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 			break;
 
 		old_object = reg->bo;
-		if (old_object->pin_count == 0)
+		if (old_object->tbo.pin_count == 0)
 			steal = i;
 	}
 
@@ -816,7 +797,7 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 		return 0;
 
 	/* Can't move a pinned BO to visible VRAM */
-	if (rbo->pin_count > 0)
+	if (rbo->tbo.pin_count > 0)
 		return -EINVAL;
 
 	/* hurrah the memory is not visible ! */

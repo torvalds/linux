@@ -308,7 +308,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	/* Can't move a pinned BO */
 	rbo = container_of(bo, struct radeon_bo, tbo);
-	if (WARN_ON_ONCE(rbo->pin_count > 0))
+	if (WARN_ON_ONCE(rbo->tbo.pin_count > 0))
 		return -EINVAL;
 
 	rdev = radeon_get_rdev(bo->bdev);
