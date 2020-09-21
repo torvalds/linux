@@ -230,7 +230,7 @@ static int ide_gd_open(struct block_device *bdev, fmode_t mode)
 				bdev->bd_disk->disk_name);
 		drive->disk_ops->get_capacity(drive);
 		set_capacity(disk, ide_gd_capacity(drive));
-		set_bit(BDEV_NEED_PART_SCAN, &bdev->bd_flags);
+		set_bit(GD_NEED_PART_SCAN, &disk->state);
 	} else if (drive->dev_flags & IDE_DFLAG_FORMAT_IN_PROGRESS) {
 		ret = -EBUSY;
 		goto out_put_idkp;

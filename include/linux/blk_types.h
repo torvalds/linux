@@ -19,8 +19,6 @@ struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
 struct bio_crypt_ctx;
 
-#define BDEV_NEED_PART_SCAN		0
-
 struct block_device {
 	dev_t			bd_dev;
 	int			bd_openers;
@@ -39,7 +37,7 @@ struct block_device {
 	struct hd_struct *	bd_part;
 	/* number of times partitions within this device have been opened. */
 	unsigned		bd_part_count;
-	unsigned long		bd_flags;
+
 	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
 	struct gendisk *	bd_disk;
 	struct backing_dev_info *bd_bdi;
