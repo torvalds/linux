@@ -24,6 +24,7 @@
 #include "xfs_error.h"
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
+#include "xfs_quota.h"
 
 kmem_zone_t	*xfs_bui_zone;
 kmem_zone_t	*xfs_bud_zone;
@@ -495,6 +496,10 @@ xfs_bui_item_recover(
 
 	/* Grab the inode. */
 	error = xfs_iget(mp, tp, bmap->me_owner, 0, XFS_ILOCK_EXCL, &ip);
+	if (error)
+		goto err_inode;
+
+	error = xfs_qm_dqattach_locked(ip, false);
 	if (error)
 		goto err_inode;
 
