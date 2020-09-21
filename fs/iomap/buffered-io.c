@@ -27,7 +27,7 @@
  */
 struct iomap_page {
 	atomic_t		read_bytes_pending;
-	atomic_t		write_count;
+	atomic_t		write_bytes_pending;
 	spinlock_t		uptodate_lock;
 	unsigned long		uptodate[];
 };
@@ -73,7 +73,7 @@ iomap_page_release(struct page *page)
 	if (!iop)
 		return;
 	WARN_ON_ONCE(atomic_read(&iop->read_bytes_pending));
-	WARN_ON_ONCE(atomic_read(&iop->write_count));
+	WARN_ON_ONCE(atomic_read(&iop->write_bytes_pending));
 	WARN_ON_ONCE(bitmap_full(iop->uptodate, nr_blocks) !=
 			PageUptodate(page));
 	kfree(iop);
@@ -1047,7 +1047,7 @@ EXPORT_SYMBOL_GPL(iomap_page_mkwrite);
 
 static void
 iomap_finish_page_writeback(struct inode *inode, struct page *page,
-		int error)
+		int error, unsigned int len)
 {
 	struct iomap_page *iop = to_iomap_page(page);
 
@@ -1057,9 +1057,9 @@ iomap_finish_page_writeback(struct inode *inode, struct page *page,
 	}
 
 	WARN_ON_ONCE(i_blocks_per_page(inode, page) > 1 && !iop);
-	WARN_ON_ONCE(iop && atomic_read(&iop->write_count) <= 0);
+	WARN_ON_ONCE(iop && atomic_read(&iop->write_bytes_pending) <= 0);
 
-	if (!iop || atomic_dec_and_test(&iop->write_count))
+	if (!iop || atomic_sub_and_test(len, &iop->write_bytes_pending))
 		end_page_writeback(page);
 }
 
@@ -1093,7 +1093,8 @@ iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 
 		/* walk each page on bio, ending page IO on them */
 		bio_for_each_segment_all(bv, bio, iter_all)
-			iomap_finish_page_writeback(inode, bv->bv_page, error);
+			iomap_finish_page_writeback(inode, bv->bv_page, error,
+					bv->bv_len);
 		bio_put(bio);
 	}
 	/* The ioend has been freed by bio_put() */
@@ -1309,8 +1310,8 @@ iomap_add_to_ioend(struct inode *inode, loff_t offset, struct page *page,
 
 	merged = __bio_try_merge_page(wpc->ioend->io_bio, page, len, poff,
 			&same_page);
-	if (iop && !same_page)
-		atomic_inc(&iop->write_count);
+	if (iop)
+		atomic_add(len, &iop->write_bytes_pending);
 
 	if (!merged) {
 		if (bio_full(wpc->ioend->io_bio, len)) {
@@ -1353,7 +1354,7 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	LIST_HEAD(submit_list);
 
 	WARN_ON_ONCE(i_blocks_per_page(inode, page) > 1 && !iop);
-	WARN_ON_ONCE(iop && atomic_read(&iop->write_count) != 0);
+	WARN_ON_ONCE(iop && atomic_read(&iop->write_bytes_pending) != 0);
 
 	/*
 	 * Walk through the page to find areas to write back. If we run off the
