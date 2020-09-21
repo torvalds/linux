@@ -214,6 +214,7 @@ struct mlx5_esw_offload {
 	struct mutex peer_mutex;
 	struct mutex encap_tbl_lock; /* protects encap_tbl */
 	DECLARE_HASHTABLE(encap_tbl, 8);
+	DECLARE_HASHTABLE(route_tbl, 8);
 	struct mutex decap_tbl_lock; /* protects decap_tbl */
 	DECLARE_HASHTABLE(decap_tbl, 8);
 	struct mod_hdr_tbl mod_hdr;

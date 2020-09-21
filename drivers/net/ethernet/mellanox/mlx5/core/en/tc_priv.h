@@ -25,6 +25,7 @@ enum {
 	MLX5E_TC_FLOW_FLAG_DELETED               = MLX5E_TC_FLOW_BASE + 6,
 	MLX5E_TC_FLOW_FLAG_CT                    = MLX5E_TC_FLOW_BASE + 7,
 	MLX5E_TC_FLOW_FLAG_L3_TO_L2_DECAP        = MLX5E_TC_FLOW_BASE + 8,
+	MLX5E_TC_FLOW_FLAG_TUN_RX                = MLX5E_TC_FLOW_BASE + 9,
 };
 
 struct mlx5e_tc_flow_parse_attr {
@@ -59,6 +60,11 @@ struct encap_flow_item {
 	int index;
 };
 
+struct encap_route_flow_item {
+	struct mlx5e_route_entry *r; /* attached route instance */
+	int index;
+};
+
 struct mlx5e_tc_flow {
 	struct rhash_head node;
 	struct mlx5e_priv *priv;
@@ -69,6 +75,11 @@ struct mlx5e_tc_flow {
 	/* flows sharing the same reformat object - currently mpls decap */
 	struct list_head l3_to_l2_reformat;
 	struct mlx5e_decap_entry *decap_reformat;
+
+	/* flows sharing same route entry */
+	struct list_head decap_routes;
+	struct mlx5e_route_entry *decap_route;
+	struct encap_route_flow_item encap_routes[MLX5_MAX_FLOW_FWD_VPORTS];
 
 	/* Flow can be associated with multiple encap IDs.
 	 * The number of encaps is bounded by the number of supported

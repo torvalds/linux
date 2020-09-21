@@ -7,6 +7,23 @@
 #include "rep/tc.h"
 #include "diag/en_tc_tracepoint.h"
 
+struct mlx5e_route_key {
+	int ip_version;
+	union {
+		__be32 v4;
+		struct in6_addr v6;
+	} endpoint_ip;
+};
+
+struct mlx5e_route_entry {
+	struct mlx5e_route_key key;
+	struct list_head encap_entries;
+	struct list_head decap_flows;
+	struct hlist_node hlist;
+	refcount_t refcnt;
+	struct rcu_head rcu;
+};
+
 int mlx5e_tc_set_attr_rx_tun(struct mlx5e_tc_flow *flow,
 			     struct mlx5_flow_spec *spec)
 {
@@ -29,10 +46,13 @@ int mlx5e_tc_set_attr_rx_tun(struct mlx5e_tc_flow *flow,
 				     outer_headers.src_ipv4_src_ipv6.ipv4_layout.ipv4);
 		tun_attr->dst_ip.v4 = *(__be32 *)daddr;
 		tun_attr->src_ip.v4 = *(__be32 *)saddr;
+		if (!tun_attr->dst_ip.v4 || !tun_attr->src_ip.v4)
+			return 0;
 	}
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 	else if (ip_version == 6) {
 		int ipv6_size = MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6);
+		struct in6_addr zerov6 = {};
 
 		daddr = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				     outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6);
@@ -40,8 +60,15 @@ int mlx5e_tc_set_attr_rx_tun(struct mlx5e_tc_flow *flow,
 				     outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6);
 		memcpy(&tun_attr->dst_ip.v6, daddr, ipv6_size);
 		memcpy(&tun_attr->src_ip.v6, saddr, ipv6_size);
+		if (!memcmp(&tun_attr->dst_ip.v6, &zerov6, sizeof(zerov6)) ||
+		    !memcmp(&tun_attr->src_ip.v6, &zerov6, sizeof(zerov6)))
+			return 0;
 	}
 #endif
+	/* Only set the flag if both src and dst ip addresses exist. They are
+	 * required to establish routing.
+	 */
+	flow_flag_set(flow, TUN_RX);
 	return 0;
 }
 
@@ -325,6 +352,7 @@ void mlx5e_encap_put(struct mlx5e_priv *priv, struct mlx5e_encap_entry *e)
 
 	if (!refcount_dec_and_mutex_lock(&e->refcnt, &esw->offloads.encap_tbl_lock))
 		return;
+	list_del(&e->route_list);
 	hash_del_rcu(&e->encap_hlist);
 	mutex_unlock(&esw->offloads.encap_tbl_lock);
 
@@ -343,11 +371,19 @@ static void mlx5e_decap_put(struct mlx5e_priv *priv, struct mlx5e_decap_entry *d
 	mlx5e_decap_dealloc(priv, d);
 }
 
+static void mlx5e_detach_encap_route(struct mlx5e_priv *priv,
+				     struct mlx5e_tc_flow *flow,
+				     int out_index);
+
 void mlx5e_detach_encap(struct mlx5e_priv *priv,
 			struct mlx5e_tc_flow *flow, int out_index)
 {
 	struct mlx5e_encap_entry *e = flow->encaps[out_index].e;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	if (flow->attr->esw_attr->dests[out_index].flags &
+	    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE)
+		mlx5e_detach_encap_route(priv, flow, out_index);
 
 	/* flow wasn't fully initialized */
 	if (!e)
@@ -360,6 +396,7 @@ void mlx5e_detach_encap(struct mlx5e_priv *priv,
 		mutex_unlock(&esw->offloads.encap_tbl_lock);
 		return;
 	}
+	list_del(&e->route_list);
 	hash_del_rcu(&e->encap_hlist);
 	mutex_unlock(&esw->offloads.encap_tbl_lock);
 
@@ -531,6 +568,12 @@ out:
 	return err;
 }
 
+static int mlx5e_attach_encap_route(struct mlx5e_priv *priv,
+				    struct mlx5e_tc_flow *flow,
+				    struct mlx5e_encap_entry *e,
+				    bool new_encap_entry,
+				    int out_index);
+
 int mlx5e_attach_encap(struct mlx5e_priv *priv,
 		       struct mlx5e_tc_flow *flow,
 		       struct net_device *mirred_dev,
@@ -545,6 +588,7 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	const struct ip_tunnel_info *tun_info;
 	struct encap_key key;
 	struct mlx5e_encap_entry *e;
+	bool entry_created = false;
 	unsigned short family;
 	uintptr_t hash_key;
 	int err = 0;
@@ -592,6 +636,8 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 
 	refcount_set(&e->refcnt, 1);
 	init_completion(&e->res_ready);
+	entry_created = true;
+	INIT_LIST_HEAD(&e->route_list);
 
 	tun_info = mlx5e_dup_tun_info(tun_info);
 	if (!tun_info) {
@@ -622,8 +668,7 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	e->compl_result = 1;
 
 attach_flow:
-	err = mlx5e_set_vf_tunnel(esw, attr, &parse_attr->mod_hdr_acts, e->out_dev,
-				  e->route_dev_ifindex, out_index);
+	err = mlx5e_attach_encap_route(priv, flow, e, entry_created, out_index);
 	if (err)
 		goto out_err;
 
@@ -732,3 +777,212 @@ out_err:
 	mutex_unlock(&esw->offloads.decap_tbl_lock);
 	return err;
 }
+
+static int cmp_route_info(struct mlx5e_route_key *a,
+			  struct mlx5e_route_key *b)
+{
+	if (a->ip_version == 4 && b->ip_version == 4)
+		return memcmp(&a->endpoint_ip.v4, &b->endpoint_ip.v4,
+			      sizeof(a->endpoint_ip.v4));
+	else if (a->ip_version == 6 && b->ip_version == 6)
+		return memcmp(&a->endpoint_ip.v6, &b->endpoint_ip.v6,
+			      sizeof(a->endpoint_ip.v6));
+	return 1;
+}
+
+static u32 hash_route_info(struct mlx5e_route_key *key)
+{
+	if (key->ip_version == 4)
+		return jhash(&key->endpoint_ip.v4, sizeof(key->endpoint_ip.v4), 0);
+	return jhash(&key->endpoint_ip.v6, sizeof(key->endpoint_ip.v6), 0);
+}
+
+static struct mlx5e_route_entry *
+mlx5e_route_get(struct mlx5e_priv *priv, struct mlx5e_route_key *key,
+		u32 hash_key)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_route_key r_key;
+	struct mlx5e_route_entry *r;
+
+	hash_for_each_possible(esw->offloads.route_tbl, r, hlist, hash_key) {
+		r_key = r->key;
+		if (!cmp_route_info(&r_key, key) &&
+		    refcount_inc_not_zero(&r->refcnt))
+			return r;
+	}
+	return NULL;
+}
+
+static struct mlx5e_route_entry *
+mlx5e_route_get_create(struct mlx5e_priv *priv,
+		       struct mlx5e_route_key *key)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_route_entry *r;
+	u32 hash_key;
+
+	hash_key = hash_route_info(key);
+	r = mlx5e_route_get(priv, key, hash_key);
+	if (r)
+		return r;
+
+	r = kzalloc(sizeof(*r), GFP_KERNEL);
+	if (!r)
+		return ERR_PTR(-ENOMEM);
+
+	r->key = *key;
+	refcount_set(&r->refcnt, 1);
+	INIT_LIST_HEAD(&r->decap_flows);
+	INIT_LIST_HEAD(&r->encap_entries);
+	hash_add(esw->offloads.route_tbl, &r->hlist, hash_key);
+	return r;
+}
+
+int mlx5e_attach_decap_route(struct mlx5e_priv *priv,
+			     struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5_flow_attr *attr = flow->attr;
+	struct mlx5_esw_flow_attr *esw_attr;
+	struct mlx5e_route_entry *r;
+	struct mlx5e_route_key key;
+	int err = 0;
+
+	esw_attr = attr->esw_attr;
+	parse_attr = attr->parse_attr;
+	mutex_lock(&esw->offloads.encap_tbl_lock);
+	if (!esw_attr->rx_tun_attr)
+		goto out;
+
+	err = mlx5e_tc_tun_route_lookup(priv, &parse_attr->spec, attr);
+	if (err || !esw_attr->rx_tun_attr->decap_vport)
+		goto out;
+
+	key.ip_version = attr->ip_version;
+	if (key.ip_version == 4)
+		key.endpoint_ip.v4 = esw_attr->rx_tun_attr->dst_ip.v4;
+	else
+		key.endpoint_ip.v6 = esw_attr->rx_tun_attr->dst_ip.v6;
+
+	r = mlx5e_route_get_create(priv, &key);
+	if (IS_ERR(r)) {
+		err = PTR_ERR(r);
+		goto out;
+	}
+
+	flow->decap_route = r;
+	list_add(&flow->decap_routes, &r->decap_flows);
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+	return 0;
+
+out:
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+	return err;
+}
+
+static int mlx5e_attach_encap_route(struct mlx5e_priv *priv,
+				    struct mlx5e_tc_flow *flow,
+				    struct mlx5e_encap_entry *e,
+				    bool new_encap_entry,
+				    int out_index)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5_flow_attr *attr = flow->attr;
+	const struct ip_tunnel_info *tun_info;
+	struct mlx5_esw_flow_attr *esw_attr;
+	struct mlx5e_route_entry *r;
+	struct mlx5e_route_key key;
+	unsigned short family;
+	int err = 0;
+
+	esw_attr = attr->esw_attr;
+	parse_attr = attr->parse_attr;
+	tun_info = parse_attr->tun_info[out_index];
+	family = ip_tunnel_info_af(tun_info);
+
+	if (family == AF_INET) {
+		key.endpoint_ip.v4 = tun_info->key.u.ipv4.src;
+		key.ip_version = 4;
+	} else if (family == AF_INET6) {
+		key.endpoint_ip.v6 = tun_info->key.u.ipv6.src;
+		key.ip_version = 6;
+	}
+
+	err = mlx5e_set_vf_tunnel(esw, attr, &parse_attr->mod_hdr_acts, e->out_dev,
+				  e->route_dev_ifindex, out_index);
+	if (err || !(esw_attr->dests[out_index].flags &
+		     MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE))
+		return err;
+
+	r = mlx5e_route_get_create(priv, &key);
+	if (IS_ERR(r))
+		return PTR_ERR(r);
+
+	flow->encap_routes[out_index].r = r;
+	if (new_encap_entry)
+		list_add(&e->route_list, &r->encap_entries);
+	flow->encap_routes[out_index].index = out_index;
+	return 0;
+}
+
+static void mlx5e_route_dealloc(struct mlx5e_priv *priv,
+				struct mlx5e_route_entry *r)
+{
+	WARN_ON(!list_empty(&r->decap_flows));
+	WARN_ON(!list_empty(&r->encap_entries));
+
+	kfree_rcu(r, rcu);
+}
+
+void mlx5e_detach_decap_route(struct mlx5e_priv *priv,
+			      struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_route_entry *r = flow->decap_route;
+
+	if (!r)
+		return;
+
+	mutex_lock(&esw->offloads.encap_tbl_lock);
+	list_del(&flow->decap_routes);
+	flow->decap_route = NULL;
+
+	if (!refcount_dec_and_test(&r->refcnt)) {
+		mutex_unlock(&esw->offloads.encap_tbl_lock);
+		return;
+	}
+	hash_del_rcu(&r->hlist);
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+
+	mlx5e_route_dealloc(priv, r);
+}
+
+static void mlx5e_detach_encap_route(struct mlx5e_priv *priv,
+				     struct mlx5e_tc_flow *flow,
+				     int out_index)
+{
+	struct mlx5e_route_entry *r = flow->encap_routes[out_index].r;
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_encap_entry *e, *tmp;
+
+	if (!r)
+		return;
+
+	mutex_lock(&esw->offloads.encap_tbl_lock);
+	flow->encap_routes[out_index].r = NULL;
+
+	if (!refcount_dec_and_test(&r->refcnt)) {
+		mutex_unlock(&esw->offloads.encap_tbl_lock);
+		return;
+	}
+	list_for_each_entry_safe(e, tmp, &r->encap_entries, route_list)
+		list_del_init(&e->route_list);
+	hash_del_rcu(&r->hlist);
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+
+	mlx5e_route_dealloc(priv, r);
+}
+

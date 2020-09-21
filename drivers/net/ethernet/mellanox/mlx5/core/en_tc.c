@@ -1251,6 +1251,12 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
+	if (flow_flag_test(flow, TUN_RX)) {
+		err = mlx5e_attach_decap_route(priv, flow);
+		if (err)
+			return err;
+	}
+
 	if (flow_flag_test(flow, L3_TO_L2_DECAP)) {
 		err = mlx5e_attach_decap(priv, flow, extack);
 		if (err)
@@ -1335,8 +1341,10 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_flow_attr *attr = flow->attr;
+	struct mlx5_esw_flow_attr *esw_attr;
 	int out_index;
 
+	esw_attr = attr->esw_attr;
 	mlx5e_put_flow_tunnel_id(flow);
 
 	if (flow_flag_test(flow, NOT_READY))
@@ -1354,11 +1362,15 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
-	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
-		if (attr->esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
+	if (flow->decap_route)
+		mlx5e_detach_decap_route(priv, flow);
+
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		if (esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
 			mlx5e_detach_encap(priv, flow, out_index);
 			kfree(attr->parse_attr->tun_info[out_index]);
 		}
+	}
 	kvfree(attr->parse_attr);
 	kvfree(attr->esw_attr->rx_tun_attr);
 
@@ -1368,7 +1380,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		mlx5e_detach_mod_hdr(priv, flow);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
-		mlx5_fc_destroy(attr->esw_attr->counter_dev, attr->counter);
+		mlx5_fc_destroy(esw_attr->counter_dev, attr->counter);
 
 	if (flow_flag_test(flow, L3_TO_L2_DECAP))
 		mlx5e_detach_decap(priv, flow);
@@ -3690,12 +3702,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			NL_SET_ERR_MSG_MOD(extack, "The offload action is not supported");
 			return -EOPNOTSUPP;
 		}
-	}
-
-	if (decap && esw_attr->rx_tun_attr) {
-		err = mlx5e_tc_tun_route_lookup(priv, &parse_attr->spec, attr);
-		if (err)
-			return err;
 	}
 
 	/* always set IP version for indirect table handling */

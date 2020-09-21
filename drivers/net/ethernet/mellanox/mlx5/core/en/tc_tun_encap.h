@@ -22,6 +22,11 @@ int mlx5e_attach_decap(struct mlx5e_priv *priv,
 void mlx5e_detach_decap(struct mlx5e_priv *priv,
 			struct mlx5e_tc_flow *flow);
 
+int mlx5e_attach_decap_route(struct mlx5e_priv *priv,
+			     struct mlx5e_tc_flow *flow);
+void mlx5e_detach_decap_route(struct mlx5e_priv *priv,
+			      struct mlx5e_tc_flow *flow);
+
 struct ip_tunnel_info *mlx5e_dup_tun_info(const struct ip_tunnel_info *tun_info);
 
 int mlx5e_tc_set_attr_rx_tun(struct mlx5e_tc_flow *flow,
