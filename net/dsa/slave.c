@@ -344,7 +344,7 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	/* Deny adding a bridge VLAN when there is already an 802.1Q upper with
 	 * the same VID.
 	 */
-	if (trans->ph_prepare) {
+	if (trans->ph_prepare && br_vlan_enabled(dp->bridge_dev)) {
 		rcu_read_lock();
 		err = dsa_slave_vlan_check_for_8021q_uppers(dev, &vlan);
 		rcu_read_unlock();
@@ -1936,7 +1936,7 @@ dsa_slave_check_8021q_upper(struct net_device *dev,
 	int err = NOTIFY_DONE;
 	u16 vid;
 
-	if (!br)
+	if (!br || !br_vlan_enabled(br))
 		return NOTIFY_DONE;
 
 	extack = netdev_notifier_info_to_extack(&info->info);

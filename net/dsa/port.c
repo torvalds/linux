@@ -193,11 +193,44 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
 }
 
+/* Must be called under rcu_read_lock() */
 static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 					      bool vlan_filtering)
 {
 	struct dsa_switch *ds = dp->ds;
-	int i;
+	int err, i;
+
+	/* VLAN awareness was off, so the question is "can we turn it on".
+	 * We may have had 8021q uppers, those need to go. Make sure we don't
+	 * enter an inconsistent state: deny changing the VLAN awareness state
+	 * as long as we have 8021q uppers.
+	 */
+	if (vlan_filtering && dsa_is_user_port(ds, dp->index)) {
+		struct net_device *upper_dev, *slave = dp->slave;
+		struct net_device *br = dp->bridge_dev;
+		struct list_head *iter;
+
+		netdev_for_each_upper_dev_rcu(slave, upper_dev, iter) {
+			struct bridge_vlan_info br_info;
+			u16 vid;
+
+			if (!is_vlan_dev(upper_dev))
+				continue;
+
+			vid = vlan_dev_vlan_id(upper_dev);
+
+			/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
+			 * device, respectively the VID is not found, returning
+			 * 0 means success, which is a failure for us here.
+			 */
+			err = br_vlan_get_info(br, vid, &br_info);
+			if (err == 0) {
+				dev_err(ds->dev, "Must remove upper %s first\n",
+					upper_dev->name);
+				return false;
+			}
+		}
+	}
 
 	if (!ds->vlan_filtering_is_global)
 		return true;
@@ -233,10 +266,19 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	int err;
 
 	if (switchdev_trans_ph_prepare(trans)) {
+		bool apply;
+
 		if (!ds->ops->port_vlan_filtering)
 			return -EOPNOTSUPP;
 
-		if (!dsa_port_can_apply_vlan_filtering(dp, vlan_filtering))
+		/* We are called from dsa_slave_switchdev_blocking_event(),
+		 * which is not under rcu_read_lock(), unlike
+		 * dsa_slave_switchdev_event().
+		 */
+		rcu_read_lock();
+		apply = dsa_port_can_apply_vlan_filtering(dp, vlan_filtering);
+		rcu_read_unlock();
+		if (!apply)
 			return -EINVAL;
 
 		return 0;
