@@ -953,12 +953,17 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 				local_memory_node(numa_cpu_lookup_table[cpu]));
 		}
 #endif
+		/*
+		 * cpu_core_map is now more updated and exists only since
+		 * its been exported for long. It only will have a snapshot
+		 * of cpu_cpu_mask.
+		 */
+		cpumask_copy(per_cpu(cpu_core_map, cpu), cpu_cpu_mask(cpu));
 	}
 
 	/* Init the cpumasks so the boot CPU is related to itself */
 	cpumask_set_cpu(boot_cpuid, cpu_sibling_mask(boot_cpuid));
 	cpumask_set_cpu(boot_cpuid, cpu_l2_cache_mask(boot_cpuid));
-	cpumask_set_cpu(boot_cpuid, cpu_core_mask(boot_cpuid));
 
 	if (has_coregroup_support())
 		cpumask_set_cpu(boot_cpuid, cpu_coregroup_mask(boot_cpuid));
@@ -1260,9 +1265,7 @@ static void remove_cpu_from_masks(int cpu)
 {
 	int i;
 
-	/* NB: cpu_core_mask is a superset of the others */
-	for_each_cpu(i, cpu_core_mask(cpu)) {
-		set_cpus_unrelated(cpu, i, cpu_core_mask);
+	for_each_cpu(i, cpu_cpu_mask(cpu)) {
 		set_cpus_unrelated(cpu, i, cpu_l2_cache_mask);
 		set_cpus_unrelated(cpu, i, cpu_sibling_mask);
 		if (has_big_cores)
@@ -1312,7 +1315,6 @@ EXPORT_SYMBOL_GPL(get_physical_package_id);
 static void add_cpu_to_masks(int cpu)
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
-	int pkg_id = get_physical_package_id(cpu);
 	int i;
 
 	/*
@@ -1320,7 +1322,6 @@ static void add_cpu_to_masks(int cpu)
 	 * add it to it's own thread sibling mask.
 	 */
 	cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
-	cpumask_set_cpu(cpu, cpu_core_mask(cpu));
 
 	for (i = first_thread; i < first_thread + threads_per_core; i++)
 		if (cpu_online(i))
@@ -1342,26 +1343,6 @@ static void add_cpu_to_masks(int cpu)
 				set_cpus_related(cpu, i, cpu_coregroup_mask);
 		}
 	}
-
-	if (pkg_id == -1) {
-		struct cpumask *(*mask)(int) = cpu_sibling_mask;
-
-		/*
-		 * Copy the sibling mask into core sibling mask and
-		 * mark any CPUs on the same chip as this CPU.
-		 */
-		if (shared_caches)
-			mask = cpu_l2_cache_mask;
-
-		for_each_cpu(i, mask(cpu))
-			set_cpus_related(cpu, i, cpu_core_mask);
-
-		return;
-	}
-
-	for_each_cpu(i, cpu_online_mask)
-		if (get_physical_package_id(i) == pkg_id)
-			set_cpus_related(cpu, i, cpu_core_mask);
 }
 
 /* Activate a secondary processor. */
