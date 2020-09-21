@@ -3853,7 +3853,7 @@ static void bnxt_init_stats(struct bnxt *bp)
 		tx_masks = stats->hw_masks;
 		tx_count = sizeof(struct tx_port_stats_ext) / 8;
 
-		flags = FUNC_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK;
+		flags = PORT_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK;
 		rc = bnxt_hwrm_port_qstats_ext(bp, flags);
 		if (rc) {
 			mask = (1ULL << 40) - 1;
