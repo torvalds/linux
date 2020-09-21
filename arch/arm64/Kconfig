@@ -1890,7 +1890,7 @@ endmenu
 
 config ASYMMETRIC_AARCH32
 	bool "Allow support for asymmetric AArch32 support"
-	depends on COMPAT && EXPERT && !KVM
+	depends on COMPAT && EXPERT
 	help
 	  Enable this option to allow support for asymmetric AArch32 EL0
 	  CPU configurations. Once the AArch32 EL0 support is detected
