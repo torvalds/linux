@@ -673,11 +673,23 @@ static int exact_lock(dev_t devt, void *data)
 	return 0;
 }
 
+static void disk_scan_partitions(struct gendisk *disk)
+{
+	struct block_device *bdev;
+
+	if (!get_capacity(disk) || !disk_part_scan_enabled(disk))
+		return;
+
+	set_bit(GD_NEED_PART_SCAN, &disk->state);
+	bdev = blkdev_get_by_dev(disk_devt(disk), FMODE_READ, NULL);
+	if (!IS_ERR(bdev))
+		blkdev_put(bdev, FMODE_READ);
+}
+
 static void register_disk(struct device *parent, struct gendisk *disk,
 			  const struct attribute_group **groups)
 {
 	struct device *ddev = disk_to_dev(disk);
-	struct block_device *bdev;
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 	int err;
@@ -719,25 +731,8 @@ static void register_disk(struct device *parent, struct gendisk *disk,
 		return;
 	}
 
-	/* No minors to use for partitions */
-	if (!disk_part_scan_enabled(disk))
-		goto exit;
+	disk_scan_partitions(disk);
 
-	/* No such device (e.g., media were just removed) */
-	if (!get_capacity(disk))
-		goto exit;
-
-	bdev = bdget_disk(disk, 0);
-	if (!bdev)
-		goto exit;
-
-	set_bit(GD_NEED_PART_SCAN, &disk->state);
-	err = blkdev_get(bdev, FMODE_READ, NULL);
-	if (err < 0)
-		goto exit;
-	blkdev_put(bdev, FMODE_READ);
-
-exit:
 	/* announce disk after possible partitions are created */
 	dev_set_uevent_suppress(ddev, 0);
 	kobject_uevent(&ddev->kobj, KOBJ_ADD);
