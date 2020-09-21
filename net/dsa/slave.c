@@ -303,6 +303,28 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 	return ret;
 }
 
+/* Must be called under rcu_read_lock() */
+static int
+dsa_slave_vlan_check_for_8021q_uppers(struct net_device *slave,
+				      const struct switchdev_obj_port_vlan *vlan)
+{
+	struct net_device *upper_dev;
+	struct list_head *iter;
+
+	netdev_for_each_upper_dev_rcu(slave, upper_dev, iter) {
+		u16 vid;
+
+		if (!is_vlan_dev(upper_dev))
+			continue;
+
+		vid = vlan_dev_vlan_id(upper_dev);
+		if (vid >= vlan->vid_begin && vid <= vlan->vid_end)
+			return -EBUSY;
+	}
+
+	return 0;
+}
+
 static int dsa_slave_vlan_add(struct net_device *dev,
 			      const struct switchdev_obj *obj,
 			      struct switchdev_trans *trans)
@@ -318,6 +340,17 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 		return 0;
 
 	vlan = *SWITCHDEV_OBJ_PORT_VLAN(obj);
+
+	/* Deny adding a bridge VLAN when there is already an 802.1Q upper with
+	 * the same VID.
+	 */
+	if (trans->ph_prepare) {
+		rcu_read_lock();
+		err = dsa_slave_vlan_check_for_8021q_uppers(dev, &vlan);
+		rcu_read_unlock();
+		if (err)
+			return err;
+	}
 
 	err = dsa_port_vlan_add(dp, &vlan, trans);
 	if (err)
