@@ -8,7 +8,7 @@
 #include "hclge_tm.h"
 #include "hnae3.h"
 
-static struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
+static const struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
 	{ .reg_type = "bios common",
 	  .dfx_msg = &hclge_dbg_bios_common_reg[0],
 	  .reg_msg = { .msg_num = ARRAY_SIZE(hclge_dbg_bios_common_reg),
@@ -115,14 +115,14 @@ static int hclge_dbg_cmd_send(struct hclge_dev *hdev,
 }
 
 static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
-				      struct hclge_dbg_reg_type_info *reg_info,
+				      const struct hclge_dbg_reg_type_info *reg_info,
 				      const char *cmd_buf)
 {
 #define IDX_OFFSET	1
 
 	const char *s = &cmd_buf[strlen(reg_info->reg_type) + IDX_OFFSET];
-	struct hclge_dbg_dfx_message *dfx_message = reg_info->dfx_msg;
-	struct hclge_dbg_reg_common_msg *reg_msg = &reg_info->reg_msg;
+	const struct hclge_dbg_dfx_message *dfx_message = reg_info->dfx_msg;
+	const struct hclge_dbg_reg_common_msg *reg_msg = &reg_info->reg_msg;
 	struct hclge_desc *desc_src;
 	struct hclge_desc *desc;
 	int entries_per_desc;
@@ -399,7 +399,7 @@ err_dcb_cmd_send:
 
 static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 {
-	struct hclge_dbg_reg_type_info *reg_info;
+	const struct hclge_dbg_reg_type_info *reg_info;
 	bool has_dump = false;
 	int i;
 
