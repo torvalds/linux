@@ -300,6 +300,10 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	const struct snd_ctl_tlv __user *tlvd =
 		(const struct snd_ctl_tlv __user *)binary_data;
 
+	/* make sure we have at least a header */
+	if (size < sizeof(struct snd_ctl_tlv))
+		return -EINVAL;
+
 	/*
 	 * The beginning of bytes data contains a header from where
 	 * the length (as bytes) is needed to know the correct copy
@@ -307,6 +311,13 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	 */
 	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv)))
 		return -EFAULT;
+
+	/* make sure TLV info is consistent */
+	if (header.length + sizeof(struct snd_ctl_tlv) > size) {
+		dev_err_ratelimited(scomp->dev, "error: inconsistent TLV, data %d + header %zu > %d\n",
+				    header.length, sizeof(struct snd_ctl_tlv), size);
+		return -EINVAL;
+	}
 
 	/* be->max is coming from topology */
 	if (header.length > be->max) {
@@ -369,6 +380,14 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	int ret;
 	int err;
 
+	/*
+	 * Decrement the limit by ext bytes header size to
+	 * ensure the user space buffer is not exceeded.
+	 */
+	if (size < sizeof(struct snd_ctl_tlv))
+		return -ENOSPC;
+	size -= sizeof(struct snd_ctl_tlv);
+
 	ret = pm_runtime_get_sync(scomp->dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(scomp->dev, "error: bytes_ext get failed to resume %d\n", ret);
@@ -395,6 +414,12 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	}
 
 	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
+
+	/* make sure we don't exceed size provided by user space for data */
+	if (data_size > size) {
+		ret = -ENOSPC;
+		goto out;
+	}
 
 	header.numid = scontrol->cmd;
 	header.length = data_size;
@@ -432,7 +457,9 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	 * Decrement the limit by ext bytes header size to
 	 * ensure the user space buffer is not exceeded.
 	 */
-	size -= sizeof(const struct snd_ctl_tlv);
+	if (size < sizeof(struct snd_ctl_tlv))
+		return -ENOSPC;
+	size -= sizeof(struct snd_ctl_tlv);
 
 	/* set the ABI header values */
 	cdata->data->magic = SOF_ABI_MAGIC;
@@ -447,6 +474,10 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	}
 
 	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
+
+	/* make sure we don't exceed size provided by user space for data */
+	if (data_size > size)
+		return -ENOSPC;
 
 	header.numid = scontrol->cmd;
 	header.length = data_size;
