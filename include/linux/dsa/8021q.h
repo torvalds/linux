@@ -31,6 +31,8 @@ struct dsa_8021q_context {
 	const struct dsa_8021q_ops *ops;
 	struct dsa_switch *ds;
 	struct list_head crosschip_links;
+	/* EtherType of RX VID, used for filtering on master interface */
+	__be16 proto;
 };
 
 #define DSA_8021Q_N_SUBVLAN			8

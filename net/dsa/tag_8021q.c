@@ -215,13 +215,16 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 	int upstream = dsa_upstream_port(ctx->ds, port);
 	u16 rx_vid = dsa_8021q_rx_vid(ctx->ds, port);
 	u16 tx_vid = dsa_8021q_tx_vid(ctx->ds, port);
-	int i, err;
+	struct net_device *master;
+	int i, err, subvlan;
 
 	/* The CPU port is implicitly configured by
 	 * configuring the front-panel ports
 	 */
 	if (!dsa_is_user_port(ctx->ds, port))
 		return 0;
+
+	master = dsa_to_port(ctx->ds, port)->cpu_dp->master;
 
 	/* Add this user port's RX VID to the membership list of all others
 	 * (including itself). This is so that bridging will not be hindered.
@@ -261,6 +264,19 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 		return err;
 	}
 
+	/* Add to the master's RX filter not only @rx_vid, but in fact
+	 * the entire subvlan range, just in case this DSA switch might
+	 * want to use sub-VLANs.
+	 */
+	for (subvlan = 0; subvlan < DSA_8021Q_N_SUBVLAN; subvlan++) {
+		u16 vid = dsa_8021q_rx_vid_subvlan(ctx->ds, port, subvlan);
+
+		if (enabled)
+			vlan_vid_add(master, ctx->proto, vid);
+		else
+			vlan_vid_del(master, ctx->proto, vid);
+	}
+
 	/* Finally apply the TX VID on this port and on the CPU port */
 	err = dsa_8021q_vid_apply(ctx, port, tx_vid, BRIDGE_VLAN_INFO_UNTAGGED,
 				  enabled);
@@ -284,6 +300,8 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 int dsa_8021q_setup(struct dsa_8021q_context *ctx, bool enabled)
 {
 	int rc, port;
+
+	ASSERT_RTNL();
 
 	for (port = 0; port < ctx->ds->num_ports; port++) {
 		rc = dsa_8021q_setup_port(ctx, port, enabled);
