@@ -9,20 +9,20 @@
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
+#include <linux/dev_printk.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include <linux/dev_printk.h>
 #include <linux/time.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
 #include "vidtv_bridge.h"
-#include "vidtv_demod.h"
-#include "vidtv_tuner.h"
-#include "vidtv_ts.h"
-#include "vidtv_mux.h"
 #include "vidtv_common.h"
+#include "vidtv_demod.h"
+#include "vidtv_mux.h"
+#include "vidtv_ts.h"
+#include "vidtv_tuner.h"
 
 //#define MUX_BUF_MAX_SZ
 //#define MUX_BUF_MIN_SZ

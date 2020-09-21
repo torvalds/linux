@@ -12,23 +12,23 @@
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
-#include <linux/types.h>
-#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/dev_printk.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
-#include <linux/dev_printk.h>
-#include <linux/ratelimit.h>
-#include <linux/delay.h>
-#include <linux/vmalloc.h>
 #include <linux/math64.h>
+#include <linux/ratelimit.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+#include <linux/vmalloc.h>
 
-#include "vidtv_mux.h"
-#include "vidtv_ts.h"
-#include "vidtv_pes.h"
-#include "vidtv_encoder.h"
 #include "vidtv_channel.h"
 #include "vidtv_common.h"
+#include "vidtv_encoder.h"
+#include "vidtv_mux.h"
+#include "vidtv_pes.h"
 #include "vidtv_psi.h"
+#include "vidtv_ts.h"
 
 static struct vidtv_mux_pid_ctx
 *vidtv_mux_get_pid_ctx(struct vidtv_mux *m, u16 pid)

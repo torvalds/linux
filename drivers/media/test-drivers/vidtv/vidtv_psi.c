@@ -11,18 +11,17 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/crc32.h>
-#include <linux/string.h>
+#include <linux/kernel.h>
 #include <linux/printk.h>
 #include <linux/ratelimit.h>
+#include <linux/slab.h>
 #include <linux/string.h>
-#include <asm/byteorder.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
-#include "vidtv_psi.h"
 #include "vidtv_common.h"
+#include "vidtv_psi.h"
 #include "vidtv_ts.h"
 
 #define CRC_SIZE_IN_BYTES 4

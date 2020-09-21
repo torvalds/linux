@@ -20,9 +20,11 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+
 #include <media/dmxdev.h>
 #include <media/dvb_demux.h>
 #include <media/dvb_frontend.h>
+
 #include "vidtv_mux.h"
 
 /**

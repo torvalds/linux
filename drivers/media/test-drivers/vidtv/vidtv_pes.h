@@ -14,7 +14,6 @@
 #ifndef VIDTV_PES_H
 #define VIDTV_PES_H
 
-#include <asm/byteorder.h>
 #include <linux/types.h>
 
 #include "vidtv_common.h"

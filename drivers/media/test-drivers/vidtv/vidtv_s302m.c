@@ -17,23 +17,22 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
 
-#include <linux/types.h>
-#include <linux/slab.h>
+#include <linux/bug.h>
 #include <linux/crc32.h>
-#include <linux/vmalloc.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
+#include <linux/fixp-arith.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/printk.h>
 #include <linux/ratelimit.h>
-#include <linux/fixp-arith.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <linux/vmalloc.h>
 
-#include <linux/math64.h>
-#include <asm/byteorder.h>
-
-#include "vidtv_s302m.h"
-#include "vidtv_encoder.h"
 #include "vidtv_common.h"
+#include "vidtv_encoder.h"
+#include "vidtv_s302m.h"
 
 #define S302M_SAMPLING_RATE_HZ 48000
 #define PES_PRIVATE_STREAM_1 0xbd  /* PES: private_stream_1 */

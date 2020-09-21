@@ -11,7 +11,6 @@
 #define VIDTV_TS_H
 
 #include <linux/types.h>
-#include <asm/byteorder.h>
 
 #define TS_SYNC_BYTE 0x47
 #define TS_PACKET_LEN 188

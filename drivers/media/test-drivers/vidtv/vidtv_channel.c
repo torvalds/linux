@@ -19,16 +19,16 @@
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
-#include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/dev_printk.h>
 #include <linux/ratelimit.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 
 #include "vidtv_channel.h"
-#include "vidtv_psi.h"
+#include "vidtv_common.h"
 #include "vidtv_encoder.h"
 #include "vidtv_mux.h"
-#include "vidtv_common.h"
+#include "vidtv_psi.h"
 #include "vidtv_s302m.h"
 
 static void vidtv_channel_encoder_destroy(struct vidtv_encoder *e)

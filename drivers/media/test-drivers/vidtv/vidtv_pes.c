@@ -16,7 +16,6 @@
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/ratelimit.h>
-#include <asm/byteorder.h>
 
 #include "vidtv_pes.h"
 #include "vidtv_common.h"

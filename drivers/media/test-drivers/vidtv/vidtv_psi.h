@@ -13,7 +13,6 @@
 #define VIDTV_PSI_H
 
 #include <linux/types.h>
-#include <asm/byteorder.h>
 
 /*
  * all section lengths start immediately after the 'section_length' field

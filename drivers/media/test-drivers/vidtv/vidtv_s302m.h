@@ -19,7 +19,6 @@
 #define VIDTV_S302M_H
 
 #include <linux/types.h>
-#include <asm/byteorder.h>
 
 #include "vidtv_encoder.h"
 

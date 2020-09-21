@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
+
 #include <media/dvb_frontend.h>
 
 #include "vidtv_demod.h"
