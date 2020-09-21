@@ -1465,13 +1465,11 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
  * @ipc_size: IPC payload size that will be updated depending on valid
  *  extended data.
  * @index: ID of the pipeline the component belongs to
- * @core: index of the DSP core that the component should run on
  *
  * Return: The pointer to the new allocated component, NULL if failed.
  */
 static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
-					   size_t *ipc_size, int index,
-					   int core)
+					   size_t *ipc_size, int index)
 {
 	u8 nil_uuid[SOF_UUID_SIZE] = {0};
 	struct sof_ipc_comp *comp;
@@ -1490,7 +1488,7 @@ static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
 	comp->hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
 	comp->id = swidget->comp_id;
 	comp->pipeline_id = index;
-	comp->core = core;
+	comp->core = swidget->core;
 
 	/* handle the extended data if needed */
 	if (total_size > *ipc_size) {
@@ -1505,7 +1503,7 @@ static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
 }
 
 static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget, int core,
+			       struct snd_sof_widget *swidget,
 			       struct snd_soc_tplg_dapm_widget *tw,
 			       struct sof_ipc_comp_reply *r,
 			       struct snd_sof_dai *dai)
@@ -1517,7 +1515,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	comp_dai = (struct sof_ipc_comp_dai *)
-		   sof_comp_alloc(swidget, &ipc_size, index, core);
+		   sof_comp_alloc(swidget, &ipc_size, index);
 	if (!comp_dai)
 		return -ENOMEM;
 
@@ -1571,7 +1569,7 @@ finish:
  */
 
 static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
-				  struct snd_sof_widget *swidget, int core,
+				  struct snd_sof_widget *swidget,
 				  struct snd_soc_tplg_dapm_widget *tw,
 				  struct sof_ipc_comp_reply *r)
 {
@@ -1590,7 +1588,7 @@ static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
 	buffer->comp.id = swidget->comp_id;
 	buffer->comp.type = SOF_COMP_BUFFER;
 	buffer->comp.pipeline_id = index;
-	buffer->comp.core = core;
+	buffer->comp.core = swidget->core;
 
 	ret = sof_parse_tokens(scomp, buffer, buffer_tokens,
 			       ARRAY_SIZE(buffer_tokens), private->array,
@@ -1642,7 +1640,7 @@ static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
  */
 
 static int sof_widget_load_pcm(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget, int core,
+			       struct snd_sof_widget *swidget,
 			       enum sof_ipc_stream_direction dir,
 			       struct snd_soc_tplg_dapm_widget *tw,
 			       struct sof_ipc_comp_reply *r)
@@ -1654,7 +1652,7 @@ static int sof_widget_load_pcm(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	host = (struct sof_ipc_comp_host *)
-	       sof_comp_alloc(swidget, &ipc_size, index, core);
+	       sof_comp_alloc(swidget, &ipc_size, index);
 	if (!host)
 		return -ENOMEM;
 
@@ -1779,7 +1777,7 @@ err:
  */
 
 static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
-				 struct snd_sof_widget *swidget, int core,
+				 struct snd_sof_widget *swidget,
 				 struct snd_soc_tplg_dapm_widget *tw,
 				 struct sof_ipc_comp_reply *r)
 {
@@ -1790,7 +1788,7 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	mixer = (struct sof_ipc_comp_mixer *)
-		sof_comp_alloc(swidget, &ipc_size, index, core);
+		sof_comp_alloc(swidget, &ipc_size, index);
 	if (!mixer)
 		return -ENOMEM;
 
@@ -1824,7 +1822,7 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
  * Mux topology
  */
 static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget, int core,
+			       struct snd_sof_widget *swidget,
 			       struct snd_soc_tplg_dapm_widget *tw,
 			       struct sof_ipc_comp_reply *r)
 {
@@ -1835,7 +1833,7 @@ static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	mux = (struct sof_ipc_comp_mux *)
-	      sof_comp_alloc(swidget, &ipc_size, index, core);
+	      sof_comp_alloc(swidget, &ipc_size, index);
 	if (!mux)
 		return -ENOMEM;
 
@@ -1870,7 +1868,7 @@ static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
  */
 
 static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget, int core,
+			       struct snd_sof_widget *swidget,
 			       struct snd_soc_tplg_dapm_widget *tw,
 			       struct sof_ipc_comp_reply *r)
 {
@@ -1884,7 +1882,7 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	volume = (struct sof_ipc_comp_volume *)
-		 sof_comp_alloc(swidget, &ipc_size, index, core);
+		 sof_comp_alloc(swidget, &ipc_size, index);
 	if (!volume)
 		return -ENOMEM;
 
@@ -1946,7 +1944,7 @@ err:
  */
 
 static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget, int core,
+			       struct snd_sof_widget *swidget,
 			       struct snd_soc_tplg_dapm_widget *tw,
 			       struct sof_ipc_comp_reply *r)
 {
@@ -1957,7 +1955,7 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	src = (struct sof_ipc_comp_src *)
-	      sof_comp_alloc(swidget, &ipc_size, index, core);
+	      sof_comp_alloc(swidget, &ipc_size, index);
 	if (!src)
 		return -ENOMEM;
 
@@ -2003,7 +2001,7 @@ err:
  */
 
 static int sof_widget_load_asrc(struct snd_soc_component *scomp, int index,
-				struct snd_sof_widget *swidget, int core,
+				struct snd_sof_widget *swidget,
 				struct snd_soc_tplg_dapm_widget *tw,
 				struct sof_ipc_comp_reply *r)
 {
@@ -2014,7 +2012,7 @@ static int sof_widget_load_asrc(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	asrc = (struct sof_ipc_comp_asrc *)
-	       sof_comp_alloc(swidget, &ipc_size, index, core);
+	       sof_comp_alloc(swidget, &ipc_size, index);
 	if (!asrc)
 		return -ENOMEM;
 
@@ -2062,7 +2060,7 @@ err:
  */
 
 static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
-				  struct snd_sof_widget *swidget, int core,
+				  struct snd_sof_widget *swidget,
 				  struct snd_soc_tplg_dapm_widget *tw,
 				  struct sof_ipc_comp_reply *r)
 {
@@ -2073,7 +2071,7 @@ static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	tone = (struct sof_ipc_comp_tone *)
-	       sof_comp_alloc(swidget, &ipc_size, index, core);
+	       sof_comp_alloc(swidget, &ipc_size, index);
 	if (!tone)
 		return -ENOMEM;
 
@@ -2229,7 +2227,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	}
 
 	process = (struct sof_ipc_comp_process *)
-		  sof_comp_alloc(swidget, &ipc_size, index, 0);
+		  sof_comp_alloc(swidget, &ipc_size, index);
 	if (!process) {
 		ret = -ENOMEM;
 		goto out;
@@ -2307,7 +2305,7 @@ out:
  */
 
 static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
-				   struct snd_sof_widget *swidget, int core,
+				   struct snd_sof_widget *swidget,
 				   struct snd_soc_tplg_dapm_widget *tw,
 				   struct sof_ipc_comp_reply *r)
 {
@@ -2322,7 +2320,7 @@ static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
 	}
 
 	memset(&config, 0, sizeof(config));
-	config.comp.core = core;
+	config.comp.core = swidget->core;
 
 	/* get the process token */
 	ret = sof_parse_tokens(scomp, &config, process_tokens,
@@ -2450,8 +2448,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 			return -ENOMEM;
 		}
 
-		ret = sof_widget_load_dai(scomp, index, swidget, comp.core,
-					  tw, &reply, dai);
+		ret = sof_widget_load_dai(scomp, index, swidget, tw, &reply, dai);
 		if (ret == 0) {
 			sof_connect_dai_widget(scomp, w, tw, dai);
 			list_add(&dai->list, &sdev->dai_list);
@@ -2461,12 +2458,10 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		}
 		break;
 	case snd_soc_dapm_mixer:
-		ret = sof_widget_load_mixer(scomp, index, swidget, comp.core,
-					    tw, &reply);
+		ret = sof_widget_load_mixer(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_pga:
-		ret = sof_widget_load_pga(scomp, index, swidget, comp.core,
-					  tw, &reply);
+		ret = sof_widget_load_pga(scomp, index, swidget, tw, &reply);
 		/* Find scontrol for this pga and set readback offset*/
 		list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
 			if (scontrol->comp_id == swidget->comp_id) {
@@ -2476,41 +2471,34 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		}
 		break;
 	case snd_soc_dapm_buffer:
-		ret = sof_widget_load_buffer(scomp, index, swidget, comp.core,
-					     tw, &reply);
+		ret = sof_widget_load_buffer(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_scheduler:
-		ret = sof_widget_load_pipeline(scomp, index, swidget,
-					       tw, &reply);
+		ret = sof_widget_load_pipeline(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_aif_out:
-		ret = sof_widget_load_pcm(scomp, index, swidget, comp.core,
+		ret = sof_widget_load_pcm(scomp, index, swidget,
 					  SOF_IPC_STREAM_CAPTURE, tw, &reply);
 		break;
 	case snd_soc_dapm_aif_in:
-		ret = sof_widget_load_pcm(scomp, index, swidget, comp.core,
+		ret = sof_widget_load_pcm(scomp, index, swidget,
 					  SOF_IPC_STREAM_PLAYBACK, tw, &reply);
 		break;
 	case snd_soc_dapm_src:
-		ret = sof_widget_load_src(scomp, index, swidget, comp.core,
-					  tw, &reply);
+		ret = sof_widget_load_src(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_asrc:
-		ret = sof_widget_load_asrc(scomp, index, swidget, comp.core,
-					   tw, &reply);
+		ret = sof_widget_load_asrc(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_siggen:
-		ret = sof_widget_load_siggen(scomp, index, swidget, comp.core,
-					     tw, &reply);
+		ret = sof_widget_load_siggen(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_effect:
-		ret = sof_widget_load_process(scomp, index, swidget, comp.core,
-					      tw, &reply);
+		ret = sof_widget_load_process(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_mux:
 	case snd_soc_dapm_demux:
-		ret = sof_widget_load_mux(scomp, index, swidget, comp.core,
-					  tw, &reply);
+		ret = sof_widget_load_mux(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_switch:
 	case snd_soc_dapm_dai_link:
