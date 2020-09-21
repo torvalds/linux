@@ -30,6 +30,7 @@ struct mlx5e_sq_param {
 	u32                        sqc[MLX5_ST_SZ_DW(sqc)];
 	struct mlx5_wq_param       wq;
 	bool                       is_mpw;
+	u16                        stop_room;
 };
 
 struct mlx5e_channel_param {
@@ -123,5 +124,8 @@ void mlx5e_build_icosq_param(struct mlx5e_priv *priv,
 void mlx5e_build_xdpsq_param(struct mlx5e_priv *priv,
 			     struct mlx5e_params *params,
 			     struct mlx5e_sq_param *param);
+
+u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
+int mlx5e_validate_params(struct mlx5e_priv *priv, struct mlx5e_params *params);
 
 #endif /* __MLX5_EN_PARAMS_H__ */

@@ -1121,28 +1121,6 @@ static int mlx5e_alloc_txqsq_db(struct mlx5e_txqsq *sq, int numa)
 	return 0;
 }
 
-static int mlx5e_calc_sq_stop_room(struct mlx5e_txqsq *sq, u8 log_sq_size)
-{
-	int sq_size = 1 << log_sq_size;
-
-	sq->stop_room  = mlx5e_tls_get_stop_room(sq);
-	sq->stop_room += mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
-	if (test_bit(MLX5E_SQ_STATE_MPWQE, &sq->state))
-		/* A MPWQE can take up to the maximum-sized WQE + all the normal
-		 * stop room can be taken if a new packet breaks the active
-		 * MPWQE session and allocates its WQEs right away.
-		 */
-		sq->stop_room += mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
-
-	if (WARN_ON(sq->stop_room >= sq_size)) {
-		netdev_err(sq->channel->netdev, "Stop room %hu is bigger than the SQ size %d\n",
-			   sq->stop_room, sq_size);
-		return -ENOSPC;
-	}
-
-	return 0;
-}
-
 static void mlx5e_tx_err_cqe_work(struct work_struct *recover_work);
 static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 			     int txq_ix,
@@ -1176,9 +1154,7 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 		set_bit(MLX5E_SQ_STATE_TLS, &sq->state);
 	if (param->is_mpw)
 		set_bit(MLX5E_SQ_STATE_MPWQE, &sq->state);
-	err = mlx5e_calc_sq_stop_room(sq, params->log_sq_size);
-	if (err)
-		return err;
+	sq->stop_room = param->stop_room;
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -2225,6 +2201,7 @@ static void mlx5e_build_sq_param(struct mlx5e_priv *priv,
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
 	MLX5_SET(sqc, sqc, allow_swp, allow_swp);
 	param->is_mpw = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_SKB_TX_MPWQE);
+	param->stop_room = mlx5e_calc_sq_stop_room(priv->mdev, params);
 	mlx5e_build_tx_cq_param(priv, params, &param->cqp);
 }
 
@@ -3999,6 +3976,9 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 
 	new_channels.params = *params;
 	new_channels.params.sw_mtu = new_mtu;
+	err = mlx5e_validate_params(priv, &new_channels.params);
+	if (err)
+		goto out;
 
 	if (params->xdp_prog &&
 	    !mlx5e_rx_is_linear_skb(&new_channels.params, NULL)) {

@@ -32,6 +32,7 @@
 
 #include "en.h"
 #include "en/port.h"
+#include "en/params.h"
 #include "en/xsk/pool.h"
 #include "lib/clock.h"
 
@@ -368,6 +369,10 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 	new_channels.params = priv->channels.params;
 	new_channels.params.log_rq_mtu_frames = log_rq_size;
 	new_channels.params.log_sq_size = log_sq_size;
+
+	err = mlx5e_validate_params(priv, &new_channels.params);
+	if (err)
+		goto unlock;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
