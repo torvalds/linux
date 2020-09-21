@@ -450,8 +450,8 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 		if (ret)
 			return ret;
 
-		ret = pm_genpd_init(&dom->base, &pm_domain_always_on_gov,
-				    false);
+		dom->base.flags = GENPD_FLAG_ALWAYS_ON;
+		ret = pm_genpd_init(&dom->base, NULL, false);
 		if (ret)
 			return ret;
 	} else {
