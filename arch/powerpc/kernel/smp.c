@@ -1337,6 +1337,23 @@ static inline void add_cpu_to_smallcore_masks(int cpu)
 	}
 }
 
+static void update_coregroup_mask(int cpu)
+{
+	int first_thread = cpu_first_thread_sibling(cpu);
+	int coregroup_id = cpu_to_coregroup_id(cpu);
+	int i;
+
+	cpumask_set_cpu(cpu, cpu_coregroup_mask(cpu));
+	for_each_cpu_and(i, cpu_online_mask, cpu_cpu_mask(cpu)) {
+		int fcpu = cpu_first_thread_sibling(i);
+
+		if (fcpu == first_thread)
+			set_cpus_related(cpu, i, cpu_coregroup_mask);
+		else if (coregroup_id == cpu_to_coregroup_id(i))
+			set_cpus_related(cpu, i, cpu_coregroup_mask);
+	}
+}
+
 static void add_cpu_to_masks(int cpu)
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
@@ -1355,19 +1372,8 @@ static void add_cpu_to_masks(int cpu)
 	add_cpu_to_smallcore_masks(cpu);
 	update_mask_by_l2(cpu);
 
-	if (has_coregroup_support()) {
-		int coregroup_id = cpu_to_coregroup_id(cpu);
-
-		cpumask_set_cpu(cpu, cpu_coregroup_mask(cpu));
-		for_each_cpu_and(i, cpu_online_mask, cpu_cpu_mask(cpu)) {
-			int fcpu = cpu_first_thread_sibling(i);
-
-			if (fcpu == first_thread)
-				set_cpus_related(cpu, i, cpu_coregroup_mask);
-			else if (coregroup_id == cpu_to_coregroup_id(i))
-				set_cpus_related(cpu, i, cpu_coregroup_mask);
-		}
-	}
+	if (has_coregroup_support())
+		update_coregroup_mask(cpu);
 }
 
 /* Activate a secondary processor. */
