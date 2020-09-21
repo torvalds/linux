@@ -176,37 +176,34 @@ static u32 vidtv_pes_write_h(struct pes_header_write_args args)
 	return nbytes;
 }
 
-static u32 vidtv_pes_write_stuffing(void *dest_buf,
-				    u32 dest_offset,
-				    u32 n_stuffing_bytes,
-				    u32 buf_sz)
+static u32 vidtv_pes_write_stuffing(struct pes_ts_header_write_args *args,
+				    u32 dest_offset)
 {
 	u32 nbytes = 0;
 	struct vidtv_mpeg_ts_adaption ts_adap = {};
-	u32 stuff_nbytes = 0;
+	u32 stuff_nbytes;
 
-	if (!n_stuffing_bytes)
+	if (!args->n_stuffing_bytes)
 		goto out;
 
-	if (n_stuffing_bytes > PES_TS_HEADER_MAX_STUFFING_BYTES) {
+	if (args->n_stuffing_bytes > PES_TS_HEADER_MAX_STUFFING_BYTES) {
 		pr_warn_ratelimited("More than %d stuffing bytes for a PES packet!\n",
 				    PES_TS_HEADER_MAX_STUFFING_BYTES);
 
-		n_stuffing_bytes = PES_TS_HEADER_MAX_STUFFING_BYTES;
+		args->n_stuffing_bytes = PES_TS_HEADER_MAX_STUFFING_BYTES;
 	}
 
 	/* the AF will only be its 'length' field with a value of zero */
-	if (n_stuffing_bytes == 1) {
-		nbytes += vidtv_memset(dest_buf,
+	if (args->n_stuffing_bytes == 1) {
+		nbytes += vidtv_memset(args->dest_buf,
 				       dest_offset + nbytes,
-				       buf_sz,
+				       args->dest_buf_sz,
 				       0,
-				       n_stuffing_bytes);
-
+				       args->n_stuffing_bytes);
 		goto out;
 	}
 
-	stuff_nbytes = n_stuffing_bytes - sizeof(ts_adap);
+	stuff_nbytes = args->n_stuffing_bytes - sizeof(ts_adap);
 
 	/* length _immediately_ following 'adaptation_field_length' */
 	ts_adap.length = sizeof(ts_adap) -
@@ -214,24 +211,24 @@ static u32 vidtv_pes_write_stuffing(void *dest_buf,
 			 stuff_nbytes;
 
 	/* write the adap after the TS header */
-	nbytes += vidtv_memcpy(dest_buf,
+	nbytes += vidtv_memcpy(args->dest_buf,
 			       dest_offset + nbytes,
-			       buf_sz,
+			       args->dest_buf_sz,
 			       &ts_adap,
 			       sizeof(ts_adap));
 
 	/* write the stuffing bytes */
-	nbytes += vidtv_memset(dest_buf,
+	nbytes += vidtv_memset(args->dest_buf,
 			       dest_offset + nbytes,
-			       buf_sz,
+			       args->dest_buf_sz,
 			       TS_FILL_BYTE,
 			       stuff_nbytes);
 
 out:
-	if (nbytes != n_stuffing_bytes)
+	if (nbytes != args->n_stuffing_bytes)
 		pr_warn_ratelimited("write size was %d, expected %d\n",
 				    nbytes,
-				    n_stuffing_bytes);
+				    args->n_stuffing_bytes);
 
 	return nbytes;
 }
@@ -261,10 +258,7 @@ static u32 vidtv_pes_write_ts_h(struct pes_ts_header_write_args args)
 			       sizeof(ts_header));
 
 	/* write stuffing, if any */
-	nbytes += vidtv_pes_write_stuffing(args.dest_buf,
-					   args.dest_offset + nbytes,
-					   args.n_stuffing_bytes,
-					   args.dest_buf_sz);
+	nbytes += vidtv_pes_write_stuffing(&args, args.dest_offset + nbytes);
 
 	return nbytes;
 }
