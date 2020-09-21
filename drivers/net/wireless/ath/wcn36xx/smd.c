@@ -218,6 +218,7 @@ static inline u8 is_cap_supported(unsigned long caps, unsigned long flag)
 {
 	return caps & flag ? 1 : 0;
 }
+
 static void wcn36xx_smd_set_bss_ht_params(struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta,
 		struct wcn36xx_hal_config_bss_params *bss_params)
@@ -2191,6 +2192,7 @@ out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
 }
+
 int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool ignore_dtim)
 {
 	struct wcn36xx_hal_set_power_params_req_msg msg_body;
@@ -2220,6 +2222,7 @@ out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
 }
+
 /* Notice: This function should be called after associated, or else it
  * will be invalid
  */
@@ -2899,6 +2902,7 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 		kfree(hal_ind_msg);
 	}
 }
+
 int wcn36xx_smd_open(struct wcn36xx *wcn)
 {
 	wcn->hal_ind_wq = create_freezable_workqueue("wcn36xx_smd_ind");
