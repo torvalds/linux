@@ -1401,6 +1401,8 @@ int setup_profiling_timer(unsigned int multiplier)
 
 static void fixup_topology(void)
 {
+	int i;
+
 #ifdef CONFIG_SCHED_SMT
 	if (has_big_cores) {
 		pr_info("Big cores detected but using small core scheduling\n");
@@ -1410,6 +1412,30 @@ static void fixup_topology(void)
 
 	if (!has_coregroup_support())
 		powerpc_topology[mc_idx].mask = powerpc_topology[cache_idx].mask;
+
+	/*
+	 * Try to consolidate topology levels here instead of
+	 * allowing scheduler to degenerate.
+	 * - Dont consolidate if masks are different.
+	 * - Dont consolidate if sd_flags exists and are different.
+	 */
+	for (i = 1; i <= die_idx; i++) {
+		if (powerpc_topology[i].mask != powerpc_topology[i - 1].mask)
+			continue;
+
+		if (powerpc_topology[i].sd_flags && powerpc_topology[i - 1].sd_flags &&
+				powerpc_topology[i].sd_flags != powerpc_topology[i - 1].sd_flags)
+			continue;
+
+		if (!powerpc_topology[i - 1].sd_flags)
+			powerpc_topology[i - 1].sd_flags = powerpc_topology[i].sd_flags;
+
+		powerpc_topology[i].mask = powerpc_topology[i + 1].mask;
+		powerpc_topology[i].sd_flags = powerpc_topology[i + 1].sd_flags;
+#ifdef CONFIG_SCHED_DEBUG
+		powerpc_topology[i].name = powerpc_topology[i + 1].name;
+#endif
+	}
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
