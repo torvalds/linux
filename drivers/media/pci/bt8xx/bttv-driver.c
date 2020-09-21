@@ -2058,7 +2058,6 @@ verify_window_lock(struct bttv_fh *fh, struct v4l2_window *win,
 {
 	enum v4l2_field field;
 	unsigned int width_mask;
-	int rc;
 
 	if (win->w.width < 48)
 		win->w.width = 48;
@@ -2111,13 +2110,10 @@ verify_window_lock(struct bttv_fh *fh, struct v4l2_window *win,
 	win->w.width -= win->w.left & ~width_mask;
 	win->w.left = (win->w.left - width_mask - 1) & width_mask;
 
-	rc = limit_scaled_size_lock(fh, &win->w.width, &win->w.height,
-			       field, width_mask,
-			       /* width_bias: round down */ 0,
-			       adjust_size, adjust_crop);
-	if (0 != rc)
-		return rc;
-	return 0;
+	return limit_scaled_size_lock(fh, &win->w.width, &win->w.height,
+				      field, width_mask,
+				      /* width_bias: round down */ 0,
+				      adjust_size, adjust_crop);
 }
 
 static int setup_window_lock(struct bttv_fh *fh, struct bttv *btv,
