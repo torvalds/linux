@@ -214,8 +214,8 @@ static const struct regval imx307_linear_1920x1080_lvds_regs[] = {
 	{0x300a, 0x3c},
 	{0x3010, 0x21},
 	{0x3011, 0x0a},
-	{0x3018, 0x46},
-	{0x3019, 0x05},
+	{0x3018, 0x65},
+	{0x3019, 0x04},
 	{0x301c, 0x30},
 	{0x301d, 0x11},
 	{0x3046, 0xe0},
@@ -256,8 +256,8 @@ static const struct regval imx307_hdr2_1920x1080_lvds_regs[] = {
 	{0x300a, 0x3c},
 	{0x300c, 0x11},
 	{0x3011, 0x02},
-	{0x3018, 0xb8},/* VMAX L */
-	{0x3019, 0x05},/* VMAX M */
+	{0x3018, 0xc4},/* VMAX L */
+	{0x3019, 0x04},/* VMAX M */
 	{0x301c, 0xec},/* HMAX L */
 	{0x301d, 0x07},/* HMAX H */
 	{0x3020, 0x02},//hdr+ shs1 l  short
@@ -319,8 +319,8 @@ static const struct regval imx307_linear_1920x1080_mipi_regs[] = {
 	{0x300A, 0x3c},
 	{0x3010, 0x21},
 	{0x3011, 0x0a},
-	{0x3018, 0x46},
-	{0x3019, 0x05},
+	{0x3018, 0x65},
+	{0x3019, 0x04},
 	{0x301C, 0x30},
 	{0x301D, 0x11},
 	{0x3046, 0x00},
@@ -389,8 +389,8 @@ static const struct regval imx307_hdr2_1920x1080_mipi_regs[] = {
 	{0x300a, 0x3c},
 	{0x300c, 0x11}, //hdr+
 	{0x3011, 0x02},
-	{0x3018, 0xb8},/* VMAX L */
-	{0x3019, 0x05},/* VMAX M */
+	{0x3018, 0xc4},/* VMAX L */
+	{0x3019, 0x04},/* VMAX M */
 	{0x301a, 0x00},
 	{0x301c, 0xEc},/* HMAX L */
 	{0x301d, 0x07},/* HMAX H */
@@ -488,11 +488,11 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.height = 1110,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000,
+			.denominator = 300000,
 		},
 		.exp_def = 0x03fe,
 		.hts_def = 0x1130,
-		.vts_def = 0x0546,
+		.vts_def = 0x0465,
 		.reg_list = imx307_linear_1920x1080_lvds_regs,
 		.hdr_mode = NO_HDR,
 		.lvds_cfg = {
@@ -516,11 +516,11 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.height = 1098,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000,
+			.denominator = 300000,
 		},
 		.exp_def = 0x0473,
 		.hts_def = 0x07ec,
-		.vts_def = 0x05b8 * 2,
+		.vts_def = 0x04c4 * 2,
 		.reg_list = imx307_hdr2_1920x1080_lvds_regs,
 		.hdr_mode = HDR_X2,
 		.lvds_cfg = {
@@ -580,11 +580,11 @@ static const struct imx307_mode mipi_supported_modes[] = {
 		.height = 1097,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000,
+			.denominator = 300000,
 		},
 		.exp_def = 0x03fe,
 		.hts_def = 0x1130,
-		.vts_def = 0x0546,
+		.vts_def = 0x0465,
 		.reg_list = imx307_linear_1920x1080_mipi_regs,
 		.hdr_mode = NO_HDR,
 	}, {
@@ -593,11 +593,11 @@ static const struct imx307_mode mipi_supported_modes[] = {
 		.height = 1089,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000,
+			.denominator = 300000,
 		},
 		.exp_def = 0x0473,
 		.hts_def = 0x07ec,
-		.vts_def = 0x05b8 * 2,
+		.vts_def = 0x04c4 * 2,
 		.reg_list = imx307_hdr2_1920x1080_mipi_regs,
 		.hdr_mode = HDR_X2,
 	},
