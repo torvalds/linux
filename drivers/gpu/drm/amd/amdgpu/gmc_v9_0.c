@@ -1683,14 +1683,9 @@ static int gmc_v9_0_hw_fini(void *handle)
 
 static int gmc_v9_0_suspend(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = gmc_v9_0_hw_fini(adev);
-	if (r)
-		return r;
-
-	return 0;
+	return gmc_v9_0_hw_fini(adev);
 }
 
 static int gmc_v9_0_resume(void *handle)
