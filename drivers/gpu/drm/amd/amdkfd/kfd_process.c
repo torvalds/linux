@@ -750,11 +750,6 @@ struct kfd_process *kfd_create_process(struct file *filep)
 			pr_warn("Creating sysfs stats dir for pid %d failed",
 				(int)process->lead_thread->pid);
 
-		ret = kfd_procfs_add_sysfs_stats(process);
-		if (ret)
-			pr_warn("Creating sysfs stats dir for pid %d failed",
-				(int)process->lead_thread->pid);
-
 		ret = kfd_procfs_add_sysfs_files(process);
 		if (ret)
 			pr_warn("Creating sysfs usage file for pid %d failed",
