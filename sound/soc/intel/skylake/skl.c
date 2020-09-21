@@ -721,7 +721,7 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 	hda_codec->codec.bus = skl_to_hbus(skl);
 	hdev = &hda_codec->codec.core;
 
-	err = snd_hdac_ext_bus_device_init(bus, addr, hdev);
+	err = snd_hdac_ext_bus_device_init(bus, addr, hdev, HDA_DEV_ASOC);
 	if (err < 0)
 		return err;
 
@@ -736,7 +736,7 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 	if (!hdev)
 		return -ENOMEM;
 
-	return snd_hdac_ext_bus_device_init(bus, addr, hdev);
+	return snd_hdac_ext_bus_device_init(bus, addr, hdev, HDA_DEV_ASOC);
 #endif /* CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC */
 }
 
