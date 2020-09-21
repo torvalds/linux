@@ -17,6 +17,7 @@
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/of.h>
+#include <linux/iopoll.h>
 
 #include "pci-quirks.h"
 #include "xhci-ext-caps.h"
@@ -1012,15 +1013,9 @@ static int handshake(void __iomem *ptr, u32 mask, u32 done,
 {
 	u32	result;
 
-	do {
-		result = readl(ptr);
-		result &= mask;
-		if (result == done)
-			return 0;
-		udelay(delay_usec);
-		wait_usec -= delay_usec;
-	} while (wait_usec > 0);
-	return -ETIMEDOUT;
+	return readl_poll_timeout_atomic(ptr, result,
+					 ((result & mask) == done),
+					 delay_usec, wait_usec);
 }
 
 /*
