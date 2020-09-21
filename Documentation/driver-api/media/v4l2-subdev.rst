@@ -34,7 +34,7 @@ provides host private data for that purpose that can be accessed with
 From the bridge driver perspective, you load the sub-device module and somehow
 obtain the :c:type:`v4l2_subdev` pointer. For i2c devices this is easy: you call
 ``i2c_get_clientdata()``. For other buses something similar needs to be done.
-Helper functions exists for sub-devices on an I2C bus that do most of this
+Helper functions exist for sub-devices on an I2C bus that do most of this
 tricky work for you.
 
 Each :c:type:`v4l2_subdev` contains function pointers that sub-device drivers
