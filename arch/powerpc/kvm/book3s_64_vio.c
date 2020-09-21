@@ -489,7 +489,7 @@ static long kvmppc_tce_iommu_unmap(struct kvm *kvm,
 	return ret;
 }
 
-long kvmppc_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
+static long kvmppc_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
 		unsigned long entry, unsigned long ua,
 		enum dma_data_direction dir)
 {
