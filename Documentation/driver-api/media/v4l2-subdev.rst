@@ -182,7 +182,51 @@ You can unregister a sub-device using:
 Afterwards the subdev module can be unloaded and
 :c:type:`sd <v4l2_subdev>`->dev == ``NULL``.
 
-You can call an ops function either directly:
+In the **asynchronous** case subdevice probing can be invoked independently of
+the bridge driver availability. The subdevice driver then has to verify whether
+all the requirements for a successful probing are satisfied. This can include a
+check for a master clock availability. If any of the conditions aren't satisfied
+the driver might decide to return ``-EPROBE_DEFER`` to request further reprobing
+attempts. Once all conditions are met the subdevice shall be registered using
+the :c:func:`v4l2_async_register_subdev` function. Unregistration is
+performed using the :c:func:`v4l2_async_unregister_subdev` call. Subdevices
+registered this way are stored in a global list of subdevices, ready to be
+picked up by bridge drivers.
+
+Bridge drivers in turn have to register a notifier object. This is
+performed using the :c:func:`v4l2_async_notifier_register` call. To
+unregister the notifier the driver has to call
+:c:func:`v4l2_async_notifier_unregister`. The former of the two functions
+takes two arguments: a pointer to struct :c:type:`v4l2_device` and a
+pointer to struct :c:type:`v4l2_async_notifier`.
+
+Before registering the notifier, bridge drivers must do two things:
+first, the notifier must be initialized using the
+:c:func:`v4l2_async_notifier_init`. Second, bridge drivers can then
+begin to form a list of subdevice descriptors that the bridge device
+needs for its operation. Subdevice descriptors are added to the notifier
+using the :c:func:`v4l2_async_notifier_add_subdev` call. This function
+takes two arguments: a pointer to struct :c:type:`v4l2_async_notifier`,
+and a pointer to the subdevice descripter, which is of type struct
+:c:type:`v4l2_async_subdev`.
+
+The V4L2 core will then use these descriptors to match asynchronously
+registered subdevices to them. If a match is detected the ``.bound()``
+notifier callback is called. After all subdevices have been located the
+.complete() callback is called. When a subdevice is removed from the
+system the .unbind() method is called. All three callbacks are optional.
+
+Calling subdev operations
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The advantage of using :c:type:`v4l2_subdev` is that it is a generic struct and
+does not contain any knowledge about the underlying hardware. So a driver might
+contain several subdevs that use an I2C bus, but also a subdev that is
+controlled through GPIO pins. This distinction is only relevant when setting
+up the device, but once the subdev is registered it is completely transparent.
+
+Once te subdev has been registered you can call an ops function either
+directly:
 
 .. code-block:: c
 
@@ -234,46 +278,6 @@ If the sub-device needs to notify its v4l2_device parent of an event, then
 it can call ``v4l2_subdev_notify(sd, notification, arg)``. This macro checks
 whether there is a ``notify()`` callback defined and returns ``-ENODEV`` if not.
 Otherwise the result of the ``notify()`` call is returned.
-
-The advantage of using :c:type:`v4l2_subdev` is that it is a generic struct and
-does not contain any knowledge about the underlying hardware. So a driver might
-contain several subdevs that use an I2C bus, but also a subdev that is
-controlled through GPIO pins. This distinction is only relevant when setting
-up the device, but once the subdev is registered it is completely transparent.
-
-In the **asynchronous** case subdevice probing can be invoked independently of
-the bridge driver availability. The subdevice driver then has to verify whether
-all the requirements for a successful probing are satisfied. This can include a
-check for a master clock availability. If any of the conditions aren't satisfied
-the driver might decide to return ``-EPROBE_DEFER`` to request further reprobing
-attempts. Once all conditions are met the subdevice shall be registered using
-the :c:func:`v4l2_async_register_subdev` function. Unregistration is
-performed using the :c:func:`v4l2_async_unregister_subdev` call. Subdevices
-registered this way are stored in a global list of subdevices, ready to be
-picked up by bridge drivers.
-
-Bridge drivers in turn have to register a notifier object. This is
-performed using the :c:func:`v4l2_async_notifier_register` call. To
-unregister the notifier the driver has to call
-:c:func:`v4l2_async_notifier_unregister`. The former of the two functions
-takes two arguments: a pointer to struct :c:type:`v4l2_device` and a
-pointer to struct :c:type:`v4l2_async_notifier`.
-
-Before registering the notifier, bridge drivers must do two things:
-first, the notifier must be initialized using the
-:c:func:`v4l2_async_notifier_init`. Second, bridge drivers can then
-begin to form a list of subdevice descriptors that the bridge device
-needs for its operation. Subdevice descriptors are added to the notifier
-using the :c:func:`v4l2_async_notifier_add_subdev` call. This function
-takes two arguments: a pointer to struct :c:type:`v4l2_async_notifier`,
-and a pointer to the subdevice descripter, which is of type struct
-:c:type:`v4l2_async_subdev`.
-
-The V4L2 core will then use these descriptors to match asynchronously
-registered subdevices to them. If a match is detected the ``.bound()``
-notifier callback is called. After all subdevices have been located the
-.complete() callback is called. When a subdevice is removed from the
-system the .unbind() method is called. All three callbacks are optional.
 
 V4L2 sub-device userspace API
 -----------------------------
