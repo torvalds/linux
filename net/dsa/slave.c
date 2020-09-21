@@ -1932,9 +1932,14 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (event == NETDEV_CHANGEUPPER) {
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
 		if (!dsa_slave_dev_check(dev))
 			return dsa_slave_upper_vlan_check(dev, ptr);
+		break;
+	case NETDEV_CHANGEUPPER:
+		if (!dsa_slave_dev_check(dev))
+			return NOTIFY_DONE;
 
 		return dsa_slave_changeupper(dev, ptr);
 	}
