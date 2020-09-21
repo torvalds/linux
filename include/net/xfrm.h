@@ -2000,7 +2000,12 @@ static inline int xfrm_tunnel_check(struct sk_buff *skb, struct xfrm_state *x,
 	return 0;
 }
 
+extern const int xfrm_msg_min[XFRM_NR_MSGTYPES];
+
 struct xfrm_translator {
+	/* Allocate frag_list and put compat translation there */
+	int (*alloc_compat)(struct sk_buff *skb, const struct nlmsghdr *src);
+
 	struct module *owner;
 };
 
