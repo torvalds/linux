@@ -31,6 +31,13 @@ config ASPEED_P2A_CTRL
 	  driver also provides an interface for userspace mappings to a
 	  pre-defined region.
 
+config ASPEED_SOCINFO
+	bool "ASPEED SoC Information driver"
+	default ARCH_ASPEED
+	select SOC_BUS
+	help
+	  Say yes to support decoding of ASPEED BMC information.
+
 endmenu
 
 endif
