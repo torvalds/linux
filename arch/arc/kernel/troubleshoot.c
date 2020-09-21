@@ -18,44 +18,37 @@
 
 #define ARC_PATH_MAX	256
 
-/*
- * Common routine to print scratch regs (r0-r12) or callee regs (r13-r25)
- *   -Prints 3 regs per line and a CR.
- *   -To continue, callee regs right after scratch, special handling of CR
- */
-static noinline void print_reg_file(long *reg_rev, int start_num)
+static noinline void print_regs_scratch(struct pt_regs *regs)
 {
-	unsigned int i;
-	char buf[512];
-	int n = 0, len = sizeof(buf);
+	pr_cont("BTA: 0x%08lx\n SP: 0x%08lx  FP: 0x%08lx BLK: %pS\n",
+		regs->bta, regs->sp, regs->fp, (void *)regs->blink);
+	pr_cont("LPS: 0x%08lx\tLPE: 0x%08lx\tLPC: 0x%08lx\n",
+		regs->lp_start, regs->lp_end, regs->lp_count);
 
-	for (i = start_num; i < start_num + 13; i++) {
-		n += scnprintf(buf + n, len - n, "r%02u: 0x%08lx\t",
-			       i, (unsigned long)*reg_rev);
-
-		if (((i + 1) % 3) == 0)
-			n += scnprintf(buf + n, len - n, "\n");
-
-		/* because pt_regs has regs reversed: r12..r0, r25..r13 */
-		if (is_isa_arcv2() && start_num == 0)
-			reg_rev++;
-		else
-			reg_rev--;
-	}
-
-	if (start_num != 0)
-		n += scnprintf(buf + n, len - n, "\n\n");
-
-	/* To continue printing callee regs on same line as scratch regs */
-	if (start_num == 0)
-		pr_info("%s", buf);
-	else
-		pr_cont("%s\n", buf);
+	pr_info("r00: 0x%08lx\tr01: 0x%08lx\tr02: 0x%08lx\n"	\
+		"r03: 0x%08lx\tr04: 0x%08lx\tr05: 0x%08lx\n"	\
+		"r06: 0x%08lx\tr07: 0x%08lx\tr08: 0x%08lx\n"	\
+		"r09: 0x%08lx\tr10: 0x%08lx\tr11: 0x%08lx\n"	\
+		"r12: 0x%08lx\t",
+		regs->r0, regs->r1, regs->r2,
+		regs->r3, regs->r4, regs->r5,
+		regs->r6, regs->r7, regs->r8,
+		regs->r9, regs->r10, regs->r11,
+		regs->r12);
 }
 
-static void show_callee_regs(struct callee_regs *cregs)
+static void print_regs_callee(struct callee_regs *regs)
 {
-	print_reg_file(&(cregs->r13), 13);
+	pr_cont("r13: 0x%08lx\tr14: 0x%08lx\n"			\
+		"r15: 0x%08lx\tr16: 0x%08lx\tr17: 0x%08lx\n"	\
+		"r18: 0x%08lx\tr19: 0x%08lx\tr20: 0x%08lx\n"	\
+		"r21: 0x%08lx\tr22: 0x%08lx\tr23: 0x%08lx\n"	\
+		"r24: 0x%08lx\tr25: 0x%08lx\n",
+		regs->r13, regs->r14,
+		regs->r15, regs->r16, regs->r17,
+		regs->r18, regs->r19, regs->r20,
+		regs->r21, regs->r22, regs->r23,
+		regs->r24, regs->r25);
 }
 
 static void print_task_path_n_nm(struct task_struct *tsk)
@@ -175,7 +168,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 void show_regs(struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
-	struct callee_regs *cregs;
+	struct callee_regs *cregs = (struct callee_regs *)tsk->thread.callee_reg;
 
 	/*
 	 * generic code calls us with preemption disabled, but some calls
@@ -204,25 +197,15 @@ void show_regs(struct pt_regs *regs)
 			STS_BIT(regs, A2), STS_BIT(regs, A1),
 			STS_BIT(regs, E2), STS_BIT(regs, E1));
 #else
-	pr_cont(" [%2s%2s%2s%2s]",
+	pr_cont(" [%2s%2s%2s%2s]   ",
 			STS_BIT(regs, IE),
 			(regs->status32 & STATUS_U_MASK) ? "U " : "K ",
 			STS_BIT(regs, DE), STS_BIT(regs, AE));
 #endif
-	pr_cont("  BTA: 0x%08lx\n  SP: 0x%08lx  FP: 0x%08lx BLK: %pS\n",
-		regs->bta, regs->sp, regs->fp, (void *)regs->blink);
-	pr_info("LPS: 0x%08lx\tLPE: 0x%08lx\tLPC: 0x%08lx\n",
-		regs->lp_start, regs->lp_end, regs->lp_count);
 
-	/* print regs->r0 thru regs->r12
-	 * Sequential printing was generating horrible code
-	 */
-	print_reg_file(&(regs->r0), 0);
-
-	/* If Callee regs were saved, display them too */
-	cregs = (struct callee_regs *)current->thread.callee_reg;
+	print_regs_scratch(regs);
 	if (cregs)
-		show_callee_regs(cregs);
+		print_regs_callee(cregs);
 
 	preempt_disable();
 }

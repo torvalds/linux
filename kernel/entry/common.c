@@ -60,29 +60,54 @@ static long syscall_trace_enter(struct pt_regs *regs, long syscall,
 			return ret;
 	}
 
+	/* Either of the above might have changed the syscall number */
+	syscall = syscall_get_nr(current, regs);
+
 	if (unlikely(ti_work & _TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, syscall);
 
 	syscall_enter_audit(regs, syscall);
 
-	/* The above might have changed the syscall number */
-	return ret ? : syscall_get_nr(current, regs);
+	return ret ? : syscall;
+}
+
+static __always_inline long
+__syscall_enter_from_user_work(struct pt_regs *regs, long syscall)
+{
+	unsigned long ti_work;
+
+	ti_work = READ_ONCE(current_thread_info()->flags);
+	if (ti_work & SYSCALL_ENTER_WORK)
+		syscall = syscall_trace_enter(regs, syscall, ti_work);
+
+	return syscall;
+}
+
+long syscall_enter_from_user_mode_work(struct pt_regs *regs, long syscall)
+{
+	return __syscall_enter_from_user_work(regs, syscall);
 }
 
 noinstr long syscall_enter_from_user_mode(struct pt_regs *regs, long syscall)
 {
-	unsigned long ti_work;
+	long ret;
 
 	enter_from_user_mode(regs);
-	instrumentation_begin();
 
+	instrumentation_begin();
 	local_irq_enable();
-	ti_work = READ_ONCE(current_thread_info()->flags);
-	if (ti_work & SYSCALL_ENTER_WORK)
-		syscall = syscall_trace_enter(regs, syscall, ti_work);
+	ret = __syscall_enter_from_user_work(regs, syscall);
 	instrumentation_end();
 
-	return syscall;
+	return ret;
+}
+
+noinstr void syscall_enter_from_user_mode_prepare(struct pt_regs *regs)
+{
+	enter_from_user_mode(regs);
+	instrumentation_begin();
+	local_irq_enable();
+	instrumentation_end();
 }
 
 /**

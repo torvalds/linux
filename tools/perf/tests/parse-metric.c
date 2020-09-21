@@ -70,6 +70,9 @@ static struct pmu_event pme_test[] = {
 {
 	.metric_expr	= "1/m3",
 	.metric_name	= "M3",
+},
+{
+	.name	= NULL,
 }
 };
 
@@ -150,8 +153,10 @@ static int __compute_metric(const char *name, struct value *vals,
 		return -ENOMEM;
 
 	cpus = perf_cpu_map__new("0");
-	if (!cpus)
+	if (!cpus) {
+		evlist__delete(evlist);
 		return -ENOMEM;
+	}
 
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
 
@@ -160,10 +165,11 @@ static int __compute_metric(const char *name, struct value *vals,
 					     false, false,
 					     &metric_events);
 	if (err)
-		return err;
+		goto out;
 
-	if (perf_evlist__alloc_stats(evlist, false))
-		return -1;
+	err = perf_evlist__alloc_stats(evlist, false);
+	if (err)
+		goto out;
 
 	/* Load the runtime stats with given numbers for events. */
 	runtime_stat__init(&st);
@@ -175,13 +181,14 @@ static int __compute_metric(const char *name, struct value *vals,
 	if (name2 && ratio2)
 		*ratio2 = compute_single(&metric_events, evlist, &st, name2);
 
+out:
 	/* ... clenup. */
 	metricgroup__rblist_exit(&metric_events);
 	runtime_stat__exit(&st);
 	perf_evlist__free_stats(evlist);
 	perf_cpu_map__put(cpus);
 	evlist__delete(evlist);
-	return 0;
+	return err;
 }
 
 static int compute_metric(const char *name, struct value *vals, double *ratio)

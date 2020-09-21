@@ -19,6 +19,7 @@ enum lock_usage_bit {
 #include "lockdep_states.h"
 #undef LOCKDEP_STATE
 	LOCK_USED,
+	LOCK_USED_READ,
 	LOCK_USAGE_STATES
 };
 
@@ -40,6 +41,7 @@ enum {
 #include "lockdep_states.h"
 #undef LOCKDEP_STATE
 	__LOCKF(USED)
+	__LOCKF(USED_READ)
 };
 
 #define LOCKDEP_STATE(__STATE)	LOCKF_ENABLED_##__STATE |

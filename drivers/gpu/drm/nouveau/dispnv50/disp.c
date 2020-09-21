@@ -257,6 +257,12 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	dmac->push->end = dmac->push->bgn;
 	dmac->max = 0x1000/4 - 1;
 
+	/* EVO channels are affected by a HW bug where the last 12 DWORDs
+	 * of the push buffer aren't able to be used safely.
+	 */
+	if (disp->oclass < GV100_DISP)
+		dmac->max -= 12;
+
 	args->pushbuf = nvif_handle(&dmac->_push.mem.object);
 
 	ret = nv50_chan_create(device, disp, oclass, head, data, size,

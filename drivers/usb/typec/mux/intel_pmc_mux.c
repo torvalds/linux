@@ -61,14 +61,11 @@ enum {
 
 #define PMC_USB_ALTMODE_ORI_SHIFT	1
 #define PMC_USB_ALTMODE_UFP_SHIFT	3
-#define PMC_USB_ALTMODE_ORI_AUX_SHIFT	4
-#define PMC_USB_ALTMODE_ORI_HSL_SHIFT	5
 
 /* DP specific Mode Data bits */
 #define PMC_USB_ALTMODE_DP_MODE_SHIFT	8
 
 /* TBT specific Mode Data bits */
-#define PMC_USB_ALTMODE_HPD_HIGH	BIT(14)
 #define PMC_USB_ALTMODE_TBT_TYPE	BIT(17)
 #define PMC_USB_ALTMODE_CABLE_TYPE	BIT(18)
 #define PMC_USB_ALTMODE_ACTIVE_LINK	BIT(20)
@@ -128,13 +125,19 @@ static int hsl_orientation(struct pmc_usb_port *port)
 static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 {
 	u8 response[4];
+	int ret;
 
 	/*
 	 * Error bit will always be 0 with the USBC command.
-	 * Status can be checked from the response message.
+	 * Status can be checked from the response message if the
+	 * function intel_scu_ipc_dev_command succeeds.
 	 */
-	intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg, len,
-				  response, sizeof(response));
+	ret = intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg,
+					len, response, sizeof(response));
+
+	if (ret)
+		return ret;
+
 	if (response[2] & PMC_USB_RESP_STATUS_FAILURE) {
 		if (response[2] & PMC_USB_RESP_STATUS_FATAL)
 			return -EIO;
@@ -179,14 +182,8 @@ pmc_usb_mux_dp(struct pmc_usb_port *port, struct typec_mux_state *state)
 	req.mode_data = (port->orientation - 1) << PMC_USB_ALTMODE_ORI_SHIFT;
 	req.mode_data |= (port->role - 1) << PMC_USB_ALTMODE_UFP_SHIFT;
 
-	req.mode_data |= sbu_orientation(port) << PMC_USB_ALTMODE_ORI_AUX_SHIFT;
-	req.mode_data |= hsl_orientation(port) << PMC_USB_ALTMODE_ORI_HSL_SHIFT;
-
 	req.mode_data |= (state->mode - TYPEC_STATE_MODAL) <<
 			 PMC_USB_ALTMODE_DP_MODE_SHIFT;
-
-	if (data->status & DP_STATUS_HPD_STATE)
-		req.mode_data |= PMC_USB_ALTMODE_HPD_HIGH;
 
 	ret = pmc_usb_command(port, (void *)&req, sizeof(req));
 	if (ret)
@@ -211,9 +208,6 @@ pmc_usb_mux_tbt(struct pmc_usb_port *port, struct typec_mux_state *state)
 
 	req.mode_data = (port->orientation - 1) << PMC_USB_ALTMODE_ORI_SHIFT;
 	req.mode_data |= (port->role - 1) << PMC_USB_ALTMODE_UFP_SHIFT;
-
-	req.mode_data |= sbu_orientation(port) << PMC_USB_ALTMODE_ORI_AUX_SHIFT;
-	req.mode_data |= hsl_orientation(port) << PMC_USB_ALTMODE_ORI_HSL_SHIFT;
 
 	if (TBT_ADAPTER(data->device_mode) == TBT_ADAPTER_TBT3)
 		req.mode_data |= PMC_USB_ALTMODE_TBT_TYPE;
@@ -497,6 +491,7 @@ err_remove_ports:
 	for (i = 0; i < pmc->num_ports; i++) {
 		typec_switch_unregister(pmc->port[i].typec_sw);
 		typec_mux_unregister(pmc->port[i].typec_mux);
+		usb_role_switch_unregister(pmc->port[i].usb_sw);
 	}
 
 	return ret;
@@ -510,6 +505,7 @@ static int pmc_usb_remove(struct platform_device *pdev)
 	for (i = 0; i < pmc->num_ports; i++) {
 		typec_switch_unregister(pmc->port[i].typec_sw);
 		typec_mux_unregister(pmc->port[i].typec_mux);
+		usb_role_switch_unregister(pmc->port[i].usb_sw);
 	}
 
 	return 0;
