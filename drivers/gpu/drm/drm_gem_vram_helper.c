@@ -222,8 +222,7 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	acc_size = ttm_bo_dma_acc_size(bdev, size, sizeof(*gbo));
 
 	gbo->bo.bdev = bdev;
-	drm_gem_vram_placement(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
-			       DRM_GEM_VRAM_PL_FLAG_SYSTEM);
+	drm_gem_vram_placement(gbo, DRM_GEM_VRAM_PL_FLAG_SYSTEM);
 
 	/*
 	 * A failing ttm_bo_init will call ttm_buffer_object_destroy
