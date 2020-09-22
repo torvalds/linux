@@ -205,7 +205,7 @@ struct flexcan_regs {
 	u32 mcr;		/* 0x00 */
 	u32 ctrl;		/* 0x04 */
 	u32 timer;		/* 0x08 */
-	u32 _reserved1;		/* 0x0c */
+	u32 tcr;		/* 0x0c */
 	u32 rxgmask;		/* 0x10 */
 	u32 rx14mask;		/* 0x14 */
 	u32 rx15mask;		/* 0x18 */
@@ -225,7 +225,11 @@ struct flexcan_regs {
 	u32 crcr;		/* 0x44 */
 	u32 rxfgmask;		/* 0x48 */
 	u32 rxfir;		/* 0x4c */
-	u32 _reserved3[12];	/* 0x50 */
+	u32 cbt;		/* 0x50 */
+	u32 _reserved2;		/* 0x54 */
+	u32 dbg1;		/* 0x58 */
+	u32 dbg2;		/* 0x5c */
+	u32 _reserved3[8];	/* 0x60 */
 	u8 mb[2][512];		/* 0x80 */
 	/* FIFO-mode:
 	 *			MB
@@ -250,7 +254,13 @@ struct flexcan_regs {
 	u32 rerrdr;		/* 0xaf4 */
 	u32 rerrsynr;		/* 0xaf8 */
 	u32 errsr;		/* 0xafc */
+	u32 _reserved7[64];	/* 0xb00 */
+	u32 fdctrl;		/* 0xc00 */
+	u32 fdcbt;		/* 0xc04 */
+	u32 fdcrc;		/* 0xc08 */
 };
+
+static_assert(sizeof(struct flexcan_regs) == 0x4 + 0xc08);
 
 struct flexcan_devtype_data {
 	u32 quirks;		/* quirks needed for different IP cores */
