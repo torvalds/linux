@@ -285,7 +285,7 @@ static void free_nested(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.vmxon && !vmx->nested.smm.vmxon)
 		return;
 
-	kvm_clear_request(KVM_REQ_GET_VMCS12_PAGES, vcpu);
+	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 
 	vmx->nested.vmxon = false;
 	vmx->nested.smm.vmxon = false;
@@ -3395,7 +3395,7 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 		 * to nested_get_vmcs12_pages before the next VM-entry.  The MSRs
 		 * have already been set at vmentry time and should not be reset.
 		 */
-		kvm_make_request(KVM_REQ_GET_VMCS12_PAGES, vcpu);
+		kvm_make_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 	}
 
 	/*
@@ -6192,7 +6192,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		 * restored yet. EVMCS will be mapped from
 		 * nested_get_vmcs12_pages().
 		 */
-		kvm_make_request(KVM_REQ_GET_VMCS12_PAGES, vcpu);
+		kvm_make_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 	} else {
 		return -EINVAL;
 	}
@@ -6573,7 +6573,7 @@ struct kvm_x86_nested_ops vmx_nested_ops = {
 	.hv_timer_pending = nested_vmx_preemption_timer_pending,
 	.get_state = vmx_get_nested_state,
 	.set_state = vmx_set_nested_state,
-	.get_vmcs12_pages = nested_get_vmcs12_pages,
+	.get_nested_state_pages = nested_get_vmcs12_pages,
 	.write_log_dirty = nested_vmx_write_pml_buffer,
 	.enable_evmcs = nested_enable_evmcs,
 	.get_evmcs_version = nested_get_evmcs_version,
