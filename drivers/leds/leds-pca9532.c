@@ -27,6 +27,8 @@
 #define PCA9532_REG_PWM(m, i)	(PCA9532_REG_OFFSET(m) + 0x2 + (i) * 2)
 #define LED_REG(m, led)		(PCA9532_REG_OFFSET(m) + 0x5 + (led >> 2))
 #define LED_NUM(led)		(led & 0x3)
+#define LED_SHIFT(led)		(LED_NUM(led) * 2)
+#define LED_MASK(led)		(0x3 << LED_SHIFT(led))
 
 #define ldev_to_led(c)       container_of(c, struct pca9532_led, ldev)
 
@@ -162,9 +164,9 @@ static void pca9532_setled(struct pca9532_led *led)
 	mutex_lock(&data->update_lock);
 	reg = i2c_smbus_read_byte_data(client, LED_REG(maxleds, led->id));
 	/* zero led bits */
-	reg = reg & ~(0x3<<LED_NUM(led->id)*2);
+	reg = reg & ~LED_MASK(led->id);
 	/* set the new value */
-	reg = reg | (led->state << LED_NUM(led->id)*2);
+	reg = reg | (led->state << LED_SHIFT(led->id));
 	i2c_smbus_write_byte_data(client, LED_REG(maxleds, led->id), reg);
 	mutex_unlock(&data->update_lock);
 }
@@ -260,7 +262,7 @@ static enum pca9532_state pca9532_getled(struct pca9532_led *led)
 
 	mutex_lock(&data->update_lock);
 	reg = i2c_smbus_read_byte_data(client, LED_REG(maxleds, led->id));
-	ret = reg >> LED_NUM(led->id)/2;
+	ret = (reg & LED_MASK(led->id)) >> LED_SHIFT(led->id);
 	mutex_unlock(&data->update_lock);
 	return ret;
 }
