@@ -1037,7 +1037,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 	return handled;
 }
 
-static void flexcan_set_bittiming(struct net_device *dev)
+static void flexcan_set_bittiming_ctrl(const struct net_device *dev)
 {
 	const struct flexcan_priv *priv = netdev_priv(dev);
 	const struct can_bittiming *bt = &priv->can.bittiming;
@@ -1049,16 +1049,31 @@ static void flexcan_set_bittiming(struct net_device *dev)
 		 FLEXCAN_CTRL_RJW(0x3) |
 		 FLEXCAN_CTRL_PSEG1(0x7) |
 		 FLEXCAN_CTRL_PSEG2(0x7) |
-		 FLEXCAN_CTRL_PROPSEG(0x7) |
-		 FLEXCAN_CTRL_LPB |
-		 FLEXCAN_CTRL_SMP |
-		 FLEXCAN_CTRL_LOM);
+		 FLEXCAN_CTRL_PROPSEG(0x7));
 
 	reg |= FLEXCAN_CTRL_PRESDIV(bt->brp - 1) |
 		FLEXCAN_CTRL_PSEG1(bt->phase_seg1 - 1) |
 		FLEXCAN_CTRL_PSEG2(bt->phase_seg2 - 1) |
 		FLEXCAN_CTRL_RJW(bt->sjw - 1) |
 		FLEXCAN_CTRL_PROPSEG(bt->prop_seg - 1);
+
+	netdev_dbg(dev, "writing ctrl=0x%08x\n", reg);
+	priv->write(reg, &regs->ctrl);
+
+	/* print chip status */
+	netdev_dbg(dev, "%s: mcr=0x%08x ctrl=0x%08x\n", __func__,
+		   priv->read(&regs->mcr), priv->read(&regs->ctrl));
+}
+
+static void flexcan_set_bittiming(struct net_device *dev)
+{
+	const struct flexcan_priv *priv = netdev_priv(dev);
+	struct flexcan_regs __iomem *regs = priv->regs;
+	u32 reg;
+
+	reg = priv->read(&regs->ctrl);
+	reg &= ~(FLEXCAN_CTRL_LPB | FLEXCAN_CTRL_SMP |
+		 FLEXCAN_CTRL_LOM);
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		reg |= FLEXCAN_CTRL_LPB;
@@ -1070,9 +1085,7 @@ static void flexcan_set_bittiming(struct net_device *dev)
 	netdev_dbg(dev, "writing ctrl=0x%08x\n", reg);
 	priv->write(reg, &regs->ctrl);
 
-	/* print chip status */
-	netdev_dbg(dev, "%s: mcr=0x%08x ctrl=0x%08x\n", __func__,
-		   priv->read(&regs->mcr), priv->read(&regs->ctrl));
+	return flexcan_set_bittiming_ctrl(dev);
 }
 
 /* flexcan_chip_start
