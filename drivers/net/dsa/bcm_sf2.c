@@ -457,6 +457,7 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 {
 	struct device_node *port;
 	unsigned int port_num;
+	struct property *prop;
 	phy_interface_t mode;
 	int err;
 
@@ -483,6 +484,16 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 
 		if (of_property_read_bool(port, "brcm,use-bcm-hdr"))
 			priv->brcm_tag_mask |= 1 << port_num;
+
+		/* Ensure that port 5 is not picked up as a DSA CPU port
+		 * flavour but a regular port instead. We should be using
+		 * devlink to be able to set the port flavour.
+		 */
+		if (port_num == 5 && priv->type == BCM7278_DEVICE_ID) {
+			prop = of_find_property(port, "ethernet", NULL);
+			if (prop)
+				of_remove_property(port, prop);
+		}
 	}
 }
 
