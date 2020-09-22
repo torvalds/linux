@@ -252,7 +252,7 @@ static void rdma_counter_res_add(struct rdma_counter *counter,
 {
 	if (rdma_is_kernel_res(&qp->res)) {
 		rdma_restrack_set_task(&counter->res, qp->res.kern_name);
-		rdma_restrack_kadd(&counter->res);
+		rdma_restrack_add(&counter->res);
 	} else {
 		rdma_restrack_attach_task(&counter->res, qp->res.task);
 		rdma_restrack_uadd(&counter->res);

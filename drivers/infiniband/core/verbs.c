@@ -281,7 +281,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		kfree(pd);
 		return ERR_PTR(ret);
 	}
-	rdma_restrack_kadd(&pd->res);
+	rdma_restrack_add(&pd->res);
 
 	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
 		pd->local_dma_lkey = device->local_dma_lkey;
@@ -2008,7 +2008,7 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 		return ERR_PTR(ret);
 	}
 
-	rdma_restrack_kadd(&cq->res);
+	rdma_restrack_add(&cq->res);
 	return cq;
 }
 EXPORT_SYMBOL(__ib_create_cq);
@@ -2081,7 +2081,8 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	atomic_inc(&pd->usecnt);
 
 	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
-	rdma_restrack_kadd(&mr->res);
+	rdma_restrack_set_task(&mr->res, pd->res.kern_name);
+	rdma_restrack_add(&mr->res);
 
 	return mr;
 }
@@ -2164,7 +2165,8 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	mr->sig_attrs = NULL;
 
 	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
-	rdma_restrack_kadd(&mr->res);
+	rdma_restrack_set_task(&mr->res, pd->res.kern_name);
+	rdma_restrack_add(&mr->res);
 out:
 	trace_mr_alloc(pd, mr_type, max_num_sg, mr);
 	return mr;
@@ -2224,7 +2226,8 @@ struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
 	mr->sig_attrs = sig_attrs;
 
 	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
-	rdma_restrack_kadd(&mr->res);
+	rdma_restrack_set_task(&mr->res, pd->res.kern_name);
+	rdma_restrack_add(&mr->res);
 out:
 	trace_mr_integ_alloc(pd, max_num_data_sg, max_num_meta_sg, mr);
 	return mr;

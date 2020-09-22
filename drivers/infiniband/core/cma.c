@@ -454,7 +454,7 @@ static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 		rdma_node_get_transport(cma_dev->device->node_type);
 	list_add_tail(&id_priv->list, &cma_dev->id_list);
 	if (id_priv->res.kern_name)
-		rdma_restrack_kadd(&id_priv->res);
+		rdma_restrack_add(&id_priv->res);
 	else
 		rdma_restrack_uadd(&id_priv->res);
 	trace_cm_id_attach(id_priv, cma_dev->device);

@@ -123,32 +123,6 @@ int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type)
 }
 EXPORT_SYMBOL(rdma_restrack_count);
 
-static void set_kern_name(struct rdma_restrack_entry *res)
-{
-	struct ib_pd *pd;
-
-	switch (res->type) {
-	case RDMA_RESTRACK_QP:
-		pd = container_of(res, struct ib_qp, res)->pd;
-		if (!pd) {
-			WARN_ONCE(true, "XRC QPs are not supported\n");
-			/* Survive, despite the programmer's error */
-			res->kern_name = " ";
-		}
-		break;
-	case RDMA_RESTRACK_MR:
-		pd = container_of(res, struct ib_mr, res)->pd;
-		break;
-	default:
-		/* Other types set kern_name directly */
-		pd = NULL;
-		break;
-	}
-
-	if (pd)
-		res->kern_name = pd->res.kern_name;
-}
-
 static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 {
 	switch (res->type) {
@@ -217,7 +191,11 @@ void rdma_restrack_new(struct rdma_restrack_entry *res,
 }
 EXPORT_SYMBOL(rdma_restrack_new);
 
-static void rdma_restrack_add(struct rdma_restrack_entry *res)
+/**
+ * rdma_restrack_add() - add object to the reource tracking database
+ * @res:  resource entry
+ */
+void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
 	struct rdma_restrack_root *rt;
@@ -249,19 +227,7 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
 	if (!ret)
 		res->valid = true;
 }
-
-/**
- * rdma_restrack_kadd() - add kernel object to the reource tracking database
- * @res:  resource entry
- */
-void rdma_restrack_kadd(struct rdma_restrack_entry *res)
-{
-	res->task = NULL;
-	set_kern_name(res);
-	res->user = false;
-	rdma_restrack_add(res);
-}
-EXPORT_SYMBOL(rdma_restrack_kadd);
+EXPORT_SYMBOL(rdma_restrack_add);
 
 /**
  * rdma_restrack_uadd() - add user object to the reource tracking database
