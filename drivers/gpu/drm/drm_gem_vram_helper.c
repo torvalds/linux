@@ -167,52 +167,6 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
 	}
 }
 
-/*
- * Note that on error, drm_gem_vram_init will free the buffer object.
- */
-
-static int drm_gem_vram_init(struct drm_device *dev,
-			     struct drm_gem_vram_object *gbo,
-			     size_t size, unsigned long pg_align)
-{
-	struct drm_vram_mm *vmm = dev->vram_mm;
-	struct ttm_bo_device *bdev;
-	int ret;
-	size_t acc_size;
-
-	if (WARN_ONCE(!vmm, "VRAM MM not initialized")) {
-		kfree(gbo);
-		return -EINVAL;
-	}
-	bdev = &vmm->bdev;
-
-	gbo->bo.base.funcs = &drm_gem_vram_object_funcs;
-
-	ret = drm_gem_object_init(dev, &gbo->bo.base, size);
-	if (ret) {
-		kfree(gbo);
-		return ret;
-	}
-
-	acc_size = ttm_bo_dma_acc_size(bdev, size, sizeof(*gbo));
-
-	gbo->bo.bdev = bdev;
-	drm_gem_vram_placement(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
-			       DRM_GEM_VRAM_PL_FLAG_SYSTEM);
-
-	ret = ttm_bo_init(bdev, &gbo->bo, size, ttm_bo_type_device,
-			  &gbo->placement, pg_align, false, acc_size,
-			  NULL, NULL, ttm_buffer_object_destroy);
-	if (ret)
-		/*
-		 * A failing ttm_bo_init will call ttm_buffer_object_destroy
-		 * to release gbo->bo.base and kfree gbo.
-		 */
-		return ret;
-
-	return 0;
-}
-
 /**
  * drm_gem_vram_create() - Creates a VRAM-backed GEM object
  * @dev:		the DRM device
@@ -228,7 +182,13 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 						unsigned long pg_align)
 {
 	struct drm_gem_vram_object *gbo;
+	struct drm_vram_mm *vmm = dev->vram_mm;
+	struct ttm_bo_device *bdev;
 	int ret;
+	size_t acc_size;
+
+	if (WARN_ONCE(!vmm, "VRAM MM not initialized"))
+		return ERR_PTR(-EINVAL);
 
 	if (dev->driver->gem_create_object) {
 		struct drm_gem_object *gem =
@@ -242,8 +202,29 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 			return ERR_PTR(-ENOMEM);
 	}
 
-	ret = drm_gem_vram_init(dev, gbo, size, pg_align);
-	if (ret < 0)
+	gbo->bo.base.funcs = &drm_gem_vram_object_funcs;
+
+	ret = drm_gem_object_init(dev, &gbo->bo.base, size);
+	if (ret) {
+		kfree(gbo);
+		return ERR_PTR(ret);
+	}
+
+	bdev = &vmm->bdev;
+	acc_size = ttm_bo_dma_acc_size(bdev, size, sizeof(*gbo));
+
+	gbo->bo.bdev = bdev;
+	drm_gem_vram_placement(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
+			       DRM_GEM_VRAM_PL_FLAG_SYSTEM);
+
+	/*
+	 * A failing ttm_bo_init will call ttm_buffer_object_destroy
+	 * to release gbo->bo.base and kfree gbo.
+	 */
+	ret = ttm_bo_init(bdev, &gbo->bo, size, ttm_bo_type_device,
+			  &gbo->placement, pg_align, false, acc_size,
+			  NULL, NULL, ttm_buffer_object_destroy);
+	if (ret)
 		return ERR_PTR(ret);
 
 	return gbo;
