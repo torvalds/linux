@@ -577,25 +577,6 @@ static void _local_event_register(void *data)
 	sdei_cross_call_return(arg, err);
 }
 
-static int _sdei_event_register(struct sdei_event *event)
-{
-	int err;
-
-	lockdep_assert_held(&sdei_events_lock);
-
-	if (event->type == SDEI_EVENT_TYPE_SHARED)
-		return sdei_api_event_register(event->event_num,
-					       sdei_entry_point,
-					       event->registered,
-					       SDEI_EVENT_REGISTER_RM_ANY, 0);
-
-	err = sdei_do_cross_call(_local_event_register, event);
-	if (err)
-		sdei_do_cross_call(_local_event_unregister, event);
-
-	return err;
-}
-
 int sdei_event_register(u32 event_num, sdei_event_callback *cb, void *arg)
 {
 	int err;
@@ -618,7 +599,17 @@ int sdei_event_register(u32 event_num, sdei_event_callback *cb, void *arg)
 	}
 
 	cpus_read_lock();
-	err = _sdei_event_register(event);
+	if (event->type == SDEI_EVENT_TYPE_SHARED) {
+		err = sdei_api_event_register(event->event_num,
+					      sdei_entry_point,
+					      event->registered,
+					      SDEI_EVENT_REGISTER_RM_ANY, 0);
+	} else {
+		err = sdei_do_cross_call(_local_event_register, event);
+		if (err)
+			sdei_do_cross_call(_local_event_unregister, event);
+	}
+
 	if (err) {
 		sdei_event_destroy(event);
 		pr_warn("Failed to register event %u: %d\n", event_num, err);
@@ -635,33 +626,6 @@ unlock:
 	return err;
 }
 
-static int sdei_reregister_event_llocked(struct sdei_event *event)
-{
-	int err;
-
-	lockdep_assert_held(&sdei_events_lock);
-	lockdep_assert_held(&sdei_list_lock);
-
-	err = _sdei_event_register(event);
-	if (err) {
-		pr_err("Failed to re-register event %u\n", event->event_num);
-		sdei_event_destroy_llocked(event);
-		return err;
-	}
-
-	if (event->reenable) {
-		if (event->type == SDEI_EVENT_TYPE_SHARED)
-			err = sdei_api_event_enable(event->event_num);
-		else
-			err = sdei_do_cross_call(_local_event_enable, event);
-	}
-
-	if (err)
-		pr_err("Failed to re-enable event %u\n", event->event_num);
-
-	return err;
-}
-
 static int sdei_reregister_shared(void)
 {
 	int err = 0;
@@ -674,9 +638,24 @@ static int sdei_reregister_shared(void)
 			continue;
 
 		if (event->reregister) {
-			err = sdei_reregister_event_llocked(event);
-			if (err)
+			err = sdei_api_event_register(event->event_num,
+					sdei_entry_point, event->registered,
+					SDEI_EVENT_REGISTER_RM_ANY, 0);
+			if (err) {
+				pr_err("Failed to re-register event %u\n",
+				       event->event_num);
+				sdei_event_destroy_llocked(event);
 				break;
+			}
+		}
+
+		if (event->reenable) {
+			err = sdei_api_event_enable(event->event_num);
+			if (err) {
+				pr_err("Failed to re-enable event %u\n",
+				       event->event_num);
+				break;
+			}
 		}
 	}
 	spin_unlock(&sdei_list_lock);
