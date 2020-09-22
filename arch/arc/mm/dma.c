@@ -4,7 +4,6 @@
  */
 
 #include <linux/dma-map-ops.h>
-#include <linux/dma-noncoherent.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 

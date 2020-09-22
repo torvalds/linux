@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dmar.h>
 #include <linux/efi.h>
 #include <linux/elf.h>

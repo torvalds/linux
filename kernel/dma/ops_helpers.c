@@ -4,7 +4,6 @@
  * the allocated memory contains normal pages in the direct kernel mapping.
  */
 #include <linux/dma-map-ops.h>
-#include <linux/dma-noncoherent.h>
 
 /*
  * Create scatter-list for the already allocated DMA buffer.
