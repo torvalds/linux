@@ -7,13 +7,13 @@
 #include <linux/memblock.h> /* for max_pfn */
 #include <linux/export.h>
 #include <linux/mm.h>
-#include <linux/dma-direct.h>
 #include <linux/dma-map-ops.h>
 #include <linux/scatterlist.h>
 #include <linux/pfn.h>
 #include <linux/vmalloc.h>
 #include <linux/set_memory.h>
 #include <linux/slab.h>
+#include "direct.h"
 
 /*
  * Most architectures use ZONE_DMA for the first 16 Megabytes, but some use it
