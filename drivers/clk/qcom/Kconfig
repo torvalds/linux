@@ -382,6 +382,11 @@ config MSM_MMCC_8960
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config MSM_GCC_8953_DEBUG
+	tristate "MSM8953 Clock Debugger"
+	help
+	  Support for the clock debugger for msm8953 devices.
+
 config MSM_GCC_8953
 	tristate "MSM8953 Global Clock Controller"
 	select QCOM_GDSC
