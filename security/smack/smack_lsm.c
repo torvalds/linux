@@ -3838,6 +3838,7 @@ static int smk_skb_to_addr_ipv6(struct sk_buff *skb, struct sockaddr_in6 *sip)
  *
  * Returns smack_known of the secmark or NULL if that won't work.
  */
+#ifdef CONFIG_NETWORK_SECMARK
 static struct smack_known *smack_from_skb(struct sk_buff *skb)
 {
 	if (skb == NULL || skb->secmark == 0)
@@ -3845,6 +3846,12 @@ static struct smack_known *smack_from_skb(struct sk_buff *skb)
 
 	return smack_from_secid(skb->secmark);
 }
+#else
+static inline struct smack_known *smack_from_skb(struct sk_buff *skb)
+{
+	return NULL;
+}
+#endif
 
 /**
  * smack_from_netlbl - Smack data from the IP options in an skb
