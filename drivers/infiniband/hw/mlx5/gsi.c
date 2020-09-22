@@ -182,13 +182,25 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 		hw_init_attr.cap.max_send_sge = 0;
 		hw_init_attr.cap.max_inline_data = 0;
 	}
-	gsi->rx_qp = ib_create_qp(pd, &hw_init_attr);
+
+	gsi->rx_qp = mlx5_ib_create_qp(pd, &hw_init_attr, NULL);
 	if (IS_ERR(gsi->rx_qp)) {
 		mlx5_ib_warn(dev, "unable to create hardware GSI QP. error %ld\n",
 			     PTR_ERR(gsi->rx_qp));
 		ret = PTR_ERR(gsi->rx_qp);
 		goto err_destroy_cq;
 	}
+	gsi->rx_qp->device = pd->device;
+	gsi->rx_qp->pd = pd;
+	gsi->rx_qp->real_qp = gsi->rx_qp;
+
+	gsi->rx_qp->qp_type = hw_init_attr.qp_type;
+	gsi->rx_qp->send_cq = hw_init_attr.send_cq;
+	gsi->rx_qp->recv_cq = hw_init_attr.recv_cq;
+	gsi->rx_qp->event_handler = hw_init_attr.event_handler;
+	spin_lock_init(&gsi->rx_qp->mr_lock);
+	INIT_LIST_HEAD(&gsi->rx_qp->rdma_mrs);
+	INIT_LIST_HEAD(&gsi->rx_qp->sig_mrs);
 
 	dev->devr.ports[init_attr->port_num - 1].gsi = gsi;
 
@@ -219,7 +231,7 @@ int mlx5_ib_gsi_destroy_qp(struct ib_qp *qp)
 	mlx5_ib_dbg(dev, "destroying GSI QP\n");
 
 	mutex_lock(&dev->devr.mutex);
-	ret = ib_destroy_qp(gsi->rx_qp);
+	ret = mlx5_ib_destroy_qp(gsi->rx_qp, NULL);
 	if (ret) {
 		mlx5_ib_warn(dev, "unable to destroy hardware GSI QP. error %d\n",
 			     ret);
