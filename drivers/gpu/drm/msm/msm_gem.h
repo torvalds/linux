@@ -88,12 +88,14 @@ struct msm_gem_object {
 	struct mutex lock; /* Protects resources associated with bo */
 
 	char name[32]; /* Identifier to print for the debugfs files */
+
+	atomic_t active_count;
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
 
 static inline bool is_active(struct msm_gem_object *msm_obj)
 {
-	return msm_obj->gpu != NULL;
+	return atomic_read(&msm_obj->active_count);
 }
 
 static inline bool is_purgeable(struct msm_gem_object *msm_obj)
