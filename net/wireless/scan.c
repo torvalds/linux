@@ -2294,8 +2294,11 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 	struct cfg80211_bss_ies *ies;
 	struct ieee80211_channel *channel;
 	bool signal_valid;
-	size_t ielen = len - offsetof(struct ieee80211_mgmt,
-				      u.probe_resp.variable);
+	struct ieee80211_ext *ext = NULL;
+	u8 *bssid, *variable;
+	u16 capability, beacon_int;
+	size_t ielen, min_hdr_len = offsetof(struct ieee80211_mgmt,
+					     u.probe_resp.variable);
 	int bss_type;
 
 	BUILD_BUG_ON(offsetof(struct ieee80211_mgmt, u.probe_resp.variable) !=
@@ -2313,21 +2316,57 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 		    (data->signal < 0 || data->signal > 100)))
 		return NULL;
 
-	if (WARN_ON(len < offsetof(struct ieee80211_mgmt, u.probe_resp.variable)))
+	if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
+		ext = (void *) mgmt;
+		min_hdr_len = offsetof(struct ieee80211_ext, u.s1g_beacon);
+		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
+			min_hdr_len = offsetof(struct ieee80211_ext,
+					       u.s1g_short_beacon.variable);
+	}
+
+	if (WARN_ON(len < min_hdr_len))
 		return NULL;
 
-	channel = cfg80211_get_bss_channel(wiphy, mgmt->u.beacon.variable,
+	ielen = len - min_hdr_len;
+	variable = mgmt->u.probe_resp.variable;
+	if (ext) {
+		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
+			variable = ext->u.s1g_short_beacon.variable;
+		else
+			variable = ext->u.s1g_beacon.variable;
+	}
+
+	channel = cfg80211_get_bss_channel(wiphy, variable,
 					   ielen, data->chan, data->scan_width);
 	if (!channel)
 		return NULL;
+
+	if (ext) {
+		struct ieee80211_s1g_bcn_compat_ie *compat;
+		u8 *ie;
+
+		ie = (void *)cfg80211_find_ie(WLAN_EID_S1G_BCN_COMPAT,
+					      variable, ielen);
+		if (!ie)
+			return NULL;
+		compat = (void *)(ie + 2);
+		bssid = ext->u.s1g_beacon.sa;
+		capability = le16_to_cpu(compat->compat_info);
+		beacon_int = le16_to_cpu(compat->beacon_int);
+	} else {
+		bssid = mgmt->bssid;
+		beacon_int = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
+		capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
+	}
 
 	ies = kzalloc(sizeof(*ies) + ielen, gfp);
 	if (!ies)
 		return NULL;
 	ies->len = ielen;
 	ies->tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
-	ies->from_beacon = ieee80211_is_beacon(mgmt->frame_control);
-	memcpy(ies->data, mgmt->u.probe_resp.variable, ielen);
+	ies->from_beacon = ieee80211_is_beacon(mgmt->frame_control) ||
+			   ieee80211_is_s1g_beacon(mgmt->frame_control);
+	memcpy(ies->data, variable, ielen);
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control))
 		rcu_assign_pointer(tmp.pub.proberesp_ies, ies);
@@ -2335,12 +2374,12 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 		rcu_assign_pointer(tmp.pub.beacon_ies, ies);
 	rcu_assign_pointer(tmp.pub.ies, ies);
 
-	memcpy(tmp.pub.bssid, mgmt->bssid, ETH_ALEN);
+	memcpy(tmp.pub.bssid, bssid, ETH_ALEN);
+	tmp.pub.beacon_interval = beacon_int;
+	tmp.pub.capability = capability;
 	tmp.pub.channel = channel;
 	tmp.pub.scan_width = data->scan_width;
 	tmp.pub.signal = data->signal;
-	tmp.pub.beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
-	tmp.pub.capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 	tmp.ts_boottime = data->boottime_ns;
 	tmp.parent_tsf = data->parent_tsf;
 	tmp.pub.chains = data->chains;
