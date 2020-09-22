@@ -1802,15 +1802,24 @@ cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
 	int channel_number = -1;
 	struct ieee80211_channel *alt_channel;
 
-	tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ie, ielen);
-	if (tmp && tmp[1] == 1) {
-		channel_number = tmp[2];
-	} else {
-		tmp = cfg80211_find_ie(WLAN_EID_HT_OPERATION, ie, ielen);
-		if (tmp && tmp[1] >= sizeof(struct ieee80211_ht_operation)) {
-			struct ieee80211_ht_operation *htop = (void *)(tmp + 2);
+	if (channel->band == NL80211_BAND_S1GHZ) {
+		tmp = cfg80211_find_ie(WLAN_EID_S1G_OPERATION, ie, ielen);
+		if (tmp && tmp[1] >= sizeof(struct ieee80211_s1g_oper_ie)) {
+			struct ieee80211_s1g_oper_ie *s1gop = (void *)(tmp + 2);
 
-			channel_number = htop->primary_chan;
+			channel_number = s1gop->primary_ch;
+		}
+	} else {
+		tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ie, ielen);
+		if (tmp && tmp[1] == 1) {
+			channel_number = tmp[2];
+		} else {
+			tmp = cfg80211_find_ie(WLAN_EID_HT_OPERATION, ie, ielen);
+			if (tmp && tmp[1] >= sizeof(struct ieee80211_ht_operation)) {
+				struct ieee80211_ht_operation *htop = (void *)(tmp + 2);
+
+				channel_number = htop->primary_chan;
+			}
 		}
 	}
 
