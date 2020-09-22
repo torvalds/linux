@@ -538,7 +538,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	 * driver.
 	 */
 	if (of_machine_is_compatible("brcm,bcm7445d0"))
-		priv->indir_phy_mask |= (1 << BRCM_PSEUDO_PHY_ADDR);
+		priv->indir_phy_mask |= (1 << BRCM_PSEUDO_PHY_ADDR) | (1 << 0);
 	else
 		priv->indir_phy_mask = 0;
 
