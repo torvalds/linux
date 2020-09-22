@@ -160,23 +160,23 @@ static struct regmap_irq_chip da9062_irq_chip = {
 	.ack_base = DA9062AA_EVENT_A,
 };
 
-static struct resource da9061_core_resources[] = {
+static const struct resource da9061_core_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_VDD_WARN, "VDD_WARN"),
 };
 
-static struct resource da9061_regulators_resources[] = {
+static const struct resource da9061_regulators_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_LDO_LIM, "LDO_LIM"),
 };
 
-static struct resource da9061_thermal_resources[] = {
+static const struct resource da9061_thermal_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_TEMP, "THERMAL"),
 };
 
-static struct resource da9061_wdt_resources[] = {
+static const struct resource da9061_wdt_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_WDG_WARN, "WD_WARN"),
 };
 
-static struct resource da9061_onkey_resources[] = {
+static const struct resource da9061_onkey_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_ONKEY, "ONKEY"),
 };
 
@@ -211,32 +211,32 @@ static const struct mfd_cell da9061_devs[] = {
 	},
 };
 
-static struct resource da9062_core_resources[] = {
+static const struct resource da9062_core_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_VDD_WARN, 1, "VDD_WARN", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_regulators_resources[] = {
+static const struct resource da9062_regulators_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_LDO_LIM, 1, "LDO_LIM", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_thermal_resources[] = {
+static const struct resource da9062_thermal_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_TEMP, 1, "THERMAL", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_wdt_resources[] = {
+static const struct resource da9062_wdt_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_WDG_WARN, 1, "WD_WARN", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_rtc_resources[] = {
+static const struct resource da9062_rtc_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_ALARM, 1, "ALARM", IORESOURCE_IRQ),
 	DEFINE_RES_NAMED(DA9062_IRQ_TICK, 1, "TICK", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_onkey_resources[] = {
+static const struct resource da9062_onkey_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_ONKEY, 1, "ONKEY", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_gpio_resources[] = {
+static const struct resource da9062_gpio_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_GPI0, 1, "GPI0", IORESOURCE_IRQ),
 	DEFINE_RES_NAMED(DA9062_IRQ_GPI1, 1, "GPI1", IORESOURCE_IRQ),
 	DEFINE_RES_NAMED(DA9062_IRQ_GPI2, 1, "GPI2", IORESOURCE_IRQ),
