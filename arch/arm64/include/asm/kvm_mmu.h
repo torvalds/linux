@@ -531,21 +531,6 @@ static inline int kvm_map_vectors(void)
 DECLARE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
 DECLARE_KVM_NVHE_PER_CPU(u64, arm64_ssbd_callback_required);
 
-static inline int hyp_map_aux_data(void)
-{
-	int cpu, err;
-
-	for_each_possible_cpu(cpu) {
-		u64 *ptr;
-
-		ptr = per_cpu_ptr_nvhe_sym(arm64_ssbd_callback_required, cpu);
-		err = create_hyp_mappings(ptr, ptr + 1, PAGE_HYP);
-		if (err)
-			return err;
-	}
-	return 0;
-}
-
 static inline void hyp_init_aux_data(void)
 {
 	u64 *ptr;
@@ -555,11 +540,6 @@ static inline void hyp_init_aux_data(void)
 	*ptr = __this_cpu_read(arm64_ssbd_callback_required);
 }
 #else
-static inline int hyp_map_aux_data(void)
-{
-	return 0;
-}
-
 static inline void hyp_init_aux_data(void) {}
 #endif
 
