@@ -70,10 +70,10 @@ static void __mdb_entry_to_br_ip(struct br_mdb_entry *entry, struct br_ip *ip)
 	ip->vid = entry->vid;
 	ip->proto = entry->addr.proto;
 	if (ip->proto == htons(ETH_P_IP))
-		ip->u.ip4 = entry->addr.u.ip4;
+		ip->dst.ip4 = entry->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
 	else
-		ip->u.ip6 = entry->addr.u.ip6;
+		ip->dst.ip6 = entry->addr.u.ip6;
 #endif
 }
 
@@ -158,10 +158,10 @@ static int __mdb_fill_info(struct sk_buff *skb,
 	e.ifindex = ifindex;
 	e.vid = mp->addr.vid;
 	if (mp->addr.proto == htons(ETH_P_IP))
-		e.addr.u.ip4 = mp->addr.u.ip4;
+		e.addr.u.ip4 = mp->addr.dst.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
 	if (mp->addr.proto == htons(ETH_P_IPV6))
-		e.addr.u.ip6 = mp->addr.u.ip6;
+		e.addr.u.ip6 = mp->addr.dst.ip6;
 #endif
 	e.addr.proto = mp->addr.proto;
 	nest_ent = nla_nest_start_noflag(skb,
@@ -474,10 +474,10 @@ static void br_mdb_switchdev_host_port(struct net_device *dev,
 	};
 
 	if (mp->addr.proto == htons(ETH_P_IP))
-		ip_eth_mc_map(mp->addr.u.ip4, mdb.addr);
+		ip_eth_mc_map(mp->addr.dst.ip4, mdb.addr);
 #if IS_ENABLED(CONFIG_IPV6)
 	else
-		ipv6_eth_mc_map(&mp->addr.u.ip6, mdb.addr);
+		ipv6_eth_mc_map(&mp->addr.dst.ip6, mdb.addr);
 #endif
 
 	mdb.obj.orig_dev = dev;
@@ -520,10 +520,10 @@ void br_mdb_notify(struct net_device *dev,
 
 	if (pg) {
 		if (mp->addr.proto == htons(ETH_P_IP))
-			ip_eth_mc_map(mp->addr.u.ip4, mdb.addr);
+			ip_eth_mc_map(mp->addr.dst.ip4, mdb.addr);
 #if IS_ENABLED(CONFIG_IPV6)
 		else
-			ipv6_eth_mc_map(&mp->addr.u.ip6, mdb.addr);
+			ipv6_eth_mc_map(&mp->addr.dst.ip6, mdb.addr);
 #endif
 		mdb.obj.orig_dev = pg->port->dev;
 		switch (type) {
