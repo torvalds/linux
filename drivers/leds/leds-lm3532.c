@@ -96,15 +96,15 @@
 
 /*
  * struct lm3532_als_data
- * @config - value of ALS configuration register
- * @als1_imp_sel - value of ALS1 resistor select register
- * @als2_imp_sel - value of ALS2 resistor select register
- * @als_avrg_time - ALS averaging time
- * @als_input_mode - ALS input mode for brightness control
- * @als_vmin - Minimum ALS voltage
- * @als_vmax - Maximum ALS voltage
- * @zone_lo - values of ALS lo ZB(Zone Boundary) registers
- * @zone_hi - values of ALS hi ZB(Zone Boundary) registers
+ * @config: value of ALS configuration register
+ * @als1_imp_sel: value of ALS1 resistor select register
+ * @als2_imp_sel: value of ALS2 resistor select register
+ * @als_avrg_time: ALS averaging time
+ * @als_input_mode: ALS input mode for brightness control
+ * @als_vmin: Minimum ALS voltage
+ * @als_vmax: Maximum ALS voltage
+ * @zone_lo: values of ALS lo ZB(Zone Boundary) registers
+ * @zone_hi: values of ALS hi ZB(Zone Boundary) registers
  */
 struct lm3532_als_data {
 	u8 config;
@@ -121,14 +121,14 @@ struct lm3532_als_data {
 /**
  * struct lm3532_led
  * @led_dev: led class device
- * @priv - Pointer the device data structure
- * @control_bank - Control bank the LED is associated to
- * @mode - Mode of the LED string
- * @ctrl_brt_pointer - Zone target register that controls the sink
- * @num_leds - Number of LED strings are supported in this array
- * @full_scale_current - The full-scale current setting for the current sink.
- * @led_strings - The LED strings supported in this array
- * @enabled - Enabled status
+ * @priv: Pointer the device data structure
+ * @control_bank: Control bank the LED is associated to
+ * @mode: Mode of the LED string
+ * @ctrl_brt_pointer: Zone target register that controls the sink
+ * @num_leds: Number of LED strings are supported in this array
+ * @full_scale_current: The full-scale current setting for the current sink.
+ * @led_strings: The LED strings supported in this array
+ * @enabled: Enabled status
  */
 struct lm3532_led {
 	struct led_classdev led_dev;
@@ -145,16 +145,16 @@ struct lm3532_led {
 
 /**
  * struct lm3532_data
- * @enable_gpio - Hardware enable gpio
+ * @enable_gpio: Hardware enable gpio
  * @regulator: regulator
  * @client: i2c client
- * @regmap - Devices register map
- * @dev - Pointer to the devices device struct
- * @lock - Lock for reading/writing the device
- * @als_data - Pointer to the als data struct
- * @runtime_ramp_up - Runtime ramp up setting
- * @runtime_ramp_down - Runtime ramp down setting
- * @leds - Array of LED strings
+ * @regmap: Devices register map
+ * @dev: Pointer to the devices device struct
+ * @lock: Lock for reading/writing the device
+ * @als_data: Pointer to the als data struct
+ * @runtime_ramp_up: Runtime ramp up setting
+ * @runtime_ramp_down: Runtime ramp down setting
+ * @leds: Array of LED strings
  */
 struct lm3532_data {
 	struct gpio_desc *enable_gpio;
