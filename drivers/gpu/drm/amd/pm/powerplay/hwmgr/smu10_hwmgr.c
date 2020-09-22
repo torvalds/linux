@@ -648,7 +648,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						NULL);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinVcn,
-						SMU10_UMD_PSTATE_VCE,
+						SMU10_UMD_PSTATE_PROFILE_VCE,
 						NULL);
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -665,7 +665,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						NULL);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxVcn,
-						SMU10_UMD_PSTATE_VCE,
+						SMU10_UMD_PSTATE_PROFILE_VCE,
 						NULL);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
@@ -1181,8 +1181,19 @@ static int smu10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 	struct smu10_hwmgr *data = hwmgr->backend;
 	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_ranges;
 	Watermarks_t *table = &(data->water_marks_table);
+	struct amdgpu_device *adev = hwmgr->adev;
+	int i;
 
 	smu_set_watermarks_for_clocks_ranges(table,wm_with_clock_ranges);
+
+	if (adev->apu_flags & AMD_APU_IS_RAVEN2) {
+		for (i = 0; i < NUM_WM_RANGES; i++)
+			table->WatermarkRow[WM_DCFCLK][i].WmType = (uint8_t)0;
+
+		for (i = 0; i < NUM_WM_RANGES; i++)
+			table->WatermarkRow[WM_SOCCLK][i].WmType = (uint8_t)0;
+	}
+
 	smum_smc_table_manager(hwmgr, (uint8_t *)table, (uint16_t)SMU10_WMTABLE, false);
 	data->water_marks_exist = true;
 	return 0;

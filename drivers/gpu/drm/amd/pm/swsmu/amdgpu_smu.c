@@ -361,20 +361,16 @@ static int smu_get_driver_allowed_feature_mask(struct smu_context *smu)
 	int ret = 0;
 	uint32_t allowed_feature_mask[SMU_FEATURE_MAX/32];
 
-	mutex_lock(&feature->mutex);
 	bitmap_zero(feature->allowed, SMU_FEATURE_MAX);
-	mutex_unlock(&feature->mutex);
 
 	ret = smu_get_allowed_feature_mask(smu, allowed_feature_mask,
 					     SMU_FEATURE_MAX/32);
 	if (ret)
 		return ret;
 
-	mutex_lock(&feature->mutex);
 	bitmap_or(feature->allowed, feature->allowed,
 		      (unsigned long *)allowed_feature_mask,
 		      feature->feature_num);
-	mutex_unlock(&feature->mutex);
 
 	return ret;
 }
@@ -472,6 +468,12 @@ static int smu_late_init(void *handle)
 
 	if (!smu->pm_enabled)
 		return 0;
+
+	ret = smu_post_init(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to post smu init!\n");
+		return ret;
+	}
 
 	ret = smu_set_default_od_settings(smu);
 	if (ret) {
@@ -578,9 +580,6 @@ static int smu_fini_fb_allocations(struct smu_context *smu)
 	struct smu_table *tables = smu_table->tables;
 	struct smu_table *driver_table = &(smu_table->driver_table);
 
-	if (!tables)
-		return 0;
-
 	if (tables[SMU_TABLE_PMSTATUSLOG].mc_address)
 		amdgpu_bo_free_kernel(&tables[SMU_TABLE_PMSTATUSLOG].bo,
 				      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
@@ -657,6 +656,45 @@ static int smu_free_memory_pool(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_alloc_dummy_read_table(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *dummy_read_1_table =
+			&smu_table->dummy_read_1_table;
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	dummy_read_1_table->size = 0x40000;
+	dummy_read_1_table->align = PAGE_SIZE;
+	dummy_read_1_table->domain = AMDGPU_GEM_DOMAIN_VRAM;
+
+	ret = amdgpu_bo_create_kernel(adev,
+				      dummy_read_1_table->size,
+				      dummy_read_1_table->align,
+				      dummy_read_1_table->domain,
+				      &dummy_read_1_table->bo,
+				      &dummy_read_1_table->mc_address,
+				      &dummy_read_1_table->cpu_addr);
+	if (ret)
+		dev_err(adev->dev, "VRAM allocation for dummy read table failed!\n");
+
+	return ret;
+}
+
+static void smu_free_dummy_read_table(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *dummy_read_1_table =
+			&smu_table->dummy_read_1_table;
+
+
+	amdgpu_bo_free_kernel(&dummy_read_1_table->bo,
+			      &dummy_read_1_table->mc_address,
+			      &dummy_read_1_table->cpu_addr);
+
+	memset(dummy_read_1_table, 0, sizeof(struct smu_table));
+}
+
 static int smu_smc_table_sw_init(struct smu_context *smu)
 {
 	int ret;
@@ -692,6 +730,10 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = smu_alloc_dummy_read_table(smu);
+	if (ret)
+		return ret;
+
 	ret = smu_i2c_init(smu, &smu->adev->pm.smu_i2c);
 	if (ret)
 		return ret;
@@ -704,6 +746,8 @@ static int smu_smc_table_sw_fini(struct smu_context *smu)
 	int ret;
 
 	smu_i2c_fini(smu, &smu->adev->pm.smu_i2c);
+
+	smu_free_dummy_read_table(smu);
 
 	ret = smu_free_memory_pool(smu);
 	if (ret)
@@ -969,24 +1013,6 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 	}
 
-	ret = smu_disable_umc_cdr_12gbps_workaround(smu);
-	if (ret) {
-		dev_err(adev->dev, "Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
-		return ret;
-	}
-
-	/*
-	 * For Navi1X, manually switch it to AC mode as PMFW
-	 * may boot it with DC mode.
-	 */
-	ret = smu_set_power_source(smu,
-				   adev->pm.ac_power ? SMU_POWER_SOURCE_AC :
-				   SMU_POWER_SOURCE_DC);
-	if (ret) {
-		dev_err(adev->dev, "Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
-		return ret;
-	}
-
 	ret = smu_notify_display_change(smu);
 	if (ret)
 		return ret;
@@ -1129,7 +1155,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (smu->uploading_custom_pp_table &&
 	    (adev->asic_type >= CHIP_NAVI10) &&
-	    (adev->asic_type <= CHIP_NAVI12))
+	    (adev->asic_type <= CHIP_NAVY_FLOUNDER))
 		return 0;
 
 	/*
@@ -1214,7 +1240,9 @@ static int smu_hw_fini(void *handle)
 int smu_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
+	int ret;
+
+	amdgpu_gfx_off_ctrl(smu->adev, false);
 
 	ret = smu_hw_fini(adev);
 	if (ret)
@@ -1225,8 +1253,12 @@ int smu_reset(struct smu_context *smu)
 		return ret;
 
 	ret = smu_late_init(adev);
+	if (ret)
+		return ret;
 
-	return ret;
+	amdgpu_gfx_off_ctrl(smu->adev, true);
+
+	return 0;
 }
 
 static int smu_suspend(void *handle)
@@ -1784,7 +1816,7 @@ int smu_write_watermarks_table(struct smu_context *smu)
 }
 
 int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
-		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
+		struct pp_smu_wm_range_sets *clock_ranges)
 {
 	int ret = 0;
 
@@ -2265,19 +2297,6 @@ int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk)
 	ret = smu_set_min_dcef_deep_sleep(smu, clk);
 
 	mutex_unlock(&smu->mutex);
-
-	return ret;
-}
-
-int smu_set_active_display_count(struct smu_context *smu, uint32_t count)
-{
-	int ret = 0;
-
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return -EOPNOTSUPP;
-
-	if (smu->ppt_funcs->set_active_display_count)
-		ret = smu->ppt_funcs->set_active_display_count(smu, count);
 
 	return ret;
 }

@@ -832,8 +832,58 @@ static int renoir_set_performance_level(struct smu_context *smu,
 		ret = renoir_force_dpm_limit_value(smu, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
-	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		ret = renoir_unforce_dpm_levels(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetHardMinGfxClk,
+						      RENOIR_UMD_PSTATE_GFXCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetHardMinFclkByFreq,
+						      RENOIR_UMD_PSTATE_FCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetHardMinSocclkByFreq,
+						      RENOIR_UMD_PSTATE_SOCCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetHardMinVcn,
+						      RENOIR_UMD_PSTATE_VCNCLK,
+						      NULL);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetSoftMaxGfxClk,
+						      RENOIR_UMD_PSTATE_GFXCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetSoftMaxFclkByFreq,
+						      RENOIR_UMD_PSTATE_FCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetSoftMaxSocclkByFreq,
+						      RENOIR_UMD_PSTATE_SOCCLK,
+						      NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SetSoftMaxVcn,
+						      RENOIR_UMD_PSTATE_VCNCLK,
+						      NULL);
+		if (ret)
+			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
@@ -863,50 +913,48 @@ static int renoir_set_performance_level(struct smu_context *smu,
  */
 static int renoir_set_watermarks_table(
 		struct smu_context *smu,
-		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
+		struct pp_smu_wm_range_sets *clock_ranges)
 {
 	Watermarks_t *table = smu->smu_table.watermarks_table;
 	int ret = 0;
 	int i;
 
 	if (clock_ranges) {
-		if (clock_ranges->num_wm_dmif_sets > 4 ||
-				clock_ranges->num_wm_mcif_sets > 4)
+		if (clock_ranges->num_reader_wm_sets > NUM_WM_RANGES ||
+		    clock_ranges->num_writer_wm_sets > NUM_WM_RANGES)
 			return -EINVAL;
 
 		/* save into smu->smu_table.tables[SMU_TABLE_WATERMARKS]->cpu_addr*/
-		for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
+		for (i = 0; i < clock_ranges->num_reader_wm_sets; i++) {
 			table->WatermarkRow[WM_DCFCLK][i].MinClock =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz));
+				clock_ranges->reader_wm_sets[i].min_drain_clk_mhz;
 			table->WatermarkRow[WM_DCFCLK][i].MaxClock =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz));
+				clock_ranges->reader_wm_sets[i].max_drain_clk_mhz;
 			table->WatermarkRow[WM_DCFCLK][i].MinMclk =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz));
+				clock_ranges->reader_wm_sets[i].min_fill_clk_mhz;
 			table->WatermarkRow[WM_DCFCLK][i].MaxMclk =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz));
-			table->WatermarkRow[WM_DCFCLK][i].WmSetting = (uint8_t)
-					clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+				clock_ranges->reader_wm_sets[i].max_fill_clk_mhz;
+
+			table->WatermarkRow[WM_DCFCLK][i].WmSetting =
+				clock_ranges->reader_wm_sets[i].wm_inst;
+			table->WatermarkRow[WM_DCFCLK][i].WmType =
+				clock_ranges->reader_wm_sets[i].wm_type;
 		}
 
-		for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
+		for (i = 0; i < clock_ranges->num_writer_wm_sets; i++) {
 			table->WatermarkRow[WM_SOCCLK][i].MinClock =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz));
+				clock_ranges->writer_wm_sets[i].min_fill_clk_mhz;
 			table->WatermarkRow[WM_SOCCLK][i].MaxClock =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz));
+				clock_ranges->writer_wm_sets[i].max_fill_clk_mhz;
 			table->WatermarkRow[WM_SOCCLK][i].MinMclk =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz));
+				clock_ranges->writer_wm_sets[i].min_drain_clk_mhz;
 			table->WatermarkRow[WM_SOCCLK][i].MaxMclk =
-				cpu_to_le16((uint16_t)
-				(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz));
-			table->WatermarkRow[WM_SOCCLK][i].WmSetting = (uint8_t)
-					clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
+				clock_ranges->writer_wm_sets[i].max_drain_clk_mhz;
+
+			table->WatermarkRow[WM_SOCCLK][i].WmSetting =
+				clock_ranges->writer_wm_sets[i].wm_inst;
+			table->WatermarkRow[WM_SOCCLK][i].WmType =
+				clock_ranges->writer_wm_sets[i].wm_type;
 		}
 
 		smu->watermarks_bitmap |= WATERMARKS_EXIST;

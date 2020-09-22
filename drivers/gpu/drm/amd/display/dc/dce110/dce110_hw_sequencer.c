@@ -810,37 +810,66 @@ void dce110_edp_power_control(
 
 	if (power_up !=
 		link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl)) {
+
+		unsigned long long current_ts = dm_get_timestamp(ctx);
+		unsigned long long time_since_edp_poweroff_ms =
+				div64_u64(dm_get_elapse_time_in_ns(
+						ctx,
+						current_ts,
+						link->link_trace.time_stamp.edp_poweroff), 1000000);
+		unsigned long long time_since_edp_poweron_ms =
+				div64_u64(dm_get_elapse_time_in_ns(
+						ctx,
+						current_ts,
+						link->link_trace.time_stamp.edp_poweron), 1000000);
+		DC_LOG_HW_RESUME_S3(
+				"%s: transition: power_up=%d current_ts=%llu edp_poweroff=%llu edp_poweron=%llu time_since_edp_poweroff_ms=%llu time_since_edp_poweron_ms=%llu",
+				__func__,
+				power_up,
+				current_ts,
+				link->link_trace.time_stamp.edp_poweroff,
+				link->link_trace.time_stamp.edp_poweron,
+				time_since_edp_poweroff_ms,
+				time_since_edp_poweron_ms);
+
 		/* Send VBIOS command to prompt eDP panel power */
 		if (power_up) {
-			unsigned long long current_ts = dm_get_timestamp(ctx);
-			unsigned long long duration_in_ms =
-					div64_u64(dm_get_elapse_time_in_ns(
-							ctx,
-							current_ts,
-							link->link_trace.time_stamp.edp_poweroff), 1000000);
-			unsigned long long wait_time_ms = 0;
+			/* edp requires a min of 500ms from LCDVDD off to on */
+			unsigned long long remaining_min_edp_poweroff_time_ms = 500;
 
-			/* max 500ms from LCDVDD off to on */
-			unsigned long long edp_poweroff_time_ms = 500;
-
+			/* add time defined by a patch, if any (usually patch extra_t12_ms is 0) */
 			if (link->local_sink != NULL)
-				edp_poweroff_time_ms =
-						500 + link->local_sink->edid_caps.panel_patch.extra_t12_ms;
-			if (link->link_trace.time_stamp.edp_poweroff == 0)
-				wait_time_ms = edp_poweroff_time_ms;
-			else if (duration_in_ms < edp_poweroff_time_ms)
-				wait_time_ms = edp_poweroff_time_ms - duration_in_ms;
+				remaining_min_edp_poweroff_time_ms +=
+					link->local_sink->edid_caps.panel_patch.extra_t12_ms;
 
-			if (wait_time_ms) {
-				msleep(wait_time_ms);
-				dm_output_to_console("%s: wait %lld ms to power on eDP.\n",
-						__func__, wait_time_ms);
+			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
+			if (link->link_trace.time_stamp.edp_poweroff != 0) {
+				if (time_since_edp_poweroff_ms < remaining_min_edp_poweroff_time_ms)
+					remaining_min_edp_poweroff_time_ms =
+						remaining_min_edp_poweroff_time_ms - time_since_edp_poweroff_ms;
+				else
+					remaining_min_edp_poweroff_time_ms = 0;
 			}
 
+			if (remaining_min_edp_poweroff_time_ms) {
+				DC_LOG_HW_RESUME_S3(
+						"%s: remaining_min_edp_poweroff_time_ms=%llu: begin wait.\n",
+						__func__, remaining_min_edp_poweroff_time_ms);
+				msleep(remaining_min_edp_poweroff_time_ms);
+				DC_LOG_HW_RESUME_S3(
+						"%s: remaining_min_edp_poweroff_time_ms=%llu: end wait.\n",
+						__func__, remaining_min_edp_poweroff_time_ms);
+				dm_output_to_console("%s: wait %lld ms to power on eDP.\n",
+						__func__, remaining_min_edp_poweroff_time_ms);
+			} else {
+				DC_LOG_HW_RESUME_S3(
+						"%s: remaining_min_edp_poweroff_time_ms=%llu: no wait required.\n",
+						__func__, remaining_min_edp_poweroff_time_ms);
+			}
 		}
 
 		DC_LOG_HW_RESUME_S3(
-				"%s: Panel Power action: %s\n",
+				"%s: BEGIN: Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 
 		cntl.action = power_up ?
@@ -864,11 +893,22 @@ void dce110_edp_power_control(
 
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
+		DC_LOG_HW_RESUME_S3(
+				"%s: END: Panel Power action: %s bp_result=%u\n",
+				__func__, (power_up ? "On":"Off"),
+				bp_result);
+
 		if (!power_up)
 			/*save driver power off time stamp*/
 			link->link_trace.time_stamp.edp_poweroff = dm_get_timestamp(ctx);
 		else
 			link->link_trace.time_stamp.edp_poweron = dm_get_timestamp(ctx);
+
+		DC_LOG_HW_RESUME_S3(
+				"%s: updated values: edp_poweroff=%llu edp_poweron=%llu\n",
+				__func__,
+				link->link_trace.time_stamp.edp_poweroff,
+				link->link_trace.time_stamp.edp_poweron);
 
 		if (bp_result != BP_RESULT_OK)
 			DC_LOG_ERROR(

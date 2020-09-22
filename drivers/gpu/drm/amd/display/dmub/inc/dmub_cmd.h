@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x4e5b2f46f
+#define DMUB_FW_VERSION_GIT_HASH 0x82f998da6
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 29
+#define DMUB_FW_VERSION_REVISION 32
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -97,6 +97,7 @@ union dmub_psr_debug_flags {
 	struct {
 		uint32_t visual_confirm : 1;
 		uint32_t use_hw_lock_mgr : 1;
+		uint32_t log_line_nums : 1;
 	} bitfields;
 
 	uint32_t u32All;
@@ -791,12 +792,10 @@ static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 
 	while (rptr != wptr) {
 		uint64_t volatile *data = (uint64_t volatile *)rb->base_address + rptr / sizeof(uint64_t);
-		//uint64_t volatile *p = (uint64_t volatile *)data;
-		uint64_t temp;
 		int i;
 
 		for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
-			temp = *data++;
+			*data++;
 
 		rptr += DMUB_RB_CMD_SIZE;
 		if (rptr >= rb->capacity)

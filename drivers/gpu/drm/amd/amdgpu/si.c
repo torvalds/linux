@@ -1339,7 +1339,7 @@ static void si_vga_set_state(struct amdgpu_device *adev, bool state)
 	uint32_t temp;
 
 	temp = RREG32(CONFIG_CNTL);
-	if (state == false) {
+	if (!state) {
 		temp &= ~(1<<0);
 		temp |= (1<<1);
 	} else {

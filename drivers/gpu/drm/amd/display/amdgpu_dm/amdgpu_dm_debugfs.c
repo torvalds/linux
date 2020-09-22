@@ -111,7 +111,6 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
 
 	if (*param_nums > max_param_num)
 		*param_nums = max_param_num;
-;
 
 	wr_buf_ptr = wr_buf; /* reset buf pointer */
 	wr_buf_count = 0; /* number of char already checked */
@@ -265,7 +264,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	if (!wr_buf)
 		return -ENOSPC;
 
-	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+	if (parse_write_buffer_into_params(wr_buf, size,
 					   (long *)param, buf,
 					   max_param_num,
 					   &param_nums)) {
@@ -424,7 +423,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 	if (!wr_buf)
 		return -ENOSPC;
 
-	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+	if (parse_write_buffer_into_params(wr_buf, size,
 					   (long *)param, buf,
 					   max_param_num,
 					   &param_nums)) {
@@ -576,7 +575,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	if (!wr_buf)
 		return -ENOSPC;
 
-	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+	if (parse_write_buffer_into_params(wr_buf, size,
 					   (long *)param, buf,
 					   max_param_num,
 					   &param_nums)) {
@@ -1059,12 +1058,17 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
  *
  *	echo 1 > /sys/kernel/debug/dri/0/DP-X/trigger_hotplug
  *
+ * This function can perform HPD unplug:
+ *
+ *	echo 0 > /sys/kernel/debug/dri/0/DP-X/trigger_hotplug
+ *
  */
 static ssize_t dp_trigger_hotplug(struct file *f, const char __user *buf,
 							size_t size, loff_t *pos)
 {
 	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
 	struct drm_connector *connector = &aconnector->base;
+	struct dc_link *link = NULL;
 	struct drm_device *dev = connector->dev;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	char *wr_buf = NULL;
@@ -1086,11 +1090,13 @@ static ssize_t dp_trigger_hotplug(struct file *f, const char __user *buf,
 		return -ENOSPC;
 	}
 
-	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+	if (parse_write_buffer_into_params(wr_buf, size,
 						(long *)param, buf,
 						max_param_num,
-						&param_nums))
+						&param_nums)) {
+		kfree(wr_buf);
 		return -EINVAL;
+	}
 
 	if (param_nums <= 0) {
 		DRM_DEBUG_DRIVER("user data not be read\n");
@@ -1115,10 +1121,32 @@ static ssize_t dp_trigger_hotplug(struct file *f, const char __user *buf,
 		drm_modeset_unlock_all(dev);
 
 		drm_kms_helper_hotplug_event(dev);
+	} else if (param[0] == 0) {
+		if (!aconnector->dc_link)
+			goto unlock;
+
+		link = aconnector->dc_link;
+
+		if (link->local_sink) {
+			dc_sink_release(link->local_sink);
+			link->local_sink = NULL;
+		}
+
+		link->dpcd_sink_count = 0;
+		link->type = dc_connection_none;
+		link->dongle_max_pix_clk = 0;
+
+		amdgpu_dm_update_connector_after_detect(aconnector);
+
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		drm_kms_helper_hotplug_event(dev);
+	}
 
 unlock:
-		mutex_unlock(&aconnector->hpd_lock);
-	}
+	mutex_unlock(&aconnector->hpd_lock);
 
 	kfree(wr_buf);
 	return size;
@@ -1200,8 +1228,13 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
  *
  * The write function: dp_dsc_clock_en_write
  * enables to force DSC on the connector.
- * User can write to either force enable DSC
+ * User can write to either force enable or force disable DSC
  * on the next modeset or set it to driver default
+ *
+ * Accepted inputs:
+ * 0 - default DSC enablement policy
+ * 1 - force enable DSC on the connector
+ * 2 - force disable DSC on the connector (might cause fail in atomic_check)
  *
  * Writing DSC settings is done with the following command:
  * - To force enable DSC (you need to specify
@@ -1238,7 +1271,7 @@ static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
 		return -ENOSPC;
 	}
 
-	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+	if (parse_write_buffer_into_params(wr_buf, size,
 					    (long *)param, buf,
 					    max_param_num,
 					    &param_nums)) {
@@ -1262,7 +1295,12 @@ static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
 	if (!pipe_ctx || !pipe_ctx->stream)
 		goto done;
 
-	aconnector->dsc_settings.dsc_clock_en = param[0];
+	if (param[0] == 1)
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_ENABLE;
+	else if (param[0] == 2)
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_DISABLE;
+	else
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_DEFAULT;
 
 done:
 	kfree(wr_buf);
@@ -1387,7 +1425,7 @@ static ssize_t dp_dsc_slice_width_write(struct file *f, const char __user *buf,
 		return -ENOSPC;
 	}
 
-	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+	if (parse_write_buffer_into_params(wr_buf, size,
 					    (long *)param, buf,
 					    max_param_num,
 					    &param_nums)) {
@@ -1411,7 +1449,12 @@ static ssize_t dp_dsc_slice_width_write(struct file *f, const char __user *buf,
 	if (!pipe_ctx || !pipe_ctx->stream)
 		goto done;
 
-	aconnector->dsc_settings.dsc_slice_width = param[0];
+	if (param[0] > 0)
+		aconnector->dsc_settings.dsc_num_slices_h = DIV_ROUND_UP(
+					pipe_ctx->stream->timing.h_addressable,
+					param[0]);
+	else
+		aconnector->dsc_settings.dsc_num_slices_h = 0;
 
 done:
 	kfree(wr_buf);
@@ -1536,7 +1579,7 @@ static ssize_t dp_dsc_slice_height_write(struct file *f, const char __user *buf,
 		return -ENOSPC;
 	}
 
-	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+	if (parse_write_buffer_into_params(wr_buf, size,
 					    (long *)param, buf,
 					    max_param_num,
 					    &param_nums)) {
@@ -1560,7 +1603,12 @@ static ssize_t dp_dsc_slice_height_write(struct file *f, const char __user *buf,
 	if (!pipe_ctx || !pipe_ctx->stream)
 		goto done;
 
-	aconnector->dsc_settings.dsc_slice_height = param[0];
+	if (param[0] > 0)
+		aconnector->dsc_settings.dsc_num_slices_v = DIV_ROUND_UP(
+					pipe_ctx->stream->timing.v_addressable,
+					param[0]);
+	else
+		aconnector->dsc_settings.dsc_num_slices_v = 0;
 
 done:
 	kfree(wr_buf);
@@ -1678,7 +1726,7 @@ static ssize_t dp_dsc_bits_per_pixel_write(struct file *f, const char __user *bu
 		return -ENOSPC;
 	}
 
-	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+	if (parse_write_buffer_into_params(wr_buf, size,
 					    (long *)param, buf,
 					    max_param_num,
 					    &param_nums)) {
@@ -2098,6 +2146,7 @@ static const struct {
 	const struct file_operations *fops;
 } dp_debugfs_entries[] = {
 		{"link_settings", &dp_link_settings_debugfs_fops},
+		{"trigger_hotplug", &dp_trigger_hotplug_debugfs_fops},
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops},
 #ifdef CONFIG_DRM_AMD_DC_HDCP

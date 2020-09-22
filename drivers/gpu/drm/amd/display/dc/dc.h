@@ -42,7 +42,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.99"
+#define DC_VER "3.2.102"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -476,7 +476,7 @@ struct dc_debug_options {
 	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
 #endif
 	unsigned int force_fclk_khz;
-	bool disable_tri_buf;
+	bool enable_tri_buf;
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
@@ -745,7 +745,6 @@ struct dc_transfer_func {
 	enum dc_transfer_func_predefined tf;
 	/* FP16 1.0 reference level in nits, default is 80 nits, only for PQ*/
 	uint32_t sdr_ref_white_level;
-	struct dc_context *ctx;
 	union {
 		struct pwl_params pwl;
 		struct dc_transfer_func_distributed_points tf_pts;
@@ -772,7 +771,6 @@ struct dc_3dlut {
 	struct tetrahedral_params lut_3d;
 	struct fixed31_32 hdr_multiplier;
 	union dc_3dlut_state state;
-	struct dc_context *ctx;
 };
 /*
  * This structure is filled in by dc_surface_get_status and contains
@@ -1249,6 +1247,9 @@ bool dc_is_dmcu_initialized(struct dc *dc);
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
 void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+
+bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc,
+						 struct dc_plane_state *plane);
 
 void dc_allow_idle_optimizations(struct dc *dc, bool allow);
 

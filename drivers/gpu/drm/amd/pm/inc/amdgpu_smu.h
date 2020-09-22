@@ -270,6 +270,7 @@ struct smu_table_context
 	 */
 	struct smu_table		driver_table;
 	struct smu_table		memory_pool;
+	struct smu_table		dummy_read_1_table;
 	uint8_t                         thermal_controller_type;
 
 	void				*overdrive_table;
@@ -500,7 +501,7 @@ struct pptable_funcs {
 	bool (*is_dpm_running)(struct smu_context *smu);
 	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
 	int (*set_watermarks_table)(struct smu_context *smu,
-				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
+				    struct pp_smu_wm_range_sets *clock_ranges);
 	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
 	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);
 	int (*set_default_od_settings)(struct smu_context *smu);
@@ -590,7 +591,6 @@ struct pptable_funcs {
 	int (*mode2_reset)(struct smu_context *smu);
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
-	int (*disable_umc_cdr_12gbps_workaround)(struct smu_context *smu);
 	int (*set_power_source)(struct smu_context *smu, enum smu_power_src_type power_src);
 	void (*log_thermal_throttling_event)(struct smu_context *smu);
 	size_t (*get_pp_feature_mask)(struct smu_context *smu, char *buf);
@@ -600,6 +600,7 @@ struct pptable_funcs {
 	int (*gfx_ulv_control)(struct smu_context *smu, bool enablement);
 	int (*deep_sleep_control)(struct smu_context *smu, bool enablement);
 	int (*get_fan_parameters)(struct smu_context *smu);
+	int (*post_init)(struct smu_context *smu);
 };
 
 typedef enum {
@@ -703,7 +704,6 @@ int smu_set_fan_speed_percent(struct smu_context *smu, uint32_t speed);
 int smu_get_fan_speed_rpm(struct smu_context *smu, uint32_t *speed);
 
 int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk);
-int smu_set_active_display_count(struct smu_context *smu, uint32_t count);
 
 int smu_get_clock_by_type(struct smu_context *smu,
 			  enum amd_pp_clock_type type,
@@ -755,7 +755,7 @@ enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu);
 int smu_write_watermarks_table(struct smu_context *smu);
 int smu_set_watermarks_for_clock_ranges(
 		struct smu_context *smu,
-		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
+		struct pp_smu_wm_range_sets *clock_ranges);
 
 /* smu to display interface */
 extern int smu_display_configuration_change(struct smu_context *smu, const

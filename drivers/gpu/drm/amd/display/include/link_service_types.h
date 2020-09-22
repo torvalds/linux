@@ -80,6 +80,7 @@ struct link_training_settings {
 
 	uint16_t cr_pattern_time;
 	uint16_t eq_pattern_time;
+	enum dc_dp_training_pattern pattern_for_cr;
 	enum dc_dp_training_pattern pattern_for_eq;
 
 	bool enhanced_framing;

@@ -79,6 +79,7 @@
 
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"
+#include "dce/dmub_psr.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 
@@ -832,7 +833,7 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
-	.disable_dmcu = true,
+	.disable_dmcu = true, //No DMCU on DCN30
 	.force_abm_enable = false,
 	.timing_trace = false,
 	.clock_trace = true,
@@ -849,10 +850,11 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.underflow_assert_delay_us = 0xFFFFFFFF,
 	.dwb_fi_phase = -1, // -1 = disable,
 	.dmub_command_table = true,
+	.disable_psr = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
-	.disable_dmcu = true,
+	.disable_dmcu = true, //No dmcu on DCN30
 	.force_abm_enable = false,
 	.timing_trace = true,
 	.clock_trace = true,
@@ -865,6 +867,8 @@ static const struct dc_debug_options debug_defaults_diags = {
 	.scl_reset_length10 = true,
 	.dwb_fi_phase = -1, // -1 = disable
 	.dmub_command_table = true,
+	.disable_psr = true,
+	.enable_tri_buf = true,
 };
 
 void dcn30_dpp_destroy(struct dpp **dpp)
@@ -1311,6 +1315,9 @@ static void dcn30_resource_destruct(struct dcn30_resource_pool *pool)
 		if (pool->base.multiple_abms[i] != NULL)
 			dce_abm_destroy(&pool->base.multiple_abms[i]);
 	}
+
+	if (pool->base.psr != NULL)
+		dmub_psr_destroy(&pool->base.psr);
 
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
@@ -1821,6 +1828,22 @@ static bool init_soc_bounding_box(struct dc *dc,
 	loaded_ip->max_num_dpp = pool->base.pipe_count;
 	loaded_ip->clamp_min_dcfclk = dc->config.clamp_min_dcfclk;
 	dcn20_patch_bounding_box(dc, loaded_bb);
+
+	if (!bb && dc->ctx->dc_bios->funcs->get_soc_bb_info) {
+		struct bp_soc_bb_info bb_info = {0};
+
+		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
+			if (bb_info.dram_clock_change_latency_100ns > 0)
+				dcn3_0_soc.dram_clock_change_latency_us = bb_info.dram_clock_change_latency_100ns * 10;
+
+			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
+				dcn3_0_soc.sr_enter_plus_exit_time_us = bb_info.dram_sr_enter_exit_latency_100ns * 10;
+
+			if (bb_info.dram_sr_exit_latency_100ns > 0)
+				dcn3_0_soc.sr_exit_time_us = bb_info.dram_sr_exit_latency_100ns * 10;
+		}
+	}
+
 	return true;
 }
 
@@ -2202,6 +2225,9 @@ static void dcn30_calculate_wm(
 	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.a.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+
+	context->perf_params.stutter_period_us =
+		context->bw_ctx.dml.vba.StutterPeriod;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
@@ -2623,6 +2649,14 @@ static bool dcn30_resource_construct(
 		}
 	}
 	pool->base.timing_generator_count = i;
+	/* PSR */
+	pool->base.psr = dmub_psr_create(ctx);
+
+	if (pool->base.psr == NULL) {
+		dm_error("DC: failed to create PSR obj!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
 
 	/* ABM */
 	for (i = 0; i < pool->base.res_cap->num_timing_generator; i++) {

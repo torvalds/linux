@@ -52,6 +52,10 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 			     uint32_t *feature_mask,
 			     uint32_t num);
 
+int smu_cmn_feature_update_enable_state(struct smu_context *smu,
+					uint64_t feature_mask,
+					bool enabled);
+
 int smu_cmn_feature_set_enabled(struct smu_context *smu,
 				enum smu_feature_mask mask,
 				bool enable);

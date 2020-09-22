@@ -54,7 +54,8 @@ typedef struct {
 	uint16_t MaxMclk;
 
 	uint8_t  WmSetting;
-	uint8_t  Padding[3];
+	uint8_t  WmType;
+	uint8_t  Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
