@@ -1090,9 +1090,12 @@ static int __init sdei_init(void)
 
 	pdev = platform_device_register_simple(sdei_driver.driver.name,
 					       0, NULL, 0);
-	if (IS_ERR(pdev))
-		pr_info("Failed to register ACPI:SDEI platform device %ld\n",
-			PTR_ERR(pdev));
+	if (IS_ERR(pdev)) {
+		ret = PTR_ERR(pdev);
+		platform_driver_unregister(&sdei_driver);
+		pr_info("Failed to register ACPI:SDEI platform device %d\n",
+			ret);
+	}
 
 	return ret;
 }
