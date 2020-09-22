@@ -4,6 +4,63 @@
 #ifndef MLX5_IFC_DR_STE_V1_H
 #define MLX5_IFC_DR_STE_V1_H
 
+struct mlx5_ifc_ste_match_bwc_v1_bits {
+	u8         entry_format[0x8];
+	u8         counter_id[0x18];
+
+	u8         miss_address_63_48[0x10];
+	u8         match_definer_ctx_idx[0x8];
+	u8         miss_address_39_32[0x8];
+
+	u8         miss_address_31_6[0x1a];
+	u8         reserved_at_5a[0x1];
+	u8         match_polarity[0x1];
+	u8         reparse[0x1];
+	u8         reserved_at_5d[0x3];
+
+	u8         next_table_base_63_48[0x10];
+	u8         hash_definer_ctx_idx[0x8];
+	u8         next_table_base_39_32_size[0x8];
+
+	u8         next_table_base_31_5_size[0x1b];
+	u8         hash_type[0x2];
+	u8         hash_after_actions[0x1];
+	u8         reserved_at_9e[0x2];
+
+	u8         byte_mask[0x10];
+	u8         next_entry_format[0x1];
+	u8         mask_mode[0x1];
+	u8         gvmi[0xe];
+
+	u8         action[0x40];
+};
+
+struct mlx5_ifc_ste_mask_and_match_v1_bits {
+	u8         entry_format[0x8];
+	u8         counter_id[0x18];
+
+	u8         miss_address_63_48[0x10];
+	u8         match_definer_ctx_idx[0x8];
+	u8         miss_address_39_32[0x8];
+
+	u8         miss_address_31_6[0x1a];
+	u8         reserved_at_5a[0x1];
+	u8         match_polarity[0x1];
+	u8         reparse[0x1];
+	u8         reserved_at_5d[0x3];
+
+	u8         next_table_base_63_48[0x10];
+	u8         hash_definer_ctx_idx[0x8];
+	u8         next_table_base_39_32_size[0x8];
+
+	u8         next_table_base_31_5_size[0x1b];
+	u8         hash_type[0x2];
+	u8         hash_after_actions[0x1];
+	u8         reserved_at_9e[0x2];
+
+	u8         action[0x60];
+};
+
 struct mlx5_ifc_ste_eth_l2_src_v1_bits {
 	u8         reserved_at_0[0x1];
 	u8         sx_sniffer[0x1];
