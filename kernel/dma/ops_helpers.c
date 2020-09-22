@@ -4,6 +4,7 @@
  * the allocated memory contains normal pages in the direct kernel mapping.
  */
 #include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dma-noncoherent.h>
 
 /*

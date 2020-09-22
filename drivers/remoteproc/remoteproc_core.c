@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-direct.h> /* XXX: pokes into bus_dma_range */
 #include <linux/firmware.h>

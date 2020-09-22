@@ -5202,6 +5202,7 @@ T:	git git://git.infradead.org/users/hch/dma-mapping.git
 F:	include/asm-generic/dma-mapping.h
 F:	include/linux/dma-direct.h
 F:	include/linux/dma-mapping.h
+F:	include/linux/dma-map-ops.h
 F:	include/linux/dma-noncoherent.h
 F:	kernel/dma/
 

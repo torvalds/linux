@@ -32,6 +32,7 @@
 #include <linux/gfp.h>
 #include <linux/atomic.h>
 #include <linux/dma-direct.h>
+#include <linux/dma-map-ops.h>
 #include <asm/mtrr.h>
 #include <asm/proto.h>
 #include <asm/iommu.h>

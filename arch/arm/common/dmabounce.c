@@ -25,6 +25,7 @@
 #include <linux/page-flags.h>
 #include <linux/device.h>
 #include <linux/dma-direct.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dmapool.h>
 #include <linux/list.h>
 #include <linux/scatterlist.h>

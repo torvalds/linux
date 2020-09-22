@@ -16,7 +16,7 @@
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/leds.h>
 #include <linux/platform_data/asoc-mx27vis.h>
 #include <sound/tlv320aic32x4.h>

@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/scatterlist.h>
 #include <linux/log2.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/iommu-helper.h>
 
 #include <asm/io.h>

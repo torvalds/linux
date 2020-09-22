@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/dma-direct.h>
+#include <linux/dma-map-ops.h>
 
 struct dma_coherent_mem {
 	void		*virt_base;

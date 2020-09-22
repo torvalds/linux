@@ -23,7 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/dmar.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/mempool.h>
 #include <linux/memory.h>
 #include <linux/cpu.h>

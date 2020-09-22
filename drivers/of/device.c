@@ -6,6 +6,7 @@
 #include <linux/of_address.h>
 #include <linux/of_iommu.h>
 #include <linux/dma-direct.h> /* for bus_dma_region */
+#include <linux/dma-map-ops.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>

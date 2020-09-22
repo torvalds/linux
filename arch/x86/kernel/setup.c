@@ -7,6 +7,7 @@
  */
 #include <linux/console.h>
 #include <linux/crash_dump.h>
+#include <linux/dma-contiguous.h>
 #include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/init_ohci1394_dma.h>
@@ -19,6 +20,7 @@
 #include <linux/hugetlb.h>
 #include <linux/tboot.h>
 #include <linux/usb/xhci-dbgp.h>
+#include <linux/swiotlb.h>
 
 #include <uapi/linux/mount.h>
 

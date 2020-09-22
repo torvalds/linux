@@ -4,7 +4,7 @@
  */
 #include <linux/export.h>
 #include <linux/mm.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/scatterlist.h>
 
 static void *dma_virt_alloc(struct device *dev, size_t size,

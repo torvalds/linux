@@ -10,6 +10,7 @@
 
 #include <linux/acpi_iort.h>
 #include <linux/device.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dma-contiguous.h>
 #include <linux/dma-iommu.h>
 #include <linux/dma-noncoherent.h>

@@ -20,7 +20,7 @@
 #include <linux/console.h>
 #include <linux/export.h>
 #include <linux/mm.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/kobject.h>
 
 #include <asm/iommu.h>
