@@ -270,22 +270,28 @@ static u32 vidtv_mux_packetize_access_units(struct vidtv_mux *m,
 					    struct vidtv_encoder *e)
 {
 	u32 nbytes = 0;
-
-	struct pes_write_args args = {};
+	struct pes_write_args args = {
+		.dest_buf           = m->mux_buf,
+		.dest_buf_sz        = m->mux_buf_sz,
+		.pid                = be16_to_cpu(e->es_pid),
+		.encoder_id         = e->id,
+		.stream_id          = be16_to_cpu(e->stream_id),
+		.send_pts           = true,  /* forbidden value '01'... */
+		.send_dts           = false, /* ...for PTS_DTS flags    */
+	};
 	u32 initial_offset = m->mux_buf_offset;
 	struct vidtv_access_unit *au = e->access_units;
-
 	u8 *buf = NULL;
-	struct vidtv_mux_pid_ctx *pid_ctx = vidtv_mux_create_pid_ctx_once(m,
-									  be16_to_cpu(e->es_pid));
+	struct vidtv_mux_pid_ctx *pid_ctx;
 
-	args.dest_buf           = m->mux_buf;
-	args.dest_buf_sz        = m->mux_buf_sz;
-	args.pid                = be16_to_cpu(e->es_pid);
-	args.encoder_id         = e->id;
+	/* see SMPTE 302M clause 6.4 */
+	if (args.encoder_id == S302M) {
+		args.send_dts = false;
+		args.send_pts = true;
+	}
+
+	pid_ctx = vidtv_mux_create_pid_ctx_once(m, be16_to_cpu(e->es_pid));
 	args.continuity_counter = &pid_ctx->cc;
-	args.stream_id          = be16_to_cpu(e->stream_id);
-	args.send_pts           = true;
 
 	while (au) {
 		buf                  = e->encoder_buf + au->offset;
@@ -295,7 +301,7 @@ static u32 vidtv_mux_packetize_access_units(struct vidtv_mux *m,
 		args.pts             = au->pts;
 		args.pcr	     = m->timing.clk;
 
-		m->mux_buf_offset += vidtv_pes_write_into(args);
+		m->mux_buf_offset += vidtv_pes_write_into(&args);
 
 		au = au->next;
 	}

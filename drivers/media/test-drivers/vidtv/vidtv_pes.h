@@ -185,6 +185,6 @@ struct pes_write_args {
  * equal to the size of the access unit, since we need space for PES headers, TS headers
  * and padding bytes, if any.
  */
-u32 vidtv_pes_write_into(struct pes_write_args args);
+u32 vidtv_pes_write_into(struct pes_write_args *args);
 
 #endif // VIDTV_PES_H
