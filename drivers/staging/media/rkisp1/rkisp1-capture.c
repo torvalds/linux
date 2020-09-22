@@ -668,9 +668,8 @@ static void rkisp1_handle_buffer(struct rkisp1_capture *cap)
 {
 	struct rkisp1_isp *isp = &cap->rkisp1->isp;
 	struct rkisp1_buffer *curr_buf;
-	unsigned long flags;
 
-	spin_lock_irqsave(&cap->buf.lock, flags);
+	spin_lock(&cap->buf.lock);
 	curr_buf = cap->buf.curr;
 
 	if (curr_buf) {
@@ -683,7 +682,7 @@ static void rkisp1_handle_buffer(struct rkisp1_capture *cap)
 	}
 
 	rkisp1_set_next_buf(cap);
-	spin_unlock_irqrestore(&cap->buf.lock, flags);
+	spin_unlock(&cap->buf.lock);
 }
 
 void rkisp1_capture_isr(struct rkisp1_device *rkisp1)
@@ -758,7 +757,6 @@ static void rkisp1_vb2_buf_queue(struct vb2_buffer *vb)
 		container_of(vbuf, struct rkisp1_buffer, vb);
 	struct rkisp1_capture *cap = vb->vb2_queue->drv_priv;
 	const struct v4l2_pix_format_mplane *pixm = &cap->pix.fmt;
-	unsigned long flags;
 	unsigned int i;
 
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
@@ -783,9 +781,9 @@ static void rkisp1_vb2_buf_queue(struct vb2_buffer *vb)
 		swap(ispbuf->buff_addr[RKISP1_PLANE_CR],
 		     ispbuf->buff_addr[RKISP1_PLANE_CB]);
 
-	spin_lock_irqsave(&cap->buf.lock, flags);
+	spin_lock_irq(&cap->buf.lock);
 	list_add_tail(&ispbuf->queue, &cap->buf.queue);
-	spin_unlock_irqrestore(&cap->buf.lock, flags);
+	spin_unlock_irq(&cap->buf.lock);
 }
 
 static int rkisp1_vb2_buf_prepare(struct vb2_buffer *vb)
@@ -811,10 +809,9 @@ static int rkisp1_vb2_buf_prepare(struct vb2_buffer *vb)
 static void rkisp1_return_all_buffers(struct rkisp1_capture *cap,
 				      enum vb2_buffer_state state)
 {
-	unsigned long flags;
 	struct rkisp1_buffer *buf;
 
-	spin_lock_irqsave(&cap->buf.lock, flags);
+	spin_lock_irq(&cap->buf.lock);
 	if (cap->buf.curr) {
 		vb2_buffer_done(&cap->buf.curr->vb.vb2_buf, state);
 		cap->buf.curr = NULL;
@@ -829,7 +826,7 @@ static void rkisp1_return_all_buffers(struct rkisp1_capture *cap,
 		list_del(&buf->queue);
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
-	spin_unlock_irqrestore(&cap->buf.lock, flags);
+	spin_unlock_irq(&cap->buf.lock);
 }
 
 /*

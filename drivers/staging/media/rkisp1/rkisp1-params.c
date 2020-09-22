@@ -1300,16 +1300,15 @@ static void rkisp1_params_config_parameter(struct rkisp1_params *params)
 	else
 		rkisp1_csm_config(params, false);
 
-	spin_lock(&params->config_lock);
+	spin_lock_irq(&params->config_lock);
 
 	/* apply the first buffer if there is one already */
 	if (params->is_streaming)
 		rkisp1_params_apply_params_cfg(params, 0);
 
-	spin_unlock(&params->config_lock);
+	spin_unlock_irq(&params->config_lock);
 }
 
-/* Not called when the camera active, thus not isr protection. */
 void rkisp1_params_configure(struct rkisp1_params *params,
 			     enum rkisp1_fmt_raw_pat_type bayer_pat,
 			     enum v4l2_quantization quantization)
@@ -1442,12 +1441,11 @@ static void rkisp1_params_vb2_buf_queue(struct vb2_buffer *vb)
 		container_of(vbuf, struct rkisp1_buffer, vb);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rkisp1_params *params = vq->drv_priv;
-	unsigned long flags;
 
 	params_buf->vaddr = vb2_plane_vaddr(vb, 0);
-	spin_lock_irqsave(&params->config_lock, flags);
+	spin_lock_irq(&params->config_lock);
 	list_add_tail(&params_buf->queue, &params->params);
-	spin_unlock_irqrestore(&params->config_lock, flags);
+	spin_unlock_irq(&params->config_lock);
 }
 
 static int rkisp1_params_vb2_buf_prepare(struct vb2_buffer *vb)
@@ -1465,7 +1463,6 @@ static void rkisp1_params_vb2_stop_streaming(struct vb2_queue *vq)
 	struct rkisp1_params *params = vq->drv_priv;
 	struct rkisp1_buffer *buf;
 	struct list_head tmp_list;
-	unsigned long flags;
 
 	INIT_LIST_HEAD(&tmp_list);
 
@@ -1474,10 +1471,10 @@ static void rkisp1_params_vb2_stop_streaming(struct vb2_queue *vq)
 	 * and then we can iterate it and call vb2_buffer_done
 	 * without holding the lock
 	 */
-	spin_lock_irqsave(&params->config_lock, flags);
+	spin_lock_irq(&params->config_lock);
 	params->is_streaming = false;
 	list_cut_position(&tmp_list, &params->params, params->params.prev);
-	spin_unlock_irqrestore(&params->config_lock, flags);
+	spin_unlock_irq(&params->config_lock);
 
 	list_for_each_entry(buf, &tmp_list, queue)
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
@@ -1487,11 +1484,10 @@ static int
 rkisp1_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 {
 	struct rkisp1_params *params = queue->drv_priv;
-	unsigned long flags;
 
-	spin_lock_irqsave(&params->config_lock, flags);
+	spin_lock_irq(&params->config_lock);
 	params->is_streaming = true;
-	spin_unlock_irqrestore(&params->config_lock, flags);
+	spin_unlock_irq(&params->config_lock);
 
 	return 0;
 }
