@@ -12,6 +12,7 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -1051,7 +1052,7 @@ static struct i2c_driver ak8974_driver = {
 	.driver	 = {
 		.name	= "ak8974",
 		.pm = &ak8974_dev_pm_ops,
-		.of_match_table = of_match_ptr(ak8974_of_match),
+		.of_match_table = ak8974_of_match,
 	},
 	.probe	  = ak8974_probe,
 	.remove	  = ak8974_remove,

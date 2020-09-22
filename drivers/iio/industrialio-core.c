@@ -166,10 +166,11 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_CALIBEMISSIVITY] = "calibemissivity",
 	[IIO_CHAN_INFO_OVERSAMPLING_RATIO] = "oversampling_ratio",
 	[IIO_CHAN_INFO_THERMOCOUPLE_TYPE] = "thermocouple_type",
+	[IIO_CHAN_INFO_CALIBAMBIENT] = "calibambient",
 };
 
 #if defined(CONFIG_DEBUG_FS)
-/**
+/*
  * There's also a CONFIG_DEBUG_FS guard in include/linux/iio/iio.h for
  * iio_get_debugfs_dentry() to make it inline if CONFIG_DEBUG_FS is undefined
  */
@@ -1524,6 +1525,7 @@ struct device_type iio_device_type = {
 
 /**
  * iio_device_alloc() - allocate an iio_dev from a driver
+ * @parent:		Parent device.
  * @sizeof_priv:	Space to allocate for private structure.
  **/
 struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)

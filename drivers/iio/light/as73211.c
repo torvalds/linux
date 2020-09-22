@@ -259,10 +259,9 @@ static int as73211_req_data(struct as73211_data *data)
 	data->osr &= ~AS73211_OSR_SS;
 
 	/*
-	 * Add some extra margin for the timeout. sensor timing is not as precise
-	 * as our one ...
+	 * Add 33% extra margin for the timeout. fclk,min = fclk,typ - 27%.
 	 */
-	time_us += time_us / 8;
+	time_us += time_us / 3;
 	if (data->client->irq) {
 		ret = wait_for_completion_timeout(&data->completion, usecs_to_jiffies(time_us));
 		if (!ret) {

@@ -595,7 +595,7 @@ static int stm32_adc_core_switches_probe(struct device *dev,
 		if (IS_ERR(priv->booster)) {
 			ret = PTR_ERR(priv->booster);
 			if (ret != -ENODEV)
-				dev_err_probe(dev, ret, "can't get booster\n");
+				return dev_err_probe(dev, ret, "can't get booster\n");
 
 			priv->booster = NULL;
 		}

@@ -1056,6 +1056,13 @@ static struct i2c_driver sx9310_driver = {
 		.acpi_match_table = sx9310_acpi_match,
 		.of_match_table = sx9310_of_match,
 		.pm = &sx9310_pm_ops,
+
+		/*
+		 * Lots of i2c transfers in probe + over 200 ms waiting in
+		 * sx9310_init_compensation() mean a slow probe; prefer async
+		 * so we don't delay boot if we're builtin to the kernel.
+		 */
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe_new	= sx9310_probe,
 	.id_table	= sx9310_id,

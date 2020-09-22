@@ -28,8 +28,8 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 
 #include <linux/iio/iio.h>
 
@@ -275,8 +275,6 @@ static const struct i2c_device_id mcp4531_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcp4531_id);
 
-#ifdef CONFIG_OF
-
 #define MCP4531_COMPATIBLE(of_compatible, cfg) {	\
 			.compatible = of_compatible,	\
 			.data = &mcp4531_cfg[cfg],	\
@@ -350,7 +348,6 @@ static const struct of_device_id mcp4531_of_match[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mcp4531_of_match);
-#endif
 
 static int mcp4531_probe(struct i2c_client *client)
 {
@@ -371,7 +368,7 @@ static int mcp4531_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	data->cfg = of_device_get_match_data(dev);
+	data->cfg = device_get_match_data(dev);
 	if (!data->cfg)
 		data->cfg = &mcp4531_cfg[i2c_match_id(mcp4531_id, client)->driver_data];
 
@@ -386,7 +383,7 @@ static int mcp4531_probe(struct i2c_client *client)
 static struct i2c_driver mcp4531_driver = {
 	.driver = {
 		.name	= "mcp4531",
-		.of_match_table = of_match_ptr(mcp4531_of_match),
+		.of_match_table = mcp4531_of_match,
 	},
 	.probe_new	= mcp4531_probe,
 	.id_table	= mcp4531_id,

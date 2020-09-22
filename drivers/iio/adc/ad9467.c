@@ -324,7 +324,7 @@ static int ad9467_setup(struct ad9467_state *st, unsigned int chip_id)
 				  AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
 		return 0;
 	default:
-		return -EINVAL;
+		return -ENODEV;
 	}
 }
 
@@ -390,7 +390,8 @@ static int ad9467_probe(struct spi_device *spi)
 
 	id = ad9467_spi_read(spi, AN877_ADC_REG_CHIP_ID);
 	if (id != conv->chip_info->id) {
-		dev_err(&spi->dev, "Unrecognized CHIP_ID 0x%X\n", id);
+		dev_err(&spi->dev, "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
+			id, conv->chip_info->id);
 		return -ENODEV;
 	}
 

@@ -1758,6 +1758,14 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		One of the following thermocouple types: B, E, J, K, N, R, S, T.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_object_calibambient
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_object_calibambient
+KernelVersion:	5.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Calibrated ambient temperature for object temperature
+		calculation in milli degrees Celsius.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_x_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_y_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_z_raw

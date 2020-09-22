@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -205,13 +205,12 @@ static const struct iio_info lmp91000_info = {
 static int lmp91000_read_config(struct lmp91000_data *data)
 {
 	struct device *dev = data->dev;
-	struct device_node *np = dev->of_node;
 	unsigned int reg, val;
 	int i, ret;
 
-	ret = of_property_read_u32(np, "ti,tia-gain-ohm", &val);
+	ret = device_property_read_u32(dev, "ti,tia-gain-ohm", &val);
 	if (ret) {
-		if (!of_property_read_bool(np, "ti,external-tia-resistor")) {
+		if (!device_property_read_bool(dev, "ti,external-tia-resistor")) {
 			dev_err(dev, "no ti,tia-gain-ohm defined and external resistor not specified\n");
 			return ret;
 		}
@@ -232,7 +231,7 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 		return ret;
 	}
 
-	ret = of_property_read_u32(np, "ti,rload-ohm", &val);
+	ret = device_property_read_u32(dev, "ti,rload-ohm", &val);
 	if (ret) {
 		val = 100;
 		dev_info(dev, "no ti,rload-ohm defined, default to %d\n", val);
@@ -422,7 +421,7 @@ MODULE_DEVICE_TABLE(i2c, lmp91000_id);
 static struct i2c_driver lmp91000_driver = {
 	.driver = {
 		.name = LMP91000_DRV_NAME,
-		.of_match_table = of_match_ptr(lmp91000_of_match),
+		.of_match_table = lmp91000_of_match,
 	},
 	.probe = lmp91000_probe,
 	.remove = lmp91000_remove,

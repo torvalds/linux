@@ -834,18 +834,7 @@ static struct platform_driver palmas_gpadc_driver = {
 		.of_match_table = of_palmas_gpadc_match_tbl,
 	},
 };
-
-static int __init palmas_gpadc_init(void)
-{
-	return platform_driver_register(&palmas_gpadc_driver);
-}
-module_init(palmas_gpadc_init);
-
-static void __exit palmas_gpadc_exit(void)
-{
-	platform_driver_unregister(&palmas_gpadc_driver);
-}
-module_exit(palmas_gpadc_exit);
+module_platform_driver(palmas_gpadc_driver);
 
 MODULE_DESCRIPTION("palmas GPADC driver");
 MODULE_AUTHOR("Pradeep Goudagunta<pgoudagunta@nvidia.com>");
