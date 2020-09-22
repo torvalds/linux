@@ -78,11 +78,15 @@ struct sdei_crosscall_args {
 	int first_error;
 };
 
-#define CROSSCALL_INIT(arg, event)	(arg.event = event, \
-					 arg.first_error = 0, \
-					 atomic_set(&arg.errors, 0))
+#define CROSSCALL_INIT(arg, event)		\
+	do {					\
+		arg.event = event;		\
+		arg.first_error = 0;		\
+		atomic_set(&arg.errors, 0);	\
+	} while (0)
 
-static inline int sdei_do_cross_call(void *fn, struct sdei_event * event)
+static inline int sdei_do_cross_call(smp_call_func_t fn,
+				     struct sdei_event *event)
 {
 	struct sdei_crosscall_args arg;
 
