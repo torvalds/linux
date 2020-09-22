@@ -487,16 +487,6 @@ static void _local_event_unregister(void *data)
 	sdei_cross_call_return(arg, err);
 }
 
-static int _sdei_event_unregister(struct sdei_event *event)
-{
-	lockdep_assert_held(&sdei_events_lock);
-
-	if (event->type == SDEI_EVENT_TYPE_SHARED)
-		return sdei_api_event_unregister(event->event_num);
-
-	return sdei_do_cross_call(_local_event_unregister, event);
-}
-
 int sdei_event_unregister(u32 event_num)
 {
 	int err;
@@ -517,7 +507,11 @@ int sdei_event_unregister(u32 event_num)
 	event->reenable = false;
 	spin_unlock(&sdei_list_lock);
 
-	err = _sdei_event_unregister(event);
+	if (event->type == SDEI_EVENT_TYPE_SHARED)
+		err = sdei_api_event_unregister(event->event_num);
+	else
+		err = sdei_do_cross_call(_local_event_unregister, event);
+
 	if (err)
 		goto unlock;
 
@@ -543,7 +537,7 @@ static int sdei_unregister_shared(void)
 		if (event->type != SDEI_EVENT_TYPE_SHARED)
 			continue;
 
-		err = _sdei_event_unregister(event);
+		err = sdei_api_event_unregister(event->event_num);
 		if (err)
 			break;
 	}
