@@ -367,6 +367,7 @@ config AXP288_FUEL_GAUGE
 config BATTERY_MAX17040
 	tristate "Maxim MAX17040 Fuel Gauge"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  MAX17040 is fuel-gauge systems for lithium-ion (Li+) batteries
 	  in handheld and portable equipment. The MAX17040 is configured
