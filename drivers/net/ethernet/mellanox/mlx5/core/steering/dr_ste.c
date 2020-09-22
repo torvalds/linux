@@ -211,13 +211,17 @@ dr_ste_remove_head_ste(struct mlx5dr_ste_ctx *ste_ctx,
  * |_ste_| --> |_next_ste_| -->|__| -->|__| -->/0
  */
 static void
-dr_ste_replace_head_ste(struct mlx5dr_ste *ste, struct mlx5dr_ste *next_ste,
+dr_ste_replace_head_ste(struct mlx5dr_matcher_rx_tx *nic_matcher,
+			struct mlx5dr_ste *ste,
+			struct mlx5dr_ste *next_ste,
 			struct mlx5dr_ste_send_info *ste_info_head,
 			struct list_head *send_ste_list,
 			struct mlx5dr_ste_htbl *stats_tbl)
 
 {
 	struct mlx5dr_ste_htbl *next_miss_htbl;
+	u8 hw_ste[DR_STE_SIZE] = {};
+	int sb_idx;
 
 	next_miss_htbl = next_ste->htbl;
 
@@ -230,13 +234,19 @@ dr_ste_replace_head_ste(struct mlx5dr_ste *ste, struct mlx5dr_ste *next_ste,
 	/* Move data from next into ste */
 	dr_ste_replace(ste, next_ste);
 
+	/* Copy all 64 hw_ste bytes */
+	memcpy(hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
+	sb_idx = ste->ste_chain_location - 1;
+	mlx5dr_ste_set_bit_mask(hw_ste,
+				nic_matcher->ste_builder[sb_idx].bit_mask);
+
 	/* Del the htbl that contains the next_ste.
 	 * The origin htbl stay with the same number of entries.
 	 */
 	mlx5dr_htbl_put(next_miss_htbl);
 
-	mlx5dr_send_fill_and_append_ste_send_info(ste, DR_STE_SIZE_REDUCED,
-						  0, ste->hw_ste,
+	mlx5dr_send_fill_and_append_ste_send_info(ste, DR_STE_SIZE,
+						  0, hw_ste,
 						  ste_info_head,
 						  send_ste_list,
 						  true /* Copy data */);
@@ -316,7 +326,8 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 					       stats_tbl);
 		} else {
 			/* First but not only entry in the list */
-			dr_ste_replace_head_ste(ste, next_ste, &ste_info_head,
+			dr_ste_replace_head_ste(nic_matcher, ste,
+						next_ste, &ste_info_head,
 						&send_ste_list, stats_tbl);
 			put_on_origin_table = false;
 		}
