@@ -452,8 +452,8 @@ struct jbd2_inode {
 struct jbd2_revoke_table_s;
 
 /**
- * struct handle_s - The handle_s type is the concrete type associated with
- *     handle_t.
+ * struct jbd2_journal_handle - The jbd2_journal_handle type is the concrete
+ *     type associated with handle_t.
  * @h_transaction: Which compound transaction is this update a part of?
  * @h_journal: Which journal handle belongs to - used iff h_reserved set.
  * @h_rsv_handle: Handle reserved for finishing the logical operation.
