@@ -604,19 +604,19 @@ bool stutter_wait(const char *title)
 {
 	ktime_t delay;
 	unsigned int i = 0;
-	int oldnice;
 	bool ret = false;
 	int spt;
 
 	cond_resched_tasks_rcu_qs();
 	spt = READ_ONCE(stutter_pause_test);
 	for (; spt; spt = READ_ONCE(stutter_pause_test)) {
-		ret = true;
+		if (!ret) {
+			sched_set_normal(current, MAX_NICE);
+			ret = true;
+		}
 		if (spt == 1) {
 			schedule_timeout_interruptible(1);
 		} else if (spt == 2) {
-			oldnice = task_nice(current);
-			set_user_nice(current, MAX_NICE);
 			while (READ_ONCE(stutter_pause_test)) {
 				if (!(i++ & 0xffff)) {
 					set_current_state(TASK_INTERRUPTIBLE);
@@ -625,7 +625,6 @@ bool stutter_wait(const char *title)
 				}
 				cond_resched();
 			}
-			set_user_nice(current, oldnice);
 		} else {
 			schedule_timeout_interruptible(round_jiffies_relative(HZ));
 		}
