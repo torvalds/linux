@@ -1198,15 +1198,13 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 		return;
 	}
 
-	/* get one empty buffer */
-	if (!list_empty(&params->params))
-		cur_buf = list_first_entry(&params->params,
-					   struct rkisp1_buffer, queue);
-
-	if (!cur_buf) {
+	if (list_empty(&params->params)) {
 		spin_unlock(&params->config_lock);
 		return;
 	}
+
+	cur_buf = list_first_entry(&params->params,
+				   struct rkisp1_buffer, queue);
 
 	new_params = (struct rkisp1_params_cfg *)(cur_buf->vaddr);
 
