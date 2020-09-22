@@ -8,6 +8,9 @@
  * v1.0x01.0x02
  * 1.fixed lvds output data offset, because lvds regards ob line as valid data output
  * 2.support test pattern
+ * v1.0x01.0x03 update frame rate from 25fps to 30fps
+ * v1.0x01.0x04 update max exposure and formula
+ *	shs1 = vts - (line + 1)
  */
 
 #include <linux/clk.h>
@@ -32,7 +35,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
@@ -1278,7 +1281,7 @@ static int imx307_init_conversion_gain(struct imx307 *imx307)
 		IMX307_REG_VALUE_08BIT,
 		&val);
 	val &= 0xef;
-	ret = imx307_write_reg(client,
+	ret |= imx307_write_reg(client,
 		IMX307_GAIN_SWITCH_REG,
 		IMX307_REG_VALUE_08BIT,
 		val);
@@ -1299,6 +1302,8 @@ static int __imx307_start_stream(struct imx307 *imx307)
 		return ret;
 	/* In case these controls are set before streaming */
 	ret = __v4l2_ctrl_handler_setup(&imx307->ctrl_handler);
+	if (ret)
+		return ret;
 	if (imx307->has_init_exp && imx307->cur_mode->hdr_mode != NO_HDR) {
 		ret = imx307_ioctl(&imx307->subdev, PREISP_CMD_SET_HDRAE_EXP,
 			&imx307->init_hdrae_exp);
@@ -1629,7 +1634,7 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = imx307->cur_mode->height + ctrl->val - 4;
+		max = imx307->cur_mode->height + ctrl->val - 2;
 		__v4l2_ctrl_modify_range(imx307->exposure,
 					 imx307->exposure->minimum, max,
 					 imx307->exposure->step,
@@ -1642,7 +1647,7 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		shs1 = imx307->cur_vts - ctrl->val;
+		shs1 = imx307->cur_vts - (ctrl->val + 1);
 		ret = imx307_write_reg(imx307->client,
 			IMX307_REG_SHS1_H,
 			IMX307_REG_VALUE_08BIT,
@@ -1895,6 +1900,8 @@ static int imx307_probe(struct i2c_client *client,
 
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
 		&imx307->bus_cfg);
+	if (ret)
+		dev_warn(dev, "could not get bus config!\n");
 	if (imx307->bus_cfg.bus_type == 3) {
 		imx307->support_modes = lvds_supported_modes;
 		imx307->support_modes_num = ARRAY_SIZE(lvds_supported_modes);
