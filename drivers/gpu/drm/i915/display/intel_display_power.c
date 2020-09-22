@@ -5263,7 +5263,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	unsigned long abox_mask = INTEL_INFO(dev_priv)->abox_mask;
 	int config, i;
 
-	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B0))
+	if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B0))
 		/* Wa_1409767108: tgl */
 		table = wa_1409767108_buddy_page_masks;
 	else

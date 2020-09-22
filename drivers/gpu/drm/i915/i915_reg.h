@@ -1382,7 +1382,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  DPIO_CMNRST			(1 << 0)
 
 #define DPIO_PHY(pipe)			((pipe) >> 1)
-#define DPIO_PHY_IOSF_PORT(phy)		(dev_priv->dpio_phy_iosf_port[phy])
 
 /*
  * Per pipe/PLL DPIO regs
@@ -7760,32 +7759,20 @@ enum {
 #define GEN11_DE_HPD_IMR		_MMIO(0x44474)
 #define GEN11_DE_HPD_IIR		_MMIO(0x44478)
 #define GEN11_DE_HPD_IER		_MMIO(0x4447c)
-#define  GEN12_TC6_HOTPLUG			(1 << 21)
-#define  GEN12_TC5_HOTPLUG			(1 << 20)
-#define  GEN11_TC4_HOTPLUG			(1 << 19)
-#define  GEN11_TC3_HOTPLUG			(1 << 18)
-#define  GEN11_TC2_HOTPLUG			(1 << 17)
-#define  GEN11_TC1_HOTPLUG			(1 << 16)
 #define  GEN11_TC_HOTPLUG(tc_port)		(1 << ((tc_port) + 16))
-#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN12_TC6_HOTPLUG | \
-						 GEN12_TC5_HOTPLUG | \
-						 GEN11_TC4_HOTPLUG | \
-						 GEN11_TC3_HOTPLUG | \
-						 GEN11_TC2_HOTPLUG | \
-						 GEN11_TC1_HOTPLUG)
-#define  GEN12_TBT6_HOTPLUG			(1 << 5)
-#define  GEN12_TBT5_HOTPLUG			(1 << 4)
-#define  GEN11_TBT4_HOTPLUG			(1 << 3)
-#define  GEN11_TBT3_HOTPLUG			(1 << 2)
-#define  GEN11_TBT2_HOTPLUG			(1 << 1)
-#define  GEN11_TBT1_HOTPLUG			(1 << 0)
+#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN11_TC_HOTPLUG(PORT_TC6) | \
+						 GEN11_TC_HOTPLUG(PORT_TC5) | \
+						 GEN11_TC_HOTPLUG(PORT_TC4) | \
+						 GEN11_TC_HOTPLUG(PORT_TC3) | \
+						 GEN11_TC_HOTPLUG(PORT_TC2) | \
+						 GEN11_TC_HOTPLUG(PORT_TC1))
 #define  GEN11_TBT_HOTPLUG(tc_port)		(1 << (tc_port))
-#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN12_TBT6_HOTPLUG | \
-						 GEN12_TBT5_HOTPLUG | \
-						 GEN11_TBT4_HOTPLUG | \
-						 GEN11_TBT3_HOTPLUG | \
-						 GEN11_TBT2_HOTPLUG | \
-						 GEN11_TBT1_HOTPLUG)
+#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN11_TBT_HOTPLUG(PORT_TC6) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC5) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC4) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC3) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC2) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC1))
 
 #define GEN11_TBT_HOTPLUG_CTL				_MMIO(0x44030)
 #define GEN11_TC_HOTPLUG_CTL				_MMIO(0x44038)
@@ -9315,6 +9302,7 @@ enum {
 #define   GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC	(1 << 7)
 
 #define GEN10_SAMPLER_MODE		_MMIO(0xE18C)
+#define   ENABLE_SMALLPL			REG_BIT(15)
 #define   GEN11_SAMPLER_ENABLE_HEADLESS_MSG	REG_BIT(5)
 
 /* IVYBRIDGE DPF */

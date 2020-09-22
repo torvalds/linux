@@ -239,8 +239,8 @@ nv50_dp_mode_valid(struct drm_connector *connector,
 		return MODE_NO_INTERLACE;
 
 	max_clock = outp->dp.link_nr * outp->dp.link_bw;
-	ds_clock = drm_dp_downstream_max_clock(outp->dp.dpcd,
-					       outp->dp.downstream_ports);
+	ds_clock = drm_dp_downstream_max_dotclock(outp->dp.dpcd,
+						  outp->dp.downstream_ports);
 	if (ds_clock)
 		max_clock = min(max_clock, ds_clock);
 

@@ -516,6 +516,14 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 					    S32_MAX),
 				USEC_PER_SEC));
 	}
+
+	if (!HAS_DISPLAY(dev_priv)) {
+		dev_priv->drm.driver_features &= ~(DRIVER_MODESET |
+						   DRIVER_ATOMIC);
+		memset(&info->display, 0, sizeof(info->display));
+		memset(runtime->num_sprites, 0, sizeof(runtime->num_sprites));
+		memset(runtime->num_scalers, 0, sizeof(runtime->num_scalers));
+	}
 }
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,

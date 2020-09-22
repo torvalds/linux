@@ -108,18 +108,11 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20200824"
-#define DRIVER_TIMESTAMP	1598293597
+#define DRIVER_DATE		"20200917"
+#define DRIVER_TIMESTAMP	1600375437
 
 struct drm_i915_gem_object;
 
-/*
- * The code assumes that the hpd_pins below have consecutive values and
- * starting with HPD_PORT_A, the HPD pin associated with any port can be
- * retrieved by adding the corresponding port (or phy) enum value to
- * HPD_PORT_A in most cases. For example:
- * HPD_PORT_C = HPD_PORT_A + PHY_C - PHY_A
- */
 enum hpd_pin {
 	HPD_NONE = 0,
 	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
@@ -131,10 +124,12 @@ enum hpd_pin {
 	HPD_PORT_C,
 	HPD_PORT_D,
 	HPD_PORT_E,
-	HPD_PORT_F,
-	HPD_PORT_G,
-	HPD_PORT_H,
-	HPD_PORT_I,
+	HPD_PORT_TC1,
+	HPD_PORT_TC2,
+	HPD_PORT_TC3,
+	HPD_PORT_TC4,
+	HPD_PORT_TC5,
+	HPD_PORT_TC6,
 
 	HPD_NUM_PINS
 };
@@ -537,13 +532,9 @@ struct intel_gmbus {
 
 struct i915_suspend_saved_registers {
 	u32 saveDSPARB;
-	u32 saveFBC_CONTROL;
-	u32 saveCACHE_MODE_0;
-	u32 saveMI_ARB_STATE;
 	u32 saveSWF0[16];
 	u32 saveSWF1[16];
 	u32 saveSWF3[3];
-	u32 savePCH_PORT_HOTPLUG;
 	u16 saveGCDGMBUS;
 };
 
@@ -1019,8 +1010,6 @@ struct drm_i915_private {
 	 * sufficient, for writing must hold all of them.
 	 */
 	u8 active_pipes;
-
-	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 
 	struct i915_wa_list gt_wa_list;
 
@@ -1572,12 +1561,41 @@ extern const struct i915_rev_steppings kbl_revids[];
 #define IS_EHL_REVID(p, since, until) \
 	(IS_ELKHARTLAKE(p) && IS_REVID(p, since, until))
 
-#define TGL_REVID_A0		0x0
-#define TGL_REVID_B0		0x1
-#define TGL_REVID_C0		0x2
+enum {
+	TGL_REVID_A0,
+	TGL_REVID_B0,
+	TGL_REVID_B1,
+	TGL_REVID_C0,
+	TGL_REVID_D0,
+};
 
-#define IS_TGL_REVID(p, since, until) \
-	(IS_TIGERLAKE(p) && IS_REVID(p, since, until))
+extern const struct i915_rev_steppings tgl_uy_revids[];
+extern const struct i915_rev_steppings tgl_revids[];
+
+static inline const struct i915_rev_steppings *
+tgl_revids_get(struct drm_i915_private *dev_priv)
+{
+	if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv))
+		return tgl_uy_revids;
+	else
+		return tgl_revids;
+}
+
+#define IS_TGL_DISP_REVID(p, since, until) \
+	(IS_TIGERLAKE(p) && \
+	 tgl_revids_get(p)->disp_stepping >= (since) && \
+	 tgl_revids_get(p)->disp_stepping <= (until))
+
+#define IS_TGL_UY_GT_REVID(p, since, until) \
+	((IS_TGL_U(p) || IS_TGL_Y(p)) && \
+	 tgl_uy_revids->gt_stepping >= (since) && \
+	 tgl_uy_revids->gt_stepping <= (until))
+
+#define IS_TGL_GT_REVID(p, since, until) \
+	(IS_TIGERLAKE(p) && \
+	 !(IS_TGL_U(p) || IS_TGL_Y(p)) && \
+	 tgl_revids->gt_stepping >= (since) && \
+	 tgl_revids->gt_stepping <= (until))
 
 #define RKL_REVID_A0		0x0
 #define RKL_REVID_B0		0x1
