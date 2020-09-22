@@ -253,18 +253,6 @@ static int tas2562_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_component_update_bits(component, TAS2562_TDM_CFG5,
-					    TAS2562_TDM_CFG5_VSNS_SLOT_MASK,
-					    tas2562->v_sense_slot);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_component_update_bits(component, TAS2562_TDM_CFG6,
-					    TAS2562_TDM_CFG6_ISNS_SLOT_MASK,
-					    tas2562->i_sense_slot);
-	if (ret < 0)
-		return ret;
-
 	return 0;
 }
 
