@@ -21,12 +21,20 @@
 static __init char *ingenic_get_system_type(unsigned long machtype)
 {
 	switch (machtype) {
+	case MACH_INGENIC_X2000E:
+		return "X2000E";
+	case MACH_INGENIC_X2000:
+		return "X2000";
 	case MACH_INGENIC_X1830:
 		return "X1830";
+	case MACH_INGENIC_X1000E:
+		return "X1000E";
 	case MACH_INGENIC_X1000:
 		return "X1000";
 	case MACH_INGENIC_JZ4780:
 		return "JZ4780";
+	case MACH_INGENIC_JZ4775:
+		return "JZ4775";
 	case MACH_INGENIC_JZ4770:
 		return "JZ4770";
 	case MACH_INGENIC_JZ4725B:
@@ -56,9 +64,13 @@ static const struct of_device_id ingenic_of_match[] __initconst = {
 	{ .compatible = "ingenic,jz4740", .data = (void *)MACH_INGENIC_JZ4740 },
 	{ .compatible = "ingenic,jz4725b", .data = (void *)MACH_INGENIC_JZ4725B },
 	{ .compatible = "ingenic,jz4770", .data = (void *)MACH_INGENIC_JZ4770 },
+	{ .compatible = "ingenic,jz4775", .data = (void *)MACH_INGENIC_JZ4775 },
 	{ .compatible = "ingenic,jz4780", .data = (void *)MACH_INGENIC_JZ4780 },
 	{ .compatible = "ingenic,x1000", .data = (void *)MACH_INGENIC_X1000 },
+	{ .compatible = "ingenic,x1000e", .data = (void *)MACH_INGENIC_X1000E },
 	{ .compatible = "ingenic,x1830", .data = (void *)MACH_INGENIC_X1830 },
+	{ .compatible = "ingenic,x2000", .data = (void *)MACH_INGENIC_X2000 },
+	{ .compatible = "ingenic,x2000e", .data = (void *)MACH_INGENIC_X2000E },
 	{}
 };
 
