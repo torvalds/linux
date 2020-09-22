@@ -42,51 +42,6 @@ static inline void ieee80211_rx_stats(struct net_device *dev, u32 len)
 	u64_stats_update_end(&tstats->syncp);
 }
 
-static u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
-			       enum nl80211_iftype type)
-{
-	__le16 fc = hdr->frame_control;
-
-	if (ieee80211_is_data(fc)) {
-		if (len < 24) /* drop incorrect hdr len (data) */
-			return NULL;
-
-		if (ieee80211_has_a4(fc))
-			return NULL;
-		if (ieee80211_has_tods(fc))
-			return hdr->addr1;
-		if (ieee80211_has_fromds(fc))
-			return hdr->addr2;
-
-		return hdr->addr3;
-	}
-
-	if (ieee80211_is_mgmt(fc)) {
-		if (len < 24) /* drop incorrect hdr len (mgmt) */
-			return NULL;
-		return hdr->addr3;
-	}
-
-	if (ieee80211_is_ctl(fc)) {
-		if (ieee80211_is_pspoll(fc))
-			return hdr->addr1;
-
-		if (ieee80211_is_back_req(fc)) {
-			switch (type) {
-			case NL80211_IFTYPE_STATION:
-				return hdr->addr2;
-			case NL80211_IFTYPE_AP:
-			case NL80211_IFTYPE_AP_VLAN:
-				return hdr->addr1;
-			default:
-				break; /* fall through to the return */
-			}
-		}
-	}
-
-	return NULL;
-}
-
 /*
  * monitor mode reception
  *
@@ -1802,7 +1757,8 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		}
 	} else if (rx->sdata->vif.type == NL80211_IFTYPE_OCB) {
 		sta->rx_stats.last_rx = jiffies;
-	} else if (!is_multicast_ether_addr(hdr->addr1)) {
+	} else if (!ieee80211_is_s1g_beacon(hdr->frame_control) &&
+		   is_multicast_ether_addr(hdr->addr1)) {
 		/*
 		 * Mesh beacons will update last_rx when if they are found to
 		 * match the current local configuration when processed.
@@ -1836,6 +1792,9 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 					-signal);
 		}
 	}
+
+	if (ieee80211_is_s1g_beacon(hdr->frame_control))
+		return RX_CONTINUE;
 
 	/*
 	 * Change STA power saving mode only at the end of a frame
@@ -1946,6 +1905,9 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	int mmie_keyidx = -1;
 	__le16 fc;
 	const struct ieee80211_cipher_scheme *cs = NULL;
+
+	if (ieee80211_is_ext(hdr->frame_control))
+		return RX_CONTINUE;
 
 	/*
 	 * Key selection 101
@@ -2255,7 +2217,7 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	hdr = (struct ieee80211_hdr *)rx->skb->data;
 	fc = hdr->frame_control;
 
-	if (ieee80211_is_ctl(fc))
+	if (ieee80211_is_ctl(fc) || ieee80211_is_ext(fc))
 		return RX_CONTINUE;
 
 	sc = le16_to_cpu(hdr->seq_ctrl);
@@ -3129,6 +3091,9 @@ ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
 
+	if (ieee80211_is_s1g_beacon(mgmt->frame_control))
+		return RX_CONTINUE;
+
 	/*
 	 * From here on, look only at management frames.
 	 * Data and control frames are already handled,
@@ -3596,6 +3561,27 @@ ieee80211_rx_h_action_return(struct ieee80211_rx_data *rx)
 }
 
 static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_ext(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_sub_if_data *sdata = rx->sdata;
+	struct ieee80211_hdr *hdr = (void *)rx->skb->data;
+
+	if (!ieee80211_is_ext(hdr->frame_control))
+		return RX_CONTINUE;
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return RX_DROP_MONITOR;
+
+	/* for now only beacons are ext, so queue them */
+	skb_queue_tail(&sdata->skb_queue, rx->skb);
+	ieee80211_queue_work(&rx->local->hw, &sdata->work);
+	if (rx->sta)
+		rx->sta->rx_stats.packets++;
+
+	return RX_QUEUED;
+}
+
+static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
@@ -3814,6 +3800,7 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 		CALL_RXH(ieee80211_rx_h_userspace_mgmt);
 		CALL_RXH(ieee80211_rx_h_action_post_userspace);
 		CALL_RXH(ieee80211_rx_h_action_return);
+		CALL_RXH(ieee80211_rx_h_ext);
 		CALL_RXH(ieee80211_rx_h_mgmt);
 
  rxh_next:
@@ -3980,7 +3967,8 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	u8 *bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);
-	bool multicast = is_multicast_ether_addr(hdr->addr1);
+	bool multicast = is_multicast_ether_addr(hdr->addr1) ||
+			 ieee80211_is_s1g_beacon(hdr->frame_control);
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
