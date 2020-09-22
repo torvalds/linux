@@ -958,7 +958,7 @@ static int sdei_get_conduit(struct platform_device *pdev)
 		}
 
 		pr_warn("invalid \"method\" property: %s\n", method);
-	} else if (IS_ENABLED(CONFIG_ACPI) && !acpi_disabled) {
+	} else if (!acpi_disabled) {
 		if (acpi_psci_use_hvc()) {
 			sdei_firmware_call = &sdei_smccc_hvc;
 			return SMCCC_CONDUIT_HVC;
