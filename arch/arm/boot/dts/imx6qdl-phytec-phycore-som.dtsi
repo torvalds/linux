@@ -85,6 +85,7 @@
 
 	eeprom@50 {
 		compatible = "st,24c32", "atmel,24c32";
+		pagesize = <32>;
 		reg = <0x50>;
 	};
 
