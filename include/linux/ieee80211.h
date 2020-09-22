@@ -1102,6 +1102,11 @@ struct ieee80211_mgmt {
 		} __packed assoc_resp, reassoc_resp;
 		struct {
 			__le16 capab_info;
+			__le16 status_code;
+			u8 variable[0];
+		} __packed s1g_assoc_resp, s1g_reassoc_resp;
+		struct {
+			__le16 capab_info;
 			__le16 listen_interval;
 			u8 current_ap[ETH_ALEN];
 			/* followed by SSID and Supported rates */
