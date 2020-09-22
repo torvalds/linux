@@ -66,8 +66,19 @@
 #define CHOOSE_VHE_SYM(sym)	sym
 #define CHOOSE_NVHE_SYM(sym)	kvm_nvhe_sym(sym)
 
-#define this_cpu_ptr_nvhe_sym(sym)	this_cpu_ptr(&kvm_nvhe_sym(sym))
-#define per_cpu_ptr_nvhe_sym(sym, cpu)	per_cpu_ptr(&kvm_nvhe_sym(sym), cpu)
+/*
+ * Compute pointer to a symbol defined in nVHE percpu region.
+ * Returns NULL if percpu memory has not been allocated yet.
+ */
+#define this_cpu_ptr_nvhe_sym(sym)	per_cpu_ptr_nvhe_sym(sym, smp_processor_id())
+#define per_cpu_ptr_nvhe_sym(sym, cpu)						\
+	({									\
+		unsigned long base, off;					\
+		base = kvm_arm_hyp_percpu_base[cpu];				\
+		off = (unsigned long)&CHOOSE_NVHE_SYM(sym) -			\
+		      (unsigned long)&CHOOSE_NVHE_SYM(__per_cpu_start);		\
+		base ? (typeof(CHOOSE_NVHE_SYM(sym))*)(base + off) : NULL;	\
+	})
 
 #ifndef __KVM_NVHE_HYPERVISOR__
 /*
@@ -116,6 +127,10 @@ DECLARE_KVM_NVHE_SYM(__kvm_hyp_init);
 DECLARE_KVM_HYP_SYM(__kvm_hyp_vector);
 #define __kvm_hyp_init		CHOOSE_NVHE_SYM(__kvm_hyp_init)
 #define __kvm_hyp_vector	CHOOSE_HYP_SYM(__kvm_hyp_vector)
+
+extern unsigned long kvm_arm_hyp_percpu_base[NR_CPUS];
+DECLARE_KVM_NVHE_SYM(__per_cpu_start);
+DECLARE_KVM_NVHE_SYM(__per_cpu_end);
 
 #ifdef CONFIG_KVM_INDIRECT_VECTORS
 extern atomic_t arm64_el2_vector_last_slot;
