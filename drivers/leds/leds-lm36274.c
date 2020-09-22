@@ -26,8 +26,8 @@
  * @lmu_data: Register and setting values for common code
  * @regmap: Devices register map
  * @dev: Pointer to the devices device struct
- * @led_sources - The LED strings supported in this array
- * @num_leds - Number of LED strings are supported in this array
+ * @led_sources: The LED strings supported in this array
+ * @num_leds: Number of LED strings are supported in this array
  */
 struct lm36274 {
 	struct platform_device *pdev;
@@ -160,6 +160,7 @@ static struct platform_driver lm36274_driver = {
 	.probe  = lm36274_probe,
 	.driver = {
 		.name = "lm36274-leds",
+		.of_match_table = of_lm36274_leds_match,
 	},
 };
 module_platform_driver(lm36274_driver)
