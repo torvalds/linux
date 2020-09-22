@@ -466,7 +466,7 @@ void vidtv_mux_stop_thread(struct vidtv_mux *m)
 
 struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 				 struct device *dev,
-				 struct vidtv_mux_init_args args)
+				 struct vidtv_mux_init_args *args)
 {
 	struct vidtv_mux *m;
 
@@ -476,28 +476,28 @@ struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 
 	m->dev = dev;
 	m->fe = fe;
-	m->timing.pcr_period_usecs = args.pcr_period_usecs;
-	m->timing.si_period_usecs  = args.si_period_usecs;
+	m->timing.pcr_period_usecs = args->pcr_period_usecs;
+	m->timing.si_period_usecs  = args->si_period_usecs;
 
-	m->mux_rate_kbytes_sec = args.mux_rate_kbytes_sec;
+	m->mux_rate_kbytes_sec = args->mux_rate_kbytes_sec;
 
-	m->on_new_packets_available_cb = args.on_new_packets_available_cb;
+	m->on_new_packets_available_cb = args->on_new_packets_available_cb;
 
-	m->mux_buf = vzalloc(args.mux_buf_sz);
+	m->mux_buf = vzalloc(args->mux_buf_sz);
 	if (!m->mux_buf)
 		goto free_mux;
 
-	m->mux_buf_sz = args.mux_buf_sz;
+	m->mux_buf_sz = args->mux_buf_sz;
 
-	m->pcr_pid = args.pcr_pid;
-	m->transport_stream_id = args.transport_stream_id;
-	m->priv = args.priv;
-	m->network_id = args.network_id;
-	m->network_name = kstrdup(args.network_name, GFP_KERNEL);
+	m->pcr_pid = args->pcr_pid;
+	m->transport_stream_id = args->transport_stream_id;
+	m->priv = args->priv;
+	m->network_id = args->network_id;
+	m->network_name = kstrdup(args->network_name, GFP_KERNEL);
 	m->timing.current_jiffies = get_jiffies_64();
 
-	if (args.channels)
-		m->channels = args.channels;
+	if (args->channels)
+		m->channels = args->channels;
 	else
 		if (vidtv_channels_init(m) < 0)
 			goto free_mux_buf;

@@ -170,7 +170,7 @@ struct vidtv_mux_init_args {
 
 struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 				 struct device *dev,
-				 struct vidtv_mux_init_args args);
+				 struct vidtv_mux_init_args *args);
 void vidtv_mux_destroy(struct vidtv_mux *m);
 
 void vidtv_mux_start_thread(struct vidtv_mux *m);
