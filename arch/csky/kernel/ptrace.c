@@ -83,7 +83,7 @@ static int gpr_get(struct task_struct *target,
 	/* Abiv1 regs->tls is fake and we need sync here. */
 	regs->tls = task_thread_info(target)->tp_value;
 
-	return membuf_write(&to, regs, sizeof(regs));
+	return membuf_write(&to, regs, sizeof(*regs));
 }
 
 static int gpr_set(struct task_struct *target,
