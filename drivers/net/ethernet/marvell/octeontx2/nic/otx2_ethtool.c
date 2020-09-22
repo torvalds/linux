@@ -428,6 +428,8 @@ static int otx2_get_rss_hash_opts(struct otx2_nic *pfvf,
 
 	/* Mimimum is IPv4 and IPv6, SIP/DIP */
 	nfc->data = RXH_IP_SRC | RXH_IP_DST;
+	if (rss->flowkey_cfg & NIX_FLOW_KEY_TYPE_VLAN)
+		nfc->data |= RXH_VLAN;
 
 	switch (nfc->flow_type) {
 	case TCP_V4_FLOW:
@@ -476,6 +478,11 @@ static int otx2_set_rss_hash_opts(struct otx2_nic *pfvf,
 	/* Mimimum is IPv4 and IPv6, SIP/DIP */
 	if (!(nfc->data & RXH_IP_SRC) || !(nfc->data & RXH_IP_DST))
 		return -EINVAL;
+
+	if (nfc->data & RXH_VLAN)
+		rss_cfg |=  NIX_FLOW_KEY_TYPE_VLAN;
+	else
+		rss_cfg &= ~NIX_FLOW_KEY_TYPE_VLAN;
 
 	switch (nfc->flow_type) {
 	case TCP_V4_FLOW:
