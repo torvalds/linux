@@ -190,33 +190,31 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 	lockdep_assert_held(&sdei_events_lock);
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
-	if (!event)
-		return ERR_PTR(-ENOMEM);
+	if (!event) {
+		err = -ENOMEM;
+		goto fail;
+	}
 
 	INIT_LIST_HEAD(&event->list);
 	event->event_num = event_num;
 
 	err = sdei_api_event_get_info(event_num, SDEI_EVENT_INFO_EV_PRIORITY,
 				      &result);
-	if (err) {
-		kfree(event);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto fail;
 	event->priority = result;
 
 	err = sdei_api_event_get_info(event_num, SDEI_EVENT_INFO_EV_TYPE,
 				      &result);
-	if (err) {
-		kfree(event);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto fail;
 	event->type = result;
 
 	if (event->type == SDEI_EVENT_TYPE_SHARED) {
 		reg = kzalloc(sizeof(*reg), GFP_KERNEL);
 		if (!reg) {
-			kfree(event);
-			return ERR_PTR(-ENOMEM);
+			err = -ENOMEM;
+			goto fail;
 		}
 
 		reg->event_num = event_num;
@@ -231,8 +229,8 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 
 		regs = alloc_percpu(struct sdei_registered_event);
 		if (!regs) {
-			kfree(event);
-			return ERR_PTR(-ENOMEM);
+			err = -ENOMEM;
+			goto fail;
 		}
 
 		for_each_possible_cpu(cpu) {
@@ -252,6 +250,10 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 	spin_unlock(&sdei_list_lock);
 
 	return event;
+
+fail:
+	kfree(event);
+	return ERR_PTR(err);
 }
 
 static void sdei_event_destroy_llocked(struct sdei_event *event)
