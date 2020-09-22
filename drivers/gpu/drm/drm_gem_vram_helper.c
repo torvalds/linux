@@ -173,6 +173,12 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
  * @size:		the buffer size in bytes
  * @pg_align:		the buffer's alignment in multiples of the page size
  *
+ * GEM objects are allocated by calling struct drm_driver.gem_create_object,
+ * if set. Otherwise kzalloc() will be used. Drivers can set their own GEM
+ * object functions in struct drm_driver.gem_create_object. If no functions
+ * are set, the new GEM object will use the default functions from GEM VRAM
+ * helpers.
+ *
  * Returns:
  * A new instance of &struct drm_gem_vram_object on success, or
  * an ERR_PTR()-encoded error code otherwise.
@@ -182,6 +188,7 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 						unsigned long pg_align)
 {
 	struct drm_gem_vram_object *gbo;
+	struct drm_gem_object *gem;
 	struct drm_vram_mm *vmm = dev->vram_mm;
 	struct ttm_bo_device *bdev;
 	int ret;
@@ -191,8 +198,7 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 
 	if (dev->driver->gem_create_object) {
-		struct drm_gem_object *gem =
-			dev->driver->gem_create_object(dev, size);
+		gem = dev->driver->gem_create_object(dev, size);
 		if (!gem)
 			return ERR_PTR(-ENOMEM);
 		gbo = drm_gem_vram_of_gem(gem);
@@ -200,11 +206,13 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 		gbo = kzalloc(sizeof(*gbo), GFP_KERNEL);
 		if (!gbo)
 			return ERR_PTR(-ENOMEM);
+		gem = &gbo->bo.base;
 	}
 
-	gbo->bo.base.funcs = &drm_gem_vram_object_funcs;
+	if (!gem->funcs)
+		gem->funcs = &drm_gem_vram_object_funcs;
 
-	ret = drm_gem_object_init(dev, &gbo->bo.base, size);
+	ret = drm_gem_object_init(dev, gem, size);
 	if (ret) {
 		kfree(gbo);
 		return ERR_PTR(ret);
