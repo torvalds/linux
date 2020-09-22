@@ -16,6 +16,7 @@ Required properties for power domain controller:
 	"rockchip,rk3366-power-controller" - for RK3366 SoCs.
 	"rockchip,rk3368-power-controller" - for RK3368 SoCs.
 	"rockchip,rk3399-power-controller" - for RK3399 SoCs.
+	"rockchip,rk3568-power-controller" - for RK3568 SoCs.
 - #power-domain-cells: Number of cells in a power-domain specifier.
 	Should be 1 for multiple PM domains.
 - #address-cells: Should be 1.
@@ -34,6 +35,7 @@ Required properties for power domain sub nodes:
 	"include/dt-bindings/power/rk3366-power.h" - for RK3366 type power domain.
 	"include/dt-bindings/power/rk3368-power.h" - for RK3368 type power domain.
 	"include/dt-bindings/power/rk3399-power.h" - for RK3399 type power domain.
+	"include/dt-bindings/power/rk3568-power.h" - for RK3568 type power domain.
 - clocks (optional): phandles to clocks which need to be enabled while power domain
 	switches state.
 - pm_qos (optional): phandles to qos blocks which need to be saved and restored
@@ -116,6 +118,7 @@ The index should use macros in:
 	"include/dt-bindings/power/rk3366-power.h" - for rk3366 type power domain.
 	"include/dt-bindings/power/rk3368-power.h" - for rk3368 type power domain.
 	"include/dt-bindings/power/rk3399-power.h" - for rk3399 type power domain.
+	"include/dt-bindings/power/rk3568-power.h" - for rk3568 type power domain.
 
 Example of the node using power domain:
 
