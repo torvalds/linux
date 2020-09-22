@@ -338,6 +338,10 @@ int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
 	put_unaligned_be16(CCS_REG_ADDR(reg), data);
 	put_unaligned_be32(val << (8 * (sizeof(val) - len)), data + 2);
 
+	dev_dbg(&client->dev, "writing reg 0x%4.4x value 0x%*.*x (%u)\n",
+		CCS_REG_ADDR(reg), ccs_reg_width(reg) << 1,
+		ccs_reg_width(reg) << 1, val, val);
+
 	r = ccs_write_retry(client, &msg);
 	if (r)
 		dev_err(&client->dev,
