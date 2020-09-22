@@ -596,10 +596,10 @@ struct mlx5dr_match_misc3 {
 	u32 outer_vxlan_gpe_next_protocol:8;
 	u32 icmpv4_header_data;
 	u32 icmpv6_header_data;
-	u32 icmpv6_code:8;
-	u32 icmpv6_type:8;
-	u32 icmpv4_code:8;
-	u32 icmpv4_type:8;
+	u8 icmpv6_code;
+	u8 icmpv6_type;
+	u8 icmpv4_code;
+	u8 icmpv4_type;
 	u8 reserved_auto3[0x1c];
 };
 
