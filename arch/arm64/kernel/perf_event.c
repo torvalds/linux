@@ -305,6 +305,28 @@ static struct attribute_group armv8_pmuv3_format_attr_group = {
 	.attrs = armv8_pmuv3_format_attrs,
 };
 
+static ssize_t slots_show(struct device *dev, struct device_attribute *attr,
+			  char *page)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
+	u32 slots = cpu_pmu->reg_pmmir & ARMV8_PMU_SLOTS_MASK;
+
+	return snprintf(page, PAGE_SIZE, "0x%08x\n", slots);
+}
+
+static DEVICE_ATTR_RO(slots);
+
+static struct attribute *armv8_pmuv3_caps_attrs[] = {
+	&dev_attr_slots.attr,
+	NULL,
+};
+
+static struct attribute_group armv8_pmuv3_caps_attr_group = {
+	.name = "caps",
+	.attrs = armv8_pmuv3_caps_attrs,
+};
+
 /*
  * Perf Events' indices
  */
@@ -984,6 +1006,12 @@ static void __armv8pmu_probe_pmu(void *info)
 
 	bitmap_from_arr32(cpu_pmu->pmceid_ext_bitmap,
 			     pmceid, ARMV8_PMUV3_MAX_COMMON_EVENTS);
+
+	/* store PMMIR_EL1 register for sysfs */
+	if (pmuver >= ID_AA64DFR0_PMUVER_8_4 && (pmceid_raw[1] & BIT(31)))
+		cpu_pmu->reg_pmmir = read_cpuid(PMMIR_EL1);
+	else
+		cpu_pmu->reg_pmmir = 0;
 }
 
 static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)
@@ -1006,7 +1034,8 @@ static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)
 static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 			  int (*map_event)(struct perf_event *event),
 			  const struct attribute_group *events,
-			  const struct attribute_group *format)
+			  const struct attribute_group *format,
+			  const struct attribute_group *caps)
 {
 	int ret = armv8pmu_probe_pmu(cpu_pmu);
 	if (ret)
@@ -1031,104 +1060,112 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 			events : &armv8_pmuv3_events_attr_group;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_FORMATS] = format ?
 			format : &armv8_pmuv3_format_attr_group;
+	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_CAPS] = caps ?
+			caps : &armv8_pmuv3_caps_attr_group;
 
 	return 0;
 }
 
+static int armv8_pmu_init_nogroups(struct arm_pmu *cpu_pmu, char *name,
+				   int (*map_event)(struct perf_event *event))
+{
+	return armv8_pmu_init(cpu_pmu, name, map_event, NULL, NULL, NULL);
+}
+
 static int armv8_pmuv3_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_pmuv3",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_pmuv3",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_a34_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a34",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a34",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_a35_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a35",
-			      armv8_a53_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a35",
+				       armv8_a53_map_event);
 }
 
 static int armv8_a53_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a53",
-			      armv8_a53_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a53",
+				       armv8_a53_map_event);
 }
 
 static int armv8_a55_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a55",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a55",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_a57_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a57",
-			      armv8_a57_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a57",
+				       armv8_a57_map_event);
 }
 
 static int armv8_a65_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a65",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a65",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_a72_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a72",
-			      armv8_a57_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a72",
+				       armv8_a57_map_event);
 }
 
 static int armv8_a73_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a73",
-			      armv8_a73_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a73",
+				       armv8_a73_map_event);
 }
 
 static int armv8_a75_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a75",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a75",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_a76_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a76",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a76",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_a77_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cortex_a77",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a77",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_e1_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_neoverse_e1",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_neoverse_e1",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_n1_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_neoverse_n1",
-			      armv8_pmuv3_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_neoverse_n1",
+				       armv8_pmuv3_map_event);
 }
 
 static int armv8_thunder_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_cavium_thunder",
-			      armv8_thunder_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cavium_thunder",
+				       armv8_thunder_map_event);
 }
 
 static int armv8_vulcan_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return armv8_pmu_init(cpu_pmu, "armv8_brcm_vulcan",
-			      armv8_vulcan_map_event, NULL, NULL);
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_brcm_vulcan",
+				       armv8_vulcan_map_event);
 }
 
 static const struct of_device_id armv8_pmu_of_device_ids[] = {
