@@ -62,6 +62,8 @@ static void __mdb_entry_fill_flags(struct br_mdb_entry *e, unsigned char flags)
 		e->flags |= MDB_FLAGS_OFFLOAD;
 	if (flags & MDB_PG_FLAGS_FAST_LEAVE)
 		e->flags |= MDB_FLAGS_FAST_LEAVE;
+	if (flags & MDB_PG_FLAGS_STAR_EXCL)
+		e->flags |= MDB_FLAGS_STAR_EXCL;
 }
 
 static void __mdb_entry_to_br_ip(struct br_mdb_entry *entry, struct br_ip *ip,
@@ -822,11 +824,11 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 			    struct nlattr **mdb_attrs,
 			    struct netlink_ext_ack *extack)
 {
-	struct net_bridge_mdb_entry *mp;
+	struct net_bridge_mdb_entry *mp, *star_mp;
 	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
+	struct br_ip group, star_group;
 	unsigned long now = jiffies;
-	struct br_ip group;
 	u8 filter_mode;
 	int err;
 
@@ -890,6 +892,25 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	if (entry->state == MDB_TEMPORARY)
 		mod_timer(&p->timer, now + br->multicast_membership_interval);
 	br_mdb_notify(br->dev, mp, p, RTM_NEWMDB);
+	/* if we are adding a new EXCLUDE port group (*,G) it needs to be also
+	 * added to all S,G entries for proper replication, if we are adding
+	 * a new INCLUDE port (S,G) then all of *,G EXCLUDE ports need to be
+	 * added to it for proper replication
+	 */
+	if (br_multicast_should_handle_mode(br, group.proto)) {
+		switch (filter_mode) {
+		case MCAST_EXCLUDE:
+			br_multicast_star_g_handle_mode(p, MCAST_EXCLUDE);
+			break;
+		case MCAST_INCLUDE:
+			star_group = p->key.addr;
+			memset(&star_group.src, 0, sizeof(star_group.src));
+			star_mp = br_mdb_ip_get(br, &star_group);
+			if (star_mp)
+				br_multicast_sg_add_exclude_ports(star_mp, p);
+			break;
+		}
+	}
 
 	return 0;
 }
