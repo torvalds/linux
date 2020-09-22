@@ -264,7 +264,7 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste_ctx *ste_ctx,
 	miss_addr = ste_ctx->get_miss_addr(ste->hw_ste);
 	ste_ctx->set_miss_addr(prev_ste->hw_ste, miss_addr);
 
-	mlx5dr_send_fill_and_append_ste_send_info(prev_ste, DR_STE_SIZE_REDUCED, 0,
+	mlx5dr_send_fill_and_append_ste_send_info(prev_ste, DR_STE_SIZE_CTRL, 0,
 						  prev_ste->hw_ste, ste_info,
 						  send_ste_list, true /* Copy data*/);
 
