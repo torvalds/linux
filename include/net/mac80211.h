@@ -833,6 +833,8 @@ enum mac80211_tx_info_flags {
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
 
+#define IEEE80211_TX_RC_S1G_MCS IEEE80211_TX_RC_VHT_MCS
+
 /**
  * enum mac80211_tx_control_flags - flags to describe transmit control
  *
