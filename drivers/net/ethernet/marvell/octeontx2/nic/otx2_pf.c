@@ -22,6 +22,7 @@
 #include "otx2_txrx.h"
 #include "otx2_struct.h"
 #include "otx2_ptp.h"
+#include <rvu_trace.h>
 
 #define DRV_NAME	"octeontx2-nicpf"
 #define DRV_STRING	"Marvell OcteonTX2 NIC Physical Function Driver"
@@ -558,6 +559,8 @@ static irqreturn_t otx2_pfvf_mbox_intr_handler(int irq, void *pf_irq)
 
 	otx2_queue_work(mbox, pf->mbox_pfvf_wq, 0, vfs, intr, TYPE_PFVF);
 
+	trace_otx2_msg_interrupt(mbox->mbox.pdev, "VF(s) to PF", intr);
+
 	return IRQ_HANDLED;
 }
 
@@ -940,6 +943,9 @@ static irqreturn_t otx2_pfaf_mbox_intr_handler(int irq, void *pf_irq)
 	otx2_write64(pf, RVU_PF_INT, BIT_ULL(0));
 
 	mbox = &pf->mbox;
+
+	trace_otx2_msg_interrupt(mbox->mbox.pdev, "AF to PF", BIT_ULL(0));
+
 	otx2_queue_work(mbox, pf->mbox_wq, 0, 1, 1, TYPE_PFAF);
 
 	return IRQ_HANDLED;

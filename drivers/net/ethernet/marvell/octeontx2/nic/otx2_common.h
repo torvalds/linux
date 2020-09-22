@@ -20,6 +20,7 @@
 #include <mbox.h>
 #include "otx2_reg.h"
 #include "otx2_txrx.h"
+#include <rvu_trace.h>
 
 /* PCI device IDs */
 #define PCI_DEVID_OCTEONTX2_RVU_PF              0xA063
@@ -523,6 +524,7 @@ static struct _req_type __maybe_unused					\
 		return NULL;						\
 	req->hdr.sig = OTX2_MBOX_REQ_SIG;				\
 	req->hdr.id = _id;						\
+	trace_otx2_msg_alloc(mbox->mbox.pdev, _id, sizeof(*req));	\
 	return req;							\
 }
 
