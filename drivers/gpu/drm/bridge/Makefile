@@ -25,4 +25,5 @@ obj-$(CONFIG_DRM_TI_TPD12S015) += ti-tpd12s015.o
 obj-$(CONFIG_DRM_NWL_MIPI_DSI) += nwl-dsi.o
 
 obj-y += analogix/
+obj-y += cadence/
 obj-y += synopsys/
