@@ -982,8 +982,6 @@ static int sdei_probe(struct platform_device *pdev)
 		return 0;
 
 	err = sdei_api_get_version(&ver);
-	if (err == -EOPNOTSUPP)
-		pr_err("advertised but not implemented in platform firmware\n");
 	if (err) {
 		pr_err("Failed to get SDEI version: %d\n", err);
 		sdei_mark_interface_broken();
