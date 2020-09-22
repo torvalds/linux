@@ -1276,8 +1276,6 @@ static void rkisp1_params_config_parameter(struct rkisp1_params *params)
 {
 	struct rkisp1_cif_isp_hst_config hst = rkisp1_hst_params_default_config;
 
-	spin_lock(&params->config_lock);
-
 	rkisp1_awb_meas_config(params, &rkisp1_awb_params_default_config);
 	rkisp1_awb_meas_enable(params, &rkisp1_awb_params_default_config,
 			       true);
@@ -1301,6 +1299,8 @@ static void rkisp1_params_config_parameter(struct rkisp1_params *params)
 		rkisp1_csm_config(params, true);
 	else
 		rkisp1_csm_config(params, false);
+
+	spin_lock(&params->config_lock);
 
 	/* apply the first buffer if there is one already */
 	if (params->is_streaming)
