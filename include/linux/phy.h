@@ -1566,8 +1566,9 @@ static inline int mdiobus_register_board_info(const struct mdio_board_info *i,
 
 
 /**
- * module_phy_driver() - Helper macro for registering PHY drivers
+ * phy_module_driver() - Helper macro for registering PHY drivers
  * @__phy_drivers: array of PHY drivers to register
+ * @__count: Numbers of members in array
  *
  * Helper macro for PHY drivers which do not do anything special in module
  * init/exit. Each module may only use this macro once, and calling it
