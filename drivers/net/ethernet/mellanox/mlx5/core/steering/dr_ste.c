@@ -74,7 +74,7 @@ u16 mlx5dr_ste_conv_bit_to_byte_mask(u8 *bit_mask)
 	return byte_mask;
 }
 
-static u8 *mlx5dr_ste_get_tag(u8 *hw_ste_p)
+static u8 *dr_ste_get_tag(u8 *hw_ste_p)
 {
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
 
@@ -88,26 +88,26 @@ void mlx5dr_ste_set_bit_mask(u8 *hw_ste_p, u8 *bit_mask)
 	memcpy(hw_ste->mask, bit_mask, DR_STE_SIZE_MASK);
 }
 
-void mlx5dr_ste_rx_set_flow_tag(u8 *hw_ste_p, u32 flow_tag)
+static void dr_ste_rx_set_flow_tag(u8 *hw_ste_p, u32 flow_tag)
 {
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, qp_list_pointer,
 		 DR_STE_ENABLE_FLOW_TAG | flow_tag);
 }
 
-void mlx5dr_ste_set_counter_id(u8 *hw_ste_p, u32 ctr_id)
+static void dr_ste_set_counter_id(u8 *hw_ste_p, u32 ctr_id)
 {
 	/* This can be used for both rx_steering_mult and for sx_transmit */
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, counter_trigger_15_0, ctr_id);
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, counter_trigger_23_16, ctr_id >> 16);
 }
 
-void mlx5dr_ste_set_go_back_bit(u8 *hw_ste_p)
+static void dr_ste_set_go_back_bit(u8 *hw_ste_p)
 {
 	MLX5_SET(ste_sx_transmit, hw_ste_p, go_back, 1);
 }
 
-void mlx5dr_ste_set_tx_push_vlan(u8 *hw_ste_p, u32 vlan_hdr,
-				 bool go_back)
+static void dr_ste_set_tx_push_vlan(u8 *hw_ste_p, u32 vlan_hdr,
+				    bool go_back)
 {
 	MLX5_SET(ste_sx_transmit, hw_ste_p, action_type,
 		 DR_STE_ACTION_TYPE_PUSH_VLAN);
@@ -116,10 +116,11 @@ void mlx5dr_ste_set_tx_push_vlan(u8 *hw_ste_p, u32 vlan_hdr,
 	 * push vlan will not work.
 	 */
 	if (go_back)
-		mlx5dr_ste_set_go_back_bit(hw_ste_p);
+		dr_ste_set_go_back_bit(hw_ste_p);
 }
 
-void mlx5dr_ste_set_tx_encap(void *hw_ste_p, u32 reformat_id, int size, bool encap_l3)
+static void dr_ste_set_tx_encap(void *hw_ste_p, u32 reformat_id,
+				int size, bool encap_l3)
 {
 	MLX5_SET(ste_sx_transmit, hw_ste_p, action_type,
 		 encap_l3 ? DR_STE_ACTION_TYPE_ENCAP_L3 : DR_STE_ACTION_TYPE_ENCAP);
@@ -128,37 +129,37 @@ void mlx5dr_ste_set_tx_encap(void *hw_ste_p, u32 reformat_id, int size, bool enc
 	MLX5_SET(ste_sx_transmit, hw_ste_p, encap_pointer_vlan_data, reformat_id);
 }
 
-void mlx5dr_ste_set_rx_decap(u8 *hw_ste_p)
+static void dr_ste_set_rx_decap(u8 *hw_ste_p)
 {
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, tunneling_action,
 		 DR_STE_TUNL_ACTION_DECAP);
 }
 
-void mlx5dr_ste_set_rx_pop_vlan(u8 *hw_ste_p)
+static void dr_ste_set_rx_pop_vlan(u8 *hw_ste_p)
 {
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, tunneling_action,
 		 DR_STE_TUNL_ACTION_POP_VLAN);
 }
 
-void mlx5dr_ste_set_rx_decap_l3(u8 *hw_ste_p, bool vlan)
+static void dr_ste_set_rx_decap_l3(u8 *hw_ste_p, bool vlan)
 {
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, tunneling_action,
 		 DR_STE_TUNL_ACTION_L3_DECAP);
 	MLX5_SET(ste_modify_packet, hw_ste_p, action_description, vlan ? 1 : 0);
 }
 
-void mlx5dr_ste_set_entry_type(u8 *hw_ste_p, u8 entry_type)
+static void dr_ste_set_entry_type(u8 *hw_ste_p, u8 entry_type)
 {
 	MLX5_SET(ste_general, hw_ste_p, entry_type, entry_type);
 }
 
-u8 mlx5dr_ste_get_entry_type(u8 *hw_ste_p)
+static u8 dr_ste_get_entry_type(u8 *hw_ste_p)
 {
 	return MLX5_GET(ste_general, hw_ste_p, entry_type);
 }
 
-void mlx5dr_ste_set_rewrite_actions(u8 *hw_ste_p, u16 num_of_actions,
-				    u32 re_write_index)
+static void dr_ste_set_rewrite_actions(u8 *hw_ste_p, u16 num_of_actions,
+				       u32 re_write_index)
 {
 	MLX5_SET(ste_modify_packet, hw_ste_p, number_of_re_write_actions,
 		 num_of_actions);
@@ -166,13 +167,13 @@ void mlx5dr_ste_set_rewrite_actions(u8 *hw_ste_p, u16 num_of_actions,
 		 re_write_index);
 }
 
-void mlx5dr_ste_set_hit_gvmi(u8 *hw_ste_p, u16 gvmi)
+static void dr_ste_set_hit_gvmi(u8 *hw_ste_p, u16 gvmi)
 {
 	MLX5_SET(ste_general, hw_ste_p, next_table_base_63_48, gvmi);
 }
 
-void mlx5dr_ste_init(u8 *hw_ste_p, u16 lu_type, u8 entry_type,
-		     u16 gvmi)
+static void dr_ste_init(u8 *hw_ste_p, u16 lu_type, u8 entry_type,
+			u16 gvmi)
 {
 	MLX5_SET(ste_general, hw_ste_p, entry_type, entry_type);
 	MLX5_SET(ste_general, hw_ste_p, entry_sub_type, lu_type);
@@ -198,13 +199,32 @@ static void dr_ste_set_always_miss(struct dr_hw_ste_format *hw_ste)
 	hw_ste->mask[0] = 0;
 }
 
-u64 mlx5dr_ste_get_miss_addr(u8 *hw_ste)
+void mlx5dr_ste_set_miss_addr(u8 *hw_ste_p, u64 miss_addr)
+{
+	u64 index = miss_addr >> 6;
+
+	/* Miss address for TX and RX STEs located in the same offsets */
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_39_32, index >> 26);
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_31_6, index);
+}
+
+static u64 dr_ste_get_miss_addr(u8 *hw_ste)
 {
 	u64 index =
 		(MLX5_GET(ste_rx_steering_mult, hw_ste, miss_address_31_6) |
 		 MLX5_GET(ste_rx_steering_mult, hw_ste, miss_address_39_32) << 26);
 
 	return index << 6;
+}
+
+static void dr_ste_always_miss_addr(struct mlx5dr_ste *ste, u64 miss_addr)
+{
+	u8 *hw_ste_p = ste->hw_ste;
+
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, next_lu_type,
+		 MLX5DR_STE_LU_TYPE_DONT_CARE);
+	mlx5dr_ste_set_miss_addr(hw_ste_p, miss_addr);
+	dr_ste_set_always_miss((struct dr_hw_ste_format *)ste->hw_ste);
 }
 
 void mlx5dr_ste_set_hit_addr(u8 *hw_ste, u64 icm_addr, u32 ht_size)
@@ -299,7 +319,7 @@ dr_ste_remove_head_ste(struct mlx5dr_ste *ste,
 	 */
 	memcpy(tmp_ste.hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
 	miss_addr = nic_matcher->e_anchor->chunk->icm_addr;
-	mlx5dr_ste_always_miss_addr(&tmp_ste, miss_addr);
+	dr_ste_always_miss_addr(&tmp_ste, miss_addr);
 	memcpy(ste->hw_ste, tmp_ste.hw_ste, DR_STE_SIZE_REDUCED);
 
 	list_del_init(&ste->miss_list_node);
@@ -367,7 +387,7 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste *ste,
 	if (WARN_ON(!prev_ste))
 		return;
 
-	miss_addr = mlx5dr_ste_get_miss_addr(ste->hw_ste);
+	miss_addr = dr_ste_get_miss_addr(ste->hw_ste);
 	mlx5dr_ste_set_miss_addr(prev_ste->hw_ste, miss_addr);
 
 	mlx5dr_send_fill_and_append_ste_send_info(prev_ste, DR_STE_SIZE_REDUCED, 0,
@@ -457,24 +477,6 @@ void mlx5dr_ste_set_hit_addr_by_next_htbl(u8 *hw_ste,
 	mlx5dr_ste_set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
 }
 
-void mlx5dr_ste_set_miss_addr(u8 *hw_ste_p, u64 miss_addr)
-{
-	u64 index = miss_addr >> 6;
-
-	/* Miss address for TX and RX STEs located in the same offsets */
-	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_39_32, index >> 26);
-	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_31_6, index);
-}
-
-void mlx5dr_ste_always_miss_addr(struct mlx5dr_ste *ste, u64 miss_addr)
-{
-	u8 *hw_ste = ste->hw_ste;
-
-	MLX5_SET(ste_rx_steering_mult, hw_ste, next_lu_type, MLX5DR_STE_LU_TYPE_DONT_CARE);
-	mlx5dr_ste_set_miss_addr(hw_ste, miss_addr);
-	dr_ste_set_always_miss((struct dr_hw_ste_format *)ste->hw_ste);
-}
-
 /* Init one ste as a pattern for ste data array */
 void mlx5dr_ste_set_formatted_ste(u16 gvmi,
 				  struct mlx5dr_domain_rx_tx *nic_dmn,
@@ -484,13 +486,13 @@ void mlx5dr_ste_set_formatted_ste(u16 gvmi,
 {
 	struct mlx5dr_ste ste = {};
 
-	mlx5dr_ste_init(formatted_ste, htbl->lu_type, nic_dmn->ste_type, gvmi);
+	dr_ste_init(formatted_ste, htbl->lu_type, nic_dmn->ste_type, gvmi);
 	ste.hw_ste = formatted_ste;
 
 	if (connect_info->type == CONNECT_HIT)
 		dr_ste_always_hit_htbl(&ste, connect_info->hit_next_htbl);
 	else
-		mlx5dr_ste_always_miss_addr(&ste, connect_info->miss_icm_addr);
+		dr_ste_always_miss_addr(&ste, connect_info->miss_icm_addr);
 }
 
 int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
@@ -628,6 +630,148 @@ int mlx5dr_ste_htbl_free(struct mlx5dr_ste_htbl *htbl)
 	return 0;
 }
 
+static void dr_ste_arr_init_next_ste(u8 **last_ste,
+				     u32 *added_stes,
+				     enum mlx5dr_ste_entry_type entry_type,
+				     u16 gvmi)
+{
+	(*added_stes)++;
+	*last_ste += DR_STE_SIZE;
+	dr_ste_init(*last_ste, MLX5DR_STE_LU_TYPE_DONT_CARE, entry_type, gvmi);
+}
+
+void mlx5dr_ste_set_actions_tx(struct mlx5dr_domain *dmn,
+			       u8 *action_type_set,
+			       u8 *last_ste,
+			       struct mlx5dr_ste_actions_attr *attr,
+			       u32 *added_stes)
+{
+	bool encap = action_type_set[DR_ACTION_TYP_L2_TO_TNL_L2] ||
+		action_type_set[DR_ACTION_TYP_L2_TO_TNL_L3];
+
+	/* We want to make sure the modify header comes before L2
+	 * encapsulation. The reason for that is that we support
+	 * modify headers for outer headers only
+	 */
+	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
+		dr_ste_set_entry_type(last_ste, MLX5DR_STE_TYPE_MODIFY_PKT);
+		dr_ste_set_rewrite_actions(last_ste,
+					   attr->modify_actions,
+					   attr->modify_index);
+	}
+
+	if (action_type_set[DR_ACTION_TYP_PUSH_VLAN]) {
+		int i;
+
+		for (i = 0; i < attr->vlans.count; i++) {
+			if (i || action_type_set[DR_ACTION_TYP_MODIFY_HDR])
+				dr_ste_arr_init_next_ste(&last_ste,
+							 added_stes,
+							 MLX5DR_STE_TYPE_TX,
+							 attr->gvmi);
+
+			dr_ste_set_tx_push_vlan(last_ste,
+						attr->vlans.headers[i],
+						encap);
+		}
+	}
+
+	if (encap) {
+		/* Modify header and encapsulation require a different STEs.
+		 * Since modify header STE format doesn't support encapsulation
+		 * tunneling_action.
+		 */
+		if (action_type_set[DR_ACTION_TYP_MODIFY_HDR] ||
+		    action_type_set[DR_ACTION_TYP_PUSH_VLAN])
+			dr_ste_arr_init_next_ste(&last_ste,
+						 added_stes,
+						 MLX5DR_STE_TYPE_TX,
+						 attr->gvmi);
+
+		dr_ste_set_tx_encap(last_ste,
+				    attr->reformat_id,
+				    attr->reformat_size,
+				    action_type_set[DR_ACTION_TYP_L2_TO_TNL_L3]);
+		/* Whenever prio_tag_required enabled, we can be sure that the
+		 * previous table (ACL) already push vlan to our packet,
+		 * And due to HW limitation we need to set this bit, otherwise
+		 * push vlan + reformat will not work.
+		 */
+		if (MLX5_CAP_GEN(dmn->mdev, prio_tag_required))
+			dr_ste_set_go_back_bit(last_ste);
+	}
+
+	if (action_type_set[DR_ACTION_TYP_CTR])
+		dr_ste_set_counter_id(last_ste, attr->ctr_id);
+
+	dr_ste_set_hit_gvmi(last_ste, attr->hit_gvmi);
+	mlx5dr_ste_set_hit_addr(last_ste, attr->final_icm_addr, 1);
+}
+
+void mlx5dr_ste_set_actions_rx(struct mlx5dr_domain *dmn,
+			       u8 *action_type_set,
+			       u8 *last_ste,
+			       struct mlx5dr_ste_actions_attr *attr,
+			       u32 *added_stes)
+{
+	if (action_type_set[DR_ACTION_TYP_CTR])
+		dr_ste_set_counter_id(last_ste, attr->ctr_id);
+
+	if (action_type_set[DR_ACTION_TYP_TNL_L3_TO_L2]) {
+		dr_ste_set_entry_type(last_ste, MLX5DR_STE_TYPE_MODIFY_PKT);
+		dr_ste_set_rx_decap_l3(last_ste, attr->decap_with_vlan);
+		dr_ste_set_rewrite_actions(last_ste,
+					   attr->decap_actions,
+					   attr->decap_index);
+	}
+
+	if (action_type_set[DR_ACTION_TYP_TNL_L2_TO_L2])
+		dr_ste_set_rx_decap(last_ste);
+
+	if (action_type_set[DR_ACTION_TYP_POP_VLAN]) {
+		int i;
+
+		for (i = 0; i < attr->vlans.count; i++) {
+			if (i ||
+			    action_type_set[DR_ACTION_TYP_TNL_L2_TO_L2] ||
+			    action_type_set[DR_ACTION_TYP_TNL_L3_TO_L2])
+				dr_ste_arr_init_next_ste(&last_ste,
+							 added_stes,
+							 MLX5DR_STE_TYPE_RX,
+							 attr->gvmi);
+
+			dr_ste_set_rx_pop_vlan(last_ste);
+		}
+	}
+
+	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
+		if (dr_ste_get_entry_type(last_ste) == MLX5DR_STE_TYPE_MODIFY_PKT)
+			dr_ste_arr_init_next_ste(&last_ste,
+						 added_stes,
+						 MLX5DR_STE_TYPE_MODIFY_PKT,
+						 attr->gvmi);
+		else
+			dr_ste_set_entry_type(last_ste, MLX5DR_STE_TYPE_MODIFY_PKT);
+
+		dr_ste_set_rewrite_actions(last_ste,
+					   attr->modify_actions,
+					   attr->modify_index);
+	}
+
+	if (action_type_set[DR_ACTION_TYP_TAG]) {
+		if (dr_ste_get_entry_type(last_ste) == MLX5DR_STE_TYPE_MODIFY_PKT)
+			dr_ste_arr_init_next_ste(&last_ste,
+						 added_stes,
+						 MLX5DR_STE_TYPE_RX,
+						 attr->gvmi);
+
+		dr_ste_rx_set_flow_tag(last_ste, attr->flow_tag);
+	}
+
+	dr_ste_set_hit_gvmi(last_ste, attr->hit_gvmi);
+	mlx5dr_ste_set_hit_addr(last_ste, attr->final_icm_addr, 1);
+}
+
 int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
 			       u8 match_criteria,
 			       struct mlx5dr_match_param *mask,
@@ -667,14 +811,14 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 
 	sb = nic_matcher->ste_builder;
 	for (i = 0; i < nic_matcher->num_of_builders; i++) {
-		mlx5dr_ste_init(ste_arr,
-				sb->lu_type,
-				nic_dmn->ste_type,
-				dmn->info.caps.gvmi);
+		dr_ste_init(ste_arr,
+			    sb->lu_type,
+			    nic_dmn->ste_type,
+			    dmn->info.caps.gvmi);
 
 		mlx5dr_ste_set_bit_mask(ste_arr, sb->bit_mask);
 
-		ret = sb->ste_build_tag_func(value, sb, mlx5dr_ste_get_tag(ste_arr));
+		ret = sb->ste_build_tag_func(value, sb, dr_ste_get_tag(ste_arr));
 		if (ret)
 			return ret;
 

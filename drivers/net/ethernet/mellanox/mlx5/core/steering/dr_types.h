@@ -220,34 +220,46 @@ static inline void mlx5dr_htbl_get(struct mlx5dr_ste_htbl *htbl)
 
 /* STE utils */
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl);
-void mlx5dr_ste_init(u8 *hw_ste_p, u16 lu_type, u8 entry_type, u16 gvmi);
-void mlx5dr_ste_always_hit_htbl(struct mlx5dr_ste *ste,
-				struct mlx5dr_ste_htbl *next_htbl);
 void mlx5dr_ste_set_miss_addr(u8 *hw_ste, u64 miss_addr);
-u64 mlx5dr_ste_get_miss_addr(u8 *hw_ste);
-void mlx5dr_ste_set_hit_gvmi(u8 *hw_ste_p, u16 gvmi);
 void mlx5dr_ste_set_hit_addr(u8 *hw_ste, u64 icm_addr, u32 ht_size);
-void mlx5dr_ste_always_miss_addr(struct mlx5dr_ste *ste, u64 miss_addr);
 void mlx5dr_ste_set_bit_mask(u8 *hw_ste_p, u8 *bit_mask);
 bool mlx5dr_ste_is_last_in_rule(struct mlx5dr_matcher_rx_tx *nic_matcher,
 				u8 ste_location);
-void mlx5dr_ste_rx_set_flow_tag(u8 *hw_ste_p, u32 flow_tag);
-void mlx5dr_ste_set_counter_id(u8 *hw_ste_p, u32 ctr_id);
-void mlx5dr_ste_set_tx_encap(void *hw_ste_p, u32 reformat_id,
-			     int size, bool encap_l3);
-void mlx5dr_ste_set_rx_decap(u8 *hw_ste_p);
-void mlx5dr_ste_set_rx_decap_l3(u8 *hw_ste_p, bool vlan);
-void mlx5dr_ste_set_rx_pop_vlan(u8 *hw_ste_p);
-void mlx5dr_ste_set_tx_push_vlan(u8 *hw_ste_p, u32 vlan_tpid_pcp_dei_vid,
-				 bool go_back);
-void mlx5dr_ste_set_entry_type(u8 *hw_ste_p, u8 entry_type);
-u8 mlx5dr_ste_get_entry_type(u8 *hw_ste_p);
-void mlx5dr_ste_set_rewrite_actions(u8 *hw_ste_p, u16 num_of_actions,
-				    u32 re_write_index);
-void mlx5dr_ste_set_go_back_bit(u8 *hw_ste_p);
 u64 mlx5dr_ste_get_icm_addr(struct mlx5dr_ste *ste);
 u64 mlx5dr_ste_get_mr_addr(struct mlx5dr_ste *ste);
 struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste);
+
+#define MLX5DR_MAX_VLANS 2
+
+struct mlx5dr_ste_actions_attr {
+	u32	modify_index;
+	u16	modify_actions;
+	u32	decap_index;
+	u16	decap_actions;
+	u8	decap_with_vlan:1;
+	u64	final_icm_addr;
+	u32	flow_tag;
+	u32	ctr_id;
+	u16	gvmi;
+	u16	hit_gvmi;
+	u32	reformat_id;
+	u32	reformat_size;
+	struct {
+		int	count;
+		u32	headers[MLX5DR_MAX_VLANS];
+	} vlans;
+};
+
+void mlx5dr_ste_set_actions_rx(struct mlx5dr_domain *dmn,
+			       u8 *action_type_set,
+			       u8 *last_ste,
+			       struct mlx5dr_ste_actions_attr *attr,
+			       u32 *added_stes);
+void mlx5dr_ste_set_actions_tx(struct mlx5dr_domain *dmn,
+			       u8 *action_type_set,
+			       u8 *last_ste,
+			       struct mlx5dr_ste_actions_attr *attr,
+			       u32 *added_stes);
 
 struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx(u8 version);
 void mlx5dr_ste_free(struct mlx5dr_ste *ste,
