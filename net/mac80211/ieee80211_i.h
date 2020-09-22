@@ -2300,6 +2300,7 @@ void ieee80211_tdls_chsw_work(struct work_struct *wk);
 void ieee80211_tdls_handle_disconnect(struct ieee80211_sub_if_data *sdata,
 				      const u8 *peer, u16 reason);
 const char *ieee80211_get_reason_code_string(u16 reason_code);
+u16 ieee80211_encode_usf(int val);
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 

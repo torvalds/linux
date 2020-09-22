@@ -4383,3 +4383,24 @@ const u8 ieee80211_ac_to_qos_mask[IEEE80211_NUM_ACS] = {
 	IEEE80211_WMM_IE_STA_QOSINFO_AC_BE,
 	IEEE80211_WMM_IE_STA_QOSINFO_AC_BK
 };
+
+u16 ieee80211_encode_usf(int listen_interval)
+{
+	static const int listen_int_usf[] = { 1, 10, 1000, 10000 };
+	u16 ui, usf = 0;
+
+	/* find greatest USF */
+	while (usf < IEEE80211_MAX_USF) {
+		if (listen_interval % listen_int_usf[usf + 1])
+			break;
+		usf += 1;
+	}
+	ui = listen_interval / listen_int_usf[usf];
+
+	/* error if there is a remainder. Should've been checked by user */
+	WARN_ON_ONCE(ui > IEEE80211_MAX_UI);
+	listen_interval = FIELD_PREP(LISTEN_INT_USF, usf) |
+			  FIELD_PREP(LISTEN_INT_UI, ui);
+
+	return (u16) listen_interval;
+}

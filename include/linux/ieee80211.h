@@ -2448,6 +2448,13 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 #define S1G_OPER_CH_WIDTH_PRIMARY_1MHZ	BIT(0)
 #define S1G_OPER_CH_WIDTH_OPER		GENMASK(4, 1)
 
+
+#define LISTEN_INT_USF	GENMASK(15, 14)
+#define LISTEN_INT_UI	GENMASK(13, 0)
+
+#define IEEE80211_MAX_USF	FIELD_MAX(LISTEN_INT_USF)
+#define IEEE80211_MAX_UI	FIELD_MAX(LISTEN_INT_UI)
+
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
 #define WLAN_AUTH_SHARED_KEY 1
