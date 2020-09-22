@@ -905,21 +905,14 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static bool is_dev_usb_generic_driver(struct device *dev)
-{
-	struct usb_device_driver *udd = dev->driver ?
-		to_usb_device_driver(dev->driver) : NULL;
-
-	return udd == &usb_generic_driver;
-}
-
 static int __usb_bus_reprobe_drivers(struct device *dev, void *data)
 {
 	struct usb_device_driver *new_udriver = data;
 	struct usb_device *udev;
 	int ret;
 
-	if (!is_dev_usb_generic_driver(dev))
+	/* Don't reprobe if current driver isn't usb_generic_driver */
+	if (dev->driver != &usb_generic_driver.drvwrap.driver)
 		return 0;
 
 	udev = to_usb_device(dev);
