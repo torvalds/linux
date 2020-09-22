@@ -581,7 +581,6 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 	unsigned int taps_size = priv->tap_num * 2, min_tap_row;
 	unsigned long *bitmap;
 
-	priv->doing_tune = false;
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_RVSREQ, 0);
 
 	/*
@@ -656,7 +655,6 @@ static int renesas_sdhi_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		return -EINVAL;
 	}
 
-	priv->doing_tune = true;
 	bitmap_zero(priv->taps, priv->tap_num * 2);
 	bitmap_zero(priv->smpcmp, priv->tap_num * 2);
 
@@ -765,7 +763,7 @@ static bool renesas_sdhi_check_scc_error(struct tmio_mmc_host *host)
 	    !(host->mmc->ios.timing == MMC_TIMING_MMC_HS400 && !use_4tap))
 		return false;
 
-	if (mmc_doing_retune(host->mmc) || priv->doing_tune)
+	if (mmc_doing_tune(host->mmc))
 		return false;
 
 	if (sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL) &
