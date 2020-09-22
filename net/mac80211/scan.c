@@ -146,7 +146,8 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_mgmt *mgmt, size_t len,
 			  struct ieee80211_channel *channel)
 {
-	bool beacon = ieee80211_is_beacon(mgmt->frame_control);
+	bool beacon = ieee80211_is_beacon(mgmt->frame_control) ||
+		      ieee80211_is_s1g_beacon(mgmt->frame_control);
 	struct cfg80211_bss *cbss, *non_tx_cbss;
 	struct ieee80211_bss *bss, *non_tx_bss;
 	struct cfg80211_inform_bss bss_meta = {
@@ -195,6 +196,11 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		elements = mgmt->u.probe_resp.variable;
 		baselen = offsetof(struct ieee80211_mgmt,
 				   u.probe_resp.variable);
+	} else if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
+		struct ieee80211_ext *ext = (void *) mgmt;
+
+		baselen = offsetof(struct ieee80211_ext, u.s1g_beacon.variable);
+		elements = ext->u.s1g_beacon.variable;
 	} else {
 		baselen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 		elements = mgmt->u.beacon.variable;
@@ -246,9 +252,12 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 	struct ieee80211_bss *bss;
 	struct ieee80211_channel *channel;
 
-	if (skb->len < 24 ||
-	    (!ieee80211_is_probe_resp(mgmt->frame_control) &&
-	     !ieee80211_is_beacon(mgmt->frame_control)))
+	if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
+		if (skb->len < 15)
+			return;
+	} else if (skb->len < 24 ||
+		 (!ieee80211_is_probe_resp(mgmt->frame_control) &&
+		  !ieee80211_is_beacon(mgmt->frame_control)))
 		return;
 
 	sdata1 = rcu_dereference(local->scan_sdata);
