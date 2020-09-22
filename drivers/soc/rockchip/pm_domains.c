@@ -36,6 +36,7 @@
 #include <dt-bindings/power/rk3366-power.h>
 #include <dt-bindings/power/rk3368-power.h>
 #include <dt-bindings/power/rk3399-power.h>
+#include <dt-bindings/power/rk3568-power.h>
 
 struct rockchip_domain_info {
 	int pwr_mask;
@@ -197,6 +198,12 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 
 #define DOMAIN_RK3399_PROTECT(pwr, status, req, wakeup)	\
 	DOMAIN(pwr, status, req, req, req, wakeup, true)
+
+#define DOMAIN_RK3568(pwr, req, wakeup)		\
+	DOMAIN_M(pwr, pwr, req, req, req, wakeup, false)
+
+#define DOMAIN_RK3568_PROTECT(pwr, req, wakeup)		\
+	DOMAIN_M(pwr, pwr, req, req, req, wakeup, true)
 
 static bool rockchip_pmu_domain_is_idle(struct rockchip_pm_domain *pd)
 {
@@ -1320,6 +1327,18 @@ static const struct rockchip_domain_info rk3399_pm_domains[] = {
 	[RK3399_PD_SDIOAUDIO]	= DOMAIN_RK3399(BIT(31), BIT(31), BIT(29), true),
 };
 
+static const struct rockchip_domain_info rk3568_pm_domains[] = {
+	[RK3568_PD_NPU]		= DOMAIN_RK3568(BIT(1), BIT(2), false),
+	[RK3568_PD_GPU]		= DOMAIN_RK3568(BIT(0), BIT(1), false),
+	[RK3568_PD_VI]		= DOMAIN_RK3568(BIT(6), BIT(3), false),
+	[RK3568_PD_VO]		= DOMAIN_RK3568_PROTECT(BIT(7),  BIT(4), false),
+	[RK3568_PD_RGA]		= DOMAIN_RK3568(BIT(5),  BIT(5), false),
+	[RK3568_PD_VPU]		= DOMAIN_RK3568(BIT(2), BIT(6), false),
+	[RK3568_PD_RKVDEC]	= DOMAIN_RK3568(BIT(4), BIT(7), false),
+	[RK3568_PD_RKVENC]	= DOMAIN_RK3568(BIT(3), BIT(8), false),
+	[RK3568_PD_PIPE]	= DOMAIN_RK3568(BIT(8), BIT(11), false),
+};
+
 static const struct rockchip_pmu_info px30_pmu = {
 	.pwr_offset = 0x18,
 	.status_offset = 0x20,
@@ -1459,6 +1478,17 @@ static const struct rockchip_pmu_info rk3399_pmu = {
 	.domain_info = rk3399_pm_domains,
 };
 
+static const struct rockchip_pmu_info rk3568_pmu = {
+	.pwr_offset = 0xa0,
+	.status_offset = 0x98,
+	.req_offset = 0x50,
+	.idle_offset = 0x68,
+	.ack_offset = 0x60,
+
+	.num_domains = ARRAY_SIZE(rk3568_pm_domains),
+	.domain_info = rk3568_pm_domains,
+};
+
 static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,px30-power-controller",
@@ -1503,6 +1533,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,rk3399-power-controller",
 		.data = (void *)&rk3399_pmu,
+	},
+	{
+		.compatible = "rockchip,rk3568-power-controller",
+		.data = (void *)&rk3568_pmu,
 	},
 	{ /* sentinel */ },
 };
