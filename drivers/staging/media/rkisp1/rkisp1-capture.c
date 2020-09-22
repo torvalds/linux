@@ -955,6 +955,7 @@ static void rkisp1_stream_start(struct rkisp1_capture *cap)
 	cap->ops->config(cap);
 
 	/* Setup a buffer for the next frame */
+	spin_lock_irq(&cap->buf.lock);
 	rkisp1_set_next_buf(cap);
 	cap->ops->enable(cap);
 	/* It's safe to config ACTIVE and SHADOW regs for the
@@ -972,6 +973,7 @@ static void rkisp1_stream_start(struct rkisp1_capture *cap)
 			     RKISP1_CIF_MI_INIT_SOFT_UPD, RKISP1_CIF_MI_INIT);
 		rkisp1_set_next_buf(cap);
 	}
+	spin_unlock_irq(&cap->buf.lock);
 	cap->is_streaming = true;
 }
 
