@@ -1,4 +1,4 @@
-[abi_whitelist]
+[abi_symbol_list]
 # commonly used symbols
   __cfi_slowpath
   __const_udelay
