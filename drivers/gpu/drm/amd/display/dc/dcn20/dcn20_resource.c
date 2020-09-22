@@ -150,7 +150,6 @@ struct _vcs_dpi_ip_params_st dcn2_0_ip = {
 	.dispclk_delay_subtotal = 87, //
 	.dcfclk_cstate_latency = 10, // SRExitTime
 	.max_inter_dcn_tile_repeaters = 8,
-
 	.xfc_supported = true,
 	.xfc_fill_bw_overhead_percent = 10.0,
 	.xfc_fill_constant_bytes = 0,
@@ -2203,9 +2202,9 @@ int dcn20_populate_dml_pipes_from_context(
 		/* todo: default max for now, until there is logic reflecting this in dc*/
 		pipes[pipe_cnt].dout.output_bpc = 12;
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-		/*fill up the audio sample rate*/
+		/*fill up the audio sample rate (unit in kHz)*/
 		get_audio_check(&res_ctx->pipe_ctx[i].stream->audio_info, &aud_check);
-		pipes[pipe_cnt].dout.max_audio_sample_rate = aud_check.max_audiosample_rate;
+		pipes[pipe_cnt].dout.max_audio_sample_rate = aud_check.max_audiosample_rate / 1000;
 #endif
 		/*
 		 * For graphic plane, cursor number is 1, nv12 is 0
