@@ -92,7 +92,7 @@ struct drm_device {
 	 * NULL.
 	 *
 	 * Instead of using this pointer it is recommended that drivers use
-	 * drm_dev_init() and embed struct &drm_device in their larger
+	 * devm_drm_dev_alloc() and embed struct &drm_device in their larger
 	 * per-device structure.
 	 */
 	void *dev_private;

@@ -341,7 +341,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	if (ret)
 		goto out_unref;
 
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, false);
+	ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, false);
 	if (ret) {
 		NV_ERROR(drm, "failed to pin fb: %d\n", ret);
 		goto out_unref;
@@ -378,8 +378,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 			      FBINFO_HWACCEL_FILLRECT |
 			      FBINFO_HWACCEL_IMAGEBLIT;
 	info->fbops = &nouveau_fbcon_sw_ops;
-	info->fix.smem_start = nvbo->bo.mem.bus.base +
-			       nvbo->bo.mem.bus.offset;
+	info->fix.smem_start = nvbo->bo.mem.bus.offset;
 	info->fix.smem_len = nvbo->bo.mem.num_pages << PAGE_SHIFT;
 
 	info->screen_base = nvbo_kmap_obj_iovirtual(nvbo);

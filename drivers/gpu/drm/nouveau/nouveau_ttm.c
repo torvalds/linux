@@ -123,13 +123,51 @@ const struct ttm_resource_manager_func nv04_gart_manager = {
 	.free = nouveau_manager_del,
 };
 
+static vm_fault_t nouveau_ttm_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct ttm_buffer_object *bo = vma->vm_private_data;
+	pgprot_t prot;
+	vm_fault_t ret;
+
+	ret = ttm_bo_vm_reserve(bo, vmf);
+	if (ret)
+		return ret;
+
+	nouveau_bo_del_io_reserve_lru(bo);
+
+	prot = vm_get_page_prot(vma->vm_flags);
+	ret = ttm_bo_vm_fault_reserved(vmf, prot, TTM_BO_VM_NUM_PREFAULT, 1);
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+		return ret;
+
+	nouveau_bo_add_io_reserve_lru(bo);
+
+	dma_resv_unlock(bo->base.resv);
+
+	return ret;
+}
+
+static struct vm_operations_struct nouveau_ttm_vm_ops = {
+	.fault = nouveau_ttm_fault,
+	.open = ttm_bo_vm_open,
+	.close = ttm_bo_vm_close,
+	.access = ttm_bo_vm_access
+};
+
 int
 nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
+	int ret;
 
-	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
+	ret = ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
+	if (ret)
+		return ret;
+
+	vma->vm_ops = &nouveau_ttm_vm_ops;
+	return 0;
 }
 
 static int
@@ -156,24 +194,13 @@ nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
 static int
 nouveau_ttm_init_vram(struct nouveau_drm *drm)
 {
-	struct nvif_mmu *mmu = &drm->client.mmu;
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		/* Some BARs do not support being ioremapped WC */
-		const u8 type = mmu->type[drm->ttm.type_vram].type;
 		struct ttm_resource_manager *man = kzalloc(sizeof(*man), GFP_KERNEL);
+
 		if (!man)
 			return -ENOMEM;
 
-		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
-		man->default_caching = TTM_PL_FLAG_WC;
-
-		if (type & NVIF_MEM_UNCACHED) {
-			man->available_caching = TTM_PL_FLAG_UNCACHED;
-			man->default_caching = TTM_PL_FLAG_UNCACHED;
-		}
-
 		man->func = &nouveau_vram_manager;
-		man->use_io_reserve_lru = true;
 
 		ttm_resource_manager_init(man,
 					  drm->gem.vram_available >> PAGE_SHIFT);
@@ -181,9 +208,7 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 		ttm_resource_manager_set_used(man, true);
 		return 0;
 	} else {
-		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_VRAM,
-					  TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC,
-					  TTM_PL_FLAG_WC, false,
+		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_VRAM, false,
 					  drm->gem.vram_available >> PAGE_SHIFT);
 	}
 }
@@ -208,25 +233,14 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 {
 	struct ttm_resource_manager *man;
 	unsigned long size_pages = drm->gem.gart_available >> PAGE_SHIFT;
-	unsigned available_caching, default_caching;
 	const struct ttm_resource_manager_func *func = NULL;
-	if (drm->agp.bridge) {
-		available_caching = TTM_PL_FLAG_UNCACHED |
-			TTM_PL_FLAG_WC;
-		default_caching = TTM_PL_FLAG_WC;
-	} else {
-		available_caching = TTM_PL_MASK_CACHING;
-		default_caching = TTM_PL_FLAG_CACHED;
-	}
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		func = &nouveau_gart_manager;
 	else if (!drm->agp.bridge)
 		func = &nv04_gart_manager;
 	else
-		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_TT,
-					  available_caching, default_caching,
-					  true,
+		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_TT, true,
 					  size_pages);
 
 	man = kzalloc(sizeof(*man), GFP_KERNEL);
@@ -234,8 +248,6 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 		return -ENOMEM;
 
 	man->func = func;
-	man->available_caching = available_caching;
-	man->default_caching = default_caching;
 	man->use_tt = true;
 	ttm_resource_manager_init(man, size_pages);
 	ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, man);
@@ -338,6 +350,9 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		NV_ERROR(drm, "GART mm init failed, %d\n", ret);
 		return ret;
 	}
+
+	mutex_init(&drm->ttm.io_reserve_mutex);
+	INIT_LIST_HEAD(&drm->ttm.io_reserve_lru);
 
 	NV_INFO(drm, "VRAM: %d MiB\n", (u32)(drm->gem.vram_available >> 20));
 	NV_INFO(drm, "GART: %d MiB\n", (u32)(drm->gem.gart_available >> 20));

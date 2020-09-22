@@ -9,7 +9,6 @@
 #include <drm/drm_modes.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
 
 #include <linux/kernel.h> /* for container_of() */
 
@@ -20,9 +19,9 @@ struct drm_simple_display_pipe;
 struct filp;
 struct vm_area_struct;
 
-#define DRM_GEM_VRAM_PL_FLAG_VRAM	TTM_PL_FLAG_VRAM
-#define DRM_GEM_VRAM_PL_FLAG_SYSTEM	TTM_PL_FLAG_SYSTEM
-#define DRM_GEM_VRAM_PL_FLAG_TOPDOWN	TTM_PL_FLAG_TOPDOWN
+#define DRM_GEM_VRAM_PL_FLAG_SYSTEM	(1 << 0)
+#define DRM_GEM_VRAM_PL_FLAG_VRAM	(1 << 1)
+#define DRM_GEM_VRAM_PL_FLAG_TOPDOWN	(1 << 2)
 
 /*
  * Buffer-object helpers
@@ -101,9 +100,6 @@ u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo);
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo);
 int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag);
 int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo);
-void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
-			bool *is_iomem);
-void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo);
 void *drm_gem_vram_vmap(struct drm_gem_vram_object *gbo);
 void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, void *vaddr);
 

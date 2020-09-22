@@ -141,7 +141,6 @@ struct ttm_buffer_object {
 	struct ttm_resource mem;
 	struct file *persistent_swap_storage;
 	struct ttm_tt *ttm;
-	bool evicted;
 	bool deleted;
 
 	/**
@@ -151,7 +150,6 @@ struct ttm_buffer_object {
 	struct list_head lru;
 	struct list_head ddestroy;
 	struct list_head swap;
-	struct list_head io_reserve_lru;
 
 	/**
 	 * Members protected by a bo reservation.
@@ -353,18 +351,6 @@ void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched);
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
 
-/**
- * ttm_bo_acc_size
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @bo_size: size of the buffer object in byte.
- * @struct_size: size of the structure holding buffer object datas
- *
- * Returns size to account for a buffer object
- */
-size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
-		       unsigned long bo_size,
-		       unsigned struct_size);
 size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 			   unsigned long bo_size,
 			   unsigned struct_size);

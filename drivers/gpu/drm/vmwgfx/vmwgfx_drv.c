@@ -626,9 +626,8 @@ static int vmw_vram_manager_init(struct vmw_private *dev_priv)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	ret = vmw_thp_init(dev_priv);
 #else
-	ret = ttm_range_man_init(&dev_priv->bdev, TTM_PL_VRAM,
-				 TTM_PL_FLAG_CACHED, TTM_PL_FLAG_CACHED,
-				 false, dev_priv->vram_size >> PAGE_SHIFT);
+	ret = ttm_range_man_init(&dev_priv->bdev, TTM_PL_VRAM, false,
+				 dev_priv->vram_size >> PAGE_SHIFT);
 #endif
 	ttm_resource_manager_set_used(ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM), false);
 	return ret;
@@ -882,8 +881,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
 		goto out_no_bdev;
 	}
-	ttm_manager_type(&dev_priv->bdev, TTM_PL_SYSTEM)->available_caching =
-		TTM_PL_FLAG_CACHED;
 
 	/*
 	 * Enable VRAM, but initially don't use it until SVGA is enabled and

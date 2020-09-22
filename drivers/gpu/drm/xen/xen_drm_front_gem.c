@@ -180,7 +180,8 @@ struct sg_table *xen_drm_front_gem_get_sg_table(struct drm_gem_object *gem_obj)
 	if (!xen_obj->pages)
 		return ERR_PTR(-ENOMEM);
 
-	return drm_prime_pages_to_sg(xen_obj->pages, xen_obj->num_pages);
+	return drm_prime_pages_to_sg(gem_obj->dev,
+				     xen_obj->pages, xen_obj->num_pages);
 }
 
 struct drm_gem_object *

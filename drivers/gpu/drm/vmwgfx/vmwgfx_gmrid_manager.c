@@ -112,8 +112,6 @@ int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 	man = &gman->manager;
 
 	man->func = &vmw_gmrid_manager_func;
-	man->available_caching = TTM_PL_FLAG_CACHED;
-	man->default_caching = TTM_PL_FLAG_CACHED;
 	/* TODO: This is most likely not correct */
 	man->use_tt = true;
 	ttm_resource_manager_init(man, 0);

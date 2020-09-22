@@ -331,7 +331,7 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		goto handle_lockup;
 
 	bo = gem_to_radeon_bo(gobj);
-	r = radeon_ttm_tt_set_userptr(bo->tbo.ttm, args->addr, args->flags);
+	r = radeon_ttm_tt_set_userptr(rdev, bo->tbo.ttm, args->addr, args->flags);
 	if (r)
 		goto release_object;
 
@@ -420,7 +420,7 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 		return -ENOENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
-	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm)) {
+	if (radeon_ttm_tt_has_userptr(robj->rdev, robj->tbo.ttm)) {
 		drm_gem_object_put(gobj);
 		return -EPERM;
 	}
@@ -721,7 +721,7 @@ int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
 	robj = gem_to_radeon_bo(gobj);
 
 	r = -EPERM;
-	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm))
+	if (radeon_ttm_tt_has_userptr(robj->rdev, robj->tbo.ttm))
 		goto out;
 
 	r = radeon_bo_reserve(robj, false);

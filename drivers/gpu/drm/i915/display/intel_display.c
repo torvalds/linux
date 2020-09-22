@@ -13484,12 +13484,6 @@ encoder_retry:
 		    "hw max bpp: %i, pipe bpp: %i, dithering: %i\n",
 		    base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
-	/*
-	 * Make drm_calc_timestamping_constants in
-	 * drm_atomic_helper_update_legacy_modeset_state() happy
-	 */
-	pipe_config->uapi.adjusted_mode = pipe_config->hw.adjusted_mode;
-
 	return 0;
 }
 

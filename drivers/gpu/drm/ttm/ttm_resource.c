@@ -65,10 +65,7 @@ void ttm_resource_manager_init(struct ttm_resource_manager *man,
 {
 	unsigned i;
 
-	man->use_io_reserve_lru = false;
-	mutex_init(&man->io_reserve_mutex);
 	spin_lock_init(&man->move_lock);
-	INIT_LIST_HEAD(&man->io_reserve_lru);
 	man->size = p_size;
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
@@ -143,8 +140,6 @@ void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 	drm_printf(p, "  use_type: %d\n", man->use_type);
 	drm_printf(p, "  use_tt: %d\n", man->use_tt);
 	drm_printf(p, "  size: %llu\n", man->size);
-	drm_printf(p, "  available_caching: 0x%08X\n", man->available_caching);
-	drm_printf(p, "  default_caching: 0x%08X\n", man->default_caching);
 	if (man->func && man->func->debug)
 		(*man->func->debug)(man, p);
 }

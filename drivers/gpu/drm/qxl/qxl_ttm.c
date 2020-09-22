@@ -55,7 +55,8 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 	static const struct ttm_place placements = {
 		.fpfn = 0,
 		.lpfn = 0,
-		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
+		.mem_type = TTM_PL_SYSTEM,
+		.flags = TTM_PL_MASK_CACHING
 	};
 
 	if (!qxl_ttm_bo_is_qxl_bo(bo)) {
@@ -81,13 +82,12 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 		return 0;
 	case TTM_PL_VRAM:
 		mem->bus.is_iomem = true;
-		mem->bus.base = qdev->vram_base;
-		mem->bus.offset = mem->start << PAGE_SHIFT;
+		mem->bus.offset = (mem->start << PAGE_SHIFT) + qdev->vram_base;
 		break;
 	case TTM_PL_PRIV:
 		mem->bus.is_iomem = true;
-		mem->bus.base = qdev->surfaceram_base;
-		mem->bus.offset = mem->start << PAGE_SHIFT;
+		mem->bus.offset = (mem->start << PAGE_SHIFT) +
+			qdev->surfaceram_base;
 		break;
 	default:
 		return -EINVAL;
@@ -104,7 +104,8 @@ struct qxl_ttm_tt {
 	u64				offset;
 };
 
-static int qxl_ttm_backend_bind(struct ttm_tt *ttm,
+static int qxl_ttm_backend_bind(struct ttm_bo_device *bdev,
+				struct ttm_tt *ttm,
 				struct ttm_resource *bo_mem)
 {
 	struct qxl_ttm_tt *gtt = (void *)ttm;
@@ -118,24 +119,21 @@ static int qxl_ttm_backend_bind(struct ttm_tt *ttm,
 	return -1;
 }
 
-static void qxl_ttm_backend_unbind(struct ttm_tt *ttm)
+static void qxl_ttm_backend_unbind(struct ttm_bo_device *bdev,
+				   struct ttm_tt *ttm)
 {
 	/* Not implemented */
 }
 
-static void qxl_ttm_backend_destroy(struct ttm_tt *ttm)
+static void qxl_ttm_backend_destroy(struct ttm_bo_device *bdev,
+				    struct ttm_tt *ttm)
 {
 	struct qxl_ttm_tt *gtt = (void *)ttm;
 
+	ttm_tt_destroy_common(bdev, ttm);
 	ttm_tt_fini(&gtt->ttm);
 	kfree(gtt);
 }
-
-static struct ttm_backend_func qxl_backend_func = {
-	.bind = &qxl_ttm_backend_bind,
-	.unbind = &qxl_ttm_backend_unbind,
-	.destroy = &qxl_ttm_backend_destroy,
-};
 
 static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 					uint32_t page_flags)
@@ -147,23 +145,12 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 	gtt = kzalloc(sizeof(struct qxl_ttm_tt), GFP_KERNEL);
 	if (gtt == NULL)
 		return NULL;
-	gtt->ttm.func = &qxl_backend_func;
 	gtt->qdev = qdev;
 	if (ttm_tt_init(&gtt->ttm, bo, page_flags)) {
 		kfree(gtt);
 		return NULL;
 	}
 	return &gtt->ttm;
-}
-
-static void qxl_move_null(struct ttm_buffer_object *bo,
-			     struct ttm_resource *new_mem)
-{
-	struct ttm_resource *old_mem = &bo->mem;
-
-	BUG_ON(old_mem->mm_node != NULL);
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
 }
 
 static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
@@ -178,7 +165,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 		return ret;
 
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		qxl_move_null(bo, new_mem);
+		ttm_bo_move_null(bo, new_mem);
 		return 0;
 	}
 	return ttm_bo_move_memcpy(bo, ctx, new_mem);
@@ -202,6 +189,9 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 
 static struct ttm_bo_driver qxl_bo_driver = {
 	.ttm_tt_create = &qxl_ttm_tt_create,
+	.ttm_tt_bind = &qxl_ttm_backend_bind,
+	.ttm_tt_destroy = &qxl_ttm_backend_destroy,
+	.ttm_tt_unbind = &qxl_ttm_backend_unbind,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
@@ -213,8 +203,7 @@ static int qxl_ttm_init_mem_type(struct qxl_device *qdev,
 				 unsigned int type,
 				 uint64_t size)
 {
-	return ttm_range_man_init(&qdev->mman.bdev, type, TTM_PL_MASK_CACHING,
-				  TTM_PL_FLAG_CACHED, false, size);
+	return ttm_range_man_init(&qdev->mman.bdev, type, false, size);
 }
 
 int qxl_ttm_init(struct qxl_device *qdev)

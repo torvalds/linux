@@ -354,10 +354,12 @@ void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 
 	pl.fpfn = 0;
 	pl.lpfn = 0;
-	pl.flags = TTM_PL_FLAG_VRAM | VMW_PL_FLAG_GMR | VMW_PL_FLAG_MOB
-		| TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED;
+	pl.mem_type = bo->mem.mem_type;
+	pl.flags = bo->mem.placement;
 	if (pin)
 		pl.flags |= TTM_PL_FLAG_NO_EVICT;
+	else
+		pl.flags &= ~TTM_PL_FLAG_NO_EVICT;
 
 	memset(&placement, 0, sizeof(placement));
 	placement.num_placement = 1;

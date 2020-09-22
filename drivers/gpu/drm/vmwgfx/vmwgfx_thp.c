@@ -123,25 +123,20 @@ static void vmw_thp_put_node(struct ttm_resource_manager *man,
 
 int vmw_thp_init(struct vmw_private *dev_priv)
 {
-	struct ttm_resource_manager *man;
 	struct vmw_thp_manager *rman;
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
 	if (!rman)
 		return -ENOMEM;
 
-	man = &rman->manager;
-	man->available_caching = TTM_PL_FLAG_CACHED;
-	man->default_caching = TTM_PL_FLAG_CACHED;
-
-	ttm_resource_manager_init(man,
+	ttm_resource_manager_init(&rman->manager,
 				  dev_priv->vram_size >> PAGE_SHIFT);
 
-	drm_mm_init(&rman->mm, 0, man->size);
+	drm_mm_init(&rman->mm, 0, rman->manager.size);
 	spin_lock_init(&rman->lock);
 
 	ttm_set_driver_manager(&dev_priv->bdev, TTM_PL_VRAM, &rman->manager);
-	ttm_resource_manager_set_used(man, true);
+	ttm_resource_manager_set_used(&rman->manager, true);
 	return 0;
 }
 
