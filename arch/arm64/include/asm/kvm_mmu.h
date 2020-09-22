@@ -529,6 +529,7 @@ static inline int kvm_map_vectors(void)
 
 #ifdef CONFIG_ARM64_SSBD
 DECLARE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
+DECLARE_KVM_NVHE_PER_CPU(u64, arm64_ssbd_callback_required);
 
 static inline int hyp_map_aux_data(void)
 {
@@ -537,18 +538,29 @@ static inline int hyp_map_aux_data(void)
 	for_each_possible_cpu(cpu) {
 		u64 *ptr;
 
-		ptr = per_cpu_ptr(&arm64_ssbd_callback_required, cpu);
+		ptr = per_cpu_ptr_nvhe_sym(arm64_ssbd_callback_required, cpu);
 		err = create_hyp_mappings(ptr, ptr + 1, PAGE_HYP);
 		if (err)
 			return err;
 	}
 	return 0;
 }
+
+static inline void hyp_init_aux_data(void)
+{
+	u64 *ptr;
+
+	/* Copy arm64_ssbd_callback_required value from kernel to hyp. */
+	ptr = this_cpu_ptr_nvhe_sym(arm64_ssbd_callback_required);
+	*ptr = __this_cpu_read(arm64_ssbd_callback_required);
+}
 #else
 static inline int hyp_map_aux_data(void)
 {
 	return 0;
 }
+
+static inline void hyp_init_aux_data(void) {}
 #endif
 
 #define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)

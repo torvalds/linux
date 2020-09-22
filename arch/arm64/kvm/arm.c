@@ -1295,6 +1295,9 @@ static void cpu_init_hyp_mode(void)
 	    arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE) {
 		kvm_call_hyp_nvhe(__kvm_enable_ssbs);
 	}
+
+	/* Copy information whether SSBD callback is required to hyp. */
+	hyp_init_aux_data();
 }
 
 static void cpu_hyp_reset(void)
