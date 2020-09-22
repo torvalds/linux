@@ -157,7 +157,9 @@ rkisp1_stats_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 {
 	struct rkisp1_stats *stats = queue->drv_priv;
 
+	spin_lock_irq(&stats->lock);
 	stats->is_streaming = true;
+	spin_unlock_irq(&stats->lock);
 
 	return 0;
 }
