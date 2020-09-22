@@ -171,7 +171,7 @@ void mlx5dr_ste_set_hit_gvmi(u8 *hw_ste_p, u16 gvmi)
 	MLX5_SET(ste_general, hw_ste_p, next_table_base_63_48, gvmi);
 }
 
-void mlx5dr_ste_init(u8 *hw_ste_p, u8 lu_type, u8 entry_type,
+void mlx5dr_ste_init(u8 *hw_ste_p, u16 lu_type, u8 entry_type,
 		     u16 gvmi)
 {
 	MLX5_SET(ste_general, hw_ste_p, entry_type, entry_type);
@@ -523,7 +523,7 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 	struct mlx5dr_ste_htbl *next_htbl;
 
 	if (!mlx5dr_ste_is_last_in_rule(nic_matcher, ste->ste_chain_location)) {
-		u8 next_lu_type;
+		u16 next_lu_type;
 		u16 byte_mask;
 
 		next_lu_type = MLX5_GET(ste_general, hw_ste, next_lu_type);
@@ -576,7 +576,7 @@ static void dr_ste_set_ctrl(struct mlx5dr_ste_htbl *htbl)
 
 struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 					      enum mlx5dr_icm_chunk_size chunk_size,
-					      u8 lu_type, u16 byte_mask)
+					      u16 lu_type, u16 byte_mask)
 {
 	struct mlx5dr_icm_chunk *chunk;
 	struct mlx5dr_ste_htbl *htbl;

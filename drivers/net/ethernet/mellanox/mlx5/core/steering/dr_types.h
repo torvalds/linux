@@ -155,7 +155,7 @@ struct mlx5dr_ste_htbl_ctrl {
 };
 
 struct mlx5dr_ste_htbl {
-	u8 lu_type;
+	u16 lu_type;
 	u16 byte_mask;
 	u32 refcount;
 	struct mlx5dr_icm_chunk *chunk;
@@ -191,7 +191,7 @@ struct mlx5dr_ste_build {
 	u8 vhca_id_valid:1;
 	struct mlx5dr_domain *dmn;
 	struct mlx5dr_cmd_caps *caps;
-	u8 lu_type;
+	u16 lu_type;
 	u16 byte_mask;
 	u8 bit_mask[DR_STE_SIZE_MASK];
 	int (*ste_build_tag_func)(struct mlx5dr_match_param *spec,
@@ -202,7 +202,7 @@ struct mlx5dr_ste_build {
 struct mlx5dr_ste_htbl *
 mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 		      enum mlx5dr_icm_chunk_size chunk_size,
-		      u8 lu_type, u16 byte_mask);
+		      u16 lu_type, u16 byte_mask);
 
 int mlx5dr_ste_htbl_free(struct mlx5dr_ste_htbl *htbl);
 
@@ -220,7 +220,7 @@ static inline void mlx5dr_htbl_get(struct mlx5dr_ste_htbl *htbl)
 
 /* STE utils */
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl);
-void mlx5dr_ste_init(u8 *hw_ste_p, u8 lu_type, u8 entry_type, u16 gvmi);
+void mlx5dr_ste_init(u8 *hw_ste_p, u16 lu_type, u8 entry_type, u16 gvmi);
 void mlx5dr_ste_always_hit_htbl(struct mlx5dr_ste *ste,
 				struct mlx5dr_ste_htbl *next_htbl);
 void mlx5dr_ste_set_miss_addr(u8 *hw_ste, u64 miss_addr);
