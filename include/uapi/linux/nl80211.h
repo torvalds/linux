@@ -2521,6 +2521,12 @@ enum nl80211_commands {
  *	unsolicited broadcast probe response. It is a nested attribute, see
  *	&enum nl80211_unsol_bcast_probe_resp_attributes.
  *
+ * @NL80211_ATTR_S1G_CAPABILITY: S1G Capability information element (from
+ *	association request when used with NL80211_CMD_NEW_STATION)
+ * @NL80211_ATTR_S1G_CAPABILITY_MASK: S1G Capability Information element
+ *	override mask. Used with NL80211_ATTR_S1G_CAPABILITY in
+ *	NL80211_CMD_ASSOCIATE or NL80211_CMD_CONNECT.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3006,6 +3012,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_FILS_DISCOVERY,
 
 	NL80211_ATTR_UNSOL_BCAST_PROBE_RESP,
+
+	NL80211_ATTR_S1G_CAPABILITY,
+	NL80211_ATTR_S1G_CAPABILITY_MASK,
 
 	/* add attributes here, update the policy in nl80211.c */
 

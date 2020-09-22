@@ -704,6 +704,10 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		NLA_POLICY_NESTED(nl80211_fils_discovery_policy),
 	[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP] =
 		NLA_POLICY_NESTED(nl80211_unsol_bcast_probe_resp_policy),
+	[NL80211_ATTR_S1G_CAPABILITY] =
+		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
+	[NL80211_ATTR_S1G_CAPABILITY_MASK] =
+		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
 };
 
 /* policy for the key attributes */
@@ -9790,6 +9794,22 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 		req.fils_nonces =
 			nla_data(info->attrs[NL80211_ATTR_FILS_NONCES]);
+	}
+
+	if (info->attrs[NL80211_ATTR_S1G_CAPABILITY_MASK]) {
+		if (!info->attrs[NL80211_ATTR_S1G_CAPABILITY])
+			return -EINVAL;
+		memcpy(&req.s1g_capa_mask,
+		       nla_data(info->attrs[NL80211_ATTR_S1G_CAPABILITY_MASK]),
+		       sizeof(req.s1g_capa_mask));
+	}
+
+	if (info->attrs[NL80211_ATTR_S1G_CAPABILITY]) {
+		if (!info->attrs[NL80211_ATTR_S1G_CAPABILITY_MASK])
+			return -EINVAL;
+		memcpy(&req.s1g_capa,
+		       nla_data(info->attrs[NL80211_ATTR_S1G_CAPABILITY]),
+		       sizeof(req.s1g_capa));
 	}
 
 	err = nl80211_crypto_settings(rdev, info, &req.crypto, 1);

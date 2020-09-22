@@ -2330,6 +2330,8 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 }
 
 /* S1G Capabilities Information field */
+#define IEEE80211_S1G_CAPABILITY_LEN	15
+
 #define S1G_CAP0_S1G_LONG	BIT(0)
 #define S1G_CAP0_SGI_1MHZ	BIT(1)
 #define S1G_CAP0_SGI_2MHZ	BIT(2)
