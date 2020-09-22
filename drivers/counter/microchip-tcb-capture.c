@@ -253,7 +253,7 @@ static struct counter_count mchp_tc_counts[] = {
 	},
 };
 
-static struct counter_ops mchp_tc_ops = {
+static const struct counter_ops mchp_tc_ops = {
 	.signal_read  = mchp_tc_count_signal_read,
 	.count_read   = mchp_tc_count_read,
 	.function_get = mchp_tc_count_function_get,
