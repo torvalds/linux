@@ -262,10 +262,8 @@ struct rkisp1_stats {
  * @rkisp1:		pointer to the rkisp1 device
  * @config_lock:	locks the buffer list 'params' and 'is_streaming'
  * @params:		queue of rkisp1_buffer
- * @cur_params:		the first params values from userspace
  * @vdev_fmt:		v4l2_format of the metadata format
  * @is_streaming:	device is streaming
- * @is_first_params:	the first params should take effect immediately
  * @quantization:	the quantization configured on the isp's src pad
  * @raw_type:		the bayer pattern on the isp video sink pad
  */
@@ -275,10 +273,8 @@ struct rkisp1_params {
 
 	spinlock_t config_lock; /* locks the buffers list 'params' and 'is_streaming' */
 	struct list_head params;
-	struct rkisp1_params_cfg cur_params;
 	struct v4l2_format vdev_fmt;
 	bool is_streaming;
-	bool is_first_params;
 
 	enum v4l2_quantization quantization;
 	enum rkisp1_fmt_raw_pat_type raw_type;
