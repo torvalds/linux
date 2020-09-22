@@ -1894,7 +1894,7 @@ static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
 static void ath10k_wmi_tx_beacons_nowait(struct ath10k *ar)
 {
 	ieee80211_iterate_active_interfaces_atomic(ar->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   ATH10K_ITER_NORMAL_FLAGS,
 						   ath10k_wmi_tx_beacons_iter,
 						   NULL);
 }
