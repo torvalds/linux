@@ -795,7 +795,8 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 			struct net_bridge_port_group __rcu *next,
 			unsigned char flags,
 			const unsigned char *src,
-			u8 filter_mode)
+			u8 filter_mode,
+			u8 rt_protocol)
 {
 	struct net_bridge_port_group *p;
 
@@ -807,6 +808,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 	p->port = port;
 	p->flags = flags;
 	p->filter_mode = filter_mode;
+	p->rt_protocol = rt_protocol;
 	p->mcast_gc.destroy = br_multicast_destroy_port_group;
 	INIT_HLIST_HEAD(&p->src_list);
 	rcu_assign_pointer(p->next, next);
@@ -892,7 +894,8 @@ static int br_multicast_add_group(struct net_bridge *br,
 			break;
 	}
 
-	p = br_multicast_new_port_group(port, group, *pp, 0, src, filter_mode);
+	p = br_multicast_new_port_group(port, group, *pp, 0, src, filter_mode,
+					RTPROT_KERNEL);
 	if (unlikely(!p))
 		goto err;
 	rcu_assign_pointer(*pp, p);
