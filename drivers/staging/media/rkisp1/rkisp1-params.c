@@ -1213,7 +1213,14 @@ static void rkisp1_params_apply_params_cfg(struct rkisp1_params *params,
 
 void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 {
-	unsigned int frame_sequence = atomic_read(&rkisp1->isp.frame_sequence);
+	/*
+	 * This isr is called when the ISR finishes processing a frame (RKISP1_CIF_ISP_FRAME).
+	 * Configurations performed here will be applied on the next frame.
+	 * Since frame_sequence is updated on the vertical sync signal, we should use
+	 * frame_sequence + 1 here to indicate to userspace on which frame these parameters
+	 * are being applied.
+	 */
+	unsigned int frame_sequence = atomic_read(&rkisp1->isp.frame_sequence) + 1;
 	struct rkisp1_params *params = &rkisp1->params;
 
 	spin_lock(&params->config_lock);
