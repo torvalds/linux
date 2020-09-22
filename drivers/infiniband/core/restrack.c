@@ -147,34 +147,56 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 	}
 }
 
-void rdma_restrack_set_task(struct rdma_restrack_entry *res,
-			    const char *caller)
+/**
+ * rdma_restrack_attach_task() - attach the task onto this resource,
+ * valid for user space restrack entries.
+ * @res:  resource entry
+ * @task: the task to attach
+ */
+static void rdma_restrack_attach_task(struct rdma_restrack_entry *res,
+				      struct task_struct *task)
+{
+	if (WARN_ON_ONCE(!task))
+		return;
+
+	if (res->task)
+		put_task_struct(res->task);
+	get_task_struct(task);
+	res->task = task;
+	res->user = true;
+}
+
+/**
+ * rdma_restrack_set_name() - set the task for this resource
+ * @res:  resource entry
+ * @caller: kernel name, the current task will be used if the caller is NULL.
+ */
+void rdma_restrack_set_name(struct rdma_restrack_entry *res, const char *caller)
 {
 	if (caller) {
 		res->kern_name = caller;
 		return;
 	}
 
-	if (res->task)
-		put_task_struct(res->task);
-	get_task_struct(current);
-	res->task = current;
+	rdma_restrack_attach_task(res, current);
 }
-EXPORT_SYMBOL(rdma_restrack_set_task);
+EXPORT_SYMBOL(rdma_restrack_set_name);
 
 /**
- * rdma_restrack_attach_task() - attach the task onto this resource
- * @res:  resource entry
- * @task: the task to attach, the current task will be used if it is NULL.
+ * rdma_restrack_parent_name() - set the restrack name properties based
+ * on parent restrack
+ * @dst: destination resource entry
+ * @parent: parent resource entry
  */
-void rdma_restrack_attach_task(struct rdma_restrack_entry *res,
-			       struct task_struct *task)
+void rdma_restrack_parent_name(struct rdma_restrack_entry *dst,
+			       const struct rdma_restrack_entry *parent)
 {
-	if (res->task)
-		put_task_struct(res->task);
-	get_task_struct(task);
-	res->task = task;
+	if (rdma_is_kernel_res(parent))
+		dst->kern_name = parent->kern_name;
+	else
+		rdma_restrack_attach_task(dst, parent->task);
 }
+EXPORT_SYMBOL(rdma_restrack_parent_name);
 
 /**
  * rdma_restrack_new() - Initializes new restrack entry to allow _put() interface
@@ -228,25 +250,6 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 		res->valid = true;
 }
 EXPORT_SYMBOL(rdma_restrack_add);
-
-/**
- * rdma_restrack_uadd() - add user object to the reource tracking database
- * @res:  resource entry
- */
-void rdma_restrack_uadd(struct rdma_restrack_entry *res)
-{
-	if ((res->type != RDMA_RESTRACK_CM_ID) &&
-	    (res->type != RDMA_RESTRACK_COUNTER))
-		res->task = NULL;
-
-	if (!res->task)
-		rdma_restrack_set_task(res, NULL);
-	res->kern_name = NULL;
-
-	res->user = true;
-	rdma_restrack_add(res);
-}
-EXPORT_SYMBOL(rdma_restrack_uadd);
 
 int __must_check rdma_restrack_get(struct rdma_restrack_entry *res)
 {

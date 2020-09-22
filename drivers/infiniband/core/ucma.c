@@ -456,8 +456,7 @@ static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 		return -ENOMEM;
 
 	ctx->uid = cmd.uid;
-	cm_id = __rdma_create_id(current->nsproxy->net_ns,
-				 ucma_event_handler, ctx, cmd.ps, qp_type, NULL);
+	cm_id = rdma_create_user_id(ucma_event_handler, ctx, cmd.ps, qp_type);
 	if (IS_ERR(cm_id)) {
 		ret = PTR_ERR(cm_id);
 		goto err1;
@@ -1126,7 +1125,7 @@ static ssize_t ucma_accept(struct ucma_file *file, const char __user *inbuf,
 		ucma_copy_conn_param(ctx->cm_id, &conn_param, &cmd.conn_param);
 		mutex_lock(&ctx->mutex);
 		rdma_lock_handler(ctx->cm_id);
-		ret = __rdma_accept_ece(ctx->cm_id, &conn_param, NULL, &ece);
+		ret = rdma_accept_ece(ctx->cm_id, &conn_param, &ece);
 		if (!ret) {
 			/* The uid must be set atomically with the handler */
 			ctx->uid = cmd.uid;
@@ -1136,7 +1135,7 @@ static ssize_t ucma_accept(struct ucma_file *file, const char __user *inbuf,
 	} else {
 		mutex_lock(&ctx->mutex);
 		rdma_lock_handler(ctx->cm_id);
-		ret = __rdma_accept_ece(ctx->cm_id, NULL, NULL, &ece);
+		ret = rdma_accept_ece(ctx->cm_id, NULL, &ece);
 		rdma_unlock_handler(ctx->cm_id);
 		mutex_unlock(&ctx->mutex);
 	}

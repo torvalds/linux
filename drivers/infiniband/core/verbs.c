@@ -273,7 +273,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	pd->flags = flags;
 
 	rdma_restrack_new(&pd->res, RDMA_RESTRACK_PD);
-	rdma_restrack_set_task(&pd->res, caller);
+	rdma_restrack_set_name(&pd->res, caller);
 
 	ret = device->ops.alloc_pd(pd, NULL);
 	if (ret) {
@@ -1999,7 +1999,7 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 	atomic_set(&cq->usecnt, 0);
 
 	rdma_restrack_new(&cq->res, RDMA_RESTRACK_CQ);
-	rdma_restrack_set_task(&cq->res, caller);
+	rdma_restrack_set_name(&cq->res, caller);
 
 	ret = device->ops.create_cq(cq, cq_attr, NULL);
 	if (ret) {
@@ -2081,7 +2081,7 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	atomic_inc(&pd->usecnt);
 
 	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
-	rdma_restrack_set_task(&mr->res, pd->res.kern_name);
+	rdma_restrack_parent_name(&mr->res, &pd->res);
 	rdma_restrack_add(&mr->res);
 
 	return mr;
@@ -2165,7 +2165,7 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	mr->sig_attrs = NULL;
 
 	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
-	rdma_restrack_set_task(&mr->res, pd->res.kern_name);
+	rdma_restrack_parent_name(&mr->res, &pd->res);
 	rdma_restrack_add(&mr->res);
 out:
 	trace_mr_alloc(pd, mr_type, max_num_sg, mr);
@@ -2226,7 +2226,7 @@ struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
 	mr->sig_attrs = sig_attrs;
 
 	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
-	rdma_restrack_set_task(&mr->res, pd->res.kern_name);
+	rdma_restrack_parent_name(&mr->res, &pd->res);
 	rdma_restrack_add(&mr->res);
 out:
 	trace_mr_integ_alloc(pd, max_num_data_sg, max_num_meta_sg, mr);

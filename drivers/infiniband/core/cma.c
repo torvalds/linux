@@ -453,10 +453,8 @@ static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 	id_priv->id.route.addr.dev_addr.transport =
 		rdma_node_get_transport(cma_dev->device->node_type);
 	list_add_tail(&id_priv->list, &cma_dev->id_list);
-	if (id_priv->res.kern_name)
-		rdma_restrack_add(&id_priv->res);
-	else
-		rdma_restrack_uadd(&id_priv->res);
+	rdma_restrack_add(&id_priv->res);
+
 	trace_cm_id_attach(id_priv, cma_dev->device);
 }
 
@@ -822,10 +820,10 @@ static void cma_id_put(struct rdma_id_private *id_priv)
 		complete(&id_priv->comp);
 }
 
-struct rdma_cm_id *__rdma_create_id(struct net *net,
-				    rdma_cm_event_handler event_handler,
-				    void *context, enum rdma_ucm_port_space ps,
-				    enum ib_qp_type qp_type, const char *caller)
+static struct rdma_id_private *
+__rdma_create_id(struct net *net, rdma_cm_event_handler event_handler,
+		 void *context, enum rdma_ucm_port_space ps,
+		 enum ib_qp_type qp_type, const struct rdma_id_private *parent)
 {
 	struct rdma_id_private *id_priv;
 
@@ -853,11 +851,44 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
 	id_priv->seq_num &= 0x00ffffff;
 
 	rdma_restrack_new(&id_priv->res, RDMA_RESTRACK_CM_ID);
-	rdma_restrack_set_task(&id_priv->res, caller);
+	if (parent)
+		rdma_restrack_parent_name(&id_priv->res, &parent->res);
 
-	return &id_priv->id;
+	return id_priv;
 }
-EXPORT_SYMBOL(__rdma_create_id);
+
+struct rdma_cm_id *
+__rdma_create_kernel_id(struct net *net, rdma_cm_event_handler event_handler,
+			void *context, enum rdma_ucm_port_space ps,
+			enum ib_qp_type qp_type, const char *caller)
+{
+	struct rdma_id_private *ret;
+
+	ret = __rdma_create_id(net, event_handler, context, ps, qp_type, NULL);
+	if (IS_ERR(ret))
+		return ERR_CAST(ret);
+
+	rdma_restrack_set_name(&ret->res, caller);
+	return &ret->id;
+}
+EXPORT_SYMBOL(__rdma_create_kernel_id);
+
+struct rdma_cm_id *rdma_create_user_id(rdma_cm_event_handler event_handler,
+				       void *context,
+				       enum rdma_ucm_port_space ps,
+				       enum ib_qp_type qp_type)
+{
+	struct rdma_id_private *ret;
+
+	ret = __rdma_create_id(current->nsproxy->net_ns, event_handler, context,
+			       ps, qp_type, NULL);
+	if (IS_ERR(ret))
+		return ERR_CAST(ret);
+
+	rdma_restrack_set_name(&ret->res, NULL);
+	return &ret->id;
+}
+EXPORT_SYMBOL(rdma_create_user_id);
 
 static int cma_init_ud_qp(struct rdma_id_private *id_priv, struct ib_qp *qp)
 {
@@ -2029,14 +2060,15 @@ cma_ib_new_conn_id(const struct rdma_cm_id *listen_id,
 	int ret;
 
 	listen_id_priv = container_of(listen_id, struct rdma_id_private, id);
-	id = __rdma_create_id(listen_id->route.addr.dev_addr.net,
-			    listen_id->event_handler, listen_id->context,
-			    listen_id->ps, ib_event->param.req_rcvd.qp_type,
-			    listen_id_priv->res.kern_name);
-	if (IS_ERR(id))
+	id_priv = __rdma_create_id(listen_id->route.addr.dev_addr.net,
+				   listen_id->event_handler, listen_id->context,
+				   listen_id->ps,
+				   ib_event->param.req_rcvd.qp_type,
+				   listen_id_priv);
+	if (IS_ERR(id_priv))
 		return NULL;
 
-	id_priv = container_of(id, struct rdma_id_private, id);
+	id = &id_priv->id;
 	if (cma_save_net_info((struct sockaddr *)&id->route.addr.src_addr,
 			      (struct sockaddr *)&id->route.addr.dst_addr,
 			      listen_id, ib_event, ss_family, service_id))
@@ -2090,13 +2122,13 @@ cma_ib_new_udp_id(const struct rdma_cm_id *listen_id,
 	int ret;
 
 	listen_id_priv = container_of(listen_id, struct rdma_id_private, id);
-	id = __rdma_create_id(net, listen_id->event_handler, listen_id->context,
-			      listen_id->ps, IB_QPT_UD,
-			      listen_id_priv->res.kern_name);
-	if (IS_ERR(id))
+	id_priv = __rdma_create_id(net, listen_id->event_handler,
+				   listen_id->context, listen_id->ps, IB_QPT_UD,
+				   listen_id_priv);
+	if (IS_ERR(id_priv))
 		return NULL;
 
-	id_priv = container_of(id, struct rdma_id_private, id);
+	id = &id_priv->id;
 	if (cma_save_net_info((struct sockaddr *)&id->route.addr.src_addr,
 			      (struct sockaddr *)&id->route.addr.dst_addr,
 			      listen_id, ib_event, ss_family,
@@ -2332,7 +2364,6 @@ out:
 static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 			       struct iw_cm_event *iw_event)
 {
-	struct rdma_cm_id *new_cm_id;
 	struct rdma_id_private *listen_id, *conn_id;
 	struct rdma_cm_event event = {};
 	int ret = -ECONNABORTED;
@@ -2352,16 +2383,14 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 		goto out;
 
 	/* Create a new RDMA id for the new IW CM ID */
-	new_cm_id = __rdma_create_id(listen_id->id.route.addr.dev_addr.net,
-				     listen_id->id.event_handler,
-				     listen_id->id.context,
-				     RDMA_PS_TCP, IB_QPT_RC,
-				     listen_id->res.kern_name);
-	if (IS_ERR(new_cm_id)) {
+	conn_id = __rdma_create_id(listen_id->id.route.addr.dev_addr.net,
+				   listen_id->id.event_handler,
+				   listen_id->id.context, RDMA_PS_TCP,
+				   IB_QPT_RC, listen_id);
+	if (IS_ERR(conn_id)) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	conn_id = container_of(new_cm_id, struct rdma_id_private, id);
 	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
 	conn_id->state = RDMA_CM_CONNECT;
 
@@ -2466,7 +2495,6 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 			      struct cma_device *cma_dev)
 {
 	struct rdma_id_private *dev_id_priv;
-	struct rdma_cm_id *id;
 	struct net *net = id_priv->id.route.addr.dev_addr.net;
 	int ret;
 
@@ -2475,12 +2503,11 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 	if (cma_family(id_priv) == AF_IB && !rdma_cap_ib_cm(cma_dev->device, 1))
 		return;
 
-	id = __rdma_create_id(net, cma_listen_handler, id_priv, id_priv->id.ps,
-			      id_priv->id.qp_type, id_priv->res.kern_name);
-	if (IS_ERR(id))
+	dev_id_priv =
+		__rdma_create_id(net, cma_listen_handler, id_priv,
+				 id_priv->id.ps, id_priv->id.qp_type, id_priv);
+	if (IS_ERR(dev_id_priv))
 		return;
-
-	dev_id_priv = container_of(id, struct rdma_id_private, id);
 
 	dev_id_priv->state = RDMA_CM_ADDR_BOUND;
 	memcpy(cma_src_addr(dev_id_priv), cma_src_addr(id_priv),
@@ -2494,7 +2521,7 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 	dev_id_priv->tos_set = id_priv->tos_set;
 	dev_id_priv->tos = id_priv->tos;
 
-	ret = rdma_listen(id, id_priv->backlog);
+	ret = rdma_listen(&dev_id_priv->id, id_priv->backlog);
 	if (ret)
 		dev_warn(&cma_dev->device->dev,
 			 "RDMA CMA: cma_listen_on_dev, error %d\n", ret);
@@ -4149,16 +4176,31 @@ static int cma_send_sidr_rep(struct rdma_id_private *id_priv,
 	return ib_send_cm_sidr_rep(id_priv->cm_id.ib, &rep);
 }
 
-int __rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
-		  const char *caller)
+/**
+ * rdma_accept - Called to accept a connection request or response.
+ * @id: Connection identifier associated with the request.
+ * @conn_param: Information needed to establish the connection.  This must be
+ *   provided if accepting a connection request.  If accepting a connection
+ *   response, this parameter must be NULL.
+ *
+ * Typically, this routine is only called by the listener to accept a connection
+ * request.  It must also be called on the active side of a connection if the
+ * user is performing their own QP transitions.
+ *
+ * In the case of error, a reject message is sent to the remote side and the
+ * state of the qp associated with the id is modified to error, such that any
+ * previously posted receive buffers would be flushed.
+ *
+ * This function is for use by kernel ULPs and must be called from under the
+ * handler callback.
+ */
+int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 {
 	struct rdma_id_private *id_priv =
 		container_of(id, struct rdma_id_private, id);
 	int ret;
 
 	lockdep_assert_held(&id_priv->handler_mutex);
-
-	rdma_restrack_set_task(&id_priv->res, caller);
 
 	if (READ_ONCE(id_priv->state) != RDMA_CM_CONNECT)
 		return -EINVAL;
@@ -4198,10 +4240,10 @@ reject:
 	rdma_reject(id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINED);
 	return ret;
 }
-EXPORT_SYMBOL(__rdma_accept);
+EXPORT_SYMBOL(rdma_accept);
 
-int __rdma_accept_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
-		      const char *caller, struct rdma_ucm_ece *ece)
+int rdma_accept_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		    struct rdma_ucm_ece *ece)
 {
 	struct rdma_id_private *id_priv =
 		container_of(id, struct rdma_id_private, id);
@@ -4209,9 +4251,9 @@ int __rdma_accept_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
 	id_priv->ece.vendor_id = ece->vendor_id;
 	id_priv->ece.attr_mod = ece->attr_mod;
 
-	return __rdma_accept(id, conn_param, caller);
+	return rdma_accept(id, conn_param);
 }
-EXPORT_SYMBOL(__rdma_accept_ece);
+EXPORT_SYMBOL(rdma_accept_ece);
 
 void rdma_lock_handler(struct rdma_cm_id *id)
 {
