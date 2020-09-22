@@ -40,7 +40,7 @@ struct memcard {
 	u32 blocklen;
 	u32 writecnt;
 	u32 readcnt;
-	u32 removeable;
+	u32 removable;
 	int partition;
 	int read;
 	unsigned char *blockread;
@@ -619,7 +619,7 @@ static int vmu_connect(struct maple_device *mdev)
 	card->blocklen = ((basic_flash_data >> 16 & 0xFF) + 1) << 5;
 	card->writecnt = basic_flash_data >> 12 & 0xF;
 	card->readcnt = basic_flash_data >> 8 & 0xF;
-	card->removeable = basic_flash_data >> 7 & 1;
+	card->removable = basic_flash_data >> 7 & 1;
 
 	card->partition = 0;
 
