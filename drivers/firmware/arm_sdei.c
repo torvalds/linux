@@ -114,26 +114,7 @@ static int sdei_to_linux_errno(unsigned long sdei_err)
 		return -ENOMEM;
 	}
 
-	/* Not an error value ... */
-	return sdei_err;
-}
-
-/*
- * If x0 is any of these values, then the call failed, use sdei_to_linux_errno()
- * to translate.
- */
-static int sdei_is_err(struct arm_smccc_res *res)
-{
-	switch (res->a0) {
-	case SDEI_NOT_SUPPORTED:
-	case SDEI_INVALID_PARAMETERS:
-	case SDEI_DENIED:
-	case SDEI_PENDING:
-	case SDEI_OUT_OF_RESOURCE:
-		return true;
-	}
-
-	return false;
+	return 0;
 }
 
 static int invoke_sdei_fn(unsigned long function_id, unsigned long arg0,
@@ -141,14 +122,13 @@ static int invoke_sdei_fn(unsigned long function_id, unsigned long arg0,
 			  unsigned long arg3, unsigned long arg4,
 			  u64 *result)
 {
-	int err = 0;
+	int err;
 	struct arm_smccc_res res;
 
 	if (sdei_firmware_call) {
 		sdei_firmware_call(function_id, arg0, arg1, arg2, arg3, arg4,
 				   &res);
-		if (sdei_is_err(&res))
-			err = sdei_to_linux_errno(res.a0);
+		err = sdei_to_linux_errno(res.a0);
 	} else {
 		/*
 		 * !sdei_firmware_call means we failed to probe or called
