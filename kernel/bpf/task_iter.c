@@ -29,8 +29,9 @@ static struct task_struct *task_seq_get_next(struct pid_namespace *ns,
 
 	rcu_read_lock();
 retry:
-	pid = idr_get_next(&ns->idr, tid);
+	pid = find_ge_pid(*tid, ns);
 	if (pid) {
+		*tid = pid_nr_ns(pid, ns);
 		task = get_pid_task(pid, PIDTYPE_PID);
 		if (!task) {
 			++*tid;
@@ -178,10 +179,11 @@ again:
 		f = fcheck_files(curr_files, curr_fd);
 		if (!f)
 			continue;
+		if (!get_file_rcu(f))
+			continue;
 
 		/* set info->fd */
 		info->fd = curr_fd;
-		get_file(f);
 		rcu_read_unlock();
 		return f;
 	}

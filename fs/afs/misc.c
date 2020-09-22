@@ -120,42 +120,42 @@ void afs_prioritise_error(struct afs_error *e, int error, u32 abort_code)
 		if (e->error == -ETIMEDOUT ||
 		    e->error == -ETIME)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -ETIMEDOUT:
 	case -ETIME:
 		if (e->error == -ENOMEM ||
 		    e->error == -ENONET)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -ENOMEM:
 	case -ENONET:
 		if (e->error == -ERFKILL)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -ERFKILL:
 		if (e->error == -EADDRNOTAVAIL)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -EADDRNOTAVAIL:
 		if (e->error == -ENETUNREACH)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -ENETUNREACH:
 		if (e->error == -EHOSTUNREACH)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -EHOSTUNREACH:
 		if (e->error == -EHOSTDOWN)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -EHOSTDOWN:
 		if (e->error == -ECONNREFUSED)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -ECONNREFUSED:
 		if (e->error == -ECONNRESET)
 			return;
-		/* Fall through */
+		fallthrough;
 	case -ECONNRESET: /* Responded, but call expired. */
 		if (e->responded)
 			return;

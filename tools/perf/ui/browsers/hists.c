@@ -3629,14 +3629,15 @@ int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 {
 	int nr_entries = evlist->core.nr_entries;
 
-single_entry:
 	if (perf_evlist__single_entry(evlist)) {
+single_entry: {
 		struct evsel *first = evlist__first(evlist);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,
 						false, hbt, min_pcnt,
 						env, warn_lost_event,
 						annotation_opts);
+	}
 	}
 
 	if (symbol_conf.event_group) {

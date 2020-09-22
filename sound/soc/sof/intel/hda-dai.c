@@ -310,7 +310,7 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 			return ret;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		snd_hdac_ext_link_stream_start(link_dev);
@@ -333,7 +333,7 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 
 		link_dev->link_prepared = 0;
 
-		/* fallthrough */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		snd_hdac_ext_link_stream_clear(link_dev);
 		break;

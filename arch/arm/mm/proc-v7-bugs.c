@@ -71,7 +71,7 @@ static void cpu_v7_spectre_init(void)
 		/* Other ARM CPUs require no workaround */
 		if (read_cpuid_implementor() == ARM_CPU_IMP_ARM)
 			break;
-		/* fallthrough */
+		fallthrough;
 		/* Cortex A57/A72 require firmware workaround */
 	case ARM_CPU_PART_CORTEX_A57:
 	case ARM_CPU_PART_CORTEX_A72: {

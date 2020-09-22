@@ -56,9 +56,11 @@ struct read_counters_work {
 
 static struct workqueue_struct *read_counters_wq;
 
-static enum cluster get_cpu_cluster(u8 cpu)
+static void get_cpu_cluster(void *cluster)
 {
-	return MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 1);
+	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
+
+	*((uint32_t *)cluster) = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 }
 
 /*
@@ -186,8 +188,10 @@ static unsigned int tegra194_get_speed(u32 cpu)
 static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
 {
 	struct tegra194_cpufreq_data *data = cpufreq_get_driver_data();
-	int cl = get_cpu_cluster(policy->cpu);
 	u32 cpu;
+	u32 cl;
+
+	smp_call_function_single(policy->cpu, get_cpu_cluster, &cl, true);
 
 	if (cl >= data->num_clusters)
 		return -EINVAL;

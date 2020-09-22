@@ -1187,7 +1187,6 @@ csio_lns_online(struct csio_lnode *ln, enum csio_ln_ev evt)
 		break;
 
 	case CSIO_LNE_LINK_DOWN:
-		/* Fall through */
 	case CSIO_LNE_DOWN_LINK:
 		csio_set_state(&ln->sm, csio_lns_uninit);
 		if (csio_is_phys_ln(ln)) {

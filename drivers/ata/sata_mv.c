@@ -2010,7 +2010,7 @@ static void mv_rw_multi_errata_sata24(struct ata_queued_cmd *qc)
 				break;
 			case ATA_CMD_WRITE_MULTI_FUA_EXT:
 				tf->flags &= ~ATA_TFLAG_FUA; /* ugh */
-				/* fall through */
+				fallthrough;
 			case ATA_CMD_WRITE_MULTI_EXT:
 				tf->command = ATA_CMD_PIO_WRITE_EXT;
 				break;
@@ -2044,7 +2044,7 @@ static enum ata_completion_errors mv_qc_prep(struct ata_queued_cmd *qc)
 	case ATA_PROT_DMA:
 		if (tf->command == ATA_CMD_DSM)
 			return AC_ERR_OK;
-		/* fall-thru */
+		fallthrough;
 	case ATA_PROT_NCQ:
 		break;	/* continue below */
 	case ATA_PROT_PIO:
@@ -2296,7 +2296,7 @@ static unsigned int mv_qc_issue_fis(struct ata_queued_cmd *qc)
 	switch (qc->tf.protocol) {
 	case ATAPI_PROT_PIO:
 		pp->pp_flags |= MV_PP_FLAG_FAKE_ATA_BUSY;
-		/* fall through */
+		fallthrough;
 	case ATAPI_PROT_NODATA:
 		ap->hsm_task_state = HSM_ST_FIRST;
 		break;
@@ -2347,7 +2347,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 				return AC_ERR_OTHER;
 			break;  /* use bmdma for this */
 		}
-		/* fall thru */
+		fallthrough;
 	case ATA_PROT_NCQ:
 		mv_start_edma(ap, port_mmio, pp, qc->tf.protocol);
 		pp->req_idx = (pp->req_idx + 1) & MV_MAX_Q_DEPTH_MASK;
@@ -2376,7 +2376,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 				      ": attempting PIO w/multiple DRQ: "
 				      "this may fail due to h/w errata\n");
 		}
-		/* fall through */
+		fallthrough;
 	case ATA_PROT_NODATA:
 	case ATAPI_PROT_PIO:
 	case ATAPI_PROT_NODATA:
@@ -3864,7 +3864,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 				" and avoid the final two gigabytes on"
 				" all RocketRAID BIOS initialized drives.\n");
 		}
-		/* fall through */
+		fallthrough;
 	case chip_6042:
 		hpriv->ops = &mv6xxx_ops;
 		hp_flags |= MV_HP_GEN_IIE;

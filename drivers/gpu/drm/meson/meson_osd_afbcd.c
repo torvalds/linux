@@ -205,7 +205,7 @@ static int meson_g12a_afbcd_pixel_fmt(u64 modifier, uint32_t format)
 		/* YTR is forbidden for non XBGR formats */
 		if (modifier & AFBC_FORMAT_MOD_YTR)
 			return -EINVAL;
-	/* fall through */
+		fallthrough;
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
 		return MAFBC_FMT_RGBA8888;

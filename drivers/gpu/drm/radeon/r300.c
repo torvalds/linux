@@ -820,7 +820,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 					  ((idx_value >> 21) & 0xF));
 				return -EINVAL;
 			}
-			/* Fall through. */
+			fallthrough;
 		case 6:
 			track->cb[i].cpp = 4;
 			break;
@@ -971,7 +971,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 				return -EINVAL;
 			}
 			/* The same rules apply as for DXT3/5. */
-			/* Fall through. */
+			fallthrough;
 		case R300_TX_FORMAT_DXT3:
 		case R300_TX_FORMAT_DXT5:
 			track->textures[i].cpp = 1;

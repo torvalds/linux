@@ -893,8 +893,10 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		 * have OPP table for the device, while others don't and
 		 * opp_set_rate() just needs to behave like clk_set_rate().
 		 */
-		if (!_get_opp_count(opp_table))
-			return 0;
+		if (!_get_opp_count(opp_table)) {
+			ret = 0;
+			goto put_opp_table;
+		}
 
 		if (!opp_table->required_opp_tables && !opp_table->regulators &&
 		    !opp_table->paths) {
@@ -905,7 +907,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 		ret = _set_opp_bw(opp_table, NULL, dev, true);
 		if (ret)
-			return ret;
+			goto put_opp_table;
 
 		if (opp_table->regulator_enabled) {
 			regulator_disable(opp_table->regulators[0]);
@@ -932,10 +934,13 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 	/* Return early if nothing to do */
 	if (old_freq == freq) {
-		dev_dbg(dev, "%s: old/new frequencies (%lu Hz) are same, nothing to do\n",
-			__func__, freq);
-		ret = 0;
-		goto put_opp_table;
+		if (!opp_table->required_opp_tables && !opp_table->regulators &&
+		    !opp_table->paths) {
+			dev_dbg(dev, "%s: old/new frequencies (%lu Hz) are same, nothing to do\n",
+				__func__, freq);
+			ret = 0;
+			goto put_opp_table;
+		}
 	}
 
 	/*
@@ -1291,13 +1296,19 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 
-void _opp_remove_all_static(struct opp_table *opp_table)
+bool _opp_remove_all_static(struct opp_table *opp_table)
 {
 	struct dev_pm_opp *opp, *tmp;
+	bool ret = true;
 
 	mutex_lock(&opp_table->lock);
 
-	if (!opp_table->parsed_static_opps || --opp_table->parsed_static_opps)
+	if (!opp_table->parsed_static_opps) {
+		ret = false;
+		goto unlock;
+	}
+
+	if (--opp_table->parsed_static_opps)
 		goto unlock;
 
 	list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
@@ -1307,6 +1318,8 @@ void _opp_remove_all_static(struct opp_table *opp_table)
 
 unlock:
 	mutex_unlock(&opp_table->lock);
+
+	return ret;
 }
 
 /**
@@ -2409,12 +2422,14 @@ void _dev_pm_opp_find_and_remove_table(struct device *dev)
 		return;
 	}
 
-	_opp_remove_all_static(opp_table);
+	/*
+	 * Drop the extra reference only if the OPP table was successfully added
+	 * with dev_pm_opp_of_add_table() earlier.
+	 **/
+	if (_opp_remove_all_static(opp_table))
+		dev_pm_opp_put_opp_table(opp_table);
 
 	/* Drop reference taken by _find_opp_table() */
-	dev_pm_opp_put_opp_table(opp_table);
-
-	/* Drop reference taken while the OPP table was added */
 	dev_pm_opp_put_opp_table(opp_table);
 }
 

@@ -127,7 +127,7 @@ iomap_seek_hole_actor(struct inode *inode, loff_t offset, loff_t length,
 						   SEEK_HOLE);
 		if (offset < 0)
 			return length;
-		/* fall through */
+		fallthrough;
 	case IOMAP_HOLE:
 		*(loff_t *)data = offset;
 		return 0;
@@ -175,7 +175,7 @@ iomap_seek_data_actor(struct inode *inode, loff_t offset, loff_t length,
 						   SEEK_DATA);
 		if (offset < 0)
 			return length;
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		*(loff_t *)data = offset;
 		return 0;

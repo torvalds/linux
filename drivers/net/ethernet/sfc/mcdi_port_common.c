@@ -282,7 +282,7 @@ void efx_mcdi_phy_decode_link(struct efx_nic *efx,
 		break;
 	default:
 		WARN_ON(1);
-		/* Fall through */
+		fallthrough;
 	case MC_CMD_FCNTL_OFF:
 		link_state->fc = 0;
 		break;

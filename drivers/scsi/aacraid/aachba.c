@@ -2809,7 +2809,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 					    !(dev->raw_io_64) ||
 					    ((scsicmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
 						break;
-					/* fall through */
+					fallthrough;
 				case INQUIRY:
 				case READ_CAPACITY:
 				case TEST_UNIT_READY:
@@ -2884,7 +2884,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		/* Issue FIB to tell Firmware to flush it's cache */
 		if ((aac_cache & 6) != 2)
 			return aac_synchronize(scsicmd);
-		/* fall through */
+		fallthrough;
 	case INQUIRY:
 	{
 		struct inquiry_data inq_data;
@@ -3240,7 +3240,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				     SCSI_SENSE_BUFFERSIZE));
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case RESERVE:
 	case RELEASE:
 	case REZERO_UNIT:
@@ -3253,7 +3253,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	case START_STOP:
 		return aac_start_stop(scsicmd);
 
-	/* FALLTHRU */
+		fallthrough;
 	default:
 	/*
 	 *	Unhandled commands

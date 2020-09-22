@@ -33,12 +33,14 @@
 
 struct vfio_pci_ioeventfd {
 	struct list_head	next;
+	struct vfio_pci_device	*vdev;
 	struct virqfd		*virqfd;
 	void __iomem		*addr;
 	uint64_t		data;
 	loff_t			pos;
 	int			bar;
 	int			count;
+	bool			test_mem;
 };
 
 struct vfio_pci_irq_ctx {

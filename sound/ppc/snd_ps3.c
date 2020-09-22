@@ -227,14 +227,14 @@ static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 	switch (filltype) {
 	case SND_PS3_DMA_FILLTYPE_SILENT_FIRSTFILL:
 		silent = 1;
-		/* intentionally fall thru */
+		fallthrough;
 	case SND_PS3_DMA_FILLTYPE_FIRSTFILL:
 		ch0_kick_event = PS3_AUDIO_KICK_EVENT_ALWAYS;
 		break;
 
 	case SND_PS3_DMA_FILLTYPE_SILENT_RUNNING:
 		silent = 1;
-		/* intentionally fall thru */
+		fallthrough;
 	case SND_PS3_DMA_FILLTYPE_RUNNING:
 		ch0_kick_event = PS3_AUDIO_KICK_EVENT_SERIALOUT0_EMPTY;
 		break;

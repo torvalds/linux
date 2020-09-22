@@ -599,7 +599,7 @@ int scsi_check_sense(struct scsi_cmnd *scmd)
 			set_host_byte(scmd, DID_ALLOC_FAILURE);
 			return SUCCESS;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case COPY_ABORTED:
 	case VOLUME_OVERFLOW:
 	case MISCOMPARE:
@@ -621,7 +621,7 @@ int scsi_check_sense(struct scsi_cmnd *scmd)
 			return ADD_TO_MLQUEUE;
 		else
 			set_host_byte(scmd, DID_TARGET_FAILURE);
-		/* FALLTHROUGH */
+		fallthrough;
 
 	case ILLEGAL_REQUEST:
 		if (sshdr.asc == 0x20 || /* Invalid command operation code */
@@ -734,7 +734,7 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 	switch (status_byte(scmd->result)) {
 	case GOOD:
 		scsi_handle_queue_ramp_up(scmd->device);
-		/* FALLTHROUGH */
+		fallthrough;
 	case COMMAND_TERMINATED:
 		return SUCCESS;
 	case CHECK_CONDITION:
@@ -755,7 +755,7 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 		return FAILED;
 	case QUEUE_FULL:
 		scsi_handle_queue_full(scmd->device);
-		/* fall through */
+		fallthrough;
 	case BUSY:
 		return NEEDS_RETRY;
 	default:
@@ -1302,7 +1302,7 @@ retry_tur:
 	case NEEDS_RETRY:
 		if (retry_cnt--)
 			goto retry_tur;
-		/*FALLTHRU*/
+		fallthrough;
 	case SUCCESS:
 		return 0;
 	default:
@@ -1739,7 +1739,7 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 		if (msg_byte(scmd->result) == COMMAND_COMPLETE &&
 		    status_byte(scmd->result) == RESERVATION_CONFLICT)
 			return 0;
-		/* fall through */
+		fallthrough;
 	case DID_SOFT_ERROR:
 		return (scmd->request->cmd_flags & REQ_FAILFAST_DRIVER);
 	}
@@ -1810,7 +1810,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 			set_host_byte(scmd, DID_TIME_OUT);
 			return SUCCESS;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case DID_NO_CONNECT:
 	case DID_BAD_TARGET:
 		/*
@@ -1854,7 +1854,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 			 * lower down
 			 */
 			break;
-		/* fallthrough */
+		fallthrough;
 	case DID_BUS_BUSY:
 	case DID_PARITY:
 		goto maybe_retry;
@@ -1892,7 +1892,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * the case of trying to send too many commands to a
 		 * tagged queueing device.
 		 */
-		/* FALLTHROUGH */
+		fallthrough;
 	case BUSY:
 		/*
 		 * device can't talk to us at the moment.  Should only
@@ -1905,7 +1905,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		if (scmd->cmnd[0] == REPORT_LUNS)
 			scmd->device->sdev_target->expecting_lun_change = 0;
 		scsi_handle_queue_ramp_up(scmd->device);
-		/* FALLTHROUGH */
+		fallthrough;
 	case COMMAND_TERMINATED:
 		return SUCCESS;
 	case TASK_ABORTED:
@@ -2376,22 +2376,22 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 		rtn = scsi_try_bus_device_reset(scmd);
 		if (rtn == SUCCESS || (val & SG_SCSI_RESET_NO_ESCALATE))
 			break;
-		/* FALLTHROUGH */
+		fallthrough;
 	case SG_SCSI_RESET_TARGET:
 		rtn = scsi_try_target_reset(scmd);
 		if (rtn == SUCCESS || (val & SG_SCSI_RESET_NO_ESCALATE))
 			break;
-		/* FALLTHROUGH */
+		fallthrough;
 	case SG_SCSI_RESET_BUS:
 		rtn = scsi_try_bus_reset(scmd);
 		if (rtn == SUCCESS || (val & SG_SCSI_RESET_NO_ESCALATE))
 			break;
-		/* FALLTHROUGH */
+		fallthrough;
 	case SG_SCSI_RESET_HOST:
 		rtn = scsi_try_host_reset(scmd);
 		if (rtn == SUCCESS)
 			break;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		rtn = FAILED;
 		break;

@@ -419,7 +419,7 @@ static int arcfb_ioctl(struct fb_info *info,
 			schedule();
 			finish_wait(&arcfb_waitq, &wait);
 		}
-		/* fall through */
+			fallthrough;
 
 		case FBIO_GETCONTROL2:
 		{

@@ -1680,7 +1680,7 @@ static void recal_interrupt(void)
 			clear_bit(FD_DISK_NEWCHANGE_BIT,
 				  &drive_state[current_drive].flags);
 			drive_state[current_drive].select_date = jiffies;
-			/* fall through */
+			fallthrough;
 		default:
 			debugt(__func__, "default");
 			/* Recalibrate moves the head by at
@@ -3592,7 +3592,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 		if (poll_drive(true, FD_RAW_NEED_DISK) == -EINTR)
 			return -EINTR;
 		process_fd_request();
-		/* fall through */
+		fallthrough;
 	case FDGETDRVSTAT:
 		outparam = &drive_state[drive];
 		break;

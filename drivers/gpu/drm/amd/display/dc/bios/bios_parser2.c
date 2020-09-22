@@ -1108,6 +1108,18 @@ static enum bp_result bios_parser_enable_disp_power_gating(
 		action);
 }
 
+static enum bp_result bios_parser_enable_lvtma_control(
+	struct dc_bios *dcb,
+	uint8_t uc_pwr_on)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+
+	if (!bp->cmd_tbl.enable_lvtma_control)
+		return BP_RESULT_FAILURE;
+
+	return bp->cmd_tbl.enable_lvtma_control(bp, uc_pwr_on);
+}
+
 static bool bios_parser_is_accelerated_mode(
 	struct dc_bios *dcb)
 {
@@ -2208,7 +2220,9 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.get_board_layout_info = bios_get_board_layout_info,
 	.pack_data_tables = bios_parser_pack_data_tables,
 
-	.get_atom_dc_golden_table = bios_get_atom_dc_golden_table
+	.get_atom_dc_golden_table = bios_get_atom_dc_golden_table,
+
+	.enable_lvtma_control = bios_parser_enable_lvtma_control
 };
 
 static bool bios_parser2_construct(

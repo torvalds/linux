@@ -1367,7 +1367,7 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			ret = dax_load_hole(&xas, mapping, &entry, vmf);
 			goto finish_iomap;
 		}
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		WARN_ON_ONCE(1);
 		error = -EIO;

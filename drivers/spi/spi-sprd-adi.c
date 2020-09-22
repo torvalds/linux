@@ -506,7 +506,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 		default:
 			dev_err(&pdev->dev,
 				"failed to find hwlock id, %d\n", ret);
-			/* fall-through */
+			fallthrough;
 		case -EPROBE_DEFER:
 			goto put_ctlr;
 		}

@@ -1018,7 +1018,7 @@ int __init mac_platform_init(void)
 		 */
 		platform_device_register_simple("mac_scsi", 1,
 			mac_scsi_duo_rsrc, ARRAY_SIZE(mac_scsi_duo_rsrc));
-		/* fall through */
+		fallthrough;
 	case MAC_SCSI_OLD:
 		/* Addresses from Developer Notes for Duo System,
 		 * PowerBook 180 & 160, 140 & 170, Macintosh IIsi

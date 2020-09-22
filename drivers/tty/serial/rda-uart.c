@@ -259,7 +259,7 @@ static void rda_uart_set_termios(struct uart_port *port,
 	case CS5:
 	case CS6:
 		dev_warn(port->dev, "bit size not supported, using 7 bits\n");
-		/* Fall through */
+		fallthrough;
 	case CS7:
 		ctrl &= ~RDA_UART_DBITS_8;
 		break;

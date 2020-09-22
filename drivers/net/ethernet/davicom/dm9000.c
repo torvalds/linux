@@ -385,7 +385,7 @@ static void dm9000_set_io(struct board_info *db, int byte_width)
 
 	case 3:
 		dev_dbg(db->dev, ": 3 byte IO, falling back to 16bit\n");
-		/* fall through */
+		fallthrough;
 	case 2:
 		db->dumpblk = dm9000_dumpblk_16bit;
 		db->outblk  = dm9000_outblk_16bit;

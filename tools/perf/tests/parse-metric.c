@@ -70,6 +70,9 @@ static struct pmu_event pme_test[] = {
 {
 	.metric_expr	= "1/m3",
 	.metric_name	= "M3",
+},
+{
+	.name	= NULL,
 }
 };
 

@@ -250,9 +250,8 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		if (MLX5_CAP_GEN(dev->mdev, vport_counters) &&
 		    method == IB_MGMT_METHOD_GET)
 			return process_pma_cmd(dev, port_num, in, out);
-		/* fallthrough */
+		fallthrough;
 	case MLX5_IB_VENDOR_CLASS1:
-		/* fallthrough */
 	case MLX5_IB_VENDOR_CLASS2:
 	case IB_MGMT_CLASS_CONG_MGMT: {
 		if (method != IB_MGMT_METHOD_GET &&

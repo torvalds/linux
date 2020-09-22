@@ -124,6 +124,49 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 }
 
 /*
+ * Record the beginning of an RTT probe.
+ */
+static int rxrpc_begin_rtt_probe(struct rxrpc_call *call, rxrpc_serial_t serial,
+				 enum rxrpc_rtt_tx_trace why)
+{
+	unsigned long avail = call->rtt_avail;
+	int rtt_slot = 9;
+
+	if (!(avail & RXRPC_CALL_RTT_AVAIL_MASK))
+		goto no_slot;
+
+	rtt_slot = __ffs(avail & RXRPC_CALL_RTT_AVAIL_MASK);
+	if (!test_and_clear_bit(rtt_slot, &call->rtt_avail))
+		goto no_slot;
+
+	call->rtt_serial[rtt_slot] = serial;
+	call->rtt_sent_at[rtt_slot] = ktime_get_real();
+	smp_wmb(); /* Write data before avail bit */
+	set_bit(rtt_slot + RXRPC_CALL_RTT_PEND_SHIFT, &call->rtt_avail);
+
+	trace_rxrpc_rtt_tx(call, why, rtt_slot, serial);
+	return rtt_slot;
+
+no_slot:
+	trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_no_slot, rtt_slot, serial);
+	return -1;
+}
+
+/*
+ * Cancel an RTT probe.
+ */
+static void rxrpc_cancel_rtt_probe(struct rxrpc_call *call,
+				   rxrpc_serial_t serial, int rtt_slot)
+{
+	if (rtt_slot != -1) {
+		clear_bit(rtt_slot + RXRPC_CALL_RTT_PEND_SHIFT, &call->rtt_avail);
+		smp_wmb(); /* Clear pending bit before setting slot */
+		set_bit(rtt_slot, &call->rtt_avail);
+		trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_cancel, rtt_slot, serial);
+	}
+}
+
+/*
  * Send an ACK call packet.
  */
 int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
@@ -136,7 +179,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top;
 	size_t len, n;
-	int ret;
+	int ret, rtt_slot = -1;
 	u8 reason;
 
 	if (test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
@@ -196,18 +239,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	if (_serial)
 		*_serial = serial;
 
-	if (ping) {
-		call->ping_serial = serial;
-		smp_wmb();
-		/* We need to stick a time in before we send the packet in case
-		 * the reply gets back before kernel_sendmsg() completes - but
-		 * asking UDP to send the packet can take a relatively long
-		 * time.
-		 */
-		call->ping_time = ktime_get_real();
-		set_bit(RXRPC_CALL_PINGING, &call->flags);
-		trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_ping, serial);
-	}
+	if (ping)
+		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_ping);
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	conn->params.peer->last_tx_at = ktime_get_seconds();
@@ -221,8 +254,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		if (ret < 0) {
-			if (ping)
-				clear_bit(RXRPC_CALL_PINGING, &call->flags);
+			rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 			rxrpc_propose_ACK(call, pkt->ack.reason,
 					  ntohl(pkt->ack.serial),
 					  false, true,
@@ -321,7 +353,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	struct kvec iov[2];
 	rxrpc_serial_t serial;
 	size_t len;
-	int ret;
+	int ret, rtt_slot = -1;
 
 	_enter(",{%d}", skb->len);
 
@@ -397,6 +429,8 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	sp->hdr.serial = serial;
 	smp_wmb(); /* Set serial before timestamp */
 	skb->tstamp = ktime_get_real();
+	if (whdr.flags & RXRPC_REQUEST_ACK)
+		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_data);
 
 	/* send the packet by UDP
 	 * - returns -EMSGSIZE if UDP would have to fragment the packet
@@ -408,12 +442,15 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 
 	up_read(&conn->params.local->defrag_sem);
-	if (ret < 0)
+	if (ret < 0) {
+		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_data_nofrag);
-	else
+	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &whdr,
 				      rxrpc_tx_point_call_data_nofrag);
+	}
+
 	rxrpc_tx_backoff(call, ret);
 	if (ret == -EMSGSIZE)
 		goto send_fragmentable;
@@ -422,7 +459,6 @@ done:
 	if (ret >= 0) {
 		if (whdr.flags & RXRPC_REQUEST_ACK) {
 			call->peer->rtt_last_req = skb->tstamp;
-			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
 			if (call->peer->rtt_count > 1) {
 				unsigned long nowj = jiffies, ack_lost_at;
 
@@ -469,6 +505,8 @@ send_fragmentable:
 	sp->hdr.serial = serial;
 	smp_wmb(); /* Set serial before timestamp */
 	skb->tstamp = ktime_get_real();
+	if (whdr.flags & RXRPC_REQUEST_ACK)
+		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_data);
 
 	switch (conn->params.local->srx.transport.family) {
 	case AF_INET6:
@@ -487,12 +525,14 @@ send_fragmentable:
 		BUG();
 	}
 
-	if (ret < 0)
+	if (ret < 0) {
+		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_data_frag);
-	else
+	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &whdr,
 				      rxrpc_tx_point_call_data_frag);
+	}
 	rxrpc_tx_backoff(call, ret);
 
 	up_write(&conn->params.local->defrag_sem);

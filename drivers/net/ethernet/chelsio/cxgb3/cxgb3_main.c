@@ -2543,7 +2543,7 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		    !(data->phy_id & 0xe0e0))
 			data->phy_id = mdio_phy_id_c45(data->phy_id >> 8,
 						       data->phy_id & 0x1f);
-		/* FALLTHRU */
+		fallthrough;
 	case SIOCGMIIPHY:
 		return mdio_mii_ioctl(&pi->phy.mdio, data, cmd);
 	case SIOCCHIOCTL:

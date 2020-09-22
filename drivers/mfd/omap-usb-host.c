@@ -308,7 +308,7 @@ static int usbhs_runtime_resume(struct device *dev)
 					 i, r);
 				}
 			}
-		/* Fall through - as HSIC mode needs utmi_clk */
+			fallthrough;	/* as HSIC mode needs utmi_clk */
 
 		case OMAP_EHCI_PORT_MODE_TLL:
 			if (!IS_ERR(omap->utmi_clk[i])) {
@@ -344,7 +344,7 @@ static int usbhs_runtime_suspend(struct device *dev)
 
 			if (!IS_ERR(omap->hsic480m_clk[i]))
 				clk_disable_unprepare(omap->hsic480m_clk[i]);
-		/* Fall through - as utmi_clks were used in HSIC mode */
+			fallthrough;	/* as utmi_clks were used in HSIC mode */
 
 		case OMAP_EHCI_PORT_MODE_TLL:
 			if (!IS_ERR(omap->utmi_clk[i]))

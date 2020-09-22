@@ -846,6 +846,7 @@ struct efx_async_filter_insertion {
  * @timer_quantum_ns: Interrupt timer quantum, in nanoseconds
  * @timer_max_ns: Interrupt timer maximum value, in nanoseconds
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
+ * @irqs_hooked: Channel interrupts are hooked
  * @irq_rx_mod_step_us: Step size for IRQ moderation for RX event queues
  * @irq_rx_moderation_us: IRQ moderation time for RX event queues
  * @msg_enable: Log message enable flags
@@ -1004,6 +1005,7 @@ struct efx_nic {
 	unsigned int timer_quantum_ns;
 	unsigned int timer_max_ns;
 	bool irq_rx_adaptive;
+	bool irqs_hooked;
 	unsigned int irq_mod_step_us;
 	unsigned int irq_rx_moderation_us;
 	u32 msg_enable;
@@ -1265,6 +1267,7 @@ struct efx_udp_tunnel {
  * @rx_write: Write RX descriptors and doorbell
  * @rx_defer_refill: Generate a refill reminder event
  * @rx_packet: Receive the queued RX buffer on a channel
+ * @rx_buf_hash_valid: Determine whether the RX prefix contains a valid hash
  * @ev_probe: Allocate resources for event queue
  * @ev_init: Initialise event queue on the NIC
  * @ev_fini: Deinitialise event queue on the NIC
@@ -1409,6 +1412,7 @@ struct efx_nic_type {
 	void (*rx_write)(struct efx_rx_queue *rx_queue);
 	void (*rx_defer_refill)(struct efx_rx_queue *rx_queue);
 	void (*rx_packet)(struct efx_channel *channel);
+	bool (*rx_buf_hash_valid)(const u8 *prefix);
 	int (*ev_probe)(struct efx_channel *channel);
 	int (*ev_init)(struct efx_channel *channel);
 	void (*ev_fini)(struct efx_channel *channel);

@@ -240,17 +240,18 @@ int vega20_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int vega20_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)
 {
+	struct phm_ppt_v3_information *pptable_information =
+		(struct phm_ppt_v3_information *)hwmgr->pptable;
 	struct amdgpu_device *adev = hwmgr->adev;
-	int low = VEGA20_THERMAL_MINIMUM_ALERT_TEMP *
-			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	int high = VEGA20_THERMAL_MAXIMUM_ALERT_TEMP *
-			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	int low = VEGA20_THERMAL_MINIMUM_ALERT_TEMP;
+	int high = VEGA20_THERMAL_MAXIMUM_ALERT_TEMP;
 	uint32_t val;
 
-	if (low < range->min)
-		low = range->min;
-	if (high > range->max)
-		high = range->max;
+	/* compare them in unit celsius degree */
+	if (low < range->min / PP_TEMPERATURE_UNITS_PER_CENTIGRADES)
+		low = range->min / PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	if (high > pptable_information->us_software_shutdown_temp)
+		high = pptable_information->us_software_shutdown_temp;
 
 	if (low > high)
 		return -EINVAL;
@@ -259,8 +260,8 @@ static int vega20_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
-	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
-	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
+	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, high);
+	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, low);
 	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
 
 	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);

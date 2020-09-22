@@ -604,13 +604,13 @@ static void ti_sn_bridge_read_valid_rates(struct ti_sn_bridge *pdata,
 		DRM_DEV_ERROR(pdata->dev,
 			      "Unexpected max rate (%#x); assuming 5.4 GHz\n",
 			      (int)dpcd_val);
-		/* fall through */
+		fallthrough;
 	case DP_LINK_BW_5_4:
 		rate_valid[7] = 1;
-		/* fall through */
+		fallthrough;
 	case DP_LINK_BW_2_7:
 		rate_valid[4] = 1;
-		/* fall through */
+		fallthrough;
 	case DP_LINK_BW_1_62:
 		rate_valid[1] = 1;
 		break;

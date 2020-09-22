@@ -618,7 +618,9 @@ int cd_flavor_subdir(const char *exec_name)
 	if (!flavor)
 		return 0;
 	flavor++;
-	fprintf(stdout, "Switching to flavor '%s' subdirectory...\n", flavor);
+	if (env.verbosity > VERBOSE_NONE)
+		fprintf(stdout,	"Switching to flavor '%s' subdirectory...\n", flavor);
+
 	return chdir(flavor);
 }
 

@@ -273,10 +273,10 @@ static int max30102_read_measurement(struct max30102_data *data,
 	switch (measurements) {
 	case 3:
 		MAX30102_COPY_DATA(2);
-		/* fall through */
+		fallthrough;
 	case 2:
 		MAX30102_COPY_DATA(1);
-		/* fall through */
+		fallthrough;
 	case 1:
 		MAX30102_COPY_DATA(0);
 		break;

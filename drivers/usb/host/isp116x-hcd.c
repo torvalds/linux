@@ -1019,7 +1019,7 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 			spin_lock_irqsave(&isp116x->lock, flags);
 			isp116x_write_reg32(isp116x, HCRHSTATUS, RH_HS_OCIC);
 			spin_unlock_irqrestore(&isp116x->lock, flags);
-			/* fall through */
+			fallthrough;
 		case C_HUB_LOCAL_POWER:
 			DBG("C_HUB_LOCAL_POWER\n");
 			break;
@@ -1421,10 +1421,10 @@ static int isp116x_bus_suspend(struct usb_hcd *hcd)
 		isp116x_write_reg32(isp116x, HCCONTROL,
 				    (val & ~HCCONTROL_HCFS) |
 				    HCCONTROL_USB_RESET);
-		/* fall through */
+		fallthrough;
 	case HCCONTROL_USB_RESET:
 		ret = -EBUSY;
-		/* fall through */
+		fallthrough;
 	default:		/* HCCONTROL_USB_SUSPEND */
 		spin_unlock_irqrestore(&isp116x->lock, flags);
 		break;

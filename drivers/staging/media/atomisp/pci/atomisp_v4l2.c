@@ -1086,7 +1086,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		case RAW_CAMERA:
 			dev_dbg(isp->dev, "raw_index: %d\n", raw_index);
 			raw_index = isp->input_cnt;
-			/* fall through */
+			fallthrough;
 		case SOC_CAMERA:
 			dev_dbg(isp->dev, "SOC_INDEX: %d\n", isp->input_cnt);
 			if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {

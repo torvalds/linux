@@ -675,7 +675,7 @@ static int key_extract_l3l4(struct sk_buff *skb, struct sw_flow_key *key)
 			case -EINVAL:
 				memset(&key->ip, 0, sizeof(key->ip));
 				memset(&key->ipv6.addr, 0, sizeof(key->ipv6.addr));
-				/* fall-through */
+				fallthrough;
 			case -EPROTO:
 				skb->transport_header = skb->network_header;
 				error = 0;

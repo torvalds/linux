@@ -1433,7 +1433,7 @@ int md_bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long s
 		case 0:
 			md_bitmap_file_set_bit(bitmap, offset);
 			md_bitmap_count_page(&bitmap->counts, offset, 1);
-			/* fall through */
+			fallthrough;
 		case 1:
 			*bmc = 2;
 		}

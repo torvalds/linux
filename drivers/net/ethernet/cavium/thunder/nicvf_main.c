@@ -594,10 +594,10 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 		return true;
 	default:
 		bpf_warn_invalid_xdp_action(action);
-		/* fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(nic->netdev, prog, action);
-		/* fall through */
+		fallthrough;
 	case XDP_DROP:
 		/* Check if it's a recycled page, if not
 		 * unmap the DMA mapping.

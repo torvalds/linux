@@ -841,6 +841,9 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 	struct smc_init_info ini;
 	int lnk_idx, rc = 0;
 
+	if (!llc->qp_mtu)
+		goto out_reject;
+
 	ini.vlan_id = lgr->vlan_id;
 	smc_pnet_find_alt_roce(lgr, &ini, link->smcibdev);
 	if (!memcmp(llc->sender_gid, link->peer_gid, SMC_GID_SIZE) &&
@@ -917,10 +920,20 @@ out:
 	kfree(qentry);
 }
 
+static bool smc_llc_is_empty_llc_message(union smc_llc_msg *llc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(llc->raw.data); i++)
+		if (llc->raw.data[i])
+			return false;
+	return true;
+}
+
 static bool smc_llc_is_local_add_link(union smc_llc_msg *llc)
 {
 	if (llc->raw.hdr.common.type == SMC_LLC_ADD_LINK &&
-	    !llc->add_link.qp_mtu && !llc->add_link.link_num)
+	    smc_llc_is_empty_llc_message(llc))
 		return true;
 	return false;
 }

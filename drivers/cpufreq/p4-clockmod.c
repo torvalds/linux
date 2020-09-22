@@ -129,7 +129,7 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 			return speedstep_get_frequency(SPEEDSTEP_CPU_PCORE);
 		case 0x0D: /* Pentium M (Dothan) */
 			p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
-			/* fall through */
+			fallthrough;
 		case 0x09: /* Pentium M (Banias) */
 			return speedstep_get_frequency(SPEEDSTEP_CPU_PM);
 		}

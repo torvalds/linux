@@ -1489,36 +1489,35 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev)
 		iwdev->iw_status = 0;
 		i40iw_port_ibevent(iwdev);
 		i40iw_destroy_rdma_device(iwdev->iwibdev);
-		/* fallthrough */
+		fallthrough;
 	case IP_ADDR_REGISTERED:
 		if (!iwdev->reset)
 			i40iw_del_macip_entry(iwdev, (u8)iwdev->mac_ip_table_idx);
-		/* fallthrough */
-		/* fallthrough */
+		fallthrough;
 	case PBLE_CHUNK_MEM:
 		i40iw_destroy_pble_pool(dev, iwdev->pble_rsrc);
-		/* fallthrough */
+		fallthrough;
 	case CEQ_CREATED:
 		i40iw_dele_ceqs(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case AEQ_CREATED:
 		i40iw_destroy_aeq(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case IEQ_CREATED:
 		i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_IEQ, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case ILQ_CREATED:
 		i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_ILQ, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case CCQ_CREATED:
 		i40iw_destroy_ccq(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case HMC_OBJS_CREATED:
 		i40iw_del_hmc_objects(dev, dev->hmc_info, true, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case CQP_CREATED:
 		i40iw_destroy_cqp(iwdev, true);
-		/* fallthrough */
+		fallthrough;
 	case INITIAL_STATE:
 		i40iw_cleanup_cm_core(&iwdev->cm_core);
 		if (iwdev->vsi.pestat) {
@@ -1528,7 +1527,6 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev)
 		i40iw_del_init_mem(iwdev);
 		break;
 	case INVALID_STATE:
-		/* fallthrough */
 	default:
 		i40iw_pr_err("bad init_state = %d\n", iwdev->init_state);
 		break;

@@ -219,14 +219,13 @@ struct global_params {
  * @epp_policy:		Last saved policy used to set EPP/EPB
  * @epp_default:	Power on default HWP energy performance
  *			preference/bias
- * @epp_saved:		Saved EPP/EPB during system suspend or CPU offline
- *			operation
  * @epp_cached		Cached HWP energy-performance preference value
  * @hwp_req_cached:	Cached value of the last HWP Request MSR
  * @hwp_cap_cached:	Cached value of the last HWP Capabilities MSR
  * @last_io_update:	Last time when IO wake flag was set
  * @sched_flags:	Store scheduler flags for possible cross CPU update
  * @hwp_boost_min:	Last HWP boosted min performance
+ * @suspended:		Whether or not the driver has been suspended.
  *
  * This structure stores per CPU instance data for all CPUs.
  */
@@ -258,13 +257,13 @@ struct cpudata {
 	s16 epp_powersave;
 	s16 epp_policy;
 	s16 epp_default;
-	s16 epp_saved;
 	s16 epp_cached;
 	u64 hwp_req_cached;
 	u64 hwp_cap_cached;
 	u64 last_io_update;
 	unsigned int sched_flags;
 	u32 hwp_boost_min;
+	bool suspended;
 };
 
 static struct cpudata **all_cpu_data;
@@ -644,6 +643,8 @@ static int intel_pstate_get_energy_pref_index(struct cpudata *cpu_data, int *raw
 
 static int intel_pstate_set_epp(struct cpudata *cpu, u32 epp)
 {
+	int ret;
+
 	/*
 	 * Use the cached HWP Request MSR value, because in the active mode the
 	 * register itself may be updated by intel_pstate_hwp_boost_up() or
@@ -659,7 +660,11 @@ static int intel_pstate_set_epp(struct cpudata *cpu, u32 epp)
 	 * function, so it cannot run in parallel with the update below.
 	 */
 	WRITE_ONCE(cpu->hwp_req_cached, value);
-	return wrmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, value);
+	ret = wrmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, value);
+	if (!ret)
+		cpu->epp_cached = epp;
+
+	return ret;
 }
 
 static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
@@ -677,6 +682,14 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 			epp = raw_epp;
 		else if (epp == -EINVAL)
 			epp = epp_values[pref_index - 1];
+
+		/*
+		 * To avoid confusion, refuse to set EPP to any values different
+		 * from 0 (performance) if the current policy is "performance",
+		 * because those values would be overridden.
+		 */
+		if (epp > 0 && cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE)
+			return -EBUSY;
 
 		ret = intel_pstate_set_epp(cpu_data, epp);
 	} else {
@@ -762,10 +775,8 @@ static ssize_t store_energy_performance_preference(
 			cpufreq_stop_governor(policy);
 			ret = intel_pstate_set_epp(cpu, epp);
 			err = cpufreq_start_governor(policy);
-			if (!ret) {
-				cpu->epp_cached = epp;
+			if (!ret)
 				ret = err;
-			}
 		}
 	}
 
@@ -825,7 +836,7 @@ static void intel_pstate_get_hwp_max(unsigned int cpu, int *phy_max,
 
 	rdmsrl_on_cpu(cpu, MSR_HWP_CAPABILITIES, &cap);
 	WRITE_ONCE(all_cpu_data[cpu]->hwp_cap_cached, cap);
-	if (global.no_turbo)
+	if (global.no_turbo || global.turbo_disabled)
 		*current_max = HWP_GUARANTEED_PERF(cap);
 	else
 		*current_max = HWP_HIGHEST_PERF(cap);
@@ -859,12 +870,6 @@ static void intel_pstate_hwp_set(unsigned int cpu)
 
 	cpu_data->epp_policy = cpu_data->policy;
 
-	if (cpu_data->epp_saved >= 0) {
-		epp = cpu_data->epp_saved;
-		cpu_data->epp_saved = -EINVAL;
-		goto update_epp;
-	}
-
 	if (cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		epp = intel_pstate_get_epp(cpu_data, value);
 		cpu_data->epp_powersave = epp;
@@ -891,7 +896,6 @@ static void intel_pstate_hwp_set(unsigned int cpu)
 
 		epp = cpu_data->epp_powersave;
 	}
-update_epp:
 	if (boot_cpu_has(X86_FEATURE_HWP_EPP)) {
 		value &= ~GENMASK_ULL(31, 24);
 		value |= (u64)epp << 24;
@@ -903,14 +907,24 @@ skip_epp:
 	wrmsrl_on_cpu(cpu, MSR_HWP_REQUEST, value);
 }
 
-static void intel_pstate_hwp_force_min_perf(int cpu)
+static void intel_pstate_hwp_offline(struct cpudata *cpu)
 {
-	u64 value;
+	u64 value = READ_ONCE(cpu->hwp_req_cached);
 	int min_perf;
 
-	value = all_cpu_data[cpu]->hwp_req_cached;
+	if (boot_cpu_has(X86_FEATURE_HWP_EPP)) {
+		/*
+		 * In case the EPP has been set to "performance" by the
+		 * active mode "performance" scaling algorithm, replace that
+		 * temporary value with the cached EPP one.
+		 */
+		value &= ~GENMASK_ULL(31, 24);
+		value |= HWP_ENERGY_PERF_PREFERENCE(cpu->epp_cached);
+		WRITE_ONCE(cpu->hwp_req_cached, value);
+	}
+
 	value &= ~GENMASK_ULL(31, 0);
-	min_perf = HWP_LOWEST_PERF(all_cpu_data[cpu]->hwp_cap_cached);
+	min_perf = HWP_LOWEST_PERF(cpu->hwp_cap_cached);
 
 	/* Set hwp_max = hwp_min */
 	value |= HWP_MAX_PERF(min_perf);
@@ -920,19 +934,7 @@ static void intel_pstate_hwp_force_min_perf(int cpu)
 	if (boot_cpu_has(X86_FEATURE_HWP_EPP))
 		value |= HWP_ENERGY_PERF_PREFERENCE(HWP_EPP_POWERSAVE);
 
-	wrmsrl_on_cpu(cpu, MSR_HWP_REQUEST, value);
-}
-
-static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
-{
-	struct cpudata *cpu_data = all_cpu_data[policy->cpu];
-
-	if (!hwp_active)
-		return 0;
-
-	cpu_data->epp_saved = intel_pstate_get_epp(cpu_data, 0);
-
-	return 0;
+	wrmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, value);
 }
 
 #define POWER_CTL_EE_ENABLE	1
@@ -959,8 +961,28 @@ static void set_power_ctl_ee_state(bool input)
 
 static void intel_pstate_hwp_enable(struct cpudata *cpudata);
 
+static void intel_pstate_hwp_reenable(struct cpudata *cpu)
+{
+	intel_pstate_hwp_enable(cpu);
+	wrmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, READ_ONCE(cpu->hwp_req_cached));
+}
+
+static int intel_pstate_suspend(struct cpufreq_policy *policy)
+{
+	struct cpudata *cpu = all_cpu_data[policy->cpu];
+
+	pr_debug("CPU %d suspending\n", cpu->cpu);
+
+	cpu->suspended = true;
+
+	return 0;
+}
+
 static int intel_pstate_resume(struct cpufreq_policy *policy)
 {
+	struct cpudata *cpu = all_cpu_data[policy->cpu];
+
+	pr_debug("CPU %d resuming\n", cpu->cpu);
 
 	/* Only restore if the system default is changed */
 	if (power_ctl_ee_state == POWER_CTL_EE_ENABLE)
@@ -968,18 +990,16 @@ static int intel_pstate_resume(struct cpufreq_policy *policy)
 	else if (power_ctl_ee_state == POWER_CTL_EE_DISABLE)
 		set_power_ctl_ee_state(false);
 
-	if (!hwp_active)
-		return 0;
+	if (cpu->suspended && hwp_active) {
+		mutex_lock(&intel_pstate_limits_lock);
 
-	mutex_lock(&intel_pstate_limits_lock);
+		/* Re-enable HWP, because "online" has not done that. */
+		intel_pstate_hwp_reenable(cpu);
 
-	if (policy->cpu == 0)
-		intel_pstate_hwp_enable(all_cpu_data[policy->cpu]);
+		mutex_unlock(&intel_pstate_limits_lock);
+	}
 
-	all_cpu_data[policy->cpu]->epp_policy = 0;
-	intel_pstate_hwp_set(policy->cpu);
-
-	mutex_unlock(&intel_pstate_limits_lock);
+	cpu->suspended = false;
 
 	return 0;
 }
@@ -1428,7 +1448,6 @@ static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 		wrmsrl_on_cpu(cpudata->cpu, MSR_HWP_INTERRUPT, 0x00);
 
 	wrmsrl_on_cpu(cpudata->cpu, MSR_PM_ENABLE, 0x1);
-	cpudata->epp_policy = 0;
 	if (cpudata->epp_default == -EINVAL)
 		cpudata->epp_default = intel_pstate_get_epp(cpudata, 0);
 }
@@ -2097,24 +2116,30 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 		all_cpu_data[cpunum] = cpu;
 
+		cpu->cpu = cpunum;
+
 		cpu->epp_default = -EINVAL;
-		cpu->epp_powersave = -EINVAL;
-		cpu->epp_saved = -EINVAL;
+
+		if (hwp_active) {
+			const struct x86_cpu_id *id;
+
+			intel_pstate_hwp_enable(cpu);
+
+			id = x86_match_cpu(intel_pstate_hwp_boost_ids);
+			if (id && intel_pstate_acpi_pm_profile_server())
+				hwp_boost = true;
+		}
+	} else if (hwp_active) {
+		/*
+		 * Re-enable HWP in case this happens after a resume from ACPI
+		 * S3 if the CPU was offline during the whole system/resume
+		 * cycle.
+		 */
+		intel_pstate_hwp_reenable(cpu);
 	}
 
-	cpu = all_cpu_data[cpunum];
-
-	cpu->cpu = cpunum;
-
-	if (hwp_active) {
-		const struct x86_cpu_id *id;
-
-		intel_pstate_hwp_enable(cpu);
-
-		id = x86_match_cpu(intel_pstate_hwp_boost_ids);
-		if (id && intel_pstate_acpi_pm_profile_server())
-			hwp_boost = true;
-	}
+	cpu->epp_powersave = -EINVAL;
+	cpu->epp_policy = 0;
 
 	intel_pstate_get_cpu_pstates(cpu);
 
@@ -2296,28 +2321,61 @@ static int intel_pstate_verify_policy(struct cpufreq_policy_data *policy)
 	return 0;
 }
 
-static void intel_cpufreq_stop_cpu(struct cpufreq_policy *policy)
+static int intel_pstate_cpu_offline(struct cpufreq_policy *policy)
 {
+	struct cpudata *cpu = all_cpu_data[policy->cpu];
+
+	pr_debug("CPU %d going offline\n", cpu->cpu);
+
+	if (cpu->suspended)
+		return 0;
+
+	/*
+	 * If the CPU is an SMT thread and it goes offline with the performance
+	 * settings different from the minimum, it will prevent its sibling
+	 * from getting to lower performance levels, so force the minimum
+	 * performance on CPU offline to prevent that from happening.
+	 */
 	if (hwp_active)
-		intel_pstate_hwp_force_min_perf(policy->cpu);
+		intel_pstate_hwp_offline(cpu);
 	else
-		intel_pstate_set_min_pstate(all_cpu_data[policy->cpu]);
+		intel_pstate_set_min_pstate(cpu);
+
+	intel_pstate_exit_perf_limits(policy);
+
+	return 0;
+}
+
+static int intel_pstate_cpu_online(struct cpufreq_policy *policy)
+{
+	struct cpudata *cpu = all_cpu_data[policy->cpu];
+
+	pr_debug("CPU %d going online\n", cpu->cpu);
+
+	intel_pstate_init_acpi_perf_limits(policy);
+
+	if (hwp_active) {
+		/*
+		 * Re-enable HWP and clear the "suspended" flag to let "resume"
+		 * know that it need not do that.
+		 */
+		intel_pstate_hwp_reenable(cpu);
+		cpu->suspended = false;
+	}
+
+	return 0;
 }
 
 static void intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 {
-	pr_debug("CPU %d exiting\n", policy->cpu);
+	pr_debug("CPU %d stopping\n", policy->cpu);
 
 	intel_pstate_clear_update_util_hook(policy->cpu);
-	if (hwp_active)
-		intel_pstate_hwp_save_state(policy);
-
-	intel_cpufreq_stop_cpu(policy);
 }
 
 static int intel_pstate_cpu_exit(struct cpufreq_policy *policy)
 {
-	intel_pstate_exit_perf_limits(policy);
+	pr_debug("CPU %d exiting\n", policy->cpu);
 
 	policy->fast_switch_possible = false;
 
@@ -2378,6 +2436,12 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	 */
 	policy->policy = CPUFREQ_POLICY_POWERSAVE;
 
+	if (hwp_active) {
+		struct cpudata *cpu = all_cpu_data[policy->cpu];
+
+		cpu->epp_cached = intel_pstate_get_epp(cpu, 0);
+	}
+
 	return 0;
 }
 
@@ -2385,11 +2449,13 @@ static struct cpufreq_driver intel_pstate = {
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.verify		= intel_pstate_verify_policy,
 	.setpolicy	= intel_pstate_set_policy,
-	.suspend	= intel_pstate_hwp_save_state,
+	.suspend	= intel_pstate_suspend,
 	.resume		= intel_pstate_resume,
 	.init		= intel_pstate_cpu_init,
 	.exit		= intel_pstate_cpu_exit,
 	.stop_cpu	= intel_pstate_stop_cpu,
+	.offline	= intel_pstate_cpu_offline,
+	.online		= intel_pstate_cpu_online,
 	.update_limits	= intel_pstate_update_limits,
 	.name		= "intel_pstate",
 };
@@ -2585,7 +2651,7 @@ static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		policy->transition_delay_us = INTEL_CPUFREQ_TRANSITION_DELAY_HWP;
 		rdmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, &value);
 		WRITE_ONCE(cpu->hwp_req_cached, value);
-		cpu->epp_cached = (value & GENMASK_ULL(31, 24)) >> 24;
+		cpu->epp_cached = intel_pstate_get_epp(cpu, value);
 	} else {
 		turbo_max = cpu->pstate.turbo_pstate;
 		policy->transition_delay_us = INTEL_CPUFREQ_TRANSITION_DELAY;
@@ -2644,7 +2710,10 @@ static struct cpufreq_driver intel_cpufreq = {
 	.fast_switch	= intel_cpufreq_fast_switch,
 	.init		= intel_cpufreq_cpu_init,
 	.exit		= intel_cpufreq_cpu_exit,
-	.stop_cpu	= intel_cpufreq_stop_cpu,
+	.offline	= intel_pstate_cpu_offline,
+	.online		= intel_pstate_cpu_online,
+	.suspend	= intel_pstate_suspend,
+	.resume		= intel_pstate_resume,
 	.update_limits	= intel_pstate_update_limits,
 	.name		= "intel_cpufreq",
 };
@@ -2666,9 +2735,6 @@ static void intel_pstate_driver_cleanup(void)
 		}
 	}
 	put_online_cpus();
-
-	if (intel_pstate_driver == &intel_pstate)
-		intel_pstate_sysfs_hide_hwp_dynamic_boost();
 
 	intel_pstate_driver = NULL;
 }
@@ -2695,14 +2761,6 @@ static int intel_pstate_register_driver(struct cpufreq_driver *driver)
 	return 0;
 }
 
-static int intel_pstate_unregister_driver(void)
-{
-	cpufreq_unregister_driver(intel_pstate_driver);
-	intel_pstate_driver_cleanup();
-
-	return 0;
-}
-
 static ssize_t intel_pstate_show_status(char *buf)
 {
 	if (!intel_pstate_driver)
@@ -2714,20 +2772,23 @@ static ssize_t intel_pstate_show_status(char *buf)
 
 static int intel_pstate_update_status(const char *buf, size_t size)
 {
-	int ret;
+	if (size == 3 && !strncmp(buf, "off", size)) {
+		if (!intel_pstate_driver)
+			return -EINVAL;
 
-	if (size == 3 && !strncmp(buf, "off", size))
-		return intel_pstate_driver ?
-			intel_pstate_unregister_driver() : -EINVAL;
+		if (hwp_active)
+			return -EBUSY;
+
+		cpufreq_unregister_driver(intel_pstate_driver);
+		intel_pstate_driver_cleanup();
+	}
 
 	if (size == 6 && !strncmp(buf, "active", size)) {
 		if (intel_pstate_driver) {
 			if (intel_pstate_driver == &intel_pstate)
 				return 0;
 
-			ret = intel_pstate_unregister_driver();
-			if (ret)
-				return ret;
+			cpufreq_unregister_driver(intel_pstate_driver);
 		}
 
 		return intel_pstate_register_driver(&intel_pstate);
@@ -2738,9 +2799,8 @@ static int intel_pstate_update_status(const char *buf, size_t size)
 			if (intel_pstate_driver == &intel_cpufreq)
 				return 0;
 
-			ret = intel_pstate_unregister_driver();
-			if (ret)
-				return ret;
+			cpufreq_unregister_driver(intel_pstate_driver);
+			intel_pstate_sysfs_hide_hwp_dynamic_boost();
 		}
 
 		return intel_pstate_register_driver(&intel_cpufreq);

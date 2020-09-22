@@ -412,7 +412,7 @@ static void ceph_sock_state_change(struct sock *sk)
 	switch (sk->sk_state) {
 	case TCP_CLOSE:
 		dout("%s TCP_CLOSE\n", __func__);
-		/* fall through */
+		fallthrough;
 	case TCP_CLOSE_WAIT:
 		dout("%s TCP_CLOSE_WAIT\n", __func__);
 		con_sock_state_closing(con);
@@ -2751,7 +2751,7 @@ more:
 			switch (ret) {
 			case -EBADMSG:
 				con->error_msg = "bad crc/signature";
-				/* fall through */
+				fallthrough;
 			case -EBADE:
 				ret = -EIO;
 				break;

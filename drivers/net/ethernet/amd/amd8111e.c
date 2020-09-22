@@ -1475,7 +1475,7 @@ static int amd8111e_ioctl(struct net_device *dev , struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 		data->phy_id = lp->ext_phy_addr;
 
-	/* fallthru */
+		fallthrough;
 	case SIOCGMIIREG:
 
 		spin_lock_irq(&lp->lock);

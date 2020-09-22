@@ -393,7 +393,7 @@ void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m)
 
 	case XEN_NETIF_CTRL_HASH_ALGORITHM_NONE:
 		seq_puts(m, "Hash Algorithm: NONE\n");
-		/* FALLTHRU */
+		fallthrough;
 	default:
 		return;
 	}

@@ -84,9 +84,10 @@ static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 		return ERR_PTR(err);
 
 	switch (phy_mode) {
-	case PHY_INTERFACE_MODE_RGMII:		/* Fall through */
-	case PHY_INTERFACE_MODE_RGMII_ID	/* Fall through */:
-	case PHY_INTERFACE_MODE_RGMII_RXID:	/* Fall through */
+	case PHY_INTERFACE_MODE_RGMII:
+		fallthrough;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		gmac->phy_intf_sel = GMAC_CONFIG_INTF_RGMII;
 		break;

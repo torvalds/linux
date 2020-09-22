@@ -1009,7 +1009,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 			default:
 				dev_err(&pdev->dev, "Failed to get ext-amp-enable GPIO: %d\n",
 					ret_val);
-				/* fall through */
+				fallthrough;
 			case -EPROBE_DEFER:
 				put_device(codec_dev);
 				return ret_val;
@@ -1029,7 +1029,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 			default:
 				dev_err(&pdev->dev, "Failed to get hp-detect GPIO: %d\n",
 					ret_val);
-				/* fall through */
+				fallthrough;
 			case -EPROBE_DEFER:
 				put_device(codec_dev);
 				return ret_val;

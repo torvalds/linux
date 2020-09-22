@@ -548,7 +548,7 @@ void notrace restore_math(struct pt_regs *regs)
 	 * are live for the user thread).
 	 */
 	if ((!(msr & MSR_FP)) && should_restore_fp())
-		new_msr |= MSR_FP | current->thread.fpexc_mode;
+		new_msr |= MSR_FP;
 
 	if ((!(msr & MSR_VEC)) && should_restore_altivec())
 		new_msr |= MSR_VEC;
@@ -559,10 +559,16 @@ void notrace restore_math(struct pt_regs *regs)
 	}
 
 	if (new_msr) {
+		unsigned long fpexc_mode = 0;
+
 		msr_check_and_set(new_msr);
 
-		if (new_msr & MSR_FP)
+		if (new_msr & MSR_FP) {
 			do_restore_fp();
+
+			// This also covers VSX, because VSX implies FP
+			fpexc_mode = current->thread.fpexc_mode;
+		}
 
 		if (new_msr & MSR_VEC)
 			do_restore_altivec();
@@ -572,7 +578,7 @@ void notrace restore_math(struct pt_regs *regs)
 
 		msr_check_and_clear(new_msr);
 
-		regs->msr |= new_msr;
+		regs->msr |= new_msr | fpexc_mode;
 	}
 }
 #endif
