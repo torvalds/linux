@@ -4,6 +4,10 @@
 #ifndef MLX5_IFC_DR_STE_V1_H
 #define MLX5_IFC_DR_STE_V1_H
 
+enum mlx5_ifc_ste_v1_modify_hdr_offset {
+	MLX5_MODIFY_HEADER_V1_QW_OFFSET = 0x20,
+};
+
 struct mlx5_ifc_ste_single_action_flow_tag_v1_bits {
 	u8         action_id[0x8];
 	u8         flow_tag[0x18];
