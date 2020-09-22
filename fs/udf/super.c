@@ -854,7 +854,7 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 	uint8_t *outstr;
 	struct buffer_head *bh;
 	uint16_t ident;
-	int ret = -ENOMEM;
+	int ret;
 	struct timestamp *ts;
 
 	outstr = kmalloc(128, GFP_NOFS);
