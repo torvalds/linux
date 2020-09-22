@@ -207,6 +207,19 @@ static void max17040_check_changes(struct i2c_client *client)
 	max17040_get_status(client);
 }
 
+static void max17040_queue_work(struct max17040_chip *chip)
+{
+	queue_delayed_work(system_power_efficient_wq, &chip->work,
+			   MAX17040_DELAY);
+}
+
+static void max17040_stop_work(void *data)
+{
+	struct max17040_chip *chip = data;
+
+	cancel_delayed_work_sync(&chip->work);
+}
+
 static void max17040_work(struct work_struct *work)
 {
 	struct max17040_chip *chip;
@@ -223,8 +236,7 @@ static void max17040_work(struct work_struct *work)
 	if (last_soc != chip->soc || last_status != chip->status)
 		power_supply_changed(chip->battery);
 
-	queue_delayed_work(system_power_efficient_wq, &chip->work,
-			   MAX17040_DELAY);
+	max17040_queue_work(chip);
 }
 
 static irqreturn_t max17040_thread_handler(int id, void *dev)
@@ -339,7 +351,7 @@ static int max17040_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 	psy_cfg.drv_data = chip;
 
-	chip->battery = power_supply_register(&client->dev,
+	chip->battery = devm_power_supply_register(&client->dev,
 				&max17040_battery_desc, &psy_cfg);
 	if (IS_ERR(chip->battery)) {
 		dev_err(&client->dev, "failed: power supply register\n");
@@ -368,18 +380,11 @@ static int max17040_probe(struct i2c_client *client,
 	}
 
 	INIT_DEFERRABLE_WORK(&chip->work, max17040_work);
-	queue_delayed_work(system_power_efficient_wq, &chip->work,
-			   MAX17040_DELAY);
+	ret = devm_add_action(&client->dev, max17040_stop_work, chip);
+	if (ret)
+		return ret;
+	max17040_queue_work(chip);
 
-	return 0;
-}
-
-static int max17040_remove(struct i2c_client *client)
-{
-	struct max17040_chip *chip = i2c_get_clientdata(client);
-
-	power_supply_unregister(chip->battery);
-	cancel_delayed_work(&chip->work);
 	return 0;
 }
 
@@ -403,11 +408,10 @@ static int max17040_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	queue_delayed_work(system_power_efficient_wq, &chip->work,
-			   MAX17040_DELAY);
-
 	if (client->irq && device_may_wakeup(dev))
 		disable_irq_wake(client->irq);
+
+	max17040_queue_work(chip);
 
 	return 0;
 }
@@ -442,7 +446,6 @@ static struct i2c_driver max17040_i2c_driver = {
 		.pm	= MAX17040_PM_OPS,
 	},
 	.probe		= max17040_probe,
-	.remove		= max17040_remove,
 	.id_table	= max17040_id,
 };
 module_i2c_driver(max17040_i2c_driver);
