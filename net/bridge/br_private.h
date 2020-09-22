@@ -873,6 +873,20 @@ static inline bool br_multicast_querier_exists(struct net_bridge *br,
 	}
 }
 
+static inline bool br_multicast_is_star_g(const struct br_ip *ip)
+{
+	switch (ip->proto) {
+	case htons(ETH_P_IP):
+		return ipv4_is_zeronet(ip->src.ip4);
+#if IS_ENABLED(CONFIG_IPV6)
+	case htons(ETH_P_IPV6):
+		return ipv6_addr_any(&ip->src.ip6);
+#endif
+	default:
+		return false;
+	}
+}
+
 static inline int br_multicast_igmp_type(const struct sk_buff *skb)
 {
 	return BR_INPUT_SKB_CB(skb)->igmp;
