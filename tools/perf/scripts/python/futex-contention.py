@@ -53,5 +53,5 @@ def trace_begin():
 def trace_end():
     for (tid, lock) in lock_waits:
         min, max, avg, count = lock_waits[tid, lock]
-        print("%s[%d] lock %x contended %d times, %d avg ns" %
-              (process_names[tid], tid, lock, count, avg))
+        print("%s[%d] lock %x contended %d times, %d avg ns [max: %d ns, min %d ns]" %
+              (process_names[tid], tid, lock, count, avg, max, min))
