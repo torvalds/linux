@@ -1604,9 +1604,7 @@ xlog_cksum(
 		int		i;
 		int		xheads;
 
-		xheads = size / XLOG_HEADER_CYCLE_SIZE;
-		if (size % XLOG_HEADER_CYCLE_SIZE)
-			xheads++;
+		xheads = DIV_ROUND_UP(size, XLOG_HEADER_CYCLE_SIZE);
 
 		for (i = 1; i < xheads; i++) {
 			crc = crc32c(crc, &xhdr[i].hic_xheader,
