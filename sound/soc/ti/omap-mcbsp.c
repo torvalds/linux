@@ -620,11 +620,7 @@ static int omap_mcbsp_init(struct platform_device *pdev)
 	spin_lock_init(&mcbsp->lock);
 	mcbsp->free = true;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
-	if (!res)
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	mcbsp->io_base = devm_ioremap_resource(&pdev->dev, res);
+	mcbsp->io_base = devm_platform_ioremap_resource_byname(pdev, "mpu");
 	if (IS_ERR(mcbsp->io_base))
 		return PTR_ERR(mcbsp->io_base);
 
