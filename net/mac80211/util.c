@@ -1058,6 +1058,7 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		case WLAN_EID_S1G_BCN_COMPAT:
 		case WLAN_EID_S1G_CAPABILITIES:
 		case WLAN_EID_S1G_OPERATION:
+		case WLAN_EID_AID_RESPONSE:
 		case WLAN_EID_S1G_SHORT_BCN_INTERVAL:
 		/*
 		 * not listing WLAN_EID_CHANNEL_SWITCH_WRAPPER -- it seems possible
@@ -1359,6 +1360,12 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		case WLAN_EID_S1G_BCN_COMPAT:
 			if (elen == sizeof(*elems->s1g_bcn_compat))
 				elems->s1g_bcn_compat = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
+		case WLAN_EID_AID_RESPONSE:
+			if (elen == sizeof(struct ieee80211_aid_response_ie))
+				elems->aid_resp = (void *)pos;
 			else
 				elem_parse_failed = true;
 			break;
@@ -3445,6 +3452,42 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 
 	*chandef = he_chandef;
 
+	return false;
+}
+
+bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
+				struct cfg80211_chan_def *chandef)
+{
+	u32 oper_freq;
+
+	if (!oper)
+		return false;
+
+	switch (FIELD_GET(S1G_OPER_CH_WIDTH_OPER, oper->ch_width)) {
+	case IEEE80211_S1G_CHANWIDTH_1MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_1;
+		break;
+	case IEEE80211_S1G_CHANWIDTH_2MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_2;
+		break;
+	case IEEE80211_S1G_CHANWIDTH_4MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_4;
+		break;
+	case IEEE80211_S1G_CHANWIDTH_8MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_8;
+		break;
+	case IEEE80211_S1G_CHANWIDTH_16MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_16;
+		break;
+	default:
+		return false;
+	}
+
+	oper_freq = ieee80211_channel_to_freq_khz(oper->oper_ch,
+						  NL80211_BAND_S1GHZ);
+	chandef->center_freq1 = KHZ_TO_MHZ(oper_freq);
+	chandef->freq1_offset = oper_freq % 1000;
+
 	return true;
 }
 
@@ -4391,6 +4434,16 @@ void ieee80211_add_s1g_capab_ie(struct ieee80211_sub_if_data *sdata,
 	*pos++ = sizeof(s1g_capab);
 
 	memcpy(pos, &s1g_capab, sizeof(s1g_capab));
+}
+
+void ieee80211_add_aid_request_ie(struct ieee80211_sub_if_data *sdata,
+				  struct sk_buff *skb)
+{
+	u8 *pos = skb_put(skb, 3);
+
+	*pos++ = WLAN_EID_AID_REQUEST;
+	*pos++ = 1;
+	*pos++ = 0;
 }
 
 u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo)

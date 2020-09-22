@@ -627,6 +627,7 @@ struct ieee80211_fils_discovery {
  * @fils_discovery: FILS discovery configuration
  * @unsol_bcast_probe_resp_interval: Unsolicited broadcast probe response
  *	interval.
+ * @s1g: BSS is S1G BSS (affects Association Request format).
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -696,6 +697,7 @@ struct ieee80211_bss_conf {
 	struct cfg80211_he_bss_color he_bss_color;
 	struct ieee80211_fils_discovery fils_discovery;
 	u32 unsol_bcast_probe_resp_interval;
+	bool s1g;
 };
 
 /**
