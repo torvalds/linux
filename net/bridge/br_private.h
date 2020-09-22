@@ -238,10 +238,14 @@ struct net_bridge_group_src {
 	struct rcu_head			rcu;
 };
 
-struct net_bridge_port_group {
+struct net_bridge_port_group_sg_key {
 	struct net_bridge_port		*port;
-	struct net_bridge_port_group __rcu *next;
 	struct br_ip			addr;
+};
+
+struct net_bridge_port_group {
+	struct net_bridge_port_group __rcu *next;
+	struct net_bridge_port_group_sg_key key;
 	unsigned char			eth_addr[ETH_ALEN] __aligned(2);
 	unsigned char			flags;
 	unsigned char			filter_mode;
@@ -254,6 +258,7 @@ struct net_bridge_port_group {
 	struct timer_list		rexmit_timer;
 	struct hlist_node		mglist;
 
+	struct rhash_head		rhnode;
 	struct net_bridge_mcast_gc	mcast_gc;
 	struct rcu_head			rcu;
 };
@@ -441,6 +446,7 @@ struct net_bridge {
 	unsigned long			multicast_startup_query_interval;
 
 	struct rhashtable		mdb_hash_tbl;
+	struct rhashtable		sg_port_tbl;
 
 	struct hlist_head		mcast_gc_list;
 	struct hlist_head		mdb_list;

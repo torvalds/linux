@@ -101,7 +101,7 @@ static int __mdb_fill_srcs(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	hlist_for_each_entry_rcu(ent, &p->src_list, node,
-				 lockdep_is_held(&p->port->br->multicast_lock)) {
+				 lockdep_is_held(&p->key.port->br->multicast_lock)) {
 		nest_ent = nla_nest_start(skb, MDBA_MDB_SRCLIST_ENTRY);
 		if (!nest_ent)
 			goto out_cancel_err;
@@ -156,7 +156,7 @@ static int __mdb_fill_info(struct sk_buff *skb,
 
 	memset(&e, 0, sizeof(e));
 	if (p) {
-		ifindex = p->port->dev->ifindex;
+		ifindex = p->key.port->dev->ifindex;
 		mtimer = &p->timer;
 		flags = p->flags;
 	} else {
@@ -263,7 +263,7 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 
 		for (pp = &mp->ports; (p = rcu_dereference(*pp)) != NULL;
 		      pp = &p->next) {
-			if (!p->port)
+			if (!p->key.port)
 				continue;
 			if (pidx < s_pidx)
 				goto skip_pg;
@@ -423,21 +423,21 @@ static size_t rtnl_mdb_nlmsg_size(struct net_bridge_port_group *pg)
 	/* MDBA_MDB_EATTR_RTPROT */
 	nlmsg_size += nla_total_size(sizeof(u8));
 
-	switch (pg->addr.proto) {
+	switch (pg->key.addr.proto) {
 	case htons(ETH_P_IP):
 		/* MDBA_MDB_EATTR_SOURCE */
-		if (pg->addr.src.ip4)
+		if (pg->key.addr.src.ip4)
 			nlmsg_size += nla_total_size(sizeof(__be32));
-		if (pg->port->br->multicast_igmp_version == 2)
+		if (pg->key.port->br->multicast_igmp_version == 2)
 			goto out;
 		addr_size = sizeof(__be32);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
 		/* MDBA_MDB_EATTR_SOURCE */
-		if (!ipv6_addr_any(&pg->addr.src.ip6))
+		if (!ipv6_addr_any(&pg->key.addr.src.ip6))
 			nlmsg_size += nla_total_size(sizeof(struct in6_addr));
-		if (pg->port->br->multicast_mld_version == 1)
+		if (pg->key.port->br->multicast_mld_version == 1)
 			goto out;
 		addr_size = sizeof(struct in6_addr);
 		break;
@@ -486,7 +486,7 @@ static void br_mdb_complete(struct net_device *dev, int err, void *priv)
 		goto out;
 	for (pp = &mp->ports; (p = mlock_dereference(*pp, br)) != NULL;
 	     pp = &p->next) {
-		if (p->port != port)
+		if (p->key.port != port)
 			continue;
 		p->flags |= MDB_PG_FLAGS_OFFLOAD;
 	}
@@ -561,21 +561,21 @@ void br_mdb_notify(struct net_device *dev,
 		else
 			ipv6_eth_mc_map(&mp->addr.dst.ip6, mdb.addr);
 #endif
-		mdb.obj.orig_dev = pg->port->dev;
+		mdb.obj.orig_dev = pg->key.port->dev;
 		switch (type) {
 		case RTM_NEWMDB:
 			complete_info = kmalloc(sizeof(*complete_info), GFP_ATOMIC);
 			if (!complete_info)
 				break;
-			complete_info->port = pg->port;
+			complete_info->port = pg->key.port;
 			complete_info->ip = mp->addr;
 			mdb.obj.complete_priv = complete_info;
 			mdb.obj.complete = br_mdb_complete;
-			if (switchdev_port_obj_add(pg->port->dev, &mdb.obj, NULL))
+			if (switchdev_port_obj_add(pg->key.port->dev, &mdb.obj, NULL))
 				kfree(complete_info);
 			break;
 		case RTM_DELMDB:
-			switchdev_port_obj_del(pg->port->dev, &mdb.obj);
+			switchdev_port_obj_del(pg->key.port->dev, &mdb.obj);
 			break;
 		}
 	} else {
@@ -869,11 +869,11 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	for (pp = &mp->ports;
 	     (p = mlock_dereference(*pp, br)) != NULL;
 	     pp = &p->next) {
-		if (p->port == port) {
+		if (p->key.port == port) {
 			NL_SET_ERR_MSG_MOD(extack, "Group is already joined by port");
 			return -EEXIST;
 		}
-		if ((unsigned long)p->port < (unsigned long)port)
+		if ((unsigned long)p->key.port < (unsigned long)port)
 			break;
 	}
 
@@ -1013,10 +1013,10 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry,
 	for (pp = &mp->ports;
 	     (p = mlock_dereference(*pp, br)) != NULL;
 	     pp = &p->next) {
-		if (!p->port || p->port->dev->ifindex != entry->ifindex)
+		if (!p->key.port || p->key.port->dev->ifindex != entry->ifindex)
 			continue;
 
-		if (p->port->state == BR_STATE_DISABLED)
+		if (p->key.port->state == BR_STATE_DISABLED)
 			goto unlock;
 
 		br_multicast_del_pg(mp, p, pp);
