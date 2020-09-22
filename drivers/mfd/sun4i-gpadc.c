@@ -18,7 +18,7 @@
 #define ARCH_SUN5I_A13 1
 #define ARCH_SUN6I_A31 2
 
-static struct resource adc_resources[] = {
+static const struct resource adc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(SUN4I_GPADC_IRQ_FIFO_DATA, "FIFO_DATA_PENDING"),
 	DEFINE_RES_IRQ_NAMED(SUN4I_GPADC_IRQ_TEMP_DATA, "TEMP_DATA_PENDING"),
 };
