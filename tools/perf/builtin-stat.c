@@ -2024,8 +2024,10 @@ static void setup_system_wide(int forks)
 		struct evsel *counter;
 
 		evlist__for_each_entry(evsel_list, counter) {
-			if (!counter->core.system_wide)
+			if (!counter->core.system_wide &&
+			    strcmp(counter->name, "duration_time")) {
 				return;
+			}
 		}
 
 		if (evsel_list->core.nr_entries)
