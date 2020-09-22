@@ -2,6 +2,7 @@
 #ifndef __MACH_IMX_CLK_H
 #define __MACH_IMX_CLK_H
 
+#include <linux/bits.h>
 #include <linux/spinlock.h>
 #include <linux/clk-provider.h>
 
@@ -11,7 +12,13 @@ extern spinlock_t imx_ccm_lock;
 
 void imx_check_clocks(struct clk *clks[], unsigned int count);
 void imx_check_clk_hws(struct clk_hw *clks[], unsigned int count);
+#ifndef MODULE
 void imx_register_uart_clocks(struct clk ** const clks[]);
+#else
+static inline void imx_register_uart_clocks(struct clk ** const clks[])
+{
+}
+#endif
 void imx_mmdc_mask_handshake(void __iomem *ccm_base, unsigned int chn);
 void imx_unregister_clocks(struct clk *clks[], unsigned int count);
 void imx_unregister_hw_clocks(struct clk_hw *hws[], unsigned int count);

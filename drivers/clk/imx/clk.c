@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -13,6 +15,7 @@
 #define CCDR_MMDC_CH1_MASK		BIT(16)
 
 DEFINE_SPINLOCK(imx_ccm_lock);
+EXPORT_SYMBOL_GPL(imx_ccm_lock);
 
 void imx_unregister_clocks(struct clk *clks[], unsigned int count)
 {
@@ -29,8 +32,9 @@ void imx_unregister_hw_clocks(struct clk_hw *hws[], unsigned int count)
 	for (i = 0; i < count; i++)
 		clk_hw_unregister(hws[i]);
 }
+EXPORT_SYMBOL_GPL(imx_unregister_hw_clocks);
 
-void __init imx_mmdc_mask_handshake(void __iomem *ccm_base,
+void imx_mmdc_mask_handshake(void __iomem *ccm_base,
 				    unsigned int chn)
 {
 	unsigned int reg;
@@ -59,8 +63,9 @@ void imx_check_clk_hws(struct clk_hw *clks[], unsigned int count)
 			pr_err("i.MX clk %u: register failed with %ld\n",
 			       i, PTR_ERR(clks[i]));
 }
+EXPORT_SYMBOL_GPL(imx_check_clk_hws);
 
-static struct clk * __init imx_obtain_fixed_clock_from_dt(const char *name)
+static struct clk *imx_obtain_fixed_clock_from_dt(const char *name)
 {
 	struct of_phandle_args phandle;
 	struct clk *clk = ERR_PTR(-ENODEV);
@@ -80,7 +85,7 @@ static struct clk * __init imx_obtain_fixed_clock_from_dt(const char *name)
 	return clk;
 }
 
-struct clk * __init imx_obtain_fixed_clock(
+struct clk *imx_obtain_fixed_clock(
 			const char *name, unsigned long rate)
 {
 	struct clk *clk;
@@ -91,7 +96,7 @@ struct clk * __init imx_obtain_fixed_clock(
 	return clk;
 }
 
-struct clk_hw * __init imx_obtain_fixed_clock_hw(
+struct clk_hw *imx_obtain_fixed_clock_hw(
 			const char *name, unsigned long rate)
 {
 	struct clk *clk;
@@ -113,6 +118,7 @@ struct clk_hw * imx_obtain_fixed_clk_hw(struct device_node *np,
 
 	return __clk_get_hw(clk);
 }
+EXPORT_SYMBOL_GPL(imx_obtain_fixed_clk_hw);
 
 /*
  * This fixups the register CCM_CSCMR1 write value.
@@ -140,6 +146,7 @@ void imx_cscmr1_fixup(u32 *val)
 	return;
 }
 
+#ifndef MODULE
 static int imx_keep_uart_clocks;
 static struct clk ** const *imx_uart_clocks;
 
@@ -177,3 +184,6 @@ static int __init imx_clk_disable_uart(void)
 	return 0;
 }
 late_initcall_sync(imx_clk_disable_uart);
+#endif
+
+MODULE_LICENSE("GPL v2");
