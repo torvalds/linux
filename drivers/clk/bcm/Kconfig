@@ -5,6 +5,7 @@ config CLK_BCM2711_DVP
 	depends on ARCH_BCM2835 ||COMPILE_TEST
 	depends on COMMON_CLK
 	default ARCH_BCM2835
+	select RESET_CONTROLLER
 	select RESET_SIMPLE
 	help
 	  Enable common clock framework support for the Broadcom BCM2711

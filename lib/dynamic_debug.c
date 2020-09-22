@@ -353,8 +353,7 @@ static int check_set(const char **dest, char *src, char *name)
 
 /*
  * Parse words[] as a ddebug query specification, which is a series
- * of (keyword, value) pairs or combined keyword=value terms,
- * chosen from these possibilities:
+ * of (keyword, value) pairs chosen from these possibilities:
  *
  * func <function-name>
  * file <full-pathname>
@@ -373,34 +372,22 @@ static int ddebug_parse_query(char *words[], int nwords,
 	unsigned int i;
 	int rc = 0;
 	char *fline;
-	char *keyword, *arg;
+
+	/* check we have an even number of words */
+	if (nwords % 2 != 0) {
+		pr_err("expecting pairs of match-spec <value>\n");
+		return -EINVAL;
+	}
 
 	if (modname)
 		/* support $modname.dyndbg=<multiple queries> */
 		query->module = modname;
 
-	for (i = 0; i < nwords; i++) {
-		/* accept keyword=arg */
-		vpr_info("%d w:%s\n", i, words[i]);
-
-		keyword = words[i];
-		arg = strchr(keyword, '=');
-		if (arg) {
-			*arg++ = '\0';
-		} else {
-			i++; /* next word is arg */
-			if (!(i < nwords)) {
-				pr_err("missing arg to keyword: %s\n", keyword);
-				return -EINVAL;
-			}
-			arg = words[i];
-		}
-		vpr_info("%d key:%s arg:%s\n", i, keyword, arg);
-
-		if (!strcmp(keyword, "func")) {
-			rc = check_set(&query->function, arg, "func");
-		} else if (!strcmp(keyword, "file")) {
-			if (check_set(&query->filename, arg, "file"))
+	for (i = 0; i < nwords; i += 2) {
+		if (!strcmp(words[i], "func")) {
+			rc = check_set(&query->function, words[i+1], "func");
+		} else if (!strcmp(words[i], "file")) {
+			if (check_set(&query->filename, words[i+1], "file"))
 				return -EINVAL;
 
 			/* tail :$info is function or line-range */
@@ -416,18 +403,18 @@ static int ddebug_parse_query(char *words[], int nwords,
 				if (parse_linerange(query, fline))
 					return -EINVAL;
 			}
-		} else if (!strcmp(keyword, "module")) {
-			rc = check_set(&query->module, arg, "module");
-		} else if (!strcmp(keyword, "format")) {
-			string_unescape_inplace(arg, UNESCAPE_SPACE |
+		} else if (!strcmp(words[i], "module")) {
+			rc = check_set(&query->module, words[i+1], "module");
+		} else if (!strcmp(words[i], "format")) {
+			string_unescape_inplace(words[i+1], UNESCAPE_SPACE |
 							    UNESCAPE_OCTAL |
 							    UNESCAPE_SPECIAL);
-			rc = check_set(&query->format, arg, "format");
-		} else if (!strcmp(keyword, "line")) {
-			if (parse_linerange(query, arg))
+			rc = check_set(&query->format, words[i+1], "format");
+		} else if (!strcmp(words[i], "line")) {
+			if (parse_linerange(query, words[i+1]))
 				return -EINVAL;
 		} else {
-			pr_err("unknown keyword \"%s\"\n", keyword);
+			pr_err("unknown keyword \"%s\"\n", words[i]);
 			return -EINVAL;
 		}
 		if (rc)
@@ -525,7 +512,7 @@ static int ddebug_exec_query(char *query_string, const char *modname)
    last error or number of matching callsites.  Module name is either
    in param (for boot arg) or perhaps in query string.
 */
-int ddebug_exec_queries(char *query, const char *modname)
+static int ddebug_exec_queries(char *query, const char *modname)
 {
 	char *split;
 	int i, errs = 0, exitcode = 0, rc, nfound = 0;
@@ -557,7 +544,30 @@ int ddebug_exec_queries(char *query, const char *modname)
 		return exitcode;
 	return nfound;
 }
-EXPORT_SYMBOL_GPL(ddebug_exec_queries);
+
+/**
+ * dynamic_debug_exec_queries - select and change dynamic-debug prints
+ * @query: query-string described in admin-guide/dynamic-debug-howto
+ * @modname: string containing module name, usually &module.mod_name
+ *
+ * This uses the >/proc/dynamic_debug/control reader, allowing module
+ * authors to modify their dynamic-debug callsites. The modname is
+ * canonically struct module.mod_name, but can also be null or a
+ * module-wildcard, for example: "drm*".
+ */
+int dynamic_debug_exec_queries(const char *query, const char *modname)
+{
+	int rc;
+	char *qry = kstrndup(query, PAGE_SIZE, GFP_KERNEL);
+
+	if (!query)
+		return -ENOMEM;
+
+	rc = ddebug_exec_queries(qry, modname);
+	kfree(qry);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(dynamic_debug_exec_queries);
 
 #define PREFIX_SIZE 64
 
@@ -947,7 +957,7 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 	list_add(&dt->link, &ddebug_tables);
 	mutex_unlock(&ddebug_lock);
 
-	v2pr_info("%u debug prints in module %s\n", n, dt->mod_name);
+	v2pr_info("%3u debug prints in module %s\n", n, dt->mod_name);
 	return 0;
 }
 

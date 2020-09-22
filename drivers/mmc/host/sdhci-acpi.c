@@ -551,12 +551,18 @@ static int amd_select_drive_strength(struct mmc_card *card,
 	return MMC_SET_DRIVER_TYPE_A;
 }
 
-static void sdhci_acpi_amd_hs400_dll(struct sdhci_host *host)
+static void sdhci_acpi_amd_hs400_dll(struct sdhci_host *host, bool enable)
 {
+	struct sdhci_acpi_host *acpi_host = sdhci_priv(host);
+	struct amd_sdhci_host *amd_host = sdhci_acpi_priv(acpi_host);
+
 	/* AMD Platform requires dll setting */
 	sdhci_writel(host, 0x40003210, SDHCI_AMD_RESET_DLL_REGISTER);
 	usleep_range(10, 20);
-	sdhci_writel(host, 0x40033210, SDHCI_AMD_RESET_DLL_REGISTER);
+	if (enable)
+		sdhci_writel(host, 0x40033210, SDHCI_AMD_RESET_DLL_REGISTER);
+
+	amd_host->dll_enabled = enable;
 }
 
 /*
@@ -596,10 +602,8 @@ static void amd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		/* DLL is only required for HS400 */
 		if (host->timing == MMC_TIMING_MMC_HS400 &&
-		    !amd_host->dll_enabled) {
-			sdhci_acpi_amd_hs400_dll(host);
-			amd_host->dll_enabled = true;
-		}
+		    !amd_host->dll_enabled)
+			sdhci_acpi_amd_hs400_dll(host, true);
 	}
 }
 
@@ -620,10 +624,23 @@ static int amd_sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	return err;
 }
 
+static void amd_sdhci_reset(struct sdhci_host *host, u8 mask)
+{
+	struct sdhci_acpi_host *acpi_host = sdhci_priv(host);
+	struct amd_sdhci_host *amd_host = sdhci_acpi_priv(acpi_host);
+
+	if (mask & SDHCI_RESET_ALL) {
+		amd_host->tuned_clock = false;
+		sdhci_acpi_amd_hs400_dll(host, false);
+	}
+
+	sdhci_reset(host, mask);
+}
+
 static const struct sdhci_ops sdhci_acpi_ops_amd = {
 	.set_clock	= sdhci_set_clock,
 	.set_bus_width	= sdhci_set_bus_width,
-	.reset		= sdhci_reset,
+	.reset		= amd_sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
