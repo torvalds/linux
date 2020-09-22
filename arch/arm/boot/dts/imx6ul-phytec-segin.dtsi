@@ -139,7 +139,7 @@
 		pinctrl-0 = <&pinctrl_stmpe>;
 		status = "disabled";
 
-		touchscreen {
+		stmpe_touchscreen {
 			compatible = "st,stmpe-ts";
 			st,sample-time = <4>;
 			st,mod-12b = <1>;
