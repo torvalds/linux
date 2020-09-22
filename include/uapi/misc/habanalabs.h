@@ -264,6 +264,10 @@ enum hl_device_status {
  * HL_INFO_TIME_SYNC     - Retrieve the device's time alongside the host's time
  *                         for synchronization.
  * HL_INFO_CS_COUNTERS   - Retrieve command submission counters
+ * HL_INFO_PCI_COUNTERS  - Retrieve PCI counters
+ * HL_INFO_CLK_THROTTLE_REASON - Retrieve clock throttling reason
+ * HL_INFO_SYNC_MANAGER  - Retrieve sync manager info per dcore
+ * HL_INFO_TOTAL_ENERGY  - Retrieve total energy consumption
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -276,6 +280,10 @@ enum hl_device_status {
 #define HL_INFO_RESET_COUNT		9
 #define HL_INFO_TIME_SYNC		10
 #define HL_INFO_CS_COUNTERS		11
+#define HL_INFO_PCI_COUNTERS		12
+#define HL_INFO_CLK_THROTTLE_REASON	13
+#define HL_INFO_SYNC_MANAGER		14
+#define HL_INFO_TOTAL_ENERGY		15
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -289,7 +297,7 @@ struct hl_info_hw_ip_info {
 	__u32 device_id; /* PCI Device ID */
 	__u32 module_id; /* For mezzanine cards in servers (From OCP spec.) */
 	__u32 reserved[2];
-	__u32 armcp_cpld_version;
+	__u32 cpld_version;
 	__u32 psoc_pci_pll_nr;
 	__u32 psoc_pci_pll_nf;
 	__u32 psoc_pci_pll_od;
@@ -297,7 +305,7 @@ struct hl_info_hw_ip_info {
 	__u8 tpc_enabled_mask;
 	__u8 dram_enabled;
 	__u8 pad[2];
-	__u8 armcp_version[HL_INFO_VERSION_MAX_LEN];
+	__u8 cpucp_version[HL_INFO_VERSION_MAX_LEN];
 	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
 };
 
@@ -313,6 +321,12 @@ struct hl_info_hw_idle {
 	 * Bits definition is according to `enum <chip>_enging_id'.
 	 */
 	__u32 busy_engines_mask;
+
+	/*
+	 * Extended Bitmask of busy engines.
+	 * Bits definition is according to `enum <chip>_enging_id'.
+	 */
+	__u64 busy_engines_mask_ext;
 };
 
 struct hl_info_device_status {
@@ -341,22 +355,72 @@ struct hl_info_time_sync {
 };
 
 /**
+ * struct hl_info_pci_counters - pci counters
+ * @rx_throughput: PCI rx throughput KBps
+ * @tx_throughput: PCI tx throughput KBps
+ * @replay_cnt: PCI replay counter
+ */
+struct hl_info_pci_counters {
+	__u64 rx_throughput;
+	__u64 tx_throughput;
+	__u64 replay_cnt;
+};
+
+#define HL_CLK_THROTTLE_POWER	0x1
+#define HL_CLK_THROTTLE_THERMAL	0x2
+
+/**
+ * struct hl_info_clk_throttle - clock throttling reason
+ * @clk_throttling_reason: each bit represents a clk throttling reason
+ */
+struct hl_info_clk_throttle {
+	__u32 clk_throttling_reason;
+};
+
+/**
+ * struct hl_info_energy - device energy information
+ * @total_energy_consumption: total device energy consumption
+ */
+struct hl_info_energy {
+	__u64 total_energy_consumption;
+};
+
+/**
+ * struct hl_info_sync_manager - sync manager information
+ * @first_available_sync_object: first available sob
+ * @first_available_monitor: first available monitor
+ */
+struct hl_info_sync_manager {
+	__u32 first_available_sync_object;
+	__u32 first_available_monitor;
+};
+
+/**
  * struct hl_info_cs_counters - command submission counters
  * @out_of_mem_drop_cnt: dropped due to memory allocation issue
  * @parsing_drop_cnt: dropped due to error in packet parsing
  * @queue_full_drop_cnt: dropped due to queue full
  * @device_in_reset_drop_cnt: dropped due to device in reset
+ * @max_cs_in_flight_drop_cnt: dropped due to maximum CS in-flight
  */
 struct hl_cs_counters {
 	__u64 out_of_mem_drop_cnt;
 	__u64 parsing_drop_cnt;
 	__u64 queue_full_drop_cnt;
 	__u64 device_in_reset_drop_cnt;
+	__u64 max_cs_in_flight_drop_cnt;
 };
 
 struct hl_info_cs_counters {
 	struct hl_cs_counters cs_counters;
 	struct hl_cs_counters ctx_cs_counters;
+};
+
+enum gaudi_dcores {
+	HL_GAUDI_WS_DCORE,
+	HL_GAUDI_WN_DCORE,
+	HL_GAUDI_EN_DCORE,
+	HL_GAUDI_ES_DCORE
 };
 
 struct hl_info_args {
@@ -375,6 +439,10 @@ struct hl_info_args {
 	__u32 op;
 
 	union {
+		/* Dcore id for which the information is relevant.
+		 * For Gaudi refer to 'enum gaudi_dcores'
+		 */
+		__u32 dcore_id;
 		/* Context ID - Currently not in use */
 		__u32 ctx_id;
 		/* Period value for utilization rate (100ms - 1000ms, in 100ms
@@ -394,6 +462,9 @@ struct hl_info_args {
 /* 2MB minus 32 bytes for 2xMSG_PROT */
 #define HL_MAX_CB_SIZE		(0x200000 - 32)
 
+/* Indicates whether the command buffer should be mapped to the device's MMU */
+#define HL_CB_FLAGS_MAP		0x1
+
 struct hl_cb_in {
 	/* Handle of CB or 0 if we want to create one */
 	__u64 cb_handle;
@@ -405,7 +476,8 @@ struct hl_cb_in {
 	__u32 cb_size;
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
-	__u32 pad;
+	/* HL_CB_FLAGS_* */
+	__u32 flags;
 };
 
 struct hl_cb_out {
@@ -788,6 +860,12 @@ struct hl_debug_args {
  * When creating a new CB, the IOCTL returns a handle of it, and the user-space
  * process needs to use that handle to mmap the buffer so it can access them.
  *
+ * In some instances, the device must access the command buffer through the
+ * device's MMU, and thus its memory should be mapped. In these cases, user can
+ * indicate the driver that such a mapping is required.
+ * The resulting device virtual address will be used internally by the driver,
+ * and won't be returned to user.
+ *
  */
 #define HL_IOCTL_CB		\
 		_IOWR('H', 0x02, union hl_cb_args)
@@ -845,6 +923,9 @@ struct hl_debug_args {
  * to wait until the handle's CS has finished executing. The user will wait
  * inside the kernel until the CS has finished or until the user-requested
  * timeout has expired.
+ *
+ * If the timeout value is 0, the driver won't sleep at all. It will check
+ * the status of the CS and return immediately
  *
  * The return value of the IOCTL is a standard Linux error code. The possible
  * values are:

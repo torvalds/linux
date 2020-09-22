@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2020 HabanaLabs, Ltd.
+ * Copyright 2020 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
 
-#ifndef ARMCP_IF_H
-#define ARMCP_IF_H
+#ifndef CPUCP_IF_H
+#define CPUCP_IF_H
 
 #include <linux/types.h>
 
@@ -50,16 +50,16 @@ enum pq_init_status {
 };
 
 /*
- * ArmCP Primary Queue Packets
+ * CpuCP Primary Queue Packets
  *
  * During normal operation, the host's kernel driver needs to send various
- * messages to ArmCP, usually either to SET some value into a H/W periphery or
+ * messages to CpuCP, usually either to SET some value into a H/W periphery or
  * to GET the current value of some H/W periphery. For example, SET the
  * frequency of MME/TPC and GET the value of the thermal sensor.
  *
  * These messages can be initiated either by the User application or by the
  * host's driver itself, e.g. power management code. In either case, the
- * communication from the host's driver to ArmCP will *always* be in
+ * communication from the host's driver to CpuCP will *always* be in
  * synchronous mode, meaning that the host will send a single message and poll
  * until the message was acknowledged and the results are ready (if results are
  * needed).
@@ -73,21 +73,20 @@ enum pq_init_status {
  *
  * The message, inputs/outputs (if relevant) and fence object will be located
  * on the device DDR at an address that will be determined by the host's driver.
- * During device initialization phase, the host will pass to ArmCP that address.
+ * During device initialization phase, the host will pass to CpuCP that address.
  * Most of the message types will contain inputs/outputs inside the message
  * itself. The common part of each message will contain the opcode of the
  * message (its type) and a field representing a fence object.
  *
- * When the host's driver wishes to send a message to ArmCP, it will write the
- * message contents to the device DDR, clear the fence object and then write the
- * value 484 to the mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR register to issue
- * the 484 interrupt-id to the ARM core.
+ * When the host's driver wishes to send a message to CPU CP, it will write the
+ * message contents to the device DDR, clear the fence object and then write to
+ * the PSOC_ARC1_AUX_SW_INTR, to issue interrupt 121 to ARC Management CPU.
  *
- * Upon receiving the 484 interrupt-id, ArmCP will read the message from the
- * DDR. In case the message is a SET operation, ArmCP will first perform the
+ * Upon receiving the interrupt (#121), CpuCP will read the message from the
+ * DDR. In case the message is a SET operation, CpuCP will first perform the
  * operation and then write to the fence object on the device DDR. In case the
- * message is a GET operation, ArmCP will first fill the results section on the
- * device DDR and then write to the fence object. If an error occurred, ArmCP
+ * message is a GET operation, CpuCP will first fill the results section on the
+ * device DDR and then write to the fence object. If an error occurred, CpuCP
  * will fill the rc field with the right error code.
  *
  * In the meantime, the host's driver will poll on the fence object. Once the
@@ -96,164 +95,174 @@ enum pq_init_status {
  * driver.
  *
  * To use QMAN packets, the opcode must be the QMAN opcode, shifted by 8
- * so the value being put by the host's driver matches the value read by ArmCP
+ * so the value being put by the host's driver matches the value read by CpuCP
  *
  * Non-QMAN packets should be limited to values 1 through (2^8 - 1)
  *
  * Detailed description:
  *
- * ARMCP_PACKET_DISABLE_PCI_ACCESS -
+ * CPUCP_PACKET_DISABLE_PCI_ACCESS -
  *       After receiving this packet the embedded CPU must NOT issue PCI
  *       transactions (read/write) towards the Host CPU. This also include
  *       sending MSI-X interrupts.
  *       This packet is usually sent before the device is moved to D3Hot state.
  *
- * ARMCP_PACKET_ENABLE_PCI_ACCESS -
+ * CPUCP_PACKET_ENABLE_PCI_ACCESS -
  *       After receiving this packet the embedded CPU is allowed to issue PCI
  *       transactions towards the Host CPU, including sending MSI-X interrupts.
  *       This packet is usually send after the device is moved to D0 state.
  *
- * ARMCP_PACKET_TEMPERATURE_GET -
+ * CPUCP_PACKET_TEMPERATURE_GET -
  *       Fetch the current temperature / Max / Max Hyst / Critical /
  *       Critical Hyst of a specified thermal sensor. The packet's
  *       arguments specify the desired sensor and the field to get.
  *
- * ARMCP_PACKET_VOLTAGE_GET -
+ * CPUCP_PACKET_VOLTAGE_GET -
  *       Fetch the voltage / Max / Min of a specified sensor. The packet's
  *       arguments specify the sensor and type.
  *
- * ARMCP_PACKET_CURRENT_GET -
+ * CPUCP_PACKET_CURRENT_GET -
  *       Fetch the current / Max / Min of a specified sensor. The packet's
  *       arguments specify the sensor and type.
  *
- * ARMCP_PACKET_FAN_SPEED_GET -
+ * CPUCP_PACKET_FAN_SPEED_GET -
  *       Fetch the speed / Max / Min of a specified fan. The packet's
  *       arguments specify the sensor and type.
  *
- * ARMCP_PACKET_PWM_GET -
+ * CPUCP_PACKET_PWM_GET -
  *       Fetch the pwm value / mode of a specified pwm. The packet's
  *       arguments specify the sensor and type.
  *
- * ARMCP_PACKET_PWM_SET -
+ * CPUCP_PACKET_PWM_SET -
  *       Set the pwm value / mode of a specified pwm. The packet's
  *       arguments specify the sensor, type and value.
  *
- * ARMCP_PACKET_FREQUENCY_SET -
+ * CPUCP_PACKET_FREQUENCY_SET -
  *       Set the frequency of a specified PLL. The packet's arguments specify
  *       the PLL and the desired frequency. The actual frequency in the device
  *       might differ from the requested frequency.
  *
- * ARMCP_PACKET_FREQUENCY_GET -
+ * CPUCP_PACKET_FREQUENCY_GET -
  *       Fetch the frequency of a specified PLL. The packet's arguments specify
  *       the PLL.
  *
- * ARMCP_PACKET_LED_SET -
+ * CPUCP_PACKET_LED_SET -
  *       Set the state of a specified led. The packet's arguments
  *       specify the led and the desired state.
  *
- * ARMCP_PACKET_I2C_WR -
+ * CPUCP_PACKET_I2C_WR -
  *       Write 32-bit value to I2C device. The packet's arguments specify the
  *       I2C bus, address and value.
  *
- * ARMCP_PACKET_I2C_RD -
+ * CPUCP_PACKET_I2C_RD -
  *       Read 32-bit value from I2C device. The packet's arguments specify the
  *       I2C bus and address.
  *
- * ARMCP_PACKET_INFO_GET -
+ * CPUCP_PACKET_INFO_GET -
  *       Fetch information from the device as specified in the packet's
- *       structure. The host's driver passes the max size it allows the ArmCP to
+ *       structure. The host's driver passes the max size it allows the CpuCP to
  *       write to the structure, to prevent data corruption in case of
  *       mismatched driver/FW versions.
  *
- * ARMCP_PACKET_FLASH_PROGRAM_REMOVED - this packet was removed
+ * CPUCP_PACKET_FLASH_PROGRAM_REMOVED - this packet was removed
  *
- * ARMCP_PACKET_UNMASK_RAZWI_IRQ -
+ * CPUCP_PACKET_UNMASK_RAZWI_IRQ -
  *       Unmask the given IRQ. The IRQ number is specified in the value field.
  *       The packet is sent after receiving an interrupt and printing its
  *       relevant information.
  *
- * ARMCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY -
+ * CPUCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY -
  *       Unmask the given IRQs. The IRQs numbers are specified in an array right
- *       after the armcp_packet structure, where its first element is the array
+ *       after the cpucp_packet structure, where its first element is the array
  *       length. The packet is sent after a soft reset was done in order to
  *       handle any interrupts that were sent during the reset process.
  *
- * ARMCP_PACKET_TEST -
- *       Test packet for ArmCP connectivity. The CPU will put the fence value
+ * CPUCP_PACKET_TEST -
+ *       Test packet for CpuCP connectivity. The CPU will put the fence value
  *       in the result field.
  *
- * ARMCP_PACKET_FREQUENCY_CURR_GET -
+ * CPUCP_PACKET_FREQUENCY_CURR_GET -
  *       Fetch the current frequency of a specified PLL. The packet's arguments
  *       specify the PLL.
  *
- * ARMCP_PACKET_MAX_POWER_GET -
+ * CPUCP_PACKET_MAX_POWER_GET -
  *       Fetch the maximal power of the device.
  *
- * ARMCP_PACKET_MAX_POWER_SET -
+ * CPUCP_PACKET_MAX_POWER_SET -
  *       Set the maximal power of the device. The packet's arguments specify
  *       the power.
  *
- * ARMCP_PACKET_EEPROM_DATA_GET -
- *       Get EEPROM data from the ArmCP kernel. The buffer is specified in the
+ * CPUCP_PACKET_EEPROM_DATA_GET -
+ *       Get EEPROM data from the CpuCP kernel. The buffer is specified in the
  *       addr field. The CPU will put the returned data size in the result
  *       field. In addition, the host's driver passes the max size it allows the
- *       ArmCP to write to the structure, to prevent data corruption in case of
+ *       CpuCP to write to the structure, to prevent data corruption in case of
  *       mismatched driver/FW versions.
  *
- * ARMCP_PACKET_TEMPERATURE_SET -
+ * CPUCP_PACKET_TEMPERATURE_SET -
  *       Set the value of the offset property of a specified thermal sensor.
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
  *
- * ARMCP_PACKET_VOLTAGE_SET -
+ * CPUCP_PACKET_VOLTAGE_SET -
  *       Trigger the reset_history property of a specified voltage sensor.
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
  *
- * ARMCP_PACKET_CURRENT_SET -
+ * CPUCP_PACKET_CURRENT_SET -
  *       Trigger the reset_history property of a specified current sensor.
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
+ *
+ * CPUCP_PACKET_PLL_REG_GET
+ *       Fetch register of PLL from the required PLL IP.
+ *       The packet's arguments specify the PLL IP and the register to get.
+ *       Each register is 32-bit value which is returned in result field.
+ *
  */
 
-enum armcp_packet_id {
-	ARMCP_PACKET_DISABLE_PCI_ACCESS = 1,	/* internal */
-	ARMCP_PACKET_ENABLE_PCI_ACCESS,		/* internal */
-	ARMCP_PACKET_TEMPERATURE_GET,		/* sysfs */
-	ARMCP_PACKET_VOLTAGE_GET,		/* sysfs */
-	ARMCP_PACKET_CURRENT_GET,		/* sysfs */
-	ARMCP_PACKET_FAN_SPEED_GET,		/* sysfs */
-	ARMCP_PACKET_PWM_GET,			/* sysfs */
-	ARMCP_PACKET_PWM_SET,			/* sysfs */
-	ARMCP_PACKET_FREQUENCY_SET,		/* sysfs */
-	ARMCP_PACKET_FREQUENCY_GET,		/* sysfs */
-	ARMCP_PACKET_LED_SET,			/* debugfs */
-	ARMCP_PACKET_I2C_WR,			/* debugfs */
-	ARMCP_PACKET_I2C_RD,			/* debugfs */
-	ARMCP_PACKET_INFO_GET,			/* IOCTL */
-	ARMCP_PACKET_FLASH_PROGRAM_REMOVED,
-	ARMCP_PACKET_UNMASK_RAZWI_IRQ,		/* internal */
-	ARMCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY,	/* internal */
-	ARMCP_PACKET_TEST,			/* internal */
-	ARMCP_PACKET_FREQUENCY_CURR_GET,	/* sysfs */
-	ARMCP_PACKET_MAX_POWER_GET,		/* sysfs */
-	ARMCP_PACKET_MAX_POWER_SET,		/* sysfs */
-	ARMCP_PACKET_EEPROM_DATA_GET,		/* sysfs */
-	ARMCP_RESERVED,
-	ARMCP_PACKET_TEMPERATURE_SET,		/* sysfs */
-	ARMCP_PACKET_VOLTAGE_SET,		/* sysfs */
-	ARMCP_PACKET_CURRENT_SET,		/* sysfs */
+enum cpucp_packet_id {
+	CPUCP_PACKET_DISABLE_PCI_ACCESS = 1,	/* internal */
+	CPUCP_PACKET_ENABLE_PCI_ACCESS,		/* internal */
+	CPUCP_PACKET_TEMPERATURE_GET,		/* sysfs */
+	CPUCP_PACKET_VOLTAGE_GET,		/* sysfs */
+	CPUCP_PACKET_CURRENT_GET,		/* sysfs */
+	CPUCP_PACKET_FAN_SPEED_GET,		/* sysfs */
+	CPUCP_PACKET_PWM_GET,			/* sysfs */
+	CPUCP_PACKET_PWM_SET,			/* sysfs */
+	CPUCP_PACKET_FREQUENCY_SET,		/* sysfs */
+	CPUCP_PACKET_FREQUENCY_GET,		/* sysfs */
+	CPUCP_PACKET_LED_SET,			/* debugfs */
+	CPUCP_PACKET_I2C_WR,			/* debugfs */
+	CPUCP_PACKET_I2C_RD,			/* debugfs */
+	CPUCP_PACKET_INFO_GET,			/* IOCTL */
+	CPUCP_PACKET_FLASH_PROGRAM_REMOVED,
+	CPUCP_PACKET_UNMASK_RAZWI_IRQ,		/* internal */
+	CPUCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY,	/* internal */
+	CPUCP_PACKET_TEST,			/* internal */
+	CPUCP_PACKET_FREQUENCY_CURR_GET,	/* sysfs */
+	CPUCP_PACKET_MAX_POWER_GET,		/* sysfs */
+	CPUCP_PACKET_MAX_POWER_SET,		/* sysfs */
+	CPUCP_PACKET_EEPROM_DATA_GET,		/* sysfs */
+	CPUCP_RESERVED,
+	CPUCP_PACKET_TEMPERATURE_SET,		/* sysfs */
+	CPUCP_PACKET_VOLTAGE_SET,		/* sysfs */
+	CPUCP_PACKET_CURRENT_SET,		/* sysfs */
+	CPUCP_PACKET_PCIE_THROUGHPUT_GET,		/* internal */
+	CPUCP_PACKET_PCIE_REPLAY_CNT_GET,		/* internal */
+	CPUCP_PACKET_TOTAL_ENERGY_GET,		/* internal */
+	CPUCP_PACKET_PLL_REG_GET,		/* internal */
 };
 
-#define ARMCP_PACKET_FENCE_VAL	0xFE8CE7A5
+#define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
 
-#define ARMCP_PKT_CTL_RC_SHIFT		12
-#define ARMCP_PKT_CTL_RC_MASK		0x0000F000
+#define CPUCP_PKT_CTL_RC_SHIFT		12
+#define CPUCP_PKT_CTL_RC_MASK		0x0000F000
 
-#define ARMCP_PKT_CTL_OPCODE_SHIFT	16
-#define ARMCP_PKT_CTL_OPCODE_MASK	0x1FFF0000
+#define CPUCP_PKT_CTL_OPCODE_SHIFT	16
+#define CPUCP_PKT_CTL_OPCODE_MASK	0x1FFF0000
 
-struct armcp_packet {
+struct cpucp_packet {
 	union {
 		__le64 value;	/* For SET packets */
 		__le64 result;	/* For GET packets */
@@ -277,71 +286,97 @@ struct armcp_packet {
 			__u8 pad; /* unused */
 		};
 
+		struct {/* For PLL register fetch */
+			__le16 pll_type;
+			__le16 pll_reg;
+		};
+
+		/* For any general request */
+		__le32 index;
+
 		/* For frequency get/set */
 		__le32 pll_index;
 
 		/* For led set */
 		__le32 led_index;
 
-		/* For get Armcp info/EEPROM data */
+		/* For get CpuCP info/EEPROM data */
 		__le32 data_max_size;
 	};
 
 	__le32 reserved;
 };
 
-struct armcp_unmask_irq_arr_packet {
-	struct armcp_packet armcp_pkt;
+struct cpucp_unmask_irq_arr_packet {
+	struct cpucp_packet cpucp_pkt;
 	__le32 length;
 	__le32 irqs[0];
 };
 
-enum armcp_packet_rc {
-	armcp_packet_success,
-	armcp_packet_invalid,
-	armcp_packet_fault
+enum cpucp_packet_rc {
+	cpucp_packet_success,
+	cpucp_packet_invalid,
+	cpucp_packet_fault
 };
 
 /*
- * armcp_temp_type should adhere to hwmon_temp_attributes
+ * cpucp_temp_type should adhere to hwmon_temp_attributes
  * defined in Linux kernel hwmon.h file
  */
-enum armcp_temp_type {
-	armcp_temp_input,
-	armcp_temp_max = 6,
-	armcp_temp_max_hyst,
-	armcp_temp_crit,
-	armcp_temp_crit_hyst,
-	armcp_temp_offset = 19,
-	armcp_temp_highest = 22,
-	armcp_temp_reset_history = 23
+enum cpucp_temp_type {
+	cpucp_temp_input,
+	cpucp_temp_max = 6,
+	cpucp_temp_max_hyst,
+	cpucp_temp_crit,
+	cpucp_temp_crit_hyst,
+	cpucp_temp_offset = 19,
+	cpucp_temp_highest = 22,
+	cpucp_temp_reset_history = 23
 };
 
-enum armcp_in_attributes {
-	armcp_in_input,
-	armcp_in_min,
-	armcp_in_max,
-	armcp_in_highest = 7,
-	armcp_in_reset_history
+enum cpucp_in_attributes {
+	cpucp_in_input,
+	cpucp_in_min,
+	cpucp_in_max,
+	cpucp_in_highest = 7,
+	cpucp_in_reset_history
 };
 
-enum armcp_curr_attributes {
-	armcp_curr_input,
-	armcp_curr_min,
-	armcp_curr_max,
-	armcp_curr_highest = 7,
-	armcp_curr_reset_history
+enum cpucp_curr_attributes {
+	cpucp_curr_input,
+	cpucp_curr_min,
+	cpucp_curr_max,
+	cpucp_curr_highest = 7,
+	cpucp_curr_reset_history
 };
 
-enum armcp_fan_attributes {
-	armcp_fan_input,
-	armcp_fan_min = 2,
-	armcp_fan_max
+enum cpucp_fan_attributes {
+	cpucp_fan_input,
+	cpucp_fan_min = 2,
+	cpucp_fan_max
 };
 
-enum armcp_pwm_attributes {
-	armcp_pwm_input,
-	armcp_pwm_enable
+enum cpucp_pwm_attributes {
+	cpucp_pwm_input,
+	cpucp_pwm_enable
+};
+
+enum cpucp_pcie_throughput_attributes {
+	cpucp_pcie_throughput_tx,
+	cpucp_pcie_throughput_rx
+};
+
+enum cpucp_pll_reg_attributes {
+	cpucp_pll_nr_reg,
+	cpucp_pll_nf_reg,
+	cpucp_pll_od_reg,
+	cpucp_pll_div_factor_reg,
+	cpucp_pll_div_sel_reg
+};
+
+enum cpucp_pll_type_attributes {
+	cpucp_pll_cpu,
+	cpucp_pll_pci,
 };
 
 /* Event Queue Packets */
@@ -351,32 +386,32 @@ struct eq_generic_event {
 };
 
 /*
- * ArmCP info
+ * CpuCP info
  */
 
 #define CARD_NAME_MAX_LEN		16
 #define VERSION_MAX_LEN			128
-#define ARMCP_MAX_SENSORS		128
+#define CPUCP_MAX_SENSORS		128
 
-struct armcp_sensor {
+struct cpucp_sensor {
 	__le32 type;
 	__le32 flags;
 };
 
 /**
- * struct armcp_card_types - ASIC card type.
- * @armcp_card_type_pci: PCI card.
- * @armcp_card_type_pmc: PCI Mezzanine Card.
+ * struct cpucp_card_types - ASIC card type.
+ * @cpucp_card_type_pci: PCI card.
+ * @cpucp_card_type_pmc: PCI Mezzanine Card.
  */
-enum armcp_card_types {
-	armcp_card_type_pci,
-	armcp_card_type_pmc
+enum cpucp_card_types {
+	cpucp_card_type_pci,
+	cpucp_card_type_pmc
 };
 
 /**
- * struct armcp_info - Info from ArmCP that is necessary to the host's driver
+ * struct cpucp_info - Info from CpuCP that is necessary to the host's driver
  * @sensors: available sensors description.
- * @kernel_version: ArmCP linux kernel version.
+ * @kernel_version: CpuCP linux kernel version.
  * @reserved: reserved field.
  * @card_type: card configuration type.
  * @card_location: in a server, each card has different connections topology
@@ -385,12 +420,12 @@ enum armcp_card_types {
  * @infineon_version: Infineon main DC-DC version.
  * @fuse_version: silicon production FUSE information.
  * @thermal_version: thermald S/W version.
- * @armcp_version: ArmCP S/W version.
+ * @cpucp_version: CpuCP S/W version.
  * @dram_size: available DRAM size.
  * @card_name: card name that will be displayed in HWMON subsystem on the host
  */
-struct armcp_info {
-	struct armcp_sensor sensors[ARMCP_MAX_SENSORS];
+struct cpucp_info {
+	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
 	__u8 kernel_version[VERSION_MAX_LEN];
 	__le32 reserved;
 	__le32 card_type;
@@ -399,9 +434,10 @@ struct armcp_info {
 	__le32 infineon_version;
 	__u8 fuse_version[VERSION_MAX_LEN];
 	__u8 thermal_version[VERSION_MAX_LEN];
-	__u8 armcp_version[VERSION_MAX_LEN];
+	__u8 cpucp_version[VERSION_MAX_LEN];
+	__le32 reserved2;
 	__le64 dram_size;
 	char card_name[CARD_NAME_MAX_LEN];
 };
 
-#endif /* ARMCP_IF_H */
+#endif /* CPUCP_IF_H */
