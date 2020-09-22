@@ -235,14 +235,12 @@ struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private, int nr_cqe,
 	if (!cq->wc)
 		goto out_free_cq;
 
-	cq->res.type = RDMA_RESTRACK_CQ;
+	rdma_restrack_new(&cq->res, RDMA_RESTRACK_CQ);
 	rdma_restrack_set_task(&cq->res, caller);
 
 	ret = dev->ops.create_cq(cq, &cq_attr, NULL);
 	if (ret)
 		goto out_free_wc;
-
-	rdma_restrack_kadd(&cq->res);
 
 	rdma_dim_init(cq);
 
@@ -269,14 +267,15 @@ struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private, int nr_cqe,
 		goto out_destroy_cq;
 	}
 
+	rdma_restrack_kadd(&cq->res);
 	trace_cq_alloc(cq, nr_cqe, comp_vector, poll_ctx);
 	return cq;
 
 out_destroy_cq:
 	rdma_dim_destroy(cq);
-	rdma_restrack_del(&cq->res);
 	cq->device->ops.destroy_cq(cq, NULL);
 out_free_wc:
+	rdma_restrack_put(&cq->res);
 	kfree(cq->wc);
 out_free_cq:
 	kfree(cq);

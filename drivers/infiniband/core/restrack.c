@@ -202,6 +202,21 @@ void rdma_restrack_attach_task(struct rdma_restrack_entry *res,
 	res->task = task;
 }
 
+/**
+ * rdma_restrack_new() - Initializes new restrack entry to allow _put() interface
+ * to release memory in fully automatic way.
+ * @res - Entry to initialize
+ * @type - REstrack type
+ */
+void rdma_restrack_new(struct rdma_restrack_entry *res,
+		       enum rdma_restrack_type type)
+{
+	kref_init(&res->kref);
+	init_completion(&res->comp);
+	res->type = type;
+}
+EXPORT_SYMBOL(rdma_restrack_new);
+
 static void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
@@ -213,8 +228,6 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
 
 	rt = &dev->res[res->type];
 
-	kref_init(&res->kref);
-	init_completion(&res->comp);
 	if (res->type == RDMA_RESTRACK_QP) {
 		/* Special case to ensure that LQPN points to right QP */
 		struct ib_qp *qp = container_of(res, struct ib_qp, res);
@@ -305,6 +318,10 @@ static void restrack_release(struct kref *kref)
 	struct rdma_restrack_entry *res;
 
 	res = container_of(kref, struct rdma_restrack_entry, kref);
+	if (res->task) {
+		put_task_struct(res->task);
+		res->task = NULL;
+	}
 	complete(&res->comp);
 }
 
@@ -314,14 +331,23 @@ int rdma_restrack_put(struct rdma_restrack_entry *res)
 }
 EXPORT_SYMBOL(rdma_restrack_put);
 
+/**
+ * rdma_restrack_del() - delete object from the reource tracking database
+ * @res:  resource entry
+ */
 void rdma_restrack_del(struct rdma_restrack_entry *res)
 {
 	struct rdma_restrack_entry *old;
 	struct rdma_restrack_root *rt;
 	struct ib_device *dev;
 
-	if (!res->valid)
-		goto out;
+	if (!res->valid) {
+		if (res->task) {
+			put_task_struct(res->task);
+			res->task = NULL;
+		}
+		return;
+	}
 
 	dev = res_to_dev(res);
 	if (WARN_ON(!dev))
@@ -330,16 +356,12 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	rt = &dev->res[res->type];
 
 	old = xa_erase(&rt->xa, res->id);
+	if (res->type == RDMA_RESTRACK_MR || res->type == RDMA_RESTRACK_QP)
+		return;
 	WARN_ON(old != res);
 	res->valid = false;
 
 	rdma_restrack_put(res);
 	wait_for_completion(&res->comp);
-
-out:
-	if (res->task) {
-		put_task_struct(res->task);
-		res->task = NULL;
-	}
 }
 EXPORT_SYMBOL(rdma_restrack_del);

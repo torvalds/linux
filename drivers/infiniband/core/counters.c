@@ -80,8 +80,9 @@ static struct rdma_counter *rdma_counter_alloc(struct ib_device *dev, u8 port,
 
 	counter->device    = dev;
 	counter->port      = port;
-	counter->res.type  = RDMA_RESTRACK_COUNTER;
-	counter->stats     = dev->ops.counter_alloc_stats(counter);
+
+	rdma_restrack_new(&counter->res, RDMA_RESTRACK_COUNTER);
+	counter->stats = dev->ops.counter_alloc_stats(counter);
 	if (!counter->stats)
 		goto err_stats;
 
@@ -107,6 +108,7 @@ err_mode:
 	mutex_unlock(&port_counter->lock);
 	kfree(counter->stats);
 err_stats:
+	rdma_restrack_put(&counter->res);
 	kfree(counter);
 	return NULL;
 }

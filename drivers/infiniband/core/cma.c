@@ -833,8 +833,6 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
 	if (!id_priv)
 		return ERR_PTR(-ENOMEM);
 
-	rdma_restrack_set_task(&id_priv->res, caller);
-	id_priv->res.type = RDMA_RESTRACK_CM_ID;
 	id_priv->state = RDMA_CM_IDLE;
 	id_priv->id.context = context;
 	id_priv->id.event_handler = event_handler;
@@ -853,6 +851,9 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
 	get_random_bytes(&id_priv->seq_num, sizeof id_priv->seq_num);
 	id_priv->id.route.addr.dev_addr.net = get_net(net);
 	id_priv->seq_num &= 0x00ffffff;
+
+	rdma_restrack_new(&id_priv->res, RDMA_RESTRACK_CM_ID);
+	rdma_restrack_set_task(&id_priv->res, caller);
 
 	return &id_priv->id;
 }
