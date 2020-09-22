@@ -1654,6 +1654,7 @@ static void hinic_diag_test(struct net_device *netdev,
 	}
 
 	netif_carrier_off(netdev);
+	netif_tx_disable(netdev);
 
 	err = do_lp_test(nic_dev, eth_test->flags, LP_DEFAULT_TIME,
 			 &test_index);
@@ -1662,9 +1663,12 @@ static void hinic_diag_test(struct net_device *netdev,
 		data[test_index] = 1;
 	}
 
+	netif_tx_wake_all_queues(netdev);
+
 	err = hinic_port_link_state(nic_dev, &link_state);
 	if (!err && link_state == HINIC_LINK_STATE_UP)
 		netif_carrier_on(netdev);
+
 }
 
 static int hinic_set_phys_id(struct net_device *netdev,
