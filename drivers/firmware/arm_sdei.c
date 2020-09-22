@@ -217,7 +217,7 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 			goto fail;
 		}
 
-		reg->event_num = event_num;
+		reg->event_num = event->event_num;
 		reg->priority = event->priority;
 
 		reg->callback = cb;
