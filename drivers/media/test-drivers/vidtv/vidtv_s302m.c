@@ -201,10 +201,10 @@ static void vidtv_s302m_alloc_au(struct vidtv_encoder *e)
 static void
 vidtv_s302m_compute_sample_count_from_video(struct vidtv_encoder *e)
 {
-	struct vidtv_access_unit *au = e->access_units;
 	struct vidtv_access_unit *sync_au = e->sync->access_units;
-	u32 vau_duration_usecs;
+	struct vidtv_access_unit *au = e->access_units;
 	u32 sample_duration_usecs;
+	u32 vau_duration_usecs;
 	u32 s;
 
 	vau_duration_usecs    = USEC_PER_SEC / e->sync->sampling_rate_hz;
@@ -290,9 +290,9 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 static u32 vidtv_s302m_write_frame(struct vidtv_encoder *e,
 				   u16 sample)
 {
-	u32 nbytes = 0;
-	struct vidtv_s302m_frame_16 f = {};
 	struct vidtv_s302m_ctx *ctx = e->ctx;
+	struct vidtv_s302m_frame_16 f = {};
+	u32 nbytes = 0;
 
 	/* from ffmpeg: see s302enc.c */
 
@@ -389,6 +389,8 @@ static void vidtv_s302m_write_frames(struct vidtv_encoder *e)
 
 static void *vidtv_s302m_encode(struct vidtv_encoder *e)
 {
+	struct vidtv_s302m_ctx *ctx = e->ctx;
+
 	/*
 	 * According to SMPTE 302M, an audio access unit is specified as those
 	 * AES3 words that are associated with a corresponding video frame.
@@ -401,8 +403,6 @@ static void *vidtv_s302m_encode(struct vidtv_encoder *e)
 	 * is created with values for 'num_samples' and 'pts' taken empirically from
 	 * ffmpeg
 	 */
-
-	struct vidtv_s302m_ctx *ctx = e->ctx;
 
 	vidtv_s302m_access_unit_destroy(e);
 	vidtv_s302m_alloc_au(e);
@@ -441,9 +441,9 @@ static u32 vidtv_s302m_clear(struct vidtv_encoder *e)
 struct vidtv_encoder
 *vidtv_s302m_encoder_init(struct vidtv_s302m_encoder_init_args args)
 {
-	struct vidtv_encoder *e;
 	u32 priv_sz = sizeof(struct vidtv_s302m_ctx);
 	struct vidtv_s302m_ctx *ctx;
+	struct vidtv_encoder *e;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)

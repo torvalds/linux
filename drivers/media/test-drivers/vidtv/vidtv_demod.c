@@ -193,7 +193,6 @@ static void vidtv_demod_update_stats(struct dvb_frontend *fe)
 
 	c->cnr.stat[0].svalue = state->tuner_cnr;
 	c->cnr.stat[0].svalue -= prandom_u32_max(state->tuner_cnr / 50);
-
 }
 
 static int vidtv_demod_read_status(struct dvb_frontend *fe,

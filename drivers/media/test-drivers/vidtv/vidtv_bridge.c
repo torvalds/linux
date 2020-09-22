@@ -4,7 +4,8 @@
  * validate the existing APIs in the media subsystem. It can also aid
  * developers working on userspace applications.
  *
- * When this module is loaded, it will attempt to modprobe 'dvb_vidtv_tuner' and 'dvb_vidtv_demod'.
+ * When this module is loaded, it will attempt to modprobe 'dvb_vidtv_tuner'
+ * and 'dvb_vidtv_demod'.
  *
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
@@ -24,18 +25,21 @@
 #include "vidtv_ts.h"
 #include "vidtv_tuner.h"
 
-//#define MUX_BUF_MAX_SZ
-//#define MUX_BUF_MIN_SZ
+#define MUX_BUF_MIN_SZ 90164
+#define MUX_BUF_MAX_SZ (MUX_BUF_MIN_SZ * 10)
 #define TUNER_DEFAULT_ADDR 0x68
 #define DEMOD_DEFAULT_ADDR 0x60
 #define VIDTV_DEFAULT_NETWORK_ID 0x744
 #define VIDTV_DEFAULT_NETWORK_NAME "LinuxTV.org"
 
-/* LNBf fake parameters: ranges used by an Universal (extended) European LNBf */
-#define LNB_CUT_FREQUENCY	11700000
-#define LNB_LOW_FREQ		9750000
-#define LNB_HIGH_FREQ		10600000
-
+/*
+ * The LNBf fake parameters here are the ranges used by an
+ * Universal (extended) European LNBf, which is likely the most common LNBf
+ * found on Satellite digital TV system nowadays.
+ */
+#define LNB_CUT_FREQUENCY	11700000	/* high IF frequency */
+#define LNB_LOW_FREQ		9750000		/* low IF frequency */
+#define LNB_HIGH_FREQ		10600000	/* transition frequency */
 
 static unsigned int drop_tslock_prob_on_low_snr;
 module_param(drop_tslock_prob_on_low_snr, uint, 0);
@@ -94,7 +98,8 @@ MODULE_PARM_DESC(si_period_msec, "How often to send SI packets. Default: 40ms");
 
 static unsigned int pcr_period_msec = 40;
 module_param(pcr_period_msec, uint, 0);
-MODULE_PARM_DESC(pcr_period_msec, "How often to send PCR packets. Default: 40ms");
+MODULE_PARM_DESC(pcr_period_msec,
+		 "How often to send PCR packets. Default: 40ms");
 
 static unsigned int mux_rate_kbytes_sec = 4096;
 module_param(mux_rate_kbytes_sec, uint, 0);
@@ -106,16 +111,14 @@ MODULE_PARM_DESC(pcr_pid, "PCR PID for all channels: defaults to 0x200");
 
 static unsigned int mux_buf_sz_pkts;
 module_param(mux_buf_sz_pkts, uint, 0);
-MODULE_PARM_DESC(mux_buf_sz_pkts, "Size for the internal mux buffer in multiples of 188 bytes");
-
-#define MUX_BUF_MIN_SZ 90164
-#define MUX_BUF_MAX_SZ (MUX_BUF_MIN_SZ * 10)
+MODULE_PARM_DESC(mux_buf_sz_pkts,
+		 "Size for the internal mux buffer in multiples of 188 bytes");
 
 static u32 vidtv_bridge_mux_buf_sz_for_mux_rate(void)
 {
 	u32 max_elapsed_time_msecs =  VIDTV_MAX_SLEEP_USECS / USEC_PER_MSEC;
-	u32 nbytes_expected;
 	u32 mux_buf_sz = mux_buf_sz_pkts * TS_PACKET_LEN;
+	u32 nbytes_expected;
 
 	nbytes_expected = mux_rate_kbytes_sec;
 	nbytes_expected *= max_elapsed_time_msecs;
@@ -145,14 +148,12 @@ static bool vidtv_bridge_check_demod_lock(struct vidtv_dvb *dvb, u32 n)
 			  FE_HAS_LOCK);
 }
 
-static void
-vidtv_bridge_on_new_pkts_avail(void *priv, u8 *buf, u32 npkts)
+/*
+ * called on a separate thread by the mux when new packets become available
+ */
+static void vidtv_bridge_on_new_pkts_avail(void *priv, u8 *buf, u32 npkts)
 {
-	/*
-	 * called on a separate thread by the mux when new packets become
-	 * available
-	 */
-	struct vidtv_dvb *dvb = (struct vidtv_dvb *)priv;
+	struct vidtv_dvb *dvb = priv;
 
 	/* drop packets if we lose the lock */
 	if (vidtv_bridge_check_demod_lock(dvb, 0))
@@ -180,8 +181,10 @@ static int vidtv_start_streaming(struct vidtv_dvb *dvb)
 		return 0;
 	}
 
-	mux_buf_sz = (mux_buf_sz_pkts) ? mux_buf_sz_pkts :
-					 vidtv_bridge_mux_buf_sz_for_mux_rate();
+	if (mux_buf_sz_pkts)
+		mux_buf_sz = mux_buf_sz_pkts;
+	else
+		mux_buf_sz = vidtv_bridge_mux_buf_sz_for_mux_rate();
 
 	mux_args.mux_buf_sz  = mux_buf_sz;
 
@@ -212,8 +215,8 @@ static int vidtv_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct vidtv_dvb *dvb   = demux->priv;
-	int rc;
 	int ret;
+	int rc;
 
 	if (!demux->dmx.frontend)
 		return -EINVAL;
@@ -251,9 +254,9 @@ static int vidtv_stop_feed(struct dvb_demux_feed *feed)
 
 static struct dvb_frontend *vidtv_get_frontend_ptr(struct i2c_client *c)
 {
-	/* the demod will set this when its probe function runs */
 	struct vidtv_demod_state *state = i2c_get_clientdata(c);
 
+	/* the demod will set this when its probe function runs */
 	return &state->frontend;
 }
 
@@ -261,6 +264,11 @@ static int vidtv_master_xfer(struct i2c_adapter *i2c_adap,
 			     struct i2c_msg msgs[],
 			     int num)
 {
+	/*
+	 * Right now, this virtual driver doesn't really send or receive
+	 * messages from I2C. A real driver will require an implementation
+	 * here.
+	 */
 	return 0;
 }
 
@@ -328,11 +336,10 @@ static int vidtv_bridge_dmxdev_init(struct vidtv_dvb *dvb)
 
 static int vidtv_bridge_probe_demod(struct vidtv_dvb *dvb, u32 n)
 {
-	struct vidtv_demod_config cfg = {};
-
-	cfg.drop_tslock_prob_on_low_snr     = drop_tslock_prob_on_low_snr;
-	cfg.recover_tslock_prob_on_good_snr = recover_tslock_prob_on_good_snr;
-
+	struct vidtv_demod_config cfg = {
+		.drop_tslock_prob_on_low_snr     = drop_tslock_prob_on_low_snr,
+		.recover_tslock_prob_on_good_snr = recover_tslock_prob_on_good_snr,
+	};
 	dvb->i2c_client_demod[n] = dvb_module_probe("dvb_vidtv_demod",
 						    NULL,
 						    &dvb->i2c_adapter,
@@ -351,13 +358,13 @@ static int vidtv_bridge_probe_demod(struct vidtv_dvb *dvb, u32 n)
 
 static int vidtv_bridge_probe_tuner(struct vidtv_dvb *dvb, u32 n)
 {
-	struct vidtv_tuner_config cfg = {};
+	struct vidtv_tuner_config cfg = {
+		.fe                       = dvb->fe[n],
+		.mock_power_up_delay_msec = mock_power_up_delay_msec,
+		.mock_tune_delay_msec     = mock_tune_delay_msec,
+	};
 	u32 freq;
 	int i;
-
-	cfg.fe                       = dvb->fe[n];
-	cfg.mock_power_up_delay_msec = mock_power_up_delay_msec;
-	cfg.mock_tune_delay_msec     = mock_tune_delay_msec;
 
 	/* TODO: check if the frequencies are at a valid range */
 
@@ -397,9 +404,7 @@ static int vidtv_bridge_probe_tuner(struct vidtv_dvb *dvb, u32 n)
 
 static int vidtv_bridge_dvb_init(struct vidtv_dvb *dvb)
 {
-	int ret;
-	int i;
-	int j;
+	int ret, i, j;
 
 	ret = vidtv_bridge_i2c_register_adap(dvb);
 	if (ret < 0)

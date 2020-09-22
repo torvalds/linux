@@ -63,9 +63,9 @@ static struct vidtv_mux_pid_ctx
 
 static void vidtv_mux_pid_ctx_destroy(struct vidtv_mux *m)
 {
-	int bkt;
 	struct vidtv_mux_pid_ctx *ctx;
 	struct hlist_node *tmp;
+	int bkt;
 
 	hash_for_each_safe(m->pid_ctx, bkt, tmp, ctx, h) {
 		hash_del(&ctx->h);
@@ -129,21 +129,18 @@ static void vidtv_mux_update_clk(struct vidtv_mux *m)
 
 static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 {
-	u32 initial_offset = m->mux_buf_offset;
-
-	struct vidtv_mux_pid_ctx *pat_ctx;
-	struct vidtv_mux_pid_ctx *pmt_ctx;
-	struct vidtv_mux_pid_ctx *sdt_ctx;
-	struct vidtv_mux_pid_ctx *nit_ctx;
-	struct vidtv_mux_pid_ctx *eit_ctx;
-
 	struct vidtv_psi_pat_write_args pat_args = {};
 	struct vidtv_psi_pmt_write_args pmt_args = {};
 	struct vidtv_psi_sdt_write_args sdt_args = {};
 	struct vidtv_psi_nit_write_args nit_args = {};
 	struct vidtv_psi_eit_write_args eit_args = {};
-
-	u32 nbytes; /* the number of bytes written by this function */
+	u32 initial_offset = m->mux_buf_offset;
+	struct vidtv_mux_pid_ctx *pat_ctx;
+	struct vidtv_mux_pid_ctx *pmt_ctx;
+	struct vidtv_mux_pid_ctx *sdt_ctx;
+	struct vidtv_mux_pid_ctx *nit_ctx;
+	struct vidtv_mux_pid_ctx *eit_ctx;
+	u32 nbytes;
 	u16 pmt_pid;
 	u32 i;
 
@@ -269,7 +266,6 @@ static bool vidtv_mux_should_push_si(struct vidtv_mux *m)
 static u32 vidtv_mux_packetize_access_units(struct vidtv_mux *m,
 					    struct vidtv_encoder *e)
 {
-	u32 nbytes = 0;
 	struct pes_write_args args = {
 		.dest_buf           = m->mux_buf,
 		.dest_buf_sz        = m->mux_buf_sz,
@@ -279,10 +275,11 @@ static u32 vidtv_mux_packetize_access_units(struct vidtv_mux *m,
 		.send_pts           = true,  /* forbidden value '01'... */
 		.send_dts           = false, /* ...for PTS_DTS flags    */
 	};
-	u32 initial_offset = m->mux_buf_offset;
 	struct vidtv_access_unit *au = e->access_units;
-	u8 *buf = NULL;
+	u32 initial_offset = m->mux_buf_offset;
 	struct vidtv_mux_pid_ctx *pid_ctx;
+	u32 nbytes = 0;
+	u8 *buf = NULL;
 
 	/* see SMPTE 302M clause 6.4 */
 	if (args.encoder_id == S302M) {
@@ -318,10 +315,10 @@ static u32 vidtv_mux_packetize_access_units(struct vidtv_mux *m,
 
 static u32 vidtv_mux_poll_encoders(struct vidtv_mux *m)
 {
-	u32 nbytes = 0;
-	u32 au_nbytes;
 	struct vidtv_channel *cur_chnl = m->channels;
 	struct vidtv_encoder *e = NULL;
+	u32 nbytes = 0;
+	u32 au_nbytes;
 
 	while (cur_chnl) {
 		e = cur_chnl->encoders;
@@ -347,9 +344,9 @@ static u32 vidtv_mux_pad_with_nulls(struct vidtv_mux *m, u32 npkts)
 {
 	struct null_packet_write_args args = {};
 	u32 initial_offset = m->mux_buf_offset;
-	u32 nbytes; /* the number of bytes written by this function */
-	u32 i;
 	struct vidtv_mux_pid_ctx *ctx;
+	u32 nbytes;
+	u32 i;
 
 	ctx = vidtv_mux_get_pid_ctx(m, TS_NULL_PACKET_PID);
 
@@ -388,9 +385,9 @@ static void vidtv_mux_tick(struct work_struct *work)
 					   struct vidtv_mux,
 					   mpeg_thread);
 	struct dtv_frontend_properties *c = &m->fe->dtv_property_cache;
+	u32 tot_bits = 0;
 	u32 nbytes;
 	u32 npkts;
-	u32 tot_bits = 0;
 
 	while (m->streaming) {
 		nbytes = 0;

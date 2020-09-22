@@ -76,7 +76,7 @@ static const u32 CRC_LUT[256] = {
 	0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
 };
 
-static inline u32 dvb_crc32(u32 crc, u8 *data, u32 len)
+static u32 dvb_crc32(u32 crc, u8 *data, u32 len)
 {
 	/* from libdvbv5 */
 	while (len--)
@@ -89,7 +89,8 @@ static void vidtv_psi_update_version_num(struct vidtv_psi_table_header *h)
 	h->version++;
 }
 
-static inline u16 vidtv_psi_sdt_serv_get_desc_loop_len(struct vidtv_psi_table_sdt_service *s)
+static u16
+vidtv_psi_sdt_serv_get_desc_loop_len(struct vidtv_psi_table_sdt_service *s)
 {
 	u16 mask;
 	u16 ret;
@@ -100,7 +101,8 @@ static inline u16 vidtv_psi_sdt_serv_get_desc_loop_len(struct vidtv_psi_table_sd
 	return ret;
 }
 
-static inline u16 vidtv_psi_pmt_stream_get_desc_loop_len(struct vidtv_psi_table_pmt_stream *s)
+static u16
+vidtv_psi_pmt_stream_get_desc_loop_len(struct vidtv_psi_table_pmt_stream *s)
 {
 	u16 mask;
 	u16 ret;
@@ -111,7 +113,7 @@ static inline u16 vidtv_psi_pmt_stream_get_desc_loop_len(struct vidtv_psi_table_
 	return ret;
 }
 
-static inline u16 vidtv_psi_pmt_get_desc_loop_len(struct vidtv_psi_table_pmt *p)
+static u16 vidtv_psi_pmt_get_desc_loop_len(struct vidtv_psi_table_pmt *p)
 {
 	u16 mask;
 	u16 ret;
@@ -122,7 +124,7 @@ static inline u16 vidtv_psi_pmt_get_desc_loop_len(struct vidtv_psi_table_pmt *p)
 	return ret;
 }
 
-static inline u16 vidtv_psi_get_sec_len(struct vidtv_psi_table_header *h)
+static u16 vidtv_psi_get_sec_len(struct vidtv_psi_table_header *h)
 {
 	u16 mask;
 	u16 ret;
@@ -133,7 +135,7 @@ static inline u16 vidtv_psi_get_sec_len(struct vidtv_psi_table_header *h)
 	return ret;
 }
 
-inline u16 vidtv_psi_get_pat_program_pid(struct vidtv_psi_table_pat_program *p)
+u16 vidtv_psi_get_pat_program_pid(struct vidtv_psi_table_pat_program *p)
 {
 	u16 mask;
 	u16 ret;
@@ -144,7 +146,7 @@ inline u16 vidtv_psi_get_pat_program_pid(struct vidtv_psi_table_pat_program *p)
 	return ret;
 }
 
-inline u16 vidtv_psi_pmt_stream_get_elem_pid(struct vidtv_psi_table_pmt_stream *s)
+u16 vidtv_psi_pmt_stream_get_elem_pid(struct vidtv_psi_table_pmt_stream *s)
 {
 	u16 mask;
 	u16 ret;
@@ -155,10 +157,11 @@ inline u16 vidtv_psi_pmt_stream_get_elem_pid(struct vidtv_psi_table_pmt_stream *
 	return ret;
 }
 
-static inline void vidtv_psi_set_desc_loop_len(__be16 *bitfield, u16 new_len, u8 desc_len_nbits)
+static void vidtv_psi_set_desc_loop_len(__be16 *bitfield, u16 new_len,
+					u8 desc_len_nbits)
 {
-	u16 mask;
 	__be16 new;
+	u16 mask;
 
 	mask = GENMASK(15, desc_len_nbits);
 
@@ -185,27 +188,22 @@ static void vidtv_psi_set_sec_len(struct vidtv_psi_table_header *h, u16 new_len)
 	h->bitfield = new;
 }
 
+/*
+ * Packetize PSI sections into TS packets:
+ * push a TS header (4bytes) every 184 bytes
+ * manage the continuity_counter
+ * add stuffing (i.e. padding bytes) after the CRC
+ */
 static u32 vidtv_psi_ts_psi_write_into(struct psi_write_args args)
 {
-	/*
-	 * Packetize PSI sections into TS packets:
-	 * push a TS header (4bytes) every 184 bytes
-	 * manage the continuity_counter
-	 * add stuffing (i.e. padding bytes) after the CRC
-	 */
 
 	u32 nbytes_past_boundary = (args.dest_offset % TS_PACKET_LEN);
 	bool aligned = (nbytes_past_boundary == 0);
 	struct vidtv_mpeg_ts ts_header = {};
-
-	/* number of bytes written by this function */
-	u32 nbytes = 0;
-	/* how much there is left to write */
 	u32 remaining_len = args.len;
-	/* how much we can be written in this packet */
 	u32 payload_write_len = 0;
-	/* where we are in the source */
 	u32 payload_offset = 0;
+	u32 nbytes = 0;
 
 	const u16 PAYLOAD_START = args.new_psi_section;
 
@@ -294,9 +292,10 @@ static u32 vidtv_psi_ts_psi_write_into(struct psi_write_args args)
 
 static u32 table_section_crc32_write_into(struct crc32_write_args args)
 {
-	/* the CRC is the last entry in the section */
-	u32 nbytes = 0;
 	struct psi_write_args psi_args = {};
+	u32 nbytes = 0;
+
+	/* the CRC is the last entry in the section */
 
 	psi_args.dest_buf           = args.dest_buf;
 	psi_args.from               = &args.crc;
@@ -391,8 +390,8 @@ struct vidtv_psi_desc_registration
 struct vidtv_psi_desc_network_name
 *vidtv_psi_network_name_desc_init(struct vidtv_psi_desc *head, char *network_name)
 {
-	struct vidtv_psi_desc_network_name *desc;
 	u32 network_name_len = network_name ? strlen(network_name) : 0;
+	struct vidtv_psi_desc_network_name *desc;
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
@@ -413,10 +412,10 @@ struct vidtv_psi_desc_service_list
 *vidtv_psi_service_list_desc_init(struct vidtv_psi_desc *head,
 				  struct vidtv_psi_desc_service_list_entry *entry)
 {
-	struct vidtv_psi_desc_service_list *desc;
 	struct vidtv_psi_desc_service_list_entry *curr_e = NULL;
 	struct vidtv_psi_desc_service_list_entry *head_e = NULL;
 	struct vidtv_psi_desc_service_list_entry *prev_e = NULL;
+	struct vidtv_psi_desc_service_list *desc;
 	u16 length = 0;
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
@@ -465,10 +464,10 @@ struct vidtv_psi_desc_short_event
 				 char *event_name,
 				 char *text)
 {
-	struct vidtv_psi_desc_short_event *desc;
-	u32 event_name_len = event_name ? strlen(event_name) : 0;
-	u32 text_len =  text ? strlen(text) : 0;
 	u32 iso_len =  iso_language_code ? strlen(iso_language_code) : 0;
+	u32 event_name_len = event_name ? strlen(event_name) : 0;
+	struct vidtv_psi_desc_short_event *desc;
+	u32 text_len =  text ? strlen(text) : 0;
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
@@ -502,14 +501,13 @@ struct vidtv_psi_desc_short_event
 
 struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 {
-	struct vidtv_psi_desc *head = NULL;
-	struct vidtv_psi_desc *prev = NULL;
-	struct vidtv_psi_desc *curr = NULL;
-
-	struct vidtv_psi_desc_service *service;
 	struct vidtv_psi_desc_network_name *desc_network_name;
 	struct vidtv_psi_desc_service_list *desc_service_list;
 	struct vidtv_psi_desc_short_event  *desc_short_event;
+	struct vidtv_psi_desc_service *service;
+	struct vidtv_psi_desc *head = NULL;
+	struct vidtv_psi_desc *prev = NULL;
+	struct vidtv_psi_desc *curr = NULL;
 
 	while (desc) {
 		switch (desc->type) {
@@ -571,10 +569,10 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 
 void vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc)
 {
+	struct vidtv_psi_desc_service_list_entry *sl_entry_tmp = NULL;
+	struct vidtv_psi_desc_service_list_entry *sl_entry = NULL;
 	struct vidtv_psi_desc *curr = desc;
 	struct vidtv_psi_desc *tmp  = NULL;
-	struct vidtv_psi_desc_service_list_entry *sl_entry = NULL;
-	struct vidtv_psi_desc_service_list_entry *sl_entry_tmp = NULL;
 
 	while (curr) {
 		tmp  = curr;
@@ -677,10 +675,10 @@ void vidtv_sdt_desc_assign(struct vidtv_psi_table_sdt *sdt,
 
 static u32 vidtv_psi_desc_write_into(struct desc_write_args args)
 {
+	struct vidtv_psi_desc_service_list_entry *serv_list_entry = NULL;
+	struct psi_write_args psi_args = {};
 	/* the number of bytes written by this function */
 	u32 nbytes = 0;
-	struct psi_write_args psi_args = {};
-	struct vidtv_psi_desc_service_list_entry *serv_list_entry = NULL;
 
 	psi_args.dest_buf = args.dest_buf;
 	psi_args.from     = &args.desc->type;
@@ -799,9 +797,9 @@ static u32 vidtv_psi_desc_write_into(struct desc_write_args args)
 static u32
 vidtv_psi_table_header_write_into(struct header_write_args args)
 {
+	struct psi_write_args psi_args = {};
 	/* the number of bytes written by this function */
 	u32 nbytes = 0;
-	struct psi_write_args psi_args = {};
 
 	psi_args.dest_buf           = args.dest_buf;
 	psi_args.from               = args.h;
@@ -822,9 +820,10 @@ vidtv_psi_table_header_write_into(struct header_write_args args)
 void
 vidtv_psi_pat_table_update_sec_len(struct vidtv_psi_table_pat *pat)
 {
-	/* see ISO/IEC 13818-1 : 2000 p.43 */
 	u16 length = 0;
 	u32 i;
+
+	/* see ISO/IEC 13818-1 : 2000 p.43 */
 
 	/* from immediately after 'section_length' until 'last_section_number'*/
 	length += PAT_LEN_UNTIL_LAST_SECTION_NUMBER;
@@ -841,10 +840,11 @@ vidtv_psi_pat_table_update_sec_len(struct vidtv_psi_table_pat *pat)
 
 void vidtv_psi_pmt_table_update_sec_len(struct vidtv_psi_table_pmt *pmt)
 {
-	/* see ISO/IEC 13818-1 : 2000 p.46 */
-	u16 length = 0;
 	struct vidtv_psi_table_pmt_stream *s = pmt->stream;
 	u16 desc_loop_len;
+	u16 length = 0;
+
+	/* see ISO/IEC 13818-1 : 2000 p.46 */
 
 	/* from immediately after 'section_length' until 'program_info_length'*/
 	length += PMT_LEN_UNTIL_PROGRAM_INFO_LENGTH;
@@ -875,10 +875,11 @@ void vidtv_psi_pmt_table_update_sec_len(struct vidtv_psi_table_pmt *pmt)
 
 void vidtv_psi_sdt_table_update_sec_len(struct vidtv_psi_table_sdt *sdt)
 {
-	/* see ETSI EN 300 468 V 1.10.1 p.24 */
-	u16 length = 0;
 	struct vidtv_psi_table_sdt_service *s = sdt->service;
 	u16 desc_loop_len;
+	u16 length = 0;
+
+	/* see ETSI EN 300 468 V 1.10.1 p.24 */
 
 	/*
 	 * from immediately after 'section_length' until
@@ -935,8 +936,8 @@ vidtv_psi_pat_program_init(struct vidtv_psi_table_pat_program *head,
 void
 vidtv_psi_pat_program_destroy(struct vidtv_psi_table_pat_program *p)
 {
-	struct vidtv_psi_table_pat_program *curr = p;
 	struct vidtv_psi_table_pat_program *tmp  = NULL;
+	struct vidtv_psi_table_pat_program *curr = p;
 
 	while (curr) {
 		tmp  = curr;
@@ -945,14 +946,13 @@ vidtv_psi_pat_program_destroy(struct vidtv_psi_table_pat_program *p)
 	}
 }
 
+/* This function transfers ownership of p to the table */
 void
 vidtv_psi_pat_program_assign(struct vidtv_psi_table_pat *pat,
 			     struct vidtv_psi_table_pat_program *p)
 {
-	/* This function transfers ownership of p to the table */
-
-	u16 program_count;
 	struct vidtv_psi_table_pat_program *program;
+	u16 program_count;
 
 	do {
 		program_count = 0;
@@ -1010,16 +1010,13 @@ struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id)
 
 u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args args)
 {
-	/* the number of bytes written by this function */
-	u32 nbytes = 0;
+	struct vidtv_psi_table_pat_program *p = args.pat->program;
+	struct header_write_args h_args       = {};
+	struct psi_write_args psi_args        = {};
+	struct crc32_write_args c_args        = {};
 	const u16 pat_pid = VIDTV_PAT_PID;
 	u32 crc = INITIAL_CRC;
-
-	struct vidtv_psi_table_pat_program *p = args.pat->program;
-
-	struct header_write_args h_args       = {};
-	struct psi_write_args psi_args            = {};
-	struct crc32_write_args c_args        = {};
+	u32 nbytes = 0;
 
 	vidtv_psi_pat_table_update_sec_len(args.pat);
 
@@ -1114,8 +1111,8 @@ vidtv_psi_pmt_stream_init(struct vidtv_psi_table_pmt_stream *head,
 
 void vidtv_psi_pmt_stream_destroy(struct vidtv_psi_table_pmt_stream *s)
 {
-	struct vidtv_psi_table_pmt_stream *curr_stream = s;
 	struct vidtv_psi_table_pmt_stream *tmp_stream  = NULL;
+	struct vidtv_psi_table_pmt_stream *curr_stream = s;
 
 	while (curr_stream) {
 		tmp_stream  = curr_stream;
@@ -1166,11 +1163,11 @@ struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
 						     u16 pcr_pid)
 {
 	struct vidtv_psi_table_pmt *pmt;
-	const u16 SYNTAX = 0x1;
-	const u16 ZERO = 0x0;
-	const u16 ONES = 0x03;
 	const u16 RESERVED1 = 0x07;
 	const u16 RESERVED2 = 0x0f;
+	const u16 SYNTAX = 0x1;
+	const u16 ONES = 0x03;
+	const u16 ZERO = 0x0;
 	u16 desc_loop_len;
 
 	pmt = kzalloc(sizeof(*pmt), GFP_KERNEL);
@@ -1208,18 +1205,15 @@ struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
 
 u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args)
 {
-	/* the number of bytes written by this function */
-	u32 nbytes = 0;
-	u32 crc = INITIAL_CRC;
-
 	struct vidtv_psi_desc *table_descriptor   = args.pmt->descriptor;
 	struct vidtv_psi_table_pmt_stream *stream = args.pmt->stream;
 	struct vidtv_psi_desc *stream_descriptor;
-
 	struct header_write_args h_args = {};
 	struct psi_write_args psi_args  = {};
 	struct desc_write_args d_args   = {};
 	struct crc32_write_args c_args  = {};
+	u32 crc = INITIAL_CRC;
+	u32 nbytes = 0;
 
 	vidtv_psi_pmt_table_update_sec_len(args.pmt);
 
@@ -1317,10 +1311,10 @@ void vidtv_psi_pmt_table_destroy(struct vidtv_psi_table_pmt *pmt)
 struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id)
 {
 	struct vidtv_psi_table_sdt *sdt;
-	const u16 SYNTAX = 0x1;
-	const u16 ONE = 0x1;
-	const u16 ONES = 0x03;
 	const u16 RESERVED = 0xff;
+	const u16 SYNTAX = 0x1;
+	const u16 ONES = 0x03;
+	const u16 ONE = 0x1;
 
 	sdt  = kzalloc(sizeof(*sdt), GFP_KERNEL);
 	if (!sdt)
@@ -1360,18 +1354,17 @@ struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id)
 
 u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 {
-	u32 nbytes  = 0;
-	u16 sdt_pid = VIDTV_SDT_PID;  /* see ETSI EN 300 468 v1.15.1 p. 11 */
-
-	u32 crc = INITIAL_CRC;
-
 	struct vidtv_psi_table_sdt_service *service = args.sdt->service;
 	struct vidtv_psi_desc *service_desc;
-
 	struct header_write_args h_args = {};
 	struct psi_write_args psi_args  = {};
 	struct desc_write_args d_args   = {};
 	struct crc32_write_args c_args  = {};
+	u16 sdt_pid = VIDTV_SDT_PID;
+	u32 nbytes  = 0;
+	u32 crc = INITIAL_CRC;
+
+	/* see ETSI EN 300 468 v1.15.1 p. 11 */
 
 	vidtv_psi_sdt_table_update_sec_len(args.sdt);
 
@@ -1520,15 +1513,16 @@ vidtv_psi_sdt_service_assign(struct vidtv_psi_table_sdt *sdt,
 	vidtv_psi_update_version_num(&sdt->header);
 }
 
+/*
+ * PMTs contain information about programs. For each program,
+ * there is one PMT section. This function will create a section
+ * for each program found in the PAT
+ */
 struct vidtv_psi_table_pmt**
-vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat, u16 pcr_pid)
+vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat,
+					    u16 pcr_pid)
 
 {
-	/*
-	 * PMTs contain information about programs. For each program,
-	 * there is one PMT section. This function will create a section
-	 * for each program found in the PAT
-	 */
 	struct vidtv_psi_table_pat_program *program = pat->program;
 	struct vidtv_psi_table_pmt **pmt_secs;
 	u32 i = 0;
@@ -1549,12 +1543,12 @@ vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat, u16
 	return pmt_secs;
 }
 
+/* find the PMT section associated with 'program_num' */
 struct vidtv_psi_table_pmt
 *vidtv_psi_find_pmt_sec(struct vidtv_psi_table_pmt **pmt_sections,
 			u16 nsections,
 			u16 program_num)
 {
-	/* find the PMT section associated with 'program_num' */
 	struct vidtv_psi_table_pmt *sec = NULL;
 	u32 i;
 
@@ -1616,11 +1610,11 @@ struct vidtv_psi_table_nit
 			  char *network_name,
 			  struct vidtv_psi_desc_service_list_entry *service_list)
 {
-	struct vidtv_psi_table_nit *nit;
 	struct vidtv_psi_table_transport *transport;
+	struct vidtv_psi_table_nit *nit;
 	const u16 SYNTAX = 0x1;
-	const u16 ONE = 0x1;
 	const u16 ONES = 0x03;
+	const u16 ONE = 0x1;
 
 	nit = kzalloc(sizeof(*nit), GFP_KERNEL);
 	if (!nit)
@@ -1677,18 +1671,15 @@ free_nit:
 
 u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 {
-	/* the number of bytes written by this function */
-	u32 nbytes = 0;
-	u32 crc = INITIAL_CRC;
-
 	struct vidtv_psi_desc *table_descriptor     = args.nit->descriptor;
 	struct vidtv_psi_table_transport *transport = args.nit->transport;
 	struct vidtv_psi_desc *transport_descriptor;
-
 	struct header_write_args h_args = {};
 	struct psi_write_args psi_args  = {};
 	struct desc_write_args d_args   = {};
 	struct crc32_write_args c_args  = {};
+	u32 crc = INITIAL_CRC;
+	u32 nbytes = 0;
 
 	vidtv_psi_nit_table_update_sec_len(args.nit);
 
@@ -1786,8 +1777,8 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 
 static void vidtv_psi_transport_destroy(struct vidtv_psi_table_transport *t)
 {
-	struct vidtv_psi_table_transport *curr_t = t;
 	struct vidtv_psi_table_transport *tmp_t  = NULL;
+	struct vidtv_psi_table_transport *curr_t = t;
 
 	while (curr_t) {
 		tmp_t  = curr_t;
@@ -1806,9 +1797,9 @@ void vidtv_psi_nit_table_destroy(struct vidtv_psi_table_nit *nit)
 
 void vidtv_psi_eit_table_update_sec_len(struct vidtv_psi_table_eit *eit)
 {
-	u16 length = 0;
 	struct vidtv_psi_table_eit_event *e = eit->event;
 	u16 desc_loop_len;
+	u16 length = 0;
 
 	/*
 	 * from immediately after 'section_length' until
@@ -1890,16 +1881,14 @@ struct vidtv_psi_table_eit
 
 u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
 {
-	u32 nbytes  = 0;
-	u32 crc = INITIAL_CRC;
-
 	struct vidtv_psi_table_eit_event *event = args.eit->event;
 	struct vidtv_psi_desc *event_descriptor;
-
 	struct header_write_args h_args = {};
 	struct psi_write_args psi_args  = {};
 	struct desc_write_args d_args   = {};
 	struct crc32_write_args c_args  = {};
+	u32 crc = INITIAL_CRC;
+	u32 nbytes  = 0;
 
 	vidtv_psi_eit_table_update_sec_len(args.eit);
 
@@ -1978,8 +1967,8 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
 struct vidtv_psi_table_eit_event
 *vidtv_psi_eit_event_init(struct vidtv_psi_table_eit_event *head, u16 event_id)
 {
-	struct vidtv_psi_table_eit_event *e;
 	const u8 DURATION_ONE_HOUR[] = {1, 0, 0};
+	struct vidtv_psi_table_eit_event *e;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)
@@ -2003,8 +1992,8 @@ struct vidtv_psi_table_eit_event
 
 void vidtv_psi_eit_event_destroy(struct vidtv_psi_table_eit_event *e)
 {
-	struct vidtv_psi_table_eit_event *curr_e = e;
 	struct vidtv_psi_table_eit_event *tmp_e  = NULL;
+	struct vidtv_psi_table_eit_event *curr_e = e;
 
 	while (curr_e) {
 		tmp_e  = curr_e;

@@ -28,7 +28,7 @@ struct vidtv_access_unit {
 	struct vidtv_access_unit *next;
 };
 
-/* Some musical notes, used by a tone generator */
+/* Some musical notes, used by a tone generator. Values are in Hz */
 enum musical_notes {
 	NOTE_SILENT = 0,
 
