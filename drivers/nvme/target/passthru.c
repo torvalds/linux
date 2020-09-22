@@ -456,10 +456,26 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 			req->execute = nvmet_passthru_execute_cmd;
 			req->p.use_workqueue = true;
 			return NVME_SC_SUCCESS;
+		case NVME_ID_CNS_CS_CTRL:
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				req->execute = nvmet_passthru_execute_cmd;
+				req->p.use_workqueue = true;
+				return NVME_SC_SUCCESS;
+			}
+			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		case NVME_ID_CNS_NS:
 			req->execute = nvmet_passthru_execute_cmd;
 			req->p.use_workqueue = true;
 			return NVME_SC_SUCCESS;
+		case NVME_ID_CNS_CS_NS:
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				req->execute = nvmet_passthru_execute_cmd;
+				req->p.use_workqueue = true;
+				return NVME_SC_SUCCESS;
+			}
+			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		default:
 			return nvmet_setup_passthru_command(req);
 		}
