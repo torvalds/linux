@@ -237,7 +237,7 @@ static long iommu_tce_xchg_no_kill_rm(struct mm_struct *mm,
 	return ret;
 }
 
-extern void iommu_tce_kill_rm(struct iommu_table *tbl,
+static void iommu_tce_kill_rm(struct iommu_table *tbl,
 		unsigned long entry, unsigned long pages)
 {
 	if (tbl->it_ops->tce_kill)
