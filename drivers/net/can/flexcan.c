@@ -1579,11 +1579,13 @@ static int flexcan_probe(struct platform_device *pdev)
 	u8 clk_src = 1;
 	u32 clock_freq = 0;
 
-	reg_xceiver = devm_regulator_get(&pdev->dev, "xceiver");
+	reg_xceiver = devm_regulator_get_optional(&pdev->dev, "xceiver");
 	if (PTR_ERR(reg_xceiver) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
-	else if (IS_ERR(reg_xceiver))
+	else if (PTR_ERR(reg_xceiver) == -ENODEV)
 		reg_xceiver = NULL;
+	else if (IS_ERR(reg_xceiver))
+		return PTR_ERR(reg_xceiver);
 
 	if (pdev->dev.of_node) {
 		of_property_read_u32(pdev->dev.of_node,
