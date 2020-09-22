@@ -1081,17 +1081,18 @@ static bool __init sdei_present_acpi(void)
 
 static int __init sdei_init(void)
 {
-	int ret = platform_driver_register(&sdei_driver);
+	struct platform_device *pdev;
+	int ret;
 
-	if (!ret && sdei_present_acpi()) {
-		struct platform_device *pdev;
+	ret = platform_driver_register(&sdei_driver);
+	if (ret || !sdei_present_acpi())
+		return ret;
 
-		pdev = platform_device_register_simple(sdei_driver.driver.name,
-						       0, NULL, 0);
-		if (IS_ERR(pdev))
-			pr_info("Failed to register ACPI:SDEI platform device %ld\n",
-				PTR_ERR(pdev));
-	}
+	pdev = platform_device_register_simple(sdei_driver.driver.name,
+					       0, NULL, 0);
+	if (IS_ERR(pdev))
+		pr_info("Failed to register ACPI:SDEI platform device %ld\n",
+			PTR_ERR(pdev));
 
 	return ret;
 }
