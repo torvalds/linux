@@ -121,7 +121,7 @@ static const struct i2c_device_id pm80x_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pm80x_id_table);
 
-static struct resource rtc_resources[] = {
+static const struct resource rtc_resources[] = {
 	{
 	 .name = "88pm80x-rtc",
 	 .start = PM800_IRQ_RTC,
