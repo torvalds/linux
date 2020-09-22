@@ -10021,6 +10021,8 @@ int netdev_refcnt_read(const struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_refcnt_read);
 
+#define WAIT_REFS_MIN_MSECS 1
+#define WAIT_REFS_MAX_MSECS 250
 /**
  * netdev_wait_allrefs - wait until all references are gone.
  * @dev: target net_device
@@ -10033,8 +10035,6 @@ EXPORT_SYMBOL(netdev_refcnt_read);
  * We can get stuck here if buggy protocols don't correctly
  * call dev_put.
  */
-#define WAIT_REFS_MIN_MSECS 1
-#define WAIT_REFS_MAX_MSECS 250
 static void netdev_wait_allrefs(struct net_device *dev)
 {
 	unsigned long rebroadcast_time, warning_time;
