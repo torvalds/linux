@@ -590,36 +590,34 @@ int sdei_event_register(u32 event_num, sdei_event_callback *cb, void *arg)
 	WARN_ON(in_nmi());
 
 	mutex_lock(&sdei_events_lock);
-	do {
-		if (sdei_event_find(event_num)) {
-			pr_warn("Event %u already registered\n", event_num);
-			err = -EBUSY;
-			break;
-		}
+	if (sdei_event_find(event_num)) {
+		pr_warn("Event %u already registered\n", event_num);
+		err = -EBUSY;
+		goto unlock;
+	}
 
-		event = sdei_event_create(event_num, cb, arg);
-		if (IS_ERR(event)) {
-			err = PTR_ERR(event);
-			pr_warn("Failed to create event %u: %d\n", event_num,
-				err);
-			break;
-		}
+	event = sdei_event_create(event_num, cb, arg);
+	if (IS_ERR(event)) {
+		err = PTR_ERR(event);
+		pr_warn("Failed to create event %u: %d\n", event_num, err);
+		goto unlock;
+	}
 
-		cpus_read_lock();
-		err = _sdei_event_register(event);
-		if (err) {
-			sdei_event_destroy(event);
-			pr_warn("Failed to register event %u: %d\n", event_num,
-				err);
-		} else {
-			spin_lock(&sdei_list_lock);
-			event->reregister = true;
-			spin_unlock(&sdei_list_lock);
-		}
-		cpus_read_unlock();
-	} while (0);
+	cpus_read_lock();
+	err = _sdei_event_register(event);
+	if (err) {
+		sdei_event_destroy(event);
+		pr_warn("Failed to register event %u: %d\n", event_num, err);
+		goto cpu_unlock;
+	}
+
+	spin_lock(&sdei_list_lock);
+	event->reregister = true;
+	spin_unlock(&sdei_list_lock);
+cpu_unlock:
+	cpus_read_unlock();
+unlock:
 	mutex_unlock(&sdei_events_lock);
-
 	return err;
 }
 
