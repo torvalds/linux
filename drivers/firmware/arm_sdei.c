@@ -491,24 +491,23 @@ int sdei_event_unregister(u32 event_num)
 
 	mutex_lock(&sdei_events_lock);
 	event = sdei_event_find(event_num);
-	do {
-		if (!event) {
-			pr_warn("Event %u not registered\n", event_num);
-			err = -ENOENT;
-			break;
-		}
+	if (!event) {
+		pr_warn("Event %u not registered\n", event_num);
+		err = -ENOENT;
+		goto unlock;
+	}
 
-		spin_lock(&sdei_list_lock);
-		event->reregister = false;
-		event->reenable = false;
-		spin_unlock(&sdei_list_lock);
+	spin_lock(&sdei_list_lock);
+	event->reregister = false;
+	event->reenable = false;
+	spin_unlock(&sdei_list_lock);
 
-		err = _sdei_event_unregister(event);
-		if (err)
-			break;
+	err = _sdei_event_unregister(event);
+	if (err)
+		goto unlock;
 
-		sdei_event_destroy(event);
-	} while (0);
+	sdei_event_destroy(event);
+unlock:
 	mutex_unlock(&sdei_events_lock);
 
 	return err;
