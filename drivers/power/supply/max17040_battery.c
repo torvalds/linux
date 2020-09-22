@@ -25,6 +25,7 @@
 #define MAX17040_MODE	0x06
 #define MAX17040_VER	0x08
 #define MAX17040_CONFIG	0x0C
+#define MAX17040_STATUS	0x1A
 #define MAX17040_CMD	0xFE
 
 
@@ -33,7 +34,10 @@
 #define MAX17040_RCOMP_DEFAULT  0x9700
 
 #define MAX17040_ATHD_MASK		0x3f
+#define MAX17040_ALSC_MASK		0x40
 #define MAX17040_ATHD_DEFAULT_POWER_UP	4
+#define MAX17040_STATUS_HD_MASK		0x1000
+#define MAX17040_STATUS_SC_MASK		0x2000
 #define MAX17040_CFG_RCOMP_MASK		0xff00
 
 enum chip_id {
@@ -55,6 +59,7 @@ struct chip_data {
 	u16 vcell_div;
 	u8  has_low_soc_alert;
 	u8  rcomp_bytes;
+	u8  has_soc_alert;
 };
 
 static struct chip_data max17040_family[] = {
@@ -65,6 +70,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_div = 1,
 		.has_low_soc_alert = 0,
 		.rcomp_bytes = 2,
+		.has_soc_alert = 0,
 	},
 	[ID_MAX17041] = {
 		.reset_val = 0x0054,
@@ -73,6 +79,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_div = 1,
 		.has_low_soc_alert = 0,
 		.rcomp_bytes = 2,
+		.has_soc_alert = 0,
 	},
 	[ID_MAX17043] = {
 		.reset_val = 0x0054,
@@ -81,6 +88,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_div = 1,
 		.has_low_soc_alert = 1,
 		.rcomp_bytes = 1,
+		.has_soc_alert = 0,
 	},
 	[ID_MAX17044] = {
 		.reset_val = 0x0054,
@@ -89,6 +97,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_div = 1,
 		.has_low_soc_alert = 1,
 		.rcomp_bytes = 1,
+		.has_soc_alert = 0,
 	},
 	[ID_MAX17048] = {
 		.reset_val = 0x5400,
@@ -97,6 +106,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_div = 8,
 		.has_low_soc_alert = 1,
 		.rcomp_bytes = 1,
+		.has_soc_alert = 1,
 	},
 	[ID_MAX17049] = {
 		.reset_val = 0x5400,
@@ -105,6 +115,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_div = 4,
 		.has_low_soc_alert = 1,
 		.rcomp_bytes = 1,
+		.has_soc_alert = 1,
 	},
 	[ID_MAX17058] = {
 		.reset_val = 0x5400,
@@ -113,6 +124,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_div = 8,
 		.has_low_soc_alert = 1,
 		.rcomp_bytes = 1,
+		.has_soc_alert = 0,
 	},
 	[ID_MAX17059] = {
 		.reset_val = 0x5400,
@@ -121,6 +133,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_div = 4,
 		.has_low_soc_alert = 1,
 		.rcomp_bytes = 1,
+		.has_soc_alert = 0,
 	},
 };
 
@@ -154,6 +167,12 @@ static int max17040_set_low_soc_alert(struct max17040_chip *chip, u32 level)
 	level = 32 - level * (chip->quirk_double_soc ? 2 : 1);
 	return regmap_update_bits(chip->regmap, MAX17040_CONFIG,
 			MAX17040_ATHD_MASK, level);
+}
+
+static int max17040_set_soc_alert(struct max17040_chip *chip, bool enable)
+{
+	return regmap_update_bits(chip->regmap, MAX17040_CONFIG,
+			MAX17040_ALSC_MASK, enable ? MAX17040_ALSC_MASK : 0);
 }
 
 static int max17040_set_rcomp(struct max17040_chip *chip, u16 rcomp)
@@ -300,11 +319,33 @@ static void max17040_work(struct work_struct *work)
 	max17040_queue_work(chip);
 }
 
+/* Returns true if alert cause was SOC change, not low SOC */
+static bool max17040_handle_soc_alert(struct max17040_chip *chip)
+{
+	bool ret = true;
+	u32 data;
+
+	regmap_read(chip->regmap, MAX17040_STATUS, &data);
+
+	if (data & MAX17040_STATUS_HD_MASK) {
+		// this alert was caused by low soc
+		ret = false;
+	}
+	if (data & MAX17040_STATUS_SC_MASK) {
+		// soc change bit -- deassert to mark as handled
+		regmap_write(chip->regmap, MAX17040_STATUS,
+				data & ~MAX17040_STATUS_SC_MASK);
+	}
+
+	return ret;
+}
+
 static irqreturn_t max17040_thread_handler(int id, void *dev)
 {
 	struct max17040_chip *chip = dev;
 
-	dev_warn(&chip->client->dev, "IRQ: Alert battery low level");
+	if (!(chip->data.has_soc_alert && max17040_handle_soc_alert(chip)))
+		dev_warn(&chip->client->dev, "IRQ: Alert battery low level\n");
 
 	/* read registers */
 	max17040_check_changes(chip);
@@ -428,6 +469,7 @@ static int max17040_probe(struct i2c_client *client,
 	struct power_supply_config psy_cfg = {};
 	struct max17040_chip *chip;
 	enum chip_id chip_id;
+	bool enable_irq = false;
 	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
@@ -479,6 +521,27 @@ static int max17040_probe(struct i2c_client *client,
 			return ret;
 		}
 
+		enable_irq = true;
+	}
+
+	if (client->irq && chip->data.has_soc_alert) {
+		ret = max17040_set_soc_alert(chip, 1);
+		if (ret) {
+			dev_err(&client->dev,
+				"Failed to set SOC alert: err %d\n", ret);
+			return ret;
+		}
+		enable_irq = true;
+	} else {
+		/* soc alerts negate the need for polling */
+		INIT_DEFERRABLE_WORK(&chip->work, max17040_work);
+		ret = devm_add_action(&client->dev, max17040_stop_work, chip);
+		if (ret)
+			return ret;
+		max17040_queue_work(chip);
+	}
+
+	if (enable_irq) {
 		ret = max17040_enable_alert_irq(chip);
 		if (ret) {
 			client->irq = 0;
@@ -486,12 +549,6 @@ static int max17040_probe(struct i2c_client *client,
 				 "Failed to get IRQ err %d\n", ret);
 		}
 	}
-
-	INIT_DEFERRABLE_WORK(&chip->work, max17040_work);
-	ret = devm_add_action(&client->dev, max17040_stop_work, chip);
-	if (ret)
-		return ret;
-	max17040_queue_work(chip);
 
 	return 0;
 }
@@ -503,7 +560,11 @@ static int max17040_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	cancel_delayed_work(&chip->work);
+	if (client->irq && chip->data.has_soc_alert)
+		// disable soc alert to prevent wakeup
+		max17040_set_soc_alert(chip, 0);
+	else
+		cancel_delayed_work(&chip->work);
 
 	if (client->irq && device_may_wakeup(dev))
 		enable_irq_wake(client->irq);
@@ -519,7 +580,10 @@ static int max17040_resume(struct device *dev)
 	if (client->irq && device_may_wakeup(dev))
 		disable_irq_wake(client->irq);
 
-	max17040_queue_work(chip);
+	if (client->irq && chip->data.has_soc_alert)
+		max17040_set_soc_alert(chip, 1);
+	else
+		max17040_queue_work(chip);
 
 	return 0;
 }
