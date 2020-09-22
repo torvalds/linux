@@ -21,7 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-static struct resource rtc_resources[] = {
+static const struct resource rtc_resources[] = {
 	{
 		.start  = TPS65910_IRQ_RTC_ALARM,
 		.end    = TPS65910_IRQ_RTC_ALARM,
