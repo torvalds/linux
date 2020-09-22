@@ -1220,7 +1220,7 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 	 * frame_sequence + 1 here to indicate to userspace on which frame these parameters
 	 * are being applied.
 	 */
-	unsigned int frame_sequence = atomic_read(&rkisp1->isp.frame_sequence) + 1;
+	unsigned int frame_sequence = rkisp1->isp.frame_sequence + 1;
 	struct rkisp1_params *params = &rkisp1->params;
 
 	spin_lock(&params->config_lock);
