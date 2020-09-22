@@ -30,9 +30,11 @@
 
 #define MAX17040_DELAY		1000
 #define MAX17040_BATTERY_FULL	95
+#define MAX17040_RCOMP_DEFAULT  0x9700
 
 #define MAX17040_ATHD_MASK		0x3f
 #define MAX17040_ATHD_DEFAULT_POWER_UP	4
+#define MAX17040_CFG_RCOMP_MASK		0xff00
 
 enum chip_id {
 	ID_MAX17040,
@@ -52,6 +54,7 @@ struct chip_data {
 	u16 vcell_mul;
 	u16 vcell_div;
 	u8  has_low_soc_alert;
+	u8  rcomp_bytes;
 };
 
 static struct chip_data max17040_family[] = {
@@ -61,6 +64,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_mul = 1250,
 		.vcell_div = 1,
 		.has_low_soc_alert = 0,
+		.rcomp_bytes = 2,
 	},
 	[ID_MAX17041] = {
 		.reset_val = 0x0054,
@@ -68,6 +72,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_mul = 2500,
 		.vcell_div = 1,
 		.has_low_soc_alert = 0,
+		.rcomp_bytes = 2,
 	},
 	[ID_MAX17043] = {
 		.reset_val = 0x0054,
@@ -75,6 +80,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_mul = 1250,
 		.vcell_div = 1,
 		.has_low_soc_alert = 1,
+		.rcomp_bytes = 1,
 	},
 	[ID_MAX17044] = {
 		.reset_val = 0x0054,
@@ -82,6 +88,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_mul = 2500,
 		.vcell_div = 1,
 		.has_low_soc_alert = 1,
+		.rcomp_bytes = 1,
 	},
 	[ID_MAX17048] = {
 		.reset_val = 0x5400,
@@ -89,6 +96,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_mul = 625,
 		.vcell_div = 8,
 		.has_low_soc_alert = 1,
+		.rcomp_bytes = 1,
 	},
 	[ID_MAX17049] = {
 		.reset_val = 0x5400,
@@ -96,6 +104,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_mul = 625,
 		.vcell_div = 4,
 		.has_low_soc_alert = 1,
+		.rcomp_bytes = 1,
 	},
 	[ID_MAX17058] = {
 		.reset_val = 0x5400,
@@ -103,6 +112,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_mul = 625,
 		.vcell_div = 8,
 		.has_low_soc_alert = 1,
+		.rcomp_bytes = 1,
 	},
 	[ID_MAX17059] = {
 		.reset_val = 0x5400,
@@ -110,6 +120,7 @@ static struct chip_data max17040_family[] = {
 		.vcell_mul = 625,
 		.vcell_div = 4,
 		.has_low_soc_alert = 1,
+		.rcomp_bytes = 1,
 	},
 };
 
@@ -129,6 +140,8 @@ struct max17040_chip {
 	u32 low_soc_alert;
 	/* some devices return twice the capacity */
 	bool quirk_double_soc;
+	/* higher 8 bits for 17043+, 16 bits for 17040,41 */
+	u16 rcomp;
 };
 
 static int max17040_reset(struct max17040_chip *chip)
@@ -141,6 +154,14 @@ static int max17040_set_low_soc_alert(struct max17040_chip *chip, u32 level)
 	level = 32 - level * (chip->quirk_double_soc ? 2 : 1);
 	return regmap_update_bits(chip->regmap, MAX17040_CONFIG,
 			MAX17040_ATHD_MASK, level);
+}
+
+static int max17040_set_rcomp(struct max17040_chip *chip, u16 rcomp)
+{
+	u16 mask = chip->data.rcomp_bytes == 2 ?
+		0xffff : MAX17040_CFG_RCOMP_MASK;
+
+	return regmap_update_bits(chip->regmap, MAX17040_CONFIG, mask, rcomp);
 }
 
 static int max17040_raw_vcell_to_uvolts(struct max17040_chip *chip, u16 vcell)
@@ -206,6 +227,10 @@ static int max17040_get_status(struct max17040_chip *chip)
 static int max17040_get_of_data(struct max17040_chip *chip)
 {
 	struct device *dev = &chip->client->dev;
+	struct chip_data *data = &max17040_family[
+		(enum chip_id) of_device_get_match_data(dev)];
+	int rcomp_len;
+	u8 rcomp[2];
 
 	chip->quirk_double_soc = device_property_read_bool(dev,
 							   "maxim,double-soc");
@@ -218,6 +243,19 @@ static int max17040_get_of_data(struct max17040_chip *chip)
 	if (chip->low_soc_alert <= 0 ||
 	    chip->low_soc_alert > (chip->quirk_double_soc ? 16 : 32)) {
 		dev_err(dev, "maxim,alert-low-soc-level out of bounds\n");
+		return -EINVAL;
+	}
+
+	rcomp_len = device_property_count_u8(dev, "maxim,rcomp");
+	chip->rcomp = MAX17040_RCOMP_DEFAULT;
+	if (rcomp_len == data->rcomp_bytes) {
+		device_property_read_u8_array(dev, "maxim,rcomp",
+					      rcomp, rcomp_len);
+		chip->rcomp = rcomp_len == 2 ?
+			rcomp[0] << 8 | rcomp[1] :
+			rcomp[0] << 8;
+	} else if (rcomp_len > 0) {
+		dev_err(dev, "maxim,rcomp has incorrect length\n");
 		return -EINVAL;
 	}
 
@@ -429,6 +467,8 @@ static int max17040_probe(struct i2c_client *client,
 
 	if (chip_id == ID_MAX17040 || chip_id == ID_MAX17041)
 		max17040_reset(chip);
+
+	max17040_set_rcomp(chip, chip->rcomp);
 
 	/* check interrupt */
 	if (client->irq && chip->data.has_low_soc_alert) {
