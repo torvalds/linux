@@ -150,14 +150,14 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 		return;
 	if (card->shutdown)
 		return;
-	read_lock(&card->ctl_files_rwlock);
+	read_lock_irqsave(&card->ctl_files_rwlock, flags);
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	card->mixer_oss_change_count++;
 #endif
 	list_for_each_entry(ctl, &card->ctl_files, list) {
 		if (!ctl->subscribed)
 			continue;
-		spin_lock_irqsave(&ctl->read_lock, flags);
+		spin_lock(&ctl->read_lock);
 		list_for_each_entry(ev, &ctl->events, list) {
 			if (ev->id.numid == id->numid) {
 				ev->mask |= mask;
@@ -174,10 +174,10 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 		}
 	_found:
 		wake_up(&ctl->change_sleep);
-		spin_unlock_irqrestore(&ctl->read_lock, flags);
+		spin_unlock(&ctl->read_lock);
 		kill_fasync(&ctl->fasync, SIGIO, POLL_IN);
 	}
-	read_unlock(&card->ctl_files_rwlock);
+	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
 }
 EXPORT_SYMBOL(snd_ctl_notify);
 
@@ -1951,8 +1951,9 @@ int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type)
 {
 	struct snd_ctl_file *kctl;
 	int subdevice = -1;
+	unsigned long flags;
 
-	read_lock(&card->ctl_files_rwlock);
+	read_lock_irqsave(&card->ctl_files_rwlock, flags);
 	list_for_each_entry(kctl, &card->ctl_files, list) {
 		if (kctl->pid == task_pid(current)) {
 			subdevice = kctl->preferred_subdevice[type];
@@ -1960,7 +1961,7 @@ int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type)
 				break;
 		}
 	}
-	read_unlock(&card->ctl_files_rwlock);
+	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
 	return subdevice;
 }
 EXPORT_SYMBOL_GPL(snd_ctl_get_preferred_subdevice);
@@ -2009,13 +2010,14 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 {
 	struct snd_card *card = device->device_data;
 	struct snd_ctl_file *ctl;
+	unsigned long flags;
 
-	read_lock(&card->ctl_files_rwlock);
+	read_lock_irqsave(&card->ctl_files_rwlock, flags);
 	list_for_each_entry(ctl, &card->ctl_files, list) {
 		wake_up(&ctl->change_sleep);
 		kill_fasync(&ctl->fasync, SIGIO, POLL_ERR);
 	}
-	read_unlock(&card->ctl_files_rwlock);
+	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
 
 	return snd_unregister_device(&card->ctl_dev);
 }
