@@ -85,6 +85,17 @@ struct sdei_crosscall_args {
 		atomic_set(&arg.errors, 0);	\
 	} while (0)
 
+static inline int sdei_do_local_call(smp_call_func_t fn,
+				     struct sdei_event *event)
+{
+	struct sdei_crosscall_args arg;
+
+	CROSSCALL_INIT(arg, event);
+	fn(&arg);
+
+	return arg.first_error;
+}
+
 static inline int sdei_do_cross_call(smp_call_func_t fn,
 				     struct sdei_event *event)
 {
@@ -677,7 +688,7 @@ static int sdei_reregister_shared(void)
 static int sdei_cpuhp_down(unsigned int cpu)
 {
 	struct sdei_event *event;
-	struct sdei_crosscall_args arg;
+	int err;
 
 	/* un-register private events */
 	spin_lock(&sdei_list_lock);
@@ -685,12 +696,11 @@ static int sdei_cpuhp_down(unsigned int cpu)
 		if (event->type == SDEI_EVENT_TYPE_SHARED)
 			continue;
 
-		CROSSCALL_INIT(arg, event);
-		/* call the cross-call function locally... */
-		_local_event_unregister(&arg);
-		if (arg.first_error)
+		err = sdei_do_local_call(_local_event_unregister, event);
+		if (err) {
 			pr_err("Failed to unregister event %u: %d\n",
-			       event->event_num, arg.first_error);
+			       event->event_num, err);
+		}
 	}
 	spin_unlock(&sdei_list_lock);
 
@@ -700,7 +710,7 @@ static int sdei_cpuhp_down(unsigned int cpu)
 static int sdei_cpuhp_up(unsigned int cpu)
 {
 	struct sdei_event *event;
-	struct sdei_crosscall_args arg;
+	int err;
 
 	/* re-register/enable private events */
 	spin_lock(&sdei_list_lock);
@@ -709,20 +719,19 @@ static int sdei_cpuhp_up(unsigned int cpu)
 			continue;
 
 		if (event->reregister) {
-			CROSSCALL_INIT(arg, event);
-			/* call the cross-call function locally... */
-			_local_event_register(&arg);
-			if (arg.first_error)
+			err = sdei_do_local_call(_local_event_register, event);
+			if (err) {
 				pr_err("Failed to re-register event %u: %d\n",
-				       event->event_num, arg.first_error);
+				       event->event_num, err);
+			}
 		}
 
 		if (event->reenable) {
-			CROSSCALL_INIT(arg, event);
-			_local_event_enable(&arg);
-			if (arg.first_error)
+			err = sdei_do_local_call(_local_event_enable, event);
+			if (err) {
 				pr_err("Failed to re-enable event %u: %d\n",
-				       event->event_num, arg.first_error);
+				       event->event_num, err);
+			}
 		}
 	}
 	spin_unlock(&sdei_list_lock);
