@@ -3025,26 +3025,10 @@ int nvme_get_log(struct nvme_ctrl *ctrl, u32 nsid, u8 log_page, u8 lsp, u8 csi,
 	return nvme_submit_sync_cmd(ctrl->admin_q, &c, log, size);
 }
 
-static struct nvme_cel *nvme_find_cel(struct nvme_ctrl *ctrl, u8 csi)
-{
-	struct nvme_cel *cel, *ret = NULL;
-
-	spin_lock_irq(&ctrl->lock);
-	list_for_each_entry(cel, &ctrl->cels, entry) {
-		if (cel->csi == csi) {
-			ret = cel;
-			break;
-		}
-	}
-	spin_unlock_irq(&ctrl->lock);
-
-	return ret;
-}
-
 static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 				struct nvme_effects_log **log)
 {
-	struct nvme_cel *cel = nvme_find_cel(ctrl, csi);
+	struct nvme_cel *cel = xa_load(&ctrl->cels, csi);
 	int ret;
 
 	if (cel)
@@ -3062,10 +3046,7 @@ static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 	}
 
 	cel->csi = csi;
-
-	spin_lock_irq(&ctrl->lock);
-	list_add_tail(&cel->entry, &ctrl->cels);
-	spin_unlock_irq(&ctrl->lock);
+	xa_store(&ctrl->cels, cel->csi, cel, GFP_KERNEL);
 out:
 	*log = &cel->log;
 	return 0;
@@ -4448,15 +4429,11 @@ static void nvme_free_ctrl(struct device *dev)
 	struct nvme_ctrl *ctrl =
 		container_of(dev, struct nvme_ctrl, ctrl_device);
 	struct nvme_subsystem *subsys = ctrl->subsys;
-	struct nvme_cel *cel, *next;
 
 	if (!subsys || ctrl->instance != subsys->instance)
 		ida_simple_remove(&nvme_instance_ida, ctrl->instance);
 
-	list_for_each_entry_safe(cel, next, &ctrl->cels, entry) {
-		list_del(&cel->entry);
-		kfree(cel);
-	}
+	xa_destroy(&ctrl->cels);
 
 	nvme_mpath_uninit(ctrl);
 	__free_page(ctrl->discard_page);
@@ -4488,7 +4465,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	spin_lock_init(&ctrl->lock);
 	mutex_init(&ctrl->scan_lock);
 	INIT_LIST_HEAD(&ctrl->namespaces);
-	INIT_LIST_HEAD(&ctrl->cels);
+	xa_init(&ctrl->cels);
 	init_rwsem(&ctrl->namespaces_rwsem);
 	ctrl->dev = dev;
 	ctrl->ops = ops;
