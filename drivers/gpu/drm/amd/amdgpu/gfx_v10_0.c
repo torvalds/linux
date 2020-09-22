@@ -7584,6 +7584,27 @@ static bool gfx_v10_0_is_rlcg_access_range(struct amdgpu_device *adev, u32 offse
 	return gfx_v10_0_check_rlcg_range(adev, offset, NULL, 0);
 }
 
+static void gfx_v10_cntl_power_gating(struct amdgpu_device *adev, bool enable)
+{
+	u32 data = RREG32_SOC15(GC, 0, mmRLC_PG_CNTL);
+
+	if (enable && (adev->cg_flags & AMD_PG_SUPPORT_GFX_PG))
+		data |= RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
+	else
+		data &= ~RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
+
+	WREG32_SOC15(GC, 0, mmRLC_PG_CNTL, data);
+}
+
+static void gfx_v10_cntl_pg(struct amdgpu_device *adev, bool enable)
+{
+	amdgpu_gfx_rlc_enter_safe_mode(adev);
+
+	gfx_v10_cntl_power_gating(adev, enable);
+
+	amdgpu_gfx_rlc_exit_safe_mode(adev);
+}
+
 static const struct amdgpu_rlc_funcs gfx_v10_0_rlc_funcs = {
 	.is_rlc_enabled = gfx_v10_0_is_rlc_enabled,
 	.set_safe_mode = gfx_v10_0_set_safe_mode,
@@ -7630,6 +7651,9 @@ static int gfx_v10_0_set_powergating_state(void *handle,
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 		amdgpu_gfx_off_ctrl(adev, enable);
+		break;
+	case CHIP_VANGOGH:
+		gfx_v10_cntl_pg(adev, enable);
 		break;
 	default:
 		break;
