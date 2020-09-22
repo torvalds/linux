@@ -940,6 +940,96 @@ out:
 	return error;
 }
 
+static long ioctl_get_read_timeouts(struct mount_info *mi, void __user *arg)
+{
+	struct incfs_get_read_timeouts_args __user *args_usr_ptr = arg;
+	struct incfs_get_read_timeouts_args args = {};
+	int error = 0;
+	struct incfs_per_uid_read_timeouts *buffer;
+	int size;
+
+	if (copy_from_user(&args, args_usr_ptr, sizeof(args)))
+		return -EINVAL;
+
+	if (args.timeouts_array_size_out > INCFS_DATA_FILE_BLOCK_SIZE)
+		return -EINVAL;
+
+	buffer = kzalloc(args.timeouts_array_size_out, GFP_NOFS);
+	if (!buffer)
+		return -ENOMEM;
+
+	spin_lock(&mi->mi_per_uid_read_timeouts_lock);
+	size = mi->mi_per_uid_read_timeouts_size;
+	if (args.timeouts_array_size < size)
+		error = -E2BIG;
+	else if (size)
+		memcpy(buffer, mi->mi_per_uid_read_timeouts, size);
+	spin_unlock(&mi->mi_per_uid_read_timeouts_lock);
+
+	args.timeouts_array_size_out = size;
+	if (!error && size)
+		if (copy_to_user(u64_to_user_ptr(args.timeouts_array), buffer,
+				 size))
+			error = -EFAULT;
+
+	if (!error || error == -E2BIG)
+		if (copy_to_user(args_usr_ptr, &args, sizeof(args)) > 0)
+			error = -EFAULT;
+
+	kfree(buffer);
+	return error;
+}
+
+static long ioctl_set_read_timeouts(struct mount_info *mi, void __user *arg)
+{
+	struct incfs_set_read_timeouts_args __user *args_usr_ptr = arg;
+	struct incfs_set_read_timeouts_args args = {};
+	int error = 0;
+	int size;
+	struct incfs_per_uid_read_timeouts *buffer = NULL, *tmp;
+	int i;
+
+	if (copy_from_user(&args, args_usr_ptr, sizeof(args)))
+		return -EINVAL;
+
+	size = args.timeouts_array_size;
+	if (size) {
+		if (size > INCFS_DATA_FILE_BLOCK_SIZE ||
+		    size % sizeof(*buffer) != 0)
+			return -EINVAL;
+
+		buffer = kzalloc(size, GFP_NOFS);
+		if (!buffer)
+			return -ENOMEM;
+
+		if (copy_from_user(buffer, u64_to_user_ptr(args.timeouts_array),
+				   size)) {
+			error = -EINVAL;
+			goto out;
+		}
+
+		for (i = 0; i < size / sizeof(*buffer); ++i) {
+			struct incfs_per_uid_read_timeouts *t = &buffer[i];
+
+			if (t->min_pending_time_ms > t->max_pending_time_ms) {
+				error = -EINVAL;
+				goto out;
+			}
+		}
+	}
+
+	spin_lock(&mi->mi_per_uid_read_timeouts_lock);
+	mi->mi_per_uid_read_timeouts_size = size;
+	tmp = mi->mi_per_uid_read_timeouts;
+	mi->mi_per_uid_read_timeouts = buffer;
+	buffer = tmp;
+	spin_unlock(&mi->mi_per_uid_read_timeouts_lock);
+
+out:
+	kfree(buffer);
+	return error;
+}
+
 static long pending_reads_dispatch_ioctl(struct file *f, unsigned int req,
 					unsigned long arg)
 {
@@ -952,6 +1042,10 @@ static long pending_reads_dispatch_ioctl(struct file *f, unsigned int req,
 		return ioctl_permit_fill(f, (void __user *)arg);
 	case INCFS_IOC_CREATE_MAPPED_FILE:
 		return ioctl_create_mapped_file(mi, (void __user *)arg);
+	case INCFS_IOC_GET_READ_TIMEOUTS:
+		return ioctl_get_read_timeouts(mi, (void __user *)arg);
+	case INCFS_IOC_SET_READ_TIMEOUTS:
+		return ioctl_set_read_timeouts(mi, (void __user *)arg);
 	default:
 		return -EINVAL;
 	}

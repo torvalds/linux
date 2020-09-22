@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <sys/mount.h>
@@ -3379,6 +3380,160 @@ out:
 	return result;
 }
 
+static int is_close(struct timespec *start, int expected_ms)
+{
+	const int allowed_variance = 100;
+	int result = TEST_FAILURE;
+	struct timespec finish;
+	int diff;
+
+	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &finish), 0);
+	diff = (finish.tv_sec - start->tv_sec) * 1000 +
+		(finish.tv_nsec - start->tv_nsec) / 1000000;
+
+	TESTCOND(diff >= expected_ms - allowed_variance);
+	TESTCOND(diff <= expected_ms + allowed_variance);
+	result = TEST_SUCCESS;
+out:
+	return result;
+}
+
+static int per_uid_read_timeouts_test(const char *mount_dir)
+{
+	struct test_file file = {
+		.name = "file",
+		.size = 16 * INCFS_DATA_FILE_BLOCK_SIZE
+	};
+
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int pid;
+	int cmd_fd = -1;
+	char *filename = NULL;
+	int fd = -1;
+	struct timespec start;
+	char buffer[4096];
+	struct incfs_per_uid_read_timeouts purt_get[1];
+	struct incfs_get_read_timeouts_args grt = {
+		ptr_to_u64(purt_get),
+		sizeof(purt_get)
+	};
+	struct incfs_per_uid_read_timeouts purt_set[] = {
+		{
+			.uid = 0,
+			.min_time_ms = 1000,
+			.min_pending_time_ms = 2000,
+			.max_pending_time_ms = 3000,
+		},
+	};
+	struct incfs_set_read_timeouts_args srt = {
+		ptr_to_u64(purt_set),
+		sizeof(purt_set)
+	};
+	int status;
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
+			       "read_timeout_ms=1000,readahead=0", false), 0);
+
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size,
+			    NULL), 0);
+
+	TEST(filename = concat_file_name(mount_dir, file.name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC), 0);
+
+	/* Default mount options read failure is 1000 */
+	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
+	TESTEQUAL(is_close(&start, 1000), 0);
+
+	grt.timeouts_array_size = 0;
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), 0);
+	TESTEQUAL(grt.timeouts_array_size_out, 0);
+
+	/* Set it to 3000 */
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
+	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
+	TESTEQUAL(is_close(&start, 3000), 0);
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), -1);
+	TESTEQUAL(errno, E2BIG);
+	TESTEQUAL(grt.timeouts_array_size_out, sizeof(purt_get));
+	grt.timeouts_array_size = sizeof(purt_get);
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), 0);
+	TESTEQUAL(grt.timeouts_array_size_out, sizeof(purt_get));
+	TESTEQUAL(purt_get[0].uid, purt_set[0].uid);
+	TESTEQUAL(purt_get[0].min_time_ms, purt_set[0].min_time_ms);
+	TESTEQUAL(purt_get[0].min_pending_time_ms,
+		  purt_set[0].min_pending_time_ms);
+	TESTEQUAL(purt_get[0].max_pending_time_ms,
+		  purt_set[0].max_pending_time_ms);
+
+	/* Still 1000 in UID 2 */
+	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	TEST(pid = fork(), pid != -1);
+	if (pid == 0) {
+		TESTEQUAL(setuid(2), 0);
+		TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
+		exit(0);
+	}
+	TESTNE(wait(&status), -1);
+	TESTEQUAL(WEXITSTATUS(status), 0);
+	TESTEQUAL(is_close(&start, 1000), 0);
+
+	/* Set it to default */
+	purt_set[0].max_pending_time_ms = UINT32_MAX;
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
+	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
+	TESTEQUAL(is_close(&start, 1000), 0);
+
+	/* Test min read time */
+	TESTEQUAL(emit_test_block(mount_dir, &file, 0), 0);
+	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), sizeof(buffer));
+	TESTEQUAL(is_close(&start, 1000), 0);
+
+	/* Test min pending time */
+	purt_set[0].uid = 2;
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
+	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	TEST(pid = fork(), pid != -1);
+	if (pid == 0) {
+		TESTEQUAL(setuid(2), 0);
+		TESTEQUAL(pread(fd, buffer, sizeof(buffer), sizeof(buffer)),
+			  sizeof(buffer));
+		exit(0);
+	}
+	sleep(1);
+	TESTEQUAL(emit_test_block(mount_dir, &file, 1), 0);
+	TESTNE(wait(&status), -1);
+	TESTEQUAL(WEXITSTATUS(status), 0);
+	TESTEQUAL(is_close(&start, 2000), 0);
+
+	/* Clear timeouts */
+	srt.timeouts_array_size = 0;
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
+	grt.timeouts_array_size = 0;
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), 0);
+	TESTEQUAL(grt.timeouts_array_size_out, 0);
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+
+	if (pid == 0)
+		exit(result);
+
+	free(filename);
+	close(cmd_fd);
+	umount(backing_dir);
+	free(backing_dir);
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -3492,6 +3647,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(compatibility_test),
 		MAKE_TEST(data_block_count_test),
 		MAKE_TEST(hash_block_count_test),
+		MAKE_TEST(per_uid_read_timeouts_test),
 	};
 #undef MAKE_TEST
 

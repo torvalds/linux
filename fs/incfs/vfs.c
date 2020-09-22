@@ -415,6 +415,39 @@ static struct dentry *open_or_create_special_dir(struct dentry *backing_dir,
 	return index_dentry;
 }
 
+static int read_single_page_timeouts(struct data_file *df, struct file *f,
+				     int block_index, struct mem_range range,
+				     struct mem_range tmp)
+{
+	struct mount_info *mi = df->df_mount_info;
+	u32 min_time_ms = 0;
+	u32 min_pending_time_ms = 0;
+	u32 max_pending_time_ms = U32_MAX;
+	int uid = current_uid().val;
+	int i;
+
+	spin_lock(&mi->mi_per_uid_read_timeouts_lock);
+	for (i = 0; i < mi->mi_per_uid_read_timeouts_size /
+		sizeof(*mi->mi_per_uid_read_timeouts); ++i) {
+		struct incfs_per_uid_read_timeouts *t =
+			&mi->mi_per_uid_read_timeouts[i];
+
+		if(t->uid == uid) {
+			min_time_ms = t->min_time_ms;
+			min_pending_time_ms = t->min_pending_time_ms;
+			max_pending_time_ms = t->max_pending_time_ms;
+			break;
+		}
+	}
+	spin_unlock(&mi->mi_per_uid_read_timeouts_lock);
+	if (max_pending_time_ms == U32_MAX)
+		max_pending_time_ms = mi->mi_options.read_timeout_ms;
+
+	return incfs_read_data_file_block(range, f, block_index,
+		min_time_ms, min_pending_time_ms, max_pending_time_ms,
+		tmp);
+}
+
 static int read_single_page(struct file *f, struct page *page)
 {
 	loff_t offset = 0;
@@ -425,7 +458,6 @@ static int read_single_page(struct file *f, struct page *page)
 	int result = 0;
 	void *page_start;
 	int block_index;
-	int timeout_ms;
 
 	if (!df) {
 		SetPageError(page);
@@ -438,22 +470,20 @@ static int read_single_page(struct file *f, struct page *page)
 	block_index = (offset + df->df_mapped_offset) /
 		INCFS_DATA_FILE_BLOCK_SIZE;
 	size = df->df_size;
-	timeout_ms = df->df_mount_info->mi_options.read_timeout_ms;
 
 	if (offset < size) {
 		struct mem_range tmp = {
 			.len = 2 * INCFS_DATA_FILE_BLOCK_SIZE
 		};
-
 		tmp.data = (u8 *)__get_free_pages(GFP_NOFS, get_order(tmp.len));
 		if (!tmp.data) {
 			read_result = -ENOMEM;
 			goto err;
 		}
 		bytes_to_read = min_t(loff_t, size - offset, PAGE_SIZE);
-		read_result = incfs_read_data_file_block(
-			range(page_start, bytes_to_read), f, block_index,
-			timeout_ms, tmp);
+
+		read_result = read_single_page_timeouts(df, f, block_index,
+					range(page_start, bytes_to_read), tmp);
 
 		free_pages((unsigned long)tmp.data, get_order(tmp.len));
 	} else {
