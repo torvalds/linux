@@ -105,11 +105,9 @@ static bool qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
 					  (ipatoe->proto == QETH_PROT_IPV4) ?
 					  4 : 16);
 		if (addr->proto == QETH_PROT_IPV4)
-			rc = !memcmp(addr_bits, ipatoe_bits,
-				     min(32, ipatoe->mask_bits));
+			rc = !memcmp(addr_bits, ipatoe_bits, ipatoe->mask_bits);
 		else
-			rc = !memcmp(addr_bits, ipatoe_bits,
-				     min(128, ipatoe->mask_bits));
+			rc = !memcmp(addr_bits, ipatoe_bits, ipatoe->mask_bits);
 		if (rc)
 			break;
 	}
@@ -561,7 +559,7 @@ int qeth_l3_add_ipato_entry(struct qeth_card *card,
 
 int qeth_l3_del_ipato_entry(struct qeth_card *card,
 			    enum qeth_prot_versions proto, u8 *addr,
-			    int mask_bits)
+			    unsigned int mask_bits)
 {
 	struct qeth_ipato_entry *ipatoe, *tmp;
 	int rc = -ENOENT;

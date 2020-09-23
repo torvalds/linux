@@ -195,8 +195,8 @@ struct qeth_vnicc_info {
 #define QETH_IN_BUF_SIZE_DEFAULT 65536
 #define QETH_IN_BUF_COUNT_DEFAULT 64
 #define QETH_IN_BUF_COUNT_HSDEFAULT 128
-#define QETH_IN_BUF_COUNT_MIN 8
-#define QETH_IN_BUF_COUNT_MAX 128
+#define QETH_IN_BUF_COUNT_MIN	8U
+#define QETH_IN_BUF_COUNT_MAX	128U
 #define QETH_MAX_BUFFER_ELEMENTS(card) ((card)->qdio.in_buf_size >> 12)
 #define QETH_IN_BUF_REQUEUE_THRESHOLD(card) \
 		 ((card)->qdio.in_buf_pool.buf_count / 2)

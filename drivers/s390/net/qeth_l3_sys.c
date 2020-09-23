@@ -407,10 +407,9 @@ static ssize_t qeth_l3_dev_ipato_add4_show(struct device *dev,
 }
 
 static int qeth_l3_parse_ipatoe(const char *buf, enum qeth_prot_versions proto,
-		  u8 *addr, int *mask_bits)
+				u8 *addr, unsigned int *mask_bits)
 {
-	const char *start;
-	char *sep, *tmp;
+	char *sep;
 	int rc;
 
 	/* Expected input pattern: %addr/%mask */
@@ -424,13 +423,13 @@ static int qeth_l3_parse_ipatoe(const char *buf, enum qeth_prot_versions proto,
 	if (rc)
 		return rc;
 
-	start = sep + 1;
-	*mask_bits = simple_strtoul(start, &tmp, 10);
-	if (!strlen(start) ||
-	    (tmp == start) ||
-	    (*mask_bits > ((proto == QETH_PROT_IPV4) ? 32 : 128))) {
+	rc = kstrtouint(sep + 1, 10, mask_bits);
+	if (rc)
+		return rc;
+
+	if (*mask_bits > ((proto == QETH_PROT_IPV4) ? 32 : 128))
 		return -EINVAL;
-	}
+
 	return 0;
 }
 
@@ -438,8 +437,8 @@ static ssize_t qeth_l3_dev_ipato_add_store(const char *buf, size_t count,
 			 struct qeth_card *card, enum qeth_prot_versions proto)
 {
 	struct qeth_ipato_entry *ipatoe;
+	unsigned int mask_bits;
 	u8 addr[16];
-	int mask_bits;
 	int rc = 0;
 
 	rc = qeth_l3_parse_ipatoe(buf, proto, addr, &mask_bits);
@@ -476,8 +475,8 @@ static QETH_DEVICE_ATTR(ipato_add4, add4, 0644,
 static ssize_t qeth_l3_dev_ipato_del_store(const char *buf, size_t count,
 			 struct qeth_card *card, enum qeth_prot_versions proto)
 {
+	unsigned int mask_bits;
 	u8 addr[16];
-	int mask_bits;
 	int rc = 0;
 
 	rc = qeth_l3_parse_ipatoe(buf, proto, addr, &mask_bits);
