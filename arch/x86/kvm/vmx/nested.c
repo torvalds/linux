@@ -258,7 +258,7 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 	struct loaded_vmcs *prev;
 	int cpu;
 
-	if (vmx->loaded_vmcs == vmcs)
+	if (WARN_ON_ONCE(vmx->loaded_vmcs == vmcs))
 		return;
 
 	cpu = get_cpu();
