@@ -166,6 +166,13 @@ atomisp_css2_dbg_ftrace_print(const char *fmt, va_list args)
 	return 0;
 }
 
+static int  __attribute__((format (printf, 1, 0)))
+atomisp_vprintk(const char *fmt, va_list args)
+{
+	vprintk(fmt, args);
+	return 0;
+}
+
 void atomisp_load_uint32(hrt_address addr, uint32_t *data)
 {
 	*data = atomisp_css2_hw_load_32(addr);
@@ -857,7 +864,7 @@ static inline int __set_css_print_env(struct atomisp_device *isp, int opt)
 		isp->css_env.isp_css_env.print_env.debug_print =
 		    atomisp_css2_dbg_ftrace_print;
 	else if (opt == 2)
-		isp->css_env.isp_css_env.print_env.debug_print = vprintk;
+		isp->css_env.isp_css_env.print_env.debug_print = atomisp_vprintk;
 	else
 		ret = -EINVAL;
 
@@ -890,7 +897,7 @@ int atomisp_css_load_firmware(struct atomisp_device *isp)
 
 	__set_css_print_env(isp, dbg_func);
 
-	isp->css_env.isp_css_env.print_env.error_print = vprintk;
+	isp->css_env.isp_css_env.print_env.error_print = atomisp_vprintk;
 
 	/* load isp fw into ISP memory */
 	err = ia_css_load_firmware(isp->dev, &isp->css_env.isp_css_env,
