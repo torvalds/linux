@@ -409,21 +409,22 @@ static ssize_t qeth_l3_dev_ipato_add4_show(struct device *dev,
 static int qeth_l3_parse_ipatoe(const char *buf, enum qeth_prot_versions proto,
 		  u8 *addr, int *mask_bits)
 {
-	const char *start, *end;
-	char *tmp;
-	char buffer[40] = {0, };
+	const char *start;
+	char *sep, *tmp;
+	int rc;
 
-	start = buf;
-	/* get address string */
-	end = strchr(start, '/');
-	if (!end || (end - start >= 40)) {
+	/* Expected input pattern: %addr/%mask */
+	sep = strnchr(buf, 40, '/');
+	if (!sep)
 		return -EINVAL;
-	}
-	strncpy(buffer, start, end - start);
-	if (qeth_l3_string_to_ipaddr(buffer, proto, addr)) {
-		return -EINVAL;
-	}
-	start = end + 1;
+
+	/* Terminate the %addr sub-string, and parse it: */
+	*sep = '\0';
+	rc = qeth_l3_string_to_ipaddr(buf, proto, addr);
+	if (rc)
+		return rc;
+
+	start = sep + 1;
 	*mask_bits = simple_strtoul(start, &tmp, 10);
 	if (!strlen(start) ||
 	    (tmp == start) ||
