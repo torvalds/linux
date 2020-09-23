@@ -1235,7 +1235,6 @@ static void qeth_l3_rx_mode_work(struct work_struct *work)
 					kfree(addr);
 					break;
 				}
-				addr->ref_counter = 1;
 				fallthrough;
 			default:
 				/* for next call to set_rx_mode(): */
