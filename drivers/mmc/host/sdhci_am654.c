@@ -19,9 +19,11 @@
 
 /* CTL_CFG Registers */
 #define CTL_CFG_2		0x14
+#define CTL_CFG_3		0x18
 
 #define SLOTTYPE_MASK		GENMASK(31, 30)
 #define SLOTTYPE_EMBEDDED	BIT(30)
+#define TUNINGFORSDR50_MASK	BIT(13)
 
 /* PHY Registers */
 #define PHY_CTRL1	0x100
@@ -645,6 +647,10 @@ static int sdhci_am654_init(struct sdhci_host *host)
 
 	regmap_update_bits(sdhci_am654->base, CTL_CFG_2, SLOTTYPE_MASK,
 			   ctl_cfg_2);
+
+	/* Enable tuning for SDR50 */
+	regmap_update_bits(sdhci_am654->base, CTL_CFG_3, TUNINGFORSDR50_MASK,
+			   TUNINGFORSDR50_MASK);
 
 	ret = sdhci_setup_host(host);
 	if (ret)
