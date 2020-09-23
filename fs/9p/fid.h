@@ -22,6 +22,14 @@ static inline struct p9_fid *clone_fid(struct p9_fid *fid)
 }
 static inline struct p9_fid *v9fs_fid_clone(struct dentry *dentry)
 {
-	return clone_fid(v9fs_fid_lookup(dentry));
+	struct p9_fid *fid, *nfid;
+
+	fid = v9fs_fid_lookup(dentry);
+	if (!fid || IS_ERR(fid))
+		return fid;
+
+	nfid = p9_client_walk(fid, 0, NULL, 1);
+	p9_client_clunk(fid);
+	return nfid;
 }
 #endif
