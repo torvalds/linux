@@ -3038,7 +3038,6 @@ static int lan743x_pm_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
-	int ret;
 
 	lan743x_pcidev_shutdown(pdev);
 
@@ -3051,9 +3050,7 @@ static int lan743x_pm_suspend(struct device *dev)
 		lan743x_pm_set_wol(adapter);
 
 	/* Host sets PME_En, put D3hot */
-	ret = pci_prepare_to_sleep(pdev);
-
-	return 0;
+	return pci_prepare_to_sleep(pdev);;
 }
 
 static int lan743x_pm_resume(struct device *dev)
