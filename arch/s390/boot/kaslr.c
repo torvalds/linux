@@ -42,7 +42,7 @@ static int check_prng(void)
 		return PRNG_MODE_TDES;
 }
 
-static unsigned long get_random(unsigned long limit)
+static int get_random(unsigned long limit, unsigned long *value)
 {
 	struct prng_parm prng = {
 		/* initial parameter block for tdes mode, copied from libica */
@@ -84,9 +84,10 @@ static unsigned long get_random(unsigned long limit)
 			  (u8 *) &random, sizeof(random));
 		break;
 	default:
-		random = 0;
+		return -1;
 	}
-	return random % limit;
+	*value = random % limit;
+	return 0;
 }
 
 unsigned long get_random_base(unsigned long safe_addr)
@@ -143,8 +144,7 @@ unsigned long get_random_base(unsigned long safe_addr)
 		return 0;
 	}
 
-	base = get_random(block_sum);
-	if (base == 0)
+	if (get_random(block_sum, &base))
 		return 0;
 	if (base < safe_addr)
 		base = safe_addr;
