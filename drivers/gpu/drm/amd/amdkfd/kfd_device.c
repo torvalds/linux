@@ -718,6 +718,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->unique_id = amdgpu_amdkfd_get_unique_id(kfd->kgd);
 
+	kfd->noretry = amdgpu_amdkfd_get_noretry(kfd->kgd);
+
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
 		goto kfd_interrupt_error;

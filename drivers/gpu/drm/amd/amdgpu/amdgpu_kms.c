@@ -177,7 +177,7 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 			break;
 		case CHIP_VEGA10:
 			/* turn runpm on if noretry=0 */
-			if (!amdgpu_noretry)
+			if (!adev->gmc.noretry)
 				adev->runpm = true;
 			break;
 		default:

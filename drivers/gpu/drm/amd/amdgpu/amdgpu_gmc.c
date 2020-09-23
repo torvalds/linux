@@ -413,6 +413,20 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 	}
 }
 
+/**
+ * amdgpu_noretry_set -- set per asic noretry defaults
+ * @adev: amdgpu_device pointer
+ *
+ * Set a per asic default for the no-retry parameter.
+ *
+ */
+void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
+{
+	struct amdgpu_gmc *gmc = &adev->gmc;
+
+	gmc->noretry = amdgpu_noretry;
+}
+
 void amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
 				   bool enable)
 {

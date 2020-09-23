@@ -1265,6 +1265,8 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "set kernel compute queue number to 8 due to invalid parameter provided by user\n");
 	}
 
+	amdgpu_gmc_noretry_set(adev);
+
 	return 0;
 }
 

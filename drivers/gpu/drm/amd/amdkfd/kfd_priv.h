@@ -317,6 +317,8 @@ struct kfd_dev {
 
 	struct ida doorbell_ida;
 	unsigned int max_doorbell_slices;
+
+	int noretry;
 };
 
 enum kfd_mempool {
