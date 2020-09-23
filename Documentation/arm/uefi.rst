@@ -23,7 +23,7 @@ makes it possible for the kernel to support additional features:
 For actually enabling [U]EFI support, enable:
 
 - CONFIG_EFI=y
-- CONFIG_EFI_VARS=y or m
+- CONFIG_EFIVAR_FS=y or m
 
 The implementation depends on receiving information about the UEFI environment
 in a Flattened Device Tree (FDT) - so is only available with CONFIG_OF.
