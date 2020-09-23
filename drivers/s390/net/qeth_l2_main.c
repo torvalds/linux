@@ -1138,19 +1138,10 @@ static void qeth_l2_enable_brport_features(struct qeth_card *card)
 	}
 }
 
-static int qeth_l2_set_online(struct qeth_card *card)
+static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
 {
-	struct ccwgroup_device *gdev = card->gdev;
 	struct net_device *dev = card->dev;
 	int rc = 0;
-	bool carrier_ok;
-
-	rc = qeth_core_hardsetup_card(card, &carrier_ok);
-	if (rc) {
-		QETH_CARD_TEXT_(card, 2, "2err%04x", rc);
-		rc = -ENODEV;
-		goto out_remove;
-	}
 
 	/* query before bridgeport_notification may be enabled */
 	qeth_l2_detect_dev2br_support(card);
@@ -1169,10 +1160,7 @@ static int qeth_l2_set_online(struct qeth_card *card)
 	/* for the rx_bcast characteristic, init VNICC after setmac */
 	qeth_l2_vnicc_init(card);
 
-	qeth_trace_features(card);
 	qeth_l2_trace_features(card);
-
-	qeth_print_status_message(card);
 
 	/* softsetup */
 	QETH_CARD_TEXT(card, 2, "softsetp");
@@ -1205,16 +1193,10 @@ static int qeth_l2_set_online(struct qeth_card *card)
 		}
 		rtnl_unlock();
 	}
-	/* let user_space know that device is online */
-	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
 	return 0;
 
 out_remove:
 	qeth_l2_stop_card(card);
-	qeth_stop_channel(&card->data);
-	qeth_stop_channel(&card->write);
-	qeth_stop_channel(&card->read);
-	qdio_free(CARD_DDEV(card));
 	return rc;
 }
 

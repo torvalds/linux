@@ -2012,21 +2012,10 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 	qeth_l3_clear_ipato_list(card);
 }
 
-static int qeth_l3_set_online(struct qeth_card *card)
+static int qeth_l3_set_online(struct qeth_card *card, bool carrier_ok)
 {
-	struct ccwgroup_device *gdev = card->gdev;
 	struct net_device *dev = card->dev;
 	int rc = 0;
-	bool carrier_ok;
-
-	rc = qeth_core_hardsetup_card(card, &carrier_ok);
-	if (rc) {
-		QETH_CARD_TEXT_(card, 2, "2err%04x", rc);
-		rc = -ENODEV;
-		goto out_remove;
-	}
-
-	qeth_print_status_message(card);
 
 	/* softsetup */
 	QETH_CARD_TEXT(card, 2, "softsetp");
@@ -2073,16 +2062,10 @@ static int qeth_l3_set_online(struct qeth_card *card)
 		}
 		rtnl_unlock();
 	}
-	qeth_trace_features(card);
-	/* let user_space know that device is online */
-	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
 	return 0;
+
 out_remove:
 	qeth_l3_stop_card(card);
-	qeth_stop_channel(&card->data);
-	qeth_stop_channel(&card->write);
-	qeth_stop_channel(&card->read);
-	qdio_free(CARD_DDEV(card));
 	return rc;
 }
 

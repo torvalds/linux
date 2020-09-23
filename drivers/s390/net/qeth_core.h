@@ -753,7 +753,7 @@ struct qeth_discipline {
 	const struct device_type *devtype;
 	int (*setup) (struct ccwgroup_device *);
 	void (*remove) (struct ccwgroup_device *);
-	int (*set_online)(struct qeth_card *card);
+	int (*set_online)(struct qeth_card *card, bool carrier_ok);
 	void (*set_offline)(struct qeth_card *card);
 	int (*do_ioctl)(struct net_device *dev, struct ifreq *rq, int cmd);
 	int (*control_event_handler)(struct qeth_card *card,
@@ -1037,11 +1037,8 @@ struct net_device *qeth_clone_netdev(struct net_device *orig);
 struct qeth_card *qeth_get_card_by_busid(char *bus_id);
 void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
 int qeth_threads_running(struct qeth_card *, unsigned long);
-int qeth_core_hardsetup_card(struct qeth_card *card, bool *carrier_ok);
-int qeth_stop_channel(struct qeth_channel *channel);
 int qeth_set_offline(struct qeth_card *card, bool resetting);
 
-void qeth_print_status_message(struct qeth_card *);
 int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 		  int (*reply_cb)
 		  (struct qeth_card *, struct qeth_reply *, unsigned long),
@@ -1093,7 +1090,6 @@ int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
-void qeth_trace_features(struct qeth_card *);
 int qeth_setassparms_cb(struct qeth_card *, struct qeth_reply *, unsigned long);
 int qeth_setup_netdev(struct qeth_card *card);
 int qeth_set_features(struct net_device *, netdev_features_t);
