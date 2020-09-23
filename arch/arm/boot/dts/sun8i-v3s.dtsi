@@ -322,6 +322,11 @@
 				function = "uart0";
 			};
 
+			uart2_pins: uart2-pins {
+				pins = "PB0", "PB1";
+				function = "uart2";
+			};
+
 			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2", "PF3",
 				       "PF4", "PF5";
@@ -397,6 +402,8 @@
 			reg-io-width = <4>;
 			clocks = <&ccu CLK_BUS_UART2>;
 			resets = <&ccu RST_BUS_UART2>;
+			pinctrl-0 = <&uart2_pins>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
