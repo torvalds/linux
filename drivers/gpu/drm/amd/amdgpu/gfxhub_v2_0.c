@@ -153,11 +153,6 @@ static void gfxhub_v2_0_init_system_aperture_regs(struct amdgpu_device *adev)
 	uint64_t value;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		/*
-		 * the new L1 policy will block SRIOV guest from writing
-		 * these regs, and they will be programed at host.
-		 * so skip programing these regs.
-		 */
 		/* Disable AGP. */
 		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_BASE, 0);
 		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_TOP, 0);
