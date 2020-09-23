@@ -498,6 +498,7 @@ static int __init dwc3_octeon_device_init(void)
 	const char compat_node_name[] = "cavium,octeon-7130-usb-uctl";
 	struct platform_device *pdev;
 	struct device_node *node;
+	struct resource *res;
 	void __iomem *base;
 
 	/*
@@ -515,13 +516,20 @@ static int __init dwc3_octeon_device_init(void)
 			if (!pdev)
 				return -ENODEV;
 
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+			if (res == NULL) {
+				put_device(&pdev->dev);
+				dev_err(&pdev->dev, "No memory resources\n");
+				return -ENXIO;
+			}
+
 			/*
 			 * The code below maps in the registers necessary for
 			 * setting up the clocks and reseting PHYs. We must
 			 * release the resources so the dwc3 subsystem doesn't
 			 * know the difference.
 			 */
-			base = devm_platform_ioremap_resource(pdev, 0);
+			base = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(base)) {
 				put_device(&pdev->dev);
 				return PTR_ERR(base);
