@@ -387,7 +387,8 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 			 DIV_ROUND_UP(pll->op_bk.sys_clk_freq_hz,
 				      1000000 / 256 / 256) *
 			 (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-			  sensor->pll.csi2.lanes : 1));
+			  sensor->pll.csi2.lanes : 1) <<
+			 (pll->flags & CCS_PLL_FLAG_OP_SYS_DDR ? 1 : 0));
 	if (rval < 0 || sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
 		return rval;
 
@@ -3273,6 +3274,12 @@ static int ccs_probe(struct i2c_client *client)
 		} else {
 			sensor->pll.flags |= CCS_PLL_FLAG_DUAL_PLL;
 		}
+		if (CCS_LIM(sensor, CLOCK_CALCULATION) &
+		    CCS_CLOCK_CALCULATION_DUAL_PLL_OP_SYS_DDR)
+			sensor->pll.flags |= CCS_PLL_FLAG_OP_SYS_DDR;
+		if (CCS_LIM(sensor, CLOCK_CALCULATION) &
+		    CCS_CLOCK_CALCULATION_DUAL_PLL_OP_PIX_DDR)
+			sensor->pll.flags |= CCS_PLL_FLAG_OP_PIX_DDR;
 	}
 	sensor->pll.op_bits_per_lane = CCS_LIM(sensor, OP_BITS_PER_LANE);
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
