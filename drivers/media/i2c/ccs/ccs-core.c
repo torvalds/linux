@@ -777,12 +777,16 @@ static int ccs_init_controls(struct ccs_sensor *sensor)
 
 	sensor->pixel_array->ctrl_handler.lock = &sensor->mutex;
 
-	v4l2_ctrl_new_std(&sensor->pixel_array->ctrl_handler, &ccs_ctrl_ops,
-			  V4L2_CID_ANALOGUE_GAIN,
-			  CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN),
-			  CCS_LIM(sensor, ANALOG_GAIN_CODE_MAX),
-			  max(CCS_LIM(sensor, ANALOG_GAIN_CODE_STEP), 1U),
-			  CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN));
+	switch (CCS_LIM(sensor, ANALOG_GAIN_CAPABILITY)) {
+	case CCS_ANALOG_GAIN_CAPABILITY_GLOBAL:
+		v4l2_ctrl_new_std(&sensor->pixel_array->ctrl_handler,
+				  &ccs_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
+				  CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN),
+				  CCS_LIM(sensor, ANALOG_GAIN_CODE_MAX),
+				  max(CCS_LIM(sensor, ANALOG_GAIN_CODE_STEP),
+				      1U),
+				  CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN));
+	}
 
 	if (CCS_LIM(sensor, DIGITAL_GAIN_CAPABILITY) ==
 	    CCS_DIGITAL_GAIN_CAPABILITY_GLOBAL ||
