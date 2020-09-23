@@ -895,6 +895,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
+	u64 old_spte;
 	int level;
 	u64 *sptep;
 
@@ -917,7 +918,8 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 		sptep = iterator.sptep;
 
 		sp = sptep_to_sp(sptep);
-		if (is_last_spte(*sptep, level)) {
+		old_spte = *sptep;
+		if (is_last_spte(old_spte, level)) {
 			pt_element_t gpte;
 			gpa_t pte_gpa;
 
@@ -927,7 +929,8 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 			pte_gpa = FNAME(get_level1_sp_gpa)(sp);
 			pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
 
-			if (mmu_page_zap_pte(vcpu->kvm, sp, sptep))
+			mmu_page_zap_pte(vcpu->kvm, sp, sptep);
+			if (is_shadow_present_pte(old_spte))
 				kvm_flush_remote_tlbs_with_address(vcpu->kvm,
 					sp->gfn, KVM_PAGES_PER_HPAGE(sp->role.level));
 
