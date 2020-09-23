@@ -611,7 +611,7 @@ static inline bool report_flexpriority(void)
 	return flexpriority_enabled;
 }
 
-static inline int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
+static inline int __vmx_find_uret_msr(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
 
@@ -625,7 +625,7 @@ struct vmx_uret_msr *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
 
-	i = __find_msr_index(vmx, msr);
+	i = __vmx_find_uret_msr(vmx, msr);
 	if (i >= 0)
 		return &vmx->guest_uret_msrs[i];
 	return NULL;
@@ -1637,24 +1637,24 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 	 * when EFER.SCE is set.
 	 */
 	if (is_long_mode(&vmx->vcpu) && (vmx->vcpu.arch.efer & EFER_SCE)) {
-		index = __find_msr_index(vmx, MSR_STAR);
+		index = __vmx_find_uret_msr(vmx, MSR_STAR);
 		if (index >= 0)
 			move_msr_up(vmx, index, nr_active_uret_msrs++);
-		index = __find_msr_index(vmx, MSR_LSTAR);
+		index = __vmx_find_uret_msr(vmx, MSR_LSTAR);
 		if (index >= 0)
 			move_msr_up(vmx, index, nr_active_uret_msrs++);
-		index = __find_msr_index(vmx, MSR_SYSCALL_MASK);
+		index = __vmx_find_uret_msr(vmx, MSR_SYSCALL_MASK);
 		if (index >= 0)
 			move_msr_up(vmx, index, nr_active_uret_msrs++);
 	}
 #endif
-	index = __find_msr_index(vmx, MSR_EFER);
+	index = __vmx_find_uret_msr(vmx, MSR_EFER);
 	if (index >= 0 && update_transition_efer(vmx, index))
 		move_msr_up(vmx, index, nr_active_uret_msrs++);
-	index = __find_msr_index(vmx, MSR_TSC_AUX);
+	index = __vmx_find_uret_msr(vmx, MSR_TSC_AUX);
 	if (index >= 0 && guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP))
 		move_msr_up(vmx, index, nr_active_uret_msrs++);
-	index = __find_msr_index(vmx, MSR_IA32_TSX_CTRL);
+	index = __vmx_find_uret_msr(vmx, MSR_IA32_TSX_CTRL);
 	if (index >= 0)
 		move_msr_up(vmx, index, nr_active_uret_msrs++);
 
