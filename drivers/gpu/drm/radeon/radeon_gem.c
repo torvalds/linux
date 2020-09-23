@@ -35,7 +35,17 @@
 
 #include "radeon.h"
 
-void radeon_gem_object_free(struct drm_gem_object *gobj)
+struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
+					int flags);
+struct sg_table *radeon_gem_prime_get_sg_table(struct drm_gem_object *obj);
+int radeon_gem_prime_pin(struct drm_gem_object *obj);
+void radeon_gem_prime_unpin(struct drm_gem_object *obj);
+void *radeon_gem_prime_vmap(struct drm_gem_object *obj);
+void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+
+static const struct drm_gem_object_funcs radeon_gem_object_funcs;
+
+static void radeon_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct radeon_bo *robj = gem_to_radeon_bo(gobj);
 
@@ -85,6 +95,7 @@ retry:
 		return r;
 	}
 	*obj = &robj->tbo.base;
+	(*obj)->funcs = &radeon_gem_object_funcs;
 	robj->pid = task_pid_nr(current);
 
 	mutex_lock(&rdev->gem.mutex);
@@ -146,7 +157,7 @@ void radeon_gem_fini(struct radeon_device *rdev)
  * Call from drm_gem_handle_create which appear in both new and open ioctl
  * case.
  */
-int radeon_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv)
+static int radeon_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
 	struct radeon_bo *rbo = gem_to_radeon_bo(obj);
 	struct radeon_device *rdev = rbo->rdev;
@@ -176,8 +187,8 @@ int radeon_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_pri
 	return 0;
 }
 
-void radeon_gem_object_close(struct drm_gem_object *obj,
-			     struct drm_file *file_priv)
+static void radeon_gem_object_close(struct drm_gem_object *obj,
+				    struct drm_file *file_priv)
 {
 	struct radeon_bo *rbo = gem_to_radeon_bo(obj);
 	struct radeon_device *rdev = rbo->rdev;
@@ -215,6 +226,18 @@ static int radeon_gem_handle_lockup(struct radeon_device *rdev, int r)
 	}
 	return r;
 }
+
+static const struct drm_gem_object_funcs radeon_gem_object_funcs = {
+	.free = radeon_gem_object_free,
+	.open = radeon_gem_object_open,
+	.close = radeon_gem_object_close,
+	.export = radeon_gem_prime_export,
+	.pin = radeon_gem_prime_pin,
+	.unpin = radeon_gem_prime_unpin,
+	.get_sg_table = radeon_gem_prime_get_sg_table,
+	.vmap = radeon_gem_prime_vmap,
+	.vunmap = radeon_gem_prime_vunmap,
+};
 
 /*
  * GEM ioctls.
