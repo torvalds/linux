@@ -28,6 +28,8 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	kfree(ctx->cs_pending);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
+		dev_dbg(hdev->dev, "closing user context %d\n", ctx->asid);
+
 		/* The engines are stopped as there is no executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
@@ -41,6 +43,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
 	} else {
+		dev_dbg(hdev->dev, "closing kernel context\n");
 		hl_mmu_ctx_fini(ctx);
 	}
 }
@@ -168,6 +171,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 			dev_err(hdev->dev, "ctx_init failed\n");
 			goto err_cb_va_pool_fini;
 		}
+
+		dev_dbg(hdev->dev, "create user context %d\n", ctx->asid);
 	}
 
 	return 0;
