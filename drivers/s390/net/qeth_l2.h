@@ -31,4 +31,11 @@ struct qeth_mac {
 	struct hlist_node hnode;
 };
 
+static inline bool qeth_bridgeport_is_in_use(struct qeth_card *card)
+{
+	return card->options.sbp.role ||
+	       card->options.sbp.reflect_promisc ||
+	       card->options.sbp.hostnotification;
+}
+
 #endif /* __QETH_L2_H__ */
