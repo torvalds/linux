@@ -114,6 +114,46 @@ properties:
     minimum: 0
     maximum: 0xf
 
+  # PHY input tap delays:
+  # Used to delay the data valid window and align it to the sampling clock for
+  # modes that don't support tuning
+
+  ti,itap-del-sel-legacy:
+    description: Input tap delay for SD/MMC legacy timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  ti,itap-del-sel-mmc-hs:
+    description: Input tap delay for MMC high speed timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  ti,itap-del-sel-sd-hs:
+    description: Input tap delay for SD high speed timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  ti,itap-del-sel-sdr12:
+    description: Input tap delay for SD UHS SDR12 timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  ti,itap-del-sel-sdr25:
+    description: Input tap delay for SD UHS SDR25 timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  ti,itap-del-sel-ddr52:
+    description: Input tap delay for MMC DDR52 timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
   ti,trm-icp:
     description: DLL trim select
     $ref: "/schemas/types.yaml#/definitions/uint32"
@@ -170,6 +210,9 @@ examples:
             ti,otap-del-sel-ddr52 = <0x5>;
             ti,otap-del-sel-hs200 = <0x5>;
             ti,otap-del-sel-hs400 = <0x0>;
+            ti,itap-del-sel-legacy = <0x10>;
+            ti,itap-del-sel-mmc-hs = <0xa>;
+            ti,itap-del-sel-ddr52 = <0x3>;
             ti,trm-icp = <0x8>;
         };
     };
