@@ -6375,7 +6375,10 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 
 	ratio = READ_ONCE(nx_huge_pages_recovery_ratio);
 	to_zap = ratio ? DIV_ROUND_UP(kvm->stat.nx_lpage_splits, ratio) : 0;
-	while (to_zap && !list_empty(&kvm->arch.lpage_disallowed_mmu_pages)) {
+	for ( ; to_zap; --to_zap) {
+		if (list_empty(&kvm->arch.lpage_disallowed_mmu_pages))
+			break;
+
 		/*
 		 * We use a separate list instead of just using active_mmu_pages
 		 * because the number of lpage_disallowed pages is expected to
@@ -6388,10 +6391,9 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 		kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
 		WARN_ON_ONCE(sp->lpage_disallowed);
 
-		if (!--to_zap || need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+		if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
 			kvm_mmu_commit_zap_page(kvm, &invalid_list);
-			if (to_zap)
-				cond_resched_lock(&kvm->mmu_lock);
+			cond_resched_lock(&kvm->mmu_lock);
 		}
 	}
 	kvm_mmu_commit_zap_page(kvm, &invalid_list);
