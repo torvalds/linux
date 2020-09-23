@@ -3329,7 +3329,6 @@ static void disallowed_hugepage_adjust(struct kvm_shadow_walk_iterator it,
 	u64 spte = *it.sptep;
 
 	if (it.level == level && level > PG_LEVEL_4K &&
-	    is_nx_huge_page_enabled() &&
 	    is_shadow_present_pte(spte) &&
 	    !is_large_pte(spte)) {
 		/*
@@ -3371,7 +3370,8 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 		 * We cannot overwrite existing page tables with an NX
 		 * large page, as the leaf could be executable.
 		 */
-		disallowed_hugepage_adjust(it, gfn, &pfn, &level);
+		if (nx_huge_page_workaround_enabled)
+			disallowed_hugepage_adjust(it, gfn, &pfn, &level);
 
 		base_gfn = gfn & ~(KVM_PAGES_PER_HPAGE(it.level) - 1);
 		if (it.level == level)
