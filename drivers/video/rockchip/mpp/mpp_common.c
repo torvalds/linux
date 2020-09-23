@@ -316,10 +316,12 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 					     struct mpp_task,
 					     timeout_work);
 
-	if (test_and_set_bit(TASK_STATE_HANDLE, &task->state))
+	if (test_and_set_bit(TASK_STATE_HANDLE, &task->state)) {
+		mpp_err("task has been handled\n");
 		return;
+	}
 
-	mpp_err("task %p processing timed out!\n", task);
+	mpp_err("task %p processing time out!\n", task);
 	if (!task->session) {
 		mpp_err("task %p, task->session is null.\n", task);
 		return;
@@ -1567,7 +1569,6 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 			    unsigned long iova,
 			    int status, void *arg)
 {
-	u32 i, s, e;
 	struct mpp_dev *mpp = (struct mpp_dev *)arg;
 	struct mpp_task *task = mpp_taskqueue_get_running_task(mpp->queue);
 
@@ -1578,14 +1579,18 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 
 	mpp_task_dump_mem_region(mpp, task);
 
-	s = task->hw_info->reg_start;
-	e = task->hw_info->reg_end;
-	mpp_err("--- dump register ---\n");
-	for (i = s; i <= e; i++) {
-		u32 reg = i * sizeof(u32);
+	if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
+		u32 i;
+		u32 s = task->hw_info->reg_start;
+		u32 e = task->hw_info->reg_end;
 
-		mpp_err("reg[%03d]: %04x: 0x%08x\n",
-			i, reg, readl_relaxed(mpp->reg_base + reg));
+		mpp_err("--- dump register ---\n");
+		for (i = s; i <= e; i++) {
+			u32 reg = i * sizeof(u32);
+
+			mpp_err("reg[%03d]: %04x: 0x%08x\n",
+				i, reg, readl_relaxed(mpp->reg_base + reg));
+		}
 	}
 
 	if (mpp->iommu_info->hdl)
@@ -1721,26 +1726,31 @@ int mpp_dev_remove(struct mpp_dev *mpp)
 
 irqreturn_t mpp_dev_irq(int irq, void *param)
 {
-	irqreturn_t ret = IRQ_NONE;
+	bool ret = false;
 	struct mpp_dev *mpp = param;
 	struct mpp_task *task = mpp->cur_task;
+	irqreturn_t irq_ret = IRQ_NONE;
 
 	if (task) {
 		/* if wait or delayed work timeout, abort request will turn on,
 		 * isr should not to response, and handle it in delayed work
 		 */
-		if (test_and_set_bit(TASK_STATE_HANDLE, &task->state))
-			return IRQ_HANDLED;
+		if (test_and_set_bit(TASK_STATE_HANDLE, &task->state)) {
+			mpp_err("error, task has been handled, irq_status %08x\n", mpp->irq_status);
+			goto done;
+		}
 		cancel_delayed_work(&task->timeout_work);
-
+		/* normal condition, set state and wake up isr thread */
 		set_bit(TASK_STATE_IRQ, &task->state);
-		if (mpp->dev_ops->irq)
-			ret = mpp->dev_ops->irq(mpp);
+		ret = true;
 	} else {
 		mpp_err("error, task is null\n");
 	}
+done:
+	if (mpp->dev_ops->irq)
+		irq_ret = mpp->dev_ops->irq(mpp);
 
-	return ret;
+	return ret ? irq_ret : IRQ_HANDLED;
 }
 
 irqreturn_t mpp_dev_isr_sched(int irq, void *param)

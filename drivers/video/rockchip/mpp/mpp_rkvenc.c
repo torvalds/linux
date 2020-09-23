@@ -26,6 +26,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/proc_fs.h>
 #include <linux/nospec.h>
+#include <linux/workqueue.h>
 #include <soc/rockchip/pm_domains.h>
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>
@@ -40,6 +41,9 @@
 #include "mpp_common.h"
 
 #define RKVENC_DRIVER_NAME			"mpp_rkvenc"
+
+#define IOMMU_GET_BUS_ID(x)			(((x) >> 6) & 0x1f)
+#define IOMMU_PAGE_SIZE				SZ_4K
 
 #define	RKVENC_SESSION_MAX_BUFFERS		40
 /* The maximum registers number of all the version */
@@ -197,6 +201,12 @@ struct rkvenc_dev {
 	struct thermal_cooling_device *devfreq_cooling;
 	struct monitor_dev_info *mdev_info;
 #endif
+	/* for iommu pagefault handle */
+	struct work_struct iommu_work;
+	struct workqueue_struct *iommu_wq;
+	struct page *aux_page;
+	unsigned long aux_iova;
+	unsigned long fault_iova;
 };
 
 struct link_table_elem {
@@ -488,6 +498,9 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 {
 	struct rkvenc_task *task = NULL;
 	struct mpp_task *mpp_task = mpp->cur_task;
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+
+	mpp_debug_enter();
 
 	/* FIXME use a spin lock here */
 	if (!mpp_task) {
@@ -508,7 +521,14 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 			mpp_task_dump_reg(mpp, mpp_task);
 	}
 
+	/* unmap reserve buffer */
+	if (enc->aux_iova != -1) {
+		iommu_unmap(mpp->iommu_info->domain, enc->aux_iova, IOMMU_PAGE_SIZE);
+		enc->aux_iova = -1;
+	}
+
 	mpp_task_finish(mpp_task->session, mpp_task);
+
 	mpp_debug_leave();
 
 	return IRQ_HANDLED;
@@ -1036,6 +1056,52 @@ static int rkvenc_devfreq_remove(struct mpp_dev *mpp)
 }
 #endif
 
+static void rkvenc_iommu_handle_work(struct work_struct *work_s)
+{
+	int ret = 0;
+	struct rkvenc_dev *enc = container_of(work_s, struct rkvenc_dev, iommu_work);
+	struct mpp_dev *mpp = &enc->mpp;
+	unsigned long page_iova = 0;
+
+
+	/* avoid another page fault occur after page fault */
+	down_write(&mpp->iommu_info->rw_sem);
+
+	if (enc->aux_iova != -1) {
+		iommu_unmap(mpp->iommu_info->domain, enc->aux_iova, IOMMU_PAGE_SIZE);
+		enc->aux_iova = -1;
+	}
+
+	page_iova = round_down(enc->fault_iova, SZ_4K);
+	ret = iommu_map(mpp->iommu_info->domain, page_iova,
+			page_to_phys(enc->aux_page), IOMMU_PAGE_SIZE,
+			IOMMU_READ | IOMMU_WRITE);
+	if (ret)
+		mpp_err("iommu_map iova %lx error.\n", page_iova);
+	else
+		enc->aux_iova = page_iova;
+
+	up_write(&mpp->iommu_info->rw_sem);
+}
+
+static int rkvenc_iommu_fault_handle(struct iommu_domain *iommu,
+				     struct device *iommu_dev,
+				     unsigned long iova, int status, void *arg)
+{
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+
+	mpp_debug_enter();
+	mpp_debug(DEBUG_IOMMU, "IOMMU_GET_BUS_ID(status)=%d\n", IOMMU_GET_BUS_ID(status));
+	if (IOMMU_GET_BUS_ID(status)) {
+		enc->fault_iova = iova;
+		queue_work(enc->iommu_wq, &enc->iommu_work);
+	}
+	mpp_debug_leave();
+
+	return 0;
+}
+
 static int rkvenc_init(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
@@ -1077,14 +1143,48 @@ static int rkvenc_init(struct mpp_dev *mpp)
 	if (ret)
 		mpp_err("failed to add venc devfreq\n");
 #endif
+
+	/* for mmu pagefault */
+	enc->aux_page = alloc_page(GFP_KERNEL);
+	if (!enc->aux_page) {
+		dev_err(mpp->dev, "allocate a page for auxiliary usage\n");
+		return -ENOMEM;
+	}
+	enc->aux_iova = -1;
+
+	enc->iommu_wq = create_singlethread_workqueue("iommu_wq");
+	if (!enc->iommu_wq) {
+		mpp_err("failed to create workqueue\n");
+		return -ENOMEM;
+	}
+	INIT_WORK(&enc->iommu_work, rkvenc_iommu_handle_work);
+
+	mpp->iommu_info->hdl = rkvenc_iommu_fault_handle;
+
 	return ret;
 }
 
 static int rkvenc_exit(struct mpp_dev *mpp)
 {
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+
 #ifdef CONFIG_PM_DEVFREQ
 	rkvenc_devfreq_remove(mpp);
 #endif
+
+	if (enc->aux_page)
+		__free_page(enc->aux_page);
+
+	if (enc->aux_iova != -1) {
+		iommu_unmap(mpp->iommu_info->domain, enc->aux_iova, IOMMU_PAGE_SIZE);
+		enc->aux_iova = -1;
+	}
+
+	if (enc->iommu_wq) {
+		destroy_workqueue(enc->iommu_wq);
+		enc->iommu_wq = NULL;
+	}
+
 	return 0;
 }
 
