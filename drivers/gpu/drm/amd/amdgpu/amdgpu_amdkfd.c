@@ -36,7 +36,7 @@
  */
 uint64_t amdgpu_amdkfd_total_mem_size;
 
-bool kfd_initialized;
+static bool kfd_initialized;
 
 int amdgpu_amdkfd_init(void)
 {
