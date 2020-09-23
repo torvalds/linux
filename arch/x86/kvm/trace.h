@@ -15,18 +15,20 @@
  * Tracepoint for guest mode entry.
  */
 TRACE_EVENT(kvm_entry,
-	TP_PROTO(unsigned int vcpu_id),
-	TP_ARGS(vcpu_id),
+	TP_PROTO(struct kvm_vcpu *vcpu),
+	TP_ARGS(vcpu),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	vcpu_id		)
+		__field(	unsigned long,	rip		)
 	),
 
 	TP_fast_assign(
-		__entry->vcpu_id	= vcpu_id;
+		__entry->vcpu_id        = vcpu->vcpu_id;
+		__entry->rip		= kvm_rip_read(vcpu);
 	),
 
-	TP_printk("vcpu %u", __entry->vcpu_id)
+	TP_printk("vcpu %u, rip 0x%lx", __entry->vcpu_id, __entry->rip)
 );
 
 /*
