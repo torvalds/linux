@@ -53,18 +53,23 @@ class LinuxSourceTreeOperations(object):
 		except subprocess.CalledProcessError as e:
 			raise ConfigError(e.output)
 
-	def make_allyesconfig(self):
+	def make_allyesconfig(self, build_dir, make_options):
 		kunit_parser.print_with_timestamp(
 			'Enabling all CONFIGs for UML...')
+		command = ['make', 'ARCH=um', 'allyesconfig']
+		if make_options:
+			command.extend(make_options)
+		if build_dir:
+			command += ['O=' + build_dir]
 		process = subprocess.Popen(
-			['make', 'ARCH=um', 'allyesconfig'],
+			command,
 			stdout=subprocess.DEVNULL,
 			stderr=subprocess.STDOUT)
 		process.wait()
 		kunit_parser.print_with_timestamp(
 			'Disabling broken configs to run KUnit tests...')
 		with ExitStack() as es:
-			config = open(KCONFIG_PATH, 'a')
+			config = open(get_kconfig_path(build_dir), 'a')
 			disable = open(BROKEN_ALLCONFIG_PATH, 'r').read()
 			config.write(disable)
 		kunit_parser.print_with_timestamp(
@@ -161,9 +166,9 @@ class LinuxSourceTree(object):
 			return self.build_config(build_dir, make_options)
 
 	def build_um_kernel(self, alltests, jobs, build_dir, make_options):
-		if alltests:
-			self._ops.make_allyesconfig()
 		try:
+			if alltests:
+				self._ops.make_allyesconfig(build_dir, make_options)
 			self._ops.make_olddefconfig(build_dir, make_options)
 			self._ops.make(jobs, build_dir, make_options)
 		except (ConfigError, BuildError) as e:
