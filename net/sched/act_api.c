@@ -307,6 +307,8 @@ static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 
 	mutex_lock(&idrinfo->lock);
 	idr_for_each_entry_ul(idr, p, tmp, id) {
+		if (IS_ERR(p))
+			continue;
 		ret = tcf_idr_release_unsafe(p);
 		if (ret == ACT_P_DELETED) {
 			module_put(ops->owner);
@@ -891,14 +893,24 @@ static const struct nla_policy tcf_action_policy[TCA_ACT_MAX + 1] = {
 	[TCA_ACT_HW_STATS]	= NLA_POLICY_BITFIELD32(TCA_ACT_HW_STATS_ANY),
 };
 
-static void tcf_idr_insert(struct tc_action *a)
+static void tcf_idr_insert_many(struct tc_action *actions[])
 {
-	struct tcf_idrinfo *idrinfo = a->idrinfo;
+	int i;
 
-	mutex_lock(&idrinfo->lock);
-	/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
-	WARN_ON(!IS_ERR(idr_replace(&idrinfo->action_idr, a, a->tcfa_index)));
-	mutex_unlock(&idrinfo->lock);
+	for (i = 0; i < TCA_ACT_MAX_PRIO; i++) {
+		struct tc_action *a = actions[i];
+		struct tcf_idrinfo *idrinfo;
+
+		if (!a)
+			continue;
+		idrinfo = a->idrinfo;
+		mutex_lock(&idrinfo->lock);
+		/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc if
+		 * it is just created, otherwise this is just a nop.
+		 */
+		idr_replace(&idrinfo->action_idr, a, a->tcfa_index);
+		mutex_unlock(&idrinfo->lock);
+	}
 }
 
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
@@ -995,9 +1007,6 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (err == ACT_P_CREATED)
-		tcf_idr_insert(a);
-
 	if (!name && tb[TCA_ACT_COOKIE])
 		tcf_set_action_cookie(&a->act_cookie, cookie);
 
@@ -1052,6 +1061,11 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		/* Start from index 0 */
 		actions[i - 1] = act;
 	}
+
+	/* We have to commit them all together, because if any error happened in
+	 * between, we could not handle the failure gracefully.
+	 */
+	tcf_idr_insert_many(actions);
 
 	*attr_size = tcf_action_full_attrs_size(sz);
 	return i - 1;
