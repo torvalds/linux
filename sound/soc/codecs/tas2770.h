@@ -134,6 +134,7 @@ struct tas2770_priv {
 	int power_state;
 	int asi_format;
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *sdz_gpio;
 	int sampling_rate;
 	int channel_size;
 	int slot_width;

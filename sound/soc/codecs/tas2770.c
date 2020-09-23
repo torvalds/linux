@@ -79,28 +79,42 @@ static int tas2770_set_bias_level(struct snd_soc_component *component,
 #ifdef CONFIG_PM
 static int tas2770_codec_suspend(struct snd_soc_component *component)
 {
-	int ret;
+	struct tas2770_priv *tas2770 = snd_soc_component_get_drvdata(component);
+	int ret = 0;
 
-	ret = snd_soc_component_update_bits(component, TAS2770_PWR_CTRL,
-					    TAS2770_PWR_CTRL_MASK,
-					    TAS2770_PWR_CTRL_SHUTDOWN);
-	if (ret < 0)
-		return ret;
+	if (tas2770->sdz_gpio) {
+		gpiod_set_value_cansleep(tas2770->sdz_gpio, 0);
+	} else {
+		ret = snd_soc_component_update_bits(component, TAS2770_PWR_CTRL,
+						    TAS2770_PWR_CTRL_MASK,
+						    TAS2770_PWR_CTRL_SHUTDOWN);
+		if (ret < 0)
+			return ret;
 
-	return 0;
+		ret = 0;
+	}
+
+	return ret;
 }
 
 static int tas2770_codec_resume(struct snd_soc_component *component)
 {
-	int ret;
+	struct tas2770_priv *tas2770 = snd_soc_component_get_drvdata(component);
+	int ret = 0;
 
-	ret = snd_soc_component_update_bits(component, TAS2770_PWR_CTRL,
-					    TAS2770_PWR_CTRL_MASK,
-					    TAS2770_PWR_CTRL_ACTIVE);
-	if (ret < 0)
-		return ret;
+	if (tas2770->sdz_gpio) {
+		gpiod_set_value_cansleep(tas2770->sdz_gpio, 1);
+	} else {
+		ret = snd_soc_component_update_bits(component, TAS2770_PWR_CTRL,
+						    TAS2770_PWR_CTRL_MASK,
+						    TAS2770_PWR_CTRL_ACTIVE);
+		if (ret < 0)
+			return ret;
 
-	return 0;
+		ret = 0;
+	}
+
+	return ret;
 }
 #else
 #define tas2770_codec_suspend NULL
@@ -498,6 +512,9 @@ static int tas2770_codec_probe(struct snd_soc_component *component)
 
 	tas2770->component = component;
 
+	if (tas2770->sdz_gpio)
+		gpiod_set_value_cansleep(tas2770->sdz_gpio, 1);
+
 	tas2770_reset(tas2770);
 
 	return 0;
@@ -648,6 +665,14 @@ static int tas2770_parse_dt(struct device *dev, struct tas2770_priv *tas2770)
 			 "ti,vmon-slot-no");
 
 		tas2770->v_sense_slot = 2;
+	}
+
+	tas2770->sdz_gpio = devm_gpiod_get_optional(dev, "shutdown", GPIOD_OUT_HIGH);
+	if (IS_ERR(tas2770->sdz_gpio)) {
+		if (PTR_ERR(tas2770->sdz_gpio) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		tas2770->sdz_gpio = NULL;
 	}
 
 	return 0;
