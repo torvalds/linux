@@ -637,7 +637,7 @@ static int vmx_set_guest_msr(struct vcpu_vmx *vmx, struct vmx_uret_msr *msr, u64
 
 	u64 old_msr_data = msr->data;
 	msr->data = data;
-	if (msr - vmx->guest_uret_msrs < vmx->save_nmsrs) {
+	if (msr - vmx->guest_uret_msrs < vmx->nr_active_uret_msrs) {
 		preempt_disable();
 		ret = kvm_set_user_return_msr(msr->index, msr->data, msr->mask);
 		preempt_enable();
@@ -1136,7 +1136,7 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	 */
 	if (!vmx->guest_msrs_ready) {
 		vmx->guest_msrs_ready = true;
-		for (i = 0; i < vmx->save_nmsrs; ++i)
+		for (i = 0; i < vmx->nr_active_uret_msrs; ++i)
 			kvm_set_user_return_msr(vmx->guest_uret_msrs[i].index,
 						vmx->guest_uret_msrs[i].data,
 						vmx->guest_uret_msrs[i].mask);
@@ -1628,9 +1628,9 @@ static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
  */
 static void setup_msrs(struct vcpu_vmx *vmx)
 {
-	int save_nmsrs, index;
+	int nr_active_uret_msrs, index;
 
-	save_nmsrs = 0;
+	nr_active_uret_msrs = 0;
 #ifdef CONFIG_X86_64
 	/*
 	 * The SYSCALL MSRs are only needed on long mode guests, and only
@@ -1639,26 +1639,26 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 	if (is_long_mode(&vmx->vcpu) && (vmx->vcpu.arch.efer & EFER_SCE)) {
 		index = __find_msr_index(vmx, MSR_STAR);
 		if (index >= 0)
-			move_msr_up(vmx, index, save_nmsrs++);
+			move_msr_up(vmx, index, nr_active_uret_msrs++);
 		index = __find_msr_index(vmx, MSR_LSTAR);
 		if (index >= 0)
-			move_msr_up(vmx, index, save_nmsrs++);
+			move_msr_up(vmx, index, nr_active_uret_msrs++);
 		index = __find_msr_index(vmx, MSR_SYSCALL_MASK);
 		if (index >= 0)
-			move_msr_up(vmx, index, save_nmsrs++);
+			move_msr_up(vmx, index, nr_active_uret_msrs++);
 	}
 #endif
 	index = __find_msr_index(vmx, MSR_EFER);
 	if (index >= 0 && update_transition_efer(vmx, index))
-		move_msr_up(vmx, index, save_nmsrs++);
+		move_msr_up(vmx, index, nr_active_uret_msrs++);
 	index = __find_msr_index(vmx, MSR_TSC_AUX);
 	if (index >= 0 && guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP))
-		move_msr_up(vmx, index, save_nmsrs++);
+		move_msr_up(vmx, index, nr_active_uret_msrs++);
 	index = __find_msr_index(vmx, MSR_IA32_TSX_CTRL);
 	if (index >= 0)
-		move_msr_up(vmx, index, save_nmsrs++);
+		move_msr_up(vmx, index, nr_active_uret_msrs++);
 
-	vmx->save_nmsrs = save_nmsrs;
+	vmx->nr_active_uret_msrs = nr_active_uret_msrs;
 	vmx->guest_msrs_ready = false;
 
 	if (cpu_has_vmx_msr_bitmap())

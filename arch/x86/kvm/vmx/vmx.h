@@ -198,7 +198,7 @@ struct vcpu_vmx {
 
 	struct vmx_uret_msr   guest_uret_msrs[MAX_NR_USER_RETURN_MSRS];
 	int                   nr_uret_msrs;
-	int                   save_nmsrs;
+	int                   nr_active_uret_msrs;
 	bool                  guest_msrs_ready;
 #ifdef CONFIG_X86_64
 	u64		      msr_host_kernel_gs_base;
