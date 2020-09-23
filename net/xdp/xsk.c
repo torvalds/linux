@@ -33,12 +33,6 @@
 
 static DEFINE_PER_CPU(struct list_head, xskmap_flush_list);
 
-bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
-{
-	return READ_ONCE(xs->rx) &&  READ_ONCE(xs->umem) &&
-		(xs->pool->fq || READ_ONCE(xs->fq_tmp));
-}
-
 void xsk_set_rx_need_wakeup(struct xsk_buff_pool *pool)
 {
 	if (pool->cached_need_wakeup & XDP_WAKEUP_RX)
@@ -717,6 +711,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 						   dev, qid);
 			if (err) {
 				xp_destroy(xs->pool);
+				xs->pool = NULL;
 				sockfd_put(sock);
 				goto out_unlock;
 			}

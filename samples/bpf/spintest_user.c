@@ -17,7 +17,7 @@ int main(int ac, char **argv)
 	long key, next_key, value;
 	struct bpf_program *prog;
 	int map_fd, i, j = 0;
-	const char *title;
+	const char *section;
 	struct ksym *sym;
 
 	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
@@ -51,8 +51,8 @@ int main(int ac, char **argv)
 	}
 
 	bpf_object__for_each_program(prog, obj) {
-		title = bpf_program__title(prog, false);
-		if (sscanf(title, "kprobe/%s", symbol) != 1)
+		section = bpf_program__section_name(prog);
+		if (sscanf(section, "kprobe/%s", symbol) != 1)
 			continue;
 
 		/* Attach prog only when symbol exists */

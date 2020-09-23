@@ -120,6 +120,16 @@ void test_d_path(void)
 	if (err < 0)
 		goto cleanup;
 
+	if (CHECK(!bss->called_stat,
+		  "stat",
+		  "trampoline for security_inode_getattr was not called\n"))
+		goto cleanup;
+
+	if (CHECK(!bss->called_close,
+		  "close",
+		  "trampoline for filp_close was not called\n"))
+		goto cleanup;
+
 	for (int i = 0; i < MAX_FILES; i++) {
 		CHECK(strncmp(src.paths[i], bss->paths_stat[i], MAX_PATH_LEN),
 		      "check",

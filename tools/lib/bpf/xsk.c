@@ -20,6 +20,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
 #include <linux/if_xdp.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/sockios.h>
 #include <net/if.h>

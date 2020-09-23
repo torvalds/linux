@@ -17,9 +17,7 @@
 #include "test_iptunnel_common.h"
 #include <bpf/bpf_endian.h>
 
-int _version SEC("version") = 1;
-
-static __u32 rol32(__u32 word, unsigned int shift)
+static __always_inline __u32 rol32(__u32 word, unsigned int shift)
 {
 	return (word << shift) | (word >> ((-shift) & 31));
 }
@@ -52,7 +50,7 @@ static __u32 rol32(__u32 word, unsigned int shift)
 
 typedef unsigned int u32;
 
-static u32 jhash(const void *key, u32 length, u32 initval)
+static __noinline u32 jhash(const void *key, u32 length, u32 initval)
 {
 	u32 a, b, c;
 	const unsigned char *k = key;
@@ -88,7 +86,7 @@ static u32 jhash(const void *key, u32 length, u32 initval)
 	return c;
 }
 
-static u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
+static __noinline u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 {
 	a += initval;
 	b += initval;
@@ -97,7 +95,7 @@ static u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 	return c;
 }
 
-static u32 jhash_2words(u32 a, u32 b, u32 initval)
+static __noinline u32 jhash_2words(u32 a, u32 b, u32 initval)
 {
 	return __jhash_nwords(a, b, 0, initval + JHASH_INITVAL + (2 << 2));
 }
@@ -200,8 +198,7 @@ struct {
 	__type(value, struct ctl_value);
 } ctl_array SEC(".maps");
 
-static __u32 get_packet_hash(struct packet_description *pckt,
-			     bool ipv6)
+static __noinline __u32 get_packet_hash(struct packet_description *pckt, bool ipv6)
 {
 	if (ipv6)
 		return jhash_2words(jhash(pckt->srcv6, 16, MAX_VIPS),
@@ -210,10 +207,10 @@ static __u32 get_packet_hash(struct packet_description *pckt,
 		return jhash_2words(pckt->src, pckt->ports, CH_RINGS_SIZE);
 }
 
-static bool get_packet_dst(struct real_definition **real,
-			   struct packet_description *pckt,
-			   struct vip_meta *vip_info,
-			   bool is_ipv6)
+static __noinline bool get_packet_dst(struct real_definition **real,
+				      struct packet_description *pckt,
+				      struct vip_meta *vip_info,
+				      bool is_ipv6)
 {
 	__u32 hash = get_packet_hash(pckt, is_ipv6);
 	__u32 key = RING_SIZE * vip_info->vip_num + hash % RING_SIZE;
@@ -233,8 +230,8 @@ static bool get_packet_dst(struct real_definition **real,
 	return true;
 }
 
-static int parse_icmpv6(void *data, void *data_end, __u64 off,
-			struct packet_description *pckt)
+static __noinline int parse_icmpv6(void *data, void *data_end, __u64 off,
+				   struct packet_description *pckt)
 {
 	struct icmp6hdr *icmp_hdr;
 	struct ipv6hdr *ip6h;
@@ -255,8 +252,8 @@ static int parse_icmpv6(void *data, void *data_end, __u64 off,
 	return TC_ACT_UNSPEC;
 }
 
-static int parse_icmp(void *data, void *data_end, __u64 off,
-		      struct packet_description *pckt)
+static __noinline int parse_icmp(void *data, void *data_end, __u64 off,
+				 struct packet_description *pckt)
 {
 	struct icmphdr *icmp_hdr;
 	struct iphdr *iph;
@@ -280,8 +277,8 @@ static int parse_icmp(void *data, void *data_end, __u64 off,
 	return TC_ACT_UNSPEC;
 }
 
-static bool parse_udp(void *data, __u64 off, void *data_end,
-		      struct packet_description *pckt)
+static __noinline bool parse_udp(void *data, __u64 off, void *data_end,
+				 struct packet_description *pckt)
 {
 	struct udphdr *udp;
 	udp = data + off;
@@ -299,8 +296,8 @@ static bool parse_udp(void *data, __u64 off, void *data_end,
 	return true;
 }
 
-static bool parse_tcp(void *data, __u64 off, void *data_end,
-		      struct packet_description *pckt)
+static __noinline bool parse_tcp(void *data, __u64 off, void *data_end,
+				 struct packet_description *pckt)
 {
 	struct tcphdr *tcp;
 
@@ -321,8 +318,8 @@ static bool parse_tcp(void *data, __u64 off, void *data_end,
 	return true;
 }
 
-static int process_packet(void *data, __u64 off, void *data_end,
-			  bool is_ipv6, struct __sk_buff *skb)
+static __noinline int process_packet(void *data, __u64 off, void *data_end,
+				     bool is_ipv6, struct __sk_buff *skb)
 {
 	void *pkt_start = (void *)(long)skb->data;
 	struct packet_description pckt = {};

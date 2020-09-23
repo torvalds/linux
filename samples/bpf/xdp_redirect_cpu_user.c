@@ -111,7 +111,7 @@ static void print_avail_progs(struct bpf_object *obj)
 
 	bpf_object__for_each_program(pos, obj) {
 		if (bpf_program__is_xdp(pos))
-			printf(" %s\n", bpf_program__title(pos, false));
+			printf(" %s\n", bpf_program__section_name(pos));
 	}
 }
 

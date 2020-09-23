@@ -32,6 +32,7 @@ out:
 
 void test_ksyms(void)
 {
+	__u64 per_cpu_start_addr = kallsyms_find("__per_cpu_start");
 	__u64 link_fops_addr = kallsyms_find("bpf_link_fops");
 	const char *btf_path = "/sys/kernel/btf/vmlinux";
 	struct test_ksyms *skel;
@@ -63,8 +64,9 @@ void test_ksyms(void)
 	      "got %llu, exp %llu\n", data->out__bpf_link_fops1, (__u64)0);
 	CHECK(data->out__btf_size != btf_size, "btf_size",
 	      "got %llu, exp %llu\n", data->out__btf_size, btf_size);
-	CHECK(data->out__per_cpu_start != 0, "__per_cpu_start",
-	      "got %llu, exp %llu\n", data->out__per_cpu_start, (__u64)0);
+	CHECK(data->out__per_cpu_start != per_cpu_start_addr, "__per_cpu_start",
+	      "got %llu, exp %llu\n", data->out__per_cpu_start,
+	      per_cpu_start_addr);
 
 cleanup:
 	test_ksyms__destroy(skel);

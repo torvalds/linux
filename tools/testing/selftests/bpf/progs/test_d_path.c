@@ -15,13 +15,18 @@ char paths_close[MAX_FILES][MAX_PATH_LEN] = {};
 int rets_stat[MAX_FILES] = {};
 int rets_close[MAX_FILES] = {};
 
-SEC("fentry/vfs_getattr")
+int called_stat = 0;
+int called_close = 0;
+
+SEC("fentry/security_inode_getattr")
 int BPF_PROG(prog_stat, struct path *path, struct kstat *stat,
 	     __u32 request_mask, unsigned int query_flags)
 {
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	__u32 cnt = cnt_stat;
 	int ret;
+
+	called_stat = 1;
 
 	if (pid != my_pid)
 		return 0;
@@ -41,6 +46,8 @@ int BPF_PROG(prog_close, struct file *file, void *id)
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	__u32 cnt = cnt_close;
 	int ret;
+
+	called_close = 1;
 
 	if (pid != my_pid)
 		return 0;

@@ -159,7 +159,7 @@ void bpf_selem_link_storage_nolock(struct bpf_local_storage *local_storage,
 				   struct bpf_local_storage_elem *selem)
 {
 	RCU_INIT_POINTER(selem->local_storage, local_storage);
-	hlist_add_head(&selem->snode, &local_storage->list);
+	hlist_add_head_rcu(&selem->snode, &local_storage->list);
 }
 
 void bpf_selem_unlink_map(struct bpf_local_storage_elem *selem)

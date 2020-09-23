@@ -287,7 +287,7 @@ static struct xsk_dma_map *xp_create_dma_map(struct device *dev, struct net_devi
 		return NULL;
 
 	dma_map->dma_pages = kvcalloc(nr_pages, sizeof(*dma_map->dma_pages), GFP_KERNEL);
-	if (!dma_map) {
+	if (!dma_map->dma_pages) {
 		kfree(dma_map);
 		return NULL;
 	}
@@ -296,7 +296,7 @@ static struct xsk_dma_map *xp_create_dma_map(struct device *dev, struct net_devi
 	dma_map->dev = dev;
 	dma_map->dma_need_sync = false;
 	dma_map->dma_pages_cnt = nr_pages;
-	refcount_set(&dma_map->users, 0);
+	refcount_set(&dma_map->users, 1);
 	list_add(&dma_map->list, &umem->xsk_dma_list);
 	return dma_map;
 }
@@ -369,7 +369,6 @@ static int xp_init_dma_info(struct xsk_buff_pool *pool, struct xsk_dma_map *dma_
 	pool->dev = dma_map->dev;
 	pool->dma_pages_cnt = dma_map->dma_pages_cnt;
 	pool->dma_need_sync = dma_map->dma_need_sync;
-	refcount_inc(&dma_map->users);
 	memcpy(pool->dma_pages, dma_map->dma_pages,
 	       pool->dma_pages_cnt * sizeof(*pool->dma_pages));
 
@@ -390,6 +389,7 @@ int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 		if (err)
 			return err;
 
+		refcount_inc(&dma_map->users);
 		return 0;
 	}
 

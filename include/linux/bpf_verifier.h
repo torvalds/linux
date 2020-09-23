@@ -358,6 +358,9 @@ struct bpf_subprog_info {
 	u32 start; /* insn idx of function entry point */
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u16 stack_depth; /* max. stack depth used by this function */
+	bool has_tail_call;
+	bool tail_call_reachable;
+	bool has_ld_abs;
 };
 
 /* single container for all structs
