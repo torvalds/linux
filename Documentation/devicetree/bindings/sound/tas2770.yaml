@@ -29,6 +29,9 @@ properties:
   reset-gpio:
     description: GPIO used to reset the device.
 
+  shutdown-gpios:
+    description: GPIO used to control the state of the device.
+
   interrupts:
     maxItems: 1
 
@@ -69,6 +72,7 @@ examples:
        interrupt-parent = <&gpio1>;
        interrupts = <14>;
        reset-gpio = <&gpio1 15 0>;
+       shutdown-gpios = <&gpio1 14 0>;
        ti,imon-slot-no = <0>;
        ti,vmon-slot-no = <2>;
      };
