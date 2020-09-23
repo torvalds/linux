@@ -337,18 +337,23 @@ int line6_read_data(struct usb_line6 *line6, unsigned address, void *data,
 {
 	struct usb_device *usbdev = line6->usbdev;
 	int ret;
-	u8 len;
+	unsigned char *len;
 	unsigned count;
 
 	if (address > 0xffff || datalen > 0xff)
 		return -EINVAL;
 
+	len = kmalloc(1, GFP_KERNEL);
+	if (!len)
+		return -ENOMEM;
+
 	/* query the serial number: */
-	ret = usb_control_msg_send(usbdev, 0, 0x67,
-				   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-				   (datalen << 8) | 0x21, address, NULL, 0,
-				   LINE6_TIMEOUT * HZ);
-	if (ret) {
+	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x67,
+			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+			      (datalen << 8) | 0x21, address,
+			      NULL, 0, LINE6_TIMEOUT * HZ);
+
+	if (ret < 0) {
 		dev_err(line6->ifcdev, "read request failed (error %d)\n", ret);
 		goto exit;
 	}
@@ -357,41 +362,45 @@ int line6_read_data(struct usb_line6 *line6, unsigned address, void *data,
 	for (count = 0; count < LINE6_READ_WRITE_MAX_RETRIES; count++) {
 		mdelay(LINE6_READ_WRITE_STATUS_DELAY);
 
-		ret = usb_control_msg_recv(usbdev, 0, 0x67,
-					   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-					   0x0012, 0x0000, &len, 1,
-					   LINE6_TIMEOUT * HZ);
-		if (ret) {
+		ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0), 0x67,
+				      USB_TYPE_VENDOR | USB_RECIP_DEVICE |
+				      USB_DIR_IN,
+				      0x0012, 0x0000, len, 1,
+				      LINE6_TIMEOUT * HZ);
+		if (ret < 0) {
 			dev_err(line6->ifcdev,
 				"receive length failed (error %d)\n", ret);
 			goto exit;
 		}
 
-		if (len != 0xff)
+		if (*len != 0xff)
 			break;
 	}
 
 	ret = -EIO;
-	if (len == 0xff) {
+	if (*len == 0xff) {
 		dev_err(line6->ifcdev, "read failed after %d retries\n",
 			count);
 		goto exit;
-	} else if (len != datalen) {
+	} else if (*len != datalen) {
 		/* should be equal or something went wrong */
 		dev_err(line6->ifcdev,
 			"length mismatch (expected %d, got %d)\n",
-			(int)datalen, len);
+			(int)datalen, (int)*len);
 		goto exit;
 	}
 
 	/* receive the result: */
-	ret = usb_control_msg_recv(usbdev, 0, 0x67,
-				   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-				   0x0013, 0x0000, data, datalen, LINE6_TIMEOUT * HZ);
-	if (ret)
+	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0), 0x67,
+			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+			      0x0013, 0x0000, data, datalen,
+			      LINE6_TIMEOUT * HZ);
+
+	if (ret < 0)
 		dev_err(line6->ifcdev, "read failed (error %d)\n", ret);
 
 exit:
+	kfree(len);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(line6_read_data);
@@ -414,10 +423,12 @@ int line6_write_data(struct usb_line6 *line6, unsigned address, void *data,
 	if (!status)
 		return -ENOMEM;
 
-	ret = usb_control_msg_send(usbdev, 0, 0x67,
-				   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-				   0x0022, address, data, datalen, LINE6_TIMEOUT * HZ);
-	if (ret) {
+	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x67,
+			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+			      0x0022, address, data, datalen,
+			      LINE6_TIMEOUT * HZ);
+
+	if (ret < 0) {
 		dev_err(line6->ifcdev,
 			"write request failed (error %d)\n", ret);
 		goto exit;
@@ -426,10 +437,14 @@ int line6_write_data(struct usb_line6 *line6, unsigned address, void *data,
 	for (count = 0; count < LINE6_READ_WRITE_MAX_RETRIES; count++) {
 		mdelay(LINE6_READ_WRITE_STATUS_DELAY);
 
-		ret = usb_control_msg_recv(usbdev, 0, 0x67,
-					   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-					   0x0012, 0x0000, status, 1, LINE6_TIMEOUT * HZ);
-		if (ret) {
+		ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
+				      0x67,
+				      USB_TYPE_VENDOR | USB_RECIP_DEVICE |
+				      USB_DIR_IN,
+				      0x0012, 0x0000,
+				      status, 1, LINE6_TIMEOUT * HZ);
+
+		if (ret < 0) {
 			dev_err(line6->ifcdev,
 				"receiving status failed (error %d)\n", ret);
 			goto exit;
