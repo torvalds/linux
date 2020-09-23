@@ -85,28 +85,6 @@ static struct regmap_config sdhci_am654_regmap_config = {
 	.fast_io = true,
 };
 
-struct sdhci_am654_data {
-	struct regmap *base;
-	bool legacy_otapdly;
-	int otap_del_sel[11];
-	int clkbuf_sel;
-	int trm_icp;
-	int drv_strength;
-	bool dll_on;
-	int strb_sel;
-	u32 flags;
-};
-
-struct sdhci_am654_driver_data {
-	const struct sdhci_pltfm_data *pdata;
-	u32 flags;
-#define IOMUX_PRESENT	(1 << 0)
-#define FREQSEL_2_BIT	(1 << 1)
-#define STRBSEL_4_BIT	(1 << 2)
-#define DLL_PRESENT	(1 << 3)
-#define DLL_CALIB	(1 << 4)
-};
-
 struct timing_data {
 	const char *binding;
 	u32 capability;
@@ -125,6 +103,28 @@ static const struct timing_data td[] = {
 	[MMC_TIMING_MMC_DDR52] = {"ti,otap-del-sel-ddr52", MMC_CAP_DDR},
 	[MMC_TIMING_MMC_HS200] = {"ti,otap-del-sel-hs200", MMC_CAP2_HS200},
 	[MMC_TIMING_MMC_HS400] = {"ti,otap-del-sel-hs400", MMC_CAP2_HS400},
+};
+
+struct sdhci_am654_data {
+	struct regmap *base;
+	bool legacy_otapdly;
+	int otap_del_sel[ARRAY_SIZE(td)];
+	int clkbuf_sel;
+	int trm_icp;
+	int drv_strength;
+	bool dll_on;
+	int strb_sel;
+	u32 flags;
+};
+
+struct sdhci_am654_driver_data {
+	const struct sdhci_pltfm_data *pdata;
+	u32 flags;
+#define IOMUX_PRESENT	(1 << 0)
+#define FREQSEL_2_BIT	(1 << 1)
+#define STRBSEL_4_BIT	(1 << 2)
+#define DLL_PRESENT	(1 << 3)
+#define DLL_CALIB	(1 << 4)
 };
 
 static void sdhci_am654_setup_dll(struct sdhci_host *host, unsigned int clock)
