@@ -58,24 +58,24 @@ static int npcm_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 
 	pm_runtime_get_sync((struct device *)priv->rng.priv);
 
-	while (max >= sizeof(u32)) {
+	while (max) {
 		if (wait) {
-			if (readl_poll_timeout(priv->base + NPCM_RNGCS_REG,
+			if (readb_poll_timeout(priv->base + NPCM_RNGCS_REG,
 					       ready,
 					       ready & NPCM_RNG_DATA_VALID,
 					       NPCM_RNG_POLL_USEC,
 					       NPCM_RNG_TIMEOUT_USEC))
 				break;
 		} else {
-			if ((readl(priv->base + NPCM_RNGCS_REG) &
+			if ((readb(priv->base + NPCM_RNGCS_REG) &
 			    NPCM_RNG_DATA_VALID) == 0)
 				break;
 		}
 
-		*(u32 *)buf = readl(priv->base + NPCM_RNGD_REG);
-		retval += sizeof(u32);
-		buf += sizeof(u32);
-		max -= sizeof(u32);
+		*(u8 *)buf = readb(priv->base + NPCM_RNGD_REG);
+		retval++;
+		buf++;
+		max--;
 	}
 
 	pm_runtime_mark_last_busy((struct device *)priv->rng.priv);
