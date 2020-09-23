@@ -2872,3 +2872,82 @@ void mlx5_esw_offloads_sf_vport_disable(struct mlx5_eswitch *esw, u16 vport_num)
 	mlx5_esw_devlink_sf_port_unregister(esw, vport_num);
 	mlx5_esw_vport_disable(esw, vport_num);
 }
+
+static int mlx5_esw_query_vport_vhca_id(struct mlx5_eswitch *esw, u16 vport_num, u16 *vhca_id)
+{
+	int query_out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
+	void *query_ctx;
+	void *hca_caps;
+	int err;
+
+	*vhca_id = 0;
+	if (mlx5_esw_is_manager_vport(esw, vport_num) ||
+	    !MLX5_CAP_GEN(esw->dev, vhca_resource_manager))
+		return -EPERM;
+
+	query_ctx = kzalloc(query_out_sz, GFP_KERNEL);
+	if (!query_ctx)
+		return -ENOMEM;
+
+	err = mlx5_vport_get_other_func_cap(esw->dev, vport_num, query_ctx);
+	if (err)
+		goto out_free;
+
+	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability);
+	*vhca_id = MLX5_GET(cmd_hca_cap, hca_caps, vhca_id);
+
+out_free:
+	kfree(query_ctx);
+	return err;
+}
+
+int mlx5_esw_vport_vhca_id_set(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	u16 *old_entry, *vhca_map_entry, vhca_id;
+	int err;
+
+	err = mlx5_esw_query_vport_vhca_id(esw, vport_num, &vhca_id);
+	if (err) {
+		esw_warn(esw->dev, "Getting vhca_id for vport failed (vport=%u,err=%d)\n",
+			 vport_num, err);
+		return err;
+	}
+
+	vhca_map_entry = kmalloc(sizeof(*vhca_map_entry), GFP_KERNEL);
+	if (!vhca_map_entry)
+		return -ENOMEM;
+
+	*vhca_map_entry = vport_num;
+	old_entry = xa_store(&esw->offloads.vhca_map, vhca_id, vhca_map_entry, GFP_KERNEL);
+	if (xa_is_err(old_entry)) {
+		kfree(vhca_map_entry);
+		return xa_err(old_entry);
+	}
+	kfree(old_entry);
+	return 0;
+}
+
+void mlx5_esw_vport_vhca_id_clear(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	u16 *vhca_map_entry, vhca_id;
+	int err;
+
+	err = mlx5_esw_query_vport_vhca_id(esw, vport_num, &vhca_id);
+	if (err)
+		esw_warn(esw->dev, "Getting vhca_id for vport failed (vport=%hu,err=%d)\n",
+			 vport_num, err);
+
+	vhca_map_entry = xa_erase(&esw->offloads.vhca_map, vhca_id);
+	kfree(vhca_map_entry);
+}
+
+int mlx5_eswitch_vhca_id_to_vport(struct mlx5_eswitch *esw, u16 vhca_id, u16 *vport_num)
+{
+	u16 *res = xa_load(&esw->offloads.vhca_map, vhca_id);
+
+	if (!res)
+		return -ENOENT;
+
+	*vport_num = *res;
+	return 0;
+}

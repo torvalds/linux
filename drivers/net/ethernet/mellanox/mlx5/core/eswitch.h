@@ -36,6 +36,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
 #include <linux/atomic.h>
+#include <linux/xarray.h>
 #include <net/devlink.h>
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/eswitch.h>
@@ -212,6 +213,7 @@ struct mlx5_esw_offload {
 	struct mod_hdr_tbl mod_hdr;
 	DECLARE_HASHTABLE(termtbl_tbl, 8);
 	struct mutex termtbl_mutex; /* protects termtbl hash */
+	struct xarray vhca_map;
 	const struct mlx5_eswitch_rep_ops *rep_ops[NUM_REP_TYPES];
 	u8 inline_mode;
 	atomic64_t num_flows;
@@ -733,6 +735,10 @@ void mlx5_esw_devlink_sf_port_unregister(struct mlx5_eswitch *esw, u16 vport_num
 int mlx5_esw_offloads_sf_vport_enable(struct mlx5_eswitch *esw, struct devlink_port *dl_port,
 				      u16 vport_num, u32 sfnum);
 void mlx5_esw_offloads_sf_vport_disable(struct mlx5_eswitch *esw, u16 vport_num);
+
+int mlx5_esw_vport_vhca_id_set(struct mlx5_eswitch *esw, u16 vport_num);
+void mlx5_esw_vport_vhca_id_clear(struct mlx5_eswitch *esw, u16 vport_num);
+int mlx5_eswitch_vhca_id_to_vport(struct mlx5_eswitch *esw, u16 vhca_id, u16 *vport_num);
 
 /**
  * mlx5_esw_event_info - Indicates eswitch mode changed/changing.
