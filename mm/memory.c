@@ -773,20 +773,14 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	return 0;
 }
 
-static inline unsigned long
-copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+static inline void
+copy_present_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
 		unsigned long addr, int *rss)
 {
 	unsigned long vm_flags = vma->vm_flags;
 	pte_t pte = *src_pte;
 	struct page *page;
-
-	/* pte contains position in swap or file, so copy. */
-	if (unlikely(!pte_present(pte)))
-		return copy_nonpresent_pte(dst_mm, src_mm,
-					   dst_pte, src_pte, vma,
-					   addr, rss);
 
 	/*
 	 * If it's a COW mapping, write protect it both
@@ -821,7 +815,6 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	}
 
 	set_pte_at(dst_mm, addr, dst_pte, pte);
-	return 0;
 }
 
 static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
@@ -863,10 +856,17 @@ again:
 			progress++;
 			continue;
 		}
-		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
+		if (unlikely(!pte_present(*src_pte))) {
+			entry.val = copy_nonpresent_pte(dst_mm, src_mm,
+							dst_pte, src_pte,
 							vma, addr, rss);
-		if (entry.val)
-			break;
+			if (entry.val)
+				break;
+			progress += 8;
+			continue;
+		}
+		copy_present_pte(dst_mm, src_mm, dst_pte, src_pte,
+				 vma, addr, rss);
 		progress += 8;
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
 
