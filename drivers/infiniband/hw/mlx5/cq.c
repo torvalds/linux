@@ -255,7 +255,7 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 
 	switch (roce_packet_type) {
 	case MLX5_CQE_ROCE_L3_HEADER_TYPE_GRH:
-		wc->network_hdr_type = RDMA_NETWORK_IB;
+		wc->network_hdr_type = RDMA_NETWORK_ROCE_V1;
 		break;
 	case MLX5_CQE_ROCE_L3_HEADER_TYPE_IPV6:
 		wc->network_hdr_type = RDMA_NETWORK_IPV6;

@@ -1157,7 +1157,7 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 		SET_FIELD(qp_params->modify_flags,
 			  QED_ROCE_MODIFY_QP_VALID_ROCE_MODE, 1);
 		break;
-	case RDMA_NETWORK_IB:
+	case RDMA_NETWORK_ROCE_V1:
 		memcpy(&qp_params->sgid.bytes[0], &gid_attr->gid.raw[0],
 		       sizeof(qp_params->sgid));
 		memcpy(&qp_params->dgid.bytes[0],
@@ -1177,6 +1177,8 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 			  QED_ROCE_MODIFY_QP_VALID_ROCE_MODE, 1);
 		qp_params->roce_mode = ROCE_V2_IPV4;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	for (i = 0; i < 4; i++) {

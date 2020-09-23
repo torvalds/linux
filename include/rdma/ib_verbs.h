@@ -138,10 +138,9 @@ union ib_gid {
 extern union ib_gid zgid;
 
 enum ib_gid_type {
-	/* If link layer is Ethernet, this is RoCE V1 */
 	IB_GID_TYPE_IB        = 0,
-	IB_GID_TYPE_ROCE      = 0,
-	IB_GID_TYPE_ROCE_UDP_ENCAP = 1,
+	IB_GID_TYPE_ROCE      = 1,
+	IB_GID_TYPE_ROCE_UDP_ENCAP = 2,
 	IB_GID_TYPE_SIZE
 };
 
@@ -180,7 +179,7 @@ rdma_node_get_transport(unsigned int node_type);
 
 enum rdma_network_type {
 	RDMA_NETWORK_IB,
-	RDMA_NETWORK_ROCE_V1 = RDMA_NETWORK_IB,
+	RDMA_NETWORK_ROCE_V1,
 	RDMA_NETWORK_IPV4,
 	RDMA_NETWORK_IPV6
 };
@@ -190,9 +189,10 @@ static inline enum ib_gid_type ib_network_to_gid_type(enum rdma_network_type net
 	if (network_type == RDMA_NETWORK_IPV4 ||
 	    network_type == RDMA_NETWORK_IPV6)
 		return IB_GID_TYPE_ROCE_UDP_ENCAP;
-
-	/* IB_GID_TYPE_IB same as RDMA_NETWORK_ROCE_V1 */
-	return IB_GID_TYPE_IB;
+	else if (network_type == RDMA_NETWORK_ROCE_V1)
+		return IB_GID_TYPE_ROCE;
+	else
+		return IB_GID_TYPE_IB;
 }
 
 static inline enum rdma_network_type
@@ -200,6 +200,9 @@ rdma_gid_attr_network_type(const struct ib_gid_attr *attr)
 {
 	if (attr->gid_type == IB_GID_TYPE_IB)
 		return RDMA_NETWORK_IB;
+
+	if (attr->gid_type == IB_GID_TYPE_ROCE)
+		return RDMA_NETWORK_ROCE_V1;
 
 	if (ipv6_addr_v4mapped((struct in6_addr *)&attr->gid))
 		return RDMA_NETWORK_IPV4;

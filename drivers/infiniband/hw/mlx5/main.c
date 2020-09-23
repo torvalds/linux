@@ -546,7 +546,7 @@ static int set_roce_addr(struct mlx5_ib_dev *dev, u8 port_num,
 			 unsigned int index, const union ib_gid *gid,
 			 const struct ib_gid_attr *attr)
 {
-	enum ib_gid_type gid_type = IB_GID_TYPE_IB;
+	enum ib_gid_type gid_type = IB_GID_TYPE_ROCE;
 	u16 vlan_id = 0xffff;
 	u8 roce_version = 0;
 	u8 roce_l3_type = 0;
@@ -561,7 +561,7 @@ static int set_roce_addr(struct mlx5_ib_dev *dev, u8 port_num,
 	}
 
 	switch (gid_type) {
-	case IB_GID_TYPE_IB:
+	case IB_GID_TYPE_ROCE:
 		roce_version = MLX5_ROCE_VERSION_1;
 		break;
 	case IB_GID_TYPE_ROCE_UDP_ENCAP:
