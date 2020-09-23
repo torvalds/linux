@@ -4121,7 +4121,7 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	if (!enable_pml)
 		exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
 
-	if (vmx_xsaves_supported()) {
+	if (cpu_has_vmx_xsaves()) {
 		/* Exposing XSAVES only when XSAVE is exposed */
 		bool xsaves_enabled =
 			boot_cpu_has(X86_FEATURE_XSAVE) &&
@@ -4179,7 +4179,7 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 		}
 	}
 
-	if (vmx_rdrand_supported()) {
+	if (cpu_has_vmx_rdrand()) {
 		bool rdrand_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDRAND);
 		if (rdrand_enabled)
 			exec_control &= ~SECONDARY_EXEC_RDRAND_EXITING;
@@ -4194,7 +4194,7 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 		}
 	}
 
-	if (vmx_rdseed_supported()) {
+	if (cpu_has_vmx_rdseed()) {
 		bool rdseed_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDSEED);
 		if (rdseed_enabled)
 			exec_control &= ~SECONDARY_EXEC_RDSEED_EXITING;
@@ -4209,7 +4209,7 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 		}
 	}
 
-	if (vmx_waitpkg_supported()) {
+	if (cpu_has_vmx_waitpkg()) {
 		bool waitpkg_enabled =
 			guest_cpuid_has(vcpu, X86_FEATURE_WAITPKG);
 
@@ -4317,7 +4317,7 @@ static void init_vmcs(struct vcpu_vmx *vmx)
 	if (vmx->vpid != 0)
 		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
 
-	if (vmx_xsaves_supported())
+	if (cpu_has_vmx_xsaves())
 		vmcs_write64(XSS_EXIT_BITMAP, VMX_XSS_EXIT_BITMAP);
 
 	if (enable_pml) {
@@ -7254,14 +7254,14 @@ static __init void vmx_set_cpu_caps(void)
 
 	/* CPUID 0xD.1 */
 	supported_xss = 0;
-	if (!vmx_xsaves_supported())
+	if (!cpu_has_vmx_xsaves())
 		kvm_cpu_cap_clear(X86_FEATURE_XSAVES);
 
 	/* CPUID 0x80000001 */
 	if (!cpu_has_vmx_rdtscp())
 		kvm_cpu_cap_clear(X86_FEATURE_RDTSCP);
 
-	if (vmx_waitpkg_supported())
+	if (cpu_has_vmx_waitpkg())
 		kvm_cpu_cap_check_and_set(X86_FEATURE_WAITPKG);
 }
 
