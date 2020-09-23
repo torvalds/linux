@@ -413,7 +413,7 @@ int incfs_write_mapping_fh_to_backing_file(struct backing_file_context *bfc,
 
 	fh.fh_mapped_file_size = cpu_to_le64(file_size);
 	fh.fh_original_uuid = *uuid;
-	fh.fh_flags = INCFS_FILE_MAPPED;
+	fh.fh_flags = cpu_to_le32(INCFS_FILE_MAPPED);
 
 	LOCK_REQUIRED(bfc->bc_mutex);
 
