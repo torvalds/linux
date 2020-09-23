@@ -165,7 +165,7 @@ int sdw_startup(struct snd_pcm_substream *substream)
 	return sdw_startup_stream(substream);
 }
 
-static int sdw_prepare(struct snd_pcm_substream *substream)
+int sdw_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
@@ -184,7 +184,7 @@ static int sdw_prepare(struct snd_pcm_substream *substream)
 	return sdw_prepare_stream(sdw_stream);
 }
 
-static int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
+int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
@@ -224,7 +224,7 @@ static int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static int sdw_hw_free(struct snd_pcm_substream *substream)
+int sdw_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
