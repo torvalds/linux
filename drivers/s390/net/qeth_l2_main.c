@@ -304,34 +304,6 @@ static void qeth_l2_dev2br_fdb_flush(struct qeth_card *card)
 				 card->dev, &info.info, NULL);
 }
 
-static void qeth_l2_stop_card(struct qeth_card *card)
-{
-	struct qeth_priv *priv = netdev_priv(card->dev);
-
-	QETH_CARD_TEXT(card, 2, "stopcard");
-
-	qeth_set_allowed_threads(card, 0, 1);
-
-	cancel_work_sync(&card->rx_mode_work);
-	qeth_l2_drain_rx_mode_cache(card);
-
-	if (card->state == CARD_STATE_SOFTSETUP)
-		card->state = CARD_STATE_DOWN;
-
-	qeth_qdio_clear_card(card, 0);
-	qeth_drain_output_queues(card);
-	qeth_clear_working_pool_list(card);
-	qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
-	qeth_flush_local_addrs(card);
-	card->info.promisc_mode = 0;
-
-	if (priv->brport_features & BR_LEARNING_SYNC) {
-		rtnl_lock();
-		qeth_l2_dev2br_fdb_flush(card);
-		rtnl_unlock();
-	}
-}
-
 static int qeth_l2_request_initial_mac(struct qeth_card *card)
 {
 	int rc = 0;
@@ -1172,7 +1144,7 @@ static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
 	if (dev->reg_state != NETREG_REGISTERED) {
 		rc = qeth_l2_setup_netdev(card);
 		if (rc)
-			goto out_remove;
+			goto err_setup;
 
 		if (carrier_ok)
 			netif_carrier_on(dev);
@@ -1195,14 +1167,28 @@ static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
 	}
 	return 0;
 
-out_remove:
-	qeth_l2_stop_card(card);
+err_setup:
+	qeth_set_allowed_threads(card, 0, 1);
+	card->state = CARD_STATE_DOWN;
 	return rc;
 }
 
 static void qeth_l2_set_offline(struct qeth_card *card)
 {
-	qeth_l2_stop_card(card);
+	struct qeth_priv *priv = netdev_priv(card->dev);
+
+	qeth_set_allowed_threads(card, 0, 1);
+	qeth_l2_drain_rx_mode_cache(card);
+
+	if (card->state == CARD_STATE_SOFTSETUP)
+		card->state = CARD_STATE_DOWN;
+
+	qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+	if (priv->brport_features & BR_LEARNING_SYNC) {
+		rtnl_lock();
+		qeth_l2_dev2br_fdb_flush(card);
+		rtnl_unlock();
+	}
 }
 
 static int __init qeth_l2_init(void)

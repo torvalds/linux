@@ -201,7 +201,7 @@ int qeth_threads_running(struct qeth_card *card, unsigned long threads)
 }
 EXPORT_SYMBOL_GPL(qeth_threads_running);
 
-void qeth_clear_working_pool_list(struct qeth_card *card)
+static void qeth_clear_working_pool_list(struct qeth_card *card)
 {
 	struct qeth_buffer_pool_entry *pool_entry, *tmp;
 	struct qeth_qdio_q *queue = card->qdio.in_q;
@@ -216,7 +216,6 @@ void qeth_clear_working_pool_list(struct qeth_card *card)
 	for (i = 0; i < ARRAY_SIZE(queue->bufs); i++)
 		queue->bufs[i].pool_entry = NULL;
 }
-EXPORT_SYMBOL_GPL(qeth_clear_working_pool_list);
 
 static void qeth_free_pool_entry(struct qeth_buffer_pool_entry *entry)
 {
@@ -658,12 +657,11 @@ static void qeth_flush_local_addrs6(struct qeth_card *card)
 	spin_unlock_irq(&card->local_addrs6_lock);
 }
 
-void qeth_flush_local_addrs(struct qeth_card *card)
+static void qeth_flush_local_addrs(struct qeth_card *card)
 {
 	qeth_flush_local_addrs4(card);
 	qeth_flush_local_addrs6(card);
 }
-EXPORT_SYMBOL_GPL(qeth_flush_local_addrs);
 
 static void qeth_add_local_addrs4(struct qeth_card *card,
 				  struct qeth_ipacmd_local_addrs4 *cmd)
@@ -1501,7 +1499,7 @@ static void qeth_drain_output_queue(struct qeth_qdio_out_q *q, bool free)
 	}
 }
 
-void qeth_drain_output_queues(struct qeth_card *card)
+static void qeth_drain_output_queues(struct qeth_card *card)
 {
 	int i;
 
@@ -1512,7 +1510,6 @@ void qeth_drain_output_queues(struct qeth_card *card)
 			qeth_drain_output_queue(card->qdio.out_qs[i], false);
 	}
 }
-EXPORT_SYMBOL_GPL(qeth_drain_output_queues);
 
 static int qeth_osa_set_output_queues(struct qeth_card *card, bool single)
 {
@@ -1840,7 +1837,7 @@ static int qeth_clear_halt_card(struct qeth_card *card, int halt)
 	return qeth_clear_channels(card);
 }
 
-int qeth_qdio_clear_card(struct qeth_card *card, int use_halt)
+static int qeth_qdio_clear_card(struct qeth_card *card, int use_halt)
 {
 	int rc = 0;
 
@@ -1868,7 +1865,6 @@ int qeth_qdio_clear_card(struct qeth_card *card, int use_halt)
 		QETH_CARD_TEXT_(card, 3, "2err%d", rc);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(qeth_qdio_clear_card);
 
 static enum qeth_discipline_id qeth_vm_detect_layer(struct qeth_card *card)
 {
@@ -5333,6 +5329,10 @@ static int qeth_set_online(struct qeth_card *card)
 
 err_online:
 err_hardsetup:
+	qeth_qdio_clear_card(card, 0);
+	qeth_clear_working_pool_list(card);
+	qeth_flush_local_addrs(card);
+
 	qeth_stop_channel(&card->data);
 	qeth_stop_channel(&card->write);
 	qeth_stop_channel(&card->read);
@@ -5366,7 +5366,15 @@ int qeth_set_offline(struct qeth_card *card, bool resetting)
 	netif_carrier_off(card->dev);
 	rtnl_unlock();
 
+	cancel_work_sync(&card->rx_mode_work);
+
 	card->discipline->set_offline(card);
+
+	qeth_qdio_clear_card(card, 0);
+	qeth_drain_output_queues(card);
+	qeth_clear_working_pool_list(card);
+	qeth_flush_local_addrs(card);
+	card->info.promisc_mode = 0;
 
 	rc  = qeth_stop_channel(&card->data);
 	rc2 = qeth_stop_channel(&card->write);

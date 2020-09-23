@@ -1142,32 +1142,6 @@ static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
 	return 0;
 }
 
-static void qeth_l3_stop_card(struct qeth_card *card)
-{
-	QETH_CARD_TEXT(card, 2, "stopcard");
-
-	qeth_set_allowed_threads(card, 0, 1);
-
-	cancel_work_sync(&card->rx_mode_work);
-	qeth_l3_drain_rx_mode_cache(card);
-
-	if (card->options.sniffer &&
-	    (card->info.promisc_mode == SET_PROMISC_MODE_ON))
-		qeth_diags_trace(card, QETH_DIAGS_CMD_TRACE_DISABLE);
-
-	if (card->state == CARD_STATE_SOFTSETUP) {
-		card->state = CARD_STATE_DOWN;
-		qeth_l3_clear_ip_htable(card, 1);
-	}
-
-	qeth_qdio_clear_card(card, 0);
-	qeth_drain_output_queues(card);
-	qeth_clear_working_pool_list(card);
-	flush_workqueue(card->event_wq);
-	qeth_flush_local_addrs(card);
-	card->info.promisc_mode = 0;
-}
-
 static void qeth_l3_set_promisc_mode(struct qeth_card *card)
 {
 	bool enable = card->dev->flags & IFF_PROMISC;
@@ -2042,7 +2016,7 @@ static int qeth_l3_set_online(struct qeth_card *card, bool carrier_ok)
 	if (dev->reg_state != NETREG_REGISTERED) {
 		rc = qeth_l3_setup_netdev(card);
 		if (rc)
-			goto out_remove;
+			goto err_setup;
 
 		if (carrier_ok)
 			netif_carrier_on(dev);
@@ -2064,14 +2038,26 @@ static int qeth_l3_set_online(struct qeth_card *card, bool carrier_ok)
 	}
 	return 0;
 
-out_remove:
-	qeth_l3_stop_card(card);
+err_setup:
+	qeth_set_allowed_threads(card, 0, 1);
+	card->state = CARD_STATE_DOWN;
+	qeth_l3_clear_ip_htable(card, 1);
 	return rc;
 }
 
 static void qeth_l3_set_offline(struct qeth_card *card)
 {
-	qeth_l3_stop_card(card);
+	qeth_set_allowed_threads(card, 0, 1);
+	qeth_l3_drain_rx_mode_cache(card);
+
+	if (card->options.sniffer &&
+	    (card->info.promisc_mode == SET_PROMISC_MODE_ON))
+		qeth_diags_trace(card, QETH_DIAGS_CMD_TRACE_DISABLE);
+
+	if (card->state == CARD_STATE_SOFTSETUP) {
+		card->state = CARD_STATE_DOWN;
+		qeth_l3_clear_ip_htable(card, 1);
+	}
 }
 
 /* Returns zero if the command is successfully "consumed" */
