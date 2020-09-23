@@ -381,6 +381,23 @@ void xen_drm_front_on_frame_done(struct xen_drm_front_info *front_info,
 					fb_cookie);
 }
 
+void xen_drm_front_gem_object_free(struct drm_gem_object *obj)
+{
+	struct xen_drm_front_drm_info *drm_info = obj->dev->dev_private;
+	int idx;
+
+	if (drm_dev_enter(obj->dev, &idx)) {
+		xen_drm_front_dbuf_destroy(drm_info->front_info,
+					   xen_drm_front_dbuf_to_cookie(obj));
+		drm_dev_exit(idx);
+	} else {
+		dbuf_free(&drm_info->front_info->dbuf_list,
+			  xen_drm_front_dbuf_to_cookie(obj));
+	}
+
+	xen_drm_front_gem_free_object_unlocked(obj);
+}
+
 static int xen_drm_drv_dumb_create(struct drm_file *filp,
 				   struct drm_device *dev,
 				   struct drm_mode_create_dumb *args)
@@ -435,23 +452,6 @@ fail:
 	return ret;
 }
 
-static void xen_drm_drv_free_object_unlocked(struct drm_gem_object *obj)
-{
-	struct xen_drm_front_drm_info *drm_info = obj->dev->dev_private;
-	int idx;
-
-	if (drm_dev_enter(obj->dev, &idx)) {
-		xen_drm_front_dbuf_destroy(drm_info->front_info,
-					   xen_drm_front_dbuf_to_cookie(obj));
-		drm_dev_exit(idx);
-	} else {
-		dbuf_free(&drm_info->front_info->dbuf_list,
-			  xen_drm_front_dbuf_to_cookie(obj));
-	}
-
-	xen_drm_front_gem_free_object_unlocked(obj);
-}
-
 static void xen_drm_drv_release(struct drm_device *dev)
 {
 	struct xen_drm_front_drm_info *drm_info = dev->dev_private;
@@ -483,22 +483,12 @@ static const struct file_operations xen_drm_dev_fops = {
 	.mmap           = xen_drm_front_gem_mmap,
 };
 
-static const struct vm_operations_struct xen_drm_drv_vm_ops = {
-	.open           = drm_gem_vm_open,
-	.close          = drm_gem_vm_close,
-};
-
 static struct drm_driver xen_drm_driver = {
 	.driver_features           = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.release                   = xen_drm_drv_release,
-	.gem_vm_ops                = &xen_drm_drv_vm_ops,
-	.gem_free_object_unlocked  = xen_drm_drv_free_object_unlocked,
 	.prime_handle_to_fd        = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle        = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = xen_drm_front_gem_import_sg_table,
-	.gem_prime_get_sg_table    = xen_drm_front_gem_get_sg_table,
-	.gem_prime_vmap            = xen_drm_front_gem_prime_vmap,
-	.gem_prime_vunmap          = xen_drm_front_gem_prime_vunmap,
 	.gem_prime_mmap            = xen_drm_front_gem_prime_mmap,
 	.dumb_create               = xen_drm_drv_dumb_create,
 	.fops                      = &xen_drm_dev_fops,
