@@ -435,9 +435,9 @@ static unsigned long host_idt_base;
  * will emulate SYSCALL in legacy mode if the vendor string in guest
  * CPUID.0:{EBX,ECX,EDX} is "AuthenticAMD" or "AMDisbetter!" To
  * support this emulation, IA32_STAR must always be included in
- * vmx_msr_index[], even in i386 builds.
+ * vmx_uret_msrs_list[], even in i386 builds.
  */
-const u32 vmx_msr_index[] = {
+const u32 vmx_uret_msrs_list[] = {
 #ifdef CONFIG_X86_64
 	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
 #endif
@@ -616,7 +616,7 @@ static inline int __vmx_find_uret_msr(struct vcpu_vmx *vmx, u32 msr)
 	int i;
 
 	for (i = 0; i < vmx->nr_uret_msrs; ++i)
-		if (vmx_msr_index[vmx->guest_uret_msrs[i].index] == msr)
+		if (vmx_uret_msrs_list[vmx->guest_uret_msrs[i].index] == msr)
 			return i;
 	return -1;
 }
@@ -6718,10 +6718,10 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 			goto free_vpid;
 	}
 
-	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) != MAX_NR_USER_RETURN_MSRS);
+	BUILD_BUG_ON(ARRAY_SIZE(vmx_uret_msrs_list) != MAX_NR_USER_RETURN_MSRS);
 
-	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i) {
-		u32 index = vmx_msr_index[i];
+	for (i = 0; i < ARRAY_SIZE(vmx_uret_msrs_list); ++i) {
+		u32 index = vmx_uret_msrs_list[i];
 		u32 data_low, data_high;
 		int j = vmx->nr_uret_msrs;
 
@@ -7577,8 +7577,8 @@ static __init int hardware_setup(void)
 	store_idt(&dt);
 	host_idt_base = dt.address;
 
-	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i)
-		kvm_define_user_return_msr(i, vmx_msr_index[i]);
+	for (i = 0; i < ARRAY_SIZE(vmx_uret_msrs_list); ++i)
+		kvm_define_user_return_msr(i, vmx_uret_msrs_list[i]);
 
 	if (setup_vmcs_config(&vmcs_config, &vmx_capability) < 0)
 		return -EIO;
