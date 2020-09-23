@@ -387,7 +387,8 @@ static ssize_t _show_port_gid_attr(
 
 	gid_attr = rdma_get_gid_attr(p->ibdev, p->port_num, tab_attr->index);
 	if (IS_ERR(gid_attr))
-		return PTR_ERR(gid_attr);
+		/* -EINVAL is returned for user space compatibility reasons. */
+		return -EINVAL;
 
 	ret = print(gid_attr, buf);
 	rdma_put_gid_attr(gid_attr);
