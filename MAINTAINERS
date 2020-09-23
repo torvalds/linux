@@ -4354,7 +4354,7 @@ CODA V4L2 MEM2MEM DRIVER
 M:	Philipp Zabel <p.zabel@pengutronix.de>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/media/coda.txt
+F:	Documentation/devicetree/bindings/media/coda.yaml
 F:	drivers/media/platform/coda/
 
 CODE OF CONDUCT
