@@ -174,6 +174,7 @@ EXPORT_SYMBOL_GPL(usb_control_msg);
  * @size: length in bytes of the data to send
  * @timeout: time in msecs to wait for the message to complete before timing
  *	out (if 0 the wait is forever)
+ * @memflags: the flags for memory allocation for buffers
  *
  * Context: !in_interrupt ()
  *
@@ -196,7 +197,8 @@ EXPORT_SYMBOL_GPL(usb_control_msg);
  */
 int usb_control_msg_send(struct usb_device *dev, __u8 endpoint, __u8 request,
 			 __u8 requesttype, __u16 value, __u16 index,
-			 const void *driver_data, __u16 size, int timeout)
+			 const void *driver_data, __u16 size, int timeout,
+			 gfp_t memflags)
 {
 	unsigned int pipe = usb_sndctrlpipe(dev, endpoint);
 	int ret;
@@ -206,7 +208,7 @@ int usb_control_msg_send(struct usb_device *dev, __u8 endpoint, __u8 request,
 		return -EINVAL;
 
 	if (size) {
-		data = kmemdup(driver_data, size, GFP_KERNEL);
+		data = kmemdup(driver_data, size, memflags);
 		if (!data)
 			return -ENOMEM;
 	}
@@ -235,6 +237,7 @@ EXPORT_SYMBOL_GPL(usb_control_msg_send);
  * @size: length in bytes of the data to be received
  * @timeout: time in msecs to wait for the message to complete before timing
  *	out (if 0 the wait is forever)
+ * @memflags: the flags for memory allocation for buffers
  *
  * Context: !in_interrupt ()
  *
@@ -263,7 +266,8 @@ EXPORT_SYMBOL_GPL(usb_control_msg_send);
  */
 int usb_control_msg_recv(struct usb_device *dev, __u8 endpoint, __u8 request,
 			 __u8 requesttype, __u16 value, __u16 index,
-			 void *driver_data, __u16 size, int timeout)
+			 void *driver_data, __u16 size, int timeout,
+			 gfp_t memflags)
 {
 	unsigned int pipe = usb_rcvctrlpipe(dev, endpoint);
 	int ret;
@@ -272,7 +276,7 @@ int usb_control_msg_recv(struct usb_device *dev, __u8 endpoint, __u8 request,
 	if (!size || !driver_data || usb_pipe_type_check(dev, pipe))
 		return -EINVAL;
 
-	data = kmalloc(size, GFP_KERNEL);
+	data = kmalloc(size, memflags);
 	if (!data)
 		return -ENOMEM;
 
@@ -1085,7 +1089,8 @@ int usb_set_isoch_delay(struct usb_device *dev)
 			USB_REQ_SET_ISOCH_DELAY,
 			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
 			dev->hub_delay, 0, NULL, 0,
-			USB_CTRL_SET_TIMEOUT);
+			USB_CTRL_SET_TIMEOUT,
+			GFP_NOIO);
 }
 
 /**
@@ -1206,7 +1211,7 @@ int usb_clear_halt(struct usb_device *dev, int pipe)
 	result = usb_control_msg_send(dev, 0,
 				      USB_REQ_CLEAR_FEATURE, USB_RECIP_ENDPOINT,
 				      USB_ENDPOINT_HALT, endp, NULL, 0,
-				      USB_CTRL_SET_TIMEOUT);
+				      USB_CTRL_SET_TIMEOUT, GFP_NOIO);
 
 	/* don't un-halt or force to DATA0 except on success */
 	if (result)
@@ -1574,7 +1579,8 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 		ret = usb_control_msg_send(dev, 0,
 					   USB_REQ_SET_INTERFACE,
 					   USB_RECIP_INTERFACE, alternate,
-					   interface, NULL, 0, 5000);
+					   interface, NULL, 0, 5000,
+					   GFP_NOIO);
 
 	/* 9.4.10 says devices don't need this and are free to STALL the
 	 * request if the interface only has one alternate setting.
@@ -1710,7 +1716,8 @@ int usb_reset_configuration(struct usb_device *dev)
 	}
 	retval = usb_control_msg_send(dev, 0, USB_REQ_SET_CONFIGURATION, 0,
 				      config->desc.bConfigurationValue, 0,
-				      NULL, 0, USB_CTRL_SET_TIMEOUT);
+				      NULL, 0, USB_CTRL_SET_TIMEOUT,
+				      GFP_NOIO);
 	if (retval) {
 		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
 		usb_enable_lpm(dev);
@@ -2098,7 +2105,7 @@ free_interfaces:
 
 	ret = usb_control_msg_send(dev, 0, USB_REQ_SET_CONFIGURATION, 0,
 				   configuration, 0, NULL, 0,
-				   USB_CTRL_SET_TIMEOUT);
+				   USB_CTRL_SET_TIMEOUT, GFP_NOIO);
 	if (ret && cp) {
 		/*
 		 * All the old state is gone, so what else can we do?

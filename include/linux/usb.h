@@ -1804,10 +1804,12 @@ extern int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 /* wrappers around usb_control_msg() for the most common standard requests */
 int usb_control_msg_send(struct usb_device *dev, __u8 endpoint, __u8 request,
 			 __u8 requesttype, __u16 value, __u16 index,
-			 const void *data, __u16 size, int timeout);
+			 const void *data, __u16 size, int timeout,
+			 gfp_t memflags);
 int usb_control_msg_recv(struct usb_device *dev, __u8 endpoint, __u8 request,
 			 __u8 requesttype, __u16 value, __u16 index,
-			 void *data, __u16 size, int timeout);
+			 void *data, __u16 size, int timeout,
+			 gfp_t memflags);
 extern int usb_get_descriptor(struct usb_device *dev, unsigned char desctype,
 	unsigned char descindex, void *buf, int size);
 extern int usb_get_status(struct usb_device *dev,
