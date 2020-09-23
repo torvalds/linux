@@ -129,15 +129,16 @@ enum ia_css_debug_enable_param_dump {
  * @param[in]	fmt		printf like format string
  * @param[in]	args		arguments for the format string
  */
-static inline void
-ia_css_debug_vdtrace(unsigned int level, const char *fmt, va_list args)
+static inline void __printf(2, 0) ia_css_debug_vdtrace(unsigned int level,
+						       const char *fmt,
+						       va_list args)
 {
 	if (dbg_level >= level)
 		sh_css_vprint(fmt, args);
 }
 
-__printf(2, 3)
-void ia_css_debug_dtrace(unsigned int level, const char *fmt, ...);
+__printf(2, 3) void ia_css_debug_dtrace(unsigned int level,
+					const char *fmt, ...);
 
 /*! @brief Dump sp thread's stack contents
  * SP thread's stack contents are set to 0xcafecafe. This function dumps the

@@ -159,15 +159,14 @@ static void atomisp_css2_hw_load(hrt_address addr, void *to, uint32_t n)
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
-static int  __attribute__((format (printf, 1, 0)))
-atomisp_css2_dbg_ftrace_print(const char *fmt, va_list args)
+static int  __printf(1, 0) atomisp_css2_dbg_ftrace_print(const char *fmt,
+							 va_list args)
 {
 	ftrace_vprintk(fmt, args);
 	return 0;
 }
 
-static int  __attribute__((format (printf, 1, 0)))
-atomisp_vprintk(const char *fmt, va_list args)
+static int  __printf(1, 0) atomisp_vprintk(const char *fmt, va_list args)
 {
 	vprintk(fmt, args);
 	return 0;

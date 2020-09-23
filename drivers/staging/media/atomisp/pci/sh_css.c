@@ -111,7 +111,7 @@ static int thread_alive;
 
 struct sh_css my_css;
 
-int (*sh_css_printf)(const char *fmt, va_list args) = NULL;
+int  __printf(1, 0) (*sh_css_printf)(const char *fmt, va_list args) = NULL;
 
 /* modes of work: stream_create and stream_destroy will update the save/restore data
    only when in working mode, not suspend/resume

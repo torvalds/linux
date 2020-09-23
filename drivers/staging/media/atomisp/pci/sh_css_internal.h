@@ -907,10 +907,9 @@ struct host_sp_queues {
 #define SIZE_OF_HOST_SP_QUEUES_STRUCT		\
 	(SIZE_OF_QUEUES_ELEMS + SIZE_OF_QUEUES_DESC)
 
-extern int (*sh_css_printf)(const char *fmt, va_list args);
+extern int  __printf(1, 0) (*sh_css_printf)(const char *fmt, va_list args);
 
-static inline void
-sh_css_print(const char *fmt, ...)
+static inline void  __printf(1, 2) sh_css_print(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -921,8 +920,7 @@ sh_css_print(const char *fmt, ...)
 	}
 }
 
-static inline void
-sh_css_vprint(const char *fmt, va_list args)
+static inline void  __printf(1, 0) sh_css_vprint(const char *fmt, va_list args)
 {
 	if (sh_css_printf)
 		sh_css_printf(fmt, args);
