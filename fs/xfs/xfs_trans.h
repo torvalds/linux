@@ -78,6 +78,22 @@ struct xfs_item_ops {
 	bool (*iop_match)(struct xfs_log_item *item, uint64_t id);
 };
 
+/* Is this log item a deferred action intent? */
+static inline bool
+xlog_item_is_intent(struct xfs_log_item *lip)
+{
+	return lip->li_ops->iop_recover != NULL &&
+	       lip->li_ops->iop_match != NULL;
+}
+
+/* Is this a log intent-done item? */
+static inline bool
+xlog_item_is_intent_done(struct xfs_log_item *lip)
+{
+	return lip->li_ops->iop_unpin == NULL &&
+	       lip->li_ops->iop_push == NULL;
+}
+
 /*
  * Release the log item as soon as committed.  This is for items just logging
  * intents that never need to be written back in place.
