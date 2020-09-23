@@ -296,6 +296,14 @@ static void rockchip_gem_release_object(struct rockchip_gem_object *rk_obj)
 	kfree(rk_obj);
 }
 
+static const struct drm_gem_object_funcs rockchip_gem_object_funcs = {
+	.free = rockchip_gem_free_object,
+	.get_sg_table = rockchip_gem_prime_get_sg_table,
+	.vmap = rockchip_gem_prime_vmap,
+	.vunmap	= rockchip_gem_prime_vunmap,
+	.vm_ops = &drm_gem_cma_vm_ops,
+};
+
 static struct rockchip_gem_object *
 	rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size)
 {
@@ -309,6 +317,8 @@ static struct rockchip_gem_object *
 		return ERR_PTR(-ENOMEM);
 
 	obj = &rk_obj->base;
+
+	obj->funcs = &rockchip_gem_object_funcs;
 
 	drm_gem_object_init(drm, obj, size);
 
@@ -338,7 +348,7 @@ err_free_rk_obj:
 }
 
 /*
- * rockchip_gem_free_object - (struct drm_driver)->gem_free_object_unlocked
+ * rockchip_gem_free_object - (struct drm_gem_object_funcs)->free
  * callback function
  */
 void rockchip_gem_free_object(struct drm_gem_object *obj)
