@@ -54,6 +54,8 @@ properties:
           - dallas,ds1682
             # Tiny Digital Thermometer and Thermostat
           - dallas,ds1775
+            # CPU Peripheral Monitor
+          - dallas,ds1780
             # CPU Supervisor with Nonvolatile Memory and Programmable I/O
           - dallas,ds4510
             # Digital Thermometer and Thermostat
@@ -296,6 +298,8 @@ properties:
           - national,lm75
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
           - national,lm80
+            # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
+          - national,lm81
             # Temperature sensor with integrated fan control
           - national,lm85
             # I2C ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator
