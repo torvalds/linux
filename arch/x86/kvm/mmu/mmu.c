@@ -3082,7 +3082,7 @@ set_pte:
 }
 
 static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
-			unsigned int pte_access, int write_fault, int level,
+			unsigned int pte_access, bool write_fault, int level,
 			gfn_t gfn, kvm_pfn_t pfn, bool speculative,
 			bool host_writable)
 {
@@ -3188,7 +3188,7 @@ static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
 		return -1;
 
 	for (i = 0; i < ret; i++, gfn++, start++) {
-		mmu_set_spte(vcpu, start, access, 0, sp->role.level, gfn,
+		mmu_set_spte(vcpu, start, access, false, sp->role.level, gfn,
 			     page_to_pfn(pages[i]), true, true);
 		put_page(pages[i]);
 	}

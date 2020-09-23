@@ -550,7 +550,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	 * we call mmu_set_spte() with host_writable = true because
 	 * pte_prefetch_gfn_to_pfn always gets a writable pfn.
 	 */
-	mmu_set_spte(vcpu, spte, pte_access, 0, PG_LEVEL_4K, gfn, pfn,
+	mmu_set_spte(vcpu, spte, pte_access, false, PG_LEVEL_4K, gfn, pfn,
 		     true, true);
 
 	kvm_release_pfn_clean(pfn);
@@ -630,7 +630,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gpa_t addr,
 			 bool prefault)
 {
 	bool nx_huge_page_workaround_enabled = is_nx_huge_page_enabled();
-	int write_fault = error_code & PFERR_WRITE_MASK;
+	bool write_fault = error_code & PFERR_WRITE_MASK;
 	bool exec = error_code & PFERR_FETCH_MASK;
 	bool huge_page_disallowed = exec && nx_huge_page_workaround_enabled;
 	struct kvm_mmu_page *sp = NULL;
@@ -746,7 +746,7 @@ out_gpte_changed:
  */
 static bool
 FNAME(is_self_change_mapping)(struct kvm_vcpu *vcpu,
-			      struct guest_walker *walker, int user_fault,
+			      struct guest_walker *walker, bool user_fault,
 			      bool *write_fault_to_shadow_pgtable)
 {
 	int level;
@@ -784,8 +784,8 @@ FNAME(is_self_change_mapping)(struct kvm_vcpu *vcpu,
 static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 			     bool prefault)
 {
-	int write_fault = error_code & PFERR_WRITE_MASK;
-	int user_fault = error_code & PFERR_USER_MASK;
+	bool write_fault = error_code & PFERR_WRITE_MASK;
+	bool user_fault = error_code & PFERR_USER_MASK;
 	struct guest_walker walker;
 	int r;
 	kvm_pfn_t pfn;
