@@ -156,14 +156,16 @@ static int hiface_pcm_set_rate(struct pcm_runtime *rt, unsigned int rate)
 	 * This control message doesn't have any ack from the
 	 * other side
 	 */
-	ret = usb_control_msg_send(device, 0,
-				   HIFACE_SET_RATE_REQUEST,
-				   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-				   rate_value, 0, NULL, 0, 100);
-	if (ret)
+	ret = usb_control_msg(device, usb_sndctrlpipe(device, 0),
+			      HIFACE_SET_RATE_REQUEST,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+			      rate_value, 0, NULL, 0, 100);
+	if (ret < 0) {
 		dev_err(&device->dev, "Error setting samplerate %d.\n", rate);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static struct pcm_substream *hiface_pcm_get_substream(struct snd_pcm_substream
