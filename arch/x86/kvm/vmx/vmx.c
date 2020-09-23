@@ -1134,8 +1134,8 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	 * when guest state is loaded. This happens when guest transitions
 	 * to/from long-mode by setting MSR_EFER.LMA.
 	 */
-	if (!vmx->guest_msrs_ready) {
-		vmx->guest_msrs_ready = true;
+	if (!vmx->guest_uret_msrs_loaded) {
+		vmx->guest_uret_msrs_loaded = true;
 		for (i = 0; i < vmx->nr_active_uret_msrs; ++i)
 			kvm_set_user_return_msr(vmx->guest_uret_msrs[i].index,
 						vmx->guest_uret_msrs[i].data,
@@ -1223,7 +1223,7 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 #endif
 	load_fixmap_gdt(raw_smp_processor_id());
 	vmx->guest_state_loaded = false;
-	vmx->guest_msrs_ready = false;
+	vmx->guest_uret_msrs_loaded = false;
 }
 
 #ifdef CONFIG_X86_64
@@ -1659,7 +1659,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		move_msr_up(vmx, index, nr_active_uret_msrs++);
 
 	vmx->nr_active_uret_msrs = nr_active_uret_msrs;
-	vmx->guest_msrs_ready = false;
+	vmx->guest_uret_msrs_loaded = false;
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(&vmx->vcpu);
