@@ -578,10 +578,10 @@ TRACE_EVENT(kvm_nested_intercepts,
  * Tracepoint for #VMEXIT while nested
  */
 TRACE_EVENT(kvm_nested_vmexit,
-	    TP_PROTO(__u64 rip, __u32 exit_code,
+	    TP_PROTO(struct kvm_vcpu *vcpu, __u32 exit_code,
 		     __u64 exit_info1, __u64 exit_info2,
 		     __u32 exit_int_info, __u32 exit_int_info_err, __u32 isa),
-	    TP_ARGS(rip, exit_code, exit_info1, exit_info2,
+	    TP_ARGS(vcpu, exit_code, exit_info1, exit_info2,
 		    exit_int_info, exit_int_info_err, isa),
 
 	TP_STRUCT__entry(
@@ -595,7 +595,7 @@ TRACE_EVENT(kvm_nested_vmexit,
 	),
 
 	TP_fast_assign(
-		__entry->rip			= rip;
+		__entry->rip			= kvm_rip_read(vcpu);
 		__entry->exit_code		= exit_code;
 		__entry->exit_info1		= exit_info1;
 		__entry->exit_info2		= exit_info2;
