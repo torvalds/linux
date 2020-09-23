@@ -2985,6 +2985,7 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 /* Bits which may be returned by set_spte() */
 #define SET_SPTE_WRITE_PROTECTED_PT	BIT(0)
 #define SET_SPTE_NEED_REMOTE_TLB_FLUSH	BIT(1)
+#define SET_SPTE_SPURIOUS		BIT(2)
 
 static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		    unsigned int pte_access, int level,
@@ -3073,7 +3074,9 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		spte = mark_spte_for_access_track(spte);
 
 set_pte:
-	if (mmu_spte_update(sptep, spte))
+	if (*sptep == spte)
+		ret |= SET_SPTE_SPURIOUS;
+	else if (mmu_spte_update(sptep, spte))
 		ret |= SET_SPTE_NEED_REMOTE_TLB_FLUSH;
 	return ret;
 }
@@ -3127,6 +3130,15 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 	if (unlikely(is_mmio_spte(*sptep)))
 		ret = RET_PF_EMULATE;
+
+	/*
+	 * The fault is fully spurious if and only if the new SPTE and old SPTE
+	 * are identical, and emulation is not required.
+	 */
+	if ((set_spte_ret & SET_SPTE_SPURIOUS) && ret == RET_PF_FIXED) {
+		WARN_ON_ONCE(!was_rmapped);
+		return RET_PF_SPURIOUS;
+	}
 
 	pgprintk("%s: setting spte %llx\n", __func__, *sptep);
 	trace_kvm_mmu_set_spte(level, gfn, sptep);
@@ -3364,6 +3376,9 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, int write,
 	ret = mmu_set_spte(vcpu, it.sptep, ACC_ALL,
 			   write, level, base_gfn, pfn, prefault,
 			   map_writable);
+	if (ret == RET_PF_SPURIOUS)
+		return ret;
+
 	direct_pte_prefetch(vcpu, it.sptep);
 	++vcpu->stat.pf_fixed;
 	return ret;

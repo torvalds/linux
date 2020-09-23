@@ -711,6 +711,9 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gpa_t addr,
 
 	ret = mmu_set_spte(vcpu, it.sptep, gw->pte_access, write_fault,
 			   it.level, base_gfn, pfn, prefault, map_writable);
+	if (ret == RET_PF_SPURIOUS)
+		return ret;
+
 	FNAME(pte_prefetch)(vcpu, gw, it.sptep);
 	++vcpu->stat.pf_fixed;
 	return ret;
