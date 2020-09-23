@@ -814,12 +814,16 @@ struct qeth_card {
 	struct workqueue_struct *event_wq;
 	struct workqueue_struct *cmd_wq;
 	wait_queue_head_t wait_q;
+
+	struct mutex ip_lock;
+	/* protected by ip_lock: */
 	DECLARE_HASHTABLE(ip_htable, 4);
+	struct qeth_ipato ipato;
+
 	DECLARE_HASHTABLE(local_addrs4, 4);
 	DECLARE_HASHTABLE(local_addrs6, 4);
 	spinlock_t local_addrs4_lock;
 	spinlock_t local_addrs6_lock;
-	struct mutex ip_lock;
 	DECLARE_HASHTABLE(rx_mode_addrs, 4);
 	struct work_struct rx_mode_work;
 	struct work_struct kernel_thread_starter;
@@ -827,7 +831,6 @@ struct qeth_card {
 	unsigned long thread_start_mask;
 	unsigned long thread_allowed_mask;
 	unsigned long thread_running_mask;
-	struct qeth_ipato ipato;
 	struct list_head cmd_waiter_list;
 	/* QDIO buffer handling */
 	struct qeth_qdio_info qdio;
