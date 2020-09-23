@@ -93,6 +93,9 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs,
 	case PHY_INTERFACE_MODE_USXGMII:
 		lynx_pcs_get_state_usxgmii(lynx->mdio, state);
 		break;
+	case PHY_INTERFACE_MODE_10GBASER:
+		phylink_mii_c45_pcs_get_state(lynx->mdio, state);
+		break;
 	default:
 		break;
 	}
@@ -172,6 +175,9 @@ static int lynx_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
 		return lynx_pcs_config_usxgmii(lynx->mdio, mode, advertising);
+	case PHY_INTERFACE_MODE_10GBASER:
+		/* Nothing to do here for 10GBASER */
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
