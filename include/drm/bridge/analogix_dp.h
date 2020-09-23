@@ -20,11 +20,20 @@ enum analogix_dp_devtype {
 	RK3288_DP,
 	RK3368_EDP,
 	RK3399_EDP,
+	RK3568_EDP,
 };
 
 static inline bool is_rockchip(enum analogix_dp_devtype type)
 {
-	return type == RK3288_DP || type == RK3399_EDP || type == RK3368_EDP;
+	switch (type) {
+	case RK3288_DP:
+	case RK3368_EDP:
+	case RK3399_EDP:
+	case RK3568_EDP:
+		return true;
+	default:
+		return false;
+	}
 }
 
 struct analogix_dp_plat_data {
@@ -33,6 +42,7 @@ struct analogix_dp_plat_data {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	bool skip_connector;
+	bool ssc;
 
 	int (*power_on_start)(struct analogix_dp_plat_data *);
 	int (*power_on_end)(struct analogix_dp_plat_data *);

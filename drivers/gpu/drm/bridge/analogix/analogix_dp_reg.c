@@ -15,6 +15,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/phy/phy.h>
 
 #include <drm/bridge/analogix_dp.h>
 
@@ -617,14 +618,35 @@ int analogix_dp_write_byte_to_dpcd(struct analogix_dp_device *dp,
 	return retval;
 }
 
+bool analogix_dp_ssc_supported(struct analogix_dp_device *dp)
+{
+	/* Check if SSC is supported by both sides */
+	return dp->plat_data->ssc && dp->link_train.ssc;
+}
+
 void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 {
+	union phy_configure_opts phy_cfg;
 	u32 reg, status;
 	int ret;
 
 	reg = bwtype;
 	if ((bwtype == DP_LINK_BW_2_7) || (bwtype == DP_LINK_BW_1_62))
 		analogix_dp_write(dp, ANALOGIX_DP_LINK_BW_SET, reg);
+
+	phy_cfg.dp.lanes = dp->link_train.lane_count;
+	phy_cfg.dp.link_rate =
+		drm_dp_bw_code_to_link_rate(dp->link_train.link_rate) / 100;
+	phy_cfg.dp.ssc = analogix_dp_ssc_supported(dp);
+	phy_cfg.dp.set_lanes = false;
+	phy_cfg.dp.set_rate = true;
+	phy_cfg.dp.set_voltages = false;
+	ret = phy_configure(dp->phy, &phy_cfg);
+	if (ret && ret != -EOPNOTSUPP) {
+		dev_err(dp->dev, "%s: phy_configure() failed: %d\n",
+			__func__, ret);
+		return;
+	}
 
 	ret = readx_poll_timeout(analogix_dp_get_pll_lock_status, dp, status,
 				 status != PLL_UNLOCKED, 120,
@@ -645,10 +667,23 @@ void analogix_dp_get_link_bandwidth(struct analogix_dp_device *dp, u32 *bwtype)
 
 void analogix_dp_set_lane_count(struct analogix_dp_device *dp, u32 count)
 {
+	union phy_configure_opts phy_cfg;
 	u32 reg;
+	int ret;
 
 	reg = count;
 	analogix_dp_write(dp, ANALOGIX_DP_LANE_COUNT_SET, reg);
+
+	phy_cfg.dp.lanes = dp->link_train.lane_count;
+	phy_cfg.dp.set_lanes = true;
+	phy_cfg.dp.set_rate = false;
+	phy_cfg.dp.set_voltages = false;
+	ret = phy_configure(dp->phy, &phy_cfg);
+	if (ret && ret != -EOPNOTSUPP) {
+		dev_err(dp->dev, "%s: phy_configure() failed: %d\n",
+			__func__, ret);
+		return;
+	}
 }
 
 void analogix_dp_get_lane_count(struct analogix_dp_device *dp, u32 *count)
@@ -661,12 +696,36 @@ void analogix_dp_get_lane_count(struct analogix_dp_device *dp, u32 *count)
 
 void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp)
 {
+	union phy_configure_opts phy_cfg;
 	u8 lane;
+	int ret;
 
-	for (lane = 0; lane < dp->link_train.lane_count; lane++)
+	for (lane = 0; lane < dp->link_train.lane_count; lane++) {
+		u8 training_lane = dp->link_train.training_lane[lane];
+		u8 vs, pe;
+
 		analogix_dp_write(dp,
 				  ANALOGIX_DP_LN0_LINK_TRAINING_CTL + 4 * lane,
-				  dp->link_train.training_lane[lane]);
+				  training_lane);
+
+		vs = (training_lane >> DP_TRAIN_VOLTAGE_SWING_SHIFT) &
+		     DP_TRAIN_VOLTAGE_SWING_MASK;
+		pe = (training_lane >> DP_TRAIN_PRE_EMPHASIS_SHIFT) &
+		     DP_TRAIN_PRE_EMPHASIS_MASK;
+		phy_cfg.dp.voltage[lane] = vs;
+		phy_cfg.dp.pre[lane] = pe;
+	}
+
+	phy_cfg.dp.lanes = dp->link_train.lane_count;
+	phy_cfg.dp.set_lanes = false;
+	phy_cfg.dp.set_rate = false;
+	phy_cfg.dp.set_voltages = true;
+	ret = phy_configure(dp->phy, &phy_cfg);
+	if (ret && ret != -EOPNOTSUPP) {
+		dev_err(dp->dev, "%s: phy_configure() failed: %d\n",
+			__func__, ret);
+		return;
+	}
 }
 
 u32 analogix_dp_get_lane_link_training(struct analogix_dp_device *dp, u8 lane)

@@ -62,6 +62,7 @@ struct rockchip_dp_chip_data {
 	u32	lcdsel_big;
 	u32	lcdsel_lit;
 	u32	chip_type;
+	bool	ssc;
 };
 
 struct rockchip_dp_device {
@@ -74,6 +75,7 @@ struct rockchip_dp_device {
 	struct clk               *grfclk;
 	struct regmap            *grf;
 	struct reset_control     *rst;
+	struct reset_control     *apb_reset;
 	struct regulator         *vcc_supply;
 	struct regulator         *vccio_supply;
 
@@ -112,6 +114,10 @@ static int rockchip_dp_pre_init(struct rockchip_dp_device *dp)
 	reset_control_assert(dp->rst);
 	usleep_range(10, 20);
 	reset_control_deassert(dp->rst);
+
+	reset_control_assert(dp->apb_reset);
+	usleep_range(10, 20);
+	reset_control_deassert(dp->apb_reset);
 
 	return 0;
 }
@@ -256,6 +262,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
+	s->output_if |= VOP_OUTPUT_IF_eDP0;
 	s->output_bpc = di->bpc;
 	if (di->num_bus_formats)
 		s->bus_format = di->bus_formats[0];
@@ -323,10 +330,12 @@ static int rockchip_dp_of_probe(struct rockchip_dp_device *dp)
 	struct device_node *np = dev->of_node;
 	int ret = 0;
 
-	dp->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR(dp->grf)) {
-		DRM_DEV_ERROR(dev, "failed to get rockchip,grf property\n");
-		return PTR_ERR(dp->grf);
+	if (of_property_read_bool(np, "rockchip,grf")) {
+		dp->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+		if (IS_ERR(dp->grf)) {
+			DRM_DEV_ERROR(dev, "failed to get rockchip,grf\n");
+			return PTR_ERR(dp->grf);
+		}
 	}
 
 	dp->grfclk = devm_clk_get(dev, "grf");
@@ -349,6 +358,12 @@ static int rockchip_dp_of_probe(struct rockchip_dp_device *dp)
 	if (IS_ERR(dp->rst)) {
 		DRM_DEV_ERROR(dev, "failed to get dp reset control\n");
 		return PTR_ERR(dp->rst);
+	}
+
+	dp->apb_reset = devm_reset_control_get_optional(dev, "apb");
+	if (IS_ERR(dp->apb_reset)) {
+		DRM_DEV_ERROR(dev, "failed to get apb reset control\n");
+		return PTR_ERR(dp->apb_reset);
 	}
 
 	dp->vcc_supply = devm_regulator_get_optional(dev, "vcc");
@@ -422,7 +437,7 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	}
 
 	dp->plat_data.encoder = &dp->encoder;
-
+	dp->plat_data.ssc = dp->data->ssc;
 	dp->plat_data.dev_type = dp->data->chip_type;
 	dp->plat_data.power_on_start = rockchip_dp_poweron_start;
 	dp->plat_data.power_on_end = rockchip_dp_poweron_end;
@@ -571,10 +586,16 @@ static const struct rockchip_dp_chip_data rk3288_dp = {
 	.chip_type = RK3288_DP,
 };
 
+static const struct rockchip_dp_chip_data rk3568_edp = {
+	.chip_type = RK3568_EDP,
+	.ssc = true,
+};
+
 static const struct of_device_id rockchip_dp_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-dp", .data = &rk3288_dp },
 	{.compatible = "rockchip,rk3368-edp", .data = &rk3368_edp },
 	{.compatible = "rockchip,rk3399-edp", .data = &rk3399_edp },
+	{.compatible = "rockchip,rk3568-edp", .data = &rk3568_edp },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_dp_dt_ids);
