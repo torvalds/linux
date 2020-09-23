@@ -137,6 +137,7 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
 	struct dsa_switch *ds = dp->ds;
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_port *ocelot_port;
@@ -159,9 +160,8 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	qos_class = skb->priority;
 	packing(injection, &qos_class, 19,  17, OCELOT_TAG_LEN, PACK, 0);
 
-	if (ocelot->ptp && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
-		struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
-
+	/* TX timestamping was requested */
+	if (clone) {
 		rew_op = ocelot_port->ptp_cmd;
 		/* Retrieve timestamp ID populated inside skb->cb[0] of the
 		 * clone by ocelot_port_add_txtstamp_skb

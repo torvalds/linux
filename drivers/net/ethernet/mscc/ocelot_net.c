@@ -330,7 +330,6 @@ static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 grp = 0; /* Send everything on CPU group 0 */
 	unsigned int i, count, last;
 	int port = priv->chip_port;
-	bool do_tstamp;
 
 	val = ocelot_read(ocelot, QS_INJ_STATUS);
 	if (!(val & QS_INJ_STATUS_FIFO_RDY(BIT(grp))) ||
@@ -345,7 +344,23 @@ static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	info.vid = skb_vlan_tag_get(skb);
 
 	/* Check if timestamping is needed */
-	do_tstamp = (ocelot_port_add_txtstamp_skb(ocelot_port, skb) == 0);
+	if (ocelot->ptp && (shinfo->tx_flags & SKBTX_HW_TSTAMP)) {
+		info.rew_op = ocelot_port->ptp_cmd;
+
+		if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
+			struct sk_buff *clone;
+
+			clone = skb_clone_sk(skb);
+			if (!clone) {
+				kfree_skb(skb);
+				return NETDEV_TX_OK;
+			}
+
+			ocelot_port_add_txtstamp_skb(ocelot, port, clone);
+
+			info.rew_op |= clone->cb[0] << 3;
+		}
+	}
 
 	if (ocelot->ptp && shinfo->tx_flags & SKBTX_HW_TSTAMP) {
 		info.rew_op = ocelot_port->ptp_cmd;
@@ -383,8 +398,7 @@ static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	if (!do_tstamp)
-		dev_kfree_skb_any(skb);
+	kfree_skb(skb);
 
 	return NETDEV_TX_OK;
 }

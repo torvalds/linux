@@ -669,8 +669,11 @@ static bool felix_txtstamp(struct dsa_switch *ds, int port,
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
-	if (!ocelot_port_add_txtstamp_skb(ocelot_port, clone))
+	if (ocelot->ptp && (skb_shinfo(clone)->tx_flags & SKBTX_HW_TSTAMP) &&
+	    ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
+		ocelot_port_add_txtstamp_skb(ocelot, port, clone);
 		return true;
+	}
 
 	return false;
 }
