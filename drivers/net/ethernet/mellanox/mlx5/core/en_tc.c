@@ -3233,7 +3233,7 @@ static bool modify_header_match_supported(struct mlx5e_priv *priv,
 	 *  we can't restore ct state
 	 */
 	if (!ct_clear && modify_tuple &&
-	    mlx5_tc_ct_add_no_trk_match(priv, spec)) {
+	    mlx5_tc_ct_add_no_trk_match(spec)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "can't offload tuple modify header with ct matches");
 		netdev_info(priv->netdev,
