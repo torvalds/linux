@@ -132,7 +132,6 @@ struct tas2770_priv {
 	struct regmap *regmap;
 	struct snd_soc_component *component;
 	int power_state;
-	int asi_format;
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *sdz_gpio;
 	int sampling_rate;

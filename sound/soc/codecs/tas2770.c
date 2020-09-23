@@ -391,8 +391,6 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	if (ret < 0)
 		return ret;
 
-	tas2770->asi_format = fmt;
-
 	return 0;
 }
 
@@ -645,15 +643,6 @@ static const struct regmap_config tas2770_i2c_regmap = {
 static int tas2770_parse_dt(struct device *dev, struct tas2770_priv *tas2770)
 {
 	int rc = 0;
-
-	rc = fwnode_property_read_u32(dev->fwnode, "ti,asi-format",
-				      &tas2770->asi_format);
-	if (rc) {
-		dev_info(tas2770->dev, "Property %s is missing setting default slot\n",
-			 "ti,asi-format");
-
-		tas2770->asi_format = 0;
-	}
 
 	rc = fwnode_property_read_u32(dev->fwnode, "ti,imon-slot-no",
 				      &tas2770->i_sense_slot);
