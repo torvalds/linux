@@ -3267,13 +3267,16 @@ static int host_pfn_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
 }
 
 static int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
-				   int max_level, kvm_pfn_t *pfnp)
+				   int max_level, kvm_pfn_t *pfnp,
+				   bool huge_page_disallowed, int *req_level)
 {
 	struct kvm_memory_slot *slot;
 	struct kvm_lpage_info *linfo;
 	kvm_pfn_t pfn = *pfnp;
 	kvm_pfn_t mask;
 	int level;
+
+	*req_level = PG_LEVEL_4K;
 
 	if (unlikely(max_level == PG_LEVEL_4K))
 		return PG_LEVEL_4K;
@@ -3299,7 +3302,14 @@ static int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 	if (level == PG_LEVEL_4K)
 		return level;
 
-	level = min(level, max_level);
+	*req_level = level = min(level, max_level);
+
+	/*
+	 * Enforce the iTLB multihit workaround after capturing the requested
+	 * level, which will be used to do precise, accurate accounting.
+	 */
+	if (huge_page_disallowed)
+		return PG_LEVEL_4K;
 
 	/*
 	 * mmu_notifier_retry() was successful and mmu_lock is held, so
@@ -3345,17 +3355,15 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	bool huge_page_disallowed = exec && nx_huge_page_workaround_enabled;
 	struct kvm_shadow_walk_iterator it;
 	struct kvm_mmu_page *sp;
-	int level, ret;
+	int level, req_level, ret;
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	gfn_t base_gfn = gfn;
 
 	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa)))
 		return RET_PF_RETRY;
 
-	if (huge_page_disallowed)
-		max_level = PG_LEVEL_4K;
-
-	level = kvm_mmu_hugepage_adjust(vcpu, gfn, max_level, &pfn);
+	level = kvm_mmu_hugepage_adjust(vcpu, gfn, max_level, &pfn,
+					huge_page_disallowed, &req_level);
 
 	trace_kvm_mmu_spte_requested(gpa, level, pfn);
 	for_each_shadow_entry(vcpu, gpa, it) {
