@@ -1614,12 +1614,15 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu)
 	vmx_clear_hlt(vcpu);
 }
 
-/*
- * Swap MSR entry in host/guest MSR entry array.
- */
-static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
+static void vmx_setup_uret_msr(struct vcpu_vmx *vmx, unsigned int msr)
 {
 	struct vmx_uret_msr tmp;
+	int from, to;
+
+	from = __vmx_find_uret_msr(vmx, msr);
+	if (from < 0)
+		return;
+	to = vmx->nr_active_uret_msrs++;
 
 	tmp = vmx->guest_uret_msrs[to];
 	vmx->guest_uret_msrs[to] = vmx->guest_uret_msrs[from];
@@ -1633,42 +1636,26 @@ static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
  */
 static void setup_msrs(struct vcpu_vmx *vmx)
 {
-	int nr_active_uret_msrs, index;
-
-	nr_active_uret_msrs = 0;
+	vmx->guest_uret_msrs_loaded = false;
+	vmx->nr_active_uret_msrs = 0;
 #ifdef CONFIG_X86_64
 	/*
 	 * The SYSCALL MSRs are only needed on long mode guests, and only
 	 * when EFER.SCE is set.
 	 */
 	if (is_long_mode(&vmx->vcpu) && (vmx->vcpu.arch.efer & EFER_SCE)) {
-		index = __vmx_find_uret_msr(vmx, MSR_STAR);
-		if (index >= 0)
-			move_msr_up(vmx, index, nr_active_uret_msrs++);
-		index = __vmx_find_uret_msr(vmx, MSR_LSTAR);
-		if (index >= 0)
-			move_msr_up(vmx, index, nr_active_uret_msrs++);
-		index = __vmx_find_uret_msr(vmx, MSR_SYSCALL_MASK);
-		if (index >= 0)
-			move_msr_up(vmx, index, nr_active_uret_msrs++);
+		vmx_setup_uret_msr(vmx, MSR_STAR);
+		vmx_setup_uret_msr(vmx, MSR_LSTAR);
+		vmx_setup_uret_msr(vmx, MSR_SYSCALL_MASK);
 	}
 #endif
-	if (update_transition_efer(vmx)) {
-		index = __vmx_find_uret_msr(vmx, MSR_EFER);
-		if (index >= 0)
-			move_msr_up(vmx, index, nr_active_uret_msrs++);
-	}
-	if (guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP)) {
-		index = __vmx_find_uret_msr(vmx, MSR_TSC_AUX);
-		if (index >= 0)
-			move_msr_up(vmx, index, nr_active_uret_msrs++);
-	}
-	index = __vmx_find_uret_msr(vmx, MSR_IA32_TSX_CTRL);
-	if (index >= 0)
-		move_msr_up(vmx, index, nr_active_uret_msrs++);
+	if (update_transition_efer(vmx))
+		vmx_setup_uret_msr(vmx, MSR_EFER);
 
-	vmx->nr_active_uret_msrs = nr_active_uret_msrs;
-	vmx->guest_uret_msrs_loaded = false;
+	if (guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP))
+		vmx_setup_uret_msr(vmx, MSR_TSC_AUX);
+
+	vmx_setup_uret_msr(vmx, MSR_IA32_TSX_CTRL);
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(&vmx->vcpu);
