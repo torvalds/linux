@@ -93,11 +93,13 @@ struct snd_soc_acpi_endpoint {
  * @adr: 64 bit ACPI _ADR value
  * @num_endpoints: number of endpoints for this device
  * @endpoints: array of endpoints
+ * @name_prefix: string used for codec controls
  */
 struct snd_soc_acpi_adr_device {
 	const u64 adr;
 	const u8 num_endpoints;
 	const struct snd_soc_acpi_endpoint *endpoints;
+	const char *name_prefix;
 };
 
 /**

@@ -39,6 +39,7 @@ static const struct snd_soc_acpi_adr_device rt5682_2_adr[] = {
 		.adr = 0x000220025D568200,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
+		.name_prefix = "rt5682"
 	}
 };
 
