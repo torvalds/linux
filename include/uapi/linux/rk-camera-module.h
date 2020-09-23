@@ -49,6 +49,9 @@
 #define RKMODULE_GET_NR_SWITCH_THRESHOLD	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 9, struct rkmodule_nr_switch_threshold)
 
+#define RKMODULE_SET_QUICK_STREAM	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 10, __u32)
+
 /**
  * struct rkmodule_base_inf - module base information
  *

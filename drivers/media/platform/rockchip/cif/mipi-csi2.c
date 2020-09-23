@@ -64,6 +64,11 @@ enum csi2_pads {
 	RK_CSI2X_PAD_SOURCE3
 };
 
+enum csi2_err {
+	RK_CSI2_ERR_CRC = 0,
+	RK_CSI2_ERR_MAX
+};
+
 enum host_type_t {
 	RK_CSI_RXHOST,
 	RK_DSI_RXHOST
@@ -78,6 +83,10 @@ struct csi2_sensor {
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_config mbus;
 	int lanes;
+};
+
+struct csi2_err_stats {
+	unsigned int cnt;
 };
 
 struct csi2_dev {
@@ -103,6 +112,7 @@ struct csi2_dev {
 	const struct csi2_match_data	*match_data;
 	int num_sensors;
 	atomic_t frm_sync_seq;
+	struct csi2_err_stats err_list[RK_CSI2_ERR_MAX];
 };
 
 #define DEVICE_NAME "rockchip-mipi-csi2"
@@ -140,6 +150,17 @@ struct csi2_dev {
 #define read_csihost_reg(base, addr) readl((addr) + (base))
 
 static struct csi2_dev *g_csi2_dev;
+static ATOMIC_NOTIFIER_HEAD(g_csi_host_chain);
+
+int rkcif_csi2_register_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&g_csi_host_chain, nb);
+}
+
+int rkcif_csi2_unregister_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&g_csi_host_chain, nb);
+}
 
 static inline struct csi2_dev *sd_to_dev(struct v4l2_subdev *sdev)
 {
@@ -212,7 +233,7 @@ static void csi2_enable(struct csi2_dev *csi2,
 static int csi2_start(struct csi2_dev *csi2)
 {
 	enum host_type_t host_type;
-	int ret;
+	int ret, i;
 
 	ret = clk_prepare_enable(csi2->pix_clk);
 	if (ret)
@@ -239,7 +260,11 @@ static int csi2_start(struct csi2_dev *csi2)
 	if (ret)
 		goto err_assert_reset;
 
+	for (i = 0; i < RK_CSI2_ERR_MAX; i++)
+		csi2->err_list[i].cnt = 0;
+
 	atomic_set(&csi2->frm_sync_seq, 0);
+
 	return 0;
 
 err_assert_reset:
@@ -296,6 +321,7 @@ update_count:
 		csi2->stream_count = 0;
 out:
 	mutex_unlock(&csi2->lock);
+
 	return ret;
 }
 
@@ -512,6 +538,13 @@ u32 rkcif_csi2_get_sof(void)
 	return 0;
 }
 
+void rkcif_csi2_set_sof(u32 seq)
+{
+	if (g_csi2_dev) {
+		atomic_set(&g_csi2_dev->frm_sync_seq, seq);
+	}
+}
+
 static int rkcif_csi2_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 					     struct v4l2_event_subscription *sub)
 {
@@ -640,27 +673,43 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct csi2_dev *csi2 = sd_to_dev(dev_get_drvdata(dev));
+	struct csi2_err_stats *err_stats = NULL;
 	u32 val;
 
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR1);
 	if (val) {
 		write_csihost_reg(csi2->base,
 				  CSIHOST_ERR1, 0x0);
+
 		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS)
 			v4l2_err(&csi2->sd,
-				 "start of transmission error(no synchronization achieved), reg: 0x%x\n",
+				 "ERR1: start of transmission error(no synchronization achieved), reg: 0x%x\n",
 				 val);
+
 		if (val & CSIHOST_ERR1_ERR_BNDRY_MATCH)
 			v4l2_err(&csi2->sd,
-				 "error matching frame start with frame end, reg: 0x%x\n",
+				 "ERR1: error matching frame start with frame end, reg: 0x%x\n",
 				 val);
+
 		if (val & CSIHOST_ERR1_ERR_SEQ)
-			v4l2_err(&csi2->sd, "incorrect frame sequence detected, reg: 0x%x\n", val);
+			v4l2_err(&csi2->sd,
+				 "ERR1: incorrect frame sequence detected, reg: 0x%x\n",
+				 val);
+
 		if (val & CSIHOST_ERR1_ERR_FRM_DATA)
 			v4l2_dbg(1, csi2_debug, &csi2->sd,
-				 "at least one crc error, reg: 0x%x\n", val);
-		if (val & CSIHOST_ERR1_ERR_CRC)
-			v4l2_err(&csi2->sd, "crc errors, reg: 0x%x\n", val);
+				 "ERR1: at least one crc error, reg: 0x%x\n", val);
+
+		if (val & CSIHOST_ERR1_ERR_CRC) {
+
+			err_stats = &csi2->err_list[RK_CSI2_ERR_CRC];
+			err_stats->cnt += 1;
+			atomic_notifier_call_chain(&g_csi_host_chain, err_stats->cnt, NULL);
+
+			v4l2_err(&csi2->sd,
+				 "ERR1: crc errors, reg: 0x%x, cnt:%d\n",
+				 val, err_stats->cnt);
+		}
 	}
 
 	return IRQ_HANDLED;
@@ -675,21 +724,21 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR2);
 	if (val) {
 		if (val & CSIHOST_ERR2_PHYERR_ESC)
-			v4l2_err(&csi2->sd, "escape entry error(ULPM), reg: 0x%x\n", val);
+			v4l2_err(&csi2->sd, "ERR2: escape entry error(ULPM), reg: 0x%x\n", val);
 		if (val & CSIHOST_ERR2_PHYERR_SOTHS)
 			v4l2_err(&csi2->sd,
-				 "start of transmission error(synchronization can still be achieved), reg: 0x%x\n",
+				 "ERR2: start of transmission error(synchronization can still be achieved), reg: 0x%x\n",
 				 val);
 		if (val & CSIHOST_ERR2_ECC_CORRECTED)
 			v4l2_dbg(1, csi2_debug, &csi2->sd,
-				 "header error detected and corrected, reg: 0x%x\n",
+				 "ERR2: header error detected and corrected, reg: 0x%x\n",
 				 val);
 		if (val & CSIHOST_ERR2_ERR_ID)
 			v4l2_err(&csi2->sd,
-				 "unrecognized or unimplemented data type detected, reg: 0x%x\n",
+				 "ERR2: unrecognized or unimplemented data type detected, reg: 0x%x\n",
 				 val);
 		if (val & CSIHOST_ERR2_PHYERR_CODEHS)
-			v4l2_err(&csi2->sd, "receiv error code, reg: 0x%x\n", val);
+			v4l2_err(&csi2->sd, "ERR2: receiv error code, reg: 0x%x\n", val);
 	}
 
 	return IRQ_HANDLED;
@@ -784,6 +833,8 @@ static int csi2_probe(struct platform_device *pdev)
 	csi2->sd.owner = THIS_MODULE;
 	csi2->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	ret = strscpy(csi2->sd.name, DEVICE_NAME, sizeof(csi2->sd.name));
+	if (ret < 0)
+		v4l2_err(&csi2->sd, "failed to copy name\n");
 	platform_set_drvdata(pdev, &csi2->sd);
 	/* csi2->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE; */
 	/* csi2->sd.grp_id = IMX_MEDIA_GRP_ID_CSI2; */

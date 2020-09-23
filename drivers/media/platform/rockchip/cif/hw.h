@@ -81,5 +81,7 @@ struct rkcif_hw {
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);
+void rkcif_disable_sys_clk(struct rkcif_hw *cif_hw);
+int rkcif_enable_sys_clk(struct rkcif_hw *cif_hw);
 
 #endif

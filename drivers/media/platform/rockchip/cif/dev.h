@@ -15,7 +15,9 @@
 #include <media/v4l2-device.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mc.h>
+#include <linux/workqueue.h>
 #include <linux/rk-camera-module.h>
+
 #include "regs.h"
 #include "version.h"
 #include "cif-luma.h"
@@ -82,7 +84,8 @@ enum rkcif_yuvaddr_state {
 enum rkcif_state {
 	RKCIF_STATE_DISABLED,
 	RKCIF_STATE_READY,
-	RKCIF_STATE_STREAMING
+	RKCIF_STATE_STREAMING,
+	RKCIF_STATE_RESET_IN_STREAMING,
 };
 
 enum host_type_t {
@@ -292,6 +295,45 @@ struct rkcif_irq_stats {
 };
 
 /*
+ * the causation to do cif reset work
+ */
+enum rkcif_reset_src {
+	RKCIF_RESET_SRC_NON = 0x0,
+	RKCIF_RESET_SRC_NORMAL,
+	RKCIF_RESET_SRC_ERR_CSI2,
+	RKCIF_RESET_SRC_ERR_LVDS,
+	RKCIF_RESET_SRC_ERR_APP,
+};
+
+/*
+ * the parameters to resume when reset cif in running
+ */
+struct rkcif_resume_info {
+	u32 frm_sync_seq;
+};
+
+struct rkcif_work_struct {
+	struct work_struct	work;
+	enum rkcif_reset_src	reset_src;
+	struct rkcif_resume_info	resume_info;
+};
+
+struct rkcif_timer {
+	struct timer_list	timer;
+	spinlock_t		timer_lock;
+	unsigned long		cycle;
+	unsigned int		run_cnt;
+	unsigned int		max_run_cnt;
+	unsigned int		stop_index_of_run_cnt;
+	unsigned int		last_buf_wakeup_cnt;
+	unsigned int		csi_crc_cnt;
+	bool			is_triggered;
+	bool			is_buf_stop_update;
+	bool			is_running;
+	enum rkcif_reset_src	reset_src;
+};
+
+/*
  * struct rkcif_stream - Stream states TODO
  *
  * @vbq_lock: lock to protect buf_queue
@@ -312,7 +354,7 @@ struct rkcif_stream {
 	bool				crop_enable;
 	bool				is_compact;
 	wait_queue_head_t		wq_stopped;
-	int				frame_idx;
+	unsigned int			frame_idx;
 	int				frame_phase;
 	unsigned int			crop_mask;
 	/* lock between irq and buf_queue */
@@ -419,6 +461,11 @@ struct rkcif_device {
 	struct rkcif_irq_stats		irq_stats;
 	spinlock_t			hdr_lock; /* lock for hdr buf sync */
 	bool				is_start_hdr;
+
+	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
+	struct rkcif_work_struct	reset_work;
+	struct rkcif_timer		reset_watchdog_timer;
+	unsigned int			buf_wake_up_cnt;
 };
 
 extern struct platform_driver rkcif_plat_drv;
@@ -449,5 +496,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 int rkcif_plat_uninit(struct rkcif_device *cif_dev);
 int rkcif_attach_hw(struct rkcif_device *cif_dev);
 int rkcif_update_sensor_info(struct rkcif_stream *stream);
+int rkcif_reset_notifier(struct notifier_block *nb, unsigned long action, void *data);
+void rkcif_reset_watchdog_timer_handler(struct timer_list *t);
 
 #endif

@@ -588,7 +588,7 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	return IRQ_HANDLED;
 }
 
-static void rkcif_disable_sys_clk(struct rkcif_hw *cif_hw)
+void rkcif_disable_sys_clk(struct rkcif_hw *cif_hw)
 {
 	int i;
 
@@ -596,7 +596,7 @@ static void rkcif_disable_sys_clk(struct rkcif_hw *cif_hw)
 		clk_disable_unprepare(cif_hw->clks[i]);
 }
 
-static int rkcif_enable_sys_clk(struct rkcif_hw *cif_hw)
+int rkcif_enable_sys_clk(struct rkcif_hw *cif_hw)
 {
 	int i, ret = -EINVAL;
 

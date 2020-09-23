@@ -159,7 +159,7 @@ void rkcif_write_register_and(struct rkcif_device *dev,
 			reg_val &= val;
 			write_cif_reg(base, reg->offset, reg_val);
 		} else {
-			dev_warn(dev->dev,
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "write reg[%d]:0x%x with OR failed, maybe useless!!!\n",
 				 index, val);
 		}
@@ -303,6 +303,11 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			cif_dev->irq_stats.dvp_pix_err_cnt = 0;
 			cif_dev->irq_stats.all_err_cnt = 0;
 			cif_dev->irq_stats.all_frm_end_cnt = 0;
+			cif_dev->reset_watchdog_timer.is_triggered = false;
+			cif_dev->reset_watchdog_timer.is_running = false;
+			cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt = 0;
+			cif_dev->reset_watchdog_timer.run_cnt = 0;
+			cif_dev->buf_wake_up_cnt = 0;
 		}
 
 		/* phy -> sensor */
@@ -345,6 +350,11 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->irq_stats.all_err_cnt = 0;
 				cif_dev->irq_stats.all_frm_end_cnt = 0;
 				cif_dev->is_start_hdr = true;
+				cif_dev->reset_watchdog_timer.is_triggered = false;
+				cif_dev->reset_watchdog_timer.is_running = false;
+				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt = 0;
+				cif_dev->reset_watchdog_timer.run_cnt = 0;
+				cif_dev->buf_wake_up_cnt = 0;
 			}
 
 			/* phy -> sensor */
@@ -751,6 +761,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 
 	mutex_init(&cif_dev->stream_lock);
 	spin_lock_init(&cif_dev->hdr_lock);
+	spin_lock_init(&cif_dev->reset_watchdog_timer.timer_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
 	atomic_set(&cif_dev->fh_cnt, 0);
@@ -908,6 +919,19 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	if (rkcif_proc_init(cif_dev))
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));
 
+#if defined(CONFIG_ROCKCHIP_CIF_RESET_MONITOR_CONTINU)
+	cif_dev->reset_watchdog_timer.reset_src = RKCIF_RESET_SRC_NORMAL;
+#else
+	cif_dev->reset_watchdog_timer.reset_src = RKCIF_RESET_SRC_NON;
+#endif
+
+	cif_dev->reset_notifier.priority = 1;
+	cif_dev->reset_notifier.notifier_call = rkcif_reset_notifier;
+	rkcif_csi2_register_notifier(&cif_dev->reset_notifier);
+	cif_dev->reset_watchdog_timer.reset_src = RKCIF_RESET_SRC_NORMAL;
+	timer_setup(&cif_dev->reset_watchdog_timer.timer,
+		    rkcif_reset_watchdog_timer_handler, 0);
+
 	rkcif_soft_reset(cif_dev, true);
 	pm_runtime_enable(&pdev->dev);
 
@@ -921,6 +945,8 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	rkcif_plat_uninit(cif_dev);
 	rkcif_detach_hw(cif_dev);
 	rkcif_proc_cleanup(cif_dev);
+	rkcif_csi2_unregister_notifier(&cif_dev->reset_notifier);
+	del_timer_sync(&cif_dev->reset_watchdog_timer.timer);
 
 	return 0;
 }
