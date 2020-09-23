@@ -2653,6 +2653,10 @@ void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 		goto out_lock;
 
 	port->uartclk = uartclk;
+
+	if (!tty_port_initialized(&port->state->port))
+		goto out_lock;
+
 	termios = &port->state->port.tty->termios;
 
 	baud = serial8250_get_baud_rate(port, termios, NULL);
