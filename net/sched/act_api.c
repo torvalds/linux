@@ -467,17 +467,6 @@ int tcf_idr_create_from_flags(struct tc_action_net *tn, u32 index,
 }
 EXPORT_SYMBOL(tcf_idr_create_from_flags);
 
-void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a)
-{
-	struct tcf_idrinfo *idrinfo = tn->idrinfo;
-
-	mutex_lock(&idrinfo->lock);
-	/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
-	WARN_ON(!IS_ERR(idr_replace(&idrinfo->action_idr, a, a->tcfa_index)));
-	mutex_unlock(&idrinfo->lock);
-}
-EXPORT_SYMBOL(tcf_idr_insert);
-
 /* Cleanup idr index that was allocated but not initialized. */
 
 void tcf_idr_cleanup(struct tc_action_net *tn, u32 index)
@@ -902,6 +891,16 @@ static const struct nla_policy tcf_action_policy[TCA_ACT_MAX + 1] = {
 	[TCA_ACT_HW_STATS]	= NLA_POLICY_BITFIELD32(TCA_ACT_HW_STATS_ANY),
 };
 
+static void tcf_idr_insert(struct tc_action *a)
+{
+	struct tcf_idrinfo *idrinfo = a->idrinfo;
+
+	mutex_lock(&idrinfo->lock);
+	/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
+	WARN_ON(!IS_ERR(idr_replace(&idrinfo->action_idr, a, a->tcfa_index)));
+	mutex_unlock(&idrinfo->lock);
+}
+
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct nlattr *nla, struct nlattr *est,
 				    char *name, int ovr, int bind,
@@ -989,6 +988,16 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	if (err < 0)
 		goto err_mod;
 
+	if (TC_ACT_EXT_CMP(a->tcfa_action, TC_ACT_GOTO_CHAIN) &&
+	    !rcu_access_pointer(a->goto_chain)) {
+		tcf_action_destroy_1(a, bind);
+		NL_SET_ERR_MSG(extack, "can't use goto chain with NULL chain");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (err == ACT_P_CREATED)
+		tcf_idr_insert(a);
+
 	if (!name && tb[TCA_ACT_COOKIE])
 		tcf_set_action_cookie(&a->act_cookie, cookie);
 
@@ -1001,13 +1010,6 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	 */
 	if (err != ACT_P_CREATED)
 		module_put(a_o->owner);
-
-	if (TC_ACT_EXT_CMP(a->tcfa_action, TC_ACT_GOTO_CHAIN) &&
-	    !rcu_access_pointer(a->goto_chain)) {
-		tcf_action_destroy_1(a, bind);
-		NL_SET_ERR_MSG(extack, "can't use goto chain with NULL chain");
-		return ERR_PTR(-EINVAL);
-	}
 
 	return a;
 
