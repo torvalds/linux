@@ -2615,8 +2615,9 @@ static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	}
 }
 
-static void mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
-			     u64 *spte)
+/* Returns the number of zapped non-leaf child shadow pages. */
+static int mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
+			    u64 *spte, struct list_head *invalid_list)
 {
 	u64 pte;
 	struct kvm_mmu_page *child;
@@ -2630,19 +2631,34 @@ static void mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 		} else {
 			child = to_shadow_page(pte & PT64_BASE_ADDR_MASK);
 			drop_parent_pte(child, spte);
+
+			/*
+			 * Recursively zap nested TDP SPs, parentless SPs are
+			 * unlikely to be used again in the near future.  This
+			 * avoids retaining a large number of stale nested SPs.
+			 */
+			if (tdp_enabled && invalid_list &&
+			    child->role.guest_mode && !child->parent_ptes.val)
+				return kvm_mmu_prepare_zap_page(kvm, child,
+								invalid_list);
 		}
 	} else if (is_mmio_spte(pte)) {
 		mmu_spte_clear_no_track(spte);
 	}
+	return 0;
 }
 
-static void kvm_mmu_page_unlink_children(struct kvm *kvm,
-					 struct kvm_mmu_page *sp)
+static int kvm_mmu_page_unlink_children(struct kvm *kvm,
+					struct kvm_mmu_page *sp,
+					struct list_head *invalid_list)
 {
+	int zapped = 0;
 	unsigned i;
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
-		mmu_page_zap_pte(kvm, sp, sp->spt + i);
+		zapped += mmu_page_zap_pte(kvm, sp, sp->spt + i, invalid_list);
+
+	return zapped;
 }
 
 static void kvm_mmu_unlink_parents(struct kvm *kvm, struct kvm_mmu_page *sp)
@@ -2688,7 +2704,7 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 	trace_kvm_mmu_prepare_zap_page(sp);
 	++kvm->stat.mmu_shadow_zapped;
 	*nr_zapped = mmu_zap_unsync_children(kvm, sp, invalid_list);
-	kvm_mmu_page_unlink_children(kvm, sp);
+	*nr_zapped += kvm_mmu_page_unlink_children(kvm, sp, invalid_list);
 	kvm_mmu_unlink_parents(kvm, sp);
 
 	/* Zapping children means active_mmu_pages has become unstable. */
@@ -5396,7 +5412,7 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			u32 base_role = vcpu->arch.mmu->mmu_role.base.word;
 
 			entry = *spte;
-			mmu_page_zap_pte(vcpu->kvm, sp, spte);
+			mmu_page_zap_pte(vcpu->kvm, sp, spte, NULL);
 			if (gentry &&
 			    !((sp->role.word ^ base_role) & ~role_ign.word) &&
 			    rmap_can_add(vcpu))
