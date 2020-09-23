@@ -23,9 +23,9 @@ extern const u32 vmx_msr_index[];
 #define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
 
 #ifdef CONFIG_X86_64
-#define MAX_NR_SHARED_MSRS	7
+#define MAX_NR_USER_RETURN_MSRS	7
 #else
-#define MAX_NR_SHARED_MSRS	4
+#define MAX_NR_USER_RETURN_MSRS	4
 #endif
 
 #define MAX_NR_LOADSTORE_MSRS	8
@@ -35,7 +35,7 @@ struct vmx_msrs {
 	struct vmx_msr_entry	val[MAX_NR_LOADSTORE_MSRS];
 };
 
-struct shared_msr_entry {
+struct vmx_uret_msr {
 	unsigned index;
 	u64 data;
 	u64 mask;
@@ -196,7 +196,7 @@ struct vcpu_vmx {
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
 
-	struct shared_msr_entry guest_msrs[MAX_NR_SHARED_MSRS];
+	struct vmx_uret_msr   guest_uret_msrs[MAX_NR_USER_RETURN_MSRS];
 	int                   nmsrs;
 	int                   save_nmsrs;
 	bool                  guest_msrs_ready;
@@ -329,7 +329,7 @@ bool vmx_interrupt_blocked(struct kvm_vcpu *vcpu);
 bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu);
 void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
 void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
-struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr);
+struct vmx_uret_msr *find_msr_entry(struct vcpu_vmx *vmx, u32 msr);
 void pt_update_intercept_for_msr(struct vcpu_vmx *vmx);
 void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp);
 int vmx_find_loadstore_msr_slot(struct vmx_msrs *m, u32 msr);

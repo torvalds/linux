@@ -4273,7 +4273,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 
 static inline u64 nested_vmx_get_vmcs01_guest_efer(struct vcpu_vmx *vmx)
 {
-	struct shared_msr_entry *efer_msr;
+	struct vmx_uret_msr *efer_msr;
 	unsigned int i;
 
 	if (vm_entry_controls_get(vmx) & VM_ENTRY_LOAD_IA32_EFER)

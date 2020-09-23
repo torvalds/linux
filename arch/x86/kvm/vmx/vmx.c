@@ -616,28 +616,28 @@ static inline int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
 	int i;
 
 	for (i = 0; i < vmx->nmsrs; ++i)
-		if (vmx_msr_index[vmx->guest_msrs[i].index] == msr)
+		if (vmx_msr_index[vmx->guest_uret_msrs[i].index] == msr)
 			return i;
 	return -1;
 }
 
-struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
+struct vmx_uret_msr *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
 
 	i = __find_msr_index(vmx, msr);
 	if (i >= 0)
-		return &vmx->guest_msrs[i];
+		return &vmx->guest_uret_msrs[i];
 	return NULL;
 }
 
-static int vmx_set_guest_msr(struct vcpu_vmx *vmx, struct shared_msr_entry *msr, u64 data)
+static int vmx_set_guest_msr(struct vcpu_vmx *vmx, struct vmx_uret_msr *msr, u64 data)
 {
 	int ret = 0;
 
 	u64 old_msr_data = msr->data;
 	msr->data = data;
-	if (msr - vmx->guest_msrs < vmx->save_nmsrs) {
+	if (msr - vmx->guest_uret_msrs < vmx->save_nmsrs) {
 		preempt_disable();
 		ret = kvm_set_user_return_msr(msr->index, msr->data, msr->mask);
 		preempt_enable();
@@ -982,8 +982,8 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 		guest_efer &= ~ignore_bits;
 		guest_efer |= host_efer & ignore_bits;
 
-		vmx->guest_msrs[efer_offset].data = guest_efer;
-		vmx->guest_msrs[efer_offset].mask = ~ignore_bits;
+		vmx->guest_uret_msrs[efer_offset].data = guest_efer;
+		vmx->guest_uret_msrs[efer_offset].mask = ~ignore_bits;
 
 		return true;
 	}
@@ -1137,9 +1137,9 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	if (!vmx->guest_msrs_ready) {
 		vmx->guest_msrs_ready = true;
 		for (i = 0; i < vmx->save_nmsrs; ++i)
-			kvm_set_user_return_msr(vmx->guest_msrs[i].index,
-						vmx->guest_msrs[i].data,
-						vmx->guest_msrs[i].mask);
+			kvm_set_user_return_msr(vmx->guest_uret_msrs[i].index,
+						vmx->guest_uret_msrs[i].data,
+						vmx->guest_uret_msrs[i].mask);
 
 	}
 
@@ -1614,11 +1614,11 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu)
  */
 static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
 {
-	struct shared_msr_entry tmp;
+	struct vmx_uret_msr tmp;
 
-	tmp = vmx->guest_msrs[to];
-	vmx->guest_msrs[to] = vmx->guest_msrs[from];
-	vmx->guest_msrs[from] = tmp;
+	tmp = vmx->guest_uret_msrs[to];
+	vmx->guest_uret_msrs[to] = vmx->guest_uret_msrs[from];
+	vmx->guest_uret_msrs[from] = tmp;
 }
 
 /*
@@ -1729,7 +1729,7 @@ static int vmx_get_msr_feature(struct kvm_msr_entry *msr)
 static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct shared_msr_entry *msr;
+	struct vmx_uret_msr *msr;
 	u32 index;
 
 	switch (msr_info->index) {
@@ -1750,7 +1750,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!msr_info->host_initiated &&
 		    !(vcpu->arch.arch_capabilities & ARCH_CAP_TSX_CTRL_MSR))
 			return 1;
-		goto find_shared_msr;
+		goto find_uret_msr;
 	case MSR_IA32_UMWAIT_CONTROL:
 		if (!msr_info->host_initiated && !vmx_has_waitpkg(vmx))
 			return 1;
@@ -1857,9 +1857,9 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!msr_info->host_initiated &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP))
 			return 1;
-		goto find_shared_msr;
+		goto find_uret_msr;
 	default:
-	find_shared_msr:
+	find_uret_msr:
 		msr = find_msr_entry(vmx, msr_info->index);
 		if (msr) {
 			msr_info->data = msr->data;
@@ -1889,7 +1889,7 @@ static u64 nested_vmx_truncate_sysenter_addr(struct kvm_vcpu *vcpu,
 static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct shared_msr_entry *msr;
+	struct vmx_uret_msr *msr;
 	int ret = 0;
 	u32 msr_index = msr_info->index;
 	u64 data = msr_info->data;
@@ -1993,7 +1993,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		if (data & ~(TSX_CTRL_RTM_DISABLE | TSX_CTRL_CPUID_CLEAR))
 			return 1;
-		goto find_shared_msr;
+		goto find_uret_msr;
 	case MSR_IA32_PRED_CMD:
 		if (!msr_info->host_initiated &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_SPEC_CTRL))
@@ -2130,10 +2130,10 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		/* Check reserved bit, higher 32 bits should be zero */
 		if ((data >> 32) != 0)
 			return 1;
-		goto find_shared_msr;
+		goto find_uret_msr;
 
 	default:
-	find_shared_msr:
+	find_uret_msr:
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr)
 			ret = vmx_set_guest_msr(vmx, msr, data);
@@ -2767,7 +2767,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct shared_msr_entry *msr = find_msr_entry(vmx, MSR_EFER);
+	struct vmx_uret_msr *msr = find_msr_entry(vmx, MSR_EFER);
 
 	if (!msr)
 		return;
@@ -6721,7 +6721,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 			goto free_vpid;
 	}
 
-	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) != MAX_NR_SHARED_MSRS);
+	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) != MAX_NR_USER_RETURN_MSRS);
 
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i) {
 		u32 index = vmx_msr_index[i];
@@ -6733,8 +6733,8 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 		if (wrmsr_safe(index, data_low, data_high) < 0)
 			continue;
 
-		vmx->guest_msrs[j].index = i;
-		vmx->guest_msrs[j].data = 0;
+		vmx->guest_uret_msrs[j].index = i;
+		vmx->guest_uret_msrs[j].data = 0;
 		switch (index) {
 		case MSR_IA32_TSX_CTRL:
 			/*
@@ -6742,10 +6742,10 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 			 * let's avoid changing CPUID bits under the host
 			 * kernel's feet.
 			 */
-			vmx->guest_msrs[j].mask = ~(u64)TSX_CTRL_CPUID_CLEAR;
+			vmx->guest_uret_msrs[j].mask = ~(u64)TSX_CTRL_CPUID_CLEAR;
 			break;
 		default:
-			vmx->guest_msrs[j].mask = -1ull;
+			vmx->guest_uret_msrs[j].mask = -1ull;
 			break;
 		}
 		++vmx->nmsrs;
@@ -7111,7 +7111,7 @@ static void vmx_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 		update_intel_pt_cfg(vcpu);
 
 	if (boot_cpu_has(X86_FEATURE_RTM)) {
-		struct shared_msr_entry *msr;
+		struct vmx_uret_msr *msr;
 		msr = find_msr_entry(vmx, MSR_IA32_TSX_CTRL);
 		if (msr) {
 			bool enabled = guest_cpuid_has(vcpu, X86_FEATURE_RTM);
