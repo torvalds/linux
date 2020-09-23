@@ -109,6 +109,7 @@ struct mlxreg_core_item {
  * @features: supported features of device;
  * @version: implementation version;
  * @identity: device identity name;
+ * @capability: device capability register;
  */
 struct mlxreg_core_platform_data {
 	struct mlxreg_core_data *data;
@@ -117,6 +118,7 @@ struct mlxreg_core_platform_data {
 	u32 features;
 	u32 version;
 	char identity[MLXREG_CORE_LABEL_MAX_SIZE];
+	u32 capability;
 };
 
 /**
