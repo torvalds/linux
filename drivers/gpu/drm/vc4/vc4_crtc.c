@@ -863,6 +863,7 @@ void vc4_crtc_reset(struct drm_crtc *crtc)
 		return;
 	}
 
+	vc4_crtc_state->assigned_channel = VC4_HVS_CHANNEL_DISABLED;
 	__drm_atomic_helper_crtc_reset(crtc, &vc4_crtc_state->base);
 }
 
