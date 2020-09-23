@@ -616,15 +616,6 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		       struct ttm_resource *new_mem);
 
 /**
- * ttm_bo_free_old_node
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Utility function to free an old placement after a successful move.
- */
-void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
-
-/**
  * ttm_bo_move_accel_cleanup.
  *
  * @bo: A pointer to a struct ttm_buffer_object.

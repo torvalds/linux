@@ -45,11 +45,6 @@ struct ttm_transfer_obj {
 	struct ttm_buffer_object *bo;
 };
 
-void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
-{
-	ttm_resource_free(bo, &bo->mem);
-}
-
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		   struct ttm_operation_ctx *ctx,
 		    struct ttm_resource *new_mem)
@@ -68,7 +63,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		}
 
 		ttm_bo_tt_unbind(bo);
-		ttm_bo_free_old_node(bo);
+		ttm_resource_free(bo, &bo->mem);
 		old_mem->mem_type = TTM_PL_SYSTEM;
 	}
 
@@ -537,7 +532,7 @@ static int ttm_bo_wait_free_node(struct ttm_buffer_object *bo,
 
 	if (!dst_use_tt)
 		ttm_bo_tt_destroy(bo);
-	ttm_bo_free_old_node(bo);
+	ttm_resource_free(bo, &bo->mem);
 	return 0;
 }
 
@@ -598,7 +593,7 @@ static void ttm_bo_move_pipeline_evict(struct ttm_buffer_object *bo,
 	}
 	spin_unlock(&from->move_lock);
 
-	ttm_bo_free_old_node(bo);
+	ttm_resource_free(bo, &bo->mem);
 
 	dma_fence_put(bo->moving);
 	bo->moving = dma_fence_get(fence);
