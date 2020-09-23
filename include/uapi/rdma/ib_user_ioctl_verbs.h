@@ -251,6 +251,12 @@ enum rdma_driver_id {
 	RDMA_DRIVER_SIW,
 };
 
+enum ib_uverbs_gid_type {
+	IB_UVERBS_GID_TYPE_IB,
+	IB_UVERBS_GID_TYPE_ROCE_V1,
+	IB_UVERBS_GID_TYPE_ROCE_V2,
+};
+
 struct ib_uverbs_gid_entry {
 	__aligned_u64 gid[2];
 	__u32 gid_index;

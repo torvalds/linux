@@ -138,9 +138,9 @@ union ib_gid {
 extern union ib_gid zgid;
 
 enum ib_gid_type {
-	IB_GID_TYPE_IB        = 0,
-	IB_GID_TYPE_ROCE      = 1,
-	IB_GID_TYPE_ROCE_UDP_ENCAP = 2,
+	IB_GID_TYPE_IB = IB_UVERBS_GID_TYPE_IB,
+	IB_GID_TYPE_ROCE = IB_UVERBS_GID_TYPE_ROCE_V1,
+	IB_GID_TYPE_ROCE_UDP_ENCAP = IB_UVERBS_GID_TYPE_ROCE_V2,
 	IB_GID_TYPE_SIZE
 };
 

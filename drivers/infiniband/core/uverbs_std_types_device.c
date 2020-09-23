@@ -3,11 +3,13 @@
  * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
  */
 
+#include <linux/overflow.h>
 #include <rdma/uverbs_std_types.h>
 #include "rdma_core.h"
 #include "uverbs.h"
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/opa_addr.h>
+#include <rdma/ib_cache.h>
 
 /*
  * This ioctl method allows calling any defined write or write_ex
@@ -266,6 +268,172 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_CONTEXT)(
 	return ucontext->device->ops.query_ucontext(ucontext, attrs);
 }
 
+static int copy_gid_entries_to_user(struct uverbs_attr_bundle *attrs,
+				    struct ib_uverbs_gid_entry *entries,
+				    size_t num_entries, size_t user_entry_size)
+{
+	const struct uverbs_attr *attr;
+	void __user *user_entries;
+	size_t copy_len;
+	int ret;
+	int i;
+
+	if (user_entry_size == sizeof(*entries)) {
+		ret = uverbs_copy_to(attrs,
+				     UVERBS_ATTR_QUERY_GID_TABLE_RESP_ENTRIES,
+				     entries, sizeof(*entries) * num_entries);
+		return ret;
+	}
+
+	copy_len = min_t(size_t, user_entry_size, sizeof(*entries));
+	attr = uverbs_attr_get(attrs, UVERBS_ATTR_QUERY_GID_TABLE_RESP_ENTRIES);
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	user_entries = u64_to_user_ptr(attr->ptr_attr.data);
+	for (i = 0; i < num_entries; i++) {
+		if (copy_to_user(user_entries, entries, copy_len))
+			return -EFAULT;
+
+		if (user_entry_size > sizeof(*entries)) {
+			if (clear_user(user_entries + sizeof(*entries),
+				       user_entry_size - sizeof(*entries)))
+				return -EFAULT;
+		}
+
+		entries++;
+		user_entries += user_entry_size;
+	}
+
+	return uverbs_output_written(attrs,
+				     UVERBS_ATTR_QUERY_GID_TABLE_RESP_ENTRIES);
+}
+
+static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_GID_TABLE)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uverbs_gid_entry *entries;
+	struct ib_ucontext *ucontext;
+	struct ib_device *ib_dev;
+	size_t user_entry_size;
+	ssize_t num_entries;
+	size_t max_entries;
+	size_t num_bytes;
+	u32 flags;
+	int ret;
+
+	ret = uverbs_get_flags32(&flags, attrs,
+				 UVERBS_ATTR_QUERY_GID_TABLE_FLAGS, 0);
+	if (ret)
+		return ret;
+
+	ret = uverbs_get_const(&user_entry_size, attrs,
+			       UVERBS_ATTR_QUERY_GID_TABLE_ENTRY_SIZE);
+	if (ret)
+		return ret;
+
+	max_entries = uverbs_attr_ptr_get_array_size(
+		attrs, UVERBS_ATTR_QUERY_GID_TABLE_RESP_ENTRIES,
+		user_entry_size);
+	if (max_entries <= 0)
+		return -EINVAL;
+
+	ucontext = ib_uverbs_get_ucontext(attrs);
+	if (IS_ERR(ucontext))
+		return PTR_ERR(ucontext);
+	ib_dev = ucontext->device;
+
+	if (check_mul_overflow(max_entries, sizeof(*entries), &num_bytes))
+		return -EINVAL;
+
+	entries = uverbs_zalloc(attrs, num_bytes);
+	if (!entries)
+		return -ENOMEM;
+
+	num_entries = rdma_query_gid_table(ib_dev, entries, max_entries);
+	if (num_entries < 0)
+		return -EINVAL;
+
+	ret = copy_gid_entries_to_user(attrs, entries, num_entries,
+				       user_entry_size);
+	if (ret)
+		return ret;
+
+	ret = uverbs_copy_to(attrs,
+			     UVERBS_ATTR_QUERY_GID_TABLE_RESP_NUM_ENTRIES,
+			     &num_entries, sizeof(num_entries));
+	return ret;
+}
+
+static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_GID_ENTRY)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uverbs_gid_entry entry = {};
+	const struct ib_gid_attr *gid_attr;
+	struct ib_ucontext *ucontext;
+	struct ib_device *ib_dev;
+	struct net_device *ndev;
+	u32 gid_index;
+	u32 port_num;
+	u32 flags;
+	int ret;
+
+	ret = uverbs_get_flags32(&flags, attrs,
+				 UVERBS_ATTR_QUERY_GID_ENTRY_FLAGS, 0);
+	if (ret)
+		return ret;
+
+	ret = uverbs_get_const(&port_num, attrs,
+			       UVERBS_ATTR_QUERY_GID_ENTRY_PORT);
+	if (ret)
+		return ret;
+
+	ret = uverbs_get_const(&gid_index, attrs,
+			       UVERBS_ATTR_QUERY_GID_ENTRY_GID_INDEX);
+	if (ret)
+		return ret;
+
+	ucontext = ib_uverbs_get_ucontext(attrs);
+	if (IS_ERR(ucontext))
+		return PTR_ERR(ucontext);
+	ib_dev = ucontext->device;
+
+	if (!rdma_is_port_valid(ib_dev, port_num))
+		return -EINVAL;
+
+	if (!rdma_ib_or_roce(ib_dev, port_num))
+		return -EOPNOTSUPP;
+
+	gid_attr = rdma_get_gid_attr(ib_dev, port_num, gid_index);
+	if (IS_ERR(gid_attr))
+		return PTR_ERR(gid_attr);
+
+	memcpy(&entry.gid, &gid_attr->gid, sizeof(gid_attr->gid));
+	entry.gid_index = gid_attr->index;
+	entry.port_num = gid_attr->port_num;
+	entry.gid_type = gid_attr->gid_type;
+
+	rcu_read_lock();
+	ndev = rdma_read_gid_attr_ndev_rcu(gid_attr);
+	if (IS_ERR(ndev)) {
+		if (PTR_ERR(ndev) != -ENODEV) {
+			ret = PTR_ERR(ndev);
+			rcu_read_unlock();
+			goto out;
+		}
+	} else {
+		entry.netdev_ifindex = ndev->ifindex;
+	}
+	rcu_read_unlock();
+
+	ret = uverbs_copy_to_struct_or_zero(
+		attrs, UVERBS_ATTR_QUERY_GID_ENTRY_RESP_ENTRY, &entry,
+		sizeof(entry));
+out:
+	rdma_put_gid_attr(gid_attr);
+	return ret;
+}
+
 DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_METHOD_GET_CONTEXT,
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_GET_CONTEXT_NUM_COMP_VECTORS,
@@ -300,12 +468,38 @@ DECLARE_UVERBS_NAMED_METHOD(
 				   reserved),
 		UA_MANDATORY));
 
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_QUERY_GID_TABLE,
+	UVERBS_ATTR_CONST_IN(UVERBS_ATTR_QUERY_GID_TABLE_ENTRY_SIZE, u64,
+			     UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(UVERBS_ATTR_QUERY_GID_TABLE_FLAGS, u32,
+			     UA_OPTIONAL),
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_QUERY_GID_TABLE_RESP_ENTRIES,
+			    UVERBS_ATTR_MIN_SIZE(0), UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_QUERY_GID_TABLE_RESP_NUM_ENTRIES,
+			    UVERBS_ATTR_TYPE(u64), UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_QUERY_GID_ENTRY,
+	UVERBS_ATTR_CONST_IN(UVERBS_ATTR_QUERY_GID_ENTRY_PORT, u32,
+			     UA_MANDATORY),
+	UVERBS_ATTR_CONST_IN(UVERBS_ATTR_QUERY_GID_ENTRY_GID_INDEX, u32,
+			     UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(UVERBS_ATTR_QUERY_GID_ENTRY_FLAGS, u32,
+			     UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_QUERY_GID_ENTRY_RESP_ENTRY,
+			    UVERBS_ATTR_STRUCT(struct ib_uverbs_gid_entry,
+					       netdev_ifindex),
+			    UA_MANDATORY));
+
 DECLARE_UVERBS_GLOBAL_METHODS(UVERBS_OBJECT_DEVICE,
 			      &UVERBS_METHOD(UVERBS_METHOD_GET_CONTEXT),
 			      &UVERBS_METHOD(UVERBS_METHOD_INVOKE_WRITE),
 			      &UVERBS_METHOD(UVERBS_METHOD_INFO_HANDLES),
 			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_PORT),
-			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_CONTEXT));
+			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_CONTEXT),
+			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_GID_TABLE),
+			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_GID_ENTRY));
 
 const struct uapi_definition uverbs_def_obj_device[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_DEVICE),
