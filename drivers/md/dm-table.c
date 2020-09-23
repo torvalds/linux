@@ -1748,6 +1748,33 @@ static bool dm_table_supports_write_zeroes(struct dm_table *t)
 	return true;
 }
 
+static int device_not_nowait_capable(struct dm_target *ti, struct dm_dev *dev,
+				     sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && !blk_queue_nowait(q);
+}
+
+static bool dm_table_supports_nowait(struct dm_table *t)
+{
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (!dm_target_supports_nowait(ti->type))
+			return false;
+
+		if (!ti->type->iterate_devices ||
+		    ti->type->iterate_devices(ti, device_not_nowait_capable, NULL))
+			return false;
+	}
+
+	return true;
+}
+
 static int device_not_discard_capable(struct dm_target *ti, struct dm_dev *dev,
 				      sector_t start, sector_t len, void *data)
 {
@@ -1849,6 +1876,11 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 * Copy table's limits to the DM device's request_queue
 	 */
 	q->limits = *limits;
+
+	if (dm_table_supports_nowait(t))
+		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, q);
+	else
+		blk_queue_flag_clear(QUEUE_FLAG_NOWAIT, q);
 
 	if (!dm_table_supports_discards(t)) {
 		blk_queue_flag_clear(QUEUE_FLAG_DISCARD, q);
