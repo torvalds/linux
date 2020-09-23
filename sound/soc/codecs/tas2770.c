@@ -249,8 +249,6 @@ static int tas2770_set_bitwidth(struct tas2770_priv *tas2770, int bitwidth)
 	if (ret < 0)
 		return ret;
 
-	tas2770->channel_size = bitwidth;
-
 	ret = snd_soc_component_update_bits(component, TAS2770_TDM_CFG_REG5,
 					    TAS2770_TDM_CFG_REG5_VSNS_MASK |
 					    TAS2770_TDM_CFG_REG5_50_MASK,
@@ -312,7 +310,6 @@ static int tas2770_set_samplerate(struct tas2770_priv *tas2770, int samplerate)
 	if (ret < 0)
 		return ret;
 
-	tas2770->sampling_rate = samplerate;
 	return 0;
 }
 
@@ -400,8 +397,6 @@ static int tas2770_set_dai_tdm_slot(struct snd_soc_dai *dai,
 				int slots, int slot_width)
 {
 	struct snd_soc_component *component = dai->component;
-	struct tas2770_priv *tas2770 =
-			snd_soc_component_get_drvdata(component);
 	int left_slot, right_slot;
 	int ret;
 
@@ -466,7 +461,6 @@ static int tas2770_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	if (ret < 0)
 		return ret;
 
-	tas2770->slot_width = slot_width;
 	return 0;
 }
 
@@ -688,8 +682,6 @@ static int tas2770_i2c_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, tas2770);
 	dev_set_drvdata(&client->dev, tas2770);
 
-	tas2770->power_state = TAS2770_POWER_SHUTDOWN;
-
 	tas2770->regmap = devm_regmap_init_i2c(client, &tas2770_i2c_regmap);
 	if (IS_ERR(tas2770->regmap)) {
 		result = PTR_ERR(tas2770->regmap);
@@ -715,9 +707,6 @@ static int tas2770_i2c_probe(struct i2c_client *client,
 			return -EPROBE_DEFER;
 		}
 	}
-
-	tas2770->channel_size = 0;
-	tas2770->slot_width = 0;
 
 	result = tas2770_register_codec(tas2770);
 	if (result)

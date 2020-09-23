@@ -128,15 +128,11 @@
 #define ERROR_CLASSD_PWR    BIT(5)
 
 struct tas2770_priv {
-	struct device *dev;
-	struct regmap *regmap;
 	struct snd_soc_component *component;
-	int power_state;
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *sdz_gpio;
-	int sampling_rate;
-	int channel_size;
-	int slot_width;
+	struct regmap *regmap;
+	struct device *dev;
 	int v_sense_slot;
 	int i_sense_slot;
 };
