@@ -77,8 +77,8 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 		paddr = (u64) gen_pool_alloc(vm->dram_pg_pool, total_size);
 		if (!paddr) {
 			dev_err(hdev->dev,
-				"failed to allocate %llu huge contiguous pages\n",
-				num_pgs);
+				"failed to allocate %llu contiguous pages with total size of %llu\n",
+				num_pgs, total_size);
 			return -ENOMEM;
 		}
 	}
