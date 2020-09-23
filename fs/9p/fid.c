@@ -39,6 +39,33 @@ void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 }
 
 /**
+ * v9fs_fid_find_inode - search for a fid off of the client list
+ * @inode: return a fid pointing to a specific inode
+ * @uid: return a fid belonging to the specified user
+ *
+ */
+
+static struct p9_fid *v9fs_fid_find_inode(struct inode *inode, kuid_t uid)
+{
+	struct p9_client *clnt = v9fs_inode2v9ses(inode)->clnt;
+	struct p9_fid *fid, *fidptr, *ret = NULL;
+	unsigned long flags;
+
+	p9_debug(P9_DEBUG_VFS, " inode: %p\n", inode);
+
+	spin_lock_irqsave(&clnt->lock, flags);
+	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist) {
+		if (uid_eq(fid->uid, uid) &&
+		   (inode->i_ino == v9fs_qid2ino(&fid->qid))) {
+			ret = fid;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&clnt->lock, flags);
+	return ret;
+}
+
+/**
  * v9fs_fid_find - retrieve a fid that belongs to the specified uid
  * @dentry: dentry to look for fid in
  * @uid: return fid that belongs to the specified user
@@ -65,6 +92,9 @@ static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
 			}
 		}
 		spin_unlock(&dentry->d_lock);
+	} else {
+		if (dentry->d_inode)
+			ret = v9fs_fid_find_inode(dentry->d_inode, uid);
 	}
 
 	return ret;
