@@ -213,11 +213,14 @@ struct net_bridge_fdb_entry {
 #define MDB_PG_FLAGS_PERMANENT	BIT(0)
 #define MDB_PG_FLAGS_OFFLOAD	BIT(1)
 #define MDB_PG_FLAGS_FAST_LEAVE	BIT(2)
+#define MDB_PG_FLAGS_STAR_EXCL	BIT(3)
+#define MDB_PG_FLAGS_BLOCKED	BIT(4)
 
 #define PG_SRC_ENT_LIMIT	32
 
 #define BR_SGRP_F_DELETE	BIT(0)
 #define BR_SGRP_F_SEND		BIT(1)
+#define BR_SGRP_F_INSTALLED	BIT(2)
 
 struct net_bridge_mcast_gc {
 	struct hlist_node		gc_node;
@@ -238,14 +241,19 @@ struct net_bridge_group_src {
 	struct rcu_head			rcu;
 };
 
-struct net_bridge_port_group {
+struct net_bridge_port_group_sg_key {
 	struct net_bridge_port		*port;
-	struct net_bridge_port_group __rcu *next;
 	struct br_ip			addr;
+};
+
+struct net_bridge_port_group {
+	struct net_bridge_port_group __rcu *next;
+	struct net_bridge_port_group_sg_key key;
 	unsigned char			eth_addr[ETH_ALEN] __aligned(2);
 	unsigned char			flags;
 	unsigned char			filter_mode;
 	unsigned char			grp_query_rexmit_cnt;
+	unsigned char			rt_protocol;
 
 	struct hlist_head		src_list;
 	unsigned int			src_ents;
@@ -253,6 +261,7 @@ struct net_bridge_port_group {
 	struct timer_list		rexmit_timer;
 	struct hlist_node		mglist;
 
+	struct rhash_head		rhnode;
 	struct net_bridge_mcast_gc	mcast_gc;
 	struct rcu_head			rcu;
 };
@@ -440,6 +449,7 @@ struct net_bridge {
 	unsigned long			multicast_startup_query_interval;
 
 	struct rhashtable		mdb_hash_tbl;
+	struct rhashtable		sg_port_tbl;
 
 	struct hlist_head		mcast_gc_list;
 	struct hlist_head		mdb_list;
@@ -804,7 +814,7 @@ struct net_bridge_port_group *
 br_multicast_new_port_group(struct net_bridge_port *port, struct br_ip *group,
 			    struct net_bridge_port_group __rcu *next,
 			    unsigned char flags, const unsigned char *src,
-			    u8 filter_mode);
+			    u8 filter_mode, u8 rt_protocol);
 int br_mdb_hash_init(struct net_bridge *br);
 void br_mdb_hash_fini(struct net_bridge *br);
 void br_mdb_notify(struct net_device *dev, struct net_bridge_mdb_entry *mp,
@@ -825,6 +835,10 @@ void br_mdb_init(void);
 void br_mdb_uninit(void);
 void br_multicast_host_join(struct net_bridge_mdb_entry *mp, bool notify);
 void br_multicast_host_leave(struct net_bridge_mdb_entry *mp, bool notify);
+void br_multicast_star_g_handle_mode(struct net_bridge_port_group *pg,
+				     u8 filter_mode);
+void br_multicast_sg_add_exclude_ports(struct net_bridge_mdb_entry *star_mp,
+				       struct net_bridge_port_group *sg);
 
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
@@ -867,6 +881,35 @@ static inline bool br_multicast_querier_exists(struct net_bridge *br,
 	case (htons(ETH_P_IPV6)):
 		return __br_multicast_querier_exists(br,
 			&br->ip6_other_query, true);
+#endif
+	default:
+		return false;
+	}
+}
+
+static inline bool br_multicast_is_star_g(const struct br_ip *ip)
+{
+	switch (ip->proto) {
+	case htons(ETH_P_IP):
+		return ipv4_is_zeronet(ip->src.ip4);
+#if IS_ENABLED(CONFIG_IPV6)
+	case htons(ETH_P_IPV6):
+		return ipv6_addr_any(&ip->src.ip6);
+#endif
+	default:
+		return false;
+	}
+}
+
+static inline bool br_multicast_should_handle_mode(const struct net_bridge *br,
+						   __be16 proto)
+{
+	switch (proto) {
+	case htons(ETH_P_IP):
+		return !!(br->multicast_igmp_version == 3);
+#if IS_ENABLED(CONFIG_IPV6)
+	case htons(ETH_P_IPV6):
+		return !!(br->multicast_mld_version == 2);
 #endif
 	default:
 		return false;
