@@ -446,10 +446,8 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	}
 
 	/*
-	 * The LAUNCH_UPDATE command will perform in-place encryption of the
-	 * memory content (i.e it will write the same memory region with C=1).
-	 * It's possible that the cache may contain the data with C=0, i.e.,
-	 * unencrypted so invalidate it first.
+	 * Flush (on non-coherent CPUs) before LAUNCH_UPDATE encrypts pages in
+	 * place; the cache may contain the data that was written unencrypted.
 	 */
 	sev_clflush_pages(inpages, npages);
 
@@ -805,10 +803,9 @@ static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
 		}
 
 		/*
-		 * The DBG_{DE,EN}CRYPT commands will perform {dec,en}cryption of the
-		 * memory content (i.e it will write the same memory region with C=1).
-		 * It's possible that the cache may contain the data with C=0, i.e.,
-		 * unencrypted so invalidate it first.
+		 * Flush (on non-coherent CPUs) before DBG_{DE,EN}CRYPT read or modify
+		 * the pages; flush the destination too so that future accesses do not
+		 * see stale data.
 		 */
 		sev_clflush_pages(src_p, 1);
 		sev_clflush_pages(dst_p, 1);
@@ -870,10 +867,8 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return PTR_ERR(pages);
 
 	/*
-	 * The LAUNCH_SECRET command will perform in-place encryption of the
-	 * memory content (i.e it will write the same memory region with C=1).
-	 * It's possible that the cache may contain the data with C=0, i.e.,
-	 * unencrypted so invalidate it first.
+	 * Flush (on non-coherent CPUs) before LAUNCH_SECRET encrypts pages in
+	 * place; the cache may contain the data that was written unencrypted.
 	 */
 	sev_clflush_pages(pages, n);
 
