@@ -23,9 +23,9 @@ static const struct snd_soc_dapm_widget rt700_widgets[] = {
 
 static const struct snd_soc_dapm_route rt700_map[] = {
 	/* Headphones */
-	{ "Headphones", NULL, "HP" },
-	{ "Speaker", NULL, "SPK" },
-	{ "MIC2", NULL, "AMIC" },
+	{ "Headphones", NULL, "rt700 HP" },
+	{ "Speaker", NULL, "rt700 SPK" },
+	{ "rt700 MIC2", NULL, "AMIC" },
 };
 
 static const struct snd_kcontrol_new rt700_controls[] = {
