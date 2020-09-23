@@ -321,6 +321,7 @@ void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa,
 		   int root_level);
+
 void update_exception_bitmap(struct kvm_vcpu *vcpu);
 void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu);
 bool vmx_nmi_blocked(struct kvm_vcpu *vcpu);
@@ -470,6 +471,12 @@ static inline bool is_unrestricted_guest(struct kvm_vcpu *vcpu)
 	return enable_unrestricted_guest && (!is_guest_mode(vcpu) ||
 	    (secondary_exec_controls_get(to_vmx(vcpu)) &
 	    SECONDARY_EXEC_UNRESTRICTED_GUEST));
+}
+
+bool __vmx_guest_state_valid(struct kvm_vcpu *vcpu);
+static inline bool vmx_guest_state_valid(struct kvm_vcpu *vcpu)
+{
+	return is_unrestricted_guest(vcpu) || __vmx_guest_state_valid(vcpu);
 }
 
 void dump_vmcs(void);
