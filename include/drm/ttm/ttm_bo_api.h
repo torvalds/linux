@@ -261,6 +261,11 @@ ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
  */
 int ttm_bo_wait(struct ttm_buffer_object *bo, bool interruptible, bool no_wait);
 
+static inline int ttm_bo_wait_ctx(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx)
+{
+	return ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+}
+
 /**
  * ttm_bo_mem_compat - Check if proposed placement is compatible with a bo
  *

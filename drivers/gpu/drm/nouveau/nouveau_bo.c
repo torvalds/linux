@@ -1062,7 +1062,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
-	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
 		return ret;
 
@@ -1097,7 +1097,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	}
 
 	/* Fallback to software copy. */
-	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret == 0)
 		ret = ttm_bo_move_memcpy(bo, ctx, new_reg);
 

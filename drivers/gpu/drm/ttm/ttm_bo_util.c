@@ -59,7 +59,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 	int ret;
 
 	if (old_mem->mem_type != TTM_PL_SYSTEM) {
-		ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+		ret = ttm_bo_wait_ctx(bo, ctx);
 
 		if (unlikely(ret != 0)) {
 			if (ret != -ERESTARTSYS)
@@ -231,7 +231,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	unsigned long add = 0;
 	int dir;
 
-	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
 		return ret;
 

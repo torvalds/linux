@@ -160,7 +160,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
 
-	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
 		return ret;
 

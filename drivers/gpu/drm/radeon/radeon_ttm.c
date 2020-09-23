@@ -302,7 +302,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource *old_mem = &bo->mem;
 	int r;
 
-	r = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	r = ttm_bo_wait_ctx(bo, ctx);
 	if (r)
 		return r;
 
