@@ -941,10 +941,11 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 	m->host.val[j].value = host_val;
 }
 
-static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
+static bool update_transition_efer(struct vcpu_vmx *vmx)
 {
 	u64 guest_efer = vmx->vcpu.arch.efer;
 	u64 ignore_bits = 0;
+	int i;
 
 	/* Shadow paging assumes NX to be available.  */
 	if (!enable_ept)
@@ -976,17 +977,21 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 		else
 			clear_atomic_switch_msr(vmx, MSR_EFER);
 		return false;
-	} else {
-		clear_atomic_switch_msr(vmx, MSR_EFER);
-
-		guest_efer &= ~ignore_bits;
-		guest_efer |= host_efer & ignore_bits;
-
-		vmx->guest_uret_msrs[efer_offset].data = guest_efer;
-		vmx->guest_uret_msrs[efer_offset].mask = ~ignore_bits;
-
-		return true;
 	}
+
+	i = __vmx_find_uret_msr(vmx, MSR_EFER);
+	if (i < 0)
+		return false;
+
+	clear_atomic_switch_msr(vmx, MSR_EFER);
+
+	guest_efer &= ~ignore_bits;
+	guest_efer |= host_efer & ignore_bits;
+
+	vmx->guest_uret_msrs[i].data = guest_efer;
+	vmx->guest_uret_msrs[i].mask = ~ignore_bits;
+
+	return true;
 }
 
 #ifdef CONFIG_X86_32
@@ -1648,9 +1653,11 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 			move_msr_up(vmx, index, nr_active_uret_msrs++);
 	}
 #endif
-	index = __vmx_find_uret_msr(vmx, MSR_EFER);
-	if (index >= 0 && update_transition_efer(vmx, index))
-		move_msr_up(vmx, index, nr_active_uret_msrs++);
+	if (update_transition_efer(vmx)) {
+		index = __vmx_find_uret_msr(vmx, MSR_EFER);
+		if (index >= 0)
+			move_msr_up(vmx, index, nr_active_uret_msrs++);
+	}
 	if (guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP)) {
 		index = __vmx_find_uret_msr(vmx, MSR_TSC_AUX);
 		if (index >= 0)
