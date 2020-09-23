@@ -615,7 +615,7 @@ static inline int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
 
-	for (i = 0; i < vmx->nmsrs; ++i)
+	for (i = 0; i < vmx->nr_uret_msrs; ++i)
 		if (vmx_msr_index[vmx->guest_uret_msrs[i].index] == msr)
 			return i;
 	return -1;
@@ -6726,7 +6726,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i) {
 		u32 index = vmx_msr_index[i];
 		u32 data_low, data_high;
-		int j = vmx->nmsrs;
+		int j = vmx->nr_uret_msrs;
 
 		if (rdmsr_safe(index, &data_low, &data_high) < 0)
 			continue;
@@ -6748,7 +6748,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 			vmx->guest_uret_msrs[j].mask = -1ull;
 			break;
 		}
-		++vmx->nmsrs;
+		++vmx->nr_uret_msrs;
 	}
 
 	err = alloc_loaded_vmcs(&vmx->vmcs01);

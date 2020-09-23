@@ -197,7 +197,7 @@ struct vcpu_vmx {
 	ulong                 rflags;
 
 	struct vmx_uret_msr   guest_uret_msrs[MAX_NR_USER_RETURN_MSRS];
-	int                   nmsrs;
+	int                   nr_uret_msrs;
 	int                   save_nmsrs;
 	bool                  guest_msrs_ready;
 #ifdef CONFIG_X86_64
