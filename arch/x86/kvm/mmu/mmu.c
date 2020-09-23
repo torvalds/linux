@@ -5711,10 +5711,16 @@ static void free_mmu_pages(struct kvm_mmu *mmu)
 	free_page((unsigned long)mmu->lm_root);
 }
 
-static int alloc_mmu_pages(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
+static int __kvm_mmu_create(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 {
 	struct page *page;
 	int i;
+
+	mmu->root_hpa = INVALID_PAGE;
+	mmu->root_pgd = 0;
+	mmu->translate_gpa = translate_gpa;
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+		mmu->prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
 
 	/*
 	 * When using PAE paging, the four PDPTEs are treated as 'root' pages,
@@ -5741,7 +5747,6 @@ static int alloc_mmu_pages(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 
 int kvm_mmu_create(struct kvm_vcpu *vcpu)
 {
-	uint i;
 	int ret;
 
 	vcpu->arch.mmu_pte_list_desc_cache.kmem_cache = pte_list_desc_cache;
@@ -5755,25 +5760,13 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu = &vcpu->arch.root_mmu;
 	vcpu->arch.walk_mmu = &vcpu->arch.root_mmu;
 
-	vcpu->arch.root_mmu.root_hpa = INVALID_PAGE;
-	vcpu->arch.root_mmu.root_pgd = 0;
-	vcpu->arch.root_mmu.translate_gpa = translate_gpa;
-	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
-		vcpu->arch.root_mmu.prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
-
-	vcpu->arch.guest_mmu.root_hpa = INVALID_PAGE;
-	vcpu->arch.guest_mmu.root_pgd = 0;
-	vcpu->arch.guest_mmu.translate_gpa = translate_gpa;
-	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
-		vcpu->arch.guest_mmu.prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
-
 	vcpu->arch.nested_mmu.translate_gpa = translate_nested_gpa;
 
-	ret = alloc_mmu_pages(vcpu, &vcpu->arch.guest_mmu);
+	ret = __kvm_mmu_create(vcpu, &vcpu->arch.guest_mmu);
 	if (ret)
 		return ret;
 
-	ret = alloc_mmu_pages(vcpu, &vcpu->arch.root_mmu);
+	ret = __kvm_mmu_create(vcpu, &vcpu->arch.root_mmu);
 	if (ret)
 		goto fail_allocate_root;
 
