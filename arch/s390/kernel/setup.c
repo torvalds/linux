@@ -372,7 +372,11 @@ void __init arch_call_rest_init(void)
 
 static void __init setup_lowcore_dat_off(void)
 {
+	unsigned long int_psw_mask = PSW_KERNEL_BITS;
 	struct lowcore *lc;
+
+	if (IS_ENABLED(CONFIG_KASAN))
+		int_psw_mask |= PSW_MASK_DAT;
 
 	/*
 	 * Setup lowcore for boot cpu
@@ -385,15 +389,15 @@ static void __init setup_lowcore_dat_off(void)
 
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
-	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->external_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->svc_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->nodat_stack = ((unsigned long) &init_thread_union)
