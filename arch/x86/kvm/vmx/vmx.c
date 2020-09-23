@@ -2430,7 +2430,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 			SECONDARY_EXEC_UNRESTRICTED_GUEST |
 			SECONDARY_EXEC_PAUSE_LOOP_EXITING |
 			SECONDARY_EXEC_DESC |
-			SECONDARY_EXEC_RDTSCP |
+			SECONDARY_EXEC_ENABLE_RDTSCP |
 			SECONDARY_EXEC_ENABLE_INVPCID |
 			SECONDARY_EXEC_APIC_REGISTER_VIRT |
 			SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
@@ -4146,15 +4146,15 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	if (cpu_has_vmx_rdtscp()) {
 		bool rdtscp_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP);
 		if (!rdtscp_enabled)
-			exec_control &= ~SECONDARY_EXEC_RDTSCP;
+			exec_control &= ~SECONDARY_EXEC_ENABLE_RDTSCP;
 
 		if (nested) {
 			if (rdtscp_enabled)
 				vmx->nested.msrs.secondary_ctls_high |=
-					SECONDARY_EXEC_RDTSCP;
+					SECONDARY_EXEC_ENABLE_RDTSCP;
 			else
 				vmx->nested.msrs.secondary_ctls_high &=
-					~SECONDARY_EXEC_RDTSCP;
+					~SECONDARY_EXEC_ENABLE_RDTSCP;
 		}
 	}
 
@@ -7323,7 +7323,7 @@ static int vmx_check_intercept(struct kvm_vcpu *vcpu,
 	 * Because it is marked as EmulateOnUD, we need to intercept it here.
 	 */
 	case x86_intercept_rdtscp:
-		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDTSCP)) {
+		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_RDTSCP)) {
 			exception->vector = UD_VECTOR;
 			exception->error_code_valid = false;
 			return X86EMUL_PROPAGATE_FAULT;

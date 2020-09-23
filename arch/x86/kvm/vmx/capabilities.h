@@ -151,7 +151,7 @@ static inline bool vmx_umip_emulated(void)
 static inline bool cpu_has_vmx_rdtscp(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_RDTSCP;
+		SECONDARY_EXEC_ENABLE_RDTSCP;
 }
 
 static inline bool cpu_has_vmx_virtualize_x2apic_mode(void)
