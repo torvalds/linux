@@ -595,7 +595,8 @@ struct amd_iommu {
 #endif
 
 	u32 flags;
-	volatile u64 __aligned(8) cmd_sem;
+	volatile u64 *cmd_sem;
+	u64 cmd_sem_val;
 
 #ifdef CONFIG_AMD_IOMMU_DEBUGFS
 	/* DebugFS Info */

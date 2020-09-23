@@ -792,11 +792,11 @@ irqreturn_t amd_iommu_int_handler(int irq, void *data)
  *
  ****************************************************************************/
 
-static int wait_on_sem(volatile u64 *sem)
+static int wait_on_sem(struct amd_iommu *iommu, u64 data)
 {
 	int i = 0;
 
-	while (*sem == 0 && i < LOOP_TIMEOUT) {
+	while (*iommu->cmd_sem != data && i < LOOP_TIMEOUT) {
 		udelay(1);
 		i += 1;
 	}
@@ -827,16 +827,16 @@ static void copy_cmd_to_buffer(struct amd_iommu *iommu,
 	writel(tail, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
 }
 
-static void build_completion_wait(struct iommu_cmd *cmd, u64 address)
+static void build_completion_wait(struct iommu_cmd *cmd,
+				  struct amd_iommu *iommu,
+				  u64 data)
 {
-	u64 paddr = iommu_virt_to_phys((void *)address);
-
-	WARN_ON(address & 0x7ULL);
+	u64 paddr = iommu_virt_to_phys((void *)iommu->cmd_sem);
 
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->data[0] = lower_32_bits(paddr) | CMD_COMPL_WAIT_STORE_MASK;
 	cmd->data[1] = upper_32_bits(paddr);
-	cmd->data[2] = 1;
+	cmd->data[2] = data;
 	CMD_SET_TYPE(cmd, CMD_COMPL_WAIT);
 }
 
@@ -1045,22 +1045,21 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	struct iommu_cmd cmd;
 	unsigned long flags;
 	int ret;
+	u64 data;
 
 	if (!iommu->need_sync)
 		return 0;
 
-
-	build_completion_wait(&cmd, (u64)&iommu->cmd_sem);
-
 	raw_spin_lock_irqsave(&iommu->lock, flags);
 
-	iommu->cmd_sem = 0;
+	data = ++iommu->cmd_sem_val;
+	build_completion_wait(&cmd, iommu, data);
 
 	ret = __iommu_queue_command_sync(iommu, &cmd, false);
 	if (ret)
 		goto out_unlock;
 
-	ret = wait_on_sem(&iommu->cmd_sem);
+	ret = wait_on_sem(iommu, data);
 
 out_unlock:
 	raw_spin_unlock_irqrestore(&iommu->lock, flags);
