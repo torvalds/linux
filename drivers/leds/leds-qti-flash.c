@@ -592,7 +592,7 @@ static int qti_flash_led_symmetry_config(struct flash_switch_data *snode)
 {
 	struct qti_flash_led *led = snode->led;
 	enum flash_led_type type = FLASH_LED_TYPE_UNKNOWN;
-	int i, rc;
+	int i, rc = 0;
 
 	/* Determine which LED type has triggered switch ON */
 	for (i = 0; i < led->num_fnodes; i++) {
