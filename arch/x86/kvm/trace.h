@@ -235,42 +235,45 @@ TRACE_EVENT(kvm_apic,
 	(isa == KVM_ISA_VMX) ?						\
 	__print_flags(exit_reason & ~0xffff, " ", VMX_EXIT_REASON_FLAGS) : ""
 
+#define TRACE_EVENT_KVM_EXIT(name)					     \
+TRACE_EVENT(name,							     \
+	TP_PROTO(unsigned int exit_reason, struct kvm_vcpu *vcpu, u32 isa),  \
+	TP_ARGS(exit_reason, vcpu, isa),				     \
+									     \
+	TP_STRUCT__entry(						     \
+		__field(	unsigned int,	exit_reason	)	     \
+		__field(	unsigned long,	guest_rip	)	     \
+		__field(	u32,	        isa             )	     \
+		__field(	u64,	        info1           )	     \
+		__field(	u64,	        info2           )	     \
+		__field(	u32,	        intr_info	)	     \
+		__field(	u32,	        error_code	)	     \
+		__field(	unsigned int,	vcpu_id         )	     \
+	),								     \
+									     \
+	TP_fast_assign(							     \
+		__entry->exit_reason	= exit_reason;			     \
+		__entry->guest_rip	= kvm_rip_read(vcpu);		     \
+		__entry->isa            = isa;				     \
+		__entry->vcpu_id        = vcpu->vcpu_id;		     \
+		kvm_x86_ops.get_exit_info(vcpu, &__entry->info1,	     \
+					  &__entry->info2,		     \
+					  &__entry->intr_info,		     \
+					  &__entry->error_code);	     \
+	),								     \
+									     \
+	TP_printk("vcpu %u reason %s%s%s rip 0x%lx info1 0x%016llx "	     \
+		  "info2 0x%016llx intr_info 0x%08x error_code 0x%08x",	     \
+		  __entry->vcpu_id,					     \
+		  kvm_print_exit_reason(__entry->exit_reason, __entry->isa), \
+		  __entry->guest_rip, __entry->info1, __entry->info2,	     \
+		  __entry->intr_info, __entry->error_code)		     \
+)
+
 /*
  * Tracepoint for kvm guest exit:
  */
-TRACE_EVENT(kvm_exit,
-	TP_PROTO(unsigned int exit_reason, struct kvm_vcpu *vcpu, u32 isa),
-	TP_ARGS(exit_reason, vcpu, isa),
-
-	TP_STRUCT__entry(
-		__field(	unsigned int,	exit_reason	)
-		__field(	unsigned long,	guest_rip	)
-		__field(	u32,	        isa             )
-		__field(	u64,	        info1           )
-		__field(	u64,	        info2           )
-		__field(	u32,	        intr_info	)
-		__field(	u32,	        error_code	)
-		__field(	unsigned int,	vcpu_id         )
-	),
-
-	TP_fast_assign(
-		__entry->exit_reason	= exit_reason;
-		__entry->guest_rip	= kvm_rip_read(vcpu);
-		__entry->isa            = isa;
-		__entry->vcpu_id        = vcpu->vcpu_id;
-		kvm_x86_ops.get_exit_info(vcpu, &__entry->info1,
-					  &__entry->info2,
-					  &__entry->intr_info,
-					  &__entry->error_code);
-	),
-
-	TP_printk("vcpu %u reason %s%s%s rip 0x%lx info1 0x%016llx "
-		  "info2 0x%016llx intr_info 0x%08x error_code 0x%08x",
-		  __entry->vcpu_id,
-		  kvm_print_exit_reason(__entry->exit_reason, __entry->isa),
-		  __entry->guest_rip, __entry->info1, __entry->info2,
-		  __entry->intr_info, __entry->error_code)
-);
+TRACE_EVENT_KVM_EXIT(kvm_exit);
 
 /*
  * Tracepoint for kvm interrupt injection:
