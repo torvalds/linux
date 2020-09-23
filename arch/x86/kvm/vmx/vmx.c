@@ -1651,9 +1651,11 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 	index = __vmx_find_uret_msr(vmx, MSR_EFER);
 	if (index >= 0 && update_transition_efer(vmx, index))
 		move_msr_up(vmx, index, nr_active_uret_msrs++);
-	index = __vmx_find_uret_msr(vmx, MSR_TSC_AUX);
-	if (index >= 0 && guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP))
-		move_msr_up(vmx, index, nr_active_uret_msrs++);
+	if (guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP)) {
+		index = __vmx_find_uret_msr(vmx, MSR_TSC_AUX);
+		if (index >= 0)
+			move_msr_up(vmx, index, nr_active_uret_msrs++);
+	}
 	index = __vmx_find_uret_msr(vmx, MSR_IA32_TSX_CTRL);
 	if (index >= 0)
 		move_msr_up(vmx, index, nr_active_uret_msrs++);
