@@ -1158,7 +1158,6 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		card->state = CARD_STATE_DOWN;
 		qeth_l3_clear_ip_htable(card, 1);
-		qeth_clear_ipacmd_list(card);
 	}
 
 	qeth_qdio_clear_card(card, 0);

@@ -315,10 +315,8 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 	cancel_work_sync(&card->rx_mode_work);
 	qeth_l2_drain_rx_mode_cache(card);
 
-	if (card->state == CARD_STATE_SOFTSETUP) {
-		qeth_clear_ipacmd_list(card);
+	if (card->state == CARD_STATE_SOFTSETUP)
 		card->state = CARD_STATE_DOWN;
-	}
 
 	qeth_qdio_clear_card(card, 0);
 	qeth_drain_output_queues(card);
