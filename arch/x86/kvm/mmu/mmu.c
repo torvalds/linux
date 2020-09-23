@@ -3383,7 +3383,8 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 					      it.level - 1, true, ACC_ALL);
 
 			link_shadow_page(vcpu, it.sptep, sp);
-			if (is_tdp && huge_page_disallowed)
+			if (is_tdp && huge_page_disallowed &&
+			    req_level >= it.level)
 				account_huge_nx_page(vcpu->kvm, sp);
 		}
 	}
