@@ -1037,10 +1037,6 @@ bool efivar_validate(efi_guid_t vendor, efi_char16_t *var_name, u8 *data,
 bool efivar_variable_is_removable(efi_guid_t vendor, const char *name,
 				  size_t len);
 
-#if defined(CONFIG_EFI_VARS) || defined(CONFIG_EFI_VARS_MODULE)
-int efivars_sysfs_init(void);
-
-#endif /* CONFIG_EFI_VARS */
 extern bool efi_capsule_pending(int *reset_type);
 
 extern int efi_capsule_supported(efi_guid_t guid, u32 flags,

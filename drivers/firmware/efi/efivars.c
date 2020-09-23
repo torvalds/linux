@@ -638,7 +638,7 @@ static void efivars_sysfs_exit(void)
 	kset_unregister(efivars_kset);
 }
 
-int efivars_sysfs_init(void)
+static int efivars_sysfs_init(void)
 {
 	struct kobject *parent_kobj = efivars_kobject();
 	int error = 0;
@@ -666,7 +666,6 @@ int efivars_sysfs_init(void)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(efivars_sysfs_init);
 
 module_init(efivars_sysfs_init);
 module_exit(efivars_sysfs_exit);
