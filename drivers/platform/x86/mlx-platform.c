@@ -171,7 +171,6 @@
 #define MLXPLAT_CPLD_NR_NONE			-1
 #define MLXPLAT_CPLD_PSU_DEFAULT_NR		10
 #define MLXPLAT_CPLD_PSU_MSNXXXX_NR		4
-#define MLXPLAT_CPLD_PSU_MSNXXXX_NR2		3
 #define MLXPLAT_CPLD_FAN1_DEFAULT_NR		11
 #define MLXPLAT_CPLD_FAN2_DEFAULT_NR		12
 #define MLXPLAT_CPLD_FAN3_DEFAULT_NR		13
@@ -344,6 +343,15 @@ static struct i2c_board_info mlxplat_mlxcpld_pwr[] = {
 	},
 	{
 		I2C_BOARD_INFO("dps460", 0x58),
+	},
+};
+
+static struct i2c_board_info mlxplat_mlxcpld_ext_pwr[] = {
+	{
+		I2C_BOARD_INFO("dps460", 0x5b),
+	},
+	{
+		I2C_BOARD_INFO("dps460", 0x5a),
 	},
 };
 
@@ -921,15 +929,15 @@ static struct mlxreg_core_data mlxplat_mlxcpld_ext_pwr_items_data[] = {
 		.label = "pwr3",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(2),
-		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[0],
-		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR2,
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ext_pwr[0],
+		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
 	},
 	{
 		.label = "pwr4",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(3),
-		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[1],
-		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR2,
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ext_pwr[1],
+		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
 	},
 };
 
