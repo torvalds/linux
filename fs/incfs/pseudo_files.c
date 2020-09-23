@@ -922,7 +922,7 @@ static long ioctl_create_mapped_file(struct mount_info *mi, void __user *arg)
 	}
 
 	error = init_new_mapped_file(mi, file_dentry, &args.source_file_id,
-			size_attr_value, cpu_to_le64(args.source_offset));
+			args.size, args.source_offset);
 	if (error)
 		goto delete_file;
 
@@ -1108,7 +1108,7 @@ static __poll_t blocks_written_poll(struct file *f, poll_table *wait)
 	unsigned long blocks_written;
 
 	if (!mi)
-		return -EFAULT;
+		return 0;
 
 	poll_wait(f, &mi->mi_blocks_written_notif_wq, wait);
 	blocks_written = atomic_read(&mi->mi_blocks_written);
