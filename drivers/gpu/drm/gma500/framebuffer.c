@@ -24,6 +24,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "framebuffer.h"
+#include "gem.h"
 #include "gtt.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
@@ -285,6 +286,7 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 	/* Begin by trying to use stolen memory backing */
 	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1, PAGE_SIZE);
 	if (backing) {
+		backing->gem.funcs = &psb_gem_object_funcs;
 		drm_gem_private_object_init(dev, &backing->gem, aligned_size);
 		return backing;
 	}
