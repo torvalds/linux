@@ -616,7 +616,7 @@ static inline int __vmx_find_uret_msr(struct vcpu_vmx *vmx, u32 msr)
 	int i;
 
 	for (i = 0; i < vmx->nr_uret_msrs; ++i)
-		if (vmx_uret_msrs_list[vmx->guest_uret_msrs[i].index] == msr)
+		if (vmx_uret_msrs_list[vmx->guest_uret_msrs[i].slot] == msr)
 			return i;
 	return -1;
 }
@@ -640,7 +640,7 @@ static int vmx_set_guest_uret_msr(struct vcpu_vmx *vmx,
 	msr->data = data;
 	if (msr - vmx->guest_uret_msrs < vmx->nr_active_uret_msrs) {
 		preempt_disable();
-		ret = kvm_set_user_return_msr(msr->index, msr->data, msr->mask);
+		ret = kvm_set_user_return_msr(msr->slot, msr->data, msr->mask);
 		preempt_enable();
 		if (ret)
 			msr->data = old_msr_data;
@@ -1143,7 +1143,7 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	if (!vmx->guest_uret_msrs_loaded) {
 		vmx->guest_uret_msrs_loaded = true;
 		for (i = 0; i < vmx->nr_active_uret_msrs; ++i)
-			kvm_set_user_return_msr(vmx->guest_uret_msrs[i].index,
+			kvm_set_user_return_msr(vmx->guest_uret_msrs[i].slot,
 						vmx->guest_uret_msrs[i].data,
 						vmx->guest_uret_msrs[i].mask);
 
@@ -6730,7 +6730,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 		if (wrmsr_safe(index, data_low, data_high) < 0)
 			continue;
 
-		vmx->guest_uret_msrs[j].index = i;
+		vmx->guest_uret_msrs[j].slot = i;
 		vmx->guest_uret_msrs[j].data = 0;
 		switch (index) {
 		case MSR_IA32_TSX_CTRL:

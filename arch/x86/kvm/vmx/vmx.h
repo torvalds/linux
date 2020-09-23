@@ -36,7 +36,7 @@ struct vmx_msrs {
 };
 
 struct vmx_uret_msr {
-	unsigned index;
+	unsigned int slot; /* The MSR's slot in kvm_user_return_msrs. */
 	u64 data;
 	u64 mask;
 };
