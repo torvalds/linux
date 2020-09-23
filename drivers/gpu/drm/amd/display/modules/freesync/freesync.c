@@ -42,10 +42,10 @@
 /* Threshold to change BTR multiplier (to avoid frequent changes) */
 #define BTR_DRIFT_MARGIN 2000
 /* Threshold to exit fixed refresh rate */
-#define FIXED_REFRESH_EXIT_MARGIN_IN_HZ 4
+#define FIXED_REFRESH_EXIT_MARGIN_IN_HZ 1
 /* Number of consecutive frames to check before entering/exiting fixed refresh */
 #define FIXED_REFRESH_ENTER_FRAME_COUNT 5
-#define FIXED_REFRESH_EXIT_FRAME_COUNT 5
+#define FIXED_REFRESH_EXIT_FRAME_COUNT 10
 
 struct core_freesync {
 	struct mod_freesync public;
@@ -420,7 +420,8 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 				in_out_vrr->fixed.target_refresh_in_uhz = 0;
 				update = true;
 			}
-		}
+		} else
+			in_out_vrr->fixed.frame_counter = 0;
 	} else if (last_render_time_in_us > max_render_time_in_us) {
 		/* Enter Fixed Refresh mode */
 		if (!in_out_vrr->fixed.fixed_active) {
@@ -434,7 +435,8 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 						in_out_vrr->max_refresh_in_uhz;
 				update = true;
 			}
-		}
+		} else
+			in_out_vrr->fixed.frame_counter = 0;
 	}
 
 	if (update) {
