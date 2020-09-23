@@ -5466,10 +5466,10 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 			return -EIO;
 	}
 
-	if (r == RET_PF_RETRY)
-		return 1;
 	if (r < 0)
 		return r;
+	if (r != RET_PF_EMULATE)
+		return 1;
 
 	/*
 	 * Before emulating the instruction, check if the error code
