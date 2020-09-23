@@ -149,7 +149,7 @@ have to keep track of that lock and either call ``unreference`` or
 ``unreference_locked`` depending upon context.
 
 Core GEM doesn't have a need for ``struct_mutex`` any more since kernel 4.8,
-and there's a ``gem_free_object_unlocked`` callback for any drivers which are
+and there's a GEM object ``free`` callback for any drivers which are
 entirely ``struct_mutex`` free.
 
 For drivers that need ``struct_mutex`` it should be replaced with a driver-
@@ -289,11 +289,8 @@ struct drm_gem_object_funcs
 ---------------------------
 
 GEM objects can now have a function table instead of having the callbacks on the
-DRM driver struct. This is now the preferred way and drivers can be moved over.
-
-We also need a 2nd version of the CMA define that doesn't require the
-vmapping to be present (different hook for prime importing). Plus this needs to
-be rolled out to all drivers using their own implementations, too.
+DRM driver struct. This is now the preferred way. Callbacks in drivers have been
+converted, except for struct drm_driver.gem_prime_mmap.
 
 Level: Intermediate
 
