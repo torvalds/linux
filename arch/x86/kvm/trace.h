@@ -586,39 +586,7 @@ TRACE_EVENT(kvm_nested_intercepts,
 /*
  * Tracepoint for #VMEXIT while nested
  */
-TRACE_EVENT(kvm_nested_vmexit,
-	    TP_PROTO(struct kvm_vcpu *vcpu, __u32 exit_code,
-		     __u64 exit_info1, __u64 exit_info2,
-		     __u32 exit_int_info, __u32 exit_int_info_err, __u32 isa),
-	    TP_ARGS(vcpu, exit_code, exit_info1, exit_info2,
-		    exit_int_info, exit_int_info_err, isa),
-
-	TP_STRUCT__entry(
-		__field(	__u64,		rip			)
-		__field(	__u32,		exit_code		)
-		__field(	__u64,		exit_info1		)
-		__field(	__u64,		exit_info2		)
-		__field(	__u32,		exit_int_info		)
-		__field(	__u32,		exit_int_info_err	)
-		__field(	__u32,		isa			)
-	),
-
-	TP_fast_assign(
-		__entry->rip			= kvm_rip_read(vcpu);
-		__entry->exit_code		= exit_code;
-		__entry->exit_info1		= exit_info1;
-		__entry->exit_info2		= exit_info2;
-		__entry->exit_int_info		= exit_int_info;
-		__entry->exit_int_info_err	= exit_int_info_err;
-		__entry->isa			= isa;
-	),
-	TP_printk("rip: 0x%016llx reason: %s%s%s ext_inf1: 0x%016llx "
-		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x",
-		  __entry->rip,
-		  kvm_print_exit_reason(__entry->exit_code, __entry->isa),
-		  __entry->exit_info1, __entry->exit_info2,
-		  __entry->exit_int_info, __entry->exit_int_info_err)
-);
+TRACE_EVENT_KVM_EXIT(kvm_nested_vmexit);
 
 /*
  * Tracepoint for #VMEXIT reinjected to the guest

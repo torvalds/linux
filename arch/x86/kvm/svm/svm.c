@@ -2996,12 +2996,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	if (is_guest_mode(vcpu)) {
 		int vmexit;
 
-		trace_kvm_nested_vmexit(vcpu, exit_code,
-					svm->vmcb->control.exit_info_1,
-					svm->vmcb->control.exit_info_2,
-					svm->vmcb->control.exit_int_info,
-					svm->vmcb->control.exit_int_info_err,
-					KVM_ISA_SVM);
+		trace_kvm_nested_vmexit(exit_code, vcpu, KVM_ISA_SVM);
 
 		vmexit = nested_svm_exit_special(svm);
 
