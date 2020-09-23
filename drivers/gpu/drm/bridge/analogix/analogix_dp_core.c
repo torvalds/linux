@@ -257,6 +257,14 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	retval = drm_dp_dpcd_write(&dp->aux, DP_LINK_BW_SET, buf, 2);
 	if (retval < 0)
 		return retval;
+
+	/* Spread AMP if required, enable 8b/10b coding */
+	buf[0] = analogix_dp_ssc_supported(dp) ? DP_SPREAD_AMP_0_5 : 0;
+	buf[1] = DP_SET_ANSI_8B10B;
+	retval = drm_dp_dpcd_write(&dp->aux, DP_DOWNSPREAD_CTRL, buf, 2);
+	if (retval < 0)
+		return retval;
+
 	/* set enhanced mode if available */
 	retval = analogix_dp_set_enhanced_mode(dp);
 	if (retval < 0) {
@@ -559,6 +567,7 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 {
 	int retval = 0;
 	bool training_finished = false;
+	u8 dpcd;
 
 	/*
 	 * MACRO_RST must be applied after the PLL_LOCK to avoid
@@ -583,6 +592,9 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 			dp->link_train.lane_count);
 		dp->link_train.lane_count = (u8)LANE_COUNT1;
 	}
+
+	drm_dp_dpcd_readb(&dp->aux, DP_MAX_DOWNSPREAD, &dpcd);
+	dp->link_train.ssc = !!(dpcd & DP_MAX_DOWNSPREAD_0_5);
 
 	/* Setup TX lane count & rate */
 	if (dp->link_train.lane_count > max_lanes)
@@ -1515,6 +1527,7 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 	switch (dp->plat_data->dev_type) {
 	case RK3288_DP:
 	case RK3399_EDP:
+	case RK3568_EDP:
 		/*
 		 * Like Rk3288 DisplayPort TRM indicate that "Main link
 		 * containing 4 physical lanes of 2.7/1.62 Gbps/lane".
