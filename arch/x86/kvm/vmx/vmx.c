@@ -631,7 +631,8 @@ struct vmx_uret_msr *vmx_find_uret_msr(struct vcpu_vmx *vmx, u32 msr)
 	return NULL;
 }
 
-static int vmx_set_guest_msr(struct vcpu_vmx *vmx, struct vmx_uret_msr *msr, u64 data)
+static int vmx_set_guest_uret_msr(struct vcpu_vmx *vmx,
+				  struct vmx_uret_msr *msr, u64 data)
 {
 	int ret = 0;
 
@@ -2132,7 +2133,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	find_uret_msr:
 		msr = vmx_find_uret_msr(vmx, msr_index);
 		if (msr)
-			ret = vmx_set_guest_msr(vmx, msr, data);
+			ret = vmx_set_guest_uret_msr(vmx, msr, data);
 		else
 			ret = kvm_set_msr_common(vcpu, msr_info);
 	}
@@ -7111,7 +7112,7 @@ static void vmx_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 		msr = vmx_find_uret_msr(vmx, MSR_IA32_TSX_CTRL);
 		if (msr) {
 			bool enabled = guest_cpuid_has(vcpu, X86_FEATURE_RTM);
-			vmx_set_guest_msr(vmx, msr, enabled ? 0 : TSX_CTRL_RTM_DISABLE);
+			vmx_set_guest_uret_msr(vmx, msr, enabled ? 0 : TSX_CTRL_RTM_DISABLE);
 		}
 	}
 }
