@@ -331,6 +331,12 @@
 				function = "i2c0";
 			};
 
+			/omit-if-no-ref/
+			i2c1_pe_pins: i2c1-pe-pins {
+				pins = "PE21", "PE22";
+				function = "i2c1";
+			};
+
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB8", "PB9";
 				function = "uart0";
