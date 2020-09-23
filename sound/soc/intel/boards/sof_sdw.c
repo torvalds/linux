@@ -863,8 +863,10 @@ static int sof_card_dai_links_create(struct device *dev,
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
 		codec_info_list[i].amp_num = 0;
 
-	hdmi_num = sof_sdw_quirk & SOF_SDW_TGL_HDMI ?
-				SOF_TGL_HDMI_COUNT : SOF_PRE_TGL_HDMI_COUNT;
+	if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)
+		hdmi_num = SOF_TGL_HDMI_COUNT;
+	else
+		hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
 
 	ssp_mask = SOF_SSP_GET_PORT(sof_sdw_quirk);
 	/*
