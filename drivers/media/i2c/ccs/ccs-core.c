@@ -673,6 +673,17 @@ static int ccs_set_ctrl(struct v4l2_ctrl *ctrl)
 
 		break;
 
+	case V4L2_CID_CCS_ANALOGUE_LINEAR_GAIN:
+		rval = ccs_write(sensor, ANALOG_LINEAR_GAIN_GLOBAL, ctrl->val);
+
+		break;
+
+	case V4L2_CID_CCS_ANALOGUE_EXPONENTIAL_GAIN:
+		rval = ccs_write(sensor, ANALOG_EXPONENTIAL_GAIN_GLOBAL,
+				 ctrl->val);
+
+		break;
+
 	case V4L2_CID_DIGITAL_GAIN:
 		if (CCS_LIM(sensor, DIGITAL_GAIN_CAPABILITY) ==
 		    CCS_DIGITAL_GAIN_CAPABILITY_GLOBAL) {
@@ -819,6 +830,50 @@ static int ccs_init_controls(struct ccs_sensor *sensor)
 				  max(CCS_LIM(sensor, ANALOG_GAIN_CODE_STEP),
 				      1U),
 				  CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN));
+	}
+		break;
+
+	case CCS_ANALOG_GAIN_CAPABILITY_ALTERNATE_GLOBAL: {
+		struct {
+			const char *name;
+			u32 id;
+			u16 min, max, step;
+		} const gain_ctrls[] = {
+			{
+				"Analogue Linear Gain",
+				V4L2_CID_CCS_ANALOGUE_LINEAR_GAIN,
+				CCS_LIM(sensor, ANALOG_LINEAR_GAIN_MIN),
+				CCS_LIM(sensor, ANALOG_LINEAR_GAIN_MAX),
+				max(CCS_LIM(sensor,
+					    ANALOG_LINEAR_GAIN_STEP_SIZE),
+				    1U),
+			},
+			{
+				"Analogue Exponential Gain",
+				V4L2_CID_CCS_ANALOGUE_EXPONENTIAL_GAIN,
+				CCS_LIM(sensor, ANALOG_EXPONENTIAL_GAIN_MIN),
+				CCS_LIM(sensor, ANALOG_EXPONENTIAL_GAIN_MAX),
+				max(CCS_LIM(sensor,
+					    ANALOG_EXPONENTIAL_GAIN_STEP_SIZE),
+				    1U),
+			},
+		};
+		struct v4l2_ctrl_config ctrl_cfg = {
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.ops = &ccs_ctrl_ops,
+		};
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(gain_ctrls); i++) {
+			ctrl_cfg.name = gain_ctrls[i].name;
+			ctrl_cfg.min = ctrl_cfg.def = gain_ctrls[i].min;
+			ctrl_cfg.max = gain_ctrls[i].max;
+			ctrl_cfg.step = gain_ctrls[i].step;
+			ctrl_cfg.id = gain_ctrls[i].id;
+
+			v4l2_ctrl_new_custom(&sensor->pixel_array->ctrl_handler,
+					     &ctrl_cfg, NULL);
+		}
 	}
 	}
 
