@@ -262,7 +262,6 @@ struct ccs_sensor {
 	unsigned long *valid_link_freqs;
 
 	/* Pixel array controls */
-	struct v4l2_ctrl *analog_gain;
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *hflip;
 	struct v4l2_ctrl *vflip;
