@@ -157,7 +157,7 @@ struct page *f2fs_compress_control_page(struct page *page)
 
 int f2fs_init_compress_ctx(struct compress_ctx *cc)
 {
-	if (cc->nr_rpages)
+	if (cc->rpages)
 		return 0;
 
 	cc->rpages = page_array_alloc(cc->inode, cc->cluster_size);
