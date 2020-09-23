@@ -386,7 +386,9 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 	/* Lane op clock ratio does not apply here. */
 	rval = ccs_write(sensor, REQUESTED_LINK_RATE,
 			 DIV_ROUND_UP(pll->op_bk.sys_clk_freq_hz,
-				      1000000 / 256 / 256));
+				      1000000 / 256 / 256) *
+			 (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
+			  sensor->pll.csi2.lanes : 1));
 	if (rval < 0 || sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
 		return rval;
 
@@ -3202,6 +3204,13 @@ static int ccs_probe(struct i2c_client *client)
 	/* prepare PLL configuration input values */
 	sensor->pll.bus_type = CCS_PLL_BUS_TYPE_CSI2_DPHY;
 	sensor->pll.csi2.lanes = sensor->hwcfg.lanes;
+	if (CCS_LIM(sensor, CLOCK_CALCULATION) &
+	    CCS_CLOCK_CALCULATION_LANE_SPEED) {
+		sensor->pll.vt_lanes =
+			CCS_LIM(sensor, NUM_OF_VT_LANES) + 1;
+		sensor->pll.op_lanes = sensor->pll.vt_lanes;
+		sensor->pll.flags |= CCS_PLL_FLAG_LANE_SPEED_MODEL;
+	}
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
 
