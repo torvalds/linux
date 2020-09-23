@@ -32,10 +32,6 @@ static struct efivars *__efivars;
  */
 static DEFINE_SEMAPHORE(efivars_lock);
 
-static bool efivar_wq_enabled = true;
-DECLARE_WORK(efivar_work, NULL);
-EXPORT_SYMBOL_GPL(efivar_work);
-
 static bool
 validate_device_path(efi_char16_t *var_name, int match, u8 *buffer,
 		     unsigned long len)
@@ -390,13 +386,6 @@ static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
 {
 	size_t i, len8 = len16 / sizeof(efi_char16_t);
 	char *str8;
-
-	/*
-	 * Disable the workqueue since the algorithm it uses for
-	 * detecting new variables won't work with this buggy
-	 * implementation of GetNextVariableName().
-	 */
-	efivar_wq_enabled = false;
 
 	str8 = kzalloc(len8, GFP_KERNEL);
 	if (!str8)
@@ -1156,16 +1145,6 @@ struct kobject *efivars_kobject(void)
 	return __efivars->kobject;
 }
 EXPORT_SYMBOL_GPL(efivars_kobject);
-
-/**
- * efivar_run_worker - schedule the efivar worker thread
- */
-void efivar_run_worker(void)
-{
-	if (efivar_wq_enabled)
-		schedule_work(&efivar_work);
-}
-EXPORT_SYMBOL_GPL(efivar_run_worker);
 
 /**
  * efivars_register - register an efivars

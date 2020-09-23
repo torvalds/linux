@@ -21,6 +21,7 @@ module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
 	 EFI_VARIABLE_RUNTIME_ACCESS)
 
 static LIST_HEAD(efi_pstore_list);
+static DECLARE_WORK(efivar_work, NULL);
 
 static int efi_pstore_open(struct pstore_info *psi)
 {
@@ -267,8 +268,9 @@ static int efi_pstore_write(struct pstore_record *record)
 	ret = efivar_entry_set_safe(efi_name, vendor, PSTORE_EFI_ATTRIBUTES,
 			      preemptible(), record->size, record->psi->buf);
 
-	if (record->reason == KMSG_DUMP_OOPS)
-		efivar_run_worker();
+	if (record->reason == KMSG_DUMP_OOPS && try_module_get(THIS_MODULE))
+		if (!schedule_work(&efivar_work))
+			module_put(THIS_MODULE);
 
 	return ret;
 };
@@ -412,6 +414,7 @@ static void efi_pstore_update_entries(struct work_struct *work)
 	}
 
 	kfree(entry);
+	module_put(THIS_MODULE);
 }
 
 static __init int efivars_pstore_init(void)
