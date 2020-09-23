@@ -1041,7 +1041,7 @@ static void prepare_vmx_msr_autostore_list(struct kvm_vcpu *vcpu,
 	in_vmcs12_store_list = nested_msr_store_list_has_msr(vcpu, msr_index);
 
 	if (in_vmcs12_store_list && !in_autostore_list) {
-		if (autostore->nr == NR_LOADSTORE_MSRS) {
+		if (autostore->nr == MAX_NR_LOADSTORE_MSRS) {
 			/*
 			 * Emulated VMEntry does not fail here.  Instead a less
 			 * accurate value will be returned by

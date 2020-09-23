@@ -917,8 +917,8 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 	if (!entry_only)
 		j = vmx_find_msr_index(&m->host, msr);
 
-	if ((i < 0 && m->guest.nr == NR_LOADSTORE_MSRS) ||
-		(j < 0 &&  m->host.nr == NR_LOADSTORE_MSRS)) {
+	if ((i < 0 && m->guest.nr == MAX_NR_LOADSTORE_MSRS) ||
+	    (j < 0 &&  m->host.nr == MAX_NR_LOADSTORE_MSRS)) {
 		printk_once(KERN_WARNING "Not enough msr switch entries. "
 				"Can't add msr %x\n", msr);
 		return;
@@ -6721,7 +6721,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 			goto free_vpid;
 	}
 
-	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) != NR_SHARED_MSRS);
+	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) != MAX_NR_SHARED_MSRS);
 
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i) {
 		u32 index = vmx_msr_index[i];

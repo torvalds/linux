@@ -23,16 +23,16 @@ extern const u32 vmx_msr_index[];
 #define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
 
 #ifdef CONFIG_X86_64
-#define NR_SHARED_MSRS	7
+#define MAX_NR_SHARED_MSRS	7
 #else
-#define NR_SHARED_MSRS	4
+#define MAX_NR_SHARED_MSRS	4
 #endif
 
-#define NR_LOADSTORE_MSRS 8
+#define MAX_NR_LOADSTORE_MSRS	8
 
 struct vmx_msrs {
 	unsigned int		nr;
-	struct vmx_msr_entry	val[NR_LOADSTORE_MSRS];
+	struct vmx_msr_entry	val[MAX_NR_LOADSTORE_MSRS];
 };
 
 struct shared_msr_entry {
@@ -196,7 +196,7 @@ struct vcpu_vmx {
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
 
-	struct shared_msr_entry guest_msrs[NR_SHARED_MSRS];
+	struct shared_msr_entry guest_msrs[MAX_NR_SHARED_MSRS];
 	int                   nmsrs;
 	int                   save_nmsrs;
 	bool                  guest_msrs_ready;
