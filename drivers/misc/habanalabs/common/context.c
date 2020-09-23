@@ -12,6 +12,7 @@
 static void hl_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
+	u64 idle_mask = 0;
 	int i;
 
 	/*
@@ -42,6 +43,13 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		hl_cb_va_pool_fini(ctx);
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
+
+		if ((!hdev->pldm) && (hdev->pdev) &&
+				(!hdev->asic_funcs->is_device_idle(hdev,
+							&idle_mask, NULL)))
+			dev_notice(hdev->dev,
+				"device not idle after user context is closed (0x%llx)\n",
+				idle_mask);
 	} else {
 		dev_dbg(hdev->dev, "closing kernel context\n");
 		hl_mmu_ctx_fini(ctx);
