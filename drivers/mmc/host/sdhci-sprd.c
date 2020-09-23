@@ -387,7 +387,7 @@ static void sdhci_sprd_request_done(struct sdhci_host *host,
 	if (mmc_hsq_finalize_request(host->mmc, mrq))
 		return;
 
-	 mmc_request_done(host->mmc, mrq);
+	mmc_request_done(host->mmc, mrq);
 }
 
 static struct sdhci_ops sdhci_sprd_ops = {
@@ -433,7 +433,7 @@ static void sdhci_sprd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 }
 
 static int sdhci_sprd_request_atomic(struct mmc_host *mmc,
-				      struct mmc_request *mrq)
+				     struct mmc_request *mrq)
 {
 	sdhci_sprd_check_auto_cmd23(mmc, mrq);
 

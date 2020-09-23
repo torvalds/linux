@@ -1377,7 +1377,7 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 			 * response, block the tuning procedure or the first command
 			 * after the whole tuning procedure always can't get any response.
 			 */
-			 tmp |= ESDHC_TUNING_CMD_CRC_CHECK_DISABLE;
+			tmp |= ESDHC_TUNING_CMD_CRC_CHECK_DISABLE;
 			writel(tmp, host->ioaddr + ESDHC_TUNING_CTRL);
 		} else if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING) {
 			/*
