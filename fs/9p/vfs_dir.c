@@ -210,6 +210,9 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 	fid = filp->private_data;
 	p9_debug(P9_DEBUG_VFS, "inode: %p filp: %p fid: %d\n",
 		 inode, filp, fid ? fid->fid : -1);
+	spin_lock(&inode->i_lock);
+	hlist_del(&fid->ilist);
+	spin_unlock(&inode->i_lock);
 	if (fid)
 		p9_client_clunk(fid);
 	return 0;

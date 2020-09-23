@@ -39,7 +39,7 @@ void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 }
 
 /**
- * v9fs_fid_find_inode - search for a fid off of the client list
+ * v9fs_fid_find_inode - search for an open fid off of the inode list
  * @inode: return a fid pointing to a specific inode
  * @uid: return a fid belonging to the specified user
  *
@@ -47,23 +47,37 @@ void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 
 static struct p9_fid *v9fs_fid_find_inode(struct inode *inode, kuid_t uid)
 {
-	struct p9_client *clnt = v9fs_inode2v9ses(inode)->clnt;
-	struct p9_fid *fid, *fidptr, *ret = NULL;
-	unsigned long flags;
+	struct hlist_head *h;
+	struct p9_fid *fid, *ret = NULL;
 
 	p9_debug(P9_DEBUG_VFS, " inode: %p\n", inode);
 
-	spin_lock_irqsave(&clnt->lock, flags);
-	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist) {
-		if (uid_eq(fid->uid, uid) &&
-		   (inode->i_ino == v9fs_qid2ino(&fid->qid))) {
+	spin_lock(&inode->i_lock);
+	h = (struct hlist_head *)&inode->i_private;
+	hlist_for_each_entry(fid, h, ilist) {
+		if (uid_eq(fid->uid, uid)) {
 			ret = fid;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&clnt->lock, flags);
+	spin_unlock(&inode->i_lock);
 	return ret;
 }
+
+/**
+ * v9fs_open_fid_add - add an open fid to an inode
+ * @dentry: inode that the fid is being added to
+ * @fid: fid to add
+ *
+ */
+
+void v9fs_open_fid_add(struct inode *inode, struct p9_fid *fid)
+{
+	spin_lock(&inode->i_lock);
+	hlist_add_head(&fid->ilist, (struct hlist_head *)&inode->i_private);
+	spin_unlock(&inode->i_lock);
+}
+
 
 /**
  * v9fs_fid_find - retrieve a fid that belongs to the specified uid
