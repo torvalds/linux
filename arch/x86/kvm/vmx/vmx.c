@@ -812,7 +812,7 @@ static void clear_atomic_switch_msr_special(struct vcpu_vmx *vmx,
 	vm_exit_controls_clearbit(vmx, exit);
 }
 
-int vmx_find_msr_index(struct vmx_msrs *m, u32 msr)
+int vmx_find_loadstore_msr_slot(struct vmx_msrs *m, u32 msr)
 {
 	unsigned int i;
 
@@ -846,7 +846,7 @@ static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
 		}
 		break;
 	}
-	i = vmx_find_msr_index(&m->guest, msr);
+	i = vmx_find_loadstore_msr_slot(&m->guest, msr);
 	if (i < 0)
 		goto skip_guest;
 	--m->guest.nr;
@@ -854,7 +854,7 @@ static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
 	vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, m->guest.nr);
 
 skip_guest:
-	i = vmx_find_msr_index(&m->host, msr);
+	i = vmx_find_loadstore_msr_slot(&m->host, msr);
 	if (i < 0)
 		return;
 
@@ -913,9 +913,9 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 		wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
 	}
 
-	i = vmx_find_msr_index(&m->guest, msr);
+	i = vmx_find_loadstore_msr_slot(&m->guest, msr);
 	if (!entry_only)
-		j = vmx_find_msr_index(&m->host, msr);
+		j = vmx_find_loadstore_msr_slot(&m->host, msr);
 
 	if ((i < 0 && m->guest.nr == MAX_NR_LOADSTORE_MSRS) ||
 	    (j < 0 &&  m->host.nr == MAX_NR_LOADSTORE_MSRS)) {

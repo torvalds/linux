@@ -939,11 +939,11 @@ static bool nested_vmx_get_vmexit_msr_value(struct kvm_vcpu *vcpu,
 	 * VM-exit in L0, use the more accurate value.
 	 */
 	if (msr_index == MSR_IA32_TSC) {
-		int index = vmx_find_msr_index(&vmx->msr_autostore.guest,
-					       MSR_IA32_TSC);
+		int i = vmx_find_loadstore_msr_slot(&vmx->msr_autostore.guest,
+						    MSR_IA32_TSC);
 
-		if (index >= 0) {
-			u64 val = vmx->msr_autostore.guest.val[index].value;
+		if (i >= 0) {
+			u64 val = vmx->msr_autostore.guest.val[i].value;
 
 			*data = kvm_read_l1_tsc(vcpu, val);
 			return true;
@@ -1032,12 +1032,12 @@ static void prepare_vmx_msr_autostore_list(struct kvm_vcpu *vcpu,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmx_msrs *autostore = &vmx->msr_autostore.guest;
 	bool in_vmcs12_store_list;
-	int msr_autostore_index;
+	int msr_autostore_slot;
 	bool in_autostore_list;
 	int last;
 
-	msr_autostore_index = vmx_find_msr_index(autostore, msr_index);
-	in_autostore_list = msr_autostore_index >= 0;
+	msr_autostore_slot = vmx_find_loadstore_msr_slot(autostore, msr_index);
+	in_autostore_list = msr_autostore_slot >= 0;
 	in_vmcs12_store_list = nested_msr_store_list_has_msr(vcpu, msr_index);
 
 	if (in_vmcs12_store_list && !in_autostore_list) {
@@ -1058,7 +1058,7 @@ static void prepare_vmx_msr_autostore_list(struct kvm_vcpu *vcpu,
 		autostore->val[last].index = msr_index;
 	} else if (!in_vmcs12_store_list && in_autostore_list) {
 		last = --autostore->nr;
-		autostore->val[msr_autostore_index] = autostore->val[last];
+		autostore->val[msr_autostore_slot] = autostore->val[last];
 	}
 }
 
