@@ -639,8 +639,7 @@ static int vmx_set_guest_msr(struct vcpu_vmx *vmx, struct shared_msr_entry *msr,
 	msr->data = data;
 	if (msr - vmx->guest_msrs < vmx->save_nmsrs) {
 		preempt_disable();
-		ret = kvm_set_shared_msr(msr->index, msr->data,
-					 msr->mask);
+		ret = kvm_set_user_return_msr(msr->index, msr->data, msr->mask);
 		preempt_enable();
 		if (ret)
 			msr->data = old_msr_data;
@@ -1138,9 +1137,9 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	if (!vmx->guest_msrs_ready) {
 		vmx->guest_msrs_ready = true;
 		for (i = 0; i < vmx->save_nmsrs; ++i)
-			kvm_set_shared_msr(vmx->guest_msrs[i].index,
-					   vmx->guest_msrs[i].data,
-					   vmx->guest_msrs[i].mask);
+			kvm_set_user_return_msr(vmx->guest_msrs[i].index,
+						vmx->guest_msrs[i].data,
+						vmx->guest_msrs[i].mask);
 
 	}
 
@@ -7582,7 +7581,7 @@ static __init int hardware_setup(void)
 	host_idt_base = dt.address;
 
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i)
-		kvm_define_shared_msr(i, vmx_msr_index[i]);
+		kvm_define_user_return_msr(i, vmx_msr_index[i]);
 
 	if (setup_vmcs_config(&vmcs_config, &vmx_capability) < 0)
 		return -EIO;

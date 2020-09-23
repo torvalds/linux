@@ -162,24 +162,29 @@ module_param(force_emulation_prefix, bool, S_IRUGO);
 int __read_mostly pi_inject_timer = -1;
 module_param(pi_inject_timer, bint, S_IRUGO | S_IWUSR);
 
-#define KVM_NR_SHARED_MSRS 16
+/*
+ * Restoring the host value for MSRs that are only consumed when running in
+ * usermode, e.g. SYSCALL MSRs and TSC_AUX, can be deferred until the CPU
+ * returns to userspace, i.e. the kernel can run with the guest's value.
+ */
+#define KVM_MAX_NR_USER_RETURN_MSRS 16
 
-struct kvm_shared_msrs_global {
+struct kvm_user_return_msrs_global {
 	int nr;
-	u32 msrs[KVM_NR_SHARED_MSRS];
+	u32 msrs[KVM_MAX_NR_USER_RETURN_MSRS];
 };
 
-struct kvm_shared_msrs {
+struct kvm_user_return_msrs {
 	struct user_return_notifier urn;
 	bool registered;
-	struct kvm_shared_msr_values {
+	struct kvm_user_return_msr_values {
 		u64 host;
 		u64 curr;
-	} values[KVM_NR_SHARED_MSRS];
+	} values[KVM_MAX_NR_USER_RETURN_MSRS];
 };
 
-static struct kvm_shared_msrs_global __read_mostly shared_msrs_global;
-static struct kvm_shared_msrs __percpu *shared_msrs;
+static struct kvm_user_return_msrs_global __read_mostly user_return_msrs_global;
+static struct kvm_user_return_msrs __percpu *user_return_msrs;
 
 #define KVM_SUPPORTED_XCR0     (XFEATURE_MASK_FP | XFEATURE_MASK_SSE \
 				| XFEATURE_MASK_YMM | XFEATURE_MASK_BNDREGS \
@@ -294,9 +299,9 @@ static inline void kvm_async_pf_hash_reset(struct kvm_vcpu *vcpu)
 static void kvm_on_user_return(struct user_return_notifier *urn)
 {
 	unsigned slot;
-	struct kvm_shared_msrs *locals
-		= container_of(urn, struct kvm_shared_msrs, urn);
-	struct kvm_shared_msr_values *values;
+	struct kvm_user_return_msrs *msrs
+		= container_of(urn, struct kvm_user_return_msrs, urn);
+	struct kvm_user_return_msr_values *values;
 	unsigned long flags;
 
 	/*
@@ -304,73 +309,73 @@ static void kvm_on_user_return(struct user_return_notifier *urn)
 	 * interrupted and executed through kvm_arch_hardware_disable()
 	 */
 	local_irq_save(flags);
-	if (locals->registered) {
-		locals->registered = false;
+	if (msrs->registered) {
+		msrs->registered = false;
 		user_return_notifier_unregister(urn);
 	}
 	local_irq_restore(flags);
-	for (slot = 0; slot < shared_msrs_global.nr; ++slot) {
-		values = &locals->values[slot];
+	for (slot = 0; slot < user_return_msrs_global.nr; ++slot) {
+		values = &msrs->values[slot];
 		if (values->host != values->curr) {
-			wrmsrl(shared_msrs_global.msrs[slot], values->host);
+			wrmsrl(user_return_msrs_global.msrs[slot], values->host);
 			values->curr = values->host;
 		}
 	}
 }
 
-void kvm_define_shared_msr(unsigned slot, u32 msr)
+void kvm_define_user_return_msr(unsigned slot, u32 msr)
 {
-	BUG_ON(slot >= KVM_NR_SHARED_MSRS);
-	shared_msrs_global.msrs[slot] = msr;
-	if (slot >= shared_msrs_global.nr)
-		shared_msrs_global.nr = slot + 1;
+	BUG_ON(slot >= KVM_MAX_NR_USER_RETURN_MSRS);
+	user_return_msrs_global.msrs[slot] = msr;
+	if (slot >= user_return_msrs_global.nr)
+		user_return_msrs_global.nr = slot + 1;
 }
-EXPORT_SYMBOL_GPL(kvm_define_shared_msr);
+EXPORT_SYMBOL_GPL(kvm_define_user_return_msr);
 
-static void kvm_shared_msr_cpu_online(void)
+static void kvm_user_return_msr_cpu_online(void)
 {
 	unsigned int cpu = smp_processor_id();
-	struct kvm_shared_msrs *smsr = per_cpu_ptr(shared_msrs, cpu);
+	struct kvm_user_return_msrs *msrs = per_cpu_ptr(user_return_msrs, cpu);
 	u64 value;
 	int i;
 
-	for (i = 0; i < shared_msrs_global.nr; ++i) {
-		rdmsrl_safe(shared_msrs_global.msrs[i], &value);
-		smsr->values[i].host = value;
-		smsr->values[i].curr = value;
+	for (i = 0; i < user_return_msrs_global.nr; ++i) {
+		rdmsrl_safe(user_return_msrs_global.msrs[i], &value);
+		msrs->values[i].host = value;
+		msrs->values[i].curr = value;
 	}
 }
 
-int kvm_set_shared_msr(unsigned slot, u64 value, u64 mask)
+int kvm_set_user_return_msr(unsigned slot, u64 value, u64 mask)
 {
 	unsigned int cpu = smp_processor_id();
-	struct kvm_shared_msrs *smsr = per_cpu_ptr(shared_msrs, cpu);
+	struct kvm_user_return_msrs *msrs = per_cpu_ptr(user_return_msrs, cpu);
 	int err;
 
-	value = (value & mask) | (smsr->values[slot].host & ~mask);
-	if (value == smsr->values[slot].curr)
+	value = (value & mask) | (msrs->values[slot].host & ~mask);
+	if (value == msrs->values[slot].curr)
 		return 0;
-	err = wrmsrl_safe(shared_msrs_global.msrs[slot], value);
+	err = wrmsrl_safe(user_return_msrs_global.msrs[slot], value);
 	if (err)
 		return 1;
 
-	smsr->values[slot].curr = value;
-	if (!smsr->registered) {
-		smsr->urn.on_user_return = kvm_on_user_return;
-		user_return_notifier_register(&smsr->urn);
-		smsr->registered = true;
+	msrs->values[slot].curr = value;
+	if (!msrs->registered) {
+		msrs->urn.on_user_return = kvm_on_user_return;
+		user_return_notifier_register(&msrs->urn);
+		msrs->registered = true;
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(kvm_set_shared_msr);
+EXPORT_SYMBOL_GPL(kvm_set_user_return_msr);
 
 static void drop_user_return_notifiers(void)
 {
 	unsigned int cpu = smp_processor_id();
-	struct kvm_shared_msrs *smsr = per_cpu_ptr(shared_msrs, cpu);
+	struct kvm_user_return_msrs *msrs = per_cpu_ptr(user_return_msrs, cpu);
 
-	if (smsr->registered)
-		kvm_on_user_return(&smsr->urn);
+	if (msrs->registered)
+		kvm_on_user_return(&msrs->urn);
 }
 
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
@@ -7529,9 +7534,9 @@ int kvm_arch_init(void *opaque)
 		goto out_free_x86_fpu_cache;
 	}
 
-	shared_msrs = alloc_percpu(struct kvm_shared_msrs);
-	if (!shared_msrs) {
-		printk(KERN_ERR "kvm: failed to allocate percpu kvm_shared_msrs\n");
+	user_return_msrs = alloc_percpu(struct kvm_user_return_msrs);
+	if (!user_return_msrs) {
+		printk(KERN_ERR "kvm: failed to allocate percpu kvm_user_return_msrs\n");
 		goto out_free_x86_emulator_cache;
 	}
 
@@ -7564,7 +7569,7 @@ int kvm_arch_init(void *opaque)
 	return 0;
 
 out_free_percpu:
-	free_percpu(shared_msrs);
+	free_percpu(user_return_msrs);
 out_free_x86_emulator_cache:
 	kmem_cache_destroy(x86_emulator_cache);
 out_free_x86_fpu_cache:
@@ -7591,7 +7596,7 @@ void kvm_arch_exit(void)
 #endif
 	kvm_x86_ops.hardware_enable = NULL;
 	kvm_mmu_module_exit();
-	free_percpu(shared_msrs);
+	free_percpu(user_return_msrs);
 	kmem_cache_destroy(x86_fpu_cache);
 }
 
@@ -9722,7 +9727,7 @@ int kvm_arch_hardware_enable(void)
 	u64 max_tsc = 0;
 	bool stable, backwards_tsc = false;
 
-	kvm_shared_msr_cpu_online();
+	kvm_user_return_msr_cpu_online();
 	ret = kvm_x86_ops.hardware_enable();
 	if (ret != 0)
 		return ret;
