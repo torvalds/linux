@@ -394,6 +394,48 @@ void hubbub3_force_pstate_change_control(struct hubbub *hubbub,
 			DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, force);
 }
 
+/* Copy values from WM set A to all other sets */
+void hubbub3_init_watermarks(struct hubbub *hubbub)
+{
+	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
+	uint32_t reg;
+
+	reg = REG_READ(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A);
+	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, reg);
+
+	reg = REG_READ(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_A);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_D, reg);
+
+	reg = REG_READ(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, reg);
+
+	reg = REG_READ(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_A);
+	REG_WRITE(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_D, reg);
+
+	reg = REG_READ(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D, reg);
+
+	reg = REG_READ(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_A);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D, reg);
+
+	reg = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_A);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, reg);
+}
+
 static const struct hubbub_funcs hubbub30_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub3_init_dchub_sys_ctx,
@@ -408,6 +450,7 @@ static const struct hubbub_funcs hubbub30_funcs = {
 	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
 	.force_wm_propagate_to_pipes = hubbub3_force_wm_propagate_to_pipes,
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
+	.init_watermarks = hubbub3_init_watermarks,
 };
 
 void hubbub3_construct(struct dcn20_hubbub *hubbub3,
