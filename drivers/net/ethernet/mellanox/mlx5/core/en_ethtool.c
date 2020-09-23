@@ -1908,7 +1908,7 @@ static int set_pflag_rx_no_csum_complete(struct net_device *netdev, bool enable)
 	return 0;
 }
 
-static int set_pflag_xdp_tx_mpwqe(struct net_device *netdev, bool enable)
+static int set_pflag_tx_mpwqe_common(struct net_device *netdev, u32 flag, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -1920,7 +1920,7 @@ static int set_pflag_xdp_tx_mpwqe(struct net_device *netdev, bool enable)
 
 	new_channels.params = priv->channels.params;
 
-	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_XDP_TX_MPWQE, enable);
+	MLX5E_SET_PFLAG(&new_channels.params, flag, enable);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -1931,6 +1931,16 @@ static int set_pflag_xdp_tx_mpwqe(struct net_device *netdev, bool enable)
 	return err;
 }
 
+static int set_pflag_xdp_tx_mpwqe(struct net_device *netdev, bool enable)
+{
+	return set_pflag_tx_mpwqe_common(netdev, MLX5E_PFLAG_XDP_TX_MPWQE, enable);
+}
+
+static int set_pflag_skb_tx_mpwqe(struct net_device *netdev, bool enable)
+{
+	return set_pflag_tx_mpwqe_common(netdev, MLX5E_PFLAG_SKB_TX_MPWQE, enable);
+}
+
 static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS] = {
 	{ "rx_cqe_moder",        set_pflag_rx_cqe_based_moder },
 	{ "tx_cqe_moder",        set_pflag_tx_cqe_based_moder },
@@ -1938,6 +1948,7 @@ static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS] = {
 	{ "rx_striding_rq",      set_pflag_rx_striding_rq },
 	{ "rx_no_csum_complete", set_pflag_rx_no_csum_complete },
 	{ "xdp_tx_mpwqe",        set_pflag_xdp_tx_mpwqe },
+	{ "skb_tx_mpwqe",        set_pflag_skb_tx_mpwqe },
 };
 
 static int mlx5e_handle_pflag(struct net_device *netdev,
