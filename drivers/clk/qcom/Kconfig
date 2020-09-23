@@ -444,6 +444,15 @@ config SM_GPUCC_8250
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SM_VIDEOCC_8150
+	tristate "SM8150 Video Clock Controller"
+	select SDM_GCC_8150
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on SM8150 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"
 	depends on SPMI || COMPILE_TEST
