@@ -7,6 +7,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/power/rk3568-power.h>
 
 / {
 	compatible = "rockchip,rk3568";
@@ -238,6 +239,50 @@
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
+	};
+
+	pmu: power-management@fdd90000 {
+		compatible = "rockchip,rk3568-pmu", "syscon", "simple-mfd";
+		reg = <0x0 0xfdd90000 0x0 0x1000>;
+
+		power: power-controller {
+			compatible = "rockchip,rk3568-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			/* These power domains are grouped by VD_NPU */
+			pd_npu@RK3568_PD_NPU {
+				reg = <RK3568_PD_NPU>;
+			};
+			/* These power domains are grouped by VD_GPU */
+			pd_gpu@RK3568_PD_GPU {
+				reg = <RK3568_PD_GPU>;
+			};
+			/* These power domains are grouped by VD_LOGIC */
+			pd_vi@RK3568_PD_VI {
+				reg = <RK3568_PD_VI>;
+			};
+			pd_vo@RK3568_PD_VO {
+				reg = <RK3568_PD_VO>;
+			};
+			pd_rga@RK3568_PD_RGA {
+				reg = <RK3568_PD_RGA>;
+			};
+			pd_vpu@RK3568_PD_VPU {
+				reg = <RK3568_PD_VPU>;
+			};
+			pd_rkvdec@RK3568_PD_RKVDEC {
+				reg = <RK3568_PD_RKVDEC>;
+			};
+			pd_rkvenc@RK3568_PD_RKVENC {
+				reg = <RK3568_PD_RKVENC>;
+			};
+			pd_pipe@RK3568_PD_PIPE {
+				reg = <RK3568_PD_PIPE>;
+			};
+		};
 	};
 
 	dmac0: dmac@fe530000 {
