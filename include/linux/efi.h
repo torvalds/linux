@@ -986,8 +986,6 @@ struct efivar_entry {
 	bool deleting;
 };
 
-extern struct list_head efivar_sysfs_list;
-
 static inline void
 efivar_unregister(struct efivar_entry *var)
 {
@@ -1044,8 +1042,6 @@ void efivar_run_worker(void);
 
 #if defined(CONFIG_EFI_VARS) || defined(CONFIG_EFI_VARS_MODULE)
 int efivars_sysfs_init(void);
-
-#define EFIVARS_DATA_SIZE_MAX 1024
 
 #endif /* CONFIG_EFI_VARS */
 extern bool efi_capsule_pending(int *reset_type);

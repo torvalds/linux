@@ -26,7 +26,7 @@ config EFI_ESRT
 
 config EFI_VARS_PSTORE
 	tristate "Register efivars backend for pstore"
-	depends on EFI_VARS && PSTORE
+	depends on PSTORE
 	default y
 	help
 	  Say Y here to enable use efivars as a backend to pstore. This

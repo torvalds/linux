@@ -24,8 +24,7 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(EFIVARS_VERSION);
 MODULE_ALIAS("platform:efivars");
 
-LIST_HEAD(efivar_sysfs_list);
-EXPORT_SYMBOL_GPL(efivar_sysfs_list);
+static LIST_HEAD(efivar_sysfs_list);
 
 static struct kset *efivars_kset;
 
@@ -591,42 +590,6 @@ out_free:
 	return error;
 }
 
-static int efivar_update_sysfs_entry(efi_char16_t *name, efi_guid_t vendor,
-				     unsigned long name_size, void *data)
-{
-	struct efivar_entry *entry = data;
-
-	if (efivar_entry_find(name, vendor, &efivar_sysfs_list, false))
-		return 0;
-
-	memcpy(entry->var.VariableName, name, name_size);
-	memcpy(&(entry->var.VendorGuid), &vendor, sizeof(efi_guid_t));
-
-	return 1;
-}
-
-static void efivar_update_sysfs_entries(struct work_struct *work)
-{
-	struct efivar_entry *entry;
-	int err;
-
-	/* Add new sysfs entries */
-	while (1) {
-		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-		if (!entry)
-			return;
-
-		err = efivar_init(efivar_update_sysfs_entry, entry,
-				  false, &efivar_sysfs_list);
-		if (!err)
-			break;
-
-		efivar_create_sysfs_entry(entry);
-	}
-
-	kfree(entry);
-}
-
 static int efivars_sysfs_callback(efi_char16_t *name, efi_guid_t vendor,
 				  unsigned long name_size, void *data)
 {
@@ -700,8 +663,6 @@ int efivars_sysfs_init(void)
 		efivars_sysfs_exit();
 		return error;
 	}
-
-	INIT_WORK(&efivar_work, efivar_update_sysfs_entries);
 
 	return 0;
 }
