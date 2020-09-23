@@ -198,17 +198,20 @@ module_param(dbg, bool, 0644);
 #define PTE_LIST_EXT 3
 
 /*
- * Return values of handle_mmio_page_fault and mmu.page_fault:
+ * Return values of handle_mmio_page_fault, mmu.page_fault, and fast_page_fault().
+ *
  * RET_PF_RETRY: let CPU fault again on the address.
  * RET_PF_EMULATE: mmio page fault, emulate the instruction directly.
- *
- * For handle_mmio_page_fault only:
  * RET_PF_INVALID: the spte is invalid, let the real page fault path update it.
+ * RET_PF_FIXED: The faulting entry has been fixed.
+ * RET_PF_SPURIOUS: The faulting entry was already fixed, e.g. by another vCPU.
  */
 enum {
 	RET_PF_RETRY = 0,
-	RET_PF_EMULATE = 1,
-	RET_PF_INVALID = 2,
+	RET_PF_EMULATE,
+	RET_PF_INVALID,
+	RET_PF_FIXED,
+	RET_PF_SPURIOUS,
 };
 
 struct pte_list_desc {
@@ -3083,7 +3086,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	int was_rmapped = 0;
 	int rmap_count;
 	int set_spte_ret;
-	int ret = RET_PF_RETRY;
+	int ret = RET_PF_FIXED;
 	bool flush = false;
 
 	pgprintk("%s: spte %llx write_fault %d gfn %llx\n", __func__,
@@ -3491,21 +3494,19 @@ static bool is_access_allowed(u32 fault_err_code, u64 spte)
 }
 
 /*
- * Return value:
- * - true: let the vcpu to access on the same address again.
- * - false: let the real page fault path to fix it.
+ * Returns one of RET_PF_INVALID, RET_PF_FIXED or RET_PF_SPURIOUS.
  */
-static bool fast_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
-			    u32 error_code)
+static int fast_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+			   u32 error_code)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
-	bool fault_handled = false;
+	int ret = RET_PF_INVALID;
 	u64 spte = 0ull;
 	uint retry_count = 0;
 
 	if (!page_fault_can_be_fast(error_code))
-		return false;
+		return ret;
 
 	walk_shadow_page_lockless_begin(vcpu);
 
@@ -3531,7 +3532,7 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		 * they are always ACC_ALL.
 		 */
 		if (is_access_allowed(error_code, spte)) {
-			fault_handled = true;
+			ret = RET_PF_SPURIOUS;
 			break;
 		}
 
@@ -3574,11 +3575,11 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		 * since the gfn is not stable for indirect shadow page. See
 		 * Documentation/virt/kvm/locking.rst to get more detail.
 		 */
-		fault_handled = fast_pf_fix_direct_spte(vcpu, sp,
-							iterator.sptep, spte,
-							new_spte);
-		if (fault_handled)
+		if (fast_pf_fix_direct_spte(vcpu, sp, iterator.sptep, spte,
+					    new_spte)) {
+			ret = RET_PF_FIXED;
 			break;
+		}
 
 		if (++retry_count > 4) {
 			printk_once(KERN_WARNING
@@ -3589,10 +3590,10 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	} while (true);
 
 	trace_fast_page_fault(vcpu, cr2_or_gpa, error_code, iterator.sptep,
-			      spte, fault_handled);
+			      spte, ret);
 	walk_shadow_page_lockless_end(vcpu);
 
-	return fault_handled;
+	return ret;
 }
 
 static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
@@ -4104,8 +4105,9 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	if (page_fault_handle_page_track(vcpu, error_code, gfn))
 		return RET_PF_EMULATE;
 
-	if (fast_page_fault(vcpu, gpa, error_code))
-		return RET_PF_RETRY;
+	r = fast_page_fault(vcpu, gpa, error_code);
+	if (r != RET_PF_INVALID)
+		return r;
 
 	r = mmu_topup_memory_caches(vcpu, false);
 	if (r)

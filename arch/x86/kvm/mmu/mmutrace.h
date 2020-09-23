@@ -244,14 +244,11 @@ TRACE_EVENT(
 		  __entry->access)
 );
 
-#define __spte_satisfied(__spte)				\
-	(__entry->retry && is_writable_pte(__entry->__spte))
-
 TRACE_EVENT(
 	fast_page_fault,
 	TP_PROTO(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u32 error_code,
-		 u64 *sptep, u64 old_spte, bool retry),
-	TP_ARGS(vcpu, cr2_or_gpa, error_code, sptep, old_spte, retry),
+		 u64 *sptep, u64 old_spte, int ret),
+	TP_ARGS(vcpu, cr2_or_gpa, error_code, sptep, old_spte, ret),
 
 	TP_STRUCT__entry(
 		__field(int, vcpu_id)
@@ -260,7 +257,7 @@ TRACE_EVENT(
 		__field(u64 *, sptep)
 		__field(u64, old_spte)
 		__field(u64, new_spte)
-		__field(bool, retry)
+		__field(int, ret)
 	),
 
 	TP_fast_assign(
@@ -270,7 +267,7 @@ TRACE_EVENT(
 		__entry->sptep = sptep;
 		__entry->old_spte = old_spte;
 		__entry->new_spte = *sptep;
-		__entry->retry = retry;
+		__entry->ret = ret;
 	),
 
 	TP_printk("vcpu %d gva %llx error_code %s sptep %p old %#llx"
@@ -278,7 +275,7 @@ TRACE_EVENT(
 		  __entry->cr2_or_gpa, __print_flags(__entry->error_code, "|",
 		  kvm_mmu_trace_pferr_flags), __entry->sptep,
 		  __entry->old_spte, __entry->new_spte,
-		  __spte_satisfied(old_spte), __spte_satisfied(new_spte)
+		  __entry->ret == RET_PF_SPURIOUS, __entry->ret == RET_PF_FIXED
 	)
 );
 
