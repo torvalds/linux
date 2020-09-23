@@ -56,4 +56,29 @@ analogue data is never read from the pixel matrix that are outside the
 configured selection rectangle that designates crop. The difference has an
 effect in device timing and likely also in power consumption.
 
+Private controls
+----------------
+
+The MIPI CCS driver implements a number of private controls under
+``V4L2_CID_USER_BASE_CCS`` to control the MIPI CCS compliant camera sensors.
+
+Analogue gain model
+~~~~~~~~~~~~~~~~~~~
+
+The CCS defines an analogue gain model where the gain can be calculated using
+the following formula:
+
+	gain = m0 * x + c0 / (m1 * x + c1)
+
+Either m0 or c0 will be zero. The constants that are device specific, can be
+obtained from the following controls:
+
+	V4L2_CID_CCS_ANALOGUE_GAIN_M0
+	V4L2_CID_CCS_ANALOGUE_GAIN_M1
+	V4L2_CID_CCS_ANALOGUE_GAIN_C0
+	V4L2_CID_CCS_ANALOGUE_GAIN_C1
+
+The analogue gain (``x`` in the formula) is controlled through
+``V4L2_CID_ANALOGUE_GAIN`` in this case.
+
 **Copyright** |copy| 2020 Intel Corporation
