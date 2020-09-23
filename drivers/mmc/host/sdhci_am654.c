@@ -396,7 +396,46 @@ static u32 sdhci_am654_cqhci_irq(struct sdhci_host *host, u32 intmask)
 	return 0;
 }
 
+#define ITAP_MAX	32
+static int sdhci_am654_platform_execute_tuning(struct sdhci_host *host,
+					       u32 opcode)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
+	int cur_val, prev_val = 1, fail_len = 0, pass_window = 0, pass_len;
+	u32 itap;
+
+	/* Enable ITAPDLY */
+	regmap_update_bits(sdhci_am654->base, PHY_CTRL4, ITAPDLYENA_MASK,
+			   1 << ITAPDLYENA_SHIFT);
+
+	for (itap = 0; itap < ITAP_MAX; itap++) {
+		sdhci_am654_write_itapdly(sdhci_am654, itap);
+
+		cur_val = !mmc_send_tuning(host->mmc, opcode, NULL);
+		if (cur_val && !prev_val)
+			pass_window = itap;
+
+		if (!cur_val)
+			fail_len++;
+
+		prev_val = cur_val;
+	}
+	/*
+	 * Having determined the length of the failing window and start of
+	 * the passing window calculate the length of the passing window and
+	 * set the final value halfway through it considering the range as a
+	 * circular buffer
+	 */
+	pass_len = ITAP_MAX - fail_len;
+	itap = (pass_window + (pass_len >> 1)) % ITAP_MAX;
+	sdhci_am654_write_itapdly(sdhci_am654, itap);
+
+	return 0;
+}
+
 static struct sdhci_ops sdhci_am654_ops = {
+	.platform_execute_tuning = sdhci_am654_platform_execute_tuning,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
@@ -426,6 +465,7 @@ static const struct sdhci_am654_driver_data sdhci_am654_drvdata = {
 };
 
 static struct sdhci_ops sdhci_j721e_8bit_ops = {
+	.platform_execute_tuning = sdhci_am654_platform_execute_tuning,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
@@ -449,6 +489,7 @@ static const struct sdhci_am654_driver_data sdhci_j721e_8bit_drvdata = {
 };
 
 static struct sdhci_ops sdhci_j721e_4bit_ops = {
+	.platform_execute_tuning = sdhci_am654_platform_execute_tuning,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
