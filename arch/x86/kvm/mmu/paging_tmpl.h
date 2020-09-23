@@ -625,11 +625,14 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
  * emulate this operation, return 1 to indicate this case.
  */
 static int FNAME(fetch)(struct kvm_vcpu *vcpu, gpa_t addr,
-			 struct guest_walker *gw,
-			 int write_fault, int max_level,
-			 kvm_pfn_t pfn, bool map_writable, bool prefault,
-			 bool lpage_disallowed)
+			 struct guest_walker *gw, u32 error_code,
+			 int max_level, kvm_pfn_t pfn, bool map_writable,
+			 bool prefault)
 {
+	bool nx_huge_page_workaround_enabled = is_nx_huge_page_enabled();
+	int write_fault = error_code & PFERR_WRITE_MASK;
+	bool exec = error_code & PFERR_FETCH_MASK;
+	bool huge_page_disallowed = exec && nx_huge_page_workaround_enabled;
 	struct kvm_mmu_page *sp = NULL;
 	struct kvm_shadow_walk_iterator it;
 	unsigned direct_access, access = gw->pt_access;
@@ -679,6 +682,9 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gpa_t addr,
 			link_shadow_page(vcpu, it.sptep, sp);
 	}
 
+	if (huge_page_disallowed)
+		max_level = PG_LEVEL_4K;
+
 	hlevel = kvm_mmu_hugepage_adjust(vcpu, gw->gfn, max_level, &pfn);
 
 	trace_kvm_mmu_spte_requested(addr, gw->level, pfn);
@@ -704,7 +710,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gpa_t addr,
 			sp = kvm_mmu_get_page(vcpu, base_gfn, addr,
 					      it.level - 1, true, direct_access);
 			link_shadow_page(vcpu, it.sptep, sp);
-			if (lpage_disallowed)
+			if (huge_page_disallowed)
 				account_huge_nx_page(vcpu->kvm, sp);
 		}
 	}
@@ -786,8 +792,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 	kvm_pfn_t pfn;
 	unsigned long mmu_seq;
 	bool map_writable, is_self_change_mapping;
-	bool lpage_disallowed = (error_code & PFERR_FETCH_MASK) &&
-				is_nx_huge_page_enabled();
 	int max_level;
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
@@ -828,7 +832,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 	is_self_change_mapping = FNAME(is_self_change_mapping)(vcpu,
 	      &walker, user_fault, &vcpu->arch.write_fault_to_shadow_pgtable);
 
-	if (lpage_disallowed || is_self_change_mapping)
+	if (is_self_change_mapping)
 		max_level = PG_LEVEL_4K;
 	else
 		max_level = walker.level;
@@ -872,8 +876,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 	r = make_mmu_pages_available(vcpu);
 	if (r)
 		goto out_unlock;
-	r = FNAME(fetch)(vcpu, addr, &walker, write_fault, max_level, pfn,
-			 map_writable, prefault, lpage_disallowed);
+	r = FNAME(fetch)(vcpu, addr, &walker, error_code, max_level, pfn,
+			 map_writable, prefault);
 	kvm_mmu_audit(vcpu, AUDIT_POST_PAGE_FAULT);
 
 out_unlock:
