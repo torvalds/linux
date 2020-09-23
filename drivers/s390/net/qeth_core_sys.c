@@ -103,9 +103,14 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
 	unsigned int portno, limit;
 	int rc = 0;
+
+	rc = kstrtouint(buf, 16, &portno);
+	if (rc)
+		return rc;
+	if (portno > QETH_MAX_PORTNO)
+		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
 	if (card->state != CARD_STATE_DOWN) {
@@ -113,11 +118,6 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		goto out;
 	}
 
-	portno = simple_strtoul(buf, &tmp, 16);
-	if (portno > QETH_MAX_PORTNO) {
-		rc = -EINVAL;
-		goto out;
-	}
 	limit = (card->ssqd.pcnt ? card->ssqd.pcnt - 1 : card->ssqd.pcnt);
 	if (portno > limit) {
 		rc = -EINVAL;
@@ -248,8 +248,11 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	unsigned int cnt;
-	char *tmp;
 	int rc = 0;
+
+	rc = kstrtouint(buf, 10, &cnt);
+	if (rc)
+		return rc;
 
 	mutex_lock(&card->conf_mutex);
 	if (card->state != CARD_STATE_DOWN) {
@@ -257,10 +260,7 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 		goto out;
 	}
 
-	cnt = simple_strtoul(buf, &tmp, 10);
-	cnt = (cnt < QETH_IN_BUF_COUNT_MIN) ? QETH_IN_BUF_COUNT_MIN :
-		((cnt > QETH_IN_BUF_COUNT_MAX) ? QETH_IN_BUF_COUNT_MAX : cnt);
-
+	cnt = clamp(cnt, QETH_IN_BUF_COUNT_MIN, QETH_IN_BUF_COUNT_MAX);
 	rc = qeth_resize_buffer_pool(card, cnt);
 
 out:
@@ -341,18 +341,15 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	struct net_device *ndev;
-	char *tmp;
-	int i, rc = 0;
 	enum qeth_discipline_id newdis;
+	unsigned int input;
+	int rc;
 
-	mutex_lock(&card->discipline_mutex);
-	if (card->state != CARD_STATE_DOWN) {
-		rc = -EPERM;
-		goto out;
-	}
+	rc = kstrtouint(buf, 16, &input);
+	if (rc)
+		return rc;
 
-	i = simple_strtoul(buf, &tmp, 16);
-	switch (i) {
+	switch (input) {
 	case 0:
 		newdis = QETH_DISCIPLINE_LAYER3;
 		break;
@@ -360,7 +357,12 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		newdis = QETH_DISCIPLINE_LAYER2;
 		break;
 	default:
-		rc = -EINVAL;
+		return -EINVAL;
+	}
+
+	mutex_lock(&card->discipline_mutex);
+	if (card->state != CARD_STATE_DOWN) {
+		rc = -EPERM;
 		goto out;
 	}
 
@@ -551,20 +553,21 @@ static DEVICE_ATTR(hw_trap, 0644, qeth_hw_trap_show,
 static ssize_t qeth_dev_blkt_store(struct qeth_card *card,
 		const char *buf, size_t count, int *value, int max_value)
 {
-	char *tmp;
-	int i, rc = 0;
+	unsigned int input;
+	int rc;
+
+	rc = kstrtouint(buf, 10, &input);
+	if (rc)
+		return rc;
+
+	if (input > max_value)
+		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if (card->state != CARD_STATE_DOWN) {
+	if (card->state != CARD_STATE_DOWN)
 		rc = -EPERM;
-		goto out;
-	}
-	i = simple_strtoul(buf, &tmp, 10);
-	if (i <= max_value)
-		*value = i;
 	else
-		rc = -EINVAL;
-out:
+		*value = input;
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
