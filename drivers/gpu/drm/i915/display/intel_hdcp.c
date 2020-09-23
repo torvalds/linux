@@ -1448,7 +1448,6 @@ static
 int _hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	union {
 		struct hdcp2_rep_stream_manage stream_manage;
@@ -1456,6 +1455,9 @@ int _hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 	} msgs;
 	const struct intel_hdcp_shim *shim = hdcp->shim;
 	int ret;
+
+	if (connector->hdcp.seq_num_m > HDCP_2_2_SEQ_NUM_MAX)
+		return -ERANGE;
 
 	/* Prepare RepeaterAuth_Stream_Manage msg */
 	msgs.stream_manage.msg_id = HDCP_2_2_REP_STREAM_MANAGE;
@@ -1485,10 +1487,6 @@ int _hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 
 out:
 	hdcp->seq_num_m++;
-	if (hdcp->seq_num_m > HDCP_2_2_SEQ_NUM_MAX) {
-		drm_dbg_kms(&i915->drm, "seq_num_m roll over.\n");
-		return -ERANGE;
-	}
 
 	return ret;
 }
@@ -1698,6 +1696,13 @@ hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 		ret = _hdcp2_propagate_stream_management_info(connector);
 		if (!ret)
 			break;
+
+		/* Lets restart the auth incase of seq_num_m roll over */
+		if (connector->hdcp.seq_num_m > HDCP_2_2_SEQ_NUM_MAX) {
+			drm_dbg_kms(&i915->drm,
+				    "seq_num_m roll over.(%d)\n", ret);
+			break;
+		}
 
 		drm_dbg_kms(&i915->drm,
 			    "HDCP2 stream management %d of %d Failed.(%d)\n",
