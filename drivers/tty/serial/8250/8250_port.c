@@ -2665,7 +2665,6 @@ void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 
 	serial8250_set_divisor(port, baud, quot, frac);
 	serial_port_out(port, UART_LCR, up->lcr);
-	serial8250_out_MCR(up, UART_MCR_DTR | UART_MCR_RTS);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 	serial8250_rpm_put(up);
