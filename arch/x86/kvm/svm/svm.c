@@ -2965,12 +2965,19 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	       "excp_to:", save->last_excp_to);
 }
 
-static void svm_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
+static void svm_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2,
+			      u32 *intr_info, u32 *error_code)
 {
 	struct vmcb_control_area *control = &to_svm(vcpu)->vmcb->control;
 
 	*info1 = control->exit_info_1;
 	*info2 = control->exit_info_2;
+	*intr_info = control->exit_int_info;
+	if ((*intr_info & SVM_EXITINTINFO_VALID) &&
+	    (*intr_info & SVM_EXITINTINFO_VALID_ERR))
+		*error_code = control->exit_int_info_err;
+	else
+		*error_code = 0;
 }
 
 static int handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
