@@ -72,6 +72,7 @@ struct rcu_segcblist {
 #else
 	long len;
 #endif
+	long seglen[RCU_CBLIST_NSEGS];
 	u8 enabled;
 	u8 offloaded;
 };
