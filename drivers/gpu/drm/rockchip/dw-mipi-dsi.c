@@ -222,6 +222,7 @@ enum grf_reg_fields {
 	VOPSEL,
 	TURNREQUEST,
 	TURNDISABLE,
+	SKEWCALHS,
 	FORCETXSTOPMODE,
 	FORCERXMODE,
 	ENABLE_N,
@@ -1352,13 +1353,16 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
+	s->output_if = dsi->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
 	s->bus_flags = info->bus_flags;
 	s->tv_state = &conn_state->tv;
 	s->eotf = TRADITIONAL_GAMMA_SDR;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
-	if (dsi->slave)
+	if (dsi->slave) {
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
+		s->output_if |= VOP_OUTPUT_IF_MIPI1;
+	}
 
 	if (dsi->id)
 		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
@@ -1914,6 +1918,31 @@ static const struct dw_mipi_dsi_plat_data rv1126_mipi_dsi_plat_data = {
 	.max_bit_rate_per_lane = 1000000000UL,
 };
 
+static const u32 rk3568_dsi0_grf_reg_fields[MAX_FIELDS] = {
+	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0360,  2,  2),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0360,  1,  1),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0360,  0,  0),
+	[SKEWCALHS]		= GRF_REG_FIELD(0x0368, 11, 15),
+	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x0368,  4,  7),
+	[TURNDISABLE]		= GRF_REG_FIELD(0x0368,  2,  2),
+	[FORCERXMODE]		= GRF_REG_FIELD(0x0368,  0,  0),
+};
+
+static const u32 rk3568_dsi1_grf_reg_fields[MAX_FIELDS] = {
+	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0360, 10, 10),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0360,  9,  9),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0360,  8,  8),
+	[SKEWCALHS]             = GRF_REG_FIELD(0x036c, 11, 15),
+	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x036c,  4,  7),
+	[TURNDISABLE]		= GRF_REG_FIELD(0x036c,  2,  2),
+	[FORCERXMODE]		= GRF_REG_FIELD(0x036c,  0,  0),
+};
+static const struct dw_mipi_dsi_plat_data rk3568_mipi_dsi_plat_data = {
+	.dsi0_grf_reg_fields = rk3568_dsi0_grf_reg_fields,
+	.dsi1_grf_reg_fields = rk3568_dsi1_grf_reg_fields,
+	.max_bit_rate_per_lane = 1000000000UL,
+};
+
 static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 	{
 		.compatible = "rockchip,px30-mipi-dsi",
@@ -1933,6 +1962,9 @@ static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 	}, {
 		.compatible = "rockchip,rk3399-mipi-dsi",
 		.data = &rk3399_mipi_dsi_plat_data,
+	}, {
+		.compatible = "rockchip,rk3568-mipi-dsi",
+		.data = &rk3568_mipi_dsi_plat_data,
 	}, {
 		.compatible = "rockchip,rv1126-mipi-dsi",
 		.data = &rv1126_mipi_dsi_plat_data,
