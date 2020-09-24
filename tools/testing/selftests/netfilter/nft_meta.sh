@@ -23,6 +23,8 @@ ip -net "$ns0" addr add 127.0.0.1 dev lo
 
 trap cleanup EXIT
 
+currentyear=$(date +%G)
+lastyear=$((currentyear-1))
 ip netns exec "$ns0" nft -f /dev/stdin <<EOF
 table inet filter {
 	counter iifcount {}
@@ -33,6 +35,8 @@ table inet filter {
 	counter il4protocounter {}
 	counter imarkcounter {}
 	counter icpu0counter {}
+	counter ilastyearcounter {}
+	counter icurrentyearcounter {}
 
 	counter oifcount {}
 	counter oifnamecount {}
@@ -55,6 +59,8 @@ table inet filter {
 		meta l4proto icmp counter name "il4protocounter"
 		meta mark 42 counter name "imarkcounter"
 		meta cpu 0 counter name "icpu0counter"
+		meta time "$lastyear-01-01" - "$lastyear-12-31" counter name ilastyearcounter
+		meta time "$currentyear-01-01" - "$currentyear-12-31" counter name icurrentyearcounter
 	}
 
 	chain output {
@@ -100,8 +106,7 @@ check_lo_counters()
 
 	for counter in iifcount iifnamecount iifgroupcount iiftypecount infproto4count \
 		       oifcount oifnamecount oifgroupcount oiftypecount onfproto4count \
-		       il4protocounter \
-		       ol4protocounter \
+		       il4protocounter icurrentyearcounter ol4protocounter \
 	     ; do
 		check_one_counter "$counter" "$want" "$verbose"
 	done
@@ -116,6 +121,7 @@ check_one_counter oskuidcounter "1" true
 check_one_counter oskgidcounter "1" true
 check_one_counter imarkcounter "1" true
 check_one_counter omarkcounter "1" true
+check_one_counter ilastyearcounter "0" true
 
 if [ $ret -eq 0 ];then
 	echo "OK: nftables meta iif/oif counters at expected values"
