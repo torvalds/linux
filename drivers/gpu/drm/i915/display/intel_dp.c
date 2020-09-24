@@ -615,7 +615,8 @@ intel_dp_output_format(struct drm_connector *connector,
 	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	const struct drm_display_info *info = &connector->display_info;
 
-	if (!drm_mode_is_420_only(info, mode))
+	if (!connector->ycbcr_420_allowed ||
+	    !drm_mode_is_420_only(info, mode))
 		return INTEL_OUTPUT_FORMAT_RGB;
 
 	if (intel_dp->dfp.ycbcr_444_to_420)
@@ -2437,25 +2438,6 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static int
-intel_dp_ycbcr420_config(struct intel_crtc_state *crtc_state,
-			 const struct drm_connector_state *conn_state)
-{
-	struct drm_connector *connector = conn_state->connector;
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
-
-	if (!connector->ycbcr_420_allowed)
-		return 0;
-
-	crtc_state->output_format = intel_dp_output_format(connector, adjusted_mode);
-
-	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_YCBCR420)
-		return 0;
-
-	return intel_pch_panel_fitting(crtc_state, conn_state);
-}
-
 bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
@@ -2705,11 +2687,14 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
 
-	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	pipe_config->output_format = intel_dp_output_format(&intel_connector->base,
+							    adjusted_mode);
 
-	ret = intel_dp_ycbcr420_config(pipe_config, conn_state);
-	if (ret)
-		return ret;
+	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
+		ret = intel_pch_panel_fitting(pipe_config, conn_state);
+		if (ret)
+			return ret;
+	}
 
 	if (!intel_dp_port_has_audio(dev_priv, port))
 		pipe_config->has_audio = false;
