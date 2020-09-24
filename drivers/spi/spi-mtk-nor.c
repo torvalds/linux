@@ -168,10 +168,76 @@ static bool mtk_nor_match_read(const struct spi_mem_op *op)
 	return false;
 }
 
+static bool mtk_nor_match_prg(const struct spi_mem_op *op)
+{
+	int tx_len, rx_len, prg_len, prg_left;
+
+	// prg mode is spi-only.
+	if ((op->cmd.buswidth > 1) || (op->addr.buswidth > 1) ||
+	    (op->dummy.buswidth > 1) || (op->data.buswidth > 1))
+		return false;
+
+	tx_len = op->cmd.nbytes + op->addr.nbytes;
+
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		// count dummy bytes only if we need to write data after it
+		tx_len += op->dummy.nbytes;
+
+		// leave at least one byte for data
+		if (tx_len > MTK_NOR_REG_PRGDATA_MAX)
+			return false;
+
+		// if there's no addr, meaning adjust_op_size is impossible,
+		// check data length as well.
+		if ((!op->addr.nbytes) &&
+		    (tx_len + op->data.nbytes > MTK_NOR_REG_PRGDATA_MAX + 1))
+			return false;
+	} else if (op->data.dir == SPI_MEM_DATA_IN) {
+		if (tx_len > MTK_NOR_REG_PRGDATA_MAX + 1)
+			return false;
+
+		rx_len = op->data.nbytes;
+		prg_left = MTK_NOR_PRG_CNT_MAX / 8 - tx_len - op->dummy.nbytes;
+		if (prg_left > MTK_NOR_REG_SHIFT_MAX + 1)
+			prg_left = MTK_NOR_REG_SHIFT_MAX + 1;
+		if (rx_len > prg_left) {
+			if (!op->addr.nbytes)
+				return false;
+			rx_len = prg_left;
+		}
+
+		prg_len = tx_len + op->dummy.nbytes + rx_len;
+		if (prg_len > MTK_NOR_PRG_CNT_MAX / 8)
+			return false;
+	} else {
+		prg_len = tx_len + op->dummy.nbytes;
+		if (prg_len > MTK_NOR_PRG_CNT_MAX / 8)
+			return false;
+	}
+	return true;
+}
+
+static void mtk_nor_adj_prg_size(struct spi_mem_op *op)
+{
+	int tx_len, tx_left, prg_left;
+
+	tx_len = op->cmd.nbytes + op->addr.nbytes;
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		tx_len += op->dummy.nbytes;
+		tx_left = MTK_NOR_REG_PRGDATA_MAX + 1 - tx_len;
+		if (op->data.nbytes > tx_left)
+			op->data.nbytes = tx_left;
+	} else if (op->data.dir == SPI_MEM_DATA_IN) {
+		prg_left = MTK_NOR_PRG_CNT_MAX / 8 - tx_len - op->dummy.nbytes;
+		if (prg_left > MTK_NOR_REG_SHIFT_MAX + 1)
+			prg_left = MTK_NOR_REG_SHIFT_MAX + 1;
+		if (op->data.nbytes > prg_left)
+			op->data.nbytes = prg_left;
+	}
+}
+
 static int mtk_nor_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	size_t len;
-
 	if (!op->data.nbytes)
 		return 0;
 
@@ -200,11 +266,7 @@ static int mtk_nor_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 		}
 	}
 
-	len = MTK_NOR_PRG_MAX_SIZE - op->cmd.nbytes - op->addr.nbytes -
-	      op->dummy.nbytes;
-	if (op->data.nbytes > len)
-		op->data.nbytes = len;
-
+	mtk_nor_adj_prg_size(op);
 	return 0;
 }
 
