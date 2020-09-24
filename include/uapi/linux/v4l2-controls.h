@@ -204,6 +204,11 @@ enum v4l2_colorfx {
  * We reserve 16 controls for this driver.
  */
 #define V4L2_CID_USER_CODA_BASE			(V4L2_CID_USER_BASE + 0x10e0)
+/*
+ * The base for MIPI CCS driver controls.
+ * We reserve 128 controls for this driver.
+ */
+#define V4L2_CID_USER_CCS_BASE			(V4L2_CID_USER_BASE + 0x10f0)
 
 /* MPEG-class control IDs */
 /* The MPEG controls are applicable to all codec controls
