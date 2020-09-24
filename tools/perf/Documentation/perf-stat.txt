@@ -166,6 +166,11 @@ use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
 If wanting to monitor, say, 'cycles' for a cgroup and also for system wide, this
 command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
+--for-each-cgroup name::
+Expand event list for each cgroup in "name" (allow multiple cgroups separated
+by comma).  This has same effect that repeating -e option and -G option for
+each event x name.  This option cannot be used with -G/--cgroup option.
+
 -o file::
 --output file::
 Print the output into the designated file.

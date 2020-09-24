@@ -145,6 +145,7 @@ struct perf_stat_config {
 	int			 ctl_fd;
 	int			 ctl_fd_ack;
 	bool			 ctl_fd_close;
+	const char		*cgroup_list;
 };
 
 void perf_stat__set_big_num(int set);

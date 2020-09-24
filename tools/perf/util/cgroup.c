@@ -193,6 +193,85 @@ int parse_cgroups(const struct option *opt, const char *str,
 	return 0;
 }
 
+int evlist__expand_cgroup(struct evlist *evlist, const char *str)
+{
+	struct evlist *orig_list, *tmp_list;
+	struct evsel *pos, *evsel, *leader;
+	struct cgroup *cgrp = NULL;
+	const char *p, *e, *eos = str + strlen(str);
+	int ret = -1;
+
+	if (evlist->core.nr_entries == 0) {
+		fprintf(stderr, "must define events before cgroups\n");
+		return -EINVAL;
+	}
+
+	orig_list = evlist__new();
+	tmp_list = evlist__new();
+	if (orig_list == NULL || tmp_list == NULL) {
+		fprintf(stderr, "memory allocation failed\n");
+		return -ENOMEM;
+	}
+
+	/* save original events and init evlist */
+	perf_evlist__splice_list_tail(orig_list, &evlist->core.entries);
+	evlist->core.nr_entries = 0;
+
+	for (;;) {
+		p = strchr(str, ',');
+		e = p ? p : eos;
+
+		/* allow empty cgroups, i.e., skip */
+		if (e - str) {
+			/* termination added */
+			char *name = strndup(str, e - str);
+			if (!name)
+				goto out_err;
+
+			cgrp = cgroup__new(name);
+			free(name);
+			if (cgrp == NULL)
+				goto out_err;
+		} else {
+			cgrp = NULL;
+		}
+
+		leader = NULL;
+		evlist__for_each_entry(orig_list, pos) {
+			evsel = evsel__clone(pos);
+			if (evsel == NULL)
+				goto out_err;
+
+			cgroup__put(evsel->cgrp);
+			evsel->cgrp = cgroup__get(cgrp);
+
+			if (evsel__is_group_leader(pos))
+				leader = evsel;
+			evsel->leader = leader;
+
+			evlist__add(tmp_list, evsel);
+		}
+		/* cgroup__new() has a refcount, release it here */
+		cgroup__put(cgrp);
+		nr_cgroups++;
+
+		perf_evlist__splice_list_tail(evlist, &tmp_list->core.entries);
+		tmp_list->core.nr_entries = 0;
+
+		if (!p) {
+			ret = 0;
+			break;
+		}
+		str = p+1;
+	}
+
+out_err:
+	evlist__delete(orig_list);
+	evlist__delete(tmp_list);
+
+	return ret;
+}
+
 static struct cgroup *__cgroup__findnew(struct rb_root *root, uint64_t id,
 					bool create, const char *path)
 {
