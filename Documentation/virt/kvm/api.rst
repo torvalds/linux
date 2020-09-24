@@ -4498,11 +4498,14 @@ Currently, the following list of CPUID leaves are returned:
  - HYPERV_CPUID_ENLIGHTMENT_INFO
  - HYPERV_CPUID_IMPLEMENT_LIMITS
  - HYPERV_CPUID_NESTED_FEATURES
+ - HYPERV_CPUID_SYNDBG_VENDOR_AND_MAX_FUNCTIONS
+ - HYPERV_CPUID_SYNDBG_INTERFACE
+ - HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES
 
 HYPERV_CPUID_NESTED_FEATURES leaf is only exposed when Enlightened VMCS was
 enabled on the corresponding vCPU (KVM_CAP_HYPERV_ENLIGHTENED_VMCS).
 
-Userspace invokes KVM_GET_SUPPORTED_CPUID by passing a kvm_cpuid2 structure
+Userspace invokes KVM_GET_SUPPORTED_HV_CPUID by passing a kvm_cpuid2 structure
 with the 'nent' field indicating the number of entries in the variable-size
 array 'entries'.  If the number of entries is too low to describe all Hyper-V
 feature leaves, an error (E2BIG) is returned. If the number is more or equal
