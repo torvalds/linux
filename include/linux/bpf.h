@@ -383,8 +383,22 @@ enum bpf_reg_type {
 	PTR_TO_TCP_SOCK_OR_NULL, /* reg points to struct tcp_sock or NULL */
 	PTR_TO_TP_BUFFER,	 /* reg points to a writable raw tp's buffer */
 	PTR_TO_XDP_SOCK,	 /* reg points to struct xdp_sock */
-	PTR_TO_BTF_ID,		 /* reg points to kernel struct */
-	PTR_TO_BTF_ID_OR_NULL,	 /* reg points to kernel struct or NULL */
+	/* PTR_TO_BTF_ID points to a kernel struct that does not need
+	 * to be null checked by the BPF program. This does not imply the
+	 * pointer is _not_ null and in practice this can easily be a null
+	 * pointer when reading pointer chains. The assumption is program
+	 * context will handle null pointer dereference typically via fault
+	 * handling. The verifier must keep this in mind and can make no
+	 * assumptions about null or non-null when doing branch analysis.
+	 * Further, when passed into helpers the helpers can not, without
+	 * additional context, assume the value is non-null.
+	 */
+	PTR_TO_BTF_ID,
+	/* PTR_TO_BTF_ID_OR_NULL points to a kernel struct that has not
+	 * been checked for null. Used primarily to inform the verifier
+	 * an explicit null check is required for this struct.
+	 */
+	PTR_TO_BTF_ID_OR_NULL,
 	PTR_TO_MEM,		 /* reg points to valid memory region */
 	PTR_TO_MEM_OR_NULL,	 /* reg points to valid memory region or NULL */
 	PTR_TO_RDONLY_BUF,	 /* reg points to a readonly buffer */
