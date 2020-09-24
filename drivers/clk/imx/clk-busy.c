@@ -84,7 +84,7 @@ struct clk *imx_clk_busy_divider(const char *name, const char *parent_name,
 {
 	struct clk_busy_divider *busy;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	busy = kzalloc(sizeof(*busy), GFP_KERNEL);
 	if (!busy)
@@ -158,7 +158,7 @@ struct clk *imx_clk_busy_mux(const char *name, void __iomem *reg, u8 shift,
 {
 	struct clk_busy_mux *busy;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	busy = kzalloc(sizeof(*busy), GFP_KERNEL);
 	if (!busy)

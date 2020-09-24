@@ -54,6 +54,7 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	kernfs_put(kn);
 	return ERR_PTR(error);
 }
+EXPORT_SYMBOL_GPL(kernfs_create_link);
 
 static int kernfs_get_target_path(struct kernfs_node *parent,
 				  struct kernfs_node *target, char *path)

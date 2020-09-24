@@ -170,7 +170,7 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 	const char *parent_name;
 	struct clk *clk;
 	struct i2s_pll_clk *pll_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct resource *mem;
 
 	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);

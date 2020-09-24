@@ -93,7 +93,7 @@ struct clk *tegra_clk_register_pll_out(const char *name,
 {
 	struct tegra_clk_pll_out *pll_out;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	pll_out = kzalloc(sizeof(*pll_out), GFP_KERNEL);
 	if (!pll_out)

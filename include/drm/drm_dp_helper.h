@@ -627,6 +627,14 @@
 # define DP_TEST_COUNT_MASK		    0xf
 
 #define DP_TEST_PHY_PATTERN                 0x248
+# define DP_TEST_PHY_PATTERN_NONE			0x0
+# define DP_TEST_PHY_PATTERN_D10_2_NO_SCRAMBLING	0x1
+# define DP_TEST_PHY_PATTERN_SYMBOL_ERR_MEASUREMENT_CNT 0x2
+# define DP_TEST_PHY_PATTERN_PRBS7			0x3
+# define DP_TEST_PHY_PATTERN_80_BIT_CUSTOM_PATTERN	0x4
+# define DP_TEST_PHY_PATTERN_CP2520_PATTERN_1		0x5
+# define DP_TEST_PHY_PATTERN_CP2520_PATTERN_2		0x6
+# define DP_TEST_PHY_PATTERN_CP2520_PATTERN_3		0x7
 #define DP_TEST_80BIT_CUSTOM_PATTERN_7_0    0x250
 #define	DP_TEST_80BIT_CUSTOM_PATTERN_15_8   0x251
 #define	DP_TEST_80BIT_CUSTOM_PATTERN_23_16  0x252
@@ -1143,6 +1151,7 @@ struct drm_dp_aux {
 	struct device *dev;
 	struct drm_crtc *crtc;
 	struct mutex hw_mutex;
+	struct mutex i2c_mutex;
 	struct work_struct crc_work;
 	u8 crc_count;
 	ssize_t (*transfer)(struct drm_dp_aux *aux,

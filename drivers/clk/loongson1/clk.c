@@ -18,7 +18,7 @@ struct clk_hw *__init clk_hw_register_pll(struct device *dev,
 {
 	int ret;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	/* allocate the divider */
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);

@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 
-#include "../../include/uapi/linux/incrementalfs.h"
+#include <include/uapi/linux/incrementalfs.h>
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -23,7 +23,7 @@ int mount_fs(const char *mount_dir, const char *backing_dir,
 	     int read_timeout_ms);
 
 int mount_fs_opt(const char *mount_dir, const char *backing_dir,
-		 const char *opt);
+		 const char *opt, bool remount);
 
 int get_file_bmap(int cmd_fd, int ino, unsigned char *buf, int buf_size);
 

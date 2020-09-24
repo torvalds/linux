@@ -133,7 +133,7 @@ struct clk *tegra_clk_register_divider(const char *name,
 {
 	struct tegra_clk_frac_div *divider;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	divider = kzalloc(sizeof(*divider), GFP_KERNEL);
 	if (!divider) {

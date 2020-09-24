@@ -195,7 +195,7 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 		goto clks_out;
 
 	for_each_node_by_type(dn, "cpu") {
-		struct clk_init_data init;
+		struct clk_init_data init = {};
 		struct clk *clk;
 		char *clk_name = kzalloc(5, GFP_KERNEL);
 		int cpu, err;

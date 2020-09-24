@@ -934,7 +934,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 	mtd_set_ooblayout(mtd, &spinand_oob_64_ops);
 #endif
 
-	if (nand_scan(mtd, 1))
+	if (nand_scan(chip, 1))
 		return -ENXIO;
 
 	return mtd_device_register(mtd, NULL, 0);

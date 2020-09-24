@@ -206,14 +206,41 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 				SKL_FUSE_PG_DIST_STATUS(SKL_PG0) |
 				SKL_FUSE_PG_DIST_STATUS(SKL_PG1) |
 				SKL_FUSE_PG_DIST_STATUS(SKL_PG2);
-		vgpu_vreg_t(vgpu, LCPLL1_CTL) |=
-				LCPLL_PLL_ENABLE |
-				LCPLL_PLL_LOCK;
-		vgpu_vreg_t(vgpu, LCPLL2_CTL) |= LCPLL_PLL_ENABLE;
-
+		/*
+		 * Only 1 PIPE enabled in current vGPU display and PIPE_A is
+		 *  tied to TRANSCODER_A in HW, so it's safe to assume PIPE_A,
+		 *   TRANSCODER_A can be enabled. PORT_x depends on the input of
+		 *   setup_virtual_dp_monitor, we can bind DPLL0 to any PORT_x
+		 *   so we fixed to DPLL0 here.
+		 * Setup DPLL0: DP link clk 1620 MHz, non SSC, DP Mode
+		 */
+		vgpu_vreg_t(vgpu, DPLL_CTRL1) =
+			DPLL_CTRL1_OVERRIDE(DPLL_ID_SKL_DPLL0);
+		vgpu_vreg_t(vgpu, DPLL_CTRL1) |=
+			DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620, DPLL_ID_SKL_DPLL0);
+		vgpu_vreg_t(vgpu, LCPLL1_CTL) =
+			LCPLL_PLL_ENABLE | LCPLL_PLL_LOCK;
+		vgpu_vreg_t(vgpu, DPLL_STATUS) = DPLL_LOCK(DPLL_ID_SKL_DPLL0);
+		/*
+		 * Golden M/N are calculated based on:
+		 *   24 bpp, 4 lanes, 154000 pixel clk (from virtual EDID),
+		 *   DP link clk 1620 MHz and non-constant_n.
+		 * TODO: calculate DP link symbol clk and stream clk m/n.
+		 */
+		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) = 63 << TU_SIZE_SHIFT;
+		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) |= 0x5b425e;
+		vgpu_vreg_t(vgpu, PIPE_DATA_N1(TRANSCODER_A)) = 0x800000;
+		vgpu_vreg_t(vgpu, PIPE_LINK_M1(TRANSCODER_A)) = 0x3cd6e;
+		vgpu_vreg_t(vgpu, PIPE_LINK_N1(TRANSCODER_A)) = 0x80000;
 	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) &=
+			~DPLL_CTRL2_DDI_CLK_OFF(PORT_B);
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) |=
+			DPLL_CTRL2_DDI_CLK_SEL(DPLL_ID_SKL_DPLL0, PORT_B);
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) |=
+			DPLL_CTRL2_DDI_SEL_OVERRIDE(PORT_B);
 		vgpu_vreg_t(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIB_DETECTED;
 		vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
 			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
@@ -234,6 +261,12 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) &=
+			~DPLL_CTRL2_DDI_CLK_OFF(PORT_C);
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) |=
+			DPLL_CTRL2_DDI_CLK_SEL(DPLL_ID_SKL_DPLL0, PORT_C);
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) |=
+			DPLL_CTRL2_DDI_SEL_OVERRIDE(PORT_C);
 		vgpu_vreg_t(vgpu, SDEISR) |= SDE_PORTC_HOTPLUG_CPT;
 		vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
 			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
@@ -254,6 +287,12 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_D)) {
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) &=
+			~DPLL_CTRL2_DDI_CLK_OFF(PORT_D);
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) |=
+			DPLL_CTRL2_DDI_CLK_SEL(DPLL_ID_SKL_DPLL0, PORT_D);
+		vgpu_vreg_t(vgpu, DPLL_CTRL2) |=
+			DPLL_CTRL2_DDI_SEL_OVERRIDE(PORT_D);
 		vgpu_vreg_t(vgpu, SDEISR) |= SDE_PORTD_HOTPLUG_CPT;
 		vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
 			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |

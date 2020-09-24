@@ -89,7 +89,7 @@ static const struct clk_ops h32mx_ops = {
 static void __init of_sama5d4_clk_h32mx_setup(struct device_node *np)
 {
 	struct clk_sama5d4_h32mx *h32mxclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *parent_name;
 	struct regmap *regmap;
 	int ret;

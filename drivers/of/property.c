@@ -1212,6 +1212,7 @@ struct supplier_bindings {
 					  const char *prop_name, int index);
 };
 
+DEFINE_SIMPLE_PROP(qcom_wrapper_core, "qcom,wrapper-core", NULL)
 DEFINE_SIMPLE_PROP(clocks, "clocks", "#clock-cells")
 DEFINE_SIMPLE_PROP(interconnects, "interconnects", "#interconnect-cells")
 DEFINE_SIMPLE_PROP(iommus, "iommus", "#iommu-cells")
@@ -1221,6 +1222,8 @@ DEFINE_SIMPLE_PROP(interrupt_parent, "interrupt-parent", NULL)
 DEFINE_SIMPLE_PROP(dmas, "dmas", "#dma-cells")
 DEFINE_SIMPLE_PROP(power_domains, "power-domains", "#power-domain-cells")
 DEFINE_SIMPLE_PROP(hwlocks, "hwlocks", "#hwlock-cells")
+DEFINE_SIMPLE_PROP(extcon, "extcon", NULL)
+DEFINE_SIMPLE_PROP(phys, "phys", "#phy-cells")
 DEFINE_SIMPLE_PROP(pinctrl0, "pinctrl-0", NULL)
 DEFINE_SIMPLE_PROP(pinctrl1, "pinctrl-1", NULL)
 DEFINE_SIMPLE_PROP(pinctrl2, "pinctrl-2", NULL)
@@ -1240,6 +1243,7 @@ static struct device_node *parse_iommu_maps(struct device_node *np,
 
 static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_msm_bus_name, },
+	{ .parse_prop = parse_qcom_wrapper_core, },
 	{ .parse_prop = parse_qcom_any, },
 	{ .parse_prop = parse_clocks, },
 	{ .parse_prop = parse_interconnects, },
@@ -1251,6 +1255,8 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_dmas, },
 	{ .parse_prop = parse_power_domains, },
 	{ .parse_prop = parse_hwlocks, },
+	{ .parse_prop = parse_extcon, },
+	{ .parse_prop = parse_phys, },
 	{ .parse_prop = parse_pinctrl0, },
 	{ .parse_prop = parse_pinctrl1, },
 	{ .parse_prop = parse_pinctrl2, },

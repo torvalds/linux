@@ -174,7 +174,7 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 {
 	struct tegra_clk_super_mux *super;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	super = kzalloc(sizeof(*super), GFP_KERNEL);
 	if (!super)
@@ -210,7 +210,7 @@ struct clk *tegra_clk_register_super_clk(const char *name,
 {
 	struct tegra_clk_super_mux *super;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	super = kzalloc(sizeof(*super), GFP_KERNEL);
 	if (!super)

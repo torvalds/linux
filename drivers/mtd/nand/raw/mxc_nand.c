@@ -1900,7 +1900,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	/* Scan the NAND device */
 	this->dummy_controller.ops = &mxcnd_controller_ops;
-	err = nand_scan(mtd, is_imx25_nfc(host) ? 4 : 1);
+	err = nand_scan(this, is_imx25_nfc(host) ? 4 : 1);
 	if (err)
 		goto escan;
 
@@ -1928,7 +1928,7 @@ static int mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
 
-	nand_release(nand_to_mtd(&host->nand));
+	nand_release(&host->nand);
 	if (host->clk_act)
 		clk_disable_unprepare(host->clk);
 

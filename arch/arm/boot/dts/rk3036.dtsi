@@ -167,7 +167,7 @@
 		assigned-clock-parents = <&cru PLL_DPLL>;
 		operating-points-v2 = <&gpu_opp_table>;
 		clocks = <&cru SCLK_GPU>, <&cru SCLK_GPU>;
-		clock-names = "core", "bus";
+		clock-names = "bus", "core";
 		resets = <&cru SRST_GPU>;
 		status = "disabled";
 	};

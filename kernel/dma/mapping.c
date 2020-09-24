@@ -291,11 +291,12 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 			unsigned long vm_flags,
 			pgprot_t prot, const void *caller)
 {
-	int i;
+	unsigned long i;
 	struct page **pages;
 	struct vm_struct *area;
 
-	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
+	pages = kvmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
+
 	if (!pages)
 		return NULL;
 
@@ -304,7 +305,7 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 
 	area = __dma_common_pages_remap(pages, size, vm_flags, prot, caller);
 
-	kfree(pages);
+	kvfree(pages);
 
 	if (!area)
 		return NULL;
@@ -314,12 +315,14 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 /*
  * unmaps a range previously mapped by dma_common_*_remap
  */
-void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
+void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags,
+			   bool no_warn)
 {
 	struct vm_struct *area = find_vm_area(cpu_addr);
 
 	if (!area || (area->flags & vm_flags) != vm_flags) {
-		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
+		WARN(!no_warn, "trying to free invalid coherent area: %p\n",
+			cpu_addr);
 		return;
 	}
 

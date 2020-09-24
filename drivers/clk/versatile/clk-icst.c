@@ -356,7 +356,7 @@ static struct clk *icst_clk_setup(struct device *dev,
 {
 	struct clk *clk;
 	struct clk_icst *icst;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct icst_params *pclone;
 
 	icst = kzalloc(sizeof(*icst), GFP_KERNEL);

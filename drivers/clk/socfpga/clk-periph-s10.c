@@ -79,7 +79,7 @@ struct clk *s10_register_periph(const char *name, const char *parent_name,
 {
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
@@ -113,7 +113,7 @@ struct clk *s10_register_cnt_periph(const char *name, const char *parent_name,
 {
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))

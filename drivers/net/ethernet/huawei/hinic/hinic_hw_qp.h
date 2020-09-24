@@ -103,6 +103,7 @@ struct hinic_rq {
 
 	struct hinic_wq         *wq;
 
+	struct cpumask		affinity_mask;
 	u32                     irq;
 	u16                     msix_entry;
 

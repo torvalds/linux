@@ -71,7 +71,7 @@ int ufshcd_crypto_cap_find(struct ufs_hba *hba,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(ufshcd_crypto_cap_find);
+EXPORT_SYMBOL_GPL(ufshcd_crypto_cap_find);
 
 /**
  * ufshcd_crypto_cfg_entry_write_key - Write a key into a crypto_cfg_entry
@@ -336,12 +336,15 @@ int ufshcd_hba_init_crypto_spec(struct ufs_hba *hba,
 	ufshcd_clear_all_keyslots(hba);
 
 	hba->ksm = keyslot_manager_create(hba->dev, ufshcd_num_keyslots(hba),
-					  ksm_ops, crypto_modes_supported, hba);
+					  ksm_ops,
+					  BLK_CRYPTO_FEATURE_STANDARD_KEYS,
+					  crypto_modes_supported, hba);
 
 	if (!hba->ksm) {
 		err = -ENOMEM;
 		goto out_free_caps;
 	}
+	keyslot_manager_set_max_dun_bytes(hba->ksm, sizeof(u64));
 
 	return 0;
 
@@ -454,6 +457,14 @@ int ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
 		return hba->crypto_vops->prepare_lrbp_crypto(hba, cmd, lrbp);
 
 	return ufshcd_prepare_lrbp_crypto_spec(hba, cmd, lrbp);
+}
+
+int ufshcd_map_sg_crypto(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+{
+	if (hba->crypto_vops && hba->crypto_vops->map_sg_crypto)
+		return hba->crypto_vops->map_sg_crypto(hba, lrbp);
+
+	return 0;
 }
 
 int ufshcd_complete_lrbp_crypto(struct ufs_hba *hba,

@@ -95,7 +95,7 @@ static struct clk_hw *s3c24xx_register_clkout(struct device *dev,
 		u8 shift, u32 mask)
 {
 	struct s3c24xx_clkout *clkout;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	/* allocate the clkout */

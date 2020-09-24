@@ -447,7 +447,7 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 {
 	struct mmp_clk_mix *mix;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	size_t table_bytes;
 
 	mix = kzalloc(sizeof(*mix), GFP_KERNEL);

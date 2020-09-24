@@ -377,7 +377,7 @@ static int sst_cdev_tstamp(struct device *dev, unsigned int str_id,
 	tstamp->sampling_rate = fw_tstamp.sampling_frequency;
 
 	dev_dbg(dev, "PCM  = %u\n", tstamp->pcm_io_frames);
-	dev_dbg(dev, "Ptr Query on strid = %d  copied_total %d, decodec %d\n",
+	dev_dbg(dev, "Ptr Query on strid = %d  copied_total %llu, decodec %d\n",
 		str_id, tstamp->copied_total, tstamp->pcm_frames);
 	dev_dbg(dev, "rendered %d\n", tstamp->pcm_io_frames);
 

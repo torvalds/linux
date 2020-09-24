@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/bvec.h>
 #include <linux/ktime.h>
+#include <linux/android_kabi.h>
 
 struct bio_set;
 struct bio;
@@ -210,6 +211,11 @@ struct bio {
 	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
 	struct bio_set		*bi_pool;
+
+	ktime_t bi_alloc_ts;			/* for mm_event */
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 
 	/*
 	 * We can inline a number of vecs at the end of the bio, to avoid

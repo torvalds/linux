@@ -98,6 +98,14 @@ struct detailed_mode_closure {
 #define LEVEL_GTF2	2
 #define LEVEL_CVT	3
 
+/*Enum storing luminance types for HDR blocks in EDID*/
+enum luminance_value {
+	NO_LUMINANCE_DATA = 3,
+	MAXIMUM_LUMINANCE = 4,
+	FRAME_AVERAGE_LUMINANCE = 5,
+	MINIMUM_LUMINANCE = 6
+};
+
 static const struct edid_quirk {
 	char vendor[4];
 	int product_id;
@@ -198,10 +206,11 @@ static const struct edid_quirk {
 	{ "HVR", 0xaa01, EDID_QUIRK_NON_DESKTOP },
 	{ "HVR", 0xaa02, EDID_QUIRK_NON_DESKTOP },
 
-	/* Oculus Rift DK1, DK2, and CV1 VR Headsets */
+	/* Oculus Rift DK1, DK2, CV1 and Rift S VR Headsets */
 	{ "OVR", 0x0001, EDID_QUIRK_NON_DESKTOP },
 	{ "OVR", 0x0003, EDID_QUIRK_NON_DESKTOP },
 	{ "OVR", 0x0004, EDID_QUIRK_NON_DESKTOP },
+	{ "OVR", 0x0012, EDID_QUIRK_NON_DESKTOP },
 
 	/* Windows Mixed Reality Headsets */
 	{ "ACR", 0x7fce, EDID_QUIRK_NON_DESKTOP },
@@ -2897,17 +2906,21 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 
 	return closure.modes;
 }
-
+#define VIDEO_CAPABILITY_EXTENDED_DATA_BLOCK 0x0
 #define AUDIO_BLOCK	0x01
 #define VIDEO_BLOCK     0x02
 #define VENDOR_BLOCK    0x03
 #define SPEAKER_BLOCK	0x04
 #define COLORIMETRY_DATA_BLOCK		0x5
+#define COLORIMETRY_EXTENDED_DATA_BLOCK 0x05
 #define HDR_STATIC_METADATA_BLOCK	0x6
 #define USE_EXTENDED_TAG 0x07
 #define EXT_VIDEO_CAPABILITY_BLOCK 0x00
 #define EXT_VIDEO_DATA_BLOCK_420	0x0E
 #define EXT_VIDEO_CAP_BLOCK_Y420CMDB 0x0F
+#define VENDOR_SPECIFIC_VIDEO_DATA_BLOCK 0x01
+#define VSVDB_HDR10_PLUS_IEEE_CODE 0x90848b
+#define VSVDB_HDR10_PLUS_APP_VER_MASK 0x3
 #define EDID_BASIC_AUDIO	(1 << 6)
 #define EDID_CEA_YCRCB444	(1 << 5)
 #define EDID_CEA_YCRCB422	(1 << 4)
@@ -4029,6 +4042,288 @@ drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 		      connector->audio_latency[1]);
 }
 
+/*
+ * drm_extract_vcdb_info - Parse the HDMI Video Capability Data Block
+ * @connector: connector corresponding to the HDMI sink
+ * @db: start of the CEA vendor specific block
+ *
+ * Parses the HDMI VCDB to extract sink info for @connector.
+ */
+static void
+drm_extract_vcdb_info(struct drm_connector *connector, const u8 *db)
+{
+	/*
+	 * Check if the sink specifies underscan
+	 * support for:
+	 * BIT 5: preferred video format
+	 * BIT 3: IT video format
+	 * BIT 1: CE video format
+	 */
+
+	connector->pt_scan_info =
+		(db[2] & (BIT(4) | BIT(5))) >> 4;
+	connector->it_scan_info =
+		(db[2] & (BIT(3) | BIT(2))) >> 2;
+	connector->ce_scan_info =
+		db[2] & (BIT(1) | BIT(0));
+
+	DRM_DEBUG_KMS("Scan Info (pt|it|ce): (%d|%d|%d)",
+			  (int) connector->pt_scan_info,
+			  (int) connector->it_scan_info,
+			  (int) connector->ce_scan_info);
+}
+
+static void
+drm_parse_vsvdb_hdr_plus(struct drm_connector *connector, const u8 *db)
+{
+	connector->hdr_plus_app_ver = db[5] & VSVDB_HDR10_PLUS_APP_VER_MASK;
+}
+
+static void
+drm_extract_vsvdb_info(struct drm_connector *connector, const u8 *db)
+{
+	u8 db_len = cea_db_payload_len(db);
+	u32 ieee_code = 0;
+
+	if (db_len < 5)
+		return;
+
+	/* Bytes 2-4: IEEE 24-bit code, LSB first */
+	ieee_code = db[2] | (db[3] << 8) | (db[4] << 16);
+	DRM_DEBUG_KMS("found VSVDB with IEEE code 0x%x\n", ieee_code);
+	if (ieee_code == VSVDB_HDR10_PLUS_IEEE_CODE)
+		drm_parse_vsvdb_hdr_plus(connector, db);
+}
+
+static bool drm_edid_is_luminance_value_present(
+u32 block_length, enum luminance_value value)
+{
+	return block_length > NO_LUMINANCE_DATA && value <= block_length;
+}
+
+/*
+ * drm_extract_clrmetry_db - Parse the HDMI colorimetry extended block
+ * @connector: connector corresponding to the HDMI sink
+ * @db: start of the HDMI colorimetry extended block
+ *
+ * Parses the HDMI colorimetry block to extract sink info for @connector.
+ */
+static void
+drm_extract_clrmetry_db(struct drm_connector *connector, const u8 *db)
+{
+
+	if (!db) {
+		DRM_ERROR("invalid db\n");
+		return;
+	}
+
+	/* Byte 3 Bit 0: xvYCC_601 */
+	if (db[2] & BIT(0))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_xvYCC_601;
+	/* Byte 3 Bit 1: xvYCC_709 */
+	if (db[2] & BIT(1))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_xvYCC_709;
+	/* Byte 3 Bit 2: sYCC_601 */
+	if (db[2] & BIT(2))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_sYCC_601;
+	/* Byte 3 Bit 3: ADBYCC_601 */
+	if (db[2] & BIT(3))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_ADBYCC_601;
+	/* Byte 3 Bit 4: ADB_RGB */
+	if (db[2] & BIT(4))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_ADB_RGB;
+	/* Byte 3 Bit 5: BT2020_CYCC */
+	if (db[2] & BIT(5))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_BT2020_CYCC;
+	/* Byte 3 Bit 6: BT2020_YCC */
+	if (db[2] & BIT(6))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_BT2020_YCC;
+	/* Byte 3 Bit 7: BT2020_RGB */
+	if (db[2] & BIT(7))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_BT2020_RGB;
+	/* Byte 4 Bit 7: DCI-P3 */
+	if (db[3] & BIT(7))
+		connector->color_enc_fmt |= DRM_EDID_CLRMETRY_DCI_P3;
+
+	DRM_DEBUG_KMS("colorimetry fmts = 0x%x\n", connector->color_enc_fmt);
+}
+
+/*
+ * drm_extract_hdr_db - Parse the HDMI HDR extended block
+ * @connector: connector corresponding to the HDMI sink
+ * @db: start of the HDMI HDR extended block
+ *
+ * Parses the HDMI HDR extended block to extract sink info for @connector.
+ */
+static void
+drm_extract_hdr_db(struct drm_connector *connector, const u8 *db)
+{
+
+	u8 len = 0;
+
+	if (!db)
+		return;
+
+	len = db[0] & 0x1f;
+	/* Byte 3: Electro-Optical Transfer Functions */
+	connector->hdr_eotf = db[2] & 0x3F;
+
+	/* Byte 4: Static Metadata Descriptor Type 1 */
+	connector->hdr_metadata_type_one = (db[3] & BIT(0));
+
+	/* Byte 5: Desired Content Maximum Luminance */
+	if (drm_edid_is_luminance_value_present(len, MAXIMUM_LUMINANCE))
+		connector->hdr_max_luminance =
+			db[MAXIMUM_LUMINANCE];
+
+	/* Byte 6: Desired Content Max Frame-average Luminance */
+	if (drm_edid_is_luminance_value_present(len, FRAME_AVERAGE_LUMINANCE))
+		connector->hdr_avg_luminance =
+			db[FRAME_AVERAGE_LUMINANCE];
+
+	/* Byte 7: Desired Content Min Luminance */
+	if (drm_edid_is_luminance_value_present(len, MINIMUM_LUMINANCE))
+		connector->hdr_min_luminance =
+			db[MINIMUM_LUMINANCE];
+
+	connector->hdr_supported = true;
+
+	DRM_DEBUG_KMS("HDR electro-optical %d\n", connector->hdr_eotf);
+	DRM_DEBUG_KMS("metadata desc 1 %d\n", connector->hdr_metadata_type_one);
+	DRM_DEBUG_KMS("max luminance %d\n", connector->hdr_max_luminance);
+	DRM_DEBUG_KMS("avg luminance %d\n", connector->hdr_avg_luminance);
+	DRM_DEBUG_KMS("min luminance %d\n", connector->hdr_min_luminance);
+}
+/*
+ * drm_hdmi_extract_extended_blk_info - Parse the HDMI extended tag blocks
+ * @connector: connector corresponding to the HDMI sink
+ * @edid: handle to the EDID structure
+ * Parses the all extended tag blocks extract sink info for @connector.
+ */
+static void
+drm_hdmi_extract_extended_blk_info(struct drm_connector *connector,
+		const struct edid *edid)
+{
+	const u8 *cea = drm_find_cea_extension(edid);
+	const u8 *db = NULL;
+
+	if (cea && cea_revision(cea) >= 3) {
+		int i, start, end;
+
+		if (cea_db_offsets(cea, &start, &end))
+			return;
+
+		for_each_cea_db(cea, i, start, end) {
+			db = &cea[i];
+
+			if (cea_db_tag(db) == USE_EXTENDED_TAG) {
+				DRM_DEBUG_KMS("found extended tag block = %d\n",
+						db[1]);
+				switch (db[1]) {
+				case VIDEO_CAPABILITY_EXTENDED_DATA_BLOCK:
+					drm_extract_vcdb_info(connector, db);
+					break;
+				case VENDOR_SPECIFIC_VIDEO_DATA_BLOCK:
+					drm_extract_vsvdb_info(connector, db);
+					break;
+				case HDR_STATIC_METADATA_BLOCK:
+					drm_extract_hdr_db(connector, db);
+					break;
+				case COLORIMETRY_EXTENDED_DATA_BLOCK:
+					drm_extract_clrmetry_db(connector, db);
+					break;
+				default:
+					break;
+				}
+			}
+		}
+	}
+}
+
+static void
+parse_hdmi_hf_vsdb(struct drm_connector *connector, const u8 *db)
+{
+	u8 len = cea_db_payload_len(db);
+
+	if (len < 7)
+		return;
+
+	if (db[4] != 1)
+		return; /* invalid version */
+
+	connector->max_tmds_char = db[5] * 5;
+	connector->scdc_present = db[6] & (1 << 7);
+	connector->rr_capable = db[6] & (1 << 6);
+	connector->flags_3d = db[6] & 0x7;
+	connector->supports_scramble = connector->scdc_present &&
+			(db[6] & (1 << 3));
+
+	DRM_DEBUG_KMS(
+		"HDMI v2: max TMDS char %d, scdc %s, rr %s,3D flags 0x%x, scramble %s\n",
+		connector->max_tmds_char,
+		connector->scdc_present ? "available" : "not available",
+		connector->rr_capable ? "capable" : "not capable",
+		connector->flags_3d,
+		connector->supports_scramble ? "supported" : "not supported");
+}
+
+static void drm_parse_ycbcr420_deep_color_info(struct drm_connector *connector,
+					       const u8 *db)
+{
+	u8 dc_mask;
+	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+
+	dc_mask = db[7] & DRM_EDID_YCBCR420_DC_MASK;
+	hdmi->y420_dc_modes = dc_mask;
+}
+
+static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
+				 const u8 *hf_vsdb)
+{
+	struct drm_display_info *display = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &display->hdmi;
+
+	display->has_hdmi_infoframe = true;
+
+	if (hf_vsdb[6] & 0x80) {
+		hdmi->scdc.supported = true;
+		if (hf_vsdb[6] & 0x40)
+			hdmi->scdc.read_request = true;
+	}
+
+	/*
+	 * All HDMI 2.0 monitors must support scrambling at rates > 340 MHz.
+	 * And as per the spec, three factors confirm this:
+	 * * Availability of a HF-VSDB block in EDID (check)
+	 * * Non zero Max_TMDS_Char_Rate filed in HF-VSDB (let's check)
+	 * * SCDC support available (let's check)
+	 * Lets check it out.
+	 */
+
+	if (hf_vsdb[5]) {
+		/* max clock is 5000 KHz times block value */
+		u32 max_tmds_clock = hf_vsdb[5] * 5000;
+		struct drm_scdc *scdc = &hdmi->scdc;
+
+		if (max_tmds_clock > 340000) {
+			display->max_tmds_clock = max_tmds_clock;
+			DRM_DEBUG_KMS("HF-VSDB: max TMDS clock %d kHz\n",
+				display->max_tmds_clock);
+		}
+
+		if (scdc->supported) {
+			scdc->scrambling.supported = true;
+
+			/* Few sinks support scrambling for cloks < 340M */
+			if ((hf_vsdb[6] & 0x8))
+				scdc->scrambling.low_rates = true;
+		}
+	}
+
+	drm_parse_ycbcr420_deep_color_info(connector, hf_vsdb);
+	parse_hdmi_hf_vsdb(connector, hf_vsdb);
+}
+
 static void
 monitor_name(struct detailed_timing *t, void *data)
 {
@@ -4161,6 +4456,10 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 				/* HDMI Vendor-Specific Data Block */
 				if (cea_db_is_hdmi_vsdb(db))
 					drm_parse_hdmi_vsdb_audio(connector, db);
+				/* HDMI Forum Vendor-Specific Data Block */
+				else if (cea_db_is_hdmi_forum_vsdb(db))
+					drm_parse_hdmi_forum_vsdb(connector,
+								  db);
 				break;
 			default:
 				break;
@@ -4474,62 +4773,6 @@ drm_default_rgb_quant_range(const struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_default_rgb_quant_range);
 
-static void drm_parse_ycbcr420_deep_color_info(struct drm_connector *connector,
-					       const u8 *db)
-{
-	u8 dc_mask;
-	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
-
-	dc_mask = db[7] & DRM_EDID_YCBCR420_DC_MASK;
-	hdmi->y420_dc_modes = dc_mask;
-}
-
-static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
-				 const u8 *hf_vsdb)
-{
-	struct drm_display_info *display = &connector->display_info;
-	struct drm_hdmi_info *hdmi = &display->hdmi;
-
-	display->has_hdmi_infoframe = true;
-
-	if (hf_vsdb[6] & 0x80) {
-		hdmi->scdc.supported = true;
-		if (hf_vsdb[6] & 0x40)
-			hdmi->scdc.read_request = true;
-	}
-
-	/*
-	 * All HDMI 2.0 monitors must support scrambling at rates > 340 MHz.
-	 * And as per the spec, three factors confirm this:
-	 * * Availability of a HF-VSDB block in EDID (check)
-	 * * Non zero Max_TMDS_Char_Rate filed in HF-VSDB (let's check)
-	 * * SCDC support available (let's check)
-	 * Lets check it out.
-	 */
-
-	if (hf_vsdb[5]) {
-		/* max clock is 5000 KHz times block value */
-		u32 max_tmds_clock = hf_vsdb[5] * 5000;
-		struct drm_scdc *scdc = &hdmi->scdc;
-
-		if (max_tmds_clock > 340000) {
-			display->max_tmds_clock = max_tmds_clock;
-			DRM_DEBUG_KMS("HF-VSDB: max TMDS clock %d kHz\n",
-				display->max_tmds_clock);
-		}
-
-		if (scdc->supported) {
-			scdc->scrambling.supported = true;
-
-			/* Few sinks support scrambling for cloks < 340M */
-			if ((hf_vsdb[6] & 0x8))
-				scdc->scrambling.low_rates = true;
-		}
-	}
-
-	drm_parse_ycbcr420_deep_color_info(connector, hf_vsdb);
-}
-
 static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 					   const u8 *hdmi)
 {
@@ -4671,6 +4914,40 @@ drm_reset_display_info(struct drm_connector *connector)
 	info->non_desktop = 0;
 }
 
+static void
+drm_hdmi_extract_vsdbs_info(struct drm_connector *connector,
+		const struct edid *edid)
+{
+	const u8 *cea = drm_find_cea_extension(edid);
+	const u8 *db = NULL;
+
+	if (cea && cea_revision(cea) >= 3) {
+		int i, start, end;
+
+		if (cea_db_offsets(cea, &start, &end))
+			return;
+
+		for_each_cea_db(cea, i, start, end) {
+			db = &cea[i];
+
+			if (cea_db_tag(db) == VENDOR_BLOCK) {
+				/* HDMI Vendor-Specific Data Block */
+				if (cea_db_is_hdmi_vsdb(db)) {
+					drm_parse_hdmi_vsdb_video(
+						connector, db);
+					drm_parse_hdmi_vsdb_audio(
+						connector, db);
+				}
+				/* HDMI Forum Vendor-Specific Data Block */
+				else if (cea_db_is_hdmi_forum_vsdb(db))
+					drm_parse_hdmi_forum_vsdb(connector,
+								  db);
+			}
+		}
+	}
+}
+
+
 u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
 {
 	struct drm_display_info *info = &connector->display_info;
@@ -4709,6 +4986,11 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 		DRM_DEBUG("%s: Assigning DFP sink color depth as %d bpc.\n",
 			  connector->name, info->bpc);
 	}
+
+	/* Extract audio and video latency fields for the sink */
+	drm_hdmi_extract_vsdbs_info(connector, edid);
+	/* Extract info from extended tag blocks */
+	drm_hdmi_extract_extended_blk_info(connector, edid);
 
 	/* Only defined for 1.4 with digital displays */
 	if (edid->revision < 4)
@@ -4779,7 +5061,7 @@ static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *d
 	struct drm_display_mode *mode;
 	unsigned pixel_clock = (timings->pixel_clock[0] |
 				(timings->pixel_clock[1] << 8) |
-				(timings->pixel_clock[2] << 16));
+				(timings->pixel_clock[2] << 16)) + 1;
 	unsigned hactive = (timings->hactive[0] | timings->hactive[1] << 8) + 1;
 	unsigned hblank = (timings->hblank[0] | timings->hblank[1] << 8) + 1;
 	unsigned hsync = (timings->hsync[0] | (timings->hsync[1] & 0x7f) << 8) + 1;

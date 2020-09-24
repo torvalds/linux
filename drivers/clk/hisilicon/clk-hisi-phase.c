@@ -95,7 +95,7 @@ struct clk *clk_register_hisi_phase(struct device *dev,
 		void __iomem *base, spinlock_t *lock)
 {
 	struct clk_hisi_phase *phase;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	phase = devm_kzalloc(dev, sizeof(struct clk_hisi_phase), GFP_KERNEL);
 	if (!phase)

@@ -378,7 +378,7 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot,
 static void __dma_free_remap(void *cpu_addr, size_t size)
 {
 	dma_common_free_remap(cpu_addr, size,
-			VM_ARM_DMA_CONSISTENT | VM_USERMAP);
+			VM_ARM_DMA_CONSISTENT | VM_USERMAP, false);
 }
 
 #define DEFAULT_DMA_COHERENT_POOL_SIZE	SZ_256K
@@ -1651,7 +1651,7 @@ void __arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 
 	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) == 0) {
 		dma_common_free_remap(cpu_addr, size,
-			VM_ARM_DMA_CONSISTENT | VM_USERMAP);
+			VM_ARM_DMA_CONSISTENT | VM_USERMAP, false);
 	}
 
 	__iommu_remove_mapping(dev, handle, size);
@@ -2396,6 +2396,7 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 #endif
 	dev->archdata.dma_ops_setup = true;
 }
+EXPORT_SYMBOL_GPL(arch_setup_dma_ops);
 
 void arch_teardown_dma_ops(struct device *dev)
 {

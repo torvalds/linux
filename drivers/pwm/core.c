@@ -294,6 +294,7 @@ int pwmchip_add_with_polarity(struct pwm_chip *chip,
 		pwm->pwm = chip->base + i;
 		pwm->hwpwm = i;
 		pwm->state.polarity = polarity;
+		pwm->state.output_type = PWM_OUTPUT_FIXED;
 
 		if (chip->ops->get_state)
 			chip->ops->get_state(chip, pwm, &pwm->state);
@@ -507,11 +508,46 @@ int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
 			pwm->state.polarity = state->polarity;
 		}
 
+		if (state->output_type != pwm->state.output_type) {
+			if (!pwm->chip->ops->set_output_type)
+				return -ENOTSUPP;
+
+			err = pwm->chip->ops->set_output_type(pwm->chip, pwm,
+						state->output_type);
+			if (err)
+				return err;
+
+			pwm->state.output_type = state->output_type;
+		}
+
+		if (state->output_pattern != pwm->state.output_pattern &&
+				state->output_pattern != NULL) {
+			if (!pwm->chip->ops->set_output_pattern)
+				return -ENOTSUPP;
+
+			err = pwm->chip->ops->set_output_pattern(pwm->chip,
+					pwm, state->output_pattern);
+			if (err)
+				return err;
+
+			pwm->state.output_pattern = state->output_pattern;
+		}
+
 		if (state->period != pwm->state.period ||
 		    state->duty_cycle != pwm->state.duty_cycle) {
-			err = pwm->chip->ops->config(pwm->chip, pwm,
-						     state->duty_cycle,
-						     state->period);
+			if (pwm->chip->ops->config_extend) {
+				err = pwm->chip->ops->config_extend(pwm->chip,
+						pwm, state->duty_cycle,
+						state->period);
+			} else {
+				if (state->period > UINT_MAX)
+					pr_warn("period %llu duty_cycle %llu will be truncated\n",
+							state->period,
+							state->duty_cycle);
+				err = pwm->chip->ops->config(pwm->chip, pwm,
+						state->duty_cycle,
+						state->period);
+			}
 			if (err)
 				return err;
 
@@ -996,8 +1032,8 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 		if (state.enabled)
 			seq_puts(s, " enabled");
 
-		seq_printf(s, " period: %u ns", state.period);
-		seq_printf(s, " duty: %u ns", state.duty_cycle);
+		seq_printf(s, " period: %llu ns", state.period);
+		seq_printf(s, " duty: %llu ns", state.duty_cycle);
 		seq_printf(s, " polarity: %s",
 			   state.polarity ? "inverse" : "normal");
 

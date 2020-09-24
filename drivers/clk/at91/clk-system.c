@@ -94,7 +94,7 @@ at91_clk_register_system(struct regmap *regmap, const char *name,
 {
 	struct clk_system *sys;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	if (!parent_name || id > SYSTEM_MAX_ID)

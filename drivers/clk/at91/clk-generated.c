@@ -288,7 +288,7 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 			    const struct clk_range *range)
 {
 	struct clk_generated *gck;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	int ret;
 

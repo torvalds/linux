@@ -80,6 +80,8 @@ int ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
 			       struct scsi_cmnd *cmd,
 			       struct ufshcd_lrb *lrbp);
 
+int ufshcd_map_sg_crypto(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
+
 int ufshcd_complete_lrbp_crypto(struct ufs_hba *hba,
 				struct scsi_cmnd *cmd,
 				struct ufshcd_lrb *lrbp);
@@ -129,6 +131,12 @@ static inline void ufshcd_crypto_destroy_rq_keyslot_manager(struct ufs_hba *hba,
 static inline int ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
 					     struct scsi_cmnd *cmd,
 					     struct ufshcd_lrb *lrbp)
+{
+	return 0;
+}
+
+static inline int ufshcd_map_sg_crypto(struct ufs_hba *hba,
+				       struct ufshcd_lrb *lrbp)
 {
 	return 0;
 }

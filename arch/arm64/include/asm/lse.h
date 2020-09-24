@@ -21,7 +21,7 @@
 #else	/* __ASSEMBLER__ */
 
 #ifdef CONFIG_LTO_CLANG
-#define __LSE_PREAMBLE	".arch armv8-a+lse\n"
+#define __LSE_PREAMBLE	".arch_extension lse\n"
 #else
 __asm__(".arch_extension	lse");
 #define __LSE_PREAMBLE

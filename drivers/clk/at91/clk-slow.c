@@ -48,7 +48,7 @@ at91_clk_register_sam9260_slow(struct regmap *regmap,
 {
 	struct clk_sam9260_slow *slowck;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	if (!name)

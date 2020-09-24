@@ -8,7 +8,7 @@
  * option) any later version.
  */
 
-#include "vdso.h"
+#include <asm/vdso/vdso.h>
 
 #include <uapi/asm/unistd.h>
 

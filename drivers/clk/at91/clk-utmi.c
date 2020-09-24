@@ -131,7 +131,7 @@ at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
 {
 	struct clk_utmi *utmi;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	utmi = kzalloc(sizeof(*utmi), GFP_KERNEL);

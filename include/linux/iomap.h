@@ -6,6 +6,7 @@
 #include <linux/bitmap.h>
 #include <linux/mm.h>
 #include <linux/types.h>
+#include <linux/android_kabi.h>
 
 struct address_space;
 struct fiemap_extent_info;
@@ -99,6 +100,9 @@ struct iomap_ops {
 	 */
 	int (*iomap_end)(struct inode *inode, loff_t pos, loff_t length,
 			ssize_t written, unsigned flags, struct iomap *iomap);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 /*

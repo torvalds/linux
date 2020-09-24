@@ -68,7 +68,7 @@ struct clk_hw *uniphier_clk_register_mux(struct device *dev,
 				const struct uniphier_clk_mux_data *data)
 {
 	struct uniphier_clk_mux *mux;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);

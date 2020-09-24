@@ -68,6 +68,7 @@ static struct inode *alloc_inode(struct super_block *sb);
 static void free_inode(struct inode *inode);
 static void evict_inode(struct inode *inode);
 
+static int incfs_setattr(struct dentry *dentry, struct iattr *ia);
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size);
 static ssize_t incfs_setxattr(struct dentry *d, const char *name,
@@ -98,7 +99,8 @@ static const struct inode_operations incfs_dir_inode_ops = {
 	.rename = dir_rename_wrap,
 	.unlink = dir_unlink,
 	.link = dir_link,
-	.rmdir = dir_rmdir
+	.rmdir = dir_rmdir,
+	.setattr = incfs_setattr,
 };
 
 static const struct file_operations incfs_dir_fops = {
@@ -158,7 +160,7 @@ static const struct file_operations incfs_log_file_ops = {
 };
 
 static const struct inode_operations incfs_file_inode_ops = {
-	.setattr = simple_setattr,
+	.setattr = incfs_setattr,
 	.getattr = simple_getattr,
 	.listxattr = incfs_listxattr
 };
@@ -204,6 +206,8 @@ struct inode_search {
 	unsigned long ino;
 
 	struct dentry *backing_dentry;
+
+	size_t size;
 };
 
 enum parse_parameter {
@@ -346,8 +350,8 @@ static int inode_test(struct inode *inode, void *opaque)
 
 		return (node->n_backing_inode == backing_inode) &&
 			inode->i_ino == search->ino;
-	}
-	return 1;
+	} else
+		return inode->i_ino == search->ino;
 }
 
 static int inode_set(struct inode *inode, void *opaque)
@@ -362,13 +366,14 @@ static int inode_set(struct inode *inode, void *opaque)
 
 		fsstack_copy_attr_all(inode, backing_inode);
 		if (S_ISREG(inode->i_mode)) {
-			u64 size = read_size_attr(backing_dentry);
+			u64 size = search->size;
 
 			inode->i_size = size;
 			inode->i_blocks = get_blocks_count_for_size(size);
 			inode->i_mapping->a_ops = &incfs_address_space_ops;
 			inode->i_op = &incfs_file_inode_ops;
 			inode->i_fop = &incfs_file_ops;
+			inode->i_mode &= ~0222;
 		} else if (S_ISDIR(inode->i_mode)) {
 			inode->i_size = 0;
 			inode->i_blocks = 1;
@@ -437,7 +442,8 @@ static struct inode *fetch_regular_inode(struct super_block *sb,
 	struct inode *backing_inode = d_inode(backing_dentry);
 	struct inode_search search = {
 		.ino = backing_inode->i_ino,
-		.backing_dentry = backing_dentry
+		.backing_dentry = backing_dentry,
+		.size = read_size_attr(backing_dentry),
 	};
 	struct inode *inode = iget5_locked(sb, search.ino, inode_test,
 				inode_set, &search);
@@ -581,22 +587,27 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 {
 	struct log_file_state *log_state = f->private_data;
 	struct mount_info *mi = get_mount_info(file_superblock(f));
-	struct incfs_pending_read_info *reads_buf =
-		(struct incfs_pending_read_info *)__get_free_page(GFP_NOFS);
-	size_t reads_to_collect = len / sizeof(*reads_buf);
-	size_t reads_per_page = PAGE_SIZE / sizeof(*reads_buf);
 	int total_reads_collected = 0;
+	int rl_size;
 	ssize_t result = 0;
+	struct incfs_pending_read_info *reads_buf;
+	ssize_t reads_to_collect = len / sizeof(*reads_buf);
+	ssize_t reads_per_page = PAGE_SIZE / sizeof(*reads_buf);
 
+	rl_size = READ_ONCE(mi->mi_log.rl_size);
+	if (rl_size == 0)
+		return 0;
+
+	reads_buf = (struct incfs_pending_read_info *)__get_free_page(GFP_NOFS);
 	if (!reads_buf)
 		return -ENOMEM;
 
-	reads_to_collect = min_t(size_t, mi->mi_log.rl_size, reads_to_collect);
+	reads_to_collect = min_t(ssize_t, rl_size, reads_to_collect);
 	while (reads_to_collect > 0) {
 		struct read_log_state next_state = READ_ONCE(log_state->state);
 		int reads_collected = incfs_collect_logged_reads(
 			mi, &next_state, reads_buf,
-			min_t(size_t, reads_to_collect, reads_per_page));
+			min_t(ssize_t, reads_to_collect, reads_per_page));
 		if (reads_collected <= 0) {
 			result = total_reads_collected ?
 					 total_reads_collected *
@@ -635,7 +646,7 @@ static __poll_t log_poll(struct file *file, poll_table *wait)
 	__poll_t ret = 0;
 
 	poll_wait(file, &mi->mi_log.ml_notif_wq, wait);
-	count = incfs_get_uncollected_logs_count(mi, log_state->state);
+	count = incfs_get_uncollected_logs_count(mi, &log_state->state);
 	if (count >= mi->mi_options.read_log_wakeup_count)
 		ret = EPOLLIN | EPOLLRDNORM;
 
@@ -804,7 +815,7 @@ static int read_single_page(struct file *f, struct page *page)
 		tmp.data = (u8 *)__get_free_pages(GFP_NOFS, get_order(tmp.len));
 		bytes_to_read = min_t(loff_t, size - offset, PAGE_SIZE);
 		read_result = incfs_read_data_file_block(
-			range(page_start, bytes_to_read), df, block_index,
+			range(page_start, bytes_to_read), f, block_index,
 			timeout_ms, tmp);
 
 		free_pages((unsigned long)tmp.data, get_order(tmp.len));
@@ -853,7 +864,7 @@ static struct mem_range incfs_copy_signature_info_from_user(u8 __user *original,
 	if (size > INCFS_MAX_SIGNATURE_SIZE)
 		return range(ERR_PTR(-EFAULT), 0);
 
-	result = kzalloc(size, GFP_NOFS);
+	result = kzalloc(size, GFP_NOFS | __GFP_COMP);
 	if (!result)
 		return range(ERR_PTR(-ENOMEM), 0);
 
@@ -885,7 +896,8 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 		.mnt = mi->mi_backing_dir_path.mnt,
 		.dentry = dentry
 	};
-	new_file = dentry_open(&path, O_RDWR | O_NOATIME, mi->mi_owner);
+	new_file = dentry_open(&path, O_RDWR | O_NOATIME | O_LARGEFILE,
+			       mi->mi_owner);
 
 	if (IS_ERR(new_file)) {
 		error = PTR_ERR(new_file);
@@ -893,6 +905,7 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 	}
 
 	bfc = incfs_alloc_bfc(new_file);
+	fput(new_file);
 	if (IS_ERR(bfc)) {
 		error = PTR_ERR(bfc);
 		bfc = NULL;
@@ -904,25 +917,14 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 	if (error)
 		goto out;
 
-	block_count = (u32)get_blocks_count_for_size(size);
-	error = incfs_write_blockmap_to_backing_file(bfc, block_count, NULL);
-	if (error)
-		goto out;
-
-	/* This fill has data, reserve space for the block map. */
-	if (block_count > 0) {
-		error = incfs_write_blockmap_to_backing_file(
-			bfc, block_count, NULL);
-		if (error)
-			goto out;
-	}
-
 	if (attr.data && attr.len) {
 		error = incfs_write_file_attr_to_backing_file(bfc,
 							attr, NULL);
 		if (error)
 			goto out;
 	}
+
+	block_count = (u32)get_blocks_count_for_size(size);
 
 	if (user_signature_info) {
 		raw_signature = incfs_copy_signature_info_from_user(
@@ -945,8 +947,16 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 			bfc, raw_signature, hash_tree->hash_tree_area_size);
 		if (error)
 			goto out;
+
+		block_count += get_blocks_count_for_size(
+			hash_tree->hash_tree_area_size);
 	}
 
+	if (block_count)
+		error = incfs_write_blockmap_to_backing_file(bfc, block_count);
+
+	if (error)
+		goto out;
 out:
 	if (bfc) {
 		mutex_unlock(&bfc->bc_mutex);
@@ -1276,7 +1286,7 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 {
 	struct incfs_fill_blocks __user *usr_fill_blocks = arg;
 	struct incfs_fill_blocks fill_blocks;
-	struct incfs_fill_block *usr_fill_block_array;
+	struct incfs_fill_block __user *usr_fill_block_array;
 	struct data_file *df = get_incfs_data_file(f);
 	const ssize_t data_buf_size = 2 * INCFS_DATA_FILE_BLOCK_SIZE;
 	u8 *data_buf = NULL;
@@ -1293,7 +1303,8 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 		return -EFAULT;
 
 	usr_fill_block_array = u64_to_user_ptr(fill_blocks.fill_blocks);
-	data_buf = (u8 *)__get_free_pages(GFP_NOFS, get_order(data_buf_size));
+	data_buf = (u8 *)__get_free_pages(GFP_NOFS | __GFP_COMP,
+					  get_order(data_buf_size));
 	if (!data_buf)
 		return -ENOMEM;
 
@@ -1346,7 +1357,7 @@ static long ioctl_permit_fill(struct file *f, void __user *arg)
 	struct incfs_permit_fill __user *usr_permit_fill = arg;
 	struct incfs_permit_fill permit_fill;
 	long error = 0;
-	struct file *file = 0;
+	struct file *file = NULL;
 
 	if (f->f_op != &incfs_pending_read_file_ops)
 		return -EPERM;
@@ -1408,7 +1419,7 @@ static long ioctl_read_file_signature(struct file *f, void __user *arg)
 	if (sig_buf_size > INCFS_MAX_SIGNATURE_SIZE)
 		return -E2BIG;
 
-	sig_buffer = kzalloc(sig_buf_size, GFP_NOFS);
+	sig_buffer = kzalloc(sig_buf_size, GFP_NOFS | __GFP_COMP);
 	if (!sig_buffer)
 		return -ENOMEM;
 
@@ -1436,6 +1447,30 @@ out:
 	return error;
 }
 
+static long ioctl_get_filled_blocks(struct file *f, void __user *arg)
+{
+	struct incfs_get_filled_blocks_args __user *args_usr_ptr = arg;
+	struct incfs_get_filled_blocks_args args = {};
+	struct data_file *df = get_incfs_data_file(f);
+	int error;
+
+	if (!df)
+		return -EINVAL;
+
+	if ((uintptr_t)f->private_data != CAN_FILL)
+		return -EPERM;
+
+	if (copy_from_user(&args, args_usr_ptr, sizeof(args)) > 0)
+		return -EINVAL;
+
+	error = incfs_get_filled_blocks(df, &args);
+
+	if (copy_to_user(args_usr_ptr, &args, sizeof(args)))
+		return -EFAULT;
+
+	return error;
+}
+
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 {
 	struct mount_info *mi = get_mount_info(file_superblock(f));
@@ -1449,6 +1484,8 @@ static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 		return ioctl_permit_fill(f, (void __user *)arg);
 	case INCFS_IOC_READ_FILE_SIGNATURE:
 		return ioctl_read_file_signature(f, (void __user *)arg);
+	case INCFS_IOC_GET_FILLED_BLOCKS:
+		return ioctl_get_filled_blocks(f, (void __user *)arg);
 	default:
 		return -EINVAL;
 	}
@@ -1655,6 +1692,7 @@ static int final_file_delete(struct mount_info *mi,
 	if (d_really_is_positive(index_file_dentry))
 		error = incfs_unlink(index_file_dentry);
 out:
+	dput(index_file_dentry);
 	if (error)
 		pr_debug("incfs: delete_file_from_index err:%d\n", error);
 	return error;
@@ -1867,8 +1905,8 @@ static int file_open(struct inode *inode, struct file *file)
 	int err = 0;
 
 	get_incfs_backing_path(file->f_path.dentry, &backing_path);
-	backing_file = dentry_open(&backing_path, O_RDWR | O_NOATIME,
-				mi->mi_owner);
+	backing_file = dentry_open(
+		&backing_path, O_RDWR | O_NOATIME | O_LARGEFILE, mi->mi_owner);
 	path_put(&backing_path);
 
 	if (IS_ERR(backing_file)) {
@@ -1957,6 +1995,7 @@ static void dentry_release(struct dentry *d)
 
 	if (di)
 		path_put(&di->backing_path);
+	kfree(d->d_fsdata);
 	d->d_fsdata = NULL;
 }
 
@@ -1995,6 +2034,45 @@ static void evict_inode(struct inode *inode)
 
 	truncate_inode_pages(&inode->i_data, 0);
 	clear_inode(inode);
+}
+
+static int incfs_setattr(struct dentry *dentry, struct iattr *ia)
+{
+	struct dentry_info *di = get_incfs_dentry(dentry);
+	struct dentry *backing_dentry;
+	struct inode *backing_inode;
+	int error;
+
+	if (ia->ia_valid & ATTR_SIZE)
+		return -EINVAL;
+
+	if (!di)
+		return -EINVAL;
+	backing_dentry = di->backing_path.dentry;
+	if (!backing_dentry)
+		return -EINVAL;
+
+	backing_inode = d_inode(backing_dentry);
+
+	/* incfs files are readonly, but the backing files must be writeable */
+	if (S_ISREG(backing_inode->i_mode)) {
+		if ((ia->ia_valid & ATTR_MODE) && (ia->ia_mode & 0222))
+			return -EINVAL;
+
+		ia->ia_mode |= 0222;
+	}
+
+	inode_lock(d_inode(backing_dentry));
+	error = notify_change(backing_dentry, ia, NULL);
+	inode_unlock(d_inode(backing_dentry));
+
+	if (error)
+		return error;
+
+	if (S_ISREG(backing_inode->i_mode))
+		ia->ia_mode &= ~0222;
+
+	return simple_setattr(dentry, ia);
 }
 
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
@@ -2099,7 +2177,7 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 	sb->s_op = &incfs_super_ops;
 	sb->s_d_op = &incfs_dentry_ops;
 	sb->s_flags |= S_NOATIME;
-	sb->s_magic = INCFS_MAGIC_NUMBER;
+	sb->s_magic = (long)INCFS_MAGIC_NUMBER;
 	sb->s_time_gran = 1;
 	sb->s_blocksize = INCFS_DATA_FILE_BLOCK_SIZE;
 	sb->s_blocksize_bits = blksize_bits(sb->s_blocksize);
@@ -2168,7 +2246,7 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 	path_put(&backing_dir_path);
 	sb->s_flags |= SB_ACTIVE;
 
-	pr_debug("infs: mount\n");
+	pr_debug("incfs: mount\n");
 	return dget(sb->s_root);
 err:
 	sb->s_fs_info = NULL;
@@ -2189,12 +2267,11 @@ static int incfs_remount_fs(struct super_block *sb, int *flags, char *data)
 	if (err)
 		return err;
 
-	if (mi->mi_options.read_timeout_ms != options.read_timeout_ms) {
-		mi->mi_options.read_timeout_ms = options.read_timeout_ms;
-		pr_debug("incfs: new timeout_ms=%d", options.read_timeout_ms);
-	}
+	err = incfs_realloc_mount_info(mi, &options);
+	if (err)
+		return err;
 
-	pr_debug("infs: remount\n");
+	pr_debug("incfs: remount\n");
 	return 0;
 }
 
@@ -2202,7 +2279,7 @@ void incfs_kill_sb(struct super_block *sb)
 {
 	struct mount_info *mi = sb->s_fs_info;
 
-	pr_debug("infs: unmount\n");
+	pr_debug("incfs: unmount\n");
 	incfs_free_mount_info(mi);
 	generic_shutdown_super(sb);
 }

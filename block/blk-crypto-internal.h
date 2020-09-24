@@ -19,6 +19,8 @@ extern const struct blk_crypto_mode blk_crypto_modes[];
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK
 
+int blk_crypto_fallback_start_using_mode(enum blk_crypto_mode_num mode_num);
+
 int blk_crypto_fallback_submit_bio(struct bio **bio_ptr);
 
 bool blk_crypto_queue_decrypt_bio(struct bio *bio);
@@ -28,6 +30,13 @@ int blk_crypto_fallback_evict_key(const struct blk_crypto_key *key);
 bool bio_crypt_fallback_crypted(const struct bio_crypt_ctx *bc);
 
 #else /* CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK */
+
+static inline int
+blk_crypto_fallback_start_using_mode(enum blk_crypto_mode_num mode_num)
+{
+	pr_warn_once("crypto API fallback is disabled\n");
+	return -ENOPKG;
+}
 
 static inline bool bio_crypt_fallback_crypted(const struct bio_crypt_ctx *bc)
 {

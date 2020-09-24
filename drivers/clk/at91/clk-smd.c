@@ -117,7 +117,7 @@ at91sam9x5_clk_register_smd(struct regmap *regmap, const char *name,
 {
 	struct at91sam9x5_clk_smd *smd;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	smd = kzalloc(sizeof(*smd), GFP_KERNEL);

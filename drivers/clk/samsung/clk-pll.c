@@ -1253,7 +1253,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 				void __iomem *base)
 {
 	struct samsung_clk_pll *pll;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret, len;
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);

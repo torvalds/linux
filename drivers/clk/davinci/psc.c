@@ -235,7 +235,7 @@ davinci_lpsc_clk_register(struct device *dev, const char *name,
 			  const char *parent_name, struct regmap *regmap,
 			  u32 md, u32 pd, u32 flags)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct davinci_lpsc_clk *lpsc;
 	int ret;
 	bool is_on;

@@ -11,6 +11,7 @@
 #include <linux/scatterlist.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_request.h>
+#include <linux/android_kabi.h>
 
 struct Scsi_Host;
 struct scsi_driver;
@@ -147,6 +148,11 @@ struct scsi_cmnd {
 	int flags;		/* Command flags */
 
 	unsigned char tag;	/* SCSI-II queued command tag */
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 /*

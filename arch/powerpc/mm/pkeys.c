@@ -81,13 +81,17 @@ int pkey_initialize(void)
 	scan_pkey_feature();
 
 	/*
-	 * Let's assume 32 pkeys on P8 bare metal, if its not defined by device
-	 * tree. We make this exception since skiboot forgot to expose this
-	 * property on power8.
+	 * Let's assume 32 pkeys on P8/P9 bare metal, if its not defined by device
+	 * tree. We make this exception since some version of skiboot forgot to
+	 * expose this property on power8/9.
 	 */
-	if (!pkeys_devtree_defined && !firmware_has_feature(FW_FEATURE_LPAR) &&
-			cpu_has_feature(CPU_FTRS_POWER8))
-		pkeys_total = 32;
+	if (!pkeys_devtree_defined && !firmware_has_feature(FW_FEATURE_LPAR)) {
+		unsigned long pvr = mfspr(SPRN_PVR);
+
+		if (PVR_VER(pvr) == PVR_POWER8 || PVR_VER(pvr) == PVR_POWER8E ||
+		    PVR_VER(pvr) == PVR_POWER8NVL || PVR_VER(pvr) == PVR_POWER9)
+			pkeys_total = 32;
+	}
 
 	/*
 	 * Adjust the upper limit, based on the number of bits supported by
@@ -365,12 +369,14 @@ static bool pkey_access_permitted(int pkey, bool write, bool execute)
 		return true;
 
 	pkey_shift = pkeyshift(pkey);
-	if (execute && !(read_iamr() & (IAMR_EX_BIT << pkey_shift)))
-		return true;
+	if (execute)
+		return !(read_iamr() & (IAMR_EX_BIT << pkey_shift));
 
-	amr = read_amr(); /* Delay reading amr until absolutely needed */
-	return ((!write && !(amr & (AMR_RD_BIT << pkey_shift))) ||
-		(write &&  !(amr & (AMR_WR_BIT << pkey_shift))));
+	amr = read_amr();
+	if (write)
+		return !(amr & (AMR_WR_BIT << pkey_shift));
+
+	return !(amr & (AMR_RD_BIT << pkey_shift));
 }
 
 bool arch_pte_access_permitted(u64 pte, bool write, bool execute)

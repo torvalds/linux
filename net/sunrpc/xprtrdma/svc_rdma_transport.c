@@ -71,7 +71,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					struct sockaddr *sa, int salen,
 					int flags);
 static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt);
-static void svc_rdma_release_rqst(struct svc_rqst *);
 static void svc_rdma_detach(struct svc_xprt *xprt);
 static void svc_rdma_free(struct svc_xprt *xprt);
 static int svc_rdma_has_wspace(struct svc_xprt *xprt);
@@ -614,10 +613,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	/* This call to put will destroy the transport */
 	svc_xprt_put(&newxprt->sc_xprt);
 	return NULL;
-}
-
-static void svc_rdma_release_rqst(struct svc_rqst *rqstp)
-{
 }
 
 /*

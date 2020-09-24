@@ -219,7 +219,7 @@ struct clk * __init cpg_div6_register(const char *name,
 				      struct raw_notifier_head *notifiers)
 {
 	unsigned int valid_parents;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct div6_clock *clock;
 	struct clk *clk;
 	unsigned int i;

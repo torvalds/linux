@@ -9,7 +9,6 @@ config INCREMENTAL_FS
 	select X509_CERTIFICATE_PARSER
 	select ASYMMETRIC_KEY_TYPE
 	select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
-	select PKCS7_MESSAGE_PARSER
 	help
 	  Incremental FS is a read-only virtual file system that facilitates execution
 	  of programs while their binaries are still being lazily downloaded over the

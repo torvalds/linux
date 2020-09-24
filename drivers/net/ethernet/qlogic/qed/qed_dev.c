@@ -3316,26 +3316,20 @@ static void qed_chain_free_single(struct qed_dev *cdev,
 
 static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
 {
-	void **pp_virt_addr_tbl = p_chain->pbl.pp_virt_addr_tbl;
+	struct addr_tbl_entry *pp_addr_tbl = p_chain->pbl.pp_addr_tbl;
 	u32 page_cnt = p_chain->page_cnt, i, pbl_size;
-	u8 *p_pbl_virt = p_chain->pbl_sp.p_virt_table;
 
-	if (!pp_virt_addr_tbl)
+	if (!pp_addr_tbl)
 		return;
 
-	if (!p_pbl_virt)
-		goto out;
-
 	for (i = 0; i < page_cnt; i++) {
-		if (!pp_virt_addr_tbl[i])
+		if (!pp_addr_tbl[i].virt_addr || !pp_addr_tbl[i].dma_map)
 			break;
 
 		dma_free_coherent(&cdev->pdev->dev,
 				  QED_CHAIN_PAGE_SIZE,
-				  pp_virt_addr_tbl[i],
-				  *(dma_addr_t *)p_pbl_virt);
-
-		p_pbl_virt += QED_CHAIN_PBL_ENTRY_SIZE;
+				  pp_addr_tbl[i].virt_addr,
+				  pp_addr_tbl[i].dma_map);
 	}
 
 	pbl_size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
@@ -3345,9 +3339,9 @@ static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
 				  pbl_size,
 				  p_chain->pbl_sp.p_virt_table,
 				  p_chain->pbl_sp.p_phys_table);
-out:
-	vfree(p_chain->pbl.pp_virt_addr_tbl);
-	p_chain->pbl.pp_virt_addr_tbl = NULL;
+
+	vfree(p_chain->pbl.pp_addr_tbl);
+	p_chain->pbl.pp_addr_tbl = NULL;
 }
 
 void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain)
@@ -3448,19 +3442,19 @@ qed_chain_alloc_pbl(struct qed_dev *cdev,
 {
 	u32 page_cnt = p_chain->page_cnt, size, i;
 	dma_addr_t p_phys = 0, p_pbl_phys = 0;
-	void **pp_virt_addr_tbl = NULL;
+	struct addr_tbl_entry *pp_addr_tbl;
 	u8 *p_pbl_virt = NULL;
 	void *p_virt = NULL;
 
-	size = page_cnt * sizeof(*pp_virt_addr_tbl);
-	pp_virt_addr_tbl = vzalloc(size);
-	if (!pp_virt_addr_tbl)
+	size = page_cnt * sizeof(*pp_addr_tbl);
+	pp_addr_tbl =  vzalloc(size);
+	if (!pp_addr_tbl)
 		return -ENOMEM;
 
 	/* The allocation of the PBL table is done with its full size, since it
 	 * is expected to be successive.
 	 * qed_chain_init_pbl_mem() is called even in a case of an allocation
-	 * failure, since pp_virt_addr_tbl was previously allocated, and it
+	 * failure, since tbl was previously allocated, and it
 	 * should be saved to allow its freeing during the error flow.
 	 */
 	size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
@@ -3474,8 +3468,7 @@ qed_chain_alloc_pbl(struct qed_dev *cdev,
 		p_chain->b_external_pbl = true;
 	}
 
-	qed_chain_init_pbl_mem(p_chain, p_pbl_virt, p_pbl_phys,
-			       pp_virt_addr_tbl);
+	qed_chain_init_pbl_mem(p_chain, p_pbl_virt, p_pbl_phys, pp_addr_tbl);
 	if (!p_pbl_virt)
 		return -ENOMEM;
 
@@ -3494,7 +3487,8 @@ qed_chain_alloc_pbl(struct qed_dev *cdev,
 		/* Fill the PBL table with the physical address of the page */
 		*(dma_addr_t *)p_pbl_virt = p_phys;
 		/* Keep the virtual address of the page */
-		p_chain->pbl.pp_virt_addr_tbl[i] = p_virt;
+		p_chain->pbl.pp_addr_tbl[i].virt_addr = p_virt;
+		p_chain->pbl.pp_addr_tbl[i].dma_map = p_phys;
 
 		p_pbl_virt += QED_CHAIN_PBL_ENTRY_SIZE;
 	}

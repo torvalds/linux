@@ -169,6 +169,9 @@ Optional property:
   Type: bool		thresholds, so the governors may mitigate by ensuring
 			timing closures and other low temperature operating
 			issues.
+- wake-capable-sensor:	Set to true if thermal zone sensor is wake up capable
+  Type: bool		and cooling devices binded to this thermal zone are not
+  Size: none		affected during suspend.
 
 Note: The delay properties are bound to the maximum dT/dt (temperature
 derivative over time) in two situations for a thermal zone:

@@ -586,6 +586,7 @@ const struct v4l2_file_operations v4l2_subdev_fops = {
 	.release = subdev_close,
 	.poll = subdev_poll,
 };
+EXPORT_SYMBOL_GPL(v4l2_subdev_fops);
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,

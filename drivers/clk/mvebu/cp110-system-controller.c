@@ -160,7 +160,7 @@ static struct clk_hw *cp110_register_gate(const char *name,
 {
 	struct cp110_gate_clk *gate;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);

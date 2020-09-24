@@ -129,7 +129,7 @@ struct clk *mxs_clk_ref(const char *name, const char *parent_name,
 {
 	struct clk_ref *ref;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	ref = kzalloc(sizeof(*ref), GFP_KERNEL);
 	if (!ref)

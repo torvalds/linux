@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
 # Objects to go into the VDSO.
-obj-vdso-y := elf.o gettimeofday.o sigreturn.o
+
+# Absolute relocation type $(ARCH_REL_TYPE_ABS) needs to be defined before
+# the inclusion of generic Makefile.
+ARCH_REL_TYPE_ABS := R_MIPS_JUMP_SLOT|R_MIPS_GLOB_DAT
+include $(srctree)/lib/vdso/Makefile
+
+obj-vdso-y := elf.o vgettimeofday.o sigreturn.o
 
 # Common compiler flags between ABIs.
 ccflags-vdso := \
@@ -16,14 +22,30 @@ ifeq ($(cc-name),clang)
 ccflags-vdso += $(filter --target=%,$(KBUILD_CFLAGS))
 endif
 
+#
+# The -fno-jump-tables flag only prevents the compiler from generating
+# jump tables but does not prevent the compiler from emitting absolute
+# offsets.
 cflags-vdso := $(ccflags-vdso) \
 	$(filter -W%,$(filter-out -Wa$(comma)%,$(KBUILD_CFLAGS))) \
-	-O2 -g -fPIC -fno-strict-aliasing -fno-common -fno-builtin -G 0 \
-	-DDISABLE_BRANCH_PROFILING \
+	-O3 -g -fPIC -fno-strict-aliasing -fno-common -fno-builtin -G 0 \
+	-fno-stack-protector -fno-jump-tables -DDISABLE_BRANCH_PROFILING \
 	$(call cc-option, -fno-asynchronous-unwind-tables) \
 	$(call cc-option, -fno-stack-protector)
 aflags-vdso := $(ccflags-vdso) \
 	-D__ASSEMBLY__ -Wa,-gdwarf-2
+
+ifneq ($(c-gettimeofday-y),)
+CFLAGS_vgettimeofday.o = -include $(c-gettimeofday-y)
+
+# config-n32-o32-env.c prepares the environment to build a 32bit vDSO
+# library on a 64bit kernel.
+# Note: Needs to be included before than the generic library.
+CFLAGS_vgettimeofday-o32.o = -include $(srctree)/$(src)/config-n32-o32-env.c -include $(c-gettimeofday-y)
+CFLAGS_vgettimeofday-n32.o = -include $(srctree)/$(src)/config-n32-o32-env.c -include $(c-gettimeofday-y)
+endif
+
+CFLAGS_REMOVE_vgettimeofday.o = -pg
 
 #
 # For the pre-R6 code in arch/mips/vdso/vdso.h for locating
@@ -51,17 +73,22 @@ VDSO_LDFLAGS := \
 	$(call cc-ldoption, -Wl$(comma)--hash-style=sysv) \
 	$(call cc-ldoption, -Wl$(comma)--build-id)
 
+CFLAGS_REMOVE_vdso.o = -pg
+
 GCOV_PROFILE := n
 
 #
 # Shared build commands.
 #
 
+quiet_cmd_vdsold_and_vdso_check = LD      $@
+      cmd_vdsold_and_vdso_check = $(cmd_vdsold); $(cmd_vdso_check)
+
 quiet_cmd_vdsold = VDSO    $@
       cmd_vdsold = $(CC) $(c_flags) $(VDSO_LDFLAGS) \
                    -Wl,-T $(filter %.lds,$^) $(filter %.o,$^) -o $@
 
-quiet_cmd_vdsoas_o_S = AS       $@
+quiet_cmd_vdsoas_o_S = AS      $@
       cmd_vdsoas_o_S = $(CC) $(a_flags) -c -o $@ $<
 
 # Strip rule for the raw .so files
@@ -97,7 +124,7 @@ $(obj-vdso): KBUILD_AFLAGS := $(aflags-vdso) $(native-abi)
 $(obj)/vdso.lds: KBUILD_CPPFLAGS := $(ccflags-vdso) $(native-abi)
 
 $(obj)/vdso.so.dbg.raw: $(obj)/vdso.lds $(obj-vdso) FORCE
-	$(call if_changed,vdsold)
+	$(call if_changed,vdsold_and_vdso_check)
 
 $(obj)/vdso-image.c: $(obj)/vdso.so.dbg.raw $(obj)/vdso.so.raw \
                      $(obj)/genvdso FORCE
@@ -135,7 +162,7 @@ $(obj)/vdso-o32.lds: $(src)/vdso.lds.S FORCE
 	$(call if_changed_dep,cpp_lds_S)
 
 $(obj)/vdso-o32.so.dbg.raw: $(obj)/vdso-o32.lds $(obj-vdso-o32) FORCE
-	$(call if_changed,vdsold)
+	$(call if_changed,vdsold_and_vdso_check)
 
 $(obj)/vdso-o32-image.c: VDSO_NAME := o32
 $(obj)/vdso-o32-image.c: $(obj)/vdso-o32.so.dbg.raw $(obj)/vdso-o32.so.raw \
@@ -175,7 +202,7 @@ $(obj)/vdso-n32.lds: $(src)/vdso.lds.S FORCE
 	$(call if_changed_dep,cpp_lds_S)
 
 $(obj)/vdso-n32.so.dbg.raw: $(obj)/vdso-n32.lds $(obj-vdso-n32) FORCE
-	$(call if_changed,vdsold)
+	$(call if_changed,vdsold_and_vdso_check)
 
 $(obj)/vdso-n32-image.c: VDSO_NAME := n32
 $(obj)/vdso-n32-image.c: $(obj)/vdso-n32.so.dbg.raw $(obj)/vdso-n32.so.raw \

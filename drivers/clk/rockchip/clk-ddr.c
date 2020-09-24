@@ -318,7 +318,7 @@ rockchip_clk_register_ddrclk(const char *name, int flags,
 			     int ddr_flag, void __iomem *reg_base)
 {
 	struct rockchip_ddrclk *ddrclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk *clk;
 
 #ifdef CONFIG_ARM

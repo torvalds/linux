@@ -21,6 +21,6 @@ extern void big_key_free_preparse(struct key_preparsed_payload *prep);
 extern void big_key_revoke(struct key *key);
 extern void big_key_destroy(struct key *key);
 extern void big_key_describe(const struct key *big_key, struct seq_file *m);
-extern long big_key_read(const struct key *key, char __user *buffer, size_t buflen);
+extern long big_key_read(const struct key *key, char *buffer, size_t buflen);
 
 #endif /* _KEYS_BIG_KEY_TYPE_H */

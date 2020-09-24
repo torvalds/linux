@@ -279,11 +279,11 @@ static struct device_node *of_get_child_regulator(struct device_node *parent,
 static struct device_node *of_get_regulator(struct device *dev, const char *supply)
 {
 	struct device_node *regnode = NULL;
-	char prop_name[32]; /* 32 is max size of property name */
+	char prop_name[256];
 
 	dev_dbg(dev, "Looking up %s-supply from device tree\n", supply);
 
-	snprintf(prop_name, 32, "%s-supply", supply);
+	snprintf(prop_name, sizeof(prop_name), "%s-supply", supply);
 	regnode = of_parse_phandle(dev->of_node, prop_name, 0);
 
 	if (!regnode) {
@@ -775,7 +775,7 @@ static int drms_uA_update(struct regulator_dev *rdev)
 {
 	struct regulator *sibling;
 	int current_uA = 0, output_uV, input_uV, err;
-	unsigned int mode;
+	unsigned int regulator_curr_mode, mode;
 
 	lockdep_assert_held_once(&rdev->mutex);
 
@@ -834,6 +834,14 @@ static int drms_uA_update(struct regulator_dev *rdev)
 			rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV\n",
 				 current_uA, input_uV, output_uV);
 			return err;
+		}
+		/* return if the same mode is requested */
+		if (rdev->desc->ops->get_mode) {
+			regulator_curr_mode = rdev->desc->ops->get_mode(rdev);
+			if (regulator_curr_mode == mode)
+				return 0;
+		} else {
+			return 0;
 		}
 
 		err = rdev->desc->ops->set_mode(rdev, mode);
@@ -1668,16 +1676,6 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	if (ret < 0) {
 		put_device(&r->dev);
 		return ret;
-	}
-
-	/* Cascade always-on state to supply */
-	if (_regulator_is_enabled(rdev)) {
-		ret = regulator_enable(rdev->supply);
-		if (ret < 0) {
-			_regulator_put(rdev->supply);
-			rdev->supply = NULL;
-			return ret;
-		}
 	}
 
 	return 0;
@@ -4791,6 +4789,8 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 	rdev_init_debugfs(rdev);
 	rdev_init_early_min_volt(rdev);
+	rdev->proxy_consumer = regulator_proxy_consumer_register(dev,
+							config->of_node);
 
 	/* try to resolve regulators supply since a new one was registered */
 	class_for_each_device(&regulator_class, NULL, NULL,
@@ -4831,6 +4831,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 		regulator_put(rdev->supply);
 	}
 	rdev_deinit_debugfs(rdev);
+	regulator_proxy_consumer_unregister(rdev->proxy_consumer);
 	mutex_lock(&regulator_list_mutex);
 	flush_work(&rdev->disable_work.work);
 	WARN_ON(rdev->open_count);
@@ -4841,6 +4842,30 @@ void regulator_unregister(struct regulator_dev *rdev)
 	device_unregister(&rdev->dev);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
+
+static int regulator_sync_supply(struct device *dev, void *data)
+{
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+
+	if (rdev->dev.parent != data)
+		return 0;
+
+	if (!rdev->proxy_consumer)
+		return 0;
+
+	dev_dbg(data, "Removing regulator proxy consumer requests\n");
+	regulator_proxy_consumer_unregister(rdev->proxy_consumer);
+	rdev->proxy_consumer = NULL;
+
+	return 0;
+}
+
+void regulator_sync_state(struct device *dev)
+{
+	class_for_each_device(&regulator_class, NULL, dev,
+			      regulator_sync_supply);
+}
+EXPORT_SYMBOL_GPL(regulator_sync_state);
 
 #ifdef CONFIG_SUSPEND
 static int _regulator_suspend(struct device *dev, void *data)

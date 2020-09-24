@@ -2,10 +2,12 @@
 . ${ROOT_DIR}/common/build.config.aarch64
 . ${ROOT_DIR}/common/build.config.gki
 
-ABI_DEFINITION=abi_gki_aarch64.xml
-KMI_WHITELIST=abi_gki_aarch64_whitelist
-ADDITIONAL_KMI_WHITELISTS="
-abi_gki_aarch64_cuttlefish_whitelist
-abi_gki_aarch64_qcom_whitelist
+ABI_DEFINITION=android/abi_gki_aarch64.xml
+KMI_SYMBOL_LIST=android/abi_gki_aarch64
+ADDITIONAL_KMI_SYMBOL_LISTS="
+android/abi_gki_aarch64_cuttlefish
+android/abi_gki_aarch64_qcom
 "
 TRIM_NONLISTED_KMI=1
+KMI_SYMBOL_LIST_STRICT_MODE=1
+KMI_ENFORCED=1

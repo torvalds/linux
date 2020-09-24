@@ -118,7 +118,7 @@ struct clk *mxs_clk_frac(const char *name, const char *parent_name,
 {
 	struct clk_frac *frac;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	frac = kzalloc(sizeof(*frac), GFP_KERNEL);
 	if (!frac)

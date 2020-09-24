@@ -49,6 +49,8 @@ struct fscrypt_mode fscrypt_modes[] = {
 	},
 };
 
+static DEFINE_MUTEX(fscrypt_mode_key_setup_mutex);
+
 static struct fscrypt_mode *
 select_encryption_mode(const union fscrypt_policy *policy,
 		       const struct inode *inode)
@@ -159,7 +161,6 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 				  struct fscrypt_prepared_key *keys,
 				  u8 hkdf_context, bool include_fs_uuid)
 {
-	static DEFINE_MUTEX(mode_key_setup_mutex);
 	const struct inode *inode = ci->ci_inode;
 	const struct super_block *sb = inode->i_sb;
 	struct fscrypt_mode *mode = ci->ci_mode;
@@ -179,7 +180,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 		return 0;
 	}
 
-	mutex_lock(&mode_key_setup_mutex);
+	mutex_lock(&fscrypt_mode_key_setup_mutex);
 
 	if (fscrypt_is_key_prepared(prep_key, ci))
 		goto done_unlock;
@@ -228,9 +229,10 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 	}
 done_unlock:
 	ci->ci_key = *prep_key;
+
 	err = 0;
 out_unlock:
-	mutex_unlock(&mode_key_setup_mutex);
+	mutex_unlock(&fscrypt_mode_key_setup_mutex);
 	return err;
 }
 
@@ -249,15 +251,53 @@ int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
 	return 0;
 }
 
+static int fscrypt_setup_iv_ino_lblk_32_key(struct fscrypt_info *ci,
+					    struct fscrypt_master_key *mk)
+{
+	int err;
+
+	err = setup_per_mode_enc_key(ci, mk, mk->mk_iv_ino_lblk_32_keys,
+				     HKDF_CONTEXT_IV_INO_LBLK_32_KEY, true);
+	if (err)
+		return err;
+
+	/* pairs with smp_store_release() below */
+	if (!smp_load_acquire(&mk->mk_ino_hash_key_initialized)) {
+
+		mutex_lock(&fscrypt_mode_key_setup_mutex);
+
+		if (mk->mk_ino_hash_key_initialized)
+			goto unlock;
+
+		err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
+					  HKDF_CONTEXT_INODE_HASH_KEY, NULL, 0,
+					  (u8 *)&mk->mk_ino_hash_key,
+					  sizeof(mk->mk_ino_hash_key));
+		if (err)
+			goto unlock;
+		/* pairs with smp_load_acquire() above */
+		smp_store_release(&mk->mk_ino_hash_key_initialized, true);
+unlock:
+		mutex_unlock(&fscrypt_mode_key_setup_mutex);
+		if (err)
+			return err;
+	}
+
+	ci->ci_hashed_ino = (u32)siphash_1u64(ci->ci_inode->i_ino,
+					      &mk->mk_ino_hash_key);
+	return 0;
+}
+
 static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 				     struct fscrypt_master_key *mk)
 {
 	int err;
 
 	if (mk->mk_secret.is_hw_wrapped &&
-	    !(ci->ci_policy.v2.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64)) {
+	    !(ci->ci_policy.v2.flags & (FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64 |
+					FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))) {
 		fscrypt_warn(ci->ci_inode,
-			     "Hardware-wrapped keys are only supported with IV_INO_LBLK_64 policies");
+			     "Hardware-wrapped keys are only supported with IV_INO_LBLK policies");
 		return -EINVAL;
 	}
 
@@ -278,11 +318,14 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 		 * IV_INO_LBLK_64: encryption keys are derived from (master_key,
 		 * mode_num, filesystem_uuid), and inode number is included in
 		 * the IVs.  This format is optimized for use with inline
-		 * encryption hardware compliant with the UFS or eMMC standards.
+		 * encryption hardware compliant with the UFS standard.
 		 */
 		err = setup_per_mode_enc_key(ci, mk, mk->mk_iv_ino_lblk_64_keys,
 					     HKDF_CONTEXT_IV_INO_LBLK_64_KEY,
 					     true);
+	} else if (ci->ci_policy.v2.flags &
+		   FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
+		err = fscrypt_setup_iv_ino_lblk_32_key(ci, mk);
 	} else {
 		u8 derived_key[FSCRYPT_MAX_KEY_SIZE];
 
@@ -328,8 +371,6 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 	struct fscrypt_key_specifier mk_spec;
 	int err;
 
-	fscrypt_select_encryption_impl(ci);
-
 	switch (ci->ci_policy.version) {
 	case FSCRYPT_POLICY_V1:
 		mk_spec.type = FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR;
@@ -353,6 +394,10 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 		if (key != ERR_PTR(-ENOKEY) ||
 		    ci->ci_policy.version != FSCRYPT_POLICY_V1)
 			return PTR_ERR(key);
+
+		err = fscrypt_select_encryption_impl(ci, false);
+		if (err)
+			return err;
 
 		/*
 		 * As a legacy fallback for v1 policies, search for the key in
@@ -387,6 +432,10 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 		err = -ENOKEY;
 		goto out_release_key;
 	}
+
+	err = fscrypt_select_encryption_impl(ci, mk->mk_secret.is_hw_wrapped);
+	if (err)
+		goto out_release_key;
 
 	switch (ci->ci_policy.version) {
 	case FSCRYPT_POLICY_V1:
@@ -464,21 +513,18 @@ int fscrypt_get_encryption_info(struct inode *inode)
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
 	if (res < 0) {
-		if (!fscrypt_dummy_context_enabled(inode) ||
-		    IS_ENCRYPTED(inode)) {
+		const union fscrypt_context *dummy_ctx =
+			fscrypt_get_dummy_context(inode->i_sb);
+
+		if (IS_ENCRYPTED(inode) || !dummy_ctx) {
 			fscrypt_warn(inode,
 				     "Error %d getting encryption context",
 				     res);
 			return res;
 		}
 		/* Fake up a context for an unencrypted directory */
-		memset(&ctx, 0, sizeof(ctx));
-		ctx.version = FSCRYPT_CONTEXT_V1;
-		ctx.v1.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
-		ctx.v1.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
-		memset(ctx.v1.master_key_descriptor, 0x42,
-		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
-		res = sizeof(ctx.v1);
+		res = fscrypt_context_size(dummy_ctx);
+		memcpy(&ctx, dummy_ctx, res);
 	}
 
 	crypt_info = kmem_cache_zalloc(fscrypt_info_cachep, GFP_NOFS);
@@ -494,20 +540,8 @@ int fscrypt_get_encryption_info(struct inode *inode)
 		goto out;
 	}
 
-	switch (ctx.version) {
-	case FSCRYPT_CONTEXT_V1:
-		memcpy(crypt_info->ci_nonce, ctx.v1.nonce,
-		       FS_KEY_DERIVATION_NONCE_SIZE);
-		break;
-	case FSCRYPT_CONTEXT_V2:
-		memcpy(crypt_info->ci_nonce, ctx.v2.nonce,
-		       FS_KEY_DERIVATION_NONCE_SIZE);
-		break;
-	default:
-		WARN_ON(1);
-		res = -EINVAL;
-		goto out;
-	}
+	memcpy(crypt_info->ci_nonce, fscrypt_context_nonce(&ctx),
+	       FS_KEY_DERIVATION_NONCE_SIZE);
 
 	if (!fscrypt_supported_policy(&crypt_info->ci_policy, inode)) {
 		res = -EINVAL;
@@ -556,7 +590,8 @@ out:
 EXPORT_SYMBOL(fscrypt_get_encryption_info);
 
 /**
- * fscrypt_put_encryption_info - free most of an inode's fscrypt data
+ * fscrypt_put_encryption_info() - free most of an inode's fscrypt data
+ * @inode: an inode being evicted
  *
  * Free the inode's fscrypt_info.  Filesystems must call this when the inode is
  * being evicted.  An RCU grace period need not have elapsed yet.
@@ -569,7 +604,8 @@ void fscrypt_put_encryption_info(struct inode *inode)
 EXPORT_SYMBOL(fscrypt_put_encryption_info);
 
 /**
- * fscrypt_free_inode - free an inode's fscrypt data requiring RCU delay
+ * fscrypt_free_inode() - free an inode's fscrypt data requiring RCU delay
+ * @inode: an inode being freed
  *
  * Free the inode's cached decrypted symlink target, if any.  Filesystems must
  * call this after an RCU grace period, just before they free the inode.
@@ -584,7 +620,8 @@ void fscrypt_free_inode(struct inode *inode)
 EXPORT_SYMBOL(fscrypt_free_inode);
 
 /**
- * fscrypt_drop_inode - check whether the inode's master key has been removed
+ * fscrypt_drop_inode() - check whether the inode's master key has been removed
+ * @inode: an inode being considered for eviction
  *
  * Filesystems supporting fscrypt must call this from their ->drop_inode()
  * method so that encrypted inodes are evicted as soon as they're no longer in

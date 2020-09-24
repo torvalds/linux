@@ -97,7 +97,7 @@ struct clk *imx_clk_fixup_divider(const char *name, const char *parent,
 {
 	struct clk_fixup_div *fixup_div;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	if (!fixup)
 		return ERR_PTR(-EINVAL);

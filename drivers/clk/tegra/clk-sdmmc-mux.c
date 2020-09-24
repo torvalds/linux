@@ -209,7 +209,7 @@ struct clk *tegra_clk_register_sdmmc_mux_div(const char *name,
 	unsigned long flags, void *lock)
 {
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const struct tegra_clk_periph_regs *bank;
 	struct tegra_sdmmc_mux *sdmmc_mux;
 

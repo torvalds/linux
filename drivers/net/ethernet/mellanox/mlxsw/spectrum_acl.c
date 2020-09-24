@@ -442,7 +442,8 @@ mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl)
 
 	rulei = kzalloc(sizeof(*rulei), GFP_KERNEL);
 	if (!rulei)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
+
 	rulei->act_block = mlxsw_afa_block_create(acl->mlxsw_sp->afa);
 	if (IS_ERR(rulei->act_block)) {
 		err = PTR_ERR(rulei->act_block);

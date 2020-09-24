@@ -13,6 +13,11 @@
 #include "core.h"
 #include "rdev-ops.h"
 
+static bool cfg80211_valid_60g_freq(u32 freq)
+{
+	return freq >= 58320 && freq <= 70200;
+}
+
 void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 			     struct ieee80211_channel *chan,
 			     enum nl80211_channel_type chan_type)
@@ -22,6 +27,8 @@ void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 
 	chandef->chan = chan;
 	chandef->center_freq2 = 0;
+	chandef->edmg.bw_config = 0;
+	chandef->edmg.channels = 0;
 
 	switch (chan_type) {
 	case NL80211_CHAN_NO_HT:
@@ -45,6 +52,91 @@ void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 	}
 }
 EXPORT_SYMBOL(cfg80211_chandef_create);
+
+static bool cfg80211_edmg_chandef_valid(const struct cfg80211_chan_def *chandef)
+{
+	int max_contiguous = 0;
+	int num_of_enabled = 0;
+	int contiguous = 0;
+	int i;
+
+	if (!chandef->edmg.channels || !chandef->edmg.bw_config)
+		return false;
+
+	if (!cfg80211_valid_60g_freq(chandef->chan->center_freq))
+		return false;
+
+	for (i = 0; i < 6; i++) {
+		if (chandef->edmg.channels & BIT(i)) {
+			contiguous++;
+			num_of_enabled++;
+		} else {
+			contiguous = 0;
+		}
+
+		max_contiguous = max(contiguous, max_contiguous);
+	}
+	/* basic verification of edmg configuration according to
+	 * IEEE P802.11ay/D4.0 section 9.4.2.251
+	 */
+	/* check bw_config against contiguous edmg channels */
+	switch (chandef->edmg.bw_config) {
+	case IEEE80211_EDMG_BW_CONFIG_4:
+	case IEEE80211_EDMG_BW_CONFIG_8:
+	case IEEE80211_EDMG_BW_CONFIG_12:
+		if (max_contiguous < 1)
+			return false;
+		break;
+	case IEEE80211_EDMG_BW_CONFIG_5:
+	case IEEE80211_EDMG_BW_CONFIG_9:
+	case IEEE80211_EDMG_BW_CONFIG_13:
+		if (max_contiguous < 2)
+			return false;
+		break;
+	case IEEE80211_EDMG_BW_CONFIG_6:
+	case IEEE80211_EDMG_BW_CONFIG_10:
+	case IEEE80211_EDMG_BW_CONFIG_14:
+		if (max_contiguous < 3)
+			return false;
+		break;
+	case IEEE80211_EDMG_BW_CONFIG_7:
+	case IEEE80211_EDMG_BW_CONFIG_11:
+	case IEEE80211_EDMG_BW_CONFIG_15:
+		if (max_contiguous < 4)
+			return false;
+		break;
+
+	default:
+		return false;
+	}
+
+	/* check bw_config against aggregated (non contiguous) edmg channels */
+	switch (chandef->edmg.bw_config) {
+	case IEEE80211_EDMG_BW_CONFIG_4:
+	case IEEE80211_EDMG_BW_CONFIG_5:
+	case IEEE80211_EDMG_BW_CONFIG_6:
+	case IEEE80211_EDMG_BW_CONFIG_7:
+		break;
+	case IEEE80211_EDMG_BW_CONFIG_8:
+	case IEEE80211_EDMG_BW_CONFIG_9:
+	case IEEE80211_EDMG_BW_CONFIG_10:
+	case IEEE80211_EDMG_BW_CONFIG_11:
+		if (num_of_enabled < 2)
+			return false;
+		break;
+	case IEEE80211_EDMG_BW_CONFIG_12:
+	case IEEE80211_EDMG_BW_CONFIG_13:
+	case IEEE80211_EDMG_BW_CONFIG_14:
+	case IEEE80211_EDMG_BW_CONFIG_15:
+		if (num_of_enabled < 4 || max_contiguous < 2)
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
 
 bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 {
@@ -110,6 +202,10 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	default:
 		return false;
 	}
+
+	if (cfg80211_chandef_is_edmg(chandef) &&
+	    !cfg80211_edmg_chandef_valid(chandef))
+		return false;
 
 	return true;
 }
@@ -720,12 +816,66 @@ static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 	return true;
 }
 
+/* check if the operating channels are valid and supported */
+static bool cfg80211_edmg_usable(struct wiphy *wiphy, u8 edmg_channels,
+				 enum ieee80211_edmg_bw_config edmg_bw_config,
+				 int primary_channel,
+				 struct ieee80211_edmg *edmg_cap)
+{
+	struct ieee80211_channel *chan;
+	int i, freq;
+	int channels_counter = 0;
+
+	if (!edmg_channels && !edmg_bw_config)
+		return true;
+
+	if ((!edmg_channels && edmg_bw_config) ||
+	    (edmg_channels && !edmg_bw_config))
+		return false;
+
+	if (!(edmg_channels & BIT(primary_channel - 1)))
+		return false;
+
+	/* 60GHz channels 1..6 */
+	for (i = 0; i < 6; i++) {
+		if (!(edmg_channels & BIT(i)))
+			continue;
+
+		if (!(edmg_cap->channels & BIT(i)))
+			return false;
+
+		channels_counter++;
+
+		freq = ieee80211_channel_to_frequency(i + 1,
+						      NL80211_BAND_60GHZ);
+		chan = ieee80211_get_channel(wiphy, freq);
+		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
+			return false;
+	}
+
+	/* IEEE802.11 allows max 4 channels */
+	if (channels_counter > 4)
+		return false;
+
+	/* check bw_config is a subset of what driver supports
+	 * (see IEEE P802.11ay/D4.0 section 9.4.2.251, Table 13)
+	 */
+	if ((edmg_bw_config % 4) > (edmg_cap->bw_config % 4))
+		return false;
+
+	if (edmg_bw_config > edmg_cap->bw_config)
+		return false;
+
+	return true;
+}
+
 bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			     const struct cfg80211_chan_def *chandef,
 			     u32 prohibited_flags)
 {
 	struct ieee80211_sta_ht_cap *ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap;
+	struct ieee80211_edmg *edmg_cap;
 	u32 width, control_freq, cap;
 
 	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
@@ -733,6 +883,15 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 
 	ht_cap = &wiphy->bands[chandef->chan->band]->ht_cap;
 	vht_cap = &wiphy->bands[chandef->chan->band]->vht_cap;
+	edmg_cap = &wiphy->bands[chandef->chan->band]->edmg_cap;
+
+	if (edmg_cap->channels &&
+	    !cfg80211_edmg_usable(wiphy,
+				  chandef->edmg.channels,
+				  chandef->edmg.bw_config,
+				  chandef->chan->hw_value,
+				  edmg_cap))
+		return false;
 
 	control_freq = chandef->chan->center_freq;
 

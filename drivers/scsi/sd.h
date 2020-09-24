@@ -117,6 +117,9 @@ struct scsi_disk {
 	unsigned	urswrz : 1;
 	unsigned	security : 1;
 	unsigned	ignore_medium_access_errors : 1;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 #define to_scsi_disk(obj) container_of(obj,struct scsi_disk,dev)
 

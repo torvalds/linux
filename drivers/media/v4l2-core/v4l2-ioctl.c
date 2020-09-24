@@ -1301,6 +1301,14 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_META_FMT_VSP1_HGO:	descr = "R-Car VSP1 1-D Histogram"; break;
 	case V4L2_META_FMT_VSP1_HGT:	descr = "R-Car VSP1 2-D Histogram"; break;
 	case V4L2_META_FMT_UVC:		descr = "UVC payload header metadata"; break;
+	case V4L2_PIX_FMT_NV12_UBWC:
+					descr = "NV12 UBWC"; break;
+	case V4L2_PIX_FMT_SDE_Y_CBCR_H2V2_P010_VENUS:
+					descr = "Y/CbCr 4:2:0 P10 Venus"; break;
+	case V4L2_PIX_FMT_NV12_TP10_UBWC:
+					descr = "Y/CbCr 4:2:0 TP10 UBWC"; break;
+	case V4L2_PIX_FMT_NV12_512:
+				descr = "Y/CbCr 4:2:0 (512 align)"; break;
 	case V4L2_META_FMT_RK_ISP1_PARAMS:
 		descr = "Rockchip ISP1 3A params";
 		break;
@@ -3086,6 +3094,7 @@ out:
 	kvfree(mbuf);
 	return err;
 }
+EXPORT_SYMBOL_GPL(video_usercopy);
 
 long video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)

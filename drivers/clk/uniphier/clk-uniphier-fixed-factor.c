@@ -23,7 +23,7 @@ struct clk_hw *uniphier_clk_register_fixed_factor(struct device *dev,
 			const struct uniphier_clk_fixed_factor_data *data)
 {
 	struct clk_fixed_factor *fix;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	fix = devm_kzalloc(dev, sizeof(*fix), GFP_KERNEL);

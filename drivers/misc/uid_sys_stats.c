@@ -126,7 +126,7 @@ static void get_full_task_comm(struct task_entry *task_entry,
 	int i = 0, offset = 0, len = 0;
 	/* save one byte for terminating null character */
 	int unused_len = MAX_TASK_COMM_LEN - TASK_COMM_LEN - 1;
-	char buf[unused_len];
+	char buf[MAX_TASK_COMM_LEN - TASK_COMM_LEN - 1];
 	struct mm_struct *mm = task->mm;
 
 	/* fill the first TASK_COMM_LEN bytes with thread name */

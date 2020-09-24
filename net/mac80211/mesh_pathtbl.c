@@ -532,6 +532,7 @@ static void mesh_path_free_rcu(struct mesh_table *tbl,
 	del_timer_sync(&mpath->timer);
 	atomic_dec(&sdata->u.mesh.mpaths);
 	atomic_dec(&tbl->entries);
+	mesh_path_flush_pending(mpath);
 	kfree_rcu(mpath, rcu);
 }
 

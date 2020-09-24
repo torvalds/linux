@@ -655,7 +655,7 @@ static struct clk_hw *axg_clk_hw_register_bypass(struct device *dev,
 						 const char *parent_name)
 {
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	char *clk_name;
 	int ret;
 

@@ -69,7 +69,7 @@ struct clk *rockchip_clk_register_muxgrf(const char *name,
 				int shift, int width, int mux_flags)
 {
 	struct rockchip_muxgrf_clock *muxgrf_clock;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk *clk;
 
 	if (IS_ERR(regmap)) {

@@ -161,7 +161,7 @@ struct clk *clk_register_zx_pll(const char *name, const char *parent_name,
 {
 	struct clk_zx_pll *zx_pll;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	zx_pll = kzalloc(sizeof(*zx_pll), GFP_KERNEL);
 	if (!zx_pll)
@@ -300,7 +300,7 @@ struct clk *clk_register_zx_audio(const char *name,
 {
 	struct clk_zx_audio *zx_audio;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	zx_audio = kzalloc(sizeof(*zx_audio), GFP_KERNEL);
 	if (!zx_audio)

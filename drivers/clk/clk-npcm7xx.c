@@ -70,7 +70,7 @@ npcm7xx_clk_register_pll(void __iomem *pllcon, const char *name,
 			 const char *parent_name, unsigned long flags)
 {
 	struct npcm7xx_clk_pll *pll;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	int ret;
 

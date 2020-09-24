@@ -255,6 +255,11 @@ extern pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
 extern int radix__has_transparent_hugepage(void);
 #endif
 
+static inline pmd_t radix__pmd_mkdevmap(pmd_t pmd)
+{
+	return __pmd(pmd_val(pmd) | (_PAGE_PTE | _PAGE_DEVMAP));
+}
+
 extern int __meminit radix__vmemmap_create_mapping(unsigned long start,
 					     unsigned long page_size,
 					     unsigned long phys);

@@ -34,8 +34,8 @@ struct alg_sock {
 
 	struct sock *parent;
 
-	unsigned int refcnt;
-	unsigned int nokey_refcnt;
+	atomic_t refcnt;
+	atomic_t nokey_refcnt;
 
 	const struct af_alg_type *type;
 	void *private;

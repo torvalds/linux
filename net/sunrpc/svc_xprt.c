@@ -878,9 +878,6 @@ int svc_send(struct svc_rqst *rqstp)
 	if (!xprt)
 		goto out;
 
-	/* release the receive skb before sending the reply */
-	xprt->xpt_ops->xpo_release_rqst(rqstp);
-
 	/* calculate over-all length */
 	xb = &rqstp->rq_res;
 	xb->len = xb->head[0].iov_len +

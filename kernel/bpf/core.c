@@ -626,7 +626,7 @@ bool __weak arch_bpf_jit_check_func(const struct bpf_prog *prog)
 {
 	return true;
 }
-EXPORT_SYMBOL(arch_bpf_jit_check_func);
+EXPORT_SYMBOL_GPL(arch_bpf_jit_check_func);
 #endif
 
 struct bpf_binary_header *

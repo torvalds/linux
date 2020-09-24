@@ -132,7 +132,7 @@ struct clk *imx_clk_pfd(const char *name, const char *parent_name,
 {
 	struct clk_pfd *pfd;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	pfd = kzalloc(sizeof(*pfd), GFP_KERNEL);
 	if (!pfd)

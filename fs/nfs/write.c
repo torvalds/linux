@@ -432,6 +432,7 @@ nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
 		}
 
 		subreq->wb_head = subreq;
+		nfs_release_request(old_head);
 
 		if (test_and_clear_bit(PG_INODE_REF, &subreq->wb_flags)) {
 			nfs_release_request(subreq);

@@ -75,7 +75,7 @@ struct clk *imx_clk_fixup_mux(const char *name, void __iomem *reg,
 {
 	struct clk_fixup_mux *fixup_mux;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	if (!fixup)
 		return ERR_PTR(-EINVAL);

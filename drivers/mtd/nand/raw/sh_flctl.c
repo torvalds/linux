@@ -1203,7 +1203,7 @@ static int flctl_probe(struct platform_device *pdev)
 	flctl_setup_dma(flctl);
 
 	nand->dummy_controller.ops = &flctl_nand_controller_ops;
-	ret = nand_scan(flctl_mtd, 1);
+	ret = nand_scan(nand, 1);
 	if (ret)
 		goto err_chip;
 
@@ -1226,7 +1226,7 @@ static int flctl_remove(struct platform_device *pdev)
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
 
 	flctl_release_dma(flctl);
-	nand_release(nand_to_mtd(&flctl->chip));
+	nand_release(&flctl->chip);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

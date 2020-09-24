@@ -142,7 +142,7 @@ static struct clk *xgene_register_clk_pll(struct device *dev,
 {
 	struct xgene_clk_pll *apmclk;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	/* allocate the APM clock structure */
 	apmclk = kzalloc(sizeof(*apmclk), GFP_KERNEL);
@@ -359,7 +359,7 @@ xgene_register_clk_pmd(struct device *dev,
 		       u8 width, u64 denom, u32 clk_flags, spinlock_t *lock)
 {
 	struct xgene_clk_pmd *fd;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk *clk;
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
@@ -643,7 +643,7 @@ static struct clk *xgene_register_clk(struct device *dev,
 {
 	struct xgene_clk *apmclk;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int rc;
 
 	/* allocate the APM clock structure */

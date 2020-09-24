@@ -419,7 +419,7 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	struct clk_pllv3 *pll;
 	const struct clk_ops *ops;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)

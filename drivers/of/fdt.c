@@ -81,6 +81,71 @@ void of_fdt_limit_memory(int limit)
 }
 
 /**
+ * of_fdt_get_ddrhbb - Return the highest bank bit of ddr on the current device
+ *
+ * On match, returns a non-zero positive value which matches the highest bank
+ * bit.
+ * Otherwise returns -ENOENT.
+ */
+int of_fdt_get_ddrhbb(int channel, int rank)
+{
+	int memory;
+	int len;
+	int ret;
+	/* Single spaces reserved for channel(0-9), rank(0-9) */
+	char pname[] = "ddr_device_hbb_ch _rank ";
+	fdt32_t *prop = NULL;
+
+	memory = fdt_path_offset(initial_boot_params, "/memory");
+	if (memory > 0) {
+		snprintf(pname, sizeof(pname),
+			 "ddr_device_hbb_ch%d_rank%d", channel, rank);
+		prop = fdt_getprop_w(initial_boot_params, memory,
+				     pname, &len);
+	}
+
+	if (!prop || len != sizeof(u32))
+		return -ENOENT;
+
+	ret = fdt32_to_cpu(*prop);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_fdt_get_ddrhbb);
+
+/**
+ * of_fdt_get_ddrrank - Return the rank of ddr on the current device
+ *
+ * On match, returns a non-zero positive value which matches the ddr rank.
+ * Otherwise returns -ENOENT.
+ */
+int of_fdt_get_ddrrank(int channel)
+{
+	int memory;
+	int len;
+	int ret;
+	/* Single space reserved for channel(0-9) */
+	char pname[] = "ddr_device_rank_ch ";
+	fdt32_t *prop = NULL;
+
+	memory = fdt_path_offset(initial_boot_params, "/memory");
+	if (memory > 0) {
+		snprintf(pname, sizeof(pname),
+			 "ddr_device_rank_ch%d", channel);
+		prop = fdt_getprop_w(initial_boot_params, memory,
+				     pname, &len);
+	}
+
+	if (!prop || len != sizeof(u32))
+		return -ENOENT;
+
+	ret = fdt32_to_cpu(*prop);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_fdt_get_ddrrank);
+
+/**
  * of_fdt_get_ddrtype - Return the type of ddr (4/5) on the current device
  *
  * On match, returns a non-zero positive value which matches the ddr type.

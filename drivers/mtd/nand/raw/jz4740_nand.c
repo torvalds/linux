@@ -331,7 +331,7 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 
 	if (chipnr == 0) {
 		/* Detect first chip. */
-		ret = nand_scan(mtd, 1);
+		ret = nand_scan(chip, 1);
 		if (ret)
 			goto notfound_id;
 
@@ -507,7 +507,7 @@ static int jz_nand_remove(struct platform_device *pdev)
 	struct jz_nand *nand = platform_get_drvdata(pdev);
 	size_t i;
 
-	nand_release(nand_to_mtd(&nand->chip));
+	nand_release(&nand->chip);
 
 	/* Deassert and disable all chips */
 	writel(0, nand->base + JZ_REG_NAND_CTRL);

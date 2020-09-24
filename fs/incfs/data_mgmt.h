@@ -20,38 +20,78 @@
 
 #define SEGMENTS_PER_FILE 3
 
-struct read_log_record {
-	u32 block_index : 31;
+enum LOG_RECORD_TYPE {
+	FULL,
+	SAME_FILE,
+	SAME_FILE_NEXT_BLOCK,
+	SAME_FILE_NEXT_BLOCK_SHORT,
+};
 
-	u32 timed_out : 1;
-
-	u64 timestamp_us;
-
+struct full_record {
+	enum LOG_RECORD_TYPE type : 2; /* FULL */
+	u32 block_index : 30;
 	incfs_uuid_t file_id;
-} __packed;
+	u64 absolute_ts_us;
+} __packed; /* 28 bytes */
+
+struct same_file_record {
+	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE */
+	u32 block_index : 30;
+	u32 relative_ts_us; /* max 2^32 us ~= 1 hour (1:11:30) */
+} __packed; /* 12 bytes */
+
+struct same_file_next_block {
+	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK */
+	u32 relative_ts_us : 30; /* max 2^30 us ~= 15 min (17:50) */
+} __packed; /* 4 bytes */
+
+struct same_file_next_block_short {
+	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK_SHORT */
+	u16 relative_ts_us : 14; /* max 2^14 us ~= 16 ms */
+} __packed; /* 2 bytes */
+
+union log_record {
+	struct full_record full_record;
+	struct same_file_record same_file_record;
+	struct same_file_next_block same_file_next_block;
+	struct same_file_next_block_short same_file_next_block_short;
+};
 
 struct read_log_state {
-	/* Next slot in rl_ring_buf to write to. */
-	u32 next_index;
+	/* Log buffer generation id, incremented on configuration changes */
+	u32 generation_id;
 
-	/* Current number of writer pass over rl_ring_buf */
+	/* Offset in rl_ring_buf to write into. */
+	u32 next_offset;
+
+	/* Current number of writer passes over rl_ring_buf */
 	u32 current_pass_no;
+
+	/* Current full_record to diff against */
+	struct full_record base_record;
+
+	/* Current record number counting from configuration change */
+	u64 current_record_no;
 };
 
 /* A ring buffer to save records about data blocks which were recently read. */
 struct read_log {
-	struct read_log_record *rl_ring_buf;
-
-	struct read_log_state rl_state;
-
-	spinlock_t rl_writer_lock;
+	void *rl_ring_buf;
 
 	int rl_size;
 
-	/*
-	 * A queue of waiters who want to be notified about reads.
-	 */
+	struct read_log_state rl_head;
+
+	struct read_log_state rl_tail;
+
+	/* A lock to protect the above fields */
+	spinlock_t rl_lock;
+
+	/* A queue of waiters who want to be notified about reads */
 	wait_queue_head_t ml_notif_wq;
+
+	/* A work item to wake up those waiters without slowing down readers */
+	struct delayed_work ml_wakeup_work;
 };
 
 struct mount_options {
@@ -183,7 +223,14 @@ struct data_file {
 	/* File size in bytes */
 	loff_t df_size;
 
-	int df_block_count; /* File size in DATA_FILE_BLOCK_SIZE blocks */
+	/* File header flags */
+	u32 df_header_flags;
+
+	/* File size in DATA_FILE_BLOCK_SIZE blocks */
+	int df_data_block_count;
+
+	/* Total number of blocks, data + hash */
+	int df_total_block_count;
 
 	struct file_attr n_attr;
 
@@ -216,6 +263,9 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 					  struct mount_options *options,
 					  struct path *backing_dir_path);
 
+int incfs_realloc_mount_info(struct mount_info *mi,
+			     struct mount_options *options);
+
 void incfs_free_mount_info(struct mount_info *mi);
 
 struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf);
@@ -226,9 +276,12 @@ int incfs_scan_metadata_chain(struct data_file *df);
 struct dir_file *incfs_open_dir_file(struct mount_info *mi, struct file *bf);
 void incfs_free_dir_file(struct dir_file *dir);
 
-ssize_t incfs_read_data_file_block(struct mem_range dst, struct data_file *df,
+ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 				   int index, int timeout_ms,
 				   struct mem_range tmp);
+
+int incfs_get_filled_blocks(struct data_file *df,
+			    struct incfs_get_filled_blocks_args *arg);
 
 int incfs_read_file_signature(struct data_file *df, struct mem_range dst);
 
@@ -255,14 +308,14 @@ int incfs_collect_logged_reads(struct mount_info *mi,
 			       int reads_size);
 struct read_log_state incfs_get_log_state(struct mount_info *mi);
 int incfs_get_uncollected_logs_count(struct mount_info *mi,
-				     struct read_log_state state);
+				     const struct read_log_state *state);
 
 static inline struct inode_info *get_incfs_node(struct inode *inode)
 {
 	if (!inode)
 		return NULL;
 
-	if (inode->i_sb->s_magic != INCFS_MAGIC_NUMBER) {
+	if (inode->i_sb->s_magic != (long) INCFS_MAGIC_NUMBER) {
 		/* This inode doesn't belong to us. */
 		pr_warn_once("incfs: %s on an alien inode.", __func__);
 		return NULL;

@@ -22,6 +22,8 @@
  * @read_fifo:	platform specific function to read fifo
  * @write_fifo:	platform specific function to write fifo
  * @busctl_offset: platform specific function to get busctl offset
+ * @get_toggle: platform specific function to get toggle
+ * @set_toggle: platform specific function to set toggle
  */
 struct musb_io {
 	u32	(*ep_offset)(u8 epnum, u16 offset);
@@ -30,14 +32,18 @@ struct musb_io {
 	void	(*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
 	void	(*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
 	u32	(*busctl_offset)(u8 epnum, u16 offset);
+	u16	(*get_toggle)(struct musb_qh *qh, int is_out);
+	u16	(*set_toggle)(struct musb_qh *qh, int is_out, struct urb *urb);
 };
 
 /* Do not add new entries here, add them the struct musb_io instead */
-extern u8 (*musb_readb)(const void __iomem *addr, unsigned offset);
-extern void (*musb_writeb)(void __iomem *addr, unsigned offset, u8 data);
-extern u16 (*musb_readw)(const void __iomem *addr, unsigned offset);
-extern void (*musb_writew)(void __iomem *addr, unsigned offset, u16 data);
-extern u32 musb_readl(const void __iomem *addr, unsigned offset);
-extern void musb_writel(void __iomem *addr, unsigned offset, u32 data);
+extern u8 (*musb_readb)(void __iomem *addr, u32 offset);
+extern void (*musb_writeb)(void __iomem *addr, u32 offset, u8 data);
+extern u8 (*musb_clearb)(void __iomem *addr, u32 offset);
+extern u16 (*musb_readw)(void __iomem *addr, u32 offset);
+extern void (*musb_writew)(void __iomem *addr, u32 offset, u16 data);
+extern u16 (*musb_clearw)(void __iomem *addr, u32 offset);
+extern u32 musb_readl(void __iomem *addr, u32 offset);
+extern void musb_writel(void __iomem *addr, u32 offset, u32 data);
 
 #endif

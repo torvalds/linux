@@ -1821,7 +1821,7 @@ static struct clk *_tegra_clk_register_pll(struct tegra_clk_pll *pll,
 		const char *name, const char *parent_name, unsigned long flags,
 		const struct clk_ops *ops)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	init.name = name;
 	init.ops = ops;

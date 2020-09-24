@@ -215,14 +215,14 @@ void cfi_module_add(struct module *mod, unsigned long min_addr,
 {
 	update_shadow(mod, min_addr, max_addr, add_module_to_shadow);
 }
-EXPORT_SYMBOL(cfi_module_add);
+EXPORT_SYMBOL_GPL(cfi_module_add);
 
 void cfi_module_remove(struct module *mod, unsigned long min_addr,
 	unsigned long max_addr)
 {
 	update_shadow(mod, min_addr, max_addr, remove_module_from_shadow);
 }
-EXPORT_SYMBOL(cfi_module_remove);
+EXPORT_SYMBOL_GPL(cfi_module_remove);
 
 static inline cfi_check_fn ptr_to_check_fn(const struct cfi_shadow __rcu *s,
 	unsigned long ptr)
@@ -291,14 +291,14 @@ void cfi_slowpath_handler(uint64_t id, void *ptr, void *diag)
 	else /* Don't allow unchecked modules */
 		handle_cfi_failure(ptr);
 }
-EXPORT_SYMBOL(cfi_slowpath_handler);
+EXPORT_SYMBOL_GPL(cfi_slowpath_handler);
 #endif /* CONFIG_MODULES */
 
 void cfi_failure_handler(void *data, void *ptr, void *vtable)
 {
 	handle_cfi_failure(ptr);
 }
-EXPORT_SYMBOL(cfi_failure_handler);
+EXPORT_SYMBOL_GPL(cfi_failure_handler);
 
 void __cfi_check_fail(void *data, void *ptr)
 {

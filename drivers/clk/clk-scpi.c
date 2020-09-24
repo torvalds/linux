@@ -150,7 +150,7 @@ static int
 scpi_clk_ops_init(struct device *dev, const struct of_device_id *match,
 		  struct scpi_clk *sclk, const char *name)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	unsigned long min = 0, max = 0;
 	int ret;
 

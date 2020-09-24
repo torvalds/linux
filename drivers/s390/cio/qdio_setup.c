@@ -480,7 +480,6 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	setup_queues(irq_ptr, init_data);
 
 	setup_qib(irq_ptr, init_data);
-	qdio_setup_thinint(irq_ptr);
 	set_impl_params(irq_ptr, init_data->qib_param_field_format,
 			init_data->qib_param_field,
 			init_data->input_slib_elements,

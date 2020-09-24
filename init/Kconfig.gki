@@ -2,8 +2,8 @@ config GKI_HIDDEN_DRM_CONFIGS
 	bool "Hidden DRM configs needed for GKI"
 	select DRM_KMS_HELPER if (HAS_IOMEM && DRM)
 	select DRM_GEM_CMA_HELPER
-	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DSI
+	select DRM_TTM if (HAS_IOMEM && DRM)
 	select VIDEOMODE_HELPERS
 	help
 	  Dummy config option used to enable hidden DRM configs.
@@ -40,6 +40,7 @@ config GKI_HIDDEN_SND_CONFIGS
 config GKI_HIDDEN_SND_SOC_CONFIGS
 	bool "Hidden SND_SOC configs needed for GKI"
 	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
+	select SND_SOC_COMPRESS if (SND_SOC && SND)
 	help
 	  Dummy config option used to enable hidden SND_SOC configs.
 	  These are normally selected implicitly when a module
@@ -90,12 +91,50 @@ config GKI_HIDDEN_SOC_PM_CONFIGS
 
 config GKI_HIDDEN_VIDEOBUF2_CONFIGS
 	bool "Hidden v4l2 configs for GKI"
+	select V4L2_MEM2MEM_DEV if VIDEO_V4L2
 	select VIDEOBUF2_CORE if VIDEO_V4L2
 	select VIDEOBUF2_V4L2 if VIDEO_V4L2
-	select VIDEOBUF2_MEMOPS if VIDEO_V4L2
 	select VIDEOBUF2_VMALLOC if VIDEO_V4L2
+	select VIDEOBUF2_MEMOPS if VIDEO_V4L2
 	help
 	  Dummy config option used to enable all the hidden v4l2 media module.
+
+config GKI_HIDDEN_USB_CONFIGS
+	bool "Hiddel USB configurations needed for GKI"
+	select USB_PHY
+	help
+	  Dummy config option used to enable all USB related hidden configs.
+	  These configurations are usually only selected by another config
+	  option or a combination of them.
+
+	  If you are not building a kernel to be used for a variety of
+	  out-of-kernel build USB drivers, say N here.
+
+config GKI_HIDDEN_SOC_BUS_CONFIGS
+	bool "Hidden SoC bus configuration needed for GKI"
+	select SOC_BUS
+	  help
+	    Dummy config option used to enable SOC_BUS hidden Kconfig.
+	    The configuration is required for SoCs to register themselves to the bus.
+
+	    If you are not building a kernel to be used for a variety of SoCs and
+	    out-of-tree drivers, say N here.
+
+config GKI_HIDDEN_GPU_CONFIGS
+	bool "Hidden GPU configuration needed for GKI"
+	select TRACE_GPU_MEM
+	help
+	  Dummy config option used to enable the hidden GPU config.
+	  These are normally selected implicitly when a module
+	  that relies on it is configured.
+
+config GKI_HIDDEN_IRQ_CONFIGS
+	bool "Hidden IRQ configuration needed for GKI"
+	select GENERIC_IRQ_CHIP
+	help
+	  Dummy config option used to enable GENERIC_IRQ_CHIP hidden
+	  config, required by various SoC platforms. This is usually
+	  selected by ARCH_*.
 
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
@@ -116,6 +155,10 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_VIRTUAL_CONFIGS
 	select GKI_HIDDEN_SOC_PM_CONFIGS
 	select GKI_HIDDEN_VIDEOBUF2_CONFIGS
+	select GKI_HIDDEN_USB_CONFIGS
+	select GKI_HIDDEN_SOC_BUS_CONFIGS
+	select GKI_HIDDEN_GPU_CONFIGS
+	select GKI_HIDDEN_IRQ_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
