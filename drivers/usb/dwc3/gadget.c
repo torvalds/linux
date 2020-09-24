@@ -1060,10 +1060,11 @@ static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
  * @trb_length: buffer size of the TRB
  * @chain: should this TRB be chained to the next?
  * @node: only for isochronous endpoints. First TRB needs different type.
+ * @use_bounce_buffer: set to use bounce buffer
  */
 static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		struct dwc3_request *req, unsigned int trb_length,
-		unsigned int chain, unsigned int node)
+		unsigned int chain, unsigned int node, bool use_bounce_buffer)
 {
 	struct dwc3_trb		*trb;
 	dma_addr_t		dma;
@@ -1072,7 +1073,9 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	unsigned int		no_interrupt = req->request.no_interrupt;
 	unsigned int		is_last = req->request.is_last;
 
-	if (req->request.num_sgs > 0)
+	if (use_bounce_buffer)
+		dma = dep->dwc->bounce_addr;
+	else if (req->request.num_sgs > 0)
 		dma = sg_dma_address(req->start_sg);
 	else
 		dma = req->request.dma;
@@ -1129,56 +1132,35 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 			chain = false;
 
 		if (rem && usb_endpoint_dir_out(dep->endpoint.desc) && !chain) {
-			struct dwc3	*dwc = dep->dwc;
-			struct dwc3_trb	*trb;
-
 			req->needs_extra_trb = true;
 
 			/* prepare normal TRB */
-			dwc3_prepare_one_trb(dep, req, trb_length, true, i);
+			dwc3_prepare_one_trb(dep, req, trb_length,
+					true, i, false);
 
 			/* Now prepare one extra TRB to align transfer size */
-			trb = &dep->trb_pool[dep->trb_enqueue];
-			req->num_trbs++;
-			__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr,
-					maxp - rem, false, 1,
-					req->request.stream_id,
-					req->request.short_not_ok,
-					req->request.no_interrupt,
-					req->request.is_last);
+			dwc3_prepare_one_trb(dep, req, maxp - rem,
+					false, 1, true);
 		} else if (req->request.zero && req->request.length &&
 			   !usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
 			   !rem && !chain) {
-			struct dwc3	*dwc = dep->dwc;
-			struct dwc3_trb	*trb;
-
 			req->needs_extra_trb = true;
 
 			/* Prepare normal TRB */
-			dwc3_prepare_one_trb(dep, req, trb_length, true, i);
+			dwc3_prepare_one_trb(dep, req, trb_length,
+					true, i, false);
 
 			/* Prepare one extra TRB to handle ZLP */
-			trb = &dep->trb_pool[dep->trb_enqueue];
-			req->num_trbs++;
-			__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr, 0,
-					       !req->direction, 1,
-					       req->request.stream_id,
-					       req->request.short_not_ok,
-					       req->request.no_interrupt,
-					       req->request.is_last);
+			dwc3_prepare_one_trb(dep, req, 0,
+					!req->direction, 1, true);
 
 			/* Prepare one more TRB to handle MPS alignment */
-			if (!req->direction) {
-				trb = &dep->trb_pool[dep->trb_enqueue];
-				req->num_trbs++;
-				__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr, maxp,
-						       false, 1, req->request.stream_id,
-						       req->request.short_not_ok,
-						       req->request.no_interrupt,
-						       req->request.is_last);
-			}
+			if (!req->direction)
+				dwc3_prepare_one_trb(dep, req, maxp,
+						false, 1, true);
 		} else {
-			dwc3_prepare_one_trb(dep, req, trb_length, chain, i);
+			dwc3_prepare_one_trb(dep, req, trb_length,
+					chain, i, false);
 		}
 
 		/*
@@ -1216,54 +1198,29 @@ static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
 	unsigned int rem = length % maxp;
 
 	if ((!length || rem) && usb_endpoint_dir_out(dep->endpoint.desc)) {
-		struct dwc3	*dwc = dep->dwc;
-		struct dwc3_trb	*trb;
-
 		req->needs_extra_trb = true;
 
 		/* prepare normal TRB */
-		dwc3_prepare_one_trb(dep, req, length, true, 0);
+		dwc3_prepare_one_trb(dep, req, length, true, 0, false);
 
 		/* Now prepare one extra TRB to align transfer size */
-		trb = &dep->trb_pool[dep->trb_enqueue];
-		req->num_trbs++;
-		__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr, maxp - rem,
-				false, 1, req->request.stream_id,
-				req->request.short_not_ok,
-				req->request.no_interrupt,
-				req->request.is_last);
+		dwc3_prepare_one_trb(dep, req, maxp - rem, false, 1, true);
 	} else if (req->request.zero && req->request.length &&
 		   !usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
 		   (IS_ALIGNED(req->request.length, maxp))) {
-		struct dwc3	*dwc = dep->dwc;
-		struct dwc3_trb	*trb;
-
 		req->needs_extra_trb = true;
 
 		/* prepare normal TRB */
-		dwc3_prepare_one_trb(dep, req, length, true, 0);
+		dwc3_prepare_one_trb(dep, req, length, true, 0, false);
 
 		/* Prepare one extra TRB to handle ZLP */
-		trb = &dep->trb_pool[dep->trb_enqueue];
-		req->num_trbs++;
-		__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr, 0,
-				!req->direction, 1, req->request.stream_id,
-				req->request.short_not_ok,
-				req->request.no_interrupt,
-				req->request.is_last);
+		dwc3_prepare_one_trb(dep, req, 0, !req->direction, 1, true);
 
 		/* Prepare one more TRB to handle MPS alignment for OUT */
-		if (!req->direction) {
-			trb = &dep->trb_pool[dep->trb_enqueue];
-			req->num_trbs++;
-			__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr, maxp,
-					       false, 1, req->request.stream_id,
-					       req->request.short_not_ok,
-					       req->request.no_interrupt,
-					       req->request.is_last);
-		}
+		if (!req->direction)
+			dwc3_prepare_one_trb(dep, req, maxp, false, 1, true);
 	} else {
-		dwc3_prepare_one_trb(dep, req, length, false, 0);
+		dwc3_prepare_one_trb(dep, req, length, false, 0, false);
 	}
 }
 
