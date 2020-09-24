@@ -91,7 +91,6 @@ enum {
 struct b53_port {
 	u16		vlan_ctl_mask;
 	struct ethtool_eee eee;
-	u16		pvid;
 };
 
 struct b53_vlan {
