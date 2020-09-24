@@ -18,10 +18,7 @@
 #define HISI_SFC_V3XX_VERSION (0x1f8)
 
 #define HISI_SFC_V3XX_INT_STAT (0x120)
-#define HISI_SFC_V3XX_INT_STAT_PP_ERR BIT(2)
-#define HISI_SFC_V3XX_INT_STAT_ADDR_IACCES BIT(5)
 #define HISI_SFC_V3XX_INT_CLR (0x12c)
-#define HISI_SFC_V3XX_INT_CLR_CLEAR (0xff)
 #define HISI_SFC_V3XX_CMD_CFG (0x300)
 #define HISI_SFC_V3XX_CMD_CFG_DATA_CNT_OFF 9
 #define HISI_SFC_V3XX_CMD_CFG_RW_MSK BIT(8)
@@ -33,6 +30,13 @@
 #define HISI_SFC_V3XX_CMD_INS (0x308)
 #define HISI_SFC_V3XX_CMD_ADDR (0x30c)
 #define HISI_SFC_V3XX_CMD_DATABUF0 (0x400)
+
+/* Common definition of interrupt bit masks */
+#define HISI_SFC_V3XX_INT_MASK_ALL (0x1ff)	/* all the masks */
+#define HISI_SFC_V3XX_INT_MASK_PP_ERR BIT(2)	/* page progrom error */
+#define HISI_SFC_V3XX_INT_MASK_IACCES BIT(5)	/* error visiting inaccessible/
+						 * protected address
+						 */
 
 /* IO Mode definition in HISI_SFC_V3XX_CMD_CFG */
 #define HISI_SFC_V3XX_STD (0 << 17)
@@ -266,15 +270,15 @@ static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
 	 * next time judgement.
 	 */
 	int_stat = readl(host->regbase + HISI_SFC_V3XX_INT_STAT);
-	writel(HISI_SFC_V3XX_INT_CLR_CLEAR,
+	writel(HISI_SFC_V3XX_INT_MASK_ALL,
 	       host->regbase + HISI_SFC_V3XX_INT_CLR);
 
-	if (int_stat & HISI_SFC_V3XX_INT_STAT_ADDR_IACCES) {
+	if (int_stat & HISI_SFC_V3XX_INT_MASK_IACCES) {
 		dev_err(host->dev, "fail to access protected address\n");
 		return -EIO;
 	}
 
-	if (int_stat & HISI_SFC_V3XX_INT_STAT_PP_ERR) {
+	if (int_stat & HISI_SFC_V3XX_INT_MASK_PP_ERR) {
 		dev_err(host->dev, "page program operation failed\n");
 		return -EIO;
 	}
