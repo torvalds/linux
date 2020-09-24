@@ -2694,7 +2694,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
 	enum port port = encoder->port;
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct intel_digital_connector_state *intel_conn_state =
@@ -2708,10 +2707,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
-	if (lspcon->active)
-		lspcon_ycbcr420_config(&intel_connector->base, pipe_config);
-	else
-		ret = intel_dp_ycbcr420_config(pipe_config, conn_state);
+	ret = intel_dp_ycbcr420_config(pipe_config, conn_state);
 	if (ret)
 		return ret;
 
@@ -6414,7 +6410,9 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 	ycbcr_420_passthrough =
 		drm_dp_downstream_420_passthrough(intel_dp->dpcd,
 						  intel_dp->downstream_ports);
+	/* on-board LSPCON always assumed to support 4:4:4->4:2:0 conversion */
 	ycbcr_444_to_420 =
+		dp_to_dig_port(intel_dp)->lspcon.active ||
 		drm_dp_downstream_444_to_420_conversion(intel_dp->dpcd,
 							intel_dp->downstream_ports);
 

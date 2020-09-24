@@ -184,20 +184,6 @@ static bool lspcon_wake_native_aux_ch(struct intel_lspcon *lspcon)
 	return true;
 }
 
-void lspcon_ycbcr420_config(struct drm_connector *connector,
-			    struct intel_crtc_state *crtc_state)
-{
-	const struct drm_display_info *info = &connector->display_info;
-	const struct drm_display_mode *adjusted_mode =
-					&crtc_state->hw.adjusted_mode;
-
-	if (drm_mode_is_420_only(info, adjusted_mode) &&
-	    connector->ycbcr_420_allowed) {
-		crtc_state->port_clock /= 2;
-		crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR444;
-	}
-}
-
 static bool lspcon_probe(struct intel_lspcon *lspcon)
 {
 	int retry;

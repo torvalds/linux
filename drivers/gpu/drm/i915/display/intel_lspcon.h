@@ -31,7 +31,5 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 			   const struct drm_connector_state *conn_state);
 u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config);
-void lspcon_ycbcr420_config(struct drm_connector *connector,
-			    struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_LSPCON_H__ */
