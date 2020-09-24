@@ -121,6 +121,7 @@ int virtio_gpu_init(struct drm_device *dev)
 
 	spin_lock_init(&vgdev->display_info_lock);
 	spin_lock_init(&vgdev->resource_export_lock);
+	spin_lock_init(&vgdev->host_visible_lock);
 	ida_init(&vgdev->ctx_id_ida);
 	ida_init(&vgdev->resource_ida);
 	init_waitqueue_head(&vgdev->resp_wq);
@@ -169,6 +170,9 @@ int virtio_gpu_init(struct drm_device *dev)
 			 (unsigned long)vgdev->host_visible_region.addr,
 			 (unsigned long)vgdev->host_visible_region.len);
 		vgdev->has_host_visible = true;
+		drm_mm_init(&vgdev->host_visible_mm,
+			    (unsigned long)vgdev->host_visible_region.addr,
+			    (unsigned long)vgdev->host_visible_region.len);
 	}
 
 	DRM_INFO("features: %cvirgl %cedid %cresource_blob %chost_visible\n",
@@ -262,6 +266,10 @@ void virtio_gpu_release(struct drm_device *dev)
 	virtio_gpu_modeset_fini(vgdev);
 	virtio_gpu_free_vbufs(vgdev);
 	virtio_gpu_cleanup_cap_cache(vgdev);
+
+	if (vgdev->has_host_visible)
+		drm_mm_takedown(&vgdev->host_visible_mm);
+
 	kfree(vgdev->capsets);
 	kfree(vgdev);
 }

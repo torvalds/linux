@@ -99,8 +99,18 @@ struct virtio_gpu_object_shmem {
 	uint32_t mapped;
 };
 
+struct virtio_gpu_object_vram {
+	struct virtio_gpu_object base;
+	uint32_t map_state;
+	uint32_t map_info;
+	struct drm_mm_node vram_node;
+};
+
 #define to_virtio_gpu_shmem(virtio_gpu_object) \
 	container_of((virtio_gpu_object), struct virtio_gpu_object_shmem, base)
+
+#define to_virtio_gpu_vram(virtio_gpu_object) \
+	container_of((virtio_gpu_object), struct virtio_gpu_object_vram, base)
 
 struct virtio_gpu_object_array {
 	struct ww_acquire_ctx ticket;
@@ -222,6 +232,7 @@ struct virtio_gpu_device {
 	bool has_resource_blob;
 	bool has_host_visible;
 	struct virtio_shm_region host_visible_region;
+	struct drm_mm host_visible_mm;
 
 	struct work_struct config_changed_work;
 
@@ -233,8 +244,10 @@ struct virtio_gpu_device {
 	uint32_t num_capsets;
 	struct list_head cap_cache;
 
-	/* protects resource state when exporting */
+	/* protects uuid state when exporting */
 	spinlock_t resource_export_lock;
+	/* protects map state and host_visible_mm */
+	spinlock_t host_visible_lock;
 };
 
 struct virtio_gpu_fpriv {
@@ -365,6 +378,12 @@ int
 virtio_gpu_cmd_resource_assign_uuid(struct virtio_gpu_device *vgdev,
 				    struct virtio_gpu_object_array *objs);
 
+int virtio_gpu_cmd_map(struct virtio_gpu_device *vgdev,
+		       struct virtio_gpu_object_array *objs, uint64_t offset);
+
+void virtio_gpu_cmd_unmap(struct virtio_gpu_device *vgdev,
+			  struct virtio_gpu_object *bo);
+
 /* virtgpu_display.c */
 int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev);
 void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev);
@@ -411,4 +430,9 @@ struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
 /* virtgpu_debugfs.c */
 void virtio_gpu_debugfs_init(struct drm_minor *minor);
 
+/* virtgpu_vram.c */
+bool virtio_gpu_is_vram(struct virtio_gpu_object *bo);
+int virtio_gpu_vram_create(struct virtio_gpu_device *vgdev,
+			   struct virtio_gpu_object_params *params,
+			   struct virtio_gpu_object **bo_ptr);
 #endif
