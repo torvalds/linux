@@ -1127,14 +1127,14 @@ static void virtio_gpu_cmd_resource_uuid_cb(struct virtio_gpu_device *vgdev,
 	uint32_t resp_type = le32_to_cpu(resp->hdr.type);
 
 	spin_lock(&vgdev->resource_export_lock);
-	WARN_ON(obj->uuid_state != UUID_INITIALIZING);
+	WARN_ON(obj->uuid_state != STATE_INITIALIZING);
 
 	if (resp_type == VIRTIO_GPU_RESP_OK_RESOURCE_UUID &&
-	    obj->uuid_state == UUID_INITIALIZING) {
+	    obj->uuid_state == STATE_INITIALIZING) {
 		memcpy(&obj->uuid.b, resp->uuid, sizeof(obj->uuid.b));
-		obj->uuid_state = UUID_INITIALIZED;
+		obj->uuid_state = STATE_OK;
 	} else {
-		obj->uuid_state = UUID_INITIALIZATION_FAILED;
+		obj->uuid_state = STATE_ERR;
 	}
 	spin_unlock(&vgdev->resource_export_lock);
 
@@ -1153,7 +1153,7 @@ virtio_gpu_cmd_resource_assign_uuid(struct virtio_gpu_device *vgdev,
 	resp_buf = kzalloc(sizeof(*resp_buf), GFP_KERNEL);
 	if (!resp_buf) {
 		spin_lock(&vgdev->resource_export_lock);
-		bo->uuid_state = UUID_INITIALIZATION_FAILED;
+		bo->uuid_state = STATE_ERR;
 		spin_unlock(&vgdev->resource_export_lock);
 		virtio_gpu_array_put_free(objs);
 		return -ENOMEM;
