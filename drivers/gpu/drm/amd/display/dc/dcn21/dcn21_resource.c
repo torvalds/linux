@@ -1393,85 +1393,44 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 	unsigned int i, closest_clk_lvl;
 	int j;
 
-	// Default clock levels are used for diags, which may lead to overclocking.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		dcn2_1_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
-		dcn2_1_ip.max_num_dpp = pool->base.pipe_count;
-		dcn2_1_soc.num_chans = bw_params->num_channels;
+	dcn2_1_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
+	dcn2_1_ip.max_num_dpp = pool->base.pipe_count;
+	dcn2_1_soc.num_chans = bw_params->num_channels;
 
-		ASSERT(clk_table->num_entries);
-		for (i = 0; i < clk_table->num_entries; i++) {
-			/* loop backwards*/
-			for (closest_clk_lvl = 0, j = dcn2_1_soc.num_states - 1; j >= 0; j--) {
-				if ((unsigned int) dcn2_1_soc.clock_limits[j].dcfclk_mhz <= clk_table->entries[i].dcfclk_mhz) {
-					closest_clk_lvl = j;
-					break;
-				}
+	ASSERT(clk_table->num_entries);
+	for (i = 0; i < clk_table->num_entries; i++) {
+		/* loop backwards*/
+		for (closest_clk_lvl = 0, j = dcn2_1_soc.num_states - 1; j >= 0; j--) {
+			if ((unsigned int) dcn2_1_soc.clock_limits[j].dcfclk_mhz <= clk_table->entries[i].dcfclk_mhz) {
+				closest_clk_lvl = j;
+				break;
 			}
-
-			clock_limits[i].state = i;
-			clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-			clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-			clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-			clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
-
-			clock_limits[i].dispclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
-			clock_limits[i].dppclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
-			clock_limits[i].dram_bw_per_chan_gbps = dcn2_1_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
-			clock_limits[i].dscclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
-			clock_limits[i].dtbclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
-			clock_limits[i].phyclk_d18_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
-			clock_limits[i].phyclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
 		}
-		for (i = 0; i < clk_table->num_entries; i++)
-			dcn2_1_soc.clock_limits[i] = clock_limits[i];
-		if (clk_table->num_entries) {
-			dcn2_1_soc.num_states = clk_table->num_entries;
-			/* duplicate last level */
-			dcn2_1_soc.clock_limits[dcn2_1_soc.num_states] = dcn2_1_soc.clock_limits[dcn2_1_soc.num_states - 1];
-			dcn2_1_soc.clock_limits[dcn2_1_soc.num_states].state = dcn2_1_soc.num_states;
-		}
+
+		clock_limits[i].state = i;
+		clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
+		clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
+		clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
+		clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
+
+		clock_limits[i].dispclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
+		clock_limits[i].dppclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
+		clock_limits[i].dram_bw_per_chan_gbps = dcn2_1_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
+		clock_limits[i].dscclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
+		clock_limits[i].dtbclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
+		clock_limits[i].phyclk_d18_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
+		clock_limits[i].phyclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
+	}
+	for (i = 0; i < clk_table->num_entries; i++)
+		dcn2_1_soc.clock_limits[i] = clock_limits[i];
+	if (clk_table->num_entries) {
+		dcn2_1_soc.num_states = clk_table->num_entries;
+		/* duplicate last level */
+		dcn2_1_soc.clock_limits[dcn2_1_soc.num_states] = dcn2_1_soc.clock_limits[dcn2_1_soc.num_states - 1];
+		dcn2_1_soc.clock_limits[dcn2_1_soc.num_states].state = dcn2_1_soc.num_states;
 	}
 
 	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
-}
-
-/* Temporary Place holder until we can get them from fuse */
-static struct dpm_clocks dummy_clocks = {
-		.DcfClocks = {
-				{.Freq = 400, .Vol = 1},
-				{.Freq = 483, .Vol = 1},
-				{.Freq = 602, .Vol = 1},
-				{.Freq = 738, .Vol = 1} },
-		.SocClocks = {
-				{.Freq = 300, .Vol = 1},
-				{.Freq = 400, .Vol = 1},
-				{.Freq = 400, .Vol = 1},
-				{.Freq = 400, .Vol = 1} },
-		.FClocks = {
-				{.Freq = 400, .Vol = 1},
-				{.Freq = 800, .Vol = 1},
-				{.Freq = 1067, .Vol = 1},
-				{.Freq = 1600, .Vol = 1} },
-		.MemClocks = {
-				{.Freq = 800, .Vol = 1},
-				{.Freq = 1600, .Vol = 1},
-				{.Freq = 1067, .Vol = 1},
-				{.Freq = 1600, .Vol = 1} },
-
-};
-
-static enum pp_smu_status dummy_set_wm_ranges(struct pp_smu *pp,
-		struct pp_smu_wm_range_sets *ranges)
-{
-	return PP_SMU_RESULT_OK;
-}
-
-static enum pp_smu_status dummy_get_dpm_clock_table(struct pp_smu *pp,
-		struct dpm_clocks *clock_table)
-{
-	*clock_table = dummy_clocks;
-	return PP_SMU_RESULT_OK;
 }
 
 static struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
@@ -1481,17 +1440,11 @@ static struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
 	if (!pp_smu)
 		return pp_smu;
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment) || IS_DIAG_DC(ctx->dce_environment)) {
-		pp_smu->ctx.ver = PP_SMU_VER_RN;
-		pp_smu->rn_funcs.get_dpm_clock_table = dummy_get_dpm_clock_table;
-		pp_smu->rn_funcs.set_wm_ranges = dummy_set_wm_ranges;
-	} else {
+	dm_pp_get_funcs(ctx, pp_smu);
 
-		dm_pp_get_funcs(ctx, pp_smu);
+	if (pp_smu->ctx.ver != PP_SMU_VER_RN)
+		pp_smu = memset(pp_smu, 0, sizeof(struct pp_smu_funcs));
 
-		if (pp_smu->ctx.ver != PP_SMU_VER_RN)
-			pp_smu = memset(pp_smu, 0, sizeof(struct pp_smu_funcs));
-	}
 
 	return pp_smu;
 }
