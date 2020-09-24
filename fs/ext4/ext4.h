@@ -2823,6 +2823,8 @@ extern int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count);
 /* super.c */
 extern struct buffer_head *ext4_sb_bread(struct super_block *sb,
 					 sector_t block, int op_flags);
+extern struct buffer_head *ext4_sb_bread_unmovable(struct super_block *sb,
+						   sector_t block);
 extern void ext4_read_bh_nowait(struct buffer_head *bh, int op_flags,
 				bh_end_io_t *end_io);
 extern int ext4_read_bh(struct buffer_head *bh, int op_flags,
