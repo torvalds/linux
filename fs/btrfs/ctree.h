@@ -3068,7 +3068,6 @@ void btrfs_writepage_endio_finish_ordered(struct page *page, u64 start,
 extern const struct dentry_operations btrfs_dentry_operations;
 extern const struct iomap_ops btrfs_dio_iomap_ops;
 extern const struct iomap_dio_ops btrfs_dio_ops;
-extern const struct iomap_dio_ops btrfs_sync_dops;
 
 /* Inode locking type flags, by default the exclusive lock is taken */
 #define BTRFS_ILOCK_SHARED	(1U << 0)
