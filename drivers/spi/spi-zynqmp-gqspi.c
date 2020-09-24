@@ -326,8 +326,8 @@ static void zynqmp_qspi_init_hw(struct zynqmp_qspi *xqspi)
 				 GQSPI_SELECT_FLASH_BUS_LOWER);
 	/* Initialize DMA */
 	zynqmp_gqspi_write(xqspi,
-			GQSPI_QSPIDMA_DST_CTRL_OFST,
-			GQSPI_QSPIDMA_DST_CTRL_RESET_VAL);
+			   GQSPI_QSPIDMA_DST_CTRL_OFST,
+			   GQSPI_QSPIDMA_DST_CTRL_RESET_VAL);
 
 	/* Enable the GQSPI */
 	zynqmp_gqspi_write(xqspi, GQSPI_EN_OFST, GQSPI_EN_MASK);
@@ -374,8 +374,8 @@ static void zynqmp_qspi_chipselect(struct spi_device *qspi, bool is_high)
 
 	/* Manually start the generic FIFO command */
 	zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST,
-			zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST) |
-			GQSPI_CFG_START_GEN_FIFO_MASK);
+			   zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST) |
+			   GQSPI_CFG_START_GEN_FIFO_MASK);
 
 	timeout = jiffies + msecs_to_jiffies(1000);
 
@@ -384,10 +384,9 @@ static void zynqmp_qspi_chipselect(struct spi_device *qspi, bool is_high)
 		statusreg = zynqmp_gqspi_read(xqspi, GQSPI_ISR_OFST);
 
 		if ((statusreg & GQSPI_ISR_GENFIFOEMPTY_MASK) &&
-			(statusreg & GQSPI_ISR_TXEMPTY_MASK))
+		    (statusreg & GQSPI_ISR_TXEMPTY_MASK))
 			break;
-		else
-			cpu_relax();
+		cpu_relax();
 	} while (!time_after_eq(jiffies, timeout));
 
 	if (time_after_eq(jiffies, timeout))
@@ -549,7 +548,7 @@ static void zynqmp_qspi_readrxfifo(struct zynqmp_qspi *xqspi, u32 size)
 
 	while ((count < size) && (xqspi->bytes_to_receive > 0)) {
 		if (xqspi->bytes_to_receive >= 4) {
-			(*(u32 *) xqspi->rxbuf) =
+			(*(u32 *)xqspi->rxbuf) =
 			zynqmp_gqspi_read(xqspi, GQSPI_RXD_OFST);
 			xqspi->rxbuf += 4;
 			xqspi->bytes_to_receive -= 4;
@@ -645,14 +644,14 @@ static void zynqmp_process_dma_irq(struct zynqmp_qspi *xqspi)
 	u32 config_reg, genfifoentry;
 
 	dma_unmap_single(xqspi->dev, xqspi->dma_addr,
-				xqspi->dma_rx_bytes, DMA_FROM_DEVICE);
+			 xqspi->dma_rx_bytes, DMA_FROM_DEVICE);
 	xqspi->rxbuf += xqspi->dma_rx_bytes;
 	xqspi->bytes_to_receive -= xqspi->dma_rx_bytes;
 	xqspi->dma_rx_bytes = 0;
 
 	/* Disabling the DMA interrupts */
 	zynqmp_gqspi_write(xqspi, GQSPI_QSPIDMA_DST_I_DIS_OFST,
-					GQSPI_QSPIDMA_DST_I_EN_DONE_MASK);
+			   GQSPI_QSPIDMA_DST_I_EN_DONE_MASK);
 
 	if (xqspi->bytes_to_receive > 0) {
 		/* Switch to IO mode,for remaining bytes to receive */
@@ -670,14 +669,15 @@ static void zynqmp_process_dma_irq(struct zynqmp_qspi *xqspi)
 
 		/* Manual start */
 		zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST,
-			(zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST) |
-			GQSPI_CFG_START_GEN_FIFO_MASK));
+				   (zynqmp_gqspi_read(xqspi,
+						      GQSPI_CONFIG_OFST) |
+				   GQSPI_CFG_START_GEN_FIFO_MASK));
 
 		/* Enable the RX interrupts for IO mode */
 		zynqmp_gqspi_write(xqspi, GQSPI_IER_OFST,
-				GQSPI_IER_GENFIFOEMPTY_MASK |
-				GQSPI_IER_RXNEMPTY_MASK |
-				GQSPI_IER_RXEMPTY_MASK);
+				   GQSPI_IER_GENFIFOEMPTY_MASK |
+				   GQSPI_IER_RXNEMPTY_MASK |
+				   GQSPI_IER_RXEMPTY_MASK);
 	}
 }
 
@@ -708,7 +708,7 @@ static irqreturn_t zynqmp_qspi_irq(int irq, void *dev_id)
 		dma_status =
 			zynqmp_gqspi_read(xqspi, GQSPI_QSPIDMA_DST_I_STS_OFST);
 		zynqmp_gqspi_write(xqspi, GQSPI_QSPIDMA_DST_I_STS_OFST,
-								dma_status);
+				   dma_status);
 	}
 
 	if (mask & GQSPI_ISR_TXNOT_FULL_MASK) {
@@ -725,8 +725,8 @@ static irqreturn_t zynqmp_qspi_irq(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 	}
 
-	if ((xqspi->bytes_to_receive == 0) && (xqspi->bytes_to_transfer == 0)
-			&& ((status & GQSPI_IRQ_MASK) == GQSPI_IRQ_MASK)) {
+	if (xqspi->bytes_to_receive == 0 && xqspi->bytes_to_transfer == 0 &&
+	    ((status & GQSPI_IRQ_MASK) == GQSPI_IRQ_MASK)) {
 		zynqmp_gqspi_write(xqspi, GQSPI_IDR_OFST, GQSPI_ISR_IDR_MASK);
 		complete(&xqspi->data_completion);
 		ret = IRQ_HANDLED;
@@ -744,8 +744,8 @@ static void zynqmp_qspi_setuprxdma(struct zynqmp_qspi *xqspi)
 	dma_addr_t addr;
 	u64 dma_align =  (u64)(uintptr_t)xqspi->rxbuf;
 
-	if ((xqspi->bytes_to_receive < 8) ||
-		((dma_align & GQSPI_DMA_UNALIGN) != 0x0)) {
+	if (xqspi->bytes_to_receive < 8 ||
+	    ((dma_align & GQSPI_DMA_UNALIGN) != 0x0)) {
 		/* Setting to IO mode */
 		config_reg = zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST);
 		config_reg &= ~GQSPI_CFG_MODE_EN_MASK;
@@ -759,17 +759,17 @@ static void zynqmp_qspi_setuprxdma(struct zynqmp_qspi *xqspi)
 	rx_bytes = (xqspi->bytes_to_receive - rx_rem);
 
 	addr = dma_map_single(xqspi->dev, (void *)xqspi->rxbuf,
-						rx_bytes, DMA_FROM_DEVICE);
+			      rx_bytes, DMA_FROM_DEVICE);
 	if (dma_mapping_error(xqspi->dev, addr))
 		dev_err(xqspi->dev, "ERR:rxdma:memory not mapped\n");
 
 	xqspi->dma_rx_bytes = rx_bytes;
 	xqspi->dma_addr = addr;
 	zynqmp_gqspi_write(xqspi, GQSPI_QSPIDMA_DST_ADDR_OFST,
-				(u32)(addr & 0xffffffff));
+			   (u32)(addr & 0xffffffff));
 	addr = ((addr >> 16) >> 16);
 	zynqmp_gqspi_write(xqspi, GQSPI_QSPIDMA_DST_ADDR_MSB_OFST,
-				((u32)addr) & 0xfff);
+			   ((u32)addr) & 0xfff);
 
 	/* Enabling the DMA mode */
 	config_reg = zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST);
