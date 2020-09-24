@@ -81,14 +81,14 @@ static int rgb13h_set_output(struct rgb13h_led *led, bool on)
 	if (!IS_ERR(led->pwm)) {
 		if (led->led_mode == V4L2_FLASH_LED_MODE_TORCH)
 			led->pwm_state.duty_cycle =
-				led->intensity_torch * led->pwm_state.period / led->max_mm_current;
+				div_u64(led->intensity_torch * led->pwm_state.period, led->max_mm_current);
 		else
 			led->pwm_state.duty_cycle =
-				led->intensity * led->pwm_state.period / led->max_flash_current;
+				div_u64(led->intensity * led->pwm_state.period, led->max_flash_current);
 		if (on) {
 			led->pwm_state.enabled = true;
 			pwm_apply_state(led->pwm, &led->pwm_state);
-			dev_dbg(&led->pdev->dev, "led pwm duty=%d, period=%d, polarity=%d\n",
+			dev_dbg(&led->pdev->dev, "led pwm duty=%llu, period=%llu, polarity=%d\n",
 				led->pwm_state.duty_cycle, led->pwm_state.period, led->pwm_state.polarity);
 		} else {
 			led->pwm_state.enabled = false;
@@ -220,7 +220,7 @@ static int rgb13h_led_parse_dt(struct rgb13h_led *led,
 	} else {
 		led->pwm_state.period = led->pwm->args.period;
 		led->pwm_state.polarity = led->pwm->args.polarity;
-		dev_dbg(dev, "period %d, polarity %d\n",
+		dev_dbg(dev, "period %llu, polarity %d\n",
 			led->pwm_state.period, led->pwm_state.polarity);
 	}
 	if (IS_ERR(led->gpio_en) && IS_ERR(led->pwm)) {
