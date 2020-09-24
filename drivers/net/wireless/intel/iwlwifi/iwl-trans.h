@@ -1436,10 +1436,9 @@ static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
  * transport helper functions
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
-				  struct device *dev,
-				  const struct iwl_trans_ops *ops,
-				  unsigned int cmd_pool_size,
-				  unsigned int cmd_pool_align);
+			  struct device *dev,
+			  const struct iwl_trans_ops *ops,
+			  const struct iwl_cfg_trans_params *cfg_trans);
 void iwl_trans_free(struct iwl_trans *trans);
 
 /*****************************************************
