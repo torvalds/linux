@@ -25,6 +25,7 @@ Returns:
 
 	 =======  ========================================================
 	 -EBUSY   The PMU overflow interrupt is already set
+	 -EFAULT  Error reading interrupt number
 	 -ENXIO   The overflow interrupt not set when attempting to get it
 	 -ENODEV  PMUv3 not supported
 	 -EINVAL  Invalid PMU overflow interrupt number supplied or
@@ -45,6 +46,7 @@ all vcpus, while as an SPI it must be a separate number per vcpu.
 Returns:
 
 	 =======  ======================================================
+	 -EEXIST  Interrupt number already used
 	 -ENODEV  PMUv3 not supported or GIC not initialized
 	 -ENXIO   PMUv3 not properly configured or in-kernel irqchip not
 		  configured as required prior to calling this attribute
