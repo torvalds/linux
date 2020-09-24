@@ -166,8 +166,14 @@ static bool dlm_check_zero(unsigned int x)
 	return !x;
 }
 
+#define DEFAULT_BUFFER_SIZE     4096
+static bool dlm_check_buffer_size(unsigned int x)
+{
+	return (x < DEFAULT_BUFFER_SIZE);
+}
+
 CLUSTER_ATTR(tcp_port, dlm_check_zero);
-CLUSTER_ATTR(buffer_size, dlm_check_zero);
+CLUSTER_ATTR(buffer_size, dlm_check_buffer_size);
 CLUSTER_ATTR(rsbtbl_size, dlm_check_zero);
 CLUSTER_ATTR(recover_timer, dlm_check_zero);
 CLUSTER_ATTR(toss_secs, dlm_check_zero);
@@ -901,7 +907,6 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 
 /* Config file defaults */
 #define DEFAULT_TCP_PORT       21064
-#define DEFAULT_BUFFER_SIZE     4096
 #define DEFAULT_RSBTBL_SIZE     1024
 #define DEFAULT_RECOVER_TIMER      5
 #define DEFAULT_TOSS_SECS         10
