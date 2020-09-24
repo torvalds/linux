@@ -1013,14 +1013,14 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			}
 
 			/* Go read the buffer for the next level down */
-			bh = sb_bread(inode->i_sb, nr);
+			bh = ext4_sb_bread(inode->i_sb, nr, 0);
 
 			/*
 			 * A read failure? Report error and clear slot
 			 * (should be rare).
 			 */
-			if (!bh) {
-				ext4_error_inode_block(inode, nr, EIO,
+			if (IS_ERR(bh)) {
+				ext4_error_inode_block(inode, nr, -PTR_ERR(bh),
 						       "Read failure");
 				continue;
 			}
