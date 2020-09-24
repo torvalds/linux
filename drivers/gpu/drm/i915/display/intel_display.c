@@ -3719,127 +3719,6 @@ valid_fb:
 		  &to_intel_frontbuffer(fb)->bits);
 }
 
-static int skl_max_plane_width(const struct drm_framebuffer *fb,
-			       int color_plane,
-			       unsigned int rotation)
-{
-	int cpp = fb->format->cpp[color_plane];
-
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-		/*
-		 * Validated limit is 4k, but has 5k should
-		 * work apart from the following features:
-		 * - Ytile (already limited to 4k)
-		 * - FP16 (already limited to 4k)
-		 * - render compression (already limited to 4k)
-		 * - KVMR sprite and cursor (don't care)
-		 * - horizontal panning (TODO verify this)
-		 * - pipe and plane scaling (TODO verify this)
-		 */
-		if (cpp == 8)
-			return 4096;
-		else
-			return 5120;
-	case I915_FORMAT_MOD_Y_TILED_CCS:
-	case I915_FORMAT_MOD_Yf_TILED_CCS:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-		/* FIXME AUX plane? */
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_Yf_TILED:
-		if (cpp == 8)
-			return 2048;
-		else
-			return 4096;
-	default:
-		MISSING_CASE(fb->modifier);
-		return 2048;
-	}
-}
-
-static int glk_max_plane_width(const struct drm_framebuffer *fb,
-			       int color_plane,
-			       unsigned int rotation)
-{
-	int cpp = fb->format->cpp[color_plane];
-
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-		if (cpp == 8)
-			return 4096;
-		else
-			return 5120;
-	case I915_FORMAT_MOD_Y_TILED_CCS:
-	case I915_FORMAT_MOD_Yf_TILED_CCS:
-		/* FIXME AUX plane? */
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_Yf_TILED:
-		if (cpp == 8)
-			return 2048;
-		else
-			return 5120;
-	default:
-		MISSING_CASE(fb->modifier);
-		return 2048;
-	}
-}
-
-static int icl_min_plane_width(const struct drm_framebuffer *fb)
-{
-	/* Wa_14011264657, Wa_14011050563: gen11+ */
-	switch (fb->format->format) {
-	case DRM_FORMAT_C8:
-		return 18;
-	case DRM_FORMAT_RGB565:
-		return 10;
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ABGR8888:
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_XVYU2101010:
-	case DRM_FORMAT_Y212:
-	case DRM_FORMAT_Y216:
-		return 6;
-	case DRM_FORMAT_NV12:
-		return 20;
-	case DRM_FORMAT_P010:
-	case DRM_FORMAT_P012:
-	case DRM_FORMAT_P016:
-		return 12;
-	case DRM_FORMAT_XRGB16161616F:
-	case DRM_FORMAT_XBGR16161616F:
-	case DRM_FORMAT_ARGB16161616F:
-	case DRM_FORMAT_ABGR16161616F:
-	case DRM_FORMAT_XVYU12_16161616:
-	case DRM_FORMAT_XVYU16161616:
-		return 4;
-	default:
-		return 1;
-	}
-}
-
-static int icl_max_plane_width(const struct drm_framebuffer *fb,
-			       int color_plane,
-			       unsigned int rotation)
-{
-	return 5120;
-}
-
-static int skl_max_plane_height(void)
-{
-	return 4096;
-}
-
-static int icl_max_plane_height(void)
-{
-	return 4320;
-}
 
 static bool
 skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
@@ -3897,35 +3776,55 @@ intel_plane_fence_y_offset(const struct intel_plane_state *plane_state)
 	return y;
 }
 
+static int intel_plane_min_width(struct intel_plane *plane,
+				 const struct drm_framebuffer *fb,
+				 int color_plane,
+				 unsigned int rotation)
+{
+	if (plane->min_width)
+		return plane->min_width(fb, color_plane, rotation);
+	else
+		return 1;
+}
+
+static int intel_plane_max_width(struct intel_plane *plane,
+				 const struct drm_framebuffer *fb,
+				 int color_plane,
+				 unsigned int rotation)
+{
+	if (plane->max_width)
+		return plane->max_width(fb, color_plane, rotation);
+	else
+		return INT_MAX;
+}
+
+static int intel_plane_max_height(struct intel_plane *plane,
+				  const struct drm_framebuffer *fb,
+				  int color_plane,
+				  unsigned int rotation)
+{
+	if (plane->max_height)
+		return plane->max_height(fb, color_plane, rotation);
+	else
+		return INT_MAX;
+}
+
 static int skl_check_main_surface(struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(plane_state->uapi.plane->dev);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
 	int x = plane_state->uapi.src.x1 >> 16;
 	int y = plane_state->uapi.src.y1 >> 16;
 	int w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	int h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	int max_width, min_width, max_height;
-	u32 alignment, offset;
+	int min_width = intel_plane_min_width(plane, fb, 0, rotation);
+	int max_width = intel_plane_max_width(plane, fb, 0, rotation);
+	int max_height = intel_plane_max_height(plane, fb, 0, rotation);
 	int aux_plane = intel_main_to_aux_plane(fb, 0);
 	u32 aux_offset = plane_state->color_plane[aux_plane].offset;
-
-	if (INTEL_GEN(dev_priv) >= 11) {
-		max_width = icl_max_plane_width(fb, 0, rotation);
-		min_width = icl_min_plane_width(fb);
-	} else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
-		max_width = glk_max_plane_width(fb, 0, rotation);
-		min_width = 1;
-	} else {
-		max_width = skl_max_plane_width(fb, 0, rotation);
-		min_width = 1;
-	}
-
-	if (INTEL_GEN(dev_priv) >= 11)
-		max_height = icl_max_plane_height();
-	else
-		max_height = skl_max_plane_height();
+	u32 alignment, offset;
 
 	if (w > max_width || w < min_width || h > max_height) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -4008,21 +3907,18 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 
 static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
 	int uv_plane = 1;
-	int max_width = skl_max_plane_width(fb, uv_plane, rotation);
-	int max_height = 4096;
+	int max_width = intel_plane_max_width(plane, fb, uv_plane, rotation);
+	int max_height = intel_plane_max_height(plane, fb, uv_plane, rotation);
 	int x = plane_state->uapi.src.x1 >> 17;
 	int y = plane_state->uapi.src.y1 >> 17;
 	int w = drm_rect_width(&plane_state->uapi.src) >> 17;
 	int h = drm_rect_height(&plane_state->uapi.src) >> 17;
 	u32 offset;
-
-	intel_add_fb_offsets(&x, &y, plane_state, uv_plane);
-	offset = intel_plane_compute_aligned_offset(&x, &y,
-						    plane_state, uv_plane);
 
 	/* FIXME not quite sure how/if these apply to the chroma plane */
 	if (w > max_width || h > max_height) {
@@ -4031,6 +3927,10 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 			    w, h, max_width, max_height);
 		return -EINVAL;
 	}
+
+	intel_add_fb_offsets(&x, &y, plane_state, uv_plane);
+	offset = intel_plane_compute_aligned_offset(&x, &y,
+						    plane_state, uv_plane);
 
 	if (is_ccs_modifier(fb->modifier)) {
 		int ccs_plane = main_to_ccs_plane(fb, uv_plane);

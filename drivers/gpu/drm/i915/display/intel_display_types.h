@@ -1189,6 +1189,15 @@ struct intel_plane {
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
+	int (*min_width)(const struct drm_framebuffer *fb,
+			 int color_plane,
+			 unsigned int rotation);
+	int (*max_width)(const struct drm_framebuffer *fb,
+			 int color_plane,
+			 unsigned int rotation);
+	int (*max_height)(const struct drm_framebuffer *fb,
+			  int color_plane,
+			  unsigned int rotation);
 	unsigned int (*max_stride)(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
