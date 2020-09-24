@@ -1581,6 +1581,7 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 	int ret = 0;
 	bool only_release_metadata = false;
 	bool force_page_uptodate = false;
+	loff_t old_isize = i_size_read(inode);
 
 	nrptrs = min(DIV_ROUND_UP(iov_iter_count(i), PAGE_SIZE),
 			PAGE_SIZE / (sizeof(struct page *)));
@@ -1779,6 +1780,10 @@ again:
 	}
 
 	extent_changeset_free(data_reserved);
+	if (num_written > 0) {
+		pagecache_isize_extended(inode, old_isize, iocb->ki_pos);
+		iocb->ki_pos += num_written;
+	}
 	return num_written ? num_written : ret;
 }
 
@@ -1901,7 +1906,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	loff_t pos;
 	size_t count;
 	loff_t oldsize;
-	int clean_page = 0;
 
 	if (!(iocb->ki_flags & IOCB_DIRECT) &&
 	    (iocb->ki_flags & IOCB_NOWAIT))
@@ -1983,8 +1987,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 			inode_unlock(inode);
 			goto out;
 		}
-		if (start_pos > round_up(oldsize, fs_info->sectorsize))
-			clean_page = 1;
 	}
 
 	if (sync)
@@ -2027,11 +2029,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		current->journal_info = NULL;
 	} else {
 		num_written = btrfs_buffered_write(iocb, from);
-		if (num_written > 0)
-			iocb->ki_pos = pos + num_written;
-		if (clean_page)
-			pagecache_isize_extended(inode, oldsize,
-						i_size_read(inode));
 	}
 
 	inode_unlock(inode);
