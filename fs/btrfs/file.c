@@ -1894,7 +1894,7 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 * is protected by inode lock. So we cannot unlock it here.
 	 */
 	if (pos + iov_iter_count(from) <= inode->i_size) {
-		inode_unlock(inode);
+		btrfs_inode_unlock(inode, 0);
 		relock = true;
 	}
 	down_read(&BTRFS_I(inode)->dio_sem);
@@ -1915,7 +1915,7 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 
 	up_read(&BTRFS_I(inode)->dio_sem);
 	if (relock)
-		inode_lock(inode);
+		btrfs_inode_lock(inode, 0);
 
 	if (written < 0 || !iov_iter_count(from))
 		return written;
@@ -1956,6 +1956,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	ssize_t num_written = 0;
 	const bool sync = iocb->ki_flags & IOCB_DSYNC;
 	ssize_t err;
+	unsigned int ilock_flags = 0;
 
 	/*
 	 * If the fs flips readonly due to some impossible error, although we
@@ -1969,22 +1970,22 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	    (iocb->ki_flags & IOCB_NOWAIT))
 		return -EOPNOTSUPP;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock(inode))
-			return -EAGAIN;
-	} else {
-		inode_lock(inode);
-	}
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		ilock_flags |= BTRFS_ILOCK_TRY;
+
+	err = btrfs_inode_lock(inode, ilock_flags);
+	if (err < 0)
+		return err;
 
 	err = generic_write_checks(iocb, from);
 	if (err <= 0) {
-		inode_unlock(inode);
+		btrfs_inode_unlock(inode, ilock_flags);
 		return err;
 	}
 
 	err = btrfs_write_check(iocb, from, err);
 	if (err < 0) {
-		inode_unlock(inode);
+		btrfs_inode_unlock(inode, ilock_flags);
 		return err;
 	}
 
@@ -2030,7 +2031,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		num_written = btrfs_buffered_write(iocb, from);
 	}
 
-	inode_unlock(inode);
+	btrfs_inode_unlock(inode, ilock_flags);
 
 	/*
 	 * We also have to set last_sub_trans to the current log transid,
@@ -3330,7 +3331,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 			return ret;
 	}
 
-	inode_lock(inode);
+	btrfs_inode_lock(inode, 0);
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size) {
 		ret = inode_newsize_ok(inode, offset + len);
@@ -3569,9 +3570,9 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int whence)
 		return generic_file_llseek(file, offset, whence);
 	case SEEK_DATA:
 	case SEEK_HOLE:
-		inode_lock_shared(inode);
+		btrfs_inode_lock(inode, BTRFS_ILOCK_SHARED);
 		offset = find_desired_extent(inode, offset, whence);
-		inode_unlock_shared(inode);
+		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 		break;
 	}
 
@@ -3615,10 +3616,10 @@ static ssize_t btrfs_direct_read(struct kiocb *iocb, struct iov_iter *to)
 	if (check_direct_read(btrfs_sb(inode->i_sb), to, iocb->ki_pos))
 		return 0;
 
-	inode_lock_shared(inode);
+	btrfs_inode_lock(inode, BTRFS_ILOCK_SHARED);
 	ret = iomap_dio_rw(iocb, to, &btrfs_dio_iomap_ops, &btrfs_dio_ops,
 			   is_sync_kiocb(iocb));
-	inode_unlock_shared(inode);
+	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 	return ret;
 }
 

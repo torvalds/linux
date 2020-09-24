@@ -3070,6 +3070,13 @@ extern const struct iomap_ops btrfs_dio_iomap_ops;
 extern const struct iomap_dio_ops btrfs_dio_ops;
 extern const struct iomap_dio_ops btrfs_sync_dops;
 
+/* Inode locking type flags, by default the exclusive lock is taken */
+#define BTRFS_ILOCK_SHARED	(1U << 0)
+#define BTRFS_ILOCK_TRY 	(1U << 1)
+
+int btrfs_inode_lock(struct inode *inode, unsigned int ilock_flags);
+void btrfs_inode_unlock(struct inode *inode, unsigned int ilock_flags);
+
 /* ioctl.c */
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 long btrfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
