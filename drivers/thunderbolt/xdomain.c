@@ -942,6 +942,43 @@ static void tb_xdomain_restore_paths(struct tb_xdomain *xd)
 	}
 }
 
+static inline struct tb_switch *tb_xdomain_parent(struct tb_xdomain *xd)
+{
+	return tb_to_switch(xd->dev.parent);
+}
+
+static int tb_xdomain_update_link_attributes(struct tb_xdomain *xd)
+{
+	bool change = false;
+	struct tb_port *port;
+	int ret;
+
+	port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+
+	ret = tb_port_get_link_speed(port);
+	if (ret < 0)
+		return ret;
+
+	if (xd->link_speed != ret)
+		change = true;
+
+	xd->link_speed = ret;
+
+	ret = tb_port_get_link_width(port);
+	if (ret < 0)
+		return ret;
+
+	if (xd->link_width != ret)
+		change = true;
+
+	xd->link_width = ret;
+
+	if (change)
+		kobject_uevent(&xd->dev.kobj, KOBJ_CHANGE);
+
+	return 0;
+}
+
 static void tb_xdomain_get_uuid(struct work_struct *work)
 {
 	struct tb_xdomain *xd = container_of(work, typeof(*xd),
@@ -1053,6 +1090,8 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	xd->properties = dir;
 	xd->property_block_gen = gen;
 
+	tb_xdomain_update_link_attributes(xd);
+
 	tb_xdomain_restore_paths(xd);
 
 	mutex_unlock(&xd->lock);
@@ -1159,9 +1198,35 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(unique_id);
 
+static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
+
+	return sprintf(buf, "%u.0 Gb/s\n", xd->link_speed);
+}
+
+static DEVICE_ATTR(rx_speed, 0444, speed_show, NULL);
+static DEVICE_ATTR(tx_speed, 0444, speed_show, NULL);
+
+static ssize_t lanes_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
+
+	return sprintf(buf, "%u\n", xd->link_width);
+}
+
+static DEVICE_ATTR(rx_lanes, 0444, lanes_show, NULL);
+static DEVICE_ATTR(tx_lanes, 0444, lanes_show, NULL);
+
 static struct attribute *xdomain_attrs[] = {
 	&dev_attr_device.attr,
 	&dev_attr_device_name.attr,
+	&dev_attr_rx_lanes.attr,
+	&dev_attr_rx_speed.attr,
+	&dev_attr_tx_lanes.attr,
+	&dev_attr_tx_speed.attr,
 	&dev_attr_unique_id.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_vendor_name.attr,

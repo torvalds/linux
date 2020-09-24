@@ -932,7 +932,14 @@ int tb_port_get_link_speed(struct tb_port *port)
 	return speed == LANE_ADP_CS_1_CURRENT_SPEED_GEN3 ? 20 : 10;
 }
 
-static int tb_port_get_link_width(struct tb_port *port)
+/**
+ * tb_port_get_link_width() - Get current link width
+ * @port: Port to check (USB4 or CIO)
+ *
+ * Returns link width. Return values can be 1 (Single-Lane), 2 (Dual-Lane)
+ * or negative errno in case of failure.
+ */
+int tb_port_get_link_width(struct tb_port *port)
 {
 	u32 val;
 	int ret;

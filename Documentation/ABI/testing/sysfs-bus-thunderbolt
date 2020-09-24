@@ -1,3 +1,31 @@
+What:		/sys/bus/thunderbolt/devices/<xdomain>/rx_speed
+Date:		Feb 2021
+KernelVersion:	5.11
+Contact:	Isaac Hazan <isaac.hazan@intel.com>
+Description:	This attribute reports the XDomain RX speed per lane.
+		All RX lanes run at the same speed.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>/rx_lanes
+Date:		Feb 2021
+KernelVersion:	5.11
+Contact:	Isaac Hazan <isaac.hazan@intel.com>
+Description:	This attribute reports the number of RX lanes the XDomain
+		is using simultaneously through its upstream port.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>/tx_speed
+Date:		Feb 2021
+KernelVersion:	5.11
+Contact:	Isaac Hazan <isaac.hazan@intel.com>
+Description:	This attribute reports the XDomain TX speed per lane.
+		All TX lanes run at the same speed.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>/tx_lanes
+Date:		Feb 2021
+KernelVersion:	5.11
+Contact:	Isaac Hazan <isaac.hazan@intel.com>
+Description:	This attribute reports number of TX lanes the XDomain
+		is using simultaneously through its upstream port.
+
 What: /sys/bus/thunderbolt/devices/.../domainX/boot_acl
 Date:		Jun 2018
 KernelVersion:	4.17

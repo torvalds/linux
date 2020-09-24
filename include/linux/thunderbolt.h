@@ -179,6 +179,8 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @lock: Lock to serialize access to the following fields of this structure
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
+ * @link_speed: Speed of the link in Gb/s
+ * @link_width: Width of the link (1 or 2)
  * @is_unplugged: The XDomain is unplugged
  * @resume: The XDomain is being resumed
  * @needs_uuid: If the XDomain does not have @remote_uuid it will be
@@ -223,6 +225,8 @@ struct tb_xdomain {
 	struct mutex lock;
 	const char *vendor_name;
 	const char *device_name;
+	unsigned int link_speed;
+	unsigned int link_width;
 	bool is_unplugged;
 	bool resume;
 	bool needs_uuid;
