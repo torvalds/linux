@@ -1906,6 +1906,7 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	loff_t endbyte;
 	ssize_t err;
 	unsigned int ilock_flags = 0;
+	struct iomap_dio *dio = NULL;
 
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		ilock_flags |= BTRFS_ILOCK_TRY;
@@ -1948,21 +1949,18 @@ relock:
 		goto buffered;
 	}
 
-	/*
-	 * This is actually a sync iocb, so we need our fancy endio to know if
-	 * we need to sync.
-	 */
-	if (current->journal_info)
-		written = iomap_dio_rw(iocb, from, &btrfs_dio_iomap_ops,
-				       &btrfs_sync_dops, is_sync_kiocb(iocb));
-	else
-		written = iomap_dio_rw(iocb, from, &btrfs_dio_iomap_ops,
-				       &btrfs_dio_ops, is_sync_kiocb(iocb));
-
-	if (written == -ENOTBLK)
-		written = 0;
+	dio = __iomap_dio_rw(iocb, from, &btrfs_dio_iomap_ops,
+			     &btrfs_dio_ops, is_sync_kiocb(iocb));
 
 	btrfs_inode_unlock(inode, ilock_flags);
+
+	if (IS_ERR_OR_NULL(dio)) {
+		err = PTR_ERR_OR_ZERO(dio);
+		if (err < 0 && err != -ENOTBLK)
+			goto out;
+	} else {
+		written = iomap_dio_complete(dio);
+	}
 
 	if (written < 0 || !iov_iter_count(from)) {
 		err = written;
