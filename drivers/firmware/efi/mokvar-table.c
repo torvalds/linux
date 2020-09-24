@@ -98,15 +98,14 @@ static struct kobject *mokvar_kobj;
 void __init efi_mokvar_table_init(void)
 {
 	efi_memory_desc_t md;
-	u64 end_pa;
 	void *va = NULL;
-	size_t cur_offset = 0;
-	size_t offset_limit;
-	size_t map_size = 0;
-	size_t map_size_needed = 0;
-	size_t size;
+	unsigned long cur_offset = 0;
+	unsigned long offset_limit;
+	unsigned long map_size = 0;
+	unsigned long map_size_needed = 0;
+	unsigned long size;
 	struct efi_mokvar_table_entry *mokvar_entry;
-	int err = -EINVAL;
+	int err;
 
 	if (!efi_enabled(EFI_MEMMAP))
 		return;
@@ -122,18 +121,16 @@ void __init efi_mokvar_table_init(void)
 		pr_warn("EFI MOKvar config table is not within the EFI memory map\n");
 		return;
 	}
-	end_pa = efi_mem_desc_end(&md);
-	if (efi.mokvar_table >= end_pa) {
-		pr_err("EFI memory descriptor containing MOKvar config table is invalid\n");
-		return;
-	}
-	offset_limit = end_pa - efi.mokvar_table;
+
+	offset_limit = efi_mem_desc_end(&md) - efi.mokvar_table;
+
 	/*
 	 * Validate the MOK config table. Since there is no table header
 	 * from which we could get the total size of the MOK config table,
 	 * we compute the total size as we validate each variably sized
 	 * entry, remapping as necessary.
 	 */
+	err = -EINVAL;
 	while (cur_offset + sizeof(*mokvar_entry) <= offset_limit) {
 		mokvar_entry = va + cur_offset;
 		map_size_needed = cur_offset + sizeof(*mokvar_entry);
@@ -150,7 +147,7 @@ void __init efi_mokvar_table_init(void)
 				       offset_limit);
 			va = early_memremap(efi.mokvar_table, map_size);
 			if (!va) {
-				pr_err("Failed to map EFI MOKvar config table pa=0x%lx, size=%zu.\n",
+				pr_err("Failed to map EFI MOKvar config table pa=0x%lx, size=%lu.\n",
 				       efi.mokvar_table, map_size);
 				return;
 			}
