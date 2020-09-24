@@ -3649,24 +3649,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	init_waitqueue_head(&trans_pcie->sx_waitq);
 
-	/*
-	 * For gen2 devices, we use a single allocation for each byte-count
-	 * table, but they're pretty small (1k) so use a DMA pool that we
-	 * allocate here.
-	 */
-	if (cfg_trans->gen2) {
-		size_t bc_tbl_size;
-
-		if (cfg_trans->device_family >= IWL_DEVICE_FAMILY_AX210)
-			bc_tbl_size = sizeof(struct iwl_gen3_bc_tbl);
-		else
-			bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
-
-		trans_pcie->bc_pool = dmam_pool_create("iwlwifi:bc", &pdev->dev,
-						       bc_tbl_size, 256, 0);
-		if (!trans_pcie->bc_pool)
-			goto out_no_pci;
-	}
 
 	if (trans_pcie->msix_enabled) {
 		ret = iwl_pcie_init_msix_handler(pdev, trans_pcie);

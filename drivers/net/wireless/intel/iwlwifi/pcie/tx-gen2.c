@@ -1225,7 +1225,7 @@ void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
 
 	kfree(txq->entries);
 	if (txq->bc_tbl.addr)
-		dma_pool_free(trans_pcie->bc_pool, txq->bc_tbl.addr,
+		dma_pool_free(trans->txqs.bc_pool, txq->bc_tbl.addr,
 			      txq->bc_tbl.dma);
 	kfree(txq);
 }
@@ -1273,18 +1273,14 @@ int iwl_trans_pcie_dyn_txq_alloc_dma(struct iwl_trans *trans,
 				     struct iwl_txq **intxq, int size,
 				     unsigned int timeout)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	size_t bc_tbl_size, bc_tbl_entries;
 	struct iwl_txq *txq;
 	int ret;
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		bc_tbl_size = sizeof(struct iwl_gen3_bc_tbl);
-		bc_tbl_entries = bc_tbl_size / sizeof(u16);
-	} else {
-		bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
-		bc_tbl_entries = bc_tbl_size / sizeof(u16);
-	}
+	WARN_ON(!trans->txqs.bc_tbl_size);
+
+	bc_tbl_size = trans->txqs.bc_tbl_size;
+	bc_tbl_entries = bc_tbl_size / sizeof(u16);
 
 	if (WARN_ON(size > bc_tbl_entries))
 		return -EINVAL;
@@ -1293,7 +1289,7 @@ int iwl_trans_pcie_dyn_txq_alloc_dma(struct iwl_trans *trans,
 	if (!txq)
 		return -ENOMEM;
 
-	txq->bc_tbl.addr = dma_pool_alloc(trans_pcie->bc_pool, GFP_KERNEL,
+	txq->bc_tbl.addr = dma_pool_alloc(trans->txqs.bc_pool, GFP_KERNEL,
 					  &txq->bc_tbl.dma);
 	if (!txq->bc_tbl.addr) {
 		IWL_ERR(trans, "Scheduler BC Table allocation failed\n");

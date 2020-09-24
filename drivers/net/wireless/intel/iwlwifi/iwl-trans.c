@@ -66,6 +66,7 @@
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "iwl-fh.h"
+#include <linux/dmapool.h>
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
@@ -110,6 +111,22 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	trans->ops = ops;
 	trans->num_rx_queues = 1;
 
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		trans->txqs.bc_tbl_size = sizeof(struct iwl_gen3_bc_tbl);
+	else
+		trans->txqs.bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
+	/*
+	 * For gen2 devices, we use a single allocation for each byte-count
+	 * table, but they're pretty small (1k) so use a DMA pool that we
+	 * allocate here.
+	 */
+	if (trans->trans_cfg->gen2) {
+		trans->txqs.bc_pool = dmam_pool_create("iwlwifi:bc", dev,
+						       trans->txqs.bc_tbl_size,
+						       256, 0);
+		if (!trans->txqs.bc_pool)
+			return NULL;
+	}
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
 		 "iwl_cmd_pool:%s", dev_name(trans->dev));
 	trans->dev_cmd_pool =
