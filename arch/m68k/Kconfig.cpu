@@ -318,7 +318,6 @@ config M54xx
 
 config COLDFIRE_PIT_TIMER
 	bool
-	select GENERIC_CLOCKEVENTS
 
 config COLDFIRE_TIMERS
 	bool

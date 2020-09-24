@@ -28,7 +28,7 @@ config GENERIC_TIME_VSYSCALL
 
 # The generic clock events infrastructure
 config GENERIC_CLOCKEVENTS
-	bool
+	def_bool !LEGACY_TIMER_TICK
 
 # Architecture can handle broadcast in a driver-agnostic way
 config ARCH_HAS_TICK_BROADCAST

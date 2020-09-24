@@ -1,6 +1,6 @@
 #
 # Feature name:          clockevents
-#         Kconfig:       GENERIC_CLOCKEVENTS
+#         Kconfig:       !LEGACY_TIMER_TICK
 #         description:   arch support generic clock events
 #
     -----------------------
@@ -8,14 +8,14 @@
     -----------------------
     |       alpha: |  ok  |
     |         arc: |  ok  |
-    |         arm: |  ok  |
+    |         arm: | TODO |
     |       arm64: |  ok  |
     |         c6x: |  ok  |
     |        csky: |  ok  |
     |       h8300: |  ok  |
     |     hexagon: |  ok  |
     |        ia64: | TODO |
-    |        m68k: |  ok  |
+    |        m68k: | TODO |
     |  microblaze: |  ok  |
     |        mips: |  ok  |
     |       nds32: |  ok  |
