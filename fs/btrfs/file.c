@@ -1782,21 +1782,67 @@ again:
 	return num_written ? num_written : ret;
 }
 
-static ssize_t __btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
+static ssize_t check_direct_IO(struct btrfs_fs_info *fs_info,
+			       const struct iov_iter *iter, loff_t offset)
+{
+	const u32 blocksize_mask = fs_info->sectorsize - 1;
+
+	if (offset & blocksize_mask)
+		return -EINVAL;
+
+	if (iov_iter_alignment(iter) & blocksize_mask)
+		return -EINVAL;
+
+	return 0;
+}
+
+static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	loff_t pos;
-	ssize_t written;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	loff_t pos = iocb->ki_pos;
+	ssize_t written = 0;
+	bool relock = false;
 	ssize_t written_buffered;
 	loff_t endbyte;
 	int err;
 
-	written = btrfs_direct_IO(iocb, from);
+	if (check_direct_IO(fs_info, from, pos))
+		goto buffered;
+
+	/*
+	 * If the write DIO is beyond EOF, we need to update the isize, but it
+	 * is protected by inode lock. So we cannot unlock it here.
+	 */
+	if (pos + iov_iter_count(from) <= inode->i_size) {
+		inode_unlock(inode);
+		relock = true;
+	}
+	down_read(&BTRFS_I(inode)->dio_sem);
+
+	/*
+	 * This is actually a sync iocb, so we need our fancy endio to know if
+	 * we need to sync.
+	 */
+	if (current->journal_info)
+		written = iomap_dio_rw(iocb, from, &btrfs_dio_iomap_ops,
+				       &btrfs_sync_dops, is_sync_kiocb(iocb));
+	else
+		written = iomap_dio_rw(iocb, from, &btrfs_dio_iomap_ops,
+				       &btrfs_dio_ops, is_sync_kiocb(iocb));
+
+	if (written == -ENOTBLK)
+		written = 0;
+
+	up_read(&BTRFS_I(inode)->dio_sem);
+	if (relock)
+		inode_lock(inode);
 
 	if (written < 0 || !iov_iter_count(from))
 		return written;
 
+buffered:
 	pos = iocb->ki_pos;
 	written_buffered = btrfs_buffered_write(iocb, from);
 	if (written_buffered < 0) {
@@ -1970,7 +2016,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 			iocb->ki_flags &= ~IOCB_DSYNC;
 			current->journal_info = BTRFS_DIO_SYNC_STUB;
 		}
-		num_written = __btrfs_direct_write(iocb, from);
+		num_written = btrfs_direct_write(iocb, from);
 
 		/*
 		 * As stated above, we cleared journal_info, so we need to do
@@ -3545,16 +3591,47 @@ static int btrfs_file_open(struct inode *inode, struct file *filp)
 	return generic_file_open(inode, filp);
 }
 
+static int check_direct_read(struct btrfs_fs_info *fs_info,
+			     const struct iov_iter *iter, loff_t offset)
+{
+	int ret;
+	int i, seg;
+
+	ret = check_direct_IO(fs_info, iter, offset);
+	if (ret < 0)
+		return ret;
+
+	if (!iter_is_iovec(iter))
+		return 0;
+
+	for (seg = 0; seg < iter->nr_segs; seg++)
+		for (i = seg + 1; i < iter->nr_segs; i++)
+			if (iter->iov[seg].iov_base == iter->iov[i].iov_base)
+				return -EINVAL;
+	return 0;
+}
+
+static ssize_t btrfs_direct_read(struct kiocb *iocb, struct iov_iter *to)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+	ssize_t ret;
+
+	if (check_direct_read(btrfs_sb(inode->i_sb), to, iocb->ki_pos))
+		return 0;
+
+	inode_lock_shared(inode);
+	ret = iomap_dio_rw(iocb, to, &btrfs_dio_iomap_ops, &btrfs_dio_ops,
+			   is_sync_kiocb(iocb));
+	inode_unlock_shared(inode);
+	return ret;
+}
+
 static ssize_t btrfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	ssize_t ret = 0;
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
-		struct inode *inode = file_inode(iocb->ki_filp);
-
-		inode_lock_shared(inode);
-		ret = btrfs_direct_IO(iocb, to);
-		inode_unlock_shared(inode);
+		ret = btrfs_direct_read(iocb, to);
 		if (ret < 0 || !iov_iter_count(to) ||
 		    iocb->ki_pos >= i_size_read(file_inode(iocb->ki_filp)))
 			return ret;
