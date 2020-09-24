@@ -34,6 +34,11 @@ static inline int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
 	return vcpu->arch.maxphyaddr;
 }
 
+static inline bool kvm_vcpu_is_illegal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return (gpa >= BIT_ULL(cpuid_maxphyaddr(vcpu)));
+}
+
 struct cpuid_reg {
 	u32 function;
 	u32 index;
