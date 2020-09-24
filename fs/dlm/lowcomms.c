@@ -971,6 +971,10 @@ static void sctp_connect_to_sock(struct connection *con)
 		return;
 	}
 
+	result = dlm_comm_mark(con->nodeid, &mark);
+	if (result < 0)
+		return;
+
 	mutex_lock(&con->sock_mutex);
 
 	/* Some odd races can cause double-connects, ignore them */
@@ -994,11 +998,6 @@ static void sctp_connect_to_sock(struct connection *con)
 				  SOCK_STREAM, IPPROTO_SCTP, &sock);
 	if (result < 0)
 		goto socket_err;
-
-	/* set skb mark */
-	result = dlm_comm_mark(con->nodeid, &mark);
-	if (result < 0)
-		goto bind_err;
 
 	sock_set_mark(sock->sk, mark);
 
@@ -1072,6 +1071,10 @@ static void tcp_connect_to_sock(struct connection *con)
 		return;
 	}
 
+	result = dlm_comm_mark(con->nodeid, &mark);
+	if (result < 0)
+		return;
+
 	mutex_lock(&con->sock_mutex);
 	if (con->retries++ > MAX_CONNECT_RETRIES)
 		goto out;
@@ -1083,11 +1086,6 @@ static void tcp_connect_to_sock(struct connection *con)
 	/* Create a socket to communicate with */
 	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
 				  SOCK_STREAM, IPPROTO_TCP, &sock);
-	if (result < 0)
-		goto out_err;
-
-	/* set skb mark */
-	result = dlm_comm_mark(con->nodeid, &mark);
 	if (result < 0)
 		goto out_err;
 
