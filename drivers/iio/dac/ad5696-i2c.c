@@ -72,6 +72,7 @@ static int ad5686_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id ad5686_i2c_id[] = {
 	{"ad5311r", ID_AD5311R},
+	{"ad5338r", ID_AD5338R},
 	{"ad5671r", ID_AD5671R},
 	{"ad5675r", ID_AD5675R},
 	{"ad5691r", ID_AD5691R},
