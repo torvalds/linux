@@ -1132,6 +1132,9 @@ void qedi_schedule_hw_err_handler(void *dev,
 		  err_type, qedi->qedi_err_flags);
 
 	switch (err_type) {
+	case QED_HW_ERR_FAN_FAIL:
+		schedule_delayed_work(&qedi->board_disable_work, 0);
+		break;
 	case QED_HW_ERR_MFW_RESP_FAIL:
 	case QED_HW_ERR_HW_ATTN:
 	case QED_HW_ERR_DMAE_FAIL:
@@ -2485,6 +2488,21 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	}
 }
 
+static void qedi_board_disable_work(struct work_struct *work)
+{
+	struct qedi_ctx *qedi =
+			container_of(work, struct qedi_ctx,
+				     board_disable_work.work);
+
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+		  "Fan failure, Unloading firmware context.\n");
+
+	if (test_and_set_bit(QEDI_IN_SHUTDOWN, &qedi->flags))
+		return;
+
+	__qedi_remove(qedi->pdev, QEDI_MODE_SHUTDOWN);
+}
+
 static void qedi_shutdown(struct pci_dev *pdev)
 {
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
@@ -2752,6 +2770,8 @@ retry_probe:
 		}
 
 		INIT_DELAYED_WORK(&qedi->recovery_work, qedi_recovery_handler);
+		INIT_DELAYED_WORK(&qedi->board_disable_work,
+				  qedi_board_disable_work);
 
 		/* F/w needs 1st task context memory entry for performance */
 		set_bit(QEDI_RESERVE_TASK_ID, qedi->task_idx_map);

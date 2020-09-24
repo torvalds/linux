@@ -339,6 +339,7 @@ struct qedi_ctx {
 
 	struct workqueue_struct *dpc_wq;
 	struct delayed_work recovery_work;
+	struct delayed_work board_disable_work;
 
 	spinlock_t task_idx_lock;	/* To protect gbl context */
 	s32 last_tidx_alloc;
