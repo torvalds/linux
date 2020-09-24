@@ -2473,7 +2473,9 @@ static u16 ieee80211_store_ack_skb(struct ieee80211_local *local,
  * @sdata: virtual interface to build the header for
  * @skb: the skb to build the header in
  * @info_flags: skb flags to set
+ * @sta: the station pointer
  * @ctrl_flags: info control flags to set
+ * @cookie: cookie pointer to fill (if not %NULL)
  *
  * This function takes the skb with 802.3 header and reformats the header to
  * the appropriate IEEE 802.11 header based on which interface the packet is
