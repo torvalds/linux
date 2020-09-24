@@ -212,19 +212,21 @@ int ext4_read_bh_lock(struct buffer_head *bh, int op_flags, bool wait)
 struct buffer_head *
 ext4_sb_bread(struct super_block *sb, sector_t block, int op_flags)
 {
-	struct buffer_head *bh = sb_getblk(sb, block);
+	struct buffer_head *bh;
+	int ret;
 
+	bh = sb_getblk(sb, block);
 	if (bh == NULL)
 		return ERR_PTR(-ENOMEM);
 	if (ext4_buffer_uptodate(bh))
 		return bh;
-	clear_buffer_verified(bh);
-	ll_rw_block(REQ_OP_READ, REQ_META | op_flags, 1, &bh);
-	wait_on_buffer(bh);
-	if (buffer_uptodate(bh))
-		return bh;
-	put_bh(bh);
-	return ERR_PTR(-EIO);
+
+	ret = ext4_read_bh_lock(bh, REQ_META | op_flags, true);
+	if (ret) {
+		put_bh(bh);
+		return ERR_PTR(ret);
+	}
+	return bh;
 }
 
 static int ext4_verify_csum_type(struct super_block *sb,
@@ -5176,9 +5178,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 		goto out_bdev;
 	}
 	journal->j_private = sb;
-	ll_rw_block(REQ_OP_READ, REQ_META | REQ_PRIO, 1, &journal->j_sb_buffer);
-	wait_on_buffer(journal->j_sb_buffer);
-	if (!buffer_uptodate(journal->j_sb_buffer)) {
+	if (ext4_read_bh_lock(journal->j_sb_buffer, REQ_META | REQ_PRIO, true)) {
 		ext4_msg(sb, KERN_ERR, "I/O error on journal device");
 		goto out_journal;
 	}

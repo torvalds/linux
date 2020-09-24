@@ -163,7 +163,7 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 		}
 
 		if (!bh_uptodate_or_lock(bh)) {
-			if (bh_submit_read(bh) < 0) {
+			if (ext4_read_bh(bh, 0, NULL) < 0) {
 				put_bh(bh);
 				goto failure;
 			}
