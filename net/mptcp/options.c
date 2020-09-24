@@ -614,6 +614,31 @@ static bool mptcp_established_options_add_addr(struct sock *sk,
 	return true;
 }
 
+static bool mptcp_established_options_rm_addr(struct sock *sk,
+					      unsigned int *size,
+					      unsigned int remaining,
+					      struct mptcp_out_options *opts)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
+	u8 rm_id;
+
+	if (!mptcp_pm_should_rm_signal(msk) ||
+	    !(mptcp_pm_rm_addr_signal(msk, remaining, &rm_id)))
+		return false;
+
+	if (remaining < TCPOLEN_MPTCP_RM_ADDR_BASE)
+		return false;
+
+	*size = TCPOLEN_MPTCP_RM_ADDR_BASE;
+	opts->suboptions |= OPTION_MPTCP_RM_ADDR;
+	opts->rm_id = rm_id;
+
+	pr_debug("rm_id=%d", opts->rm_id);
+
+	return true;
+}
+
 bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 			       unsigned int *size, unsigned int remaining,
 			       struct mptcp_out_options *opts)
@@ -641,6 +666,10 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 	*size += opt_size;
 	remaining -= opt_size;
 	if (mptcp_established_options_add_addr(sk, &opt_size, remaining, opts)) {
+		*size += opt_size;
+		remaining -= opt_size;
+		ret = true;
+	} else if (mptcp_established_options_rm_addr(sk, &opt_size, remaining, opts)) {
 		*size += opt_size;
 		remaining -= opt_size;
 		ret = true;

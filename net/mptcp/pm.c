@@ -174,6 +174,29 @@ out_unlock:
 	return ret;
 }
 
+bool mptcp_pm_rm_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
+			     u8 *rm_id)
+{
+	int ret = false;
+
+	spin_lock_bh(&msk->pm.lock);
+
+	/* double check after the lock is acquired */
+	if (!mptcp_pm_should_rm_signal(msk))
+		goto out_unlock;
+
+	if (remaining < TCPOLEN_MPTCP_RM_ADDR_BASE)
+		goto out_unlock;
+
+	*rm_id = msk->pm.rm_id;
+	WRITE_ONCE(msk->pm.rm_addr_signal, false);
+	ret = true;
+
+out_unlock:
+	spin_unlock_bh(&msk->pm.lock);
+	return ret;
+}
+
 int mptcp_pm_get_local_id(struct mptcp_sock *msk, struct sock_common *skc)
 {
 	return mptcp_pm_nl_get_local_id(msk, skc);
@@ -185,8 +208,10 @@ void mptcp_pm_data_init(struct mptcp_sock *msk)
 	msk->pm.add_addr_accepted = 0;
 	msk->pm.local_addr_used = 0;
 	msk->pm.subflows = 0;
+	msk->pm.rm_id = 0;
 	WRITE_ONCE(msk->pm.work_pending, false);
 	WRITE_ONCE(msk->pm.add_addr_signal, false);
+	WRITE_ONCE(msk->pm.rm_addr_signal, false);
 	WRITE_ONCE(msk->pm.accept_addr, false);
 	WRITE_ONCE(msk->pm.accept_subflow, false);
 	msk->pm.status = 0;
