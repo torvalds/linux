@@ -1427,9 +1427,6 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 	if (ret)
 		return ret;
 
-	dc->disk.disk->queue->backing_dev_info->ra_pages =
-		max(dc->disk.disk->queue->backing_dev_info->ra_pages,
-		    q->backing_dev_info->ra_pages);
 	blk_queue_io_opt(dc->disk.disk->queue,
 		max(queue_io_opt(dc->disk.disk->queue), queue_io_opt(q)));
 

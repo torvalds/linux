@@ -2147,6 +2147,7 @@ static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 		nvme_update_disk_info(ns->head->disk, ns, id);
 		blk_stack_limits(&ns->head->disk->queue->limits,
 				 &ns->queue->limits, 0);
+		blk_queue_update_readahead(ns->head->disk->queue);
 		nvme_update_bdev_size(ns->head->disk);
 	}
 #endif

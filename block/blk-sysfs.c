@@ -854,6 +854,8 @@ int blk_register_queue(struct gendisk *disk)
 		percpu_ref_switch_to_percpu(&q->q_usage_counter);
 	}
 
+	blk_queue_update_readahead(q);
+
 	ret = blk_trace_init_sysfs(dev);
 	if (ret)
 		return ret;
