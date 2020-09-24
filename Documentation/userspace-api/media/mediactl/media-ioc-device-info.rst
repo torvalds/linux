@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media_ioc_device_info:
 
@@ -11,23 +12,21 @@ Name
 
 MEDIA_IOC_DEVICE_INFO - Query device information
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, MEDIA_IOC_DEVICE_INFO, struct media_device_info *argp )
-    :name: MEDIA_IOC_DEVICE_INFO
+.. c:macro:: MEDIA_IOC_DEVICE_INFO
 
+``int ioctl(int fd, MEDIA_IOC_DEVICE_INFO, struct media_device_info *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <media-func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`media_device_info`.
-
 
 Description
 ===========
@@ -38,7 +37,6 @@ a struct :c:type:`media_device_info`. The driver
 fills the structure and returns the information to the application. The
 ioctl never fails.
 
-
 .. c:type:: media_device_info
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -47,7 +45,6 @@ ioctl never fails.
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
-
 
     *  -  char
        -  ``driver``\ [16]
@@ -94,14 +91,12 @@ ioctl never fails.
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
 
-
 The ``serial`` and ``bus_info`` fields can be used to distinguish
 between multiple instances of otherwise identical hardware. The serial
 number takes precedence when provided and can be assumed to be unique.
 If the serial number is an empty string, the ``bus_info`` field can be
 used instead. The ``bus_info`` field is guaranteed to be unique, but can
 vary across reboots or device unplug/replug.
-
 
 Return Value
 ============

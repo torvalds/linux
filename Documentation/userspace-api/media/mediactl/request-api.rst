@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media-request-api:
 
@@ -93,7 +94,7 @@ regardless of whether a request is in use or not.
    Setting the same control through a request and also directly can lead to
    undefined behavior!
 
-User-space can :ref:`poll() <request-func-poll>` a request file descriptor in
+User-space can :c:func:`poll()` a request file descriptor in
 order to wait until the request completes. A request is considered complete
 once all its associated buffers are available for dequeuing and all the
 associated controls have been updated with the values at the time of completion.
@@ -115,7 +116,7 @@ Recycling and Destruction
 -------------------------
 
 Finally, a completed request can either be discarded or be reused. Calling
-:ref:`close() <request-func-close>` on a request file descriptor will make
+:c:func:`close()` on a request file descriptor will make
 that file descriptor unusable and the request will be freed once it is no
 longer in use by the kernel. That is, if the request is queued and then the
 file descriptor is closed, then it won't be freed until the driver completed
