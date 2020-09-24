@@ -104,6 +104,7 @@ config M68060
 config M68328
 	bool "MC68328"
 	depends on !MMU
+	select LEGACY_TIMER_TICK
 	select M68000
 	help
 	  Motorola 68328 processor support.
@@ -111,6 +112,7 @@ config M68328
 config M68EZ328
 	bool "MC68EZ328"
 	depends on !MMU
+	select LEGACY_TIMER_TICK
 	select M68000
 	help
 	  Motorola 68EX328 processor support.
@@ -118,6 +120,7 @@ config M68EZ328
 config M68VZ328
 	bool "MC68VZ328"
 	depends on !MMU
+	select LEGACY_TIMER_TICK
 	select M68000
 	help
 	  Motorola 68VZ328 processor support.
