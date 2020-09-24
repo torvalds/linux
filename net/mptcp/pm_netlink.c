@@ -198,7 +198,7 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 
 		if (local) {
 			msk->pm.add_addr_signaled++;
-			mptcp_pm_announce_addr(msk, &local->addr);
+			mptcp_pm_announce_addr(msk, &local->addr, false);
 		} else {
 			/* pick failed, avoid fourther attempts later */
 			msk->pm.local_addr_used = msk->pm.add_addr_signal_max;
@@ -266,6 +266,8 @@ void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 	spin_unlock_bh(&msk->pm.lock);
 	__mptcp_subflow_connect((struct sock *)msk, &local, &remote);
 	spin_lock_bh(&msk->pm.lock);
+
+	mptcp_pm_announce_addr(msk, &remote, true);
 }
 
 void mptcp_pm_nl_rm_addr_received(struct mptcp_sock *msk)

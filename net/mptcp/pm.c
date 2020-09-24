@@ -13,11 +13,13 @@
 /* path manager command handlers */
 
 int mptcp_pm_announce_addr(struct mptcp_sock *msk,
-			   const struct mptcp_addr_info *addr)
+			   const struct mptcp_addr_info *addr,
+			   bool echo)
 {
 	pr_debug("msk=%p, local_id=%d", msk, addr->id);
 
 	msk->pm.local = *addr;
+	WRITE_ONCE(msk->pm.add_addr_echo, echo);
 	WRITE_ONCE(msk->pm.add_addr_signal, true);
 	return 0;
 }
@@ -135,15 +137,11 @@ void mptcp_pm_add_addr_received(struct mptcp_sock *msk,
 	pr_debug("msk=%p remote_id=%d accept=%d", msk, addr->id,
 		 READ_ONCE(pm->accept_addr));
 
-	/* avoid acquiring the lock if there is no room for fouther addresses */
-	if (!READ_ONCE(pm->accept_addr))
-		return;
-
 	spin_lock_bh(&pm->lock);
 
-	/* be sure there is something to signal re-checking under PM lock */
-	if (READ_ONCE(pm->accept_addr) &&
-	    mptcp_pm_schedule_work(msk, MPTCP_PM_ADD_ADDR_RECEIVED))
+	if (!READ_ONCE(pm->accept_addr))
+		mptcp_pm_announce_addr(msk, addr, true);
+	else if (mptcp_pm_schedule_work(msk, MPTCP_PM_ADD_ADDR_RECEIVED))
 		pm->remote = *addr;
 
 	spin_unlock_bh(&pm->lock);
@@ -164,7 +162,7 @@ void mptcp_pm_rm_addr_received(struct mptcp_sock *msk, u8 rm_id)
 /* path manager helpers */
 
 bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
-			      struct mptcp_addr_info *saddr)
+			      struct mptcp_addr_info *saddr, bool *echo)
 {
 	int ret = false;
 
@@ -178,6 +176,7 @@ bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
 		goto out_unlock;
 
 	*saddr = msk->pm.local;
+	*echo = READ_ONCE(msk->pm.add_addr_echo);
 	WRITE_ONCE(msk->pm.add_addr_signal, false);
 	ret = true;
 
@@ -226,6 +225,7 @@ void mptcp_pm_data_init(struct mptcp_sock *msk)
 	WRITE_ONCE(msk->pm.rm_addr_signal, false);
 	WRITE_ONCE(msk->pm.accept_addr, false);
 	WRITE_ONCE(msk->pm.accept_subflow, false);
+	WRITE_ONCE(msk->pm.add_addr_echo, false);
 	msk->pm.status = 0;
 
 	spin_lock_init(&msk->pm.lock);
